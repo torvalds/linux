@@ -730,6 +730,7 @@ static int stmmac_set_coalesce(struct net_device *dev,
 			       struct ethtool_coalesce *ec)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 rx_cnt = priv->plat->rx_queues_to_use;
 	unsigned int rx_riwt;
 
 	/* Check not supported parameters  */
@@ -768,7 +769,7 @@ static int stmmac_set_coalesce(struct net_device *dev,
 	priv->tx_coal_frames = ec->tx_max_coalesced_frames;
 	priv->tx_coal_timer = ec->tx_coalesce_usecs;
 	priv->rx_riwt = rx_riwt;
-	priv->hw->dma->rx_watchdog(priv->ioaddr, priv->rx_riwt);
+	priv->hw->dma->rx_watchdog(priv->ioaddr, priv->rx_riwt, rx_cnt);
 
 	return 0;
 }

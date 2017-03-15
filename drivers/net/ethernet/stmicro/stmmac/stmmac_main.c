@@ -1278,6 +1278,96 @@ static void stmmac_mac_enable_rx_queues(struct stmmac_priv *priv)
 }
 
 /**
+ * stmmac_start_rx_dma - start RX DMA channel
+ * @priv: driver private structure
+ * @chan: RX channel index
+ * Description:
+ * This starts a RX DMA channel
+ */
+static void stmmac_start_rx_dma(struct stmmac_priv *priv, u32 chan)
+{
+	netdev_dbg(priv->dev, "DMA RX processes started in channel %d\n", chan);
+	priv->hw->dma->start_rx(priv->ioaddr, chan);
+}
+
+/**
+ * stmmac_start_tx_dma - start TX DMA channel
+ * @priv: driver private structure
+ * @chan: TX channel index
+ * Description:
+ * This starts a TX DMA channel
+ */
+static void stmmac_start_tx_dma(struct stmmac_priv *priv, u32 chan)
+{
+	netdev_dbg(priv->dev, "DMA TX processes started in channel %d\n", chan);
+	priv->hw->dma->start_tx(priv->ioaddr, chan);
+}
+
+/**
+ * stmmac_stop_rx_dma - stop RX DMA channel
+ * @priv: driver private structure
+ * @chan: RX channel index
+ * Description:
+ * This stops a RX DMA channel
+ */
+static void stmmac_stop_rx_dma(struct stmmac_priv *priv, u32 chan)
+{
+	netdev_dbg(priv->dev, "DMA RX processes stopped in channel %d\n", chan);
+	priv->hw->dma->stop_rx(priv->ioaddr, chan);
+}
+
+/**
+ * stmmac_stop_tx_dma - stop TX DMA channel
+ * @priv: driver private structure
+ * @chan: TX channel index
+ * Description:
+ * This stops a TX DMA channel
+ */
+static void stmmac_stop_tx_dma(struct stmmac_priv *priv, u32 chan)
+{
+	netdev_dbg(priv->dev, "DMA TX processes stopped in channel %d\n", chan);
+	priv->hw->dma->stop_tx(priv->ioaddr, chan);
+}
+
+/**
+ * stmmac_start_all_dma - start all RX and TX DMA channels
+ * @priv: driver private structure
+ * Description:
+ * This starts all the RX and TX DMA channels
+ */
+static void stmmac_start_all_dma(struct stmmac_priv *priv)
+{
+	u32 rx_channels_count = priv->plat->rx_queues_to_use;
+	u32 tx_channels_count = priv->plat->tx_queues_to_use;
+	u32 chan = 0;
+
+	for (chan = 0; chan < rx_channels_count; chan++)
+		stmmac_start_rx_dma(priv, chan);
+
+	for (chan = 0; chan < tx_channels_count; chan++)
+		stmmac_start_tx_dma(priv, chan);
+}
+
+/**
+ * stmmac_stop_all_dma - stop all RX and TX DMA channels
+ * @priv: driver private structure
+ * Description:
+ * This stops the RX and TX DMA channels
+ */
+static void stmmac_stop_all_dma(struct stmmac_priv *priv)
+{
+	u32 rx_channels_count = priv->plat->rx_queues_to_use;
+	u32 tx_channels_count = priv->plat->tx_queues_to_use;
+	u32 chan = 0;
+
+	for (chan = 0; chan < rx_channels_count; chan++)
+		stmmac_stop_rx_dma(priv, chan);
+
+	for (chan = 0; chan < tx_channels_count; chan++)
+		stmmac_stop_tx_dma(priv, chan);
+}
+
+/**
  *  stmmac_dma_operation_mode - HW DMA operation mode
  *  @priv: driver private structure
  *  Description: it is used for configuring the DMA operation mode register in
@@ -1285,14 +1375,20 @@ static void stmmac_mac_enable_rx_queues(struct stmmac_priv *priv)
  */
 static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 {
+	u32 rx_channels_count = priv->plat->rx_queues_to_use;
+	u32 tx_channels_count = priv->plat->tx_queues_to_use;
 	int rxfifosz = priv->plat->rx_fifo_size;
+	u32 txmode = 0;
+	u32 rxmode = 0;
+	u32 chan = 0;
 
 	if (rxfifosz == 0)
 		rxfifosz = priv->dma_cap.rx_fifo_size;
 
-	if (priv->plat->force_thresh_dma_mode)
-		priv->hw->dma->dma_mode(priv->ioaddr, tc, tc, rxfifosz);
-	else if (priv->plat->force_sf_dma_mode || priv->plat->tx_coe) {
+	if (priv->plat->force_thresh_dma_mode) {
+		txmode = tc;
+		rxmode = tc;
+	} else if (priv->plat->force_sf_dma_mode || priv->plat->tx_coe) {
 		/*
 		 * In case of GMAC, SF mode can be enabled
 		 * to perform the TX COE in HW. This depends on:
@@ -1300,12 +1396,26 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 		 * 2) There is no bugged Jumbo frame support
 		 *    that needs to not insert csum in the TDES.
 		 */
-		priv->hw->dma->dma_mode(priv->ioaddr, SF_DMA_MODE, SF_DMA_MODE,
-					rxfifosz);
+		txmode = SF_DMA_MODE;
+		rxmode = SF_DMA_MODE;
 		priv->xstats.threshold = SF_DMA_MODE;
-	} else
-		priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE,
+	} else {
+		txmode = tc;
+		rxmode = SF_DMA_MODE;
+	}
+
+	/* configure all channels */
+	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
+		for (chan = 0; chan < rx_channels_count; chan++)
+			priv->hw->dma->dma_rx_mode(priv->ioaddr, rxmode, chan,
+						   rxfifosz);
+
+		for (chan = 0; chan < tx_channels_count; chan++)
+			priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan);
+	} else {
+		priv->hw->dma->dma_mode(priv->ioaddr, txmode, rxmode,
 					rxfifosz);
+	}
 }
 
 /**
@@ -1402,28 +1512,29 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 	netif_tx_unlock(priv->dev);
 }
 
-static inline void stmmac_enable_dma_irq(struct stmmac_priv *priv)
+static inline void stmmac_enable_dma_irq(struct stmmac_priv *priv, u32 chan)
 {
-	priv->hw->dma->enable_dma_irq(priv->ioaddr);
+	priv->hw->dma->enable_dma_irq(priv->ioaddr, chan);
 }
 
-static inline void stmmac_disable_dma_irq(struct stmmac_priv *priv)
+static inline void stmmac_disable_dma_irq(struct stmmac_priv *priv, u32 chan)
 {
-	priv->hw->dma->disable_dma_irq(priv->ioaddr);
+	priv->hw->dma->disable_dma_irq(priv->ioaddr, chan);
 }
 
 /**
  * stmmac_tx_err - to manage the tx error
  * @priv: driver private structure
+ * @chan: channel index
  * Description: it cleans the descriptors and restarts the transmission
  * in case of transmission errors.
  */
-static void stmmac_tx_err(struct stmmac_priv *priv)
+static void stmmac_tx_err(struct stmmac_priv *priv, u32 chan)
 {
 	int i;
 	netif_stop_queue(priv->dev);
 
-	priv->hw->dma->stop_tx(priv->ioaddr);
+	stmmac_stop_tx_dma(priv, chan);
 	dma_free_tx_skbufs(priv);
 	for (i = 0; i < DMA_TX_SIZE; i++)
 		if (priv->extend_desc)
@@ -1437,10 +1548,38 @@ static void stmmac_tx_err(struct stmmac_priv *priv)
 	priv->dirty_tx = 0;
 	priv->cur_tx = 0;
 	netdev_reset_queue(priv->dev);
-	priv->hw->dma->start_tx(priv->ioaddr);
+	stmmac_start_tx_dma(priv, chan);
 
 	priv->dev->stats.tx_errors++;
 	netif_wake_queue(priv->dev);
+}
+
+/**
+ *  stmmac_set_dma_operation_mode - Set DMA operation mode by channel
+ *  @priv: driver private structure
+ *  @txmode: TX operating mode
+ *  @rxmode: RX operating mode
+ *  @chan: channel index
+ *  Description: it is used for configuring of the DMA operation mode in
+ *  runtime in order to program the tx/rx DMA thresholds or Store-And-Forward
+ *  mode.
+ */
+static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
+					  u32 rxmode, u32 chan)
+{
+	int rxfifosz = priv->plat->rx_fifo_size;
+
+	if (rxfifosz == 0)
+		rxfifosz = priv->dma_cap.rx_fifo_size;
+
+	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
+		priv->hw->dma->dma_rx_mode(priv->ioaddr, rxmode, chan,
+					   rxfifosz);
+		priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan);
+	} else {
+		priv->hw->dma->dma_mode(priv->ioaddr, txmode, rxmode,
+					rxfifosz);
+	}
 }
 
 /**
@@ -1452,34 +1591,41 @@ static void stmmac_tx_err(struct stmmac_priv *priv)
  */
 static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 {
+	u32 tx_channel_count = priv->plat->tx_queues_to_use;
 	int status;
-	int rxfifosz = priv->plat->rx_fifo_size;
+	u32 chan;
 
-	if (rxfifosz == 0)
-		rxfifosz = priv->dma_cap.rx_fifo_size;
+	for (chan = 0; chan < tx_channel_count; chan++) {
+		status = priv->hw->dma->dma_interrupt(priv->ioaddr,
+						      &priv->xstats, chan);
+		if (likely((status & handle_rx)) || (status & handle_tx)) {
+			if (likely(napi_schedule_prep(&priv->napi))) {
+				stmmac_disable_dma_irq(priv, chan);
+				__napi_schedule(&priv->napi);
+			}
+		}
 
-	status = priv->hw->dma->dma_interrupt(priv->ioaddr, &priv->xstats);
-	if (likely((status & handle_rx)) || (status & handle_tx)) {
-		if (likely(napi_schedule_prep(&priv->napi))) {
-			stmmac_disable_dma_irq(priv);
-			__napi_schedule(&priv->napi);
+		if (unlikely(status & tx_hard_error_bump_tc)) {
+			/* Try to bump up the dma threshold on this failure */
+			if (unlikely(priv->xstats.threshold != SF_DMA_MODE) &&
+			    (tc <= 256)) {
+				tc += 64;
+				if (priv->plat->force_thresh_dma_mode)
+					stmmac_set_dma_operation_mode(priv,
+								      tc,
+								      tc,
+								      chan);
+				else
+					stmmac_set_dma_operation_mode(priv,
+								    tc,
+								    SF_DMA_MODE,
+								    chan);
+				priv->xstats.threshold = tc;
+			}
+		} else if (unlikely(status == tx_hard_error)) {
+			stmmac_tx_err(priv, chan);
 		}
 	}
-	if (unlikely(status & tx_hard_error_bump_tc)) {
-		/* Try to bump up the dma threshold on this failure */
-		if (unlikely(priv->xstats.threshold != SF_DMA_MODE) &&
-		    (tc <= 256)) {
-			tc += 64;
-			if (priv->plat->force_thresh_dma_mode)
-				priv->hw->dma->dma_mode(priv->ioaddr, tc, tc,
-							rxfifosz);
-			else
-				priv->hw->dma->dma_mode(priv->ioaddr, tc,
-							SF_DMA_MODE, rxfifosz);
-			priv->xstats.threshold = tc;
-		}
-	} else if (unlikely(status == tx_hard_error))
-		stmmac_tx_err(priv);
 }
 
 /**
@@ -1586,6 +1732,11 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
  */
 static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 {
+	u32 rx_channels_count = priv->plat->rx_queues_to_use;
+	u32 tx_channels_count = priv->plat->tx_queues_to_use;
+	u32 dummy_dma_rx_phy = 0;
+	u32 dummy_dma_tx_phy = 0;
+	u32 chan = 0;
 	int atds = 0;
 	int ret = 0;
 
@@ -1603,19 +1754,43 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		return ret;
 	}
 
-	priv->hw->dma->init(priv->ioaddr, priv->plat->dma_cfg,
-			    priv->dma_tx_phy, priv->dma_rx_phy, atds);
-
 	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
-		priv->rx_tail_addr = priv->dma_rx_phy +
-			    (DMA_RX_SIZE * sizeof(struct dma_desc));
-		priv->hw->dma->set_rx_tail_ptr(priv->ioaddr, priv->rx_tail_addr,
-					       STMMAC_CHAN0);
+		/* DMA Configuration */
+		priv->hw->dma->init(priv->ioaddr, priv->plat->dma_cfg,
+				    dummy_dma_tx_phy, dummy_dma_rx_phy, atds);
 
-		priv->tx_tail_addr = priv->dma_tx_phy +
-			    (DMA_TX_SIZE * sizeof(struct dma_desc));
-		priv->hw->dma->set_tx_tail_ptr(priv->ioaddr, priv->tx_tail_addr,
-					       STMMAC_CHAN0);
+		/* DMA RX Channel Configuration */
+		for (chan = 0; chan < rx_channels_count; chan++) {
+			priv->hw->dma->init_rx_chan(priv->ioaddr,
+						    priv->plat->dma_cfg,
+						    priv->dma_rx_phy, chan);
+
+			priv->rx_tail_addr = priv->dma_rx_phy +
+				    (DMA_RX_SIZE * sizeof(struct dma_desc));
+			priv->hw->dma->set_rx_tail_ptr(priv->ioaddr,
+						       priv->rx_tail_addr,
+						       chan);
+		}
+
+		/* DMA TX Channel Configuration */
+		for (chan = 0; chan < tx_channels_count; chan++) {
+			priv->hw->dma->init_chan(priv->ioaddr,
+							priv->plat->dma_cfg,
+							chan);
+
+			priv->hw->dma->init_tx_chan(priv->ioaddr,
+						    priv->plat->dma_cfg,
+						    priv->dma_tx_phy, chan);
+
+			priv->tx_tail_addr = priv->dma_tx_phy +
+				    (DMA_TX_SIZE * sizeof(struct dma_desc));
+			priv->hw->dma->set_tx_tail_ptr(priv->ioaddr,
+						       priv->tx_tail_addr,
+						       chan);
+		}
+	} else {
+		priv->hw->dma->init(priv->ioaddr, priv->plat->dma_cfg,
+				    priv->dma_tx_phy, priv->dma_rx_phy, atds);
 	}
 
 	if (priv->plat->axi && priv->hw->dma->axi)
@@ -1654,6 +1829,27 @@ static void stmmac_init_tx_coalesce(struct stmmac_priv *priv)
 	priv->txtimer.data = (unsigned long)priv;
 	priv->txtimer.function = stmmac_tx_timer;
 	add_timer(&priv->txtimer);
+}
+
+static void stmmac_set_rings_length(struct stmmac_priv *priv)
+{
+	u32 rx_channels_count = priv->plat->rx_queues_to_use;
+	u32 tx_channels_count = priv->plat->tx_queues_to_use;
+	u32 chan;
+
+	/* set TX ring length */
+	if (priv->hw->dma->set_tx_ring_len) {
+		for (chan = 0; chan < tx_channels_count; chan++)
+			priv->hw->dma->set_tx_ring_len(priv->ioaddr,
+						       (DMA_TX_SIZE - 1), chan);
+	}
+
+	/* set RX ring length */
+	if (priv->hw->dma->set_rx_ring_len) {
+		for (chan = 0; chan < rx_channels_count; chan++)
+			priv->hw->dma->set_rx_ring_len(priv->ioaddr,
+						       (DMA_RX_SIZE - 1), chan);
+	}
 }
 
 /**
@@ -1749,6 +1945,9 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 	/* Enable MAC RX Queues */
 	if (rx_queues_count > 1 && priv->hw->mac->rx_queue_enable)
 		stmmac_mac_enable_rx_queues(priv);
+
+	/* Set the HW DMA mode and the COE */
+	stmmac_dma_operation_mode(priv);
 }
 
 /**
@@ -1766,6 +1965,9 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 rx_cnt = priv->plat->rx_queues_to_use;
+	u32 tx_cnt = priv->plat->tx_queues_to_use;
+	u32 chan;
 	int ret;
 
 	/* DMA initialization and SW reset */
@@ -1812,9 +2014,6 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	else
 		stmmac_set_mac(priv->ioaddr, true);
 
-	/* Set the HW DMA mode and the COE */
-	stmmac_dma_operation_mode(priv);
-
 	stmmac_mmc_setup(priv);
 
 	if (init_ptp) {
@@ -1836,31 +2035,26 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 			    __func__);
 #endif
 	/* Start the ball rolling... */
-	netdev_dbg(priv->dev, "DMA RX/TX processes started...\n");
-	priv->hw->dma->start_tx(priv->ioaddr);
-	priv->hw->dma->start_rx(priv->ioaddr);
+	stmmac_start_all_dma(priv);
 
 	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
 
 	if ((priv->use_riwt) && (priv->hw->dma->rx_watchdog)) {
 		priv->rx_riwt = MAX_DMA_RIWT;
-		priv->hw->dma->rx_watchdog(priv->ioaddr, MAX_DMA_RIWT);
+		priv->hw->dma->rx_watchdog(priv->ioaddr, MAX_DMA_RIWT, rx_cnt);
 	}
 
 	if (priv->hw->pcs && priv->hw->mac->pcs_ctrl_ane)
 		priv->hw->mac->pcs_ctrl_ane(priv->hw, 1, priv->hw->ps, 0);
 
-	/*  set TX ring length */
-	if (priv->hw->dma->set_tx_ring_len)
-		priv->hw->dma->set_tx_ring_len(priv->ioaddr,
-					       (DMA_TX_SIZE - 1));
-	/*  set RX ring length */
-	if (priv->hw->dma->set_rx_ring_len)
-		priv->hw->dma->set_rx_ring_len(priv->ioaddr,
-					       (DMA_RX_SIZE - 1));
+	/* set TX and RX rings length */
+	stmmac_set_rings_length(priv);
+
 	/* Enable TSO */
-	if (priv->tso)
-		priv->hw->dma->enable_tso(priv->ioaddr, 1, STMMAC_CHAN0);
+	if (priv->tso) {
+		for (chan = 0; chan < tx_cnt; chan++)
+			priv->hw->dma->enable_tso(priv->ioaddr, 1, chan);
+	}
 
 	return 0;
 }
@@ -2024,8 +2218,7 @@ static int stmmac_release(struct net_device *dev)
 		free_irq(priv->lpi_irq, dev);
 
 	/* Stop TX/RX DMA and clear the descriptors */
-	priv->hw->dma->stop_tx(priv->ioaddr);
-	priv->hw->dma->stop_rx(priv->ioaddr);
+	stmmac_stop_all_dma(priv);
 
 	/* Release and free the Rx/Tx resources */
 	free_dma_desc_resources(priv);
@@ -2786,6 +2979,7 @@ static int stmmac_poll(struct napi_struct *napi, int budget)
 {
 	struct stmmac_priv *priv = container_of(napi, struct stmmac_priv, napi);
 	int work_done = 0;
+	u32 chan = STMMAC_CHAN0;
 
 	priv->xstats.napi_poll++;
 	stmmac_tx_clean(priv);
@@ -2793,7 +2987,7 @@ static int stmmac_poll(struct napi_struct *napi, int budget)
 	work_done = stmmac_rx(priv, budget);
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
-		stmmac_enable_dma_irq(priv);
+		stmmac_enable_dma_irq(priv, chan);
 	}
 	return work_done;
 }
@@ -2809,9 +3003,10 @@ static int stmmac_poll(struct napi_struct *napi, int budget)
 static void stmmac_tx_timeout(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 chan = STMMAC_CHAN0;
 
 	/* Clear Tx resources and restart transmitting again */
-	stmmac_tx_err(priv);
+	stmmac_tx_err(priv, chan);
 }
 
 /**
@@ -2920,6 +3115,12 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 rx_cnt = priv->plat->rx_queues_to_use;
+	u32 tx_cnt = priv->plat->tx_queues_to_use;
+	u32 queues_count;
+	u32 queue;
+
+	queues_count = (rx_cnt > tx_cnt) ? rx_cnt : tx_cnt;
 
 	if (priv->irq_wake)
 		pm_wakeup_event(priv->device, 0);
@@ -2934,20 +3135,26 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 		int status = priv->hw->mac->host_irq_status(priv->hw,
 							    &priv->xstats);
 
-		if (priv->synopsys_id >= DWMAC_CORE_4_00)
-			status |= priv->hw->mac->host_mtl_irq_status(priv->hw,
-								STMMAC_CHAN0);
-
 		if (unlikely(status)) {
 			/* For LPI we need to save the tx status */
 			if (status & CORE_IRQ_TX_PATH_IN_LPI_MODE)
 				priv->tx_path_in_lpi_mode = true;
 			if (status & CORE_IRQ_TX_PATH_EXIT_LPI_MODE)
 				priv->tx_path_in_lpi_mode = false;
-			if (status & CORE_IRQ_MTL_RX_OVERFLOW && priv->hw->dma->set_rx_tail_ptr)
-				priv->hw->dma->set_rx_tail_ptr(priv->ioaddr,
-							priv->rx_tail_addr,
-							STMMAC_CHAN0);
+		}
+
+		if (priv->synopsys_id >= DWMAC_CORE_4_00) {
+			for (queue = 0; queue < queues_count; queue++) {
+				status |=
+				priv->hw->mac->host_mtl_irq_status(priv->hw,
+								   queue);
+
+				if (status & CORE_IRQ_MTL_RX_OVERFLOW &&
+				    priv->hw->dma->set_rx_tail_ptr)
+					priv->hw->dma->set_rx_tail_ptr(priv->ioaddr,
+								priv->rx_tail_addr,
+								queue);
+			}
 		}
 
 		/* PCS link status */
@@ -3499,8 +3706,7 @@ int stmmac_dvr_remove(struct device *dev)
 
 	netdev_info(priv->dev, "%s: removing driver", __func__);
 
-	priv->hw->dma->stop_rx(priv->ioaddr);
-	priv->hw->dma->stop_tx(priv->ioaddr);
+	stmmac_stop_all_dma(priv);
 
 	stmmac_set_mac(priv->ioaddr, false);
 	netif_carrier_off(ndev);
@@ -3546,8 +3752,7 @@ int stmmac_suspend(struct device *dev)
 	napi_disable(&priv->napi);
 
 	/* Stop TX/RX DMA */
-	priv->hw->dma->stop_tx(priv->ioaddr);
-	priv->hw->dma->stop_rx(priv->ioaddr);
+	stmmac_stop_all_dma(priv);
 
 	/* Enable Power down mode by programming the PMT regs */
 	if (device_may_wakeup(priv->device)) {
