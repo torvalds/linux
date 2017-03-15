@@ -55,7 +55,6 @@ struct decon_context {
 	unsigned long			irq_flags;
 	bool				i80_if;
 	bool				suspended;
-	int				pipe;
 	wait_queue_head_t		wait_vsync_queue;
 	atomic_t			wait_vsync_event;
 
@@ -131,7 +130,6 @@ static int decon_ctx_initialize(struct decon_context *ctx,
 			struct drm_device *drm_dev)
 {
 	ctx->drm_dev = drm_dev;
-	ctx->pipe = drm_dev->mode_config.num_crtc;
 
 	decon_clear_channels(ctx->crtc);
 
@@ -605,7 +603,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 		writel(clear_bit, ctx->regs + VIDINTCON1);
 
 	/* check the crtc is detached already from encoder */
-	if (ctx->pipe < 0 || !ctx->drm_dev)
+	if (!ctx->drm_dev)
 		goto out;
 
 	if (!ctx->i80_if) {

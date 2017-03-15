@@ -51,7 +51,6 @@ struct vidi_context {
 	bool				suspended;
 	struct timer_list		timer;
 	struct mutex			lock;
-	int				pipe;
 };
 
 static inline struct vidi_context *encoder_to_vidi(struct drm_encoder *e)
@@ -153,15 +152,6 @@ static void vidi_disable(struct exynos_drm_crtc *crtc)
 	mutex_unlock(&ctx->lock);
 }
 
-static int vidi_ctx_initialize(struct vidi_context *ctx,
-			struct drm_device *drm_dev)
-{
-	ctx->drm_dev = drm_dev;
-	ctx->pipe = drm_dev->mode_config.num_crtc;
-
-	return 0;
-}
-
 static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
 	.enable = vidi_enable,
 	.disable = vidi_disable,
@@ -174,9 +164,6 @@ static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
 static void vidi_fake_vblank_timer(unsigned long arg)
 {
 	struct vidi_context *ctx = (void *)arg;
-
-	if (ctx->pipe < 0)
-		return;
 
 	if (drm_crtc_handle_vblank(&ctx->crtc->base))
 		mod_timer(&ctx->timer,
@@ -397,7 +384,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	unsigned int i;
 	int pipe, ret;
 
-	vidi_ctx_initialize(ctx, drm_dev);
+	ctx->drm_dev = drm_dev;
 
 	plane_config.pixel_formats = formats;
 	plane_config.num_pixel_formats = ARRAY_SIZE(formats);

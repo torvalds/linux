@@ -64,7 +64,6 @@ struct decon_context {
 	void __iomem			*addr;
 	struct regmap			*sysreg;
 	struct clk			*clks[ARRAY_SIZE(decon_clks_name)];
-	int				pipe;
 	unsigned long			flags;
 	unsigned long			out_type;
 	int				first_win;
@@ -592,7 +591,6 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	int ret;
 
 	ctx->drm_dev = drm_dev;
-	ctx->pipe = drm_dev->mode_config.num_crtc;
 	drm_dev->max_vblank_count = 0xffffffff;
 
 	for (win = ctx->first_win; win < WINDOWS_NR; win++) {

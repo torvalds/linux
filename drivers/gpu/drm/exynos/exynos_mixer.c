@@ -99,7 +99,6 @@ struct mixer_context {
 	struct drm_device	*drm_dev;
 	struct exynos_drm_crtc	*crtc;
 	struct exynos_drm_plane	planes[MIXER_WIN_NR];
-	int			pipe;
 	unsigned long		flags;
 
 	struct mixer_resources	mixer_res;
@@ -900,7 +899,6 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 	priv = drm_dev->dev_private;
 
 	mixer_ctx->drm_dev = drm_dev;
-	mixer_ctx->pipe = drm_dev->mode_config.num_crtc;
 
 	/* acquire resources: regs, irqs, clocks */
 	ret = mixer_resources_init(mixer_ctx);

@@ -179,7 +179,6 @@ struct fimd_context {
 	u32				i80ifcon;
 	bool				i80_if;
 	bool				suspended;
-	int				pipe;
 	wait_queue_head_t		wait_vsync_queue;
 	atomic_t			wait_vsync_event;
 	atomic_t			win_updated;
@@ -354,18 +353,13 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 
 	/* Wait for vsync, as disable channel takes effect at next vsync */
 	if (ch_enabled) {
-		int pipe = ctx->pipe;
-
-		/* ensure that vblank interrupt won't be reported to core */
 		ctx->suspended = false;
-		ctx->pipe = -1;
 
 		fimd_enable_vblank(ctx->crtc);
 		fimd_wait_for_vblank(ctx->crtc);
 		fimd_disable_vblank(ctx->crtc);
 
 		ctx->suspended = true;
-		ctx->pipe = pipe;
 	}
 
 	clk_disable_unprepare(ctx->lcd_clk);
@@ -899,7 +893,7 @@ static void fimd_te_handler(struct exynos_drm_crtc *crtc)
 	u32 trg_type = ctx->driver_data->trg_type;
 
 	/* Checks the crtc is detached already from encoder */
-	if (ctx->pipe < 0 || !ctx->drm_dev)
+	if (!ctx->drm_dev)
 		return;
 
 	if (trg_type == I80_HW_TRG)
@@ -957,7 +951,7 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 		writel(clear_bit, ctx->regs + VIDINTCON1);
 
 	/* check the crtc is detached already from encoder */
-	if (ctx->pipe < 0 || !ctx->drm_dev)
+	if (!ctx->drm_dev)
 		goto out;
 
 	if (!ctx->i80_if)
@@ -987,7 +981,6 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	int ret;
 
 	ctx->drm_dev = drm_dev;
-	ctx->pipe = drm_dev->mode_config.num_crtc;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
 		ctx->configs[i].pixel_formats = fimd_formats;
