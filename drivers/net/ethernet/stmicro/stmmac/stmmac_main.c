@@ -1915,6 +1915,7 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 rx_cnt = priv->plat->rx_queues_to_use;
 	int ret;
 
 	/* DMA initialization and SW reset */
@@ -1988,7 +1989,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 
 	if ((priv->use_riwt) && (priv->hw->dma->rx_watchdog)) {
 		priv->rx_riwt = MAX_DMA_RIWT;
-		priv->hw->dma->rx_watchdog(priv->ioaddr, MAX_DMA_RIWT);
+		priv->hw->dma->rx_watchdog(priv->ioaddr, MAX_DMA_RIWT, rx_cnt);
 	}
 
 	if (priv->hw->pcs && priv->hw->mac->pcs_ctrl_ane)
