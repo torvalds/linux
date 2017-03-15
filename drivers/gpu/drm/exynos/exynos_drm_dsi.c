@@ -1335,9 +1335,12 @@ static int exynos_dsi_register_te_irq(struct exynos_dsi *dsi)
 	int te_gpio_irq;
 
 	dsi->te_gpio = of_get_named_gpio(dsi->panel_node, "te-gpios", 0);
+	if (dsi->te_gpio == -ENOENT)
+		return 0;
+
 	if (!gpio_is_valid(dsi->te_gpio)) {
-		dev_err(dsi->dev, "no te-gpios specified\n");
 		ret = dsi->te_gpio;
+		dev_err(dsi->dev, "cannot get te-gpios, %d\n", ret);
 		goto out;
 	}
 
