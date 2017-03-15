@@ -249,9 +249,6 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 
 	mutex_lock(&ar->conf_mutex);
 
-	if (len > buf_len)
-		len = buf_len;
-
 	spin_lock_bh(&ar->data_lock);
 	for (i = 0; i < WMI_SERVICE_MAX; i++) {
 		enabled = test_bit(i, ar->wmi.svc_map);
