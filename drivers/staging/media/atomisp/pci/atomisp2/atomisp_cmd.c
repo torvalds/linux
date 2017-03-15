@@ -2646,8 +2646,7 @@ int atomisp_set_array_res(struct atomisp_sub_device *asd,
 			 struct atomisp_resolution  *config)
 {
 	dev_dbg(asd->isp->dev, ">%s start\n", __func__);
-	if (config == NULL || config->width < 0
-		|| config->height < 0) {
+	if (!config) {
 		dev_err(asd->isp->dev, "Set sensor array size is not valid\n");
 		return -EINVAL;
 	}
