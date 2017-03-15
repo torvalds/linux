@@ -49,7 +49,6 @@ static const char * const decon_clks_name[] = {
 
 enum decon_flag_bits {
 	BIT_CLKS_ENABLED,
-	BIT_IRQS_ENABLED,
 	BIT_WIN_UPDATED,
 	BIT_SUSPENDED
 };
@@ -98,15 +97,13 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return -EPERM;
 
-	if (!test_and_set_bit(BIT_IRQS_ENABLED, &ctx->flags)) {
-		val = VIDINTCON0_INTEN;
-		if (ctx->out_type & IFTYPE_I80)
-			val |= VIDINTCON0_FRAMEDONE;
-		else
-			val |= VIDINTCON0_INTFRMEN | VIDINTCON0_FRAMESEL_FP;
+	val = VIDINTCON0_INTEN;
+	if (ctx->out_type & IFTYPE_I80)
+		val |= VIDINTCON0_FRAMEDONE;
+	else
+		val |= VIDINTCON0_INTFRMEN | VIDINTCON0_FRAMESEL_FP;
 
-		writel(val, ctx->addr + DECON_VIDINTCON0);
-	}
+	writel(val, ctx->addr + DECON_VIDINTCON0);
 
 	return 0;
 }
@@ -118,8 +115,7 @@ static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
-	if (test_and_clear_bit(BIT_IRQS_ENABLED, &ctx->flags))
-		writel(0, ctx->addr + DECON_VIDINTCON0);
+	writel(0, ctx->addr + DECON_VIDINTCON0);
 }
 
 /* return number of starts/ends of frame transmissions since reset */
@@ -488,10 +484,6 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 	set_bit(BIT_CLKS_ENABLED, &ctx->flags);
 
 	decon_swreset(ctx);
-
-	/* if vblank was enabled status, enable it again. */
-	if (test_and_clear_bit(BIT_IRQS_ENABLED, &ctx->flags))
-		decon_enable_vblank(ctx->crtc);
 
 	decon_commit(ctx->crtc);
 }
