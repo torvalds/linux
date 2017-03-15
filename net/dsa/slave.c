@@ -419,8 +419,8 @@ static int dsa_slave_vlan_filtering(struct net_device *dev,
 	return 0;
 }
 
-static int dsa_fastest_ageing_time(struct dsa_switch *ds,
-				   unsigned int ageing_time)
+static unsigned int dsa_fastest_ageing_time(struct dsa_switch *ds,
+					    unsigned int ageing_time)
 {
 	int i;
 
@@ -443,9 +443,13 @@ static int dsa_slave_ageing_time(struct net_device *dev,
 	unsigned long ageing_jiffies = clock_t_to_jiffies(attr->u.ageing_time);
 	unsigned int ageing_time = jiffies_to_msecs(ageing_jiffies);
 
-	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
-	if (switchdev_trans_ph_prepare(trans))
+	if (switchdev_trans_ph_prepare(trans)) {
+		if (ds->ageing_time_min && ageing_time < ds->ageing_time_min)
+			return -ERANGE;
+		if (ds->ageing_time_max && ageing_time > ds->ageing_time_max)
+			return -ERANGE;
 		return 0;
+	}
 
 	/* Keep the fastest ageing time in case of multiple bridges */
 	p->dp->ageing_time = ageing_time;
