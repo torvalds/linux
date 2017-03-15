@@ -1078,7 +1078,7 @@ static void notify_ring(struct intel_engine_cs *engine)
 static void vlv_c0_read(struct drm_i915_private *dev_priv,
 			struct intel_rps_ei *ei)
 {
-	ei->cz_clock = vlv_punit_read(dev_priv, PUNIT_REG_CZ_TIMESTAMP);
+	ei->ktime = ktime_get_raw();
 	ei->render_c0 = I915_READ(VLV_RENDER_C0_COUNT);
 	ei->media_c0 = I915_READ(VLV_MEDIA_C0_COUNT);
 }
@@ -1098,19 +1098,17 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 		return 0;
 
 	vlv_c0_read(dev_priv, &now);
-	if (now.cz_clock == 0)
-		return 0;
 
-	if (prev->cz_clock) {
+	if (prev->ktime) {
 		u64 time, c0;
 		u32 render, media;
 		unsigned int mul;
 
-		mul = VLV_CZ_CLOCK_TO_MILLI_SEC * 100; /* scale to threshold% */
+		mul = 1000 * 100; /* scale to threshold% */
 		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
 			mul <<= 8;
 
-		time = now.cz_clock - prev->cz_clock;
+		time = ktime_us_delta(now.ktime, prev->ktime);
 		time *= dev_priv->czclk_freq;
 
 		/* Workload can be split between render + media,

@@ -1140,8 +1140,6 @@ enum skl_disp_power_wells {
 #define 	VLV_BIAS_CPU_125_SOC_875 (6 << 2)
 #define 	CHV_BIAS_CPU_50_SOC_50 (3 << 2)
 
-#define VLV_CZ_CLOCK_TO_MILLI_SEC		100000
-
 /* vlv2 north clock has */
 #define CCK_FUSE_REG				0x8
 #define  CCK_FUSE_HPLL_FREQ_MASK		0x3
