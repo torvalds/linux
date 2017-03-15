@@ -104,21 +104,21 @@ void dwmac4_set_rx_ring_len(void __iomem *ioaddr, u32 len)
 	writel(len, ioaddr + DMA_CHAN_RX_RING_LEN(STMMAC_CHAN0));
 }
 
-void dwmac4_enable_dma_irq(void __iomem *ioaddr)
+void dwmac4_enable_dma_irq(void __iomem *ioaddr, u32 chan)
 {
 	writel(DMA_CHAN_INTR_DEFAULT_MASK, ioaddr +
-	       DMA_CHAN_INTR_ENA(STMMAC_CHAN0));
+	       DMA_CHAN_INTR_ENA(chan));
 }
 
-void dwmac410_enable_dma_irq(void __iomem *ioaddr)
+void dwmac410_enable_dma_irq(void __iomem *ioaddr, u32 chan)
 {
 	writel(DMA_CHAN_INTR_DEFAULT_MASK_4_10,
-	       ioaddr + DMA_CHAN_INTR_ENA(STMMAC_CHAN0));
+	       ioaddr + DMA_CHAN_INTR_ENA(chan));
 }
 
-void dwmac4_disable_dma_irq(void __iomem *ioaddr)
+void dwmac4_disable_dma_irq(void __iomem *ioaddr, u32 chan)
 {
-	writel(0, ioaddr + DMA_CHAN_INTR_ENA(STMMAC_CHAN0));
+	writel(0, ioaddr + DMA_CHAN_INTR_ENA(chan));
 }
 
 int dwmac4_dma_interrupt(void __iomem *ioaddr,

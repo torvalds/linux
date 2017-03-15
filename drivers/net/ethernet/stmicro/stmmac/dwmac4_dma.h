@@ -185,9 +185,9 @@
 
 int dwmac4_dma_reset(void __iomem *ioaddr);
 void dwmac4_enable_dma_transmission(void __iomem *ioaddr, u32 tail_ptr);
-void dwmac4_enable_dma_irq(void __iomem *ioaddr);
-void dwmac410_enable_dma_irq(void __iomem *ioaddr);
-void dwmac4_disable_dma_irq(void __iomem *ioaddr);
+void dwmac4_enable_dma_irq(void __iomem *ioaddr, u32 chan);
+void dwmac410_enable_dma_irq(void __iomem *ioaddr, u32 chan);
+void dwmac4_disable_dma_irq(void __iomem *ioaddr, u32 chan);
 void dwmac4_dma_start_tx(void __iomem *ioaddr);
 void dwmac4_dma_stop_tx(void __iomem *ioaddr);
 void dwmac4_dma_start_rx(void __iomem *ioaddr);

@@ -1422,14 +1422,14 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 	netif_tx_unlock(priv->dev);
 }
 
-static inline void stmmac_enable_dma_irq(struct stmmac_priv *priv)
+static inline void stmmac_enable_dma_irq(struct stmmac_priv *priv, u32 chan)
 {
-	priv->hw->dma->enable_dma_irq(priv->ioaddr);
+	priv->hw->dma->enable_dma_irq(priv->ioaddr, chan);
 }
 
-static inline void stmmac_disable_dma_irq(struct stmmac_priv *priv)
+static inline void stmmac_disable_dma_irq(struct stmmac_priv *priv, u32 chan)
 {
-	priv->hw->dma->disable_dma_irq(priv->ioaddr);
+	priv->hw->dma->disable_dma_irq(priv->ioaddr, chan);
 }
 
 /**
@@ -1506,7 +1506,7 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 	status = priv->hw->dma->dma_interrupt(priv->ioaddr, &priv->xstats);
 	if (likely((status & handle_rx)) || (status & handle_tx)) {
 		if (likely(napi_schedule_prep(&priv->napi))) {
-			stmmac_disable_dma_irq(priv);
+			stmmac_disable_dma_irq(priv, chan);
 			__napi_schedule(&priv->napi);
 		}
 	}
@@ -2832,6 +2832,7 @@ static int stmmac_poll(struct napi_struct *napi, int budget)
 {
 	struct stmmac_priv *priv = container_of(napi, struct stmmac_priv, napi);
 	int work_done = 0;
+	u32 chan = STMMAC_CHAN0;
 
 	priv->xstats.napi_poll++;
 	stmmac_tx_clean(priv);
@@ -2839,7 +2840,7 @@ static int stmmac_poll(struct napi_struct *napi, int budget)
 	work_done = stmmac_rx(priv, budget);
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
-		stmmac_enable_dma_irq(priv);
+		stmmac_enable_dma_irq(priv, chan);
 	}
 	return work_done;
 }
