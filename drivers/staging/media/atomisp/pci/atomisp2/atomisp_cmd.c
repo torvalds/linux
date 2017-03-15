@@ -1,6 +1,3 @@
-#ifdef ISP2401
-
-#endif
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
