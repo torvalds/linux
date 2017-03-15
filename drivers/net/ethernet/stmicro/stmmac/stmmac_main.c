@@ -1285,14 +1285,20 @@ static void stmmac_mac_enable_rx_queues(struct stmmac_priv *priv)
  */
 static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 {
+	u32 rx_channels_count = priv->plat->rx_queues_to_use;
+	u32 tx_channels_count = priv->plat->tx_queues_to_use;
 	int rxfifosz = priv->plat->rx_fifo_size;
+	u32 txmode = 0;
+	u32 rxmode = 0;
+	u32 chan = 0;
 
 	if (rxfifosz == 0)
 		rxfifosz = priv->dma_cap.rx_fifo_size;
 
-	if (priv->plat->force_thresh_dma_mode)
-		priv->hw->dma->dma_mode(priv->ioaddr, tc, tc, rxfifosz);
-	else if (priv->plat->force_sf_dma_mode || priv->plat->tx_coe) {
+	if (priv->plat->force_thresh_dma_mode) {
+		txmode = tc;
+		rxmode = tc;
+	} else if (priv->plat->force_sf_dma_mode || priv->plat->tx_coe) {
 		/*
 		 * In case of GMAC, SF mode can be enabled
 		 * to perform the TX COE in HW. This depends on:
@@ -1300,12 +1306,26 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 		 * 2) There is no bugged Jumbo frame support
 		 *    that needs to not insert csum in the TDES.
 		 */
-		priv->hw->dma->dma_mode(priv->ioaddr, SF_DMA_MODE, SF_DMA_MODE,
-					rxfifosz);
+		txmode = SF_DMA_MODE;
+		rxmode = SF_DMA_MODE;
 		priv->xstats.threshold = SF_DMA_MODE;
-	} else
-		priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE,
+	} else {
+		txmode = tc;
+		rxmode = SF_DMA_MODE;
+	}
+
+	/* configure all channels */
+	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
+		for (chan = 0; chan < rx_channels_count; chan++)
+			priv->hw->dma->dma_rx_mode(priv->ioaddr, rxmode, chan,
+						   rxfifosz);
+
+		for (chan = 0; chan < tx_channels_count; chan++)
+			priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan);
+	} else {
+		priv->hw->dma->dma_mode(priv->ioaddr, txmode, rxmode,
 					rxfifosz);
+	}
 }
 
 /**
@@ -1444,6 +1464,34 @@ static void stmmac_tx_err(struct stmmac_priv *priv)
 }
 
 /**
+ *  stmmac_set_dma_operation_mode - Set DMA operation mode by channel
+ *  @priv: driver private structure
+ *  @txmode: TX operating mode
+ *  @rxmode: RX operating mode
+ *  @chan: channel index
+ *  Description: it is used for configuring of the DMA operation mode in
+ *  runtime in order to program the tx/rx DMA thresholds or Store-And-Forward
+ *  mode.
+ */
+static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
+					  u32 rxmode, u32 chan)
+{
+	int rxfifosz = priv->plat->rx_fifo_size;
+
+	if (rxfifosz == 0)
+		rxfifosz = priv->dma_cap.rx_fifo_size;
+
+	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
+		priv->hw->dma->dma_rx_mode(priv->ioaddr, rxmode, chan,
+					   rxfifosz);
+		priv->hw->dma->dma_tx_mode(priv->ioaddr, txmode, chan);
+	} else {
+		priv->hw->dma->dma_mode(priv->ioaddr, txmode, rxmode,
+					rxfifosz);
+	}
+}
+
+/**
  * stmmac_dma_interrupt - DMA ISR
  * @priv: driver private structure
  * Description: this is the DMA ISR. It is called by the main ISR.
@@ -1452,11 +1500,8 @@ static void stmmac_tx_err(struct stmmac_priv *priv)
  */
 static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 {
+	u32 chan = STMMAC_CHAN0;
 	int status;
-	int rxfifosz = priv->plat->rx_fifo_size;
-
-	if (rxfifosz == 0)
-		rxfifosz = priv->dma_cap.rx_fifo_size;
 
 	status = priv->hw->dma->dma_interrupt(priv->ioaddr, &priv->xstats);
 	if (likely((status & handle_rx)) || (status & handle_tx)) {
@@ -1471,11 +1516,12 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 		    (tc <= 256)) {
 			tc += 64;
 			if (priv->plat->force_thresh_dma_mode)
-				priv->hw->dma->dma_mode(priv->ioaddr, tc, tc,
-							rxfifosz);
+				stmmac_set_dma_operation_mode(priv->ioaddr,
+							      tc, tc, chan);
 			else
-				priv->hw->dma->dma_mode(priv->ioaddr, tc,
-							SF_DMA_MODE, rxfifosz);
+				stmmac_set_dma_operation_mode(priv->ioaddr, tc,
+							     SF_DMA_MODE, chan);
+
 			priv->xstats.threshold = tc;
 		}
 	} else if (unlikely(status == tx_hard_error))
@@ -1749,6 +1795,9 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 	/* Enable MAC RX Queues */
 	if (rx_queues_count > 1 && priv->hw->mac->rx_queue_enable)
 		stmmac_mac_enable_rx_queues(priv);
+
+	/* Set the HW DMA mode and the COE */
+	stmmac_dma_operation_mode(priv);
 }
 
 /**
@@ -1811,9 +1860,6 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 		stmmac_dwmac4_set_mac(priv->ioaddr, true);
 	else
 		stmmac_set_mac(priv->ioaddr, true);
-
-	/* Set the HW DMA mode and the COE */
-	stmmac_dma_operation_mode(priv);
 
 	stmmac_mmc_setup(priv);
 
