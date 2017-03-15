@@ -85,7 +85,7 @@ static void intel_breadcrumbs_hangcheck(unsigned long data)
 		return;
 	}
 
-	/* We keep the hangcheck time alive until we disarm the irq, even
+	/* We keep the hangcheck timer alive until we disarm the irq, even
 	 * if there are no waiters at present.
 	 *
 	 * If the waiter was currently running, assume it hasn't had a chance
@@ -110,12 +110,11 @@ static void intel_breadcrumbs_fake_irq(unsigned long data)
 	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
-	/*
-	 * The timer persists in case we cannot enable interrupts,
+	/* The timer persists in case we cannot enable interrupts,
 	 * or if we have previously seen seqno/interrupt incoherency
-	 * ("missed interrupt" syndrome). Here the worker will wake up
-	 * every jiffie in order to kick the oldest waiter to do the
-	 * coherent seqno check.
+	 * ("missed interrupt" syndrome, better known as a "missed breadcrumb").
+	 * Here the worker will wake up every jiffie in order to kick the
+	 * oldest waiter to do the coherent seqno check.
 	 */
 
 	spin_lock_irq(&b->irq_lock);
@@ -290,7 +289,12 @@ static inline void __intel_breadcrumbs_finish(struct intel_breadcrumbs *b,
 	GEM_BUG_ON(b->irq_wait == wait);
 
 	/* This request is completed, so remove it from the tree, mark it as
-	 * complete, and *then* wake up the associated task.
+	 * complete, and *then* wake up the associated task. N.B. when the
+	 * task wakes up, it will find the empty rb_node, discern that it
+	 * has already been removed from the tree and skip the serialisation
+	 * of the b->rb_lock and b->irq_lock. This means that the destruction
+	 * of the intel_wait is not serialised with the interrupt handler
+	 * by the waiter - it must instead be serialised by the caller.
 	 */
 	rb_erase(&wait->node, &b->waiters);
 	RB_CLEAR_NODE(&wait->node);
@@ -397,6 +401,11 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 	}
 
 	if (completed) {
+		/* Advance the bottom-half (b->irq_wait) before we wake up
+		 * the waiters who may scribble over their intel_wait
+		 * just as the interrupt handler is dereferencing it via
+		 * b->irq_wait.
+		 */
 		if (!first) {
 			struct rb_node *next = rb_next(completed);
 			GEM_BUG_ON(next == &wait->node);
@@ -653,7 +662,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	/* Note that we may be called from an interrupt handler on another
 	 * device (e.g. nouveau signaling a fence completion causing us
 	 * to submit a request, and so enable signaling). As such,
-	 * we need to make sure that all other users of b->lock protect
+	 * we need to make sure that all other users of b->rb_lock protect
 	 * against interrupts, i.e. use spin_lock_irqsave.
 	 */
 
