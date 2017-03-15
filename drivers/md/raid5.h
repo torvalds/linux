@@ -638,9 +638,6 @@ struct r5conf {
 	int			skip_copy; /* Don't copy data from bio to stripe cache */
 	struct list_head	*last_hold; /* detect hold_list promotions */
 
-	/* bios to have bi_end_io called after metadata is synced */
-	struct bio_list		return_bi;
-
 	atomic_t		reshape_stripes; /* stripes with pending writes for reshape */
 	/* unfortunately we need two cache names as we temporarily have
 	 * two caches.
