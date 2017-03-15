@@ -856,7 +856,6 @@ static int uniphier_sld8_pinctrl_probe(struct platform_device *pdev)
 
 static const struct of_device_id uniphier_sld8_pinctrl_match[] = {
 	{ .compatible = "socionext,uniphier-sld8-pinctrl" },
-	{ .compatible = "socionext,ph1-sld8-pinctrl" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, uniphier_sld8_pinctrl_match);

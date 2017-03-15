@@ -1290,7 +1290,6 @@ static int uniphier_ld6b_pinctrl_probe(struct platform_device *pdev)
 
 static const struct of_device_id uniphier_ld6b_pinctrl_match[] = {
 	{ .compatible = "socionext,uniphier-ld6b-pinctrl" },
-	{ .compatible = "socionext,ph1-ld6b-pinctrl" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, uniphier_ld6b_pinctrl_match);
