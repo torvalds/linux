@@ -123,6 +123,10 @@ enum ccp_aes_mode {
 	CCP_AES_MODE_CFB,
 	CCP_AES_MODE_CTR,
 	CCP_AES_MODE_CMAC,
+	CCP_AES_MODE_GHASH,
+	CCP_AES_MODE_GCTR,
+	CCP_AES_MODE_GCM,
+	CCP_AES_MODE_GMAC,
 	CCP_AES_MODE__LAST,
 };
 
@@ -137,6 +141,9 @@ enum ccp_aes_action {
 	CCP_AES_ACTION_ENCRYPT,
 	CCP_AES_ACTION__LAST,
 };
+/* Overloaded field */
+#define	CCP_AES_GHASHAAD	CCP_AES_ACTION_DECRYPT
+#define	CCP_AES_GHASHFINAL	CCP_AES_ACTION_ENCRYPT
 
 /**
  * struct ccp_aes_engine - CCP AES operation
@@ -181,6 +188,8 @@ struct ccp_aes_engine {
 	struct scatterlist *cmac_key;	/* K1/K2 cmac key required for
 					 * final cmac cmd */
 	u32 cmac_key_len;	/* In bytes */
+
+	u32 aad_len;		/* In bytes */
 };
 
 /***** XTS-AES engine *****/

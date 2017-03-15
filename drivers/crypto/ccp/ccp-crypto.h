@@ -19,6 +19,8 @@
 #include <linux/ccp.h>
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
+#include <crypto/internal/aead.h>
+#include <crypto/aead.h>
 #include <crypto/ctr.h>
 #include <crypto/hash.h>
 #include <crypto/sha.h>
@@ -33,6 +35,14 @@ struct ccp_crypto_ablkcipher_alg {
 	u32 mode;
 
 	struct crypto_alg alg;
+};
+
+struct ccp_crypto_aead {
+	struct list_head entry;
+
+	u32 mode;
+
+	struct aead_alg alg;
 };
 
 struct ccp_crypto_ahash_alg {
@@ -96,6 +106,9 @@ struct ccp_aes_ctx {
 struct ccp_aes_req_ctx {
 	struct scatterlist iv_sg;
 	u8 iv[AES_BLOCK_SIZE];
+
+	struct scatterlist tag_sg;
+	u8 tag[AES_BLOCK_SIZE];
 
 	/* Fields used for RFC3686 requests */
 	u8 *rfc3686_info;
@@ -233,6 +246,7 @@ struct scatterlist *ccp_crypto_sg_table_add(struct sg_table *table,
 int ccp_register_aes_algs(struct list_head *head);
 int ccp_register_aes_cmac_algs(struct list_head *head);
 int ccp_register_aes_xts_algs(struct list_head *head);
+int ccp_register_aes_aeads(struct list_head *head);
 int ccp_register_sha_algs(struct list_head *head);
 int ccp_register_des3_algs(struct list_head *head);
 
