@@ -115,7 +115,7 @@ struct ks_sdio_card {
 struct tx_device_buffer {
 	unsigned char *sendp;	/* pointer of send req data */
 	unsigned int size;
-	void (*complete_handler) (void *arg1, void *arg2);
+	void (*complete_handler)(void *arg1, void *arg2);
 	void *arg1;
 	void *arg2;
 };
