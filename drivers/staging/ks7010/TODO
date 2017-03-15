@@ -18,8 +18,6 @@ First a few words what not to do (at least not blindly):
 
 - don't be overly strict with the 80 char limit. Only if it REALLY makes the
   code more readable
-- No '#if 0/1' removal unless the surrounding code is understood and removal is
-  really OK. There might be some hints hidden there.
 
 Now the TODOs:
 

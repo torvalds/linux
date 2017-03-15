@@ -598,39 +598,19 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 					      (uint16_t)(rsize << 4));
 			}
 			if (rw_data & WSTATUS_MASK) {
-#if 0
-				if (status & INT_WRITE_STATUS
-				    && !cnt_txqbody(priv)) {
-					/* dummy write for interrupt clear */
-					rw_data = 0;
-					retval =
-					    ks7010_sdio_write(priv, DATA_WINDOW,
-							      &rw_data,
-							      sizeof(rw_data));
-					if (retval) {
-						DPRINTK(1,
-							"write DATA_WINDOW Failed!!(%d)\n",
-							retval);
+				if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
+					if (cnt_txqbody(priv)) {
+						ks_wlan_hw_wakeup_request(priv);
+						queue_delayed_work
+							(priv->ks_wlan_hw.
+								ks7010sdio_wq,
+								&priv->ks_wlan_hw.
+								rw_wq, 1);
+						return;
 					}
-					status &= ~INT_WRITE_STATUS;
 				} else {
-#endif
-					if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
-						if (cnt_txqbody(priv)) {
-							ks_wlan_hw_wakeup_request(priv);
-							queue_delayed_work
-							    (priv->ks_wlan_hw.
-							     ks7010sdio_wq,
-							     &priv->ks_wlan_hw.
-							     rw_wq, 1);
-							return;
-						}
-					} else {
-						tx_device_task((void *)priv);
-					}
-#if 0
+					tx_device_task((void *)priv);
 				}
-#endif
 			}
 		} while (rsize);
 	}
