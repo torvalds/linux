@@ -228,6 +228,7 @@ static struct rockchip_cpuclk_rate_table rk3368_cpuclkb_rates[] __initdata = {
 	RK3368_CPUCLKB_RATE(1512000000, 1, 5, 5),
 	RK3368_CPUCLKB_RATE(1488000000, 1, 4, 4),
 	RK3368_CPUCLKB_RATE(1416000000, 1, 4, 4),
+	RK3368_CPUCLKL_RATE(1296000000, 1, 4, 4),
 	RK3368_CPUCLKB_RATE(1200000000, 1, 3, 3),
 	RK3368_CPUCLKB_RATE(1008000000, 1, 3, 3),
 	RK3368_CPUCLKB_RATE( 816000000, 1, 2, 2),
@@ -235,12 +236,15 @@ static struct rockchip_cpuclk_rate_table rk3368_cpuclkb_rates[] __initdata = {
 	RK3368_CPUCLKB_RATE( 600000000, 1, 1, 1),
 	RK3368_CPUCLKB_RATE( 408000000, 1, 1, 1),
 	RK3368_CPUCLKB_RATE( 312000000, 1, 1, 1),
+	RK3368_CPUCLKB_RATE( 216000000, 1, 1, 1),
+	RK3368_CPUCLKB_RATE( 126000000, 1, 1, 1),
 };
 
 static struct rockchip_cpuclk_rate_table rk3368_cpuclkl_rates[] __initdata = {
 	RK3368_CPUCLKL_RATE(1512000000, 1, 6, 6),
 	RK3368_CPUCLKL_RATE(1488000000, 1, 5, 5),
 	RK3368_CPUCLKL_RATE(1416000000, 1, 5, 5),
+	RK3368_CPUCLKL_RATE(1296000000, 1, 5, 5),
 	RK3368_CPUCLKL_RATE(1200000000, 1, 4, 4),
 	RK3368_CPUCLKL_RATE(1008000000, 1, 4, 4),
 	RK3368_CPUCLKL_RATE( 816000000, 1, 3, 3),
@@ -248,6 +252,8 @@ static struct rockchip_cpuclk_rate_table rk3368_cpuclkl_rates[] __initdata = {
 	RK3368_CPUCLKL_RATE( 600000000, 1, 2, 2),
 	RK3368_CPUCLKL_RATE( 408000000, 1, 1, 1),
 	RK3368_CPUCLKL_RATE( 312000000, 1, 1, 1),
+	RK3368_CPUCLKL_RATE( 216000000, 1, 1, 1),
+	RK3368_CPUCLKL_RATE( 126000000, 1, 1, 1),
 };
 
 static struct rockchip_clk_branch rk3368_i2s_8ch_fracmux __initdata =
