@@ -287,6 +287,7 @@ static inline void __intel_breadcrumbs_finish(struct intel_breadcrumbs *b,
 					      struct intel_wait *wait)
 {
 	lockdep_assert_held(&b->rb_lock);
+	GEM_BUG_ON(b->irq_wait == wait);
 
 	/* This request is completed, so remove it from the tree, mark it as
 	 * complete, and *then* wake up the associated task.
@@ -512,8 +513,10 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 	 * the tree by the bottom-half to avoid contention on the spinlock
 	 * by the herd.
 	 */
-	if (RB_EMPTY_NODE(&wait->node))
+	if (RB_EMPTY_NODE(&wait->node)) {
+		GEM_BUG_ON(READ_ONCE(b->irq_wait) == wait);
 		return;
+	}
 
 	spin_lock_irq(&b->rb_lock);
 	__intel_engine_remove_wait(engine, wait);
