@@ -5008,6 +5008,25 @@ static int ipr_match_lun(struct ipr_cmnd *ipr_cmd, void *device)
 }
 
 /**
+ * ipr_cmnd_is_free - Check if a command is free or not
+ * @ipr_cmd	ipr command struct
+ *
+ * Returns:
+ *	true / false
+ **/
+static bool ipr_cmnd_is_free(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_cmnd *loop_cmd;
+
+	list_for_each_entry(loop_cmd, &ipr_cmd->hrrq->hrrq_free_q, queue) {
+		if (loop_cmd == ipr_cmd)
+			return true;
+	}
+
+	return false;
+}
+
+/**
  * ipr_wait_for_ops - Wait for matching commands to complete
  * @ipr_cmd:	ipr command struct
  * @device:		device to match (sdev)
@@ -5020,7 +5039,7 @@ static int ipr_wait_for_ops(struct ipr_ioa_cfg *ioa_cfg, void *device,
 			    int (*match)(struct ipr_cmnd *, void *))
 {
 	struct ipr_cmnd *ipr_cmd;
-	int wait;
+	int wait, i;
 	unsigned long flags;
 	struct ipr_hrr_queue *hrrq;
 	signed long timeout = IPR_ABORT_TASK_TIMEOUT;
@@ -5032,10 +5051,13 @@ static int ipr_wait_for_ops(struct ipr_ioa_cfg *ioa_cfg, void *device,
 
 		for_each_hrrq(hrrq, ioa_cfg) {
 			spin_lock_irqsave(hrrq->lock, flags);
-			list_for_each_entry(ipr_cmd, &hrrq->hrrq_pending_q, queue) {
-				if (match(ipr_cmd, device)) {
-					ipr_cmd->eh_comp = &comp;
-					wait++;
+			for (i = hrrq->min_cmd_id; i <= hrrq->max_cmd_id; i++) {
+				ipr_cmd = ioa_cfg->ipr_cmnd_list[i];
+				if (!ipr_cmnd_is_free(ipr_cmd)) {
+					if (match(ipr_cmd, device)) {
+						ipr_cmd->eh_comp = &comp;
+						wait++;
+					}
 				}
 			}
 			spin_unlock_irqrestore(hrrq->lock, flags);
@@ -5049,10 +5071,13 @@ static int ipr_wait_for_ops(struct ipr_ioa_cfg *ioa_cfg, void *device,
 
 				for_each_hrrq(hrrq, ioa_cfg) {
 					spin_lock_irqsave(hrrq->lock, flags);
-					list_for_each_entry(ipr_cmd, &hrrq->hrrq_pending_q, queue) {
-						if (match(ipr_cmd, device)) {
-							ipr_cmd->eh_comp = NULL;
-							wait++;
+					for (i = hrrq->min_cmd_id; i <= hrrq->max_cmd_id; i++) {
+						ipr_cmd = ioa_cfg->ipr_cmnd_list[i];
+						if (!ipr_cmnd_is_free(ipr_cmd)) {
+							if (match(ipr_cmd, device)) {
+								ipr_cmd->eh_comp = NULL;
+								wait++;
+							}
 						}
 					}
 					spin_unlock_irqrestore(hrrq->lock, flags);
@@ -5219,7 +5244,7 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd *scsi_cmd)
 	struct ipr_ioa_cfg *ioa_cfg;
 	struct ipr_resource_entry *res;
 	struct ata_port *ap;
-	int rc = 0;
+	int rc = 0, i;
 	struct ipr_hrr_queue *hrrq;
 
 	ENTER;
@@ -5241,9 +5266,13 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd *scsi_cmd)
 
 	for_each_hrrq(hrrq, ioa_cfg) {
 		spin_lock(&hrrq->_lock);
-		list_for_each_entry(ipr_cmd, &hrrq->hrrq_pending_q, queue) {
+		for (i = hrrq->min_cmd_id; i <= hrrq->max_cmd_id; i++) {
+			ipr_cmd = ioa_cfg->ipr_cmnd_list[i];
+
 			if (ipr_cmd->ioarcb.res_handle == res->res_handle) {
 				if (!ipr_cmd->qc)
+					continue;
+				if (ipr_cmnd_is_free(ipr_cmd))
 					continue;
 
 				ipr_cmd->done = ipr_sata_eh_done;
@@ -5394,7 +5423,7 @@ static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
 	struct ipr_resource_entry *res;
 	struct ipr_cmd_pkt *cmd_pkt;
 	u32 ioasc, int_reg;
-	int op_found = 0;
+	int i, op_found = 0;
 	struct ipr_hrr_queue *hrrq;
 
 	ENTER;
@@ -5423,11 +5452,12 @@ static int ipr_cancel_op(struct scsi_cmnd *scsi_cmd)
 
 	for_each_hrrq(hrrq, ioa_cfg) {
 		spin_lock(&hrrq->_lock);
-		list_for_each_entry(ipr_cmd, &hrrq->hrrq_pending_q, queue) {
-			if (ipr_cmd->scsi_cmd == scsi_cmd) {
-				ipr_cmd->done = ipr_scsi_eh_done;
-				op_found = 1;
-				break;
+		for (i = hrrq->min_cmd_id; i <= hrrq->max_cmd_id; i++) {
+			if (ioa_cfg->ipr_cmnd_list[i]->scsi_cmd == scsi_cmd) {
+				if (!ipr_cmnd_is_free(ioa_cfg->ipr_cmnd_list[i])) {
+					op_found = 1;
+					break;
+				}
 			}
 		}
 		spin_unlock(&hrrq->_lock);
