@@ -1591,32 +1591,41 @@ static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
  */
 static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 {
-	u32 chan = STMMAC_CHAN0;
+	u32 tx_channel_count = priv->plat->tx_queues_to_use;
 	int status;
+	u32 chan;
 
-	status = priv->hw->dma->dma_interrupt(priv->ioaddr, &priv->xstats);
-	if (likely((status & handle_rx)) || (status & handle_tx)) {
-		if (likely(napi_schedule_prep(&priv->napi))) {
-			stmmac_disable_dma_irq(priv, chan);
-			__napi_schedule(&priv->napi);
+	for (chan = 0; chan < tx_channel_count; chan++) {
+		status = priv->hw->dma->dma_interrupt(priv->ioaddr,
+						      &priv->xstats, chan);
+		if (likely((status & handle_rx)) || (status & handle_tx)) {
+			if (likely(napi_schedule_prep(&priv->napi))) {
+				stmmac_disable_dma_irq(priv, chan);
+				__napi_schedule(&priv->napi);
+			}
+		}
+
+		if (unlikely(status & tx_hard_error_bump_tc)) {
+			/* Try to bump up the dma threshold on this failure */
+			if (unlikely(priv->xstats.threshold != SF_DMA_MODE) &&
+			    (tc <= 256)) {
+				tc += 64;
+				if (priv->plat->force_thresh_dma_mode)
+					stmmac_set_dma_operation_mode(priv,
+								      tc,
+								      tc,
+								      chan);
+				else
+					stmmac_set_dma_operation_mode(priv,
+								    tc,
+								    SF_DMA_MODE,
+								    chan);
+				priv->xstats.threshold = tc;
+			}
+		} else if (unlikely(status == tx_hard_error)) {
+			stmmac_tx_err(priv, chan);
 		}
 	}
-	if (unlikely(status & tx_hard_error_bump_tc)) {
-		/* Try to bump up the dma threshold on this failure */
-		if (unlikely(priv->xstats.threshold != SF_DMA_MODE) &&
-		    (tc <= 256)) {
-			tc += 64;
-			if (priv->plat->force_thresh_dma_mode)
-				stmmac_set_dma_operation_mode(priv->ioaddr,
-							      tc, tc, chan);
-			else
-				stmmac_set_dma_operation_mode(priv->ioaddr, tc,
-							     SF_DMA_MODE, chan);
-
-			priv->xstats.threshold = tc;
-		}
-	} else if (unlikely(status == tx_hard_error))
-		stmmac_tx_err(priv, chan);
 }
 
 /**

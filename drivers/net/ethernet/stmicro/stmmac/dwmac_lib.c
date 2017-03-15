@@ -156,7 +156,7 @@ static void show_rx_process_state(unsigned int status)
 #endif
 
 int dwmac_dma_interrupt(void __iomem *ioaddr,
-			struct stmmac_extra_stats *x)
+			struct stmmac_extra_stats *x, u32 chan)
 {
 	int ret = 0;
 	/* read the status register (CSR5) */

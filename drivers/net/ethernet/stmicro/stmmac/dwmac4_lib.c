@@ -122,11 +122,11 @@ void dwmac4_disable_dma_irq(void __iomem *ioaddr, u32 chan)
 }
 
 int dwmac4_dma_interrupt(void __iomem *ioaddr,
-			 struct stmmac_extra_stats *x)
+			 struct stmmac_extra_stats *x, u32 chan)
 {
 	int ret = 0;
 
-	u32 intr_status = readl(ioaddr + DMA_CHAN_STATUS(0));
+	u32 intr_status = readl(ioaddr + DMA_CHAN_STATUS(chan));
 
 	/* ABNORMAL interrupts */
 	if (unlikely(intr_status & DMA_CHAN_STATUS_AIS)) {
@@ -153,7 +153,7 @@ int dwmac4_dma_interrupt(void __iomem *ioaddr,
 		if (likely(intr_status & DMA_CHAN_STATUS_RI)) {
 			u32 value;
 
-			value = readl(ioaddr + DMA_CHAN_INTR_ENA(STMMAC_CHAN0));
+			value = readl(ioaddr + DMA_CHAN_INTR_ENA(chan));
 			/* to schedule NAPI on real RIE event. */
 			if (likely(value & DMA_CHAN_INTR_ENA_RIE)) {
 				x->rx_normal_irq_n++;
@@ -172,7 +172,7 @@ int dwmac4_dma_interrupt(void __iomem *ioaddr,
 	 * status [21-0] expect reserved bits [5-3]
 	 */
 	writel((intr_status & 0x3fffc7),
-	       ioaddr + DMA_CHAN_STATUS(STMMAC_CHAN0));
+	       ioaddr + DMA_CHAN_STATUS(chan));
 
 	return ret;
 }
