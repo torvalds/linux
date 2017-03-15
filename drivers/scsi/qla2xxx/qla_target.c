@@ -562,6 +562,7 @@ void qla2x00_async_nack_sp_done(void *s, int res)
 		sp->fcport->login_gen++;
 		sp->fcport->fw_login_state = DSC_LS_PLOGI_COMP;
 		sp->fcport->logout_on_delete = 1;
+		sp->fcport->plogi_nack_done_deadline = jiffies + HZ;
 		break;
 
 	case SRB_NACK_PRLI:

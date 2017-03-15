@@ -1620,9 +1620,9 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		QLA_LOGIO_LOGIN_RETRIED : 0;
 	if (logio->entry_status) {
 		ql_log(ql_log_warn, fcport->vha, 0x5034,
-		    "Async-%s error entry - hdl=%x"
+		    "Async-%s error entry - %8phC hdl=%x"
 		    "portid=%02x%02x%02x entry-status=%x.\n",
-		    type, sp->handle, fcport->d_id.b.domain,
+		    type, fcport->port_name, sp->handle, fcport->d_id.b.domain,
 		    fcport->d_id.b.area, fcport->d_id.b.al_pa,
 		    logio->entry_status);
 		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x504d,
@@ -1633,8 +1633,9 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 	if (le16_to_cpu(logio->comp_status) == CS_COMPLETE) {
 		ql_dbg(ql_dbg_async, fcport->vha, 0x5036,
-		    "Async-%s complete - hdl=%x portid=%02x%02x%02x "
-		    "iop0=%x.\n", type, sp->handle, fcport->d_id.b.domain,
+		    "Async-%s complete - %8phC hdl=%x portid=%02x%02x%02x "
+		    "iop0=%x.\n", type, fcport->port_name, sp->handle,
+		    fcport->d_id.b.domain,
 		    fcport->d_id.b.area, fcport->d_id.b.al_pa,
 		    le32_to_cpu(logio->io_parameter[0]));
 
@@ -1674,6 +1675,17 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	case LSC_SCODE_NPORT_USED:
 		data[0] = MBS_LOOP_ID_USED;
 		break;
+	case LSC_SCODE_CMD_FAILED:
+		if (iop[1] == 0x0606) {
+			/*
+			 * PLOGI/PRLI Completed. We must have Recv PLOGI/PRLI,
+			 * Target side acked.
+			 */
+			data[0] = MBS_COMMAND_COMPLETE;
+			goto logio_done;
+		}
+		data[0] = MBS_COMMAND_ERROR;
+		break;
 	case LSC_SCODE_NOXCB:
 		vha->hw->exch_starvation++;
 		if (vha->hw->exch_starvation > 5) {
@@ -1695,8 +1707,9 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	}
 
 	ql_dbg(ql_dbg_async, fcport->vha, 0x5037,
-	    "Async-%s failed - hdl=%x portid=%02x%02x%02x comp=%x "
-	    "iop0=%x iop1=%x.\n", type, sp->handle, fcport->d_id.b.domain,
+	    "Async-%s failed - %8phC hdl=%x portid=%02x%02x%02x comp=%x "
+	    "iop0=%x iop1=%x.\n", type, fcport->port_name,
+		sp->handle, fcport->d_id.b.domain,
 	    fcport->d_id.b.area, fcport->d_id.b.al_pa,
 	    le16_to_cpu(logio->comp_status),
 	    le32_to_cpu(logio->io_parameter[0]),

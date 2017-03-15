@@ -2300,6 +2300,8 @@ typedef struct fc_port {
 	struct ct_sns_desc ct_desc;
 	enum discovery_state disc_state;
 	enum login_state fw_login_state;
+	unsigned long plogi_nack_done_deadline;
+
 	u32 login_gen, last_login_gen;
 	u32 rscn_gen, last_rscn_gen;
 	u32 chip_reset;

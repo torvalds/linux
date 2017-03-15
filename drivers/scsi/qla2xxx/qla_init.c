@@ -876,9 +876,13 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 	fcport->login_retry--;
 
 	if ((fcport->fw_login_state == DSC_LS_PLOGI_PEND) ||
-	    (fcport->fw_login_state == DSC_LS_PLOGI_COMP) ||
 	    (fcport->fw_login_state == DSC_LS_PRLI_PEND))
 		return 0;
+
+	if (fcport->fw_login_state == DSC_LS_PLOGI_COMP) {
+		if (time_before_eq(jiffies, fcport->plogi_nack_done_deadline))
+			return 0;
+	}
 
 	/* for pure Target Mode. Login will not be initiated */
 	if (vha->host->active_mode == MODE_TARGET)
@@ -1041,9 +1045,13 @@ void qla24xx_handle_relogin_event(scsi_qla_host_t *vha,
 		fcport->flags);
 
 	if ((fcport->fw_login_state == DSC_LS_PLOGI_PEND) ||
-	    (fcport->fw_login_state == DSC_LS_PLOGI_COMP) ||
 	    (fcport->fw_login_state == DSC_LS_PRLI_PEND))
 		return;
+
+	if (fcport->fw_login_state == DSC_LS_PLOGI_COMP) {
+		if (time_before_eq(jiffies, fcport->plogi_nack_done_deadline))
+			return;
+	}
 
 	if (fcport->flags & FCF_ASYNC_SENT) {
 		fcport->login_retry++;
