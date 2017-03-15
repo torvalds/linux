@@ -6342,8 +6342,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 			dst = af_ops->route_req(sk, &fl, req, &strict);
 
 			if (dst && strict &&
-			    !tcp_peer_is_proven(req, dst, true,
-						tmp_opt.saw_tstamp)) {
+			    !tcp_peer_is_proven(req, dst)) {
 				NET_INC_STATS(sock_net(sk), LINUX_MIB_PAWSPASSIVEREJECTED);
 				goto drop_and_release;
 			}
@@ -6352,8 +6351,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		else if (!net->ipv4.sysctl_tcp_syncookies &&
 			 (net->ipv4.sysctl_max_syn_backlog - inet_csk_reqsk_queue_len(sk) <
 			  (net->ipv4.sysctl_max_syn_backlog >> 2)) &&
-			 !tcp_peer_is_proven(req, dst, false,
-					     tmp_opt.saw_tstamp)) {
+			 !tcp_peer_is_proven(req, dst)) {
 			/* Without syncookies last quarter of
 			 * backlog is filled with destinations,
 			 * proven to be alive.

@@ -198,10 +198,6 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			tp->write_seq	   = 0;
 	}
 
-	if (tcp_death_row->sysctl_tw_recycle &&
-	    !tp->rx_opt.ts_recent_stamp && fl4->daddr == daddr)
-		tcp_fetch_timewait_stamp(sk, &rt->dst);
-
 	inet->inet_dport = usin->sin_port;
 	sk_daddr_set(sk, daddr);
 

@@ -265,11 +265,6 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	sk->sk_gso_type = SKB_GSO_TCPV6;
 	ip6_dst_store(sk, dst, NULL, NULL);
 
-	if (tcp_death_row->sysctl_tw_recycle &&
-	    !tp->rx_opt.ts_recent_stamp &&
-	    ipv6_addr_equal(&fl6.daddr, &sk->sk_v6_daddr))
-		tcp_fetch_timewait_stamp(sk, dst);
-
 	icsk->icsk_ext_hdr_len = 0;
 	if (opt)
 		icsk->icsk_ext_hdr_len = opt->opt_flen +
