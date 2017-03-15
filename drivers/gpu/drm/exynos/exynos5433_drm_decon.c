@@ -313,23 +313,20 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 	writel(val, ctx->addr + DECON_WINCONx(win));
 }
 
-static void decon_shadow_protect_win(struct decon_context *ctx, int win,
-					bool protect)
+static void decon_shadow_protect(struct decon_context *ctx, bool protect)
 {
-	decon_set_bits(ctx, DECON_SHADOWCON, SHADOWCON_Wx_PROTECT(win),
+	decon_set_bits(ctx, DECON_SHADOWCON, SHADOWCON_PROTECT_MASK,
 		       protect ? ~0 : 0);
 }
 
 static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
-	int i;
 
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
-	for (i = ctx->first_win; i < WINDOWS_NR; i++)
-		decon_shadow_protect_win(ctx, i, true);
+	decon_shadow_protect(ctx, true);
 }
 
 #define BIT_VAL(x, e, s) (((x) & ((1 << ((e) - (s) + 1)) - 1)) << (s))
@@ -412,15 +409,13 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	unsigned long flags;
-	int i;
 
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
 	spin_lock_irqsave(&ctx->vblank_lock, flags);
 
-	for (i = ctx->first_win; i < WINDOWS_NR; i++)
-		decon_shadow_protect_win(ctx, i, false);
+	decon_shadow_protect(ctx, false);
 
 	decon_set_bits(ctx, DECON_UPDATE, STANDALONE_UPDATE_F, ~0);
 
@@ -540,11 +535,10 @@ static void decon_clear_channels(struct exynos_drm_crtc *crtc)
 			goto err;
 	}
 
-	for (win = 0; win < WINDOWS_NR; win++) {
-		decon_shadow_protect_win(ctx, win, true);
+	decon_shadow_protect(ctx, true);
+	for (win = 0; win < WINDOWS_NR; win++)
 		decon_set_bits(ctx, DECON_WINCONx(win), WINCONx_ENWIN_F, 0);
-		decon_shadow_protect_win(ctx, win, false);
-	}
+	decon_shadow_protect(ctx, false);
 
 	decon_set_bits(ctx, DECON_UPDATE, STANDALONE_UPDATE_F, ~0);
 
