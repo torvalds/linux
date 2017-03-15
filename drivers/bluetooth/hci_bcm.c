@@ -146,13 +146,13 @@ static bool bcm_device_exists(struct bcm_device *device)
 static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 {
 	if (powered && !IS_ERR(dev->clk) && !dev->clk_enabled)
-		clk_enable(dev->clk);
+		clk_prepare_enable(dev->clk);
 
 	gpiod_set_value(dev->shutdown, powered);
 	gpiod_set_value(dev->device_wakeup, powered);
 
 	if (!powered && !IS_ERR(dev->clk) && dev->clk_enabled)
-		clk_disable(dev->clk);
+		clk_disable_unprepare(dev->clk);
 
 	dev->clk_enabled = powered;
 
