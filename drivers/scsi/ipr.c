@@ -5067,6 +5067,23 @@ static bool ipr_cmnd_is_free(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
+ * ipr_match_res - Match function for specified resource entry
+ * @ipr_cmd:	ipr command struct
+ * @resource:	resource entry to match
+ *
+ * Returns:
+ *	1 if command matches sdev / 0 if command does not match sdev
+ **/
+static int ipr_match_res(struct ipr_cmnd *ipr_cmd, void *resource)
+{
+	struct ipr_resource_entry *res = resource;
+
+	if (res && ipr_cmd->ioarcb.res_handle == res->res_handle)
+		return 1;
+	return 0;
+}
+
+/**
  * ipr_wait_for_ops - Wait for matching commands to complete
  * @ipr_cmd:	ipr command struct
  * @device:		device to match (sdev)
@@ -5246,7 +5263,7 @@ static int ipr_sata_reset(struct ata_link *link, unsigned int *classes,
 	struct ipr_ioa_cfg *ioa_cfg = sata_port->ioa_cfg;
 	struct ipr_resource_entry *res;
 	unsigned long lock_flags = 0;
-	int rc = -ENXIO;
+	int rc = -ENXIO, ret;
 
 	ENTER;
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
@@ -5260,9 +5277,19 @@ static int ipr_sata_reset(struct ata_link *link, unsigned int *classes,
 	if (res) {
 		rc = ipr_device_reset(ioa_cfg, res);
 		*classes = res->ata_class;
-	}
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
-	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		ret = ipr_wait_for_ops(ioa_cfg, res, ipr_match_res);
+		if (ret != SUCCESS) {
+			spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+			ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_ABBREV);
+			spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+
+			wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+		}
+	} else
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+
 	LEAVE;
 	return rc;
 }
@@ -5290,9 +5317,6 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd *scsi_cmd)
 	ENTER;
 	ioa_cfg = (struct ipr_ioa_cfg *) scsi_cmd->device->host->hostdata;
 	res = scsi_cmd->device->hostdata;
-
-	if (!res)
-		return FAILED;
 
 	/*
 	 * If we are currently going through reset/reload, return failed. This will force the
@@ -5332,19 +5356,6 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd *scsi_cmd)
 		spin_unlock_irq(scsi_cmd->device->host->host_lock);
 		ata_std_error_handler(ap);
 		spin_lock_irq(scsi_cmd->device->host->host_lock);
-
-		for_each_hrrq(hrrq, ioa_cfg) {
-			spin_lock(&hrrq->_lock);
-			list_for_each_entry(ipr_cmd,
-					    &hrrq->hrrq_pending_q, queue) {
-				if (ipr_cmd->ioarcb.res_handle ==
-				    res->res_handle) {
-					rc = -EIO;
-					break;
-				}
-			}
-			spin_unlock(&hrrq->_lock);
-		}
 	} else
 		rc = ipr_device_reset(ioa_cfg, res);
 	res->resetting_device = 0;
@@ -5358,15 +5369,24 @@ static int ipr_eh_dev_reset(struct scsi_cmnd *cmd)
 {
 	int rc;
 	struct ipr_ioa_cfg *ioa_cfg;
+	struct ipr_resource_entry *res;
 
 	ioa_cfg = (struct ipr_ioa_cfg *) cmd->device->host->hostdata;
+	res = cmd->device->hostdata;
+
+	if (!res)
+		return FAILED;
 
 	spin_lock_irq(cmd->device->host->host_lock);
 	rc = __ipr_eh_dev_reset(cmd);
 	spin_unlock_irq(cmd->device->host->host_lock);
 
-	if (rc == SUCCESS)
-		rc = ipr_wait_for_ops(ioa_cfg, cmd->device, ipr_match_lun);
+	if (rc == SUCCESS) {
+		if (ipr_is_gata(res) && res->sata_port)
+			rc = ipr_wait_for_ops(ioa_cfg, res, ipr_match_res);
+		else
+			rc = ipr_wait_for_ops(ioa_cfg, cmd->device, ipr_match_lun);
+	}
 
 	return rc;
 }
