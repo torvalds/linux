@@ -6392,7 +6392,8 @@ static void valleyview_enable_rps(struct drm_i915_private *dev_priv)
 
 	/* allows RC6 residency counter to work */
 	I915_WRITE(VLV_COUNTER_CONTROL,
-		   _MASKED_BIT_ENABLE(VLV_MEDIA_RC0_COUNT_EN |
+		   _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH |
+				      VLV_MEDIA_RC0_COUNT_EN |
 				      VLV_RENDER_RC0_COUNT_EN |
 				      VLV_MEDIA_RC6_COUNT_EN |
 				      VLV_RENDER_RC6_COUNT_EN));
@@ -8361,7 +8362,7 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 	spin_lock_irq(&dev_priv->uncore.lock);
 	saved_ctl = I915_READ_FW(VLV_COUNTER_CONTROL);
 
-	if (!(saved_ctl & VLV_COUNT_RANGE_HIGH))
+	if (WARN_ON(!(saved_ctl & VLV_COUNT_RANGE_HIGH)))
 		I915_WRITE_FW(VLV_COUNTER_CONTROL,
 			      _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH));
 
@@ -8381,10 +8382,6 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 			      _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH));
 		upper = I915_READ_FW(reg);
 	} while (upper != tmp);
-
-	if (!(saved_ctl & VLV_COUNT_RANGE_HIGH))
-		I915_WRITE_FW(VLV_COUNTER_CONTROL,
-			      _MASKED_BIT_DISABLE(VLV_COUNT_RANGE_HIGH));
 
 	spin_unlock_irq(&dev_priv->uncore.lock);
 

@@ -1102,11 +1102,6 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 	if (prev->ktime) {
 		u64 time, c0;
 		u32 render, media;
-		unsigned int mul;
-
-		mul = 1000 * 100; /* scale to threshold% */
-		if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
-			mul <<= 8;
 
 		time = ktime_us_delta(now.ktime, prev->ktime);
 		time *= dev_priv->czclk_freq;
@@ -1119,7 +1114,7 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 		render = now.render_c0 - prev->render_c0;
 		media = now.media_c0 - prev->media_c0;
 		c0 = max(render, media);
-		c0 *= mul;
+		c0 *= 1000 * 100 << 8; /* to usecs and scale to threshold% */
 
 		if (c0 > time * dev_priv->rps.up_threshold)
 			events = GEN6_PM_RP_UP_THRESHOLD;
