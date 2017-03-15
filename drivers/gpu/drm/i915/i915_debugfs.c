@@ -1461,6 +1461,17 @@ static int i915_forcewake_domains(struct seq_file *m, void *data)
 	return 0;
 }
 
+static void print_rc6_res(struct seq_file *m,
+			  const char *title,
+			  const i915_reg_t reg)
+{
+	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+
+	seq_printf(m, "%s %u (%llu us)\n",
+		   title, I915_READ(reg),
+		   intel_rc6_residency_us(dev_priv, reg));
+}
+
 static int vlv_drpc_info(struct seq_file *m)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -1487,10 +1498,8 @@ static int vlv_drpc_info(struct seq_file *m)
 	seq_printf(m, "Media Power Well: %s\n",
 		   (pw_status & VLV_GTLC_PW_MEDIA_STATUS_MASK) ? "Up" : "Down");
 
-	seq_printf(m, "Render RC6 residency since boot: %u\n",
-		   I915_READ(VLV_GT_RENDER_RC6));
-	seq_printf(m, "Media RC6 residency since boot: %u\n",
-		   I915_READ(VLV_GT_MEDIA_RC6));
+	print_rc6_res(m, "Render RC6 residency since boot:", VLV_GT_RENDER_RC6);
+	print_rc6_res(m, "Media RC6 residency since boot:", VLV_GT_MEDIA_RC6);
 
 	return i915_forcewake_domains(m, NULL);
 }
@@ -1583,14 +1592,11 @@ static int gen6_drpc_info(struct seq_file *m)
 	}
 
 	/* Not exactly sure what this is */
-	seq_printf(m, "RC6 \"Locked to RPn\" residency since boot: %u\n",
-		   I915_READ(GEN6_GT_GFX_RC6_LOCKED));
-	seq_printf(m, "RC6 residency since boot: %u\n",
-		   I915_READ(GEN6_GT_GFX_RC6));
-	seq_printf(m, "RC6+ residency since boot: %u\n",
-		   I915_READ(GEN6_GT_GFX_RC6p));
-	seq_printf(m, "RC6++ residency since boot: %u\n",
-		   I915_READ(GEN6_GT_GFX_RC6pp));
+	print_rc6_res(m, "RC6 \"Locked to RPn\" residency since boot:",
+		      GEN6_GT_GFX_RC6_LOCKED);
+	print_rc6_res(m, "RC6 residency since boot:", GEN6_GT_GFX_RC6);
+	print_rc6_res(m, "RC6+ residency since boot:", GEN6_GT_GFX_RC6p);
+	print_rc6_res(m, "RC6++ residency since boot:", GEN6_GT_GFX_RC6pp);
 
 	seq_printf(m, "RC6   voltage: %dmV\n",
 		   GEN6_DECODE_RC6_VID(((rc6vids >> 0) & 0xff)));
