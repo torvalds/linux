@@ -629,6 +629,93 @@ xfs_dir2_sf_check(
 }
 #endif	/* DEBUG */
 
+/* Verify the consistency of an inline directory. */
+int
+xfs_dir2_sf_verify(
+	struct xfs_mount		*mp,
+	struct xfs_dir2_sf_hdr		*sfp,
+	int				size)
+{
+	struct xfs_dir2_sf_entry	*sfep;
+	struct xfs_dir2_sf_entry	*next_sfep;
+	char				*endp;
+	const struct xfs_dir_ops	*dops;
+	xfs_ino_t			ino;
+	int				i;
+	int				i8count;
+	int				offset;
+	__uint8_t			filetype;
+
+	dops = xfs_dir_get_ops(mp, NULL);
+
+	/*
+	 * Give up if the directory is way too short.
+	 */
+	XFS_WANT_CORRUPTED_RETURN(mp, size >
+			offsetof(struct xfs_dir2_sf_hdr, parent));
+	XFS_WANT_CORRUPTED_RETURN(mp, size >=
+			xfs_dir2_sf_hdr_size(sfp->i8count));
+
+	endp = (char *)sfp + size;
+
+	/* Check .. entry */
+	ino = dops->sf_get_parent_ino(sfp);
+	i8count = ino > XFS_DIR2_MAX_SHORT_INUM;
+	XFS_WANT_CORRUPTED_RETURN(mp, !xfs_dir_ino_validate(mp, ino));
+	offset = dops->data_first_offset;
+
+	/* Check all reported entries */
+	sfep = xfs_dir2_sf_firstentry(sfp);
+	for (i = 0; i < sfp->count; i++) {
+		/*
+		 * struct xfs_dir2_sf_entry has a variable length.
+		 * Check the fixed-offset parts of the structure are
+		 * within the data buffer.
+		 */
+		XFS_WANT_CORRUPTED_RETURN(mp,
+				((char *)sfep + sizeof(*sfep)) < endp);
+
+		/* Don't allow names with known bad length. */
+		XFS_WANT_CORRUPTED_RETURN(mp, sfep->namelen > 0);
+		XFS_WANT_CORRUPTED_RETURN(mp, sfep->namelen < MAXNAMELEN);
+
+		/*
+		 * Check that the variable-length part of the structure is
+		 * within the data buffer.  The next entry starts after the
+		 * name component, so nextentry is an acceptable test.
+		 */
+		next_sfep = dops->sf_nextentry(sfp, sfep);
+		XFS_WANT_CORRUPTED_RETURN(mp, endp >= (char *)next_sfep);
+
+		/* Check that the offsets always increase. */
+		XFS_WANT_CORRUPTED_RETURN(mp,
+				xfs_dir2_sf_get_offset(sfep) >= offset);
+
+		/* Check the inode number. */
+		ino = dops->sf_get_ino(sfp, sfep);
+		i8count += ino > XFS_DIR2_MAX_SHORT_INUM;
+		XFS_WANT_CORRUPTED_RETURN(mp, !xfs_dir_ino_validate(mp, ino));
+
+		/* Check the file type. */
+		filetype = dops->sf_get_ftype(sfep);
+		XFS_WANT_CORRUPTED_RETURN(mp, filetype < XFS_DIR3_FT_MAX);
+
+		offset = xfs_dir2_sf_get_offset(sfep) +
+				dops->data_entsize(sfep->namelen);
+
+		sfep = next_sfep;
+	}
+	XFS_WANT_CORRUPTED_RETURN(mp, i8count == sfp->i8count);
+	XFS_WANT_CORRUPTED_RETURN(mp, (void *)sfep == (void *)endp);
+
+	/* Make sure this whole thing ought to be in local format. */
+	XFS_WANT_CORRUPTED_RETURN(mp, offset +
+	       (sfp->count + 2) * (uint)sizeof(xfs_dir2_leaf_entry_t) +
+	       (uint)sizeof(xfs_dir2_block_tail_t) <= mp->m_dir_geo->blksize);
+
+	return 0;
+}
+
 /*
  * Create a new (shortform) directory.
  */
