@@ -522,6 +522,14 @@ config CRYPTO_CRCT10DIF_VPMSUM
 	  multiply-sum (vpmsum) instructions, introduced in POWER8. Enable on
 	  POWER8 and newer processors for improved performance.
 
+config CRYPTO_VPMSUM_TESTER
+	tristate "Powerpc64 vpmsum hardware acceleration tester"
+	depends on CRYPTO_CRCT10DIF_VPMSUM && CRYPTO_CRC32C_VPMSUM
+	help
+	  Stress test for CRC32c and CRC-T10DIF algorithms implemented with
+	  POWER8 vpmsum instructions.
+	  Unless you are testing these algorithms, you don't need this.
+
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"
 	select CRYPTO_GF128MUL
