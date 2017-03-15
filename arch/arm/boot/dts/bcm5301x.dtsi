@@ -18,10 +18,6 @@
 / {
 	interrupt-parent = <&gic>;
 
-	chosen {
-		stdout-path = &uart0;
-	};
-
 	chipcommonA {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18000000 0x00001000>;

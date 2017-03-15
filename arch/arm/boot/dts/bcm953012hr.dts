@@ -40,14 +40,9 @@
 	compatible = "brcm,bcm953012hr", "brcm,brcm53012", "brcm,bcm4708";
 
 	aliases {
-		serial0 = &uart0;
 		ethernet0 = &gmac0;
 		ethernet1 = &gmac1;
 		ethernet2 = &gmac2;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
 	};
 
 	memory@80000000 {
