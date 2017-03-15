@@ -513,6 +513,15 @@ config CRYPTO_CRCT10DIF_PCLMUL
 	  'crct10dif-plcmul' module, which is faster when computing the
 	  crct10dif checksum as compared with the generic table implementation.
 
+config CRYPTO_CRCT10DIF_VPMSUM
+	tristate "CRC32T10DIF powerpc64 hardware acceleration"
+	depends on PPC64 && ALTIVEC && CRC_T10DIF
+	select CRYPTO_HASH
+	help
+	  CRC10T10DIF algorithm implemented using vector polynomial
+	  multiply-sum (vpmsum) instructions, introduced in POWER8. Enable on
+	  POWER8 and newer processors for improved performance.
+
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"
 	select CRYPTO_GF128MUL
