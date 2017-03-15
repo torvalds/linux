@@ -470,8 +470,6 @@ enum iwl_legacy_cmds {
 	SCAN_OFFLOAD_PROFILES_QUERY_CMD = 0x56,
 	SCAN_OFFLOAD_HOTSPOTS_CONFIG_CMD = 0x58,
 	SCAN_OFFLOAD_HOTSPOTS_QUERY_CMD = 0x59,
-
-	REPLY_MAX = 0xff,
 };
 
 /* Please keep this enum *SORTED* by hex value.
