@@ -130,6 +130,9 @@ static void qlt_send_term_imm_notif(struct scsi_qla_host *vha,
 static struct fc_port *qlt_create_sess(struct scsi_qla_host *vha,
 	fc_port_t *fcport, bool local);
 void qlt_unreg_sess(struct fc_port *sess);
+static void qlt_24xx_handle_abts(struct scsi_qla_host *,
+	struct abts_recv_from_24xx *);
+
 /*
  * Global Variables
  */
@@ -389,6 +392,8 @@ static bool qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 			(struct abts_recv_from_24xx *)atio;
 		struct scsi_qla_host *host = qlt_find_host_by_vp_idx(vha,
 			entry->vp_index);
+		unsigned long flags;
+
 		if (unlikely(!host)) {
 			ql_dbg(ql_dbg_tgt, vha, 0xffff,
 			    "qla_target(%d): Response pkt (ABTS_RECV_24XX) "
@@ -396,9 +401,12 @@ static bool qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 			    vha->vp_idx, entry->vp_index);
 			break;
 		}
-		qlt_response_pkt(host, (response_t *)atio);
+		if (!ha_locked)
+			spin_lock_irqsave(&host->hw->hardware_lock, flags);
+		qlt_24xx_handle_abts(host, (struct abts_recv_from_24xx *)atio);
+		if (!ha_locked)
+			spin_unlock_irqrestore(&host->hw->hardware_lock, flags);
 		break;
-
 	}
 
 	/* case PUREX_IOCB_TYPE: ql2xmvasynctoatio */
