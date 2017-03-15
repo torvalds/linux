@@ -49,7 +49,9 @@ const char *hmm_bo_type_strings[HMM_BO_LAST] = {
 	"p", /* private */
 	"s", /* shared */
 	"u", /* user */
+#ifdef CONFIG_ION
 	"i", /* ion */
+#endif
 };
 
 static ssize_t bo_show(struct device *dev, struct device_attribute *attr,
