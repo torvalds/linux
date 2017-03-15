@@ -383,7 +383,7 @@ int ia_css_queue_get_size(
 			uint32_t *size)
 {
 	int error = 0;
-	if ((qhandle == 0) || (size == NULL))
+	if ((qhandle == NULL) || (size == NULL))
 		return EINVAL;
 
 	/* 1. Load the required queue object */
