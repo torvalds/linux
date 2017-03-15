@@ -640,11 +640,6 @@ tcp_tso_win_divisor - INTEGER
 	building larger TSO frames.
 	Default: 3
 
-tcp_tw_recycle - BOOLEAN
-	Enable fast recycling TIME-WAIT sockets. Default value is 0.
-	It should not be changed without advice/request of technical
-	experts.
-
 tcp_tw_reuse - BOOLEAN
 	Allow to reuse TIME-WAIT sockets for new connections when it is
 	safe from protocol viewpoint. Default value is 0.

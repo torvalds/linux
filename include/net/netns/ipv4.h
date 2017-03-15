@@ -33,7 +33,6 @@ struct inet_timewait_death_row {
 	atomic_t		tw_count;
 
 	struct inet_hashinfo 	*hashinfo ____cacheline_aligned_in_smp;
-	int			sysctl_tw_recycle;
 	int			sysctl_max_tw_buckets;
 };
 
