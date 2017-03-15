@@ -21,7 +21,7 @@
 
 struct mqprio_sched {
 	struct Qdisc		**qdiscs;
-	int hw_owned;
+	int hw_offload;
 };
 
 static void mqprio_destroy(struct Qdisc *sch)
@@ -39,7 +39,7 @@ static void mqprio_destroy(struct Qdisc *sch)
 		kfree(priv->qdiscs);
 	}
 
-	if (priv->hw_owned && dev->netdev_ops->ndo_setup_tc)
+	if (priv->hw_offload && dev->netdev_ops->ndo_setup_tc)
 		dev->netdev_ops->ndo_setup_tc(dev, sch->handle, 0, &tc);
 	else
 		netdev_set_num_tc(dev, 0);
@@ -59,15 +59,20 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt)
 			return -EINVAL;
 	}
 
-	/* net_device does not support requested operation */
-	if (qopt->hw && !dev->netdev_ops->ndo_setup_tc)
-		return -EINVAL;
+	/* Limit qopt->hw to maximum supported offload value.  Drivers have
+	 * the option of overriding this later if they don't support the a
+	 * given offload type.
+	 */
+	if (qopt->hw > TC_MQPRIO_HW_OFFLOAD_MAX)
+		qopt->hw = TC_MQPRIO_HW_OFFLOAD_MAX;
 
-	/* if hw owned qcount and qoffset are taken from LLD so
-	 * no reason to verify them here
+	/* If hardware offload is requested we will leave it to the device
+	 * to either populate the queue counts itself or to validate the
+	 * provided queue counts.  If ndo_setup_tc is not present then
+	 * hardware doesn't support offload and we should return an error.
 	 */
 	if (qopt->hw)
-		return 0;
+		return dev->netdev_ops->ndo_setup_tc ? 0 : -EINVAL;
 
 	for (i = 0; i < qopt->num_tc; i++) {
 		unsigned int last = qopt->offset[i] + qopt->count[i];
@@ -142,10 +147,11 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 		struct tc_to_netdev tc = {.type = TC_SETUP_MQPRIO,
 					  { .tc = qopt->num_tc }};
 
-		priv->hw_owned = 1;
 		err = dev->netdev_ops->ndo_setup_tc(dev, sch->handle, 0, &tc);
 		if (err)
 			return err;
+
+		priv->hw_offload = qopt->hw;
 	} else {
 		netdev_set_num_tc(dev, qopt->num_tc);
 		for (i = 0; i < qopt->num_tc; i++)
@@ -243,7 +249,7 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 	opt.num_tc = netdev_get_num_tc(dev);
 	memcpy(opt.prio_tc_map, dev->prio_tc_map, sizeof(opt.prio_tc_map));
-	opt.hw = priv->hw_owned;
+	opt.hw = priv->hw_offload;
 
 	for (i = 0; i < netdev_get_num_tc(dev); i++) {
 		opt.count[i] = dev->tc_to_txq[i].count;
