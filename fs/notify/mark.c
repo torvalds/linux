@@ -105,18 +105,40 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 	}
 }
 
-/* Calculate mask of events for a list of marks */
-u32 fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
+static void __fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 {
 	u32 new_mask = 0;
 	struct fsnotify_mark *mark;
 
-	if (!conn)
-		return 0;
-
 	hlist_for_each_entry(mark, &conn->list, obj_list)
 		new_mask |= mark->mask;
-	return new_mask;
+	if (conn->flags & FSNOTIFY_OBJ_TYPE_INODE)
+		conn->inode->i_fsnotify_mask = new_mask;
+	else if (conn->flags & FSNOTIFY_OBJ_TYPE_VFSMOUNT)
+		real_mount(conn->mnt)->mnt_fsnotify_mask = new_mask;
+}
+
+/*
+ * Calculate mask of events for a list of marks. The caller must make sure
+ * connector cannot disappear under us (usually by holding a mark->lock or
+ * mark->group->mark_mutex for a mark on this list).
+ */
+void fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
+{
+	if (!conn)
+		return;
+
+	if (conn->flags & FSNOTIFY_OBJ_TYPE_INODE)
+		spin_lock(&conn->inode->i_lock);
+	else
+		spin_lock(&conn->mnt->mnt_root->d_lock);
+	__fsnotify_recalc_mask(conn);
+	if (conn->flags & FSNOTIFY_OBJ_TYPE_INODE) {
+		spin_unlock(&conn->inode->i_lock);
+		__fsnotify_update_child_dentry_flags(conn->inode);
+	} else {
+		spin_unlock(&conn->mnt->mnt_root->d_lock);
+	}
 }
 
 /*
@@ -423,10 +445,8 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 	if (ret)
 		goto err;
 
-	if (inode)
-		fsnotify_recalc_inode_mask(inode);
-	else
-		fsnotify_recalc_vfsmount_mask(mnt);
+	if (mark->mask)
+		fsnotify_recalc_mask(mark->connector);
 
 	return ret;
 err:

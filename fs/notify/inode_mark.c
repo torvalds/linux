@@ -30,17 +30,9 @@
 
 #include "../internal.h"
 
-/*
- * Recalculate the inode->i_fsnotify_mask, or the mask of all FS_* event types
- * any notifier is interested in hearing for this inode.
- */
 void fsnotify_recalc_inode_mask(struct inode *inode)
 {
-	spin_lock(&inode->i_lock);
-	inode->i_fsnotify_mask = fsnotify_recalc_mask(inode->i_fsnotify_marks);
-	spin_unlock(&inode->i_lock);
-
-	__fsnotify_update_child_dentry_flags(inode);
+	fsnotify_recalc_mask(inode->i_fsnotify_marks);
 }
 
 struct inode *fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
@@ -57,13 +49,9 @@ struct inode *fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 	empty = hlist_empty(&mark->connector->list);
 	mark->connector = NULL;
 
-	/*
-	 * this mark is now off the inode->i_fsnotify_marks list and we
-	 * hold the inode->i_lock, so this is the perfect time to update the
-	 * inode->i_fsnotify_mask
-	 */
-	inode->i_fsnotify_mask = fsnotify_recalc_mask(inode->i_fsnotify_marks);
 	spin_unlock(&inode->i_lock);
+
+	fsnotify_recalc_mask(inode->i_fsnotify_marks);
 
 	return empty ? inode : NULL;
 }

@@ -34,17 +34,9 @@ void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
 	fsnotify_clear_marks_by_group_flags(group, FSNOTIFY_OBJ_TYPE_VFSMOUNT);
 }
 
-/*
- * Recalculate the mnt->mnt_fsnotify_mask, or the mask of all FS_* event types
- * any notifier is interested in hearing for this mount point
- */
 void fsnotify_recalc_vfsmount_mask(struct vfsmount *mnt)
 {
-	struct mount *m = real_mount(mnt);
-
-	spin_lock(&mnt->mnt_root->d_lock);
-	m->mnt_fsnotify_mask = fsnotify_recalc_mask(m->mnt_fsnotify_marks);
-	spin_unlock(&mnt->mnt_root->d_lock);
+	fsnotify_recalc_mask(real_mount(mnt)->mnt_fsnotify_marks);
 }
 
 void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark)
@@ -60,8 +52,9 @@ void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark)
 	hlist_del_init_rcu(&mark->obj_list);
 	mark->connector = NULL;
 
-	m->mnt_fsnotify_mask = fsnotify_recalc_mask(m->mnt_fsnotify_marks);
 	spin_unlock(&mnt->mnt_root->d_lock);
+
+	fsnotify_recalc_mask(m->mnt_fsnotify_marks);
 }
 
 /*

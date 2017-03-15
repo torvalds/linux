@@ -327,6 +327,8 @@ extern struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group 
 
 /* functions used to manipulate the marks attached to inodes */
 
+/* Calculate mask of events for a list of marks */
+extern void fsnotify_recalc_mask(struct fsnotify_mark_connector *conn);
 /* run all marks associated with a vfsmount and update mnt->mnt_fsnotify_mask */
 extern void fsnotify_recalc_vfsmount_mask(struct vfsmount *mnt);
 /* run all marks associated with an inode and update inode->i_fsnotify_mask */
