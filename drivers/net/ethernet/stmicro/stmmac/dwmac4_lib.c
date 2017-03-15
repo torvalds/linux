@@ -37,12 +37,12 @@ int dwmac4_dma_reset(void __iomem *ioaddr)
 
 void dwmac4_set_rx_tail_ptr(void __iomem *ioaddr, u32 tail_ptr, u32 chan)
 {
-	writel(tail_ptr, ioaddr + DMA_CHAN_RX_END_ADDR(0));
+	writel(tail_ptr, ioaddr + DMA_CHAN_RX_END_ADDR(chan));
 }
 
 void dwmac4_set_tx_tail_ptr(void __iomem *ioaddr, u32 tail_ptr, u32 chan)
 {
-	writel(tail_ptr, ioaddr + DMA_CHAN_TX_END_ADDR(0));
+	writel(tail_ptr, ioaddr + DMA_CHAN_TX_END_ADDR(chan));
 }
 
 void dwmac4_dma_start_tx(void __iomem *ioaddr, u32 chan)
