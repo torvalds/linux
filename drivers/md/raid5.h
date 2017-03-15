@@ -487,35 +487,6 @@ static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
 		return NULL;
 }
 
-/*
- * We maintain a count of processed stripes in the upper 16 bits
- */
-static inline int raid5_bi_processed_stripes(struct bio *bio)
-{
-	atomic_t *segments = (atomic_t *)&bio->bi_phys_segments;
-
-	return (atomic_read(segments) >> 16) & 0xffff;
-}
-
-static inline void raid5_set_bi_processed_stripes(struct bio *bio,
-	unsigned int cnt)
-{
-	atomic_t *segments = (atomic_t *)&bio->bi_phys_segments;
-	int old, new;
-
-	do {
-		old = atomic_read(segments);
-		new = (old & 0xffff) | (cnt << 16);
-	} while (atomic_cmpxchg(segments, old, new) != old);
-}
-
-static inline void raid5_set_bi_stripes(struct bio *bio, unsigned int cnt)
-{
-	atomic_t *segments = (atomic_t *)&bio->bi_phys_segments;
-
-	atomic_set(segments, cnt);
-}
-
 /* NOTE NR_STRIPE_HASH_LOCKS must remain below 64.
  * This is because we sometimes take all the spinlocks
  * and creating that much locking depth can cause
@@ -613,6 +584,7 @@ struct r5conf {
 	struct list_head	delayed_list; /* stripes that have plugged requests */
 	struct list_head	bitmap_list; /* stripes delaying awaiting bitmap update */
 	struct bio		*retry_read_aligned; /* currently retrying aligned bios   */
+	unsigned int		retry_read_offset; /* sector offset into retry_read_aligned */
 	struct bio		*retry_read_aligned_list; /* aligned bios retry list  */
 	atomic_t		preread_active_stripes; /* stripes with scheduled io */
 	atomic_t		active_aligned_reads;

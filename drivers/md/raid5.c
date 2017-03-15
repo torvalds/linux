@@ -5082,12 +5082,14 @@ static void add_bio_to_retry(struct bio *bi,struct r5conf *conf)
 	md_wakeup_thread(conf->mddev->thread);
 }
 
-static struct bio *remove_bio_from_retry(struct r5conf *conf)
+static struct bio *remove_bio_from_retry(struct r5conf *conf,
+					 unsigned int *offset)
 {
 	struct bio *bi;
 
 	bi = conf->retry_read_aligned;
 	if (bi) {
+		*offset = conf->retry_read_offset;
 		conf->retry_read_aligned = NULL;
 		return bi;
 	}
@@ -5095,11 +5097,7 @@ static struct bio *remove_bio_from_retry(struct r5conf *conf)
 	if(bi) {
 		conf->retry_read_aligned_list = bi->bi_next;
 		bi->bi_next = NULL;
-		/*
-		 * this sets the active strip count to 1 and the processed
-		 * strip count to zero (upper 8 bits)
-		 */
-		raid5_set_bi_processed_stripes(bi, 0);
+		*offset = 0;
 	}
 
 	return bi;
@@ -6055,7 +6053,8 @@ static inline sector_t raid5_sync_request(struct mddev *mddev, sector_t sector_n
 	return STRIPE_SECTORS;
 }
 
-static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
+static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio,
+			       unsigned int offset)
 {
 	/* We may not be able to submit a whole bio at once as there
 	 * may not be enough stripe_heads available.
@@ -6084,7 +6083,7 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
 		     sector += STRIPE_SECTORS,
 		     scnt++) {
 
-		if (scnt < raid5_bi_processed_stripes(raid_bio))
+		if (scnt < offset)
 			/* already done this stripe */
 			continue;
 
@@ -6092,15 +6091,15 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
 
 		if (!sh) {
 			/* failed to get a stripe - must wait */
-			raid5_set_bi_processed_stripes(raid_bio, scnt);
 			conf->retry_read_aligned = raid_bio;
+			conf->retry_read_offset = scnt;
 			return handled;
 		}
 
 		if (!add_stripe_bio(sh, raid_bio, dd_idx, 0, 0)) {
 			raid5_release_stripe(sh);
-			raid5_set_bi_processed_stripes(raid_bio, scnt);
 			conf->retry_read_aligned = raid_bio;
+			conf->retry_read_offset = scnt;
 			return handled;
 		}
 
@@ -6228,6 +6227,7 @@ static void raid5d(struct md_thread *thread)
 	while (1) {
 		struct bio *bio;
 		int batch_size, released;
+		unsigned int offset;
 
 		released = release_stripe_list(conf, conf->temp_inactive_list);
 		if (released)
@@ -6245,10 +6245,10 @@ static void raid5d(struct md_thread *thread)
 		}
 		raid5_activate_delayed(conf);
 
-		while ((bio = remove_bio_from_retry(conf))) {
+		while ((bio = remove_bio_from_retry(conf, &offset))) {
 			int ok;
 			spin_unlock_irq(&conf->device_lock);
-			ok = retry_aligned_read(conf, bio);
+			ok = retry_aligned_read(conf, bio, offset);
 			spin_lock_irq(&conf->device_lock);
 			if (!ok)
 				break;
