@@ -124,7 +124,7 @@
   * Recommend using hypercall for address space switches rather
   * than MOV to CR3 instruction
   */
-#define HV_X64_MWAIT_RECOMMENDED		(1 << 0)
+#define HV_X64_AS_SWITCH_RECOMMENDED		(1 << 0)
 /* Recommend using hypercall for local TLB flushes rather
  * than INVLPG or MOV to CR3 instructions */
 #define HV_X64_LOCAL_TLB_FLUSH_RECOMMENDED	(1 << 1)
