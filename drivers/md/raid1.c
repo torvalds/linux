@@ -246,35 +246,17 @@ static void reschedule_retry(struct r1bio *r1_bio)
 static void call_bio_endio(struct r1bio *r1_bio)
 {
 	struct bio *bio = r1_bio->master_bio;
-	int done;
 	struct r1conf *conf = r1_bio->mddev->private;
-	sector_t bi_sector = bio->bi_iter.bi_sector;
-
-	if (bio->bi_phys_segments) {
-		unsigned long flags;
-		spin_lock_irqsave(&conf->device_lock, flags);
-		bio->bi_phys_segments--;
-		done = (bio->bi_phys_segments == 0);
-		spin_unlock_irqrestore(&conf->device_lock, flags);
-		/*
-		 * make_request() might be waiting for
-		 * bi_phys_segments to decrease
-		 */
-		wake_up(&conf->wait_barrier);
-	} else
-		done = 1;
 
 	if (!test_bit(R1BIO_Uptodate, &r1_bio->state))
 		bio->bi_error = -EIO;
 
-	if (done) {
-		bio_endio(bio);
-		/*
-		 * Wake up any possible resync thread that waits for the device
-		 * to go idle.
-		 */
-		allow_barrier(conf, bi_sector);
-	}
+	bio_endio(bio);
+	/*
+	 * Wake up any possible resync thread that waits for the device
+	 * to go idle.
+	 */
+	allow_barrier(conf, r1_bio->sector);
 }
 
 static void raid_end_bio_io(struct r1bio *r1_bio)
@@ -977,6 +959,16 @@ static void wait_read_barrier(struct r1conf *conf, sector_t sector_nr)
 	spin_unlock_irq(&conf->resync_lock);
 }
 
+static void inc_pending(struct r1conf *conf, sector_t bi_sector)
+{
+	/* The current request requires multiple r1_bio, so
+	 * we need to increment the pending count, and the corresponding
+	 * window count.
+	 */
+	int idx = sector_to_idx(bi_sector);
+	atomic_inc(&conf->nr_pending[idx]);
+}
+
 static void wait_barrier(struct r1conf *conf, sector_t sector_nr)
 {
 	int idx = sector_to_idx(sector_nr);
@@ -1192,17 +1184,6 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio)
 	r1_bio = alloc_r1bio(mddev, bio, 0);
 
 	/*
-	 * We might need to issue multiple reads to different
-	 * devices if there are bad blocks around, so we keep
-	 * track of the number of reads in bio->bi_phys_segments.
-	 * If this is 0, there is only one r1_bio and no locking
-	 * will be needed when requests complete.  If it is
-	 * non-zero, then it is the number of not-completed requests.
-	 */
-	bio->bi_phys_segments = 0;
-	bio_clear_flag(bio, BIO_SEG_VALID);
-
-	/*
 	 * make_request() can abort the operation when read-ahead is being
 	 * used and no empty request is available.
 	 */
@@ -1257,12 +1238,7 @@ read_again:
 		sectors_handled = (r1_bio->sector + max_sectors
 				   - bio->bi_iter.bi_sector);
 		r1_bio->sectors = max_sectors;
-		spin_lock_irq(&conf->device_lock);
-		if (bio->bi_phys_segments == 0)
-			bio->bi_phys_segments = 2;
-		else
-			bio->bi_phys_segments++;
-		spin_unlock_irq(&conf->device_lock);
+		bio_inc_remaining(bio);
 
 		/*
 		 * Cannot call generic_make_request directly as that will be
@@ -1328,16 +1304,6 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio)
 	wait_barrier(conf, bio->bi_iter.bi_sector);
 
 	r1_bio = alloc_r1bio(mddev, bio, 0);
-
-	/* We might need to issue multiple writes to different
-	 * devices if there are bad blocks around, so we keep
-	 * track of the number of writes in bio->bi_phys_segments.
-	 * If this is 0, there is only one r1_bio and no locking
-	 * will be needed when requests complete.  If it is
-	 * non-zero, then it is the number of not-completed requests.
-	 */
-	bio->bi_phys_segments = 0;
-	bio_clear_flag(bio, BIO_SEG_VALID);
 
 	if (conf->pending_count >= max_queued_requests) {
 		md_wakeup_thread(mddev->thread);
@@ -1544,16 +1510,11 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio)
 	 * as it could result in the bio being freed.
 	 */
 	if (sectors_handled < bio_sectors(bio)) {
-		/* We need another r1_bio, which must be accounted
-		 * in bio->bi_phys_segments
-		 */
-		spin_lock_irq(&conf->device_lock);
-		if (bio->bi_phys_segments == 0)
-			bio->bi_phys_segments = 2;
-		else
-			bio->bi_phys_segments++;
-		spin_unlock_irq(&conf->device_lock);
+		/* We need another r1_bio, which must be counted */
+		sector_t sect = bio->bi_iter.bi_sector + sectors_handled;
 
+		inc_pending(conf, sect);
+		bio_inc_remaining(bio);
 		r1_bio_write_done(r1_bio);
 		r1_bio = alloc_r1bio(mddev, bio, sectors_handled);
 		goto retry_write;
@@ -2573,12 +2534,7 @@ read_more:
 			int sectors_handled = (r1_bio->sector + max_sectors
 					       - mbio->bi_iter.bi_sector);
 			r1_bio->sectors = max_sectors;
-			spin_lock_irq(&conf->device_lock);
-			if (mbio->bi_phys_segments == 0)
-				mbio->bi_phys_segments = 2;
-			else
-				mbio->bi_phys_segments++;
-			spin_unlock_irq(&conf->device_lock);
+			bio_inc_remaining(mbio);
 			trace_block_bio_remap(bdev_get_queue(bio->bi_bdev),
 					      bio, bio_dev, bio_sector);
 			generic_make_request(bio);
@@ -2586,6 +2542,7 @@ read_more:
 
 			r1_bio = alloc_r1bio(mddev, mbio, sectors_handled);
 			set_bit(R1BIO_ReadError, &r1_bio->state);
+			inc_pending(conf, r1_bio->sector);
 
 			goto read_more;
 		} else {
