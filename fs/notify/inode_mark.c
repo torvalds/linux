@@ -35,27 +35,6 @@ void fsnotify_recalc_inode_mask(struct inode *inode)
 	fsnotify_recalc_mask(inode->i_fsnotify_marks);
 }
 
-struct inode *fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
-{
-	struct inode *inode = mark->connector->inode;
-	bool empty;
-
-	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
-	assert_spin_locked(&mark->lock);
-
-	spin_lock(&inode->i_lock);
-
-	hlist_del_init_rcu(&mark->obj_list);
-	empty = hlist_empty(&mark->connector->list);
-	mark->connector = NULL;
-
-	spin_unlock(&inode->i_lock);
-
-	fsnotify_recalc_mask(inode->i_fsnotify_marks);
-
-	return empty ? inode : NULL;
-}
-
 /*
  * Given a group clear all of the inode marks associated with that group.
  */

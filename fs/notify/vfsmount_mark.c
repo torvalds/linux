@@ -39,24 +39,6 @@ void fsnotify_recalc_vfsmount_mask(struct vfsmount *mnt)
 	fsnotify_recalc_mask(real_mount(mnt)->mnt_fsnotify_marks);
 }
 
-void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark)
-{
-	struct vfsmount *mnt = mark->connector->mnt;
-	struct mount *m = real_mount(mnt);
-
-	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
-	assert_spin_locked(&mark->lock);
-
-	spin_lock(&mnt->mnt_root->d_lock);
-
-	hlist_del_init_rcu(&mark->obj_list);
-	mark->connector = NULL;
-
-	spin_unlock(&mnt->mnt_root->d_lock);
-
-	fsnotify_recalc_mask(m->mnt_fsnotify_marks);
-}
-
 /*
  * given a group and vfsmount, find the mark associated with that combination.
  * if found take a reference to that mark and return it, else return NULL

@@ -18,10 +18,6 @@ extern struct srcu_struct fsnotify_mark_srcu;
 extern int fsnotify_compare_groups(struct fsnotify_group *a,
 				   struct fsnotify_group *b);
 
-/* vfsmount specific destruction of a mark */
-extern void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark);
-/* inode specific destruction of a mark */
-extern struct inode *fsnotify_destroy_inode_mark(struct fsnotify_mark *mark);
 /* Find mark belonging to given group in the list of marks */
 extern struct fsnotify_mark *fsnotify_find_mark(
 					struct fsnotify_mark_connector *conn,

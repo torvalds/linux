@@ -141,6 +141,30 @@ void fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 	}
 }
 
+static struct inode *fsnotify_detach_from_object(struct fsnotify_mark *mark)
+{
+	struct fsnotify_mark_connector *conn;
+	struct inode *inode = NULL;
+	spinlock_t *lock;
+
+	conn = mark->connector;
+	if (conn->flags & FSNOTIFY_OBJ_TYPE_INODE)
+		lock = &conn->inode->i_lock;
+	else
+		lock = &conn->mnt->mnt_root->d_lock;
+	spin_lock(lock);
+	hlist_del_init_rcu(&mark->obj_list);
+	if (hlist_empty(&conn->list)) {
+		if (conn->flags & FSNOTIFY_OBJ_TYPE_INODE)
+			inode = conn->inode;
+	}
+	mark->connector = NULL;
+	spin_unlock(lock);
+	fsnotify_recalc_mask(conn);
+
+	return inode;
+}
+
 /*
  * Remove mark from inode / vfsmount list, group list, drop inode reference
  * if we got one.
@@ -164,12 +188,8 @@ void fsnotify_detach_mark(struct fsnotify_mark *mark)
 
 	mark->flags &= ~FSNOTIFY_MARK_FLAG_ATTACHED;
 
-	if (mark->connector->flags & FSNOTIFY_OBJ_TYPE_INODE)
-		inode = fsnotify_destroy_inode_mark(mark);
-	else if (mark->connector->flags & FSNOTIFY_OBJ_TYPE_VFSMOUNT)
-		fsnotify_destroy_vfsmount_mark(mark);
-	else
-		BUG();
+	inode = fsnotify_detach_from_object(mark);
+
 	/*
 	 * Note that we didn't update flags telling whether inode cares about
 	 * what's happening with children. We update these flags from
