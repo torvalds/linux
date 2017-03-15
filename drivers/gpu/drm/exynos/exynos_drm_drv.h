@@ -115,7 +115,6 @@ struct exynos_drm_plane_config {
  *
  * @enable: enable the device
  * @disable: disable the device
- * @commit: set current hw specific display mode to hw.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  * @atomic_check: validate state
@@ -130,7 +129,6 @@ struct exynos_drm_crtc;
 struct exynos_drm_crtc_ops {
 	void (*enable)(struct exynos_drm_crtc *crtc);
 	void (*disable)(struct exynos_drm_crtc *crtc);
-	void (*commit)(struct exynos_drm_crtc *crtc);
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
 	u32 (*get_vblank_counter)(struct exynos_drm_crtc *crtc);

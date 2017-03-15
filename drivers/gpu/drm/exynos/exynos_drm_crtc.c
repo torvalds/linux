@@ -49,15 +49,6 @@ static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
 	}
 }
 
-static void
-exynos_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
-{
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-
-	if (exynos_crtc->ops->commit)
-		exynos_crtc->ops->commit(exynos_crtc);
-}
-
 static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
@@ -93,7 +84,6 @@ static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
 static const struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 	.enable		= exynos_drm_crtc_enable,
 	.disable	= exynos_drm_crtc_disable,
-	.mode_set_nofb	= exynos_drm_crtc_mode_set_nofb,
 	.atomic_check	= exynos_crtc_atomic_check,
 	.atomic_begin	= exynos_crtc_atomic_begin,
 	.atomic_flush	= exynos_crtc_atomic_flush,
