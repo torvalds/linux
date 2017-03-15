@@ -173,8 +173,6 @@ int ks_wlan_setup_parameter(struct ks_wlan_private *priv,
  * would not work at all... - Jean II
  */
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get protocol name */
 static int ks_wlan_get_name(struct net_device *dev,
 			    struct iw_request_info *info, char *cwrq,
 			    char *extra)
@@ -198,8 +196,6 @@ static int ks_wlan_get_name(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set frequency */
 static int ks_wlan_set_freq(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_freq *fwrq,
 			    char *extra)
@@ -247,8 +243,6 @@ static int ks_wlan_set_freq(struct net_device *dev,
 	return rc;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get frequency */
 static int ks_wlan_get_freq(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_freq *fwrq,
 			    char *extra)
@@ -271,8 +265,6 @@ static int ks_wlan_get_freq(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set ESSID */
 static int ks_wlan_set_essid(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *dwrq, char *extra)
@@ -330,8 +322,6 @@ static int ks_wlan_set_essid(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get ESSID */
 static int ks_wlan_get_essid(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *dwrq, char *extra)
@@ -374,8 +364,6 @@ static int ks_wlan_get_essid(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set AP address */
 static int ks_wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 			   struct sockaddr *ap_addr, char *extra)
 {
@@ -410,8 +398,6 @@ static int ks_wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get AP address */
 static int ks_wlan_get_wap(struct net_device *dev, struct iw_request_info *info,
 			   struct sockaddr *awrq, char *extra)
 {
@@ -432,8 +418,6 @@ static int ks_wlan_get_wap(struct net_device *dev, struct iw_request_info *info,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Nickname */
 static int ks_wlan_set_nick(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_point *dwrq,
 			    char *extra)
@@ -455,8 +439,6 @@ static int ks_wlan_set_nick(struct net_device *dev,
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Nickname */
 static int ks_wlan_get_nick(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_point *dwrq,
 			    char *extra)
@@ -475,8 +457,6 @@ static int ks_wlan_get_nick(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Bit-Rate */
 static int ks_wlan_set_rate(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
@@ -710,8 +690,6 @@ static int ks_wlan_set_rate(struct net_device *dev,
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Bit-Rate */
 static int ks_wlan_get_rate(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
@@ -738,8 +716,6 @@ static int ks_wlan_get_rate(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set RTS threshold */
 static int ks_wlan_set_rts(struct net_device *dev, struct iw_request_info *info,
 			   struct iw_param *vwrq, char *extra)
 {
@@ -762,8 +738,6 @@ static int ks_wlan_set_rts(struct net_device *dev, struct iw_request_info *info,
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get RTS threshold */
 static int ks_wlan_get_rts(struct net_device *dev, struct iw_request_info *info,
 			   struct iw_param *vwrq, char *extra)
 {
@@ -781,8 +755,6 @@ static int ks_wlan_get_rts(struct net_device *dev, struct iw_request_info *info,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Fragmentation threshold */
 static int ks_wlan_set_frag(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
@@ -807,8 +779,6 @@ static int ks_wlan_set_frag(struct net_device *dev,
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Fragmentation threshold */
 static int ks_wlan_get_frag(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
@@ -827,8 +797,6 @@ static int ks_wlan_get_frag(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Mode of Operation */
 static int ks_wlan_set_mode(struct net_device *dev,
 			    struct iw_request_info *info, __u32 *uwrq,
 			    char *extra)
@@ -863,8 +831,6 @@ static int ks_wlan_set_mode(struct net_device *dev,
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Mode of Operation */
 static int ks_wlan_get_mode(struct net_device *dev,
 			    struct iw_request_info *info, __u32 *uwrq,
 			    char *extra)
@@ -891,8 +857,6 @@ static int ks_wlan_get_mode(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Encryption Key */
 static int ks_wlan_set_encode(struct net_device *dev,
 			      struct iw_request_info *info,
 			      struct iw_point *dwrq, char *extra)
@@ -1009,8 +973,6 @@ static int ks_wlan_set_encode(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Encryption Key */
 static int ks_wlan_get_encode(struct net_device *dev,
 			      struct iw_request_info *info,
 			      struct iw_point *dwrq, char *extra)
@@ -1065,8 +1027,6 @@ static int ks_wlan_get_encode(struct net_device *dev,
 }
 
 #ifndef KSC_OPNOTSUPP
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Tx-Power */
 static int ks_wlan_set_txpow(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
@@ -1074,8 +1034,6 @@ static int ks_wlan_set_txpow(struct net_device *dev,
 	return -EOPNOTSUPP;	/* Not Support */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Tx-Power */
 static int ks_wlan_get_txpow(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
@@ -1091,8 +1049,6 @@ static int ks_wlan_get_txpow(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Retry limits */
 static int ks_wlan_set_retry(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
@@ -1100,8 +1056,6 @@ static int ks_wlan_set_retry(struct net_device *dev,
 	return -EOPNOTSUPP;	/* Not Support */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Retry limits */
 static int ks_wlan_get_retry(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
@@ -1118,8 +1072,6 @@ static int ks_wlan_get_retry(struct net_device *dev,
 }
 #endif /* KSC_OPNOTSUPP */
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get range info */
 static int ks_wlan_get_range(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *dwrq, char *extra)
@@ -1253,8 +1205,6 @@ static int ks_wlan_get_range(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Power Management */
 static int ks_wlan_set_power(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
@@ -1289,8 +1239,6 @@ static int ks_wlan_set_power(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Power Management */
 static int ks_wlan_get_power(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *vwrq, char *extra)
@@ -1309,8 +1257,6 @@ static int ks_wlan_get_power(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get wirless statistics */
 static int ks_wlan_get_iwstats(struct net_device *dev,
 			       struct iw_request_info *info,
 			       struct iw_quality *vwrq, char *extra)
@@ -1330,8 +1276,7 @@ static int ks_wlan_get_iwstats(struct net_device *dev,
 }
 
 #ifndef KSC_OPNOTSUPP
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set Sensitivity */
+
 static int ks_wlan_set_sens(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
@@ -1339,8 +1284,6 @@ static int ks_wlan_set_sens(struct net_device *dev,
 	return -EOPNOTSUPP;	/* Not Support */
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get Sensitivity */
 static int ks_wlan_get_sens(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_param *vwrq,
 			    char *extra)
@@ -1353,8 +1296,6 @@ static int ks_wlan_get_sens(struct net_device *dev,
 }
 #endif /* KSC_OPNOTSUPP */
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get AP List */
 /* Note : this is deprecated in favor of IWSCAN */
 static int ks_wlan_get_aplist(struct net_device *dev,
 			      struct iw_request_info *info,
@@ -1389,8 +1330,6 @@ static int ks_wlan_get_aplist(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : Initiate Scan */
 static int ks_wlan_set_scan(struct net_device *dev,
 			    struct iw_request_info *info,
 			    union iwreq_data *wrqu, char *extra)
@@ -1423,7 +1362,6 @@ static int ks_wlan_set_scan(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
 /*
  * Translate scan data returned from the card to a card independent
  * format that the Wireless Tools will understand - Jean II
@@ -1586,8 +1524,6 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 	return current_ev;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : Read Scan Results */
 static int ks_wlan_get_scan(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_point *dwrq,
 			    char *extra)
@@ -1644,8 +1580,7 @@ static int ks_wlan_get_scan(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Commit handler : called after a bunch of SET operations */
+/* called after a bunch of SET operations */
 static int ks_wlan_config_commit(struct net_device *dev,
 				 struct iw_request_info *info, void *zwrq,
 				 char *extra)
@@ -1661,8 +1596,7 @@ static int ks_wlan_config_commit(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless handler : set association ie params */
+/* set association ie params */
 static int ks_wlan_set_genie(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *dwrq, char *extra)
@@ -1679,8 +1613,6 @@ static int ks_wlan_set_genie(struct net_device *dev,
 //      return -EOPNOTSUPP;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless handler : set authentication mode params */
 static int ks_wlan_set_auth_mode(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_param *vwrq, char *extra)
@@ -1816,8 +1748,6 @@ static int ks_wlan_set_auth_mode(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless handler : get authentication mode params */
 static int ks_wlan_get_auth_mode(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_param *vwrq, char *extra)
@@ -1862,8 +1792,7 @@ static int ks_wlan_get_auth_mode(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set encoding token & mode (WPA)*/
+/* set encoding token & mode (WPA)*/
 static int ks_wlan_set_encode_ext(struct net_device *dev,
 				  struct iw_request_info *info,
 				  struct iw_point *dwrq, char *extra)
@@ -1968,8 +1897,7 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : get encoding token & mode (WPA)*/
+/* get encoding token & mode (WPA)*/
 static int ks_wlan_get_encode_ext(struct net_device *dev,
 				  struct iw_request_info *info,
 				  struct iw_point *dwrq, char *extra)
@@ -1991,8 +1919,6 @@ static int ks_wlan_get_encode_ext(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : PMKSA cache operation (WPA2) */
 static int ks_wlan_set_pmksa(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *dwrq, char *extra)
@@ -2122,8 +2048,6 @@ static struct iw_statistics *ks_get_wireless_stats(struct net_device *dev)
 	return wstats;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set stop request */
 static int ks_wlan_set_stop_request(struct net_device *dev,
 				    struct iw_request_info *info, __u32 *uwrq,
 				    char *extra)
@@ -2143,8 +2067,6 @@ static int ks_wlan_set_stop_request(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Wireless Handler : set MLME */
 #include <linux/ieee80211.h>
 static int ks_wlan_set_mlme(struct net_device *dev,
 			    struct iw_request_info *info, struct iw_point *dwrq,
@@ -2173,8 +2095,6 @@ static int ks_wlan_set_mlme(struct net_device *dev,
 	}
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get firemware version */
 static int ks_wlan_get_firmware_version(struct net_device *dev,
 					struct iw_request_info *info,
 					struct iw_point *dwrq, char *extra)
@@ -2246,8 +2166,6 @@ static int ks_wlan_get_connect(struct net_device *dev,
 }
 #endif
 
-/*------------------------------------------------------------------*/
-/* Private handler : set preamble */
 static int ks_wlan_set_preamble(struct net_device *dev,
 				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
@@ -2271,8 +2189,6 @@ static int ks_wlan_set_preamble(struct net_device *dev,
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get preamble */
 static int ks_wlan_get_preamble(struct net_device *dev,
 				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
@@ -2288,8 +2204,6 @@ static int ks_wlan_get_preamble(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set power save mode */
 static int ks_wlan_set_powermgt(struct net_device *dev,
 				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
@@ -2322,8 +2236,6 @@ static int ks_wlan_set_powermgt(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get power save made */
 static int ks_wlan_get_powermgt(struct net_device *dev,
 				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
@@ -2339,8 +2251,6 @@ static int ks_wlan_get_powermgt(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set scan type */
 static int ks_wlan_set_scan_type(struct net_device *dev,
 				 struct iw_request_info *info, __u32 *uwrq,
 				 char *extra)
@@ -2362,8 +2272,6 @@ static int ks_wlan_set_scan_type(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get scan type */
 static int ks_wlan_get_scan_type(struct net_device *dev,
 				 struct iw_request_info *info, __u32 *uwrq,
 				 char *extra)
@@ -2509,8 +2417,6 @@ static int ks_wlan_get_wep_ascii(struct net_device *dev,
 }
 #endif
 
-/*------------------------------------------------------------------*/
-/* Private handler : set beacon lost count */
 static int ks_wlan_set_beacon_lost(struct net_device *dev,
 				   struct iw_request_info *info, __u32 *uwrq,
 				   char *extra)
@@ -2534,8 +2440,6 @@ static int ks_wlan_set_beacon_lost(struct net_device *dev,
 	}
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get beacon lost count */
 static int ks_wlan_get_beacon_lost(struct net_device *dev,
 				   struct iw_request_info *info, __u32 *uwrq,
 				   char *extra)
@@ -2550,8 +2454,6 @@ static int ks_wlan_get_beacon_lost(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set phy type */
 static int ks_wlan_set_phy_type(struct net_device *dev,
 				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
@@ -2576,8 +2478,6 @@ static int ks_wlan_set_phy_type(struct net_device *dev,
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get phy type */
 static int ks_wlan_get_phy_type(struct net_device *dev,
 				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
@@ -2592,8 +2492,6 @@ static int ks_wlan_get_phy_type(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set cts mode */
 static int ks_wlan_set_cts_mode(struct net_device *dev,
 				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
@@ -2621,8 +2519,6 @@ static int ks_wlan_set_cts_mode(struct net_device *dev,
 	return -EINPROGRESS;	/* Call commit handler */
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get cts mode */
 static int ks_wlan_get_cts_mode(struct net_device *dev,
 				struct iw_request_info *info, __u32 *uwrq,
 				char *extra)
@@ -2637,8 +2533,6 @@ static int ks_wlan_get_cts_mode(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set sleep mode */
 static int ks_wlan_set_sleep_mode(struct net_device *dev,
 				  struct iw_request_info *info,
 				  __u32 *uwrq, char *extra)
@@ -2667,8 +2561,6 @@ static int ks_wlan_set_sleep_mode(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get sleep mode */
 static int ks_wlan_get_sleep_mode(struct net_device *dev,
 				  struct iw_request_info *info,
 				  __u32 *uwrq, char *extra)
@@ -2721,8 +2613,6 @@ static int ks_wlan_get_phy_information_timer(struct net_device *dev,
 #endif
 
 #ifdef WPS
-/*------------------------------------------------------------------*/
-/* Private handler : set WPS enable */
 static int ks_wlan_set_wps_enable(struct net_device *dev,
 				  struct iw_request_info *info, __u32 *uwrq,
 				  char *extra)
@@ -2744,8 +2634,6 @@ static int ks_wlan_set_wps_enable(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get WPS enable */
 static int ks_wlan_get_wps_enable(struct net_device *dev,
 				  struct iw_request_info *info, __u32 *uwrq,
 				  char *extra)
@@ -2763,8 +2651,6 @@ static int ks_wlan_get_wps_enable(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set WPS probe req */
 static int ks_wlan_set_wps_probe_req(struct net_device *dev,
 				     struct iw_request_info *info,
 				     struct iw_point *dwrq, char *extra)
@@ -2820,8 +2706,6 @@ static int ks_wlan_get_wps_probe_req(struct net_device *dev,
 #endif
 #endif /* WPS */
 
-/*------------------------------------------------------------------*/
-/* Private handler : set tx gain control value */
 static int ks_wlan_set_tx_gain(struct net_device *dev,
 			       struct iw_request_info *info, __u32 *uwrq,
 			       char *extra)
@@ -2846,8 +2730,6 @@ static int ks_wlan_set_tx_gain(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get tx gain control value */
 static int ks_wlan_get_tx_gain(struct net_device *dev,
 			       struct iw_request_info *info, __u32 *uwrq,
 			       char *extra)
@@ -2863,8 +2745,6 @@ static int ks_wlan_get_tx_gain(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : set rx gain control value */
 static int ks_wlan_set_rx_gain(struct net_device *dev,
 			       struct iw_request_info *info, __u32 *uwrq,
 			       char *extra)
@@ -2889,8 +2769,6 @@ static int ks_wlan_set_rx_gain(struct net_device *dev,
 	return 0;
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get rx gain control value */
 static int ks_wlan_get_rx_gain(struct net_device *dev,
 			       struct iw_request_info *info, __u32 *uwrq,
 			       char *extra)
@@ -2928,8 +2806,6 @@ static int ks_wlan_set_region(struct net_device *dev,
 }
 #endif
 
-/*------------------------------------------------------------------*/
-/* Private handler : get eeprom checksum result */
 static int ks_wlan_get_eeprom_cksum(struct net_device *dev,
 				    struct iw_request_info *info, __u32 *uwrq,
 				    char *extra)
@@ -3054,8 +2930,7 @@ static void print_hif_event(struct net_device *dev, int event)
 	}
 }
 
-/*------------------------------------------------------------------*/
-/* Private handler : get host command history */
+/* get host command history */
 static int ks_wlan_hostt(struct net_device *dev, struct iw_request_info *info,
 			 __u32 *uwrq, char *extra)
 {
