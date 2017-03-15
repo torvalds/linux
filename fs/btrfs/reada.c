@@ -320,7 +320,6 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 	struct btrfs_bio *bbio = NULL;
 	struct btrfs_device *dev;
 	struct btrfs_device *prev_dev;
-	u32 blocksize;
 	u64 length;
 	int real_stripes;
 	int nzones = 0;
@@ -341,7 +340,6 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 	if (!re)
 		return NULL;
 
-	blocksize = fs_info->nodesize;
 	re->logical = logical;
 	re->top = *top;
 	INIT_LIST_HEAD(&re->extctl);
@@ -351,10 +349,10 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 	/*
 	 * map block
 	 */
-	length = blocksize;
+	length = fs_info->nodesize;
 	ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
 			&length, &bbio, 0);
-	if (ret || !bbio || length < blocksize)
+	if (ret || !bbio || length < fs_info->nodesize)
 		goto error;
 
 	if (bbio->num_stripes > BTRFS_MAX_MIRRORS) {
