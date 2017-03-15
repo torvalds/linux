@@ -8153,8 +8153,8 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	if (kvm_x86_ops->vm_destroy)
 		kvm_x86_ops->vm_destroy(kvm);
 	kvm_iommu_unmap_guest(kvm);
-	kfree(kvm->arch.vpic);
-	kfree(kvm->arch.vioapic);
+	kvm_pic_destroy(kvm);
+	kvm_ioapic_destroy(kvm);
 	kvm_free_vcpus(kvm);
 	kvfree(rcu_dereference_check(kvm->arch.apic_map, 1));
 	kvm_mmu_uninit_vm(kvm);
