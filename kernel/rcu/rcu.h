@@ -224,6 +224,41 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 	}
 }
 
+/*
+ * Do a full breadth-first scan of the rcu_node structures for the
+ * specified rcu_state structure.
+ */
+#define rcu_for_each_node_breadth_first(rsp, rnp) \
+	for ((rnp) = &(rsp)->node[0]; \
+	     (rnp) < &(rsp)->node[rcu_num_nodes]; (rnp)++)
+
+/*
+ * Do a breadth-first scan of the non-leaf rcu_node structures for the
+ * specified rcu_state structure.  Note that if there is a singleton
+ * rcu_node tree with but one rcu_node structure, this loop is a no-op.
+ */
+#define rcu_for_each_nonleaf_node_breadth_first(rsp, rnp) \
+	for ((rnp) = &(rsp)->node[0]; \
+	     (rnp) < (rsp)->level[rcu_num_lvls - 1]; (rnp)++)
+
+/*
+ * Scan the leaves of the rcu_node hierarchy for the specified rcu_state
+ * structure.  Note that if there is a singleton rcu_node tree with but
+ * one rcu_node structure, this loop -will- visit the rcu_node structure.
+ * It is still a leaf node, even if it is also the root node.
+ */
+#define rcu_for_each_leaf_node(rsp, rnp) \
+	for ((rnp) = (rsp)->level[rcu_num_lvls - 1]; \
+	     (rnp) < &(rsp)->node[rcu_num_nodes]; (rnp)++)
+
+/*
+ * Iterate over all possible CPUs in a leaf RCU node.
+ */
+#define for_each_leaf_node_possible_cpu(rnp, cpu) \
+	for ((cpu) = cpumask_next(rnp->grplo - 1, cpu_possible_mask); \
+	     cpu <= rnp->grphi; \
+	     cpu = cpumask_next((cpu), cpu_possible_mask))
+
 #endif /* #if defined(SRCU) || !defined(TINY_RCU) */
 
 #endif /* __LINUX_RCU_H */
