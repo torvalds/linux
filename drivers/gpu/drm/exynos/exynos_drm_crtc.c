@@ -105,16 +105,15 @@ void exynos_crtc_handle_event(struct exynos_drm_crtc *exynos_crtc)
 	struct drm_pending_vblank_event *event = crtc->state->event;
 	unsigned long flags;
 
-	if (event) {
-		crtc->state->event = NULL;
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-		if (drm_crtc_vblank_get(crtc) == 0)
-			drm_crtc_arm_vblank_event(crtc, event);
-		else
-			drm_crtc_send_vblank_event(crtc, event);
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-	}
+	if (!event)
+		return;
+	crtc->state->event = NULL;
 
+	WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	drm_crtc_arm_vblank_event(crtc, event);
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 }
 
 static void exynos_drm_crtc_destroy(struct drm_crtc *crtc)
