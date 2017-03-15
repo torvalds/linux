@@ -1158,27 +1158,33 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	adev->gds.oa.gfx_partition_size = adev->gds.oa.gfx_partition_size << AMDGPU_OA_SHIFT;
 	adev->gds.oa.cs_partition_size = adev->gds.oa.cs_partition_size << AMDGPU_OA_SHIFT;
 	/* GDS Memory */
-	r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GDS,
-				adev->gds.mem.total_size >> PAGE_SHIFT);
-	if (r) {
-		DRM_ERROR("Failed initializing GDS heap.\n");
-		return r;
+	if (adev->gds.mem.total_size) {
+		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GDS,
+				   adev->gds.mem.total_size >> PAGE_SHIFT);
+		if (r) {
+			DRM_ERROR("Failed initializing GDS heap.\n");
+			return r;
+		}
 	}
 
 	/* GWS */
-	r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GWS,
-				adev->gds.gws.total_size >> PAGE_SHIFT);
-	if (r) {
-		DRM_ERROR("Failed initializing gws heap.\n");
-		return r;
+	if (adev->gds.gws.total_size) {
+		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_GWS,
+				   adev->gds.gws.total_size >> PAGE_SHIFT);
+		if (r) {
+			DRM_ERROR("Failed initializing gws heap.\n");
+			return r;
+		}
 	}
 
 	/* OA */
-	r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_OA,
-				adev->gds.oa.total_size >> PAGE_SHIFT);
-	if (r) {
-		DRM_ERROR("Failed initializing oa heap.\n");
-		return r;
+	if (adev->gds.oa.total_size) {
+		r = ttm_bo_init_mm(&adev->mman.bdev, AMDGPU_PL_OA,
+				   adev->gds.oa.total_size >> PAGE_SHIFT);
+		if (r) {
+			DRM_ERROR("Failed initializing oa heap.\n");
+			return r;
+		}
 	}
 
 	r = amdgpu_ttm_debugfs_init(adev);
@@ -1206,9 +1212,12 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	}
 	ttm_bo_clean_mm(&adev->mman.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&adev->mman.bdev, TTM_PL_TT);
-	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GDS);
-	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GWS);
-	ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_OA);
+	if (adev->gds.mem.total_size)
+		ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GDS);
+	if (adev->gds.gws.total_size)
+		ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_GWS);
+	if (adev->gds.oa.total_size)
+		ttm_bo_clean_mm(&adev->mman.bdev, AMDGPU_PL_OA);
 	ttm_bo_device_release(&adev->mman.bdev);
 	amdgpu_gart_fini(adev);
 	amdgpu_ttm_global_fini(adev);
