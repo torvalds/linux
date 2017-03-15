@@ -65,6 +65,8 @@
 #include <linux/raid/md_p.h>
 #include <linux/raid/md_u.h>
 #include <linux/slab.h>
+#include <linux/percpu-refcount.h>
+
 #include <trace/events/block.h>
 #include "md.h"
 #include "bitmap.h"
@@ -2255,16 +2257,24 @@ static void export_array(struct mddev *mddev)
 static bool set_in_sync(struct mddev *mddev)
 {
 	WARN_ON_ONCE(!spin_is_locked(&mddev->lock));
-	if (atomic_read(&mddev->writes_pending) == 0) {
-		if (mddev->in_sync == 0) {
+	if (!mddev->in_sync) {
+		mddev->sync_checkers++;
+		spin_unlock(&mddev->lock);
+		percpu_ref_switch_to_atomic_sync(&mddev->writes_pending);
+		spin_lock(&mddev->lock);
+		if (!mddev->in_sync &&
+		    percpu_ref_is_zero(&mddev->writes_pending)) {
 			mddev->in_sync = 1;
+			/*
+			 * Ensure ->in_sync is visible before we clear
+			 * ->sync_checkers.
+			 */
 			smp_mb();
-			if (atomic_read(&mddev->writes_pending))
-				/* lost a race with md_write_start() */
-				mddev->in_sync = 0;
 			set_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags);
 			sysfs_notify_dirent_safe(mddev->sysfs_state);
 		}
+		if (--mddev->sync_checkers == 0)
+			percpu_ref_switch_to_percpu(&mddev->writes_pending);
 	}
 	if (mddev->safemode == 1)
 		mddev->safemode = 0;
@@ -5120,6 +5130,7 @@ static void md_free(struct kobject *ko)
 		del_gendisk(mddev->gendisk);
 		put_disk(mddev->gendisk);
 	}
+	percpu_ref_exit(&mddev->writes_pending);
 
 	kfree(mddev);
 }
@@ -5144,6 +5155,8 @@ static void mddev_delayed_delete(struct work_struct *ws)
 	kobject_del(&mddev->kobj);
 	kobject_put(&mddev->kobj);
 }
+
+static void no_op(struct percpu_ref *r) {}
 
 static int md_alloc(dev_t dev, char *name)
 {
@@ -5196,6 +5209,10 @@ static int md_alloc(dev_t dev, char *name)
 	blk_queue_make_request(mddev->queue, md_make_request);
 	blk_set_stacking_limits(&mddev->queue->limits);
 
+	if (percpu_ref_init(&mddev->writes_pending, no_op, 0, GFP_KERNEL) < 0)
+		goto abort;
+	/* We want to start with the refcount at zero */
+	percpu_ref_put(&mddev->writes_pending);
 	disk = alloc_disk(1 << shift);
 	if (!disk) {
 		blk_cleanup_queue(mddev->queue);
@@ -5279,11 +5296,10 @@ static void md_safemode_timeout(unsigned long data)
 {
 	struct mddev *mddev = (struct mddev *) data;
 
-	if (!atomic_read(&mddev->writes_pending)) {
-		mddev->safemode = 1;
-		if (mddev->external)
-			sysfs_notify_dirent_safe(mddev->sysfs_state);
-	}
+	mddev->safemode = 1;
+	if (mddev->external)
+		sysfs_notify_dirent_safe(mddev->sysfs_state);
+
 	md_wakeup_thread(mddev->thread);
 }
 
@@ -5488,7 +5504,6 @@ int md_run(struct mddev *mddev)
 	} else if (mddev->ro == 2) /* auto-readonly not meaningful */
 		mddev->ro = 0;
 
-	atomic_set(&mddev->writes_pending,0);
 	atomic_set(&mddev->max_corr_read_errors,
 		   MD_DEFAULT_MAX_CORRECTED_READ_ERRORS);
 	mddev->safemode = 0;
@@ -7342,8 +7357,8 @@ void md_wakeup_thread(struct md_thread *thread)
 {
 	if (thread) {
 		pr_debug("md: waking up MD thread %s.\n", thread->tsk->comm);
-		set_bit(THREAD_WAKEUP, &thread->flags);
-		wake_up(&thread->wqueue);
+		if (!test_and_set_bit(THREAD_WAKEUP, &thread->flags))
+			wake_up(&thread->wqueue);
 	}
 }
 EXPORT_SYMBOL(md_wakeup_thread);
@@ -7890,11 +7905,13 @@ void md_write_start(struct mddev *mddev, struct bio *bi)
 		md_wakeup_thread(mddev->sync_thread);
 		did_change = 1;
 	}
-	atomic_inc(&mddev->writes_pending);
+	rcu_read_lock();
+	percpu_ref_get(&mddev->writes_pending);
 	smp_mb(); /* Match smp_mb in set_in_sync() */
 	if (mddev->safemode == 1)
 		mddev->safemode = 0;
-	if (mddev->in_sync) {
+	/* sync_checkers is always 0 when writes_pending is in per-cpu mode */
+	if (mddev->in_sync || !mddev->sync_checkers) {
 		spin_lock(&mddev->lock);
 		if (mddev->in_sync) {
 			mddev->in_sync = 0;
@@ -7905,6 +7922,7 @@ void md_write_start(struct mddev *mddev, struct bio *bi)
 		}
 		spin_unlock(&mddev->lock);
 	}
+	rcu_read_unlock();
 	if (did_change)
 		sysfs_notify_dirent_safe(mddev->sysfs_state);
 	wait_event(mddev->sb_wait,
@@ -7925,19 +7943,25 @@ void md_write_inc(struct mddev *mddev, struct bio *bi)
 	if (bio_data_dir(bi) != WRITE)
 		return;
 	WARN_ON_ONCE(mddev->in_sync || mddev->ro);
-	atomic_inc(&mddev->writes_pending);
+	percpu_ref_get(&mddev->writes_pending);
 }
 EXPORT_SYMBOL(md_write_inc);
 
 void md_write_end(struct mddev *mddev)
 {
-	if (atomic_dec_and_test(&mddev->writes_pending)) {
-		if (mddev->safemode == 2)
-			md_wakeup_thread(mddev->thread);
-		else if (mddev->safemode_delay)
-			mod_timer(&mddev->safemode_timer, jiffies + mddev->safemode_delay);
-	}
+	percpu_ref_put(&mddev->writes_pending);
+
+	if (mddev->safemode == 2)
+		md_wakeup_thread(mddev->thread);
+	else if (mddev->safemode_delay)
+		/* The roundup() ensures this only performs locking once
+		 * every ->safemode_delay jiffies
+		 */
+		mod_timer(&mddev->safemode_timer,
+			  roundup(jiffies, mddev->safemode_delay) +
+			  mddev->safemode_delay);
 }
+
 EXPORT_SYMBOL(md_write_end);
 
 /* md_allow_write(mddev)
@@ -8538,7 +8562,7 @@ void md_check_recovery(struct mddev *mddev)
 		test_bit(MD_RECOVERY_NEEDED, &mddev->recovery) ||
 		test_bit(MD_RECOVERY_DONE, &mddev->recovery) ||
 		(mddev->external == 0 && mddev->safemode == 1) ||
-		(mddev->safemode == 2 && ! atomic_read(&mddev->writes_pending)
+		(mddev->safemode == 2
 		 && !mddev->in_sync && mddev->recovery_cp == MaxSector)
 		))
 		return;
