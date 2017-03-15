@@ -620,12 +620,6 @@ void fsnotify_destroy_marks(struct fsnotify_mark_connector *conn)
 		}
 		mark = hlist_entry(conn->list.first, struct fsnotify_mark,
 				   obj_list);
-		/*
-		 * We don't update i_fsnotify_mask / mnt_fsnotify_mask here
-		 * since inode / mount is going away anyway. So just remove
-		 * mark from the list.
-		 */
-		hlist_del_init_rcu(&mark->obj_list);
 		fsnotify_get_mark(mark);
 		spin_unlock(lock);
 		fsnotify_destroy_mark(mark, mark->group);
