@@ -3653,17 +3653,6 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			idiag.ptr_private = phba->sli4_hba.nvmels_cq;
 			goto pass_check;
 		}
-		/* NVME LS complete queue */
-		if (phba->sli4_hba.nvmels_cq &&
-		    phba->sli4_hba.nvmels_cq->queue_id == queid) {
-			/* Sanity check */
-			rc = lpfc_idiag_que_param_check(
-					phba->sli4_hba.nvmels_cq, index, count);
-			if (rc)
-				goto error_out;
-			idiag.ptr_private = phba->sli4_hba.nvmels_cq;
-			goto pass_check;
-		}
 		/* FCP complete queue */
 		if (phba->sli4_hba.fcp_cq) {
 			for (qidx = 0; qidx < phba->cfg_fcp_io_channel;
@@ -3725,17 +3714,6 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			if (rc)
 				goto error_out;
 			idiag.ptr_private = phba->sli4_hba.els_wq;
-			goto pass_check;
-		}
-		/* NVME LS work queue */
-		if (phba->sli4_hba.nvmels_wq &&
-		    phba->sli4_hba.nvmels_wq->queue_id == queid) {
-			/* Sanity check */
-			rc = lpfc_idiag_que_param_check(
-					phba->sli4_hba.nvmels_wq, index, count);
-			if (rc)
-				goto error_out;
-			idiag.ptr_private = phba->sli4_hba.nvmels_wq;
 			goto pass_check;
 		}
 		/* NVME LS work queue */
