@@ -50,23 +50,20 @@ static int __intel_uc_reset_hw(struct drm_i915_private *dev_priv)
 void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 {
 	if (!HAS_GUC(dev_priv)) {
-		if (i915.enable_guc_loading > 0)
-			DRM_INFO("Ignoring GuC options, no hardware");
+		if (i915.enable_guc_loading > 0 ||
+		    i915.enable_guc_submission > 0)
+			DRM_INFO("Ignoring GuC options, no hardware\n");
 
 		i915.enable_guc_loading = 0;
 		i915.enable_guc_submission = 0;
-	} else {
-		/* A negative value means "use platform default" */
-		if (i915.enable_guc_loading < 0)
-			i915.enable_guc_loading = HAS_GUC_UCODE(dev_priv);
-		if (i915.enable_guc_submission < 0)
-			i915.enable_guc_submission = HAS_GUC_SCHED(dev_priv);
-
-		/* Can't enable guc submission without guc loaded */
-		if (!i915.enable_guc_loading)
-			i915.enable_guc_submission = 0;
+		return;
 	}
 
+	/* A negative value means "use platform default" */
+	if (i915.enable_guc_loading < 0)
+		i915.enable_guc_loading = HAS_GUC_UCODE(dev_priv);
+
+	/* Verify firmware version */
 	if (i915.enable_guc_loading) {
 		if (HAS_HUC_UCODE(dev_priv))
 			intel_huc_select_fw(&dev_priv->huc);
@@ -74,6 +71,14 @@ void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 		if (intel_guc_select_fw(&dev_priv->guc))
 			i915.enable_guc_loading = 0;
 	}
+
+	/* Can't enable guc submission without guc loaded */
+	if (!i915.enable_guc_loading)
+		i915.enable_guc_submission = 0;
+
+	/* A negative value means "use platform default" */
+	if (i915.enable_guc_submission < 0)
+		i915.enable_guc_submission = HAS_GUC_SCHED(dev_priv);
 }
 
 void intel_uc_init_early(struct drm_i915_private *dev_priv)
