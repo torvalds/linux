@@ -20,7 +20,6 @@
 #include <ia_css_pipeline.h>
 #define IA_CSS_INCLUDE_CONFIGURATIONS
 #include "ia_css_isp_configs.h"
-#include <assert_support.h>
 
 #include "isp.h"
 
