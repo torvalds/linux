@@ -166,6 +166,16 @@ static u32 decon_get_frame_count(struct decon_context *ctx, bool end)
 	return frm;
 }
 
+static u32 decon_get_vblank_counter(struct exynos_drm_crtc *crtc)
+{
+	struct decon_context *ctx = crtc->ctx;
+
+	if (test_bit(BIT_SUSPENDED, &ctx->flags))
+		return 0;
+
+	return decon_get_frame_count(ctx, false);
+}
+
 static void decon_setup_trigger(struct decon_context *ctx)
 {
 	if (!(ctx->out_type & (IFTYPE_I80 | I80_HW_TRG)))
@@ -564,6 +574,7 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.disable		= decon_disable,
 	.enable_vblank		= decon_enable_vblank,
 	.disable_vblank		= decon_disable_vblank,
+	.get_vblank_counter	= decon_get_vblank_counter,
 	.atomic_begin		= decon_atomic_begin,
 	.update_plane		= decon_update_plane,
 	.disable_plane		= decon_disable_plane,
@@ -583,6 +594,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 	ctx->drm_dev = drm_dev;
 	ctx->pipe = priv->pipe++;
+	drm_dev->max_vblank_count = 0xffffffff;
 
 	for (win = ctx->first_win; win < WINDOWS_NR; win++) {
 		int tmp = (win == ctx->first_win) ? 0 : win;

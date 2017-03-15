@@ -133,6 +133,7 @@ struct exynos_drm_crtc_ops {
 	void (*commit)(struct exynos_drm_crtc *crtc);
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
+	u32 (*get_vblank_counter)(struct exynos_drm_crtc *crtc);
 	int (*atomic_check)(struct exynos_drm_crtc *crtc,
 			    struct drm_crtc_state *state);
 	void (*atomic_begin)(struct exynos_drm_crtc *crtc);
