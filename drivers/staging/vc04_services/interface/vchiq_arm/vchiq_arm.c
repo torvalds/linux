@@ -413,7 +413,7 @@ static void close_delivered(USER_SERVICE_T *user_service)
 }
 
 struct vchiq_io_copy_callback_context {
-	VCHIQ_ELEMENT_T *current_element;
+	struct vchiq_element *current_element;
 	size_t current_element_offset;
 	unsigned long elements_to_go;
 	size_t current_offset;
@@ -490,7 +490,7 @@ vchiq_ioc_copy_element_data(
  **************************************************************************/
 static VCHIQ_STATUS_T
 vchiq_ioc_queue_message(VCHIQ_SERVICE_HANDLE_T handle,
-			VCHIQ_ELEMENT_T *elements,
+			struct vchiq_element *elements,
 			unsigned long count)
 {
 	struct vchiq_io_copy_callback_context context;
@@ -761,10 +761,10 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		if ((service != NULL) && (args.count <= MAX_ELEMENTS)) {
 			/* Copy elements into kernel space */
-			VCHIQ_ELEMENT_T elements[MAX_ELEMENTS];
+			struct vchiq_element elements[MAX_ELEMENTS];
 
 			if (copy_from_user(elements, args.elements,
-				args.count * sizeof(VCHIQ_ELEMENT_T)) == 0)
+				args.count * sizeof(struct vchiq_element)) == 0)
 				status = vchiq_ioc_queue_message
 					(args.handle,
 					elements, args.count);
@@ -1323,7 +1323,7 @@ vchiq_compat_ioctl_queue_message(struct file *file,
 				 unsigned long arg)
 {
 	VCHIQ_QUEUE_MESSAGE_T *args;
-	VCHIQ_ELEMENT_T *elements;
+	struct vchiq_element *elements;
 	struct vchiq_queue_message32 args32;
 	unsigned int count;
 
@@ -1349,7 +1349,7 @@ vchiq_compat_ioctl_queue_message(struct file *file,
 	if (args32.elements && args32.count) {
 		struct vchiq_element32 tempelement32[MAX_ELEMENTS];
 
-		elements = (VCHIQ_ELEMENT_T __user *)(args + 1);
+		elements = (struct vchiq_element __user *)(args + 1);
 
 		if (copy_from_user(&tempelement32,
 				   compat_ptr(args32.elements),
