@@ -26,19 +26,17 @@ extern struct inode *fsnotify_destroy_inode_mark(struct fsnotify_mark *mark);
 extern struct fsnotify_mark *fsnotify_find_mark(
 					struct fsnotify_mark_connector *conn,
 					struct fsnotify_group *group);
-/* Destroy all marks connected via given connector protected by 'lock' */
-extern void fsnotify_destroy_marks(struct fsnotify_mark_connector *conn,
-				   spinlock_t *lock);
+/* Destroy all marks connected via given connector */
+extern void fsnotify_destroy_marks(struct fsnotify_mark_connector *conn);
 /* run the list of all marks associated with inode and destroy them */
 static inline void fsnotify_clear_marks_by_inode(struct inode *inode)
 {
-	fsnotify_destroy_marks(inode->i_fsnotify_marks, &inode->i_lock);
+	fsnotify_destroy_marks(inode->i_fsnotify_marks);
 }
 /* run the list of all marks associated with vfsmount and destroy them */
 static inline void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
 {
-	fsnotify_destroy_marks(real_mount(mnt)->mnt_fsnotify_marks,
-			       &mnt->mnt_root->d_lock);
+	fsnotify_destroy_marks(real_mount(mnt)->mnt_fsnotify_marks);
 }
 /* prepare for freeing all marks associated with given group */
 extern void fsnotify_detach_group_marks(struct fsnotify_group *group);

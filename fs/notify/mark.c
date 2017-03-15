@@ -572,13 +572,18 @@ void fsnotify_detach_group_marks(struct fsnotify_group *group)
 	}
 }
 
-void fsnotify_destroy_marks(struct fsnotify_mark_connector *conn,
-			    spinlock_t *lock)
+void fsnotify_destroy_marks(struct fsnotify_mark_connector *conn)
 {
 	struct fsnotify_mark *mark;
+	spinlock_t *lock;
 
 	if (!conn)
 		return;
+
+	if (conn->flags & FSNOTIFY_OBJ_TYPE_INODE)
+		lock = &conn->inode->i_lock;
+	else
+		lock = &conn->mnt->mnt_root->d_lock;
 
 	while (1) {
 		/*
