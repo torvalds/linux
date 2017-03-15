@@ -677,9 +677,9 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	buf_pool->rx_skb[skb_index] = NULL;
 
 	/* checking for error */
-	status = (GET_VAL(ELERR, le64_to_cpu(raw_desc->m0)) << LERR_LEN) ||
+	status = (GET_VAL(ELERR, le64_to_cpu(raw_desc->m0)) << LERR_LEN) |
 		  GET_VAL(LERR, le64_to_cpu(raw_desc->m0));
-	if (unlikely(status > 2)) {
+	if (unlikely(status)) {
 		dev_kfree_skb_any(skb);
 		xgene_enet_free_pagepool(page_pool, raw_desc, exp_desc);
 		xgene_enet_parse_error(rx_ring, netdev_priv(rx_ring->ndev),
