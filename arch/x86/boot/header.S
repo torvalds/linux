@@ -12,7 +12,8 @@
  * addresses must be multiplied by 16 to obtain their respective linear
  * addresses. To avoid confusion, linear addresses are written using leading
  * hex while segment addresses are written as segment:offset.
- *
+ * 
+ * 在实模式使用64k段,所以,段地址 * 16 = 线性地址
  */
 
 #include <asm/segment.h>
