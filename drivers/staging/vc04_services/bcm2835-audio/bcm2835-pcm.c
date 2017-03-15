@@ -479,7 +479,7 @@ static struct snd_pcm_ops snd_bcm2835_playback_spdif_ops = {
 };
 
 /* create a pcm device */
-int snd_bcm2835_new_pcm(struct bcm2835_chip *chip)
+int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -490,7 +490,7 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip)
 		audio_error("Interrupted whilst waiting for lock\n");
 		return -EINTR;
 	}
-	err = snd_pcm_new(chip->card, "bcm2835 ALSA", 0, MAX_SUBSTREAMS, 0, &pcm);
+	err = snd_pcm_new(chip->card, "bcm2835 ALSA", 0, numchannels, 0, &pcm);
 	if (err < 0)
 		goto out;
 	pcm->private_data = chip;
@@ -549,3 +549,39 @@ out:
 
 	return 0;
 }
+
+int snd_bcm2835_new_simple_pcm(struct bcm2835_chip *chip,
+			       const char *name,
+			       enum snd_bcm2835_route route,
+			       u32 numchannels)
+{
+	struct snd_pcm *pcm;
+	int err;
+
+	mutex_init(&chip->audio_mutex);
+
+	err = snd_pcm_new(chip->card, name, 0, numchannels,
+			  0, &pcm);
+	if (err)
+		return err;
+
+	pcm->private_data = chip;
+	strcpy(pcm->name, name);
+	chip->pcm = pcm;
+	chip->dest = route;
+	chip->volume = alsa2chip(0);
+	chip->mute = CTRL_VOL_UNMUTE;
+
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+			&snd_bcm2835_playback_ops);
+
+	snd_pcm_lib_preallocate_pages_for_all(
+		pcm,
+		SNDRV_DMA_TYPE_CONTINUOUS,
+		snd_dma_continuous_data(GFP_KERNEL),
+		snd_bcm2835_playback_hw.buffer_bytes_max,
+		snd_bcm2835_playback_hw.buffer_bytes_max);
+
+	return 0;
+}
+

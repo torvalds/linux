@@ -104,7 +104,7 @@ struct bcm2835_chip {
 	struct snd_pcm *pcm_spdif;
 	/* Bitmat for valid reg_base and irq numbers */
 	unsigned int avail_substreams;
-	struct platform_device *pdev[MAX_SUBSTREAMS];
+	struct device *dev;
 	struct bcm2835_alsa_stream *alsa_stream[MAX_SUBSTREAMS];
 
 	int volume;
@@ -145,8 +145,15 @@ struct bcm2835_alsa_stream {
 };
 
 int snd_bcm2835_new_ctl(struct bcm2835_chip *chip);
-int snd_bcm2835_new_pcm(struct bcm2835_chip *chip);
+int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels);
 int snd_bcm2835_new_spdif_pcm(struct bcm2835_chip *chip);
+int snd_bcm2835_new_simple_pcm(struct bcm2835_chip *chip,
+			       const char *name,
+			       enum snd_bcm2835_route route,
+			       u32 numchannels);
+
+int snd_bcm2835_new_hdmi_ctl(struct bcm2835_chip *chip);
+int snd_bcm2835_new_headphones_ctl(struct bcm2835_chip *chip);
 
 int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream);
 int bcm2835_audio_close(struct bcm2835_alsa_stream *alsa_stream);
