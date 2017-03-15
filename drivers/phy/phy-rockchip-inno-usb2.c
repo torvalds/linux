@@ -1019,12 +1019,8 @@ static irqreturn_t rockchip_usb2phy_linestate_irq(int irq, void *data)
 	 * meanwhile, if the phy port is suspended, we need rearm the work to
 	 * resume it and mange its states; otherwise, we do nothing about that.
 	 */
-	if (rport->suspended) {
-		if (rport->port_id == USB2PHY_PORT_HOST)
-			rockchip_usb2phy_sm_work(&rport->sm_work.work);
-		else
-			rockchip_usb2phy_power_on(rport->phy);
-	}
+	if (rport->suspended && rport->port_id == USB2PHY_PORT_HOST)
+		rockchip_usb2phy_sm_work(&rport->sm_work.work);
 
 	return IRQ_HANDLED;
 }
