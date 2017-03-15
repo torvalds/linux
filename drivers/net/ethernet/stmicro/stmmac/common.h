@@ -433,10 +433,10 @@ struct stmmac_dma_ops {
 	void (*enable_dma_transmission) (void __iomem *ioaddr);
 	void (*enable_dma_irq)(void __iomem *ioaddr, u32 chan);
 	void (*disable_dma_irq)(void __iomem *ioaddr, u32 chan);
-	void (*start_tx) (void __iomem *ioaddr);
-	void (*stop_tx) (void __iomem *ioaddr);
-	void (*start_rx) (void __iomem *ioaddr);
-	void (*stop_rx) (void __iomem *ioaddr);
+	void (*start_tx)(void __iomem *ioaddr, u32 chan);
+	void (*stop_tx)(void __iomem *ioaddr, u32 chan);
+	void (*start_rx)(void __iomem *ioaddr, u32 chan);
+	void (*stop_rx)(void __iomem *ioaddr, u32 chan);
 	int (*dma_interrupt) (void __iomem *ioaddr,
 			      struct stmmac_extra_stats *x);
 	/* If supported then get the optional core features */

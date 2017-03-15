@@ -139,10 +139,10 @@
 void dwmac_enable_dma_transmission(void __iomem *ioaddr);
 void dwmac_enable_dma_irq(void __iomem *ioaddr, u32 chan);
 void dwmac_disable_dma_irq(void __iomem *ioaddr, u32 chan);
-void dwmac_dma_start_tx(void __iomem *ioaddr);
-void dwmac_dma_stop_tx(void __iomem *ioaddr);
-void dwmac_dma_start_rx(void __iomem *ioaddr);
-void dwmac_dma_stop_rx(void __iomem *ioaddr);
+void dwmac_dma_start_tx(void __iomem *ioaddr, u32 chan);
+void dwmac_dma_stop_tx(void __iomem *ioaddr, u32 chan);
+void dwmac_dma_start_rx(void __iomem *ioaddr, u32 chan);
+void dwmac_dma_stop_rx(void __iomem *ioaddr, u32 chan);
 int dwmac_dma_interrupt(void __iomem *ioaddr, struct stmmac_extra_stats *x);
 int dwmac_dma_reset(void __iomem *ioaddr);
 
