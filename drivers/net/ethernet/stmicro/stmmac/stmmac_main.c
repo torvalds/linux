@@ -1732,6 +1732,11 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
  */
 static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 {
+	u32 rx_channels_count = priv->plat->rx_queues_to_use;
+	u32 tx_channels_count = priv->plat->tx_queues_to_use;
+	u32 dummy_dma_rx_phy = 0;
+	u32 dummy_dma_tx_phy = 0;
+	u32 chan = 0;
 	int atds = 0;
 	int ret = 0;
 
@@ -1749,19 +1754,43 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		return ret;
 	}
 
-	priv->hw->dma->init(priv->ioaddr, priv->plat->dma_cfg,
-			    priv->dma_tx_phy, priv->dma_rx_phy, atds);
-
 	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
-		priv->rx_tail_addr = priv->dma_rx_phy +
-			    (DMA_RX_SIZE * sizeof(struct dma_desc));
-		priv->hw->dma->set_rx_tail_ptr(priv->ioaddr, priv->rx_tail_addr,
-					       STMMAC_CHAN0);
+		/* DMA Configuration */
+		priv->hw->dma->init(priv->ioaddr, priv->plat->dma_cfg,
+				    dummy_dma_tx_phy, dummy_dma_rx_phy, atds);
 
-		priv->tx_tail_addr = priv->dma_tx_phy +
-			    (DMA_TX_SIZE * sizeof(struct dma_desc));
-		priv->hw->dma->set_tx_tail_ptr(priv->ioaddr, priv->tx_tail_addr,
-					       STMMAC_CHAN0);
+		/* DMA RX Channel Configuration */
+		for (chan = 0; chan < rx_channels_count; chan++) {
+			priv->hw->dma->init_rx_chan(priv->ioaddr,
+						    priv->plat->dma_cfg,
+						    priv->dma_rx_phy, chan);
+
+			priv->rx_tail_addr = priv->dma_rx_phy +
+				    (DMA_RX_SIZE * sizeof(struct dma_desc));
+			priv->hw->dma->set_rx_tail_ptr(priv->ioaddr,
+						       priv->rx_tail_addr,
+						       chan);
+		}
+
+		/* DMA TX Channel Configuration */
+		for (chan = 0; chan < tx_channels_count; chan++) {
+			priv->hw->dma->init_chan(priv->ioaddr,
+							priv->plat->dma_cfg,
+							chan);
+
+			priv->hw->dma->init_tx_chan(priv->ioaddr,
+						    priv->plat->dma_cfg,
+						    priv->dma_tx_phy, chan);
+
+			priv->tx_tail_addr = priv->dma_tx_phy +
+				    (DMA_TX_SIZE * sizeof(struct dma_desc));
+			priv->hw->dma->set_tx_tail_ptr(priv->ioaddr,
+						       priv->tx_tail_addr,
+						       chan);
+		}
+	} else {
+		priv->hw->dma->init(priv->ioaddr, priv->plat->dma_cfg,
+				    priv->dma_tx_phy, priv->dma_rx_phy, atds);
 	}
 
 	if (priv->plat->axi && priv->hw->dma->axi)

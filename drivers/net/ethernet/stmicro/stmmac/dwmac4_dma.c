@@ -71,36 +71,48 @@ static void dwmac4_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	writel(value, ioaddr + DMA_SYS_BUS_MODE);
 }
 
-static void dwmac4_dma_init_channel(void __iomem *ioaddr,
-				    struct stmmac_dma_cfg *dma_cfg,
-				    u32 dma_tx_phy, u32 dma_rx_phy,
-				    u32 channel)
+void dwmac4_dma_init_rx_chan(void __iomem *ioaddr,
+			     struct stmmac_dma_cfg *dma_cfg,
+			     u32 dma_rx_phy, u32 chan)
 {
 	u32 value;
-	int txpbl = dma_cfg->txpbl ?: dma_cfg->pbl;
-	int rxpbl = dma_cfg->rxpbl ?: dma_cfg->pbl;
+	u32 rxpbl = dma_cfg->rxpbl ?: dma_cfg->pbl;
 
-	/* set PBL for each channels. Currently we affect same configuration
-	 * on each channel
-	 */
-	value = readl(ioaddr + DMA_CHAN_CONTROL(channel));
+	value = readl(ioaddr + DMA_CHAN_RX_CONTROL(chan));
+	value = value | (rxpbl << DMA_BUS_MODE_RPBL_SHIFT);
+	writel(value, ioaddr + DMA_CHAN_RX_CONTROL(chan));
+
+	writel(dma_rx_phy, ioaddr + DMA_CHAN_RX_BASE_ADDR(chan));
+}
+
+void dwmac4_dma_init_tx_chan(void __iomem *ioaddr,
+			     struct stmmac_dma_cfg *dma_cfg,
+			     u32 dma_tx_phy, u32 chan)
+{
+	u32 value;
+	u32 txpbl = dma_cfg->txpbl ?: dma_cfg->pbl;
+
+	value = readl(ioaddr + DMA_CHAN_TX_CONTROL(chan));
+	value = value | (txpbl << DMA_BUS_MODE_PBL_SHIFT);
+	writel(value, ioaddr + DMA_CHAN_TX_CONTROL(chan));
+
+	writel(dma_tx_phy, ioaddr + DMA_CHAN_TX_BASE_ADDR(chan));
+}
+
+void dwmac4_dma_init_channel(void __iomem *ioaddr,
+			     struct stmmac_dma_cfg *dma_cfg, u32 chan)
+{
+	u32 value;
+
+	/* common channel control register config */
+	value = readl(ioaddr + DMA_CHAN_CONTROL(chan));
 	if (dma_cfg->pblx8)
 		value = value | DMA_BUS_MODE_PBL;
-	writel(value, ioaddr + DMA_CHAN_CONTROL(channel));
-
-	value = readl(ioaddr + DMA_CHAN_TX_CONTROL(channel));
-	value = value | (txpbl << DMA_BUS_MODE_PBL_SHIFT);
-	writel(value, ioaddr + DMA_CHAN_TX_CONTROL(channel));
-
-	value = readl(ioaddr + DMA_CHAN_RX_CONTROL(channel));
-	value = value | (rxpbl << DMA_BUS_MODE_RPBL_SHIFT);
-	writel(value, ioaddr + DMA_CHAN_RX_CONTROL(channel));
+	writel(value, ioaddr + DMA_CHAN_CONTROL(chan));
 
 	/* Mask interrupts by writing to CSR7 */
-	writel(DMA_CHAN_INTR_DEFAULT_MASK, ioaddr + DMA_CHAN_INTR_ENA(channel));
-
-	writel(dma_tx_phy, ioaddr + DMA_CHAN_TX_BASE_ADDR(channel));
-	writel(dma_rx_phy, ioaddr + DMA_CHAN_RX_BASE_ADDR(channel));
+	writel(DMA_CHAN_INTR_DEFAULT_MASK,
+	       ioaddr + DMA_CHAN_INTR_ENA(chan));
 }
 
 static void dwmac4_dma_init(void __iomem *ioaddr,
@@ -108,7 +120,6 @@ static void dwmac4_dma_init(void __iomem *ioaddr,
 			    u32 dma_tx, u32 dma_rx, int atds)
 {
 	u32 value = readl(ioaddr + DMA_SYS_BUS_MODE);
-	int i;
 
 	/* Set the Fixed burst mode */
 	if (dma_cfg->fixed_burst)
@@ -122,9 +133,6 @@ static void dwmac4_dma_init(void __iomem *ioaddr,
 		value |= DMA_SYS_BUS_AAL;
 
 	writel(value, ioaddr + DMA_SYS_BUS_MODE);
-
-	for (i = 0; i < DMA_CHANNEL_NB_MAX; i++)
-		dwmac4_dma_init_channel(ioaddr, dma_cfg, dma_tx, dma_rx, i);
 }
 
 static void _dwmac4_dump_dma_regs(void __iomem *ioaddr, u32 channel,
@@ -379,6 +387,9 @@ static void dwmac4_enable_tso(void __iomem *ioaddr, bool en, u32 chan)
 const struct stmmac_dma_ops dwmac4_dma_ops = {
 	.reset = dwmac4_dma_reset,
 	.init = dwmac4_dma_init,
+	.init_chan = dwmac4_dma_init_channel,
+	.init_rx_chan = dwmac4_dma_init_rx_chan,
+	.init_tx_chan = dwmac4_dma_init_tx_chan,
 	.axi = dwmac4_dma_axi,
 	.dump_regs = dwmac4_dump_dma_regs,
 	.dma_rx_mode = dwmac4_dma_rx_chan_op_mode,
@@ -402,6 +413,9 @@ const struct stmmac_dma_ops dwmac4_dma_ops = {
 const struct stmmac_dma_ops dwmac410_dma_ops = {
 	.reset = dwmac4_dma_reset,
 	.init = dwmac4_dma_init,
+	.init_chan = dwmac4_dma_init_channel,
+	.init_rx_chan = dwmac4_dma_init_rx_chan,
+	.init_tx_chan = dwmac4_dma_init_tx_chan,
 	.axi = dwmac4_dma_axi,
 	.dump_regs = dwmac4_dump_dma_regs,
 	.dma_rx_mode = dwmac4_dma_rx_chan_op_mode,
