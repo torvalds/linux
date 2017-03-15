@@ -2838,13 +2838,6 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/bcmsysport.*
 
-BROADCOM VULCAN ARM64 SOC
-M:	Jayachandran C. <c.jayachandran@gmail.com>
-M:	bcm-kernel-feedback-list@broadcom.com
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm64/boot/dts/broadcom/vulcan*
-
 BROADCOM NETXTREME-E ROCE DRIVER
 M:	Selvin Xavier <selvin.xavier@broadcom.com>
 M:	Devesh Sharma <devesh.sharma@broadcom.com>
@@ -3030,7 +3023,7 @@ CAVIUM THUNDERX2 ARM64 SOC
 M:	Jayachandran C <jnair@caviumnetworks.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm64/boot/dts/cavium/thunder-99xx*
+F:	arch/arm64/boot/dts/cavium/thunder2-99xx*
 F:	Documentation/devicetree/bindings/arm/cavium-thunder2.txt
 
 CAVIUM I2C DRIVER
