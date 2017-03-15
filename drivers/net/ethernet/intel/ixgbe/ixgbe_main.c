@@ -8948,7 +8948,9 @@ static int __ixgbe_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 	if (tc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
-	return ixgbe_setup_tc(dev, tc->tc);
+	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+
+	return ixgbe_setup_tc(dev, tc->mqprio->num_tc);
 }
 
 #ifdef CONFIG_PCI_IOV
