@@ -80,21 +80,6 @@
 		cpu-map {
 			cluster0 {
 				core0 {
-					cpu = <&cpu_b0>;
-				};
-				core1 {
-					cpu = <&cpu_b1>;
-				};
-				core2 {
-					cpu = <&cpu_b2>;
-				};
-				core3 {
-					cpu = <&cpu_b3>;
-				};
-			};
-
-			cluster1 {
-				core0 {
 					cpu = <&cpu_l0>;
 				};
 				core1 {
@@ -105,6 +90,21 @@
 				};
 				core3 {
 					cpu = <&cpu_l3>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&cpu_b0>;
+				};
+				core1 {
+					cpu = <&cpu_b1>;
+				};
+				core2 {
+					cpu = <&cpu_b2>;
+				};
+				core3 {
+					cpu = <&cpu_b3>;
 				};
 			};
 		};
