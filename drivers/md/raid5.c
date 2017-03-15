@@ -7532,9 +7532,12 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 		/*
 		 * we can't wait pending write here, as this is called in
 		 * raid5d, wait will deadlock.
+		 * neilb: there is no locking about new writes here,
+		 * so this cannot be safe.
 		 */
-		if (atomic_read(&mddev->writes_pending))
+		if (atomic_read(&conf->active_stripes)) {
 			return -EBUSY;
+		}
 		log_exit(conf);
 		return 0;
 	}
