@@ -3308,10 +3308,6 @@ static int gfx_v6_0_sw_fini(void *handle)
 	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_bo_unref(&adev->gds.oa_gfx_bo);
-	amdgpu_bo_unref(&adev->gds.gws_gfx_bo);
-	amdgpu_bo_unref(&adev->gds.gds_gfx_bo);
-
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.gfx_ring[i]);
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
