@@ -450,7 +450,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	property = drm_property_find(dev, out_resp->prop_id);
+	property = drm_property_find(dev, file_priv, out_resp->prop_id);
 	if (!property)
 		return -ENOENT;
 
@@ -634,7 +634,7 @@ struct drm_property_blob *drm_property_lookup_blob(struct drm_device *dev,
 	struct drm_mode_object *obj;
 	struct drm_property_blob *blob = NULL;
 
-	obj = __drm_mode_object_find(dev, id, DRM_MODE_OBJECT_BLOB);
+	obj = __drm_mode_object_find(dev, NULL, id, DRM_MODE_OBJECT_BLOB);
 	if (obj)
 		blob = obj_to_blob(obj);
 	return blob;
@@ -897,7 +897,7 @@ bool drm_property_change_valid_get(struct drm_property *property,
 		if (value == 0)
 			return true;
 
-		*ref = __drm_mode_object_find(property->dev, value,
+		*ref = __drm_mode_object_find(property->dev, NULL, value,
 					      property->values[0]);
 		return *ref != NULL;
 	}
