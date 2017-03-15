@@ -912,7 +912,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 
 			/* each GFX command submit allows 0 or 1 IB preemptible for CE & DE */
 			if (ce_preempt > 1 || de_preempt > 1)
-				BUG();
+				return -EINVAL;
 		}
 
 		r = amdgpu_cs_get_ring(adev, chunk_ib->ip_type,
