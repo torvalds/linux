@@ -553,6 +553,7 @@ static irqreturn_t ccp_irq_handler(int irq, void *data)
 static const struct ccp_actions ccp3_actions = {
 	.aes = ccp_perform_aes,
 	.xts_aes = ccp_perform_xts_aes,
+	.des3 = NULL,
 	.sha = ccp_perform_sha,
 	.rsa = ccp_perform_rsa,
 	.passthru = ccp_perform_passthru,

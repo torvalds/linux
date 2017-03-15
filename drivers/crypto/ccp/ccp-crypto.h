@@ -23,6 +23,8 @@
 #include <crypto/hash.h>
 #include <crypto/sha.h>
 
+#define	CCP_LOG_LEVEL	KERN_INFO
+
 #define CCP_CRA_PRIORITY	300
 
 struct ccp_crypto_ablkcipher_alg {
@@ -137,6 +139,24 @@ struct ccp_aes_cmac_exp_ctx {
 	u8 buf[AES_BLOCK_SIZE];
 };
 
+/***** 3DES related defines *****/
+struct ccp_des3_ctx {
+	enum ccp_engine engine;
+	enum ccp_des3_type type;
+	enum ccp_des3_mode mode;
+
+	struct scatterlist key_sg;
+	unsigned int key_len;
+	u8 key[AES_MAX_KEY_SIZE];
+};
+
+struct ccp_des3_req_ctx {
+	struct scatterlist iv_sg;
+	u8 iv[AES_BLOCK_SIZE];
+
+	struct ccp_cmd cmd;
+};
+
 /* SHA-related defines
  * These values must be large enough to accommodate any variant
  */
@@ -201,6 +221,7 @@ struct ccp_ctx {
 	union {
 		struct ccp_aes_ctx aes;
 		struct ccp_sha_ctx sha;
+		struct ccp_des3_ctx des3;
 	} u;
 };
 
@@ -213,5 +234,6 @@ int ccp_register_aes_algs(struct list_head *head);
 int ccp_register_aes_cmac_algs(struct list_head *head);
 int ccp_register_aes_xts_algs(struct list_head *head);
 int ccp_register_sha_algs(struct list_head *head);
+int ccp_register_des3_algs(struct list_head *head);
 
 #endif

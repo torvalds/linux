@@ -292,6 +292,60 @@ struct ccp_sha_engine {
 				 * final sha cmd */
 };
 
+/***** 3DES engine *****/
+enum ccp_des3_mode {
+	CCP_DES3_MODE_ECB = 0,
+	CCP_DES3_MODE_CBC,
+	CCP_DES3_MODE_CFB,
+	CCP_DES3_MODE__LAST,
+};
+
+enum ccp_des3_type {
+	CCP_DES3_TYPE_168 = 1,
+	CCP_DES3_TYPE__LAST,
+	};
+
+enum ccp_des3_action {
+	CCP_DES3_ACTION_DECRYPT = 0,
+	CCP_DES3_ACTION_ENCRYPT,
+	CCP_DES3_ACTION__LAST,
+};
+
+/**
+ * struct ccp_des3_engine - CCP SHA operation
+ * @type: Type of 3DES operation
+ * @mode: cipher mode
+ * @action: 3DES operation (decrypt/encrypt)
+ * @key: key to be used for this 3DES operation
+ * @key_len: length of key (in bytes)
+ * @iv: IV to be used for this AES operation
+ * @iv_len: length in bytes of iv
+ * @src: input data to be used for this operation
+ * @src_len: length of input data used for this operation (in bytes)
+ * @dst: output data produced by this operation
+ *
+ * Variables required to be set when calling ccp_enqueue_cmd():
+ *   - type, mode, action, key, key_len, src, dst, src_len
+ *   - iv, iv_len for any mode other than ECB
+ *
+ * The iv variable is used as both input and output. On completion of the
+ * 3DES operation the new IV overwrites the old IV.
+ */
+struct ccp_des3_engine {
+	enum ccp_des3_type type;
+	enum ccp_des3_mode mode;
+	enum ccp_des3_action action;
+
+	struct scatterlist *key;
+	u32 key_len;	    /* In bytes */
+
+	struct scatterlist *iv;
+	u32 iv_len;	     /* In bytes */
+
+	struct scatterlist *src, *dst;
+	u64 src_len;	    /* In bytes */
+};
+
 /***** RSA engine *****/
 /**
  * struct ccp_rsa_engine - CCP RSA operation
@@ -541,7 +595,7 @@ struct ccp_ecc_engine {
 enum ccp_engine {
 	CCP_ENGINE_AES = 0,
 	CCP_ENGINE_XTS_AES_128,
-	CCP_ENGINE_RSVD1,
+	CCP_ENGINE_DES3,
 	CCP_ENGINE_SHA,
 	CCP_ENGINE_RSA,
 	CCP_ENGINE_PASSTHRU,
@@ -589,6 +643,7 @@ struct ccp_cmd {
 	union {
 		struct ccp_aes_engine aes;
 		struct ccp_xts_aes_engine xts;
+		struct ccp_des3_engine des3;
 		struct ccp_sha_engine sha;
 		struct ccp_rsa_engine rsa;
 		struct ccp_passthru_engine passthru;

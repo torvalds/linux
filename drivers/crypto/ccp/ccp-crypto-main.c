@@ -33,6 +33,10 @@ static unsigned int sha_disable;
 module_param(sha_disable, uint, 0444);
 MODULE_PARM_DESC(sha_disable, "Disable use of SHA - any non-zero value");
 
+static unsigned int des3_disable;
+module_param(des3_disable, uint, 0444);
+MODULE_PARM_DESC(des3_disable, "Disable use of 3DES - any non-zero value");
+
 /* List heads for the supported algorithms */
 static LIST_HEAD(hash_algs);
 static LIST_HEAD(cipher_algs);
@@ -333,6 +337,12 @@ static int ccp_register_algs(void)
 			return ret;
 
 		ret = ccp_register_aes_xts_algs(&cipher_algs);
+		if (ret)
+			return ret;
+	}
+
+	if (!des3_disable) {
+		ret = ccp_register_des3_algs(&cipher_algs);
 		if (ret)
 			return ret;
 	}

@@ -190,6 +190,9 @@
 #define CCP_XTS_AES_KEY_SB_COUNT	1
 #define CCP_XTS_AES_CTX_SB_COUNT	1
 
+#define CCP_DES3_KEY_SB_COUNT		1
+#define CCP_DES3_CTX_SB_COUNT		1
+
 #define CCP_SHA_SB_COUNT		1
 
 #define CCP_RSA_MAX_WIDTH		4096
@@ -475,6 +478,12 @@ struct ccp_xts_aes_op {
 	enum ccp_xts_aes_unit_size unit_size;
 };
 
+struct ccp_des3_op {
+	enum ccp_des3_type type;
+	enum ccp_des3_mode mode;
+	enum ccp_des3_action action;
+};
+
 struct ccp_sha_op {
 	enum ccp_sha_type type;
 	u64 msg_bits;
@@ -512,6 +521,7 @@ struct ccp_op {
 	union {
 		struct ccp_aes_op aes;
 		struct ccp_xts_aes_op xts;
+		struct ccp_des3_op des3;
 		struct ccp_sha_op sha;
 		struct ccp_rsa_op rsa;
 		struct ccp_passthru_op passthru;
@@ -620,13 +630,13 @@ void ccp_dmaengine_unregister(struct ccp_device *ccp);
 struct ccp_actions {
 	int (*aes)(struct ccp_op *);
 	int (*xts_aes)(struct ccp_op *);
+	int (*des3)(struct ccp_op *);
 	int (*sha)(struct ccp_op *);
 	int (*rsa)(struct ccp_op *);
 	int (*passthru)(struct ccp_op *);
 	int (*ecc)(struct ccp_op *);
 	u32 (*sballoc)(struct ccp_cmd_queue *, unsigned int);
-	void (*sbfree)(struct ccp_cmd_queue *, unsigned int,
-			       unsigned int);
+	void (*sbfree)(struct ccp_cmd_queue *, unsigned int, unsigned int);
 	unsigned int (*get_free_slots)(struct ccp_cmd_queue *);
 	int (*init)(struct ccp_device *);
 	void (*destroy)(struct ccp_device *);

@@ -108,6 +108,12 @@ union ccp_function {
 		u16 type:2;
 	} aes_xts;
 	struct {
+		u16 size:7;
+		u16 encrypt:1;
+		u16 mode:5;
+		u16 type:2;
+	} des3;
+	struct {
 		u16 rsvd1:10;
 		u16 type:4;
 		u16 rsvd2:1;
@@ -139,6 +145,10 @@ union ccp_function {
 #define	CCP_AES_TYPE(p)		((p)->aes.type)
 #define	CCP_XTS_SIZE(p)		((p)->aes_xts.size)
 #define	CCP_XTS_ENCRYPT(p)	((p)->aes_xts.encrypt)
+#define	CCP_DES3_SIZE(p)	((p)->des3.size)
+#define	CCP_DES3_ENCRYPT(p)	((p)->des3.encrypt)
+#define	CCP_DES3_MODE(p)	((p)->des3.mode)
+#define	CCP_DES3_TYPE(p)	((p)->des3.type)
 #define	CCP_SHA_TYPE(p)		((p)->sha.type)
 #define	CCP_RSA_SIZE(p)		((p)->rsa.size)
 #define	CCP_PT_BYTESWAP(p)	((p)->pt.byteswap)
@@ -388,6 +398,47 @@ static int ccp5_perform_sha(struct ccp_op *op)
 	return ccp5_do_cmd(&desc, op->cmd_q);
 }
 
+static int ccp5_perform_des3(struct ccp_op *op)
+{
+	struct ccp5_desc desc;
+	union ccp_function function;
+	u32 key_addr = op->sb_key * LSB_ITEM_SIZE;
+
+	/* Zero out all the fields of the command desc */
+	memset(&desc, 0, sizeof(struct ccp5_desc));
+
+	CCP5_CMD_ENGINE(&desc) = CCP_ENGINE_DES3;
+
+	CCP5_CMD_SOC(&desc) = op->soc;
+	CCP5_CMD_IOC(&desc) = 1;
+	CCP5_CMD_INIT(&desc) = op->init;
+	CCP5_CMD_EOM(&desc) = op->eom;
+	CCP5_CMD_PROT(&desc) = 0;
+
+	function.raw = 0;
+	CCP_DES3_ENCRYPT(&function) = op->u.des3.action;
+	CCP_DES3_MODE(&function) = op->u.des3.mode;
+	CCP_DES3_TYPE(&function) = op->u.des3.type;
+	CCP5_CMD_FUNCTION(&desc) = cpu_to_le32(function.raw);
+
+	CCP5_CMD_LEN(&desc) = cpu_to_le32(op->src.u.dma.length);
+
+	CCP5_CMD_SRC_LO(&desc) = cpu_to_le32(ccp_addr_lo(&op->src.u.dma));
+	CCP5_CMD_SRC_HI(&desc) = cpu_to_le32(ccp_addr_hi(&op->src.u.dma));
+	CCP5_CMD_SRC_MEM(&desc) = cpu_to_le32(CCP_MEMTYPE_SYSTEM);
+
+	CCP5_CMD_DST_LO(&desc) = cpu_to_le32(ccp_addr_lo(&op->dst.u.dma));
+	CCP5_CMD_DST_HI(&desc) = cpu_to_le32(ccp_addr_hi(&op->dst.u.dma));
+	CCP5_CMD_DST_MEM(&desc) = cpu_to_le32(CCP_MEMTYPE_SYSTEM);
+
+	CCP5_CMD_KEY_LO(&desc) = cpu_to_le32(lower_32_bits(key_addr));
+	CCP5_CMD_KEY_HI(&desc) = 0;
+	CCP5_CMD_KEY_MEM(&desc) = cpu_to_le32(CCP_MEMTYPE_SB);
+	CCP5_CMD_LSB_ID(&desc) = cpu_to_le32(op->sb_ctx);
+
+	return ccp5_do_cmd(&desc, op->cmd_q);
+}
+
 static int ccp5_perform_rsa(struct ccp_op *op)
 {
 	struct ccp5_desc desc;
@@ -434,6 +485,7 @@ static int ccp5_perform_passthru(struct ccp_op *op)
 	union ccp_function function;
 	struct ccp_dma_info *saddr = &op->src.u.dma;
 	struct ccp_dma_info *daddr = &op->dst.u.dma;
+
 
 	memset(&desc, 0, Q_DESC_SIZE);
 
@@ -729,6 +781,7 @@ static int ccp5_init(struct ccp_device *ccp)
 
 		dev_dbg(dev, "queue #%u available\n", i);
 	}
+
 	if (ccp->cmd_q_count == 0) {
 		dev_notice(dev, "no command queues available\n");
 		ret = -EIO;
@@ -994,6 +1047,7 @@ static const struct ccp_actions ccp5_actions = {
 	.aes = ccp5_perform_aes,
 	.xts_aes = ccp5_perform_xts_aes,
 	.sha = ccp5_perform_sha,
+	.des3 = ccp5_perform_des3,
 	.rsa = ccp5_perform_rsa,
 	.passthru = ccp5_perform_passthru,
 	.ecc = ccp5_perform_ecc,
