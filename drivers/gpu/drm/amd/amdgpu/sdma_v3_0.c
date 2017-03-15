@@ -1522,9 +1522,9 @@ static int sdma_v3_0_set_clockgating_state(void *handle,
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 		sdma_v3_0_update_sdma_medium_grain_clock_gating(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		sdma_v3_0_update_sdma_medium_grain_light_sleep(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 		break;
 	default:
 		break;
