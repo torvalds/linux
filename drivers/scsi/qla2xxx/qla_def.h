@@ -4076,6 +4076,7 @@ typedef struct scsi_qla_host {
 	/* Count of active session/fcport */
 	int fcport_count;
 	wait_queue_head_t fcport_waitQ;
+	wait_queue_head_t vref_waitq;
 } scsi_qla_host_t;
 
 struct qla27xx_image_status {
@@ -4131,14 +4132,17 @@ struct qla2_sgx {
 	mb();						\
 	if (__vha->flags.delete_progress) {		\
 		atomic_dec(&__vha->vref_count);		\
+		wake_up(&__vha->vref_waitq);		\
 		__bail = 1;				\
 	} else {					\
 		__bail = 0;				\
 	}						\
 } while (0)
 
-#define QLA_VHA_MARK_NOT_BUSY(__vha)			\
+#define QLA_VHA_MARK_NOT_BUSY(__vha) do {		\
 	atomic_dec(&__vha->vref_count);			\
+	wake_up(&__vha->vref_waitq);			\
+} while (0)						\
 
 #define QLA_QPAIR_MARK_BUSY(__qpair, __bail) do {	\
 	atomic_inc(&__qpair->ref_count);		\

@@ -5148,6 +5148,7 @@ qla2x00_update_fcports(scsi_qla_host_t *base_vha)
 			}
 		}
 		atomic_dec(&vha->vref_count);
+		wake_up(&vha->vref_waitq);
 	}
 	spin_unlock_irqrestore(&ha->vport_slock, flags);
 }
