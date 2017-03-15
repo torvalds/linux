@@ -4277,7 +4277,10 @@ int __bnx2x_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 {
 	if (tc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
-	return bnx2x_setup_tc(dev, tc->tc);
+
+	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+
+	return bnx2x_setup_tc(dev, tc->mqprio->num_tc);
 }
 
 /* called with rtnl_lock */

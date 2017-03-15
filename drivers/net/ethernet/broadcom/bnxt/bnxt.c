@@ -6905,7 +6905,9 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 	if (ntc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
-	return bnxt_setup_mq_tc(dev, ntc->tc);
+	ntc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+
+	return bnxt_setup_mq_tc(dev, ntc->mqprio->num_tc);
 }
 
 #ifdef CONFIG_RFS_ACCEL
