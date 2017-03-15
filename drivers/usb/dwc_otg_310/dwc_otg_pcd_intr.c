@@ -4182,7 +4182,7 @@ do { \
 					depctl_data_t depctl;
 					if (ep->dwc_ep.frame_num == 0xFFFFFFFF) {
 						ep->dwc_ep.frame_num =
-						    core_if->frame_num;
+							dwc_otg_get_frame_number(core_if);
 						if (ep->dwc_ep.bInterval > 1) {
 							depctl.d32 = 0;
 							depctl.d32 =
@@ -4213,13 +4213,20 @@ do { \
 						}
 						start_next_request(ep);
 					}
-					ep->dwc_ep.frame_num +=
-					    ep->dwc_ep.bInterval;
-					if (dwc_ep->frame_num > 0x3FFF) {
-						dwc_ep->frm_overrun = 1;
-						dwc_ep->frame_num &= 0x3FFF;
-					} else
-						dwc_ep->frm_overrun = 0;
+
+					if (ep->dwc_ep.frame_num !=
+					    0xFFFFFFFF) {
+						ep->dwc_ep.frame_num +=
+							ep->dwc_ep.bInterval;
+						if (dwc_ep->frame_num >
+						    0x3FFF) {
+							dwc_ep->frm_overrun = 1;
+							dwc_ep->frame_num &=
+								0x3FFF;
+						} else {
+							dwc_ep->frm_overrun = 0;
+						}
+					}
 				}
 
 				CLEAR_IN_EP_INTR(core_if, epnum, nak);
