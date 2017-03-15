@@ -291,7 +291,7 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 		    I40E_DEBUG_FD & pf->hw.debug_mask)
 			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
-		pf->auto_disable_flags |= I40E_FLAG_FD_ATR_ENABLED;
+		pf->hw_disabled_flags |= I40E_FLAG_FD_ATR_ENABLED;
 	} else {
 		pf->fd_tcp_rule = (pf->fd_tcp_rule > 0) ?
 				  (pf->fd_tcp_rule - 1) : 0;
@@ -299,7 +299,7 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 			if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 			    I40E_DEBUG_FD & pf->hw.debug_mask)
 				dev_info(&pf->pdev->dev, "ATR re-enabled due to no sideband TCP/IPv4 rules\n");
-			pf->auto_disable_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+			pf->hw_disabled_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
 		}
 	}
 
@@ -484,8 +484,8 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		pf->fd_atr_cnt = i40e_get_current_atr_cnt(pf);
 
 		if ((rx_desc->wb.qword0.hi_dword.fd_id == 0) &&
-		    (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)) {
-			pf->auto_disable_flags |= I40E_FLAG_FD_ATR_ENABLED;
+		    (pf->hw_disabled_flags & I40E_FLAG_FD_SB_ENABLED)) {
+			pf->hw_disabled_flags |= I40E_FLAG_FD_ATR_ENABLED;
 			set_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
 		}
 
@@ -498,11 +498,11 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		 */
 		if (fcnt_prog >= (fcnt_avail - I40E_FDIR_BUFFER_FULL_MARGIN)) {
 			if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
-			    !(pf->auto_disable_flags &
+			    !(pf->hw_disabled_flags &
 				     I40E_FLAG_FD_SB_ENABLED)) {
 				if (I40E_DEBUG_FD & pf->hw.debug_mask)
 					dev_warn(&pdev->dev, "FD filter space full, new ntuple rules will not be added\n");
-				pf->auto_disable_flags |=
+				pf->hw_disabled_flags |=
 							I40E_FLAG_FD_SB_ENABLED;
 			}
 		}
@@ -1010,7 +1010,6 @@ err:
  **/
 void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 {
-	struct device *dev = rx_ring->dev;
 	unsigned long bi_size;
 	u16 i;
 
@@ -1030,7 +1029,20 @@ void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 		if (!rx_bi->page)
 			continue;
 
-		dma_unmap_page(dev, rx_bi->dma, PAGE_SIZE, DMA_FROM_DEVICE);
+		/* Invalidate cache lines that may have been written to by
+		 * device so that we avoid corrupting memory.
+		 */
+		dma_sync_single_range_for_cpu(rx_ring->dev,
+					      rx_bi->dma,
+					      rx_bi->page_offset,
+					      I40E_RXBUFFER_2048,
+					      DMA_FROM_DEVICE);
+
+		/* free resources associated with mapping */
+		dma_unmap_page_attrs(rx_ring->dev, rx_bi->dma,
+				     PAGE_SIZE,
+				     DMA_FROM_DEVICE,
+				     I40E_RX_DMA_ATTR);
 		__free_pages(rx_bi->page, 0);
 
 		rx_bi->page = NULL;
@@ -1159,7 +1171,10 @@ static bool i40e_alloc_mapped_page(struct i40e_ring *rx_ring,
 	}
 
 	/* map page for use */
-	dma = dma_map_page(rx_ring->dev, page, 0, PAGE_SIZE, DMA_FROM_DEVICE);
+	dma = dma_map_page_attrs(rx_ring->dev, page, 0,
+				 PAGE_SIZE,
+				 DMA_FROM_DEVICE,
+				 I40E_RX_DMA_ATTR);
 
 	/* if mapping failed free memory back to system since
 	 * there isn't much point in holding memory we can't use
@@ -1218,6 +1233,12 @@ bool i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 	do {
 		if (!i40e_alloc_mapped_page(rx_ring, bi))
 			goto no_buffers;
+
+		/* sync the buffer for use by the device */
+		dma_sync_single_range_for_device(rx_ring->dev, bi->dma,
+						 bi->page_offset,
+						 I40E_RXBUFFER_2048,
+						 DMA_FROM_DEVICE);
 
 		/* Refresh the desc even if buffer_addrs didn't change
 		 * because each write-back erases this info.
@@ -1685,8 +1706,8 @@ struct sk_buff *i40e_fetch_rx_buffer(struct i40e_ring *rx_ring,
 		rx_ring->rx_stats.page_reuse_count++;
 	} else {
 		/* we are not reusing the buffer so unmap it */
-		dma_unmap_page(rx_ring->dev, rx_buffer->dma, PAGE_SIZE,
-			       DMA_FROM_DEVICE);
+		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma, PAGE_SIZE,
+				     DMA_FROM_DEVICE, I40E_RX_DMA_ATTR);
 	}
 
 	/* clear contents of buffer_info */
@@ -2079,7 +2100,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	if (!(pf->flags & I40E_FLAG_FD_ATR_ENABLED))
 		return;
 
-	if ((pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
+	if ((pf->hw_disabled_flags & I40E_FLAG_FD_ATR_ENABLED))
 		return;
 
 	/* if sampling is disabled do nothing */
@@ -2113,10 +2134,10 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	th = (struct tcphdr *)(hdr.network + hlen);
 
 	/* Due to lack of space, no more new filters can be programmed */
-	if (th->syn && (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
+	if (th->syn && (pf->hw_disabled_flags & I40E_FLAG_FD_ATR_ENABLED))
 		return;
 	if ((pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE) &&
-	    (!(pf->auto_disable_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE))) {
+	    (!(pf->hw_disabled_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE))) {
 		/* HW ATR eviction will take care of removing filters on FIN
 		 * and RST packets.
 		 */
@@ -2179,7 +2200,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
 
 	if ((pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE) &&
-	    (!(pf->auto_disable_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE)))
+	    (!(pf->hw_disabled_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE)))
 		dtype_cmd |= I40E_TXD_FLTR_QW1_ATR_MASK;
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(flex_ptype);

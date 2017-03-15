@@ -1165,6 +1165,11 @@ static int i40e_get_eeprom_len(struct net_device *netdev)
 	struct i40e_hw *hw = &np->vsi->back->hw;
 	u32 val;
 
+#define X722_EEPROM_SCOPE_LIMIT 0x5B9FFF
+	if (hw->mac.type == I40E_MAC_X722) {
+		val = X722_EEPROM_SCOPE_LIMIT + 1;
+		return val;
+	}
 	val = (rd32(hw, I40E_GLPCI_LBARCTRL)
 		& I40E_GLPCI_LBARCTRL_FL_SIZE_MASK)
 		>> I40E_GLPCI_LBARCTRL_FL_SIZE_SHIFT;
@@ -2712,7 +2717,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
 		return -EOPNOTSUPP;
 
-	if (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)
+	if (pf->hw_disabled_flags & I40E_FLAG_FD_SB_ENABLED)
 		return -ENOSPC;
 
 	if (test_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state) ||
@@ -3054,7 +3059,7 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 		I40E_PRIV_FLAGS_FD_ATR : 0;
 	ret_flags |= pf->flags & I40E_FLAG_VEB_STATS_ENABLED ?
 		I40E_PRIV_FLAGS_VEB_STATS : 0;
-	ret_flags |= pf->auto_disable_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE ?
+	ret_flags |= pf->hw_disabled_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE ?
 		0 : I40E_PRIV_FLAGS_HW_ATR_EVICT;
 	if (pf->hw.pf_id == 0) {
 		ret_flags |= pf->flags & I40E_FLAG_TRUE_PROMISC_SUPPORT ?
@@ -3094,7 +3099,7 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 		pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
 	} else {
 		pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
-		pf->auto_disable_flags |= I40E_FLAG_FD_ATR_ENABLED;
+		pf->hw_disabled_flags |= I40E_FLAG_FD_ATR_ENABLED;
 
 		/* flush current ATR settings */
 		set_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
@@ -3139,9 +3144,9 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 
 	if ((flags & I40E_PRIV_FLAGS_HW_ATR_EVICT) &&
 	    (pf->flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE))
-		pf->auto_disable_flags &= ~I40E_FLAG_HW_ATR_EVICT_CAPABLE;
+		pf->hw_disabled_flags &= ~I40E_FLAG_HW_ATR_EVICT_CAPABLE;
 	else
-		pf->auto_disable_flags |= I40E_FLAG_HW_ATR_EVICT_CAPABLE;
+		pf->hw_disabled_flags |= I40E_FLAG_HW_ATR_EVICT_CAPABLE;
 
 	/* if needed, issue reset to cause things to take effect */
 	if (reset_required)
