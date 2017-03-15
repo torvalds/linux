@@ -1525,12 +1525,12 @@ static inline void stmmac_disable_dma_irq(struct stmmac_priv *priv, u32 chan)
 /**
  * stmmac_tx_err - to manage the tx error
  * @priv: driver private structure
+ * @chan: channel index
  * Description: it cleans the descriptors and restarts the transmission
  * in case of transmission errors.
  */
-static void stmmac_tx_err(struct stmmac_priv *priv)
+static void stmmac_tx_err(struct stmmac_priv *priv, u32 chan)
 {
-	u32 chan = STMMAC_CHAN0;
 	int i;
 	netif_stop_queue(priv->dev);
 
@@ -1616,7 +1616,7 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 			priv->xstats.threshold = tc;
 		}
 	} else if (unlikely(status == tx_hard_error))
-		stmmac_tx_err(priv);
+		stmmac_tx_err(priv, chan);
 }
 
 /**
@@ -2944,9 +2944,10 @@ static int stmmac_poll(struct napi_struct *napi, int budget)
 static void stmmac_tx_timeout(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 chan = STMMAC_CHAN0;
 
 	/* Clear Tx resources and restart transmitting again */
-	stmmac_tx_err(priv);
+	stmmac_tx_err(priv, chan);
 }
 
 /**
