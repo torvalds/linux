@@ -982,13 +982,12 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_private *priv = drm_dev->dev_private;
 	struct exynos_drm_plane *exynos_plane;
 	unsigned int i;
 	int ret;
 
 	ctx->drm_dev = drm_dev;
-	ctx->pipe = priv->pipe++;
+	ctx->pipe = drm_dev->mode_config.num_crtc;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
 		ctx->configs[i].pixel_formats = fimd_formats;
@@ -1018,11 +1017,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (is_drm_iommu_supported(drm_dev))
 		fimd_clear_channels(ctx->crtc);
 
-	ret = drm_iommu_attach_device(drm_dev, dev);
-	if (ret)
-		priv->pipe--;
-
-	return ret;
+	return drm_iommu_attach_device(drm_dev, dev);
 }
 
 static void fimd_unbind(struct device *dev, struct device *master,

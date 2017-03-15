@@ -193,7 +193,6 @@ struct drm_exynos_file_private {
  *	otherwise default one.
  * @da_space_size: size of device address space.
  *	if 0 then default value is used for it.
- * @pipe: the pipe number for this crtc/manager.
  * @pending: the crtcs that have pending updates to finish
  * @lock: protect access to @pending
  * @wait: wait an atomic commit to finish
@@ -203,8 +202,6 @@ struct exynos_drm_private {
 
 	struct device *dma_dev;
 	void *mapping;
-
-	unsigned int pipe;
 
 	/* for atomic commit */
 	u32			pending;

@@ -130,19 +130,12 @@ static void decon_clear_channels(struct exynos_drm_crtc *crtc)
 static int decon_ctx_initialize(struct decon_context *ctx,
 			struct drm_device *drm_dev)
 {
-	struct exynos_drm_private *priv = drm_dev->dev_private;
-	int ret;
-
 	ctx->drm_dev = drm_dev;
-	ctx->pipe = priv->pipe++;
+	ctx->pipe = drm_dev->mode_config.num_crtc;
 
 	decon_clear_channels(ctx->crtc);
 
-	ret = drm_iommu_attach_device(drm_dev, ctx->dev);
-	if (ret)
-		priv->pipe--;
-
-	return ret;
+	return drm_iommu_attach_device(drm_dev, ctx->dev);
 }
 
 static void decon_ctx_remove(struct decon_context *ctx)

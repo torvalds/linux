@@ -156,10 +156,8 @@ static void vidi_disable(struct exynos_drm_crtc *crtc)
 static int vidi_ctx_initialize(struct vidi_context *ctx,
 			struct drm_device *drm_dev)
 {
-	struct exynos_drm_private *priv = drm_dev->dev_private;
-
 	ctx->drm_dev = drm_dev;
-	ctx->pipe = priv->pipe++;
+	ctx->pipe = drm_dev->mode_config.num_crtc;
 
 	return 0;
 }

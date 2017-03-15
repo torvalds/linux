@@ -900,7 +900,7 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 	priv = drm_dev->dev_private;
 
 	mixer_ctx->drm_dev = drm_dev;
-	mixer_ctx->pipe = priv->pipe++;
+	mixer_ctx->pipe = drm_dev->mode_config.num_crtc;
 
 	/* acquire resources: regs, irqs, clocks */
 	ret = mixer_resources_init(mixer_ctx);
@@ -918,11 +918,7 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 		}
 	}
 
-	ret = drm_iommu_attach_device(drm_dev, mixer_ctx->dev);
-	if (ret)
-		priv->pipe--;
-
-	return ret;
+	return drm_iommu_attach_device(drm_dev, mixer_ctx->dev);
 }
 
 static void mixer_ctx_remove(struct mixer_context *mixer_ctx)

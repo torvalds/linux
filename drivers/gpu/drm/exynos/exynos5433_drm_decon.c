@@ -586,14 +586,13 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 {
 	struct decon_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_private *priv = drm_dev->dev_private;
 	struct exynos_drm_plane *exynos_plane;
 	enum exynos_drm_output_type out_type;
 	unsigned int win;
 	int ret;
 
 	ctx->drm_dev = drm_dev;
-	ctx->pipe = priv->pipe++;
+	ctx->pipe = drm_dev->mode_config.num_crtc;
 	drm_dev->max_vblank_count = 0xffffffff;
 
 	for (win = ctx->first_win; win < WINDOWS_NR; win++) {
@@ -615,21 +614,12 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 						  : EXYNOS_DISPLAY_TYPE_LCD;
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
 			out_type, &decon_crtc_ops, ctx);
-	if (IS_ERR(ctx->crtc)) {
-		ret = PTR_ERR(ctx->crtc);
-		goto err;
-	}
+	if (IS_ERR(ctx->crtc))
+		return PTR_ERR(ctx->crtc);
 
 	decon_clear_channels(ctx->crtc);
 
-	ret = drm_iommu_attach_device(drm_dev, dev);
-	if (ret)
-		goto err;
-
-	return ret;
-err:
-	priv->pipe--;
-	return ret;
+	return drm_iommu_attach_device(drm_dev, dev);
 }
 
 static void decon_unbind(struct device *dev, struct device *master, void *data)
