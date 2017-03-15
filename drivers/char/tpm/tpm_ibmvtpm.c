@@ -295,6 +295,8 @@ static int tpm_ibmvtpm_remove(struct vio_dev *vdev)
 	}
 
 	kfree(ibmvtpm);
+	/* For tpm_ibmvtpm_get_desired_dma */
+	dev_set_drvdata(&vdev->dev, NULL);
 
 	return 0;
 }
@@ -309,13 +311,16 @@ static int tpm_ibmvtpm_remove(struct vio_dev *vdev)
 static unsigned long tpm_ibmvtpm_get_desired_dma(struct vio_dev *vdev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(&vdev->dev);
-	struct ibmvtpm_dev *ibmvtpm = dev_get_drvdata(&chip->dev);
+	struct ibmvtpm_dev *ibmvtpm;
 
-	/* ibmvtpm initializes at probe time, so the data we are
-	* asking for may not be set yet. Estimate that 4K required
-	* for TCE-mapped buffer in addition to CRQ.
-	*/
-	if (!ibmvtpm)
+	/*
+	 * ibmvtpm initializes at probe time, so the data we are
+	 * asking for may not be set yet. Estimate that 4K required
+	 * for TCE-mapped buffer in addition to CRQ.
+	 */
+	if (chip)
+		ibmvtpm = dev_get_drvdata(&chip->dev);
+	else
 		return CRQ_RES_BUF_SIZE + PAGE_SIZE;
 
 	return CRQ_RES_BUF_SIZE + ibmvtpm->rtce_size;
