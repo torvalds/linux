@@ -34,11 +34,6 @@
 
 #define MAX_CRTC	4
 
-struct imx_drm_component {
-	struct device_node *of_node;
-	struct list_head list;
-};
-
 struct imx_drm_device {
 	struct drm_device			*drm;
 	unsigned int				pipes;
