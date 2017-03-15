@@ -144,11 +144,9 @@ unsigned int height, /* width and height of rectangle in pixel value */
 unsigned int rop2)   /* ROP value */
 {
 	unsigned int nDirection, de_ctrl;
-	int opSign;
 
 	nDirection = LEFT_TO_RIGHT;
 	/* Direction of ROP2 operation: 1 = Left to Right, (-1) = Right to Left */
-	opSign = 1;
 	de_ctrl = 0;
 
 	/* If source and destination are the same surface, need to check for overlay cases */
@@ -212,7 +210,6 @@ unsigned int rop2)   /* ROP value */
 		sy += height - 1;
 		dx += width - 1;
 		dy += height - 1;
-		opSign = -1;
 	}
 
 	/*
