@@ -35,7 +35,9 @@
 
 	.text
 
-#if defined(__BIG_ENDIAN__)
+#if defined(__BIG_ENDIAN__) && defined(REFLECT)
+#define BYTESWAP_DATA
+#elif defined(__LITTLE_ENDIAN__) && !defined(REFLECT)
 #define BYTESWAP_DATA
 #else
 #undef BYTESWAP_DATA
@@ -108,7 +110,11 @@ FUNC_START(CRC_FUNCTION_NAME)
 	/* Get the initial value into v8 */
 	vxor	v8,v8,v8
 	MTVRD(v8, R3)
+#ifdef REFLECT
 	vsldoi	v8,zeroes,v8,8	/* shift into bottom 32 bits */
+#else
+	vsldoi	v8,v8,zeroes,4	/* shift into top 32 bits */
+#endif
 
 #ifdef BYTESWAP_DATA
 	addis	r3,r2,.byteswap_constant@toc@ha
@@ -354,6 +360,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 	vxor	v6,v6,v14
 	vxor	v7,v7,v15
 
+#ifdef REFLECT
 	/*
 	 * vpmsumd produces a 96 bit result in the least significant bits
 	 * of the register. Since we are bit reflected we have to shift it
@@ -368,6 +375,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 	vsldoi	v5,v5,zeroes,4
 	vsldoi	v6,v6,zeroes,4
 	vsldoi	v7,v7,zeroes,4
+#endif
 
 	/* xor with last 1024 bits */
 	lvx	v8,0,r4
@@ -511,12 +519,32 @@ FUNC_START(CRC_FUNCTION_NAME)
 	vsldoi	v1,v0,v0,8
 	vxor	v0,v0,v1		/* xor two 64 bit results together */
 
+#ifdef REFLECT
 	/* shift left one bit */
 	vspltisb v1,1
 	vsl	v0,v0,v1
+#endif
 
 	vand	v0,v0,mask_64bit
+#ifndef REFLECT
+	/*
+	 * Now for the Barrett reduction algorithm. The idea is to calculate q,
+	 * the multiple of our polynomial that we need to subtract. By
+	 * doing the computation 2x bits higher (ie 64 bits) and shifting the
+	 * result back down 2x bits, we round down to the nearest multiple.
+	 */
+	VPMSUMD(v1,v0,const1)	/* ma */
+	vsldoi	v1,zeroes,v1,8	/* q = floor(ma/(2^64)) */
+	VPMSUMD(v1,v1,const2)	/* qn */
+	vxor	v0,v0,v1	/* a - qn, subtraction is xor in GF(2) */
 
+	/*
+	 * Get the result into r3. We need to shift it left 8 bytes:
+	 * V0 [ 0 1 2 X ]
+	 * V0 [ 0 X 2 3 ]
+	 */
+	vsldoi	v0,v0,zeroes,8	/* shift result into top 64 bits */
+#else
 	/*
 	 * The reflected version of Barrett reduction. Instead of bit
 	 * reflecting our data (which is expensive to do), we bit reflect our
@@ -537,6 +565,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 	 * V0 [ 0 X 2 3 ]
 	 */
 	vsldoi	v0,v0,zeroes,4		/* shift result into top 64 bits of */
+#endif
 
 	/* Get it into r3 */
 	MFVRD(R3, v0)

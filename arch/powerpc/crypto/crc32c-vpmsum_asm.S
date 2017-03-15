@@ -842,4 +842,5 @@
 	.octa 0x00000000000000000000000105ec76f1
 
 #define CRC_FUNCTION_NAME __crc32c_vpmsum
+#define REFLECT
 #include "crc32-vpmsum_core.S"
