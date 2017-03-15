@@ -572,7 +572,6 @@ again:
 
 	h->type = type;
 	h->can_flush_pending_bgs = true;
-	INIT_LIST_HEAD(&h->qgroup_ref_list);
 	INIT_LIST_HEAD(&h->new_bgs);
 
 	smp_mb();
@@ -917,7 +916,6 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 		wake_up_process(info->transaction_kthread);
 		err = -EIO;
 	}
-	assert_qgroups_uptodate(trans);
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 	if (must_run_delayed_refs) {
@@ -2223,7 +2221,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	switch_commit_roots(cur_trans, fs_info);
 
-	assert_qgroups_uptodate(trans);
 	ASSERT(list_empty(&cur_trans->dirty_bgs));
 	ASSERT(list_empty(&cur_trans->io_bgs));
 	update_super_roots(fs_info);

@@ -2487,18 +2487,6 @@ out:
 	spin_unlock(&fs_info->qgroup_lock);
 }
 
-void assert_qgroups_uptodate(struct btrfs_trans_handle *trans)
-{
-	if (list_empty(&trans->qgroup_ref_list) && !trans->delayed_ref_elem.seq)
-		return;
-	btrfs_err(trans->fs_info,
-		"qgroups not uptodate in trans handle %p:  list is%s empty, seq is %#x.%x",
-		trans, list_empty(&trans->qgroup_ref_list) ? "" : " not",
-		(u32)(trans->delayed_ref_elem.seq >> 32),
-		(u32)trans->delayed_ref_elem.seq);
-	BUG();
-}
-
 /*
  * returns < 0 on error, 0 when more leafs are to be scanned.
  * returns 1 when done.

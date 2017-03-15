@@ -3003,7 +3003,6 @@ again:
 		goto again;
 	}
 out:
-	assert_qgroups_uptodate(trans);
 	trans->can_flush_pending_bgs = can_flush_pending_bgs;
 	return 0;
 }
