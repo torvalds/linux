@@ -60,9 +60,7 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int whence)
 	loff_t error;
 
 	switch (whence) {
-	case SEEK_END: /* These reference inode->i_size */
-	case SEEK_DATA:
-	case SEEK_HOLE:
+	case SEEK_END:
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY,
 					   &i_gh);
 		if (!error) {
@@ -70,8 +68,21 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int whence)
 			gfs2_glock_dq_uninit(&i_gh);
 		}
 		break;
+
+	case SEEK_DATA:
+		error = gfs2_seek_data(file, offset);
+		break;
+
+	case SEEK_HOLE:
+		error = gfs2_seek_hole(file, offset);
+		break;
+
 	case SEEK_CUR:
 	case SEEK_SET:
+		/*
+		 * These don't reference inode->i_size and don't depend on the
+		 * block mapping, so we don't need the glock.
+		 */
 		error = generic_file_llseek(file, offset, whence);
 		break;
 	default:

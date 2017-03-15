@@ -2029,6 +2029,44 @@ out:
 	return ret;
 }
 
+loff_t gfs2_seek_data(struct file *file, loff_t offset)
+{
+	struct inode *inode = file->f_mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_holder gh;
+	loff_t ret;
+
+	inode_lock_shared(inode);
+	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
+	if (!ret)
+		ret = iomap_seek_data(inode, offset, &gfs2_iomap_ops);
+	gfs2_glock_dq_uninit(&gh);
+	inode_unlock_shared(inode);
+
+	if (ret < 0)
+		return ret;
+	return vfs_setpos(file, ret, inode->i_sb->s_maxbytes);
+}
+
+loff_t gfs2_seek_hole(struct file *file, loff_t offset)
+{
+	struct inode *inode = file->f_mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_holder gh;
+	loff_t ret;
+
+	inode_lock_shared(inode);
+	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
+	if (!ret)
+		ret = iomap_seek_hole(inode, offset, &gfs2_iomap_ops);
+	gfs2_glock_dq_uninit(&gh);
+	inode_unlock_shared(inode);
+
+	if (ret < 0)
+		return ret;
+	return vfs_setpos(file, ret, inode->i_sb->s_maxbytes);
+}
+
 const struct inode_operations gfs2_file_iops = {
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
