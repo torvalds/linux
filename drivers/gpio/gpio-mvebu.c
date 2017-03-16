@@ -788,7 +788,8 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		goto err_domain;
 	}
 
-	/* NOTE: The common accessors cannot be used because of the percpu
+	/*
+	 * NOTE: The common accessors cannot be used because of the percpu
 	 * access to the mask registers
 	 */
 	gc = irq_get_domain_generic_chip(mvchip->domain, 0);
@@ -809,7 +810,8 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	ct->handler = handle_edge_irq;
 	ct->chip.name = mvchip->chip.label;
 
-	/* Setup the interrupt handlers. Each chip can have up to 4
+	/*
+	 * Setup the interrupt handlers. Each chip can have up to 4
 	 * interrupt handlers, with each handler dealing with 8 GPIO
 	 * pins.
 	 */
