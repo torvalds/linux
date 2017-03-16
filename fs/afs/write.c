@@ -513,6 +513,7 @@ static int afs_writepages_region(struct address_space *mapping,
 
 		if (PageWriteback(page) || !PageDirty(page)) {
 			unlock_page(page);
+			put_page(page);
 			continue;
 		}
 
