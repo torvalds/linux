@@ -197,7 +197,6 @@ static struct usb_serial_driver clie_5_device = {
 	.unthrottle =		usb_serial_generic_unthrottle,
 	.attach =		clie_5_attach,
 	.probe =		visor_probe,
-	.calc_num_ports =	visor_calc_num_ports,
 	.read_int_callback =	visor_read_int_callback,
 };
 
