@@ -2544,18 +2544,29 @@ static void edge_heartbeat_work(struct work_struct *work)
 	edge_heartbeat_schedule(serial);
 }
 
+static int edge_calc_num_ports(struct usb_serial *serial,
+				struct usb_serial_endpoints *epds)
+{
+	struct device *dev = &serial->interface->dev;
+	unsigned char num_ports = serial->type->num_ports;
+
+	/* Make sure we have the required endpoints when in download mode. */
+	if (serial->interface->cur_altsetting->desc.bNumEndpoints > 1) {
+		if (epds->num_bulk_in < num_ports ||
+				epds->num_bulk_out < num_ports) {
+			dev_err(dev, "required endpoints missing\n");
+			return -ENODEV;
+		}
+	}
+
+	return num_ports;
+}
+
 static int edge_startup(struct usb_serial *serial)
 {
 	struct edgeport_serial *edge_serial;
 	int status;
 	u16 product_id;
-
-	/* Make sure we have the required endpoints when in download mode. */
-	if (serial->interface->cur_altsetting->desc.bNumEndpoints > 1) {
-		if (serial->num_bulk_in < serial->num_ports ||
-				serial->num_bulk_out < serial->num_ports)
-			return -ENODEV;
-	}
 
 	/* create our private serial structure */
 	edge_serial = kzalloc(sizeof(struct edgeport_serial), GFP_KERNEL);
@@ -2741,6 +2752,7 @@ static struct usb_serial_driver edgeport_1port_device = {
 	.throttle		= edge_throttle,
 	.unthrottle		= edge_unthrottle,
 	.attach			= edge_startup,
+	.calc_num_ports		= edge_calc_num_ports,
 	.disconnect		= edge_disconnect,
 	.release		= edge_release,
 	.port_probe		= edge_port_probe,
@@ -2778,6 +2790,7 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.throttle		= edge_throttle,
 	.unthrottle		= edge_unthrottle,
 	.attach			= edge_startup,
+	.calc_num_ports		= edge_calc_num_ports,
 	.disconnect		= edge_disconnect,
 	.release		= edge_release,
 	.port_probe		= edge_port_probe,
