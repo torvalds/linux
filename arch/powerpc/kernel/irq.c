@@ -481,7 +481,11 @@ void __do_irq(struct pt_regs *regs)
 	if (unlikely(!irq))
 		__this_cpu_inc(irq_stat.spurious_irqs);
 	else
-		generic_handle_irq(irq);
+		do {
+			generic_handle_irq(irq);
+
+			irq = ppc_md.get_irq();
+		} while (irq);
 
 	trace_irq_exit(regs);
 
