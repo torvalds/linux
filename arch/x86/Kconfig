@@ -2788,6 +2788,9 @@ config X86_DMA_REMAP
 	bool
 	depends on STA2X11
 
+config HAVE_GENERIC_GUP
+	def_bool y
+
 source "net/Kconfig"
 
 source "drivers/Kconfig"
