@@ -476,9 +476,8 @@ static u32 to_ticks(int kHz, int ps)
 	return DIV_ROUND_UP_ULL((u64)kHz * ps, NSEC_PER_SEC);
 }
 
-static int tango_set_timings(struct mtd_info *mtd,
-			     const struct nand_data_interface *conf,
-			     bool check_only)
+static int tango_set_timings(struct mtd_info *mtd, int csline,
+			     const struct nand_data_interface *conf)
 {
 	const struct nand_sdr_timings *sdr = nand_get_sdr_timings(conf);
 	struct nand_chip *chip = mtd_to_nand(mtd);
@@ -490,7 +489,7 @@ static int tango_set_timings(struct mtd_info *mtd,
 	if (IS_ERR(sdr))
 		return PTR_ERR(sdr);
 
-	if (check_only)
+	if (csline == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
 
 	Trdy = to_ticks(kHz, sdr->tCEA_max - sdr->tREA_max);

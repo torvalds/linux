@@ -107,6 +107,8 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 #define NAND_STATUS_READY	0x40
 #define NAND_STATUS_WP		0x80
 
+#define NAND_DATA_IFACE_CHECK_ONLY	-1
+
 /*
  * Constants for ECC_MODES
  */
@@ -818,7 +820,10 @@ struct nand_manufacturer_ops {
  * @read_retries:	[INTERN] the number of read retry modes supported
  * @onfi_set_features:	[REPLACEABLE] set the features for ONFI nand
  * @onfi_get_features:	[REPLACEABLE] get the features for ONFI nand
- * @setup_data_interface: [OPTIONAL] setup the data interface and timing
+ * @setup_data_interface: [OPTIONAL] setup the data interface and timing. If
+ *			  chipnr is set to %NAND_DATA_IFACE_CHECK_ONLY this
+ *			  means the configuration should not be applied but
+ *			  only checked.
  * @bbt:		[INTERN] bad block table pointer
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash
  *			lookup.
@@ -862,9 +867,8 @@ struct nand_chip {
 	int (*onfi_get_features)(struct mtd_info *mtd, struct nand_chip *chip,
 			int feature_addr, uint8_t *subfeature_para);
 	int (*setup_read_retry)(struct mtd_info *mtd, int retry_mode);
-	int (*setup_data_interface)(struct mtd_info *mtd,
-				    const struct nand_data_interface *conf,
-				    bool check_only);
+	int (*setup_data_interface)(struct mtd_info *mtd, int chipnr,
+				    const struct nand_data_interface *conf);
 
 
 	int chip_delay;

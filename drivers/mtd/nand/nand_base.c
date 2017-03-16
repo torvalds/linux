@@ -1042,12 +1042,13 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 /**
  * nand_reset_data_interface - Reset data interface and timings
  * @chip: The NAND chip
+ * @chipnr: Internal die id
  *
  * Reset the Data interface and timings to ONFI mode 0.
  *
  * Returns 0 for success or negative error code otherwise.
  */
-static int nand_reset_data_interface(struct nand_chip *chip)
+static int nand_reset_data_interface(struct nand_chip *chip, int chipnr)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	const struct nand_data_interface *conf;
@@ -1071,7 +1072,7 @@ static int nand_reset_data_interface(struct nand_chip *chip)
 	 */
 
 	conf = nand_get_default_data_interface();
-	ret = chip->setup_data_interface(mtd, conf, false);
+	ret = chip->setup_data_interface(mtd, chipnr, conf);
 	if (ret)
 		pr_err("Failed to configure data interface to SDR timing mode 0\n");
 
@@ -1081,6 +1082,7 @@ static int nand_reset_data_interface(struct nand_chip *chip)
 /**
  * nand_setup_data_interface - Setup the best data interface and timings
  * @chip: The NAND chip
+ * @chipnr: Internal die id
  *
  * Find and configure the best data interface and NAND timings supported by
  * the chip and the driver.
@@ -1090,7 +1092,7 @@ static int nand_reset_data_interface(struct nand_chip *chip)
  *
  * Returns 0 for success or negative error code otherwise.
  */
-static int nand_setup_data_interface(struct nand_chip *chip)
+static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
@@ -1114,7 +1116,7 @@ static int nand_setup_data_interface(struct nand_chip *chip)
 			goto err;
 	}
 
-	ret = chip->setup_data_interface(mtd, chip->data_interface, false);
+	ret = chip->setup_data_interface(mtd, chipnr, chip->data_interface);
 err:
 	return ret;
 }
@@ -1165,8 +1167,10 @@ static int nand_init_data_interface(struct nand_chip *chip)
 		if (ret)
 			continue;
 
-		ret = chip->setup_data_interface(mtd, chip->data_interface,
-						 true);
+		/* Pass -1 to only */
+		ret = chip->setup_data_interface(mtd,
+						 NAND_DATA_IFACE_CHECK_ONLY,
+						 chip->data_interface);
 		if (!ret) {
 			chip->onfi_timing_mode_default = mode;
 			break;
@@ -1193,7 +1197,7 @@ int nand_reset(struct nand_chip *chip, int chipnr)
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
-	ret = nand_reset_data_interface(chip);
+	ret = nand_reset_data_interface(chip, chipnr);
 	if (ret)
 		return ret;
 
@@ -1206,7 +1210,7 @@ int nand_reset(struct nand_chip *chip, int chipnr)
 	chip->select_chip(mtd, -1);
 
 	chip->select_chip(mtd, chipnr);
-	ret = nand_setup_data_interface(chip);
+	ret = nand_setup_data_interface(chip, chipnr);
 	chip->select_chip(mtd, -1);
 	if (ret)
 		return ret;
@@ -4396,7 +4400,7 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	 * For the other dies, nand_reset() will automatically switch to the
 	 * best mode for us.
 	 */
-	ret = nand_setup_data_interface(chip);
+	ret = nand_setup_data_interface(chip, 0);
 	if (ret)
 		return ret;
 

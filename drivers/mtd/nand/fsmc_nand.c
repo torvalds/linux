@@ -388,9 +388,8 @@ static int fsmc_calc_timings(struct fsmc_nand_data *host,
 	return 0;
 }
 
-static int fsmc_setup_data_interface(struct mtd_info *mtd,
-				     const struct nand_data_interface *conf,
-				     bool check_only)
+static int fsmc_setup_data_interface(struct mtd_info *mtd, int csline,
+				     const struct nand_data_interface *conf)
 {
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct fsmc_nand_data *host = nand_get_controller_data(nand);
@@ -406,7 +405,7 @@ static int fsmc_setup_data_interface(struct mtd_info *mtd,
 	if (ret)
 		return ret;
 
-	if (check_only)
+	if (csline == NAND_DATA_IFACE_CHECK_ONLY)
 		return 0;
 
 	fsmc_nand_setup(host, &tims);
