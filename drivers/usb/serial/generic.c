@@ -52,10 +52,12 @@ static int usb_serial_generic_calc_num_ports(struct usb_serial *serial,
 					struct usb_serial_endpoints *epds)
 {
 	struct device *dev = &serial->interface->dev;
-	int num_ports = epds->num_bulk_out;
+	int num_ports;
+
+	num_ports = max(epds->num_bulk_in, epds->num_bulk_out);
 
 	if (num_ports == 0) {
-		dev_err(dev, "Generic device with no bulk out, not allowed.\n");
+		dev_err(dev, "device has no bulk endpoints\n");
 		return -ENODEV;
 	}
 
