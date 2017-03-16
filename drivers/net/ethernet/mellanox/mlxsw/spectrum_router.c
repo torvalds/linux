@@ -41,6 +41,7 @@
 #include <linux/in6.h>
 #include <linux/notifier.h>
 #include <linux/inetdevice.h>
+#include <linux/netdevice.h>
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
@@ -2660,7 +2661,7 @@ static bool mlxsw_sp_rif_should_config(struct mlxsw_sp_rif *r,
 			return true;
 		return false;
 	case NETDEV_DOWN:
-		if (r && !in_dev->ifa_list)
+		if (r && !in_dev->ifa_list && !netif_is_l3_slave(r->dev))
 			return true;
 		/* It is possible we already removed the RIF ourselves
 		 * if it was assigned to a netdev that is now a bridge
