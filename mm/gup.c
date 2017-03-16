@@ -1238,6 +1238,8 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 		}
 
 		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+
+		SetPageReferenced(page);
 		pages[*nr] = page;
 		(*nr)++;
 
@@ -1299,6 +1301,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
 		return 0;
 	}
 
+	SetPageReferenced(head);
 	return 1;
 }
 
@@ -1334,6 +1337,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
 		return 0;
 	}
 
+	SetPageReferenced(head);
 	return 1;
 }
 
@@ -1370,6 +1374,7 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
 		return 0;
 	}
 
+	SetPageReferenced(head);
 	return 1;
 }
 
