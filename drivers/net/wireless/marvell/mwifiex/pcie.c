@@ -294,8 +294,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	if (!adapter || !adapter->priv_num)
 		return;
 
-	cancel_work_sync(&card->work);
-
 	reg = card->pcie.reg;
 	if (reg)
 		ret = mwifiex_read_reg(adapter, reg->fw_status, &fw_status);
@@ -2853,6 +2851,8 @@ static void mwifiex_cleanup_pcie(struct mwifiex_adapter *adapter)
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 	int ret;
 	u32 fw_status;
+
+	cancel_work_sync(&card->work);
 
 	ret = mwifiex_read_reg(adapter, reg->fw_status, &fw_status);
 	if (fw_status == FIRMWARE_READY_PCIE) {

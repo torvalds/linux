@@ -387,8 +387,6 @@ mwifiex_sdio_remove(struct sdio_func *func)
 	if (!adapter || !adapter->priv_num)
 		return;
 
-	cancel_work_sync(&card->work);
-
 	mwifiex_dbg(adapter, INFO, "info: SDIO func num=%d\n", func->num);
 
 	ret = mwifiex_sdio_read_fw_status(adapter, &firmware_stat);
@@ -2157,6 +2155,8 @@ static void mwifiex_cleanup_mpa_buf(struct mwifiex_adapter *adapter)
 static void mwifiex_cleanup_sdio(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
+
+	cancel_work_sync(&card->work);
 
 	kfree(card->mp_regs);
 	kfree(card->mpa_rx.skb_arr);
