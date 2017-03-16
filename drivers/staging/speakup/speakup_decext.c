@@ -130,7 +130,7 @@ static struct spk_synth synth_decext = {
 	.io_ops = &spk_serial_io_ops,
 	.probe = spk_serial_synth_probe,
 	.release = spk_serial_release,
-	.synth_immediate = spk_synth_immediate,
+	.synth_immediate = spk_serial_synth_immediate,
 	.catch_up = do_catch_up,
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -225,7 +225,7 @@ static void do_catch_up(struct spk_synth *synth)
 static void synth_flush(struct spk_synth *synth)
 {
 	in_escape = 0;
-	spk_synth_immediate(synth, "\033P;10z\033\\");
+	synth->synth_immediate(synth, "\033P;10z\033\\");
 }
 
 module_param_named(ser, synth_decext.ser, int, 0444);

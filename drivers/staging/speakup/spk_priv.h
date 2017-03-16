@@ -58,7 +58,7 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 		      const char *buf, size_t count);
 
 int spk_serial_synth_probe(struct spk_synth *synth);
-const char *spk_synth_immediate(struct spk_synth *synth, const char *buff);
+const char *spk_serial_synth_immediate(struct spk_synth *synth, const char *buff);
 void spk_do_catch_up(struct spk_synth *synth);
 void spk_synth_flush(struct spk_synth *synth);
 int spk_synth_is_alive_nop(struct spk_synth *synth);

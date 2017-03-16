@@ -136,6 +136,35 @@ static void start_serial_interrupt(int irq)
 	outb(1, speakup_info.port_tts + UART_FCR);	/* Turn FIFO On */
 }
 
+int spk_serial_synth_probe(struct spk_synth *synth)
+{
+	const struct old_serial_port *ser;
+	int failed = 0;
+
+	if ((synth->ser >= SPK_LO_TTY) && (synth->ser <= SPK_HI_TTY)) {
+		ser = spk_serial_init(synth->ser);
+		if (!ser) {
+			failed = -1;
+		} else {
+			outb_p(0, ser->port);
+			mdelay(1);
+			outb_p('\r', ser->port);
+		}
+	} else {
+		failed = -1;
+		pr_warn("ttyS%i is an invalid port\n", synth->ser);
+	}
+	if (failed) {
+		pr_info("%s: not found\n", synth->long_name);
+		return -ENODEV;
+	}
+	pr_info("%s: ttyS%i, Driver Version %s\n",
+		synth->long_name, synth->ser, synth->version);
+	synth->alive = 1;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(spk_serial_synth_probe);
+
 void spk_stop_serial_interrupt(void)
 {
 	if (speakup_info.port_tts == 0)
@@ -222,6 +251,23 @@ int spk_serial_out(struct spk_synth *in_synth, const char ch)
 	}
 	return 0;
 }
+
+const char *spk_serial_synth_immediate(struct spk_synth *synth, const char *buff)
+{
+	u_char ch;
+
+	while ((ch = *buff)) {
+		if (ch == '\n')
+			ch = synth->procspeech;
+		if (spk_wait_for_xmitr(synth))
+			outb(ch, speakup_info.port_tts);
+		else
+			return buff;
+		buff++;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(spk_serial_synth_immediate);
 
 void spk_serial_release(void)
 {

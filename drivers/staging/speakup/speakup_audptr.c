@@ -107,7 +107,7 @@ static struct spk_synth synth_audptr = {
 	.io_ops = &spk_serial_io_ops,
 	.probe = synth_probe,
 	.release = spk_serial_release,
-	.synth_immediate = spk_synth_immediate,
+	.synth_immediate = spk_serial_synth_immediate,
 	.catch_up = spk_do_catch_up,
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -144,7 +144,7 @@ static void synth_version(struct spk_synth *synth)
 	unsigned char test = 0;
 	char synth_id[40] = "";
 
-	spk_synth_immediate(synth, "\x05[Q]");
+	synth->synth_immediate(synth, "\x05[Q]");
 	synth_id[test] = spk_serial_in();
 	if (synth_id[test] == 'A') {
 		do {
