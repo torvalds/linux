@@ -38,7 +38,6 @@
 #include <linux/usb/serial.h>
 #include <linux/kfifo.h>
 #include <linux/idr.h>
-#include "pl2303.h"
 
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <gregkh@linuxfoundation.org>"
 #define DRIVER_DESC "USB Serial Driver core"
@@ -803,45 +802,6 @@ static int usb_serial_probe(struct usb_interface *interface,
 
 	find_endpoints(serial, epds);
 
-#if IS_ENABLED(CONFIG_USB_SERIAL_PL2303)
-	/* BEGIN HORRIBLE HACK FOR PL2303 */
-	/* this is needed due to the looney way its endpoints are set up */
-	if (((le16_to_cpu(dev->descriptor.idVendor) == PL2303_VENDOR_ID) &&
-	     (le16_to_cpu(dev->descriptor.idProduct) == PL2303_PRODUCT_ID)) ||
-	    ((le16_to_cpu(dev->descriptor.idVendor) == ATEN_VENDOR_ID) &&
-	     (le16_to_cpu(dev->descriptor.idProduct) == ATEN_PRODUCT_ID)) ||
-	    ((le16_to_cpu(dev->descriptor.idVendor) == ALCOR_VENDOR_ID) &&
-	     (le16_to_cpu(dev->descriptor.idProduct) == ALCOR_PRODUCT_ID)) ||
-	    ((le16_to_cpu(dev->descriptor.idVendor) == SIEMENS_VENDOR_ID) &&
-	     (le16_to_cpu(dev->descriptor.idProduct) == SIEMENS_PRODUCT_ID_EF81))) {
-		if (interface != dev->actconfig->interface[0]) {
-			struct usb_host_interface *iface_desc;
-
-			/* check out the endpoints of the other interface*/
-			iface_desc = dev->actconfig->interface[0]->cur_altsetting;
-			for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-				endpoint = &iface_desc->endpoint[i].desc;
-				if (usb_endpoint_is_int_in(endpoint)) {
-					/* we found a interrupt in endpoint */
-					dev_dbg(ddev, "found interrupt in for Prolific device on separate interface\n");
-					if (epds->num_interrupt_in < ARRAY_SIZE(epds->interrupt_in))
-						epds->interrupt_in[epds->num_interrupt_in++] = endpoint;
-				}
-			}
-		}
-
-		/* Now make sure the PL-2303 is configured correctly.
-		 * If not, give up now and hope this hack will work
-		 * properly during a later invocation of usb_serial_probe
-		 */
-		if (epds->num_bulk_in == 0 || epds->num_bulk_out == 0) {
-			dev_info(ddev, "PL-2303 hack: descriptors matched but endpoints did not\n");
-			retval = -ENODEV;
-			goto err_free_epds;
-		}
-	}
-	/* END HORRIBLE HACK FOR PL2303 */
-#endif
 	if (epds->num_bulk_in < type->num_bulk_in ||
 			epds->num_bulk_out < type->num_bulk_out ||
 			epds->num_interrupt_in < type->num_interrupt_in ||

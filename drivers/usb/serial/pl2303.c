@@ -218,6 +218,59 @@ static int pl2303_probe(struct usb_serial *serial,
 	return 0;
 }
 
+static int pl2303_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
+{
+	struct usb_interface *interface = serial->interface;
+	struct usb_device *dev = serial->dev;
+	struct device *ddev = &interface->dev;
+	struct usb_host_interface *iface_desc;
+	struct usb_endpoint_descriptor *endpoint;
+	unsigned int i;
+
+	/* BEGIN HORRIBLE HACK FOR PL2303 */
+	/* this is needed due to the looney way its endpoints are set up */
+	if (((le16_to_cpu(dev->descriptor.idVendor) == PL2303_VENDOR_ID) &&
+	     (le16_to_cpu(dev->descriptor.idProduct) == PL2303_PRODUCT_ID)) ||
+	    ((le16_to_cpu(dev->descriptor.idVendor) == ATEN_VENDOR_ID) &&
+	     (le16_to_cpu(dev->descriptor.idProduct) == ATEN_PRODUCT_ID)) ||
+	    ((le16_to_cpu(dev->descriptor.idVendor) == ALCOR_VENDOR_ID) &&
+	     (le16_to_cpu(dev->descriptor.idProduct) == ALCOR_PRODUCT_ID)) ||
+	    ((le16_to_cpu(dev->descriptor.idVendor) == SIEMENS_VENDOR_ID) &&
+	     (le16_to_cpu(dev->descriptor.idProduct) == SIEMENS_PRODUCT_ID_EF81))) {
+		if (interface != dev->actconfig->interface[0]) {
+			/* check out the endpoints of the other interface*/
+			iface_desc = dev->actconfig->interface[0]->cur_altsetting;
+			for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
+				endpoint = &iface_desc->endpoint[i].desc;
+				if (usb_endpoint_is_int_in(endpoint)) {
+					/* we found a interrupt in endpoint */
+					dev_dbg(ddev, "found interrupt in for Prolific device on separate interface\n");
+					if (epds->num_interrupt_in < ARRAY_SIZE(epds->interrupt_in))
+						epds->interrupt_in[epds->num_interrupt_in++] = endpoint;
+				}
+			}
+		}
+
+		/* Now make sure the PL-2303 is configured correctly.
+		 * If not, give up now and hope this hack will work
+		 * properly during a later invocation of usb_serial_probe
+		 */
+		if (epds->num_bulk_in == 0 || epds->num_bulk_out == 0) {
+			dev_info(ddev, "PL-2303 hack: descriptors matched but endpoints did not\n");
+			return -ENODEV;
+		}
+	}
+	/* END HORRIBLE HACK FOR PL2303 */
+
+	if (epds->num_interrupt_in < 1) {
+		dev_err(ddev, "required interrupt-in endpoint missing\n");
+		return -ENODEV;
+	}
+
+	return 1;
+}
+
 static int pl2303_startup(struct usb_serial *serial)
 {
 	struct pl2303_serial_private *spriv;
@@ -930,10 +983,9 @@ static struct usb_serial_driver pl2303_device = {
 		.name =		"pl2303",
 	},
 	.id_table =		id_table,
-	.num_ports =		1,
 	.num_bulk_in =		1,
 	.num_bulk_out =		1,
-	.num_interrupt_in =	1,
+	.num_interrupt_in =	0,	/* see pl2303_calc_num_ports */
 	.bulk_in_size =		256,
 	.bulk_out_size =	256,
 	.open =			pl2303_open,
@@ -949,6 +1001,7 @@ static struct usb_serial_driver pl2303_device = {
 	.process_read_urb =	pl2303_process_read_urb,
 	.read_int_callback =	pl2303_read_int_callback,
 	.probe =		pl2303_probe,
+	.calc_num_ports =	pl2303_calc_num_ports,
 	.attach =		pl2303_startup,
 	.release =		pl2303_release,
 	.port_probe =		pl2303_port_probe,
