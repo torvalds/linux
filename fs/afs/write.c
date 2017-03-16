@@ -154,18 +154,21 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 		kfree(candidate);
 		return -ENOMEM;
 	}
-	*pagep = page;
-	/* page won't leak in error case: it eventually gets cleaned off LRU */
 
 	if (!PageUptodate(page) && len != PAGE_SIZE) {
 		ret = afs_fill_page(vnode, key, pos & PAGE_MASK, PAGE_SIZE, page);
 		if (ret < 0) {
+			unlock_page(page);
+			put_page(page);
 			kfree(candidate);
 			_leave(" = %d [prep]", ret);
 			return ret;
 		}
 		SetPageUptodate(page);
 	}
+
+	/* page won't leak in error case: it eventually gets cleaned off LRU */
+	*pagep = page;
 
 try_again:
 	spin_lock(&vnode->writeback_lock);
