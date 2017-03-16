@@ -1146,8 +1146,40 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 	return 0;
 }
 
+static ssize_t
+vgpu_id_show(struct device *dev, struct device_attribute *attr,
+	     char *buf)
+{
+	struct mdev_device *mdev = mdev_from_dev(dev);
+
+	if (mdev) {
+		struct intel_vgpu *vgpu = (struct intel_vgpu *)
+			mdev_get_drvdata(mdev);
+		return sprintf(buf, "%d\n", vgpu->id);
+	}
+	return sprintf(buf, "\n");
+}
+
+static DEVICE_ATTR_RO(vgpu_id);
+
+static struct attribute *intel_vgpu_attrs[] = {
+	&dev_attr_vgpu_id.attr,
+	NULL
+};
+
+static const struct attribute_group intel_vgpu_group = {
+	.name = "intel_vgpu",
+	.attrs = intel_vgpu_attrs,
+};
+
+static const struct attribute_group *intel_vgpu_groups[] = {
+	&intel_vgpu_group,
+	NULL,
+};
+
 static const struct mdev_parent_ops intel_vgpu_ops = {
 	.supported_type_groups	= intel_vgpu_type_groups,
+	.mdev_attr_groups       = intel_vgpu_groups,
 	.create			= intel_vgpu_create,
 	.remove			= intel_vgpu_remove,
 
