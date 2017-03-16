@@ -114,8 +114,8 @@ static int goldfish_nand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	len = len / mtd->writesize * (mtd->writesize + mtd->oobsize);
 
 	if (goldfish_nand_cmd(mtd, NAND_CMD_ERASE, ofs, len, NULL) != len) {
-		pr_err("goldfish_nand_erase: erase failed, start %llx, len %x, dev_size %llx, erase_size %x\n",
-		       ofs, len, mtd->size, mtd->erasesize);
+		pr_err("%s: erase failed, start %llx, len %x, dev_size %llx, erase_size %x\n",
+		       __func__, ofs, len, mtd->size, mtd->erasesize);
 		return -EIO;
 	}
 
@@ -125,8 +125,8 @@ static int goldfish_nand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	return 0;
 
 invalid_arg:
-	pr_err("goldfish_nand_erase: invalid erase, start %llx, len %x, dev_size %llx, erase_size %x\n",
-	       ofs, len, mtd->size, mtd->erasesize);
+	pr_err("%s: invalid erase, start %llx, len %x, dev_size %llx, erase_size %x\n",
+	       __func__, ofs, len, mtd->size, mtd->erasesize);
 	return -EINVAL;
 }
 
@@ -254,8 +254,8 @@ static int goldfish_nand_block_isbad(struct mtd_info *mtd, loff_t ofs)
 	return goldfish_nand_cmd(mtd, NAND_CMD_BLOCK_BAD_GET, ofs, 0, NULL);
 
 invalid_arg:
-	pr_err("goldfish_nand_block_isbad: invalid arg, ofs %llx, dev_size %llx, write_size %x\n",
-	       ofs, mtd->size, mtd->writesize);
+	pr_err("%s: invalid arg, ofs %llx, dev_size %llx, write_size %x\n",
+	       __func__, ofs, mtd->size, mtd->writesize);
 	return -EINVAL;
 }
 
@@ -277,8 +277,8 @@ static int goldfish_nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	return 0;
 
 invalid_arg:
-	pr_err("goldfish_nand_block_markbad: invalid arg, ofs %llx, dev_size %llx, write_size %x\n",
-	       ofs, mtd->size, mtd->writesize);
+	pr_err("%s: invalid arg, ofs %llx, dev_size %llx, write_size %x\n",
+	       __func__, ofs, mtd->size, mtd->writesize);
 	return -EINVAL;
 }
 
