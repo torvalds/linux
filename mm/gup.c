@@ -1212,8 +1212,13 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 		 * Similar to the PMD case below, NUMA hinting must take slow
 		 * path using the pte_protnone check.
 		 */
-		if (!pte_present(pte) || pte_special(pte) ||
-			pte_protnone(pte) || (write && !pte_write(pte)))
+		if (pte_protnone(pte))
+			goto pte_unmap;
+
+		if (!pte_access_permitted(pte, write))
+			goto pte_unmap;
+
+		if (pte_special(pte))
 			goto pte_unmap;
 
 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
@@ -1264,7 +1269,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
 	struct page *head, *page;
 	int refs;
 
-	if (write && !pmd_write(orig))
+	if (!pmd_access_permitted(orig, write))
 		return 0;
 
 	refs = 0;
@@ -1299,7 +1304,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
 	struct page *head, *page;
 	int refs;
 
-	if (write && !pud_write(orig))
+	if (!pud_access_permitted(orig, write))
 		return 0;
 
 	refs = 0;
@@ -1335,7 +1340,7 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
 	int refs;
 	struct page *head, *page;
 
-	if (write && !pgd_write(orig))
+	if (!pgd_access_permitted(orig, write))
 		return 0;
 
 	refs = 0;
