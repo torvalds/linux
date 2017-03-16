@@ -1273,7 +1273,7 @@ static void clear_all_pkt_pointers(struct bpf_verifier_env *env)
 	}
 }
 
-static int check_call(struct bpf_verifier_env *env, int func_id)
+static int check_call(struct bpf_verifier_env *env, int func_id, int insn_idx)
 {
 	struct bpf_verifier_state *state = &env->cur_state;
 	const struct bpf_func_proto *fn = NULL;
@@ -1369,6 +1369,7 @@ static int check_call(struct bpf_verifier_env *env, int func_id)
 		}
 		regs[BPF_REG_0].map_ptr = meta.map_ptr;
 		regs[BPF_REG_0].id = ++env->id_gen;
+		env->insn_aux_data[insn_idx].map_ptr = meta.map_ptr;
 	} else {
 		verbose("unknown return type %d of func %s#%d\n",
 			fn->ret_type, func_id_name(func_id), func_id);
@@ -2940,7 +2941,7 @@ static int do_check(struct bpf_verifier_env *env)
 					return -EINVAL;
 				}
 
-				err = check_call(env, insn->imm);
+				err = check_call(env, insn->imm, insn_idx);
 				if (err)
 					return err;
 
@@ -3268,6 +3269,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 }
 
 /* fixup insn->imm field of bpf_call instructions
+ * and inline eligible helpers as explicit sequence of BPF instructions
  *
  * this function is called after eBPF program passed verification
  */
@@ -3277,7 +3279,10 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 	struct bpf_insn *insn = prog->insnsi;
 	const struct bpf_func_proto *fn;
 	const int insn_cnt = prog->len;
-	int i;
+	struct bpf_insn insn_buf[16];
+	struct bpf_prog *new_prog;
+	struct bpf_map *map_ptr;
+	int i, cnt, delta = 0;
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
 		if (insn->code != (BPF_JMP | BPF_CALL))
@@ -3300,6 +3305,31 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			continue;
 		}
 
+		if (ebpf_jit_enabled() && insn->imm == BPF_FUNC_map_lookup_elem) {
+			map_ptr = env->insn_aux_data[i + delta].map_ptr;
+			if (!map_ptr->ops->map_gen_lookup)
+				goto patch_call_imm;
+
+			cnt = map_ptr->ops->map_gen_lookup(map_ptr, insn_buf);
+			if (cnt == 0 || cnt >= ARRAY_SIZE(insn_buf)) {
+				verbose("bpf verifier is misconfigured\n");
+				return -EINVAL;
+			}
+
+			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf,
+						       cnt);
+			if (!new_prog)
+				return -ENOMEM;
+
+			delta += cnt - 1;
+
+			/* keep walking new program and skip insns we just inserted */
+			env->prog = prog = new_prog;
+			insn      = new_prog->insnsi + i + delta;
+			continue;
+		}
+
+patch_call_imm:
 		fn = prog->aux->ops->get_func_proto(insn->imm);
 		/* all functions that have prototype and verifier allowed
 		 * programs to call them, must be real in-kernel functions
