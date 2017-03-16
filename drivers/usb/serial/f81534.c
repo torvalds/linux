@@ -614,11 +614,20 @@ static int f81534_find_config_idx(struct usb_serial *serial, u8 *index)
 static int f81534_calc_num_ports(struct usb_serial *serial,
 					struct usb_serial_endpoints *epds)
 {
+	struct device *dev = &serial->interface->dev;
+	int size_bulk_in = usb_endpoint_maxp(epds->bulk_in[0]);
+	int size_bulk_out = usb_endpoint_maxp(epds->bulk_out[0]);
 	u8 setting[F81534_CUSTOM_DATA_SIZE];
 	u8 setting_idx;
 	u8 num_port = 0;
 	int status;
 	size_t i;
+
+	if (size_bulk_out != F81534_WRITE_BUFFER_SIZE ||
+			size_bulk_in != F81534_MAX_RECEIVE_BLOCK_SIZE) {
+		dev_err(dev, "unsupported endpoint max packet size\n");
+		return -ENODEV;
+	}
 
 	/* Check had custom setting */
 	status = f81534_find_config_idx(serial, &setting_idx);
@@ -1115,49 +1124,6 @@ static int f81534_setup_ports(struct usb_serial *serial)
 	return 0;
 }
 
-static int f81534_probe(struct usb_serial *serial,
-					const struct usb_device_id *id)
-{
-	struct usb_endpoint_descriptor *endpoint;
-	struct usb_host_interface *iface_desc;
-	struct device *dev;
-	int num_bulk_in = 0;
-	int num_bulk_out = 0;
-	int size_bulk_in = 0;
-	int size_bulk_out = 0;
-	int i;
-
-	dev = &serial->interface->dev;
-	iface_desc = serial->interface->cur_altsetting;
-
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_bulk_in(endpoint)) {
-			++num_bulk_in;
-			size_bulk_in = usb_endpoint_maxp(endpoint);
-		}
-
-		if (usb_endpoint_is_bulk_out(endpoint)) {
-			++num_bulk_out;
-			size_bulk_out = usb_endpoint_maxp(endpoint);
-		}
-	}
-
-	if (num_bulk_in != 1 || num_bulk_out != 1) {
-		dev_err(dev, "expected endpoints not found\n");
-		return -ENODEV;
-	}
-
-	if (size_bulk_out != F81534_WRITE_BUFFER_SIZE ||
-			size_bulk_in != F81534_MAX_RECEIVE_BLOCK_SIZE) {
-		dev_err(dev, "unsupported endpoint max packet size\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static int f81534_attach(struct usb_serial *serial)
 {
 	struct f81534_serial_private *serial_priv;
@@ -1381,12 +1347,13 @@ static struct usb_serial_driver f81534_device = {
 	},
 	.description =		DRIVER_DESC,
 	.id_table =		f81534_id_table,
+	.num_bulk_in =		1,
+	.num_bulk_out =		1,
 	.open =			f81534_open,
 	.close =		f81534_close,
 	.write =		f81534_write,
 	.tx_empty =		f81534_tx_empty,
 	.calc_num_ports =	f81534_calc_num_ports,
-	.probe =		f81534_probe,
 	.attach =		f81534_attach,
 	.port_probe =		f81534_port_probe,
 	.dtr_rts =		f81534_dtr_rts,
