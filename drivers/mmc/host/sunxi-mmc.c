@@ -489,7 +489,7 @@ static void sunxi_mmc_dump_errinfo(struct sunxi_mmc_host *host)
 				      cmd->opcode == SD_IO_RW_DIRECT))
 		return;
 
-	dev_err(mmc_dev(host->mmc),
+	dev_dbg(mmc_dev(host->mmc),
 		"smc %d err, cmd %d,%s%s%s%s%s%s%s%s%s%s !!\n",
 		host->mmc->index, cmd->opcode,
 		data ? (data->flags & MMC_DATA_WRITE ? " WR" : " RD") : "",
