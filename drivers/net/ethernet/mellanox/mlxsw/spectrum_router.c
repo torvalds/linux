@@ -3226,6 +3226,47 @@ err_rif_edit:
 	return err;
 }
 
+int mlxsw_sp_vport_vrf_join(struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
+	struct net_device *dev = mlxsw_sp_vport->dev;
+
+	/* In case vPort already has a RIF, then we need to drop it.
+	 * A new one will be created using the VRF's VR.
+	 */
+	if (f && f->r)
+		mlxsw_sp_vport_rif_sp_leave(mlxsw_sp_vport);
+
+	return mlxsw_sp_vport_rif_sp_join(mlxsw_sp_vport, dev);
+}
+
+void mlxsw_sp_vport_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	mlxsw_sp_vport_rif_sp_leave(mlxsw_sp_vport);
+}
+
+int mlxsw_sp_port_vrf_join(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp_port *mlxsw_sp_vport;
+
+	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, 1);
+	if (WARN_ON(!mlxsw_sp_vport))
+		return -EINVAL;
+
+	return mlxsw_sp_vport_vrf_join(mlxsw_sp_vport);
+}
+
+void mlxsw_sp_port_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp_port *mlxsw_sp_vport;
+
+	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, 1);
+	if (WARN_ON(!mlxsw_sp_vport))
+		return;
+
+	mlxsw_sp_vport_vrf_leave(mlxsw_sp_vport);
+}
+
 static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
 {
 	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);

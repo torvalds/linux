@@ -3951,7 +3951,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 		upper_dev = info->upper_dev;
 		if (!is_vlan_dev(upper_dev) &&
 		    !netif_is_lag_master(upper_dev) &&
-		    !netif_is_bridge_master(upper_dev))
+		    !netif_is_bridge_master(upper_dev) &&
+		    !netif_is_l3_master(upper_dev))
 			return -EINVAL;
 		if (!info->linking)
 			break;
@@ -3991,6 +3992,11 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *dev,
 			else
 				mlxsw_sp_port_lag_leave(mlxsw_sp_port,
 							upper_dev);
+		} else if (netif_is_l3_master(upper_dev)) {
+			if (info->linking)
+				err = mlxsw_sp_port_vrf_join(mlxsw_sp_port);
+			else
+				mlxsw_sp_port_vrf_leave(mlxsw_sp_port);
 		} else {
 			err = -EINVAL;
 			WARN_ON(1);
@@ -4353,14 +4359,16 @@ static int mlxsw_sp_netdevice_vport_event(struct net_device *dev,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!netif_is_bridge_master(upper_dev))
+		if (!netif_is_bridge_master(upper_dev) &&
+		    !netif_is_l3_master(upper_dev))
 			return -EINVAL;
 		if (!info->linking)
 			break;
 		/* We can't have multiple VLAN interfaces configured on
 		 * the same port and being members in the same bridge.
 		 */
-		if (!mlxsw_sp_port_master_bridge_check(mlxsw_sp_port,
+		if (netif_is_bridge_master(upper_dev) &&
+		    !mlxsw_sp_port_master_bridge_check(mlxsw_sp_port,
 						       upper_dev))
 			return -EINVAL;
 		break;
@@ -4372,6 +4380,11 @@ static int mlxsw_sp_netdevice_vport_event(struct net_device *dev,
 								 upper_dev);
 			else
 				mlxsw_sp_vport_bridge_leave(mlxsw_sp_vport);
+		} else if (netif_is_l3_master(upper_dev)) {
+			if (info->linking)
+				err = mlxsw_sp_vport_vrf_join(mlxsw_sp_vport);
+			else
+				mlxsw_sp_vport_vrf_leave(mlxsw_sp_vport);
 		} else {
 			err = -EINVAL;
 			WARN_ON(1);
