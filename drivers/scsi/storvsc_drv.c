@@ -1191,8 +1191,6 @@ static void storvsc_on_channel_callback(void *context)
 			break;
 		}
 	} while (1);
-
-	return;
 }
 
 static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size,
