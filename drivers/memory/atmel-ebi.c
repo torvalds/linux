@@ -332,6 +332,7 @@ static int atmel_ebi_dev_setup(struct atmel_ebi *ebi, struct device_node *np,
 		return -ENOMEM;
 
 	ebid->ebi = ebi;
+	ebid->numcs = numcs;
 
 	ret = caps->xlate_config(ebid, np, &conf);
 	if (ret < 0)
