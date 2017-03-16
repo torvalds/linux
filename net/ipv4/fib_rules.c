@@ -186,11 +186,14 @@ static struct fib_table *fib_empty_table(struct net *net)
 }
 
 static int call_fib_rule_notifiers(struct net *net,
-				   enum fib_event_type event_type)
+				   enum fib_event_type event_type,
+				   struct fib_rule *rule)
 {
-	struct fib_notifier_info info;
+	struct fib_rule_notifier_info info = {
+		.rule = rule,
+	};
 
-	return call_fib_notifiers(net, event_type, &info);
+	return call_fib_notifiers(net, event_type, &info.info);
 }
 
 void fib_rules_notify(struct net *net, struct notifier_block *nb)
@@ -257,7 +260,7 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	rule4->tos = frh->tos;
 
 	net->ipv4.fib_has_custom_rules = true;
-	call_fib_rule_notifiers(net, FIB_EVENT_RULE_ADD);
+	call_fib_rule_notifiers(net, FIB_EVENT_RULE_ADD, rule);
 
 	err = 0;
 errout:
@@ -279,7 +282,7 @@ static int fib4_rule_delete(struct fib_rule *rule)
 		net->ipv4.fib_num_tclassid_users--;
 #endif
 	net->ipv4.fib_has_custom_rules = true;
-	call_fib_rule_notifiers(net, FIB_EVENT_RULE_DEL);
+	call_fib_rule_notifiers(net, FIB_EVENT_RULE_DEL, rule);
 errout:
 	return err;
 }

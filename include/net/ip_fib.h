@@ -213,6 +213,11 @@ struct fib_entry_notifier_info {
 	u32 tb_id;
 };
 
+struct fib_rule_notifier_info {
+	struct fib_notifier_info info; /* must be first */
+	struct fib_rule *rule;
+};
+
 struct fib_nh_notifier_info {
 	struct fib_notifier_info info; /* must be first */
 	struct fib_nh *fib_nh;
