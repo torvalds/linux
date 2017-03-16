@@ -850,27 +850,16 @@ static int usb_serial_probe(struct usb_interface *interface,
 		retval = -ENODEV;
 		goto err_free_epds;
 	}
-#ifdef CONFIG_USB_SERIAL_GENERIC
-	if (type == &usb_serial_generic_device) {
-		num_ports = epds->num_bulk_out;
-		if (num_ports == 0) {
-			dev_err(ddev, "Generic device with no bulk out, not allowed.\n");
-			retval = -EIO;
+
+	if (type->calc_num_ports) {
+		retval = type->calc_num_ports(serial, epds);
+		if (retval < 0)
 			goto err_free_epds;
-		}
+		num_ports = retval;
 	}
-#endif
-	if (!num_ports) {
-		/* if this device type has a calc_num_ports function, call it */
-		if (type->calc_num_ports) {
-			retval = type->calc_num_ports(serial, epds);
-			if (retval < 0)
-				goto err_free_epds;
-			num_ports = retval;
-		}
-		if (!num_ports)
-			num_ports = type->num_ports;
-	}
+
+	if (!num_ports)
+		num_ports = type->num_ports;
 
 	if (num_ports > MAX_NUM_PORTS) {
 		dev_warn(ddev, "too many ports requested: %d\n", num_ports);
