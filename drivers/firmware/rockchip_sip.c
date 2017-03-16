@@ -125,7 +125,7 @@ void psci_fiq_debugger_uart_irq_tf_init(u32 irq_id, void *callback)
 
 	psci_fiq_debugger_uart_irq_tf = callback;
 	sip_smmc = __invoke_sip_fn_smc(PSCI_SIP_UARTDBG_CFG64, irq_id,
-				       (u64)psci_fiq_debugger_uart_irq_tf_cb,
+				       (unsigned long)psci_fiq_debugger_uart_irq_tf_cb,
 				       UARTDBG_CFG_INIT);
 	ft_fiq_mem_phy = sip_smmc.a0;
 	ft_fiq_mem_base = ioremap(ft_fiq_mem_phy, 8 * 1024);
