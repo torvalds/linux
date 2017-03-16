@@ -185,6 +185,17 @@ static struct fib_table *fib_empty_table(struct net *net)
 	return NULL;
 }
 
+static int call_fib_rule_notifier(struct notifier_block *nb, struct net *net,
+				  enum fib_event_type event_type,
+				  struct fib_rule *rule)
+{
+	struct fib_rule_notifier_info info = {
+		.rule = rule,
+	};
+
+	return call_fib_notifier(nb, net, event_type, &info.info);
+}
+
 static int call_fib_rule_notifiers(struct net *net,
 				   enum fib_event_type event_type,
 				   struct fib_rule *rule)
@@ -196,12 +207,14 @@ static int call_fib_rule_notifiers(struct net *net,
 	return call_fib_notifiers(net, event_type, &info.info);
 }
 
+/* Called with rcu_read_lock() */
 void fib_rules_notify(struct net *net, struct notifier_block *nb)
 {
-	struct fib_notifier_info info;
+	struct fib_rules_ops *ops = net->ipv4.rules_ops;
+	struct fib_rule *rule;
 
-	if (net->ipv4.fib_has_custom_rules)
-		call_fib_notifier(nb, net, FIB_EVENT_RULE_ADD, &info);
+	list_for_each_entry_rcu(rule, &ops->rules_list, list)
+		call_fib_rule_notifier(nb, net, FIB_EVENT_RULE_ADD, rule);
 }
 
 static const struct nla_policy fib4_rule_policy[FRA_MAX+1] = {
