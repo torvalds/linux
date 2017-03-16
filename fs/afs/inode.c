@@ -445,7 +445,7 @@ void afs_evict_inode(struct inode *inode)
 
 	mutex_lock(&vnode->permits_lock);
 	permits = vnode->permits;
-	rcu_assign_pointer(vnode->permits, NULL);
+	RCU_INIT_POINTER(vnode->permits, NULL);
 	mutex_unlock(&vnode->permits_lock);
 	if (permits)
 		call_rcu(&permits->rcu, afs_zap_permits);
