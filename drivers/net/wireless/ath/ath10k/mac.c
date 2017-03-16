@@ -3126,8 +3126,8 @@ static void ath10k_regd_update(struct ath10k *ar)
 		ath10k_warn(ar, "failed to set pdev regdomain: %d\n", ret);
 }
 
-void ath10k_mac_update_channel_list(struct ath10k *ar,
-				    struct ieee80211_supported_band *band)
+static void ath10k_mac_update_channel_list(struct ath10k *ar,
+					   struct ieee80211_supported_band *band)
 {
 	int i;
 
@@ -3167,7 +3167,7 @@ static void ath10k_reg_notifier(struct wiphy *wiphy,
 
 	if (ar->phy_capability & WHAL_WLAN_11A_CAPABILITY)
 		ath10k_mac_update_channel_list(ar,
-				ar->hw->wiphy->bands[NL80211_BAND_5GHZ]);
+					       ar->hw->wiphy->bands[NL80211_BAND_5GHZ]);
 }
 
 /***************/
