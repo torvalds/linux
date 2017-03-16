@@ -2042,9 +2042,8 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 			goto out_unlock;
 		}
 
-		mgr->total_pbn = 2560;
-		mgr->total_slots = DIV_ROUND_UP(mgr->total_pbn, mgr->pbn_div);
-		mgr->avail_slots = mgr->total_slots;
+		/* max. time slots - one slot for MTP header */
+		mgr->avail_slots = 63;
 
 		/* add initial branch device at LCT 1 */
 		mstb = drm_dp_add_mst_branch_device(1, NULL);

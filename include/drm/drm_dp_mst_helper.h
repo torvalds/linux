@@ -479,18 +479,11 @@ struct drm_dp_mst_topology_mgr {
 	 * @pbn_div: PBN to slots divisor.
 	 */
 	int pbn_div;
-	/**
-	 * @total_slots: Total slots that can be allocated.
-	 */
-	int total_slots;
+
 	/**
 	 * @avail_slots: Still available slots that can be allocated.
 	 */
 	int avail_slots;
-	/**
-	 * @total_pbn: Total PBN count.
-	 */
-	int total_pbn;
 
 	/**
 	 * @qlock: protects @tx_msg_downq, the &drm_dp_mst_branch.txslost and
