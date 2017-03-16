@@ -649,6 +649,8 @@ static int ip_tun_from_nlattr(const struct nlattr *attr,
 			tun_flags |= TUNNEL_VXLAN_OPT;
 			opts_type = type;
 			break;
+		case OVS_TUNNEL_KEY_ATTR_PAD:
+			break;
 		default:
 			OVS_NLERR(log, "Unknown IP tunnel attribute %d",
 				  type);
