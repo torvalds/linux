@@ -2042,9 +2042,6 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 			goto out_unlock;
 		}
 
-		/* max. time slots - one slot for MTP header */
-		mgr->avail_slots = 63;
-
 		/* add initial branch device at LCT 1 */
 		mstb = drm_dp_add_mst_branch_device(1, NULL);
 		if (mstb == NULL) {
@@ -2474,7 +2471,8 @@ int drm_dp_find_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr,
 
 	num_slots = DIV_ROUND_UP(pbn, mgr->pbn_div);
 
-	if (num_slots > mgr->avail_slots)
+	/* max. time slots - one slot for MTP header */
+	if (num_slots > 63)
 		return -ENOSPC;
 	return num_slots;
 }
@@ -2488,7 +2486,8 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 
 	num_slots = DIV_ROUND_UP(pbn, mgr->pbn_div);
 
-	if (num_slots > mgr->avail_slots)
+	/* max. time slots - one slot for MTP header */
+	if (num_slots > 63)
 		return -ENOSPC;
 
 	vcpi->pbn = pbn;
@@ -2527,10 +2526,12 @@ bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp
 
 	ret = drm_dp_init_vcpi(mgr, &port->vcpi, pbn);
 	if (ret) {
-		DRM_DEBUG_KMS("failed to init vcpi %d %d %d\n", DIV_ROUND_UP(pbn, mgr->pbn_div), mgr->avail_slots, ret);
+		DRM_DEBUG_KMS("failed to init vcpi slots=%d max=63 ret=%d\n",
+				DIV_ROUND_UP(pbn, mgr->pbn_div), ret);
 		goto out;
 	}
-	DRM_DEBUG_KMS("initing vcpi for %d %d\n", pbn, port->vcpi.num_slots);
+	DRM_DEBUG_KMS("initing vcpi for pbn=%d slots=%d\n",
+			pbn, port->vcpi.num_slots);
 	*slots = port->vcpi.num_slots;
 
 	drm_dp_put_port(port);

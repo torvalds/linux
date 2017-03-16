@@ -481,11 +481,6 @@ struct drm_dp_mst_topology_mgr {
 	int pbn_div;
 
 	/**
-	 * @avail_slots: Still available slots that can be allocated.
-	 */
-	int avail_slots;
-
-	/**
 	 * @qlock: protects @tx_msg_downq, the &drm_dp_mst_branch.txslost and
 	 * &drm_dp_sideband_msg_tx.state once they are queued
 	 */
