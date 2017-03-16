@@ -37,6 +37,17 @@ MODULE_PARM_DESC(product, "User specified USB idProduct");
 
 static struct usb_device_id generic_device_ids[2]; /* Initially all zeroes. */
 
+static int usb_serial_generic_probe(struct usb_serial *serial,
+					const struct usb_device_id *id)
+{
+	struct device *dev = &serial->interface->dev;
+
+	dev_info(dev, "The \"generic\" usb-serial driver is only for testing and one-off prototypes.\n");
+	dev_info(dev, "Tell linux-usb@vger.kernel.org to add your device to a proper driver.\n");
+
+	return 0;
+}
+
 struct usb_serial_driver usb_serial_generic_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -44,6 +55,7 @@ struct usb_serial_driver usb_serial_generic_device = {
 	},
 	.id_table =		generic_device_ids,
 	.num_ports =		1,
+	.probe =		usb_serial_generic_probe,
 	.throttle =		usb_serial_generic_throttle,
 	.unthrottle =		usb_serial_generic_unthrottle,
 	.resume =		usb_serial_generic_resume,
