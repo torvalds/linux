@@ -54,8 +54,21 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 		inode->i_fop	= &afs_dir_file_operations;
 		break;
 	case AFS_FTYPE_SYMLINK:
-		inode->i_mode	= S_IFLNK | vnode->status.mode;
-		inode->i_op	= &page_symlink_inode_operations;
+		/* Symlinks with a mode of 0644 are actually mountpoints. */
+		if ((vnode->status.mode & 0777) == 0644) {
+			inode->i_flags |= S_AUTOMOUNT;
+
+			spin_lock(&vnode->lock);
+			set_bit(AFS_VNODE_MOUNTPOINT, &vnode->flags);
+			spin_unlock(&vnode->lock);
+
+			inode->i_mode	= S_IFDIR | 0555;
+			inode->i_op	= &afs_mntpt_inode_operations;
+			inode->i_fop	= &afs_mntpt_file_operations;
+		} else {
+			inode->i_mode	= S_IFLNK | vnode->status.mode;
+			inode->i_op	= &page_symlink_inode_operations;
+		}
 		inode_nohighmem(inode);
 		break;
 	default:
@@ -79,18 +92,6 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 	inode->i_generation	= vnode->fid.unique;
 	inode->i_version	= vnode->status.data_version;
 	inode->i_mapping->a_ops	= &afs_fs_aops;
-
-	/* check to see whether a symbolic link is really a mountpoint */
-	if (vnode->status.type == AFS_FTYPE_SYMLINK) {
-		afs_mntpt_check_symlink(vnode, key);
-
-		if (test_bit(AFS_VNODE_MOUNTPOINT, &vnode->flags)) {
-			inode->i_mode	= S_IFDIR | vnode->status.mode;
-			inode->i_op	= &afs_mntpt_inode_operations;
-			inode->i_fop	= &afs_mntpt_file_operations;
-		}
-	}
-
 	return 0;
 }
 
