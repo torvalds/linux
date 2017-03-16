@@ -419,7 +419,11 @@ again:
 	return NULL;
 }
 
-/* Called from syscall or from eBPF program */
+/* Called from syscall or from eBPF program directly, so
+ * arguments have to match bpf_map_lookup_elem() exactly.
+ * The return value is adjusted by BPF instructions
+ * in htab_map_gen_lookup().
+ */
 static void *__htab_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
@@ -449,6 +453,30 @@ static void *htab_map_lookup_elem(struct bpf_map *map, void *key)
 		return l->key + round_up(map->key_size, 8);
 
 	return NULL;
+}
+
+/* inline bpf_map_lookup_elem() call.
+ * Instead of:
+ * bpf_prog
+ *   bpf_map_lookup_elem
+ *     map->ops->map_lookup_elem
+ *       htab_map_lookup_elem
+ *         __htab_map_lookup_elem
+ * do:
+ * bpf_prog
+ *   __htab_map_lookup_elem
+ */
+static u32 htab_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
+{
+	struct bpf_insn *insn = insn_buf;
+	const int ret = BPF_REG_0;
+
+	*insn++ = BPF_EMIT_CALL((u64 (*)(u64, u64, u64, u64, u64))__htab_map_lookup_elem);
+	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 1);
+	*insn++ = BPF_ALU64_IMM(BPF_ADD, ret,
+				offsetof(struct htab_elem, key) +
+				round_up(map->key_size, 8));
+	return insn - insn_buf;
 }
 
 static void *htab_lru_map_lookup_elem(struct bpf_map *map, void *key)
@@ -1062,6 +1090,7 @@ static const struct bpf_map_ops htab_ops = {
 	.map_lookup_elem = htab_map_lookup_elem,
 	.map_update_elem = htab_map_update_elem,
 	.map_delete_elem = htab_map_delete_elem,
+	.map_gen_lookup = htab_map_gen_lookup,
 };
 
 static struct bpf_map_type_list htab_type __ro_after_init = {
