@@ -114,7 +114,7 @@ void afs_clear_permits(struct afs_vnode *vnode)
 
 	mutex_lock(&vnode->permits_lock);
 	permits = vnode->permits;
-	rcu_assign_pointer(vnode->permits, NULL);
+	RCU_INIT_POINTER(vnode->permits, NULL);
 	mutex_unlock(&vnode->permits_lock);
 
 	if (permits)
