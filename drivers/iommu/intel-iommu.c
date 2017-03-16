@@ -5249,7 +5249,7 @@ static void intel_iommu_get_resv_regions(struct device *device,
 
 	reg = iommu_alloc_resv_region(IOAPIC_RANGE_START,
 				      IOAPIC_RANGE_END - IOAPIC_RANGE_START + 1,
-				      0, IOMMU_RESV_RESERVED);
+				      0, IOMMU_RESV_MSI);
 	if (!reg)
 		return;
 	list_add_tail(&reg->list, head);
