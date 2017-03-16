@@ -3267,6 +3267,32 @@ void mlxsw_sp_port_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp_vport_vrf_leave(mlxsw_sp_vport);
 }
 
+int mlxsw_sp_bridge_vrf_join(struct mlxsw_sp *mlxsw_sp,
+			     struct net_device *l3_dev)
+{
+	struct mlxsw_sp_fid *f;
+
+	f = mlxsw_sp_bridge_fid_get(mlxsw_sp, l3_dev);
+	if (WARN_ON(!f))
+		return -EINVAL;
+
+	if (f->r)
+		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->r);
+
+	return mlxsw_sp_rif_bridge_create(mlxsw_sp, l3_dev, f);
+}
+
+void mlxsw_sp_bridge_vrf_leave(struct mlxsw_sp *mlxsw_sp,
+			       struct net_device *l3_dev)
+{
+	struct mlxsw_sp_fid *f;
+
+	f = mlxsw_sp_bridge_fid_get(mlxsw_sp, l3_dev);
+	if (WARN_ON(!f))
+		return;
+	mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->r);
+}
+
 static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
 {
 	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);

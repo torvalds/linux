@@ -4111,7 +4111,7 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
-		if (!is_vlan_dev(upper_dev))
+		if (!is_vlan_dev(upper_dev) && !netif_is_l3_master(upper_dev))
 			return -EINVAL;
 		if (is_vlan_dev(upper_dev) &&
 		    br_dev != mlxsw_sp->master_bridge.dev)
@@ -4126,6 +4126,12 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 			else
 				mlxsw_sp_master_bridge_vlan_unlink(mlxsw_sp,
 								   upper_dev);
+		} else if (netif_is_l3_master(upper_dev)) {
+			if (info->linking)
+				err = mlxsw_sp_bridge_vrf_join(mlxsw_sp,
+							       br_dev);
+			else
+				mlxsw_sp_bridge_vrf_leave(mlxsw_sp, br_dev);
 		} else {
 			err = -EINVAL;
 			WARN_ON(1);
@@ -4415,6 +4421,47 @@ static int mlxsw_sp_netdevice_lag_vport_event(struct net_device *lag_dev,
 	return 0;
 }
 
+static int mlxsw_sp_netdevice_bridge_vlan_event(struct net_device *vlan_dev,
+						unsigned long event, void *ptr)
+{
+	struct netdev_notifier_changeupper_info *info;
+	struct mlxsw_sp *mlxsw_sp;
+	int err = 0;
+
+	mlxsw_sp = mlxsw_sp_lower_get(vlan_dev);
+	if (!mlxsw_sp)
+		return 0;
+
+	info = ptr;
+
+	switch (event) {
+	case NETDEV_PRECHANGEUPPER:
+		/* VLAN devices are only allowed on top of the
+		 * VLAN-aware bridge.
+		 */
+		if (WARN_ON(vlan_dev_real_dev(vlan_dev) !=
+			    mlxsw_sp->master_bridge.dev))
+			return -EINVAL;
+		if (!netif_is_l3_master(info->upper_dev))
+			return -EINVAL;
+		break;
+	case NETDEV_CHANGEUPPER:
+		if (netif_is_l3_master(info->upper_dev)) {
+			if (info->linking)
+				err = mlxsw_sp_bridge_vrf_join(mlxsw_sp,
+							       vlan_dev);
+			else
+				mlxsw_sp_bridge_vrf_leave(mlxsw_sp, vlan_dev);
+		} else {
+			err = -EINVAL;
+			WARN_ON(1);
+		}
+		break;
+	}
+
+	return err;
+}
+
 static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
 					 unsigned long event, void *ptr)
 {
@@ -4427,6 +4474,9 @@ static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
 	else if (netif_is_lag_master(real_dev))
 		return mlxsw_sp_netdevice_lag_vport_event(real_dev, event, ptr,
 							  vid);
+	else if (netif_is_bridge_master(real_dev))
+		return mlxsw_sp_netdevice_bridge_vlan_event(vlan_dev, event,
+							    ptr);
 
 	return 0;
 }

@@ -582,6 +582,10 @@ int mlxsw_sp_vport_vrf_join(struct mlxsw_sp_port *mlxsw_sp_vport);
 void mlxsw_sp_vport_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_vport);
 int mlxsw_sp_port_vrf_join(struct mlxsw_sp_port *mlxsw_sp_port);
 void mlxsw_sp_port_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_port);
+int mlxsw_sp_bridge_vrf_join(struct mlxsw_sp *mlxsw_sp,
+			     struct net_device *l3_dev);
+void mlxsw_sp_bridge_vrf_leave(struct mlxsw_sp *mlxsw_sp,
+			       struct net_device *l3_dev);
 
 int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count);
 void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index);
