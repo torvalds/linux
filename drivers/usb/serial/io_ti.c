@@ -1952,12 +1952,6 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/* start up our bulk read urb */
 	urb = port->read_urb;
-	if (!urb) {
-		dev_err(&port->dev, "%s - no read urb present, exiting\n",
-								__func__);
-		status = -EINVAL;
-		goto unlink_int_urb;
-	}
 	edge_port->ep_read_urb_state = EDGE_READ_URB_RUNNING;
 	urb->context = edge_port;
 	status = usb_submit_urb(urb, GFP_KERNEL);
