@@ -315,7 +315,7 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 		 * packet as RxRPC might give us the reply before it
 		 * returns from sending the request.
 		 */
-		if (first + nr >= last)
+		if (first + nr - 1 >= last)
 			call->state = AFS_CALL_AWAIT_REPLY;
 		ret = rxrpc_kernel_send_data(afs_socket, call->rxcall,
 					     msg, bytes);
