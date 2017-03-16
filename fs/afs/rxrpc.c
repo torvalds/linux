@@ -465,7 +465,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 						abort_code, -ret, "KNC");
 			goto do_abort;
 		case -ENOTSUPP:
-			abort_code = RX_INVALID_OPERATION;
+			abort_code = RXGEN_OPCODE;
 			rxrpc_kernel_abort_call(afs_socket, call->rxcall,
 						abort_code, -ret, "KIV");
 			goto do_abort;
