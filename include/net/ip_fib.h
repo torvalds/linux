@@ -311,6 +311,11 @@ static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 	return err;
 }
 
+static inline bool fib4_rule_default(const struct fib_rule *rule)
+{
+	return true;
+}
+
 #else /* CONFIG_IP_MULTIPLE_TABLES */
 int __net_init fib4_rules_init(struct net *net);
 void __net_exit fib4_rules_exit(struct net *net);
@@ -354,6 +359,8 @@ out:
 
 	return err;
 }
+
+bool fib4_rule_default(const struct fib_rule *rule);
 
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
