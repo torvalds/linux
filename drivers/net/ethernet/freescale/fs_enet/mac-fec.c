@@ -38,12 +38,6 @@
 #include <asm/irq.h>
 #include <linux/uaccess.h>
 
-#ifdef CONFIG_8xx
-#include <asm/8xx_immap.h>
-#include <asm/pgtable.h>
-#include <asm/cpm1.h>
-#endif
-
 #include "fs_enet.h"
 #include "fec.h"
 
