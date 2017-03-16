@@ -2158,6 +2158,58 @@ static int convert_ctx_accesses(struct verifier_env *env)
 	return 0;
 }
 
+/* fixup insn->imm field of bpf_call instructions:
+ * if (insn->imm == BPF_FUNC_map_lookup_elem)
+ *      insn->imm = bpf_map_lookup_elem - __bpf_call_base;
+ * else if (insn->imm == BPF_FUNC_map_update_elem)
+ *      insn->imm = bpf_map_update_elem - __bpf_call_base;
+ * else ...
+ *
+ * this function is called after eBPF program passed verification
+ */
+static void fixup_bpf_calls(struct bpf_prog *prog)
+{
+	const struct bpf_func_proto *fn;
+	int i;
+
+	for (i = 0; i < prog->len; i++) {
+		struct bpf_insn *insn = &prog->insnsi[i];
+
+		if (insn->code == (BPF_JMP | BPF_CALL)) {
+			/* we reach here when program has bpf_call instructions
+			 * and it passed bpf_check(), means that
+			 * ops->get_func_proto must have been supplied, check it
+			 */
+			BUG_ON(!prog->aux->ops->get_func_proto);
+
+			if (insn->imm == BPF_FUNC_get_route_realm)
+				prog->dst_needed = 1;
+			if (insn->imm == BPF_FUNC_get_prandom_u32)
+				bpf_user_rnd_init_once();
+			if (insn->imm == BPF_FUNC_tail_call) {
+				/* mark bpf_tail_call as different opcode
+				 * to avoid conditional branch in
+				 * interpeter for every normal call
+				 * and to prevent accidental JITing by
+				 * JIT compiler that doesn't support
+				 * bpf_tail_call yet
+				 */
+				insn->imm = 0;
+				insn->code |= BPF_X;
+				continue;
+			}
+
+			fn = prog->aux->ops->get_func_proto(insn->imm);
+			/* all functions that have prototype and verifier allowed
+			 * programs to call them, must be real in-kernel functions
+			 */
+			BUG_ON(!fn->func);
+			insn->imm = fn->func - __bpf_call_base;
+		}
+	}
+}
+
+
 static void free_states(struct verifier_env *env)
 {
 	struct verifier_state_list *sl, *sln;
@@ -2255,6 +2307,9 @@ skip_full_check:
 	if (ret == 0)
 		/* program is valid, convert *(u32*)(ctx + off) accesses */
 		ret = convert_ctx_accesses(env);
+
+	if (ret == 0)
+		fixup_bpf_calls(env->prog);
 
 	if (log_level && log_len >= log_size - 1) {
 		BUG_ON(log_len >= log_size);
