@@ -36,7 +36,8 @@ static void omninet_write_bulk_callback(struct urb *urb);
 static int  omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 				const unsigned char *buf, int count);
 static int  omninet_write_room(struct tty_struct *tty);
-static void omninet_disconnect(struct usb_serial *serial);
+static int omninet_calc_num_ports(struct usb_serial *serial,
+				struct usb_serial_endpoints *epds);
 static int omninet_port_probe(struct usb_serial_port *port);
 static int omninet_port_remove(struct usb_serial_port *port);
 
@@ -54,15 +55,14 @@ static struct usb_serial_driver zyxel_omninet_device = {
 	},
 	.description =		"ZyXEL - omni.net lcd plus usb",
 	.id_table =		id_table,
-	.num_ports =		1,
 	.num_bulk_out =		2,
+	.calc_num_ports =	omninet_calc_num_ports,
 	.port_probe =		omninet_port_probe,
 	.port_remove =		omninet_port_remove,
 	.write =		omninet_write,
 	.write_room =		omninet_write_room,
 	.write_bulk_callback =	omninet_write_bulk_callback,
 	.process_read_urb =	omninet_process_read_urb,
-	.disconnect =		omninet_disconnect,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -102,6 +102,16 @@ struct omninet_header {
 struct omninet_data {
 	__u8	od_outseq;	/* Sequence number for bulk_out URBs */
 };
+
+static int omninet_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
+{
+	/* We need only the second bulk-out for our single-port device. */
+	epds->bulk_out[0] = epds->bulk_out[1];
+	epds->num_bulk_out = 1;
+
+	return 1;
+}
 
 static int omninet_port_probe(struct usb_serial_port *port)
 {
@@ -150,13 +160,9 @@ static void omninet_process_read_urb(struct urb *urb)
 static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 					const unsigned char *buf, int count)
 {
-	struct usb_serial *serial = port->serial;
-	struct usb_serial_port *wport = serial->port[1];
-
 	struct omninet_data *od = usb_get_serial_port_data(port);
 	struct omninet_header *header = (struct omninet_header *)
-					wport->write_urb->transfer_buffer;
-
+					port->write_urb->transfer_buffer;
 	int			result;
 
 	if (count == 0) {
@@ -171,11 +177,11 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	count = (count > OMNINET_PAYLOADSIZE) ? OMNINET_PAYLOADSIZE : count;
 
-	memcpy(wport->write_urb->transfer_buffer + OMNINET_HEADERLEN,
+	memcpy(port->write_urb->transfer_buffer + OMNINET_HEADERLEN,
 								buf, count);
 
 	usb_serial_debug_data(&port->dev, __func__, count,
-			      wport->write_urb->transfer_buffer);
+			      port->write_urb->transfer_buffer);
 
 	header->oh_seq 	= od->od_outseq++;
 	header->oh_len 	= count;
@@ -183,11 +189,11 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 	header->oh_pad 	= 0x00;
 
 	/* send the data out the bulk port, always 64 bytes */
-	wport->write_urb->transfer_buffer_length = OMNINET_BULKOUTSIZE;
+	port->write_urb->transfer_buffer_length = OMNINET_BULKOUTSIZE;
 
-	result = usb_submit_urb(wport->write_urb, GFP_ATOMIC);
+	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 	if (result) {
-		set_bit(0, &wport->write_urbs_free);
+		set_bit(0, &port->write_urbs_free);
 		dev_err_console(port,
 			"%s - failed submitting write urb, error %d\n",
 			__func__, result);
@@ -201,13 +207,10 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 static int omninet_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct usb_serial 	*serial = port->serial;
-	struct usb_serial_port 	*wport 	= serial->port[1];
-
 	int room = 0; /* Default: no room */
 
-	if (test_bit(0, &wport->write_urbs_free))
-		room = wport->bulk_out_size - OMNINET_HEADERLEN;
+	if (test_bit(0, &port->write_urbs_free))
+		room = port->bulk_out_size - OMNINET_HEADERLEN;
 
 	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
 
@@ -229,14 +232,6 @@ static void omninet_write_bulk_callback(struct urb *urb)
 	}
 
 	usb_serial_port_softint(port);
-}
-
-
-static void omninet_disconnect(struct usb_serial *serial)
-{
-	struct usb_serial_port *wport = serial->port[1];
-
-	usb_kill_urb(wport->write_urb);
 }
 
 module_usb_serial_driver(serial_drivers, id_table);
