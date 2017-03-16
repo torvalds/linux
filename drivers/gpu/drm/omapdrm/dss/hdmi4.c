@@ -615,21 +615,16 @@ static int hdmi_audio_startup(struct device *dev,
 			      void (*abort_cb)(struct device *dev))
 {
 	struct omap_hdmi *hd = dev_get_drvdata(dev);
-	int ret = 0;
 
 	mutex_lock(&hd->lock);
 
-	if (!hdmi_mode_has_audio(&hd->cfg) || !hd->display_enabled) {
-		ret = -EPERM;
-		goto out;
-	}
+	WARN_ON(hd->audio_abort_cb != NULL);
 
 	hd->audio_abort_cb = abort_cb;
 
-out:
 	mutex_unlock(&hd->lock);
 
-	return ret;
+	return 0;
 }
 
 static int hdmi_audio_shutdown(struct device *dev)
@@ -650,12 +645,14 @@ static int hdmi_audio_start(struct device *dev)
 	struct omap_hdmi *hd = dev_get_drvdata(dev);
 	unsigned long flags;
 
-	WARN_ON(!hdmi_mode_has_audio(&hd->cfg));
-
 	spin_lock_irqsave(&hd->audio_playing_lock, flags);
 
-	if (hd->display_enabled)
+	if (hd->display_enabled) {
+		if (!hdmi_mode_has_audio(&hd->cfg))
+			DSSERR("%s: Video mode does not support audio\n",
+			       __func__);
 		hdmi_start_audio_stream(hd);
+	}
 	hd->audio_playing = true;
 
 	spin_unlock_irqrestore(&hd->audio_playing_lock, flags);
@@ -686,17 +683,15 @@ static int hdmi_audio_config(struct device *dev,
 
 	mutex_lock(&hd->lock);
 
-	if (!hdmi_mode_has_audio(&hd->cfg) || !hd->display_enabled) {
-		ret = -EPERM;
-		goto out;
+	if (hd->display_enabled) {
+		ret = hdmi4_audio_config(&hd->core, &hd->wp, dss_audio,
+					 hd->cfg.vm.pixelclock);
+		if (ret)
+			goto out;
 	}
 
-	ret = hdmi4_audio_config(&hd->core, &hd->wp, dss_audio,
-				 hd->cfg.vm.pixelclock);
-	if (!ret) {
-		hd->audio_configured = true;
-		hd->audio_config = *dss_audio;
-	}
+	hd->audio_configured = true;
+	hd->audio_config = *dss_audio;
 out:
 	mutex_unlock(&hd->lock);
 
