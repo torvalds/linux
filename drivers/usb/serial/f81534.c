@@ -687,6 +687,17 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 		num_port = 4;		/* Nothing found, oldest version IC */
 	}
 
+	/*
+	 * Setup bulk-out endpoint multiplexing. All ports share the same
+	 * bulk-out endpoint.
+	 */
+	BUILD_BUG_ON(ARRAY_SIZE(epds->bulk_out) < F81534_NUM_PORT);
+
+	for (i = 1; i < num_port; ++i)
+		epds->bulk_out[i] = epds->bulk_out[0];
+
+	epds->num_bulk_out = num_port;
+
 	return num_port;
 }
 
@@ -1078,53 +1089,6 @@ static void f81534_write_usb_callback(struct urb *urb)
 	}
 }
 
-static int f81534_setup_ports(struct usb_serial *serial)
-{
-	struct usb_serial_port *port;
-	u8 port0_out_address;
-	int buffer_size;
-	size_t i;
-
-	/*
-	 * In our system architecture, we had 2 or 4 serial ports,
-	 * but only get 1 set of bulk in/out endpoints.
-	 *
-	 * The usb-serial subsystem will generate port 0 data,
-	 * but port 1/2/3 will not. It's will generate write URB and buffer
-	 * by following code and use the port0 read URB for read operation.
-	 */
-	for (i = 1; i < serial->num_ports; ++i) {
-		port0_out_address = serial->port[0]->bulk_out_endpointAddress;
-		buffer_size = serial->port[0]->bulk_out_size;
-		port = serial->port[i];
-
-		if (kfifo_alloc(&port->write_fifo, PAGE_SIZE, GFP_KERNEL))
-			return -ENOMEM;
-
-		port->bulk_out_size = buffer_size;
-		port->bulk_out_endpointAddress = port0_out_address;
-
-		port->write_urbs[0] = usb_alloc_urb(0, GFP_KERNEL);
-		if (!port->write_urbs[0])
-			return -ENOMEM;
-
-		port->bulk_out_buffers[0] = kzalloc(buffer_size, GFP_KERNEL);
-		if (!port->bulk_out_buffers[0])
-			return -ENOMEM;
-
-		usb_fill_bulk_urb(port->write_urbs[0], serial->dev,
-				usb_sndbulkpipe(serial->dev,
-					port0_out_address),
-				port->bulk_out_buffers[0], buffer_size,
-				serial->type->write_bulk_callback, port);
-
-		port->write_urb = port->write_urbs[0];
-		port->bulk_out_buffer = port->bulk_out_buffers[0];
-	}
-
-	return 0;
-}
-
 static int f81534_attach(struct usb_serial *serial)
 {
 	struct f81534_serial_private *serial_priv;
@@ -1140,10 +1104,6 @@ static int f81534_attach(struct usb_serial *serial)
 	usb_set_serial_data(serial, serial_priv);
 
 	mutex_init(&serial_priv->urb_mutex);
-
-	status = f81534_setup_ports(serial);
-	if (status)
-		return status;
 
 	/* Check had custom setting */
 	status = f81534_find_config_idx(serial, &serial_priv->setting_idx);
