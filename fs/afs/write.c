@@ -231,7 +231,7 @@ flush_conflicting_wb:
 	if (wb->state == AFS_WBACK_PENDING)
 		wb->state = AFS_WBACK_CONFLICTING;
 	spin_unlock(&vnode->writeback_lock);
-	if (PageDirty(page)) {
+	if (clear_page_dirty_for_io(page)) {
 		ret = afs_write_back_from_locked_page(wb, page);
 		if (ret < 0) {
 			afs_put_writeback(candidate);
@@ -353,8 +353,6 @@ static int afs_write_back_from_locked_page(struct afs_writeback *wb,
 	_enter(",%lx", primary_page->index);
 
 	count = 1;
-	if (!clear_page_dirty_for_io(primary_page))
-		BUG();
 	if (test_set_page_writeback(primary_page))
 		BUG();
 
@@ -542,6 +540,8 @@ static int afs_writepages_region(struct address_space *mapping,
 		wb->state = AFS_WBACK_WRITING;
 		spin_unlock(&wb->vnode->writeback_lock);
 
+		if (!clear_page_dirty_for_io(page))
+			BUG();
 		ret = afs_write_back_from_locked_page(wb, page);
 		unlock_page(page);
 		put_page(page);
