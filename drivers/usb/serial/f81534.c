@@ -681,12 +681,13 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 		++num_port;
 	}
 
-	if (num_port)
-		return num_port;
+	if (!num_port) {
+		dev_warn(&serial->interface->dev,
+			"no config found, assuming 4 ports\n");
+		num_port = 4;		/* Nothing found, oldest version IC */
+	}
 
-	dev_warn(&serial->interface->dev, "%s: Read Failed. default 4 ports\n",
-			__func__);
-	return 4;		/* Nothing found, oldest version IC */
+	return num_port;
 }
 
 static void f81534_set_termios(struct tty_struct *tty,
