@@ -950,17 +950,23 @@ static int mxuport_calc_num_ports(struct usb_serial *serial,
 					struct usb_serial_endpoints *epds)
 {
 	unsigned long features = (unsigned long)usb_get_serial_data(serial);
+	int num_ports;
 
-	if (features & MX_UPORT_2_PORT)
-		return 2;
-	if (features & MX_UPORT_4_PORT)
-		return 4;
-	if (features & MX_UPORT_8_PORT)
-		return 8;
-	if (features & MX_UPORT_16_PORT)
-		return 16;
+	if (features & MX_UPORT_2_PORT) {
+		num_ports = 2;
+	} else if (features & MX_UPORT_4_PORT) {
+		num_ports = 4;
+	} else if (features & MX_UPORT_8_PORT) {
+		num_ports = 8;
+	} else if (features & MX_UPORT_16_PORT) {
+		num_ports = 16;
+	} else {
+		dev_warn(&serial->interface->dev,
+				"unknown device, assuming two ports\n");
+		num_ports = 2;
+	}
 
-	return 0;
+	return num_ports;
 }
 
 /* Get the version of the firmware currently running. */
@@ -1367,7 +1373,6 @@ static struct usb_serial_driver mxuport_device = {
 	},
 	.description		= "MOXA UPort",
 	.id_table		= mxuport_idtable,
-	.num_ports		= 0,
 	.probe			= mxuport_probe,
 	.port_probe		= mxuport_port_probe,
 	.attach			= mxuport_attach,
