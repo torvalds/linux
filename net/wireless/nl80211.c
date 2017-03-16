@@ -5714,7 +5714,7 @@ static int nl80211_get_mesh_config(struct sk_buff *skb,
 		       cur_params.dot11MeshGateAnnouncementProtocol) ||
 	    nla_put_u8(msg, NL80211_MESHCONF_FORWARDING,
 		       cur_params.dot11MeshForwarding) ||
-	    nla_put_u32(msg, NL80211_MESHCONF_RSSI_THRESHOLD,
+	    nla_put_s32(msg, NL80211_MESHCONF_RSSI_THRESHOLD,
 			cur_params.rssi_threshold) ||
 	    nla_put_u32(msg, NL80211_MESHCONF_HT_OPMODE,
 			cur_params.ht_opmode) ||
