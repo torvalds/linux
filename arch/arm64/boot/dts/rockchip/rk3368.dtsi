@@ -1153,15 +1153,15 @@
 
 		opp@200000000 {
 			opp-hz = /bits/ 64 <200000000>;
-			opp-microvolt = <950000>;
+			opp-microvolt = <1100000>;
 		};
 		opp@288000000 {
 			opp-hz = /bits/ 64 <288000000>;
-			opp-microvolt = <1025000>;
+			opp-microvolt = <1100000>;
 		};
 		opp@400000000 {
 			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <1050000>;
+			opp-microvolt = <1100000>;
 		};
 		opp@576000000 {
 			opp-hz = /bits/ 64 <576000000>;
