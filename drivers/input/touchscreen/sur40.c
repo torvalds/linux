@@ -500,6 +500,9 @@ static int sur40_probe(struct usb_interface *interface,
 	if (iface_desc->desc.bInterfaceClass != 0xFF)
 		return -ENODEV;
 
+	if (iface_desc->desc.bNumEndpoints < 5)
+		return -ENODEV;
+
 	/* Use endpoint #4 (0x86). */
 	endpoint = &iface_desc->endpoint[4].desc;
 	if (endpoint->bEndpointAddress != TOUCH_ENDPOINT)
