@@ -2506,6 +2506,24 @@ static int atmel_nand_controller_remove(struct platform_device *pdev)
 	return nc->caps->ops->remove(nc);
 }
 
+static int atmel_nand_controller_resume(struct device *dev)
+{
+	struct atmel_nand_controller *nc = dev_get_drvdata(dev);
+	struct atmel_nand *nand;
+
+	list_for_each_entry(nand, &nc->chips, node) {
+		int i;
+
+		for (i = 0; i < nand->numcs; i++)
+			nand_reset(&nand->base, i);
+	}
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(atmel_nand_controller_pm_ops, NULL,
+			 atmel_nand_controller_resume);
+
 static struct platform_driver atmel_nand_controller_driver = {
 	.driver = {
 		.name = "atmel-nand-controller",
