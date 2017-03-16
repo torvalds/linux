@@ -590,7 +590,7 @@ TRACE_EVENT(i915_gem_request_queue,
 	    TP_fast_assign(
 			   __entry->dev = req->i915->drm.primary->index;
 			   __entry->ring = req->engine->id;
-			   __entry->ctx = req->ctx->hw_id;
+			   __entry->ctx = req->fence.context;
 			   __entry->seqno = req->fence.seqno;
 			   __entry->flags = flags;
 			   ),
@@ -637,8 +637,8 @@ DECLARE_EVENT_CLASS(i915_gem_request,
 
 	    TP_fast_assign(
 			   __entry->dev = req->i915->drm.primary->index;
-			   __entry->ctx = req->ctx->hw_id;
 			   __entry->ring = req->engine->id;
+			   __entry->ctx = req->fence.context;
 			   __entry->seqno = req->fence.seqno;
 			   __entry->global = req->global_seqno;
 			   ),
@@ -681,7 +681,7 @@ DECLARE_EVENT_CLASS(i915_gem_request_hw,
 		    TP_fast_assign(
 			           __entry->dev = req->i915->drm.primary->index;
 			           __entry->ring = req->engine->id;
-			           __entry->ctx = req->ctx->hw_id;
+			           __entry->ctx = req->fence.context;
 			           __entry->seqno = req->fence.seqno;
 			           __entry->global_seqno = req->global_seqno;
 			           __entry->port = port;
@@ -776,7 +776,7 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 	    TP_fast_assign(
 			   __entry->dev = req->i915->drm.primary->index;
 			   __entry->ring = req->engine->id;
-			   __entry->ctx = req->ctx->hw_id;
+			   __entry->ctx = req->fence.context;
 			   __entry->seqno = req->fence.seqno;
 			   __entry->global = req->global_seqno;
 			   __entry->flags = flags;
