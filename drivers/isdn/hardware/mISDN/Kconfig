@@ -13,7 +13,7 @@ config MISDN_HFCPCI
 
 config MISDN_HFCMULTI
 	tristate "Support for HFC multiport cards (HFC-4S/8S/E1)"
-	depends on PCI || 8xx
+	depends on PCI || CPM1
 	depends on MISDN
 	help
 	  Enable support for cards with Cologne Chip AG's HFC multiport
@@ -27,8 +27,8 @@ config MISDN_HFCMULTI_8xx
 	bool "Support for XHFC embedded board in HFC multiport driver"
 	depends on MISDN
 	depends on MISDN_HFCMULTI
-	depends on 8xx
-	default 8xx
+	depends on CPM1
+	default CPM1
 	help
 	  Enable support for the XHFC embedded solution from Speech Design.
 
