@@ -2244,7 +2244,7 @@ M:	Wenyou Yang <wenyou.yang@atmel.com>
 M:	Josh Wu <rainyfeeling@outlook.com>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
-F:	drivers/mtd/nand/atmel_nand*
+F:	drivers/mtd/nand/atmel/*
 
 ATMEL SDMMC DRIVER
 M:	Ludovic Desroches <ludovic.desroches@microchip.com>

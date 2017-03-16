@@ -306,11 +306,11 @@ config MTD_NAND_CS553X
 	  If you say "m", the module will be called cs553x_nand.
 
 config MTD_NAND_ATMEL
-	tristate "Support for NAND Flash / SmartMedia on AT91 and AVR32"
-	depends on ARCH_AT91 || AVR32
+	tristate "Support for NAND Flash / SmartMedia on AT91"
+	depends on ARCH_AT91
 	help
 	  Enables support for NAND Flash / Smart Media Card interface
-	  on Atmel AT91 and AVR32 processors.
+	  on Atmel AT91 processors.
 
 config MTD_NAND_PXA3xx
 	tristate "NAND support on PXA3xx and Armada 370/XP"
