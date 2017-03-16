@@ -1704,12 +1704,14 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 	before = kzalloc(sizeof(*before), GFP_KERNEL);
 	if (!before)
 		return -ENOMEM;
+	INIT_LIST_HEAD(&before->list);
 
 	after = kzalloc(sizeof(*after), GFP_KERNEL);
 	if (!after) {
 		kfree(before);
 		return -ENOMEM;
 	}
+	INIT_LIST_HEAD(&after->list);
 
 	/* Now gather all removed mappings */
 	it = interval_tree_iter_first(&vm->va, saddr, eaddr);
@@ -1719,7 +1721,7 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 
 		/* Remember mapping split at the start */
 		if (tmp->it.start < saddr) {
-			before->it.start = tmp->it.start;;
+			before->it.start = tmp->it.start;
 			before->it.last = saddr - 1;
 			before->offset = tmp->offset;
 			before->flags = tmp->flags;
@@ -1754,8 +1756,8 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 		trace_amdgpu_vm_bo_unmap(NULL, tmp);
 	}
 
-	/* Insert partial mapping before the range*/
-	if (before->it.start != before->it.last) {
+	/* Insert partial mapping before the range */
+	if (!list_empty(&before->list)) {
 		interval_tree_insert(&before->it, &vm->va);
 		if (before->flags & AMDGPU_PTE_PRT)
 			amdgpu_vm_prt_get(adev);
@@ -1764,7 +1766,7 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 	}
 
 	/* Insert partial mapping after the range */
-	if (after->it.start != after->it.last) {
+	if (!list_empty(&after->list)) {
 		interval_tree_insert(&after->it, &vm->va);
 		if (after->flags & AMDGPU_PTE_PRT)
 			amdgpu_vm_prt_get(adev);
