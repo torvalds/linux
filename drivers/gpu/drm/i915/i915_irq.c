@@ -1355,13 +1355,20 @@ static void snb_gt_irq_handler(struct drm_i915_private *dev_priv,
 static __always_inline void
 gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
 {
-	if (iir & (GT_RENDER_USER_INTERRUPT << test_shift))
-		notify_ring(engine);
+	bool tasklet = false;
 
 	if (iir & (GT_CONTEXT_SWITCH_INTERRUPT << test_shift)) {
 		set_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
-		tasklet_hi_schedule(&engine->irq_tasklet);
+		tasklet = true;
 	}
+
+	if (iir & (GT_RENDER_USER_INTERRUPT << test_shift)) {
+		notify_ring(engine);
+		tasklet |= i915.enable_guc_submission;
+	}
+
+	if (tasklet)
+		tasklet_hi_schedule(&engine->irq_tasklet);
 }
 
 static irqreturn_t gen8_gt_irq_ack(struct drm_i915_private *dev_priv,

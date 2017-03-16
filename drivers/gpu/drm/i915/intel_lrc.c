@@ -1159,7 +1159,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	/* After a GPU reset, we may have requests to replay */
 	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
-	if (!execlists_elsp_idle(engine)) {
+	if (!i915.enable_guc_submission && !execlists_elsp_idle(engine)) {
 		DRM_DEBUG_DRIVER("Restarting %s from requests [0x%x, 0x%x]\n",
 				 engine->name,
 				 port_seqno(&engine->execlist_port[0]),
@@ -1243,9 +1243,6 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	request->ring->head = request->postfix;
 	request->ring->last_retired_head = -1;
 	intel_ring_update_space(request->ring);
-
-	if (i915.enable_guc_submission)
-		return;
 
 	/* Catch up with any missed context-switch interrupts */
 	if (request->ctx != port[0].request->ctx) {

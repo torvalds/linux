@@ -25,6 +25,8 @@
 #include "i915_drv.h"
 #include "intel_uc.h"
 
+#include <trace/events/dma_fence.h>
+
 /**
  * DOC: GuC-based command submission
  *
@@ -522,8 +524,6 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 	if (i915_vma_is_map_and_fenceable(rq->ring->vma))
 		POSTING_READ_FW(GUC_STATUS);
 
-	trace_i915_gem_request_in(rq, 0);
-
 	spin_lock_irqsave(&client->wq_lock, flags);
 
 	guc_wq_item_append(client, rq);
@@ -542,8 +542,97 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 
 static void i915_guc_submit(struct drm_i915_gem_request *rq)
 {
-	i915_gem_request_submit(rq);
+	__i915_gem_request_submit(rq);
 	__i915_guc_submit(rq);
+}
+
+static void nested_enable_signaling(struct drm_i915_gem_request *rq)
+{
+	/* If we use dma_fence_enable_sw_signaling() directly, lockdep
+	 * detects an ordering issue between the fence lockclass and the
+	 * global_timeline. This circular dependency can only occur via 2
+	 * different fences (but same fence lockclass), so we use the nesting
+	 * annotation here to prevent the warn, equivalent to the nesting
+	 * inside i915_gem_request_submit() for when we also enable the
+	 * signaler.
+	 */
+
+	if (test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+			     &rq->fence.flags))
+		return;
+
+	GEM_BUG_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags));
+	trace_dma_fence_enable_signal(&rq->fence);
+
+	spin_lock_nested(&rq->lock, SINGLE_DEPTH_NESTING);
+	intel_engine_enable_signaling(rq);
+	spin_unlock(&rq->lock);
+}
+
+static bool i915_guc_dequeue(struct intel_engine_cs *engine)
+{
+	struct execlist_port *port = engine->execlist_port;
+	struct drm_i915_gem_request *last = port[0].request;
+	unsigned long flags;
+	struct rb_node *rb;
+	bool submit = false;
+
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+	rb = engine->execlist_first;
+	while (rb) {
+		struct drm_i915_gem_request *rq =
+			rb_entry(rb, typeof(*rq), priotree.node);
+
+		if (last && rq->ctx != last->ctx) {
+			if (port != engine->execlist_port)
+				break;
+
+			i915_gem_request_assign(&port->request, last);
+			nested_enable_signaling(last);
+			port++;
+		}
+
+		rb = rb_next(rb);
+		rb_erase(&rq->priotree.node, &engine->execlist_queue);
+		RB_CLEAR_NODE(&rq->priotree.node);
+		rq->priotree.priority = INT_MAX;
+
+		trace_i915_gem_request_in(rq, port - engine->execlist_port);
+		i915_guc_submit(rq);
+		last = rq;
+		submit = true;
+	}
+	if (submit) {
+		i915_gem_request_assign(&port->request, last);
+		nested_enable_signaling(last);
+		engine->execlist_first = rb;
+	}
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+
+	return submit;
+}
+
+static void i915_guc_irq_handler(unsigned long data)
+{
+	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
+	struct execlist_port *port = engine->execlist_port;
+	struct drm_i915_gem_request *rq;
+	bool submit;
+
+	do {
+		rq = port[0].request;
+		while (rq && i915_gem_request_completed(rq)) {
+			trace_i915_gem_request_out(rq);
+			i915_gem_request_put(rq);
+			port[0].request = port[1].request;
+			port[1].request = NULL;
+			rq = port[0].request;
+		}
+
+		submit = false;
+		if (!port[1].request)
+			submit = i915_guc_dequeue(engine);
+	} while (submit);
 }
 
 /*
@@ -987,18 +1076,21 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	guc_init_doorbell_hw(guc);
 
 	/* Take over from manual control of ELSP (execlists) */
-	for_each_engine(engine, dev_priv, id) {
-		engine->submit_request = i915_guc_submit;
-		engine->schedule = NULL;
-	}
-
 	guc_interrupts_capture(dev_priv);
 
-	/* Replay the current set of previously submitted requests */
 	for_each_engine(engine, dev_priv, id) {
 		const int wqi_size = sizeof(struct guc_wq_item);
 		struct drm_i915_gem_request *rq;
 
+		/* The tasklet was initialised by execlists, and may be in
+		 * a state of flux (across a reset) and so we just want to
+		 * take over the callback without changing any other state
+		 * in the tasklet.
+		 */
+		engine->irq_tasklet.func = i915_guc_irq_handler;
+		clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
+
+		/* Replay the current set of previously submitted requests */
 		spin_lock_irq(&engine->timeline->lock);
 		list_for_each_entry(rq, &engine->timeline->requests, link) {
 			guc_client_update_wq_rsvd(client, wqi_size);
