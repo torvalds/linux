@@ -2108,23 +2108,23 @@ static int mos7840_calc_num_ports(struct usb_serial *serial,
 					struct usb_serial_endpoints *epds)
 {
 	int device_type = (unsigned long)usb_get_serial_data(serial);
-	int mos7840_num_ports;
+	int num_ports;
 
-	mos7840_num_ports = (device_type >> 4) & 0x000F;
+	num_ports = (device_type >> 4) & 0x000F;
 
-	return mos7840_num_ports;
-}
+	/*
+	 * num_ports is currently never zero as device_type is one of
+	 * MOSCHIP_DEVICE_ID_78{1,2,4}0.
+	 */
+	if (num_ports == 0)
+		return -ENODEV;
 
-static int mos7840_attach(struct usb_serial *serial)
-{
-	if (serial->num_bulk_in < serial->num_ports ||
-			serial->num_bulk_out < serial->num_ports ||
-			serial->num_interrupt_in < 1) {
+	if (epds->num_bulk_in < num_ports || epds->num_bulk_out < num_ports) {
 		dev_err(&serial->interface->dev, "missing endpoints\n");
 		return -ENODEV;
 	}
 
-	return 0;
+	return num_ports;
 }
 
 static int mos7840_port_probe(struct usb_serial_port *port)
@@ -2385,7 +2385,7 @@ static struct usb_serial_driver moschip7840_4port_device = {
 		   },
 	.description = DRIVER_DESC,
 	.id_table = id_table,
-	.num_ports = 4,
+	.num_interrupt_in = 1,
 	.open = mos7840_open,
 	.close = mos7840_close,
 	.write = mos7840_write,
@@ -2402,7 +2402,6 @@ static struct usb_serial_driver moschip7840_4port_device = {
 	.tiocmset = mos7840_tiocmset,
 	.tiocmiwait = usb_serial_generic_tiocmiwait,
 	.get_icount = usb_serial_generic_get_icount,
-	.attach = mos7840_attach,
 	.port_probe = mos7840_port_probe,
 	.port_remove = mos7840_port_remove,
 	.read_bulk_callback = mos7840_bulk_in_callback,
