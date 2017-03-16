@@ -1373,6 +1373,8 @@ static struct usb_serial_driver mxuport_device = {
 	},
 	.description		= "MOXA UPort",
 	.id_table		= mxuport_idtable,
+	.num_bulk_in		= 2,
+	.num_bulk_out		= 1,
 	.probe			= mxuport_probe,
 	.port_probe		= mxuport_port_probe,
 	.attach			= mxuport_attach,
