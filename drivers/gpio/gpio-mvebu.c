@@ -87,12 +87,12 @@ struct mvebu_gpio_chip {
 	int		   soc_variant;
 
 	/* Used to preserve GPIO registers across suspend/resume */
-	u32                out_reg;
-	u32                io_conf_reg;
-	u32                blink_en_reg;
-	u32                in_pol_reg;
-	u32                edge_mask_regs[4];
-	u32                level_mask_regs[4];
+	u32		   out_reg;
+	u32		   io_conf_reg;
+	u32		   blink_en_reg;
+	u32		   in_pol_reg;
+	u32		   edge_mask_regs[4];
+	u32		   level_mask_regs[4];
 };
 
 /*
@@ -186,7 +186,6 @@ static void __iomem *mvebu_gpioreg_level_mask(struct mvebu_gpio_chip *mvchip)
 /*
  * Functions implementing the gpio_chip methods
  */
-
 static void mvebu_gpio_set(struct gpio_chip *chip, unsigned int pin, int value)
 {
 	struct mvebu_gpio_chip *mvchip = gpiochip_get_data(chip);
