@@ -947,39 +947,6 @@ EXPORT_SYMBOL_GPL(usbnet_open);
  * they'll probably want to use this base set.
  */
 
-int usbnet_get_settings (struct net_device *net, struct ethtool_cmd *cmd)
-{
-	struct usbnet *dev = netdev_priv(net);
-
-	if (!dev->mii.mdio_read)
-		return -EOPNOTSUPP;
-
-	return mii_ethtool_gset(&dev->mii, cmd);
-}
-EXPORT_SYMBOL_GPL(usbnet_get_settings);
-
-int usbnet_set_settings (struct net_device *net, struct ethtool_cmd *cmd)
-{
-	struct usbnet *dev = netdev_priv(net);
-	int retval;
-
-	if (!dev->mii.mdio_write)
-		return -EOPNOTSUPP;
-
-	retval = mii_ethtool_sset(&dev->mii, cmd);
-
-	/* link speed/duplex might have changed */
-	if (dev->driver_info->link_reset)
-		dev->driver_info->link_reset(dev);
-
-	/* hard_mtu or rx_urb_size may change in link_reset() */
-	usbnet_update_max_qlen(dev);
-
-	return retval;
-
-}
-EXPORT_SYMBOL_GPL(usbnet_set_settings);
-
 int usbnet_get_link_ksettings(struct net_device *net,
 			      struct ethtool_link_ksettings *cmd)
 {
@@ -1072,8 +1039,6 @@ EXPORT_SYMBOL_GPL(usbnet_set_msglevel);
 
 /* drivers may override default ethtool_ops in their bind() routine */
 static const struct ethtool_ops usbnet_ethtool_ops = {
-	.get_settings		= usbnet_get_settings,
-	.set_settings		= usbnet_set_settings,
 	.get_link		= usbnet_get_link,
 	.nway_reset		= usbnet_nway_reset,
 	.get_drvinfo		= usbnet_get_drvinfo,

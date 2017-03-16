@@ -261,10 +261,6 @@ extern void usbnet_pause_rx(struct usbnet *);
 extern void usbnet_resume_rx(struct usbnet *);
 extern void usbnet_purge_paused_rxq(struct usbnet *);
 
-extern int usbnet_get_settings(struct net_device *net,
-			       struct ethtool_cmd *cmd);
-extern int usbnet_set_settings(struct net_device *net,
-			       struct ethtool_cmd *cmd);
 extern int usbnet_get_link_ksettings(struct net_device *net,
 				     struct ethtool_link_ksettings *cmd);
 extern int usbnet_set_link_ksettings(struct net_device *net,
