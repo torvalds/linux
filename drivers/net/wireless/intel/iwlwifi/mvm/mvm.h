@@ -1730,8 +1730,11 @@ int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id, u8 minq, u8 maxq);
  */
 static inline u32 iwl_mvm_flushable_queues(struct iwl_mvm *mvm)
 {
+	u32 cmd_queue = iwl_mvm_is_dqa_supported(mvm) ? IWL_MVM_DQA_CMD_QUEUE :
+		IWL_MVM_CMD_QUEUE;
+
 	return ((BIT(mvm->cfg->base_params->num_of_queues) - 1) &
-		~BIT(IWL_MVM_CMD_QUEUE));
+		~BIT(cmd_queue));
 }
 
 static inline
