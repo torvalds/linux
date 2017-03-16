@@ -2631,22 +2631,6 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	return ret;
 }
 
-static void i915_error_wake_up(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * Notify all waiters for GPU completion events that reset state has
-	 * been changed, and that they need to restart their wait after
-	 * checking for potential errors (and bail out to drop locks if there is
-	 * a gpu reset pending so that i915_error_work_func can acquire them).
-	 */
-
-	/* Wake up __wait_seqno, potentially holding dev->struct_mutex. */
-	wake_up_all(&dev_priv->gpu_error.wait_queue);
-
-	/* Wake up intel_crtc_wait_for_pending_flips, holding crtc->mutex. */
-	wake_up_all(&dev_priv->pending_flip_queue);
-}
-
 /**
  * i915_reset_and_wakeup - do process context error handling work
  * @dev_priv: i915 device private
@@ -2668,6 +2652,9 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 
 	intel_prepare_reset(dev_priv);
 
+	set_bit(I915_RESET_HANDOFF, &dev_priv->gpu_error.flags);
+	wake_up_all(&dev_priv->gpu_error.wait_queue);
+
 	do {
 		/*
 		 * All state reset _must_ be completed before we update the
@@ -2682,7 +2669,7 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 
 		/* We need to wait for anyone holding the lock to wakeup */
 	} while (wait_on_bit_timeout(&dev_priv->gpu_error.flags,
-				     I915_RESET_IN_PROGRESS,
+				     I915_RESET_HANDOFF,
 				     TASK_UNINTERRUPTIBLE,
 				     HZ));
 
@@ -2696,6 +2683,7 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 	 * Note: The wake_up also serves as a memory barrier so that
 	 * waiters see the updated value of the dev_priv->gpu_error.
 	 */
+	clear_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags);
 	wake_up_all(&dev_priv->gpu_error.reset_queue);
 }
 
@@ -2788,23 +2776,9 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	if (!engine_mask)
 		goto out;
 
-	if (test_and_set_bit(I915_RESET_IN_PROGRESS,
+	if (test_and_set_bit(I915_RESET_BACKOFF,
 			     &dev_priv->gpu_error.flags))
 		goto out;
-
-	/*
-	 * Wakeup waiting processes so that the reset function
-	 * i915_reset_and_wakeup doesn't deadlock trying to grab
-	 * various locks. By bumping the reset counter first, the woken
-	 * processes will see a reset in progress and back off,
-	 * releasing their locks and then wait for the reset completion.
-	 * We must do this for _all_ gpu waiters that might hold locks
-	 * that the reset work needs to acquire.
-	 *
-	 * Note: The wake_up also provides a memory barrier to ensure that the
-	 * waiters see the updated value of the reset flags.
-	 */
-	i915_error_wake_up(dev_priv);
 
 	i915_reset_and_wakeup(dev_priv);
 

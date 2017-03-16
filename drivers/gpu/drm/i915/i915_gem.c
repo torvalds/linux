@@ -103,16 +103,13 @@ i915_gem_wait_for_error(struct i915_gpu_error *error)
 
 	might_sleep();
 
-	if (!i915_reset_in_progress(error))
-		return 0;
-
 	/*
 	 * Only wait 10 seconds for the gpu reset to complete to avoid hanging
 	 * userspace. If it takes that long something really bad is going on and
 	 * we should simply try to bail out and fail as gracefully as possible.
 	 */
 	ret = wait_event_interruptible_timeout(error->reset_queue,
-					       !i915_reset_in_progress(error),
+					       !i915_reset_backoff(error),
 					       I915_RESET_TIMEOUT);
 	if (ret == 0) {
 		DRM_ERROR("Timed out waiting for the gpu reset to complete\n");

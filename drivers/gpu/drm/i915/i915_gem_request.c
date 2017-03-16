@@ -1012,7 +1012,7 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 
 static bool __i915_wait_request_check_and_reset(struct drm_i915_gem_request *request)
 {
-	if (likely(!i915_reset_in_progress(&request->i915->gpu_error)))
+	if (likely(!i915_reset_handoff(&request->i915->gpu_error)))
 		return false;
 
 	__set_current_state(TASK_RUNNING);

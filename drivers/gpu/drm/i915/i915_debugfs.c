@@ -1305,16 +1305,18 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	enum intel_engine_id id;
 
 	if (test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
-		seq_printf(m, "Wedged\n");
-	if (test_bit(I915_RESET_IN_PROGRESS, &dev_priv->gpu_error.flags))
-		seq_printf(m, "Reset in progress\n");
+		seq_puts(m, "Wedged\n");
+	if (test_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags))
+		seq_puts(m, "Reset in progress: struct_mutex backoff\n");
+	if (test_bit(I915_RESET_HANDOFF, &dev_priv->gpu_error.flags))
+		seq_puts(m, "Reset in progress: reset handoff to waiter\n");
 	if (waitqueue_active(&dev_priv->gpu_error.wait_queue))
-		seq_printf(m, "Waiter holding struct mutex\n");
+		seq_puts(m, "Waiter holding struct mutex\n");
 	if (waitqueue_active(&dev_priv->gpu_error.reset_queue))
-		seq_printf(m, "struct_mutex blocked for reset\n");
+		seq_puts(m, "struct_mutex blocked for reset\n");
 
 	if (!i915.enable_hangcheck) {
-		seq_printf(m, "Hangcheck disabled\n");
+		seq_puts(m, "Hangcheck disabled\n");
 		return 0;
 	}
 
@@ -4127,7 +4129,7 @@ i915_wedged_set(void *data, u64 val)
 	 * while it is writing to 'i915_wedged'
 	 */
 
-	if (i915_reset_in_progress(&dev_priv->gpu_error))
+	if (i915_reset_backoff(&dev_priv->gpu_error))
 		return -EAGAIN;
 
 	i915_handle_error(dev_priv, val,

@@ -1595,8 +1595,33 @@ struct i915_gpu_error {
 	 */
 	unsigned long reset_count;
 
+	/**
+	 * flags: Control various stages of the GPU reset
+	 *
+	 * #I915_RESET_BACKOFF - When we start a reset, we want to stop any
+	 * other users acquiring the struct_mutex. To do this we set the
+	 * #I915_RESET_BACKOFF bit in the error flags when we detect a reset
+	 * and then check for that bit before acquiring the struct_mutex (in
+	 * i915_mutex_lock_interruptible()?). I915_RESET_BACKOFF serves a
+	 * secondary role in preventing two concurrent global reset attempts.
+	 *
+	 * #I915_RESET_HANDOFF - To perform the actual GPU reset, we need the
+	 * struct_mutex. We try to acquire the struct_mutex in the reset worker,
+	 * but it may be held by some long running waiter (that we cannot
+	 * interrupt without causing trouble). Once we are ready to do the GPU
+	 * reset, we set the I915_RESET_HANDOFF bit and wakeup any waiters. If
+	 * they already hold the struct_mutex and want to participate they can
+	 * inspect the bit and do the reset directly, otherwise the worker
+	 * waits for the struct_mutex.
+	 *
+	 * #I915_WEDGED - If reset fails and we can no longer use the GPU,
+	 * we set the #I915_WEDGED bit. Prior to command submission, e.g.
+	 * i915_gem_request_alloc(), this bit is checked and the sequence
+	 * aborted (with -EIO reported to userspace) if set.
+	 */
 	unsigned long flags;
-#define I915_RESET_IN_PROGRESS	0
+#define I915_RESET_BACKOFF	0
+#define I915_RESET_HANDOFF	1
 #define I915_WEDGED		(BITS_PER_LONG - 1)
 
 	/**
@@ -3387,9 +3412,14 @@ i915_gem_find_active_request(struct intel_engine_cs *engine);
 
 void i915_gem_retire_requests(struct drm_i915_private *dev_priv);
 
-static inline bool i915_reset_in_progress(struct i915_gpu_error *error)
+static inline bool i915_reset_backoff(struct i915_gpu_error *error)
 {
-	return unlikely(test_bit(I915_RESET_IN_PROGRESS, &error->flags));
+	return unlikely(test_bit(I915_RESET_BACKOFF, &error->flags));
+}
+
+static inline bool i915_reset_handoff(struct i915_gpu_error *error)
+{
+	return unlikely(test_bit(I915_RESET_HANDOFF, &error->flags));
 }
 
 static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
@@ -3397,9 +3427,9 @@ static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
 	return unlikely(test_bit(I915_WEDGED, &error->flags));
 }
 
-static inline bool i915_reset_in_progress_or_wedged(struct i915_gpu_error *error)
+static inline bool i915_reset_backoff_or_wedged(struct i915_gpu_error *error)
 {
-	return i915_reset_in_progress(error) | i915_terminally_wedged(error);
+	return i915_reset_backoff(error) | i915_terminally_wedged(error);
 }
 
 static inline u32 i915_reset_count(struct i915_gpu_error *error)

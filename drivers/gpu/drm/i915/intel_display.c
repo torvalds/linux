@@ -3639,7 +3639,7 @@ static bool abort_flip_on_reset(struct intel_crtc *crtc)
 {
 	struct i915_gpu_error *error = &to_i915(crtc->base.dev)->gpu_error;
 
-	if (i915_reset_in_progress(error))
+	if (i915_reset_backoff(error))
 		return true;
 
 	if (crtc->reset_count != i915_reset_count(error))
@@ -10595,7 +10595,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup;
 
 	intel_crtc->reset_count = i915_reset_count(&dev_priv->gpu_error);
-	if (i915_reset_in_progress_or_wedged(&dev_priv->gpu_error)) {
+	if (i915_reset_backoff_or_wedged(&dev_priv->gpu_error)) {
 		ret = -EIO;
 		goto unlock;
 	}
