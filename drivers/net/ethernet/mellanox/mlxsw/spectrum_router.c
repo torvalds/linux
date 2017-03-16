@@ -41,10 +41,13 @@
 #include <linux/in6.h>
 #include <linux/notifier.h>
 #include <linux/inetdevice.h>
+#include <linux/netdevice.h>
 #include <net/netevent.h>
 #include <net/neighbour.h>
 #include <net/arp.h>
 #include <net/ip_fib.h>
+#include <net/fib_rules.h>
+#include <net/l3mdev.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -2514,6 +2517,7 @@ struct mlxsw_sp_fib_event_work {
 	struct work_struct work;
 	union {
 		struct fib_entry_notifier_info fen_info;
+		struct fib_rule_notifier_info fr_info;
 		struct fib_nh_notifier_info fnh_info;
 	};
 	struct mlxsw_sp *mlxsw_sp;
@@ -2525,6 +2529,7 @@ static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 	struct mlxsw_sp_fib_event_work *fib_work =
 		container_of(work, struct mlxsw_sp_fib_event_work, work);
 	struct mlxsw_sp *mlxsw_sp = fib_work->mlxsw_sp;
+	struct fib_rule *rule;
 	bool replace, append;
 	int err;
 
@@ -2548,7 +2553,10 @@ static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 		break;
 	case FIB_EVENT_RULE_ADD: /* fall through */
 	case FIB_EVENT_RULE_DEL:
-		mlxsw_sp_router_fib4_abort(mlxsw_sp);
+		rule = fib_work->fr_info.rule;
+		if (!fib4_rule_default(rule) && !rule->l3mdev)
+			mlxsw_sp_router_fib4_abort(mlxsw_sp);
+		fib_rule_put(rule);
 		break;
 	case FIB_EVENT_NH_ADD: /* fall through */
 	case FIB_EVENT_NH_DEL:
@@ -2590,6 +2598,11 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 		 * freed while work is queued. Release it afterwards.
 		 */
 		fib_info_hold(fib_work->fen_info.fi);
+		break;
+	case FIB_EVENT_RULE_ADD: /* fall through */
+	case FIB_EVENT_RULE_DEL:
+		memcpy(&fib_work->fr_info, ptr, sizeof(fib_work->fr_info));
+		fib_rule_get(fib_work->fr_info.rule);
 		break;
 	case FIB_EVENT_NH_ADD: /* fall through */
 	case FIB_EVENT_NH_DEL:
@@ -2648,7 +2661,7 @@ static bool mlxsw_sp_rif_should_config(struct mlxsw_sp_rif *r,
 			return true;
 		return false;
 	case NETDEV_DOWN:
-		if (r && !in_dev->ifa_list)
+		if (r && !in_dev->ifa_list && !netif_is_l3_slave(r->dev))
 			return true;
 		/* It is possible we already removed the RIF ourselves
 		 * if it was assigned to a netdev that is now a bridge
@@ -2751,6 +2764,7 @@ mlxsw_sp_vport_rif_sp_create(struct mlxsw_sp_port *mlxsw_sp_vport,
 			     struct net_device *l3_dev)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_vport->mlxsw_sp;
+	u32 tb_id = l3mdev_fib_table(l3_dev);
 	struct mlxsw_sp_vr *vr;
 	struct mlxsw_sp_fid *f;
 	struct mlxsw_sp_rif *r;
@@ -2761,7 +2775,7 @@ mlxsw_sp_vport_rif_sp_create(struct mlxsw_sp_port *mlxsw_sp_vport,
 	if (rif == MLXSW_SP_INVALID_RIF)
 		return ERR_PTR(-ERANGE);
 
-	vr = mlxsw_sp_vr_get(mlxsw_sp, RT_TABLE_MAIN);
+	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id ? : RT_TABLE_MAIN);
 	if (IS_ERR(vr))
 		return ERR_CAST(vr);
 
@@ -2999,6 +3013,7 @@ static int mlxsw_sp_rif_bridge_create(struct mlxsw_sp *mlxsw_sp,
 				      struct net_device *l3_dev,
 				      struct mlxsw_sp_fid *f)
 {
+	u32 tb_id = l3mdev_fib_table(l3_dev);
 	struct mlxsw_sp_vr *vr;
 	struct mlxsw_sp_rif *r;
 	u16 rif;
@@ -3008,7 +3023,7 @@ static int mlxsw_sp_rif_bridge_create(struct mlxsw_sp *mlxsw_sp,
 	if (rif == MLXSW_SP_INVALID_RIF)
 		return -ERANGE;
 
-	vr = mlxsw_sp_vr_get(mlxsw_sp, RT_TABLE_MAIN);
+	vr = mlxsw_sp_vr_get(mlxsw_sp, tb_id ? : RT_TABLE_MAIN);
 	if (IS_ERR(vr))
 		return PTR_ERR(vr);
 
@@ -3209,6 +3224,73 @@ err_rif_fdb_op:
 err_rif_edit:
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, r->addr, r->f->fid, true);
 	return err;
+}
+
+int mlxsw_sp_vport_vrf_join(struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	struct mlxsw_sp_fid *f = mlxsw_sp_vport_fid_get(mlxsw_sp_vport);
+	struct net_device *dev = mlxsw_sp_vport->dev;
+
+	/* In case vPort already has a RIF, then we need to drop it.
+	 * A new one will be created using the VRF's VR.
+	 */
+	if (f && f->r)
+		mlxsw_sp_vport_rif_sp_leave(mlxsw_sp_vport);
+
+	return mlxsw_sp_vport_rif_sp_join(mlxsw_sp_vport, dev);
+}
+
+void mlxsw_sp_vport_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
+{
+	mlxsw_sp_vport_rif_sp_leave(mlxsw_sp_vport);
+}
+
+int mlxsw_sp_port_vrf_join(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp_port *mlxsw_sp_vport;
+
+	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, 1);
+	if (WARN_ON(!mlxsw_sp_vport))
+		return -EINVAL;
+
+	return mlxsw_sp_vport_vrf_join(mlxsw_sp_vport);
+}
+
+void mlxsw_sp_port_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	struct mlxsw_sp_port *mlxsw_sp_vport;
+
+	mlxsw_sp_vport = mlxsw_sp_port_vport_find(mlxsw_sp_port, 1);
+	if (WARN_ON(!mlxsw_sp_vport))
+		return;
+
+	mlxsw_sp_vport_vrf_leave(mlxsw_sp_vport);
+}
+
+int mlxsw_sp_bridge_vrf_join(struct mlxsw_sp *mlxsw_sp,
+			     struct net_device *l3_dev)
+{
+	struct mlxsw_sp_fid *f;
+
+	f = mlxsw_sp_bridge_fid_get(mlxsw_sp, l3_dev);
+	if (WARN_ON(!f))
+		return -EINVAL;
+
+	if (f->r)
+		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->r);
+
+	return mlxsw_sp_rif_bridge_create(mlxsw_sp, l3_dev, f);
+}
+
+void mlxsw_sp_bridge_vrf_leave(struct mlxsw_sp *mlxsw_sp,
+			       struct net_device *l3_dev)
+{
+	struct mlxsw_sp_fid *f;
+
+	f = mlxsw_sp_bridge_fid_get(mlxsw_sp, l3_dev);
+	if (WARN_ON(!f))
+		return;
+	mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->r);
 }
 
 static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
