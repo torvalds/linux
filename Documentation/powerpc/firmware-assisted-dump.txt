@@ -105,21 +105,21 @@ memory is held.
 
 If there is no waiting dump data, then only the memory required
 to hold CPU state, HPTE region, boot memory dump and elfcore
-header, is reserved at the top of memory (see Fig. 1). This area
-is *not* released: this region will be kept permanently reserved,
-so that it can act as a receptacle for a copy of the boot memory
-content in addition to CPU state and HPTE region, in the case a
-crash does occur.
+header, is usually reserved at an offset greater than boot memory
+size (see Fig. 1). This area is *not* released: this region will
+be kept permanently reserved, so that it can act as a receptacle
+for a copy of the boot memory content in addition to CPU state
+and HPTE region, in the case a crash does occur.
 
   o Memory Reservation during first kernel
 
-  Low memory                                        Top of memory
+  Low memory                                         Top of memory
   0      boot memory size                                       |
-  |           |                       |<--Reserved dump area -->|
-  V           V                       |   Permanent Reservation V
-  +-----------+----------/ /----------+---+----+-----------+----+
-  |           |                       |CPU|HPTE|  DUMP     |ELF |
-  +-----------+----------/ /----------+---+----+-----------+----+
+  |           |                |<--Reserved dump area -->|      |
+  V           V                |   Permanent Reservation |      V
+  +-----------+----------/ /---+---+----+-----------+----+------+
+  |           |                |CPU|HPTE|  DUMP     |ELF |      |
+  +-----------+----------/ /---+---+----+-----------+----+------+
         |                                           ^
         |                                           |
         \                                           /
@@ -135,12 +135,12 @@ crash does occur.
   0      boot memory size                                       |
   |           |<------------- Reserved dump area ----------- -->|
   V           V                                                 V
-  +-----------+----------/ /----------+---+----+-----------+----+
-  |           |                       |CPU|HPTE|  DUMP     |ELF |
-  +-----------+----------/ /----------+---+----+-----------+----+
-        |                                                    |
-        V                                                    V
-   Used by second                                    /proc/vmcore
+  +-----------+----------/ /---+---+----+-----------+----+------+
+  |           |                |CPU|HPTE|  DUMP     |ELF |      |
+  +-----------+----------/ /---+---+----+-----------+----+------+
+        |                                              |
+        V                                              V
+   Used by second                                /proc/vmcore
    kernel to boot
                    Fig. 2
 
