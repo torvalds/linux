@@ -1889,17 +1889,9 @@ abort:
 	return err;
 }
 
-static void end_sync_read(struct bio *bio)
+static void __end_sync_read(struct r10bio *r10_bio, struct bio *bio, int d)
 {
-	struct r10bio *r10_bio = bio->bi_private;
 	struct r10conf *conf = r10_bio->mddev->private;
-	int d;
-
-	if (bio == r10_bio->master_bio) {
-		/* this is a reshape read */
-		d = r10_bio->read_slot; /* really the read dev */
-	} else
-		d = find_bio_disk(conf, r10_bio, bio, NULL, NULL);
 
 	if (!bio->bi_error)
 		set_bit(R10BIO_Uptodate, &r10_bio->state);
@@ -1921,6 +1913,22 @@ static void end_sync_read(struct bio *bio)
 		 */
 		reschedule_retry(r10_bio);
 	}
+}
+
+static void end_sync_read(struct bio *bio)
+{
+	struct r10bio *r10_bio = bio->bi_private;
+	struct r10conf *conf = r10_bio->mddev->private;
+	int d = find_bio_disk(conf, r10_bio, bio, NULL, NULL);
+
+	__end_sync_read(r10_bio, bio, d);
+}
+
+static void end_reshape_read(struct bio *bio)
+{
+	struct r10bio *r10_bio = bio->bi_private;
+
+	__end_sync_read(r10_bio, bio, r10_bio->read_slot);
 }
 
 static void end_sync_request(struct r10bio *r10_bio)
@@ -4438,7 +4446,7 @@ read_more:
 	read_bio->bi_iter.bi_sector = (r10_bio->devs[r10_bio->read_slot].addr
 			       + rdev->data_offset);
 	read_bio->bi_private = r10_bio;
-	read_bio->bi_end_io = end_sync_read;
+	read_bio->bi_end_io = end_reshape_read;
 	bio_set_op_attrs(read_bio, REQ_OP_READ, 0);
 	read_bio->bi_flags &= (~0UL << BIO_RESET_BITS);
 	read_bio->bi_error = 0;
