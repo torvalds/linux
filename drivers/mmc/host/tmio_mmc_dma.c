@@ -47,8 +47,6 @@ static void tmio_mmc_dma_callback(void *arg)
 {
 	struct tmio_mmc_host *host = arg;
 
-	wait_for_completion(&host->dma_dataend);
-
 	spin_lock_irq(&host->lock);
 
 	if (!host->data)
@@ -63,6 +61,11 @@ static void tmio_mmc_dma_callback(void *arg)
 			     host->sg_ptr, host->sg_len,
 			     DMA_TO_DEVICE);
 
+	spin_unlock_irq(&host->lock);
+
+	wait_for_completion(&host->dma_dataend);
+
+	spin_lock_irq(&host->lock);
 	tmio_mmc_do_data_irq(host);
 out:
 	spin_unlock_irq(&host->lock);
