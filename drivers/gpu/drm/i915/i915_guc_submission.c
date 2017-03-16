@@ -1136,7 +1136,7 @@ void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 		return;
 
 	/* Revert back to manual ELSP submission */
-	intel_execlists_enable_submission(dev_priv);
+	intel_engines_reset_default_submission(dev_priv);
 }
 
 void i915_guc_submission_fini(struct drm_i915_private *dev_priv)

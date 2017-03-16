@@ -1558,15 +1558,10 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 	kfree(engine);
 }
 
-void intel_execlists_enable_submission(struct drm_i915_private *dev_priv)
+static void execlists_set_default_submission(struct intel_engine_cs *engine)
 {
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, dev_priv, id) {
-		engine->submit_request = execlists_submit_request;
-		engine->schedule = execlists_schedule;
-	}
+	engine->submit_request = execlists_submit_request;
+	engine->schedule = execlists_schedule;
 }
 
 static void
@@ -1584,8 +1579,8 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->emit_flush = gen8_emit_flush;
 	engine->emit_breadcrumb = gen8_emit_breadcrumb;
 	engine->emit_breadcrumb_sz = gen8_emit_breadcrumb_sz;
-	engine->submit_request = execlists_submit_request;
-	engine->schedule = execlists_schedule;
+
+	engine->set_default_submission = execlists_set_default_submission;
 
 	engine->irq_enable = gen8_logical_ring_enable_irq;
 	engine->irq_disable = gen8_logical_ring_disable_irq;

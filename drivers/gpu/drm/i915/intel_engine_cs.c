@@ -193,6 +193,7 @@ int intel_engines_init(struct drm_i915_private *dev_priv)
 			goto cleanup;
 		}
 
+		GEM_BUG_ON(!engine->submit_request);
 		mask |= ENGINE_MASK(id);
 	}
 
@@ -342,6 +343,8 @@ static void intel_engine_cleanup_scratch(struct intel_engine_cs *engine)
 int intel_engine_init_common(struct intel_engine_cs *engine)
 {
 	int ret;
+
+	engine->set_default_submission(engine);
 
 	/* We may need to do things with the shrinker which
 	 * require us to immediately switch back to the default
@@ -1114,6 +1117,15 @@ bool intel_engines_are_idle(struct drm_i915_private *dev_priv)
 	}
 
 	return true;
+}
+
+void intel_engines_reset_default_submission(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, i915, id)
+		engine->set_default_submission(engine);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
