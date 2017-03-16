@@ -557,11 +557,10 @@ static int __init dmar_table_detect(void)
 static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 				       size_t len, struct dmar_res_callback *cb)
 {
-	int ret = 0;
 	struct acpi_dmar_header *iter, *next;
 	struct acpi_dmar_header *end = ((void *)start) + len;
 
-	for (iter = start; iter < end && ret == 0; iter = next) {
+	for (iter = start; iter < end; iter = next) {
 		next = (void *)iter + iter->length;
 		if (iter->length == 0) {
 			/* Avoid looping forever on bad ACPI tables */
@@ -570,8 +569,7 @@ static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 		} else if (next > end) {
 			/* Avoid passing table end */
 			pr_warn(FW_BUG "Record passes table end\n");
-			ret = -EINVAL;
-			break;
+			return -EINVAL;
 		}
 
 		if (cb->print_entry)
@@ -582,15 +580,19 @@ static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
 			pr_debug("Unknown DMAR structure type %d\n",
 				 iter->type);
 		} else if (cb->cb[iter->type]) {
+			int ret;
+
 			ret = cb->cb[iter->type](iter, cb->arg[iter->type]);
+			if (ret)
+				return ret;
 		} else if (!cb->ignore_unhandled) {
 			pr_warn("No handler for DMAR structure type %d\n",
 				iter->type);
-			ret = -EINVAL;
+			return -EINVAL;
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 static inline int dmar_walk_dmar_table(struct acpi_table_dmar *dmar,
