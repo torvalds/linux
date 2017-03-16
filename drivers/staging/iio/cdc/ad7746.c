@@ -352,15 +352,15 @@ static ssize_t ad7746_start_gain_calib(struct device *dev,
 }
 
 static IIO_DEVICE_ATTR(in_capacitance0_calibbias_calibration,
-		       S_IWUSR, NULL, ad7746_start_offset_calib, CIN1);
+		       0200, NULL, ad7746_start_offset_calib, CIN1);
 static IIO_DEVICE_ATTR(in_capacitance1_calibbias_calibration,
-		       S_IWUSR, NULL, ad7746_start_offset_calib, CIN2);
+		       0200, NULL, ad7746_start_offset_calib, CIN2);
 static IIO_DEVICE_ATTR(in_capacitance0_calibscale_calibration,
-		       S_IWUSR, NULL, ad7746_start_gain_calib, CIN1);
+		       0200, NULL, ad7746_start_gain_calib, CIN1);
 static IIO_DEVICE_ATTR(in_capacitance1_calibscale_calibration,
-		       S_IWUSR, NULL, ad7746_start_gain_calib, CIN2);
+		       0200, NULL, ad7746_start_gain_calib, CIN2);
 static IIO_DEVICE_ATTR(in_voltage0_calibscale_calibration,
-		       S_IWUSR, NULL, ad7746_start_gain_calib, VIN);
+		       0200, NULL, ad7746_start_gain_calib, VIN);
 
 static int ad7746_store_cap_filter_rate_setup(struct ad7746_chip_info *chip,
 					      int val)
