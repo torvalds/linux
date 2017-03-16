@@ -413,6 +413,9 @@ struct uvc_buffer {
 	unsigned int bytesused;
 
 	u32 pts;
+
+	/* Asynchronous buffer handling. */
+	struct kref ref;
 };
 
 #define UVC_QUEUE_DISCONNECTED		(1 << 0)
@@ -729,6 +732,7 @@ void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect);
 struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 					 struct uvc_buffer *buf);
 struct uvc_buffer *uvc_queue_get_current_buffer(struct uvc_video_queue *queue);
+void uvc_queue_buffer_release(struct uvc_buffer *buf);
 int uvc_queue_mmap(struct uvc_video_queue *queue,
 		   struct vm_area_struct *vma);
 __poll_t uvc_queue_poll(struct uvc_video_queue *queue, struct file *file,
