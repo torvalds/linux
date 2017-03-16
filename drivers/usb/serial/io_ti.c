@@ -1933,13 +1933,6 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (edge_serial->num_ports_open == 0) {
 		/* we are the first port to open, post the interrupt urb */
 		urb = edge_serial->serial->port[0]->interrupt_in_urb;
-		if (!urb) {
-			dev_err(&port->dev,
-				"%s - no interrupt urb present, exiting\n",
-				__func__);
-			status = -EINVAL;
-			goto release_es_lock;
-		}
 		urb->context = edge_serial;
 		status = usb_submit_urb(urb, GFP_KERNEL);
 		if (status) {
@@ -2553,7 +2546,8 @@ static int edge_calc_num_ports(struct usb_serial *serial,
 	/* Make sure we have the required endpoints when in download mode. */
 	if (serial->interface->cur_altsetting->desc.bNumEndpoints > 1) {
 		if (epds->num_bulk_in < num_ports ||
-				epds->num_bulk_out < num_ports) {
+				epds->num_bulk_out < num_ports ||
+				epds->num_interrupt_in < 1) {
 			dev_err(dev, "required endpoints missing\n");
 			return -ENODEV;
 		}
