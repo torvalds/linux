@@ -11,6 +11,7 @@
 
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/skbuff.h>
@@ -247,7 +248,7 @@ struct afs_cache_vhash {
  */
 struct afs_vlocation {
 	atomic_t		usage;
-	time_t			time_of_death;	/* time at which put reduced usage to 0 */
+	time64_t		time_of_death;	/* time at which put reduced usage to 0 */
 	struct list_head	link;		/* link in cell volume location list */
 	struct list_head	grave;		/* link in master graveyard list */
 	struct list_head	update;		/* link in master update list */
@@ -258,7 +259,7 @@ struct afs_vlocation {
 	struct afs_cache_vlocation vldb;	/* volume information DB record */
 	struct afs_volume	*vols[3];	/* volume access record pointer (index by type) */
 	wait_queue_head_t	waitq;		/* status change waitqueue */
-	time_t			update_at;	/* time at which record should be updated */
+	time64_t		update_at;	/* time at which record should be updated */
 	spinlock_t		lock;		/* access lock */
 	afs_vlocation_state_t	state;		/* volume location state */
 	unsigned short		upd_rej_cnt;	/* ENOMEDIUM count during update */
@@ -271,7 +272,7 @@ struct afs_vlocation {
  */
 struct afs_server {
 	atomic_t		usage;
-	time_t			time_of_death;	/* time at which put reduced usage to 0 */
+	time64_t		time_of_death;	/* time at which put reduced usage to 0 */
 	struct in_addr		addr;		/* server address */
 	struct afs_cell		*cell;		/* cell in which server resides */
 	struct list_head	link;		/* link in cell's server list */
