@@ -27,7 +27,7 @@
  */
 
 #include <linux/debugfs.h>
-#include <linux/list_sort.h>
+#include <linux/sort.h>
 #include "intel_drv.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
@@ -204,13 +204,12 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (frontbuffer: 0x%03x)", frontbuffer_bits);
 }
 
-static int obj_rank_by_stolen(void *priv,
-			      struct list_head *A, struct list_head *B)
+static int obj_rank_by_stolen(const void *A, const void *B)
 {
-	struct drm_i915_gem_object *a =
-		container_of(A, struct drm_i915_gem_object, obj_exec_link);
-	struct drm_i915_gem_object *b =
-		container_of(B, struct drm_i915_gem_object, obj_exec_link);
+	const struct drm_i915_gem_object *a =
+		*(const struct drm_i915_gem_object **)A;
+	const struct drm_i915_gem_object *b =
+		*(const struct drm_i915_gem_object **)B;
 
 	if (a->stolen->start < b->stolen->start)
 		return -1;
@@ -223,49 +222,60 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
+	struct drm_i915_gem_object **objects;
 	struct drm_i915_gem_object *obj;
 	u64 total_obj_size, total_gtt_size;
-	LIST_HEAD(stolen);
-	int count, ret;
+	unsigned long total, count, n;
+	int ret;
+
+	total = READ_ONCE(dev_priv->mm.object_count);
+	objects = drm_malloc_ab(total, sizeof(*objects));
+	if (!objects)
+		return -ENOMEM;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
-		return ret;
+		goto out;
 
 	total_obj_size = total_gtt_size = count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_link) {
+		if (count == total)
+			break;
+
 		if (obj->stolen == NULL)
 			continue;
 
-		list_add(&obj->obj_exec_link, &stolen);
-
+		objects[count++] = obj;
 		total_obj_size += obj->base.size;
 		total_gtt_size += i915_gem_obj_total_ggtt_size(obj);
-		count++;
+
 	}
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_link) {
+		if (count == total)
+			break;
+
 		if (obj->stolen == NULL)
 			continue;
 
-		list_add(&obj->obj_exec_link, &stolen);
-
+		objects[count++] = obj;
 		total_obj_size += obj->base.size;
-		count++;
 	}
-	list_sort(NULL, &stolen, obj_rank_by_stolen);
-	seq_puts(m, "Stolen:\n");
-	while (!list_empty(&stolen)) {
-		obj = list_first_entry(&stolen, typeof(*obj), obj_exec_link);
-		seq_puts(m, "   ");
-		describe_obj(m, obj);
-		seq_putc(m, '\n');
-		list_del_init(&obj->obj_exec_link);
-	}
-	mutex_unlock(&dev->struct_mutex);
 
-	seq_printf(m, "Total %d objects, %llu bytes, %llu GTT size\n",
+	sort(objects, count, sizeof(*objects), obj_rank_by_stolen, NULL);
+
+	seq_puts(m, "Stolen:\n");
+	for (n = 0; n < count; n++) {
+		seq_puts(m, "   ");
+		describe_obj(m, objects[n]);
+		seq_putc(m, '\n');
+	}
+	seq_printf(m, "Total %lu objects, %llu bytes, %llu GTT size\n",
 		   count, total_obj_size, total_gtt_size);
-	return 0;
+
+	mutex_unlock(&dev->struct_mutex);
+out:
+	drm_free_large(objects);
+	return ret;
 }
 
 struct file_stats {
