@@ -41,11 +41,11 @@ struct bma180_data;
 
 struct bma180_part_info {
 	const struct iio_chan_spec *channels;
-	unsigned num_channels;
+	unsigned int num_channels;
 	const int *scale_table;
-	unsigned num_scales;
+	unsigned int num_scales;
 	const int *bw_table;
-	unsigned num_bw;
+	unsigned int num_bw;
 
 	u8 int_reset_reg, int_reset_mask;
 	u8 sleep_reg, sleep_mask;
@@ -408,7 +408,7 @@ err:
 	dev_err(&data->client->dev, "failed to disable the chip\n");
 }
 
-static ssize_t bma180_show_avail(char *buf, const int *vals, unsigned n,
+static ssize_t bma180_show_avail(char *buf, const int *vals, unsigned int n,
 				 bool micros)
 {
 	size_t len = 0;
