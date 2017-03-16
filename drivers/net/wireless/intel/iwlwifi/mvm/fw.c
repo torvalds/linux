@@ -1639,7 +1639,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:
-	iwl_mvm_stop_device(mvm);
+	if (!iwlmvm_mod_params.init_dbg)
+		iwl_mvm_stop_device(mvm);
 	return ret;
 }
 

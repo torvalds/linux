@@ -754,6 +754,8 @@ struct iwl_mvm {
 
 	struct work_struct roc_done_wk;
 
+	unsigned long init_status;
+
 	unsigned long status;
 
 	u32 queue_sync_cookie;
@@ -1086,6 +1088,14 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_ROC_AUX_RUNNING,
 	IWL_MVM_STATUS_D3_RECONFIG,
 	IWL_MVM_STATUS_DUMPING_FW_LOG,
+};
+
+/* Keep track of completed init configuration */
+enum iwl_mvm_init_status {
+	IWL_MVM_INIT_STATUS_THERMAL_INIT_COMPLETE = BIT(0),
+	IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE = BIT(1),
+	IWL_MVM_INIT_STATUS_REG_HW_INIT_COMPLETE = BIT(2),
+	IWL_MVM_INIT_STATUS_TOF_INIT_COMPLETE = BIT(3),
 };
 
 static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)
