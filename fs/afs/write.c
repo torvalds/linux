@@ -101,6 +101,7 @@ static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
 	req->pos = pos;
 	req->nr_pages = 1;
 	req->pages[0] = page;
+	get_page(page);
 
 	i_size = i_size_read(&vnode->vfs_inode);
 	if (pos + PAGE_SIZE > i_size)
