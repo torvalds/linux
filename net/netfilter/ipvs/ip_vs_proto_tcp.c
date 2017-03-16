@@ -557,7 +557,7 @@ set_tcp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 			      ntohs(cp->cport),
 			      tcp_state_name(cp->state),
 			      tcp_state_name(new_state),
-			      atomic_read(&cp->refcnt));
+			      refcount_read(&cp->refcnt));
 
 		if (dest) {
 			if (!(cp->flags & IP_VS_CONN_F_INACTIVE) &&
