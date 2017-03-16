@@ -1666,38 +1666,39 @@ static ssize_t kbd_led_triggers_store(struct device *dev,
 		}
 	}
 
-	if (trigger_bit != -1) {
-		new_state = state;
-		if (trigger[0] == '+')
-			new_state.triggers |= BIT(trigger_bit);
-		else {
-			new_state.triggers &= ~BIT(trigger_bit);
-			/* NOTE: trackstick bit (2) must be disabled when
-			 *       disabling touchpad bit (1), otherwise touchpad
-			 *       bit (1) will not be disabled */
-			if (trigger_bit == 1)
-				new_state.triggers &= ~BIT(2);
-		}
-		if ((kbd_info.triggers & new_state.triggers) !=
-		    new_state.triggers)
-			return -EINVAL;
-		if (new_state.triggers && !triggers_enabled) {
-			new_state.mode_bit = KBD_MODE_BIT_TRIGGER;
-			kbd_set_level(&new_state, kbd_previous_level);
-		} else if (new_state.triggers == 0) {
-			kbd_set_level(&new_state, 0);
-		}
-		if (!(kbd_info.modes & BIT(new_state.mode_bit)))
-			return -EINVAL;
-		ret = kbd_set_state_safe(&new_state, &state);
-		if (ret)
-			return ret;
-		if (new_state.mode_bit != KBD_MODE_BIT_OFF)
-			kbd_previous_mode_bit = new_state.mode_bit;
-		return count;
-	}
+	if (trigger_bit == -1)
+		return -EINVAL;
 
-	return -EINVAL;
+	new_state = state;
+	if (trigger[0] == '+')
+		new_state.triggers |= BIT(trigger_bit);
+	else {
+		new_state.triggers &= ~BIT(trigger_bit);
+		/*
+		 * NOTE: trackstick bit (2) must be disabled when
+		 *       disabling touchpad bit (1), otherwise touchpad
+		 *       bit (1) will not be disabled
+		 */
+		if (trigger_bit == 1)
+			new_state.triggers &= ~BIT(2);
+	}
+	if ((kbd_info.triggers & new_state.triggers) !=
+	    new_state.triggers)
+		return -EINVAL;
+	if (new_state.triggers && !triggers_enabled) {
+		new_state.mode_bit = KBD_MODE_BIT_TRIGGER;
+		kbd_set_level(&new_state, kbd_previous_level);
+	} else if (new_state.triggers == 0) {
+		kbd_set_level(&new_state, 0);
+	}
+	if (!(kbd_info.modes & BIT(new_state.mode_bit)))
+		return -EINVAL;
+	ret = kbd_set_state_safe(&new_state, &state);
+	if (ret)
+		return ret;
+	if (new_state.mode_bit != KBD_MODE_BIT_OFF)
+		kbd_previous_mode_bit = new_state.mode_bit;
+	return count;
 }
 
 static ssize_t kbd_led_triggers_show(struct device *dev,
