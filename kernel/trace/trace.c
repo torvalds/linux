@@ -1998,6 +1998,18 @@ void tracing_record_cmdline(struct task_struct *tsk)
 		__this_cpu_write(trace_cmdline_save, false);
 }
 
+/*
+ * Several functions return TRACE_TYPE_PARTIAL_LINE if the trace_seq
+ * overflowed, and TRACE_TYPE_HANDLED otherwise. This helper function
+ * simplifies those functions and keeps them in sync.
+ */
+enum print_line_t trace_handle_return(struct trace_seq *s)
+{
+	return trace_seq_has_overflowed(s) ?
+		TRACE_TYPE_PARTIAL_LINE : TRACE_TYPE_HANDLED;
+}
+EXPORT_SYMBOL_GPL(trace_handle_return);
+
 void
 tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 			     int pc)
