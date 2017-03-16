@@ -1189,6 +1189,17 @@ struct page *get_dump_page(unsigned long addr)
  */
 #ifdef CONFIG_HAVE_GENERIC_RCU_GUP
 
+#ifndef gup_get_pte
+/*
+ * We assume that the PTE can be read atomically. If this is not the case for
+ * your architecture, please provide the helper.
+ */
+static inline pte_t gup_get_pte(pte_t *ptep)
+{
+	return READ_ONCE(*ptep);
+}
+#endif
+
 #ifdef __HAVE_ARCH_PTE_SPECIAL
 static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 			 int write, struct page **pages, int *nr)
@@ -1198,14 +1209,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 
 	ptem = ptep = pte_offset_map(&pmd, addr);
 	do {
-		/*
-		 * In the line below we are assuming that the pte can be read
-		 * atomically. If this is not the case for your architecture,
-		 * please wrap this in a helper function!
-		 *
-		 * for an example see gup_get_pte in arch/x86/mm/gup.c
-		 */
-		pte_t pte = READ_ONCE(*ptep);
+		pte_t pte = gup_get_pte(ptep);
 		struct page *head, *page;
 
 		/*
