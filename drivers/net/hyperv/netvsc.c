@@ -1250,21 +1250,12 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 
 void netvsc_channel_cb(void *context)
 {
-	struct vmbus_channel *channel = context;
-	struct hv_device *device = netvsc_channel_to_device(channel);
-	u16 q_idx = channel->offermsg.offer.sub_channel_index;
-	struct netvsc_device *net_device;
-	struct net_device *ndev;
-
-	ndev = hv_get_drvdata(device);
-	if (unlikely(!ndev))
-		return;
+	struct netvsc_channel *nvchan = context;
 
 	/* disable interupts from host */
-	hv_begin_read(&channel->inbound);
+	hv_begin_read(&nvchan->channel->inbound);
 
-	net_device = net_device_to_netvsc_device(ndev);
-	napi_schedule(&net_device->chan_table[q_idx].napi);
+	napi_schedule(&nvchan->napi);
 }
 
 /*
@@ -1294,7 +1285,8 @@ int netvsc_device_add(struct hv_device *device,
 	/* Open the channel */
 	ret = vmbus_open(device->channel, ring_size * PAGE_SIZE,
 			 ring_size * PAGE_SIZE, NULL, 0,
-			 netvsc_channel_cb, device->channel);
+			 netvsc_channel_cb,
+			 net_device->chan_table);
 
 	if (ret != 0) {
 		netdev_err(ndev, "unable to open channel: %d\n", ret);
