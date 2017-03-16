@@ -129,7 +129,6 @@ enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID,
 
 enum cipher_flags {
 	CRYPT_MODE_INTEGRITY_AEAD,	/* Use authenticated mode for cihper */
-	CRYPT_MODE_INTEGRITY_HMAC,	/* Compose authenticated mode from normal mode and HMAC */
 };
 
 /*
@@ -873,19 +872,14 @@ static bool crypt_integrity_aead(struct crypt_config *cc)
 
 static bool crypt_integrity_hmac(struct crypt_config *cc)
 {
-	return test_bit(CRYPT_MODE_INTEGRITY_HMAC, &cc->cipher_flags);
-}
-
-static bool crypt_integrity_mode(struct crypt_config *cc)
-{
-	return crypt_integrity_aead(cc) || crypt_integrity_hmac(cc);
+	return crypt_integrity_aead(cc) && cc->key_mac_size;
 }
 
 /* Get sg containing data */
 static struct scatterlist *crypt_get_sg_data(struct crypt_config *cc,
 					     struct scatterlist *sg)
 {
-	if (unlikely(crypt_integrity_mode(cc)))
+	if (unlikely(crypt_integrity_aead(cc)))
 		return &sg[2];
 
 	return sg;
@@ -936,7 +930,7 @@ static int crypt_integrity_ctr(struct crypt_config *cc, struct dm_target *ti)
 		return -EINVAL;
 	}
 
-	if (crypt_integrity_mode(cc)) {
+	if (crypt_integrity_aead(cc)) {
 		cc->integrity_tag_size = cc->on_disk_tag_size - cc->integrity_iv_size;
 		DMINFO("Integrity AEAD, tag size %u, IV size %u.",
 		       cc->integrity_tag_size, cc->integrity_iv_size);
@@ -990,7 +984,7 @@ static void *req_of_dmreq(struct crypt_config *cc, struct dm_crypt_request *dmre
 static u8 *iv_of_dmreq(struct crypt_config *cc,
 		       struct dm_crypt_request *dmreq)
 {
-	if (crypt_integrity_mode(cc))
+	if (crypt_integrity_aead(cc))
 		return (u8 *)ALIGN((unsigned long)(dmreq + 1),
 			crypto_aead_alignmask(any_tfm_aead(cc)) + 1);
 	else
@@ -1235,7 +1229,7 @@ static void crypt_alloc_req_aead(struct crypt_config *cc,
 static void crypt_alloc_req(struct crypt_config *cc,
 			    struct convert_context *ctx)
 {
-	if (crypt_integrity_mode(cc))
+	if (crypt_integrity_aead(cc))
 		crypt_alloc_req_aead(cc, ctx);
 	else
 		crypt_alloc_req_skcipher(cc, ctx);
@@ -1261,7 +1255,7 @@ static void crypt_free_req_aead(struct crypt_config *cc,
 
 static void crypt_free_req(struct crypt_config *cc, void *req, struct bio *base_bio)
 {
-	if (crypt_integrity_mode(cc))
+	if (crypt_integrity_aead(cc))
 		crypt_free_req_aead(cc, req, base_bio);
 	else
 		crypt_free_req_skcipher(cc, req, base_bio);
@@ -1284,7 +1278,7 @@ static int crypt_convert(struct crypt_config *cc,
 
 		atomic_inc(&ctx->cc_pending);
 
-		if (crypt_integrity_mode(cc))
+		if (crypt_integrity_aead(cc))
 			r = crypt_convert_block_aead(cc, ctx, ctx->r.req_aead, tag_offset);
 		else
 			r = crypt_convert_block_skcipher(cc, ctx, ctx->r.req, tag_offset);
@@ -1849,7 +1843,7 @@ static void crypt_free_tfms_skcipher(struct crypt_config *cc)
 
 static void crypt_free_tfms(struct crypt_config *cc)
 {
-	if (crypt_integrity_mode(cc))
+	if (crypt_integrity_aead(cc))
 		crypt_free_tfms_aead(cc);
 	else
 		crypt_free_tfms_skcipher(cc);
@@ -1879,26 +1873,11 @@ static int crypt_alloc_tfms_skcipher(struct crypt_config *cc, char *ciphermode)
 
 static int crypt_alloc_tfms_aead(struct crypt_config *cc, char *ciphermode)
 {
-	char *authenc = NULL;
 	int err;
 
 	cc->cipher_tfm.tfms = kmalloc(sizeof(struct crypto_aead *), GFP_KERNEL);
 	if (!cc->cipher_tfm.tfms)
 		return -ENOMEM;
-
-	/* Compose AEAD cipher with autenc(authenticator,cipher) structure */
-	if (crypt_integrity_hmac(cc)) {
-		authenc = kmalloc(CRYPTO_MAX_ALG_NAME, GFP_KERNEL);
-		if (!authenc)
-			return -ENOMEM;
-		err = snprintf(authenc, CRYPTO_MAX_ALG_NAME,
-		       "authenc(%s,%s)", cc->cipher_auth, ciphermode);
-		if (err < 0) {
-			kzfree(authenc);
-			return err;
-		}
-		ciphermode = authenc;
-	}
 
 	cc->cipher_tfm.tfms_aead[0] = crypto_alloc_aead(ciphermode, 0, 0);
 	if (IS_ERR(cc->cipher_tfm.tfms_aead[0])) {
@@ -1907,13 +1886,12 @@ static int crypt_alloc_tfms_aead(struct crypt_config *cc, char *ciphermode)
 		return err;
 	}
 
-	kzfree(authenc);
 	return 0;
 }
 
 static int crypt_alloc_tfms(struct crypt_config *cc, char *ciphermode)
 {
-	if (crypt_integrity_mode(cc))
+	if (crypt_integrity_aead(cc))
 		return crypt_alloc_tfms_aead(cc, ciphermode);
 	else
 		return crypt_alloc_tfms_skcipher(cc, ciphermode);
@@ -1964,13 +1942,13 @@ static int crypt_setkey(struct crypt_config *cc)
 				      subkey_size - cc->key_mac_size,
 				      cc->key_mac_size);
 	for (i = 0; i < cc->tfms_count; i++) {
-		if (crypt_integrity_aead(cc))
-			r = crypto_aead_setkey(cc->cipher_tfm.tfms_aead[i],
-						   cc->key + (i * subkey_size),
-						   subkey_size);
-		else if (crypt_integrity_hmac(cc))
+		if (crypt_integrity_hmac(cc))
 			r = crypto_aead_setkey(cc->cipher_tfm.tfms_aead[i],
 				cc->authenc_key, crypt_authenckey_size(cc));
+		else if (crypt_integrity_aead(cc))
+			r = crypto_aead_setkey(cc->cipher_tfm.tfms_aead[i],
+					       cc->key + (i * subkey_size),
+					       subkey_size);
 		else
 			r = crypto_skcipher_setkey(cc->cipher_tfm.tfms[i],
 						   cc->key + (i * subkey_size),
@@ -2200,18 +2178,10 @@ static int crypt_ctr_ivmode(struct dm_target *ti, const char *ivmode)
 {
 	struct crypt_config *cc = ti->private;
 
-	if (crypt_integrity_mode(cc))
+	if (crypt_integrity_aead(cc))
 		cc->iv_size = crypto_aead_ivsize(any_tfm_aead(cc));
 	else
 		cc->iv_size = crypto_skcipher_ivsize(any_tfm(cc));
-
-	if (crypt_integrity_hmac(cc)) {
-		cc->authenc_key = kmalloc(crypt_authenckey_size(cc), GFP_KERNEL);
-		if (!cc->authenc_key) {
-			ti->error = "Error allocating authenc key space";
-			return -ENOMEM;
-		}
-	}
 
 	if (cc->iv_size)
 		/* at least a 64 bit sector number should fit in our buffer */
@@ -2263,23 +2233,154 @@ static int crypt_ctr_ivmode(struct dm_target *ti, const char *ivmode)
 	return 0;
 }
 
-static int crypt_ctr_cipher(struct dm_target *ti,
-			    char *cipher_in, char *key)
+/*
+ * Workaround to parse cipher algorithm from crypto API spec.
+ * The cc->cipher is currently used only in ESSIV.
+ * This should be probably done by crypto-api calls (once available...)
+ */
+static int crypt_ctr_blkdev_cipher(struct crypt_config *cc)
+{
+	const char *alg_name = NULL;
+	char *start, *end;
+
+	if (crypt_integrity_aead(cc)) {
+		alg_name = crypto_tfm_alg_name(crypto_aead_tfm(any_tfm_aead(cc)));
+		if (!alg_name)
+			return -EINVAL;
+		if (crypt_integrity_hmac(cc)) {
+			alg_name = strchr(alg_name, ',');
+			if (!alg_name)
+				return -EINVAL;
+		}
+		alg_name++;
+	} else {
+		alg_name = crypto_tfm_alg_name(crypto_skcipher_tfm(any_tfm(cc)));
+		if (!alg_name)
+			return -EINVAL;
+	}
+
+	start = strchr(alg_name, '(');
+	end = strchr(alg_name, ')');
+
+	if (!start && !end) {
+		cc->cipher = kstrdup(alg_name, GFP_KERNEL);
+		return cc->cipher ? 0 : -ENOMEM;
+	}
+
+	if (!start || !end || ++start >= end)
+		return -EINVAL;
+
+	cc->cipher = kzalloc(end - start + 1, GFP_KERNEL);
+	if (!cc->cipher)
+		return -ENOMEM;
+
+	strncpy(cc->cipher, start, end - start);
+
+	return 0;
+}
+
+/*
+ * Workaround to parse HMAC algorithm from AEAD crypto API spec.
+ * The HMAC is needed to calculate tag size (HMAC digest size).
+ * This should be probably done by crypto-api calls (once available...)
+ */
+static int crypt_ctr_auth_cipher(struct crypt_config *cc, char *cipher_api)
+{
+	char *start, *end, *mac_alg = NULL;
+	struct crypto_ahash *mac;
+
+	if (!strstarts(cipher_api, "authenc("))
+		return 0;
+
+	start = strchr(cipher_api, '(');
+	end = strchr(cipher_api, ',');
+	if (!start || !end || ++start > end)
+		return -EINVAL;
+
+	mac_alg = kzalloc(end - start + 1, GFP_KERNEL);
+	if (!mac_alg)
+		return -ENOMEM;
+	strncpy(mac_alg, start, end - start);
+
+	mac = crypto_alloc_ahash(mac_alg, 0, 0);
+	kfree(mac_alg);
+
+	if (IS_ERR(mac))
+		return PTR_ERR(mac);
+
+	cc->key_mac_size = crypto_ahash_digestsize(mac);
+	crypto_free_ahash(mac);
+
+	cc->authenc_key = kmalloc(crypt_authenckey_size(cc), GFP_KERNEL);
+	if (!cc->authenc_key)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int crypt_ctr_cipher_new(struct dm_target *ti, char *cipher_in, char *key,
+				char **ivmode, char **ivopts)
 {
 	struct crypt_config *cc = ti->private;
-	char *tmp, *cipher, *chainmode, *ivmode, *ivopts, *keycount;
+	char *tmp, *cipher_api;
+	int ret = -EINVAL;
+
+	cc->tfms_count = 1;
+
+	/*
+	 * New format (capi: prefix)
+	 * capi:cipher_api_spec-iv:ivopts
+	 */
+	tmp = &cipher_in[strlen("capi:")];
+	cipher_api = strsep(&tmp, "-");
+	*ivmode = strsep(&tmp, ":");
+	*ivopts = tmp;
+
+	if (*ivmode && !strcmp(*ivmode, "lmk"))
+		cc->tfms_count = 64;
+
+	cc->key_parts = cc->tfms_count;
+
+	/* Allocate cipher */
+	ret = crypt_alloc_tfms(cc, cipher_api);
+	if (ret < 0) {
+		ti->error = "Error allocating crypto tfm";
+		return ret;
+	}
+
+	/* Alloc AEAD, can be used only in new format. */
+	if (crypt_integrity_aead(cc)) {
+		ret = crypt_ctr_auth_cipher(cc, cipher_api);
+		if (ret < 0) {
+			ti->error = "Invalid AEAD cipher spec";
+			return -ENOMEM;
+		}
+		cc->iv_size = crypto_aead_ivsize(any_tfm_aead(cc));
+	} else
+		cc->iv_size = crypto_skcipher_ivsize(any_tfm(cc));
+
+	ret = crypt_ctr_blkdev_cipher(cc);
+	if (ret < 0) {
+		ti->error = "Cannot allocate cipher string";
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int crypt_ctr_cipher_old(struct dm_target *ti, char *cipher_in, char *key,
+				char **ivmode, char **ivopts)
+{
+	struct crypt_config *cc = ti->private;
+	char *tmp, *cipher, *chainmode, *keycount;
 	char *cipher_api = NULL;
 	int ret = -EINVAL;
 	char dummy;
 
-	if (strchr(cipher_in, '(')) {
+	if (strchr(cipher_in, '(') || crypt_integrity_aead(cc)) {
 		ti->error = "Bad cipher specification";
 		return -EINVAL;
 	}
-
-	cc->cipher_string = kstrdup(cipher_in, GFP_KERNEL);
-	if (!cc->cipher_string)
-		goto bad_mem;
 
 	/*
 	 * Legacy dm-crypt cipher specification
@@ -2303,8 +2404,8 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 		goto bad_mem;
 
 	chainmode = strsep(&tmp, "-");
-	ivopts = strsep(&tmp, "-");
-	ivmode = strsep(&ivopts, ":");
+	*ivopts = strsep(&tmp, "-");
+	*ivmode = strsep(&*ivopts, ":");
 
 	if (tmp)
 		DMWARN("Ignoring unexpected additional cipher options");
@@ -2313,12 +2414,12 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 	 * For compatibility with the original dm-crypt mapping format, if
 	 * only the cipher name is supplied, use cbc-plain.
 	 */
-	if (!chainmode || (!strcmp(chainmode, "plain") && !ivmode)) {
+	if (!chainmode || (!strcmp(chainmode, "plain") && !*ivmode)) {
 		chainmode = "cbc";
-		ivmode = "plain";
+		*ivmode = "plain";
 	}
 
-	if (strcmp(chainmode, "ecb") && !ivmode) {
+	if (strcmp(chainmode, "ecb") && !*ivmode) {
 		ti->error = "IV mechanism required";
 		return -EINVAL;
 	}
@@ -2338,19 +2439,45 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 	ret = crypt_alloc_tfms(cc, cipher_api);
 	if (ret < 0) {
 		ti->error = "Error allocating crypto tfm";
-		goto bad;
+		kfree(cipher_api);
+		return ret;
 	}
+
+	return 0;
+bad_mem:
+	ti->error = "Cannot allocate cipher strings";
+	return -ENOMEM;
+}
+
+static int crypt_ctr_cipher(struct dm_target *ti, char *cipher_in, char *key)
+{
+	struct crypt_config *cc = ti->private;
+	char *ivmode = NULL, *ivopts = NULL;
+	int ret;
+
+	cc->cipher_string = kstrdup(cipher_in, GFP_KERNEL);
+	if (!cc->cipher_string) {
+		ti->error = "Cannot allocate cipher strings";
+		return -ENOMEM;
+	}
+
+	if (strstarts(cipher_in, "capi:"))
+		ret = crypt_ctr_cipher_new(ti, cipher_in, key, &ivmode, &ivopts);
+	else
+		ret = crypt_ctr_cipher_old(ti, cipher_in, key, &ivmode, &ivopts);
+	if (ret)
+		return ret;
 
 	/* Initialize IV */
 	ret = crypt_ctr_ivmode(ti, ivmode);
 	if (ret < 0)
-		goto bad;
+		return ret;
 
 	/* Initialize and set key */
 	ret = crypt_set_key(cc, key);
 	if (ret < 0) {
 		ti->error = "Error decoding and setting key";
-		goto bad;
+		return ret;
 	}
 
 	/* Allocate IV */
@@ -2358,7 +2485,7 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 		ret = cc->iv_gen_ops->ctr(cc, ti, ivopts);
 		if (ret < 0) {
 			ti->error = "Error creating IV";
-			goto bad;
+			return ret;
 		}
 	}
 
@@ -2367,18 +2494,11 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 		ret = cc->iv_gen_ops->init(cc);
 		if (ret < 0) {
 			ti->error = "Error initialising IV";
-			goto bad;
+			return ret;
 		}
 	}
 
-	ret = 0;
-bad:
-	kfree(cipher_api);
 	return ret;
-
-bad_mem:
-	ti->error = "Cannot allocate cipher strings";
-	return -ENOMEM;
 }
 
 static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **argv)
@@ -2424,15 +2544,6 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 			sval = strchr(opt_string + strlen("integrity:"), ':') + 1;
 			if (!strcasecmp(sval, "aead")) {
 				set_bit(CRYPT_MODE_INTEGRITY_AEAD, &cc->cipher_flags);
-			} else  if (!strncasecmp(sval, "hmac(", strlen("hmac("))) {
-				struct crypto_ahash *hmac_tfm = crypto_alloc_ahash(sval, 0, 0);
-				if (IS_ERR(hmac_tfm)) {
-					ti->error = "Error initializing HMAC integrity hash.";
-					return PTR_ERR(hmac_tfm);
-				}
-				cc->key_mac_size = crypto_ahash_digestsize(hmac_tfm);
-				crypto_free_ahash(hmac_tfm);
-				set_bit(CRYPT_MODE_INTEGRITY_HMAC, &cc->cipher_flags);
 			} else  if (strcasecmp(sval, "none")) {
 				ti->error = "Unknown integrity profile";
 				return -EINVAL;
@@ -2495,7 +2606,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (ret < 0)
 		goto bad;
 
-	if (crypt_integrity_mode(cc)) {
+	if (crypt_integrity_aead(cc)) {
 		cc->dmreq_start = sizeof(struct aead_request);
 		cc->dmreq_start += crypto_aead_reqsize(any_tfm_aead(cc));
 		align_mask = crypto_aead_alignmask(any_tfm_aead(cc));
@@ -2572,7 +2683,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 	cc->start = tmpll;
 
-	if (crypt_integrity_mode(cc) || cc->integrity_iv_size) {
+	if (crypt_integrity_aead(cc) || cc->integrity_iv_size) {
 		ret = crypt_integrity_ctr(cc, ti);
 		if (ret)
 			goto bad;
@@ -2670,7 +2781,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 		}
 	}
 
-	if (crypt_integrity_mode(cc))
+	if (crypt_integrity_aead(cc))
 		io->ctx.r.req_aead = (struct aead_request *)(io + 1);
 	else
 		io->ctx.r.req = (struct skcipher_request *)(io + 1);
