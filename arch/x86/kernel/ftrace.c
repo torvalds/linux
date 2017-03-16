@@ -29,6 +29,12 @@
 #include <asm/ftrace.h>
 #include <asm/nops.h>
 
+#if defined(CONFIG_FUNCTION_GRAPH_TRACER) && \
+	!defined(CC_USING_FENTRY) && \
+	!defined(CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE)
+# error The following combination is not supported: ((compiler missing -mfentry) || (CONFIG_X86_32 and !CONFIG_DYNAMIC_FTRACE)) && CONFIG_FUNCTION_GRAPH_TRACER && CONFIG_CC_OPTIMIZE_FOR_SIZE
+#endif
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 int ftrace_arch_code_modify_prepare(void)
