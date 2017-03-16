@@ -1893,6 +1893,8 @@ static void arm_smmu_get_resv_regions(struct device *dev,
 		return;
 
 	list_add_tail(&region->list, head);
+
+	iommu_dma_get_resv_regions(dev, head);
 }
 
 static void arm_smmu_put_resv_regions(struct device *dev,
