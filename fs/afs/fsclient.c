@@ -139,7 +139,7 @@ static void xdr_decode_AFSCallBack(const __be32 **_bp, struct afs_vnode *vnode)
 	vnode->cb_version	= ntohl(*bp++);
 	vnode->cb_expiry	= ntohl(*bp++);
 	vnode->cb_type		= ntohl(*bp++);
-	vnode->cb_expires	= vnode->cb_expiry + get_seconds();
+	vnode->cb_expires	= vnode->cb_expiry + ktime_get_real_seconds();
 	*_bp = bp;
 }
 

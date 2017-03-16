@@ -375,8 +375,8 @@ struct afs_vnode {
 	struct rb_node		server_rb;	/* link in server->fs_vnodes */
 	struct rb_node		cb_promise;	/* link in server->cb_promises */
 	struct work_struct	cb_broken_work;	/* work to be done on callback break */
-	time_t			cb_expires;	/* time at which callback expires */
-	time_t			cb_expires_at;	/* time used to order cb_promise */
+	time64_t		cb_expires;	/* time at which callback expires */
+	time64_t		cb_expires_at;	/* time used to order cb_promise */
 	unsigned		cb_version;	/* callback version */
 	unsigned		cb_expiry;	/* callback expiry time */
 	afs_callback_type_t	cb_type;	/* type of callback */
