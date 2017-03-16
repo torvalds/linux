@@ -1294,6 +1294,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio)
 	int first_clone;
 	int sectors_handled;
 	int max_sectors;
+	sector_t offset;
 
 	/*
 	 * Register the new request and wait if the reconstruction
@@ -1439,13 +1440,13 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio)
 	atomic_set(&r1_bio->behind_remaining, 0);
 
 	first_clone = 1;
+
+	offset = r1_bio->sector - bio->bi_iter.bi_sector;
 	for (i = 0; i < disks; i++) {
 		struct bio *mbio = NULL;
-		sector_t offset;
 		if (!r1_bio->bios[i])
 			continue;
 
-		offset = r1_bio->sector - bio->bi_iter.bi_sector;
 
 		if (first_clone) {
 			/* do behind I/O ?
