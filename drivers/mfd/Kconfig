@@ -121,6 +121,10 @@ config MFD_ATMEL_HLCDC
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
+config MFD_ATMEL_SMC
+	bool
+	select MFD_SYSCON
+
 config MFD_BCM590XX
 	tristate "Broadcom BCM590xx PMUs"
 	select MFD_CORE
