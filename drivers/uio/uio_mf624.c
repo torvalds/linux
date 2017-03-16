@@ -129,11 +129,15 @@ static int mf624_irqcontrol(struct uio_info *info, s32 irq_on)
 
 static int mf624_setup_mem(struct pci_dev *dev, int bar, struct uio_mem *mem, const char *name)
 {
+	resource_size_t start = pci_resource_start(dev, bar);
+	resource_size_t len = pci_resource_len(dev, bar);
+
 	mem->name = name;
-	mem->addr = pci_resource_start(dev, bar);
+	mem->addr = start & PAGE_MASK;
+	mem->offs = start & ~PAGE_MASK;
 	if (!mem->addr)
 		return -ENODEV;
-	mem->size = pci_resource_len(dev, bar);
+	mem->size = ((start & ~PAGE_MASK) + len + PAGE_SIZE - 1) & PAGE_MASK;
 	mem->memtype = UIO_MEM_PHYS;
 	mem->internal_addr = pci_ioremap_bar(dev, bar);
 	if (!mem->internal_addr)
