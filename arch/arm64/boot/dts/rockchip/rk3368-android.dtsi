@@ -40,14 +40,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <dt-bindings/display/rk_fb.h>
-#include <dt-bindings/display/mipi_dsi.h>
-
 / {
-	aliases {
-		lcdc = &lcdc;
-	};
-
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1 firmware_class.path=/system/vendor/firmware";
 	};
@@ -147,76 +140,6 @@
 		status = "disabled";
 	};
 
-	fb {
-		compatible = "rockchip,rk-fb";
-		status = "okay";
-
-		rockchip,disp-mode = <NO_DUAL>;
-		rockchip,uboot-logo-on = <0>;
-
-	};
-
-	screen {
-		compatible = "rockchip,screen";
-		status = "okay";
-
-		#include <dt-bindings/display/screen-timing/lcd-tv080wum-mipi.dtsi>
-	};
-
-	lcdc: lcdc@ff930000 {
-		compatible = "rockchip,rk3368-lcdc";
-		rockchip,grf = <&grf>;
-		rockchip,pmugrf = <&pmugrf>;
-		rockchip,cru = <&cru>;
-		rockchip,prop = <PRMRY>;
-		rockchip,pwr18 = <0>;
-		rockchip,iommu-enabled = <1>;
-		reg = <0x0 0xff930000 0x0 0x10000>;
-		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
-		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
-		assigned-clocks = <&cru ACLK_VOP>;
-		assigned-clock-rates = <400000000>;
-		power-domains = <&power RK3368_PD_VIO>;
-		resets = <&cru SRST_LCDC0_AXI>, <&cru SRST_LCDC0_AHB>, <&cru SRST_LCDC0_DCLK>;
-		reset-names = "axi", "ahb", "dclk";
-	};
-
-	mipi: mipi@ff960000 {
-		compatible = "rockchip,rk3368-dsi";
-		rockchip,prop = <0>;
-		reg = <0x0 0xff960000 0x0 0x4000>, <0x0 0xff968000 0x0 0x4000>;
-		reg-names = "mipi_dsi_host" ,"mipi_dsi_phy";
-		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX0>, <&cru PCLK_MIPI_DSI0>;
-		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pclk_mipi_dsi_host";
-		power-domains = <&power RK3368_PD_VIO>;
-	};
-
-	lvds: lvds@ff968000 {
-		compatible = "rockchip,rk3368-lvds";
-		rockchip,grf = <&grf>;
-		reg = <0x0 0xff968000 0x0 0x4000>, <0x0 0xff9600a0 0x0 0x20>;
-		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
-		clocks = <&cru PCLK_DPHYTX0>, <&cru PCLK_MIPI_DSI0>;
-		clock-names = "pclk_lvds", "pclk_lvds_ctl";
-		power-domains = <&power RK3368_PD_VIO>;
-		status = "disabled";
-	};
-
-	edp: edp@ff970000 {
-		compatible = "rockchip,rk32-edp";
-		reg = <0x0 0xff970000 0x0 0x4000>;
-		rockchip,grf = <&grf>;
-		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_EDP>, <&cru SCLK_EDP_24M>, <&cru PCLK_EDP_CTRL>;
-		clock-names = "clk_edp", "clk_edp_24m", "pclk_edp";
-		power-domains = <&power RK3368_PD_VIO>;
-		resets = <&cru SRST_EDP_24M>, <&cru SRST_EDP>;
-		reset-names = "edp_24m", "edp_apb";
-		status = "disabled";
-	};
-
 	hdmi: hdmi@ff980000 {
 		compatible = "rockchip,rk3368-hdmi";
 		reg = <0x0 0xff980000 0x0 0x20000>;
@@ -232,65 +155,6 @@
 		pinctrl-0 = <&hdmii2c_xfer &hdmi_cec>;
 		pinctrl-1 = <&i2c5_gpio>;
 		status = "okay";
-	};
-
-	iep-mmu {
-		dbgname = "iep";
-		compatible = "rockchip,iep_mmu";
-		reg = <0x0 0xff900800 0x0 0x100>;
-		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "iep_mmu";
-	};
-
-	vip-mmu {
-		dbgname = "vip";
-		compatible = "rockchip,vip_mmu";
-		reg = <0x0 0xff950800 0x0 0x100>;
-		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "vip_mmu";
-	};
-
-	vopb-mmu {
-		dbgname = "vop";
-		compatible = "rockchip,vopb_mmu";
-		reg = <0x0 0xff930300 0x0 0x100>;
-		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "vop_mmu";
-	};
-
-	isp-mmu {
-		dbgname = "isp_mmu";
-		compatible = "rockchip,isp_mmu";
-		reg = <0x0 0xff914000 0x0 0x100>,
-		      <0x0 0xff915000 0x0 0x100>;
-		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "isp_mmu";
-	};
-
-	hdcp-mmu {
-		dbgname = "hdcp_mmu";
-		compatible = "rockchip,hdcp_mmu";
-		reg = <0x0 0xff940000 0x0 0x100>;
-		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "hdcp_mmu";
-	};
-
-	hevc-mmu {
-		dbgname = "hevc";
-		compatible = "rockchip,hevc_mmu";
-		reg = <0x0 0xff9a0440 0x0 0x40>,
-		      <0x0 0xff9a0480 0x0 0x40>;
-		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "hevc_mmu";
-	};
-
-	vpu-mmu {
-		dbgname = "vpu";
-		compatible = "rockchip,vpu_mmu";
-		reg = <0x0 0xff9a0800 0x0 0x100>;
-		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "vepu_mmu", "vdpu_mmu";
 	};
 
 	dwc_control_usb: dwc-control-usb {
@@ -342,34 +206,6 @@
 	rockchip,usb-mode = <0>;
 };
 
-&lcdc {
-	status = "okay";
-	backlight = <&backlight>;
-	rockchip,mirror = <NO_MIRROR>;
-	rockchip,cabc_mode = <0>;
-	rockchip,fb-win-map = <FB_DEFAULT_ORDER>;
-	power_ctr: power_ctr {
-		rockchip,debug = <0>;
-		lcd_en: lcd-en {
-			rockchip,power_type = <GPIO>;
-			gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;/*GPIO_C6 = 22*/
-			rockchip,delay = <120>;
-		};
-
-		lcd_cs: lcd-cs {
-			rockchip,power_type = <GPIO>;
-			gpios = <&gpio0 21 GPIO_ACTIVE_HIGH>;/*GPIO_C5 = 21*/
-			rockchip,delay = <10>;
-		};
-
-		/*lcd_rst: lcd-rst {
-			rockchip,power_type = <GPIO>;
-			gpios = <&gpio3 GPIO_D6 GPIO_ACTIVE_HIGH>;
-			rockchip,delay = <5>;
-		};*/
-	};
-};
-
 &pinctrl {
 	hdmi_i2c {
 		hdmii2c_xfer: hdmii2c-xfer {
@@ -388,52 +224,6 @@
 		i2c5_gpio: i2c5-gpio {
 			rockchip,pins = <3 26 RK_FUNC_GPIO &pcfg_pull_none>,
 					<3 27 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	lcdc {
-		lcdc_lcdc: lcdc-lcdc {
-			rockchip,pins =
-					<0 14 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D10
-					<0 15 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D11
-					<0 16 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D12
-					<0 17 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D13
-					<0 18 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D14
-					<0 18 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D15
-					<0 20 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D16
-					<0 21 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D17
-					<0 22 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D18
-					<0 23 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D19
-					<0 24 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D20
-					<0 25 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D21
-					<0 26 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D22
-					<0 27 RK_FUNC_1 &pcfg_pull_none>,//LCDC_D23
-					<0 31 RK_FUNC_1 &pcfg_pull_none>,//DCLK
-					<0 30 RK_FUNC_1 &pcfg_pull_none>,//DEN
-					<0 28 RK_FUNC_1 &pcfg_pull_none>,//HSYNC
-					<0 29 RK_FUNC_1 &pcfg_pull_none>;//VSYN
-		};
-
-		lcdc_gpio: lcdc-gpio {
-			rockchip,pins =
-					<0 14 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D10
-					<0 15 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D11
-					<0 16 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D12
-					<0 17 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D13
-					<0 18 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D14
-					<0 19 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D15
-					<0 20 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D16
-					<0 21 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D17
-					<0 22 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D18
-					<0 23 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D19
-					<0 24 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D20
-					<0 25 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D21
-					<0 26 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D22
-					<0 27 RK_FUNC_GPIO &pcfg_pull_none>,//LCDC_D23
-					<0 31 RK_FUNC_GPIO &pcfg_pull_none>,//DCLK
-					<0 30 RK_FUNC_GPIO &pcfg_pull_none>,//DEN
-					<0 28 RK_FUNC_GPIO &pcfg_pull_none>,//HSYNC
-					<0 29 RK_FUNC_GPIO &pcfg_pull_none>;//VSYN
 		};
 	};
 
