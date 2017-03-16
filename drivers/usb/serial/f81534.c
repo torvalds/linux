@@ -634,7 +634,7 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 	if (status) {
 		dev_err(&serial->interface->dev, "%s: find idx failed: %d\n",
 				__func__, status);
-		return 0;
+		return status;
 	}
 
 	/*
@@ -650,7 +650,7 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 			dev_err(&serial->interface->dev,
 					"%s: get custom data failed: %d\n",
 					__func__, status);
-			return 0;
+			return status;
 		}
 
 		dev_dbg(&serial->interface->dev,
@@ -666,7 +666,7 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 			dev_err(&serial->interface->dev,
 					"%s: read failed: %d\n", __func__,
 					status);
-			return 0;
+			return status;
 		}
 
 		dev_dbg(&serial->interface->dev, "%s: read default config\n",
