@@ -2392,7 +2392,7 @@ void amdgpu_dm_atomic_commit_tail(
 	}
 
 	/* DC is optimized not to do anything if 'streams' didn't change. */
-	dc_commit_streams(dm->dc, commit_streams, commit_streams_count);
+	WARN_ON(!dc_commit_streams(dm->dc, commit_streams, commit_streams_count));
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
@@ -2858,6 +2858,8 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		ret = drm_atomic_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
+
+		ret = -EINVAL;
 	}
 
 	for (i = 0; i < set_count; i++) {
