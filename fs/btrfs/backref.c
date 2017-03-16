@@ -26,6 +26,11 @@
 #include "delayed-ref.h"
 #include "locking.h"
 
+enum merge_mode {
+	MERGE_IDENTICAL_KEYS = 1,
+	MERGE_IDENTICAL_PARENTS,
+};
+
 /* Just an arbitrary number so we can be sure this happened */
 #define BACKREF_FOUND_SHARED 6
 
@@ -809,14 +814,12 @@ static int __add_missing_keys(struct btrfs_fs_info *fs_info,
 /*
  * merge backrefs and adjust counts accordingly
  *
- * mode = 1: merge identical keys, if key is set
- *    FIXME: if we add more keys in __add_prelim_ref, we can merge more here.
- *           additionally, we could even add a key range for the blocks we
- *           looked into to merge even more (-> replace unresolved refs by those
- *           having a parent).
- * mode = 2: merge identical parents
+ *    FIXME: For MERGE_IDENTICAL_KEYS, if we add more keys in __add_prelim_ref
+ *           then we can merge more here. Additionally, we could even add a key
+ *           range for the blocks we looked into to merge even more (-> replace
+ *           unresolved refs by those having a parent).
  */
-static void __merge_refs(struct list_head *head, int mode)
+static void __merge_refs(struct list_head *head, enum merge_mode mode)
 {
 	struct __prelim_ref *pos1;
 
@@ -829,7 +832,7 @@ static void __merge_refs(struct list_head *head, int mode)
 
 			if (!ref_for_same_block(ref1, ref2))
 				continue;
-			if (mode == 1) {
+			if (mode == MERGE_IDENTICAL_KEYS) {
 				if (!ref1->parent && ref2->parent)
 					swap(ref1, ref2);
 			} else {
@@ -1374,7 +1377,7 @@ again:
 	if (ret)
 		goto out;
 
-	__merge_refs(&prefs, 1);
+	__merge_refs(&prefs, MERGE_IDENTICAL_KEYS);
 
 	ret = __resolve_indirect_refs(fs_info, path, time_seq, &prefs,
 				      extent_item_pos, total_refs,
@@ -1382,7 +1385,7 @@ again:
 	if (ret)
 		goto out;
 
-	__merge_refs(&prefs, 2);
+	__merge_refs(&prefs, MERGE_IDENTICAL_PARENTS);
 
 	while (!list_empty(&prefs)) {
 		ref = list_first_entry(&prefs, struct __prelim_ref, list);
