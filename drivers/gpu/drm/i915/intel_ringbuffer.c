@@ -1445,6 +1445,7 @@ static int intel_ring_context_pin(struct intel_engine_cs *engine,
 
 	if (ce->pin_count++)
 		return 0;
+	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
 
 	if (ce->state) {
 		ret = context_pin(ctx);
