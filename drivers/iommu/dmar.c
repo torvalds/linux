@@ -551,7 +551,7 @@ static int __init dmar_table_detect(void)
 		status = AE_NOT_FOUND;
 	}
 
-	return (ACPI_SUCCESS(status) ? 1 : 0);
+	return ACPI_SUCCESS(status) ? 0 : -ENOENT;
 }
 
 static int dmar_walk_remapping_entries(struct acpi_dmar_header *start,
@@ -891,17 +891,17 @@ int __init detect_intel_iommu(void)
 
 	down_write(&dmar_global_lock);
 	ret = dmar_table_detect();
-	if (ret)
-		ret = !dmar_walk_dmar_table((struct acpi_table_dmar *)dmar_tbl,
-					    &validate_drhd_cb);
-	if (ret && !no_iommu && !iommu_detected && !dmar_disabled) {
+	if (!ret)
+		ret = dmar_walk_dmar_table((struct acpi_table_dmar *)dmar_tbl,
+					   &validate_drhd_cb);
+	if (!ret && !no_iommu && !iommu_detected && !dmar_disabled) {
 		iommu_detected = 1;
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
 	}
 
 #ifdef CONFIG_X86
-	if (ret)
+	if (!ret)
 		x86_init.iommu.iommu_init = intel_iommu_init;
 #endif
 
@@ -911,9 +911,8 @@ int __init detect_intel_iommu(void)
 	}
 	up_write(&dmar_global_lock);
 
-	return ret ? 1 : -ENODEV;
+	return ret ? ret : 1;
 }
-
 
 static void unmap_iommu(struct intel_iommu *iommu)
 {
