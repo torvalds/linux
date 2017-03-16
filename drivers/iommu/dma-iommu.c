@@ -112,8 +112,7 @@ static void iova_reserve_pci_windows(struct pci_dev *dev,
 	unsigned long lo, hi;
 
 	resource_list_for_each_entry(window, &bridge->windows) {
-		if (resource_type(window->res) != IORESOURCE_MEM &&
-		    resource_type(window->res) != IORESOURCE_IO)
+		if (resource_type(window->res) != IORESOURCE_MEM)
 			continue;
 
 		lo = iova_pfn(iovad, window->res->start - window->offset);
