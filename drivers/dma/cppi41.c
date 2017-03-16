@@ -420,11 +420,9 @@ static enum dma_status cppi41_dma_tx_status(struct dma_chan *chan,
 	struct cppi41_channel *c = to_cpp41_chan(chan);
 	enum dma_status ret;
 
-	/* lock */
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (txstate && ret == DMA_COMPLETE)
-		txstate->residue = c->residue;
-	/* unlock */
+
+	dma_set_residue(txstate, c->residue);
 
 	return ret;
 }
