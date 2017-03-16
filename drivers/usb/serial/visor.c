@@ -42,10 +42,11 @@ static int  visor_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
 static int  visor_calc_num_ports(struct usb_serial *serial,
 					struct usb_serial_endpoints *epds);
+static int  clie_5_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds);
 static void visor_read_int_callback(struct urb *urb);
 static int  clie_3_5_startup(struct usb_serial *serial);
 static int  treo_attach(struct usb_serial *serial);
-static int clie_5_attach(struct usb_serial *serial);
 static int palm_os_3_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
 static int palm_os_4_probe(struct usb_serial *serial,
@@ -190,13 +191,14 @@ static struct usb_serial_driver clie_5_device = {
 	.description =		"Sony Clie 5.0",
 	.id_table =		clie_id_5_table,
 	.num_ports =		2,
+	.num_bulk_out =		2,
 	.bulk_out_size =	256,
 	.open =			visor_open,
 	.close =		visor_close,
 	.throttle =		usb_serial_generic_throttle,
 	.unthrottle =		usb_serial_generic_unthrottle,
-	.attach =		clie_5_attach,
 	.probe =		visor_probe,
+	.calc_num_ports =	clie_5_calc_num_ports,
 	.read_int_callback =	visor_read_int_callback,
 };
 
@@ -477,6 +479,25 @@ static int visor_calc_num_ports(struct usb_serial *serial,
 	return num_ports;
 }
 
+static int clie_5_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
+{
+	/*
+	 * TH55 registers 2 ports.
+	 * Communication in from the UX50/TH55 uses the first bulk-in
+	 * endpoint, while communication out to the UX50/TH55 uses the second
+	 * bulk-out endpoint.
+	 */
+
+	/*
+	 * FIXME: Should we swap the descriptors instead of using the same
+	 *        bulk-out endpoint for both ports?
+	 */
+	epds->bulk_out[0] = epds->bulk_out[1];
+
+	return serial->type->num_ports;
+}
+
 static int clie_3_5_startup(struct usb_serial *serial)
 {
 	struct device *dev = &serial->dev->dev;
@@ -584,38 +605,6 @@ static int treo_attach(struct usb_serial *serial)
 	COPY_PORT(serial->port[0], serial->port[1]);
 	COPY_PORT(serial->port[1], swap_port);
 	kfree(swap_port);
-
-	return 0;
-}
-
-static int clie_5_attach(struct usb_serial *serial)
-{
-	struct usb_serial_port *port;
-	unsigned int pipe;
-	int j;
-
-	/* TH55 registers 2 ports.
-	   Communication in from the UX50/TH55 uses bulk_in_endpointAddress
-	   from port 0. Communication out to the UX50/TH55 uses
-	   bulk_out_endpointAddress from port 1
-
-	   Lets do a quick and dirty mapping
-	 */
-
-	/* some sanity check */
-	if (serial->num_bulk_out < 2) {
-		dev_err(&serial->interface->dev, "missing bulk out endpoints\n");
-		return -ENODEV;
-	}
-
-	/* port 0 now uses the modified endpoint Address */
-	port = serial->port[0];
-	port->bulk_out_endpointAddress =
-				serial->port[1]->bulk_out_endpointAddress;
-
-	pipe = usb_sndbulkpipe(serial->dev, port->bulk_out_endpointAddress);
-	for (j = 0; j < ARRAY_SIZE(port->write_urbs); ++j)
-		port->write_urbs[j]->pipe = pipe;
 
 	return 0;
 }
