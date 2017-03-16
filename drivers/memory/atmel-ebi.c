@@ -507,6 +507,8 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 	if (!ebi)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, ebi);
+
 	INIT_LIST_HEAD(&ebi->devs);
 	ebi->caps = match->data;
 	ebi->dev = dev;
@@ -579,10 +581,28 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 	return of_platform_populate(np, NULL, NULL, dev);
 }
 
+static int atmel_ebi_resume(struct device *dev)
+{
+	struct atmel_ebi *ebi = dev_get_drvdata(dev);
+	struct atmel_ebi_dev *ebid;
+
+	list_for_each_entry(ebid, &ebi->devs, node) {
+		int i;
+
+		for (i = 0; i < ebid->numcs; i++)
+			ebid->ebi->caps->apply_config(ebid, &ebid->configs[i]);
+	}
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(atmel_ebi_pm_ops, NULL, atmel_ebi_resume);
+
 static struct platform_driver atmel_ebi_driver = {
 	.driver = {
 		.name = "atmel-ebi",
 		.of_match_table	= atmel_ebi_id_table,
+		.pm = &atmel_ebi_pm_ops,
 	},
 };
 builtin_platform_driver_probe(atmel_ebi_driver, atmel_ebi_probe);
