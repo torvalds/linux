@@ -1216,9 +1216,6 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 			pte_protnone(pte) || (write && !pte_write(pte)))
 			goto pte_unmap;
 
-		if (!arch_pte_access_permitted(pte, write))
-			goto pte_unmap;
-
 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
 		page = pte_page(pte);
 		head = compound_head(page);
