@@ -130,7 +130,7 @@ struct afs_call_type {
  */
 struct afs_read {
 	loff_t			pos;		/* Where to start reading */
-	loff_t			len;		/* How much to read */
+	loff_t			len;		/* How much we're asking for */
 	loff_t			actual_len;	/* How much we're actually getting */
 	atomic_t		usage;
 	unsigned int		remain;		/* Amount remaining */

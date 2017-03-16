@@ -84,10 +84,9 @@ void afs_put_writeback(struct afs_writeback *wb)
  * partly or wholly fill a page that's under preparation for writing
  */
 static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
-			 loff_t pos, struct page *page)
+			 loff_t pos, unsigned int len, struct page *page)
 {
 	struct afs_read *req;
-	loff_t i_size;
 	int ret;
 
 	_enter(",,%llu", (unsigned long long)pos);
@@ -99,15 +98,10 @@ static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
 
 	atomic_set(&req->usage, 1);
 	req->pos = pos;
+	req->len = len;
 	req->nr_pages = 1;
 	req->pages[0] = page;
 	get_page(page);
-
-	i_size = i_size_read(&vnode->vfs_inode);
-	if (pos + PAGE_SIZE > i_size)
-		req->len = i_size - pos;
-	else
-		req->len = PAGE_SIZE;
 
 	ret = afs_vnode_fetch_data(vnode, key, req);
 	afs_put_read(req);
@@ -164,7 +158,7 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 	/* page won't leak in error case: it eventually gets cleaned off LRU */
 
 	if (!PageUptodate(page) && len != PAGE_SIZE) {
-		ret = afs_fill_page(vnode, key, index << PAGE_SHIFT, page);
+		ret = afs_fill_page(vnode, key, pos & PAGE_MASK, PAGE_SIZE, page);
 		if (ret < 0) {
 			kfree(candidate);
 			_leave(" = %d [prep]", ret);
@@ -258,7 +252,9 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 		  struct page *page, void *fsdata)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
+	struct key *key = file->private_data;
 	loff_t i_size, maybe_i_size;
+	int ret;
 
 	_enter("{%x:%u},{%lx}",
 	       vnode->fid.vid, vnode->fid.vnode, page->index);
@@ -272,6 +268,20 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 		if (maybe_i_size > i_size)
 			i_size_write(&vnode->vfs_inode, maybe_i_size);
 		spin_unlock(&vnode->writeback_lock);
+	}
+
+	if (!PageUptodate(page)) {
+		if (copied < len) {
+			/* Try and load any missing data from the server.  The
+			 * unmarshalling routine will take care of clearing any
+			 * bits that are beyond the EOF.
+			 */
+			ret = afs_fill_page(vnode, key, pos + copied,
+					    len - copied, page);
+			if (ret < 0)
+				return ret;
+		}
+		SetPageUptodate(page);
 	}
 
 	set_page_dirty(page);
