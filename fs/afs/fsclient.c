@@ -390,9 +390,9 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		if (call->offset == PAGE_SIZE) {
 			if (req->page_done)
 				req->page_done(call, req);
+			req->index++;
 			if (req->remain > 0) {
 				call->offset = 0;
-				req->index++;
 				if (req->index >= req->nr_pages) {
 					call->unmarshall = 4;
 					goto begin_discard;
