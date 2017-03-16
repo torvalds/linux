@@ -135,7 +135,6 @@ struct afs_read {
 	atomic_t		usage;
 	unsigned int		remain;		/* Amount remaining */
 	unsigned int		index;		/* Which page we're reading into */
-	unsigned int		pg_offset;	/* Offset in page we're at */
 	unsigned int		nr_pages;
 	void (*page_done)(struct afs_call *, struct afs_read *);
 	struct page		*pages[];
