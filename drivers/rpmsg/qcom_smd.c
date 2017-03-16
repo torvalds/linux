@@ -969,6 +969,14 @@ static const struct rpmsg_endpoint_ops qcom_smd_endpoint_ops = {
 	.poll = qcom_smd_poll,
 };
 
+static void qcom_smd_release_device(struct device *dev)
+{
+	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
+	struct qcom_smd_device *qsdev = to_smd_device(rpdev);
+
+	kfree(qsdev);
+}
+
 /*
  * Create a smd client device for channel that is being opened.
  */
@@ -998,6 +1006,7 @@ static int qcom_smd_create_device(struct qcom_smd_channel *channel)
 
 	rpdev->dev.of_node = qcom_smd_match_channel(edge->of_node, channel->name);
 	rpdev->dev.parent = &edge->dev;
+	rpdev->dev.release = qcom_smd_release_device;
 
 	return rpmsg_register_device(rpdev);
 }
@@ -1013,6 +1022,8 @@ static int qcom_smd_create_chrdev(struct qcom_smd_edge *edge)
 	qsdev->edge = edge;
 	qsdev->rpdev.ops = &qcom_smd_device_ops;
 	qsdev->rpdev.dev.parent = &edge->dev;
+	qsdev->rpdev.dev.release = qcom_smd_release_device;
+
 	return rpmsg_chrdev_register_device(&qsdev->rpdev);
 }
 
