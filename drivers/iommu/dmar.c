@@ -311,7 +311,7 @@ static int dmar_pci_bus_add_dev(struct dmar_pci_notify_info *info)
 				((void *)drhd) + drhd->header.length,
 				dmaru->segment,
 				dmaru->devices, dmaru->devices_cnt);
-		if (ret != 0)
+		if (ret)
 			break;
 	}
 	if (ret >= 0)
