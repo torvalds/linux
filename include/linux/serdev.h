@@ -165,7 +165,7 @@ static inline void serdev_controller_write_wakeup(struct serdev_controller *ctrl
 	if (!serdev || !serdev->ops->write_wakeup)
 		return;
 
-	serdev->ops->write_wakeup(ctrl->serdev);
+	serdev->ops->write_wakeup(serdev);
 }
 
 static inline int serdev_controller_receive_buf(struct serdev_controller *ctrl,
@@ -177,7 +177,7 @@ static inline int serdev_controller_receive_buf(struct serdev_controller *ctrl,
 	if (!serdev || !serdev->ops->receive_buf)
 		return -EINVAL;
 
-	return serdev->ops->receive_buf(ctrl->serdev, data, count);
+	return serdev->ops->receive_buf(serdev, data, count);
 }
 
 #if IS_ENABLED(CONFIG_SERIAL_DEV_BUS)
