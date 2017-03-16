@@ -299,10 +299,14 @@ static void afs_kill_pages(struct afs_vnode *vnode, bool error,
 		ASSERTCMP(pv.nr, ==, count);
 
 		for (loop = 0; loop < count; loop++) {
-			ClearPageUptodate(pv.pages[loop]);
+			struct page *page = pv.pages[loop];
+			ClearPageUptodate(page);
 			if (error)
-				SetPageError(pv.pages[loop]);
-			end_page_writeback(pv.pages[loop]);
+				SetPageError(page);
+			if (PageWriteback(page))
+				end_page_writeback(page);
+			if (page->index >= first)
+				first = page->index + 1;
 		}
 
 		__pagevec_release(&pv);
