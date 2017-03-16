@@ -391,7 +391,7 @@ static int dmar_parse_one_drhd(struct acpi_dmar_header *header, void *arg)
 {
 	struct acpi_dmar_hardware_unit *drhd;
 	struct dmar_drhd_unit *dmaru;
-	int ret = 0;
+	int ret;
 
 	drhd = (struct acpi_dmar_hardware_unit *)header;
 	dmaru = dmar_find_dmaru(drhd);
@@ -609,8 +609,8 @@ static int __init
 parse_dmar_table(void)
 {
 	struct acpi_table_dmar *dmar;
-	int ret = 0;
 	int drhd_count = 0;
+	int ret;
 	struct dmar_res_callback cb = {
 		.print_entry = true,
 		.ignore_unhandled = true,
