@@ -518,17 +518,16 @@ static int afs_writepages_region(struct address_space *mapping,
 		 */
 		lock_page(page);
 
-		if (page->mapping != mapping) {
+		if (page->mapping != mapping || !PageDirty(page)) {
 			unlock_page(page);
 			put_page(page);
 			continue;
 		}
 
-		if (wbc->sync_mode != WB_SYNC_NONE)
-			wait_on_page_writeback(page);
-
-		if (PageWriteback(page) || !PageDirty(page)) {
+		if (PageWriteback(page)) {
 			unlock_page(page);
+			if (wbc->sync_mode != WB_SYNC_NONE)
+				wait_on_page_writeback(page);
 			put_page(page);
 			continue;
 		}
