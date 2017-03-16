@@ -290,6 +290,7 @@ static int mvebu_gpio_direction_output(struct gpio_chip *chip, unsigned int pin,
 static int mvebu_gpio_to_irq(struct gpio_chip *chip, unsigned int pin)
 {
 	struct mvebu_gpio_chip *mvchip = gpiochip_get_data(chip);
+
 	return irq_create_mapping(mvchip->domain, pin);
 }
 
