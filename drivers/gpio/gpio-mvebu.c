@@ -99,35 +99,32 @@ struct mvebu_gpio_chip {
  * Functions returning addresses of individual registers for a given
  * GPIO controller.
  */
-static inline void __iomem *mvebu_gpioreg_out(struct mvebu_gpio_chip *mvchip)
+static void __iomem *mvebu_gpioreg_out(struct mvebu_gpio_chip *mvchip)
 {
 	return mvchip->membase + GPIO_OUT_OFF;
 }
 
-static inline void __iomem *mvebu_gpioreg_blink(struct mvebu_gpio_chip *mvchip)
+static void __iomem *mvebu_gpioreg_blink(struct mvebu_gpio_chip *mvchip)
 {
 	return mvchip->membase + GPIO_BLINK_EN_OFF;
 }
 
-static inline void __iomem *
-mvebu_gpioreg_io_conf(struct mvebu_gpio_chip *mvchip)
+static void __iomem *mvebu_gpioreg_io_conf(struct mvebu_gpio_chip *mvchip)
 {
 	return mvchip->membase + GPIO_IO_CONF_OFF;
 }
 
-static inline void __iomem *mvebu_gpioreg_in_pol(struct mvebu_gpio_chip *mvchip)
+static void __iomem *mvebu_gpioreg_in_pol(struct mvebu_gpio_chip *mvchip)
 {
 	return mvchip->membase + GPIO_IN_POL_OFF;
 }
 
-static inline void __iomem *
-mvebu_gpioreg_data_in(struct mvebu_gpio_chip *mvchip)
+static void __iomem *mvebu_gpioreg_data_in(struct mvebu_gpio_chip *mvchip)
 {
 	return mvchip->membase + GPIO_DATA_IN_OFF;
 }
 
-static inline void __iomem *
-mvebu_gpioreg_edge_cause(struct mvebu_gpio_chip *mvchip)
+static void __iomem *mvebu_gpioreg_edge_cause(struct mvebu_gpio_chip *mvchip)
 {
 	int cpu;
 
@@ -144,8 +141,7 @@ mvebu_gpioreg_edge_cause(struct mvebu_gpio_chip *mvchip)
 	}
 }
 
-static inline void __iomem *
-mvebu_gpioreg_edge_mask(struct mvebu_gpio_chip *mvchip)
+static void __iomem *mvebu_gpioreg_edge_mask(struct mvebu_gpio_chip *mvchip)
 {
 	int cpu;
 
