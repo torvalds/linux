@@ -62,9 +62,11 @@
 #define GPIO_EDGE_MASK_MV78200_OFF(cpu)	  ((cpu) ? 0x30 : 0x18)
 #define GPIO_LEVEL_MASK_MV78200_OFF(cpu)  ((cpu) ? 0x34 : 0x1C)
 
-/* The Armada XP has per-CPU registers for interrupt cause, interrupt
+/*
+ * The Armada XP has per-CPU registers for interrupt cause, interrupt
  * mask and interrupt level mask. Those are relative to the
- * percpu_membase. */
+ * percpu_membase.
+ */
 #define GPIO_EDGE_CAUSE_ARMADAXP_OFF(cpu) ((cpu) * 0x4)
 #define GPIO_EDGE_MASK_ARMADAXP_OFF(cpu)  (0x10 + (cpu) * 0x4)
 #define GPIO_LEVEL_MASK_ARMADAXP_OFF(cpu) (0x20 + (cpu) * 0x4)
@@ -239,8 +241,10 @@ static int mvebu_gpio_direction_input(struct gpio_chip *chip, unsigned pin)
 	int ret;
 	u32 u;
 
-	/* Check with the pinctrl driver whether this pin is usable as
-	 * an input GPIO */
+	/*
+	 * Check with the pinctrl driver whether this pin is usable as
+	 * an input GPIO
+	 */
 	ret = pinctrl_gpio_direction_input(chip->base + pin);
 	if (ret)
 		return ret;
@@ -262,8 +266,10 @@ static int mvebu_gpio_direction_output(struct gpio_chip *chip, unsigned pin,
 	int ret;
 	u32 u;
 
-	/* Check with the pinctrl driver whether this pin is usable as
-	 * an output GPIO */
+	/*
+	 * Check with the pinctrl driver whether this pin is usable as
+	 * an output GPIO
+	 */
 	ret = pinctrl_gpio_direction_output(chip->base + pin);
 	if (ret)
 		return ret;
@@ -712,8 +718,10 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(mvchip->membase))
 		return PTR_ERR(mvchip->membase);
 
-	/* The Armada XP has a second range of registers for the
-	 * per-CPU registers */
+	/*
+	 * The Armada XP has a second range of registers for the
+	 * per-CPU registers
+	 */
 	if (soc_variant == MVEBU_GPIO_SOC_VARIANT_ARMADAXP) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		mvchip->percpu_membase = devm_ioremap_resource(&pdev->dev,
