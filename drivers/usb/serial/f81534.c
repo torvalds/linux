@@ -611,7 +611,8 @@ static int f81534_find_config_idx(struct usb_serial *serial, u8 *index)
  * The f81534_calc_num_ports() will run to "new style" with checking
  * F81534_PORT_UNAVAILABLE section.
  */
-static int f81534_calc_num_ports(struct usb_serial *serial)
+static int f81534_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
 	u8 setting[F81534_CUSTOM_DATA_SIZE];
 	u8 setting_idx;

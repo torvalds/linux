@@ -40,7 +40,8 @@ static int  visor_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void visor_close(struct usb_serial_port *port);
 static int  visor_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
-static int  visor_calc_num_ports(struct usb_serial *serial);
+static int  visor_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds);
 static void visor_read_int_callback(struct urb *urb);
 static int  clie_3_5_startup(struct usb_serial *serial);
 static int  treo_attach(struct usb_serial *serial);
@@ -466,7 +467,8 @@ static int visor_probe(struct usb_serial *serial,
 	return retval;
 }
 
-static int visor_calc_num_ports(struct usb_serial *serial)
+static int visor_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
 	int num_ports = (int)(long)(usb_get_serial_data(serial));
 

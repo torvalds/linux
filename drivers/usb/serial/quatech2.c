@@ -246,7 +246,8 @@ static inline int update_mctrl(struct qt2_port_private *port_priv,
 	return status;
 }
 
-static int qt2_calc_num_ports(struct usb_serial *serial)
+static int qt2_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
 	struct qt2_device_detail d;
 	int i;

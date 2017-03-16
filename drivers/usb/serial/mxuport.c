@@ -946,7 +946,8 @@ out:
  * Determine how many ports this device has dynamically.  It will be
  * called after the probe() callback is called, but before attach().
  */
-static int mxuport_calc_num_ports(struct usb_serial *serial)
+static int mxuport_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
 	unsigned long features = (unsigned long)usb_get_serial_data(serial);
 

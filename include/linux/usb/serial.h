@@ -181,6 +181,17 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
 	serial->private = data;
 }
 
+struct usb_serial_endpoints {
+	unsigned char num_bulk_in;
+	unsigned char num_bulk_out;
+	unsigned char num_interrupt_in;
+	unsigned char num_interrupt_out;
+	struct usb_endpoint_descriptor *bulk_in[MAX_NUM_PORTS];
+	struct usb_endpoint_descriptor *bulk_out[MAX_NUM_PORTS];
+	struct usb_endpoint_descriptor *interrupt_in[MAX_NUM_PORTS];
+	struct usb_endpoint_descriptor *interrupt_out[MAX_NUM_PORTS];
+};
+
 /**
  * usb_serial_driver - describes a usb serial driver
  * @description: pointer to a string that describes this driver.  This string
@@ -196,8 +207,9 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
  *	(0 = end-point size)
  * @bulk_out_size: bytes to allocate for bulk-out buffer (0 = end-point size)
  * @calc_num_ports: pointer to a function to determine how many ports this
- *	device has dynamically.  It will be called after the probe()
- *	callback is called, but before attach()
+ *	device has dynamically. It can also be used to verify the number of
+ *	endpoints or to modify the port-endpoint mapping. It will be called
+ *	after the probe() callback is called, but before attach().
  * @probe: pointer to the driver's probe function.
  *	This will be called when the device is inserted into the system,
  *	but before the device has been fully initialized by the usb_serial
@@ -249,7 +261,8 @@ struct usb_serial_driver {
 
 	int (*probe)(struct usb_serial *serial, const struct usb_device_id *id);
 	int (*attach)(struct usb_serial *serial);
-	int (*calc_num_ports) (struct usb_serial *serial);
+	int (*calc_num_ports)(struct usb_serial *serial,
+			struct usb_serial_endpoints *epds);
 
 	void (*disconnect)(struct usb_serial *serial);
 	void (*release)(struct usb_serial *serial);

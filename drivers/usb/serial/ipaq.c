@@ -33,7 +33,8 @@ static int initial_wait;
 /* Function prototypes for an ipaq */
 static int  ipaq_open(struct tty_struct *tty,
 			struct usb_serial_port *port);
-static int  ipaq_calc_num_ports(struct usb_serial *serial);
+static int ipaq_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds);
 static int  ipaq_startup(struct usb_serial *serial);
 
 static const struct usb_device_id ipaq_id_table[] = {
@@ -550,7 +551,8 @@ static int ipaq_open(struct tty_struct *tty,
 	return usb_serial_generic_open(tty, port);
 }
 
-static int ipaq_calc_num_ports(struct usb_serial *serial)
+static int ipaq_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
 	/*
 	 * some devices have 3 endpoints, the 3rd of which

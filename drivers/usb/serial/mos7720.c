@@ -973,7 +973,8 @@ static void mos7720_bulk_out_data_callback(struct urb *urb)
 		tty_port_tty_wakeup(&mos7720_port->port->port);
 }
 
-static int mos77xx_calc_num_ports(struct usb_serial *serial)
+static int mos77xx_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
 	u16 product = le16_to_cpu(serial->dev->descriptor.idProduct);
 	if (product == MOSCHIP_DEVICE_ID_7715)

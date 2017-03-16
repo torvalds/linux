@@ -2104,7 +2104,8 @@ out:
 	return 0;
 }
 
-static int mos7840_calc_num_ports(struct usb_serial *serial)
+static int mos7840_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
 	int device_type = (unsigned long)usb_get_serial_data(serial);
 	int mos7840_num_ports;

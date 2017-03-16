@@ -710,17 +710,6 @@ static const struct tty_port_operations serial_port_ops = {
 	.shutdown		= serial_port_shutdown,
 };
 
-struct usb_serial_endpoints {
-	unsigned char num_bulk_in;
-	unsigned char num_bulk_out;
-	unsigned char num_interrupt_in;
-	unsigned char num_interrupt_out;
-	struct usb_endpoint_descriptor *bulk_in[MAX_NUM_PORTS];
-	struct usb_endpoint_descriptor *bulk_out[MAX_NUM_PORTS];
-	struct usb_endpoint_descriptor *interrupt_in[MAX_NUM_PORTS];
-	struct usb_endpoint_descriptor *interrupt_out[MAX_NUM_PORTS];
-};
-
 static void find_endpoints(struct usb_serial *serial,
 					struct usb_serial_endpoints *epds)
 {
@@ -875,8 +864,12 @@ static int usb_serial_probe(struct usb_interface *interface,
 #endif
 	if (!num_ports) {
 		/* if this device type has a calc_num_ports function, call it */
-		if (type->calc_num_ports)
-			num_ports = type->calc_num_ports(serial);
+		if (type->calc_num_ports) {
+			retval = type->calc_num_ports(serial, epds);
+			if (retval < 0)
+				goto err_free_epds;
+			num_ports = retval;
+		}
 		if (!num_ports)
 			num_ports = type->num_ports;
 	}
