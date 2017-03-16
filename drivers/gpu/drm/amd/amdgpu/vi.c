@@ -795,6 +795,8 @@ static int vi_set_uvd_clocks(struct amdgpu_device *adev, u32 vclk, u32 dclk)
 		return r;
 
 	r = vi_set_uvd_clock(adev, dclk, ixCG_DCLK_CNTL, ixCG_DCLK_STATUS);
+	if (r)
+		return r;
 
 	return 0;
 }
