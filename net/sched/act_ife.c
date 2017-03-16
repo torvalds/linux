@@ -603,8 +603,8 @@ nla_put_failure:
 	return -1;
 }
 
-int find_decode_metaid(struct sk_buff *skb, struct tcf_ife_info *ife,
-		       u16 metaid, u16 mlen, void *mdata)
+static int find_decode_metaid(struct sk_buff *skb, struct tcf_ife_info *ife,
+			      u16 metaid, u16 mlen, void *mdata)
 {
 	struct tcf_meta_info *e;
 
