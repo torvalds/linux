@@ -977,8 +977,20 @@ static int mos77xx_calc_num_ports(struct usb_serial *serial,
 					struct usb_serial_endpoints *epds)
 {
 	u16 product = le16_to_cpu(serial->dev->descriptor.idProduct);
-	if (product == MOSCHIP_DEVICE_ID_7715)
+
+	if (product == MOSCHIP_DEVICE_ID_7715) {
+		/*
+		 * The 7715 uses the first bulk in/out endpoint pair for the
+		 * parallel port, and the second for the serial port. We swap
+		 * the endpoint descriptors here so that the the first and
+		 * only registered port structure uses the serial-port
+		 * endpoints.
+		 */
+		swap(epds->bulk_in[0], epds->bulk_in[1]);
+		swap(epds->bulk_out[0], epds->bulk_out[1]);
+
 		return 1;
+	}
 
 	return 2;
 }
@@ -1904,46 +1916,22 @@ static int mos7720_startup(struct usb_serial *serial)
 	product = le16_to_cpu(serial->dev->descriptor.idProduct);
 	dev = serial->dev;
 
-	/*
-	 * The 7715 uses the first bulk in/out endpoint pair for the parallel
-	 * port, and the second for the serial port.  Because the usbserial core
-	 * assumes both pairs are serial ports, we must engage in a bit of
-	 * subterfuge and swap the pointers for ports 0 and 1 in order to make
-	 * port 0 point to the serial port.  However, both moschip devices use a
-	 * single interrupt-in endpoint for both ports (as mentioned a little
-	 * further down), and this endpoint was assigned to port 0.  So after
-	 * the swap, we must copy the interrupt endpoint elements from port 1
-	 * (as newly assigned) to port 0, and null out port 1 pointers.
-	 */
-	if (product == MOSCHIP_DEVICE_ID_7715) {
-		struct usb_serial_port *tmp = serial->port[0];
-		serial->port[0] = serial->port[1];
-		serial->port[1] = tmp;
-		serial->port[0]->interrupt_in_urb = tmp->interrupt_in_urb;
-		serial->port[0]->interrupt_in_buffer = tmp->interrupt_in_buffer;
-		serial->port[0]->interrupt_in_endpointAddress =
-			tmp->interrupt_in_endpointAddress;
-		serial->port[1]->interrupt_in_urb = NULL;
-		serial->port[1]->interrupt_in_buffer = NULL;
-
-		if (serial->port[0]->interrupt_in_urb) {
-			struct urb *urb = serial->port[0]->interrupt_in_urb;
-
-			urb->complete = mos7715_interrupt_callback;
-		}
-	}
-
 	/* setting configuration feature to one */
 	usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			(__u8)0x03, 0x00, 0x01, 0x00, NULL, 0x00, 5000);
 
-#ifdef CONFIG_USB_SERIAL_MOS7715_PARPORT
 	if (product == MOSCHIP_DEVICE_ID_7715) {
+		struct urb *urb = serial->port[0]->interrupt_in_urb;
+
+		if (urb)
+			urb->complete = mos7715_interrupt_callback;
+
+#ifdef CONFIG_USB_SERIAL_MOS7715_PARPORT
 		ret_val = mos7715_parport_init(serial);
 		if (ret_val < 0)
 			return ret_val;
-	}
 #endif
+	}
 	/* start the interrupt urb */
 	ret_val = usb_submit_urb(serial->port[0]->interrupt_in_urb, GFP_KERNEL);
 	if (ret_val) {
