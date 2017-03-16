@@ -133,8 +133,8 @@ struct afs_read {
 	loff_t			pos;		/* Where to start reading */
 	loff_t			len;		/* How much we're asking for */
 	loff_t			actual_len;	/* How much we're actually getting */
+	loff_t			remain;		/* Amount remaining */
 	atomic_t		usage;
-	unsigned int		remain;		/* Amount remaining */
 	unsigned int		index;		/* Which page we're reading into */
 	unsigned int		nr_pages;
 	void (*page_done)(struct afs_call *, struct afs_read *);

@@ -321,7 +321,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 	void *buffer;
 	int ret;
 
-	_enter("{%u,%zu/%u;%u/%llu}",
+	_enter("{%u,%zu/%u;%llu/%llu}",
 	       call->unmarshall, call->offset, call->count,
 	       req->remain, req->actual_len);
 
@@ -379,7 +379,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 
 		/* extract the returned data */
 	case 3:
-		_debug("extract data %u/%llu %zu/%u",
+		_debug("extract data %llu/%llu %zu/%u",
 		       req->remain, req->actual_len, call->offset, call->count);
 
 		buffer = kmap(req->pages[req->index]);
@@ -405,9 +405,9 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		/* Discard any excess data the server gave us */
 	begin_discard:
 	case 4:
-		size = min_t(size_t, sizeof(afs_discard_buffer), req->remain);
+		size = min_t(loff_t, sizeof(afs_discard_buffer), req->remain);
 		call->count = size;
-		_debug("extract discard %u/%llu %zu/%u",
+		_debug("extract discard %llu/%llu %zu/%u",
 		       req->remain, req->actual_len, call->offset, call->count);
 
 		call->offset = 0;
