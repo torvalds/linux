@@ -667,6 +667,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	ip->i_height = 0;
 	ip->i_depth = 0;
 	ip->i_entries = 0;
+	ip->i_no_addr = 0; /* Temporarily zero until real addr is assigned */
 
 	switch(mode & S_IFMT) {
 	case S_IFREG:
