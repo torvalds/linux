@@ -1821,7 +1821,9 @@ void i915_reset(struct drm_i915_private *dev_priv)
 		return;
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
-	__clear_bit(I915_WEDGED, &error->flags);
+	if (!i915_gem_unset_wedged(dev_priv))
+		goto wakeup;
+
 	error->reset_count++;
 
 	pr_notice("drm/i915: Resetting chip after gpu hang\n");
@@ -1867,17 +1869,18 @@ void i915_reset(struct drm_i915_private *dev_priv)
 
 	i915_queue_hangcheck(dev_priv);
 
-wakeup:
+finish:
 	i915_gem_reset_finish(dev_priv);
 	enable_irq(dev_priv->drm.irq);
 
+wakeup:
 	clear_bit(I915_RESET_HANDOFF, &error->flags);
 	wake_up_bit(&error->flags, I915_RESET_HANDOFF);
 	return;
 
 error:
 	i915_gem_set_wedged(dev_priv);
-	goto wakeup;
+	goto finish;
 }
 
 static int i915_pm_suspend(struct device *kdev)

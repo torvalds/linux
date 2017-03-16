@@ -2997,6 +2997,65 @@ void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
 	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 }
 
+bool i915_gem_unset_wedged(struct drm_i915_private *i915)
+{
+	struct i915_gem_timeline *tl;
+	int i;
+
+	lockdep_assert_held(&i915->drm.struct_mutex);
+	if (!test_bit(I915_WEDGED, &i915->gpu_error.flags))
+		return true;
+
+	/* Before unwedging, make sure that all pending operations
+	 * are flushed and errored out - we may have requests waiting upon
+	 * third party fences. We marked all inflight requests as EIO, and
+	 * every execbuf since returned EIO, for consistency we want all
+	 * the currently pending requests to also be marked as EIO, which
+	 * is done inside our nop_submit_request - and so we must wait.
+	 *
+	 * No more can be submitted until we reset the wedged bit.
+	 */
+	list_for_each_entry(tl, &i915->gt.timelines, link) {
+		for (i = 0; i < ARRAY_SIZE(tl->engine); i++) {
+			struct drm_i915_gem_request *rq;
+
+			rq = i915_gem_active_peek(&tl->engine[i].last_request,
+						  &i915->drm.struct_mutex);
+			if (!rq)
+				continue;
+
+			/* We can't use our normal waiter as we want to
+			 * avoid recursively trying to handle the current
+			 * reset. The basic dma_fence_default_wait() installs
+			 * a callback for dma_fence_signal(), which is
+			 * triggered by our nop handler (indirectly, the
+			 * callback enables the signaler thread which is
+			 * woken by the nop_submit_request() advancing the seqno
+			 * and when the seqno passes the fence, the signaler
+			 * then signals the fence waking us up).
+			 */
+			if (dma_fence_default_wait(&rq->fence, true,
+						   MAX_SCHEDULE_TIMEOUT) < 0)
+				return false;
+		}
+	}
+
+	/* Undo nop_submit_request. We prevent all new i915 requests from
+	 * being queued (by disallowing execbuf whilst wedged) so having
+	 * waited for all active requests above, we know the system is idle
+	 * and do not have to worry about a thread being inside
+	 * engine->submit_request() as we swap over. So unlike installing
+	 * the nop_submit_request on reset, we can do this from normal
+	 * context and do not require stop_machine().
+	 */
+	intel_engines_reset_default_submission(i915);
+
+	smp_mb__before_atomic(); /* complete takeover before enabling execbuf */
+	clear_bit(I915_WEDGED, &i915->gpu_error.flags);
+
+	return true;
+}
+
 static void
 i915_gem_retire_work_handler(struct work_struct *work)
 {
