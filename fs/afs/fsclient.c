@@ -1225,7 +1225,7 @@ int afs_fs_store_data(struct afs_server *server, struct afs_writeback *wb,
 	_enter(",%x,{%x:%u},,",
 	       key_serial(wb->key), vnode->fid.vid, vnode->fid.vnode);
 
-	size = to - offset;
+	size = (loff_t)to - (loff_t)offset;
 	if (first != last)
 		size += (loff_t)(last - first) << PAGE_SHIFT;
 	pos = (loff_t)first << PAGE_SHIFT;
