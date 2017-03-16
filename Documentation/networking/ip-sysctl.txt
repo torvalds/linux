@@ -73,6 +73,14 @@ fib_multipath_use_neigh - BOOLEAN
 	0 - disabled
 	1 - enabled
 
+fib_multipath_hash_policy - INTEGER
+	Controls which hash policy to use for multipath routes. Only valid
+	for kernels built with CONFIG_IP_ROUTE_MULTIPATH enabled.
+	Default: 0 (Layer 3)
+	Possible values:
+	0 - Layer 3
+	1 - Layer 4
+
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
