@@ -994,10 +994,15 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	 *  If a specific BSSID or SSID is used, the number of channels in the
 	 *  scan command will be increased to the absolute maximum.
 	 */
-	if (*filtered_scan)
+	if (*filtered_scan) {
 		*max_chan_per_scan = MWIFIEX_MAX_CHANNELS_PER_SPECIFIC_SCAN;
-	else
-		*max_chan_per_scan = MWIFIEX_DEF_CHANNELS_PER_SCAN_CMD;
+	} else {
+		if (!priv->media_connected)
+			*max_chan_per_scan = MWIFIEX_DEF_CHANNELS_PER_SCAN_CMD;
+		else
+			*max_chan_per_scan =
+					MWIFIEX_DEF_CHANNELS_PER_SCAN_CMD / 2;
+	}
 
 	if (adapter->ext_scan) {
 		bss_mode = (struct mwifiex_ie_types_bss_mode *)tlv_pos;
