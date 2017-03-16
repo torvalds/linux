@@ -1825,11 +1825,8 @@ static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	gma = g_gtt_index << GTT_PAGE_SHIFT;
 
 	/* the VM may configure the whole GM space when ballooning is used */
-	if (WARN_ONCE(!vgpu_gmadr_is_valid(vgpu, gma),
-				"vgpu%d: found oob ggtt write, offset %x\n",
-				vgpu->id, off)) {
+	if (!vgpu_gmadr_is_valid(vgpu, gma))
 		return 0;
-	}
 
 	ggtt_get_guest_entry(ggtt_mm, &e, g_gtt_index);
 
@@ -2015,6 +2012,22 @@ int intel_vgpu_init_gtt(struct intel_vgpu *vgpu)
 	return create_scratch_page_tree(vgpu);
 }
 
+static void intel_vgpu_free_mm(struct intel_vgpu *vgpu, int type)
+{
+	struct list_head *pos, *n;
+	struct intel_vgpu_mm *mm;
+
+	list_for_each_safe(pos, n, &vgpu->gtt.mm_list_head) {
+		mm = container_of(pos, struct intel_vgpu_mm, list);
+		if (mm->type == type) {
+			vgpu->gvt->gtt.mm_free_page_table(mm);
+			list_del(&mm->list);
+			list_del(&mm->lru_list);
+			kfree(mm);
+		}
+	}
+}
+
 /**
  * intel_vgpu_clean_gtt - clean up per-vGPU graphics memory virulization
  * @vgpu: a vGPU
@@ -2027,19 +2040,11 @@ int intel_vgpu_init_gtt(struct intel_vgpu *vgpu)
  */
 void intel_vgpu_clean_gtt(struct intel_vgpu *vgpu)
 {
-	struct list_head *pos, *n;
-	struct intel_vgpu_mm *mm;
-
 	ppgtt_free_all_shadow_page(vgpu);
 	release_scratch_page_tree(vgpu);
 
-	list_for_each_safe(pos, n, &vgpu->gtt.mm_list_head) {
-		mm = container_of(pos, struct intel_vgpu_mm, list);
-		vgpu->gvt->gtt.mm_free_page_table(mm);
-		list_del(&mm->list);
-		list_del(&mm->lru_list);
-		kfree(mm);
-	}
+	intel_vgpu_free_mm(vgpu, INTEL_GVT_MM_PPGTT);
+	intel_vgpu_free_mm(vgpu, INTEL_GVT_MM_GGTT);
 }
 
 static void clean_spt_oos(struct intel_gvt *gvt)
@@ -2322,6 +2327,13 @@ void intel_vgpu_reset_gtt(struct intel_vgpu *vgpu, bool dmlr)
 	int i;
 
 	ppgtt_free_all_shadow_page(vgpu);
+
+	/* Shadow pages are only created when there is no page
+	 * table tracking data, so remove page tracking data after
+	 * removing the shadow pages.
+	 */
+	intel_vgpu_free_mm(vgpu, INTEL_GVT_MM_PPGTT);
+
 	if (!dmlr)
 		return;
 

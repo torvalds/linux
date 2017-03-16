@@ -1288,7 +1288,8 @@ static void mpls_ifdown(struct net_device *dev, int event)
 				/* fall through */
 			case NETDEV_CHANGE:
 				nh->nh_flags |= RTNH_F_LINKDOWN;
-				ACCESS_ONCE(rt->rt_nhn_alive) = rt->rt_nhn_alive - 1;
+				if (event != NETDEV_UNREGISTER)
+					ACCESS_ONCE(rt->rt_nhn_alive) = rt->rt_nhn_alive - 1;
 				break;
 			}
 			if (event == NETDEV_UNREGISTER)
@@ -2028,6 +2029,7 @@ static void mpls_net_exit(struct net *net)
 	for (index = 0; index < platform_labels; index++) {
 		struct mpls_route *rt = rtnl_dereference(platform_label[index]);
 		RCU_INIT_POINTER(platform_label[index], NULL);
+		mpls_notify_route(net, index, rt, NULL, NULL);
 		mpls_rt_free(rt);
 	}
 	rtnl_unlock();

@@ -55,7 +55,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/miscdevice.h>
-#include <linux/init.h>
 
 #include <xen/xenbus.h>
 #include <xen/xen.h>

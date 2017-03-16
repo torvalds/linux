@@ -84,8 +84,7 @@ static int ep_open(struct inode *, struct file *);
 
 /* /dev/gadget/$CHIP represents ep0 and the whole device */
 enum ep0_state {
-	/* DISBLED is the initial state.
-	 */
+	/* DISABLED is the initial state. */
 	STATE_DEV_DISABLED = 0,
 
 	/* Only one open() of /dev/gadget/$CHIP; only one file tracks
@@ -1782,8 +1781,10 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 
 	spin_lock_irq (&dev->lock);
 	value = -EINVAL;
-	if (dev->buf)
+	if (dev->buf) {
+		kfree(kbuf);
 		goto fail;
+	}
 	dev->buf = kbuf;
 
 	/* full or low speed config */
