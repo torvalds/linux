@@ -2633,7 +2633,7 @@ static int nand_write_page_syndrome(struct mtd_info *mtd,
 }
 
 /**
- * nand_write_page - [REPLACEABLE] write one page
+ * nand_write_page - write one page
  * @mtd: MTD device structure
  * @chip: NAND chip descriptor
  * @offset: address offset within the page
@@ -2836,9 +2836,10 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 			/* We still need to erase leftover OOB data */
 			memset(chip->oob_poi, 0xff, mtd->oobsize);
 		}
-		ret = chip->write_page(mtd, chip, column, bytes, wbuf,
-					oob_required, page, cached,
-					(ops->mode == MTD_OPS_RAW));
+
+		ret = nand_write_page(mtd, chip, column, bytes, wbuf,
+				      oob_required, page, cached,
+				      (ops->mode == MTD_OPS_RAW));
 		if (ret)
 			break;
 
@@ -4547,9 +4548,6 @@ int nand_scan_tail(struct mtd_info *mtd)
 			goto err_free;
 		}
 	}
-
-	if (!chip->write_page)
-		chip->write_page = nand_write_page;
 
 	/*
 	 * Check ECC mode, default to software if 3byte/512byte hardware ECC is
