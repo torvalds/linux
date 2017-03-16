@@ -1987,8 +1987,7 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 }
 
 #ifdef CONFIG_INET
-static struct iwl_tso_hdr_page *
-get_page_hdr(struct iwl_trans *trans, size_t len)
+struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tso_hdr_page *p = this_cpu_ptr(trans_pcie->tso_hdr_page);
