@@ -275,6 +275,10 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		rxrpc_conn_retransmit_call(conn, skb);
 		return 0;
 
+	case RXRPC_PACKET_TYPE_BUSY:
+		/* Just ignore BUSY packets for now. */
+		return 0;
+
 	case RXRPC_PACKET_TYPE_ABORT:
 		if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
 				  &wtmp, sizeof(wtmp)) < 0)
