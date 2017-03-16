@@ -538,7 +538,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 	 * slot==nritems. In that case, go to the next leaf before we continue.
 	 */
 	if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
-		if (time_seq == (u64)-1)
+		if (time_seq == SEQ_LAST)
 			ret = btrfs_next_leaf(root, path);
 		else
 			ret = btrfs_next_old_leaf(root, path, time_seq);
@@ -582,7 +582,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 			eie = NULL;
 		}
 next:
-		if (time_seq == (u64)-1)
+		if (time_seq == SEQ_LAST)
 			ret = btrfs_next_item(root, path);
 		else
 			ret = btrfs_next_old_item(root, path, time_seq);
@@ -634,7 +634,7 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 
 	if (path->search_commit_root)
 		root_level = btrfs_header_level(root->commit_root);
-	else if (time_seq == (u64)-1)
+	else if (time_seq == SEQ_LAST)
 		root_level = btrfs_header_level(root->node);
 	else
 		root_level = btrfs_old_root_level(root, time_seq);
@@ -645,7 +645,7 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 	}
 
 	path->lowest_level = level;
-	if (time_seq == (u64)-1)
+	if (time_seq == SEQ_LAST)
 		ret = btrfs_search_slot(NULL, root, &ref->key_for_search, path,
 					0, 0);
 	else
@@ -1199,7 +1199,7 @@ static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
  *
  * NOTE: This can return values > 0
  *
- * If time_seq is set to (u64)-1, it will not search delayed_refs, and behave
+ * If time_seq is set to SEQ_LAST, it will not search delayed_refs, and behave
  * much like trans == NULL case, the difference only lies in it will not
  * commit root.
  * The special case is for qgroup to search roots in commit_transaction().
@@ -1246,7 +1246,7 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 		path->skip_locking = 1;
 	}
 
-	if (time_seq == (u64)-1)
+	if (time_seq == SEQ_LAST)
 		path->skip_locking = 1;
 
 	/*
@@ -1276,9 +1276,9 @@ again:
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	if (trans && likely(trans->type != __TRANS_DUMMY) &&
-	    time_seq != (u64)-1) {
+	    time_seq != SEQ_LAST) {
 #else
-	if (trans && time_seq != (u64)-1) {
+	if (trans && time_seq != SEQ_LAST) {
 #endif
 		/*
 		 * look if there are updates for this ref queued and lock the
