@@ -739,21 +739,9 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 	return 0;
 }
 
-static void cleanup_chans(struct cppi41_dd *cdd)
-{
-	while (!list_empty(&cdd->ddev.channels)) {
-		struct cppi41_channel *cchan;
-
-		cchan = list_first_entry(&cdd->ddev.channels,
-				struct cppi41_channel, chan.device_node);
-		list_del(&cchan->chan.device_node);
-		kfree(cchan);
-	}
-}
-
 static int cppi41_add_chans(struct device *dev, struct cppi41_dd *cdd)
 {
-	struct cppi41_channel *cchan;
+	struct cppi41_channel *cchan, *chans;
 	int i;
 	u32 n_chans = cdd->n_chans;
 
@@ -763,10 +751,12 @@ static int cppi41_add_chans(struct device *dev, struct cppi41_dd *cdd)
 	 */
 	n_chans *= 2;
 
+	chans = devm_kcalloc(dev, n_chans, sizeof(*chans), GFP_KERNEL);
+	if (!chans)
+		return -ENOMEM;
+
 	for (i = 0; i < n_chans; i++) {
-		cchan = kzalloc(sizeof(*cchan), GFP_KERNEL);
-		if (!cchan)
-			goto err;
+		cchan = &chans[i];
 
 		cchan->cdd = cdd;
 		if (i & 1) {
@@ -786,9 +776,6 @@ static int cppi41_add_chans(struct device *dev, struct cppi41_dd *cdd)
 	cdd->first_td_desc = n_chans;
 
 	return 0;
-err:
-	cleanup_chans(cdd);
-	return -ENOMEM;
 }
 
 static void purge_descs(struct device *dev, struct cppi41_dd *cdd)
@@ -1018,6 +1005,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	struct cppi41_dd *cdd;
 	struct device *dev = &pdev->dev;
 	const struct cppi_glue_infos *glue_info;
+	struct resource *mem;
 	int index;
 	int irq;
 	int ret;
@@ -1050,17 +1038,25 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	if (index < 0)
 		return index;
 
-	cdd->ctrl_mem = of_iomap(dev->of_node, index);
-	cdd->sched_mem = of_iomap(dev->of_node, index + 1);
-	cdd->qmgr_mem = of_iomap(dev->of_node, index + 2);
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	cdd->ctrl_mem = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(cdd->ctrl_mem))
+		return PTR_ERR(cdd->ctrl_mem);
+
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	cdd->sched_mem = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(cdd->sched_mem))
+		return PTR_ERR(cdd->sched_mem);
+
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	cdd->qmrg_mem = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(cdd->qmrg_mem))
+		return PTR_ERR(cdd->qmrg_mem);
+
 	spin_lock_init(&cdd->lock);
 	INIT_LIST_HEAD(&cdd->pending);
 
 	platform_set_drvdata(pdev, cdd);
-
-	if (!cdd->ctrl_mem || !cdd->sched_mem ||
-			!cdd->qmgr_mem)
-		return -ENXIO;
 
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, 100);
@@ -1091,18 +1087,18 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!irq) {
 		ret = -EINVAL;
-		goto err_irq;
+		goto err_chans;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, cppi41_irq, IRQF_SHARED,
 			dev_name(dev), cdd);
 	if (ret)
-		goto err_irq;
+		goto err_chans;
 	cdd->irq = irq;
 
 	ret = dma_async_device_register(&cdd->ddev);
 	if (ret)
-		goto err_dma_reg;
+		goto err_chans;
 
 	ret = of_dma_controller_register(dev->of_node,
 			cppi41_dma_xlate, &cpp41_dma_info);
@@ -1115,9 +1111,6 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	return 0;
 err_of:
 	dma_async_device_unregister(&cdd->ddev);
-err_dma_reg:
-err_irq:
-	cleanup_chans(cdd);
 err_chans:
 	deinit_cppi41(dev, cdd);
 err_init_cppi:
@@ -1126,9 +1119,6 @@ err_get_n_chans:
 err_get_sync:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-	iounmap(cdd->ctrl_mem);
-	iounmap(cdd->sched_mem);
-	iounmap(cdd->qmgr_mem);
 	return ret;
 }
 
@@ -1145,11 +1135,7 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&cdd->ddev);
 
 	devm_free_irq(&pdev->dev, cdd->irq, cdd);
-	cleanup_chans(cdd);
 	deinit_cppi41(&pdev->dev, cdd);
-	iounmap(cdd->ctrl_mem);
-	iounmap(cdd->sched_mem);
-	iounmap(cdd->qmgr_mem);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
