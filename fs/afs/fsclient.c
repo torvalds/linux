@@ -17,6 +17,12 @@
 #include "afs_fs.h"
 
 /*
+ * We need somewhere to discard into in case the server helpfully returns more
+ * than we asked for in FS.FetchData{,64}.
+ */
+static u8 afs_discard_buffer[64];
+
+/*
  * decode an AFSFid block
  */
 static void xdr_decode_AFSFid(const __be32 **_bp, struct afs_fid *fid)
@@ -353,12 +359,6 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 
 		req->actual_len |= ntohl(call->tmp);
 		_debug("DATA length: %llu", req->actual_len);
-		/* Check that the server didn't want to send us extra.  We
-		 * might want to just discard instead, but that requires
-		 * cooperation from AF_RXRPC.
-		 */
-		if (req->actual_len > req->len)
-			return -EBADMSG;
 
 		req->remain = req->actual_len;
 		call->offset = req->pos & (PAGE_SIZE - 1);
@@ -368,6 +368,7 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		call->unmarshall++;
 
 	begin_page:
+		ASSERTCMP(req->index, <, req->nr_pages);
 		if (req->remain > PAGE_SIZE - call->offset)
 			size = PAGE_SIZE - call->offset;
 		else
@@ -390,18 +391,37 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 			if (req->page_done)
 				req->page_done(call, req);
 			if (req->remain > 0) {
-				req->index++;
 				call->offset = 0;
+				req->index++;
+				if (req->index >= req->nr_pages)
+					goto begin_discard;
 				goto begin_page;
 			}
 		}
+		goto no_more_data;
+
+		/* Discard any excess data the server gave us */
+	begin_discard:
+	case 4:
+		size = min_t(size_t, sizeof(afs_discard_buffer), req->remain);
+		call->count = size;
+		_debug("extract discard %u/%llu %zu/%u",
+		       req->remain, req->actual_len, call->offset, call->count);
+
+		call->offset = 0;
+		ret = afs_extract_data(call, afs_discard_buffer, call->count, true);
+		req->remain -= call->offset;
+		if (ret < 0)
+			return ret;
+		if (req->remain > 0)
+			goto begin_discard;
 
 	no_more_data:
 		call->offset = 0;
-		call->unmarshall++;
+		call->unmarshall = 5;
 
 		/* extract the metadata */
-	case 4:
+	case 5:
 		ret = afs_extract_data(call, call->buffer,
 				       (21 + 3 + 6) * 4, false);
 		if (ret < 0)
@@ -416,16 +436,17 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		call->offset = 0;
 		call->unmarshall++;
 
-	case 5:
+	case 6:
 		break;
 	}
 
-	if (call->count < PAGE_SIZE) {
-		buffer = kmap(req->pages[req->index]);
-		memset(buffer + call->count, 0, PAGE_SIZE - call->count);
-		kunmap(req->pages[req->index]);
+	for (; req->index < req->nr_pages; req->index++) {
+		if (call->count < PAGE_SIZE)
+			zero_user_segment(req->pages[req->index],
+					  call->count, PAGE_SIZE);
 		if (req->page_done)
 			req->page_done(call, req);
+		call->count = 0;
 	}
 
 	_leave(" = 0 [done]");

@@ -184,10 +184,13 @@ int afs_page_filler(void *data, struct page *page)
 		if (!req)
 			goto enomem;
 
+		/* We request a full page.  If the page is a partial one at the
+		 * end of the file, the server will return a short read and the
+		 * unmarshalling code will clear the unfilled space.
+		 */
 		atomic_set(&req->usage, 1);
 		req->pos = (loff_t)page->index << PAGE_SHIFT;
-		req->len = min_t(size_t, i_size_read(inode) - req->pos,
-				 PAGE_SIZE);
+		req->len = PAGE_SIZE;
 		req->nr_pages = 1;
 		req->pages[0] = page;
 		get_page(page);
