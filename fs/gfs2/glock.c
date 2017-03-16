@@ -73,7 +73,7 @@ static DEFINE_SPINLOCK(lru_lock);
 
 static struct rhashtable_params ht_parms = {
 	.nelem_hint = GFS2_GL_HASH_SIZE * 3 / 4,
-	.key_len = sizeof(struct lm_lockname),
+	.key_len = offsetofend(struct lm_lockname, ln_type),
 	.key_offset = offsetof(struct gfs2_glock, gl_name),
 	.head_offset = offsetof(struct gfs2_glock, gl_node),
 };
