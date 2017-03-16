@@ -100,7 +100,7 @@
 		compatible = "rockchip,rk3368-isp", "rockchip,isp";
 		reg = <0x0 0xff910000 0x0 0x10000>;
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-		/*power-domains = <&power PD_VIO>;*/
+		power-domains = <&power RK3368_PD_VIO>;
 		clocks =
 			<&cru ACLK_RGA>, <&cru HCLK_ISP>, <&cru SCLK_ISP>,
 			<&cru SCLK_ISP>, <&cru PCLK_ISP>, <&cru SCLK_VIP_OUT>,
@@ -177,7 +177,7 @@
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc";
 		assigned-clocks = <&cru ACLK_VOP>;
 		assigned-clock-rates = <400000000>;
-		/*power-domains = <&power PD_VIO>;*/
+		power-domains = <&power RK3368_PD_VIO>;
 		resets = <&cru SRST_LCDC0_AXI>, <&cru SRST_LCDC0_AHB>, <&cru SRST_LCDC0_DCLK>;
 		reset-names = "axi", "ahb", "dclk";
 	};
@@ -190,7 +190,7 @@
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX0>, <&cru PCLK_MIPI_DSI0>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pclk_mipi_dsi_host";
-		/*power-domains = <&power PD_VIO>;*/
+		power-domains = <&power RK3368_PD_VIO>;
 	};
 
 	lvds: lvds@ff968000 {
@@ -200,7 +200,7 @@
 		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
 		clocks = <&cru PCLK_DPHYTX0>, <&cru PCLK_MIPI_DSI0>;
 		clock-names = "pclk_lvds", "pclk_lvds_ctl";
-		/*power-domains = <&power PD_VIO>;*/
+		power-domains = <&power RK3368_PD_VIO>;
 		status = "disabled";
 	};
 
@@ -211,7 +211,7 @@
 		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_EDP>, <&cru SCLK_EDP_24M>, <&cru PCLK_EDP_CTRL>;
 		clock-names = "clk_edp", "clk_edp_24m", "pclk_edp";
-		/*power-domains = <&power PD_VIO>;*/
+		power-domains = <&power RK3368_PD_VIO>;
 		resets = <&cru SRST_EDP_24M>, <&cru SRST_EDP>;
 		reset-names = "edp_24m", "edp_apb";
 		status = "disabled";
@@ -225,7 +225,7 @@
 			 <&cru SCLK_HDMI_HDCP>,
 			 <&cru SCLK_HDMI_CEC>;
 		clock-names = "pclk_hdmi", "hdcp_clk_hdmi", "cec_clk_hdmi";
-		/*power-domains = <&power PD_VIO>;*/
+		power-domains = <&power RK3368_PD_VIO>;
 		resets = <&cru SRST_HDMI>;
 		reset-names = "hdmi";
 		pinctrl-names = "default", "gpio";

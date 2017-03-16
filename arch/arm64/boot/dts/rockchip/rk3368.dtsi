@@ -916,7 +916,6 @@
 		reg = <0x0 0xff730000 0x0 0x1000>;
 
 		power: power-controller {
-			status = "disabled";
 			compatible = "rockchip,rk3368-power-controller";
 			#power-domain-cells = <1>;
 			#address-cells = <1>;
@@ -1222,6 +1221,7 @@
 			"aclk_gpu_cfg";
 		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "rogue-g6110-irq";
+		power-domains = <&power RK3368_PD_GPU_1>;
 		operating-points-v2 = <&gpu_opp_table>;
 	};
 
