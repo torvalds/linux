@@ -1,5 +1,6 @@
 #include <linux/kernel.h>
 #include <traceevent/event-parse.h>
+#include <api/fs/fs.h>
 
 #include <byteswap.h>
 #include <unistd.h>
@@ -1260,9 +1261,12 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_UNTHROTTLE:
 		return tool->unthrottle(tool, event, sample, machine);
 	case PERF_RECORD_AUX:
-		if (tool->aux == perf_event__process_aux &&
-		    (event->aux.flags & PERF_AUX_FLAG_TRUNCATED))
-			evlist->stats.total_aux_lost += 1;
+		if (tool->aux == perf_event__process_aux) {
+			if (event->aux.flags & PERF_AUX_FLAG_TRUNCATED)
+				evlist->stats.total_aux_lost += 1;
+			if (event->aux.flags & PERF_AUX_FLAG_PARTIAL)
+				evlist->stats.total_aux_partial += 1;
+		}
 		return tool->aux(tool, event, sample, machine);
 	case PERF_RECORD_ITRACE_START:
 		return tool->itrace_start(tool, event, sample, machine);
@@ -1553,6 +1557,23 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 		ui__warning("AUX data lost %" PRIu64 " times out of %u!\n\n",
 			    stats->total_aux_lost,
 			    stats->nr_events[PERF_RECORD_AUX]);
+	}
+
+	if (session->tool->aux == perf_event__process_aux &&
+	    stats->total_aux_partial != 0) {
+		bool vmm_exclusive = false;
+
+		(void)sysfs__read_bool("module/kvm_intel/parameters/vmm_exclusive",
+		                       &vmm_exclusive);
+
+		ui__warning("AUX data had gaps in it %" PRIu64 " times out of %u!\n\n"
+		            "Are you running a KVM guest in the background?%s\n\n",
+			    stats->total_aux_partial,
+			    stats->nr_events[PERF_RECORD_AUX],
+			    vmm_exclusive ?
+			    "\nReloading kvm_intel module with vmm_exclusive=0\n"
+			    "will reduce the gaps to only guest's timeslices." :
+			    "");
 	}
 
 	if (stats->nr_unknown_events != 0) {

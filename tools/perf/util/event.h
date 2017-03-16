@@ -276,6 +276,7 @@ struct events_stats {
 	u64 total_lost;
 	u64 total_lost_samples;
 	u64 total_aux_lost;
+	u64 total_aux_partial;
 	u64 total_invalid_chains;
 	u32 nr_events[PERF_RECORD_HEADER_MAX];
 	u32 nr_non_filtered_samples;
