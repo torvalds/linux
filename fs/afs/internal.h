@@ -90,7 +90,10 @@ struct afs_call {
 	unsigned		request_size;	/* size of request data */
 	unsigned		reply_max;	/* maximum size of reply */
 	unsigned		first_offset;	/* offset into mapping[first] */
-	unsigned		last_to;	/* amount of mapping[last] */
+	union {
+		unsigned	last_to;	/* amount of mapping[last] */
+		unsigned	count2;		/* count used in unmarshalling */
+	};
 	unsigned char		unmarshall;	/* unmarshalling phase */
 	bool			incoming;	/* T if incoming call */
 	bool			send_pages;	/* T if data from mapping should be sent */
