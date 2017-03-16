@@ -747,14 +747,18 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 {
 	int ret;
 
+	port_dev->priv_flags |= IFF_L3MDEV_SLAVE;
 	ret = netdev_master_upper_dev_link(port_dev, dev, NULL, NULL);
 	if (ret < 0)
-		return ret;
+		goto err;
 
-	port_dev->priv_flags |= IFF_L3MDEV_SLAVE;
 	cycle_netdev(port_dev);
 
 	return 0;
+
+err:
+	port_dev->priv_flags &= ~IFF_L3MDEV_SLAVE;
+	return ret;
 }
 
 static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
