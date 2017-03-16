@@ -3413,27 +3413,16 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		if (len == 0)
 			break;
 		for (bio= biolist ; bio ; bio=bio->bi_next) {
-			struct bio *bio2;
 			page = bio->bi_io_vec[bio->bi_vcnt].bv_page;
-			if (bio_add_page(bio, page, len, 0))
-				continue;
-
-			/* stop here */
-			bio->bi_io_vec[bio->bi_vcnt].bv_page = page;
-			for (bio2 = biolist;
-			     bio2 && bio2 != bio;
-			     bio2 = bio2->bi_next) {
-				/* remove last page from this bio */
-				bio2->bi_vcnt--;
-				bio2->bi_iter.bi_size -= len;
-				bio_clear_flag(bio2, BIO_SEG_VALID);
-			}
-			goto bio_full;
+			/*
+			 * won't fail because the vec table is big enough
+			 * to hold all these pages
+			 */
+			bio_add_page(bio, page, len, 0);
 		}
 		nr_sectors += len>>9;
 		sector_nr += len>>9;
 	} while (biolist->bi_vcnt < RESYNC_PAGES);
- bio_full:
 	r10_bio->sectors = nr_sectors;
 
 	while (biolist) {
@@ -4502,25 +4491,15 @@ read_more:
 		if (len > PAGE_SIZE)
 			len = PAGE_SIZE;
 		for (bio = blist; bio ; bio = bio->bi_next) {
-			struct bio *bio2;
-			if (bio_add_page(bio, page, len, 0))
-				continue;
-
-			/* Didn't fit, must stop */
-			for (bio2 = blist;
-			     bio2 && bio2 != bio;
-			     bio2 = bio2->bi_next) {
-				/* Remove last page from this bio */
-				bio2->bi_vcnt--;
-				bio2->bi_iter.bi_size -= len;
-				bio_clear_flag(bio2, BIO_SEG_VALID);
-			}
-			goto bio_full;
+			/*
+			 * won't fail because the vec table is big enough
+			 * to hold all these pages
+			 */
+			bio_add_page(bio, page, len, 0);
 		}
 		sector_nr += len >> 9;
 		nr_sectors += len >> 9;
 	}
-bio_full:
 	rcu_read_unlock();
 	r10_bio->sectors = nr_sectors;
 
