@@ -1369,9 +1369,19 @@ const char *getvecname(unsigned long vec)
 	case 0x100:	ret = "(System Reset)"; break;
 	case 0x200:	ret = "(Machine Check)"; break;
 	case 0x300:	ret = "(Data Access)"; break;
-	case 0x380:	ret = "(Data SLB Access)"; break;
+	case 0x380:
+		if (radix_enabled())
+			ret = "(Data Access Out of Range)";
+		else
+			ret = "(Data SLB Access)";
+		break;
 	case 0x400:	ret = "(Instruction Access)"; break;
-	case 0x480:	ret = "(Instruction SLB Access)"; break;
+	case 0x480:
+		if (radix_enabled())
+			ret = "(Instruction Access Out of Range)";
+		else
+			ret = "(Instruction SLB Access)";
+		break;
 	case 0x500:	ret = "(Hardware Interrupt)"; break;
 	case 0x600:	ret = "(Alignment)"; break;
 	case 0x700:	ret = "(Program Check)"; break;
