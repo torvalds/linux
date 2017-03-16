@@ -459,7 +459,7 @@ static void rsnd_dmapp_bset(struct rsnd_dma *dma, u32 data, u32 mask, u32 reg)
 	struct rsnd_mod *mod = rsnd_mod_get(dma);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
-	volatile void __iomem *addr = rsnd_dmapp_addr(dmac, dma, reg);
+	void __iomem *addr = rsnd_dmapp_addr(dmac, dma, reg);
 	u32 val = ioread32(addr);
 
 	val &= ~mask;
