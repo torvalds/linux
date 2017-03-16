@@ -63,17 +63,17 @@ irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
 	for (i = 0; i < MAX_MSI_CTRLS; i++) {
 		dw_pcie_rd_own_conf(pp, PCIE_MSI_INTR0_STATUS + i * 12, 4,
 				    (u32 *)&val);
-		if (val) {
-			ret = IRQ_HANDLED;
-			pos = 0;
-			while ((pos = find_next_bit(&val, 32, pos)) != 32) {
-				irq = irq_find_mapping(pp->irq_domain,
-						       i * 32 + pos);
-				dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS +
-						    i * 12, 4, 1 << pos);
-				generic_handle_irq(irq);
-				pos++;
-			}
+		if (!val)
+			continue;
+
+		ret = IRQ_HANDLED;
+		pos = 0;
+		while ((pos = find_next_bit(&val, 32, pos)) != 32) {
+			irq = irq_find_mapping(pp->irq_domain, i * 32 + pos);
+			dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS + i * 12,
+					    4, 1 << pos);
+			generic_handle_irq(irq);
+			pos++;
 		}
 	}
 
