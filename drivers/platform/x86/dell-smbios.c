@@ -105,6 +105,26 @@ struct calling_interface_token *dell_smbios_find_token(int tokenid)
 }
 EXPORT_SYMBOL_GPL(dell_smbios_find_token);
 
+static BLOCKING_NOTIFIER_HEAD(dell_laptop_chain_head);
+
+int dell_laptop_register_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&dell_laptop_chain_head, nb);
+}
+EXPORT_SYMBOL_GPL(dell_laptop_register_notifier);
+
+int dell_laptop_unregister_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&dell_laptop_chain_head, nb);
+}
+EXPORT_SYMBOL_GPL(dell_laptop_unregister_notifier);
+
+void dell_laptop_call_notifier(unsigned long action, void *data)
+{
+	blocking_notifier_call_chain(&dell_laptop_chain_head, action, data);
+}
+EXPORT_SYMBOL_GPL(dell_laptop_call_notifier);
+
 static void __init parse_da_table(const struct dmi_header *dm)
 {
 	/* Final token is a terminator, so we don't want to copy it */
