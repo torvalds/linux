@@ -517,7 +517,6 @@ call_complete:
  */
 static int afs_wait_for_call_to_complete(struct afs_call *call)
 {
-	const char *abort_why;
 	int ret;
 
 	DECLARE_WAITQUEUE(myself, current);
@@ -536,13 +535,8 @@ static int afs_wait_for_call_to_complete(struct afs_call *call)
 			continue;
 		}
 
-		abort_why = "KWC";
-		ret = call->error;
-		if (call->state == AFS_CALL_COMPLETE)
-			break;
-		abort_why = "KWI";
-		ret = -EINTR;
-		if (signal_pending(current))
+		if (call->state == AFS_CALL_COMPLETE ||
+		    signal_pending(current))
 			break;
 		schedule();
 	}
@@ -550,15 +544,14 @@ static int afs_wait_for_call_to_complete(struct afs_call *call)
 	remove_wait_queue(&call->waitq, &myself);
 	__set_current_state(TASK_RUNNING);
 
-	/* kill the call */
+	/* Kill off the call if it's still live. */
 	if (call->state < AFS_CALL_COMPLETE) {
-		_debug("call incomplete");
+		_debug("call interrupted");
 		rxrpc_kernel_abort_call(afs_socket, call->rxcall,
-					RX_CALL_DEAD, -ret, abort_why);
-	} else if (call->error < 0) {
-		ret = call->error;
+					RX_USER_ABORT, -EINTR, "KWI");
 	}
 
+	ret = call->error;
 	_debug("call complete");
 	afs_put_call(call);
 	_leave(" = %d", ret);
