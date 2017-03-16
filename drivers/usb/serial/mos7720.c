@@ -1923,8 +1923,7 @@ static int mos7720_startup(struct usb_serial *serial)
 	if (product == MOSCHIP_DEVICE_ID_7715) {
 		struct urb *urb = serial->port[0]->interrupt_in_urb;
 
-		if (urb)
-			urb->complete = mos7715_interrupt_callback;
+		urb->complete = mos7715_interrupt_callback;
 
 #ifdef CONFIG_USB_SERIAL_MOS7715_PARPORT
 		ret_val = mos7715_parport_init(serial);
@@ -2025,6 +2024,7 @@ static struct usb_serial_driver moschip7720_2port_driver = {
 	.id_table		= id_table,
 	.num_bulk_in		= 2,
 	.num_bulk_out		= 2,
+	.num_interrupt_in	= 1,
 	.calc_num_ports		= mos77xx_calc_num_ports,
 	.open			= mos7720_open,
 	.close			= mos7720_close,
