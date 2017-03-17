@@ -51,8 +51,6 @@ static const uuid_le spar_vbus_channel_protocol_uuid =
 				   SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
 				   SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE)
 
-#pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
-
 /*
  * An array of this struct is present in the channel area for each vbus.
  * (See vbuschannel.h.)
@@ -64,7 +62,7 @@ struct ultra_vbus_deviceinfo {
 	u8 drvname[16];		/* driver .sys file name */
 	u8 infostrs[96];	/* kernel version */
 	u8 reserved[128];	/* pad size to 256 bytes */
-};
+} __packed;
 
 /*
  * vbuschannel_print_devinfo() - format a struct ultra_vbus_deviceinfo
@@ -113,7 +111,7 @@ struct spar_vbus_headerinfo {
 	u32 dev_info_offset;	/* byte offset from beginning of this struct */
 	/* to the DevInfo array (below) */
 	u8 reserved[104];
-};
+} __packed;
 
 struct spar_vbus_channel_protocol {
 	struct channel_header channel_header;	/* initialized by server */
@@ -125,8 +123,6 @@ struct spar_vbus_channel_protocol {
 	/* describes client bus device and driver */
 	struct ultra_vbus_deviceinfo dev_info[0];
 	/* describes client device and driver for each device on the bus */
-};
-
-#pragma pack(pop)
+} __packed;
 
 #endif
