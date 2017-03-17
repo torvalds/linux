@@ -131,11 +131,20 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 
 	case OCTNET_CMD_CHANGE_MACADDR:
 		mac = ((u8 *)&nctrl->udd[0]) + 2;
-		netif_info(lio, probe, lio->netdev,
-			   "MACAddr changed to %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
-			   mac[0], mac[1],
-			   mac[2], mac[3],
-			   mac[4], mac[5]);
+		if (nctrl->ncmd.s.param1) {
+			/* vfidx is 0 based, but vf_num (param1) is 1 based */
+			int vfidx = nctrl->ncmd.s.param1 - 1;
+			bool mac_is_admin_assigned = nctrl->ncmd.s.param2;
+
+			if (mac_is_admin_assigned)
+				netif_info(lio, probe, lio->netdev,
+					   "MAC Address %pM is configured for VF %d\n",
+					   mac, vfidx);
+		} else {
+			netif_info(lio, probe, lio->netdev,
+				   " MACAddr changed to %pM\n",
+				   mac);
+		}
 		break;
 
 	case OCTNET_CMD_CHANGE_MTU:

@@ -101,8 +101,15 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 			if ((status64 & 0xff) != 0xff) {
 				octeon_swap_8B_data(&status64, 1);
 				if (((status64 & 0xff) != 0xff)) {
-					status = (u32)(status64 &
-						       0xffffffffULL);
+					/* retrieve 16-bit firmware status */
+					status = (u32)(status64 & 0xffffULL);
+					if (status) {
+						status =
+						  FIRMWARE_STATUS_CODE(status);
+					} else {
+						/* i.e. no error */
+						status = OCTEON_REQUEST_DONE;
+					}
 				}
 			}
 		} else if (force_quit || (sc->timeout &&
