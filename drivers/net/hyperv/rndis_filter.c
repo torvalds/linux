@@ -996,23 +996,28 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 		hv_get_drvdata(new_sc->primary_channel->device_obj);
 	struct netvsc_device *nvscdev = net_device_to_netvsc_device(ndev);
 	u16 chn_index = new_sc->offermsg.offer.sub_channel_index;
-	int ret;
+	struct netvsc_channel *nvchan;
 	unsigned long flags;
+	int ret;
 
 	if (chn_index >= nvscdev->num_chn)
 		return;
 
-	nvscdev->chan_table[chn_index].mrc.buf
+	nvchan = nvscdev->chan_table + chn_index;
+	nvchan->mrc.buf
 		= vzalloc(NETVSC_RECVSLOT_MAX * sizeof(struct recv_comp_data));
+
+	if (!nvchan->mrc.buf)
+		return;
 
 	ret = vmbus_open(new_sc, nvscdev->ring_size * PAGE_SIZE,
 			 nvscdev->ring_size * PAGE_SIZE, NULL, 0,
-			 netvsc_channel_cb, new_sc);
+			 netvsc_channel_cb, nvchan);
 
 	if (ret == 0)
-		nvscdev->chan_table[chn_index].channel = new_sc;
+		nvchan->channel = new_sc;
 
-	napi_enable(&nvscdev->chan_table[chn_index].napi);
+	napi_enable(&nvchan->napi);
 
 	spin_lock_irqsave(&nvscdev->sc_lock, flags);
 	nvscdev->num_sc_offered--;
