@@ -29,11 +29,11 @@ struct nv50_disp_chan_func {
 
 int nv50_disp_chan_ctor(const struct nv50_disp_chan_func *,
 			const struct nv50_disp_chan_mthd *,
-			struct nv50_disp_root *, int chid, int head,
+			struct nv50_disp_root *, int ctrl, int user, int head,
 			const struct nvkm_oclass *, struct nv50_disp_chan *);
 int nv50_disp_chan_new_(const struct nv50_disp_chan_func *,
 			const struct nv50_disp_chan_mthd *,
-			struct nv50_disp_root *, int chid, int head,
+			struct nv50_disp_root *, int ctrl, int user, int head,
 			const struct nvkm_oclass *, struct nvkm_object **);
 
 extern const struct nv50_disp_chan_func nv50_disp_pioc_func;
@@ -94,13 +94,16 @@ extern const struct nv50_disp_chan_mthd gk104_disp_ovly_chan_mthd;
 struct nv50_disp_pioc_oclass {
 	int (*ctor)(const struct nv50_disp_chan_func *,
 		    const struct nv50_disp_chan_mthd *,
-		    struct nv50_disp_root *, int chid,
+		    struct nv50_disp_root *, int ctrl, int user,
 		    const struct nvkm_oclass *, void *data, u32 size,
 		    struct nvkm_object **);
 	struct nvkm_sclass base;
 	const struct nv50_disp_chan_func *func;
 	const struct nv50_disp_chan_mthd *mthd;
-	int chid;
+	struct {
+		int ctrl;
+		int user;
+	} chid;
 };
 
 extern const struct nv50_disp_pioc_oclass nv50_disp_oimm_oclass;
@@ -123,12 +126,12 @@ extern const struct nv50_disp_pioc_oclass gp102_disp_curs_oclass;
 
 int nv50_disp_curs_new(const struct nv50_disp_chan_func *,
 		       const struct nv50_disp_chan_mthd *,
-		       struct nv50_disp_root *, int chid,
+		       struct nv50_disp_root *, int ctrl, int user,
 		       const struct nvkm_oclass *, void *data, u32 size,
 		       struct nvkm_object **);
 int nv50_disp_oimm_new(const struct nv50_disp_chan_func *,
 		       const struct nv50_disp_chan_mthd *,
-		       struct nv50_disp_root *, int chid,
+		       struct nv50_disp_root *, int ctrl, int user,
 		       const struct nvkm_oclass *, void *data, u32 size,
 		       struct nvkm_object **);
 #endif

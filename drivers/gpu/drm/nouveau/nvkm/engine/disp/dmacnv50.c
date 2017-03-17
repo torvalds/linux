@@ -149,7 +149,7 @@ nv50_disp_dmac_new_(const struct nv50_disp_dmac_func *func,
 	chan->func = func;
 
 	ret = nv50_disp_chan_ctor(&nv50_disp_dmac_func_, mthd, root,
-				  chid, head, oclass, &chan->base);
+				  chid, chid, head, oclass, &chan->base);
 	if (ret)
 		return ret;
 

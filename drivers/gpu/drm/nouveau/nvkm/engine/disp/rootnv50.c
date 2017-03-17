@@ -207,8 +207,8 @@ nv50_disp_root_pioc_new_(const struct nvkm_oclass *oclass,
 {
 	const struct nv50_disp_pioc_oclass *sclass = oclass->priv;
 	struct nv50_disp_root *root = nv50_disp_root(oclass->parent);
-	return sclass->ctor(sclass->func, sclass->mthd, root, sclass->chid,
-			    oclass, data, size, pobject);
+	return sclass->ctor(sclass->func, sclass->mthd, root, sclass->chid.ctrl,
+			    sclass->chid.user, oclass, data, size, pobject);
 }
 
 static int

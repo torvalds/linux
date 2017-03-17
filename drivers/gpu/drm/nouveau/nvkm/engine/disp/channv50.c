@@ -263,7 +263,7 @@ nv50_disp_chan = {
 int
 nv50_disp_chan_ctor(const struct nv50_disp_chan_func *func,
 		    const struct nv50_disp_chan_mthd *mthd,
-		    struct nv50_disp_root *root, int chid, int head,
+		    struct nv50_disp_root *root, int ctrl, int user, int head,
 		    const struct nvkm_oclass *oclass,
 		    struct nv50_disp_chan *chan)
 {
@@ -273,8 +273,8 @@ nv50_disp_chan_ctor(const struct nv50_disp_chan_func *func,
 	chan->func = func;
 	chan->mthd = mthd;
 	chan->root = root;
-	chan->chid.ctrl = chid;
-	chan->chid.user = chid;
+	chan->chid.ctrl = ctrl;
+	chan->chid.user = user;
 	chan->head = head;
 
 	if (disp->chan[chan->chid.user]) {
@@ -288,7 +288,7 @@ nv50_disp_chan_ctor(const struct nv50_disp_chan_func *func,
 int
 nv50_disp_chan_new_(const struct nv50_disp_chan_func *func,
 		    const struct nv50_disp_chan_mthd *mthd,
-		    struct nv50_disp_root *root, int chid, int head,
+		    struct nv50_disp_root *root, int ctrl, int user, int head,
 		    const struct nvkm_oclass *oclass,
 		    struct nvkm_object **pobject)
 {
@@ -298,5 +298,6 @@ nv50_disp_chan_new_(const struct nv50_disp_chan_func *func,
 		return -ENOMEM;
 	*pobject = &chan->object;
 
-	return nv50_disp_chan_ctor(func, mthd, root, chid, head, oclass, chan);
+	return nv50_disp_chan_ctor(func, mthd, root, ctrl, user,
+				   head, oclass, chan);
 }
