@@ -273,6 +273,25 @@ static struct spi_test spi_tests[] = {
 			},
 		},
 	},
+	{
+		.description	= "two tx+rx transfers - delay after transfer",
+		.fill_option	= FILL_COUNT_8,
+		.iterate_len    = { ITERATE_MAX_LEN },
+		.iterate_transfer_mask = BIT(0) | BIT(1),
+		.transfer_count = 2,
+		.transfers		= {
+			{
+				.tx_buf = TX(0),
+				.rx_buf = RX(0),
+				.delay_usecs = 1000,
+			},
+			{
+				.tx_buf = TX(0),
+				.rx_buf = RX(0),
+				.delay_usecs = 1000,
+			},
+		},
+	},
 
 	{ /* end of tests sequence */ }
 };
