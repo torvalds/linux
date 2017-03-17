@@ -271,42 +271,6 @@ const struct qm_portal_config *qman_destroy_affine_portal(void);
  */
 int qman_query_fq(struct qman_fq *fq, struct qm_fqd *fqd);
 
-/*
- * For qman_volatile_dequeue(); Choose one PRECEDENCE. EXACT is optional. Use
- * NUMFRAMES(n) (6-bit) or NUMFRAMES_TILLEMPTY to fill in the frame-count. Use
- * FQID(n) to fill in the frame queue ID.
- */
-#define QM_VDQCR_PRECEDENCE_VDQCR	0x0
-#define QM_VDQCR_PRECEDENCE_SDQCR	0x80000000
-#define QM_VDQCR_EXACT			0x40000000
-#define QM_VDQCR_NUMFRAMES_MASK		0x3f000000
-#define QM_VDQCR_NUMFRAMES_SET(n)	(((n) & 0x3f) << 24)
-#define QM_VDQCR_NUMFRAMES_GET(n)	(((n) >> 24) & 0x3f)
-#define QM_VDQCR_NUMFRAMES_TILLEMPTY	QM_VDQCR_NUMFRAMES_SET(0)
-
-#define QMAN_VOLATILE_FLAG_WAIT	     0x00000001 /* wait if VDQCR is in use */
-#define QMAN_VOLATILE_FLAG_WAIT_INT  0x00000002 /* if wait, interruptible? */
-#define QMAN_VOLATILE_FLAG_FINISH    0x00000004 /* wait till VDQCR completes */
-
-/*
- * qman_volatile_dequeue - Issue a volatile dequeue command
- * @fq: the frame queue object to dequeue from
- * @flags: a bit-mask of QMAN_VOLATILE_FLAG_*** options
- * @vdqcr: bit mask of QM_VDQCR_*** options, as per qm_dqrr_vdqcr_set()
- *
- * Attempts to lock access to the portal's VDQCR volatile dequeue functionality.
- * The function will block and sleep if QMAN_VOLATILE_FLAG_WAIT is specified and
- * the VDQCR is already in use, otherwise returns non-zero for failure. If
- * QMAN_VOLATILE_FLAG_FINISH is specified, the function will only return once
- * the VDQCR command has finished executing (ie. once the callback for the last
- * DQRR entry resulting from the VDQCR command has been called). If not using
- * the FINISH flag, completion can be determined either by detecting the
- * presence of the QM_DQRR_STAT_UNSCHEDULED and QM_DQRR_STAT_DQCR_EXPIRED bits
- * in the "stat" parameter passed to the FQ's dequeue callback, or by waiting
- * for the QMAN_FQ_STATE_VDQCR bit to disappear.
- */
-int qman_volatile_dequeue(struct qman_fq *fq, u32 flags, u32 vdqcr);
-
 int qman_alloc_fq_table(u32 num_fqids);
 
 /*   QMan s/w corenet portal, low-level i/face	 */
