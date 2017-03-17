@@ -655,12 +655,10 @@ static int adu_probe(struct usb_interface *interface,
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct adu_device *dev = NULL;
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
 	int retval = -ENOMEM;
 	int in_end_size;
 	int out_end_size;
-	int i;
+	int res;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct adu_device), GFP_KERNEL);
@@ -673,26 +671,13 @@ static int adu_probe(struct usb_interface *interface,
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);
 
-	iface_desc = &interface->altsetting[0];
-
-	/* set up the endpoint information */
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_int_in(endpoint))
-			dev->interrupt_in_endpoint = endpoint;
-
-		if (usb_endpoint_is_int_out(endpoint))
-			dev->interrupt_out_endpoint = endpoint;
-	}
-	if (dev->interrupt_in_endpoint == NULL) {
-		dev_err(&interface->dev, "interrupt in endpoint not found\n");
-		retval = -ENODEV;
-		goto error;
-	}
-	if (dev->interrupt_out_endpoint == NULL) {
-		dev_err(&interface->dev, "interrupt out endpoint not found\n");
-		retval = -ENODEV;
+	res = usb_find_common_endpoints_reverse(&interface->altsetting[0],
+			NULL, NULL,
+			&dev->interrupt_in_endpoint,
+			&dev->interrupt_out_endpoint);
+	if (res) {
+		dev_err(&interface->dev, "interrupt endpoints not found\n");
+		retval = res;
 		goto error;
 	}
 
