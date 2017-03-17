@@ -66,6 +66,7 @@ struct dw8250_data {
 
 	unsigned int		skip_autocfg:1;
 	unsigned int		uart_16550_compatible:1;
+	unsigned int		skip_dma:1;
 };
 
 static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
@@ -302,17 +303,22 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 
 		id = acpi_match_device(p->dev->driver->acpi_match_table,
 				       p->dev);
-		if (id && !strcmp(id->id, "APMC0D08")) {
-			p->iotype = UPIO_MEM32;
-			p->regshift = 2;
-			p->serial_in = dw8250_serial_in32;
-			data->uart_16550_compatible = true;
+		if (id) {
+			if (!strcmp(id->id, "APMC0D08")) {
+				p->iotype = UPIO_MEM32;
+				p->regshift = 2;
+				p->serial_in = dw8250_serial_in32;
+				data->uart_16550_compatible = true;
+			} else if (!strcmp(id->id, "8086228A")) {
+				data->skip_dma = true;
+			}
 		}
 		p->set_termios = dw8250_set_termios;
 	}
 
 	/* Platforms with iDMA */
-	if (platform_get_resource_byname(to_platform_device(p->dev),
+	if (!data->skip_dma &&
+	    platform_get_resource_byname(to_platform_device(p->dev),
 					 IORESOURCE_MEM, "lpss_priv")) {
 		p->set_termios = dw8250_set_termios;
 		data->dma.rx_param = p->dev->parent;
@@ -498,7 +504,7 @@ static int dw8250_probe(struct platform_device *pdev)
 		dw8250_setup_port(p);
 
 	/* If we have a valid fifosize, try hooking up DMA */
-	if (p->fifosize) {
+	if (!data->skip_dma && p->fifosize) {
 		data->dma.rxconf.src_maxburst = p->fifosize / 4;
 		data->dma.txconf.dst_maxburst = p->fifosize / 4;
 		uart.dma = &data->dma;
