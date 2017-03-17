@@ -1423,7 +1423,7 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
 						       tc->cls_mall);
 			return 0;
 		default:
-			return -EINVAL;
+			return -EOPNOTSUPP;
 		}
 	case TC_SETUP_CLSFLOWER:
 		switch (tc->cls_flower->command) {
