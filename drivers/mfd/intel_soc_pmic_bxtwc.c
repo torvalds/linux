@@ -20,8 +20,8 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/intel_bxtwc.h>
 #include <linux/mfd/intel_soc_pmic.h>
+#include <linux/mfd/intel_soc_pmic_bxtwc.h>
 #include <asm/intel_pmc_ipc.h>
 
 /* PMIC device registers */

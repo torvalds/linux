@@ -1,5 +1,5 @@
 /*
- * intel_bxtwc.h - Header file for Intel Broxton Whiskey Cove PMIC
+ * Header file for Intel Broxton Whiskey Cove PMIC
  *
  * Copyright (C) 2015 Intel Corporation. All rights reserved.
  *
