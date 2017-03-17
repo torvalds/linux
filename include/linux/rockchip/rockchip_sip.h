@@ -15,60 +15,55 @@
 #include <linux/arm-smccc.h>
 #include <linux/io.h>
 
-/* SMC function IDs for SiP Service queries */
-#define SIP_SVC_CALL_COUNT		0x8200ff00
-#define SIP_SVC_UID			0x8200ff01
-#define SIP_SVC_VERSION			0x8200ff03
-
-#define SIP_ATF_VERSION32		0x82000001
+/* SMC function IDs for SiP Service queries, compatible with kernel-3.10 */
+#define SIP_ATF_VERSION			0x82000001
 #define SIP_ACCESS_REG			0x82000002
-#define SIP_SUSPEND_MODE32		0x82000003
-#define SIP_DDR_CFG32			0x82000008
-#define SIP_SHARE_MEM32			0x82000009
-#define SIP_SIP_VERSION32		0x8200000a
+#define SIP_SUSPEND_MODE		0x82000003
+#define SIP_PENDING_CPUS		0x82000004
+#define SIP_UARTDBG_CFG			0x82000005
+#define SIP_UARTDBG_CFG64		0xc2000005
+#define SIP_MCU_EL3FIQ_CFG		0x82000006
+#define SIP_ACCESS_CHIP_STATE64		0xc2000006
+#define SIP_SECURE_MEM_CONFIG		0x82000007
+#define SIP_ACCESS_CHIP_EXTRA_STATE64	0xc2000007
+#define SIP_DDR_CFG			0x82000008
+#define SIP_SHARE_MEM			0x82000009
+#define SIP_SIP_VERSION			0x8200000a
+#define SIP_REMOTECTL_CFG		0x8200000b
 
-/* SIP_ACCESS_REG read/write */
+/* Trust firmware version */
+#define ATF_VER_MAJOR(ver)		(((ver) >> 16) & 0xffff)
+#define ATF_VER_MINOR(ver)		(((ver) >> 0) & 0xffff)
+
+/* SIP_ACCESS_REG: read or write */
 #define SECURE_REG_RD			0x0
 #define SECURE_REG_WR			0x1
 
-/* Share mem page types */
-typedef enum {
-	SHARE_PAGE_TYPE_INVALID = 0,
-	SHARE_PAGE_TYPE_UARTDBG,
-	SHARE_PAGE_TYPE_MAX,
-} share_page_type_t;
+/* Fiq debugger share memory: 8KB enough */
+#define FIQ_UARTDBG_PAGE_NUMS		2
+#define FIQ_UARTDBG_SHARE_MEM_SIZE	((FIQ_UARTDBG_PAGE_NUMS) * 4096)
 
 /* Error return code */
+#define IS_SIP_ERROR(x)			(!!(x))
+
 #define SIP_RET_SUCCESS			0
-#define SIP_RET_NOT_SUPPORTED		-1
-#define SIP_RET_INVALID_PARAMS		-2
-#define SIP_RET_INVALID_ADDRESS		-3
-#define SIP_RET_DENIED			-4
-#define SIP_RET_SMC_UNKNOWN		0xffffffff
+#define SIP_RET_SMC_UNKNOWN		-1
+#define SIP_RET_NOT_SUPPORTED		-2
+#define SIP_RET_INVALID_PARAMS		-3
+#define SIP_RET_INVALID_ADDRESS		-4
+#define SIP_RET_DENIED			-5
 
-/* Sip version */
-#define SIP_IMPLEMENT_V1		(1)
-#define SIP_IMPLEMENT_V2		(2)
-
-#define RK_SIP_DISABLE_FIQ		0xc2000006
-#define RK_SIP_ENABLE_FIQ		0xc2000007
-#define PSCI_SIP_RKTF_VER		0x82000001
-#define PSCI_SIP_ACCESS_REG		0x82000002
-#define PSCI_SIP_ACCESS_REG64		0xc2000002
-#define PSCI_SIP_SUSPEND_WR_CTRBITS	0x82000003
-#define PSCI_SIP_PENDING_CPUS		0x82000004
-#define PSCI_SIP_UARTDBG_CFG		0x82000005
-#define PSCI_SIP_UARTDBG_CFG64		0xc2000005
-#define PSCI_SIP_EL3FIQ_CFG		0x82000006
-#define PSCI_SIP_SMEM_CONFIG		0x82000007
-
+/* SIP_UARTDBG_CFG64 call types */
 #define UARTDBG_CFG_INIT		0xf0
 #define UARTDBG_CFG_OSHDL_TO_OS		0xf1
 #define UARTDBG_CFG_OSHDL_CPUSW		0xf3
 #define UARTDBG_CFG_OSHDL_DEBUG_ENABLE	0xf4
 #define UARTDBG_CFG_OSHDL_DEBUG_DISABLE	0xf5
 #define UARTDBG_CFG_PRINT_PORT		0xf7
+#define UARTDBG_CFG_FIQ_ENABEL		0xf8
+#define UARTDBG_CFG_FIQ_DISABEL		0xf9
 
+/* SIP_SUSPEND_MODE32 call types */
 #define SUSPEND_MODE_CONFIG		0x01
 #define WKUP_SOURCE_CONFIG		0x02
 #define PWM_REGULATOR_CONFIG		0x03
@@ -77,34 +72,85 @@ typedef enum {
 #define APIOS_SUSPEND_CONFIG		0x06
 #define VIRTUAL_POWEROFF		0x07
 
-/* struct arm_smccc_res: a0: error code; a1~a3: data */
-/* SMC32 Calls */
-int sip_smc_set_suspend_mode(u32 ctrl,
-			     u32 config1,
-			     u32 config2);
-int rk_psci_virtual_poweroff(void);
+/* SIP_REMOTECTL_CFG call types */
+#define	REMOTECTL_SET_IRQ		0xf0
+#define REMOTECTL_SET_PWM_CH		0xf1
+#define REMOTECTL_SET_PWRKEY		0xf2
+#define REMOTECTL_GET_WAKEUP_STATE	0xf3
+#define REMOTECTL_ENABLE		0xf4
+/* wakeup state */
+#define REMOTECTL_PWRKEY_WAKEUP		0xdeadbeaf
 
-struct arm_smccc_res sip_smc_get_call_count(void);
+/* Share mem page types */
+typedef enum {
+	SHARE_PAGE_TYPE_INVALID = 0,
+	SHARE_PAGE_TYPE_UARTDBG,
+	SHARE_PAGE_TYPE_MAX,
+} share_page_type_t;
+
+/*
+ * Rules: struct arm_smccc_res contains result and data, details:
+ *
+ * a0: error code(0: success, !0: error);
+ * a1~a3: data
+ */
 struct arm_smccc_res sip_smc_get_atf_version(void);
 struct arm_smccc_res sip_smc_get_sip_version(void);
-struct arm_smccc_res sip_smc_ddr_cfg(u32 arg0, u32 arg1,
-				     u32 arg2);
-struct arm_smccc_res sip_smc_get_share_mem_page(u32 page_num,
-						share_page_type_t page_type);
+struct arm_smccc_res sip_smc_ddr_cfg(u32 arg0, u32 arg1, u32 arg2);
+struct arm_smccc_res sip_smc_request_share_mem(u32 page_num,
+					       share_page_type_t page_type);
+struct arm_smccc_res sip_smc_mcu_el3fiq(u32 arg0, u32 arg1, u32 arg2);
+
+int sip_smc_set_suspend_mode(u32 ctrl, u32 config1, u32 config2);
+int sip_smc_virtual_poweroff(void);
 #ifdef CONFIG_ROCKCHIP_SIP
-u32 sip_smc_secure_reg_read(u32 addr_phy);
 int sip_smc_secure_reg_write(u32 addr_phy, u32 val);
+u32 sip_smc_secure_reg_read(u32 addr_phy);
 #else
 u32 sip_smc_secure_reg_read(u32 addr_phy) { return 0; }
 int sip_smc_secure_reg_write(u32 addr_phy, u32 val) { return 0; }
 #endif
+/***************************fiq debugger **************************************/
+void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu);
+void sip_fiq_debugger_enable_debug(bool enable);
+int sip_fiq_debugger_uart_irq_tf_init(u32 irq_id, void *callback_fn);
+int sip_fiq_debugger_set_print_port(u32 port_phyaddr, u32 baudrate);
+int sip_fiq_debugger_request_share_memory(void);
+int sip_fiq_debugger_get_target_cpu(void);
+int sip_fiq_debugger_switch_cpu(u32 cpu);
+int sip_fiq_debugger_is_enabled(void);
 
-void psci_enable_fiq(void);
-u32 rockchip_psci_smc_get_tf_ver(void);
-void psci_fiq_debugger_uart_irq_tf_cb(u64 sp_el1, u64 offset);
-void psci_fiq_debugger_uart_irq_tf_init(u32 irq_id, void *callback);
-u32 psci_fiq_debugger_switch_cpu(u32 cpu);
-void psci_fiq_debugger_enable_debug(bool val);
-int psci_fiq_debugger_set_print_port(u32 port, u32 baudrate);
+/* optee cpu_context */
+struct sm_nsec_ctx {
+	u32 usr_sp;
+	u32 usr_lr;
+	u32 irq_spsr;
+	u32 irq_sp;
+	u32 irq_lr;
+	u32 svc_spsr;
+	u32 svc_sp;
+	u32 svc_lr;
+	u32 abt_spsr;
+	u32 abt_sp;
+	u32 abt_lr;
+	u32 und_spsr;
+	u32 und_sp;
+	u32 und_lr;
+	u32 mon_lr;
+	u32 mon_spsr;
+	u32 r4;
+	u32 r5;
+	u32 r6;
+	u32 r7;
+	u32 r8;
+	u32 r9;
+	u32 r10;
+	u32 r11;
+	u32 r12;
+	u32 r0;
+	u32 r1;
+	u32 r2;
+	u32 r3;
+};
 
 #endif

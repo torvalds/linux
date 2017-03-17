@@ -106,7 +106,7 @@ static void rockchip_pm_virt_pwroff_prepare(void)
 	}
 
 	sip_smc_set_suspend_mode(VIRTUAL_POWEROFF, 0, 1);
-	rk_psci_virtual_poweroff();
+	sip_smc_virtual_poweroff();
 }
 
 static int __init pm_config_init(struct platform_device *pdev)
