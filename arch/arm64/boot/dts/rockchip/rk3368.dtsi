@@ -662,19 +662,18 @@
 	};
 
 	tsadc: tsadc@ff280000 {
-		compatible = "rockchip,rk3368-tsadc";
+		compatible = "rockchip,rk3368-tsadc-legacy";
 		reg = <0x0 0xff280000 0x0 0x100>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
 		clock-names = "tsadc", "apb_pclk";
+		clock-frequency = <32768>;
 		resets = <&cru SRST_TSADC>;
 		reset-names = "tsadc-apb";
-		pinctrl-names = "init", "default", "sleep";
-		pinctrl-0 = <&otp_gpio>;
-		pinctrl-1 = <&otp_out>;
-		pinctrl-2 = <&otp_gpio>;
+		nvmem-cells = <&temp_adjust>;
+		nvmem-cell-names = "temp_adjust";
 		#thermal-sensor-cells = <1>;
-		rockchip,hw-tshut-temp = <95000>;
+		hw-shut-temp = <95000>;
 		status = "disabled";
 	};
 
@@ -1650,16 +1649,6 @@
 			};
 			spi2_tx: spi2-tx {
 				rockchip,pins = <0 11 RK_FUNC_2 &pcfg_pull_up>;
-			};
-		};
-
-		tsadc {
-			otp_gpio: otp-gpio {
-				rockchip,pins = <0 3 RK_FUNC_GPIO &pcfg_pull_none>;
-			};
-
-			otp_out: otp-out {
-				rockchip,pins = <0 3 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
