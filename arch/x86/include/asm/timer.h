@@ -12,6 +12,8 @@ extern int recalibrate_cpu_khz(void);
 
 extern int no_timer_check;
 
+extern bool using_native_sched_clock(void);
+
 /*
  * We use the full linear equation: f(x) = a + b*x, in order to allow
  * a continuous function in the face of dynamic freq changes.

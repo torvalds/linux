@@ -96,10 +96,10 @@ static DEFINE_STATIC_KEY_FALSE(__sched_clock_stable);
 static int __sched_clock_stable_early = 1;
 
 /*
- * We want: ktime_get_ns() + gtod_offset == sched_clock() + raw_offset
+ * We want: ktime_get_ns() + __gtod_offset == sched_clock() + __sched_clock_offset
  */
-static __read_mostly u64 raw_offset;
-static __read_mostly u64 gtod_offset;
+__read_mostly u64 __sched_clock_offset;
+static __read_mostly u64 __gtod_offset;
 
 struct sched_clock_data {
 	u64			tick_raw;
@@ -131,11 +131,11 @@ static void __set_sched_clock_stable(void)
 	/*
 	 * Attempt to make the (initial) unstable->stable transition continuous.
 	 */
-	raw_offset = (scd->tick_gtod + gtod_offset) - (scd->tick_raw);
+	__sched_clock_offset = (scd->tick_gtod + __gtod_offset) - (scd->tick_raw);
 
 	printk(KERN_INFO "sched_clock: Marking stable (%lld, %lld)->(%lld, %lld)\n",
-			scd->tick_gtod, gtod_offset,
-			scd->tick_raw,  raw_offset);
+			scd->tick_gtod, __gtod_offset,
+			scd->tick_raw,  __sched_clock_offset);
 
 	static_branch_enable(&__sched_clock_stable);
 	tick_dep_clear(TICK_DEP_BIT_CLOCK_UNSTABLE);
@@ -161,11 +161,11 @@ static void __clear_sched_clock_stable(void)
 	 *
 	 * Still do what we can.
 	 */
-	gtod_offset = (scd->tick_raw + raw_offset) - (scd->tick_gtod);
+	__gtod_offset = (scd->tick_raw + __sched_clock_offset) - (scd->tick_gtod);
 
 	printk(KERN_INFO "sched_clock: Marking unstable (%lld, %lld)<-(%lld, %lld)\n",
-			scd->tick_gtod, gtod_offset,
-			scd->tick_raw,  raw_offset);
+			scd->tick_gtod, __gtod_offset,
+			scd->tick_raw,  __sched_clock_offset);
 
 	tick_dep_set(TICK_DEP_BIT_CLOCK_UNSTABLE);
 
@@ -238,7 +238,7 @@ again:
 	 *		      scd->tick_gtod + TICK_NSEC);
 	 */
 
-	clock = scd->tick_gtod + gtod_offset + delta;
+	clock = scd->tick_gtod + __gtod_offset + delta;
 	min_clock = wrap_max(scd->tick_gtod, old_clock);
 	max_clock = wrap_max(old_clock, scd->tick_gtod + TICK_NSEC);
 
@@ -324,7 +324,7 @@ u64 sched_clock_cpu(int cpu)
 	u64 clock;
 
 	if (sched_clock_stable())
-		return sched_clock() + raw_offset;
+		return sched_clock() + __sched_clock_offset;
 
 	if (unlikely(!sched_clock_running))
 		return 0ull;
