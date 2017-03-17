@@ -190,6 +190,20 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 			plat->rx_queues_cfg[queue].use_prio = true;
 		}
 
+		/* RX queue specific packet type routing */
+		if (of_property_read_bool(q_node, "snps,route-avcp"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_AVCPQ;
+		else if (of_property_read_bool(q_node, "snps,route-ptp"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_PTPQ;
+		else if (of_property_read_bool(q_node, "snps,route-dcbcp"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_DCBCPQ;
+		else if (of_property_read_bool(q_node, "snps,route-up"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_UPQ;
+		else if (of_property_read_bool(q_node, "snps,route-multi-broad"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_MCBCQ;
+		else
+			plat->rx_queues_cfg[queue].pkt_route = 0x0;
+
 		queue++;
 	}
 

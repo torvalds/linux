@@ -2333,6 +2333,27 @@ static void stmmac_mac_config_tx_queues_prio(struct stmmac_priv *priv)
 }
 
 /**
+ *  stmmac_mac_config_rx_queues_routing - Configure RX Queue Routing
+ *  @priv: driver private structure
+ *  Description: It is used for configuring the RX queue routing
+ */
+static void stmmac_mac_config_rx_queues_routing(struct stmmac_priv *priv)
+{
+	u32 rx_queues_count = priv->plat->rx_queues_to_use;
+	u32 queue;
+	u8 packet;
+
+	for (queue = 0; queue < rx_queues_count; queue++) {
+		/* no specific packet type routing specified for the queue */
+		if (priv->plat->rx_queues_cfg[queue].pkt_route == 0x0)
+			continue;
+
+		packet = priv->plat->rx_queues_cfg[queue].pkt_route;
+		priv->hw->mac->rx_queue_prio(priv->hw, packet, queue);
+	}
+}
+
+/**
  *  stmmac_mtl_configuration - Configure MTL
  *  @priv: driver private structure
  *  Description: It is used for configurring MTL
@@ -2377,6 +2398,10 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 	/* Set TX priorities */
 	if (tx_queues_count > 1 && priv->hw->mac->tx_queue_prio)
 		stmmac_mac_config_tx_queues_prio(priv);
+
+	/* Set RX routing */
+	if (rx_queues_count > 1 && priv->hw->mac->rx_queue_routing)
+		stmmac_mac_config_rx_queues_routing(priv);
 }
 
 /**

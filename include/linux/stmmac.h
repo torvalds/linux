@@ -127,6 +127,7 @@ struct stmmac_axi {
 struct stmmac_rxq_cfg {
 	u8 mode_to_use;
 	u8 chan;
+	u8 pkt_route;
 	bool use_prio;
 	u32 prio;
 };

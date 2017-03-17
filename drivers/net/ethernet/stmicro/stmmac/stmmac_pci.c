@@ -96,6 +96,9 @@ static void stmmac_default_data(struct plat_stmmacenet_data *plat)
 	/* Disable Priority config by default */
 	plat->tx_queues_cfg[0].use_prio = false;
 	plat->rx_queues_cfg[0].use_prio = false;
+
+	/* Disable RX queues routing by default */
+	plat->rx_queues_cfg[0].pkt_route = 0x0;
 }
 
 static int quark_default_data(struct plat_stmmacenet_data *plat,

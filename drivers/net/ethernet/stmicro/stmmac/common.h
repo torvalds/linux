@@ -246,6 +246,15 @@ struct stmmac_extra_stats {
 #define STMMAC_TX_MAX_FRAMES	256
 #define STMMAC_TX_FRAMES	64
 
+/* Packets types */
+enum packets_types {
+	PACKET_AVCPQ = 0x1, /* AV Untagged Control packets */
+	PACKET_PTPQ = 0x2, /* PTP Packets */
+	PACKET_DCBCPQ = 0x3, /* DCB Control Packets */
+	PACKET_UPQ = 0x4, /* Untagged Packets */
+	PACKET_MCBCQ = 0x5, /* Multicast & Broadcast Packets */
+};
+
 /* Rx IPC status */
 enum rx_frame_status {
 	good_frame = 0x0,
@@ -473,6 +482,9 @@ struct stmmac_ops {
 	void (*rx_queue_prio)(struct mac_device_info *hw, u32 prio, u32 queue);
 	/* TX Queues Priority */
 	void (*tx_queue_prio)(struct mac_device_info *hw, u32 prio, u32 queue);
+	/* RX Queues Routing */
+	void (*rx_queue_routing)(struct mac_device_info *hw, u8 packet,
+				 u32 queue);
 	/* Program RX Algorithms */
 	void (*prog_mtl_rx_algorithms)(struct mac_device_info *hw, u32 rx_alg);
 	/* Program TX Algorithms */
@@ -579,6 +591,11 @@ struct mac_device_info {
 	unsigned int pcs;
 	unsigned int pmt;
 	unsigned int ps;
+};
+
+struct stmmac_rx_routing {
+	u32 reg_mask;
+	u32 reg_shift;
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,
