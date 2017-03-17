@@ -2027,7 +2027,7 @@ static int _enable(struct omap_hwmod *oh)
 
 	r = (soc_ops.wait_target_ready) ? soc_ops.wait_target_ready(oh) :
 		-EINVAL;
-	if (oh->clkdm)
+	if (oh->clkdm && !(oh->flags & HWMOD_CLKDM_NOAUTO))
 		clkdm_allow_idle(oh->clkdm);
 
 	if (!r) {
@@ -2084,7 +2084,12 @@ static int _idle(struct omap_hwmod *oh)
 		_idle_sysc(oh);
 	_del_initiator_dep(oh, mpu_oh);
 
-	if (oh->clkdm)
+	/*
+	 * If HWMOD_CLKDM_NOAUTO is set then we don't
+	 * deny idle the clkdm again since idle was already denied
+	 * in _enable()
+	 */
+	if (oh->clkdm && !(oh->flags & HWMOD_CLKDM_NOAUTO))
 		clkdm_deny_idle(oh->clkdm);
 
 	if (oh->flags & HWMOD_BLOCK_WFI)
