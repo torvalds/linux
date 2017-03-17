@@ -662,11 +662,6 @@ static int adu_probe(struct usb_interface *interface,
 	int out_end_size;
 	int i;
 
-	if (udev == NULL) {
-		dev_err(&interface->dev, "udev is NULL.\n");
-		goto exit;
-	}
-
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct adu_device), GFP_KERNEL);
 	if (!dev) {
