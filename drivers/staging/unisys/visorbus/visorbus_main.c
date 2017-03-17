@@ -31,7 +31,7 @@ static int visorbus_forcenomatch;
 #define LINESIZE 99
 
 #define CURRENT_FILE_PC VISOR_BUS_PC_visorbus_main_c
-#define POLLJIFFIES_NORMALCHANNEL     10
+#define POLLJIFFIES_NORMALCHANNEL 10
 
 static int busreg_rc = -ENODEV; /* stores the result from bus registration */
 static struct dentry *visorbus_debugfs_dir;
