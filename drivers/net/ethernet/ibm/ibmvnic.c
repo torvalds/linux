@@ -3783,14 +3783,65 @@ task_failed:
 	dev_err(dev, "Passive initialization was not successful\n");
 }
 
+static int ibmvnic_init(struct ibmvnic_adapter *adapter)
+{
+	struct device *dev = &adapter->vdev->dev;
+	unsigned long timeout = msecs_to_jiffies(30000);
+	struct dentry *ent;
+	char buf[17]; /* debugfs name buf */
+	int rc;
+
+	rc = ibmvnic_init_crq_queue(adapter);
+	if (rc) {
+		dev_err(dev, "Couldn't initialize crq. rc=%d\n", rc);
+		return rc;
+	}
+
+	adapter->stats_token = dma_map_single(dev, &adapter->stats,
+				      sizeof(struct ibmvnic_statistics),
+				      DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, adapter->stats_token)) {
+		ibmvnic_release_crq_queue(adapter);
+		dev_err(dev, "Couldn't map stats buffer\n");
+		return -ENOMEM;
+	}
+
+	snprintf(buf, sizeof(buf), "ibmvnic_%x", adapter->vdev->unit_address);
+	ent = debugfs_create_dir(buf, NULL);
+	if (!ent || IS_ERR(ent)) {
+		dev_info(dev, "debugfs create directory failed\n");
+		adapter->debugfs_dir = NULL;
+	} else {
+		adapter->debugfs_dir = ent;
+		ent = debugfs_create_file("dump", S_IRUGO,
+					  adapter->debugfs_dir,
+					  adapter->netdev, &ibmvnic_dump_ops);
+		if (!ent || IS_ERR(ent)) {
+			dev_info(dev, "debugfs create dump file failed\n");
+			adapter->debugfs_dump = NULL;
+		} else {
+			adapter->debugfs_dump = ent;
+		}
+	}
+
+	init_completion(&adapter->init_done);
+	ibmvnic_send_crq_init(adapter);
+	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
+		dev_err(dev, "Initialization sequence timed out\n");
+		if (adapter->debugfs_dir && !IS_ERR(adapter->debugfs_dir))
+			debugfs_remove_recursive(adapter->debugfs_dir);
+		ibmvnic_release_crq_queue(adapter);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
-	unsigned long timeout = msecs_to_jiffies(30000);
 	struct ibmvnic_adapter *adapter;
 	struct net_device *netdev;
 	unsigned char *mac_addr_p;
-	struct dentry *ent;
-	char buf[17]; /* debugfs name buf */
 	int rc;
 
 	dev_dbg(&dev->dev, "entering ibmvnic_probe for UA 0x%x\n",
@@ -3828,69 +3879,28 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 	spin_lock_init(&adapter->stats_lock);
 
-	rc = ibmvnic_init_crq_queue(adapter);
-	if (rc) {
-		dev_err(&dev->dev, "Couldn't initialize crq. rc=%d\n", rc);
-		goto free_netdev;
-	}
-
 	INIT_LIST_HEAD(&adapter->errors);
 	INIT_LIST_HEAD(&adapter->inflight);
 	spin_lock_init(&adapter->error_list_lock);
 	spin_lock_init(&adapter->inflight_lock);
 
-	adapter->stats_token = dma_map_single(&dev->dev, &adapter->stats,
-					      sizeof(struct ibmvnic_statistics),
-					      DMA_FROM_DEVICE);
-	if (dma_mapping_error(&dev->dev, adapter->stats_token)) {
-		if (!firmware_has_feature(FW_FEATURE_CMO))
-			dev_err(&dev->dev, "Couldn't map stats buffer\n");
-		rc = -ENOMEM;
-		goto free_crq;
+	rc = ibmvnic_init(adapter);
+	if (rc) {
+		free_netdev(netdev);
+		return rc;
 	}
-
-	snprintf(buf, sizeof(buf), "ibmvnic_%x", dev->unit_address);
-	ent = debugfs_create_dir(buf, NULL);
-	if (!ent || IS_ERR(ent)) {
-		dev_info(&dev->dev, "debugfs create directory failed\n");
-		adapter->debugfs_dir = NULL;
-	} else {
-		adapter->debugfs_dir = ent;
-		ent = debugfs_create_file("dump", S_IRUGO, adapter->debugfs_dir,
-					  netdev, &ibmvnic_dump_ops);
-		if (!ent || IS_ERR(ent)) {
-			dev_info(&dev->dev,
-				 "debugfs create dump file failed\n");
-			adapter->debugfs_dump = NULL;
-		} else {
-			adapter->debugfs_dump = ent;
-		}
-	}
-
-	init_completion(&adapter->init_done);
-	ibmvnic_send_crq_init(adapter);
-	if (!wait_for_completion_timeout(&adapter->init_done, timeout))
-		return 0;
 
 	netdev->mtu = adapter->req_mtu - ETH_HLEN;
 
 	rc = register_netdev(netdev);
 	if (rc) {
 		dev_err(&dev->dev, "failed to register netdev rc=%d\n", rc);
-		goto free_debugfs;
+		free_netdev(netdev);
+		return rc;
 	}
 	dev_info(&dev->dev, "ibmvnic registered\n");
 
 	return 0;
-
-free_debugfs:
-	if (adapter->debugfs_dir && !IS_ERR(adapter->debugfs_dir))
-		debugfs_remove_recursive(adapter->debugfs_dir);
-free_crq:
-	ibmvnic_release_crq_queue(adapter);
-free_netdev:
-	free_netdev(netdev);
-	return rc;
 }
 
 static int ibmvnic_remove(struct vio_dev *dev)
