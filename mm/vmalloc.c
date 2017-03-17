@@ -36,10 +36,6 @@
 #include <asm/tlbflush.h>
 #include <asm/shmparam.h>
 
-#ifdef CONFIG_X86
-# include <asm/fixmap.h>
-#endif
-
 #include "internal.h"
 
 struct vfree_deferred {
