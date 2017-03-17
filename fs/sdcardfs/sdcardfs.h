@@ -87,11 +87,11 @@
 	} while (0)
 
 /* OVERRIDE_CRED() and REVERT_CRED()
- * 	OVERRID_CRED()
- * 		backup original task->cred
- * 		and modifies task->cred->fsuid/fsgid to specified value.
+ *	OVERRIDE_CRED()
+ *		backup original task->cred
+ *		and modifies task->cred->fsuid/fsgid to specified value.
  *	REVERT_CRED()
- * 		restore original task->cred->fsuid/fsgid.
+ *		restore original task->cred->fsuid/fsgid.
  * These two macro should be used in pair, and OVERRIDE_CRED() should be
  * placed at the beginning of a function, right after variable declaration.
  */
@@ -114,27 +114,29 @@
 /* Android 5.0 support */
 
 /* Permission mode for a specific node. Controls how file permissions
- * are derived for children nodes. */
+ * are derived for children nodes.
+ */
 typedef enum {
-    /* Nothing special; this node should just inherit from its parent. */
-    PERM_INHERIT,
-    /* This node is one level above a normal root; used for legacy layouts
-     * which use the first level to represent user_id. */
-    PERM_PRE_ROOT,
-    /* This node is "/" */
-    PERM_ROOT,
-    /* This node is "/Android" */
-    PERM_ANDROID,
-    /* This node is "/Android/data" */
-    PERM_ANDROID_DATA,
-    /* This node is "/Android/obb" */
-    PERM_ANDROID_OBB,
-    /* This node is "/Android/media" */
-    PERM_ANDROID_MEDIA,
-    /* This node is "/Android/[data|media|obb]/[package]" */
-    PERM_ANDROID_PACKAGE,
-    /* This node is "/Android/[data|media|obb]/[package]/cache" */
-    PERM_ANDROID_PACKAGE_CACHE,
+	/* Nothing special; this node should just inherit from its parent. */
+	PERM_INHERIT,
+	/* This node is one level above a normal root; used for legacy layouts
+	 * which use the first level to represent user_id.
+	 */
+	PERM_PRE_ROOT,
+	/* This node is "/" */
+	PERM_ROOT,
+	/* This node is "/Android" */
+	PERM_ANDROID,
+	/* This node is "/Android/data" */
+	PERM_ANDROID_DATA,
+	/* This node is "/Android/obb" */
+	PERM_ANDROID_OBB,
+	/* This node is "/Android/media" */
+	PERM_ANDROID_MEDIA,
+	/* This node is "/Android/[data|media|obb]/[package]" */
+	PERM_ANDROID_PACKAGE,
+	/* This node is "/Android/[data|media|obb]/[package]/cache" */
+	PERM_ANDROID_PACKAGE_CACHE,
 } perm_t;
 
 struct sdcardfs_sb_info;
@@ -142,9 +144,9 @@ struct sdcardfs_mount_options;
 struct sdcardfs_inode_info;
 
 /* Do not directly use this function. Use OVERRIDE_CRED() instead. */
-const struct cred * override_fsids(struct sdcardfs_sb_info* sbi, struct sdcardfs_inode_info *info);
+const struct cred *override_fsids(struct sdcardfs_sb_info *sbi, struct sdcardfs_inode_info *info);
 /* Do not directly use this function, use REVERT_CRED() instead. */
-void revert_fsids(const struct cred * old_cred);
+void revert_fsids(const struct cred *old_cred);
 
 /* operations vectors defined in specific files */
 extern const struct file_operations sdcardfs_main_fops;
@@ -221,7 +223,8 @@ struct sdcardfs_sb_info {
 	struct super_block *sb;
 	struct super_block *lower_sb;
 	/* derived perm policy : some of options have been added
-	 * to sdcardfs_mount_options (Android 4.4 support) */
+	 * to sdcardfs_mount_options (Android 4.4 support)
+	 */
 	struct sdcardfs_mount_options options;
 	spinlock_t lock;	/* protects obbpath */
 	char *obbpath_s;
@@ -332,7 +335,7 @@ static inline void sdcardfs_put_reset_##pname(const struct dentry *dent) \
 { \
 	struct path pname; \
 	spin_lock(&SDCARDFS_D(dent)->lock); \
-	if(SDCARDFS_D(dent)->pname.dentry) { \
+	if (SDCARDFS_D(dent)->pname.dentry) { \
 		pathcpy(&pname, &SDCARDFS_D(dent)->pname); \
 		SDCARDFS_D(dent)->pname.dentry = NULL; \
 		SDCARDFS_D(dent)->pname.mnt = NULL; \
@@ -348,17 +351,17 @@ SDCARDFS_DENT_FUNC(orig_path)
 
 static inline bool sbinfo_has_sdcard_magic(struct sdcardfs_sb_info *sbinfo)
 {
-  return sbinfo && sbinfo->sb && sbinfo->sb->s_magic == SDCARDFS_SUPER_MAGIC;
+	return sbinfo && sbinfo->sb && sbinfo->sb->s_magic == SDCARDFS_SUPER_MAGIC;
 }
 
 /* grab a refererence if we aren't linking to ourself */
 static inline void set_top(struct sdcardfs_inode_info *info, struct inode *top)
 {
 	struct inode *old_top = NULL;
+
 	BUG_ON(IS_ERR_OR_NULL(top));
-	if (info->top && info->top != &info->vfs_inode) {
+	if (info->top && info->top != &info->vfs_inode)
 		old_top = info->top;
-	}
 	if (top != &info->vfs_inode)
 		igrab(top);
 	info->top = top;
@@ -368,11 +371,11 @@ static inline void set_top(struct sdcardfs_inode_info *info, struct inode *top)
 static inline struct inode *grab_top(struct sdcardfs_inode_info *info)
 {
 	struct inode *top = info->top;
-	if (top) {
+
+	if (top)
 		return igrab(top);
-	} else {
+	else
 		return NULL;
-	}
 }
 
 static inline void release_top(struct sdcardfs_inode_info *info)
@@ -380,21 +383,24 @@ static inline void release_top(struct sdcardfs_inode_info *info)
 	iput(info->top);
 }
 
-static inline int get_gid(struct vfsmount *mnt, struct sdcardfs_inode_info *info) {
+static inline int get_gid(struct vfsmount *mnt, struct sdcardfs_inode_info *info)
+{
 	struct sdcardfs_vfsmount_options *opts = mnt->data;
 
-	if (opts->gid == AID_SDCARD_RW) {
+	if (opts->gid == AID_SDCARD_RW)
 		/* As an optimization, certain trusted system components only run
 		 * as owner but operate across all users. Since we're now handing
 		 * out the sdcard_rw GID only to trusted apps, we're okay relaxing
 		 * the user boundary enforcement for the default view. The UIDs
-		 * assigned to app directories are still multiuser aware. */
+		 * assigned to app directories are still multiuser aware.
+		 */
 		return AID_SDCARD_RW;
-	} else {
+	else
 		return multiuser_get_uid(info->userid, opts->gid);
-	}
 }
-static inline int get_mode(struct vfsmount *mnt, struct sdcardfs_inode_info *info) {
+
+static inline int get_mode(struct vfsmount *mnt, struct sdcardfs_inode_info *info)
+{
 	int owner_mode;
 	int filtered_mode;
 	struct sdcardfs_vfsmount_options *opts = mnt->data;
@@ -403,17 +409,18 @@ static inline int get_mode(struct vfsmount *mnt, struct sdcardfs_inode_info *inf
 
 	if (info->perm == PERM_PRE_ROOT) {
 		/* Top of multi-user view should always be visible to ensure
-		* secondary users can traverse inside. */
+		* secondary users can traverse inside.
+		*/
 		visible_mode = 0711;
 	} else if (info->under_android) {
 		/* Block "other" access to Android directories, since only apps
 		* belonging to a specific user should be in there; we still
-		* leave +x open for the default view. */
-		if (opts->gid == AID_SDCARD_RW) {
+		* leave +x open for the default view.
+		*/
+		if (opts->gid == AID_SDCARD_RW)
 			visible_mode = visible_mode & ~0006;
-		} else {
+		else
 			visible_mode = visible_mode & ~0007;
-		}
 	}
 	owner_mode = info->lower_inode->i_mode & 0700;
 	filtered_mode = visible_mode & (owner_mode | (owner_mode >> 3) | (owner_mode >> 6));
@@ -438,7 +445,7 @@ static inline void sdcardfs_get_real_lower(const struct dentry *dent,
 	/* in case of a local obb dentry
 	 * the orig_path should be returned
 	 */
-	if(has_graft_path(dent))
+	if (has_graft_path(dent))
 		sdcardfs_get_orig_path(dent, real_lower);
 	else
 		sdcardfs_get_lower_path(dent, real_lower);
@@ -447,7 +454,7 @@ static inline void sdcardfs_get_real_lower(const struct dentry *dent,
 static inline void sdcardfs_put_real_lower(const struct dentry *dent,
 						struct path *real_lower)
 {
-	if(has_graft_path(dent))
+	if (has_graft_path(dent))
 		sdcardfs_put_orig_path(dent, real_lower);
 	else
 		sdcardfs_put_lower_path(dent, real_lower);
@@ -460,7 +467,7 @@ extern struct list_head sdcardfs_super_list;
 extern appid_t get_appid(const char *app_name);
 extern appid_t get_ext_gid(const char *app_name);
 extern appid_t is_excluded(const char *app_name, userid_t userid);
-extern int check_caller_access_to_name(struct inode *parent_node, const struct qstr* name);
+extern int check_caller_access_to_name(struct inode *parent_node, const struct qstr *name);
 extern int open_flags_to_access_mode(int open_flags);
 extern int packagelist_init(void);
 extern void packagelist_exit(void);
@@ -481,7 +488,7 @@ extern void get_derived_permission_new(struct dentry *parent, struct dentry *den
 extern void fixup_perms_recursive(struct dentry *dentry, struct limit_search *limit);
 
 extern void update_derived_permission_lock(struct dentry *dentry);
-void fixup_lower_ownership(struct dentry* dentry, const char *name);
+void fixup_lower_ownership(struct dentry *dentry, const char *name);
 extern int need_graft_path(struct dentry *dentry);
 extern int is_base_obbpath(struct dentry *dentry);
 extern int is_obbpath_invalid(struct dentry *dentry);
@@ -491,6 +498,7 @@ extern int setup_obb_dentry(struct dentry *dentry, struct path *lower_path);
 static inline struct dentry *lock_parent(struct dentry *dentry)
 {
 	struct dentry *dir = dget_parent(dentry);
+
 	mutex_lock_nested(&d_inode(dir)->i_mutex, I_MUTEX_PARENT);
 	return dir;
 }

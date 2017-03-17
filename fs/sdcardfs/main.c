@@ -72,6 +72,7 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
+
 		if (!*p)
 			continue;
 
@@ -148,6 +149,7 @@ int parse_options_remount(struct super_block *sb, char *options, int silent,
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
+
 		if (!*p)
 			continue;
 
@@ -223,8 +225,8 @@ static struct dentry *sdcardfs_d_alloc_root(struct super_block *sb)
 #endif
 
 DEFINE_MUTEX(sdcardfs_super_list_lock);
-LIST_HEAD(sdcardfs_super_list);
 EXPORT_SYMBOL_GPL(sdcardfs_super_list_lock);
+LIST_HEAD(sdcardfs_super_list);
 EXPORT_SYMBOL_GPL(sdcardfs_super_list);
 
 /*
@@ -328,14 +330,15 @@ static int sdcardfs_read_super(struct vfsmount *mnt, struct super_block *sb,
 	/* setup permission policy */
 	sb_info->obbpath_s = kzalloc(PATH_MAX, GFP_KERNEL);
 	mutex_lock(&sdcardfs_super_list_lock);
-	if(sb_info->options.multiuser) {
-		setup_derived_state(d_inode(sb->s_root), PERM_PRE_ROOT, sb_info->options.fs_user_id, AID_ROOT, false, d_inode(sb->s_root));
+	if (sb_info->options.multiuser) {
+		setup_derived_state(d_inode(sb->s_root), PERM_PRE_ROOT,
+					sb_info->options.fs_user_id, AID_ROOT,
+					false, d_inode(sb->s_root));
 		snprintf(sb_info->obbpath_s, PATH_MAX, "%s/obb", dev_name);
-		/*err =  prepare_dir(sb_info->obbpath_s,
-					sb_info->options.fs_low_uid,
-					sb_info->options.fs_low_gid, 00755);*/
 	} else {
-		setup_derived_state(d_inode(sb->s_root), PERM_ROOT, sb_info->options.fs_user_id, AID_ROOT, false, d_inode(sb->s_root));
+		setup_derived_state(d_inode(sb->s_root), PERM_ROOT,
+					sb_info->options.fs_user_id, AID_ROOT,
+					false, d_inode(sb->s_root));
 		snprintf(sb_info->obbpath_s, PATH_MAX, "%s/Android/obb", dev_name);
 	}
 	fixup_tmp_permissions(d_inode(sb->s_root));
@@ -368,8 +371,10 @@ out:
 
 /* A feature which supports mount_nodev() with options */
 static struct dentry *mount_nodev_with_options(struct vfsmount *mnt,
-	struct file_system_type *fs_type, int flags, const char *dev_name, void *data,
-        int (*fill_super)(struct vfsmount *, struct super_block *, const char *, void *, int))
+			struct file_system_type *fs_type, int flags,
+			const char *dev_name, void *data,
+			int (*fill_super)(struct vfsmount *, struct super_block *,
+						const char *, void *, int))
 
 {
 	int error;
@@ -401,19 +406,22 @@ static struct dentry *sdcardfs_mount(struct vfsmount *mnt,
 						raw_data, sdcardfs_read_super);
 }
 
-static struct dentry *sdcardfs_mount_wrn(struct file_system_type *fs_type, int flags,
-		    const char *dev_name, void *raw_data)
+static struct dentry *sdcardfs_mount_wrn(struct file_system_type *fs_type,
+		    int flags, const char *dev_name, void *raw_data)
 {
 	WARN(1, "sdcardfs does not support mount. Use mount2.\n");
 	return ERR_PTR(-EINVAL);
 }
 
-void *sdcardfs_alloc_mnt_data(void) {
+void *sdcardfs_alloc_mnt_data(void)
+{
 	return kmalloc(sizeof(struct sdcardfs_vfsmount_options), GFP_KERNEL);
 }
 
-void sdcardfs_kill_sb(struct super_block *sb) {
+void sdcardfs_kill_sb(struct super_block *sb)
+{
 	struct sdcardfs_sb_info *sbi;
+
 	if (sb->s_magic == SDCARDFS_SUPER_MAGIC) {
 		sbi = SDCARDFS_SB(sb);
 		mutex_lock(&sdcardfs_super_list_lock);

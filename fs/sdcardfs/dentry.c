@@ -46,7 +46,8 @@ static int sdcardfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	spin_unlock(&dentry->d_lock);
 
 	/* check uninitialized obb_dentry and
-	 * whether the base obbpath has been changed or not */
+	 * whether the base obbpath has been changed or not
+	 */
 	if (is_obbpath_invalid(dentry)) {
 		d_drop(dentry);
 		return 0;
@@ -106,12 +107,10 @@ out:
 static void sdcardfs_d_release(struct dentry *dentry)
 {
 	/* release and reset the lower paths */
-	if(has_graft_path(dentry)) {
+	if (has_graft_path(dentry))
 		sdcardfs_put_reset_orig_path(dentry);
-	}
 	sdcardfs_put_reset_lower_path(dentry);
 	free_dentry_private_data(dentry);
-	return;
 }
 
 static int sdcardfs_hash_ci(const struct dentry *dentry,
@@ -168,14 +167,16 @@ static int sdcardfs_cmp_ci(const struct dentry *parent,
 	return 1;
 }
 
-static void sdcardfs_canonical_path(const struct path *path, struct path *actual_path) {
+static void sdcardfs_canonical_path(const struct path *path,
+				struct path *actual_path)
+{
 	sdcardfs_get_real_lower(path->dentry, actual_path);
 }
 
 const struct dentry_operations sdcardfs_ci_dops = {
 	.d_revalidate	= sdcardfs_d_revalidate,
 	.d_release	= sdcardfs_d_release,
-	.d_hash 	= sdcardfs_hash_ci,
+	.d_hash	= sdcardfs_hash_ci,
 	.d_compare	= sdcardfs_cmp_ci,
 	.d_canonical_path = sdcardfs_canonical_path,
 };

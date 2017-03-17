@@ -216,7 +216,7 @@ static int sdcardfs_open(struct inode *inode, struct file *file)
 		goto out_err;
 	}
 
-	if(!check_caller_access_to_name(d_inode(parent), &dentry->d_name)) {
+	if (!check_caller_access_to_name(d_inode(parent), &dentry->d_name)) {
 		err = -EACCES;
 		goto out_err;
 	}
@@ -248,9 +248,8 @@ static int sdcardfs_open(struct inode *inode, struct file *file)
 
 	if (err)
 		kfree(SDCARDFS_F(file));
-	else {
+	else
 		sdcardfs_copy_and_fix_attrs(inode, sdcardfs_lower_inode(inode));
-	}
 
 out_revert_cred:
 	REVERT_CRED(saved_cred);

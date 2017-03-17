@@ -36,7 +36,7 @@ static void sdcardfs_put_super(struct super_block *sb)
 	if (!spd)
 		return;
 
-	if(spd->obbpath_s) {
+	if (spd->obbpath_s) {
 		kfree(spd->obbpath_s);
 		path_put(&spd->obbpath);
 	}
@@ -125,29 +125,33 @@ static int sdcardfs_remount_fs2(struct vfsmount *mnt, struct super_block *sb,
 	 * SILENT, but anything else left over is an error.
 	 */
 	if ((*flags & ~(MS_RDONLY | MS_MANDLOCK | MS_SILENT | MS_REMOUNT)) != 0) {
-		printk(KERN_ERR
-		       "sdcardfs: remount flags 0x%x unsupported\n", *flags);
+		pr_err("sdcardfs: remount flags 0x%x unsupported\n", *flags);
 		err = -EINVAL;
 	}
-	printk(KERN_INFO "Remount options were %s for vfsmnt %p.\n", options, mnt);
+	pr_info("Remount options were %s for vfsmnt %p.\n", options, mnt);
 	err = parse_options_remount(sb, options, *flags & ~MS_SILENT, mnt->data);
 
 
 	return err;
 }
 
-static void* sdcardfs_clone_mnt_data(void *data) {
-	struct sdcardfs_vfsmount_options* opt = kmalloc(sizeof(struct sdcardfs_vfsmount_options), GFP_KERNEL);
-	struct sdcardfs_vfsmount_options* old = data;
-	if(!opt) return NULL;
+static void *sdcardfs_clone_mnt_data(void *data)
+{
+	struct sdcardfs_vfsmount_options *opt = kmalloc(sizeof(struct sdcardfs_vfsmount_options), GFP_KERNEL);
+	struct sdcardfs_vfsmount_options *old = data;
+
+	if (!opt)
+		return NULL;
 	opt->gid = old->gid;
 	opt->mask = old->mask;
 	return opt;
 }
 
-static void sdcardfs_copy_mnt_data(void *data, void *newdata) {
-	struct sdcardfs_vfsmount_options* old = data;
-	struct sdcardfs_vfsmount_options* new = newdata;
+static void sdcardfs_copy_mnt_data(void *data, void *newdata)
+{
+	struct sdcardfs_vfsmount_options *old = data;
+	struct sdcardfs_vfsmount_options *new = newdata;
+
 	old->gid = new->gid;
 	old->mask = new->mask;
 }
@@ -235,7 +239,8 @@ static void sdcardfs_umount_begin(struct super_block *sb)
 		lower_sb->s_op->umount_begin(lower_sb);
 }
 
-static int sdcardfs_show_options(struct vfsmount *mnt, struct seq_file *m, struct dentry *root)
+static int sdcardfs_show_options(struct vfsmount *mnt, struct seq_file *m,
+			struct dentry *root)
 {
 	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(root->d_sb);
 	struct sdcardfs_mount_options *opts = &sbi->options;
