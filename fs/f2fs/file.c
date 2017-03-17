@@ -1518,6 +1518,9 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 	if (!inode_owner_or_capable(inode))
 		return -EACCES;
 
+	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
+
 	ret = mnt_want_write_file(filp);
 	if (ret)
 		return ret;
