@@ -71,7 +71,7 @@
 
 		/* reg = <0x0 0x0 0x0 0x0> will be updated by uboot */
 		rockchip_logo: rockchip-logo@00000000 {
-			compatible = "rockchip,fb-logo";
+			compatible = "rockchip,drm-logo";
 			reg = <0x0 0x0 0x0 0x0>;
 		};
 	};
