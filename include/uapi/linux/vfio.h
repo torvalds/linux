@@ -449,13 +449,19 @@ enum {
 };
 
 /*
- * The vfio-ccw bus driver makes use of the following fixed region.
- * Unimplemented regions return a size of zero.
+ * The vfio-ccw bus driver makes use of the following fixed region and
+ * IRQ index mapping. Unimplemented regions return a size of zero.
+ * Unimplemented IRQ types return a count of zero.
  */
 
 enum {
 	VFIO_CCW_CONFIG_REGION_INDEX,
 	VFIO_CCW_NUM_REGIONS
+};
+
+enum {
+	VFIO_CCW_IO_IRQ_INDEX,
+	VFIO_CCW_NUM_IRQS
 };
 
 /**

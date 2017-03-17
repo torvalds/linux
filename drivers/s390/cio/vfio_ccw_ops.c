@@ -202,6 +202,9 @@ static ssize_t vfio_ccw_mdev_write(struct mdev_device *mdev,
 	if (region->ret_code != 0)
 		return region->ret_code;
 
+	if (private->io_trigger)
+		eventfd_signal(private->io_trigger, 1);
+
 	return count;
 }
 
@@ -209,7 +212,7 @@ static int vfio_ccw_mdev_get_device_info(struct vfio_device_info *info)
 {
 	info->flags = VFIO_DEVICE_FLAGS_CCW | VFIO_DEVICE_FLAGS_RESET;
 	info->num_regions = VFIO_CCW_NUM_REGIONS;
-	info->num_irqs = 0;
+	info->num_irqs = VFIO_CCW_NUM_IRQS;
 
 	return 0;
 }
@@ -225,6 +228,83 @@ static int vfio_ccw_mdev_get_region_info(struct vfio_region_info *info,
 		info->flags = VFIO_REGION_INFO_FLAG_READ
 			      | VFIO_REGION_INFO_FLAG_WRITE;
 		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+int vfio_ccw_mdev_get_irq_info(struct vfio_irq_info *info)
+{
+	if (info->index != VFIO_CCW_IO_IRQ_INDEX)
+		return -EINVAL;
+
+	info->count = 1;
+	info->flags = VFIO_IRQ_INFO_EVENTFD;
+
+	return 0;
+}
+
+static int vfio_ccw_mdev_set_irqs(struct mdev_device *mdev,
+				  uint32_t flags,
+				  void __user *data)
+{
+	struct vfio_ccw_private *private;
+	struct eventfd_ctx **ctx;
+
+	if (!(flags & VFIO_IRQ_SET_ACTION_TRIGGER))
+		return -EINVAL;
+
+	private = dev_get_drvdata(mdev_parent_dev(mdev));
+	if (!private)
+		return -ENODEV;
+
+	ctx = &private->io_trigger;
+
+	switch (flags & VFIO_IRQ_SET_DATA_TYPE_MASK) {
+	case VFIO_IRQ_SET_DATA_NONE:
+	{
+		if (*ctx)
+			eventfd_signal(*ctx, 1);
+		return 0;
+	}
+	case VFIO_IRQ_SET_DATA_BOOL:
+	{
+		uint8_t trigger;
+
+		if (get_user(trigger, (uint8_t __user *)data))
+			return -EFAULT;
+
+		if (trigger && *ctx)
+			eventfd_signal(*ctx, 1);
+		return 0;
+	}
+	case VFIO_IRQ_SET_DATA_EVENTFD:
+	{
+		int32_t fd;
+
+		if (get_user(fd, (int32_t __user *)data))
+			return -EFAULT;
+
+		if (fd == -1) {
+			if (*ctx)
+				eventfd_ctx_put(*ctx);
+			*ctx = NULL;
+		} else if (fd >= 0) {
+			struct eventfd_ctx *efdctx;
+
+			efdctx = eventfd_ctx_fdget(fd);
+			if (IS_ERR(efdctx))
+				return PTR_ERR(efdctx);
+
+			if (*ctx)
+				eventfd_ctx_put(*ctx);
+
+			*ctx = efdctx;
+		} else
+			return -EINVAL;
+
+		return 0;
+	}
 	default:
 		return -EINVAL;
 	}
@@ -276,6 +356,47 @@ static ssize_t vfio_ccw_mdev_ioctl(struct mdev_device *mdev,
 			return ret;
 
 		return copy_to_user((void __user *)arg, &info, minsz);
+	}
+	case VFIO_DEVICE_GET_IRQ_INFO:
+	{
+		struct vfio_irq_info info;
+
+		minsz = offsetofend(struct vfio_irq_info, count);
+
+		if (copy_from_user(&info, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (info.argsz < minsz || info.index >= VFIO_CCW_NUM_IRQS)
+			return -EINVAL;
+
+		ret = vfio_ccw_mdev_get_irq_info(&info);
+		if (ret)
+			return ret;
+
+		if (info.count == -1)
+			return -EINVAL;
+
+		return copy_to_user((void __user *)arg, &info, minsz);
+	}
+	case VFIO_DEVICE_SET_IRQS:
+	{
+		struct vfio_irq_set hdr;
+		size_t data_size;
+		void __user *data;
+
+		minsz = offsetofend(struct vfio_irq_set, count);
+
+		if (copy_from_user(&hdr, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		ret = vfio_set_irqs_validate_and_prepare(&hdr, 1,
+							 VFIO_CCW_NUM_IRQS,
+							 &data_size);
+		if (ret)
+			return ret;
+
+		data = (void __user *)(arg + minsz);
+		return vfio_ccw_mdev_set_irqs(mdev, hdr.flags, data);
 	}
 	case VFIO_DEVICE_RESET:
 		return vfio_ccw_mdev_reset(mdev);

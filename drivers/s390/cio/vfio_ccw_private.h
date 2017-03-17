@@ -11,6 +11,7 @@
 #define _VFIO_CCW_PRIVATE_H_
 
 #include <linux/completion.h>
+#include <linux/eventfd.h>
 #include <linux/vfio_ccw.h>
 
 #include "css.h"
@@ -29,6 +30,7 @@
  * @cp: channel program for the current I/O operation
  * @irb: irb info received from interrupt
  * @scsw: scsw info
+ * @io_trigger: eventfd ctx for signaling userspace I/O results
  */
 struct vfio_ccw_private {
 	struct subchannel	*sch;
@@ -43,6 +45,8 @@ struct vfio_ccw_private {
 	struct channel_program	cp;
 	struct irb		irb;
 	union scsw		scsw;
+
+	struct eventfd_ctx	*io_trigger;
 } __aligned(8);
 
 extern int vfio_ccw_mdev_reg(struct subchannel *sch);
