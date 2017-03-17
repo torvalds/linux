@@ -2429,6 +2429,200 @@ static int get_mac(struct crypto_shash **hash, struct alg_spec *a, char **error,
 	return 0;
 }
 
+static int create_journal(struct dm_integrity_c *ic, char **error)
+{
+	int r = 0;
+	unsigned i;
+	__u64 journal_pages, journal_desc_size, journal_tree_size;
+
+	journal_pages = roundup((__u64)ic->journal_sections * ic->journal_section_sectors,
+				PAGE_SIZE >> SECTOR_SHIFT) >> (PAGE_SHIFT - SECTOR_SHIFT);
+	journal_desc_size = journal_pages * sizeof(struct page_list);
+	if (journal_pages >= totalram_pages - totalhigh_pages || journal_desc_size > ULONG_MAX) {
+		*error = "Journal doesn't fit into memory";
+		r = -ENOMEM;
+		goto bad;
+	}
+	ic->journal_pages = journal_pages;
+
+	ic->journal = dm_integrity_alloc_page_list(ic);
+	if (!ic->journal) {
+		*error = "Could not allocate memory for journal";
+		r = -ENOMEM;
+		goto bad;
+	}
+	if (ic->journal_crypt_alg.alg_string) {
+		unsigned ivsize, blocksize;
+		struct journal_completion comp;
+
+		comp.ic = ic;
+		ic->journal_crypt = crypto_alloc_skcipher(ic->journal_crypt_alg.alg_string, 0, 0);
+		if (IS_ERR(ic->journal_crypt)) {
+			*error = "Invalid journal cipher";
+			r = PTR_ERR(ic->journal_crypt);
+			ic->journal_crypt = NULL;
+			goto bad;
+		}
+		ivsize = crypto_skcipher_ivsize(ic->journal_crypt);
+		blocksize = crypto_skcipher_blocksize(ic->journal_crypt);
+
+		if (ic->journal_crypt_alg.key) {
+			r = crypto_skcipher_setkey(ic->journal_crypt, ic->journal_crypt_alg.key,
+						   ic->journal_crypt_alg.key_size);
+			if (r) {
+				*error = "Error setting encryption key";
+				goto bad;
+			}
+		}
+		DEBUG_print("cipher %s, block size %u iv size %u\n",
+			    ic->journal_crypt_alg.alg_string, blocksize, ivsize);
+
+		ic->journal_io = dm_integrity_alloc_page_list(ic);
+		if (!ic->journal_io) {
+			*error = "Could not allocate memory for journal io";
+			r = -ENOMEM;
+			goto bad;
+		}
+
+		if (blocksize == 1) {
+			struct scatterlist *sg;
+			SKCIPHER_REQUEST_ON_STACK(req, ic->journal_crypt);
+			unsigned char iv[ivsize];
+			skcipher_request_set_tfm(req, ic->journal_crypt);
+
+			ic->journal_xor = dm_integrity_alloc_page_list(ic);
+			if (!ic->journal_xor) {
+				*error = "Could not allocate memory for journal xor";
+				r = -ENOMEM;
+				goto bad;
+			}
+
+			sg = dm_integrity_kvmalloc((ic->journal_pages + 1) * sizeof(struct scatterlist), 0);
+			if (!sg) {
+				*error = "Unable to allocate sg list";
+				r = -ENOMEM;
+				goto bad;
+			}
+			sg_init_table(sg, ic->journal_pages + 1);
+			for (i = 0; i < ic->journal_pages; i++) {
+				char *va = lowmem_page_address(ic->journal_xor[i].page);
+				clear_page(va);
+				sg_set_buf(&sg[i], va, PAGE_SIZE);
+			}
+			sg_set_buf(&sg[i], &ic->commit_ids, sizeof ic->commit_ids);
+			memset(iv, 0x00, ivsize);
+
+			skcipher_request_set_crypt(req, sg, sg, PAGE_SIZE * ic->journal_pages + sizeof ic->commit_ids, iv);
+			comp.comp = COMPLETION_INITIALIZER_ONSTACK(comp.comp);
+			comp.in_flight = (atomic_t)ATOMIC_INIT(1);
+			if (do_crypt(true, req, &comp))
+				wait_for_completion(&comp.comp);
+			kvfree(sg);
+			r = dm_integrity_failed(ic);
+			if (r) {
+				*error = "Unable to encrypt journal";
+				goto bad;
+			}
+			DEBUG_bytes(lowmem_page_address(ic->journal_xor[0].page), 64, "xor data");
+
+			crypto_free_skcipher(ic->journal_crypt);
+			ic->journal_crypt = NULL;
+		} else {
+			SKCIPHER_REQUEST_ON_STACK(req, ic->journal_crypt);
+			unsigned char iv[ivsize];
+			unsigned crypt_len = roundup(ivsize, blocksize);
+			unsigned char crypt_data[crypt_len];
+
+			skcipher_request_set_tfm(req, ic->journal_crypt);
+
+			ic->journal_scatterlist = dm_integrity_alloc_journal_scatterlist(ic, ic->journal);
+			if (!ic->journal_scatterlist) {
+				*error = "Unable to allocate sg list";
+				r = -ENOMEM;
+				goto bad;
+			}
+			ic->journal_io_scatterlist = dm_integrity_alloc_journal_scatterlist(ic, ic->journal_io);
+			if (!ic->journal_io_scatterlist) {
+				*error = "Unable to allocate sg list";
+				r = -ENOMEM;
+				goto bad;
+			}
+			ic->sk_requests = dm_integrity_kvmalloc(ic->journal_sections * sizeof(struct skcipher_request *), __GFP_ZERO);
+			if (!ic->sk_requests) {
+				*error = "Unable to allocate sk requests";
+				r = -ENOMEM;
+				goto bad;
+			}
+			for (i = 0; i < ic->journal_sections; i++) {
+				struct scatterlist sg;
+				struct skcipher_request *section_req;
+				__u32 section_le = cpu_to_le32(i);
+
+				memset(iv, 0x00, ivsize);
+				memset(crypt_data, 0x00, crypt_len);
+				memcpy(crypt_data, &section_le, min((size_t)crypt_len, sizeof(section_le)));
+
+				sg_init_one(&sg, crypt_data, crypt_len);
+				skcipher_request_set_crypt(req, &sg, &sg, crypt_len, iv);
+				comp.comp = COMPLETION_INITIALIZER_ONSTACK(comp.comp);
+				comp.in_flight = (atomic_t)ATOMIC_INIT(1);
+				if (do_crypt(true, req, &comp))
+					wait_for_completion(&comp.comp);
+
+				r = dm_integrity_failed(ic);
+				if (r) {
+					*error = "Unable to generate iv";
+					goto bad;
+				}
+
+				section_req = skcipher_request_alloc(ic->journal_crypt, GFP_KERNEL);
+				if (!section_req) {
+					*error = "Unable to allocate crypt request";
+					r = -ENOMEM;
+					goto bad;
+				}
+				section_req->iv = kmalloc(ivsize * 2, GFP_KERNEL);
+				if (!section_req->iv) {
+					skcipher_request_free(section_req);
+					*error = "Unable to allocate iv";
+					r = -ENOMEM;
+					goto bad;
+				}
+				memcpy(section_req->iv + ivsize, crypt_data, ivsize);
+				section_req->cryptlen = (size_t)ic->journal_section_sectors << SECTOR_SHIFT;
+				ic->sk_requests[i] = section_req;
+				DEBUG_bytes(crypt_data, ivsize, "iv(%u)", i);
+			}
+		}
+	}
+
+	for (i = 0; i < N_COMMIT_IDS; i++) {
+		unsigned j;
+retest_commit_id:
+		for (j = 0; j < i; j++) {
+			if (ic->commit_ids[j] == ic->commit_ids[i]) {
+				ic->commit_ids[i] = cpu_to_le64(le64_to_cpu(ic->commit_ids[i]) + 1);
+				goto retest_commit_id;
+			}
+		}
+		DEBUG_print("commit id %u: %016llx\n", i, ic->commit_ids[i]);
+	}
+
+	journal_tree_size = (__u64)ic->journal_entries * sizeof(struct journal_node);
+	if (journal_tree_size > ULONG_MAX) {
+		*error = "Journal doesn't fit into memory";
+		r = -ENOMEM;
+		goto bad;
+	}
+	ic->journal_tree = dm_integrity_kvmalloc(journal_tree_size, 0);
+	if (!ic->journal_tree) {
+		*error = "Could not allocate memory for journal tree";
+		r = -ENOMEM;
+	}
+bad:
+	return r;
+}
+
 /*
  * Construct a integrity mapping: <dev_path> <offset> <tag_size>
  *
@@ -2461,7 +2655,6 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	};
 	unsigned journal_sectors, interleave_sectors, buffer_sectors, journal_watermark, sync_msec;
 	bool should_write_sb;
-	__u64 journal_pages, journal_desc_size, journal_tree_size;
 	__u64 threshold;
 	unsigned long long start;
 
@@ -2761,189 +2954,9 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 	dm_bufio_set_sector_offset(ic->bufio, ic->start + ic->initial_sectors);
 
-	journal_pages = roundup((__u64)ic->journal_sections * ic->journal_section_sectors,
-				PAGE_SIZE >> SECTOR_SHIFT) >> (PAGE_SHIFT - SECTOR_SHIFT);
-	journal_desc_size = journal_pages * sizeof(struct page_list);
-	if (journal_pages >= totalram_pages - totalhigh_pages || journal_desc_size > ULONG_MAX) {
-		ti->error = "Journal doesn't fit into memory";
-		r = -ENOMEM;
+	r = create_journal(ic, &ti->error);
+	if (r)
 		goto bad;
-	}
-	ic->journal_pages = journal_pages;
-
-	ic->journal = dm_integrity_alloc_page_list(ic);
-	if (!ic->journal) {
-		ti->error = "Could not allocate memory for journal";
-		r = -ENOMEM;
-		goto bad;
-	}
-	if (ic->journal_crypt_alg.alg_string) {
-		unsigned ivsize, blocksize;
-		struct journal_completion comp;
-		comp.ic = ic;
-
-		ic->journal_crypt = crypto_alloc_skcipher(ic->journal_crypt_alg.alg_string, 0, 0);
-		if (IS_ERR(ic->journal_crypt)) {
-			ti->error = "Invalid journal cipher";
-			r = PTR_ERR(ic->journal_crypt);
-			ic->journal_crypt = NULL;
-			goto bad;
-		}
-		ivsize = crypto_skcipher_ivsize(ic->journal_crypt);
-		blocksize = crypto_skcipher_blocksize(ic->journal_crypt);
-
-		if (ic->journal_crypt_alg.key) {
-			r = crypto_skcipher_setkey(ic->journal_crypt, ic->journal_crypt_alg.key,
-						   ic->journal_crypt_alg.key_size);
-			if (r) {
-				ti->error = "Error setting encryption key";
-				goto bad;
-			}
-		}
-		DEBUG_print("cipher %s, block size %u iv size %u\n",
-			    ic->journal_crypt_alg.alg_string, blocksize, ivsize);
-
-		ic->journal_io = dm_integrity_alloc_page_list(ic);
-		if (!ic->journal_io) {
-			ti->error = "Could not allocate memory for journal io";
-			r = -ENOMEM;
-			goto bad;
-		}
-
-		if (blocksize == 1) {
-			struct scatterlist *sg;
-			SKCIPHER_REQUEST_ON_STACK(req, ic->journal_crypt);
-			unsigned char iv[ivsize];
-			skcipher_request_set_tfm(req, ic->journal_crypt);
-
-			ic->journal_xor = dm_integrity_alloc_page_list(ic);
-			if (!ic->journal_xor) {
-				ti->error = "Could not allocate memory for journal xor";
-				r = -ENOMEM;
-				goto bad;
-			}
-
-			sg = dm_integrity_kvmalloc((ic->journal_pages + 1) * sizeof(struct scatterlist), 0);
-			if (!sg) {
-				ti->error = "Unable to allocate sg list";
-				r = -ENOMEM;
-				goto bad;
-			}
-			sg_init_table(sg, ic->journal_pages + 1);
-			for (i = 0; i < ic->journal_pages; i++) {
-				char *va = lowmem_page_address(ic->journal_xor[i].page);
-				clear_page(va);
-				sg_set_buf(&sg[i], va, PAGE_SIZE);
-			}
-			sg_set_buf(&sg[i], &ic->commit_ids, sizeof ic->commit_ids);
-			memset(iv, 0x00, ivsize);
-
-			skcipher_request_set_crypt(req, sg, sg, PAGE_SIZE * ic->journal_pages + sizeof ic->commit_ids, iv);
-			comp.comp = COMPLETION_INITIALIZER_ONSTACK(comp.comp);
-			comp.in_flight = (atomic_t)ATOMIC_INIT(1);
-			if (do_crypt(true, req, &comp))
-				wait_for_completion(&comp.comp);
-			kvfree(sg);
-			if ((r = dm_integrity_failed(ic))) {
-				ti->error = "Unable to encrypt journal";
-				goto bad;
-			}
-			DEBUG_bytes(lowmem_page_address(ic->journal_xor[0].page), 64, "xor data");
-
-			crypto_free_skcipher(ic->journal_crypt);
-			ic->journal_crypt = NULL;
-		} else {
-			SKCIPHER_REQUEST_ON_STACK(req, ic->journal_crypt);
-			unsigned char iv[ivsize];
-			unsigned crypt_len = roundup(ivsize, blocksize);
-			unsigned char crypt_data[crypt_len];
-
-			skcipher_request_set_tfm(req, ic->journal_crypt);
-
-			ic->journal_scatterlist = dm_integrity_alloc_journal_scatterlist(ic, ic->journal);
-			if (!ic->journal_scatterlist) {
-				ti->error = "Unable to allocate sg list";
-				r = -ENOMEM;
-				goto bad;
-			}
-			ic->journal_io_scatterlist = dm_integrity_alloc_journal_scatterlist(ic, ic->journal_io);
-			if (!ic->journal_io_scatterlist) {
-				ti->error = "Unable to allocate sg list";
-				r = -ENOMEM;
-				goto bad;
-			}
-			ic->sk_requests = dm_integrity_kvmalloc(ic->journal_sections * sizeof(struct skcipher_request *), __GFP_ZERO);
-			if (!ic->sk_requests) {
-				ti->error = "Unable to allocate sk requests";
-				r = -ENOMEM;
-				goto bad;
-			}
-			for (i = 0; i < ic->journal_sections; i++) {
-				struct scatterlist sg;
-				struct skcipher_request *section_req;
-				__u32 section_le = cpu_to_le32(i);
-
-				memset(iv, 0x00, ivsize);
-				memset(crypt_data, 0x00, crypt_len);
-				memcpy(crypt_data, &section_le, min((size_t)crypt_len, sizeof(section_le)));
-
-				sg_init_one(&sg, crypt_data, crypt_len);
-				skcipher_request_set_crypt(req, &sg, &sg, crypt_len, iv);
-				comp.comp = COMPLETION_INITIALIZER_ONSTACK(comp.comp);
-				comp.in_flight = (atomic_t)ATOMIC_INIT(1);
-				if (do_crypt(true, req, &comp))
-					wait_for_completion(&comp.comp);
-
-				if ((r = dm_integrity_failed(ic))) {
-					ti->error = "Unable to generate iv";
-					goto bad;
-				}
-
-				section_req = skcipher_request_alloc(ic->journal_crypt, GFP_KERNEL);
-				if (!section_req) {
-					ti->error = "Unable to allocate crypt request";
-					r = -ENOMEM;
-					goto bad;
-				}
-				section_req->iv = kmalloc(ivsize * 2, GFP_KERNEL);
-				if (!section_req->iv) {
-					skcipher_request_free(section_req);
-					ti->error = "Unable to allocate iv";
-					r = -ENOMEM;
-					goto bad;
-				}
-				memcpy(section_req->iv + ivsize, crypt_data, ivsize);
-				section_req->cryptlen = (size_t)ic->journal_section_sectors << SECTOR_SHIFT;
-				ic->sk_requests[i] = section_req;
-				DEBUG_bytes(crypt_data, ivsize, "iv(%u)", i);
-			}
-		}
-	}
-
-	for (i = 0; i < N_COMMIT_IDS; i++) {
-		unsigned j;
-retest_commit_id:
-		for (j = 0; j < i; j++) {
-			if (ic->commit_ids[j] == ic->commit_ids[i]) {
-				ic->commit_ids[i] = cpu_to_le64(le64_to_cpu(ic->commit_ids[i]) + 1);
-				goto retest_commit_id;
-			}
-		}
-		DEBUG_print("commit id %u: %016llx\n", i, ic->commit_ids[i]);
-	}
-
-	journal_tree_size = (__u64)ic->journal_entries * sizeof(struct journal_node);
-	if (journal_tree_size > ULONG_MAX) {
-		ti->error = "Journal doesn't fit into memory";
-		r = -ENOMEM;
-		goto bad;
-	}
-	ic->journal_tree = dm_integrity_kvmalloc(journal_tree_size, 0);
-	if (!ic->journal_tree) {
-		ti->error = "Could not allocate memory for journal tree";
-		r = -ENOMEM;
-		goto bad;
-	}
 
 	if (should_write_sb) {
 		int r;
