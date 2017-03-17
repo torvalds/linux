@@ -211,20 +211,6 @@ struct signal_queue_header {
 	u8 filler[12];		/* Pad out to 64 byte cacheline */
 } __packed;
 
-#define spar_signal_init(chan, QHDRFLD, QDATAFLD, QDATATYPE, ver, typ)	\
-	do {								\
-		memset(&chan->QHDRFLD, 0, sizeof(chan->QHDRFLD));	\
-		chan->QHDRFLD.version = ver;				\
-		chan->QHDRFLD.chtype = typ;				\
-		chan->QHDRFLD.size = sizeof(chan->QDATAFLD);		\
-		chan->QHDRFLD.signal_size = sizeof(QDATATYPE);		\
-		chan->QHDRFLD.sig_base_offset = (u64)(chan->QDATAFLD) -	\
-			(u64)(&chan->QHDRFLD);				\
-		chan->QHDRFLD.max_slots =				\
-			sizeof(chan->QDATAFLD) / sizeof(QDATATYPE);	\
-		chan->QHDRFLD.max_signals = chan->QHDRFLD.max_slots - 1;\
-	} while (0)
-
 /* Generic function useful for validating any type of channel when it is
  * received by the client that will be accessing the channel.
  * Note that <logCtx> is only needed for callers in the EFI environment, and
