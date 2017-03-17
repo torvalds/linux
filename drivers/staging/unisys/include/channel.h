@@ -287,25 +287,6 @@ spar_check_channel_client(void __iomem *ch,
 	return 1;
 }
 
-/* Generic function useful for validating any type of channel when it is about
- * to be initialized by the server of the channel.
- * Note that <logCtx> is only needed for callers in the EFI environment, and
- * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
- */
-static inline int spar_check_channel_server(uuid_le typeuuid, char *name,
-					    u64 expected_min_bytes,
-					    u64 actual_bytes)
-{
-	if (expected_min_bytes > 0)	/* verify channel size */
-		if (actual_bytes < expected_min_bytes) {
-			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8llx actual=0x%-8.8llx\n",
-			       name, &typeuuid, expected_min_bytes,
-			       actual_bytes);
-			return 0;
-		}
-	return 1;
-}
-
 /*
  * Routine Description:
  * Tries to insert the prebuilt signal pointed to by pSignal into the nth
