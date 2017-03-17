@@ -1073,7 +1073,7 @@ static int vi_common_early_init(void *handle)
 		/* rev0 hardware requires workarounds to support PG */
 		adev->pg_flags = 0;
 		if (adev->rev_id != 0x00 || CZ_REV_BRISTOL(adev->pdev->revision)) {
-			adev->pg_flags |=
+			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
 				AMD_PG_SUPPORT_GFX_SMG |
 				AMD_PG_SUPPORT_GFX_PIPELINE |
 				AMD_PG_SUPPORT_CP |
