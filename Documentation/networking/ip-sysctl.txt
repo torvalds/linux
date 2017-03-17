@@ -1006,7 +1006,8 @@ accept_redirects - BOOLEAN
 		FALSE (router)
 
 forwarding - BOOLEAN
-	Enable IP forwarding on this interface.
+	Enable IP forwarding on this interface.  This controls whether packets
+	received _on_ this interface can be forwarded.
 
 mc_forwarding - BOOLEAN
 	Do multicast routing. The kernel needs to be compiled with CONFIG_MROUTE

@@ -13,11 +13,12 @@
 #include <linux/bpf.h>
 #include <linux/jhash.h>
 #include <linux/filter.h>
+#include <linux/rculist_nulls.h>
 #include "percpu_freelist.h"
 #include "bpf_lru_list.h"
 
 struct bucket {
-	struct hlist_head head;
+	struct hlist_nulls_head head;
 	raw_spinlock_t lock;
 };
 
@@ -44,9 +45,14 @@ enum extra_elem_state {
 /* each htab element is struct htab_elem + key + value */
 struct htab_elem {
 	union {
-		struct hlist_node hash_node;
-		struct bpf_htab *htab;
-		struct pcpu_freelist_node fnode;
+		struct hlist_nulls_node hash_node;
+		struct {
+			void *padding;
+			union {
+				struct bpf_htab *htab;
+				struct pcpu_freelist_node fnode;
+			};
+		};
 	};
 	union {
 		struct rcu_head rcu;
@@ -162,7 +168,8 @@ skip_percpu_elems:
 				 offsetof(struct htab_elem, lru_node),
 				 htab->elem_size, htab->map.max_entries);
 	else
-		pcpu_freelist_populate(&htab->freelist, htab->elems,
+		pcpu_freelist_populate(&htab->freelist,
+				       htab->elems + offsetof(struct htab_elem, fnode),
 				       htab->elem_size, htab->map.max_entries);
 
 	return 0;
@@ -216,6 +223,11 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	struct bpf_htab *htab;
 	int err, i;
 	u64 cost;
+
+	BUILD_BUG_ON(offsetof(struct htab_elem, htab) !=
+		     offsetof(struct htab_elem, hash_node.pprev));
+	BUILD_BUG_ON(offsetof(struct htab_elem, fnode.next) !=
+		     offsetof(struct htab_elem, hash_node.pprev));
 
 	if (lru && !capable(CAP_SYS_ADMIN))
 		/* LRU implementation is much complicated than other
@@ -326,7 +338,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		goto free_htab;
 
 	for (i = 0; i < htab->n_buckets; i++) {
-		INIT_HLIST_HEAD(&htab->buckets[i].head);
+		INIT_HLIST_NULLS_HEAD(&htab->buckets[i].head, i);
 		raw_spin_lock_init(&htab->buckets[i].lock);
 	}
 
@@ -366,19 +378,43 @@ static inline struct bucket *__select_bucket(struct bpf_htab *htab, u32 hash)
 	return &htab->buckets[hash & (htab->n_buckets - 1)];
 }
 
-static inline struct hlist_head *select_bucket(struct bpf_htab *htab, u32 hash)
+static inline struct hlist_nulls_head *select_bucket(struct bpf_htab *htab, u32 hash)
 {
 	return &__select_bucket(htab, hash)->head;
 }
 
-static struct htab_elem *lookup_elem_raw(struct hlist_head *head, u32 hash,
+/* this lookup function can only be called with bucket lock taken */
+static struct htab_elem *lookup_elem_raw(struct hlist_nulls_head *head, u32 hash,
 					 void *key, u32 key_size)
 {
+	struct hlist_nulls_node *n;
 	struct htab_elem *l;
 
-	hlist_for_each_entry_rcu(l, head, hash_node)
+	hlist_nulls_for_each_entry_rcu(l, n, head, hash_node)
 		if (l->hash == hash && !memcmp(&l->key, key, key_size))
 			return l;
+
+	return NULL;
+}
+
+/* can be called without bucket lock. it will repeat the loop in
+ * the unlikely event when elements moved from one bucket into another
+ * while link list is being walked
+ */
+static struct htab_elem *lookup_nulls_elem_raw(struct hlist_nulls_head *head,
+					       u32 hash, void *key,
+					       u32 key_size, u32 n_buckets)
+{
+	struct hlist_nulls_node *n;
+	struct htab_elem *l;
+
+again:
+	hlist_nulls_for_each_entry_rcu(l, n, head, hash_node)
+		if (l->hash == hash && !memcmp(&l->key, key, key_size))
+			return l;
+
+	if (unlikely(get_nulls_value(n) != (hash & (n_buckets - 1))))
+		goto again;
 
 	return NULL;
 }
@@ -387,7 +423,7 @@ static struct htab_elem *lookup_elem_raw(struct hlist_head *head, u32 hash,
 static void *__htab_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
-	struct hlist_head *head;
+	struct hlist_nulls_head *head;
 	struct htab_elem *l;
 	u32 hash, key_size;
 
@@ -400,7 +436,7 @@ static void *__htab_map_lookup_elem(struct bpf_map *map, void *key)
 
 	head = select_bucket(htab, hash);
 
-	l = lookup_elem_raw(head, hash, key, key_size);
+	l = lookup_nulls_elem_raw(head, hash, key, key_size, htab->n_buckets);
 
 	return l;
 }
@@ -433,8 +469,9 @@ static void *htab_lru_map_lookup_elem(struct bpf_map *map, void *key)
 static bool htab_lru_map_delete_node(void *arg, struct bpf_lru_node *node)
 {
 	struct bpf_htab *htab = (struct bpf_htab *)arg;
-	struct htab_elem *l, *tgt_l;
-	struct hlist_head *head;
+	struct htab_elem *l = NULL, *tgt_l;
+	struct hlist_nulls_head *head;
+	struct hlist_nulls_node *n;
 	unsigned long flags;
 	struct bucket *b;
 
@@ -444,9 +481,9 @@ static bool htab_lru_map_delete_node(void *arg, struct bpf_lru_node *node)
 
 	raw_spin_lock_irqsave(&b->lock, flags);
 
-	hlist_for_each_entry_rcu(l, head, hash_node)
+	hlist_nulls_for_each_entry_rcu(l, n, head, hash_node)
 		if (l == tgt_l) {
-			hlist_del_rcu(&l->hash_node);
+			hlist_nulls_del_rcu(&l->hash_node);
 			break;
 		}
 
@@ -459,7 +496,7 @@ static bool htab_lru_map_delete_node(void *arg, struct bpf_lru_node *node)
 static int htab_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
-	struct hlist_head *head;
+	struct hlist_nulls_head *head;
 	struct htab_elem *l, *next_l;
 	u32 hash, key_size;
 	int i;
@@ -473,7 +510,7 @@ static int htab_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 	head = select_bucket(htab, hash);
 
 	/* lookup the key */
-	l = lookup_elem_raw(head, hash, key, key_size);
+	l = lookup_nulls_elem_raw(head, hash, key, key_size, htab->n_buckets);
 
 	if (!l) {
 		i = 0;
@@ -481,7 +518,7 @@ static int htab_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 	}
 
 	/* key was found, get next key in the same bucket */
-	next_l = hlist_entry_safe(rcu_dereference_raw(hlist_next_rcu(&l->hash_node)),
+	next_l = hlist_nulls_entry_safe(rcu_dereference_raw(hlist_nulls_next_rcu(&l->hash_node)),
 				  struct htab_elem, hash_node);
 
 	if (next_l) {
@@ -500,7 +537,7 @@ find_first_elem:
 		head = select_bucket(htab, i);
 
 		/* pick first element in the bucket */
-		next_l = hlist_entry_safe(rcu_dereference_raw(hlist_first_rcu(head)),
+		next_l = hlist_nulls_entry_safe(rcu_dereference_raw(hlist_nulls_first_rcu(head)),
 					  struct htab_elem, hash_node);
 		if (next_l) {
 			/* if it's not empty, just return it */
@@ -582,9 +619,13 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 	int err = 0;
 
 	if (prealloc) {
-		l_new = (struct htab_elem *)pcpu_freelist_pop(&htab->freelist);
-		if (!l_new)
+		struct pcpu_freelist_node *l;
+
+		l = pcpu_freelist_pop(&htab->freelist);
+		if (!l)
 			err = -E2BIG;
+		else
+			l_new = container_of(l, struct htab_elem, fnode);
 	} else {
 		if (atomic_inc_return(&htab->count) > htab->map.max_entries) {
 			atomic_dec(&htab->count);
@@ -661,7 +702,7 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 	struct htab_elem *l_new = NULL, *l_old;
-	struct hlist_head *head;
+	struct hlist_nulls_head *head;
 	unsigned long flags;
 	struct bucket *b;
 	u32 key_size, hash;
@@ -700,9 +741,9 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 	/* add new element to the head of the list, so that
 	 * concurrent search will find it before old elem
 	 */
-	hlist_add_head_rcu(&l_new->hash_node, head);
+	hlist_nulls_add_head_rcu(&l_new->hash_node, head);
 	if (l_old) {
-		hlist_del_rcu(&l_old->hash_node);
+		hlist_nulls_del_rcu(&l_old->hash_node);
 		free_htab_elem(htab, l_old);
 	}
 	ret = 0;
@@ -716,7 +757,7 @@ static int htab_lru_map_update_elem(struct bpf_map *map, void *key, void *value,
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 	struct htab_elem *l_new, *l_old = NULL;
-	struct hlist_head *head;
+	struct hlist_nulls_head *head;
 	unsigned long flags;
 	struct bucket *b;
 	u32 key_size, hash;
@@ -757,10 +798,10 @@ static int htab_lru_map_update_elem(struct bpf_map *map, void *key, void *value,
 	/* add new element to the head of the list, so that
 	 * concurrent search will find it before old elem
 	 */
-	hlist_add_head_rcu(&l_new->hash_node, head);
+	hlist_nulls_add_head_rcu(&l_new->hash_node, head);
 	if (l_old) {
 		bpf_lru_node_set_ref(&l_new->lru_node);
-		hlist_del_rcu(&l_old->hash_node);
+		hlist_nulls_del_rcu(&l_old->hash_node);
 	}
 	ret = 0;
 
@@ -781,7 +822,7 @@ static int __htab_percpu_map_update_elem(struct bpf_map *map, void *key,
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 	struct htab_elem *l_new = NULL, *l_old;
-	struct hlist_head *head;
+	struct hlist_nulls_head *head;
 	unsigned long flags;
 	struct bucket *b;
 	u32 key_size, hash;
@@ -820,7 +861,7 @@ static int __htab_percpu_map_update_elem(struct bpf_map *map, void *key,
 			ret = PTR_ERR(l_new);
 			goto err;
 		}
-		hlist_add_head_rcu(&l_new->hash_node, head);
+		hlist_nulls_add_head_rcu(&l_new->hash_node, head);
 	}
 	ret = 0;
 err:
@@ -834,7 +875,7 @@ static int __htab_lru_percpu_map_update_elem(struct bpf_map *map, void *key,
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 	struct htab_elem *l_new = NULL, *l_old;
-	struct hlist_head *head;
+	struct hlist_nulls_head *head;
 	unsigned long flags;
 	struct bucket *b;
 	u32 key_size, hash;
@@ -882,7 +923,7 @@ static int __htab_lru_percpu_map_update_elem(struct bpf_map *map, void *key,
 	} else {
 		pcpu_copy_value(htab, htab_elem_get_ptr(l_new, key_size),
 				value, onallcpus);
-		hlist_add_head_rcu(&l_new->hash_node, head);
+		hlist_nulls_add_head_rcu(&l_new->hash_node, head);
 		l_new = NULL;
 	}
 	ret = 0;
@@ -910,7 +951,7 @@ static int htab_lru_percpu_map_update_elem(struct bpf_map *map, void *key,
 static int htab_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
-	struct hlist_head *head;
+	struct hlist_nulls_head *head;
 	struct bucket *b;
 	struct htab_elem *l;
 	unsigned long flags;
@@ -930,7 +971,7 @@ static int htab_map_delete_elem(struct bpf_map *map, void *key)
 	l = lookup_elem_raw(head, hash, key, key_size);
 
 	if (l) {
-		hlist_del_rcu(&l->hash_node);
+		hlist_nulls_del_rcu(&l->hash_node);
 		free_htab_elem(htab, l);
 		ret = 0;
 	}
@@ -942,7 +983,7 @@ static int htab_map_delete_elem(struct bpf_map *map, void *key)
 static int htab_lru_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
-	struct hlist_head *head;
+	struct hlist_nulls_head *head;
 	struct bucket *b;
 	struct htab_elem *l;
 	unsigned long flags;
@@ -962,7 +1003,7 @@ static int htab_lru_map_delete_elem(struct bpf_map *map, void *key)
 	l = lookup_elem_raw(head, hash, key, key_size);
 
 	if (l) {
-		hlist_del_rcu(&l->hash_node);
+		hlist_nulls_del_rcu(&l->hash_node);
 		ret = 0;
 	}
 
@@ -977,12 +1018,12 @@ static void delete_all_elements(struct bpf_htab *htab)
 	int i;
 
 	for (i = 0; i < htab->n_buckets; i++) {
-		struct hlist_head *head = select_bucket(htab, i);
-		struct hlist_node *n;
+		struct hlist_nulls_head *head = select_bucket(htab, i);
+		struct hlist_nulls_node *n;
 		struct htab_elem *l;
 
-		hlist_for_each_entry_safe(l, n, head, hash_node) {
-			hlist_del_rcu(&l->hash_node);
+		hlist_nulls_for_each_entry_safe(l, n, head, hash_node) {
+			hlist_nulls_del_rcu(&l->hash_node);
 			if (l->state != HTAB_EXTRA_ELEM_USED)
 				htab_elem_free(htab, l);
 		}

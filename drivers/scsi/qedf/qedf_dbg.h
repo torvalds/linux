@@ -81,14 +81,17 @@ struct qedf_dbg_ctx {
 #define QEDF_INFO(pdev, level, fmt, ...)	\
 		qedf_dbg_info(pdev, __func__, __LINE__, level, fmt,	\
 			      ## __VA_ARGS__)
-
-extern void qedf_dbg_err(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
+__printf(4, 5)
+void qedf_dbg_err(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 			  const char *fmt, ...);
-extern void qedf_dbg_warn(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
+__printf(4, 5)
+void qedf_dbg_warn(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 			   const char *, ...);
-extern void qedf_dbg_notice(struct qedf_dbg_ctx *qedf, const char *func,
+__printf(4, 5)
+void qedf_dbg_notice(struct qedf_dbg_ctx *qedf, const char *func,
 			    u32 line, const char *, ...);
-extern void qedf_dbg_info(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
+__printf(5, 6)
+void qedf_dbg_info(struct qedf_dbg_ctx *qedf, const char *func, u32 line,
 			  u32 info, const char *fmt, ...);
 
 /* GRC Dump related defines */
