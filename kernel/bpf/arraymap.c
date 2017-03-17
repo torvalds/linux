@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
+ * Copyright (c) 2016,2017 Facebook
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -111,6 +112,33 @@ static void *array_map_lookup_elem(struct bpf_map *map, void *key)
 		return NULL;
 
 	return array->value + array->elem_size * index;
+}
+
+/* emit BPF instructions equivalent to C code of array_map_lookup_elem() */
+static u32 array_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	struct bpf_insn *insn = insn_buf;
+	u32 elem_size = array->elem_size;
+	const int ret = BPF_REG_0;
+	const int map_ptr = BPF_REG_1;
+	const int index = BPF_REG_2;
+
+	*insn++ = BPF_ALU64_IMM(BPF_ADD, map_ptr, offsetof(struct bpf_array, value));
+	*insn++ = BPF_LDX_MEM(BPF_W, ret, index, 0);
+	*insn++ = BPF_JMP_IMM(BPF_JGE, ret, array->map.max_entries,
+			      elem_size == 1 ? 2 : 3);
+	if (elem_size == 1) {
+		/* nop */
+	} else if (is_power_of_2(elem_size)) {
+		*insn++ = BPF_ALU64_IMM(BPF_LSH, ret, ilog2(elem_size));
+	} else {
+		*insn++ = BPF_ALU64_IMM(BPF_MUL, ret, elem_size);
+	}
+	*insn++ = BPF_ALU64_REG(BPF_ADD, ret, map_ptr);
+	*insn++ = BPF_JMP_IMM(BPF_JA, 0, 0, 1);
+	*insn++ = BPF_MOV64_IMM(ret, 0);
+	return insn - insn_buf;
 }
 
 /* Called from eBPF program */
@@ -267,6 +295,7 @@ static const struct bpf_map_ops array_ops = {
 	.map_lookup_elem = array_map_lookup_elem,
 	.map_update_elem = array_map_update_elem,
 	.map_delete_elem = array_map_delete_elem,
+	.map_gen_lookup = array_map_gen_lookup,
 };
 
 static struct bpf_map_type_list array_type __ro_after_init = {

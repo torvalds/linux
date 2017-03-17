@@ -38,6 +38,8 @@ static __u64 time_get_ns(void)
 #define LRU_HASH_PREALLOC	(1 << 4)
 #define PERCPU_LRU_HASH_PREALLOC	(1 << 5)
 #define LPM_KMALLOC		(1 << 6)
+#define HASH_LOOKUP		(1 << 7)
+#define ARRAY_LOOKUP		(1 << 8)
 
 static int test_flags = ~0;
 
@@ -125,6 +127,30 @@ static void test_lpm_kmalloc(int cpu)
 	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
 }
 
+static void test_hash_lookup(int cpu)
+{
+	__u64 start_time;
+	int i;
+
+	start_time = time_get_ns();
+	for (i = 0; i < MAX_CNT; i++)
+		syscall(__NR_getpgid, 0);
+	printf("%d:hash_lookup %lld lookups per sec\n",
+	       cpu, MAX_CNT * 1000000000ll * 64 / (time_get_ns() - start_time));
+}
+
+static void test_array_lookup(int cpu)
+{
+	__u64 start_time;
+	int i;
+
+	start_time = time_get_ns();
+	for (i = 0; i < MAX_CNT; i++)
+		syscall(__NR_getpgrp, 0);
+	printf("%d:array_lookup %lld lookups per sec\n",
+	       cpu, MAX_CNT * 1000000000ll * 64 / (time_get_ns() - start_time));
+}
+
 static void loop(int cpu)
 {
 	cpu_set_t cpuset;
@@ -153,6 +179,12 @@ static void loop(int cpu)
 
 	if (test_flags & LPM_KMALLOC)
 		test_lpm_kmalloc(cpu);
+
+	if (test_flags & HASH_LOOKUP)
+		test_hash_lookup(cpu);
+
+	if (test_flags & ARRAY_LOOKUP)
+		test_array_lookup(cpu);
 }
 
 static void run_perf_test(int tasks)

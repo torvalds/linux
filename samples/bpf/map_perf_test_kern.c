@@ -65,6 +65,13 @@ struct bpf_map_def SEC("maps") lpm_trie_map_alloc = {
 	.map_flags = BPF_F_NO_PREALLOC,
 };
 
+struct bpf_map_def SEC("maps") array_map = {
+	.type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(u32),
+	.value_size = sizeof(long),
+	.max_entries = MAX_ENTRIES,
+};
+
 SEC("kprobe/sys_getuid")
 int stress_hmap(struct pt_regs *ctx)
 {
@@ -161,6 +168,32 @@ int stress_lpm_trie_map_alloc(struct pt_regs *ctx)
 #pragma clang loop unroll(full)
 	for (i = 0; i < 32; ++i)
 		bpf_map_lookup_elem(&lpm_trie_map_alloc, &key);
+
+	return 0;
+}
+
+SEC("kprobe/sys_getpgid")
+int stress_hash_map_lookup(struct pt_regs *ctx)
+{
+	u32 key = 1, i;
+	long *value;
+
+#pragma clang loop unroll(full)
+	for (i = 0; i < 64; ++i)
+		value = bpf_map_lookup_elem(&hash_map, &key);
+
+	return 0;
+}
+
+SEC("kprobe/sys_getpgrp")
+int stress_array_map_lookup(struct pt_regs *ctx)
+{
+	u32 key = 1, i;
+	long *value;
+
+#pragma clang loop unroll(full)
+	for (i = 0; i < 64; ++i)
+		value = bpf_map_lookup_elem(&array_map, &key);
 
 	return 0;
 }
