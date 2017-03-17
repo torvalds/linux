@@ -972,8 +972,6 @@ static void batadv_softif_free(struct net_device *dev)
  */
 static void batadv_softif_init_early(struct net_device *dev)
 {
-	struct batadv_priv *priv = netdev_priv(dev);
-
 	ether_setup(dev);
 
 	dev->netdev_ops = &batadv_netdev_ops;
@@ -990,8 +988,6 @@ static void batadv_softif_init_early(struct net_device *dev)
 	eth_hw_addr_random(dev);
 
 	dev->ethtool_ops = &batadv_ethtool_ops;
-
-	memset(priv, 0, sizeof(*priv));
 }
 
 struct net_device *batadv_softif_create(struct net *net, const char *name)
