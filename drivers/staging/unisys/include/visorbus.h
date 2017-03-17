@@ -172,8 +172,8 @@ struct visor_device {
 
 #define to_visor_device(x) container_of(x, struct visor_device, device)
 
-int visorbus_register_visor_driver(struct visor_driver *);
-void visorbus_unregister_visor_driver(struct visor_driver *);
+int visorbus_register_visor_driver(struct visor_driver *drv);
+void visorbus_unregister_visor_driver(struct visor_driver *drv);
 int visorbus_read_channel(struct visor_device *dev,
 			  unsigned long offset, void *dest,
 			  unsigned long nbytes);
