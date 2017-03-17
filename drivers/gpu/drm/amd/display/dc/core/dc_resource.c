@@ -297,8 +297,8 @@ bool resource_are_streams_timing_synchronizable(
 		return false;
 
 	if (stream1->phy_pix_clk != stream2->phy_pix_clk
-			&& !dc_is_dp_signal(stream1->signal)
-			&& !dc_is_dp_signal(stream2->signal))
+			&& (!dc_is_dp_signal(stream1->signal)
+			|| !dc_is_dp_signal(stream2->signal)))
 		return false;
 
 	return true;
@@ -1063,6 +1063,8 @@ static bool are_stream_backends_same(
 	if (stream_a == NULL || stream_b == NULL)
 		return false;
 
+	if (stream_a->public.timing.pixel_encoding != stream_b->public.timing.pixel_encoding)
+		return false;
 	if (is_timing_changed(stream_a, stream_b))
 		return false;
 
@@ -1072,8 +1074,8 @@ static bool are_stream_backends_same(
 bool is_stream_unchanged(
 	const struct core_stream *old_stream, const struct core_stream *stream)
 {
-	if (old_stream == stream)
-		return true;
+	if (old_stream != stream)
+		return false;
 
 	if (!are_stream_backends_same(old_stream, stream))
 		return false;
@@ -1357,6 +1359,7 @@ enum dc_status resource_map_pool_resources(
 			continue;
 		}
 	}
+
 		/* mark resources used for stream that is already active */
 		for (j = 0; j < MAX_PIPES; j++) {
 			struct pipe_ctx *pipe_ctx =
