@@ -1290,10 +1290,8 @@ static int alps_decode_ss4_v2(struct alps_fields *f,
 	/* handle buttons */
 	if (pkt_id == SS4_PACKET_ID_STICK) {
 		f->ts_left = !!(SS4_BTN_V2(p) & 0x01);
-		if (!(priv->flags & ALPS_BUTTONPAD)) {
-			f->ts_right = !!(SS4_BTN_V2(p) & 0x02);
-			f->ts_middle = !!(SS4_BTN_V2(p) & 0x04);
-		}
+		f->ts_right = !!(SS4_BTN_V2(p) & 0x02);
+		f->ts_middle = !!(SS4_BTN_V2(p) & 0x04);
 	} else {
 		f->left = !!(SS4_BTN_V2(p) & 0x01);
 		if (!(priv->flags & ALPS_BUTTONPAD)) {
