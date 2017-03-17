@@ -381,17 +381,4 @@ static const uuid_le spar_vnic_channel_protocol_uuid =
 				0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
 static const uuid_le spar_siovm_uuid = SPAR_SIOVM_UUID;
 
-/* {5b52c5ac-e5f5-4d42-8dff-429eaecd221f} */
-#define SPAR_CONTROLDIRECTOR_CHANNEL_PROTOCOL_UUID  \
-		UUID_LE(0x5b52c5ac, 0xe5f5, 0x4d42, \
-				0x8d, 0xff, 0x42, 0x9e, 0xae, 0xcd, 0x22, 0x1f)
-
-static const uuid_le spar_controldirector_channel_protocol_uuid =
-	SPAR_CONTROLDIRECTOR_CHANNEL_PROTOCOL_UUID;
-
-/* {b4e79625-aede-4eAA-9e11-D3eddcd4504c} */
-#define SPAR_DIAG_POOL_CHANNEL_PROTOCOL_UUID				\
-		UUID_LE(0xb4e79625, 0xaede, 0x4eaa, \
-				0x9e, 0x11, 0xd3, 0xed, 0xdc, 0xd4, 0x50, 0x4c)
-
 #endif
