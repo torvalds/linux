@@ -206,6 +206,16 @@
 		regulator-min-microvolt = <3800000>;
 		regulator-max-microvolt = <3800000>;
 	};
+
+	vcc_host: vcc-host {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&host_vbus_drv>;
+		regulator-name = "vcc_host";
+		regulator-always-on;
+	};
 };
 
 &hdmi {
@@ -628,6 +638,23 @@
 	status = "okay";
 };
 
+&u2phy {
+	status = "okay";
+
+	u2phy_host: host-port {
+		phy-supply = <&vcc_host>;
+		status = "okay";
+	};
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
 &mipi_dsi_host {
 	status = "okay";
 
@@ -690,6 +717,12 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins = <3 4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	usb2 {
+		host_vbus_drv: host-vbus-drv {
+			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
