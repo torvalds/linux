@@ -20,13 +20,6 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 
-/*
- * Definition of buttons on the tablet. The ACPI index of each button
- * is defined in section 2.8.7.2 of "Windows ACPI Design Guide for SoC
- * Platforms"
- */
-#define MAX_NBUTTONS	5
-
 struct soc_button_info {
 	const char *name;
 	int acpi_index;
@@ -79,14 +72,19 @@ soc_button_device_create(struct platform_device *pdev,
 	int gpio;
 	int error;
 
+	for (info = button_info; info->name; info++)
+		if (info->autorepeat == autorepeat)
+			n_buttons++;
+
 	gpio_keys_pdata = devm_kzalloc(&pdev->dev,
 				       sizeof(*gpio_keys_pdata) +
-					sizeof(*gpio_keys) * MAX_NBUTTONS,
+					sizeof(*gpio_keys) * n_buttons,
 				       GFP_KERNEL);
 	if (!gpio_keys_pdata)
 		return ERR_PTR(-ENOMEM);
 
 	gpio_keys = (void *)(gpio_keys_pdata + 1);
+	n_buttons = 0;
 
 	for (info = button_info; info->name; info++) {
 		if (info->autorepeat != autorepeat)
@@ -200,6 +198,11 @@ static int soc_button_probe(struct platform_device *pdev)
 	return 0;
 }
 
+/*
+ * Definition of buttons on the tablet. The ACPI index of each button
+ * is defined in section 2.8.7.2 of "Windows ACPI Design Guide for SoC
+ * Platforms"
+ */
 static struct soc_button_info soc_button_PNP0C40[] = {
 	{ "power", 0, EV_KEY, KEY_POWER, false, true },
 	{ "home", 1, EV_KEY, KEY_LEFTMETA, false, true },
