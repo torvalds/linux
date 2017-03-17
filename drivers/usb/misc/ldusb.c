@@ -650,10 +650,9 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct ld_usb *dev = NULL;
 	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
 	char *buffer;
-	int i;
 	int retval = -ENOMEM;
+	int res;
 
 	/* allocate memory for our device state and initialize it */
 
@@ -681,21 +680,17 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 
 	iface_desc = intf->cur_altsetting;
 
-	/* set up the endpoint information */
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_int_in(endpoint))
-			dev->interrupt_in_endpoint = endpoint;
-
-		if (usb_endpoint_is_int_out(endpoint))
-			dev->interrupt_out_endpoint = endpoint;
-	}
-	if (dev->interrupt_in_endpoint == NULL) {
+	res = usb_find_last_int_in_endpoint(iface_desc,
+			&dev->interrupt_in_endpoint);
+	if (res) {
 		dev_err(&intf->dev, "Interrupt in endpoint not found\n");
+		retval = res;
 		goto error;
 	}
-	if (dev->interrupt_out_endpoint == NULL)
+
+	res = usb_find_last_int_out_endpoint(iface_desc,
+			&dev->interrupt_out_endpoint);
+	if (res)
 		dev_warn(&intf->dev, "Interrupt out endpoint not found (using control endpoint instead)\n");
 
 	dev->interrupt_in_endpoint_size = usb_endpoint_maxp(dev->interrupt_in_endpoint);
