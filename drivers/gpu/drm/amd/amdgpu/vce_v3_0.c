@@ -783,8 +783,12 @@ static void vce_v3_0_get_clockgating_state(void *handle, u32 *flags)
 
 	mutex_lock(&adev->pm.mutex);
 
-	if (RREG32_SMC(ixCURRENT_PG_STATUS) &
-			CURRENT_PG_STATUS__VCE_PG_STATUS_MASK) {
+	if (adev->flags & AMD_IS_APU)
+		data = RREG32_SMC(ixCURRENT_PG_STATUS_APU);
+	else
+		data = RREG32_SMC(ixCURRENT_PG_STATUS);
+
+	if (data & CURRENT_PG_STATUS__VCE_PG_STATUS_MASK) {
 		DRM_INFO("Cannot get clockgating state when VCE is powergated.\n");
 		goto out;
 	}
