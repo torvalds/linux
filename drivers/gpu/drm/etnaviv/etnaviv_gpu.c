@@ -523,9 +523,10 @@ static void etnaviv_gpu_enable_mlcg(struct etnaviv_gpu *gpu)
 
 	pmc = gpu_read(gpu, VIVS_PM_MODULE_CONTROLS);
 
-	/* Disable PA clock gating for GC400+ except for GC420 */
+	/* Disable PA clock gating for GC400+ without bugfix except for GC420 */
 	if (gpu->identity.model >= chipModel_GC400 &&
-	    gpu->identity.model != chipModel_GC420)
+	    gpu->identity.model != chipModel_GC420 &&
+	    !(gpu->identity.minor_features3 & chipMinorFeatures3_BUG_FIXES12))
 		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_PA;
 
 	/*
@@ -540,6 +541,11 @@ static void etnaviv_gpu_enable_mlcg(struct etnaviv_gpu *gpu)
 
 	if (gpu->identity.revision < 0x5422)
 		pmc |= BIT(15); /* Unknown bit */
+
+	/* Disable TX clock gating on affected core revisions. */
+	if (etnaviv_is_model_rev(gpu, GC4000, 0x5222) ||
+	    etnaviv_is_model_rev(gpu, GC2000, 0x5108))
+		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_TX;
 
 	pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_HZ;
 	pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_EZ;
