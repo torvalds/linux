@@ -6452,6 +6452,7 @@ static int gfx_v8_0_set_clockgating_state(void *handle,
 		break;
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		gfx_v8_0_polaris_update_gfx_clock_gating(adev, state);
 		break;
 	default:
