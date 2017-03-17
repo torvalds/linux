@@ -20,6 +20,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include "../../include/linux/vlv2_plat_clock.h"
