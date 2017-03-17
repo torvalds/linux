@@ -175,7 +175,10 @@ struct kvm_s390_sie_block {
 #define ICPT_INST	0x04
 #define ICPT_PROGI	0x08
 #define ICPT_INSTPROGI	0x0C
+#define ICPT_EXTREQ	0x10
 #define ICPT_EXTINT	0x14
+#define ICPT_IOREQ	0x18
+#define ICPT_WAIT	0x1c
 #define ICPT_VALIDITY	0x20
 #define ICPT_STOP	0x28
 #define ICPT_OPEREXC	0x2C

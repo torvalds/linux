@@ -403,26 +403,26 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 
 	switch (vcpu->arch.sie_block->icptcode) {
-	case 0x10:
-	case 0x18:
+	case ICPT_EXTREQ:
+	case ICPT_IOREQ:
 		return handle_noop(vcpu);
-	case 0x04:
+	case ICPT_INST:
 		rc = handle_instruction(vcpu);
 		break;
-	case 0x08:
+	case ICPT_PROGI:
 		return handle_prog(vcpu);
-	case 0x14:
+	case ICPT_EXTINT:
 		return handle_external_interrupt(vcpu);
-	case 0x1c:
+	case ICPT_WAIT:
 		return kvm_s390_handle_wait(vcpu);
-	case 0x20:
+	case ICPT_VALIDITY:
 		return handle_validity(vcpu);
-	case 0x28:
+	case ICPT_STOP:
 		return handle_stop(vcpu);
-	case 0x2c:
+	case ICPT_OPEREXC:
 		rc = handle_operexc(vcpu);
 		break;
-	case 0x38:
+	case ICPT_PARTEXEC:
 		rc = handle_partial_execution(vcpu);
 		break;
 	default:
