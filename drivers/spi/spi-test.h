@@ -124,7 +124,7 @@ int spi_test_execute_msg(struct spi_device *spi,
 int spi_test_run_tests(struct spi_device *spi,
 		       struct spi_test *tests);
 
-#define ITERATE_LEN_LIST 1, 2, 3, 7, 11, 16, 31, 32, 64, 97, 128, 251, 256, \
+#define ITERATE_LEN_LIST 0, 1, 2, 3, 7, 11, 16, 31, 32, 64, 97, 128, 251, 256, \
 		1021, 1024, 1031, 4093, PAGE_SIZE, 4099, 65536, 65537
 /* some of the default @spi_transfer.len to test, terminated by a -1 */
 #define ITERATE_LEN ITERATE_LEN_LIST, -1
