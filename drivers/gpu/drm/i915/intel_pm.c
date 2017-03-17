@@ -8354,22 +8354,24 @@ void intel_pm_setup(struct drm_i915_private *dev_priv)
 static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 			     const i915_reg_t reg)
 {
-	u32 lower, upper, tmp, saved_ctl;
+	u32 lower, upper, tmp;
 
 	/* The register accessed do not need forcewake. We borrow
 	 * uncore lock to prevent concurrent access to range reg.
 	 */
 	spin_lock_irq(&dev_priv->uncore.lock);
-	saved_ctl = I915_READ_FW(VLV_COUNTER_CONTROL);
-
-	if (WARN_ON(!(saved_ctl & VLV_COUNT_RANGE_HIGH)))
-		I915_WRITE_FW(VLV_COUNTER_CONTROL,
-			      _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH));
 
 	/* vlv and chv residency counters are 40 bits in width.
 	 * With a control bit, we can choose between upper or lower
 	 * 32bit window into this counter.
+	 *
+	 * Although we always use the counter in high-range mode elsewhere,
+	 * userspace may attempt to read the value before rc6 is initialised,
+	 * before we have set the default VLV_COUNTER_CONTROL value. So always
+	 * set the high bit to be safe.
 	 */
+	I915_WRITE_FW(VLV_COUNTER_CONTROL,
+		      _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH));
 	upper = I915_READ_FW(reg);
 	do {
 		tmp = upper;
@@ -8382,6 +8384,11 @@ static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
 			      _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH));
 		upper = I915_READ_FW(reg);
 	} while (upper != tmp);
+
+	/* Everywhere else we always use VLV_COUNTER_CONTROL with the
+	 * VLV_COUNT_RANGE_HIGH bit set - so it is safe to leave it set
+	 * now.
+	 */
 
 	spin_unlock_irq(&dev_priv->uncore.lock);
 
