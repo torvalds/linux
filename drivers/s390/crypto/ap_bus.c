@@ -1712,6 +1712,9 @@ static void ap_scan_bus(struct work_struct *unused)
 		ap_dev->queue_depth = queue_depth;
 		ap_dev->raw_hwtype = device_type;
 		ap_dev->device_type = device_type;
+		/* CEX6 toleration: map to CEX5 */
+		if (device_type == AP_DEVICE_TYPE_CEX6)
+			ap_dev->device_type = AP_DEVICE_TYPE_CEX5;
 		ap_dev->functions = device_functions;
 		spin_lock_init(&ap_dev->lock);
 		INIT_LIST_HEAD(&ap_dev->pendingq);
