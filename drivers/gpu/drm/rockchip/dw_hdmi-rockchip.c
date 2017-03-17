@@ -164,7 +164,7 @@ static const struct dw_hdmi_curr_ctrl rockchip_cur_ctr[] = {
 	}
 };
 
-static const struct dw_hdmi_phy_config rockchip_phy_config[] = {
+static struct dw_hdmi_phy_config rockchip_phy_config[] = {
 	/*pixelclk   symbol   term   vlev*/
 	{ 74250000,  0x8009, 0x0004, 0x0272},
 	{ 165000000, 0x802b, 0x0004, 0x0209},
@@ -173,10 +173,35 @@ static const struct dw_hdmi_phy_config rockchip_phy_config[] = {
 	{ ~0UL,	     0x0000, 0x0000, 0x0000}
 };
 
+static int rockchip_hdmi_update_phy_table(struct rockchip_hdmi *hdmi,
+					  u32 *config,
+					  int phy_table_size)
+{
+	int i;
+
+	if (phy_table_size > ARRAY_SIZE(rockchip_phy_config)) {
+		dev_err(hdmi->dev, "phy table array number is out of range\n");
+		return -E2BIG;
+	}
+
+	for (i = 0; i < phy_table_size; i++) {
+		if (config[i * 4] != 0)
+			rockchip_phy_config[i].mpixelclock = (u64)config[i * 4];
+		else
+			rockchip_phy_config[i].mpixelclock = ~0UL;
+		rockchip_phy_config[i].term = (u16)config[i * 4 + 1];
+		rockchip_phy_config[i].sym_ctr = (u16)config[i * 4 + 2];
+		rockchip_phy_config[i].vlev_ctr = (u16)config[i * 4 + 3];
+	}
+
+	return 0;
+}
+
 static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 {
 	struct device_node *np = hdmi->dev->of_node;
-	int ret;
+	int ret, val, phy_table_size;
+	u32 *phy_config;
 
 	hdmi->regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(hdmi->regmap)) {
@@ -208,6 +233,28 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	if (ret) {
 		dev_err(hdmi->dev, "Failed to enable HDMI vpll: %d\n", ret);
 		return ret;
+	}
+
+	if (of_get_property(np, "rockchip,phy-table", &val)) {
+		phy_config = kmalloc(val, GFP_KERNEL);
+		if (!phy_config) {
+			/* use default table when kmalloc failed. */
+			dev_err(hdmi->dev, "kmalloc phy table failed\n");
+
+			return -ENOMEM;
+		}
+		phy_table_size = val / 16;
+		of_property_read_u32_array(np, "rockchip,phy_table",
+					   phy_config, val / sizeof(u32));
+		ret = rockchip_hdmi_update_phy_table(hdmi, phy_config,
+						     phy_table_size);
+		if (ret) {
+			kfree(phy_config);
+			return ret;
+		}
+		kfree(phy_config);
+	} else {
+		dev_dbg(hdmi->dev, "use default hdmi phy table\n");
 	}
 
 	return 0;
