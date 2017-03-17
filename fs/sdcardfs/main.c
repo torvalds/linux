@@ -29,7 +29,7 @@ enum {
 	Opt_gid,
 	Opt_debug,
 	Opt_mask,
-	Opt_multiuser, // May need?
+	Opt_multiuser,
 	Opt_userid,
 	Opt_reserved_mb,
 	Opt_err,

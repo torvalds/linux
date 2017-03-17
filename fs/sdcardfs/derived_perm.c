@@ -325,9 +325,7 @@ inline void update_derived_permission_lock(struct dentry *dentry)
 	 * 1. need to check whether the dentry is updated or not
 	 * 2. remove the root dentry update
 	 */
-	if (IS_ROOT(dentry)) {
-		//setup_default_pre_root_state(d_inode(dentry));
-	} else {
+	if (!IS_ROOT(dentry)) {
 		parent = dget_parent(dentry);
 		if (parent) {
 			get_derived_permission(parent, dentry);
@@ -377,7 +375,6 @@ int is_obbpath_invalid(struct dentry *dent)
 			ret = 1;
 		} else {
 			path_get(&di->lower_path);
-			//lower_parent = lock_parent(lower_path->dentry);
 
 			path_buf = kmalloc(PATH_MAX, GFP_ATOMIC);
 			if (!path_buf) {
@@ -392,7 +389,6 @@ int is_obbpath_invalid(struct dentry *dent)
 				kfree(path_buf);
 			}
 
-			//unlock_dir(lower_parent);
 			pathcpy(&lower_path, &di->lower_path);
 			need_put = 1;
 		}
@@ -438,7 +434,8 @@ int setup_obb_dentry(struct dentry *dentry, struct path *lower_path)
 
 	/* A local obb dentry must have its own orig_path to support rmdir
 	 * and mkdir of itself. Usually, we expect that the sbi->obbpath
-	 * is avaiable on this stage. */
+	 * is avaiable on this stage.
+	 */
 	sdcardfs_set_orig_path(dentry, lower_path);
 
 	err = kern_path(sbi->obbpath_s,

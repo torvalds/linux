@@ -127,12 +127,10 @@ static int sdcardfs_hash_ci(const struct dentry *dentry,
 	unsigned long hash;
 
 	name = qstr->name;
-	//len = vfat_striptail_len(qstr);
 	len = qstr->len;
 
 	hash = init_name_hash();
 	while (len--)
-		//hash = partial_name_hash(nls_tolower(t, *name++), hash);
 		hash = partial_name_hash(tolower(*name++), hash);
 	qstr->hash = end_name_hash(hash);
 
@@ -146,20 +144,8 @@ static int sdcardfs_cmp_ci(const struct dentry *parent,
 		const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
-	/* This function is copy of vfat_cmpi */
-	// FIXME Should we support national language?
-	//struct nls_table *t = MSDOS_SB(parent->d_sb)->nls_io;
-	//unsigned int alen, blen;
+	/* FIXME Should we support national language? */
 
-	/* A filename cannot end in '.' or we treat it like it has none */
-	/*
-	alen = vfat_striptail_len(name);
-	blen = __vfat_striptail_len(len, str);
-	if (alen == blen) {
-		if (nls_strnicmp(t, name->name, str, alen) == 0)
-			return 0;
-	}
-	*/
 	if (name->len == len) {
 		if (str_n_case_eq(name->name, str, len))
 			return 0;
