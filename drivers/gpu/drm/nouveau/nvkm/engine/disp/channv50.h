@@ -7,7 +7,11 @@ struct nv50_disp_chan {
 	const struct nv50_disp_chan_func *func;
 	const struct nv50_disp_chan_mthd *mthd;
 	struct nv50_disp_root *root;
-	int chid;
+
+	struct {
+		int ctrl;
+		int user;
+	} chid;
 	int head;
 
 	struct nvkm_object object;
