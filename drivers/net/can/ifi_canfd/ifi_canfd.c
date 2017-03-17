@@ -557,7 +557,7 @@ static int ifi_canfd_poll(struct napi_struct *napi, int quota)
 	int work_done = 0;
 
 	u32 stcmd = readl(priv->base + IFI_CANFD_STCMD);
-	u32 rxstcmd = readl(priv->base + IFI_CANFD_STCMD);
+	u32 rxstcmd = readl(priv->base + IFI_CANFD_RXSTCMD);
 	u32 errctr = readl(priv->base + IFI_CANFD_ERROR_CTR);
 
 	/* Handle bus state changes */
