@@ -948,27 +948,30 @@ static int __cmd_record(int argc, const char **argv)
 
 int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	const struct option info_options[] = {
-	OPT_BOOLEAN('t', "threads", &info_threads,
-		    "dump thread list in perf.data"),
-	OPT_BOOLEAN('m', "map", &info_map,
-		    "map of lock instances (address:name table)"),
-	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
-	OPT_END()
-	};
 	const struct option lock_options[] = {
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_INCR('v', "verbose", &verbose, "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace, "dump raw trace in ASCII"),
 	OPT_END()
 	};
+
+	const struct option info_options[] = {
+	OPT_BOOLEAN('t', "threads", &info_threads,
+		    "dump thread list in perf.data"),
+	OPT_BOOLEAN('m', "map", &info_map,
+		    "map of lock instances (address:name table)"),
+	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
+	OPT_PARENT(lock_options)
+	};
+
 	const struct option report_options[] = {
 	OPT_STRING('k', "key", &sort_key, "acquired",
 		    "key for sorting (acquired / contended / avg_wait / wait_total / wait_max / wait_min)"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	/* TODO: type */
-	OPT_END()
+	OPT_PARENT(lock_options)
 	};
+
 	const char * const info_usage[] = {
 		"perf lock info [<options>]",
 		NULL
