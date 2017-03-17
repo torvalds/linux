@@ -185,8 +185,6 @@ static ssize_t physaddr_show(struct device *dev, struct device_attribute *attr,
 {
 	struct visor_device *vdev = to_visor_device(dev);
 
-	if (!vdev->visorchannel)
-		return 0;
 	return sprintf(buf, "0x%llx\n",
 		       visorchannel_get_physaddr(vdev->visorchannel));
 }
@@ -197,8 +195,6 @@ static ssize_t nbytes_show(struct device *dev, struct device_attribute *attr,
 {
 	struct visor_device *vdev = to_visor_device(dev);
 
-	if (!vdev->visorchannel)
-		return 0;
 	return sprintf(buf, "0x%lx\n",
 			visorchannel_get_nbytes(vdev->visorchannel));
 }
@@ -209,8 +205,6 @@ static ssize_t clientpartition_show(struct device *dev,
 {
 	struct visor_device *vdev = to_visor_device(dev);
 
-	if (!vdev->visorchannel)
-		return 0;
 	return sprintf(buf, "0x%llx\n",
 		       visorchannel_get_clientpartition(vdev->visorchannel));
 }
@@ -222,8 +216,6 @@ static ssize_t typeguid_show(struct device *dev, struct device_attribute *attr,
 	struct visor_device *vdev = to_visor_device(dev);
 	char typeid[LINESIZE];
 
-	if (!vdev->visorchannel)
-		return 0;
 	return sprintf(buf, "%s\n",
 		       visorchannel_id(vdev->visorchannel, typeid));
 }
@@ -235,8 +227,6 @@ static ssize_t zoneguid_show(struct device *dev, struct device_attribute *attr,
 	struct visor_device *vdev = to_visor_device(dev);
 	char zoneid[LINESIZE];
 
-	if (!vdev->visorchannel)
-		return 0;
 	return sprintf(buf, "%s\n",
 		       visorchannel_zoneid(vdev->visorchannel, zoneid));
 }
@@ -245,13 +235,12 @@ static DEVICE_ATTR_RO(zoneguid);
 static ssize_t typename_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct visor_device *vdev = to_visor_device(dev);
 	int i = 0;
 	struct bus_type *xbus = dev->bus;
 	struct device_driver *xdrv = dev->driver;
 	struct visor_driver *drv = NULL;
 
-	if (!vdev->visorchannel || !xbus || !xdrv)
+	if (!xbus || !xdrv)
 		return 0;
 	i = xbus->match(dev, xdrv);
 	if (!i)
@@ -344,11 +333,10 @@ static ssize_t channel_id_show(struct device *dev,
 	struct visor_device *vdev = to_visor_device(dev);
 	int len = 0;
 
-	if (vdev->visorchannel) {
-		visorchannel_id(vdev->visorchannel, buf);
-		len = strlen(buf);
-		buf[len++] = '\n';
-	}
+	visorchannel_id(vdev->visorchannel, buf);
+	len = strlen(buf);
+	buf[len++] = '\n';
+
 	return len;
 }
 static DEVICE_ATTR_RO(channel_id);
