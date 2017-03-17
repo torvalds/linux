@@ -106,6 +106,13 @@ usb_find_common_endpoints(struct usb_host_interface *alt,
 		struct usb_endpoint_descriptor **int_in,
 		struct usb_endpoint_descriptor **int_out);
 
+int __must_check
+usb_find_common_endpoints_reverse(struct usb_host_interface *alt,
+		struct usb_endpoint_descriptor **bulk_in,
+		struct usb_endpoint_descriptor **bulk_out,
+		struct usb_endpoint_descriptor **int_in,
+		struct usb_endpoint_descriptor **int_out);
+
 static inline int __must_check
 usb_find_bulk_in_endpoint(struct usb_host_interface *alt,
 		struct usb_endpoint_descriptor **bulk_in)
@@ -132,6 +139,34 @@ usb_find_int_out_endpoint(struct usb_host_interface *alt,
 		struct usb_endpoint_descriptor **int_out)
 {
 	return usb_find_common_endpoints(alt, NULL, NULL, NULL, int_out);
+}
+
+static inline int __must_check
+usb_find_last_bulk_in_endpoint(struct usb_host_interface *alt,
+		struct usb_endpoint_descriptor **bulk_in)
+{
+	return usb_find_common_endpoints_reverse(alt, bulk_in, NULL, NULL, NULL);
+}
+
+static inline int __must_check
+usb_find_last_bulk_out_endpoint(struct usb_host_interface *alt,
+		struct usb_endpoint_descriptor **bulk_out)
+{
+	return usb_find_common_endpoints_reverse(alt, NULL, bulk_out, NULL, NULL);
+}
+
+static inline int __must_check
+usb_find_last_int_in_endpoint(struct usb_host_interface *alt,
+		struct usb_endpoint_descriptor **int_in)
+{
+	return usb_find_common_endpoints_reverse(alt, NULL, NULL, int_in, NULL);
+}
+
+static inline int __must_check
+usb_find_last_int_out_endpoint(struct usb_host_interface *alt,
+		struct usb_endpoint_descriptor **int_out)
+{
+	return usb_find_common_endpoints_reverse(alt, NULL, NULL, NULL, int_out);
 }
 
 /**
