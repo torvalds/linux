@@ -470,6 +470,18 @@ static void ibmvscsis_disconnect(struct work_struct *work)
 
 	case WAIT_ENABLED:
 		switch (new_state) {
+		case UNCONFIGURING:
+			vscsi->state = new_state;
+			vscsi->flags |= RESPONSE_Q_DOWN;
+			vscsi->flags &= ~(SCHEDULE_DISCONNECT |
+					  DISCONNECT_SCHEDULED);
+			dma_rmb();
+			if (vscsi->flags & CFG_SLEEPING) {
+				vscsi->flags &= ~CFG_SLEEPING;
+				complete(&vscsi->unconfig);
+			}
+			break;
+
 		/* should never happen */
 		case ERR_DISCONNECT:
 		case ERR_DISCONNECT_RECONNECT:
@@ -482,6 +494,13 @@ static void ibmvscsis_disconnect(struct work_struct *work)
 
 	case WAIT_IDLE:
 		switch (new_state) {
+		case UNCONFIGURING:
+			vscsi->flags |= RESPONSE_Q_DOWN;
+			vscsi->state = new_state;
+			vscsi->flags &= ~(SCHEDULE_DISCONNECT |
+					  DISCONNECT_SCHEDULED);
+			ibmvscsis_free_command_q(vscsi);
+			break;
 		case ERR_DISCONNECT:
 		case ERR_DISCONNECT_RECONNECT:
 			vscsi->state = new_state;
@@ -1187,6 +1206,15 @@ static void ibmvscsis_adapter_idle(struct scsi_info *vscsi)
 		free_qs = true;
 
 	switch (vscsi->state) {
+	case UNCONFIGURING:
+		ibmvscsis_free_command_q(vscsi);
+		dma_rmb();
+		isync();
+		if (vscsi->flags & CFG_SLEEPING) {
+			vscsi->flags &= ~CFG_SLEEPING;
+			complete(&vscsi->unconfig);
+		}
+		break;
 	case ERR_DISCONNECT_RECONNECT:
 		ibmvscsis_reset_queue(vscsi);
 		pr_debug("adapter_idle, disc_rec: flags 0x%x\n", vscsi->flags);
@@ -3342,6 +3370,7 @@ static int ibmvscsis_probe(struct vio_dev *vdev,
 		     (unsigned long)vscsi);
 
 	init_completion(&vscsi->wait_idle);
+	init_completion(&vscsi->unconfig);
 
 	snprintf(wq_name, 24, "ibmvscsis%s", dev_name(&vdev->dev));
 	vscsi->work_q = create_workqueue(wq_name);
@@ -3397,10 +3426,11 @@ static int ibmvscsis_remove(struct vio_dev *vdev)
 
 	pr_debug("remove (%s)\n", dev_name(&vscsi->dma_dev->dev));
 
-	/*
-	 * TBD: Need to handle if there are commands on the waiting_rsp q
-	 *      Actually, can there still be cmds outstanding to tcm?
-	 */
+	spin_lock_bh(&vscsi->intr_lock);
+	ibmvscsis_post_disconnect(vscsi, UNCONFIGURING, 0);
+	vscsi->flags |= CFG_SLEEPING;
+	spin_unlock_bh(&vscsi->intr_lock);
+	wait_for_completion(&vscsi->unconfig);
 
 	vio_disable_interrupts(vdev);
 	free_irq(vdev->irq, vscsi);
@@ -3409,7 +3439,6 @@ static int ibmvscsis_remove(struct vio_dev *vdev)
 			 DMA_BIDIRECTIONAL);
 	kfree(vscsi->map_buf);
 	tasklet_kill(&vscsi->work_task);
-	ibmvscsis_unregister_command_q(vscsi);
 	ibmvscsis_destroy_command_q(vscsi);
 	ibmvscsis_freetimer(vscsi);
 	ibmvscsis_free_cmds(vscsi);
