@@ -63,9 +63,9 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_rx_align = ITERATE_ALIGN,
+		.transfer_count = 1,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 				.rx_buf = RX(0),
 			},
@@ -77,9 +77,9 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_rx_align = ITERATE_ALIGN,
+		.transfer_count = 1,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(PAGE_SIZE - 4),
 				.rx_buf = RX(PAGE_SIZE - 4),
 			},
@@ -90,9 +90,9 @@ static struct spi_test spi_tests[] = {
 		.fill_option	= FILL_COUNT_8,
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
+		.transfer_count = 1,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 			},
 		},
@@ -102,9 +102,9 @@ static struct spi_test spi_tests[] = {
 		.fill_option	= FILL_COUNT_8,
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_rx_align = ITERATE_ALIGN,
+		.transfer_count = 1,
 		.transfers		= {
 			{
-				.len = 1,
 				.rx_buf = RX(0),
 			},
 		},
@@ -115,13 +115,12 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(0) | BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 			},
 			{
-				.len = 1,
 				/* this is why we cant use ITERATE_MAX_LEN */
 				.tx_buf = TX(SPI_TEST_MAX_SIZE_HALF),
 			},
@@ -133,9 +132,9 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(0),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(64),
 			},
 			{
@@ -150,13 +149,13 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
 				.len = 16,
 				.tx_buf = TX(0),
 			},
 			{
-				.len = 1,
 				.tx_buf = TX(64),
 			},
 		},
@@ -167,13 +166,12 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(0) | BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 			},
 			{
-				.len = 1,
 				.rx_buf = RX(0),
 			},
 		},
@@ -184,9 +182,9 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(0),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 			},
 			{
@@ -201,13 +199,13 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
 				.len = 1,
 				.tx_buf = TX(0),
 			},
 			{
-				.len = 1,
 				.rx_buf = RX(0),
 			},
 		},
@@ -218,14 +216,13 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(0) | BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				.tx_buf = TX(0),
 				.rx_buf = RX(0),
 			},
 			{
-				.len = 1,
 				/* making sure we align without overwrite
 				 * the reason we can not use ITERATE_MAX_LEN
 				 */
@@ -240,9 +237,9 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(0),
+		.transfer_count = 2,
 		.transfers		= {
 			{
-				.len = 1,
 				/* making sure we align without overwrite */
 				.tx_buf = TX(1024),
 				.rx_buf = RX(1024),
@@ -261,6 +258,7 @@ static struct spi_test spi_tests[] = {
 		.iterate_len    = { ITERATE_MAX_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_transfer_mask = BIT(1),
+		.transfer_count = 2,
 		.transfers		= {
 			{
 				.len = 1,
@@ -268,7 +266,6 @@ static struct spi_test spi_tests[] = {
 				.rx_buf = RX(0),
 			},
 			{
-				.len = 1,
 				/* making sure we align without overwrite */
 				.tx_buf = TX(1024),
 				.rx_buf = RX(1024),
@@ -503,7 +500,7 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 	/* if applicable to transfer check that rx_buf is equal to tx_buf */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		/* if there is no rx, then no check is needed */
-		if (!xfer->rx_buf)
+		if (!xfer->len || !xfer->rx_buf)
 			continue;
 		/* so depending on tx_buf we need to handle things */
 		if (xfer->tx_buf) {
@@ -745,15 +742,6 @@ static int spi_test_run_iter(struct spi_device *spi,
 	/* copy the test template to test */
 	memcpy(&test, testtemplate, sizeof(test));
 
-	/* set up test->transfers to the correct count */
-	if (!test.transfer_count) {
-		for (i = 0;
-		    (i < SPI_TEST_MAX_TRANSFERS) && test.transfers[i].len;
-		    i++) {
-			test.transfer_count++;
-		}
-	}
-
 	/* if iterate_transfer_mask is not set,
 	 * then set it to first transfer only
 	 */
@@ -799,8 +787,7 @@ static int spi_test_run_iter(struct spi_device *spi,
 		/* only when bit in transfer mask is set */
 		if (!(test.iterate_transfer_mask & BIT(i)))
 			continue;
-		if (len)
-			test.transfers[i].len = len;
+		test.transfers[i].len = len;
 		if (test.transfers[i].tx_buf)
 			test.transfers[i].tx_buf += tx_off;
 		if (test.transfers[i].tx_buf)
@@ -910,15 +897,6 @@ int spi_test_run_test(struct spi_device *spi, const struct spi_test *test,
 	/* iterate over all the iterable values using macros
 	 * (to make it a bit more readable...
 	 */
-#define FOR_EACH_ITERATE(var, defaultvalue)				\
-	for (idx_##var = -1, var = defaultvalue;			\
-	     ((idx_##var < 0) ||					\
-		     (							\
-			     (idx_##var < SPI_TEST_MAX_ITERATE) &&	\
-			     (var = test->iterate_##var[idx_##var])	\
-		     )							\
-	     );								\
-	     idx_##var++)
 #define FOR_EACH_ALIGNMENT(var)						\
 	for (var = 0;							\
 	    var < (test->iterate_##var ?				\
@@ -928,7 +906,8 @@ int spi_test_run_test(struct spi_device *spi, const struct spi_test *test,
 			1);						\
 	    var++)
 
-	FOR_EACH_ITERATE(len, 0) {
+	for (idx_len = 0; idx_len < SPI_TEST_MAX_ITERATE &&
+	     (len = test->iterate_len[idx_len]) != -1; idx_len++) {
 		FOR_EACH_ALIGNMENT(tx_align) {
 			FOR_EACH_ALIGNMENT(rx_align) {
 				/* and run the iteration */
