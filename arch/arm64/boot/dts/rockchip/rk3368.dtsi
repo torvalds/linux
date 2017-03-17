@@ -640,6 +640,7 @@
 		clocks = <&cru PCLK_MAILBOX>;
 		clock-names = "pclk_mailbox";
 		#mbox-cells = <1>;
+		status = "disabled";
 	};
 
 	pmugrf: syscon@ff738000 {
