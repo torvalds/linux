@@ -409,7 +409,7 @@ alloc_rcv_buf(struct net_device *netdev)
  *	Send the skb to the IO Partition.
  *	Returns void
  */
-static inline void
+static void
 post_skb(struct uiscmdrsp *cmdrsp,
 	 struct visornic_devdata *devdata, struct sk_buff *skb)
 {
@@ -760,8 +760,8 @@ static unsigned long devdata_xmits_outstanding(struct visornic_devdata *devdata)
  *      Returns true iff the number of unacked xmits sent to
  *      the IO partition is >= high_watermark.
  */
-static inline bool vnic_hit_high_watermark(struct visornic_devdata *devdata,
-					   ulong high_watermark)
+static bool vnic_hit_high_watermark(struct visornic_devdata *devdata,
+				    ulong high_watermark)
 {
 	return (devdata_xmits_outstanding(devdata) >= high_watermark);
 }
@@ -776,8 +776,8 @@ static inline bool vnic_hit_high_watermark(struct visornic_devdata *devdata,
  *      Returns true iff the number of unacked xmits sent to
  *      the IO partition is <= low_watermark.
  */
-static inline bool vnic_hit_low_watermark(struct visornic_devdata *devdata,
-					  ulong low_watermark)
+static bool vnic_hit_low_watermark(struct visornic_devdata *devdata,
+				   ulong low_watermark)
 {
 	return (devdata_xmits_outstanding(devdata) <= low_watermark);
 }
@@ -1067,7 +1067,7 @@ visornic_xmit_timeout(struct net_device *netdev)
  *	we are finished with them.
  *	Returns 0 for success, -1 for error.
  */
-static inline int
+static int
 repost_return(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
 	      struct sk_buff *skb, struct net_device *netdev)
 {
