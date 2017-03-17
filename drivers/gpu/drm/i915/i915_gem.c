@@ -4953,9 +4953,9 @@ i915_gem_object_create_from_data(struct drm_i915_private *dev_priv,
 			         const void *data, size_t size)
 {
 	struct drm_i915_gem_object *obj;
-	struct sg_table *sg;
-	size_t bytes;
-	int ret;
+	struct file *file;
+	size_t offset;
+	int err;
 
 	obj = i915_gem_object_create(dev_priv, round_up(size, PAGE_SIZE));
 	if (IS_ERR(obj))
@@ -4963,26 +4963,39 @@ i915_gem_object_create_from_data(struct drm_i915_private *dev_priv,
 
 	GEM_BUG_ON(obj->base.write_domain != I915_GEM_DOMAIN_CPU);
 
-	ret = i915_gem_object_pin_pages(obj);
-	if (ret)
-		goto fail;
+	file = obj->base.filp;
+	offset = 0;
+	do {
+		unsigned int len = min_t(typeof(size), size, PAGE_SIZE);
+		struct page *page;
+		void *pgdata, *vaddr;
 
-	sg = obj->mm.pages;
-	bytes = sg_copy_from_buffer(sg->sgl, sg->nents, (void *)data, size);
-	obj->mm.dirty = true; /* Backing store is now out of date */
-	i915_gem_object_unpin_pages(obj);
+		err = pagecache_write_begin(file, file->f_mapping,
+					    offset, len, 0,
+					    &page, &pgdata);
+		if (err < 0)
+			goto fail;
 
-	if (WARN_ON(bytes != size)) {
-		DRM_ERROR("Incomplete copy, wrote %zu of %zu", bytes, size);
-		ret = -EFAULT;
-		goto fail;
-	}
+		vaddr = kmap(page);
+		memcpy(vaddr, data, len);
+		kunmap(page);
+
+		err = pagecache_write_end(file, file->f_mapping,
+					  offset, len, len,
+					  page, pgdata);
+		if (err < 0)
+			goto fail;
+
+		size -= len;
+		data += len;
+		offset += len;
+	} while (size);
 
 	return obj;
 
 fail:
 	i915_gem_object_put(obj);
-	return ERR_PTR(ret);
+	return ERR_PTR(err);
 }
 
 struct scatterlist *
