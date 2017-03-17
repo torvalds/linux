@@ -1495,24 +1495,6 @@ device_resume_response(struct visor_device *dev_info, int response)
 	dev_info->pending_msg_hdr = NULL;
 }
 
-static inline s64 issue_vmcall_query_guest_virtual_time_offset(void)
-{
-	u64 result = VMCALL_SUCCESS;
-	u64 physaddr = 0;
-
-	ISSUE_IO_VMCALL(VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET, physaddr,
-			result);
-	return result;
-}
-
-static inline int issue_vmcall_update_physical_time(u64 adjustment)
-{
-	int result = VMCALL_SUCCESS;
-
-	ISSUE_IO_VMCALL(VMCALL_UPDATE_PHYSICAL_TIME, adjustment, result);
-	return result;
-}
-
 static struct parser_context *
 parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 {
