@@ -92,11 +92,11 @@ enum net_types {
 				 */
 	/* visornic -> uisnic */
 	NET_RCV,		/* incoming packet received */
-	/* uisnic -> virtpci */
+	/* uisnic -> visornic */
 	NET_XMIT,		/* for outgoing net packets */
 	/* visornic -> uisnic */
 	NET_XMIT_DONE,		/* outgoing packet xmitted */
-	/* uisnic -> virtpci */
+	/* uisnic -> visornic */
 	NET_RCV_ENBDIS,		/* enable/disable packet reception */
 	/* visornic -> uisnic */
 	NET_RCV_ENBDIS_ACK,	/* acknowledge enable/disable packet */
