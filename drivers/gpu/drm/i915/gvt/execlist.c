@@ -394,9 +394,11 @@ static void prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 
 static int update_wa_ctx_2_shadow_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
-	int ring_id = wa_ctx->workload->ring_id;
-	struct i915_gem_context *shadow_ctx =
-		wa_ctx->workload->vgpu->shadow_ctx;
+	struct intel_vgpu_workload *workload = container_of(wa_ctx,
+					struct intel_vgpu_workload,
+					wa_ctx);
+	int ring_id = workload->ring_id;
+	struct i915_gem_context *shadow_ctx = workload->vgpu->shadow_ctx;
 	struct drm_i915_gem_object *ctx_obj =
 		shadow_ctx->engine[ring_id].state->obj;
 	struct execlist_ring_context *shadow_ring_context;
@@ -680,7 +682,6 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 			CACHELINE_BYTES;
 		workload->wa_ctx.per_ctx.guest_gma =
 			per_ctx & PER_CTX_ADDR_MASK;
-		workload->wa_ctx.workload = workload;
 
 		WARN_ON(workload->wa_ctx.indirect_ctx.size && !(per_ctx & 0x1));
 	}
