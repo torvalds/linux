@@ -29,8 +29,8 @@
 #define P2P_INV_REQ			0x03
 #define P2P_INV_RSP			0x04
 #define PUBLIC_ACT_VENDORSPEC		0x09
-#define GAS_INTIAL_REQ			0x0a
-#define GAS_INTIAL_RSP			0x0b
+#define GAS_INITIAL_REQ			0x0a
+#define GAS_INITIAL_RSP			0x0b
 
 #define INVALID_CHANNEL			0
 
@@ -1477,10 +1477,10 @@ void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
 			}
 			if (buff[ACTION_CAT_ID] == PUB_ACTION_ATTR_ID) {
 				switch (buff[ACTION_SUBTYPE_ID]) {
-				case GAS_INTIAL_REQ:
+				case GAS_INITIAL_REQ:
 					break;
 
-				case GAS_INTIAL_RSP:
+				case GAS_INITIAL_RSP:
 					break;
 
 				case PUBLIC_ACT_VENDORSPEC:
@@ -1666,10 +1666,10 @@ static int mgmt_tx(struct wiphy *wiphy,
 					curr_channel = chan->hw_value;
 				}
 				switch (buf[ACTION_SUBTYPE_ID])	{
-				case GAS_INTIAL_REQ:
+				case GAS_INITIAL_REQ:
 					break;
 
-				case GAS_INTIAL_RSP:
+				case GAS_INITIAL_RSP:
 					break;
 
 				case PUBLIC_ACT_VENDORSPEC:
