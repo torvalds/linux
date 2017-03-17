@@ -160,7 +160,7 @@
 		pinctrl-names = "default", "gpio";
 		pinctrl-0 = <&hdmii2c_xfer &hdmi_cec>;
 		pinctrl-1 = <&i2c5_gpio>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	dwc_control_usb: dwc-control-usb {

@@ -587,6 +587,10 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+};
+
 &pinctrl {
 	pmic {
 		pmic_int_l: pmic-int-l {
