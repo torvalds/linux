@@ -576,33 +576,14 @@ static struct platform_driver * const mtk_drm_drivers[] = {
 
 static int __init mtk_drm_init(void)
 {
-	int ret;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mtk_drm_drivers); i++) {
-		ret = platform_driver_register(mtk_drm_drivers[i]);
-		if (ret < 0) {
-			pr_err("Failed to register %s driver: %d\n",
-			       mtk_drm_drivers[i]->driver.name, ret);
-			goto err;
-		}
-	}
-
-	return 0;
-
-err:
-	while (--i >= 0)
-		platform_driver_unregister(mtk_drm_drivers[i]);
-
-	return ret;
+	return platform_register_drivers(mtk_drm_drivers,
+					 ARRAY_SIZE(mtk_drm_drivers));
 }
 
 static void __exit mtk_drm_exit(void)
 {
-	int i;
-
-	for (i = ARRAY_SIZE(mtk_drm_drivers) - 1; i >= 0; i--)
-		platform_driver_unregister(mtk_drm_drivers[i]);
+	platform_unregister_drivers(mtk_drm_drivers,
+				    ARRAY_SIZE(mtk_drm_drivers));
 }
 
 module_init(mtk_drm_init);
