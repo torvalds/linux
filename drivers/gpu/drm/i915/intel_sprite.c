@@ -503,6 +503,62 @@ vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
+			  const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int rotation = plane_state->base.rotation;
+	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
+	u32 sprctl;
+
+	sprctl = SPRITE_ENABLE | SPRITE_GAMMA_ENABLE;
+
+	if (IS_IVYBRIDGE(dev_priv))
+		sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
+
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		sprctl |= SPRITE_PIPE_CSC_ENABLE;
+
+	switch (fb->format->format) {
+	case DRM_FORMAT_XBGR8888:
+		sprctl |= SPRITE_FORMAT_RGBX888 | SPRITE_RGB_ORDER_RGBX;
+		break;
+	case DRM_FORMAT_XRGB8888:
+		sprctl |= SPRITE_FORMAT_RGBX888;
+		break;
+	case DRM_FORMAT_YUYV:
+		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_YUYV;
+		break;
+	case DRM_FORMAT_YVYU:
+		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_YVYU;
+		break;
+	case DRM_FORMAT_UYVY:
+		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_UYVY;
+		break;
+	case DRM_FORMAT_VYUY:
+		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_VYUY;
+		break;
+	default:
+		MISSING_CASE(fb->format->format);
+		return 0;
+	}
+
+	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
+		sprctl |= SPRITE_TILED;
+
+	if (rotation & DRM_ROTATE_180)
+		sprctl |= SPRITE_ROTATE_180;
+
+	if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		sprctl |= SPRITE_DEST_KEY;
+	else if (key->flags & I915_SET_COLORKEY_SOURCE)
+		sprctl |= SPRITE_SOURCE_KEY;
+
+	return sprctl;
+}
+
 static void
 ivb_update_plane(struct drm_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
@@ -527,55 +583,7 @@ ivb_update_plane(struct drm_plane *plane,
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
 
-	sprctl = SPRITE_ENABLE;
-
-	switch (fb->format->format) {
-	case DRM_FORMAT_XBGR8888:
-		sprctl |= SPRITE_FORMAT_RGBX888 | SPRITE_RGB_ORDER_RGBX;
-		break;
-	case DRM_FORMAT_XRGB8888:
-		sprctl |= SPRITE_FORMAT_RGBX888;
-		break;
-	case DRM_FORMAT_YUYV:
-		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_YUYV;
-		break;
-	case DRM_FORMAT_YVYU:
-		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_YVYU;
-		break;
-	case DRM_FORMAT_UYVY:
-		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_UYVY;
-		break;
-	case DRM_FORMAT_VYUY:
-		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_VYUY;
-		break;
-	default:
-		BUG();
-	}
-
-	/*
-	 * Enable gamma to match primary/cursor plane behaviour.
-	 * FIXME should be user controllable via propertiesa.
-	 */
-	sprctl |= SPRITE_GAMMA_ENABLE;
-
-	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
-		sprctl |= SPRITE_TILED;
-
-	if (rotation & DRM_ROTATE_180)
-		sprctl |= SPRITE_ROTATE_180;
-
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		sprctl &= ~SPRITE_TRICKLE_FEED_DISABLE;
-	else
-		sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
-
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		sprctl |= SPRITE_PIPE_CSC_ENABLE;
-
-	if (key->flags & I915_SET_COLORKEY_DESTINATION)
-		sprctl |= SPRITE_DEST_KEY;
-	else if (key->flags & I915_SET_COLORKEY_SOURCE)
-		sprctl |= SPRITE_SOURCE_KEY;
+	sprctl = ivb_sprite_ctl(crtc_state, plane_state);
 
 	/* Sizes are 0 based */
 	src_w--;
