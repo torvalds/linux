@@ -371,18 +371,11 @@ static void free_rx_pool(struct ibmvnic_adapter *adapter,
 	pool->rx_buff = NULL;
 }
 
-static int ibmvnic_open(struct net_device *netdev)
+static int ibmvnic_login(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	unsigned long timeout = msecs_to_jiffies(30000);
 	struct device *dev = &adapter->vdev->dev;
-	struct ibmvnic_tx_pool *tx_pool;
-	union ibmvnic_crq crq;
-	int rxadd_subcrqs;
-	u64 *size_array;
-	int tx_subcrqs;
-	int rc = 0;
-	int i, j;
 
 	do {
 		if (adapter->renegotiate) {
@@ -406,6 +399,25 @@ static int ibmvnic_open(struct net_device *netdev)
 			return -1;
 		}
 	} while (adapter->renegotiate);
+
+	return 0;
+}
+
+static int ibmvnic_open(struct net_device *netdev)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->vdev->dev;
+	struct ibmvnic_tx_pool *tx_pool;
+	union ibmvnic_crq crq;
+	int rxadd_subcrqs;
+	u64 *size_array;
+	int tx_subcrqs;
+	int rc = 0;
+	int i, j;
+
+	rc = ibmvnic_login(netdev);
+	if (rc)
+		return rc;
 
 	rc = netif_set_real_num_tx_queues(netdev, adapter->req_tx_queues);
 	if (rc) {
