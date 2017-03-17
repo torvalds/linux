@@ -972,11 +972,6 @@ static bool dce112_validate_surface_sets(
 		if (set[i].surface_count > 1)
 			return false;
 
-		if (set[i].surfaces[0]->clip_rect.width
-				> set[i].stream->src.width
-				|| set[i].surfaces[0]->clip_rect.height
-				> set[i].stream->src.height)
-			return false;
 		if (set[i].surfaces[0]->format
 				>= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 			return false;
