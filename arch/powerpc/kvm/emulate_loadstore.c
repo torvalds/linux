@@ -119,6 +119,12 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 			kvmppc_set_gpr(vcpu, ra, vcpu->arch.vaddr_accessed);
 			break;
 
+		case OP_31_XOP_STDX:
+			emulated = kvmppc_handle_store(run, vcpu,
+						       kvmppc_get_gpr(vcpu, rs),
+							8, 1);
+			break;
+
 		case OP_31_XOP_STWX:
 			emulated = kvmppc_handle_store(run, vcpu,
 						       kvmppc_get_gpr(vcpu, rs),

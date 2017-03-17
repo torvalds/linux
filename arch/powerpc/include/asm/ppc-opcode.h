@@ -94,6 +94,7 @@
 #define OP_31_XOP_TRAP_64   68
 #define OP_31_XOP_DCBF      86
 #define OP_31_XOP_LBZX      87
+#define OP_31_XOP_STDX      149
 #define OP_31_XOP_STWX      151
 #define OP_31_XOP_STBX      215
 #define OP_31_XOP_LBZUX     119
