@@ -1216,6 +1216,9 @@ static void integrity_metadata(struct work_struct *w)
 		unsigned sectors_to_process = dio->range.n_sectors;
 		sector_t sector = dio->range.logical_sector;
 
+		if (unlikely(ic->mode == 'R'))
+			goto skip_io;
+
 		checksums = kmalloc((PAGE_SIZE >> SECTOR_SHIFT) * ic->tag_size + extra_space,
 				    GFP_NOIO | __GFP_NORETRY | __GFP_NOWARN);
 		if (!checksums)
@@ -1288,6 +1291,7 @@ again:
 			}
 		}
 	}
+skip_io:
 	dec_in_flight(dio);
 	return;
 error:
@@ -1326,6 +1330,9 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 		      (unsigned long long)ic->provided_data_sectors);
 		return -EIO;
 	}
+
+	if (unlikely(ic->mode == 'R') && unlikely(dio->write))
+		return -EIO;
 
 	get_area_and_offset(ic, dio->range.logical_sector, &area, &offset);
 	dio->metadata_block = get_metadata_sector_and_offset(ic, area, offset, &dio->metadata_offset);
@@ -1925,6 +1932,9 @@ static void replay_journal(struct dm_integrity_c *ic)
 	unsigned continue_section;
 	bool journal_empty;
 	unsigned char unused, last_used, want_commit_seq;
+
+	if (ic->mode == 'R')
+		return;
 
 	if (ic->journal_uptodate)
 		return;
@@ -2705,7 +2715,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		}
 	}
 
-	if (!strcmp(argv[3], "J") || !strcmp(argv[3], "D"))
+	if (!strcmp(argv[3], "J") || !strcmp(argv[3], "D") || !strcmp(argv[3], "R"))
 		ic->mode = argv[3][0];
 	else {
 		ti->error = "Invalid mode (expecting J or D)";
@@ -2864,14 +2874,15 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->error = "Error reading superblock";
 		goto bad;
 	}
-	if (!memcmp(ic->sb->magic, SB_MAGIC, 8)) {
-		should_write_sb = false;
-	} else {
-		for (i = 0; i < 512; i += 8) {
-			if (*(__u64 *)((__u8 *)ic->sb + i)) {
-				r = -EINVAL;
-				ti->error = "The device is not initialized";
-				goto bad;
+	should_write_sb = false;
+	if (memcmp(ic->sb->magic, SB_MAGIC, 8)) {
+		if (ic->mode != 'R') {
+			for (i = 0; i < 512; i += 8) {
+				if (*(__u64 *)((__u8 *)ic->sb + i)) {
+					r = -EINVAL;
+					ti->error = "The device is not initialized";
+					goto bad;
+				}
 			}
 		}
 
@@ -2880,7 +2891,8 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			ti->error = "Could not initialize superblock";
 			goto bad;
 		}
-		should_write_sb = true;
+		if (ic->mode != 'R')
+			should_write_sb = true;
 	}
 
 	if (ic->sb->version != SB_VERSION) {
@@ -2954,9 +2966,11 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 	dm_bufio_set_sector_offset(ic->bufio, ic->start + ic->initial_sectors);
 
-	r = create_journal(ic, &ti->error);
-	if (r)
-		goto bad;
+	if (ic->mode != 'R') {
+		r = create_journal(ic, &ti->error);
+		if (r)
+			goto bad;
+	}
 
 	if (should_write_sb) {
 		int r;

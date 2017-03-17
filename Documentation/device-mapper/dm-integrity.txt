@@ -59,6 +59,11 @@ Target arguments:
 		either both data and tag or none of them are written. The
 		journaled mode degrades write throughput twice because the
 		data have to be written twice.
+	R - recovery mode - in this mode, journal is not replayed,
+		checksums are not checked and writes to the device are not
+		allowed. This mode is useful for data recovery if the
+		device cannot be activated in any of the other standard
+		modes.
 
 5. the number of additional arguments
 
