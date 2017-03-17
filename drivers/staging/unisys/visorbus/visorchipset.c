@@ -1313,7 +1313,7 @@ chipset_notready_uevent(struct controlvm_message_header *msg_hdr)
 	return 0;
 }
 
-static inline unsigned int
+static unsigned int
 issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)
 {
 	struct vmcall_io_controlvm_addr_params params;
