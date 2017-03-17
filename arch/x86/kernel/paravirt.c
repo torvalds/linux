@@ -430,12 +430,16 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
 	.pmd_val = PTE_IDENT,
 	.make_pmd = PTE_IDENT,
 
-#if CONFIG_PGTABLE_LEVELS == 4
+#if CONFIG_PGTABLE_LEVELS >= 4
 	.pud_val = PTE_IDENT,
 	.make_pud = PTE_IDENT,
 
-	.set_pgd = native_set_pgd,
-#endif
+	.set_p4d = native_set_p4d,
+
+#if CONFIG_PGTABLE_LEVELS >= 5
+#error FIXME
+#endif /* CONFIG_PGTABLE_LEVELS >= 4 */
+#endif /* CONFIG_PGTABLE_LEVELS >= 4 */
 #endif /* CONFIG_PGTABLE_LEVELS >= 3 */
 
 	.pte_val = PTE_IDENT,

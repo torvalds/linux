@@ -53,9 +53,17 @@ extern struct mm_struct *pgd_page_get_mm(struct page *page);
 
 #define set_pmd(pmdp, pmd)		native_set_pmd(pmdp, pmd)
 
-#ifndef __PAGETABLE_PUD_FOLDED
+#ifndef __PAGETABLE_P4D_FOLDED
 #define set_pgd(pgdp, pgd)		native_set_pgd(pgdp, pgd)
 #define pgd_clear(pgd)			native_pgd_clear(pgd)
+#endif
+
+#ifndef set_p4d
+# define set_p4d(p4dp, p4d)		native_set_p4d(p4dp, p4d)
+#endif
+
+#ifndef __PAGETABLE_PUD_FOLDED
+#define p4d_clear(p4d)			native_p4d_clear(p4d)
 #endif
 
 #ifndef set_pud
@@ -73,6 +81,11 @@ extern struct mm_struct *pgd_page_get_mm(struct page *page);
 
 #define pgd_val(x)	native_pgd_val(x)
 #define __pgd(x)	native_make_pgd(x)
+
+#ifndef __PAGETABLE_P4D_FOLDED
+#define p4d_val(x)	native_p4d_val(x)
+#define __p4d(x)	native_make_p4d(x)
+#endif
 
 #ifndef __PAGETABLE_PUD_FOLDED
 #define pud_val(x)	native_pud_val(x)
@@ -554,6 +567,7 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 #define pte_pgprot(x) __pgprot(pte_flags(x))
 #define pmd_pgprot(x) __pgprot(pmd_flags(x))
 #define pud_pgprot(x) __pgprot(pud_flags(x))
+#define p4d_pgprot(x) __pgprot(p4d_flags(x))
 
 #define canon_pgprot(p) __pgprot(massage_pgprot(p))
 
@@ -792,12 +806,47 @@ static inline unsigned long pud_index(unsigned long address)
 	return (address >> PUD_SHIFT) & (PTRS_PER_PUD - 1);
 }
 
+#if CONFIG_PGTABLE_LEVELS > 3
+static inline int p4d_none(p4d_t p4d)
+{
+	return (native_p4d_val(p4d) & ~(_PAGE_KNL_ERRATUM_MASK)) == 0;
+}
+
+static inline int p4d_present(p4d_t p4d)
+{
+	return p4d_flags(p4d) & _PAGE_PRESENT;
+}
+
+static inline unsigned long p4d_page_vaddr(p4d_t p4d)
+{
+	return (unsigned long)__va(p4d_val(p4d) & p4d_pfn_mask(p4d));
+}
+
+/*
+ * Currently stuck as a macro due to indirect forward reference to
+ * linux/mmzone.h's __section_mem_map_addr() definition:
+ */
+#define p4d_page(p4d)		\
+	pfn_to_page((p4d_val(p4d) & p4d_pfn_mask(p4d)) >> PAGE_SHIFT)
+
+/* Find an entry in the third-level page table.. */
+static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
+{
+	return (pud_t *)p4d_page_vaddr(*p4d) + pud_index(address);
+}
+
+static inline int p4d_bad(p4d_t p4d)
+{
+	return (p4d_flags(p4d) & ~(_KERNPG_TABLE | _PAGE_USER)) != 0;
+}
+#endif  /* CONFIG_PGTABLE_LEVELS > 3 */
+
 static inline unsigned long p4d_index(unsigned long address)
 {
 	return (address >> P4D_SHIFT) & (PTRS_PER_P4D - 1);
 }
 
-#if CONFIG_PGTABLE_LEVELS > 3
+#if CONFIG_PGTABLE_LEVELS > 4
 static inline int pgd_present(pgd_t pgd)
 {
 	return pgd_flags(pgd) & _PAGE_PRESENT;
@@ -815,9 +864,9 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
 #define pgd_page(pgd)		pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT)
 
 /* to find an entry in a page-table-directory. */
-static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
+static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 {
-	return (pud_t *)pgd_page_vaddr(*pgd) + pud_index(address);
+	return (p4d_t *)pgd_page_vaddr(*pgd) + p4d_index(address);
 }
 
 static inline int pgd_bad(pgd_t pgd)
@@ -835,7 +884,7 @@ static inline int pgd_none(pgd_t pgd)
 	 */
 	return !native_pgd_val(pgd);
 }
-#endif	/* CONFIG_PGTABLE_LEVELS > 3 */
+#endif	/* CONFIG_PGTABLE_LEVELS > 4 */
 
 #endif	/* __ASSEMBLY__ */
 

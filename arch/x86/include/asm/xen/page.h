@@ -279,13 +279,17 @@ static inline pte_t __pte_ma(pteval_t x)
 
 #define pmd_val_ma(v) ((v).pmd)
 #ifdef __PAGETABLE_PUD_FOLDED
-#define pud_val_ma(v) ((v).pgd.pgd)
+#define pud_val_ma(v) ((v).p4d.pgd.pgd)
 #else
 #define pud_val_ma(v) ((v).pud)
 #endif
 #define __pmd_ma(x)	((pmd_t) { (x) } )
 
-#define pgd_val_ma(x)	((x).pgd)
+#ifdef __PAGETABLE_P4D_FOLDED
+#define p4d_val_ma(x)	((x).pgd.pgd)
+#else
+#define p4d_val_ma(x)	((x).p4d)
+#endif
 
 void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid);
 
