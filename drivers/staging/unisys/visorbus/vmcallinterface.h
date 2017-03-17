@@ -12,8 +12,8 @@
  * details.
  */
 
-#ifndef __IOMONINTF_H__
-#define __IOMONINTF_H__
+#ifndef __VMCALLINTERFACE_H__
+#define __VMCALLINTERFACE_H__
 
 /*
  * This file contains all structures needed to support the VMCALLs for IO
@@ -174,4 +174,4 @@ do {									\
 			       MDS_APPOS, post_code_temp);              \
 } while (0)
 
-#endif /* __IOMONINTF_H__ */
+#endif /* __VMCALLINTERFACE_H__ */
