@@ -823,10 +823,6 @@ fix_vbus_dev_info(struct visor_device *visordev)
 	bus_device_info_init(&dev_info, chan_type_name, visordrv->name);
 	write_vbus_dev_info(bdev->visorchannel, hdr_info, &dev_info, dev_no);
 
-	/*
-	 * Re-write bus+chipset info, because it is possible that this
-	 * was previously written by our evil counterpart, virtpci.
-	 */
 	write_vbus_chp_info(bdev->visorchannel, hdr_info, &chipset_driverinfo);
 	write_vbus_bus_info(bdev->visorchannel, hdr_info,
 			    &clientbus_driverinfo);
