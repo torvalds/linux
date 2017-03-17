@@ -4088,8 +4088,8 @@ static void mlxsw_sp_master_bridge_vlan_unlink(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_fid *f;
 
 	f = mlxsw_sp_fid_find(mlxsw_sp, fid);
-	if (f && f->r)
-		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->r);
+	if (f && f->rif)
+		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->rif);
 	if (f && --f->ref_count == 0)
 		mlxsw_sp_fid_destroy(mlxsw_sp, f);
 }
@@ -4206,8 +4206,8 @@ static void mlxsw_sp_vfid_destroy(struct mlxsw_sp *mlxsw_sp,
 	clear_bit(vfid, mlxsw_sp->vfids.mapped);
 	list_del(&f->list);
 
-	if (f->r)
-		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->r);
+	if (f->rif)
+		mlxsw_sp_rif_bridge_destroy(mlxsw_sp, f->rif);
 
 	kfree(f);
 
