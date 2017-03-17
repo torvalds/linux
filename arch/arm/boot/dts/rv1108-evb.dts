@@ -43,8 +43,8 @@
 #include "rv1108.dtsi"
 
 / {
-	model = "Rockchip RK1108 Evaluation board";
-	compatible = "rockchip,rk1108-evb", "rockchip,rk1108";
+	model = "Rockchip RV1108 Evaluation board";
+	compatible = "rockchip,rv1108-evb", "rockchip,rv1108";
 
 	memory@60000000 {
 		device_type = "memory";
