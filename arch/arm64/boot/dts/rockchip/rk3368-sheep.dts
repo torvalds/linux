@@ -582,6 +582,11 @@
 	status = "okay";
 };
 
+&tsadc {
+	tsadc-supply = <&syr827>;
+	status = "okay";
+};
+
 &pinctrl {
 	pmic {
 		pmic_int_l: pmic-int-l {
