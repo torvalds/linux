@@ -1331,8 +1331,33 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	if (!surface_count)  /* reset */
 		core_dc->hwss.apply_ctx_for_surface(core_dc, NULL, context);
 
+	/* Lock pipes for provided surfaces */
 	for (i = 0; i < surface_count; i++) {
 		struct core_surface *surface = DC_SURFACE_TO_CORE(srf_updates[i].surface);
+
+		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+			if (pipe_ctx->surface != surface)
+				continue;
+			if (!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
+				core_dc->hwss.pipe_control_lock(
+						core_dc,
+						pipe_ctx,
+						true);
+			}
+		}
+	}
+
+	/* Perform requested Updates */
+	for (i = 0; i < surface_count; i++) {
+		struct core_surface *surface = DC_SURFACE_TO_CORE(srf_updates[i].surface);
+
+		if (update_type >= UPDATE_TYPE_MED) {
+				core_dc->hwss.apply_ctx_for_surface(
+						core_dc, surface, context);
+				context_timing_trace(dc, &context->res_ctx);
+		}
 
 		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
@@ -1341,22 +1366,6 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 			if (pipe_ctx->surface != surface)
 				continue;
-
-			if (update_type >= UPDATE_TYPE_MED) {
-				/* only apply for top pipe */
-				if (!pipe_ctx->top_pipe) {
-					core_dc->hwss.apply_ctx_for_surface(core_dc,
-							 surface, context);
-					context_timing_trace(dc, &context->res_ctx);
-				}
-			}
-
-			if (!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
-				core_dc->hwss.pipe_control_lock(
-						core_dc,
-						pipe_ctx,
-						true);
-			}
 
 			if (srf_updates[i].flip_addr)
 				core_dc->hwss.update_plane_addr(core_dc, pipe_ctx);
@@ -1387,6 +1396,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		}
 	}
 
+	/* Unlock pipes */
 	for (i = context->res_ctx.pool->pipe_count - 1; i >= 0; i--) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
