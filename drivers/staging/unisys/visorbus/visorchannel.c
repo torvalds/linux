@@ -199,7 +199,7 @@ sig_read_header(struct visorchannel *channel, u32 queue,
 				 sig_hdr, sizeof(struct signal_queue_header));
 }
 
-static inline int
+static int
 sig_read_data(struct visorchannel *channel, u32 queue,
 	      struct signal_queue_header *sig_hdr, u32 slot, void *data)
 {
@@ -210,7 +210,7 @@ sig_read_data(struct visorchannel *channel, u32 queue,
 				 data, sig_hdr->signal_size);
 }
 
-static inline int
+static int
 sig_write_data(struct visorchannel *channel, u32 queue,
 	       struct signal_queue_header *sig_hdr, u32 slot, void *data)
 {
