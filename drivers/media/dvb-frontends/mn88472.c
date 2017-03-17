@@ -28,8 +28,9 @@ static int mn88472_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	struct i2c_client *client = fe->demodulator_priv;
 	struct mn88472_dev *dev = i2c_get_clientdata(client);
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret;
-	unsigned int utmp;
+	int ret, i;
+	unsigned int utmp, utmp1;
+	u8 buf[2];
 
 	if (!dev->active) {
 		ret = -EAGAIN;
@@ -75,6 +76,24 @@ static int mn88472_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	default:
 		ret = -EINVAL;
 		goto err;
+	}
+
+	/* Signal strength */
+	if (*status & FE_HAS_SIGNAL) {
+		for (i = 0; i < 2; i++) {
+			ret = regmap_bulk_read(dev->regmap[2], 0x8e + i,
+					       &buf[i], 1);
+			if (ret)
+				goto err;
+		}
+
+		utmp1 = buf[0] << 8 | buf[1] << 0 | buf[0] >> 2;
+		dev_dbg(&client->dev, "strength=%u\n", utmp1);
+
+		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		c->strength.stat[0].uvalue = utmp1;
+	} else {
+		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
 	return 0;
@@ -462,6 +481,7 @@ static int mn88472_probe(struct i2c_client *client,
 {
 	struct mn88472_config *pdata = client->dev.platform_data;
 	struct mn88472_dev *dev;
+	struct dtv_frontend_properties *c;
 	int ret;
 	unsigned int utmp;
 	static const struct regmap_config regmap_config = {
@@ -546,6 +566,10 @@ static int mn88472_probe(struct i2c_client *client,
 	dev->fe.demodulator_priv = client;
 	*pdata->fe = &dev->fe;
 	i2c_set_clientdata(client, dev);
+
+	/* Init stats to indicate which stats are supported */
+	c = &dev->fe.dtv_property_cache;
+	c->strength.len = 1;
 
 	/* Setup callbacks */
 	pdata->get_dvb_frontend = mn88472_get_dvb_frontend;
