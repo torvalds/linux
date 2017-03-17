@@ -265,7 +265,7 @@
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 struct  cs35l35_private {
-	struct snd_soc_codec *codec;
+	struct device *dev;
 	struct cs35l35_platform_data pdata;
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[2];
