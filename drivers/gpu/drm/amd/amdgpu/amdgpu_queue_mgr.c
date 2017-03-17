@@ -276,7 +276,6 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 
 	switch (mapper->hw_ip) {
 	case AMDGPU_HW_IP_GFX:
-	case AMDGPU_HW_IP_DMA:
 	case AMDGPU_HW_IP_UVD:
 	case AMDGPU_HW_IP_VCE:
 	case AMDGPU_HW_IP_UVD_ENC:
@@ -284,6 +283,7 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 	case AMDGPU_HW_IP_VCN_ENC:
 		r = amdgpu_identity_map(adev, mapper, ring, out_ring);
 		break;
+	case AMDGPU_HW_IP_DMA:
 	case AMDGPU_HW_IP_COMPUTE:
 		r = amdgpu_lru_map(adev, mapper, ring, out_ring);
 		break;
