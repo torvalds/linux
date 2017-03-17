@@ -81,5 +81,5 @@ u64 visorchannel_get_clientpartition(struct visorchannel *channel);
 int visorchannel_set_clientpartition(struct visorchannel *channel,
 				     u64 partition_handle);
 char *visorchannel_uuid_id(uuid_le *guid, char *s);
-void __iomem *visorchannel_get_header(struct visorchannel *channel);
+void *visorchannel_get_header(struct visorchannel *channel);
 #endif

@@ -153,10 +153,10 @@ visorchannel_write(struct visorchannel *channel, ulong offset,
 	return 0;
 }
 
-void __iomem  *
+void *
 visorchannel_get_header(struct visorchannel *channel)
 {
-	return (void __iomem *)&channel->chan_hdr;
+	return &channel->chan_hdr;
 }
 
 /*
