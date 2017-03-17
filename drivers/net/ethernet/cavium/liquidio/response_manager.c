@@ -107,6 +107,8 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 			}
 		} else if (force_quit || (sc->timeout &&
 			time_after(jiffies, (unsigned long)sc->timeout))) {
+			dev_err(&octeon_dev->pci_dev->dev, "%s: cmd failed, timeout (%ld, %ld)\n",
+				__func__, (long)jiffies, (long)sc->timeout);
 			status = OCTEON_REQUEST_TIMEOUT;
 		}
 

@@ -2225,8 +2225,8 @@ static void if_cfg_callback(struct octeon_device *oct,
 
 	oct = lio_get_device(ctx->octeon_id);
 	if (resp->status)
-		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: %llx\n",
-			CVM_CAST64(resp->status));
+		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: 0x%llx (0x%08x)\n",
+			CVM_CAST64(resp->status), status);
 	WRITE_ONCE(ctx->cond, 1);
 
 	snprintf(oct->fw_info.liquidio_firmware_version, 32, "%s",
