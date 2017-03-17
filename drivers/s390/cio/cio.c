@@ -309,6 +309,65 @@ cio_cancel (struct subchannel *sch)
 	}
 }
 
+/**
+ * cio_cancel_halt_clear - Cancel running I/O by performing cancel, halt
+ * and clear ordinally if subchannel is valid.
+ * @sch: subchannel on which to perform the cancel_halt_clear operation
+ * @iretry: the number of the times remained to retry the next operation
+ *
+ * This should be called repeatedly since halt/clear are asynchronous
+ * operations. We do one try with cio_cancel, three tries with cio_halt,
+ * 255 tries with cio_clear. The caller should initialize @iretry with
+ * the value 255 for its first call to this, and keep using the same
+ * @iretry in the subsequent calls until it gets a non -EBUSY return.
+ *
+ * Returns 0 if device now idle, -ENODEV for device not operational,
+ * -EBUSY if an interrupt is expected (either from halt/clear or from a
+ * status pending), and -EIO if out of retries.
+ */
+int cio_cancel_halt_clear(struct subchannel *sch, int *iretry)
+{
+	int ret;
+
+	if (cio_update_schib(sch))
+		return -ENODEV;
+	if (!sch->schib.pmcw.ena)
+		/* Not operational -> done. */
+		return 0;
+	/* Stage 1: cancel io. */
+	if (!(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_HALT_PEND) &&
+	    !(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_CLEAR_PEND)) {
+		if (!scsw_is_tm(&sch->schib.scsw)) {
+			ret = cio_cancel(sch);
+			if (ret != -EINVAL)
+				return ret;
+		}
+		/*
+		 * Cancel io unsuccessful or not applicable (transport mode).
+		 * Continue with asynchronous instructions.
+		 */
+		*iretry = 3;	/* 3 halt retries. */
+	}
+	/* Stage 2: halt io. */
+	if (!(scsw_actl(&sch->schib.scsw) & SCSW_ACTL_CLEAR_PEND)) {
+		if (*iretry) {
+			*iretry -= 1;
+			ret = cio_halt(sch);
+			if (ret != -EBUSY)
+				return (ret == 0) ? -EBUSY : ret;
+		}
+		/* Halt io unsuccessful. */
+		*iretry = 255;	/* 255 clear retries. */
+	}
+	/* Stage 3: clear io. */
+	if (*iretry) {
+		*iretry -= 1;
+		ret = cio_clear(sch);
+		return (ret == 0) ? -EBUSY : ret;
+	}
+	/* Function was unsuccessful */
+	return -EIO;
+}
 
 static void cio_apply_config(struct subchannel *sch, struct schib *schib)
 {
