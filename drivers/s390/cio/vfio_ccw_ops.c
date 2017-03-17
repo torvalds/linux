@@ -23,12 +23,25 @@ static int vfio_ccw_mdev_notifier(struct notifier_block *nb,
 		return NOTIFY_STOP;
 
 	/*
-	 * TODO:
 	 * Vendor drivers MUST unpin pages in response to an
 	 * invalidation.
 	 */
-	if (action == VFIO_IOMMU_NOTIFY_DMA_UNMAP)
-		return NOTIFY_BAD;
+	if (action == VFIO_IOMMU_NOTIFY_DMA_UNMAP) {
+		struct vfio_iommu_type1_dma_unmap *unmap = data;
+		struct subchannel *sch = private->sch;
+
+		if (!cp_iova_pinned(&private->cp, unmap->iova))
+			return NOTIFY_OK;
+
+		if (vfio_ccw_sch_quiesce(sch))
+			return NOTIFY_BAD;
+
+		if (cio_enable_subchannel(sch, (u32)(unsigned long)sch))
+			return NOTIFY_BAD;
+
+		cp_free(&private->cp);
+		return NOTIFY_OK;
+	}
 
 	return NOTIFY_DONE;
 }
@@ -167,7 +180,10 @@ static ssize_t vfio_ccw_mdev_write(struct mdev_device *mdev,
 	region = &private->io_region;
 	if (copy_from_user((void *)region + *ppos, buf, count))
 		return -EFAULT;
-	region->ret_code = 0;
+
+	region->ret_code = vfio_ccw_sch_cmd_request(private);
+	if (region->ret_code != 0)
+		return region->ret_code;
 
 	return count;
 }

@@ -11,9 +11,13 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/slab.h>
+#include <linux/uuid.h>
+#include <linux/mdev.h>
 
 #include <asm/isc.h>
 
+#include "ioasm.h"
+#include "css.h"
 #include "vfio_ccw_private.h"
 
 /*
@@ -56,6 +60,109 @@ int vfio_ccw_sch_quiesce(struct subchannel *sch)
 
 out_unlock:
 	spin_unlock_irq(sch->lock);
+	return ret;
+}
+
+static int doing_io(struct vfio_ccw_private *private, u32 intparm)
+{
+	return (private->intparm == intparm);
+}
+
+static int vfio_ccw_sch_io_helper(struct vfio_ccw_private *private)
+{
+	struct subchannel *sch;
+	union orb *orb;
+	int ccode;
+	__u8 lpm;
+	u32 intparm;
+
+	sch = private->sch;
+
+	orb = cp_get_orb(&private->cp, (u32)(addr_t)sch, sch->lpm);
+
+	/* Issue "Start Subchannel" */
+	ccode = ssch(sch->schid, orb);
+
+	switch (ccode) {
+	case 0:
+		/*
+		 * Initialize device status information
+		 */
+		sch->schib.scsw.cmd.actl |= SCSW_ACTL_START_PEND;
+		break;
+	case 1:		/* Status pending */
+	case 2:		/* Busy */
+		return -EBUSY;
+	case 3:		/* Device/path not operational */
+	{
+		lpm = orb->cmd.lpm;
+		if (lpm != 0)
+			sch->lpm &= ~lpm;
+		else
+			sch->lpm = 0;
+
+		if (cio_update_schib(sch))
+			return -ENODEV;
+
+		return sch->lpm ? -EACCES : -ENODEV;
+	}
+	default:
+		return ccode;
+	}
+
+	intparm = (u32)(addr_t)sch;
+	private->intparm = 0;
+	wait_event(private->wait_q, doing_io(private, intparm));
+
+	if (scsw_is_solicited(&private->irb.scsw))
+		cp_update_scsw(&private->cp, &private->irb.scsw);
+
+	return 0;
+}
+
+/* Deal with the ccw command request from the userspace. */
+int vfio_ccw_sch_cmd_request(struct vfio_ccw_private *private)
+{
+	struct mdev_device *mdev = private->mdev;
+	union orb *orb;
+	union scsw *scsw = &private->scsw;
+	struct irb *irb = &private->irb;
+	struct ccw_io_region *io_region = &private->io_region;
+	int ret;
+
+	memcpy(scsw, io_region->scsw_area, sizeof(*scsw));
+
+	if (scsw->cmd.fctl & SCSW_FCTL_START_FUNC) {
+		orb = (union orb *)io_region->orb_area;
+
+		ret = cp_init(&private->cp, mdev_dev(mdev), orb);
+		if (ret)
+			return ret;
+
+		ret = cp_prefetch(&private->cp);
+		if (ret) {
+			cp_free(&private->cp);
+			return ret;
+		}
+
+		/* Start channel program and wait for I/O interrupt. */
+		ret = vfio_ccw_sch_io_helper(private);
+		if (!ret) {
+			/* Get irb info and copy it to irb_area. */
+			memcpy(io_region->irb_area, irb, sizeof(*irb));
+		}
+
+		cp_free(&private->cp);
+	} else if (scsw->cmd.fctl & SCSW_FCTL_HALT_FUNC) {
+		/* XXX: Handle halt. */
+		ret = -EOPNOTSUPP;
+	} else if (scsw->cmd.fctl & SCSW_FCTL_CLEAR_FUNC) {
+		/* XXX: Handle clear. */
+		ret = -EOPNOTSUPP;
+	} else {
+		ret = -EOPNOTSUPP;
+	}
+
 	return ret;
 }
 
@@ -113,11 +220,17 @@ static struct attribute_group vfio_subchannel_attr_group = {
 static void vfio_ccw_sch_irq(struct subchannel *sch)
 {
 	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
+	struct irb *irb;
 
 	inc_irq_stat(IRQIO_CIO);
 
 	if (!private)
 		return;
+
+	irb = this_cpu_ptr(&cio_irb);
+	memcpy(&private->irb, irb, sizeof(*irb));
+	private->intparm = (u32)(addr_t)sch;
+	wake_up(&private->wait_q);
 
 	if (private->completion)
 		complete(private->completion);
@@ -156,6 +269,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 	if (ret)
 		goto out_rm_group;
 
+	init_waitqueue_head(&private->wait_q);
 	atomic_set(&private->avail, 1);
 
 	return 0;
