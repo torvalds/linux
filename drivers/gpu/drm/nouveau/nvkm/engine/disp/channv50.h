@@ -114,6 +114,8 @@ extern const struct nv50_disp_pioc_oclass gf119_disp_curs_oclass;
 extern const struct nv50_disp_pioc_oclass gk104_disp_oimm_oclass;
 extern const struct nv50_disp_pioc_oclass gk104_disp_curs_oclass;
 
+extern const struct nv50_disp_pioc_oclass gp102_disp_oimm_oclass;
+extern const struct nv50_disp_pioc_oclass gp102_disp_curs_oclass;
 
 int nv50_disp_curs_new(const struct nv50_disp_chan_func *,
 		       const struct nv50_disp_chan_mthd *,

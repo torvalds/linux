@@ -95,9 +95,11 @@ nvkm-y += nvkm/engine/disp/cursg84.o
 nvkm-y += nvkm/engine/disp/cursgt215.o
 nvkm-y += nvkm/engine/disp/cursgf119.o
 nvkm-y += nvkm/engine/disp/cursgk104.o
+nvkm-y += nvkm/engine/disp/cursgp102.o
 
 nvkm-y += nvkm/engine/disp/oimmnv50.o
 nvkm-y += nvkm/engine/disp/oimmg84.o
 nvkm-y += nvkm/engine/disp/oimmgt215.o
 nvkm-y += nvkm/engine/disp/oimmgf119.o
 nvkm-y += nvkm/engine/disp/oimmgk104.o
+nvkm-y += nvkm/engine/disp/oimmgp102.o
