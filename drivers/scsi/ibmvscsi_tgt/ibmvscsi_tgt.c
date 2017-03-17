@@ -2552,6 +2552,10 @@ static void ibmvscsis_parse_cmd(struct scsi_info *vscsi,
 			       data_len, attr, dir, 0);
 	if (rc) {
 		dev_err(&vscsi->dev, "target_submit_cmd failed, rc %d\n", rc);
+		spin_lock_bh(&vscsi->intr_lock);
+		list_del(&cmd->list);
+		ibmvscsis_free_cmd_resources(vscsi, cmd);
+		spin_unlock_bh(&vscsi->intr_lock);
 		goto fail;
 	}
 	return;
@@ -2631,6 +2635,9 @@ static void ibmvscsis_parse_task(struct scsi_info *vscsi,
 		if (rc) {
 			dev_err(&vscsi->dev, "target_submit_tmr failed, rc %d\n",
 				rc);
+			spin_lock_bh(&vscsi->intr_lock);
+			list_del(&cmd->list);
+			spin_unlock_bh(&vscsi->intr_lock);
 			cmd->se_cmd.se_tmr_req->response =
 				TMR_FUNCTION_REJECTED;
 		}
