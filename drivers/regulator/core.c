@@ -1343,7 +1343,7 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 			/* non-fatal */
 		}
 	} else {
-		regulator->supply_name = kstrdup(supply_name, GFP_KERNEL);
+		regulator->supply_name = kstrdup_const(supply_name, GFP_KERNEL);
 		if (regulator->supply_name == NULL)
 			goto overflow_err;
 	}
@@ -1799,7 +1799,7 @@ static void _regulator_put(struct regulator *regulator)
 	put_device(&rdev->dev);
 	mutex_unlock(&rdev->mutex);
 
-	kfree(regulator->supply_name);
+	kfree_const(regulator->supply_name);
 	kfree(regulator);
 
 	module_put(rdev->owner);
