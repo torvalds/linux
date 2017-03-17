@@ -38,9 +38,6 @@
 #define SIGNATURE_64(A, B, C, D, E, F, G, H) \
 	(SIGNATURE_32(A, B, C, D) | ((u64)(SIGNATURE_32(E, F, G, H)) << 32))
 
-#ifndef lengthof
-#define lengthof(TYPE, MEMBER) (sizeof(((TYPE *)0)->MEMBER))
-#endif
 #ifndef COVER
 #define COVER(v, d)   ((d) * DIV_ROUND_UP(v, d))
 #endif
