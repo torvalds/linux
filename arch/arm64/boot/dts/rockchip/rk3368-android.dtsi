@@ -61,6 +61,11 @@
 		#size-cells = <2>;
 		ranges;
 
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";
@@ -196,6 +201,18 @@
 
 &display_subsystem {
 	status = "okay";
+
+	memory-region = <&drm_logo>;
+	route {
+		route_mipi: route-mipi {
+			status = "okay";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vop_out_mipi>;
+		};
+	};
 };
 
 &vop {
