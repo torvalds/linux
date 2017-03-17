@@ -774,7 +774,7 @@ void resize_hpt_for_hotplug(unsigned long new_mem_size)
 		int rc;
 
 		rc = mmu_hash_ops.resize_hpt(target_hpt_shift);
-		if (rc)
+		if (rc && (rc != -ENODEV))
 			printk(KERN_WARNING
 			       "Unable to resize hash page table to target order %d: %d\n",
 			       target_hpt_shift, rc);
