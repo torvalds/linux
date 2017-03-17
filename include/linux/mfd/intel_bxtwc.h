@@ -13,8 +13,6 @@
  * more details.
  */
 
-#include <linux/mfd/intel_soc_pmic.h>
-
 #ifndef __INTEL_BXTWC_H__
 #define __INTEL_BXTWC_H__
 
