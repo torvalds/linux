@@ -323,7 +323,7 @@ put_name:
 				 * because the sdcard daemon also regards this case as
 				 * a lookup fail.
 				 */
-				printk(KERN_INFO "sdcardfs: base obbpath is not available\n");
+				pr_info("sdcardfs: base obbpath is not available\n");
 				sdcardfs_put_reset_orig_path(dentry);
 				goto out;
 			}

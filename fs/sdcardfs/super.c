@@ -64,7 +64,7 @@ static int sdcardfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (sbi->options.reserved_mb) {
 		/* Invalid statfs informations. */
 		if (buf->f_bsize == 0) {
-			printk(KERN_ERR "Returned block size is zero.\n");
+			pr_err("Returned block size is zero.\n");
 			return -EINVAL;
 		}
 
@@ -100,8 +100,7 @@ static int sdcardfs_remount_fs(struct super_block *sb, int *flags, char *options
 	 * SILENT, but anything else left over is an error.
 	 */
 	if ((*flags & ~(MS_RDONLY | MS_MANDLOCK | MS_SILENT)) != 0) {
-		printk(KERN_ERR
-		       "sdcardfs: remount flags 0x%x unsupported\n", *flags);
+		pr_err("sdcardfs: remount flags 0x%x unsupported\n", *flags);
 		err = -EINVAL;
 	}
 

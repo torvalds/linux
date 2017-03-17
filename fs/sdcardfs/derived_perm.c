@@ -318,7 +318,7 @@ inline void update_derived_permission_lock(struct dentry *dentry)
 	struct dentry *parent;
 
 	if (!dentry || !d_inode(dentry)) {
-		printk(KERN_ERR "sdcardfs: %s: invalid dentry\n", __func__);
+		pr_err("sdcardfs: %s: invalid dentry\n", __func__);
 		return;
 	}
 	/* FIXME:
@@ -379,7 +379,7 @@ int is_obbpath_invalid(struct dentry *dent)
 			path_buf = kmalloc(PATH_MAX, GFP_ATOMIC);
 			if (!path_buf) {
 				ret = 1;
-				printk(KERN_ERR "sdcardfs: fail to allocate path_buf in %s.\n", __func__);
+				pr_err("sdcardfs: fail to allocate path_buf in %s.\n", __func__);
 			} else {
 				obbpath_s = d_path(&di->lower_path, path_buf, PATH_MAX);
 				if (d_unhashed(di->lower_path.dentry) ||
@@ -451,7 +451,7 @@ int setup_obb_dentry(struct dentry *dentry, struct path *lower_path)
 		 * because the sdcard daemon also regards this case as
 		 * a lookup fail.
 		 */
-		printk(KERN_INFO "sdcardfs: the sbi->obbpath is not available\n");
+		pr_info("sdcardfs: the sbi->obbpath is not available\n");
 	}
 	return err;
 }

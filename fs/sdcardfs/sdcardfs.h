@@ -53,7 +53,7 @@
 #define SDCARDFS_ROOT_INO     1
 
 /* useful for tracking code reachability */
-#define UDBG printk(KERN_DEFAULT "DBG:%s:%s:%d\n", __FILE__, __func__, __LINE__)
+#define UDBG pr_default("DBG:%s:%s:%d\n", __FILE__, __func__, __LINE__)
 
 #define SDCARDFS_DIRENT_SIZE 256
 

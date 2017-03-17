@@ -248,7 +248,7 @@ static int touch(char *abs_path, mode_t mode)
 		if (PTR_ERR(filp) == -EEXIST) {
 			return 0;
 		} else {
-			printk(KERN_ERR "sdcardfs: failed to open(%s): %ld\n",
+			pr_err("sdcardfs: failed to open(%s): %ld\n",
 						abs_path, PTR_ERR(filp));
 			return PTR_ERR(filp);
 		}
@@ -284,7 +284,7 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 
 	/* check disk space */
 	if (!check_min_free_space(dentry, 0, 1)) {
-		printk(KERN_INFO "sdcardfs: No minimum free space.\n");
+		pr_err("sdcardfs: No minimum free space.\n");
 		err = -ENOSPC;
 		goto out_revert;
 	}
@@ -360,7 +360,7 @@ static int sdcardfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 		set_fs_pwd(current->fs, &lower_path);
 		touch_err = touch(".nomedia", 0664);
 		if (touch_err) {
-			printk(KERN_ERR "sdcardfs: failed to create .nomedia in %s: %d\n",
+			pr_err("sdcardfs: failed to create .nomedia in %s: %d\n",
 							lower_path.dentry->d_name.name, touch_err);
 			goto out;
 		}
@@ -642,7 +642,7 @@ static int sdcardfs_permission(struct vfsmount *mnt, struct inode *inode, int ma
 	release_top(SDCARDFS_I(inode));
 	tmp.i_sb = inode->i_sb;
 	if (IS_POSIXACL(inode))
-		printk(KERN_WARNING "%s: This may be undefined behavior... \n", __func__);
+		pr_warn("%s: This may be undefined behavior...\n", __func__);
 	err = generic_permission(&tmp, mask);
 	/* XXX
 	 * Original sdcardfs code calls inode_permission(lower_inode,.. )
