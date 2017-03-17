@@ -659,6 +659,59 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+static u32 ilk_sprite_ctl(const struct intel_crtc_state *crtc_state,
+			  const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int rotation = plane_state->base.rotation;
+	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
+	u32 dvscntr;
+
+	dvscntr = DVS_ENABLE | DVS_GAMMA_ENABLE;
+
+	if (IS_GEN6(dev_priv))
+		dvscntr |= DVS_TRICKLE_FEED_DISABLE;
+
+	switch (fb->format->format) {
+	case DRM_FORMAT_XBGR8888:
+		dvscntr |= DVS_FORMAT_RGBX888 | DVS_RGB_ORDER_XBGR;
+		break;
+	case DRM_FORMAT_XRGB8888:
+		dvscntr |= DVS_FORMAT_RGBX888;
+		break;
+	case DRM_FORMAT_YUYV:
+		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_YUYV;
+		break;
+	case DRM_FORMAT_YVYU:
+		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_YVYU;
+		break;
+	case DRM_FORMAT_UYVY:
+		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_UYVY;
+		break;
+	case DRM_FORMAT_VYUY:
+		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_VYUY;
+		break;
+	default:
+		MISSING_CASE(fb->format->format);
+		return 0;
+	}
+
+	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
+		dvscntr |= DVS_TILED;
+
+	if (rotation & DRM_ROTATE_180)
+		dvscntr |= DVS_ROTATE_180;
+
+	if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		dvscntr |= DVS_DEST_KEY;
+	else if (key->flags & I915_SET_COLORKEY_SOURCE)
+		dvscntr |= DVS_SOURCE_KEY;
+
+	return dvscntr;
+}
+
 static void
 ilk_update_plane(struct drm_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
@@ -683,50 +736,7 @@ ilk_update_plane(struct drm_plane *plane,
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
 
-	dvscntr = DVS_ENABLE;
-
-	switch (fb->format->format) {
-	case DRM_FORMAT_XBGR8888:
-		dvscntr |= DVS_FORMAT_RGBX888 | DVS_RGB_ORDER_XBGR;
-		break;
-	case DRM_FORMAT_XRGB8888:
-		dvscntr |= DVS_FORMAT_RGBX888;
-		break;
-	case DRM_FORMAT_YUYV:
-		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_YUYV;
-		break;
-	case DRM_FORMAT_YVYU:
-		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_YVYU;
-		break;
-	case DRM_FORMAT_UYVY:
-		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_UYVY;
-		break;
-	case DRM_FORMAT_VYUY:
-		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_VYUY;
-		break;
-	default:
-		BUG();
-	}
-
-	/*
-	 * Enable gamma to match primary/cursor plane behaviour.
-	 * FIXME should be user controllable via propertiesa.
-	 */
-	dvscntr |= DVS_GAMMA_ENABLE;
-
-	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
-		dvscntr |= DVS_TILED;
-
-	if (rotation & DRM_ROTATE_180)
-		dvscntr |= DVS_ROTATE_180;
-
-	if (IS_GEN6(dev_priv))
-		dvscntr |= DVS_TRICKLE_FEED_DISABLE; /* must disable */
-
-	if (key->flags & I915_SET_COLORKEY_DESTINATION)
-		dvscntr |= DVS_DEST_KEY;
-	else if (key->flags & I915_SET_COLORKEY_SOURCE)
-		dvscntr |= DVS_SOURCE_KEY;
+	dvscntr = ilk_sprite_ctl(crtc_state, plane_state);
 
 	/* Sizes are 0 based */
 	src_w--;
