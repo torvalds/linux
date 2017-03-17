@@ -657,17 +657,15 @@ static int adu_probe(struct usb_interface *interface,
 	struct adu_device *dev = NULL;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	int retval = -ENODEV;
+	int retval = -ENOMEM;
 	int in_end_size;
 	int out_end_size;
 	int i;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct adu_device), GFP_KERNEL);
-	if (!dev) {
-		retval = -ENOMEM;
-		goto exit;
-	}
+	if (!dev)
+		return -ENOMEM;
 
 	mutex_init(&dev->mtx);
 	spin_lock_init(&dev->buflock);
@@ -689,10 +687,12 @@ static int adu_probe(struct usb_interface *interface,
 	}
 	if (dev->interrupt_in_endpoint == NULL) {
 		dev_err(&interface->dev, "interrupt in endpoint not found\n");
+		retval = -ENODEV;
 		goto error;
 	}
 	if (dev->interrupt_out_endpoint == NULL) {
 		dev_err(&interface->dev, "interrupt out endpoint not found\n");
+		retval = -ENODEV;
 		goto error;
 	}
 
@@ -700,10 +700,8 @@ static int adu_probe(struct usb_interface *interface,
 	out_end_size = usb_endpoint_maxp(dev->interrupt_out_endpoint);
 
 	dev->read_buffer_primary = kmalloc((4 * in_end_size), GFP_KERNEL);
-	if (!dev->read_buffer_primary) {
-		retval = -ENOMEM;
+	if (!dev->read_buffer_primary)
 		goto error;
-	}
 
 	/* debug code prime the buffer */
 	memset(dev->read_buffer_primary, 'a', in_end_size);
@@ -712,10 +710,8 @@ static int adu_probe(struct usb_interface *interface,
 	memset(dev->read_buffer_primary + (3 * in_end_size), 'd', in_end_size);
 
 	dev->read_buffer_secondary = kmalloc((4 * in_end_size), GFP_KERNEL);
-	if (!dev->read_buffer_secondary) {
-		retval = -ENOMEM;
+	if (!dev->read_buffer_secondary)
 		goto error;
-	}
 
 	/* debug code prime the buffer */
 	memset(dev->read_buffer_secondary, 'e', in_end_size);
@@ -743,6 +739,7 @@ static int adu_probe(struct usb_interface *interface,
 	if (!usb_string(udev, udev->descriptor.iSerialNumber, dev->serial_number,
 			sizeof(dev->serial_number))) {
 		dev_err(&interface->dev, "Could not retrieve serial number\n");
+		retval = -EIO;
 		goto error;
 	}
 	dev_dbg(&interface->dev,"serial_number=%s", dev->serial_number);
@@ -765,8 +762,8 @@ static int adu_probe(struct usb_interface *interface,
 	dev_info(&interface->dev, "ADU%d %s now attached to /dev/usb/adutux%d\n",
 		 le16_to_cpu(udev->descriptor.idProduct), dev->serial_number,
 		 (dev->minor - ADU_MINOR_BASE));
-exit:
-	return retval;
+
+	return 0;
 
 error:
 	adu_delete(dev);
