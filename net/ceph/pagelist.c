@@ -16,7 +16,7 @@ static void ceph_pagelist_unmap_tail(struct ceph_pagelist *pl)
 
 void ceph_pagelist_release(struct ceph_pagelist *pl)
 {
-	if (!atomic_dec_and_test(&pl->refcnt))
+	if (!refcount_dec_and_test(&pl->refcnt))
 		return;
 	ceph_pagelist_unmap_tail(pl);
 	while (!list_empty(&pl->head)) {
