@@ -1321,7 +1321,7 @@ issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)
 	u64 physaddr;
 
 	physaddr = virt_to_phys(&params);
-	ISSUE_IO_VMCALL(VMCALL_IO_CONTROLVM_ADDR, physaddr, result);
+	ISSUE_IO_VMCALL(VMCALL_CONTROLVM_ADDR, physaddr, result);
 	if (VMCALL_SUCCESSFUL(result)) {
 		*control_addr = params.address;
 		*control_bytes = params.channel_bytes;

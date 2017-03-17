@@ -54,8 +54,8 @@ __unisys_extended_vmcall_gnuc(unsigned long long tuple,
 	return result;
 }
 
-#ifdef VMCALL_IO_CONTROLVM_ADDR
-#undef VMCALL_IO_CONTROLVM_ADDR
+#ifdef VMCALL_CONTROLVM_ADDR
+#undef VMCALL_CONTROLVM_ADDR
 #endif	/*  */
 
 /* define subsystem number for AppOS, used in uislib driver  */
@@ -72,7 +72,7 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 	     *   type of VMCALL
 	     */
 	/* used by all Guests, not just IO */
-	VMCALL_IO_CONTROLVM_ADDR = 0x0501,
+	VMCALL_CONTROLVM_ADDR = 0x0501,
 	/* Allow caller to query virtual time offset */
 	VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET = 0x0708,
 	/* LOGEVENT Post Code (RDX) with specified subsystem mask */
@@ -95,7 +95,7 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 
 /* Structures for IO VMCALLs */
 
-/* Parameters to VMCALL_IO_CONTROLVM_ADDR interface */
+/* Parameters to VMCALL_CONTROLVM_ADDR interface */
 struct vmcall_io_controlvm_addr_params {
 	/* The Guest-relative physical address of the ControlVm channel. */
 	/* This VMCall fills this in with the appropriate address. */
