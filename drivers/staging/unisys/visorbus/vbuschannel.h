@@ -28,8 +28,8 @@
 
 /* {193b331b-c58f-11da-95a9-00e08161165f} */
 #define SPAR_VBUS_CHANNEL_PROTOCOL_UUID \
-		UUID_LE(0x193b331b, 0xc58f, 0x11da, \
-				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+	UUID_LE(0x193b331b, 0xc58f, 0x11da, \
+		0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
 static const uuid_le spar_vbus_channel_protocol_uuid =
 	SPAR_VBUS_CHANNEL_PROTOCOL_UUID;
 
@@ -43,13 +43,13 @@ static const uuid_le spar_vbus_channel_protocol_uuid =
  */
 #define SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID 1
 
-#define SPAR_VBUS_CHANNEL_OK_CLIENT(ch)       \
-	spar_check_channel_client(ch,				\
-				   spar_vbus_channel_protocol_uuid,	\
-				   "vbus",				\
-				   sizeof(struct spar_vbus_channel_protocol),\
-				   SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
-				   SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE)
+#define SPAR_VBUS_CHANNEL_OK_CLIENT(ch) \
+	spar_check_channel_client(ch, \
+				  spar_vbus_channel_protocol_uuid, \
+				  "vbus", \
+				  sizeof(struct spar_vbus_channel_protocol), \
+				  SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
+				  SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE)
 
 /*
  * An array of this struct is present in the channel area for each vbus.
