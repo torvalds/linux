@@ -3335,6 +3335,31 @@ u32 skl_plane_ctl_rotation(unsigned int rotation)
 	return 0;
 }
 
+static u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
+			 const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int rotation = plane_state->base.rotation;
+	u32 plane_ctl;
+
+	plane_ctl = PLANE_CTL_ENABLE;
+
+	if (!IS_GEMINILAKE(dev_priv)) {
+		plane_ctl |=
+			PLANE_CTL_PIPE_GAMMA_ENABLE |
+			PLANE_CTL_PIPE_CSC_ENABLE |
+			PLANE_CTL_PLANE_GAMMA_DISABLE;
+	}
+
+	plane_ctl |= skl_plane_ctl_format(fb->format->format);
+	plane_ctl |= skl_plane_ctl_tiling(fb->modifier);
+	plane_ctl |= skl_plane_ctl_rotation(rotation);
+
+	return plane_ctl;
+}
+
 static void skylake_update_primary_plane(struct drm_plane *plane,
 					 const struct intel_crtc_state *crtc_state,
 					 const struct intel_plane_state *plane_state)
@@ -3360,18 +3385,7 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	int dst_h = drm_rect_height(&plane_state->base.dst);
 	unsigned long irqflags;
 
-	plane_ctl = PLANE_CTL_ENABLE;
-
-	if (!IS_GEMINILAKE(dev_priv)) {
-		plane_ctl |=
-			PLANE_CTL_PIPE_GAMMA_ENABLE |
-			PLANE_CTL_PIPE_CSC_ENABLE |
-			PLANE_CTL_PLANE_GAMMA_DISABLE;
-	}
-
-	plane_ctl |= skl_plane_ctl_format(fb->format->format);
-	plane_ctl |= skl_plane_ctl_tiling(fb->modifier);
-	plane_ctl |= skl_plane_ctl_rotation(rotation);
+	plane_ctl = skl_plane_ctl(crtc_state, plane_state);
 
 	/* Sizes are 0 based */
 	src_w--;
