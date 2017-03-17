@@ -564,7 +564,7 @@ static const struct irq_domain_ops wm831x_irq_domain_ops = {
 
 int wm831x_irq_init(struct wm831x *wm831x, int irq)
 {
-	struct wm831x_pdata *pdata = dev_get_platdata(wm831x->dev);
+	struct wm831x_pdata *pdata = &wm831x->pdata;
 	struct irq_domain *domain;
 	int i, ret, irq_base;
 
@@ -579,7 +579,7 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 	}
 
 	/* Try to dynamically allocate IRQs if no base is specified */
-	if (pdata && pdata->irq_base) {
+	if (pdata->irq_base) {
 		irq_base = irq_alloc_descs(pdata->irq_base, 0,
 					   WM831X_NUM_IRQS, 0);
 		if (irq_base < 0) {
@@ -608,7 +608,7 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 		return -EINVAL;
 	}
 
-	if (pdata && pdata->irq_cmos)
+	if (pdata->irq_cmos)
 		i = 0;
 	else
 		i = WM831X_IRQ_OD;
