@@ -20,16 +20,6 @@
 #include <linux/io.h>
 #include <linux/uuid.h>
 
-/*
- * Whenever this file is changed a corresponding change must be made in
- * the Console/ServicePart/visordiag_early/supervisor_channel.h file
- * which is needed for Linux kernel compiles. These two files must be
- * in sync.
- */
-
-/* define the following to prevent include nesting in kernel header
- * files of similar abbreviated content
- */
 #define __SUPERVISOR_CHANNEL_H__
 
 #define SIGNATURE_16(A, B) ((A) | ((B) << 8))
