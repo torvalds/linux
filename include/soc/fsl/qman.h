@@ -36,8 +36,11 @@
 /* Hardware constants */
 #define QM_CHANNEL_SWPORTAL0 0
 #define QMAN_CHANNEL_POOL1 0x21
+#define QMAN_CHANNEL_CAAM 0x80
 #define QMAN_CHANNEL_POOL1_REV3 0x401
+#define QMAN_CHANNEL_CAAM_REV3 0x840
 extern u16 qm_channel_pool1;
+extern u16 qm_channel_caam;
 
 /* Portal processing (interrupt) sources */
 #define QM_PIRQ_CSCI	0x00100000	/* Congestion State Change */
