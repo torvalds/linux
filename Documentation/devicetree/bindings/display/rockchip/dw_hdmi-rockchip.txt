@@ -26,6 +26,7 @@ Required properties:
   corresponding to the video input of the controller. The port shall have two
   endpoints, numbered 0 and 1, connected respectively to the vopb and vopl.
 - rockchip,grf: Shall reference the GRF to mux vopl/vopb.
+- rockchip,phy-table: the parameter table of hdmi phy configuration.
 
 Optional properties
 
@@ -73,4 +74,9 @@ hdmi: hdmi@ff980000 {
 			};
 		};
 	};
+	rockchip,phy-table = <74250000 0x8009 0x0004 0x0272>,
+		<165000000 0x802b 0x0004 0x0209>,
+		<297000000 0x8039 0x0005 0x028d>,
+		<594000000 0x8039 0x0000 0x019d>,
+		<000000000 0x0000 0x0000 0x0000>;
 };
