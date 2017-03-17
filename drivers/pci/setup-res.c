@@ -32,7 +32,6 @@ static void pci_std_update_resource(struct pci_dev *dev, int resno)
 	u16 cmd;
 	u32 new, check, mask;
 	int reg;
-	enum pci_bar_type type;
 	struct resource *res = dev->resource + resno;
 
 	if (dev->is_virtfn) {
@@ -66,14 +65,16 @@ static void pci_std_update_resource(struct pci_dev *dev, int resno)
 	else
 		mask = (u32)PCI_BASE_ADDRESS_MEM_MASK;
 
-	reg = pci_resource_bar(dev, resno, &type);
-	if (!reg)
-		return;
-	if (type != pci_bar_unknown) {
+	if (resno < PCI_ROM_RESOURCE) {
+		reg = PCI_BASE_ADDRESS_0 + 4 * resno;
+	} else if (resno == PCI_ROM_RESOURCE) {
 		if (!(res->flags & IORESOURCE_ROM_ENABLE))
 			return;
+
+		reg = dev->rom_base_reg;
 		new |= PCI_ROM_ADDRESS_ENABLE;
-	}
+	} else
+		return;
 
 	/*
 	 * We can't update a 64-bit BAR atomically, so when possible,
