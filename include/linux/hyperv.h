@@ -1548,31 +1548,23 @@ static inline struct vmpacket_descriptor *
 get_next_pkt_raw(struct vmbus_channel *channel)
 {
 	struct hv_ring_buffer_info *ring_info = &channel->inbound;
-	u32 read_loc = ring_info->priv_read_index;
+	u32 priv_read_loc = ring_info->priv_read_index;
 	void *ring_buffer = hv_get_ring_buffer(ring_info);
-	struct vmpacket_descriptor *cur_desc;
-	u32 packetlen;
 	u32 dsize = ring_info->ring_datasize;
-	u32 delta = read_loc - ring_info->ring_buffer->read_index;
+	/*
+	 * delta is the difference between what is available to read and
+	 * what was already consumed in place. We commit read index after
+	 * the whole batch is processed.
+	 */
+	u32 delta = priv_read_loc >= ring_info->ring_buffer->read_index ?
+		priv_read_loc - ring_info->ring_buffer->read_index :
+		(dsize - ring_info->ring_buffer->read_index) + priv_read_loc;
 	u32 bytes_avail_toread = (hv_get_bytes_to_read(ring_info) - delta);
 
 	if (bytes_avail_toread < sizeof(struct vmpacket_descriptor))
 		return NULL;
 
-	if ((read_loc + sizeof(*cur_desc)) > dsize)
-		return NULL;
-
-	cur_desc = ring_buffer + read_loc;
-	packetlen = cur_desc->len8 << 3;
-
-	/*
-	 * If the packet under consideration is wrapping around,
-	 * return failure.
-	 */
-	if ((read_loc + packetlen + VMBUS_PKT_TRAILER) > (dsize - 1))
-		return NULL;
-
-	return cur_desc;
+	return ring_buffer + priv_read_loc;
 }
 
 /*
@@ -1584,16 +1576,14 @@ static inline void put_pkt_raw(struct vmbus_channel *channel,
 				struct vmpacket_descriptor *desc)
 {
 	struct hv_ring_buffer_info *ring_info = &channel->inbound;
-	u32 read_loc = ring_info->priv_read_index;
 	u32 packetlen = desc->len8 << 3;
 	u32 dsize = ring_info->ring_datasize;
 
-	if ((read_loc + packetlen + VMBUS_PKT_TRAILER) > dsize)
-		BUG();
 	/*
 	 * Include the packet trailer.
 	 */
 	ring_info->priv_read_index += packetlen + VMBUS_PKT_TRAILER;
+	ring_info->priv_read_index %= dsize;
 }
 
 /*
