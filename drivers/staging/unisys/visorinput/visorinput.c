@@ -539,13 +539,10 @@ handle_locking_key(struct input_dev *visorinput_dev,
 static int
 scancode_to_keycode(int scancode)
 {
-	int keycode;
-
 	if (scancode > 0xff)
-		keycode = visorkbd_ext_keycode[(scancode >> 8) & 0xff];
-	else
-		keycode = visorkbd_keycode[scancode];
-	return keycode;
+		return visorkbd_ext_keycode[(scancode >> 8) & 0xff];
+
+	return  visorkbd_keycode[scancode];
 }
 
 static int
