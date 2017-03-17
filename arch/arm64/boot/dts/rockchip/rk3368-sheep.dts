@@ -541,6 +541,47 @@
 	status = "okay";
 };
 
+&mipi_dsi_host {
+	status = "okay";
+
+	dsi_panel: panel@0 {
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes = <4>;
+		delay,prepare = <120>;
+		status = "okay";
+
+		disp_timings: display-timings {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
+				clock-frequency = <150000000>;
+				hactive = <1200>;
+				vactive = <1920>;
+				hback-porch = <80>;
+				hfront-porch = <81>;
+				vback-porch = <21>;
+				vfront-porch = <21>;
+				hsync-len = <10>;
+				vsync-len = <3>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+	};
+};
+
+&mipi_dphy {
+	rockchip,dsi-panel = <&dsi_panel>;
+	status = "okay";
+};
+
 &saradc {
 	status = "okay";
 };
