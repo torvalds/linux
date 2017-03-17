@@ -1159,7 +1159,15 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		INIT_LIST_HEAD(&wdev->mgmt_registrations);
 		spin_lock_init(&wdev->mgmt_registrations_lock);
 
-		wdev->identifier = ++rdev->wdev_id;
+		/*
+		 * We get here also when the interface changes network namespaces,
+		 * as it's registered into the new one, but we don't want it to
+		 * change ID in that case. Checking if the ID is already assigned
+		 * works, because 0 isn't considered a valid ID and the memory is
+		 * 0-initialized.
+		 */
+		if (!wdev->identifier)
+			wdev->identifier = ++rdev->wdev_id;
 		list_add_rcu(&wdev->list, &rdev->wiphy.wdev_list);
 		rdev->devlist_generation++;
 		/* can only change netns with wiphy */
