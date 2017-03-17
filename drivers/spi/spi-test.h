@@ -75,6 +75,7 @@
  * @fill_option:      define the way how tx_buf is filled
  * @fill_pattern:     fill pattern to apply to the tx_buf
  *                    (used in some of the @fill_options)
+ * @elapsed_time:     elapsed time in nanoseconds
  */
 
 struct spi_test {
@@ -108,6 +109,7 @@ struct spi_test {
 #define FILL_TRANSFER_BYTE_32 11 /* fill with the transfer byte - 32 bit */
 #define FILL_TRANSFER_NUM     16 /* fill with the transfer number */
 	u32 fill_pattern;
+	unsigned long long elapsed_time;
 };
 
 /* default implementation for @spi_test.run_test */

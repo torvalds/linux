@@ -20,6 +20,7 @@
 
 #include <linux/delay.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/module.h>
@@ -479,6 +480,35 @@ static int spi_check_rx_ranges(struct spi_device *spi,
 	return ret;
 }
 
+static int spi_test_check_elapsed_time(struct spi_device *spi,
+				       struct spi_test *test)
+{
+	int i;
+	unsigned long long estimated_time = 0;
+	unsigned long long delay_usecs = 0;
+
+	for (i = 0; i < test->transfer_count; i++) {
+		struct spi_transfer *xfer = test->transfers + i;
+		unsigned long long nbits = BITS_PER_BYTE * xfer->len;
+
+		delay_usecs += xfer->delay_usecs;
+		if (!xfer->speed_hz)
+			continue;
+		estimated_time += div_u64(nbits * NSEC_PER_SEC, xfer->speed_hz);
+	}
+
+	estimated_time += delay_usecs * NSEC_PER_USEC;
+	if (test->elapsed_time < estimated_time) {
+		dev_err(&spi->dev,
+			"elapsed time %lld ns is shorter than minimam estimated time %lld ns\n",
+			test->elapsed_time, estimated_time);
+
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int spi_test_check_loopback_result(struct spi_device *spi,
 					  struct spi_message *msg,
 					  void *tx, void *rx)
@@ -817,12 +847,16 @@ int spi_test_execute_msg(struct spi_device *spi, struct spi_test *test,
 
 	/* only if we do not simulate */
 	if (!simulate_only) {
+		ktime_t start;
+
 		/* dump the complete message before and after the transfer */
 		if (dump_messages == 3)
 			spi_test_dump_message(spi, msg, true);
 
+		start = ktime_get();
 		/* run spi message */
 		ret = spi_sync(spi, msg);
+		test->elapsed_time = ktime_to_ns(ktime_sub(ktime_get(), start));
 		if (ret == -ETIMEDOUT) {
 			dev_info(&spi->dev,
 				 "spi-message timed out - reruning...\n");
@@ -848,6 +882,10 @@ int spi_test_execute_msg(struct spi_device *spi, struct spi_test *test,
 
 		/* run rx-buffer tests */
 		ret = spi_test_check_loopback_result(spi, msg, tx, rx);
+		if (ret)
+			goto exit;
+
+		ret = spi_test_check_elapsed_time(spi, test);
 	}
 
 	/* if requested or on error dump message (including data) */
