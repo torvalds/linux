@@ -19,7 +19,7 @@
 /*
  * Helpers
  */
-static int vfio_ccw_sch_quiesce(struct subchannel *sch)
+int vfio_ccw_sch_quiesce(struct subchannel *sch)
 {
 	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
 	DECLARE_COMPLETION_ONSTACK(completion);
@@ -152,8 +152,16 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 	if (ret)
 		goto out_disable;
 
+	ret = vfio_ccw_mdev_reg(sch);
+	if (ret)
+		goto out_rm_group;
+
+	atomic_set(&private->avail, 1);
+
 	return 0;
 
+out_rm_group:
+	sysfs_remove_group(&sch->dev.kobj, &vfio_subchannel_attr_group);
 out_disable:
 	cio_disable_subchannel(sch);
 out_free:
@@ -167,6 +175,8 @@ static int vfio_ccw_sch_remove(struct subchannel *sch)
 	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
 
 	vfio_ccw_sch_quiesce(sch);
+
+	vfio_ccw_mdev_unreg(sch);
 
 	sysfs_remove_group(&sch->dev.kobj, &vfio_subchannel_attr_group);
 
