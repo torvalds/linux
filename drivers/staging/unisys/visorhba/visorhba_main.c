@@ -686,8 +686,8 @@ static const struct file_operations info_debugfs_fops = {
  *	command. Wake up anyone waiting for it.
  *	Returns void
  */
-static inline void complete_taskmgmt_command
-(struct idr *idrtable, struct uiscmdrsp *cmdrsp, int result)
+static void complete_taskmgmt_command(struct idr *idrtable,
+				      struct uiscmdrsp *cmdrsp, int result)
 {
 	wait_queue_head_t *wq =
 		idr_find(idrtable, cmdrsp->scsitaskmgmt.notify_handle);
