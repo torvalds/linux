@@ -507,7 +507,7 @@ static int spi_test_check_loopback_result(struct spi_device *spi,
 			continue;
 		/* so depending on tx_buf we need to handle things */
 		if (xfer->tx_buf) {
-			for (i = 1; i < xfer->len; i++) {
+			for (i = 0; i < xfer->len; i++) {
 				txb = ((u8 *)xfer->tx_buf)[i];
 				rxb = ((u8 *)xfer->rx_buf)[i];
 				if (txb != rxb)
