@@ -212,6 +212,15 @@ config ROCKCHIP_THERMAL
 	  trip point. Cpufreq is used as the cooling device and will throttle
 	  CPUs when the Temperature crosses the passive trip point.
 
+config RK3368_THERMAL
+	tristate "rk3368 thermal driver legacy"
+	depends on ROCKCHIP_THERMAL
+	help
+	  Rk3368 thermal legacy driver provides support for Temperature sensor
+	  ADC (TS-ADC) for rk3368 soc only. It supports one critical
+	  trip point. Cpufreq is used as the cooling device and will throttle
+	  CPUs when the Temperature crosses the passive trip point.
+
 config RCAR_THERMAL
 	tristate "Renesas R-Car thermal driver"
 	depends on ARCH_SHMOBILE || COMPILE_TEST
