@@ -287,7 +287,6 @@ static void s5p_sg_done(struct s5p_aes_dev *dev)
 static void s5p_aes_complete(struct s5p_aes_dev *dev, int err)
 {
 	dev->req->base.complete(&dev->req->base, err);
-	dev->busy = false;
 }
 
 static void s5p_unset_outdata(struct s5p_aes_dev *dev)
@@ -462,7 +461,7 @@ static irqreturn_t s5p_aes_interrupt(int irq, void *dev_id)
 		spin_unlock_irqrestore(&dev->lock, flags);
 
 		s5p_aes_complete(dev, 0);
-		dev->busy = true;
+		/* Device is still busy */
 		tasklet_schedule(&dev->tasklet);
 	} else {
 		/*
@@ -483,6 +482,7 @@ static irqreturn_t s5p_aes_interrupt(int irq, void *dev_id)
 
 error:
 	s5p_sg_done(dev);
+	dev->busy = false;
 	spin_unlock_irqrestore(&dev->lock, flags);
 	s5p_aes_complete(dev, err);
 
@@ -634,6 +634,7 @@ outdata_error:
 
 indata_error:
 	s5p_sg_done(dev);
+	dev->busy = false;
 	spin_unlock_irqrestore(&dev->lock, flags);
 	s5p_aes_complete(dev, err);
 }
