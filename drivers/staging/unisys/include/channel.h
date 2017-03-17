@@ -41,11 +41,8 @@
 #ifndef lengthof
 #define lengthof(TYPE, MEMBER) (sizeof(((TYPE *)0)->MEMBER))
 #endif
-#ifndef COVERQ
-#define COVERQ(v, d)  (((v) + (d) - 1) / (d))
-#endif
 #ifndef COVER
-#define COVER(v, d)   ((d) * COVERQ(v, d))
+#define COVER(v, d)   ((d) * DIV_ROUND_UP(v, d))
 #endif
 
 #define ULTRA_CHANNEL_PROTOCOL_SIGNATURE  SIGNATURE_32('E', 'C', 'N', 'L')
