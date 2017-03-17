@@ -29,10 +29,10 @@
 	(SIGNATURE_32(A, B, C, D) | ((u64)(SIGNATURE_32(E, F, G, H)) << 32))
 
 #ifndef COVER
-#define COVER(v, d)   ((d) * DIV_ROUND_UP(v, d))
+#define COVER(v, d) ((d) * DIV_ROUND_UP(v, d))
 #endif
 
-#define ULTRA_CHANNEL_PROTOCOL_SIGNATURE  SIGNATURE_32('E', 'C', 'N', 'L')
+#define ULTRA_CHANNEL_PROTOCOL_SIGNATURE SIGNATURE_32('E', 'C', 'N', 'L')
 
 enum channel_serverstate {
 	CHANNELSRV_UNINITIALIZED = 0,	/* channel is in an undefined state */
@@ -62,7 +62,7 @@ enum channel_clientstate {
 #define SPAR_CHANNEL_SERVER_READY(ch) \
 	(readl(&(ch)->srv_state) == CHANNELSRV_READY)
 
-#define ULTRA_VALID_CHANNELCLI_TRANSITION(o, n)				\
+#define ULTRA_VALID_CHANNELCLI_TRANSITION(o, n) \
 	(((((o) == CHANNELCLI_DETACHED) && ((n) == CHANNELCLI_DISABLED)) || \
 	  (((o) == CHANNELCLI_ATTACHING) && ((n) == CHANNELCLI_DISABLED)) || \
 	  (((o) == CHANNELCLI_ATTACHED) && ((n) == CHANNELCLI_DISABLED)) || \
@@ -84,7 +84,7 @@ enum channel_clientstate {
 /* throttling invalid boot channel statetransition error due to client
  * disabled
  */
-#define ULTRA_CLIERRORBOOT_THROTTLEMSG_DISABLED    0x01
+#define ULTRA_CLIERRORBOOT_THROTTLEMSG_DISABLED 0x01
 
 /* throttling invalid boot channel statetransition error due to client
  * not attached
@@ -92,7 +92,7 @@ enum channel_clientstate {
 #define ULTRA_CLIERRORBOOT_THROTTLEMSG_NOTATTACHED 0x02
 
 /* throttling invalid boot channel statetransition error due to busy channel */
-#define ULTRA_CLIERRORBOOT_THROTTLEMSG_BUSY        0x04
+#define ULTRA_CLIERRORBOOT_THROTTLEMSG_BUSY 0x04
 
 /* Values for ULTRA_CHANNEL_PROTOCOL.Features: This define exists so
  * that windows guest can look at the FeatureFlags in the io channel,
@@ -255,8 +255,8 @@ spar_check_channel_client(struct channel_header *ch,
 
 /* {414815ed-c58c-11da-95a9-00e08161165f} */
 #define SPAR_VHBA_CHANNEL_PROTOCOL_UUID \
-		UUID_LE(0x414815ed, 0xc58c, 0x11da, \
-				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+	UUID_LE(0x414815ed, 0xc58c, 0x11da, \
+		0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
 static const uuid_le spar_vhba_channel_protocol_uuid =
 	SPAR_VHBA_CHANNEL_PROTOCOL_UUID;
 #define SPAR_VHBA_CHANNEL_PROTOCOL_UUID_STR \
@@ -264,8 +264,8 @@ static const uuid_le spar_vhba_channel_protocol_uuid =
 
 /* {8cd5994d-c58e-11da-95a9-00e08161165f} */
 #define SPAR_VNIC_CHANNEL_PROTOCOL_UUID \
-		UUID_LE(0x8cd5994d, 0xc58e, 0x11da, \
-				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+	UUID_LE(0x8cd5994d, 0xc58e, 0x11da, \
+		0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
 static const uuid_le spar_vnic_channel_protocol_uuid =
 	SPAR_VNIC_CHANNEL_PROTOCOL_UUID;
 #define SPAR_VNIC_CHANNEL_PROTOCOL_UUID_STR \
@@ -273,8 +273,8 @@ static const uuid_le spar_vnic_channel_protocol_uuid =
 
 /* {72120008-4AAB-11DC-8530-444553544200} */
 #define SPAR_SIOVM_UUID \
-		UUID_LE(0x72120008, 0x4AAB, 0x11DC, \
-				0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
+	UUID_LE(0x72120008, 0x4AAB, 0x11DC, \
+		0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
 static const uuid_le spar_siovm_uuid = SPAR_SIOVM_UUID;
 
 #endif
