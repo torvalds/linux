@@ -46,6 +46,35 @@ struct stmmac_tx_info {
 	bool is_jumbo;
 };
 
+/* Frequently used values are kept adjacent for cache effect */
+struct stmmac_tx_queue {
+	u32 queue_index;
+	struct stmmac_priv *priv_data;
+	struct dma_extended_desc *dma_etx ____cacheline_aligned_in_smp;
+	struct dma_desc *dma_tx;
+	struct sk_buff **tx_skbuff;
+	struct stmmac_tx_info *tx_skbuff_dma;
+	unsigned int cur_tx;
+	unsigned int dirty_tx;
+	dma_addr_t dma_tx_phy;
+	u32 tx_tail_addr;
+};
+
+struct stmmac_rx_queue {
+	u32 queue_index;
+	struct stmmac_priv *priv_data;
+	struct dma_extended_desc *dma_erx;
+	struct dma_desc *dma_rx ____cacheline_aligned_in_smp;
+	struct sk_buff **rx_skbuff;
+	dma_addr_t *rx_skbuff_dma;
+	struct napi_struct napi ____cacheline_aligned_in_smp;
+	unsigned int cur_rx;
+	unsigned int dirty_rx;
+	u32 rx_zeroc_thresh;
+	dma_addr_t dma_rx_phy;
+	u32 rx_tail_addr;
+};
+
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
 	struct dma_extended_desc *dma_etx ____cacheline_aligned_in_smp;
@@ -56,28 +85,22 @@ struct stmmac_priv {
 	u32 tx_count_frames;
 	u32 tx_coal_frames;
 	u32 tx_coal_timer;
-	struct stmmac_tx_info *tx_skbuff_dma;
-	dma_addr_t dma_tx_phy;
 	int tx_coalesce;
 	int hwts_tx_en;
 	bool tx_path_in_lpi_mode;
 	struct timer_list txtimer;
 	bool tso;
 
-	struct dma_desc *dma_rx	____cacheline_aligned_in_smp;
-	struct dma_extended_desc *dma_erx;
-	struct sk_buff **rx_skbuff;
-	unsigned int cur_rx;
-	unsigned int dirty_rx;
+	/* TX Queue */
+	struct stmmac_tx_queue *tx_queue;
+
+	/* RX Queue */
+	struct stmmac_rx_queue *rx_queue;
+
 	unsigned int dma_buf_sz;
 	unsigned int rx_copybreak;
-	unsigned int rx_zeroc_thresh;
 	u32 rx_riwt;
 	int hwts_rx_en;
-	dma_addr_t *rx_skbuff_dma;
-	dma_addr_t dma_rx_phy;
-
-	struct napi_struct napi ____cacheline_aligned_in_smp;
 
 	void __iomem *ioaddr;
 	struct net_device *dev;
@@ -119,8 +142,6 @@ struct stmmac_priv {
 	spinlock_t ptp_lock;
 	void __iomem *mmcaddr;
 	void __iomem *ptpaddr;
-	u32 rx_tail_addr;
-	u32 tx_tail_addr;
 	u32 mss;
 
 #ifdef CONFIG_DEBUG_FS
