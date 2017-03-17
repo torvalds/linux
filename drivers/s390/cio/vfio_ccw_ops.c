@@ -127,6 +127,51 @@ void vfio_ccw_mdev_release(struct mdev_device *mdev)
 				 &private->nb);
 }
 
+static ssize_t vfio_ccw_mdev_read(struct mdev_device *mdev,
+				  char __user *buf,
+				  size_t count,
+				  loff_t *ppos)
+{
+	struct vfio_ccw_private *private;
+	struct ccw_io_region *region;
+
+	if (*ppos + count > sizeof(*region))
+		return -EINVAL;
+
+	private = dev_get_drvdata(mdev_parent_dev(mdev));
+	if (!private)
+		return -ENODEV;
+
+	region = &private->io_region;
+	if (copy_to_user(buf, (void *)region + *ppos, count))
+		return -EFAULT;
+
+	return count;
+}
+
+static ssize_t vfio_ccw_mdev_write(struct mdev_device *mdev,
+				   const char __user *buf,
+				   size_t count,
+				   loff_t *ppos)
+{
+	struct vfio_ccw_private *private;
+	struct ccw_io_region *region;
+
+	if (*ppos + count > sizeof(*region))
+		return -EINVAL;
+
+	private = dev_get_drvdata(mdev_parent_dev(mdev));
+	if (!private)
+		return -ENODEV;
+
+	region = &private->io_region;
+	if (copy_from_user((void *)region + *ppos, buf, count))
+		return -EFAULT;
+	region->ret_code = 0;
+
+	return count;
+}
+
 static const struct mdev_parent_ops vfio_ccw_mdev_ops = {
 	.owner			= THIS_MODULE,
 	.supported_type_groups  = mdev_type_groups,
@@ -134,6 +179,8 @@ static const struct mdev_parent_ops vfio_ccw_mdev_ops = {
 	.remove			= vfio_ccw_mdev_remove,
 	.open			= vfio_ccw_mdev_open,
 	.release		= vfio_ccw_mdev_release,
+	.read			= vfio_ccw_mdev_read,
+	.write			= vfio_ccw_mdev_write,
 };
 
 int vfio_ccw_mdev_reg(struct subchannel *sch)

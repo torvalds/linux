@@ -10,6 +10,8 @@
 #ifndef _VFIO_CCW_PRIVATE_H_
 #define _VFIO_CCW_PRIVATE_H_
 
+#include <linux/vfio_ccw.h>
+
 #include "css.h"
 
 /**
@@ -19,6 +21,7 @@
  * @avail: available for creating a mediated device
  * @mdev: pointer to the mediated device
  * @nb: notifier for vfio events
+ * @io_region: MMIO region to input/output I/O arguments/results
  */
 struct vfio_ccw_private {
 	struct subchannel	*sch;
@@ -26,6 +29,7 @@ struct vfio_ccw_private {
 	atomic_t		avail;
 	struct mdev_device	*mdev;
 	struct notifier_block	nb;
+	struct ccw_io_region	io_region;
 } __aligned(8);
 
 extern int vfio_ccw_mdev_reg(struct subchannel *sch);
