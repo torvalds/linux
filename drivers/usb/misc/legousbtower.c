@@ -806,10 +806,7 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 	struct device *idev = &interface->dev;
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct lego_usb_tower *dev = NULL;
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor* endpoint;
 	struct tower_get_version_reply get_version_reply;
-	int i;
 	int retval = -ENOMEM;
 	int result;
 
@@ -846,25 +843,13 @@ static int tower_probe (struct usb_interface *interface, const struct usb_device
 	dev->interrupt_out_urb = NULL;
 	dev->interrupt_out_busy = 0;
 
-	iface_desc = interface->cur_altsetting;
-
-	/* set up the endpoint information */
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (usb_endpoint_xfer_int(endpoint)) {
-			if (usb_endpoint_dir_in(endpoint))
-				dev->interrupt_in_endpoint = endpoint;
-			else
-				dev->interrupt_out_endpoint = endpoint;
-		}
-	}
-	if(dev->interrupt_in_endpoint == NULL) {
-		dev_err(idev, "interrupt in endpoint not found\n");
-		goto error;
-	}
-	if (dev->interrupt_out_endpoint == NULL) {
-		dev_err(idev, "interrupt out endpoint not found\n");
+	result = usb_find_common_endpoints_reverse(interface->cur_altsetting,
+			NULL, NULL,
+			&dev->interrupt_in_endpoint,
+			&dev->interrupt_out_endpoint);
+	if (result) {
+		dev_err(idev, "interrupt endpoints not found\n");
+		retval = result;
 		goto error;
 	}
 
