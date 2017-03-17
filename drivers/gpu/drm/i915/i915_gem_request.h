@@ -267,8 +267,6 @@ int i915_gem_request_await_dma_fence(struct drm_i915_gem_request *req,
 
 void __i915_add_request(struct drm_i915_gem_request *req, bool flush_caches);
 #define i915_add_request(req) \
-	__i915_add_request(req, true)
-#define i915_add_request_no_flush(req) \
 	__i915_add_request(req, false)
 
 void __i915_gem_request_submit(struct drm_i915_gem_request *request);

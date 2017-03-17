@@ -7086,7 +7086,7 @@ static void __intel_autoenable_gt_powersave(struct work_struct *work)
 		rcs->init_context(req);
 
 	/* Mark the device busy, calling intel_enable_gt_powersave() */
-	i915_add_request_no_flush(req);
+	i915_add_request(req);
 
 unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);

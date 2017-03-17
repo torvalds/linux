@@ -933,7 +933,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 		}
 
 		ret = i915_switch_context(req);
-		i915_add_request_no_flush(req);
+		i915_add_request(req);
 		if (ret)
 			return ret;
 	}

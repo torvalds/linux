@@ -10668,7 +10668,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		intel_mark_page_flip_active(intel_crtc, work);
 
 		work->flip_queued_req = i915_gem_request_get(request);
-		i915_add_request_no_flush(request);
+		i915_add_request(request);
 	}
 
 	i915_gem_object_wait_priority(obj, 0, I915_PRIORITY_DISPLAY);
@@ -10684,7 +10684,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 
 cleanup_request:
-	i915_add_request_no_flush(request);
+	i915_add_request(request);
 cleanup_unpin:
 	to_intel_plane_state(primary->state)->vma = work->old_vma;
 	intel_unpin_fb_vma(vma);
