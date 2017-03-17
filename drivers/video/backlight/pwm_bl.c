@@ -559,6 +559,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		pb->levels = data->levels;
 	}
 
+	pwm_adjust_config(pb->pwm);
+
 	/*
 	 * The DT case will set the pwm_period_ns field to 0 and store the
 	 * period, parsed from the DT, in the PWM device. For the non-DT case,
