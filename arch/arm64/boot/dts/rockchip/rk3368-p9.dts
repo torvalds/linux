@@ -503,6 +503,8 @@
 
 		battery {
 			compatible = "rk818-battery";
+			pinctrl-names = "default";
+			pinctrl-0 = <&dc_irq_gpio>;
 			ocv_table = <
 				3400 3650 3693 3707 3731 3749 3760
 				3770 3782 3796 3812 3829 3852 3882
@@ -680,6 +682,12 @@
 	mpu6500 {
 		mpu6500_irq_gpio: mpu6500-irq-gpio {
 			rockchip,pins = <3 14 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	dc_det {
+		dc_irq_gpio: dc-irq-gpio {
+			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
