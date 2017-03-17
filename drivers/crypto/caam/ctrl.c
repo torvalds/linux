@@ -18,6 +18,10 @@
 bool caam_little_end;
 EXPORT_SYMBOL(caam_little_end);
 
+#ifdef CONFIG_CAAM_QI
+#include "qi.h"
+#endif
+
 /*
  * i.MX targets tend to have clock control subsystems that can
  * enable/disable clocking to our device.
@@ -311,6 +315,11 @@ static int caam_remove(struct platform_device *pdev)
 	for (ring = 0; ring < ctrlpriv->total_jobrs; ring++)
 		of_device_unregister(ctrlpriv->jrpdev[ring]);
 
+#ifdef CONFIG_CAAM_QI
+	if (ctrlpriv->qidev)
+		caam_qi_shutdown(ctrlpriv->qidev);
+#endif
+
 	/* De-initialize RNG state handles initialized by this driver. */
 	if (ctrlpriv->rng4_sh_init)
 		deinstantiate_rng(ctrldev, ctrlpriv->rng4_sh_init);
@@ -400,23 +409,6 @@ int caam_get_era(void)
 	return ret ? -ENOTSUPP : prop;
 }
 EXPORT_SYMBOL(caam_get_era);
-
-#ifdef CONFIG_DEBUG_FS
-static int caam_debugfs_u64_get(void *data, u64 *val)
-{
-	*val = caam64_to_cpu(*(u64 *)data);
-	return 0;
-}
-
-static int caam_debugfs_u32_get(void *data, u64 *val)
-{
-	*val = caam32_to_cpu(*(u32 *)data);
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u32_ro, caam_debugfs_u32_get, NULL, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(caam_fops_u64_ro, caam_debugfs_u64_get, NULL, "%llu\n");
-#endif
 
 /* Probe routine for CAAM top (controller) level */
 static int caam_probe(struct platform_device *pdev)
@@ -615,6 +607,17 @@ static int caam_probe(struct platform_device *pdev)
 		goto iounmap_ctrl;
 	}
 
+#ifdef CONFIG_DEBUG_FS
+	/*
+	 * FIXME: needs better naming distinction, as some amalgamation of
+	 * "caam" and nprop->full_name. The OF name isn't distinctive,
+	 * but does separate instances
+	 */
+	perfmon = (struct caam_perfmon __force *)&ctrl->perfmon;
+
+	ctrlpriv->dfs_root = debugfs_create_dir(dev_name(dev), NULL);
+	ctrlpriv->ctl = debugfs_create_dir("ctl", ctrlpriv->dfs_root);
+#endif
 	ring = 0;
 	ridx = 0;
 	ctrlpriv->total_jobrs = 0;
@@ -650,6 +653,13 @@ static int caam_probe(struct platform_device *pdev)
 			       );
 		/* This is all that's required to physically enable QI */
 		wr_reg32(&ctrlpriv->qi->qi_control_lo, QICTL_DQEN);
+
+		/* If QMAN driver is present, init CAAM-QI backend */
+#ifdef CONFIG_CAAM_QI
+		ret = caam_qi_init(pdev);
+		if (ret)
+			dev_err(dev, "caam qi i/f init failed: %d\n", ret);
+#endif
 	}
 
 	/* If no QI and no rings specified, quit and go home */
@@ -737,17 +747,6 @@ static int caam_probe(struct platform_device *pdev)
 		 ctrlpriv->total_jobrs, ctrlpriv->qi_present);
 
 #ifdef CONFIG_DEBUG_FS
-	/*
-	 * FIXME: needs better naming distinction, as some amalgamation of
-	 * "caam" and nprop->full_name. The OF name isn't distinctive,
-	 * but does separate instances
-	 */
-	perfmon = (struct caam_perfmon __force *)&ctrl->perfmon;
-
-	ctrlpriv->dfs_root = debugfs_create_dir(dev_name(dev), NULL);
-	ctrlpriv->ctl = debugfs_create_dir("ctl", ctrlpriv->dfs_root);
-
-	/* Controller-level - performance monitor counters */
 
 	ctrlpriv->ctl_rq_dequeued =
 		debugfs_create_file("rq_dequeued",
@@ -830,6 +829,9 @@ static int caam_probe(struct platform_device *pdev)
 	return 0;
 
 caam_remove:
+#ifdef CONFIG_DEBUG_FS
+	debugfs_remove_recursive(ctrlpriv->dfs_root);
+#endif
 	caam_remove(pdev);
 	return ret;
 
