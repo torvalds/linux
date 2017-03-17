@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/printk.h>
+#include <linux/vmalloc.h>
 #include <linux/spi/spi.h>
 
 #include "spi-test.h"
