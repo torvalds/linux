@@ -124,10 +124,22 @@ static int amdgpu_lru_map(struct amdgpu_device *adev,
 			  int user_ring,
 			  struct amdgpu_ring **out_ring)
 {
-	int r;
+	int r, i, j;
 	int ring_type = amdgpu_hw_ip_to_ring_type(mapper->hw_ip);
+	int ring_blacklist[AMDGPU_MAX_RINGS];
+	struct amdgpu_ring *ring;
 
-	r = amdgpu_ring_lru_get(adev, ring_type, out_ring);
+	/* 0 is a valid ring index, so initialize to -1 */
+	memset(ring_blacklist, 0xff, sizeof(ring_blacklist));
+
+	for (i = 0, j = 0; i < AMDGPU_MAX_RINGS; i++) {
+		ring = mapper->queue_map[i];
+		if (ring)
+			ring_blacklist[j++] = ring->idx;
+	}
+
+	r = amdgpu_ring_lru_get(adev, ring_type, ring_blacklist,
+				j, out_ring);
 	if (r)
 		return r;
 

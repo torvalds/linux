@@ -338,19 +338,34 @@ static void amdgpu_ring_lru_touch_locked(struct amdgpu_device *adev,
 	list_move_tail(&ring->lru_list, &adev->ring_lru_list);
 }
 
+static bool amdgpu_ring_is_blacklisted(struct amdgpu_ring *ring,
+				       int *blacklist, int num_blacklist)
+{
+	int i;
+
+	for (i = 0; i < num_blacklist; i++) {
+		if (ring->idx == blacklist[i])
+			return true;
+	}
+
+	return false;
+}
+
 /**
  * amdgpu_ring_lru_get - get the least recently used ring for a HW IP block
  *
  * @adev: amdgpu_device pointer
  * @type: amdgpu_ring_type enum
+ * @blacklist: blacklisted ring ids array
+ * @num_blacklist: number of entries in @blacklist
  * @ring: output ring
  *
  * Retrieve the amdgpu_ring structure for the least recently used ring of
  * a specific IP block (all asics).
  * Returns 0 on success, error on failure.
  */
-int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type,
-			struct amdgpu_ring **ring)
+int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type, int *blacklist,
+			int num_blacklist, struct amdgpu_ring **ring)
 {
 	struct amdgpu_ring *entry;
 
@@ -359,11 +374,15 @@ int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type,
 	*ring = NULL;
 	spin_lock(&adev->ring_lru_list_lock);
 	list_for_each_entry(entry, &adev->ring_lru_list, lru_list) {
-		if (entry->funcs->type == type) {
-			*ring = entry;
-			amdgpu_ring_lru_touch_locked(adev, *ring);
-			break;
-		}
+		if (entry->funcs->type != type)
+			continue;
+
+		if (amdgpu_ring_is_blacklisted(entry, blacklist, num_blacklist))
+			continue;
+
+		*ring = entry;
+		amdgpu_ring_lru_touch_locked(adev, *ring);
+		break;
 	}
 	spin_unlock(&adev->ring_lru_list_lock);
 
