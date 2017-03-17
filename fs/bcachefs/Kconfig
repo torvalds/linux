@@ -1,0 +1,52 @@
+
+config BCACHEFS_FS
+	tristate "bcachefs filesystem support"
+	depends on BLOCK
+	select EXPORTFS
+	select CLOSURES
+	select LIBCRC32C
+	select FS_POSIX_ACL
+	select LZ4_COMPRESS
+	select LZ4_DECOMPRESS
+	select ZLIB_DEFLATE
+	select ZLIB_INFLATE
+	select ZSTD_COMPRESS
+	select ZSTD_DECOMPRESS
+	select CRYPTO_SHA256
+	select CRYPTO_CHACHA20
+	select CRYPTO_POLY1305
+	select KEYS
+	help
+	The bcachefs filesystem - a modern, copy on write filesystem, with
+	support for multiple devices, compression, checksumming, etc.
+
+config BCACHEFS_QUOTA
+	bool "bcachefs quota support"
+	depends on BCACHEFS_FS
+	select QUOTACTL
+
+config BCACHEFS_POSIX_ACL
+	bool "bcachefs POSIX ACL support"
+	depends on BCACHEFS_FS
+	select FS_POSIX_ACL
+
+config BCACHEFS_DEBUG
+	bool "bcachefs debugging"
+	depends on BCACHEFS_FS
+	help
+	Enables many extra debugging checks and assertions.
+
+	The resulting code will be significantly slower than normal; you
+	probably shouldn't select this option unless you're a developer.
+
+config BCACHEFS_TESTS
+	bool "bcachefs unit and performance tests"
+	depends on BCACHEFS_FS
+	help
+	Include some unit and performance tests for the core btree code
+
+config BCACHEFS_NO_LATENCY_ACCT
+	bool "disable latency accounting and time stats"
+	depends on BCACHEFS_FS
+	help
+	This disables device latency tracking and time stats, only for performance testing
