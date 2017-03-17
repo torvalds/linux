@@ -29,8 +29,9 @@
 #define MYDRVNAME "visorchannel"
 
 #define SPAR_CONSOLEVIDEO_CHANNEL_PROTOCOL_GUID \
-	UUID_LE(0x3cd6e705, 0xd6a2, 0x4aa5,           \
+	UUID_LE(0x3cd6e705, 0xd6a2, 0x4aa5, \
 		0xad, 0x5c, 0x7b, 0x8, 0x88, 0x9d, 0xff, 0xe2)
+
 static const uuid_le spar_video_guid = SPAR_CONSOLEVIDEO_CHANNEL_PROTOCOL_GUID;
 
 struct visorchannel {
@@ -173,17 +174,17 @@ visorchannel_get_header(struct visorchannel *channel)
  */
 #define SIG_DATA_OFFSET(chan_hdr, q, sig_hdr, slot) \
 	(SIG_QUEUE_OFFSET(chan_hdr, q) + (sig_hdr)->sig_base_offset + \
-	    ((slot) * (sig_hdr)->signal_size))
+	 ((slot) * (sig_hdr)->signal_size))
 
 /*
  * Write the contents of a specific field within a SIGNAL_QUEUE_HEADER back
  * into host memory
  */
-#define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD)			 \
-	visorchannel_write(channel,					 \
-			   SIG_QUEUE_OFFSET(&channel->chan_hdr, queue) +\
+#define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD) \
+	visorchannel_write(channel, \
+			   SIG_QUEUE_OFFSET(&channel->chan_hdr, queue) + \
 			   offsetof(struct signal_queue_header, FIELD), \
-			   &((sig_hdr)->FIELD),			 \
+			   &((sig_hdr)->FIELD), \
 			   sizeof((sig_hdr)->FIELD))
 
 static int
