@@ -182,6 +182,14 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 			plat->rx_queues_cfg[queue].chan = queue;
 		/* TODO: Dynamic mapping to be included in the future */
 
+		if (of_property_read_u32(q_node, "snps,priority",
+					&plat->rx_queues_cfg[queue].prio)) {
+			plat->rx_queues_cfg[queue].prio = 0;
+			plat->rx_queues_cfg[queue].use_prio = false;
+		} else {
+			plat->rx_queues_cfg[queue].use_prio = true;
+		}
+
 		queue++;
 	}
 
@@ -233,6 +241,14 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 				plat->tx_queues_cfg[queue].low_credit = 0x0;
 		} else {
 			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
+		}
+
+		if (of_property_read_u32(q_node, "snps,priority",
+					&plat->tx_queues_cfg[queue].prio)) {
+			plat->tx_queues_cfg[queue].prio = 0;
+			plat->tx_queues_cfg[queue].use_prio = false;
+		} else {
+			plat->tx_queues_cfg[queue].use_prio = true;
 		}
 
 		queue++;

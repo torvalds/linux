@@ -127,6 +127,8 @@ struct stmmac_axi {
 struct stmmac_rxq_cfg {
 	u8 mode_to_use;
 	u8 chan;
+	bool use_prio;
+	u32 prio;
 };
 
 struct stmmac_txq_cfg {
@@ -137,6 +139,8 @@ struct stmmac_txq_cfg {
 	u32 idle_slope;
 	u32 high_credit;
 	u32 low_credit;
+	bool use_prio;
+	u32 prio;
 };
 
 struct plat_stmmacenet_data {

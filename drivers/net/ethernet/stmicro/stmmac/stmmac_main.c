@@ -2293,6 +2293,46 @@ static void stmmac_rx_queue_dma_chan_map(struct stmmac_priv *priv)
 }
 
 /**
+ *  stmmac_mac_config_rx_queues_prio - Configure RX Queue priority
+ *  @priv: driver private structure
+ *  Description: It is used for configuring the RX Queue Priority
+ */
+static void stmmac_mac_config_rx_queues_prio(struct stmmac_priv *priv)
+{
+	u32 rx_queues_count = priv->plat->rx_queues_to_use;
+	u32 queue;
+	u32 prio;
+
+	for (queue = 0; queue < rx_queues_count; queue++) {
+		if (!priv->plat->rx_queues_cfg[queue].use_prio)
+			continue;
+
+		prio = priv->plat->rx_queues_cfg[queue].prio;
+		priv->hw->mac->rx_queue_prio(priv->hw, prio, queue);
+	}
+}
+
+/**
+ *  stmmac_mac_config_tx_queues_prio - Configure TX Queue priority
+ *  @priv: driver private structure
+ *  Description: It is used for configuring the TX Queue Priority
+ */
+static void stmmac_mac_config_tx_queues_prio(struct stmmac_priv *priv)
+{
+	u32 tx_queues_count = priv->plat->tx_queues_to_use;
+	u32 queue;
+	u32 prio;
+
+	for (queue = 0; queue < tx_queues_count; queue++) {
+		if (!priv->plat->tx_queues_cfg[queue].use_prio)
+			continue;
+
+		prio = priv->plat->tx_queues_cfg[queue].prio;
+		priv->hw->mac->tx_queue_prio(priv->hw, prio, queue);
+	}
+}
+
+/**
  *  stmmac_mtl_configuration - Configure MTL
  *  @priv: driver private structure
  *  Description: It is used for configurring MTL
@@ -2329,6 +2369,14 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 
 	/* Set the HW DMA mode and the COE */
 	stmmac_dma_operation_mode(priv);
+
+	/* Set RX priorities */
+	if (rx_queues_count > 1 && priv->hw->mac->rx_queue_prio)
+		stmmac_mac_config_rx_queues_prio(priv);
+
+	/* Set TX priorities */
+	if (tx_queues_count > 1 && priv->hw->mac->tx_queue_prio)
+		stmmac_mac_config_tx_queues_prio(priv);
 }
 
 /**

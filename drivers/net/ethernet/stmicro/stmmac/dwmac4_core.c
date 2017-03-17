@@ -74,6 +74,41 @@ static void dwmac4_rx_queue_enable(struct mac_device_info *hw,
 	writel(value, ioaddr + GMAC_RXQ_CTRL0);
 }
 
+static void dwmac4_rx_queue_priority(struct mac_device_info *hw,
+				     u32 prio, u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 base_register;
+	u32 value;
+
+	base_register = (queue < 4) ? GMAC_RXQ_CTRL2 : GMAC_RXQ_CTRL3;
+
+	value = readl(ioaddr + base_register);
+
+	value &= ~GMAC_RXQCTRL_PSRQX_MASK(queue);
+	value |= (prio << GMAC_RXQCTRL_PSRQX_SHIFT(queue)) &
+						GMAC_RXQCTRL_PSRQX_MASK(queue);
+	writel(value, ioaddr + base_register);
+}
+
+static void dwmac4_tx_queue_priority(struct mac_device_info *hw,
+				     u32 prio, u32 queue)
+{
+	void __iomem *ioaddr = hw->pcsr;
+	u32 base_register;
+	u32 value;
+
+	base_register = (queue < 4) ? GMAC_TXQ_PRTY_MAP0 : GMAC_TXQ_PRTY_MAP1;
+
+	value = readl(ioaddr + base_register);
+
+	value &= ~GMAC_TXQCTRL_PSTQX_MASK(queue);
+	value |= (prio << GMAC_TXQCTRL_PSTQX_SHIFT(queue)) &
+						GMAC_TXQCTRL_PSTQX_MASK(queue);
+
+	writel(value, ioaddr + base_register);
+}
+
 static void dwmac4_prog_mtl_rx_algorithms(struct mac_device_info *hw,
 					  u32 rx_alg)
 {
@@ -603,6 +638,8 @@ static const struct stmmac_ops dwmac4_ops = {
 	.core_init = dwmac4_core_init,
 	.rx_ipc = dwmac4_rx_ipc_enable,
 	.rx_queue_enable = dwmac4_rx_queue_enable,
+	.rx_queue_prio = dwmac4_rx_queue_priority,
+	.tx_queue_prio = dwmac4_tx_queue_priority,
 	.prog_mtl_rx_algorithms = dwmac4_prog_mtl_rx_algorithms,
 	.prog_mtl_tx_algorithms = dwmac4_prog_mtl_tx_algorithms,
 	.set_mtl_tx_queue_weight = dwmac4_set_mtl_tx_queue_weight,

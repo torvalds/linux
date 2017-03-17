@@ -22,7 +22,12 @@
 #define GMAC_HASH_TAB_32_63		0x00000014
 #define GMAC_RX_FLOW_CTRL		0x00000090
 #define GMAC_QX_TX_FLOW_CTRL(x)		(0x70 + x * 4)
+#define GMAC_TXQ_PRTY_MAP0		0x98
+#define GMAC_TXQ_PRTY_MAP1		0x9C
 #define GMAC_RXQ_CTRL0			0x000000a0
+#define GMAC_RXQ_CTRL1			0x000000a4
+#define GMAC_RXQ_CTRL2			0x000000a8
+#define GMAC_RXQ_CTRL3			0x000000ac
 #define GMAC_INT_STATUS			0x000000b0
 #define GMAC_INT_EN			0x000000b4
 #define GMAC_1US_TIC_COUNTER		0x000000dc
@@ -53,6 +58,14 @@
 
 /* MAC Flow Control RX */
 #define GMAC_RX_FLOW_CTRL_RFE		BIT(0)
+
+/* RX Queues Priorities */
+#define GMAC_RXQCTRL_PSRQX_MASK(x)	GENMASK(7 + ((x) * 8), 0 + ((x) * 8))
+#define GMAC_RXQCTRL_PSRQX_SHIFT(x)	((x) * 8)
+
+/* TX Queues Priorities */
+#define GMAC_TXQCTRL_PSTQX_MASK(x)	GENMASK(7 + ((x) * 8), 0 + ((x) * 8))
+#define GMAC_TXQCTRL_PSTQX_SHIFT(x)	((x) * 8)
 
 /* MAC Flow Control TX */
 #define GMAC_TX_FLOW_CTRL_TFE		BIT(1)
