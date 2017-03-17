@@ -247,7 +247,34 @@ static long copy_ccw_from_iova(struct channel_program *cp,
 			       struct ccw1 *to, u64 iova,
 			       unsigned long len)
 {
-	return copy_from_iova(cp->mdev, to, iova, len * sizeof(struct ccw1));
+	struct ccw0 ccw0;
+	struct ccw1 *pccw1;
+	int ret;
+	int i;
+
+	ret = copy_from_iova(cp->mdev, to, iova, len * sizeof(struct ccw1));
+	if (ret)
+		return ret;
+
+	if (!cp->orb.cmd.fmt) {
+		pccw1 = to;
+		for (i = 0; i < len; i++) {
+			ccw0 = *(struct ccw0 *)pccw1;
+			if ((pccw1->cmd_code & 0x0f) == CCW_CMD_TIC) {
+				pccw1->cmd_code = CCW_CMD_TIC;
+				pccw1->flags = 0;
+				pccw1->count = 0;
+			} else {
+				pccw1->cmd_code = ccw0.cmd_code;
+				pccw1->flags = ccw0.flags;
+				pccw1->count = ccw0.count;
+			}
+			pccw1->cda = ccw0.cda;
+			pccw1++;
+		}
+	}
+
+	return ret;
 }
 
 /*
@@ -616,9 +643,8 @@ int cp_init(struct channel_program *cp, struct device *mdev, union orb *orb)
 	 * Only support prefetch enable mode now.
 	 * Only support 64bit addressing idal.
 	 * Only support 4k IDAW.
-	 * Only support ccw1.
 	 */
-	if (!orb->cmd.pfch || !orb->cmd.c64 || orb->cmd.i2k || !orb->cmd.fmt)
+	if (!orb->cmd.pfch || !orb->cmd.c64 || orb->cmd.i2k)
 		return -EOPNOTSUPP;
 
 	INIT_LIST_HEAD(&cp->ccwchain_list);
