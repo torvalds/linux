@@ -377,8 +377,8 @@ void intel_uc_prepare_fw(struct drm_i915_private *dev_priv,
 			uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
 
 	obj = i915_gem_object_create_from_data(dev_priv, fw->data, fw->size);
-	if (IS_ERR_OR_NULL(obj)) {
-		err = obj ? PTR_ERR(obj) : -ENOMEM;
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
 		goto fail;
 	}
 
