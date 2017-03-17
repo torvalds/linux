@@ -2776,9 +2776,9 @@ static void __balance_callback(struct rq *rq)
 {
 	struct callback_head *head, *next;
 	void (*func)(struct rq *rq);
-	struct rq_flags rf;
+	unsigned long flags;
 
-	rq_lock_irqsave(rq, &rf);
+	raw_spin_lock_irqsave(&rq->lock, flags);
 	head = rq->balance_callback;
 	rq->balance_callback = NULL;
 	while (head) {
@@ -2789,7 +2789,7 @@ static void __balance_callback(struct rq *rq)
 
 		func(rq);
 	}
-	rq_unlock_irqrestore(rq, &rf);
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
 }
 
 static inline void balance_callback(struct rq *rq)
