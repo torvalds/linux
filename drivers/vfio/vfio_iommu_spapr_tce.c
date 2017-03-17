@@ -107,14 +107,17 @@ static long tce_iommu_unregister_pages(struct tce_container *container,
 {
 	struct mm_iommu_table_group_mem_t *mem;
 
+	if (!current || !current->mm)
+		return -ESRCH; /* process exited */
+
 	if ((vaddr & ~PAGE_MASK) || (size & ~PAGE_MASK))
 		return -EINVAL;
 
-	mem = mm_iommu_find(vaddr, size >> PAGE_SHIFT);
+	mem = mm_iommu_find(current->mm, vaddr, size >> PAGE_SHIFT);
 	if (!mem)
 		return -ENOENT;
 
-	return mm_iommu_put(mem);
+	return mm_iommu_put(current->mm, mem);
 }
 
 static long tce_iommu_register_pages(struct tce_container *container,
@@ -124,11 +127,14 @@ static long tce_iommu_register_pages(struct tce_container *container,
 	struct mm_iommu_table_group_mem_t *mem = NULL;
 	unsigned long entries = size >> PAGE_SHIFT;
 
+	if (!current || !current->mm)
+		return -ESRCH; /* process exited */
+
 	if ((vaddr & ~PAGE_MASK) || (size & ~PAGE_MASK) ||
 			((vaddr + size) < vaddr))
 		return -EINVAL;
 
-	ret = mm_iommu_get(vaddr, entries, &mem);
+	ret = mm_iommu_get(current->mm, vaddr, entries, &mem);
 	if (ret)
 		return ret;
 
@@ -375,7 +381,7 @@ static int tce_iommu_prereg_ua_to_hpa(unsigned long tce, unsigned long size,
 	long ret = 0;
 	struct mm_iommu_table_group_mem_t *mem;
 
-	mem = mm_iommu_lookup(tce, size);
+	mem = mm_iommu_lookup(current->mm, tce, size);
 	if (!mem)
 		return -EINVAL;
 
