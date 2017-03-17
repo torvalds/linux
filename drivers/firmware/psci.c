@@ -34,10 +34,6 @@
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 
-#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
-#include <linux/rockchip/rockchip_sip.h>
-#endif
-
 /*
  * While a 64-bit OS can make calls with SMC32 calling conventions, for some
  * calls it is necessary to use SMC64 to pass or return 64-bit values.
@@ -355,9 +351,6 @@ int psci_cpu_suspend_enter(unsigned long index)
 	else
 		ret = cpu_suspend(index, psci_suspend_finisher);
 
-#ifdef CONFIG_FIQ_DEBUGGER_EL3_TO_EL1
-	psci_enable_fiq();
-#endif
 	return ret;
 }
 
