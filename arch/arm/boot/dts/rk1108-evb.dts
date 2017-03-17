@@ -40,7 +40,7 @@
 
 /dts-v1/;
 
-#include "rk1108.dtsi"
+#include "rv1108.dtsi"
 
 / {
 	model = "Rockchip RK1108 Evaluation board";

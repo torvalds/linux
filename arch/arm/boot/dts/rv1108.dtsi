@@ -47,7 +47,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	compatible = "rockchip,rk1108";
+	compatible = "rockchip,rv1108";
 
 	interrupt-parent = <&gic>;
 
@@ -113,7 +113,7 @@
 	};
 
 	uart2: serial@10210000 {
-		compatible = "rockchip,rk1108-uart", "snps,dw-apb-uart";
+		compatible = "rockchip,rv1108-uart", "snps,dw-apb-uart";
 		reg = <0x10210000 0x100>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
@@ -127,7 +127,7 @@
 	};
 
 	uart1: serial@10220000 {
-		compatible = "rockchip,rk1108-uart", "snps,dw-apb-uart";
+		compatible = "rockchip,rv1108-uart", "snps,dw-apb-uart";
 		reg = <0x10220000 0x100>;
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
@@ -141,7 +141,7 @@
 	};
 
 	uart0: serial@10230000 {
-		compatible = "rockchip,rk1108-uart", "snps,dw-apb-uart";
+		compatible = "rockchip,rv1108-uart", "snps,dw-apb-uart";
 		reg = <0x10230000 0x100>;
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
@@ -155,17 +155,17 @@
 	};
 
 	grf: syscon@10300000 {
-		compatible = "rockchip,rk1108-grf", "syscon";
+		compatible = "rockchip,rv1108-grf", "syscon";
 		reg = <0x10300000 0x1000>;
 	};
 
 	pmugrf: syscon@20060000 {
-		compatible = "rockchip,rk1108-pmugrf", "syscon";
+		compatible = "rockchip,rv1108-pmugrf", "syscon";
 		reg = <0x20060000 0x1000>;
 	};
 
 	cru: clock-controller@20200000 {
-		compatible = "rockchip,rk1108-cru";
+		compatible = "rockchip,rv1108-cru";
 		reg = <0x20200000 0x1000>;
 		rockchip,grf = <&grf>;
 		#clock-cells = <1>;
@@ -173,7 +173,7 @@
 	};
 
 	emmc: dwmmc@30110000 {
-		compatible = "rockchip,rk1108-dw-mshc", "rockchip,rk3288-dw-mshc";
+		compatible = "rockchip,rv1108-dw-mshc", "rockchip,rk3288-dw-mshc";
 		clock-freq-min-max = <400000 150000000>;
 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
 			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
@@ -185,7 +185,7 @@
 	};
 
 	sdio: dwmmc@30120000 {
-		compatible = "rockchip,rk1108-dw-mshc", "rockchip,rk3288-dw-mshc";
+		compatible = "rockchip,rv1108-dw-mshc", "rockchip,rk3288-dw-mshc";
 		clock-freq-min-max = <400000 150000000>;
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
 			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
@@ -197,7 +197,7 @@
 	};
 
 	sdmmc: dwmmc@30130000 {
-		compatible = "rockchip,rk1108-dw-mshc", "rockchip,rk3288-dw-mshc";
+		compatible = "rockchip,rv1108-dw-mshc", "rockchip,rk3288-dw-mshc";
 		clock-freq-min-max = <400000 100000000>;
 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
 			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
