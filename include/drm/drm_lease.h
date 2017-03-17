@@ -31,4 +31,16 @@ void drm_lease_revoke(struct drm_master *master);
 
 uint32_t drm_lease_filter_crtcs(struct drm_file *file_priv, uint32_t crtcs);
 
+int drm_mode_create_lease_ioctl(struct drm_device *dev,
+				void *data, struct drm_file *file_priv);
+
+int drm_mode_list_lessees_ioctl(struct drm_device *dev,
+				void *data, struct drm_file *file_priv);
+
+int drm_mode_get_lease_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv);
+
+int drm_mode_revoke_lease_ioctl(struct drm_device *dev,
+				void *data, struct drm_file *file_priv);
+
 #endif /* _DRM_LEASE_H_ */
