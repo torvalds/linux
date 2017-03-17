@@ -37,7 +37,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/oom.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/swap.h>
 #include <linux/rcupdate.h>
 #include <linux/profile.h>

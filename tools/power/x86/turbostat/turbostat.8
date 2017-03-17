@@ -16,9 +16,9 @@ idle power-state statistics, temperature and power on X86 processors.
 There are two ways to invoke turbostat.
 The first method is to supply a
 \fBcommand\fP, which is forked and statistics are printed
-upon its completion.
+in one-shot upon its completion.
 The second method is to omit the command,
-and turbostat displays statistics every 5 seconds.
+and turbostat displays statistics every 5 seconds interval.
 The 5-second interval can be changed using the --interval option.
 .PP
 Some information is not available on older processors.
@@ -28,9 +28,10 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 .PP
 \fB--add attributes\fP add column with counter having specified 'attributes'.  The 'location' attribute is required, all others are optional.
 .nf
-	location: {\fBmsrDDD\fP | \fBmsr0xXXX\fP}
+	location: {\fBmsrDDD\fP | \fBmsr0xXXX\fP | \fB/sys/path...\fP}
 		msrDDD is a decimal offset, eg. msr16
 		msr0xXXX is a hex offset, eg. msr0x10
+		/sys/path... is an absolute path to a sysfs attribute
 
 	scope: {\fBcpu\fP | \fBcore\fP | \fBpackage\fP}
 		sample and print the counter for every cpu, core, or package.
@@ -45,12 +46,21 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 		'delta' shows the difference in values during the measurement interval.
 		'percent' shows the delta as a percentage of the cycles elapsed.
 		default: delta
+
+	name: "name_string"
+		Any string that does not match a key-word above is used
+		as the column header.
 .fi
+.PP
+\fB--cpu cpu-set\fP limit output to system summary plus the specified cpu-set.  If cpu-set is the string "core", then the system summary plus the first CPU in each core are printed -- eg. subsequent HT siblings are not printed.  Or if cpu-set is the string "package", then the system summary plus the first CPU in each package is printed.  Otherwise, the system summary plus the specified set of CPUs are printed.  The cpu-set is ordered from low to high, comma delimited with ".." and "-" permitted to denote a range. eg. 1,2,8,14..17,21-44
+.PP
+\fB--hide column\fP do not show the specified columns.  May be invoked multiple times, or with a comma-separated list of column names.  Use "--hide sysfs" to hide the sysfs statistics columns as a group.
+.PP
+\fB--show column\fP show only the specified columns.  May be invoked multiple times, or with a comma-separated list of column names.  Use "--show sysfs" to show the sysfs statistics columns as a group.
 .PP
 \fB--Dump\fP displays the raw counter values.
 .PP
-\fB--debug\fP displays additional system configuration information.  Invoking this parameter
-more than once may also enable internal turbostat debug information.
+\fB--quiet\fP Do not decode and print the system configuration header information.
 .PP
 \fB--interval seconds\fP overrides the default 5.0 second measurement interval.
 .PP
@@ -61,9 +71,7 @@ The file is truncated if it already exists, and it is created if it does not exi
 .PP
 \fB--Joules\fP displays energy in Joules, rather than dividing Joules by time to print power in Watts.
 .PP
-\fB--Package\fP limits output to the system summary plus the 1st thread in each Package.
-.PP
-\fB--processor\fP limits output to the system summary plus the 1st thread in each processor of each package.  Ie. it skips hyper-threaded siblings.
+\fB--list\fP display column header names available for use by --show and --hide, then exit.
 .PP
 \fB--Summary\fP limits output to a 1-line System Summary for each interval.
 .PP
@@ -74,24 +82,25 @@ The file is truncated if it already exists, and it is created if it does not exi
 The \fBcommand\fP parameter forks \fBcommand\fP, and upon its exit,
 displays the statistics gathered since it was forked.
 .PP
-.SH DEFAULT FIELD DESCRIPTIONS
+.SH ROW DESCRIPTIONS
+The system configuration dump (if --quiet is not used) is followed by statistics.  The first row of the statistics labels the content of each column (below).  The second row of statistics is the system summary line.  The system summary line has a '-' in the columns for the Package, Core, and CPU.  The contents of the system summary line depends on the type of column.  Columns that count items (eg. IRQ) show the sum across all CPUs in the system.  Columns that show a percentage show the average across all CPUs in the system.  Columns that dump raw MSR values simply show 0 in the summary.  After the system summary row, each row describes a specific Package/Core/CPU.  Note that if the --cpu parameter is used to limit which specific CPUs are displayed, turbostat will still collect statistics for all CPUs in the system and will still show the system summary for all CPUs in the system.
+.SH COLUMN DESCRIPTIONS
 .nf
+\fBCore\fP processor core number.  Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading Technology (HT).
 \fBCPU\fP Linux CPU (logical processor) number.  Yes, it is okay that on many systems the CPUs are not listed in numerical order -- for efficiency reasons, turbostat runs in topology order, so HT siblings appear together.
-\fBAVG_MHz\fP number of cycles executed divided by time elapsed.
-\fBBusy%\fP percent of the interval that the CPU retired instructions, aka. % of time in "C0" state.
-\fBBzy_MHz\fP average clock rate while the CPU was busy (in "c0" state).
+\fBPackage\fP processor package number -- not present on systems with a single processor package.
+\fBAvg_MHz\fP number of cycles executed divided by time elapsed.  Note that this includes idle-time when 0 instructions are executed.
+\fBBusy%\fP percent of the measurement interval that the CPU executes instructions, aka. % of time in "C0" state.
+\fBBzy_MHz\fP average clock rate while the CPU was not idle (ie. in "c0" state).
 \fBTSC_MHz\fP average MHz that the TSC ran during the entire interval.
-.fi
-.PP
-.SH DEBUG FIELD DESCRIPTIONS
-.nf
-\fBPackage\fP processor package number.
-\fBCore\fP processor core number.
-Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading Technology (HT).
-\fBCPU%c1, CPU%c3, CPU%c6, CPU%c7\fP show the percentage residency in hardware core idle states.
+\fBIRQ\fP The number of interrupts serviced by that CPU during the measurement interval.  The system total line is the sum of interrupts serviced across all CPUs.  turbostat parses /proc/interrupts to generate this summary.
+\fBSMI\fP The number of System Management Interrupts  serviced CPU during the measurement interval.  While this counter is actually per-CPU, SMI are triggered on all processors, so the number should be the same for all CPUs.
+\fBC1, C2, C3...\fP The number times Linux requested the C1, C2, C3 idle state during the measurement interval.  The system summary line shows the sum for all CPUs.  These are C-state names as exported in /sys/devices/system/cpu/cpu*/cpuidle/state*/name.  While their names are generic, their attributes are processor specific. They the system description section of output shows what MWAIT sub-states they are mapped to on each system.
+\fBC1%, C2%, C3%\fP The residency percentage that Linux requested C1, C2, C3....  The system summary is the average of all CPUs in the system.  Note that these are software, reflecting what was requested.  The hardware counters reflect what was actually achieved.
+\fBCPU%c1, CPU%c3, CPU%c6, CPU%c7\fP show the percentage residency in hardware core idle states.  These numbers are from hardware residency counters.
 \fBCoreTmp\fP Degrees Celsius reported by the per-core Digital Thermal Sensor.
 \fBPkgTtmp\fP Degrees Celsius reported by the per-package Package Thermal Monitor.
-\fBPkg%pc2, Pkg%pc3, Pkg%pc6, Pkg%pc7\fP percentage residency in hardware package idle states.
+\fBPkg%pc2, Pkg%pc3, Pkg%pc6, Pkg%pc7\fP percentage residency in hardware package idle states.  These numbers are from hardware residency counters.
 \fBPkgWatt\fP Watts consumed by the whole package.
 \fBCorWatt\fP Watts consumed by the core part of the package.
 \fBGFXWatt\fP Watts consumed by the Graphics part of the package -- available only on client processors.
@@ -99,51 +108,110 @@ Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading T
 \fBPKG_%\fP percent of the interval that RAPL throttling was active on the Package.
 \fBRAM_%\fP percent of the interval that RAPL throttling was active on DRAM.
 .fi
+.SH TOO MUCH INFORMATION EXAMPLE
+By default, turbostat dumps all possible information -- a system configuration header, followed by columns for all counters.
+This is ideal for remote debugging, use the "--out" option to save everything to a text file, and get that file to the expert helping you debug.
 .PP
-.SH PERIODIC EXAMPLE
-Without any parameters, turbostat displays statistics ever 5 seconds.
-Periodic output goes to stdout, by default, unless --out is used to specify an output file.
-The 5-second interval can be changed with th "-i sec" option.
-Or a command may be specified as in "FORK EXAMPLE" below.
+When you are not interested in all that information, and there are several ways to see only what you want.  First the "--quiet" option will skip the configuration information, and turbostat will show only the counter columns.  Second, you can reduce the columns with the "--hide" and "--show" options.  If you use the "--show" option, then turbostat will show only the columns you list.  If you use the "--hide" option, turbostat will show all columns, except the ones you list.
+.PP
+To find out what columns are available for --show and --hide, the "--list" option is available.  For convenience, the special strings "sysfs" can be used to refer to all of the sysfs C-state counters at once:
 .nf
-[root@hsw]# ./turbostat
-     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
-       -     488   12.51    3898    3498
-       0       0    0.01    3885    3498
-       4    3897   99.99    3898    3498
-       1       0    0.00    3861    3498
-       5       0    0.00    3882    3498
-       2       1    0.02    3894    3498
-       6       2    0.06    3898    3498
-       3       0    0.00    3849    3498
-       7       0    0.00    3877    3498
-
+sudo ./turbostat --show sysfs --quiet sleep 10
+10.003837 sec
+	C1	C1E	C3	C6	C7s	C1%	C1E%	C3%	C6%	C7s%
+	4	21	2	2	459	0.14	0.82	0.00	0.00	98.93
+	1	17	2	2	130	0.00	0.02	0.00	0.00	99.80
+	0	0	0	0	31	0.00	0.00	0.00	0.00	99.95
+	2	1	0	0	52	1.14	6.49	0.00	0.00	92.21
+	1	2	0	0	52	0.00	0.08	0.00	0.00	99.86
+	0	0	0	0	71	0.00	0.00	0.00	0.00	99.89
+	0	0	0	0	25	0.00	0.00	0.00	0.00	99.96
+	0	0	0	0	74	0.00	0.00	0.00	0.00	99.94
+	0	1	0	0	24	0.00	0.00	0.00	0.00	99.84
 .fi
-.SH DEBUG EXAMPLE
-The "--debug" option prints additional system information before measurements:
+.PP
+.SH ONE SHOT COMMAND EXAMPLE
+If turbostat is invoked with a command, it will fork that command
+and output the statistics gathered after the command exits.
+In this case, turbostat output goes to stderr, by default.
+Output can instead be saved to a file using the --out option.
+In this example, the "sleep 10" command is forked, and turbostat waits for it to complete before saving all statistics into "ts.out".  Note that "sleep 10" is not part of turbostat, but is simply an example of a command that turbostat can fork.  The "ts.out" file is what you want to edit in a very wide window, paste into a spreadsheet, or attach to a bugzilla entry.
 
-The first row of statistics is a summary for the entire system.
-For residency % columns, the summary is a weighted average.
-For Temperature columns, the summary is the column maximum.
-For Watts columns, the summary is a system total.
-Subsequent rows show per-CPU statistics.
 .nf
-turbostat version 4.1 10-Feb, 2015 - Len Brown <lenb@kernel.org>
+[root@hsw]# ./turbostat -o ts.out sleep 10
+[root@hsw]#
+.fi
+
+.SH PERIODIC INTERVAL EXAMPLE
+Without a command to fork, turbostat displays statistics ever 5 seconds.
+Periodic output goes to stdout, by default, unless --out is used to specify an output file.
+The 5-second interval can be changed with the "-i sec" option.
+.nf
+sudo ./turbostat --quiet --hide sysfs,IRQ,SMI,CoreTmp,PkgTmp,GFX%rc6,GFXMHz,PkgWatt,CorWatt,GFXWatt
+	Core	CPU	Avg_MHz	Busy%	Bzy_MHz	TSC_MHz	CPU%c1	CPU%c3	CPU%c6	CPU%c7
+	-	-	488	12.52	3900	3498	12.50	0.00	0.00	74.98
+	0	0	5	0.13	3900	3498	99.87	0.00	0.00	0.00
+	0	4	3897	99.99	3900	3498	0.01
+	1	1	0	0.00	3856	3498	0.01	0.00	0.00	99.98
+	1	5	0	0.00	3861	3498	0.01
+	2	2	1	0.02	3889	3498	0.03	0.00	0.00	99.95
+	2	6	0	0.00	3863	3498	0.05
+	3	3	0	0.01	3869	3498	0.02	0.00	0.00	99.97
+	3	7	0	0.00	3878	3498	0.03
+	Core	CPU	Avg_MHz	Busy%	Bzy_MHz	TSC_MHz	CPU%c1	CPU%c3	CPU%c6	CPU%c7
+	-	-	491	12.59	3900	3498	12.42	0.00	0.00	74.99
+	0	0	27	0.69	3900	3498	99.31	0.00	0.00	0.00
+	0	4	3898	99.99	3900	3498	0.01
+	1	1	0	0.00	3883	3498	0.01	0.00	0.00	99.99
+	1	5	0	0.00	3898	3498	0.01
+	2	2	0	0.01	3889	3498	0.02	0.00	0.00	99.98
+	2	6	0	0.00	3889	3498	0.02
+	3	3	0	0.00	3856	3498	0.01	0.00	0.00	99.99
+	3	7	0	0.00	3897	3498	0.01
+.fi
+This example also shows the use of the --hide option to skip columns that are not wanted.
+Note that cpu4 in this example is 99.99% busy, while the other CPUs are all under 1% busy.
+Notice that cpu4's HT sibling is cpu0, which is under 1% busy, but can get into CPU%c1 only,
+because its cpu4's activity on shared hardware keeps it from entering a deeper C-state.
+
+.SH SYSTEM CONFIGURATION INFORMATION EXAMPLE
+
+By default, turbostat always dumps system configuration information
+before taking measurements.  In the example above, "--quiet" is used
+to suppress that output.  Here is an example of the configuration information:
+.nf
+turbostat version 2017.02.15 - Len Brown <lenb@kernel.org>
 CPUID(0): GenuineIntel 13 CPUID levels; family:model:stepping 0x6:3c:3 (6:60:3)
-CPUID(6): APERF, DTS, PTM, EPB
+CPUID(1): SSE3 MONITOR - EIST TM2 TSC MSR ACPI-TM TM
+CPUID(6): APERF, TURBO, DTS, PTM, No-HWP, No-HWPnotify, No-HWPwindow, No-HWPepp, No-HWPpkg, EPB
+cpu4: MSR_IA32_MISC_ENABLE: 0x00850089 (TCC EIST No-MWAIT PREFETCH TURBO)
+CPUID(7): No-SGX
+cpu4: MSR_MISC_PWR_MGMT: 0x00400000 (ENable-EIST_Coordination DISable-EPB DISable-OOB)
 RAPL: 3121 sec. Joule Counter Range, at 84 Watts
-cpu0: MSR_NHM_PLATFORM_INFO: 0x80838f3012300
-8 * 100 = 800 MHz max efficiency
-35 * 100 = 3500 MHz TSC frequency
-cpu0: MSR_IA32_POWER_CTL: 0x0004005d (C1E auto-promotion: DISabled)
-cpu0: MSR_NHM_SNB_PKG_CST_CFG_CTL: 0x1e000400 (UNdemote-C3, UNdemote-C1, demote-C3, demote-C1, UNlocked: pkg-cstate-limit=0: pc0)
-cpu0: MSR_TURBO_RATIO_LIMIT: 0x25262727
-37 * 100 = 3700 MHz max turbo 4 active cores
-38 * 100 = 3800 MHz max turbo 3 active cores
-39 * 100 = 3900 MHz max turbo 2 active cores
-39 * 100 = 3900 MHz max turbo 1 active cores
+cpu4: MSR_PLATFORM_INFO: 0x80838f3012300
+8 * 100.0 = 800.0 MHz max efficiency frequency
+35 * 100.0 = 3500.0 MHz base frequency
+cpu4: MSR_IA32_POWER_CTL: 0x0004005d (C1E auto-promotion: DISabled)
+cpu4: MSR_TURBO_RATIO_LIMIT: 0x25262727
+37 * 100.0 = 3700.0 MHz max turbo 4 active cores
+38 * 100.0 = 3800.0 MHz max turbo 3 active cores
+39 * 100.0 = 3900.0 MHz max turbo 2 active cores
+39 * 100.0 = 3900.0 MHz max turbo 1 active cores
+cpu4: MSR_CONFIG_TDP_NOMINAL: 0x00000023 (base_ratio=35)
+cpu4: MSR_CONFIG_TDP_LEVEL_1: 0x00000000 ()
+cpu4: MSR_CONFIG_TDP_LEVEL_2: 0x00000000 ()
+cpu4: MSR_CONFIG_TDP_CONTROL: 0x80000000 ( lock=1)
+cpu4: MSR_TURBO_ACTIVATION_RATIO: 0x00000000 (MAX_NON_TURBO_RATIO=0 lock=0)
+cpu4: MSR_PKG_CST_CONFIG_CONTROL: 0x1e000400 (UNdemote-C3, UNdemote-C1, demote-C3, demote-C1, UNlocked: pkg-cstate-limit=0: pc0)
+cpu4: POLL: CPUIDLE CORE POLL IDLE
+cpu4: C1: MWAIT 0x00
+cpu4: C1E: MWAIT 0x01
+cpu4: C3: MWAIT 0x10
+cpu4: C6: MWAIT 0x20
+cpu4: C7s: MWAIT 0x32
+cpu4: MSR_MISC_FEATURE_CONTROL: 0x00000000 (L2-Prefetch L2-Prefetch-pair L1-Prefetch L1-IP-Prefetch)
 cpu0: MSR_IA32_ENERGY_PERF_BIAS: 0x00000006 (balanced)
-cpu0: MSR_CORE_PERF_LIMIT_REASONS, 0x31200000 (Active: ) (Logged: Auto-HWP, Amps, MultiCoreTurbo, Transitions, )
+cpu0: MSR_CORE_PERF_LIMIT_REASONS, 0x31200000 (Active: ) (Logged: Transitions, MultiCoreTurbo, Amps, Auto-HWP, )
 cpu0: MSR_GFX_PERF_LIMIT_REASONS, 0x00000000 (Active: ) (Logged: )
 cpu0: MSR_RING_PERF_LIMIT_REASONS, 0x0d000000 (Active: ) (Logged: Amps, PkgPwrL1, PkgPwrL2, )
 cpu0: MSR_RAPL_POWER_UNIT: 0x000a0e03 (0.125000 Watts, 0.000061 Joules, 0.000977 sec.)
@@ -158,23 +226,14 @@ cpu0: MSR_PP1_POLICY: 0
 cpu0: MSR_PP1_POWER_LIMIT: 0x00000000 (UNlocked)
 cpu0: GFX Limit: DISabled (0.000000 Watts, 0.000977 sec, clamp DISabled)
 cpu0: MSR_IA32_TEMPERATURE_TARGET: 0x00641400 (100 C)
-cpu0: MSR_IA32_PACKAGE_THERM_STATUS: 0x88340800 (48 C)
-cpu0: MSR_IA32_THERM_STATUS: 0x88340000 (48 C +/- 1)
-cpu1: MSR_IA32_THERM_STATUS: 0x88440000 (32 C +/- 1)
-cpu2: MSR_IA32_THERM_STATUS: 0x88450000 (31 C +/- 1)
-cpu3: MSR_IA32_THERM_STATUS: 0x88490000 (27 C +/- 1)
-    Core     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz     SMI  CPU%c1  CPU%c3  CPU%c6  CPU%c7 CoreTmp  PkgTmp PkgWatt CorWatt GFXWatt
-       -       -     493   12.64    3898    3498       0   12.64    0.00    0.00   74.72      47      47   21.62   13.74    0.00
-       0       0       4    0.11    3894    3498       0   99.89    0.00    0.00    0.00      47      47   21.62   13.74    0.00
-       0       4    3897   99.98    3898    3498       0    0.02
-       1       1       7    0.17    3887    3498       0    0.04    0.00    0.00   99.79      32
-       1       5       0    0.00    3885    3498       0    0.21
-       2       2      29    0.76    3895    3498       0    0.10    0.01    0.01   99.13      32
-       2       6       2    0.06    3896    3498       0    0.80
-       3       3       1    0.02    3832    3498       0    0.03    0.00    0.00   99.95      28
-       3       7       0    0.00    3879    3498       0    0.04
-^C
-
+cpu0: MSR_IA32_PACKAGE_THERM_STATUS: 0x884c0800 (24 C)
+cpu0: MSR_IA32_THERM_STATUS: 0x884c0000 (24 C +/- 1)
+cpu1: MSR_IA32_THERM_STATUS: 0x88510000 (19 C +/- 1)
+cpu2: MSR_IA32_THERM_STATUS: 0x884e0000 (22 C +/- 1)
+cpu3: MSR_IA32_THERM_STATUS: 0x88510000 (19 C +/- 1)
+cpu4: MSR_PKGC3_IRTL: 0x00008842 (valid, 67584 ns)
+cpu4: MSR_PKGC6_IRTL: 0x00008873 (valid, 117760 ns)
+cpu4: MSR_PKGC7_IRTL: 0x00008891 (valid, 148480 ns)
 .fi
 The \fBmax efficiency\fP frequency, a.k.a. Low Frequency Mode, is the frequency
 available at the minimum package voltage.  The \fBTSC frequency\fP is the base
@@ -184,42 +243,22 @@ should be sustainable on all CPUs indefinitely, given nominal power and cooling.
 The remaining rows show what maximum turbo frequency is possible
 depending on the number of idle cores.  Note that not all information is
 available on all processors.
-.PP
-The --debug option adds additional columns to the measurement ouput, including CPU idle power-state residency processor temperature sensor readinds.
-See the field definitions above.
-.SH FORK EXAMPLE
-If turbostat is invoked with a command, it will fork that command
-and output the statistics gathered after the command exits.
-In this case, turbostat output goes to stderr, by default.
-Output can instead be saved to a file using the --out option.
-eg. Here a cycle soaker is run on 1 CPU (see %c0) for a few seconds
-until ^C while the other CPUs are mostly idle:
-
+.SH ADD COUNTER EXAMPLE
+Here we limit turbostat to showing just the CPU number for cpu0 - cpu3.
+We add a counter showing the 32-bit raw value of MSR 0x199 (MSR_IA32_PERF_CTL),
+labeling it with the column header, "PRF_CTRL", and display it only once,
+afte the conclusion of a 0.1 second sleep.
 .nf
-root@hsw: turbostat cat /dev/zero > /dev/null
-^C
-     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
-       -     482   12.51    3854    3498
-       0       0    0.01    1960    3498
-       4       0    0.00    2128    3498
-       1       0    0.00    3003    3498
-       5    3854   99.98    3855    3498
-       2       0    0.01    3504    3498
-       6       3    0.08    3884    3498
-       3       0    0.00    2553    3498
-       7       0    0.00    2126    3498
-10.783983 sec
+sudo ./turbostat --quiet --cpu 0-3 --show CPU --add msr0x199,u32,raw,PRF_CTRL sleep .1
+0.101604 sec
+CPU	  PRF_CTRL
+-	0x00000000
+0	0x00000c00
+1	0x00000800
+2	0x00000a00
+3	0x00000800
 
 .fi
-Above the cycle soaker drives cpu5 up its 3.9 GHz turbo limit.
-The first row shows the average MHz and Busy% across all the processors in the system.
-
-Note that the Avg_MHz column reflects the total number of cycles executed
-divided by the measurement interval.  If the Busy% column is 100%,
-then the processor was running at that speed the entire interval.
-The Avg_MHz multiplied by the Busy% results in the Bzy_MHz --
-which is the average frequency while the processor was executing --
-not including any non-busy idle time.
 
 .SH NOTES
 

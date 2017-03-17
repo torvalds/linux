@@ -23,6 +23,8 @@
 #include <linux/kvm_host.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/rculist.h>
+
 #include <trace/events/kvm.h>
 
 #include <asm/msidef.h>

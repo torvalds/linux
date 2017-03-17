@@ -17,7 +17,7 @@
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
 #include <linux/page-flags.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/io.h>
 
 #include <asm/pgtable.h>

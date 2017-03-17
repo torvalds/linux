@@ -323,6 +323,8 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
  *
  * If we want to report an error, we mark the skb with the packet type and
  * abort code and return NULL.
+ *
+ * The call is returned with the user access mutex held.
  */
 struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 					   struct rxrpc_connection *conn,
@@ -370,6 +372,18 @@ found_service:
 
 	trace_rxrpc_receive(call, rxrpc_receive_incoming,
 			    sp->hdr.serial, sp->hdr.seq);
+
+	/* Lock the call to prevent rxrpc_kernel_send/recv_data() and
+	 * sendmsg()/recvmsg() inconveniently stealing the mutex once the
+	 * notification is generated.
+	 *
+	 * The BUG should never happen because the kernel should be well
+	 * behaved enough not to access the call before the first notification
+	 * event and userspace is prevented from doing so until the state is
+	 * appropriate.
+	 */
+	if (!mutex_trylock(&call->user_mutex))
+		BUG();
 
 	/* Make the call live. */
 	rxrpc_incoming_call(rx, call, skb);
@@ -429,10 +443,12 @@ out:
 /*
  * handle acceptance of a call by userspace
  * - assign the user call ID to the call at the front of the queue
+ * - called with the socket locked.
  */
 struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 				     unsigned long user_call_ID,
 				     rxrpc_notify_rx_t notify_rx)
+	__releases(&rx->sk.sk_lock.slock)
 {
 	struct rxrpc_call *call;
 	struct rb_node *parent, **pp;
@@ -446,6 +462,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 
 	if (list_empty(&rx->to_be_accepted)) {
 		write_unlock(&rx->call_lock);
+		release_sock(&rx->sk);
 		kleave(" = -ENODATA [empty]");
 		return ERR_PTR(-ENODATA);
 	}
@@ -470,9 +487,38 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	 */
 	call = list_entry(rx->to_be_accepted.next,
 			  struct rxrpc_call, accept_link);
+	write_unlock(&rx->call_lock);
+
+	/* We need to gain the mutex from the interrupt handler without
+	 * upsetting lockdep, so we have to release it there and take it here.
+	 * We are, however, still holding the socket lock, so other accepts
+	 * must wait for us and no one can add the user ID behind our backs.
+	 */
+	if (mutex_lock_interruptible(&call->user_mutex) < 0) {
+		release_sock(&rx->sk);
+		kleave(" = -ERESTARTSYS");
+		return ERR_PTR(-ERESTARTSYS);
+	}
+
+	write_lock(&rx->call_lock);
 	list_del_init(&call->accept_link);
 	sk_acceptq_removed(&rx->sk);
 	rxrpc_see_call(call);
+
+	/* Find the user ID insertion point. */
+	pp = &rx->calls.rb_node;
+	parent = NULL;
+	while (*pp) {
+		parent = *pp;
+		call = rb_entry(parent, struct rxrpc_call, sock_node);
+
+		if (user_call_ID < call->user_call_ID)
+			pp = &(*pp)->rb_left;
+		else if (user_call_ID > call->user_call_ID)
+			pp = &(*pp)->rb_right;
+		else
+			BUG();
+	}
 
 	write_lock_bh(&call->state_lock);
 	switch (call->state) {
@@ -499,6 +545,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	write_unlock(&rx->call_lock);
 	rxrpc_notify_socket(call);
 	rxrpc_service_prealloc(rx, GFP_KERNEL);
+	release_sock(&rx->sk);
 	_leave(" = %p{%d}", call, call->debug_id);
 	return call;
 
@@ -515,6 +562,7 @@ id_in_use:
 	write_unlock(&rx->call_lock);
 out:
 	rxrpc_service_prealloc(rx, GFP_KERNEL);
+	release_sock(&rx->sk);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 }

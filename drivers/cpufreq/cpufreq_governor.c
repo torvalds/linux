@@ -18,7 +18,6 @@
 
 #include <linux/export.h>
 #include <linux/kernel_stat.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 
 #include "cpufreq_governor.h"

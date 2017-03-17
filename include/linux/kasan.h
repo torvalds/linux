@@ -1,7 +1,6 @@
 #ifndef _LINUX_KASAN_H
 #define _LINUX_KASAN_H
 
-#include <linux/sched.h>
 #include <linux/types.h>
 
 struct kmem_cache;
@@ -19,6 +18,7 @@ extern unsigned char kasan_zero_page[PAGE_SIZE];
 extern pte_t kasan_zero_pte[PTRS_PER_PTE];
 extern pmd_t kasan_zero_pmd[PTRS_PER_PMD];
 extern pud_t kasan_zero_pud[PTRS_PER_PUD];
+extern p4d_t kasan_zero_p4d[PTRS_PER_P4D];
 
 void kasan_populate_zero_shadow(const void *shadow_start,
 				const void *shadow_end);
@@ -30,16 +30,10 @@ static inline void *kasan_mem_to_shadow(const void *addr)
 }
 
 /* Enable reporting bugs after kasan_disable_current() */
-static inline void kasan_enable_current(void)
-{
-	current->kasan_depth++;
-}
+extern void kasan_enable_current(void);
 
 /* Disable reporting bugs for current task */
-static inline void kasan_disable_current(void)
-{
-	current->kasan_depth--;
-}
+extern void kasan_disable_current(void);
 
 void kasan_unpoison_shadow(const void *address, size_t size);
 

@@ -7,6 +7,8 @@
 #include <linux/virtio_byteorder.h>
 #include <uapi/linux/virtio_config.h>
 
+struct irq_affinity;
+
 /**
  * virtio_config_ops - operations for configuring a virtio device
  * @get: read the value of a configuration field
@@ -56,6 +58,7 @@
  *      This returns a pointer to the bus name a la pci_name from which
  *      the caller can then copy.
  * @set_vq_affinity: set the affinity for a virtqueue.
+ * @get_vq_affinity: get the affinity for a virtqueue (optional).
  */
 typedef void vq_callback_t(struct virtqueue *);
 struct virtio_config_ops {
@@ -68,14 +71,15 @@ struct virtio_config_ops {
 	void (*set_status)(struct virtio_device *vdev, u8 status);
 	void (*reset)(struct virtio_device *vdev);
 	int (*find_vqs)(struct virtio_device *, unsigned nvqs,
-			struct virtqueue *vqs[],
-			vq_callback_t *callbacks[],
-			const char * const names[]);
+			struct virtqueue *vqs[], vq_callback_t *callbacks[],
+			const char * const names[], struct irq_affinity *desc);
 	void (*del_vqs)(struct virtio_device *);
 	u64 (*get_features)(struct virtio_device *vdev);
 	int (*finalize_features)(struct virtio_device *vdev);
 	const char *(*bus_name)(struct virtio_device *vdev);
 	int (*set_vq_affinity)(struct virtqueue *vq, int cpu);
+	const struct cpumask *(*get_vq_affinity)(struct virtio_device *vdev,
+			int index);
 };
 
 /* If driver didn't advertise the feature, it will never appear. */
@@ -169,7 +173,7 @@ struct virtqueue *virtio_find_single_vq(struct virtio_device *vdev,
 	vq_callback_t *callbacks[] = { c };
 	const char *names[] = { n };
 	struct virtqueue *vq;
-	int err = vdev->config->find_vqs(vdev, 1, &vq, callbacks, names);
+	int err = vdev->config->find_vqs(vdev, 1, &vq, callbacks, names, NULL);
 	if (err < 0)
 		return ERR_PTR(err);
 	return vq;

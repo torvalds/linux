@@ -2187,10 +2187,10 @@ int ceph_permission(struct inode *inode, int mask)
  * Get all attributes.  Hopefully somedata we'll have a statlite()
  * and can limit the fields we require to be accurate.
  */
-int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		 struct kstat *stat)
+int ceph_getattr(const struct path *path, struct kstat *stat,
+		 u32 request_mask, unsigned int flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int err;
 

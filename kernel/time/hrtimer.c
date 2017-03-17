@@ -43,10 +43,12 @@
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <linux/debugobjects.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/sched/sysctl.h>
 #include <linux/sched/rt.h>
 #include <linux/sched/deadline.h>
+#include <linux/sched/nohz.h>
+#include <linux/sched/debug.h>
 #include <linux/timer.h>
 #include <linux/freezer.h>
 

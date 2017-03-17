@@ -29,6 +29,7 @@
 
 #include <linux/module.h>
 #include <linux/export.h>
+#include <linux/sched/signal.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>

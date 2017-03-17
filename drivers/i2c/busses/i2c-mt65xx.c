@@ -172,14 +172,6 @@ static const struct i2c_adapter_quirks mt6577_i2c_quirks = {
 	.max_comb_2nd_msg_len = 31,
 };
 
-static const struct i2c_adapter_quirks mt8173_i2c_quirks = {
-	.max_num_msgs = 65535,
-	.max_write_len = 65535,
-	.max_read_len = 65535,
-	.max_comb_1st_msg_len = 65535,
-	.max_comb_2nd_msg_len = 65535,
-};
-
 static const struct mtk_i2c_compatible mt6577_compat = {
 	.quirks = &mt6577_i2c_quirks,
 	.pmic_i2c = 0,
@@ -199,7 +191,6 @@ static const struct mtk_i2c_compatible mt6589_compat = {
 };
 
 static const struct mtk_i2c_compatible mt8173_compat = {
-	.quirks = &mt8173_i2c_quirks,
 	.pmic_i2c = 0,
 	.dcm = 1,
 	.auto_restart = 1,

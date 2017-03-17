@@ -12,6 +12,7 @@
 #include <linux/binfmts.h>
 #include <linux/uaccess.h>
 #include <linux/tracehook.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>

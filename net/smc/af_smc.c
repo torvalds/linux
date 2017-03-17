@@ -27,6 +27,8 @@
 #include <linux/inetdevice.h>
 #include <linux/workqueue.h>
 #include <linux/in.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <net/smc.h>

@@ -66,7 +66,7 @@
 
 #include <linux/uaccess.h>
 #include <linux/bitops.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>

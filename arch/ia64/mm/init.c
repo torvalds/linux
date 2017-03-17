@@ -12,6 +12,7 @@
 #include <linux/elf.h>
 #include <linux/memblock.h>
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
 #include <linux/mmzone.h>
 #include <linux/module.h>
 #include <linux/personality.h>

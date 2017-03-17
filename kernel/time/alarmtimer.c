@@ -19,6 +19,8 @@
 #include <linux/hrtimer.h>
 #include <linux/timerqueue.h>
 #include <linux/rtc.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/alarmtimer.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>

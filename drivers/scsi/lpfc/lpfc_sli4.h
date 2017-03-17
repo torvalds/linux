@@ -1,9 +1,11 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2009-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
+ * www.broadcom.com                                                *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
  * modify it under the terms of version 2 of the GNU General       *
@@ -35,9 +37,10 @@
 #define LPFC_NEMBED_MBOX_SGL_CNT		254
 
 /* Multi-queue arrangement for FCP EQ/CQ/WQ tuples */
-#define LPFC_FCP_IO_CHAN_DEF       4
-#define LPFC_FCP_IO_CHAN_MIN       1
-#define LPFC_FCP_IO_CHAN_MAX       16
+#define LPFC_HBA_IO_CHAN_MIN	0
+#define LPFC_HBA_IO_CHAN_MAX	32
+#define LPFC_FCP_IO_CHAN_DEF	4
+#define LPFC_NVME_IO_CHAN_DEF	0
 
 /* Number of channels used for Flash Optimized Fabric (FOF) operations */
 
@@ -107,6 +110,9 @@ enum lpfc_sli4_queue_subtype {
 	LPFC_MBOX,
 	LPFC_FCP,
 	LPFC_ELS,
+	LPFC_NVME,
+	LPFC_NVMET,
+	LPFC_NVME_LS,
 	LPFC_USOL
 };
 
@@ -125,25 +131,41 @@ union sli4_qe {
 	struct lpfc_rqe *rqe;
 };
 
+/* RQ buffer list */
+struct lpfc_rqb {
+	uint16_t entry_count;	  /* Current number of RQ slots */
+	uint16_t buffer_count;	  /* Current number of buffers posted */
+	struct list_head rqb_buffer_list;  /* buffers assigned to this HBQ */
+				  /* Callback for HBQ buffer allocation */
+	struct rqb_dmabuf *(*rqb_alloc_buffer)(struct lpfc_hba *);
+				  /* Callback for HBQ buffer free */
+	void               (*rqb_free_buffer)(struct lpfc_hba *,
+					       struct rqb_dmabuf *);
+};
+
 struct lpfc_queue {
 	struct list_head list;
+	struct list_head wq_list;
 	enum lpfc_sli4_queue_type type;
 	enum lpfc_sli4_queue_subtype subtype;
 	struct lpfc_hba *phba;
 	struct list_head child_list;
+	struct list_head page_list;
+	struct list_head sgl_list;
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
 	uint32_t entry_repost;	/* Count of entries before doorbell is rung */
 #define LPFC_QUEUE_MIN_REPOST	8
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
 	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
-	struct list_head page_list;
 	uint32_t page_count;	/* Number of pages allocated for this queue */
 	uint32_t host_index;	/* The host's index for putting or getting */
 	uint32_t hba_index;	/* The last known hba index for get or put */
 
 	struct lpfc_sli_ring *pring; /* ptr to io ring associated with q */
+	struct lpfc_rqb *rqbp;	/* ptr to RQ buffers */
 
+	uint16_t sgl_list_cnt;
 	uint16_t db_format;
 #define LPFC_DB_RING_FORMAT	0x01
 #define LPFC_DB_LIST_FORMAT	0x02
@@ -176,6 +198,8 @@ struct lpfc_queue {
 #define	RQ_buf_trunc		q_cnt_3
 #define	RQ_rcv_buf		q_cnt_4
 
+	uint64_t isr_timestamp;
+	struct lpfc_queue *assoc_qp;
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
 };
 
@@ -338,6 +362,7 @@ struct lpfc_bmbx {
 #define LPFC_CQE_DEF_COUNT      1024
 #define LPFC_WQE_DEF_COUNT      256
 #define LPFC_WQE128_DEF_COUNT   128
+#define LPFC_WQE128_MAX_COUNT   256
 #define LPFC_MQE_DEF_COUNT      16
 #define LPFC_RQE_DEF_COUNT	512
 
@@ -379,10 +404,14 @@ struct lpfc_max_cfg_param {
 
 struct lpfc_hba;
 /* SLI4 HBA multi-fcp queue handler struct */
-struct lpfc_fcp_eq_hdl {
+struct lpfc_hba_eq_hdl {
 	uint32_t idx;
 	struct lpfc_hba *phba;
-	atomic_t fcp_eq_in_use;
+	atomic_t hba_eq_in_use;
+	struct cpumask *cpumask;
+	/* CPU affinitsed to or 0xffffffff if multiple */
+	uint32_t cpu;
+#define LPFC_MULTI_CPU_AFFINITY 0xffffffff
 };
 
 /* Port Capabilities for SLI4 Parameters */
@@ -427,6 +456,7 @@ struct lpfc_pc_sli4_params {
 	uint8_t wqsize;
 #define LPFC_WQ_SZ64_SUPPORT	1
 #define LPFC_WQ_SZ128_SUPPORT	2
+	uint8_t wqpcnt;
 };
 
 struct lpfc_iov {
@@ -445,7 +475,7 @@ struct lpfc_sli4_lnk_info {
 	uint8_t optic_state;
 };
 
-#define LPFC_SLI4_HANDLER_CNT		(LPFC_FCP_IO_CHAN_MAX+ \
+#define LPFC_SLI4_HANDLER_CNT		(LPFC_HBA_IO_CHAN_MAX+ \
 					 LPFC_FOF_IO_CHAN_NUM)
 #define LPFC_SLI4_HANDLER_NAME_SZ	16
 
@@ -515,22 +545,33 @@ struct lpfc_sli4_hba {
 	uint32_t ue_to_rp;
 	struct lpfc_register sli_intf;
 	struct lpfc_pc_sli4_params pc_sli4_params;
-	struct msix_entry *msix_entries;
 	uint8_t handler_name[LPFC_SLI4_HANDLER_CNT][LPFC_SLI4_HANDLER_NAME_SZ];
-	struct lpfc_fcp_eq_hdl *fcp_eq_hdl; /* FCP per-WQ handle */
+	struct lpfc_hba_eq_hdl *hba_eq_hdl; /* HBA per-WQ handle */
 
 	/* Pointers to the constructed SLI4 queues */
-	struct lpfc_queue **hba_eq;/* Event queues for HBA */
-	struct lpfc_queue **fcp_cq;/* Fast-path FCP compl queue */
-	struct lpfc_queue **fcp_wq;/* Fast-path FCP work queue */
+	struct lpfc_queue **hba_eq;  /* Event queues for HBA */
+	struct lpfc_queue **fcp_cq;  /* Fast-path FCP compl queue */
+	struct lpfc_queue **nvme_cq; /* Fast-path NVME compl queue */
+	struct lpfc_queue **nvmet_cqset; /* Fast-path NVMET CQ Set queues */
+	struct lpfc_queue **nvmet_mrq_hdr; /* Fast-path NVMET hdr MRQs */
+	struct lpfc_queue **nvmet_mrq_data; /* Fast-path NVMET data MRQs */
+	struct lpfc_queue **fcp_wq;  /* Fast-path FCP work queue */
+	struct lpfc_queue **nvme_wq; /* Fast-path NVME work queue */
 	uint16_t *fcp_cq_map;
+	uint16_t *nvme_cq_map;
+	struct list_head lpfc_wq_list;
 
 	struct lpfc_queue *mbx_cq; /* Slow-path mailbox complete queue */
 	struct lpfc_queue *els_cq; /* Slow-path ELS response complete queue */
+	struct lpfc_queue *nvmels_cq; /* NVME LS complete queue */
 	struct lpfc_queue *mbx_wq; /* Slow-path MBOX work queue */
 	struct lpfc_queue *els_wq; /* Slow-path ELS work queue */
+	struct lpfc_queue *nvmels_wq; /* NVME LS work queue */
 	struct lpfc_queue *hdr_rq; /* Slow-path Header Receive queue */
 	struct lpfc_queue *dat_rq; /* Slow-path Data Receive queue */
+
+	struct lpfc_name wwnn;
+	struct lpfc_name wwpn;
 
 	uint32_t fw_func_mode;	/* FW function protocol mode */
 	uint32_t ulp0_mode;	/* ULP0 protocol mode */
@@ -568,14 +609,20 @@ struct lpfc_sli4_hba {
 	uint16_t rpi_hdrs_in_use; /* must post rpi hdrs if set. */
 	uint16_t next_xri; /* last_xri - max_cfg_param.xri_base = used */
 	uint16_t next_rpi;
+	uint16_t nvme_xri_max;
+	uint16_t nvme_xri_cnt;
+	uint16_t nvme_xri_start;
 	uint16_t scsi_xri_max;
 	uint16_t scsi_xri_cnt;
-	uint16_t els_xri_cnt;
 	uint16_t scsi_xri_start;
-	struct list_head lpfc_free_sgl_list;
-	struct list_head lpfc_sgl_list;
+	uint16_t els_xri_cnt;
+	uint16_t nvmet_xri_cnt;
+	struct list_head lpfc_els_sgl_list;
 	struct list_head lpfc_abts_els_sgl_list;
+	struct list_head lpfc_nvmet_sgl_list;
+	struct list_head lpfc_abts_nvmet_sgl_list;
 	struct list_head lpfc_abts_scsi_buf_list;
+	struct list_head lpfc_abts_nvme_buf_list;
 	struct lpfc_sglq **lpfc_sglq_active_list;
 	struct list_head lpfc_rpi_hdr_list;
 	unsigned long *rpi_bmask;
@@ -602,8 +649,10 @@ struct lpfc_sli4_hba {
 #define LPFC_SLI4_PPNAME_NON	0
 #define LPFC_SLI4_PPNAME_GET	1
 	struct lpfc_iov iov;
+	spinlock_t abts_nvme_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
-	spinlock_t abts_sgl_list_lock; /* list of aborted els IOs */
+	spinlock_t sgl_list_lock; /* list of aborted els IOs */
+	spinlock_t nvmet_io_lock;
 	uint32_t physical_port;
 
 	/* CPU to vector mapping information */
@@ -611,11 +660,14 @@ struct lpfc_sli4_hba {
 	uint16_t num_online_cpu;
 	uint16_t num_present_cpu;
 	uint16_t curr_disp_cpu;
+
+	uint16_t nvmet_mrq_post_idx;
 };
 
 enum lpfc_sge_type {
 	GEN_BUFF_TYPE,
-	SCSI_BUFF_TYPE
+	SCSI_BUFF_TYPE,
+	NVMET_BUFF_TYPE
 };
 
 enum lpfc_sgl_state {
@@ -694,15 +746,21 @@ struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *, uint32_t,
 			uint32_t);
 void lpfc_sli4_queue_free(struct lpfc_queue *);
 int lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint32_t);
-int lpfc_modify_fcp_eq_delay(struct lpfc_hba *, uint32_t);
+int lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq);
 int lpfc_cq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t, uint32_t);
+int lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
+			struct lpfc_queue **eqp, uint32_t type,
+			uint32_t subtype);
 int32_t lpfc_mq_create(struct lpfc_hba *, struct lpfc_queue *,
 		       struct lpfc_queue *, uint32_t);
 int lpfc_wq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t);
 int lpfc_rq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, struct lpfc_queue *, uint32_t);
+int lpfc_mrq_create(struct lpfc_hba *phba, struct lpfc_queue **hrqp,
+			struct lpfc_queue **drqp, struct lpfc_queue **cqp,
+			uint32_t subtype);
 void lpfc_rq_adjust_repost(struct lpfc_hba *, struct lpfc_queue *, int);
 int lpfc_eq_destroy(struct lpfc_hba *, struct lpfc_queue *);
 int lpfc_cq_destroy(struct lpfc_hba *, struct lpfc_queue *);
@@ -714,6 +772,7 @@ int lpfc_sli4_queue_setup(struct lpfc_hba *);
 void lpfc_sli4_queue_unset(struct lpfc_hba *);
 int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
 int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
+int lpfc_repost_nvme_sgl_list(struct lpfc_hba *phba);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
 void lpfc_sli4_free_xri(struct lpfc_hba *, int);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
@@ -746,6 +805,7 @@ int lpfc_sli4_brdreset(struct lpfc_hba *);
 int lpfc_sli4_add_fcf_record(struct lpfc_hba *, struct fcf_record *);
 void lpfc_sli_remove_dflt_fcf(struct lpfc_hba *);
 int lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *);
+int lpfc_sli4_get_iocb_cnt(struct lpfc_hba *phba);
 int lpfc_sli4_init_vpi(struct lpfc_vport *);
 uint32_t lpfc_sli4_cq_release(struct lpfc_queue *, bool);
 uint32_t lpfc_sli4_eq_release(struct lpfc_queue *, bool);

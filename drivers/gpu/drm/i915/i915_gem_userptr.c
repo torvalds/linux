@@ -31,6 +31,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/mempolicy.h>
 #include <linux/swap.h>
+#include <linux/sched/mm.h>
 
 struct i915_mm_struct {
 	struct mm_struct *mm;

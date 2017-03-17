@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/pagevec.h>
 #include <linux/task_io_accounting_ops.h>
+#include <linux/signal.h>
 
 #include "super.h"
 #include "mds_client.h"

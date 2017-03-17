@@ -2169,10 +2169,13 @@ int ip6_del_rt(struct rt6_info *rt)
 static int __ip6_del_rt_siblings(struct rt6_info *rt, struct fib6_config *cfg)
 {
 	struct nl_info *info = &cfg->fc_nlinfo;
+	struct net *net = info->nl_net;
 	struct sk_buff *skb = NULL;
 	struct fib6_table *table;
-	int err;
+	int err = -ENOENT;
 
+	if (rt == net->ipv6.ip6_null_entry)
+		goto out_put;
 	table = rt->rt6i_table;
 	write_lock_bh(&table->tb6_lock);
 
@@ -2184,7 +2187,7 @@ static int __ip6_del_rt_siblings(struct rt6_info *rt, struct fib6_config *cfg)
 		if (skb) {
 			u32 seq = info->nlh ? info->nlh->nlmsg_seq : 0;
 
-			if (rt6_fill_node(info->nl_net, skb, rt,
+			if (rt6_fill_node(net, skb, rt,
 					  NULL, NULL, 0, RTM_DELROUTE,
 					  info->portid, seq, 0) < 0) {
 				kfree_skb(skb);
@@ -2198,17 +2201,18 @@ static int __ip6_del_rt_siblings(struct rt6_info *rt, struct fib6_config *cfg)
 					 rt6i_siblings) {
 			err = fib6_del(sibling, info);
 			if (err)
-				goto out;
+				goto out_unlock;
 		}
 	}
 
 	err = fib6_del(rt, info);
-out:
+out_unlock:
 	write_unlock_bh(&table->tb6_lock);
+out_put:
 	ip6_rt_put(rt);
 
 	if (skb) {
-		rtnl_notify(skb, info->nl_net, info->portid, RTNLGRP_IPV6_ROUTE,
+		rtnl_notify(skb, net, info->portid, RTNLGRP_IPV6_ROUTE,
 			    info->nlh, gfp_any());
 	}
 	return err;
@@ -2891,6 +2895,7 @@ static const struct nla_policy rtm_ipv6_policy[RTA_MAX+1] = {
 	[RTA_ENCAP]		= { .type = NLA_NESTED },
 	[RTA_EXPIRES]		= { .type = NLA_U32 },
 	[RTA_UID]		= { .type = NLA_U32 },
+	[RTA_MARK]		= { .type = NLA_U32 },
 };
 
 static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -3625,6 +3630,12 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 		fl6.flowi6_oif = oif;
 
 		rt = (struct rt6_info *)ip6_route_output(net, NULL, &fl6);
+	}
+
+	if (rt == net->ipv6.ip6_null_entry) {
+		err = rt->dst.error;
+		ip6_rt_put(rt);
+		goto errout;
 	}
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);

@@ -270,6 +270,12 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
 		__pte_free_tlb(tlb, ptep, address);		\
 	} while (0)
 
+#define pmd_free_tlb(tlb, pmdp, address)			\
+	do {							\
+		__tlb_adjust_range(tlb, address, PAGE_SIZE);		\
+		__pmd_free_tlb(tlb, pmdp, address);		\
+	} while (0)
+
 #ifndef __ARCH_HAS_4LEVEL_HACK
 #define pud_free_tlb(tlb, pudp, address)			\
 	do {							\
@@ -278,11 +284,13 @@ static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
 	} while (0)
 #endif
 
-#define pmd_free_tlb(tlb, pmdp, address)			\
+#ifndef __ARCH_HAS_5LEVEL_HACK
+#define p4d_free_tlb(tlb, pudp, address)			\
 	do {							\
-		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
-		__pmd_free_tlb(tlb, pmdp, address);		\
+		__tlb_adjust_range(tlb, address, PAGE_SIZE);		\
+		__p4d_free_tlb(tlb, pudp, address);		\
 	} while (0)
+#endif
 
 #define tlb_migrate_finish(mm) do {} while (0)
 

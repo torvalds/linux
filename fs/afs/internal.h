@@ -533,7 +533,7 @@ extern struct inode *afs_iget(struct super_block *, struct key *,
 			      struct afs_callback *);
 extern void afs_zap_data(struct afs_vnode *);
 extern int afs_validate(struct afs_vnode *, struct key *);
-extern int afs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
+extern int afs_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern int afs_setattr(struct dentry *, struct iattr *);
 extern void afs_evict_inode(struct inode *);
 extern int afs_drop_inode(struct inode *);

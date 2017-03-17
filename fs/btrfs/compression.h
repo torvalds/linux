@@ -19,20 +19,32 @@
 #ifndef __BTRFS_COMPRESSION_
 #define __BTRFS_COMPRESSION_
 
+/*
+ * We want to make sure that amount of RAM required to uncompress an extent is
+ * reasonable, so we limit the total size in ram of a compressed extent to
+ * 128k.  This is a crucial number because it also controls how easily we can
+ * spread reads across cpus for decompression.
+ *
+ * We also want to make sure the amount of IO required to do a random read is
+ * reasonably small, so we limit the size of a compressed extent to 128k.
+ */
+
+/* Maximum length of compressed data stored on disk */
+#define BTRFS_MAX_COMPRESSED		(SZ_128K)
+/* Maximum size of data before compression */
+#define BTRFS_MAX_UNCOMPRESSED		(SZ_128K)
+
 void btrfs_init_compress(void);
 void btrfs_exit_compress(void);
 
 int btrfs_compress_pages(int type, struct address_space *mapping,
-			 u64 start, unsigned long len,
-			 struct page **pages,
-			 unsigned long nr_dest_pages,
+			 u64 start, struct page **pages,
 			 unsigned long *out_pages,
 			 unsigned long *total_in,
-			 unsigned long *total_out,
-			 unsigned long max_out);
+			 unsigned long *total_out);
 int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 		     unsigned long start_byte, size_t srclen, size_t destlen);
-int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
+int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 			      unsigned long total_out, u64 disk_start,
 			      struct bio *bio);
 
@@ -59,13 +71,11 @@ struct btrfs_compress_op {
 
 	int (*compress_pages)(struct list_head *workspace,
 			      struct address_space *mapping,
-			      u64 start, unsigned long len,
+			      u64 start,
 			      struct page **pages,
-			      unsigned long nr_dest_pages,
 			      unsigned long *out_pages,
 			      unsigned long *total_in,
-			      unsigned long *total_out,
-			      unsigned long max_out);
+			      unsigned long *total_out);
 
 	int (*decompress_bio)(struct list_head *workspace,
 				 struct page **pages_in,

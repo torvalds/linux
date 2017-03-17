@@ -247,6 +247,8 @@ static int spear13xx_pcie_probe(struct platform_device *pdev)
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
 
+	spear13xx_pcie->pci = pci;
+
 	spear13xx_pcie->phy = devm_phy_get(dev, "pcie-phy");
 	if (IS_ERR(spear13xx_pcie->phy)) {
 		ret = PTR_ERR(spear13xx_pcie->phy);

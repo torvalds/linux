@@ -859,15 +859,22 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	if (ret)
 		goto out;
 
-	ndevctx->start_remove = true;
-	rndis_filter_device_remove(hdev, nvdev);
-
-	ndev->mtu = mtu;
-
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
 	device_info.num_chn = nvdev->num_chn;
 	device_info.max_num_vrss_chns = nvdev->num_chn;
+
+	ndevctx->start_remove = true;
+	rndis_filter_device_remove(hdev, nvdev);
+
+	/* 'nvdev' has been freed in rndis_filter_device_remove() ->
+	 * netvsc_device_remove () -> free_netvsc_device().
+	 * We mustn't access it before it's re-created in
+	 * rndis_filter_device_add() -> netvsc_device_add().
+	 */
+
+	ndev->mtu = mtu;
+
 	rndis_filter_device_add(hdev, &device_info);
 
 out:

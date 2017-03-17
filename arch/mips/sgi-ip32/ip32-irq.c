@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/random.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>

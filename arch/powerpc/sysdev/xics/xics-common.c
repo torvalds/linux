@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/delay.h>
 
 #include <asm/prom.h>
 #include <asm/io.h>
@@ -198,9 +199,6 @@ void xics_migrate_irqs_away(void)
 	/* Remove ourselves from the global interrupt queue */
 	xics_set_cpu_giq(xics_default_distrib_server, 0);
 
-	/* Allow IPIs again... */
-	icp_ops->set_priority(DEFAULT_PRIORITY);
-
 	for_each_irq_desc(virq, desc) {
 		struct irq_chip *chip;
 		long server;
@@ -255,6 +253,19 @@ void xics_migrate_irqs_away(void)
 unlock:
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
+
+	/* Allow "sufficient" time to drop any inflight IRQ's */
+	mdelay(5);
+
+	/*
+	 * Allow IPIs again. This is done at the very end, after migrating all
+	 * interrupts, the expectation is that we'll only get woken up by an IPI
+	 * interrupt beyond this point, but leave externals masked just to be
+	 * safe. If we're using icp-opal this may actually allow all
+	 * interrupts anyway, but that should be OK.
+	 */
+	icp_ops->set_priority(DEFAULT_PRIORITY);
+
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 

@@ -9,6 +9,8 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
+#include <linux/rculist.h>
+
 #include "ieee80211_i.h"
 #include "rate.h"
 #include "mesh.h"

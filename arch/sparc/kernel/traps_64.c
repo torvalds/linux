@@ -9,7 +9,8 @@
  */
 
 #include <linux/extable.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/debug.h>
 #include <linux/linkage.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>

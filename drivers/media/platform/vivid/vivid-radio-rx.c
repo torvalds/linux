@@ -22,6 +22,8 @@
 #include <linux/delay.h>
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>
+#include <linux/sched/signal.h>
+
 #include <media/v4l2-common.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-dv-timings.h>

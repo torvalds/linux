@@ -37,8 +37,10 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/dns_resolver.h>
 #include <linux/err.h>
+
 #include <keys/dns_resolver-type.h>
 #include <keys/user-type.h>
 
@@ -70,7 +72,7 @@ int dns_query(const char *type, const char *name, size_t namelen,
 	      const char *options, char **_result, time64_t *_expiry)
 {
 	struct key *rkey;
-	const struct user_key_payload *upayload;
+	struct user_key_payload *upayload;
 	const struct cred *saved_cred;
 	size_t typelen, desclen;
 	char *desc, *cp;
@@ -141,7 +143,7 @@ int dns_query(const char *type, const char *name, size_t namelen,
 	if (ret)
 		goto put;
 
-	upayload = user_key_payload(rkey);
+	upayload = user_key_payload_locked(rkey);
 	len = upayload->datalen;
 
 	ret = -ENOMEM;

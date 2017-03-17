@@ -10,6 +10,8 @@
  */
 
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <rxrpc/packet.h>
@@ -260,8 +262,7 @@ void afs_flat_call_destructor(struct afs_call *call)
 /*
  * attach the data from a bunch of pages on an inode to a call
  */
-static int afs_send_pages(struct afs_call *call, struct msghdr *msg,
-			  struct kvec *iov)
+static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 {
 	struct page *pages[8];
 	unsigned count, n, loop, offset, to;
@@ -284,20 +285,21 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg,
 
 		loop = 0;
 		do {
+			struct bio_vec bvec = {.bv_page = pages[loop],
+					       .bv_offset = offset};
 			msg->msg_flags = 0;
 			to = PAGE_SIZE;
 			if (first + loop >= last)
 				to = call->last_to;
 			else
 				msg->msg_flags = MSG_MORE;
-			iov->iov_base = kmap(pages[loop]) + offset;
-			iov->iov_len = to - offset;
+			bvec.bv_len = to - offset;
 			offset = 0;
 
 			_debug("- range %u-%u%s",
 			       offset, to, msg->msg_flags ? " [more]" : "");
-			iov_iter_kvec(&msg->msg_iter, WRITE | ITER_KVEC,
-				      iov, 1, to - offset);
+			iov_iter_bvec(&msg->msg_iter, WRITE | ITER_BVEC,
+				      &bvec, 1, to - offset);
 
 			/* have to change the state *before* sending the last
 			 * packet as RxRPC might give us the reply before it
@@ -306,7 +308,6 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg,
 				call->state = AFS_CALL_AWAIT_REPLY;
 			ret = rxrpc_kernel_send_data(afs_socket, call->rxcall,
 						     msg, to - offset);
-			kunmap(pages[loop]);
 			if (ret < 0)
 				break;
 		} while (++loop < count);
@@ -391,7 +392,7 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 		goto error_do_abort;
 
 	if (call->send_pages) {
-		ret = afs_send_pages(call, &msg, iov);
+		ret = afs_send_pages(call, &msg);
 		if (ret < 0)
 			goto error_do_abort;
 	}

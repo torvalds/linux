@@ -19,6 +19,8 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/pci.h>
+#include <linux/sched/task.h>
+
 #include <asm/cputable.h>
 #include <misc/cxl-base.h>
 

@@ -106,32 +106,35 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 		unsigned long end, int write, struct page **pages, int *nr)
 {
 	struct dev_pagemap *pgmap = NULL;
-	int nr_start = *nr;
-	pte_t *ptep;
+	int nr_start = *nr, ret = 0;
+	pte_t *ptep, *ptem;
 
-	ptep = pte_offset_map(&pmd, addr);
+	/*
+	 * Keep the original mapped PTE value (ptem) around since we
+	 * might increment ptep off the end of the page when finishing
+	 * our loop iteration.
+	 */
+	ptem = ptep = pte_offset_map(&pmd, addr);
 	do {
 		pte_t pte = gup_get_pte(ptep);
 		struct page *page;
 
 		/* Similar to the PMD case, NUMA hinting must take slow path */
-		if (pte_protnone(pte)) {
-			pte_unmap(ptep);
-			return 0;
-		}
+		if (pte_protnone(pte))
+			break;
+
+		if (!pte_allows_gup(pte_val(pte), write))
+			break;
 
 		if (pte_devmap(pte)) {
 			pgmap = get_dev_pagemap(pte_pfn(pte), pgmap);
 			if (unlikely(!pgmap)) {
 				undo_dev_pagemap(nr, nr_start, pages);
-				pte_unmap(ptep);
-				return 0;
+				break;
 			}
-		} else if (!pte_allows_gup(pte_val(pte), write) ||
-			   pte_special(pte)) {
-			pte_unmap(ptep);
-			return 0;
-		}
+		} else if (pte_special(pte))
+			break;
+
 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
 		page = pte_page(pte);
 		get_page(page);
@@ -141,9 +144,11 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 		(*nr)++;
 
 	} while (ptep++, addr += PAGE_SIZE, addr != end);
-	pte_unmap(ptep - 1);
+	if (addr == end)
+		ret = 1;
+	pte_unmap(ptem);
 
-	return 1;
+	return ret;
 }
 
 static inline void get_head_page_multiple(struct page *page, int nr)

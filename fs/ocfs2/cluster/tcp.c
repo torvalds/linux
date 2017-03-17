@@ -54,6 +54,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/sched/mm.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/idr.h>

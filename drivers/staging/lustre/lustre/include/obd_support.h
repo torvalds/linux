@@ -34,6 +34,8 @@
 #define _OBD_SUPPORT
 
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
+
 #include "../../include/linux/libcfs/libcfs.h"
 #include "lustre_compat.h"
 #include "lprocfs_status.h"

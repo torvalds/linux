@@ -437,16 +437,23 @@ static int aac_src_check_health(struct aac_dev *dev)
 	u32 status = src_readl(dev, MUnit.OMR);
 
 	/*
-	 *	Check to see if the board failed any self tests.
-	 */
-	if (unlikely(status & SELF_TEST_FAILED))
-		return -1;
-
-	/*
 	 *	Check to see if the board panic'd.
 	 */
 	if (unlikely(status & KERNEL_PANIC))
-		return (status >> 16) & 0xFF;
+		goto err_blink;
+
+	/*
+	 *	Check to see if the board failed any self tests.
+	 */
+	if (unlikely(status & SELF_TEST_FAILED))
+		goto err_out;
+
+	/*
+	 *	Check to see if the board failed any self tests.
+	 */
+	if (unlikely(status & MONITOR_PANIC))
+		goto err_out;
+
 	/*
 	 *	Wait for the adapter to be up and running.
 	 */
@@ -456,6 +463,12 @@ static int aac_src_check_health(struct aac_dev *dev)
 	 *	Everything is OK
 	 */
 	return 0;
+
+err_out:
+	return -1;
+
+err_blink:
+	return (status > 16) & 0xFF;
 }
 
 static inline u32 aac_get_vector(struct aac_dev *dev)
@@ -657,7 +670,7 @@ static int aac_srcv_ioremap(struct aac_dev *dev, u32 size)
 	return 0;
 }
 
-static void aac_set_intx_mode(struct aac_dev *dev)
+void aac_set_intx_mode(struct aac_dev *dev)
 {
 	if (dev->msi_enabled) {
 		aac_src_access_devreg(dev, AAC_ENABLE_INTX);
@@ -666,9 +679,26 @@ static void aac_set_intx_mode(struct aac_dev *dev)
 	}
 }
 
+static void aac_dump_fw_fib_iop_reset(struct aac_dev *dev)
+{
+	__le32 supported_options3;
+
+	if (!aac_fib_dump)
+		return;
+
+	supported_options3  = dev->supplement_adapter_info.supported_options3;
+	if (!(supported_options3 & AAC_OPTION_SUPPORTED3_IOP_RESET_FIB_DUMP))
+		return;
+
+	aac_adapter_sync_cmd(dev, IOP_RESET_FW_FIB_DUMP,
+			0, 0, 0,  0, 0, 0, NULL, NULL, NULL, NULL, NULL);
+}
+
 static void aac_send_iop_reset(struct aac_dev *dev, int bled)
 {
 	u32 var, reset_mask;
+
+	aac_dump_fw_fib_iop_reset(dev);
 
 	bled = aac_adapter_sync_cmd(dev, IOP_RESET_ALWAYS,
 				    0, 0, 0, 0, 0, 0, &var,
@@ -684,7 +714,7 @@ static void aac_send_iop_reset(struct aac_dev *dev, int bled)
 
 	aac_set_intx_mode(dev);
 
-	if (!bled && (dev->supplement_adapter_info.SupportedOptions2 &
+	if (!bled && (dev->supplement_adapter_info.supported_options2 &
 	    AAC_OPTION_DOORBELL_RESET)) {
 		src_writel(dev, MUnit.IDR, reset_mask);
 	} else {
@@ -713,6 +743,12 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 	if (bled)
 		pr_err("%s%d: adapter kernel panic'd %x.\n",
 				dev->name, dev->id, bled);
+
+	/*
+	 * When there is a BlinkLED, IOP_RESET has not effect
+	 */
+	if (bled >= 2 && dev->sa_firmware && reset_type & HW_IOP_RESET)
+		reset_type &= ~HW_IOP_RESET;
 
 	dev->a_ops.adapter_enable_int = aac_src_disable_interrupt;
 

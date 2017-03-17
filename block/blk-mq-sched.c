@@ -110,15 +110,14 @@ struct request *blk_mq_sched_get_request(struct request_queue *q,
 					 struct blk_mq_alloc_data *data)
 {
 	struct elevator_queue *e = q->elevator;
-	struct blk_mq_hw_ctx *hctx;
-	struct blk_mq_ctx *ctx;
 	struct request *rq;
 
 	blk_queue_enter_live(q);
-	ctx = blk_mq_get_ctx(q);
-	hctx = blk_mq_map_queue(q, ctx->cpu);
-
-	blk_mq_set_alloc_data(data, q, data->flags, ctx, hctx);
+	data->q = q;
+	if (likely(!data->ctx))
+		data->ctx = blk_mq_get_ctx(q);
+	if (likely(!data->hctx))
+		data->hctx = blk_mq_map_queue(q, data->ctx->cpu);
 
 	if (e) {
 		data->flags |= BLK_MQ_REQ_INTERNAL;
@@ -135,8 +134,6 @@ struct request *blk_mq_sched_get_request(struct request_queue *q,
 			rq = __blk_mq_alloc_request(data, op);
 	} else {
 		rq = __blk_mq_alloc_request(data, op);
-		if (rq)
-			data->hctx->tags->rqs[rq->tag] = rq;
 	}
 
 	if (rq) {
@@ -454,7 +451,8 @@ int blk_mq_sched_setup(struct request_queue *q)
 	 */
 	ret = 0;
 	queue_for_each_hw_ctx(q, hctx, i) {
-		hctx->sched_tags = blk_mq_alloc_rq_map(set, i, q->nr_requests, 0);
+		hctx->sched_tags = blk_mq_alloc_rq_map(set, i,
+				q->nr_requests, set->reserved_tags);
 		if (!hctx->sched_tags) {
 			ret = -ENOMEM;
 			break;

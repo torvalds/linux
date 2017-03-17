@@ -180,21 +180,37 @@ unsigned long vgic_mmio_read_active(struct kvm_vcpu *vcpu,
 static void vgic_mmio_change_active(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
 				    bool new_active_state)
 {
+	struct kvm_vcpu *requester_vcpu;
 	spin_lock(&irq->irq_lock);
+
+	/*
+	 * The vcpu parameter here can mean multiple things depending on how
+	 * this function is called; when handling a trap from the kernel it
+	 * depends on the GIC version, and these functions are also called as
+	 * part of save/restore from userspace.
+	 *
+	 * Therefore, we have to figure out the requester in a reliable way.
+	 *
+	 * When accessing VGIC state from user space, the requester_vcpu is
+	 * NULL, which is fine, because we guarantee that no VCPUs are running
+	 * when accessing VGIC state from user space so irq->vcpu->cpu is
+	 * always -1.
+	 */
+	requester_vcpu = kvm_arm_get_running_vcpu();
+
 	/*
 	 * If this virtual IRQ was written into a list register, we
 	 * have to make sure the CPU that runs the VCPU thread has
-	 * synced back LR state to the struct vgic_irq.  We can only
-	 * know this for sure, when either this irq is not assigned to
-	 * anyone's AP list anymore, or the VCPU thread is not
-	 * running on any CPUs.
+	 * synced back the LR state to the struct vgic_irq.
 	 *
-	 * In the opposite case, we know the VCPU thread may be on its
-	 * way back from the guest and still has to sync back this
-	 * IRQ, so we release and re-acquire the spin_lock to let the
-	 * other thread sync back the IRQ.
+	 * As long as the conditions below are true, we know the VCPU thread
+	 * may be on its way back from the guest (we kicked the VCPU thread in
+	 * vgic_change_active_prepare)  and still has to sync back this IRQ,
+	 * so we release and re-acquire the spin_lock to let the other thread
+	 * sync back the IRQ.
 	 */
 	while (irq->vcpu && /* IRQ may have state in an LR somewhere */
+	       irq->vcpu != requester_vcpu && /* Current thread is not the VCPU thread */
 	       irq->vcpu->cpu != -1) /* VCPU thread is running */
 		cond_resched_lock(&irq->irq_lock);
 

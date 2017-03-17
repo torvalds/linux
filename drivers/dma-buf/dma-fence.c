@@ -22,6 +22,7 @@
 #include <linux/export.h>
 #include <linux/atomic.h>
 #include <linux/dma-fence.h>
+#include <linux/sched/signal.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/dma_fence.h>

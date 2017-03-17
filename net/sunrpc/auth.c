@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/errno.h>

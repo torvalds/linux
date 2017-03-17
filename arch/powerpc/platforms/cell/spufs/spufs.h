@@ -27,6 +27,7 @@
 #include <linux/spinlock.h>
 #include <linux/fs.h>
 #include <linux/cpumask.h>
+#include <linux/sched/signal.h>
 
 #include <asm/spu.h>
 #include <asm/spu_csa.h>

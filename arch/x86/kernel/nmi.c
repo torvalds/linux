@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
+#include <linux/sched/debug.h>
 #include <linux/nmi.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -20,6 +21,7 @@
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/sched/clock.h>
 
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>

@@ -20,6 +20,8 @@
 #include <linux/cgroup.h>
 #include <linux/rcupdate.h>
 #include <linux/atomic.h>
+#include <linux/sched/task.h>
+
 #include <net/rtnetlink.h>
 #include <net/pkt_cls.h>
 #include <net/sock.h>

@@ -24,7 +24,11 @@
  */
 
 #include <linux/extable.h>
-#include <linux/sched.h>
+#include <linux/ptrace.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
+#include <linux/mm_types.h>
 
 #include <asm/cacheflush.h>
 #include <asm/irq.h>

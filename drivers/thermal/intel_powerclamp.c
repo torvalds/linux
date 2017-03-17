@@ -50,6 +50,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/sched/rt.h>
+#include <uapi/linux/sched/types.h>
 
 #include <asm/nmi.h>
 #include <asm/msr.h>

@@ -1306,16 +1306,15 @@ bail:
 	return status;
 }
 
-int ocfs2_getattr(struct vfsmount *mnt,
-		  struct dentry *dentry,
-		  struct kstat *stat)
+int ocfs2_getattr(const struct path *path, struct kstat *stat,
+		  u32 request_mask, unsigned int flags)
 {
-	struct inode *inode = d_inode(dentry);
-	struct super_block *sb = dentry->d_sb;
+	struct inode *inode = d_inode(path->dentry);
+	struct super_block *sb = path->dentry->d_sb;
 	struct ocfs2_super *osb = sb->s_fs_info;
 	int err;
 
-	err = ocfs2_inode_revalidate(dentry);
+	err = ocfs2_inode_revalidate(path->dentry);
 	if (err) {
 		if (err != -ENOENT)
 			mlog_errno(err);

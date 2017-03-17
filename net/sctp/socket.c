@@ -57,6 +57,7 @@
 #include <linux/kernel.h>
 #include <linux/wait.h>
 #include <linux/time.h>
+#include <linux/sched/signal.h>
 #include <linux/ip.h>
 #include <linux/capability.h>
 #include <linux/fcntl.h>

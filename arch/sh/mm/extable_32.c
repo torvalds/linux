@@ -7,6 +7,8 @@
 #include <linux/extable.h>
 #include <linux/uaccess.h>
 
+#include <asm/ptrace.h>
+
 int fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;

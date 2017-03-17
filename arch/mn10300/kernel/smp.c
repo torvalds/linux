@@ -21,7 +21,8 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 #include <linux/profile.h>
 #include <linux/smp.h>
 #include <linux/cpu.h>

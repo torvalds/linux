@@ -17,6 +17,7 @@
 #include <linux/file.h>
 #include <linux/fdtable.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/compat.h>
 #include <linux/syscalls.h>
 #include <linux/magic.h>

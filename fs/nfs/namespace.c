@@ -178,11 +178,12 @@ out_nofree:
 }
 
 static int
-nfs_namespace_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+nfs_namespace_getattr(const struct path *path, struct kstat *stat,
+			u32 request_mask, unsigned int query_flags)
 {
-	if (NFS_FH(d_inode(dentry))->size != 0)
-		return nfs_getattr(mnt, dentry, stat);
-	generic_fillattr(d_inode(dentry), stat);
+	if (NFS_FH(d_inode(path->dentry))->size != 0)
+		return nfs_getattr(path, stat, request_mask, query_flags);
+	generic_fillattr(d_inode(path->dentry), stat);
 	return 0;
 }
 

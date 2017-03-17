@@ -18,6 +18,7 @@
 #include <linux/smp.h>
 #include <linux/irq_work.h>
 #include <linux/tick.h>
+#include <linux/nmi.h>
 
 #include <asm/paravirt.h>
 #include <asm/desc.h>

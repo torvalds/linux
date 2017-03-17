@@ -284,6 +284,8 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 
 	driver = dev->driver;
 
+	hisi_pcie->pci = pci;
+
 	hisi_pcie->soc_ops = of_device_get_match_data(dev);
 
 	hisi_pcie->subctrl =

@@ -2,6 +2,8 @@
 #define _ASM_X86_MPX_H
 
 #include <linux/types.h>
+#include <linux/mm_types.h>
+
 #include <asm/ptrace.h>
 #include <asm/insn.h>
 

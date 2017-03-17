@@ -604,7 +604,7 @@ amd_get_event_constraints_f15h(struct cpu_hw_events *cpuc, int idx,
 			return &amd_f15_PMC20;
 		}
 	case AMD_EVENT_NB:
-		/* moved to perf_event_amd_uncore.c */
+		/* moved to uncore.c */
 		return &emptyconstraint;
 	default:
 		return &emptyconstraint;

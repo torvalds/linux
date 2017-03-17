@@ -492,24 +492,31 @@ static int backend_create_xenvif(struct backend_info *be)
 
 static void backend_disconnect(struct backend_info *be)
 {
-	if (be->vif) {
+	struct xenvif *vif = be->vif;
+
+	if (vif) {
 		unsigned int queue_index;
+		struct xenvif_queue *queues;
 
-		xen_unregister_watchers(be->vif);
+		xen_unregister_watchers(vif);
 #ifdef CONFIG_DEBUG_FS
-		xenvif_debugfs_delif(be->vif);
+		xenvif_debugfs_delif(vif);
 #endif /* CONFIG_DEBUG_FS */
-		xenvif_disconnect_data(be->vif);
-		for (queue_index = 0; queue_index < be->vif->num_queues; ++queue_index)
-			xenvif_deinit_queue(&be->vif->queues[queue_index]);
+		xenvif_disconnect_data(vif);
+		for (queue_index = 0;
+		     queue_index < vif->num_queues;
+		     ++queue_index)
+			xenvif_deinit_queue(&vif->queues[queue_index]);
 
-		spin_lock(&be->vif->lock);
-		vfree(be->vif->queues);
-		be->vif->num_queues = 0;
-		be->vif->queues = NULL;
-		spin_unlock(&be->vif->lock);
+		spin_lock(&vif->lock);
+		queues = vif->queues;
+		vif->num_queues = 0;
+		vif->queues = NULL;
+		spin_unlock(&vif->lock);
 
-		xenvif_disconnect_ctrl(be->vif);
+		vfree(queues);
+
+		xenvif_disconnect_ctrl(vif);
 	}
 }
 

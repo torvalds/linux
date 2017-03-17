@@ -16,8 +16,10 @@
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/bootmem.h>
+
 #include <asm/fpu.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>

@@ -10,7 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/profile.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/cpu.h>
 
 #include <asm/cacheflush.h>

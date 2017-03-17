@@ -798,13 +798,6 @@ static inline int rds_message_verify_checksum(const struct rds_header *hdr)
 /* page.c */
 int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 			     gfp_t gfp);
-int rds_page_copy_user(struct page *page, unsigned long offset,
-		       void __user *ptr, unsigned long bytes,
-		       int to_user);
-#define rds_page_copy_to_user(page, offset, ptr, bytes) \
-	rds_page_copy_user(page, offset, ptr, bytes, 1)
-#define rds_page_copy_from_user(page, offset, ptr, bytes) \
-	rds_page_copy_user(page, offset, ptr, bytes, 0)
 void rds_page_exit(void);
 
 /* recv.c */
@@ -910,7 +903,7 @@ void rds_connect_path_complete(struct rds_conn_path *conn, int curr);
 void rds_connect_complete(struct rds_connection *conn);
 
 /* transport.c */
-int rds_trans_register(struct rds_transport *trans);
+void rds_trans_register(struct rds_transport *trans);
 void rds_trans_unregister(struct rds_transport *trans);
 struct rds_transport *rds_trans_get_preferred(struct net *net, __be32 addr);
 void rds_trans_put(struct rds_transport *trans);

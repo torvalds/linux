@@ -532,7 +532,8 @@ static int virtio_vsock_probe(struct virtio_device *vdev)
 	vsock->vdev = vdev;
 
 	ret = vsock->vdev->config->find_vqs(vsock->vdev, VSOCK_VQ_MAX,
-					    vsock->vqs, callbacks, names);
+					    vsock->vqs, callbacks, names,
+					    NULL);
 	if (ret < 0)
 		goto out;
 

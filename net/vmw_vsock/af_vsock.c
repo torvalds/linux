@@ -90,6 +90,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/kmod.h>
 #include <linux/list.h>
 #include <linux/miscdevice.h>

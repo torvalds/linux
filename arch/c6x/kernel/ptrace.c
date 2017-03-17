@@ -14,6 +14,7 @@
 #include <linux/tracehook.h>
 #include <linux/regset.h>
 #include <linux/elf.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/cacheflush.h>
 

@@ -6,7 +6,8 @@
  * - Derived also from comments by Linus
  */
 #include <linux/rwsem.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/export.h>
 
 enum rwsem_waiter_type {

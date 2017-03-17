@@ -35,6 +35,8 @@
  */
 
 #include <linux/rhashtable.h>
+#include <linux/sched/signal.h>
+
 #include "core.h"
 #include "name_table.h"
 #include "node.h"

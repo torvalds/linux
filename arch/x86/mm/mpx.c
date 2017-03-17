@@ -7,6 +7,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/mm_types.h>
 #include <linux/syscalls.h>
 #include <linux/sched/sysctl.h>
 

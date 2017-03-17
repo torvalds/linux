@@ -330,8 +330,8 @@ void do_post_process(struct cpt_vf *cptvf, struct cpt_info_buffer *info)
 {
 	struct pci_dev *pdev = cptvf->pdev;
 
-	if (!info || !cptvf) {
-		dev_err(&pdev->dev, "Input params are incorrect for post processing\n");
+	if (!info) {
+		dev_err(&pdev->dev, "incorrect cpt_info_buffer for post processing\n");
 		return;
 	}
 
