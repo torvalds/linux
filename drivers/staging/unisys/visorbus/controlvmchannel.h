@@ -147,14 +147,6 @@ struct irq_info {
 	u8 reserved[3];	/* Natural alignment purposes */
 };
 
-struct pci_id {
-	u16 domain;
-	u8 bus;
-	u8 slot;
-	u8 func;
-	u8 reserved[3];	/* Natural alignment purposes */
-};
-
 struct efi_spar_indication  {
 	u64 boot_to_fw_ui:1;		/* Bit 0: Stop in uefi ui */
 	u64 clear_nvram:1;		/* Bit 1: Clear NVRAM */
