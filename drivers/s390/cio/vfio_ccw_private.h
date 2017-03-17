@@ -12,6 +12,7 @@
 
 #include <linux/completion.h>
 #include <linux/eventfd.h>
+#include <linux/workqueue.h>
 #include <linux/vfio_ccw.h>
 
 #include "css.h"
@@ -25,12 +26,11 @@
  * @mdev: pointer to the mediated device
  * @nb: notifier for vfio events
  * @io_region: MMIO region to input/output I/O arguments/results
- * @wait_q: wait for interrupt
- * @intparm: record current interrupt parameter, used for wait interrupt
  * @cp: channel program for the current I/O operation
  * @irb: irb info received from interrupt
  * @scsw: scsw info
  * @io_trigger: eventfd ctx for signaling userspace I/O results
+ * @io_work: work for deferral process of I/O handling
  */
 struct vfio_ccw_private {
 	struct subchannel	*sch;
@@ -40,13 +40,12 @@ struct vfio_ccw_private {
 	struct notifier_block	nb;
 	struct ccw_io_region	io_region;
 
-	wait_queue_head_t	wait_q;
-	u32			intparm;
 	struct channel_program	cp;
 	struct irb		irb;
 	union scsw		scsw;
 
 	struct eventfd_ctx	*io_trigger;
+	struct work_struct	io_work;
 } __aligned(8);
 
 extern int vfio_ccw_mdev_reg(struct subchannel *sch);

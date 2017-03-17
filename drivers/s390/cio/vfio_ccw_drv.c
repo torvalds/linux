@@ -20,6 +20,8 @@
 #include "css.h"
 #include "vfio_ccw_private.h"
 
+struct workqueue_struct *vfio_ccw_work_q;
+
 /*
  * Helpers
  */
@@ -52,6 +54,7 @@ int vfio_ccw_sch_quiesce(struct subchannel *sch)
 
 			spin_lock_irq(sch->lock);
 			private->completion = NULL;
+			flush_workqueue(vfio_ccw_work_q);
 			ret = cio_cancel_halt_clear(sch, &iretry);
 		};
 
@@ -63,18 +66,12 @@ out_unlock:
 	return ret;
 }
 
-static int doing_io(struct vfio_ccw_private *private, u32 intparm)
-{
-	return (private->intparm == intparm);
-}
-
 static int vfio_ccw_sch_io_helper(struct vfio_ccw_private *private)
 {
 	struct subchannel *sch;
 	union orb *orb;
 	int ccode;
 	__u8 lpm;
-	u32 intparm;
 
 	sch = private->sch;
 
@@ -89,7 +86,7 @@ static int vfio_ccw_sch_io_helper(struct vfio_ccw_private *private)
 		 * Initialize device status information
 		 */
 		sch->schib.scsw.cmd.actl |= SCSW_ACTL_START_PEND;
-		break;
+		return 0;
 	case 1:		/* Status pending */
 	case 2:		/* Busy */
 		return -EBUSY;
@@ -109,15 +106,26 @@ static int vfio_ccw_sch_io_helper(struct vfio_ccw_private *private)
 	default:
 		return ccode;
 	}
+}
 
-	intparm = (u32)(addr_t)sch;
-	private->intparm = 0;
-	wait_event(private->wait_q, doing_io(private, intparm));
+static void vfio_ccw_sch_io_todo(struct work_struct *work)
+{
+	struct vfio_ccw_private *private;
+	struct subchannel *sch;
+	struct irb *irb;
 
-	if (scsw_is_solicited(&private->irb.scsw))
-		cp_update_scsw(&private->cp, &private->irb.scsw);
+	private = container_of(work, struct vfio_ccw_private, io_work);
+	irb = &private->irb;
+	sch = private->sch;
 
-	return 0;
+	if (scsw_is_solicited(&irb->scsw)) {
+		cp_update_scsw(&private->cp, &irb->scsw);
+		cp_free(&private->cp);
+	}
+	memcpy(private->io_region.irb_area, irb, sizeof(*irb));
+
+	if (private->io_trigger)
+		eventfd_signal(private->io_trigger, 1);
 }
 
 /* Deal with the ccw command request from the userspace. */
@@ -126,7 +134,6 @@ int vfio_ccw_sch_cmd_request(struct vfio_ccw_private *private)
 	struct mdev_device *mdev = private->mdev;
 	union orb *orb;
 	union scsw *scsw = &private->scsw;
-	struct irb *irb = &private->irb;
 	struct ccw_io_region *io_region = &private->io_region;
 	int ret;
 
@@ -147,12 +154,8 @@ int vfio_ccw_sch_cmd_request(struct vfio_ccw_private *private)
 
 		/* Start channel program and wait for I/O interrupt. */
 		ret = vfio_ccw_sch_io_helper(private);
-		if (!ret) {
-			/* Get irb info and copy it to irb_area. */
-			memcpy(io_region->irb_area, irb, sizeof(*irb));
-		}
-
-		cp_free(&private->cp);
+		if (!ret)
+			cp_free(&private->cp);
 	} else if (scsw->cmd.fctl & SCSW_FCTL_HALT_FUNC) {
 		/* XXX: Handle halt. */
 		ret = -EOPNOTSUPP;
@@ -229,8 +232,8 @@ static void vfio_ccw_sch_irq(struct subchannel *sch)
 
 	irb = this_cpu_ptr(&cio_irb);
 	memcpy(&private->irb, irb, sizeof(*irb));
-	private->intparm = (u32)(addr_t)sch;
-	wake_up(&private->wait_q);
+
+	queue_work(vfio_ccw_work_q, &private->io_work);
 
 	if (private->completion)
 		complete(private->completion);
@@ -269,7 +272,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 	if (ret)
 		goto out_rm_group;
 
-	init_waitqueue_head(&private->wait_q);
+	INIT_WORK(&private->io_work, vfio_ccw_sch_io_todo);
 	atomic_set(&private->avail, 1);
 
 	return 0;
@@ -367,10 +370,16 @@ static int __init vfio_ccw_sch_init(void)
 {
 	int ret;
 
+	vfio_ccw_work_q = create_singlethread_workqueue("vfio-ccw");
+	if (!vfio_ccw_work_q)
+		return -ENOMEM;
+
 	isc_register(VFIO_CCW_ISC);
 	ret = css_driver_register(&vfio_ccw_sch_driver);
-	if (ret)
+	if (ret) {
 		isc_unregister(VFIO_CCW_ISC);
+		destroy_workqueue(vfio_ccw_work_q);
+	}
 
 	return ret;
 }
@@ -379,6 +388,7 @@ static void __exit vfio_ccw_sch_exit(void)
 {
 	css_driver_unregister(&vfio_ccw_sch_driver);
 	isc_unregister(VFIO_CCW_ISC);
+	destroy_workqueue(vfio_ccw_work_q);
 }
 module_init(vfio_ccw_sch_init);
 module_exit(vfio_ccw_sch_exit);

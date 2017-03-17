@@ -202,9 +202,6 @@ static ssize_t vfio_ccw_mdev_write(struct mdev_device *mdev,
 	if (region->ret_code != 0)
 		return region->ret_code;
 
-	if (private->io_trigger)
-		eventfd_signal(private->io_trigger, 1);
-
 	return count;
 }
 
