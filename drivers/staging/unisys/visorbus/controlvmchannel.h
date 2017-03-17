@@ -19,9 +19,9 @@
 #include "channel.h"
 
 /* {2B3C2D10-7EF5-4ad8-B966-3448B7386B3D} */
-#define SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID	\
-		UUID_LE(0x2b3c2d10, 0x7ef5, 0x4ad8, \
-			0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
+#define SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID \
+	UUID_LE(0x2b3c2d10, 0x7ef5, 0x4ad8, \
+		0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
 
 #define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE \
 	ULTRA_CHANNEL_PROTOCOL_SIGNATURE
@@ -33,24 +33,24 @@
  * software.  Note that you can usually add fields to the END of the
  * channel struct withOUT needing to increment this.
  */
-#define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID  1
+#define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID 1
 
-#define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(ch)           \
-	spar_check_channel_client(ch, \
+#define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(ch) \
+	(spar_check_channel_client(ch, \
 		SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID, \
 		"controlvm", \
 		sizeof(struct spar_controlvm_channel_protocol), \
 		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
-		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE)
+		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE))
 
 /* Defines for various channel queues */
-#define CONTROLVM_QUEUE_REQUEST		0
-#define CONTROLVM_QUEUE_RESPONSE	1
-#define CONTROLVM_QUEUE_EVENT		2
-#define CONTROLVM_QUEUE_ACK		3
+#define CONTROLVM_QUEUE_REQUEST	 0
+#define CONTROLVM_QUEUE_RESPONSE 1
+#define CONTROLVM_QUEUE_EVENT	 2
+#define CONTROLVM_QUEUE_ACK	 3
 
 /* Max num of messages stored during IOVM creation to be reused after crash */
-#define CONTROLVM_CRASHMSG_MAX		2
+#define CONTROLVM_CRASHMSG_MAX 2
 
 struct spar_segment_state  {
 	/* Bit 0: May enter other states */
@@ -453,78 +453,78 @@ struct spar_controlvm_parameters_header {
 };
 
 /* General Errors------------------------------------------------------[0-99] */
-#define CONTROLVM_RESP_SUCCESS                                  0
-#define CONTROLVM_RESP_ALREADY_DONE                             1
-#define CONTROLVM_RESP_IOREMAP_FAILED                           2
-#define CONTROLVM_RESP_KMALLOC_FAILED                           3
-#define CONTROLVM_RESP_ID_UNKNOWN                               4
-#define CONTROLVM_RESP_ID_INVALID_FOR_CLIENT                    5
+#define CONTROLVM_RESP_SUCCESS			   0
+#define CONTROLVM_RESP_ALREADY_DONE		   1
+#define CONTROLVM_RESP_IOREMAP_FAILED		   2
+#define CONTROLVM_RESP_KMALLOC_FAILED		   3
+#define CONTROLVM_RESP_ID_UNKNOWN		   4
+#define CONTROLVM_RESP_ID_INVALID_FOR_CLIENT	   5
 
 /* CONTROLVM_INIT_CHIPSET-------------------------------------------[100-199] */
-#define CONTROLVM_RESP_CLIENT_SWITCHCOUNT_NONZERO               100
-#define CONTROLVM_RESP_EXPECTED_CHIPSET_INIT                    101
+#define CONTROLVM_RESP_CLIENT_SWITCHCOUNT_NONZERO  100
+#define CONTROLVM_RESP_EXPECTED_CHIPSET_INIT	   101
 
 /* Maximum Limit----------------------------------------------------[200-299] */
-#define CONTROLVM_RESP_ERROR_MAX_BUSES		201	/* BUS_CREATE */
-#define CONTROLVM_RESP_ERROR_MAX_DEVICES        202	/* DEVICE_CREATE */
+#define CONTROLVM_RESP_ERROR_MAX_BUSES		   201 /* BUS_CREATE */
+#define CONTROLVM_RESP_ERROR_MAX_DEVICES	   202 /* DEVICE_CREATE */
 /* Payload and Parameter Related------------------------------------[400-499] */
-#define CONTROLVM_RESP_PAYLOAD_INVALID		400	/* SWITCH_ATTACHEXTPORT,
-							 * DEVICE_CONFIGURE
-							 */
-#define CONTROLVM_RESP_INITIATOR_PARAMETER_INVALID 401  /* Multiple */
-#define CONTROLVM_RESP_TARGET_PARAMETER_INVALID    402  /* DEVICE_CONFIGURE */
-#define CONTROLVM_RESP_CLIENT_PARAMETER_INVALID    403  /* DEVICE_CONFIGURE */
+#define CONTROLVM_RESP_PAYLOAD_INVALID		   400 /* SWITCH_ATTACHEXTPORT,
+							* DEVICE_CONFIGURE
+							*/
+#define CONTROLVM_RESP_INITIATOR_PARAMETER_INVALID 401 /* Multiple */
+#define CONTROLVM_RESP_TARGET_PARAMETER_INVALID	   402 /* DEVICE_CONFIGURE */
+#define CONTROLVM_RESP_CLIENT_PARAMETER_INVALID	   403 /* DEVICE_CONFIGURE */
 /* Specified[Packet Structure] Value-------------------------------[500-599] */
-#define CONTROLVM_RESP_BUS_INVALID                 500	/* SWITCH_ATTACHINTPORT,
-							 * BUS_CONFIGURE,
-							 * DEVICE_CREATE,
-							 * DEVICE_CONFIG
-							 * DEVICE_DESTROY
-							 */
-#define CONTROLVM_RESP_DEVICE_INVALID           501 /* SWITCH_ATTACHINTPORT */
-						    /* DEVICE_CREATE,
-						     * DEVICE_CONFIGURE,
-						     * DEVICE_DESTROY
-						     */
-#define CONTROLVM_RESP_CHANNEL_INVALID          502 /* DEVICE_CREATE,
-						     * DEVICE_CONFIGURE
-						     */
+#define CONTROLVM_RESP_BUS_INVALID		   500 /* SWITCH_ATTACHINTPORT,
+							* BUS_CONFIGURE,
+							* DEVICE_CREATE,
+							* DEVICE_CONFIG
+							* DEVICE_DESTROY
+							*/
+#define CONTROLVM_RESP_DEVICE_INVALID		   501 /* SWITCH_ATTACHINTPORT*/
+						       /* DEVICE_CREATE,
+							* DEVICE_CONFIGURE,
+							* DEVICE_DESTROY
+							*/
+#define CONTROLVM_RESP_CHANNEL_INVALID		   502 /* DEVICE_CREATE,
+							* DEVICE_CONFIGURE
+							*/
 /* Partition Driver Callback Interface----------------------[600-699] */
-#define CONTROLVM_RESP_VIRTPCI_DRIVER_FAILURE   604       /* BUS_CREATE,
-							   * BUS_DESTROY,
-							   * DEVICE_CREATE,
-							   * DEVICE_DESTROY
-							   */
+#define CONTROLVM_RESP_VIRTPCI_DRIVER_FAILURE	   604 /* BUS_CREATE,
+							* BUS_DESTROY,
+							* DEVICE_CREATE,
+							* DEVICE_DESTROY
+							*/
 /* Unable to invoke VIRTPCI callback */
-#define CONTROLVM_RESP_VIRTPCI_DRIVER_CALLBACK_ERROR 605  /* BUS_CREATE,
-							   * BUS_DESTROY,
-							   * DEVICE_CREATE,
-							   * DEVICE_DESTROY
-							   */
+#define CONTROLVM_RESP_VIRTPCI_DRIVER_CALLBACK_ERROR   605 /* BUS_CREATE,
+							    * BUS_DESTROY,
+							    * DEVICE_CREATE,
+							    * DEVICE_DESTROY
+							    */
 /* VIRTPCI Callback returned error */
-#define CONTROLVM_RESP_GENERIC_DRIVER_CALLBACK_ERROR 606
-							/* SWITCH_ATTACHEXTPORT,
-							 * SWITCH_DETACHEXTPORT
-							 * DEVICE_CONFIGURE
-							 */
+#define CONTROLVM_RESP_GENERIC_DRIVER_CALLBACK_ERROR   606
+						       /* SWITCH_ATTACHEXTPORT,
+							* SWITCH_DETACHEXTPORT
+							* DEVICE_CONFIGURE
+							*/
 
 /* generic device callback returned error */
 /* Bus Related------------------------------------------------------[700-799] */
-#define CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED 700	/* BUS_DESTROY */
+#define CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED       700 /* BUS_DESTROY */
 /* Channel Related--------------------------------------------------[800-899] */
-#define CONTROLVM_RESP_CHANNEL_TYPE_UNKNOWN 800	        /* GET_CHANNELINFO,
-							 * DEVICE_DESTROY
-							 */
-#define CONTROLVM_RESP_CHANNEL_SIZE_TOO_SMALL 801	/* DEVICE_CREATE */
+#define CONTROLVM_RESP_CHANNEL_TYPE_UNKNOWN	       800 /* GET_CHANNELINFO,
+							    * DEVICE_DESTROY
+							    */
+#define CONTROLVM_RESP_CHANNEL_SIZE_TOO_SMALL	       801 /* DEVICE_CREATE */
 /* Chipset Shutdown Related---------------------------------------[1000-1099] */
-#define CONTROLVM_RESP_CHIPSET_SHUTDOWN_FAILED            1000
-#define CONTROLVM_RESP_CHIPSET_SHUTDOWN_ALREADY_ACTIVE    1001
+#define CONTROLVM_RESP_CHIPSET_SHUTDOWN_FAILED	       1000
+#define CONTROLVM_RESP_CHIPSET_SHUTDOWN_ALREADY_ACTIVE 1001
 
 /* Chipset Stop Related-------------------------------------------[1100-1199] */
-#define CONTROLVM_RESP_CHIPSET_STOP_FAILED_BUS            1100
-#define CONTROLVM_RESP_CHIPSET_STOP_FAILED_SWITCH         1101
+#define CONTROLVM_RESP_CHIPSET_STOP_FAILED_BUS	       1100
+#define CONTROLVM_RESP_CHIPSET_STOP_FAILED_SWITCH      1101
 
 /* Device Related-------------------------------------------------[1400-1499] */
-#define CONTROLVM_RESP_DEVICE_UDEV_TIMEOUT                1400
+#define CONTROLVM_RESP_DEVICE_UDEV_TIMEOUT	       1400
 
 #endif				/* __CONTROLVMCHANNEL_H__ */
