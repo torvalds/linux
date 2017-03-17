@@ -234,23 +234,14 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return 1;
 
 	for_each_pci_msi_entry(msidesc, dev) {
-		__pci_read_msi_msg(msidesc, &msg);
-		pirq = MSI_ADDR_EXT_DEST_ID(msg.address_hi) |
-			((msg.address_lo >> MSI_ADDR_DEST_ID_SHIFT) & 0xff);
-		if (msg.data != XEN_PIRQ_MSI_DATA ||
-		    xen_irq_from_pirq(pirq) < 0) {
-			pirq = xen_allocate_pirq_msi(dev, msidesc);
-			if (pirq < 0) {
-				irq = -ENODEV;
-				goto error;
-			}
-			xen_msi_compose_msg(dev, pirq, &msg);
-			__pci_write_msi_msg(msidesc, &msg);
-			dev_dbg(&dev->dev, "xen: msi bound to pirq=%d\n", pirq);
-		} else {
-			dev_dbg(&dev->dev,
-				"xen: msi already bound to pirq=%d\n", pirq);
+		pirq = xen_allocate_pirq_msi(dev, msidesc);
+		if (pirq < 0) {
+			irq = -ENODEV;
+			goto error;
 		}
+		xen_msi_compose_msg(dev, pirq, &msg);
+		__pci_write_msi_msg(msidesc, &msg);
+		dev_dbg(&dev->dev, "xen: msi bound to pirq=%d\n", pirq);
 		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, pirq,
 					       (type == PCI_CAP_ID_MSI) ? nvec : 1,
 					       (type == PCI_CAP_ID_MSIX) ?
