@@ -376,9 +376,7 @@ void intel_uc_prepare_fw(struct drm_i915_private *dev_priv,
 			uc_fw->major_ver_found, uc_fw->minor_ver_found,
 			uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
 	obj = i915_gem_object_create_from_data(dev_priv, fw->data, fw->size);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 	if (IS_ERR_OR_NULL(obj)) {
 		err = obj ? PTR_ERR(obj) : -ENOMEM;
 		goto fail;

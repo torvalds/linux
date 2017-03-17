@@ -4961,9 +4961,7 @@ i915_gem_object_create_from_data(struct drm_i915_private *dev_priv,
 	if (IS_ERR(obj))
 		return obj;
 
-	ret = i915_gem_object_set_to_cpu_domain(obj, true);
-	if (ret)
-		goto fail;
+	GEM_BUG_ON(obj->base.write_domain != I915_GEM_DOMAIN_CPU);
 
 	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
