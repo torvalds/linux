@@ -209,7 +209,7 @@ int visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
 bool visorchannel_signalempty(struct visorchannel *channel, u32 queue);
 uuid_le visorchannel_get_uuid(struct visorchannel *channel);
 
-#define BUS_ROOT_DEVICE		UINT_MAX
+#define BUS_ROOT_DEVICE UINT_MAX
 struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
 					       struct visor_device *from);
 #endif
