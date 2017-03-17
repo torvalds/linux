@@ -1561,6 +1561,17 @@ err_put:
 	return ret;
 }
 
+static bool drm_wait_vblank_is_query(union drm_wait_vblank *vblwait)
+{
+	if (vblwait->request.sequence)
+		return false;
+
+	return _DRM_VBLANK_RELATIVE ==
+		(vblwait->request.type & (_DRM_VBLANK_TYPES_MASK |
+					  _DRM_VBLANK_EVENT |
+					  _DRM_VBLANK_NEXTONMISS));
+}
+
 /*
  * Wait for VBLANK.
  *
@@ -1609,6 +1620,21 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	vblank = &dev->vblank[pipe];
+
+	/* If the counter is currently enabled and accurate, short-circuit
+	 * queries to return the cached timestamp of the last vblank.
+	 */
+	if (dev->vblank_disable_immediate &&
+	    drm_wait_vblank_is_query(vblwait) &&
+	    READ_ONCE(vblank->enabled)) {
+		struct timeval now;
+
+		vblwait->reply.sequence =
+			drm_vblank_count_and_time(dev, pipe, &now);
+		vblwait->reply.tval_sec = now.tv_sec;
+		vblwait->reply.tval_usec = now.tv_usec;
+		return 0;
+	}
 
 	ret = drm_vblank_get(dev, pipe);
 	if (ret) {
