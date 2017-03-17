@@ -168,6 +168,7 @@ static inline void qm_fd_set_param(struct qm_fd *fd, enum qm_fd_format fmt,
 #define qm_fd_set_contig_big(fd, len) \
 	qm_fd_set_param(fd, qm_fd_contig_big, 0, len)
 #define qm_fd_set_sg_big(fd, len) qm_fd_set_param(fd, qm_fd_sg_big, 0, len)
+#define qm_fd_set_compound(fd, len) qm_fd_set_param(fd, qm_fd_compound, 0, len)
 
 static inline void qm_fd_clear_fd(struct qm_fd *fd)
 {
@@ -642,6 +643,7 @@ struct qm_mcc_initcgr {
 #define QM_CGR_WE_MODE			0x0001
 
 #define QMAN_CGR_FLAG_USE_INIT	     0x00000001
+#define QMAN_CGR_MODE_FRAME          0x00000001
 
 	/* Portal and Frame Queues */
 /* Represents a managed portal */
