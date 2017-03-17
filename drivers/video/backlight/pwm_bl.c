@@ -601,6 +601,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		pb->scale = data->max_brightness;
 	}
 
+	pwm_adjust_config(pb->pwm);
+
 	pb->lth_brightness = data->lth_brightness * (div_u64(state.period,
 				pb->scale));
 
