@@ -1174,6 +1174,7 @@ static int acm_probe(struct usb_interface *intf,
 	int combined_interfaces = 0;
 	struct device *tty_dev;
 	int rv = -ENOMEM;
+	int res;
 
 	/* normal quirks */
 	quirks = (unsigned long)id->driver_info;
@@ -1274,23 +1275,12 @@ static int acm_probe(struct usb_interface *intf,
 			return -EINVAL;
 		}
 look_for_collapsed_interface:
-		for (i = 0; i < 3; i++) {
-			struct usb_endpoint_descriptor *ep;
-			ep = &data_interface->cur_altsetting->endpoint[i].desc;
+		res = usb_find_common_endpoints(data_interface->cur_altsetting,
+				&epread, &epwrite, &epctrl, NULL);
+		if (res)
+			return res;
 
-			if (usb_endpoint_is_int_in(ep))
-				epctrl = ep;
-			else if (usb_endpoint_is_bulk_out(ep))
-				epwrite = ep;
-			else if (usb_endpoint_is_bulk_in(ep))
-				epread = ep;
-			else
-				return -EINVAL;
-		}
-		if (!epctrl || !epread || !epwrite)
-			return -ENODEV;
-		else
-			goto made_compressed_probe;
+		goto made_compressed_probe;
 	}
 
 skip_normal_probe:
