@@ -60,52 +60,10 @@ int vfio_ccw_sch_quiesce(struct subchannel *sch)
 
 		ret = cio_disable_subchannel(sch);
 	} while (ret == -EBUSY);
-
 out_unlock:
+	private->state = VFIO_CCW_STATE_NOT_OPER;
 	spin_unlock_irq(sch->lock);
 	return ret;
-}
-
-static int vfio_ccw_sch_io_helper(struct vfio_ccw_private *private)
-{
-	struct subchannel *sch;
-	union orb *orb;
-	int ccode;
-	__u8 lpm;
-
-	sch = private->sch;
-
-	orb = cp_get_orb(&private->cp, (u32)(addr_t)sch, sch->lpm);
-
-	/* Issue "Start Subchannel" */
-	ccode = ssch(sch->schid, orb);
-
-	switch (ccode) {
-	case 0:
-		/*
-		 * Initialize device status information
-		 */
-		sch->schib.scsw.cmd.actl |= SCSW_ACTL_START_PEND;
-		return 0;
-	case 1:		/* Status pending */
-	case 2:		/* Busy */
-		return -EBUSY;
-	case 3:		/* Device/path not operational */
-	{
-		lpm = orb->cmd.lpm;
-		if (lpm != 0)
-			sch->lpm &= ~lpm;
-		else
-			sch->lpm = 0;
-
-		if (cio_update_schib(sch))
-			return -ENODEV;
-
-		return sch->lpm ? -EACCES : -ENODEV;
-	}
-	default:
-		return ccode;
-	}
 }
 
 static void vfio_ccw_sch_io_todo(struct work_struct *work)
@@ -126,47 +84,9 @@ static void vfio_ccw_sch_io_todo(struct work_struct *work)
 
 	if (private->io_trigger)
 		eventfd_signal(private->io_trigger, 1);
-}
 
-/* Deal with the ccw command request from the userspace. */
-int vfio_ccw_sch_cmd_request(struct vfio_ccw_private *private)
-{
-	struct mdev_device *mdev = private->mdev;
-	union orb *orb;
-	union scsw *scsw = &private->scsw;
-	struct ccw_io_region *io_region = &private->io_region;
-	int ret;
-
-	memcpy(scsw, io_region->scsw_area, sizeof(*scsw));
-
-	if (scsw->cmd.fctl & SCSW_FCTL_START_FUNC) {
-		orb = (union orb *)io_region->orb_area;
-
-		ret = cp_init(&private->cp, mdev_dev(mdev), orb);
-		if (ret)
-			return ret;
-
-		ret = cp_prefetch(&private->cp);
-		if (ret) {
-			cp_free(&private->cp);
-			return ret;
-		}
-
-		/* Start channel program and wait for I/O interrupt. */
-		ret = vfio_ccw_sch_io_helper(private);
-		if (!ret)
-			cp_free(&private->cp);
-	} else if (scsw->cmd.fctl & SCSW_FCTL_HALT_FUNC) {
-		/* XXX: Handle halt. */
-		ret = -EOPNOTSUPP;
-	} else if (scsw->cmd.fctl & SCSW_FCTL_CLEAR_FUNC) {
-		/* XXX: Handle clear. */
-		ret = -EOPNOTSUPP;
-	} else {
-		ret = -EOPNOTSUPP;
-	}
-
-	return ret;
+	if (private->mdev)
+		private->state = VFIO_CCW_STATE_IDLE;
 }
 
 /*
@@ -223,20 +143,9 @@ static struct attribute_group vfio_subchannel_attr_group = {
 static void vfio_ccw_sch_irq(struct subchannel *sch)
 {
 	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
-	struct irb *irb;
 
 	inc_irq_stat(IRQIO_CIO);
-
-	if (!private)
-		return;
-
-	irb = this_cpu_ptr(&cio_irb);
-	memcpy(&private->irb, irb, sizeof(*irb));
-
-	queue_work(vfio_ccw_work_q, &private->io_work);
-
-	if (private->completion)
-		complete(private->completion);
+	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_INTERRUPT);
 }
 
 static int vfio_ccw_sch_probe(struct subchannel *sch)
@@ -258,6 +167,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 	dev_set_drvdata(&sch->dev, private);
 
 	spin_lock_irq(sch->lock);
+	private->state = VFIO_CCW_STATE_NOT_OPER;
 	sch->isc = VFIO_CCW_ISC;
 	ret = cio_enable_subchannel(sch, (u32)(unsigned long)sch);
 	spin_unlock_irq(sch->lock);
@@ -274,6 +184,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 
 	INIT_WORK(&private->io_work, vfio_ccw_sch_io_todo);
 	atomic_set(&private->avail, 1);
+	private->state = VFIO_CCW_STATE_STANDBY;
 
 	return 0;
 
@@ -321,6 +232,7 @@ static void vfio_ccw_sch_shutdown(struct subchannel *sch)
  */
 static int vfio_ccw_sch_event(struct subchannel *sch, int process)
 {
+	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(sch->lock, flags);
@@ -331,14 +243,14 @@ static int vfio_ccw_sch_event(struct subchannel *sch, int process)
 		goto out_unlock;
 
 	if (cio_update_schib(sch)) {
-		/* Not operational. */
-		css_sched_sch_todo(sch, SCH_TODO_UNREG);
-
-		/*
-		 * TODO:
-		 * Probably we should send the machine check to the guest.
-		 */
+		vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
 		goto out_unlock;
+	}
+
+	private = dev_get_drvdata(&sch->dev);
+	if (private->state == VFIO_CCW_STATE_NOT_OPER) {
+		private->state = private->mdev ? VFIO_CCW_STATE_IDLE :
+				 VFIO_CCW_STATE_STANDBY;
 	}
 
 out_unlock:
