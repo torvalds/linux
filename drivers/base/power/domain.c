@@ -1700,12 +1700,12 @@ int of_genpd_add_provider_simple(struct device_node *np,
 
 	mutex_lock(&gpd_list_lock);
 
-	if (pm_genpd_present(genpd))
+	if (pm_genpd_present(genpd)) {
 		ret = genpd_add_provider(np, genpd_xlate_simple, genpd);
-
-	if (!ret) {
-		genpd->provider = &np->fwnode;
-		genpd->has_provider = true;
+		if (!ret) {
+			genpd->provider = &np->fwnode;
+			genpd->has_provider = true;
+		}
 	}
 
 	mutex_unlock(&gpd_list_lock);
