@@ -530,7 +530,7 @@ static int zip_clear_stats(struct seq_file *s, void *unused)
 	for (index = 0; index < MAX_ZIP_DEVICES; index++) {
 		if (zip_dev[index]) {
 			memset(&zip_dev[index]->stats, 0,
-			       sizeof(struct zip_state));
+			       sizeof(struct zip_stats));
 			seq_printf(s, "Cleared stats for zip %d\n", index);
 		}
 	}
