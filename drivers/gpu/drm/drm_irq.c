@@ -325,6 +325,8 @@ static void vblank_disable_and_save(struct drm_device *dev, unsigned int pipe)
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	unsigned long irqflags;
 
+	assert_spin_locked(&dev->vbl_lock);
+
 	/* Prevent vblank irq processing while disabling vblank irqs,
 	 * so no updates of timestamps or count can happen after we've
 	 * disabled. Needed to prevent races in case of delayed irq's.
@@ -336,10 +338,8 @@ static void vblank_disable_and_save(struct drm_device *dev, unsigned int pipe)
 	 * calling the ->disable_vblank() operation in atomic context with the
 	 * hardware potentially runtime suspended.
 	 */
-	if (vblank->enabled) {
+	if (cmpxchg_relaxed(&vblank->enabled, true, false))
 		__disable_vblank(dev, pipe);
-		vblank->enabled = false;
-	}
 
 	/*
 	 * Always update the count and timestamp to maintain the
@@ -384,7 +384,7 @@ void drm_vblank_cleanup(struct drm_device *dev)
 	for (pipe = 0; pipe < dev->num_crtcs; pipe++) {
 		struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 
-		WARN_ON(vblank->enabled &&
+		WARN_ON(READ_ONCE(vblank->enabled) &&
 			drm_core_check_feature(dev, DRIVER_MODESET));
 
 		del_timer_sync(&vblank->disable_timer);
@@ -1097,11 +1097,16 @@ static int drm_vblank_enable(struct drm_device *dev, unsigned int pipe)
 		 */
 		ret = __enable_vblank(dev, pipe);
 		DRM_DEBUG("enabling vblank on crtc %u, ret: %d\n", pipe, ret);
-		if (ret)
+		if (ret) {
 			atomic_dec(&vblank->refcount);
-		else {
-			vblank->enabled = true;
+		} else {
 			drm_update_vblank_count(dev, pipe, 0);
+			/* drm_update_vblank_count() includes a wmb so we just
+			 * need to ensure that the compiler emits the write
+			 * to mark the vblank as enabled after the call
+			 * to drm_update_vblank_count().
+			 */
+			WRITE_ONCE(vblank->enabled, true);
 		}
 	}
 
@@ -1509,7 +1514,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 	 * vblank disable, so no need for further locking.  The reference from
 	 * drm_vblank_get() protects against vblank disable from another source.
 	 */
-	if (!vblank->enabled) {
+	if (!READ_ONCE(vblank->enabled)) {
 		ret = -EINVAL;
 		goto err_unlock;
 	}
@@ -1636,7 +1641,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		DRM_WAIT_ON(ret, vblank->queue, 3 * HZ,
 			    (((drm_vblank_count(dev, pipe) -
 			       vblwait->request.sequence) <= (1 << 23)) ||
-			     !vblank->enabled ||
+			     !READ_ONCE(vblank->enabled) ||
 			     !dev->irq_enabled));
 	}
 
