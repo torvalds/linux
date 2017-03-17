@@ -188,6 +188,83 @@ static ssize_t vfio_ccw_mdev_write(struct mdev_device *mdev,
 	return count;
 }
 
+static int vfio_ccw_mdev_get_device_info(struct vfio_device_info *info)
+{
+	info->flags = VFIO_DEVICE_FLAGS_CCW;
+	info->num_regions = VFIO_CCW_NUM_REGIONS;
+	info->num_irqs = 0;
+
+	return 0;
+}
+
+static int vfio_ccw_mdev_get_region_info(struct vfio_region_info *info,
+					 u16 *cap_type_id,
+					 void **cap_type)
+{
+	switch (info->index) {
+	case VFIO_CCW_CONFIG_REGION_INDEX:
+		info->offset = 0;
+		info->size = sizeof(struct ccw_io_region);
+		info->flags = VFIO_REGION_INFO_FLAG_READ
+			      | VFIO_REGION_INFO_FLAG_WRITE;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+static ssize_t vfio_ccw_mdev_ioctl(struct mdev_device *mdev,
+				   unsigned int cmd,
+				   unsigned long arg)
+{
+	int ret = 0;
+	unsigned long minsz;
+
+	switch (cmd) {
+	case VFIO_DEVICE_GET_INFO:
+	{
+		struct vfio_device_info info;
+
+		minsz = offsetofend(struct vfio_device_info, num_irqs);
+
+		if (copy_from_user(&info, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (info.argsz < minsz)
+			return -EINVAL;
+
+		ret = vfio_ccw_mdev_get_device_info(&info);
+		if (ret)
+			return ret;
+
+		return copy_to_user((void __user *)arg, &info, minsz);
+	}
+	case VFIO_DEVICE_GET_REGION_INFO:
+	{
+		struct vfio_region_info info;
+		u16 cap_type_id = 0;
+		void *cap_type = NULL;
+
+		minsz = offsetofend(struct vfio_region_info, offset);
+
+		if (copy_from_user(&info, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (info.argsz < minsz)
+			return -EINVAL;
+
+		ret = vfio_ccw_mdev_get_region_info(&info, &cap_type_id,
+						    &cap_type);
+		if (ret)
+			return ret;
+
+		return copy_to_user((void __user *)arg, &info, minsz);
+	}
+	default:
+		return -ENOTTY;
+	}
+}
+
 static const struct mdev_parent_ops vfio_ccw_mdev_ops = {
 	.owner			= THIS_MODULE,
 	.supported_type_groups  = mdev_type_groups,
@@ -197,6 +274,7 @@ static const struct mdev_parent_ops vfio_ccw_mdev_ops = {
 	.release		= vfio_ccw_mdev_release,
 	.read			= vfio_ccw_mdev_read,
 	.write			= vfio_ccw_mdev_write,
+	.ioctl			= vfio_ccw_mdev_ioctl,
 };
 
 int vfio_ccw_mdev_reg(struct subchannel *sch)
