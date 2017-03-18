@@ -26,7 +26,9 @@
 #define FT010_IRQ_SOURCE(base_addr)	(base_addr + 0x00)
 #define FT010_IRQ_MASK(base_addr)	(base_addr + 0x04)
 #define FT010_IRQ_CLEAR(base_addr)	(base_addr + 0x08)
+/* Selects level- or edge-triggered */
 #define FT010_IRQ_MODE(base_addr)	(base_addr + 0x0C)
+/* Selects active low/high or falling/rising edge */
 #define FT010_IRQ_POLARITY(base_addr)	(base_addr + 0x10)
 #define FT010_IRQ_STATUS(base_addr)	(base_addr + 0x14)
 #define FT010_FIQ_SOURCE(base_addr)	(base_addr + 0x20)
@@ -84,22 +86,25 @@ static int ft010_irq_set_type(struct irq_data *d, unsigned int trigger)
 	mode = readl(FT010_IRQ_MODE(f->base));
 	polarity = readl(FT010_IRQ_POLARITY(f->base));
 
-	if (trigger & (IRQ_TYPE_LEVEL_HIGH)) {
+	if (trigger & (IRQ_TYPE_LEVEL_LOW)) {
 		irq_set_handler_locked(d, handle_level_irq);
-		/* Disable edge detection */
+		mode &= ~BIT(offset);
+		polarity |= BIT(offset);
+	} else if (trigger & (IRQ_TYPE_LEVEL_HIGH)) {
+		irq_set_handler_locked(d, handle_level_irq);
 		mode &= ~BIT(offset);
 		polarity &= ~BIT(offset);
-	} else if (trigger & IRQ_TYPE_EDGE_RISING) {
+	} else if (trigger & IRQ_TYPE_EDGE_FALLING) {
 		irq_set_handler_locked(d, handle_edge_irq);
 		mode |= BIT(offset);
 		polarity |= BIT(offset);
-	} else if (trigger & IRQ_TYPE_EDGE_FALLING) {
+	} else if (trigger & IRQ_TYPE_EDGE_RISING) {
 		irq_set_handler_locked(d, handle_edge_irq);
 		mode |= BIT(offset);
 		polarity &= ~BIT(offset);
 	} else {
 		irq_set_handler_locked(d, handle_bad_irq);
-		pr_warn("GEMINI IRQ: no supported trigger selected for line %d\n",
+		pr_warn("Faraday IRQ: no supported trigger selected for line %d\n",
 			offset);
 	}
 
