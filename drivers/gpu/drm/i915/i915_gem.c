@@ -3307,8 +3307,11 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	 * system agents we cannot reproduce this behaviour).
 	 */
 	wmb();
-	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv))
-		POSTING_READ(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
+	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv)) {
+		spin_lock_irq(&dev_priv->uncore.lock);
+		POSTING_READ_FW(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
+		spin_unlock_irq(&dev_priv->uncore.lock);
+	}
 
 	intel_fb_obj_flush(obj, write_origin(obj, I915_GEM_DOMAIN_GTT));
 
