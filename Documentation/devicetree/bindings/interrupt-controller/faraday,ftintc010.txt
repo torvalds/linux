@@ -1,9 +1,12 @@
-* Cortina Systems Gemini interrupt controller
+* Faraday Technologt FTINTC010 interrupt controller
 
-This interrupt controller is found on the Gemini SoCs.
+This interrupt controller is a stock IP block from Faraday Technology found
+in the Gemini SoCs and other designs.
 
 Required properties:
-- compatible: must be "cortina,gemini-interrupt-controller"
+- compatible: must be one of
+  "faraday,ftintc010"
+  "cortina,gemini-interrupt-controller" (deprecated)
 - reg: The register bank for the interrupt controller.
 - interrupt-controller: Identifies the node as an interrupt controller
 - #interrupt-cells: The number of cells to define the interrupts.
@@ -15,7 +18,7 @@ Required properties:
 Example:
 
 interrupt-controller@48000000 {
-	compatible = "cortina,gemini-interrupt-controller";
+	compatible = "faraday,ftintc010"
 	reg = <0x48000000 0x1000>;
 	interrupt-controller;
 	#interrupt-cells = <2>;
