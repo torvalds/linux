@@ -706,7 +706,7 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 			 SCM_TIMESTAMPING, sizeof(tss), &tss);
 
 		if (skb_is_err_queue(skb) && skb->len &&
-		    (sk->sk_tsflags & SOF_TIMESTAMPING_OPT_STATS))
+		    SKB_EXT_ERR(skb)->opt_stats)
 			put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMPING_OPT_STATS,
 				 skb->len, skb->data);
 	}
