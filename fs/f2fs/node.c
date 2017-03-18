@@ -63,8 +63,9 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 		int i;
 
 		for (i = 0; i <= UPDATE_INO; i++)
-			mem_size += (sbi->im[i].ino_num *
-				sizeof(struct ino_entry)) >> PAGE_SHIFT;
+			mem_size += sbi->im[i].ino_num *
+						sizeof(struct ino_entry);
+		mem_size >>= PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
 	} else if (type == EXTENT_CACHE) {
 		mem_size = (atomic_read(&sbi->total_ext_tree) *
