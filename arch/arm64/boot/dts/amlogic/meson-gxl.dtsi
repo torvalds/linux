@@ -118,6 +118,20 @@
 			};
 		};
 
+		pwm_ao_a_3_pins: pwm_ao_a_3 {
+			mux {
+				groups = "pwm_ao_a_3";
+				function = "pwm_ao_a";
+			};
+		};
+
+		pwm_ao_a_8_pins: pwm_ao_a_8 {
+			mux {
+				groups = "pwm_ao_a_8";
+				function = "pwm_ao_a";
+			};
+		};
+
 		pwm_ao_b_pins: pwm_ao_b {
 			mux {
 				groups = "pwm_ao_b";
@@ -277,10 +291,52 @@
 			};
 		};
 
+		pwm_a_pins: pwm_a {
+			mux {
+				groups = "pwm_a";
+				function = "pwm_a";
+			};
+		};
+
+		pwm_b_pins: pwm_b {
+			mux {
+				groups = "pwm_b";
+				function = "pwm_b";
+			};
+		};
+
+		pwm_c_pins: pwm_c {
+			mux {
+				groups = "pwm_c";
+				function = "pwm_c";
+			};
+		};
+
+		pwm_d_pins: pwm_d {
+			mux {
+				groups = "pwm_d";
+				function = "pwm_d";
+			};
+		};
+
 		pwm_e_pins: pwm_e {
 			mux {
 				groups = "pwm_e";
 				function = "pwm_e";
+			};
+		};
+
+		pwm_f_clk_pins: pwm_f_clk {
+			mux {
+				groups = "pwm_f_clk";
+				function = "pwm_f";
+			};
+		};
+
+		pwm_f_x_pins: pwm_f_x {
+			mux {
+				groups = "pwm_f_x";
+				function = "pwm_f";
 			};
 		};
 
