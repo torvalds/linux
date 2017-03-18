@@ -129,7 +129,7 @@ static int mt2701_cs42448_fe_ops_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_soc_ops mt2701_cs42448_48k_fe_ops = {
+static const struct snd_soc_ops mt2701_cs42448_48k_fe_ops = {
 	.startup = mt2701_cs42448_fe_ops_startup,
 };
 
