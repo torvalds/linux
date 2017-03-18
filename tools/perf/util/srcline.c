@@ -429,7 +429,7 @@ out:
 #define A2L_FAIL_LIMIT 123
 
 char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym, bool unwind_inlines)
+		  bool show_sym, bool show_addr, bool unwind_inlines)
 {
 	char *file = NULL;
 	unsigned line = 0;
@@ -463,6 +463,11 @@ out:
 		dso->has_srcline = 0;
 		dso__free_a2l(dso);
 	}
+
+	if (!show_addr)
+		return (show_sym && sym) ?
+			    strndup(sym->name, sym->namelen) : NULL;
+
 	if (sym) {
 		if (asprintf(&srcline, "%s+%" PRIu64, show_sym ? sym->name : "",
 					addr - sym->start) < 0)
@@ -479,9 +484,9 @@ void free_srcline(char *srcline)
 }
 
 char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym)
+		  bool show_sym, bool show_addr)
 {
-	return __get_srcline(dso, addr, sym, show_sym, false);
+	return __get_srcline(dso, addr, sym, show_sym, show_addr, false);
 }
 
 struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr)

@@ -1674,7 +1674,8 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 			goto next;
 
 		offset = start + i;
-		src_line->path = get_srcline(map->dso, offset, NULL, false);
+		src_line->path = get_srcline(map->dso, offset, NULL,
+					     false, true);
 		insert_source_line(&tmp_root, src_line);
 
 	next:

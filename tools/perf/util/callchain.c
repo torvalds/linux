@@ -80,6 +80,10 @@ static int parse_callchain_sort_key(const char *value)
 		callchain_param.key = CCKEY_ADDRESS;
 		return 0;
 	}
+	if (!strncmp(value, "srcline", strlen(value))) {
+		callchain_param.key = CCKEY_SRCLINE;
+		return 0;
+	}
 	if (!strncmp(value, "branch", strlen(value))) {
 		callchain_param.branch_callstack = 1;
 		return 0;
@@ -510,14 +514,51 @@ enum match_result {
 	MATCH_GT,
 };
 
+static enum match_result match_chain_srcline(struct callchain_cursor_node *node,
+					     struct callchain_list *cnode)
+{
+	char *left = get_srcline(cnode->ms.map->dso,
+				 map__rip_2objdump(cnode->ms.map, cnode->ip),
+				 cnode->ms.sym, true, false);
+	char *right = get_srcline(node->map->dso,
+				  map__rip_2objdump(node->map, node->ip),
+				  node->sym, true, false);
+	enum match_result ret = MATCH_EQ;
+	int cmp;
+
+	if (left && right)
+		cmp = strcmp(left, right);
+	else if (!left && right)
+		cmp = 1;
+	else if (left && !right)
+		cmp = -1;
+	else if (cnode->ip == node->ip)
+		cmp = 0;
+	else
+		cmp = (cnode->ip < node->ip) ? -1 : 1;
+
+	if (cmp != 0)
+		ret = cmp < 0 ? MATCH_LT : MATCH_GT;
+
+	free_srcline(left);
+	free_srcline(right);
+	return ret;
+}
+
 static enum match_result match_chain(struct callchain_cursor_node *node,
 				     struct callchain_list *cnode)
 {
 	struct symbol *sym = node->sym;
 	u64 left, right;
 
-	if (cnode->ms.sym && sym &&
-	    callchain_param.key == CCKEY_FUNCTION) {
+	if (callchain_param.key == CCKEY_SRCLINE) {
+		enum match_result match = match_chain_srcline(node, cnode);
+
+		if (match != MATCH_ERROR)
+			return match;
+	}
+
+	if (cnode->ms.sym && sym && callchain_param.key == CCKEY_FUNCTION) {
 		left = cnode->ms.sym->start;
 		right = sym->start;
 	} else {
@@ -911,15 +952,16 @@ out:
 char *callchain_list__sym_name(struct callchain_list *cl,
 			       char *bf, size_t bfsize, bool show_dso)
 {
+	bool show_addr = callchain_param.key == CCKEY_ADDRESS;
+	bool show_srcline = show_addr || callchain_param.key == CCKEY_SRCLINE;
 	int printed;
 
 	if (cl->ms.sym) {
-		if (callchain_param.key == CCKEY_ADDRESS &&
-		    cl->ms.map && !cl->srcline)
+		if (show_srcline && cl->ms.map && !cl->srcline)
 			cl->srcline = get_srcline(cl->ms.map->dso,
 						  map__rip_2objdump(cl->ms.map,
 								    cl->ip),
-						  cl->ms.sym, false);
+						  cl->ms.sym, false, show_addr);
 		if (cl->srcline)
 			printed = scnprintf(bf, bfsize, "%s %s",
 					cl->ms.sym->name, cl->srcline);

@@ -851,7 +851,8 @@ static int hist_browser__show_inline(struct hist_browser *browser,
 			if (ui_browser__is_current_entry(&browser->b, row))
 				color = HE_COLORSET_SELECTED;
 
-			if (callchain_param.key == CCKEY_ADDRESS) {
+			if (callchain_param.key == CCKEY_ADDRESS ||
+			    callchain_param.key == CCKEY_SRCLINE) {
 				if (ilist->filename != NULL)
 					scnprintf(buf, sizeof(buf),
 						  "%s:%d (inline)",

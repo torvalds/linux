@@ -52,7 +52,8 @@ static size_t inline__fprintf(struct map *map, u64 ip, int left_margin,
 				ret += fprintf(fp, "          ");
 			}
 
-			if (callchain_param.key == CCKEY_ADDRESS) {
+			if (callchain_param.key == CCKEY_ADDRESS ||
+			    callchain_param.key == CCKEY_SRCLINE) {
 				if (ilist->filename != NULL)
 					ret += fprintf(fp, "%s:%d (inline)",
 						       ilist->filename,

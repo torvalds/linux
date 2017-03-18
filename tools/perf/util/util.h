@@ -287,9 +287,9 @@ struct symbol;
 
 extern bool srcline_full_filename;
 char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym);
+		  bool show_sym, bool show_addr);
 char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym, bool unwind_inlines);
+		  bool show_sym, bool show_addr, bool unwind_inlines);
 void free_srcline(char *srcline);
 
 int perf_event_paranoid(void);

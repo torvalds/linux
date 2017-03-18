@@ -235,6 +235,7 @@ OPTIONS
 	sort_key can be:
 	- function: compare on functions (default)
 	- address: compare on individual code addresses
+	- srcline: compare on source filename and line number
 
 	branch can be:
 	- branch: include last branch information in callgraph when available.
