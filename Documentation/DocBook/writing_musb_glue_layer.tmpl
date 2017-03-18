@@ -72,7 +72,7 @@
     <para>
       As a self-taught exercise I have written an MUSB glue layer for
       the Ingenic JZ4740 SoC, modelled after the many MUSB glue layers
-      in the kernel source tree. This layer can be found at
+      in the kernel source tree. This layer can be found in
       drivers/usb/musb/jz4740.c. In this documentation I will walk
       through the basics of the jz4740.c glue layer, explaining the
       different pieces and what needs to be done in order to write your
@@ -128,9 +128,9 @@
     </para>
     <para>
       Just like a Linux USB driver needs to register itself with the
-      Linux USB subsystem, the MUSB glue layer needs first to register
-      itself with the MUSB controller driver. This will allow the
-      controller driver to know about which device the glue layer
+      Linux USB subsystem, the MUSB glue layer needs to register
+      itself first with the MUSB controller driver. This will allow the
+      controller driver to know about the device the glue layer
       supports and which functions to call when a supported device is
       detected or released; remember we are talking about an embedded
       controller chip here, so no insertion or removal at run-time.
@@ -184,7 +184,7 @@ struct jz4740_glue {
       glue layer to register itself to the controller driver.
     </para>
     <para>
-      N.B.: For the sake of readability each function will be split in
+      N.B.: For the sake of readability, each function will be split in
       logical parts, each part being shown as if it was independent from
       the others.
     </para>
@@ -458,7 +458,7 @@ static irqreturn_t jz4740_musb_interrupt(int irq, void *__hci)
     </para>
     <para>
       The interrupt handler critical section is protected by the
-      spin_lock_irqsave() and counterpart spin_unlock_irqrestore()
+      spin_lock_irqsave() and its counterpart spin_unlock_irqrestore()
       functions (line 7 and 24 respectively), which prevent the
       interrupt handler code to be run by two different threads at the
       same time.
@@ -834,7 +834,7 @@ static irqreturn_t jz4740_musb_interrupt(int irq, void *__hci)
     <para>
       Many thanks to Lars-Peter Clausen and Maarten ter Huurne for
       answering my questions while I was writing the JZ4740 glue layer
-      and for helping me out getting the code in good shape.
+      and for helping me get the code in good shape.
     </para>
     <para>
       I would also like to thank the Qi-Hardware community at large for
