@@ -156,7 +156,11 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 	if (si->base_mem)
 		goto get_cache;
 
-	si->base_mem = sizeof(struct f2fs_sb_info) + sbi->sb->s_blocksize;
+	/* build stat */
+	si->base_mem = sizeof(struct f2fs_stat_info);
+
+	/* build superblock */
+	si->base_mem += sizeof(struct f2fs_sb_info) + sbi->sb->s_blocksize;
 	si->base_mem += 2 * sizeof(struct f2fs_inode_info);
 	si->base_mem += sizeof(*sbi->ckpt);
 	si->base_mem += sizeof(struct percpu_counter) * NR_COUNT_TYPE;
