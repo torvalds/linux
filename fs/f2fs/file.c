@@ -1533,17 +1533,21 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 
 	if (!get_dirty_pages(inode))
-		goto out;
+		goto inc_stat;
 
 	f2fs_msg(F2FS_I_SB(inode)->sb, KERN_WARNING,
 		"Unexpected flush for atomic writes: ino=%lu, npages=%u",
 					inode->i_ino, get_dirty_pages(inode));
 	ret = filemap_write_and_wait_range(inode->i_mapping, 0, LLONG_MAX);
-	if (ret)
+	if (ret) {
 		clear_inode_flag(inode, FI_ATOMIC_FILE);
-out:
+		goto out;
+	}
+
+inc_stat:
 	stat_inc_atomic_write(inode);
 	stat_update_max_atomic_write(inode);
+out:
 	inode_unlock(inode);
 	mnt_drop_write_file(filp);
 	return ret;
