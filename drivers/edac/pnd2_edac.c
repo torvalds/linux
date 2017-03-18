@@ -1435,7 +1435,11 @@ static void teardown_pnd2_debug(void)
 {
 	debugfs_remove_recursive(pnd2_test);
 }
-#endif
+#else
+static void setup_pnd2_debug(void)	{}
+static void teardown_pnd2_debug(void)	{}
+#endif /* CONFIG_EDAC_DEBUG */
+
 
 static int pnd2_probe(void)
 {
