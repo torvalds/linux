@@ -56,7 +56,7 @@ static int wait_startup(struct tpm_chip *chip, int l)
 	return -1;
 }
 
-static int check_locality(struct tpm_chip *chip, int l)
+static bool check_locality(struct tpm_chip *chip, int l)
 {
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	int rc;
@@ -64,13 +64,15 @@ static int check_locality(struct tpm_chip *chip, int l)
 
 	rc = tpm_tis_read8(priv, TPM_ACCESS(l), &access);
 	if (rc < 0)
-		return rc;
+		return false;
 
 	if ((access & (TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID)) ==
-	    (TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID))
-		return priv->locality = l;
+	    (TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID)) {
+		priv->locality = l;
+		return true;
+	}
 
-	return -1;
+	return false;
 }
 
 static void release_locality(struct tpm_chip *chip, int l, int force)
@@ -96,7 +98,7 @@ static int request_locality(struct tpm_chip *chip, int l)
 	unsigned long stop, timeout;
 	long rc;
 
-	if (check_locality(chip, l) >= 0)
+	if (check_locality(chip, l))
 		return l;
 
 	rc = tpm_tis_write8(priv, TPM_ACCESS(l), TPM_ACCESS_REQUEST_USE);
@@ -112,7 +114,7 @@ again:
 			return -1;
 		rc = wait_event_interruptible_timeout(priv->int_queue,
 						      (check_locality
-						       (chip, l) >= 0),
+						       (chip, l)),
 						      timeout);
 		if (rc > 0)
 			return l;
@@ -123,7 +125,7 @@ again:
 	} else {
 		/* wait for burstcount */
 		do {
-			if (check_locality(chip, l) >= 0)
+			if (check_locality(chip, l))
 				return l;
 			msleep(TPM_TIMEOUT);
 		} while (time_before(jiffies, stop));
@@ -535,7 +537,7 @@ static irqreturn_t tis_int_handler(int dummy, void *dev_id)
 		wake_up_interruptible(&priv->read_queue);
 	if (interrupt & TPM_INTF_LOCALITY_CHANGE_INT)
 		for (i = 0; i < 5; i++)
-			if (check_locality(chip, i) >= 0)
+			if (check_locality(chip, i))
 				break;
 	if (interrupt &
 	    (TPM_INTF_LOCALITY_CHANGE_INT | TPM_INTF_STS_VALID_INT |
