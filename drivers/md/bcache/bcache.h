@@ -179,6 +179,7 @@
 #define pr_fmt(fmt) "bcache: %s() " fmt, __func__
 
 #include <linux/bio.h>
+#include <linux/closure.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -192,7 +193,6 @@
 #include "bcache_ondisk.h"
 #include "bset.h"
 #include "util.h"
-#include "closure.h"
 
 struct bucket {
 	atomic_t	pin;
