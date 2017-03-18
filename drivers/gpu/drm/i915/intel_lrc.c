@@ -1575,6 +1575,7 @@ static void execlists_set_default_submission(struct intel_engine_cs *engine)
 {
 	engine->submit_request = execlists_submit_request;
 	engine->schedule = execlists_schedule;
+	engine->irq_tasklet.func = intel_lrc_irq_handler;
 }
 
 static void
