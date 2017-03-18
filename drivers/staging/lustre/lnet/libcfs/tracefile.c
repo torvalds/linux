@@ -37,6 +37,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 #define LUSTRE_TRACEFILE_PRIVATE
+#define pr_fmt(fmt) "Lustre: " fmt
 #include "tracefile.h"
 
 #include "../../include/linux/libcfs/libcfs.h"
@@ -892,7 +893,7 @@ int cfs_trace_daemon_command(char *str)
 	} else {
 		strcpy(cfs_tracefile, str);
 
-		pr_info("Lustre: debug daemon will attempt to start writing to %s (%lukB max)\n",
+		pr_info("debug daemon will attempt to start writing to %s (%lukB max)\n",
 			cfs_tracefile,
 			(long)(cfs_tracefile_size >> 10));
 
@@ -930,13 +931,13 @@ int cfs_trace_set_debug_mb(int mb)
 	struct cfs_trace_cpu_data *tcd;
 
 	if (mb < num_possible_cpus()) {
-		pr_warn("Lustre: %d MB is too small for debug buffer size, setting it to %d MB.\n",
+		pr_warn("%d MB is too small for debug buffer size, setting it to %d MB.\n",
 			mb, num_possible_cpus());
 		mb = num_possible_cpus();
 	}
 
 	if (mb > limit) {
-		pr_warn("Lustre: %d MB is too large for debug buffer size, setting it to %d MB.\n",
+		pr_warn("%d MB is too large for debug buffer size, setting it to %d MB.\n",
 			mb, limit);
 		mb = limit;
 	}
@@ -1048,7 +1049,7 @@ static int tracefiled(void *arg)
 		if (!list_empty(&pc.pc_pages)) {
 			int i;
 
-			pr_alert("Lustre: trace pages aren't empty\n");
+			pr_alert("trace pages aren't empty\n");
 			pr_err("total cpus(%d): ", num_possible_cpus());
 			for (i = 0; i < num_possible_cpus(); i++)
 				if (cpu_online(i))
@@ -1118,7 +1119,7 @@ void cfs_trace_stop_thread(void)
 
 	mutex_lock(&cfs_trace_thread_mutex);
 	if (thread_running) {
-		pr_info("Lustre: shutting down debug daemon thread...\n");
+		pr_info("shutting down debug daemon thread...\n");
 		atomic_set(&tctl->tctl_shutdown, 1);
 		wait_for_completion(&tctl->tctl_stop);
 		thread_running = 0;
