@@ -3490,6 +3490,6 @@ static struct platform_driver vchiq_driver = {
 };
 module_platform_driver(vchiq_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Videocore VCHIQ driver");
 MODULE_AUTHOR("Broadcom Corporation");
