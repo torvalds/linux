@@ -331,3 +331,6 @@ Version History
 	'D' on the status line.  If '- -' is passed into the constructor, emit
 	'- -' on the table line and '-' as the status line health character.
 1.10.0  Add support for raid4/5/6 journal device
+1.10.1  Fix data corruption on reshape request
+1.11.0  Fix table line argument order
+	(wrong raid10_copies/raid10_format sequence)
