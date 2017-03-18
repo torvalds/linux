@@ -142,7 +142,8 @@
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
 		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
-		status = "disabled";
+		dma-coherent;
+		status = "okay";
 	};
 
 	hdmi: hdmi@ff980000 {
