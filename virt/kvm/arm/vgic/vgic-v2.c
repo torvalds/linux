@@ -36,6 +36,21 @@ static unsigned long *u64_to_bitmask(u64 *val)
 	return (unsigned long *)val;
 }
 
+static inline void vgic_v2_write_lr(int lr, u32 val)
+{
+	void __iomem *base = kvm_vgic_global_state.vctrl_base;
+
+	writel_relaxed(val, base + GICH_LR0 + (lr * 4));
+}
+
+void vgic_v2_init_lrs(void)
+{
+	int i;
+
+	for (i = 0; i < kvm_vgic_global_state.nr_lr; i++)
+		vgic_v2_write_lr(i, 0);
+}
+
 void vgic_v2_process_maintenance(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v2_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v2;
