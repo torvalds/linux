@@ -84,8 +84,8 @@ static irqreturn_t input_handler(int rq, void *dev_id)
 				input_report_key(dev, event->key.keycode,
 						 event->key.pressed);
 			else
-				pr_warning("unhandled keycode 0x%x\n",
-					   event->key.keycode);
+				pr_warn("unhandled keycode 0x%x\n",
+					event->key.keycode);
 			break;
 		case XENKBD_TYPE_POS:
 			input_report_abs(dev, ABS_X, event->pos.abs_x);
@@ -133,7 +133,7 @@ static int xenkbd_probe(struct xenbus_device *dev,
 		ret = xenbus_write(XBT_NIL, dev->nodename,
 				   "request-abs-pointer", "1");
 		if (ret) {
-			pr_warning("xenkbd: can't request abs-pointer");
+			pr_warn("xenkbd: can't request abs-pointer\n");
 			abs = 0;
 		}
 	}
@@ -327,7 +327,7 @@ InitWait:
 			ret = xenbus_write(XBT_NIL, info->xbdev->nodename,
 					   "request-abs-pointer", "1");
 			if (ret)
-				pr_warning("xenkbd: can't request abs-pointer");
+				pr_warn("xenkbd: can't request abs-pointer\n");
 		}
 
 		xenbus_switch_state(dev, XenbusStateConnected);
