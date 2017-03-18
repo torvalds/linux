@@ -876,7 +876,7 @@ static bool alua_rtpg_queue(struct alua_port_group *pg,
 	unsigned long flags;
 	struct workqueue_struct *alua_wq = kaluad_wq;
 
-	if (!pg || scsi_device_get(sdev))
+	if (WARN_ON_ONCE(!pg) || scsi_device_get(sdev))
 		return false;
 
 	spin_lock_irqsave(&pg->lock, flags);
