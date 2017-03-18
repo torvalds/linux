@@ -753,6 +753,8 @@ struct sctp_transport {
 		/* Is the Path MTU update pending on this tranport */
 		pmtu_pending:1,
 
+		dst_pending_confirm:1,	/* need to confirm neighbour */
+
 		/* Has this transport moved the ctsn since we last sacked */
 		sack_generation:1;
 	u32 dst_cookie;
@@ -805,8 +807,6 @@ struct sctp_transport {
 	__u32 flight_size;
 
 	__u32 burst_limited;	/* Holds old cwnd when max.burst is applied */
-
-	__u32 dst_pending_confirm;	/* need to confirm neighbour */
 
 	/* Destination */
 	struct dst_entry *dst;
