@@ -321,8 +321,6 @@ static const struct snd_soc_dapm_widget sun8i_codec_dapm_widgets[] = {
 			    SUN8I_MOD_RST_CTL_AIF1, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("RST DAC", SUN8I_MOD_RST_CTL,
 			    SUN8I_MOD_RST_CTL_DAC, 0, NULL, 0),
-
-	SND_SOC_DAPM_OUTPUT("HP"),
 };
 
 static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
@@ -344,10 +342,6 @@ static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 	/* DAC Mixer Routes */
 	{ "Left DAC Mixer", "LSlot 0", "Digital Left DAC"},
 	{ "Right DAC Mixer", "RSlot 0", "Digital Right DAC"},
-
-	/* End of route : HP out */
-	{ "HP", NULL, "Left DAC Mixer" },
-	{ "HP", NULL, "Right DAC Mixer" },
 };
 
 static struct snd_soc_dai_ops sun8i_codec_dai_ops = {
