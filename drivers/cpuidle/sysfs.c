@@ -615,6 +615,18 @@ int cpuidle_add_sysfs(struct cpuidle_device *dev)
 	struct device *cpu_dev = get_cpu_device((unsigned long)dev->cpu);
 	int error;
 
+	/*
+	 * Return if cpu_device is not setup for this cpu.
+	 * This could happen if arch did not setup cpu_device
+	 * since this cpu is not in cpu_present mask and
+	 * driver did not send correct cpu mask at registration.
+	 * Without this check we would end up passing bogus
+	 * value for &cpu_dev->kobj in kobject_init_and_add()
+	 */
+
+	if (!cpu_dev)
+		return -ENODEV;
+
 	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
 	if (!kdev)
 		return -ENOMEM;
