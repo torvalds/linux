@@ -43,6 +43,7 @@ config EDAC_LEGACY_SYSFS
 
 config EDAC_DEBUG
 	bool "Debugging"
+	select DEBUG_FS
 	help
 	  This turns on debugging information for the entire EDAC subsystem.
 	  You do so by inserting edac_module with "edac_debug_level=x." Valid
