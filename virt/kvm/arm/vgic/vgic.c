@@ -633,11 +633,13 @@ void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
-	vgic_fold_lr_state(vcpu);
-	vgic_prune_ap_list(vcpu);
+	/* An empty ap_list_head implies used_lrs == 0 */
+	if (list_empty(&vcpu->arch.vgic_cpu.ap_list_head))
+		return;
 
-	/* Make sure we can fast-path in flush_hwstate */
-	vgic_cpu->used_lrs = 0;
+	if (vgic_cpu->used_lrs)
+		vgic_fold_lr_state(vcpu);
+	vgic_prune_ap_list(vcpu);
 }
 
 /* Flush our emulation state into the GIC hardware before entering the guest. */

@@ -36,13 +36,14 @@ static bool lr_signals_eoi_mi(u64 lr_val)
 
 void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 {
-	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	struct vgic_v3_cpu_if *cpuif = &vgic_cpu->vgic_v3;
 	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	int lr;
 
 	cpuif->vgic_hcr &= ~ICH_HCR_UIE;
 
-	for (lr = 0; lr < vcpu->arch.vgic_cpu.used_lrs; lr++) {
+	for (lr = 0; lr < vgic_cpu->used_lrs; lr++) {
 		u64 val = cpuif->vgic_lr[lr];
 		u32 intid;
 		struct vgic_irq *irq;
@@ -92,6 +93,8 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 		spin_unlock(&irq->irq_lock);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
+
+	vgic_cpu->used_lrs = 0;
 }
 
 /* Requires the irq to be locked already */
