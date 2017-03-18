@@ -3694,6 +3694,15 @@ static void sock_rmem_free(struct sk_buff *skb)
 	atomic_sub(skb->truesize, &sk->sk_rmem_alloc);
 }
 
+static void skb_set_err_queue(struct sk_buff *skb)
+{
+	/* pkt_type of skbs received on local sockets is never PACKET_OUTGOING.
+	 * So, it is safe to (mis)use it to mark skbs on the error queue.
+	 */
+	skb->pkt_type = PACKET_OUTGOING;
+	BUILD_BUG_ON(PACKET_OUTGOING == 0);
+}
+
 /*
  * Note: We dont mem charge error packets (no sk_forward_alloc changes)
  */
@@ -3707,6 +3716,7 @@ int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb)
 	skb->sk = sk;
 	skb->destructor = sock_rmem_free;
 	atomic_add(skb->truesize, &sk->sk_rmem_alloc);
+	skb_set_err_queue(skb);
 
 	/* before exiting rcu section, make sure dst is refcounted */
 	skb_dst_force(skb);
