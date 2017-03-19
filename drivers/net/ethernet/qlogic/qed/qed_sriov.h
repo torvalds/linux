@@ -348,9 +348,9 @@ int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
  * @param p_hwfn
  * @param disabled_vfs - bitmask of all VFs on path that were FLRed
  *
- * @return 1 iff one of the PF's vfs got FLRed. 0 otherwise.
+ * @return true iff one of the PF's vfs got FLRed. false otherwise.
  */
-int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *disabled_vfs);
+bool qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *disabled_vfs);
 
 /**
  * @brief Search extended TLVs in request/reply buffer.
@@ -407,10 +407,10 @@ static inline int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
 	return -EINVAL;
 }
 
-static inline int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn,
-				      u32 *disabled_vfs)
+static inline bool qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn,
+				       u32 *disabled_vfs)
 {
-	return 0;
+	return false;
 }
 
 static inline void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first)
