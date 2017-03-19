@@ -745,7 +745,12 @@ static int __init nvme_loop_init_module(void)
 	ret = nvmet_register_transport(&nvme_loop_ops);
 	if (ret)
 		return ret;
-	return nvmf_register_transport(&nvme_loop_transport);
+
+	ret = nvmf_register_transport(&nvme_loop_transport);
+	if (ret)
+		nvmet_unregister_transport(&nvme_loop_ops);
+
+	return ret;
 }
 
 static void __exit nvme_loop_cleanup_module(void)
