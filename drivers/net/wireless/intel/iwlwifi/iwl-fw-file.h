@@ -244,6 +244,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  * @IWL_UCODE_TLV_API_TKIP_MIC_KEYS: This ucode supports version 2 of
  *	ADD_MODIFY_STA_KEY_API_S_VER_2.
  * @IWL_UCODE_TLV_API_STA_TYPE: This ucode supports station type assignement.
+ * @IWL_UCODE_TLV_API_NAN2_VER2: This ucode supports NAN API version 2
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
@@ -255,6 +256,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_SCAN_TSF_REPORT	= (__force iwl_ucode_tlv_api_t)28,
 	IWL_UCODE_TLV_API_TKIP_MIC_KEYS		= (__force iwl_ucode_tlv_api_t)29,
 	IWL_UCODE_TLV_API_STA_TYPE		= (__force iwl_ucode_tlv_api_t)30,
+	IWL_UCODE_TLV_API_NAN2_VER2		= (__force iwl_ucode_tlv_api_t)31,
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__
