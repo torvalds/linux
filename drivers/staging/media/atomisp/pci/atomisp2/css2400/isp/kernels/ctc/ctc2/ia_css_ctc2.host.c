@@ -44,7 +44,7 @@ static int ctc2_slope(int y1, int y0, int x1, int x0)
 	const int max_slope = (1 << IA_CSS_CTC_COEF_SHIFT) - 1;
 	int dy = y1 - y0;
 	int dx = x1 - x0;
-	int rounding = (dx+1) >> 1;
+	int rounding = (dx + 1) >> 1;
 	int dy_shift = dy << shift_val;
 	int slope, dydx;
 
@@ -126,14 +126,14 @@ void ia_css_ctc2_vmem_encode(struct ia_css_isp_ctc2_vmem_params *to,
 		to->y_y[0][(i << shffl_blck) + 4] = from->y_y4;
 
 		to->e_y_slope[0][(i << shffl_blck)]    = dydx0;
-		to->e_y_slope[0][(i << shffl_blck) +1] = dydx1;
-		to->e_y_slope[0][(i << shffl_blck) +2] = dydx2;
-		to->e_y_slope[0][(i << shffl_blck) +3] = dydx3;
-		to->e_y_slope[0][(i << shffl_blck) +4] = dydx4;
+		to->e_y_slope[0][(i << shffl_blck) + 1] = dydx1;
+		to->e_y_slope[0][(i << shffl_blck) + 2] = dydx2;
+		to->e_y_slope[0][(i << shffl_blck) + 3] = dydx3;
+		to->e_y_slope[0][(i << shffl_blck) + 4] = dydx4;
 
 		for (j = 0; j < lenght_zeros; j++) {
-			to->y_x[0][(i << shffl_blck)+ 5 + j] = 0;
-			to->y_y[0][(i << shffl_blck)+ 5 + j] = 0;
+			to->y_x[0][(i << shffl_blck) + 5 + j] = 0;
+			to->y_y[0][(i << shffl_blck) + 5 + j] = 0;
 			to->e_y_slope[0][(i << shffl_blck)+ 5 + j] = 0;
 		}
 	}

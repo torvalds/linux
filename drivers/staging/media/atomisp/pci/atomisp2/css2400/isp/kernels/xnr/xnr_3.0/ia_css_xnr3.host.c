@@ -22,7 +22,7 @@
 #include "ia_css_xnr3.host.h"
 
 /* Maximum value for alpha on ISP interface */
-#define XNR_MAX_ALPHA  ((1 << (ISP_VEC_ELEMBITS-1)) - 1)
+#define XNR_MAX_ALPHA  ((1 << (ISP_VEC_ELEMBITS - 1)) - 1)
 
 /* Minimum value for sigma on host interface. Lower values translate to
  * max_alpha. */
@@ -78,7 +78,7 @@ compute_alpha(int sigma)
 #if defined(XNR_ATE_ROUNDING_BUG)
 	int32_t alpha_unscaled;
 #else
-	int offset = sigma/2;
+	int offset = sigma / 2;
 #endif
 	if (sigma < XNR_MIN_SIGMA) {
 		alpha = XNR_MAX_ALPHA;
@@ -230,7 +230,7 @@ ia_css_xnr3_vmem_encode(
 
 	for (j = 1; j < XNR3_LOOK_UP_TABLE_POINTS; j++) {
 		assert(x[j] >= 0);
-		assert(x[j] > x[j-1]);
+		assert(x[j] > x[j - 1]);
 
 	}
 
