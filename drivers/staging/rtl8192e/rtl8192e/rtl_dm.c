@@ -11,7 +11,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ *****************************************************************************/
 #include "rtl_core.h"
 #include "rtl_dm.h"
 #include "r8192E_hw.h"
@@ -1333,7 +1333,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi(struct net_device *dev)
  *	When		Who		Remark
  *	03/04/2009	hpfan	Create Version 0.
  *
- *---------------------------------------------------------------------------*/
+ ******************************************************************************/
 
 static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 {

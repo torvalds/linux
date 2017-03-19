@@ -619,7 +619,8 @@ struct ieee_ibss_seq {
 
 /* NOTE: This data is for statistical purposes; not all hardware provides this
  *       information for frames received.  Not setting these will not cause
- *       any adverse affects. */
+ *       any adverse affects.
+ */
 struct rtllib_rx_stats {
 	u64 mac_time;
 	s8  rssi;
@@ -1138,7 +1139,8 @@ enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 
 #define	ETHER_ADDR_LEN		6	/* length of an Ethernet address */
 #define ETHERNET_HEADER_SIZE    14      /* length of two Ethernet address
-					 * plus ether type*/
+					 * plus ether type
+					 */
 
 enum erp_t {
 	ERP_NonERPpresent	= 0x01,
