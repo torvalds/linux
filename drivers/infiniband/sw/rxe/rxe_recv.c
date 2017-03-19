@@ -419,4 +419,3 @@ drop:
 	kfree_skb(skb);
 	return 0;
 }
-EXPORT_SYMBOL(rxe_rcv);
