@@ -627,8 +627,6 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 		if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366) {
 			clk_prepare_enable(clk->cif_clk_out);
 			clk_prepare_enable(clk->pclk_dphyrx);
-			if (CHIP_TYPE == 3368)
-				clk_prepare_enable(clk->clk_vio0_noc);
 		} else {
 			clk_prepare_enable(clk->clk_mipi_24m);
 		}
@@ -648,8 +646,6 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 		if (CHIP_TYPE == 3368 || CHIP_TYPE == 3366) {
 			clk_disable_unprepare(clk->cif_clk_out);
 			clk_disable_unprepare(clk->pclk_dphyrx);
-			if (CHIP_TYPE == 3368)
-				clk_disable_unprepare(clk->clk_vio0_noc);
 		} else {
 			clk_disable_unprepare(clk->clk_mipi_24m);
 		}

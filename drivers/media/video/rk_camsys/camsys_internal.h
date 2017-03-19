@@ -151,8 +151,10 @@
 	if process cameraserver was died during streaming, iommu resource
 	was not released correctly. when cameraserver was recovered and
 	streaming again, iommu resource may be conflicted.
+*v0.0x21.0xa:
+	1) clock clk_vio0_noc would cause mipi lcdc no display on 3368h, remove it.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 9)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 0xa)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
