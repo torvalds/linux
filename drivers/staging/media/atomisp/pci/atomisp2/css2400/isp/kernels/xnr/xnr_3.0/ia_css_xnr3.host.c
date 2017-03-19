@@ -97,9 +97,8 @@ compute_alpha(int sigma)
 		alpha = ((IA_CSS_XNR3_SIGMA_SCALE * XNR_ALPHA_SCALE_FACTOR) + offset)/ sigma;
 #endif
 
-		if (alpha > XNR_MAX_ALPHA) {
+		if (alpha > XNR_MAX_ALPHA)
 			alpha = XNR_MAX_ALPHA;
-		}
 	}
 
 	return alpha;

@@ -79,9 +79,8 @@ static bool ia_css_mipi_is_source_port_valid(struct ia_css_pipe *pipe,
 	if (ret) {
 		assert(port < max_ports);
 
-		if (port >= max_ports) {
+		if (port >= max_ports)
 			ret = false;
-		}
 	}
 
 	*pport = port;

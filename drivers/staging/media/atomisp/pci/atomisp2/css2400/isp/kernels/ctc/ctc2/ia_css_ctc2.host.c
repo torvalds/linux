@@ -52,9 +52,8 @@ static int ctc2_slope(int y1, int y0, int x1, int x0)
 	assert(x1 > 0 && x1 <= max_slope);
 	assert(dx > 0);
 
-	if (dy < 0) {
+	if (dy < 0)
 		rounding = -rounding;
-	}
 	slope = (int) (dy_shift + rounding) / dx;
 
 	/*the slope must lie within the range
