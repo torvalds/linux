@@ -460,77 +460,13 @@ do {									\
 		: "r14", "memory");					\
 } while (0)
 
-#define __copy_user_zeroing(to, from, size)				\
-do {									\
-	unsigned long __dst, __src, __c;				\
-	__asm__ __volatile__ (						\
-		"	mv	r14, %0\n"				\
-		"	or	r14, %1\n"				\
-		"	beq	%0, %1, 9f\n"				\
-		"	beqz	%2, 9f\n"				\
-		"	and3	r14, r14, #3\n"				\
-		"	bnez	r14, 2f\n"				\
-		"	and3	%2, %2, #3\n"				\
-		"	beqz	%3, 2f\n"				\
-		"	addi	%0, #-4		; word_copy \n"		\
-		"	.fillinsn\n"					\
-		"0:	ld	r14, @%1+\n"				\
-		"	addi	%3, #-1\n"				\
-		"	.fillinsn\n"					\
-		"1:	st	r14, @+%0\n"				\
-		"	bnez	%3, 0b\n"				\
-		"	beqz	%2, 9f\n"				\
-		"	addi	%0, #4\n"				\
-		"	.fillinsn\n"					\
-		"2:	ldb	r14, @%1	; byte_copy \n"		\
-		"	.fillinsn\n"					\
-		"3:	stb	r14, @%0\n"				\
-		"	addi	%1, #1\n"				\
-		"	addi	%2, #-1\n"				\
-		"	addi	%0, #1\n"				\
-		"	bnez	%2, 2b\n"				\
-		"	.fillinsn\n"					\
-		"9:\n"							\
-		".section .fixup,\"ax\"\n"				\
-		"	.balign 4\n"					\
-		"5:	addi	%3, #1\n"				\
-		"	addi	%1, #-4\n"				\
-		"	.fillinsn\n"					\
-		"6:	slli	%3, #2\n"				\
-		"	add	%2, %3\n"				\
-		"	addi	%0, #4\n"				\
-		"	.fillinsn\n"					\
-		"7:	ldi	r14, #0		; store zero \n"	\
-		"	.fillinsn\n"					\
-		"8:	addi	%2, #-1\n"				\
-		"	stb	r14, @%0	; ACE? \n"		\
-		"	addi	%0, #1\n"				\
-		"	bnez	%2, 8b\n"				\
-		"	seth	r14, #high(9b)\n"			\
-		"	or3	r14, r14, #low(9b)\n"			\
-		"	jmp	r14\n"					\
-		".previous\n"						\
-		".section __ex_table,\"a\"\n"				\
-		"	.balign 4\n"					\
-		"	.long 0b,6b\n"					\
-		"	.long 1b,5b\n"					\
-		"	.long 2b,7b\n"					\
-		"	.long 3b,7b\n"					\
-		".previous\n"						\
-		: "=&r" (__dst), "=&r" (__src), "=&r" (size),		\
-		  "=&r" (__c)						\
-		: "0" (to), "1" (from), "2" (size), "3" (size / 4)	\
-		: "r14", "memory");					\
-} while (0)
-
-
 /* We let the __ versions of copy_from/to_user inline, because they're often
  * used in fast paths and have only a small space overhead.
  */
 static inline unsigned long __generic_copy_from_user_nocheck(void *to,
 	const void __user *from, unsigned long n)
 {
-	__copy_user_zeroing(to, from, n);
+	__copy_user(to, from, n);
 	return n;
 }
 
