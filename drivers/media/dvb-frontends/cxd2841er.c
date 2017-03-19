@@ -3852,7 +3852,9 @@ static struct  dvb_frontend_ops cxd2841er_t_c_ops = {
 			FE_CAN_MUTE_TS |
 			FE_CAN_2G_MODULATION,
 		.frequency_min = 42000000,
-		.frequency_max = 1002000000
+		.frequency_max = 1002000000,
+		.symbol_rate_min = 870000,
+		.symbol_rate_max = 11700000
 	},
 	.init = cxd2841er_init_tc,
 	.sleep = cxd2841er_sleep_tc,
