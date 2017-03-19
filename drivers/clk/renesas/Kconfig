@@ -19,6 +19,16 @@ config CLK_RENESAS
 
 if CLK_RENESAS
 
+config CLK_RENESAS_LEGACY
+	bool "Legacy DT clock support"
+	depends on CLK_R8A7790
+	default y
+	help
+	  Enable backward compatibility with old device trees describing a
+	  hierarchical representation of the various CPG and MSTP clocks.
+
+	  Say Y if you want your kernel to work with old DTBs.
+
 # SoC
 config CLK_EMEV2
 	bool "Emma Mobile EV2 clock support" if COMPILE_TEST
@@ -55,7 +65,8 @@ config CLK_R8A7779
 
 config CLK_R8A7790
 	bool
-	select CLK_RCAR_GEN2
+	select CLK_RCAR_GEN2 if CLK_RENESAS_LEGACY
+	select CLK_RCAR_GEN2_CPG
 	select CLK_RENESAS_DIV6
 
 config CLK_R8A7791
