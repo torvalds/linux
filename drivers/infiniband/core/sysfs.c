@@ -1301,7 +1301,7 @@ err_put:
 	free_port_list_attributes(device);
 
 err_unregister:
-	device_unregister(class_dev);
+	device_del(class_dev);
 
 err:
 	return ret;
