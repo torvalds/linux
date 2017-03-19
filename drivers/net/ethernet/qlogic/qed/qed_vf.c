@@ -134,14 +134,20 @@ static int qed_send_msg2pf(struct qed_hwfn *p_hwfn, u8 *done, u32 resp_size)
 	}
 
 	if (!*done) {
-		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-			   "VF <-- PF Timeout [Type %d]\n",
-			   p_req->first_tlv.tl.type);
+		DP_NOTICE(p_hwfn,
+			  "VF <-- PF Timeout [Type %d]\n",
+			  p_req->first_tlv.tl.type);
 		rc = -EBUSY;
 	} else {
-		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-			   "PF response: %d [Type %d]\n",
-			   *done, p_req->first_tlv.tl.type);
+		if ((*done != PFVF_STATUS_SUCCESS) &&
+		    (*done != PFVF_STATUS_NO_RESOURCE))
+			DP_NOTICE(p_hwfn,
+				  "PF response: %d [Type %d]\n",
+				  *done, p_req->first_tlv.tl.type);
+		else
+			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+				   "PF response: %d [Type %d]\n",
+				   *done, p_req->first_tlv.tl.type);
 	}
 
 	return rc;
