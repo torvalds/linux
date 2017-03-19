@@ -275,6 +275,8 @@ struct vfpf_stop_rxqs_tlv {
 	struct vfpf_first_tlv first_tlv;
 
 	u16 rx_qid;
+
+	/* this field is deprecated and should *always* be set to '1' */
 	u8 num_rxqs;
 	u8 cqe_completion;
 	u8 padding[4];
@@ -285,6 +287,8 @@ struct vfpf_stop_txqs_tlv {
 	struct vfpf_first_tlv first_tlv;
 
 	u16 tx_qid;
+
+	/* this field is deprecated and should *always* be set to '1' */
 	u8 num_txqs;
 	u8 padding[5];
 };
