@@ -21,8 +21,7 @@
 #define INEFFECTIVE_VAL 4096
 #define BASIC_VAL 819
 
-/*Default configuration of parameters for Ctc2
-*/
+/*Default configuration of parameters for Ctc2*/
 const struct ia_css_ctc2_config default_ctc2_config = {
 	INEFFECTIVE_VAL, INEFFECTIVE_VAL, INEFFECTIVE_VAL,
 	INEFFECTIVE_VAL, INEFFECTIVE_VAL, INEFFECTIVE_VAL,
@@ -104,14 +103,14 @@ void ia_css_ctc2_vmem_encode(struct ia_css_isp_ctc2_vmem_params *to,
 			    SH_CSS_BAYER_MAXVAL, from->y_x4);
 
 	/*Fill 3 arrays with:
-	* - Luma input gain values y_y0, y_y1, y_y2, y_3, y_y4
-	* - Luma kneepoints 0, y_x1, y_x2, y_x3, y_x4
-	* - Calculated slopes dydx0, dyxd1, dydx2, dydx3, dydx4
-	*
-	* - Each 64-element array is divided in blocks of 16 elements:
-	*   the 5 parameters + zeros in the remaining 11 positions
-	* - All blocks of the same array will contain the same data
-	*/
+	 * - Luma input gain values y_y0, y_y1, y_y2, y_3, y_y4
+	 * - Luma kneepoints 0, y_x1, y_x2, y_x3, y_x4
+	 * - Calculated slopes dydx0, dyxd1, dydx2, dydx3, dydx4
+	 *
+	 * - Each 64-element array is divided in blocks of 16 elements:
+	 *   the 5 parameters + zeros in the remaining 11 positions
+	 * - All blocks of the same array will contain the same data
+	 */
 	for (i = 0; i < shffl_blck; i++) {
 		to->y_x[0][(i << shffl_blck)]     = 0;
 		to->y_x[0][(i << shffl_blck) + 1] = from->y_x1;
