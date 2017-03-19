@@ -29,8 +29,6 @@ const struct ia_css_ctc2_config default_ctc2_config = {
 	BASIC_VAL * 8, INEFFECTIVE_VAL, INEFFECTIVE_VAL,
 	BASIC_VAL >> 1, BASIC_VAL};
 
-
-
 /* (dydx) = ctc2_slope(y1, y0, x1, x0)
  * -----------------------------------------------
  * Calculation of the Slope of a Line = ((y1 - y0) >> 8)/(x1 - x0)

@@ -29,7 +29,6 @@
 #define ELDO2_1P8V	0x16
 #define ELDO2_CTRL_SHIFT 0x01
 
-
 struct gmin_subdev {
 	struct v4l2_subdev *subdev;
 	int clock_num;
@@ -488,7 +487,6 @@ int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 		else
 			return regulator_disable(gs->v1p8_reg);
 	}
-
 
 	return -EINVAL;
 }

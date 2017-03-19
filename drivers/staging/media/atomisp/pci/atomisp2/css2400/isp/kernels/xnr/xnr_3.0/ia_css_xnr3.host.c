@@ -51,7 +51,6 @@ static const int16_t b[XNR3_LOOK_UP_TABLE_POINTS] = {
 static const int16_t c[XNR3_LOOK_UP_TABLE_POINTS] = {
 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-
 /*
 #endif
  * Default kernel parameters. In general, default is bypass mode or as close
@@ -224,7 +223,6 @@ ia_css_xnr3_vmem_encode(
 		to->c[0][i] = 0;
 	}
 
-
 	/* Constraints on "x":
 	 * - values should be greater or equal to 0.
 	 * - values should be ascending.
@@ -236,7 +234,6 @@ ia_css_xnr3_vmem_encode(
 		assert(x[j] > x[j - 1]);
 
 	}
-
 
 	/* The implementation of the calulating 1/x is based on the availability
 	 * of the OP_vec_shuffle16 operation.
@@ -256,8 +253,6 @@ ia_css_xnr3_vmem_encode(
 		}
 	}
 }
-
-
 
 #endif
 /* Dummy Function added as the tool expects it*/
