@@ -693,6 +693,11 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 	u32 igu_vf_conf = IGU_VF_CONF_FUNC_EN;
 	int rc;
 
+	/* It's possible VF was previously considered malicious -
+	 * clear the indication even if we're only going to disable VF.
+	 */
+	vf->b_malicious = false;
+
 	if (vf->to_disable)
 		return 0;
 
@@ -704,9 +709,6 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 	qed_iov_vf_pglue_clear_err(p_hwfn, p_ptt, QED_VF_ABS_ID(p_hwfn, vf));
 
 	qed_iov_vf_igu_reset(p_hwfn, p_ptt, vf);
-
-	/* It's possible VF was previously considered malicious */
-	vf->b_malicious = false;
 
 	rc = qed_mcp_config_vf_msix(p_hwfn, p_ptt, vf->abs_vf_id, vf->num_sbs);
 	if (rc)
