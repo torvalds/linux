@@ -178,8 +178,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		"2:	move.b [%1+],$acr\n"	\
 		"	move.b $acr,[%0+]\n",	\
 		"3:	addq 1,%2\n"		\
-		"	jump 1b\n"		\
-		"	clear.b [%0+]\n",	\
+		"	jump 1b\n",		\
 		"	.dword 2b,3b\n")
 
 #define __asm_copy_from_user_2x_cont(to, from, ret, COPY, FIXUP, TENTRY) \
@@ -189,8 +188,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		"	move.w $acr,[%0+]\n",		\
 			FIXUP				\
 		"3:	addq 2,%2\n"			\
-		"	jump 1b\n"			\
-		"	clear.w [%0+]\n",		\
+		"	jump 1b\n",			\
 			TENTRY				\
 		"	.dword 2b,3b\n")
 
@@ -201,8 +199,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 	__asm_copy_from_user_2x_cont(to, from, ret,	\
 		"4:	move.b [%1+],$acr\n"		\
 		"	move.b $acr,[%0+]\n",		\
-		"5:	addq 1,%2\n"			\
-		"	clear.b [%0+]\n",		\
+		"5:	addq 1,%2\n",			\
 		"	.dword 4b,5b\n")
 
 #define __asm_copy_from_user_4x_cont(to, from, ret, COPY, FIXUP, TENTRY) \
@@ -212,8 +209,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		"	move.d $acr,[%0+]\n",		\
 			FIXUP				\
 		"3:	addq 4,%2\n"			\
-		"	jump 1b\n"			\
-		"	clear.d [%0+]\n",		\
+		"	jump 1b\n",			\
 			TENTRY				\
 		"	.dword 2b,3b\n")
 
