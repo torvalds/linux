@@ -156,10 +156,9 @@ unsigned long __copy_user(void __user *pdst, const void *psrc, unsigned long pn)
 }
 EXPORT_SYMBOL(__copy_user);
 
-/* Copy from user to kernel, zeroing the bytes that were inaccessible in
-   userland.  The return-value is the number of bytes that were
+/* Copy from user to kernel.  The return-value is the number of bytes that were
    inaccessible.  */
-unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
+unsigned long __copy_user_in(void *pdst, const void __user *psrc,
 				  unsigned long pn)
 {
   /* We want the parameters put in special registers.
@@ -309,7 +308,7 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 exception:
   return retn + n;
 }
-EXPORT_SYMBOL(__copy_user_zeroing);
+EXPORT_SYMBOL(__copy_user_in);
 
 /* Zero userspace.  */
 unsigned long __do_clear_user(void __user *pto, unsigned long pn)

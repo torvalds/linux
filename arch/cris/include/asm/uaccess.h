@@ -169,7 +169,7 @@ extern long __get_user_bad(void);
    live in lib/usercopy.c  */
 
 extern unsigned long __copy_user(void __user *to, const void *from, unsigned long n);
-extern unsigned long __copy_user_zeroing(void *to, const void __user *from, unsigned long n);
+extern unsigned long __copy_user_in(void *to, const void __user *from, unsigned long n);
 extern unsigned long __do_clear_user(void __user *to, unsigned long n);
 
 static inline long
@@ -236,7 +236,7 @@ __constant_copy_from_user(void *to, const void __user *from, unsigned long n)
 	else if (n == 24)
 		__asm_copy_from_user_24(to, from, ret);
 	else
-		ret = __copy_user_zeroing(to, from, n);
+		ret = __copy_user_in(to, from, n);
 
 	return ret;
 }
@@ -343,7 +343,7 @@ static inline size_t copy_from_user(void *to, const void __user *from, size_t n)
 		if (__builtin_constant_p(n))
 			res = __constant_copy_from_user(to, from, n);
 		else
-			res = __copy_user_zeroing(to, from, n);
+			res = __copy_user_in(to, from, n);
 	}
 	if (unlikely(res))
 		memset(to + n - res , 0, res);
@@ -368,7 +368,7 @@ static inline unsigned long
 __generic_copy_from_user_nocheck(void *to, const void __user *from,
 				 unsigned long n)
 {
-	return __copy_user_zeroing(to, from, n);
+	return __copy_user_in(to, from, n);
 }
 
 static inline unsigned long
