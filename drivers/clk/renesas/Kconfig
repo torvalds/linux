@@ -21,7 +21,7 @@ if CLK_RENESAS
 
 config CLK_RENESAS_LEGACY
 	bool "Legacy DT clock support"
-	depends on CLK_R8A7790 || CLK_R8A7791 || CLK_R8A7792
+	depends on CLK_R8A7790 || CLK_R8A7791 || CLK_R8A7792 || CLK_R8A7794
 	default y
 	help
 	  Enable backward compatibility with old device trees describing a
@@ -82,7 +82,8 @@ config CLK_R8A7792
 
 config CLK_R8A7794
 	bool
-	select CLK_RCAR_GEN2
+	select CLK_RCAR_GEN2 if CLK_RENESAS_LEGACY
+	select CLK_RCAR_GEN2_CPG
 	select CLK_RENESAS_DIV6
 
 config CLK_R8A7795
