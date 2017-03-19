@@ -394,9 +394,6 @@ __arc_copy_from_user(void *to, const void __user *from, unsigned long n)
 	return res;
 }
 
-extern unsigned long slowpath_copy_to_user(void __user *to, const void *from,
-					   unsigned long n);
-
 static inline unsigned long
 __arc_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
