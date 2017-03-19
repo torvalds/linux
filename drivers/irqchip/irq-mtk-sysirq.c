@@ -57,7 +57,7 @@ static int mtk_sysirq_set_type(struct irq_data *data, unsigned int type)
 		value &= ~(1 << offset);
 	}
 
-	writel(value, base + reg_index * 4);
+	writel_relaxed(value, base + reg_index * 4);
 
 	data = data->parent_data;
 	ret = data->chip->irq_set_type(data, type);
