@@ -94,47 +94,6 @@
 		};
 	};
 
-	isp: isp@ff910000 {
-		compatible = "rockchip,rk3368-isp", "rockchip,isp";
-		reg = <0x0 0xff910000 0x0 0x10000>;
-		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-		power-domains = <&power RK3368_PD_VIO>;
-		clocks =
-			<&cru ACLK_RGA>, <&cru HCLK_ISP>, <&cru SCLK_ISP>,
-			<&cru SCLK_ISP>, <&cru PCLK_ISP>, <&cru SCLK_VIP_OUT>,
-			<&cru SCLK_VIP_OUT>, <&cru PCLK_MIPI_CSI>,
-			<&cru PCLK_DPHYRX>, <&cru ACLK_VIO0_NOC>;
-		clock-names =
-			"aclk_isp", "hclk_isp", "clk_isp",
-			"clk_isp_jpe", "pclkin_isp", "clk_cif_out",
-			"clk_cif_pll", "hclk_mipiphy1",
-			"pclk_dphyrx", "clk_vio0_noc";
-		pinctrl-names =
-			"default", "isp_dvp8bit2", "isp_dvp10bit", "isp_dvp12bit",
-			"isp_dvp8bit0", "isp_dvp8bit4", "isp_mipi_fl",
-			"isp_mipi_fl_prefl", "isp_flash_as_gpio",
-			"isp_flash_as_trigger_out";
-		pinctrl-0 = <&cif_clkout>;
-		pinctrl-1 = <&cif_clkout &isp_dvp_d2d9>;
-		pinctrl-2 = <&cif_clkout &isp_dvp_d2d9 &isp_dvp_d0d1>;
-		pinctrl-3 = <&cif_clkout &isp_dvp_d2d9 &isp_dvp_d0d1 &isp_dvp_d10d11>;
-		pinctrl-4 = <&cif_clkout &isp_dvp_d0d7>;
-		pinctrl-5 = <&cif_clkout &isp_dvp_d4d11>;
-		pinctrl-6 = <&cif_clkout>;
-		pinctrl-7 = <&cif_clkout &isp_prelight>;
-		pinctrl-8 = <&isp_flash_trigger_as_gpio>;
-		pinctrl-9 = <&isp_flash_trigger>;
-		rockchip,isp,mipiphy = <2>;
-		rockchip,isp,cifphy = <1>;
-		rockchip,isp,mipiphy1,reg = <0xff964000 0x4000>;
-		rockchip,isp,csiphy,reg = <0xff96C000 0x4000>;
-		rockchip,grf = <&grf>;
-		rockchip,cru = <&cru>;
-		rockchip,gpios = <&gpio3 20 GPIO_ACTIVE_HIGH>;
-		rockchip,isp,iommu_enable = <1>;
-		status = "disabled";
-	};
-
 	rga@ff920000 {
 		compatible = "rockchip,rga2";
 		dev_mode = <1>;
@@ -225,6 +184,14 @@
 };
 
 &vop_mmu {
+	status = "okay";
+};
+
+&isp {
+	status = "okay";
+};
+
+&isp_mmu {
 	status = "okay";
 };
 
