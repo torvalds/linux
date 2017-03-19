@@ -1460,27 +1460,10 @@ static void o2net_rx_until_empty(struct work_struct *work)
 
 static int o2net_set_nodelay(struct socket *sock)
 {
-	int ret, val = 1;
-	mm_segment_t oldfs;
+	int val = 1;
 
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-
-	/*
-	 * Dear unsuspecting programmer,
-	 *
-	 * Don't use sock_setsockopt() for SOL_TCP.  It doesn't check its level
-	 * argument and assumes SOL_SOCKET so, say, your TCP_NODELAY will
-	 * silently turn into SO_DEBUG.
-	 *
-	 * Yours,
-	 * Keeper of hilariously fragile interfaces.
-	 */
-	ret = sock->ops->setsockopt(sock, SOL_TCP, TCP_NODELAY,
-				    (char __user *)&val, sizeof(val));
-
-	set_fs(oldfs);
-	return ret;
+	return kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
+				    (void *)&val, sizeof(val));
 }
 
 static int o2net_set_usertimeout(struct socket *sock)
@@ -1488,7 +1471,7 @@ static int o2net_set_usertimeout(struct socket *sock)
 	int user_timeout = O2NET_TCP_USER_TIMEOUT;
 
 	return kernel_setsockopt(sock, SOL_TCP, TCP_USER_TIMEOUT,
-				(char *)&user_timeout, sizeof(user_timeout));
+				(void *)&user_timeout, sizeof(user_timeout));
 }
 
 static void o2net_initialize_handshake(void)

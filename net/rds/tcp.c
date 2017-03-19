@@ -84,13 +84,10 @@ static struct ctl_table rds_tcp_sysctl_table[] = {
 /* doing it this way avoids calling tcp_sk() */
 void rds_tcp_nonagle(struct socket *sock)
 {
-	mm_segment_t oldfs = get_fs();
 	int val = 1;
 
-	set_fs(KERNEL_DS);
-	sock->ops->setsockopt(sock, SOL_TCP, TCP_NODELAY, (char __user *)&val,
+	kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY, (void *)&val,
 			      sizeof(val));
-	set_fs(oldfs);
 }
 
 u32 rds_tcp_snd_nxt(struct rds_tcp_connection *tc)

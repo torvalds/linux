@@ -40,13 +40,7 @@
 
 static void rds_tcp_cork(struct socket *sock, int val)
 {
-	mm_segment_t oldfs;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	sock->ops->setsockopt(sock, SOL_TCP, TCP_CORK, (char __user *)&val,
-			      sizeof(val));
-	set_fs(oldfs);
+	kernel_setsockopt(sock, SOL_TCP, TCP_CORK, (void *)&val, sizeof(val));
 }
 
 void rds_tcp_xmit_path_prepare(struct rds_conn_path *cp)
