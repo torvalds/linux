@@ -3386,11 +3386,17 @@ static void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
 	if (!p_vf)
 		return;
 
-	DP_INFO(p_hwfn,
-		"VF [%d] - Malicious behavior [%02x]\n",
-		p_vf->abs_vf_id, p_data->err_id);
+	if (!p_vf->b_malicious) {
+		DP_NOTICE(p_hwfn,
+			  "VF [%d] - Malicious behavior [%02x]\n",
+			  p_vf->abs_vf_id, p_data->err_id);
 
-	p_vf->b_malicious = true;
+		p_vf->b_malicious = true;
+	} else {
+		DP_INFO(p_hwfn,
+			"VF [%d] - Malicious behavior [%02x]\n",
+			p_vf->abs_vf_id, p_data->err_id);
+	}
 }
 
 int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
