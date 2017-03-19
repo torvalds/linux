@@ -224,8 +224,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 	__asm_copy_from_user_4x_cont(to, from, ret,	\
 		"4:	move.b [%1+],$acr\n"		\
 		"	move.b $acr,[%0+]\n",		\
-		"5:	addq 1,%2\n"			\
-		"	clear.b [%0+]\n",		\
+		"5:	addq 1,%2\n",			\
 		"	.dword 4b,5b\n")
 
 #define __asm_copy_from_user_6x_cont(to, from, ret, COPY, FIXUP, TENTRY) \
@@ -234,8 +233,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		"4:	move.w [%1+],$acr\n"		\
 		"	move.w $acr,[%0+]\n",		\
 			FIXUP				\
-		"5:	addq 2,%2\n"			\
-		"	clear.w [%0+]\n",		\
+		"5:	addq 2,%2\n",			\
 			TENTRY				\
 		"	.dword 4b,5b\n")
 
@@ -246,8 +244,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 	__asm_copy_from_user_6x_cont(to, from, ret,	\
 		"6:	move.b [%1+],$acr\n"		\
 		"	move.b $acr,[%0+]\n",		\
-		"7:	addq 1,%2\n"			\
-		"	clear.b [%0+]\n",		\
+		"7:	addq 1,%2\n",			\
 		"	.dword 6b,7b\n")
 
 #define __asm_copy_from_user_8x_cont(to, from, ret, COPY, FIXUP, TENTRY) \
@@ -256,8 +253,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		"4:	move.d [%1+],$acr\n"		\
 		"	move.d $acr,[%0+]\n",		\
 			FIXUP				\
-		"5:	addq 4,%2\n"			\
-		"	clear.d [%0+]\n",		\
+		"5:	addq 4,%2\n",			\
 			TENTRY				\
 		"	.dword 4b,5b\n")
 
@@ -268,8 +264,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 	__asm_copy_from_user_8x_cont(to, from, ret,	\
 		"6:	move.b [%1+],$acr\n"		\
 		"	move.b $acr,[%0+]\n",		\
-		"7:	addq 1,%2\n"			\
-		"	clear.b [%0+]\n",		\
+		"7:	addq 1,%2\n",			\
 		"	.dword 6b,7b\n")
 
 #define __asm_copy_from_user_10x_cont(to, from, ret, COPY, FIXUP, TENTRY) \
@@ -278,8 +273,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		"6:	move.w [%1+],$acr\n"		\
 		"	move.w $acr,[%0+]\n",		\
 			FIXUP				\
-		"7:	addq 2,%2\n"			\
-		"	clear.w [%0+]\n",		\
+		"7:	addq 2,%2\n",			\
 			TENTRY				\
 		"	.dword 6b,7b\n")
 
@@ -290,8 +284,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 	__asm_copy_from_user_10x_cont(to, from, ret,	\
 		"8:	move.b [%1+],$acr\n"		\
 		"	move.b $acr,[%0+]\n",		\
-		"9:	addq 1,%2\n"			\
-		"	clear.b [%0+]\n",		\
+		"9:	addq 1,%2\n",			\
 		"	.dword 8b,9b\n")
 
 #define __asm_copy_from_user_12x_cont(to, from, ret, COPY, FIXUP, TENTRY) \
@@ -300,8 +293,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		"6:	move.d [%1+],$acr\n"		\
 		"	move.d $acr,[%0+]\n",		\
 			FIXUP				\
-		"7:	addq 4,%2\n"			\
-		"	clear.d [%0+]\n",		\
+		"7:	addq 4,%2\n",			\
 			TENTRY				\
 		"	.dword 6b,7b\n")
 
@@ -312,8 +304,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 	__asm_copy_from_user_12x_cont(to, from, ret,	\
 		"8:	move.b [%1+],$acr\n"		\
 		"	move.b $acr,[%0+]\n",		\
-		"9:	addq 1,%2\n"			\
-		"	clear.b [%0+]\n",		\
+		"9:	addq 1,%2\n",			\
 		"	.dword 8b,9b\n")
 
 #define __asm_copy_from_user_14x_cont(to, from, ret, COPY, FIXUP, TENTRY) \
@@ -322,8 +313,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		"8:	move.w [%1+],$acr\n"		\
 		"	move.w $acr,[%0+]\n",		\
 			FIXUP				\
-		"9:	addq 2,%2\n"			\
-		"	clear.w [%0+]\n",		\
+		"9:	addq 2,%2\n",			\
 			TENTRY				\
 		"	.dword 8b,9b\n")
 
@@ -334,8 +324,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 	__asm_copy_from_user_14x_cont(to, from, ret,	\
 		"10:	move.b [%1+],$acr\n"		\
 		"	move.b $acr,[%0+]\n",		\
-		"11:	addq 1,%2\n"			\
-		"	clear.b [%0+]\n",		\
+		"11:	addq 1,%2\n",			\
 		"	.dword 10b,11b\n")
 
 #define __asm_copy_from_user_16x_cont(to, from, ret, COPY, FIXUP, TENTRY) \
@@ -344,8 +333,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		"8:	move.d [%1+],$acr\n"		\
 		"	move.d $acr,[%0+]\n",		\
 			FIXUP				\
-		"9:	addq 4,%2\n"			\
-		"	clear.d [%0+]\n",		\
+		"9:	addq 4,%2\n",			\
 			TENTRY				\
 		"	.dword 8b,9b\n")
 
@@ -358,8 +346,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		"10:	move.d [%1+],$acr\n"		\
 		"	move.d $acr,[%0+]\n",		\
 			FIXUP				\
-		"11:	addq 4,%2\n"			\
-		"	clear.d [%0+]\n",		\
+		"11:	addq 4,%2\n",			\
 			TENTRY				\
 		"	.dword 10b,11b\n")
 
@@ -372,8 +359,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
 		"12:	move.d [%1+],$acr\n"		\
 		"	move.d $acr,[%0+]\n",		\
 			FIXUP				\
-		"13:	addq 4,%2\n"			\
-		"	clear.d [%0+]\n",		\
+		"13:	addq 4,%2\n",			\
 			TENTRY				\
 		"	.dword 12b,13b\n")
 
