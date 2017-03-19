@@ -2030,12 +2030,20 @@ static int __init nvme_rdma_init_module(void)
 		return -ENOMEM;
 
 	ret = ib_register_client(&nvme_rdma_ib_client);
-	if (ret) {
-		destroy_workqueue(nvme_rdma_wq);
-		return ret;
-	}
+	if (ret)
+		goto err_destroy_wq;
 
-	return nvmf_register_transport(&nvme_rdma_transport);
+	ret = nvmf_register_transport(&nvme_rdma_transport);
+	if (ret)
+		goto err_unreg_client;
+
+	return 0;
+
+err_unreg_client:
+	ib_unregister_client(&nvme_rdma_ib_client);
+err_destroy_wq:
+	destroy_workqueue(nvme_rdma_wq);
+	return ret;
 }
 
 static void __exit nvme_rdma_cleanup_module(void)
