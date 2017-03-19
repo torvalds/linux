@@ -1755,6 +1755,8 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	vf->state = VF_ENABLED;
 	start = &mbx->req_virt->start_vport;
 
+	qed_iov_enable_vf_traffic(p_hwfn, p_ptt, vf);
+
 	/* Initialize Status block in CAU */
 	for (sb_id = 0; sb_id < vf->num_sbs; sb_id++) {
 		if (!start->sb_addr[sb_id]) {
@@ -1768,7 +1770,6 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 				    start->sb_addr[sb_id],
 				    vf->igu_sbs[sb_id], vf->abs_vf_id, 1);
 	}
-	qed_iov_enable_vf_traffic(p_hwfn, p_ptt, vf);
 
 	vf->mtu = start->mtu;
 	vf->shadow_config.inner_vlan_removal = start->inner_vlan_removal;
