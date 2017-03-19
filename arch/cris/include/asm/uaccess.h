@@ -338,14 +338,16 @@ static inline size_t clear_user(void __user *to, size_t n)
 
 static inline size_t copy_from_user(void *to, const void __user *from, size_t n)
 {
-	if (unlikely(!access_ok(VERIFY_READ, from, n))) {
-		memset(to, 0, n);
-		return n;
+	size_t res = n;
+	if (likely(access_ok(VERIFY_READ, from, n))) {
+		if (__builtin_constant_p(n))
+			res = __constant_copy_from_user(to, from, n);
+		else
+			res = __copy_user_zeroing(to, from, n);
 	}
-	if (__builtin_constant_p(n))
-		return __constant_copy_from_user(to, from, n);
-	else
-		return __copy_user_zeroing(to, from, n);
+	if (unlikely(res))
+		memset(to + n - res , 0, res);
+	return res;
 }
 
 static inline size_t copy_to_user(void __user *to, const void *from, size_t n)
