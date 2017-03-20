@@ -601,6 +601,11 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	status |= PCI_EXP_LNKCTL_CCC;
 	rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_LCS);
 
+	/* Set RC's RCB to 128 */
+	status = rockchip_pcie_read(rockchip, PCIE_RC_CONFIG_LCS);
+	status |= PCI_EXP_LNKCTL_RCB;
+	rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_LCS);
+
 	/* Enable Gen1 training */
 	rockchip_pcie_write(rockchip, PCIE_CLIENT_LINK_TRAIN_ENABLE,
 			    PCIE_CLIENT_CONFIG);
