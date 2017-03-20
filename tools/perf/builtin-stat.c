@@ -1182,11 +1182,46 @@ static void aggr_update_shadow(void)
 	}
 }
 
+static void collect_data(struct perf_evsel *counter,
+			    void (*cb)(struct perf_evsel *counter, void *data,
+				       bool first),
+			    void *data)
+{
+	cb(counter, data, true);
+}
+
+struct aggr_data {
+	u64 ena, run, val;
+	int id;
+	int nr;
+	int cpu;
+};
+
+static void aggr_cb(struct perf_evsel *counter, void *data, bool first)
+{
+	struct aggr_data *ad = data;
+	int cpu, s2;
+
+	for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
+		struct perf_counts_values *counts;
+
+		s2 = aggr_get_id(perf_evsel__cpus(counter), cpu);
+		if (s2 != ad->id)
+			continue;
+		if (first)
+			ad->nr++;
+		counts = perf_counts(counter->counts, cpu, 0);
+		ad->val += counts->val;
+		ad->ena += counts->ena;
+		ad->run += counts->run;
+	}
+}
+
 static void print_aggr(char *prefix)
 {
 	FILE *output = stat_config.output;
 	struct perf_evsel *counter;
-	int cpu, s, s2, id, nr;
+	int s, id, nr;
 	double uval;
 	u64 ena, run, val;
 	bool first;
@@ -1201,23 +1236,20 @@ static void print_aggr(char *prefix)
 	 * Without each counter has its own line.
 	 */
 	for (s = 0; s < aggr_map->nr; s++) {
+		struct aggr_data ad;
 		if (prefix && metric_only)
 			fprintf(output, "%s", prefix);
 
-		id = aggr_map->map[s];
+		ad.id = id = aggr_map->map[s];
 		first = true;
 		evlist__for_each_entry(evsel_list, counter) {
-			val = ena = run = 0;
-			nr = 0;
-			for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
-				s2 = aggr_get_id(perf_evsel__cpus(counter), cpu);
-				if (s2 != id)
-					continue;
-				val += perf_counts(counter->counts, cpu, 0)->val;
-				ena += perf_counts(counter->counts, cpu, 0)->ena;
-				run += perf_counts(counter->counts, cpu, 0)->run;
-				nr++;
-			}
+			ad.val = ad.ena = ad.run = 0;
+			ad.nr = 0;
+			collect_data(counter, aggr_cb, &ad);
+			nr = ad.nr;
+			ena = ad.ena;
+			run = ad.run;
+			val = ad.val;
 			if (first && metric_only) {
 				first = false;
 				aggr_printout(counter, id, nr);
@@ -1261,6 +1293,21 @@ static void print_aggr_thread(struct perf_evsel *counter, char *prefix)
 	}
 }
 
+struct caggr_data {
+	double avg, avg_enabled, avg_running;
+};
+
+static void counter_aggr_cb(struct perf_evsel *counter, void *data,
+			    bool first __maybe_unused)
+{
+	struct caggr_data *cd = data;
+	struct perf_stat_evsel *ps = counter->priv;
+
+	cd->avg += avg_stats(&ps->res_stats[0]);
+	cd->avg_enabled += avg_stats(&ps->res_stats[1]);
+	cd->avg_running += avg_stats(&ps->res_stats[2]);
+}
+
 /*
  * Print out the results of a single counter:
  * aggregated counts in system-wide mode
@@ -1268,21 +1315,28 @@ static void print_aggr_thread(struct perf_evsel *counter, char *prefix)
 static void print_counter_aggr(struct perf_evsel *counter, char *prefix)
 {
 	FILE *output = stat_config.output;
-	struct perf_stat_evsel *ps = counter->priv;
-	double avg = avg_stats(&ps->res_stats[0]);
 	double uval;
-	double avg_enabled, avg_running;
+	struct caggr_data cd = { .avg = 0.0 };
 
-	avg_enabled = avg_stats(&ps->res_stats[1]);
-	avg_running = avg_stats(&ps->res_stats[2]);
+	collect_data(counter, counter_aggr_cb, &cd);
 
 	if (prefix && !metric_only)
 		fprintf(output, "%s", prefix);
 
-	uval = avg * counter->scale;
-	printout(-1, 0, counter, uval, prefix, avg_running, avg_enabled, avg);
+	uval = cd.avg * counter->scale;
+	printout(-1, 0, counter, uval, prefix, cd.avg_running, cd.avg_enabled, cd.avg);
 	if (!metric_only)
 		fprintf(output, "\n");
+}
+
+static void counter_cb(struct perf_evsel *counter, void *data,
+		       bool first __maybe_unused)
+{
+	struct aggr_data *ad = data;
+
+	ad->val += perf_counts(counter->counts, ad->cpu, 0)->val;
+	ad->ena += perf_counts(counter->counts, ad->cpu, 0)->ena;
+	ad->run += perf_counts(counter->counts, ad->cpu, 0)->run;
 }
 
 /*
@@ -1297,9 +1351,12 @@ static void print_counter(struct perf_evsel *counter, char *prefix)
 	int cpu;
 
 	for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
-		val = perf_counts(counter->counts, cpu, 0)->val;
-		ena = perf_counts(counter->counts, cpu, 0)->ena;
-		run = perf_counts(counter->counts, cpu, 0)->run;
+		struct aggr_data ad = { .cpu = cpu };
+
+		collect_data(counter, counter_cb, &ad);
+		val = ad.val;
+		ena = ad.ena;
+		run = ad.run;
 
 		if (prefix)
 			fprintf(output, "%s", prefix);
