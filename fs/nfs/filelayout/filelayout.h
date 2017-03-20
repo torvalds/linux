@@ -61,6 +61,7 @@ struct nfs4_filelayout_segment {
 	u32				stripe_unit;
 	u32				first_stripe_index;
 	u64				pattern_offset;
+	struct nfs4_deviceid		deviceid;
 	struct nfs4_file_layout_dsaddr	*dsaddr; /* Point to GETDEVINFO data */
 	unsigned int			num_fh;
 	struct nfs_fh			**fh_array;

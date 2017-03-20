@@ -572,7 +572,6 @@ static int
 filelayout_check_layout(struct pnfs_layout_hdr *lo,
 			struct nfs4_filelayout_segment *fl,
 			struct nfs4_layoutget_res *lgr,
-			struct nfs4_deviceid *id,
 			gfp_t gfp_flags)
 {
 	struct nfs4_deviceid_node *d;
@@ -602,7 +601,7 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	}
 
 	/* find and reference the deviceid */
-	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode), id,
+	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode), &fl->deviceid,
 			lo->plh_lc_cred, gfp_flags);
 	if (d == NULL)
 		goto out;
@@ -657,7 +656,6 @@ static int
 filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 			 struct nfs4_filelayout_segment *fl,
 			 struct nfs4_layoutget_res *lgr,
-			 struct nfs4_deviceid *id,
 			 gfp_t gfp_flags)
 {
 	struct xdr_stream stream;
@@ -682,9 +680,9 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 	if (unlikely(!p))
 		goto out_err;
 
-	memcpy(id, p, sizeof(*id));
+	memcpy(&fl->deviceid, p, sizeof(fl->deviceid));
 	p += XDR_QUADLEN(NFS4_DEVICEID4_SIZE);
-	nfs4_print_deviceid(id);
+	nfs4_print_deviceid(&fl->deviceid);
 
 	nfl_util = be32_to_cpup(p++);
 	if (nfl_util & NFL4_UFLG_COMMIT_THRU_MDS)
@@ -831,15 +829,14 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 {
 	struct nfs4_filelayout_segment *fl;
 	int rc;
-	struct nfs4_deviceid id;
 
 	dprintk("--> %s\n", __func__);
 	fl = kzalloc(sizeof(*fl), gfp_flags);
 	if (!fl)
 		return NULL;
 
-	rc = filelayout_decode_layout(layoutid, fl, lgr, &id, gfp_flags);
-	if (rc != 0 || filelayout_check_layout(layoutid, fl, lgr, &id, gfp_flags)) {
+	rc = filelayout_decode_layout(layoutid, fl, lgr, gfp_flags);
+	if (rc != 0 || filelayout_check_layout(layoutid, fl, lgr, gfp_flags)) {
 		_filelayout_free_lseg(fl);
 		return NULL;
 	}
