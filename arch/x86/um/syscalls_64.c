@@ -7,6 +7,7 @@
 
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
+#include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <asm/prctl.h> /* XXX This should get the constants from libc */
 #include <os.h>
@@ -74,7 +75,7 @@ long arch_prctl(struct task_struct *task, int option
 	return ret;
 }
 
-long sys_arch_prctl(int option, unsigned long addr)
+SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, addr)
 {
 	return arch_prctl(current, option, (unsigned long __user *) addr);
 }
