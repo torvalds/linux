@@ -528,6 +528,9 @@ static int esdhc_of_suspend(struct device *dev)
 
 	esdhc_proctl = sdhci_readl(host, SDHCI_HOST_CONTROL);
 
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
 	return sdhci_suspend_host(host);
 }
 

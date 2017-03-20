@@ -527,6 +527,8 @@ static int sdhci_pxav3_suspend(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 
 	pm_runtime_get_sync(dev);
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
 	ret = sdhci_suspend_host(host);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -559,6 +561,9 @@ static int sdhci_pxav3_runtime_suspend(struct device *dev)
 	ret = sdhci_runtime_suspend_host(host);
 	if (ret)
 		return ret;
+
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
 
 	clk_disable_unprepare(pxa->clk_io);
 	if (!IS_ERR(pxa->clk_core))

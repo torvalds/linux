@@ -1653,6 +1653,7 @@ static int sdhci_pci_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sdhci_pci_chip *chip;
 	struct sdhci_pci_slot *slot;
+	struct sdhci_host *host;
 	mmc_pm_flag_t slot_pm_flags;
 	mmc_pm_flag_t pm_flags = 0;
 	int i, ret;
@@ -1666,14 +1667,19 @@ static int sdhci_pci_suspend(struct device *dev)
 		if (!slot)
 			continue;
 
-		ret = sdhci_suspend_host(slot->host);
+		host = slot->host;
+
+		if (chip->pm_retune && host->tuning_mode != SDHCI_TUNING_MODE_3)
+			mmc_retune_needed(host->mmc);
+
+		ret = sdhci_suspend_host(host);
 
 		if (ret)
 			goto err_pci_suspend;
 
-		slot_pm_flags = slot->host->mmc->pm_flags;
+		slot_pm_flags = host->mmc->pm_flags;
 		if (slot_pm_flags & MMC_PM_WAKE_SDIO_IRQ)
-			sdhci_enable_irq_wakeups(slot->host);
+			sdhci_enable_irq_wakeups(host);
 
 		pm_flags |= slot_pm_flags;
 	}
@@ -1737,6 +1743,7 @@ static int sdhci_pci_runtime_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct sdhci_pci_chip *chip;
 	struct sdhci_pci_slot *slot;
+	struct sdhci_host *host;
 	int i, ret;
 
 	chip = pci_get_drvdata(pdev);
@@ -1748,10 +1755,15 @@ static int sdhci_pci_runtime_suspend(struct device *dev)
 		if (!slot)
 			continue;
 
-		ret = sdhci_runtime_suspend_host(slot->host);
+		host = slot->host;
 
+		ret = sdhci_runtime_suspend_host(host);
 		if (ret)
 			goto err_pci_runtime_suspend;
+
+		if (chip->rpm_retune &&
+		    host->tuning_mode != SDHCI_TUNING_MODE_3)
+			mmc_retune_needed(host->mmc);
 	}
 
 	if (chip->fixes && chip->fixes->suspend) {
@@ -2042,6 +2054,8 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 		chip->allow_runtime_pm = chip->fixes->allow_runtime_pm;
 	}
 	chip->num_slots = slots;
+	chip->pm_retune = true;
+	chip->rpm_retune = true;
 
 	pci_set_drvdata(pdev, chip);
 

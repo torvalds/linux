@@ -140,6 +140,9 @@ static int sdhci_at91_runtime_suspend(struct device *dev)
 
 	ret = sdhci_runtime_suspend_host(host);
 
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
 	clk_disable_unprepare(priv->gck);
 	clk_disable_unprepare(priv->hclock);
 	clk_disable_unprepare(priv->mainck);
