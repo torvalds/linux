@@ -1118,34 +1118,34 @@ static int s5p_mfc_configure_2port_memory(struct s5p_mfc_dev *mfc_dev)
 	 * Create and initialize virtual devices for accessing
 	 * reserved memory regions.
 	 */
-	mfc_dev->mem_dev[BANK1_CTX] = s5p_mfc_alloc_memdev(dev, "left",
-							   BANK1_CTX);
-	if (!mfc_dev->mem_dev[BANK1_CTX])
+	mfc_dev->mem_dev[BANK_L_CTX] = s5p_mfc_alloc_memdev(dev, "left",
+							   BANK_L_CTX);
+	if (!mfc_dev->mem_dev[BANK_L_CTX])
 		return -ENODEV;
-	mfc_dev->mem_dev[BANK2_CTX] = s5p_mfc_alloc_memdev(dev, "right",
-							   BANK2_CTX);
-	if (!mfc_dev->mem_dev[BANK2_CTX]) {
-		device_unregister(mfc_dev->mem_dev[BANK1_CTX]);
+	mfc_dev->mem_dev[BANK_R_CTX] = s5p_mfc_alloc_memdev(dev, "right",
+							   BANK_R_CTX);
+	if (!mfc_dev->mem_dev[BANK_R_CTX]) {
+		device_unregister(mfc_dev->mem_dev[BANK_L_CTX]);
 		return -ENODEV;
 	}
 
 	/* Allocate memory for firmware and initialize both banks addresses */
 	ret = s5p_mfc_alloc_firmware(mfc_dev);
 	if (ret) {
-		device_unregister(mfc_dev->mem_dev[BANK2_CTX]);
-		device_unregister(mfc_dev->mem_dev[BANK1_CTX]);
+		device_unregister(mfc_dev->mem_dev[BANK_R_CTX]);
+		device_unregister(mfc_dev->mem_dev[BANK_L_CTX]);
 		return ret;
 	}
 
-	mfc_dev->dma_base[BANK1_CTX] = mfc_dev->fw_buf.dma;
+	mfc_dev->dma_base[BANK_L_CTX] = mfc_dev->fw_buf.dma;
 
-	bank2_virt = dma_alloc_coherent(mfc_dev->mem_dev[BANK2_CTX], align_size,
-					&bank2_dma_addr, GFP_KERNEL);
+	bank2_virt = dma_alloc_coherent(mfc_dev->mem_dev[BANK_R_CTX],
+				       align_size, &bank2_dma_addr, GFP_KERNEL);
 	if (!bank2_virt) {
 		mfc_err("Allocating bank2 base failed\n");
 		s5p_mfc_release_firmware(mfc_dev);
-		device_unregister(mfc_dev->mem_dev[BANK2_CTX]);
-		device_unregister(mfc_dev->mem_dev[BANK1_CTX]);
+		device_unregister(mfc_dev->mem_dev[BANK_R_CTX]);
+		device_unregister(mfc_dev->mem_dev[BANK_L_CTX]);
 		return -ENOMEM;
 	}
 
@@ -1153,14 +1153,14 @@ static int s5p_mfc_configure_2port_memory(struct s5p_mfc_dev *mfc_dev)
 	 * should not have address of bank2 - MFC will treat it as a null frame.
 	 * To avoid such situation we set bank2 address below the pool address.
 	 */
-	mfc_dev->dma_base[BANK2_CTX] = bank2_dma_addr - align_size;
+	mfc_dev->dma_base[BANK_R_CTX] = bank2_dma_addr - align_size;
 
-	dma_free_coherent(mfc_dev->mem_dev[BANK2_CTX], align_size, bank2_virt,
+	dma_free_coherent(mfc_dev->mem_dev[BANK_R_CTX], align_size, bank2_virt,
 			  bank2_dma_addr);
 
-	vb2_dma_contig_set_max_seg_size(mfc_dev->mem_dev[BANK1_CTX],
+	vb2_dma_contig_set_max_seg_size(mfc_dev->mem_dev[BANK_L_CTX],
 					DMA_BIT_MASK(32));
-	vb2_dma_contig_set_max_seg_size(mfc_dev->mem_dev[BANK2_CTX],
+	vb2_dma_contig_set_max_seg_size(mfc_dev->mem_dev[BANK_R_CTX],
 					DMA_BIT_MASK(32));
 
 	return 0;
@@ -1168,10 +1168,10 @@ static int s5p_mfc_configure_2port_memory(struct s5p_mfc_dev *mfc_dev)
 
 static void s5p_mfc_unconfigure_2port_memory(struct s5p_mfc_dev *mfc_dev)
 {
-	device_unregister(mfc_dev->mem_dev[BANK1_CTX]);
-	device_unregister(mfc_dev->mem_dev[BANK2_CTX]);
-	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK1_CTX]);
-	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK2_CTX]);
+	device_unregister(mfc_dev->mem_dev[BANK_L_CTX]);
+	device_unregister(mfc_dev->mem_dev[BANK_R_CTX]);
+	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK_L_CTX]);
+	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK_R_CTX]);
 }
 
 static int s5p_mfc_configure_common_memory(struct s5p_mfc_dev *mfc_dev)
@@ -1201,8 +1201,8 @@ static int s5p_mfc_configure_common_memory(struct s5p_mfc_dev *mfc_dev)
 		return -ENOMEM;
 	}
 	mfc_dev->mem_size = mem_size;
-	mfc_dev->dma_base[BANK1_CTX] = mfc_dev->mem_base;
-	mfc_dev->dma_base[BANK2_CTX] = mfc_dev->mem_base;
+	mfc_dev->dma_base[BANK_L_CTX] = mfc_dev->mem_base;
+	mfc_dev->dma_base[BANK_R_CTX] = mfc_dev->mem_base;
 
 	/*
 	 * MFC hardware cannot handle 0 as a base address, so mark first 128K
@@ -1212,14 +1212,14 @@ static int s5p_mfc_configure_common_memory(struct s5p_mfc_dev *mfc_dev)
 		unsigned int offset = 1 << MFC_BASE_ALIGN_ORDER;
 
 		bitmap_set(mfc_dev->mem_bitmap, 0, offset >> PAGE_SHIFT);
-		mfc_dev->dma_base[BANK1_CTX] += offset;
-		mfc_dev->dma_base[BANK2_CTX] += offset;
+		mfc_dev->dma_base[BANK_L_CTX] += offset;
+		mfc_dev->dma_base[BANK_R_CTX] += offset;
 	}
 
 	/* Firmware allocation cannot fail in this case */
 	s5p_mfc_alloc_firmware(mfc_dev);
 
-	mfc_dev->mem_dev[BANK1_CTX] = mfc_dev->mem_dev[BANK2_CTX] = dev;
+	mfc_dev->mem_dev[BANK_L_CTX] = mfc_dev->mem_dev[BANK_R_CTX] = dev;
 	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
 
 	dev_info(dev, "preallocated %ld MiB buffer for the firmware and context buffers\n",

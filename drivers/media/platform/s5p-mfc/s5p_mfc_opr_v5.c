@@ -30,8 +30,8 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 
-#define OFFSETA(x)		(((x) - dev->dma_base[BANK1_CTX]) >> MFC_OFFSET_SHIFT)
-#define OFFSETB(x)		(((x) - dev->dma_base[BANK2_CTX]) >> MFC_OFFSET_SHIFT)
+#define OFFSETA(x)		(((x) - dev->dma_base[BANK_L_CTX]) >> MFC_OFFSET_SHIFT)
+#define OFFSETB(x)		(((x) - dev->dma_base[BANK_R_CTX]) >> MFC_OFFSET_SHIFT)
 
 /* Allocate temporary buffers for decoding */
 static int s5p_mfc_alloc_dec_temp_buffers_v5(struct s5p_mfc_ctx *ctx)
@@ -41,7 +41,7 @@ static int s5p_mfc_alloc_dec_temp_buffers_v5(struct s5p_mfc_ctx *ctx)
 	int ret;
 
 	ctx->dsc.size = buf_size->dsc;
-	ret =  s5p_mfc_alloc_priv_buf(dev, BANK1_CTX, &ctx->dsc);
+	ret =  s5p_mfc_alloc_priv_buf(dev, BANK_L_CTX, &ctx->dsc);
 	if (ret) {
 		mfc_err("Failed to allocate temporary buffer\n");
 		return ret;
@@ -172,7 +172,7 @@ static int s5p_mfc_alloc_codec_buffers_v5(struct s5p_mfc_ctx *ctx)
 	/* Allocate only if memory from bank 1 is necessary */
 	if (ctx->bank1.size > 0) {
 
-		ret = s5p_mfc_alloc_priv_buf(dev, BANK1_CTX, &ctx->bank1);
+		ret = s5p_mfc_alloc_priv_buf(dev, BANK_L_CTX, &ctx->bank1);
 		if (ret) {
 			mfc_err("Failed to allocate Bank1 temporary buffer\n");
 			return ret;
@@ -181,7 +181,7 @@ static int s5p_mfc_alloc_codec_buffers_v5(struct s5p_mfc_ctx *ctx)
 	}
 	/* Allocate only if memory from bank 2 is necessary */
 	if (ctx->bank2.size > 0) {
-		ret = s5p_mfc_alloc_priv_buf(dev, BANK2_CTX, &ctx->bank2);
+		ret = s5p_mfc_alloc_priv_buf(dev, BANK_R_CTX, &ctx->bank2);
 		if (ret) {
 			mfc_err("Failed to allocate Bank2 temporary buffer\n");
 			s5p_mfc_release_priv_buf(ctx->dev, &ctx->bank1);
@@ -212,7 +212,7 @@ static int s5p_mfc_alloc_instance_buffer_v5(struct s5p_mfc_ctx *ctx)
 	else
 		ctx->ctx.size = buf_size->non_h264_ctx;
 
-	ret = s5p_mfc_alloc_priv_buf(dev, BANK1_CTX, &ctx->ctx);
+	ret = s5p_mfc_alloc_priv_buf(dev, BANK_L_CTX, &ctx->ctx);
 	if (ret) {
 		mfc_err("Failed to allocate instance buffer\n");
 		return ret;
@@ -225,7 +225,7 @@ static int s5p_mfc_alloc_instance_buffer_v5(struct s5p_mfc_ctx *ctx)
 
 	/* Initialize shared memory */
 	ctx->shm.size = buf_size->shm;
-	ret = s5p_mfc_alloc_priv_buf(dev, BANK1_CTX, &ctx->shm);
+	ret = s5p_mfc_alloc_priv_buf(dev, BANK_L_CTX, &ctx->shm);
 	if (ret) {
 		mfc_err("Failed to allocate shared memory buffer\n");
 		s5p_mfc_release_priv_buf(dev, &ctx->ctx);
@@ -233,7 +233,7 @@ static int s5p_mfc_alloc_instance_buffer_v5(struct s5p_mfc_ctx *ctx)
 	}
 
 	/* shared memory offset only keeps the offset from base (port a) */
-	ctx->shm.ofs = ctx->shm.dma - dev->dma_base[BANK1_CTX];
+	ctx->shm.ofs = ctx->shm.dma - dev->dma_base[BANK_L_CTX];
 	BUG_ON(ctx->shm.ofs & ((1 << MFC_BANK1_ALIGN_ORDER) - 1));
 
 	memset(ctx->shm.virt, 0, buf_size->shm);
@@ -532,9 +532,9 @@ static void s5p_mfc_get_enc_frame_buffer_v5(struct s5p_mfc_ctx *ctx,
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 
-	*y_addr = dev->dma_base[BANK2_CTX] +
+	*y_addr = dev->dma_base[BANK_R_CTX] +
 		  (mfc_read(dev, S5P_FIMV_ENCODED_Y_ADDR) << MFC_OFFSET_SHIFT);
-	*c_addr = dev->dma_base[BANK2_CTX] +
+	*c_addr = dev->dma_base[BANK_R_CTX] +
 		  (mfc_read(dev, S5P_FIMV_ENCODED_C_ADDR) << MFC_OFFSET_SHIFT);
 }
 
@@ -1212,8 +1212,8 @@ static int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	}
 	if (list_empty(&ctx->src_queue)) {
 		/* send null frame */
-		s5p_mfc_set_enc_frame_buffer_v5(ctx, dev->dma_base[BANK2_CTX],
-						dev->dma_base[BANK2_CTX]);
+		s5p_mfc_set_enc_frame_buffer_v5(ctx, dev->dma_base[BANK_R_CTX],
+						dev->dma_base[BANK_R_CTX]);
 		src_mb = NULL;
 	} else {
 		src_mb = list_entry(ctx->src_queue.next, struct s5p_mfc_buf,
@@ -1222,8 +1222,8 @@ static int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 		if (src_mb->b->vb2_buf.planes[0].bytesused == 0) {
 			/* send null frame */
 			s5p_mfc_set_enc_frame_buffer_v5(ctx,
-						dev->dma_base[BANK2_CTX],
-						dev->dma_base[BANK2_CTX]);
+						dev->dma_base[BANK_R_CTX],
+						dev->dma_base[BANK_R_CTX]);
 			ctx->state = MFCINST_FINISHING;
 		} else {
 			src_y_addr = vb2_dma_contig_plane_dma_addr(

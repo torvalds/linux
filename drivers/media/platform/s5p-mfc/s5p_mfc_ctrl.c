@@ -36,7 +36,7 @@ int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 		return -ENOMEM;
 	}
 
-	err = s5p_mfc_alloc_priv_buf(dev, BANK1_CTX, &dev->fw_buf);
+	err = s5p_mfc_alloc_priv_buf(dev, BANK_L_CTX, &dev->fw_buf);
 	if (err) {
 		mfc_err("Allocating bitprocessor buffer failed\n");
 		return err;
@@ -177,17 +177,18 @@ int s5p_mfc_reset(struct s5p_mfc_dev *dev)
 static inline void s5p_mfc_init_memctrl(struct s5p_mfc_dev *dev)
 {
 	if (IS_MFCV6_PLUS(dev)) {
-		mfc_write(dev, dev->dma_base[BANK1_CTX],
+		mfc_write(dev, dev->dma_base[BANK_L_CTX],
 			  S5P_FIMV_RISC_BASE_ADDRESS_V6);
 		mfc_debug(2, "Base Address : %pad\n",
-			  &dev->dma_base[BANK1_CTX]);
+			  &dev->dma_base[BANK_L_CTX]);
 	} else {
-		mfc_write(dev, dev->dma_base[BANK1_CTX],
+		mfc_write(dev, dev->dma_base[BANK_L_CTX],
 			  S5P_FIMV_MC_DRAMBASE_ADR_A);
-		mfc_write(dev, dev->dma_base[BANK2_CTX],
+		mfc_write(dev, dev->dma_base[BANK_R_CTX],
 			  S5P_FIMV_MC_DRAMBASE_ADR_B);
 		mfc_debug(2, "Bank1: %pad, Bank2: %pad\n",
-			  &dev->dma_base[BANK1_CTX], &dev->dma_base[BANK2_CTX]);
+			  &dev->dma_base[BANK_L_CTX],
+			  &dev->dma_base[BANK_R_CTX]);
 	}
 }
 

@@ -33,8 +33,8 @@
 *  while mmaping */
 #define DST_QUEUE_OFF_BASE	(1 << 30)
 
-#define BANK1_CTX	0
-#define BANK2_CTX	1
+#define BANK_L_CTX	0
+#define BANK_R_CTX	1
 #define BANK_CTX_NUM	2
 
 #define MFC_BANK1_ALIGN_ORDER	13
