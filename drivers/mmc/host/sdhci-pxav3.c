@@ -323,11 +323,8 @@ static void pxav3_set_power(struct sdhci_host *host, unsigned char mode,
 	if (host->pwr == 0)
 		vdd = 0;
 
-	if (!IS_ERR(mmc->supply.vmmc)) {
-		spin_unlock_irq(&host->lock);
+	if (!IS_ERR(mmc->supply.vmmc))
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
-		spin_lock_irq(&host->lock);
-	}
 }
 
 static const struct sdhci_ops pxav3_sdhci_ops = {

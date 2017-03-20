@@ -194,9 +194,7 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 			 * through low speeds without power cycling.
 			 */
 			sdhci_set_clock(host, host->max_clk);
-			spin_unlock_irq(&host->lock);
 			phy_power_on(sdhci_arasan->phy);
-			spin_lock_irq(&host->lock);
 			sdhci_arasan->is_phy_on = true;
 
 			/*
@@ -215,18 +213,14 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 
 	if (ctrl_phy && sdhci_arasan->is_phy_on) {
-		spin_unlock_irq(&host->lock);
 		phy_power_off(sdhci_arasan->phy);
-		spin_lock_irq(&host->lock);
 		sdhci_arasan->is_phy_on = false;
 	}
 
 	sdhci_set_clock(host, clock);
 
 	if (ctrl_phy) {
-		spin_unlock_irq(&host->lock);
 		phy_power_on(sdhci_arasan->phy);
-		spin_lock_irq(&host->lock);
 		sdhci_arasan->is_phy_on = true;
 	}
 }
