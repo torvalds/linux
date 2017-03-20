@@ -1105,6 +1105,7 @@ struct sevent {
 	char *topic;
 	char *str;
 	char *pmu;
+	char *metric_expr;
 };
 
 static int cmp_sevent(const void *a, const void *b)
@@ -1203,6 +1204,7 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 			aliases[j].topic = alias->topic;
 			aliases[j].str = alias->str;
 			aliases[j].pmu = pmu->name;
+			aliases[j].metric_expr = alias->metric_expr;
 			j++;
 		}
 		if (pmu->selectable &&
@@ -1237,8 +1239,12 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 			printf("%*s", 8, "[");
 			wordwrap(aliases[j].desc, 8, columns, 0);
 			printf("]\n");
-			if (verbose > 0)
-				printf("%*s%s/%s/\n", 8, "", aliases[j].pmu, aliases[j].str);
+			if (verbose > 0) {
+				printf("%*s%s/%s/ ", 8, "", aliases[j].pmu, aliases[j].str);
+				if (aliases[j].metric_expr)
+					printf(" MetricExpr: %s", aliases[j].metric_expr);
+				putchar('\n');
+			}
 		} else
 			printf("  %-50s [Kernel PMU event]\n", aliases[j].name);
 		printed++;
