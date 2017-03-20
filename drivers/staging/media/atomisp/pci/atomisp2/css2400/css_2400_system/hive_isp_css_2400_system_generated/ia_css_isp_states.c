@@ -31,11 +31,8 @@ ia_css_initialize_aa_state(
 
 		unsigned offset = binary->info->mem_offsets.offsets.state->vmem.aa.offset;
 
-		if (size) {
-			ia_css_init_aa_state(
-				&binary->mem_params.params[IA_CSS_PARAM_CLASS_STATE][IA_CSS_ISP_VMEM].address[offset],
-				size);
-		}
+		if (size)
+			memset(&binary->mem_params.params[IA_CSS_PARAM_CLASS_STATE][IA_CSS_ISP_VMEM].address[offset], 0, size);
 
 	}
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_initialize_aa_state() leave:\n");

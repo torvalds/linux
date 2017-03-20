@@ -2326,7 +2326,6 @@ sh_css_set_baa_config(struct ia_css_isp_parameters *params,
 	assert(params != NULL);
 
 	IA_CSS_ENTER_PRIVATE("config=%p", config);
-	ia_css_aa_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 
 	params->bds_config = *config;
 	params->config_changed[IA_CSS_BDS_ID] = true;
@@ -2346,7 +2345,6 @@ sh_css_get_baa_config(const struct ia_css_isp_parameters *params,
 
 	*config = params->bds_config;
 
-	ia_css_aa_debug_dtrace(config, IA_CSS_DEBUG_TRACE);
 	IA_CSS_LEAVE_PRIVATE("void");
 }
 

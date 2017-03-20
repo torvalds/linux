@@ -30,37 +30,3 @@ const struct ia_css_aa_config default_baa_config = {
 	8191 /* default should be 0 */
 };
 
-void
-ia_css_aa_encode(
-	struct sh_css_isp_aa_params *to,
-	const struct ia_css_aa_config *from,
-	unsigned size)
-{
-	(void)size;
-	to->strength = from->strength;
-}
-
-void
-ia_css_init_aa_state(
-	void *state,
-	size_t size)
-{
-	memset(state, 0, size);
-}
-
-#ifndef IA_CSS_NO_DEBUG
-void
-ia_css_aa_dump(
-	const struct sh_css_isp_aa_params *aa,
-	unsigned level);
-
-void
-ia_css_aa_debug_dtrace(
-	const struct ia_css_aa_config *config,
-	unsigned level)
-{
-	ia_css_debug_dtrace(level,
-		"config.strength=%d\n",
-		config->strength);
-}
-#endif /* IA_CSS_NO_DEBUG */
