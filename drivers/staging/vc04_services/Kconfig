@@ -1,5 +1,5 @@
 menuconfig BCM_VIDEOCORE
-	bool "Broadcom VideoCore support"
+	tristate "Broadcom VideoCore support"
 	depends on HAS_DMA
 	depends on RASPBERRYPI_FIRMWARE || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
 	default y
