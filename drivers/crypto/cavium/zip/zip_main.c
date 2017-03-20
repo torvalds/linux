@@ -488,32 +488,32 @@ static int zip_show_stats(struct seq_file *s, void *unused)
 				  atomic64_read(&st->comp_out_bytes));
 			seq_printf(s, "        ZIP Device %d Stats\n"
 				      "-----------------------------------\n"
-				      "Comp Req Submitted        : \t%ld\n"
-				      "Comp Req Completed        : \t%ld\n"
-				      "Compress In Bytes         : \t%ld\n"
-				      "Compressed Out Bytes      : \t%ld\n"
+				      "Comp Req Submitted        : \t%lld\n"
+				      "Comp Req Completed        : \t%lld\n"
+				      "Compress In Bytes         : \t%lld\n"
+				      "Compressed Out Bytes      : \t%lld\n"
 				      "Average Chunk size        : \t%llu\n"
 				      "Average Compression ratio : \t%llu\n"
-				      "Decomp Req Submitted      : \t%ld\n"
-				      "Decomp Req Completed      : \t%ld\n"
-				      "Decompress In Bytes       : \t%ld\n"
-				      "Decompressed Out Bytes    : \t%ld\n"
-				      "Decompress Bad requests   : \t%ld\n"
-				      "Pending Req               : \t%ld\n"
+				      "Decomp Req Submitted      : \t%lld\n"
+				      "Decomp Req Completed      : \t%lld\n"
+				      "Decompress In Bytes       : \t%lld\n"
+				      "Decompressed Out Bytes    : \t%lld\n"
+				      "Decompress Bad requests   : \t%lld\n"
+				      "Pending Req               : \t%lld\n"
 					"---------------------------------\n",
 				       index,
-				       atomic64_read(&st->comp_req_submit),
-				       atomic64_read(&st->comp_req_complete),
-				       atomic64_read(&st->comp_in_bytes),
-				       atomic64_read(&st->comp_out_bytes),
+				       (u64)atomic64_read(&st->comp_req_submit),
+				       (u64)atomic64_read(&st->comp_req_complete),
+				       (u64)atomic64_read(&st->comp_in_bytes),
+				       (u64)atomic64_read(&st->comp_out_bytes),
 				       avg_chunk,
 				       avg_cr,
-				       atomic64_read(&st->decomp_req_submit),
-				       atomic64_read(&st->decomp_req_complete),
-				       atomic64_read(&st->decomp_in_bytes),
-				       atomic64_read(&st->decomp_out_bytes),
-				       atomic64_read(&st->decomp_bad_reqs),
-				       atomic64_read(&st->pending_req));
+				       (u64)atomic64_read(&st->decomp_req_submit),
+				       (u64)atomic64_read(&st->decomp_req_complete),
+				       (u64)atomic64_read(&st->decomp_in_bytes),
+				       (u64)atomic64_read(&st->decomp_out_bytes),
+				       (u64)atomic64_read(&st->decomp_bad_reqs),
+				       (u64)atomic64_read(&st->pending_req));
 
 			/* Reset pending requests  count */
 			atomic64_set(&st->pending_req, 0);
