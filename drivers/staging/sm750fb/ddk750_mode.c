@@ -81,33 +81,38 @@ static int programModeRegisters(mode_parameter_t *pModeParam, struct pll_value *
 	if (pll->clockType == SECONDARY_PLL) {
 		/* programe secondary pixel clock */
 		poke32(CRT_PLL_CTRL, sm750_format_pll_reg(pll));
-		poke32(CRT_HORIZONTAL_TOTAL,
-		       (((pModeParam->horizontal_total - 1) <<
-			 CRT_HORIZONTAL_TOTAL_TOTAL_SHIFT) &
-			CRT_HORIZONTAL_TOTAL_TOTAL_MASK) |
-		       ((pModeParam->horizontal_display_end - 1) &
-			CRT_HORIZONTAL_TOTAL_DISPLAY_END_MASK));
 
-		poke32(CRT_HORIZONTAL_SYNC,
-		       ((pModeParam->horizontal_sync_width <<
-			 CRT_HORIZONTAL_SYNC_WIDTH_SHIFT) &
-			CRT_HORIZONTAL_SYNC_WIDTH_MASK) |
-		       ((pModeParam->horizontal_sync_start - 1) &
-			CRT_HORIZONTAL_SYNC_START_MASK));
+		tmp = ((pModeParam->horizontal_total - 1) <<
+		       CRT_HORIZONTAL_TOTAL_TOTAL_SHIFT) &
+		     CRT_HORIZONTAL_TOTAL_TOTAL_MASK;
+		tmp |= (pModeParam->horizontal_display_end - 1) &
+		      CRT_HORIZONTAL_TOTAL_DISPLAY_END_MASK;
 
-		poke32(CRT_VERTICAL_TOTAL,
-		       (((pModeParam->vertical_total - 1) <<
-			 CRT_VERTICAL_TOTAL_TOTAL_SHIFT) &
-			CRT_VERTICAL_TOTAL_TOTAL_MASK) |
-		       ((pModeParam->vertical_display_end - 1) &
-			CRT_VERTICAL_TOTAL_DISPLAY_END_MASK));
+		poke32(CRT_HORIZONTAL_TOTAL, tmp);
 
-		poke32(CRT_VERTICAL_SYNC,
-		       ((pModeParam->vertical_sync_height <<
-			 CRT_VERTICAL_SYNC_HEIGHT_SHIFT) &
-			CRT_VERTICAL_SYNC_HEIGHT_MASK) |
-		       ((pModeParam->vertical_sync_start - 1) &
-			CRT_VERTICAL_SYNC_START_MASK));
+		tmp = (pModeParam->horizontal_sync_width <<
+		       CRT_HORIZONTAL_SYNC_WIDTH_SHIFT) &
+		     CRT_HORIZONTAL_SYNC_WIDTH_MASK;
+		tmp |= (pModeParam->horizontal_sync_start - 1) &
+		      CRT_HORIZONTAL_SYNC_START_MASK;
+
+		poke32(CRT_HORIZONTAL_SYNC, tmp);
+
+		tmp = ((pModeParam->vertical_total - 1) <<
+		       CRT_VERTICAL_TOTAL_TOTAL_SHIFT) &
+		     CRT_VERTICAL_TOTAL_TOTAL_MASK;
+		tmp |= (pModeParam->vertical_display_end - 1) &
+		      CRT_VERTICAL_TOTAL_DISPLAY_END_MASK;
+
+		poke32(CRT_VERTICAL_TOTAL, tmp);
+
+		tmp = ((pModeParam->vertical_sync_height <<
+		       CRT_VERTICAL_SYNC_HEIGHT_SHIFT)) &
+		     CRT_VERTICAL_SYNC_HEIGHT_MASK;
+		tmp |= (pModeParam->vertical_sync_start - 1) &
+		      CRT_VERTICAL_SYNC_START_MASK;
+
+		poke32(CRT_VERTICAL_SYNC, tmp);
 
 		tmp = DISPLAY_CTRL_TIMING | DISPLAY_CTRL_PLANE;
 		if (pModeParam->vertical_sync_polarity)
