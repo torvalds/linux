@@ -2252,7 +2252,7 @@ static const char * const rt5665_if2_1_adc_in_src[] = {
 
 static const SOC_ENUM_SINGLE_DECL(
 	rt5665_if2_1_adc_in_enum, RT5665_DIG_INF2_DATA,
-	RT5665_IF3_ADC_IN_SFT, rt5665_if2_1_adc_in_src);
+	RT5665_IF2_1_ADC_IN_SFT, rt5665_if2_1_adc_in_src);
 
 static const struct snd_kcontrol_new rt5665_if2_1_adc_in_mux =
 	SOC_DAPM_ENUM("IF2_1 ADC IN Source", rt5665_if2_1_adc_in_enum);
