@@ -1154,7 +1154,7 @@ static void wordwrap(char *s, int start, int max, int corr)
 }
 
 void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
-			bool long_desc)
+			bool long_desc, bool details_flag)
 {
 	struct perf_pmu *pmu;
 	struct perf_pmu_alias *alias;
@@ -1246,7 +1246,7 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 			printf("%*s", 8, "[");
 			wordwrap(aliases[j].desc, 8, columns, 0);
 			printf("]\n");
-			if (verbose > 0) {
+			if (details_flag) {
 				printf("%*s%s/%s/ ", 8, "", aliases[j].pmu, aliases[j].str);
 				if (aliases[j].metric_name)
 					printf(" MetricName: %s", aliases[j].metric_name);

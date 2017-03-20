@@ -2325,7 +2325,7 @@ out_enomem:
  * Print the help text for the event symbols:
  */
 void print_events(const char *event_glob, bool name_only, bool quiet_flag,
-			bool long_desc)
+			bool long_desc, bool details_flag)
 {
 	print_symbol_events(event_glob, PERF_TYPE_HARDWARE,
 			    event_symbols_hw, PERF_COUNT_HW_MAX, name_only);
@@ -2335,7 +2335,8 @@ void print_events(const char *event_glob, bool name_only, bool quiet_flag,
 
 	print_hwcache_events(event_glob, name_only);
 
-	print_pmu_events(event_glob, name_only, quiet_flag, long_desc);
+	print_pmu_events(event_glob, name_only, quiet_flag, long_desc,
+			details_flag);
 
 	if (event_glob != NULL)
 		return;
