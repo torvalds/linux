@@ -648,24 +648,22 @@ static inline u8 sdhci_readb(struct sdhci_host *host, int reg)
 
 #endif /* CONFIG_MMC_SDHCI_IO_ACCESSORS */
 
-extern struct sdhci_host *sdhci_alloc_host(struct device *dev,
-	size_t priv_size);
-extern void sdhci_free_host(struct sdhci_host *host);
+struct sdhci_host *sdhci_alloc_host(struct device *dev, size_t priv_size);
+void sdhci_free_host(struct sdhci_host *host);
 
 static inline void *sdhci_priv(struct sdhci_host *host)
 {
 	return host->private;
 }
 
-extern void sdhci_card_detect(struct sdhci_host *host);
-extern void __sdhci_read_caps(struct sdhci_host *host, u16 *ver, u32 *caps,
-			      u32 *caps1);
-extern int sdhci_setup_host(struct sdhci_host *host);
-extern int __sdhci_add_host(struct sdhci_host *host);
-extern int sdhci_add_host(struct sdhci_host *host);
-extern void sdhci_remove_host(struct sdhci_host *host, int dead);
-extern void sdhci_send_command(struct sdhci_host *host,
-				struct mmc_command *cmd);
+void sdhci_card_detect(struct sdhci_host *host);
+void __sdhci_read_caps(struct sdhci_host *host, u16 *ver, u32 *caps,
+		       u32 *caps1);
+int sdhci_setup_host(struct sdhci_host *host);
+int __sdhci_add_host(struct sdhci_host *host);
+int sdhci_add_host(struct sdhci_host *host);
+void sdhci_remove_host(struct sdhci_host *host, int dead);
+void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd);
 
 static inline void sdhci_read_caps(struct sdhci_host *host)
 {
@@ -691,11 +689,11 @@ void sdhci_set_uhs_signaling(struct sdhci_host *host, unsigned timing);
 int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode);
 
 #ifdef CONFIG_PM
-extern int sdhci_suspend_host(struct sdhci_host *host);
-extern int sdhci_resume_host(struct sdhci_host *host);
-extern void sdhci_enable_irq_wakeups(struct sdhci_host *host);
-extern int sdhci_runtime_suspend_host(struct sdhci_host *host);
-extern int sdhci_runtime_resume_host(struct sdhci_host *host);
+int sdhci_suspend_host(struct sdhci_host *host);
+int sdhci_resume_host(struct sdhci_host *host);
+void sdhci_enable_irq_wakeups(struct sdhci_host *host);
+int sdhci_runtime_suspend_host(struct sdhci_host *host);
+int sdhci_runtime_resume_host(struct sdhci_host *host);
 #endif
 
 void sdhci_dumpregs(struct sdhci_host *host);
