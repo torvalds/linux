@@ -106,7 +106,6 @@ atomisp-objs += \
 	css2400/isp/kernels/ipu2_io_ls/bayer_io_ls/ia_css_bayer_io.host.o \
 	css2400/isp/kernels/ipu2_io_ls/yuv444_io_ls/ia_css_yuv444_io.host.o \
 	css2400/isp/kernels/s3a/s3a_1.0/ia_css_s3a.host.o \
-	css2400/sh_css_lace_stat.o \
 	css2400/sh_css_pipe.o \
 	css2400/ia_css_device_access.o \
 	css2400/sh_css_host_data.o \

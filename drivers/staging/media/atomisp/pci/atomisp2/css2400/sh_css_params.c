@@ -1225,10 +1225,6 @@ struct ia_css_isp_skc_dvs_statistics {
 	ia_css_ptr p_data;
 };
 
-struct ia_css_isp_lace_statistics {
-	ia_css_ptr p_data;
-};
-
 static enum ia_css_err
 ref_sh_css_ddr_address_map(
 		struct sh_css_ddr_address_map *map,
@@ -2835,17 +2831,6 @@ ia_css_isp_3a_statistics_free(struct ia_css_isp_3a_statistics *me)
 }
 
 struct ia_css_isp_skc_dvs_statistics *ia_css_skc_dvs_statistics_allocate(void)
-{
-	return NULL;
-}
-
-void
-ia_css_lace_statistics_free(struct ia_css_isp_lace_statistics *me)
-{
-	me = NULL;
-}
-
-struct ia_css_isp_lace_statistics *ia_css_lace_statistics_allocate(void)
 {
 	return NULL;
 }

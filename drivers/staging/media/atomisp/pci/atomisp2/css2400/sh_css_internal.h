@@ -44,7 +44,6 @@
 #include "ia_css_frame_comm.h"
 #include "ia_css_3a.h"
 #include "ia_css_dvs.h"
-#include "ia_css_lace_stat.h"
 #include "ia_css_metadata.h"
 #include "runtime/bufq/interface/ia_css_bufq.h"
 #include "ia_css_timer.h"
