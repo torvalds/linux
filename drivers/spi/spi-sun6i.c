@@ -194,9 +194,7 @@ static void sun6i_spi_set_cs(struct spi_device *spi, bool enable)
 
 static size_t sun6i_spi_max_transfer_size(struct spi_device *spi)
 {
-	struct sun6i_spi *sspi = spi_master_get_devdata(spi->master);
-
-	return sspi->fifo_depth - 1;
+	return SUN6I_MAX_XFER_SIZE - 1;
 }
 
 static int sun6i_spi_transfer_one(struct spi_master *master,
