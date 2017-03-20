@@ -15,7 +15,7 @@
 #include <linux/preempt.h>
 #include <asm/lowcore.h>
 
-#define MAX_FACILITY_BIT (256*8)	/* stfle_fac_list has 256 bytes */
+#define MAX_FACILITY_BIT (sizeof(((struct lowcore *)0)->stfle_fac_list) * 8)
 
 static inline int __test_facility(unsigned long nr, void *facilities)
 {
