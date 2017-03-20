@@ -22,7 +22,7 @@
 
 #include "i2c-designware-core.h"
 
-#define SEMAPHORE_TIMEOUT	100
+#define SEMAPHORE_TIMEOUT	500
 #define PUNIT_SEMAPHORE		0x7
 #define PUNIT_SEMAPHORE_CHT	0x10e
 #define PUNIT_SEMAPHORE_BIT	BIT(0)
