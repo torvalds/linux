@@ -41,6 +41,9 @@
 #define DP83867_SW_RESET	BIT(15)
 #define DP83867_SW_RESTART	BIT(14)
 
+/* PHYCTRL bits */
+#define MII_DP83867_PHYCTRL_FORCE_LINK_GOOD	BIT(10)
+
 /* MICR Interrupt bits */
 #define MII_DP83867_MICR_AN_ERR_INT_EN		BIT(15)
 #define MII_DP83867_MICR_SPEED_CHNG_INT_EN	BIT(14)
@@ -312,6 +315,13 @@ static int dp83867_config_init(struct phy_device *phydev)
 		val &= ~DP83867_IO_MUX_CFG_CLK_O_SEL_MASK;
 		val |= (dp83867->clk_output_sel << DP83867_IO_MUX_CFG_CLK_O_SEL_SHIFT);
 		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_IO_MUX_CFG, val);
+	}
+
+	/* Disable FORCE_LINK_GOOD */
+	val = phy_read(phydev, MII_DP83867_PHYCTRL);
+	if (val & MII_DP83867_PHYCTRL_FORCE_LINK_GOOD) {
+		val &= ~(MII_DP83867_PHYCTRL_FORCE_LINK_GOOD);
+		phy_write(phydev, MII_DP83867_PHYCTRL, val);
 	}
 
 	return 0;
