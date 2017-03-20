@@ -3568,6 +3568,22 @@ undma:
 }
 EXPORT_SYMBOL_GPL(sdhci_setup_host);
 
+void sdhci_cleanup_host(struct sdhci_host *host)
+{
+	struct mmc_host *mmc = host->mmc;
+
+	if (!IS_ERR(mmc->supply.vqmmc))
+		regulator_disable(mmc->supply.vqmmc);
+
+	if (host->align_buffer)
+		dma_free_coherent(mmc_dev(mmc), host->align_buffer_sz +
+				  host->adma_table_sz, host->align_buffer,
+				  host->align_addr);
+	host->adma_table = NULL;
+	host->align_buffer = NULL;
+}
+EXPORT_SYMBOL_GPL(sdhci_cleanup_host);
+
 int __sdhci_add_host(struct sdhci_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
@@ -3632,16 +3648,6 @@ unirq:
 untasklet:
 	tasklet_kill(&host->finish_tasklet);
 
-	if (!IS_ERR(mmc->supply.vqmmc))
-		regulator_disable(mmc->supply.vqmmc);
-
-	if (host->align_buffer)
-		dma_free_coherent(mmc_dev(mmc), host->align_buffer_sz +
-				  host->adma_table_sz, host->align_buffer,
-				  host->align_addr);
-	host->adma_table = NULL;
-	host->align_buffer = NULL;
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__sdhci_add_host);
@@ -3654,7 +3660,16 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (ret)
 		return ret;
 
-	return __sdhci_add_host(host);
+	ret = __sdhci_add_host(host);
+	if (ret)
+		goto cleanup;
+
+	return 0;
+
+cleanup:
+	sdhci_cleanup_host(host);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(sdhci_add_host);
 
