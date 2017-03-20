@@ -1260,6 +1260,52 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 	return evsel ? 0 : -ENOMEM;
 }
 
+int parse_events_multi_pmu_add(struct parse_events_evlist *data,
+			       char *str, struct list_head **listp)
+{
+	struct list_head *head;
+	struct parse_events_term *term;
+	struct list_head *list;
+	struct perf_pmu *pmu = NULL;
+	int ok = 0;
+
+	*listp = NULL;
+	/* Add it for all PMUs that support the alias */
+	list = malloc(sizeof(struct list_head));
+	if (!list)
+		return -1;
+	INIT_LIST_HEAD(list);
+	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+		struct perf_pmu_alias *alias;
+
+		list_for_each_entry(alias, &pmu->aliases, list) {
+			if (!strcasecmp(alias->name, str)) {
+				head = malloc(sizeof(struct list_head));
+				if (!head)
+					return -1;
+				INIT_LIST_HEAD(head);
+				if (parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
+							   str, 1, false, &str, NULL) < 0)
+					return -1;
+				list_add_tail(&term->list, head);
+
+				if (!parse_events_add_pmu(data, list,
+						  pmu->name, head)) {
+					pr_debug("%s -> %s/%s/\n", str,
+						 pmu->name, alias->str);
+					ok++;
+				}
+
+				parse_events_terms__delete(head);
+			}
+		}
+	}
+	if (!ok)
+		return -1;
+	*listp = list;
+	return 0;
+}
+
 int parse_events__modifier_group(struct list_head *list,
 				 char *event_mod)
 {

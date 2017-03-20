@@ -236,37 +236,9 @@ PE_NAME opt_event_config
 |
 PE_KERNEL_PMU_EVENT sep_dc
 {
-	struct parse_events_evlist *data = _data;
-	struct list_head *head;
-	struct parse_events_term *term;
 	struct list_head *list;
-	struct perf_pmu *pmu = NULL;
-	int ok = 0;
 
-	/* Add it for all PMUs that support the alias */
-	ALLOC_LIST(list);
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
-		struct perf_pmu_alias *alias;
-
-		list_for_each_entry(alias, &pmu->aliases, list) {
-			if (!strcasecmp(alias->name, $1)) {
-				ALLOC_LIST(head);
-				ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					$1, 1, false, &@1, NULL));
-				list_add_tail(&term->list, head);
-
-				if (!parse_events_add_pmu(data, list,
-						  pmu->name, head)) {
-					pr_debug("%s -> %s/%s/\n", $1,
-						 pmu->name, alias->str);
-					ok++;
-				}
-
-				parse_events_terms__delete(head);
-			}
-		}
-	}
-	if (!ok)
+	if (parse_events_multi_pmu_add(_data, $1, &list) < 0)
 		YYABORT;
 	$$ = list;
 }
