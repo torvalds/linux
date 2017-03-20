@@ -22,7 +22,6 @@
 #include "isp/kernels/ref/ref_1.0/ia_css_ref.host.h"
 #include "isp/kernels/tnr/tnr_1.0/ia_css_tnr.host.h"
 #include "isp/kernels/ynr/ynr_1.0/ia_css_ynr.host.h"
-#include "isp/kernels/iefd2_6/ia_css_iefd2_6.host.h"
 #include "isp/kernels/dpc2/ia_css_dpc2.host.h"
 #include "isp/kernels/eed1_8/ia_css_eed1_8.host.h"
 /* Generated code: do not edit or commmit. */

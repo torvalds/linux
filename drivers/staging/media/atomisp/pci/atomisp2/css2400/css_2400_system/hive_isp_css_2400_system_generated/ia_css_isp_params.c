@@ -51,7 +51,6 @@
 #include "isp/kernels/ynr/ynr_2/ia_css_ynr2.host.h"
 #include "isp/kernels/fc/fc_1.0/ia_css_formats.host.h"
 #include "isp/kernels/tdf/tdf_1.0/ia_css_tdf.host.h"
-#include "isp/kernels/iefd2_6/ia_css_iefd2_6.host.h"
 #include "isp/kernels/dpc2/ia_css_dpc2.host.h"
 #include "isp/kernels/eed1_8/ia_css_eed1_8.host.h"
 #include "isp/kernels/bnlm/ia_css_bnlm.host.h"

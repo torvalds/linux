@@ -56,8 +56,6 @@ atomisp-objs += \
 	css2400/isp/kernels/macc/macc_1.0/ia_css_macc.host.o \
 	css2400/isp/kernels/macc/macc_1.0/ia_css_macc_table.host.o \
 	css2400/isp/kernels/csc/csc_1.0/ia_css_csc.host.o \
-	css2400/isp/kernels/iefd2_6/ia_css_iefd2_6_default.host.o \
-	css2400/isp/kernels/iefd2_6/ia_css_iefd2_6.host.o \
 	css2400/isp/kernels/bnr/bnr_1.0/ia_css_bnr.host.o \
 	css2400/isp/kernels/bnr/bnr2_2/ia_css_bnr2_2.host.o \
 	css2400/isp/kernels/dpc2/ia_css_dpc2.host.o \
@@ -274,7 +272,6 @@ INCLUDES += \
 	-I$(atomisp)/css2400/isp/kernels/gc/gc_1.0/ \
 	-I$(atomisp)/css2400/isp/kernels/gc/gc_2/ \
 	-I$(atomisp)/css2400/isp/kernels/hdr/ \
-	-I$(atomisp)/css2400/isp/kernels/iefd2_6/ \
 	-I$(atomisp)/css2400/isp/kernels/io_ls/ \
 	-I$(atomisp)/css2400/isp/kernels/io_ls/bayer_io_ls/ \
 	-I$(atomisp)/css2400/isp/kernels/io_ls/common/ \
