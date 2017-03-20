@@ -91,13 +91,13 @@ static void probe_xeon_phi_r3mwait(struct cpuinfo_x86 *c)
 	}
 
 	if (ring3mwait_disabled) {
-		msr_clear_bit(MSR_MISC_FEATURE_ENABLES,
-			      MSR_MISC_FEATURE_ENABLES_RING3MWAIT_BIT);
+		msr_clear_bit(MSR_MISC_FEATURES_ENABLES,
+			      MSR_MISC_FEATURES_ENABLES_RING3MWAIT_BIT);
 		return;
 	}
 
-	msr_set_bit(MSR_MISC_FEATURE_ENABLES,
-		    MSR_MISC_FEATURE_ENABLES_RING3MWAIT_BIT);
+	msr_set_bit(MSR_MISC_FEATURES_ENABLES,
+		    MSR_MISC_FEATURES_ENABLES_RING3MWAIT_BIT);
 
 	set_cpu_cap(c, X86_FEATURE_RING3MWAIT);
 
