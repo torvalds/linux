@@ -515,6 +515,44 @@ out:
 	return ret;
 }
 
+#define SDHCI_INTEL_PWR_TIMEOUT_CNT	20
+#define SDHCI_INTEL_PWR_TIMEOUT_UDELAY	100
+
+static void sdhci_intel_set_power(struct sdhci_host *host, unsigned char mode,
+				  unsigned short vdd)
+{
+	int cntr;
+	u8 reg;
+
+	sdhci_set_power(host, mode, vdd);
+
+	if (mode == MMC_POWER_OFF)
+		return;
+
+	/*
+	 * Bus power might not enable after D3 -> D0 transition due to the
+	 * present state not yet having propagated. Retry for up to 2ms.
+	 */
+	for (cntr = 0; cntr < SDHCI_INTEL_PWR_TIMEOUT_CNT; cntr++) {
+		reg = sdhci_readb(host, SDHCI_POWER_CONTROL);
+		if (reg & SDHCI_POWER_ON)
+			break;
+		udelay(SDHCI_INTEL_PWR_TIMEOUT_UDELAY);
+		reg |= SDHCI_POWER_ON;
+		sdhci_writeb(host, reg, SDHCI_POWER_CONTROL);
+	}
+}
+
+static const struct sdhci_ops sdhci_intel_byt_ops = {
+	.set_clock		= sdhci_set_clock,
+	.set_power		= sdhci_intel_set_power,
+	.enable_dma		= sdhci_pci_enable_dma,
+	.set_bus_width		= sdhci_pci_set_bus_width,
+	.reset			= sdhci_reset,
+	.set_uhs_signaling	= sdhci_set_uhs_signaling,
+	.hw_reset		= sdhci_pci_hw_reset,
+};
+
 static void byt_read_dsm(struct sdhci_pci_slot *slot)
 {
 	struct intel_host *intel_host = sdhci_pci_priv(slot);
@@ -605,44 +643,6 @@ static int byt_sd_probe_slot(struct sdhci_pci_slot *slot)
 
 	return 0;
 }
-
-#define SDHCI_INTEL_PWR_TIMEOUT_CNT	20
-#define SDHCI_INTEL_PWR_TIMEOUT_UDELAY	100
-
-static void sdhci_intel_set_power(struct sdhci_host *host, unsigned char mode,
-				  unsigned short vdd)
-{
-	int cntr;
-	u8 reg;
-
-	sdhci_set_power(host, mode, vdd);
-
-	if (mode == MMC_POWER_OFF)
-		return;
-
-	/*
-	 * Bus power might not enable after D3 -> D0 transition due to the
-	 * present state not yet having propagated. Retry for up to 2ms.
-	 */
-	for (cntr = 0; cntr < SDHCI_INTEL_PWR_TIMEOUT_CNT; cntr++) {
-		reg = sdhci_readb(host, SDHCI_POWER_CONTROL);
-		if (reg & SDHCI_POWER_ON)
-			break;
-		udelay(SDHCI_INTEL_PWR_TIMEOUT_UDELAY);
-		reg |= SDHCI_POWER_ON;
-		sdhci_writeb(host, reg, SDHCI_POWER_CONTROL);
-	}
-}
-
-static const struct sdhci_ops sdhci_intel_byt_ops = {
-	.set_clock		= sdhci_set_clock,
-	.set_power		= sdhci_intel_set_power,
-	.enable_dma		= sdhci_pci_enable_dma,
-	.set_bus_width		= sdhci_pci_set_bus_width,
-	.reset			= sdhci_reset,
-	.set_uhs_signaling	= sdhci_set_uhs_signaling,
-	.hw_reset		= sdhci_pci_hw_reset,
-};
 
 static const struct sdhci_pci_fixes sdhci_intel_byt_emmc = {
 	.allow_runtime_pm = true,
