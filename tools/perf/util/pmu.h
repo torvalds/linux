@@ -31,6 +31,7 @@ struct perf_pmu {
 
 struct perf_pmu_info {
 	const char *unit;
+	const char *metric_expr;
 	double scale;
 	bool per_pkg;
 	bool snapshot;

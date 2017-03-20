@@ -1145,6 +1145,7 @@ static void printout(int id, int nr, struct perf_evsel *counter, double uval,
 	out.print_metric = pm;
 	out.new_line = nl;
 	out.ctx = &os;
+	out.force_header = false;
 
 	if (csv_output && !metric_only) {
 		print_noise(counter, noise);
@@ -1480,6 +1481,7 @@ static void print_metric_headers(const char *prefix, bool no_indent)
 		out.ctx = &os;
 		out.print_metric = print_metric_header;
 		out.new_line = new_line_metric;
+		out.force_header = true;
 		os.evsel = counter;
 		perf_stat__print_shadow_stats(counter, 0,
 					      0,
@@ -2498,6 +2500,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	argc = parse_options_subcommand(argc, argv, stat_options, stat_subcommands,
 					(const char **) stat_usage,
 					PARSE_OPT_STOP_AT_NON_OPTION);
+	perf_stat__collect_metric_expr(evsel_list);
 	perf_stat__init_shadow_stats();
 
 	if (csv_sep) {
