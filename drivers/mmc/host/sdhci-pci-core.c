@@ -67,6 +67,7 @@ static int ricoh_mmc_probe_slot(struct sdhci_pci_slot *slot)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int ricoh_mmc_resume(struct sdhci_pci_chip *chip)
 {
 	/* Apply a delay to allow controller to settle */
@@ -75,6 +76,7 @@ static int ricoh_mmc_resume(struct sdhci_pci_chip *chip)
 	msleep(500);
 	return 0;
 }
+#endif
 
 static const struct sdhci_pci_fixes sdhci_ricoh = {
 	.probe		= ricoh_probe,
@@ -85,7 +87,9 @@ static const struct sdhci_pci_fixes sdhci_ricoh = {
 
 static const struct sdhci_pci_fixes sdhci_ricoh_mmc = {
 	.probe_slot	= ricoh_mmc_probe_slot,
+#ifdef CONFIG_PM_SLEEP
 	.resume		= ricoh_mmc_resume,
+#endif
 	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR |
 			  SDHCI_QUIRK_CLOCK_BEFORE_RESET |
 			  SDHCI_QUIRK_NO_CARD_NO_RESET |
@@ -751,6 +755,7 @@ static void jmicron_remove_slot(struct sdhci_pci_slot *slot, int dead)
 		jmicron_enable_mmc(slot->host, 0);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int jmicron_suspend(struct sdhci_pci_chip *chip)
 {
 	int i;
@@ -782,13 +787,16 @@ static int jmicron_resume(struct sdhci_pci_chip *chip)
 
 	return 0;
 }
+#endif
 
 static const struct sdhci_pci_fixes sdhci_o2 = {
 	.probe = sdhci_pci_o2_probe,
 	.quirks = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
 	.quirks2 = SDHCI_QUIRK2_CLEAR_TRANSFERMODE_REG_BEFORE_CMD,
 	.probe_slot = sdhci_pci_o2_probe_slot,
+#ifdef CONFIG_PM_SLEEP
 	.resume = sdhci_pci_o2_resume,
+#endif
 };
 
 static const struct sdhci_pci_fixes sdhci_jmicron = {
@@ -797,8 +805,10 @@ static const struct sdhci_pci_fixes sdhci_jmicron = {
 	.probe_slot	= jmicron_probe_slot,
 	.remove_slot	= jmicron_remove_slot,
 
+#ifdef CONFIG_PM_SLEEP
 	.suspend	= jmicron_suspend,
 	.resume		= jmicron_resume,
+#endif
 };
 
 /* SysKonnect CardBus2SDIO extra registers */

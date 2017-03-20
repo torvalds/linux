@@ -67,8 +67,10 @@ struct sdhci_pci_fixes {
 	int			(*add_host) (struct sdhci_pci_slot *);
 	void			(*remove_slot) (struct sdhci_pci_slot *, int);
 
+#ifdef CONFIG_PM_SLEEP
 	int			(*suspend) (struct sdhci_pci_chip *);
 	int			(*resume) (struct sdhci_pci_chip *);
+#endif
 
 	const struct sdhci_ops	*ops;
 	size_t			priv_size;
