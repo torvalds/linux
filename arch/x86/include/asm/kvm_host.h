@@ -611,6 +611,8 @@ struct kvm_vcpu_arch {
 	unsigned long dr7;
 	unsigned long eff_db[KVM_NR_DB_REGS];
 	unsigned long guest_debug_dr7;
+	u64 msr_platform_info;
+	u64 msr_misc_features_enables;
 
 	u64 mcg_cap;
 	u64 mcg_status;

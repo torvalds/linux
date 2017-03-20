@@ -1007,6 +1007,8 @@ static u32 emulated_msrs[] = {
 	MSR_IA32_MCG_CTL,
 	MSR_IA32_MCG_EXT_CTL,
 	MSR_IA32_SMBASE,
+	MSR_PLATFORM_INFO,
+	MSR_MISC_FEATURES_ENABLES,
 };
 
 static unsigned num_emulated_msrs;
@@ -2314,6 +2316,21 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		vcpu->arch.osvw.status = data;
 		break;
+	case MSR_PLATFORM_INFO:
+		if (!msr_info->host_initiated ||
+		    data & ~MSR_PLATFORM_INFO_CPUID_FAULT ||
+		    (!(data & MSR_PLATFORM_INFO_CPUID_FAULT) &&
+		     cpuid_fault_enabled(vcpu)))
+			return 1;
+		vcpu->arch.msr_platform_info = data;
+		break;
+	case MSR_MISC_FEATURES_ENABLES:
+		if (data & ~MSR_MISC_FEATURES_ENABLES_CPUID_FAULT ||
+		    (data & MSR_MISC_FEATURES_ENABLES_CPUID_FAULT &&
+		     !supports_cpuid_fault(vcpu)))
+			return 1;
+		vcpu->arch.msr_misc_features_enables = data;
+		break;
 	default:
 		if (msr && (msr == vcpu->kvm->arch.xen_hvm_config.msr))
 			return xen_hvm_config(vcpu, data);
@@ -2528,6 +2545,12 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!guest_cpuid_has_osvw(vcpu))
 			return 1;
 		msr_info->data = vcpu->arch.osvw.status;
+		break;
+	case MSR_PLATFORM_INFO:
+		msr_info->data = vcpu->arch.msr_platform_info;
+		break;
+	case MSR_MISC_FEATURES_ENABLES:
+		msr_info->data = vcpu->arch.msr_misc_features_enables;
 		break;
 	default:
 		if (kvm_pmu_is_valid_msr(vcpu, msr_info->index))
@@ -7710,6 +7733,9 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	if (!init_event) {
 		kvm_pmu_reset(vcpu);
 		vcpu->arch.smbase = 0x30000;
+
+		vcpu->arch.msr_platform_info = MSR_PLATFORM_INFO_CPUID_FAULT;
+		vcpu->arch.msr_misc_features_enables = 0;
 	}
 
 	memset(vcpu->arch.regs, 0, sizeof(vcpu->arch.regs));
