@@ -82,30 +82,7 @@ static int vcm_ad_i2c_wr8(struct i2c_client *client, u8 reg, u8 val)
 	}
 	return 0;
 }
-/*TODO: remove this unuseful i2c writer helper*/
-/*
-static int vcm_ad_i2c_wr16(struct i2c_client *client, u8 reg, u16 val)
-{
-	int err;
-	struct i2c_msg msg;
-	u8 buf[3];
-	buf[0] = reg;
-	buf[1] = (u8)(val >> 8);
-	buf[2] = (u8)(val & 0xff);
-	msg.addr = VCM_ADDR;
-	msg.flags = 0;
-	msg.len = 3;
-	msg.buf = &buf[0];
 
-	err = i2c_transfer(client->adapter, &msg, 1);
-	if (err != 1) {
-		dev_err(&client->dev, "%s: vcm i2c fail, err code = %d\n",
-			__func__, err);
-		return -EIO;
-	}
-	return 0;
-}
-*/
 static int ad5823_i2c_write(struct i2c_client *client, u8 reg, u8 val)
 {
 	struct i2c_msg msg;
