@@ -174,6 +174,7 @@ struct rt2x00_chip {
 #define RT5390		0x5390  /* 2.4GHz */
 #define RT5392		0x5392  /* 2.4GHz */
 #define RT5592		0x5592
+#define RT6352		0x6352  /* WSOC 2.4GHz */
 
 	u16 rf;
 	u16 rev;
