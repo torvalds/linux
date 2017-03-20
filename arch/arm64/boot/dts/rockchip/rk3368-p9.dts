@@ -624,10 +624,6 @@
 	status = "okay";
 };
 
-&uart2 {
-	status = "okay";
-};
-
 &saradc {
 	status = "okay";
 };
