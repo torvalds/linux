@@ -29,10 +29,4 @@ ia_css_bh_encode(
 	const struct ia_css_3a_config *from,
 	unsigned size);
 
-void
-ia_css_bh_hmem_encode(
-	struct sh_css_isp_bh_hmem_params *to,
-	const struct ia_css_3a_config *from,
-	unsigned size);
-
 #endif /* __IA_CSS_BH_HOST_H */

@@ -176,15 +176,9 @@ size);
 	{
 		unsigned size   = stage->binary->info->mem_offsets.offsets.param->hmem0.bh.size;
 
-		unsigned offset = stage->binary->info->mem_offsets.offsets.param->hmem0.bh.offset;
-
 		if (size) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_bh() enter:\n");
 
-			ia_css_bh_hmem_encode((struct sh_css_isp_bh_hmem_params *)
-					&stage->binary->mem_params.params[IA_CSS_PARAM_CLASS_PARAM][IA_CSS_ISP_HMEM0].address[offset],
-					&params->s3a_config,
-size);
 			params->isp_params_changed = true;
 			params->isp_mem_params_changed[pipe_id][stage->stage_num][IA_CSS_ISP_HMEM0] = true;
 
