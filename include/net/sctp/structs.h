@@ -83,6 +83,7 @@ struct sctp_bind_addr;
 struct sctp_ulpq;
 struct sctp_ep_common;
 struct crypto_shash;
+struct sctp_stream;
 
 
 #include <net/sctp/tsnmap.h>
