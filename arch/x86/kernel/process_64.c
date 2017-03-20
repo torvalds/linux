@@ -547,13 +547,13 @@ static long prctl_map_vdso(const struct vdso_image *image, unsigned long addr)
 }
 #endif
 
-long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
+long do_arch_prctl(struct task_struct *task, int option, unsigned long addr)
 {
 	int ret = 0;
 	int doit = task == current;
 	int cpu;
 
-	switch (code) {
+	switch (option) {
 	case ARCH_SET_GS:
 		if (addr >= TASK_SIZE_MAX)
 			return -EPERM;
@@ -621,9 +621,9 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 	return ret;
 }
 
-long sys_arch_prctl(int code, unsigned long addr)
+long sys_arch_prctl(int option, unsigned long addr)
 {
-	return do_arch_prctl(current, code, addr);
+	return do_arch_prctl(current, option, addr);
 }
 
 unsigned long KSTK_ESP(struct task_struct *task)

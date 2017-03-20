@@ -11,7 +11,8 @@
 #include <asm/prctl.h> /* XXX This should get the constants from libc */
 #include <os.h>
 
-long arch_prctl(struct task_struct *task, int code, unsigned long __user *addr)
+long arch_prctl(struct task_struct *task, int option
+		unsigned long __user *addr)
 {
 	unsigned long *ptr = addr, tmp;
 	long ret;
@@ -30,7 +31,7 @@ long arch_prctl(struct task_struct *task, int code, unsigned long __user *addr)
 	 * arch_prctl is run on the host, then the registers are read
 	 * back.
 	 */
-	switch (code) {
+	switch (option) {
 	case ARCH_SET_FS:
 	case ARCH_SET_GS:
 		ret = restore_registers(pid, &current->thread.regs.regs);
@@ -50,11 +51,11 @@ long arch_prctl(struct task_struct *task, int code, unsigned long __user *addr)
 		ptr = &tmp;
 	}
 
-	ret = os_arch_prctl(pid, code, ptr);
+	ret = os_arch_prctl(pid, option, ptr);
 	if (ret)
 		return ret;
 
-	switch (code) {
+	switch (option) {
 	case ARCH_SET_FS:
 		current->thread.arch.fs = (unsigned long) ptr;
 		ret = save_registers(pid, &current->thread.regs.regs);
@@ -73,9 +74,9 @@ long arch_prctl(struct task_struct *task, int code, unsigned long __user *addr)
 	return ret;
 }
 
-long sys_arch_prctl(int code, unsigned long addr)
+long sys_arch_prctl(int option, unsigned long addr)
 {
-	return arch_prctl(current, code, (unsigned long __user *) addr);
+	return arch_prctl(current, option, (unsigned long __user *) addr);
 }
 
 void arch_switch_to(struct task_struct *to)
