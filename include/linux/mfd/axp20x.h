@@ -228,8 +228,8 @@ enum axp20x_variants {
 #define AXP20X_OCV_MAX			0xf
 
 /* AXP22X specific registers */
-#define AXP22X_PMIC_ADC_H		0x56
-#define AXP22X_PMIC_ADC_L		0x57
+#define AXP22X_PMIC_TEMP_H		0x56
+#define AXP22X_PMIC_TEMP_L		0x57
 #define AXP22X_TS_ADC_H			0x58
 #define AXP22X_TS_ADC_L			0x59
 #define AXP22X_BATLOW_THRES1		0xe6
