@@ -9145,16 +9145,16 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vmx_complete_interrupts(vmx);
 }
 
-static void vmx_load_vmcs01(struct kvm_vcpu *vcpu)
+static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	int cpu;
 
-	if (vmx->loaded_vmcs == &vmx->vmcs01)
+	if (vmx->loaded_vmcs == vmcs)
 		return;
 
 	cpu = get_cpu();
-	vmx->loaded_vmcs = &vmx->vmcs01;
+	vmx->loaded_vmcs = vmcs;
 	vmx_vcpu_put(vcpu);
 	vmx_vcpu_load(vcpu, cpu);
 	vcpu->cpu = cpu;
@@ -9172,7 +9172,7 @@ static void vmx_free_vcpu_nested(struct kvm_vcpu *vcpu)
 
        r = vcpu_load(vcpu);
        BUG_ON(r);
-       vmx_load_vmcs01(vcpu);
+       vmx_switch_vmcs(vcpu, &vmx->vmcs01);
        free_nested(vmx);
        vcpu_put(vcpu);
 }
@@ -10424,7 +10424,6 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	struct loaded_vmcs *vmcs02;
-	int cpu;
 	u32 msr_entry_idx;
 	u32 exit_qual;
 
@@ -10437,18 +10436,12 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 	if (!(vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DEBUG_CONTROLS))
 		vmx->nested.vmcs01_debugctl = vmcs_read64(GUEST_IA32_DEBUGCTL);
 
-	cpu = get_cpu();
-	vmx->loaded_vmcs = vmcs02;
-	vmx_vcpu_put(vcpu);
-	vmx_vcpu_load(vcpu, cpu);
-	vcpu->cpu = cpu;
-	put_cpu();
-
+	vmx_switch_vmcs(vcpu, vmcs02);
 	vmx_segment_cache_clear(vmx);
 
 	if (prepare_vmcs02(vcpu, vmcs12, from_vmentry, &exit_qual)) {
 		leave_guest_mode(vcpu);
-		vmx_load_vmcs01(vcpu);
+		vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 		nested_vmx_entry_failure(vcpu, vmcs12,
 					 EXIT_REASON_INVALID_STATE, exit_qual);
 		return 1;
@@ -10461,7 +10454,7 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 					    vmcs12->vm_entry_msr_load_count);
 	if (msr_entry_idx) {
 		leave_guest_mode(vcpu);
-		vmx_load_vmcs01(vcpu);
+		vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 		nested_vmx_entry_failure(vcpu, vmcs12,
 				EXIT_REASON_MSR_LOAD_FAIL, msr_entry_idx);
 		return 1;
@@ -11029,7 +11022,7 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	if (unlikely(vmx->fail))
 		vm_inst_error = vmcs_read32(VM_INSTRUCTION_ERROR);
 
-	vmx_load_vmcs01(vcpu);
+	vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 
 	if ((exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT)
 	    && nested_exit_intr_ack_set(vcpu)) {
