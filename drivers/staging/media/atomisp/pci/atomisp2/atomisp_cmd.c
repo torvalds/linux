@@ -263,12 +263,10 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 		return -EINVAL;
 	}
 
-#ifdef ISP2401
 	if ((isp->pdev->device & ATOMISP_PCI_DEVICE_SOC_MASK) ==
 		ATOMISP_PCI_DEVICE_SOC_CHT && ATOMISP_USE_YUVPP(asd))
 		isp->dfs = &dfs_config_cht_soc;
 
-#endif
 	if (isp->dfs->lowest_freq == 0 || isp->dfs->max_freq_at_vmin == 0 ||
 	    isp->dfs->highest_freq == 0 || isp->dfs->dfs_table_size == 0 ||
 	    !isp->dfs->dfs_table) {
@@ -654,13 +652,8 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 			}
 
 			atomisp_eof_event(asd, eof_event.event.exp_id);
-#ifndef ISP2401
-			dev_dbg(isp->dev, "%s EOF exp_id %d\n", __func__,
-				eof_event.event.exp_id);
-#else
 			dev_dbg(isp->dev, "%s EOF exp_id %d, asd %d\n",
 				__func__, eof_event.event.exp_id, asd->index);
-#endif
 		}
 
 		irq_infos &= ~IA_CSS_IRQ_INFO_ISYS_EVENTS_READY;

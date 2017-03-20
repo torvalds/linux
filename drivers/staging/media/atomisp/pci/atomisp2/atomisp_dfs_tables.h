@@ -340,7 +340,6 @@ static const struct atomisp_freq_scaling_rule dfs_rules_cht[] = {
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
 	},
 	{
-#ifdef ISP2401
 		.width = 1280,
 		.height = 720,
 		.fps = ISP_FREQ_RULE_ANY,
@@ -386,7 +385,6 @@ static const struct atomisp_freq_scaling_rule dfs_rules_cht_soc[] = {
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
 	},
 	{
-#endif
 		.width = ISP_FREQ_RULE_ANY,
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
@@ -403,7 +401,6 @@ static const struct atomisp_dfs_config dfs_config_cht = {
 	.dfs_table_size = ARRAY_SIZE(dfs_rules_cht),
 };
 
-#ifdef ISP2401
 static const struct atomisp_dfs_config dfs_config_cht_soc = {
 	.lowest_freq = ISP_FREQ_100MHZ,
 	.max_freq_at_vmin = ISP_FREQ_356MHZ,
@@ -412,5 +409,4 @@ static const struct atomisp_dfs_config dfs_config_cht_soc = {
 	.dfs_table_size = ARRAY_SIZE(dfs_rules_cht_soc),
 };
 
-#endif
 #endif /* __ATOMISP_DFS_TABLES_H__ */
