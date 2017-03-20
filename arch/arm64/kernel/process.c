@@ -205,12 +205,10 @@ void __show_regs(struct pt_regs *regs)
 
 		pr_cont("\n");
 	}
-	printk("\n");
 }
 
 void show_regs(struct pt_regs * regs)
 {
-	printk("\n");
 	__show_regs(regs);
 }
 
