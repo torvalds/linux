@@ -303,7 +303,7 @@ extern void maybe_sigio_broken(int fd, int read);
 extern void sigio_broken(int fd, int read);
 
 /* prctl.c */
-extern int os_arch_prctl(int pid, int option, unsigned long *addr);
+extern int os_arch_prctl(int pid, int option, unsigned long *arg2);
 
 /* tty.c */
 extern int get_pty(void);
