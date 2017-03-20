@@ -1949,7 +1949,10 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 		}
 	}
 
-	ret = sdhci_add_host(host);
+	if (chip->fixes && chip->fixes->add_host)
+		ret = chip->fixes->add_host(slot);
+	else
+		ret = sdhci_add_host(host);
 	if (ret)
 		goto remove;
 

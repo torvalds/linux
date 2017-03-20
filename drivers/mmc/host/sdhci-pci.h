@@ -64,6 +64,7 @@ struct sdhci_pci_fixes {
 	int			(*probe) (struct sdhci_pci_chip *);
 
 	int			(*probe_slot) (struct sdhci_pci_slot *);
+	int			(*add_host) (struct sdhci_pci_slot *);
 	void			(*remove_slot) (struct sdhci_pci_slot *, int);
 
 	int			(*suspend) (struct sdhci_pci_chip *);
