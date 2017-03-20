@@ -645,7 +645,7 @@ static int lola_input_src_put(struct snd_kcontrol *kcontrol,
 	return lola_set_src_config(chip, mask, true);
 }
 
-static struct snd_kcontrol_new lola_input_src_mixer = {
+static const struct snd_kcontrol_new lola_input_src_mixer = {
 	.name = "Digital SRC Capture Switch",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = lola_input_src_info,

@@ -719,7 +719,7 @@ static int snd_ice1712_ews88mt_input_sense_put(struct snd_kcontrol *kcontrol, st
 	return ndata != data;
 }
 
-static struct snd_kcontrol_new snd_ice1712_ews88mt_input_sense = {
+static const struct snd_kcontrol_new snd_ice1712_ews88mt_input_sense = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Input Sensitivity Switch",
 	.info = snd_ice1712_ewx_io_sense_info,
@@ -728,7 +728,7 @@ static struct snd_kcontrol_new snd_ice1712_ews88mt_input_sense = {
 	.count = 8,
 };
 
-static struct snd_kcontrol_new snd_ice1712_ews88mt_output_sense = {
+static const struct snd_kcontrol_new snd_ice1712_ews88mt_output_sense = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Output Sensitivity Switch",
 	.info = snd_ice1712_ewx_io_sense_info,
