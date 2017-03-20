@@ -1214,8 +1214,7 @@ static int mtk_jpeg_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int mtk_jpeg_pm_suspend(struct device *dev)
+static __maybe_unused int mtk_jpeg_pm_suspend(struct device *dev)
 {
 	struct mtk_jpeg_dev *jpeg = dev_get_drvdata(dev);
 
@@ -1225,7 +1224,7 @@ static int mtk_jpeg_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int mtk_jpeg_pm_resume(struct device *dev)
+static __maybe_unused int mtk_jpeg_pm_resume(struct device *dev)
 {
 	struct mtk_jpeg_dev *jpeg = dev_get_drvdata(dev);
 
@@ -1234,10 +1233,8 @@ static int mtk_jpeg_pm_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
 
-#ifdef CONFIG_PM_SLEEP
-static int mtk_jpeg_suspend(struct device *dev)
+static __maybe_unused int mtk_jpeg_suspend(struct device *dev)
 {
 	int ret;
 
@@ -1248,7 +1245,7 @@ static int mtk_jpeg_suspend(struct device *dev)
 	return ret;
 }
 
-static int mtk_jpeg_resume(struct device *dev)
+static __maybe_unused int mtk_jpeg_resume(struct device *dev)
 {
 	int ret;
 
@@ -1259,7 +1256,6 @@ static int mtk_jpeg_resume(struct device *dev)
 
 	return ret;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops mtk_jpeg_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mtk_jpeg_suspend, mtk_jpeg_resume)
