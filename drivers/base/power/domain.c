@@ -132,8 +132,12 @@ static inline bool irq_safe_dev_in_no_sleep_domain(struct device *dev,
 
 	ret = pm_runtime_is_irq_safe(dev) && !genpd_is_irq_safe(genpd);
 
-	/* Warn once if IRQ safe dev in no sleep domain */
-	if (ret)
+	/*
+	 * Warn once if an IRQ safe device is attached to a no sleep domain, as
+	 * to indicate a suboptimal configuration for PM. For an always on
+	 * domain this isn't case, thus don't warn.
+	 */
+	if (ret && !genpd_is_always_on(genpd))
 		dev_warn_once(dev, "PM domain %s will not be powered off\n",
 				genpd->name);
 
