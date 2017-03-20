@@ -23,6 +23,8 @@
 #define PTR_SUB(x, y) (((char *) (x)) - ((unsigned long) (y)))
 #define PTR_DIFF(x, y) ((unsigned long)(((char *) (x)) - ((unsigned long) (y))))
 
+#define LINUX_NOTE_NAME "LINUX"
+
 static struct memblock_region oldmem_region;
 
 static struct memblock_type oldmem_type = {
@@ -312,7 +314,7 @@ static void *nt_fpregset(void *ptr, struct save_area *sa)
 static void *nt_s390_timer(void *ptr, struct save_area *sa)
 {
 	return nt_init(ptr, NT_S390_TIMER, &sa->timer, sizeof(sa->timer),
-			 KEXEC_CORE_NOTE_NAME);
+			 LINUX_NOTE_NAME);
 }
 
 /*
@@ -321,7 +323,7 @@ static void *nt_s390_timer(void *ptr, struct save_area *sa)
 static void *nt_s390_tod_cmp(void *ptr, struct save_area *sa)
 {
 	return nt_init(ptr, NT_S390_TODCMP, &sa->clk_cmp,
-		       sizeof(sa->clk_cmp), KEXEC_CORE_NOTE_NAME);
+		       sizeof(sa->clk_cmp), LINUX_NOTE_NAME);
 }
 
 /*
@@ -330,7 +332,7 @@ static void *nt_s390_tod_cmp(void *ptr, struct save_area *sa)
 static void *nt_s390_tod_preg(void *ptr, struct save_area *sa)
 {
 	return nt_init(ptr, NT_S390_TODPREG, &sa->tod_reg,
-		       sizeof(sa->tod_reg), KEXEC_CORE_NOTE_NAME);
+		       sizeof(sa->tod_reg), LINUX_NOTE_NAME);
 }
 
 /*
@@ -339,7 +341,7 @@ static void *nt_s390_tod_preg(void *ptr, struct save_area *sa)
 static void *nt_s390_ctrs(void *ptr, struct save_area *sa)
 {
 	return nt_init(ptr, NT_S390_CTRS, &sa->ctrl_regs,
-		       sizeof(sa->ctrl_regs), KEXEC_CORE_NOTE_NAME);
+		       sizeof(sa->ctrl_regs), LINUX_NOTE_NAME);
 }
 
 /*
@@ -348,7 +350,7 @@ static void *nt_s390_ctrs(void *ptr, struct save_area *sa)
 static void *nt_s390_prefix(void *ptr, struct save_area *sa)
 {
 	return nt_init(ptr, NT_S390_PREFIX, &sa->pref_reg,
-			 sizeof(sa->pref_reg), KEXEC_CORE_NOTE_NAME);
+			 sizeof(sa->pref_reg), LINUX_NOTE_NAME);
 }
 
 /*
@@ -357,7 +359,7 @@ static void *nt_s390_prefix(void *ptr, struct save_area *sa)
 static void *nt_s390_vx_high(void *ptr, __vector128 *vx_regs)
 {
 	return nt_init(ptr, NT_S390_VXRS_HIGH, &vx_regs[16],
-		       16 * sizeof(__vector128), KEXEC_CORE_NOTE_NAME);
+		       16 * sizeof(__vector128), LINUX_NOTE_NAME);
 }
 
 /*
@@ -370,12 +372,12 @@ static void *nt_s390_vx_low(void *ptr, __vector128 *vx_regs)
 	int i;
 
 	note = (Elf64_Nhdr *)ptr;
-	note->n_namesz = strlen(KEXEC_CORE_NOTE_NAME) + 1;
+	note->n_namesz = strlen(LINUX_NOTE_NAME) + 1;
 	note->n_descsz = 16 * 8;
 	note->n_type = NT_S390_VXRS_LOW;
 	len = sizeof(Elf64_Nhdr);
 
-	memcpy(ptr + len, KEXEC_CORE_NOTE_NAME, note->n_namesz);
+	memcpy(ptr + len, LINUX_NOTE_NAME, note->n_namesz);
 	len = roundup(len + note->n_namesz, 4);
 
 	ptr += len;

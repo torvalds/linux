@@ -110,6 +110,8 @@
 			};
 
 			usart3: serial@fc00c000 {
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
 				status = "okay";
 			};
 

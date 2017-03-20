@@ -65,7 +65,6 @@
 #define PCA9685_MAXCHAN		0x10
 
 #define LED_FULL		(1 << 4)
-#define MODE1_RESTART		(1 << 7)
 #define MODE1_SLEEP		(1 << 4)
 #define MODE2_INVRT		(1 << 4)
 #define MODE2_OUTDRV		(1 << 2)
@@ -117,16 +116,6 @@ static int pca9685_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			udelay(500);
 
 			pca->period_ns = period_ns;
-
-			/*
-			 * If the duty cycle did not change, restart PWM with
-			 * the same duty cycle to period ratio and return.
-			 */
-			if (duty_ns == pca->duty_ns) {
-				regmap_update_bits(pca->regmap, PCA9685_MODE1,
-						   MODE1_RESTART, 0x1);
-				return 0;
-			}
 		} else {
 			dev_err(chip->dev,
 				"prescaler not set: period out of bounds!\n");

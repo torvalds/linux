@@ -644,6 +644,9 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 {
 	dout("__unregister_request %p tid %lld\n", req, req->r_tid);
 
+	/* Never leave an unregistered request on an unsafe list! */
+	list_del_init(&req->r_unsafe_item);
+
 	if (req->r_tid == mdsc->oldest_tid) {
 		struct rb_node *p = rb_next(&req->r_node);
 		mdsc->oldest_tid = 0;
@@ -1051,7 +1054,6 @@ static void cleanup_session_requests(struct ceph_mds_client *mdsc,
 	while (!list_empty(&session->s_unsafe)) {
 		req = list_first_entry(&session->s_unsafe,
 				       struct ceph_mds_request, r_unsafe_item);
-		list_del_init(&req->r_unsafe_item);
 		pr_warn_ratelimited(" dropping unsafe request %llu\n",
 				    req->r_tid);
 		__unregister_request(mdsc, req);
@@ -2477,7 +2479,6 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 			 * useful we could do with a revised return value.
 			 */
 			dout("got safe reply %llu, mds%d\n", tid, mds);
-			list_del_init(&req->r_unsafe_item);
 
 			/* last unsafe request during umount? */
 			if (mdsc->stopping && !__get_oldest_req(mdsc))
