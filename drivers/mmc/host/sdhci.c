@@ -100,13 +100,13 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 	if (host->flags & SDHCI_USE_ADMA) {
 		if (host->flags & SDHCI_USE_64_BIT_DMA)
 			pr_err(DRIVER_NAME ": ADMA Err: 0x%08x | ADMA Ptr: 0x%08x%08x\n",
-			       readl(host->ioaddr + SDHCI_ADMA_ERROR),
-			       readl(host->ioaddr + SDHCI_ADMA_ADDRESS_HI),
-			       readl(host->ioaddr + SDHCI_ADMA_ADDRESS));
+			       sdhci_readl(host, SDHCI_ADMA_ERROR),
+			       sdhci_readl(host, SDHCI_ADMA_ADDRESS_HI),
+			       sdhci_readl(host, SDHCI_ADMA_ADDRESS));
 		else
 			pr_err(DRIVER_NAME ": ADMA Err: 0x%08x | ADMA Ptr: 0x%08x\n",
-			       readl(host->ioaddr + SDHCI_ADMA_ERROR),
-			       readl(host->ioaddr + SDHCI_ADMA_ADDRESS));
+			       sdhci_readl(host, SDHCI_ADMA_ERROR),
+			       sdhci_readl(host, SDHCI_ADMA_ADDRESS));
 	}
 
 	pr_err(DRIVER_NAME ": ===========================================\n");
