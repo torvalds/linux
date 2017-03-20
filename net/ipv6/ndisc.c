@@ -732,7 +732,7 @@ void ndisc_update(const struct net_device *dev, struct neighbour *neigh,
 		  const u8 *lladdr, u8 new, u32 flags, u8 icmp6_type,
 		  struct ndisc_options *ndopts)
 {
-	neigh_update(neigh, lladdr, new, flags);
+	neigh_update(neigh, lladdr, new, flags, 0);
 	/* report ndisc ops about neighbour update */
 	ndisc_ops_update(dev, neigh, flags, icmp6_type, ndopts);
 }

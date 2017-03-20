@@ -314,7 +314,8 @@ static inline struct neighbour *neigh_create(struct neigh_table *tbl,
 }
 void neigh_destroy(struct neighbour *neigh);
 int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb);
-int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new, u32 flags);
+int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new, u32 flags,
+		 u32 nlmsg_pid);
 void __neigh_set_probe_once(struct neighbour *neigh);
 void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev);
 int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev);

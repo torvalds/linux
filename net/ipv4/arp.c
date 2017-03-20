@@ -872,7 +872,7 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 		    skb->pkt_type != PACKET_HOST)
 			state = NUD_STALE;
 		neigh_update(n, sha, state,
-			     override ? NEIGH_UPDATE_F_OVERRIDE : 0);
+			     override ? NEIGH_UPDATE_F_OVERRIDE : 0, 0);
 		neigh_release(n);
 	}
 
@@ -1033,7 +1033,7 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 		err = neigh_update(neigh, (r->arp_flags & ATF_COM) ?
 				   r->arp_ha.sa_data : NULL, state,
 				   NEIGH_UPDATE_F_OVERRIDE |
-				   NEIGH_UPDATE_F_ADMIN);
+				   NEIGH_UPDATE_F_ADMIN, 0);
 		neigh_release(neigh);
 	}
 	return err;
@@ -1084,7 +1084,7 @@ static int arp_invalidate(struct net_device *dev, __be32 ip)
 		if (neigh->nud_state & ~NUD_NOARP)
 			err = neigh_update(neigh, NULL, NUD_FAILED,
 					   NEIGH_UPDATE_F_OVERRIDE|
-					   NEIGH_UPDATE_F_ADMIN);
+					   NEIGH_UPDATE_F_ADMIN, 0);
 		neigh_release(neigh);
 	}
 

@@ -52,8 +52,9 @@ do {						\
 #define PNEIGH_HASHMASK		0xF
 
 static void neigh_timer_handler(unsigned long arg);
-static void __neigh_notify(struct neighbour *n, int type, int flags);
-static void neigh_update_notify(struct neighbour *neigh);
+static void __neigh_notify(struct neighbour *n, int type, int flags,
+			   u32 pid);
+static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid);
 static int pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev);
 
 #ifdef CONFIG_PROC_FS
@@ -99,7 +100,7 @@ static void neigh_cleanup_and_release(struct neighbour *neigh)
 	if (neigh->parms->neigh_cleanup)
 		neigh->parms->neigh_cleanup(neigh);
 
-	__neigh_notify(neigh, RTM_DELNEIGH, 0);
+	__neigh_notify(neigh, RTM_DELNEIGH, 0, 0);
 	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 	neigh_release(neigh);
 }
@@ -948,7 +949,7 @@ out:
 	}
 
 	if (notify)
-		neigh_update_notify(neigh);
+		neigh_update_notify(neigh, 0);
 
 	neigh_release(neigh);
 }
@@ -1072,7 +1073,7 @@ static void neigh_update_hhs(struct neighbour *neigh)
  */
 
 int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
-		 u32 flags)
+		 u32 flags, u32 nlmsg_pid)
 {
 	u8 old;
 	int err;
@@ -1229,7 +1230,7 @@ out:
 	write_unlock_bh(&neigh->lock);
 
 	if (notify)
-		neigh_update_notify(neigh);
+		neigh_update_notify(neigh, nlmsg_pid);
 
 	return err;
 }
@@ -1260,7 +1261,7 @@ struct neighbour *neigh_event_ns(struct neigh_table *tbl,
 						 lladdr || !dev->addr_len);
 	if (neigh)
 		neigh_update(neigh, lladdr, NUD_STALE,
-			     NEIGH_UPDATE_F_OVERRIDE);
+			     NEIGH_UPDATE_F_OVERRIDE, 0);
 	return neigh;
 }
 EXPORT_SYMBOL(neigh_event_ns);
@@ -1638,7 +1639,8 @@ static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	err = neigh_update(neigh, NULL, NUD_FAILED,
 			   NEIGH_UPDATE_F_OVERRIDE |
-			   NEIGH_UPDATE_F_ADMIN);
+			   NEIGH_UPDATE_F_ADMIN,
+			   NETLINK_CB(skb).portid);
 	neigh_release(neigh);
 
 out:
@@ -1729,7 +1731,8 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 		neigh_event_send(neigh, NULL);
 		err = 0;
 	} else
-		err = neigh_update(neigh, lladdr, ndm->ndm_state, flags);
+		err = neigh_update(neigh, lladdr, ndm->ndm_state, flags,
+				   NETLINK_CB(skb).portid);
 	neigh_release(neigh);
 
 out:
@@ -2229,10 +2232,10 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static void neigh_update_notify(struct neighbour *neigh)
+static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid)
 {
 	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
-	__neigh_notify(neigh, RTM_NEWNEIGH, 0);
+	__neigh_notify(neigh, RTM_NEWNEIGH, 0, nlmsg_pid);
 }
 
 static bool neigh_master_filtered(struct net_device *dev, int master_idx)
@@ -2830,7 +2833,8 @@ static inline size_t neigh_nlmsg_size(void)
 	       + nla_total_size(4); /* NDA_PROBES */
 }
 
-static void __neigh_notify(struct neighbour *n, int type, int flags)
+static void __neigh_notify(struct neighbour *n, int type, int flags,
+			   u32 pid)
 {
 	struct net *net = dev_net(n->dev);
 	struct sk_buff *skb;
@@ -2840,7 +2844,7 @@ static void __neigh_notify(struct neighbour *n, int type, int flags)
 	if (skb == NULL)
 		goto errout;
 
-	err = neigh_fill_info(skb, n, 0, 0, type, flags);
+	err = neigh_fill_info(skb, n, pid, 0, type, flags);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in neigh_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
@@ -2856,7 +2860,7 @@ errout:
 
 void neigh_app_ns(struct neighbour *n)
 {
-	__neigh_notify(n, RTM_GETNEIGH, NLM_F_REQUEST);
+	__neigh_notify(n, RTM_GETNEIGH, NLM_F_REQUEST, 0);
 }
 EXPORT_SYMBOL(neigh_app_ns);
 
