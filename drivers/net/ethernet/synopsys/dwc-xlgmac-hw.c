@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/bitrev.h>
 #include <linux/crc32.h>
+#include <linux/dcbnl.h>
 
 #include "dwc-xlgmac.h"
 #include "dwc-xlgmac-reg.h"
