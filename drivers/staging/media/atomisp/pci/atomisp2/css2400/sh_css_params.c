@@ -3723,7 +3723,7 @@ static void sh_css_update_isp_mem_params_to_ddr(
 	IA_CSS_LEAVE_PRIVATE("void");
 }
 
-void ia_css_dequeue_param_buffers(/*unsigned int pipe_num*/)
+void ia_css_dequeue_param_buffers(/*unsigned int pipe_num*/ void)
 {
 	unsigned int i;
 	hrt_vaddress cpy;
