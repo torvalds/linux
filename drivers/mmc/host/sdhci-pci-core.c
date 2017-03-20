@@ -261,11 +261,13 @@ static const struct sdhci_pci_fixes sdhci_intel_pch_sdio = {
 
 enum {
 	INTEL_DSM_FNS		=  0,
+	INTEL_DSM_DRV_STRENGTH	=  9,
 	INTEL_DSM_D3_RETUNE	= 10,
 };
 
 struct intel_host {
 	u32	dsm_fns;
+	int	drv_strength;
 	bool	d3_retune;
 };
 
@@ -326,6 +328,9 @@ static void intel_dsm_init(struct intel_host *intel_host, struct device *dev,
 	pr_debug("%s: DSM function mask %#x\n",
 		 mmc_hostname(mmc), intel_host->dsm_fns);
 
+	err = intel_dsm(intel_host, dev, INTEL_DSM_DRV_STRENGTH, &val);
+	intel_host->drv_strength = err ? 0 : val;
+
 	err = intel_dsm(intel_host, dev, INTEL_DSM_D3_RETUNE, &val);
 	intel_host->d3_retune = err ? true : !!val;
 }
@@ -345,67 +350,15 @@ static void sdhci_pci_int_hw_reset(struct sdhci_host *host)
 	usleep_range(300, 1000);
 }
 
-static int spt_select_drive_strength(struct sdhci_host *host,
-				     struct mmc_card *card,
-				     unsigned int max_dtr,
-				     int host_drv, int card_drv, int *drv_type)
+static int intel_select_drive_strength(struct mmc_card *card,
+				       unsigned int max_dtr, int host_drv,
+				       int card_drv, int *drv_type)
 {
-	int drive_strength;
+	struct sdhci_host *host = mmc_priv(card->host);
+	struct sdhci_pci_slot *slot = sdhci_priv(host);
+	struct intel_host *intel_host = sdhci_pci_priv(slot);
 
-	if (sdhci_pci_spt_drive_strength > 0)
-		drive_strength = sdhci_pci_spt_drive_strength & 0xf;
-	else
-		drive_strength = 0; /* Default 50-ohm */
-
-	if ((mmc_driver_type_mask(drive_strength) & card_drv) == 0)
-		drive_strength = 0; /* Default 50-ohm */
-
-	return drive_strength;
-}
-
-/* Try to read the drive strength from the card */
-static void spt_read_drive_strength(struct sdhci_host *host)
-{
-	u32 val, i, t;
-	u16 m;
-
-	if (sdhci_pci_spt_drive_strength)
-		return;
-
-	sdhci_pci_spt_drive_strength = -1;
-
-	m = sdhci_readw(host, SDHCI_HOST_CONTROL2) & 0x7;
-	if (m != 3 && m != 5)
-		return;
-	val = sdhci_readl(host, SDHCI_PRESENT_STATE);
-	if (val & 0x3)
-		return;
-	sdhci_writel(host, 0x007f0023, SDHCI_INT_ENABLE);
-	sdhci_writel(host, 0, SDHCI_SIGNAL_ENABLE);
-	sdhci_writew(host, 0x10, SDHCI_TRANSFER_MODE);
-	sdhci_writeb(host, 0xe, SDHCI_TIMEOUT_CONTROL);
-	sdhci_writew(host, 512, SDHCI_BLOCK_SIZE);
-	sdhci_writew(host, 1, SDHCI_BLOCK_COUNT);
-	sdhci_writel(host, 0, SDHCI_ARGUMENT);
-	sdhci_writew(host, 0x83b, SDHCI_COMMAND);
-	for (i = 0; i < 1000; i++) {
-		val = sdhci_readl(host, SDHCI_INT_STATUS);
-		if (val & 0xffff8000)
-			return;
-		if (val & 0x20)
-			break;
-		udelay(1);
-	}
-	val = sdhci_readl(host, SDHCI_PRESENT_STATE);
-	if (!(val & 0x800))
-		return;
-	for (i = 0; i < 47; i++)
-		val = sdhci_readl(host, SDHCI_BUFFER);
-	t = val & 0xf00;
-	if (t != 0x200 && t != 0x300)
-		return;
-
-	sdhci_pci_spt_drive_strength = 0x10 | ((val >> 12) & 0xf);
+	return intel_host->drv_strength;
 }
 
 static int bxt_get_cd(struct mmc_host *mmc)
@@ -451,10 +404,8 @@ static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 	slot->hw_reset = sdhci_pci_int_hw_reset;
 	if (slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_BSW_EMMC)
 		slot->host->timeout_clk = 1000; /* 1000 kHz i.e. 1 MHz */
-	if (slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_SPT_EMMC) {
-		spt_read_drive_strength(slot->host);
-		slot->select_drive_strength = spt_select_drive_strength;
-	}
+	slot->host->mmc_host_ops.select_drive_strength =
+						intel_select_drive_strength;
 	return 0;
 }
 
