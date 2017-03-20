@@ -2673,7 +2673,7 @@ vchiq_add_service_internal(VCHIQ_STATE_T *state,
 
 	if (!pservice) {
 		kfree(service);
-		service = NULL;
+		return NULL;
 	}
 
 	service_quota = &state->service_quotas[service->localport];
