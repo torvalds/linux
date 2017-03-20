@@ -878,12 +878,8 @@ static void decode_smca_errors(struct mce *m)
 		pr_cont("%s.\n", smca_mce_descs[bank_type].descs[xec]);
 	}
 
-	/*
-	 * amd_get_nb_id() returns the last level cache id.
-	 * The last level cache on Fam17h is 1 level below the node.
-	 */
 	if (bank_type == SMCA_UMC && xec == 0 && decode_dram_ecc)
-		decode_dram_ecc(amd_get_nb_id(m->extcpu) >> 1, m);
+		decode_dram_ecc(cpu_to_node(m->extcpu), m);
 }
 
 static inline void amd_decode_err_code(u16 ec)
