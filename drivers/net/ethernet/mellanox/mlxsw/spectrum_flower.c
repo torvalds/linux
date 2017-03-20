@@ -375,7 +375,7 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 	if (!rule)
 		return -EINVAL;
 
-	err = mlxsw_sp_acl_rule_get_stats(mlxsw_sp, rule, &bytes, &packets,
+	err = mlxsw_sp_acl_rule_get_stats(mlxsw_sp, rule, &packets, &bytes,
 					  &lastuse);
 	if (err)
 		goto err_rule_get_stats;
