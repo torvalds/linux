@@ -70,7 +70,7 @@ static void reset_semaphore(struct dw_i2c_dev *dev)
 
 static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 {
-	u32 addr = get_sem_addr(dev);
+	u32 addr;
 	u32 sem = PUNIT_SEMAPHORE_ACQUIRE;
 	int ret;
 	unsigned long start, end;
@@ -93,6 +93,8 @@ static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
 	 * we're holding the semaphore, the SoC hangs.
 	 */
 	pm_qos_update_request(&dev->pm_qos, 0);
+
+	addr = get_sem_addr(dev);
 
 	/* host driver writes to side band semaphore register */
 	ret = iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, addr, sem);
