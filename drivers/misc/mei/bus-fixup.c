@@ -110,12 +110,13 @@ struct mkhi_msg {
 	u8 data[0];
 } __packed;
 
+#define MKHI_OSVER_BUF_LEN (sizeof(struct mkhi_msg_hdr) + \
+			    sizeof(struct mkhi_fwcaps) + \
+			    sizeof(struct mei_os_ver))
 static int mei_osver(struct mei_cl_device *cldev)
 {
-	const size_t size = sizeof(struct mkhi_msg_hdr) +
-			    sizeof(struct mkhi_fwcaps) +
-			    sizeof(struct mei_os_ver);
-	char buf[size];
+	const size_t size = MKHI_OSVER_BUF_LEN;
+	char buf[MKHI_OSVER_BUF_LEN];
 	struct mkhi_msg *req;
 	struct mkhi_fwcaps *fwcaps;
 	struct mei_os_ver *os_ver;
