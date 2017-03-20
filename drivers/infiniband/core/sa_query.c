@@ -944,7 +944,7 @@ static void update_sm_ah(struct work_struct *work)
 		return;
 	}
 
-	new_ah = kmalloc(sizeof *new_ah, GFP_KERNEL);
+	new_ah = kmalloc(sizeof(*new_ah), GFP_KERNEL);
 	if (!new_ah) {
 		return;
 	}
@@ -957,7 +957,7 @@ static void update_sm_ah(struct work_struct *work)
 			 IB_DEFAULT_PKEY_FULL, &new_ah->pkey_index))
 		pr_err("Couldn't find index for default PKey\n");
 
-	memset(&ah_attr, 0, sizeof ah_attr);
+	memset(&ah_attr, 0, sizeof(ah_attr));
 	ah_attr.dlid     = port_attr.sm_lid;
 	ah_attr.sl       = port_attr.sm_sl;
 	ah_attr.port_num = port->port_num;
