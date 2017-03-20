@@ -928,73 +928,70 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 	return ovs_dp_upcall(dp, skb, key, &upcall, cutlen);
 }
 
+/* When 'last' is true, sample() should always consume the 'skb'.
+ * Otherwise, sample() should keep 'skb' intact regardless what
+ * actions are executed within sample().
+ */
 static int sample(struct datapath *dp, struct sk_buff *skb,
 		  struct sw_flow_key *key, const struct nlattr *attr,
-		  const struct nlattr *actions, int actions_len)
+		  bool last)
 {
-	const struct nlattr *acts_list = NULL;
-	const struct nlattr *a;
-	int rem;
-	u32 cutlen = 0;
+	struct nlattr *actions;
+	struct nlattr *sample_arg;
+	struct sw_flow_key *orig_key = key;
+	int rem = nla_len(attr);
+	int err = 0;
+	const struct sample_arg *arg;
 
-	for (a = nla_data(attr), rem = nla_len(attr); rem > 0;
-		 a = nla_next(a, &rem)) {
-		u32 probability;
+	/* The first action is always 'OVS_SAMPLE_ATTR_ARG'. */
+	sample_arg = nla_data(attr);
+	arg = nla_data(sample_arg);
+	actions = nla_next(sample_arg, &rem);
 
-		switch (nla_type(a)) {
-		case OVS_SAMPLE_ATTR_PROBABILITY:
-			probability = nla_get_u32(a);
-			if (!probability || prandom_u32() > probability)
-				return 0;
-			break;
-
-		case OVS_SAMPLE_ATTR_ACTIONS:
-			acts_list = a;
-			break;
-		}
+	if ((arg->probability != U32_MAX) &&
+	    (!arg->probability || prandom_u32() > arg->probability)) {
+		if (last)
+			consume_skb(skb);
+		return 0;
 	}
 
-	rem = nla_len(acts_list);
-	a = nla_data(acts_list);
-
-	/* Actions list is empty, do nothing */
-	if (unlikely(!rem))
+	/* Unless the last action, sample works on the clone of SKB.  */
+	skb = last ? skb : skb_clone(skb, GFP_ATOMIC);
+	if (!skb) {
+		/* Out of memory, skip this sample action.
+		 */
 		return 0;
+	}
 
-	/* The only known usage of sample action is having a single user-space
-	 * action, or having a truncate action followed by a single user-space
-	 * action. Treat this usage as a special case.
-	 * The output_userspace() should clone the skb to be sent to the
-	 * user space. This skb will be consumed by its caller.
+	/* In case the sample actions won't change 'key',
+	 * it can be used directly to execute sample actions.
+	 * Otherwise, allocate a new key from the
+	 * next recursion level of 'flow_keys'. If
+	 * successful, execute the sample actions without
+	 * deferring.
+	 *
+	 * Defer the sample actions if the recursion
+	 * limit has been reached.
 	 */
-	if (unlikely(nla_type(a) == OVS_ACTION_ATTR_TRUNC)) {
-		struct ovs_action_trunc *trunc = nla_data(a);
-
-		if (skb->len > trunc->max_len)
-			cutlen = skb->len - trunc->max_len;
-
-		a = nla_next(a, &rem);
+	if (!arg->exec) {
+		__this_cpu_inc(exec_actions_level);
+		key = clone_key(key);
 	}
 
-	if (likely(nla_type(a) == OVS_ACTION_ATTR_USERSPACE &&
-		   nla_is_last(a, rem)))
-		return output_userspace(dp, skb, key, a, actions,
-					actions_len, cutlen);
+	if (key) {
+		err = do_execute_actions(dp, skb, key, actions, rem);
+	} else if (!add_deferred_actions(skb, orig_key, actions, rem)) {
 
-	skb = skb_clone(skb, GFP_ATOMIC);
-	if (!skb)
-		/* Skip the sample action when out of memory. */
-		return 0;
-
-	if (!add_deferred_actions(skb, key, nla_data(acts_list),
-				  nla_len(acts_list))) {
 		if (net_ratelimit())
-			pr_warn("%s: deferred actions limit reached, dropping sample action\n",
+			pr_warn("%s: deferred action limit reached, drop sample action\n",
 				ovs_dp_name(dp));
-
 		kfree_skb(skb);
 	}
-	return 0;
+
+	if (!arg->exec)
+		__this_cpu_dec(exec_actions_level);
+
+	return err;
 }
 
 static void execute_hash(struct sk_buff *skb, struct sw_flow_key *key,
@@ -1244,9 +1241,15 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			err = execute_masked_set_action(skb, key, nla_data(a));
 			break;
 
-		case OVS_ACTION_ATTR_SAMPLE:
-			err = sample(dp, skb, key, a, attr, len);
+		case OVS_ACTION_ATTR_SAMPLE: {
+			bool last = nla_is_last(a, rem);
+
+			err = sample(dp, skb, key, a, last);
+			if (last)
+				return err;
+
 			break;
+		}
 
 		case OVS_ACTION_ATTR_CT:
 			if (!is_flow_key_valid(key)) {
