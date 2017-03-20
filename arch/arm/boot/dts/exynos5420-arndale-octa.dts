@@ -16,7 +16,6 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/clock/samsung,s2mps11.h>
-#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Insignal Arndale Octa evaluation board based on EXYNOS5420";
