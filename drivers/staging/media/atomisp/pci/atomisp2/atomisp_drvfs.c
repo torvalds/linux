@@ -107,9 +107,7 @@ static ssize_t iunit_dbglvl_store(struct device_driver *drv, const char *buf,
 	if (kstrtouint(buf, 10, &iunit_debug.dbglvl)
 		|| iunit_debug.dbglvl < 1
 		|| iunit_debug.dbglvl > 9) {
-		dev_err(atomisp_dev, "%s setting %d value invalid, should be [1,9]\n",
-			__func__, iunit_debug.dbglvl);
-		return -EINVAL;
+		return -ERANGE;
 	}
 	atomisp_css_debug_set_dtrace_level(iunit_debug.dbglvl);
 
