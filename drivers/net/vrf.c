@@ -445,17 +445,12 @@ static int vrf_output6(struct net *net, struct sock *sk, struct sk_buff *skb)
  * packet to go through device based features such as qdisc, netfilter
  * hooks and packet sockets with skb->dev set to vrf device.
  */
-static struct sk_buff *vrf_ip6_out(struct net_device *vrf_dev,
-				   struct sock *sk,
-				   struct sk_buff *skb)
+static struct sk_buff *vrf_ip6_out_redirect(struct net_device *vrf_dev,
+					    struct sk_buff *skb)
 {
 	struct net_vrf *vrf = netdev_priv(vrf_dev);
 	struct dst_entry *dst = NULL;
 	struct rt6_info *rt6;
-
-	/* don't divert link scope packets */
-	if (rt6_need_strict(&ipv6_hdr(skb)->daddr))
-		return skb;
 
 	rcu_read_lock();
 
@@ -476,6 +471,55 @@ static struct sk_buff *vrf_ip6_out(struct net_device *vrf_dev,
 	skb_dst_set(skb, dst);
 
 	return skb;
+}
+
+static int vrf_output6_direct(struct net *net, struct sock *sk,
+			      struct sk_buff *skb)
+{
+	skb->protocol = htons(ETH_P_IPV6);
+
+	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING,
+			    net, sk, skb, NULL, skb->dev,
+			    vrf_finish_direct,
+			    !(IPCB(skb)->flags & IPSKB_REROUTED));
+}
+
+static struct sk_buff *vrf_ip6_out_direct(struct net_device *vrf_dev,
+					  struct sock *sk,
+					  struct sk_buff *skb)
+{
+	struct net *net = dev_net(vrf_dev);
+	int err;
+
+	skb->dev = vrf_dev;
+
+	err = nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, net, sk,
+		      skb, NULL, vrf_dev, vrf_output6_direct);
+
+	if (likely(err == 1))
+		err = vrf_output6_direct(net, sk, skb);
+
+	/* reset skb device */
+	if (likely(err == 1))
+		nf_reset(skb);
+	else
+		skb = NULL;
+
+	return skb;
+}
+
+static struct sk_buff *vrf_ip6_out(struct net_device *vrf_dev,
+				   struct sock *sk,
+				   struct sk_buff *skb)
+{
+	/* don't divert link scope packets */
+	if (rt6_need_strict(&ipv6_hdr(skb)->daddr))
+		return skb;
+
+	if (qdisc_tx_is_default(vrf_dev))
+		return vrf_ip6_out_direct(vrf_dev, sk, skb);
+
+	return vrf_ip6_out_redirect(vrf_dev, skb);
 }
 
 /* holding rtnl */
@@ -1064,9 +1108,11 @@ static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 		skb->dev = vrf_dev;
 		skb->skb_iif = vrf_dev->ifindex;
 
-		skb_push(skb, skb->mac_len);
-		dev_queue_xmit_nit(skb, vrf_dev);
-		skb_pull(skb, skb->mac_len);
+		if (!list_empty(&vrf_dev->ptype_all)) {
+			skb_push(skb, skb->mac_len);
+			dev_queue_xmit_nit(skb, vrf_dev);
+			skb_pull(skb, skb->mac_len);
+		}
 
 		IP6CB(skb)->flags |= IP6SKB_L3SLAVE;
 	}
