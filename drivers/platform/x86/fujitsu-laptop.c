@@ -534,61 +534,6 @@ static struct platform_driver fujitsu_pf_driver = {
 		   }
 };
 
-static void __init dmi_check_cb_common(const struct dmi_system_id *id)
-{
-	pr_info("Identified laptop model '%s'\n", id->ident);
-}
-
-static int __init dmi_check_cb_s6410(const struct dmi_system_id *id)
-{
-	dmi_check_cb_common(id);
-	fujitsu_bl->keycode1 = KEY_SCREENLOCK;	/* "Lock" */
-	fujitsu_bl->keycode2 = KEY_HELP;	/* "Mobility Center" */
-	return 1;
-}
-
-static int __init dmi_check_cb_s6420(const struct dmi_system_id *id)
-{
-	dmi_check_cb_common(id);
-	fujitsu_bl->keycode1 = KEY_SCREENLOCK;	/* "Lock" */
-	fujitsu_bl->keycode2 = KEY_HELP;	/* "Mobility Center" */
-	return 1;
-}
-
-static int __init dmi_check_cb_p8010(const struct dmi_system_id *id)
-{
-	dmi_check_cb_common(id);
-	fujitsu_bl->keycode1 = KEY_HELP;		/* "Support" */
-	fujitsu_bl->keycode3 = KEY_SWITCHVIDEOMODE;	/* "Presentation" */
-	fujitsu_bl->keycode4 = KEY_WWW;			/* "Internet" */
-	return 1;
-}
-
-static const struct dmi_system_id fujitsu_dmi_table[] __initconst = {
-	{
-	 .ident = "Fujitsu Siemens S6410",
-	 .matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
-		     DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK S6410"),
-		     },
-	 .callback = dmi_check_cb_s6410},
-	{
-	 .ident = "Fujitsu Siemens S6420",
-	 .matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
-		     DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK S6420"),
-		     },
-	 .callback = dmi_check_cb_s6420},
-	{
-	 .ident = "Fujitsu LifeBook P8010",
-	 .matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
-		     DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook P8010"),
-		     },
-	 .callback = dmi_check_cb_p8010},
-	{}
-};
-
 /* ACPI device for LCD brightness control */
 
 static const struct key_entry keymap_backlight[] = {
@@ -766,7 +711,61 @@ static const struct key_entry keymap_default[] = {
 	{ KE_END, 0 }
 };
 
+static const struct key_entry keymap_s64x0[] = {
+	{ KE_KEY, KEY1_CODE, { KEY_SCREENLOCK } },	/* "Lock" */
+	{ KE_KEY, KEY2_CODE, { KEY_HELP } },		/* "Mobility Center */
+	{ KE_KEY, KEY3_CODE, { KEY_PROG3 } },
+	{ KE_KEY, KEY4_CODE, { KEY_PROG4 } },
+	{ KE_END, 0 }
+};
+
+static const struct key_entry keymap_p8010[] = {
+	{ KE_KEY, KEY1_CODE, { KEY_HELP } },		/* "Support" */
+	{ KE_KEY, KEY2_CODE, { KEY_PROG2 } },
+	{ KE_KEY, KEY3_CODE, { KEY_SWITCHVIDEOMODE } },	/* "Presentation" */
+	{ KE_KEY, KEY4_CODE, { KEY_WWW } },		/* "WWW" */
+	{ KE_END, 0 }
+};
+
 static const struct key_entry *keymap = keymap_default;
+
+static int fujitsu_laptop_dmi_keymap_override(const struct dmi_system_id *id)
+{
+	pr_info("Identified laptop model '%s'\n", id->ident);
+	keymap = id->driver_data;
+	return 1;
+}
+
+static const struct dmi_system_id fujitsu_laptop_dmi_table[] = {
+	{
+		.callback = fujitsu_laptop_dmi_keymap_override,
+		.ident = "Fujitsu Siemens S6410",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK S6410"),
+		},
+		.driver_data = (void *)keymap_s64x0
+	},
+	{
+		.callback = fujitsu_laptop_dmi_keymap_override,
+		.ident = "Fujitsu Siemens S6420",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK S6420"),
+		},
+		.driver_data = (void *)keymap_s64x0
+	},
+	{
+		.callback = fujitsu_laptop_dmi_keymap_override,
+		.ident = "Fujitsu LifeBook P8010",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook P8010"),
+		},
+		.driver_data = (void *)keymap_p8010
+	},
+	{}
+};
 
 static int acpi_fujitsu_laptop_input_setup(struct acpi_device *device)
 {
@@ -785,6 +784,7 @@ static int acpi_fujitsu_laptop_input_setup(struct acpi_device *device)
 	fujitsu_laptop->input->id.bustype = BUS_HOST;
 	fujitsu_laptop->input->id.product = 0x06;
 
+	dmi_check_system(fujitsu_laptop_dmi_table);
 	ret = sparse_keymap_setup(fujitsu_laptop->input, keymap, NULL);
 	if (ret)
 		return ret;
@@ -1135,7 +1135,6 @@ static int __init fujitsu_init(void)
 	fujitsu_bl->keycode3 = KEY_PROG3;
 	fujitsu_bl->keycode4 = KEY_PROG4;
 	fujitsu_bl->keycode5 = KEY_RFKILL;
-	dmi_check_system(fujitsu_dmi_table);
 
 	ret = acpi_bus_register_driver(&acpi_fujitsu_bl_driver);
 	if (ret)
