@@ -6764,6 +6764,8 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
 S:	Maintained
 F:	Documentation/devicetree/bindings/iommu/
 F:	drivers/iommu/
+F:	include/linux/iommu.h
+F:	include/linux/iova.h
 
 IP MASQUERADING
 M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
