@@ -146,7 +146,12 @@ struct dma_buf_ops {
 	/* TODO: Add try_map_dma_buf version, to return immed with -EBUSY
 	 * if the call would block.
 	 */
-
+#ifdef CONFIG_ARCH_ROCKCHIP
+	int (*set_release_callback)(void (*release_callback)(void *data),
+				    void *data);
+	void *(*get_release_callback_data)(void *callback);
+	/* after final dma_buf_put() */
+#endif
 	/**
 	 * @release:
 	 *
@@ -283,6 +288,10 @@ struct dma_buf {
 	size_t size;
 	struct file *file;
 	struct list_head attachments;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	struct list_head release_callbacks;
+	struct mutex release_lock;
+#endif
 	const struct dma_buf_ops *ops;
 	struct mutex lock;
 	unsigned vmapping_counter;
@@ -375,6 +384,14 @@ static inline void get_dma_buf(struct dma_buf *dmabuf)
 {
 	get_file(dmabuf->file);
 }
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+int dma_buf_set_release_callback(struct dma_buf *dmabuf,
+				 void (*callback)(void *), void *data);
+
+void *dma_buf_get_release_callback_data(struct dma_buf *dmabuf,
+					void (*callback)(void *));
+#endif
 
 struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 							struct device *dev);

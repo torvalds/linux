@@ -41,6 +41,14 @@
 
 static inline int is_dma_buf_file(struct file *);
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+struct dma_buf_callback {
+	struct list_head list;
+	void (*callback)(void *);
+	void *data;
+};
+#endif
+
 struct dma_buf_list {
 	struct list_head head;
 	struct mutex lock;
@@ -86,6 +94,9 @@ static struct file_system_type dma_buf_fs_type = {
 static int dma_buf_release(struct inode *inode, struct file *file)
 {
 	struct dma_buf *dmabuf;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	struct dma_buf_callback *cb, *tmp;
+#endif
 
 	if (!is_dma_buf_file(file))
 		return -EINVAL;
@@ -103,6 +114,17 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 	 * dma-buf while still having pending operation to the buffer.
 	 */
 	BUG_ON(dmabuf->cb_shared.active || dmabuf->cb_excl.active);
+
+#ifdef CONFIG_ARCH_ROCKCHIP
+	mutex_lock(&dmabuf->release_lock);
+	list_for_each_entry_safe(cb, tmp, &dmabuf->release_callbacks, list) {
+		if (cb->callback)
+			cb->callback(cb->data);
+		list_del(&cb->list);
+		kfree(cb);
+	}
+	mutex_unlock(&dmabuf->release_lock);
+#endif
 
 	dmabuf->ops->release(dmabuf);
 
@@ -457,6 +479,47 @@ err_alloc_file:
 	return file;
 }
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+void *dma_buf_get_release_callback_data(struct dma_buf *dmabuf,
+					void (*callback)(void *))
+{
+	struct dma_buf_callback *cb, *tmp;
+	void *result = NULL;
+
+	mutex_lock(&dmabuf->release_lock);
+	list_for_each_entry_safe(cb, tmp, &dmabuf->release_callbacks, list) {
+		if (cb->callback == callback) {
+			result = cb->data;
+			break;
+		}
+	}
+	mutex_unlock(&dmabuf->release_lock);
+
+	return result;
+}
+
+int dma_buf_set_release_callback(struct dma_buf *dmabuf,
+				 void (*callback)(void *), void *data)
+{
+	struct dma_buf_callback *cb;
+
+	if (WARN_ON(dma_buf_get_release_callback_data(dmabuf, callback)))
+		return -EINVAL;
+
+	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
+	if (!cb)
+		return -ENOMEM;
+
+	cb->callback = callback;
+	cb->data = data;
+	mutex_lock(&dmabuf->release_lock);
+	list_add_tail(&cb->list, &dmabuf->release_callbacks);
+	mutex_unlock(&dmabuf->release_lock);
+
+	return 0;
+}
+#endif
+
 /**
  * DOC: dma buf device access
  *
@@ -564,7 +627,10 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 
 	mutex_init(&dmabuf->lock);
 	INIT_LIST_HEAD(&dmabuf->attachments);
-
+#ifdef CONFIG_ARCH_ROCKCHIP
+	mutex_init(&dmabuf->release_lock);
+	INIT_LIST_HEAD(&dmabuf->release_callbacks);
+#endif
 	mutex_lock(&db_list.lock);
 	list_add(&dmabuf->list_node, &db_list.head);
 	mutex_unlock(&db_list.lock);
