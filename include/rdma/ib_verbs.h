@@ -501,6 +501,7 @@ static inline struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
 /* Address format                       0x000FF000 */
 #define RDMA_CORE_CAP_AF_IB             0x00001000
 #define RDMA_CORE_CAP_ETH_AH            0x00002000
+#define RDMA_CORE_CAP_OPA_AH            0x00004000
 
 /* Protocol                             0xFFF00000 */
 #define RDMA_CORE_CAP_PROT_IB           0x00100000
@@ -2602,6 +2603,21 @@ static inline bool rdma_cap_af_ib(const struct ib_device *device, u8 port_num)
 static inline bool rdma_cap_eth_ah(const struct ib_device *device, u8 port_num)
 {
 	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_ETH_AH;
+}
+
+/**
+ * rdma_cap_opa_ah - Check if the port of device supports
+ * OPA Address handles
+ * @device: Device to check
+ * @port_num: Port number to check
+ *
+ * Return: true if we are running on an OPA device which supports
+ * the extended OPA addressing.
+ */
+static inline bool rdma_cap_opa_ah(struct ib_device *device, u8 port_num)
+{
+	return (device->port_immutable[port_num].core_cap_flags &
+		RDMA_CORE_CAP_OPA_AH) == RDMA_CORE_CAP_OPA_AH;
 }
 
 /**
