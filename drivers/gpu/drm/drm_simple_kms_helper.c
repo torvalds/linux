@@ -114,7 +114,7 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void drm_simple_kms_plane_atomic_update(struct drm_plane *plane,
-					struct drm_plane_state *pstate)
+					struct drm_plane_state *old_pstate)
 {
 	struct drm_simple_display_pipe *pipe;
 
@@ -122,7 +122,7 @@ static void drm_simple_kms_plane_atomic_update(struct drm_plane *plane,
 	if (!pipe->funcs || !pipe->funcs->update)
 		return;
 
-	pipe->funcs->update(pipe, pstate);
+	pipe->funcs->update(pipe, old_pstate);
 }
 
 static int drm_simple_kms_plane_prepare_fb(struct drm_plane *plane,
