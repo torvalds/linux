@@ -119,6 +119,56 @@ int sdhci_pci_resume_host(struct sdhci_pci_chip *chip)
 }
 #endif
 
+#ifdef CONFIG_PM
+static int sdhci_pci_runtime_suspend_host(struct sdhci_pci_chip *chip)
+{
+	struct sdhci_pci_slot *slot;
+	struct sdhci_host *host;
+	int i, ret;
+
+	for (i = 0; i < chip->num_slots; i++) {
+		slot = chip->slots[i];
+		if (!slot)
+			continue;
+
+		host = slot->host;
+
+		ret = sdhci_runtime_suspend_host(host);
+		if (ret)
+			goto err_pci_runtime_suspend;
+
+		if (chip->rpm_retune &&
+		    host->tuning_mode != SDHCI_TUNING_MODE_3)
+			mmc_retune_needed(host->mmc);
+	}
+
+	return 0;
+
+err_pci_runtime_suspend:
+	while (--i >= 0)
+		sdhci_runtime_resume_host(chip->slots[i]->host);
+	return ret;
+}
+
+static int sdhci_pci_runtime_resume_host(struct sdhci_pci_chip *chip)
+{
+	struct sdhci_pci_slot *slot;
+	int i, ret;
+
+	for (i = 0; i < chip->num_slots; i++) {
+		slot = chip->slots[i];
+		if (!slot)
+			continue;
+
+		ret = sdhci_runtime_resume_host(slot->host);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+#endif
+
 /*****************************************************************************\
  *                                                                           *
  * Hardware specific quirk handling                                          *
@@ -1796,61 +1846,29 @@ static int sdhci_pci_resume(struct device *dev)
 static int sdhci_pci_runtime_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct sdhci_pci_chip *chip;
-	struct sdhci_pci_slot *slot;
-	struct sdhci_host *host;
-	int i, ret;
+	struct sdhci_pci_chip *chip = pci_get_drvdata(pdev);
 
-	chip = pci_get_drvdata(pdev);
 	if (!chip)
 		return 0;
 
-	for (i = 0; i < chip->num_slots; i++) {
-		slot = chip->slots[i];
-		if (!slot)
-			continue;
+	if (chip->fixes && chip->fixes->runtime_suspend)
+		return chip->fixes->runtime_suspend(chip);
 
-		host = slot->host;
-
-		ret = sdhci_runtime_suspend_host(host);
-		if (ret)
-			goto err_pci_runtime_suspend;
-
-		if (chip->rpm_retune &&
-		    host->tuning_mode != SDHCI_TUNING_MODE_3)
-			mmc_retune_needed(host->mmc);
-	}
-
-	return 0;
-
-err_pci_runtime_suspend:
-	while (--i >= 0)
-		sdhci_runtime_resume_host(chip->slots[i]->host);
-	return ret;
+	return sdhci_pci_runtime_suspend_host(chip);
 }
 
 static int sdhci_pci_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct sdhci_pci_chip *chip;
-	struct sdhci_pci_slot *slot;
-	int i, ret;
+	struct sdhci_pci_chip *chip = pci_get_drvdata(pdev);
 
-	chip = pci_get_drvdata(pdev);
 	if (!chip)
 		return 0;
 
-	for (i = 0; i < chip->num_slots; i++) {
-		slot = chip->slots[i];
-		if (!slot)
-			continue;
+	if (chip->fixes && chip->fixes->runtime_resume)
+		return chip->fixes->runtime_resume(chip);
 
-		ret = sdhci_runtime_resume_host(slot->host);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return sdhci_pci_runtime_resume_host(chip);
 }
 #endif
 

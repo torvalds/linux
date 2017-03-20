@@ -71,6 +71,10 @@ struct sdhci_pci_fixes {
 	int			(*suspend) (struct sdhci_pci_chip *);
 	int			(*resume) (struct sdhci_pci_chip *);
 #endif
+#ifdef CONFIG_PM
+	int			(*runtime_suspend) (struct sdhci_pci_chip *);
+	int			(*runtime_resume) (struct sdhci_pci_chip *);
+#endif
 
 	const struct sdhci_ops	*ops;
 	size_t			priv_size;
