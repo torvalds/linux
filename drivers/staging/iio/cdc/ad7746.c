@@ -547,7 +547,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 
 		regval = chip->config | AD7746_CONF_MODE_SINGLE_CONV;
 		ret = i2c_smbus_write_byte_data(chip->client, AD7746_REG_CFG,
-				regval);
+						regval);
 		if (ret < 0)
 			goto out;
 
