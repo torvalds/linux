@@ -454,8 +454,10 @@ static int imx_set_exposure_gain(struct v4l2_subdev *sd, u16 coarse_itg,
 
 	if (dev->sensor_id == IMX227_ID) {
 		ret = imx_write_reg_array(client, imx_param_hold);
-		if (ret)
+		if (ret) {
+			mutex_unlock(&dev->input_lock);
 			return ret;
+		}
 	}
 
 	/* For imx175, setting gain must be delayed by one */
