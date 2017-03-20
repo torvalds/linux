@@ -153,20 +153,18 @@ struct atomisp_acc_pipe *atomisp_to_acc_pipe(struct video_device *dev)
 
 static unsigned short atomisp_get_sensor_fps(struct atomisp_sub_device *asd)
 {
-	struct v4l2_subdev_frame_interval frame_interval;
+	struct v4l2_subdev_frame_interval fi;
 	struct atomisp_device *isp = asd->isp;
-	unsigned short fps;
 
-	if (v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-	    video, g_frame_interval, &frame_interval)) {
-		fps = 0;
-	} else {
-		if (frame_interval.interval.numerator)
-			fps = frame_interval.interval.denominator /
-			    frame_interval.interval.numerator;
-		else
-			fps = 0;
-	}
+	unsigned short fps = 0;
+	int ret;
+
+	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+			       video, g_frame_interval, &fi);
+
+	if (!ret && fi.interval.numerator)
+		fps = fi.interval.denominator / fi.interval.numerator;
+
 	return fps;
 }
 
