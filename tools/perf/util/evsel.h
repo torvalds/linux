@@ -131,6 +131,7 @@ struct perf_evsel {
 	bool			cmdline_group_boundary;
 	struct list_head	config_terms;
 	int			bpf_fd;
+	bool			merged_stat;
 };
 
 union u64_swap {
