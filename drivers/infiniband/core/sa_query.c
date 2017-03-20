@@ -963,8 +963,10 @@ static void update_sm_ah(struct work_struct *work)
 	ah_attr.port_num = port->port_num;
 	if (port_attr.grh_required) {
 		ah_attr.ah_flags = IB_AH_GRH;
-		ah_attr.grh.dgid.global.subnet_prefix = cpu_to_be64(port_attr.subnet_prefix);
-		ah_attr.grh.dgid.global.interface_id = cpu_to_be64(IB_SA_WELL_KNOWN_GUID);
+		ah_attr.grh.dgid.global.subnet_prefix =
+			cpu_to_be64(port_attr.subnet_prefix);
+		ah_attr.grh.dgid.global.interface_id =
+			cpu_to_be64(IB_SA_WELL_KNOWN_GUID);
 	}
 
 	new_ah->ah = ib_create_ah(port->agent->qp->pd, &ah_attr);
@@ -979,10 +981,10 @@ static void update_sm_ah(struct work_struct *work)
 		kref_put(&port->sm_ah->ref, free_sm_ah);
 	port->sm_ah = new_ah;
 	spin_unlock_irq(&port->ah_lock);
-
 }
 
-static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event)
+static void ib_sa_event(struct ib_event_handler *handler,
+			struct ib_event *event)
 {
 	if (event->event == IB_EVENT_PORT_ERR    ||
 	    event->event == IB_EVENT_PORT_ACTIVE ||
@@ -993,8 +995,8 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 		unsigned long flags;
 		struct ib_sa_device *sa_dev =
 			container_of(handler, typeof(*sa_dev), event_handler);
-		struct ib_sa_port *port =
-			&sa_dev->port[event->element.port_num - sa_dev->start_port];
+		u8 port_num = event->element.port_num - sa_dev->start_port;
+		struct ib_sa_port *port = &sa_dev->port[port_num];
 
 		if (!rdma_cap_ib_sa(handler->device, port->port_num))
 			return;
@@ -1012,8 +1014,7 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 			port->classport_info.valid = false;
 			spin_unlock_irqrestore(&port->classport_lock, flags);
 		}
-		queue_work(ib_wq, &sa_dev->port[event->element.port_num -
-					    sa_dev->start_port].update_task);
+		queue_work(ib_wq, &sa_dev->port[port_num].update_task);
 	}
 }
 
