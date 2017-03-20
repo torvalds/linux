@@ -36,10 +36,6 @@
 static int sdhci_pci_enable_dma(struct sdhci_host *host);
 static void sdhci_pci_set_bus_width(struct sdhci_host *host, int width);
 static void sdhci_pci_hw_reset(struct sdhci_host *host);
-static int sdhci_pci_select_drive_strength(struct sdhci_host *host,
-					   struct mmc_card *card,
-					   unsigned int max_dtr, int host_drv,
-					   int card_drv, int *drv_type);
 
 /*****************************************************************************\
  *                                                                           *
@@ -514,7 +510,6 @@ static const struct sdhci_ops sdhci_intel_byt_ops = {
 	.reset			= sdhci_reset,
 	.set_uhs_signaling	= sdhci_set_uhs_signaling,
 	.hw_reset		= sdhci_pci_hw_reset,
-	.select_drive_strength	= sdhci_pci_select_drive_strength,
 };
 
 static const struct sdhci_pci_fixes sdhci_intel_byt_emmc = {
@@ -1658,20 +1653,6 @@ static void sdhci_pci_hw_reset(struct sdhci_host *host)
 		slot->hw_reset(host);
 }
 
-static int sdhci_pci_select_drive_strength(struct sdhci_host *host,
-					   struct mmc_card *card,
-					   unsigned int max_dtr, int host_drv,
-					   int card_drv, int *drv_type)
-{
-	struct sdhci_pci_slot *slot = sdhci_priv(host);
-
-	if (!slot->select_drive_strength)
-		return 0;
-
-	return slot->select_drive_strength(host, card, max_dtr, host_drv,
-					   card_drv, drv_type);
-}
-
 static const struct sdhci_ops sdhci_pci_ops = {
 	.set_clock	= sdhci_set_clock,
 	.enable_dma	= sdhci_pci_enable_dma,
@@ -1679,7 +1660,6 @@ static const struct sdhci_ops sdhci_pci_ops = {
 	.reset		= sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 	.hw_reset		= sdhci_pci_hw_reset,
-	.select_drive_strength	= sdhci_pci_select_drive_strength,
 };
 
 /*****************************************************************************\
