@@ -838,14 +838,60 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__cu_len_r;							\
 })
 
-#ifndef CONFIG_EVA
-#define __invoke_copy_to_user(to, from, n)				\
-	__invoke_copy_to(__copy_user, to, from, n)
+#define __invoke_copy_from_kernel(to, from, n)				\
+	__invoke_copy_from(__copy_user, to, from, n)
+
+#define __invoke_copy_from_kernel_inatomic(to, from, n)			\
+	__invoke_copy_from(__copy_user_inatomic, to, from, n)
 
 #define __invoke_copy_to_kernel(to, from, n)				\
 	__invoke_copy_to(__copy_user, to, from, n)
 
-#endif
+#define ___invoke_copy_in_kernel(to, from, n)				\
+	__invoke_copy_from(__copy_user, to, from, n)
+
+#ifndef CONFIG_EVA
+#define __invoke_copy_from_user(to, from, n)				\
+	__invoke_copy_from(__copy_user, to, from, n)
+
+#define __invoke_copy_from_user_inatomic(to, from, n)			\
+	__invoke_copy_from(__copy_user_inatomic, to, from, n)
+
+#define __invoke_copy_to_user(to, from, n)				\
+	__invoke_copy_to(__copy_user, to, from, n)
+
+#define ___invoke_copy_in_user(to, from, n)				\
+	__invoke_copy_from(__copy_user, to, from, n)
+
+#else
+
+/* EVA specific functions */
+
+extern size_t __copy_user_inatomic_eva(void *__to, const void *__from,
+				       size_t __n);
+extern size_t __copy_from_user_eva(void *__to, const void *__from,
+				   size_t __n);
+extern size_t __copy_to_user_eva(void *__to, const void *__from,
+				 size_t __n);
+extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
+
+/*
+ * Source or destination address is in userland. We need to go through
+ * the TLB
+ */
+#define __invoke_copy_from_user(to, from, n)				\
+	__invoke_copy_from(__copy_from_user_eva, to, from, n)
+
+#define __invoke_copy_from_user_inatomic(to, from, n)			\
+	__invoke_copy_from(__copy_user_inatomic_eva, to, from, n)
+
+#define __invoke_copy_to_user(to, from, n)				\
+	__invoke_copy_to(__copy_to_user_eva, to, from, n)
+
+#define ___invoke_copy_in_user(to, from, n)				\
+	__invoke_copy_from(__copy_in_user_eva, to, from, n)
+
+#endif /* CONFIG_EVA */
 
 /*
  * __copy_to_user: - Copy a block of data into user space, with less checking.
@@ -970,74 +1016,6 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	}								\
 	__cu_len;							\
 })
-
-#ifndef CONFIG_EVA
-
-#define __invoke_copy_from_user(to, from, n)				\
-	__invoke_copy_from(__copy_user, to, from, n)
-
-#define __invoke_copy_from_kernel(to, from, n)				\
-	__invoke_copy_from(__copy_user, to, from, n)
-
-/* For userland <-> userland operations */
-#define ___invoke_copy_in_user(to, from, n)				\
-	__invoke_copy_from(__copy_user, to, from, n)
-
-/* For kernel <-> kernel operations */
-#define ___invoke_copy_in_kernel(to, from, n)				\
-	__invoke_copy_from(__copy_user, to, from, n)
-
-#define __invoke_copy_from_user_inatomic(to, from, n)			\
-	__invoke_copy_from(__copy_user_inatomic, to, from, n)
-
-#define __invoke_copy_from_kernel_inatomic(to, from, n)			\
-	__invoke_copy_from(__copy_user_inatomic, to, from, n)
-
-#else
-
-/* EVA specific functions */
-
-extern size_t __copy_user_inatomic_eva(void *__to, const void *__from,
-				       size_t __n);
-extern size_t __copy_from_user_eva(void *__to, const void *__from,
-				   size_t __n);
-extern size_t __copy_to_user_eva(void *__to, const void *__from,
-				 size_t __n);
-extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
-
-/*
- * Source or destination address is in userland. We need to go through
- * the TLB
- */
-#define __invoke_copy_from_user(to, from, n)				\
-	__invoke_copy_from(__copy_from_user_eva, to, from, n)
-
-#define __invoke_copy_from_user_inatomic(to, from, n)			\
-	__invoke_copy_from(__copy_user_inatomic_eva, to, from, n)
-
-#define __invoke_copy_to_user(to, from, n)				\
-	__invoke_copy_to(__copy_to_user_eva, to, from, n)
-
-#define ___invoke_copy_in_user(to, from, n)				\
-	__invoke_copy_from(__copy_in_user_eva, to, from, n)
-
-/*
- * Source or destination address in the kernel. We are not going through
- * the TLB
- */
-#define __invoke_copy_from_kernel(to, from, n)				\
-	__invoke_copy_from(__copy_user, to, from, n)
-
-#define __invoke_copy_from_kernel_inatomic(to, from, n)			\
-	__invoke_copy_from(__copy_user_inatomic, to, from, n)
-
-#define __invoke_copy_to_kernel(to, from, n)				\
-	__invoke_copy_to(__copy_user, to, from, n)
-
-#define ___invoke_copy_in_kernel(to, from, n)				\
-	__invoke_copy_from(__copy_user, to, from, n)
-
-#endif /* CONFIG_EVA */
 
 /*
  * __copy_from_user: - Copy a block of data from user space, with less checking.
