@@ -1063,8 +1063,6 @@ static bool are_stream_backends_same(
 	if (stream_a == NULL || stream_b == NULL)
 		return false;
 
-	if (stream_a->public.timing.pixel_encoding != stream_b->public.timing.pixel_encoding)
-		return false;
 	if (is_timing_changed(stream_a, stream_b))
 		return false;
 
@@ -1074,8 +1072,6 @@ static bool are_stream_backends_same(
 bool is_stream_unchanged(
 	const struct core_stream *old_stream, const struct core_stream *stream)
 {
-	if (old_stream != stream)
-		return false;
 
 	if (!are_stream_backends_same(old_stream, stream))
 		return false;
