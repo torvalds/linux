@@ -12,7 +12,7 @@
 #include <asm/prctl.h> /* XXX This should get the constants from libc */
 #include <os.h>
 
-long arch_prctl(struct task_struct *task, int option)
+long arch_prctl(struct task_struct *task, int option,
 		unsigned long __user *arg2)
 {
 	unsigned long *ptr = arg2, tmp;
