@@ -4722,7 +4722,7 @@ static int
 atomisp_v4l2_framebuffer_to_css_frame(const struct v4l2_framebuffer *arg,
 					 struct atomisp_css_frame **result)
 {
-	struct atomisp_css_frame *res;
+	struct atomisp_css_frame *res = NULL;
 	unsigned int padded_width;
 	enum atomisp_css_frame_format sh_format;
 	char *tmp_buf = NULL;
