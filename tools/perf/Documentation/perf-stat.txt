@@ -94,8 +94,7 @@ to activate system-wide monitoring. Default is to count on all CPUs.
 
 -A::
 --no-aggr::
-Do not aggregate counts across all monitored CPUs in system-wide mode (-a).
-This option is only valid in system-wide mode.
+Do not aggregate counts across all monitored CPUs.
 
 -n::
 --null::
