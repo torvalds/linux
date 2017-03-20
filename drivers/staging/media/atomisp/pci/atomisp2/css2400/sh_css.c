@@ -33,7 +33,6 @@
 #include "ia_css_rmgr.h"
 #include "ia_css_debug.h"
 #include "ia_css_debug_pipe.h"
-#include "ia_css_memory_access.h"
 #include "ia_css_device_access.h"
 #include "device_access.h"
 #include "sh_css_legacy.h"
@@ -1690,8 +1689,6 @@ ia_css_load_firmware(const struct ia_css_env *env,
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_load_firmware() enter\n");
 
-	ia_css_memory_access_init(&env->css_mem_env);
-
 	/* make sure we initialize my_css */
 	if ((my_css.malloc != env->cpu_mem_env.alloc) ||
 		(my_css.free != env->cpu_mem_env.free) ||
@@ -1791,7 +1788,6 @@ ia_css_init(const struct ia_css_env *env,
 	ia_css_queue_map_init();
 
 	ia_css_device_access_init(&env->hw_access_env);
-	ia_css_memory_access_init(&env->css_mem_env);
 
 	select = gpio_reg_load(GPIO0_ID, _gpio_block_reg_do_select)
 						& (~GPIO_FLASH_PIN_MASK);

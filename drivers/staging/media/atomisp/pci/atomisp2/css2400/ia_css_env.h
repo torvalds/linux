@@ -60,53 +60,6 @@ struct ia_css_cpu_mem_env {
 #endif
 };
 
-/** Environment with function pointers for allocation of memory for the CSS.
- *  The CSS uses its own MMU which has its own set of page tables. These
- *  functions are expected to use and/or update those page tables.
- *  This type of memory allocation is expected to be used for large buffers
- *  for images and statistics.
- *  ISP pointers are always 32 bits whereas IA pointer widths will depend
- *  on the platform.
- *  Attributes can be a combination (OR'ed) of ia_css_mem_attr values.
- */
-struct ia_css_css_mem_env {
-	ia_css_ptr(*alloc)(size_t bytes, uint32_t attributes);
-	/**< Allocate memory, cached or uncached, zeroed out or not. */
-	void (*free)(ia_css_ptr ptr);
-	/**< Free ISP shared memory. The function must also accept
-	     a NULL argument, similar to C89 free(). */
-	int (*load)(ia_css_ptr ptr, void *data, size_t bytes);
-	/**< Load from ISP shared memory. This function is necessary because
-	     the IA MMU does not share page tables with the ISP MMU. This means
-	     that the IA needs to do the virtual-to-physical address
-	     translation in software. This function performs this translation.*/
-	int (*store)(ia_css_ptr ptr, const void *data, size_t bytes);
-	/**< Same as the above load function but then to write data into ISP
-	     shared memory. */
-	int (*set)(ia_css_ptr ptr, int c, size_t bytes);
-	/**< Set an ISP shared memory region to a particular value. Each byte
-	     in this region will be set to this value. In most cases this is
-	     used to zero-out memory sections in which case the argument c
-	     would have the value zero. */
-	ia_css_ptr (*mmap)(const void *ptr, const size_t size,
-			   uint16_t attribute, void *context);
-	/**< Map an pre-allocated memory region to an address. */
-#ifdef ISP2401
-
-	/* a set of matching functions with additional debug params */
-	ia_css_ptr(*alloc_ex)(size_t bytes, uint32_t attributes, const char *caller_func, int caller_line);
-	/**< same as alloc above, only with additional debug parameters */
-	void (*free_ex)(ia_css_ptr ptr, const char *caller_func, int caller_line);
-	/**< same as free above, only with additional debug parameters */
-	int (*load_ex)(ia_css_ptr ptr, void *data, size_t bytes, const char *caller_func, int caller_line);
-	/**< same as load above, only with additional debug parameters */
-	int (*store_ex)(ia_css_ptr ptr, const void *data, size_t bytes, const char *caller_func, int caller_line);
-	/**< same as store above, only with additional debug parameters */
-	int (*set_ex)(ia_css_ptr ptr, int c, size_t bytes, const char *caller_func, int caller_line);
-	/**< same as set above, only with additional debug parameters */
-#endif
-};
-
 /** Environment with function pointers to access the CSS hardware. This includes
  *  registers and local memories.
  */
@@ -151,7 +104,6 @@ struct ia_css_print_env {
  */
 struct ia_css_env {
 	struct ia_css_cpu_mem_env   cpu_mem_env;   /**< local malloc and free. */
-	struct ia_css_css_mem_env   css_mem_env;   /**< CSS/ISP buffer alloc/free */
 	struct ia_css_hw_access_env hw_access_env; /**< CSS HW access functions */
 	struct ia_css_print_env     print_env;     /**< Message printing env. */
 };

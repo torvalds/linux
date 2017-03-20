@@ -13,7 +13,6 @@
  */
 
 #define IA_CSS_INCLUDE_STATES
-#include "ia_css_memory_access.h"
 #include "isp/kernels/aa/aa_2/ia_css_aa2.host.h"
 #include "isp/kernels/cnr/cnr_1.0/ia_css_cnr.host.h"
 #include "isp/kernels/cnr/cnr_2/ia_css_cnr2.host.h"
