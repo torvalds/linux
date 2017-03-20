@@ -931,92 +931,6 @@ static void free_sm_ah(struct kref *kref)
 	kfree(sm_ah);
 }
 
-static void update_sm_ah(struct work_struct *work)
-{
-	struct ib_sa_port *port =
-		container_of(work, struct ib_sa_port, update_task);
-	struct ib_sa_sm_ah *new_ah;
-	struct ib_port_attr port_attr;
-	struct ib_ah_attr   ah_attr;
-
-	if (ib_query_port(port->agent->device, port->port_num, &port_attr)) {
-		pr_warn("Couldn't query port\n");
-		return;
-	}
-
-	new_ah = kmalloc(sizeof(*new_ah), GFP_KERNEL);
-	if (!new_ah)
-		return;
-
-	kref_init(&new_ah->ref);
-	new_ah->src_path_mask = (1 << port_attr.lmc) - 1;
-
-	new_ah->pkey_index = 0;
-	if (ib_find_pkey(port->agent->device, port->port_num,
-			 IB_DEFAULT_PKEY_FULL, &new_ah->pkey_index))
-		pr_err("Couldn't find index for default PKey\n");
-
-	memset(&ah_attr, 0, sizeof(ah_attr));
-	ah_attr.dlid     = port_attr.sm_lid;
-	ah_attr.sl       = port_attr.sm_sl;
-	ah_attr.port_num = port->port_num;
-	if (port_attr.grh_required) {
-		ah_attr.ah_flags = IB_AH_GRH;
-		ah_attr.grh.dgid.global.subnet_prefix =
-			cpu_to_be64(port_attr.subnet_prefix);
-		ah_attr.grh.dgid.global.interface_id =
-			cpu_to_be64(IB_SA_WELL_KNOWN_GUID);
-	}
-
-	new_ah->ah = ib_create_ah(port->agent->qp->pd, &ah_attr);
-	if (IS_ERR(new_ah->ah)) {
-		pr_warn("Couldn't create new SM AH\n");
-		kfree(new_ah);
-		return;
-	}
-
-	spin_lock_irq(&port->ah_lock);
-	if (port->sm_ah)
-		kref_put(&port->sm_ah->ref, free_sm_ah);
-	port->sm_ah = new_ah;
-	spin_unlock_irq(&port->ah_lock);
-}
-
-static void ib_sa_event(struct ib_event_handler *handler,
-			struct ib_event *event)
-{
-	if (event->event == IB_EVENT_PORT_ERR    ||
-	    event->event == IB_EVENT_PORT_ACTIVE ||
-	    event->event == IB_EVENT_LID_CHANGE  ||
-	    event->event == IB_EVENT_PKEY_CHANGE ||
-	    event->event == IB_EVENT_SM_CHANGE   ||
-	    event->event == IB_EVENT_CLIENT_REREGISTER) {
-		unsigned long flags;
-		struct ib_sa_device *sa_dev =
-			container_of(handler, typeof(*sa_dev), event_handler);
-		u8 port_num = event->element.port_num - sa_dev->start_port;
-		struct ib_sa_port *port = &sa_dev->port[port_num];
-
-		if (!rdma_cap_ib_sa(handler->device, port->port_num))
-			return;
-
-		spin_lock_irqsave(&port->ah_lock, flags);
-		if (port->sm_ah)
-			kref_put(&port->sm_ah->ref, free_sm_ah);
-		port->sm_ah = NULL;
-		spin_unlock_irqrestore(&port->ah_lock, flags);
-
-		if (event->event == IB_EVENT_SM_CHANGE ||
-		    event->event == IB_EVENT_CLIENT_REREGISTER ||
-		    event->event == IB_EVENT_LID_CHANGE) {
-			spin_lock_irqsave(&port->classport_lock, flags);
-			port->classport_info.valid = false;
-			spin_unlock_irqrestore(&port->classport_lock, flags);
-		}
-		queue_work(ib_wq, &sa_dev->port[port_num].update_task);
-	}
-}
-
 void ib_sa_register_client(struct ib_sa_client *client)
 {
 	atomic_set(&client->users, 1);
@@ -1895,6 +1809,92 @@ static void recv_handler(struct ib_mad_agent *mad_agent,
 	}
 
 	ib_free_recv_mad(mad_recv_wc);
+}
+
+static void update_sm_ah(struct work_struct *work)
+{
+	struct ib_sa_port *port =
+		container_of(work, struct ib_sa_port, update_task);
+	struct ib_sa_sm_ah *new_ah;
+	struct ib_port_attr port_attr;
+	struct ib_ah_attr   ah_attr;
+
+	if (ib_query_port(port->agent->device, port->port_num, &port_attr)) {
+		pr_warn("Couldn't query port\n");
+		return;
+	}
+
+	new_ah = kmalloc(sizeof(*new_ah), GFP_KERNEL);
+	if (!new_ah)
+		return;
+
+	kref_init(&new_ah->ref);
+	new_ah->src_path_mask = (1 << port_attr.lmc) - 1;
+
+	new_ah->pkey_index = 0;
+	if (ib_find_pkey(port->agent->device, port->port_num,
+			 IB_DEFAULT_PKEY_FULL, &new_ah->pkey_index))
+		pr_err("Couldn't find index for default PKey\n");
+
+	memset(&ah_attr, 0, sizeof(ah_attr));
+	ah_attr.dlid     = port_attr.sm_lid;
+	ah_attr.sl       = port_attr.sm_sl;
+	ah_attr.port_num = port->port_num;
+	if (port_attr.grh_required) {
+		ah_attr.ah_flags = IB_AH_GRH;
+		ah_attr.grh.dgid.global.subnet_prefix =
+			cpu_to_be64(port_attr.subnet_prefix);
+		ah_attr.grh.dgid.global.interface_id =
+			cpu_to_be64(IB_SA_WELL_KNOWN_GUID);
+	}
+
+	new_ah->ah = ib_create_ah(port->agent->qp->pd, &ah_attr);
+	if (IS_ERR(new_ah->ah)) {
+		pr_warn("Couldn't create new SM AH\n");
+		kfree(new_ah);
+		return;
+	}
+
+	spin_lock_irq(&port->ah_lock);
+	if (port->sm_ah)
+		kref_put(&port->sm_ah->ref, free_sm_ah);
+	port->sm_ah = new_ah;
+	spin_unlock_irq(&port->ah_lock);
+}
+
+static void ib_sa_event(struct ib_event_handler *handler,
+			struct ib_event *event)
+{
+	if (event->event == IB_EVENT_PORT_ERR    ||
+	    event->event == IB_EVENT_PORT_ACTIVE ||
+	    event->event == IB_EVENT_LID_CHANGE  ||
+	    event->event == IB_EVENT_PKEY_CHANGE ||
+	    event->event == IB_EVENT_SM_CHANGE   ||
+	    event->event == IB_EVENT_CLIENT_REREGISTER) {
+		unsigned long flags;
+		struct ib_sa_device *sa_dev =
+			container_of(handler, typeof(*sa_dev), event_handler);
+		u8 port_num = event->element.port_num - sa_dev->start_port;
+		struct ib_sa_port *port = &sa_dev->port[port_num];
+
+		if (!rdma_cap_ib_sa(handler->device, port->port_num))
+			return;
+
+		spin_lock_irqsave(&port->ah_lock, flags);
+		if (port->sm_ah)
+			kref_put(&port->sm_ah->ref, free_sm_ah);
+		port->sm_ah = NULL;
+		spin_unlock_irqrestore(&port->ah_lock, flags);
+
+		if (event->event == IB_EVENT_SM_CHANGE ||
+		    event->event == IB_EVENT_CLIENT_REREGISTER ||
+		    event->event == IB_EVENT_LID_CHANGE) {
+			spin_lock_irqsave(&port->classport_lock, flags);
+			port->classport_info.valid = false;
+			spin_unlock_irqrestore(&port->classport_lock, flags);
+		}
+		queue_work(ib_wq, &sa_dev->port[port_num].update_task);
+	}
 }
 
 static void ib_sa_add_one(struct ib_device *device)
