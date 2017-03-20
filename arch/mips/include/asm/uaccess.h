@@ -797,8 +797,30 @@ extern void __put_user_unaligned_unknown(void);
 
 extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 
-#ifndef CONFIG_EVA
-#define __invoke_copy_to_user(to, from, n)				\
+#define __invoke_copy_from(func, to, from, n)				\
+({									\
+	register void *__cu_to_r __asm__("$4");				\
+	register const void __user *__cu_from_r __asm__("$5");		\
+	register long __cu_len_r __asm__("$6");				\
+									\
+	__cu_to_r = (to);						\
+	__cu_from_r = (from);						\
+	__cu_len_r = (n);						\
+	__asm__ __volatile__(						\
+	".set\tnoreorder\n\t"						\
+	__MODULE_JAL(func)						\
+	".set\tnoat\n\t"						\
+	__UA_ADDU "\t$1, %1, %2\n\t"					\
+	".set\tat\n\t"							\
+	".set\treorder"							\
+	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
+	:								\
+	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
+	  DADDI_SCRATCH, "memory");					\
+	__cu_len_r;							\
+})
+
+#define __invoke_copy_to(func, to, from, n)				\
 ({									\
 	register void __user *__cu_to_r __asm__("$4");			\
 	register const void *__cu_from_r __asm__("$5");			\
@@ -808,7 +830,7 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__cu_from_r = (from);						\
 	__cu_len_r = (n);						\
 	__asm__ __volatile__(						\
-	__MODULE_JAL(__copy_user)					\
+	__MODULE_JAL(func)						\
 	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
 	:								\
 	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
@@ -816,8 +838,12 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__cu_len_r;							\
 })
 
+#ifndef CONFIG_EVA
+#define __invoke_copy_to_user(to, from, n)				\
+	__invoke_copy_to(__copy_user, to, from, n)
+
 #define __invoke_copy_to_kernel(to, from, n)				\
-	__invoke_copy_to_user(to, from, n)
+	__invoke_copy_to(__copy_user, to, from, n)
 
 #endif
 
@@ -948,64 +974,24 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 #ifndef CONFIG_EVA
 
 #define __invoke_copy_from_user(to, from, n)				\
-({									\
-	register void *__cu_to_r __asm__("$4");				\
-	register const void __user *__cu_from_r __asm__("$5");		\
-	register long __cu_len_r __asm__("$6");				\
-									\
-	__cu_to_r = (to);						\
-	__cu_from_r = (from);						\
-	__cu_len_r = (n);						\
-	__asm__ __volatile__(						\
-	".set\tnoreorder\n\t"						\
-	__MODULE_JAL(__copy_user)					\
-	".set\tnoat\n\t"						\
-	__UA_ADDU "\t$1, %1, %2\n\t"					\
-	".set\tat\n\t"							\
-	".set\treorder"							\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
-	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
-	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
-})
+	__invoke_copy_from(__copy_user, to, from, n)
 
 #define __invoke_copy_from_kernel(to, from, n)				\
-	__invoke_copy_from_user(to, from, n)
+	__invoke_copy_from(__copy_user, to, from, n)
 
 /* For userland <-> userland operations */
 #define ___invoke_copy_in_user(to, from, n)				\
-	__invoke_copy_from_user(to, from, n)
+	__invoke_copy_from(__copy_user, to, from, n)
 
 /* For kernel <-> kernel operations */
 #define ___invoke_copy_in_kernel(to, from, n)				\
-	__invoke_copy_from_user(to, from, n)
+	__invoke_copy_from(__copy_user, to, from, n)
 
 #define __invoke_copy_from_user_inatomic(to, from, n)			\
-({									\
-	register void *__cu_to_r __asm__("$4");				\
-	register const void __user *__cu_from_r __asm__("$5");		\
-	register long __cu_len_r __asm__("$6");				\
-									\
-	__cu_to_r = (to);						\
-	__cu_from_r = (from);						\
-	__cu_len_r = (n);						\
-	__asm__ __volatile__(						\
-	".set\tnoreorder\n\t"						\
-	__MODULE_JAL(__copy_user_inatomic)				\
-	".set\tnoat\n\t"						\
-	__UA_ADDU "\t$1, %1, %2\n\t"					\
-	".set\tat\n\t"							\
-	".set\treorder"							\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
-	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
-	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
-})
+	__invoke_copy_from(__copy_user_inatomic, to, from, n)
 
 #define __invoke_copy_from_kernel_inatomic(to, from, n)			\
-	__invoke_copy_from_user_inatomic(to, from, n)			\
+	__invoke_copy_from(__copy_user_inatomic, to, from, n)
 
 #else
 
@@ -1019,79 +1005,37 @@ extern size_t __copy_to_user_eva(void *__to, const void *__from,
 				 size_t __n);
 extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
 
-#define __invoke_copy_from_user_eva_generic(to, from, n, func_ptr)	\
-({									\
-	register void *__cu_to_r __asm__("$4");				\
-	register const void __user *__cu_from_r __asm__("$5");		\
-	register long __cu_len_r __asm__("$6");				\
-									\
-	__cu_to_r = (to);						\
-	__cu_from_r = (from);						\
-	__cu_len_r = (n);						\
-	__asm__ __volatile__(						\
-	".set\tnoreorder\n\t"						\
-	__MODULE_JAL(func_ptr)						\
-	".set\tnoat\n\t"						\
-	__UA_ADDU "\t$1, %1, %2\n\t"					\
-	".set\tat\n\t"							\
-	".set\treorder"							\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
-	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
-	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
-})
-
-#define __invoke_copy_to_user_eva_generic(to, from, n, func_ptr)	\
-({									\
-	register void *__cu_to_r __asm__("$4");				\
-	register const void __user *__cu_from_r __asm__("$5");		\
-	register long __cu_len_r __asm__("$6");				\
-									\
-	__cu_to_r = (to);						\
-	__cu_from_r = (from);						\
-	__cu_len_r = (n);						\
-	__asm__ __volatile__(						\
-	__MODULE_JAL(func_ptr)						\
-	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
-	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
-	  DADDI_SCRATCH, "memory");					\
-	__cu_len_r;							\
-})
-
 /*
  * Source or destination address is in userland. We need to go through
  * the TLB
  */
 #define __invoke_copy_from_user(to, from, n)				\
-	__invoke_copy_from_user_eva_generic(to, from, n, __copy_from_user_eva)
+	__invoke_copy_from(__copy_from_user_eva, to, from, n)
 
 #define __invoke_copy_from_user_inatomic(to, from, n)			\
-	__invoke_copy_from_user_eva_generic(to, from, n,		\
-					    __copy_user_inatomic_eva)
+	__invoke_copy_from(__copy_user_inatomic_eva, to, from, n)
 
 #define __invoke_copy_to_user(to, from, n)				\
-	__invoke_copy_to_user_eva_generic(to, from, n, __copy_to_user_eva)
+	__invoke_copy_to(__copy_to_user_eva, to, from, n)
 
 #define ___invoke_copy_in_user(to, from, n)				\
-	__invoke_copy_from_user_eva_generic(to, from, n, __copy_in_user_eva)
+	__invoke_copy_from(__copy_in_user_eva, to, from, n)
 
 /*
  * Source or destination address in the kernel. We are not going through
  * the TLB
  */
 #define __invoke_copy_from_kernel(to, from, n)				\
-	__invoke_copy_from_user_eva_generic(to, from, n, __copy_user)
+	__invoke_copy_from(__copy_user, to, from, n)
 
 #define __invoke_copy_from_kernel_inatomic(to, from, n)			\
-	__invoke_copy_from_user_eva_generic(to, from, n, __copy_user_inatomic)
+	__invoke_copy_from(__copy_user_inatomic, to, from, n)
 
 #define __invoke_copy_to_kernel(to, from, n)				\
-	__invoke_copy_to_user_eva_generic(to, from, n, __copy_user)
+	__invoke_copy_to(__copy_user, to, from, n)
 
 #define ___invoke_copy_in_kernel(to, from, n)				\
-	__invoke_copy_from_user_eva_generic(to, from, n, __copy_user)
+	__invoke_copy_from(__copy_user, to, from, n)
 
 #endif /* CONFIG_EVA */
 
