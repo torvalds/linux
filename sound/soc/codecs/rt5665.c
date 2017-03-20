@@ -4080,7 +4080,7 @@ static int rt5665_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct rt5665_priv *rt5665 = snd_soc_codec_get_drvdata(codec);
-	unsigned int val_len = 0, val_clk, mask_clk, val_bits = 0x0100;
+	unsigned int val_len = 0, val_clk, reg_clk, mask_clk, val_bits = 0x0100;
 	int pre_div, frame_size;
 
 	rt5665->lrck[dai->id] = params_rate(params);
@@ -4124,6 +4124,7 @@ static int rt5665_hw_params(struct snd_pcm_substream *substream,
 		if (params_channels(params) > 2)
 			rt5665_set_tdm_slot(dai, 0xf, 0xf,
 				params_channels(params), params_width(params));
+		reg_clk = RT5665_ADDA_CLK_1;
 		mask_clk = RT5665_I2S_PD1_MASK;
 		val_clk = pre_div << RT5665_I2S_PD1_SFT;
 		snd_soc_update_bits(codec, RT5665_I2S1_SDP,
@@ -4131,12 +4132,14 @@ static int rt5665_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case RT5665_AIF2_1:
 	case RT5665_AIF2_2:
+		reg_clk = RT5665_ADDA_CLK_2;
 		mask_clk = RT5665_I2S_PD2_MASK;
 		val_clk = pre_div << RT5665_I2S_PD2_SFT;
 		snd_soc_update_bits(codec, RT5665_I2S2_SDP,
 			RT5665_I2S_DL_MASK, val_len);
 		break;
 	case RT5665_AIF3:
+		reg_clk = RT5665_ADDA_CLK_2;
 		mask_clk = RT5665_I2S_PD3_MASK;
 		val_clk = pre_div << RT5665_I2S_PD3_SFT;
 		snd_soc_update_bits(codec, RT5665_I2S3_SDP,
@@ -4147,7 +4150,7 @@ static int rt5665_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, RT5665_ADDA_CLK_1, mask_clk, val_clk);
+	snd_soc_update_bits(codec, reg_clk, mask_clk, val_clk);
 	snd_soc_update_bits(codec, RT5665_STO1_DAC_SIL_DET, 0x3700, val_bits);
 
 	switch (rt5665->lrck[dai->id]) {
