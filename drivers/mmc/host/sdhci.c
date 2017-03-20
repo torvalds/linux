@@ -87,6 +87,13 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 	pr_err(DRIVER_NAME ": Cmd:      0x%08x | Max curr: 0x%08x\n",
 	       sdhci_readw(host, SDHCI_COMMAND),
 	       sdhci_readl(host, SDHCI_MAX_CURRENT));
+	pr_err(DRIVER_NAME ": Resp[0]:  0x%08x | Resp[1]:  0x%08x\n",
+		   sdhci_readl(host, SDHCI_RESPONSE),
+		   sdhci_readl(host, SDHCI_RESPONSE + 4));
+	pr_err(DRIVER_NAME ": Resp[2]:  0x%08x | Resp[3]:  0x%08x\n",
+		   sdhci_readl(host, SDHCI_RESPONSE + 8),
+		   sdhci_readl(host, SDHCI_RESPONSE + 12));
+
 	pr_err(DRIVER_NAME ": Host ctl2: 0x%08x\n",
 	       sdhci_readw(host, SDHCI_HOST_CONTROL2));
 
