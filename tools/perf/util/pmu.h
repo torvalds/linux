@@ -50,6 +50,7 @@ struct perf_pmu_alias {
 	double scale;
 	bool per_pkg;
 	bool snapshot;
+	char *metric_expr;
 };
 
 struct perf_pmu *perf_pmu__find(const char *name);

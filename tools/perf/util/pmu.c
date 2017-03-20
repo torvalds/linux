@@ -231,7 +231,8 @@ static int perf_pmu__parse_snapshot(struct perf_pmu_alias *alias,
 static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 				 char *desc, char *val,
 				 char *long_desc, char *topic,
-				 char *unit, char *perpkg)
+				 char *unit, char *perpkg,
+				 char *metric_expr)
 {
 	struct perf_pmu_alias *alias;
 	int ret;
@@ -265,6 +266,7 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 		perf_pmu__parse_snapshot(alias, dir, name);
 	}
 
+	alias->metric_expr = metric_expr ? strdup(metric_expr) : NULL;
 	alias->desc = desc ? strdup(desc) : NULL;
 	alias->long_desc = long_desc ? strdup(long_desc) :
 				desc ? strdup(desc) : NULL;
@@ -294,7 +296,7 @@ static int perf_pmu__new_alias(struct list_head *list, char *dir, char *name, FI
 	buf[ret] = 0;
 
 	return __perf_pmu__new_alias(list, dir, name, NULL, buf, NULL, NULL, NULL,
-				     NULL);
+				     NULL, NULL);
 }
 
 static inline bool pmu_alias_info_file(char *name)
@@ -564,7 +566,8 @@ static void pmu_add_cpu_aliases(struct list_head *head, const char *name)
 		__perf_pmu__new_alias(head, NULL, (char *)pe->name,
 				(char *)pe->desc, (char *)pe->event,
 				(char *)pe->long_desc, (char *)pe->topic,
-				(char *)pe->unit, (char *)pe->perpkg);
+				(char *)pe->unit, (char *)pe->perpkg,
+				(char *)pe->metric_expr);
 	}
 
 out:
