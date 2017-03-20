@@ -134,6 +134,7 @@
 #define  SDHCI_INT_CARD_REMOVE	0x00000080
 #define  SDHCI_INT_CARD_INT	0x00000100
 #define  SDHCI_INT_RETUNE	0x00001000
+#define  SDHCI_INT_CQE		0x00004000
 #define  SDHCI_INT_ERROR	0x00008000
 #define  SDHCI_INT_TIMEOUT	0x00010000
 #define  SDHCI_INT_CRC		0x00020000
@@ -157,6 +158,13 @@
 		SDHCI_INT_DATA_END_BIT | SDHCI_INT_ADMA_ERROR | \
 		SDHCI_INT_BLK_GAP)
 #define SDHCI_INT_ALL_MASK	((unsigned int)-1)
+
+#define SDHCI_CQE_INT_ERR_MASK ( \
+	SDHCI_INT_ADMA_ERROR | SDHCI_INT_BUS_POWER | SDHCI_INT_DATA_END_BIT | \
+	SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_TIMEOUT | SDHCI_INT_INDEX | \
+	SDHCI_INT_END_BIT | SDHCI_INT_CRC | SDHCI_INT_TIMEOUT)
+
+#define SDHCI_CQE_INT_MASK (SDHCI_CQE_INT_ERR_MASK | SDHCI_INT_CQE)
 
 #define SDHCI_ACMD12_ERR	0x3C
 
@@ -518,6 +526,10 @@ struct sdhci_host {
 	/* cached registers */
 	u32			ier;
 
+	bool			cqe_on;		/* CQE is operating */
+	u32			cqe_ier;	/* CQE interrupt mask */
+	u32			cqe_err_ier;	/* CQE error interrupt mask */
+
 	wait_queue_head_t	buf_ready_int;	/* Waitqueue for Buffer Read Ready interrupt */
 	unsigned int		tuning_done;	/* Condition flag set when CMD19 succeeds */
 
@@ -543,6 +555,8 @@ struct sdhci_ops {
 	void	(*set_clock)(struct sdhci_host *host, unsigned int clock);
 	void	(*set_power)(struct sdhci_host *host, unsigned char mode,
 			     unsigned short vdd);
+
+	u32		(*irq)(struct sdhci_host *host, u32 intmask);
 
 	int		(*enable_dma)(struct sdhci_host *host);
 	unsigned int	(*get_max_clock)(struct sdhci_host *host);
@@ -696,6 +710,11 @@ void sdhci_enable_irq_wakeups(struct sdhci_host *host);
 int sdhci_runtime_suspend_host(struct sdhci_host *host);
 int sdhci_runtime_resume_host(struct sdhci_host *host);
 #endif
+
+void sdhci_cqe_enable(struct mmc_host *mmc);
+void sdhci_cqe_disable(struct mmc_host *mmc, bool recovery);
+bool sdhci_cqe_irq(struct sdhci_host *host, u32 intmask, int *cmd_error,
+		   int *data_error);
 
 void sdhci_dumpregs(struct sdhci_host *host);
 

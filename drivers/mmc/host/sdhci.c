@@ -252,6 +252,8 @@ static void sdhci_init(struct sdhci_host *host, int soft)
 
 	sdhci_set_default_irqs(host);
 
+	host->cqe_on = false;
+
 	if (soft) {
 		/* force clock reconfiguration */
 		host->clock = 0;
@@ -2672,12 +2674,18 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 	}
 
 	do {
+		DBG("IRQ status 0x%08x\n", intmask);
+
+		if (host->ops->irq) {
+			intmask = host->ops->irq(host, intmask);
+			if (!intmask)
+				goto cont;
+		}
+
 		/* Clear selected interrupts. */
 		mask = intmask & (SDHCI_INT_CMD_MASK | SDHCI_INT_DATA_MASK |
 				  SDHCI_INT_BUS_POWER);
 		sdhci_writel(host, mask, SDHCI_INT_STATUS);
-
-		DBG("IRQ status 0x%08x\n", intmask);
 
 		if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE)) {
 			u32 present = sdhci_readl(host, SDHCI_PRESENT_STATE) &
@@ -2738,7 +2746,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 			unexpected |= intmask;
 			sdhci_writel(host, intmask, SDHCI_INT_STATUS);
 		}
-
+cont:
 		if (result == IRQ_NONE)
 			result = IRQ_HANDLED;
 
@@ -2967,6 +2975,119 @@ EXPORT_SYMBOL_GPL(sdhci_runtime_resume_host);
 
 /*****************************************************************************\
  *                                                                           *
+ * Command Queue Engine (CQE) helpers                                        *
+ *                                                                           *
+\*****************************************************************************/
+
+void sdhci_cqe_enable(struct mmc_host *mmc)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	unsigned long flags;
+	u8 ctrl;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
+	ctrl &= ~SDHCI_CTRL_DMA_MASK;
+	if (host->flags & SDHCI_USE_64_BIT_DMA)
+		ctrl |= SDHCI_CTRL_ADMA64;
+	else
+		ctrl |= SDHCI_CTRL_ADMA32;
+	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+
+	sdhci_writew(host, SDHCI_MAKE_BLKSZ(SDHCI_DEFAULT_BOUNDARY_ARG, 512),
+		     SDHCI_BLOCK_SIZE);
+
+	/* Set maximum timeout */
+	sdhci_writeb(host, 0xE, SDHCI_TIMEOUT_CONTROL);
+
+	host->ier = host->cqe_ier;
+
+	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
+	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
+
+	host->cqe_on = true;
+
+	pr_debug("%s: sdhci: CQE on, IRQ mask %#x, IRQ status %#x\n",
+		 mmc_hostname(mmc), host->ier,
+		 sdhci_readl(host, SDHCI_INT_STATUS));
+
+	mmiowb();
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+EXPORT_SYMBOL_GPL(sdhci_cqe_enable);
+
+void sdhci_cqe_disable(struct mmc_host *mmc, bool recovery)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	sdhci_set_default_irqs(host);
+
+	host->cqe_on = false;
+
+	if (recovery) {
+		sdhci_do_reset(host, SDHCI_RESET_CMD);
+		sdhci_do_reset(host, SDHCI_RESET_DATA);
+	}
+
+	pr_debug("%s: sdhci: CQE off, IRQ mask %#x, IRQ status %#x\n",
+		 mmc_hostname(mmc), host->ier,
+		 sdhci_readl(host, SDHCI_INT_STATUS));
+
+	mmiowb();
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+EXPORT_SYMBOL_GPL(sdhci_cqe_disable);
+
+bool sdhci_cqe_irq(struct sdhci_host *host, u32 intmask, int *cmd_error,
+		   int *data_error)
+{
+	u32 mask;
+
+	if (!host->cqe_on)
+		return false;
+
+	if (intmask & (SDHCI_INT_INDEX | SDHCI_INT_END_BIT | SDHCI_INT_CRC))
+		*cmd_error = -EILSEQ;
+	else if (intmask & SDHCI_INT_TIMEOUT)
+		*cmd_error = -ETIMEDOUT;
+	else
+		*cmd_error = 0;
+
+	if (intmask & (SDHCI_INT_DATA_END_BIT | SDHCI_INT_DATA_CRC))
+		*data_error = -EILSEQ;
+	else if (intmask & SDHCI_INT_DATA_TIMEOUT)
+		*data_error = -ETIMEDOUT;
+	else if (intmask & SDHCI_INT_ADMA_ERROR)
+		*data_error = -EIO;
+	else
+		*data_error = 0;
+
+	/* Clear selected interrupts. */
+	mask = intmask & host->cqe_ier;
+	sdhci_writel(host, mask, SDHCI_INT_STATUS);
+
+	if (intmask & SDHCI_INT_BUS_POWER)
+		pr_err("%s: Card is consuming too much power!\n",
+		       mmc_hostname(host->mmc));
+
+	intmask &= ~(host->cqe_ier | SDHCI_INT_ERROR);
+	if (intmask) {
+		sdhci_writel(host, intmask, SDHCI_INT_STATUS);
+		pr_err("%s: CQE: Unexpected interrupt 0x%08x.\n",
+		       mmc_hostname(host->mmc), intmask);
+		sdhci_dumpregs(host);
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(sdhci_cqe_irq);
+
+/*****************************************************************************\
+ *                                                                           *
  * Device allocation/registration                                            *
  *                                                                           *
 \*****************************************************************************/
@@ -2989,6 +3110,9 @@ struct sdhci_host *sdhci_alloc_host(struct device *dev,
 	mmc->ops = &host->mmc_host_ops;
 
 	host->flags = SDHCI_SIGNALING_330;
+
+	host->cqe_ier     = SDHCI_CQE_INT_MASK;
+	host->cqe_err_ier = SDHCI_CQE_INT_ERR_MASK;
 
 	return host;
 }
