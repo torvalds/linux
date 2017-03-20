@@ -841,9 +841,6 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 #define __invoke_copy_from_kernel(to, from, n)				\
 	__invoke_copy_from(__copy_user, to, from, n)
 
-#define __invoke_copy_from_kernel_inatomic(to, from, n)			\
-	__invoke_copy_from(__copy_user_inatomic, to, from, n)
-
 #define __invoke_copy_to_kernel(to, from, n)				\
 	__invoke_copy_to(__copy_user, to, from, n)
 
@@ -853,9 +850,6 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 #ifndef CONFIG_EVA
 #define __invoke_copy_from_user(to, from, n)				\
 	__invoke_copy_from(__copy_user, to, from, n)
-
-#define __invoke_copy_from_user_inatomic(to, from, n)			\
-	__invoke_copy_from(__copy_user_inatomic, to, from, n)
 
 #define __invoke_copy_to_user(to, from, n)				\
 	__invoke_copy_to(__copy_user, to, from, n)
@@ -867,8 +861,6 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 
 /* EVA specific functions */
 
-extern size_t __copy_user_inatomic_eva(void *__to, const void *__from,
-				       size_t __n);
 extern size_t __copy_from_user_eva(void *__to, const void *__from,
 				   size_t __n);
 extern size_t __copy_to_user_eva(void *__to, const void *__from,
@@ -881,9 +873,6 @@ extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
  */
 #define __invoke_copy_from_user(to, from, n)				\
 	__invoke_copy_from(__copy_from_user_eva, to, from, n)
-
-#define __invoke_copy_from_user_inatomic(to, from, n)			\
-	__invoke_copy_from(__copy_user_inatomic_eva, to, from, n)
 
 #define __invoke_copy_to_user(to, from, n)				\
 	__invoke_copy_to(__copy_to_user_eva, to, from, n)
@@ -930,8 +919,6 @@ extern size_t __copy_in_user_eva(void *__to, const void *__from, size_t __n);
 	__cu_len;							\
 })
 
-extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
-
 #define __copy_to_user_inatomic(to, from, n)				\
 ({									\
 	void __user *__cu_to;						\
@@ -966,12 +953,10 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	check_object_size(__cu_to, __cu_len, false);			\
 									\
 	if (eva_kernel_access())					\
-		__cu_len = __invoke_copy_from_kernel_inatomic(__cu_to,	\
-							      __cu_from,\
+		__cu_len = __invoke_copy_from_kernel(__cu_to, __cu_from,\
 							      __cu_len);\
 	else								\
-		__cu_len = __invoke_copy_from_user_inatomic(__cu_to,	\
-							    __cu_from,	\
+		__cu_len = __invoke_copy_from_user(__cu_to, __cu_from,	\
 							    __cu_len);	\
 	__cu_len;							\
 })
