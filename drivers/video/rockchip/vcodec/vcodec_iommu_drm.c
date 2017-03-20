@@ -283,7 +283,7 @@ static int vcodec_drm_free(struct vcodec_iommu_session_info *session_info,
 		kfree(drm_buffer);
 		session_info->buffer_nums--;
 		vpu_iommu_debug(session_info->debug_level, DEBUG_IOMMU_NORMAL,
-			"buffer nums %d\n", session_info->buffer_nums);
+				"buffer nums %d\n", session_info->buffer_nums);
 	}
 	mutex_unlock(&session_info->list_mutex);
 
@@ -396,7 +396,7 @@ vcodec_drm_free_fd(struct vcodec_iommu_session_info *session_info, int fd)
 		kfree(drm_buffer);
 		session_info->buffer_nums--;
 		vpu_iommu_debug(session_info->debug_level, DEBUG_IOMMU_NORMAL,
-			"buffer nums %d\n", session_info->buffer_nums);
+				"buffer nums %d\n", session_info->buffer_nums);
 	}
 	mutex_unlock(&session_info->list_mutex);
 

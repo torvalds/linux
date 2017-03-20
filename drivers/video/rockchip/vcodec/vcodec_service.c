@@ -699,7 +699,7 @@ static void vpu_service_clear(struct vpu_subdev_data *data)
 	struct vpu_service_info *pservice = data->pservice;
 
 	list_for_each_entry_safe(reg, n, &pservice->waiting, status_link) {
-		reg_deinit(data, reg);
+		reg_deinit(reg->data, reg);
 	}
 
 	/* wake up session wait event to prevent the timeout hw reset
@@ -1471,7 +1471,8 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, struct vpu_reg *reg)
 
 		pservice->reg_codec = reg;
 
-		vpu_debug(DEBUG_TASK_INFO, "reg: base %3d end %d en %2d mask: en %x gate %x\n",
+		vpu_debug(DEBUG_TASK_INFO,
+			  "reg: base %3d end %d en %2d mask: en %x gate %x\n",
 			  base, end, reg_en, enable_mask, gating_mask);
 
 		VEPU_CLEAN_CACHE(dst);
@@ -1507,7 +1508,8 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, struct vpu_reg *reg)
 
 		pservice->reg_codec = reg;
 
-		vpu_debug(DEBUG_TASK_INFO, "reg: base %3d end %d en %2d mask: en %x gate %x\n",
+		vpu_debug(DEBUG_TASK_INFO,
+			  "reg: base %3d end %d en %2d mask: en %x gate %x\n",
 			  base, end, reg_en, enable_mask, gating_mask);
 
 		VDPU_CLEAN_CACHE(dst);
@@ -1545,7 +1547,8 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, struct vpu_reg *reg)
 
 		pservice->reg_pproc = reg;
 
-		vpu_debug(DEBUG_TASK_INFO, "reg: base %3d end %d en %2d mask: en %x gate %x\n",
+		vpu_debug(DEBUG_TASK_INFO,
+			  "reg: base %3d end %d en %2d mask: en %x gate %x\n",
 			  base, end, reg_en, enable_mask, gating_mask);
 
 		if (debug & DEBUG_SET_REG)
@@ -1571,7 +1574,8 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, struct vpu_reg *reg)
 		pservice->reg_codec = reg;
 		pservice->reg_pproc = reg;
 
-		vpu_debug(DEBUG_TASK_INFO, "reg: base %3d end %d en %2d mask: en %x gate %x\n",
+		vpu_debug(DEBUG_TASK_INFO,
+			  "reg: base %3d end %d en %2d mask: en %x gate %x\n",
 			  base, end, reg_en, enable_mask, gating_mask);
 
 		/* VDPU_SOFT_RESET(dst); */
@@ -1834,7 +1838,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 					   &pservice->total_running);
 				dev_err(pservice->dev,
 					"%d task is running but not return, reset hardware...",
-				       task_running);
+					task_running);
 				vpu_reset(data);
 				dev_err(pservice->dev, "done\n");
 			}
@@ -2315,6 +2319,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	clear_bit(MMU_ACTIVATED, &data->state);
 	vpu_service_power_on(data, pservice);
 
+	vcodec_enter_mode(data);
 	ret = vpu_service_check_hw(data);
 	if (ret < 0) {
 		vpu_err("error: hw info check faild\n");
@@ -2365,7 +2370,6 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	atomic_set(&data->enc_dev.irq_count_codec, 0);
 	atomic_set(&data->enc_dev.irq_count_pp, 0);
 
-	vcodec_enter_mode(data);
 	of_property_read_u32(np, "allocator", (u32 *)&pservice->alloc_type);
 	data->iommu_info = vcodec_iommu_info_create(dev, data->mmu_dev,
 						    pservice->alloc_type);
@@ -2595,6 +2599,13 @@ static int vcodec_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 
 	if (of_property_read_bool(np, "subcnt")) {
+		struct vpu_subdev_data *data = NULL;
+
+		data = devm_kzalloc(dev, sizeof(struct vpu_subdev_data),
+				    GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+
 		for (i = 0; i < pservice->subcnt; i++) {
 			struct device_node *sub_np;
 			struct platform_device *sub_pdev;
@@ -2604,6 +2615,8 @@ static int vcodec_probe(struct platform_device *pdev)
 
 			vcodec_subdev_probe(sub_pdev, pservice);
 		}
+		data->pservice = pservice;
+		platform_set_drvdata(pdev, data);
 	} else {
 		vcodec_subdev_probe(pdev, pservice);
 	}
@@ -2637,8 +2650,10 @@ static void vcodec_shutdown(struct platform_device *pdev)
 {
 	struct vpu_subdev_data *data = platform_get_drvdata(pdev);
 	struct vpu_service_info *pservice = data->pservice;
+	struct device_node *np = pdev->dev.of_node;
 	int val;
 	int ret;
+	int i;
 
 	dev_info(&pdev->dev, "vcodec shutdown");
 
@@ -2654,9 +2669,21 @@ static void vcodec_shutdown(struct platform_device *pdev)
 
 	vcodec_exit_mode(data);
 
-	vpu_service_power_on(data, pservice);
 	vpu_service_clear(data);
-	vcodec_subdev_remove(data);
+	if (of_property_read_bool(np, "subcnt")) {
+		for (i = 0; i < pservice->subcnt; i++) {
+			struct device_node *sub_np;
+			struct platform_device *sub_pdev;
+
+			sub_np = of_parse_phandle(np, "rockchip,sub", i);
+			sub_pdev = of_find_device_by_node(sub_np);
+
+			vcodec_subdev_remove(platform_get_drvdata(sub_pdev));
+		}
+
+	} else {
+		vcodec_subdev_remove(data);
+	}
 
 	pm_runtime_disable(&pdev->dev);
 }
@@ -2754,7 +2781,8 @@ static void get_hw_info(struct vpu_subdev_data *data)
 		}
 
 		pservice->auto_freq = true;
-		vpu_debug(DEBUG_EXTRA_INFO, "vpu_service set to auto frequency mode\n");
+		vpu_debug(DEBUG_EXTRA_INFO,
+			  "vpu_service set to auto frequency mode\n");
 		atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
 
 		pservice->bug_dec_addr = of_machine_is_compatible
@@ -2791,7 +2819,8 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 	raw_status = readl_relaxed(dev->regs + task->reg_irq);
 	dec_status = raw_status;
 
-	vpu_debug(DEBUG_TASK_INFO, "vdpu_irq reg %d status %x mask: irq %x ready %x error %0x\n",
+	vpu_debug(DEBUG_TASK_INFO,
+		  "vdpu_irq reg %d status %x mask: irq %x ready %x error %0x\n",
 		  task->reg_irq, dec_status,
 		  task->irq_mask, task->ready_mask, task->error_mask);
 
@@ -2889,7 +2918,8 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 
 	irq_status = readl_relaxed(dev->regs + task->reg_irq);
 
-	vpu_debug(DEBUG_TASK_INFO, "vepu_irq reg %d status %x mask: irq %x ready %x error %0x\n",
+	vpu_debug(DEBUG_TASK_INFO,
+		  "vepu_irq reg %d status %x mask: irq %x ready %x error %0x\n",
 		  task->reg_irq, irq_status,
 		  task->irq_mask, task->ready_mask, task->error_mask);
 
