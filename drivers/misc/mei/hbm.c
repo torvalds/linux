@@ -166,9 +166,8 @@ void mei_hbm_cl_hdr(struct mei_cl *cl, u8 hbm_cmd, void *buf, size_t len)
  *
  * Return: 0 on success, <0 on failure.
  */
-static inline
-int mei_hbm_cl_write(struct mei_device *dev, struct mei_cl *cl,
-		     u8 hbm_cmd, u8 *buf, size_t len)
+static inline int mei_hbm_cl_write(struct mei_device *dev, struct mei_cl *cl,
+				   u8 hbm_cmd, void *buf, size_t len)
 {
 	struct mei_msg_hdr mei_hdr;
 
@@ -632,11 +631,11 @@ static int mei_hbm_stop_req(struct mei_device *dev)
  */
 int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl)
 {
-	const size_t len = sizeof(struct hbm_flow_control);
-	u8 buf[len];
+	struct hbm_flow_control req;
 
 	cl_dbg(dev, cl, "sending flow control\n");
-	return mei_hbm_cl_write(dev, cl, MEI_FLOW_CONTROL_CMD, buf, len);
+	return mei_hbm_cl_write(dev, cl, MEI_FLOW_CONTROL_CMD,
+				&req, sizeof(req));
 }
 
 /**
@@ -710,10 +709,10 @@ static void mei_hbm_cl_tx_flow_ctrl_creds_res(struct mei_device *dev,
  */
 int mei_hbm_cl_disconnect_req(struct mei_device *dev, struct mei_cl *cl)
 {
-	const size_t len = sizeof(struct hbm_client_connect_request);
-	u8 buf[len];
+	struct hbm_client_connect_request req;
 
-	return mei_hbm_cl_write(dev, cl, CLIENT_DISCONNECT_REQ_CMD, buf, len);
+	return mei_hbm_cl_write(dev, cl, CLIENT_DISCONNECT_REQ_CMD,
+				&req, sizeof(req));
 }
 
 /**
@@ -726,10 +725,10 @@ int mei_hbm_cl_disconnect_req(struct mei_device *dev, struct mei_cl *cl)
  */
 int mei_hbm_cl_disconnect_rsp(struct mei_device *dev, struct mei_cl *cl)
 {
-	const size_t len = sizeof(struct hbm_client_connect_response);
-	u8 buf[len];
+	struct hbm_client_connect_response resp;
 
-	return mei_hbm_cl_write(dev, cl, CLIENT_DISCONNECT_RES_CMD, buf, len);
+	return mei_hbm_cl_write(dev, cl, CLIENT_DISCONNECT_RES_CMD,
+				&resp, sizeof(resp));
 }
 
 /**
@@ -763,10 +762,10 @@ static void mei_hbm_cl_disconnect_res(struct mei_device *dev, struct mei_cl *cl,
  */
 int mei_hbm_cl_connect_req(struct mei_device *dev, struct mei_cl *cl)
 {
-	const size_t len = sizeof(struct hbm_client_connect_request);
-	u8 buf[len];
+	struct hbm_client_connect_request req;
 
-	return mei_hbm_cl_write(dev, cl, CLIENT_CONNECT_REQ_CMD, buf, len);
+	return mei_hbm_cl_write(dev, cl, CLIENT_CONNECT_REQ_CMD,
+				&req, sizeof(req));
 }
 
 /**
