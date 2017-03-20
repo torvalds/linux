@@ -590,6 +590,41 @@ static const struct dmi_system_id fujitsu_dmi_table[] __initconst = {
 
 /* ACPI device for LCD brightness control */
 
+static int acpi_fujitsu_bl_input_setup(struct acpi_device *device)
+{
+	struct fujitsu_bl *fujitsu_bl = acpi_driver_data(device);
+	struct input_dev *input;
+	int error;
+
+	fujitsu_bl->input = input = input_allocate_device();
+	if (!input)
+		return -ENOMEM;
+
+	snprintf(fujitsu_bl->phys, sizeof(fujitsu_bl->phys),
+		 "%s/video/input0", acpi_device_hid(device));
+
+	input->name = acpi_device_name(device);
+	input->phys = fujitsu_bl->phys;
+	input->id.bustype = BUS_HOST;
+	input->id.product = 0x06;
+	input->dev.parent = &device->dev;
+	input->evbit[0] = BIT(EV_KEY);
+	set_bit(KEY_BRIGHTNESSUP, input->keybit);
+	set_bit(KEY_BRIGHTNESSDOWN, input->keybit);
+	set_bit(KEY_UNKNOWN, input->keybit);
+
+	error = input_register_device(input);
+	if (error)
+		goto err_free_input_dev;
+
+	return 0;
+
+err_free_input_dev:
+	input_free_device(input);
+
+	return error;
+}
+
 static int fujitsu_backlight_register(void)
 {
 	struct backlight_properties props = {
@@ -612,7 +647,6 @@ static int fujitsu_backlight_register(void)
 static int acpi_fujitsu_bl_add(struct acpi_device *device)
 {
 	int state = 0;
-	struct input_dev *input;
 	int error;
 
 	if (!device)
@@ -623,28 +657,9 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	sprintf(acpi_device_class(device), "%s", ACPI_FUJITSU_CLASS);
 	device->driver_data = fujitsu_bl;
 
-	fujitsu_bl->input = input = input_allocate_device();
-	if (!input) {
-		error = -ENOMEM;
-		goto err_stop;
-	}
-
-	snprintf(fujitsu_bl->phys, sizeof(fujitsu_bl->phys),
-		 "%s/video/input0", acpi_device_hid(device));
-
-	input->name = acpi_device_name(device);
-	input->phys = fujitsu_bl->phys;
-	input->id.bustype = BUS_HOST;
-	input->id.product = 0x06;
-	input->dev.parent = &device->dev;
-	input->evbit[0] = BIT(EV_KEY);
-	set_bit(KEY_BRIGHTNESSUP, input->keybit);
-	set_bit(KEY_BRIGHTNESSDOWN, input->keybit);
-	set_bit(KEY_UNKNOWN, input->keybit);
-
-	error = input_register_device(input);
+	error = acpi_fujitsu_bl_input_setup(device);
 	if (error)
-		goto err_free_input_dev;
+		goto err_stop;
 
 	error = acpi_bus_update_power(fujitsu_bl->acpi_handle, &state);
 	if (error) {
@@ -695,10 +710,7 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	return 0;
 
 err_unregister_input_dev:
-	input_unregister_device(input);
-	input = NULL;
-err_free_input_dev:
-	input_free_device(input);
+	input_unregister_device(fujitsu_bl->input);
 err_stop:
 	return error;
 }
