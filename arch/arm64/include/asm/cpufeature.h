@@ -251,7 +251,7 @@ static inline bool system_supports_fpsimd(void)
 static inline bool system_uses_ttbr0_pan(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_SW_TTBR0_PAN) &&
-		!cpus_have_cap(ARM64_HAS_PAN);
+		!cpus_have_const_cap(ARM64_HAS_PAN);
 }
 
 #endif /* __ASSEMBLY__ */
