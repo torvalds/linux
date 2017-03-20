@@ -242,12 +242,12 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 		void *semaphores;
 
 		/* Semaphores are in noncoherent memory, flush to be safe */
-		semaphores = kmap(page);
+		semaphores = kmap_atomic(page);
 		memset(semaphores + GEN8_SEMAPHORE_OFFSET(engine->id, 0),
 		       0, I915_NUM_ENGINES * gen8_semaphore_seqno_size);
 		drm_clflush_virt_range(semaphores + GEN8_SEMAPHORE_OFFSET(engine->id, 0),
 				       I915_NUM_ENGINES * gen8_semaphore_seqno_size);
-		kunmap(page);
+		kunmap_atomic(semaphores);
 	}
 
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
