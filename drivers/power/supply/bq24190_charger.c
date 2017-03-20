@@ -1498,7 +1498,7 @@ static int bq24190_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int bq24190_runtime_suspend(struct device *dev)
+static __maybe_unused int bq24190_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
@@ -1511,7 +1511,7 @@ static int bq24190_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int bq24190_runtime_resume(struct device *dev)
+static __maybe_unused int bq24190_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
@@ -1527,8 +1527,7 @@ static int bq24190_runtime_resume(struct device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int bq24190_pm_suspend(struct device *dev)
+static __maybe_unused int bq24190_pm_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
@@ -1550,7 +1549,7 @@ static int bq24190_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int bq24190_pm_resume(struct device *dev)
+static __maybe_unused int bq24190_pm_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
@@ -1580,7 +1579,6 @@ static int bq24190_pm_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops bq24190_pm_ops = {
 	SET_RUNTIME_PM_OPS(bq24190_runtime_suspend, bq24190_runtime_resume,
