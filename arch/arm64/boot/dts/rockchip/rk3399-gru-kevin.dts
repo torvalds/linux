@@ -223,10 +223,14 @@ ap_i2c_dig: &i2c2 {
 	i2c-scl-rising-time-ns = <300>;
 
 	digitizer: digitizer@9 {
+		/* wacom,w9013 */
 		compatible = "hid-over-i2c";
 		reg = <0x9>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cpu1_dig_irq_l &cpu1_dig_pdct_l>;
+
+		vdd-supply = <&p3_3v_dig>;
+		post-power-on-delay-ms = <100>;
 
 		interrupt-parent = <&gpio2>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
