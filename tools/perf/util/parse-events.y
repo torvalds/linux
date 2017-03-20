@@ -239,6 +239,9 @@ PE_NAME opt_event_config
 		while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 			char *name = pmu->name;
 
+			if (!strncmp(name, "uncore_", 7) &&
+			    strncmp($1, "uncore_", 7))
+				name += 7;
 			if (!strncmp($1, name, strlen($1))) {
 				if (parse_events_copy_term_list(orig_terms, &terms))
 					YYABORT;
