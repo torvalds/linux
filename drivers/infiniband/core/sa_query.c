@@ -945,9 +945,8 @@ static void update_sm_ah(struct work_struct *work)
 	}
 
 	new_ah = kmalloc(sizeof(*new_ah), GFP_KERNEL);
-	if (!new_ah) {
+	if (!new_ah)
 		return;
-	}
 
 	kref_init(&new_ah->ref);
 	new_ah->src_path_mask = (1 << port_attr.lmc) - 1;
