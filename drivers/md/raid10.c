@@ -1185,18 +1185,82 @@ read_again:
 	return;
 }
 
+static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
+				  struct bio *bio, bool replacement,
+				  int n_copy, int max_sectors)
+{
+	const int op = bio_op(bio);
+	const unsigned long do_sync = (bio->bi_opf & REQ_SYNC);
+	const unsigned long do_fua = (bio->bi_opf & REQ_FUA);
+	unsigned long flags;
+	struct blk_plug_cb *cb;
+	struct raid10_plug_cb *plug = NULL;
+	struct r10conf *conf = mddev->private;
+	struct md_rdev *rdev;
+	int devnum = r10_bio->devs[n_copy].devnum;
+	struct bio *mbio;
+
+	if (replacement) {
+		rdev = conf->mirrors[devnum].replacement;
+		if (rdev == NULL) {
+			/* Replacement just got moved to main 'rdev' */
+			smp_mb();
+			rdev = conf->mirrors[devnum].rdev;
+		}
+	} else
+		rdev = conf->mirrors[devnum].rdev;
+
+	mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
+	bio_trim(mbio, r10_bio->sector - bio->bi_iter.bi_sector, max_sectors);
+	if (replacement)
+		r10_bio->devs[n_copy].repl_bio = mbio;
+	else
+		r10_bio->devs[n_copy].bio = mbio;
+
+	mbio->bi_iter.bi_sector	= (r10_bio->devs[n_copy].addr +
+				   choose_data_offset(r10_bio, rdev));
+	mbio->bi_bdev = rdev->bdev;
+	mbio->bi_end_io	= raid10_end_write_request;
+	bio_set_op_attrs(mbio, op, do_sync | do_fua);
+	if (!replacement && test_bit(FailFast,
+				     &conf->mirrors[devnum].rdev->flags)
+			 && enough(conf, devnum))
+		mbio->bi_opf |= MD_FAILFAST;
+	mbio->bi_private = r10_bio;
+
+	if (conf->mddev->gendisk)
+		trace_block_bio_remap(bdev_get_queue(mbio->bi_bdev),
+				      mbio, disk_devt(conf->mddev->gendisk),
+				      r10_bio->sector);
+	/* flush_pending_writes() needs access to the rdev so...*/
+	mbio->bi_bdev = (void *)rdev;
+
+	atomic_inc(&r10_bio->remaining);
+
+	cb = blk_check_plugged(raid10_unplug, mddev, sizeof(*plug));
+	if (cb)
+		plug = container_of(cb, struct raid10_plug_cb, cb);
+	else
+		plug = NULL;
+	spin_lock_irqsave(&conf->device_lock, flags);
+	if (plug) {
+		bio_list_add(&plug->pending, mbio);
+		plug->pending_cnt++;
+	} else {
+		bio_list_add(&conf->pending_bio_list, mbio);
+		conf->pending_count++;
+	}
+	spin_unlock_irqrestore(&conf->device_lock, flags);
+	if (!plug)
+		md_wakeup_thread(mddev->thread);
+}
+
 static void raid10_write_request(struct mddev *mddev, struct bio *bio,
 				 struct r10bio *r10_bio)
 {
 	struct r10conf *conf = mddev->private;
 	int i;
-	const int op = bio_op(bio);
-	const unsigned long do_sync = (bio->bi_opf & REQ_SYNC);
-	const unsigned long do_fua = (bio->bi_opf & REQ_FUA);
-	unsigned long flags;
 	struct md_rdev *blocked_rdev;
-	struct blk_plug_cb *cb;
-	struct raid10_plug_cb *plug = NULL;
 	sector_t sectors;
 	int sectors_handled;
 	int max_sectors;
@@ -1387,101 +1451,12 @@ retry_write:
 	bitmap_startwrite(mddev->bitmap, r10_bio->sector, r10_bio->sectors, 0);
 
 	for (i = 0; i < conf->copies; i++) {
-		struct bio *mbio;
-		int d = r10_bio->devs[i].devnum;
-		if (r10_bio->devs[i].bio) {
-			struct md_rdev *rdev = conf->mirrors[d].rdev;
-			mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
-			bio_trim(mbio, r10_bio->sector - bio->bi_iter.bi_sector,
-				 max_sectors);
-			r10_bio->devs[i].bio = mbio;
-
-			mbio->bi_iter.bi_sector	= (r10_bio->devs[i].addr+
-					   choose_data_offset(r10_bio, rdev));
-			mbio->bi_bdev = rdev->bdev;
-			mbio->bi_end_io	= raid10_end_write_request;
-			bio_set_op_attrs(mbio, op, do_sync | do_fua);
-			if (test_bit(FailFast, &conf->mirrors[d].rdev->flags) &&
-			    enough(conf, d))
-				mbio->bi_opf |= MD_FAILFAST;
-			mbio->bi_private = r10_bio;
-
-			if (conf->mddev->gendisk)
-				trace_block_bio_remap(bdev_get_queue(mbio->bi_bdev),
-						      mbio, disk_devt(conf->mddev->gendisk),
-						      r10_bio->sector);
-			/* flush_pending_writes() needs access to the rdev so...*/
-			mbio->bi_bdev = (void*)rdev;
-
-			atomic_inc(&r10_bio->remaining);
-
-			cb = blk_check_plugged(raid10_unplug, mddev,
-					       sizeof(*plug));
-			if (cb)
-				plug = container_of(cb, struct raid10_plug_cb,
-						    cb);
-			else
-				plug = NULL;
-			spin_lock_irqsave(&conf->device_lock, flags);
-			if (plug) {
-				bio_list_add(&plug->pending, mbio);
-				plug->pending_cnt++;
-			} else {
-				bio_list_add(&conf->pending_bio_list, mbio);
-				conf->pending_count++;
-			}
-			spin_unlock_irqrestore(&conf->device_lock, flags);
-			if (!plug)
-				md_wakeup_thread(mddev->thread);
-		}
-
-		if (r10_bio->devs[i].repl_bio) {
-			struct md_rdev *rdev = conf->mirrors[d].replacement;
-			if (rdev == NULL) {
-				/* Replacement just got moved to main 'rdev' */
-				smp_mb();
-				rdev = conf->mirrors[d].rdev;
-			}
-			mbio = bio_clone_fast(bio, GFP_NOIO, mddev->bio_set);
-			bio_trim(mbio, r10_bio->sector - bio->bi_iter.bi_sector,
-				 max_sectors);
-			r10_bio->devs[i].repl_bio = mbio;
-
-			mbio->bi_iter.bi_sector	= (r10_bio->devs[i].addr +
-					   choose_data_offset(r10_bio, rdev));
-			mbio->bi_bdev = rdev->bdev;
-			mbio->bi_end_io	= raid10_end_write_request;
-			bio_set_op_attrs(mbio, op, do_sync | do_fua);
-			mbio->bi_private = r10_bio;
-
-			if (conf->mddev->gendisk)
-				trace_block_bio_remap(bdev_get_queue(mbio->bi_bdev),
-						      mbio, disk_devt(conf->mddev->gendisk),
-						      r10_bio->sector);
-			/* flush_pending_writes() needs access to the rdev so...*/
-			mbio->bi_bdev = (void*)rdev;
-
-			atomic_inc(&r10_bio->remaining);
-
-			cb = blk_check_plugged(raid10_unplug, mddev,
-					       sizeof(*plug));
-			if (cb)
-				plug = container_of(cb, struct raid10_plug_cb,
-						    cb);
-			else
-				plug = NULL;
-			spin_lock_irqsave(&conf->device_lock, flags);
-			if (plug) {
-				bio_list_add(&plug->pending, mbio);
-				plug->pending_cnt++;
-			} else {
-				bio_list_add(&conf->pending_bio_list, mbio);
-				conf->pending_count++;
-			}
-			spin_unlock_irqrestore(&conf->device_lock, flags);
-			if (!plug)
-				md_wakeup_thread(mddev->thread);
-		}
+		if (r10_bio->devs[i].bio)
+			raid10_write_one_disk(mddev, r10_bio, bio, false,
+					      i, max_sectors);
+		if (r10_bio->devs[i].repl_bio)
+			raid10_write_one_disk(mddev, r10_bio, bio, true,
+					      i, max_sectors);
 	}
 
 	/* Don't remove the bias on 'remaining' (one_write_done) until
