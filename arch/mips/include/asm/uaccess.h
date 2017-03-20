@@ -1080,29 +1080,29 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 ({									\
 	void *__cu_to;							\
 	const void __user *__cu_from;					\
-	long __cu_len;							\
+	long __cu_len, __cu_res;					\
 									\
 	__cu_to = (to);							\
 	__cu_from = (from);						\
-	__cu_len = (n);							\
+	__cu_res = __cu_len = (n);					\
 									\
 	check_object_size(__cu_to, __cu_len, false);			\
 									\
 	if (eva_kernel_access()) {					\
-		__cu_len = __invoke_copy_from_kernel(__cu_to,		\
+		__cu_res = __invoke_copy_from_kernel(__cu_to,		\
 						     __cu_from,		\
 						     __cu_len);		\
 	} else {							\
 		if (access_ok(VERIFY_READ, __cu_from, __cu_len)) {	\
 			might_fault();                                  \
-			__cu_len = __invoke_copy_from_user(__cu_to,	\
+			__cu_res = __invoke_copy_from_user(__cu_to,	\
 							   __cu_from,	\
 							   __cu_len);   \
-		} else {						\
-			memset(__cu_to, 0, __cu_len);			\
 		}							\
 	}								\
-	__cu_len;							\
+	if (unlikely(__cu_res))						\
+		memset(__cu_to + __cu_len - __cu_res, 0, __cu_res);	\
+	__cu_res;							\
 })
 
 #define __copy_in_user(to, from, n)					\
