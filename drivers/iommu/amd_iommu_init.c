@@ -94,6 +94,8 @@
  * out of it.
  */
 
+extern const struct iommu_ops amd_iommu_ops;
+
 /*
  * structure describing one IOMMU in the ACPI table. Typically followed by one
  * or more ivhd_entrys.
@@ -1505,7 +1507,7 @@ static ssize_t amd_iommu_show_cap(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
-	struct amd_iommu *iommu = dev_get_drvdata(dev);
+	struct amd_iommu *iommu = dev_to_amd_iommu(dev);
 	return sprintf(buf, "%x\n", iommu->cap);
 }
 static DEVICE_ATTR(cap, S_IRUGO, amd_iommu_show_cap, NULL);
@@ -1514,7 +1516,7 @@ static ssize_t amd_iommu_show_features(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct amd_iommu *iommu = dev_get_drvdata(dev);
+	struct amd_iommu *iommu = dev_to_amd_iommu(dev);
 	return sprintf(buf, "%llx\n", iommu->features);
 }
 static DEVICE_ATTR(features, S_IRUGO, amd_iommu_show_features, NULL);
@@ -1635,9 +1637,10 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 	amd_iommu_erratum_746_workaround(iommu);
 	amd_iommu_ats_write_check_workaround(iommu);
 
-	iommu->iommu_dev = iommu_device_create(&iommu->dev->dev, iommu,
-					       amd_iommu_groups, "ivhd%d",
-					       iommu->index);
+	iommu_device_sysfs_add(&iommu->iommu, &iommu->dev->dev,
+			       amd_iommu_groups, "ivhd%d", iommu->index);
+	iommu_device_set_ops(&iommu->iommu, &amd_iommu_ops);
+	iommu_device_register(&iommu->iommu);
 
 	return pci_enable_device(iommu->dev);
 }
@@ -2230,7 +2233,7 @@ static int __init early_amd_iommu_init(void)
 	 */
 	ret = check_ivrs_checksum(ivrs_base);
 	if (ret)
-		return ret;
+		goto out;
 
 	amd_iommu_target_ivhd_type = get_highest_supported_ivhd_type(ivrs_base);
 	DUMP_printk("Using IVHD type %#x\n", amd_iommu_target_ivhd_type);

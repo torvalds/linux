@@ -135,6 +135,7 @@ sctp_state_fn_t sctp_sf_do_8_5_1_E_sa;
 sctp_state_fn_t sctp_sf_cookie_echoed_err;
 sctp_state_fn_t sctp_sf_do_asconf;
 sctp_state_fn_t sctp_sf_do_asconf_ack;
+sctp_state_fn_t sctp_sf_do_reconf;
 sctp_state_fn_t sctp_sf_do_9_2_reshutack;
 sctp_state_fn_t sctp_sf_eat_fwd_tsn;
 sctp_state_fn_t sctp_sf_eat_fwd_tsn_fast;
@@ -157,6 +158,7 @@ sctp_state_fn_t sctp_sf_error_shutdown;
 sctp_state_fn_t sctp_sf_ignore_primitive;
 sctp_state_fn_t sctp_sf_do_prm_requestheartbeat;
 sctp_state_fn_t sctp_sf_do_prm_asconf;
+sctp_state_fn_t sctp_sf_do_prm_reconf;
 
 /* Prototypes for other event state functions.  */
 sctp_state_fn_t sctp_sf_do_no_pending_tsn;
@@ -167,6 +169,7 @@ sctp_state_fn_t sctp_sf_cookie_wait_icmp_abort;
 
 /* Prototypes for timeout event state functions.  */
 sctp_state_fn_t sctp_sf_do_6_3_3_rtx;
+sctp_state_fn_t sctp_sf_send_reconf;
 sctp_state_fn_t sctp_sf_do_6_2_sack;
 sctp_state_fn_t sctp_sf_autoclose_timer_expire;
 
@@ -259,9 +262,37 @@ struct sctp_chunk *sctp_make_fwdtsn(const struct sctp_association *asoc,
 				    __u32 new_cum_tsn, size_t nstreams,
 				    struct sctp_fwdtsn_skip *skiplist);
 struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc);
-
+struct sctp_chunk *sctp_make_strreset_req(
+				const struct sctp_association *asoc,
+				__u16 stream_num, __u16 *stream_list,
+				bool out, bool in);
+struct sctp_chunk *sctp_make_strreset_tsnreq(
+				const struct sctp_association *asoc);
+struct sctp_chunk *sctp_make_strreset_addstrm(
+				const struct sctp_association *asoc,
+				__u16 out, __u16 in);
+struct sctp_chunk *sctp_make_strreset_resp(
+				const struct sctp_association *asoc,
+				__u32 result, __u32 sn);
+struct sctp_chunk *sctp_make_strreset_tsnresp(
+				struct sctp_association *asoc,
+				__u32 result, __u32 sn,
+				__u32 sender_tsn, __u32 receiver_tsn);
+bool sctp_verify_reconf(const struct sctp_association *asoc,
+			struct sctp_chunk *chunk,
+			struct sctp_paramhdr **errp);
 void sctp_chunk_assign_tsn(struct sctp_chunk *);
 void sctp_chunk_assign_ssn(struct sctp_chunk *);
+
+/* Prototypes for stream-processing functions.  */
+struct sctp_chunk *sctp_process_strreset_outreq(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp);
+struct sctp_chunk *sctp_process_strreset_inreq(
+				struct sctp_association *asoc,
+				union sctp_params param,
+				struct sctp_ulpevent **evp);
 
 /* Prototypes for statetable processing. */
 
@@ -275,6 +306,7 @@ int sctp_do_sm(struct net *net, sctp_event_t event_type, sctp_subtype_t subtype,
 /* 2nd level prototypes */
 void sctp_generate_t3_rtx_event(unsigned long peer);
 void sctp_generate_heartbeat_event(unsigned long peer);
+void sctp_generate_reconf_event(unsigned long peer);
 void sctp_generate_proto_unreach_event(unsigned long peer);
 
 void sctp_ootb_pkt_free(struct sctp_packet *);

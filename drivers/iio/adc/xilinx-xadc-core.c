@@ -1208,7 +1208,7 @@ static int xadc_probe(struct platform_device *pdev)
 
 	ret = xadc->ops->setup(pdev, indio_dev, irq);
 	if (ret)
-		goto err_free_samplerate_trigger;
+		goto err_clk_disable_unprepare;
 
 	ret = request_irq(irq, xadc->ops->interrupt_handler, 0,
 			dev_name(&pdev->dev), indio_dev);
@@ -1268,6 +1268,8 @@ static int xadc_probe(struct platform_device *pdev)
 
 err_free_irq:
 	free_irq(irq, indio_dev);
+err_clk_disable_unprepare:
+	clk_disable_unprepare(xadc->clk);
 err_free_samplerate_trigger:
 	if (xadc->ops->flags & XADC_FLAGS_BUFFERED)
 		iio_trigger_free(xadc->samplerate_trigger);
@@ -1277,8 +1279,6 @@ err_free_convst_trigger:
 err_triggered_buffer_cleanup:
 	if (xadc->ops->flags & XADC_FLAGS_BUFFERED)
 		iio_triggered_buffer_cleanup(indio_dev);
-err_clk_disable_unprepare:
-	clk_disable_unprepare(xadc->clk);
 err_device_free:
 	kfree(indio_dev->channels);
 

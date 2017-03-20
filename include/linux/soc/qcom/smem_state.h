@@ -1,7 +1,7 @@
 #ifndef __QCOM_SMEM_STATE__
 #define __QCOM_SMEM_STATE__
 
-#include <linux/errno.h>
+#include <linux/err.h>
 
 struct device_node;
 struct qcom_smem_state;

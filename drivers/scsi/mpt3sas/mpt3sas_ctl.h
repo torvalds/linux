@@ -390,7 +390,7 @@ struct mpt3_diag_query {
  *
  * This allows ownership of the specified buffer to returned to the driver,
  * allowing an application to read the buffer without fear that firmware is
- * overwritting information in the buffer.
+ * overwriting information in the buffer.
  */
 struct mpt3_diag_release {
 	struct mpt3_ioctl_header hdr;

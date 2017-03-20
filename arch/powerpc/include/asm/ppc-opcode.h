@@ -284,6 +284,13 @@
 #define PPC_INST_BRANCH_COND		0x40800000
 #define PPC_INST_LBZCIX			0x7c0006aa
 #define PPC_INST_STBCIX			0x7c0007aa
+#define PPC_INST_LWZX			0x7c00002e
+#define PPC_INST_LFSX			0x7c00042e
+#define PPC_INST_STFSX			0x7c00052e
+#define PPC_INST_LFDX			0x7c0004ae
+#define PPC_INST_STFDX			0x7c0005ae
+#define PPC_INST_LVX			0x7c0000ce
+#define PPC_INST_STVX			0x7c0001ce
 
 /* macros to insert fields into opcodes */
 #define ___PPC_RA(a)	(((a) & 0x1f) << 16)
@@ -306,6 +313,7 @@
 #define __PPC_WC(w)	(((w) & 0x3) << 21)
 #define __PPC_WS(w)	(((w) & 0x1f) << 11)
 #define __PPC_SH(s)	__PPC_WS(s)
+#define __PPC_SH64(s)	(__PPC_SH(s) | (((s) & 0x20) >> 4))
 #define __PPC_MB(s)	(((s) & 0x1f) << 6)
 #define __PPC_ME(s)	(((s) & 0x1f) << 1)
 #define __PPC_MB64(s)	(__PPC_MB(s) | ((s) & 0x20))

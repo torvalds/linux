@@ -12,22 +12,36 @@
 #define __BCM_SF2_REGS_H
 
 /* Register set relative to 'REG' */
-#define REG_SWITCH_CNTRL		0x00
+
+enum bcm_sf2_reg_offs {
+	REG_SWITCH_CNTRL = 0,
+	REG_SWITCH_STATUS,
+	REG_DIR_DATA_WRITE,
+	REG_DIR_DATA_READ,
+	REG_SWITCH_REVISION,
+	REG_PHY_REVISION,
+	REG_SPHY_CNTRL,
+	REG_RGMII_0_CNTRL,
+	REG_RGMII_1_CNTRL,
+	REG_RGMII_2_CNTRL,
+	REG_LED_0_CNTRL,
+	REG_LED_1_CNTRL,
+	REG_LED_2_CNTRL,
+	REG_SWITCH_REG_MAX,
+};
+
+/* Relative to REG_SWITCH_CNTRL */
 #define  MDIO_MASTER_SEL		(1 << 0)
 
-#define REG_SWITCH_STATUS		0x04
-#define REG_DIR_DATA_WRITE		0x08
-#define REG_DIR_DATA_READ		0x0C
-
-#define REG_SWITCH_REVISION		0x18
+/* Relative to REG_SWITCH_REVISION */
 #define  SF2_REV_MASK			0xffff
 #define  SWITCH_TOP_REV_SHIFT		16
 #define  SWITCH_TOP_REV_MASK		0xffff
 
-#define REG_PHY_REVISION		0x1C
+/* Relative to REG_PHY_REVISION */
 #define  PHY_REVISION_MASK		0xffff
 
-#define REG_SPHY_CNTRL			0x2C
+/* Relative to REG_SPHY_CNTRL */
 #define  IDDQ_BIAS			(1 << 0)
 #define  EXT_PWR_DOWN			(1 << 1)
 #define  FORCE_DLL_EN			(1 << 2)
@@ -37,13 +51,8 @@
 #define  PHY_PHYAD_SHIFT		8
 #define  PHY_PHYAD_MASK			0x1F
 
-#define REG_RGMII_0_BASE		0x34
-#define REG_RGMII_CNTRL			0x00
-#define REG_RGMII_IB_STATUS		0x04
-#define REG_RGMII_RX_CLOCK_DELAY_CNTRL	0x08
-#define REG_RGMII_CNTRL_SIZE		0x0C
-#define REG_RGMII_CNTRL_P(x)		(REG_RGMII_0_BASE + \
-					((x) * REG_RGMII_CNTRL_SIZE))
+#define REG_RGMII_CNTRL_P(x)		(REG_RGMII_0_CNTRL + (x))
+
 /* Relative to REG_RGMII_CNTRL */
 #define  RGMII_MODE_EN			(1 << 0)
 #define  ID_MODE_DIS			(1 << 1)
@@ -61,8 +70,8 @@
 #define  LPI_COUNT_SHIFT		9
 #define  LPI_COUNT_MASK			0x3F
 
-#define REG_LED_CNTRL_BASE		0x90
-#define REG_LED_CNTRL(x)		(REG_LED_CNTRL_BASE + (x) * 4)
+#define REG_LED_CNTRL(x)		(REG_LED_0_CNTRL + (x))
+
 #define  SPDLNK_SRC_SEL			(1 << 24)
 
 /* Register set relative to 'INTRL2_0' and 'INTRL2_1' */
@@ -125,6 +134,9 @@
 #define  GMII_SPEED_UP_2G		(1 << 6)
 #define  MII_SW_OR			(1 << 7)
 
+/* Alternate layout for e.g: 7278 */
+#define CORE_STS_OVERRIDE_IMP2		0x39040
+
 #define CORE_NEW_CTRL			0x00084
 #define  IP_MC				(1 << 0)
 #define  OUTRANGEERR_DISCARD		(1 << 1)
@@ -142,6 +154,7 @@
 #define  SW_LEARN_CNTL(x)		(1 << (x))
 
 #define CORE_STS_OVERRIDE_GMIIP_PORT(x)	(0x160 + (x) * 4)
+#define CORE_STS_OVERRIDE_GMIIP2_PORT(x) (0x39000 + (x) * 8)
 #define  LINK_STS			(1 << 0)
 #define  DUPLX_MODE			(1 << 1)
 #define  SPEED_SHIFT			2
@@ -225,6 +238,10 @@
 #define  P_TXQ_PSM_VDD(x)		(P_TXQ_PSM_VDD_MASK << \
 					((x) * P_TXQ_PSM_VDD_SHIFT))
 
+#define CORE_PORT_TC2_QOS_MAP_PORT(x)	(0xc1c0 + ((x) * 0x10))
+#define  PRT_TO_QID_MASK		0x3
+#define  PRT_TO_QID_SHIFT		3
+
 #define CORE_PORT_VLAN_CTL_PORT(x)	(0xc400 + ((x) * 0x8))
 #define  PORT_VLAN_CTRL_MASK		0x1ff
 
@@ -237,5 +254,151 @@
 
 #define CORE_EEE_EN_CTRL		0x24800
 #define CORE_EEE_LPI_INDICATE		0x24810
+
+#define CORE_CFP_ACC			0x28000
+#define  OP_STR_DONE			(1 << 0)
+#define  OP_SEL_SHIFT			1
+#define  OP_SEL_READ			(1 << OP_SEL_SHIFT)
+#define  OP_SEL_WRITE			(2 << OP_SEL_SHIFT)
+#define  OP_SEL_SEARCH			(4 << OP_SEL_SHIFT)
+#define  OP_SEL_MASK			(7 << OP_SEL_SHIFT)
+#define  CFP_RAM_CLEAR			(1 << 4)
+#define  RAM_SEL_SHIFT			10
+#define  TCAM_SEL			(1 << RAM_SEL_SHIFT)
+#define  ACT_POL_RAM			(2 << RAM_SEL_SHIFT)
+#define  RATE_METER_RAM			(4 << RAM_SEL_SHIFT)
+#define  GREEN_STAT_RAM			(8 << RAM_SEL_SHIFT)
+#define  YELLOW_STAT_RAM		(16 << RAM_SEL_SHIFT)
+#define  RED_STAT_RAM			(24 << RAM_SEL_SHIFT)
+#define  RAM_SEL_MASK			(0x1f << RAM_SEL_SHIFT)
+#define  TCAM_RESET			(1 << 15)
+#define  XCESS_ADDR_SHIFT		16
+#define  XCESS_ADDR_MASK		0xff
+#define  SEARCH_STS			(1 << 27)
+#define  RD_STS_SHIFT			28
+#define  RD_STS_TCAM			(1 << RD_STS_SHIFT)
+#define  RD_STS_ACT_POL_RAM		(2 << RD_STS_SHIFT)
+#define  RD_STS_RATE_METER_RAM		(4 << RD_STS_SHIFT)
+#define  RD_STS_STAT_RAM		(8 << RD_STS_SHIFT)
+
+#define CORE_CFP_RATE_METER_GLOBAL_CTL	0x28010
+
+#define CORE_CFP_DATA_PORT_0		0x28040
+#define CORE_CFP_DATA_PORT(x)		(CORE_CFP_DATA_PORT_0 + \
+					(x) * 0x10)
+
+/* UDF_DATA7 */
+#define L3_FRAMING_SHIFT		24
+#define L3_FRAMING_MASK			(0x3 << L3_FRAMING_SHIFT)
+#define IPPROTO_SHIFT			8
+#define IPPROTO_MASK			(0xff << IPPROTO_SHIFT)
+#define IP_FRAG				(1 << 7)
+
+/* UDF_DATA0 */
+#define  SLICE_VALID			3
+#define  SLICE_NUM_SHIFT		2
+#define  SLICE_NUM(x)			((x) << SLICE_NUM_SHIFT)
+
+#define CORE_CFP_MASK_PORT_0		0x280c0
+
+#define CORE_CFP_MASK_PORT(x)		(CORE_CFP_MASK_PORT_0 + \
+					(x) * 0x10)
+
+#define CORE_ACT_POL_DATA0		0x28140
+#define  VLAN_BYP			(1 << 0)
+#define  EAP_BYP			(1 << 1)
+#define  STP_BYP			(1 << 2)
+#define  REASON_CODE_SHIFT		3
+#define  REASON_CODE_MASK		0x3f
+#define  LOOP_BK_EN			(1 << 9)
+#define  NEW_TC_SHIFT			10
+#define  NEW_TC_MASK			0x7
+#define  CHANGE_TC			(1 << 13)
+#define  DST_MAP_IB_SHIFT		14
+#define  DST_MAP_IB_MASK		0x1ff
+#define  CHANGE_FWRD_MAP_IB_SHIFT	24
+#define  CHANGE_FWRD_MAP_IB_MASK	0x3
+#define  CHANGE_FWRD_MAP_IB_NO_DEST	(0 << CHANGE_FWRD_MAP_IB_SHIFT)
+#define  CHANGE_FWRD_MAP_IB_REM_ARL	(1 << CHANGE_FWRD_MAP_IB_SHIFT)
+#define  CHANGE_FWRD_MAP_IB_REP_ARL	(2 << CHANGE_FWRD_MAP_IB_SHIFT)
+#define  CHANGE_FWRD_MAP_IB_ADD_DST	(3 << CHANGE_FWRD_MAP_IB_SHIFT)
+#define  NEW_DSCP_IB_SHIFT		26
+#define  NEW_DSCP_IB_MASK		0x3f
+
+#define CORE_ACT_POL_DATA1		0x28150
+#define  CHANGE_DSCP_IB			(1 << 0)
+#define  DST_MAP_OB_SHIFT		1
+#define  DST_MAP_OB_MASK		0x3ff
+#define  CHANGE_FWRD_MAP_OB_SHIT	11
+#define  CHANGE_FWRD_MAP_OB_MASK	0x3
+#define  NEW_DSCP_OB_SHIFT		13
+#define  NEW_DSCP_OB_MASK		0x3f
+#define  CHANGE_DSCP_OB			(1 << 19)
+#define  CHAIN_ID_SHIFT			20
+#define  CHAIN_ID_MASK			0xff
+#define  CHANGE_COLOR			(1 << 28)
+#define  NEW_COLOR_SHIFT		29
+#define  NEW_COLOR_MASK			0x3
+#define  NEW_COLOR_GREEN		(0 << NEW_COLOR_SHIFT)
+#define  NEW_COLOR_YELLOW		(1 << NEW_COLOR_SHIFT)
+#define  NEW_COLOR_RED			(2 << NEW_COLOR_SHIFT)
+#define  RED_DEFAULT			(1 << 31)
+
+#define CORE_ACT_POL_DATA2		0x28160
+#define  MAC_LIMIT_BYPASS		(1 << 0)
+#define  CHANGE_TC_O			(1 << 1)
+#define  NEW_TC_O_SHIFT			2
+#define  NEW_TC_O_MASK			0x7
+#define  SPCP_RMK_DISABLE		(1 << 5)
+#define  CPCP_RMK_DISABLE		(1 << 6)
+#define  DEI_RMK_DISABLE		(1 << 7)
+
+#define CORE_RATE_METER0		0x28180
+#define  COLOR_MODE			(1 << 0)
+#define  POLICER_ACTION			(1 << 1)
+#define  COUPLING_FLAG			(1 << 2)
+#define  POLICER_MODE_SHIFT		3
+#define  POLICER_MODE_MASK		0x3
+#define  POLICER_MODE_RFC2698		(0 << POLICER_MODE_SHIFT)
+#define  POLICER_MODE_RFC4115		(1 << POLICER_MODE_SHIFT)
+#define  POLICER_MODE_MEF		(2 << POLICER_MODE_SHIFT)
+#define  POLICER_MODE_DISABLE		(3 << POLICER_MODE_SHIFT)
+
+#define CORE_RATE_METER1		0x28190
+#define  EIR_TK_BKT_MASK		0x7fffff
+
+#define CORE_RATE_METER2		0x281a0
+#define  EIR_BKT_SIZE_MASK		0xfffff
+
+#define CORE_RATE_METER3		0x281b0
+#define  EIR_REF_CNT_MASK		0x7ffff
+
+#define CORE_RATE_METER4		0x281c0
+#define  CIR_TK_BKT_MASK		0x7fffff
+
+#define CORE_RATE_METER5		0x281d0
+#define  CIR_BKT_SIZE_MASK		0xfffff
+
+#define CORE_RATE_METER6		0x281e0
+#define  CIR_REF_CNT_MASK		0x7ffff
+
+#define CORE_CFP_CTL_REG		0x28400
+#define  CFP_EN_MAP_MASK		0x1ff
+
+/* IPv4 slices, 3 of them */
+#define CORE_UDF_0_A_0_8_PORT_0		0x28440
+#define  CFG_UDF_OFFSET_MASK		0x1f
+#define  CFG_UDF_OFFSET_BASE_SHIFT	5
+#define  CFG_UDF_SOF			(0 << CFG_UDF_OFFSET_BASE_SHIFT)
+#define  CFG_UDF_EOL2			(2 << CFG_UDF_OFFSET_BASE_SHIFT)
+#define  CFG_UDF_EOL3			(3 << CFG_UDF_OFFSET_BASE_SHIFT)
+
+/* Number of slices for IPv4, IPv6 and non-IP */
+#define UDF_NUM_SLICES			9
+
+/* Spacing between different slices */
+#define UDF_SLICE_OFFSET		0x40
+
+#define CFP_NUM_RULES			256
 
 #endif /* __BCM_SF2_REGS_H */

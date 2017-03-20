@@ -549,19 +549,19 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 	if (!ASIC_IS_AVIVO(rdev)) {
 		/* crtc offset is from display base addr not FB location */
 		base -= radeon_crtc->legacy_display_base_addr;
-		pitch_pixels = fb->pitches[0] / (fb->bits_per_pixel / 8);
+		pitch_pixels = fb->pitches[0] / fb->format->cpp[0];
 
 		if (tiling_flags & RADEON_TILING_MACRO) {
 			if (ASIC_IS_R300(rdev)) {
 				base &= ~0x7ff;
 			} else {
-				int byteshift = fb->bits_per_pixel >> 4;
+				int byteshift = fb->format->cpp[0] * 8 >> 4;
 				int tile_addr = (((crtc->y >> 3) * pitch_pixels +  crtc->x) >> (8 - byteshift)) << 11;
 				base += tile_addr + ((crtc->x << byteshift) % 256) + ((crtc->y % 8) << 8);
 			}
 		} else {
 			int offset = crtc->y * pitch_pixels + crtc->x;
-			switch (fb->bits_per_pixel) {
+			switch (fb->format->cpp[0] * 8) {
 			case 8:
 			default:
 				offset *= 1;
@@ -1327,7 +1327,7 @@ radeon_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 	rfb->obj = obj;
-	drm_helper_mode_fill_fb_struct(&rfb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &rfb->base, &radeon_fb_funcs);
 	if (ret) {
 		rfb->obj = NULL;

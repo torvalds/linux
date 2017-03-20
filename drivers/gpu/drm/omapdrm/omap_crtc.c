@@ -36,25 +36,17 @@ struct omap_crtc {
 
 	struct videomode vm;
 
-	struct omap_drm_irq vblank_irq;
-	struct omap_drm_irq error_irq;
-
 	bool ignore_digit_sync_lost;
 
+	bool enabled;
 	bool pending;
 	wait_queue_head_t pending_wait;
+	struct drm_pending_vblank_event *event;
 };
 
 /* -----------------------------------------------------------------------------
  * Helper Functions
  */
-
-uint32_t pipe2vbl(struct drm_crtc *crtc)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-
-	return dispc_mgr_get_vsync_irq(omap_crtc->channel);
-}
 
 struct videomode *omap_crtc_timings(struct drm_crtc *crtc)
 {
@@ -68,6 +60,19 @@ enum omap_channel omap_crtc_channel(struct drm_crtc *crtc)
 	return omap_crtc->channel;
 }
 
+static bool omap_crtc_is_pending(struct drm_crtc *crtc)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	unsigned long flags;
+	bool pending;
+
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	pending = omap_crtc->pending;
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
+	return pending;
+}
+
 int omap_crtc_wait_pending(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -77,7 +82,7 @@ int omap_crtc_wait_pending(struct drm_crtc *crtc)
 	 * a single frame refresh even on slower displays.
 	 */
 	return wait_event_timeout(omap_crtc->pending_wait,
-				  !omap_crtc->pending,
+				  !omap_crtc_is_pending(crtc),
 				  msecs_to_jiffies(250));
 }
 
@@ -135,13 +140,14 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 	u32 framedone_irq, vsync_irq;
 	int ret;
 
+	if (WARN_ON(omap_crtc->enabled == enable))
+		return;
+
 	if (omap_crtc_output[channel]->output_type == OMAP_DISPLAY_TYPE_HDMI) {
 		dispc_mgr_enable(channel, enable);
+		omap_crtc->enabled = enable;
 		return;
 	}
-
-	if (dispc_mgr_is_enabled(channel) == enable)
-		return;
 
 	if (omap_crtc->channel == OMAP_DSS_CHANNEL_DIGIT) {
 		/*
@@ -173,6 +179,7 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 	}
 
 	dispc_mgr_enable(channel, enable);
+	omap_crtc->enabled = enable;
 
 	ret = omap_irq_wait(dev, wait, msecs_to_jiffies(100));
 	if (ret) {
@@ -259,26 +266,9 @@ static const struct dss_mgr_ops mgr_ops = {
  * Setup, Flush and Page Flip
  */
 
-static void omap_crtc_complete_page_flip(struct drm_crtc *crtc)
+void omap_crtc_error_irq(struct drm_crtc *crtc, uint32_t irqstatus)
 {
-	struct drm_pending_vblank_event *event;
-	struct drm_device *dev = crtc->dev;
-	unsigned long flags;
-
-	event = crtc->state->event;
-
-	if (!event)
-		return;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-	drm_crtc_send_vblank_event(crtc, event);
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
-static void omap_crtc_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
-{
-	struct omap_crtc *omap_crtc =
-			container_of(irq, struct omap_crtc, error_irq);
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
 	if (omap_crtc->ignore_digit_sync_lost) {
 		irqstatus &= ~DISPC_IRQ_SYNC_LOST_DIGIT;
@@ -289,29 +279,38 @@ static void omap_crtc_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 	DRM_ERROR_RATELIMITED("%s: errors: %08x\n", omap_crtc->name, irqstatus);
 }
 
-static void omap_crtc_vblank_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
+void omap_crtc_vblank_irq(struct drm_crtc *crtc)
 {
-	struct omap_crtc *omap_crtc =
-			container_of(irq, struct omap_crtc, vblank_irq);
-	struct drm_device *dev = omap_crtc->base.dev;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	bool pending;
 
-	if (dispc_mgr_go_busy(omap_crtc->channel))
+	spin_lock(&crtc->dev->event_lock);
+	/*
+	 * If the dispc is busy we're racing the flush operation. Try again on
+	 * the next vblank interrupt.
+	 */
+	if (dispc_mgr_go_busy(omap_crtc->channel)) {
+		spin_unlock(&crtc->dev->event_lock);
 		return;
+	}
+
+	/* Send the vblank event if one has been requested. */
+	if (omap_crtc->event) {
+		drm_crtc_send_vblank_event(crtc, omap_crtc->event);
+		omap_crtc->event = NULL;
+	}
+
+	pending = omap_crtc->pending;
+	omap_crtc->pending = false;
+	spin_unlock(&crtc->dev->event_lock);
+
+	if (pending)
+		drm_crtc_vblank_put(crtc);
+
+	/* Wake up omap_atomic_complete. */
+	wake_up(&omap_crtc->pending_wait);
 
 	DBG("%s: apply done", omap_crtc->name);
-
-	__omap_irq_unregister(dev, &omap_crtc->vblank_irq);
-
-	rmb();
-	WARN_ON(!omap_crtc->pending);
-	omap_crtc->pending = false;
-	wmb();
-
-	/* wake up userspace */
-	omap_crtc_complete_page_flip(&omap_crtc->base);
-
-	/* wake up omap_atomic_complete */
-	wake_up(&omap_crtc->pending_wait);
 }
 
 /* -----------------------------------------------------------------------------
@@ -324,9 +323,6 @@ static void omap_crtc_destroy(struct drm_crtc *crtc)
 
 	DBG("%s", omap_crtc->name);
 
-	WARN_ON(omap_crtc->vblank_irq.registered);
-	omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
-
 	drm_crtc_cleanup(crtc);
 
 	kfree(omap_crtc);
@@ -335,17 +331,18 @@ static void omap_crtc_destroy(struct drm_crtc *crtc)
 static void omap_crtc_enable(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	int ret;
 
 	DBG("%s", omap_crtc->name);
 
-	rmb();
+	spin_lock_irq(&crtc->dev->event_lock);
+	drm_crtc_vblank_on(crtc);
+	ret = drm_crtc_vblank_get(crtc);
+	WARN_ON(ret != 0);
+
 	WARN_ON(omap_crtc->pending);
 	omap_crtc->pending = true;
-	wmb();
-
-	omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
-
-	drm_crtc_vblank_on(crtc);
+	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
 static void omap_crtc_disable(struct drm_crtc *crtc)
@@ -390,16 +387,15 @@ static int omap_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void omap_crtc_atomic_begin(struct drm_crtc *crtc,
-                                  struct drm_crtc_state *old_crtc_state)
+				   struct drm_crtc_state *old_crtc_state)
 {
 }
 
 static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
-                                  struct drm_crtc_state *old_crtc_state)
+				   struct drm_crtc_state *old_crtc_state)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-
-	WARN_ON(omap_crtc->vblank_irq.registered);
+	int ret;
 
 	if (crtc->state->color_mgmt_changed) {
 		struct drm_color_lut *lut = NULL;
@@ -414,18 +410,24 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc,
 		dispc_mgr_set_gamma(omap_crtc->channel, lut, length);
 	}
 
-	if (dispc_mgr_is_enabled(omap_crtc->channel)) {
+	/* Only flush the CRTC if it is currently enabled. */
+	if (!omap_crtc->enabled)
+		return;
 
-		DBG("%s: GO", omap_crtc->name);
+	DBG("%s: GO", omap_crtc->name);
 
-		rmb();
-		WARN_ON(omap_crtc->pending);
-		omap_crtc->pending = true;
-		wmb();
+	ret = drm_crtc_vblank_get(crtc);
+	WARN_ON(ret != 0);
 
-		dispc_mgr_go(omap_crtc->channel);
-		omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
-	}
+	spin_lock_irq(&crtc->dev->event_lock);
+	dispc_mgr_go(omap_crtc->channel);
+
+	WARN_ON(omap_crtc->pending);
+	omap_crtc->pending = true;
+
+	if (crtc->state->event)
+		omap_crtc->event = crtc->state->event;
+	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
 static bool omap_crtc_is_plane_prop(struct drm_crtc *crtc,
@@ -545,14 +547,6 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 	omap_crtc->channel = channel;
 	omap_crtc->name = channel_names[channel];
-
-	omap_crtc->vblank_irq.irqmask = pipe2vbl(crtc);
-	omap_crtc->vblank_irq.irq = omap_crtc_vblank_irq;
-
-	omap_crtc->error_irq.irqmask =
-			dispc_mgr_get_sync_lost_irq(channel);
-	omap_crtc->error_irq.irq = omap_crtc_error_irq;
-	omap_irq_register(dev, &omap_crtc->error_irq);
 
 	ret = drm_crtc_init_with_planes(dev, crtc, plane, NULL,
 					&omap_crtc_funcs, NULL);

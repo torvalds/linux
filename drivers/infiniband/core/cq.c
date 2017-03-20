@@ -58,8 +58,8 @@ static int __ib_process_cq(struct ib_cq *cq, int budget)
  * %IB_POLL_DIRECT CQ.  It does not offload CQ processing to a different
  * context and does not ask for completion interrupts from the HCA.
  *
- * Note: for compatibility reasons -1 can be passed in %budget for unlimited
- * polling.  Do not use this feature in new code, it will be removed soon.
+ * Note: do not pass -1 as %budget unless it is guaranteed that the number
+ * of completions that will be processed is small.
  */
 int ib_process_cq_direct(struct ib_cq *cq, int budget)
 {
@@ -120,7 +120,7 @@ static void ib_cq_completion_workqueue(struct ib_cq *cq, void *private)
  *
  * This is the proper interface to allocate a CQ for in-kernel users. A
  * CQ allocated with this interface will automatically be polled from the
- * specified context.  The ULP needs must use wr->wr_cqe instead of wr->wr_id
+ * specified context. The ULP must use wr->wr_cqe instead of wr->wr_id
  * to use this CQ abstraction.
  */
 struct ib_cq *ib_alloc_cq(struct ib_device *dev, void *private,

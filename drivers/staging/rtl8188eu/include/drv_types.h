@@ -168,7 +168,6 @@ struct adapter {
 	u8 bFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
-	u8 bRxRSSIDisplay;
 
 	struct mutex hw_init_mutex;
 };

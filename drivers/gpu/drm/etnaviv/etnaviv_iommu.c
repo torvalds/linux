@@ -184,7 +184,7 @@ static void etnaviv_iommuv1_dump(struct iommu_domain *domain, void *buf)
 	memcpy(buf, etnaviv_domain->pgtable.pgtable, PT_SIZE);
 }
 
-static struct etnaviv_iommu_ops etnaviv_iommu_ops = {
+static const struct etnaviv_iommu_ops etnaviv_iommu_ops = {
 	.ops = {
 		.domain_free = etnaviv_domain_free,
 		.map = etnaviv_iommuv1_map,

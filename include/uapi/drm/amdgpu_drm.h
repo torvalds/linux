@@ -528,6 +528,8 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_VBIOS_SIZE		0x1
 	/* Subquery id: Query vbios image */
 	#define AMDGPU_INFO_VBIOS_IMAGE		0x2
+/* Query UVD handles */
+#define AMDGPU_INFO_NUM_HANDLES			0x1C
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -717,6 +719,13 @@ struct drm_amdgpu_info_hw_ip {
 	/** Bitmask of available rings. Bit 0 means ring 0, etc. */
 	__u32  available_rings;
 	__u32  _pad;
+};
+
+struct drm_amdgpu_info_num_handles {
+	/** Max handles as supported by firmware for UVD */
+	__u32  uvd_max_handles;
+	/** Handles currently in use for UVD */
+	__u32  uvd_used_handles;
 };
 
 #define AMDGPU_VCE_CLOCK_TABLE_ENTRIES		6

@@ -133,7 +133,8 @@ ramoops_get_next_prz(struct persistent_ram_zone *przs[], uint *c, uint max,
 	struct persistent_ram_zone *prz;
 	int i = (*c)++;
 
-	if (i >= max)
+	/* Give up if we never existed or have hit the end. */
+	if (!przs || i >= max)
 		return NULL;
 
 	prz = przs[i];

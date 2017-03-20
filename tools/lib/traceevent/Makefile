@@ -135,7 +135,7 @@ else
   Q = @
 endif
 
-# Disable command line variables (CFLAGS) overide from top
+# Disable command line variables (CFLAGS) override from top
 # level Makefile (perf), otherwise build Makefile will get
 # the same command line setup.
 MAKEOVERRIDES=
@@ -257,10 +257,16 @@ define do_install_plugins
 endef
 
 define do_generate_dynamic_list_file
-	(echo '{';							\
-	$(NM) -u -D $1 | awk 'NF>1 {print "\t"$$2";"}' | sort -u;	\
-	echo '};';							\
-	) > $2
+	symbol_type=`$(NM) -u -D $1 | awk 'NF>1 {print $$1}' | \
+	xargs echo "U W w" | tr ' ' '\n' | sort -u | xargs echo`;\
+	if [ "$$symbol_type" = "U W w" ];then				\
+		(echo '{';						\
+		$(NM) -u -D $1 | awk 'NF>1 {print "\t"$$2";"}' | sort -u;\
+		echo '};';						\
+		) > $2;							\
+	else								\
+		(echo Either missing one of [$1] or bad version of $(NM)) 1>&2;\
+	fi
 endef
 
 install_lib: all_cmd install_plugins

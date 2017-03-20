@@ -1,7 +1,8 @@
 /*
  * Device Tree Source for UniPhier SoCs default pinctrl settings
  *
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
+ * Copyright (C) 2015-2017 Socionext Inc.
+ *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,6 +44,11 @@
  */
 
 &pinctrl {
+	pinctrl_emmc: emmc_grp {
+		groups = "emmc";
+		function = "emmc";
+	};
+
 	pinctrl_i2c0: i2c0_grp {
 		groups = "i2c0";
 		function = "i2c0";
@@ -76,6 +82,16 @@
 	pinctrl_nand2cs: nand2cs_grp {
 		groups = "nand", "nand_cs1";
 		function = "nand";
+	};
+
+	pinctrl_sd: sd_grp {
+		groups = "sd";
+		function = "sd";
+	};
+
+	pinctrl_sd1: sd1_grp {
+		groups = "sd1";
+		function = "sd1";
 	};
 
 	pinctrl_system_bus: system_bus_grp {

@@ -1,0 +1,626 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+        <html>
+        <head><title>A Tour Through TREE_RCU's Expedited Grace Periods</title>
+        <meta HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+
+<h2>Introduction</h2>
+
+This document describes RCU's expedited grace periods.
+Unlike RCU's normal grace periods, which accept long latencies to attain
+high efficiency and minimal disturbance, expedited grace periods accept
+lower efficiency and significant disturbance to attain shorter latencies.
+
+<p>
+There are three flavors of RCU (RCU-bh, RCU-preempt, and RCU-sched),
+but only two flavors of expedited grace periods because the RCU-bh
+expedited grace period maps onto the RCU-sched expedited grace period.
+Each of the remaining two implementations is covered in its own section.
+
+<ol>
+<li>	<a href="#Expedited Grace Period Design">
+	Expedited Grace Period Design</a>
+<li>	<a href="#RCU-preempt Expedited Grace Periods">
+	RCU-preempt Expedited Grace Periods</a>
+<li>	<a href="#RCU-sched Expedited Grace Periods">
+	RCU-sched Expedited Grace Periods</a>
+<li>	<a href="#Expedited Grace Period and CPU Hotplug">
+	Expedited Grace Period and CPU Hotplug</a>
+<li>	<a href="#Expedited Grace Period Refinements">
+	Expedited Grace Period Refinements</a>
+</ol>
+
+<h2><a name="Expedited Grace Period Design">
+Expedited Grace Period Design</a></h2>
+
+<p>
+The expedited RCU grace periods cannot be accused of being subtle,
+given that they for all intents and purposes hammer every CPU that
+has not yet provided a quiescent state for the current expedited
+grace period.
+The one saving grace is that the hammer has grown a bit smaller
+over time:  The old call to <tt>try_stop_cpus()</tt> has been
+replaced with a set of calls to <tt>smp_call_function_single()</tt>,
+each of which results in an IPI to the target CPU.
+The corresponding handler function checks the CPU's state, motivating
+a faster quiescent state where possible, and triggering a report
+of that quiescent state.
+As always for RCU, once everything has spent some time in a quiescent
+state, the expedited grace period has completed.
+
+<p>
+The details of the <tt>smp_call_function_single()</tt> handler's
+operation depend on the RCU flavor, as described in the following
+sections.
+
+<h2><a name="RCU-preempt Expedited Grace Periods">
+RCU-preempt Expedited Grace Periods</a></h2>
+
+<p>
+The overall flow of the handling of a given CPU by an RCU-preempt
+expedited grace period is shown in the following diagram:
+
+<p><img src="ExpRCUFlow.svg" alt="ExpRCUFlow.svg" width="55%">
+
+<p>
+The solid arrows denote direct action, for example, a function call.
+The dotted arrows denote indirect action, for example, an IPI
+or a state that is reached after some time.
+
+<p>
+If a given CPU is offline or idle, <tt>synchronize_rcu_expedited()</tt>
+will ignore it because idle and offline CPUs are already residing
+in quiescent states.
+Otherwise, the expedited grace period will use
+<tt>smp_call_function_single()</tt> to send the CPU an IPI, which
+is handled by <tt>sync_rcu_exp_handler()</tt>.
+
+<p>
+However, because this is preemptible RCU, <tt>sync_rcu_exp_handler()</tt>
+can check to see if the CPU is currently running in an RCU read-side
+critical section.
+If not, the handler can immediately report a quiescent state.
+Otherwise, it sets flags so that the outermost <tt>rcu_read_unlock()</tt>
+invocation will provide the needed quiescent-state report.
+This flag-setting avoids the previous forced preemption of all
+CPUs that might have RCU read-side critical sections.
+In addition, this flag-setting is done so as to avoid increasing
+the overhead of the common-case fastpath through the scheduler.
+
+<p>
+Again because this is preemptible RCU, an RCU read-side critical section
+can be preempted.
+When that happens, RCU will enqueue the task, which will the continue to
+block the current expedited grace period until it resumes and finds its
+outermost <tt>rcu_read_unlock()</tt>.
+The CPU will report a quiescent state just after enqueuing the task because
+the CPU is no longer blocking the grace period.
+It is instead the preempted task doing the blocking.
+The list of blocked tasks is managed by <tt>rcu_preempt_ctxt_queue()</tt>,
+which is called from <tt>rcu_preempt_note_context_switch()</tt>, which
+in turn is called from <tt>rcu_note_context_switch()</tt>, which in
+turn is called from the scheduler.
+
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Why not just have the expedited grace period check the
+	state of all the CPUs?
+	After all, that would avoid all those real-time-unfriendly IPIs.
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	Because we want the RCU read-side critical sections to run fast,
+	which means no memory barriers.
+	Therefore, it is not possible to safely check the state from some
+	other CPU.
+	And even if it was possible to safely check the state, it would
+	still be necessary to IPI the CPU to safely interact with the
+	upcoming <tt>rcu_read_unlock()</tt> invocation, which means that
+	the remote state testing would not help the worst-case
+	latency that real-time applications care about.
+
+	<p><font color="ffffff">One way to prevent your real-time
+	application from getting hit with these IPIs is to
+	build your kernel with <tt>CONFIG_NO_HZ_FULL=y</tt>.
+	RCU would then perceive the CPU running your application
+	as being idle, and it would be able to safely detect that
+	state without needing to IPI the CPU.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+
+<p>
+Please note that this is just the overall flow:
+Additional complications can arise due to races with CPUs going idle
+or offline, among other things.
+
+<h2><a name="RCU-sched Expedited Grace Periods">
+RCU-sched Expedited Grace Periods</a></h2>
+
+<p>
+The overall flow of the handling of a given CPU by an RCU-sched
+expedited grace period is shown in the following diagram:
+
+<p><img src="ExpSchedFlow.svg" alt="ExpSchedFlow.svg" width="55%">
+
+<p>
+As with RCU-preempt's <tt>synchronize_rcu_expedited()</tt>,
+<tt>synchronize_sched_expedited()</tt> ignores offline and
+idle CPUs, again because they are in remotely detectable
+quiescent states.
+However, the <tt>synchronize_rcu_expedited()</tt> handler
+is <tt>sync_sched_exp_handler()</tt>, and because the
+<tt>rcu_read_lock_sched()</tt> and <tt>rcu_read_unlock_sched()</tt>
+leave no trace of their invocation, in general it is not possible to tell
+whether or not the current CPU is in an RCU read-side critical section.
+The best that <tt>sync_sched_exp_handler()</tt> can do is to check
+for idle, on the off-chance that the CPU went idle while the IPI
+was in flight.
+If the CPU is idle, then tt>sync_sched_exp_handler()</tt> reports
+the quiescent state.
+
+<p>
+Otherwise, the handler invokes <tt>resched_cpu()</tt>, which forces
+a future context switch.
+At the time of the context switch, the CPU reports the quiescent state.
+Should the CPU go offline first, it will report the quiescent state
+at that time.
+
+<h2><a name="Expedited Grace Period and CPU Hotplug">
+Expedited Grace Period and CPU Hotplug</a></h2>
+
+<p>
+The expedited nature of expedited grace periods require a much tighter
+interaction with CPU hotplug operations than is required for normal
+grace periods.
+In addition, attempting to IPI offline CPUs will result in splats, but
+failing to IPI online CPUs can result in too-short grace periods.
+Neither option is acceptable in production kernels.
+
+<p>
+The interaction between expedited grace periods and CPU hotplug operations
+is carried out at several levels:
+
+<ol>
+<li>	The number of CPUs that have ever been online is tracked
+	by the <tt>rcu_state</tt> structure's <tt>-&gt;ncpus</tt>
+	field.
+	The <tt>rcu_state</tt> structure's <tt>-&gt;ncpus_snap</tt>
+	field tracks the number of CPUs that have ever been online
+	at the beginning of an RCU expedited grace period.
+	Note that this number never decreases, at least in the absence
+	of a time machine.
+<li>	The identities of the CPUs that have ever been online is
+	tracked by the <tt>rcu_node</tt> structure's
+	<tt>-&gt;expmaskinitnext</tt> field.
+	The <tt>rcu_node</tt> structure's <tt>-&gt;expmaskinit</tt>
+	field tracks the identities of the CPUs that were online
+	at least once at the beginning of the most recent RCU
+	expedited grace period.
+	The <tt>rcu_state</tt> structure's <tt>-&gt;ncpus</tt> and
+	<tt>-&gt;ncpus_snap</tt> fields are used to detect when
+	new CPUs have come online for the first time, that is,
+	when the <tt>rcu_node</tt> structure's <tt>-&gt;expmaskinitnext</tt>
+	field has changed since the beginning of the last RCU
+	expedited grace period, which triggers an update of each
+	<tt>rcu_node</tt> structure's <tt>-&gt;expmaskinit</tt>
+	field from its <tt>-&gt;expmaskinitnext</tt> field.
+<li>	Each <tt>rcu_node</tt> structure's <tt>-&gt;expmaskinit</tt>
+	field is used to initialize that structure's
+	<tt>-&gt;expmask</tt> at the beginning of each RCU
+	expedited grace period.
+	This means that only those CPUs that have been online at least
+	once will be considered for a given grace period.
+<li>	Any CPU that goes offline will clear its bit in its leaf
+	<tt>rcu_node</tt> structure's <tt>-&gt;qsmaskinitnext</tt>
+	field, so any CPU with that bit clear can safely be ignored.
+	However, it is possible for a CPU coming online or going offline
+	to have this bit set for some time while <tt>cpu_online</tt>
+	returns <tt>false</tt>.
+<li>	For each non-idle CPU that RCU believes is currently online, the grace
+	period invokes <tt>smp_call_function_single()</tt>.
+	If this succeeds, the CPU was fully online.
+	Failure indicates that the CPU is in the process of coming online
+	or going offline, in which case it is necessary to wait for a
+	short time period and try again.
+	The purpose of this wait (or series of waits, as the case may be)
+	is to permit a concurrent CPU-hotplug operation to complete.
+<li>	In the case of RCU-sched, one of the last acts of an outgoing CPU
+	is to invoke <tt>rcu_report_dead()</tt>, which
+	reports a quiescent state for that CPU.
+	However, this is likely paranoia-induced redundancy. <!-- @@@ -->
+</ol>
+
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Why all the dancing around with multiple counters and masks
+	tracking CPUs that were once online?
+	Why not just have a single set of masks tracking the currently
+	online CPUs and be done with it?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	Maintaining single set of masks tracking the online CPUs <i>sounds</i>
+	easier, at least until you try working out all the race conditions
+	between grace-period initialization and CPU-hotplug operations.
+	For example, suppose initialization is progressing down the
+	tree while a CPU-offline operation is progressing up the tree.
+	This situation can result in bits set at the top of the tree
+	that have no counterparts at the bottom of the tree.
+	Those bits will never be cleared, which will result in
+	grace-period hangs.
+	In short, that way lies madness, to say nothing of a great many
+	bugs, hangs, and deadlocks.
+
+	<p><font color="ffffff">
+	In contrast, the current multi-mask multi-counter scheme ensures
+	that grace-period initialization will always see consistent masks
+	up and down the tree, which brings significant simplifications
+	over the single-mask method.
+
+	<p><font color="ffffff">
+	This is an instance of
+	<a href="http://www.cs.columbia.edu/~library/TR-repository/reports/reports-1992/cucs-039-92.ps.gz"><font color="ffffff">
+	deferring work in order to avoid synchronization</a>.
+	Lazily recording CPU-hotplug events at the beginning of the next
+	grace period greatly simplifies maintenance of the CPU-tracking
+	bitmasks in the <tt>rcu_node</tt> tree.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+
+<h2><a name="Expedited Grace Period Refinements">
+Expedited Grace Period Refinements</a></h2>
+
+<ol>
+<li>	<a href="#Idle-CPU Checks">Idle-CPU checks</a>.
+<li>	<a href="#Batching via Sequence Counter">
+	Batching via sequence counter</a>.
+<li>	<a href="#Funnel Locking and Wait/Wakeup">
+	Funnel locking and wait/wakeup</a>.
+<li>	<a href="#Use of Workqueues">Use of Workqueues</a>.
+<li>	<a href="#Stall Warnings">Stall warnings</a>.
+</ol>
+
+<h3><a name="Idle-CPU Checks">Idle-CPU Checks</a></h3>
+
+<p>
+Each expedited grace period checks for idle CPUs when initially forming
+the mask of CPUs to be IPIed and again just before IPIing a CPU
+(both checks are carried out by <tt>sync_rcu_exp_select_cpus()</tt>).
+If the CPU is idle at any time between those two times, the CPU will
+not be IPIed.
+Instead, the task pushing the grace period forward will include the
+idle CPUs in the mask passed to <tt>rcu_report_exp_cpu_mult()</tt>.
+
+<p>
+For RCU-sched, there is an additional check for idle in the IPI
+handler, <tt>sync_sched_exp_handler()</tt>.
+If the IPI has interrupted the idle loop, then
+<tt>sync_sched_exp_handler()</tt> invokes <tt>rcu_report_exp_rdp()</tt>
+to report the corresponding quiescent state.
+
+<p>
+For RCU-preempt, there is no specific check for idle in the
+IPI handler (<tt>sync_rcu_exp_handler()</tt>), but because
+RCU read-side critical sections are not permitted within the
+idle loop, if <tt>sync_rcu_exp_handler()</tt> sees that the CPU is within
+RCU read-side critical section, the CPU cannot possibly be idle.
+Otherwise, <tt>sync_rcu_exp_handler()</tt> invokes
+<tt>rcu_report_exp_rdp()</tt> to report the corresponding quiescent
+state, regardless of whether or not that quiescent state was due to
+the CPU being idle.
+
+<p>
+In summary, RCU expedited grace periods check for idle when building
+the bitmask of CPUs that must be IPIed, just before sending each IPI,
+and (either explicitly or implicitly) within the IPI handler.
+
+<h3><a name="Batching via Sequence Counter">
+Batching via Sequence Counter</a></h3>
+
+<p>
+If each grace-period request was carried out separately, expedited
+grace periods would have abysmal scalability and
+problematic high-load characteristics.
+Because each grace-period operation can serve an unlimited number of
+updates, it is important to <i>batch</i> requests, so that a single
+expedited grace-period operation will cover all requests in the
+corresponding batch.
+
+<p>
+This batching is controlled by a sequence counter named
+<tt>-&gt;expedited_sequence</tt> in the <tt>rcu_state</tt> structure.
+This counter has an odd value when there is an expedited grace period
+in progress and an even value otherwise, so that dividing the counter
+value by two gives the number of completed grace periods.
+During any given update request, the counter must transition from
+even to odd and then back to even, thus indicating that a grace
+period has elapsed.
+Therefore, if the initial value of the counter is <tt>s</tt>,
+the updater must wait until the counter reaches at least the
+value <tt>(s+3)&amp;~0x1</tt>.
+This counter is managed by the following access functions:
+
+<ol>
+<li>	<tt>rcu_exp_gp_seq_start()</tt>, which marks the start of
+	an expedited grace period.
+<li>	<tt>rcu_exp_gp_seq_end()</tt>, which marks the end of an
+	expedited grace period.
+<li>	<tt>rcu_exp_gp_seq_snap()</tt>, which obtains a snapshot of
+	the counter.
+<li>	<tt>rcu_exp_gp_seq_done()</tt>, which returns <tt>true</tt>
+	if a full expedited grace period has elapsed since the
+	corresponding call to <tt>rcu_exp_gp_seq_snap()</tt>.
+</ol>
+
+<p>
+Again, only one request in a given batch need actually carry out
+a grace-period operation, which means there must be an efficient
+way to identify which of many concurrent reqeusts will initiate
+the grace period, and that there be an efficient way for the
+remaining requests to wait for that grace period to complete.
+However, that is the topic of the next section.
+
+<h3><a name="Funnel Locking and Wait/Wakeup">
+Funnel Locking and Wait/Wakeup</a></h3>
+
+<p>
+The natural way to sort out which of a batch of updaters will initiate
+the expedited grace period is to use the <tt>rcu_node</tt> combining
+tree, as implemented by the <tt>exp_funnel_lock()</tt> function.
+The first updater corresponding to a given grace period arriving
+at a given <tt>rcu_node</tt> structure records its desired grace-period
+sequence number in the <tt>-&gt;exp_seq_rq</tt> field and moves up
+to the next level in the tree.
+Otherwise, if the <tt>-&gt;exp_seq_rq</tt> field already contains
+the sequence number for the desired grace period or some later one,
+the updater blocks on one of four wait queues in the
+<tt>-&gt;exp_wq[]</tt> array, using the second-from-bottom
+and third-from bottom bits as an index.
+An <tt>-&gt;exp_lock</tt> field in the <tt>rcu_node</tt> structure
+synchronizes access to these fields.
+
+<p>
+An empty <tt>rcu_node</tt> tree is shown in the following diagram,
+with the white cells representing the <tt>-&gt;exp_seq_rq</tt> field
+and the red cells representing the elements of the
+<tt>-&gt;exp_wq[]</tt> array.
+
+<p><img src="Funnel0.svg" alt="Funnel0.svg" width="75%">
+
+<p>
+The next diagram shows the situation after the arrival of Task&nbsp;A
+and Task&nbsp;B at the leftmost and rightmost leaf <tt>rcu_node</tt>
+structures, respectively.
+The current value of the <tt>rcu_state</tt> structure's
+<tt>-&gt;expedited_sequence</tt> field is zero, so adding three and
+clearing the bottom bit results in the value two, which both tasks
+record in the <tt>-&gt;exp_seq_rq</tt> field of their respective
+<tt>rcu_node</tt> structures:
+
+<p><img src="Funnel1.svg" alt="Funnel1.svg" width="75%">
+
+<p>
+Each of Tasks&nbsp;A and&nbsp;B will move up to the root
+<tt>rcu_node</tt> structure.
+Suppose that Task&nbsp;A wins, recording its desired grace-period sequence
+number and resulting in the state shown below:
+
+<p><img src="Funnel2.svg" alt="Funnel2.svg" width="75%">
+
+<p>
+Task&nbsp;A now advances to initiate a new grace period, while Task&nbsp;B
+moves up to the root <tt>rcu_node</tt> structure, and, seeing that
+its desired sequence number is already recorded, blocks on
+<tt>-&gt;exp_wq[1]</tt>.
+
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Why <tt>-&gt;exp_wq[1]</tt>?
+	Given that the value of these tasks' desired sequence number is
+	two, so shouldn't they instead block on <tt>-&gt;exp_wq[2]</tt>?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	No.
+
+	<p><font color="ffffff">
+	Recall that the bottom bit of the desired sequence number indicates
+	whether or not a grace period is currently in progress.
+	It is therefore necessary to shift the sequence number right one
+	bit position to obtain the number of the grace period.
+	This results in <tt>-&gt;exp_wq[1]</tt>.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+
+<p>
+If Tasks&nbsp;C and&nbsp;D also arrive at this point, they will compute the
+same desired grace-period sequence number, and see that both leaf
+<tt>rcu_node</tt> structures already have that value recorded.
+They will therefore block on their respective <tt>rcu_node</tt>
+structures' <tt>-&gt;exp_wq[1]</tt> fields, as shown below:
+
+<p><img src="Funnel3.svg" alt="Funnel3.svg" width="75%">
+
+<p>
+Task&nbsp;A now acquires the <tt>rcu_state</tt> structure's
+<tt>-&gt;exp_mutex</tt> and initiates the grace period, which
+increments <tt>-&gt;expedited_sequence</tt>.
+Therefore, if Tasks&nbsp;E and&nbsp;F arrive, they will compute
+a desired sequence number of 4 and will record this value as
+shown below:
+
+<p><img src="Funnel4.svg" alt="Funnel4.svg" width="75%">
+
+<p>
+Tasks&nbsp;E and&nbsp;F will propagate up the <tt>rcu_node</tt>
+combining tree, with Task&nbsp;F blocking on the root <tt>rcu_node</tt>
+structure and Task&nbsp;E wait for Task&nbsp;A to finish so that
+it can start the next grace period.
+The resulting state is as shown below:
+
+<p><img src="Funnel5.svg" alt="Funnel5.svg" width="75%">
+
+<p>
+Once the grace period completes, Task&nbsp;A
+starts waking up the tasks waiting for this grace period to complete,
+increments the <tt>-&gt;expedited_sequence</tt>,
+acquires the <tt>-&gt;exp_wake_mutex</tt> and then releases the
+<tt>-&gt;exp_mutex</tt>.
+This results in the following state:
+
+<p><img src="Funnel6.svg" alt="Funnel6.svg" width="75%">
+
+<p>
+Task&nbsp;E can then acquire <tt>-&gt;exp_mutex</tt> and increment
+<tt>-&gt;expedited_sequence</tt> to the value three.
+If new tasks&nbsp;G and&nbsp;H arrive and moves up the combining tree at the
+same time, the state will be as follows:
+
+<p><img src="Funnel7.svg" alt="Funnel7.svg" width="75%">
+
+<p>
+Note that three of the root <tt>rcu_node</tt> structure's
+waitqueues are now occupied.
+However, at some point, Task&nbsp;A will wake up the
+tasks blocked on the <tt>-&gt;exp_wq</tt> waitqueues, resulting
+in the following state:
+
+<p><img src="Funnel8.svg" alt="Funnel8.svg" width="75%">
+
+<p>
+Execution will continue with Tasks&nbsp;E and&nbsp;H completing
+their grace periods and carrying out their wakeups.
+
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	What happens if Task&nbsp;A takes so long to do its wakeups
+	that Task&nbsp;E's grace period completes?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	Then Task&nbsp;E will block on the <tt>-&gt;exp_wake_mutex</tt>,
+	which will also prevent it from releasing <tt>-&gt;exp_mutex</tt>,
+	which in turn will prevent the next grace period from starting.
+	This last is important in preventing overflow of the
+	<tt>-&gt;exp_wq[]</tt> array.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+
+<h3><a name="Use of Workqueues">Use of Workqueues</a></h3>
+
+<p>
+In earlier implementations, the task requesting the expedited
+grace period also drove it to completion.
+This straightforward approach had the disadvantage of needing to
+account for signals sent to user tasks,
+so more recent implemementations use the Linux kernel's
+<a href="https://www.kernel.org/doc/Documentation/workqueue.txt">workqueues</a>.
+
+<p>
+The requesting task still does counter snapshotting and funnel-lock
+processing, but the task reaching the top of the funnel lock
+does a <tt>schedule_work()</tt> (from <tt>_synchronize_rcu_expedited()</tt>
+so that a workqueue kthread does the actual grace-period processing.
+Because workqueue kthreads do not accept signals, grace-period-wait
+processing need not allow for signals.
+
+In addition, this approach allows wakeups for the previous expedited
+grace period to be overlapped with processing for the next expedited
+grace period.
+Because there are only four sets of waitqueues, it is necessary to
+ensure that the previous grace period's wakeups complete before the
+next grace period's wakeups start.
+This is handled by having the <tt>-&gt;exp_mutex</tt>
+guard expedited grace-period processing and the
+<tt>-&gt;exp_wake_mutex</tt> guard wakeups.
+The key point is that the <tt>-&gt;exp_mutex</tt> is not released
+until the first wakeup is complete, which means that the
+<tt>-&gt;exp_wake_mutex</tt> has already been acquired at that point.
+This approach ensures that the previous grace period's wakeups can
+be carried out while the current grace period is in process, but
+that these wakeups will complete before the next grace period starts.
+This means that only three waitqueues are required, guaranteeing that
+the four that are provided are sufficient.
+
+<h3><a name="Stall Warnings">Stall Warnings</a></h3>
+
+<p>
+Expediting grace periods does nothing to speed things up when RCU
+readers take too long, and therefore expedited grace periods check
+for stalls just as normal grace periods do.
+
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	But why not just let the normal grace-period machinery
+	detect the stalls, given that a given reader must block
+	both normal and expedited grace periods?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	Because it is quite possible that at a given time there
+	is no normal grace period in progress, in which case the
+	normal grace period cannot emit a stall warning.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+
+The <tt>synchronize_sched_expedited_wait()</tt> function loops waiting
+for the expedited grace period to end, but with a timeout set to the
+current RCU CPU stall-warning time.
+If this time is exceeded, any CPUs or <tt>rcu_node</tt> structures
+blocking the current grace period are printed.
+Each stall warning results in another pass through the loop, but the
+second and subsequent passes use longer stall times.
+
+<h3><a name="Summary">
+Summary</a></h3>
+
+<p>
+Expedited grace periods use a sequence-number approach to promote
+batching, so that a single grace-period operation can serve numerous
+requests.
+A funnel lock is used to efficiently identify the one task out of
+a concurrent group that will request the grace period.
+All members of the group will block on waitqueues provided in
+the <tt>rcu_node</tt> structure.
+The actual grace-period processing is carried out by a workqueue.
+
+<p>
+CPU-hotplug operations are noted lazily in order to prevent the need
+for tight synchronization between expedited grace periods and
+CPU-hotplug operations.
+The dyntick-idle counters are used to avoid sending IPIs to idle CPUs,
+at least in the common case.
+RCU-preempt and RCU-sched use different IPI handlers and different
+code to respond to the state changes carried out by those handlers,
+but otherwise use common code.
+
+<p>
+Quiescent states are tracked using the <tt>rcu_node</tt> tree,
+and once all necessary quiescent states have been reported,
+all tasks waiting on this expedited grace period are awakened.
+A pair of mutexes are used to allow one grace period's wakeups
+to proceed concurrently with the next grace period's processing.
+
+<p>
+This combination of mechanisms allows expedited grace periods to
+run reasonably efficiently.
+However, for non-time-critical tasks, normal grace periods should be
+used instead because their longer duration permits much higher
+degrees of batching, and thus much lower per-request overheads.
+
+</body></html>

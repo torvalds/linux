@@ -250,17 +250,20 @@ static int ccp5_do_cmd(struct ccp5_desc *desc,
 		ret = wait_event_interruptible(cmd_q->int_queue,
 					       cmd_q->int_rcvd);
 		if (ret || cmd_q->cmd_error) {
+			/* Log the error and flush the queue by
+			 * moving the head pointer
+			 */
 			if (cmd_q->cmd_error)
 				ccp_log_error(cmd_q->ccp,
 					      cmd_q->cmd_error);
-			/* A version 5 device doesn't use Job IDs... */
+			iowrite32(tail, cmd_q->reg_head_lo);
 			if (!ret)
 				ret = -EIO;
 		}
 		cmd_q->int_rcvd = 0;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int ccp5_perform_aes(struct ccp_op *op)
@@ -284,8 +287,7 @@ static int ccp5_perform_aes(struct ccp_op *op)
 	CCP_AES_ENCRYPT(&function) = op->u.aes.action;
 	CCP_AES_MODE(&function) = op->u.aes.mode;
 	CCP_AES_TYPE(&function) = op->u.aes.type;
-	if (op->u.aes.mode == CCP_AES_MODE_CFB)
-		CCP_AES_SIZE(&function) = 0x7f;
+	CCP_AES_SIZE(&function) = op->u.aes.size;
 
 	CCP5_CMD_FUNCTION(&desc) = function.raw;
 
@@ -532,7 +534,7 @@ static int ccp_find_lsb_regions(struct ccp_cmd_queue *cmd_q, u64 status)
 		status >>= LSB_REGION_WIDTH;
 	}
 	queues = bitmap_weight(cmd_q->lsbmask, MAX_LSB_CNT);
-	dev_info(cmd_q->ccp->dev, "Queue %d can access %d LSB regions\n",
+	dev_dbg(cmd_q->ccp->dev, "Queue %d can access %d LSB regions\n",
 		 cmd_q->id, queues);
 
 	return queues ? 0 : -EINVAL;
@@ -574,7 +576,7 @@ static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 					 */
 					cmd_q->lsb = bitno;
 					bitmap_clear(lsb_pub, bitno, 1);
-					dev_info(ccp->dev,
+					dev_dbg(ccp->dev,
 						 "Queue %d gets LSB %d\n",
 						 i, bitno);
 					break;
@@ -732,7 +734,6 @@ static int ccp5_init(struct ccp_device *ccp)
 		ret = -EIO;
 		goto e_pool;
 	}
-	dev_notice(dev, "%u command queues available\n", ccp->cmd_q_count);
 
 	/* Turn off the queues and disable interrupts until ready */
 	for (i = 0; i < ccp->cmd_q_count; i++) {
@@ -959,7 +960,7 @@ static irqreturn_t ccp5_irq_handler(int irq, void *data)
 static void ccp5_config(struct ccp_device *ccp)
 {
 	/* Public side */
-	iowrite32(0x00001249, ccp->io_regs + CMD5_REQID_CONFIG_OFFSET);
+	iowrite32(0x0, ccp->io_regs + CMD5_REQID_CONFIG_OFFSET);
 }
 
 static void ccp5other_config(struct ccp_device *ccp)

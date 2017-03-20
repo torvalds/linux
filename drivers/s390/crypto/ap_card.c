@@ -58,9 +58,9 @@ static ssize_t ap_functions_show(struct device *dev,
 
 static DEVICE_ATTR(ap_functions, 0444, ap_functions_show, NULL);
 
-static ssize_t ap_request_count_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
+static ssize_t ap_req_count_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	struct ap_card *ac = to_ap_card(dev);
 	unsigned int req_cnt;
@@ -72,7 +72,23 @@ static ssize_t ap_request_count_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", req_cnt);
 }
 
-static DEVICE_ATTR(request_count, 0444, ap_request_count_show, NULL);
+static ssize_t ap_req_count_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct ap_card *ac = to_ap_card(dev);
+	struct ap_queue *aq;
+
+	spin_lock_bh(&ap_list_lock);
+	for_each_ap_queue(aq, ac)
+		aq->total_request_count = 0;
+	spin_unlock_bh(&ap_list_lock);
+	atomic_set(&ac->total_request_count, 0);
+
+	return count;
+}
+
+static DEVICE_ATTR(request_count, 0644, ap_req_count_show, ap_req_count_store);
 
 static ssize_t ap_requestq_count_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
@@ -137,7 +153,7 @@ static const struct attribute_group *ap_card_dev_attr_groups[] = {
 	NULL
 };
 
-struct device_type ap_card_type = {
+static struct device_type ap_card_type = {
 	.name = "ap_card",
 	.groups = ap_card_dev_attr_groups,
 };

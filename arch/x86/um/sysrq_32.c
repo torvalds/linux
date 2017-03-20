@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/smp.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/kallsyms.h>
 #include <asm/ptrace.h>
 #include <asm/sysrq.h>

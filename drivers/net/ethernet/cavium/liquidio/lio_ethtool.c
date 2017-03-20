@@ -296,12 +296,16 @@ lio_ethtool_get_channels(struct net_device *dev,
 		rx_count = CFG_GET_NUM_RXQS_NIC_IF(conf6x, lio->ifidx);
 		tx_count = CFG_GET_NUM_TXQS_NIC_IF(conf6x, lio->ifidx);
 	} else if (OCTEON_CN23XX_PF(oct)) {
-		struct octeon_config *conf23 = CHIP_CONF(oct, cn23xx_pf);
 
-		max_rx = CFG_GET_OQ_MAX_Q(conf23);
-		max_tx = CFG_GET_IQ_MAX_Q(conf23);
-		rx_count = CFG_GET_NUM_RXQS_NIC_IF(conf23, lio->ifidx);
-		tx_count = CFG_GET_NUM_TXQS_NIC_IF(conf23, lio->ifidx);
+		max_rx = oct->sriov_info.num_pf_rings;
+		max_tx = oct->sriov_info.num_pf_rings;
+		rx_count = lio->linfo.num_rxpciq;
+		tx_count = lio->linfo.num_txpciq;
+	} else if (OCTEON_CN23XX_VF(oct)) {
+		max_tx = oct->sriov_info.rings_per_vf;
+		max_rx = oct->sriov_info.rings_per_vf;
+		rx_count = lio->linfo.num_rxpciq;
+		tx_count = lio->linfo.num_txpciq;
 	}
 
 	channel->max_rx = max_rx;

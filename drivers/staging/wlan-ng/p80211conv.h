@@ -130,7 +130,7 @@ struct p80211_metawep {
 struct wlan_ethhdr {
 	u8 daddr[ETH_ALEN];
 	u8 saddr[ETH_ALEN];
-	u16 type;
+	__be16 type;
 } __packed;
 
 /* local llc header type */
@@ -143,7 +143,7 @@ struct wlan_llc {
 /* local snap header type */
 struct wlan_snap {
 	u8 oui[WLAN_IEEE_OUI_LEN];
-	u16 type;
+	__be16 type;
 } __packed;
 
 /* Circular include trick */

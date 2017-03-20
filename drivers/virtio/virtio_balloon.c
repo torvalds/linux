@@ -31,6 +31,7 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/mount.h>
+#include <linux/magic.h>
 
 /*
  * Balloon device works in 4K page units.  So each page is pointed to by
@@ -413,7 +414,8 @@ static int init_vqs(struct virtio_balloon *vb)
 	 * optionally stat.
 	 */
 	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
-	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names);
+	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names,
+			NULL);
 	if (err)
 		return err;
 
@@ -615,8 +617,12 @@ static void virtballoon_remove(struct virtio_device *vdev)
 	cancel_work_sync(&vb->update_balloon_stats_work);
 
 	remove_common(vb);
+#ifdef CONFIG_BALLOON_COMPACTION
 	if (vb->vb_dev_info.inode)
 		iput(vb->vb_dev_info.inode);
+
+	kern_unmount(balloon_mnt);
+#endif
 	kfree(vb);
 }
 

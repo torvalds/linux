@@ -116,8 +116,7 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 			struct lu_fid *fid, __u64 *bits);
 
 int mdc_intent_getattr_async(struct obd_export *exp,
-			     struct md_enqueue_info *minfo,
-			     struct ldlm_enqueue_info *einfo);
+			     struct md_enqueue_info *minfo);
 
 enum ldlm_mode mdc_lock_match(struct obd_export *exp, __u64 flags,
 			      const struct lu_fid *fid, enum ldlm_type type,

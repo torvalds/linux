@@ -260,8 +260,7 @@ static int cmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (err)
 		goto out_free_inst;
 
-	/* We access the data as u32s when xoring. */
-	alignmask = alg->cra_alignmask | (__alignof__(u32) - 1);
+	alignmask = alg->cra_alignmask;
 	inst->alg.base.cra_alignmask = alignmask;
 	inst->alg.base.cra_priority = alg->cra_priority;
 	inst->alg.base.cra_blocksize = alg->cra_blocksize;

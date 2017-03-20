@@ -130,7 +130,8 @@ union pci_version {
  */
 union win_slot_encoding {
 	struct {
-		u32	func:8;
+		u32	dev:5;
+		u32	func:3;
 		u32	reserved:24;
 	} bits;
 	u32 slot;
@@ -485,7 +486,8 @@ static u32 devfn_to_wslot(int devfn)
 	union win_slot_encoding wslot;
 
 	wslot.slot = 0;
-	wslot.bits.func = PCI_SLOT(devfn) | (PCI_FUNC(devfn) << 5);
+	wslot.bits.dev = PCI_SLOT(devfn);
+	wslot.bits.func = PCI_FUNC(devfn);
 
 	return wslot.slot;
 }
@@ -503,7 +505,7 @@ static int wslot_to_devfn(u32 wslot)
 	union win_slot_encoding slot_no;
 
 	slot_no.slot = wslot;
-	return PCI_DEVFN(0, slot_no.bits.func);
+	return PCI_DEVFN(slot_no.bits.dev, slot_no.bits.func);
 }
 
 /*
@@ -1315,6 +1317,18 @@ static struct hv_pci_dev *new_pcichild_device(struct hv_pcibus_device *hbus,
 	get_pcichild(hpdev, hv_pcidev_ref_initial);
 	get_pcichild(hpdev, hv_pcidev_ref_childlist);
 	spin_lock_irqsave(&hbus->device_list_lock, flags);
+
+	/*
+	 * When a device is being added to the bus, we set the PCI domain
+	 * number to be the device serial number, which is non-zero and
+	 * unique on the same VM.  The serial numbers start with 1, and
+	 * increase by 1 for each device.  So device names including this
+	 * can have shorter names than based on the bus instance UUID.
+	 * Only the first device serial number is used for domain, so the
+	 * domain number will not change after the first device is added.
+	 */
+	if (list_empty(&hbus->children))
+		hbus->sysdata.domain = desc->ser;
 	list_add_tail(&hpdev->list_entry, &hbus->children);
 	spin_unlock_irqrestore(&hbus->device_list_lock, flags);
 	return hpdev;

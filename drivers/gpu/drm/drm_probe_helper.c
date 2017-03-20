@@ -43,7 +43,7 @@
  * DOC: output probing helper overview
  *
  * This library provides some helper code for output probing. It provides an
- * implementation of the core connector->fill_modes interface with
+ * implementation of the core &drm_connector_funcs.fill_modes interface with
  * drm_helper_probe_single_connector_modes.
  *
  * It also provides support for polling connectors with a work item and for
@@ -55,7 +55,7 @@
  * handling code to avoid probing unrelated outputs.
  *
  * The probe helpers share the function table structures with other display
- * helper libraries. See struct &drm_connector_helper_funcs for the details.
+ * helper libraries. See &struct drm_connector_helper_funcs for the details.
  */
 
 static bool drm_kms_helper_poll = true;
@@ -115,32 +115,38 @@ static int drm_helper_probe_add_cmdline_mode(struct drm_connector *connector)
 
 #define DRM_OUTPUT_POLL_PERIOD (10*HZ)
 /**
- * drm_kms_helper_poll_enable_locked - re-enable output polling.
+ * drm_kms_helper_poll_enable - re-enable output polling.
  * @dev: drm_device
  *
- * This function re-enables the output polling work without
- * locking the mode_config mutex.
+ * This function re-enables the output polling work, after it has been
+ * temporarily disabled using drm_kms_helper_poll_disable(), for example over
+ * suspend/resume.
  *
- * This is like drm_kms_helper_poll_enable() however it is to be
- * called from a context where the mode_config mutex is locked
- * already.
+ * Drivers can call this helper from their device resume implementation. It is
+ * an error to call this when the output polling support has not yet been set
+ * up.
+ *
+ * Note that calls to enable and disable polling must be strictly ordered, which
+ * is automatically the case when they're only call from suspend/resume
+ * callbacks.
  */
-void drm_kms_helper_poll_enable_locked(struct drm_device *dev)
+void drm_kms_helper_poll_enable(struct drm_device *dev)
 {
 	bool poll = false;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	unsigned long delay = DRM_OUTPUT_POLL_PERIOD;
-
-	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
 	if (!dev->mode_config.poll_enabled || !drm_kms_helper_poll)
 		return;
 
-	drm_for_each_connector(connector, dev) {
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->polled & (DRM_CONNECTOR_POLL_CONNECT |
 					 DRM_CONNECTOR_POLL_DISCONNECT))
 			poll = true;
 	}
+	drm_connector_list_iter_put(&conn_iter);
 
 	if (dev->mode_config.delayed_event) {
 		/*
@@ -160,7 +166,7 @@ void drm_kms_helper_poll_enable_locked(struct drm_device *dev)
 	if (poll)
 		schedule_delayed_work(&dev->mode_config.output_poll_work, delay);
 }
-EXPORT_SYMBOL(drm_kms_helper_poll_enable_locked);
+EXPORT_SYMBOL(drm_kms_helper_poll_enable);
 
 static enum drm_connector_status
 drm_connector_detect(struct drm_connector *connector, bool force)
@@ -181,9 +187,9 @@ drm_connector_detect(struct drm_connector *connector, bool force)
  * be added to the connector's probed_modes list, then culled (based on validity
  * and the @maxX, @maxY parameters) and put into the normal modes list.
  *
- * Intended to be used as a generic implementation of the ->fill_modes()
- * @connector vfunc for drivers that use the CRTC helpers for output mode
- * filtering and detection.
+ * Intended to be used as a generic implementation of the
+ * &drm_connector_funcs.fill_modes() vfunc for drivers that use the CRTC helpers
+ * for output mode filtering and detection.
  *
  * The basic procedure is as follows
  *
@@ -195,7 +201,7 @@ drm_connector_detect(struct drm_connector *connector, bool force)
  *
  *    - debugfs 'override_edid' (used for testing only)
  *    - firmware EDID (drm_load_edid_firmware())
- *    - connector helper ->get_modes() vfunc
+ *    - &drm_connector_helper_funcs.get_modes vfunc
  *    - if the connector status is connector_status_connected, standard
  *      VESA DMT modes up to 1024x768 are automatically added
  *      (drm_add_modes_noedid())
@@ -214,10 +220,10 @@ drm_connector_detect(struct drm_connector *connector, bool force)
  *    - drm_mode_validate_basic() performs basic sanity checks
  *    - drm_mode_validate_size() filters out modes larger than @maxX and @maxY
  *      (if specified)
- *    - drm_mode_validate_flag() checks the modes againt basic connector
- *      capabilites (interlace_allowed,doublescan_allowed,stereo_allowed)
- *    - the optional connector ->mode_valid() helper can perform driver and/or
- *      hardware specific checks
+ *    - drm_mode_validate_flag() checks the modes against basic connector
+ *      capabilities (interlace_allowed,doublescan_allowed,stereo_allowed)
+ *    - the optional &drm_connector_helper_funcs.mode_valid helper can perform
+ *      driver and/or hardware specific checks
  *
  * 5. Any mode whose status is not OK is pruned from the connector's modes list,
  *    accompanied by a debug message indicating the reason for the mode's
@@ -287,7 +293,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 
 	/* Re-enable polling in case the global poll config changed. */
 	if (drm_kms_helper_poll != dev->mode_config.poll_running)
-		drm_kms_helper_poll_enable_locked(dev);
+		drm_kms_helper_poll_enable(dev);
 
 	dev->mode_config.poll_running = drm_kms_helper_poll;
 
@@ -392,6 +398,7 @@ static void output_poll_execute(struct work_struct *work)
 	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.output_poll_work);
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	enum drm_connector_status old_status;
 	bool repoll = false, changed;
 
@@ -407,8 +414,8 @@ static void output_poll_execute(struct work_struct *work)
 		goto out;
 	}
 
-	drm_for_each_connector(connector, dev) {
-
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		/* Ignore forced connectors. */
 		if (connector->force)
 			continue;
@@ -461,6 +468,7 @@ static void output_poll_execute(struct work_struct *work)
 			changed = true;
 		}
 	}
+	drm_connector_list_iter_put(&conn_iter);
 
 	mutex_unlock(&dev->mode_config.mutex);
 
@@ -479,8 +487,12 @@ out:
  * This function disables the output polling work.
  *
  * Drivers can call this helper from their device suspend implementation. It is
- * not an error to call this even when output polling isn't enabled or arlready
- * disabled.
+ * not an error to call this even when output polling isn't enabled or already
+ * disabled. Polling is re-enabled by calling drm_kms_helper_poll_enable().
+ *
+ * Note that calls to enable and disable polling must be strictly ordered, which
+ * is automatically the case when they're only call from suspend/resume
+ * callbacks.
  */
 void drm_kms_helper_poll_disable(struct drm_device *dev)
 {
@@ -489,24 +501,6 @@ void drm_kms_helper_poll_disable(struct drm_device *dev)
 	cancel_delayed_work_sync(&dev->mode_config.output_poll_work);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_disable);
-
-/**
- * drm_kms_helper_poll_enable - re-enable output polling.
- * @dev: drm_device
- *
- * This function re-enables the output polling work.
- *
- * Drivers can call this helper from their device resume implementation. It is
- * an error to call this when the output polling support has not yet been set
- * up.
- */
-void drm_kms_helper_poll_enable(struct drm_device *dev)
-{
-	mutex_lock(&dev->mode_config.mutex);
-	drm_kms_helper_poll_enable_locked(dev);
-	mutex_unlock(&dev->mode_config.mutex);
-}
-EXPORT_SYMBOL(drm_kms_helper_poll_enable);
 
 /**
  * drm_kms_helper_poll_init - initialize and enable output polling
@@ -572,6 +566,7 @@ EXPORT_SYMBOL(drm_kms_helper_poll_fini);
 bool drm_helper_hpd_irq_event(struct drm_device *dev)
 {
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	enum drm_connector_status old_status;
 	bool changed = false;
 
@@ -579,8 +574,8 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 		return false;
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_for_each_connector(connector, dev) {
-
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		/* Only handle HPD capable connectors. */
 		if (!(connector->polled & DRM_CONNECTOR_POLL_HPD))
 			continue;
@@ -596,7 +591,7 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 		if (old_status != connector->status)
 			changed = true;
 	}
-
+	drm_connector_list_iter_put(&conn_iter);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (changed)

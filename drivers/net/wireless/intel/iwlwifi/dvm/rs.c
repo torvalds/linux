@@ -364,7 +364,7 @@ static void rs_program_fix_rate(struct iwl_priv *priv,
 /*
 	get the traffic load value for tid
 */
-static u32 rs_tl_get_load(struct iwl_lq_sta *lq_data, u8 tid)
+static void rs_tl_get_load(struct iwl_lq_sta *lq_data, u8 tid)
 {
 	u32 curr_time = jiffies_to_msecs(jiffies);
 	u32 time_diff;
@@ -372,14 +372,14 @@ static u32 rs_tl_get_load(struct iwl_lq_sta *lq_data, u8 tid)
 	struct iwl_traffic_load *tl = NULL;
 
 	if (tid >= IWL_MAX_TID_COUNT)
-		return 0;
+		return;
 
 	tl = &(lq_data->load[tid]);
 
 	curr_time -= curr_time % TID_ROUND_VALUE;
 
 	if (!(tl->queue_count))
-		return 0;
+		return;
 
 	time_diff = TIME_WRAP_AROUND(tl->time_stamp, curr_time);
 	index = time_diff / TID_QUEUE_CELL_SPACING;
@@ -388,8 +388,6 @@ static u32 rs_tl_get_load(struct iwl_lq_sta *lq_data, u8 tid)
 	/* TID_MAX_TIME_DIFF */
 	if (index >= TID_QUEUE_MAX_SIZE)
 		rs_tl_rm_old_stats(tl, curr_time);
-
-	return tl->total;
 }
 
 static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
@@ -397,7 +395,6 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 				      struct ieee80211_sta *sta)
 {
 	int ret = -EAGAIN;
-	u32 load;
 
 	/*
 	 * Don't create TX aggregation sessions when in high
@@ -410,7 +407,7 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 		return ret;
 	}
 
-	load = rs_tl_get_load(lq_data, tid);
+	rs_tl_get_load(lq_data, tid);
 
 	IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
 			sta->addr, tid);
@@ -743,7 +740,10 @@ static u16 rs_get_adjacent_rate(struct iwl_priv *priv, u8 index, u16 rate_mask,
 
 		/* Find the previous rate that is in the rate mask */
 		i = index - 1;
-		for (mask = (1 << i); i >= 0; i--, mask >>= 1) {
+		if (i >= 0)
+			mask = BIT(i);
+
+		for (; i >= 0; i--, mask >>= 1) {
 			if (rate_mask & mask) {
 				low = i;
 				break;

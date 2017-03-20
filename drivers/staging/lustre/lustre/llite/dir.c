@@ -432,7 +432,7 @@ static int ll_dir_setdirstripe(struct inode *parent, struct lmv_user_md *lump,
 
 	if (!IS_POSIXACL(parent) || !exp_connect_umask(ll_i2mdexp(parent)))
 		mode &= ~current_umask();
-	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
+	mode = (mode & (0777 | S_ISVTX)) | S_IFDIR;
 	op_data = ll_prep_md_op_data(NULL, parent, NULL, dirname,
 				     strlen(dirname), mode, LUSTRE_OPC_MKDIR,
 				     lump);
@@ -521,12 +521,15 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 	rc = md_setattr(sbi->ll_md_exp, op_data, lump, lum_size, &req);
 	ll_finish_md_op_data(op_data);
 	ptlrpc_req_finished(req);
-	if (rc) {
-		if (rc != -EPERM && rc != -EACCES)
-			CERROR("mdc_setattr fails: rc = %d\n", rc);
-	}
+	if (rc)
+		return rc;
 
-	/* In the following we use the fact that LOV_USER_MAGIC_V1 and
+#if OBD_OCD_VERSION(2, 13, 53, 0) > LUSTRE_VERSION_CODE
+	/*
+	 * 2.9 server has stored filesystem default stripe in ROOT xattr,
+	 * and it's stored into system config for backward compatibility.
+	 *
+	 * In the following we use the fact that LOV_USER_MAGIC_V1 and
 	 * LOV_USER_MAGIC_V3 have the same initial fields so we do not
 	 * need to make the distinction between the 2 versions
 	 */
@@ -567,6 +570,7 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 end:
 		kfree(param);
 	}
+#endif
 	return rc;
 }
 

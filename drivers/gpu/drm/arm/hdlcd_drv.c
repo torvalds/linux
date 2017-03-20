@@ -255,12 +255,6 @@ static int hdlcd_debugfs_init(struct drm_minor *minor)
 	return drm_debugfs_create_files(hdlcd_debugfs_list,
 		ARRAY_SIZE(hdlcd_debugfs_list),	minor->debugfs_root, minor);
 }
-
-static void hdlcd_debugfs_cleanup(struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(hdlcd_debugfs_list,
-		ARRAY_SIZE(hdlcd_debugfs_list), minor);
-}
 #endif
 
 static const struct file_operations fops = {
@@ -303,7 +297,6 @@ static struct drm_driver hdlcd_driver = {
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = hdlcd_debugfs_init,
-	.debugfs_cleanup = hdlcd_debugfs_cleanup,
 #endif
 	.fops = &fops,
 	.name = "hdlcd",
@@ -356,7 +349,7 @@ static int hdlcd_drm_bind(struct device *dev)
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
 
-	hdlcd->fbdev = drm_fbdev_cma_init(drm, 32, drm->mode_config.num_crtc,
+	hdlcd->fbdev = drm_fbdev_cma_init(drm, 32,
 					  drm->mode_config.num_connector);
 
 	if (IS_ERR(hdlcd->fbdev)) {

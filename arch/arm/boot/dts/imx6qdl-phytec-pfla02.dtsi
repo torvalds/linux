@@ -76,7 +76,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
 	status = "okay";
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 24 0>;
 
 	flash@0 {

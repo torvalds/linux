@@ -1576,7 +1576,7 @@ static int vpfe_s_fmt(struct file *file, void *priv,
 		return -EBUSY;
 	}
 
-	ret = vpfe_try_fmt(file, priv, &format);
+	ret = __vpfe_get_format(vpfe, &format, &bpp);
 	if (ret)
 		return ret;
 

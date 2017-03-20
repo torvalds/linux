@@ -865,7 +865,7 @@ static inline void flush_requests(struct blkfront_ring_info *rinfo)
 static inline bool blkif_request_flush_invalid(struct request *req,
 					       struct blkfront_info *info)
 {
-	return ((req->cmd_type != REQ_TYPE_FS) ||
+	return (blk_rq_is_passthrough(req) ||
 		((req_op(req) == REQ_OP_FLUSH) &&
 		 !info->feature_flush) ||
 		((req->cmd_flags & REQ_FUA) &&

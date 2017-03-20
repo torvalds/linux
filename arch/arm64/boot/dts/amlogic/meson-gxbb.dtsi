@@ -50,28 +50,6 @@
 / {
 	compatible = "amlogic,meson-gxbb";
 
-	scpi {
-		compatible = "amlogic,meson-gxbb-scpi", "arm,scpi-pre-1.0";
-		mboxes = <&mailbox 1 &mailbox 2>;
-		shmem = <&cpu_scp_lpri &cpu_scp_hpri>;
-
-		scpi_clocks: clocks {
-			compatible = "arm,scpi-clocks";
-
-			scpi_dvfs: scpi_clocks@0 {
-				compatible = "arm,scpi-dvfs-clocks";
-				#clock-cells = <1>;
-				clock-indices = <0>;
-				clock-output-names = "vcpu";
-			};
-		};
-
-		scpi_sensors: sensors {
-			compatible = "arm,scpi-sensors";
-			#thermal-sensor-cells = <1>;
-		};
-	};
-
 	soc {
 		usb0_phy: phy@c0000000 {
 			compatible = "amlogic,meson-gxbb-usb2-phy";
@@ -91,25 +69,6 @@
 			clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
 			clock-names = "usb_general", "usb";
 			status = "disabled";
-		};
-
-		sram: sram@c8000000 {
-			compatible = "amlogic,meson-gxbb-sram", "mmio-sram";
-			reg = <0x0 0xc8000000 0x0 0x14000>;
-
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0 0x0 0xc8000000 0x14000>;
-
-			cpu_scp_lpri: scp-shmem@0 {
-				compatible = "amlogic,meson-gxbb-scp-shmem";
-				reg = <0x13000 0x400>;
-			};
-
-			cpu_scp_hpri: scp-shmem@200 {
-				compatible = "amlogic,meson-gxbb-scp-shmem";
-				reg = <0x13400 0x400>;
-			};
 		};
 
 		usb0: usb@c9000000 {
@@ -136,22 +95,6 @@
 			status = "disabled";
 		};
 	};
-};
-
-&cpu0 {
-	clocks = <&scpi_dvfs 0>;
-};
-
-&cpu1 {
-	clocks = <&scpi_dvfs 0>;
-};
-
-&cpu2 {
-	clocks = <&scpi_dvfs 0>;
-};
-
-&cpu3 {
-	clocks = <&scpi_dvfs 0>;
 };
 
 &cbus {
@@ -192,6 +135,29 @@
 			mux {
 				groups = "uart_tx_ao_a", "uart_rx_ao_a";
 				function = "uart_ao";
+			};
+		};
+
+		uart_ao_a_cts_rts_pins: uart_ao_a_cts_rts {
+			mux {
+				groups = "uart_cts_ao_a",
+				       "uart_rts_ao_a";
+				function = "uart_ao";
+			};
+		};
+
+		uart_ao_b_pins: uart_ao_b {
+			mux {
+				groups = "uart_tx_ao_b", "uart_rx_ao_b";
+				function = "uart_ao_b";
+			};
+		};
+
+		uart_ao_b_cts_rts_pins: uart_ao_b_cts_rts {
+			mux {
+				groups = "uart_cts_ao_b",
+				       "uart_rts_ao_b";
+				function = "uart_ao_b";
 			};
 		};
 
@@ -340,6 +306,14 @@
 			};
 		};
 
+		uart_a_cts_rts_pins: uart_a_cts_rts {
+			mux {
+				groups = "uart_cts_a",
+				       "uart_rts_a";
+				function = "uart_a";
+			};
+		};
+
 		uart_b_pins: uart_b {
 			mux {
 				groups = "uart_tx_b",
@@ -348,10 +322,26 @@
 			};
 		};
 
+		uart_b_cts_rts_pins: uart_b_cts_rts {
+			mux {
+				groups = "uart_cts_b",
+				       "uart_rts_b";
+				function = "uart_b";
+			};
+		};
+
 		uart_c_pins: uart_c {
 			mux {
 				groups = "uart_tx_c",
 				       "uart_rx_c";
+				function = "uart_c";
+			};
+		};
+
+		uart_c_cts_rts_pins: uart_c_cts_rts {
+			mux {
+				groups = "uart_cts_c",
+				       "uart_rts_c";
 				function = "uart_c";
 			};
 		};
@@ -463,6 +453,20 @@
 				function = "pwm_f_y";
 			};
 		};
+
+		hdmi_hpd_pins: hdmi_hpd {
+			mux {
+				groups = "hdmi_hpd";
+				function = "hdmi_hpd";
+			};
+		};
+
+		hdmi_i2c_pins: hdmi_i2c {
+			mux {
+				groups = "hdmi_sda", "hdmi_scl";
+				function = "hdmi_i2c";
+			};
+		};
 	};
 };
 
@@ -484,6 +488,16 @@
 
 &i2c_C {
 	clocks = <&clkc CLKID_I2C>;
+};
+
+&saradc {
+	compatible = "amlogic,meson-gxbb-saradc", "amlogic,meson-saradc";
+	clocks = <&xtal>,
+		 <&clkc CLKID_SAR_ADC>,
+		 <&clkc CLKID_SANA>,
+		 <&clkc CLKID_SAR_ADC_CLK>,
+		 <&clkc CLKID_SAR_ADC_SEL>;
+	clock-names = "clkin", "core", "sana", "adc_clk", "adc_sel";
 };
 
 &sd_emmc_a {

@@ -90,6 +90,7 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 
 static struct notifier_block nfit_mce_dec = {
 	.notifier_call	= nfit_handle_mce,
+	.priority	= MCE_PRIO_NFIT,
 };
 
 void nfit_mce_register(void)

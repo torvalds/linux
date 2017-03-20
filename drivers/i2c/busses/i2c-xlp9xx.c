@@ -334,7 +334,7 @@ static u32 xlp9xx_i2c_functionality(struct i2c_adapter *adapter)
 		I2C_FUNC_10BIT_ADDR;
 }
 
-static struct i2c_algorithm xlp9xx_i2c_algo = {
+static const struct i2c_algorithm xlp9xx_i2c_algo = {
 	.master_xfer = xlp9xx_i2c_xfer,
 	.functionality = xlp9xx_i2c_functionality,
 };

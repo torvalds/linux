@@ -94,6 +94,12 @@
 	clock-frequency = <8000000>;
 };
 
+&rtc {
+	assigned-clocks = <&rcc 1 CLK_RTC>;
+	assigned-clock-parents = <&rcc 1 CLK_LSI>;
+	status = "okay";
+};
+
 &usart1 {
 	pinctrl-0 = <&usart1_pins_a>;
 	pinctrl-names = "default";

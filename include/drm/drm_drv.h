@@ -64,16 +64,55 @@ struct drm_mode_create_dumb;
  * structure for GEM drivers.
  */
 struct drm_driver {
+
+	/**
+	 * @load:
+	 *
+	 * Backward-compatible driver callback to complete
+	 * initialization steps after the driver is registered.  For
+	 * this reason, may suffer from race conditions and its use is
+	 * deprecated for new drivers.  It is therefore only supported
+	 * for existing drivers not yet converted to the new scheme.
+	 * See drm_dev_init() and drm_dev_register() for proper and
+	 * race-free way to set up a &struct drm_device.
+	 *
+	 * Returns:
+	 *
+	 * Zero on success, non-zero value on failure.
+	 */
 	int (*load) (struct drm_device *, unsigned long flags);
-	int (*firstopen) (struct drm_device *);
 	int (*open) (struct drm_device *, struct drm_file *);
 	void (*preclose) (struct drm_device *, struct drm_file *file_priv);
 	void (*postclose) (struct drm_device *, struct drm_file *);
 	void (*lastclose) (struct drm_device *);
-	int (*unload) (struct drm_device *);
-	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
-	int (*dma_quiescent) (struct drm_device *);
-	int (*context_dtor) (struct drm_device *dev, int context);
+
+	/**
+	 * @unload:
+	 *
+	 * Reverse the effects of the driver load callback.  Ideally,
+	 * the clean up performed by the driver should happen in the
+	 * reverse order of the initialization.  Similarly to the load
+	 * hook, this handler is deprecated and its usage should be
+	 * dropped in favor of an open-coded teardown function at the
+	 * driver layer.  See drm_dev_unregister() and drm_dev_unref()
+	 * for the proper way to remove a &struct drm_device.
+	 *
+	 * The unload() hook is called right after unregistering
+	 * the device.
+	 *
+	 */
+	void (*unload) (struct drm_device *);
+
+	/**
+	 * @release:
+	 *
+	 * Optional callback for destroying device data after the final
+	 * reference is released, i.e. the device is being destroyed. Drivers
+	 * using this callback are responsible for calling drm_dev_fini()
+	 * to finalize the device and then freeing the struct themselves.
+	 */
+	void (*release) (struct drm_device *);
+
 	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
 
 	/**
@@ -117,20 +156,6 @@ struct drm_driver {
 	 * argument.
 	 */
 	void (*disable_vblank) (struct drm_device *dev, unsigned int pipe);
-
-	/**
-	 * @device_is_agp:
-	 *
-	 * Called by drm_device_is_agp().  Typically used to determine if a card
-	 * is really attached to AGP or not.
-	 *
-	 * Returns:
-	 *
-	 * One of three values is returned depending on whether or not the
-	 * card is absolutely not AGP (return of 0), absolutely is AGP
-	 * (return of 1), or may or may not be AGP (return of 2).
-	 */
-	int (*device_is_agp) (struct drm_device *dev);
 
 	/**
 	 * @get_scanout_position:
@@ -282,7 +307,7 @@ struct drm_driver {
 	/**
 	 * @gem_free_object_unlocked: deconstructor for drm_gem_objects
 	 *
-	 * This is for drivers which are not encumbered with dev->struct_mutex
+	 * This is for drivers which are not encumbered with &drm_device.struct_mutex
 	 * legacy locking schemes. Use this hook instead of @gem_free_object.
 	 */
 	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
@@ -326,9 +351,6 @@ struct drm_driver {
 	void (*gem_prime_vunmap)(struct drm_gem_object *obj, void *vaddr);
 	int (*gem_prime_mmap)(struct drm_gem_object *obj,
 				struct vm_area_struct *vma);
-
-	/* vga arb irq handler */
-	void (*vgaarb_irq)(struct drm_device *dev, bool state);
 
 	/**
 	 * @dumb_create:
@@ -398,13 +420,20 @@ struct drm_driver {
 	char *date;
 
 	u32 driver_features;
-	int dev_priv_size;
 	const struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
 	const struct file_operations *fops;
 
+	/* Everything below here is for legacy driver, never use! */
+	/* private: */
+
 	/* List of devices hanging off this driver with stealth attach. */
 	struct list_head legacy_dev_list;
+	int (*firstopen) (struct drm_device *);
+	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
+	int (*dma_quiescent) (struct drm_device *);
+	int (*context_dtor) (struct drm_device *dev, int context);
+	int dev_priv_size;
 };
 
 extern __printf(6, 7)
@@ -419,6 +448,8 @@ extern unsigned int drm_debug;
 int drm_dev_init(struct drm_device *dev,
 		 struct drm_driver *driver,
 		 struct device *parent);
+void drm_dev_fini(struct drm_device *dev);
+
 struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 				 struct device *parent);
 int drm_dev_register(struct drm_device *dev, unsigned long flags);

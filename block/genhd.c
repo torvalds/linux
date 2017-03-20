@@ -613,7 +613,7 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 	disk_alloc_events(disk);
 
 	/* Register BDI before referencing it from bdev */
-	bdi = &disk->queue->backing_dev_info;
+	bdi = disk->queue->backing_dev_info;
 	bdi_register_owner(bdi, disk_to_dev(disk));
 
 	blk_register_region(disk_devt(disk), disk->minors, NULL,
@@ -649,16 +649,27 @@ void del_gendisk(struct gendisk *disk)
 			     DISK_PITER_INCL_EMPTY | DISK_PITER_REVERSE);
 	while ((part = disk_part_iter_next(&piter))) {
 		invalidate_partition(disk, part->partno);
+		bdev_unhash_inode(part_devt(part));
 		delete_partition(disk, part->partno);
 	}
 	disk_part_iter_exit(&piter);
 
 	invalidate_partition(disk, 0);
+	bdev_unhash_inode(disk_devt(disk));
 	set_capacity(disk, 0);
 	disk->flags &= ~GENHD_FL_UP;
 
 	sysfs_remove_link(&disk_to_dev(disk)->kobj, "bdi");
-	blk_unregister_queue(disk);
+	if (disk->queue) {
+		/*
+		 * Unregister bdi before releasing device numbers (as they can
+		 * get reused and we'd get clashes in sysfs).
+		 */
+		bdi_unregister(disk->queue->backing_dev_info);
+		blk_unregister_queue(disk);
+	} else {
+		WARN_ON(1);
+	}
 	blk_unregister_region(disk_devt(disk), disk->minors);
 
 	part_stat_set_all(&disk->part0, 0);

@@ -89,6 +89,10 @@ the call to devm_hwmon_device_register_with_groups or
 hwmon_device_register_with_info and if the automatic (device managed)
 removal would be too late.
 
+All supported hwmon device registration functions only accept valid device
+names. Device names including invalid characters (whitespace, '*', or '-')
+will be rejected. The 'name' parameter is mandatory.
+
 Using devm_hwmon_device_register_with_info()
 --------------------------------------------
 

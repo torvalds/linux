@@ -1718,10 +1718,8 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 	}
 
 	bridge = of_drm_find_bridge(dsi->bridge_node);
-	if (bridge) {
-		encoder->bridge = bridge;
-		drm_bridge_attach(drm_dev, bridge);
-	}
+	if (bridge)
+		drm_bridge_attach(encoder, bridge, NULL);
 
 	return mipi_dsi_host_register(&dsi->dsi_host);
 }

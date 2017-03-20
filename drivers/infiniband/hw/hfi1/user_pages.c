@@ -46,7 +46,7 @@
  */
 
 #include <linux/mm.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/device.h>
 #include <linux/module.h>
 

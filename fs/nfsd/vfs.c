@@ -332,6 +332,37 @@ nfsd_sanitize_attrs(struct inode *inode, struct iattr *iap)
 	}
 }
 
+static __be32
+nfsd_get_write_access(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		struct iattr *iap)
+{
+	struct inode *inode = d_inode(fhp->fh_dentry);
+	int host_err;
+
+	if (iap->ia_size < inode->i_size) {
+		__be32 err;
+
+		err = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry,
+				NFSD_MAY_TRUNC | NFSD_MAY_OWNER_OVERRIDE);
+		if (err)
+			return err;
+	}
+
+	host_err = get_write_access(inode);
+	if (host_err)
+		goto out_nfserrno;
+
+	host_err = locks_verify_truncate(inode, NULL, iap->ia_size);
+	if (host_err)
+		goto out_put_write_access;
+	return 0;
+
+out_put_write_access:
+	put_write_access(inode);
+out_nfserrno:
+	return nfserrno(host_err);
+}
+
 /*
  * Set various file attributes.  After this call fhp needs an fh_put.
  */
@@ -346,6 +377,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	__be32		err;
 	int		host_err;
 	bool		get_write_count;
+	bool		size_change = (iap->ia_valid & ATTR_SIZE);
 
 	if (iap->ia_valid & (ATTR_ATIME | ATTR_MTIME | ATTR_SIZE))
 		accmode |= NFSD_MAY_WRITE|NFSD_MAY_OWNER_OVERRIDE;
@@ -362,7 +394,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	if (get_write_count) {
 		host_err = fh_want_write(fhp);
 		if (host_err)
-			goto out_host_err;
+			goto out;
 	}
 
 	dentry = fhp->fh_dentry;
@@ -384,47 +416,53 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	 * The size case is special, it changes the file in addition to the
 	 * attributes, and file systems don't expect it to be mixed with
 	 * "random" attribute changes.  We thus split out the size change
-	 * into a separate call for vfs_truncate, and do the rest as a
-	 * a separate setattr call.
+	 * into a separate call to ->setattr, and do the rest as a separate
+	 * setattr call.
 	 */
-	if (iap->ia_valid & ATTR_SIZE) {
-		struct path path = {
-			.mnt	= fhp->fh_export->ex_path.mnt,
-			.dentry	= dentry,
+	if (size_change) {
+		err = nfsd_get_write_access(rqstp, fhp, iap);
+		if (err)
+			return err;
+	}
+
+	fh_lock(fhp);
+	if (size_change) {
+		/*
+		 * RFC5661, Section 18.30.4:
+		 *   Changing the size of a file with SETATTR indirectly
+		 *   changes the time_modify and change attributes.
+		 *
+		 * (and similar for the older RFCs)
+		 */
+		struct iattr size_attr = {
+			.ia_valid	= ATTR_SIZE | ATTR_CTIME | ATTR_MTIME,
+			.ia_size	= iap->ia_size,
 		};
-		bool implicit_mtime = false;
+
+		host_err = notify_change(dentry, &size_attr, NULL);
+		if (host_err)
+			goto out_unlock;
+		iap->ia_valid &= ~ATTR_SIZE;
 
 		/*
-		 * vfs_truncate implicity updates the mtime IFF the file size
-		 * actually changes.  Avoid the additional seattr call below if
-		 * the only other attribute that the client sends is the mtime.
+		 * Avoid the additional setattr call below if the only other
+		 * attribute that the client sends is the mtime, as we update
+		 * it as part of the size change above.
 		 */
-		if (iap->ia_size != i_size_read(inode) &&
-		    ((iap->ia_valid & ~(ATTR_SIZE | ATTR_MTIME)) == 0))
-			implicit_mtime = true;
-
-		host_err = vfs_truncate(&path, iap->ia_size);
-		if (host_err)
-			goto out_host_err;
-
-		iap->ia_valid &= ~ATTR_SIZE;
-		if (implicit_mtime)
-			iap->ia_valid &= ~ATTR_MTIME;
-		if (!iap->ia_valid)
-			goto done;
+		if ((iap->ia_valid & ~ATTR_MTIME) == 0)
+			goto out_unlock;
 	}
 
 	iap->ia_valid |= ATTR_CTIME;
-
-	fh_lock(fhp);
 	host_err = notify_change(dentry, iap, NULL);
-	fh_unlock(fhp);
-	if (host_err)
-		goto out_host_err;
 
-done:
-	host_err = commit_metadata(fhp);
-out_host_err:
+out_unlock:
+	fh_unlock(fhp);
+	if (size_change)
+		put_write_access(inode);
+out:
+	if (!host_err)
+		host_err = commit_metadata(fhp);
 	return nfserrno(host_err);
 }
 
@@ -917,14 +955,12 @@ static int wait_for_concurrent_writes(struct file *file)
 __be32
 nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				loff_t offset, struct kvec *vec, int vlen,
-				unsigned long *cnt, int *stablep)
+				unsigned long *cnt, int stable)
 {
 	struct svc_export	*exp;
-	struct inode		*inode;
 	mm_segment_t		oldfs;
 	__be32			err = 0;
 	int			host_err;
-	int			stable = *stablep;
 	int			use_wgather;
 	loff_t			pos = offset;
 	unsigned int		pflags = current->flags;
@@ -939,13 +975,11 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		 */
 		current->flags |= PF_LESS_THROTTLE;
 
-	inode = file_inode(file);
-	exp   = fhp->fh_export;
-
+	exp = fhp->fh_export;
 	use_wgather = (rqstp->rq_vers == 2) && EX_WGATHER(exp);
 
 	if (!EX_ISSYNC(exp))
-		stable = 0;
+		stable = NFS_UNSTABLE;
 
 	if (stable && !use_wgather)
 		flags |= RWF_SYNC;
@@ -1012,35 +1046,22 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
  * N.B. After this call fhp needs an fh_put
  */
 __be32
-nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
-		loff_t offset, struct kvec *vec, int vlen, unsigned long *cnt,
-		int *stablep)
+nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t offset,
+	   struct kvec *vec, int vlen, unsigned long *cnt, int stable)
 {
-	__be32			err = 0;
+	struct file *file = NULL;
+	__be32 err = 0;
 
 	trace_write_start(rqstp, fhp, offset, vlen);
 
-	if (file) {
-		err = nfsd_permission(rqstp, fhp->fh_export, fhp->fh_dentry,
-				NFSD_MAY_WRITE|NFSD_MAY_OWNER_OVERRIDE);
-		if (err)
-			goto out;
-		trace_write_opened(rqstp, fhp, offset, vlen);
-		err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen, cnt,
-				stablep);
-		trace_write_io_done(rqstp, fhp, offset, vlen);
-	} else {
-		err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_WRITE, &file);
-		if (err)
-			goto out;
+	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_WRITE, &file);
+	if (err)
+		goto out;
 
-		trace_write_opened(rqstp, fhp, offset, vlen);
-		if (cnt)
-			err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen,
-					     cnt, stablep);
-		trace_write_io_done(rqstp, fhp, offset, vlen);
-		fput(file);
-	}
+	trace_write_opened(rqstp, fhp, offset, vlen);
+	err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen, cnt, stable);
+	trace_write_io_done(rqstp, fhp, offset, vlen);
+	fput(file);
 out:
 	trace_write_done(rqstp, fhp, offset, vlen);
 	return err;

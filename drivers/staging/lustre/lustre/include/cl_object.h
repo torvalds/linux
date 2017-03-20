@@ -284,12 +284,6 @@ struct cl_layout {
 	size_t		cl_size;
 	/** Layout generation. */
 	u32		cl_layout_gen;
-	/**
-	 * True if this is a released file.
-	 * Temporarily added for released file truncate in ll_setattr_raw().
-	 * It will be removed later. -Jinshan
-	 */
-	bool		cl_is_released;
 };
 
 /**
@@ -1458,8 +1452,10 @@ struct cl_read_ahead {
 	 * cra_end is included.
 	 */
 	pgoff_t cra_end;
+	/* optimal RPC size for this read, by pages */
+	unsigned long cra_rpc_size;
 	/*
-	 * Release routine. If readahead holds resources underneath, this
+	 * Release callback. If readahead holds resources underneath, this
 	 * function should be called to release it.
 	 */
 	void (*cra_release)(const struct lu_env *env, void *cbdata);
@@ -2311,7 +2307,7 @@ struct cl_io *cl_io_top(struct cl_io *io);
 do {									\
 	typeof(foo_io) __foo_io = (foo_io);				\
 									\
-	CLASSERT(offsetof(typeof(*__foo_io), base) == 0);		\
+	BUILD_BUG_ON(offsetof(typeof(*__foo_io), base) != 0);		\
 	memset(&__foo_io->base + 1, 0,					\
 	       sizeof(*__foo_io) - sizeof(__foo_io->base));		\
 } while (0)

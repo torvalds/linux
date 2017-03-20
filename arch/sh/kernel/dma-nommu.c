@@ -65,7 +65,7 @@ static void nommu_sync_sg(struct device *dev, struct scatterlist *sg,
 }
 #endif
 
-struct dma_map_ops nommu_dma_ops = {
+const struct dma_map_ops nommu_dma_ops = {
 	.alloc			= dma_generic_alloc_coherent,
 	.free			= dma_generic_free_coherent,
 	.map_page		= nommu_map_page,

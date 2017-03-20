@@ -111,6 +111,14 @@
 #define IPC_ILUP_BIT			(1<<IPC_ILUP_OFFS)
 
 /*
+ * ISH FW status bits in ISH FW Status Register
+ */
+#define IPC_ISH_FWSTS_SHIFT		12
+#define IPC_ISH_FWSTS_MASK		GENMASK(15, 12)
+#define IPC_GET_ISH_FWSTS(status)	\
+	(((status) & IPC_ISH_FWSTS_MASK) >> IPC_ISH_FWSTS_SHIFT)
+
+/*
  * FW status bits (relevant)
  */
 #define	IPC_FWSTS_ILUP		0x1

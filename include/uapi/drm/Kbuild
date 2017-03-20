@@ -9,6 +9,7 @@ header-y += i810_drm.h
 header-y += i915_drm.h
 header-y += mga_drm.h
 header-y += nouveau_drm.h
+header-y += omap_drm.h
 header-y += qxl_drm.h
 header-y += r128_drm.h
 header-y += radeon_drm.h

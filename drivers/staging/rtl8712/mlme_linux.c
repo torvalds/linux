@@ -117,7 +117,7 @@ void r8712_os_indicate_disconnect(struct _adapter *adapter)
 		backupTKIPCountermeasure = adapter->securitypriv.
 					   btkip_countermeasure;
 		memset((unsigned char *)&adapter->securitypriv, 0,
-			 sizeof(struct security_priv));
+		       sizeof(struct security_priv));
 		setup_timer(&adapter->securitypriv.tkip_timer,
 			    r8712_use_tkipkey_handler,
 			    (unsigned long)adapter);
@@ -125,8 +125,8 @@ void r8712_os_indicate_disconnect(struct _adapter *adapter)
 		 * for the following connection.
 		 */
 		memcpy(&adapter->securitypriv.PMKIDList[0],
-			&backupPMKIDList[0],
-			sizeof(struct RT_PMKID_LIST) * NUM_PMKID_CACHE);
+		       &backupPMKIDList[0],
+		       sizeof(struct RT_PMKID_LIST) * NUM_PMKID_CACHE);
 		adapter->securitypriv.PMKIDIndex = backupPMKIDIndex;
 		adapter->securitypriv.btkip_countermeasure =
 					 backupTKIPCountermeasure;

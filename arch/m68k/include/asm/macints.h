@@ -14,22 +14,6 @@
 
 #include <asm/irq.h>
 
-/* Setting this prints debugging info for unclaimed interrupts */
-
-#define DEBUG_SPURIOUS
-
-/* Setting this prints debugging info on each autovector interrupt */
-
-/* #define DEBUG_IRQS */
-
-/* Setting this prints debugging info on each Nubus interrupt */
-
-/* #define DEBUG_NUBUS_INT */
-
-/* Setting this prints debugging info on irqs as they enabled and disabled. */
-
-/* #define DEBUG_IRQUSE */
-
 /*
  * Base IRQ number for all Mac68K interrupt sources. Each source
  * has eight indexes (base -> base+7).

@@ -189,12 +189,12 @@ int ufs_qcom_phy_init_clks(struct ufs_qcom_phy *phy_common)
 	if (err)
 		goto out;
 
+skip_txrx_clk:
 	err = ufs_qcom_phy_clk_get(phy_common->dev, "ref_clk_src",
 				   &phy_common->ref_clk_src);
 	if (err)
 		goto out;
 
-skip_txrx_clk:
 	/*
 	 * "ref_clk_parent" is optional hence don't abort init if it's not
 	 * found.
@@ -210,25 +210,19 @@ out:
 }
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_init_clks);
 
-static int __ufs_qcom_phy_init_vreg(struct device *dev,
-		struct ufs_qcom_phy_vreg *vreg, const char *name, bool optional)
+static int ufs_qcom_phy_init_vreg(struct device *dev,
+				  struct ufs_qcom_phy_vreg *vreg,
+				  const char *name)
 {
 	int err = 0;
 
 	char prop_name[MAX_PROP_NAME];
 
-	vreg->name = devm_kstrdup(dev, name, GFP_KERNEL);
-	if (!vreg->name) {
-		err = -ENOMEM;
-		goto out;
-	}
-
+	vreg->name = name;
 	vreg->reg = devm_regulator_get(dev, name);
 	if (IS_ERR(vreg->reg)) {
 		err = PTR_ERR(vreg->reg);
-		vreg->reg = NULL;
-		if (!optional)
-			dev_err(dev, "failed to get %s, %d\n", name, err);
+		dev_err(dev, "failed to get %s, %d\n", name, err);
 		goto out;
 	}
 
@@ -248,9 +242,6 @@ static int __ufs_qcom_phy_init_vreg(struct device *dev,
 			}
 			err = 0;
 		}
-		snprintf(prop_name, MAX_PROP_NAME, "%s-always-on", name);
-		vreg->is_always_on = of_property_read_bool(dev->of_node,
-							   prop_name);
 	}
 
 	if (!strcmp(name, "vdda-pll")) {
@@ -265,15 +256,7 @@ static int __ufs_qcom_phy_init_vreg(struct device *dev,
 	}
 
 out:
-	if (err)
-		kfree(vreg->name);
 	return err;
-}
-
-static int ufs_qcom_phy_init_vreg(struct device *dev,
-			struct ufs_qcom_phy_vreg *vreg, const char *name)
-{
-	return __ufs_qcom_phy_init_vreg(dev, vreg, name, false);
 }
 
 int ufs_qcom_phy_init_vregulators(struct ufs_qcom_phy *phy_common)
@@ -291,9 +274,9 @@ int ufs_qcom_phy_init_vregulators(struct ufs_qcom_phy *phy_common)
 	if (err)
 		goto out;
 
-	/* vddp-ref-clk-* properties are optional */
-	__ufs_qcom_phy_init_vreg(phy_common->dev, &phy_common->vddp_ref_clk,
-				 "vddp-ref-clk", true);
+	err = ufs_qcom_phy_init_vreg(phy_common->dev, &phy_common->vddp_ref_clk,
+				     "vddp-ref-clk");
+
 out:
 	return err;
 }
@@ -416,7 +399,7 @@ static int ufs_qcom_phy_disable_vreg(struct device *dev,
 {
 	int ret = 0;
 
-	if (!vreg || !vreg->enabled || vreg->is_always_on)
+	if (!vreg || !vreg->enabled)
 		goto out;
 
 	ret = regulator_disable(vreg->reg);

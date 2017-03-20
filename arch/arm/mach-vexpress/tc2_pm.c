@@ -54,7 +54,7 @@ static int tc2_pm_cpu_powerup(unsigned int cpu, unsigned int cluster)
 	if (cluster >= TC2_CLUSTERS || cpu >= tc2_nr_cpus[cluster])
 		return -EINVAL;
 	ve_spc_set_resume_addr(cluster, cpu,
-			       virt_to_phys(mcpm_entry_point));
+			       __pa_symbol(mcpm_entry_point));
 	ve_spc_cpu_wakeup_irq(cluster, cpu, true);
 	return 0;
 }
@@ -159,7 +159,7 @@ static int tc2_pm_wait_for_powerdown(unsigned int cpu, unsigned int cluster)
 
 static void tc2_pm_cpu_suspend_prepare(unsigned int cpu, unsigned int cluster)
 {
-	ve_spc_set_resume_addr(cluster, cpu, virt_to_phys(mcpm_entry_point));
+	ve_spc_set_resume_addr(cluster, cpu, __pa_symbol(mcpm_entry_point));
 }
 
 static void tc2_pm_cpu_is_up(unsigned int cpu, unsigned int cluster)

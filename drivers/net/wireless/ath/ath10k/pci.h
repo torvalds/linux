@@ -25,11 +25,6 @@
 #include "ahb.h"
 
 /*
- * maximum number of bytes that can be handled atomically by DiagRead/DiagWrite
- */
-#define DIAG_TRANSFER_LIMIT 2048
-
-/*
  * maximum number of bytes that can be
  * handled atomically by DiagRead/DiagWrite
  */
@@ -237,6 +232,11 @@ struct ath10k_pci {
 
 	/* Chip specific pci full reset function */
 	int (*pci_hard_reset)(struct ath10k *ar);
+
+	/* chip specific methods for converting target CPU virtual address
+	 * space to CE address space
+	 */
+	u32 (*targ_cpu_to_ce_addr)(struct ath10k *ar, u32 addr);
 
 	/* Keep this entry in the last, memory for struct ath10k_ahb is
 	 * allocated (ahb support enabled case) in the continuation of

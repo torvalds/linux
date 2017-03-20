@@ -201,7 +201,7 @@ void free_all_swap_pages(int swap)
 		struct swsusp_extent *ext;
 		unsigned long offset;
 
-		ext = container_of(node, struct swsusp_extent, node);
+		ext = rb_entry(node, struct swsusp_extent, node);
 		rb_erase(node, &swsusp_extents);
 		for (offset = ext->start; offset <= ext->end; offset++)
 			swap_free(swp_entry(swap, offset));

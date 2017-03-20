@@ -37,7 +37,6 @@
 #define IB_USER_VERBS_H
 
 #include <linux/types.h>
-#include <rdma/ib_verbs.h>
 
 /*
  * Increment this value if any changes that break userspace ABI
@@ -247,7 +246,7 @@ struct ib_uverbs_ex_query_device_resp {
 	__u64 device_cap_flags_ex;
 	struct ib_uverbs_rss_caps rss_caps;
 	__u32  max_wq_type_rq;
-	__u32 reserved;
+	__u32 raw_packet_caps;
 };
 
 struct ib_uverbs_query_port {
@@ -548,11 +547,17 @@ enum {
 };
 
 enum {
-	IB_USER_LEGACY_LAST_QP_ATTR_MASK = IB_QP_DEST_QPN
+	/*
+	 * This value is equal to IB_QP_DEST_QPN.
+	 */
+	IB_USER_LEGACY_LAST_QP_ATTR_MASK = 1ULL << 20,
 };
 
 enum {
-	IB_USER_LAST_QP_ATTR_MASK = IB_QP_RATE_LIMIT
+	/*
+	 * This value is equal to IB_QP_RATE_LIMIT.
+	 */
+	IB_USER_LAST_QP_ATTR_MASK = 1ULL << 25,
 };
 
 struct ib_uverbs_ex_create_qp {
@@ -929,6 +934,19 @@ struct ib_uverbs_flow_spec_ipv6 {
 	struct ib_uverbs_flow_ipv6_filter mask;
 };
 
+struct ib_uverbs_flow_spec_action_tag {
+	union {
+		struct ib_uverbs_flow_spec_hdr hdr;
+		struct {
+			__u32 type;
+			__u16 size;
+			__u16 reserved;
+		};
+	};
+	__u32			      tag_id;
+	__u32			      reserved1;
+};
+
 struct ib_uverbs_flow_tunnel_filter {
 	__be32 tunnel_id;
 };
@@ -1048,6 +1066,8 @@ struct ib_uverbs_ex_create_wq  {
 	__u32 cq_handle;
 	__u32 max_wr;
 	__u32 max_sge;
+	__u32 create_flags; /* Use enum ib_wq_flags */
+	__u32 reserved;
 };
 
 struct ib_uverbs_ex_create_wq_resp {
@@ -1076,6 +1096,8 @@ struct ib_uverbs_ex_modify_wq  {
 	__u32 wq_handle;
 	__u32 wq_state;
 	__u32 curr_wq_state;
+	__u32 flags; /* Use enum ib_wq_flags */
+	__u32 flags_mask; /* Use enum ib_wq_flags */
 };
 
 /* Prevent memory allocation rather than max expected size */

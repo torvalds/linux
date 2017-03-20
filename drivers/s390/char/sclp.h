@@ -204,18 +204,56 @@ void sclp_unregister(struct sclp_register *reg);
 int sclp_remove_processed(struct sccb_header *sccb);
 int sclp_deactivate(void);
 int sclp_reactivate(void);
-int sclp_service_call(sclp_cmdw_t command, void *sccb);
 int sclp_sync_request(sclp_cmdw_t command, void *sccb);
 int sclp_sync_request_timeout(sclp_cmdw_t command, void *sccb, int timeout);
 
 int sclp_sdias_init(void);
 void sclp_sdias_exit(void);
 
+enum {
+	sclp_init_state_uninitialized,
+	sclp_init_state_initializing,
+	sclp_init_state_initialized
+};
+
+extern int sclp_init_state;
 extern int sclp_console_pages;
 extern int sclp_console_drop;
 extern unsigned long sclp_console_full;
 
+extern char sclp_early_sccb[PAGE_SIZE];
+
+void sclp_early_wait_irq(void);
+int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb);
+unsigned int sclp_early_con_check_linemode(struct init_sccb *sccb);
+int sclp_early_set_event_mask(struct init_sccb *sccb,
+			      unsigned long receive_mask,
+			      unsigned long send_mask);
+
 /* useful inlines */
+
+/* Perform service call. Return 0 on success, non-zero otherwise. */
+static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
+{
+	int cc = 4; /* Initialize for program check handling */
+
+	asm volatile(
+		"0:	.insn	rre,0xb2200000,%1,%2\n"	 /* servc %1,%2 */
+		"1:	ipm	%0\n"
+		"	srl	%0,28\n"
+		"2:\n"
+		EX_TABLE(0b, 2b)
+		EX_TABLE(1b, 2b)
+		: "+&d" (cc) : "d" (command), "a" ((unsigned long)sccb)
+		: "cc", "memory");
+	if (cc == 4)
+		return -EINVAL;
+	if (cc == 3)
+		return -EIO;
+	if (cc == 2)
+		return -EBUSY;
+	return 0;
+}
 
 /* VM uses EBCDIC 037, LPAR+native(SE+HMC) use EBCDIC 500 */
 /* translate single character from ASCII to EBCDIC */

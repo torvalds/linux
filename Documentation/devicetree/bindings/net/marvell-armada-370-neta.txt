@@ -1,7 +1,7 @@
 * Marvell Armada 370 / Armada XP / Armada 3700 Ethernet Controller (NETA)
 
 Required properties:
-- compatible: could be one of the followings
+- compatible: could be one of the following:
 	"marvell,armada-370-neta"
 	"marvell,armada-xp-neta"
 	"marvell,armada-3700-neta"

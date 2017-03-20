@@ -265,7 +265,9 @@ static arm_v7s_iopte arm_v7s_prot_to_pte(int prot, int lvl,
 	if (!(prot & IOMMU_MMIO))
 		pte |= ARM_V7S_ATTR_TEX(1);
 	if (ap) {
-		pte |= ARM_V7S_PTE_AF | ARM_V7S_PTE_AP_UNPRIV;
+		pte |= ARM_V7S_PTE_AF;
+		if (!(prot & IOMMU_PRIV))
+			pte |= ARM_V7S_PTE_AP_UNPRIV;
 		if (!(prot & IOMMU_WRITE))
 			pte |= ARM_V7S_PTE_AP_RDONLY;
 	}
@@ -288,6 +290,8 @@ static int arm_v7s_pte_to_prot(arm_v7s_iopte pte, int lvl)
 
 	if (!(attr & ARM_V7S_PTE_AP_RDONLY))
 		prot |= IOMMU_WRITE;
+	if (!(attr & ARM_V7S_PTE_AP_UNPRIV))
+		prot |= IOMMU_PRIV;
 	if ((attr & (ARM_V7S_TEX_MASK << ARM_V7S_TEX_SHIFT)) == 0)
 		prot |= IOMMU_MMIO;
 	else if (pte & ARM_V7S_ATTR_C)

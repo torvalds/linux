@@ -48,7 +48,7 @@ nfnl_userspace_cthelper(struct sk_buff *skb, unsigned int protoff,
 	if (helper == NULL)
 		return NF_DROP;
 
-	/* This is an user-space helper not yet configured, skip. */
+	/* This is a user-space helper not yet configured, skip. */
 	if ((helper->flags &
 	    (NF_CT_HELPER_F_USERSPACE | NF_CT_HELPER_F_CONFIGURED)) ==
 	     NF_CT_HELPER_F_USERSPACE)

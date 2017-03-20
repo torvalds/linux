@@ -597,15 +597,13 @@ static int synaptics_is_pt_packet(unsigned char *buf)
 	return (buf[0] & 0xFC) == 0x84 && (buf[3] & 0xCC) == 0xC4;
 }
 
-static void synaptics_pass_pt_packet(struct psmouse *psmouse,
-				     struct serio *ptport,
+static void synaptics_pass_pt_packet(struct serio *ptport,
 				     unsigned char *packet)
 {
-	struct synaptics_data *priv = psmouse->private;
 	struct psmouse *child = serio_get_drvdata(ptport);
 
 	if (child && child->state == PSMOUSE_ACTIVATED) {
-		serio_interrupt(ptport, packet[1] | priv->pt_buttons, 0);
+		serio_interrupt(ptport, packet[1], 0);
 		serio_interrupt(ptport, packet[4], 0);
 		serio_interrupt(ptport, packet[5], 0);
 		if (child->pktsize == 4)
@@ -856,7 +854,6 @@ static void synaptics_report_ext_buttons(struct psmouse *psmouse,
 	struct input_dev *dev = psmouse->dev;
 	struct synaptics_data *priv = psmouse->private;
 	int ext_bits = (SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap) + 1) >> 1;
-	char buf[6] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	int i;
 
 	if (!SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap))
@@ -883,15 +880,18 @@ static void synaptics_report_ext_buttons(struct psmouse *psmouse,
 	 * physically wired to the touchpad. Re-route them through
 	 * the pass-through interface.
 	 */
-	if (!priv->pt_port)
-		return;
+	if (priv->pt_port) {
+		u8 pt_buttons;
 
-	/* The trackstick expects at most 3 buttons */
-	priv->pt_buttons = SYN_CAP_EXT_BUTTON_STICK_L(hw->ext_buttons)      |
-			   SYN_CAP_EXT_BUTTON_STICK_R(hw->ext_buttons) << 1 |
-			   SYN_CAP_EXT_BUTTON_STICK_M(hw->ext_buttons) << 2;
+		/* The trackstick expects at most 3 buttons */
+		pt_buttons = SYN_CAP_EXT_BUTTON_STICK_L(hw->ext_buttons)      |
+			     SYN_CAP_EXT_BUTTON_STICK_R(hw->ext_buttons) << 1 |
+			     SYN_CAP_EXT_BUTTON_STICK_M(hw->ext_buttons) << 2;
 
-	synaptics_pass_pt_packet(psmouse, priv->pt_port, buf);
+		serio_interrupt(priv->pt_port,
+				PSMOUSE_OOB_EXTRA_BTNS, SERIO_OOB_DATA);
+		serio_interrupt(priv->pt_port, pt_buttons, SERIO_OOB_DATA);
+	}
 }
 
 static void synaptics_report_buttons(struct psmouse *psmouse,
@@ -1132,7 +1132,7 @@ static psmouse_ret_t synaptics_process_byte(struct psmouse *psmouse)
 		if (SYN_CAP_PASS_THROUGH(priv->capabilities) &&
 		    synaptics_is_pt_packet(psmouse->packet)) {
 			if (priv->pt_port)
-				synaptics_pass_pt_packet(psmouse, priv->pt_port,
+				synaptics_pass_pt_packet(priv->pt_port,
 							 psmouse->packet);
 		} else
 			synaptics_process_packet(psmouse);

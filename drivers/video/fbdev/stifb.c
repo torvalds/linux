@@ -1294,6 +1294,10 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	strcpy(fix->id, "stifb");
 	info->fbops = &stifb_ops;
 	info->screen_base = ioremap_nocache(REGION_BASE(fb,1), fix->smem_len);
+	if (!info->screen_base) {
+		printk(KERN_ERR "stifb: failed to map memory\n");
+		goto out_err0;
+	}
 	info->screen_size = fix->smem_len;
 	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA;
 	info->pseudo_palette = &fb->pseudo_palette;

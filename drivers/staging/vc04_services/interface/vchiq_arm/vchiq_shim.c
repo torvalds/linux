@@ -39,8 +39,6 @@
 
 #include "vchiq_util.h"
 
-#include <stddef.h>
-
 #define vchiq_status_to_vchi(status) ((int32_t)status)
 
 typedef struct {
@@ -158,6 +156,7 @@ EXPORT_SYMBOL(vchi_msg_remove);
  * Returns: int32_t - success == 0
  *
  ***********************************************************/
+static
 int32_t vchi_msg_queue(VCHI_SERVICE_HANDLE_T handle,
 	ssize_t (*copy_callback)(void *context, void *dest,
 				 size_t offset, size_t maxsize),
@@ -186,7 +185,62 @@ int32_t vchi_msg_queue(VCHI_SERVICE_HANDLE_T handle,
 
 	return vchiq_status_to_vchi(status);
 }
-EXPORT_SYMBOL(vchi_msg_queue);
+
+static ssize_t
+vchi_queue_kernel_message_callback(void *context,
+				   void *dest,
+				   size_t offset,
+				   size_t maxsize)
+{
+	memcpy(dest, context + offset, maxsize);
+	return maxsize;
+}
+
+int
+vchi_queue_kernel_message(VCHI_SERVICE_HANDLE_T handle,
+			  void *data,
+			  unsigned int size)
+{
+	return vchi_msg_queue(handle,
+			      vchi_queue_kernel_message_callback,
+			      data,
+			      size);
+}
+EXPORT_SYMBOL(vchi_queue_kernel_message);
+
+struct vchi_queue_user_message_context {
+	void __user *data;
+};
+
+static ssize_t
+vchi_queue_user_message_callback(void *context,
+				 void *dest,
+				 size_t offset,
+				 size_t maxsize)
+{
+	struct vchi_queue_user_message_context *copycontext = context;
+
+	if (copy_from_user(dest, copycontext->data + offset, maxsize))
+		return -EFAULT;
+
+	return maxsize;
+}
+
+int
+vchi_queue_user_message(VCHI_SERVICE_HANDLE_T handle,
+			void __user *data,
+			unsigned int size)
+{
+	struct vchi_queue_user_message_context copycontext = {
+		.data = data
+	};
+
+	return vchi_msg_queue(handle,
+			      vchi_queue_user_message_callback,
+			      &copycontext,
+			      size);
+}
+EXPORT_SYMBOL(vchi_queue_user_message);
 
 /***********************************************************
  * Name: vchi_bulk_queue_receive
@@ -527,7 +581,7 @@ static VCHIQ_STATUS_T shim_callback(VCHIQ_REASON_T reason,
 	SHIM_SERVICE_T *service =
 		(SHIM_SERVICE_T *)VCHIQ_GET_SERVICE_USERDATA(handle);
 
-        if (!service->callback)
+	if (!service->callback)
 		goto release;
 
 	switch (reason) {
@@ -577,7 +631,7 @@ static VCHIQ_STATUS_T shim_callback(VCHIQ_REASON_T reason,
 	}
 
 release:
-        vchiq_release_message(service->handle, header);
+	vchiq_release_message(service->handle, header);
 done:
 	return VCHIQ_SUCCESS;
 }
@@ -739,16 +793,18 @@ int32_t vchi_service_set_option(const VCHI_SERVICE_HANDLE_T handle,
 }
 EXPORT_SYMBOL(vchi_service_set_option);
 
-int32_t vchi_get_peer_version( const VCHI_SERVICE_HANDLE_T handle, short *peer_version )
+int32_t vchi_get_peer_version(const VCHI_SERVICE_HANDLE_T handle, short *peer_version)
 {
-   int32_t ret = -1;
-   SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
-   if(service)
-   {
-      VCHIQ_STATUS_T status = vchiq_get_peer_version(service->handle, peer_version);
-      ret = vchiq_status_to_vchi( status );
-   }
-   return ret;
+	int32_t ret = -1;
+	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	if (service)
+	{
+		VCHIQ_STATUS_T status;
+
+		status = vchiq_get_peer_version(service->handle, peer_version);
+		ret = vchiq_status_to_vchi(status);
+	}
+	return ret;
 }
 EXPORT_SYMBOL(vchi_get_peer_version);
 

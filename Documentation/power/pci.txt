@@ -713,7 +713,7 @@ In addition to that the prepare() callback may carry out some operations
 preparing the device to be suspended, although it should not allocate memory
 (if additional memory is required to suspend the device, it has to be
 preallocated earlier, for example in a suspend/hibernate notifier as described
-in Documentation/power/notifiers.txt).
+in Documentation/driver-api/pm/notifiers.rst).
 
 3.1.2. suspend()
 

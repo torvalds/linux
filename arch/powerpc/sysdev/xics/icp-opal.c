@@ -91,6 +91,16 @@ static unsigned int icp_opal_get_irq(void)
 
 static void icp_opal_set_cpu_priority(unsigned char cppr)
 {
+	/*
+	 * Here be dragons. The caller has asked to allow only IPI's and not
+	 * external interrupts. But OPAL XIVE doesn't support that. So instead
+	 * of allowing no interrupts allow all. That's still not right, but
+	 * currently the only caller who does this is xics_migrate_irqs_away()
+	 * and it works in that case.
+	 */
+	if (cppr >= DEFAULT_PRIORITY)
+		cppr = LOWEST_PRIORITY;
+
 	xics_set_base_cppr(cppr);
 	opal_int_set_cppr(cppr);
 	iosync();
@@ -120,16 +130,47 @@ static void icp_opal_cause_ipi(int cpu, unsigned long data)
 {
 	int hw_cpu = get_hard_smp_processor_id(cpu);
 
+	kvmppc_set_host_ipi(cpu, 1);
 	opal_int_set_mfrr(hw_cpu, IPI_PRIORITY);
 }
 
 static irqreturn_t icp_opal_ipi_action(int irq, void *dev_id)
 {
-	int hw_cpu = hard_smp_processor_id();
+	int cpu = smp_processor_id();
 
-	opal_int_set_mfrr(hw_cpu, 0xff);
+	kvmppc_set_host_ipi(cpu, 0);
+	opal_int_set_mfrr(get_hard_smp_processor_id(cpu), 0xff);
 
 	return smp_ipi_demux();
+}
+
+/*
+ * Called when an interrupt is received on an off-line CPU to
+ * clear the interrupt, so that the CPU can go back to nap mode.
+ */
+void icp_opal_flush_interrupt(void)
+{
+	unsigned int xirr;
+	unsigned int vec;
+
+	do {
+		xirr = icp_opal_get_xirr();
+		vec = xirr & 0x00ffffff;
+		if (vec == XICS_IRQ_SPURIOUS)
+			break;
+		if (vec == XICS_IPI) {
+			/* Clear pending IPI */
+			int cpu = smp_processor_id();
+			kvmppc_set_host_ipi(cpu, 0);
+			opal_int_set_mfrr(get_hard_smp_processor_id(cpu), 0xff);
+		} else {
+			pr_err("XICS: hw interrupt 0x%x to offline cpu, "
+			       "disabling\n", vec);
+			xics_mask_unknown_vec(vec);
+		}
+
+		/* EOI the interrupt */
+	} while (opal_int_eoi(xirr) > 0);
 }
 
 #endif /* CONFIG_SMP */

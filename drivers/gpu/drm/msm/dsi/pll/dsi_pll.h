@@ -41,6 +41,8 @@ struct msm_dsi_pll {
 	void (*destroy)(struct msm_dsi_pll *pll);
 	void (*save_state)(struct msm_dsi_pll *pll);
 	int (*restore_state)(struct msm_dsi_pll *pll);
+	int (*set_usecase)(struct msm_dsi_pll *pll,
+			   enum msm_dsi_phy_usecase uc);
 };
 
 #define hw_clk_to_pll(x) container_of(x, struct msm_dsi_pll, clk_hw)
@@ -104,5 +106,14 @@ static inline struct msm_dsi_pll *msm_dsi_pll_28nm_8960_init(
 }
 #endif
 
+#ifdef CONFIG_DRM_MSM_DSI_14NM_PHY
+struct msm_dsi_pll *msm_dsi_pll_14nm_init(struct platform_device *pdev, int id);
+#else
+static inline struct msm_dsi_pll *
+msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
 #endif /* __DSI_PLL_H__ */
 

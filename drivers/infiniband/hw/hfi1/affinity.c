@@ -576,7 +576,7 @@ int hfi1_get_proc_affinity(int node)
 	struct hfi1_affinity_node *entry;
 	cpumask_var_t diff, hw_thread_mask, available_mask, intrs_mask;
 	const struct cpumask *node_mask,
-		*proc_mask = tsk_cpus_allowed(current);
+		*proc_mask = &current->cpus_allowed;
 	struct hfi1_affinity_node_list *affinity = &node_affinity;
 	struct cpu_mask_set *set = &affinity->proc;
 

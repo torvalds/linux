@@ -31,13 +31,16 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/rbtree.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 #include <linux/workqueue.h>
 #include <linux/mdev.h>
 #include <linux/notifier.h>
+#include <linux/dma-iommu.h>
+#include <linux/irqdomain.h>
 
 #define DRIVER_VERSION  "0.2"
 #define DRIVER_AUTHOR   "Alex Williamson <alex.williamson@redhat.com>"
@@ -1179,6 +1182,28 @@ static struct vfio_group *find_iommu_group(struct vfio_domain *domain,
 	return NULL;
 }
 
+static bool vfio_iommu_has_resv_msi(struct iommu_group *group,
+				    phys_addr_t *base)
+{
+	struct list_head group_resv_regions;
+	struct iommu_resv_region *region, *next;
+	bool ret = false;
+
+	INIT_LIST_HEAD(&group_resv_regions);
+	iommu_get_group_resv_regions(group, &group_resv_regions);
+	list_for_each_entry(region, &group_resv_regions, list) {
+		if (region->type & IOMMU_RESV_MSI) {
+			*base = region->start;
+			ret = true;
+			goto out;
+		}
+	}
+out:
+	list_for_each_entry_safe(region, next, &group_resv_regions, list)
+		kfree(region);
+	return ret;
+}
+
 static int vfio_iommu_type1_attach_group(void *iommu_data,
 					 struct iommu_group *iommu_group)
 {
@@ -1187,6 +1212,8 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	struct vfio_domain *domain, *d;
 	struct bus_type *bus = NULL, *mdev_bus;
 	int ret;
+	bool resv_msi, msi_remap;
+	phys_addr_t resv_msi_base;
 
 	mutex_lock(&iommu->lock);
 
@@ -1256,11 +1283,15 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	if (ret)
 		goto out_domain;
 
+	resv_msi = vfio_iommu_has_resv_msi(iommu_group, &resv_msi_base);
+
 	INIT_LIST_HEAD(&domain->group_list);
 	list_add(&group->next, &domain->group_list);
 
-	if (!allow_unsafe_interrupts &&
-	    !iommu_capable(bus, IOMMU_CAP_INTR_REMAP)) {
+	msi_remap = resv_msi ? irq_domain_check_msi_remap() :
+				iommu_capable(bus, IOMMU_CAP_INTR_REMAP);
+
+	if (!allow_unsafe_interrupts && !msi_remap) {
 		pr_warn("%s: No interrupt remapping support.  Use the module param \"allow_unsafe_interrupts\" to enable VFIO IOMMU support on this platform\n",
 		       __func__);
 		ret = -EPERM;
@@ -1301,6 +1332,12 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	ret = vfio_iommu_replay(iommu, domain);
 	if (ret)
 		goto out_detach;
+
+	if (resv_msi) {
+		ret = iommu_get_msi_cookie(domain->domain, resv_msi_base);
+		if (ret)
+			goto out_detach;
+	}
 
 	list_add(&domain->next, &iommu->domain_list);
 

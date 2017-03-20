@@ -55,11 +55,14 @@
 			#address-cells = <0>;
 			interrupt-controller;
 			reg = <0 0xf1001000 0 0x1000>,
-			      <0 0xf1002000 0 0x1000>,
+			      <0 0xf1002000 0 0x2000>,
 			      <0 0xf1004000 0 0x2000>,
 			      <0 0xf1006000 0 0x2000>;
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) |
 						 IRQ_TYPE_LEVEL_HIGH)>;
+			clocks = <&cpg CPG_MOD 408>;
+			clock-names = "clk";
+			power-domains = <&sysc R8A7743_PD_ALWAYS_ON>;
 		};
 
 		irqc: interrupt-controller@e61c0000 {
@@ -102,15 +105,20 @@
 			#power-domain-cells = <0>;
 		};
 
-		sysc: system-controller@e6180000 {
-			compatible = "renesas,r8a7743-sysc";
-			reg = <0 0xe6180000 0 0x200>;
-			#power-domain-cells = <1>;
+		prr: chipid@ff000044 {
+			compatible = "renesas,prr";
+			reg = <0 0xff000044 0 4>;
 		};
 
 		rst: reset-controller@e6160000 {
 			compatible = "renesas,r8a7743-rst";
 			reg = <0 0xe6160000 0 0x100>;
+		};
+
+		sysc: system-controller@e6180000 {
+			compatible = "renesas,r8a7743-sysc";
+			reg = <0 0xe6180000 0 0x200>;
+			#power-domain-cells = <1>;
 		};
 
 		dmac0: dma-controller@e6700000 {

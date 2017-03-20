@@ -23,7 +23,8 @@
 #include <linux/module.h>
 #include <linux/extable.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/debug.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
@@ -51,6 +52,7 @@
 #include <asm/idle.h>
 #include <asm/mips-cm.h>
 #include <asm/mips-r2-to-r6-emul.h>
+#include <asm/mips-cm.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/module.h>
@@ -1107,7 +1109,6 @@ asmlinkage void do_ri(struct pt_regs *regs)
 		switch (status) {
 		case 0:
 		case SIGEMT:
-			task_thread_info(current)->r2_emul_return = 1;
 			return;
 		case SIGILL:
 			goto no_r2_instr;
@@ -1115,7 +1116,6 @@ asmlinkage void do_ri(struct pt_regs *regs)
 			process_fpemu_return(status,
 					     &current->thread.cp0_baduaddr,
 					     fcr31);
-			task_thread_info(current)->r2_emul_return = 1;
 			return;
 		}
 	}
@@ -1644,6 +1644,65 @@ __setup("nol2par", nol2parity);
  */
 static inline void parity_protection_init(void)
 {
+#define ERRCTL_PE	0x80000000
+#define ERRCTL_L2P	0x00800000
+
+	if (mips_cm_revision() >= CM_REV_CM3) {
+		ulong gcr_ectl, cp0_ectl;
+
+		/*
+		 * With CM3 systems we need to ensure that the L1 & L2
+		 * parity enables are set to the same value, since this
+		 * is presumed by the hardware engineers.
+		 *
+		 * If the user disabled either of L1 or L2 ECC checking,
+		 * disable both.
+		 */
+		l1parity &= l2parity;
+		l2parity &= l1parity;
+
+		/* Probe L1 ECC support */
+		cp0_ectl = read_c0_ecc();
+		write_c0_ecc(cp0_ectl | ERRCTL_PE);
+		back_to_back_c0_hazard();
+		cp0_ectl = read_c0_ecc();
+
+		/* Probe L2 ECC support */
+		gcr_ectl = read_gcr_err_control();
+
+		if (!(gcr_ectl & CM_GCR_ERR_CONTROL_L2_ECC_SUPPORT_MSK) ||
+		    !(cp0_ectl & ERRCTL_PE)) {
+			/*
+			 * One of L1 or L2 ECC checking isn't supported,
+			 * so we cannot enable either.
+			 */
+			l1parity = l2parity = 0;
+		}
+
+		/* Configure L1 ECC checking */
+		if (l1parity)
+			cp0_ectl |= ERRCTL_PE;
+		else
+			cp0_ectl &= ~ERRCTL_PE;
+		write_c0_ecc(cp0_ectl);
+		back_to_back_c0_hazard();
+		WARN_ON(!!(read_c0_ecc() & ERRCTL_PE) != l1parity);
+
+		/* Configure L2 ECC checking */
+		if (l2parity)
+			gcr_ectl |= CM_GCR_ERR_CONTROL_L2_ECC_EN_MSK;
+		else
+			gcr_ectl &= ~CM_GCR_ERR_CONTROL_L2_ECC_EN_MSK;
+		write_gcr_err_control(gcr_ectl);
+		gcr_ectl = read_gcr_err_control();
+		gcr_ectl &= CM_GCR_ERR_CONTROL_L2_ECC_EN_MSK;
+		WARN_ON(!!gcr_ectl != l2parity);
+
+		pr_info("Cache parity protection %sabled\n",
+			l1parity ? "en" : "dis");
+		return;
+	}
+
 	switch (current_cpu_type()) {
 	case CPU_24K:
 	case CPU_34K:
@@ -1654,11 +1713,8 @@ static inline void parity_protection_init(void)
 	case CPU_PROAPTIV:
 	case CPU_P5600:
 	case CPU_QEMU_GENERIC:
-	case CPU_I6400:
 	case CPU_P6600:
 		{
-#define ERRCTL_PE	0x80000000
-#define ERRCTL_L2P	0x00800000
 			unsigned long errctl;
 			unsigned int l1parity_present, l2parity_present;
 
@@ -2177,7 +2233,7 @@ void per_cpu_trap_init(bool is_boot_cpu)
 	if (!cpu_data[cpu].asid_cache)
 		cpu_data[cpu].asid_cache = asid_first_version(cpu);
 
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);

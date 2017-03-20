@@ -864,9 +864,6 @@ static noinline int do_test_wp_bit(void)
 	return flag;
 }
 
-const int rodata_test_data = 0xC3;
-EXPORT_SYMBOL_GPL(rodata_test_data);
-
 int kernel_set_to_readonly __read_mostly;
 
 void set_kernel_text_rw(void)
@@ -939,7 +936,6 @@ void mark_rodata_ro(void)
 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
 		size >> 10);
-	rodata_test();
 
 #ifdef CONFIG_CPA_DEBUG
 	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, start + size);

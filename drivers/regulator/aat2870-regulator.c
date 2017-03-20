@@ -97,7 +97,7 @@ static int aat2870_ldo_is_enabled(struct regulator_dev *rdev)
 	return val & ri->enable_mask ? 1 : 0;
 }
 
-static struct regulator_ops aat2870_ldo_ops = {
+static const struct regulator_ops aat2870_ldo_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = aat2870_ldo_set_voltage_sel,

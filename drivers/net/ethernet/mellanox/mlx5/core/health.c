@@ -231,21 +231,6 @@ static const char *hsynd_str(u8 synd)
 	}
 }
 
-static u16 get_maj(u32 fw)
-{
-	return fw >> 28;
-}
-
-static u16 get_min(u32 fw)
-{
-	return fw >> 16 & 0xfff;
-}
-
-static u16 get_sub(u32 fw)
-{
-	return fw & 0xffff;
-}
-
 static void print_health_info(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
@@ -263,13 +248,14 @@ static void print_health_info(struct mlx5_core_dev *dev)
 
 	dev_err(&dev->pdev->dev, "assert_exit_ptr 0x%08x\n", ioread32be(&h->assert_exit_ptr));
 	dev_err(&dev->pdev->dev, "assert_callra 0x%08x\n", ioread32be(&h->assert_callra));
-	fw = ioread32be(&h->fw_ver);
-	sprintf(fw_str, "%d.%d.%d", get_maj(fw), get_min(fw), get_sub(fw));
+	sprintf(fw_str, "%d.%d.%d", fw_rev_maj(dev), fw_rev_min(dev), fw_rev_sub(dev));
 	dev_err(&dev->pdev->dev, "fw_ver %s\n", fw_str);
 	dev_err(&dev->pdev->dev, "hw_id 0x%08x\n", ioread32be(&h->hw_id));
 	dev_err(&dev->pdev->dev, "irisc_index %d\n", ioread8(&h->irisc_index));
 	dev_err(&dev->pdev->dev, "synd 0x%x: %s\n", ioread8(&h->synd), hsynd_str(ioread8(&h->synd)));
 	dev_err(&dev->pdev->dev, "ext_synd 0x%04x\n", ioread16be(&h->ext_synd));
+	fw = ioread32be(&h->fw_ver);
+	dev_err(&dev->pdev->dev, "raw fw_ver 0x%08x\n", fw);
 }
 
 static unsigned long get_next_poll_jiffies(void)

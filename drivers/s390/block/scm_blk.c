@@ -300,13 +300,6 @@ static void scm_blk_request(struct request_queue *rq)
 	struct request *req;
 
 	while ((req = blk_peek_request(rq))) {
-		if (req->cmd_type != REQ_TYPE_FS) {
-			blk_start_request(req);
-			blk_dump_rq_flags(req, KMSG_COMPONENT " bad request");
-			__blk_end_request_all(req, -EIO);
-			continue;
-		}
-
 		if (!scm_permit_request(bdev, req))
 			goto out;
 

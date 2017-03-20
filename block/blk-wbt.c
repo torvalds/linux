@@ -96,7 +96,7 @@ static void wb_timestamp(struct rq_wb *rwb, unsigned long *var)
  */
 static bool wb_recent_wait(struct rq_wb *rwb)
 {
-	struct bdi_writeback *wb = &rwb->queue->backing_dev_info.wb;
+	struct bdi_writeback *wb = &rwb->queue->backing_dev_info->wb;
 
 	return time_before(jiffies, wb->dirty_sleep + HZ);
 }
@@ -279,7 +279,7 @@ enum {
 
 static int __latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 {
-	struct backing_dev_info *bdi = &rwb->queue->backing_dev_info;
+	struct backing_dev_info *bdi = rwb->queue->backing_dev_info;
 	u64 thislat;
 
 	/*
@@ -339,7 +339,7 @@ static int latency_exceeded(struct rq_wb *rwb)
 
 static void rwb_trace_step(struct rq_wb *rwb, const char *msg)
 {
-	struct backing_dev_info *bdi = &rwb->queue->backing_dev_info;
+	struct backing_dev_info *bdi = rwb->queue->backing_dev_info;
 
 	trace_wbt_step(bdi, msg, rwb->scale_step, rwb->cur_win_nsec,
 			rwb->wb_background, rwb->wb_normal, rwb->wb_max);
@@ -423,7 +423,7 @@ static void wb_timer_fn(unsigned long data)
 
 	status = latency_exceeded(rwb);
 
-	trace_wbt_timer(&rwb->queue->backing_dev_info, status, rwb->scale_step,
+	trace_wbt_timer(rwb->queue->backing_dev_info, status, rwb->scale_step,
 			inflight);
 
 	/*

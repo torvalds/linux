@@ -42,10 +42,9 @@
 #define VCE_V2_0_DATA_SIZE	(23552 * AMDGPU_MAX_VCE_HANDLES)
 #define VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK	0x02
 
-static void vce_v2_0_mc_resume(struct amdgpu_device *adev);
 static void vce_v2_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v2_0_set_irq_funcs(struct amdgpu_device *adev);
-static int vce_v2_0_wait_for_idle(void *handle);
+
 /**
  * vce_v2_0_ring_get_rptr - get read pointer
  *
@@ -140,6 +139,86 @@ static int vce_v2_0_firmware_loaded(struct amdgpu_device *adev)
 	return -ETIMEDOUT;
 }
 
+static void vce_v2_0_disable_cg(struct amdgpu_device *adev)
+{
+	WREG32(mmVCE_CGTT_CLK_OVERRIDE, 7);
+}
+
+static void vce_v2_0_init_cg(struct amdgpu_device *adev)
+{
+	u32 tmp;
+
+	tmp = RREG32(mmVCE_CLOCK_GATING_A);
+	tmp &= ~0xfff;
+	tmp |= ((0 << 0) | (4 << 4));
+	tmp |= 0x40000;
+	WREG32(mmVCE_CLOCK_GATING_A, tmp);
+
+	tmp = RREG32(mmVCE_UENC_CLOCK_GATING);
+	tmp &= ~0xfff;
+	tmp |= ((0 << 0) | (4 << 4));
+	WREG32(mmVCE_UENC_CLOCK_GATING, tmp);
+
+	tmp = RREG32(mmVCE_CLOCK_GATING_B);
+	tmp |= 0x10;
+	tmp &= ~0x100000;
+	WREG32(mmVCE_CLOCK_GATING_B, tmp);
+}
+
+static void vce_v2_0_mc_resume(struct amdgpu_device *adev)
+{
+	uint64_t addr = adev->vce.gpu_addr;
+	uint32_t size;
+
+	WREG32_P(mmVCE_CLOCK_GATING_A, 0, ~(1 << 16));
+	WREG32_P(mmVCE_UENC_CLOCK_GATING, 0x1FF000, ~0xFF9FF000);
+	WREG32_P(mmVCE_UENC_REG_CLOCK_GATING, 0x3F, ~0x3F);
+	WREG32(mmVCE_CLOCK_GATING_B, 0xf7);
+
+	WREG32(mmVCE_LMI_CTRL, 0x00398000);
+	WREG32_P(mmVCE_LMI_CACHE_CTRL, 0x0, ~0x1);
+	WREG32(mmVCE_LMI_SWAP_CNTL, 0);
+	WREG32(mmVCE_LMI_SWAP_CNTL1, 0);
+	WREG32(mmVCE_LMI_VM_CTRL, 0);
+
+	addr += AMDGPU_VCE_FIRMWARE_OFFSET;
+	size = VCE_V2_0_FW_SIZE;
+	WREG32(mmVCE_VCPU_CACHE_OFFSET0, addr & 0x7fffffff);
+	WREG32(mmVCE_VCPU_CACHE_SIZE0, size);
+
+	addr += size;
+	size = VCE_V2_0_STACK_SIZE;
+	WREG32(mmVCE_VCPU_CACHE_OFFSET1, addr & 0x7fffffff);
+	WREG32(mmVCE_VCPU_CACHE_SIZE1, size);
+
+	addr += size;
+	size = VCE_V2_0_DATA_SIZE;
+	WREG32(mmVCE_VCPU_CACHE_OFFSET2, addr & 0x7fffffff);
+	WREG32(mmVCE_VCPU_CACHE_SIZE2, size);
+
+	WREG32_P(mmVCE_LMI_CTRL2, 0x0, ~0x100);
+	WREG32_FIELD(VCE_SYS_INT_EN, VCE_SYS_INT_TRAP_INTERRUPT_EN, 1);
+}
+
+static bool vce_v2_0_is_idle(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return !(RREG32(mmSRBM_STATUS2) & SRBM_STATUS2__VCE_BUSY_MASK);
+}
+
+static int vce_v2_0_wait_for_idle(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	unsigned i;
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (vce_v2_0_is_idle(handle))
+			return 0;
+	}
+	return -ETIMEDOUT;
+}
+
 /**
  * vce_v2_0_start - start VCE block
  *
@@ -152,10 +231,13 @@ static int vce_v2_0_start(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring;
 	int r;
 
-	vce_v2_0_mc_resume(adev);
-
 	/* set BUSY flag */
 	WREG32_P(mmVCE_STATUS, 1, ~1);
+
+	vce_v2_0_init_cg(adev);
+	vce_v2_0_disable_cg(adev);
+
+	vce_v2_0_mc_resume(adev);
 
 	ring = &adev->vce.ring[0];
 	WREG32(mmVCE_RB_RPTR, ring->wptr);
@@ -187,6 +269,145 @@ static int vce_v2_0_start(struct amdgpu_device *adev)
 	}
 
 	return 0;
+}
+
+static int vce_v2_0_stop(struct amdgpu_device *adev)
+{
+	int i, j;
+	int status;
+
+	if (vce_v2_0_lmi_clean(adev)) {
+		DRM_INFO("vce is not idle \n");
+		return 0;
+	}
+/*
+	for (i = 0; i < 10; ++i) {
+		for (j = 0; j < 100; ++j) {
+			status = RREG32(mmVCE_FW_REG_STATUS);
+			if (!(status & 1))
+				break;
+			mdelay(1);
+		}
+		break;
+	}
+*/
+	if (vce_v2_0_wait_for_idle(adev)) {
+		DRM_INFO("VCE is busy, Can't set clock gateing");
+		return 0;
+	}
+
+	/* Stall UMC and register bus before resetting VCPU */
+	WREG32_P(mmVCE_LMI_CTRL2, 1 << 8, ~(1 << 8));
+
+	for (i = 0; i < 10; ++i) {
+		for (j = 0; j < 100; ++j) {
+			status = RREG32(mmVCE_LMI_STATUS);
+			if (status & 0x240)
+				break;
+			mdelay(1);
+		}
+		break;
+	}
+
+	WREG32_P(mmVCE_VCPU_CNTL, 0, ~0x80001);
+
+	/* put LMI, VCPU, RBC etc... into reset */
+	WREG32_P(mmVCE_SOFT_RESET, 1, ~0x1);
+
+	WREG32(mmVCE_STATUS, 0);
+
+	return 0;
+}
+
+static void vce_v2_0_set_sw_cg(struct amdgpu_device *adev, bool gated)
+{
+	u32 tmp;
+
+	if (gated) {
+		tmp = RREG32(mmVCE_CLOCK_GATING_B);
+		tmp |= 0xe70000;
+		WREG32(mmVCE_CLOCK_GATING_B, tmp);
+
+		tmp = RREG32(mmVCE_UENC_CLOCK_GATING);
+		tmp |= 0xff000000;
+		WREG32(mmVCE_UENC_CLOCK_GATING, tmp);
+
+		tmp = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
+		tmp &= ~0x3fc;
+		WREG32(mmVCE_UENC_REG_CLOCK_GATING, tmp);
+
+		WREG32(mmVCE_CGTT_CLK_OVERRIDE, 0);
+	} else {
+		tmp = RREG32(mmVCE_CLOCK_GATING_B);
+		tmp |= 0xe7;
+		tmp &= ~0xe70000;
+		WREG32(mmVCE_CLOCK_GATING_B, tmp);
+
+		tmp = RREG32(mmVCE_UENC_CLOCK_GATING);
+		tmp |= 0x1fe000;
+		tmp &= ~0xff000000;
+		WREG32(mmVCE_UENC_CLOCK_GATING, tmp);
+
+		tmp = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
+		tmp |= 0x3fc;
+		WREG32(mmVCE_UENC_REG_CLOCK_GATING, tmp);
+	}
+}
+
+static void vce_v2_0_set_dyn_cg(struct amdgpu_device *adev, bool gated)
+{
+	u32 orig, tmp;
+
+/* LMI_MC/LMI_UMC always set in dynamic,
+ * set {CGC_*_GATE_MODE, CGC_*_SW_GATE} = {0, 0}
+ */
+	tmp = RREG32(mmVCE_CLOCK_GATING_B);
+	tmp &= ~0x00060006;
+
+/* Exception for ECPU, IH, SEM, SYS blocks needs to be turned on/off by SW */
+	if (gated) {
+		tmp |= 0xe10000;
+		WREG32(mmVCE_CLOCK_GATING_B, tmp);
+	} else {
+		tmp |= 0xe1;
+		tmp &= ~0xe10000;
+		WREG32(mmVCE_CLOCK_GATING_B, tmp);
+	}
+
+	orig = tmp = RREG32(mmVCE_UENC_CLOCK_GATING);
+	tmp &= ~0x1fe000;
+	tmp &= ~0xff000000;
+	if (tmp != orig)
+		WREG32(mmVCE_UENC_CLOCK_GATING, tmp);
+
+	orig = tmp = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
+	tmp &= ~0x3fc;
+	if (tmp != orig)
+		WREG32(mmVCE_UENC_REG_CLOCK_GATING, tmp);
+
+	/* set VCE_UENC_REG_CLOCK_GATING always in dynamic mode */
+	WREG32(mmVCE_UENC_REG_CLOCK_GATING, 0x00);
+
+	if(gated)
+		WREG32(mmVCE_CGTT_CLK_OVERRIDE, 0);
+}
+
+static void vce_v2_0_enable_mgcg(struct amdgpu_device *adev, bool enable,
+								bool sw_cg)
+{
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG)) {
+		if (sw_cg)
+			vce_v2_0_set_sw_cg(adev, true);
+		else
+			vce_v2_0_set_dyn_cg(adev, true);
+	} else {
+		vce_v2_0_disable_cg(adev);
+
+		if (sw_cg)
+			vce_v2_0_set_sw_cg(adev, false);
+		else
+			vce_v2_0_set_dyn_cg(adev, false);
+	}
 }
 
 static int vce_v2_0_early_init(void *handle)
@@ -254,11 +475,8 @@ static int vce_v2_0_hw_init(void *handle)
 	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = vce_v2_0_start(adev);
-	/* this error mean vcpu not in running state, so just skip ring test, not stop driver initialize */
-	if (r)
-		return 0;
-
+	amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
+	vce_v2_0_enable_mgcg(adev, true, false);
 	for (i = 0; i < adev->vce.num_rings; i++)
 		adev->vce.ring[i].ready = false;
 
@@ -312,190 +530,6 @@ static int vce_v2_0_resume(void *handle)
 	return r;
 }
 
-static void vce_v2_0_set_sw_cg(struct amdgpu_device *adev, bool gated)
-{
-	u32 tmp;
-
-	if (gated) {
-		tmp = RREG32(mmVCE_CLOCK_GATING_B);
-		tmp |= 0xe70000;
-		WREG32(mmVCE_CLOCK_GATING_B, tmp);
-
-		tmp = RREG32(mmVCE_UENC_CLOCK_GATING);
-		tmp |= 0xff000000;
-		WREG32(mmVCE_UENC_CLOCK_GATING, tmp);
-
-		tmp = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
-		tmp &= ~0x3fc;
-		WREG32(mmVCE_UENC_REG_CLOCK_GATING, tmp);
-
-		WREG32(mmVCE_CGTT_CLK_OVERRIDE, 0);
-	} else {
-		tmp = RREG32(mmVCE_CLOCK_GATING_B);
-		tmp |= 0xe7;
-		tmp &= ~0xe70000;
-		WREG32(mmVCE_CLOCK_GATING_B, tmp);
-
-		tmp = RREG32(mmVCE_UENC_CLOCK_GATING);
-		tmp |= 0x1fe000;
-		tmp &= ~0xff000000;
-		WREG32(mmVCE_UENC_CLOCK_GATING, tmp);
-
-		tmp = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
-		tmp |= 0x3fc;
-		WREG32(mmVCE_UENC_REG_CLOCK_GATING, tmp);
-	}
-}
-
-static void vce_v2_0_set_dyn_cg(struct amdgpu_device *adev, bool gated)
-{
-	if (vce_v2_0_wait_for_idle(adev)) {
-		DRM_INFO("VCE is busy, Can't set clock gateing");
-		return;
-	}
-
-	WREG32_P(mmVCE_LMI_CTRL2, 0x100, ~0x100);
-
-	if (vce_v2_0_lmi_clean(adev)) {
-		DRM_INFO("LMI is busy, Can't set clock gateing");
-		return;
-	}
-
-	WREG32_P(mmVCE_VCPU_CNTL, 0, ~VCE_VCPU_CNTL__CLK_EN_MASK);
-	WREG32_P(mmVCE_SOFT_RESET,
-		 VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
-		 ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
-	WREG32(mmVCE_STATUS, 0);
-
-	if (gated)
-		WREG32(mmVCE_CGTT_CLK_OVERRIDE, 0);
-	/* LMI_MC/LMI_UMC always set in dynamic, set {CGC_*_GATE_MODE, CGC_*_SW_GATE} = {0, 0} */
-	if (gated) {
-		/* Force CLOCK OFF , set {CGC_*_GATE_MODE, CGC_*_SW_GATE} = {*, 1} */
-		WREG32(mmVCE_CLOCK_GATING_B, 0xe90010);
-	} else {
-		/* Force CLOCK ON, set {CGC_*_GATE_MODE, CGC_*_SW_GATE} = {1, 0} */
-		WREG32(mmVCE_CLOCK_GATING_B, 0x800f1);
-	}
-
-	/* Set VCE_UENC_CLOCK_GATING always in dynamic mode {*_FORCE_ON, *_FORCE_OFF} = {0, 0}*/;
-	WREG32(mmVCE_UENC_CLOCK_GATING, 0x40);
-
-	/* set VCE_UENC_REG_CLOCK_GATING always in dynamic mode */
-	WREG32(mmVCE_UENC_REG_CLOCK_GATING, 0x00);
-
-	WREG32_P(mmVCE_LMI_CTRL2, 0, ~0x100);
-	if(!gated) {
-		WREG32_P(mmVCE_VCPU_CNTL, VCE_VCPU_CNTL__CLK_EN_MASK, ~VCE_VCPU_CNTL__CLK_EN_MASK);
-		mdelay(100);
-		WREG32_P(mmVCE_SOFT_RESET, 0, ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
-
-		vce_v2_0_firmware_loaded(adev);
-		WREG32_P(mmVCE_STATUS, 0, ~VCE_STATUS__JOB_BUSY_MASK);
-	}
-}
-
-static void vce_v2_0_disable_cg(struct amdgpu_device *adev)
-{
-	WREG32(mmVCE_CGTT_CLK_OVERRIDE, 7);
-}
-
-static void vce_v2_0_enable_mgcg(struct amdgpu_device *adev, bool enable)
-{
-	bool sw_cg = false;
-
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG)) {
-		if (sw_cg)
-			vce_v2_0_set_sw_cg(adev, true);
-		else
-			vce_v2_0_set_dyn_cg(adev, true);
-	} else {
-		vce_v2_0_disable_cg(adev);
-
-		if (sw_cg)
-			vce_v2_0_set_sw_cg(adev, false);
-		else
-			vce_v2_0_set_dyn_cg(adev, false);
-	}
-}
-
-static void vce_v2_0_init_cg(struct amdgpu_device *adev)
-{
-	u32 tmp;
-
-	tmp = RREG32(mmVCE_CLOCK_GATING_A);
-	tmp &= ~0xfff;
-	tmp |= ((0 << 0) | (4 << 4));
-	tmp |= 0x40000;
-	WREG32(mmVCE_CLOCK_GATING_A, tmp);
-
-	tmp = RREG32(mmVCE_UENC_CLOCK_GATING);
-	tmp &= ~0xfff;
-	tmp |= ((0 << 0) | (4 << 4));
-	WREG32(mmVCE_UENC_CLOCK_GATING, tmp);
-
-	tmp = RREG32(mmVCE_CLOCK_GATING_B);
-	tmp |= 0x10;
-	tmp &= ~0x100000;
-	WREG32(mmVCE_CLOCK_GATING_B, tmp);
-}
-
-static void vce_v2_0_mc_resume(struct amdgpu_device *adev)
-{
-	uint64_t addr = adev->vce.gpu_addr;
-	uint32_t size;
-
-	WREG32_P(mmVCE_CLOCK_GATING_A, 0, ~(1 << 16));
-	WREG32_P(mmVCE_UENC_CLOCK_GATING, 0x1FF000, ~0xFF9FF000);
-	WREG32_P(mmVCE_UENC_REG_CLOCK_GATING, 0x3F, ~0x3F);
-	WREG32(mmVCE_CLOCK_GATING_B, 0xf7);
-
-	WREG32(mmVCE_LMI_CTRL, 0x00398000);
-	WREG32_P(mmVCE_LMI_CACHE_CTRL, 0x0, ~0x1);
-	WREG32(mmVCE_LMI_SWAP_CNTL, 0);
-	WREG32(mmVCE_LMI_SWAP_CNTL1, 0);
-	WREG32(mmVCE_LMI_VM_CTRL, 0);
-
-	addr += AMDGPU_VCE_FIRMWARE_OFFSET;
-	size = VCE_V2_0_FW_SIZE;
-	WREG32(mmVCE_VCPU_CACHE_OFFSET0, addr & 0x7fffffff);
-	WREG32(mmVCE_VCPU_CACHE_SIZE0, size);
-
-	addr += size;
-	size = VCE_V2_0_STACK_SIZE;
-	WREG32(mmVCE_VCPU_CACHE_OFFSET1, addr & 0x7fffffff);
-	WREG32(mmVCE_VCPU_CACHE_SIZE1, size);
-
-	addr += size;
-	size = VCE_V2_0_DATA_SIZE;
-	WREG32(mmVCE_VCPU_CACHE_OFFSET2, addr & 0x7fffffff);
-	WREG32(mmVCE_VCPU_CACHE_SIZE2, size);
-
-	WREG32_P(mmVCE_LMI_CTRL2, 0x0, ~0x100);
-	WREG32_FIELD(VCE_SYS_INT_EN, VCE_SYS_INT_TRAP_INTERRUPT_EN, 1);
-
-	vce_v2_0_init_cg(adev);
-}
-
-static bool vce_v2_0_is_idle(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return !(RREG32(mmSRBM_STATUS2) & SRBM_STATUS2__VCE_BUSY_MASK);
-}
-
-static int vce_v2_0_wait_for_idle(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	unsigned i;
-
-	for (i = 0; i < adev->usec_timeout; i++) {
-		if (vce_v2_0_is_idle(handle))
-			return 0;
-	}
-	return -ETIMEDOUT;
-}
-
 static int vce_v2_0_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -539,33 +573,20 @@ static int vce_v2_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void vce_v2_0_set_bypass_mode(struct amdgpu_device *adev, bool enable)
-{
-	u32 tmp = RREG32_SMC(ixGCK_DFS_BYPASS_CNTL);
-
-	if (enable)
-		tmp |= GCK_DFS_BYPASS_CNTL__BYPASSECLK_MASK;
-	else
-		tmp &= ~GCK_DFS_BYPASS_CNTL__BYPASSECLK_MASK;
-
-	WREG32_SMC(ixGCK_DFS_BYPASS_CNTL, tmp);
-}
-
-
 static int vce_v2_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	bool gate = false;
+	bool sw_cg = false;
+
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 
-
-	vce_v2_0_set_bypass_mode(adev, enable);
-
-	if (state == AMD_CG_STATE_GATE)
+	if (state == AMD_CG_STATE_GATE) {
 		gate = true;
+		sw_cg = true;
+	}
 
-	vce_v2_0_enable_mgcg(adev, gate);
+	vce_v2_0_enable_mgcg(adev, gate, sw_cg);
 
 	return 0;
 }
@@ -582,12 +603,8 @@ static int vce_v2_0_set_powergating_state(void *handle,
 	 */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!(adev->pg_flags & AMD_PG_SUPPORT_VCE))
-		return 0;
-
 	if (state == AMD_PG_STATE_GATE)
-		/* XXX do we need a vce_v2_0_stop()? */
-		return 0;
+		return vce_v2_0_stop(adev);
 	else
 		return vce_v2_0_start(adev);
 }

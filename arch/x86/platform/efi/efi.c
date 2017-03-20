@@ -542,11 +542,6 @@ void __init efi_init(void)
 		efi_print_memmap();
 }
 
-void __init efi_late_init(void)
-{
-	efi_bgrt_init();
-}
-
 void __init efi_set_executable(efi_memory_desc_t *md, bool executable)
 {
 	u64 addr, npages;
@@ -958,6 +953,11 @@ static void __init __efi_enter_virtual_mode(void)
 		pr_err("Failed to remap late EFI memory map\n");
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 		return;
+	}
+
+	if (efi_enabled(EFI_DBG)) {
+		pr_info("EFI runtime memory map:\n");
+		efi_print_memmap();
 	}
 
 	BUG_ON(!efi.systab);

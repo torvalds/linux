@@ -187,7 +187,7 @@ int dma_direct_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
 #endif
 }
 
-struct dma_map_ops dma_direct_ops = {
+const struct dma_map_ops dma_direct_ops = {
 	.alloc		= dma_direct_alloc_coherent,
 	.free		= dma_direct_free_coherent,
 	.mmap		= dma_direct_mmap_coherent,

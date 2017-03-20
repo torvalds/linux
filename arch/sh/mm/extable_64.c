@@ -11,7 +11,7 @@
  * for more details.
  */
 #include <linux/rwsem.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/uaccess.h>
 
 extern unsigned long copy_user_memcpy, copy_user_memcpy_end;

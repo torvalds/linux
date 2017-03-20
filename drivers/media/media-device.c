@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 /* We need to access legacy defines from linux/media.h */
@@ -130,7 +126,7 @@ static long media_device_enum_entities(struct media_device *mdev,
 	 * old range.
 	 */
 	if (ent->function < MEDIA_ENT_F_OLD_BASE ||
-	    ent->function > MEDIA_ENT_T_DEVNODE_UNKNOWN) {
+	    ent->function > MEDIA_ENT_F_TUNER) {
 		if (is_media_entity_v4l2_subdev(ent))
 			entd->type = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
 		else if (ent->function != MEDIA_ENT_F_IO_V4L)
@@ -601,19 +597,19 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 
 	if (mdev->entity_internal_idx_max
 	    >= mdev->pm_count_walk.ent_enum.idx_max) {
-		struct media_entity_graph new = { .top = 0 };
+		struct media_graph new = { .top = 0 };
 
 		/*
 		 * Initialise the new graph walk before cleaning up
 		 * the old one in order not to spoil the graph walk
 		 * object of the media device if graph walk init fails.
 		 */
-		ret = media_entity_graph_walk_init(&new, mdev);
+		ret = media_graph_walk_init(&new, mdev);
 		if (ret) {
 			mutex_unlock(&mdev->graph_mutex);
 			return ret;
 		}
-		media_entity_graph_walk_cleanup(&mdev->pm_count_walk);
+		media_graph_walk_cleanup(&mdev->pm_count_walk);
 		mdev->pm_count_walk = new;
 	}
 	mutex_unlock(&mdev->graph_mutex);
@@ -695,7 +691,7 @@ void media_device_cleanup(struct media_device *mdev)
 {
 	ida_destroy(&mdev->entity_internal_idx);
 	mdev->entity_internal_idx_max = 0;
-	media_entity_graph_walk_cleanup(&mdev->pm_count_walk);
+	media_graph_walk_cleanup(&mdev->pm_count_walk);
 	mutex_destroy(&mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_device_cleanup);

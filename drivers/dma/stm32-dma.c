@@ -114,6 +114,7 @@
 #define STM32_DMA_MAX_CHANNELS		0x08
 #define STM32_DMA_MAX_REQUEST_ID	0x08
 #define STM32_DMA_MAX_DATA_PARAM	0x03
+#define STM32_DMA_MAX_BURST		16
 
 enum stm32_dma_width {
 	STM32_DMA_BYTE,
@@ -403,6 +404,13 @@ static int stm32_dma_terminate_all(struct dma_chan *c)
 	return 0;
 }
 
+static void stm32_dma_synchronize(struct dma_chan *c)
+{
+	struct stm32_dma_chan *chan = to_stm32_dma_chan(c);
+
+	vchan_synchronize(&chan->vchan);
+}
+
 static void stm32_dma_dump_reg(struct stm32_dma_chan *chan)
 {
 	struct stm32_dma_device *dmadev = stm32_dma_get_dev(chan);
@@ -421,7 +429,7 @@ static void stm32_dma_dump_reg(struct stm32_dma_chan *chan)
 	dev_dbg(chan2dev(chan), "SFCR:  0x%08x\n", sfcr);
 }
 
-static int stm32_dma_start_transfer(struct stm32_dma_chan *chan)
+static void stm32_dma_start_transfer(struct stm32_dma_chan *chan)
 {
 	struct stm32_dma_device *dmadev = stm32_dma_get_dev(chan);
 	struct virt_dma_desc *vdesc;
@@ -432,12 +440,12 @@ static int stm32_dma_start_transfer(struct stm32_dma_chan *chan)
 
 	ret = stm32_dma_disable_chan(chan);
 	if (ret < 0)
-		return ret;
+		return;
 
 	if (!chan->desc) {
 		vdesc = vchan_next_desc(&chan->vchan);
 		if (!vdesc)
-			return -EPERM;
+			return;
 
 		chan->desc = to_stm32_dma_desc(vdesc);
 		chan->next_sg = 0;
@@ -471,7 +479,7 @@ static int stm32_dma_start_transfer(struct stm32_dma_chan *chan)
 
 	chan->busy = true;
 
-	return 0;
+	dev_dbg(chan2dev(chan), "vchan %p: started\n", &chan->vchan);
 }
 
 static void stm32_dma_configure_next_sg(struct stm32_dma_chan *chan)
@@ -500,8 +508,6 @@ static void stm32_dma_configure_next_sg(struct stm32_dma_chan *chan)
 			dev_dbg(chan2dev(chan), "CT=0 <=> SM1AR: 0x%08x\n",
 				stm32_dma_read(dmadev, STM32_DMA_SM1AR(id)));
 		}
-
-		chan->next_sg++;
 	}
 }
 
@@ -510,6 +516,7 @@ static void stm32_dma_handle_chan_done(struct stm32_dma_chan *chan)
 	if (chan->desc) {
 		if (chan->desc->cyclic) {
 			vchan_cyclic_callback(&chan->desc->vdesc);
+			chan->next_sg++;
 			stm32_dma_configure_next_sg(chan);
 		} else {
 			chan->busy = false;
@@ -552,15 +559,13 @@ static void stm32_dma_issue_pending(struct dma_chan *c)
 {
 	struct stm32_dma_chan *chan = to_stm32_dma_chan(c);
 	unsigned long flags;
-	int ret;
 
 	spin_lock_irqsave(&chan->vchan.lock, flags);
-	if (!chan->busy) {
-		if (vchan_issue_pending(&chan->vchan) && !chan->desc) {
-			ret = stm32_dma_start_transfer(chan);
-			if ((!ret) && (chan->desc->cyclic))
-				stm32_dma_configure_next_sg(chan);
-		}
+	if (vchan_issue_pending(&chan->vchan) && !chan->desc && !chan->busy) {
+		dev_dbg(chan2dev(chan), "vchan %p: issued\n", &chan->vchan);
+		stm32_dma_start_transfer(chan);
+		if (chan->desc->cyclic)
+			stm32_dma_configure_next_sg(chan);
 	}
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
 }
@@ -848,26 +853,40 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_memcpy(
 	return vchan_tx_prep(&chan->vchan, &desc->vdesc, flags);
 }
 
+static u32 stm32_dma_get_remaining_bytes(struct stm32_dma_chan *chan)
+{
+	u32 dma_scr, width, ndtr;
+	struct stm32_dma_device *dmadev = stm32_dma_get_dev(chan);
+
+	dma_scr = stm32_dma_read(dmadev, STM32_DMA_SCR(chan->id));
+	width = STM32_DMA_SCR_PSIZE_GET(dma_scr);
+	ndtr = stm32_dma_read(dmadev, STM32_DMA_SNDTR(chan->id));
+
+	return ndtr << width;
+}
+
 static size_t stm32_dma_desc_residue(struct stm32_dma_chan *chan,
 				     struct stm32_dma_desc *desc,
 				     u32 next_sg)
 {
-	struct stm32_dma_device *dmadev = stm32_dma_get_dev(chan);
-	u32 dma_scr, width, residue, count;
+	u32 residue = 0;
 	int i;
 
-	residue = 0;
+	/*
+	 * In cyclic mode, for the last period, residue = remaining bytes from
+	 * NDTR
+	 */
+	if (chan->desc->cyclic && next_sg == 0)
+		return stm32_dma_get_remaining_bytes(chan);
 
+	/*
+	 * For all other periods in cyclic mode, and in sg mode,
+	 * residue = remaining bytes from NDTR + remaining periods/sg to be
+	 * transferred
+	 */
 	for (i = next_sg; i < desc->num_sgs; i++)
 		residue += desc->sg_req[i].len;
-
-	if (next_sg != 0) {
-		dma_scr = stm32_dma_read(dmadev, STM32_DMA_SCR(chan->id));
-		width = STM32_DMA_SCR_PSIZE_GET(dma_scr);
-		count = stm32_dma_read(dmadev, STM32_DMA_SNDTR(chan->id));
-
-		residue += count << width;
-	}
+	residue += stm32_dma_get_remaining_bytes(chan);
 
 	return residue;
 }
@@ -964,27 +983,36 @@ static struct dma_chan *stm32_dma_of_xlate(struct of_phandle_args *dma_spec,
 					   struct of_dma *ofdma)
 {
 	struct stm32_dma_device *dmadev = ofdma->of_dma_data;
+	struct device *dev = dmadev->ddev.dev;
 	struct stm32_dma_cfg cfg;
 	struct stm32_dma_chan *chan;
 	struct dma_chan *c;
 
-	if (dma_spec->args_count < 4)
+	if (dma_spec->args_count < 4) {
+		dev_err(dev, "Bad number of cells\n");
 		return NULL;
+	}
 
 	cfg.channel_id = dma_spec->args[0];
 	cfg.request_line = dma_spec->args[1];
 	cfg.stream_config = dma_spec->args[2];
 	cfg.threshold = dma_spec->args[3];
 
-	if ((cfg.channel_id >= STM32_DMA_MAX_CHANNELS) || (cfg.request_line >=
-				STM32_DMA_MAX_REQUEST_ID))
+	if ((cfg.channel_id >= STM32_DMA_MAX_CHANNELS) ||
+	    (cfg.request_line >= STM32_DMA_MAX_REQUEST_ID)) {
+		dev_err(dev, "Bad channel and/or request id\n");
 		return NULL;
+	}
 
 	chan = &dmadev->chan[cfg.channel_id];
 
 	c = dma_get_slave_channel(&chan->vchan.chan);
-	if (c)
-		stm32_dma_set_config(chan, &cfg);
+	if (!c) {
+		dev_err(dev, "No more channel avalaible\n");
+		return NULL;
+	}
+
+	stm32_dma_set_config(chan, &cfg);
 
 	return c;
 }
@@ -1048,6 +1076,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 	dd->device_prep_dma_cyclic = stm32_dma_prep_dma_cyclic;
 	dd->device_config = stm32_dma_slave_config;
 	dd->device_terminate_all = stm32_dma_terminate_all;
+	dd->device_synchronize = stm32_dma_synchronize;
 	dd->src_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) |
 		BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) |
 		BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
@@ -1056,6 +1085,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 		BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
 	dd->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	dd->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+	dd->max_burst = STM32_DMA_MAX_BURST;
 	dd->dev = &pdev->dev;
 	INIT_LIST_HEAD(&dd->channels);
 

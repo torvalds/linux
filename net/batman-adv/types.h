@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -402,7 +402,7 @@ struct batadv_gw_node {
 	struct rcu_head rcu;
 };
 
-DECLARE_EWMA(throughput, 1024, 8)
+DECLARE_EWMA(throughput, 10, 8)
 
 /**
  * struct batadv_hardif_neigh_node_bat_v - B.A.T.M.A.N. V private neighbor

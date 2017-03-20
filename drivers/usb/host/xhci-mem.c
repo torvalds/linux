@@ -936,6 +936,9 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 		return;
 
 	dev = xhci->devs[slot_id];
+
+	trace_xhci_free_virt_device(dev);
+
 	xhci->dcbaa->dev_context_ptrs[slot_id] = 0;
 	if (!dev)
 		return;
@@ -943,7 +946,7 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 	if (dev->tt_info)
 		old_active_eps = dev->tt_info->active_eps;
 
-	for (i = 0; i < 31; ++i) {
+	for (i = 0; i < 31; i++) {
 		if (dev->eps[i].ring)
 			xhci_ring_free(xhci, dev->eps[i].ring);
 		if (dev->eps[i].stream_info)
@@ -1074,6 +1077,8 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 		 slot_id,
 		 &xhci->dcbaa->dev_context_ptrs[slot_id],
 		 le64_to_cpu(xhci->dcbaa->dev_context_ptrs[slot_id]));
+
+	trace_xhci_alloc_virt_device(dev);
 
 	return 1;
 fail:
@@ -1249,6 +1254,8 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	ep0_ctx->deq = cpu_to_le64(dev->eps[0].ring->first_seg->dma |
 				   dev->eps[0].ring->cycle_state);
 
+	trace_xhci_setup_addressable_virt_device(dev);
+
 	/* Steps 7 and 8 were done in xhci_alloc_virt_device() */
 
 	return 0;
@@ -1414,14 +1421,16 @@ static u32 xhci_get_endpoint_type(struct usb_host_endpoint *ep)
 
 	in = usb_endpoint_dir_in(&ep->desc);
 
-	if (usb_endpoint_xfer_control(&ep->desc))
+	switch (usb_endpoint_type(&ep->desc)) {
+	case USB_ENDPOINT_XFER_CONTROL:
 		return CTRL_EP;
-	if (usb_endpoint_xfer_bulk(&ep->desc))
+	case USB_ENDPOINT_XFER_BULK:
 		return in ? BULK_IN_EP : BULK_OUT_EP;
-	if (usb_endpoint_xfer_isoc(&ep->desc))
+	case USB_ENDPOINT_XFER_ISOC:
 		return in ? ISOC_IN_EP : ISOC_OUT_EP;
-	if (usb_endpoint_xfer_int(&ep->desc))
+	case USB_ENDPOINT_XFER_INT:
 		return in ? INT_IN_EP : INT_OUT_EP;
+	}
 	return 0;
 }
 
@@ -1587,7 +1596,7 @@ void xhci_update_bw_info(struct xhci_hcd *xhci,
 	unsigned int ep_type;
 	int i;
 
-	for (i = 1; i < 31; ++i) {
+	for (i = 1; i < 31; i++) {
 		bw_info = &virt_dev->eps[i].bw_info;
 
 		/* We can't tell what endpoint type is being dropped, but
@@ -1808,10 +1817,7 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 
 void xhci_urb_free_priv(struct urb_priv *urb_priv)
 {
-	if (urb_priv) {
-		kfree(urb_priv->td[0]);
-		kfree(urb_priv);
-	}
+	kfree(urb_priv);
 }
 
 void xhci_free_command(struct xhci_hcd *xhci,
@@ -2569,9 +2575,9 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 * something other than the default (~1ms minimum between interrupts).
 	 * See section 5.5.1.2.
 	 */
-	for (i = 0; i < MAX_HC_SLOTS; ++i)
+	for (i = 0; i < MAX_HC_SLOTS; i++)
 		xhci->devs[i] = NULL;
-	for (i = 0; i < USB_MAXCHILDREN; ++i) {
+	for (i = 0; i < USB_MAXCHILDREN; i++) {
 		xhci->bus_state[0].resume_done[i] = 0;
 		xhci->bus_state[1].resume_done[i] = 0;
 		/* Only the USB 2.0 completions will ever be used. */

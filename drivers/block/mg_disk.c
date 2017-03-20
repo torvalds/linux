@@ -670,15 +670,17 @@ static void mg_request_poll(struct request_queue *q)
 				break;
 		}
 
-		if (unlikely(host->req->cmd_type != REQ_TYPE_FS)) {
-			mg_end_request_cur(host, -EIO);
-			continue;
-		}
-
-		if (rq_data_dir(host->req) == READ)
+		switch (req_op(host->req)) {
+		case REQ_OP_READ:
 			mg_read(host->req);
-		else
+			break;
+		case REQ_OP_WRITE:
 			mg_write(host->req);
+			break;
+		default:
+			mg_end_request_cur(host, -EIO);
+			break;
+		}
 	}
 }
 
@@ -687,13 +689,15 @@ static unsigned int mg_issue_req(struct request *req,
 		unsigned int sect_num,
 		unsigned int sect_cnt)
 {
-	if (rq_data_dir(req) == READ) {
+	switch (req_op(host->req)) {
+	case REQ_OP_READ:
 		if (mg_out(host, sect_num, sect_cnt, MG_CMD_RD, &mg_read_intr)
 				!= MG_ERR_NONE) {
 			mg_bad_rw_intr(host);
 			return host->error;
 		}
-	} else {
+		break;
+	case REQ_OP_WRITE:
 		/* TODO : handler */
 		outb(ATA_NIEN, (unsigned long)host->dev_base + MG_REG_DRV_CTRL);
 		if (mg_out(host, sect_num, sect_cnt, MG_CMD_WR, &mg_write_intr)
@@ -712,6 +716,10 @@ static unsigned int mg_issue_req(struct request *req,
 		mod_timer(&host->timer, jiffies + 3 * HZ);
 		outb(MG_CMD_WR_CONF, (unsigned long)host->dev_base +
 				MG_REG_COMMAND);
+		break;
+	default:
+		mg_end_request_cur(host, -EIO);
+		break;
 	}
 	return MG_ERR_NONE;
 }
@@ -749,11 +757,6 @@ static void mg_request(struct request_queue *q)
 					"%s: bad access: sector=%d, count=%d\n",
 					req->rq_disk->disk_name,
 					sect_num, sect_cnt);
-			mg_end_request_cur(host, -EIO);
-			continue;
-		}
-
-		if (unlikely(req->cmd_type != REQ_TYPE_FS)) {
 			mg_end_request_cur(host, -EIO);
 			continue;
 		}

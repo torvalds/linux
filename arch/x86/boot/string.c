@@ -156,3 +156,16 @@ char *strstr(const char *s1, const char *s2)
 	}
 	return NULL;
 }
+
+/**
+ * strchr - Find the first occurrence of the character c in the string s.
+ * @s: the string to be searched
+ * @c: the character to search for
+ */
+char *strchr(const char *s, int c)
+{
+	while (*s != (char)c)
+		if (*s++ == '\0')
+			return NULL;
+	return (char *)s;
+}

@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/sched/signal.h>
 
 #include <sound/control.h>
 #include <sound/core.h>

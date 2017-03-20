@@ -728,8 +728,6 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 		if (likely(head->wb_page && !PageSwapCache(head->wb_page))) {
 			set_page_private(head->wb_page, 0);
 			ClearPagePrivate(head->wb_page);
-			smp_mb__after_atomic();
-			wake_up_page(head->wb_page, PG_private);
 			clear_bit(PG_MAPPED, &head->wb_flags);
 		}
 		nfsi->nrequests--;
@@ -1786,8 +1784,9 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 			(long long)req_offset(req));
 		if (status < 0) {
 			nfs_context_set_write_error(req->wb_context, status);
-			nfs_inode_remove_request(req);
-			dprintk(", error = %d\n", status);
+			if (req->wb_page)
+				nfs_inode_remove_request(req);
+			dprintk_cont(", error = %d\n", status);
 			goto next;
 		}
 
@@ -1795,12 +1794,13 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 		 * returned by the server against all stored verfs. */
 		if (!nfs_write_verifier_cmp(&req->wb_verf, &data->verf.verifier)) {
 			/* We have a match */
-			nfs_inode_remove_request(req);
-			dprintk(" OK\n");
+			if (req->wb_page)
+				nfs_inode_remove_request(req);
+			dprintk_cont(" OK\n");
 			goto next;
 		}
 		/* We have a mismatch. Write the page again */
-		dprintk(" mismatch\n");
+		dprintk_cont(" mismatch\n");
 		nfs_mark_request_dirty(req);
 		set_bit(NFS_CONTEXT_RESEND_WRITES, &req->wb_context->flags);
 	next:

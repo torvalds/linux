@@ -1161,6 +1161,7 @@ config SERIAL_LANTIQ
 	depends on LANTIQ
 	select SERIAL_CORE
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Support for console and UART on Lantiq SoCs.
 

@@ -65,7 +65,12 @@ static void vtpm_proxy_delete_device(struct proxy_dev *proxy_dev);
 /**
  * vtpm_proxy_fops_read - Read TPM commands on 'server side'
  *
- * Return value:
+ * @filp: file pointer
+ * @buf: read buffer
+ * @count: number of bytes to read
+ * @off: offset
+ *
+ * Return:
  *	Number of bytes read or negative error code
  */
 static ssize_t vtpm_proxy_fops_read(struct file *filp, char __user *buf,
@@ -115,7 +120,12 @@ static ssize_t vtpm_proxy_fops_read(struct file *filp, char __user *buf,
 /**
  * vtpm_proxy_fops_write - Write TPM responses on 'server side'
  *
- * Return value:
+ * @filp: file pointer
+ * @buf: write buffer
+ * @count: number of bytes to write
+ * @off: offset
+ *
+ * Return:
  *	Number of bytes read or negative error value
  */
 static ssize_t vtpm_proxy_fops_write(struct file *filp, const char __user *buf,
@@ -155,10 +165,12 @@ static ssize_t vtpm_proxy_fops_write(struct file *filp, const char __user *buf,
 }
 
 /*
- * vtpm_proxy_fops_poll: Poll status on 'server side'
+ * vtpm_proxy_fops_poll - Poll status on 'server side'
  *
- * Return value:
- *      Poll flags
+ * @filp: file pointer
+ * @wait: poll table
+ *
+ * Return: Poll flags
  */
 static unsigned int vtpm_proxy_fops_poll(struct file *filp, poll_table *wait)
 {
@@ -185,6 +197,8 @@ static unsigned int vtpm_proxy_fops_poll(struct file *filp, poll_table *wait)
 /*
  * vtpm_proxy_fops_open - Open vTPM device on 'server side'
  *
+ * @filp: file pointer
+ *
  * Called when setting up the anonymous file descriptor
  */
 static void vtpm_proxy_fops_open(struct file *filp)
@@ -196,8 +210,9 @@ static void vtpm_proxy_fops_open(struct file *filp)
 
 /**
  * vtpm_proxy_fops_undo_open - counter-part to vtpm_fops_open
+ *       Call to undo vtpm_proxy_fops_open
  *
- * Call to undo vtpm_proxy_fops_open
+ *@proxy_dev: tpm proxy device
  */
 static void vtpm_proxy_fops_undo_open(struct proxy_dev *proxy_dev)
 {
@@ -212,9 +227,11 @@ static void vtpm_proxy_fops_undo_open(struct proxy_dev *proxy_dev)
 }
 
 /*
- * vtpm_proxy_fops_release: Close 'server side'
+ * vtpm_proxy_fops_release - Close 'server side'
  *
- * Return value:
+ * @inode: inode
+ * @filp: file pointer
+ * Return:
  *      Always returns 0.
  */
 static int vtpm_proxy_fops_release(struct inode *inode, struct file *filp)
@@ -245,7 +262,10 @@ static const struct file_operations vtpm_proxy_fops = {
 /*
  * Called when core TPM driver reads TPM responses from 'server side'
  *
- * Return value:
+ * @chip: tpm chip to use
+ * @buf: receive buffer
+ * @count: bytes to read
+ * Return:
  *      Number of TPM response bytes read, negative error value otherwise
  */
 static int vtpm_proxy_tpm_op_recv(struct tpm_chip *chip, u8 *buf, size_t count)
@@ -282,7 +302,11 @@ out:
 /*
  * Called when core TPM driver forwards TPM requests to 'server side'.
  *
- * Return value:
+ * @chip: tpm chip to use
+ * @buf: send buffer
+ * @count: bytes to send
+ *
+ * Return:
  *      0 in case of success, negative error value otherwise.
  */
 static int vtpm_proxy_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t count)
@@ -442,7 +466,7 @@ static inline void vtpm_proxy_delete_proxy_dev(struct proxy_dev *proxy_dev)
 /*
  * Create a /dev/tpm%d and 'server side' file descriptor pair
  *
- * Return value:
+ * Return:
  *      Returns file pointer on success, an error value otherwise
  */
 static struct file *vtpm_proxy_create_device(
@@ -571,7 +595,7 @@ static long vtpmx_ioc_new_dev(struct file *file, unsigned int ioctl,
 /*
  * vtpmx_fops_ioctl: ioctl on /dev/vtpmx
  *
- * Return value:
+ * Return:
  *      Returns 0 on success, a negative error code otherwise.
  */
 static long vtpmx_fops_ioctl(struct file *f, unsigned int ioctl,

@@ -5,7 +5,6 @@ Copyright (C) 2008 - 2014 Freescale Semiconductor Inc.
 CONTENTS
 
 	- QMan Portal
-	- QMan Pool Channel
 	- Example
 
 QMan Portal Node
@@ -81,25 +80,6 @@ These subnodes should have the following properties:
 	Value type:	<phandle>
 	Definition:	The phandle to the particular hardware device that this
 			portal is connected to.
-
-DPAA QMan Pool Channel Nodes
-
-Pool Channels are defined with the following properties.
-
-PROPERTIES
-
-- compatible
-	Usage:		Required
-	Value type:	<stringlist>
-	Definition:	Must include "fsl,qman-pool-channel"
-			May include "fsl,<SoC>-qman-pool-channel"
-
-- fsl,qman-channel-id
-	Usage:		Required
-	Value type:	<u32>
-	Definition:	The hardware index of the channel. This can also be
-			determined by dividing any of the channel's 8 work queue
-			IDs by 8
 
 EXAMPLE
 

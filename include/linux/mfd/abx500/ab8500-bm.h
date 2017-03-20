@@ -279,7 +279,7 @@ enum bup_vch_sel {
  * struct res_to_temp - defines one point in a temp to res curve. To
  * be used in battery packs that combines the identification resistor with a
  * NTC resistor.
- * @temp:			battery pack temperature in Celcius
+ * @temp:			battery pack temperature in Celsius
  * @resist:			NTC resistor net total resistance
  */
 struct res_to_temp {
@@ -290,7 +290,7 @@ struct res_to_temp {
 /**
  * struct batres_vs_temp - defines one point in a temp vs battery internal
  * resistance curve.
- * @temp:			battery pack temperature in Celcius
+ * @temp:			battery pack temperature in Celsius
  * @resist:			battery internal reistance in mOhm
  */
 struct batres_vs_temp {

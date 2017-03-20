@@ -27,7 +27,9 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/oom.h>
+#include <linux/sched/debug.h>
 #include <linux/smpboot.h>
+#include <uapi/linux/sched/types.h>
 #include "../time/tick-internal.h"
 
 #ifdef CONFIG_RCU_BOOST
@@ -1643,7 +1645,7 @@ static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
 	       "o."[!!(rdp->grpmask & rdp->mynode->qsmaskinit)],
 	       "N."[!!(rdp->grpmask & rdp->mynode->qsmaskinitnext)],
 	       ticks_value, ticks_title,
-	       atomic_read(&rdtp->dynticks) & 0xfff,
+	       rcu_dynticks_snap(rdtp) & 0xfff,
 	       rdtp->dynticks_nesting, rdtp->dynticks_nmi_nesting,
 	       rdp->softirq_snap, kstat_softirqs_cpu(RCU_SOFTIRQ, cpu),
 	       READ_ONCE(rsp->n_force_qs) - rsp->n_force_qs_gpstart,
@@ -2366,8 +2368,9 @@ static void __init rcu_organize_nocb_kthreads(struct rcu_state *rsp)
 	}
 
 	/*
-	 * Each pass through this loop sets up one rcu_data structure and
-	 * spawns one rcu_nocb_kthread().
+	 * Each pass through this loop sets up one rcu_data structure.
+	 * Should the corresponding CPU come online in the future, then
+	 * we will spawn the needed set of rcu_nocb_kthread() kthreads.
 	 */
 	for_each_cpu(cpu, rcu_nocb_mask) {
 		rdp = per_cpu_ptr(rsp->rda, cpu);

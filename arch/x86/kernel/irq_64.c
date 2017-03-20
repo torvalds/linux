@@ -15,6 +15,7 @@
 #include <linux/ftrace.h>
 #include <linux/uaccess.h>
 #include <linux/smp.h>
+#include <linux/sched/task_stack.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
 

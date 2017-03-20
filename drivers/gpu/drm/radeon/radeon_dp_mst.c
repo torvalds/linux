@@ -667,7 +667,7 @@ radeon_dp_mst_init(struct radeon_connector *radeon_connector)
 		return 0;
 
 	radeon_connector->mst_mgr.cbs = &mst_cbs;
-	return drm_dp_mst_topology_mgr_init(&radeon_connector->mst_mgr, dev->dev,
+	return drm_dp_mst_topology_mgr_init(&radeon_connector->mst_mgr, dev,
 					    &radeon_connector->ddc_bus->aux, 16, 6,
 					    radeon_connector->base.base.id);
 }

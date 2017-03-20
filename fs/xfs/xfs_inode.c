@@ -1615,7 +1615,7 @@ xfs_itruncate_extents(
 
 	/* Remove all pending CoW reservations. */
 	error = xfs_reflink_cancel_cow_blocks(ip, &tp, first_unmap_block,
-			last_block);
+			last_block, true);
 	if (error)
 		goto out;
 
@@ -1692,32 +1692,34 @@ xfs_release(
 	if (xfs_can_free_eofblocks(ip, false)) {
 
 		/*
-		 * If we can't get the iolock just skip truncating the blocks
-		 * past EOF because we could deadlock with the mmap_sem
-		 * otherwise.  We'll get another chance to drop them once the
-		 * last reference to the inode is dropped, so we'll never leak
-		 * blocks permanently.
+		 * Check if the inode is being opened, written and closed
+		 * frequently and we have delayed allocation blocks outstanding
+		 * (e.g. streaming writes from the NFS server), truncating the
+		 * blocks past EOF will cause fragmentation to occur.
 		 *
-		 * Further, check if the inode is being opened, written and
-		 * closed frequently and we have delayed allocation blocks
-		 * outstanding (e.g. streaming writes from the NFS server),
-		 * truncating the blocks past EOF will cause fragmentation to
-		 * occur.
-		 *
-		 * In this case don't do the truncation, either, but we have to
-		 * be careful how we detect this case. Blocks beyond EOF show
-		 * up as i_delayed_blks even when the inode is clean, so we
-		 * need to truncate them away first before checking for a dirty
-		 * release. Hence on the first dirty close we will still remove
-		 * the speculative allocation, but after that we will leave it
-		 * in place.
+		 * In this case don't do the truncation, but we have to be
+		 * careful how we detect this case. Blocks beyond EOF show up as
+		 * i_delayed_blks even when the inode is clean, so we need to
+		 * truncate them away first before checking for a dirty release.
+		 * Hence on the first dirty close we will still remove the
+		 * speculative allocation, but after that we will leave it in
+		 * place.
 		 */
 		if (xfs_iflags_test(ip, XFS_IDIRTY_RELEASE))
 			return 0;
-
-		error = xfs_free_eofblocks(mp, ip, true);
-		if (error && error != -EAGAIN)
-			return error;
+		/*
+		 * If we can't get the iolock just skip truncating the blocks
+		 * past EOF because we could deadlock with the mmap_sem
+		 * otherwise. We'll get another chance to drop them once the
+		 * last reference to the inode is dropped, so we'll never leak
+		 * blocks permanently.
+		 */
+		if (xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
+			error = xfs_free_eofblocks(ip);
+			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+			if (error)
+				return error;
+		}
 
 		/* delalloc blocks after truncation means it really is dirty */
 		if (ip->i_delayed_blks)
@@ -1904,8 +1906,11 @@ xfs_inactive(
 		 * cache. Post-eof blocks must be freed, lest we end up with
 		 * broken free space accounting.
 		 */
-		if (xfs_can_free_eofblocks(ip, true))
-			xfs_free_eofblocks(mp, ip, false);
+		if (xfs_can_free_eofblocks(ip, true)) {
+			xfs_ilock(ip, XFS_IOLOCK_EXCL);
+			xfs_free_eofblocks(ip);
+			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+		}
 
 		return;
 	}
@@ -3470,6 +3475,7 @@ xfs_iflush_int(
 	struct xfs_inode_log_item *iip = ip->i_itemp;
 	struct xfs_dinode	*dip;
 	struct xfs_mount	*mp = ip->i_mount;
+	int			error;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
 	ASSERT(xfs_isiflocked(ip));
@@ -3552,9 +3558,14 @@ xfs_iflush_int(
 	if (ip->i_d.di_flushiter == DI_MAX_FLUSH)
 		ip->i_d.di_flushiter = 0;
 
-	xfs_iflush_fork(ip, dip, iip, XFS_DATA_FORK);
-	if (XFS_IFORK_Q(ip))
-		xfs_iflush_fork(ip, dip, iip, XFS_ATTR_FORK);
+	error = xfs_iflush_fork(ip, dip, iip, XFS_DATA_FORK);
+	if (error)
+		return error;
+	if (XFS_IFORK_Q(ip)) {
+		error = xfs_iflush_fork(ip, dip, iip, XFS_ATTR_FORK);
+		if (error)
+			return error;
+	}
 	xfs_inobp_check(mp, bp);
 
 	/*

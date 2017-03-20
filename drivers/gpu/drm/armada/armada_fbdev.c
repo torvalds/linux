@@ -89,11 +89,12 @@ static int armada_fb_create(struct drm_fb_helper *fbh,
 	info->screen_base = ptr;
 	fbh->fb = &dfb->fb;
 
-	drm_fb_helper_fill_fix(info, dfb->fb.pitches[0], dfb->fb.depth);
+	drm_fb_helper_fill_fix(info, dfb->fb.pitches[0],
+			       dfb->fb.format->depth);
 	drm_fb_helper_fill_var(info, fbh, sizes->fb_width, sizes->fb_height);
 
 	DRM_DEBUG_KMS("allocated %dx%d %dbpp fb: 0x%08llx\n",
-		dfb->fb.width, dfb->fb.height, dfb->fb.bits_per_pixel,
+		dfb->fb.width, dfb->fb.height, dfb->fb.format->cpp[0] * 8,
 		(unsigned long long)obj->phys_addr);
 
 	return 0;
@@ -136,7 +137,7 @@ int armada_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, fbh, &armada_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, fbh, 1, 1);
+	ret = drm_fb_helper_init(dev, fbh, 1);
 	if (ret) {
 		DRM_ERROR("failed to initialize drm fb helper\n");
 		goto err_fb_helper;

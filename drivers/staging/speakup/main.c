@@ -16,7 +16,7 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
-*/
+ */
 
 #include <linux/kernel.h>
 #include <linux/vt.h>
@@ -58,8 +58,8 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(SPEAKUP_VERSION);
 
 char *synth_name;
-module_param_named(synth, synth_name, charp, S_IRUGO);
-module_param_named(quiet, spk_quiet_boot, bool, S_IRUGO);
+module_param_named(synth, synth_name, charp, 0444);
+module_param_named(quiet, spk_quiet_boot, bool, 0444);
 
 MODULE_PARM_DESC(synth, "Synth to start if speakup is built in.");
 MODULE_PARM_DESC(quiet, "Do not announce when the synthesizer is found.");

@@ -977,11 +977,32 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int mv64xxx_i2c_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct mv64xxx_i2c_data *drv_data = platform_get_drvdata(pdev);
+
+	mv64xxx_i2c_hw_init(drv_data);
+
+	return 0;
+}
+
+static const struct dev_pm_ops mv64xxx_i2c_pm = {
+	.resume = mv64xxx_i2c_resume,
+};
+
+#define mv64xxx_i2c_pm_ops (&mv64xxx_i2c_pm)
+#else
+#define mv64xxx_i2c_pm_ops NULL
+#endif
+
 static struct platform_driver mv64xxx_i2c_driver = {
 	.probe	= mv64xxx_i2c_probe,
 	.remove	= mv64xxx_i2c_remove,
 	.driver	= {
 		.name	= MV64XXX_I2C_CTLR_NAME,
+		.pm     = mv64xxx_i2c_pm_ops,
 		.of_match_table = mv64xxx_i2c_of_match_table,
 	},
 };

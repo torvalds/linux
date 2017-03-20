@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -47,8 +47,13 @@
 #include <linux/pci.h>
 #include <linux/ethtool.h>
 
+#include "nfpcore/nfp.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
+
+enum nfp_dump_diag {
+	NFP_DUMP_NSP_DIAG = 0,
+};
 
 /* Support for stats. Returns netdev, driver, and device stats */
 enum { NETDEV_ET_STATS, NFP_NET_DRV_ET_STATS, NFP_NET_DEV_ET_STATS };
@@ -127,19 +132,39 @@ static const struct _nfp_net_et_stats nfp_net_et_stats[] = {
 #define NN_ET_STATS_LEN (NN_ET_GLOBAL_STATS_LEN + NN_ET_RVEC_GATHER_STATS + \
 			 NN_ET_RVEC_STATS_LEN + NN_ET_QUEUE_STATS_LEN)
 
+static void nfp_net_get_nspinfo(struct nfp_net *nn, char *version)
+{
+	struct nfp_nsp *nsp;
+
+	if (!nn->cpp)
+		return;
+
+	nsp = nfp_nsp_open(nn->cpp);
+	if (IS_ERR(nsp))
+		return;
+
+	snprintf(version, ETHTOOL_FWVERS_LEN, "sp:%hu.%hu",
+		 nfp_nsp_get_abi_ver_major(nsp),
+		 nfp_nsp_get_abi_ver_minor(nsp));
+
+	nfp_nsp_close(nsp);
+}
+
 static void nfp_net_get_drvinfo(struct net_device *netdev,
 				struct ethtool_drvinfo *drvinfo)
 {
+	char nsp_version[ETHTOOL_FWVERS_LEN] = {};
 	struct nfp_net *nn = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver, nfp_net_driver_name, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, nfp_net_driver_version,
-		sizeof(drvinfo->version));
+	strlcpy(drvinfo->driver, nn->pdev->driver->name,
+		sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, nfp_driver_version, sizeof(drvinfo->version));
 
+	nfp_net_get_nspinfo(nn, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		 "%d.%d.%d.%d",
+		 "%d.%d.%d.%d %s",
 		 nn->fw_ver.resv, nn->fw_ver.class,
-		 nn->fw_ver.major, nn->fw_ver.minor);
+		 nn->fw_ver.major, nn->fw_ver.minor, nsp_version);
 	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));
 
@@ -558,6 +583,75 @@ static int nfp_net_get_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+/* Other debug dumps
+ */
+static int
+nfp_dump_nsp_diag(struct nfp_net *nn, struct ethtool_dump *dump, void *buffer)
+{
+	struct nfp_resource *res;
+	int ret;
+
+	if (!nn->cpp)
+		return -EOPNOTSUPP;
+
+	dump->version = 1;
+	dump->flag = NFP_DUMP_NSP_DIAG;
+
+	res = nfp_resource_acquire(nn->cpp, NFP_RESOURCE_NSP_DIAG);
+	if (IS_ERR(res))
+		return PTR_ERR(res);
+
+	if (buffer) {
+		if (dump->len != nfp_resource_size(res)) {
+			ret = -EINVAL;
+			goto exit_release;
+		}
+
+		ret = nfp_cpp_read(nn->cpp, nfp_resource_cpp_id(res),
+				   nfp_resource_address(res),
+				   buffer, dump->len);
+		if (ret != dump->len)
+			ret = ret < 0 ? ret : -EIO;
+		else
+			ret = 0;
+	} else {
+		dump->len = nfp_resource_size(res);
+		ret = 0;
+	}
+exit_release:
+	nfp_resource_release(res);
+
+	return ret;
+}
+
+static int nfp_net_set_dump(struct net_device *netdev, struct ethtool_dump *val)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	if (!nn->cpp)
+		return -EOPNOTSUPP;
+
+	if (val->flag != NFP_DUMP_NSP_DIAG)
+		return -EINVAL;
+
+	nn->ethtool_dump_flag = val->flag;
+
+	return 0;
+}
+
+static int
+nfp_net_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
+{
+	return nfp_dump_nsp_diag(netdev_priv(netdev), dump, NULL);
+}
+
+static int
+nfp_net_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
+		      void *buffer)
+{
+	return nfp_dump_nsp_diag(netdev_priv(netdev), dump, buffer);
+}
+
 static int nfp_net_set_coalesce(struct net_device *netdev,
 				struct ethtool_coalesce *ec)
 {
@@ -722,6 +816,9 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_rxfh		= nfp_net_set_rxfh,
 	.get_regs_len		= nfp_net_get_regs_len,
 	.get_regs		= nfp_net_get_regs,
+	.set_dump		= nfp_net_set_dump,
+	.get_dump_flag		= nfp_net_get_dump_flag,
+	.get_dump_data		= nfp_net_get_dump_data,
 	.get_coalesce           = nfp_net_get_coalesce,
 	.set_coalesce           = nfp_net_set_coalesce,
 	.get_channels		= nfp_net_get_channels,

@@ -139,28 +139,41 @@ static inline unsigned long radix__pte_update(struct mm_struct *mm,
 
 		unsigned long new_pte;
 
-		old_pte = __radix_pte_update(ptep, ~0, 0);
+		old_pte = __radix_pte_update(ptep, ~0ul, 0);
 		/*
 		 * new value of pte
 		 */
 		new_pte = (old_pte | set) & ~clr;
-		/*
-		 * If we are trying to clear the pte, we can skip
-		 * the below sequence and batch the tlb flush. The
-		 * tlb flush batching is done by mmu gather code
-		 */
-		if (new_pte) {
-			asm volatile("ptesync" : : : "memory");
-			radix__flush_tlb_pte_p9_dd1(old_pte, mm, addr);
+		radix__flush_tlb_pte_p9_dd1(old_pte, mm, addr);
+		if (new_pte)
 			__radix_pte_update(ptep, 0, new_pte);
-		}
 	} else
 		old_pte = __radix_pte_update(ptep, clr, set);
-	asm volatile("ptesync" : : : "memory");
 	if (!huge)
 		assert_pte_locked(mm, addr);
 
 	return old_pte;
+}
+
+static inline pte_t radix__ptep_get_and_clear_full(struct mm_struct *mm,
+						   unsigned long addr,
+						   pte_t *ptep, int full)
+{
+	unsigned long old_pte;
+
+	if (full) {
+		/*
+		 * If we are trying to clear the pte, we can skip
+		 * the DD1 pte update sequence and batch the tlb flush. The
+		 * tlb flush batching is done by mmu gather code. We
+		 * still keep the cmp_xchg update to make sure we get
+		 * correct R/C bit which might be updated via Nest MMU.
+		 */
+		old_pte = __radix_pte_update(ptep, ~0ul, 0);
+	} else
+		old_pte = radix__pte_update(mm, addr, ptep, ~0ul, 0, 0);
+
+	return __pte(old_pte);
 }
 
 /*
@@ -180,7 +193,6 @@ static inline void radix__ptep_set_access_flags(struct mm_struct *mm,
 		unsigned long old_pte, new_pte;
 
 		old_pte = __radix_pte_update(ptep, ~0, 0);
-		asm volatile("ptesync" : : : "memory");
 		/*
 		 * new value of pte
 		 */
@@ -291,5 +303,10 @@ static inline unsigned long radix__get_tree_size(void)
 	}
 	return rts_field;
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+int radix__create_section_mapping(unsigned long start, unsigned long end);
+int radix__remove_section_mapping(unsigned long start, unsigned long end);
+#endif /* CONFIG_MEMORY_HOTPLUG */
 #endif /* __ASSEMBLY__ */
 #endif

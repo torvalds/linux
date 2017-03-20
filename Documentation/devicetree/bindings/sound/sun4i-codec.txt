@@ -14,7 +14,7 @@ Required properties:
 - dma-names: should include "tx" and "rx".
 - clocks: a list of phandle + clock-specifer pairs, one for each entry
   in clock-names.
-- clock-names: should contain followings:
+- clock-names: should contain the following:
    - "apb": the parent APB clock for this controller
    - "codec": the parent module clock
 

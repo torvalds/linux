@@ -383,6 +383,9 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 
 	sock_tx_timestamp(sk, sockc->tsflags, &skb_shinfo(skb)->tx_flags);
 
+	if (flags & MSG_CONFIRM)
+		skb_set_dst_pending_confirm(skb, 1);
+
 	skb->transport_header = skb->network_header;
 	err = -EFAULT;
 	if (memcpy_from_msg(iph, msg, length))
@@ -666,7 +669,8 @@ out:
 	return len;
 
 do_confirm:
-	dst_confirm(&rt->dst);
+	if (msg->msg_flags & MSG_PROBE)
+		dst_confirm_neigh(&rt->dst, &fl4.daddr);
 	if (!(msg->msg_flags & MSG_PROBE) || len)
 		goto back_from_confirm;
 	err = 0;

@@ -18,6 +18,10 @@
 		display0 = &hdmi0;
 	};
 
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	evm_12v0: fixedregulator-evm12v0 {
 		/* main supply */
 		compatible = "regulator-fixed";
@@ -216,6 +220,15 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
+	pcf_lcd: gpio@20 {
+		compatible = "nxp,pcf8575";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
 	pcf_gpio_21: gpio@21 {
 		compatible = "ti,pcf8575", "nxp,pcf8575";
 		reg = <0x21>;
@@ -280,7 +293,12 @@
 };
 
 &gpmc {
-	status = "okay";
+	/*
+	 * For the existing IOdelay configuration via U-Boot we don't
+	 * support NAND on dra72-evm. Keep it disabled. Enabling it
+	 * requires a different configuration by U-Boot.
+	 */
+	status = "disabled";
 	ranges = <0 0 0x08000000 0x01000000>;	/* minimum GPMC partition = 16MB */
 	nand@0,0 {
 		/* To use NAND, DIP switch SW5 must be set like so:

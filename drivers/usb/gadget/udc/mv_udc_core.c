@@ -946,7 +946,7 @@ static int mv_ep_set_wedge(struct usb_ep *_ep)
 	return mv_ep_set_halt_wedge(_ep, 1, 1);
 }
 
-static struct usb_ep_ops mv_ep_ops = {
+static const struct usb_ep_ops mv_ep_ops = {
 	.enable		= mv_ep_enable,
 	.disable	= mv_ep_disable,
 

@@ -61,8 +61,7 @@ struct vchi_version {
 #define VCHI_VERSION(v_) { v_, v_ }
 #define VCHI_VERSION_EX(v_, m_) { v_, m_ }
 
-typedef enum
-{
+typedef enum {
    VCHI_VEC_POINTER,
    VCHI_VEC_HANDLE,
    VCHI_VEC_LIST
@@ -71,26 +70,22 @@ typedef enum
 typedef struct vchi_msg_vector_ex {
 
    VCHI_MSG_VECTOR_TYPE_T type;
-   union
-   {
+   union {
       // a memory handle
-      struct
-      {
+      struct {
          VCHI_MEM_HANDLE_T handle;
          uint32_t offset;
          int32_t vec_len;
       } handle;
 
       // an ordinary data pointer
-      struct
-      {
+      struct {
          const void *vec_base;
          int32_t vec_len;
       } ptr;
 
       // a nested vector list
-      struct
-      {
+      struct {
          struct vchi_msg_vector_ex *vec;
          uint32_t vec_len;
       } list;
@@ -114,8 +109,7 @@ struct opaque_vchi_service_t;
 
 // Descriptor for a held message. Allocated by client, initialised by vchi_msg_hold,
 // vchi_msg_iter_hold or vchi_msg_iter_hold_next. Fields are for internal VCHI use only.
-typedef struct
-{
+typedef struct {
    struct opaque_vchi_service_t *service;
    void *message;
 } VCHI_HELD_MSG_T;
@@ -225,13 +219,17 @@ extern int32_t vchi_service_set_option( const VCHI_SERVICE_HANDLE_T handle,
 					VCHI_SERVICE_OPTION_T option,
 					int value);
 
-// Routine to send a message across a service
-extern int32_t
-	vchi_msg_queue(VCHI_SERVICE_HANDLE_T handle,
-		       ssize_t (*copy_callback)(void *context, void *dest,
-						size_t offset, size_t maxsize),
-		       void *context,
-		       uint32_t data_size);
+/* Routine to send a message from kernel memory across a service */
+extern int
+vchi_queue_kernel_message(VCHI_SERVICE_HANDLE_T handle,
+			  void *data,
+			  unsigned int size);
+
+/* Routine to send a message from user memory across a service */
+extern int
+vchi_queue_user_message(VCHI_SERVICE_HANDLE_T handle,
+			void __user *data,
+			unsigned int size);
 
 // Routine to receive a msg from a service
 // Dequeue is equivalent to hold, copy into client buffer, release

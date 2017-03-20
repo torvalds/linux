@@ -4,6 +4,7 @@ config CRYPTO_DEV_VIRTIO
 	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_ENGINE
 	default m
 	help
 	  This driver provides support for virtio crypto device. If you

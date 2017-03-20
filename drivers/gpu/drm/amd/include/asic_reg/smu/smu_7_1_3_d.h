@@ -1244,5 +1244,5 @@
 #define ixGC_CAC_ACC_CU14                                                       0xc8
 #define ixGC_CAC_ACC_CU15                                                       0xc9
 #define ixGC_CAC_OVRD_CU                                                        0xe7
-
+#define ixCURRENT_PG_STATUS                                                     0xc020029c
 #endif /* SMU_7_1_3_D_H */

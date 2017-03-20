@@ -534,9 +534,8 @@ static void store_pwrindex_offset(struct adapter *adapter,
 		power_level_offset[11] = data;
 	if (regaddr == rTxAGC_B_Mcs11_Mcs08)
 		power_level_offset[12] = data;
-	if (regaddr == rTxAGC_B_Mcs15_Mcs12) {
+	if (regaddr == rTxAGC_B_Mcs15_Mcs12)
 		power_level_offset[13] = data;
-	}
 }
 
 static void rtl_addr_delay(struct adapter *adapt,

@@ -202,8 +202,17 @@ struct ceph_mds_request {
 	char *r_path1, *r_path2;
 	struct ceph_vino r_ino1, r_ino2;
 
-	struct inode *r_locked_dir; /* dir (if any) i_mutex locked by vfs */
+	struct inode *r_parent;		    /* parent dir inode */
 	struct inode *r_target_inode;       /* resulting inode */
+
+#define CEPH_MDS_R_DIRECT_IS_HASH	(1) /* r_direct_hash is valid */
+#define CEPH_MDS_R_ABORTED		(2) /* call was aborted */
+#define CEPH_MDS_R_GOT_UNSAFE		(3) /* got an unsafe reply */
+#define CEPH_MDS_R_GOT_SAFE		(4) /* got a safe reply */
+#define CEPH_MDS_R_GOT_RESULT		(5) /* got a result */
+#define CEPH_MDS_R_DID_PREPOPULATE	(6) /* prepopulated readdir */
+#define CEPH_MDS_R_PARENT_LOCKED	(7) /* is r_parent->i_rwsem wlocked? */
+	unsigned long	r_req_flags;
 
 	struct mutex r_fill_mutex;
 
@@ -216,7 +225,6 @@ struct ceph_mds_request {
 	/* for choosing which mds to send this request to */
 	int r_direct_mode;
 	u32 r_direct_hash;      /* choose dir frag based on this dentry hash */
-	bool r_direct_is_hash;  /* true if r_direct_hash is valid */
 
 	/* data payload is used for xattr ops */
 	struct ceph_pagelist *r_pagelist;
@@ -234,7 +242,6 @@ struct ceph_mds_request {
 	struct ceph_mds_reply_info_parsed r_reply_info;
 	struct page *r_locked_page;
 	int r_err;
-	bool r_aborted;
 
 	unsigned long r_timeout;  /* optional.  jiffies, 0 is "wait forever" */
 	unsigned long r_started;  /* start time to measure timeout against */
@@ -262,9 +269,7 @@ struct ceph_mds_request {
 	ceph_mds_request_callback_t r_callback;
 	ceph_mds_request_wait_callback_t r_wait_for_completion;
 	struct list_head  r_unsafe_item;  /* per-session unsafe list item */
-	bool		  r_got_unsafe, r_got_safe, r_got_result;
 
-	bool              r_did_prepopulate;
 	long long	  r_dir_release_cnt;
 	long long	  r_dir_ordered_cnt;
 	int		  r_readdir_cache_idx;

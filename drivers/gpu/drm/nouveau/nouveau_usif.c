@@ -103,7 +103,7 @@ usif_notify(const void *header, u32 length, const void *data, u32 size)
 	}
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 		break;
 	}
 

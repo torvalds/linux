@@ -980,6 +980,8 @@ svga3dsurface_get_mip_size(surf_size_struct base_level, u32 mip_level)
 	size.width = max_t(u32, base_level.width >> mip_level, 1);
 	size.height = max_t(u32, base_level.height >> mip_level, 1);
 	size.depth = max_t(u32, base_level.depth >> mip_level, 1);
+	size.pad64 = 0;
+
 	return size;
 }
 

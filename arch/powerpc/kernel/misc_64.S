@@ -80,12 +80,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
  * each other.
  */
  	ld	r10,PPC64_CACHES@toc(r2)
-	lwz	r7,DCACHEL1LINESIZE(r10)/* Get cache line size */
+	lwz	r7,DCACHEL1BLOCKSIZE(r10)/* Get cache block size */
 	addi	r5,r7,-1
 	andc	r6,r3,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
 	add	r8,r8,r5		/* ensure we get enough */
-	lwz	r9,DCACHEL1LOGLINESIZE(r10)	/* Get log-2 of cache line size */
+	lwz	r9,DCACHEL1LOGBLOCKSIZE(r10)	/* Get log-2 of cache block size */
 	srw.	r8,r8,r9		/* compute line count */
 	beqlr				/* nothing to do? */
 	mtctr	r8
@@ -96,12 +96,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 
 /* Now invalidate the instruction cache */
 	
-	lwz	r7,ICACHEL1LINESIZE(r10)	/* Get Icache line size */
+	lwz	r7,ICACHEL1BLOCKSIZE(r10)	/* Get Icache block size */
 	addi	r5,r7,-1
 	andc	r6,r3,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
 	add	r8,r8,r5
-	lwz	r9,ICACHEL1LOGLINESIZE(r10)	/* Get log-2 of Icache line size */
+	lwz	r9,ICACHEL1LOGBLOCKSIZE(r10)	/* Get log-2 of Icache block size */
 	srw.	r8,r8,r9		/* compute line count */
 	beqlr				/* nothing to do? */
 	mtctr	r8
@@ -128,12 +128,12 @@ _GLOBAL(flush_dcache_range)
  * Different systems have different cache line sizes
  */
  	ld	r10,PPC64_CACHES@toc(r2)
-	lwz	r7,DCACHEL1LINESIZE(r10)	/* Get dcache line size */
+	lwz	r7,DCACHEL1BLOCKSIZE(r10)	/* Get dcache block size */
 	addi	r5,r7,-1
 	andc	r6,r3,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
 	add	r8,r8,r5		/* ensure we get enough */
-	lwz	r9,DCACHEL1LOGLINESIZE(r10)	/* Get log-2 of dcache line size */
+	lwz	r9,DCACHEL1LOGBLOCKSIZE(r10)	/* Get log-2 of dcache block size */
 	srw.	r8,r8,r9		/* compute line count */
 	beqlr				/* nothing to do? */
 	mtctr	r8
@@ -156,12 +156,12 @@ EXPORT_SYMBOL(flush_dcache_range)
  */
 _GLOBAL(flush_dcache_phys_range)
  	ld	r10,PPC64_CACHES@toc(r2)
-	lwz	r7,DCACHEL1LINESIZE(r10)	/* Get dcache line size */
+	lwz	r7,DCACHEL1BLOCKSIZE(r10)	/* Get dcache block size */
 	addi	r5,r7,-1
 	andc	r6,r3,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
 	add	r8,r8,r5		/* ensure we get enough */
-	lwz	r9,DCACHEL1LOGLINESIZE(r10)	/* Get log-2 of dcache line size */
+	lwz	r9,DCACHEL1LOGBLOCKSIZE(r10)	/* Get log-2 of dcache block size */
 	srw.	r8,r8,r9		/* compute line count */
 	beqlr				/* nothing to do? */
 	mfmsr	r5			/* Disable MMU Data Relocation */
@@ -184,12 +184,12 @@ _GLOBAL(flush_dcache_phys_range)
 
 _GLOBAL(flush_inval_dcache_range)
  	ld	r10,PPC64_CACHES@toc(r2)
-	lwz	r7,DCACHEL1LINESIZE(r10)	/* Get dcache line size */
+	lwz	r7,DCACHEL1BLOCKSIZE(r10)	/* Get dcache block size */
 	addi	r5,r7,-1
 	andc	r6,r3,r5		/* round low to line bdy */
 	subf	r8,r6,r4		/* compute length */
 	add	r8,r8,r5		/* ensure we get enough */
-	lwz	r9,DCACHEL1LOGLINESIZE(r10)/* Get log-2 of dcache line size */
+	lwz	r9,DCACHEL1LOGBLOCKSIZE(r10)/* Get log-2 of dcache block size */
 	srw.	r8,r8,r9		/* compute line count */
 	beqlr				/* nothing to do? */
 	sync
@@ -225,8 +225,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 /* Flush the dcache */
  	ld	r7,PPC64_CACHES@toc(r2)
 	clrrdi	r3,r3,PAGE_SHIFT           	    /* Page align */
-	lwz	r4,DCACHEL1LINESPERPAGE(r7)	/* Get # dcache lines per page */
-	lwz	r5,DCACHEL1LINESIZE(r7)		/* Get dcache line size */
+	lwz	r4,DCACHEL1BLOCKSPERPAGE(r7)	/* Get # dcache blocks per page */
+	lwz	r5,DCACHEL1BLOCKSIZE(r7)	/* Get dcache block size */
 	mr	r6,r3
 	mtctr	r4
 0:	dcbst	0,r6
@@ -236,8 +236,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 
 /* Now invalidate the icache */	
 
-	lwz	r4,ICACHEL1LINESPERPAGE(r7)	/* Get # icache lines per page */
-	lwz	r5,ICACHEL1LINESIZE(r7)		/* Get icache line size */
+	lwz	r4,ICACHEL1BLOCKSPERPAGE(r7)	/* Get # icache blocks per page */
+	lwz	r5,ICACHEL1BLOCKSIZE(r7)	/* Get icache block size */
 	mtctr	r4
 1:	icbi	0,r3
 	add	r3,r3,r5

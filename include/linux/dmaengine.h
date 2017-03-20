@@ -894,6 +894,17 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_memset(
 						    len, flags);
 }
 
+static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_memcpy(
+		struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
+		size_t len, unsigned long flags)
+{
+	if (!chan || !chan->device || !chan->device->device_prep_dma_memcpy)
+		return NULL;
+
+	return chan->device->device_prep_dma_memcpy(chan, dest, src,
+						    len, flags);
+}
+
 static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_sg(
 		struct dma_chan *chan,
 		struct scatterlist *dst_sg, unsigned int dst_nents,

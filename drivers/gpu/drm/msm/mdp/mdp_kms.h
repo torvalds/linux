@@ -112,6 +112,7 @@ const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format);
 #define MDP_PIPE_CAP_CSC			BIT(3)
 #define MDP_PIPE_CAP_DECIMATION			BIT(4)
 #define MDP_PIPE_CAP_SW_PIX_EXT			BIT(5)
+#define MDP_PIPE_CAP_CURSOR			BIT(6)
 
 static inline bool pipe_supports_yuv(uint32_t pipe_caps)
 {

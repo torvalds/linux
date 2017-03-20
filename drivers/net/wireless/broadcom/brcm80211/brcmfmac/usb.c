@@ -1148,7 +1148,7 @@ static int brcmf_usb_bus_setup(struct brcmf_usbdev_info *devinfo)
 	if (ret)
 		goto fail;
 
-	ret = brcmf_bus_start(devinfo->dev);
+	ret = brcmf_bus_started(devinfo->dev);
 	if (ret)
 		goto fail;
 

@@ -103,7 +103,7 @@ static void __init sti_smp_prepare_cpus(unsigned int max_cpus)
 	u32 __iomem *cpu_strt_ptr;
 	u32 release_phys;
 	int cpu;
-	unsigned long entry_pa = virt_to_phys(sti_secondary_startup);
+	unsigned long entry_pa = __pa_symbol(sti_secondary_startup);
 
 	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
 

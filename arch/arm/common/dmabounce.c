@@ -452,7 +452,7 @@ static int dmabounce_set_mask(struct device *dev, u64 dma_mask)
 	return arm_dma_ops.set_dma_mask(dev, dma_mask);
 }
 
-static struct dma_map_ops dmabounce_ops = {
+static const struct dma_map_ops dmabounce_ops = {
 	.alloc			= arm_dma_alloc,
 	.free			= arm_dma_free,
 	.mmap			= arm_dma_mmap,

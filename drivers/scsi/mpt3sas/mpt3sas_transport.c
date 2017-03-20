@@ -2057,10 +2057,10 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		    ioc->name, __func__,
 		    le16_to_cpu(mpi_reply->ResponseDataLength)));
 
-		memcpy(req->sense, mpi_reply, sizeof(*mpi_reply));
-		req->sense_len = sizeof(*mpi_reply);
-		req->resid_len = 0;
-		rsp->resid_len -=
+		memcpy(scsi_req(req)->sense, mpi_reply, sizeof(*mpi_reply));
+		scsi_req(req)->sense_len = sizeof(*mpi_reply);
+		scsi_req(req)->resid_len = 0;
+		scsi_req(rsp)->resid_len -=
 		    le16_to_cpu(mpi_reply->ResponseDataLength);
 
 		/* check if the resp needs to be copied from the allocated

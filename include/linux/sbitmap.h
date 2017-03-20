@@ -259,6 +259,26 @@ static inline int sbitmap_test_bit(struct sbitmap *sb, unsigned int bitnr)
 unsigned int sbitmap_weight(const struct sbitmap *sb);
 
 /**
+ * sbitmap_show() - Dump &struct sbitmap information to a &struct seq_file.
+ * @sb: Bitmap to show.
+ * @m: struct seq_file to write to.
+ *
+ * This is intended for debugging. The format may change at any time.
+ */
+void sbitmap_show(struct sbitmap *sb, struct seq_file *m);
+
+/**
+ * sbitmap_bitmap_show() - Write a hex dump of a &struct sbitmap to a &struct
+ * seq_file.
+ * @sb: Bitmap to show.
+ * @m: struct seq_file to write to.
+ *
+ * This is intended for debugging. The output isn't guaranteed to be internally
+ * consistent.
+ */
+void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m);
+
+/**
  * sbitmap_queue_init_node() - Initialize a &struct sbitmap_queue on a specific
  * memory node.
  * @sbq: Bitmap queue to initialize.
@@ -369,5 +389,15 @@ static inline struct sbq_wait_state *sbq_wait_ptr(struct sbitmap_queue *sbq,
  * @sbq: Bitmap queue to wake up.
  */
 void sbitmap_queue_wake_all(struct sbitmap_queue *sbq);
+
+/**
+ * sbitmap_queue_show() - Dump &struct sbitmap_queue information to a &struct
+ * seq_file.
+ * @sbq: Bitmap queue to show.
+ * @m: struct seq_file to write to.
+ *
+ * This is intended for debugging. The format may change at any time.
+ */
+void sbitmap_queue_show(struct sbitmap_queue *sbq, struct seq_file *m);
 
 #endif /* __LINUX_SCALE_BITMAP_H */

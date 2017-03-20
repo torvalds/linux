@@ -148,7 +148,15 @@ static int mdp5_set_split_display(struct msm_kms *kms,
 		return mdp5_cmd_encoder_set_split_display(encoder,
 							slave_encoder);
 	else
-		return mdp5_encoder_set_split_display(encoder, slave_encoder);
+		return mdp5_vid_encoder_set_split_display(encoder,
+							  slave_encoder);
+}
+
+static void mdp5_set_encoder_mode(struct msm_kms *kms,
+				  struct drm_encoder *encoder,
+				  bool cmd_mode)
+{
+	mdp5_encoder_set_intf_mode(encoder, cmd_mode);
 }
 
 static void mdp5_kms_destroy(struct msm_kms *kms)
@@ -230,6 +238,7 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,
+		.set_encoder_mode = mdp5_set_encoder_mode,
 		.destroy         = mdp5_kms_destroy,
 #ifdef CONFIG_DEBUG_FS
 		.debugfs_init    = mdp5_kms_debugfs_init,
@@ -267,7 +276,7 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 
 static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
 		enum mdp5_intf_type intf_type, int intf_num,
-		enum mdp5_intf_mode intf_mode, struct mdp5_ctl *ctl)
+		struct mdp5_ctl *ctl)
 {
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
@@ -275,21 +284,15 @@ static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
 	struct mdp5_interface intf = {
 			.num	= intf_num,
 			.type	= intf_type,
-			.mode	= intf_mode,
+			.mode	= MDP5_INTF_MODE_NONE,
 	};
 
-	if ((intf_type == INTF_DSI) &&
-		(intf_mode == MDP5_INTF_DSI_MODE_COMMAND))
-		encoder = mdp5_cmd_encoder_init(dev, &intf, ctl);
-	else
-		encoder = mdp5_encoder_init(dev, &intf, ctl);
-
+	encoder = mdp5_encoder_init(dev, &intf, ctl);
 	if (IS_ERR(encoder)) {
 		dev_err(dev->dev, "failed to construct encoder\n");
 		return encoder;
 	}
 
-	encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
 	priv->encoders[priv->num_encoders++] = encoder;
 
 	return encoder;
@@ -338,8 +341,7 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 			break;
 		}
 
-		encoder = construct_encoder(mdp5_kms, INTF_eDP, intf_num,
-					MDP5_INTF_MODE_NONE, ctl);
+		encoder = construct_encoder(mdp5_kms, INTF_eDP, intf_num, ctl);
 		if (IS_ERR(encoder)) {
 			ret = PTR_ERR(encoder);
 			break;
@@ -357,8 +359,7 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 			break;
 		}
 
-		encoder = construct_encoder(mdp5_kms, INTF_HDMI, intf_num,
-					MDP5_INTF_MODE_NONE, ctl);
+		encoder = construct_encoder(mdp5_kms, INTF_HDMI, intf_num, ctl);
 		if (IS_ERR(encoder)) {
 			ret = PTR_ERR(encoder);
 			break;
@@ -369,9 +370,6 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 	case INTF_DSI:
 	{
 		int dsi_id = get_dsi_id_from_intf(hw_cfg, intf_num);
-		struct drm_encoder *dsi_encs[MSM_DSI_ENCODER_NUM];
-		enum mdp5_intf_mode mode;
-		int i;
 
 		if ((dsi_id >= ARRAY_SIZE(priv->dsi)) || (dsi_id < 0)) {
 			dev_err(dev->dev, "failed to find dsi from intf %d\n",
@@ -389,19 +387,13 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 			break;
 		}
 
-		for (i = 0; i < MSM_DSI_ENCODER_NUM; i++) {
-			mode = (i == MSM_DSI_CMD_ENCODER_ID) ?
-				MDP5_INTF_DSI_MODE_COMMAND :
-				MDP5_INTF_DSI_MODE_VIDEO;
-			dsi_encs[i] = construct_encoder(mdp5_kms, INTF_DSI,
-							intf_num, mode, ctl);
-			if (IS_ERR(dsi_encs[i])) {
-				ret = PTR_ERR(dsi_encs[i]);
-				break;
-			}
+		encoder = construct_encoder(mdp5_kms, INTF_DSI, intf_num, ctl);
+		if (IS_ERR(encoder)) {
+			ret = PTR_ERR(encoder);
+			break;
 		}
 
-		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, dsi_encs);
+		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, encoder);
 		break;
 	}
 	default:
@@ -418,20 +410,48 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	const struct mdp5_cfg_hw *hw_cfg;
-	int i, ret;
+	unsigned int num_crtcs;
+	int i, ret, pi = 0, ci = 0;
+	struct drm_plane *primary[MAX_BASES] = { NULL };
+	struct drm_plane *cursor[MAX_BASES] = { NULL };
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
-	/* Construct planes equaling the number of hw pipes, and CRTCs
-	 * for the N layer-mixers (LM).  The first N planes become primary
+	/*
+	 * Construct encoders and modeset initialize connector devices
+	 * for each external display interface.
+	 */
+	for (i = 0; i < ARRAY_SIZE(hw_cfg->intf.connect); i++) {
+		ret = modeset_init_intf(mdp5_kms, i);
+		if (ret)
+			goto fail;
+	}
+
+	/*
+	 * We should ideally have less number of encoders (set up by parsing
+	 * the MDP5 interfaces) than the number of layer mixers present in HW,
+	 * but let's be safe here anyway
+	 */
+	num_crtcs = min(priv->num_encoders, mdp5_cfg->lm.count);
+
+	/*
+	 * Construct planes equaling the number of hw pipes, and CRTCs for the
+	 * N encoders set up by the driver. The first N planes become primary
 	 * planes for the CRTCs, with the remainder as overlay planes:
 	 */
 	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
-		bool primary = i < mdp5_cfg->lm.count;
+		struct mdp5_hw_pipe *hwpipe = mdp5_kms->hwpipes[i];
 		struct drm_plane *plane;
-		struct drm_crtc *crtc;
+		enum drm_plane_type type;
 
-		plane = mdp5_plane_init(dev, primary);
+		if (i < num_crtcs)
+			type = DRM_PLANE_TYPE_PRIMARY;
+		else if (hwpipe->caps & MDP_PIPE_CAP_CURSOR)
+			type = DRM_PLANE_TYPE_CURSOR;
+		else
+			type = DRM_PLANE_TYPE_OVERLAY;
+
+		plane = mdp5_plane_init(dev, type);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
 			dev_err(dev->dev, "failed to construct plane %d (%d)\n", i, ret);
@@ -439,10 +459,16 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		}
 		priv->planes[priv->num_planes++] = plane;
 
-		if (!primary)
-			continue;
+		if (type == DRM_PLANE_TYPE_PRIMARY)
+			primary[pi++] = plane;
+		if (type == DRM_PLANE_TYPE_CURSOR)
+			cursor[ci++] = plane;
+	}
 
-		crtc  = mdp5_crtc_init(dev, plane, i);
+	for (i = 0; i < num_crtcs; i++) {
+		struct drm_crtc *crtc;
+
+		crtc  = mdp5_crtc_init(dev, primary[i], cursor[i], i);
 		if (IS_ERR(crtc)) {
 			ret = PTR_ERR(crtc);
 			dev_err(dev->dev, "failed to construct crtc %d (%d)\n", i, ret);
@@ -451,13 +477,14 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		priv->crtcs[priv->num_crtcs++] = crtc;
 	}
 
-	/* Construct encoders and modeset initialize connector devices
-	 * for each external display interface.
+	/*
+	 * Now that we know the number of crtcs we've created, set the possible
+	 * crtcs for the encoders
 	 */
-	for (i = 0; i < ARRAY_SIZE(hw_cfg->intf.connect); i++) {
-		ret = modeset_init_intf(mdp5_kms, i);
-		if (ret)
-			goto fail;
+	for (i = 0; i < priv->num_encoders; i++) {
+		struct drm_encoder *encoder = priv->encoders[i];
+
+		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
 	}
 
 	return 0;
@@ -773,6 +800,9 @@ static int hwpipe_init(struct mdp5_kms *mdp5_kms)
 	static const enum mdp5_pipe dma_planes[] = {
 			SSPP_DMA0, SSPP_DMA1,
 	};
+	static const enum mdp5_pipe cursor_planes[] = {
+			SSPP_CURSOR0, SSPP_CURSOR1,
+	};
 	const struct mdp5_cfg_hw *hw_cfg;
 	int ret;
 
@@ -793,6 +823,13 @@ static int hwpipe_init(struct mdp5_kms *mdp5_kms)
 	/* Construct DMA pipes: */
 	ret = construct_pipes(mdp5_kms, hw_cfg->pipe_dma.count, dma_planes,
 			hw_cfg->pipe_dma.base, hw_cfg->pipe_dma.caps);
+	if (ret)
+		return ret;
+
+	/* Construct cursor pipes: */
+	ret = construct_pipes(mdp5_kms, hw_cfg->pipe_cursor.count,
+			cursor_planes, hw_cfg->pipe_cursor.base,
+			hw_cfg->pipe_cursor.caps);
 	if (ret)
 		return ret;
 

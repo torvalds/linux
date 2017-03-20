@@ -238,7 +238,9 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 	vcpu->stat.exit_program_interruption++;
 
 	if (guestdbg_enabled(vcpu) && per_event(vcpu)) {
-		kvm_s390_handle_per_event(vcpu);
+		rc = kvm_s390_handle_per_event(vcpu);
+		if (rc)
+			return rc;
 		/* the interrupt might have been filtered out completely */
 		if (vcpu->arch.sie_block->iprcc == 0)
 			return 0;
@@ -359,6 +361,9 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
 
 static int handle_operexc(struct kvm_vcpu *vcpu)
 {
+	psw_t oldpsw, newpsw;
+	int rc;
+
 	vcpu->stat.exit_operation_exception++;
 	trace_kvm_s390_handle_operexc(vcpu, vcpu->arch.sie_block->ipa,
 				      vcpu->arch.sie_block->ipb);
@@ -368,6 +373,24 @@ static int handle_operexc(struct kvm_vcpu *vcpu)
 		return handle_sthyi(vcpu);
 
 	if (vcpu->arch.sie_block->ipa == 0 && vcpu->kvm->arch.user_instr0)
+		return -EOPNOTSUPP;
+	rc = read_guest_lc(vcpu, __LC_PGM_NEW_PSW, &newpsw, sizeof(psw_t));
+	if (rc)
+		return rc;
+	/*
+	 * Avoid endless loops of operation exceptions, if the pgm new
+	 * PSW will cause a new operation exception.
+	 * The heuristic checks if the pgm new psw is within 6 bytes before
+	 * the faulting psw address (with same DAT, AS settings) and the
+	 * new psw is not a wait psw and the fault was not triggered by
+	 * problem state.
+	 */
+	oldpsw = vcpu->arch.sie_block->gpsw;
+	if (oldpsw.addr - newpsw.addr <= 6 &&
+	    !(newpsw.mask & PSW_MASK_WAIT) &&
+	    !(oldpsw.mask & PSW_MASK_PSTATE) &&
+	    (newpsw.mask & PSW_MASK_ASC) == (oldpsw.mask & PSW_MASK_ASC) &&
+	    (newpsw.mask & PSW_MASK_DAT) == (oldpsw.mask & PSW_MASK_DAT))
 		return -EOPNOTSUPP;
 
 	return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);

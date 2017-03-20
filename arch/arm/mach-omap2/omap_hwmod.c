@@ -3249,6 +3249,36 @@ int __init omap_hwmod_setup_one(const char *oh_name)
 }
 
 /**
+ * omap_hwmod_setup_earlycon_flags - set up flags for early console
+ *
+ * Enable DEBUG_OMAPUART_FLAGS for uart hwmod that is being used as
+ * early concole so that hwmod core doesn't reset and keep it in idle
+ * that specific uart.
+ */
+#ifdef CONFIG_SERIAL_EARLYCON
+static void __init omap_hwmod_setup_earlycon_flags(void)
+{
+	struct device_node *np;
+	struct omap_hwmod *oh;
+	const char *uart;
+
+	np = of_find_node_by_path("/chosen");
+	if (np) {
+		uart = of_get_property(np, "stdout-path", NULL);
+		if (uart) {
+			np = of_find_node_by_path(uart);
+			if (np) {
+				uart = of_get_property(np, "ti,hwmods", NULL);
+				oh = omap_hwmod_lookup(uart);
+				if (oh)
+					oh->flags |= DEBUG_OMAPUART_FLAGS;
+			}
+		}
+	}
+}
+#endif
+
+/**
  * omap_hwmod_setup_all - set up all registered IP blocks
  *
  * Initialize and set up all IP blocks registered with the hwmod code.
@@ -3261,6 +3291,9 @@ static int __init omap_hwmod_setup_all(void)
 	_ensure_mpu_hwmod_is_setup(NULL);
 
 	omap_hwmod_for_each(_init, NULL);
+#ifdef CONFIG_SERIAL_EARLYCON
+	omap_hwmod_setup_earlycon_flags();
+#endif
 	omap_hwmod_for_each(_setup, NULL);
 
 	return 0;

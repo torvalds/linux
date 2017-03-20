@@ -47,8 +47,8 @@ ssize_t __btrfs_getxattr(struct inode *inode, const char *name,
 		return -ENOMEM;
 
 	/* lookup the xattr by name */
-	di = btrfs_lookup_xattr(NULL, root, path, btrfs_ino(inode), name,
-				strlen(name), 0);
+	di = btrfs_lookup_xattr(NULL, root, path, btrfs_ino(BTRFS_I(inode)),
+			name, strlen(name), 0);
 	if (!di) {
 		ret = -ENODATA;
 		goto out;
@@ -108,8 +108,8 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 	path->skip_release_on_error = 1;
 
 	if (!value) {
-		di = btrfs_lookup_xattr(trans, root, path, btrfs_ino(inode),
-					name, name_len, -1);
+		di = btrfs_lookup_xattr(trans, root, path,
+				btrfs_ino(BTRFS_I(inode)), name, name_len, -1);
 		if (!di && (flags & XATTR_REPLACE))
 			ret = -ENODATA;
 		else if (IS_ERR(di))
@@ -128,8 +128,8 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 	 */
 	if (flags & XATTR_REPLACE) {
 		ASSERT(inode_is_locked(inode));
-		di = btrfs_lookup_xattr(NULL, root, path, btrfs_ino(inode),
-					name, name_len, 0);
+		di = btrfs_lookup_xattr(NULL, root, path,
+				btrfs_ino(BTRFS_I(inode)), name, name_len, 0);
 		if (!di)
 			ret = -ENODATA;
 		else if (IS_ERR(di))
@@ -140,7 +140,7 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 		di = NULL;
 	}
 
-	ret = btrfs_insert_xattr_item(trans, root, path, btrfs_ino(inode),
+	ret = btrfs_insert_xattr_item(trans, root, path, btrfs_ino(BTRFS_I(inode)),
 				      name, name_len, value, size);
 	if (ret == -EOVERFLOW) {
 		/*
@@ -278,7 +278,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	 * NOTE: we set key.offset = 0; because we want to start with the
 	 * first xattr that we find and walk forward
 	 */
-	key.objectid = btrfs_ino(inode);
+	key.objectid = btrfs_ino(BTRFS_I(inode));
 	key.type = BTRFS_XATTR_ITEM_KEY;
 	key.offset = 0;
 

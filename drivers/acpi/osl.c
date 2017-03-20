@@ -1686,7 +1686,7 @@ acpi_status acpi_os_prepare_sleep(u8 sleep_state, u32 pm1a_control,
 	if (rc < 0)
 		return AE_ERROR;
 	else if (rc > 0)
-		return AE_CTRL_SKIP;
+		return AE_CTRL_TERMINATE;
 
 	return AE_OK;
 }
@@ -1697,6 +1697,7 @@ void acpi_os_set_prepare_sleep(int (*func)(u8 sleep_state,
 	__acpi_os_prepare_sleep = func;
 }
 
+#if (ACPI_REDUCED_HARDWARE)
 acpi_status acpi_os_prepare_extended_sleep(u8 sleep_state, u32 val_a,
 				  u32 val_b)
 {
@@ -1707,13 +1708,35 @@ acpi_status acpi_os_prepare_extended_sleep(u8 sleep_state, u32 val_a,
 	if (rc < 0)
 		return AE_ERROR;
 	else if (rc > 0)
-		return AE_CTRL_SKIP;
+		return AE_CTRL_TERMINATE;
 
 	return AE_OK;
 }
+#else
+acpi_status acpi_os_prepare_extended_sleep(u8 sleep_state, u32 val_a,
+				  u32 val_b)
+{
+	return AE_OK;
+}
+#endif
 
 void acpi_os_set_prepare_extended_sleep(int (*func)(u8 sleep_state,
 			       u32 val_a, u32 val_b))
 {
 	__acpi_os_prepare_extended_sleep = func;
+}
+
+acpi_status acpi_os_enter_sleep(u8 sleep_state,
+				u32 reg_a_value, u32 reg_b_value)
+{
+	acpi_status status;
+
+	if (acpi_gbl_reduced_hardware)
+		status = acpi_os_prepare_extended_sleep(sleep_state,
+							reg_a_value,
+							reg_b_value);
+	else
+		status = acpi_os_prepare_sleep(sleep_state,
+					       reg_a_value, reg_b_value);
+	return status;
 }

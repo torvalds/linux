@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/ioport.h>
 #include <linux/memory.h>
+#include <linux/sched/task.h>
 #include <asm/sections.h>
 #include "internal.h"
 
@@ -373,7 +374,10 @@ static void elf_kcore_store_hdr(char *bufp, int nphdr, int dataoff)
 		phdr->p_flags	= PF_R|PF_W|PF_X;
 		phdr->p_offset	= kc_vaddr_to_offset(m->addr) + dataoff;
 		phdr->p_vaddr	= (size_t)m->addr;
-		phdr->p_paddr	= 0;
+		if (m->type == KCORE_RAM || m->type == KCORE_TEXT)
+			phdr->p_paddr	= __pa(m->addr);
+		else
+			phdr->p_paddr	= (elf_addr_t)-1;
 		phdr->p_filesz	= phdr->p_memsz	= m->size;
 		phdr->p_align	= PAGE_SIZE;
 	}

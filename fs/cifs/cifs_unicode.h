@@ -130,10 +130,10 @@ wchar_t cifs_toupper(wchar_t in);
  * Returns:
  *     Address of the first string
  */
-static inline wchar_t *
-UniStrcat(wchar_t *ucs1, const wchar_t *ucs2)
+static inline __le16 *
+UniStrcat(__le16 *ucs1, const __le16 *ucs2)
 {
-	wchar_t *anchor = ucs1;	/* save a pointer to start of ucs1 */
+	__le16 *anchor = ucs1;	/* save a pointer to start of ucs1 */
 
 	while (*ucs1++) ;	/* To end of first string */
 	ucs1--;			/* Return to the null */

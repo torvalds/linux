@@ -5539,8 +5539,8 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	 * Retries always go down the normal I/O path.
 	 */
 	if (likely(cmd->retries == 0 &&
-		cmd->request->cmd_type == REQ_TYPE_FS &&
-		h->acciopath_status)) {
+			!blk_rq_is_passthrough(cmd->request) &&
+			h->acciopath_status)) {
 		rc = hpsa_ioaccel_submit(h, c, cmd, scsi3addr);
 		if (rc == 0)
 			return 0;
@@ -9263,13 +9263,9 @@ static int hpsa_enter_performant_mode(struct ctlr_info *h, u32 trans_support)
 		access = SA5_ioaccel_mode1_access;
 		writel(10, &h->cfgtable->HostWrite.CoalIntDelay);
 		writel(4, &h->cfgtable->HostWrite.CoalIntCount);
-	} else {
-		if (trans_support & CFGTBL_Trans_io_accel2) {
+	} else
+		if (trans_support & CFGTBL_Trans_io_accel2)
 			access = SA5_ioaccel_mode2_access;
-			writel(10, &h->cfgtable->HostWrite.CoalIntDelay);
-			writel(4, &h->cfgtable->HostWrite.CoalIntCount);
-		}
-	}
 	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
 	if (hpsa_wait_for_mode_change_ack(h)) {
 		dev_err(&h->pdev->dev,

@@ -304,7 +304,7 @@ bool ttm_ref_object_exists(struct ttm_object_file *tfile,
 	 * Verify that the ref->obj pointer was actually valid!
 	 */
 	rmb();
-	if (unlikely(atomic_read(&ref->kref.refcount) == 0))
+	if (unlikely(kref_read(&ref->kref) == 0))
 		goto out_false;
 
 	rcu_read_unlock();

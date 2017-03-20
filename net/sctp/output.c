@@ -81,8 +81,8 @@ static void sctp_packet_reset(struct sctp_packet *packet)
 /* Config a packet.
  * This appears to be a followup set of initializations.
  */
-struct sctp_packet *sctp_packet_config(struct sctp_packet *packet,
-				       __u32 vtag, int ecn_capable)
+void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
+			int ecn_capable)
 {
 	struct sctp_transport *tp = packet->transport;
 	struct sctp_association *asoc = tp->asoc;
@@ -123,14 +123,12 @@ struct sctp_packet *sctp_packet_config(struct sctp_packet *packet,
 		if (chunk)
 			sctp_packet_append_chunk(packet, chunk);
 	}
-
-	return packet;
 }
 
 /* Initialize the packet structure. */
-struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
-				     struct sctp_transport *transport,
-				     __u16 sport, __u16 dport)
+void sctp_packet_init(struct sctp_packet *packet,
+		      struct sctp_transport *transport,
+		      __u16 sport, __u16 dport)
 {
 	struct sctp_association *asoc = transport->asoc;
 	size_t overhead;
@@ -151,8 +149,6 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 	packet->overhead = overhead;
 	sctp_packet_reset(packet);
 	packet->vtag = 0;
-
-	return packet;
 }
 
 /* Free a packet.  */
@@ -181,7 +177,7 @@ sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *packet,
 {
 	sctp_xmit_t retval;
 
-	pr_debug("%s: packet:%p size:%Zu chunk:%p size:%d\n", __func__,
+	pr_debug("%s: packet:%p size:%zu chunk:%p size:%d\n", __func__,
 		 packet, packet->size, chunk, chunk->skb ? chunk->skb->len : -1);
 
 	switch ((retval = (sctp_packet_append_chunk(packet, chunk)))) {
@@ -550,6 +546,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 	struct sctp_association *asoc = tp->asoc;
 	struct sctp_chunk *chunk, *tmp;
 	int pkt_count, gso = 0;
+	int confirm;
 	struct dst_entry *dst;
 	struct sk_buff *head;
 	struct sctphdr *sh;
@@ -628,7 +625,14 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 			asoc->peer.last_sent_to = tp;
 	}
 	head->ignore_df = packet->ipfragok;
-	tp->af_specific->sctp_xmit(head, tp);
+	confirm = tp->dst_pending_confirm;
+	if (confirm)
+		skb_set_dst_pending_confirm(head, 1);
+	/* neighbour should be confirmed on successful transmission or
+	 * positive error
+	 */
+	if (tp->af_specific->sctp_xmit(head, tp) >= 0 && confirm)
+		tp->dst_pending_confirm = 0;
 
 out:
 	list_for_each_entry_safe(chunk, tmp, &packet->chunk_list, list) {
@@ -700,16 +704,13 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 	 * unacknowledged.
 	 */
 
-	if (sctp_sk(asoc->base.sk)->nodelay)
-		/* Nagle disabled */
+	if ((sctp_sk(asoc->base.sk)->nodelay || inflight == 0) &&
+	    !chunk->msg->force_delay)
+		/* Nothing unacked */
 		return SCTP_XMIT_OK;
 
 	if (!sctp_packet_empty(packet))
 		/* Append to packet */
-		return SCTP_XMIT_OK;
-
-	if (inflight == 0)
-		/* Nothing unacked */
 		return SCTP_XMIT_OK;
 
 	if (!sctp_state(asoc, ESTABLISHED))

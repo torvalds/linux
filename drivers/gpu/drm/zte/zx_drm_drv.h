@@ -13,6 +13,7 @@
 
 extern struct platform_driver zx_crtc_driver;
 extern struct platform_driver zx_hdmi_driver;
+extern struct platform_driver zx_tvenc_driver;
 
 static inline u32 zx_readl(void __iomem *reg)
 {

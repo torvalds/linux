@@ -15,6 +15,8 @@
 #include "pm8916.dtsi"
 #include "apq8016-sbc-soc-pins.dtsi"
 #include "apq8016-sbc-pmic-pins.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/sound/apq8016-lpass.h>
 
 / {
@@ -85,6 +87,7 @@
 				pinctrl-names = "default","sleep";
 				pinctrl-0 = <&adv7533_int_active &adv7533_switch_active>;
 				pinctrl-1 = <&adv7533_int_suspend &adv7533_switch_suspend>;
+				#sound-dai-cells = <1>;
 
 				ports {
 					#address-cells = <1>;
@@ -285,6 +288,15 @@
                         qcom,audio-routing =
                                 "AMIC2", "MIC BIAS Internal2",
                                 "AMIC3", "MIC BIAS External1";
+			external-dai-link@0 {
+				link-name = "ADV7533";
+				cpu { /* QUAT */
+					sound-dai = <&lpass MI2S_QUATERNARY>;
+				};
+				codec {
+					sound-dai = <&adv_bridge 0>;
+				};
+			};
 
                         internal-codec-playback-dai-link@0 {            /* I2S - Internal codec */
                                 link-name = "WCD";
@@ -306,6 +318,10 @@
                                 };
                         };
                 };
+
+		wcnss@a21b000 {
+			status = "okay";
+		};
 	};
 
 	usb2513 {
@@ -329,6 +345,22 @@
 			hdmi_con: endpoint {
 				remote-endpoint = <&adv7533_out>;
 			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&msm_key_volp_n_default>;
+
+		button@0 {
+			label = "Volume Up";
+			linux,code = <KEY_VOLUMEUP>;
+			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
 		};
 	};
 };

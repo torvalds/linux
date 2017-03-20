@@ -70,7 +70,8 @@ endif
 kvm-hv-y += \
 	book3s_hv.o \
 	book3s_hv_interrupts.o \
-	book3s_64_mmu_hv.o
+	book3s_64_mmu_hv.o \
+	book3s_64_mmu_radix.o
 
 kvm-book3s_64-builtin-xics-objs-$(CONFIG_KVM_XICS) := \
 	book3s_hv_rm_xics.o

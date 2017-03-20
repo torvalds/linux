@@ -247,7 +247,7 @@ static const struct regmap_irq rk818_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip rk808_irq_chip = {
+static const struct regmap_irq_chip rk808_irq_chip = {
 	.name = "rk808",
 	.irqs = rk808_irqs,
 	.num_irqs = ARRAY_SIZE(rk808_irqs),
@@ -259,7 +259,7 @@ static struct regmap_irq_chip rk808_irq_chip = {
 	.init_ack_masked = true,
 };
 
-static struct regmap_irq_chip rk818_irq_chip = {
+static const struct regmap_irq_chip rk818_irq_chip = {
 	.name = "rk818",
 	.irqs = rk818_irqs,
 	.num_irqs = ARRAY_SIZE(rk818_irqs),

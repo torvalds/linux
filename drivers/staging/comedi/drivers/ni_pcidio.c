@@ -65,7 +65,7 @@
 #define WindowAddressStatus_mask		0x7c
 
 #define Master_DMA_And_Interrupt_Control 5	/* W */
-#define InterruptLine(x)			((x)&3)
+#define InterruptLine(x)			((x) & 3)
 #define OpenInt				BIT(2)
 #define Group_Status			5	/* R */
 #define DataLeft				BIT(0)
@@ -100,38 +100,38 @@
 #define Chip_ID_I			25
 #define Chip_ID_O			26
 #define Chip_Version			27
-#define Port_IO(x)			(28+(x))
-#define Port_Pin_Directions(x)		(32+(x))
-#define Port_Pin_Mask(x)		(36+(x))
-#define Port_Pin_Polarities(x)		(40+(x))
+#define Port_IO(x)			(28 + (x))
+#define Port_Pin_Directions(x)		(32 + (x))
+#define Port_Pin_Mask(x)		(36 + (x))
+#define Port_Pin_Polarities(x)		(40 + (x))
 
 #define Master_Clock_Routing		45
-#define RTSIClocking(x)			(((x)&3)<<4)
+#define RTSIClocking(x)			(((x) & 3) << 4)
 
 #define Group_1_Second_Clear		46	/* W */
 #define Group_2_Second_Clear		47	/* W */
 #define ClearExpired				BIT(0)
 
-#define Port_Pattern(x)			(48+(x))
+#define Port_Pattern(x)			(48 + (x))
 
 #define Data_Path			64
 #define FIFOEnableA		BIT(0)
 #define FIFOEnableB		BIT(1)
 #define FIFOEnableC		BIT(2)
 #define FIFOEnableD		BIT(3)
-#define Funneling(x)		(((x)&3)<<4)
+#define Funneling(x)		(((x) & 3) << 4)
 #define GroupDirection		BIT(7)
 
 #define Protocol_Register_1		65
 #define OpMode				Protocol_Register_1
-#define RunMode(x)		((x)&7)
+#define RunMode(x)		((x) & 7)
 #define Numbered		BIT(3)
 
 #define Protocol_Register_2		66
 #define ClockReg			Protocol_Register_2
-#define ClockLine(x)		(((x)&3)<<5)
+#define ClockLine(x)		(((x) & 3) << 5)
 #define InvertStopTrig		BIT(7)
-#define DataLatching(x)       (((x)&3)<<5)
+#define DataLatching(x)       (((x) & 3) << 5)
 
 #define Protocol_Register_3		67
 #define Sequence			Protocol_Register_3
@@ -141,13 +141,13 @@
 
 #define Protocol_Register_4		70
 #define ReqReg				Protocol_Register_4
-#define ReqConditioning(x)	(((x)&7)<<3)
+#define ReqConditioning(x)	(((x) & 7) << 3)
 
 #define Protocol_Register_5		71
 #define BlockMode			Protocol_Register_5
 
 #define FIFO_Control			72
-#define ReadyLevel(x)		((x)&7)
+#define ReadyLevel(x)		((x) & 7)
 
 #define Protocol_Register_6		73
 #define LinePolarities			Protocol_Register_6
@@ -160,7 +160,7 @@
 
 #define Protocol_Register_7		74
 #define AckSer				Protocol_Register_7
-#define AckLine(x)		(((x)&3)<<2)
+#define AckLine(x)		(((x) & 3) << 2)
 #define ExchangePins		BIT(7)
 
 #define Interrupt_Control		75
@@ -180,15 +180,15 @@ static inline unsigned int secondary_DMAChannel_bits(unsigned int channel)
 }
 
 #define Transfer_Size_Control		77
-#define TransferWidth(x)	((x)&3)
-#define TransferLength(x)	(((x)&3)<<3)
+#define TransferWidth(x)	((x) & 3)
+#define TransferLength(x)	(((x) & 3) << 3)
 #define RequireRLevel		BIT(5)
 
 #define Protocol_Register_15		79
 #define DAQOptions			Protocol_Register_15
-#define StartSource(x)			((x)&0x3)
+#define StartSource(x)			((x) & 0x3)
 #define InvertStart				BIT(2)
-#define StopSource(x)				(((x)&0x3)<<3)
+#define StopSource(x)				(((x) & 0x3) << 3)
 #define ReqStart				BIT(6)
 #define PreStart				BIT(7)
 
@@ -230,6 +230,7 @@ enum pci_6534_firmware_registers {	/* 16 bit */
 	Firmware_Mask_Register = 0x10c,
 	Firmware_Debug_Register = 0x110,
 };
+
 /* main fpga registers (32 bit)*/
 enum pci_6534_fpga_registers {
 	FPGA_Control1_Register = 0x200,
@@ -246,6 +247,7 @@ enum pci_6534_fpga_registers {
 	FPGA_ELC_Read_Register = 0x2b8,
 	FPGA_ELC_Write_Register = 0x2bc,
 };
+
 enum FPGA_Control_Bits {
 	FPGA_Enable_Bit = 0x8000,
 };
@@ -253,9 +255,9 @@ enum FPGA_Control_Bits {
 #define TIMER_BASE 50		/* nanoseconds */
 
 #ifdef USE_DMA
-#define IntEn (CountExpired|Waited|PrimaryTC|SecondaryTC)
+#define IntEn (CountExpired | Waited | PrimaryTC | SecondaryTC)
 #else
-#define IntEn (TransferReady|CountExpired|Waited|PrimaryTC|SecondaryTC)
+#define IntEn (TransferReady | CountExpired | Waited | PrimaryTC | SecondaryTC)
 #endif
 
 enum nidio_boardid {

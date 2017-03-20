@@ -18,7 +18,7 @@
 Contents:
 ---------
 1. Supported Architectures and Processors
-1.1 ARM
+1.1 ARM and ARM64
 1.2 x86
 1.3 sparc64
 1.4 ppc
@@ -37,16 +37,10 @@ Contents:
 1. Supported Architectures and Processors
 =========================================
 
-1.1 ARM
--------
+1.1 ARM and ARM64
+-----------------
 
-The following ARM processors are supported by cpufreq:
-
-ARM Integrator
-ARM-SA1100
-ARM-SA1110
-Intel PXA
-
+Almost all ARM and ARM64 platforms support CPU frequency scaling.
 
 1.2 x86
 -------
@@ -69,6 +63,7 @@ Transmeta Crusoe
 Transmeta Efficeon
 VIA Cyrix 3 / C3
 various processors on some ACPI 2.0-compatible systems [*]
+And many more
 
 [*] Only if "ACPI Processor Performance States" are available
 to the ACPI<->BIOS interface.
@@ -87,7 +82,9 @@ UltraSPARC-III
 -------
 
 Several "PowerBook" and "iBook2" notebooks are supported.
-
+The following POWER processors are supported in powernv mode:
+POWER8
+POWER9
 
 1.5 SuperH
 ----------
@@ -147,10 +144,19 @@ mounted it at /sys, the cpufreq interface is located in a subdirectory
 "cpufreq" within the cpu-device directory
 (e.g. /sys/devices/system/cpu/cpu0/cpufreq/ for the first CPU).
 
+affected_cpus :			List of Online CPUs that require software
+				coordination of frequency.
+
+cpuinfo_cur_freq :		Current frequency of the CPU as obtained from
+				the hardware, in KHz. This is the frequency
+				the CPU actually runs at.
+
 cpuinfo_min_freq :		this file shows the minimum operating
 				frequency the processor can run at(in kHz) 
+
 cpuinfo_max_freq :		this file shows the maximum operating
 				frequency the processor can run at(in kHz) 
+
 cpuinfo_transition_latency	The time it takes on this CPU to
 				switch between two frequencies in nano
 				seconds. If unknown or known to be
@@ -163,24 +169,29 @@ cpuinfo_transition_latency	The time it takes on this CPU to
 				userspace daemon. Make sure to not
 				switch the frequency too often
 				resulting in performance loss.
-scaling_driver :		this file shows what cpufreq driver is
-				used to set the frequency on this CPU
+
+related_cpus :			List of Online + Offline CPUs that need software
+				coordination of frequency.
+
+scaling_available_frequencies : List of available frequencies, in KHz.
 
 scaling_available_governors :	this file shows the CPUfreq governors
 				available in this kernel. You can see the
 				currently activated governor in
+
+scaling_cur_freq :		Current frequency of the CPU as determined by
+				the governor and cpufreq core, in KHz. This is
+				the frequency the kernel thinks the CPU runs
+				at.
+
+scaling_driver :		this file shows what cpufreq driver is
+				used to set the frequency on this CPU
 
 scaling_governor,		and by "echoing" the name of another
 				governor you can change it. Please note
 				that some governors won't load - they only
 				work on some specific architectures or
 				processors.
-
-cpuinfo_cur_freq :		Current frequency of the CPU as obtained from
-				the hardware, in KHz. This is the frequency
-				the CPU actually runs at.
-
-scaling_available_frequencies : List of available frequencies, in KHz.
 
 scaling_min_freq and
 scaling_max_freq		show the current "policy limits" (in
@@ -190,16 +201,11 @@ scaling_max_freq		show the current "policy limits" (in
 				first set scaling_max_freq, then
 				scaling_min_freq.
 
-affected_cpus :			List of Online CPUs that require software
-				coordination of frequency.
-
-related_cpus :			List of Online + Offline CPUs that need software
-				coordination of frequency.
-
-scaling_cur_freq :		Current frequency of the CPU as determined by
-				the governor and cpufreq core, in KHz. This is
-				the frequency the kernel thinks the CPU runs
-				at.
+scaling_setspeed		This can be read to get the currently programmed
+				value by the governor. This can be written to
+				change the current frequency for a group of
+				CPUs, represented by a policy. This is supported
+				currently only by the userspace governor.
 
 bios_limit :			If the BIOS tells the OS to limit a CPU to
 				lower frequencies, the user can read out the

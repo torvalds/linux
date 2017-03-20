@@ -17,6 +17,7 @@
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
 #include "../include/mc-bus.h"
+#include "fsl-mc-private.h"
 
 /*
  * Generate a unique ID identifying the interrupt (only used within the MSI

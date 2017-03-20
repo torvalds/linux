@@ -1452,6 +1452,7 @@ static void probe_pcache(void)
 	switch (current_cpu_type()) {
 	case CPU_20KC:
 	case CPU_25KF:
+	case CPU_I6400:
 	case CPU_SB1:
 	case CPU_SB1A:
 	case CPU_XLR:
@@ -1478,7 +1479,6 @@ static void probe_pcache(void)
 	case CPU_PROAPTIV:
 	case CPU_M5150:
 	case CPU_QEMU_GENERIC:
-	case CPU_I6400:
 	case CPU_P6600:
 	case CPU_M6250:
 		if (!(read_c0_config7() & MIPS_CONF7_IAR) &&
@@ -1496,6 +1496,10 @@ static void probe_pcache(void)
 		if (has_74k_erratum || c->dcache.waysize > PAGE_SIZE)
 			c->dcache.flags |= MIPS_CACHE_ALIASES;
 	}
+
+	/* Physically indexed caches don't suffer from virtual aliasing */
+	if (c->dcache.flags & MIPS_CACHE_PINDEX)
+		c->dcache.flags &= ~MIPS_CACHE_ALIASES;
 
 	switch (current_cpu_type()) {
 	case CPU_20KC:

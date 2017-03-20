@@ -652,14 +652,13 @@ static void snd_usX2Y_hwdep_pcm_vm_close(struct vm_area_struct *area)
 }
 
 
-static int snd_usX2Y_hwdep_pcm_vm_fault(struct vm_area_struct *area,
-					struct vm_fault *vmf)
+static int snd_usX2Y_hwdep_pcm_vm_fault(struct vm_fault *vmf)
 {
 	unsigned long offset;
 	void *vaddr;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
-	vaddr = (char*)((struct usX2Ydev *)area->vm_private_data)->hwdep_pcm_shm + offset;
+	vaddr = (char *)((struct usX2Ydev *)vmf->vma->vm_private_data)->hwdep_pcm_shm + offset;
 	vmf->page = virt_to_page(vaddr);
 	get_page(vmf->page);
 	return 0;

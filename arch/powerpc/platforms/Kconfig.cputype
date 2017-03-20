@@ -172,6 +172,13 @@ config PPC_FPU
 	bool
 	default y if PPC64
 
+config PPC_8xx_PERF_EVENT
+	bool "PPC 8xx perf events"
+	depends on PPC_8xx && PERF_EVENTS
+	help
+	  This is Performance Events support for PPC 8xx. The 8xx doesn't
+	  have a PMU but some events are emulated using 8xx features.
+
 config FSL_EMB_PERFMON
 	bool "Freescale Embedded Perfmon"
 	depends on E500 || PPC_83xx

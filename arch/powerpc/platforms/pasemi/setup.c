@@ -363,7 +363,7 @@ static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
 		return 0;
 
 	/* We use the direct ops for localbus */
-	dev->archdata.dma_ops = &dma_direct_ops;
+	dev->dma_ops = &dma_direct_ops;
 
 	return 0;
 }

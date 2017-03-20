@@ -11,6 +11,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -36,7 +37,8 @@
 #define   LAYER_V_VAL(x)		(((x) & 0x1fff) << 16)
 #define MALIDP_LAYER_COMP_SIZE		0x010
 #define MALIDP_LAYER_OFFSET		0x014
-#define MALIDP_LAYER_STRIDE		0x018
+#define MALIDP550_LS_ENABLE		0x01c
+#define MALIDP550_LS_R1_IN_SIZE		0x020
 
 /*
  * This 4-entry look-up-table is used to determine the full 8-bit alpha value
@@ -67,13 +69,14 @@ drm_plane_state *malidp_duplicate_plane_state(struct drm_plane *plane)
 		return NULL;
 
 	state = kmalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
-		m_state = to_malidp_plane_state(plane->state);
-		__drm_atomic_helper_plane_duplicate_state(plane, &state->base);
-		state->rotmem_size = m_state->rotmem_size;
-		state->format = m_state->format;
-		state->n_planes = m_state->n_planes;
-	}
+	if (!state)
+		return NULL;
+
+	m_state = to_malidp_plane_state(plane->state);
+	__drm_atomic_helper_plane_duplicate_state(plane, &state->base);
+	state->rotmem_size = m_state->rotmem_size;
+	state->format = m_state->format;
+	state->n_planes = m_state->n_planes;
 
 	return &state->base;
 }
@@ -102,8 +105,10 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 	struct malidp_plane_state *ms = to_malidp_plane_state(state);
+	struct drm_crtc_state *crtc_state;
 	struct drm_framebuffer *fb;
-	int i;
+	struct drm_rect clip = { 0 };
+	int i, ret;
 	u32 src_w, src_h;
 
 	if (!state->crtc || !state->fb)
@@ -112,11 +117,11 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	fb = state->fb;
 
 	ms->format = malidp_hw_get_format_id(&mp->hwdev->map, mp->layer->id,
-					    fb->pixel_format);
+					    fb->format->format);
 	if (ms->format == MALIDP_INVALID_FORMAT_ID)
 		return -EINVAL;
 
-	ms->n_planes = drm_format_num_planes(fb->pixel_format);
+	ms->n_planes = fb->format->num_planes;
 	for (i = 0; i < ms->n_planes; i++) {
 		if (!malidp_hw_pitch_valid(mp->hwdev, fb->pitches[i])) {
 			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",
@@ -131,15 +136,34 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	if ((state->crtc_w > mp->hwdev->max_line_size) ||
 	    (state->crtc_h > mp->hwdev->max_line_size) ||
 	    (state->crtc_w < mp->hwdev->min_line_size) ||
-	    (state->crtc_h < mp->hwdev->min_line_size) ||
-	    (state->crtc_w != src_w) || (state->crtc_h != src_h))
+	    (state->crtc_h < mp->hwdev->min_line_size))
+		return -EINVAL;
+
+	/*
+	 * DP550/650 video layers can accept 3 plane formats only if
+	 * fb->pitches[1] == fb->pitches[2] since they don't have a
+	 * third plane stride register.
+	 */
+	if (ms->n_planes == 3 &&
+	    !(mp->hwdev->features & MALIDP_DEVICE_LV_HAS_3_STRIDES) &&
+	    (state->fb->pitches[1] != state->fb->pitches[2]))
 		return -EINVAL;
 
 	/* packed RGB888 / BGR888 can't be rotated or flipped */
 	if (state->rotation != DRM_ROTATE_0 &&
-	    (state->fb->pixel_format == DRM_FORMAT_RGB888 ||
-	     state->fb->pixel_format == DRM_FORMAT_BGR888))
+	    (fb->format->format == DRM_FORMAT_RGB888 ||
+	     fb->format->format == DRM_FORMAT_BGR888))
 		return -EINVAL;
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state, state->crtc);
+	clip.x2 = crtc_state->adjusted_mode.hdisplay;
+	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	ret = drm_plane_helper_check_state(state, &clip,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   true, true);
+	if (ret)
+		return ret;
 
 	ms->rotmem_size = 0;
 	if (state->rotation & MALIDP_ROTATED_MASK) {
@@ -147,7 +171,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 
 		val = mp->hwdev->rotmem_required(mp->hwdev, state->crtc_h,
 						 state->crtc_w,
-						 state->fb->pixel_format);
+						 fb->format->format);
 		if (val < 0)
 			return val;
 
@@ -155,6 +179,25 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	}
 
 	return 0;
+}
+
+static void malidp_de_set_plane_pitches(struct malidp_plane *mp,
+					int num_planes, unsigned int pitches[3])
+{
+	int i;
+	int num_strides = num_planes;
+
+	if (!mp->layer->stride_offset)
+		return;
+
+	if (num_planes == 3)
+		num_strides = (mp->hwdev->features &
+			       MALIDP_DEVICE_LV_HAS_3_STRIDES) ? 3 : 2;
+
+	for (i = 0; i < num_strides; ++i)
+		malidp_hw_write(mp->hwdev, pitches[i],
+				mp->layer->base +
+				mp->layer->stride_offset + i * 4);
 }
 
 static void malidp_de_plane_update(struct drm_plane *plane,
@@ -174,13 +217,8 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	/* convert src values from Q16 fixed point to integer */
 	src_w = plane->state->src_w >> 16;
 	src_h = plane->state->src_h >> 16;
-	if (plane->state->rotation & MALIDP_ROTATED_MASK) {
-		dest_w = plane->state->crtc_h;
-		dest_h = plane->state->crtc_w;
-	} else {
-		dest_w = plane->state->crtc_w;
-		dest_h = plane->state->crtc_h;
-	}
+	dest_w = plane->state->crtc_w;
+	dest_h = plane->state->crtc_h;
 
 	malidp_hw_write(mp->hwdev, ms->format, mp->layer->base);
 
@@ -189,11 +227,12 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 		ptr = mp->layer->ptr + (i << 4);
 
 		obj = drm_fb_cma_get_gem_obj(plane->state->fb, i);
+		obj->paddr += plane->state->fb->offsets[i];
 		malidp_hw_write(mp->hwdev, lower_32_bits(obj->paddr), ptr);
 		malidp_hw_write(mp->hwdev, upper_32_bits(obj->paddr), ptr + 4);
-		malidp_hw_write(mp->hwdev, plane->state->fb->pitches[i],
-				mp->layer->base + MALIDP_LAYER_STRIDE);
 	}
+	malidp_de_set_plane_pitches(mp, ms->n_planes,
+				    plane->state->fb->pitches);
 
 	malidp_hw_write(mp->hwdev, LAYER_H_VAL(src_w) | LAYER_V_VAL(src_h),
 			mp->layer->base + MALIDP_LAYER_SIZE);
@@ -205,17 +244,23 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 			LAYER_V_VAL(plane->state->crtc_y),
 			mp->layer->base + MALIDP_LAYER_OFFSET);
 
+	if (mp->layer->id == DE_SMART)
+		malidp_hw_write(mp->hwdev,
+				LAYER_H_VAL(src_w) | LAYER_V_VAL(src_h),
+				mp->layer->base + MALIDP550_LS_R1_IN_SIZE);
+
 	/* first clear the rotation bits */
 	val = malidp_hw_read(mp->hwdev, mp->layer->base + MALIDP_LAYER_CONTROL);
 	val &= ~LAYER_ROT_MASK;
 
 	/* setup the rotation and axis flip bits */
 	if (plane->state->rotation & DRM_ROTATE_MASK)
-		val = ilog2(plane->state->rotation & DRM_ROTATE_MASK) << LAYER_ROT_OFFSET;
+		val |= ilog2(plane->state->rotation & DRM_ROTATE_MASK) <<
+		       LAYER_ROT_OFFSET;
 	if (plane->state->rotation & DRM_REFLECT_X)
-		val |= LAYER_V_FLIP;
-	if (plane->state->rotation & DRM_REFLECT_Y)
 		val |= LAYER_H_FLIP;
+	if (plane->state->rotation & DRM_REFLECT_Y)
+		val |= LAYER_V_FLIP;
 
 	/*
 	 * always enable pixel alpha blending until we have a way to change
@@ -258,7 +303,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 	u32 *formats;
 	int ret, i, j, n;
 
-	formats = kcalloc(map->n_input_formats, sizeof(*formats), GFP_KERNEL);
+	formats = kcalloc(map->n_pixel_formats, sizeof(*formats), GFP_KERNEL);
 	if (!formats) {
 		ret = -ENOMEM;
 		goto cleanup;
@@ -274,9 +319,9 @@ int malidp_de_planes_init(struct drm_device *drm)
 		}
 
 		/* build the list of DRM supported formats based on the map */
-		for (n = 0, j = 0;  j < map->n_input_formats; j++) {
-			if ((map->input_formats[j].layer & id) == id)
-				formats[n++] = map->input_formats[j].format;
+		for (n = 0, j = 0;  j < map->n_pixel_formats; j++) {
+			if ((map->pixel_formats[j].layer & id) == id)
+				formats[n++] = map->pixel_formats[j].format;
 		}
 
 		plane_type = (i == 0) ? DRM_PLANE_TYPE_PRIMARY :
@@ -292,9 +337,16 @@ int malidp_de_planes_init(struct drm_device *drm)
 		plane->hwdev = malidp->dev;
 		plane->layer = &map->layers[i];
 
-		/* Skip the features which the SMART layer doesn't have */
-		if (id == DE_SMART)
+		if (id == DE_SMART) {
+			/*
+			 * Enable the first rectangle in the SMART layer to be
+			 * able to use it as a drm plane.
+			 */
+			malidp_hw_write(malidp->dev, 1,
+					plane->layer->base + MALIDP550_LS_ENABLE);
+			/* Skip the features which the SMART layer doesn't have. */
 			continue;
+		}
 
 		drm_plane_create_rotation_property(&plane->base, DRM_ROTATE_0, flags);
 		malidp_hw_write(malidp->dev, MALIDP_ALPHA_LUT,

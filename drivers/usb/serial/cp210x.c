@@ -178,6 +178,8 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1901, 0x0190) }, /* GE B850 CP2105 Recorder interface */
 	{ USB_DEVICE(0x1901, 0x0193) }, /* GE B650 CP2104 PMC interface */
 	{ USB_DEVICE(0x1901, 0x0194) },	/* GE Healthcare Remote Alarm Box */
+	{ USB_DEVICE(0x1901, 0x0195) },	/* GE B850/B650/B450 CP2104 DP UART interface */
+	{ USB_DEVICE(0x1901, 0x0196) },	/* GE B850 CP2105 DP UART interface */
 	{ USB_DEVICE(0x19CF, 0x3000) }, /* Parrot NMEA GPS Flight Recorder */
 	{ USB_DEVICE(0x1ADB, 0x0001) }, /* Schweitzer Engineering C662 Cable */
 	{ USB_DEVICE(0x1B1C, 0x1C00) }, /* Corsair USB Dongle */
@@ -1329,17 +1331,20 @@ static int cp210x_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio,
 	return 0;
 }
 
-static int cp210x_gpio_set_single_ended(struct gpio_chip *gc, unsigned int gpio,
-					enum single_ended_mode mode)
+static int cp210x_gpio_set_config(struct gpio_chip *gc, unsigned int gpio,
+				  unsigned long config)
 {
 	struct usb_serial *serial = gpiochip_get_data(gc);
 	struct cp210x_serial_private *priv = usb_get_serial_data(serial);
+	enum pin_config_param param = pinconf_to_config_param(config);
 
 	/* Succeed only if in correct mode (this can't be set at runtime) */
-	if ((mode == LINE_MODE_PUSH_PULL) && (priv->gpio_mode & BIT(gpio)))
+	if ((param == PIN_CONFIG_DRIVE_PUSH_PULL) &&
+	    (priv->gpio_mode & BIT(gpio)))
 		return 0;
 
-	if ((mode == LINE_MODE_OPEN_DRAIN) && !(priv->gpio_mode & BIT(gpio)))
+	if ((param == PIN_CONFIG_DRIVE_OPEN_DRAIN) &&
+	    !(priv->gpio_mode & BIT(gpio)))
 		return 0;
 
 	return -ENOTSUPP;
@@ -1402,7 +1407,7 @@ static int cp2105_shared_gpio_init(struct usb_serial *serial)
 	priv->gc.direction_output = cp210x_gpio_direction_output;
 	priv->gc.get = cp210x_gpio_get;
 	priv->gc.set = cp210x_gpio_set;
-	priv->gc.set_single_ended = cp210x_gpio_set_single_ended;
+	priv->gc.set_config = cp210x_gpio_set_config;
 	priv->gc.owner = THIS_MODULE;
 	priv->gc.parent = &serial->interface->dev;
 	priv->gc.base = -1;

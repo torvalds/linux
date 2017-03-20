@@ -1750,7 +1750,7 @@ int dm_table_any_congested(struct dm_table *t, int bdi_bits)
 		char b[BDEVNAME_SIZE];
 
 		if (likely(q))
-			r |= bdi_congested(&q->backing_dev_info, bdi_bits);
+			r |= bdi_congested(q->backing_dev_info, bdi_bits);
 		else
 			DMWARN_LIMIT("%s: any_congested: nonexistent device %s",
 				     dm_device_name(t->md),

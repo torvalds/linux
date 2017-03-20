@@ -23,7 +23,7 @@
  *
  * drm_simple_display_pipe_init() initializes a simple display pipeline
  * which has only one full-screen scanout buffer feeding one output. The
- * pipeline is represented by struct &drm_simple_display_pipe and binds
+ * pipeline is represented by &struct drm_simple_display_pipe and binds
  * together &drm_plane, &drm_crtc and &drm_encoder structures into one fixed
  * entity. Some flexibility for code reuse is provided through a separately
  * allocated &drm_connector object and supporting optional &drm_bridge
@@ -182,28 +182,9 @@ static const struct drm_plane_funcs drm_simple_kms_plane_funcs = {
 int drm_simple_display_pipe_attach_bridge(struct drm_simple_display_pipe *pipe,
 					  struct drm_bridge *bridge)
 {
-	bridge->encoder = &pipe->encoder;
-	pipe->encoder.bridge = bridge;
-	return drm_bridge_attach(pipe->encoder.dev, bridge);
+	return drm_bridge_attach(&pipe->encoder, bridge, NULL);
 }
 EXPORT_SYMBOL(drm_simple_display_pipe_attach_bridge);
-
-/**
- * drm_simple_display_pipe_detach_bridge - Detach the bridge from the display pipe
- * @pipe: simple display pipe object
- *
- * Detaches the drm bridge previously attached with
- * drm_simple_display_pipe_attach_bridge()
- */
-void drm_simple_display_pipe_detach_bridge(struct drm_simple_display_pipe *pipe)
-{
-	if (WARN_ON(!pipe->encoder.bridge))
-		return;
-
-	drm_bridge_detach(pipe->encoder.bridge);
-	pipe->encoder.bridge = NULL;
-}
-EXPORT_SYMBOL(drm_simple_display_pipe_detach_bridge);
 
 /**
  * drm_simple_display_pipe_init - Initialize a simple display pipeline

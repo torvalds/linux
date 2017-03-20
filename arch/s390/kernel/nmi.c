@@ -14,6 +14,9 @@
 #include <linux/hardirq.h>
 #include <linux/time.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
+
+#include <linux/export.h>
 #include <asm/lowcore.h>
 #include <asm/smp.h>
 #include <asm/stp.h>
@@ -116,6 +119,19 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 			s390_handle_damage();
 		kill_task = 1;
 	}
+	/* Validate control registers */
+	if (!mci.cr) {
+		/*
+		 * Control registers have unknown contents.
+		 * Can't recover and therefore stopping machine.
+		 */
+		s390_handle_damage();
+	} else {
+		asm volatile(
+			"	lctlg	0,15,0(%0)\n"
+			"	ptlb\n"
+			: : "a" (&S390_lowcore.cregs_save_area) : "memory");
+	}
 	if (!mci.fp) {
 		/*
 		 * Floating point registers can't be restored. If the
@@ -207,18 +223,6 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 		 * Terminating task.
 		 */
 		kill_task = 1;
-	}
-	/* Validate control registers */
-	if (!mci.cr) {
-		/*
-		 * Control registers have unknown contents.
-		 * Can't recover and therefore stopping machine.
-		 */
-		s390_handle_damage();
-	} else {
-		asm volatile(
-			"	lctlg	0,15,0(%0)"
-			: : "a" (&S390_lowcore.cregs_save_area) : "memory");
 	}
 	/*
 	 * We don't even try to validate the TOD register, since we simply

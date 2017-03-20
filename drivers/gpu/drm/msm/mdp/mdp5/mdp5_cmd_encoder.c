@@ -16,16 +16,6 @@
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
 
-struct mdp5_cmd_encoder {
-	struct drm_encoder base;
-	struct mdp5_interface intf;
-	bool enabled;
-	uint32_t bsc;
-
-	struct mdp5_ctl *ctl;
-};
-#define to_mdp5_cmd_encoder(x) container_of(x, struct mdp5_cmd_encoder, base)
-
 static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 {
 	struct msm_drm_private *priv = encoder->dev->dev_private;
@@ -36,47 +26,8 @@ static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 #include <mach/board.h>
 #include <linux/msm-bus.h>
 #include <linux/msm-bus-board.h>
-#define MDP_BUS_VECTOR_ENTRY(ab_val, ib_val)		\
-	{						\
-		.src = MSM_BUS_MASTER_MDP_PORT0,	\
-		.dst = MSM_BUS_SLAVE_EBI_CH0,		\
-		.ab = (ab_val),				\
-		.ib = (ib_val),				\
-	}
 
-static struct msm_bus_vectors mdp_bus_vectors[] = {
-	MDP_BUS_VECTOR_ENTRY(0, 0),
-	MDP_BUS_VECTOR_ENTRY(2000000000, 2000000000),
-};
-static struct msm_bus_paths mdp_bus_usecases[] = { {
-		.num_paths = 1,
-		.vectors = &mdp_bus_vectors[0],
-}, {
-		.num_paths = 1,
-		.vectors = &mdp_bus_vectors[1],
-} };
-static struct msm_bus_scale_pdata mdp_bus_scale_table = {
-	.usecase = mdp_bus_usecases,
-	.num_usecases = ARRAY_SIZE(mdp_bus_usecases),
-	.name = "mdss_mdp",
-};
-
-static void bs_init(struct mdp5_cmd_encoder *mdp5_cmd_enc)
-{
-	mdp5_cmd_enc->bsc = msm_bus_scale_register_client(
-			&mdp_bus_scale_table);
-	DBG("bus scale client: %08x", mdp5_cmd_enc->bsc);
-}
-
-static void bs_fini(struct mdp5_cmd_encoder *mdp5_cmd_enc)
-{
-	if (mdp5_cmd_enc->bsc) {
-		msm_bus_scale_unregister_client(mdp5_cmd_enc->bsc);
-		mdp5_cmd_enc->bsc = 0;
-	}
-}
-
-static void bs_set(struct mdp5_cmd_encoder *mdp5_cmd_enc, int idx)
+static void bs_set(struct mdp5_encoder *mdp5_cmd_enc, int idx)
 {
 	if (mdp5_cmd_enc->bsc) {
 		DBG("set bus scaling: %d", idx);
@@ -89,14 +40,12 @@ static void bs_set(struct mdp5_cmd_encoder *mdp5_cmd_enc, int idx)
 	}
 }
 #else
-static void bs_init(struct mdp5_cmd_encoder *mdp5_cmd_enc) {}
-static void bs_fini(struct mdp5_cmd_encoder *mdp5_cmd_enc) {}
-static void bs_set(struct mdp5_cmd_encoder *mdp5_cmd_enc, int idx) {}
+static void bs_set(struct mdp5_encoder *mdp5_cmd_enc, int idx) {}
 #endif
 
 #define VSYNC_CLK_RATE 19200000
 static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
-					struct drm_display_mode *mode)
+				    struct drm_display_mode *mode)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
 	struct device *dev = encoder->dev->dev;
@@ -176,23 +125,11 @@ static void pingpong_tearcheck_disable(struct drm_encoder *encoder)
 	clk_disable_unprepare(mdp5_kms->vsync_clk);
 }
 
-static void mdp5_cmd_encoder_destroy(struct drm_encoder *encoder)
+void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
+			       struct drm_display_mode *mode,
+			       struct drm_display_mode *adjusted_mode)
 {
-	struct mdp5_cmd_encoder *mdp5_cmd_enc = to_mdp5_cmd_encoder(encoder);
-	bs_fini(mdp5_cmd_enc);
-	drm_encoder_cleanup(encoder);
-	kfree(mdp5_cmd_enc);
-}
-
-static const struct drm_encoder_funcs mdp5_cmd_encoder_funcs = {
-	.destroy = mdp5_cmd_encoder_destroy,
-};
-
-static void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	struct mdp5_cmd_encoder *mdp5_cmd_enc = to_mdp5_cmd_encoder(encoder);
+	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
 
 	mode = adjusted_mode;
 
@@ -209,9 +146,9 @@ static void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 				mdp5_cmd_enc->ctl);
 }
 
-static void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
+void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
 {
-	struct mdp5_cmd_encoder *mdp5_cmd_enc = to_mdp5_cmd_encoder(encoder);
+	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
 	struct mdp5_ctl *ctl = mdp5_cmd_enc->ctl;
 	struct mdp5_interface *intf = &mdp5_cmd_enc->intf;
 
@@ -228,9 +165,9 @@ static void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
 	mdp5_cmd_enc->enabled = false;
 }
 
-static void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
+void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
 {
-	struct mdp5_cmd_encoder *mdp5_cmd_enc = to_mdp5_cmd_encoder(encoder);
+	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
 	struct mdp5_ctl *ctl = mdp5_cmd_enc->ctl;
 	struct mdp5_interface *intf = &mdp5_cmd_enc->intf;
 
@@ -248,16 +185,10 @@ static void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
 	mdp5_cmd_enc->enabled = true;
 }
 
-static const struct drm_encoder_helper_funcs mdp5_cmd_encoder_helper_funcs = {
-	.mode_set = mdp5_cmd_encoder_mode_set,
-	.disable = mdp5_cmd_encoder_disable,
-	.enable = mdp5_cmd_encoder_enable,
-};
-
 int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
-					struct drm_encoder *slave_encoder)
+				       struct drm_encoder *slave_encoder)
 {
-	struct mdp5_cmd_encoder *mdp5_cmd_enc = to_mdp5_cmd_encoder(encoder);
+	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms;
 	int intf_num;
 	u32 data = 0;
@@ -291,44 +222,4 @@ int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 	mdp5_disable(mdp5_kms);
 
 	return 0;
-}
-
-/* initialize command mode encoder */
-struct drm_encoder *mdp5_cmd_encoder_init(struct drm_device *dev,
-			struct mdp5_interface *intf, struct mdp5_ctl *ctl)
-{
-	struct drm_encoder *encoder = NULL;
-	struct mdp5_cmd_encoder *mdp5_cmd_enc;
-	int ret;
-
-	if (WARN_ON((intf->type != INTF_DSI) &&
-		(intf->mode != MDP5_INTF_DSI_MODE_COMMAND))) {
-		ret = -EINVAL;
-		goto fail;
-	}
-
-	mdp5_cmd_enc = kzalloc(sizeof(*mdp5_cmd_enc), GFP_KERNEL);
-	if (!mdp5_cmd_enc) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	memcpy(&mdp5_cmd_enc->intf, intf, sizeof(mdp5_cmd_enc->intf));
-	encoder = &mdp5_cmd_enc->base;
-	mdp5_cmd_enc->ctl = ctl;
-
-	drm_encoder_init(dev, encoder, &mdp5_cmd_encoder_funcs,
-			DRM_MODE_ENCODER_DSI, NULL);
-
-	drm_encoder_helper_add(encoder, &mdp5_cmd_encoder_helper_funcs);
-
-	bs_init(mdp5_cmd_enc);
-
-	return encoder;
-
-fail:
-	if (encoder)
-		mdp5_cmd_encoder_destroy(encoder);
-
-	return ERR_PTR(ret);
 }

@@ -520,7 +520,7 @@ static void struct_ep_qh_setup(struct fsl_udc *udc, unsigned char ep_num,
 /* Setup qh structure and ep register for ep0. */
 static void ep0_setup(struct fsl_udc *udc)
 {
-	/* the intialization of an ep includes: fields in QH, Regs,
+	/* the initialization of an ep includes: fields in QH, Regs,
 	 * fsl_ep struct */
 	struct_ep_qh_setup(udc, 0, USB_RECV, USB_ENDPOINT_XFER_CONTROL,
 			USB_MAX_CTRL_PAYLOAD, 0, 0);
@@ -1118,7 +1118,7 @@ static void fsl_ep_fifo_flush(struct usb_ep *_ep)
 	} while (fsl_readl(&dr_regs->endptstatus) & bits);
 }
 
-static struct usb_ep_ops fsl_ep_ops = {
+static const struct usb_ep_ops fsl_ep_ops = {
 	.enable = fsl_ep_enable,
 	.disable = fsl_ep_disable,
 
@@ -1248,6 +1248,12 @@ static const struct usb_gadget_ops fsl_gadget_ops = {
 	.udc_stop = fsl_udc_stop,
 };
 
+/*
+ * Empty complete function used by this driver to fill in the req->complete
+ * field when creating a request since the complete field is mandatory.
+ */
+static void fsl_noop_complete(struct usb_ep *ep, struct usb_request *req) { }
+
 /* Set protocol stall on ep0, protocol stall will automatically be cleared
    on new transaction */
 static void ep0stall(struct fsl_udc *udc)
@@ -1282,7 +1288,7 @@ static int ep0_prime_status(struct fsl_udc *udc, int direction)
 	req->req.length = 0;
 	req->req.status = -EINPROGRESS;
 	req->req.actual = 0;
-	req->req.complete = NULL;
+	req->req.complete = fsl_noop_complete;
 	req->dtd_count = 0;
 
 	ret = usb_gadget_map_request(&ep->udc->gadget, &req->req, ep_is_in(ep));
@@ -1365,7 +1371,7 @@ static void ch9getstatus(struct fsl_udc *udc, u8 request_type, u16 value,
 	req->req.length = 2;
 	req->req.status = -EINPROGRESS;
 	req->req.actual = 0;
-	req->req.complete = NULL;
+	req->req.complete = fsl_noop_complete;
 	req->dtd_count = 0;
 
 	ret = usb_gadget_map_request(&ep->udc->gadget, &req->req, ep_is_in(ep));
@@ -2343,7 +2349,7 @@ static int struct_ep_setup(struct fsl_udc *udc, unsigned char index,
 }
 
 /* Driver probe function
- * all intialization operations implemented here except enabling usb_intr reg
+ * all initialization operations implemented here except enabling usb_intr reg
  * board setup should have been done in the platform code
  */
 static int fsl_udc_probe(struct platform_device *pdev)

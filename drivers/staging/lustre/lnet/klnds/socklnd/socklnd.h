@@ -373,7 +373,7 @@ struct ksock_conn {
 					       * V2.x message takes the
 					       * whole struct
 					       * V1.x message is a bare
-					       * lnet_hdr_t, it's stored in
+					       * struct lnet_hdr, it's stored in
 					       * ksnc_msg.ksm_u.lnetmsg
 					       */
 	/* WRITER */

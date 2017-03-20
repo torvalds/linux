@@ -1061,7 +1061,7 @@ static void sirfsoc_uart_config_port(struct uart_port *port, int flags)
 	}
 }
 
-static struct uart_ops sirfsoc_uart_ops = {
+static const struct uart_ops sirfsoc_uart_ops = {
 	.tx_empty	= sirfsoc_uart_tx_empty,
 	.get_mctrl	= sirfsoc_uart_get_mctrl,
 	.set_mctrl	= sirfsoc_uart_set_mctrl,

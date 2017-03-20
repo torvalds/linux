@@ -40,6 +40,9 @@
 #include "i915_gem_timeline.h"
 #include "i915_gem_request.h"
 
+#define I915_GTT_PAGE_SIZE 4096UL
+#define I915_GTT_MIN_ALIGNMENT I915_GTT_PAGE_SIZE
+
 #define I915_FENCE_REG_NONE -1
 #define I915_MAX_NUM_FENCES 32
 /* 32 fences + sign bit for FENCE_REG_NONE */
@@ -142,33 +145,56 @@ typedef uint64_t gen8_ppgtt_pml4e_t;
 
 struct sg_table;
 
-enum i915_ggtt_view_type {
-	I915_GGTT_VIEW_NORMAL = 0,
-	I915_GGTT_VIEW_ROTATED,
-	I915_GGTT_VIEW_PARTIAL,
-};
-
 struct intel_rotation_info {
-	struct {
+	struct intel_rotation_plane_info {
 		/* tiles */
 		unsigned int width, height, stride, offset;
 	} plane[2];
+} __packed;
+
+static inline void assert_intel_rotation_info_is_packed(void)
+{
+	BUILD_BUG_ON(sizeof(struct intel_rotation_info) != 8*sizeof(unsigned int));
+}
+
+struct intel_partial_info {
+	u64 offset;
+	unsigned int size;
+} __packed;
+
+static inline void assert_intel_partial_info_is_packed(void)
+{
+	BUILD_BUG_ON(sizeof(struct intel_partial_info) != sizeof(u64) + sizeof(unsigned int));
+}
+
+enum i915_ggtt_view_type {
+	I915_GGTT_VIEW_NORMAL = 0,
+	I915_GGTT_VIEW_ROTATED = sizeof(struct intel_rotation_info),
+	I915_GGTT_VIEW_PARTIAL = sizeof(struct intel_partial_info),
 };
+
+static inline void assert_i915_ggtt_view_type_is_unique(void)
+{
+	/* As we encode the size of each branch inside the union into its type,
+	 * we have to be careful that each branch has a unique size.
+	 */
+	switch ((enum i915_ggtt_view_type)0) {
+	case I915_GGTT_VIEW_NORMAL:
+	case I915_GGTT_VIEW_PARTIAL:
+	case I915_GGTT_VIEW_ROTATED:
+		/* gcc complains if these are identical cases */
+		break;
+	}
+}
 
 struct i915_ggtt_view {
 	enum i915_ggtt_view_type type;
-
 	union {
-		struct {
-			u64 offset;
-			unsigned int size;
-		} partial;
+		/* Members need to contain no holes/padding */
+		struct intel_partial_info partial;
 		struct intel_rotation_info rotated;
-	} params;
+	};
 };
-
-extern const struct i915_ggtt_view i915_ggtt_view_normal;
-extern const struct i915_ggtt_view i915_ggtt_view_rotated;
 
 enum i915_cache_level;
 
@@ -220,7 +246,7 @@ struct i915_pml4 {
 struct i915_address_space {
 	struct drm_mm mm;
 	struct i915_gem_timeline timeline;
-	struct drm_device *dev;
+	struct drm_i915_private *i915;
 	/* Every address space belongs to a struct file - except for the global
 	 * GTT that is owned by the driver (and so @file is set to NULL). In
 	 * principle, no information should leak from one context to another
@@ -315,15 +341,25 @@ struct i915_ggtt {
 	struct i915_address_space base;
 	struct io_mapping mappable;	/* Mapping to our CPU mappable region */
 
-	size_t stolen_size;		/* Total size of stolen memory */
-	size_t stolen_usable_size;	/* Total size minus BIOS reserved */
-	size_t stolen_reserved_base;
-	size_t stolen_reserved_size;
-	u64 mappable_end;		/* End offset that we can CPU map */
 	phys_addr_t mappable_base;	/* PA of our GMADR */
+	u64 mappable_end;		/* End offset that we can CPU map */
+
+	/* Stolen memory is segmented in hardware with different portions
+	 * offlimits to certain functions.
+	 *
+	 * The drm_mm is initialised to the total accessible range, as found
+	 * from the PCI config. On Broadwell+, this is further restricted to
+	 * avoid the first page! The upper end of stolen memory is reserved for
+	 * hardware functions and similarly removed from the accessible range.
+	 */
+	u32 stolen_size;		/* Total size of stolen memory */
+	u32 stolen_usable_size;	/* Total size minus reserved ranges */
+	u32 stolen_reserved_base;
+	u32 stolen_reserved_size;
 
 	/** "Graphics Stolen Memory" holds the global PTEs */
 	void __iomem *gsm;
+	void (*invalidate)(struct drm_i915_private *dev_priv);
 
 	bool do_idle_maps;
 
@@ -492,6 +528,8 @@ i915_vm_to_ggtt(struct i915_address_space *vm)
 int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv);
 int i915_ggtt_init_hw(struct drm_i915_private *dev_priv);
 int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv);
+void i915_ggtt_enable_guc(struct drm_i915_private *i915);
+void i915_ggtt_disable_guc(struct drm_i915_private *i915);
 int i915_gem_init_ggtt(struct drm_i915_private *dev_priv);
 void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv);
 
@@ -500,6 +538,7 @@ void i915_ppgtt_release(struct kref *kref);
 struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv,
 					struct drm_i915_file_private *fpriv,
 					const char *name);
+void i915_ppgtt_close(struct i915_address_space *vm);
 static inline void i915_ppgtt_get(struct i915_hw_ppgtt *ppgtt)
 {
 	if (ppgtt)
@@ -520,6 +559,16 @@ int __must_check i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 			       struct sg_table *pages);
 
+int i915_gem_gtt_reserve(struct i915_address_space *vm,
+			 struct drm_mm_node *node,
+			 u64 size, u64 offset, unsigned long color,
+			 unsigned int flags);
+
+int i915_gem_gtt_insert(struct i915_address_space *vm,
+			struct drm_mm_node *node,
+			u64 size, u64 alignment, unsigned long color,
+			u64 start, u64 end, unsigned int flags);
+
 /* Flags used by pin/bind&friends. */
 #define PIN_NONBLOCK		BIT(0)
 #define PIN_MAPPABLE		BIT(1)
@@ -534,6 +583,6 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 #define PIN_HIGH		BIT(9)
 #define PIN_OFFSET_BIAS		BIT(10)
 #define PIN_OFFSET_FIXED	BIT(11)
-#define PIN_OFFSET_MASK		(~4095)
+#define PIN_OFFSET_MASK		(-I915_GTT_PAGE_SIZE)
 
 #endif

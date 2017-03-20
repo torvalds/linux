@@ -31,10 +31,11 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 	}
 	spin_unlock_irq(&hwif->lock);
 
-	rq = blk_get_request(q, READ, __GFP_RECLAIM);
-	rq->cmd[0] = REQ_PARK_HEADS;
-	rq->cmd_len = 1;
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	rq = blk_get_request(q, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	scsi_req_init(rq);
+	scsi_req(rq)->cmd[0] = REQ_PARK_HEADS;
+	scsi_req(rq)->cmd_len = 1;
+	ide_req(rq)->type = ATA_PRIV_MISC;
 	rq->special = &timeout;
 	rc = blk_execute_rq(q, NULL, rq, 1);
 	blk_put_request(rq);
@@ -45,13 +46,14 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 	 * Make sure that *some* command is sent to the drive after the
 	 * timeout has expired, so power management will be reenabled.
 	 */
-	rq = blk_get_request(q, READ, GFP_NOWAIT);
+	rq = blk_get_request(q, REQ_OP_DRV_IN, GFP_NOWAIT);
+	scsi_req_init(rq);
 	if (IS_ERR(rq))
 		goto out;
 
-	rq->cmd[0] = REQ_UNPARK_HEADS;
-	rq->cmd_len = 1;
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	scsi_req(rq)->cmd[0] = REQ_UNPARK_HEADS;
+	scsi_req(rq)->cmd_len = 1;
+	ide_req(rq)->type = ATA_PRIV_MISC;
 	elv_add_request(q, rq, ELEVATOR_INSERT_FRONT);
 
 out:
@@ -64,7 +66,7 @@ ide_startstop_t ide_do_park_unpark(ide_drive_t *drive, struct request *rq)
 	struct ide_taskfile *tf = &cmd.tf;
 
 	memset(&cmd, 0, sizeof(cmd));
-	if (rq->cmd[0] == REQ_PARK_HEADS) {
+	if (scsi_req(rq)->cmd[0] == REQ_PARK_HEADS) {
 		drive->sleep = *(unsigned long *)rq->special;
 		drive->dev_flags |= IDE_DFLAG_SLEEPING;
 		tf->command = ATA_CMD_IDLEIMMEDIATE;

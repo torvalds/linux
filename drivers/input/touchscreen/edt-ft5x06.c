@@ -67,7 +67,7 @@
 #define EDT_SWITCH_MODE_RETRIES		10
 #define EDT_SWITCH_MODE_DELAY		5 /* msec */
 #define EDT_RAW_DATA_RETRIES		100
-#define EDT_RAW_DATA_DELAY		1 /* msec */
+#define EDT_RAW_DATA_DELAY		1000 /* usec */
 
 enum edt_ver {
 	M06,
@@ -664,7 +664,7 @@ static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
 	}
 
 	do {
-		msleep(EDT_RAW_DATA_DELAY);
+		usleep_range(EDT_RAW_DATA_DELAY, EDT_RAW_DATA_DELAY + 100);
 		val = edt_ft5x06_register_read(tsdata, 0x08);
 		if (val < 1)
 			break;
@@ -982,7 +982,6 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
-	input_set_drvdata(input, tsdata);
 	i2c_set_clientdata(client, tsdata);
 
 	irq_flags = irq_get_trigger_type(client->irq);

@@ -19,7 +19,7 @@ static int fdarray__fprintf_prefix(struct fdarray *fda, const char *prefix, FILE
 {
 	int printed = 0;
 
-	if (!verbose)
+	if (verbose <= 0)
 		return 0;
 
 	printed += fprintf(fp, "\n%s: ", prefix);

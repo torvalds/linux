@@ -174,18 +174,20 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		const char *state = NULL;
 		struct device_node *np = to_of_node(child);
 
-		led.gpiod = devm_get_gpiod_from_child(dev, NULL, child);
-		if (IS_ERR(led.gpiod)) {
-			fwnode_handle_put(child);
-			return ERR_CAST(led.gpiod);
-		}
-
 		ret = fwnode_property_read_string(child, "label", &led.name);
 		if (ret && IS_ENABLED(CONFIG_OF) && np)
 			led.name = np->name;
 		if (!led.name) {
 			fwnode_handle_put(child);
 			return ERR_PTR(-EINVAL);
+		}
+
+		led.gpiod = devm_fwnode_get_gpiod_from_child(dev, NULL, child,
+							     GPIOD_ASIS,
+							     led.name);
+		if (IS_ERR(led.gpiod)) {
+			fwnode_handle_put(child);
+			return ERR_CAST(led.gpiod);
 		}
 
 		fwnode_property_read_string(child, "linux,default-trigger",

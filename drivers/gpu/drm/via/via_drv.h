@@ -134,7 +134,7 @@ extern int via_dma_blit_sync(struct drm_device *dev, void *data, struct drm_file
 extern int via_dma_blit(struct drm_device *dev, void *data, struct drm_file *file_priv);
 
 extern int via_driver_load(struct drm_device *dev, unsigned long chipset);
-extern int via_driver_unload(struct drm_device *dev);
+extern void via_driver_unload(struct drm_device *dev);
 
 extern int via_init_context(struct drm_device *dev, int context);
 extern int via_final_context(struct drm_device *dev, int context);

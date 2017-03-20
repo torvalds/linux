@@ -6,9 +6,7 @@
 
 #include "compat.h"
 #include "regs.h"
-#include "intern.h"
 #include "desc.h"
-#include "jr.h"
 #include "error.h"
 
 static const struct {

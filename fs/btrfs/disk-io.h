@@ -52,14 +52,12 @@ int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
 struct extent_buffer *btrfs_find_create_tree_block(
 						struct btrfs_fs_info *fs_info,
 						u64 bytenr);
-void clean_tree_block(struct btrfs_trans_handle *trans,
-		      struct btrfs_fs_info *fs_info, struct extent_buffer *buf);
+void clean_tree_block(struct btrfs_fs_info *fs_info, struct extent_buffer *buf);
 int open_ctree(struct super_block *sb,
 	       struct btrfs_fs_devices *fs_devices,
 	       char *options);
 void close_ctree(struct btrfs_fs_info *fs_info);
-int write_ctree_super(struct btrfs_trans_handle *trans,
-		      struct btrfs_fs_info *fs_info, int max_mirrors);
+int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors);
 struct buffer_head *btrfs_read_dev_super(struct block_device *bdev);
 int btrfs_read_dev_one_super(struct block_device *bdev, int copy_num,
 			struct buffer_head **bh_ret);
@@ -118,7 +116,7 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf);
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 			  int atomic);
 int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid);
-u32 btrfs_csum_data(char *data, u32 seed, size_t len);
+u32 btrfs_csum_data(const char *data, u32 seed, size_t len);
 void btrfs_csum_final(u32 crc, u8 *result);
 int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 			enum btrfs_wq_endio_type metadata);

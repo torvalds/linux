@@ -154,6 +154,7 @@ u32	_rtw_free_sta_priv(struct	sta_priv *pstapriv)
 
 			while (phead != plist) {
 				int i;
+
 				psta = container_of(plist, struct sta_info,
 						    hash_list);
 				plist = plist->next;

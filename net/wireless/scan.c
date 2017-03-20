@@ -227,7 +227,7 @@ void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev,
 	ASSERT_RTNL();
 
 	if (rdev->scan_msg) {
-		nl80211_send_scan_result(rdev, rdev->scan_msg);
+		nl80211_send_scan_msg(rdev, rdev->scan_msg);
 		rdev->scan_msg = NULL;
 		return;
 	}
@@ -273,7 +273,7 @@ void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev,
 	if (!send_message)
 		rdev->scan_msg = msg;
 	else
-		nl80211_send_scan_result(rdev, msg);
+		nl80211_send_scan_msg(rdev, msg);
 }
 
 void __cfg80211_scan_done(struct work_struct *wk)
@@ -321,7 +321,8 @@ void __cfg80211_sched_scan_results(struct work_struct *wk)
 			spin_unlock_bh(&rdev->bss_lock);
 			request->scan_start = jiffies;
 		}
-		nl80211_send_sched_scan_results(rdev, request->dev);
+		nl80211_send_sched_scan(rdev, request->dev,
+					NL80211_CMD_SCHED_SCAN_RESULTS);
 	}
 
 	rtnl_unlock();
@@ -1147,7 +1148,7 @@ cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 	else
 		rcu_assign_pointer(tmp.pub.beacon_ies, ies);
 	rcu_assign_pointer(tmp.pub.ies, ies);
-	
+
 	memcpy(tmp.pub.bssid, mgmt->bssid, ETH_ALEN);
 	tmp.pub.channel = channel;
 	tmp.pub.scan_width = data->scan_width;

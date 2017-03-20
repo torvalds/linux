@@ -170,17 +170,6 @@ struct drm_i915_gem_request {
 	/** Preallocate space in the ring for the emitting the request */
 	u32 reserved_space;
 
-	/**
-	 * Context related to the previous request.
-	 * As the contexts are accessed by the hardware until the switch is
-	 * completed to a new context, the hardware may still be writing
-	 * to the context object after the breadcrumb is visible. We must
-	 * not unpin/unbind/prune that object whilst still active and so
-	 * we keep the previous context pinned until the following (this)
-	 * request is retired.
-	 */
-	struct i915_gem_context *previous_context;
-
 	/** Batch buffer related to this request if any (used for
 	 * error state dump only).
 	 */

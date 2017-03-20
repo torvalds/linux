@@ -19,6 +19,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/semaphore.h>
+#include <linux/sched/clock.h>
 
 #include <soc/tegra/bpmp.h>
 #include <soc/tegra/bpmp-abi.h>

@@ -18,6 +18,7 @@
 #include <linux/seq_file.h>
 #include <linux/pagemap.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <asm/pdc.h>
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
@@ -573,24 +574,6 @@ void flush_cache_mm(struct mm_struct *mm)
 	}
 }
 
-void
-flush_user_dcache_range(unsigned long start, unsigned long end)
-{
-	if ((end - start) < parisc_cache_flush_threshold)
-		flush_user_dcache_range_asm(start,end);
-	else
-		flush_data_cache();
-}
-
-void
-flush_user_icache_range(unsigned long start, unsigned long end)
-{
-	if ((end - start) < parisc_cache_flush_threshold)
-		flush_user_icache_range_asm(start,end);
-	else
-		flush_instruction_cache();
-}
-
 void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end)
 {
@@ -633,3 +616,25 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 		__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
 	}
 }
+
+void flush_kernel_vmap_range(void *vaddr, int size)
+{
+	unsigned long start = (unsigned long)vaddr;
+
+	if ((unsigned long)size > parisc_cache_flush_threshold)
+		flush_data_cache();
+	else
+		flush_kernel_dcache_range_asm(start, start + size);
+}
+EXPORT_SYMBOL(flush_kernel_vmap_range);
+
+void invalidate_kernel_vmap_range(void *vaddr, int size)
+{
+	unsigned long start = (unsigned long)vaddr;
+
+	if ((unsigned long)size > parisc_cache_flush_threshold)
+		flush_data_cache();
+	else
+		flush_kernel_dcache_range_asm(start, start + size);
+}
+EXPORT_SYMBOL(invalidate_kernel_vmap_range);

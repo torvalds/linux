@@ -21,6 +21,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-cec.o \
 			rc-cinergy-1400.o \
 			rc-cinergy.o \
+			rc-d680-dmb.o \
 			rc-delock-61959.o \
 			rc-dib0700-nec.o \
 			rc-dib0700-rc5.o \
@@ -31,6 +32,8 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-dntv-live-dvbt-pro.o \
 			rc-dtt200u.o \
 			rc-dvbsky.o \
+			rc-dvico-mce.o \
+			rc-dvico-portable.o \
 			rc-em-terratec.o \
 			rc-encore-enltv2.o \
 			rc-encore-enltv.o \
@@ -41,6 +44,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-flyvideo.o \
 			rc-fusionhdtv-mce.o \
 			rc-gadmei-rm008z.o \
+			rc-geekbox.o \
 			rc-genius-tvgo-a11mce.o \
 			rc-gotview7135.o \
 			rc-imon-mce.o \

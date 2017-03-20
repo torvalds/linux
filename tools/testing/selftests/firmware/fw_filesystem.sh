@@ -5,9 +5,24 @@
 # know so we can be sure we're not accidentally testing the user helper.
 set -e
 
-modprobe test_firmware
-
 DIR=/sys/devices/virtual/misc/test_firmware
+TEST_DIR=$(dirname $0)
+
+test_modprobe()
+{
+	if [ ! -d $DIR ]; then
+		echo "$0: $DIR not present"
+		echo "You must have the following enabled in your kernel:"
+		cat $TEST_DIR/config
+		exit 1
+	fi
+}
+
+trap "test_modprobe" EXIT
+
+if [ ! -d $DIR ]; then
+	modprobe test_firmware
+fi
 
 # CONFIG_FW_LOADER_USER_HELPER has a sysfs class under /sys/class/firmware/
 # These days no one enables CONFIG_FW_LOADER_USER_HELPER so check for that
@@ -48,18 +63,18 @@ echo "ABCD0123" >"$FW"
 
 NAME=$(basename "$FW")
 
-if printf '\000' >"$DIR"/trigger_request; then
+if printf '\000' >"$DIR"/trigger_request 2> /dev/null; then
 	echo "$0: empty filename should not succeed" >&2
 	exit 1
 fi
 
-if printf '\000' >"$DIR"/trigger_async_request; then
+if printf '\000' >"$DIR"/trigger_async_request 2> /dev/null; then
 	echo "$0: empty filename should not succeed (async)" >&2
 	exit 1
 fi
 
 # Request a firmware that doesn't exist, it should fail.
-if echo -n "nope-$NAME" >"$DIR"/trigger_request; then
+if echo -n "nope-$NAME" >"$DIR"/trigger_request 2> /dev/null; then
 	echo "$0: firmware shouldn't have loaded" >&2
 	exit 1
 fi

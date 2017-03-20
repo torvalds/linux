@@ -482,6 +482,7 @@ struct perf_addr_filter {
  * @list:	list of filters for this event
  * @lock:	spinlock that serializes accesses to the @list and event's
  *		(and its children's) filter generations.
+ * @nr_file_filters:	number of file-based filters
  *
  * A child event will use parent's @list (and therefore @lock), so they are
  * bundled together; see perf_event_addr_filters().
@@ -489,6 +490,7 @@ struct perf_addr_filter {
 struct perf_addr_filters_head {
 	struct list_head	list;
 	raw_spinlock_t		lock;
+	unsigned int		nr_file_filters;
 };
 
 /**
@@ -785,9 +787,9 @@ struct perf_cpu_context {
 	ktime_t				hrtimer_interval;
 	unsigned int			hrtimer_active;
 
-	struct pmu			*unique_pmu;
 #ifdef CONFIG_CGROUP_PERF
 	struct perf_cgroup		*cgrp;
+	struct list_head		cgrp_cpuctx_entry;
 #endif
 
 	struct list_head		sched_cb_entry;

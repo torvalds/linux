@@ -23,6 +23,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder.h>
 #include <linux/gpio.h>
 #include "gma_display.h"
 

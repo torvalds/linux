@@ -138,6 +138,14 @@ config FB_SYS_IMAGEBLIT
 	  blitting. This is used by drivers that don't provide their own
 	  (accelerated) version and the framebuffer is in system RAM.
 
+config FB_PROVIDE_GET_FB_UNMAPPED_AREA
+	bool
+	depends on FB
+	default n
+	---help---
+	  Allow generic frame-buffer to provide get_fb_unmapped_area
+	  function.
+
 menuconfig FB_FOREIGN_ENDIAN
 	bool "Framebuffer foreign endianness support"
 	depends on FB

@@ -382,7 +382,8 @@ struct inode_operations {
 	int (*permission) (struct inode *, int);
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
-	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
+	int (*getattr) (const struct path *, struct dentry *, struct kstat *,
+			u32, unsigned int);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	void (*update_time)(struct inode *, struct timespec *, int);
 	int (*atomic_open)(struct inode *, struct dentry *, struct file *,

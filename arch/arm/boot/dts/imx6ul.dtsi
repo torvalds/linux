@@ -15,6 +15,14 @@
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
+	 */
+	chosen {};
+	memory { device_type = "memory"; reg = <0 0>; };
 
 	aliases {
 		ethernet0 = &fec1;
@@ -91,11 +99,11 @@
 	};
 
 	intc: interrupt-controller@00a01000 {
-		compatible = "arm,cortex-a7-gic";
+		compatible = "arm,gic-400", "arm,cortex-a7-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x00a01000 0x1000>,
-		      <0x00a02000 0x1000>,
+		      <0x00a02000 0x2000>,
 		      <0x00a04000 0x2000>,
 		      <0x00a06000 0x2000>;
 	};
@@ -534,7 +542,6 @@
 					anatop-min-bit-val = <0>;
 					anatop-min-voltage = <2625000>;
 					anatop-max-voltage = <3400000>;
-					anatop-enable-bit = <0>;
 				};
 
 				reg_arm: regulator-vddcore {
@@ -849,6 +856,12 @@
 			mmdc: mmdc@021b0000 {
 				compatible = "fsl,imx6ul-mmdc", "fsl,imx6q-mmdc";
 				reg = <0x021b0000 0x4000>;
+			};
+
+			ocotp: ocotp-ctrl@021bc000 {
+				compatible = "fsl,imx6ul-ocotp", "syscon";
+				reg = <0x021bc000 0x4000>;
+				clocks = <&clks IMX6UL_CLK_OCOTP>;
 			};
 
 			lcdif: lcdif@021c8000 {

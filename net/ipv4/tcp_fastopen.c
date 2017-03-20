@@ -326,3 +326,57 @@ fastopen:
 	*foc = valid_foc;
 	return NULL;
 }
+
+bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
+			       struct tcp_fastopen_cookie *cookie)
+{
+	unsigned long last_syn_loss = 0;
+	int syn_loss = 0;
+
+	tcp_fastopen_cache_get(sk, mss, cookie, &syn_loss, &last_syn_loss);
+
+	/* Recurring FO SYN losses: no cookie or data in SYN */
+	if (syn_loss > 1 &&
+	    time_before(jiffies, last_syn_loss + (60*HZ << syn_loss))) {
+		cookie->len = -1;
+		return false;
+	}
+	if (sysctl_tcp_fastopen & TFO_CLIENT_NO_COOKIE) {
+		cookie->len = -1;
+		return true;
+	}
+	return cookie->len > 0;
+}
+
+/* This function checks if we want to defer sending SYN until the first
+ * write().  We defer under the following conditions:
+ * 1. fastopen_connect sockopt is set
+ * 2. we have a valid cookie
+ * Return value: return true if we want to defer until application writes data
+ *               return false if we want to send out SYN immediately
+ */
+bool tcp_fastopen_defer_connect(struct sock *sk, int *err)
+{
+	struct tcp_fastopen_cookie cookie = { .len = 0 };
+	struct tcp_sock *tp = tcp_sk(sk);
+	u16 mss;
+
+	if (tp->fastopen_connect && !tp->fastopen_req) {
+		if (tcp_fastopen_cookie_check(sk, &mss, &cookie)) {
+			inet_sk(sk)->defer_connect = 1;
+			return true;
+		}
+
+		/* Alloc fastopen_req in order for FO option to be included
+		 * in SYN
+		 */
+		tp->fastopen_req = kzalloc(sizeof(*tp->fastopen_req),
+					   sk->sk_allocation);
+		if (tp->fastopen_req)
+			tp->fastopen_req->cookie = cookie;
+		else
+			*err = -ENOBUFS;
+	}
+	return false;
+}
+EXPORT_SYMBOL(tcp_fastopen_defer_connect);

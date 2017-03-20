@@ -30,9 +30,6 @@ struct blk_trace {
 
 extern int blk_trace_ioctl(struct block_device *, unsigned, char __user *);
 extern void blk_trace_shutdown(struct request_queue *);
-extern int do_blk_trace_setup(struct request_queue *q, char *name,
-			      dev_t dev, struct block_device *bdev,
-			      struct blk_user_trace_setup *buts);
 extern __printf(2, 3)
 void __trace_note_message(struct blk_trace *, const char *fmt, ...);
 
@@ -80,7 +77,6 @@ extern struct attribute_group blk_trace_attr_group;
 #else /* !CONFIG_BLK_DEV_IO_TRACE */
 # define blk_trace_ioctl(bdev, cmd, arg)		(-ENOTTY)
 # define blk_trace_shutdown(q)				do { } while (0)
-# define do_blk_trace_setup(q, name, dev, bdev, buts)	(-ENOTTY)
 # define blk_add_driver_data(q, rq, data, len)		do {} while (0)
 # define blk_trace_setup(q, name, dev, bdev, arg)	(-ENOTTY)
 # define blk_trace_startstop(q, start)			(-ENOTTY)
@@ -110,16 +106,16 @@ struct compat_blk_user_trace_setup {
 
 #endif
 
-#if defined(CONFIG_EVENT_TRACING) && defined(CONFIG_BLOCK)
-
-static inline int blk_cmd_buf_len(struct request *rq)
-{
-	return (rq->cmd_type == REQ_TYPE_BLOCK_PC) ? rq->cmd_len * 3 : 1;
-}
-
-extern void blk_dump_cmd(char *buf, struct request *rq);
 extern void blk_fill_rwbs(char *rwbs, unsigned int op, int bytes);
 
-#endif /* CONFIG_EVENT_TRACING && CONFIG_BLOCK */
+static inline sector_t blk_rq_trace_sector(struct request *rq)
+{
+	return blk_rq_is_passthrough(rq) ? 0 : blk_rq_pos(rq);
+}
+
+static inline unsigned int blk_rq_trace_nr_sectors(struct request *rq)
+{
+	return blk_rq_is_passthrough(rq) ? 0 : blk_rq_sectors(rq);
+}
 
 #endif

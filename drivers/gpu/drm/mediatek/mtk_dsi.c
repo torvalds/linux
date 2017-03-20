@@ -622,26 +622,6 @@ static const struct drm_connector_helper_funcs
 	.get_modes = mtk_dsi_connector_get_modes,
 };
 
-static int mtk_drm_attach_bridge(struct drm_bridge *bridge,
-				 struct drm_encoder *encoder)
-{
-	int ret;
-
-	if (!bridge)
-		return -ENOENT;
-
-	encoder->bridge = bridge;
-	bridge->encoder = encoder;
-	ret = drm_bridge_attach(encoder->dev, bridge);
-	if (ret) {
-		DRM_ERROR("Failed to attach bridge to drm\n");
-		encoder->bridge = NULL;
-		bridge->encoder = NULL;
-	}
-
-	return ret;
-}
-
 static int mtk_dsi_create_connector(struct drm_device *drm, struct mtk_dsi *dsi)
 {
 	int ret;
@@ -692,8 +672,10 @@ static int mtk_dsi_create_conn_enc(struct drm_device *drm, struct mtk_dsi *dsi)
 	dsi->encoder.possible_crtcs = 1;
 
 	/* If there's a bridge, attach to it and let it create the connector */
-	ret = mtk_drm_attach_bridge(dsi->bridge, &dsi->encoder);
+	ret = drm_bridge_attach(&dsi->encoder, dsi->bridge, NULL);
 	if (ret) {
+		DRM_ERROR("Failed to attach bridge to drm\n");
+
 		/* Otherwise create our own connector and attach to a panel */
 		ret = mtk_dsi_create_connector(drm, dsi);
 		if (ret)

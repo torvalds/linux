@@ -43,4 +43,34 @@ struct mpls_label {
 
 #define MPLS_LABEL_FIRST_UNRESERVED	16 /* RFC3032 */
 
+/* These are embedded into IFLA_STATS_AF_SPEC:
+ * [IFLA_STATS_AF_SPEC]
+ * -> [AF_MPLS]
+ *    -> [MPLS_STATS_xxx]
+ *
+ * Attributes:
+ * [MPLS_STATS_LINK] = {
+ *     struct mpls_link_stats
+ * }
+ */
+enum {
+	MPLS_STATS_UNSPEC, /* also used as 64bit pad attribute */
+	MPLS_STATS_LINK,
+	__MPLS_STATS_MAX,
+};
+
+#define MPLS_STATS_MAX (__MPLS_STATS_MAX - 1)
+
+struct mpls_link_stats {
+	__u64	rx_packets;		/* total packets received	*/
+	__u64	tx_packets;		/* total packets transmitted	*/
+	__u64	rx_bytes;		/* total bytes received		*/
+	__u64	tx_bytes;		/* total bytes transmitted	*/
+	__u64	rx_errors;		/* bad packets received		*/
+	__u64	tx_errors;		/* packet transmit problems	*/
+	__u64	rx_dropped;		/* packet dropped on receive	*/
+	__u64	tx_dropped;		/* packet dropped on transmit	*/
+	__u64	rx_noroute;		/* no route for packet dest	*/
+};
+
 #endif /* _UAPI_MPLS_H */

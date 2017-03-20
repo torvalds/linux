@@ -18,7 +18,7 @@ static void setDisplayControl(int ctrl, int disp_state)
 		reserved = CRT_DISPLAY_CTRL_RESERVED_MASK;
 	}
 
-	val = PEEK32(reg);
+	val = peek32(reg);
 	if (disp_state) {
 		/*
 		 * Timing should be enabled first before enabling the
@@ -27,7 +27,7 @@ static void setDisplayControl(int ctrl, int disp_state)
 		 * disabled.
 		 */
 		val |= DISPLAY_CTRL_TIMING;
-		POKE32(reg, val);
+		poke32(reg, val);
 
 		val |= DISPLAY_CTRL_PLANE;
 
@@ -38,8 +38,8 @@ static void setDisplayControl(int ctrl, int disp_state)
 		 */
 		do {
 			cnt++;
-			POKE32(reg, val);
-		} while ((PEEK32(reg) & ~reserved) != (val & ~reserved));
+			poke32(reg, val);
+		} while ((peek32(reg) & ~reserved) != (val & ~reserved));
 		pr_debug("Set Plane enbit:after tried %d times\n", cnt);
 	} else {
 		/*
@@ -52,10 +52,10 @@ static void setDisplayControl(int ctrl, int disp_state)
 		 * before modifying the timing enable bit.
 		 */
 		val &= ~DISPLAY_CTRL_PLANE;
-		POKE32(reg, val);
+		poke32(reg, val);
 
 		val &= ~DISPLAY_CTRL_TIMING;
-		POKE32(reg, val);
+		poke32(reg, val);
 	}
 }
 
@@ -67,19 +67,19 @@ static void primary_wait_vertical_sync(int delay)
 	 * Do not wait when the Primary PLL is off or display control is
 	 * already off. This will prevent the software to wait forever.
 	 */
-	if (!(PEEK32(PANEL_PLL_CTRL) & PLL_CTRL_POWER) ||
-	    !(PEEK32(PANEL_DISPLAY_CTRL) & DISPLAY_CTRL_TIMING))
+	if (!(peek32(PANEL_PLL_CTRL) & PLL_CTRL_POWER) ||
+	    !(peek32(PANEL_DISPLAY_CTRL) & DISPLAY_CTRL_TIMING))
 		return;
 
 	while (delay-- > 0) {
 		/* Wait for end of vsync. */
 		do {
-			status = PEEK32(SYSTEM_CTRL);
+			status = peek32(SYSTEM_CTRL);
 		} while (status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE);
 
 		/* Wait for start of vsync. */
 		do {
-			status = PEEK32(SYSTEM_CTRL);
+			status = peek32(SYSTEM_CTRL);
 		} while (!(status & SYSTEM_CTRL_PANEL_VSYNC_ACTIVE));
 	}
 }
@@ -89,24 +89,24 @@ static void swPanelPowerSequence(int disp, int delay)
 	unsigned int reg;
 
 	/* disp should be 1 to open sequence */
-	reg = PEEK32(PANEL_DISPLAY_CTRL);
+	reg = peek32(PANEL_DISPLAY_CTRL);
 	reg |= (disp ? PANEL_DISPLAY_CTRL_FPEN : 0);
-	POKE32(PANEL_DISPLAY_CTRL, reg);
+	poke32(PANEL_DISPLAY_CTRL, reg);
 	primary_wait_vertical_sync(delay);
 
-	reg = PEEK32(PANEL_DISPLAY_CTRL);
+	reg = peek32(PANEL_DISPLAY_CTRL);
 	reg |= (disp ? PANEL_DISPLAY_CTRL_DATA : 0);
-	POKE32(PANEL_DISPLAY_CTRL, reg);
+	poke32(PANEL_DISPLAY_CTRL, reg);
 	primary_wait_vertical_sync(delay);
 
-	reg = PEEK32(PANEL_DISPLAY_CTRL);
+	reg = peek32(PANEL_DISPLAY_CTRL);
 	reg |= (disp ? PANEL_DISPLAY_CTRL_VBIASEN : 0);
-	POKE32(PANEL_DISPLAY_CTRL, reg);
+	poke32(PANEL_DISPLAY_CTRL, reg);
 	primary_wait_vertical_sync(delay);
 
-	reg = PEEK32(PANEL_DISPLAY_CTRL);
+	reg = peek32(PANEL_DISPLAY_CTRL);
 	reg |= (disp ? PANEL_DISPLAY_CTRL_FPEN : 0);
-	POKE32(PANEL_DISPLAY_CTRL, reg);
+	poke32(PANEL_DISPLAY_CTRL, reg);
 	primary_wait_vertical_sync(delay);
 }
 
@@ -116,22 +116,22 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 
 	if (output & PNL_2_USAGE) {
 		/* set panel path controller select */
-		reg = PEEK32(PANEL_DISPLAY_CTRL);
+		reg = peek32(PANEL_DISPLAY_CTRL);
 		reg &= ~PANEL_DISPLAY_CTRL_SELECT_MASK;
 		reg |= (((output & PNL_2_MASK) >> PNL_2_OFFSET) <<
 			PANEL_DISPLAY_CTRL_SELECT_SHIFT);
-		POKE32(PANEL_DISPLAY_CTRL, reg);
+		poke32(PANEL_DISPLAY_CTRL, reg);
 	}
 
 	if (output & CRT_2_USAGE) {
 		/* set crt path controller select */
-		reg = PEEK32(CRT_DISPLAY_CTRL);
+		reg = peek32(CRT_DISPLAY_CTRL);
 		reg &= ~CRT_DISPLAY_CTRL_SELECT_MASK;
 		reg |= (((output & CRT_2_MASK) >> CRT_2_OFFSET) <<
 			CRT_DISPLAY_CTRL_SELECT_SHIFT);
 		/*se blank off */
 		reg &= ~CRT_DISPLAY_CTRL_BLANK;
-		POKE32(CRT_DISPLAY_CTRL, reg);
+		poke32(CRT_DISPLAY_CTRL, reg);
 	}
 
 	if (output & PRI_TP_USAGE) {

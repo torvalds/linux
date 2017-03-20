@@ -1008,7 +1008,7 @@ restart_txrx_poll:
 			spin_unlock_irqrestore(&greth->devlock, flags);
 			goto restart_txrx_poll;
 		} else {
-			__napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			spin_unlock_irqrestore(&greth->devlock, flags);
 		}
 	}

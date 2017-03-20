@@ -433,9 +433,9 @@ int ping_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		goto out;
 	}
 
-	pr_debug("after bind(): num = %d, dif = %d\n",
-		 (int)isk->inet_num,
-		 (int)sk->sk_bound_dev_if);
+	pr_debug("after bind(): num = %hu, dif = %d\n",
+		 isk->inet_num,
+		 sk->sk_bound_dev_if);
 
 	err = 0;
 	if (sk->sk_family == AF_INET && isk->inet_rcv_saddr)
@@ -642,6 +642,8 @@ static int ping_v4_push_pending_frames(struct sock *sk, struct pingfakehdr *pfh,
 {
 	struct sk_buff *skb = skb_peek(&sk->sk_write_queue);
 
+	if (!skb)
+		return 0;
 	pfh->wcheck = csum_partial((char *)&pfh->icmph,
 		sizeof(struct icmphdr), pfh->wcheck);
 	pfh->icmph.checksum = csum_fold(pfh->wcheck);
@@ -848,7 +850,8 @@ out:
 	return err;
 
 do_confirm:
-	dst_confirm(&rt->dst);
+	if (msg->msg_flags & MSG_PROBE)
+		dst_confirm_neigh(&rt->dst, &fl4.daddr);
 	if (!(msg->msg_flags & MSG_PROBE) || len)
 		goto back_from_confirm;
 	err = 0;

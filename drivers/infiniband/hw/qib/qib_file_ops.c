@@ -893,7 +893,7 @@ bail:
 /*
  * qib_file_vma_fault - handle a VMA page fault.
  */
-static int qib_file_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int qib_file_vma_fault(struct vm_fault *vmf)
 {
 	struct page *page;
 

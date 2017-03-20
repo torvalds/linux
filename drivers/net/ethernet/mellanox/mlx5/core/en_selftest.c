@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include <linux/prefetch.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
 #include <net/udp.h>
@@ -203,9 +204,6 @@ mlx5e_test_loopback_validate(struct sk_buff *skb,
 	struct iphdr *iph;
 
 	/* We are only going to peek, no need to clone the SKB */
-	if (skb->protocol != htons(ETH_P_IP))
-		goto out;
-
 	if (MLX5E_TEST_PKT_SIZE - ETH_HLEN > skb_headlen(skb))
 		goto out;
 
@@ -248,7 +246,7 @@ static int mlx5e_test_loopback_setup(struct mlx5e_priv *priv,
 	lbtp->loopback_ok = false;
 	init_completion(&lbtp->comp);
 
-	lbtp->pt.type = htons(ETH_P_ALL);
+	lbtp->pt.type = htons(ETH_P_IP);
 	lbtp->pt.func = mlx5e_test_loopback_validate;
 	lbtp->pt.dev = priv->netdev;
 	lbtp->pt.af_packet_priv = lbtp;

@@ -50,6 +50,7 @@
 #include <linux/completion.h>
 #include <linux/kref.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 
 /*
  * Version Information
@@ -526,7 +527,7 @@ static size_t parport_uss720_epp_write_data(struct parport *pp, const void *buf,
 		return 0;
 	i = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 1), (void *)buf, length, &rlen, 20000);
 	if (i)
-		printk(KERN_ERR "uss720: sendbulk ep 1 buf %p len %Zu rlen %u\n", buf, length, rlen);
+		printk(KERN_ERR "uss720: sendbulk ep 1 buf %p len %zu rlen %u\n", buf, length, rlen);
 	change_mode(pp, ECR_PS2);
 	return rlen;
 #endif
@@ -587,7 +588,7 @@ static size_t parport_uss720_ecp_write_data(struct parport *pp, const void *buff
 		return 0;
 	i = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 1), (void *)buffer, len, &rlen, 20000);
 	if (i)
-		printk(KERN_ERR "uss720: sendbulk ep 1 buf %p len %Zu rlen %u\n", buffer, len, rlen);
+		printk(KERN_ERR "uss720: sendbulk ep 1 buf %p len %zu rlen %u\n", buffer, len, rlen);
 	change_mode(pp, ECR_PS2);
 	return rlen;
 }
@@ -605,7 +606,7 @@ static size_t parport_uss720_ecp_read_data(struct parport *pp, void *buffer, siz
 		return 0;
 	i = usb_bulk_msg(usbdev, usb_rcvbulkpipe(usbdev, 2), buffer, len, &rlen, 20000);
 	if (i)
-		printk(KERN_ERR "uss720: recvbulk ep 2 buf %p len %Zu rlen %u\n", buffer, len, rlen);
+		printk(KERN_ERR "uss720: recvbulk ep 2 buf %p len %zu rlen %u\n", buffer, len, rlen);
 	change_mode(pp, ECR_PS2);
 	return rlen;
 }
@@ -638,7 +639,7 @@ static size_t parport_uss720_write_compat(struct parport *pp, const void *buffer
 		return 0;
 	i = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 1), (void *)buffer, len, &rlen, 20000);
 	if (i)
-		printk(KERN_ERR "uss720: sendbulk ep 1 buf %p len %Zu rlen %u\n", buffer, len, rlen);
+		printk(KERN_ERR "uss720: sendbulk ep 1 buf %p len %zu rlen %u\n", buffer, len, rlen);
 	change_mode(pp, ECR_PS2);
 	return rlen;
 }

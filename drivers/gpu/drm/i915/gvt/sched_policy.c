@@ -125,7 +125,6 @@ static void tbs_sched_func(struct work_struct *work)
 		vgpu_data = scheduler->current_vgpu->sched_data;
 		head = &vgpu_data->list;
 	} else {
-		gvt_dbg_sched("no current vgpu search from q head\n");
 		head = &sched_data->runq_head;
 	}
 

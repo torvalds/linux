@@ -507,6 +507,7 @@ static void mmci_dma_data_error(struct mmci_host *host)
 {
 	dev_err(mmc_dev(host->mmc), "error during DMA transfer!\n");
 	dmaengine_terminate_all(host->dma_current);
+	host->dma_in_progress = false;
 	host->dma_current = NULL;
 	host->dma_desc_current = NULL;
 	host->data->host_cookie = 0;
@@ -565,6 +566,7 @@ static void mmci_dma_finalize(struct mmci_host *host, struct mmc_data *data)
 		mmci_dma_release(host);
 	}
 
+	host->dma_in_progress = false;
 	host->dma_current = NULL;
 	host->dma_desc_current = NULL;
 }
@@ -665,6 +667,7 @@ static int mmci_dma_start_data(struct mmci_host *host, unsigned int datactrl)
 	dev_vdbg(mmc_dev(host->mmc),
 		 "Submit MMCI DMA job, sglen %d blksz %04x blks %04x flags %08x\n",
 		 data->sg_len, data->blksz, data->blocks, data->flags);
+	host->dma_in_progress = true;
 	dmaengine_submit(host->dma_desc_current);
 	dma_async_issue_pending(host->dma_current);
 
@@ -740,8 +743,10 @@ static void mmci_post_request(struct mmc_host *mmc, struct mmc_request *mrq,
 		if (host->dma_desc_current == next->dma_desc)
 			host->dma_desc_current = NULL;
 
-		if (host->dma_current == next->dma_chan)
+		if (host->dma_current == next->dma_chan) {
+			host->dma_in_progress = false;
 			host->dma_current = NULL;
+		}
 
 		next->dma_desc = NULL;
 		next->dma_chan = NULL;
@@ -1023,7 +1028,12 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 		if (!host->busy_status && busy_resp &&
 		    !(status & (MCI_CMDCRCFAIL|MCI_CMDTIMEOUT)) &&
 		    (readl(base + MMCISTATUS) & host->variant->busy_detect_flag)) {
-			/* Unmask the busy IRQ */
+
+			/* Clear the busy start IRQ */
+			writel(host->variant->busy_detect_mask,
+			       host->base + MMCICLEAR);
+
+			/* Unmask the busy end IRQ */
 			writel(readl(base + MMCIMASK0) |
 			       host->variant->busy_detect_mask,
 			       base + MMCIMASK0);
@@ -1038,10 +1048,14 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 
 		/*
 		 * At this point we are not busy with a command, we have
-		 * not received a new busy request, mask the busy IRQ and
-		 * fall through to process the IRQ.
+		 * not received a new busy request, clear and mask the busy
+		 * end IRQ and fall through to process the IRQ.
 		 */
 		if (host->busy_status) {
+
+			writel(host->variant->busy_detect_mask,
+			       host->base + MMCICLEAR);
+
 			writel(readl(base + MMCIMASK0) &
 			       ~host->variant->busy_detect_mask,
 			       base + MMCIMASK0);
@@ -1283,12 +1297,21 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 		}
 
 		/*
-		 * We intentionally clear the MCI_ST_CARDBUSY IRQ here (if it's
-		 * enabled) since the HW seems to be triggering the IRQ on both
-		 * edges while monitoring DAT0 for busy completion.
+		 * We intentionally clear the MCI_ST_CARDBUSY IRQ (if it's
+		 * enabled) in mmci_cmd_irq() function where ST Micro busy
+		 * detection variant is handled. Considering the HW seems to be
+		 * triggering the IRQ on both edges while monitoring DAT0 for
+		 * busy completion and that same status bit is used to monitor
+		 * start and end of busy detection, special care must be taken
+		 * to make sure that both start and end interrupts are always
+		 * cleared one after the other.
 		 */
 		status &= readl(host->base + MMCIMASK0);
-		writel(status, host->base + MMCICLEAR);
+		if (host->variant->busy_detect)
+			writel(status & ~host->variant->busy_detect_mask,
+			       host->base + MMCICLEAR);
+		else
+			writel(status, host->base + MMCICLEAR);
 
 		dev_dbg(mmc_dev(host->mmc), "irq0 (data+cmd) %08x\n", status);
 

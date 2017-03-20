@@ -71,19 +71,8 @@ config DEBUG_WX
 
 	  If in doubt, say "Y".
 
-config DEBUG_SET_MODULE_RONX
-	bool "Set loadable kernel module data as NX and text as RO"
-	depends on MODULES
-	default y
-	help
-	  Is this is set, kernel module text and rodata will be made read-only.
-	  This is to help catch accidental or malicious attempts to change the
-	  kernel's executable code.
-
-	  If in doubt, say Y.
-
 config DEBUG_ALIGN_RODATA
-	depends on DEBUG_RODATA
+	depends on STRICT_KERNEL_RWX
 	bool "Align linker sections up to SECTION_SIZE"
 	help
 	  If this option is enabled, sections that may potentially be marked as
@@ -94,6 +83,14 @@ config DEBUG_ALIGN_RODATA
 	  performance is more important than memory pressure.
 
 	  If in doubt, say N.
+
+config DEBUG_EFI
+	depends on EFI && DEBUG_INFO
+	bool "UEFI debugging"
+	help
+	  Enable this option to include EFI specific debugging features into
+	  the kernel that are only useful when using a debug build of the
+	  UEFI firmware
 
 source "drivers/hwtracing/coresight/Kconfig"
 

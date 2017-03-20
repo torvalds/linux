@@ -1489,8 +1489,8 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 	case RPC_GSS_PROC_DESTROY:
 		if (gss_write_verf(rqstp, rsci->mechctx, gc->gc_seq))
 			goto auth_err;
-		rsci->h.expiry_time = seconds_since_boot();
-		set_bit(CACHE_NEGATIVE, &rsci->h.flags);
+		/* Delete the entry from the cache_list and call cache_put */
+		sunrpc_cache_unhash(sn->rsc_cache, &rsci->h);
 		if (resv->iov_len + 4 > PAGE_SIZE)
 			goto drop;
 		svc_putnl(resv, RPC_SUCCESS);

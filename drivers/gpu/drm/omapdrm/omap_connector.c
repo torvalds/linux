@@ -162,7 +162,7 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 
 		dssdrv->get_timings(dssdev, &t);
 
-		if (memcmp(&vm, &t, sizeof(struct videomode)))
+		if (memcmp(&vm, &t, sizeof(vm)))
 			r = -EINVAL;
 		else
 			r = 0;
@@ -217,7 +217,7 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 
 	omap_dss_get_device(dssdev);
 
-	omap_connector = kzalloc(sizeof(struct omap_connector), GFP_KERNEL);
+	omap_connector = kzalloc(sizeof(*omap_connector), GFP_KERNEL);
 	if (!omap_connector)
 		goto fail;
 
@@ -239,8 +239,6 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
-
-	drm_connector_register(connector);
 
 	return connector;
 

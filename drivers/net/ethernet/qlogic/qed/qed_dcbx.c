@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -408,7 +432,6 @@ qed_dcbx_copy_mib(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-#ifdef CONFIG_DCB
 static void
 qed_dcbx_get_priority_info(struct qed_hwfn *p_hwfn,
 			   struct qed_dcbx_app_prio *p_prio,
@@ -725,7 +748,6 @@ qed_dcbx_get_params(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 	return 0;
 }
-#endif
 
 static int
 qed_dcbx_read_local_lldp_mib(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -840,6 +862,15 @@ static int qed_dcbx_read_mib(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+void qed_dcbx_aen(struct qed_hwfn *hwfn, u32 mib_type)
+{
+	struct qed_common_cb_ops *op = hwfn->cdev->protocol_ops.common;
+	void *cookie = hwfn->cdev->ops_cookie;
+
+	if (cookie && op->dcbx_aen)
+		op->dcbx_aen(cookie, &hwfn->p_dcbx_info->get, mib_type);
+}
+
 /* Read updated MIB.
  * Reconfigure QM and invoke PF update ramrod command if operational MIB
  * change is detected.
@@ -866,6 +897,8 @@ qed_dcbx_mib_update_event(struct qed_hwfn *p_hwfn,
 			qed_sp_pf_update(p_hwfn);
 		}
 	}
+	qed_dcbx_get_params(p_hwfn, p_ptt, &p_hwfn->p_dcbx_info->get, type);
+	qed_dcbx_aen(p_hwfn, type);
 
 	return rc;
 }

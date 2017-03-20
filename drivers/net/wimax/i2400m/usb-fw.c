@@ -237,7 +237,7 @@ void __i2400mu_bm_notif_cb(struct urb *urb)
  *
  * @i2400m: device descriptor
  * @urb: urb to use
- * @completion: completion varible to complete when done
+ * @completion: completion variable to complete when done
  *
  * Data is always read to i2400m->bm_ack_buf
  */

@@ -46,7 +46,7 @@ static u64 swiotlb_powerpc_get_required(struct device *dev)
  * map_page, and unmap_page on highmem, use normal dma_ops
  * for everything else.
  */
-struct dma_map_ops swiotlb_dma_ops = {
+const struct dma_map_ops swiotlb_dma_ops = {
 	.alloc = __dma_direct_alloc_coherent,
 	.free = __dma_direct_free_coherent,
 	.mmap = dma_direct_mmap_coherent,

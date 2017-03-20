@@ -106,8 +106,8 @@ static int l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static struct rtnl_link_stats64 *l2tp_eth_get_stats64(struct net_device *dev,
-						      struct rtnl_link_stats64 *stats)
+static void l2tp_eth_get_stats64(struct net_device *dev,
+				 struct rtnl_link_stats64 *stats)
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
 
@@ -117,9 +117,7 @@ static struct rtnl_link_stats64 *l2tp_eth_get_stats64(struct net_device *dev,
 	stats->rx_bytes   = atomic_long_read(&priv->rx_bytes);
 	stats->rx_packets = atomic_long_read(&priv->rx_packets);
 	stats->rx_errors  = atomic_long_read(&priv->rx_errors);
-	return stats;
 }
-
 
 static const struct net_device_ops l2tp_eth_netdev_ops = {
 	.ndo_init		= l2tp_eth_dev_init,

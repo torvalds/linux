@@ -432,9 +432,9 @@ static int vce_v3_0_hw_init(void *handle)
 	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = vce_v3_0_start(adev);
-	if (r)
-		return r;
+	vce_v3_0_override_vce_clock_gating(adev, true);
+	if (!(adev->flags & AMD_IS_APU))
+		amdgpu_asic_set_vce_clocks(adev, 10000, 10000);
 
 	for (i = 0; i < adev->vce.num_rings; i++)
 		adev->vce.ring[i].ready = false;
@@ -510,6 +510,8 @@ static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx)
 	WREG32(mmVCE_LMI_SWAP_CNTL, 0);
 	WREG32(mmVCE_LMI_SWAP_CNTL1, 0);
 	WREG32(mmVCE_LMI_VM_CTRL, 0);
+	WREG32_OR(mmVCE_VCPU_CNTL, 0x00100000);
+
 	if (adev->asic_type >= CHIP_STONEY) {
 		WREG32(mmVCE_LMI_VCPU_CACHE_40BIT_BAR0, (adev->vce.gpu_addr >> 8));
 		WREG32(mmVCE_LMI_VCPU_CACHE_40BIT_BAR1, (adev->vce.gpu_addr >> 8));
@@ -708,29 +710,12 @@ static int vce_v3_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void vce_v3_0_set_bypass_mode(struct amdgpu_device *adev, bool enable)
-{
-	u32 tmp = RREG32_SMC(ixGCK_DFS_BYPASS_CNTL);
-
-	if (enable)
-		tmp |= GCK_DFS_BYPASS_CNTL__BYPASSECLK_MASK;
-	else
-		tmp &= ~GCK_DFS_BYPASS_CNTL__BYPASSECLK_MASK;
-
-	WREG32_SMC(ixGCK_DFS_BYPASS_CNTL, tmp);
-}
-
 static int vce_v3_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 	int i;
-
-	if ((adev->asic_type == CHIP_POLARIS10) ||
-		(adev->asic_type == CHIP_TONGA) ||
-		(adev->asic_type == CHIP_FIJI))
-		vce_v3_0_set_bypass_mode(adev, enable);
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG))
 		return 0;
@@ -777,15 +762,44 @@ static int vce_v3_0_set_powergating_state(void *handle,
 	 * the smc and the hw blocks
 	 */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int ret = 0;
 
-	if (!(adev->pg_flags & AMD_PG_SUPPORT_VCE))
-		return 0;
+	if (state == AMD_PG_STATE_GATE) {
+		ret = vce_v3_0_stop(adev);
+		if (ret)
+			goto out;
+	} else {
+		ret = vce_v3_0_start(adev);
+		if (ret)
+			goto out;
+	}
 
-	if (state == AMD_PG_STATE_GATE)
-		/* XXX do we need a vce_v3_0_stop()? */
-		return 0;
-	else
-		return vce_v3_0_start(adev);
+out:
+	return ret;
+}
+
+static void vce_v3_0_get_clockgating_state(void *handle, u32 *flags)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int data;
+
+	mutex_lock(&adev->pm.mutex);
+
+	if (RREG32_SMC(ixCURRENT_PG_STATUS) &
+			CURRENT_PG_STATUS__VCE_PG_STATUS_MASK) {
+		DRM_INFO("Cannot get clockgating state when VCE is powergated.\n");
+		goto out;
+	}
+
+	WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, 0);
+
+	/* AMD_CG_SUPPORT_VCE_MGCG */
+	data = RREG32(mmVCE_CLOCK_GATING_A);
+	if (data & (0x04 << 4))
+		*flags |= AMD_CG_SUPPORT_VCE_MGCG;
+
+out:
+	mutex_unlock(&adev->pm.mutex);
 }
 
 static void vce_v3_0_ring_emit_ib(struct amdgpu_ring *ring,
@@ -839,6 +853,7 @@ static const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 	.post_soft_reset = vce_v3_0_post_soft_reset,
 	.set_clockgating_state = vce_v3_0_set_clockgating_state,
 	.set_powergating_state = vce_v3_0_set_powergating_state,
+	.get_clockgating_state = vce_v3_0_get_clockgating_state,
 };
 
 static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {

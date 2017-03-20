@@ -53,7 +53,8 @@ static void free_firmware(struct gb_bootrom *bootrom)
 static void gb_bootrom_timedout(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
-	struct gb_bootrom *bootrom = container_of(dwork, struct gb_bootrom, dwork);
+	struct gb_bootrom *bootrom = container_of(dwork,
+						  struct gb_bootrom, dwork);
 	struct device *dev = &bootrom->connection->bundle->dev;
 	const char *reason;
 
@@ -187,7 +188,8 @@ static int find_firmware(struct gb_bootrom *bootrom, u8 stage)
 static int gb_bootrom_firmware_size_request(struct gb_operation *op)
 {
 	struct gb_bootrom *bootrom = gb_connection_get_data(op->connection);
-	struct gb_bootrom_firmware_size_request *size_request = op->request->payload;
+	struct gb_bootrom_firmware_size_request *size_request =
+		op->request->payload;
 	struct gb_bootrom_firmware_size_response *size_response;
 	struct device *dev = &op->connection->bundle->dev;
 	int ret;
@@ -220,7 +222,8 @@ static int gb_bootrom_firmware_size_request(struct gb_operation *op)
 	size_response = op->response->payload;
 	size_response->size = cpu_to_le32(bootrom->fw->size);
 
-	dev_dbg(dev, "%s: firmware size %d bytes\n", __func__, size_response->size);
+	dev_dbg(dev, "%s: firmware size %d bytes\n",
+		__func__, size_response->size);
 
 unlock:
 	mutex_unlock(&bootrom->mutex);
@@ -287,8 +290,8 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 	firmware_response = op->response->payload;
 	memcpy(firmware_response->data, fw->data + offset, size);
 
-	dev_dbg(dev, "responding with firmware (offs = %u, size = %u)\n", offset,
-		size);
+	dev_dbg(dev, "responding with firmware (offs = %u, size = %u)\n",
+		offset, size);
 
 unlock:
 	mutex_unlock(&bootrom->mutex);

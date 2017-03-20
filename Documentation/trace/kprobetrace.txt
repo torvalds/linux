@@ -12,7 +12,7 @@ kprobes can probe (this means, all functions body except for __kprobes
 functions). Unlike the Tracepoint based event, this can be added and removed
 dynamically, on the fly.
 
-To enable this feature, build your kernel with CONFIG_KPROBE_EVENT=y.
+To enable this feature, build your kernel with CONFIG_KPROBE_EVENTS=y.
 
 Similar to the events tracer, this doesn't need to be activated via
 current_tracer. Instead of that, add probe points via

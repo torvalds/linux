@@ -8,10 +8,13 @@
 
 #include <linux/cpufeature.h>
 #include <linux/kernel.h>
+#include <linux/sched/mm.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
+#include <linux/mm_types.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
+
 #include <asm/diag.h>
 #include <asm/facility.h>
 #include <asm/elf.h>
@@ -32,7 +35,7 @@ static bool machine_has_cpu_mhz;
 void __init cpu_detect_mhz_feature(void)
 {
 	if (test_facility(34) && __ecag(ECAG_CPU_ATTRIBUTE, 0) != -1UL)
-		machine_has_cpu_mhz = 1;
+		machine_has_cpu_mhz = true;
 }
 
 static void update_cpu_mhz(void *arg)
@@ -73,7 +76,7 @@ void cpu_init(void)
 	get_cpu_id(id);
 	if (machine_has_cpu_mhz)
 		update_cpu_mhz(NULL);
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
@@ -92,7 +95,7 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 {
 	static const char *hwcap_str[] = {
 		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
-		"edat", "etf3eh", "highgprs", "te", "vx"
+		"edat", "etf3eh", "highgprs", "te", "vx", "vxd", "vxe"
 	};
 	static const char * const int_hwcap_str[] = {
 		"sie"

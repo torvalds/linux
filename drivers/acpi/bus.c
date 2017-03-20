@@ -677,6 +677,48 @@ static bool acpi_of_match_device(struct acpi_device *adev,
 	return false;
 }
 
+static bool acpi_of_modalias(struct acpi_device *adev,
+			     char *modalias, size_t len)
+{
+	const union acpi_object *of_compatible;
+	const union acpi_object *obj;
+	const char *str, *chr;
+
+	of_compatible = adev->data.of_compatible;
+	if (!of_compatible)
+		return false;
+
+	if (of_compatible->type == ACPI_TYPE_PACKAGE)
+		obj = of_compatible->package.elements;
+	else /* Must be ACPI_TYPE_STRING. */
+		obj = of_compatible;
+
+	str = obj->string.pointer;
+	chr = strchr(str, ',');
+	strlcpy(modalias, chr ? chr + 1 : str, len);
+
+	return true;
+}
+
+/**
+ * acpi_set_modalias - Set modalias using "compatible" property or supplied ID
+ * @adev:	ACPI device object to match
+ * @default_id:	ID string to use as default if no compatible string found
+ * @modalias:   Pointer to buffer that modalias value will be copied into
+ * @len:	Length of modalias buffer
+ *
+ * This is a counterpart of of_modalias_node() for struct acpi_device objects.
+ * If there is a compatible string for @adev, it will be copied to @modalias
+ * with the vendor prefix stripped; otherwise, @default_id will be used.
+ */
+void acpi_set_modalias(struct acpi_device *adev, const char *default_id,
+		       char *modalias, size_t len)
+{
+	if (!acpi_of_modalias(adev, modalias, len))
+		strlcpy(modalias, default_id, len);
+}
+EXPORT_SYMBOL_GPL(acpi_set_modalias);
+
 static bool __acpi_match_device_cls(const struct acpi_device_id *id,
 				    struct acpi_hardware_id *hwid)
 {
@@ -1207,7 +1249,6 @@ static int __init acpi_init(void)
 	acpi_wakeup_device_init();
 	acpi_debugger_init();
 	acpi_setup_sb_notify_handler();
-	acpi_set_processor_mapping();
 	return 0;
 }
 

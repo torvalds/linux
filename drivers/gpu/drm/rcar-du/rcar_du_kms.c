@@ -662,7 +662,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	drm_kms_helper_poll_init(dev);
 
 	if (dev->mode_config.num_connector) {
-		fbdev = drm_fbdev_cma_init(dev, 32, dev->mode_config.num_crtc,
+		fbdev = drm_fbdev_cma_init(dev, 32,
 					   dev->mode_config.num_connector);
 		if (IS_ERR(fbdev))
 			return PTR_ERR(fbdev);

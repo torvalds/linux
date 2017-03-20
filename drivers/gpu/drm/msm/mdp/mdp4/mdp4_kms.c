@@ -260,8 +260,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	struct device_node *panel_node;
-	struct drm_encoder *dsi_encs[MSM_DSI_ENCODER_NUM];
-	int i, dsi_id;
+	int dsi_id;
 	int ret;
 
 	switch (intf_type) {
@@ -322,22 +321,19 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 		if (!priv->dsi[dsi_id])
 			break;
 
-		for (i = 0; i < MSM_DSI_ENCODER_NUM; i++) {
-			dsi_encs[i] = mdp4_dsi_encoder_init(dev);
-			if (IS_ERR(dsi_encs[i])) {
-				ret = PTR_ERR(dsi_encs[i]);
-				dev_err(dev->dev,
-					"failed to construct DSI encoder: %d\n",
-					ret);
-				return ret;
-			}
-
-			/* TODO: Add DMA_S later? */
-			dsi_encs[i]->possible_crtcs = 1 << DMA_P;
-			priv->encoders[priv->num_encoders++] = dsi_encs[i];
+		encoder = mdp4_dsi_encoder_init(dev);
+		if (IS_ERR(encoder)) {
+			ret = PTR_ERR(encoder);
+			dev_err(dev->dev,
+				"failed to construct DSI encoder: %d\n", ret);
+			return ret;
 		}
 
-		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, dsi_encs);
+		/* TODO: Add DMA_S later? */
+		encoder->possible_crtcs = 1 << DMA_P;
+		priv->encoders[priv->num_encoders++] = encoder;
+
+		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, encoder);
 		if (ret) {
 			dev_err(dev->dev, "failed to initialize DSI: %d\n",
 				ret);

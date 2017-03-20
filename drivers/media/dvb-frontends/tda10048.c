@@ -499,7 +499,7 @@ static int tda10048_firmware_upload(struct dvb_frontend *fe)
 			__func__);
 		return -EIO;
 	} else {
-		printk(KERN_INFO "%s: firmware read %Zu bytes.\n",
+		printk(KERN_INFO "%s: firmware read %zu bytes.\n",
 			__func__,
 			fw->size);
 		ret = 0;

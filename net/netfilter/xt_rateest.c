@@ -133,6 +133,7 @@ static struct xt_match xt_rateest_mt_reg __read_mostly = {
 	.checkentry = xt_rateest_mt_checkentry,
 	.destroy    = xt_rateest_mt_destroy,
 	.matchsize  = sizeof(struct xt_rateest_match_info),
+	.usersize   = offsetof(struct xt_rateest_match_info, est1),
 	.me         = THIS_MODULE,
 };
 

@@ -102,6 +102,16 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 	}
 
 	r = platform_get_resource(dev, IORESOURCE_IRQ, num);
+	if (has_acpi_companion(&dev->dev)) {
+		if (r && r->flags & IORESOURCE_DISABLED) {
+			int ret;
+
+			ret = acpi_irq_get(ACPI_HANDLE(&dev->dev), num, r);
+			if (ret)
+				return ret;
+		}
+	}
+
 	/*
 	 * The resources may pass trigger flags to the irqs that need
 	 * to be set up. It so happens that the trigger flags for
@@ -396,7 +406,7 @@ int platform_device_add(struct platform_device *pdev)
 		}
 
 		if (p && insert_resource(p, r)) {
-			dev_err(&pdev->dev, "failed to claim resource %d\n", i);
+			dev_err(&pdev->dev, "failed to claim resource %d: %pR\n", i, r);
 			ret = -EBUSY;
 			goto failed;
 		}

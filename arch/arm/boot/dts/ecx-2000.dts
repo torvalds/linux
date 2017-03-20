@@ -99,7 +99,7 @@
 			interrupt-controller;
 			interrupts = <1 9 0xf04>;
 			reg = <0xfff11000 0x1000>,
-			      <0xfff12000 0x1000>,
+			      <0xfff12000 0x2000>,
 			      <0xfff14000 0x2000>,
 			      <0xfff16000 0x2000>;
 		};

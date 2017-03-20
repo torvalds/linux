@@ -41,6 +41,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_atomic.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_gem.h"
@@ -59,7 +60,7 @@ nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -91,7 +92,7 @@ nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -123,7 +124,7 @@ nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
 	struct nouveau_drm *drm = nouveau_drm(fbcon->helper.dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	int ret;
 
 	if (info->state != FBINFO_STATE_RUNNING)
@@ -265,10 +266,10 @@ nouveau_fbcon_accel_init(struct drm_device *dev)
 	struct fb_info *info = fbcon->helper.fbdev;
 	int ret;
 
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA)
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA)
 		ret = nv04_fbcon_accel_init(info);
 	else
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_FERMI)
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI)
 		ret = nv50_fbcon_accel_init(info);
 	else
 		ret = nvc0_fbcon_accel_init(info);
@@ -323,7 +324,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		container_of(helper, struct nouveau_fbdev, helper);
 	struct drm_device *dev = fbcon->helper.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	struct fb_info *info;
 	struct nouveau_framebuffer *fb;
 	struct nouveau_channel *chan;
@@ -340,8 +341,9 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
-	ret = nouveau_gem_new(dev, mode_cmd.pitches[0] * mode_cmd.height,
-			      0, NOUVEAU_GEM_DOMAIN_VRAM, 0, 0x0000, &nvbo);
+	ret = nouveau_gem_new(&drm->client, mode_cmd.pitches[0] *
+			      mode_cmd.height, 0, NOUVEAU_GEM_DOMAIN_VRAM,
+			      0, 0x0000, &nvbo);
 	if (ret) {
 		NV_ERROR(drm, "failed to allocate framebuffer\n");
 		goto out;
@@ -400,7 +402,8 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	info->screen_base = nvbo_kmap_obj_iovirtual(fb->nvbo);
 	info->screen_size = fb->nvbo->bo.mem.num_pages << PAGE_SHIFT;
 
-	drm_fb_helper_fill_fix(info, fb->base.pitches[0], fb->base.depth);
+	drm_fb_helper_fill_fix(info, fb->base.pitches[0],
+			       fb->base.format->depth);
 	drm_fb_helper_fill_var(info, &fbcon->helper, sizes->fb_width, sizes->fb_height);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
@@ -530,8 +533,7 @@ nouveau_fbcon_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, &fbcon->helper, &nouveau_fbcon_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, &fbcon->helper,
-				 dev->mode_config.num_crtc, 4);
+	ret = drm_fb_helper_init(dev, &fbcon->helper, 4);
 	if (ret)
 		goto free;
 
@@ -539,16 +541,16 @@ nouveau_fbcon_init(struct drm_device *dev)
 	if (ret)
 		goto fini;
 
-	if (drm->device.info.ram_size <= 32 * 1024 * 1024)
+	if (drm->client.device.info.ram_size <= 32 * 1024 * 1024)
 		preferred_bpp = 8;
 	else
-	if (drm->device.info.ram_size <= 64 * 1024 * 1024)
+	if (drm->client.device.info.ram_size <= 64 * 1024 * 1024)
 		preferred_bpp = 16;
 	else
 		preferred_bpp = 32;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
-	if (!dev->mode_config.funcs->atomic_commit)
+	if (!drm_drv_uses_atomic_modeset(dev))
 		drm_helper_disable_unused_functions(dev);
 
 	ret = drm_fb_helper_initial_config(&fbcon->helper, preferred_bpp);

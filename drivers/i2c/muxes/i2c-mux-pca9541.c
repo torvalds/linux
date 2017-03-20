@@ -90,6 +90,7 @@ static const struct of_device_id pca9541_of_match[] = {
 	{ .compatible = "nxp,pca9541" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, pca9541_of_match);
 #endif
 
 /*

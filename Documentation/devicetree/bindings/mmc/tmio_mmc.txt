@@ -25,6 +25,19 @@ Required properties:
 		"renesas,sdhi-r8a7795" - SDHI IP on R8A7795 SoC
 		"renesas,sdhi-r8a7796" - SDHI IP on R8A7796 SoC
 
+- clocks: Most controllers only have 1 clock source per channel. However, on
+	  some variations of this controller, the internal card detection
+	  logic that exists in this controller is sectioned off to be run by a
+	  separate second clock source to allow the main core clock to be turned
+	  off to save power.
+	  If 2 clocks are specified by the hardware, you must name them as
+	  "core" and "cd". If the controller only has 1 clock, naming is not
+	  required.
+	  Below is the number clocks for each supported SoC:
+	   1: SH73A0, R8A73A4, R8A7740, R8A7778, R8A7779, R8A7790
+	      R8A7791, R8A7792, R8A7793, R8A7794, R8A7795, R8A7796
+	   2: R7S72100
+
 Optional properties:
 - toshiba,mmc-wrprotect-disable: write-protect detection is unavailable
 - pinctrl-names: should be "default", "state_uhs"

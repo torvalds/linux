@@ -116,6 +116,7 @@ enum {
 #define TCP_SAVE_SYN		27	/* Record SYN headers for new connections */
 #define TCP_SAVED_SYN		28	/* Get SYN headers recorded for connection */
 #define TCP_REPAIR_WINDOW	29	/* Get/set window parameters */
+#define TCP_FASTOPEN_CONNECT	30	/* Attempt FastOpen with connect */
 
 struct tcp_repair_opt {
 	__u32	opt_code;
@@ -226,6 +227,8 @@ enum {
 	TCP_NLA_BUSY,		/* Time (usec) busy sending data */
 	TCP_NLA_RWND_LIMITED,	/* Time (usec) limited by receive window */
 	TCP_NLA_SNDBUF_LIMITED,	/* Time (usec) limited by send buffer */
+	TCP_NLA_DATA_SEGS_OUT,	/* Data pkts sent including retransmission */
+	TCP_NLA_TOTAL_RETRANS,	/* Data pkts retransmitted */
 };
 
 /* for TCP_MD5SIG socket option */

@@ -142,7 +142,7 @@ void vnt_int_process_data(struct vnt_private *priv)
 
 	if (int_data->isr0 != 0) {
 		if (int_data->isr0 & ISR_BNTX &&
-				priv->op_mode == NL80211_IFTYPE_AP)
+		    priv->op_mode == NL80211_IFTYPE_AP)
 			vnt_schedule_command(priv, WLAN_CMD_BECON_SEND);
 
 		if (int_data->isr0 & ISR_TBTT &&

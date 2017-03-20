@@ -2225,13 +2225,10 @@ static struct scsi_host_template mvumi_template = {
 	.name = "Marvell Storage Controller",
 	.slave_configure = mvumi_slave_configure,
 	.queuecommand = mvumi_queue_command,
+	.eh_timed_out = mvumi_timed_out,
 	.eh_host_reset_handler = mvumi_host_reset,
 	.bios_param = mvumi_bios_param,
 	.this_id = -1,
-};
-
-static struct scsi_transport_template mvumi_transport_template = {
-	.eh_timed_out = mvumi_timed_out,
 };
 
 static int mvumi_cfg_hw_reg(struct mvumi_hba *mhba)
@@ -2451,7 +2448,6 @@ static int mvumi_io_attach(struct mvumi_hba *mhba)
 	host->cmd_per_lun = (mhba->max_io - 1) ? (mhba->max_io - 1) : 1;
 	host->max_id = mhba->max_target_id;
 	host->max_cmd_len = MAX_COMMAND_SIZE;
-	host->transportt = &mvumi_transport_template;
 
 	ret = scsi_add_host(host, &mhba->pdev->dev);
 	if (ret) {

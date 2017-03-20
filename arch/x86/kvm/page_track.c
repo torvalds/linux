@@ -14,6 +14,8 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/rculist.h>
+
 #include <asm/kvm_host.h>
 #include <asm/kvm_page_track.h>
 

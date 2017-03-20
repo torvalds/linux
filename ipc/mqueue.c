@@ -35,6 +35,9 @@
 #include <linux/ipc_namespace.h>
 #include <linux/user_namespace.h>
 #include <linux/slab.h>
+#include <linux/sched/wake_q.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/user.h>
 
 #include <net/sock.h>
 #include "util.h"
@@ -558,6 +561,7 @@ static void wq_add(struct mqueue_inode_info *info, int sr,
  */
 static int wq_sleep(struct mqueue_inode_info *info, int sr,
 		    ktime_t *timeout, struct ext_wait_queue *ewp)
+	__releases(&info->lock)
 {
 	int retval;
 	signed long time;

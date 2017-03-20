@@ -180,9 +180,9 @@ int ips_leave(struct adapter *padapter)
 		DBG_88E("==>ips_leave cnts:%d\n", pwrpriv->ips_leave_cnts);
 
 		result = rtw_ips_pwr_up(padapter);
-		if (result == _SUCCESS) {
+		if (result == _SUCCESS)
 			pwrpriv->rf_pwrstate = rf_on;
-		}
+
 		DBG_88E_LEVEL(_drv_info_, "nolinked power save leave\n");
 
 		if ((_WEP40_ == psecuritypriv->dot11PrivacyAlgrthm) || (_WEP104_ == psecuritypriv->dot11PrivacyAlgrthm)) {
@@ -279,6 +279,7 @@ exit:
 static void pwr_state_check_handler(unsigned long data)
 {
 	struct adapter *padapter = (struct adapter *)data;
+
 	rtw_ps_cmd(padapter);
 }
 

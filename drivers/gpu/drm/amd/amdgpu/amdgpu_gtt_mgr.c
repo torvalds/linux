@@ -97,8 +97,7 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 {
 	struct amdgpu_gtt_mgr *mgr = man->priv;
 	struct drm_mm_node *node = mem->mm_node;
-	enum drm_mm_search_flags sflags = DRM_MM_SEARCH_BEST;
-	enum drm_mm_allocator_flags aflags = DRM_MM_CREATE_DEFAULT;
+	enum drm_mm_insert_mode mode;
 	unsigned long fpfn, lpfn;
 	int r;
 
@@ -115,15 +114,14 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 	else
 		lpfn = man->size;
 
-	if (place && place->flags & TTM_PL_FLAG_TOPDOWN) {
-		sflags = DRM_MM_SEARCH_BELOW;
-		aflags = DRM_MM_CREATE_TOP;
-	}
+	mode = DRM_MM_INSERT_BEST;
+	if (place && place->flags & TTM_PL_FLAG_TOPDOWN)
+		mode = DRM_MM_INSERT_HIGH;
 
 	spin_lock(&mgr->lock);
-	r = drm_mm_insert_node_in_range_generic(&mgr->mm, node, mem->num_pages,
-						mem->page_alignment, 0,
-						fpfn, lpfn, sflags, aflags);
+	r = drm_mm_insert_node_in_range(&mgr->mm, node,
+					mem->num_pages, mem->page_alignment, 0,
+					fpfn, lpfn, mode);
 	spin_unlock(&mgr->lock);
 
 	if (!r) {
@@ -235,16 +233,17 @@ static void amdgpu_gtt_mgr_debug(struct ttm_mem_type_manager *man,
 				  const char *prefix)
 {
 	struct amdgpu_gtt_mgr *mgr = man->priv;
+	struct drm_printer p = drm_debug_printer(prefix);
 
 	spin_lock(&mgr->lock);
-	drm_mm_debug_table(&mgr->mm, prefix);
+	drm_mm_print(&mgr->mm, &p);
 	spin_unlock(&mgr->lock);
 }
 
 const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func = {
-	amdgpu_gtt_mgr_init,
-	amdgpu_gtt_mgr_fini,
-	amdgpu_gtt_mgr_new,
-	amdgpu_gtt_mgr_del,
-	amdgpu_gtt_mgr_debug
+	.init = amdgpu_gtt_mgr_init,
+	.takedown = amdgpu_gtt_mgr_fini,
+	.get_node = amdgpu_gtt_mgr_new,
+	.put_node = amdgpu_gtt_mgr_del,
+	.debug = amdgpu_gtt_mgr_debug
 };

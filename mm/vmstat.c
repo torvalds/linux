@@ -1038,6 +1038,8 @@ const char * const vmstat_text[] = {
 	"compact_fail",
 	"compact_success",
 	"compact_daemon_wake",
+	"compact_daemon_migrate_scanned",
+	"compact_daemon_free_scanned",
 #endif
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -1063,6 +1065,9 @@ const char * const vmstat_text[] = {
 	"thp_split_page_failed",
 	"thp_deferred_split_page",
 	"thp_split_pmd",
+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
+	"thp_split_pud",
+#endif
 	"thp_zero_page_alloc",
 	"thp_zero_page_alloc_failed",
 #endif

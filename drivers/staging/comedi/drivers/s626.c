@@ -1513,7 +1513,7 @@ static int s626_ai_insn_read(struct comedi_device *dev,
 
 	for (n = 0; n < insn->n; n++) {
 		/* Delay 10 microseconds for analog input settling. */
-		udelay(10);
+		usleep_range(10, 20);
 
 		/* Start ADC by pulsing GPIO1 low */
 		gpio_image = readl(dev->mmio + S626_P_GPIO);

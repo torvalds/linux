@@ -34,13 +34,6 @@
 #define AMDGPU_PL_FLAG_GWS		(TTM_PL_FLAG_PRIV << 1)
 #define AMDGPU_PL_FLAG_OA		(TTM_PL_FLAG_PRIV << 2)
 
-#define AMDGPU_TTM_LRU_SIZE	20
-
-struct amdgpu_mman_lru {
-	struct list_head		*lru[TTM_NUM_MEM_TYPES];
-	struct list_head		*swap_lru;
-};
-
 struct amdgpu_mman {
 	struct ttm_bo_global_ref        bo_global_ref;
 	struct drm_global_reference	mem_global_ref;
@@ -58,11 +51,6 @@ struct amdgpu_mman {
 	struct amdgpu_ring			*buffer_funcs_ring;
 	/* Scheduler entity for buffer moves */
 	struct amd_sched_entity			entity;
-
-	/* custom LRU management */
-	struct amdgpu_mman_lru			log2_size[AMDGPU_TTM_LRU_SIZE];
-	/* guard for log2_size array, don't add anything in between */
-	struct amdgpu_mman_lru			guard;
 };
 
 extern const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func;

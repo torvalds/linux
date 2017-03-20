@@ -327,7 +327,6 @@ static int ipv6_srh_rcv(struct sk_buff *skb)
 	struct ipv6_sr_hdr *hdr;
 	struct inet6_dev *idev;
 	struct in6_addr *addr;
-	bool cleanup = false;
 	int accept_seg6;
 
 	hdr = (struct ipv6_sr_hdr *)skb_transport_header(skb);
@@ -351,11 +350,7 @@ static int ipv6_srh_rcv(struct sk_buff *skb)
 #endif
 
 looped_back:
-	if (hdr->segments_left > 0) {
-		if (hdr->nexthdr != NEXTHDR_IPV6 && hdr->segments_left == 1 &&
-		    sr_has_cleanup(hdr))
-			cleanup = true;
-	} else {
+	if (hdr->segments_left == 0) {
 		if (hdr->nexthdr == NEXTHDR_IPV6) {
 			int offset = (hdr->hdrlen + 1) << 3;
 
@@ -418,21 +413,6 @@ looped_back:
 
 	ipv6_hdr(skb)->daddr = *addr;
 
-	if (cleanup) {
-		int srhlen = (hdr->hdrlen + 1) << 3;
-		int nh = hdr->nexthdr;
-
-		skb_pull_rcsum(skb, sizeof(struct ipv6hdr) + srhlen);
-		memmove(skb_network_header(skb) + srhlen,
-			skb_network_header(skb),
-			(unsigned char *)hdr - skb_network_header(skb));
-		skb->network_header += srhlen;
-		ipv6_hdr(skb)->nexthdr = nh;
-		ipv6_hdr(skb)->payload_len = htons(skb->len -
-						   sizeof(struct ipv6hdr));
-		skb_push_rcsum(skb, sizeof(struct ipv6hdr));
-	}
-
 	skb_dst_drop(skb);
 
 	ip6_route_input(skb);
@@ -453,13 +433,8 @@ looped_back:
 		}
 		ipv6_hdr(skb)->hop_limit--;
 
-		/* be sure that srh is still present before reinjecting */
-		if (!cleanup) {
-			skb_pull(skb, sizeof(struct ipv6hdr));
-			goto looped_back;
-		}
-		skb_set_transport_header(skb, sizeof(struct ipv6hdr));
-		IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
+		skb_pull(skb, sizeof(struct ipv6hdr));
+		goto looped_back;
 	}
 
 	dst_input(skb);

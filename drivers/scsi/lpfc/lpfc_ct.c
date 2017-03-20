@@ -1,9 +1,11 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
+ * www.broadcom.com                                                *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
  * modify it under the terms of version 2 of the GNU General       *
@@ -40,8 +42,9 @@
 #include "lpfc_sli4.h"
 #include "lpfc_nl.h"
 #include "lpfc_disc.h"
-#include "lpfc_scsi.h"
 #include "lpfc.h"
+#include "lpfc_scsi.h"
+#include "lpfc_nvme.h"
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_version.h"
@@ -453,8 +456,90 @@ lpfc_find_vport_by_did(struct lpfc_hba *phba, uint32_t did) {
 	return NULL;
 }
 
+static void
+lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
+{
+	struct lpfc_nodelist *ndlp;
+
+	if ((vport->port_type != LPFC_NPIV_PORT) ||
+	    !(vport->ct_flags & FC_CT_RFF_ID) || !vport->cfg_restrict_login) {
+
+		ndlp = lpfc_setup_disc_node(vport, Did);
+
+		if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
+			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				"Parse GID_FTrsp: did:x%x flg:x%x x%x",
+				Did, ndlp->nlp_flag, vport->fc_flag);
+
+			/* By default, the driver expects to support FCP FC4 */
+			if (fc4_type == FC_TYPE_FCP)
+				ndlp->nlp_fc4_type |= NLP_FC4_FCP;
+
+			if (fc4_type == FC_TYPE_NVME)
+				ndlp->nlp_fc4_type |= NLP_FC4_NVME;
+
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+					 "0238 Process x%06x NameServer Rsp "
+					 "Data: x%x x%x x%x x%x\n", Did,
+					 ndlp->nlp_flag, ndlp->nlp_fc4_type,
+					 vport->fc_flag,
+					 vport->fc_rscn_id_cnt);
+		} else {
+			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				"Skip1 GID_FTrsp: did:x%x flg:x%x cnt:%d",
+				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
+
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+					 "0239 Skip x%06x NameServer Rsp "
+					 "Data: x%x x%x\n", Did,
+					 vport->fc_flag,
+					 vport->fc_rscn_id_cnt);
+		}
+	} else {
+		if (!(vport->fc_flag & FC_RSCN_MODE) ||
+		    lpfc_rscn_payload_check(vport, Did)) {
+			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				"Query GID_FTrsp: did:x%x flg:x%x cnt:%d",
+				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
+
+			/*
+			 * This NPortID was previously a FCP target,
+			 * Don't even bother to send GFF_ID.
+			 */
+			ndlp = lpfc_findnode_did(vport, Did);
+			if (ndlp && NLP_CHK_NODE_ACT(ndlp))
+				ndlp->nlp_fc4_type = fc4_type;
+
+			if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
+				ndlp->nlp_fc4_type = fc4_type;
+
+				if (ndlp->nlp_type & NLP_FCP_TARGET)
+					lpfc_setup_disc_node(vport, Did);
+
+				else if (lpfc_ns_cmd(vport, SLI_CTNS_GFF_ID,
+							0, Did) == 0)
+					vport->num_disc_nodes++;
+
+				else
+					lpfc_setup_disc_node(vport, Did);
+			}
+		} else {
+			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+				"Skip2 GID_FTrsp: did:x%x flg:x%x cnt:%d",
+				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
+
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+					 "0245 Skip x%06x NameServer Rsp "
+					 "Data: x%x x%x\n", Did,
+					 vport->fc_flag,
+					 vport->fc_rscn_id_cnt);
+		}
+	}
+}
+
 static int
-lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
+lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
+	    uint32_t Size)
 {
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_sli_ct_request *Response =
@@ -499,97 +584,12 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 			 */
 			if ((Did != vport->fc_myDID) &&
 			    ((lpfc_find_vport_by_did(phba, Did) == NULL) ||
-			     vport->cfg_peer_port_login)) {
-				if ((vport->port_type != LPFC_NPIV_PORT) ||
-				    (!(vport->ct_flags & FC_CT_RFF_ID)) ||
-				    (!vport->cfg_restrict_login)) {
-					ndlp = lpfc_setup_disc_node(vport, Did);
-					if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
-						lpfc_debugfs_disc_trc(vport,
-						LPFC_DISC_TRC_CT,
-						"Parse GID_FTrsp: "
-						"did:x%x flg:x%x x%x",
-						Did, ndlp->nlp_flag,
-						vport->fc_flag);
+			     vport->cfg_peer_port_login))
+				lpfc_prep_node_fc4type(vport, Did, fc4_type);
 
-						lpfc_printf_vlog(vport,
-							KERN_INFO,
-							LOG_DISCOVERY,
-							"0238 Process "
-							"x%x NameServer Rsp"
-							"Data: x%x x%x x%x\n",
-							Did, ndlp->nlp_flag,
-							vport->fc_flag,
-							vport->fc_rscn_id_cnt);
-					} else {
-						lpfc_debugfs_disc_trc(vport,
-						LPFC_DISC_TRC_CT,
-						"Skip1 GID_FTrsp: "
-						"did:x%x flg:x%x cnt:%d",
-						Did, vport->fc_flag,
-						vport->fc_rscn_id_cnt);
-
-						lpfc_printf_vlog(vport,
-							KERN_INFO,
-							LOG_DISCOVERY,
-							"0239 Skip x%x "
-							"NameServer Rsp Data: "
-							"x%x x%x\n",
-							Did, vport->fc_flag,
-							vport->fc_rscn_id_cnt);
-					}
-
-				} else {
-					if (!(vport->fc_flag & FC_RSCN_MODE) ||
-					(lpfc_rscn_payload_check(vport, Did))) {
-						lpfc_debugfs_disc_trc(vport,
-						LPFC_DISC_TRC_CT,
-						"Query GID_FTrsp: "
-						"did:x%x flg:x%x cnt:%d",
-						Did, vport->fc_flag,
-						vport->fc_rscn_id_cnt);
-
-						/* This NPortID was previously
-						 * a FCP target, * Don't even
-						 * bother to send GFF_ID.
-						 */
-						ndlp = lpfc_findnode_did(vport,
-							Did);
-						if (ndlp &&
-						    NLP_CHK_NODE_ACT(ndlp)
-						    && (ndlp->nlp_type &
-						     NLP_FCP_TARGET))
-							lpfc_setup_disc_node
-								(vport, Did);
-						else if (lpfc_ns_cmd(vport,
-							SLI_CTNS_GFF_ID,
-							0, Did) == 0)
-							vport->num_disc_nodes++;
-						else
-							lpfc_setup_disc_node
-								(vport, Did);
-					}
-					else {
-						lpfc_debugfs_disc_trc(vport,
-						LPFC_DISC_TRC_CT,
-						"Skip2 GID_FTrsp: "
-						"did:x%x flg:x%x cnt:%d",
-						Did, vport->fc_flag,
-						vport->fc_rscn_id_cnt);
-
-						lpfc_printf_vlog(vport,
-							KERN_INFO,
-							LOG_DISCOVERY,
-							"0245 Skip x%x "
-							"NameServer Rsp Data: "
-							"x%x x%x\n",
-							Did, vport->fc_flag,
-							vport->fc_rscn_id_cnt);
-					}
-				}
-			}
 			if (CTentry & (cpu_to_be32(SLI_CT_LAST_ENTRY)))
 				goto nsout1;
+
 			Cnt -= sizeof(uint32_t);
 		}
 		ctptr = NULL;
@@ -609,16 +609,18 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	IOCB_t *irsp;
 	struct lpfc_dmabuf *outp;
+	struct lpfc_dmabuf *inp;
 	struct lpfc_sli_ct_request *CTrsp;
+	struct lpfc_sli_ct_request *CTreq;
 	struct lpfc_nodelist *ndlp;
-	int rc;
+	int rc, type;
 
 	/* First save ndlp, before we overwrite it */
 	ndlp = cmdiocb->context_un.ndlp;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->context_un.rsp_iocb = rspiocb;
-
+	inp = (struct lpfc_dmabuf *) cmdiocb->context1;
 	outp = (struct lpfc_dmabuf *) cmdiocb->context2;
 	irsp = &rspiocb->iocb;
 
@@ -656,9 +658,14 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			    IOERR_NO_RESOURCES)
 				vport->fc_ns_retry++;
 
+			type = lpfc_get_gidft_type(vport, cmdiocb);
+			if (type == 0)
+				goto out;
+
 			/* CT command is being retried */
+			vport->gidft_inp--;
 			rc = lpfc_ns_cmd(vport, SLI_CTNS_GID_FT,
-					 vport->fc_ns_retry, 0);
+					 vport->fc_ns_retry, type);
 			if (rc == 0)
 				goto out;
 		}
@@ -670,13 +677,18 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 irsp->ulpStatus, vport->fc_ns_retry);
 	} else {
 		/* Good status, continue checking */
+		CTreq = (struct lpfc_sli_ct_request *) inp->virt;
 		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    cpu_to_be16(SLI_CT_RESPONSE_FS_ACC)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-					 "0208 NameServer Rsp Data: x%x\n",
-					 vport->fc_flag);
-			lpfc_ns_rsp(vport, outp,
+					 "0208 NameServer Rsp Data: x%x x%x\n",
+					 vport->fc_flag,
+					 CTreq->un.gid.Fc4Type);
+
+			lpfc_ns_rsp(vport,
+				    outp,
+				    CTreq->un.gid.Fc4Type,
 				    (uint32_t) (irsp->un.genreq64.bdl.bdeSize));
 		} else if (CTrsp->CommandResponse.bits.CmdRsp ==
 			   be16_to_cpu(SLI_CT_RESPONSE_FS_RJT)) {
@@ -731,9 +743,11 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				(uint32_t) CTrsp->ReasonCode,
 				(uint32_t) CTrsp->Explanation);
 		}
+		vport->gidft_inp--;
 	}
 	/* Link up / RSCN discovery */
-	if (vport->num_disc_nodes == 0) {
+	if ((vport->num_disc_nodes == 0) &&
+	    (vport->gidft_inp == 0)) {
 		/*
 		 * The driver has cycled through all Nports in the RSCN payload.
 		 * Complete the handling by cleaning up and marking the
@@ -881,6 +895,60 @@ out:
 	return;
 }
 
+static void
+lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+				struct lpfc_iocbq *rspiocb)
+{
+	struct lpfc_vport *vport = cmdiocb->vport;
+	IOCB_t *irsp = &rspiocb->iocb;
+	struct lpfc_dmabuf *inp = (struct lpfc_dmabuf *)cmdiocb->context1;
+	struct lpfc_dmabuf *outp = (struct lpfc_dmabuf *)cmdiocb->context2;
+	struct lpfc_sli_ct_request *CTrsp;
+	int did;
+	struct lpfc_nodelist *ndlp;
+	uint32_t fc4_data_0, fc4_data_1;
+
+	did = ((struct lpfc_sli_ct_request *)inp->virt)->un.gft.PortId;
+	did = be32_to_cpu(did);
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
+			      "GFT_ID cmpl: status:x%x/x%x did:x%x",
+			      irsp->ulpStatus, irsp->un.ulpWord[4], did);
+
+	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+		/* Good status, continue checking */
+		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
+		fc4_data_0 = be32_to_cpu(CTrsp->un.gft_acc.fc4_types[0]);
+		fc4_data_1 = be32_to_cpu(CTrsp->un.gft_acc.fc4_types[1]);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+				 "3062 DID x%06x GFT Wd0 x%08x Wd1 x%08x\n",
+				 did, fc4_data_0, fc4_data_1);
+
+		ndlp = lpfc_findnode_did(vport, did);
+		if (ndlp) {
+			/* The bitmask value for FCP and NVME FCP types is
+			 * the same because they are 32 bits distant from
+			 * each other in word0 and word0.
+			 */
+			if (fc4_data_0 & LPFC_FC4_TYPE_BITMASK)
+				ndlp->nlp_fc4_type |= NLP_FC4_FCP;
+			if (fc4_data_1 &  LPFC_FC4_TYPE_BITMASK)
+				ndlp->nlp_fc4_type |= NLP_FC4_NVME;
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+					 "3064 Setting ndlp %p, DID x%06x with "
+					 "FC4 x%08x, Data: x%08x x%08x\n",
+					 ndlp, did, ndlp->nlp_fc4_type,
+					 FC_TYPE_FCP, FC_TYPE_NVME);
+			ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+		}
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
+		lpfc_issue_els_prli(vport, ndlp, 0);
+	} else
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+				 "3065 GFT_ID failed x%08x\n", irsp->ulpStatus);
+
+	lpfc_ct_free_iocb(phba, cmdiocb);
+}
 
 static void
 lpfc_cmpl_ct(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
@@ -1071,30 +1139,26 @@ lpfc_cmpl_ct_cmd_rff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	return;
 }
 
+/*
+ * Although the symbolic port name is thought to be an integer
+ * as of January 18, 2016, leave it as a string until more of
+ * the record state becomes defined.
+ */
 int
 lpfc_vport_symbolic_port_name(struct lpfc_vport *vport, char *symbol,
 	size_t size)
 {
 	int n;
-	uint8_t *wwn = vport->phba->wwpn;
 
-	n = snprintf(symbol, size,
-		     "Emulex PPN-%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-		     wwn[0], wwn[1], wwn[2], wwn[3],
-		     wwn[4], wwn[5], wwn[6], wwn[7]);
-
-	if (vport->port_type == LPFC_PHYSICAL_PORT)
-		return n;
-
-	if (n < size)
-		n += snprintf(symbol + n, size - n, " VPort-%d", vport->vpi);
-
-	if (n < size &&
-	    strlen(vport->fc_vport->symbolic_name))
-		n += snprintf(symbol + n, size - n, " VName-%s",
-			      vport->fc_vport->symbolic_name);
+	/*
+	 * Use the lpfc board number as the Symbolic Port
+	 * Name object.  NPIV is not in play so this integer
+	 * value is sufficient and unique per FC-ID.
+	 */
+	n = snprintf(symbol, size, "%d", vport->phba->brd_no);
 	return n;
 }
+
 
 int
 lpfc_vport_symbolic_node_name(struct lpfc_vport *vport, char *symbol,
@@ -1106,24 +1170,26 @@ lpfc_vport_symbolic_node_name(struct lpfc_vport *vport, char *symbol,
 	lpfc_decode_firmware_rev(vport->phba, fwrev, 0);
 
 	n = snprintf(symbol, size, "Emulex %s", vport->phba->ModelName);
-
 	if (size < n)
 		return n;
+
 	n += snprintf(symbol + n, size - n, " FV%s", fwrev);
-
 	if (size < n)
 		return n;
-	n += snprintf(symbol + n, size - n, " DV%s", lpfc_release_version);
 
+	n += snprintf(symbol + n, size - n, " DV%s.",
+		      lpfc_release_version);
 	if (size < n)
 		return n;
-	n += snprintf(symbol + n, size - n, " HN:%s", init_utsname()->nodename);
+
+	n += snprintf(symbol + n, size - n, " HN:%s.",
+		      init_utsname()->nodename);
+	if (size < n)
+		return n;
 
 	/* Note :- OS name is "Linux" */
-	if (size < n)
-		return n;
-	n += snprintf(symbol + n, size - n, " OS:%s", init_utsname()->sysname);
-
+	n += snprintf(symbol + n, size - n, " OS:%s\n",
+		      init_utsname()->sysname);
 	return n;
 }
 
@@ -1145,6 +1211,27 @@ lpfc_find_map_node(struct lpfc_vport *vport)
 	}
 	spin_unlock_irq(shost->host_lock);
 	return cnt;
+}
+
+/*
+ * This routine will return the FC4 Type associated with the CT
+ * GID_FT command.
+ */
+int
+lpfc_get_gidft_type(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb)
+{
+	struct lpfc_sli_ct_request *CtReq;
+	struct lpfc_dmabuf *mp;
+	uint32_t type;
+
+	mp = cmdiocb->context1;
+	if (mp == NULL)
+		return 0;
+	CtReq = (struct lpfc_sli_ct_request *)mp->virt;
+	type = (uint32_t)CtReq->un.gid.Fc4Type;
+	if ((type != SLI_CTPT_FCP) && (type != SLI_CTPT_NVME))
+		return 0;
+	return type;
 }
 
 /*
@@ -1207,8 +1294,9 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 
 	/* NameServer Req */
 	lpfc_printf_vlog(vport, KERN_INFO ,LOG_DISCOVERY,
-			 "0236 NameServer Req Data: x%x x%x x%x\n",
-			 cmdcode, vport->fc_flag, vport->fc_rscn_id_cnt);
+			 "0236 NameServer Req Data: x%x x%x x%x x%x\n",
+			 cmdcode, vport->fc_flag, vport->fc_rscn_id_cnt,
+			 context);
 
 	bpl = (struct ulp_bde64 *) bmp->virt;
 	memset(bpl, 0, sizeof(struct ulp_bde64));
@@ -1219,6 +1307,8 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		bpl->tus.f.bdeSize = GID_REQUEST_SZ;
 	else if (cmdcode == SLI_CTNS_GFF_ID)
 		bpl->tus.f.bdeSize = GFF_REQUEST_SZ;
+	else if (cmdcode == SLI_CTNS_GFT_ID)
+		bpl->tus.f.bdeSize = GFT_REQUEST_SZ;
 	else if (cmdcode == SLI_CTNS_RFT_ID)
 		bpl->tus.f.bdeSize = RFT_REQUEST_SZ;
 	else if (cmdcode == SLI_CTNS_RNN_ID)
@@ -1246,7 +1336,8 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	case SLI_CTNS_GID_FT:
 		CtReq->CommandResponse.bits.CmdRsp =
 		    cpu_to_be16(SLI_CTNS_GID_FT);
-		CtReq->un.gid.Fc4Type = SLI_CTPT_FCP;
+		CtReq->un.gid.Fc4Type = context;
+
 		if (vport->port_state < LPFC_NS_QRY)
 			vport->port_state = LPFC_NS_QRY;
 		lpfc_set_disctmo(vport);
@@ -1261,12 +1352,32 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		cmpl = lpfc_cmpl_ct_cmd_gff_id;
 		break;
 
+	case SLI_CTNS_GFT_ID:
+		CtReq->CommandResponse.bits.CmdRsp =
+			cpu_to_be16(SLI_CTNS_GFT_ID);
+		CtReq->un.gft.PortId = cpu_to_be32(context);
+		cmpl = lpfc_cmpl_ct_cmd_gft_id;
+		break;
+
 	case SLI_CTNS_RFT_ID:
 		vport->ct_flags &= ~FC_CT_RFT_ID;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    cpu_to_be16(SLI_CTNS_RFT_ID);
 		CtReq->un.rft.PortId = cpu_to_be32(vport->fc_myDID);
-		CtReq->un.rft.fcpReg = 1;
+
+		/* Register FC4 FCP type if enabled.  */
+		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP))
+			CtReq->un.rft.fcpReg = 1;
+
+		/* Register NVME type if enabled.  Defined LE and swapped.
+		 * rsvd[0] is used as word1 because of the hard-coded
+		 * word0 usage in the ct_request data structure.
+		 */
+		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
+			CtReq->un.rft.rsvd[0] = cpu_to_be32(0x00000100);
+
 		cmpl = lpfc_cmpl_ct_cmd_rft_id;
 		break;
 
@@ -1316,7 +1427,31 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		    cpu_to_be16(SLI_CTNS_RFF_ID);
 		CtReq->un.rff.PortId = cpu_to_be32(vport->fc_myDID);
 		CtReq->un.rff.fbits = FC4_FEATURE_INIT;
-		CtReq->un.rff.type_code = FC_TYPE_FCP;
+
+		/* The driver always supports FC_TYPE_FCP.  However, the
+		 * caller can specify NVME (type x28) as well.  But only
+		 * these that FC4 type is supported.
+		 */
+		if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		     (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) &&
+		    (context == FC_TYPE_NVME)) {
+			if ((vport == phba->pport) && phba->nvmet_support) {
+				CtReq->un.rff.fbits = (FC4_FEATURE_TARGET |
+					FC4_FEATURE_NVME_DISC);
+				lpfc_nvmet_update_targetport(phba);
+			} else {
+				lpfc_nvme_update_localport(vport);
+			}
+			CtReq->un.rff.type_code = context;
+
+		} else if (((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+			    (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP)) &&
+			   (context == FC_TYPE_FCP))
+			CtReq->un.rff.type_code = context;
+
+		else
+			goto ns_cmd_free_bmpvirt;
+
 		cmpl = lpfc_cmpl_ct_cmd_rff_id;
 		break;
 	}
@@ -1337,6 +1472,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	 */
 	lpfc_nlp_put(ndlp);
 
+ns_cmd_free_bmpvirt:
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 ns_cmd_free_bmp:
 	kfree(bmp);

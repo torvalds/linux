@@ -56,14 +56,16 @@
 #define HT16K33_FB_SIZE		(HT16K33_MATRIX_LED_MAX_COLS * BYTES_PER_ROW)
 
 struct ht16k33_keypad {
+	struct i2c_client *client;
 	struct input_dev *dev;
-	spinlock_t lock;
-	struct delayed_work work;
 	uint32_t cols;
 	uint32_t rows;
 	uint32_t row_shift;
 	uint32_t debounce_ms;
 	uint16_t last_key_state[HT16K33_MATRIX_KEYPAD_MAX_COLS];
+
+	wait_queue_head_t wait;
+	bool stopped;
 };
 
 struct ht16k33_fbdev {
@@ -78,7 +80,6 @@ struct ht16k33_priv {
 	struct i2c_client *client;
 	struct ht16k33_keypad keypad;
 	struct ht16k33_fbdev fbdev;
-	struct workqueue_struct *workqueue;
 };
 
 static struct fb_fix_screeninfo ht16k33_fb_fix = {
@@ -124,16 +125,8 @@ static void ht16k33_fb_queue(struct ht16k33_priv *priv)
 {
 	struct ht16k33_fbdev *fbdev = &priv->fbdev;
 
-	queue_delayed_work(priv->workqueue, &fbdev->work,
-		msecs_to_jiffies(HZ / fbdev->refresh_rate));
-}
-
-static void ht16k33_keypad_queue(struct ht16k33_priv *priv)
-{
-	struct ht16k33_keypad *keypad = &priv->keypad;
-
-	queue_delayed_work(priv->workqueue, &keypad->work,
-		msecs_to_jiffies(keypad->debounce_ms));
+	schedule_delayed_work(&fbdev->work,
+			      msecs_to_jiffies(HZ / fbdev->refresh_rate));
 }
 
 /*
@@ -182,32 +175,6 @@ requeue:
 	ht16k33_fb_queue(priv);
 }
 
-static int ht16k33_keypad_start(struct input_dev *dev)
-{
-	struct ht16k33_priv *priv = input_get_drvdata(dev);
-	struct ht16k33_keypad *keypad = &priv->keypad;
-
-	/*
-	 * Schedule an immediate key scan to capture current key state;
-	 * columns will be activated and IRQs be enabled after the scan.
-	 */
-	queue_delayed_work(priv->workqueue, &keypad->work, 0);
-	return 0;
-}
-
-static void ht16k33_keypad_stop(struct input_dev *dev)
-{
-	struct ht16k33_priv *priv = input_get_drvdata(dev);
-	struct ht16k33_keypad *keypad = &priv->keypad;
-
-	cancel_delayed_work(&keypad->work);
-	/*
-	 * ht16k33_keypad_scan() will leave IRQs enabled;
-	 * we should disable them now.
-	 */
-	disable_irq_nosync(priv->client->irq);
-}
-
 static int ht16k33_initialize(struct ht16k33_priv *priv)
 {
 	uint8_t byte;
@@ -231,61 +198,6 @@ static int ht16k33_initialize(struct ht16k33_priv *priv)
 	if (priv->client->irq > 0)
 		byte |= REG_ROWINT_SET_INT_EN;
 	return i2c_smbus_write_byte(priv->client, byte);
-}
-
-/*
- * This gets the keys from keypad and reports it to input subsystem
- */
-static void ht16k33_keypad_scan(struct work_struct *work)
-{
-	struct ht16k33_keypad *keypad =
-		container_of(work, struct ht16k33_keypad, work.work);
-	struct ht16k33_priv *priv =
-		container_of(keypad, struct ht16k33_priv, keypad);
-	const unsigned short *keycodes = keypad->dev->keycode;
-	uint16_t bits_changed, new_state[HT16K33_MATRIX_KEYPAD_MAX_COLS];
-	uint8_t data[HT16K33_MATRIX_KEYPAD_MAX_COLS * 2];
-	int row, col, code;
-	bool reschedule = false;
-
-	if (i2c_smbus_read_i2c_block_data(priv->client, 0x40, 6, data) != 6) {
-		dev_err(&priv->client->dev, "Failed to read key data\n");
-		goto end;
-	}
-
-	for (col = 0; col < keypad->cols; col++) {
-		new_state[col] = (data[col * 2 + 1] << 8) | data[col * 2];
-		if (new_state[col])
-			reschedule = true;
-		bits_changed = keypad->last_key_state[col] ^ new_state[col];
-
-		while (bits_changed) {
-			row = ffs(bits_changed) - 1;
-			code = MATRIX_SCAN_CODE(row, col, keypad->row_shift);
-			input_event(keypad->dev, EV_MSC, MSC_SCAN, code);
-			input_report_key(keypad->dev, keycodes[code],
-					 new_state[col] & BIT(row));
-			bits_changed &= ~BIT(row);
-		}
-	}
-	input_sync(keypad->dev);
-	memcpy(keypad->last_key_state, new_state, sizeof(new_state));
-
-end:
-	if (reschedule)
-		ht16k33_keypad_queue(priv);
-	else
-		enable_irq(priv->client->irq);
-}
-
-static irqreturn_t ht16k33_irq_thread(int irq, void *dev)
-{
-	struct ht16k33_priv *priv = dev;
-
-	disable_irq_nosync(priv->client->irq);
-	ht16k33_keypad_queue(priv);
-
-	return IRQ_HANDLED;
 }
 
 static int ht16k33_bl_update_status(struct backlight_device *bl)
@@ -334,15 +246,152 @@ static struct fb_ops ht16k33_fb_ops = {
 	.fb_mmap = ht16k33_mmap,
 };
 
+/*
+ * This gets the keys from keypad and reports it to input subsystem.
+ * Returns true if a key is pressed.
+ */
+static bool ht16k33_keypad_scan(struct ht16k33_keypad *keypad)
+{
+	const unsigned short *keycodes = keypad->dev->keycode;
+	u16 new_state[HT16K33_MATRIX_KEYPAD_MAX_COLS];
+	u8 data[HT16K33_MATRIX_KEYPAD_MAX_COLS * 2];
+	unsigned long bits_changed;
+	int row, col, code;
+	bool pressed = false;
+
+	if (i2c_smbus_read_i2c_block_data(keypad->client, 0x40, 6, data) != 6) {
+		dev_err(&keypad->client->dev, "Failed to read key data\n");
+		return false;
+	}
+
+	for (col = 0; col < keypad->cols; col++) {
+		new_state[col] = (data[col * 2 + 1] << 8) | data[col * 2];
+		if (new_state[col])
+			pressed = true;
+		bits_changed = keypad->last_key_state[col] ^ new_state[col];
+
+		for_each_set_bit(row, &bits_changed, BITS_PER_LONG) {
+			code = MATRIX_SCAN_CODE(row, col, keypad->row_shift);
+			input_event(keypad->dev, EV_MSC, MSC_SCAN, code);
+			input_report_key(keypad->dev, keycodes[code],
+					 new_state[col] & BIT(row));
+		}
+	}
+	input_sync(keypad->dev);
+	memcpy(keypad->last_key_state, new_state, sizeof(new_state));
+
+	return pressed;
+}
+
+static irqreturn_t ht16k33_keypad_irq_thread(int irq, void *dev)
+{
+	struct ht16k33_keypad *keypad = dev;
+
+	do {
+		wait_event_timeout(keypad->wait, keypad->stopped,
+				    msecs_to_jiffies(keypad->debounce_ms));
+		if (keypad->stopped)
+			break;
+	} while (ht16k33_keypad_scan(keypad));
+
+	return IRQ_HANDLED;
+}
+
+static int ht16k33_keypad_start(struct input_dev *dev)
+{
+	struct ht16k33_keypad *keypad = input_get_drvdata(dev);
+
+	keypad->stopped = false;
+	mb();
+	enable_irq(keypad->client->irq);
+
+	return 0;
+}
+
+static void ht16k33_keypad_stop(struct input_dev *dev)
+{
+	struct ht16k33_keypad *keypad = input_get_drvdata(dev);
+
+	keypad->stopped = true;
+	mb();
+	wake_up(&keypad->wait);
+	disable_irq(keypad->client->irq);
+}
+
+static int ht16k33_keypad_probe(struct i2c_client *client,
+				struct ht16k33_keypad *keypad)
+{
+	struct device_node *node = client->dev.of_node;
+	u32 rows = HT16K33_MATRIX_KEYPAD_MAX_ROWS;
+	u32 cols = HT16K33_MATRIX_KEYPAD_MAX_COLS;
+	int err;
+
+	keypad->client = client;
+	init_waitqueue_head(&keypad->wait);
+
+	keypad->dev = devm_input_allocate_device(&client->dev);
+	if (!keypad->dev)
+		return -ENOMEM;
+
+	input_set_drvdata(keypad->dev, keypad);
+
+	keypad->dev->name = DRIVER_NAME"-keypad";
+	keypad->dev->id.bustype = BUS_I2C;
+	keypad->dev->open = ht16k33_keypad_start;
+	keypad->dev->close = ht16k33_keypad_stop;
+
+	if (!of_get_property(node, "linux,no-autorepeat", NULL))
+		__set_bit(EV_REP, keypad->dev->evbit);
+
+	err = of_property_read_u32(node, "debounce-delay-ms",
+				   &keypad->debounce_ms);
+	if (err) {
+		dev_err(&client->dev, "key debounce delay not specified\n");
+		return err;
+	}
+
+	err = matrix_keypad_parse_of_params(&client->dev, &rows, &cols);
+	if (err)
+		return err;
+
+	keypad->rows = rows;
+	keypad->cols = cols;
+	keypad->row_shift = get_count_order(cols);
+
+	err = matrix_keypad_build_keymap(NULL, NULL, rows, cols, NULL,
+					 keypad->dev);
+	if (err) {
+		dev_err(&client->dev, "failed to build keymap\n");
+		return err;
+	}
+
+	err = devm_request_threaded_irq(&client->dev, client->irq,
+					NULL, ht16k33_keypad_irq_thread,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					DRIVER_NAME, keypad);
+	if (err) {
+		dev_err(&client->dev, "irq request failed %d, error %d\n",
+			client->irq, err);
+		return err;
+	}
+
+	ht16k33_keypad_stop(keypad->dev);
+
+	err = input_register_device(keypad->dev);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static int ht16k33_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	int err;
-	uint32_t rows, cols, dft_brightness;
+	uint32_t dft_brightness;
 	struct backlight_device *bl;
 	struct backlight_properties bl_props;
 	struct ht16k33_priv *priv;
-	struct ht16k33_keypad *keypad;
 	struct ht16k33_fbdev *fbdev;
 	struct device_node *node = client->dev.of_node;
 
@@ -363,23 +412,16 @@ static int ht16k33_probe(struct i2c_client *client,
 	priv->client = client;
 	i2c_set_clientdata(client, priv);
 	fbdev = &priv->fbdev;
-	keypad = &priv->keypad;
-
-	priv->workqueue = create_singlethread_workqueue(DRIVER_NAME "-wq");
-	if (priv->workqueue == NULL)
-		return -ENOMEM;
 
 	err = ht16k33_initialize(priv);
 	if (err)
-		goto err_destroy_wq;
+		return err;
 
 	/* Framebuffer (2 bytes per column) */
 	BUILD_BUG_ON(PAGE_SIZE < HT16K33_FB_SIZE);
 	fbdev->buffer = (unsigned char *) get_zeroed_page(GFP_KERNEL);
-	if (!fbdev->buffer) {
-		err = -ENOMEM;
-		goto err_free_fbdev;
-	}
+	if (!fbdev->buffer)
+		return -ENOMEM;
 
 	fbdev->cache = devm_kmalloc(&client->dev, HT16K33_FB_SIZE, GFP_KERNEL);
 	if (!fbdev->cache) {
@@ -415,59 +457,7 @@ static int ht16k33_probe(struct i2c_client *client,
 	if (err)
 		goto err_fbdev_info;
 
-	/* Keypad */
-	keypad->dev = devm_input_allocate_device(&client->dev);
-	if (!keypad->dev) {
-		err = -ENOMEM;
-		goto err_fbdev_unregister;
-	}
-
-	keypad->dev->name = DRIVER_NAME"-keypad";
-	keypad->dev->id.bustype = BUS_I2C;
-	keypad->dev->open = ht16k33_keypad_start;
-	keypad->dev->close = ht16k33_keypad_stop;
-
-	if (!of_get_property(node, "linux,no-autorepeat", NULL))
-		__set_bit(EV_REP, keypad->dev->evbit);
-
-	err = of_property_read_u32(node, "debounce-delay-ms",
-				   &keypad->debounce_ms);
-	if (err) {
-		dev_err(&client->dev, "key debounce delay not specified\n");
-		goto err_fbdev_unregister;
-	}
-
-	err = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-					ht16k33_irq_thread,
-					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					DRIVER_NAME, priv);
-	if (err) {
-		dev_err(&client->dev, "irq request failed %d, error %d\n",
-			client->irq, err);
-		goto err_fbdev_unregister;
-	}
-
-	disable_irq_nosync(client->irq);
-	rows = HT16K33_MATRIX_KEYPAD_MAX_ROWS;
-	cols = HT16K33_MATRIX_KEYPAD_MAX_COLS;
-	err = matrix_keypad_parse_of_params(&client->dev, &rows, &cols);
-	if (err)
-		goto err_fbdev_unregister;
-
-	err = matrix_keypad_build_keymap(NULL, NULL, rows, cols, NULL,
-					 keypad->dev);
-	if (err) {
-		dev_err(&client->dev, "failed to build keymap\n");
-		goto err_fbdev_unregister;
-	}
-
-	input_set_drvdata(keypad->dev, priv);
-	keypad->rows = rows;
-	keypad->cols = cols;
-	keypad->row_shift = get_count_order(cols);
-	INIT_DELAYED_WORK(&keypad->work, ht16k33_keypad_scan);
-
-	err = input_register_device(keypad->dev);
+	err = ht16k33_keypad_probe(client, &priv->keypad);
 	if (err)
 		goto err_fbdev_unregister;
 
@@ -482,7 +472,7 @@ static int ht16k33_probe(struct i2c_client *client,
 	if (IS_ERR(bl)) {
 		dev_err(&client->dev, "failed to register backlight\n");
 		err = PTR_ERR(bl);
-		goto err_keypad_unregister;
+		goto err_fbdev_unregister;
 	}
 
 	err = of_property_read_u32(node, "default-brightness-level",
@@ -502,18 +492,12 @@ static int ht16k33_probe(struct i2c_client *client,
 	ht16k33_fb_queue(priv);
 	return 0;
 
-err_keypad_unregister:
-	input_unregister_device(keypad->dev);
 err_fbdev_unregister:
 	unregister_framebuffer(fbdev->info);
 err_fbdev_info:
 	framebuffer_release(fbdev->info);
 err_fbdev_buffer:
 	free_page((unsigned long) fbdev->buffer);
-err_free_fbdev:
-	kfree(fbdev);
-err_destroy_wq:
-	destroy_workqueue(priv->workqueue);
 
 	return err;
 }
@@ -521,17 +505,13 @@ err_destroy_wq:
 static int ht16k33_remove(struct i2c_client *client)
 {
 	struct ht16k33_priv *priv = i2c_get_clientdata(client);
-	struct ht16k33_keypad *keypad = &priv->keypad;
 	struct ht16k33_fbdev *fbdev = &priv->fbdev;
-
-	ht16k33_keypad_stop(keypad->dev);
 
 	cancel_delayed_work(&fbdev->work);
 	unregister_framebuffer(fbdev->info);
 	framebuffer_release(fbdev->info);
 	free_page((unsigned long) fbdev->buffer);
 
-	destroy_workqueue(priv->workqueue);
 	return 0;
 }
 

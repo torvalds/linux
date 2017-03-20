@@ -1569,6 +1569,11 @@ static int bq2415x_probe(struct i2c_client *client,
 		acpi_id =
 			acpi_match_device(client->dev.driver->acpi_match_table,
 					  &client->dev);
+		if (!acpi_id) {
+			dev_err(&client->dev, "failed to match device name\n");
+			ret = -ENODEV;
+			goto error_1;
+		}
 		name = kasprintf(GFP_KERNEL, "%s-%d", acpi_id->id, num);
 	}
 	if (!name) {

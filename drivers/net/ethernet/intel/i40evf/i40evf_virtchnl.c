@@ -999,6 +999,10 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		if (v_opcode != adapter->current_op)
 			return;
 		break;
+	case I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP:
+		adapter->client_pending &=
+				~(BIT(I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP));
+		break;
 	case I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS: {
 		struct i40e_virtchnl_rss_hena *vrh =
 			(struct i40e_virtchnl_rss_hena *)msg;

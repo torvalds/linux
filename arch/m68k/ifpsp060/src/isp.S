@@ -3814,7 +3814,7 @@ CAS2W2_FILLER:
 #	(3) Save current DFC/SFC (ASSUMED TO BE EQUAL!!!); Then set	#
 #	    SFC/DFC according to whether exception occurred in user or	#
 #	    supervisor mode.						#
-#	(4) Use "plpaw" instruction to pre-load ATC with efective	#
+#	(4) Use "plpaw" instruction to pre-load ATC with effective	#
 #	    address page(s). THIS SHOULD NOT FAULT!!! The relevant	#
 #	    page(s) should have been made resident prior to entering	#
 #	    this routine.						#

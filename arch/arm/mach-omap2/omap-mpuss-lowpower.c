@@ -273,7 +273,7 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 	cpu_clear_prev_logic_pwrst(cpu);
 	pwrdm_set_next_pwrst(pm_info->pwrdm, power_state);
 	pwrdm_set_logic_retst(pm_info->pwrdm, cpu_logic_state);
-	set_cpu_wakeup_addr(cpu, virt_to_phys(omap_pm_ops.resume));
+	set_cpu_wakeup_addr(cpu, __pa_symbol(omap_pm_ops.resume));
 	omap_pm_ops.scu_prepare(cpu, power_state);
 	l2x0_pwrst_prepare(cpu, save_state);
 
@@ -325,7 +325,7 @@ int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 
 	pwrdm_clear_all_prev_pwrst(pm_info->pwrdm);
 	pwrdm_set_next_pwrst(pm_info->pwrdm, power_state);
-	set_cpu_wakeup_addr(cpu, virt_to_phys(omap_pm_ops.hotplug_restart));
+	set_cpu_wakeup_addr(cpu, __pa_symbol(omap_pm_ops.hotplug_restart));
 	omap_pm_ops.scu_prepare(cpu, power_state);
 
 	/*
@@ -467,13 +467,13 @@ void __init omap4_mpuss_early_init(void)
 	sar_base = omap4_get_sar_ram_base();
 
 	if (cpu_is_omap443x())
-		startup_pa = virt_to_phys(omap4_secondary_startup);
+		startup_pa = __pa_symbol(omap4_secondary_startup);
 	else if (cpu_is_omap446x())
-		startup_pa = virt_to_phys(omap4460_secondary_startup);
+		startup_pa = __pa_symbol(omap4460_secondary_startup);
 	else if ((__boot_cpu_mode & MODE_MASK) == HYP_MODE)
-		startup_pa = virt_to_phys(omap5_secondary_hyp_startup);
+		startup_pa = __pa_symbol(omap5_secondary_hyp_startup);
 	else
-		startup_pa = virt_to_phys(omap5_secondary_startup);
+		startup_pa = __pa_symbol(omap5_secondary_startup);
 
 	if (cpu_is_omap44xx())
 		writel_relaxed(startup_pa, sar_base +

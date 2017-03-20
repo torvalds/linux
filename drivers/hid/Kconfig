@@ -785,6 +785,11 @@ config HID_SUNPLUS
 config HID_RMI
 	tristate "Synaptics RMI4 device support"
 	depends on HID
+	select RMI4_CORE
+	select RMI4_F03
+	select RMI4_F11
+	select RMI4_F12
+	select RMI4_F30
 	---help---
 	Support for Synaptics RMI4 touchpads.
 	Say Y here if you have a Synaptics RMI4 touchpads over i2c-hid or usbhid

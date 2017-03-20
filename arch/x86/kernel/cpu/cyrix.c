@@ -9,6 +9,8 @@
 #include <asm/pci-direct.h>
 #include <asm/tsc.h>
 #include <asm/cpufeature.h>
+#include <linux/sched.h>
+#include <linux/sched/clock.h>
 
 #include "cpu.h"
 

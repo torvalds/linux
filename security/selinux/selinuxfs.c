@@ -45,8 +45,9 @@
 static char *policycap_names[] = {
 	"network_peer_controls",
 	"open_perms",
-	"redhat1",
-	"always_check_network"
+	"extended_socket_class",
+	"always_check_network",
+	"cgroup_seclabel"
 };
 
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
@@ -76,25 +77,6 @@ static char policy_opened;
 
 /* global data for policy capabilities */
 static struct dentry *policycap_dir;
-
-/* Check whether a task is allowed to use a security operation. */
-static int task_has_security(struct task_struct *tsk,
-			     u32 perms)
-{
-	const struct task_security_struct *tsec;
-	u32 sid = 0;
-
-	rcu_read_lock();
-	tsec = __task_cred(tsk)->security;
-	if (tsec)
-		sid = tsec->sid;
-	rcu_read_unlock();
-	if (!tsec)
-		return -EACCES;
-
-	return avc_has_perm(sid, SECINITSID_SECURITY,
-			    SECCLASS_SECURITY, perms, NULL);
-}
 
 enum sel_inos {
 	SEL_ROOT_INO = 2,
@@ -166,7 +148,9 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 	new_value = !!new_value;
 
 	if (new_value != selinux_enforcing) {
-		length = task_has_security(current, SECURITY__SETENFORCE);
+		length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+				      SECCLASS_SECURITY, SECURITY__SETENFORCE,
+				      NULL);
 		if (length)
 			goto out;
 		audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_STATUS,
@@ -368,7 +352,8 @@ static int sel_open_policy(struct inode *inode, struct file *filp)
 
 	mutex_lock(&sel_mutex);
 
-	rc = task_has_security(current, SECURITY__READ_POLICY);
+	rc = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			  SECCLASS_SECURITY, SECURITY__READ_POLICY, NULL);
 	if (rc)
 		goto err;
 
@@ -429,7 +414,8 @@ static ssize_t sel_read_policy(struct file *filp, char __user *buf,
 
 	mutex_lock(&sel_mutex);
 
-	ret = task_has_security(current, SECURITY__READ_POLICY);
+	ret = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			  SECCLASS_SECURITY, SECURITY__READ_POLICY, NULL);
 	if (ret)
 		goto out;
 
@@ -439,10 +425,9 @@ out:
 	return ret;
 }
 
-static int sel_mmap_policy_fault(struct vm_area_struct *vma,
-				 struct vm_fault *vmf)
+static int sel_mmap_policy_fault(struct vm_fault *vmf)
 {
-	struct policy_load_memory *plm = vma->vm_file->private_data;
+	struct policy_load_memory *plm = vmf->vma->vm_file->private_data;
 	unsigned long offset;
 	struct page *page;
 
@@ -499,7 +484,8 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 
 	mutex_lock(&sel_mutex);
 
-	length = task_has_security(current, SECURITY__LOAD_POLICY);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__LOAD_POLICY, NULL);
 	if (length)
 		goto out;
 
@@ -522,20 +508,28 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 		goto out;
 
 	length = security_load_policy(data, count);
-	if (length)
+	if (length) {
+		pr_warn_ratelimited("SELinux: failed to load policy\n");
 		goto out;
+	}
 
 	length = sel_make_bools();
-	if (length)
+	if (length) {
+		pr_err("SELinux: failed to load policy booleans\n");
 		goto out1;
+	}
 
 	length = sel_make_classes();
-	if (length)
+	if (length) {
+		pr_err("SELinux: failed to load policy classes\n");
 		goto out1;
+	}
 
 	length = sel_make_policycap();
-	if (length)
+	if (length) {
+		pr_err("SELinux: failed to load policy capabilities\n");
 		goto out1;
+	}
 
 	length = count;
 
@@ -561,7 +555,8 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
 	u32 sid, len;
 	ssize_t length;
 
-	length = task_has_security(current, SECURITY__CHECK_CONTEXT);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__CHECK_CONTEXT, NULL);
 	if (length)
 		goto out;
 
@@ -604,7 +599,9 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
 	ssize_t length;
 	unsigned int new_value;
 
-	length = task_has_security(current, SECURITY__SETCHECKREQPROT);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__SETCHECKREQPROT,
+			      NULL);
 	if (length)
 		return length;
 
@@ -645,7 +642,8 @@ static ssize_t sel_write_validatetrans(struct file *file,
 	u16 tclass;
 	int rc;
 
-	rc = task_has_security(current, SECURITY__VALIDATE_TRANS);
+	rc = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			  SECCLASS_SECURITY, SECURITY__VALIDATE_TRANS, NULL);
 	if (rc)
 		goto out;
 
@@ -772,7 +770,8 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 	struct av_decision avd;
 	ssize_t length;
 
-	length = task_has_security(current, SECURITY__COMPUTE_AV);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__COMPUTE_AV, NULL);
 	if (length)
 		goto out;
 
@@ -822,7 +821,9 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	u32 len;
 	int nargs;
 
-	length = task_has_security(current, SECURITY__COMPUTE_CREATE);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__COMPUTE_CREATE,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -919,7 +920,9 @@ static ssize_t sel_write_relabel(struct file *file, char *buf, size_t size)
 	char *newcon = NULL;
 	u32 len;
 
-	length = task_has_security(current, SECURITY__COMPUTE_RELABEL);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__COMPUTE_RELABEL,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -975,7 +978,9 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 	int i, rc;
 	u32 len, nsids;
 
-	length = task_has_security(current, SECURITY__COMPUTE_USER);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__COMPUTE_USER,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -1035,7 +1040,9 @@ static ssize_t sel_write_member(struct file *file, char *buf, size_t size)
 	char *newcon = NULL;
 	u32 len;
 
-	length = task_has_security(current, SECURITY__COMPUTE_MEMBER);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__COMPUTE_MEMBER,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -1142,7 +1149,9 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 
 	mutex_lock(&sel_mutex);
 
-	length = task_has_security(current, SECURITY__SETBOOL);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__SETBOOL,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -1198,7 +1207,9 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 
 	mutex_lock(&sel_mutex);
 
-	length = task_has_security(current, SECURITY__SETBOOL);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__SETBOOL,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -1299,8 +1310,11 @@ static int sel_make_bools(void)
 
 		isec = (struct inode_security_struct *)inode->i_security;
 		ret = security_genfs_sid("selinuxfs", page, SECCLASS_FILE, &sid);
-		if (ret)
-			goto out;
+		if (ret) {
+			pr_warn_ratelimited("SELinux: no sid found, defaulting to security isid for %s\n",
+					   page);
+			sid = SECINITSID_SECURITY;
+		}
 
 		isec->sid = sid;
 		isec->initialized = LABEL_INITIALIZED;
@@ -1351,7 +1365,9 @@ static ssize_t sel_write_avc_cache_threshold(struct file *file,
 	ssize_t ret;
 	unsigned int new_value;
 
-	ret = task_has_security(current, SECURITY__SETSECPARAM);
+	ret = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			   SECCLASS_SECURITY, SECURITY__SETSECPARAM,
+			   NULL);
 	if (ret)
 		return ret;
 

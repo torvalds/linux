@@ -61,8 +61,8 @@ enum {
 #endif
 };
 
-int esas2r_log(const long level, const char *format, ...);
-int esas2r_log_dev(const long level,
+__printf(2, 3) int esas2r_log(const long level, const char *format, ...);
+__printf(3, 4) int esas2r_log_dev(const long level,
 		   const struct device *dev,
 		   const char *format,
 		   ...);

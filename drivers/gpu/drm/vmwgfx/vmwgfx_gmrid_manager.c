@@ -164,9 +164,9 @@ static void vmw_gmrid_man_debug(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func vmw_gmrid_manager_func = {
-	vmw_gmrid_man_init,
-	vmw_gmrid_man_takedown,
-	vmw_gmrid_man_get_node,
-	vmw_gmrid_man_put_node,
-	vmw_gmrid_man_debug
+	.init = vmw_gmrid_man_init,
+	.takedown = vmw_gmrid_man_takedown,
+	.get_node = vmw_gmrid_man_get_node,
+	.put_node = vmw_gmrid_man_put_node,
+	.debug = vmw_gmrid_man_debug
 };

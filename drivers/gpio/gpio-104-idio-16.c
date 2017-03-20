@@ -46,7 +46,6 @@ MODULE_PARM_DESC(irq, "ACCES 104-IDIO-16 interrupt line numbers");
  * @lock:	synchronization lock to prevent I/O race conditions
  * @irq_mask:	I/O bits affected by interrupts
  * @base:	base port address of the GPIO device
- * @irq:	Interrupt line number
  * @out_state:	output bits state
  */
 struct idio_16_gpio {
@@ -54,7 +53,6 @@ struct idio_16_gpio {
 	spinlock_t lock;
 	unsigned long irq_mask;
 	unsigned base;
-	unsigned irq;
 	unsigned out_state;
 };
 
@@ -112,6 +110,25 @@ static void idio_16_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 		outb(idio16gpio->out_state >> 8, idio16gpio->base + 4);
 	else
 		outb(idio16gpio->out_state, idio16gpio->base);
+
+	spin_unlock_irqrestore(&idio16gpio->lock, flags);
+}
+
+static void idio_16_gpio_set_multiple(struct gpio_chip *chip,
+	unsigned long *mask, unsigned long *bits)
+{
+	struct idio_16_gpio *const idio16gpio = gpiochip_get_data(chip);
+	unsigned long flags;
+
+	spin_lock_irqsave(&idio16gpio->lock, flags);
+
+	idio16gpio->out_state &= ~*mask;
+	idio16gpio->out_state |= *mask & *bits;
+
+	if (*mask & 0xFF)
+		outb(idio16gpio->out_state, idio16gpio->base);
+	if ((*mask >> 8) & 0xFF)
+		outb(idio16gpio->out_state >> 8, idio16gpio->base + 4);
 
 	spin_unlock_irqrestore(&idio16gpio->lock, flags);
 }
@@ -193,6 +210,14 @@ static irqreturn_t idio_16_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#define IDIO_16_NGPIO 32
+static const char *idio_16_names[IDIO_16_NGPIO] = {
+	"OUT0", "OUT1", "OUT2", "OUT3", "OUT4", "OUT5", "OUT6", "OUT7",
+	"OUT8", "OUT9", "OUT10", "OUT11", "OUT12", "OUT13", "OUT14", "OUT15",
+	"IIN0", "IIN1", "IIN2", "IIN3", "IIN4", "IIN5", "IIN6", "IIN7",
+	"IIN8", "IIN9", "IIN10", "IIN11", "IIN12", "IIN13", "IIN14", "IIN15"
+};
+
 static int idio_16_probe(struct device *dev, unsigned int id)
 {
 	struct idio_16_gpio *idio16gpio;
@@ -213,21 +238,20 @@ static int idio_16_probe(struct device *dev, unsigned int id)
 	idio16gpio->chip.parent = dev;
 	idio16gpio->chip.owner = THIS_MODULE;
 	idio16gpio->chip.base = -1;
-	idio16gpio->chip.ngpio = 32;
+	idio16gpio->chip.ngpio = IDIO_16_NGPIO;
+	idio16gpio->chip.names = idio_16_names;
 	idio16gpio->chip.get_direction = idio_16_gpio_get_direction;
 	idio16gpio->chip.direction_input = idio_16_gpio_direction_input;
 	idio16gpio->chip.direction_output = idio_16_gpio_direction_output;
 	idio16gpio->chip.get = idio_16_gpio_get;
 	idio16gpio->chip.set = idio_16_gpio_set;
+	idio16gpio->chip.set_multiple = idio_16_gpio_set_multiple;
 	idio16gpio->base = base[id];
-	idio16gpio->irq = irq[id];
 	idio16gpio->out_state = 0xFFFF;
 
 	spin_lock_init(&idio16gpio->lock);
 
-	dev_set_drvdata(dev, idio16gpio);
-
-	err = gpiochip_add_data(&idio16gpio->chip, idio16gpio);
+	err = devm_gpiochip_add_data(dev, &idio16gpio->chip, idio16gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
 		return err;
@@ -241,28 +265,15 @@ static int idio_16_probe(struct device *dev, unsigned int id)
 		handle_edge_irq, IRQ_TYPE_NONE);
 	if (err) {
 		dev_err(dev, "Could not add irqchip (%d)\n", err);
-		goto err_gpiochip_remove;
+		return err;
 	}
 
-	err = request_irq(irq[id], idio_16_irq_handler, 0, name, idio16gpio);
+	err = devm_request_irq(dev, irq[id], idio_16_irq_handler, 0, name,
+		idio16gpio);
 	if (err) {
 		dev_err(dev, "IRQ handler registering failed (%d)\n", err);
-		goto err_gpiochip_remove;
+		return err;
 	}
-
-	return 0;
-
-err_gpiochip_remove:
-	gpiochip_remove(&idio16gpio->chip);
-	return err;
-}
-
-static int idio_16_remove(struct device *dev, unsigned int id)
-{
-	struct idio_16_gpio *const idio16gpio = dev_get_drvdata(dev);
-
-	free_irq(idio16gpio->irq, idio16gpio);
-	gpiochip_remove(&idio16gpio->chip);
 
 	return 0;
 }
@@ -272,7 +283,6 @@ static struct isa_driver idio_16_driver = {
 	.driver = {
 		.name = "104-idio-16"
 	},
-	.remove = idio_16_remove
 };
 
 module_isa_driver(idio_16_driver, num_idio_16);

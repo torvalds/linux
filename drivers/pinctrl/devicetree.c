@@ -42,7 +42,8 @@ static void dt_free_map(struct pinctrl_dev *pctldev,
 {
 	if (pctldev) {
 		const struct pinctrl_ops *ops = pctldev->desc->pctlops;
-		ops->dt_free_map(pctldev, map, num_maps);
+		if (ops->dt_free_map)
+			ops->dt_free_map(pctldev, map, num_maps);
 	} else {
 		/* There is no pctldev for PIN_MAP_TYPE_DUMMY_STATE */
 		kfree(map);
@@ -100,11 +101,12 @@ struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
 	return get_pinctrl_dev_from_of_node(np);
 }
 
-static int dt_to_map_one_config(struct pinctrl *p, const char *statename,
+static int dt_to_map_one_config(struct pinctrl *p,
+				struct pinctrl_dev *pctldev,
+				const char *statename,
 				struct device_node *np_config)
 {
 	struct device_node *np_pctldev;
-	struct pinctrl_dev *pctldev;
 	const struct pinctrl_ops *ops;
 	int ret;
 	struct pinctrl_map *map;
@@ -121,7 +123,8 @@ static int dt_to_map_one_config(struct pinctrl *p, const char *statename,
 			/* OK let's just assume this will appear later then */
 			return -EPROBE_DEFER;
 		}
-		pctldev = get_pinctrl_dev_from_of_node(np_pctldev);
+		if (!pctldev)
+			pctldev = get_pinctrl_dev_from_of_node(np_pctldev);
 		if (pctldev)
 			break;
 		/* Do not defer probing of hogs (circular loop) */
@@ -166,7 +169,22 @@ static int dt_remember_dummy_state(struct pinctrl *p, const char *statename)
 	return dt_remember_or_free_map(p, statename, NULL, map, 1);
 }
 
-int pinctrl_dt_to_map(struct pinctrl *p)
+bool pinctrl_dt_has_hogs(struct pinctrl_dev *pctldev)
+{
+	struct device_node *np;
+	struct property *prop;
+	int size;
+
+	np = pctldev->dev->of_node;
+	if (!np)
+		return false;
+
+	prop = of_find_property(np, "pinctrl-0", &size);
+
+	return prop ? true : false;
+}
+
+int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 {
 	struct device_node *np = p->dev->of_node;
 	int state, ret;
@@ -233,7 +251,8 @@ int pinctrl_dt_to_map(struct pinctrl *p)
 			}
 
 			/* Parse the node */
-			ret = dt_to_map_one_config(p, statename, np_config);
+			ret = dt_to_map_one_config(p, pctldev, statename,
+						   np_config);
 			of_node_put(np_config);
 			if (ret < 0)
 				goto err;

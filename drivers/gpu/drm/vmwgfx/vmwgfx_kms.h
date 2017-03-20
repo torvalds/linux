@@ -30,6 +30,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder.h>
 #include "vmwgfx_drv.h"
 
 /**

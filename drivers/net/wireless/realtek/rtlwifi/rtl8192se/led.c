@@ -38,9 +38,10 @@ static void _rtl92se_init_led(struct ieee80211_hw *hw,
 
 void rtl92se_init_sw_leds(struct ieee80211_hw *hw)
 {
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
-	_rtl92se_init_led(hw, &(pcipriv->ledctl.sw_led0), LED_PIN_LED0);
-	_rtl92se_init_led(hw, &(pcipriv->ledctl.sw_led1), LED_PIN_LED1);
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	_rtl92se_init_led(hw, &rtlpriv->ledctl.sw_led0, LED_PIN_LED0);
+	_rtl92se_init_led(hw, &rtlpriv->ledctl.sw_led1, LED_PIN_LED1);
 }
 
 void rtl92se_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
@@ -63,8 +64,8 @@ void rtl92se_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 		rtl_write_byte(rtlpriv, LEDCFG, ledcfg & 0x0f);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", pled->ledpin);
+		pr_err("switch case %#x not processed\n",
+		       pled->ledpin);
 		break;
 	}
 	pled->ledon = true;
@@ -73,7 +74,6 @@ void rtl92se_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 void rtl92se_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 {
 	struct rtl_priv *rtlpriv;
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	u8 ledcfg;
 
 	rtlpriv = rtl_priv(hw);
@@ -89,7 +89,7 @@ void rtl92se_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 		break;
 	case LED_PIN_LED0:
 		ledcfg &= 0xf0;
-		if (pcipriv->ledctl.led_opendrain)
+		if (rtlpriv->ledctl.led_opendrain)
 			rtl_write_byte(rtlpriv, LEDCFG, (ledcfg | BIT(1)));
 		else
 			rtl_write_byte(rtlpriv, LEDCFG, (ledcfg | BIT(3)));
@@ -99,8 +99,8 @@ void rtl92se_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 		rtl_write_byte(rtlpriv, LEDCFG, (ledcfg | BIT(3)));
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", pled->ledpin);
+		pr_err("switch case %#x not processed\n",
+		       pled->ledpin);
 		break;
 	}
 	pled->ledon = false;
@@ -109,16 +109,17 @@ void rtl92se_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 static void _rtl92se_sw_led_control(struct ieee80211_hw *hw,
 				    enum led_ctl_mode ledaction)
 {
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
-	struct rtl_led *pLed0 = &(pcipriv->ledctl.sw_led0);
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
+
 	switch (ledaction) {
 	case LED_CTL_POWER_ON:
 	case LED_CTL_LINK:
 	case LED_CTL_NO_LINK:
-		rtl92se_sw_led_on(hw, pLed0);
+		rtl92se_sw_led_on(hw, pled0);
 		break;
 	case LED_CTL_POWER_OFF:
-		rtl92se_sw_led_off(hw, pLed0);
+		rtl92se_sw_led_off(hw, pled0);
 		break;
 	default:
 		break;

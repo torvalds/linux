@@ -4,6 +4,8 @@
  *  Copyright (C) 2006-2009 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
  */
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
 #include <linux/export.h>
 #include <linux/uaccess.h>

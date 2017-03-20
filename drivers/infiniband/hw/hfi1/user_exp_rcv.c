@@ -45,6 +45,7 @@
  *
  */
 #include <asm/page.h>
+#include <linux/string.h>
 
 #include "user_exp_rcv.h"
 #include "trace.h"
@@ -577,16 +578,10 @@ int hfi1_user_exp_rcv_clear(struct file *fp, struct hfi1_tid_info *tinfo)
 	u32 *tidinfo;
 	unsigned tididx;
 
-	tidinfo = kcalloc(tinfo->tidcnt, sizeof(*tidinfo), GFP_KERNEL);
-	if (!tidinfo)
-		return -ENOMEM;
-
-	if (copy_from_user(tidinfo, (void __user *)(unsigned long)
-			   tinfo->tidlist, sizeof(tidinfo[0]) *
-			   tinfo->tidcnt)) {
-		ret = -EFAULT;
-		goto done;
-	}
+	tidinfo = memdup_user((void __user *)(unsigned long)tinfo->tidlist,
+			      sizeof(tidinfo[0]) * tinfo->tidcnt);
+	if (IS_ERR(tidinfo))
+		return PTR_ERR(tidinfo);
 
 	mutex_lock(&uctxt->exp_lock);
 	for (tididx = 0; tididx < tinfo->tidcnt; tididx++) {
@@ -602,7 +597,7 @@ int hfi1_user_exp_rcv_clear(struct file *fp, struct hfi1_tid_info *tinfo)
 	spin_unlock(&fd->tid_lock);
 	tinfo->tidcnt = tididx;
 	mutex_unlock(&uctxt->exp_lock);
-done:
+
 	kfree(tidinfo);
 	return ret;
 }

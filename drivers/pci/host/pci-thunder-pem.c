@@ -36,7 +36,7 @@ struct thunder_pem_pci {
 static int thunder_pem_bridge_read(struct pci_bus *bus, unsigned int devfn,
 				   int where, int size, u32 *val)
 {
-	u64 read_val;
+	u64 read_val, tmp_val;
 	struct pci_config_window *cfg = bus->sysdata;
 	struct thunder_pem_pci *pem_pci = (struct thunder_pem_pci *)cfg->priv;
 
@@ -65,13 +65,28 @@ static int thunder_pem_bridge_read(struct pci_bus *bus, unsigned int devfn,
 		read_val |= 0x00007000; /* Skip MSI CAP */
 		break;
 	case 0x70: /* Express Cap */
-		/* PME interrupt on vector 2*/
-		read_val |= (2u << 25);
+		/*
+		 * Change PME interrupt to vector 2 on T88 where it
+		 * reads as 0, else leave it alone.
+		 */
+		if (!(read_val & (0x1f << 25)))
+			read_val |= (2u << 25);
 		break;
 	case 0xb0: /* MSI-X Cap */
-		/* TableSize=4, Next Cap is EA */
+		/* TableSize=2 or 4, Next Cap is EA */
 		read_val &= 0xc00000ff;
-		read_val |= 0x0003bc00;
+		/*
+		 * If Express Cap(0x70) raw PME vector reads as 0 we are on
+		 * T88 and TableSize is reported as 4, else TableSize
+		 * is 2.
+		 */
+		writeq(0x70, pem_pci->pem_reg_base + PEM_CFG_RD);
+		tmp_val = readq(pem_pci->pem_reg_base + PEM_CFG_RD);
+		tmp_val >>= 32;
+		if (!(tmp_val & (0x1f << 25)))
+			read_val |= 0x0003bc00;
+		else
+			read_val |= 0x0001bc00;
 		break;
 	case 0xb4:
 		/* Table offset=0, BIR=0 */

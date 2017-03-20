@@ -202,6 +202,7 @@ static int dw_probe(struct platform_device *pdev)
 		pdata = dw_dma_parse_dt(pdev);
 
 	chip->dev = dev;
+	chip->id = pdev->id;
 	chip->pdata = pdata;
 
 	chip->clk = devm_clk_get(chip->dev, "hclk");

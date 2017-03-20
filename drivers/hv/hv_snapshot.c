@@ -31,6 +31,16 @@
 #define VSS_MINOR  0
 #define VSS_VERSION    (VSS_MAJOR << 16 | VSS_MINOR)
 
+#define VSS_VER_COUNT 1
+static const int vss_versions[] = {
+	VSS_VERSION
+};
+
+#define FW_VER_COUNT 1
+static const int fw_versions[] = {
+	UTIL_FW_VERSION
+};
+
 /*
  * Timeout values are based on expecations from host
  */
@@ -69,6 +79,7 @@ static int dm_reg_value;
 static const char vss_devname[] = "vmbus/hv_vss";
 static __u8 *recv_buffer;
 static struct hvutil_transport *hvt;
+static struct completion release_event;
 
 static void vss_timeout_func(struct work_struct *dummy);
 static void vss_handle_request(struct work_struct *dummy);
@@ -293,10 +304,9 @@ void hv_vss_onchannelcallback(void *context)
 	u32 recvlen;
 	u64 requestid;
 	struct hv_vss_msg *vss_msg;
-
+	int vss_srv_version;
 
 	struct icmsg_hdr *icmsghdrp;
-	struct icmsg_negotiate *negop = NULL;
 
 	if (vss_transaction.state > HVUTIL_READY)
 		return;
@@ -309,9 +319,15 @@ void hv_vss_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-				 recv_buffer, UTIL_FW_VERSION,
-				 VSS_VERSION);
+			if (vmbus_prep_negotiate_resp(icmsghdrp,
+				 recv_buffer, fw_versions, FW_VER_COUNT,
+				 vss_versions, VSS_VER_COUNT,
+				 NULL, &vss_srv_version)) {
+
+				pr_info("VSS IC version %d.%d\n",
+					vss_srv_version >> 16,
+					vss_srv_version & 0xFFFF);
+			}
 		} else {
 			vss_msg = (struct hv_vss_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +
@@ -345,11 +361,13 @@ static void vss_on_reset(void)
 	if (cancel_delayed_work_sync(&vss_timeout_work))
 		vss_respond_to_host(HV_E_FAIL);
 	vss_transaction.state = HVUTIL_DEVICE_INIT;
+	complete(&release_event);
 }
 
 int
 hv_vss_init(struct hv_util_service *srv)
 {
+	init_completion(&release_event);
 	if (vmbus_proto_version < VERSION_WIN8_1) {
 		pr_warn("Integration service 'Backup (volume snapshot)'"
 			" not supported on this host version.\n");
@@ -382,4 +400,5 @@ void hv_vss_deinit(void)
 	cancel_delayed_work_sync(&vss_timeout_work);
 	cancel_work_sync(&vss_handle_request_work);
 	hvutil_transport_destroy(hvt);
+	wait_for_completion(&release_event);
 }

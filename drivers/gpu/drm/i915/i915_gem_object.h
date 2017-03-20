@@ -54,6 +54,9 @@ struct drm_i915_gem_object_ops {
 	struct sg_table *(*get_pages)(struct drm_i915_gem_object *);
 	void (*put_pages)(struct drm_i915_gem_object *, struct sg_table *);
 
+	int (*pwrite)(struct drm_i915_gem_object *,
+		      const struct drm_i915_gem_pwrite *);
+
 	int (*dmabuf_export)(struct drm_i915_gem_object *);
 	void (*release)(struct drm_i915_gem_object *);
 };
@@ -256,7 +259,7 @@ extern void drm_gem_object_unreference_unlocked(struct drm_gem_object *);
 static inline bool
 i915_gem_object_is_dead(const struct drm_i915_gem_object *obj)
 {
-	return atomic_read(&obj->base.refcount.refcount) == 0;
+	return kref_read(&obj->base.refcount) == 0;
 }
 
 static inline bool
@@ -316,6 +319,29 @@ i915_gem_object_get_stride(struct drm_i915_gem_object *obj)
 {
 	return obj->tiling_and_stride & STRIDE_MASK;
 }
+
+static inline unsigned int
+i915_gem_tile_height(unsigned int tiling)
+{
+	GEM_BUG_ON(!tiling);
+	return tiling == I915_TILING_Y ? 32 : 8;
+}
+
+static inline unsigned int
+i915_gem_object_get_tile_height(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_tile_height(i915_gem_object_get_tiling(obj));
+}
+
+static inline unsigned int
+i915_gem_object_get_tile_row_size(struct drm_i915_gem_object *obj)
+{
+	return (i915_gem_object_get_stride(obj) *
+		i915_gem_object_get_tile_height(obj));
+}
+
+int i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
+			       unsigned int tiling, unsigned int stride);
 
 static inline struct intel_engine_cs *
 i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)

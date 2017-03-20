@@ -70,7 +70,9 @@ static void gb_vibrator_worker(struct work_struct *work)
 {
 	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct gb_vibrator_device *vib =
-		container_of(delayed_work, struct gb_vibrator_device, delayed_work);
+		container_of(delayed_work,
+			     struct gb_vibrator_device,
+			     delayed_work);
 
 	turn_off(vib);
 }

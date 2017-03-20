@@ -29,6 +29,7 @@
 #include <drm/drm_edid.h>
 #include <drm/i915_drm.h>
 #include <drm/drm_panel.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <video/mipi_display.h>
 #include <asm/intel-mid.h>
@@ -305,19 +306,44 @@ static void chv_exec_gpio(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
+static void bxt_exec_gpio(struct drm_i915_private *dev_priv,
+			  u8 gpio_source, u8 gpio_index, bool value)
+{
+	/* XXX: this table is a quick ugly hack. */
+	static struct gpio_desc *bxt_gpio_table[U8_MAX + 1];
+	struct gpio_desc *gpio_desc = bxt_gpio_table[gpio_index];
+
+	if (!gpio_desc) {
+		gpio_desc = devm_gpiod_get_index(dev_priv->drm.dev,
+						 "panel", gpio_index,
+						 value ? GPIOD_OUT_LOW :
+						 GPIOD_OUT_HIGH);
+
+		if (IS_ERR_OR_NULL(gpio_desc)) {
+			DRM_ERROR("GPIO index %u request failed (%ld)\n",
+				  gpio_index, PTR_ERR(gpio_desc));
+			return;
+		}
+
+		bxt_gpio_table[gpio_index] = gpio_desc;
+	}
+
+	gpiod_set_value(gpio_desc, value);
+}
+
 static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	u8 gpio_source, gpio_index;
+	u8 gpio_source, gpio_index = 0, gpio_number;
 	bool value;
 
 	DRM_DEBUG_KMS("\n");
 
 	if (dev_priv->vbt.dsi.seq_version >= 3)
-		data++;
+		gpio_index = *data++;
 
-	gpio_index = *data++;
+	gpio_number = *data++;
 
 	/* gpio source in sequence v2 only */
 	if (dev_priv->vbt.dsi.seq_version == 2)
@@ -329,11 +355,11 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	value = *data++ & 1;
 
 	if (IS_VALLEYVIEW(dev_priv))
-		vlv_exec_gpio(dev_priv, gpio_source, gpio_index, value);
+		vlv_exec_gpio(dev_priv, gpio_source, gpio_number, value);
 	else if (IS_CHERRYVIEW(dev_priv))
-		chv_exec_gpio(dev_priv, gpio_source, gpio_index, value);
+		chv_exec_gpio(dev_priv, gpio_source, gpio_number, value);
 	else
-		DRM_DEBUG_KMS("GPIO element not supported on this platform\n");
+		bxt_exec_gpio(dev_priv, gpio_source, gpio_index, value);
 
 	return data;
 }

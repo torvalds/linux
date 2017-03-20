@@ -35,6 +35,8 @@
 #include <linux/memcontrol.h>
 #include <linux/cgroup.h>
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
+#include <linux/shmem_fs.h>
 #include <linux/hugetlb.h>
 #include <linux/pagemap.h>
 #include <linux/smp.h>
@@ -317,6 +319,8 @@ void memcg_put_cache_ids(void)
 DEFINE_STATIC_KEY_FALSE(memcg_kmem_enabled_key);
 EXPORT_SYMBOL(memcg_kmem_enabled_key);
 
+struct workqueue_struct *memcg_kmem_cache_wq;
+
 #endif /* !CONFIG_SLOB */
 
 /**
@@ -462,6 +466,8 @@ static void mem_cgroup_update_tree(struct mem_cgroup *memcg, struct page *page)
 	struct mem_cgroup_tree_per_node *mctz;
 
 	mctz = soft_limit_tree_from_page(page);
+	if (!mctz)
+		return;
 	/*
 	 * Necessary to update all ancestors when hierarchy is used.
 	 * because their event counter is not touched.
@@ -499,7 +505,8 @@ static void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
 	for_each_node(nid) {
 		mz = mem_cgroup_nodeinfo(memcg, nid);
 		mctz = soft_limit_tree_node(nid);
-		mem_cgroup_remove_exceeded(mz, mctz);
+		if (mctz)
+			mem_cgroup_remove_exceeded(mz, mctz);
 	}
 }
 
@@ -2143,8 +2150,6 @@ struct memcg_kmem_cache_create_work {
 	struct work_struct work;
 };
 
-static struct workqueue_struct *memcg_kmem_cache_create_wq;
-
 static void memcg_kmem_cache_create_func(struct work_struct *w)
 {
 	struct memcg_kmem_cache_create_work *cw =
@@ -2176,7 +2181,7 @@ static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
 	cw->cachep = cachep;
 	INIT_WORK(&cw->work, memcg_kmem_cache_create_func);
 
-	queue_work(memcg_kmem_cache_create_wq, &cw->work);
+	queue_work(memcg_kmem_cache_wq, &cw->work);
 }
 
 static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
@@ -2556,7 +2561,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
 	 * is empty. Do it lockless to prevent lock bouncing. Races
 	 * are acceptable as soft limit is best effort anyway.
 	 */
-	if (RB_EMPTY_ROOT(&mctz->rb_root))
+	if (!mctz || RB_EMPTY_ROOT(&mctz->rb_root))
 		return 0;
 
 	/*
@@ -2837,6 +2842,7 @@ static int memcg_online_kmem(struct mem_cgroup *memcg)
 	 */
 	memcg->kmemcg_id = memcg_id;
 	memcg->kmem_state = KMEM_ONLINE;
+	INIT_LIST_HEAD(&memcg->kmem_caches);
 
 	return 0;
 }
@@ -4002,9 +4008,9 @@ static struct cftype mem_cgroup_legacy_files[] = {
 #ifdef CONFIG_SLABINFO
 	{
 		.name = "kmem.slabinfo",
-		.seq_start = slab_start,
-		.seq_next = slab_next,
-		.seq_stop = slab_stop,
+		.seq_start = memcg_slab_start,
+		.seq_next = memcg_slab_next,
+		.seq_stop = memcg_slab_stop,
 		.seq_show = memcg_slab_show,
 	},
 #endif
@@ -4132,15 +4138,20 @@ static void free_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)
 	kfree(memcg->nodeinfo[node]);
 }
 
-static void mem_cgroup_free(struct mem_cgroup *memcg)
+static void __mem_cgroup_free(struct mem_cgroup *memcg)
 {
 	int node;
 
-	memcg_wb_domain_exit(memcg);
 	for_each_node(node)
 		free_mem_cgroup_per_node_info(memcg, node);
 	free_percpu(memcg->stat);
 	kfree(memcg);
+}
+
+static void mem_cgroup_free(struct mem_cgroup *memcg)
+{
+	memcg_wb_domain_exit(memcg);
+	__mem_cgroup_free(memcg);
 }
 
 static struct mem_cgroup *mem_cgroup_alloc(void)
@@ -4193,7 +4204,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
 fail:
 	if (memcg->id.id > 0)
 		idr_remove(&mem_cgroup_idr, memcg->id.id);
-	mem_cgroup_free(memcg);
+	__mem_cgroup_free(memcg);
 	return NULL;
 }
 
@@ -5777,12 +5788,12 @@ static int __init mem_cgroup_init(void)
 #ifndef CONFIG_SLOB
 	/*
 	 * Kmem cache creation is mostly done with the slab_mutex held,
-	 * so use a special workqueue to avoid stalling all worker
-	 * threads in case lots of cgroups are created simultaneously.
+	 * so use a workqueue with limited concurrency to avoid stalling
+	 * all worker threads in case lots of cgroups are created and
+	 * destroyed simultaneously.
 	 */
-	memcg_kmem_cache_create_wq =
-		alloc_ordered_workqueue("memcg_kmem_cache_create", 0);
-	BUG_ON(!memcg_kmem_cache_create_wq);
+	memcg_kmem_cache_wq = alloc_workqueue("memcg_kmem_cache", 0, 1);
+	BUG_ON(!memcg_kmem_cache_wq);
 #endif
 
 	cpuhp_setup_state_nocalls(CPUHP_MM_MEMCQ_DEAD, "mm/memctrl:dead", NULL,

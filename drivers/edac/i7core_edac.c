@@ -1835,6 +1835,7 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 static struct notifier_block i7_mce_dec = {
 	.notifier_call	= i7core_mce_check_error,
+	.priority	= MCE_PRIO_EDAC,
 };
 
 struct memdev_dmi_entry {

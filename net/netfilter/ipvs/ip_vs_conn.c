@@ -1429,7 +1429,7 @@ int __init ip_vs_conn_init(void)
 		"(size=%d, memory=%ldKbytes)\n",
 		ip_vs_conn_tab_size,
 		(long)(ip_vs_conn_tab_size*sizeof(struct list_head))/1024);
-	IP_VS_DBG(0, "Each connection entry needs %Zd bytes at least\n",
+	IP_VS_DBG(0, "Each connection entry needs %zd bytes at least\n",
 		  sizeof(struct ip_vs_conn));
 
 	for (idx = 0; idx < ip_vs_conn_tab_size; idx++)

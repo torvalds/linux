@@ -8,6 +8,7 @@
 #include <linux/irq.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 
 /* This keeps a track of which one is crashing cpu. */
 static int crashing_cpu = -1;
@@ -56,7 +57,7 @@ static void crash_kexec_prepare_cpus(void)
 
 	ncpus = num_online_cpus() - 1;/* Excluding the panic cpu */
 
-	dump_send_ipi(crash_shutdown_secondary);
+	smp_call_function(crash_shutdown_secondary, NULL, 0);
 	smp_wmb();
 
 	/*

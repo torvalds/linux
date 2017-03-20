@@ -20,7 +20,7 @@
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
-
+#include <net/pkt_cls.h>
 
 struct prio_sched_data {
 	int bands;

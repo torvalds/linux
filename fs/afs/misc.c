@@ -84,6 +84,8 @@ int afs_abort_to_error(u32 abort_code)
 	case RXKADDATALEN:	return -EKEYREJECTED;
 	case RXKADILLEGALLEVEL:	return -EKEYREJECTED;
 
+	case RXGEN_OPCODE:	return -ENOTSUPP;
+
 	default:		return -EREMOTEIO;
 	}
 }

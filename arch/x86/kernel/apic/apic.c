@@ -529,18 +529,19 @@ static void lapic_timer_broadcast(const struct cpumask *mask)
  * The local apic timer can be used for any function which is CPU local.
  */
 static struct clock_event_device lapic_clockevent = {
-	.name			= "lapic",
-	.features		= CLOCK_EVT_FEAT_PERIODIC |
-				  CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_C3STOP
-				  | CLOCK_EVT_FEAT_DUMMY,
-	.shift			= 32,
-	.set_state_shutdown	= lapic_timer_shutdown,
-	.set_state_periodic	= lapic_timer_set_periodic,
-	.set_state_oneshot	= lapic_timer_set_oneshot,
-	.set_next_event		= lapic_next_event,
-	.broadcast		= lapic_timer_broadcast,
-	.rating			= 100,
-	.irq			= -1,
+	.name				= "lapic",
+	.features			= CLOCK_EVT_FEAT_PERIODIC |
+					  CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_C3STOP
+					  | CLOCK_EVT_FEAT_DUMMY,
+	.shift				= 32,
+	.set_state_shutdown		= lapic_timer_shutdown,
+	.set_state_periodic		= lapic_timer_set_periodic,
+	.set_state_oneshot		= lapic_timer_set_oneshot,
+	.set_state_oneshot_stopped	= lapic_timer_shutdown,
+	.set_next_event			= lapic_next_event,
+	.broadcast			= lapic_timer_broadcast,
+	.rating				= 100,
+	.irq				= -1,
 };
 static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
 
@@ -1245,7 +1246,7 @@ static void lapic_setup_esr(void)
 /**
  * setup_local_APIC - setup the local APIC
  *
- * Used to setup local APIC while initializing BSP or bringin up APs.
+ * Used to setup local APIC while initializing BSP or bringing up APs.
  * Always called with preemption disabled.
  */
 void setup_local_APIC(void)
@@ -1609,24 +1610,15 @@ static inline void try_to_enable_x2apic(int remap_mode) { }
 static inline void __x2apic_enable(void) { }
 #endif /* !CONFIG_X86_X2APIC */
 
-static int __init try_to_enable_IR(void)
-{
-#ifdef CONFIG_X86_IO_APIC
-	if (!x2apic_enabled() && skip_ioapic_setup) {
-		pr_info("Not enabling interrupt remapping due to skipped IO-APIC setup\n");
-		return -1;
-	}
-#endif
-	return irq_remapping_enable();
-}
-
 void __init enable_IR_x2apic(void)
 {
 	unsigned long flags;
 	int ret, ir_stat;
 
-	if (skip_ioapic_setup)
+	if (skip_ioapic_setup) {
+		pr_info("Not enabling interrupt remapping due to skipped IO-APIC setup\n");
 		return;
+	}
 
 	ir_stat = irq_remapping_prepare();
 	if (ir_stat < 0 && !x2apic_supported())
@@ -1644,7 +1636,7 @@ void __init enable_IR_x2apic(void)
 
 	/* If irq_remapping_prepare() succeeded, try to enable it */
 	if (ir_stat >= 0)
-		ir_stat = try_to_enable_IR();
+		ir_stat = irq_remapping_enable();
 	/* ir_stat contains the remap mode or an error code */
 	try_to_enable_x2apic(ir_stat);
 
@@ -1864,14 +1856,14 @@ static void __smp_spurious_interrupt(u8 vector)
 		"should never happen.\n", vector, smp_processor_id());
 }
 
-__visible void smp_spurious_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_spurious_interrupt(~regs->orig_ax);
 	exiting_irq();
 }
 
-__visible void smp_trace_spurious_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_trace_spurious_interrupt(struct pt_regs *regs)
 {
 	u8 vector = ~regs->orig_ax;
 
@@ -1922,14 +1914,14 @@ static void __smp_error_interrupt(struct pt_regs *regs)
 
 }
 
-__visible void smp_error_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_error_interrupt(regs);
 	exiting_irq();
 }
 
-__visible void smp_trace_error_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_trace_error_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	trace_error_apic_entry(ERROR_APIC_VECTOR);
@@ -2028,8 +2020,8 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 /*
  * The number of allocated logical CPU IDs. Since logical CPU IDs are allocated
  * contiguously, it equals to current allocated max logical CPU ID plus 1.
- * All allocated CPU ID should be in [0, nr_logical_cpuidi), so the maximum of
- * nr_logical_cpuids is nr_cpu_ids.
+ * All allocated CPU IDs should be in the [0, nr_logical_cpuids) range,
+ * so the maximum of nr_logical_cpuids is nr_cpu_ids.
  *
  * NOTE: Reserve 0 for BSP.
  */
@@ -2061,17 +2053,17 @@ static int allocate_logical_cpuid(int apicid)
 
 	/* Allocate a new cpuid. */
 	if (nr_logical_cpuids >= nr_cpu_ids) {
-		WARN_ONCE(1, "Only %d processors supported."
+		WARN_ONCE(1, "APIC: NR_CPUS/possible_cpus limit of %i reached. "
 			     "Processor %d/0x%x and the rest are ignored.\n",
-			     nr_cpu_ids - 1, nr_logical_cpuids, apicid);
-		return -1;
+			     nr_cpu_ids, nr_logical_cpuids, apicid);
+		return -EINVAL;
 	}
 
 	cpuid_to_apicid[nr_logical_cpuids] = apicid;
 	return nr_logical_cpuids++;
 }
 
-int __generic_processor_info(int apicid, int version, bool enabled)
+int generic_processor_info(int apicid, int version)
 {
 	int cpu, max = nr_cpu_ids;
 	bool boot_cpu_detected = physid_isset(boot_cpu_physical_apicid,
@@ -2094,7 +2086,7 @@ int __generic_processor_info(int apicid, int version, bool enabled)
 	 * Since fixing handling of boot_cpu_physical_apicid requires
 	 * another discussion and tests on each platform, we leave it
 	 * for now and here we use read_apic_id() directly in this
-	 * function, generic_processor_info().
+	 * function, __generic_processor_info().
 	 */
 	if (disabled_cpu_apicid != BAD_APICID &&
 	    disabled_cpu_apicid != read_apic_id() &&
@@ -2129,11 +2121,9 @@ int __generic_processor_info(int apicid, int version, bool enabled)
 	if (num_processors >= nr_cpu_ids) {
 		int thiscpu = max + disabled_cpus;
 
-		if (enabled) {
-			pr_warning("APIC: NR_CPUS/possible_cpus limit of %i "
-				   "reached. Processor %d/0x%x ignored.\n",
-				   max, thiscpu, apicid);
-		}
+		pr_warning("APIC: NR_CPUS/possible_cpus limit of %i "
+			   "reached. Processor %d/0x%x ignored.\n",
+			   max, thiscpu, apicid);
 
 		disabled_cpus++;
 		return -EINVAL;
@@ -2185,21 +2175,11 @@ int __generic_processor_info(int apicid, int version, bool enabled)
 		apic->x86_32_early_logical_apicid(cpu);
 #endif
 	set_cpu_possible(cpu, true);
-
-	if (enabled) {
-		num_processors++;
-		physid_set(apicid, phys_cpu_present_map);
-		set_cpu_present(cpu, true);
-	} else {
-		disabled_cpus++;
-	}
+	physid_set(apicid, phys_cpu_present_map);
+	set_cpu_present(cpu, true);
+	num_processors++;
 
 	return cpu;
-}
-
-int generic_processor_info(int apicid, int version)
-{
-	return __generic_processor_info(apicid, version, true);
 }
 
 int hard_smp_processor_id(void)

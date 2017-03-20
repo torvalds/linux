@@ -1563,7 +1563,7 @@ static int sxgbe_poll(struct napi_struct *napi, int budget)
 
 	work_done = sxgbe_rx(priv, budget);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		priv->hw->dma->enable_dma_irq(priv->ioaddr, qnum);
 	}
 
@@ -1706,11 +1706,9 @@ static inline u64 sxgbe_get_stat64(void __iomem *ioaddr, int reg_lo, int reg_hi)
  *  This function is a driver entry point whenever ifconfig command gets
  *  executed to see device statistics. Statistics are number of
  *  bytes sent or received, errors occurred etc.
- *  Return value:
- *  This function returns various statistical information of device.
  */
-static struct rtnl_link_stats64 *sxgbe_get_stats64(struct net_device *dev,
-						   struct rtnl_link_stats64 *stats)
+static void sxgbe_get_stats64(struct net_device *dev,
+			      struct rtnl_link_stats64 *stats)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
 	void __iomem *ioaddr = priv->ioaddr;
@@ -1761,8 +1759,6 @@ static struct rtnl_link_stats64 *sxgbe_get_stats64(struct net_device *dev,
 						 SXGBE_MMC_TXUFLWHI_GBCNT_REG);
 	writel(0, ioaddr + SXGBE_MMC_CTL_REG);
 	spin_unlock(&priv->stats_lock);
-
-	return stats;
 }
 
 /*  sxgbe_set_features - entry point to set offload features of the device.

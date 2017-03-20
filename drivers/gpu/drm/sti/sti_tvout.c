@@ -567,13 +567,6 @@ static struct drm_info_list tvout_debugfs_files[] = {
 	{ "tvout", tvout_dbg_show, 0, NULL },
 };
 
-static void tvout_debugfs_exit(struct sti_tvout *tvout, struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(tvout_debugfs_files,
-				 ARRAY_SIZE(tvout_debugfs_files),
-				 minor);
-}
-
 static int tvout_debugfs_init(struct sti_tvout *tvout, struct drm_minor *minor)
 {
 	unsigned int i;
@@ -627,7 +620,6 @@ static void sti_tvout_early_unregister(struct drm_encoder *encoder)
 	if (!tvout->debugfs_registered)
 		return;
 
-	tvout_debugfs_exit(tvout, encoder->dev->primary);
 	tvout->debugfs_registered = false;
 }
 

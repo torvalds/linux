@@ -30,7 +30,7 @@
 /**
  * struct drm_property_enum - symbolic values for enumerations
  * @value: numeric property value for this enum entry
- * @head: list of enum values, linked to enum_list in &drm_property
+ * @head: list of enum values, linked to &drm_property.enum_list
  * @name: symbolic name for the enum
  *
  * For enumeration and bitmask properties this structure stores the symbolic
@@ -191,9 +191,9 @@ struct drm_property {
  * struct drm_property_blob - Blob data for &drm_property
  * @base: base KMS object
  * @dev: DRM device
- * @head_global: entry on the global blob list in &drm_mode_config
- *	property_blob_list.
- * @head_file: entry on the per-file blob list in &drm_file blobs list.
+ * @head_global: entry on the global blob list in
+ * 	&drm_mode_config.property_blob_list.
+ * @head_file: entry on the per-file blob list in &drm_file.blobs list.
  * @length: size of the blob in bytes, invariant over the lifetime of the object
  * @data: actual data, embedded at the end of this structure
  *

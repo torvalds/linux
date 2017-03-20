@@ -24,8 +24,6 @@
 #include "ion.h"
 #include "ion_priv.h"
 
-#define ION_CMA_ALLOCATE_FAILED -1
-
 struct ion_cma_heap {
 	struct ion_heap heap;
 	struct device *dev;
@@ -57,9 +55,9 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	if (align > PAGE_SIZE)
 		return -EINVAL;
 
-	info = kzalloc(sizeof(struct ion_cma_buffer_info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return ION_CMA_ALLOCATE_FAILED;
+		return -ENOMEM;
 
 	info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
 						GFP_HIGHUSER | __GFP_ZERO);
@@ -69,7 +67,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 		goto err;
 	}
 
-	info->table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
+	info->table = kmalloc(sizeof(*info->table), GFP_KERNEL);
 	if (!info->table)
 		goto free_mem;
 
@@ -88,7 +86,7 @@ free_mem:
 	dma_free_coherent(dev, len, info->cpu_addr, info->handle);
 err:
 	kfree(info);
-	return ION_CMA_ALLOCATE_FAILED;
+	return -ENOMEM;
 }
 
 static void ion_cma_free(struct ion_buffer *buffer)
@@ -142,7 +140,7 @@ struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
 {
 	struct ion_cma_heap *cma_heap;
 
-	cma_heap = kzalloc(sizeof(struct ion_cma_heap), GFP_KERNEL);
+	cma_heap = kzalloc(sizeof(*cma_heap), GFP_KERNEL);
 
 	if (!cma_heap)
 		return ERR_PTR(-ENOMEM);

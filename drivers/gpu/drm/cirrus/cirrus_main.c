@@ -34,7 +34,7 @@ int cirrus_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 
-	drm_helper_mode_fill_fb_struct(&gfb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &gfb->base, mode_cmd);
 	gfb->obj = obj;
 	ret = drm_framebuffer_init(dev, &gfb->base, &cirrus_fb_funcs);
 	if (ret) {
@@ -208,18 +208,17 @@ out:
 	return r;
 }
 
-int cirrus_driver_unload(struct drm_device *dev)
+void cirrus_driver_unload(struct drm_device *dev)
 {
 	struct cirrus_device *cdev = dev->dev_private;
 
 	if (cdev == NULL)
-		return 0;
+		return;
 	cirrus_modeset_fini(cdev);
 	cirrus_mm_fini(cdev);
 	cirrus_device_fini(cdev);
 	kfree(cdev);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 int cirrus_gem_create(struct drm_device *dev,

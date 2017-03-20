@@ -3041,7 +3041,7 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 	unsigned int i;
 	int ret;
 
-	dev_dbg(dev, "ASoC: dai register %s #%Zu\n", dev_name(dev), count);
+	dev_dbg(dev, "ASoC: dai register %s #%zu\n", dev_name(dev), count);
 
 	component->dai_drv = dai_drv;
 

@@ -57,10 +57,8 @@
 
 &pio {
 	mmc2_pins_nrst: mmc2-rst-pin {
-		allwinner,pins = "PC16";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PC16";
+		function = "gpio_out";
 	};
 };
 

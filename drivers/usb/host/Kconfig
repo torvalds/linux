@@ -45,9 +45,9 @@ config USB_XHCI_PLATFORM
 	  If unsure, say N.
 
 config USB_XHCI_MTK
-	tristate "xHCI support for Mediatek MT65xx"
+	tristate "xHCI support for Mediatek MT65xx/MT7621"
 	select MFD_SYSCON
-	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on (MIPS && SOC_MT7621) || ARCH_MEDIATEK || COMPILE_TEST
 	---help---
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in Mediatek MT65xx SoCs.

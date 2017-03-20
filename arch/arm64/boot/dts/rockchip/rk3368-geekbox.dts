@@ -66,7 +66,7 @@
 
 	ir: ir-receiver {
 		compatible = "gpio-ir-receiver";
-		gpios = <&gpio3 30 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio3 RK_PD6 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ir_int>;
 	};
@@ -77,7 +77,7 @@
 		pinctrl-0 = <&pwr_key>;
 
 		power {
-			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";
 			linux,code = <KEY_POWER>;
 			wakeup-source;
@@ -88,13 +88,13 @@
 		compatible = "gpio-leds";
 
 		blue {
-			gpios = <&gpio2 2 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_HIGH>;
 			label = "geekbox:blue:led";
 			default-state = "on";
 		};
 
 		red {
-			gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>;
 			label = "geekbox:red:led";
 			default-state = "off";
 		};
@@ -146,7 +146,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>, <&pmic_sleep>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PA5 IRQ_TYPE_LEVEL_LOW>;
 		rockchip,system-power-controller;
 		vcc1-supply = <&vcc_sys>;
 		vcc2-supply = <&vcc_sys>;

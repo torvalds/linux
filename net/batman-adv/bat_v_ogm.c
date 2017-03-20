@@ -1,4 +1,4 @@
-/* Copyright (C) 2013-2016 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2013-2017  B.A.T.M.A.N. contributors:
  *
  * Antonio Quartulli
  *

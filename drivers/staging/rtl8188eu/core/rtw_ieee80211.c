@@ -71,8 +71,8 @@ int rtw_get_bit_value_from_ieee_value(u8 val)
 	unsigned char dot11_rate_table[] = {
 		2, 4, 11, 22, 12, 18, 24, 36, 48,
 		72, 96, 108, 0}; /*  last element must be zero!! */
-
 	int i = 0;
+
 	while (dot11_rate_table[i] != 0) {
 		if (dot11_rate_table[i] == val)
 			return BIT(i);
@@ -162,6 +162,7 @@ u8 *rtw_get_ie(u8 *pbuf, int index, int *len, int limit)
 {
 	int tmp, i;
 	u8 *p;
+
 	if (limit < 1)
 		return NULL;
 
@@ -211,6 +212,7 @@ void rtw_set_supported_rate(u8 *SupportedRates, uint mode)
 uint	rtw_get_rateset_len(u8	*rateset)
 {
 	uint i = 0;
+
 	while (1) {
 		if ((rateset[i]) == 0)
 			break;
@@ -998,10 +1000,11 @@ int ieee80211_get_hdrlen(u16 fc)
 
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 {
-	u32 wpa_ielen;
+	int wpa_ielen;
 	unsigned char *pbuf;
 	int group_cipher = 0, pairwise_cipher = 0, is8021x = 0;
 	int ret = _FAIL;
+
 	pbuf = rtw_get_wpa_ie(&pnetwork->network.IEs[12], &wpa_ielen, pnetwork->network.IELength - 12);
 
 	if (pbuf && (wpa_ielen > 0)) {
@@ -1042,7 +1045,7 @@ void rtw_get_bcn_info(struct wlan_network *pnetwork)
 	__le16 le_tmp;
 	u16 wpa_len = 0, rsn_len = 0;
 	struct HT_info_element *pht_info = NULL;
-	unsigned int		len;
+	int len;
 	unsigned char		*p;
 
 	memcpy(&le_tmp, rtw_get_capability_from_ie(pnetwork->network.IEs), 2);

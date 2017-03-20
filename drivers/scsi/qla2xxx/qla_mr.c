@@ -1789,16 +1789,16 @@ qlafx00_update_host_attr(scsi_qla_host_t *vha, struct port_info_data *pinfo)
 static void
 qla2x00_fxdisc_iocb_timeout(void *data)
 {
-	srb_t *sp = (srb_t *)data;
+	srb_t *sp = data;
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
 
 	complete(&lio->u.fxiocb.fxiocb_comp);
 }
 
 static void
-qla2x00_fxdisc_sp_done(void *data, void *ptr, int res)
+qla2x00_fxdisc_sp_done(void *ptr, int res)
 {
-	srb_t *sp = (srb_t *)ptr;
+	srb_t *sp = ptr;
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
 
 	complete(&lio->u.fxiocb.fxiocb_comp);
@@ -1999,7 +1999,7 @@ done_unmap_req:
 		dma_free_coherent(&ha->pdev->dev, fdisc->u.fxiocb.req_len,
 		    fdisc->u.fxiocb.req_addr, fdisc->u.fxiocb.req_dma_handle);
 done_free_sp:
-	sp->free(vha, sp);
+	sp->free(sp);
 done:
 	return rval;
 }
@@ -2127,7 +2127,7 @@ static inline void
 qlafx00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 		     uint32_t sense_len, struct rsp_que *rsp, int res)
 {
-	struct scsi_qla_host *vha = sp->fcport->vha;
+	struct scsi_qla_host *vha = sp->vha;
 	struct scsi_cmnd *cp = GET_CMD_SP(sp);
 	uint32_t track_sense_len;
 
@@ -2162,7 +2162,7 @@ qlafx00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 	if (sense_len) {
 		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x3039,
 		    "Check condition Sense data, nexus%ld:%d:%llu cmd=%p.\n",
-		    sp->fcport->vha->host_no, cp->device->id, cp->device->lun,
+		    sp->vha->host_no, cp->device->id, cp->device->lun,
 		    cp);
 		ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x3049,
 		    cp->sense_buffer, sense_len);
@@ -2181,7 +2181,7 @@ qlafx00_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	    (sstatus & cpu_to_le16((uint16_t)SS_RESPONSE_INFO_LEN_VALID)))
 		cpstatus = cpu_to_le16((uint16_t)CS_INCOMPLETE);
 	tmf->u.tmf.comp_status = cpstatus;
-	sp->done(vha, sp, 0);
+	sp->done(sp, 0);
 }
 
 static void
@@ -2198,7 +2198,7 @@ qlafx00_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 	abt = &sp->u.iocb_cmd;
 	abt->u.abt.comp_status = pkt->tgt_id_sts;
-	sp->done(vha, sp, 0);
+	sp->done(sp, 0);
 }
 
 static void
@@ -2244,7 +2244,7 @@ qlafx00_ioctl_iosb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		memcpy(fstatus.reserved_3,
 		    pkt->reserved_2, 20 * sizeof(uint8_t));
 
-		fw_sts_ptr = ((uint8_t *)bsg_job->req->sense) +
+		fw_sts_ptr = ((uint8_t *)scsi_req(bsg_job->req)->sense) +
 		    sizeof(struct fc_bsg_reply);
 
 		memcpy(fw_sts_ptr, (uint8_t *)&fstatus,
@@ -2264,7 +2264,7 @@ qlafx00_ioctl_iosb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		bsg_reply->reply_payload_rcv_len =
 		    bsg_job->reply_payload.payload_len;
 	}
-	sp->done(vha, sp, res);
+	sp->done(sp, res);
 }
 
 /**
@@ -2537,7 +2537,7 @@ check_scsi_status:
 		    par_sense_len, rsp_info_len);
 
 	if (rsp->status_srb == NULL)
-		sp->done(ha, sp, res);
+		sp->done(sp, res);
 }
 
 /**
@@ -2614,7 +2614,7 @@ qlafx00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
 	/* Place command on done queue. */
 	if (sense_len == 0) {
 		rsp->status_srb = NULL;
-		sp->done(ha, sp, cp->result);
+		sp->done(sp, cp->result);
 	}
 }
 
@@ -2695,7 +2695,7 @@ qlafx00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp,
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
 	if (sp) {
-		sp->done(ha, sp, res);
+		sp->done(sp, res);
 		return;
 	}
 
@@ -2997,7 +2997,7 @@ qlafx00_build_scsi_iocbs(srb_t *sp, struct cmd_type_7_fx00 *cmd_pkt,
 	cont_a64_entry_t lcont_pkt;
 	cont_a64_entry_t *cont_pkt;
 
-	vha = sp->fcport->vha;
+	vha = sp->vha;
 	req = vha->req;
 
 	cmd = GET_CMD_SP(sp);
@@ -3081,7 +3081,7 @@ qlafx00_start_scsi(srb_t *sp)
 	struct req_que *req = NULL;
 	struct rsp_que *rsp = NULL;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
-	struct scsi_qla_host *vha = sp->fcport->vha;
+	struct scsi_qla_host *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct cmd_type_7_fx00 *cmd_pkt;
 	struct cmd_type_7_fx00 lcmd_pkt;
@@ -3205,7 +3205,7 @@ void
 qlafx00_tm_iocb(srb_t *sp, struct tsk_mgmt_entry_fx00 *ptm_iocb)
 {
 	struct srb_iocb *fxio = &sp->u.iocb_cmd;
-	scsi_qla_host_t *vha = sp->fcport->vha;
+	scsi_qla_host_t *vha = sp->vha;
 	struct req_que *req = vha->req;
 	struct tsk_mgmt_entry_fx00 tm_iocb;
 	struct scsi_lun llun;
@@ -3232,7 +3232,7 @@ void
 qlafx00_abort_iocb(srb_t *sp, struct abort_iocb_entry_fx00 *pabt_iocb)
 {
 	struct srb_iocb *fxio = &sp->u.iocb_cmd;
-	scsi_qla_host_t *vha = sp->fcport->vha;
+	scsi_qla_host_t *vha = sp->vha;
 	struct req_que *req = vha->req;
 	struct abort_iocb_entry_fx00 abt_iocb;
 
@@ -3346,8 +3346,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 					    REQUEST_ENTRY_SIZE);
 					cont_pkt =
 					    qlafx00_prep_cont_type1_iocb(
-						sp->fcport->vha->req,
-						&lcont_pkt);
+						sp->vha->req, &lcont_pkt);
 					cur_dsd = (__le32 *)
 					    lcont_pkt.dseg_0_address;
 					avail_dsds = 5;
@@ -3368,7 +3367,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 					    &lcont_pkt, REQUEST_ENTRY_SIZE);
 					ql_dump_buffer(
 					    ql_dbg_user + ql_dbg_verbose,
-					    sp->fcport->vha, 0x3042,
+					    sp->vha, 0x3042,
 					    (uint8_t *)&lcont_pkt,
 					     REQUEST_ENTRY_SIZE);
 				}
@@ -3377,7 +3376,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 				memcpy_toio((void __iomem *)cont_pkt,
 				    &lcont_pkt, REQUEST_ENTRY_SIZE);
 				ql_dump_buffer(ql_dbg_user + ql_dbg_verbose,
-				    sp->fcport->vha, 0x3043,
+				    sp->vha, 0x3043,
 				    (uint8_t *)&lcont_pkt, REQUEST_ENTRY_SIZE);
 			}
 		}
@@ -3409,8 +3408,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 					    REQUEST_ENTRY_SIZE);
 					cont_pkt =
 					    qlafx00_prep_cont_type1_iocb(
-						sp->fcport->vha->req,
-						&lcont_pkt);
+						sp->vha->req, &lcont_pkt);
 					cur_dsd = (__le32 *)
 					    lcont_pkt.dseg_0_address;
 					avail_dsds = 5;
@@ -3431,7 +3429,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 					    REQUEST_ENTRY_SIZE);
 					ql_dump_buffer(
 					    ql_dbg_user + ql_dbg_verbose,
-					    sp->fcport->vha, 0x3045,
+					    sp->vha, 0x3045,
 					    (uint8_t *)&lcont_pkt,
 					    REQUEST_ENTRY_SIZE);
 				}
@@ -3440,7 +3438,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 				memcpy_toio((void __iomem *)cont_pkt,
 				    &lcont_pkt, REQUEST_ENTRY_SIZE);
 				ql_dump_buffer(ql_dbg_user + ql_dbg_verbose,
-				    sp->fcport->vha, 0x3046,
+				    sp->vha, 0x3046,
 				    (uint8_t *)&lcont_pkt, REQUEST_ENTRY_SIZE);
 			}
 		}
@@ -3452,7 +3450,7 @@ qlafx00_fxdisc_iocb(srb_t *sp, struct fxdisc_entry_fx00 *pfxiocb)
 	}
 
 	ql_dump_buffer(ql_dbg_user + ql_dbg_verbose,
-	    sp->fcport->vha, 0x3047,
+	    sp->vha, 0x3047,
 	    (uint8_t *)&fx_iocb, sizeof(struct fxdisc_entry_fx00));
 
 	memcpy_toio((void __iomem *)pfxiocb, &fx_iocb,

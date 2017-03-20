@@ -65,9 +65,18 @@ static const struct spi_device_id st_accel_id_table[] = {
 };
 MODULE_DEVICE_TABLE(spi, st_accel_id_table);
 
+#ifdef CONFIG_OF
+static const struct of_device_id lis302dl_spi_dt_ids[] = {
+	{ .compatible = "st,lis302dl-spi" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, lis302dl_spi_dt_ids);
+#endif
+
 static struct spi_driver st_accel_driver = {
 	.driver = {
 		.name = "st-accel-spi",
+		.of_match_table = of_match_ptr(lis302dl_spi_dt_ids),
 	},
 	.probe = st_accel_spi_probe,
 	.remove = st_accel_spi_remove,

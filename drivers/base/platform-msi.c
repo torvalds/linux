@@ -206,7 +206,7 @@ platform_msi_alloc_priv_data(struct device *dev, unsigned int nvec,
 {
 	struct platform_msi_priv_data *datap;
 	/*
-	 * Limit the number of interrupts to 256 per device. Should we
+	 * Limit the number of interrupts to 2048 per device. Should we
 	 * need to bump this up, DEV_ID_SHIFT should be adjusted
 	 * accordingly (which would impact the max number of MSI
 	 * capable devices).

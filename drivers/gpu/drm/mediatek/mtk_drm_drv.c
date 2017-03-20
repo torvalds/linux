@@ -321,7 +321,8 @@ static void mtk_drm_unbind(struct device *dev)
 {
 	struct mtk_drm_private *private = dev_get_drvdata(dev);
 
-	drm_put_dev(private->drm);
+	drm_dev_unregister(private->drm);
+	drm_dev_unref(private->drm);
 	private->drm = NULL;
 }
 

@@ -11,11 +11,13 @@
 
 #include <linux/linkage.h>
 
-.data
+.section	.rodata.cst32.ANMASK, "aM", @progbits, 32
 .align 32
-
 ANMASK:	.octa 0x0000000003ffffff0000000003ffffff
 	.octa 0x0000000003ffffff0000000003ffffff
+
+.section	.rodata.cst32.ORMASK, "aM", @progbits, 32
+.align 32
 ORMASK:	.octa 0x00000000010000000000000001000000
 	.octa 0x00000000010000000000000001000000
 

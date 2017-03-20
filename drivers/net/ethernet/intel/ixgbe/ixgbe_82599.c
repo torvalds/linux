@@ -331,8 +331,6 @@ static s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
 	case ixgbe_phy_tn:
 		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
 		phy->ops.setup_link = &ixgbe_setup_phy_link_tnx;
-		phy->ops.get_firmware_version =
-			     &ixgbe_get_phy_firmware_version_tnx;
 		break;
 	default:
 		break;
@@ -1451,7 +1449,7 @@ do { \
  *  @atr_input: input bitstream to compute the hash on
  *  @input_mask: mask for the input bitstream
  *
- *  This function serves two main purposes.  First it applys the input_mask
+ *  This function serves two main purposes.  First it applies the input_mask
  *  to the atr_input resulting in a cleaned up atr_input data stream.
  *  Secondly it computes the hash and stores it in the bkt_hash field at
  *  the end of the input byte stream.  This way it will be available for

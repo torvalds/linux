@@ -54,6 +54,9 @@ int tpm_read_log_acpi(struct tpm_chip *chip)
 	u64 len, start;
 	struct tpm_bios_log *log;
 
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return -ENODEV;
+
 	log = &chip->log;
 
 	/* Unfortuntely ACPI does not associate the event log with a specific

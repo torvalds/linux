@@ -11,7 +11,8 @@
  * Waiting for completion is a typically sync point, but not an exclusion point.
  */
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/completion.h>
 
 /**
@@ -31,7 +32,8 @@ void complete(struct completion *x)
 	unsigned long flags;
 
 	spin_lock_irqsave(&x->wait.lock, flags);
-	x->done++;
+	if (x->done != UINT_MAX)
+		x->done++;
 	__wake_up_locked(&x->wait, TASK_NORMAL, 1);
 	spin_unlock_irqrestore(&x->wait.lock, flags);
 }
@@ -51,7 +53,7 @@ void complete_all(struct completion *x)
 	unsigned long flags;
 
 	spin_lock_irqsave(&x->wait.lock, flags);
-	x->done += UINT_MAX/2;
+	x->done = UINT_MAX;
 	__wake_up_locked(&x->wait, TASK_NORMAL, 0);
 	spin_unlock_irqrestore(&x->wait.lock, flags);
 }
@@ -79,7 +81,8 @@ do_wait_for_common(struct completion *x,
 		if (!x->done)
 			return timeout;
 	}
-	x->done--;
+	if (x->done != UINT_MAX)
+		x->done--;
 	return timeout ?: 1;
 }
 
@@ -280,7 +283,7 @@ bool try_wait_for_completion(struct completion *x)
 	spin_lock_irqsave(&x->wait.lock, flags);
 	if (!x->done)
 		ret = 0;
-	else
+	else if (x->done != UINT_MAX)
 		x->done--;
 	spin_unlock_irqrestore(&x->wait.lock, flags);
 	return ret;

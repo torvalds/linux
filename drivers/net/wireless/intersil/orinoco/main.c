@@ -294,14 +294,6 @@ int orinoco_stop(struct net_device *dev)
 }
 EXPORT_SYMBOL(orinoco_stop);
 
-struct net_device_stats *orinoco_get_stats(struct net_device *dev)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-
-	return &priv->stats;
-}
-EXPORT_SYMBOL(orinoco_get_stats);
-
 void orinoco_set_multicast_list(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
@@ -433,7 +425,7 @@ EXPORT_SYMBOL(orinoco_process_xmit_skb);
 static netdev_tx_t orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct hermes *hw = &priv->hw;
 	int err = 0;
 	u16 txfid = priv->txfid;
@@ -593,10 +585,7 @@ static void __orinoco_ev_alloc(struct net_device *dev, struct hermes *hw)
 
 static void __orinoco_ev_tx(struct net_device *dev, struct hermes *hw)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
-
-	stats->tx_packets++;
+	dev->stats.tx_packets++;
 
 	netif_wake_queue(dev);
 
@@ -605,8 +594,7 @@ static void __orinoco_ev_tx(struct net_device *dev, struct hermes *hw)
 
 static void __orinoco_ev_txexc(struct net_device *dev, struct hermes *hw)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	u16 fid = hermes_read_regn(hw, TXCOMPLFID);
 	u16 status;
 	struct hermes_txexc_data hdr;
@@ -662,7 +650,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, struct hermes *hw)
 void orinoco_tx_timeout(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct hermes *hw = &priv->hw;
 
 	printk(KERN_WARNING "%s: Tx timeout! "
@@ -749,7 +737,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	int len;
 	struct sk_buff *skb;
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct hermes *hw = &priv->hw;
 
 	len = le16_to_cpu(desc->data_len);
@@ -840,7 +828,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 void __orinoco_ev_rx(struct net_device *dev, struct hermes *hw)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	struct iw_statistics *wstats = &priv->wstats;
 	struct sk_buff *skb = NULL;
 	u16 rxfid, status;
@@ -959,7 +947,7 @@ static void orinoco_rx(struct net_device *dev,
 		       struct sk_buff *skb)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 	u16 status, fc;
 	int length;
 	struct ethhdr *hdr;
@@ -2137,7 +2125,6 @@ static const struct net_device_ops orinoco_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= orinoco_tx_timeout,
-	.ndo_get_stats		= orinoco_get_stats,
 };
 
 /* Allocate private data.

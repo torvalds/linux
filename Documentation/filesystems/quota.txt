@@ -6,7 +6,7 @@ Quota subsystem allows system administrator to set limits on used space and
 number of used inodes (inode is a filesystem structure which is associated with
 each file or directory) for users and/or groups. For both used space and number
 of used inodes there are actually two limits. The first one is called softlimit
-and the second one hardlimit.  An user can never exceed a hardlimit for any
+and the second one hardlimit.  A user can never exceed a hardlimit for any
 resource (unless he has CAP_SYS_RESOURCE capability). User is allowed to exceed
 softlimit but only for limited period of time. This period is called "grace
 period" or "grace time". When grace time is over, user is not able to allocate

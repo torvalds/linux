@@ -234,7 +234,7 @@ void ceph_fscache_file_set_cookie(struct inode *inode, struct file *filp)
 		fscache_enable_cookie(ci->fscache, ceph_fscache_can_enable,
 				inode);
 		if (fscache_cookie_enabled(ci->fscache)) {
-			dout("fscache_file_set_cookie %p %p enabing cache\n",
+			dout("fscache_file_set_cookie %p %p enabling cache\n",
 			     inode, filp);
 		}
 	}

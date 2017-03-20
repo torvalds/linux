@@ -64,8 +64,4 @@ int mc_get_version(struct fsl_mc_io *mc_io,
 		   u32 cmd_flags,
 		   struct mc_version *mc_ver_info);
 
-int dpmng_get_container_id(struct fsl_mc_io *mc_io,
-			   u32 cmd_flags,
-			   int *container_id);
-
 #endif /* __FSL_DPMNG_H */

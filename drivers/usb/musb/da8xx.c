@@ -125,7 +125,6 @@ static void da8xx_musb_disable(struct musb *musb)
 	musb_writel(reg_base, DA8XX_USB_INTR_MASK_CLEAR_REG,
 		    DA8XX_INTR_USB_MASK |
 		    DA8XX_INTR_TX_MASK | DA8XX_INTR_RX_MASK);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	musb_writel(reg_base, DA8XX_USB_END_OF_INTR_REG, 0);
 }
 
@@ -458,15 +457,11 @@ static inline u8 get_vbus_power(struct device *dev)
 }
 
 static const struct musb_platform_ops da8xx_ops = {
-	.quirks		= MUSB_DMA_CPPI | MUSB_INDEXED_EP,
+	.quirks		= MUSB_INDEXED_EP | MUSB_PRESERVE_SESSION,
 	.init		= da8xx_musb_init,
 	.exit		= da8xx_musb_exit,
 
 	.fifo_mode	= 2,
-#ifdef CONFIG_USB_TI_CPPI_DMA
-	.dma_init	= cppi_dma_controller_create,
-	.dma_exit	= cppi_dma_controller_destroy,
-#endif
 	.enable		= da8xx_musb_enable,
 	.disable	= da8xx_musb_disable,
 
@@ -578,6 +573,34 @@ static int da8xx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int da8xx_suspend(struct device *dev)
+{
+	int ret;
+	struct da8xx_glue *glue = dev_get_drvdata(dev);
+
+	ret = phy_power_off(glue->phy);
+	if (ret)
+		return ret;
+	clk_disable_unprepare(glue->clk);
+
+	return 0;
+}
+
+static int da8xx_resume(struct device *dev)
+{
+	int ret;
+	struct da8xx_glue *glue = dev_get_drvdata(dev);
+
+	ret = clk_prepare_enable(glue->clk);
+	if (ret)
+		return ret;
+	return phy_power_on(glue->phy);
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(da8xx_pm_ops, da8xx_suspend, da8xx_resume);
+
 #ifdef CONFIG_OF
 static const struct of_device_id da8xx_id_table[] = {
 	{
@@ -593,6 +616,7 @@ static struct platform_driver da8xx_driver = {
 	.remove		= da8xx_remove,
 	.driver		= {
 		.name	= "musb-da8xx",
+		.pm = &da8xx_pm_ops,
 		.of_match_table = of_match_ptr(da8xx_id_table),
 	},
 };

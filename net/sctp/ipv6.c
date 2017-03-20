@@ -413,22 +413,20 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 static void sctp_v6_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 			     int is_saddr)
 {
-	__be16 *port;
-	struct sctphdr *sh;
+	/* Always called on head skb, so this is safe */
+	struct sctphdr *sh = sctp_hdr(skb);
+	struct sockaddr_in6 *sa = &addr->v6;
 
-	port = &addr->v6.sin6_port;
 	addr->v6.sin6_family = AF_INET6;
 	addr->v6.sin6_flowinfo = 0; /* FIXME */
 	addr->v6.sin6_scope_id = ((struct inet6_skb_parm *)skb->cb)->iif;
 
-	/* Always called on head skb, so this is safe */
-	sh = sctp_hdr(skb);
 	if (is_saddr) {
-		*port  = sh->source;
-		addr->v6.sin6_addr = ipv6_hdr(skb)->saddr;
+		sa->sin6_port = sh->source;
+		sa->sin6_addr = ipv6_hdr(skb)->saddr;
 	} else {
-		*port = sh->dest;
-		addr->v6.sin6_addr = ipv6_hdr(skb)->daddr;
+		sa->sin6_port = sh->dest;
+		sa->sin6_addr = ipv6_hdr(skb)->daddr;
 	}
 }
 
@@ -642,14 +640,15 @@ static sctp_scope_t sctp_v6_scope(union sctp_addr *addr)
 
 /* Create and initialize a new sk for the socket to be returned by accept(). */
 static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
-					     struct sctp_association *asoc)
+					     struct sctp_association *asoc,
+					     bool kern)
 {
 	struct sock *newsk;
 	struct ipv6_pinfo *newnp, *np = inet6_sk(sk);
 	struct sctp6_sock *newsctp6sk;
 	struct ipv6_txoptions *opt;
 
-	newsk = sk_alloc(sock_net(sk), PF_INET6, GFP_KERNEL, sk->sk_prot, 0);
+	newsk = sk_alloc(sock_net(sk), PF_INET6, GFP_KERNEL, sk->sk_prot, kern);
 	if (!newsk)
 		goto out;
 

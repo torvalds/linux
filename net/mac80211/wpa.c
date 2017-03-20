@@ -294,7 +294,8 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 		return RX_DROP_UNUSABLE;
 
 	/* Trim ICV */
-	skb_trim(skb, skb->len - IEEE80211_TKIP_ICV_LEN);
+	if (!(status->flag & RX_FLAG_ICV_STRIPPED))
+		skb_trim(skb, skb->len - IEEE80211_TKIP_ICV_LEN);
 
 	/* Remove IV */
 	memmove(skb->data + IEEE80211_TKIP_IV_LEN, skb->data, hdrlen);

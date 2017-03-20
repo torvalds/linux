@@ -128,6 +128,8 @@ all_target_sources()
 
 all_kconfigs()
 {
+	find ${tree}arch/ -maxdepth 1 $ignore \
+	       -name "Kconfig*" -not -type l -print;
 	for arch in $ALLSOURCE_ARCHS; do
 		find_sources $arch 'Kconfig*'
 	done
