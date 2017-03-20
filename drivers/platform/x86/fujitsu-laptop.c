@@ -593,36 +593,24 @@ static const struct dmi_system_id fujitsu_dmi_table[] __initconst = {
 static int acpi_fujitsu_bl_input_setup(struct acpi_device *device)
 {
 	struct fujitsu_bl *fujitsu_bl = acpi_driver_data(device);
-	struct input_dev *input;
-	int error;
 
-	fujitsu_bl->input = input = input_allocate_device();
-	if (!input)
+	fujitsu_bl->input = devm_input_allocate_device(&device->dev);
+	if (!fujitsu_bl->input)
 		return -ENOMEM;
 
 	snprintf(fujitsu_bl->phys, sizeof(fujitsu_bl->phys),
 		 "%s/video/input0", acpi_device_hid(device));
 
-	input->name = acpi_device_name(device);
-	input->phys = fujitsu_bl->phys;
-	input->id.bustype = BUS_HOST;
-	input->id.product = 0x06;
-	input->dev.parent = &device->dev;
-	input->evbit[0] = BIT(EV_KEY);
-	set_bit(KEY_BRIGHTNESSUP, input->keybit);
-	set_bit(KEY_BRIGHTNESSDOWN, input->keybit);
-	set_bit(KEY_UNKNOWN, input->keybit);
+	fujitsu_bl->input->name = acpi_device_name(device);
+	fujitsu_bl->input->phys = fujitsu_bl->phys;
+	fujitsu_bl->input->id.bustype = BUS_HOST;
+	fujitsu_bl->input->id.product = 0x06;
+	fujitsu_bl->input->evbit[0] = BIT(EV_KEY);
+	set_bit(KEY_BRIGHTNESSUP, fujitsu_bl->input->keybit);
+	set_bit(KEY_BRIGHTNESSDOWN, fujitsu_bl->input->keybit);
+	set_bit(KEY_UNKNOWN, fujitsu_bl->input->keybit);
 
-	error = input_register_device(input);
-	if (error)
-		goto err_free_input_dev;
-
-	return 0;
-
-err_free_input_dev:
-	input_free_device(input);
-
-	return error;
+	return input_register_device(fujitsu_bl->input);
 }
 
 static int fujitsu_backlight_register(void)
@@ -659,12 +647,12 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 
 	error = acpi_fujitsu_bl_input_setup(device);
 	if (error)
-		goto err_stop;
+		return error;
 
 	error = acpi_bus_update_power(fujitsu_bl->acpi_handle, &state);
 	if (error) {
 		pr_err("Error reading power state\n");
-		goto err_unregister_input_dev;
+		return error;
 	}
 
 	pr_info("ACPI: %s [%s] (%s)\n",
@@ -704,24 +692,17 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
 		error = fujitsu_backlight_register();
 		if (error)
-			goto err_unregister_input_dev;
+			return error;
 	}
 
 	return 0;
-
-err_unregister_input_dev:
-	input_unregister_device(fujitsu_bl->input);
-err_stop:
-	return error;
 }
 
 static int acpi_fujitsu_bl_remove(struct acpi_device *device)
 {
 	struct fujitsu_bl *fujitsu_bl = acpi_driver_data(device);
-	struct input_dev *input = fujitsu_bl->input;
 
 	backlight_device_unregister(fujitsu_bl->bl_device);
-	input_unregister_device(input);
 
 	fujitsu_bl->acpi_handle = NULL;
 
