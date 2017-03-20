@@ -1237,6 +1237,16 @@ static void aggr_cb(struct perf_evsel *counter, void *data, bool first)
 		if (first)
 			ad->nr++;
 		counts = perf_counts(counter->counts, cpu, 0);
+		/*
+		 * When any result is bad, make them all to give
+		 * consistent output in interval mode.
+		 */
+		if (counts->ena == 0 || counts->run == 0 ||
+		    counter->counts->scaled == -1) {
+			ad->ena = 0;
+			ad->run = 0;
+			break;
+		}
 		ad->val += counts->val;
 		ad->ena += counts->ena;
 		ad->run += counts->run;
