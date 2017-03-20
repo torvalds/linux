@@ -30,13 +30,9 @@
 #include <video/imx-ipu-v3.h>
 
 #include "imx-drm.h"
+#include "ipuv3-plane.h"
 
 #define MAX_CRTC	4
-
-struct imx_drm_component {
-	struct device_node *of_node;
-	struct list_head list;
-};
 
 struct imx_drm_device {
 	struct drm_device			*drm;
@@ -109,6 +105,11 @@ static int imx_drm_atomic_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	/* Assign PRG/PRE channels and check if all constrains are satisfied. */
+	ret = ipu_planes_assign_pre(dev, state);
+	if (ret)
+		return ret;
+
 	return ret;
 }
 
@@ -122,6 +123,10 @@ static const struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
 static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state;
+	bool plane_disabling = false;
+	int i;
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
@@ -131,11 +136,20 @@ static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
+	for_each_plane_in_state(state, plane, old_plane_state, i) {
+		if (drm_atomic_plane_disabling(old_plane_state, plane->state))
+			plane_disabling = true;
+	}
+
+	if (plane_disabling) {
+		drm_atomic_helper_wait_for_vblanks(dev, state);
+
+		for_each_plane_in_state(state, plane, old_plane_state, i)
+			ipu_plane_disable_deferred(plane);
+
+	}
+
 	drm_atomic_helper_commit_hw_done(state);
-
-	drm_atomic_helper_wait_for_vblanks(dev, state);
-
-	drm_atomic_helper_cleanup_planes(dev, state);
 }
 
 static const struct drm_mode_config_helper_funcs imx_drm_mode_config_helpers = {
