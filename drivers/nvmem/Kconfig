@@ -52,7 +52,6 @@ config ROCKCHIP_EFUSE
 	tristate "Rockchip eFuse Support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on HAS_IOMEM
-	depends on ROCKCHIP_SIP
 	help
 	  This is a simple drive to dump specified values of Rockchip SoC
 	  from eFuse, such as cpu-leakage.

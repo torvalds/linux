@@ -91,8 +91,13 @@ struct arm_smccc_res sip_smc_ddr_cfg(u32 arg0, u32 arg1,
 				     u32 arg2);
 struct arm_smccc_res sip_smc_get_share_mem_page(u32 page_num,
 						share_page_type_t page_type);
+#ifdef CONFIG_ROCKCHIP_SIP
 u32 sip_smc_secure_reg_read(u32 addr_phy);
 int sip_smc_secure_reg_write(u32 addr_phy, u32 val);
+#else
+u32 sip_smc_secure_reg_read(u32 addr_phy) { return 0; }
+int sip_smc_secure_reg_write(u32 addr_phy, u32 val) { return 0; }
+#endif
 
 void psci_enable_fiq(void);
 u32 rockchip_psci_smc_get_tf_ver(void);
