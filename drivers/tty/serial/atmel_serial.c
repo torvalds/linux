@@ -2504,6 +2504,9 @@ static void atmel_console_write(struct console *co, const char *s, u_int count)
 	pdc_tx = atmel_uart_readl(port, ATMEL_PDC_PTSR) & ATMEL_PDC_TXTEN;
 	atmel_uart_writel(port, ATMEL_PDC_PTCR, ATMEL_PDC_TXTDIS);
 
+	/* Make sure that tx path is actually able to send characters */
+	atmel_uart_writel(port, ATMEL_US_CR, ATMEL_US_TXEN);
+
 	uart_console_write(port, s, count, atmel_console_putchar);
 
 	/*
