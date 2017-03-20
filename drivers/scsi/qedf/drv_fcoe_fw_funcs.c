@@ -8,7 +8,7 @@
 #include "drv_fcoe_fw_funcs.h"
 #include "drv_scsi_fw_funcs.h"
 
-#define FCOE_RX_ID ((u32)0x0000FFFF)
+#define FCOE_RX_ID (0xFFFFu)
 
 static inline void init_common_sqe(struct fcoe_task_params *task_params,
 				   enum fcoe_sqe_request_type request_type)
@@ -59,7 +59,7 @@ int init_initiator_rw_fcoe_task(struct fcoe_task_params *task_params,
 	t_st_ctx->read_only.task_type = task_params->task_type;
 	SET_FIELD(t_st_ctx->read_write.flags,
 		  FCOE_TSTORM_FCOE_TASK_ST_CTX_READ_WRITE_EXP_FIRST_FRAME, 1);
-	t_st_ctx->read_write.rx_id = cpu_to_le32(FCOE_RX_ID);
+	t_st_ctx->read_write.rx_id = cpu_to_le16(FCOE_RX_ID);
 
 	/* Ustorm ctx */
 	u_ag_ctx = &ctx->ustorm_ag_context;
@@ -151,7 +151,7 @@ int init_initiator_midpath_unsolicited_fcoe_task(
 	t_st_ctx->read_only.task_type = task_params->task_type;
 	SET_FIELD(t_st_ctx->read_write.flags,
 		  FCOE_TSTORM_FCOE_TASK_ST_CTX_READ_WRITE_EXP_FIRST_FRAME, 1);
-	t_st_ctx->read_write.rx_id = cpu_to_le32(FCOE_RX_ID);
+	t_st_ctx->read_write.rx_id = cpu_to_le16(FCOE_RX_ID);
 
 	/* Init Ustorm */
 	u_ag_ctx = &ctx->ustorm_ag_context;
