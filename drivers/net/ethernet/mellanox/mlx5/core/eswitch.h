@@ -297,6 +297,7 @@ struct mlx5_esw_flow_attr {
 	bool	vlan_handled;
 	u32	encap_id;
 	u32	mod_hdr_id;
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
 };
 
 int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,

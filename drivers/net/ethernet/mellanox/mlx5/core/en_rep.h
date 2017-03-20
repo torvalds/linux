@@ -45,6 +45,9 @@ struct mlx5e_neigh_update_table {
 	 * Used for stats query.
 	 */
 	struct list_head	neigh_list;
+	/* protect lookup/remove operations */
+	spinlock_t              encap_lock;
+	struct notifier_block   netevent_nb;
 };
 
 struct mlx5e_rep_priv {
@@ -69,18 +72,46 @@ struct mlx5e_neigh_hash_entry {
 	 * neighbour entries. Used for stats query.
 	 */
 	struct list_head neigh_list;
+
+	/* encap list sharing the same neigh */
+	struct list_head encap_list;
+
+	/* valid only when the neigh reference is taken during
+	 * neigh_update_work workqueue callback.
+	 */
+	struct neighbour *n;
+	struct work_struct neigh_update_work;
+
+	/* neigh hash entry can be deleted only when the refcount is zero.
+	 * refcount is needed to avoid neigh hash entry removal by TC, while
+	 * it's used by the neigh notification call.
+	 */
+	refcount_t refcnt;
+};
+
+enum {
+	/* set when the encap entry is successfully offloaded into HW */
+	MLX5_ENCAP_ENTRY_VALID     = BIT(0),
 };
 
 struct mlx5e_encap_entry {
+	/* neigh hash entry list of encaps sharing the same neigh */
+	struct list_head encap_list;
+	struct mlx5e_neigh m_neigh;
+	/* a node of the eswitch encap hash table which keeping all the encap
+	 * entries
+	 */
 	struct hlist_node encap_hlist;
 	struct list_head flows;
 	u32 encap_id;
-	struct neighbour *n;
 	struct ip_tunnel_info tun_info;
 	unsigned char h_dest[ETH_ALEN];	/* destination eth addr	*/
 
 	struct net_device *out_dev;
 	int tunnel_type;
+	u8 flags;
+	char *encap_header;
+	int encap_size;
 };
 
 void mlx5e_register_vport_reps(struct mlx5e_priv *priv);
@@ -94,5 +125,10 @@ bool mlx5e_has_offload_stats(const struct net_device *dev, int attr_id);
 
 int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr);
 void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
+
+int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
+				 struct mlx5e_encap_entry *e);
+void mlx5e_rep_encap_entry_detach(struct mlx5e_priv *priv,
+				  struct mlx5e_encap_entry *e);
 
 #endif /* __MLX5E_REP_H__ */
