@@ -1993,8 +1993,7 @@ static void sdhci_reset_tuning(struct sdhci_host *host)
 	sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
 }
 
-static void sdhci_abort_tuning(struct sdhci_host *host, u32 opcode,
-			       unsigned long flags)
+static void sdhci_abort_tuning(struct sdhci_host *host, u32 opcode)
 {
 	sdhci_reset_tuning(host);
 
@@ -2003,9 +2002,7 @@ static void sdhci_abort_tuning(struct sdhci_host *host, u32 opcode,
 
 	sdhci_end_tuning(host);
 
-	spin_unlock_irqrestore(&host->lock, flags);
 	mmc_abort_tuning(host->mmc, opcode);
-	spin_lock_irqsave(&host->lock, flags);
 }
 
 /*
@@ -2015,12 +2012,14 @@ static void sdhci_abort_tuning(struct sdhci_host *host, u32 opcode,
  * interrupt setup is different to other commands and there is no timeout
  * interrupt so special handling is needed.
  */
-static void sdhci_send_tuning(struct sdhci_host *host, u32 opcode,
-			      unsigned long flags)
+static void sdhci_send_tuning(struct sdhci_host *host, u32 opcode)
 {
 	struct mmc_host *mmc = host->mmc;
 	struct mmc_command cmd = {};
 	struct mmc_request mrq = {};
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
 
 	cmd.opcode = opcode;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
@@ -2054,17 +2053,16 @@ static void sdhci_send_tuning(struct sdhci_host *host, u32 opcode,
 
 	host->tuning_done = 0;
 
+	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	/* Wait for Buffer Read Ready interrupt */
 	wait_event_timeout(host->buf_ready_int, (host->tuning_done == 1),
 			   msecs_to_jiffies(50));
 
-	spin_lock_irqsave(&host->lock, flags);
 }
 
-static void __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode,
-				   unsigned long flags)
+static void __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 {
 	int i;
 
@@ -2075,12 +2073,12 @@ static void __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode,
 	for (i = 0; i < MAX_TUNING_LOOP; i++) {
 		u16 ctrl;
 
-		sdhci_send_tuning(host, opcode, flags);
+		sdhci_send_tuning(host, opcode);
 
 		if (!host->tuning_done) {
 			pr_info("%s: Tuning timeout, falling back to fixed sampling clock\n",
 				mmc_hostname(host->mmc));
-			sdhci_abort_tuning(host, opcode, flags);
+			sdhci_abort_tuning(host, opcode);
 			return;
 		}
 
@@ -2105,11 +2103,8 @@ int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 	int err = 0;
-	unsigned long flags;
 	unsigned int tuning_count = 0;
 	bool hs400_tuning;
-
-	spin_lock_irqsave(&host->lock, flags);
 
 	hs400_tuning = host->flags & SDHCI_HS400_TUNING;
 
@@ -2127,7 +2122,7 @@ int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	/* HS400 tuning is done in HS200 mode */
 	case MMC_TIMING_MMC_HS400:
 		err = -EINVAL;
-		goto out_unlock;
+		goto out;
 
 	case MMC_TIMING_MMC_HS200:
 		/*
@@ -2148,26 +2143,23 @@ int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		/* FALLTHROUGH */
 
 	default:
-		goto out_unlock;
+		goto out;
 	}
 
 	if (host->ops->platform_execute_tuning) {
-		spin_unlock_irqrestore(&host->lock, flags);
 		err = host->ops->platform_execute_tuning(host, opcode);
-		spin_lock_irqsave(&host->lock, flags);
-		goto out_unlock;
+		goto out;
 	}
 
 	host->mmc->retune_period = tuning_count;
 
 	sdhci_start_tuning(host);
 
-	__sdhci_execute_tuning(host, opcode, flags);
+	__sdhci_execute_tuning(host, opcode);
 
 	sdhci_end_tuning(host);
-out_unlock:
+out:
 	host->flags &= ~SDHCI_HS400_TUNING;
-	spin_unlock_irqrestore(&host->lock, flags);
 
 	return err;
 }
