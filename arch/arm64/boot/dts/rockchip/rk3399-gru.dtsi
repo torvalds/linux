@@ -44,6 +44,7 @@
 
 #include <dt-bindings/input/input.h>
 #include "rk3399.dtsi"
+#include "rk3399-opp.dtsi"
 
 / {
 	chosen {
@@ -161,6 +162,90 @@
 		regulator-max-microvolt = <5000000>;
 
 		vin-supply = <&ppvar_sys>;
+	};
+
+	ppvar_bigcpu: ppvar-bigcpu {
+		compatible = "pwm-regulator";
+		regulator-name = "ppvar_bigcpu";
+		/*
+		 * OVP circuit requires special handling which is not yet
+		 * represented. Keep disabled for now.
+		 */
+		status = "disabled";
+
+		pwms = <&pwm1 0 3337 0>;
+		pwm-supply = <&ppvar_sys>;
+		pwm-dutycycle-range = <100 0>;
+		pwm-dutycycle-unit = <100>;
+
+		/* EC turns on w/ ap_core_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <798674>;
+		regulator-max-microvolt = <1302172>;
+	};
+
+	ppvar_litcpu: ppvar-litcpu {
+		compatible = "pwm-regulator";
+		regulator-name = "ppvar_litcpu";
+		/*
+		 * OVP circuit requires special handling which is not yet
+		 * represented. Keep disabled for now.
+		 */
+		status = "disabled";
+
+		pwms = <&pwm2 0 3337 0>;
+		pwm-supply = <&ppvar_sys>;
+		pwm-dutycycle-range = <100 0>;
+		pwm-dutycycle-unit = <100>;
+
+		/* EC turns on w/ ap_core_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <799065>;
+		regulator-max-microvolt = <1303738>;
+	};
+
+	ppvar_gpu: ppvar-gpu {
+		compatible = "pwm-regulator";
+		regulator-name = "ppvar_gpu";
+		/*
+		 * OVP circuit requires special handling which is not yet
+		 * represented. Keep disabled for now.
+		 */
+		status = "disabled";
+
+		pwms = <&pwm0 0 3337 0>;
+		pwm-supply = <&ppvar_sys>;
+		pwm-dutycycle-range = <100 0>;
+		pwm-dutycycle-unit = <100>;
+
+		/* EC turns on w/ ap_core_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <785782>;
+		regulator-max-microvolt = <1217729>;
+	};
+
+	ppvar_centerlogic: ppvar-centerlogic {
+		compatible = "pwm-regulator";
+		regulator-name = "ppvar_centerlogic";
+		/*
+		 * OVP circuit requires special handling which is not yet
+		 * represented. Keep disabled for now.
+		 */
+		status = "disabled";
+
+		pwms = <&pwm3 0 3337 0>;
+		pwm-supply = <&ppvar_sys>;
+		pwm-dutycycle-range = <100 0>;
+		pwm-dutycycle-unit = <100>;
+
+		/* EC turns on w/ ppvar_centerlogic_en; always on for AP */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <800069>;
+		regulator-max-microvolt = <1049692>;
 	};
 
 	/* Schematics call this PPVAR even though it's fixed */
@@ -392,6 +477,60 @@
 		rockchip,codec = <&max98357a &headsetcodec &codec>;
 	};
 };
+
+/*
+ * Set some suspend operating points to avoid OVP in suspend
+ *
+ * When we go into S3 ARM Trusted Firmware will transition our PWM regulators
+ * from wherever they're at back to the "default" operating point (whatever
+ * voltage we get when we set the PWM pins to "input").
+ *
+ * This quick transition under light load has the possibility to trigger the
+ * regulator "over voltage protection" (OVP).
+ *
+ * To make extra certain that we don't hit this OVP at suspend time, we'll
+ * transition to a voltage that's much closer to the default (~1.0 V) so that
+ * there will not be a big jump.  Technically we only need to get within 200 mV
+ * of the default voltage, but the speed here should be fast enough and we need
+ * suspend/resume to be rock solid.
+ */
+
+&cluster0_opp {
+	opp05 {
+		opp-suspend;
+	};
+};
+
+&cluster1_opp {
+	opp06 {
+		opp-suspend;
+	};
+};
+
+&cpu_l0 {
+	cpu-supply = <&ppvar_litcpu>;
+};
+
+&cpu_l1 {
+	cpu-supply = <&ppvar_litcpu>;
+};
+
+&cpu_l2 {
+	cpu-supply = <&ppvar_litcpu>;
+};
+
+&cpu_l3 {
+	cpu-supply = <&ppvar_litcpu>;
+};
+
+&cpu_b0 {
+	cpu-supply = <&ppvar_bigcpu>;
+};
+
+&cpu_b1 {
+	cpu-supply = <&ppvar_bigcpu>;
+};
+
 
 &cru {
 	assigned-clocks =
