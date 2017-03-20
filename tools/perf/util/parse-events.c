@@ -2462,6 +2462,31 @@ int parse_events_term__clone(struct parse_events_term **new,
 	return new_term(new, &temp, term->val.str, term->val.num);
 }
 
+int parse_events_copy_term_list(struct list_head *old,
+				 struct list_head **new)
+{
+	struct parse_events_term *term, *n;
+	int ret;
+
+	if (!old) {
+		*new = NULL;
+		return 0;
+	}
+
+	*new = malloc(sizeof(struct list_head));
+	if (!*new)
+		return -ENOMEM;
+	INIT_LIST_HEAD(*new);
+
+	list_for_each_entry (term, old, list) {
+		ret = parse_events_term__clone(&n, term);
+		if (ret)
+			return ret;
+		list_add_tail(&n->list, *new);
+	}
+	return 0;
+}
+
 void parse_events_terms__purge(struct list_head *terms)
 {
 	struct parse_events_term *term, *h;

@@ -226,11 +226,32 @@ event_pmu:
 PE_NAME opt_event_config
 {
 	struct parse_events_evlist *data = _data;
-	struct list_head *list;
+	struct list_head *list, *orig_terms, *terms;
+
+	if (parse_events_copy_term_list($2, &orig_terms))
+		YYABORT;
 
 	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_pmu(data, list, $1, $2));
+	if (parse_events_add_pmu(data, list, $1, $2)) {
+		struct perf_pmu *pmu = NULL;
+		int ok = 0;
+
+		while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+			char *name = pmu->name;
+
+			if (!strncmp($1, name, strlen($1))) {
+				if (parse_events_copy_term_list(orig_terms, &terms))
+					YYABORT;
+				if (!parse_events_add_pmu(data, list, pmu->name, terms))
+					ok++;
+				parse_events_terms__delete(terms);
+			}
+		}
+		if (!ok)
+			YYABORT;
+	}
 	parse_events_terms__delete($2);
+	parse_events_terms__delete(orig_terms);
 	$$ = list;
 }
 |
@@ -245,21 +266,12 @@ PE_KERNEL_PMU_EVENT sep_dc
 |
 PE_PMU_EVENT_PRE '-' PE_PMU_EVENT_SUF sep_dc
 {
-	struct parse_events_evlist *data = _data;
-	struct list_head *head;
-	struct parse_events_term *term;
 	struct list_head *list;
 	char pmu_name[128];
+
 	snprintf(&pmu_name, 128, "%s-%s", $1, $3);
-
-	ALLOC_LIST(head);
-	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					&pmu_name, 1, false, &@1, NULL));
-	list_add_tail(&term->list, head);
-
-	ALLOC_LIST(list);
-	ABORT_ON(parse_events_add_pmu(data, list, "cpu", head));
-	parse_events_terms__delete(head);
+	if (parse_events_multi_pmu_add(_data, pmu_name, &list) < 0)
+		YYABORT;
 	$$ = list;
 }
 

@@ -172,6 +172,9 @@ int parse_events_multi_pmu_add(struct parse_events_evlist *data,
 			       char *str,
 			       struct list_head **listp);
 
+int parse_events_copy_term_list(struct list_head *old,
+				 struct list_head **new);
+
 enum perf_pmu_event_symbol_type
 perf_pmu__parse_check(const char *name);
 void parse_events__set_leader(char *name, struct list_head *list);
