@@ -508,7 +508,8 @@ static int spi_test_check_elapsed_time(struct spi_device *spi,
 
 	for (i = 0; i < test->transfer_count; i++) {
 		struct spi_transfer *xfer = test->transfers + i;
-		unsigned long long nbits = BITS_PER_BYTE * xfer->len;
+		unsigned long long nbits = (unsigned long long)BITS_PER_BYTE *
+					   xfer->len;
 
 		delay_usecs += xfer->delay_usecs;
 		if (!xfer->speed_hz)
