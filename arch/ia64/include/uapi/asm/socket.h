@@ -101,4 +101,6 @@
 
 #define SCM_TIMESTAMPING_OPT_STATS	54
 
+#define SO_MEMINFO		55
+
 #endif /* _ASM_IA64_SOCKET_H */

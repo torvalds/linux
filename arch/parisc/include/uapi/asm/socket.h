@@ -91,4 +91,6 @@
 
 #define SCM_TIMESTAMPING_OPT_STATS	0x402F
 
+#define SO_MEMINFO		0x4030
+
 #endif /* _UAPI_ASM_SOCKET_H */
