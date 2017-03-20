@@ -126,6 +126,14 @@ config LEDS_MIKROTIK_RB532
 	  This option enables support for the so called "User LED" of
 	  Mikrotik's Routerboard 532.
 
+config LEDS_MT6323
+	tristate "LED Support for Mediatek MT6323 PMIC"
+	depends on LEDS_CLASS
+	depends on MFD_MT6397
+	help
+	  This option enables support for on-chip LED drivers found on
+	  Mediatek MT6323 PMIC.
+
 config LEDS_S3C24XX
 	tristate "LED Support for Samsung S3C24XX GPIO LEDs"
 	depends on LEDS_CLASS
