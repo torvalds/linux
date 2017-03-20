@@ -38,7 +38,7 @@
 #define DRIVER_NAME "sdhci"
 
 #define DBG(f, x...) \
-	pr_debug(DRIVER_NAME " [%s()]: " f, __func__,## x)
+	pr_debug("%s: " DRIVER_NAME ": " f, mmc_hostname(host->mmc), ## x)
 
 #define MAX_TUNING_LOOP 40
 
@@ -715,8 +715,8 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 	}
 
 	if (count >= 0xF) {
-		DBG("%s: Too large timeout 0x%x requested for CMD%d!\n",
-		    mmc_hostname(host->mmc), count, cmd->opcode);
+		DBG("Too large timeout 0x%x requested for CMD%d!\n",
+		    count, cmd->opcode);
 		count = 0xE;
 	}
 
@@ -2485,7 +2485,6 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
 #ifdef CONFIG_MMC_DEBUG
 static void sdhci_adma_show_error(struct sdhci_host *host)
 {
-	const char *name = mmc_hostname(host->mmc);
 	void *desc = host->adma_table;
 
 	sdhci_dumpregs(host);
@@ -2494,14 +2493,14 @@ static void sdhci_adma_show_error(struct sdhci_host *host)
 		struct sdhci_adma2_64_desc *dma_desc = desc;
 
 		if (host->flags & SDHCI_USE_64_BIT_DMA)
-			DBG("%s: %p: DMA 0x%08x%08x, LEN 0x%04x, Attr=0x%02x\n",
-			    name, desc, le32_to_cpu(dma_desc->addr_hi),
+			DBG("%p: DMA 0x%08x%08x, LEN 0x%04x, Attr=0x%02x\n",
+			    desc, le32_to_cpu(dma_desc->addr_hi),
 			    le32_to_cpu(dma_desc->addr_lo),
 			    le16_to_cpu(dma_desc->len),
 			    le16_to_cpu(dma_desc->cmd));
 		else
-			DBG("%s: %p: DMA 0x%08x, LEN 0x%04x, Attr=0x%02x\n",
-			    name, desc, le32_to_cpu(dma_desc->addr_lo),
+			DBG("%p: DMA 0x%08x, LEN 0x%04x, Attr=0x%02x\n",
+			    desc, le32_to_cpu(dma_desc->addr_lo),
 			    le16_to_cpu(dma_desc->len),
 			    le16_to_cpu(dma_desc->cmd));
 
@@ -2617,10 +2616,8 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 				~(SDHCI_DEFAULT_BOUNDARY_SIZE - 1)) +
 				SDHCI_DEFAULT_BOUNDARY_SIZE;
 			host->data->bytes_xfered = dmanow - dmastart;
-			DBG("%s: DMA base 0x%08x, transferred 0x%06x bytes,"
-				" next 0x%08x\n",
-				mmc_hostname(host->mmc), dmastart,
-				host->data->bytes_xfered, dmanow);
+			DBG("DMA base 0x%08x, transferred 0x%06x bytes, next 0x%08x\n",
+			    dmastart, host->data->bytes_xfered, dmanow);
 			sdhci_writel(host, dmanow, SDHCI_DMA_ADDRESS);
 		}
 
@@ -2665,8 +2662,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 				  SDHCI_INT_BUS_POWER);
 		sdhci_writel(host, mask, SDHCI_INT_STATUS);
 
-		DBG("*** %s got interrupt: 0x%08x\n",
-			mmc_hostname(host->mmc), intmask);
+		DBG("IRQ status 0x%08x\n", intmask);
 
 		if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE)) {
 			u32 present = sdhci_readl(host, SDHCI_PRESENT_STATE) &
@@ -3296,9 +3292,9 @@ int sdhci_setup_host(struct sdhci_host *host)
 	     !(host->flags & SDHCI_USE_SDMA)) &&
 	     !(host->quirks2 & SDHCI_QUIRK2_ACMD23_BROKEN)) {
 		host->flags |= SDHCI_AUTO_CMD23;
-		DBG("%s: Auto-CMD23 available\n", mmc_hostname(mmc));
+		DBG("Auto-CMD23 available\n");
 	} else {
-		DBG("%s: Auto-CMD23 unavailable\n", mmc_hostname(mmc));
+		DBG("Auto-CMD23 unavailable\n");
 	}
 
 	/*
