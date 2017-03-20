@@ -271,7 +271,7 @@
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
-	status = "disabled";
+	status = "okay";
 };
 
 &sdio0 {
