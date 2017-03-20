@@ -139,7 +139,6 @@ struct fujitsu_bl {
 	struct input_dev *input;
 	char phys[32];
 	struct backlight_device *bl_device;
-	int keycode1, keycode2, keycode3, keycode4, keycode5;
 
 	unsigned int max_brightness;
 	unsigned int brightness_changed;
@@ -1130,11 +1129,6 @@ static int __init fujitsu_init(void)
 	fujitsu_bl = kzalloc(sizeof(struct fujitsu_bl), GFP_KERNEL);
 	if (!fujitsu_bl)
 		return -ENOMEM;
-	fujitsu_bl->keycode1 = KEY_PROG1;
-	fujitsu_bl->keycode2 = KEY_PROG2;
-	fujitsu_bl->keycode3 = KEY_PROG3;
-	fujitsu_bl->keycode4 = KEY_PROG4;
-	fujitsu_bl->keycode5 = KEY_RFKILL;
 
 	ret = acpi_bus_register_driver(&acpi_fujitsu_bl_driver);
 	if (ret)
