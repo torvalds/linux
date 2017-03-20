@@ -123,6 +123,7 @@ static const struct genpd_lock_ops genpd_spin_ops = {
 
 #define genpd_status_on(genpd)		(genpd->status == GPD_STATE_ACTIVE)
 #define genpd_is_irq_safe(genpd)	(genpd->flags & GENPD_FLAG_IRQ_SAFE)
+#define genpd_is_always_on(genpd)	(genpd->flags & GENPD_FLAG_ALWAYS_ON)
 
 static inline bool irq_safe_dev_in_no_sleep_domain(struct device *dev,
 		struct generic_pm_domain *genpd)
@@ -300,7 +301,12 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	if (!genpd_status_on(genpd) || genpd->prepared_count > 0)
 		return 0;
 
-	if (atomic_read(&genpd->sd_count) > 0)
+	/*
+	 * Abort power off for the PM domain in the following situations:
+	 * (1) The domain is configured as always on.
+	 * (2) When the domain has a subdomain being powered on.
+	 */
+	if (genpd_is_always_on(genpd) || atomic_read(&genpd->sd_count) > 0)
 		return -EBUSY;
 
 	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
@@ -752,7 +758,7 @@ static void genpd_sync_power_off(struct generic_pm_domain *genpd, bool use_lock,
 {
 	struct gpd_link *link;
 
-	if (!genpd_status_on(genpd))
+	if (!genpd_status_on(genpd) || genpd_is_always_on(genpd))
 		return;
 
 	if (genpd->suspended_count != genpd->device_count
@@ -1490,6 +1496,10 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 		genpd->dev_ops.stop = pm_clk_suspend;
 		genpd->dev_ops.start = pm_clk_resume;
 	}
+
+	/* Always-on domains must be powered on at initialization. */
+	if (genpd_is_always_on(genpd) && !genpd_status_on(genpd))
+		return -EINVAL;
 
 	/* Use only one "off" state if there were no states declared */
 	if (genpd->state_count == 0) {
