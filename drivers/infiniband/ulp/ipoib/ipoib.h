@@ -496,7 +496,6 @@ void ipoib_reap_ah(struct work_struct *work);
 struct ipoib_path *__path_find(struct net_device *dev, void *gid);
 void ipoib_mark_paths_invalid(struct net_device *dev);
 void ipoib_flush_paths(struct net_device *dev);
-int ipoib_check_sm_sendonly_fullmember_support(struct ipoib_dev_priv *priv);
 struct ipoib_dev_priv *ipoib_intf_alloc(struct ib_device *hca, u8 port,
 					const char *format);
 void ipoib_ib_tx_timer_func(unsigned long ctx);

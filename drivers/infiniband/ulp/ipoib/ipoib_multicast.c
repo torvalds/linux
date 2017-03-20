@@ -333,7 +333,6 @@ void ipoib_mcast_carrier_on_task(struct work_struct *work)
 	struct ipoib_dev_priv *priv = container_of(work, struct ipoib_dev_priv,
 						   carrier_on_task);
 	struct ib_port_attr attr;
-	int ret;
 
 	if (ib_query_port(priv->ca, priv->port, &attr) ||
 	    attr.state != IB_PORT_ACTIVE) {
@@ -346,11 +345,9 @@ void ipoib_mcast_carrier_on_task(struct work_struct *work)
 	 * because the broadcast group must always be joined first and is always
 	 * re-joined if the SM changes substantially.
 	 */
-	ret = ipoib_check_sm_sendonly_fullmember_support(priv);
-	if (ret < 0)
-		pr_debug("%s failed query sm support for sendonly-fullmember (ret: %d)\n",
-			 priv->dev->name, ret);
-
+	priv->sm_fullmember_sendonly_support =
+		ib_sa_sendonly_fullmem_support(&ipoib_sa_client,
+					       priv->ca, priv->port);
 	/*
 	 * Take rtnl_lock to avoid racing with ipoib_stop() and
 	 * turning the carrier back on while a device is being
