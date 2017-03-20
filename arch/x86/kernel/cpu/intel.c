@@ -488,6 +488,28 @@ static void intel_bsp_resume(struct cpuinfo_x86 *c)
 	init_intel_energy_perf(c);
 }
 
+static void init_cpuid_fault(struct cpuinfo_x86 *c)
+{
+	u64 msr;
+
+	if (!rdmsrl_safe(MSR_PLATFORM_INFO, &msr)) {
+		if (msr & MSR_PLATFORM_INFO_CPUID_FAULT)
+			set_cpu_cap(c, X86_FEATURE_CPUID_FAULT);
+	}
+}
+
+static void init_intel_misc_features(struct cpuinfo_x86 *c)
+{
+	u64 msr;
+
+	if (rdmsrl_safe(MSR_MISC_FEATURES_ENABLES, &msr))
+		return;
+
+	/* Check features and update capabilities */
+	init_cpuid_fault(c);
+	probe_xeon_phi_r3mwait(c);
+}
+
 static void init_intel(struct cpuinfo_x86 *c)
 {
 	unsigned int l2 = 0;
@@ -602,7 +624,7 @@ static void init_intel(struct cpuinfo_x86 *c)
 
 	init_intel_energy_perf(c);
 
-	probe_xeon_phi_r3mwait(c);
+	init_intel_misc_features(c);
 }
 
 #ifdef CONFIG_X86_32
