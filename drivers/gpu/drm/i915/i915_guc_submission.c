@@ -609,8 +609,8 @@ static bool i915_guc_dequeue(struct intel_engine_cs *engine)
 		RB_CLEAR_NODE(&rq->priotree.node);
 		rq->priotree.priority = INT_MAX;
 
-		trace_i915_gem_request_in(rq, port - engine->execlist_port);
 		i915_guc_submit(rq);
+		trace_i915_gem_request_in(rq, port - engine->execlist_port);
 		last = rq;
 		submit = true;
 	}
