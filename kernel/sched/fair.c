@@ -3339,6 +3339,7 @@ static inline int propagate_entity_load_avg(struct sched_entity *se)
 	update_tg_cfs_runnable(cfs_rq, se, gcfs_rq);
 
 	trace_sched_load_cfs_rq(cfs_rq);
+	trace_sched_load_se(se);
 
 	return 1;
 }

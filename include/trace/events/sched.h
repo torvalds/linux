@@ -576,14 +576,15 @@ TRACE_EVENT(sched_wake_idle_without_ipi,
 #ifdef CONFIG_SMP
 #ifdef CREATE_TRACE_POINTS
 static inline
-int __trace_sched_cpu(struct cfs_rq *cfs_rq)
+int __trace_sched_cpu(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 #ifdef CONFIG_FAIR_GROUP_SCHED
-	struct rq *rq = cfs_rq->rq;
+	struct rq *rq = cfs_rq ? cfs_rq->rq : NULL;
 #else
-	struct rq *rq = container_of(cfs_rq, struct rq, cfs);
+	struct rq *rq = cfs_rq ? container_of(cfs_rq, struct rq, cfs) : NULL;
 #endif
-	return cpu_of(rq);
+	return rq ? cpu_of(rq)
+		  : task_cpu((container_of(se, struct task_struct, se)));
 }
 
 static inline
@@ -592,18 +593,26 @@ int __trace_sched_path(struct cfs_rq *cfs_rq, char *path, int len)
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	int l = path ? len : 0;
 
-	if (task_group_is_autogroup(cfs_rq->tg))
+	if (cfs_rq && task_group_is_autogroup(cfs_rq->tg))
 		return autogroup_path(cfs_rq->tg, path, l) + 1;
-	else
+	else if (cfs_rq && cfs_rq->tg->css.cgroup)
 		return cgroup_path(cfs_rq->tg->css.cgroup, path, l) + 1;
-#else
+#endif
 	if (path)
 		strcpy(path, "(null)");
 
 	return strlen("(null)");
-#endif
 }
 
+static inline
+struct cfs_rq *__trace_sched_group_cfs_rq(struct sched_entity *se)
+{
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	return se->my_q;
+#else
+	return NULL;
+#endif
+}
 #endif /* CREATE_TRACE_POINTS */
 
 /*
@@ -625,7 +634,7 @@ TRACE_EVENT(sched_load_cfs_rq,
 	),
 
 	TP_fast_assign(
-		__entry->cpu		= __trace_sched_cpu(cfs_rq);
+		__entry->cpu		= __trace_sched_cpu(cfs_rq, NULL);
 		__trace_sched_path(cfs_rq, __get_dynamic_array(path),
 				   __get_dynamic_array_len(path));
 		__entry->load		= cfs_rq->avg.load_avg;
@@ -636,6 +645,46 @@ TRACE_EVENT(sched_load_cfs_rq,
 	TP_printk("cpu=%d path=%s load=%lu rbl_load=%lu util=%lu",
 		  __entry->cpu, __get_str(path), __entry->load,
 		  __entry->rbl_load,__entry->util)
+);
+
+/*
+ * Tracepoint for sched_entity load tracking:
+ */
+TRACE_EVENT(sched_load_se,
+
+	TP_PROTO(struct sched_entity *se),
+
+	TP_ARGS(se),
+
+	TP_STRUCT__entry(
+		__field(	int,		cpu			      )
+		__dynamic_array(char,		path,
+		  __trace_sched_path(__trace_sched_group_cfs_rq(se), NULL, 0) )
+		__array(	char,		comm,	TASK_COMM_LEN	      )
+		__field(	pid_t,		pid			      )
+		__field(	unsigned long,	load			      )
+		__field(	unsigned long,	rbl_load		      )
+		__field(	unsigned long,	util			      )
+	),
+
+	TP_fast_assign(
+		struct cfs_rq *gcfs_rq = __trace_sched_group_cfs_rq(se);
+		struct task_struct *p = gcfs_rq ? NULL
+				    : container_of(se, struct task_struct, se);
+
+		__entry->cpu		= __trace_sched_cpu(gcfs_rq, se);
+		__trace_sched_path(gcfs_rq, __get_dynamic_array(path),
+				   __get_dynamic_array_len(path));
+		memcpy(__entry->comm, p ? p->comm : "(null)", TASK_COMM_LEN);
+		__entry->pid = p ? p->pid : -1;
+		__entry->load = se->avg.load_avg;
+		__entry->rbl_load = se->avg.runnable_load_avg;
+		__entry->util = se->avg.util_avg;
+	),
+
+	TP_printk("cpu=%d path=%s comm=%s pid=%d load=%lu rbl_load=%lu util=%lu",
+		  __entry->cpu, __get_str(path), __entry->comm, __entry->pid,
+		  __entry->load, __entry->rbl_load, __entry->util)
 );
 #endif /* CONFIG_SMP */
 #endif /* _TRACE_SCHED_H */
