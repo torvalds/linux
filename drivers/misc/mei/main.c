@@ -586,6 +586,77 @@ out:
 }
 
 /**
+ * mei_cl_is_write_queued - check if the client has pending writes.
+ *
+ * @cl: writing host client
+ *
+ * Return: true if client is writing, false otherwise.
+ */
+static bool mei_cl_is_write_queued(struct mei_cl *cl)
+{
+	struct mei_device *dev = cl->dev;
+	struct mei_cl_cb *cb;
+
+	list_for_each_entry(cb, &dev->write_list, list)
+		if (cb->cl == cl)
+			return true;
+	list_for_each_entry(cb, &dev->write_waiting_list, list)
+		if (cb->cl == cl)
+			return true;
+	return false;
+}
+
+/**
+ * mei_fsync - the fsync handler
+ *
+ * @fp:       pointer to file structure
+ * @start:    unused
+ * @end:      unused
+ * @datasync: unused
+ *
+ * Return: 0 on success, -ENODEV if client is not connected
+ */
+static int mei_fsync(struct file *fp, loff_t start, loff_t end, int datasync)
+{
+	struct mei_cl *cl = fp->private_data;
+	struct mei_device *dev;
+	int rets;
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	mutex_lock(&dev->device_lock);
+
+	if (dev->dev_state != MEI_DEV_ENABLED || !mei_cl_is_connected(cl)) {
+		rets = -ENODEV;
+		goto out;
+	}
+
+	while (mei_cl_is_write_queued(cl)) {
+		mutex_unlock(&dev->device_lock);
+		rets = wait_event_interruptible(cl->tx_wait,
+				cl->writing_state == MEI_WRITE_COMPLETE ||
+				!mei_cl_is_connected(cl));
+		mutex_lock(&dev->device_lock);
+		if (rets) {
+			if (signal_pending(current))
+				rets = -EINTR;
+			goto out;
+		}
+		if (!mei_cl_is_connected(cl)) {
+			rets = -ENODEV;
+			goto out;
+		}
+	}
+	rets = 0;
+out:
+	mutex_unlock(&dev->device_lock);
+	return rets;
+}
+
+/**
  * mei_fasync - asynchronous io support
  *
  * @fd: file descriptor
@@ -700,6 +771,7 @@ static const struct file_operations mei_fops = {
 	.release = mei_release,
 	.write = mei_write,
 	.poll = mei_poll,
+	.fsync = mei_fsync,
 	.fasync = mei_fasync,
 	.llseek = no_llseek
 };
