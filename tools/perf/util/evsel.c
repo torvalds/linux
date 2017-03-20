@@ -237,6 +237,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	perf_evsel__calc_id_pos(evsel);
 	evsel->cmdline_group_boundary = false;
 	evsel->metric_expr   = NULL;
+	evsel->metric_name   = NULL;
 	evsel->metric_events = NULL;
 	evsel->collect_stat  = false;
 }

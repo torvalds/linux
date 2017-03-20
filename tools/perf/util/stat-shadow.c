@@ -803,7 +803,9 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 
 			if (expr__parse(&ratio, &pctx, &p) == 0)
 				print_metric(ctxp, NULL, "%8.1f",
-					out->force_header ? evsel->name : "",
+					evsel->metric_name ?
+					evsel->metric_name :
+					out->force_header ?  evsel->name : "",
 					ratio);
 			else
 				print_metric(ctxp, NULL, NULL, "", 0);

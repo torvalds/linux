@@ -133,6 +133,7 @@ struct perf_evsel {
 	int			bpf_fd;
 	bool			merged_stat;
 	const char *		metric_expr;
+	const char *		metric_name;
 	struct perf_evsel	**metric_events;
 	bool			collect_stat;
 };

@@ -1256,6 +1256,7 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 		evsel->per_pkg = info.per_pkg;
 		evsel->snapshot = info.snapshot;
 		evsel->metric_expr = info.metric_expr;
+		evsel->metric_name = info.metric_name;
 	}
 
 	return evsel ? 0 : -ENOMEM;
