@@ -1011,6 +1011,7 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 		dev_err(atomisp_dev, "find_vma failed\n");
 		atomisp_kernel_free(bo->page_obj);
 		atomisp_kernel_free(pages);
+		mutex_lock(&bo->mutex);
 		return -EFAULT;
 	}
 	mutex_lock(&bo->mutex);
