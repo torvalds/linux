@@ -133,26 +133,6 @@ enum access_mode {
 };
 
 /**
- * fsmc_nand_platform_data - platform specific NAND controller config
- * @nand_timings: timing setup for the physical NAND interface
- * @partitions: partition table for the platform, use a default fallback
- * if this is NULL
- * @nr_partitions: the number of partitions in the previous entry
- * @options: different options for the driver
- * @width: bus width
- * @bank: default bank
- * platform-specific. If the controller only supports one bank
- * this may be set to NULL
- */
-struct fsmc_nand_platform_data {
-	struct fsmc_nand_timings *nand_timings;
-	unsigned int		options;
-	unsigned int		bank;
-
-	enum access_mode	mode;
-};
-
-/**
  * struct fsmc_nand_data - structure for FSMC NAND device state
  *
  * @pid:		Part ID on the AMBA PrimeCell format
@@ -798,17 +778,18 @@ static bool filter(struct dma_chan *chan, void *slave)
 }
 
 static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
-				     struct device_node *np)
+				     struct fsmc_nand_data *host,
+				     struct nand_chip *nand)
 {
-	struct fsmc_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
 	u32 val;
 	int ret;
 
-	pdata->options = 0;
+	nand->options = 0;
 
 	if (!of_property_read_u32(np, "bank-width", &val)) {
 		if (val == 2) {
-			pdata->options |= NAND_BUSWIDTH_16;
+			nand->options |= NAND_BUSWIDTH_16;
 		} else if (val != 1) {
 			dev_err(&pdev->dev, "invalid bank-width %u\n", val);
 			return -EINVAL;
@@ -816,27 +797,27 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 	}
 
 	if (of_get_property(np, "nand-skip-bbtscan", NULL))
-		pdata->options |= NAND_SKIP_BBTSCAN;
+		nand->options |= NAND_SKIP_BBTSCAN;
 
-	pdata->nand_timings = devm_kzalloc(&pdev->dev,
-				sizeof(*pdata->nand_timings), GFP_KERNEL);
-	if (!pdata->nand_timings)
+	host->dev_timings = devm_kzalloc(&pdev->dev,
+				sizeof(*host->dev_timings), GFP_KERNEL);
+	if (!host->dev_timings)
 		return -ENOMEM;
-	ret = of_property_read_u8_array(np, "timings", (u8 *)pdata->nand_timings,
-						sizeof(*pdata->nand_timings));
+	ret = of_property_read_u8_array(np, "timings", (u8 *)host->dev_timings,
+						sizeof(*host->dev_timings));
 	if (ret) {
 		dev_info(&pdev->dev, "No timings in dts specified, using default timings!\n");
-		pdata->nand_timings = NULL;
+		host->dev_timings = NULL;
 	}
 
 	/* Set default NAND bank to 0 */
-	pdata->bank = 0;
+	host->bank = 0;
 	if (!of_property_read_u32(np, "bank", &val)) {
 		if (val > 3) {
 			dev_err(&pdev->dev, "invalid bank %u\n", val);
 			return -EINVAL;
 		}
-		pdata->bank = val;
+		host->bank = val;
 	}
 	return 0;
 }
@@ -847,8 +828,6 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
  */
 static int __init fsmc_nand_probe(struct platform_device *pdev)
 {
-	struct fsmc_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node __maybe_unused *np = pdev->dev.of_node;
 	struct fsmc_nand_data *host;
 	struct mtd_info *mtd;
 	struct nand_chip *nand;
@@ -858,21 +837,16 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	u32 pid;
 	int i;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return -ENOMEM;
-
-	pdev->dev.platform_data = pdata;
-	ret = fsmc_nand_probe_config_dt(pdev, np);
-	if (ret) {
-		dev_err(&pdev->dev, "no platform data\n");
-		return -ENODEV;
-	}
-
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
 		return -ENOMEM;
+
+	nand = &host->nand;
+
+	ret = fsmc_nand_probe_config_dt(pdev, host, nand);
+	if (ret)
+		return ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_data");
 	host->data_va = devm_ioremap_resource(&pdev->dev, res);
@@ -918,19 +892,15 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		 AMBA_PART_BITS(pid), AMBA_MANF_BITS(pid),
 		 AMBA_REV_BITS(pid), AMBA_CONFIG_BITS(pid));
 
-	host->bank = pdata->bank;
 	host->dev = &pdev->dev;
-	host->dev_timings = pdata->nand_timings;
-	host->mode = pdata->mode;
 
 	if (host->mode == USE_DMA_ACCESS)
 		init_completion(&host->dma_access_complete);
 
 	/* Link all private pointers */
 	mtd = nand_to_mtd(&host->nand);
-	nand = &host->nand;
 	nand_set_controller_data(nand, host);
-	nand_set_flash_node(nand, np);
+	nand_set_flash_node(nand, pdev->dev.of_node);
 
 	mtd->dev.parent = &pdev->dev;
 	nand->IO_ADDR_R = host->data_va;
@@ -945,7 +915,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	nand->ecc.mode = NAND_ECC_HW;
 	nand->ecc.hwctl = fsmc_enable_hwecc;
 	nand->ecc.size = 512;
-	nand->options = pdata->options;
 	nand->badblockbits = 7;
 
 	switch (host->mode) {
