@@ -11,28 +11,6 @@
 #include <linux/thread_info.h>
 #include <linux/uaccess.h>
 
-unsigned long
-__generic_copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	prefetch(from);
-	if (access_ok(VERIFY_WRITE, to, n))
-		__copy_user(to,from,n);
-	return n;
-}
-
-unsigned long
-__generic_copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	unsigned long ret = n;
-	prefetchw(to);
-	if (access_ok(VERIFY_READ, from, n))
-		ret = __copy_user(to,from,n);
-	if (unlikely(ret))
-		memset(to + n - ret, 0, ret);
-	return ret;
-}
-
-
 /*
  * Copy a null terminated string from userspace.
  */

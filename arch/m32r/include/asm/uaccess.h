@@ -13,6 +13,7 @@
  */
 #include <asm/page.h>
 #include <asm/setup.h>
+#include <linux/prefetch.h>
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -463,106 +464,21 @@ do {									\
 /* We let the __ versions of copy_from/to_user inline, because they're often
  * used in fast paths and have only a small space overhead.
  */
-static inline unsigned long __generic_copy_from_user_nocheck(void *to,
-	const void __user *from, unsigned long n)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
+	prefetchw(to);
 	__copy_user(to, from, n);
 	return n;
 }
 
-static inline unsigned long __generic_copy_to_user_nocheck(void __user *to,
-	const void *from, unsigned long n)
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
+	prefetch(from);
 	__copy_user(to, from, n);
 	return n;
 }
-
-unsigned long __generic_copy_to_user(void __user *, const void *, unsigned long);
-unsigned long __generic_copy_from_user(void *, const void __user *, unsigned long);
-
-/**
- * __copy_to_user: - Copy a block of data into user space, with less checking.
- * @to:   Destination address, in user space.
- * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from kernel space to user space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- */
-#define __copy_to_user(to, from, n)			\
-	__generic_copy_to_user_nocheck((to), (from), (n))
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-
-/**
- * copy_to_user: - Copy a block of data into user space.
- * @to:   Destination address, in user space.
- * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from kernel space to user space.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- */
-#define copy_to_user(to, from, n)			\
-({							\
-	might_fault();					\
-	__generic_copy_to_user((to), (from), (n));	\
-})
-
-/**
- * __copy_from_user: - Copy a block of data from user space, with less checking. * @to:   Destination address, in kernel space.
- * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from user space to kernel space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * If some data could not be copied, this function will pad the copied
- * data to the requested size using zero bytes.
- */
-#define __copy_from_user(to, from, n)			\
-	__generic_copy_from_user_nocheck((to), (from), (n))
-
-/**
- * copy_from_user: - Copy a block of data from user space.
- * @to:   Destination address, in kernel space.
- * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from user space to kernel space.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * If some data could not be copied, this function will pad the copied
- * data to the requested size using zero bytes.
- */
-#define copy_from_user(to, from, n)			\
-({							\
-	might_fault();					\
-	__generic_copy_from_user((to), (from), (n));	\
-})
 
 long __must_check strncpy_from_user(char *dst, const char __user *src,
 				long count);
