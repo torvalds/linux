@@ -2385,7 +2385,7 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 		stmmac_rx_queue_dma_chan_map(priv);
 
 	/* Enable MAC RX Queues */
-	if (rx_queues_count > 1 && priv->hw->mac->rx_queue_enable)
+	if (priv->hw->mac->rx_queue_enable)
 		stmmac_mac_enable_rx_queues(priv);
 
 	/* Set the HW DMA mode and the COE */
