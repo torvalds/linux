@@ -150,7 +150,6 @@ struct fsmc_nand_platform_data {
 	struct mtd_partition	*partitions;
 	unsigned int		nr_partitions;
 	unsigned int		options;
-	unsigned int		width;
 	unsigned int		bank;
 
 	enum access_mode	mode;
@@ -844,18 +843,19 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 	u32 val;
 	int ret;
 
-	/* Set default NAND width to 8 bits */
-	pdata->width = 8;
+	pdata->options = 0;
+
 	if (!of_property_read_u32(np, "bank-width", &val)) {
 		if (val == 2) {
-			pdata->width = 16;
+			pdata->options |= NAND_BUSWIDTH_16;
 		} else if (val != 1) {
 			dev_err(&pdev->dev, "invalid bank-width %u\n", val);
 			return -EINVAL;
 		}
 	}
+
 	if (of_get_property(np, "nand-skip-bbtscan", NULL))
-		pdata->options = NAND_SKIP_BBTSCAN;
+		pdata->options |= NAND_SKIP_BBTSCAN;
 
 	pdata->nand_timings = devm_kzalloc(&pdev->dev,
 				sizeof(*pdata->nand_timings), GFP_KERNEL);
@@ -991,9 +991,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	nand->select_chip = fsmc_select_chip;
 	nand->badblockbits = 7;
 	nand_set_flash_node(nand, np);
-
-	if (pdata->width == FSMC_NAND_BW16)
-		nand->options |= NAND_BUSWIDTH_16;
 
 	switch (host->mode) {
 	case USE_DMA_ACCESS:
