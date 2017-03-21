@@ -144,12 +144,33 @@ static bool is_extended_socket_device(struct acpi_device *device)
 	return true;
 }
 
+static int acpi_check_extended_socket_status(struct acpi_device *device)
+{
+	unsigned long long sta;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(device->handle, "_STA", NULL, &sta);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	if (!((sta & ACPI_STA_DEVICE_PRESENT) &&
+	      (sta & ACPI_STA_DEVICE_ENABLED) &&
+	      (sta & ACPI_STA_DEVICE_UI) &&
+	      (sta & ACPI_STA_DEVICE_FUNCTIONING)))
+		return -ENODEV;
+
+	return 0;
+}
+
 static int fjes_acpi_add(struct acpi_device *device)
 {
 	struct platform_device *plat_dev;
 	acpi_status status;
 
 	if (!is_extended_socket_device(device))
+		return -ENODEV;
+
+	if (acpi_check_extended_socket_status(device))
 		return -ENODEV;
 
 	status = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
@@ -1501,6 +1522,9 @@ acpi_find_extended_socket_device(acpi_handle obj_handle, u32 level,
 		return AE_OK;
 
 	if (!is_extended_socket_device(device))
+		return AE_OK;
+
+	if (acpi_check_extended_socket_status(device))
 		return AE_OK;
 
 	*found = true;
