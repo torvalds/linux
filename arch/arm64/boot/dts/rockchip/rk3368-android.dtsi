@@ -42,18 +42,18 @@
 
 / {
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1 firmware_class.path=/system/vendor/firmware";
+		bootargs = "earlycon=uart8250,mmio32,0xff1b0000 swiotlb=1 firmware_class.path=/system/vendor/firmware";
 	};
 
 	fiq_debugger: fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
-		rockchip,serial-id = <2>;
+		rockchip,serial-id = <3>;
 		rockchip,signal-irq = <186>;
 		rockchip,wake-irq = <0>;
 		rockchip,irq-mode-enable = <1>;  /* If enable uart uses irq instead of fiq */
 		rockchip,baudrate = <115200>;  /* Only 115200 and 1500000 */
 		pinctrl-names = "default";
-		pinctrl-0 = <&uart2_xfer>;
+		pinctrl-0 = <&uart3_xfer>;
 	};
 
 	reserved-memory {
@@ -214,6 +214,10 @@
 			connect = <&vop_out_mipi>;
 		};
 	};
+};
+
+&uart3 {
+	status = "okay";
 };
 
 &vop {
