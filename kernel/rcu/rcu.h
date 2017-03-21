@@ -61,20 +61,41 @@
  * Grace-period counter management.
  */
 
+#define RCU_SEQ_CTR_SHIFT	1
+#define RCU_SEQ_STATE_MASK	((1 << RCU_SEQ_CTR_SHIFT) - 1)
+
+/*
+ * Return the counter portion of a sequence number previously returned
+ * by rcu_seq_snap() or rcu_seq_current().
+ */
+static inline unsigned long rcu_seq_ctr(unsigned long s)
+{
+	return s >> RCU_SEQ_CTR_SHIFT;
+}
+
+/*
+ * Return the state portion of a sequence number previously returned
+ * by rcu_seq_snap() or rcu_seq_current().
+ */
+static inline int rcu_seq_state(unsigned long s)
+{
+	return s & RCU_SEQ_STATE_MASK;
+}
+
 /* Adjust sequence number for start of update-side operation. */
 static inline void rcu_seq_start(unsigned long *sp)
 {
 	WRITE_ONCE(*sp, *sp + 1);
 	smp_mb(); /* Ensure update-side operation after counter increment. */
-	WARN_ON_ONCE(!(*sp & 0x1));
+	WARN_ON_ONCE(rcu_seq_state(*sp) != 1);
 }
 
 /* Adjust sequence number for end of update-side operation. */
 static inline void rcu_seq_end(unsigned long *sp)
 {
 	smp_mb(); /* Ensure update-side operation before counter increment. */
-	WARN_ON_ONCE(!(*sp & 0x1));
-	WRITE_ONCE(*sp, *sp + 1);
+	WARN_ON_ONCE(!rcu_seq_state(*sp));
+	WRITE_ONCE(*sp, (*sp | RCU_SEQ_STATE_MASK) + 1);
 }
 
 /* Take a snapshot of the update side's sequence number. */
@@ -82,7 +103,7 @@ static inline unsigned long rcu_seq_snap(unsigned long *sp)
 {
 	unsigned long s;
 
-	s = (READ_ONCE(*sp) + 3) & ~0x1;
+	s = (READ_ONCE(*sp) + 2 * RCU_SEQ_STATE_MASK + 1) & ~RCU_SEQ_STATE_MASK;
 	smp_mb(); /* Above access must not bleed into critical section. */
 	return s;
 }

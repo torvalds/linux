@@ -292,7 +292,7 @@ static bool exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 			trace_rcu_exp_funnel_lock(rsp->name, rnp->level,
 						  rnp->grplo, rnp->grphi,
 						  TPS("wait"));
-			wait_event(rnp->exp_wq[(s >> 1) & 0x3],
+			wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
 				   sync_exp_work_done(rsp,
 						      &rdp->exp_workdone2, s));
 			return true;
@@ -534,7 +534,7 @@ static void rcu_exp_wait_wake(struct rcu_state *rsp, unsigned long s)
 			spin_unlock(&rnp->exp_lock);
 		}
 		smp_mb(); /* All above changes before wakeup. */
-		wake_up_all(&rnp->exp_wq[(rsp->expedited_sequence >> 1) & 0x3]);
+		wake_up_all(&rnp->exp_wq[rcu_seq_ctr(rsp->expedited_sequence) & 0x3]);
 	}
 	trace_rcu_exp_grace_period(rsp->name, s, TPS("endwake"));
 	mutex_unlock(&rsp->exp_wake_mutex);
@@ -612,9 +612,8 @@ static void _synchronize_rcu_expedited(struct rcu_state *rsp,
 	/* Wait for expedited grace period to complete. */
 	rdp = per_cpu_ptr(rsp->rda, raw_smp_processor_id());
 	rnp = rcu_get_root(rsp);
-	wait_event(rnp->exp_wq[(s >> 1) & 0x3],
-		   sync_exp_work_done(rsp,
-				      &rdp->exp_workdone0, s));
+	wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
+		   sync_exp_work_done(rsp, &rdp->exp_workdone0, s));
 	smp_mb(); /* Workqueue actions happen before return. */
 
 	/* Let the next expedited grace period start. */
