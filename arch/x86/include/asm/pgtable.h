@@ -603,6 +603,7 @@ pte_t *populate_extra_pte(unsigned long vaddr);
 #include <linux/mm_types.h>
 #include <linux/mmdebug.h>
 #include <linux/log2.h>
+#include <asm/fixmap.h>
 
 static inline int pte_none(pte_t pte)
 {
