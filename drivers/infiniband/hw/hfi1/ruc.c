@@ -909,8 +909,10 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 
 	last = qp->s_last;
 	old_last = last;
+	trace_hfi1_qp_send_completion(qp, wqe, last);
 	if (++last >= qp->s_size)
 		last = 0;
+	trace_hfi1_qp_send_completion(qp, wqe, last);
 	qp->s_last = last;
 	/* See post_send() */
 	barrier();
