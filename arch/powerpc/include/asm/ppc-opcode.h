@@ -96,6 +96,8 @@
 #define OP_31_XOP_LBZX      87
 #define OP_31_XOP_STDX      149
 #define OP_31_XOP_STWX      151
+#define OP_31_XOP_STDUX     181
+#define OP_31_XOP_STWUX     183
 #define OP_31_XOP_STBX      215
 #define OP_31_XOP_LBZUX     119
 #define OP_31_XOP_STBUX     247
@@ -104,13 +106,16 @@
 #define OP_31_XOP_MFSPR     339
 #define OP_31_XOP_LWAX      341
 #define OP_31_XOP_LHAX      343
+#define OP_31_XOP_LWAUX     373
 #define OP_31_XOP_LHAUX     375
 #define OP_31_XOP_STHX      407
 #define OP_31_XOP_STHUX     439
 #define OP_31_XOP_MTSPR     467
 #define OP_31_XOP_DCBI      470
+#define OP_31_XOP_LDBRX     532
 #define OP_31_XOP_LWBRX     534
 #define OP_31_XOP_TLBSYNC   566
+#define OP_31_XOP_STDBRX    660
 #define OP_31_XOP_STWBRX    662
 #define OP_31_XOP_STFSX	    663
 #define OP_31_XOP_STFSUX    695
