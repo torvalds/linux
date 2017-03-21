@@ -52,3 +52,4 @@
 #include "trace_qp.h"
 #include "trace_tx.h"
 #include "trace_mr.h"
+#include "trace_cq.h"
