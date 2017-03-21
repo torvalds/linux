@@ -415,6 +415,18 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 	return 0;
 }
 
+/* refuse the further insertion to the pool */
+void snd_seq_pool_mark_closing(struct snd_seq_pool *pool)
+{
+	unsigned long flags;
+
+	if (snd_BUG_ON(!pool))
+		return;
+	spin_lock_irqsave(&pool->lock, flags);
+	pool->closing = 1;
+	spin_unlock_irqrestore(&pool->lock, flags);
+}
+
 /* remove events */
 int snd_seq_pool_done(struct snd_seq_pool *pool)
 {
@@ -425,10 +437,6 @@ int snd_seq_pool_done(struct snd_seq_pool *pool)
 		return -EINVAL;
 
 	/* wait for closing all threads */
-	spin_lock_irqsave(&pool->lock, flags);
-	pool->closing = 1;
-	spin_unlock_irqrestore(&pool->lock, flags);
-
 	if (waitqueue_active(&pool->output_sleep))
 		wake_up(&pool->output_sleep);
 
@@ -485,6 +493,7 @@ int snd_seq_pool_delete(struct snd_seq_pool **ppool)
 	*ppool = NULL;
 	if (pool == NULL)
 		return 0;
+	snd_seq_pool_mark_closing(pool);
 	snd_seq_pool_done(pool);
 	kfree(pool);
 	return 0;
