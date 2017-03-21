@@ -546,6 +546,10 @@ static int soc15_common_early_init(void *handle)
 		(amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_PSP)))
 		psp_enabled = true;
 
+	if (amdgpu_sriov_vf(adev)) {
+		amdgpu_virt_init_setting(adev);
+	}
+
 	/*
 	 * nbio need be used for both sdma and gfx9, but only
 	 * initializes once
