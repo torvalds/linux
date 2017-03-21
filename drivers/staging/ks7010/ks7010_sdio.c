@@ -400,7 +400,7 @@ static void ks_wlan_hw_rx(void *dev, uint16_t size)
 	if (cnt_rxqbody(priv) >= (RX_DEVICE_BUFF_SIZE - 1)) {
 		/* in case of buffer overflow */
 		DPRINTK(1, "rx buffer overflow\n");
-		goto error_out;
+		return;
 	}
 	rx_buffer = &priv->rx_dev.rx_dev_buff[priv->rx_dev.qtail];
 
@@ -408,7 +408,7 @@ static void ks_wlan_hw_rx(void *dev, uint16_t size)
 	    ks7010_sdio_read(priv, DATA_WINDOW, &rx_buffer->data[0],
 			     hif_align_size(size));
 	if (retval)
-		goto error_out;
+		return;
 
 	/* length check */
 	if (size > 2046 || size == 0) {
@@ -426,7 +426,8 @@ static void ks_wlan_hw_rx(void *dev, uint16_t size)
 		if (retval)
 			DPRINTK(1, " error : READ_STATUS=%02X\n", read_status);
 
-		goto error_out;
+		/* length check fail */
+		return;
 	}
 
 	hdr = (struct hostif_hdr *)&rx_buffer->data[0];
@@ -453,9 +454,6 @@ static void ks_wlan_hw_rx(void *dev, uint16_t size)
 
 	/* rx_event_task((void *)priv); */
 	tasklet_schedule(&priv->ks_wlan_hw.rx_bh_task);
-
- error_out:
-	return;
 }
 
 static void ks7010_rw_function(struct work_struct *work)
