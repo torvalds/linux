@@ -208,8 +208,8 @@ struct i40e_fdir_filter {
 	u8 flow_type;
 	u8 ip4_proto;
 	/* TX packet view of src and dst */
-	__be32 dst_ip[4];
-	__be32 src_ip[4];
+	__be32 dst_ip;
+	__be32 src_ip;
 	__be16 src_port;
 	__be16 dst_port;
 	__be32 sctp_v_tag;
@@ -244,7 +244,8 @@ struct i40e_tc_configuration {
 };
 
 struct i40e_udp_port_config {
-	__be16 index;
+	/* AdminQ command interface expects port number in Host byte order */
+	u16 index;
 	u8 type;
 };
 
@@ -285,7 +286,14 @@ struct i40e_pf {
 	u32 fd_flush_cnt;
 	u32 fd_add_err;
 	u32 fd_atr_cnt;
-	u32 fd_tcp_rule;
+
+	/* Book-keeping of side-band filter count per flow-type.
+	 * This is used to detect and handle input set changes for
+	 * respective flow-type.
+	 */
+	u16 fd_tcp4_filter_cnt;
+	u16 fd_udp4_filter_cnt;
+	u16 fd_ip4_filter_cnt;
 
 	struct i40e_udp_port_config udp_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
 	u16 pending_udp_bitmap;
