@@ -2257,32 +2257,12 @@ static int intel_cpufreq_verify_policy(struct cpufreq_policy *policy)
 	struct cpudata *cpu = all_cpu_data[policy->cpu];
 
 	update_turbo_state();
-	policy->cpuinfo.max_freq = global.turbo_disabled ?
+	policy->cpuinfo.max_freq = global.no_turbo || global.turbo_disabled ?
 			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
 
 	cpufreq_verify_within_cpu_limits(policy);
 
 	return 0;
-}
-
-static unsigned int intel_cpufreq_turbo_update(struct cpudata *cpu,
-					       struct cpufreq_policy *policy,
-					       unsigned int target_freq)
-{
-	unsigned int max_freq;
-
-	update_turbo_state();
-
-	max_freq = global.no_turbo || global.turbo_disabled ?
-			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
-	policy->cpuinfo.max_freq = max_freq;
-	if (policy->max > max_freq)
-		policy->max = max_freq;
-
-	if (target_freq > max_freq)
-		target_freq = max_freq;
-
-	return target_freq;
 }
 
 static int intel_cpufreq_target(struct cpufreq_policy *policy,
@@ -2293,8 +2273,10 @@ static int intel_cpufreq_target(struct cpufreq_policy *policy,
 	struct cpufreq_freqs freqs;
 	int target_pstate;
 
+	update_turbo_state();
+
 	freqs.old = policy->cur;
-	freqs.new = intel_cpufreq_turbo_update(cpu, policy, target_freq);
+	freqs.new = target_freq;
 
 	cpufreq_freq_transition_begin(policy, &freqs);
 	switch (relation) {
@@ -2326,7 +2308,8 @@ static unsigned int intel_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	struct cpudata *cpu = all_cpu_data[policy->cpu];
 	int target_pstate;
 
-	target_freq = intel_cpufreq_turbo_update(cpu, policy, target_freq);
+	update_turbo_state();
+
 	target_pstate = DIV_ROUND_UP(target_freq, cpu->pstate.scaling);
 	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
 	intel_pstate_update_pstate(cpu, target_pstate);
