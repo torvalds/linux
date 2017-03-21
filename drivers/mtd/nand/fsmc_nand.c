@@ -870,7 +870,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(host->regs_va))
 		return PTR_ERR(host->regs_va);
 
-	host->clk = clk_get(&pdev->dev, NULL);
+	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		dev_err(&pdev->dev, "failed to fetch block clock\n");
 		return PTR_ERR(host->clk);
@@ -878,7 +878,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(host->clk);
 	if (ret)
-		goto err_clk_prepare_enable;
+		return ret;
 
 	/*
 	 * This device ID is actually a common AMBA ID as used on the
@@ -1045,8 +1045,6 @@ err_req_write_chnl:
 		dma_release_channel(host->read_dma_chan);
 err_req_read_chnl:
 	clk_disable_unprepare(host->clk);
-err_clk_prepare_enable:
-	clk_put(host->clk);
 	return ret;
 }
 
@@ -1065,7 +1063,6 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 			dma_release_channel(host->read_dma_chan);
 		}
 		clk_disable_unprepare(host->clk);
-		clk_put(host->clk);
 	}
 
 	return 0;
