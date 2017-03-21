@@ -573,7 +573,6 @@ static bool i915_guc_dequeue(struct intel_engine_cs *engine)
 {
 	struct execlist_port *port = engine->execlist_port;
 	struct drm_i915_gem_request *last = port[0].request;
-	unsigned long flags;
 	struct rb_node *rb;
 	bool submit = false;
 
@@ -589,7 +588,7 @@ static bool i915_guc_dequeue(struct intel_engine_cs *engine)
 	if (!READ_ONCE(engine->execlist_first))
 		return false;
 
-	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock_irq(&engine->timeline->lock);
 	rb = engine->execlist_first;
 	while (rb) {
 		struct drm_i915_gem_request *rq =
@@ -619,7 +618,7 @@ static bool i915_guc_dequeue(struct intel_engine_cs *engine)
 		nested_enable_signaling(last);
 		engine->execlist_first = rb;
 	}
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	spin_unlock_irq(&engine->timeline->lock);
 
 	return submit;
 }

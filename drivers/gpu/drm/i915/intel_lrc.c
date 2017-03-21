@@ -399,7 +399,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *last;
 	struct execlist_port *port = engine->execlist_port;
-	unsigned long flags;
 	struct rb_node *rb;
 	bool submit = false;
 
@@ -448,7 +447,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * and context switches) submission.
 	 */
 
-	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock_irq(&engine->timeline->lock);
 	rb = engine->execlist_first;
 	while (rb) {
 		struct drm_i915_gem_request *cursor =
@@ -500,7 +499,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		i915_gem_request_assign(&port->request, last);
 		engine->execlist_first = rb;
 	}
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	spin_unlock_irq(&engine->timeline->lock);
 
 	if (submit)
 		execlists_submit_ports(engine);
