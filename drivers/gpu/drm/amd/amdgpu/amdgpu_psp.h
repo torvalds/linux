@@ -32,6 +32,7 @@
 #define PSP_CMD_BUFFER_SIZE	0x1000
 #define PSP_ASD_BIN_SIZE	0x40000
 #define PSP_ASD_SHARED_MEM_SIZE	0x4000
+#define PSP_1_MEG		0x100000
 
 enum psp_ring_type
 {
@@ -70,6 +71,11 @@ struct psp_context
 				  struct amdgpu_firmware_info *ucode,
 				  enum AMDGPU_UCODE_ID ucode_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
+
+	/* fence buffer */
+	struct amdgpu_bo 		*fw_pri_bo;
+	uint64_t 			fw_pri_mc_addr;
+	void				*fw_pri_buf;
 
 	/* sos firmware */
 	const struct firmware		*sos_fw;

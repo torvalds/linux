@@ -275,17 +275,25 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	if (!cmd)
 		return -ENOMEM;
 
-	ret = psp_bootloader_load_sysdrv(psp);
+	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
+				      AMDGPU_GEM_DOMAIN_GTT,
+				      &psp->fw_pri_bo,
+				      &psp->fw_pri_mc_addr,
+				      &psp->fw_pri_buf);
 	if (ret)
 		goto failed;
+
+	ret = psp_bootloader_load_sysdrv(psp);
+	if (ret)
+		goto failed_mem1;
 
 	ret = psp_bootloader_load_sos(psp);
 	if (ret)
-		goto failed;
+		goto failed_mem1;
 
 	ret = psp_ring_init(psp, PSP_RING_TYPE__KM);
 	if (ret)
-		goto failed;
+		goto failed_mem1;
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_FENCE_BUFFER_SIZE, PAGE_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
@@ -293,7 +301,7 @@ static int psp_load_fw(struct amdgpu_device *adev)
 				      &psp->fence_buf_mc_addr,
 				      &psp->fence_buf);
 	if (ret)
-		goto failed;
+		goto failed_mem1;
 
 	memset(psp->fence_buf, 0, PSP_FENCE_BUFFER_SIZE);
 
@@ -343,6 +351,9 @@ static int psp_load_fw(struct amdgpu_device *adev)
 failed_mem:
 	amdgpu_bo_free_kernel(&psp->fence_buf_bo,
 			      &psp->fence_buf_mc_addr, &psp->fence_buf);
+failed_mem1:
+	amdgpu_bo_free_kernel(&psp->fw_pri_bo,
+			      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
 failed:
 	kfree(cmd);
 	return ret;
@@ -391,6 +402,10 @@ static int psp_hw_fini(void *handle)
 
 	if (psp->tmr_buf)
 		amdgpu_bo_free_kernel(&psp->tmr_bo, &psp->tmr_mc_addr, &psp->tmr_buf);
+
+	if (psp->fw_pri_buf)
+		amdgpu_bo_free_kernel(&psp->fw_pri_bo,
+				      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
 
 	return 0;
 }
