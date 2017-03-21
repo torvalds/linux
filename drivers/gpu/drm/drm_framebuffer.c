@@ -144,11 +144,13 @@ static int fb_plane_height(int height,
 	return DIV_ROUND_UP(height, format->vsub);
 }
 
-static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
+static int framebuffer_check(struct drm_device *dev,
+			     const struct drm_mode_fb_cmd2 *r)
 {
 	const struct drm_format_info *info;
 	int i;
 
+	/* check if the format is supported at all */
 	info = __drm_format_info(r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN);
 	if (!info) {
 		struct drm_format_name_buf format_name;
@@ -157,6 +159,9 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 		                                  &format_name));
 		return -EINVAL;
 	}
+
+	/* now let the driver pick its own format info */
+	info = drm_get_format_info(dev, r);
 
 	if (r->width == 0) {
 		DRM_DEBUG_KMS("bad framebuffer width %u\n", r->width);
@@ -281,7 +286,7 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	ret = framebuffer_check(r);
+	ret = framebuffer_check(dev, r);
 	if (ret)
 		return ERR_PTR(ret);
 

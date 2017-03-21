@@ -34,6 +34,7 @@ struct drm_file;
 struct drm_device;
 struct drm_atomic_state;
 struct drm_mode_fb_cmd2;
+struct drm_format_info;
 
 /**
  * struct drm_mode_config_funcs - basic driver provided mode setting functions
@@ -68,6 +69,19 @@ struct drm_mode_config_funcs {
 	struct drm_framebuffer *(*fb_create)(struct drm_device *dev,
 					     struct drm_file *file_priv,
 					     const struct drm_mode_fb_cmd2 *mode_cmd);
+
+	/**
+	 * @get_format_info:
+	 *
+	 * Allows a driver to return custom format information for special
+	 * fb layouts (eg. ones with auxiliary compression control planes).
+	 *
+	 * RETURNS:
+	 *
+	 * The format information specific to the given fb metadata, or
+	 * NULL if none is found.
+	 */
+	const struct drm_format_info *(*get_format_info)(const struct drm_mode_fb_cmd2 *mode_cmd);
 
 	/**
 	 * @output_poll_changed:
