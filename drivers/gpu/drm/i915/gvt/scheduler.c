@@ -130,12 +130,10 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 static int shadow_context_status_change(struct notifier_block *nb,
 		unsigned long action, void *data)
 {
-	struct intel_vgpu *vgpu = container_of(nb,
-			struct intel_vgpu, shadow_ctx_notifier_block);
-	struct drm_i915_gem_request *req =
-		(struct drm_i915_gem_request *)data;
-	struct intel_gvt_workload_scheduler *scheduler =
-		&vgpu->gvt->scheduler;
+	struct drm_i915_gem_request *req = (struct drm_i915_gem_request *)data;
+	struct intel_gvt *gvt = container_of(nb, struct intel_gvt,
+				shadow_ctx_notifier_block[req->engine->id]);
+	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct intel_vgpu_workload *workload =
 		scheduler->current_workload[req->engine->id];
 
@@ -534,15 +532,16 @@ void intel_gvt_wait_vgpu_idle(struct intel_vgpu *vgpu)
 void intel_gvt_clean_workload_scheduler(struct intel_gvt *gvt)
 {
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
-	int i;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id i;
 
 	gvt_dbg_core("clean workload scheduler\n");
 
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		if (scheduler->thread[i]) {
-			kthread_stop(scheduler->thread[i]);
-			scheduler->thread[i] = NULL;
-		}
+	for_each_engine(engine, gvt->dev_priv, i) {
+		atomic_notifier_chain_unregister(
+					&engine->context_status_notifier,
+					&gvt->shadow_ctx_notifier_block[i]);
+		kthread_stop(scheduler->thread[i]);
 	}
 }
 
@@ -550,18 +549,15 @@ int intel_gvt_init_workload_scheduler(struct intel_gvt *gvt)
 {
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct workload_thread_param *param = NULL;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id i;
 	int ret;
-	int i;
 
 	gvt_dbg_core("init workload scheduler\n");
 
 	init_waitqueue_head(&scheduler->workload_complete_wq);
 
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		/* check ring mask at init time */
-		if (!HAS_ENGINE(gvt->dev_priv, i))
-			continue;
-
+	for_each_engine(engine, gvt->dev_priv, i) {
 		init_waitqueue_head(&scheduler->waitq[i]);
 
 		param = kzalloc(sizeof(*param), GFP_KERNEL);
@@ -580,6 +576,11 @@ int intel_gvt_init_workload_scheduler(struct intel_gvt *gvt)
 			ret = PTR_ERR(scheduler->thread[i]);
 			goto err;
 		}
+
+		gvt->shadow_ctx_notifier_block[i].notifier_call =
+					shadow_context_status_change;
+		atomic_notifier_chain_register(&engine->context_status_notifier,
+					&gvt->shadow_ctx_notifier_block[i]);
 	}
 	return 0;
 err:
@@ -591,9 +592,6 @@ err:
 
 void intel_vgpu_clean_gvt_context(struct intel_vgpu *vgpu)
 {
-	atomic_notifier_chain_unregister(&vgpu->shadow_ctx->status_notifier,
-			&vgpu->shadow_ctx_notifier_block);
-
 	i915_gem_context_put_unlocked(vgpu->shadow_ctx);
 }
 
@@ -608,10 +606,5 @@ int intel_vgpu_init_gvt_context(struct intel_vgpu *vgpu)
 
 	vgpu->shadow_ctx->engine[RCS].initialised = true;
 
-	vgpu->shadow_ctx_notifier_block.notifier_call =
-		shadow_context_status_change;
-
-	atomic_notifier_chain_register(&vgpu->shadow_ctx->status_notifier,
-				       &vgpu->shadow_ctx_notifier_block);
 	return 0;
 }
