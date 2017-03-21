@@ -695,6 +695,17 @@ bool dc_link_dp_set_test_pattern(
  * Sink Interfaces - A sink corresponds to a display output device
  ******************************************************************************/
 
+struct dc_container_id {
+	// 128bit GUID in binary form
+	unsigned char  guid[16];
+	// 8 byte port ID -> ELD.PortID
+	unsigned int   portId[2];
+	// 128bit GUID in binary formufacturer name -> ELD.ManufacturerName
+	unsigned short manufacturerName;
+	// 2 byte product code -> ELD.ProductCode
+	unsigned short productCode;
+};
+
 /*
  * The sink structure contains EDID and other display device properties
  */
@@ -702,6 +713,7 @@ struct dc_sink {
 	enum signal_type sink_signal;
 	struct dc_edid dc_edid; /* raw edid */
 	struct dc_edid_caps edid_caps; /* parse display caps */
+	struct dc_container_id *dc_container_id;
 	uint32_t dongle_max_pix_clk;
 	bool converter_disable_audio;
 };
@@ -719,6 +731,8 @@ struct dc_sink_init_data {
 };
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
+bool dc_sink_get_container_id(struct dc_sink *dc_sink, struct dc_container_id *container_id);
+bool dc_sink_set_container_id(struct dc_sink *dc_sink, const struct dc_container_id *container_id);
 
 /*******************************************************************************
  * Cursor interfaces - To manages the cursor within a stream

@@ -76,9 +76,17 @@ static bool construct(struct core_stream *stream,
 	stream->public.audio_info.product_id = dc_sink_data->edid_caps.product_id;
 	stream->public.audio_info.flags.all = dc_sink_data->edid_caps.speaker_flags;
 
-	/* TODO - Unhardcode port_id */
-	stream->public.audio_info.port_id[0] = 0x5558859e;
-	stream->public.audio_info.port_id[1] = 0xd989449;
+	if (dc_sink_data->dc_container_id != NULL) {
+		struct dc_container_id *dc_container_id = dc_sink_data->dc_container_id;
+
+		stream->public.audio_info.port_id[0] = dc_container_id->portId[0];
+		stream->public.audio_info.port_id[1] = dc_container_id->portId[1];
+	} else {
+		/* TODO - WindowDM has implemented,
+		other DMs need Unhardcode port_id */
+		stream->public.audio_info.port_id[0] = 0x5558859e;
+		stream->public.audio_info.port_id[1] = 0xd989449;
+	}
 
 	/* EDID CAP translation for HDMI 2.0 */
 	stream->public.timing.flags.LTE_340MCSC_SCRAMBLE = dc_sink_data->edid_caps.lte_340mcsc_scramble;

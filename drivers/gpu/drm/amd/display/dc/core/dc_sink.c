@@ -45,7 +45,10 @@ struct sink {
 
 static void destruct(struct sink *sink)
 {
-
+	if (sink->protected.public.dc_container_id) {
+		dm_free(sink->protected.public.dc_container_id);
+		sink->protected.public.dc_container_id = NULL;
+	}
 }
 
 static bool construct(struct sink *sink, const struct dc_sink_init_data *init_params)
@@ -63,6 +66,7 @@ static bool construct(struct sink *sink, const struct dc_sink_init_data *init_pa
 	sink->protected.public.dongle_max_pix_clk = init_params->dongle_max_pix_clk;
 	sink->protected.public.converter_disable_audio =
 			init_params->converter_disable_audio;
+	sink->protected.public.dc_container_id = NULL;
 
 	return true;
 }
@@ -111,6 +115,39 @@ construct_fail:
 
 alloc_fail:
 	return NULL;
+}
+
+bool dc_sink_get_container_id(struct dc_sink *dc_sink, struct dc_container_id *container_id)
+{
+	if (dc_sink && container_id && dc_sink->dc_container_id) {
+		memmove(&container_id->guid, &dc_sink->dc_container_id->guid,
+			sizeof(container_id->guid));
+		memmove(&container_id->portId, &dc_sink->dc_container_id->portId,
+			sizeof(container_id->portId));
+		container_id->manufacturerName = dc_sink->dc_container_id->manufacturerName;
+		container_id->productCode = dc_sink->dc_container_id->productCode;
+		return true;
+	}
+	return false;
+}
+
+bool dc_sink_set_container_id(struct dc_sink *dc_sink, const struct dc_container_id *container_id)
+{
+	if (dc_sink && container_id) {
+		if (!dc_sink->dc_container_id)
+			dc_sink->dc_container_id = dm_alloc(sizeof(*dc_sink->dc_container_id));
+
+		if (dc_sink->dc_container_id) {
+			memmove(&dc_sink->dc_container_id->guid, &container_id->guid,
+				sizeof(container_id->guid));
+			memmove(&dc_sink->dc_container_id->portId, &container_id->portId,
+				sizeof(container_id->portId));
+			dc_sink->dc_container_id->manufacturerName = container_id->manufacturerName;
+			dc_sink->dc_container_id->productCode = container_id->productCode;
+			return true;
+		}
+	}
+	return false;
 }
 
 /*******************************************************************************
