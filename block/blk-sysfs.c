@@ -518,8 +518,8 @@ static ssize_t queue_stats_show(struct request_queue *q, char *page)
 
 	blk_queue_stat_get(q, stat);
 
-	ret = print_stat(page, &stat[BLK_STAT_READ], "read :");
-	ret += print_stat(page + ret, &stat[BLK_STAT_WRITE], "write:");
+	ret = print_stat(page, &stat[READ], "read :");
+	ret += print_stat(page + ret, &stat[WRITE], "write:");
 	return ret;
 }
 

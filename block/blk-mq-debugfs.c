@@ -333,17 +333,17 @@ static int hctx_stats_show(struct seq_file *m, void *v)
 	struct blk_mq_hw_ctx *hctx = m->private;
 	struct blk_rq_stat stat[2];
 
-	blk_stat_init(&stat[BLK_STAT_READ]);
-	blk_stat_init(&stat[BLK_STAT_WRITE]);
+	blk_stat_init(&stat[READ]);
+	blk_stat_init(&stat[WRITE]);
 
 	blk_hctx_stat_get(hctx, stat);
 
 	seq_puts(m, "read: ");
-	print_stat(m, &stat[BLK_STAT_READ]);
+	print_stat(m, &stat[READ]);
 	seq_puts(m, "\n");
 
 	seq_puts(m, "write: ");
-	print_stat(m, &stat[BLK_STAT_WRITE]);
+	print_stat(m, &stat[WRITE]);
 	seq_puts(m, "\n");
 	return 0;
 }
@@ -362,8 +362,8 @@ static ssize_t hctx_stats_write(struct file *file, const char __user *buf,
 	int i;
 
 	hctx_for_each_ctx(hctx, ctx, i) {
-		blk_stat_init(&ctx->stat[BLK_STAT_READ]);
-		blk_stat_init(&ctx->stat[BLK_STAT_WRITE]);
+		blk_stat_init(&ctx->stat[READ]);
+		blk_stat_init(&ctx->stat[WRITE]);
 	}
 	return count;
 }

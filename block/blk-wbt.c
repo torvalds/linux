@@ -255,8 +255,8 @@ static inline bool stat_sample_valid(struct blk_rq_stat *stat)
 	 * that it's writes impacting us, and not just some sole read on
 	 * a device that is in a lower power state.
 	 */
-	return stat[BLK_STAT_READ].nr_samples >= 1 &&
-		stat[BLK_STAT_WRITE].nr_samples >= RWB_MIN_WRITE_SAMPLES;
+	return (stat[READ].nr_samples >= 1 &&
+		stat[WRITE].nr_samples >= RWB_MIN_WRITE_SAMPLES);
 }
 
 static u64 rwb_sync_issue_lat(struct rq_wb *rwb)
@@ -293,7 +293,7 @@ static int __latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 	 */
 	thislat = rwb_sync_issue_lat(rwb);
 	if (thislat > rwb->cur_win_nsec ||
-	    (thislat > rwb->min_lat_nsec && !stat[BLK_STAT_READ].nr_samples)) {
+	    (thislat > rwb->min_lat_nsec && !stat[READ].nr_samples)) {
 		trace_wbt_lat(bdi, thislat);
 		return LAT_EXCEEDED;
 	}
@@ -308,7 +308,7 @@ static int __latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 		 * waited or still has writes in flights, consider us doing
 		 * just writes as well.
 		 */
-		if ((stat[BLK_STAT_WRITE].nr_samples && blk_stat_is_current(stat)) ||
+		if ((stat[WRITE].nr_samples && blk_stat_is_current(stat)) ||
 		    wb_recent_wait(rwb) || wbt_inflight(rwb))
 			return LAT_UNKNOWN_WRITES;
 		return LAT_UNKNOWN;
@@ -317,8 +317,8 @@ static int __latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 	/*
 	 * If the 'min' latency exceeds our target, step down.
 	 */
-	if (stat[BLK_STAT_READ].min > rwb->min_lat_nsec) {
-		trace_wbt_lat(bdi, stat[BLK_STAT_READ].min);
+	if (stat[READ].min > rwb->min_lat_nsec) {
+		trace_wbt_lat(bdi, stat[READ].min);
 		trace_wbt_stat(bdi, stat);
 		return LAT_EXCEEDED;
 	}

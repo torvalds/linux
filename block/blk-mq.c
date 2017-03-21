@@ -2040,8 +2040,8 @@ static void blk_mq_init_cpu_queues(struct request_queue *q,
 		spin_lock_init(&__ctx->lock);
 		INIT_LIST_HEAD(&__ctx->rq_list);
 		__ctx->queue = q;
-		blk_stat_init(&__ctx->stat[BLK_STAT_READ]);
-		blk_stat_init(&__ctx->stat[BLK_STAT_WRITE]);
+		blk_stat_init(&__ctx->stat[READ]);
+		blk_stat_init(&__ctx->stat[WRITE]);
 
 		/* If the cpu isn't online, the cpu is mapped to first hctx */
 		if (!cpu_online(i))
@@ -2769,10 +2769,10 @@ static unsigned long blk_mq_poll_nsecs(struct request_queue *q,
 	 * important on devices where the completion latencies are longer
 	 * than ~10 usec.
 	 */
-	if (req_op(rq) == REQ_OP_READ && stat[BLK_STAT_READ].nr_samples)
-		ret = (stat[BLK_STAT_READ].mean + 1) / 2;
-	else if (req_op(rq) == REQ_OP_WRITE && stat[BLK_STAT_WRITE].nr_samples)
-		ret = (stat[BLK_STAT_WRITE].mean + 1) / 2;
+	if (req_op(rq) == REQ_OP_READ && stat[READ].nr_samples)
+		ret = (stat[READ].mean + 1) / 2;
+	else if (req_op(rq) == REQ_OP_WRITE && stat[WRITE].nr_samples)
+		ret = (stat[WRITE].mean + 1) / 2;
 
 	return ret;
 }

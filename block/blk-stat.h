@@ -15,11 +15,6 @@
 #define BLK_STAT_TIME_MASK	((1ULL << BLK_STAT_SHIFT) - 1)
 #define BLK_STAT_MASK		~BLK_STAT_TIME_MASK
 
-enum {
-	BLK_STAT_READ	= 0,
-	BLK_STAT_WRITE,
-};
-
 void blk_stat_add(struct blk_rq_stat *, struct request *);
 void blk_hctx_stat_get(struct blk_mq_hw_ctx *, struct blk_rq_stat *);
 void blk_queue_stat_get(struct request_queue *, struct blk_rq_stat *);

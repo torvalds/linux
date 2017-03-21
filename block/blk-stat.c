@@ -55,8 +55,8 @@ static void blk_mq_stat_get(struct request_queue *q, struct blk_rq_stat *dst)
 	uint64_t latest = 0;
 	int i, j, nr;
 
-	blk_stat_init(&dst[BLK_STAT_READ]);
-	blk_stat_init(&dst[BLK_STAT_WRITE]);
+	blk_stat_init(&dst[READ]);
+	blk_stat_init(&dst[WRITE]);
 
 	nr = 0;
 	do {
@@ -64,16 +64,16 @@ static void blk_mq_stat_get(struct request_queue *q, struct blk_rq_stat *dst)
 
 		queue_for_each_hw_ctx(q, hctx, i) {
 			hctx_for_each_ctx(hctx, ctx, j) {
-				blk_stat_flush_batch(&ctx->stat[BLK_STAT_READ]);
-				blk_stat_flush_batch(&ctx->stat[BLK_STAT_WRITE]);
+				blk_stat_flush_batch(&ctx->stat[READ]);
+				blk_stat_flush_batch(&ctx->stat[WRITE]);
 
-				if (!ctx->stat[BLK_STAT_READ].nr_samples &&
-				    !ctx->stat[BLK_STAT_WRITE].nr_samples)
+				if (!ctx->stat[READ].nr_samples &&
+				    !ctx->stat[WRITE].nr_samples)
 					continue;
-				if (ctx->stat[BLK_STAT_READ].time > newest)
-					newest = ctx->stat[BLK_STAT_READ].time;
-				if (ctx->stat[BLK_STAT_WRITE].time > newest)
-					newest = ctx->stat[BLK_STAT_WRITE].time;
+				if (ctx->stat[READ].time > newest)
+					newest = ctx->stat[READ].time;
+				if (ctx->stat[WRITE].time > newest)
+					newest = ctx->stat[WRITE].time;
 			}
 		}
 
@@ -88,14 +88,14 @@ static void blk_mq_stat_get(struct request_queue *q, struct blk_rq_stat *dst)
 
 		queue_for_each_hw_ctx(q, hctx, i) {
 			hctx_for_each_ctx(hctx, ctx, j) {
-				if (ctx->stat[BLK_STAT_READ].time == newest) {
-					blk_stat_sum(&dst[BLK_STAT_READ],
-						     &ctx->stat[BLK_STAT_READ]);
+				if (ctx->stat[READ].time == newest) {
+					blk_stat_sum(&dst[READ],
+						     &ctx->stat[READ]);
 					nr++;
 				}
-				if (ctx->stat[BLK_STAT_WRITE].time == newest) {
-					blk_stat_sum(&dst[BLK_STAT_WRITE],
-						     &ctx->stat[BLK_STAT_WRITE]);
+				if (ctx->stat[WRITE].time == newest) {
+					blk_stat_sum(&dst[WRITE],
+						     &ctx->stat[WRITE]);
 					nr++;
 				}
 			}
@@ -106,7 +106,7 @@ static void blk_mq_stat_get(struct request_queue *q, struct blk_rq_stat *dst)
 		 */
 	} while (!nr);
 
-	dst[BLK_STAT_READ].time = dst[BLK_STAT_WRITE].time = latest;
+	dst[READ].time = dst[WRITE].time = latest;
 }
 
 void blk_queue_stat_get(struct request_queue *q, struct blk_rq_stat *dst)
@@ -114,12 +114,12 @@ void blk_queue_stat_get(struct request_queue *q, struct blk_rq_stat *dst)
 	if (q->mq_ops)
 		blk_mq_stat_get(q, dst);
 	else {
-		blk_stat_flush_batch(&q->rq_stats[BLK_STAT_READ]);
-		blk_stat_flush_batch(&q->rq_stats[BLK_STAT_WRITE]);
-		memcpy(&dst[BLK_STAT_READ], &q->rq_stats[BLK_STAT_READ],
-				sizeof(struct blk_rq_stat));
-		memcpy(&dst[BLK_STAT_WRITE], &q->rq_stats[BLK_STAT_WRITE],
-				sizeof(struct blk_rq_stat));
+		blk_stat_flush_batch(&q->rq_stats[READ]);
+		blk_stat_flush_batch(&q->rq_stats[WRITE]);
+		memcpy(&dst[READ], &q->rq_stats[READ],
+		       sizeof(struct blk_rq_stat));
+		memcpy(&dst[WRITE], &q->rq_stats[WRITE],
+		       sizeof(struct blk_rq_stat));
 	}
 }
 
@@ -133,31 +133,29 @@ void blk_hctx_stat_get(struct blk_mq_hw_ctx *hctx, struct blk_rq_stat *dst)
 		uint64_t newest = 0;
 
 		hctx_for_each_ctx(hctx, ctx, i) {
-			blk_stat_flush_batch(&ctx->stat[BLK_STAT_READ]);
-			blk_stat_flush_batch(&ctx->stat[BLK_STAT_WRITE]);
+			blk_stat_flush_batch(&ctx->stat[READ]);
+			blk_stat_flush_batch(&ctx->stat[WRITE]);
 
-			if (!ctx->stat[BLK_STAT_READ].nr_samples &&
-			    !ctx->stat[BLK_STAT_WRITE].nr_samples)
+			if (!ctx->stat[READ].nr_samples &&
+			    !ctx->stat[WRITE].nr_samples)
 				continue;
 
-			if (ctx->stat[BLK_STAT_READ].time > newest)
-				newest = ctx->stat[BLK_STAT_READ].time;
-			if (ctx->stat[BLK_STAT_WRITE].time > newest)
-				newest = ctx->stat[BLK_STAT_WRITE].time;
+			if (ctx->stat[READ].time > newest)
+				newest = ctx->stat[READ].time;
+			if (ctx->stat[WRITE].time > newest)
+				newest = ctx->stat[WRITE].time;
 		}
 
 		if (!newest)
 			break;
 
 		hctx_for_each_ctx(hctx, ctx, i) {
-			if (ctx->stat[BLK_STAT_READ].time == newest) {
-				blk_stat_sum(&dst[BLK_STAT_READ],
-						&ctx->stat[BLK_STAT_READ]);
+			if (ctx->stat[READ].time == newest) {
+				blk_stat_sum(&dst[READ], &ctx->stat[READ]);
 				nr++;
 			}
-			if (ctx->stat[BLK_STAT_WRITE].time == newest) {
-				blk_stat_sum(&dst[BLK_STAT_WRITE],
-						&ctx->stat[BLK_STAT_WRITE]);
+			if (ctx->stat[WRITE].time == newest) {
+				blk_stat_sum(&dst[WRITE], &ctx->stat[WRITE]);
 				nr++;
 			}
 		}
@@ -226,13 +224,13 @@ void blk_stat_clear(struct request_queue *q)
 
 		queue_for_each_hw_ctx(q, hctx, i) {
 			hctx_for_each_ctx(hctx, ctx, j) {
-				blk_stat_init(&ctx->stat[BLK_STAT_READ]);
-				blk_stat_init(&ctx->stat[BLK_STAT_WRITE]);
+				blk_stat_init(&ctx->stat[READ]);
+				blk_stat_init(&ctx->stat[WRITE]);
 			}
 		}
 	} else {
-		blk_stat_init(&q->rq_stats[BLK_STAT_READ]);
-		blk_stat_init(&q->rq_stats[BLK_STAT_WRITE]);
+		blk_stat_init(&q->rq_stats[READ]);
+		blk_stat_init(&q->rq_stats[WRITE]);
 	}
 }
 
