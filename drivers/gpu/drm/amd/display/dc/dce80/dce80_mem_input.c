@@ -31,7 +31,7 @@
 #include "gmc/gmc_7_1_sh_mask.h"
 
 #include "include/logger_interface.h"
-#include "inc/bandwidth_calcs.h"
+#include "inc/dce_calcs.h"
 
 #include "../dce110/dce110_mem_input.h"
 #include "dce80_mem_input.h"

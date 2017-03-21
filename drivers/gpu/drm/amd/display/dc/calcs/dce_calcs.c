@@ -24,7 +24,7 @@
  */
 
 #include "dm_services.h"
-#include "bandwidth_calcs.h"
+#include "dce_calcs.h"
 #include "dc.h"
 #include "core_types.h"
 #include "dal_asic_id.h"

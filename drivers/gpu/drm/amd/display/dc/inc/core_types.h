@@ -27,7 +27,7 @@
 #define _CORE_TYPES_H_
 
 #include "dc.h"
-#include "bandwidth_calcs.h"
+#include "dce_calcs.h"
 #include "ddc_service_types.h"
 #include "dc_bios_types.h"
 

@@ -27,7 +27,7 @@
 
 #include "dc.h"
 #include "include/grph_object_id.h"
-#include "inc/bandwidth_calcs.h"
+#include "inc/dce_calcs.h"
 
 #include "dce/dce_mem_input.h" /* temporary */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2015-2017 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,12 +27,14 @@
  * Bandwidth and Watermark calculations interface.
  * (Refer to "DCEx_mode_support.xlsm" from Perforce.)
  */
-#ifndef __BANDWIDTH_CALCS_H__
-#define __BANDWIDTH_CALCS_H__
+#ifndef __DCE_CALCS_H__
+#define __DCE_CALCS_H__
 
 #include "bw_fixed.h"
 
 struct pipe_ctx;
+struct core_dc;
+struct validate_context;
 
 enum bw_calcs_version {
 	BW_CALCS_VERSION_INVALID,

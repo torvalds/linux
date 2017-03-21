@@ -35,7 +35,7 @@
 #include "clock_source.h"
 #include "dc_bios_types.h"
 
-#include "bandwidth_calcs.h"
+#include "dce_calcs.h"
 #include "bios_parser_interface.h"
 #include "include/irq_service_interface.h"
 #include "transform.h"
