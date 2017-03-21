@@ -356,28 +356,23 @@ __constant_copy_to_user(void __user *to, const void *from, unsigned long n)
 	return res;
 }
 
-#define __copy_from_user(to, from, n)		\
-(__builtin_constant_p(n) ?			\
- __constant_copy_from_user(to, from, n) :	\
- __generic_copy_from_user(to, from, n))
-
-#define __copy_to_user(to, from, n)		\
-(__builtin_constant_p(n) ?			\
- __constant_copy_to_user(to, from, n) :		\
- __generic_copy_to_user(to, from, n))
-
-#define __copy_to_user_inatomic		__copy_to_user
-#define __copy_from_user_inatomic	__copy_from_user
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	if (__builtin_constant_p(n))
+		return __constant_copy_from_user(to, from, n);
+	return __generic_copy_from_user(to, from, n);
+}
 
 static inline unsigned long
-copy_from_user(void *to, const void __user *from, unsigned long n)
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	unsigned long res = __copy_from_user_inatomic(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
+	if (__builtin_constant_p(n))
+		return __constant_copy_to_user(to, from, n);
+	return __generic_copy_to_user(to, from, n);
 }
-#define copy_to_user(to, from, n)	__copy_to_user(to, from, n)
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 #define user_addr_max() \
 	(uaccess_kernel() ? ~0UL : TASK_SIZE)

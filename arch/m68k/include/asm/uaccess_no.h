@@ -101,13 +101,21 @@ extern int __get_user_bad(void);
 		 : "=d" (x)					\
 		 : "m" (*__ptr(ptr)))
 
-#define copy_from_user(to, from, n)		(memcpy(to, from, n), 0)
-#define copy_to_user(to, from, n)		(memcpy(to, from, n), 0)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	memcpy(to, (__force const void *)from, n);
+	return 0;
+}
 
-#define __copy_from_user(to, from, n) copy_from_user(to, from, n)
-#define __copy_to_user(to, from, n) copy_to_user(to, from, n)
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	memcpy((__force void *)to, from, n);
+	return 0;
+}
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 /*
  * Copy a null terminated string from userspace.
