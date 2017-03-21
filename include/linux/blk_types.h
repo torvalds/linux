@@ -287,8 +287,6 @@ struct blk_issue_stat {
 	u64 time;
 };
 
-#define BLK_RQ_STAT_BATCH	64
-
 struct blk_rq_stat {
 	s64 mean;
 	u64 min;

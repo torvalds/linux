@@ -9,6 +9,8 @@
 #include "blk-stat.h"
 #include "blk-mq.h"
 
+#define BLK_RQ_STAT_BATCH	64
+
 static void blk_stat_flush_batch(struct blk_rq_stat *stat)
 {
 	const s32 nr_batch = READ_ONCE(stat->nr_batch);
