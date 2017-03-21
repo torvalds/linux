@@ -69,11 +69,18 @@ EXPORT_SYMBOL(phy_read_mmd_indirect);
  */
 int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 {
-	if (!phydev->is_c45)
-		return -EOPNOTSUPP;
+	if (regnum > (u16)~0 || devad > 32)
+		return -EINVAL;
 
-	return mdiobus_read(phydev->mdio.bus, phydev->mdio.addr,
-			    MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff));
+	if (phydev->drv->read_mmd)
+		return phydev->drv->read_mmd(phydev, devad, regnum);
+
+	if (phydev->is_c45) {
+		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
+		return mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, addr);
+	}
+
+	return phy_read_mmd_indirect(phydev, regnum, devad);
 }
 EXPORT_SYMBOL(phy_read_mmd);
 
@@ -125,11 +132,21 @@ EXPORT_SYMBOL(phy_write_mmd_indirect);
  */
 int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
 {
-	if (!phydev->is_c45)
-		return -EOPNOTSUPP;
+	if (regnum > (u16)~0 || devad > 32)
+		return -EINVAL;
 
-	regnum = MII_ADDR_C45 | ((devad & 0x1f) << 16) | (regnum & 0xffff);
+	if (phydev->drv->read_mmd)
+		return phydev->drv->write_mmd(phydev, devad, regnum, val);
 
-	return mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, regnum, val);
+	if (phydev->is_c45) {
+		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
+
+		return mdiobus_write(phydev->mdio.bus, phydev->mdio.addr,
+				     addr, val);
+	}
+
+	phy_write_mmd_indirect(phydev, regnum, devad, val);
+
+	return 0;
 }
 EXPORT_SYMBOL(phy_write_mmd);
