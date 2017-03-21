@@ -1034,7 +1034,10 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 		/* see post_send() */
 		barrier();
 		rvt_put_swqe(wqe);
-		rvt_qp_swqe_complete(qp, wqe, IB_WC_SUCCESS);
+		rvt_qp_swqe_complete(qp,
+				     wqe,
+				     ib_hfi1_wc_opcode[wqe->wr.opcode],
+				     IB_WC_SUCCESS);
 	}
 	/*
 	 * If we were waiting for sends to complete before re-sending,
@@ -1081,7 +1084,10 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 		qp->s_last = s_last;
 		/* see post_send() */
 		barrier();
-		rvt_qp_swqe_complete(qp, wqe, IB_WC_SUCCESS);
+		rvt_qp_swqe_complete(qp,
+				     wqe,
+				     ib_hfi1_wc_opcode[wqe->wr.opcode],
+				     IB_WC_SUCCESS);
 	} else {
 		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 

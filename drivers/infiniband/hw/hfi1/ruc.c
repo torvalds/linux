@@ -920,7 +920,10 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	    qp->ibqp.qp_type == IB_QPT_GSI)
 		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
 
-	rvt_qp_swqe_complete(qp, wqe, status);
+	rvt_qp_swqe_complete(qp,
+			     wqe,
+			     ib_hfi1_wc_opcode[wqe->wr.opcode],
+			     status);
 
 	if (qp->s_acked == old_last)
 		qp->s_acked = last;
