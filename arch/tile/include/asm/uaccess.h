@@ -313,145 +313,16 @@ extern int __put_user_bad(void)
 		((x) = 0, -EFAULT);					\
 })
 
-/**
- * __copy_to_user() - copy data into user space, with less checking.
- * @to:   Destination address, in user space.
- * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from kernel space to user space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * An alternate version - __copy_to_user_inatomic() - is designed
- * to be called from atomic context, typically bracketed by calls
- * to pagefault_disable() and pagefault_enable().
- */
-extern unsigned long __must_check __copy_to_user_inatomic(
-	void __user *to, const void *from, unsigned long n);
-
-static inline unsigned long __must_check
-__copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	might_fault();
-	return __copy_to_user_inatomic(to, from, n);
-}
-
-static inline unsigned long __must_check
-copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	if (access_ok(VERIFY_WRITE, to, n))
-		n = __copy_to_user(to, from, n);
-	return n;
-}
-
-/**
- * __copy_from_user() - copy data from user space, with less checking.
- * @to:   Destination address, in kernel space.
- * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from user space to kernel space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- *
- * If some data could not be copied, this function will pad the copied
- * data to the requested size using zero bytes.
- *
- * An alternate version - __copy_from_user_inatomic() - is designed
- * to be called from atomic context, typically bracketed by calls
- * to pagefault_disable() and pagefault_enable().  This version
- * does *NOT* pad with zeros.
- */
-extern unsigned long __must_check __copy_from_user_inatomic(
-	void *to, const void __user *from, unsigned long n);
-extern unsigned long __must_check __copy_from_user_zeroing(
-	void *to, const void __user *from, unsigned long n);
-
-static inline unsigned long __must_check
-__copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-       might_fault();
-       return __copy_from_user_zeroing(to, from, n);
-}
-
-static inline unsigned long __must_check
-_copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	if (access_ok(VERIFY_READ, from, n))
-		n = __copy_from_user(to, from, n);
-	else
-		memset(to, 0, n);
-	return n;
-}
-
-extern void __compiletime_error("usercopy buffer size is too small")
-__bad_copy_user(void);
-
-static inline void copy_user_overflow(int size, unsigned long count)
-{
-	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
-}
-
-static inline unsigned long __must_check copy_from_user(void *to,
-					  const void __user *from,
-					  unsigned long n)
-{
-	int sz = __compiletime_object_size(to);
-
-	if (likely(sz == -1 || sz >= n))
-		n = _copy_from_user(to, from, n);
-	else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	return n;
-}
+extern unsigned long __must_check
+raw_copy_to_user(void __user *to, const void *from, unsigned long n);
+extern unsigned long __must_check
+raw_copy_from_user(void *to, const void __user *from, unsigned long n);
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 #ifdef __tilegx__
-/**
- * __copy_in_user() - copy data within user space, with less checking.
- * @to:   Destination address, in user space.
- * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Copy data from user space to user space.  Caller must check
- * the specified blocks with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be copied.
- * On success, this will be zero.
- */
-extern unsigned long __copy_in_user_inatomic(
+extern unsigned long raw_copy_in_user(
 	void __user *to, const void __user *from, unsigned long n);
-
-static inline unsigned long __must_check
-__copy_in_user(void __user *to, const void __user *from, unsigned long n)
-{
-	might_fault();
-	return __copy_in_user_inatomic(to, from, n);
-}
-
-static inline unsigned long __must_check
-copy_in_user(void __user *to, const void __user *from, unsigned long n)
-{
-	if (access_ok(VERIFY_WRITE, to, n) && access_ok(VERIFY_READ, from, n))
-		n = __copy_in_user(to, from, n);
-	return n;
-}
 #endif
 
 
