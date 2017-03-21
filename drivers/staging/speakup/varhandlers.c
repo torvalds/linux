@@ -98,7 +98,7 @@ void speakup_register_var(struct var_t *var)
 		}
 	}
 	p_header = var_ptrs[var->var_id];
-	if (p_header->data != NULL)
+	if (p_header->data)
 		return;
 	p_header->data = var;
 	switch (p_header->var_type) {
@@ -210,11 +210,11 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 		return -ERANGE;
 
 	var_data->u.n.value = val;
-	if (var->var_type == VAR_TIME && p_val != NULL) {
+	if (var->var_type == VAR_TIME && p_val) {
 		*p_val = msecs_to_jiffies(val);
 		return 0;
 	}
-	if (p_val != NULL)
+	if (p_val)
 		*p_val = val;
 	if (var->var_id == PUNC_LEVEL) {
 		spk_punc_mask = spk_punc_masks[val];

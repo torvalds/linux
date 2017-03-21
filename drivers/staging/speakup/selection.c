@@ -175,7 +175,7 @@ static struct speakup_paste_work speakup_paste_work = {
 
 int speakup_paste_selection(struct tty_struct *tty)
 {
-	if (cmpxchg(&speakup_paste_work.tty, NULL, tty) != NULL)
+	if (cmpxchg(&speakup_paste_work.tty, NULL, tty))
 		return -EBUSY;
 
 	tty_kref_get(tty);
