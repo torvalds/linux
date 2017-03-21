@@ -279,7 +279,7 @@ static int ks_wlan_set_essid(struct net_device *dev,
 
 	/* for SLEEP MODE */
 	/* Check if we asked for `any' */
-	if (dwrq->flags == 0) {
+	if (!dwrq->flags) {
 		/* Just send an empty SSID list */
 		memset(priv->reg.ssid.body, 0, sizeof(priv->reg.ssid.body));
 		priv->reg.ssid.size = 0;
@@ -1531,7 +1531,7 @@ static int ks_wlan_get_scan(struct net_device *dev,
 		return -EAGAIN;
 	}
 
-	if (priv->aplist.size == 0) {
+	if (!priv->aplist.size) {
 		/* Client error, no scan results...
 		 * The caller need to restart the scan.
 		 */
