@@ -37,7 +37,7 @@
 static inline void set_fs(mm_segment_t fs)
 {
 	current->thread.mm_segment = fs;
-	if (segment_eq(fs, KERNEL_DS)) {
+	if (uaccess_kernel()) {
 		set_cpu_flag(CIF_ASCE_SECONDARY);
 		__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	} else {

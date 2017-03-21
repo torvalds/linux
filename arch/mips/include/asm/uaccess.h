@@ -88,7 +88,7 @@ static inline bool eva_kernel_access(void)
 	if (!IS_ENABLED(CONFIG_EVA))
 		return false;
 
-	return segment_eq(get_fs(), get_ds());
+	return uaccess_kernel();
 }
 
 /*

@@ -45,7 +45,7 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 	return __addr_range_nowrap(addr, size) &&
 		(__under_task_size(addr, size) ||
 		__access_ok_vsyscall(addr, size) ||
-		segment_eq(get_fs(), KERNEL_DS));
+		uaccess_kernel());
 }
 
 #endif

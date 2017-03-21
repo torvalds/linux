@@ -27,7 +27,7 @@
 #include <linux/string.h>	/* for generic string functions */
 
 
-#define __kernel_ok		(segment_eq(get_fs(), KERNEL_DS))
+#define __kernel_ok		(uaccess_kernel())
 
 /*
  * Algorithmically, for __user_ok() we want do:

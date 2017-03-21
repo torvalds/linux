@@ -76,7 +76,7 @@ DECLARE_PER_CPU(struct exception_data, exception_data);
 		goto label;						\
 } while (0)
 
-#define get_user_space() (segment_eq(get_fs(), KERNEL_DS) ? 0 : mfsp(3))
+#define get_user_space() (uaccess_kernel() ? 0 : mfsp(3))
 #define get_kernel_space() (0)
 
 #define MERGE(w0, sh_1, w1, sh_2)  ({					\

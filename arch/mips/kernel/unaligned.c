@@ -1026,7 +1026,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 			goto sigbus;
 
 		if (IS_ENABLED(CONFIG_EVA)) {
-			if (segment_eq(get_fs(), get_ds()))
+			if (uaccess_kernel())
 				LoadHW(addr, value, res);
 			else
 				LoadHWE(addr, value, res);
@@ -1045,7 +1045,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 			goto sigbus;
 
 		if (IS_ENABLED(CONFIG_EVA)) {
-			if (segment_eq(get_fs(), get_ds()))
+			if (uaccess_kernel())
 				LoadW(addr, value, res);
 			else
 				LoadWE(addr, value, res);
@@ -1064,7 +1064,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 			goto sigbus;
 
 		if (IS_ENABLED(CONFIG_EVA)) {
-			if (segment_eq(get_fs(), get_ds()))
+			if (uaccess_kernel())
 				LoadHWU(addr, value, res);
 			else
 				LoadHWUE(addr, value, res);
@@ -1132,7 +1132,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		value = regs->regs[insn.i_format.rt];
 
 		if (IS_ENABLED(CONFIG_EVA)) {
-			if (segment_eq(get_fs(), get_ds()))
+			if (uaccess_kernel())
 				StoreHW(addr, value, res);
 			else
 				StoreHWE(addr, value, res);
@@ -1152,7 +1152,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		value = regs->regs[insn.i_format.rt];
 
 		if (IS_ENABLED(CONFIG_EVA)) {
-			if (segment_eq(get_fs(), get_ds()))
+			if (uaccess_kernel())
 				StoreW(addr, value, res);
 			else
 				StoreWE(addr, value, res);

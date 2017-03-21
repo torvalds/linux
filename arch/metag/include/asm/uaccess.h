@@ -24,7 +24,7 @@
 
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
-#define __kernel_ok (segment_eq(get_fs(), KERNEL_DS))
+#define __kernel_ok (uaccess_kernel())
 /*
  * Explicitly allow NULL pointers here. Parts of the kernel such
  * as readv/writev use access_ok to validate pointers, but want

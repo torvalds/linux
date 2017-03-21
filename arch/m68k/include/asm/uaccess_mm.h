@@ -375,7 +375,7 @@ __constant_copy_to_user(void __user *to, const void *from, unsigned long n)
 #define copy_to_user(to, from, n)	__copy_to_user(to, from, n)
 
 #define user_addr_max() \
-	(segment_eq(get_fs(), USER_DS) ? TASK_SIZE : ~0UL)
+	(uaccess_kernel() ? ~0UL : TASK_SIZE)
 
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
 extern __must_check long strlen_user(const char __user *str);
