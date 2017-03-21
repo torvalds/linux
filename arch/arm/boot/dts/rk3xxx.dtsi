@@ -132,14 +132,14 @@
 	global_timer: global-timer@1013c200 {
 		compatible = "arm,cortex-a9-global-timer";
 		reg = <0x1013c200 0x20>;
-		interrupts = <GIC_PPI 11 0x304>;
+		interrupts = <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
 		clocks = <&cru CORE_PERI>;
 	};
 
 	local_timer: local-timer@1013c600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0x1013c600 0x20>;
-		interrupts = <GIC_PPI 13 0x304>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
 		clocks = <&cru CORE_PERI>;
 	};
 
