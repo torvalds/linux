@@ -59,6 +59,14 @@
 
 };
 
+&emmc {
+	status = "okay";
+};
+
+&sd1 {
+	status = "okay";
+};
+
 &uart0 {
 	status = "okay";
 };
