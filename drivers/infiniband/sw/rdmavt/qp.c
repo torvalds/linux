@@ -1772,10 +1772,13 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 					0);
 		qp->s_next_psn = wqe->lpsn + 1;
 	}
-	if (unlikely(reserved_op))
+	if (unlikely(reserved_op)) {
+		wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
 		rvt_qp_wqe_reserve(qp, wqe);
-	else
+	} else {
+		wqe->wr.send_flags &= ~RVT_SEND_RESERVE_USED;
 		qp->s_avail--;
+	}
 	trace_rvt_post_one_wr(qp, wqe);
 	smp_wmb(); /* see request builders */
 	qp->s_head = next;
