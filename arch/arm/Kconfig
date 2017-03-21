@@ -96,6 +96,7 @@ config ARM
 	select PERF_USE_VMALLOC
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
+	select ARCH_HAS_RAW_COPY_USER
 	# Above selects are sorted alphabetically; please add new ones
 	# according to that.  Thanks.
 	help
