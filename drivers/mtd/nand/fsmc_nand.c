@@ -146,8 +146,6 @@ enum access_mode {
  */
 struct fsmc_nand_platform_data {
 	struct fsmc_nand_timings *nand_timings;
-	struct mtd_partition	*partitions;
-	unsigned int		nr_partitions;
 	unsigned int		options;
 	unsigned int		bank;
 
@@ -179,8 +177,6 @@ struct fsmc_nand_platform_data {
 struct fsmc_nand_data {
 	u32			pid;
 	struct nand_chip	nand;
-	struct mtd_partition	*partitions;
-	unsigned int		nr_partitions;
 
 	unsigned int		bank;
 	struct device		*dev;
@@ -923,8 +919,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		 AMBA_REV_BITS(pid), AMBA_CONFIG_BITS(pid));
 
 	host->bank = pdata->bank;
-	host->partitions = pdata->partitions;
-	host->nr_partitions = pdata->nr_partitions;
 	host->dev = &pdev->dev;
 	host->dev_timings = pdata->nand_timings;
 	host->mode = pdata->mode;
@@ -1065,18 +1059,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_probe;
 
-	/*
-	 * The partition information can is accessed by (in the same precedence)
-	 *
-	 * command line through Bootloader,
-	 * platform data,
-	 * default partition information present in driver.
-	 */
-	/*
-	 * Check for partition info passed
-	 */
 	mtd->name = "nand";
-	ret = mtd_device_register(mtd, host->partitions, host->nr_partitions);
+	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret)
 		goto err_probe;
 
