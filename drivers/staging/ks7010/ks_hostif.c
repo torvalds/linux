@@ -402,7 +402,7 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 	unsigned short eth_proto;
 	struct ieee802_1x_hdr *aa1x_hdr;
 	struct wpa_eapol_key *eap_key;
-	int rc;
+	int ret;
 
 	DPRINTK(3, "\n");
 
@@ -434,8 +434,8 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 
 	/*  for WPA */
 	if (auth_type != TYPE_DATA && priv->wpa.rsn_enabled) {
-		rc = hostif_data_indication_wpa(priv, auth_type);
-		if (rc)
+		ret = hostif_data_indication_wpa(priv, auth_type);
+		if (ret)
 			return;
 	}
 
@@ -1124,12 +1124,12 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 	struct ieee802_1x_hdr *aa1x_hdr;
 	struct wpa_eapol_key *eap_key;
 	struct ethhdr *eth;
-	int rc;
+	int ret;
 
 	packet_len = packet->len;
 	if (packet_len > ETH_FRAME_LEN) {
 		DPRINTK(1, "bad length packet_len=%d\n", packet_len);
-		rc = -EOVERFLOW;
+		ret = -EOVERFLOW;
 		goto err_kfree_skb;
 	}
 
@@ -1157,7 +1157,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 
 	if (!pp) {
 		DPRINTK(3, "allocate memory failed..\n");
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto err_kfree_skb;
 	}
 
@@ -1171,7 +1171,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 	if (memcmp(&priv->eth_addr[0], eth->h_source, ETH_ALEN)) {
 		DPRINTK(1, "invalid mac address !!\n");
 		DPRINTK(1, "ethernet->h_source=%pM\n", eth->h_source);
-		rc = -ENXIO;
+		ret = -ENXIO;
 		goto err_kfree;
 	}
 
@@ -1281,7 +1281,7 @@ err_kfree:
 err_kfree_skb:
 	dev_kfree_skb(packet);
 
-	return rc;
+	return ret;
 }
 
 #define ps_confirm_wait_inc(priv) do { \

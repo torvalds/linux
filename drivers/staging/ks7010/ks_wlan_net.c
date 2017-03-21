@@ -2842,20 +2842,20 @@ static const struct iw_handler_def ks_wlan_handler_def = {
 static int ks_wlan_netdev_ioctl(struct net_device *dev, struct ifreq *rq,
 				int cmd)
 {
-	int rc = 0;
+	int ret;
 	struct iwreq *wrq = (struct iwreq *)rq;
 
 	switch (cmd) {
 	case SIOCIWFIRSTPRIV + 20:	/* KS_WLAN_SET_STOP_REQ */
-		rc = ks_wlan_set_stop_request(dev, NULL, &wrq->u.mode, NULL);
+		ret = ks_wlan_set_stop_request(dev, NULL, &wrq->u.mode, NULL);
 		break;
 		// All other calls are currently unsupported
 	default:
-		rc = -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
 	}
 
-	DPRINTK(5, "return=%d\n", rc);
-	return rc;
+	DPRINTK(5, "return=%d\n", ret);
+	return ret;
 }
 
 static
