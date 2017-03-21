@@ -9,7 +9,7 @@ typedef enum _spolarity_t {
 }
 spolarity_t;
 
-typedef struct _mode_parameter_t {
+struct mode_parameter {
 	/* Horizontal timing. */
 	unsigned long horizontal_total;
 	unsigned long horizontal_display_end;
@@ -31,9 +31,7 @@ typedef struct _mode_parameter_t {
 
 	/* Clock Phase. This clock phase only applies to Panel. */
 	spolarity_t clock_phase_polarity;
-}
-mode_parameter_t;
+};
 
-int ddk750_setModeTiming(mode_parameter_t *parm, clock_type_t clock);
-
+int ddk750_setModeTiming(struct mode_parameter *parm, clock_type_t clock);
 #endif
