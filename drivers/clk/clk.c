@@ -966,6 +966,8 @@ static int __clk_notify(struct clk_core *core, unsigned long msg,
 			cnd.clk = cn->clk;
 			ret = srcu_notifier_call_chain(&cn->notifier_head, msg,
 					&cnd);
+			if (ret & NOTIFY_STOP_MASK)
+				return ret;
 		}
 	}
 
