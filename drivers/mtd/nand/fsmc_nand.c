@@ -141,7 +141,6 @@ enum access_mode {
  * @options: different options for the driver
  * @width: bus width
  * @bank: default bank
- * @select_bank: callback to select a certain bank, this is
  * platform-specific. If the controller only supports one bank
  * this may be set to NULL
  */
@@ -153,8 +152,6 @@ struct fsmc_nand_platform_data {
 	unsigned int		bank;
 
 	enum access_mode	mode;
-
-	void			(*select_bank)(uint32_t bank, uint32_t busw);
 
 	/* priv structures for dma accesses */
 	void			*read_dma_priv;
@@ -958,7 +955,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		 AMBA_REV_BITS(pid), AMBA_CONFIG_BITS(pid));
 
 	host->bank = pdata->bank;
-	host->select_chip = pdata->select_bank;
 	host->partitions = pdata->partitions;
 	host->nr_partitions = pdata->nr_partitions;
 	host->dev = &pdev->dev;
