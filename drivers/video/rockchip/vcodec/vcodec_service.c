@@ -354,11 +354,14 @@ struct vpu_subdev_data {
 
 	struct device *mmu_dev;
 	struct vcodec_iommu_info *iommu_info;
+	struct work_struct set_work;
 };
 
 struct vpu_service_info {
 	struct wake_lock wake_lock;
 	struct delayed_work power_off_work;
+	struct wake_lock set_wake_lock;
+	struct workqueue_struct *set_workq;
 	ktime_t last; /* record previous power-on time */
 	/* vpu service structure global lock */
 	struct mutex lock;
@@ -477,8 +480,23 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	struct vpu_service_info *pservice = data->pservice;
 	struct vpu_subdev_data *subdata, *n;
 
-	if (pservice->subcnt < 2)
+	if (pservice->subcnt < 2) {
+		if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
+			set_bit(MMU_ACTIVATED, &data->state);
+
+			if (atomic_read(&pservice->enabled)) {
+				if (vcodec_iommu_attach(data->iommu_info))
+					dev_err(data->dev,
+						"vcodec service attach failed\n"
+						);
+				else
+					BUG_ON(
+					       !atomic_read(&pservice->enabled)
+					       );
+			}
+		}
 		return;
+	}
 
 	if (pservice->curr_mode == data->mode)
 		return;
@@ -489,6 +507,7 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 		if (data != subdata && subdata->mmu_dev &&
 		    test_bit(MMU_ACTIVATED, &subdata->state)) {
 			clear_bit(MMU_ACTIVATED, &subdata->state);
+			vcodec_iommu_detach(subdata->iommu_info);
 		}
 	}
 	bits = 1 << pservice->mode_bit;
@@ -534,7 +553,9 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 #endif
 	if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
 		set_bit(MMU_ACTIVATED, &data->state);
-		if (!atomic_read(&pservice->enabled))
+		if (atomic_read(&pservice->enabled))
+			vcodec_iommu_attach(data->iommu_info);
+		else
 			/* FIXME BUG_ON should not be used in mass produce */
 			BUG_ON(!atomic_read(&pservice->enabled));
 	}
@@ -664,7 +685,6 @@ static void vpu_reset(struct vpu_subdev_data *data)
 		if (atomic_read(&pservice->enabled)) {
 			/* Need to reset iommu */
 			vcodec_iommu_detach(data->iommu_info);
-			vcodec_iommu_attach(data->iommu_info);
 		} else {
 			/* FIXME BUG_ON should not be used in mass produce */
 			BUG_ON(!atomic_read(&pservice->enabled));
@@ -799,13 +819,8 @@ static void vpu_service_power_on(struct vpu_subdev_data *data,
 		pservice->last = now;
 	}
 	ret = atomic_add_unless(&pservice->enabled, 1, 1);
-	if (!ret) {
-		if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
-			set_bit(MMU_ACTIVATED, &data->state);
-			vcodec_iommu_attach(data->iommu_info);
-		}
+	if (!ret)
 		return;
-	}
 
 	dev_dbg(pservice->dev, "power on\n");
 
@@ -828,18 +843,6 @@ static void vpu_service_power_on(struct vpu_subdev_data *data,
 		clk_prepare_enable(pservice->pd_video);
 #endif
 	pm_runtime_get_sync(pservice->dev);
-
-	if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
-		set_bit(MMU_ACTIVATED, &data->state);
-		if (atomic_read(&pservice->enabled))
-			vcodec_iommu_attach(data->iommu_info);
-		else
-			/*
-			 * FIXME BUG_ON should not be used in mass
-			 * produce.
-			 */
-			BUG_ON(!atomic_read(&pservice->enabled));
-	}
 
 	udelay(5);
 	atomic_add(1, &pservice->power_on_cnt);
@@ -1075,8 +1078,6 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data,
 			if (pps_info_count) {
 				u8 *pps;
 
-				mutex_lock(&pservice->lock);
-
 				pps = vcodec_iommu_map_kernel
 					(data->iommu_info, session, hdl);
 
@@ -1091,7 +1092,6 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data,
 
 				vcodec_iommu_unmap_kernel
 					(data->iommu_info, session, hdl);
-				mutex_unlock(&pservice->lock);
 			}
 		}
 
@@ -1628,6 +1628,8 @@ static void try_set_reg(struct vpu_subdev_data *data)
 		struct vpu_reg *reg = list_entry(pservice->waiting.next,
 				struct vpu_reg, status_link);
 
+		vpu_service_power_on(data, pservice);
+
 		if (change_able || !reset_request) {
 			switch (reg->type) {
 			case VPU_ENC: {
@@ -1686,6 +1688,18 @@ static void try_set_reg(struct vpu_subdev_data *data)
 
 	mutex_unlock(&pservice->shutdown_lock);
 	vpu_debug_leave();
+}
+
+static void vpu_set_register_work(struct work_struct *work_s)
+{
+	struct vpu_subdev_data *data = container_of(work_s,
+						    struct vpu_subdev_data,
+						    set_work);
+	struct vpu_service_info *pservice = data->pservice;
+
+	mutex_lock(&pservice->lock);
+	try_set_reg(data);
+	mutex_unlock(&pservice->lock);
 }
 
 static int return_reg(struct vpu_subdev_data *data,
@@ -1772,8 +1786,6 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 		struct vpu_request req;
 		struct vpu_reg *reg;
 
-		vpu_service_power_on(data, pservice);
-
 		vpu_debug(DEBUG_IOCTL, "pid %d set reg type %d\n",
 			  session->pid, session->type);
 		if (copy_from_user(&req, (void __user *)arg,
@@ -1786,17 +1798,13 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 		if (NULL == reg) {
 			return -EFAULT;
 		} else {
-			mutex_lock(&pservice->lock);
-			try_set_reg(data);
-			mutex_unlock(&pservice->lock);
+			queue_work(pservice->set_workq, &data->set_work);
 		}
 	} break;
 	case VPU_IOC_GET_REG: {
 		struct vpu_request req;
 		struct vpu_reg *reg;
 		int ret;
-
-		vpu_service_power_on(data, pservice);
 
 		vpu_debug(DEBUG_IOCTL, "pid %d get reg type %d\n",
 			  session->pid, session->type);
@@ -1844,9 +1852,9 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 			}
 			vpu_service_session_clear(data, session);
 			mutex_unlock(&pservice->lock);
+
 			return ret;
 		}
-
 		mutex_lock(&pservice->lock);
 		reg = list_entry(session->done.next,
 				 struct vpu_reg, session_link);
@@ -1923,8 +1931,6 @@ static long compat_vpu_service_ioctl(struct file *filp, unsigned int cmd,
 		struct compat_vpu_request req;
 		struct vpu_reg *reg;
 
-		vpu_service_power_on(data, pservice);
-
 		vpu_debug(DEBUG_IOCTL, "compat set reg type %d\n",
 			  session->type);
 		if (copy_from_user(&req, compat_ptr((compat_uptr_t)arg),
@@ -1937,17 +1943,13 @@ static long compat_vpu_service_ioctl(struct file *filp, unsigned int cmd,
 		if (NULL == reg) {
 			return -EFAULT;
 		} else {
-			mutex_lock(&pservice->lock);
-			try_set_reg(data);
-			mutex_unlock(&pservice->lock);
+			queue_work(pservice->set_workq, &data->set_work);
 		}
 	} break;
 	case COMPAT_VPU_IOC_GET_REG: {
 		struct compat_vpu_request req;
 		struct vpu_reg *reg;
 		int ret;
-
-		vpu_service_power_on(data, pservice);
 
 		vpu_debug(DEBUG_IOCTL, "compat get reg type %d\n",
 			  session->type);
@@ -2105,7 +2107,6 @@ static int vpu_service_release(struct inode *inode, struct file *filp)
 	}
 	wake_up(&session->wait);
 
-	vpu_service_power_on(data, pservice);
 	mutex_lock(&pservice->lock);
 	/* remove this filp from the asynchronusly notified filp's */
 	list_del_init(&session->list_session);
@@ -2266,6 +2267,8 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 
 	data->pservice = pservice;
 	data->dev = dev;
+
+	INIT_WORK(&data->set_work, vpu_set_register_work);
 	of_property_read_u32(np, "dev_mode", (u32 *)&data->mode);
 
 	if (pservice->reg_base == 0) {
@@ -2319,12 +2322,18 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	clear_bit(MMU_ACTIVATED, &data->state);
 	vpu_service_power_on(data, pservice);
 
+	of_property_read_u32(np, "allocator", (u32 *)&pservice->alloc_type);
+	data->iommu_info = vcodec_iommu_info_create(dev, data->mmu_dev,
+						    pservice->alloc_type);
+	dev_info(dev, "allocator is %s\n", pservice->alloc_type == 1 ? "drm" :
+		(pservice->alloc_type == 2 ? "ion" : "null"));
 	vcodec_enter_mode(data);
 	ret = vpu_service_check_hw(data);
 	if (ret < 0) {
 		vpu_err("error: hw info check faild\n");
 		goto err;
 	}
+	vcodec_exit_mode(data);
 
 	hw_info = data->hw_info;
 	regs = (u8 *)data->regs;
@@ -2370,15 +2379,9 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	atomic_set(&data->enc_dev.irq_count_codec, 0);
 	atomic_set(&data->enc_dev.irq_count_pp, 0);
 
-	of_property_read_u32(np, "allocator", (u32 *)&pservice->alloc_type);
-	data->iommu_info = vcodec_iommu_info_create(dev, data->mmu_dev,
-						    pservice->alloc_type);
-	dev_info(dev, "allocator is %s\n", pservice->alloc_type == 1 ? "drm" :
-		(pservice->alloc_type == 2 ? "ion" : "null"));
 	get_hw_info(data);
 	pservice->auto_freq = true;
 
-	vcodec_exit_mode(data);
 	/* create device node */
 	ret = alloc_chrdev_region(&data->dev_t, 0, 1, name);
 	if (ret) {
@@ -2553,6 +2556,12 @@ static int vcodec_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	pservice->dev = dev;
 
+	pservice->set_workq = create_singlethread_workqueue("vcodec");
+	if (!pservice->set_workq) {
+		dev_err(dev, "failed to create workqueue\n");
+		return -ENOMEM;
+	}
+
 	driver_data = vcodec_get_drv_data(pdev);
 	if (!driver_data)
 		return -EINVAL;
@@ -2630,6 +2639,7 @@ static int vcodec_probe(struct platform_device *pdev)
 err:
 	dev_info(dev, "init failed\n");
 	vpu_service_power_off(pservice);
+	destroy_workqueue(pservice->set_workq);
 	wake_lock_destroy(&pservice->wake_lock);
 
 	return ret;
@@ -2668,7 +2678,6 @@ static void vcodec_shutdown(struct platform_device *pdev)
 		dev_err(&pdev->dev, "wait total running time out\n");
 
 	vcodec_exit_mode(data);
-
 	vpu_service_clear(data);
 	if (of_property_read_bool(np, "subcnt")) {
 		for (i = 0; i < pservice->subcnt; i++) {
@@ -2677,7 +2686,6 @@ static void vcodec_shutdown(struct platform_device *pdev)
 
 			sub_np = of_parse_phandle(np, "rockchip,sub", i);
 			sub_pdev = of_find_device_by_node(sub_np);
-
 			vcodec_subdev_remove(platform_get_drvdata(sub_pdev));
 		}
 
@@ -2903,7 +2911,8 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 		else
 			reg_from_run_to_done(data, pservice->reg_pproc);
 	}
-	try_set_reg(data);
+
+	queue_work(pservice->set_workq, &data->set_work);
 	mutex_unlock(&pservice->lock);
 	return IRQ_HANDLED;
 }
@@ -2961,8 +2970,9 @@ static irqreturn_t vepu_isr(int irq, void *dev_id)
 		else
 			reg_from_run_to_done(data, pservice->reg_codec);
 	}
-	try_set_reg(data);
+	queue_work(pservice->set_workq, &data->set_work);
 	mutex_unlock(&pservice->lock);
+
 	return IRQ_HANDLED;
 }
 

@@ -35,6 +35,7 @@
 #include <linux/kref.h>
 #include <linux/fdtable.h>
 #include <linux/ktime.h>
+#include <linux/iova.h>
 
 #include "vcodec_iommu_ops.h"
 
@@ -50,6 +51,7 @@ struct vcodec_drm_buffer {
 	int index;
 	struct dma_buf_attachment *attach;
 	struct sg_table *sgt;
+	struct sg_table *copy_sgt;
 	struct page **pages;
 	struct kref ref;
 	struct vcodec_iommu_session_info *session_info;
@@ -138,12 +140,6 @@ static int vcodec_drm_attach_unlock(struct vcodec_iommu_info *iommu_info)
 		return ret;
 	}
 
-	if (!common_iommu_setup_dma_ops(dev, 0x10000000, SZ_2G, domain->ops)) {
-		dev_err(dev, "Failed to set dma_ops\n");
-		iommu_detach_device(domain, dev);
-		ret = -ENODEV;
-	}
-
 	return ret;
 }
 
@@ -208,6 +204,164 @@ static void vcodec_drm_sgt_unmap_kernel(struct vcodec_drm_buffer *drm_buffer)
 	kfree(drm_buffer->pages);
 }
 
+static int vcodec_finalise_sg(struct scatterlist *sg,
+			      int nents,
+			      dma_addr_t dma_addr)
+{
+	struct scatterlist *s, *cur = sg;
+	unsigned long seg_mask = DMA_BIT_MASK(32);
+	unsigned int cur_len = 0, max_len = DMA_BIT_MASK(32);
+	int i, count = 0;
+
+	for_each_sg(sg, s, nents, i) {
+		/* Restore this segment's original unaligned fields first */
+		unsigned int s_iova_off = sg_dma_address(s);
+		unsigned int s_length = sg_dma_len(s);
+		unsigned int s_iova_len = s->length;
+
+		s->offset += s_iova_off;
+		s->length = s_length;
+		sg_dma_address(s) = DMA_ERROR_CODE;
+		sg_dma_len(s) = 0;
+
+		/*
+		 * Now fill in the real DMA data. If...
+		 * - there is a valid output segment to append to
+		 * - and this segment starts on an IOVA page boundary
+		 * - but doesn't fall at a segment boundary
+		 * - and wouldn't make the resulting output segment too long
+		 */
+		if (cur_len && !s_iova_off && (dma_addr & seg_mask) &&
+		    (cur_len + s_length <= max_len)) {
+			/* ...then concatenate it with the previous one */
+			cur_len += s_length;
+		} else {
+			/* Otherwise start the next output segment */
+			if (i > 0)
+				cur = sg_next(cur);
+			cur_len = s_length;
+			count++;
+
+			sg_dma_address(cur) = dma_addr + s_iova_off;
+		}
+
+		sg_dma_len(cur) = cur_len;
+		dma_addr += s_iova_len;
+
+		if (s_length + s_iova_off < s_iova_len)
+			cur_len = 0;
+	}
+	return count;
+}
+
+static void vcodec_invalidate_sg(struct scatterlist *sg, int nents)
+{
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sg, s, nents, i) {
+		if (sg_dma_address(s) != DMA_ERROR_CODE)
+			s->offset += sg_dma_address(s);
+		if (sg_dma_len(s))
+			s->length = sg_dma_len(s);
+		sg_dma_address(s) = DMA_ERROR_CODE;
+		sg_dma_len(s) = 0;
+	}
+}
+
+static dma_addr_t vcodec_dma_map_sg(struct iommu_domain *domain,
+				    struct scatterlist *sg,
+				    int nents, int prot)
+{
+	struct iova_domain *iovad = domain->iova_cookie;
+	struct iova *iova;
+	struct scatterlist *s, *prev = NULL;
+	dma_addr_t dma_addr;
+	size_t iova_len = 0;
+	unsigned long mask = DMA_BIT_MASK(32);
+	unsigned long shift = iova_shift(iovad);
+	int i;
+
+	/*
+	 * Work out how much IOVA space we need, and align the segments to
+	 * IOVA granules for the IOMMU driver to handle. With some clever
+	 * trickery we can modify the list in-place, but reversibly, by
+	 * stashing the unaligned parts in the as-yet-unused DMA fields.
+	 */
+	for_each_sg(sg, s, nents, i) {
+		size_t s_iova_off = iova_offset(iovad, s->offset);
+		size_t s_length = s->length;
+		size_t pad_len = (mask - iova_len + 1) & mask;
+
+		sg_dma_address(s) = s_iova_off;
+		sg_dma_len(s) = s_length;
+		s->offset -= s_iova_off;
+		s_length = iova_align(iovad, s_length + s_iova_off);
+		s->length = s_length;
+
+		/*
+		 * Due to the alignment of our single IOVA allocation, we can
+		 * depend on these assumptions about the segment boundary mask:
+		 * - If mask size >= IOVA size, then the IOVA range cannot
+		 *   possibly fall across a boundary, so we don't care.
+		 * - If mask size < IOVA size, then the IOVA range must start
+		 *   exactly on a boundary, therefore we can lay things out
+		 *   based purely on segment lengths without needing to know
+		 *   the actual addresses beforehand.
+		 * - The mask must be a power of 2, so pad_len == 0 if
+		 *   iova_len == 0, thus we cannot dereference prev the first
+		 *   time through here (i.e. before it has a meaningful value).
+		 */
+		if (pad_len && pad_len < s_length - 1) {
+			prev->length += pad_len;
+			iova_len += pad_len;
+		}
+
+		iova_len += s_length;
+		prev = s;
+	}
+
+	iova = alloc_iova(iovad, iova_align(iovad, iova_len) >> shift,
+					  mask >> shift, true);
+	if (!iova)
+		goto out_restore_sg;
+
+	/*
+	 * We'll leave any physical concatenation to the IOMMU driver's
+	 * implementation - it knows better than we do.
+	 */
+	dma_addr = iova_dma_addr(iovad, iova);
+	if (iommu_map_sg(domain, dma_addr, sg, nents, prot) < iova_len)
+		goto out_free_iova;
+
+	return vcodec_finalise_sg(sg, nents, dma_addr);
+
+out_free_iova:
+	__free_iova(iovad, iova);
+out_restore_sg:
+	vcodec_invalidate_sg(sg, nents);
+	return 0;
+}
+
+static void vcodec_dma_unmap_sg(struct iommu_domain *domain,
+				dma_addr_t dma_addr)
+{
+	struct iova_domain *iovad = domain->iova_cookie;
+	unsigned long shift = iova_shift(iovad);
+	unsigned long pfn = dma_addr >> shift;
+	struct iova *iova = find_iova(iovad, pfn);
+	size_t size;
+
+	if (WARN_ON(!iova))
+		return;
+
+	size = iova_size(iova) << shift;
+	size -= iommu_unmap(domain, pfn << shift, size);
+	/* ...and if we can't, then something is horribly, horribly wrong */
+	WARN_ON(size > 0);
+	__free_iova(iovad, iova);
+}
+
 static void vcodec_drm_clear_map(struct kref *ref)
 {
 	struct vcodec_drm_buffer *drm_buffer =
@@ -216,15 +370,9 @@ static void vcodec_drm_clear_map(struct kref *ref)
 		drm_buffer->session_info;
 	struct vcodec_iommu_info *iommu_info = session_info->iommu_info;
 	struct vcodec_iommu_drm_info *drm_info = iommu_info->private;
-	struct device *dev = session_info->dev;
-	struct iommu_domain *domain = drm_info->domain;
 
 	mutex_lock(&iommu_info->iommu_mutex);
 	drm_info = session_info->iommu_info->private;
-	if (!drm_info->attached) {
-		if (vcodec_drm_attach_unlock(session_info->iommu_info))
-			dev_err(dev, "can't clea map, attach iommu failed.\n");
-	}
 
 	if (drm_buffer->cpu_addr) {
 		vcodec_drm_sgt_unmap_kernel(drm_buffer);
@@ -232,15 +380,15 @@ static void vcodec_drm_clear_map(struct kref *ref)
 	}
 
 	if (drm_buffer->attach) {
+		vcodec_dma_unmap_sg(drm_info->domain, drm_buffer->iova);
+		sg_free_table(drm_buffer->copy_sgt);
+		kfree(drm_buffer->copy_sgt);
 		dma_buf_unmap_attachment(drm_buffer->attach, drm_buffer->sgt,
 					 DMA_BIDIRECTIONAL);
 		dma_buf_detach(drm_buffer->dma_buf, drm_buffer->attach);
 		dma_buf_put(drm_buffer->dma_buf);
 		drm_buffer->attach = NULL;
 	}
-
-	if (!drm_info->attached)
-		iommu_detach_device(domain, dev);
 
 	mutex_unlock(&iommu_info->iommu_mutex);
 }
@@ -446,12 +594,13 @@ static int vcodec_drm_import(struct vcodec_iommu_session_info *session_info,
 	struct vcodec_drm_buffer *oldest_buffer = NULL, *loop_buffer = NULL;
 	struct vcodec_iommu_info *iommu_info = session_info->iommu_info;
 	struct vcodec_iommu_drm_info *drm_info = iommu_info->private;
-	struct iommu_domain *domain = drm_info->domain;
 	struct device *dev = session_info->dev;
 	struct dma_buf_attachment *attach;
 	struct sg_table *sgt;
 	struct dma_buf *dma_buf;
 	ktime_t oldest_time = ktime_set(0, 0);
+	struct scatterlist *sg, *s;
+	int i;
 	int ret = 0;
 
 	dma_buf = dma_buf_get(fd);
@@ -483,11 +632,6 @@ static int vcodec_drm_import(struct vcodec_iommu_session_info *session_info,
 
 	mutex_lock(&iommu_info->iommu_mutex);
 	drm_info = session_info->iommu_info->private;
-	if (!drm_info->attached) {
-		ret = vcodec_drm_attach_unlock(session_info->iommu_info);
-		if (ret)
-			goto fail_out;
-	}
 
 	attach = dma_buf_attach(drm_buffer->dma_buf, dev);
 	if (IS_ERR(attach)) {
@@ -503,14 +647,38 @@ static int vcodec_drm_import(struct vcodec_iommu_session_info *session_info,
 		goto fail_detach;
 	}
 
-	drm_buffer->iova = sg_dma_address(sgt->sgl);
+	/*
+	 * Since we call dma_buf_map_attachment outside attach/detach, this
+	 * will cause incorrectly map. we have to re-build map table native
+	 * and for avoiding destroy their origin map table, we need use a
+	 * copy one sg_table.
+	 */
+	drm_buffer->copy_sgt = kmalloc(sizeof(*drm_buffer->copy_sgt),
+				       GFP_KERNEL);
+	if (!drm_buffer->copy_sgt) {
+		ret = -ENOMEM;
+		goto fail_detach;
+	}
+
+	ret = sg_alloc_table(drm_buffer->copy_sgt, sgt->nents, GFP_KERNEL);
+	s = drm_buffer->copy_sgt->sgl;
+	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
+		sg_set_page(s, sg_page(sg),
+			    PAGE_SIZE << compound_order(sg_page(sg)), 0);
+		sg_dma_address(s) = page_to_phys(sg_page(sg));
+		s->offset = sg->offset;
+		s->length = sg->length;
+		s = sg_next(s);
+	}
+
+	vcodec_dma_map_sg(drm_info->domain, drm_buffer->copy_sgt->sgl,
+			  drm_buffer->copy_sgt->nents,
+			  IOMMU_READ | IOMMU_WRITE);
+	drm_buffer->iova = sg_dma_address(drm_buffer->copy_sgt->sgl);
 	drm_buffer->size = drm_buffer->dma_buf->size;
 
 	drm_buffer->attach = attach;
 	drm_buffer->sgt = sgt;
-
-	if (!drm_info->attached)
-		iommu_detach_device(domain, dev);
 
 	mutex_unlock(&iommu_info->iommu_mutex);
 
@@ -558,6 +726,7 @@ fail_out:
 static int vcodec_drm_create(struct vcodec_iommu_info *iommu_info)
 {
 	struct vcodec_iommu_drm_info *drm_info;
+	struct iommu_group *group;
 	int ret;
 
 	iommu_info->private = kzalloc(sizeof(*drm_info),
@@ -575,10 +744,28 @@ static int vcodec_drm_create(struct vcodec_iommu_info *iommu_info)
 	if (ret)
 		goto err_free_domain;
 
-	vcodec_drm_attach(iommu_info);
+	group = iommu_group_get(iommu_info->dev);
+	if (!group) {
+		group = iommu_group_alloc();
+		if (IS_ERR(group)) {
+			dev_err(iommu_info->dev,
+				"Failed to allocate IOMMU group\n");
+			goto err_put_cookie;
+		}
+		ret = iommu_group_add_device(group, iommu_info->dev);
+		if (ret) {
+			dev_err(iommu_info->dev,
+				"failed to add device to IOMMU group\n");
+			goto err_put_cookie;
+		}
+	}
+	iommu_dma_init_domain(drm_info->domain, 0x10000000, SZ_2G);
+	iommu_group_put(group);
 
 	return 0;
 
+err_put_cookie:
+	iommu_put_dma_cookie(drm_info->domain);
 err_free_domain:
 	iommu_domain_free(drm_info->domain);
 
@@ -589,7 +776,6 @@ static int vcodec_drm_destroy(struct vcodec_iommu_info *iommu_info)
 {
 	struct vcodec_iommu_drm_info *drm_info = iommu_info->private;
 
-	vcodec_drm_detach(iommu_info);
 	iommu_put_dma_cookie(drm_info->domain);
 	iommu_domain_free(drm_info->domain);
 
