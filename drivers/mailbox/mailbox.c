@@ -453,6 +453,12 @@ int mbox_controller_register(struct mbox_controller *mbox)
 		txdone = TXDONE_BY_ACK;
 
 	if (txdone == TXDONE_BY_POLL) {
+
+		if (!mbox->ops->last_tx_done) {
+			dev_err(mbox->dev, "last_tx_done method is absent\n");
+			return -EINVAL;
+		}
+
 		hrtimer_init(&mbox->poll_hrt, CLOCK_MONOTONIC,
 			     HRTIMER_MODE_REL);
 		mbox->poll_hrt.function = txdone_hrtimer;
