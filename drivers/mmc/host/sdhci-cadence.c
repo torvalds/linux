@@ -68,11 +68,12 @@ struct sdhci_cdns_priv {
 	bool enhanced_strobe;
 };
 
-static void sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
-				     u8 addr, u8 data)
+static int sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
+				    u8 addr, u8 data)
 {
 	void __iomem *reg = priv->hrs_addr + SDHCI_CDNS_HRS04;
 	u32 tmp;
+	int ret;
 
 	tmp = (data << SDHCI_CDNS_HRS04_WDATA_SHIFT) |
 	      (addr << SDHCI_CDNS_HRS04_ADDR_SHIFT);
@@ -81,8 +82,14 @@ static void sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
 	tmp |= SDHCI_CDNS_HRS04_WR;
 	writel(tmp, reg);
 
+	ret = readl_poll_timeout(reg, tmp, tmp & SDHCI_CDNS_HRS04_ACK, 0, 10);
+	if (ret)
+		return ret;
+
 	tmp &= ~SDHCI_CDNS_HRS04_WR;
 	writel(tmp, reg);
+
+	return 0;
 }
 
 static void sdhci_cdns_phy_init(struct sdhci_cdns_priv *priv)
