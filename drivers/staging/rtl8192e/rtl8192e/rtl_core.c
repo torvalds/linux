@@ -477,7 +477,7 @@ static int _rtl92e_qos_assoc_resp(struct r8192_priv *priv,
 	u32 size = sizeof(struct rtllib_qos_parameters);
 	int set_qos_param = 0;
 
-	if ((priv == NULL) || (network == NULL))
+	if (!priv || !network)
 		return 0;
 
 	if (priv->rtllib->state != RTLLIB_LINKED)
@@ -790,7 +790,7 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 	if (priv->up == 0)
 		return -1;
 
-	if (priv->rtllib->rtllib_ips_leave != NULL)
+	if (priv->rtllib->rtllib_ips_leave)
 		priv->rtllib->rtllib_ips_leave(dev);
 
 	if (priv->rtllib->state == RTLLIB_LINKED)
