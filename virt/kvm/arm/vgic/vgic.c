@@ -601,10 +601,8 @@ static void vgic_flush_lr_state(struct kvm_vcpu *vcpu)
 
 	DEBUG_SPINLOCK_BUG_ON(!spin_is_locked(&vgic_cpu->ap_list_lock));
 
-	if (compute_ap_list_depth(vcpu) > kvm_vgic_global_state.nr_lr) {
-		vgic_set_underflow(vcpu);
+	if (compute_ap_list_depth(vcpu) > kvm_vgic_global_state.nr_lr)
 		vgic_sort_ap_list(vcpu);
-	}
 
 	list_for_each_entry(irq, &vgic_cpu->ap_list_head, ap_list) {
 		spin_lock(&irq->irq_lock);
@@ -623,8 +621,12 @@ static void vgic_flush_lr_state(struct kvm_vcpu *vcpu)
 next:
 		spin_unlock(&irq->irq_lock);
 
-		if (count == kvm_vgic_global_state.nr_lr)
+		if (count == kvm_vgic_global_state.nr_lr) {
+			if (!list_is_last(&irq->ap_list,
+					  &vgic_cpu->ap_list_head))
+				vgic_set_underflow(vcpu);
 			break;
+		}
 	}
 
 	vcpu->arch.vgic_cpu.used_lrs = count;
