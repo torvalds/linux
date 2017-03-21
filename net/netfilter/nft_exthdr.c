@@ -98,14 +98,21 @@ static void nft_exthdr_tcp_eval(const struct nft_expr *expr,
 			goto err;
 
 		offset = i + priv->offset;
-		dest[priv->len / NFT_REG32_SIZE] = 0;
-		memcpy(dest, opt + offset, priv->len);
+		if (priv->flags & NFT_EXTHDR_F_PRESENT) {
+			*dest = 1;
+		} else {
+			dest[priv->len / NFT_REG32_SIZE] = 0;
+			memcpy(dest, opt + offset, priv->len);
+		}
 
 		return;
 	}
 
 err:
-	regs->verdict.code = NFT_BREAK;
+	if (priv->flags & NFT_EXTHDR_F_PRESENT)
+		*dest = 0;
+	else
+		regs->verdict.code = NFT_BREAK;
 }
 
 static const struct nla_policy nft_exthdr_policy[NFTA_EXTHDR_MAX + 1] = {

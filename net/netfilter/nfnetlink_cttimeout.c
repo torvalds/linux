@@ -138,7 +138,7 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 	strcpy(timeout->name, nla_data(cda[CTA_TIMEOUT_NAME]));
 	timeout->l3num = l3num;
 	timeout->l4proto = l4proto;
-	atomic_set(&timeout->refcnt, 1);
+	refcount_set(&timeout->refcnt, 1);
 	list_add_tail_rcu(&timeout->head, &net->nfct_timeout_list);
 
 	return 0;
@@ -172,7 +172,7 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	    nla_put_be16(skb, CTA_TIMEOUT_L3PROTO, htons(timeout->l3num)) ||
 	    nla_put_u8(skb, CTA_TIMEOUT_L4PROTO, timeout->l4proto->l4proto) ||
 	    nla_put_be32(skb, CTA_TIMEOUT_USE,
-			 htonl(atomic_read(&timeout->refcnt))))
+			 htonl(refcount_read(&timeout->refcnt))))
 		goto nla_put_failure;
 
 	if (likely(l4proto->ctnl_timeout.obj_to_nlattr)) {
@@ -339,7 +339,7 @@ static int ctnl_timeout_try_del(struct net *net, struct ctnl_timeout *timeout)
 	/* We want to avoid races with ctnl_timeout_put. So only when the
 	 * current refcnt is 1, we decrease it to 0.
 	 */
-	if (atomic_cmpxchg(&timeout->refcnt, 1, 0) == 1) {
+	if (refcount_dec_if_one(&timeout->refcnt)) {
 		/* We are protected by nfnl mutex. */
 		list_del_rcu(&timeout->head);
 		nf_ct_l4proto_put(timeout->l4proto);
@@ -536,7 +536,7 @@ ctnl_timeout_find_get(struct net *net, const char *name)
 		if (!try_module_get(THIS_MODULE))
 			goto err;
 
-		if (!atomic_inc_not_zero(&timeout->refcnt)) {
+		if (!refcount_inc_not_zero(&timeout->refcnt)) {
 			module_put(THIS_MODULE);
 			goto err;
 		}
@@ -550,7 +550,7 @@ err:
 
 static void ctnl_timeout_put(struct ctnl_timeout *timeout)
 {
-	if (atomic_dec_and_test(&timeout->refcnt))
+	if (refcount_dec_and_test(&timeout->refcnt))
 		kfree_rcu(timeout, rcu_head);
 
 	module_put(THIS_MODULE);
@@ -601,7 +601,7 @@ static void __net_exit cttimeout_net_exit(struct net *net)
 		list_del_rcu(&cur->head);
 		nf_ct_l4proto_put(cur->l4proto);
 
-		if (atomic_dec_and_test(&cur->refcnt))
+		if (refcount_dec_and_test(&cur->refcnt))
 			kfree_rcu(cur, rcu_head);
 	}
 }

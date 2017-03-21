@@ -375,11 +375,7 @@ static int nft_reject_bridge_init(const struct nft_ctx *ctx,
 				  const struct nlattr * const tb[])
 {
 	struct nft_reject *priv = nft_expr_priv(expr);
-	int icmp_code, err;
-
-	err = nft_reject_bridge_validate(ctx, expr, NULL);
-	if (err < 0)
-		return err;
+	int icmp_code;
 
 	if (tb[NFTA_REJECT_TYPE] == NULL)
 		return -EINVAL;
