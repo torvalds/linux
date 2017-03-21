@@ -96,7 +96,6 @@ enum crtc_state {
 	CRTC_STATE_VBLANK = 0,
 	CRTC_STATE_VACTIVE
 };
-
 struct timing_generator {
 	const struct timing_generator_funcs *funcs;
 	struct dc_bios *bp;

@@ -180,6 +180,8 @@ struct dm_pp_display_configuration {
 
 	uint32_t avail_mclk_switch_time_us;
 	uint32_t avail_mclk_switch_time_in_disp_active_us;
+	uint32_t min_dcfclock_khz;
+	uint32_t min_dcfc_deep_sleep_clock_khz;
 
 	uint32_t disp_clk_khz;
 

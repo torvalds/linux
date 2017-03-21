@@ -28,6 +28,7 @@
 
 #include "os_types.h"
 #include "fixed31_32.h"
+#include "signal_types.h"
 
 /******************************************************************************
  * Data types for Virtual HW Layer of DAL3.
@@ -645,6 +646,14 @@ struct dc_crtc_timing {
 	enum scanning_type scan_type;
 
 	struct dc_crtc_timing_flags flags;
+};
+
+struct _dlg_otg_param {
+	int vstartup_start;
+	int vupdate_offset;
+	int vupdate_width;
+	int vready_offset;
+	enum signal_type signal;
 };
 
 #endif /* DC_HW_TYPES_H */
