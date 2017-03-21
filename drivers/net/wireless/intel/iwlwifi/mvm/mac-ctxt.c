@@ -216,7 +216,8 @@ u32 iwl_mvm_mac_get_queues_mask(struct ieee80211_vif *vif)
 			qmask |= BIT(vif->hw_queue[ac]);
 	}
 
-	if (vif->type == NL80211_IFTYPE_AP)
+	if (vif->type == NL80211_IFTYPE_AP ||
+	    vif->type == NL80211_IFTYPE_ADHOC)
 		qmask |= BIT(vif->cab_queue);
 
 	return qmask;
