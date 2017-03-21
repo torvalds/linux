@@ -852,6 +852,10 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio);
 
 int blk_init_allocated_queue(struct request_queue *q)
 {
+	q->stats = blk_alloc_queue_stats();
+	if (!q->stats)
+		return -ENOMEM;
+
 	q->fq = blk_alloc_flush_queue(q, NUMA_NO_NODE, q->cmd_size);
 	if (!q->fq)
 		return -ENOMEM;
@@ -2698,7 +2702,7 @@ void blk_finish_request(struct request *req, int error)
 	struct request_queue *q = req->q;
 
 	if (req->rq_flags & RQF_STATS)
-		blk_stat_add(&q->rq_stats[rq_data_dir(req)], req);
+		blk_stat_add(req);
 
 	if (req->rq_flags & RQF_QUEUED)
 		blk_queue_end_tag(q, req);

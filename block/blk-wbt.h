@@ -81,7 +81,7 @@ struct rq_wb {
 	u64 win_nsec;				/* default window size */
 	u64 cur_win_nsec;			/* current window size */
 
-	struct timer_list window_timer;
+	struct blk_stat_callback *cb;
 
 	s64 sync_issue;
 	void *sync_cookie;

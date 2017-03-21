@@ -294,7 +294,6 @@ struct blk_rq_stat {
 	s32 nr_samples;
 	s32 nr_batch;
 	u64 batch;
-	s64 time;
 };
 
 #endif /* __LINUX_BLK_TYPES_H */

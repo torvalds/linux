@@ -40,6 +40,8 @@ struct blkcg_gq;
 struct blk_flush_queue;
 struct pr_ops;
 struct rq_wb;
+struct blk_queue_stats;
+struct blk_stat_callback;
 
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_MAX_RQ	128	/* Default maximum */
@@ -388,6 +390,7 @@ struct request_queue {
 	int			nr_rqs[2];	/* # allocated [a]sync rqs */
 	int			nr_rqs_elvpriv;	/* # allocated rqs w/ elvpriv */
 
+	struct blk_queue_stats	*stats;
 	struct rq_wb		*rq_wb;
 
 	/*
@@ -505,8 +508,6 @@ struct request_queue {
 	unsigned int		nr_sorted;
 	unsigned int		in_flight[2];
 
-	struct blk_rq_stat	rq_stats[2];
-
 	/*
 	 * Number of active block driver functions for which blk_drain_queue()
 	 * must wait. Must be incremented around functions that unlock the
@@ -516,6 +517,10 @@ struct request_queue {
 
 	unsigned int		rq_timeout;
 	int			poll_nsec;
+
+	struct blk_stat_callback	*poll_cb;
+	struct blk_rq_stat	poll_stat[2];
+
 	struct timer_list	timeout;
 	struct work_struct	timeout_work;
 	struct list_head	timeout_list;
@@ -611,6 +616,7 @@ struct request_queue {
 #define QUEUE_FLAG_DAX         26	/* device supports DAX */
 #define QUEUE_FLAG_STATS       27	/* track rq completion times */
 #define QUEUE_FLAG_RESTART     28	/* queue needs restart at completion */
+#define QUEUE_FLAG_POLL_STATS  29	/* collecting stats for hybrid polling */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
