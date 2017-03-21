@@ -275,48 +275,19 @@ do {									\
 	}								\
 } while (0)
 
-/* We let the __ versions of copy_from/to_user inline, because they're often
- * used in fast paths and have only a small space overhead.
- */
-static inline
-unsigned long __copy_from_user_inatomic(void *to, const void __user *from,
-					       unsigned long n)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	__copy_user(to, from, n);
 	return n;
 }
 
-static inline
-unsigned long __copy_to_user_inatomic(void __user *to, const void *from,
-					     unsigned long n)
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	__copy_user(to, from, n);
 	return n;
 }
-
-
-extern unsigned long __generic_copy_to_user(void __user *, const void *,
-					    unsigned long);
-extern unsigned long __generic_copy_from_user(void *, const void __user *,
-					      unsigned long);
-
-static inline unsigned long __copy_to_user(void __user *to, const void *from,
-						unsigned long n)
-{
-	might_fault();
-	return __copy_to_user_inatomic(to, from, n);
-}
-
-static inline unsigned long __copy_from_user(void *to, const void __user *from,
-						unsigned long n)
-{
-	might_fault();
-	return __copy_from_user_inatomic(to, from, n);
-}
-
-
-#define copy_to_user(to, from, n)   __generic_copy_to_user((to), (from), (n))
-#define copy_from_user(to, from, n) __generic_copy_from_user((to), (from), (n))
 
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
 extern long __strncpy_from_user(char *dst, const char __user *src, long count);

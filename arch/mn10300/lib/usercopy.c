@@ -11,25 +11,6 @@
  */
 #include <linux/uaccess.h>
 
-unsigned long
-__generic_copy_to_user(void *to, const void *from, unsigned long n)
-{
-	if (access_ok(VERIFY_WRITE, to, n))
-		__copy_user(to, from, n);
-	return n;
-}
-
-unsigned long
-__generic_copy_from_user(void *to, const void *from, unsigned long n)
-{
-	unsigned long res = n;
-	if (access_ok(VERIFY_READ, from, res))
-		__copy_user(to, from, res);
-	if (unlikely(res))
-		memset(to + n - res, 0, res);
-	return res;
-}
-
 /*
  * Copy a null terminated string from userspace.
  */
