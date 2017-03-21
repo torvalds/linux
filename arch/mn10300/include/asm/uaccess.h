@@ -275,55 +275,19 @@ do {									\
 	}								\
 } while (0)
 
-#define __copy_user_zeroing(to, from, size)				\
-do {									\
-	if (size) {							\
-		void *__to = to;					\
-		const void *__from = from;				\
-		int w;							\
-		asm volatile(						\
-			"0:     movbu	(%0),%3;\n"			\
-			"1:     movbu	%3,(%1);\n"			\
-			"	inc	%0;\n"				\
-			"	inc	%1;\n"				\
-			"       add	-1,%2;\n"			\
-			"       bne	0b;\n"				\
-			"2:\n"						\
-			"	.section .fixup,\"ax\"\n"		\
-			"3:\n"						\
-			"	mov	%2,%0\n"			\
-			"	clr	%3\n"				\
-			"4:     movbu	%3,(%1);\n"			\
-			"	inc	%1;\n"				\
-			"       add	-1,%2;\n"			\
-			"       bne	4b;\n"				\
-			"	mov	%0,%2\n"			\
-			"	jmp	2b\n"				\
-			"	.previous\n"				\
-			"	.section __ex_table,\"a\"\n"		\
-			"       .balign	4\n"				\
-			"       .long	0b,3b\n"			\
-			"       .long	1b,3b\n"			\
-			"	.previous\n"				\
-			: "=a"(__from), "=a"(__to), "=r"(size), "=&r"(w)\
-			: "0"(__from), "1"(__to), "2"(size)		\
-			: "cc", "memory");				\
-	}								\
-} while (0)
-
 /* We let the __ versions of copy_from/to_user inline, because they're often
  * used in fast paths and have only a small space overhead.
  */
 static inline
-unsigned long __generic_copy_from_user_nocheck(void *to, const void *from,
+unsigned long __copy_from_user_inatomic(void *to, const void __user *from,
 					       unsigned long n)
 {
-	__copy_user_zeroing(to, from, n);
+	__copy_user(to, from, n);
 	return n;
 }
 
 static inline
-unsigned long __generic_copy_to_user_nocheck(void *to, const void *from,
+unsigned long __copy_to_user_inatomic(void __user *to, const void *from,
 					     unsigned long n)
 {
 	__copy_user(to, from, n);
@@ -331,110 +295,24 @@ unsigned long __generic_copy_to_user_nocheck(void *to, const void *from,
 }
 
 
-#if 0
-#error "don't use - these macros don't increment to & from pointers"
-/* Optimize just a little bit when we know the size of the move. */
-#define __constant_copy_user(to, from, size)	\
-do {						\
-	asm volatile(				\
-		"       mov %0,a0;\n"		\
-		"0:     movbu (%1),d3;\n"	\
-		"1:     movbu d3,(%2);\n"	\
-		"       add -1,a0;\n"		\
-		"       bne 0b;\n"		\
-		"2:;"				\
-		".section .fixup,\"ax\"\n"	\
-		"3:	jmp 2b\n"		\
-		".previous\n"			\
-		".section __ex_table,\"a\"\n"	\
-		"       .balign 4\n"		\
-		"       .long 0b,3b\n"		\
-		"       .long 1b,3b\n"		\
-		".previous"			\
-		:				\
-		: "d"(size), "d"(to), "d"(from)	\
-		: "d3", "a0");			\
-} while (0)
-
-/* Optimize just a little bit when we know the size of the move. */
-#define __constant_copy_user_zeroing(to, from, size)	\
-do {							\
-	asm volatile(					\
-		"       mov %0,a0;\n"			\
-		"0:     movbu (%1),d3;\n"		\
-		"1:     movbu d3,(%2);\n"		\
-		"       add -1,a0;\n"			\
-		"       bne 0b;\n"			\
-		"2:;"					\
-		".section .fixup,\"ax\"\n"		\
-		"3:	jmp 2b\n"			\
-		".previous\n"				\
-		".section __ex_table,\"a\"\n"		\
-		"       .balign 4\n"			\
-		"       .long 0b,3b\n"			\
-		"       .long 1b,3b\n"			\
-		".previous"				\
-		:					\
-		: "d"(size), "d"(to), "d"(from)		\
-		: "d3", "a0");				\
-} while (0)
-
-static inline
-unsigned long __constant_copy_to_user(void *to, const void *from,
-				      unsigned long n)
-{
-	if (access_ok(VERIFY_WRITE, to, n))
-		__constant_copy_user(to, from, n);
-	return n;
-}
-
-static inline
-unsigned long __constant_copy_from_user(void *to, const void *from,
-					unsigned long n)
-{
-	if (access_ok(VERIFY_READ, from, n))
-		__constant_copy_user_zeroing(to, from, n);
-	return n;
-}
-
-static inline
-unsigned long __constant_copy_to_user_nocheck(void *to, const void *from,
-					      unsigned long n)
-{
-	__constant_copy_user(to, from, n);
-	return n;
-}
-
-static inline
-unsigned long __constant_copy_from_user_nocheck(void *to, const void *from,
-						unsigned long n)
-{
-	__constant_copy_user_zeroing(to, from, n);
-	return n;
-}
-#endif
-
 extern unsigned long __generic_copy_to_user(void __user *, const void *,
 					    unsigned long);
 extern unsigned long __generic_copy_from_user(void *, const void __user *,
 					      unsigned long);
 
-#define __copy_to_user_inatomic(to, from, n) \
-	__generic_copy_to_user_nocheck((to), (from), (n))
-#define __copy_from_user_inatomic(to, from, n) \
-	__generic_copy_from_user_nocheck((to), (from), (n))
+static inline unsigned long __copy_to_user(void __user *to, const void *from,
+						unsigned long n)
+{
+	might_fault();
+	return __copy_to_user_inatomic(to, from, n);
+}
 
-#define __copy_to_user(to, from, n)			\
-({							\
-	might_fault();					\
-	__copy_to_user_inatomic((to), (from), (n));	\
-})
-
-#define __copy_from_user(to, from, n)			\
-({							\
-	might_fault();					\
-	__copy_from_user_inatomic((to), (from), (n));	\
-})
+static inline unsigned long __copy_from_user(void *to, const void __user *from,
+						unsigned long n)
+{
+	might_fault();
+	return __copy_from_user_inatomic(to, from, n);
+}
 
 
 #define copy_to_user(to, from, n)   __generic_copy_to_user((to), (from), (n))
