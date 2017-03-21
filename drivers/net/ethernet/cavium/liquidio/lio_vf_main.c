@@ -470,7 +470,8 @@ static void delete_glists(struct lio *lio)
 				kfree(g);
 		} while (g);
 
-		if (lio->glists_virt_base && lio->glists_virt_base[i]) {
+		if (lio->glists_virt_base && lio->glists_virt_base[i] &&
+		    lio->glists_dma_base && lio->glists_dma_base[i]) {
 			lio_dma_free(lio->oct_dev,
 				     lio->glist_entry_size * lio->tx_qsize,
 				     lio->glists_virt_base[i],
