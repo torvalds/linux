@@ -143,6 +143,13 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 	struct device_node *tx_node;
 	u8 queue = 0;
 
+	/* For backwards-compatibility with device trees that don't have any
+	 * snps,mtl-rx-config or snps,mtl-tx-config properties, we fall back
+	 * to one RX and TX queues each.
+	 */
+	plat->rx_queues_to_use = 1;
+	plat->tx_queues_to_use = 1;
+
 	rx_node = of_parse_phandle(pdev->dev.of_node, "snps,mtl-rx-config", 0);
 	if (!rx_node)
 		return;
