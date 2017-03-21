@@ -335,7 +335,6 @@ static int xlgmac_alloc_pages(struct xlgmac_pdata *pdata,
 {
 	struct page *pages = NULL;
 	dma_addr_t pages_dma;
-	int ret;
 
 	/* Try to obtain pages, decreasing order if necessary */
 	gfp |= __GFP_COLD | __GFP_COMP | __GFP_NOWARN;
@@ -352,10 +351,9 @@ static int xlgmac_alloc_pages(struct xlgmac_pdata *pdata,
 	/* Map the pages */
 	pages_dma = dma_map_page(pdata->dev, pages, 0,
 				 PAGE_SIZE << order, DMA_FROM_DEVICE);
-	ret = dma_mapping_error(pdata->dev, pages_dma);
-	if (ret) {
+	if (dma_mapping_error(pdata->dev, pages_dma)) {
 		put_page(pages);
-		return ret;
+		return -ENOMEM;
 	}
 
 	pa->pages = pages;
