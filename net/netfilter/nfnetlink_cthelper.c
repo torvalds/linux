@@ -256,6 +256,89 @@ err:
 }
 
 static int
+nfnl_cthelper_update_policy_one(const struct nf_conntrack_expect_policy *policy,
+				struct nf_conntrack_expect_policy *new_policy,
+				const struct nlattr *attr)
+{
+	struct nlattr *tb[NFCTH_POLICY_MAX + 1];
+	int err;
+
+	err = nla_parse_nested(tb, NFCTH_POLICY_MAX, attr,
+			       nfnl_cthelper_expect_pol);
+	if (err < 0)
+		return err;
+
+	if (!tb[NFCTH_POLICY_NAME] ||
+	    !tb[NFCTH_POLICY_EXPECT_MAX] ||
+	    !tb[NFCTH_POLICY_EXPECT_TIMEOUT])
+		return -EINVAL;
+
+	if (nla_strcmp(tb[NFCTH_POLICY_NAME], policy->name))
+		return -EBUSY;
+
+	new_policy->max_expected =
+		ntohl(nla_get_be32(tb[NFCTH_POLICY_EXPECT_MAX]));
+	new_policy->timeout =
+		ntohl(nla_get_be32(tb[NFCTH_POLICY_EXPECT_TIMEOUT]));
+
+	return 0;
+}
+
+static int nfnl_cthelper_update_policy_all(struct nlattr *tb[],
+					   struct nf_conntrack_helper *helper)
+{
+	struct nf_conntrack_expect_policy new_policy[helper->expect_class_max + 1];
+	struct nf_conntrack_expect_policy *policy;
+	int i, err;
+
+	/* Check first that all policy attributes are well-formed, so we don't
+	 * leave things in inconsistent state on errors.
+	 */
+	for (i = 0; i < helper->expect_class_max + 1; i++) {
+
+		if (!tb[NFCTH_POLICY_SET + i])
+			return -EINVAL;
+
+		err = nfnl_cthelper_update_policy_one(&helper->expect_policy[i],
+						      &new_policy[i],
+						      tb[NFCTH_POLICY_SET + i]);
+		if (err < 0)
+			return err;
+	}
+	/* Now we can safely update them. */
+	for (i = 0; i < helper->expect_class_max + 1; i++) {
+		policy = (struct nf_conntrack_expect_policy *)
+				&helper->expect_policy[i];
+		policy->max_expected = new_policy->max_expected;
+		policy->timeout	= new_policy->timeout;
+	}
+
+	return 0;
+}
+
+static int nfnl_cthelper_update_policy(struct nf_conntrack_helper *helper,
+				       const struct nlattr *attr)
+{
+	struct nlattr *tb[NFCTH_POLICY_SET_MAX + 1];
+	unsigned int class_max;
+	int err;
+
+	err = nla_parse_nested(tb, NFCTH_POLICY_SET_MAX, attr,
+			       nfnl_cthelper_expect_policy_set);
+	if (err < 0)
+		return err;
+
+	if (!tb[NFCTH_POLICY_SET_NUM])
+		return -EINVAL;
+
+	class_max = ntohl(nla_get_be32(tb[NFCTH_POLICY_SET_NUM]));
+	if (helper->expect_class_max + 1 != class_max)
+		return -EBUSY;
+
+	return nfnl_cthelper_update_policy_all(tb, helper);
+}
+
+static int
 nfnl_cthelper_update(const struct nlattr * const tb[],
 		     struct nf_conntrack_helper *helper)
 {
@@ -265,8 +348,7 @@ nfnl_cthelper_update(const struct nlattr * const tb[],
 		return -EBUSY;
 
 	if (tb[NFCTH_POLICY]) {
-		ret = nfnl_cthelper_parse_expect_policy(helper,
-							tb[NFCTH_POLICY]);
+		ret = nfnl_cthelper_update_policy(helper, tb[NFCTH_POLICY]);
 		if (ret < 0)
 			return ret;
 	}
