@@ -264,7 +264,7 @@ static int atomisp_save_iunit_reg(struct atomisp_device *isp)
 	return 0;
 }
 
-static int atomisp_restore_iunit_reg(struct atomisp_device *isp)
+static int __maybe_unused atomisp_restore_iunit_reg(struct atomisp_device *isp)
 {
 	struct pci_dev *dev = isp->pdev;
 
@@ -1526,7 +1526,7 @@ load_fw_fail:
 	atomisp_ospm_dphy_down(isp);
 
 	/* Address later when we worry about the ...field chips */
-	if (atomisp_mrfld_power_down(isp))
+	if (IS_ENABLED(CONFIG_PM) && atomisp_mrfld_power_down(isp))
 		dev_err(&dev->dev, "Failed to switch off ISP\n");
 	pci_dev_put(isp->pci_root);
 	return err;
