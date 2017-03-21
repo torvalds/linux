@@ -903,8 +903,7 @@ static struct atomisp_video_pipe *__atomisp_get_pipe(
 	} else if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
 		/* For online video or SDV video pipe. */
 		if (css_pipe_id == CSS_PIPE_ID_VIDEO ||
-		    css_pipe_id == CSS_PIPE_ID_COPY ||
-		    css_pipe_id == CSS_PIPE_ID_YUVPP) {
+		    css_pipe_id == CSS_PIPE_ID_COPY) {
 			if (buf_type == CSS_BUFFER_TYPE_OUTPUT_FRAME)
 				return &asd->video_out_video_capture;
 			return &asd->video_out_preview;
@@ -912,8 +911,7 @@ static struct atomisp_video_pipe *__atomisp_get_pipe(
 	} else if (asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW) {
 		/* For online preview or ZSL preview pipe. */
 		if (css_pipe_id == CSS_PIPE_ID_PREVIEW ||
-		    css_pipe_id == CSS_PIPE_ID_COPY ||
-		    css_pipe_id == CSS_PIPE_ID_YUVPP)
+		    css_pipe_id == CSS_PIPE_ID_COPY)
 			return &asd->video_out_preview;
 	}
 	/* For capture pipe. */
