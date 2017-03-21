@@ -1070,7 +1070,7 @@ int ppl_init_log(struct r5conf *conf)
 	struct mddev *mddev = conf->mddev;
 	int ret = 0;
 	int i;
-	bool need_cache_flush;
+	bool need_cache_flush = false;
 
 	pr_debug("md/raid:%s: enabling distributed Partial Parity Log\n",
 		 mdname(conf->mddev));
