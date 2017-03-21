@@ -61,7 +61,7 @@
  * Grace-period counter management.
  */
 
-#define RCU_SEQ_CTR_SHIFT	1
+#define RCU_SEQ_CTR_SHIFT	2
 #define RCU_SEQ_STATE_MASK	((1 << RCU_SEQ_CTR_SHIFT) - 1)
 
 /*
