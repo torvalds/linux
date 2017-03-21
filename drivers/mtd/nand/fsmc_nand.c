@@ -203,8 +203,6 @@ struct fsmc_nand_data {
 	void __iomem		*cmd_va;
 	void __iomem		*addr_va;
 	void __iomem		*regs_va;
-
-	void			(*select_chip)(uint32_t bank, uint32_t busw);
 };
 
 static int fsmc_ecc1_ooblayout_ecc(struct mtd_info *mtd, int section,
@@ -294,32 +292,6 @@ static const struct mtd_ooblayout_ops fsmc_ecc4_ooblayout_ops = {
 static inline struct fsmc_nand_data *mtd_to_fsmc(struct mtd_info *mtd)
 {
 	return container_of(mtd_to_nand(mtd), struct fsmc_nand_data, nand);
-}
-
-/* Assert CS signal based on chipnr */
-static void fsmc_select_chip(struct mtd_info *mtd, int chipnr)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct fsmc_nand_data *host;
-
-	host = mtd_to_fsmc(mtd);
-
-	switch (chipnr) {
-	case -1:
-		chip->cmd_ctrl(mtd, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
-		break;
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-		if (host->select_chip)
-			host->select_chip(chipnr,
-					chip->options & NAND_BUSWIDTH_16);
-		break;
-
-	default:
-		dev_err(host->dev, "unsupported chip-select %d\n", chipnr);
-	}
 }
 
 /*
@@ -984,7 +956,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	nand->ecc.hwctl = fsmc_enable_hwecc;
 	nand->ecc.size = 512;
 	nand->options = pdata->options;
-	nand->select_chip = fsmc_select_chip;
 	nand->badblockbits = 7;
 	nand_set_flash_node(nand, np);
 
