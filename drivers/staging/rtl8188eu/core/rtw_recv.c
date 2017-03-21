@@ -452,7 +452,7 @@ static struct recv_frame *portctrl(struct adapter *adapter,
 
 	if (auth_alg == 2) {
 		/* get ether_type */
-		ptr = ptr + pfhdr->attrib.hdrlen + LLC_HEADER_SIZE;
+		ptr = ptr + pfhdr->attrib.hdrlen + LLC_HEADER_SIZE + pfhdr->attrib.iv_len;
 		memcpy(&be_tmp, ptr, 2);
 		ether_type = ntohs(be_tmp);
 
