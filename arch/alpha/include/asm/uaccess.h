@@ -300,37 +300,16 @@ __asm__ __volatile__("1: stb %r2,%1\n"				\
 
 extern long __copy_user(void *to, const void *from, long len);
 
-#define __copy_to_user(to, from, n)			\
-({							\
-	__chk_user_ptr(to);				\
-	__copy_user((__force void *)(to), (from), (n));	\
-})
-#define __copy_from_user(to, from, n)			\
-({							\
-	__chk_user_ptr(from);				\
-	__copy_user((to), (__force void *)(from), (n));	\
-})
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-
-extern inline long
-copy_to_user(void __user *to, const void *from, long n)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long len)
 {
-	if (likely(__access_ok((unsigned long)to, n)))
-		n = __copy_user((__force void *)to, from, n);
-	return n;
+	return __copy_user(to, (__force const void *)from, len);
 }
 
-extern inline long
-copy_from_user(void *to, const void __user *from, long n)
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long len)
 {
-	long res = n;
-	if (likely(__access_ok((unsigned long)from, n)))
-		res = __copy_from_user_inatomic(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
+	return __copy_user((__force void *)to, from, len);
 }
 
 extern long __clear_user(void __user *to, long len);
