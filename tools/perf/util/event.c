@@ -1288,11 +1288,12 @@ int perf_event__process_exit(struct perf_tool *tool __maybe_unused,
 
 size_t perf_event__fprintf_aux(union perf_event *event, FILE *fp)
 {
-	return fprintf(fp, " offset: %#"PRIx64" size: %#"PRIx64" flags: %#"PRIx64" [%s%s]\n",
+	return fprintf(fp, " offset: %#"PRIx64" size: %#"PRIx64" flags: %#"PRIx64" [%s%s%s]\n",
 		       event->aux.aux_offset, event->aux.aux_size,
 		       event->aux.flags,
 		       event->aux.flags & PERF_AUX_FLAG_TRUNCATED ? "T" : "",
-		       event->aux.flags & PERF_AUX_FLAG_OVERWRITE ? "O" : "");
+		       event->aux.flags & PERF_AUX_FLAG_OVERWRITE ? "O" : "",
+		       event->aux.flags & PERF_AUX_FLAG_PARTIAL   ? "P" : "");
 }
 
 size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp)
