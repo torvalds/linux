@@ -193,8 +193,8 @@ static int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 		cnt_txqbody(priv));
 
 	if (!atomic_read(&priv->psstatus.confirm_wait) &&
-		!atomic_read(&priv->psstatus.snooze_guard) &&
-		!cnt_txqbody(priv)) {
+	    !atomic_read(&priv->psstatus.snooze_guard) &&
+	    !cnt_txqbody(priv)) {
 		retval = ks7010_sdio_read(priv, INT_PENDING, &rw_data,
 					  sizeof(rw_data));
 		if (retval) {
