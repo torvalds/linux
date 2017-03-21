@@ -32,7 +32,18 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x0525, 0x127a) },
 	{ },
 };
-MODULE_DEVICE_TABLE(usb, id_table);
+
+static const struct usb_device_id dbc_id_table[] = {
+	{ USB_DEVICE(0x1d6b, 0x0004) },
+	{ },
+};
+
+static const struct usb_device_id id_table_combined[] = {
+	{ USB_DEVICE(0x0525, 0x127a) },
+	{ USB_DEVICE(0x1d6b, 0x0004) },
+	{ },
+};
+MODULE_DEVICE_TABLE(usb, id_table_combined);
 
 /* This HW really does not support a serial break, so one will be
  * emulated when ever the break state is set to true.
@@ -71,9 +82,20 @@ static struct usb_serial_driver debug_device = {
 	.process_read_urb =	usb_debug_process_read_urb,
 };
 
-static struct usb_serial_driver * const serial_drivers[] = {
-	&debug_device, NULL
+static struct usb_serial_driver dbc_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"xhci_dbc",
+	},
+	.id_table =		dbc_id_table,
+	.num_ports =		1,
+	.break_ctl =		usb_debug_break_ctl,
+	.process_read_urb =	usb_debug_process_read_urb,
 };
 
-module_usb_serial_driver(serial_drivers, id_table);
+static struct usb_serial_driver * const serial_drivers[] = {
+	&debug_device, &dbc_device, NULL
+};
+
+module_usb_serial_driver(serial_drivers, id_table_combined);
 MODULE_LICENSE("GPL");
