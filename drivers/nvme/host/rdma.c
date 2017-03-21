@@ -34,7 +34,7 @@
 #include "fabrics.h"
 
 
-#define NVME_RDMA_CONNECT_TIMEOUT_MS	1000		/* 1 second */
+#define NVME_RDMA_CONNECT_TIMEOUT_MS	3000		/* 3 second */
 
 #define NVME_RDMA_MAX_SEGMENT_SIZE	0xffffff	/* 24-bit SGL field */
 
