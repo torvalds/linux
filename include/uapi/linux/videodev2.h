@@ -1400,6 +1400,13 @@ struct v4l2_bt_timings {
  * InfoFrame).
  */
 #define V4L2_DV_FL_HAS_HDMI_VIC			(1 << 8)
+/*
+ * CEA-861 specific: only valid for video receivers.
+ * If set, then HW can detect the difference between regular FPS and
+ * 1000/1001 FPS. Note: This flag is only valid for HDMI VIC codes with
+ * the V4L2_DV_FL_CAN_REDUCE_FPS flag set.
+ */
+#define V4L2_DV_FL_CAN_DETECT_REDUCED_FPS	(1 << 9)
 
 /* A few useful defines to calculate the total blanking and frame sizes */
 #define V4L2_DV_BT_BLANKING_WIDTH(bt) \
