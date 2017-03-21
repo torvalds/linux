@@ -1167,7 +1167,7 @@ struct hfi1_devdata {
 	bool eprom_available;	/* true if EPROM is available for this device */
 	bool aspm_supported;	/* Does HW support ASPM */
 	bool aspm_enabled;	/* ASPM state: enabled/disabled */
-	struct rhashtable sdma_rht;
+	struct rhashtable *sdma_rht;
 
 	struct kobject kobj;
 };
