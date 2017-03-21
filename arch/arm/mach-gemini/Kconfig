@@ -9,6 +9,5 @@ menuconfig ARCH_GEMINI
 	select POWER_RESET
 	select POWER_RESET_GEMINI_POWEROFF
 	select POWER_RESET_SYSCON
-	select SERIAL_OF_PLATFORM
 	help
 	  Support for the Cortina Systems Gemini family SoCs
