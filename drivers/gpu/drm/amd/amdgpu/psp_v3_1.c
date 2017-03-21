@@ -268,7 +268,6 @@ int psp_v3_1_prep_cmd_buf(struct amdgpu_firmware_info *ucode, struct psp_gfx_cmd
 int psp_v3_1_ring_init(struct psp_context *psp, enum psp_ring_type ring_type)
 {
 	int ret = 0;
-	unsigned int psp_ring_reg = 0;
 	struct psp_ring *ring;
 	struct amdgpu_device *adev = psp->adev;
 
@@ -287,6 +286,16 @@ int psp_v3_1_ring_init(struct psp_context *psp, enum psp_ring_type ring_type)
 		ring->ring_size = 0;
 		return ret;
 	}
+
+	return 0;
+}
+
+int psp_v3_1_ring_create(struct psp_context *psp, enum psp_ring_type ring_type)
+{
+	int ret = 0;
+	unsigned int psp_ring_reg = 0;
+	struct psp_ring *ring = &psp->km_ring;
+	struct amdgpu_device *adev = psp->adev;
 
 	/* Write low address of the ring to C2PMSG_69 */
 	psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);

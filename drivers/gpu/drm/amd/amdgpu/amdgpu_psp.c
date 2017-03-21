@@ -55,6 +55,7 @@ static int psp_sw_init(void *handle)
 		psp->bootloader_load_sos = psp_v3_1_bootloader_load_sos;
 		psp->prep_cmd_buf = psp_v3_1_prep_cmd_buf;
 		psp->ring_init = psp_v3_1_ring_init;
+		psp->ring_create = psp_v3_1_ring_create;
 		psp->cmd_submit = psp_v3_1_cmd_submit;
 		psp->compare_sram_data = psp_v3_1_compare_sram_data;
 		psp->smu_reload_quirk = psp_v3_1_smu_reload_quirk;
@@ -246,17 +247,78 @@ static int psp_asd_load(struct psp_context *psp)
 	return ret;
 }
 
+static int psp_hw_start(struct psp_context *psp)
+{
+	int ret;
+
+	ret = psp_bootloader_load_sysdrv(psp);
+	if (ret)
+		return ret;
+
+	ret = psp_bootloader_load_sos(psp);
+	if (ret)
+		return ret;
+
+	ret = psp_ring_create(psp, PSP_RING_TYPE__KM);
+	if (ret)
+		return ret;
+
+	ret = psp_tmr_load(psp);
+	if (ret)
+		return ret;
+
+	ret = psp_asd_load(psp);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int psp_np_fw_load(struct psp_context *psp)
+{
+	int i, ret;
+	struct amdgpu_firmware_info *ucode;
+	struct amdgpu_device* adev = psp->adev;
+
+	for (i = 0; i < adev->firmware.max_ucodes; i++) {
+		ucode = &adev->firmware.ucode[i];
+		if (!ucode->fw)
+			continue;
+
+		if (ucode->ucode_id == AMDGPU_UCODE_ID_SMC &&
+		    psp_smu_reload_quirk(psp))
+			continue;
+
+		ret = psp_prep_cmd_buf(ucode, psp->cmd);
+		if (ret)
+			return ret;
+
+		ret = psp_cmd_submit_buf(psp, ucode, psp->cmd,
+					 psp->fence_buf_mc_addr, i + 3);
+		if (ret)
+			return ret;
+
+#if 0
+		/* check if firmware loaded sucessfully */
+		if (!amdgpu_psp_check_fw_loading_status(adev, i))
+			return -EINVAL;
+#endif
+	}
+
+	return 0;
+}
+
 static int psp_load_fw(struct amdgpu_device *adev)
 {
 	int ret;
-	struct psp_gfx_cmd_resp *cmd;
-	int i;
-	struct amdgpu_firmware_info *ucode;
 	struct psp_context *psp = &adev->psp;
+	struct psp_gfx_cmd_resp *cmd;
 
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!cmd)
 		return -ENOMEM;
+
+	psp->cmd = cmd;
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
 				      AMDGPU_GEM_DOMAIN_GTT,
@@ -265,18 +327,6 @@ static int psp_load_fw(struct amdgpu_device *adev)
 				      &psp->fw_pri_buf);
 	if (ret)
 		goto failed;
-
-	ret = psp_bootloader_load_sysdrv(psp);
-	if (ret)
-		goto failed_mem1;
-
-	ret = psp_bootloader_load_sos(psp);
-	if (ret)
-		goto failed_mem1;
-
-	ret = psp_ring_init(psp, PSP_RING_TYPE__KM);
-	if (ret)
-		goto failed_mem1;
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_FENCE_BUFFER_SIZE, PAGE_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
@@ -288,11 +338,11 @@ static int psp_load_fw(struct amdgpu_device *adev)
 
 	memset(psp->fence_buf, 0, PSP_FENCE_BUFFER_SIZE);
 
-	ret = psp_tmr_init(psp);
+	ret = psp_ring_init(psp, PSP_RING_TYPE__KM);
 	if (ret)
-		goto failed_mem;
+		goto failed_mem1;
 
-	ret = psp_tmr_load(psp);
+	ret = psp_tmr_init(psp);
 	if (ret)
 		goto failed_mem;
 
@@ -300,34 +350,13 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	if (ret)
 		goto failed_mem;
 
-	ret = psp_asd_load(psp);
+	ret = psp_hw_start(psp);
 	if (ret)
 		goto failed_mem;
 
-	for (i = 0; i < adev->firmware.max_ucodes; i++) {
-		ucode = &adev->firmware.ucode[i];
-		if (!ucode->fw)
-			continue;
-
-		if (ucode->ucode_id == AMDGPU_UCODE_ID_SMC &&
-		    psp_smu_reload_quirk(psp))
-			continue;
-
-		ret = psp_prep_cmd_buf(ucode, cmd);
-		if (ret)
-			goto failed_mem;
-
-		ret = psp_cmd_submit_buf(psp, ucode, cmd,
-					 psp->fence_buf_mc_addr, i + 3);
-		if (ret)
-			goto failed_mem;
-
-#if 0
-		/* check if firmware loaded sucessfully */
-		if (!amdgpu_psp_check_fw_loading_status(adev, i))
-			return -EINVAL;
-#endif
-	}
+	ret = psp_np_fw_load(psp);
+	if (ret)
+		goto failed_mem;
 
 	amdgpu_bo_free_kernel(&psp->fence_buf_bo,
 			      &psp->fence_buf_mc_addr, &psp->fence_buf);
