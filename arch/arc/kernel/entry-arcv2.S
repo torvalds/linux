@@ -100,15 +100,21 @@ END(handle_interrupt)
 ;################### Non TLB Exception Handling #############################
 
 ENTRY(EV_SWI)
-	flag 1
+	; TODO: implement this
+	EXCEPTION_PROLOGUE
+	b   ret_from_exception
 END(EV_SWI)
 
 ENTRY(EV_DivZero)
-	flag 1
+	; TODO: implement this
+	EXCEPTION_PROLOGUE
+	b   ret_from_exception
 END(EV_DivZero)
 
 ENTRY(EV_DCError)
-	flag 1
+	; TODO: implement this
+	EXCEPTION_PROLOGUE
+	b   ret_from_exception
 END(EV_DCError)
 
 ; ---------------------------------------------
