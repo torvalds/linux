@@ -336,39 +336,19 @@ extern long __user_bad(void);
 	__gu_err;							\
 })
 
-
-/* copy_to_from_user */
-#define __copy_from_user(to, from, n)	\
-	__copy_tofrom_user((__force void __user *)(to), \
-				(void __user *)(from), (n))
-#define __copy_from_user_inatomic(to, from, n) \
-		__copy_from_user((to), (from), (n))
-
-static inline long copy_from_user(void *to,
-		const void __user *from, unsigned long n)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	unsigned long res = n;
-	might_fault();
-	if (likely(access_ok(VERIFY_READ, from, n)))
-		res = __copy_from_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
+	return __copy_tofrom_user((__force void __user *)to, from, n);
 }
 
-#define __copy_to_user(to, from, n)	\
-		__copy_tofrom_user((void __user *)(to), \
-			(__force const void __user *)(from), (n))
-#define __copy_to_user_inatomic(to, from, n) __copy_to_user((to), (from), (n))
-
-static inline long copy_to_user(void __user *to,
-		const void *from, unsigned long n)
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	might_fault();
-	if (access_ok(VERIFY_WRITE, to, n))
-		return __copy_to_user(to, from, n);
-	return n;
+	return __copy_tofrom_user(to, (__force const void __user *)from, n);
 }
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 /*
  * Copy a null terminated string from userspace.
