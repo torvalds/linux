@@ -721,8 +721,8 @@ static inline long __arc_strnlen_user(const char __user *s, long n)
 }
 
 #ifndef CONFIG_CC_OPTIMIZE_FOR_SIZE
-#define __copy_from_user(t, f, n)	__arc_copy_from_user(t, f, n)
-#define __copy_to_user(t, f, n)		__arc_copy_to_user(t, f, n)
+#define raw_copy_from_user		__arc_copy_from_user
+#define raw_copy_to_user		__arc_copy_to_user
 #define __clear_user(d, n)		__arc_clear_user(d, n)
 #define __strncpy_from_user(d, s, n)	__arc_strncpy_from_user(d, s, n)
 #define __strnlen_user(s, n)		__arc_strnlen_user(s, n)
@@ -737,8 +737,8 @@ extern long arc_strncpy_from_user_noinline (char *dst, const char __user *src,
 		long count);
 extern long arc_strnlen_user_noinline(const char __user *src, long n);
 
-#define __copy_from_user(t, f, n)	arc_copy_from_user_noinline(t, f, n)
-#define __copy_to_user(t, f, n)		arc_copy_to_user_noinline(t, f, n)
+#define raw_copy_from_user		arc_copy_from_user_noinline
+#define raw_copy_to_user		arc_copy_to_user_noinline
 #define __clear_user(d, n)		arc_clear_user_noinline(d, n)
 #define __strncpy_from_user(d, s, n)	arc_strncpy_from_user_noinline(d, s, n)
 #define __strnlen_user(s, n)		arc_strnlen_user_noinline(s, n)
