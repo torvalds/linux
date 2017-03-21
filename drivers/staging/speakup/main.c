@@ -2329,7 +2329,6 @@ static int __init speakup_init(void)
 {
 	int i;
 	long err = 0;
-	struct st_spk_t *first_console;
 	struct vc_data *vc = vc_cons[fg_console].d;
 	struct var_t *var;
 
@@ -2353,15 +2352,6 @@ static int __init speakup_init(void)
 	err = speakup_add_virtual_keyboard();
 	if (err)
 		goto error_virtkeyboard;
-
-	first_console = kzalloc(sizeof(*first_console), GFP_KERNEL);
-	if (!first_console) {
-		err = -ENOMEM;
-		goto error_alloc;
-	}
-
-	speakup_console[vc->vc_num] = first_console;
-	speakup_date(vc);
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
 		if (vc_cons[i].d) {
@@ -2424,7 +2414,6 @@ error_kobjects:
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
 		kfree(speakup_console[i]);
 
-error_alloc:
 	speakup_remove_virtual_keyboard();
 
 error_virtkeyboard:
