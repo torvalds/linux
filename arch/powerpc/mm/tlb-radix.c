@@ -437,7 +437,7 @@ void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
 		return;
 	}
 
-	if (old_pte & _PAGE_LARGE)
+	if (old_pte & R_PAGE_LARGE)
 		radix__flush_tlb_page_psize(mm, address, MMU_PAGE_2M);
 	else
 		radix__flush_tlb_page_psize(mm, address, mmu_virtual_psize);
