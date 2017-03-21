@@ -1196,11 +1196,6 @@ static ssize_t tcmu_cmd_time_out_store(struct config_item *item, const char *pag
 	if (ret < 0)
 		return ret;
 
-	if (!val) {
-		pr_err("Illegal value for cmd_time_out\n");
-		return -EINVAL;
-	}
-
 	udev->cmd_time_out = val * MSEC_PER_SEC;
 	return count;
 }
