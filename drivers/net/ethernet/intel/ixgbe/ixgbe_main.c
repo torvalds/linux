@@ -2122,7 +2122,7 @@ static struct sk_buff *ixgbe_build_skb(struct ixgbe_ring *rx_ring,
 	prefetch(va + L1_CACHE_BYTES);
 #endif
 
-	/* build an skb to around the page buffer */
+	/* build an skb around the page buffer */
 	skb = build_skb(va - IXGBE_SKB_PAD, truesize);
 	if (unlikely(!skb))
 		return NULL;
