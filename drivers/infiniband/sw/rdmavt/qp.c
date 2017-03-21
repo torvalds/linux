@@ -1772,11 +1772,11 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 					0);
 		qp->s_next_psn = wqe->lpsn + 1;
 	}
-	trace_rvt_post_one_wr(qp, wqe);
 	if (unlikely(reserved_op))
 		rvt_qp_wqe_reserve(qp, wqe);
 	else
 		qp->s_avail--;
+	trace_rvt_post_one_wr(qp, wqe);
 	smp_wmb(); /* see request builders */
 	qp->s_head = next;
 
