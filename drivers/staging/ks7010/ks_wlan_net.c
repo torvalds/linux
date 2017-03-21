@@ -2360,6 +2360,7 @@ static int ks_wlan_get_sleep_mode(struct net_device *dev,
 
 	return 0;
 }
+
 #ifdef WPS
 
 static int ks_wlan_set_wps_enable(struct net_device *dev,
