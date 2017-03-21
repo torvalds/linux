@@ -210,7 +210,8 @@ static void blk_stat_free_callback_rcu(struct rcu_head *head)
 
 void blk_stat_free_callback(struct blk_stat_callback *cb)
 {
-	call_rcu(&cb->rcu, blk_stat_free_callback_rcu);
+	if (cb)
+		call_rcu(&cb->rcu, blk_stat_free_callback_rcu);
 }
 EXPORT_SYMBOL_GPL(blk_stat_free_callback);
 
