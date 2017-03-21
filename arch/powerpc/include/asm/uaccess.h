@@ -269,42 +269,19 @@ extern unsigned long __copy_tofrom_user(void __user *to,
 
 #ifndef __powerpc64__
 
-static inline unsigned long copy_from_user(void *to,
-		const void __user *from, unsigned long n)
-{
-	if (likely(access_ok(VERIFY_READ, from, n))) {
-		check_object_size(to, n, false);
-		return __copy_tofrom_user((__force void __user *)to, from, n);
-	}
-	memset(to, 0, n);
-	return n;
-}
-
-static inline unsigned long copy_to_user(void __user *to,
-		const void *from, unsigned long n)
-{
-	if (access_ok(VERIFY_WRITE, to, n)) {
-		check_object_size(from, n, true);
-		return __copy_tofrom_user(to, (__force void __user *)from, n);
-	}
-	return n;
-}
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 #else /* __powerpc64__ */
 
-#define __copy_in_user(to, from, size) \
-	__copy_tofrom_user((to), (from), (size))
-
-extern unsigned long copy_from_user(void *to, const void __user *from,
-				    unsigned long n);
-extern unsigned long copy_to_user(void __user *to, const void *from,
-				  unsigned long n);
-extern unsigned long copy_in_user(void __user *to, const void __user *from,
-				  unsigned long n);
-
+static inline unsigned long
+raw_copy_in_user(void __user *to, const void __user *from, unsigned long n)
+{
+	return __copy_tofrom_user(to, from, n);
+}
 #endif /* __powerpc64__ */
 
-static inline unsigned long __copy_from_user_inatomic(void *to,
+static inline unsigned long raw_copy_from_user(void *to,
 		const void __user *from, unsigned long n)
 {
 	if (__builtin_constant_p(n) && (n <= 8)) {
@@ -328,12 +305,10 @@ static inline unsigned long __copy_from_user_inatomic(void *to,
 			return 0;
 	}
 
-	check_object_size(to, n, false);
-
 	return __copy_tofrom_user((__force void __user *)to, from, n);
 }
 
-static inline unsigned long __copy_to_user_inatomic(void __user *to,
+static inline unsigned long raw_copy_to_user(void __user *to,
 		const void *from, unsigned long n)
 {
 	if (__builtin_constant_p(n) && (n <= 8)) {
@@ -357,23 +332,7 @@ static inline unsigned long __copy_to_user_inatomic(void __user *to,
 			return 0;
 	}
 
-	check_object_size(from, n, true);
-
 	return __copy_tofrom_user(to, (__force const void __user *)from, n);
-}
-
-static inline unsigned long __copy_from_user(void *to,
-		const void __user *from, unsigned long size)
-{
-	might_fault();
-	return __copy_from_user_inatomic(to, from, size);
-}
-
-static inline unsigned long __copy_to_user(void __user *to,
-		const void *from, unsigned long size)
-{
-	might_fault();
-	return __copy_to_user_inatomic(to, from, size);
 }
 
 extern unsigned long __clear_user(void __user *addr, unsigned long size);
