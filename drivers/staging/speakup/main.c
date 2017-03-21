@@ -449,20 +449,17 @@ static void speak_char(u16 ch)
 		pr_info("speak_char: cp == NULL!\n");
 		return;
 	}
-	synth_buffer_add(SPACE);
 	if (IS_CHAR(ch, B_CAP)) {
 		spk_pitch_shift++;
-		synth_printf("%s", spk_str_caps_start);
-		synth_printf("%s", cp);
-		synth_printf("%s", spk_str_caps_stop);
+		synth_printf("%s %s %s",
+			     spk_str_caps_start, cp, spk_str_caps_stop);
 	} else {
 		if (*cp == '^') {
-			synth_printf("%s", spk_msg_get(MSG_CTRL));
 			cp++;
-		}
-		synth_printf("%s", cp);
+			synth_printf(" %s%s ", spk_msg_get(MSG_CTRL), cp);
+		} else
+			synth_printf(" %s ", cp);
 	}
-	synth_buffer_add(SPACE);
 }
 
 static u16 get_char(struct vc_data *vc, u16 *pos, u_char *attribs)
