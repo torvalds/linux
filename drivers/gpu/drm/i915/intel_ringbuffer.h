@@ -149,16 +149,6 @@ struct intel_ring {
 	int space;
 	int size;
 	int effective_size;
-
-	/** We track the position of the requests in the ring buffer, and
-	 * when each is retired we increment last_retired_head as the GPU
-	 * must have finished processing the request and so we know we
-	 * can advance the ringbuffer up to that position.
-	 *
-	 * last_retired_head is set to -1 after the value is consumed so
-	 * we can detect new retirements.
-	 */
-	u32 last_retired_head;
 };
 
 struct i915_gem_context;

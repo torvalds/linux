@@ -1260,7 +1260,6 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	ce->lrc_reg_state[CTX_RING_HEAD+1] = request->postfix;
 
 	request->ring->head = request->postfix;
-	request->ring->last_retired_head = -1;
 	intel_ring_update_space(request->ring);
 
 	/* Catch up with any missed context-switch interrupts */
@@ -2047,7 +2046,6 @@ void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 			i915_gem_object_unpin_map(ce->state->obj);
 
 			ce->ring->head = ce->ring->tail = 0;
-			ce->ring->last_retired_head = -1;
 			intel_ring_update_space(ce->ring);
 		}
 	}

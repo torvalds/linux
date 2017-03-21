@@ -295,7 +295,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	 * completion order.
 	 */
 	list_del(&request->ring_link);
-	request->ring->last_retired_head = request->postfix;
+	request->ring->head = request->postfix;
 	if (!--request->i915->gt.active_requests) {
 		GEM_BUG_ON(!request->i915->gt.awake);
 		mod_delayed_work(request->i915->wq,
