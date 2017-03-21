@@ -409,7 +409,7 @@ static struct zx_clk_fixed_factor top_ffactor_clk[] = {
 	FFACTOR(0, "clk54m",		"pll_mm1", 1, 24, 0),
 	/* vga */
 	FFACTOR(0, "pll_vga_1800m",	"pll_vga", 1, 1, 0),
-	FFACTOR(0, "clk_vga",		"pll_vga", 1, 2, 0),
+	FFACTOR(0, "clk_vga",		"pll_vga", 1, 1, CLK_SET_RATE_PARENT),
 	/* pll ddr */
 	FFACTOR(0, "clk466m",		"pll_ddr", 1, 2, 0),
 
@@ -458,8 +458,8 @@ static struct zx_clk_mux top_mux_clk[] = {
 	MUX(0, "sappu_a_mux",	 sappu_aclk_p,	  TOP_CLK_MUX5,  4, 2),
 	MUX(0, "sappu_w_mux",	 sappu_wclk_p,	  TOP_CLK_MUX5,  8, 3),
 	MUX(0, "vou_a_mux",	 vou_aclk_p,	  TOP_CLK_MUX7,  0, 3),
-	MUX(0, "vou_main_w_mux", vou_main_wclk_p, TOP_CLK_MUX7,  4, 3),
-	MUX(0, "vou_aux_w_mux",	 vou_aux_wclk_p,  TOP_CLK_MUX7,  8, 3),
+	MUX_F(0, "vou_main_w_mux", vou_main_wclk_p, TOP_CLK_MUX7,  4, 3, CLK_SET_RATE_PARENT, 0),
+	MUX_F(0, "vou_aux_w_mux",  vou_aux_wclk_p,  TOP_CLK_MUX7,  8, 3, CLK_SET_RATE_PARENT, 0),
 	MUX(0, "vou_ppu_w_mux",	 vou_ppu_wclk_p,  TOP_CLK_MUX7, 12, 3),
 	MUX(0, "vga_i2c_mux",	 vga_i2c_wclk_p,  TOP_CLK_MUX7, 16, 1),
 	MUX(0, "viu_m0_a_mux",	 viu_m0_aclk_p,	  TOP_CLK_MUX6,  0, 3),
