@@ -235,13 +235,6 @@
 		clock-output-names = "pll_mac";
 	};
 
-	pll_vga: clk-pll-1073m {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <1073000000>;
-		clock-output-names = "pll_vga";
-	};
-
 	pll_mm0: clk-pll-1188m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
