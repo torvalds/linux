@@ -161,6 +161,55 @@ struct fsmc_nand_platform_data {
 	void			*write_dma_priv;
 };
 
+/**
+ * struct fsmc_nand_data - structure for FSMC NAND device state
+ *
+ * @pid:		Part ID on the AMBA PrimeCell format
+ * @mtd:		MTD info for a NAND flash.
+ * @nand:		Chip related info for a NAND flash.
+ * @partitions:		Partition info for a NAND Flash.
+ * @nr_partitions:	Total number of partition of a NAND flash.
+ *
+ * @bank:		Bank number for probed device.
+ * @clk:		Clock structure for FSMC.
+ *
+ * @read_dma_chan:	DMA channel for read access
+ * @write_dma_chan:	DMA channel for write access to NAND
+ * @dma_access_complete: Completion structure
+ *
+ * @data_pa:		NAND Physical port for Data.
+ * @data_va:		NAND port for Data.
+ * @cmd_va:		NAND port for Command.
+ * @addr_va:		NAND port for Address.
+ * @regs_va:		FSMC regs base address.
+ */
+struct fsmc_nand_data {
+	u32			pid;
+	struct nand_chip	nand;
+	struct mtd_partition	*partitions;
+	unsigned int		nr_partitions;
+
+	unsigned int		bank;
+	struct device		*dev;
+	enum access_mode	mode;
+	struct clk		*clk;
+
+	/* DMA related objects */
+	struct dma_chan		*read_dma_chan;
+	struct dma_chan		*write_dma_chan;
+	struct completion	dma_access_complete;
+
+	struct fsmc_nand_timings *dev_timings;
+
+	dma_addr_t		data_pa;
+	void __iomem		*data_va;
+	void __iomem		*cmd_va;
+	void __iomem		*addr_va;
+	void __iomem		*regs_va;
+
+	void			(*select_chip)(uint32_t bank, uint32_t busw);
+};
+
 static int fsmc_ecc1_ooblayout_ecc(struct mtd_info *mtd, int section,
 				   struct mtd_oob_region *oobregion)
 {
@@ -243,55 +292,6 @@ static int fsmc_ecc4_ooblayout_free(struct mtd_info *mtd, int section,
 static const struct mtd_ooblayout_ops fsmc_ecc4_ooblayout_ops = {
 	.ecc = fsmc_ecc4_ooblayout_ecc,
 	.free = fsmc_ecc4_ooblayout_free,
-};
-
-/**
- * struct fsmc_nand_data - structure for FSMC NAND device state
- *
- * @pid:		Part ID on the AMBA PrimeCell format
- * @mtd:		MTD info for a NAND flash.
- * @nand:		Chip related info for a NAND flash.
- * @partitions:		Partition info for a NAND Flash.
- * @nr_partitions:	Total number of partition of a NAND flash.
- *
- * @bank:		Bank number for probed device.
- * @clk:		Clock structure for FSMC.
- *
- * @read_dma_chan:	DMA channel for read access
- * @write_dma_chan:	DMA channel for write access to NAND
- * @dma_access_complete: Completion structure
- *
- * @data_pa:		NAND Physical port for Data.
- * @data_va:		NAND port for Data.
- * @cmd_va:		NAND port for Command.
- * @addr_va:		NAND port for Address.
- * @regs_va:		FSMC regs base address.
- */
-struct fsmc_nand_data {
-	u32			pid;
-	struct nand_chip	nand;
-	struct mtd_partition	*partitions;
-	unsigned int		nr_partitions;
-
-	unsigned int		bank;
-	struct device		*dev;
-	enum access_mode	mode;
-	struct clk		*clk;
-
-	/* DMA related objects */
-	struct dma_chan		*read_dma_chan;
-	struct dma_chan		*write_dma_chan;
-	struct completion	dma_access_complete;
-
-	struct fsmc_nand_timings *dev_timings;
-
-	dma_addr_t		data_pa;
-	void __iomem		*data_va;
-	void __iomem		*cmd_va;
-	void __iomem		*addr_va;
-	void __iomem		*regs_va;
-
-	void			(*select_chip)(uint32_t bank, uint32_t busw);
 };
 
 static inline struct fsmc_nand_data *mtd_to_fsmc(struct mtd_info *mtd)
