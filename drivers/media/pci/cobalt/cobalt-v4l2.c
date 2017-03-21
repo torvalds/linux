@@ -1064,10 +1064,15 @@ static int cobalt_subscribe_event(struct v4l2_fh *fh,
 
 static int cobalt_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
+	struct cobalt_stream *s = video_drvdata(file);
+	struct v4l2_fract fps;
+
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	a->parm.capture.timeperframe.numerator = 1;
-	a->parm.capture.timeperframe.denominator = 60;
+
+	fps = v4l2_calc_timeperframe(&s->timings);
+	a->parm.capture.timeperframe.numerator = fps.numerator;
+	a->parm.capture.timeperframe.denominator = fps.denominator;
 	a->parm.capture.readbuffers = 3;
 	return 0;
 }
