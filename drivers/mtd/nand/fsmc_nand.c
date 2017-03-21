@@ -947,7 +947,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	nand->ecc.size = 512;
 	nand->options = pdata->options;
 	nand->badblockbits = 7;
-	nand_set_flash_node(nand, np);
 
 	switch (host->mode) {
 	case USE_DMA_ACCESS:
