@@ -141,8 +141,8 @@ void MichaelMICFunction(struct michael_mic_t *Mic, u8 *Key,
 	 * +--+--+--------+--+----+--+--+--+--+--+--+--+--+
 	 */
 	MichaelInitializeFunction(Mic, Key);
-	MichaelAppend(Mic, (uint8_t *) Data, 12);	/* |DA|SA| */
+	MichaelAppend(Mic, (uint8_t *)Data, 12);	/* |DA|SA| */
 	MichaelAppend(Mic, pad_data, 4);	/* |Priority|0|0|0| */
-	MichaelAppend(Mic, (uint8_t *) (Data + 12), Len - 12);	/* |Data| */
+	MichaelAppend(Mic, (uint8_t *)(Data + 12), Len - 12);	/* |Data| */
 	MichaelGetMIC(Mic, Result);
 }
