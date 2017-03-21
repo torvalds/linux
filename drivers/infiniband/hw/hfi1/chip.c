@@ -9533,8 +9533,11 @@ static int test_qsfp_read(struct hfi1_pportdata *ppd)
 	int ret;
 	u8 status;
 
-	/* report success if not a QSFP */
-	if (ppd->port_type != PORT_TYPE_QSFP)
+	/*
+	 * Report success if not a QSFP or, if it is a QSFP, but the cable is
+	 * not present
+	 */
+	if (ppd->port_type != PORT_TYPE_QSFP || !qsfp_mod_present(ppd))
 		return 0;
 
 	/* read byte 2, the status byte */
