@@ -436,8 +436,12 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 
-	if (!suspend)
-		drm_crtc_force_disable_all(dev);
+	if (!suspend) {
+		if (drm_drv_uses_atomic_modeset(dev))
+			drm_atomic_helper_shutdown(dev);
+		else
+			drm_crtc_force_disable_all(dev);
+	}
 
 	/* Make sure that drm and hw vblank irqs get properly disabled. */
 	drm_for_each_crtc(crtc, dev)
