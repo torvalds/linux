@@ -56,8 +56,8 @@
 #define MTL_RX_ALGORITHM_WSP	0x5
 
 /* RX/TX Queue Mode */
-#define MTL_QUEUE_DCB		0x0
-#define MTL_QUEUE_AVB		0x1
+#define MTL_QUEUE_AVB		0x0
+#define MTL_QUEUE_DCB		0x1
 
 /* The MDC clock could be set higher than the IEEE 802.3
  * specified frequency limit 0f 2.5 MHz, by programming a clock divider
