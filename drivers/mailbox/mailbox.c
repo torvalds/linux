@@ -104,8 +104,11 @@ static void tx_tick(struct mbox_chan *chan, int r)
 	/* Submit next message */
 	msg_submit(chan);
 
+	if (!mssg)
+		return;
+
 	/* Notify the client */
-	if (mssg && chan->cl->tx_done)
+	if (chan->cl->tx_done)
 		chan->cl->tx_done(chan->cl, mssg, r);
 
 	if (r != -ETIME && chan->cl->tx_block)
