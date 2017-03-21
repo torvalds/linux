@@ -16,24 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/module.h>
-#include <linux/list.h>
-#include <linux/slab.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/clk.h>
-#include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
+#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/slab.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/host1x.h>
 #undef CREATE_TRACE_POINTS
 
 #include "bus.h"
-#include "dev.h"
-#include "intr.h"
 #include "channel.h"
 #include "debug.h"
+#include "dev.h"
+#include "intr.h"
+
 #include "hw/host1x01.h"
 #include "hw/host1x02.h"
 #include "hw/host1x04.h"

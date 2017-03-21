@@ -17,16 +17,16 @@
 #ifndef HOST1X_DEV_H
 #define HOST1X_DEV_H
 
-#include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/iommu.h>
 #include <linux/iova.h>
+#include <linux/platform_device.h>
 
-#include "channel.h"
-#include "syncpt.h"
-#include "intr.h"
 #include "cdma.h"
+#include "channel.h"
+#include "intr.h"
 #include "job.h"
+#include "syncpt.h"
 
 struct host1x_syncpt;
 struct host1x_syncpt_base;
