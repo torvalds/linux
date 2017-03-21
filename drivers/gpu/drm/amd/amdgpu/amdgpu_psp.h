@@ -90,12 +90,15 @@ struct psp_context
 	uint64_t 			tmr_mc_addr;
 	void				*tmr_buf;
 
-	/* asd firmware */
+	/* asd firmware and buffer */
 	const struct firmware		*asd_fw;
 	uint32_t			asd_fw_version;
 	uint32_t			asd_feature_version;
 	uint32_t			asd_ucode_size;
 	uint8_t				*asd_start_addr;
+	struct amdgpu_bo 		*asd_shared_bo;
+	uint64_t 			asd_shared_mc_addr;
+	void				*asd_shared_buf;
 
 	/* fence buffer */
 	struct amdgpu_bo 		*fence_buf_bo;
