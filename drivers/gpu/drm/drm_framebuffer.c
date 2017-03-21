@@ -132,7 +132,7 @@ static int fb_plane_width(int width,
 	if (plane == 0)
 		return width;
 
-	return width / format->hsub;
+	return DIV_ROUND_UP(width, format->hsub);
 }
 
 static int fb_plane_height(int height,
@@ -141,7 +141,7 @@ static int fb_plane_height(int height,
 	if (plane == 0)
 		return height;
 
-	return height / format->vsub;
+	return DIV_ROUND_UP(height, format->vsub);
 }
 
 static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
@@ -158,12 +158,12 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 		return -EINVAL;
 	}
 
-	if (r->width == 0 || r->width % info->hsub) {
+	if (r->width == 0) {
 		DRM_DEBUG_KMS("bad framebuffer width %u\n", r->width);
 		return -EINVAL;
 	}
 
-	if (r->height == 0 || r->height % info->vsub) {
+	if (r->height == 0) {
 		DRM_DEBUG_KMS("bad framebuffer height %u\n", r->height);
 		return -EINVAL;
 	}
