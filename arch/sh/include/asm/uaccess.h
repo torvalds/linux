@@ -108,19 +108,18 @@ extern __must_check long strnlen_user(const char __user *str, long n);
 __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);
 
 static __always_inline unsigned long
-__copy_from_user(void *to, const void __user *from, unsigned long n)
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	return __copy_user(to, (__force void *)from, n);
 }
 
 static __always_inline unsigned long __must_check
-__copy_to_user(void __user *to, const void *from, unsigned long n)
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	return __copy_user((__force void *)to, from, n);
 }
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 /*
  * Clear the area and return remaining number of bytes
@@ -139,33 +138,6 @@ __kernel_size_t __clear_user(void *addr, __kernel_size_t size);
 									\
 	__cl_size;							\
 })
-
-static inline unsigned long
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	unsigned long __copy_from = (unsigned long) from;
-	__kernel_size_t __copy_size = (__kernel_size_t) n;
-
-	if (__copy_size && __access_ok(__copy_from, __copy_size))
-		__copy_size = __copy_user(to, from, __copy_size);
-
-	if (unlikely(__copy_size))
-		memset(to + (n - __copy_size), 0, __copy_size);
-
-	return __copy_size;
-}
-
-static inline unsigned long
-copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	unsigned long __copy_to = (unsigned long) to;
-	__kernel_size_t __copy_size = (__kernel_size_t) n;
-
-	if (__copy_size && __access_ok(__copy_to, __copy_size))
-		return __copy_user(to, from, __copy_size);
-
-	return __copy_size;
-}
 
 extern void *set_exception_table_vec(unsigned int vec, void *handler);
 
