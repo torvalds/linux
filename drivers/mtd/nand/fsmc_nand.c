@@ -152,10 +152,6 @@ struct fsmc_nand_platform_data {
 	unsigned int		bank;
 
 	enum access_mode	mode;
-
-	/* priv structures for dma accesses */
-	void			*read_dma_priv;
-	void			*write_dma_priv;
 };
 
 /**
@@ -963,14 +959,12 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	case USE_DMA_ACCESS:
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_MEMCPY, mask);
-		host->read_dma_chan = dma_request_channel(mask, filter,
-				pdata->read_dma_priv);
+		host->read_dma_chan = dma_request_channel(mask, filter, NULL);
 		if (!host->read_dma_chan) {
 			dev_err(&pdev->dev, "Unable to get read dma channel\n");
 			goto err_req_read_chnl;
 		}
-		host->write_dma_chan = dma_request_channel(mask, filter,
-				pdata->write_dma_priv);
+		host->write_dma_chan = dma_request_channel(mask, filter, NULL);
 		if (!host->write_dma_chan) {
 			dev_err(&pdev->dev, "Unable to get write dma channel\n");
 			goto err_req_write_chnl;
