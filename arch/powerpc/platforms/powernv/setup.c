@@ -95,6 +95,10 @@ static void pnv_show_cpuinfo(struct seq_file *m)
 	else
 		seq_printf(m, "firmware\t: BML\n");
 	of_node_put(root);
+	if (radix_enabled())
+		seq_printf(m, "MMU\t\t: Radix\n");
+	else
+		seq_printf(m, "MMU\t\t: Hash\n");
 }
 
 static void pnv_prepare_going_down(void)
