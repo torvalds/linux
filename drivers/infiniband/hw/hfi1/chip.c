@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -7166,7 +7166,7 @@ static void get_link_widths(struct hfi1_devdata *dd, u16 *tx_width,
 	 * set the max_rate field in handle_verify_cap until v0.19.
 	 */
 	if ((dd->icode == ICODE_RTL_SILICON) &&
-	    (dd->dc8051_ver < dc8051_ver(0, 19))) {
+	    (dd->dc8051_ver < dc8051_ver(0, 19, 0))) {
 		/* max_rate: 0 = 12.5G, 1 = 25G */
 		switch (max_rate) {
 		case 0:
@@ -7351,7 +7351,7 @@ void handle_verify_cap(struct work_struct *work)
 	}
 
 	ppd->link_speed_active = 0;	/* invalid value */
-	if (dd->dc8051_ver < dc8051_ver(0, 20)) {
+	if (dd->dc8051_ver < dc8051_ver(0, 20, 0)) {
 		/* remote_tx_rate: 0 = 12.5G, 1 = 25G */
 		switch (remote_tx_rate) {
 		case 0:
@@ -8422,7 +8422,7 @@ static int write_lcb_via_8051(struct hfi1_devdata *dd, u32 addr, u64 data)
 	int ret;
 
 	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR ||
-	    (dd->dc8051_ver < dc8051_ver(0, 20))) {
+	    (dd->dc8051_ver < dc8051_ver(0, 20, 0))) {
 		if (acquire_lcb_access(dd, 0) == 0) {
 			write_csr(dd, addr, data);
 			release_lcb_access(dd, 0);
@@ -8728,13 +8728,20 @@ static void read_remote_device_id(struct hfi1_devdata *dd, u16 *device_id,
 			& REMOTE_DEVICE_REV_MASK;
 }
 
-void read_misc_status(struct hfi1_devdata *dd, u8 *ver_a, u8 *ver_b)
+void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
+		      u8 *ver_patch)
 {
 	u32 frame;
 
 	read_8051_config(dd, MISC_STATUS, GENERAL_CONFIG, &frame);
-	*ver_a = (frame >> STS_FM_VERSION_A_SHIFT) & STS_FM_VERSION_A_MASK;
-	*ver_b = (frame >> STS_FM_VERSION_B_SHIFT) & STS_FM_VERSION_B_MASK;
+	*ver_major = (frame >> STS_FM_VERSION_MAJOR_SHIFT) &
+		STS_FM_VERSION_MAJOR_MASK;
+	*ver_minor = (frame >> STS_FM_VERSION_MINOR_SHIFT) &
+		STS_FM_VERSION_MINOR_MASK;
+
+	read_8051_config(dd, VERSION_PATCH, GENERAL_CONFIG, &frame);
+	*ver_patch = (frame >> STS_FM_VERSION_PATCH_SHIFT) &
+		STS_FM_VERSION_PATCH_MASK;
 }
 
 static void read_vc_remote_phy(struct hfi1_devdata *dd, u8 *power_management,
@@ -9130,7 +9137,7 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 	if (ret)
 		goto set_local_link_attributes_fail;
 
-	if (dd->dc8051_ver < dc8051_ver(0, 20)) {
+	if (dd->dc8051_ver < dc8051_ver(0, 20, 0)) {
 		/* set the tx rate to the fastest enabled */
 		if (ppd->link_speed_enabled & OPA_LINK_SPEED_25G)
 			ppd->local_tx_rate = 1;
