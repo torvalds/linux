@@ -223,6 +223,8 @@
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>;
 		clock-names = "biu", "ciu";
+		dmas = <&dmac2 1>;
+		dma-names = "rx-tx";
 		fifo-depth = <256>;
 		resets = <&cru SRST_SDMMC>;
 		reset-names = "reset";
@@ -235,6 +237,8 @@
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>;
 		clock-names = "biu", "ciu";
+		dmas = <&dmac2 3>;
+		dma-names = "rx-tx";
 		fifo-depth = <256>;
 		resets = <&cru SRST_SDIO>;
 		reset-names = "reset";
@@ -247,6 +251,8 @@
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>;
 		clock-names = "biu", "ciu";
+		dmas = <&dmac2 4>;
+		dma-names = "rx-tx";
 		fifo-depth = <256>;
 		resets = <&cru SRST_EMMC>;
 		reset-names = "reset";
