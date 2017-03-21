@@ -11,6 +11,12 @@
 #include <asm/book3s/64/radix-4k.h>
 #endif
 
+/*
+ * For P9 DD1 only, we need to track whether the pte's huge.
+ */
+#define _PAGE_LARGE	_RPAGE_RSV1
+
+
 #ifndef __ASSEMBLY__
 #include <asm/book3s/64/tlbflush-radix.h>
 #include <asm/cpu_has_feature.h>

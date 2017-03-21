@@ -13,12 +13,13 @@
  * We could create separate kernel read-only if we used the 3 PP bits
  * combinations that newer processors provide but we currently don't.
  */
-#define H_PAGE_BUSY		0x00800 /* software: PTE & hash are busy */
+#define H_PAGE_BUSY		_RPAGE_SW1 /* software: PTE & hash are busy */
 #define H_PTE_NONE_MASK		_PAGE_HPTEFLAGS
 #define H_PAGE_F_GIX_SHIFT	57
-#define H_PAGE_F_GIX		(7ul << 57)	/* HPTE index within HPTEG */
-#define H_PAGE_F_SECOND		(1ul << 60)	/* HPTE is in 2ndary HPTEG */
-#define H_PAGE_HASHPTE		(1ul << 61)	/* PTE has associated HPTE */
+/* (7ul << 57) HPTE index within HPTEG */
+#define H_PAGE_F_GIX		(_RPAGE_RSV2 | _RPAGE_RSV3 | _RPAGE_RSV4)
+#define H_PAGE_F_SECOND		_RPAGE_RSV1	/* HPTE is in 2ndary HPTEG */
+#define H_PAGE_HASHPTE		_RPAGE_SW0	/* PTE has associated HPTE */
 
 #ifdef CONFIG_PPC_64K_PAGES
 #include <asm/book3s/64/hash-64k.h>

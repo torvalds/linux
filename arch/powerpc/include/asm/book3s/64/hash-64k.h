@@ -6,6 +6,10 @@
 #define H_PUD_INDEX_SIZE  5
 #define H_PGD_INDEX_SIZE  12
 
+/*
+ * 64k aligned address free up few of the lower bits of RPN for us
+ * We steal that here. For more deatils look at pte_pfn/pfn_pte()
+ */
 #define H_PAGE_COMBO	0x00001000 /* this is a combo 4k page */
 #define H_PAGE_4K_PFN	0x00002000 /* PFN is for a single 4k page */
 /*
