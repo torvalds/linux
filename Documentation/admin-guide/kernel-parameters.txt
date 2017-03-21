@@ -989,6 +989,7 @@
 			earlyprintk=ttySn[,baudrate]
 			earlyprintk=dbgp[debugController#]
 			earlyprintk=pciserial,bus:device.function[,baudrate]
+			earlyprintk=xdbc[xhciController#]
 
 			earlyprintk is useful when the kernel crashes before
 			the normal console is initialized. It is not enabled by

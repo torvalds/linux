@@ -70,6 +70,7 @@
 #include <linux/tboot.h>
 #include <linux/jiffies.h>
 
+#include <linux/usb/xhci-dbgp.h>
 #include <video/edid.h>
 
 #include <asm/mtrr.h>
@@ -1143,6 +1144,9 @@ void __init setup_arch(char **cmdline_p)
 
 	memblock_set_current_limit(ISA_END_ADDRESS);
 	memblock_x86_fill();
+
+	if (!early_xdbc_setup_hardware())
+		early_xdbc_register_console();
 
 	reserve_bios_regions();
 
