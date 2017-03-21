@@ -10,8 +10,8 @@
  * 64k aligned address free up few of the lower bits of RPN for us
  * We steal that here. For more deatils look at pte_pfn/pfn_pte()
  */
-#define H_PAGE_COMBO	0x00001000 /* this is a combo 4k page */
-#define H_PAGE_4K_PFN	0x00002000 /* PFN is for a single 4k page */
+#define H_PAGE_COMBO	_RPAGE_RPN0 /* this is a combo 4k page */
+#define H_PAGE_4K_PFN	_RPAGE_RPN1 /* PFN is for a single 4k page */
 /*
  * We need to differentiate between explicit huge page and THP huge
  * page, since THP huge page also need to track real subpage details
