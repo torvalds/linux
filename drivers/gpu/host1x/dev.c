@@ -170,6 +170,13 @@ static int host1x_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	host->rst = devm_reset_control_get(&pdev->dev, "host1x");
+	if (IS_ERR(host->rst)) {
+		err = PTR_ERR(host->clk);
+		dev_err(&pdev->dev, "failed to get reset: %d\n", err);
+		return err;
+	}
+
 	if (iommu_present(&platform_bus_type)) {
 		struct iommu_domain_geometry *geometry;
 		unsigned long order;
@@ -203,10 +210,16 @@ static int host1x_probe(struct platform_device *pdev)
 		goto fail_detach_device;
 	}
 
+	err = reset_control_deassert(host->rst);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to deassert reset: %d\n", err);
+		goto fail_unprepare_disable;
+	}
+
 	err = host1x_syncpt_init(host);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize syncpts\n");
-		goto fail_unprepare_disable;
+		goto fail_reset_assert;
 	}
 
 	err = host1x_intr_init(host, syncpt_irq);
@@ -227,6 +240,8 @@ fail_deinit_intr:
 	host1x_intr_deinit(host);
 fail_deinit_syncpt:
 	host1x_syncpt_deinit(host);
+fail_reset_assert:
+	reset_control_assert(host->rst);
 fail_unprepare_disable:
 	clk_disable_unprepare(host->clk);
 fail_detach_device:
@@ -248,6 +263,7 @@ static int host1x_remove(struct platform_device *pdev)
 	host1x_unregister(host);
 	host1x_intr_deinit(host);
 	host1x_syncpt_deinit(host);
+	reset_control_assert(host->rst);
 	clk_disable_unprepare(host->clk);
 
 	if (host->domain) {

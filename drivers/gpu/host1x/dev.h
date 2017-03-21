@@ -21,6 +21,7 @@
 #include <linux/iommu.h>
 #include <linux/iova.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 
 #include "cdma.h"
 #include "channel.h"
@@ -109,6 +110,7 @@ struct host1x {
 	struct host1x_syncpt_base *bases;
 	struct device *dev;
 	struct clk *clk;
+	struct reset_control *rst;
 
 	struct iommu_domain *domain;
 	struct iova_domain iova;
