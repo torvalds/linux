@@ -60,6 +60,7 @@
 #include "trace.h"
 #include "qp.h"
 #include "verbs_txreq.h"
+#include "debugfs.h"
 
 static unsigned int hfi1_lkey_table_size = 16;
 module_param_named(lkey_table_size, hfi1_lkey_table_size, uint,
@@ -596,6 +597,11 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 		rcu_read_lock();
 		packet->qp = rvt_lookup_qpn(rdi, &ibp->rvp, qp_num);
 		if (!packet->qp) {
+			rcu_read_unlock();
+			goto drop;
+		}
+		if (unlikely(hfi1_dbg_fault_opcode(packet->qp, opcode,
+						   true))) {
 			rcu_read_unlock();
 			goto drop;
 		}
