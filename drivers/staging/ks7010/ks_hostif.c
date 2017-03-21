@@ -2682,7 +2682,8 @@ int hostif_init(struct ks_wlan_private *priv)
 		INIT_LIST_HEAD(&priv->pmklist.pmk[i].list);
 
 	priv->sme_i.sme_status = SME_IDLE;
-	priv->sme_i.qhead = priv->sme_i.qtail = 0;
+	priv->sme_i.qhead = 0;
+	priv->sme_i.qtail = 0;
 #ifdef KS_WLAN_DEBUG
 	priv->sme_i.max_event_count = 0;
 #endif
