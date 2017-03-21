@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016, 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -2052,8 +2052,12 @@ static void rvt_rc_timeout(unsigned long arg)
 	spin_lock_irqsave(&qp->r_lock, flags);
 	spin_lock(&qp->s_lock);
 	if (qp->s_flags & RVT_S_TIMER) {
+		struct rvt_ibport *rvp = rdi->ports[qp->port_num - 1];
+
 		qp->s_flags &= ~RVT_S_TIMER;
+		rvp->n_rc_timeouts++;
 		del_timer(&qp->s_timer);
+		trace_rvt_rc_timeout(qp, qp->s_last_psn + 1);
 		if (rdi->driver_f.notify_restart_rc)
 			rdi->driver_f.notify_restart_rc(qp,
 							qp->s_last_psn + 1,
