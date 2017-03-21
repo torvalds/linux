@@ -77,4 +77,5 @@ This adds the following commits from upstream:
 ${dtc_log}
 EOF
 )
+
 git commit -e -v -s -m "${commit_msg}"
