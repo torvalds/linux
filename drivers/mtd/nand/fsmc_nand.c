@@ -1083,20 +1083,18 @@ static int fsmc_nand_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(fsmc_nand_pm_ops, fsmc_nand_suspend, fsmc_nand_resume);
 
-#ifdef CONFIG_OF
 static const struct of_device_id fsmc_nand_id_table[] = {
 	{ .compatible = "st,spear600-fsmc-nand" },
 	{ .compatible = "stericsson,fsmc-nand" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsmc_nand_id_table);
-#endif
 
 static struct platform_driver fsmc_nand_driver = {
 	.remove = fsmc_nand_remove,
 	.driver = {
 		.name = "fsmc-nand",
-		.of_match_table = of_match_ptr(fsmc_nand_id_table),
+		.of_match_table = fsmc_nand_id_table,
 		.pm = &fsmc_nand_pm_ops,
 	},
 };
