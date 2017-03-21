@@ -1240,6 +1240,11 @@ static int fault_init_debugfs(struct hfi1_ibdev *ibd)
 	return ret;
 }
 
+bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd)
+{
+	return ibd->fault_suppress_err;
+}
+
 bool hfi1_dbg_fault_opcode(struct rvt_qp *qp, u32 opcode, bool rx)
 {
 	bool ret = false;
@@ -1329,6 +1334,9 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 		}
 
 #ifdef CONFIG_FAULT_INJECTION
+	debugfs_create_bool("fault_suppress_err", 0600,
+			    ibd->hfi1_ibdev_dbg,
+			    &ibd->fault_suppress_err);
 	fault_init_debugfs(ibd);
 #endif
 }

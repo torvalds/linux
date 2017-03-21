@@ -1367,6 +1367,11 @@ int process_receive_ib(struct hfi1_packet *packet)
 			  packet->updegr,
 			  rhf_egr_index(packet->rhf));
 
+	if (unlikely(
+		 (hfi1_dbg_fault_suppress_err(&packet->rcd->dd->verbs_dev) &&
+		 (packet->rhf & RHF_DC_ERR))))
+		return RHF_RCV_CONTINUE;
+
 	if (unlikely(rhf_err_flags(packet->rhf))) {
 		handle_eflags(packet);
 		return RHF_RCV_CONTINUE;
@@ -1402,6 +1407,12 @@ int process_receive_bypass(struct hfi1_packet *packet)
 
 int process_receive_error(struct hfi1_packet *packet)
 {
+	/* KHdrHCRCErr -- KDETH packet with a bad HCRC */
+	if (unlikely(
+		 hfi1_dbg_fault_suppress_err(&packet->rcd->dd->verbs_dev) &&
+		 rhf_rcv_type_err(packet->rhf) == 3))
+		return RHF_RCV_CONTINUE;
+
 	handle_eflags(packet);
 
 	if (unlikely(rhf_err_flags(packet->rhf)))

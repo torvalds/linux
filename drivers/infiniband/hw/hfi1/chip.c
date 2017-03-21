@@ -64,6 +64,7 @@
 #include "platform.h"
 #include "aspm.h"
 #include "affinity.h"
+#include "debugfs.h"
 
 #define NUM_IB_PORTS 1
 
@@ -7897,6 +7898,9 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		dd_dev_info_ratelimited(dd, "host access to LCB blocked\n");
 		reg &= ~DCC_ERR_FLG_EN_CSR_ACCESS_BLOCKED_HOST_SMASK;
 	}
+
+	if (unlikely(hfi1_dbg_fault_suppress_err(&dd->verbs_dev)))
+		reg &= ~DCC_ERR_FLG_LATE_EBP_ERR_SMASK;
 
 	/* report any remaining errors */
 	if (reg)

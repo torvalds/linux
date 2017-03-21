@@ -75,6 +75,7 @@ struct fault_packet {
 
 bool hfi1_dbg_fault_opcode(struct rvt_qp *qp, u32 opcode, bool rx);
 bool hfi1_dbg_fault_packet(struct hfi1_packet *packet);
+bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd);
 #else
 static inline bool hfi1_dbg_fault_packet(struct hfi1_packet *packet)
 {
@@ -83,6 +84,11 @@ static inline bool hfi1_dbg_fault_packet(struct hfi1_packet *packet)
 
 static inline bool hfi1_dbg_fault_opcode(struct rvt_qp *qp,
 					 u32 opcode, bool rx)
+{
+	return false;
+}
+
+static inline bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd)
 {
 	return false;
 }
@@ -112,6 +118,11 @@ static inline bool hfi1_dbg_fault_packet(struct hfi1_packet *packet)
 
 static inline bool hfi1_dbg_fault_opcode(struct rvt_qp *qp,
 					 u32 opcode, bool rx)
+{
+	return false;
+}
+
+static inline bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd)
 {
 	return false;
 }

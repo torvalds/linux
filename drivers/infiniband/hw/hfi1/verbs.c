@@ -518,6 +518,35 @@ static inline opcode_handler qp_ok(int opcode, struct hfi1_packet *packet)
 	return NULL;
 }
 
+static u64 hfi1_fault_tx(struct rvt_qp *qp, u8 opcode, u64 pbc)
+{
+#ifdef CONFIG_FAULT_INJECTION
+	if ((opcode & IB_OPCODE_MSP) == IB_OPCODE_MSP)
+		/*
+		 * In order to drop non-IB traffic we
+		 * set PbcInsertHrc to NONE (0x2).
+		 * The packet will still be delivered
+		 * to the receiving node but a
+		 * KHdrHCRCErr (KDETH packet with a bad
+		 * HCRC) will be triggered and the
+		 * packet will not be delivered to the
+		 * correct context.
+		 */
+		pbc |= (u64)PBC_IHCRC_NONE << PBC_INSERT_HCRC_SHIFT;
+	else
+		/*
+		 * In order to drop regular verbs
+		 * traffic we set the PbcTestEbp
+		 * flag. The packet will still be
+		 * delivered to the receiving node but
+		 * a 'late ebp error' will be
+		 * triggered and will be dropped.
+		 */
+		pbc |= PBC_TEST_EBP;
+#endif
+	return pbc;
+}
+
 /**
  * hfi1_ib_rcv - process an incoming packet
  * @packet: data packet information
@@ -803,7 +832,6 @@ static int build_verbs_tx_desc(
 		if (ret)
 			goto bail_txadd;
 	}
-
 	/* add the ulp payload - if any. tx->ss can be NULL for acks */
 	if (tx->ss)
 		ret = build_verbs_ulp_payload(sde, length, tx);
@@ -822,7 +850,6 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	struct hfi1_ibdev *dev = ps->dev;
 	struct hfi1_pportdata *ppd = ps->ppd;
 	struct verbs_txreq *tx;
-	u64 pbc_flags = 0;
 	u8 sc5 = priv->s_sc;
 
 	int ret;
@@ -831,12 +858,16 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	if (!sdma_txreq_built(&tx->txreq)) {
 		if (likely(pbc == 0)) {
 			u32 vl = sc_to_vlt(dd_from_ibdev(qp->ibqp.device), sc5);
+			u8 opcode = get_opcode(&tx->phdr.hdr);
+
 			/* No vl15 here */
 			/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
-			pbc_flags |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
+			pbc |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
 
+			if (unlikely(hfi1_dbg_fault_opcode(qp, opcode, false)))
+				pbc = hfi1_fault_tx(qp, opcode, pbc);
 			pbc = create_pbc(ppd,
-					 pbc_flags,
+					 pbc,
 					 qp->srate_mbps,
 					 vl,
 					 plen);
@@ -939,7 +970,6 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	u32 plen = hdrwords + dwords + 2; /* includes pbc */
 	struct hfi1_pportdata *ppd = ps->ppd;
 	u32 *hdr = (u32 *)&ps->s_txreq->phdr.hdr;
-	u64 pbc_flags = 0;
 	u8 sc5;
 	unsigned long flags = 0;
 	struct send_context *sc;
@@ -964,9 +994,14 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 	if (likely(pbc == 0)) {
 		u8 vl = sc_to_vlt(dd_from_ibdev(qp->ibqp.device), sc5);
+		struct verbs_txreq *tx = ps->s_txreq;
+		u8 opcode = get_opcode(&tx->phdr.hdr);
+
 		/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
-		pbc_flags |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
-		pbc = create_pbc(ppd, pbc_flags, qp->srate_mbps, vl, plen);
+		pbc |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
+		if (unlikely(hfi1_dbg_fault_opcode(qp, opcode, false)))
+			pbc = hfi1_fault_tx(qp, opcode, pbc);
+		pbc = create_pbc(ppd, pbc, qp->srate_mbps, vl, plen);
 	}
 	if (cb)
 		iowait_pio_inc(&priv->s_iowait);

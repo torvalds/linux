@@ -198,6 +198,7 @@ struct hfi1_ibdev {
 #ifdef CONFIG_FAULT_INJECTION
 	struct fault_opcode *fault_opcode;
 	struct fault_packet *fault_packet;
+	bool fault_suppress_err;
 #endif
 #endif
 };
