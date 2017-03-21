@@ -195,7 +195,7 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring);
 static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 {
 	int i = 0;
-	while (i <= ring->ptr_mask)
+	while (i <= ring->buf_mask)
 		ring->ring[i++] = ring->funcs->nop;
 
 }
