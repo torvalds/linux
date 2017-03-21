@@ -38,15 +38,6 @@
 #include <linux/amba/bus.h>
 #include <mtd/mtd-abi.h>
 
-#define FSMC_NAND_BW8		1
-#define FSMC_NAND_BW16		2
-
-#define FSMC_MAX_NOR_BANKS	4
-#define FSMC_MAX_NAND_BANKS	4
-
-#define FSMC_FLASH_WIDTH8	1
-#define FSMC_FLASH_WIDTH16	2
-
 /* fsmc controller registers for NOR flash */
 #define CTRL			0x0
 	/* ctrl register definitions */
