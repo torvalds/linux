@@ -1199,6 +1199,11 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 	}
 	queue->port = cm_id->context;
 
+	if (queue->host_qid == 0) {
+		/* Let inflight controller teardown complete */
+		flush_scheduled_work();
+	}
+
 	ret = nvmet_rdma_cm_accept(cm_id, queue, &event->param.conn);
 	if (ret)
 		goto release_queue;
