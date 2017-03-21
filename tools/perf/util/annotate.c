@@ -1482,6 +1482,12 @@ int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_na
 
 	nline = 0;
 	while (!feof(file)) {
+		/*
+		 * The source code line number (lineno) needs to be kept in
+		 * accross calls to symbol__parse_objdump_line(), so that it
+		 * can associate it with the instructions till the next one.
+		 * See disasm_line__new() and struct disasm_line::line_nr.
+		 */
 		if (symbol__parse_objdump_line(sym, map, arch, file, privsize,
 			    &lineno) < 0)
 			break;
