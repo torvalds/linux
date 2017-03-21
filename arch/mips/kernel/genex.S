@@ -216,9 +216,11 @@ NESTED(handle_int, PT_SIZE, sp)
 	beq	t0, t1, 2f
 
 	/* Switch to IRQ stack */
-	li	t1, _IRQ_STACK_SIZE
+	li	t1, _IRQ_STACK_START
 	PTR_ADD sp, t0, t1
 
+	/* Save task's sp on IRQ stack so that unwinding can follow it */
+	LONG_S	s1, 0(sp)
 2:
 	jal	plat_irq_dispatch
 
@@ -326,9 +328,11 @@ NESTED(except_vec_vi_handler, 0, sp)
 	beq	t0, t1, 2f
 
 	/* Switch to IRQ stack */
-	li	t1, _IRQ_STACK_SIZE
+	li	t1, _IRQ_STACK_START
 	PTR_ADD sp, t0, t1
 
+	/* Save task's sp on IRQ stack so that unwinding can follow it */
+	LONG_S	s1, 0(sp)
 2:
 	jalr	v0
 
