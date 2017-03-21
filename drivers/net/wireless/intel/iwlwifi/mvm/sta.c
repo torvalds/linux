@@ -2120,7 +2120,8 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (!iwl_mvm_is_dqa_supported(mvm))
 		return 0;
 
-	if (WARN_ON(vif->type != NL80211_IFTYPE_AP))
+	if (WARN_ON(vif->type != NL80211_IFTYPE_AP &&
+		    vif->type != NL80211_IFTYPE_ADHOC))
 		return -ENOTSUPP;
 
 	/*
@@ -2155,6 +2156,16 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		mvmvif->cab_queue = queue;
 	} else if (!fw_has_api(&mvm->fw->ucode_capa,
 			       IWL_UCODE_TLV_API_STA_TYPE)) {
+		/*
+		 * In IBSS, ieee80211_check_queues() sets the cab_queue to be
+		 * invalid, so make sure we use the queue we want.
+		 * Note that this is done here as we want to avoid making DQA
+		 * changes in mac80211 layer.
+		 */
+		if (vif->type == NL80211_IFTYPE_ADHOC) {
+			vif->cab_queue = IWL_MVM_DQA_GCAST_QUEUE;
+			mvmvif->cab_queue = vif->cab_queue;
+		}
 		iwl_mvm_enable_txq(mvm, vif->cab_queue, vif->cab_queue, 0,
 				   &cfg, timeout);
 	}
