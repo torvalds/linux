@@ -530,13 +530,18 @@ static void intel_lrc_irq_handler(unsigned long data)
 
 	intel_uncore_forcewake_get(dev_priv, engine->fw_domains);
 
-	while (test_and_clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted)) {
+	/* Prefer doing test_and_clear_bit() as a two stage operation to avoid
+	 * imposing the cost of a locked atomic transaction when submitting a
+	 * new request (outside of the context-switch interrupt).
+	 */
+	while (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted)) {
 		u32 __iomem *csb_mmio =
 			dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine));
 		u32 __iomem *buf =
 			dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0));
 		unsigned int csb, head, tail;
 
+		clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 		csb = readl(csb_mmio);
 		head = GEN8_CSB_READ_PTR(csb);
 		tail = GEN8_CSB_WRITE_PTR(csb);
