@@ -209,6 +209,7 @@ struct mlx5_esw_offload {
 	struct mlx5_eswitch_rep *vport_reps;
 	DECLARE_HASHTABLE(encap_tbl, 8);
 	u8 inline_mode;
+	u64 num_flows;
 };
 
 struct mlx5_eswitch {
