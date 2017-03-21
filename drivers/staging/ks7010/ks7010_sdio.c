@@ -102,7 +102,7 @@ static void ks_wlan_hw_sleep_doze_request(struct ks_wlan_private *priv)
 		    ks7010_sdio_write(priv, GCR_B, &rw_data, sizeof(rw_data));
 		if (retval) {
 			DPRINTK(1, " error : GCR_B=%02X\n", rw_data);
-			goto out;
+			goto set_sleep_mode;
 		}
 		DPRINTK(4, "PMG SET!! : GCR_B=%02X\n", rw_data);
 		DPRINTK(3, "sleep_mode=SLP_SLEEP\n");
@@ -112,7 +112,7 @@ static void ks_wlan_hw_sleep_doze_request(struct ks_wlan_private *priv)
 		DPRINTK(1, "sleep_mode=%d\n", priv->sleep_mode);
 	}
 
- out:
+set_sleep_mode:
 	priv->sleep_mode = atomic_read(&priv->sleepstatus.status);
 }
 
@@ -132,7 +132,7 @@ static void ks_wlan_hw_sleep_wakeup_request(struct ks_wlan_private *priv)
 		    ks7010_sdio_write(priv, WAKEUP, &rw_data, sizeof(rw_data));
 		if (retval) {
 			DPRINTK(1, " error : WAKEUP=%02X\n", rw_data);
-			goto out;
+			goto set_sleep_mode;
 		}
 		DPRINTK(4, "wake up : WAKEUP=%02X\n", rw_data);
 		atomic_set(&priv->sleepstatus.status, 0);
@@ -142,7 +142,7 @@ static void ks_wlan_hw_sleep_wakeup_request(struct ks_wlan_private *priv)
 		DPRINTK(1, "sleep_mode=%d\n", priv->sleep_mode);
 	}
 
- out:
+set_sleep_mode:
 	priv->sleep_mode = atomic_read(&priv->sleepstatus.status);
 }
 
@@ -495,18 +495,18 @@ static void ks7010_rw_function(struct work_struct *work)
 			queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
 					   &priv->ks_wlan_hw.rw_wq, 1);
 		}
-		goto err_out;
+		goto err_release_host;
 	}
 
 	/* sleep mode doze */
 	if (atomic_read(&priv->sleepstatus.doze_request) == 1) {
 		ks_wlan_hw_sleep_doze_request(priv);
-		goto err_out;
+		goto err_release_host;
 	}
 	/* sleep mode wakeup */
 	if (atomic_read(&priv->sleepstatus.wakeup_request) == 1) {
 		ks_wlan_hw_sleep_wakeup_request(priv);
-		goto err_out;
+		goto err_release_host;
 	}
 
 	/* read (WriteStatus/ReadDataSize FN1:00_0014) */
@@ -515,7 +515,7 @@ static void ks7010_rw_function(struct work_struct *work)
 	if (retval) {
 		DPRINTK(1, " error : WSTATUS_RSIZE=%02X psstatus=%d\n", rw_data,
 			atomic_read(&priv->psstatus.status));
-		goto err_out;
+		goto err_release_host;
 	}
 	DPRINTK(4, "WSTATUS_RSIZE=%02X\n", rw_data);
 
@@ -528,7 +528,7 @@ static void ks7010_rw_function(struct work_struct *work)
 
 	_ks_wlan_hw_power_save(priv);
 
- err_out:
+err_release_host:
 	sdio_release_host(priv->ks_wlan_hw.sdio_card->func);
 }
 
@@ -549,7 +549,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 				     sizeof(status));
 		if (retval) {
 			DPRINTK(1, "read INT_PENDING Failed!!(%d)\n", retval);
-			goto intr_out;
+			goto queue_delayed_work;
 		}
 		DPRINTK(4, "INT_PENDING=%02X\n", rw_data);
 
@@ -565,7 +565,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 					     sizeof(rw_data));
 			if (retval) {
 				DPRINTK(1, " error : GCR_B=%02X\n", rw_data);
-				goto intr_out;
+				goto queue_delayed_work;
 			}
 			/* DPRINTK(1, "GCR_B=%02X\n", rw_data); */
 			if (rw_data == GCR_B_ACTIVE) {
@@ -587,7 +587,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 			if (retval) {
 				DPRINTK(1, " error : WSTATUS_RSIZE=%02X\n",
 					rw_data);
-				goto intr_out;
+				goto queue_delayed_work;
 			}
 			DPRINTK(4, "WSTATUS_RSIZE=%02X\n", rw_data);
 			rsize = rw_data & RSIZE_MASK;
@@ -613,7 +613,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 		} while (rsize);
 	}
 
- intr_out:
+queue_delayed_work:
 	queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
 			   &priv->ks_wlan_hw.rw_wq, 0);
 }
@@ -666,15 +666,15 @@ static int ks7010_sdio_update_index(struct ks_wlan_private *priv, u32 index)
 	memcpy(data_buf, &index, sizeof(index));
 	rc = ks7010_sdio_write(priv, WRITE_INDEX, data_buf, sizeof(index));
 	if (rc)
-		goto error_out;
+		goto err_free_data_buf;
 
 	rc = ks7010_sdio_write(priv, READ_INDEX, data_buf, sizeof(index));
 	if (rc)
-		goto error_out;
+		goto err_free_data_buf;
 
 	return 0;
 
- error_out:
+err_free_data_buf:
 	kfree(data_buf);
 
 	return rc;
@@ -693,17 +693,17 @@ static int ks7010_sdio_data_compare(struct ks_wlan_private *priv, u32 address,
 
 	rc = ks7010_sdio_read(priv, address, read_buf, size);
 	if (rc)
-		goto error_out;
+		goto err_free_read_buf;
 
 	rc = memcmp(data, read_buf, size);
 	if (rc) {
 		DPRINTK(0, "data compare error (%d)\n", rc);
-		goto error_out;
+		goto err_free_read_buf;
 	}
 
 	return 0;
 
- error_out:
+err_free_read_buf:
 	kfree(read_buf);
 
 	return rc;
@@ -930,20 +930,20 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	ret = sdio_enable_func(func);
 	DPRINTK(5, "sdio_enable_func() %d\n", ret);
 	if (ret)
-		goto error_free_card;
+		goto err_free_card;
 
 	/* interrupt disable */
 	sdio_writeb(func, 0, INT_ENABLE, &ret);
 	if (ret)
-		goto error_free_card;
+		goto err_free_card;
 	sdio_writeb(func, 0xff, INT_PENDING, &ret);
 	if (ret)
-		goto error_disable_func;
+		goto err_disable_func;
 
 	/* setup interrupt handler */
 	ret = sdio_claim_irq(func, ks_sdio_interrupt);
 	if (ret)
-		goto error_disable_func;
+		goto err_disable_func;
 
 	sdio_release_host(func);
 
@@ -956,12 +956,12 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	netdev = alloc_etherdev(sizeof(*priv));
 	if (!netdev) {
 		dev_err(&card->func->dev, "ks7010 : Unable to alloc new net device\n");
-		goto error_release_irq;
+		goto err_release_irq;
 	}
 	if (dev_alloc_name(netdev, "wlan%d") < 0) {
 		dev_err(&card->func->dev,
 			"ks7010 :  Couldn't get name!\n");
-		goto error_free_netdev;
+		goto err_free_netdev;
 	}
 
 	priv = netdev_priv(netdev);
@@ -975,7 +975,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	priv->ks_wlan_hw.read_buf = NULL;
 	priv->ks_wlan_hw.read_buf = kmalloc(RX_DATA_SIZE, GFP_KERNEL);
 	if (!priv->ks_wlan_hw.read_buf)
-		goto error_free_netdev;
+		goto err_free_netdev;
 
 	priv->dev_state = DEVICE_STATE_PREBOOT;
 	priv->net_dev = netdev;
@@ -1003,7 +1003,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 		dev_err(&card->func->dev,
 			"ks7010: firmware load failed !! return code = %d\n",
 			 ret);
-		goto error_free_read_buf;
+		goto err_free_read_buf;
 	}
 
 	/* interrupt setting */
@@ -1023,7 +1023,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	ret = ks7010_sdio_write(priv, INT_ENABLE, &rw_data, sizeof(rw_data));
 	sdio_release_host(func);
 	if (ret)
-		DPRINTK(1, " error : INT_ENABLE=%02X\n", rw_data);
+		DPRINTK(1, " err : INT_ENABLE=%02X\n", rw_data);
 
 	DPRINTK(4, " enable Interrupt : INT_ENABLE=%02X\n", rw_data);
 	priv->dev_state = DEVICE_STATE_BOOT;
@@ -1031,7 +1031,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	priv->ks_wlan_hw.ks7010sdio_wq = create_workqueue("ks7010sdio_wq");
 	if (!priv->ks_wlan_hw.ks7010sdio_wq) {
 		DPRINTK(1, "create_workqueue failed !!\n");
-		goto error_free_read_buf;
+		goto err_free_read_buf;
 	}
 
 	INIT_DELAYED_WORK(&priv->ks_wlan_hw.rw_wq, ks7010_rw_function);
@@ -1039,22 +1039,22 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	ret = register_netdev(priv->net_dev);
 	if (ret)
-		goto error_free_read_buf;
+		goto err_free_read_buf;
 
 	return 0;
 
- error_free_read_buf:
+ err_free_read_buf:
 	kfree(priv->ks_wlan_hw.read_buf);
 	priv->ks_wlan_hw.read_buf = NULL;
- error_free_netdev:
+ err_free_netdev:
 	free_netdev(priv->net_dev);
 	card->priv = NULL;
- error_release_irq:
+ err_release_irq:
 	sdio_claim_host(func);
 	sdio_release_irq(func);
- error_disable_func:
+ err_disable_func:
 	sdio_disable_func(func);
- error_free_card:
+ err_free_card:
 	sdio_release_host(func);
 	sdio_set_drvdata(func, NULL);
 	kfree(card);
