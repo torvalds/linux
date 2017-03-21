@@ -61,7 +61,7 @@ static int ks7010_sdio_read(struct ks_wlan_private *priv, unsigned int address,
 	else	/* CMD53 multi-block transfer */
 		rc = sdio_memcpy_fromio(card->func, buffer, address, length);
 
-	if (rc != 0)
+	if (rc)
 		DPRINTK(1, "sdio error=%d size=%d\n", rc, length);
 
 	return rc;
@@ -80,7 +80,7 @@ static int ks7010_sdio_write(struct ks_wlan_private *priv, unsigned int address,
 	else	/* CMD53 */
 		rc = sdio_memcpy_toio(card->func, address, buffer, length);
 
-	if (rc != 0)
+	if (rc)
 		DPRINTK(1, "sdio error=%d size=%d\n", rc, length);
 
 	return rc;

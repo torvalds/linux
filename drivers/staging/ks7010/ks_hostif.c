@@ -528,7 +528,7 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 	mib_val_size = get_WORD(priv);	/* MIB value size */
 	mib_val_type = get_WORD(priv);	/* MIB value type */
 
-	if (mib_status != 0) {
+	if (mib_status) {
 		/* in case of error */
 		DPRINTK(1, "attribute=%08X, status=%08X\n", mib_attribute,
 			mib_status);
@@ -604,7 +604,7 @@ void hostif_mib_set_confirm(struct ks_wlan_private *priv)
 	mib_status = get_DWORD(priv);	/* MIB Status */
 	mib_attribute = get_DWORD(priv);	/* MIB attribute */
 
-	if (mib_status != 0) {
+	if (mib_status) {
 		/* in case of error */
 		DPRINTK(1, "error :: attribute=%08X, status=%08X\n",
 			mib_attribute, mib_status);
@@ -834,7 +834,7 @@ void hostif_scan_indication(struct ks_wlan_private *priv)
 	DPRINTK(3, "scan_ind_count = %d\n", priv->scan_ind_count);
 	ap_info = (struct ap_info_t *)(priv->rxp);
 
-	if (priv->scan_ind_count != 0) {
+	if (priv->scan_ind_count) {
 		for (i = 0; i < priv->aplist.size; i++) {	/* bssid check */
 			if (!memcmp
 			    (ap_info->bssid,
