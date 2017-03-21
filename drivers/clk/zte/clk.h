@@ -66,8 +66,12 @@ struct clk_zx_pll {
 				CLK_GET_RATE_NOCACHE),			\
 }
 
+/*
+ * The pd_bit is not available on ZX296718, so let's pass something
+ * bigger than 31, e.g. 0xff, to indicate that.
+ */
 #define ZX296718_PLL(_name, _parent, _reg, _table)			\
-ZX_PLL(_name, _parent, _reg, _table, 0, 30)
+ZX_PLL(_name, _parent, _reg, _table, 0xff, 30)
 
 struct zx_clk_gate {
 	struct clk_gate gate;
