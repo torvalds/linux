@@ -611,6 +611,10 @@ static const int bclk_divs[] = {
  *		- lrclk      = sysclk / dac_divs
  *		- 10 * bclk  = sysclk / bclk_divs
  *
+ *	If we cannot find an exact match for (sysclk, lrclk, bclk)
+ *	triplet, we relax the bclk such that bclk is chosen as the
+ *	closest available frequency greater than expected bclk.
+ *
  * @wm8960_priv: wm8960 codec private data
  * @mclk: MCLK used to derive sysclk
  * @sysclk_idx: sysclk_divs index for found sysclk
@@ -618,8 +622,9 @@ static const int bclk_divs[] = {
  * @bclk_idx: bclk_divs index for found bclk
  *
  * Returns:
- * -1, in case no sysclk frequency available found
- *  0, in case an exact (@sysclk_idx, @dac_idx, @bclk_idx) match is found
+ *  -1, in case no sysclk frequency available found
+ * >=0, in case we could derive bclk and lrclk from sysclk using
+ *      (@sysclk_idx, @dac_idx, @bclk_idx) dividers
  */
 static
 int wm8960_configure_sysclk(struct wm8960_priv *wm8960, int mclk,
@@ -627,7 +632,10 @@ int wm8960_configure_sysclk(struct wm8960_priv *wm8960, int mclk,
 {
 	int sysclk, bclk, lrclk;
 	int i, j, k;
-	int diff;
+	int diff, closest = mclk;
+
+	/* marker for no match */
+	*bclk_idx = -1;
 
 	bclk = wm8960->bclk;
 	lrclk = wm8960->lrclk;
@@ -648,6 +656,12 @@ int wm8960_configure_sysclk(struct wm8960_priv *wm8960, int mclk,
 					*bclk_idx = k;
 					break;
 				}
+				if (diff > 0 && closest > diff) {
+					*sysclk_idx = i;
+					*dac_idx = j;
+					*bclk_idx = k;
+					closest = diff;
+				}
 			}
 			if (k != ARRAY_SIZE(bclk_divs))
 				break;
@@ -655,11 +669,7 @@ int wm8960_configure_sysclk(struct wm8960_priv *wm8960, int mclk,
 		if (j != ARRAY_SIZE(dac_divs))
 			break;
 	}
-
-	if (i != ARRAY_SIZE(sysclk_divs))
-		return 0;
-
-	return -1;
+	return *bclk_idx;
 }
 
 static int wm8960_configure_clocking(struct snd_soc_codec *codec)
@@ -703,7 +713,7 @@ static int wm8960_configure_clocking(struct snd_soc_codec *codec)
 
 	if (wm8960->clk_id != WM8960_SYSCLK_PLL) {
 		ret = wm8960_configure_sysclk(wm8960, freq_out, &i, &j, &k);
-		if (ret == 0) {
+		if (ret >= 0) {
 			goto configure_clock;
 		} else if (wm8960->clk_id != WM8960_SYSCLK_AUTO) {
 			dev_err(codec->dev, "failed to configure clock\n");
