@@ -173,6 +173,11 @@ struct paca_struct {
 	u8 thread_mask;
 	/* Mask to denote subcore sibling threads */
 	u8 subcore_sibling_mask;
+	/*
+	 * Pointer to an array which contains pointer
+	 * to the sibling threads' paca.
+	 */
+	struct paca_struct **thread_sibling_pacas;
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_64

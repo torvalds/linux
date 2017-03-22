@@ -375,6 +375,46 @@ _GLOBAL(power9_idle_stop)
 	li	r4,1
 	b	pnv_powersave_common
 	/* No return */
+
+
+/*
+ * On waking up from stop 0,1,2 with ESL=1 on POWER9 DD1,
+ * HSPRG0 will be set to the HSPRG0 value of one of the
+ * threads in this core. Thus the value we have in r13
+ * may not be this thread's paca pointer.
+ *
+ * Fortunately, the TIR remains invariant. Since this thread's
+ * paca pointer is recorded in all its sibling's paca, we can
+ * correctly recover this thread's paca pointer if we
+ * know the index of this thread in the core.
+ *
+ * This index can be obtained from the TIR.
+ *
+ * i.e, thread's position in the core = TIR.
+ * If this value is i, then this thread's paca is
+ * paca->thread_sibling_pacas[i].
+ */
+power9_dd1_recover_paca:
+	mfspr	r4, SPRN_TIR
+	/*
+	 * Since each entry in thread_sibling_pacas is 8 bytes
+	 * we need to left-shift by 3 bits. Thus r4 = i * 8
+	 */
+	sldi	r4, r4, 3
+	/* Get &paca->thread_sibling_pacas[0] in r5 */
+	ld	r5, PACA_SIBLING_PACA_PTRS(r13)
+	/* Load paca->thread_sibling_pacas[i] into r13 */
+	ldx	r13, r4, r5
+	SET_PACA(r13)
+	ld	r2, PACATOC(r13)
+	/*
+	 * Indicate that we have lost NVGPR state
+	 * which needs to be restored from the stack.
+	 */
+	li	r3, 1
+	stb	r0,PACA_NAPSTATELOST(r13)
+	blr
+
 /*
  * Called from reset vector. Check whether we have woken up with
  * hypervisor state loss. If yes, restore hypervisor state and return
@@ -385,7 +425,13 @@ _GLOBAL(power9_idle_stop)
  */
 _GLOBAL(pnv_restore_hyp_resource)
 BEGIN_FTR_SECTION
-	ld	r2,PACATOC(r13);
+BEGIN_FTR_SECTION_NESTED(70)
+	mflr 	r6
+	bl	power9_dd1_recover_paca
+	mtlr	r6
+FTR_SECTION_ELSE_NESTED(70)
+	ld	r2, PACATOC(r13)
+ALT_FTR_SECTION_END_NESTED_IFSET(CPU_FTR_POWER9_DD1, 70)
 	/*
 	 * POWER ISA 3. Use PSSCR to determine if we
 	 * are waking up from deep idle state
