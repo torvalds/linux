@@ -167,7 +167,6 @@ MODULE_DEVICE_TABLE(of, max11100_ids);
 static struct spi_driver max11100_driver = {
 	.driver = {
 		.name	= "max11100",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(max11100_ids),
 	},
 	.probe		= max11100_probe,

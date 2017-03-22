@@ -10,7 +10,6 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
-#include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
@@ -192,12 +191,14 @@
  * filling. This may change!
  */
 
-#define ADIS16240_SCAN_ACC_X	0
-#define ADIS16240_SCAN_ACC_Y	1
-#define ADIS16240_SCAN_ACC_Z	2
-#define ADIS16240_SCAN_SUPPLY	3
-#define ADIS16240_SCAN_AUX_ADC	4
-#define ADIS16240_SCAN_TEMP	5
+enum adis16240_scan {
+	ADIS16240_SCAN_ACC_X,
+	ADIS16240_SCAN_ACC_Y,
+	ADIS16240_SCAN_ACC_Z,
+	ADIS16240_SCAN_SUPPLY,
+	ADIS16240_SCAN_AUX_ADC,
+	ADIS16240_SCAN_TEMP,
+};
 
 static ssize_t adis16240_spi_read_signed(struct device *dev,
 					 struct device_attribute *attr,
@@ -227,15 +228,7 @@ static ssize_t adis16240_read_12bit_signed(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	ssize_t ret;
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-
-	/* Take the iio_dev status lock */
-	mutex_lock(&indio_dev->mlock);
-	ret =  adis16240_spi_read_signed(dev, attr, buf, 12);
-	mutex_unlock(&indio_dev->mlock);
-
-	return ret;
+	return adis16240_spi_read_signed(dev, attr, buf, 12);
 }
 
 static IIO_DEVICE_ATTR(in_accel_xyz_squared_peak_raw, 0444,
@@ -295,31 +288,25 @@ static int adis16240_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		bits = 10;
-		mutex_lock(&indio_dev->mlock);
 		addr = adis16240_addresses[chan->scan_index][0];
 		ret = adis_read_reg_16(st, addr, &val16);
 		if (ret) {
-			mutex_unlock(&indio_dev->mlock);
 			return ret;
 		}
 		val16 &= (1 << bits) - 1;
 		val16 = (s16)(val16 << (16 - bits)) >> (16 - bits);
 		*val = val16;
-		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_PEAK:
 		bits = 10;
-		mutex_lock(&indio_dev->mlock);
 		addr = adis16240_addresses[chan->scan_index][1];
 		ret = adis_read_reg_16(st, addr, &val16);
 		if (ret) {
-			mutex_unlock(&indio_dev->mlock);
 			return ret;
 		}
 		val16 &= (1 << bits) - 1;
 		val16 = (s16)(val16 << (16 - bits)) >> (16 - bits);
 		*val = val16;
-		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
 	}
 	return -EINVAL;
@@ -373,8 +360,8 @@ static const struct attribute_group adis16240_attribute_group = {
 
 static const struct iio_info adis16240_info = {
 	.attrs = &adis16240_attribute_group,
-	.read_raw = &adis16240_read_raw,
-	.write_raw = &adis16240_write_raw,
+	.read_raw = adis16240_read_raw,
+	.write_raw = adis16240_write_raw,
 	.update_scan_mode = adis_update_scan_mode,
 	.driver_module = THIS_MODULE,
 };

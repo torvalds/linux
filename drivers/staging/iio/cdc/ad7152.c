@@ -155,13 +155,13 @@ static ssize_t ad7152_start_gain_calib(struct device *dev,
 }
 
 static IIO_DEVICE_ATTR(in_capacitance0_calibbias_calibration,
-		       S_IWUSR, NULL, ad7152_start_offset_calib, 0);
+		       0200, NULL, ad7152_start_offset_calib, 0);
 static IIO_DEVICE_ATTR(in_capacitance1_calibbias_calibration,
-		       S_IWUSR, NULL, ad7152_start_offset_calib, 1);
+		       0200, NULL, ad7152_start_offset_calib, 1);
 static IIO_DEVICE_ATTR(in_capacitance0_calibscale_calibration,
-		       S_IWUSR, NULL, ad7152_start_gain_calib, 0);
+		       0200, NULL, ad7152_start_gain_calib, 0);
 static IIO_DEVICE_ATTR(in_capacitance1_calibscale_calibration,
-		       S_IWUSR, NULL, ad7152_start_gain_calib, 1);
+		       0200, NULL, ad7152_start_gain_calib, 1);
 
 /* Values are Update Rate (Hz), Conversion Time (ms) + 1*/
 static const unsigned char ad7152_filter_rate_table[][2] = {
@@ -441,9 +441,9 @@ static int ad7152_write_raw_get_fmt(struct iio_dev *indio_dev,
 
 static const struct iio_info ad7152_info = {
 	.attrs = &ad7152_attribute_group,
-	.read_raw = &ad7152_read_raw,
-	.write_raw = &ad7152_write_raw,
-	.write_raw_get_fmt = &ad7152_write_raw_get_fmt,
+	.read_raw = ad7152_read_raw,
+	.write_raw = ad7152_write_raw,
+	.write_raw_get_fmt = ad7152_write_raw_get_fmt,
 	.driver_module = THIS_MODULE,
 };
 

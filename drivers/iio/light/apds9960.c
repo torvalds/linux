@@ -1122,9 +1122,16 @@ static const struct i2c_device_id apds9960_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, apds9960_id);
 
+static const struct of_device_id apds9960_of_match[] = {
+	{ .compatible = "avago,apds9960" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, apds9960_of_match);
+
 static struct i2c_driver apds9960_driver = {
 	.driver = {
 		.name	= APDS9960_DRV_NAME,
+		.of_match_table = apds9960_of_match,
 		.pm	= &apds9960_pm_ops,
 	},
 	.probe		= apds9960_probe,
