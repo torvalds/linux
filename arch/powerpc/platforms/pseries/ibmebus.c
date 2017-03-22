@@ -410,10 +410,7 @@ static ssize_t name_show(struct device *dev,
 static ssize_t modalias_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	ssize_t len = of_device_get_modalias(dev, buf, PAGE_SIZE - 2);
-	buf[len] = '\n';
-	buf[len+1] = 0;
-	return len+1;
+	return of_device_modalias(dev, buf, PAGE_SIZE);
 }
 
 static struct device_attribute ibmebus_bus_device_attrs[] = {
