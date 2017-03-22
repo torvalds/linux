@@ -103,6 +103,12 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
+	if (motu->spec->flags & SND_MOTU_SPEC_HAS_MIDI) {
+		err = snd_motu_create_midi_devices(motu);
+		if (err < 0)
+			goto error;
+	}
+
 	err = snd_card_register(motu->card);
 	if (err < 0)
 		goto error;
@@ -138,6 +144,7 @@ static int motu_probe(struct fw_unit *unit,
 	dev_set_drvdata(&unit->device, motu);
 
 	mutex_init(&motu->mutex);
+	spin_lock_init(&motu->lock);
 
 	/* Allocate and register this sound card later. */
 	INIT_DEFERRABLE_WORK(&motu->dwork, do_registration);

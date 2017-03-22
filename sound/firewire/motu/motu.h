@@ -21,12 +21,15 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/info.h>
+#include <sound/rawmidi.h>
 
 #include "../lib.h"
 #include "../amdtp-stream.h"
 #include "../iso-resources.h"
 
 struct snd_motu_packet_format {
+	unsigned char midi_flag_offset;
+	unsigned char midi_byte_offset;
 	unsigned char pcm_byte_offset;
 
 	unsigned char msg_chunks;
@@ -38,6 +41,7 @@ struct snd_motu {
 	struct snd_card *card;
 	struct fw_unit *unit;
 	struct mutex mutex;
+	spinlock_t lock;
 
 	bool registered;
 	struct delayed_work dwork;
@@ -113,9 +117,12 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
 		    const struct snd_motu_protocol *const protocol);
 int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
+			      unsigned int midi_ports,
 			      struct snd_motu_packet_format *formats);
 int amdtp_motu_add_pcm_hw_constraints(struct amdtp_stream *s,
 				      struct snd_pcm_runtime *runtime);
+void amdtp_motu_midi_trigger(struct amdtp_stream *s, unsigned int port,
+			     struct snd_rawmidi_substream *midi);
 
 int snd_motu_transaction_read(struct snd_motu *motu, u32 offset, __be32 *reg,
 			      size_t size);
@@ -133,4 +140,6 @@ void snd_motu_stream_stop_duplex(struct snd_motu *motu);
 void snd_motu_proc_init(struct snd_motu *motu);
 
 int snd_motu_create_pcm_devices(struct snd_motu *motu);
+
+int snd_motu_create_midi_devices(struct snd_motu *motu);
 #endif

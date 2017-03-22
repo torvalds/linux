@@ -28,21 +28,24 @@
 
 static int start_both_streams(struct snd_motu *motu, unsigned int rate)
 {
+	unsigned int midi_ports = 0;
 	__be32 reg;
 	u32 data;
 	int err;
 
+	if (motu->spec->flags & SND_MOTU_SPEC_HAS_MIDI)
+		midi_ports = 1;
+
 	/* Set packet formation to our packet streaming engine. */
-	err = amdtp_motu_set_parameters(&motu->rx_stream, rate,
+	err = amdtp_motu_set_parameters(&motu->rx_stream, rate, midi_ports,
 					&motu->rx_packet_formats);
 	if (err < 0)
 		return err;
 
-	err = amdtp_motu_set_parameters(&motu->tx_stream, rate,
+	err = amdtp_motu_set_parameters(&motu->tx_stream, rate, midi_ports,
 					&motu->tx_packet_formats);
 	if (err < 0)
 		return err;
-
 
 	/* Get isochronous resources on the bus. */
 	err = fw_iso_resources_allocate(&motu->rx_resources,

@@ -13,6 +13,12 @@
 #define CIP_FMT_MOTU		0x02
 #define MOTU_FDF_AM824		0x22
 
+/*
+ * Nominally 3125 bytes/second, but the MIDI port's clock might be
+ * 1% too slow, and the bus clock 100 ppm too fast.
+ */
+#define MIDI_BYTES_PER_SECOND	3093
+
 struct amdtp_motu {
 	/* For timestamp processing.  */
 	unsigned int quotient_ticks_per_event;
@@ -24,9 +30,18 @@ struct amdtp_motu {
 
 	unsigned int pcm_chunks;
 	unsigned int pcm_byte_offset;
+
+	struct snd_rawmidi_substream *midi;
+	unsigned int midi_ports;
+	unsigned int midi_flag_offset;
+	unsigned int midi_byte_offset;
+
+	int midi_db_count;
+	unsigned int midi_db_interval;
 };
 
 int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
+			      unsigned int midi_ports,
 			      struct snd_motu_packet_format *formats)
 {
 	static const struct {
@@ -75,6 +90,13 @@ int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 
 	p->pcm_chunks = pcm_chunks;
 	p->pcm_byte_offset = formats->pcm_byte_offset;
+
+	p->midi_ports = midi_ports;
+	p->midi_flag_offset = formats->midi_flag_offset;
+	p->midi_byte_offset = formats->midi_byte_offset;
+
+	p->midi_db_count = 0;
+	p->midi_db_interval = rate / MIDI_BYTES_PER_SECOND;
 
 	/* IEEE 1394 bus requires. */
 	delay = 0x2e00;
@@ -187,11 +209,69 @@ int amdtp_motu_add_pcm_hw_constraints(struct amdtp_stream *s,
 	return amdtp_stream_add_pcm_hw_constraints(s, runtime);
 }
 
+void amdtp_motu_midi_trigger(struct amdtp_stream *s, unsigned int port,
+			     struct snd_rawmidi_substream *midi)
+{
+	struct amdtp_motu *p = s->protocol;
+
+	if (port < p->midi_ports)
+		WRITE_ONCE(p->midi, midi);
+}
+
+static void write_midi_messages(struct amdtp_stream *s, __be32 *buffer,
+				unsigned int data_blocks)
+{
+	struct amdtp_motu *p = s->protocol;
+	struct snd_rawmidi_substream *midi = READ_ONCE(p->midi);
+	u8 *b;
+	int i;
+
+	for (i = 0; i < data_blocks; i++) {
+		b = (u8 *)buffer;
+
+		if (midi && p->midi_db_count == 0 &&
+		    snd_rawmidi_transmit(midi, b + p->midi_byte_offset, 1) == 1) {
+			b[p->midi_flag_offset] = 0x01;
+		} else {
+			b[p->midi_byte_offset] = 0x00;
+			b[p->midi_flag_offset] = 0x00;
+		}
+
+		buffer += s->data_block_quadlets;
+
+		if (--p->midi_db_count < 0)
+			p->midi_db_count = p->midi_db_interval;
+	}
+}
+
+static void read_midi_messages(struct amdtp_stream *s, __be32 *buffer,
+			       unsigned int data_blocks)
+{
+	struct amdtp_motu *p = s->protocol;
+	struct snd_rawmidi_substream *midi;
+	u8 *b;
+	int i;
+
+	for (i = 0; i < data_blocks; i++) {
+		b = (u8 *)buffer;
+		midi = READ_ONCE(p->midi);
+
+		if (midi && (b[p->midi_flag_offset] & 0x01))
+			snd_rawmidi_receive(midi, b + p->midi_byte_offset, 1);
+
+		buffer += s->data_block_quadlets;
+	}
+}
+
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 				__be32 *buffer, unsigned int data_blocks,
 				unsigned int *syt)
 {
+	struct amdtp_motu *p = s->protocol;
 	struct snd_pcm_substream *pcm;
+
+	if (p->midi_ports)
+		read_midi_messages(s, buffer, data_blocks);
 
 	pcm = ACCESS_ONCE(s->pcm);
 	if (data_blocks > 0 && pcm)
@@ -246,12 +326,16 @@ static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
 				__be32 *buffer, unsigned int data_blocks,
 				unsigned int *syt)
 {
+	struct amdtp_motu *p = (struct amdtp_motu *)s->protocol;
 	struct snd_pcm_substream *pcm;
 
 	/* Not used. */
 	*syt = 0xffff;
 
 	/* TODO: how to interact control messages between userspace? */
+
+	if (p->midi_ports)
+		write_midi_messages(s, buffer, data_blocks);
 
 	pcm = ACCESS_ONCE(s->pcm);
 	if (pcm)
