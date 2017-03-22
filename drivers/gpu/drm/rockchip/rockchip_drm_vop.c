@@ -982,8 +982,10 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	 * Src.x1 can be odd when do clip, but yuv plane start point
 	 * need align with 2 pixel.
 	 */
-	if (is_yuv_support(fb->pixel_format) && ((src->x1 >> 16) % 2))
+	if (is_yuv_support(fb->pixel_format) && ((src->x1 >> 16) % 2)) {
+		DRM_ERROR("Invalid Source: Yuv format Can't support odd xpos\n");
 		return -EINVAL;
+	}
 
 	offset = (src->x1 >> 16) * drm_format_plane_bpp(fb->pixel_format, 0) / 8;
 	if (state->rotation & BIT(DRM_REFLECT_Y))
