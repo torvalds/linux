@@ -935,6 +935,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		struct scsi_cmnd *cmnd = task->uldd_task;
 		struct hisi_sas_slot *slot = task->lldd_task;
 		u32 tag = slot->idx;
+		int rc2;
 
 		int_to_scsilun(cmnd->device->lun, &lun);
 		tmf_task.tmf = TMF_ABORT_TASK;
@@ -943,21 +944,22 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		rc = hisi_sas_debug_issue_ssp_tmf(task->dev, lun.scsi_lun,
 						  &tmf_task);
 
-		/* if successful, clear the task and callback forwards.*/
-		if (rc == TMF_RESP_FUNC_COMPLETE) {
+		rc2 = hisi_sas_internal_task_abort(hisi_hba, device,
+						   HISI_SAS_INT_ABT_CMD, tag);
+		/*
+		 * If the TMF finds that the IO is not in the device and also
+		 * the internal abort does not succeed, then it is safe to
+		 * free the slot.
+		 * Note: if the internal abort succeeds then the slot
+		 * will have already been completed
+		 */
+		if (rc == TMF_RESP_FUNC_COMPLETE && rc2 != TMF_RESP_FUNC_SUCC) {
 			if (task->lldd_task) {
-				struct hisi_sas_slot *slot;
-
-				slot = &hisi_hba->slot_info
-					[tmf_task.tag_of_task_to_be_managed];
 				spin_lock_irqsave(&hisi_hba->lock, flags);
-				hisi_hba->hw->slot_complete(hisi_hba, slot);
+				hisi_sas_do_release_task(hisi_hba, task, slot);
 				spin_unlock_irqrestore(&hisi_hba->lock, flags);
 			}
 		}
-
-		hisi_sas_internal_task_abort(hisi_hba, device,
-					     HISI_SAS_INT_ABT_CMD, tag);
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
 		task->task_proto & SAS_PROTOCOL_STP) {
 		if (task->dev->dev_type == SAS_SATA_DEV) {
@@ -1217,6 +1219,12 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
 		res = TMF_RESP_FUNC_COMPLETE;
+		goto exit;
+	}
+
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_SUCC) {
+		res = TMF_RESP_FUNC_SUCC;
 		goto exit;
 	}
 

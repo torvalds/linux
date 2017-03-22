@@ -1766,7 +1766,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 		goto out;
 	case STAT_IO_COMPLETE:
 		/* internal abort command complete */
-		ts->stat = TMF_RESP_FUNC_COMPLETE;
+		ts->stat = TMF_RESP_FUNC_SUCC;
 		goto out;
 	case STAT_IO_NO_DEVICE:
 		ts->stat = TMF_RESP_FUNC_COMPLETE;
