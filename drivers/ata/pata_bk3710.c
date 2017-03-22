@@ -276,7 +276,7 @@ static void pata_bk3710_chipinit(void __iomem *base)
 	 * (ATA_BMISP_INTRSTAT	, CLEAR)	|
 	 * (ATA_BMISP_DMAERROR	, CLEAR)
 	 */
-	iowrite16(0, base + BK3710_BMISP);
+	iowrite16(0xE, base + BK3710_BMISP);
 
 	pata_bk3710_setpiomode(base, NULL, 0, 600, 0);
 	pata_bk3710_setpiomode(base, NULL, 1, 600, 0);
