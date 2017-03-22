@@ -209,9 +209,9 @@ static void psp_prep_asd_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 static int psp_asd_load(struct psp_context *psp)
 {
 	int ret;
-	struct amdgpu_bo *asd_bo, *asd_shared_bo;
-	uint64_t asd_mc_addr, asd_shared_mc_addr;
-	void *asd_buf, *asd_shared_buf;
+	struct amdgpu_bo *asd_shared_bo;
+	uint64_t asd_shared_mc_addr;
+	void *asd_shared_buf;
 	struct psp_gfx_cmd_resp *cmd;
 
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
@@ -224,38 +224,26 @@ static int psp_asd_load(struct psp_context *psp)
 	 */
 	ret = amdgpu_bo_create_kernel(psp->adev, PSP_ASD_SHARED_MEM_SIZE, PAGE_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
-				      &asd_shared_bo, &asd_shared_mc_addr, &asd_buf);
+				      &asd_shared_bo, &asd_shared_mc_addr, &asd_shared_buf);
 	if (ret)
 		goto failed;
 
-	/*
-	 * Allocate 256k memory aligned to 4k from Frame Buffer (local
-	 * physical) for ASD firmware
-	 */
-	ret = amdgpu_bo_create_kernel(psp->adev, PSP_ASD_BIN_SIZE, PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_VRAM,
-				      &asd_bo, &asd_mc_addr, &asd_buf);
-	if (ret)
-		goto failed_mem;
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+	memcpy(psp->fw_pri_buf, psp->asd_start_addr, psp->asd_ucode_size);
 
-	memcpy(asd_buf, psp->asd_start_addr, psp->asd_ucode_size);
-
-	psp_prep_asd_cmd_buf(cmd, asd_mc_addr, asd_shared_mc_addr,
+	psp_prep_asd_cmd_buf(cmd, psp->fw_pri_mc_addr, asd_shared_mc_addr,
 			     psp->asd_ucode_size, PSP_ASD_SHARED_MEM_SIZE);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr, 2);
 	if (ret)
-		goto failed_mem1;
+		goto failed_mem;
 
-	amdgpu_bo_free_kernel(&asd_bo, &asd_mc_addr, &asd_buf);
 	amdgpu_bo_free_kernel(&asd_shared_bo, &asd_shared_mc_addr, &asd_shared_buf);
 	kfree(cmd);
 
 	return 0;
 
-failed_mem1:
-	amdgpu_bo_free_kernel(&asd_bo, &asd_mc_addr, &asd_buf);
 failed_mem:
 	amdgpu_bo_free_kernel(&asd_shared_bo, &asd_shared_mc_addr, &asd_shared_buf);
 failed:
