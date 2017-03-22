@@ -33,23 +33,47 @@
 #define _DRM_DEBUGFS_H_
 
 /**
- * Info file list entry. This structure represents a debugfs or proc file to
- * be created by the drm core
+ * struct drm_info_list - debugfs info list entry
+ *
+ * This structure represents a debugfs file to be created by the drm
+ * core.
  */
 struct drm_info_list {
-	const char *name; /** file name */
-	int (*show)(struct seq_file*, void*); /** show callback */
-	u32 driver_features; /**< Required driver features for this entry */
+	/** @name: file name */
+	const char *name;
+	/**
+	 * @show:
+	 *
+	 * Show callback. &seq_file->private will be set to the &struct
+	 * drm_info_node corresponding to the instance of this info on a given
+	 * &struct drm_minor.
+	 */
+	int (*show)(struct seq_file*, void*);
+	/** @driver_features: Required driver features for this entry */
+	u32 driver_features;
+	/** @data: Driver-private data, should not be device-specific. */
 	void *data;
 };
 
 /**
- * debugfs node structure. This structure represents a debugfs file.
+ * struct drm_info_node - Per-minor debugfs node structure
+ *
+ * This structure represents a debugfs file, as an instantiation of a &struct
+ * drm_info_list on a &struct drm_minor.
+ *
+ * FIXME:
+ *
+ * No it doesn't make a hole lot of sense that we duplicate debugfs entries for
+ * both the render and the primary nodes, but that's how this has organically
+ * grown. It should probably be fixed, with a compatibility link, if needed.
  */
 struct drm_info_node {
-	struct list_head list;
+	/** @minor: &struct drm_minor for this node. */
 	struct drm_minor *minor;
+	/** @info_ent: template for this node. */
 	const struct drm_info_list *info_ent;
+	/* private: */
+	struct list_head list;
 	struct dentry *dent;
 };
 

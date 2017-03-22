@@ -210,6 +210,15 @@ Display CRC Support
 .. kernel-doc:: drivers/gpu/drm/drm_debugfs_crc.c
    :export:
 
+Debugfs Support
+---------------
+
+.. kernel-doc:: include/drm/drm_debugfs.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_debugfs.c
+   :export:
+
 VBlank event handling
 =====================
 
