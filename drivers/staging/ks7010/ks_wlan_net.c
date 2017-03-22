@@ -1924,9 +1924,8 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 		if (list_empty(&priv->pmklist.head)) {	/* new list */
 			for (i = 0; i < PMK_LIST_MAX; i++) {
 				pmk = &priv->pmklist.pmk[i];
-				if (!memcmp
-				    ("\x00\x00\x00\x00\x00\x00", pmk->bssid,
-				     ETH_ALEN))
+				if (memcmp("\x00\x00\x00\x00\x00\x00",
+					   pmk->bssid, ETH_ALEN) == 0)
 					break; /* loop */
 			}
 			memcpy(pmk->bssid, pmksa->bssid.sa_data, ETH_ALEN);
@@ -1938,7 +1937,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 		/* search cache data */
 		list_for_each(ptr, &priv->pmklist.head) {
 			pmk = list_entry(ptr, struct pmk_t, list);
-			if (!memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN)) {	/* match address! list move to head. */
+			if (memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN) == 0) {
 				memcpy(pmk->pmkid, pmksa->pmkid, IW_PMKID_LEN);
 				list_move(&pmk->list, &priv->pmklist.head);
 				break; /* list_for_each */
@@ -1950,8 +1949,8 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 		if (priv->pmklist.size < PMK_LIST_MAX) {	/* new cache data */
 			for (i = 0; i < PMK_LIST_MAX; i++) {
 				pmk = &priv->pmklist.pmk[i];
-				if (!memcmp("\x00\x00\x00\x00\x00\x00",
-					    pmk->bssid, ETH_ALEN))
+				if (memcmp("\x00\x00\x00\x00\x00\x00",
+					    pmk->bssid, ETH_ALEN) == 0)
 					break; /* loop */
 			}
 			memcpy(pmk->bssid, pmksa->bssid.sa_data, ETH_ALEN);
@@ -1973,7 +1972,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 		/* search cache data */
 		list_for_each(ptr, &priv->pmklist.head) {
 			pmk = list_entry(ptr, struct pmk_t, list);
-			if (!memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN)) {	/* match address! list del. */
+			if (memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN) == 0) {
 				eth_zero_addr(pmk->bssid);
 				memset(pmk->pmkid, 0, IW_PMKID_LEN);
 				list_del_init(&pmk->list);
