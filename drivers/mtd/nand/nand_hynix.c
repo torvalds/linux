@@ -270,8 +270,10 @@ static int hynix_mlc_1xnm_rr_init(struct nand_chip *chip,
 		goto out;
 
 	rr = kzalloc(sizeof(*rr) + (nregs * nmodes), GFP_KERNEL);
-	if (!rr)
+	if (!rr) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	for (i = 0; i < nmodes; i++) {
 		for (j = 0; j < nregs; j++) {
