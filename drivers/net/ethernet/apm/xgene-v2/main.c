@@ -66,9 +66,8 @@ static int xge_get_resources(struct xge_pdata *pdata)
 	}
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret <= 0) {
-		dev_err(dev, "Unable to get ENET IRQ\n");
-		ret = ret ? : -ENXIO;
+	if (ret < 0) {
+		dev_err(dev, "Unable to get irq\n");
 		return ret;
 	}
 	pdata->resources.irq = ret;
@@ -156,13 +155,12 @@ static irqreturn_t xge_irq(const int irq, void *data)
 static int xge_request_irq(struct net_device *ndev)
 {
 	struct xge_pdata *pdata = netdev_priv(ndev);
-	struct device *dev = &pdata->pdev->dev;
 	int ret;
 
 	snprintf(pdata->irq_name, IRQ_ID_SIZE, "%s", ndev->name);
 
-	ret = devm_request_irq(dev, pdata->resources.irq, xge_irq,
-			       0, pdata->irq_name, pdata);
+	ret = request_irq(pdata->resources.irq, xge_irq, 0, pdata->irq_name,
+			  pdata);
 	if (ret)
 		netdev_err(ndev, "Failed to request irq %s\n", pdata->irq_name);
 
@@ -172,9 +170,8 @@ static int xge_request_irq(struct net_device *ndev)
 static void xge_free_irq(struct net_device *ndev)
 {
 	struct xge_pdata *pdata = netdev_priv(ndev);
-	struct device *dev = &pdata->pdev->dev;
 
-	devm_free_irq(dev, pdata->resources.irq, pdata);
+	free_irq(pdata->resources.irq, pdata);
 }
 
 static bool is_tx_slot_available(struct xge_raw_desc *raw_desc)
@@ -424,7 +421,7 @@ static struct xge_desc_ring *xge_create_desc_ring(struct net_device *ndev)
 	struct xge_desc_ring *ring;
 	u16 size;
 
-	ring = kzalloc(sizeof(struct xge_desc_ring), GFP_KERNEL);
+	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
 		return NULL;
 
@@ -436,7 +433,7 @@ static struct xge_desc_ring *xge_create_desc_ring(struct net_device *ndev)
 	if (!ring->desc_addr)
 		goto err;
 
-	ring->pkt_info = kcalloc(XGENE_ENET_NUM_DESC, sizeof(struct pkt_info),
+	ring->pkt_info = kcalloc(XGENE_ENET_NUM_DESC, sizeof(*ring->pkt_info),
 				 GFP_KERNEL);
 	if (!ring->pkt_info)
 		goto err;
@@ -598,28 +595,28 @@ static void xge_timeout(struct net_device *ndev)
 
 	rtnl_lock();
 
-	if (netif_running(ndev)) {
-		netif_carrier_off(ndev);
-		netif_stop_queue(ndev);
-		xge_intr_disable(pdata);
-		napi_disable(&pdata->napi);
+	if (!netif_running(ndev))
+		goto out;
 
-		xge_wr_csr(pdata, DMATXCTRL, 0);
-		xge_txc_poll(ndev);
-		xge_free_pending_skb(ndev);
-		xge_wr_csr(pdata, DMATXSTATUS, ~0U);
+	netif_stop_queue(ndev);
+	xge_intr_disable(pdata);
+	napi_disable(&pdata->napi);
 
-		xge_setup_desc(pdata->tx_ring);
-		xge_update_tx_desc_addr(pdata);
-		xge_mac_init(pdata);
+	xge_wr_csr(pdata, DMATXCTRL, 0);
+	xge_txc_poll(ndev);
+	xge_free_pending_skb(ndev);
+	xge_wr_csr(pdata, DMATXSTATUS, ~0U);
 
-		napi_enable(&pdata->napi);
-		xge_intr_enable(pdata);
-		xge_mac_enable(pdata);
-		netif_start_queue(ndev);
-		netif_carrier_on(ndev);
-	}
+	xge_setup_desc(pdata->tx_ring);
+	xge_update_tx_desc_addr(pdata);
+	xge_mac_init(pdata);
 
+	napi_enable(&pdata->napi);
+	xge_intr_enable(pdata);
+	xge_mac_enable(pdata);
+	netif_start_queue(ndev);
+
+out:
 	rtnl_unlock();
 }
 
@@ -653,7 +650,7 @@ static int xge_probe(struct platform_device *pdev)
 	struct xge_pdata *pdata;
 	int ret;
 
-	ndev = alloc_etherdev(sizeof(struct xge_pdata));
+	ndev = alloc_etherdev(sizeof(*pdata));
 	if (!ndev)
 		return -ENOMEM;
 
