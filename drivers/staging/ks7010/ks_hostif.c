@@ -2455,16 +2455,18 @@ void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 		hostif_phy_information_request(priv);
 		break;
 	case SME_MIC_FAILURE_REQUEST:
-		if (priv->wpa.mic_failure.failure == 1)
-			hostif_mic_failure_request(
-				priv, priv->wpa.mic_failure.failure - 1, 0);
-		else if (priv->wpa.mic_failure.failure == 2)
-			hostif_mic_failure_request(
-				priv, priv->wpa.mic_failure.failure - 1,
-				priv->wpa.mic_failure.counter);
-		else
+		if (priv->wpa.mic_failure.failure == 1) {
+			hostif_mic_failure_request(priv,
+						   priv->wpa.mic_failure.failure - 1,
+						   0);
+		} else if (priv->wpa.mic_failure.failure == 2) {
+			hostif_mic_failure_request(priv,
+						   priv->wpa.mic_failure.failure - 1,
+						   priv->wpa.mic_failure.counter);
+		} else {
 			DPRINTK(4, "SME_MIC_FAILURE_REQUEST: failure count=%u error?\n",
 				priv->wpa.mic_failure.failure);
+		}
 		break;
 	case SME_MIC_FAILURE_CONFIRM:
 		if (priv->wpa.mic_failure.failure == 2) {
