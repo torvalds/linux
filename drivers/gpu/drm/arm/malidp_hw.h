@@ -156,6 +156,9 @@ struct malidp_hw_device {
 	u8 min_line_size;
 	u16 max_line_size;
 
+	/* track the device PM state */
+	bool pm_suspended;
+
 	/* size of memory used for rotating layers, up to two banks available */
 	u32 rotation_memory[2];
 };
@@ -173,12 +176,14 @@ extern const struct malidp_hw_device malidp_device[MALIDP_MAX_DEVICES];
 
 static inline u32 malidp_hw_read(struct malidp_hw_device *hwdev, u32 reg)
 {
+	WARN_ON(hwdev->pm_suspended);
 	return readl(hwdev->regs + reg);
 }
 
 static inline void malidp_hw_write(struct malidp_hw_device *hwdev,
 				   u32 value, u32 reg)
 {
+	WARN_ON(hwdev->pm_suspended);
 	writel(value, hwdev->regs + reg);
 }
 

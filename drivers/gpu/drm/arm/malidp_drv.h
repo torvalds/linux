@@ -24,6 +24,7 @@ struct malidp_drm {
 	struct drm_crtc crtc;
 	wait_queue_head_t wq;
 	atomic_t config_valid;
+	struct drm_atomic_state *pm_state;
 };
 
 #define crtc_to_malidp_device(x) container_of(x, struct malidp_drm, crtc)

@@ -16,6 +16,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <video/videomode.h>
 
 #include "malidp_drv.h"
@@ -58,9 +59,14 @@ static void malidp_crtc_enable(struct drm_crtc *crtc)
 	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
 	struct malidp_hw_device *hwdev = malidp->dev;
 	struct videomode vm;
+	int err = pm_runtime_get_sync(crtc->dev->dev);
+
+	if (err < 0) {
+		DRM_DEBUG_DRIVER("Failed to enable runtime power management: %d\n", err);
+		return;
+	}
 
 	drm_display_mode_to_videomode(&crtc->state->adjusted_mode, &vm);
-
 	clk_prepare_enable(hwdev->pxlclk);
 
 	/* We rely on firmware to set mclk to a sensible level. */
@@ -75,10 +81,16 @@ static void malidp_crtc_disable(struct drm_crtc *crtc)
 {
 	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
 	struct malidp_hw_device *hwdev = malidp->dev;
+	int err;
 
 	drm_crtc_vblank_off(crtc);
 	hwdev->enter_config_mode(hwdev);
 	clk_disable_unprepare(hwdev->pxlclk);
+
+	err = pm_runtime_put(crtc->dev->dev);
+	if (err < 0) {
+		DRM_DEBUG_DRIVER("Failed to disable runtime power management: %d\n", err);
+	}
 }
 
 static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
