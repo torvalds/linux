@@ -67,8 +67,8 @@
 		gpio: gpio@98700000 {
 			gpio-controller;
 			#gpio-cells = <2>;
-			compatible = "moxa,moxart-gpio";
-			reg = <0x98700000 0xC>;
+			compatible = "moxa,moxart-gpio", "faraday,ftgpio010";
+			reg = <0x98700000 0x100>;
 		};
 
 		rtc: rtc {
