@@ -1961,7 +1961,8 @@ static int prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 		dw1 &= ~CMD_HDR_DIR_MSK;
 	}
 
-	if (0 == task->ata_task.fis.command)
+	if ((task->ata_task.fis.command == ATA_CMD_DEV_RESET) &&
+			(task->ata_task.fis.control & ATA_SRST))
 		dw1 |= 1 << CMD_HDR_RESET_OFF;
 
 	dw1 |= (get_ata_protocol(task->ata_task.fis.command, task->data_dir))

@@ -21,6 +21,7 @@ static int
 hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			     struct domain_device *device,
 			     int abort_flag, int tag);
+static int hisi_sas_softreset_ata_disk(struct domain_device *device);
 
 static struct hisi_hba *dev_to_hisi_hba(struct domain_device *device)
 {
@@ -720,7 +721,12 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		task->dev = device;
 		task->task_proto = device->tproto;
 
-		memcpy(&task->ssp_task, parameter, para_len);
+		if (dev_is_sata(device)) {
+			task->ata_task.device_control_reg_update = 1;
+			memcpy(&task->ata_task.fis, parameter, para_len);
+		} else {
+			memcpy(&task->ssp_task, parameter, para_len);
+		}
 		task->task_done = hisi_sas_task_done;
 
 		task->slow_task->timer.data = (unsigned long) task;
@@ -742,8 +748,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		/* Even TMF timed out, return direct. */
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-				dev_err(dev, "abort tmf: TMF task[%d] timeout\n",
-					tmf->tag_of_task_to_be_managed);
+				dev_err(dev, "abort tmf: TMF task timeout\n");
 				if (task->lldd_task) {
 					struct hisi_sas_slot *slot =
 						task->lldd_task;
@@ -801,6 +806,63 @@ ex_err:
 		dev_warn(dev, "abort tmf: executing internal task failed!\n");
 	sas_free_task(task);
 	return res;
+}
+
+static void hisi_sas_fill_ata_reset_cmd(struct ata_device *dev,
+		bool reset, int pmp, u8 *fis)
+{
+	struct ata_taskfile tf;
+
+	ata_tf_init(dev, &tf);
+	if (reset)
+		tf.ctl |= ATA_SRST;
+	else
+		tf.ctl &= ~ATA_SRST;
+	tf.command = ATA_CMD_DEV_RESET;
+	ata_tf_to_fis(&tf, pmp, 0, fis);
+}
+
+static int hisi_sas_softreset_ata_disk(struct domain_device *device)
+{
+	u8 fis[20] = {0};
+	struct ata_port *ap = device->sata_dev.ap;
+	struct ata_link *link;
+	int rc = TMF_RESP_FUNC_FAILED;
+	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
+	struct device *dev = &hisi_hba->pdev->dev;
+	int s = sizeof(struct host_to_dev_fis);
+	unsigned long flags;
+
+	ata_for_each_link(link, ap, EDGE) {
+		int pmp = sata_srst_pmp(link);
+
+		hisi_sas_fill_ata_reset_cmd(link->device, 1, pmp, fis);
+		rc = hisi_sas_exec_internal_tmf_task(device, fis, s, NULL);
+		if (rc != TMF_RESP_FUNC_COMPLETE)
+			break;
+	}
+
+	if (rc == TMF_RESP_FUNC_COMPLETE) {
+		ata_for_each_link(link, ap, EDGE) {
+			int pmp = sata_srst_pmp(link);
+
+			hisi_sas_fill_ata_reset_cmd(link->device, 0, pmp, fis);
+			rc = hisi_sas_exec_internal_tmf_task(device, fis,
+							     s, NULL);
+			if (rc != TMF_RESP_FUNC_COMPLETE)
+				dev_err(dev, "ata disk de-reset failed\n");
+		}
+	} else {
+		dev_err(dev, "ata disk reset failed\n");
+	}
+
+	if (rc == TMF_RESP_FUNC_COMPLETE) {
+		spin_lock_irqsave(&hisi_hba->lock, flags);
+		hisi_sas_release_task(hisi_hba, device);
+		spin_unlock_irqrestore(&hisi_hba->lock, flags);
+	}
+
+	return rc;
 }
 
 static int hisi_sas_debug_issue_ssp_tmf(struct domain_device *device,
@@ -908,7 +970,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		if (task->dev->dev_type == SAS_SATA_DEV) {
 			hisi_sas_internal_task_abort(hisi_hba, device,
 						     HISI_SAS_INT_ABT_DEV, 0);
-			rc = TMF_RESP_FUNC_COMPLETE;
+			rc = hisi_sas_softreset_ata_disk(device);
 		}
 	} else if (task->task_proto & SAS_PROTOCOL_SMP) {
 		/* SMP */
