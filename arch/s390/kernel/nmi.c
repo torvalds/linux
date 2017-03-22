@@ -106,6 +106,7 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 	int kill_task;
 	u64 zero;
 	void *fpt_save_area;
+	struct mcesa *mcesa;
 
 	kill_task = 0;
 	zero = 0;
@@ -165,6 +166,7 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 			     : : "Q" (S390_lowcore.fpt_creg_save_area));
 	}
 
+	mcesa = (struct mcesa *)(S390_lowcore.mcesad & MCESA_ORIGIN_MASK);
 	if (!MACHINE_HAS_VX) {
 		/* Validate floating point registers */
 		asm volatile(
@@ -209,8 +211,8 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 			"	la	1,%0\n"
 			"	.word	0xe70f,0x1000,0x0036\n"	/* vlm 0,15,0(1) */
 			"	.word	0xe70f,0x1100,0x0c36\n"	/* vlm 16,31,256(1) */
-			: : "Q" (*(struct vx_array *)
-				 &S390_lowcore.vector_save_area) : "1");
+			: : "Q" (*(struct vx_array *) mcesa->vector_save_area)
+			: "1");
 		__ctl_load(S390_lowcore.cregs_save_area[0], 0, 0);
 	}
 	/* Validate access registers */
@@ -223,6 +225,19 @@ static int notrace s390_validate_registers(union mci mci, int umode)
 		 * Terminating task.
 		 */
 		kill_task = 1;
+	}
+	/* Validate guarded storage registers */
+	if (MACHINE_HAS_GS && (S390_lowcore.cregs_save_area[2] & (1UL << 4))) {
+		if (!mci.gs)
+			/*
+			 * Guarded storage register can't be restored and
+			 * the current processes uses guarded storage.
+			 * It has to be terminated.
+			 */
+			kill_task = 1;
+		else
+			load_gs_cb((struct gs_cb *)
+				   mcesa->guarded_storage_save_area);
 	}
 	/*
 	 * We don't even try to validate the TOD register, since we simply
