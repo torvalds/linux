@@ -1503,8 +1503,7 @@ static int netvsc_probe(struct hv_device *dev,
 	/* Notify the netvsc driver of the new device */
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
-	device_info.max_num_vrss_chns = min_t(u32, VRSS_CHANNEL_DEFAULT,
-					      num_online_cpus());
+	device_info.num_chn = VRSS_CHANNEL_DEFAULT;
 	ret = rndis_filter_device_add(dev, &device_info);
 	if (ret != 0) {
 		netdev_err(net, "unable to add netvsc device (ret %d)\n", ret);
