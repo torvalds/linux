@@ -401,6 +401,9 @@ static struct uvc_streaming *uvc_stream_by_id(struct uvc_device *dev, int id)
 
 static void uvc_stream_delete(struct uvc_streaming *stream)
 {
+	if (stream->async_wq)
+		destroy_workqueue(stream->async_wq);
+
 	mutex_destroy(&stream->mutex);
 
 	usb_put_intf(stream->intf);
@@ -424,6 +427,14 @@ static struct uvc_streaming *uvc_stream_new(struct uvc_device *dev,
 	stream->dev = dev;
 	stream->intf = usb_get_intf(intf);
 	stream->intfnum = intf->cur_altsetting->desc.bInterfaceNumber;
+
+	/* Allocate a stream specific work queue for asynchronous tasks. */
+	stream->async_wq = alloc_workqueue("uvcvideo", WQ_UNBOUND | WQ_HIGHPRI,
+					   0);
+	if (!stream->async_wq) {
+		uvc_stream_delete(stream);
+		return NULL;
+	}
 
 	return stream;
 }

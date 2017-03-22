@@ -494,12 +494,30 @@ struct uvc_stats_stream {
 #define UVC_METATADA_BUF_SIZE 1024
 
 /**
+ * struct uvc_copy_op: Context structure to schedule asynchronous memcpy
+ *
+ * @buf: active buf object for this operation
+ * @dst: copy destination address
+ * @src: copy source address
+ * @len: copy length
+ */
+struct uvc_copy_op {
+	struct uvc_buffer *buf;
+	void *dst;
+	const __u8 *src;
+	size_t len;
+};
+
+/**
  * struct uvc_urb - URB context management structure
  *
  * @urb: the URB described by this context structure
  * @stream: UVC streaming context
  * @buffer: memory storage for the URB
  * @dma: DMA coherent addressing for the urb_buffer
+ * @async_operations: counter to indicate the number of copy operations
+ * @copy_operations: work descriptors for asynchronous copy operations
+ * @work: work queue entry for asynchronous decode
  */
 struct uvc_urb {
 	struct urb *urb;
@@ -507,6 +525,10 @@ struct uvc_urb {
 
 	char *buffer;
 	dma_addr_t dma;
+
+	unsigned int async_operations;
+	struct uvc_copy_op copy_operations[UVC_MAX_PACKETS];
+	struct work_struct work;
 };
 
 struct uvc_streaming {
@@ -539,6 +561,7 @@ struct uvc_streaming {
 	/* Buffers queue. */
 	unsigned int frozen : 1;
 	struct uvc_video_queue queue;
+	struct workqueue_struct *async_wq;
 	void (*decode)(struct uvc_urb *uvc_urb, struct uvc_buffer *buf,
 		       struct uvc_buffer *meta_buf);
 
@@ -591,6 +614,11 @@ struct uvc_streaming {
 		spinlock_t lock;
 	} clock;
 };
+
+#define for_each_uvc_urb(uvc_urb, uvc_streaming) \
+	for ((uvc_urb) = &(uvc_streaming)->uvc_urb[0]; \
+	     (uvc_urb) < &(uvc_streaming)->uvc_urb[UVC_URBS]; \
+	     ++(uvc_urb))
 
 struct uvc_device_info {
 	u32	quirks;
