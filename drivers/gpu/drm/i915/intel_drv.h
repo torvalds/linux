@@ -1188,7 +1188,13 @@ void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv);
-u32 gen6_sanitize_rps_pm_mask(struct drm_i915_private *dev_priv, u32 mask);
+
+static inline u32 gen6_sanitize_rps_pm_mask(const struct drm_i915_private *i915,
+					    u32 mask)
+{
+	return mask & ~i915->rps.pm_intrmsk_mbz;
+}
+
 void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv);
 static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
@@ -1239,8 +1245,6 @@ bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
 				 struct intel_crtc *intel_crtc);
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config);
-struct intel_encoder *
-intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state);
 
 void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder);
 void intel_ddi_clock_get(struct intel_encoder *encoder,
@@ -1250,12 +1254,8 @@ void intel_ddi_set_vc_payload_alloc(const struct intel_crtc_state *crtc_state,
 uint32_t ddi_signal_levels(struct intel_dp *intel_dp);
 u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder);
 
-unsigned int intel_fb_align_height(struct drm_i915_private *dev_priv,
-				   unsigned int height,
-				   uint32_t pixel_format,
-				   uint64_t fb_format_modifier);
-u32 intel_fb_stride_alignment(const struct drm_i915_private *dev_priv,
-			      uint64_t fb_modifier, uint32_t pixel_format);
+unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
+				   int plane, unsigned int height);
 
 /* intel_audio.c */
 void intel_init_audio_hooks(struct drm_i915_private *dev_priv);
@@ -1269,6 +1269,10 @@ void intel_audio_init(struct drm_i915_private *dev_priv);
 void intel_audio_deinit(struct drm_i915_private *dev_priv);
 
 /* intel_cdclk.c */
+void skl_init_cdclk(struct drm_i915_private *dev_priv);
+void skl_uninit_cdclk(struct drm_i915_private *dev_priv);
+void bxt_init_cdclk(struct drm_i915_private *dev_priv);
+void bxt_uninit_cdclk(struct drm_i915_private *dev_priv);
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv);
 void intel_update_max_cdclk(struct drm_i915_private *dev_priv);
 void intel_update_cdclk(struct drm_i915_private *dev_priv);
@@ -1380,9 +1384,6 @@ int intel_plane_atomic_set_property(struct drm_plane *plane,
 int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 				    struct drm_plane_state *plane_state);
 
-unsigned int intel_tile_height(const struct drm_i915_private *dev_priv,
-			       uint64_t fb_modifier, unsigned int cpp);
-
 void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe);
 
@@ -1414,14 +1415,10 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_finish_reset(struct drm_i915_private *dev_priv);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
-void bxt_init_cdclk(struct drm_i915_private *dev_priv);
-void bxt_uninit_cdclk(struct drm_i915_private *dev_priv);
 void gen9_sanitize_dc_state(struct drm_i915_private *dev_priv);
 void bxt_enable_dc9(struct drm_i915_private *dev_priv);
 void bxt_disable_dc9(struct drm_i915_private *dev_priv);
 void gen9_enable_dc5(struct drm_i915_private *dev_priv);
-void skl_init_cdclk(struct drm_i915_private *dev_priv);
-void skl_uninit_cdclk(struct drm_i915_private *dev_priv);
 unsigned int skl_cdclk_get_vco(unsigned int freq);
 void skl_enable_dc6(struct drm_i915_private *dev_priv);
 void skl_disable_dc6(struct drm_i915_private *dev_priv);

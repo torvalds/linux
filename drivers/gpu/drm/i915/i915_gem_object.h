@@ -56,6 +56,9 @@ struct drm_i915_gem_object_ops {
 	struct sg_table *(*get_pages)(struct drm_i915_gem_object *);
 	void (*put_pages)(struct drm_i915_gem_object *, struct sg_table *);
 
+	int (*pwrite)(struct drm_i915_gem_object *,
+		      const struct drm_i915_gem_pwrite *);
+
 	int (*dmabuf_export)(struct drm_i915_gem_object *);
 	void (*release)(struct drm_i915_gem_object *);
 };
@@ -268,12 +271,6 @@ static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
 {
 	reservation_object_unlock(obj->resv);
-}
-
-static inline bool
-i915_gem_object_is_dead(const struct drm_i915_gem_object *obj)
-{
-	return kref_read(&obj->base.refcount) == 0;
 }
 
 static inline bool

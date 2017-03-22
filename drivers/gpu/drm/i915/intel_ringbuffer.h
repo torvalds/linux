@@ -273,6 +273,8 @@ struct intel_engine_cs {
 	void		(*reset_hw)(struct intel_engine_cs *engine,
 				    struct drm_i915_gem_request *req);
 
+	void		(*set_default_submission)(struct intel_engine_cs *engine);
+
 	int		(*context_pin)(struct intel_engine_cs *engine,
 				       struct i915_gem_context *ctx);
 	void		(*context_unpin)(struct intel_engine_cs *engine,
@@ -408,6 +410,9 @@ struct intel_engine_cs {
 	 */
 	struct i915_gem_context *legacy_active_context;
 
+	/* status_notifier: list of callbacks for context-switch changes */
+	struct atomic_notifier_head context_status_notifier;
+
 	struct intel_engine_hangcheck hangcheck;
 
 	bool needs_cmd_parser;
@@ -462,7 +467,11 @@ static inline void
 intel_write_status_page(struct intel_engine_cs *engine,
 			int reg, u32 value)
 {
+	mb();
+	clflush(&engine->status_page.page_addr[reg]);
 	engine->status_page.page_addr[reg] = value;
+	clflush(&engine->status_page.page_addr[reg]);
+	mb();
 }
 
 /*
@@ -668,5 +677,7 @@ static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
 
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
+
+void intel_engines_reset_default_submission(struct drm_i915_private *i915);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

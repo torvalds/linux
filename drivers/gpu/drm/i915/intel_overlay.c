@@ -278,7 +278,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 
 	cs = intel_ring_begin(req, 4);
 	if (IS_ERR(cs)) {
-		i915_add_request_no_flush(req);
+		i915_add_request(req);
 		return PTR_ERR(cs);
 	}
 
@@ -343,7 +343,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 
 	cs = intel_ring_begin(req, 2);
 	if (IS_ERR(cs)) {
-		i915_add_request_no_flush(req);
+		i915_add_request(req);
 		return PTR_ERR(cs);
 	}
 
@@ -419,7 +419,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 
 	cs = intel_ring_begin(req, 6);
 	if (IS_ERR(cs)) {
-		i915_add_request_no_flush(req);
+		i915_add_request(req);
 		return PTR_ERR(cs);
 	}
 
@@ -477,7 +477,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 
 		cs = intel_ring_begin(req, 2);
 		if (IS_ERR(cs)) {
-			i915_add_request_no_flush(req);
+			i915_add_request(req);
 			return PTR_ERR(cs);
 		}
 

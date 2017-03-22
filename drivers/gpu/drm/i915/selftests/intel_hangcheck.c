@@ -301,7 +301,8 @@ static int igt_global_reset(void *arg)
 
 	/* Check that we can issue a global GPU reset */
 
-	set_bit(I915_RESET_IN_PROGRESS, &i915->gpu_error.flags);
+	set_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
+	set_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags);
 
 	mutex_lock(&i915->drm.struct_mutex);
 	reset_count = i915_reset_count(&i915->gpu_error);
@@ -314,7 +315,8 @@ static int igt_global_reset(void *arg)
 	}
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	GEM_BUG_ON(test_bit(I915_RESET_IN_PROGRESS, &i915->gpu_error.flags));
+	GEM_BUG_ON(test_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags));
+	clear_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
 	if (i915_terminally_wedged(&i915->gpu_error))
 		err = -EIO;
 
@@ -330,7 +332,7 @@ static u32 fake_hangcheck(struct drm_i915_gem_request *rq)
 
 	reset_count = i915_reset_count(&rq->i915->gpu_error);
 
-	set_bit(I915_RESET_IN_PROGRESS, &rq->i915->gpu_error.flags);
+	set_bit(I915_RESET_HANDOFF, &rq->i915->gpu_error.flags);
 	wake_up_all(&rq->i915->gpu_error.wait_queue);
 
 	return reset_count;
@@ -357,7 +359,7 @@ static int igt_wait_reset(void *arg)
 
 	/* Check that we detect a stuck waiter and issue a reset */
 
-	set_bit(I915_RESET_IN_PROGRESS, &i915->gpu_error.flags);
+	set_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
 
 	mutex_lock(&i915->drm.struct_mutex);
 	err = hang_init(&h, i915);
@@ -388,8 +390,8 @@ static int igt_wait_reset(void *arg)
 		err = timeout;
 		goto out_rq;
 	}
-	GEM_BUG_ON(test_bit(I915_RESET_IN_PROGRESS, &i915->gpu_error.flags));
 
+	GEM_BUG_ON(test_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags));
 	if (i915_reset_count(&i915->gpu_error) == reset_count) {
 		pr_err("No GPU reset recorded!\n");
 		err = -EINVAL;
@@ -402,6 +404,7 @@ fini:
 	hang_fini(&h);
 unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
+	clear_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
 
 	if (i915_terminally_wedged(&i915->gpu_error))
 		return -EIO;
@@ -422,6 +425,7 @@ static int igt_reset_queue(void *arg)
 	if (!igt_can_mi_store_dword_imm(i915))
 		return 0;
 
+	set_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
 	mutex_lock(&i915->drm.struct_mutex);
 	err = hang_init(&h, i915);
 	if (err)
@@ -470,8 +474,9 @@ static int igt_reset_queue(void *arg)
 
 			i915_reset(i915);
 
-			GEM_BUG_ON(test_bit(I915_RESET_IN_PROGRESS,
+			GEM_BUG_ON(test_bit(I915_RESET_HANDOFF,
 					    &i915->gpu_error.flags));
+
 			if (prev->fence.error != -EIO) {
 				pr_err("GPU reset not recorded on hanging request [fence.error=%d]!\n",
 				       prev->fence.error);
@@ -514,6 +519,7 @@ fini:
 	hang_fini(&h);
 unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
+	clear_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags);
 
 	if (i915_terminally_wedged(&i915->gpu_error))
 		return -EIO;

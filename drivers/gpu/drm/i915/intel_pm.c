@@ -1358,13 +1358,22 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 
 	trace_vlv_fifo_size(crtc, sprite0_start, sprite1_start, fifo_size);
 
-	spin_lock(&dev_priv->wm.dsparb_lock);
+	/*
+	 * uncore.lock serves a double purpose here. It allows us to
+	 * use the less expensive I915_{READ,WRITE}_FW() functions, and
+	 * it protects the DSPARB registers from getting clobbered by
+	 * parallel updates from multiple pipes.
+	 *
+	 * intel_pipe_update_start() has already disabled interrupts
+	 * for us, so a plain spin_lock() is sufficient here.
+	 */
+	spin_lock(&dev_priv->uncore.lock);
 
 	switch (crtc->pipe) {
 		uint32_t dsparb, dsparb2, dsparb3;
 	case PIPE_A:
-		dsparb = I915_READ(DSPARB);
-		dsparb2 = I915_READ(DSPARB2);
+		dsparb = I915_READ_FW(DSPARB);
+		dsparb2 = I915_READ_FW(DSPARB2);
 
 		dsparb &= ~(VLV_FIFO(SPRITEA, 0xff) |
 			    VLV_FIFO(SPRITEB, 0xff));
@@ -1376,12 +1385,12 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 		dsparb2 |= (VLV_FIFO(SPRITEA_HI, sprite0_start >> 8) |
 			   VLV_FIFO(SPRITEB_HI, sprite1_start >> 8));
 
-		I915_WRITE(DSPARB, dsparb);
-		I915_WRITE(DSPARB2, dsparb2);
+		I915_WRITE_FW(DSPARB, dsparb);
+		I915_WRITE_FW(DSPARB2, dsparb2);
 		break;
 	case PIPE_B:
-		dsparb = I915_READ(DSPARB);
-		dsparb2 = I915_READ(DSPARB2);
+		dsparb = I915_READ_FW(DSPARB);
+		dsparb2 = I915_READ_FW(DSPARB2);
 
 		dsparb &= ~(VLV_FIFO(SPRITEC, 0xff) |
 			    VLV_FIFO(SPRITED, 0xff));
@@ -1393,12 +1402,12 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 		dsparb2 |= (VLV_FIFO(SPRITEC_HI, sprite0_start >> 8) |
 			   VLV_FIFO(SPRITED_HI, sprite1_start >> 8));
 
-		I915_WRITE(DSPARB, dsparb);
-		I915_WRITE(DSPARB2, dsparb2);
+		I915_WRITE_FW(DSPARB, dsparb);
+		I915_WRITE_FW(DSPARB2, dsparb2);
 		break;
 	case PIPE_C:
-		dsparb3 = I915_READ(DSPARB3);
-		dsparb2 = I915_READ(DSPARB2);
+		dsparb3 = I915_READ_FW(DSPARB3);
+		dsparb2 = I915_READ_FW(DSPARB2);
 
 		dsparb3 &= ~(VLV_FIFO(SPRITEE, 0xff) |
 			     VLV_FIFO(SPRITEF, 0xff));
@@ -1410,16 +1419,16 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 		dsparb2 |= (VLV_FIFO(SPRITEE_HI, sprite0_start >> 8) |
 			   VLV_FIFO(SPRITEF_HI, sprite1_start >> 8));
 
-		I915_WRITE(DSPARB3, dsparb3);
-		I915_WRITE(DSPARB2, dsparb2);
+		I915_WRITE_FW(DSPARB3, dsparb3);
+		I915_WRITE_FW(DSPARB2, dsparb2);
 		break;
 	default:
 		break;
 	}
 
-	POSTING_READ(DSPARB);
+	POSTING_READ_FW(DSPARB);
 
-	spin_unlock(&dev_priv->wm.dsparb_lock);
+	spin_unlock(&dev_priv->uncore.lock);
 }
 
 #undef VLV_FIFO
@@ -4120,7 +4129,7 @@ pipes_modified(struct drm_atomic_state *state)
 	struct drm_crtc_state *cstate;
 	uint32_t i, ret = 0;
 
-	for_each_crtc_in_state(state, crtc, cstate, i)
+	for_each_new_crtc_in_state(state, crtc, cstate, i)
 		ret |= drm_crtc_mask(crtc);
 
 	return ret;
@@ -4263,7 +4272,7 @@ skl_print_wm_changes(const struct drm_atomic_state *state)
 	const struct skl_ddb_allocation *new_ddb = &intel_state->wm_results.ddb;
 	int i;
 
-	for_each_crtc_in_state(state, crtc, cstate, i) {
+	for_each_new_crtc_in_state(state, crtc, cstate, i) {
 		const struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 		enum pipe pipe = intel_crtc->pipe;
 
@@ -4305,7 +4314,7 @@ skl_compute_wm(struct drm_atomic_state *state)
 	 * since any racing commits that want to update them would need to
 	 * hold _all_ CRTC state mutexes.
 	 */
-	for_each_crtc_in_state(state, crtc, cstate, i)
+	for_each_new_crtc_in_state(state, crtc, cstate, i)
 		changed = true;
 	if (!changed)
 		return 0;
@@ -4327,7 +4336,7 @@ skl_compute_wm(struct drm_atomic_state *state)
 	 * should allow skl_update_pipe_wm() to return failure in cases where
 	 * no suitable watermark values can be found.
 	 */
-	for_each_crtc_in_state(state, crtc, cstate, i) {
+	for_each_new_crtc_in_state(state, crtc, cstate, i) {
 		struct intel_crtc_state *intel_cstate =
 			to_intel_crtc_state(cstate);
 		const struct skl_pipe_wm *old_pipe_wm =
@@ -5166,8 +5175,9 @@ static u32 gen6_rps_pm_mask(struct drm_i915_private *dev_priv, u8 val)
 {
 	u32 mask = 0;
 
+	/* We use UP_EI_EXPIRED interupts for both up/down in manual mode */
 	if (val > dev_priv->rps.min_freq_softlimit)
-		mask |= GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT;
+		mask |= GEN6_PM_RP_UP_EI_EXPIRED | GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT;
 	if (val < dev_priv->rps.max_freq_softlimit)
 		mask |= GEN6_PM_RP_UP_EI_EXPIRED | GEN6_PM_RP_UP_THRESHOLD;
 
@@ -5277,7 +5287,7 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv)
 	if (dev_priv->rps.enabled) {
 		u8 freq;
 
-		if (dev_priv->pm_rps_events & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED))
+		if (dev_priv->pm_rps_events & GEN6_PM_RP_UP_EI_EXPIRED)
 			gen6_rps_reset_ei(dev_priv);
 		I915_WRITE(GEN6_PMINTRMSK,
 			   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
@@ -6382,7 +6392,8 @@ static void valleyview_enable_rps(struct drm_i915_private *dev_priv)
 
 	/* allows RC6 residency counter to work */
 	I915_WRITE(VLV_COUNTER_CONTROL,
-		   _MASKED_BIT_ENABLE(VLV_MEDIA_RC0_COUNT_EN |
+		   _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH |
+				      VLV_MEDIA_RC0_COUNT_EN |
 				      VLV_RENDER_RC0_COUNT_EN |
 				      VLV_MEDIA_RC6_COUNT_EN |
 				      VLV_RENDER_RC6_COUNT_EN));
@@ -7075,7 +7086,7 @@ static void __intel_autoenable_gt_powersave(struct work_struct *work)
 		rcs->init_context(req);
 
 	/* Mark the device busy, calling intel_enable_gt_powersave() */
-	i915_add_request_no_flush(req);
+	i915_add_request(req);
 
 unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
@@ -8338,4 +8349,80 @@ void intel_pm_setup(struct drm_i915_private *dev_priv)
 
 	dev_priv->pm.suspended = false;
 	atomic_set(&dev_priv->pm.wakeref_count, 0);
+}
+
+static u64 vlv_residency_raw(struct drm_i915_private *dev_priv,
+			     const i915_reg_t reg)
+{
+	u32 lower, upper, tmp;
+
+	/* The register accessed do not need forcewake. We borrow
+	 * uncore lock to prevent concurrent access to range reg.
+	 */
+	spin_lock_irq(&dev_priv->uncore.lock);
+
+	/* vlv and chv residency counters are 40 bits in width.
+	 * With a control bit, we can choose between upper or lower
+	 * 32bit window into this counter.
+	 *
+	 * Although we always use the counter in high-range mode elsewhere,
+	 * userspace may attempt to read the value before rc6 is initialised,
+	 * before we have set the default VLV_COUNTER_CONTROL value. So always
+	 * set the high bit to be safe.
+	 */
+	I915_WRITE_FW(VLV_COUNTER_CONTROL,
+		      _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH));
+	upper = I915_READ_FW(reg);
+	do {
+		tmp = upper;
+
+		I915_WRITE_FW(VLV_COUNTER_CONTROL,
+			      _MASKED_BIT_DISABLE(VLV_COUNT_RANGE_HIGH));
+		lower = I915_READ_FW(reg);
+
+		I915_WRITE_FW(VLV_COUNTER_CONTROL,
+			      _MASKED_BIT_ENABLE(VLV_COUNT_RANGE_HIGH));
+		upper = I915_READ_FW(reg);
+	} while (upper != tmp);
+
+	/* Everywhere else we always use VLV_COUNTER_CONTROL with the
+	 * VLV_COUNT_RANGE_HIGH bit set - so it is safe to leave it set
+	 * now.
+	 */
+
+	spin_unlock_irq(&dev_priv->uncore.lock);
+
+	return lower | (u64)upper << 8;
+}
+
+u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
+			   const i915_reg_t reg)
+{
+	u64 time_hw, units, div;
+
+	if (!intel_enable_rc6())
+		return 0;
+
+	intel_runtime_pm_get(dev_priv);
+
+	/* On VLV and CHV, residency time is in CZ units rather than 1.28us */
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		units = 1000;
+		div = dev_priv->czclk_freq;
+
+		time_hw = vlv_residency_raw(dev_priv, reg);
+	} else if (IS_GEN9_LP(dev_priv)) {
+		units = 1000;
+		div = 1200;		/* 833.33ns */
+
+		time_hw = I915_READ(reg);
+	} else {
+		units = 128000; /* 1.28us */
+		div = 100000;
+
+		time_hw = I915_READ(reg);
+	}
+
+	intel_runtime_pm_put(dev_priv);
+	return DIV_ROUND_UP_ULL(time_hw * units, div);
 }

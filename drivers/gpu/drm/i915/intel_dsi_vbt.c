@@ -28,7 +28,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/i915_drm.h>
-#include <drm/drm_panel.h>
 #include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <video/mipi_display.h>
@@ -37,16 +36,6 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
-
-struct vbt_panel {
-	struct drm_panel panel;
-	struct intel_dsi *intel_dsi;
-};
-
-static inline struct vbt_panel *to_vbt_panel(struct drm_panel *panel)
-{
-	return container_of(panel, struct vbt_panel, panel);
-}
 
 #define MIPI_TRANSFER_MODE_SHIFT	0
 #define MIPI_VIRTUAL_CHANNEL_SHIFT	1
@@ -426,7 +415,7 @@ static const char *sequence_name(enum mipi_seq seq_id)
 		return "(unknown)";
 }
 
-void intel_dsi_exec_vbt_sequence(struct intel_dsi *intel_dsi,
+void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 				 enum mipi_seq seq_id)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
@@ -492,16 +481,12 @@ void intel_dsi_exec_vbt_sequence(struct intel_dsi *intel_dsi,
 	}
 }
 
-static int vbt_panel_get_modes(struct drm_panel *panel)
+int intel_dsi_vbt_get_modes(struct intel_dsi *intel_dsi)
 {
-	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
-	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct intel_connector *connector = intel_dsi->attached_connector;
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_display_mode *mode;
-
-	if (!panel->connector)
-		return 0;
 
 	mode = drm_mode_duplicate(dev, dev_priv->vbt.lfp_lvds_vbt_mode);
 	if (!mode)
@@ -509,23 +494,18 @@ static int vbt_panel_get_modes(struct drm_panel *panel)
 
 	mode->type |= DRM_MODE_TYPE_PREFERRED;
 
-	drm_mode_probed_add(panel->connector, mode);
+	drm_mode_probed_add(&connector->base, mode);
 
 	return 1;
 }
 
-static const struct drm_panel_funcs vbt_panel_funcs = {
-	.get_modes = vbt_panel_get_modes,
-};
-
-struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
+bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
 	struct mipi_pps_data *pps = dev_priv->vbt.dsi.pps;
 	struct drm_display_mode *mode = dev_priv->vbt.lfp_lvds_vbt_mode;
-	struct vbt_panel *vbt_panel;
 	u32 bpp;
 	u32 tlpx_ns, extra_byte_count, bitrate, tlpx_ui;
 	u32 ui_num, ui_den;
@@ -588,7 +568,7 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 			if (mipi_config->target_burst_mode_freq <
 								computed_ddr) {
 				DRM_ERROR("Burst mode freq is less than computed\n");
-				return NULL;
+				return false;
 			}
 
 			burst_mode_ratio = DIV_ROUND_UP(
@@ -598,7 +578,7 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 			pclk = DIV_ROUND_UP(pclk * burst_mode_ratio, 100);
 		} else {
 			DRM_ERROR("Burst mode target is not set\n");
-			return NULL;
+			return false;
 		}
 	} else
 		burst_mode_ratio = 100;
@@ -809,20 +789,10 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->panel_off_delay = pps->panel_off_delay / 10;
 	intel_dsi->panel_pwr_cycle_delay = pps->panel_power_cycle_delay / 10;
 
-	/* This is cheating a bit with the cleanup. */
-	vbt_panel = devm_kzalloc(dev->dev, sizeof(*vbt_panel), GFP_KERNEL);
-	if (!vbt_panel)
-		return NULL;
-
-	vbt_panel->intel_dsi = intel_dsi;
-	drm_panel_init(&vbt_panel->panel);
-	vbt_panel->panel.funcs = &vbt_panel_funcs;
-	drm_panel_add(&vbt_panel->panel);
-
 	/* a regular driver would get the device in probe */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		mipi_dsi_attach(intel_dsi->dsi_hosts[port]->device);
 	}
 
-	return &vbt_panel->panel;
+	return true;
 }

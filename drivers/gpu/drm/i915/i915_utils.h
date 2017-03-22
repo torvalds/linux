@@ -66,6 +66,8 @@
 #define ptr_pack_bits(ptr, bits)					\
 	((typeof(ptr))((unsigned long)(ptr) | (bits)))
 
+#define ptr_offset(ptr, member) offsetof(typeof(*(ptr)), member)
+
 #define fetch_and_zero(ptr) ({						\
 	typeof(*ptr) __T = *(ptr);					\
 	*(ptr) = (typeof(*ptr))0;					\

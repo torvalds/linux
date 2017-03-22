@@ -202,6 +202,95 @@ cleanup:
 	return err;
 }
 
+static void mock_color_adjust(const struct drm_mm_node *node,
+			      unsigned long color,
+			      u64 *start,
+			      u64 *end)
+{
+}
+
+static int igt_evict_for_cache_color(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct i915_ggtt *ggtt = &i915->ggtt;
+	const unsigned long flags = PIN_OFFSET_FIXED;
+	struct drm_mm_node target = {
+		.start = I915_GTT_PAGE_SIZE * 2,
+		.size = I915_GTT_PAGE_SIZE,
+		.color = I915_CACHE_LLC,
+	};
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int err;
+
+	/* Currently the use of color_adjust is limited to cache domains within
+	 * the ggtt, and so the presence of mm.color_adjust is assumed to be
+	 * i915_gtt_color_adjust throughout our driver, so using a mock color
+	 * adjust will work just fine for our purposes.
+	 */
+	ggtt->base.mm.color_adjust = mock_color_adjust;
+
+	obj = i915_gem_object_create_internal(i915, I915_GTT_PAGE_SIZE);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto cleanup;
+	}
+	i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
+				       I915_GTT_PAGE_SIZE | flags);
+	if (IS_ERR(vma)) {
+		pr_err("[0]i915_gem_object_ggtt_pin failed\n");
+		err = PTR_ERR(vma);
+		goto cleanup;
+	}
+
+	obj = i915_gem_object_create_internal(i915, I915_GTT_PAGE_SIZE);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto cleanup;
+	}
+	i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
+
+	/* Neighbouring; same colour - should fit */
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
+				       (I915_GTT_PAGE_SIZE * 2) | flags);
+	if (IS_ERR(vma)) {
+		pr_err("[1]i915_gem_object_ggtt_pin failed\n");
+		err = PTR_ERR(vma);
+		goto cleanup;
+	}
+
+	i915_vma_unpin(vma);
+
+	/* Remove just the second vma */
+	err = i915_gem_evict_for_node(&ggtt->base, &target, 0);
+	if (err) {
+		pr_err("[0]i915_gem_evict_for_node returned err=%d\n", err);
+		goto cleanup;
+	}
+
+	/* Attempt to remove the first *pinned* vma, by removing the (empty)
+	 * neighbour -- this should fail.
+	 */
+	target.color = I915_CACHE_L3_LLC;
+
+	err = i915_gem_evict_for_node(&ggtt->base, &target, 0);
+	if (!err) {
+		pr_err("[1]i915_gem_evict_for_node returned err=%d\n", err);
+		err = -EINVAL;
+		goto cleanup;
+	}
+
+	err = 0;
+
+cleanup:
+	unpin_ggtt(i915);
+	cleanup_objects(i915);
+	ggtt->base.mm.color_adjust = NULL;
+	return err;
+}
+
 static int igt_evict_vm(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -241,6 +330,7 @@ int i915_gem_evict_mock_selftests(void)
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_evict_something),
 		SUBTEST(igt_evict_for_vma),
+		SUBTEST(igt_evict_for_cache_color),
 		SUBTEST(igt_evict_vm),
 		SUBTEST(igt_overcommit),
 	};

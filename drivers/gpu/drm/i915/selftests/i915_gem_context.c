@@ -320,8 +320,8 @@ static unsigned long max_dwords(struct drm_i915_gem_object *obj)
 static int igt_ctx_exec(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct drm_file *file = mock_file(i915);
 	struct drm_i915_gem_object *obj;
+	struct drm_file *file;
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(objects);
 	unsigned long ncontexts, ndwords, dw;
@@ -332,6 +332,10 @@ static int igt_ctx_exec(void *arg)
 	 * through each ctx/mm using the GPU making sure those writes end
 	 * up in the expected pages of our obj.
 	 */
+
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
 
 	mutex_lock(&i915->drm.struct_mutex);
 

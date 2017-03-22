@@ -223,7 +223,7 @@ static unsigned int intel_hpll_vco(struct drm_i915_private *dev_priv)
 	/* FIXME other chipsets? */
 	if (IS_GM45(dev_priv))
 		vco_table = ctg_vco;
-	else if (IS_G4X(dev_priv))
+	else if (IS_G45(dev_priv))
 		vco_table = elk_vco;
 	else if (IS_I965GM(dev_priv))
 		vco_table = cl_vco;
@@ -1470,7 +1470,7 @@ static int intel_max_pixel_rate(struct drm_atomic_state *state)
 	memcpy(intel_state->min_pixclk, dev_priv->min_pixclk,
 	       sizeof(intel_state->min_pixclk));
 
-	for_each_crtc_in_state(state, crtc, cstate, i) {
+	for_each_new_crtc_in_state(state, crtc, cstate, i) {
 		int pixel_rate;
 
 		crtc_state = to_intel_crtc_state(cstate);
@@ -1859,7 +1859,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.get_cdclk = fixed_450mhz_get_cdclk;
 	else if (IS_GM45(dev_priv))
 		dev_priv->display.get_cdclk = gm45_get_cdclk;
-	else if (IS_G4X(dev_priv))
+	else if (IS_G45(dev_priv))
 		dev_priv->display.get_cdclk = g33_get_cdclk;
 	else if (IS_I965GM(dev_priv))
 		dev_priv->display.get_cdclk = i965gm_get_cdclk;

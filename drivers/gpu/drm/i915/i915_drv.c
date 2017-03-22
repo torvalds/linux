@@ -567,9 +567,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
-	ret = intel_bios_init(dev_priv);
-	if (ret)
-		DRM_INFO("failed to find VBIOS tables\n");
+	intel_bios_init(dev_priv);
 
 	/* If we have > 1 VGA cards, then we need to arbitrate access
 	 * to the common VGA resources.
@@ -607,8 +605,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_irq;
 
-	intel_huc_init(dev_priv);
-	intel_guc_init(dev_priv);
+	intel_uc_init_fw(dev_priv);
 
 	ret = i915_gem_init(dev_priv);
 	if (ret)
@@ -827,7 +824,6 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	spin_lock_init(&dev_priv->mm.object_stat_lock);
 	spin_lock_init(&dev_priv->mmio_flip_lock);
-	spin_lock_init(&dev_priv->wm.dsparb_lock);
 	mutex_init(&dev_priv->sb_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
 	mutex_init(&dev_priv->av_mutex);
@@ -992,6 +988,8 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 
 	i915.semaphores = intel_sanitize_semaphores(dev_priv, i915.semaphores);
 	DRM_DEBUG_DRIVER("use GPU semaphores? %s\n", yesno(i915.semaphores));
+
+	intel_uc_sanitize_options(dev_priv);
 }
 
 /**
@@ -1423,17 +1421,14 @@ static void i915_driver_lastclose(struct drm_device *dev)
 	vga_switcheroo_process_delayed_switch();
 }
 
-static void i915_driver_preclose(struct drm_device *dev, struct drm_file *file)
+static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_context_close(dev, file);
 	i915_gem_release(dev, file);
 	mutex_unlock(&dev->struct_mutex);
-}
-
-static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
-{
-	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	kfree(file_priv);
 }
@@ -1512,7 +1507,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_notify_adapter(dev_priv, opregion_target_state);
 
-	intel_uncore_forcewake_reset(dev_priv, false);
+	intel_uncore_suspend(dev_priv);
 	intel_opregion_unregister(dev_priv);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
@@ -1757,7 +1752,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
 			  ret);
 
-	intel_uncore_early_sanitize(dev_priv, true);
+	intel_uncore_resume_early(dev_priv);
 
 	if (IS_GEN9_LP(dev_priv)) {
 		if (!dev_priv->suspended_to_idle)
@@ -1820,12 +1815,15 @@ void i915_reset(struct drm_i915_private *dev_priv)
 	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
 
-	if (!test_and_clear_bit(I915_RESET_IN_PROGRESS, &error->flags))
+	if (!test_bit(I915_RESET_HANDOFF, &error->flags))
 		return;
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
-	__clear_bit(I915_WEDGED, &error->flags);
+	if (!i915_gem_unset_wedged(dev_priv))
+		goto wakeup;
+
 	error->reset_count++;
 
 	pr_notice("drm/i915: Resetting chip after gpu hang\n");
@@ -1871,15 +1869,18 @@ void i915_reset(struct drm_i915_private *dev_priv)
 
 	i915_queue_hangcheck(dev_priv);
 
-wakeup:
+finish:
 	i915_gem_reset_finish(dev_priv);
 	enable_irq(dev_priv->drm.irq);
-	wake_up_bit(&error->flags, I915_RESET_IN_PROGRESS);
+
+wakeup:
+	clear_bit(I915_RESET_HANDOFF, &error->flags);
+	wake_up_bit(&error->flags, I915_RESET_HANDOFF);
 	return;
 
 error:
 	i915_gem_set_wedged(dev_priv);
-	goto wakeup;
+	goto finish;
 }
 
 static int i915_pm_suspend(struct device *kdev)
@@ -2402,7 +2403,7 @@ static int intel_runtime_suspend(struct device *kdev)
 		return ret;
 	}
 
-	intel_uncore_forcewake_reset(dev_priv, false);
+	intel_uncore_suspend(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 	WARN_ON_ONCE(atomic_read(&dev_priv->pm.wakeref_count));
@@ -2638,7 +2639,6 @@ static struct drm_driver driver = {
 	.release = i915_driver_release,
 	.open = i915_driver_open,
 	.lastclose = i915_driver_lastclose,
-	.preclose = i915_driver_preclose,
 	.postclose = i915_driver_postclose,
 	.set_busid = drm_pci_set_busid,
 

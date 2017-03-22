@@ -389,11 +389,6 @@ void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
-u32 gen6_sanitize_rps_pm_mask(struct drm_i915_private *dev_priv, u32 mask)
-{
-	return (mask & ~dev_priv->rps.pm_intr_keep);
-}
-
 void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 {
 	if (!READ_ONCE(dev_priv->rps.interrupts_enabled))
@@ -728,6 +723,7 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	struct intel_crtc *intel_crtc = intel_get_crtc_for_pipe(dev_priv,
 								pipe);
 	const struct drm_display_mode *mode = &intel_crtc->base.hwmode;
+	unsigned long irqflags;
 
 	htotal = mode->crtc_htotal;
 	hsync_start = mode->crtc_hsync_start;
@@ -744,16 +740,20 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	high_frame = PIPEFRAME(pipe);
 	low_frame = PIPEFRAMEPIXEL(pipe);
 
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
 	/*
 	 * High & low register fields aren't synchronized, so make sure
 	 * we get a low value that's stable across two reads of the high
 	 * register.
 	 */
 	do {
-		high1 = I915_READ(high_frame) & PIPE_FRAME_HIGH_MASK;
-		low   = I915_READ(low_frame);
-		high2 = I915_READ(high_frame) & PIPE_FRAME_HIGH_MASK;
+		high1 = I915_READ_FW(high_frame) & PIPE_FRAME_HIGH_MASK;
+		low   = I915_READ_FW(low_frame);
+		high2 = I915_READ_FW(high_frame) & PIPE_FRAME_HIGH_MASK;
 	} while (high1 != high2);
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
 	high1 >>= PIPE_FRAME_HIGH_SHIFT;
 	pixel = low & PIPE_PIXEL_MASK;
@@ -812,8 +812,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 
 		for (i = 0; i < 100; i++) {
 			udelay(1);
-			temp = __raw_i915_read32(dev_priv, PIPEDSL(pipe)) &
-				DSL_LINEMASK_GEN3;
+			temp = I915_READ_FW(PIPEDSL(pipe)) & DSL_LINEMASK_GEN3;
 			if (temp != position) {
 				position = temp;
 				break;
@@ -1057,7 +1056,9 @@ static void notify_ring(struct intel_engine_cs *engine)
 		 * and many waiters.
 		 */
 		if (i915_seqno_passed(intel_engine_get_seqno(engine),
-				      wait->seqno))
+				      wait->seqno) &&
+		    !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
+			      &wait->request->fence.flags))
 			rq = i915_gem_request_get(wait->request);
 
 		wake_up_process(wait->tsk);
@@ -1077,73 +1078,51 @@ static void notify_ring(struct intel_engine_cs *engine)
 static void vlv_c0_read(struct drm_i915_private *dev_priv,
 			struct intel_rps_ei *ei)
 {
-	ei->cz_clock = vlv_punit_read(dev_priv, PUNIT_REG_CZ_TIMESTAMP);
+	ei->ktime = ktime_get_raw();
 	ei->render_c0 = I915_READ(VLV_RENDER_C0_COUNT);
 	ei->media_c0 = I915_READ(VLV_MEDIA_C0_COUNT);
 }
 
-static bool vlv_c0_above(struct drm_i915_private *dev_priv,
-			 const struct intel_rps_ei *old,
-			 const struct intel_rps_ei *now,
-			 int threshold)
-{
-	u64 time, c0;
-	unsigned int mul = 100;
-
-	if (old->cz_clock == 0)
-		return false;
-
-	if (I915_READ(VLV_COUNTER_CONTROL) & VLV_COUNT_RANGE_HIGH)
-		mul <<= 8;
-
-	time = now->cz_clock - old->cz_clock;
-	time *= threshold * dev_priv->czclk_freq;
-
-	/* Workload can be split between render + media, e.g. SwapBuffers
-	 * being blitted in X after being rendered in mesa. To account for
-	 * this we need to combine both engines into our activity counter.
-	 */
-	c0 = now->render_c0 - old->render_c0;
-	c0 += now->media_c0 - old->media_c0;
-	c0 *= mul * VLV_CZ_CLOCK_TO_MILLI_SEC;
-
-	return c0 >= time;
-}
-
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv)
 {
-	vlv_c0_read(dev_priv, &dev_priv->rps.down_ei);
-	dev_priv->rps.up_ei = dev_priv->rps.down_ei;
+	memset(&dev_priv->rps.ei, 0, sizeof(dev_priv->rps.ei));
 }
 
 static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
+	const struct intel_rps_ei *prev = &dev_priv->rps.ei;
 	struct intel_rps_ei now;
 	u32 events = 0;
 
-	if ((pm_iir & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED)) == 0)
+	if ((pm_iir & GEN6_PM_RP_UP_EI_EXPIRED) == 0)
 		return 0;
 
 	vlv_c0_read(dev_priv, &now);
-	if (now.cz_clock == 0)
-		return 0;
 
-	if (pm_iir & GEN6_PM_RP_DOWN_EI_EXPIRED) {
-		if (!vlv_c0_above(dev_priv,
-				  &dev_priv->rps.down_ei, &now,
-				  dev_priv->rps.down_threshold))
-			events |= GEN6_PM_RP_DOWN_THRESHOLD;
-		dev_priv->rps.down_ei = now;
+	if (prev->ktime) {
+		u64 time, c0;
+		u32 render, media;
+
+		time = ktime_us_delta(now.ktime, prev->ktime);
+		time *= dev_priv->czclk_freq;
+
+		/* Workload can be split between render + media,
+		 * e.g. SwapBuffers being blitted in X after being rendered in
+		 * mesa. To account for this we need to combine both engines
+		 * into our activity counter.
+		 */
+		render = now.render_c0 - prev->render_c0;
+		media = now.media_c0 - prev->media_c0;
+		c0 = max(render, media);
+		c0 *= 1000 * 100 << 8; /* to usecs and scale to threshold% */
+
+		if (c0 > time * dev_priv->rps.up_threshold)
+			events = GEN6_PM_RP_UP_THRESHOLD;
+		else if (c0 < time * dev_priv->rps.down_threshold)
+			events = GEN6_PM_RP_DOWN_THRESHOLD;
 	}
 
-	if (pm_iir & GEN6_PM_RP_UP_EI_EXPIRED) {
-		if (vlv_c0_above(dev_priv,
-				 &dev_priv->rps.up_ei, &now,
-				 dev_priv->rps.up_threshold))
-			events |= GEN6_PM_RP_UP_THRESHOLD;
-		dev_priv->rps.up_ei = now;
-	}
-
+	dev_priv->rps.ei = now;
 	return events;
 }
 
@@ -1163,30 +1142,21 @@ static void gen6_pm_rps_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, struct drm_i915_private, rps.work);
-	bool client_boost;
+	bool client_boost = false;
 	int new_delay, adj, min, max;
-	u32 pm_iir;
+	u32 pm_iir = 0;
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	/* Speed up work cancelation during disabling rps interrupts. */
-	if (!dev_priv->rps.interrupts_enabled) {
-		spin_unlock_irq(&dev_priv->irq_lock);
-		return;
+	if (dev_priv->rps.interrupts_enabled) {
+		pm_iir = fetch_and_zero(&dev_priv->rps.pm_iir);
+		client_boost = fetch_and_zero(&dev_priv->rps.client_boost);
 	}
-
-	pm_iir = dev_priv->rps.pm_iir;
-	dev_priv->rps.pm_iir = 0;
-	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
-	gen6_unmask_pm_irq(dev_priv, dev_priv->pm_rps_events);
-	client_boost = dev_priv->rps.client_boost;
-	dev_priv->rps.client_boost = false;
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* Make sure we didn't queue anything we're not going to process. */
 	WARN_ON(pm_iir & ~dev_priv->pm_rps_events);
-
 	if ((pm_iir & dev_priv->pm_rps_events) == 0 && !client_boost)
-		return;
+		goto out;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
@@ -1243,6 +1213,13 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+out:
+	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
+	spin_lock_irq(&dev_priv->irq_lock);
+	if (dev_priv->rps.interrupts_enabled)
+		gen6_unmask_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 
@@ -1378,13 +1355,20 @@ static void snb_gt_irq_handler(struct drm_i915_private *dev_priv,
 static __always_inline void
 gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
 {
-	if (iir & (GT_RENDER_USER_INTERRUPT << test_shift))
-		notify_ring(engine);
+	bool tasklet = false;
 
 	if (iir & (GT_CONTEXT_SWITCH_INTERRUPT << test_shift)) {
 		set_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
-		tasklet_hi_schedule(&engine->irq_tasklet);
+		tasklet = true;
 	}
+
+	if (iir & (GT_RENDER_USER_INTERRUPT << test_shift)) {
+		notify_ring(engine);
+		tasklet |= i915.enable_guc_submission;
+	}
+
+	if (tasklet)
+		tasklet_hi_schedule(&engine->irq_tasklet);
 }
 
 static irqreturn_t gen8_gt_irq_ack(struct drm_i915_private *dev_priv,
@@ -2647,22 +2631,6 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 	return ret;
 }
 
-static void i915_error_wake_up(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * Notify all waiters for GPU completion events that reset state has
-	 * been changed, and that they need to restart their wait after
-	 * checking for potential errors (and bail out to drop locks if there is
-	 * a gpu reset pending so that i915_error_work_func can acquire them).
-	 */
-
-	/* Wake up __wait_seqno, potentially holding dev->struct_mutex. */
-	wake_up_all(&dev_priv->gpu_error.wait_queue);
-
-	/* Wake up intel_crtc_wait_for_pending_flips, holding crtc->mutex. */
-	wake_up_all(&dev_priv->pending_flip_queue);
-}
-
 /**
  * i915_reset_and_wakeup - do process context error handling work
  * @dev_priv: i915 device private
@@ -2682,15 +2650,10 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_DRIVER("resetting chip\n");
 	kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
 
-	/*
-	 * In most cases it's guaranteed that we get here with an RPM
-	 * reference held, for example because there is a pending GPU
-	 * request that won't finish until the reset is done. This
-	 * isn't the case at least when we get here by doing a
-	 * simulated reset via debugs, so get an RPM reference.
-	 */
-	intel_runtime_pm_get(dev_priv);
 	intel_prepare_reset(dev_priv);
+
+	set_bit(I915_RESET_HANDOFF, &dev_priv->gpu_error.flags);
+	wake_up_all(&dev_priv->gpu_error.wait_queue);
 
 	do {
 		/*
@@ -2706,12 +2669,11 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 
 		/* We need to wait for anyone holding the lock to wakeup */
 	} while (wait_on_bit_timeout(&dev_priv->gpu_error.flags,
-				     I915_RESET_IN_PROGRESS,
+				     I915_RESET_HANDOFF,
 				     TASK_UNINTERRUPTIBLE,
 				     HZ));
 
 	intel_finish_reset(dev_priv);
-	intel_runtime_pm_put(dev_priv);
 
 	if (!test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
 		kobject_uevent_env(kobj,
@@ -2721,6 +2683,7 @@ static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 	 * Note: The wake_up also serves as a memory barrier so that
 	 * waiters see the updated value of the dev_priv->gpu_error.
 	 */
+	clear_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags);
 	wake_up_all(&dev_priv->gpu_error.reset_queue);
 }
 
@@ -2798,31 +2761,29 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	vscnprintf(error_msg, sizeof(error_msg), fmt, args);
 	va_end(args);
 
+	/*
+	 * In most cases it's guaranteed that we get here with an RPM
+	 * reference held, for example because there is a pending GPU
+	 * request that won't finish until the reset is done. This
+	 * isn't the case at least when we get here by doing a
+	 * simulated reset via debugfs, so get an RPM reference.
+	 */
+	intel_runtime_pm_get(dev_priv);
+
 	i915_capture_error_state(dev_priv, engine_mask, error_msg);
 	i915_clear_error_registers(dev_priv);
 
 	if (!engine_mask)
-		return;
+		goto out;
 
-	if (test_and_set_bit(I915_RESET_IN_PROGRESS,
+	if (test_and_set_bit(I915_RESET_BACKOFF,
 			     &dev_priv->gpu_error.flags))
-		return;
-
-	/*
-	 * Wakeup waiting processes so that the reset function
-	 * i915_reset_and_wakeup doesn't deadlock trying to grab
-	 * various locks. By bumping the reset counter first, the woken
-	 * processes will see a reset in progress and back off,
-	 * releasing their locks and then wait for the reset completion.
-	 * We must do this for _all_ gpu waiters that might hold locks
-	 * that the reset work needs to acquire.
-	 *
-	 * Note: The wake_up also provides a memory barrier to ensure that the
-	 * waiters see the updated value of the reset flags.
-	 */
-	i915_error_wake_up(dev_priv);
+		goto out;
 
 	i915_reset_and_wakeup(dev_priv);
+
+out:
+	intel_runtime_pm_put(dev_priv);
 }
 
 /* Called from drm generic code, passed 'crtc' which
@@ -4283,11 +4244,11 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	/* Let's track the enabled rps events */
 	if (IS_VALLEYVIEW(dev_priv))
 		/* WaGsvRC0ResidencyMethod:vlv */
-		dev_priv->pm_rps_events = GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED;
+		dev_priv->pm_rps_events = GEN6_PM_RP_UP_EI_EXPIRED;
 	else
 		dev_priv->pm_rps_events = GEN6_PM_RPS_EVENTS;
 
-	dev_priv->rps.pm_intr_keep = 0;
+	dev_priv->rps.pm_intrmsk_mbz = 0;
 
 	/*
 	 * SNB,IVB can while VLV,CHV may hard hang on looping batchbuffer
@@ -4296,10 +4257,10 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	 * TODO: verify if this can be reproduced on VLV,CHV.
 	 */
 	if (INTEL_INFO(dev_priv)->gen <= 7 && !IS_HASWELL(dev_priv))
-		dev_priv->rps.pm_intr_keep |= GEN6_PM_RP_UP_EI_EXPIRED;
+		dev_priv->rps.pm_intrmsk_mbz |= GEN6_PM_RP_UP_EI_EXPIRED;
 
 	if (INTEL_INFO(dev_priv)->gen >= 8)
-		dev_priv->rps.pm_intr_keep |= GEN8_PMINTR_REDIRECT_TO_GUC;
+		dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 
 	if (IS_GEN2(dev_priv)) {
 		/* Gen2 doesn't have a hardware frame counter */

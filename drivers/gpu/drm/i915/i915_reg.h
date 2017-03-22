@@ -1140,8 +1140,6 @@ enum skl_disp_power_wells {
 #define 	VLV_BIAS_CPU_125_SOC_875 (6 << 2)
 #define 	CHV_BIAS_CPU_50_SOC_50 (3 << 2)
 
-#define VLV_CZ_CLOCK_TO_MILLI_SEC		100000
-
 /* vlv2 north clock has */
 #define CCK_FUSE_REG				0x8
 #define  CCK_FUSE_HPLL_FREQ_MASK		0x3
@@ -7453,7 +7451,8 @@ enum {
 #define VLV_RCEDATA				_MMIO(0xA0BC)
 #define GEN6_RC6pp_THRESHOLD			_MMIO(0xA0C0)
 #define GEN6_PMINTRMSK				_MMIO(0xA168)
-#define   GEN8_PMINTR_REDIRECT_TO_GUC		  (1<<31)
+#define   GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC	(1<<31)
+#define   ARAT_EXPIRED_INTRMSK			(1<<9)
 #define GEN8_MISC_CTRL0				_MMIO(0xA180)
 #define VLV_PWRDWNUPCTL				_MMIO(0xA294)
 #define GEN9_MEDIA_PG_IDLE_HYSTERESIS		_MMIO(0xA0C4)

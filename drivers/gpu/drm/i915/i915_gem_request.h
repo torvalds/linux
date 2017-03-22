@@ -267,8 +267,6 @@ int i915_gem_request_await_dma_fence(struct drm_i915_gem_request *req,
 
 void __i915_add_request(struct drm_i915_gem_request *req, bool flush_caches);
 #define i915_add_request(req) \
-	__i915_add_request(req, true)
-#define i915_add_request_no_flush(req) \
 	__i915_add_request(req, false)
 
 void __i915_gem_request_submit(struct drm_i915_gem_request *request);
@@ -348,6 +346,9 @@ static inline bool i915_spin_request(const struct drm_i915_gem_request *request,
 	u32 seqno;
 
 	seqno = i915_gem_request_global_seqno(request);
+	if (!seqno)
+		return 0;
+
 	return (__i915_gem_request_started(request, seqno) &&
 		__i915_spin_request(request, seqno, state, timeout_us));
 }

@@ -103,16 +103,13 @@ i915_gem_wait_for_error(struct i915_gpu_error *error)
 
 	might_sleep();
 
-	if (!i915_reset_in_progress(error))
-		return 0;
-
 	/*
 	 * Only wait 10 seconds for the gpu reset to complete to avoid hanging
 	 * userspace. If it takes that long something really bad is going on and
 	 * we should simply try to bail out and fail as gracefully as possible.
 	 */
 	ret = wait_event_interruptible_timeout(error->reset_queue,
-					       !i915_reset_in_progress(error),
+					       !i915_reset_backoff(error),
 					       I915_RESET_TIMEOUT);
 	if (ret == 0) {
 		DRM_ERROR("Timed out waiting for the gpu reset to complete\n");
@@ -462,11 +459,16 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 
 	dma_fence_put(excl);
 
+	/* Oportunistically prune the fences iff we know they have *all* been
+	 * signaled and that the reservation object has not been changed (i.e.
+	 * no new fences have been added).
+	 */
 	if (prune_fences && !__read_seqcount_retry(&resv->seq, seq)) {
-		reservation_object_lock(resv, NULL);
-		if (!__read_seqcount_retry(&resv->seq, seq))
-			reservation_object_add_excl_fence(resv, NULL);
-		reservation_object_unlock(resv);
+		if (reservation_object_trylock(resv)) {
+			if (!__read_seqcount_retry(&resv->seq, seq))
+				reservation_object_add_excl_fence(resv, NULL);
+			reservation_object_unlock(resv);
+		}
 	}
 
 	return timeout;
@@ -783,6 +785,15 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
+	if (i915_gem_object_is_coherent(obj) ||
+	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+		ret = i915_gem_object_set_to_cpu_domain(obj, false);
+		if (ret)
+			goto err_unpin;
+		else
+			goto out;
+	}
+
 	i915_gem_object_flush_gtt_write_domain(obj);
 
 	/* If we're not in the cpu read domain, set ourself into the gtt
@@ -791,16 +802,9 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 	 * anyway again before the next pread happens.
 	 */
 	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
-		*needs_clflush = !i915_gem_object_is_coherent(obj);
+		*needs_clflush = CLFLUSH_BEFORE;
 
-	if (*needs_clflush && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
-		ret = i915_gem_object_set_to_cpu_domain(obj, false);
-		if (ret)
-			goto err_unpin;
-
-		*needs_clflush = 0;
-	}
-
+out:
 	/* return with the pages pinned */
 	return 0;
 
@@ -833,6 +837,15 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
+	if (i915_gem_object_is_coherent(obj) ||
+	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+		ret = i915_gem_object_set_to_cpu_domain(obj, true);
+		if (ret)
+			goto err_unpin;
+		else
+			goto out;
+	}
+
 	i915_gem_object_flush_gtt_write_domain(obj);
 
 	/* If we're not in the cpu write domain, set ourself into the
@@ -841,25 +854,15 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 	 * right away and we therefore have to clflush anyway.
 	 */
 	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
-		*needs_clflush |= cpu_write_needs_clflush(obj) << 1;
+		*needs_clflush |= CLFLUSH_AFTER;
 
 	/* Same trick applies to invalidate partially written cachelines read
 	 * before writing.
 	 */
 	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU))
-		*needs_clflush |= !i915_gem_object_is_coherent(obj);
+		*needs_clflush |= CLFLUSH_BEFORE;
 
-	if (*needs_clflush && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
-		ret = i915_gem_object_set_to_cpu_domain(obj, true);
-		if (ret)
-			goto err_unpin;
-
-		*needs_clflush = 0;
-	}
-
-	if ((*needs_clflush & CLFLUSH_AFTER) == 0)
-		obj->cache_dirty = true;
-
+out:
 	intel_fb_obj_invalidate(obj, ORIGIN_CPU);
 	obj->mm.dirty = true;
 	/* return with the pages pinned */
@@ -1451,6 +1454,12 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	}
 
 	trace_i915_gem_object_pwrite(obj, args->offset, args->size);
+
+	ret = -ENODEV;
+	if (obj->ops->pwrite)
+		ret = obj->ops->pwrite(obj, args);
+	if (ret != -ENODEV)
+		goto err;
 
 	ret = i915_gem_object_wait(obj,
 				   I915_WAIT_INTERRUPTIBLE |
@@ -2130,6 +2139,7 @@ i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 	 */
 	shmem_truncate_range(file_inode(obj->base.filp), 0, (loff_t)-1);
 	obj->mm.madv = __I915_MADV_PURGED;
+	obj->mm.pages = ERR_PTR(-EFAULT);
 }
 
 /* Try to discard unwanted pages */
@@ -2229,7 +2239,9 @@ void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 
 	__i915_gem_object_reset_page_iter(obj);
 
-	obj->ops->put_pages(obj, pages);
+	if (!IS_ERR(pages))
+		obj->ops->put_pages(obj, pages);
+
 unlock:
 	mutex_unlock(&obj->mm.lock);
 }
@@ -2449,7 +2461,7 @@ int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 	if (err)
 		return err;
 
-	if (unlikely(!obj->mm.pages)) {
+	if (unlikely(IS_ERR_OR_NULL(obj->mm.pages))) {
 		err = ____i915_gem_object_get_pages(obj);
 		if (err)
 			goto unlock;
@@ -2527,7 +2539,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 
 	pinned = true;
 	if (!atomic_inc_not_zero(&obj->mm.pages_pin_count)) {
-		if (unlikely(!obj->mm.pages)) {
+		if (unlikely(IS_ERR_OR_NULL(obj->mm.pages))) {
 			ret = ____i915_gem_object_get_pages(obj);
 			if (ret)
 				goto err_unlock;
@@ -2573,6 +2585,75 @@ err_unpin:
 err_unlock:
 	ptr = ERR_PTR(ret);
 	goto out_unlock;
+}
+
+static int
+i915_gem_object_pwrite_gtt(struct drm_i915_gem_object *obj,
+			   const struct drm_i915_gem_pwrite *arg)
+{
+	struct address_space *mapping = obj->base.filp->f_mapping;
+	char __user *user_data = u64_to_user_ptr(arg->data_ptr);
+	u64 remain, offset;
+	unsigned int pg;
+
+	/* Before we instantiate/pin the backing store for our use, we
+	 * can prepopulate the shmemfs filp efficiently using a write into
+	 * the pagecache. We avoid the penalty of instantiating all the
+	 * pages, important if the user is just writing to a few and never
+	 * uses the object on the GPU, and using a direct write into shmemfs
+	 * allows it to avoid the cost of retrieving a page (either swapin
+	 * or clearing-before-use) before it is overwritten.
+	 */
+	if (READ_ONCE(obj->mm.pages))
+		return -ENODEV;
+
+	/* Before the pages are instantiated the object is treated as being
+	 * in the CPU domain. The pages will be clflushed as required before
+	 * use, and we can freely write into the pages directly. If userspace
+	 * races pwrite with any other operation; corruption will ensue -
+	 * that is userspace's prerogative!
+	 */
+
+	remain = arg->size;
+	offset = arg->offset;
+	pg = offset_in_page(offset);
+
+	do {
+		unsigned int len, unwritten;
+		struct page *page;
+		void *data, *vaddr;
+		int err;
+
+		len = PAGE_SIZE - pg;
+		if (len > remain)
+			len = remain;
+
+		err = pagecache_write_begin(obj->base.filp, mapping,
+					    offset, len, 0,
+					    &page, &data);
+		if (err < 0)
+			return err;
+
+		vaddr = kmap(page);
+		unwritten = copy_from_user(vaddr + pg, user_data, len);
+		kunmap(page);
+
+		err = pagecache_write_end(obj->base.filp, mapping,
+					  offset, len, len - unwritten,
+					  page, data);
+		if (err < 0)
+			return err;
+
+		if (unwritten)
+			return -EFAULT;
+
+		remain -= len;
+		user_data += len;
+		offset += len;
+		pg = 0;
+	} while (remain);
+
+	return 0;
 }
 
 static bool ban_context(const struct i915_gem_context *ctx)
@@ -2914,6 +2995,65 @@ void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
 	i915_gem_retire_requests(dev_priv);
 
 	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
+}
+
+bool i915_gem_unset_wedged(struct drm_i915_private *i915)
+{
+	struct i915_gem_timeline *tl;
+	int i;
+
+	lockdep_assert_held(&i915->drm.struct_mutex);
+	if (!test_bit(I915_WEDGED, &i915->gpu_error.flags))
+		return true;
+
+	/* Before unwedging, make sure that all pending operations
+	 * are flushed and errored out - we may have requests waiting upon
+	 * third party fences. We marked all inflight requests as EIO, and
+	 * every execbuf since returned EIO, for consistency we want all
+	 * the currently pending requests to also be marked as EIO, which
+	 * is done inside our nop_submit_request - and so we must wait.
+	 *
+	 * No more can be submitted until we reset the wedged bit.
+	 */
+	list_for_each_entry(tl, &i915->gt.timelines, link) {
+		for (i = 0; i < ARRAY_SIZE(tl->engine); i++) {
+			struct drm_i915_gem_request *rq;
+
+			rq = i915_gem_active_peek(&tl->engine[i].last_request,
+						  &i915->drm.struct_mutex);
+			if (!rq)
+				continue;
+
+			/* We can't use our normal waiter as we want to
+			 * avoid recursively trying to handle the current
+			 * reset. The basic dma_fence_default_wait() installs
+			 * a callback for dma_fence_signal(), which is
+			 * triggered by our nop handler (indirectly, the
+			 * callback enables the signaler thread which is
+			 * woken by the nop_submit_request() advancing the seqno
+			 * and when the seqno passes the fence, the signaler
+			 * then signals the fence waking us up).
+			 */
+			if (dma_fence_default_wait(&rq->fence, true,
+						   MAX_SCHEDULE_TIMEOUT) < 0)
+				return false;
+		}
+	}
+
+	/* Undo nop_submit_request. We prevent all new i915 requests from
+	 * being queued (by disallowing execbuf whilst wedged) so having
+	 * waited for all active requests above, we know the system is idle
+	 * and do not have to worry about a thread being inside
+	 * engine->submit_request() as we swap over. So unlike installing
+	 * the nop_submit_request on reset, we can do this from normal
+	 * context and do not require stop_machine().
+	 */
+	intel_engines_reset_default_submission(i915);
+
+	smp_mb__before_atomic(); /* complete takeover before enabling execbuf */
+	clear_bit(I915_WEDGED, &i915->gpu_error.flags);
+
+	return true;
 }
 
 static void
@@ -3991,8 +4131,11 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
 	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
 		 I915_GEM_OBJECT_IS_SHRINKABLE,
+
 	.get_pages = i915_gem_object_get_pages_gtt,
 	.put_pages = i915_gem_object_put_pages_gtt,
+
+	.pwrite = i915_gem_object_pwrite_gtt,
 };
 
 struct drm_i915_gem_object *
@@ -4454,7 +4597,7 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	intel_mocs_init_l3cc_table(dev_priv);
 
 	/* We can't enable contexts until all firmware is loaded */
-	ret = intel_guc_setup(dev_priv);
+	ret = intel_uc_init_hw(dev_priv);
 	if (ret)
 		goto out;
 
@@ -4810,38 +4953,49 @@ i915_gem_object_create_from_data(struct drm_i915_private *dev_priv,
 			         const void *data, size_t size)
 {
 	struct drm_i915_gem_object *obj;
-	struct sg_table *sg;
-	size_t bytes;
-	int ret;
+	struct file *file;
+	size_t offset;
+	int err;
 
 	obj = i915_gem_object_create(dev_priv, round_up(size, PAGE_SIZE));
 	if (IS_ERR(obj))
 		return obj;
 
-	ret = i915_gem_object_set_to_cpu_domain(obj, true);
-	if (ret)
-		goto fail;
+	GEM_BUG_ON(obj->base.write_domain != I915_GEM_DOMAIN_CPU);
 
-	ret = i915_gem_object_pin_pages(obj);
-	if (ret)
-		goto fail;
+	file = obj->base.filp;
+	offset = 0;
+	do {
+		unsigned int len = min_t(typeof(size), size, PAGE_SIZE);
+		struct page *page;
+		void *pgdata, *vaddr;
 
-	sg = obj->mm.pages;
-	bytes = sg_copy_from_buffer(sg->sgl, sg->nents, (void *)data, size);
-	obj->mm.dirty = true; /* Backing store is now out of date */
-	i915_gem_object_unpin_pages(obj);
+		err = pagecache_write_begin(file, file->f_mapping,
+					    offset, len, 0,
+					    &page, &pgdata);
+		if (err < 0)
+			goto fail;
 
-	if (WARN_ON(bytes != size)) {
-		DRM_ERROR("Incomplete copy, wrote %zu of %zu", bytes, size);
-		ret = -EFAULT;
-		goto fail;
-	}
+		vaddr = kmap(page);
+		memcpy(vaddr, data, len);
+		kunmap(page);
+
+		err = pagecache_write_end(file, file->f_mapping,
+					  offset, len, len,
+					  page, pgdata);
+		if (err < 0)
+			goto fail;
+
+		size -= len;
+		data += len;
+		offset += len;
+	} while (size);
 
 	return obj;
 
 fail:
 	i915_gem_object_put(obj);
-	return ERR_PTR(ret);
+	return ERR_PTR(err);
 }
 
 struct scatterlist *

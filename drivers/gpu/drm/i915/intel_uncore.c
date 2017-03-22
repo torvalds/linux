@@ -25,6 +25,7 @@
 #include "intel_drv.h"
 #include "i915_vgpu.h"
 
+#include <asm/iosf_mbi.h>
 #include <linux/pm_runtime.h>
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
@@ -119,6 +120,8 @@ fw_domains_get(struct drm_i915_private *dev_priv, enum forcewake_domains fw_doma
 
 	for_each_fw_domain_masked(d, fw_domains, dev_priv)
 		fw_domain_wait_ack(d);
+
+	dev_priv->uncore.fw_domains_active |= fw_domains;
 }
 
 static void
@@ -130,13 +133,8 @@ fw_domains_put(struct drm_i915_private *dev_priv, enum forcewake_domains fw_doma
 		fw_domain_put(d);
 		fw_domain_posting_read(d);
 	}
-}
 
-static void
-vgpu_fw_domains_nop(struct drm_i915_private *dev_priv,
-		    enum forcewake_domains fw_domains)
-{
-	/* Guest driver doesn't need to takes care forcewake. */
+	dev_priv->uncore.fw_domains_active &= ~fw_domains;
 }
 
 static void
@@ -247,18 +245,16 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 	if (WARN_ON(domain->wake_count == 0))
 		domain->wake_count++;
 
-	if (--domain->wake_count == 0) {
+	if (--domain->wake_count == 0)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, domain->mask);
-		dev_priv->uncore.fw_domains_active &= ~domain->mask;
-	}
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
 	return HRTIMER_NORESTART;
 }
 
-void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
-				  bool restore)
+static void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
+					 bool restore)
 {
 	unsigned long irqflags;
 	struct intel_uncore_forcewake_domain *domain;
@@ -434,10 +430,18 @@ static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 	intel_uncore_forcewake_reset(dev_priv, restore_forcewake);
 }
 
-void intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
-				 bool restore_forcewake)
+void intel_uncore_suspend(struct drm_i915_private *dev_priv)
 {
-	__intel_uncore_early_sanitize(dev_priv, restore_forcewake);
+	iosf_mbi_unregister_pmic_bus_access_notifier(
+		&dev_priv->uncore.pmic_bus_access_nb);
+	intel_uncore_forcewake_reset(dev_priv, false);
+}
+
+void intel_uncore_resume_early(struct drm_i915_private *dev_priv)
+{
+	__intel_uncore_early_sanitize(dev_priv, true);
+	iosf_mbi_register_pmic_bus_access_notifier(
+		&dev_priv->uncore.pmic_bus_access_nb);
 	i915_check_and_clear_faults(dev_priv);
 }
 
@@ -461,10 +465,8 @@ static void __intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 			fw_domains &= ~domain->mask;
 	}
 
-	if (fw_domains) {
+	if (fw_domains)
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
-		dev_priv->uncore.fw_domains_active |= fw_domains;
-	}
 }
 
 /**
@@ -931,7 +933,6 @@ static noinline void ___force_wake_auto(struct drm_i915_private *dev_priv,
 		fw_domain_arm_timer(domain);
 
 	dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
-	dev_priv->uncore.fw_domains_active |= fw_domains;
 }
 
 static inline void __force_wake_auto(struct drm_i915_private *dev_priv,
@@ -1179,7 +1180,7 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 
 static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_INFO(dev_priv)->gen <= 5)
+	if (INTEL_GEN(dev_priv) <= 5 || intel_vgpu_active(dev_priv))
 		return;
 
 	if (IS_GEN9(dev_priv)) {
@@ -1265,11 +1266,6 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 			       FORCEWAKE, FORCEWAKE_ACK);
 	}
 
-	if (intel_vgpu_active(dev_priv)) {
-		dev_priv->uncore.funcs.force_wake_get = vgpu_fw_domains_nop;
-		dev_priv->uncore.funcs.force_wake_put = vgpu_fw_domains_nop;
-	}
-
 	/* All future platforms are expected to require complex power gating */
 	WARN_ON(dev_priv->uncore.fw_domains == 0);
 }
@@ -1281,6 +1277,32 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 	dev_priv->uncore.fw_domains_table_entries = ARRAY_SIZE((d)); \
 }
 
+static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
+					 unsigned long action, void *data)
+{
+	struct drm_i915_private *dev_priv = container_of(nb,
+			struct drm_i915_private, uncore.pmic_bus_access_nb);
+
+	switch (action) {
+	case MBI_PMIC_BUS_ACCESS_BEGIN:
+		/*
+		 * forcewake all now to make sure that we don't need to do a
+		 * forcewake later which on systems where this notifier gets
+		 * called requires the punit to access to the shared pmic i2c
+		 * bus, which will be busy after this notification, leading to:
+		 * "render: timed out waiting for forcewake ack request."
+		 * errors.
+		 */
+		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+		break;
+	case MBI_PMIC_BUS_ACCESS_END:
+		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 void intel_uncore_init(struct drm_i915_private *dev_priv)
 {
 	i915_check_vgpu(dev_priv);
@@ -1290,10 +1312,35 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 	__intel_uncore_early_sanitize(dev_priv, false);
 
 	dev_priv->uncore.unclaimed_mmio_check = 1;
+	dev_priv->uncore.pmic_bus_access_nb.notifier_call =
+		i915_pmic_bus_access_notifier;
 
-	switch (INTEL_INFO(dev_priv)->gen) {
-	default:
-	case 9:
+	if (IS_GEN(dev_priv, 2, 4) || intel_vgpu_active(dev_priv)) {
+		ASSIGN_WRITE_MMIO_VFUNCS(gen2);
+		ASSIGN_READ_MMIO_VFUNCS(gen2);
+	} else if (IS_GEN5(dev_priv)) {
+		ASSIGN_WRITE_MMIO_VFUNCS(gen5);
+		ASSIGN_READ_MMIO_VFUNCS(gen5);
+	} else if (IS_GEN(dev_priv, 6, 7)) {
+		ASSIGN_WRITE_MMIO_VFUNCS(gen6);
+
+		if (IS_VALLEYVIEW(dev_priv)) {
+			ASSIGN_FW_DOMAINS_TABLE(__vlv_fw_ranges);
+			ASSIGN_READ_MMIO_VFUNCS(fwtable);
+		} else {
+			ASSIGN_READ_MMIO_VFUNCS(gen6);
+		}
+	} else if (IS_GEN8(dev_priv)) {
+		if (IS_CHERRYVIEW(dev_priv)) {
+			ASSIGN_FW_DOMAINS_TABLE(__chv_fw_ranges);
+			ASSIGN_WRITE_MMIO_VFUNCS(fwtable);
+			ASSIGN_READ_MMIO_VFUNCS(fwtable);
+
+		} else {
+			ASSIGN_WRITE_MMIO_VFUNCS(gen8);
+			ASSIGN_READ_MMIO_VFUNCS(gen6);
+		}
+	} else {
 		ASSIGN_FW_DOMAINS_TABLE(__gen9_fw_ranges);
 		ASSIGN_WRITE_MMIO_VFUNCS(fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(fwtable);
@@ -1305,40 +1352,10 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 			dev_priv->uncore.funcs.mmio_writel =
 						gen9_decoupled_write32;
 		}
-		break;
-	case 8:
-		if (IS_CHERRYVIEW(dev_priv)) {
-			ASSIGN_FW_DOMAINS_TABLE(__chv_fw_ranges);
-			ASSIGN_WRITE_MMIO_VFUNCS(fwtable);
-			ASSIGN_READ_MMIO_VFUNCS(fwtable);
-
-		} else {
-			ASSIGN_WRITE_MMIO_VFUNCS(gen8);
-			ASSIGN_READ_MMIO_VFUNCS(gen6);
-		}
-		break;
-	case 7:
-	case 6:
-		ASSIGN_WRITE_MMIO_VFUNCS(gen6);
-
-		if (IS_VALLEYVIEW(dev_priv)) {
-			ASSIGN_FW_DOMAINS_TABLE(__vlv_fw_ranges);
-			ASSIGN_READ_MMIO_VFUNCS(fwtable);
-		} else {
-			ASSIGN_READ_MMIO_VFUNCS(gen6);
-		}
-		break;
-	case 5:
-		ASSIGN_WRITE_MMIO_VFUNCS(gen5);
-		ASSIGN_READ_MMIO_VFUNCS(gen5);
-		break;
-	case 4:
-	case 3:
-	case 2:
-		ASSIGN_WRITE_MMIO_VFUNCS(gen2);
-		ASSIGN_READ_MMIO_VFUNCS(gen2);
-		break;
 	}
+
+	iosf_mbi_register_pmic_bus_access_notifier(
+		&dev_priv->uncore.pmic_bus_access_nb);
 
 	i915_check_and_clear_faults(dev_priv);
 }
@@ -1347,6 +1364,9 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 
 void intel_uncore_fini(struct drm_i915_private *dev_priv)
 {
+	iosf_mbi_unregister_pmic_bus_access_notifier(
+		&dev_priv->uncore.pmic_bus_access_nb);
+
 	/* Paranoia: make sure we have disabled everything before we exit. */
 	intel_uncore_sanitize(dev_priv);
 	intel_uncore_forcewake_reset(dev_priv, false);

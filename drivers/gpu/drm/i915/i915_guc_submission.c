@@ -25,6 +25,8 @@
 #include "i915_drv.h"
 #include "intel_uc.h"
 
+#include <trace/events/dma_fence.h>
+
 /**
  * DOC: GuC-based command submission
  *
@@ -522,8 +524,6 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 	if (i915_vma_is_map_and_fenceable(rq->ring->vma))
 		POSTING_READ_FW(GUC_STATUS);
 
-	trace_i915_gem_request_in(rq, 0);
-
 	spin_lock_irqsave(&client->wq_lock, flags);
 
 	guc_wq_item_append(client, rq);
@@ -542,8 +542,109 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 
 static void i915_guc_submit(struct drm_i915_gem_request *rq)
 {
-	i915_gem_request_submit(rq);
+	__i915_gem_request_submit(rq);
 	__i915_guc_submit(rq);
+}
+
+static void nested_enable_signaling(struct drm_i915_gem_request *rq)
+{
+	/* If we use dma_fence_enable_sw_signaling() directly, lockdep
+	 * detects an ordering issue between the fence lockclass and the
+	 * global_timeline. This circular dependency can only occur via 2
+	 * different fences (but same fence lockclass), so we use the nesting
+	 * annotation here to prevent the warn, equivalent to the nesting
+	 * inside i915_gem_request_submit() for when we also enable the
+	 * signaler.
+	 */
+
+	if (test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+			     &rq->fence.flags))
+		return;
+
+	GEM_BUG_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags));
+	trace_dma_fence_enable_signal(&rq->fence);
+
+	spin_lock_nested(&rq->lock, SINGLE_DEPTH_NESTING);
+	intel_engine_enable_signaling(rq);
+	spin_unlock(&rq->lock);
+}
+
+static bool i915_guc_dequeue(struct intel_engine_cs *engine)
+{
+	struct execlist_port *port = engine->execlist_port;
+	struct drm_i915_gem_request *last = port[0].request;
+	unsigned long flags;
+	struct rb_node *rb;
+	bool submit = false;
+
+	/* After execlist_first is updated, the tasklet will be rescheduled.
+	 *
+	 * If we are currently running (inside the tasklet) and a third
+	 * party queues a request and so updates engine->execlist_first under
+	 * the spinlock (which we have elided), it will atomically set the
+	 * TASKLET_SCHED flag causing the us to be re-executed and pick up
+	 * the change in state (the update to TASKLET_SCHED incurs a memory
+	 * barrier making this cross-cpu checking safe).
+	 */
+	if (!READ_ONCE(engine->execlist_first))
+		return false;
+
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+	rb = engine->execlist_first;
+	while (rb) {
+		struct drm_i915_gem_request *rq =
+			rb_entry(rb, typeof(*rq), priotree.node);
+
+		if (last && rq->ctx != last->ctx) {
+			if (port != engine->execlist_port)
+				break;
+
+			i915_gem_request_assign(&port->request, last);
+			nested_enable_signaling(last);
+			port++;
+		}
+
+		rb = rb_next(rb);
+		rb_erase(&rq->priotree.node, &engine->execlist_queue);
+		RB_CLEAR_NODE(&rq->priotree.node);
+		rq->priotree.priority = INT_MAX;
+
+		trace_i915_gem_request_in(rq, port - engine->execlist_port);
+		i915_guc_submit(rq);
+		last = rq;
+		submit = true;
+	}
+	if (submit) {
+		i915_gem_request_assign(&port->request, last);
+		nested_enable_signaling(last);
+		engine->execlist_first = rb;
+	}
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+
+	return submit;
+}
+
+static void i915_guc_irq_handler(unsigned long data)
+{
+	struct intel_engine_cs *engine = (struct intel_engine_cs *)data;
+	struct execlist_port *port = engine->execlist_port;
+	struct drm_i915_gem_request *rq;
+	bool submit;
+
+	do {
+		rq = port[0].request;
+		while (rq && i915_gem_request_completed(rq)) {
+			trace_i915_gem_request_out(rq);
+			i915_gem_request_put(rq);
+			port[0].request = port[1].request;
+			port[1].request = NULL;
+			rq = port[0].request;
+		}
+
+		submit = false;
+		if (!port[1].request)
+			submit = i915_guc_dequeue(engine);
+	} while (submit);
 }
 
 /*
@@ -810,22 +911,21 @@ static void guc_addon_create(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct i915_vma *vma;
-	struct guc_ads *ads;
-	struct guc_policies *policies;
-	struct guc_mmio_reg_state *reg_state;
+	struct page *page;
+	/* The ads obj includes the struct itself and buffers passed to GuC */
+	struct {
+		struct guc_ads ads;
+		struct guc_policies policies;
+		struct guc_mmio_reg_state reg_state;
+		u8 reg_state_buffer[GUC_S3_SAVE_SPACE_PAGES * PAGE_SIZE];
+	} __packed *blob;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	struct page *page;
-	u32 size;
-
-	/* The ads obj includes the struct itself and buffers passed to GuC */
-	size = sizeof(struct guc_ads) + sizeof(struct guc_policies) +
-			sizeof(struct guc_mmio_reg_state) +
-			GUC_S3_SAVE_SPACE_PAGES * PAGE_SIZE;
+	u32 base;
 
 	vma = guc->ads_vma;
 	if (!vma) {
-		vma = intel_guc_allocate_vma(guc, PAGE_ALIGN(size));
+		vma = intel_guc_allocate_vma(guc, PAGE_ALIGN(sizeof(*blob)));
 		if (IS_ERR(vma))
 			return;
 
@@ -833,7 +933,19 @@ static void guc_addon_create(struct intel_guc *guc)
 	}
 
 	page = i915_vma_first_page(vma);
-	ads = kmap(page);
+	blob = kmap(page);
+
+	/* GuC scheduling policies */
+	guc_policies_init(&blob->policies);
+
+	/* MMIO reg state */
+	for_each_engine(engine, dev_priv, id) {
+		blob->reg_state.mmio_white_list[engine->guc_id].mmio_start =
+			engine->mmio_base + GUC_MMIO_WHITE_LIST_START;
+
+		/* Nothing to be saved or restored for now. */
+		blob->reg_state.mmio_white_list[engine->guc_id].count = 0;
+	}
 
 	/*
 	 * The GuC requires a "Golden Context" when it reinitialises
@@ -842,35 +954,17 @@ static void guc_addon_create(struct intel_guc *guc)
 	 * so its address won't change after we've told the GuC where
 	 * to find it.
 	 */
-	engine = dev_priv->engine[RCS];
-	ads->golden_context_lrca = engine->status_page.ggtt_offset;
+	blob->ads.golden_context_lrca =
+		dev_priv->engine[RCS]->status_page.ggtt_offset;
 
 	for_each_engine(engine, dev_priv, id)
-		ads->eng_state_size[engine->guc_id] = intel_lr_context_size(engine);
+		blob->ads.eng_state_size[engine->guc_id] =
+			intel_lr_context_size(engine);
 
-	/* GuC scheduling policies */
-	policies = (void *)ads + sizeof(struct guc_ads);
-	guc_policies_init(policies);
-
-	ads->scheduler_policies =
-		guc_ggtt_offset(vma) + sizeof(struct guc_ads);
-
-	/* MMIO reg state */
-	reg_state = (void *)policies + sizeof(struct guc_policies);
-
-	for_each_engine(engine, dev_priv, id) {
-		reg_state->mmio_white_list[engine->guc_id].mmio_start =
-			engine->mmio_base + GUC_MMIO_WHITE_LIST_START;
-
-		/* Nothing to be saved or restored for now. */
-		reg_state->mmio_white_list[engine->guc_id].count = 0;
-	}
-
-	ads->reg_state_addr = ads->scheduler_policies +
-			sizeof(struct guc_policies);
-
-	ads->reg_state_buffer = ads->reg_state_addr +
-			sizeof(struct guc_mmio_reg_state);
+	base = guc_ggtt_offset(vma);
+	blob->ads.scheduler_policies = base + ptr_offset(blob, policies);
+	blob->ads.reg_state_buffer = base + ptr_offset(blob, reg_state_buffer);
+	blob->ads.reg_state_addr = base + ptr_offset(blob, reg_state);
 
 	kunmap(page);
 }
@@ -936,6 +1030,48 @@ static void guc_reset_wq(struct i915_guc_client *client)
 	client->wq_tail = 0;
 }
 
+static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int irqs;
+
+	/* tell all command streamers to forward interrupts (but not vblank) to GuC */
+	irqs = _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
+	for_each_engine(engine, dev_priv, id)
+		I915_WRITE(RING_MODE_GEN7(engine), irqs);
+
+	/* route USER_INTERRUPT to Host, all others are sent to GuC. */
+	irqs = GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
+	       GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
+	/* These three registers have the same bit definitions */
+	I915_WRITE(GUC_BCS_RCS_IER, ~irqs);
+	I915_WRITE(GUC_VCS2_VCS1_IER, ~irqs);
+	I915_WRITE(GUC_WD_VECS_IER, ~irqs);
+
+	/*
+	 * The REDIRECT_TO_GUC bit of the PMINTRMSK register directs all
+	 * (unmasked) PM interrupts to the GuC. All other bits of this
+	 * register *disable* generation of a specific interrupt.
+	 *
+	 * 'pm_intrmsk_mbz' indicates bits that are NOT to be set when
+	 * writing to the PM interrupt mask register, i.e. interrupts
+	 * that must not be disabled.
+	 *
+	 * If the GuC is handling these interrupts, then we must not let
+	 * the PM code disable ANY interrupt that the GuC is expecting.
+	 * So for each ENABLED (0) bit in this register, we must SET the
+	 * bit in pm_intrmsk_mbz so that it's left enabled for the GuC.
+	 * GuC needs ARAT expired interrupt unmasked hence it is set in
+	 * pm_intrmsk_mbz.
+	 *
+	 * Here we CLEAR REDIRECT_TO_GUC bit in pm_intrmsk_mbz, which will
+	 * result in the register bit being left SET!
+	 */
+	dev_priv->rps.pm_intrmsk_mbz |= ARAT_EXPIRED_INTRMSK;
+	dev_priv->rps.pm_intrmsk_mbz &= ~GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
+}
+
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
@@ -952,12 +1088,19 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	guc_init_doorbell_hw(guc);
 
 	/* Take over from manual control of ELSP (execlists) */
+	guc_interrupts_capture(dev_priv);
+
 	for_each_engine(engine, dev_priv, id) {
 		const int wqi_size = sizeof(struct guc_wq_item);
 		struct drm_i915_gem_request *rq;
 
-		engine->submit_request = i915_guc_submit;
-		engine->schedule = NULL;
+		/* The tasklet was initialised by execlists, and may be in
+		 * a state of flux (across a reset) and so we just want to
+		 * take over the callback without changing any other state
+		 * in the tasklet.
+		 */
+		engine->irq_tasklet.func = i915_guc_irq_handler;
+		clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 
 		/* Replay the current set of previously submitted requests */
 		spin_lock_irq(&engine->timeline->lock);
@@ -971,15 +1114,41 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+static void guc_interrupts_release(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int irqs;
+
+	/*
+	 * tell all command streamers NOT to forward interrupts or vblank
+	 * to GuC.
+	 */
+	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
+	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
+	for_each_engine(engine, dev_priv, id)
+		I915_WRITE(RING_MODE_GEN7(engine), irqs);
+
+	/* route all GT interrupts to the host */
+	I915_WRITE(GUC_BCS_RCS_IER, 0);
+	I915_WRITE(GUC_VCS2_VCS1_IER, 0);
+	I915_WRITE(GUC_WD_VECS_IER, 0);
+
+	dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
+	dev_priv->rps.pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
+}
+
 void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
+
+	guc_interrupts_release(dev_priv);
 
 	if (!guc->execbuf_client)
 		return;
 
 	/* Revert back to manual ELSP submission */
-	intel_execlists_enable_submission(dev_priv);
+	intel_engines_reset_default_submission(dev_priv);
 }
 
 void i915_guc_submission_fini(struct drm_i915_private *dev_priv)

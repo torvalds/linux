@@ -63,13 +63,13 @@ struct selftest {
 	};
 };
 
-#define selftest(n, f) [mock_##n] = { .name = #n, .mock = f },
+#define selftest(n, f) [mock_##n] = { .name = #n, { .mock = f } },
 static struct selftest mock_selftests[] = {
 #include "i915_mock_selftests.h"
 };
 #undef selftest
 
-#define selftest(n, f) [live_##n] = { .name = #n, .live = f },
+#define selftest(n, f) [live_##n] = { .name = #n, { .live = f } },
 static struct selftest live_selftests[] = {
 #include "i915_live_selftests.h"
 };

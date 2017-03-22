@@ -299,12 +299,12 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 		 * those as well to make room for our guard pages.
 		 */
 		if (check_color) {
-			if (vma->node.start + vma->node.size == node->start) {
-				if (vma->node.color == node->color)
+			if (node->start + node->size == target->start) {
+				if (node->color == target->color)
 					continue;
 			}
-			if (vma->node.start == node->start + node->size) {
-				if (vma->node.color == node->color)
+			if (node->start == target->start + target->size) {
+				if (node->color == target->color)
 					continue;
 			}
 		}

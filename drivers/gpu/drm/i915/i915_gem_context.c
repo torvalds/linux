@@ -318,7 +318,6 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	ctx->ring_size = 4 * PAGE_SIZE;
 	ctx->desc_template =
 		default_desc_template(dev_priv, dev_priv->mm.aliasing_ppgtt);
-	ATOMIC_INIT_NOTIFIER_HEAD(&ctx->status_notifier);
 
 	/* GuC requires the ring to be placed above GUC_WOPCM_TOP. If GuC is not
 	 * present or not in use we still need a small bias as ring wraparound
@@ -934,7 +933,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 		}
 
 		ret = i915_switch_context(req);
-		i915_add_request_no_flush(req);
+		i915_add_request(req);
 		if (ret)
 			return ret;
 	}

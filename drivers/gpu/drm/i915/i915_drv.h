@@ -79,8 +79,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20170306"
-#define DRIVER_TIMESTAMP	1488785683
+#define DRIVER_DATE		"20170320"
+#define DRIVER_TIMESTAMP	1489994464
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -489,10 +489,8 @@ struct i915_hotplug {
 			    &(dev)->mode_config.encoder_list,	\
 			    base.head)
 
-#define for_each_intel_connector(dev, intel_connector)		\
-	list_for_each_entry(intel_connector,			\
-			    &(dev)->mode_config.connector_list,	\
-			    base.head)
+#define for_each_intel_connector_iter(intel_connector, iter) \
+	while ((intel_connector = to_intel_connector(drm_connector_list_iter_next(iter))))
 
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
@@ -764,6 +762,7 @@ struct intel_uncore {
 	const struct intel_forcewake_range *fw_domains_table;
 	unsigned int fw_domains_table_entries;
 
+	struct notifier_block pmic_bus_access_nb;
 	struct intel_uncore_funcs funcs;
 
 	unsigned fifo_count;
@@ -1324,7 +1323,7 @@ struct vlv_s0ix_state {
 };
 
 struct intel_rps_ei {
-	u32 cz_clock;
+	ktime_t ktime;
 	u32 render_c0;
 	u32 media_c0;
 };
@@ -1339,7 +1338,7 @@ struct intel_gen6_power_mgmt {
 	u32 pm_iir;
 
 	/* PM interrupt bits that should never be masked */
-	u32 pm_intr_keep;
+	u32 pm_intrmsk_mbz;
 
 	/* Frequencies are stored in potentially platform dependent multiples.
 	 * In other words, *_freq needs to be multiplied by X to be interesting.
@@ -1378,7 +1377,7 @@ struct intel_gen6_power_mgmt {
 	unsigned boosts;
 
 	/* manual wa residency calculations */
-	struct intel_rps_ei up_ei, down_ei;
+	struct intel_rps_ei ei;
 
 	/*
 	 * Protects RPS/RC6 register access and PCU communication.
@@ -1596,8 +1595,33 @@ struct i915_gpu_error {
 	 */
 	unsigned long reset_count;
 
+	/**
+	 * flags: Control various stages of the GPU reset
+	 *
+	 * #I915_RESET_BACKOFF - When we start a reset, we want to stop any
+	 * other users acquiring the struct_mutex. To do this we set the
+	 * #I915_RESET_BACKOFF bit in the error flags when we detect a reset
+	 * and then check for that bit before acquiring the struct_mutex (in
+	 * i915_mutex_lock_interruptible()?). I915_RESET_BACKOFF serves a
+	 * secondary role in preventing two concurrent global reset attempts.
+	 *
+	 * #I915_RESET_HANDOFF - To perform the actual GPU reset, we need the
+	 * struct_mutex. We try to acquire the struct_mutex in the reset worker,
+	 * but it may be held by some long running waiter (that we cannot
+	 * interrupt without causing trouble). Once we are ready to do the GPU
+	 * reset, we set the I915_RESET_HANDOFF bit and wakeup any waiters. If
+	 * they already hold the struct_mutex and want to participate they can
+	 * inspect the bit and do the reset directly, otherwise the worker
+	 * waits for the struct_mutex.
+	 *
+	 * #I915_WEDGED - If reset fails and we can no longer use the GPU,
+	 * we set the #I915_WEDGED bit. Prior to command submission, e.g.
+	 * i915_gem_request_alloc(), this bit is checked and the sequence
+	 * aborted (with -EIO reported to userspace) if set.
+	 */
 	unsigned long flags;
-#define I915_RESET_IN_PROGRESS	0
+#define I915_RESET_BACKOFF	0
+#define I915_RESET_HANDOFF	1
 #define I915_WEDGED		(BITS_PER_LONG - 1)
 
 	/**
@@ -2376,9 +2400,6 @@ struct drm_i915_private {
 	} sagv_status;
 
 	struct {
-		/* protects DSPARB registers on pre-g4x/vlv/chv */
-		spinlock_t dsparb_lock;
-
 		/*
 		 * Raw watermark latency values:
 		 * in 0.1us units for WM0,
@@ -2543,6 +2564,11 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 {
 	return container_of(guc, struct drm_i915_private, guc);
+}
+
+static inline struct drm_i915_private *huc_to_i915(struct intel_huc *huc)
+{
+	return container_of(huc, struct drm_i915_private, huc);
 }
 
 /* Simple iterator over all initialised engines */
@@ -3057,14 +3083,12 @@ int intel_irq_install(struct drm_i915_private *dev_priv);
 void intel_irq_uninstall(struct drm_i915_private *dev_priv);
 
 extern void intel_uncore_sanitize(struct drm_i915_private *dev_priv);
-extern void intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
-					bool restore_forcewake);
 extern void intel_uncore_init(struct drm_i915_private *dev_priv);
 extern bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv);
 extern bool intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv);
 extern void intel_uncore_fini(struct drm_i915_private *dev_priv);
-extern void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
-					 bool restore);
+extern void intel_uncore_suspend(struct drm_i915_private *dev_priv);
+extern void intel_uncore_resume_early(struct drm_i915_private *dev_priv);
 const char *intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id);
 void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 				enum forcewake_domains domains);
@@ -3356,9 +3380,9 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 				    unsigned int *needs_clflush);
 int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 				     unsigned int *needs_clflush);
-#define CLFLUSH_BEFORE 0x1
-#define CLFLUSH_AFTER 0x2
-#define CLFLUSH_FLAGS (CLFLUSH_BEFORE | CLFLUSH_AFTER)
+#define CLFLUSH_BEFORE	BIT(0)
+#define CLFLUSH_AFTER	BIT(1)
+#define CLFLUSH_FLAGS	(CLFLUSH_BEFORE | CLFLUSH_AFTER)
 
 static inline void
 i915_gem_obj_finish_shmem_access(struct drm_i915_gem_object *obj)
@@ -3388,9 +3412,14 @@ i915_gem_find_active_request(struct intel_engine_cs *engine);
 
 void i915_gem_retire_requests(struct drm_i915_private *dev_priv);
 
-static inline bool i915_reset_in_progress(struct i915_gpu_error *error)
+static inline bool i915_reset_backoff(struct i915_gpu_error *error)
 {
-	return unlikely(test_bit(I915_RESET_IN_PROGRESS, &error->flags));
+	return unlikely(test_bit(I915_RESET_BACKOFF, &error->flags));
+}
+
+static inline bool i915_reset_handoff(struct i915_gpu_error *error)
+{
+	return unlikely(test_bit(I915_RESET_HANDOFF, &error->flags));
 }
 
 static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
@@ -3398,9 +3427,9 @@ static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
 	return unlikely(test_bit(I915_WEDGED, &error->flags));
 }
 
-static inline bool i915_reset_in_progress_or_wedged(struct i915_gpu_error *error)
+static inline bool i915_reset_backoff_or_wedged(struct i915_gpu_error *error)
 {
-	return i915_reset_in_progress(error) | i915_terminally_wedged(error);
+	return i915_reset_backoff(error) | i915_terminally_wedged(error);
 }
 
 static inline u32 i915_reset_count(struct i915_gpu_error *error)
@@ -3412,6 +3441,7 @@ int i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
 void i915_gem_reset(struct drm_i915_private *dev_priv);
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
+bool i915_gem_unset_wedged(struct drm_i915_private *dev_priv);
 
 void i915_gem_init_mmio(struct drm_i915_private *i915);
 int __must_check i915_gem_init(struct drm_i915_private *dev_priv);
@@ -3717,7 +3747,7 @@ static inline bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
 extern void intel_i2c_reset(struct drm_i915_private *dev_priv);
 
 /* intel_bios.c */
-int intel_bios_init(struct drm_i915_private *dev_priv);
+void intel_bios_init(struct drm_i915_private *dev_priv);
 bool intel_bios_is_valid_vbt(const void *buf, size_t size);
 bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv);
 bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin);
@@ -3880,6 +3910,8 @@ void vlv_phy_reset_lanes(struct intel_encoder *encoder);
 
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
+u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
+			   const i915_reg_t reg);
 
 #define I915_READ8(reg)		dev_priv->uncore.funcs.mmio_readb(dev_priv, (reg), true)
 #define I915_WRITE8(reg, val)	dev_priv->uncore.funcs.mmio_writeb(dev_priv, (reg), (val), true)
@@ -4087,7 +4119,6 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 	if (engine->irq_seqno_barrier &&
 	    test_and_clear_bit(ENGINE_IRQ_BREADCRUMB, &engine->irq_posted)) {
 		struct intel_breadcrumbs *b = &engine->breadcrumbs;
-		unsigned long flags;
 
 		/* The ordering of irq_posted versus applying the barrier
 		 * is crucial. The clearing of the current irq_posted must
@@ -4109,7 +4140,7 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 		 * the seqno before we believe it coherent since they see
 		 * irq_posted == false but we are still running).
 		 */
-		spin_lock_irqsave(&b->irq_lock, flags);
+		spin_lock_irq(&b->irq_lock);
 		if (b->irq_wait && b->irq_wait->tsk != current)
 			/* Note that if the bottom-half is changed as we
 			 * are sending the wake-up, the new bottom-half will
@@ -4118,7 +4149,7 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 			 * ourself.
 			 */
 			wake_up_process(b->irq_wait->tsk);
-		spin_unlock_irqrestore(&b->irq_lock, flags);
+		spin_unlock_irq(&b->irq_lock);
 
 		if (__i915_gem_request_completed(req, seqno))
 			return true;
