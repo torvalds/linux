@@ -2343,7 +2343,7 @@ rebuild_st:
 			reclaim = mapping_gfp_constraint(mapping, 0);
 			reclaim |= __GFP_NORETRY; /* reclaim, but no oom */
 
-			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
+			page = shmem_read_mapping_page_gfp(mapping, i, reclaim);
 			if (IS_ERR(page)) {
 				ret = PTR_ERR(page);
 				goto err_sg;
