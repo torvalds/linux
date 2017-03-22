@@ -962,8 +962,13 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		struct hisi_sas_slot *slot = task->lldd_task;
 		u32 tag = slot->idx;
 
-		hisi_sas_internal_task_abort(hisi_hba, device,
-					     HISI_SAS_INT_ABT_CMD, tag);
+		rc = hisi_sas_internal_task_abort(hisi_hba, device,
+			     HISI_SAS_INT_ABT_CMD, tag);
+		if (rc == TMF_RESP_FUNC_FAILED) {
+			spin_lock_irqsave(&hisi_hba->lock, flags);
+			hisi_sas_do_release_task(hisi_hba, task, slot);
+			spin_unlock_irqrestore(&hisi_hba->lock, flags);
+		}
 	}
 
 out:
