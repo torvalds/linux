@@ -484,7 +484,6 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 			WARN_ON(xfer_bytes > host->bounce_buf_size);
 			sg_copy_to_buffer(data->sg, data->sg_len,
 					  host->bounce_buf, xfer_bytes);
-			data->bytes_xfered = xfer_bytes;
 			dma_wmb();
 		}
 
@@ -539,6 +538,7 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 {
 	struct meson_host *host = dev_id;
 	struct mmc_command *cmd;
+	struct mmc_data *data;
 	u32 irq_en, status, raw_status;
 	irqreturn_t ret = IRQ_HANDLED;
 
@@ -549,6 +549,8 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 
 	if (WARN_ON(!cmd))
 		return IRQ_NONE;
+
+	data = cmd->data;
 
 	spin_lock(&host->lock);
 	irq_en = readl(host->regs + SD_EMMC_IRQ_EN);
@@ -590,9 +592,11 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	if (status & IRQ_SDIO)
 		dev_dbg(host->dev, "Unhandled IRQ: SDIO.\n");
 
-	if (status & (IRQ_END_OF_CHAIN | IRQ_RESP_STATUS))
+	if (status & (IRQ_END_OF_CHAIN | IRQ_RESP_STATUS)) {
+		if (data && !cmd->error)
+			data->bytes_xfered = data->blksz * data->blocks;
 		ret = IRQ_WAKE_THREAD;
-	else  {
+	} else {
 		dev_warn(host->dev, "Unknown IRQ! status=0x%04x: MMC CMD%u arg=0x%08x flags=0x%08x stop=%d\n",
 			 status, cmd->opcode, cmd->arg,
 			 cmd->flags, cmd->mrq->stop ? 1 : 0);
@@ -633,7 +637,6 @@ static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
 		WARN_ON(xfer_bytes > host->bounce_buf_size);
 		sg_copy_from_buffer(data->sg, data->sg_len,
 				    host->bounce_buf, xfer_bytes);
-		data->bytes_xfered = xfer_bytes;
 	}
 
 	if (!data || !data->stop || cmd->mrq->sbc)
