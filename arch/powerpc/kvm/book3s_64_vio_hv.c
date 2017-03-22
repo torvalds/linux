@@ -239,6 +239,7 @@ long kvmppc_rm_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	long i, ret = H_SUCCESS;
 	unsigned long tces, entry, ua = 0;
 	unsigned long *rmap = NULL;
+	bool prereg = false;
 
 	stt = kvmppc_find_table(vcpu->kvm, liobn);
 	if (!stt)
@@ -259,23 +260,47 @@ long kvmppc_rm_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	if (ret != H_SUCCESS)
 		return ret;
 
-	if (kvmppc_gpa_to_ua(vcpu->kvm, tce_list, &ua, &rmap))
-		return H_TOO_HARD;
+	if (mm_iommu_preregistered(vcpu->kvm->mm)) {
+		/*
+		 * We get here if guest memory was pre-registered which
+		 * is normally VFIO case and gpa->hpa translation does not
+		 * depend on hpt.
+		 */
+		struct mm_iommu_table_group_mem_t *mem;
 
-	rmap = (void *) vmalloc_to_phys(rmap);
+		if (kvmppc_gpa_to_ua(vcpu->kvm, tce_list, &ua, NULL))
+			return H_TOO_HARD;
 
-	/*
-	 * Synchronize with the MMU notifier callbacks in
-	 * book3s_64_mmu_hv.c (kvm_unmap_hva_hv etc.).
-	 * While we have the rmap lock, code running on other CPUs
-	 * cannot finish unmapping the host real page that backs
-	 * this guest real page, so we are OK to access the host
-	 * real page.
-	 */
-	lock_rmap(rmap);
-	if (kvmppc_rm_ua_to_hpa(vcpu, ua, &tces)) {
-		ret = H_TOO_HARD;
-		goto unlock_exit;
+		mem = mm_iommu_lookup_rm(vcpu->kvm->mm, ua, IOMMU_PAGE_SIZE_4K);
+		if (mem)
+			prereg = mm_iommu_ua_to_hpa_rm(mem, ua, &tces) == 0;
+	}
+
+	if (!prereg) {
+		/*
+		 * This is usually a case of a guest with emulated devices only
+		 * when TCE list is not in preregistered memory.
+		 * We do not require memory to be preregistered in this case
+		 * so lock rmap and do __find_linux_pte_or_hugepte().
+		 */
+		if (kvmppc_gpa_to_ua(vcpu->kvm, tce_list, &ua, &rmap))
+			return H_TOO_HARD;
+
+		rmap = (void *) vmalloc_to_phys(rmap);
+
+		/*
+		 * Synchronize with the MMU notifier callbacks in
+		 * book3s_64_mmu_hv.c (kvm_unmap_hva_hv etc.).
+		 * While we have the rmap lock, code running on other CPUs
+		 * cannot finish unmapping the host real page that backs
+		 * this guest real page, so we are OK to access the host
+		 * real page.
+		 */
+		lock_rmap(rmap);
+		if (kvmppc_rm_ua_to_hpa(vcpu, ua, &tces)) {
+			ret = H_TOO_HARD;
+			goto unlock_exit;
+		}
 	}
 
 	for (i = 0; i < npages; ++i) {
@@ -289,7 +314,8 @@ long kvmppc_rm_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	}
 
 unlock_exit:
-	unlock_rmap(rmap);
+	if (rmap)
+		unlock_rmap(rmap);
 
 	return ret;
 }
