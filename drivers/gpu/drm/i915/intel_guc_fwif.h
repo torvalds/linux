@@ -241,8 +241,8 @@ union guc_doorbell_qw {
 	u64 value_qw;
 } __packed;
 
-#define GUC_MAX_DOORBELLS		256
-#define GUC_INVALID_DOORBELL_ID		(GUC_MAX_DOORBELLS)
+#define GUC_NUM_DOORBELLS	256
+#define GUC_DOORBELL_INVALID	(GUC_NUM_DOORBELLS)
 
 #define GUC_DB_SIZE			(PAGE_SIZE)
 #define GUC_WQ_SIZE			(PAGE_SIZE * 2)

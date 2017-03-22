@@ -2473,7 +2473,7 @@ static void i915_guc_client_info(struct seq_file *m,
 
 	seq_printf(m, "\tPriority %d, GuC ctx index: %u, PD offset 0x%x\n",
 		client->priority, client->ctx_index, client->proc_desc_offset);
-	seq_printf(m, "\tDoorbell id %d, offset: 0x%x, cookie 0x%x\n",
+	seq_printf(m, "\tDoorbell id %d, offset: 0x%lx, cookie 0x%x\n",
 		client->doorbell_id, client->doorbell_offset, client->doorbell_cookie);
 	seq_printf(m, "\tWQ size %d, offset: 0x%x, tail %d\n",
 		client->wq_size, client->wq_offset, client->wq_tail);
@@ -2508,7 +2508,7 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	}
 
 	seq_printf(m, "Doorbell map:\n");
-	seq_printf(m, "\t%*pb\n", GUC_MAX_DOORBELLS, guc->doorbell_bitmap);
+	seq_printf(m, "\t%*pb\n", GUC_NUM_DOORBELLS, guc->doorbell_bitmap);
 	seq_printf(m, "Doorbell next cacheline: 0x%x\n\n", guc->db_cacheline);
 
 	seq_printf(m, "GuC total action count: %llu\n", guc->action_count);

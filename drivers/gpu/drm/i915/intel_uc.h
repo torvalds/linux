@@ -72,13 +72,12 @@ struct i915_guc_client {
 
 	uint32_t engines;		/* bitmap of (host) engine ids	*/
 	uint32_t priority;
-	uint32_t ctx_index;
+	u32 ctx_index;
 	uint32_t proc_desc_offset;
 
-	uint32_t doorbell_offset;
-	uint32_t doorbell_cookie;
-	uint16_t doorbell_id;
-	uint16_t padding[3];		/* Maintain alignment		*/
+	u16 doorbell_id;
+	unsigned long doorbell_offset;
+	u32 doorbell_cookie;
 
 	spinlock_t wq_lock;
 	uint32_t wq_offset;
@@ -159,7 +158,7 @@ struct intel_guc {
 
 	struct i915_guc_client *execbuf_client;
 
-	DECLARE_BITMAP(doorbell_bitmap, GUC_MAX_DOORBELLS);
+	DECLARE_BITMAP(doorbell_bitmap, GUC_NUM_DOORBELLS);
 	uint32_t db_cacheline;		/* Cyclic counter mod pagesize	*/
 
 	/* Action status & statistics */
