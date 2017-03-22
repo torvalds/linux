@@ -38,6 +38,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/suspend.h>
 #include <linux/component.h>
@@ -1035,32 +1036,14 @@ static int dss_init_ports(struct platform_device *pdev)
 {
 	struct device_node *parent = pdev->dev.of_node;
 	struct device_node *port;
-	int r;
+	int i;
 
-	if (parent == NULL)
-		return 0;
-
-	port = omapdss_of_get_next_port(parent, NULL);
-	if (!port)
-		return 0;
-
-	if (dss.feat->num_ports == 0)
-		return 0;
-
-	do {
-		enum omap_display_type port_type;
-		u32 reg;
-
-		r = of_property_read_u32(port, "reg", &reg);
-		if (r)
-			reg = 0;
-
-		if (reg >= dss.feat->num_ports)
+	for (i = 0; i < dss.feat->num_ports; i++) {
+		port = of_graph_get_port_by_id(parent, i);
+		if (!port)
 			continue;
 
-		port_type = dss.feat->ports[reg];
-
-		switch (port_type) {
+		switch (dss.feat->ports[i]) {
 		case OMAP_DISPLAY_TYPE_DPI:
 			dpi_init_port(pdev, port);
 			break;
@@ -1070,7 +1053,7 @@ static int dss_init_ports(struct platform_device *pdev)
 		default:
 			break;
 		}
-	} while ((port = omapdss_of_get_next_port(parent, port)) != NULL);
+	}
 
 	return 0;
 }
@@ -1079,32 +1062,14 @@ static void dss_uninit_ports(struct platform_device *pdev)
 {
 	struct device_node *parent = pdev->dev.of_node;
 	struct device_node *port;
+	int i;
 
-	if (parent == NULL)
-		return;
-
-	port = omapdss_of_get_next_port(parent, NULL);
-	if (!port)
-		return;
-
-	if (dss.feat->num_ports == 0)
-		return;
-
-	do {
-		enum omap_display_type port_type;
-		u32 reg;
-		int r;
-
-		r = of_property_read_u32(port, "reg", &reg);
-		if (r)
-			reg = 0;
-
-		if (reg >= dss.feat->num_ports)
+	for (i = 0; i < dss.feat->num_ports; i++) {
+		port = of_graph_get_port_by_id(parent, i);
+		if (!port)
 			continue;
 
-		port_type = dss.feat->ports[reg];
-
-		switch (port_type) {
+		switch (dss.feat->ports[i]) {
 		case OMAP_DISPLAY_TYPE_DPI:
 			dpi_uninit_port(port);
 			break;
@@ -1114,7 +1079,7 @@ static void dss_uninit_ports(struct platform_device *pdev)
 		default:
 			break;
 		}
-	} while ((port = omapdss_of_get_next_port(parent, port)) != NULL);
+	}
 }
 
 static int dss_video_pll_probe(struct platform_device *pdev)
