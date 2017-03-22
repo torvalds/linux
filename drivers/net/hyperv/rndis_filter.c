@@ -926,8 +926,6 @@ static void rndis_filter_halt_device(struct rndis_device *dev)
 	struct rndis_halt_request *halt;
 	struct net_device_context *net_device_ctx = netdev_priv(dev->ndev);
 	struct netvsc_device *nvdev = net_device_ctx->nvdev;
-	struct hv_device *hdev = net_device_ctx->device_ctx;
-	ulong flags;
 
 	/* Attempt to do a rndis device halt */
 	request = get_rndis_request(dev, RNDIS_MSG_HALT,
@@ -945,9 +943,10 @@ static void rndis_filter_halt_device(struct rndis_device *dev)
 	dev->state = RNDIS_DEV_UNINITIALIZED;
 
 cleanup:
-	spin_lock_irqsave(&hdev->channel->inbound_lock, flags);
 	nvdev->destroy = true;
-	spin_unlock_irqrestore(&hdev->channel->inbound_lock, flags);
+
+	/* Force flag to be ordered before waiting */
+	wmb();
 
 	/* Wait for all send completions */
 	wait_event(nvdev->wait_drain, netvsc_device_idle(nvdev));
