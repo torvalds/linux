@@ -97,6 +97,8 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
+	snd_motu_proc_init(motu);
+
 	err = snd_card_register(motu->card);
 	if (err < 0)
 		goto error;

@@ -20,6 +20,7 @@
 #include <sound/control.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#include <sound/info.h>
 
 #include "../lib.h"
 #include "../amdtp-stream.h"
@@ -128,4 +129,6 @@ int snd_motu_stream_init_duplex(struct snd_motu *motu);
 void snd_motu_stream_destroy_duplex(struct snd_motu *motu);
 int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate);
 void snd_motu_stream_stop_duplex(struct snd_motu *motu);
+
+void snd_motu_proc_init(struct snd_motu *motu);
 #endif

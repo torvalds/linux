@@ -1,2 +1,3 @@
-snd-firewire-motu-objs := motu.o amdtp-motu.o motu-transaction.o motu-stream.o
+snd-firewire-motu-objs := motu.o amdtp-motu.o motu-transaction.o motu-stream.o \
+			  motu-proc.o
 obj-$(CONFIG_SND_FIREWIRE_MOTU) += snd-firewire-motu.o
