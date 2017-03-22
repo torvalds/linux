@@ -102,8 +102,7 @@
 &cru {
 		assigned-clocks =
 			<&cru ACLK_PERIHP>, <&cru ACLK_PERILP0>,
-			<&cru HCLK_PERILP1>, <&cru ACLK_VOP0>,
-			<&cru ACLK_VOP1>, <&cru SCLK_SDMMC>,
+			<&cru HCLK_PERILP1>, <&cru SCLK_SDMMC>,
 			<&cru ACLK_EMMC>, <&cru ACLK_CENTER>,
 			<&cru HCLK_SD>, <&cru SCLK_VDU_CA>,
 			<&cru SCLK_VDU_CORE>, <&cru ACLK_USB3>,
@@ -116,9 +115,7 @@
 			<&cru HCLK_PERIHP>, <&cru PCLK_PERIHP>,
 			<&cru ACLK_PERILP0>, <&cru HCLK_PERILP0>,
 			<&cru PCLK_PERILP0>, <&cru HCLK_PERILP1>,
-			<&cru PCLK_PERILP1>, <&cru ACLK_VOP0>,
-			<&cru HCLK_VOP0>, <&cru ACLK_VOP1>,
-			<&cru HCLK_VOP1>, <&cru SCLK_I2C1>,
+			<&cru PCLK_PERILP1>, <&cru SCLK_I2C1>,
 			<&cru SCLK_I2C2>, <&cru SCLK_I2C3>,
 			<&cru SCLK_I2C5>, <&cru SCLK_I2C6>,
 			<&cru SCLK_I2C7>, <&cru SCLK_SPI0>,
@@ -141,8 +138,7 @@
 			<&cru SCLK_CCI_TRACE>;
 		assigned-clock-rates =
 			 <75000000>, <50000000>,
-			 <50000000>, <200000000>,
-			 <200000000>,  <50000000>,
+			 <50000000>, <50000000>,
 			 <50000000>, <100000000>,
 			 <50000000>, <150000000>,
 			 <150000000>, <150000000>,
@@ -155,9 +151,7 @@
 			 <75000000>, <37500000>,
 			 <100000000>, <100000000>,
 			 <50000000>, <100000000>,
-			 <50000000>, <400000000>,
-			 <200000000>, <400000000>,
-			 <200000000>, <100000000>,
+			 <50000000>, <100000000>,
 			 <100000000>, <100000000>,
 			 <100000000>, <100000000>,
 			 <100000000>, <50000000>,
