@@ -64,7 +64,6 @@ struct drm_mode_create_dumb;
  * structure for GEM drivers.
  */
 struct drm_driver {
-
 	/**
 	 * @load:
 	 *
@@ -76,14 +75,94 @@ struct drm_driver {
 	 * See drm_dev_init() and drm_dev_register() for proper and
 	 * race-free way to set up a &struct drm_device.
 	 *
+	 * This is deprecated, do not use!
+	 *
 	 * Returns:
 	 *
 	 * Zero on success, non-zero value on failure.
 	 */
 	int (*load) (struct drm_device *, unsigned long flags);
+
+	/**
+	 * @open:
+	 *
+	 * Driver callback when a new &struct drm_file is opened. Useful for
+	 * setting up driver-private data structures like buffer allocators,
+	 * execution contexts or similar things. Such driver-private resources
+	 * must be released again in @postclose.
+	 *
+	 * Since the display/modeset side of DRM can only be owned by exactly
+	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
+	 * there should never be a need to set up any modeset related resources
+	 * in this callback. Doing so would be a driver design bug.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success, a negative error code on failure, which will be
+	 * promoted to userspace as the result of the open() system call.
+	 */
 	int (*open) (struct drm_device *, struct drm_file *);
+
+	/**
+	 * @preclose:
+	 *
+	 * One of the driver callbacks when a new &struct drm_file is closed.
+	 * Useful for tearing down driver-private data structures allocated in
+	 * @open like buffer allocators, execution contexts or similar things.
+	 *
+	 * Since the display/modeset side of DRM can only be owned by exactly
+	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
+	 * there should never be a need to tear down any modeset related
+	 * resources in this callback. Doing so would be a driver design bug.
+	 *
+	 * FIXME: It is not really clear why there's both @preclose and
+	 * @postclose. Without a really good reason, use @postclose only.
+	 */
 	void (*preclose) (struct drm_device *, struct drm_file *file_priv);
+
+	/**
+	 * @postclose:
+	 *
+	 * One of the driver callbacks when a new &struct drm_file is closed.
+	 * Useful for tearing down driver-private data structures allocated in
+	 * @open like buffer allocators, execution contexts or similar things.
+	 *
+	 * Since the display/modeset side of DRM can only be owned by exactly
+	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
+	 * there should never be a need to tear down any modeset related
+	 * resources in this callback. Doing so would be a driver design bug.
+	 *
+	 * FIXME: It is not really clear why there's both @preclose and
+	 * @postclose. Without a really good reason, use @postclose only.
+	 */
 	void (*postclose) (struct drm_device *, struct drm_file *);
+
+	/**
+	 * @lastclose:
+	 *
+	 * Called when the last &struct drm_file has been closed and there's
+	 * currently no userspace client for the &struct drm_device.
+	 *
+	 * Modern drivers should only use this to force-restore the fbdev
+	 * framebuffer using drm_fb_helper_restore_fbdev_mode_unlocked().
+	 * Anything else would indicate there's something seriously wrong.
+	 * Modern drivers can also use this to execute delayed power switching
+	 * state changes, e.g. in conjunction with the :ref:`vga_switcheroo`
+	 * infrastructure.
+	 *
+	 * This is called after @preclose and @postclose have been called.
+	 *
+	 * NOTE:
+	 *
+	 * All legacy drivers use this callback to de-initialize the hardware.
+	 * This is purely because of the shadow-attach model, where the DRM
+	 * kernel driver does not really own the hardware. Instead ownershipe is
+	 * handled with the help of userspace through an inheritedly racy dance
+	 * to set/unset the VT into raw mode.
+	 *
+	 * Legacy drivers initialize the hardware in the @firstopen callback,
+	 * which isn't even called for modern drivers.
+	 */
 	void (*lastclose) (struct drm_device *);
 
 	/**

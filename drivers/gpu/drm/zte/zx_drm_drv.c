@@ -53,19 +53,7 @@ static void zx_drm_lastclose(struct drm_device *drm)
 	drm_fbdev_cma_restore_mode(priv->fbdev);
 }
 
-static const struct file_operations zx_drm_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.release = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = drm_compat_ioctl,
-#endif
-	.poll = drm_poll,
-	.read = drm_read,
-	.llseek = noop_llseek,
-	.mmap = drm_gem_cma_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(zx_drm_fops);
 
 static struct drm_driver zx_drm_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |

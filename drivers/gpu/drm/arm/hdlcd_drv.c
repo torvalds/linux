@@ -239,17 +239,7 @@ static int hdlcd_debugfs_init(struct drm_minor *minor)
 }
 #endif
 
-static const struct file_operations fops = {
-	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-	.compat_ioctl	= drm_compat_ioctl,
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= noop_llseek,
-	.mmap		= drm_gem_cma_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver hdlcd_driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |

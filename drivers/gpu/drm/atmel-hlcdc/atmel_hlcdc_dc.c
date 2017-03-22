@@ -724,17 +724,7 @@ static void atmel_hlcdc_dc_irq_uninstall(struct drm_device *dev)
 	regmap_read(dc->hlcdc->regmap, ATMEL_HLCDC_ISR, &isr);
 }
 
-static const struct file_operations fops = {
-	.owner              = THIS_MODULE,
-	.open               = drm_open,
-	.release            = drm_release,
-	.unlocked_ioctl     = drm_ioctl,
-	.compat_ioctl       = drm_compat_ioctl,
-	.poll               = drm_poll,
-	.read               = drm_read,
-	.llseek             = no_llseek,
-	.mmap               = drm_gem_cma_mmap,
-};
+DEFINE_DRM_GEM_CMA_FOPS(fops);
 
 static struct drm_driver atmel_hlcdc_dc_driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |
@@ -810,31 +800,32 @@ static int atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
 static int atmel_hlcdc_dc_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct drm_crtc *crtc;
+	struct atmel_hlcdc_dc *dc = drm_dev->dev_private;
+	struct regmap *regmap = dc->hlcdc->regmap;
+	struct drm_atomic_state *state;
 
-	if (pm_runtime_suspended(dev))
-		return 0;
+	state = drm_atomic_helper_suspend(drm_dev);
+	if (IS_ERR(state))
+		return PTR_ERR(state);
 
-	drm_modeset_lock_all(drm_dev);
-	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head)
-		atmel_hlcdc_crtc_suspend(crtc);
-	drm_modeset_unlock_all(drm_dev);
+	dc->suspend.state = state;
+
+	regmap_read(regmap, ATMEL_HLCDC_IMR, &dc->suspend.imr);
+	regmap_write(regmap, ATMEL_HLCDC_IDR, dc->suspend.imr);
+	clk_disable_unprepare(dc->hlcdc->periph_clk);
+
 	return 0;
 }
 
 static int atmel_hlcdc_dc_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct drm_crtc *crtc;
+	struct atmel_hlcdc_dc *dc = drm_dev->dev_private;
 
-	if (pm_runtime_suspended(dev))
-		return 0;
+	clk_prepare_enable(dc->hlcdc->periph_clk);
+	regmap_write(dc->hlcdc->regmap, ATMEL_HLCDC_IER, dc->suspend.imr);
 
-	drm_modeset_lock_all(drm_dev);
-	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head)
-		atmel_hlcdc_crtc_resume(crtc);
-	drm_modeset_unlock_all(drm_dev);
-	return 0;
+	return drm_atomic_helper_resume(drm_dev, dc->suspend.state);
 }
 #endif
 

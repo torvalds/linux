@@ -55,14 +55,12 @@ drm_crtc_state_to_atmel_hlcdc_crtc_state(struct drm_crtc_state *state)
  * @hlcdc: pointer to the atmel_hlcdc structure provided by the MFD device
  * @event: pointer to the current page flip event
  * @id: CRTC id (returned by drm_crtc_index)
- * @enabled: CRTC state
  */
 struct atmel_hlcdc_crtc {
 	struct drm_crtc base;
 	struct atmel_hlcdc_dc *dc;
 	struct drm_pending_vblank_event *event;
 	int id;
-	bool enabled;
 };
 
 static inline struct atmel_hlcdc_crtc *
@@ -158,9 +156,6 @@ static void atmel_hlcdc_crtc_disable(struct drm_crtc *c)
 	struct regmap *regmap = crtc->dc->hlcdc->regmap;
 	unsigned int status;
 
-	if (!crtc->enabled)
-		return;
-
 	drm_crtc_vblank_off(c);
 
 	pm_runtime_get_sync(dev->dev);
@@ -186,8 +181,6 @@ static void atmel_hlcdc_crtc_disable(struct drm_crtc *c)
 	pm_runtime_allow(dev->dev);
 
 	pm_runtime_put_sync(dev->dev);
-
-	crtc->enabled = false;
 }
 
 static void atmel_hlcdc_crtc_enable(struct drm_crtc *c)
@@ -196,9 +189,6 @@ static void atmel_hlcdc_crtc_enable(struct drm_crtc *c)
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
 	struct regmap *regmap = crtc->dc->hlcdc->regmap;
 	unsigned int status;
-
-	if (crtc->enabled)
-		return;
 
 	pm_runtime_get_sync(dev->dev);
 
@@ -226,29 +216,6 @@ static void atmel_hlcdc_crtc_enable(struct drm_crtc *c)
 	pm_runtime_put_sync(dev->dev);
 
 	drm_crtc_vblank_on(c);
-
-	crtc->enabled = true;
-}
-
-void atmel_hlcdc_crtc_suspend(struct drm_crtc *c)
-{
-	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
-
-	if (crtc->enabled) {
-		atmel_hlcdc_crtc_disable(c);
-		/* save enable state for resume */
-		crtc->enabled = true;
-	}
-}
-
-void atmel_hlcdc_crtc_resume(struct drm_crtc *c)
-{
-	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
-
-	if (crtc->enabled) {
-		crtc->enabled = false;
-		atmel_hlcdc_crtc_enable(c);
-	}
 }
 
 #define ATMEL_HLCDC_RGB444_OUTPUT	BIT(0)
