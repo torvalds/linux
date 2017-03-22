@@ -723,6 +723,7 @@ struct net_device_context {
 /* Per channel data */
 struct netvsc_channel {
 	struct vmbus_channel *channel;
+	const struct vmpacket_descriptor *desc;
 	struct napi_struct napi;
 	struct multi_send_data msd;
 	struct multi_recv_comp mrc;
