@@ -325,7 +325,7 @@ static int dw_hdmi_rockchip_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver dw_hdmi_rockchip_pltfm_driver = {
+struct platform_driver dw_hdmi_rockchip_pltfm_driver = {
 	.probe  = dw_hdmi_rockchip_probe,
 	.remove = dw_hdmi_rockchip_remove,
 	.driver = {
@@ -333,11 +333,3 @@ static struct platform_driver dw_hdmi_rockchip_pltfm_driver = {
 		.of_match_table = dw_hdmi_rockchip_dt_ids,
 	},
 };
-
-module_platform_driver(dw_hdmi_rockchip_pltfm_driver);
-
-MODULE_AUTHOR("Andy Yan <andy.yan@rock-chips.com>");
-MODULE_AUTHOR("Yakir Yang <ykk@rock-chips.com>");
-MODULE_DESCRIPTION("Rockchip Specific DW-HDMI Driver Extension");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:dwhdmi-rockchip");

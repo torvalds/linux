@@ -1304,7 +1304,7 @@ static int dw_mipi_dsi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver dw_mipi_dsi_driver = {
+struct platform_driver dw_mipi_dsi_driver = {
 	.probe		= dw_mipi_dsi_probe,
 	.remove		= dw_mipi_dsi_remove,
 	.driver		= {
@@ -1312,9 +1312,3 @@ static struct platform_driver dw_mipi_dsi_driver = {
 		.name	= DRIVER_NAME,
 	},
 };
-module_platform_driver(dw_mipi_dsi_driver);
-
-MODULE_DESCRIPTION("ROCKCHIP MIPI DSI host controller driver");
-MODULE_AUTHOR("Chris Zhong <zyw@rock-chips.com>");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRIVER_NAME);
