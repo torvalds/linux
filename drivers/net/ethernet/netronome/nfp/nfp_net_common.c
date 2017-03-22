@@ -2233,11 +2233,6 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 	struct nfp_net *nn = netdev_priv(netdev);
 	int err, r;
 
-	if (nn->dp.ctrl & NFP_NET_CFG_CTRL_ENABLE) {
-		nn_err(nn, "Dev is already enabled: 0x%08x\n", nn->dp.ctrl);
-		return -EBUSY;
-	}
-
 	/* Step 1: Allocate resources for rings and the like
 	 * - Request interrupts
 	 * - Allocate RX and TX ring resources
@@ -2367,11 +2362,6 @@ static void nfp_net_close_free_all(struct nfp_net *nn)
 static int nfp_net_netdev_close(struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
-
-	if (!(nn->dp.ctrl & NFP_NET_CFG_CTRL_ENABLE)) {
-		nn_err(nn, "Dev is not up: 0x%08x\n", nn->dp.ctrl);
-		return 0;
-	}
 
 	/* Step 1: Disable RX and TX rings from the Linux kernel perspective
 	 */
