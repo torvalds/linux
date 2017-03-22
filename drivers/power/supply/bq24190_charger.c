@@ -18,9 +18,6 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 
-#include <linux/power/bq24190_charger.h>
-
-
 #define	BQ24190_MANUFACTURER	"Texas Instruments"
 
 #define BQ24190_REG_ISC		0x00 /* Input Source Control */
@@ -153,8 +150,6 @@ struct bq24190_dev_info {
 	struct power_supply		*battery;
 	char				model_name[I2C_NAME_SIZE];
 	kernel_ulong_t			model;
-	unsigned int			gpio_int;
-	unsigned int			irq;
 	bool				initialized;
 	bool				irq_event;
 	struct mutex			f_reg_lock;
@@ -1310,56 +1305,11 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
 	return bq24190_read(bdi, BQ24190_REG_SS, &bdi->ss_reg);
 }
 
-#ifdef CONFIG_OF
-static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
-{
-	bdi->irq = irq_of_parse_and_map(bdi->dev->of_node, 0);
-	if (bdi->irq <= 0)
-		return -1;
-
-	return 0;
-}
-#else
-static int bq24190_setup_dt(struct bq24190_dev_info *bdi)
-{
-	return -1;
-}
-#endif
-
-static int bq24190_setup_pdata(struct bq24190_dev_info *bdi,
-		struct bq24190_platform_data *pdata)
-{
-	int ret;
-
-	if (!gpio_is_valid(pdata->gpio_int))
-		return -1;
-
-	ret = gpio_request(pdata->gpio_int, dev_name(bdi->dev));
-	if (ret < 0)
-		return -1;
-
-	ret = gpio_direction_input(pdata->gpio_int);
-	if (ret < 0)
-		goto out;
-
-	bdi->irq = gpio_to_irq(pdata->gpio_int);
-	if (!bdi->irq)
-		goto out;
-
-	bdi->gpio_int = pdata->gpio_int;
-	return 0;
-
-out:
-	gpio_free(pdata->gpio_int);
-	return -1;
-}
-
 static int bq24190_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct device *dev = &client->dev;
-	struct bq24190_platform_data *pdata = client->dev.platform_data;
 	struct power_supply_config charger_cfg = {}, battery_cfg = {};
 	struct bq24190_dev_info *bdi;
 	int ret;
@@ -1385,12 +1335,7 @@ static int bq24190_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, bdi);
 
-	if (dev->of_node)
-		ret = bq24190_setup_dt(bdi);
-	else
-		ret = bq24190_setup_pdata(bdi, pdata);
-
-	if (ret) {
+	if (!client->irq) {
 		dev_err(dev, "Can't get irq info\n");
 		return -EINVAL;
 	}
@@ -1436,7 +1381,7 @@ static int bq24190_probe(struct i2c_client *client,
 
 	bdi->initialized = true;
 
-	ret = devm_request_threaded_irq(dev, bdi->irq, NULL,
+	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 			bq24190_irq_handler_thread,
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"bq24190-charger", bdi);
@@ -1445,7 +1390,7 @@ static int bq24190_probe(struct i2c_client *client,
 		goto out5;
 	}
 
-	enable_irq_wake(bdi->irq);
+	enable_irq_wake(client->irq);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -1467,8 +1412,6 @@ out2:
 out1:
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
-	if (bdi->gpio_int)
-		gpio_free(bdi->gpio_int);
 	return ret;
 }
 
@@ -1491,9 +1434,6 @@ static int bq24190_remove(struct i2c_client *client)
 		pm_runtime_put_sync(bdi->dev);
 	pm_runtime_dont_use_autosuspend(bdi->dev);
 	pm_runtime_disable(bdi->dev);
-
-	if (bdi->gpio_int)
-		gpio_free(bdi->gpio_int);
 
 	return 0;
 }
