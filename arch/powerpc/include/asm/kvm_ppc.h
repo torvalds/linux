@@ -178,8 +178,10 @@ extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 				struct kvm_create_spapr_tce_64 *args);
 extern struct kvmppc_spapr_tce_table *kvmppc_find_table(
 		struct kvm *kvm, unsigned long liobn);
-extern long kvmppc_ioba_validate(struct kvmppc_spapr_tce_table *stt,
-		unsigned long ioba, unsigned long npages);
+#define kvmppc_ioba_validate(stt, ioba, npages)                         \
+		(iommu_tce_check_ioba((stt)->page_shift, (stt)->offset, \
+				(stt)->size, (ioba), (npages)) ?        \
+				H_PARAMETER : H_SUCCESS)
 extern long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *tt,
 		unsigned long tce);
 extern long kvmppc_gpa_to_ua(struct kvm *kvm, unsigned long gpa,

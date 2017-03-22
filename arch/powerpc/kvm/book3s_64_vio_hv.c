@@ -62,27 +62,6 @@ struct kvmppc_spapr_tce_table *kvmppc_find_table(struct kvm *kvm,
 EXPORT_SYMBOL_GPL(kvmppc_find_table);
 
 /*
- * Validates IO address.
- *
- * WARNING: This will be called in real-mode on HV KVM and virtual
- *          mode on PR KVM
- */
-long kvmppc_ioba_validate(struct kvmppc_spapr_tce_table *stt,
-		unsigned long ioba, unsigned long npages)
-{
-	unsigned long mask = (1ULL << stt->page_shift) - 1;
-	unsigned long idx = ioba >> stt->page_shift;
-
-	if ((ioba & mask) || (idx < stt->offset) ||
-			(idx - stt->offset + npages > stt->size) ||
-			(idx + npages < idx))
-		return H_PARAMETER;
-
-	return H_SUCCESS;
-}
-EXPORT_SYMBOL_GPL(kvmppc_ioba_validate);
-
-/*
  * Validates TCE address.
  * At the moment flags and page mask are validated.
  * As the host kernel does not access those addresses (just puts them
@@ -95,10 +74,14 @@ EXPORT_SYMBOL_GPL(kvmppc_ioba_validate);
  */
 long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt, unsigned long tce)
 {
-	unsigned long page_mask = ~((1ULL << stt->page_shift) - 1);
-	unsigned long mask = ~(page_mask | TCE_PCI_WRITE | TCE_PCI_READ);
+	unsigned long gpa = tce & ~(TCE_PCI_READ | TCE_PCI_WRITE);
+	enum dma_data_direction dir = iommu_tce_direction(tce);
 
-	if (tce & mask)
+	/* Allow userspace to poison TCE table */
+	if (dir == DMA_NONE)
+		return H_SUCCESS;
+
+	if (iommu_tce_check_gpa(stt->page_shift, gpa))
 		return H_PARAMETER;
 
 	return H_SUCCESS;
