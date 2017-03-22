@@ -44,7 +44,6 @@ static int init_srcu_struct_fields(struct srcu_struct *sp)
 	sp->completed = 0;
 	sp->srcu_gp_seq = 0;
 	spin_lock_init(&sp->queue_lock);
-	sp->srcu_state = SRCU_STATE_IDLE;
 	rcu_segcblist_init(&sp->srcu_cblist);
 	INIT_DELAYED_WORK(&sp->work, process_srcu);
 	sp->per_cpu_ref = alloc_percpu(struct srcu_array);
@@ -180,6 +179,9 @@ static bool srcu_readers_active(struct srcu_struct *sp)
 	return sum;
 }
 
+#define SRCU_CALLBACK_BATCH	10
+#define SRCU_INTERVAL		1
+
 /**
  * cleanup_srcu_struct - deconstruct a sleep-RCU structure
  * @sp: structure to clean up.
@@ -200,8 +202,10 @@ void cleanup_srcu_struct(struct srcu_struct *sp)
 	if (WARN_ON(!rcu_segcblist_empty(&sp->srcu_cblist)))
 		return; /* Leakage unless caller handles error. */
 	flush_delayed_work(&sp->work);
-	if (WARN_ON(READ_ONCE(sp->srcu_state) != SRCU_STATE_IDLE))
+	if (WARN_ON(rcu_seq_state(READ_ONCE(sp->srcu_gp_seq)) != SRCU_STATE_IDLE)) {
+		pr_info("cleanup_srcu_struct: Active srcu_struct %lu CBs %c state: %d\n", rcu_segcblist_n_cbs(&sp->srcu_cblist), ".E"[rcu_segcblist_empty(&sp->srcu_cblist)], rcu_seq_state(READ_ONCE(sp->srcu_gp_seq)));
 		return; /* Caller forgot to stop doing call_srcu()? */
+	}
 	free_percpu(sp->per_cpu_ref);
 	sp->per_cpu_ref = NULL;
 }
@@ -253,10 +257,13 @@ EXPORT_SYMBOL_GPL(__srcu_read_unlock);
  */
 static void srcu_gp_start(struct srcu_struct *sp)
 {
+	int state;
+
 	rcu_segcblist_accelerate(&sp->srcu_cblist,
 				 rcu_seq_snap(&sp->srcu_gp_seq));
-	WRITE_ONCE(sp->srcu_state, SRCU_STATE_SCAN1);
 	rcu_seq_start(&sp->srcu_gp_seq);
+	state = rcu_seq_state(READ_ONCE(sp->srcu_gp_seq));
+	WARN_ON_ONCE(state != SRCU_STATE_SCAN1);
 }
 
 /*
@@ -300,7 +307,6 @@ static void srcu_flip(struct srcu_struct *sp)
 static void srcu_gp_end(struct srcu_struct *sp)
 {
 	rcu_seq_end(&sp->srcu_gp_seq);
-	WRITE_ONCE(sp->srcu_state, SRCU_STATE_DONE);
 
 	spin_lock_irq(&sp->queue_lock);
 	rcu_segcblist_advance(&sp->srcu_cblist,
@@ -345,7 +351,7 @@ void call_srcu(struct srcu_struct *sp, struct rcu_head *head,
 	spin_lock_irqsave(&sp->queue_lock, flags);
 	smp_mb__after_unlock_lock(); /* Caller's prior accesses before GP. */
 	rcu_segcblist_enqueue(&sp->srcu_cblist, head, false);
-	if (READ_ONCE(sp->srcu_state) == SRCU_STATE_IDLE) {
+	if (rcu_seq_state(READ_ONCE(sp->srcu_gp_seq)) == SRCU_STATE_IDLE) {
 		srcu_gp_start(sp);
 		queue_delayed_work(system_power_efficient_wq, &sp->work, 0);
 	}
@@ -378,7 +384,7 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
 	head->func = wakeme_after_rcu;
 	spin_lock_irq(&sp->queue_lock);
 	smp_mb__after_unlock_lock(); /* Caller's prior accesses before GP. */
-	if (READ_ONCE(sp->srcu_state) == SRCU_STATE_IDLE) {
+	if (rcu_seq_state(READ_ONCE(sp->srcu_gp_seq)) == SRCU_STATE_IDLE) {
 		/* steal the processing owner */
 		rcu_segcblist_enqueue(&sp->srcu_cblist, head, false);
 		srcu_gp_start(sp);
@@ -480,9 +486,6 @@ unsigned long srcu_batches_completed(struct srcu_struct *sp)
 }
 EXPORT_SYMBOL_GPL(srcu_batches_completed);
 
-#define SRCU_CALLBACK_BATCH	10
-#define SRCU_INTERVAL		1
-
 /*
  * Core SRCU state machine.  Advance callbacks from ->batch_check0 to
  * ->batch_check1 and then to ->batch_done as readers drain.
@@ -491,28 +494,40 @@ static void srcu_advance_batches(struct srcu_struct *sp, int trycount)
 {
 	int idx;
 
-	WARN_ON_ONCE(sp->srcu_state == SRCU_STATE_IDLE);
-
 	/*
 	 * Because readers might be delayed for an extended period after
 	 * fetching ->completed for their index, at any point in time there
 	 * might well be readers using both idx=0 and idx=1.  We therefore
 	 * need to wait for readers to clear from both index values before
 	 * invoking a callback.
+	 *
+	 * The load-acquire ensures that we see the accesses performed
+	 * by the prior grace period.
 	 */
+	idx = rcu_seq_state(smp_load_acquire(&sp->srcu_gp_seq)); /* ^^^ */
+	if (idx == SRCU_STATE_IDLE) {
+		spin_lock_irq(&sp->queue_lock);
+		if (rcu_segcblist_empty(&sp->srcu_cblist)) {
+			spin_unlock_irq(&sp->queue_lock);
+			return;
+		}
+		idx = rcu_seq_state(READ_ONCE(sp->srcu_gp_seq));
+		if (idx == SRCU_STATE_IDLE)
+			srcu_gp_start(sp);
+		spin_unlock_irq(&sp->queue_lock);
+		if (idx != SRCU_STATE_IDLE)
+			return; /* Someone else started the grace period. */
+	}
 
-	if (sp->srcu_state == SRCU_STATE_DONE)
-		srcu_gp_start(sp);
-
-	if (sp->srcu_state == SRCU_STATE_SCAN1) {
+	if (rcu_seq_state(READ_ONCE(sp->srcu_gp_seq)) == SRCU_STATE_SCAN1) {
 		idx = 1 ^ (sp->completed & 1);
 		if (!try_check_zero(sp, idx, trycount))
 			return; /* readers present, retry after SRCU_INTERVAL */
 		srcu_flip(sp);
-		WRITE_ONCE(sp->srcu_state, SRCU_STATE_SCAN2);
+		rcu_seq_set_state(&sp->srcu_gp_seq, SRCU_STATE_SCAN2);
 	}
 
-	if (sp->srcu_state == SRCU_STATE_SCAN2) {
+	if (rcu_seq_state(READ_ONCE(sp->srcu_gp_seq)) == SRCU_STATE_SCAN2) {
 
 		/*
 		 * SRCU read-side critical sections are normally short,
@@ -563,14 +578,14 @@ static void srcu_invoke_callbacks(struct srcu_struct *sp)
 static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay)
 {
 	bool pending = true;
+	int state;
 
 	if (rcu_segcblist_empty(&sp->srcu_cblist)) {
 		spin_lock_irq(&sp->queue_lock);
+		state = rcu_seq_state(READ_ONCE(sp->srcu_gp_seq));
 		if (rcu_segcblist_empty(&sp->srcu_cblist) &&
-		    READ_ONCE(sp->srcu_state) == SRCU_STATE_DONE) {
-			WRITE_ONCE(sp->srcu_state, SRCU_STATE_IDLE);
+		    state == SRCU_STATE_IDLE)
 			pending = false;
-		}
 		spin_unlock_irq(&sp->queue_lock);
 	}
 

@@ -82,6 +82,16 @@ static inline int rcu_seq_state(unsigned long s)
 	return s & RCU_SEQ_STATE_MASK;
 }
 
+/*
+ * Set the state portion of the pointed-to sequence number.
+ * The caller is responsible for preventing conflicting updates.
+ */
+static inline void rcu_seq_set_state(unsigned long *sp, int newstate)
+{
+	WARN_ON_ONCE(newstate & ~RCU_SEQ_STATE_MASK);
+	WRITE_ONCE(*sp, (*sp & ~RCU_SEQ_STATE_MASK) + newstate);
+}
+
 /* Adjust sequence number for start of update-side operation. */
 static inline void rcu_seq_start(unsigned long *sp)
 {

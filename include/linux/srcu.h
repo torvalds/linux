@@ -43,8 +43,7 @@ struct srcu_struct {
 	unsigned long completed;
 	unsigned long srcu_gp_seq;
 	struct srcu_array __percpu *per_cpu_ref;
-	spinlock_t queue_lock; /* protect ->srcu_cblist, ->srcu_state */
-	int srcu_state;
+	spinlock_t queue_lock; /* protect ->srcu_cblist */
 	struct rcu_segcblist srcu_cblist;
 	struct delayed_work work;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -56,7 +55,6 @@ struct srcu_struct {
 #define SRCU_STATE_IDLE		0
 #define SRCU_STATE_SCAN1	1
 #define SRCU_STATE_SCAN2	2
-#define SRCU_STATE_DONE		3
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
@@ -85,7 +83,6 @@ void process_srcu(struct work_struct *work);
 		.completed = -300,					\
 		.per_cpu_ref = &name##_srcu_array,			\
 		.queue_lock = __SPIN_LOCK_UNLOCKED(name.queue_lock),	\
-		.srcu_state = SRCU_STATE_IDLE,				\
 		.srcu_cblist = RCU_SEGCBLIST_INITIALIZER(name.srcu_cblist),\
 		.work = __DELAYED_WORK_INITIALIZER(name.work, process_srcu, 0),\
 		__SRCU_DEP_MAP_INIT(name)				\
