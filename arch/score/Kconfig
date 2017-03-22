@@ -15,6 +15,7 @@ config SCORE
 	select MODULES_USE_ELF_REL
 	select CLONE_BACKWARDS
 	select CPU_NO_EFFICIENT_FFS
+	select ARCH_HAS_RAW_COPY_USER
 
 choice
 	prompt "System type"
