@@ -1736,11 +1736,5 @@ int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex)
 		return 0;
 	}
 
-	/* Already locked by us? Success! */
-	if (tmp == value) {
-		mutex->depth = 1;
-		return 0;
-	}
-
 	return nfp_mutex_is_locked(tmp) ? -EBUSY : -EINVAL;
 }
