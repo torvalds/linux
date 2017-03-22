@@ -43,6 +43,7 @@ struct bpf_map_def {
 	unsigned int value_size;
 	unsigned int max_entries;
 	unsigned int map_flags;
+	unsigned int inner_map_idx;
 };
 
 static int populate_prog_array(const char *event, int prog_fd)
@@ -198,11 +199,22 @@ static int load_maps(struct bpf_map_def *maps, int len)
 
 	for (i = 0; i < len / sizeof(struct bpf_map_def); i++) {
 
-		map_fd[i] = bpf_create_map(maps[i].type,
-					   maps[i].key_size,
-					   maps[i].value_size,
-					   maps[i].max_entries,
-					   maps[i].map_flags);
+		if (maps[i].type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
+		    maps[i].type == BPF_MAP_TYPE_HASH_OF_MAPS) {
+			int inner_map_fd = map_fd[maps[i].inner_map_idx];
+
+			map_fd[i] = bpf_create_map_in_map(maps[i].type,
+							  maps[i].key_size,
+							  inner_map_fd,
+							  maps[i].max_entries,
+							  maps[i].map_flags);
+		} else {
+			map_fd[i] = bpf_create_map(maps[i].type,
+						   maps[i].key_size,
+						   maps[i].value_size,
+						   maps[i].max_entries,
+						   maps[i].map_flags);
+		}
 		if (map_fd[i] < 0) {
 			printf("failed to create a map: %d %s\n",
 			       errno, strerror(errno));
