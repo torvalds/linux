@@ -695,8 +695,8 @@ static int ks7010_sdio_data_compare(struct ks_wlan_private *priv, u32 address,
 	if (ret)
 		goto err_free_read_buf;
 
-	ret = memcmp(data, read_buf, size);
-	if (ret) {
+	if (memcmp(data, read_buf, size) != 0) {
+		ret = -EIO;
 		DPRINTK(0, "data compare error (%d)\n", ret);
 		goto err_free_read_buf;
 	}
