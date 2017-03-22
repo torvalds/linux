@@ -277,6 +277,12 @@ EXPORT_SYMBOL(drm_plane_from_index);
  *
  * Used when the plane's current framebuffer is destroyed,
  * and when restoring fbdev mode.
+ *
+ * Note that this function is not suitable for atomic drivers, since it doesn't
+ * wire through the lock acquisition context properly and hence can't handle
+ * retries or driver private locks. You probably want to use
+ * drm_atomic_helper_disable_plane() or
+ * drm_atomic_helper_disable_planes_on_crtc() instead.
  */
 void drm_plane_force_disable(struct drm_plane *plane)
 {
@@ -284,6 +290,8 @@ void drm_plane_force_disable(struct drm_plane *plane)
 
 	if (!plane->fb)
 		return;
+
+	WARN_ON(drm_drv_uses_atomic_modeset(plane->dev));
 
 	plane->old_fb = plane->fb;
 	ret = plane->funcs->disable_plane(plane);
