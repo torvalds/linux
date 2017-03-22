@@ -719,6 +719,9 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 	if (!tbl)
 		return;
 
+	if (tbl->it_ops->free)
+		tbl->it_ops->free(tbl);
+
 	if (!tbl->it_map) {
 		kfree(tbl);
 		return;
@@ -745,6 +748,7 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 	/* free table */
 	kfree(tbl);
 }
+EXPORT_SYMBOL_GPL(iommu_free_table);
 
 /* Creates TCEs for a user provided buffer.  The user buffer must be
  * contiguous real kernel storage (not vmalloc).  The address passed here
