@@ -182,13 +182,17 @@ char *build_id_cache__origname(const char *sbuild_id)
 	char buf[PATH_MAX];
 	char *ret = NULL, *p;
 	size_t offs = 5;	/* == strlen("../..") */
+	ssize_t len;
 
 	linkname = build_id_cache__linkname(sbuild_id, NULL, 0);
 	if (!linkname)
 		return NULL;
 
-	if (readlink(linkname, buf, PATH_MAX) < 0)
+	len = readlink(linkname, buf, sizeof(buf) - 1);
+	if (len <= 0)
 		goto out;
+	buf[len] = '\0';
+
 	/* The link should be "../..<origpath>/<sbuild_id>" */
 	p = strrchr(buf, '/');	/* Cut off the "/<sbuild_id>" */
 	if (p && (p > buf + offs)) {
