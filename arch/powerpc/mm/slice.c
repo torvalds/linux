@@ -52,29 +52,13 @@ int _slice_debug = 1;
 
 static void slice_print_mask(const char *label, struct slice_mask mask)
 {
-	char	*p, buf[SLICE_NUM_LOW + 3 + SLICE_NUM_HIGH + 1];
-	int	i;
-
 	if (!_slice_debug)
 		return;
-	p = buf;
-	for (i = 0; i < SLICE_NUM_LOW; i++)
-		*(p++) = (mask.low_slices & (1 << i)) ? '1' : '0';
-	*(p++) = ' ';
-	*(p++) = '-';
-	*(p++) = ' ';
-	for (i = 0; i < SLICE_NUM_HIGH; i++) {
-		if (test_bit(i, mask.high_slices))
-			*(p++) = '1';
-		else
-			*(p++) = '0';
-	}
-	*(p++) = 0;
-
-	printk(KERN_DEBUG "%s:%s\n", label, buf);
+	pr_devel("%s low_slice: %*pbl\n", label, (int)SLICE_NUM_LOW, &mask.low_slices);
+	pr_devel("%s high_slice: %*pbl\n", label, (int)SLICE_NUM_HIGH, mask.high_slices);
 }
 
-#define slice_dbg(fmt...) do { if (_slice_debug) pr_debug(fmt); } while(0)
+#define slice_dbg(fmt...) do { if (_slice_debug) pr_devel(fmt); } while (0)
 
 #else
 
@@ -243,8 +227,8 @@ static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psiz
 	}
 
 	slice_dbg(" lsps=%lx, hsps=%lx\n",
-		  mm->context.low_slices_psize,
-		  mm->context.high_slices_psize);
+		  (unsigned long)mm->context.low_slices_psize,
+		  (unsigned long)mm->context.high_slices_psize);
 
 	spin_unlock_irqrestore(&slice_convert_lock, flags);
 
@@ -686,8 +670,8 @@ void slice_set_user_psize(struct mm_struct *mm, unsigned int psize)
 
 
 	slice_dbg(" lsps=%lx, hsps=%lx\n",
-		  mm->context.low_slices_psize,
-		  mm->context.high_slices_psize);
+		  (unsigned long)mm->context.low_slices_psize,
+		  (unsigned long)mm->context.high_slices_psize);
 
  bail:
 	spin_unlock_irqrestore(&slice_convert_lock, flags);
