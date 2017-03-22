@@ -29,6 +29,10 @@
 #include <linux/nmi.h>
 #include <linux/ctype.h>
 
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+#endif
+
 #include <asm/ptrace.h>
 #include <asm/string.h>
 #include <asm/prom.h>
@@ -3315,6 +3319,33 @@ static int __init setup_xmon_sysrq(void)
 }
 device_initcall(setup_xmon_sysrq);
 #endif /* CONFIG_MAGIC_SYSRQ */
+
+#ifdef CONFIG_DEBUG_FS
+static int xmon_dbgfs_set(void *data, u64 val)
+{
+	xmon_on = !!val;
+	xmon_init(xmon_on);
+
+	return 0;
+}
+
+static int xmon_dbgfs_get(void *data, u64 *val)
+{
+	*val = xmon_on;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(xmon_dbgfs_ops, xmon_dbgfs_get,
+			xmon_dbgfs_set, "%llu\n");
+
+static int __init setup_xmon_dbgfs(void)
+{
+	debugfs_create_file("xmon", 0600, powerpc_debugfs_root, NULL,
+				&xmon_dbgfs_ops);
+	return 0;
+}
+device_initcall(setup_xmon_dbgfs);
+#endif /* CONFIG_DEBUG_FS */
 
 static int xmon_early __initdata;
 
