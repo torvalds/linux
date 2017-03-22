@@ -7846,6 +7846,8 @@ F:	drivers/net/ethernet/marvell/mvneta.*
 MARVELL MWIFIEX WIRELESS DRIVER
 M:	Amitkumar Karwar <akarwar@marvell.com>
 M:	Nishant Sarmukadam <nishants@marvell.com>
+M:	Ganapathi Bhat <gbhat@marvell.com>
+M:	Xinming Hu <huxm@marvell.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/marvell/mwifiex/
