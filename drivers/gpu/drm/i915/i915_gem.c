@@ -2321,7 +2321,7 @@ rebuild_st:
 	st->nents = 0;
 	for (i = 0; i < page_count; i++) {
 		page = shmem_read_mapping_page_gfp(mapping, i, gfp);
-		if (IS_ERR(page)) {
+		if (unlikely(IS_ERR(page))) {
 			i915_gem_shrink(dev_priv,
 					page_count,
 					I915_SHRINK_BOUND |
@@ -2329,12 +2329,21 @@ rebuild_st:
 					I915_SHRINK_PURGEABLE);
 			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
 		}
-		if (IS_ERR(page)) {
+		if (unlikely(IS_ERR(page))) {
+			gfp_t reclaim;
+
 			/* We've tried hard to allocate the memory by reaping
 			 * our own buffer, now let the real VM do its job and
 			 * go down in flames if truly OOM.
+			 *
+			 * However, since graphics tend to be disposable,
+			 * defer the oom here by reporting the ENOMEM back
+			 * to userspace.
 			 */
-			page = shmem_read_mapping_page(mapping, i);
+			reclaim = mapping_gfp_constraint(mapping, 0);
+			reclaim |= __GFP_NORETRY; /* reclaim, but no oom */
+
+			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
 			if (IS_ERR(page)) {
 				ret = PTR_ERR(page);
 				goto err_sg;
