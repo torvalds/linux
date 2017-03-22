@@ -37,6 +37,8 @@
 #define CIP_SID_MASK		0x3f000000
 #define CIP_DBS_MASK		0x00ff0000
 #define CIP_DBS_SHIFT		16
+#define CIP_SPH_MASK		0x00000400
+#define CIP_SPH_SHIFT		10
 #define CIP_DBC_MASK		0x000000ff
 #define CIP_FMT_SHIFT		24
 #define CIP_FMT_MASK		0x3f000000
@@ -426,6 +428,7 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
 
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
 				(s->data_block_quadlets << CIP_DBS_SHIFT) |
+				((s->sph << CIP_SPH_SHIFT) & CIP_SPH_MASK) |
 				s->data_block_counter);
 	buffer[1] = cpu_to_be32(CIP_EOH |
 				((s->fmt << CIP_FMT_SHIFT) & CIP_FMT_MASK) |
@@ -454,7 +457,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 {
 	__be32 *buffer;
 	u32 cip_header[2];
-	unsigned int fmt, fdf, syt;
+	unsigned int sph, fmt, fdf, syt;
 	unsigned int data_block_quadlets, data_block_counter, dbc_interval;
 	unsigned int data_blocks;
 	struct snd_pcm_substream *pcm;
@@ -482,8 +485,9 @@ static int handle_in_packet(struct amdtp_stream *s,
 	}
 
 	/* Check valid protocol or not. */
+	sph = (cip_header[0] & CIP_SPH_MASK) >> CIP_SPH_SHIFT;
 	fmt = (cip_header[1] & CIP_FMT_MASK) >> CIP_FMT_SHIFT;
-	if (fmt != s->fmt) {
+	if (sph != s->sph || fmt != s->fmt) {
 		dev_info_ratelimited(&s->unit->device,
 				     "Detect unexpected protocol: %08x %08x\n",
 				     cip_header[0], cip_header[1]);
