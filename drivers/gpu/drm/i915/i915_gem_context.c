@@ -576,25 +576,25 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 }
 
 static inline int
-mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
+mi_set_context(struct drm_i915_gem_request *req, u32 flags)
 {
 	struct drm_i915_private *dev_priv = req->i915;
 	struct intel_engine_cs *engine = req->engine;
 	enum intel_engine_id id;
-	u32 *cs, flags = hw_flags | MI_MM_SPACE_GTT;
 	const int num_rings =
 		/* Use an extended w/a on ivb+ if signalling from other rings */
 		i915.semaphores ?
 		INTEL_INFO(dev_priv)->num_rings - 1 :
 		0;
 	int len;
+	u32 *cs;
 
-	/* These flags are for resource streamer on HSW+ */
+	flags |= MI_MM_SPACE_GTT;
 	if (IS_HASWELL(dev_priv) || INTEL_GEN(dev_priv) >= 8)
-		flags |= (HSW_MI_RS_SAVE_STATE_EN | HSW_MI_RS_RESTORE_STATE_EN);
-	else if (INTEL_GEN(dev_priv) < 8)
-		flags |= (MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN);
-
+		/* These flags are for resource streamer on HSW+ */
+		flags |= HSW_MI_RS_SAVE_STATE_EN | HSW_MI_RS_RESTORE_STATE_EN;
+	else
+		flags |= MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN;
 
 	len = 4;
 	if (INTEL_GEN(dev_priv) >= 7)
