@@ -294,6 +294,7 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 	}
 
 	ww_acquire_fini(&submit->ticket);
+	dma_fence_put(submit->fence);
 	kfree(submit);
 }
 
@@ -435,7 +436,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret == 0)
 		cmdbuf = NULL;
 
-	args->fence = submit->fence;
+	args->fence = submit->fence->seqno;
 
 out:
 	submit_unpin_objects(submit);
