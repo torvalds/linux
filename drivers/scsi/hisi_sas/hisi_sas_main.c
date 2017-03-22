@@ -1070,8 +1070,9 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 		}
 	}
 out:
-	dev_err(dev, "lu_reset: for device[%llx]:rc= %d\n",
-		sas_dev->device_id, rc);
+	if (rc != TMF_RESP_FUNC_COMPLETE)
+		dev_err(dev, "lu_reset: for device[%llx]:rc= %d\n",
+			     sas_dev->device_id, rc);
 	return rc;
 }
 
