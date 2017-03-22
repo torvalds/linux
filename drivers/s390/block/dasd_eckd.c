@@ -5172,6 +5172,10 @@ static int dasd_eckd_query_host_access(struct dasd_device *device,
 	if (!device->block && private->lcu->pav == HYPER_PAV)
 		return -EOPNOTSUPP;
 
+	/* may not be supported by the storage server */
+	if (!(private->features.feature[14] & 0x80))
+		return -EOPNOTSUPP;
+
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1 /* PSF */	+ 1 /* RSSD */,
 				   sizeof(struct dasd_psf_prssd_data) + 1,
 				   device);
