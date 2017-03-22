@@ -173,7 +173,7 @@ DECLARE_EVENT_CLASS(dwc3_log_generic_cmd,
 		__entry->param = param;
 		__entry->status = status;
 	),
-	TP_printk("cmd '%s' [%d] param %08x --> status: %s",
+	TP_printk("cmd '%s' [%x] param %08x --> status: %s",
 		dwc3_gadget_generic_cmd_string(__entry->cmd),
 		__entry->cmd, __entry->param,
 		dwc3_gadget_generic_cmd_status_string(__entry->status)
