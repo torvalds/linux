@@ -139,7 +139,7 @@
 		};
 
 		/* Internal PCIe Controller */
-		pcie-internal@0xfbc00000 {
+		pcie@fbc00000 {
 			compatible = "pci-host-ecam-generic";
 			device_type = "pci";
 			#size-cells = <2>;
