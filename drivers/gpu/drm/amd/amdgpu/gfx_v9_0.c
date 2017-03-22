@@ -88,7 +88,6 @@ static const struct amdgpu_gds_reg_offset amdgpu_gds_reg_offset[] =
 static const u32 golden_settings_gc_9_0[] =
 {
 	SOC15_REG_OFFSET(GC, 0, mmDB_DEBUG2), 0xf00ffeff, 0x00000400,
-	SOC15_REG_OFFSET(GC, 0, mmGB_GPU_ID), 0x0000000f, 0x00000000,
 	SOC15_REG_OFFSET(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3), 0x00000003, 0x82400024,
 	SOC15_REG_OFFSET(GC, 0, mmPA_SC_ENHANCE), 0x3fffffff, 0x00000001,
 	SOC15_REG_OFFSET(GC, 0, mmPA_SC_LINE_STIPPLE_STATE), 0x0000ff0f, 0x00000000,
