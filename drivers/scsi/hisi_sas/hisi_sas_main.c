@@ -1070,6 +1070,13 @@ out:
 	return rc;
 }
 
+static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
+{
+	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
+
+	return hisi_sas_controller_reset(hisi_hba);
+}
+
 static int hisi_sas_query_task(struct sas_task *task)
 {
 	struct scsi_lun lun;
@@ -1368,6 +1375,7 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 	.lldd_I_T_nexus_reset	= hisi_sas_I_T_nexus_reset,
 	.lldd_lu_reset		= hisi_sas_lu_reset,
 	.lldd_query_task	= hisi_sas_query_task,
+	.lldd_clear_nexus_ha = hisi_sas_clear_nexus_ha,
 	.lldd_port_formed	= hisi_sas_port_formed,
 };
 
