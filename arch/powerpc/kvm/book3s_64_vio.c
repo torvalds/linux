@@ -214,12 +214,13 @@ fail:
 long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 		      unsigned long ioba, unsigned long tce)
 {
-	struct kvmppc_spapr_tce_table *stt = kvmppc_find_table(vcpu, liobn);
+	struct kvmppc_spapr_tce_table *stt;
 	long ret;
 
 	/* udbg_printf("H_PUT_TCE(): liobn=0x%lx ioba=0x%lx, tce=0x%lx\n", */
 	/* 	    liobn, ioba, tce); */
 
+	stt = kvmppc_find_table(vcpu->kvm, liobn);
 	if (!stt)
 		return H_TOO_HARD;
 
@@ -247,7 +248,7 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	u64 __user *tces;
 	u64 tce;
 
-	stt = kvmppc_find_table(vcpu, liobn);
+	stt = kvmppc_find_table(vcpu->kvm, liobn);
 	if (!stt)
 		return H_TOO_HARD;
 
@@ -301,7 +302,7 @@ long kvmppc_h_stuff_tce(struct kvm_vcpu *vcpu,
 	struct kvmppc_spapr_tce_table *stt;
 	long i, ret;
 
-	stt = kvmppc_find_table(vcpu, liobn);
+	stt = kvmppc_find_table(vcpu->kvm, liobn);
 	if (!stt)
 		return H_TOO_HARD;
 

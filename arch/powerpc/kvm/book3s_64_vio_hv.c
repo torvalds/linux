@@ -48,10 +48,9 @@
  * WARNING: This will be called in real or virtual mode on HV KVM and virtual
  *          mode on PR KVM
  */
-struct kvmppc_spapr_tce_table *kvmppc_find_table(struct kvm_vcpu *vcpu,
+struct kvmppc_spapr_tce_table *kvmppc_find_table(struct kvm *kvm,
 		unsigned long liobn)
 {
-	struct kvm *kvm = vcpu->kvm;
 	struct kvmppc_spapr_tce_table *stt;
 
 	list_for_each_entry_lockless(stt, &kvm->arch.spapr_tce_tables, list)
@@ -182,12 +181,13 @@ EXPORT_SYMBOL_GPL(kvmppc_gpa_to_ua);
 long kvmppc_rm_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 		unsigned long ioba, unsigned long tce)
 {
-	struct kvmppc_spapr_tce_table *stt = kvmppc_find_table(vcpu, liobn);
+	struct kvmppc_spapr_tce_table *stt;
 	long ret;
 
 	/* udbg_printf("H_PUT_TCE(): liobn=0x%lx ioba=0x%lx, tce=0x%lx\n", */
 	/* 	    liobn, ioba, tce); */
 
+	stt = kvmppc_find_table(vcpu->kvm, liobn);
 	if (!stt)
 		return H_TOO_HARD;
 
@@ -240,7 +240,7 @@ long kvmppc_rm_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	unsigned long tces, entry, ua = 0;
 	unsigned long *rmap = NULL;
 
-	stt = kvmppc_find_table(vcpu, liobn);
+	stt = kvmppc_find_table(vcpu->kvm, liobn);
 	if (!stt)
 		return H_TOO_HARD;
 
@@ -301,7 +301,7 @@ long kvmppc_rm_h_stuff_tce(struct kvm_vcpu *vcpu,
 	struct kvmppc_spapr_tce_table *stt;
 	long i, ret;
 
-	stt = kvmppc_find_table(vcpu, liobn);
+	stt = kvmppc_find_table(vcpu->kvm, liobn);
 	if (!stt)
 		return H_TOO_HARD;
 
@@ -322,12 +322,13 @@ long kvmppc_rm_h_stuff_tce(struct kvm_vcpu *vcpu,
 long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 		      unsigned long ioba)
 {
-	struct kvmppc_spapr_tce_table *stt = kvmppc_find_table(vcpu, liobn);
+	struct kvmppc_spapr_tce_table *stt;
 	long ret;
 	unsigned long idx;
 	struct page *page;
 	u64 *tbl;
 
+	stt = kvmppc_find_table(vcpu->kvm, liobn);
 	if (!stt)
 		return H_TOO_HARD;
 
