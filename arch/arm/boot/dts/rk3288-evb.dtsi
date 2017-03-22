@@ -43,6 +43,10 @@
 #include "rk3288.dtsi"
 
 / {
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1";
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x80000000>;
