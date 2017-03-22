@@ -936,20 +936,15 @@ static int samsung_gpiolib_register(struct platform_device *pdev,
 		gc->of_node = bank->of_node;
 		gc->label = bank->name;
 
-		ret = gpiochip_add_data(gc, bank);
+		ret = devm_gpiochip_add_data(&pdev->dev, gc, bank);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to register gpio_chip %s, error code: %d\n",
 							gc->label, ret);
-			goto fail;
+			return ret;
 		}
 	}
 
 	return 0;
-
-fail:
-	for (--i, --bank; i >= 0; --i, --bank)
-		gpiochip_remove(&bank->gpio_chip);
-	return ret;
 }
 
 /* retrieve the soc specific data */
