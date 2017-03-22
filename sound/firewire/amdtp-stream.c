@@ -426,6 +426,10 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
 	data_blocks = calculate_data_blocks(s, syt);
 	pcm_frames = s->process_data_blocks(s, buffer + 2, data_blocks, &syt);
 
+	if (s->flags & CIP_DBC_IS_END_EVENT)
+		s->data_block_counter =
+				(s->data_block_counter + data_blocks) & 0xff;
+
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
 				(s->data_block_quadlets << CIP_DBS_SHIFT) |
 				((s->sph << CIP_SPH_SHIFT) & CIP_SPH_MASK) |
@@ -435,7 +439,9 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
 				((s->fdf << CIP_FDF_SHIFT) & CIP_FDF_MASK) |
 				(syt & CIP_SYT_MASK));
 
-	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
+	if (!(s->flags & CIP_DBC_IS_END_EVENT))
+		s->data_block_counter =
+				(s->data_block_counter + data_blocks) & 0xff;
 	payload_length = 8 + data_blocks * 4 * s->data_block_quadlets;
 
 	trace_out_packet(s, cycle, buffer, payload_length, index);

@@ -18,8 +18,8 @@
  *	SYT_INTERVAL samples, with these two types alternating so that
  *	the overall sample rate comes out right.
  * @CIP_EMPTY_WITH_TAG0: Only for in-stream. Empty in-packets have TAG0.
- * @CIP_DBC_IS_END_EVENT: Only for in-stream. The value of dbc in an in-packet
- *	corresponds to the end of event in the packet. Out of IEC 61883.
+ * @CIP_DBC_IS_END_EVENT: The value of dbc in an packet corresponds to the end
+ * of event in the packet. Out of IEC 61883.
  * @CIP_WRONG_DBS: Only for in-stream. The value of dbs is wrong in in-packets.
  *	The value of data_block_quadlets is used instead of reported value.
  * @CIP_SKIP_DBC_ZERO_CHECK: Only for in-stream.  Packets with zero in dbc is
