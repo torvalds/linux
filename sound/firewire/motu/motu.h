@@ -23,6 +23,7 @@
 
 #include "../lib.h"
 #include "../amdtp-stream.h"
+#include "../iso-resources.h"
 
 struct snd_motu_packet_format {
 	unsigned char pcm_byte_offset;
@@ -48,6 +49,10 @@ struct snd_motu {
 	struct snd_motu_packet_format rx_packet_formats;
 	struct amdtp_stream tx_stream;
 	struct amdtp_stream rx_stream;
+	struct fw_iso_resources tx_resources;
+	struct fw_iso_resources rx_resources;
+	unsigned int capture_substreams;
+	unsigned int playback_substreams;
 
 	/* For notification. */
 	struct fw_address_handler async_handler;
@@ -118,4 +123,9 @@ int snd_motu_transaction_write(struct snd_motu *motu, u32 offset, __be32 *reg,
 int snd_motu_transaction_register(struct snd_motu *motu);
 int snd_motu_transaction_reregister(struct snd_motu *motu);
 void snd_motu_transaction_unregister(struct snd_motu *motu);
+
+int snd_motu_stream_init_duplex(struct snd_motu *motu);
+void snd_motu_stream_destroy_duplex(struct snd_motu *motu);
+int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate);
+void snd_motu_stream_stop_duplex(struct snd_motu *motu);
 #endif

@@ -56,6 +56,7 @@ static void motu_free(struct snd_motu *motu)
 {
 	snd_motu_transaction_unregister(motu);
 
+	snd_motu_stream_destroy_duplex(motu);
 	fw_unit_put(motu->unit);
 
 	mutex_destroy(&motu->mutex);
@@ -89,6 +90,10 @@ static void do_registration(struct work_struct *work)
 	name_card(motu);
 
 	err = snd_motu_transaction_register(motu);
+	if (err < 0)
+		goto error;
+
+	err = snd_motu_stream_init_duplex(motu);
 	if (err < 0)
 		goto error;
 
