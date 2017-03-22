@@ -28,6 +28,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <drm/drm_ioctl.h>
 #include <drm/drmP.h>
 #include <drm/drm_auth.h>
 #include "drm_legacy.h"
