@@ -126,13 +126,15 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	/* We need to notify the guc whenever we change the GGTT */
 	i915_ggtt_enable_guc(dev_priv);
 
-	/*
-	 * This is stuff we need to have available at fw load time
-	 * if we are planning to enable submission later
-	 */
-	ret = i915_guc_submission_init(dev_priv);
-	if (ret)
-		goto err_guc;
+	if (i915.enable_guc_submission) {
+		/*
+		 * This is stuff we need to have available at fw load time
+		 * if we are planning to enable submission later
+		 */
+		ret = i915_guc_submission_init(dev_priv);
+		if (ret)
+			goto err_guc;
+	}
 
 	/* WaEnableuKernelHeaderValidFix:skl */
 	/* WaEnableGuCBootHashCheckNotSet:skl,bxt,kbl */
@@ -187,7 +189,8 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 err_interrupts:
 	gen9_disable_guc_interrupts(dev_priv);
 err_submission:
-	i915_guc_submission_fini(dev_priv);
+	if (i915.enable_guc_submission)
+		i915_guc_submission_fini(dev_priv);
 err_guc:
 	i915_ggtt_disable_guc(dev_priv);
 
@@ -210,8 +213,8 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 	if (i915.enable_guc_submission) {
 		i915_guc_submission_disable(dev_priv);
 		gen9_disable_guc_interrupts(dev_priv);
+		i915_guc_submission_fini(dev_priv);
 	}
-	i915_guc_submission_fini(dev_priv);
 	i915_ggtt_disable_guc(dev_priv);
 }
 
