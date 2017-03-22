@@ -1417,6 +1417,15 @@ static int denali_multidev_fixup(struct denali_nand_info *denali)
 	 */
 	denali->devnum = ioread32(denali->flash_reg + DEVICES_CONNECTED);
 
+	/*
+	 * On some SoCs, DEVICES_CONNECTED is not auto-detected.
+	 * For those, DEVICES_CONNECTED is left to 0.  Set 1 if it is the case.
+	 */
+	if (denali->devnum == 0) {
+		denali->devnum = 1;
+		iowrite32(1, denali->flash_reg + DEVICES_CONNECTED);
+	}
+
 	if (denali->devnum == 1)
 		return 0;
 
