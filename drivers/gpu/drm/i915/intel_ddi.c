@@ -837,7 +837,8 @@ intel_ddi_get_crtc_encoder(struct intel_crtc *crtc)
 	return ret;
 }
 
-static struct intel_encoder *
+/* Finds the only possible encoder associated with the given CRTC. */
+struct intel_encoder *
 intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -1125,28 +1126,6 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 		skl_ddi_clock_get(encoder, pipe_config);
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_ddi_clock_get(encoder, pipe_config);
-}
-
-/*
- * Tries to find a *shared* PLL for the CRTC and store it in
- * intel_crtc->ddi_pll_sel.
- *
- * For private DPLLs, compute_config() should do the selection for us. This
- * function should be folded into compute_config() eventually.
- */
-bool intel_ddi_pll_select(struct intel_crtc *intel_crtc,
-			  struct intel_crtc_state *crtc_state)
-{
-	struct intel_encoder *encoder =
-		intel_ddi_get_crtc_new_encoder(crtc_state);
-	struct intel_shared_dpll *pll;
-
-	pll = intel_get_shared_dpll(intel_crtc, crtc_state, encoder);
-	if (!pll)
-		DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
-				 pipe_name(intel_crtc->pipe));
-
-	return pll != NULL;
 }
 
 void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)

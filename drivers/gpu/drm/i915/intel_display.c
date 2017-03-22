@@ -8835,8 +8835,14 @@ static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 				      struct intel_crtc_state *crtc_state)
 {
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI)) {
-		if (!intel_ddi_pll_select(crtc, crtc_state))
+		struct intel_encoder *encoder =
+			intel_ddi_get_crtc_new_encoder(crtc_state);
+
+		if (!intel_get_shared_dpll(crtc, crtc_state, encoder)) {
+			DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
+					 pipe_name(crtc->pipe));
 			return -EINVAL;
+		}
 	}
 
 	crtc->lowfreq_avail = false;
