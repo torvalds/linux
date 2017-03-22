@@ -262,7 +262,7 @@ static void rga_dump(void)
 
 static inline void rga_queue_power_off_work(void)
 {
-	queue_delayed_work(system_nrt_wq, &drvdata->power_off_work, RGA_POWER_OFF_DELAY);
+	queue_delayed_work(system_wq, &drvdata->power_off_work, RGA_POWER_OFF_DELAY);
 }
 
 /* Caller must hold rga_service.lock */
