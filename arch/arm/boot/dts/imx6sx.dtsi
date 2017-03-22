@@ -1287,7 +1287,7 @@
 			};
 		};
 
-		pcie: pcie@0x08000000 {
+		pcie: pcie@8ffc000 {
 			compatible = "fsl,imx6sx-pcie", "snps,dw-pcie";
 			reg = <0x08ffc000 0x4000>; /* DBI */
 			#address-cells = <3>;
@@ -1299,6 +1299,7 @@
 				  0x81000000 0 0          0x08f80000 0 0x00010000
 				  /* non-prefetchable memory */
 				  0x82000000 0 0x08000000 0x08000000 0 0x00f00000>;
+			bus-range = <0x00 0xff>;
 			num-lanes = <1>;
 			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clks IMX6SX_CLK_PCIE_REF_125M>,
