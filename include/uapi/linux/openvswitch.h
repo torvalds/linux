@@ -578,9 +578,24 @@ enum ovs_sample_attr {
 	OVS_SAMPLE_ATTR_PROBABILITY, /* u32 number */
 	OVS_SAMPLE_ATTR_ACTIONS,     /* Nested OVS_ACTION_ATTR_* attributes. */
 	__OVS_SAMPLE_ATTR_MAX,
+
+#ifdef __KERNEL__
+	OVS_SAMPLE_ATTR_ARG          /* struct sample_arg  */
+#endif
 };
 
 #define OVS_SAMPLE_ATTR_MAX (__OVS_SAMPLE_ATTR_MAX - 1)
+
+#ifdef __KERNEL__
+struct sample_arg {
+	bool exec;                   /* When true, actions in sample will not
+				      * change flow keys. False otherwise.
+				      */
+	u32  probability;            /* Same value as
+				      * 'OVS_SAMPLE_ATTR_PROBABILITY'.
+				      */
+};
+#endif
 
 /**
  * enum ovs_userspace_attr - Attributes for %OVS_ACTION_ATTR_USERSPACE action.
