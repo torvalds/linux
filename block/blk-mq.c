@@ -1531,16 +1531,17 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 	cookie = request_to_qc_t(data.hctx, rq);
 
-	if (unlikely(is_flush_fua)) {
-		if (q->elevator)
-			goto elv_insert;
-		blk_mq_bio_to_request(rq, bio);
-		blk_insert_flush(rq);
-		goto run_queue;
-	}
-
 	plug = current->plug;
-	if (plug && q->nr_hw_queues == 1) {
+	if (unlikely(is_flush_fua)) {
+		blk_mq_bio_to_request(rq, bio);
+		if (q->elevator) {
+			blk_mq_sched_insert_request(rq, false, true, true,
+					true);
+		} else {
+			blk_insert_flush(rq);
+			blk_mq_run_hw_queue(data.hctx, true);
+		}
+	} else if (plug && q->nr_hw_queues == 1) {
 		struct request *last = NULL;
 
 		blk_mq_bio_to_request(rq, bio);
@@ -1559,8 +1560,6 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		else
 			last = list_entry_rq(plug->mq_list.prev);
 
-		blk_mq_put_ctx(data.ctx);
-
 		if (request_count >= BLK_MAX_REQUEST_COUNT || (last &&
 		    blk_rq_bytes(last) >= BLK_PLUG_FLUSH_SIZE)) {
 			blk_flush_plug_list(plug, false);
@@ -1568,7 +1567,6 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		}
 
 		list_add_tail(&rq->queuelist, &plug->mq_list);
-		goto done;
 	} else if (plug && !blk_queue_nomerges(q)) {
 		blk_mq_bio_to_request(rq, bio);
 
@@ -1585,39 +1583,20 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 			list_del_init(&same_queue_rq->queuelist);
 		list_add_tail(&rq->queuelist, &plug->mq_list);
 
-		blk_mq_put_ctx(data.ctx);
 		if (same_queue_rq)
 			blk_mq_try_issue_directly(data.hctx, same_queue_rq,
 					&cookie);
-		goto done;
-	} else if (is_sync) {
+	} else if (q->nr_hw_queues > 1 && is_sync) {
 		blk_mq_bio_to_request(rq, bio);
-
-		blk_mq_put_ctx(data.ctx);
 		blk_mq_try_issue_directly(data.hctx, rq, &cookie);
-		goto done;
+	} else if (q->elevator) {
+		blk_mq_bio_to_request(rq, bio);
+		blk_mq_sched_insert_request(rq, false, true, true, true);
+	} else if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
+		blk_mq_run_hw_queue(data.hctx, true);
 	}
 
-	if (q->elevator) {
-elv_insert:
-		blk_mq_put_ctx(data.ctx);
-		blk_mq_bio_to_request(rq, bio);
-		blk_mq_sched_insert_request(rq, false, true,
-						!is_sync || is_flush_fua, true);
-		goto done;
-	}
-	if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
-		/*
-		 * For a SYNC request, send it to the hardware immediately. For
-		 * an ASYNC request, just ensure that we run it later on. The
-		 * latter allows for merging opportunities and more efficient
-		 * dispatching.
-		 */
-run_queue:
-		blk_mq_run_hw_queue(data.hctx, !is_sync || is_flush_fua);
-	}
 	blk_mq_put_ctx(data.ctx);
-done:
 	return cookie;
 }
 
