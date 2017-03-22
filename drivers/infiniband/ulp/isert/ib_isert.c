@@ -817,6 +817,7 @@ isert_post_recvm(struct isert_conn *isert_conn, u32 count)
 		rx_wr->sg_list = &rx_desc->rx_sg;
 		rx_wr->num_sge = 1;
 		rx_wr->next = rx_wr + 1;
+		rx_desc->in_use = false;
 	}
 	rx_wr--;
 	rx_wr->next = NULL; /* mark end of work requests list */
@@ -835,6 +836,15 @@ isert_post_recv(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc)
 	struct ib_recv_wr *rx_wr_failed, rx_wr;
 	int ret;
 
+	if (!rx_desc->in_use) {
+		/*
+		 * if the descriptor is not in-use we already reposted it
+		 * for recv, so just silently return
+		 */
+		return 0;
+	}
+
+	rx_desc->in_use = false;
 	rx_wr.wr_cqe = &rx_desc->rx_cqe;
 	rx_wr.sg_list = &rx_desc->rx_sg;
 	rx_wr.num_sge = 1;
@@ -1396,6 +1406,8 @@ isert_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			iscsit_cause_connection_reinstatement(isert_conn->conn, 0);
 		return;
 	}
+
+	rx_desc->in_use = true;
 
 	ib_dma_sync_single_for_cpu(ib_dev, rx_desc->dma_addr,
 			ISER_RX_PAYLOAD_SIZE, DMA_FROM_DEVICE);
