@@ -96,7 +96,7 @@
 #include <linux/pm_runtime.h>
 #include "rsnd.h"
 
-#define RSND_RATES SNDRV_PCM_RATE_8000_96000
+#define RSND_RATES SNDRV_PCM_RATE_8000_192000
 #define RSND_FMTS (SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE)
 
 static const struct of_device_id rsnd_of_match[] = {
