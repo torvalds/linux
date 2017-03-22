@@ -26,6 +26,8 @@
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
 		   int max_entries, __u32 map_flags);
+int bpf_create_map_in_map(enum bpf_map_type map_type, int key_size,
+			  int inner_map_fd, int max_entries, __u32 map_flags);
 
 /* Recommend log buffer size */
 #define BPF_LOG_BUF_SIZE 65536
