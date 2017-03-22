@@ -4028,7 +4028,7 @@ static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 
 	mutex_lock(&mvm->mutex);
 
-	if (mvm->ucode_loaded) {
+	if (iwl_mvm_firmware_running(mvm)) {
 		ret = iwl_mvm_request_statistics(mvm, false);
 		if (ret)
 			goto out;

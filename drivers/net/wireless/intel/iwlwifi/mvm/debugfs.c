@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,7 +83,8 @@ static ssize_t iwl_dbgfs_ctdp_budget_read(struct file *file,
 	char buf[16];
 	int pos, budget;
 
-	if (!mvm->ucode_loaded || mvm->cur_ucode != IWL_UCODE_REGULAR)
+	if (!iwl_mvm_firmware_running(mvm) ||
+	    mvm->cur_ucode != IWL_UCODE_REGULAR)
 		return -EIO;
 
 	mutex_lock(&mvm->mutex);
@@ -102,7 +104,8 @@ static ssize_t iwl_dbgfs_stop_ctdp_write(struct iwl_mvm *mvm, char *buf,
 {
 	int ret;
 
-	if (!mvm->ucode_loaded || mvm->cur_ucode != IWL_UCODE_REGULAR)
+	if (!iwl_mvm_firmware_running(mvm) ||
+	    mvm->cur_ucode != IWL_UCODE_REGULAR)
 		return -EIO;
 
 	mutex_lock(&mvm->mutex);
@@ -118,7 +121,8 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 	int ret;
 	u32 scd_q_msk;
 
-	if (!mvm->ucode_loaded || mvm->cur_ucode != IWL_UCODE_REGULAR)
+	if (!iwl_mvm_firmware_running(mvm) ||
+	    mvm->cur_ucode != IWL_UCODE_REGULAR)
 		return -EIO;
 
 	if (sscanf(buf, "%x", &scd_q_msk) != 1)
@@ -139,7 +143,8 @@ static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 	struct iwl_mvm_sta *mvmsta;
 	int sta_id, drain, ret;
 
-	if (!mvm->ucode_loaded || mvm->cur_ucode != IWL_UCODE_REGULAR)
+	if (!iwl_mvm_firmware_running(mvm) ||
+	    mvm->cur_ucode != IWL_UCODE_REGULAR)
 		return -EIO;
 
 	if (sscanf(buf, "%d %d", &sta_id, &drain) != 2)
@@ -172,7 +177,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
 	size_t ret;
 	u8 *ptr;
 
-	if (!mvm->ucode_loaded)
+	if (!iwl_mvm_firmware_running(mvm))
 		return -EINVAL;
 
 	/* default is to dump the entire data segment */
@@ -205,7 +210,7 @@ static ssize_t iwl_dbgfs_sram_write(struct iwl_mvm *mvm, char *buf,
 	u32 offset, len;
 	u32 img_offset, img_len;
 
-	if (!mvm->ucode_loaded)
+	if (!iwl_mvm_firmware_running(mvm))
 		return -EINVAL;
 
 	img = &mvm->fw->img[mvm->cur_ucode];
@@ -258,7 +263,7 @@ static ssize_t iwl_dbgfs_set_nic_temperature_write(struct iwl_mvm *mvm,
 {
 	int temperature;
 
-	if (!mvm->ucode_loaded && !mvm->temperature_test)
+	if (!iwl_mvm_firmware_running(mvm) && !mvm->temperature_test)
 		return -EIO;
 
 	if (kstrtoint(buf, 10, &temperature))
@@ -305,7 +310,7 @@ static ssize_t iwl_dbgfs_nic_temp_read(struct file *file,
 	int pos, ret;
 	s32 temp;
 
-	if (!mvm->ucode_loaded)
+	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
 
 	mutex_lock(&mvm->mutex);
@@ -371,7 +376,7 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 {
 	int ret, val;
 
-	if (!mvm->ucode_loaded)
+	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
 
 	if (!strncmp("disable_power_off_d0=", buf, 21)) {
