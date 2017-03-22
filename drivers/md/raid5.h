@@ -547,6 +547,16 @@ struct r5worker_group {
 	int stripes_cnt;
 };
 
+/*
+ * r5c journal modes of the array: write-back or write-through.
+ * write-through mode has identical behavior as existing log only
+ * implementation.
+ */
+enum r5c_journal_mode {
+	R5C_JOURNAL_MODE_WRITE_THROUGH = 0,
+	R5C_JOURNAL_MODE_WRITE_BACK = 1,
+};
+
 enum r5_cache_state {
 	R5_INACTIVE_BLOCKED,	/* release of inactive stripes blocked,
 				 * waiting for 25% to be free
@@ -795,4 +805,5 @@ extern void r5c_check_cached_full_stripe(struct r5conf *conf);
 extern struct md_sysfs_entry r5c_journal_mode;
 extern void r5c_update_on_rdev_error(struct mddev *mddev);
 extern bool r5c_big_stripe_cached(struct r5conf *conf, sector_t sect);
+extern int r5c_journal_mode_set(struct mddev *mddev, int journal_mode);
 #endif

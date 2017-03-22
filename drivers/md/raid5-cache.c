@@ -53,16 +53,6 @@
  */
 #define R5L_POOL_SIZE	4
 
-/*
- * r5c journal modes of the array: write-back or write-through.
- * write-through mode has identical behavior as existing log only
- * implementation.
- */
-enum r5c_journal_mode {
-	R5C_JOURNAL_MODE_WRITE_THROUGH = 0,
-	R5C_JOURNAL_MODE_WRITE_BACK = 1,
-};
-
 static char *r5c_journal_mode_str[] = {"write-through",
 				       "write-back"};
 /*
@@ -2327,40 +2317,56 @@ static ssize_t r5c_journal_mode_show(struct mddev *mddev, char *page)
 	return ret;
 }
 
-static ssize_t r5c_journal_mode_store(struct mddev *mddev,
-				      const char *page, size_t length)
+/*
+ * Set journal cache mode on @mddev (external API initially needed by dm-raid).
+ *
+ * @mode as defined in 'enum r5c_journal_mode'.
+ *
+ */
+int r5c_journal_mode_set(struct mddev *mddev, int mode)
 {
 	struct r5conf *conf = mddev->private;
 	struct r5l_log *log = conf->log;
-	int val = -1, i;
-	int len = length;
 
 	if (!log)
 		return -ENODEV;
 
-	if (len && page[len - 1] == '\n')
-		len -= 1;
-	for (i = 0; i < ARRAY_SIZE(r5c_journal_mode_str); i++)
-		if (strlen(r5c_journal_mode_str[i]) == len &&
-		    strncmp(page, r5c_journal_mode_str[i], len) == 0) {
-			val = i;
-			break;
-		}
-	if (val < R5C_JOURNAL_MODE_WRITE_THROUGH ||
-	    val > R5C_JOURNAL_MODE_WRITE_BACK)
+	if (mode < R5C_JOURNAL_MODE_WRITE_THROUGH ||
+	    mode > R5C_JOURNAL_MODE_WRITE_BACK)
 		return -EINVAL;
 
 	if (raid5_calc_degraded(conf) > 0 &&
-	    val == R5C_JOURNAL_MODE_WRITE_BACK)
+	    mode == R5C_JOURNAL_MODE_WRITE_BACK)
 		return -EINVAL;
 
 	mddev_suspend(mddev);
-	conf->log->r5c_journal_mode = val;
+	conf->log->r5c_journal_mode = mode;
 	mddev_resume(mddev);
 
 	pr_debug("md/raid:%s: setting r5c cache mode to %d: %s\n",
-		 mdname(mddev), val, r5c_journal_mode_str[val]);
-	return length;
+		 mdname(mddev), mode, r5c_journal_mode_str[mode]);
+	return 0;
+}
+EXPORT_SYMBOL(r5c_journal_mode_set);
+
+static ssize_t r5c_journal_mode_store(struct mddev *mddev,
+				      const char *page, size_t length)
+{
+	int mode = ARRAY_SIZE(r5c_journal_mode_str);
+	size_t len = length;
+
+	if (len < 2)
+		return -EINVAL;
+
+	if (page[len - 1] == '\n')
+		len--;
+
+	while (mode--)
+		if (strlen(r5c_journal_mode_str[mode]) == len &&
+		    !strncmp(page, r5c_journal_mode_str[mode], len))
+			break;
+
+	return r5c_journal_mode_set(mddev, mode) ?: length;
 }
 
 struct md_sysfs_entry
