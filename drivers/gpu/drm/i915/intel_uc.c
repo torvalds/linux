@@ -95,24 +95,41 @@ void intel_uc_init_fw(struct drm_i915_private *dev_priv)
 		intel_uc_prepare_fw(dev_priv, &dev_priv->guc.fw);
 }
 
+void intel_uc_fini_fw(struct drm_i915_private *dev_priv)
+{
+	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
+	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
+	struct drm_i915_gem_object *obj;
+
+	obj = fetch_and_zero(&guc_fw->obj);
+	if (obj)
+		i915_gem_object_put(obj);
+
+	guc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
+
+	obj = fetch_and_zero(&huc_fw->obj);
+	if (obj)
+		i915_gem_object_put(obj);
+
+	huc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
+}
+
 int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 {
 	int ret, attempts;
-
-	/* GuC not enabled, nothing to do */
-	if (!i915.enable_guc_loading)
-		return 0;
 
 	gen9_reset_guc_interrupts(dev_priv);
 
 	/* We need to notify the guc whenever we change the GGTT */
 	i915_ggtt_enable_guc(dev_priv);
 
-	if (i915.enable_guc_submission) {
-		ret = i915_guc_submission_init(dev_priv);
-		if (ret)
-			goto err;
-	}
+	/*
+	 * This is stuff we need to have available at fw load time
+	 * if we are planning to enable submission later
+	 */
+	ret = i915_guc_submission_init(dev_priv);
+	if (ret)
+		goto err_guc;
 
 	/* WaEnableuKernelHeaderValidFix:skl */
 	/* WaEnableGuCBootHashCheckNotSet:skl,bxt,kbl */
@@ -150,7 +167,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 
 		ret = i915_guc_submission_enable(dev_priv);
 		if (ret)
-			goto err_submission;
+			goto err_interrupts;
 	}
 
 	return 0;
@@ -164,11 +181,11 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	 * nonfatal error (i.e. it doesn't prevent driver load, but
 	 * marks the GPU as wedged until reset).
 	 */
+err_interrupts:
+	gen9_disable_guc_interrupts(dev_priv);
 err_submission:
-	if (i915.enable_guc_submission)
-		i915_guc_submission_fini(dev_priv);
-
-err:
+	i915_guc_submission_fini(dev_priv);
+err_guc:
 	i915_ggtt_disable_guc(dev_priv);
 
 	DRM_ERROR("GuC init failed\n");
@@ -183,6 +200,16 @@ err:
 	}
 
 	return ret;
+}
+
+void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
+{
+	if (i915.enable_guc_submission) {
+		i915_guc_submission_disable(dev_priv);
+		gen9_disable_guc_interrupts(dev_priv);
+	}
+	i915_guc_submission_fini(dev_priv);
+	i915_ggtt_disable_guc(dev_priv);
 }
 
 /*

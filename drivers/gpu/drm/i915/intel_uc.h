@@ -187,7 +187,9 @@ struct intel_huc {
 void intel_uc_sanitize_options(struct drm_i915_private *dev_priv);
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
 void intel_uc_init_fw(struct drm_i915_private *dev_priv);
+void intel_uc_fini_fw(struct drm_i915_private *dev_priv);
 int intel_uc_init_hw(struct drm_i915_private *dev_priv);
+void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
 void intel_uc_prepare_fw(struct drm_i915_private *dev_priv,
 			 struct intel_uc_fw *uc_fw);
 int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len);
@@ -196,7 +198,6 @@ int intel_guc_sample_forcewake(struct intel_guc *guc);
 /* intel_guc_loader.c */
 int intel_guc_select_fw(struct intel_guc *guc);
 int intel_guc_init_hw(struct intel_guc *guc);
-void intel_guc_fini(struct drm_i915_private *dev_priv);
 const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status);
 int intel_guc_suspend(struct drm_i915_private *dev_priv);
 int intel_guc_resume(struct drm_i915_private *dev_priv);
@@ -212,10 +213,11 @@ void i915_guc_submission_fini(struct drm_i915_private *dev_priv);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
 
 /* intel_guc_log.c */
-void intel_guc_log_create(struct intel_guc *guc);
+int intel_guc_log_create(struct intel_guc *guc);
+void intel_guc_log_destroy(struct intel_guc *guc);
+int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val);
 void i915_guc_log_register(struct drm_i915_private *dev_priv);
 void i915_guc_log_unregister(struct drm_i915_private *dev_priv);
-int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val);
 
 static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 {

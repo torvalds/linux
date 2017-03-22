@@ -911,7 +911,6 @@ err_id:
 	ida_simple_remove(&guc->ctx_ids, client->ctx_index);
 err_client:
 	kfree(client);
-
 	return ERR_PTR(ret);
 }
 
@@ -937,7 +936,7 @@ static void guc_policies_init(struct guc_policies *policies)
 	policies->is_valid = 1;
 }
 
-static void guc_addon_create(struct intel_guc *guc)
+static int guc_addon_create(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct i915_vma *vma;
@@ -953,14 +952,13 @@ static void guc_addon_create(struct intel_guc *guc)
 	enum intel_engine_id id;
 	u32 base;
 
-	vma = guc->ads_vma;
-	if (!vma) {
-		vma = intel_guc_allocate_vma(guc, PAGE_ALIGN(sizeof(*blob)));
-		if (IS_ERR(vma))
-			return;
+	GEM_BUG_ON(guc->ads_vma);
 
-		guc->ads_vma = vma;
-	}
+	vma = intel_guc_allocate_vma(guc, PAGE_ALIGN(sizeof(*blob)));
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	guc->ads_vma = vma;
 
 	page = i915_vma_first_page(vma);
 	blob = kmap(page);
@@ -997,6 +995,13 @@ static void guc_addon_create(struct intel_guc *guc)
 	blob->ads.reg_state_addr = base + ptr_offset(blob, reg_state);
 
 	kunmap(page);
+
+	return 0;
+}
+
+static void guc_addon_destroy(struct intel_guc *guc)
+{
+	i915_vma_unpin_and_release(&guc->ads_vma);
 }
 
 /*
@@ -1011,6 +1016,7 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_vma *vma;
 	void *vaddr;
+	int ret;
 
 	if (!HAS_GUC_SCHED(dev_priv))
 		return 0;
@@ -1020,10 +1026,10 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 	i915_guc_submission_disable(dev_priv);
 
 	if (!i915.enable_guc_submission)
-		return 0; /* not enabled  */
+		return 0;
 
 	if (guc->ctx_pool)
-		return 0; /* already allocated */
+		return 0;
 
 	vma = intel_guc_allocate_vma(guc, gemsize);
 	if (IS_ERR(vma))
@@ -1031,15 +1037,23 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 
 	guc->ctx_pool = vma;
 
-	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
-	if (IS_ERR(vaddr))
-		goto err;
+	vaddr = i915_gem_object_pin_map(guc->ctx_pool->obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
+		goto err_vma;
+	}
 
 	guc->ctx_pool_vaddr = vaddr;
 
+	ret = intel_guc_log_create(guc);
+	if (ret < 0)
+		goto err_vaddr;
+
+	ret = guc_addon_create(guc);
+	if (ret < 0)
+		goto err_log;
+
 	ida_init(&guc->ctx_ids);
-	intel_guc_log_create(guc);
-	guc_addon_create(guc);
 
 	guc->execbuf_client = guc_client_alloc(dev_priv,
 					       INTEL_INFO(dev_priv)->ring_mask,
@@ -1047,14 +1061,37 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 					       dev_priv->kernel_context);
 	if (IS_ERR(guc->execbuf_client)) {
 		DRM_ERROR("Failed to create GuC client for execbuf!\n");
-		goto err;
+		ret = PTR_ERR(guc->execbuf_client);
+		goto err_ads;
 	}
 
 	return 0;
 
-err:
-	i915_guc_submission_fini(dev_priv);
-	return -ENOMEM;
+err_ads:
+	guc_addon_destroy(guc);
+err_log:
+	intel_guc_log_destroy(guc);
+err_vaddr:
+	i915_gem_object_unpin_map(guc->ctx_pool->obj);
+err_vma:
+	i915_vma_unpin_and_release(&guc->ctx_pool);
+	return ret;
+}
+
+void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
+{
+	struct intel_guc *guc = &dev_priv->guc;
+
+	if (!i915.enable_guc_submission)
+		return 0;
+
+	guc_client_free(guc->execbuf_client);
+	guc->execbuf_client = NULL;
+	ida_destroy(&guc->ctx_ids);
+	guc_addon_destroy(guc);
+	intel_guc_log_destroy(guc);
+	i915_gem_object_unpin_map(guc->ctx_pool->obj);
+	i915_vma_unpin_and_release(&guc->ctx_pool);
 }
 
 static void guc_reset_wq(struct i915_guc_client *client)
@@ -1197,26 +1234,6 @@ void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 
 	/* Revert back to manual ELSP submission */
 	intel_engines_reset_default_submission(dev_priv);
-}
-
-void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
-{
-	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_guc_client *client;
-
-	client = fetch_and_zero(&guc->execbuf_client);
-	if (client && !IS_ERR(client))
-		guc_client_free(client);
-
-	i915_vma_unpin_and_release(&guc->ads_vma);
-	i915_vma_unpin_and_release(&guc->log.vma);
-
-	if (guc->ctx_pool_vaddr) {
-		ida_destroy(&guc->ctx_ids);
-		i915_gem_object_unpin_map(guc->ctx_pool->obj);
-	}
-
-	i915_vma_unpin_and_release(&guc->ctx_pool);
 }
 
 /**
