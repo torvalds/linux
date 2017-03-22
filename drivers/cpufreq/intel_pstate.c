@@ -2627,28 +2627,33 @@ static const struct x86_cpu_id hwp_support_ids[] __initconst = {
 
 static int __init intel_pstate_init(void)
 {
-	const struct x86_cpu_id *id;
-	struct cpu_defaults *cpu_def;
-	int rc = 0;
+	int rc;
 
 	if (no_load)
 		return -ENODEV;
 
-	if (x86_match_cpu(hwp_support_ids) && !no_hwp) {
+	if (x86_match_cpu(hwp_support_ids)) {
 		copy_cpu_funcs(&core_params.funcs);
-		hwp_active++;
-		intel_pstate.attr = hwp_cpufreq_attrs;
-		goto hwp_cpu_matched;
+		if (no_hwp) {
+			pstate_funcs.get_target_pstate = get_target_pstate_use_cpu_load;
+		} else {
+			hwp_active++;
+			intel_pstate.attr = hwp_cpufreq_attrs;
+			goto hwp_cpu_matched;
+		}
+	} else {
+		const struct x86_cpu_id *id;
+		struct cpu_defaults *cpu_def;
+
+		id = x86_match_cpu(intel_pstate_cpu_ids);
+		if (!id)
+			return -ENODEV;
+
+		cpu_def = (struct cpu_defaults *)id->driver_data;
+
+		copy_pid_params(&cpu_def->pid_policy);
+		copy_cpu_funcs(&cpu_def->funcs);
 	}
-
-	id = x86_match_cpu(intel_pstate_cpu_ids);
-	if (!id)
-		return -ENODEV;
-
-	cpu_def = (struct cpu_defaults *)id->driver_data;
-
-	copy_pid_params(&cpu_def->pid_policy);
-	copy_cpu_funcs(&cpu_def->funcs);
 
 	if (intel_pstate_msrs_not_valid())
 		return -ENODEV;
