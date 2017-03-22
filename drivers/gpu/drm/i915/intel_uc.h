@@ -153,7 +153,8 @@ struct intel_guc {
 	bool interrupts_enabled;
 
 	struct i915_vma *ads_vma;
-	struct i915_vma *ctx_pool_vma;
+	struct i915_vma *ctx_pool;
+	void *ctx_pool_vaddr;
 	struct ida ctx_ids;
 
 	struct i915_guc_client *execbuf_client;
