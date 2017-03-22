@@ -96,7 +96,8 @@ int drm_atomic_helper_update_plane(struct drm_plane *plane,
 				   uint32_t src_x, uint32_t src_y,
 				   uint32_t src_w, uint32_t src_h,
 				   struct drm_modeset_acquire_ctx *ctx);
-int drm_atomic_helper_disable_plane(struct drm_plane *plane);
+int drm_atomic_helper_disable_plane(struct drm_plane *plane,
+				    struct drm_modeset_acquire_ctx *ctx);
 int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
 		struct drm_plane_state *plane_state);
 int drm_atomic_helper_set_config(struct drm_mode_set *set);

@@ -349,7 +349,7 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		 * provides their own disable function, this will just
 		 * wind up returning -EINVAL to userspace.
 		 */
-		return plane->funcs->disable_plane(plane);
+		return plane->funcs->disable_plane(plane, ctx);
 
 	/* Find current connectors for CRTC */
 	num_connectors = get_connectors_for_crtc(crtc, NULL, 0);
@@ -398,7 +398,8 @@ EXPORT_SYMBOL(drm_primary_helper_update);
  * RETURNS:
  * Unconditionally returns -EINVAL.
  */
-int drm_primary_helper_disable(struct drm_plane *plane)
+int drm_primary_helper_disable(struct drm_plane *plane,
+			       struct drm_modeset_acquire_ctx *ctx)
 {
 	return -EINVAL;
 }

@@ -2151,13 +2151,15 @@ EXPORT_SYMBOL(drm_atomic_helper_update_plane);
 /**
  * drm_atomic_helper_disable_plane - Helper for primary plane disable using * atomic
  * @plane: plane to disable
+ * @ctx: lock acquire context
  *
  * Provides a default plane disable handler using the atomic driver interface.
  *
  * RETURNS:
  * Zero on success, error code on failure
  */
-int drm_atomic_helper_disable_plane(struct drm_plane *plane)
+int drm_atomic_helper_disable_plane(struct drm_plane *plane,
+				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_atomic_state *state;
 	struct drm_plane_state *plane_state;

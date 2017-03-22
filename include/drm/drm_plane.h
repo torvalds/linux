@@ -203,7 +203,8 @@ struct drm_plane_funcs {
 	 *
 	 * 0 on success or a negative error code on failure.
 	 */
-	int (*disable_plane)(struct drm_plane *plane);
+	int (*disable_plane)(struct drm_plane *plane,
+			     struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @destroy:

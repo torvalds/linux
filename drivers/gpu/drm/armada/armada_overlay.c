@@ -258,7 +258,8 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	return 0;
 }
 
-static int armada_ovl_plane_disable(struct drm_plane *plane)
+static int armada_ovl_plane_disable(struct drm_plane *plane,
+				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
 	struct drm_framebuffer *fb;
