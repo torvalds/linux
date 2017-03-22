@@ -1244,6 +1244,17 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	flush_work(&mvm->d0i3_exit_work);
 	flush_work(&mvm->async_handlers_wk);
 	flush_work(&mvm->add_stream_wk);
+
+	/*
+	 * Lock and clear the firmware running bit here already, so that
+	 * new commands coming in elsewhere, e.g. from debugfs, will not
+	 * be able to proceed. This is important here because one of those
+	 * debugfs files causes the fw_dump_wk to be triggered, and if we
+	 * don't stop debugfs accesses before canceling that it could be
+	 * retriggered after we flush it but before we've cleared the bit.
+	 */
+	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
+
 	cancel_delayed_work_sync(&mvm->fw_dump_wk);
 	cancel_delayed_work_sync(&mvm->cs_tx_unblock_dwork);
 	cancel_delayed_work_sync(&mvm->scan_timeout_dwork);
