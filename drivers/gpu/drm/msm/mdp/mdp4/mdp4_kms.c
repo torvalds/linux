@@ -225,32 +225,6 @@ int mdp4_enable(struct mdp4_kms *mdp4_kms)
 	return 0;
 }
 
-static struct device_node *mdp4_detect_lcdc_panel(struct drm_device *dev)
-{
-	struct device_node *endpoint, *panel_node;
-	struct device_node *np = dev->dev->of_node;
-
-	/*
-	 * LVDS/LCDC is the first port described in the list of ports in the
-	 * MDP4 DT node.
-	 */
-	endpoint = of_graph_get_endpoint_by_regs(np, 0, -1);
-	if (!endpoint) {
-		DBG("no LVDS remote endpoint\n");
-		return NULL;
-	}
-
-	panel_node = of_graph_get_remote_port_parent(endpoint);
-	if (!panel_node) {
-		DBG("no valid panel node in LVDS endpoint\n");
-		of_node_put(endpoint);
-		return NULL;
-	}
-
-	of_node_put(endpoint);
-
-	return panel_node;
-}
 
 static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 				  int intf_type)
@@ -269,7 +243,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 		 * bail out early if there is no panel node (no need to
 		 * initialize LCDC encoder and LVDS connector)
 		 */
-		panel_node = mdp4_detect_lcdc_panel(dev);
+		panel_node = of_graph_get_remote_node(dev->dev->of_node, 0, 0);
 		if (!panel_node)
 			return 0;
 

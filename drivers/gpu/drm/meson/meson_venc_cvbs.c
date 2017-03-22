@@ -224,25 +224,14 @@ static const struct drm_encoder_helper_funcs
 
 static bool meson_venc_cvbs_connector_is_available(struct meson_drm *priv)
 {
-	struct device_node *ep, *remote;
+	struct device_node *remote;
 
-	/* CVBS VDAC output is on the first port, first endpoint */
-	ep = of_graph_get_endpoint_by_regs(priv->dev->of_node, 0, 0);
-	if (!ep)
+	remote = of_graph_get_remote_node(priv->dev->of_node, 0, 0);
+	if (!remote)
 		return false;
 
-
-	/* If the endpoint node exists, consider it enabled */
-	remote = of_graph_get_remote_port(ep);
-	if (remote) {
-		of_node_put(ep);
-		return true;
-	}
-
-	of_node_put(ep);
 	of_node_put(remote);
-
-	return false;
+	return true;
 }
 
 int meson_venc_cvbs_create(struct meson_drm *priv)

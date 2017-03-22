@@ -283,7 +283,6 @@ static int malidp_bind(struct device *dev)
 {
 	struct resource *res;
 	struct drm_device *drm;
-	struct device_node *ep;
 	struct malidp_drm *malidp;
 	struct malidp_hw_device *hwdev;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -398,12 +397,7 @@ static int malidp_bind(struct device *dev)
 		goto init_fail;
 
 	/* Set the CRTC's port so that the encoder component can find it */
-	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (!ep) {
-		ret = -EINVAL;
-		goto port_fail;
-	}
-	malidp->crtc.port = of_get_next_parent(ep);
+	malidp->crtc.port = of_graph_get_port_by_id(dev->of_node, 0);
 
 	ret = component_bind_all(dev, drm);
 	if (ret) {
@@ -458,7 +452,6 @@ irq_init_fail:
 bind_fail:
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
-port_fail:
 	malidp_fini(drm);
 init_fail:
 	drm->dev_private = NULL;
@@ -516,29 +509,16 @@ static int malidp_compare_dev(struct device *dev, void *data)
 
 static int malidp_platform_probe(struct platform_device *pdev)
 {
-	struct device_node *port, *ep;
+	struct device_node *port;
 	struct component_match *match = NULL;
 
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
 	/* there is only one output port inside each device, find it */
-	ep = of_graph_get_next_endpoint(pdev->dev.of_node, NULL);
-	if (!ep)
+	port = of_graph_get_remote_node(pdev->dev.of_node, 0, 0);
+	if (!port)
 		return -ENODEV;
-
-	if (!of_device_is_available(ep)) {
-		of_node_put(ep);
-		return -ENODEV;
-	}
-
-	/* add the remote encoder port as component */
-	port = of_graph_get_remote_port_parent(ep);
-	of_node_put(ep);
-	if (!port || !of_device_is_available(port)) {
-		of_node_put(port);
-		return -EAGAIN;
-	}
 
 	drm_of_component_match_add(&pdev->dev, &match, malidp_compare_dev,
 				   port);
