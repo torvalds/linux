@@ -1299,14 +1299,14 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 		goto out_pm_put;
 	}
 
+	mutex_lock(&gpu->lock);
+
 	fence = etnaviv_gpu_fence_alloc(gpu);
 	if (!fence) {
 		event_free(gpu, event);
 		ret = -ENOMEM;
 		goto out_pm_put;
 	}
-
-	mutex_lock(&gpu->lock);
 
 	gpu->event[event].fence = fence;
 	submit->fence = fence->seqno;
