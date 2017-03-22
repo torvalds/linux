@@ -218,7 +218,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 	port = to_hisi_sas_port(sas_port);
 	if (port && !port->port_attached) {
 		dev_info(dev, "task prep: %s port%d not attach device\n",
-			 (sas_protocol_ata(task->task_proto)) ?
+			 (dev_is_sata(device)) ?
 			 "SATA/STP" : "SAS",
 			 device->port->id);
 
