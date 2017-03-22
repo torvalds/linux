@@ -200,7 +200,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 		 */
 		if (device->dev_type != SAS_SATA_DEV)
 			task->task_done(task);
-		return 0;
+		return SAS_PHY_DOWN;
 	}
 
 	if (DEV_IS_GONE(sas_dev)) {
@@ -211,8 +211,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 			dev_info(dev, "task prep: device %016llx not ready\n",
 				 SAS_ADDR(device->sas_addr));
 
-		rc = SAS_PHY_DOWN;
-		return rc;
+		return SAS_PHY_DOWN;
 	}
 
 	port = to_hisi_sas_port(sas_port);
