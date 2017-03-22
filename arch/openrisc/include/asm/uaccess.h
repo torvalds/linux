@@ -236,34 +236,18 @@ do {									\
 
 extern unsigned long __must_check
 __copy_tofrom_user(void *to, const void *from, unsigned long size);
-
-#define __copy_from_user(to, from, size) \
-	__copy_tofrom_user(to, from, size)
-#define __copy_to_user(to, from, size) \
-	__copy_tofrom_user(to, from, size)
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-
 static inline unsigned long
-copy_from_user(void *to, const void *from, unsigned long n)
+raw_copy_from_user(void *to, const void __user *from, unsigned long size)
 {
-	unsigned long res = n;
-
-	if (likely(access_ok(VERIFY_READ, from, n)))
-		res = __copy_tofrom_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
+	return __copy_tofrom_user(to, (__force const void *)from, size);
 }
-
 static inline unsigned long
-copy_to_user(void *to, const void *from, unsigned long n)
+raw_copy_to_user(void *to, const void __user *from, unsigned long size)
 {
-	if (likely(access_ok(VERIFY_WRITE, to, n)))
-		n = __copy_tofrom_user(to, from, n);
-	return n;
+	return __copy_tofrom_user((__force void *)to, from, size);
 }
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 extern unsigned long __clear_user(void *addr, unsigned long size);
 
