@@ -448,21 +448,27 @@ void load_percpu_segment(int cpu)
 	load_stack_canary_segment();
 }
 
-/*
- * On 64-bit the GDT remapping is read-only.
- * A global is used for Xen to change the default when required.
- */
-#ifdef CONFIG_X86_64
-pgprot_t pg_fixmap_gdt_flags = PAGE_KERNEL_RO;
-#else
-pgprot_t pg_fixmap_gdt_flags = PAGE_KERNEL;
-#endif
-
 /* Setup the fixmap mapping only once per-processor */
 static inline void setup_fixmap_gdt(int cpu)
 {
-	__set_fixmap(get_cpu_gdt_ro_index(cpu), get_cpu_gdt_paddr(cpu),
-		     pg_fixmap_gdt_flags);
+#ifdef CONFIG_X86_64
+	/* On 64-bit systems, we use a read-only fixmap GDT. */
+	pgprot_t prot = PAGE_KERNEL_RO;
+#else
+	/*
+	 * On native 32-bit systems, the GDT cannot be read-only because
+	 * our double fault handler uses a task gate, and entering through
+	 * a task gate needs to change an available TSS to busy.  If the GDT
+	 * is read-only, that will triple fault.
+	 *
+	 * On Xen PV, the GDT must be read-only because the hypervisor requires
+	 * it.
+	 */
+	pgprot_t prot = boot_cpu_has(X86_FEATURE_XENPV) ?
+		PAGE_KERNEL_RO : PAGE_KERNEL;
+#endif
+
+	__set_fixmap(get_cpu_gdt_ro_index(cpu), get_cpu_gdt_paddr(cpu), prot);
 }
 
 /* Load the original GDT from the per-cpu structure */

@@ -39,7 +39,6 @@ extern struct desc_ptr idt_descr;
 extern gate_desc idt_table[];
 extern const struct desc_ptr debug_idt_descr;
 extern gate_desc debug_idt_table[];
-extern pgprot_t pg_fixmap_gdt_flags;
 
 struct gdt_page {
 	struct desc_struct gdt[GDT_ENTRIES];
