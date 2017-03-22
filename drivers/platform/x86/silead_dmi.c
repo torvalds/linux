@@ -53,6 +53,19 @@ static const struct silead_ts_dmi_data jumper_ezpad_mini3_data = {
 	.properties	= jumper_ezpad_mini3_props,
 };
 
+static const struct property_entry dexp_ursus_7w_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 890),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 630),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1686-dexp-ursus-7w.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct silead_ts_dmi_data dexp_ursus_7w_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= dexp_ursus_7w_props,
+};
+
 static const struct dmi_system_id silead_ts_dmi_table[] = {
 	{
 		/* CUBE iwork8 Air */
@@ -70,6 +83,14 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			/* jumperx.T87.KFBNEEA02 with the version-nr dropped */
 			DMI_MATCH(DMI_BIOS_VERSION, "jumperx.T87.KFBNEEA"),
+		},
+	},
+	{
+		/* DEXP Ursus 7W */
+		.driver_data = (void *)&dexp_ursus_7w_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "7W"),
 		},
 	},
 	{ },
