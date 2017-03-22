@@ -914,11 +914,19 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 		ufs->lower_mnt[ufs->numlower] = mnt;
 		ufs->numlower++;
+
+		/* Check if all lower layers are on same sb */
+		if (i == 0)
+			ufs->same_sb = mnt->mnt_sb;
+		else if (ufs->same_sb != mnt->mnt_sb)
+			ufs->same_sb = NULL;
 	}
 
 	/* If the upper fs is nonexistent, we mark overlayfs r/o too */
 	if (!ufs->upper_mnt)
 		sb->s_flags |= MS_RDONLY;
+	else if (ufs->upper_mnt->mnt_sb != ufs->same_sb)
+		ufs->same_sb = NULL;
 
 	if (remote)
 		sb->s_d_op = &ovl_reval_dentry_operations;
