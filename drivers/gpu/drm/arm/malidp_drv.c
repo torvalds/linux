@@ -66,10 +66,12 @@ static void malidp_atomic_commit_hw_done(struct drm_atomic_state *state)
 	struct drm_pending_vblank_event *event;
 	struct drm_device *drm = state->dev;
 	struct malidp_drm *malidp = drm->dev_private;
-	int ret = malidp_set_and_wait_config_valid(drm);
 
-	if (ret)
-		DRM_DEBUG_DRIVER("timed out waiting for updated configuration\n");
+	if (malidp->crtc.enabled) {
+		/* only set config_valid if the CRTC is enabled */
+		if (malidp_set_and_wait_config_valid(drm))
+			DRM_DEBUG_DRIVER("timed out waiting for updated configuration\n");
+	}
 
 	event = malidp->crtc.state->event;
 	if (event) {
@@ -90,8 +92,10 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_device *drm = state->dev;
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
-	drm_atomic_helper_commit_modeset_enables(drm, state);
+
 	drm_atomic_helper_commit_planes(drm, state, 0);
+
+	drm_atomic_helper_commit_modeset_enables(drm, state);
 
 	malidp_atomic_commit_hw_done(state);
 
