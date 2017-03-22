@@ -761,8 +761,8 @@ struct netvsc_device {
 
 	u32 max_chn;
 	u32 num_chn;
-	spinlock_t sc_lock; /* Protects num_sc_offered variable */
-	u32 num_sc_offered;
+
+	refcount_t sc_offered;
 
 	/* Holds rndis device info */
 	void *extension;
