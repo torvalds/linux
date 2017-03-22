@@ -182,6 +182,28 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 			plat->rx_queues_cfg[queue].chan = queue;
 		/* TODO: Dynamic mapping to be included in the future */
 
+		if (of_property_read_u32(q_node, "snps,priority",
+					&plat->rx_queues_cfg[queue].prio)) {
+			plat->rx_queues_cfg[queue].prio = 0;
+			plat->rx_queues_cfg[queue].use_prio = false;
+		} else {
+			plat->rx_queues_cfg[queue].use_prio = true;
+		}
+
+		/* RX queue specific packet type routing */
+		if (of_property_read_bool(q_node, "snps,route-avcp"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_AVCPQ;
+		else if (of_property_read_bool(q_node, "snps,route-ptp"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_PTPQ;
+		else if (of_property_read_bool(q_node, "snps,route-dcbcp"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_DCBCPQ;
+		else if (of_property_read_bool(q_node, "snps,route-up"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_UPQ;
+		else if (of_property_read_bool(q_node, "snps,route-multi-broad"))
+			plat->rx_queues_cfg[queue].pkt_route = PACKET_MCBCQ;
+		else
+			plat->rx_queues_cfg[queue].pkt_route = 0x0;
+
 		queue++;
 	}
 
@@ -233,6 +255,14 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 				plat->tx_queues_cfg[queue].low_credit = 0x0;
 		} else {
 			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
+		}
+
+		if (of_property_read_u32(q_node, "snps,priority",
+					&plat->tx_queues_cfg[queue].prio)) {
+			plat->tx_queues_cfg[queue].prio = 0;
+			plat->tx_queues_cfg[queue].use_prio = false;
+		} else {
+			plat->tx_queues_cfg[queue].use_prio = true;
 		}
 
 		queue++;

@@ -83,6 +83,13 @@ Optional properties:
 			- snps,dcb-algorithm: Queue to be enabled as DCB
 			- snps,avb-algorithm: Queue to be enabled as AVB
 		- snps,map-to-dma-channel: Channel to map
+		- Specifiy specific packet routing:
+			- snps,route-avcp: AV Untagged Control packets
+			- snps,route-ptp: PTP Packets
+			- snps,route-dcbcp: DCB Control Packets
+			- snps,route-up: Untagged Packets
+			- snps,route-multi-broad: Multicast & Broadcast Packets
+		- snps,priority: RX queue priority (Range: 0x0 to 0xF)
 - Multiple TX Queues parameters: below the list of all the parameters to
 				 configure the multiple TX queues:
 	- snps,tx-queues-to-use: number of TX queues to be used in the driver
@@ -101,6 +108,7 @@ Optional properties:
 			- snps,idle_slope: unlock on WoL
 			- snps,high_credit: max write outstanding req. limit
 			- snps,low_credit: max read outstanding req. limit
+		- snps,priority: TX queue priority (Range: 0x0 to 0xF)
 Examples:
 
 	stmmac_axi_setup: stmmac-axi-config {
@@ -115,6 +123,7 @@ Examples:
 		queue0 {
 			snps,dcb-algorithm;
 			snps,map-to-dma-channel = <0x0>;
+			snps,priority = <0x0>;
 		};
 	};
 
@@ -124,6 +133,7 @@ Examples:
 		queue0 {
 			snps,weight = <0x10>;
 			snps,dcb-algorithm;
+			snps,priority = <0x0>;
 		};
 
 		queue1 {
@@ -132,6 +142,7 @@ Examples:
 			snps,idle_slope = <0x1000>;
 			snps,high_credit = <0x3E800>;
 			snps,low_credit = <0xFFC18000>;
+			snps,priority = <0x1>;
 		};
 	};
 
