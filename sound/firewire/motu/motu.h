@@ -131,4 +131,6 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate);
 void snd_motu_stream_stop_duplex(struct snd_motu *motu);
 
 void snd_motu_proc_init(struct snd_motu *motu);
+
+int snd_motu_create_pcm_devices(struct snd_motu *motu);
 #endif

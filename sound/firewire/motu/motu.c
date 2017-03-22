@@ -99,6 +99,10 @@ static void do_registration(struct work_struct *work)
 
 	snd_motu_proc_init(motu);
 
+	err = snd_motu_create_pcm_devices(motu);
+	if (err < 0)
+		goto error;
+
 	err = snd_card_register(motu->card);
 	if (err < 0)
 		goto error;
