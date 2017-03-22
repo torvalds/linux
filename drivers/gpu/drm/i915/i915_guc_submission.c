@@ -1189,6 +1189,30 @@ static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 	dev_priv->rps.pm_intrmsk_mbz &= ~GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 }
 
+static void guc_interrupts_release(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int irqs;
+
+	/*
+	 * tell all command streamers NOT to forward interrupts or vblank
+	 * to GuC.
+	 */
+	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
+	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
+	for_each_engine(engine, dev_priv, id)
+		I915_WRITE(RING_MODE_GEN7(engine), irqs);
+
+	/* route all GT interrupts to the host */
+	I915_WRITE(GUC_BCS_RCS_IER, 0);
+	I915_WRITE(GUC_VCS2_VCS1_IER, 0);
+	I915_WRITE(GUC_WD_VECS_IER, 0);
+
+	dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
+	dev_priv->rps.pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
+}
+
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
@@ -1250,30 +1274,6 @@ err_execbuf_client:
 	guc_client_free(guc->execbuf_client);
 	guc->execbuf_client = NULL;
 	return err;
-}
-
-static void guc_interrupts_release(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int irqs;
-
-	/*
-	 * tell all command streamers NOT to forward interrupts or vblank
-	 * to GuC.
-	 */
-	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
-	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
-	for_each_engine(engine, dev_priv, id)
-		I915_WRITE(RING_MODE_GEN7(engine), irqs);
-
-	/* route all GT interrupts to the host */
-	I915_WRITE(GUC_BCS_RCS_IER, 0);
-	I915_WRITE(GUC_VCS2_VCS1_IER, 0);
-	I915_WRITE(GUC_WD_VECS_IER, 0);
-
-	dev_priv->rps.pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
-	dev_priv->rps.pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
 }
 
 void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
