@@ -1531,13 +1531,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	plug = current->plug;
-	/*
-	 * If the driver supports defer issued based on 'last', then
-	 * queue it up like normal since we can potentially save some
-	 * CPU this way.
-	 */
-	if (((plug && !blk_queue_nomerges(q)) || is_sync) &&
-	    !(data.hctx->flags & BLK_MQ_F_DEFER_ISSUE)) {
+	if (((plug && !blk_queue_nomerges(q)) || is_sync)) {
 		struct request *old_rq = NULL;
 
 		blk_mq_bio_to_request(rq, bio);
