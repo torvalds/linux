@@ -48,7 +48,7 @@ static int aspeed_lpc_ctrl_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	/* ast2400/2500 AHB accesses are not cache coherent */
-	prot = pgprot_dmacoherent(prot);
+	prot = pgprot_noncached(prot);
 
 	if (remap_pfn_range(vma, vma->vm_start,
 		(lpc_ctrl->mem_base >> PAGE_SHIFT) + vma->vm_pgoff,
@@ -229,8 +229,8 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 	if (rc)
 		dev_err(dev, "Unable to register device\n");
 	else
-		dev_info(dev, "Loaded at 0x%08x (0x%08x)\n",
-			lpc_ctrl->mem_base, lpc_ctrl->mem_size);
+		dev_info(dev, "Loaded at %pap (0x%08x)\n",
+			&lpc_ctrl->mem_base, lpc_ctrl->mem_size);
 
 	return rc;
 }
