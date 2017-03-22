@@ -1403,7 +1403,7 @@ static void denali_drv_init(struct denali_nand_info *denali)
 	denali->irq_status = 0;
 }
 
-static void denali_multidev_fixup(struct denali_nand_info *denali)
+static int denali_multidev_fixup(struct denali_nand_info *denali)
 {
 	struct nand_chip *chip = &denali->nand;
 	struct mtd_info *mtd = nand_to_mtd(chip);
@@ -1417,20 +1417,32 @@ static void denali_multidev_fixup(struct denali_nand_info *denali)
 	 */
 	denali->devnum = ioread32(denali->flash_reg + DEVICES_CONNECTED);
 
-	mtd->size <<= denali->devnum - 1;
-	mtd->erasesize <<= denali->devnum - 1;
-	mtd->writesize <<= denali->devnum - 1;
-	mtd->oobsize <<= denali->devnum - 1;
-	chip->chipsize <<= denali->devnum - 1;
-	chip->page_shift += denali->devnum - 1;
-	chip->phys_erase_shift += denali->devnum - 1;
-	chip->bbt_erase_shift += denali->devnum - 1;
-	chip->chip_shift += denali->devnum - 1;
-	chip->pagemask <<= denali->devnum - 1;
-	chip->ecc.size *= denali->devnum;
-	chip->ecc.bytes *= denali->devnum;
-	chip->ecc.strength *= denali->devnum;
-	denali->bbtskipbytes *= denali->devnum;
+	if (denali->devnum == 1)
+		return 0;
+
+	if (denali->devnum != 2) {
+		dev_err(denali->dev, "unsupported number of devices %d\n",
+			denali->devnum);
+		return -EINVAL;
+	}
+
+	/* 2 chips in parallel */
+	mtd->size <<= 1;
+	mtd->erasesize <<= 1;
+	mtd->writesize <<= 1;
+	mtd->oobsize <<= 1;
+	chip->chipsize <<= 1;
+	chip->page_shift += 1;
+	chip->phys_erase_shift += 1;
+	chip->bbt_erase_shift += 1;
+	chip->chip_shift += 1;
+	chip->pagemask <<= 1;
+	chip->ecc.size <<= 1;
+	chip->ecc.bytes <<= 1;
+	chip->ecc.strength <<= 1;
+	denali->bbtskipbytes <<= 1;
+
+	return 0;
 }
 
 int denali_init(struct denali_nand_info *denali)
@@ -1568,7 +1580,9 @@ int denali_init(struct denali_nand_info *denali)
 	chip->ecc.write_oob = denali_write_oob;
 	chip->erase = denali_erase;
 
-	denali_multidev_fixup(denali);
+	ret = denali_multidev_fixup(denali);
+	if (ret)
+		goto failed_req_irq;
 
 	ret = nand_scan_tail(mtd);
 	if (ret)
