@@ -510,7 +510,7 @@ struct drm_plane {
 
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)
 
-extern __printf(8, 9)
+__printf(8, 9)
 int drm_universal_plane_init(struct drm_device *dev,
 			     struct drm_plane *plane,
 			     uint32_t possible_crtcs,
@@ -519,13 +519,13 @@ int drm_universal_plane_init(struct drm_device *dev,
 			     unsigned int format_count,
 			     enum drm_plane_type type,
 			     const char *name, ...);
-extern int drm_plane_init(struct drm_device *dev,
-			  struct drm_plane *plane,
-			  uint32_t possible_crtcs,
-			  const struct drm_plane_funcs *funcs,
-			  const uint32_t *formats, unsigned int format_count,
-			  bool is_primary);
-extern void drm_plane_cleanup(struct drm_plane *plane);
+int drm_plane_init(struct drm_device *dev,
+		   struct drm_plane *plane,
+		   uint32_t possible_crtcs,
+		   const struct drm_plane_funcs *funcs,
+		   const uint32_t *formats, unsigned int format_count,
+		   bool is_primary);
+void drm_plane_cleanup(struct drm_plane *plane);
 
 /**
  * drm_plane_index - find the index of a registered plane
@@ -538,8 +538,8 @@ static inline unsigned int drm_plane_index(struct drm_plane *plane)
 {
 	return plane->index;
 }
-extern struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
-extern void drm_plane_force_disable(struct drm_plane *plane);
+struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
+void drm_plane_force_disable(struct drm_plane *plane);
 
 int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 				       struct drm_property *property,
