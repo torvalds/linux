@@ -154,21 +154,12 @@ static const struct drm_bridge_funcs dumb_vga_bridge_funcs = {
 
 static struct i2c_adapter *dumb_vga_retrieve_ddc(struct device *dev)
 {
-	struct device_node *end_node, *phandle, *remote;
+	struct device_node *phandle, *remote;
 	struct i2c_adapter *ddc;
 
-	end_node = of_graph_get_endpoint_by_regs(dev->of_node, 1, -1);
-	if (!end_node) {
-		dev_err(dev, "Missing connector endpoint\n");
-		return ERR_PTR(-ENODEV);
-	}
-
-	remote = of_graph_get_remote_port_parent(end_node);
-	of_node_put(end_node);
-	if (!remote) {
-		dev_err(dev, "Enable to parse remote node\n");
+	remote = of_graph_get_remote_node(dev->of_node, 1, -1);
+	if (!remote)
 		return ERR_PTR(-EINVAL);
-	}
 
 	phandle = of_parse_phandle(remote, "ddc-i2c-bus", 0);
 	of_node_put(remote);
