@@ -79,6 +79,25 @@ no_mem:
 	return -ENOMEM;
 }
 
+int s5p_mfc_alloc_generic_buf(struct s5p_mfc_dev *dev, unsigned int mem_ctx,
+			   struct s5p_mfc_priv_buf *b)
+{
+	struct device *mem_dev = dev->mem_dev[mem_ctx];
+
+	mfc_debug(3, "Allocating generic buf: %zu\n", b->size);
+
+	b->ctx = mem_ctx;
+	b->virt = dma_alloc_coherent(mem_dev, b->size, &b->dma, GFP_KERNEL);
+	if (!b->virt)
+		goto no_mem;
+
+	mfc_debug(3, "Allocated addr %p %pad\n", b->virt, &b->dma);
+	return 0;
+no_mem:
+	mfc_err("Allocating generic buffer of size %zu failed\n", b->size);
+	return -ENOMEM;
+}
+
 void s5p_mfc_release_priv_buf(struct s5p_mfc_dev *dev,
 			      struct s5p_mfc_priv_buf *b)
 {
@@ -97,3 +116,12 @@ void s5p_mfc_release_priv_buf(struct s5p_mfc_dev *dev,
 	b->size = 0;
 }
 
+void s5p_mfc_release_generic_buf(struct s5p_mfc_dev *dev,
+			      struct s5p_mfc_priv_buf *b)
+{
+	struct device *mem_dev = dev->mem_dev[b->ctx];
+	dma_free_coherent(mem_dev, b->size, b->virt, b->dma);
+	b->virt = NULL;
+	b->dma = 0;
+	b->size = 0;
+}
