@@ -1426,6 +1426,7 @@ static int f2fs_release_file(struct inode *inode, struct file *filp)
 		drop_inmem_pages(inode);
 	if (f2fs_is_volatile_file(inode)) {
 		clear_inode_flag(inode, FI_VOLATILE_FILE);
+		stat_dec_volatile_write(inode);
 		set_inode_flag(inode, FI_DROP_CACHE);
 		filemap_fdatawrite(inode->i_mapping);
 		clear_inode_flag(inode, FI_DROP_CACHE);
@@ -1613,6 +1614,9 @@ static int f2fs_ioc_start_volatile_write(struct file *filp)
 	if (ret)
 		goto out;
 
+	stat_inc_volatile_write(inode);
+	stat_update_max_volatile_write(inode);
+
 	set_inode_flag(inode, FI_VOLATILE_FILE);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 out:
@@ -1668,6 +1672,7 @@ static int f2fs_ioc_abort_volatile_write(struct file *filp)
 		drop_inmem_pages(inode);
 	if (f2fs_is_volatile_file(inode)) {
 		clear_inode_flag(inode, FI_VOLATILE_FILE);
+		stat_dec_volatile_write(inode);
 		ret = f2fs_do_sync_file(filp, 0, LLONG_MAX, 0, true);
 	}
 

@@ -915,7 +915,9 @@ struct f2fs_sb_info {
 	atomic_t inline_inode;			/* # of inline_data inodes */
 	atomic_t inline_dir;			/* # of inline_dentry inodes */
 	atomic_t aw_cnt;			/* # of atomic writes */
+	atomic_t vw_cnt;			/* # of volatile writes */
 	atomic_t max_aw_cnt;			/* max # of atomic writes */
+	atomic_t max_vw_cnt;			/* max # of volatile writes */
 	int bg_gc;				/* background gc calls */
 	unsigned int ndirty_inode[NR_INODE_TYPE];	/* # of dirty inodes */
 #endif
@@ -2328,7 +2330,7 @@ struct f2fs_stat_info {
 	int total_count, utilization;
 	int bg_gc, nr_wb_cp_data, nr_wb_data, nr_flush, nr_discard;
 	int inline_xattr, inline_inode, inline_dir, append, update, orphans;
-	int aw_cnt, max_aw_cnt;
+	int aw_cnt, max_aw_cnt, vw_cnt, max_vw_cnt;
 	unsigned int valid_count, valid_node_count, valid_inode_count, discard_blks;
 	unsigned int bimodal, avg_vblocks;
 	int util_free, util_valid, util_invalid;
@@ -2411,6 +2413,17 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 		if (cur > max)						\
 			atomic_set(&F2FS_I_SB(inode)->max_aw_cnt, cur);	\
 	} while (0)
+#define stat_inc_volatile_write(inode)					\
+		(atomic_inc(&F2FS_I_SB(inode)->vw_cnt))
+#define stat_dec_volatile_write(inode)					\
+		(atomic_dec(&F2FS_I_SB(inode)->vw_cnt))
+#define stat_update_max_volatile_write(inode)				\
+	do {								\
+		int cur = atomic_read(&F2FS_I_SB(inode)->vw_cnt);	\
+		int max = atomic_read(&F2FS_I_SB(inode)->max_vw_cnt);	\
+		if (cur > max)						\
+			atomic_set(&F2FS_I_SB(inode)->max_vw_cnt, cur);	\
+	} while (0)
 #define stat_inc_seg_count(sbi, type, gc_type)				\
 	do {								\
 		struct f2fs_stat_info *si = F2FS_STAT(sbi);		\
@@ -2467,6 +2480,9 @@ void f2fs_destroy_root_stats(void);
 #define stat_inc_atomic_write(inode)
 #define stat_dec_atomic_write(inode)
 #define stat_update_max_atomic_write(inode)
+#define stat_inc_volatile_write(inode)
+#define stat_dec_volatile_write(inode)
+#define stat_update_max_volatile_write(inode)
 #define stat_inc_seg_type(sbi, curseg)
 #define stat_inc_block_count(sbi, curseg)
 #define stat_inc_inplace_blocks(sbi)
