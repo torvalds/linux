@@ -54,7 +54,7 @@
 	fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
 		rockchip,serial-id = <2>;
-		rockchip,signal-irq = <135>;
+		rockchip,signal-irq = <145>;
 		rockchip,wake-irq = <0>;
 		/* If enable uart uses irq instead of fiq */
 		rockchip,irq-mode-enable = <0>;
