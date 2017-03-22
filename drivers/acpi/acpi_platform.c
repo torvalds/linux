@@ -25,9 +25,11 @@
 ACPI_MODULE_NAME("platform");
 
 static const struct acpi_device_id forbidden_id_list[] = {
-	{"PNP0000", 0},	/* PIC */
-	{"PNP0100", 0},	/* Timer */
-	{"PNP0200", 0},	/* AT DMA Controller */
+	{"PNP0000",  0},	/* PIC */
+	{"PNP0100",  0},	/* Timer */
+	{"PNP0200",  0},	/* AT DMA Controller */
+	{"ACPI0009", 0},	/* IOxAPIC */
+	{"ACPI000A", 0},	/* IOAPIC */
 	{"", 0},
 };
 
