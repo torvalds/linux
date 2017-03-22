@@ -105,7 +105,6 @@ void xge_mac_set_speed(struct xge_pdata *pdata);
 void xge_mac_enable(struct xge_pdata *pdata);
 void xge_mac_disable(struct xge_pdata *pdata);
 void xge_mac_init(struct xge_pdata *pdata);
-int xge_port_init(struct net_device *ndev);
 void xge_mac_set_station_addr(struct xge_pdata *pdata);
 
 #endif /* __XGENE_ENET_V2_MAC_H__ */
