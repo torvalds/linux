@@ -508,6 +508,8 @@ static void setup_itct_v1_hw(struct hisi_hba *hisi_hba,
 	struct device *dev = &hisi_hba->pdev->dev;
 	u64 qw0, device_id = sas_dev->device_id;
 	struct hisi_sas_itct *itct = &hisi_hba->itct[device_id];
+	struct asd_sas_port *sas_port = device->port;
+	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 
 	memset(itct, 0, sizeof(*itct));
 
@@ -528,7 +530,7 @@ static void setup_itct_v1_hw(struct hisi_hba *hisi_hba,
 		(1 << ITCT_HDR_AWT_CONTROL_OFF) |
 		(device->max_linkrate << ITCT_HDR_MAX_CONN_RATE_OFF) |
 		(1 << ITCT_HDR_VALID_LINK_NUM_OFF) |
-		(device->port->id << ITCT_HDR_PORT_ID_OFF));
+		(port->id << ITCT_HDR_PORT_ID_OFF));
 	itct->qw0 = cpu_to_le64(qw0);
 
 	/* qw1 */

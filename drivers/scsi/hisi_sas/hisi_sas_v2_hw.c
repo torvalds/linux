@@ -676,7 +676,8 @@ static void setup_itct_v2_hw(struct hisi_hba *hisi_hba,
 	u64 qw0, device_id = sas_dev->device_id;
 	struct hisi_sas_itct *itct = &hisi_hba->itct[device_id];
 	struct domain_device *parent_dev = device->parent;
-	struct hisi_sas_port *port = device->port->lldd_port;
+	struct asd_sas_port *sas_port = device->port;
+	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 
 	memset(itct, 0, sizeof(*itct));
 
@@ -1920,7 +1921,8 @@ static int prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	struct domain_device *parent_dev = device->parent;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
-	struct hisi_sas_port *port = device->port->lldd_port;
+	struct asd_sas_port *sas_port = device->port;
+	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 	u8 *buf_cmd;
 	int has_data = 0, rc = 0, hdr_tag = 0;
 	u32 dw1 = 0, dw2 = 0;

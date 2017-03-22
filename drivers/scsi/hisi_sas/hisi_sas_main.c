@@ -27,6 +27,12 @@ static struct hisi_hba *dev_to_hisi_hba(struct domain_device *device)
 	return device->port->ha->lldd_ha;
 }
 
+struct hisi_sas_port *to_hisi_sas_port(struct asd_sas_port *sas_port)
+{
+	return container_of(sas_port, struct hisi_sas_port, sas_port);
+}
+EXPORT_SYMBOL_GPL(to_hisi_sas_port);
+
 static void hisi_sas_slot_index_clear(struct hisi_hba *hisi_hba, int slot_idx)
 {
 	void *bitmap = hisi_hba->slot_index_tags;
@@ -178,10 +184,11 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 	struct hisi_sas_port *port;
 	struct hisi_sas_slot *slot;
 	struct hisi_sas_cmd_hdr	*cmd_hdr_base;
+	struct asd_sas_port *sas_port = device->port;
 	struct device *dev = &hisi_hba->pdev->dev;
 	int dlvry_queue_slot, dlvry_queue, n_elem = 0, rc, slot_idx;
 
-	if (!device->port) {
+	if (!sas_port) {
 		struct task_status_struct *ts = &task->task_status;
 
 		ts->resp = SAS_TASK_UNDELIVERED;
@@ -206,7 +213,8 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 		rc = SAS_PHY_DOWN;
 		return rc;
 	}
-	port = device->port->lldd_port;
+
+	port = to_hisi_sas_port(sas_port);
 	if (port && !port->port_attached) {
 		dev_info(dev, "task prep: %s port%d not attach device\n",
 			 (sas_protocol_ata(task->task_proto)) ?
@@ -545,7 +553,7 @@ static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
 	struct hisi_sas_phy *phy = sas_phy->lldd_phy;
 	struct asd_sas_port *sas_port = sas_phy->port;
-	struct hisi_sas_port *port = &hisi_hba->port[phy->port_id];
+	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 	unsigned long flags;
 
 	if (!sas_port)
@@ -990,13 +998,14 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, u64 device_id,
 	struct device *dev = &hisi_hba->pdev->dev;
 	struct hisi_sas_port *port;
 	struct hisi_sas_slot *slot;
+	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_cmd_hdr *cmd_hdr_base;
 	int dlvry_queue_slot, dlvry_queue, n_elem = 0, rc, slot_idx;
 
 	if (!device->port)
 		return -1;
 
-	port = device->port->lldd_port;
+	port = to_hisi_sas_port(sas_port);
 
 	/* simply get a slot and send abort command */
 	rc = hisi_sas_slot_index_alloc(hisi_hba, &slot_idx);
