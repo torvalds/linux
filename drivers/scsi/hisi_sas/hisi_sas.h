@@ -91,7 +91,6 @@ struct hisi_sas_port {
 	struct asd_sas_port	sas_port;
 	u8	port_attached;
 	u8	id; /* from hw */
-	struct list_head	list;
 };
 
 struct hisi_sas_cq {
@@ -114,6 +113,7 @@ struct hisi_sas_device {
 	u64 attached_phy;
 	u64 device_id;
 	atomic64_t running_req;
+	struct list_head	list;
 	u8 dev_status;
 };
 
@@ -166,7 +166,7 @@ struct hisi_sas_hw {
 			  struct hisi_sas_slot *slot,
 			  int device_id, int abort_flag, int tag_to_abort);
 	int (*slot_complete)(struct hisi_hba *hisi_hba,
-			     struct hisi_sas_slot *slot, int abort);
+			     struct hisi_sas_slot *slot);
 	void (*phys_init)(struct hisi_hba *hisi_hba);
 	void (*phy_enable)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*phy_disable)(struct hisi_hba *hisi_hba, int phy_no);

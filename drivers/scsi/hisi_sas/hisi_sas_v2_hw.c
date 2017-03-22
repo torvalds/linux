@@ -625,6 +625,7 @@ hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
 			sas_dev->dev_type = device->dev_type;
 			sas_dev->hisi_hba = hisi_hba;
 			sas_dev->sas_device = device;
+			INIT_LIST_HEAD(&hisi_hba->devices[i].list);
 			break;
 		}
 	}
@@ -1724,8 +1725,7 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 }
 
 static int
-slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot,
-		    int abort)
+slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_device *sas_dev;
@@ -1752,9 +1752,8 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot,
 	memset(ts, 0, sizeof(*ts));
 	ts->resp = SAS_TASK_COMPLETE;
 
-	if (unlikely(!sas_dev || abort)) {
-		if (!sas_dev)
-			dev_dbg(dev, "slot complete: port has not device\n");
+	if (unlikely(!sas_dev)) {
+		dev_dbg(dev, "slot complete: port has no device\n");
 		ts->stat = SAS_PHY_DOWN;
 		goto out;
 	}
@@ -2615,7 +2614,7 @@ static void cq_tasklet_v2_hw(unsigned long val)
 				slot = &hisi_hba->slot_info[iptt];
 				slot->cmplt_queue_slot = rd_point;
 				slot->cmplt_queue = queue;
-				slot_complete_v2_hw(hisi_hba, slot, 0);
+				slot_complete_v2_hw(hisi_hba, slot);
 
 				act_tmp &= ~(1 << ncq_tag_count);
 				ncq_tag_count = ffs(act_tmp);
@@ -2625,7 +2624,7 @@ static void cq_tasklet_v2_hw(unsigned long val)
 			slot = &hisi_hba->slot_info[iptt];
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
-			slot_complete_v2_hw(hisi_hba, slot, 0);
+			slot_complete_v2_hw(hisi_hba, slot);
 		}
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)

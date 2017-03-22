@@ -308,7 +308,7 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 		goto err_out_command_table;
 	}
 
-	list_add_tail(&slot->entry, &port->list);
+	list_add_tail(&slot->entry, &sas_dev->list);
 	spin_lock(&task->task_state_lock);
 	task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 	spin_unlock(&task->task_state_lock);
@@ -424,6 +424,7 @@ static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
 			sas_dev->dev_type = device->dev_type;
 			sas_dev->hisi_hba = hisi_hba;
 			sas_dev->sas_device = device;
+			INIT_LIST_HEAD(&hisi_hba->devices[i].list);
 			break;
 		}
 	}
@@ -568,63 +569,55 @@ static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
 	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 }
 
-static void hisi_sas_do_release_task(struct hisi_hba *hisi_hba, int phy_no,
-				     struct domain_device *device)
+static void hisi_sas_do_release_task(struct hisi_hba *hisi_hba,
+				     struct sas_task *task,
+				     struct hisi_sas_slot *slot)
 {
-	struct hisi_sas_phy *phy;
-	struct hisi_sas_port *port;
-	struct hisi_sas_slot *slot, *slot2;
-	struct device *dev = &hisi_hba->pdev->dev;
+	struct task_status_struct *ts;
+	unsigned long flags;
 
-	phy = &hisi_hba->phy[phy_no];
-	port = phy->port;
-	if (!port)
+	if (!task)
 		return;
 
-	list_for_each_entry_safe(slot, slot2, &port->list, entry) {
-		struct sas_task *task;
+	ts = &task->task_status;
 
-		task = slot->task;
-		if (device && task->dev != device)
-			continue;
+	ts->resp = SAS_TASK_COMPLETE;
+	ts->stat = SAS_ABORTED_TASK;
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	task->task_state_flags &=
+		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
+	task->task_state_flags |= SAS_TASK_STATE_DONE;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-		dev_info(dev, "Release slot [%d:%d], task [%p]:\n",
-			 slot->dlvry_queue, slot->dlvry_queue_slot, task);
-		hisi_hba->hw->slot_complete(hisi_hba, slot, 1);
-	}
+	hisi_sas_slot_task_free(hisi_hba, task, slot);
 }
 
-static void hisi_sas_port_notify_deformed(struct asd_sas_phy *sas_phy)
-{
-	struct domain_device *device;
-	struct hisi_sas_phy *phy = sas_phy->lldd_phy;
-	struct asd_sas_port *sas_port = sas_phy->port;
-
-	list_for_each_entry(device, &sas_port->dev_list, dev_list_node)
-		hisi_sas_do_release_task(phy->hisi_hba, sas_phy->id, device);
-}
-
+/* hisi_hba.lock should be locked */
 static void hisi_sas_release_task(struct hisi_hba *hisi_hba,
 			struct domain_device *device)
 {
-	struct asd_sas_port *port = device->port;
-	struct asd_sas_phy *sas_phy;
+	struct hisi_sas_slot *slot, *slot2;
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
 
-	list_for_each_entry(sas_phy, &port->phy_list, port_phy_el)
-		hisi_sas_do_release_task(hisi_hba, sas_phy->id, device);
+	list_for_each_entry_safe(slot, slot2, &sas_dev->list, entry)
+		hisi_sas_do_release_task(hisi_hba, slot->task, slot);
 }
 
 static void hisi_sas_release_tasks(struct hisi_hba *hisi_hba)
 {
+	struct hisi_sas_device *sas_dev;
+	struct domain_device *device;
 	int i;
 
-	for (i = 0; i < HISI_SAS_MAX_PHYS; i++) {
-		struct hisi_sas_phy *phy = &hisi_hba->phy[i];
-		struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
+		sas_dev = &hisi_hba->devices[i];
+		device = sas_dev->sas_device;
 
-		if (!sas_phy->port)
+		if ((sas_dev->dev_type == SAS_PHY_UNUSED) ||
+		    !device)
 			continue;
-		hisi_sas_port_notify_deformed(sas_phy);
+
+		hisi_sas_release_task(hisi_hba, device);
 	}
 }
 
@@ -958,7 +951,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 				slot = &hisi_hba->slot_info
 					[tmf_task.tag_of_task_to_be_managed];
 				spin_lock_irqsave(&hisi_hba->lock, flags);
-				hisi_hba->hw->slot_complete(hisi_hba, slot, 1);
+				hisi_hba->hw->slot_complete(hisi_hba, slot);
 				spin_unlock_irqrestore(&hisi_hba->lock, flags);
 			}
 		}
@@ -1149,11 +1142,8 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, u64 device_id,
 	if (rc)
 		goto err_out_tag;
 
-	/* Port structure is static for the HBA, so
-	*  even if the port is deformed it is ok
-	*  to reference.
-	*/
-	list_add_tail(&slot->entry, &port->list);
+
+	list_add_tail(&slot->entry, &sas_dev->list);
 	spin_lock(&task->task_state_lock);
 	task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 	spin_unlock(&task->task_state_lock);
@@ -1257,11 +1247,6 @@ exit:
 static void hisi_sas_port_formed(struct asd_sas_phy *sas_phy)
 {
 	hisi_sas_port_notify_formed(sas_phy);
-}
-
-static void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy)
-{
-	hisi_sas_port_notify_deformed(sas_phy);
 }
 
 static void hisi_sas_phy_disconnected(struct hisi_sas_phy *phy)
@@ -1369,7 +1354,6 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 	.lldd_lu_reset		= hisi_sas_lu_reset,
 	.lldd_query_task	= hisi_sas_query_task,
 	.lldd_port_formed	= hisi_sas_port_formed,
-	.lldd_port_deformed	= hisi_sas_port_deformed,
 };
 
 void hisi_sas_init_mem(struct hisi_hba *hisi_hba)
@@ -1414,7 +1398,6 @@ static int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 		hisi_sas_phy_init(hisi_hba, i);
 		hisi_hba->port[i].port_attached = 0;
 		hisi_hba->port[i].id = -1;
-		INIT_LIST_HEAD(&hisi_hba->port[i].list);
 	}
 
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {

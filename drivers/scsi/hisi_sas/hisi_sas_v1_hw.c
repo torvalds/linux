@@ -1277,7 +1277,7 @@ static void slot_err_v1_hw(struct hisi_hba *hisi_hba,
 }
 
 static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
-			       struct hisi_sas_slot *slot, int abort)
+			       struct hisi_sas_slot *slot)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_device *sas_dev;
@@ -1307,9 +1307,8 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	memset(ts, 0, sizeof(*ts));
 	ts->resp = SAS_TASK_COMPLETE;
 
-	if (unlikely(!sas_dev || abort)) {
-		if (!sas_dev)
-			dev_dbg(dev, "slot complete: port has not device\n");
+	if (unlikely(!sas_dev)) {
+		dev_dbg(dev, "slot complete: port has no device\n");
 		ts->stat = SAS_PHY_DOWN;
 		goto out;
 	}
@@ -1622,7 +1621,7 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 		 */
 		slot->cmplt_queue_slot = rd_point;
 		slot->cmplt_queue = queue;
-		slot_complete_v1_hw(hisi_hba, slot, 0);
+		slot_complete_v1_hw(hisi_hba, slot);
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
