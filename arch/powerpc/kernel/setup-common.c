@@ -920,6 +920,15 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = klimit;
+
+#ifdef CONFIG_PPC_MM_SLICES
+#ifdef CONFIG_PPC64
+	init_mm.context.addr_limit = TASK_SIZE_USER64;
+#else
+#error	"context.addr_limit not initialized."
+#endif
+#endif
+
 #ifdef CONFIG_PPC_64K_PAGES
 	init_mm.context.pte_frag = NULL;
 #endif
