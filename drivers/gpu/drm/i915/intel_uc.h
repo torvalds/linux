@@ -74,7 +74,7 @@ struct i915_guc_client {
 
 	uint32_t engines;		/* bitmap of (host) engine ids	*/
 	uint32_t priority;
-	u32 ctx_index;
+	u32 stage_id;
 	uint32_t proc_desc_offset;
 
 	u16 doorbell_id;
@@ -157,9 +157,9 @@ struct intel_guc {
 	bool interrupts_enabled;
 
 	struct i915_vma *ads_vma;
-	struct i915_vma *ctx_pool;
-	void *ctx_pool_vaddr;
-	struct ida ctx_ids;
+	struct i915_vma *stage_desc_pool;
+	void *stage_desc_pool_vaddr;
+	struct ida stage_ids;
 
 	struct i915_guc_client *execbuf_client;
 

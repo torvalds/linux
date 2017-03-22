@@ -2471,8 +2471,8 @@ static void i915_guc_client_info(struct seq_file *m,
 	enum intel_engine_id id;
 	uint64_t tot = 0;
 
-	seq_printf(m, "\tPriority %d, GuC ctx index: %u, PD offset 0x%x\n",
-		client->priority, client->ctx_index, client->proc_desc_offset);
+	seq_printf(m, "\tPriority %d, GuC stage index: %u, PD offset 0x%x\n",
+		client->priority, client->stage_id, client->proc_desc_offset);
 	seq_printf(m, "\tDoorbell id %d, offset: 0x%lx, cookie 0x%x\n",
 		client->doorbell_id, client->doorbell_offset, client->doorbell_cookie);
 	seq_printf(m, "\tWQ size %d, offset: 0x%x, tail %d\n",

@@ -37,16 +37,16 @@
  * descriptor and a workqueue (all of them inside a single gem object that
  * contains all required pages for these elements).
  *
- * GuC context descriptor:
+ * GuC stage descriptor:
  * During initialization, the driver allocates a static pool of 1024 such
  * descriptors, and shares them with the GuC.
  * Currently, there exists a 1:1 mapping between a i915_guc_client and a
- * guc_context_desc (via the client's context_index), so effectively only
- * one guc_context_desc gets used. This context descriptor lets the GuC know
- * about the doorbell, workqueue and process descriptor. Theoretically, it also
- * lets the GuC know about our HW contexts (Context ID, etc...), but we actually
+ * guc_stage_desc (via the client's stage_id), so effectively only one
+ * gets used. This stage descriptor lets the GuC know about the doorbell,
+ * workqueue and process descriptor. Theoretically, it also lets the GuC
+ * know about our HW contexts (context ID, etc...), but we actually
  * employ a kind of submission where the GuC uses the LRCA sent via the work
- * item instead (the single guc_context_desc associated to execbuf client
+ * item instead (the single guc_stage_desc associated to execbuf client
  * contains information about the default kernel context only, but this is
  * essentially unused). This is called a "proxy" submission.
  *
@@ -82,7 +82,7 @@
 
 static inline bool is_high_priority(struct i915_guc_client* client)
 {
-	return client->priority <= GUC_CTX_PRIORITY_HIGH;
+	return client->priority <= GUC_CLIENT_PRIORITY_HIGH;
 }
 
 static int __reserve_doorbell(struct i915_guc_client *client)
@@ -112,7 +112,7 @@ static int __reserve_doorbell(struct i915_guc_client *client)
 	__set_bit(id, client->guc->doorbell_bitmap);
 	client->doorbell_id = id;
 	DRM_DEBUG_DRIVER("client %u (high prio=%s) reserved doorbell: %d\n",
-			 client->ctx_index, yesno(is_high_priority(client)),
+			 client->stage_id, yesno(is_high_priority(client)),
 			 id);
 	return 0;
 }
@@ -129,31 +129,31 @@ static void __unreserve_doorbell(struct i915_guc_client *client)
  * Tell the GuC to allocate or deallocate a specific doorbell
  */
 
-static int __guc_allocate_doorbell(struct intel_guc *guc, u32 ctx_index)
+static int __guc_allocate_doorbell(struct intel_guc *guc, u32 stage_id)
 {
 	u32 action[] = {
 		INTEL_GUC_ACTION_ALLOCATE_DOORBELL,
-		ctx_index
+		stage_id
 	};
 
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-static int __guc_deallocate_doorbell(struct intel_guc *guc, u32 ctx_index)
+static int __guc_deallocate_doorbell(struct intel_guc *guc, u32 stage_id)
 {
 	u32 action[] = {
 		INTEL_GUC_ACTION_DEALLOCATE_DOORBELL,
-		ctx_index
+		stage_id
 	};
 
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-static struct guc_context_desc *__get_context_desc(struct i915_guc_client *client)
+static struct guc_stage_desc *__get_stage_desc(struct i915_guc_client *client)
 {
-	struct guc_context_desc *base = client->guc->ctx_pool_vaddr;
+	struct guc_stage_desc *base = client->guc->stage_desc_pool_vaddr;
 
-	return &base[client->ctx_index];
+	return &base[client->stage_id];
 }
 
 /*
@@ -165,10 +165,10 @@ static struct guc_context_desc *__get_context_desc(struct i915_guc_client *clien
 
 static void __update_doorbell_desc(struct i915_guc_client *client, u16 new_id)
 {
-	struct guc_context_desc *desc;
+	struct guc_stage_desc *desc;
 
 	/* Update the GuC's idea of the doorbell ID */
-	desc = __get_context_desc(client);
+	desc = __get_stage_desc(client);
 	desc->db_id = new_id;
 }
 
@@ -194,7 +194,7 @@ static int __create_doorbell(struct i915_guc_client *client)
 	doorbell->db_status = GUC_DOORBELL_ENABLED;
 	doorbell->cookie = client->doorbell_cookie;
 
-	err = __guc_allocate_doorbell(client->guc, client->ctx_index);
+	err = __guc_allocate_doorbell(client->guc, client->stage_id);
 	if (err) {
 		doorbell->db_status = GUC_DOORBELL_DISABLED;
 		doorbell->cookie = 0;
@@ -220,7 +220,7 @@ static int __destroy_doorbell(struct i915_guc_client *client)
 	if (wait_for_us(!(I915_READ(GEN8_DRBREGL(db_id)) & GEN8_DRB_VALID), 10))
 		WARN_ONCE(true, "Doorbell never became invalid after disable\n");
 
-	return __guc_deallocate_doorbell(client->guc, client->ctx_index);
+	return __guc_deallocate_doorbell(client->guc, client->stage_id);
 }
 
 static int create_doorbell(struct i915_guc_client *client)
@@ -301,34 +301,34 @@ static void guc_proc_desc_init(struct intel_guc *guc,
 	desc->wq_base_addr = 0;
 	desc->db_base_addr = 0;
 
-	desc->context_id = client->ctx_index;
+	desc->stage_id = client->stage_id;
 	desc->wq_size_bytes = client->wq_size;
 	desc->wq_status = WQ_STATUS_ACTIVE;
 	desc->priority = client->priority;
 }
 
 /*
- * Initialise/clear the context descriptor shared with the GuC firmware.
+ * Initialise/clear the stage descriptor shared with the GuC firmware.
  *
  * This descriptor tells the GuC where (in GGTT space) to find the important
  * data structures relating to this client (doorbell, process descriptor,
  * write queue, etc).
  */
-static void guc_ctx_desc_init(struct intel_guc *guc,
-			      struct i915_guc_client *client)
+static void guc_stage_desc_init(struct intel_guc *guc,
+				struct i915_guc_client *client)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx = client->owner;
-	struct guc_context_desc *desc;
+	struct guc_stage_desc *desc;
 	unsigned int tmp;
 	u32 gfx_addr;
 
-	desc = __get_context_desc(client);
+	desc = __get_stage_desc(client);
 	memset(desc, 0, sizeof(*desc));
 
-	desc->attribute = GUC_CTX_DESC_ATTR_ACTIVE | GUC_CTX_DESC_ATTR_KERNEL;
-	desc->context_id = client->ctx_index;
+	desc->attribute = GUC_STAGE_DESC_ATTR_ACTIVE | GUC_STAGE_DESC_ATTR_KERNEL;
+	desc->stage_id = client->stage_id;
 	desc->priority = client->priority;
 	desc->db_id = client->doorbell_id;
 
@@ -348,7 +348,7 @@ static void guc_ctx_desc_init(struct intel_guc *guc,
 			break;	/* XXX: continue? */
 
 		/*
-		 * XXX: When this is a GUC_CTX_DESC_ATTR_KERNEL client (proxy
+		 * XXX: When this is a GUC_STAGE_DESC_ATTR_KERNEL client (proxy
 		 * submission or, in other words, not using a direct submission
 		 * model) the KMD's LRCA is not used for any work submission.
 		 * Instead, the GuC uses the LRCA of the user mode context (see
@@ -359,7 +359,10 @@ static void guc_ctx_desc_init(struct intel_guc *guc,
 		/* The state page is after PPHWSP */
 		lrc->ring_lrca =
 			guc_ggtt_offset(ce->state) + LRC_STATE_PN * PAGE_SIZE;
-		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
+
+		/* XXX: In direct submission, the GuC wants the HW context id
+		 * here. In proxy submission, it wants the stage id */
+		lrc->context_id = (client->stage_id << GUC_ELC_CTXID_OFFSET) |
 				(guc_engine_id << GUC_ELC_ENGINE_OFFSET);
 
 		lrc->ring_begin = guc_ggtt_offset(ce->ring->vma);
@@ -390,12 +393,12 @@ static void guc_ctx_desc_init(struct intel_guc *guc,
 	desc->desc_private = (uintptr_t)client;
 }
 
-static void guc_ctx_desc_fini(struct intel_guc *guc,
-			      struct i915_guc_client *client)
+static void guc_stage_desc_fini(struct intel_guc *guc,
+				struct i915_guc_client *client)
 {
-	struct guc_context_desc *desc;
+	struct guc_stage_desc *desc;
 
-	desc = __get_context_desc(client);
+	desc = __get_stage_desc(client);
 	memset(desc, 0, sizeof(*desc));
 }
 
@@ -863,7 +866,7 @@ static int guc_init_doorbell_hw(struct intel_guc *guc)
 		ret = __create_doorbell(client);
 		if (ret) {
 			DRM_ERROR("Couldn't recreate client %u doorbell: %d\n",
-				client->ctx_index, ret);
+				client->stage_id, ret);
 			return ret;
 		}
 	}
@@ -913,12 +916,12 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	client->wq_size = GUC_WQ_SIZE;
 	spin_lock_init(&client->wq_lock);
 
-	ret = ida_simple_get(&guc->ctx_ids, 0, GUC_MAX_GPU_CONTEXTS,
+	ret = ida_simple_get(&guc->stage_ids, 0, GUC_MAX_STAGE_DESCRIPTORS,
 				GFP_KERNEL);
 	if (ret < 0)
 		goto err_client;
 
-	client->ctx_index = ret;
+	client->stage_id = ret;
 
 	/* The first page is doorbell/proc_desc. Two followed pages are wq. */
 	vma = intel_guc_allocate_vma(guc, GUC_DB_SIZE + GUC_WQ_SIZE);
@@ -950,14 +953,14 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 		client->proc_desc_offset = (GUC_DB_SIZE / 2);
 
 	guc_proc_desc_init(guc, client);
-	guc_ctx_desc_init(guc, client);
+	guc_stage_desc_init(guc, client);
 
 	ret = create_doorbell(client);
 	if (ret)
 		goto err_vaddr;
 
-	DRM_DEBUG_DRIVER("new priority %u client %p for engine(s) 0x%x: ctx_index %u\n",
-			 priority, client, client->engines, client->ctx_index);
+	DRM_DEBUG_DRIVER("new priority %u client %p for engine(s) 0x%x: stage_id %u\n",
+			 priority, client, client->engines, client->stage_id);
 	DRM_DEBUG_DRIVER("doorbell id %u, cacheline offset 0x%lx\n",
 			 client->doorbell_id, client->doorbell_offset);
 
@@ -968,7 +971,7 @@ err_vaddr:
 err_vma:
 	i915_vma_unpin_and_release(&client->vma);
 err_id:
-	ida_simple_remove(&guc->ctx_ids, client->ctx_index);
+	ida_simple_remove(&guc->stage_ids, client->stage_id);
 err_client:
 	kfree(client);
 	return ERR_PTR(ret);
@@ -985,10 +988,10 @@ static void guc_client_free(struct i915_guc_client *client)
 	 * reset, so we cannot destroy the doorbell properly. Ignore the
 	 * error message for now */
 	destroy_doorbell(client);
-	guc_ctx_desc_fini(client->guc, client);
+	guc_stage_desc_fini(client->guc, client);
 	i915_gem_object_unpin_map(client->vma->obj);
 	i915_vma_unpin_and_release(&client->vma);
-	ida_simple_remove(&client->guc->ctx_ids, client->ctx_index);
+	ida_simple_remove(&client->guc->stage_ids, client->stage_id);
 	kfree(client);
 }
 
@@ -1000,7 +1003,7 @@ static void guc_policies_init(struct guc_policies *policies)
 	policies->dpc_promote_time = 500000;
 	policies->max_num_work_items = POLICY_MAX_NUM_WI;
 
-	for (p = 0; p < GUC_CTX_PRIORITY_NUM; p++) {
+	for (p = 0; p < GUC_CLIENT_PRIORITY_NUM; p++) {
 		for (i = GUC_RENDER_ENGINE; i < GUC_MAX_ENGINES_NUM; i++) {
 			policy = &policies->policy[p][i];
 
@@ -1088,30 +1091,29 @@ static void guc_ads_destroy(struct intel_guc *guc)
  */
 int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 {
-	const size_t ctxsize = sizeof(struct guc_context_desc);
-	const size_t poolsize = GUC_MAX_GPU_CONTEXTS * ctxsize;
-	const size_t gemsize = round_up(poolsize, PAGE_SIZE);
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_vma *vma;
 	void *vaddr;
 	int ret;
 
-	if (guc->ctx_pool)
+	if (guc->stage_desc_pool)
 		return 0;
 
-	vma = intel_guc_allocate_vma(guc, gemsize);
+	vma = intel_guc_allocate_vma(guc,
+				PAGE_ALIGN(sizeof(struct guc_stage_desc) *
+					GUC_MAX_STAGE_DESCRIPTORS));
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	guc->ctx_pool = vma;
+	guc->stage_desc_pool = vma;
 
-	vaddr = i915_gem_object_pin_map(guc->ctx_pool->obj, I915_MAP_WB);
+	vaddr = i915_gem_object_pin_map(guc->stage_desc_pool->obj, I915_MAP_WB);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
 		goto err_vma;
 	}
 
-	guc->ctx_pool_vaddr = vaddr;
+	guc->stage_desc_pool_vaddr = vaddr;
 
 	ret = intel_guc_log_create(guc);
 	if (ret < 0)
@@ -1121,16 +1123,16 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 	if (ret < 0)
 		goto err_log;
 
-	ida_init(&guc->ctx_ids);
+	ida_init(&guc->stage_ids);
 
 	return 0;
 
 err_log:
 	intel_guc_log_destroy(guc);
 err_vaddr:
-	i915_gem_object_unpin_map(guc->ctx_pool->obj);
+	i915_gem_object_unpin_map(guc->stage_desc_pool->obj);
 err_vma:
-	i915_vma_unpin_and_release(&guc->ctx_pool);
+	i915_vma_unpin_and_release(&guc->stage_desc_pool);
 	return ret;
 }
 
@@ -1138,11 +1140,11 @@ void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
 
-	ida_destroy(&guc->ctx_ids);
+	ida_destroy(&guc->stage_ids);
 	guc_ads_destroy(guc);
 	intel_guc_log_destroy(guc);
-	i915_gem_object_unpin_map(guc->ctx_pool->obj);
-	i915_vma_unpin_and_release(&guc->ctx_pool);
+	i915_gem_object_unpin_map(guc->stage_desc_pool->obj);
+	i915_vma_unpin_and_release(&guc->stage_desc_pool);
 }
 
 static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
@@ -1198,7 +1200,7 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	if (!client) {
 		client = guc_client_alloc(dev_priv,
 					  INTEL_INFO(dev_priv)->ring_mask,
-					  GUC_CTX_PRIORITY_KMD_NORMAL,
+					  GUC_CLIENT_PRIORITY_KMD_NORMAL,
 					  dev_priv->kernel_context);
 		if (IS_ERR(client)) {
 			DRM_ERROR("Failed to create GuC client for execbuf!\n");
