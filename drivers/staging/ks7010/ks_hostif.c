@@ -2607,16 +2607,16 @@ void hostif_sme_task(unsigned long dev)
 
 	DPRINTK(3, "\n");
 
-	if (priv->dev_state >= DEVICE_STATE_BOOT) {
-		if (cnt_smeqbody(priv) > 0) {
-			hostif_sme_execute(priv,
-					   priv->sme_i.event_buff[priv->sme_i.
-								  qhead]);
-			inc_smeqhead(priv);
-			if (cnt_smeqbody(priv) > 0)
-				tasklet_schedule(&priv->sme_task);
-		}
-	}
+	if (priv->dev_state < DEVICE_STATE_BOOT)
+		return;
+
+	if (cnt_smeqbody(priv) <= 0)
+		return;
+
+	hostif_sme_execute(priv, priv->sme_i.event_buff[priv->sme_i.qhead]);
+	inc_smeqhead(priv);
+	if (cnt_smeqbody(priv) > 0)
+		tasklet_schedule(&priv->sme_task);
 }
 
 /* send to Station Management Entity module */
