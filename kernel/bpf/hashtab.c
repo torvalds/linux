@@ -16,6 +16,7 @@
 #include <linux/rculist_nulls.h>
 #include "percpu_freelist.h"
 #include "bpf_lru_list.h"
+#include "map_in_map.h"
 
 struct bucket {
 	struct hlist_nulls_head head;
@@ -86,6 +87,11 @@ static inline void htab_elem_set_ptr(struct htab_elem *l, u32 key_size,
 static inline void __percpu *htab_elem_get_ptr(struct htab_elem *l, u32 key_size)
 {
 	return *(void __percpu **)(l->key + key_size);
+}
+
+static void *fd_htab_map_get_ptr(const struct bpf_map *map, struct htab_elem *l)
+{
+	return *(void **)(l->key + roundup(map->key_size, 8));
 }
 
 static struct htab_elem *get_htab_elem(struct bpf_htab *htab, int i)
@@ -603,6 +609,14 @@ static void htab_elem_free_rcu(struct rcu_head *head)
 
 static void free_htab_elem(struct bpf_htab *htab, struct htab_elem *l)
 {
+	struct bpf_map *map = &htab->map;
+
+	if (map->ops->map_fd_put_ptr) {
+		void *ptr = fd_htab_map_get_ptr(map, l);
+
+		map->ops->map_fd_put_ptr(ptr);
+	}
+
 	if (l->state == HTAB_EXTRA_ELEM_USED) {
 		l->state = HTAB_EXTRA_ELEM_FREE;
 		return;
@@ -1057,6 +1071,7 @@ static void delete_all_elements(struct bpf_htab *htab)
 		}
 	}
 }
+
 /* Called when map->refcnt goes to zero, either from workqueue or from syscall */
 static void htab_map_free(struct bpf_map *map)
 {
@@ -1213,12 +1228,118 @@ static struct bpf_map_type_list htab_lru_percpu_type __ro_after_init = {
 	.type = BPF_MAP_TYPE_LRU_PERCPU_HASH,
 };
 
+static struct bpf_map *fd_htab_map_alloc(union bpf_attr *attr)
+{
+	struct bpf_map *map;
+
+	if (attr->value_size != sizeof(u32))
+		return ERR_PTR(-EINVAL);
+
+	/* pointer is stored internally */
+	attr->value_size = sizeof(void *);
+	map = htab_map_alloc(attr);
+	attr->value_size = sizeof(u32);
+
+	return map;
+}
+
+static void fd_htab_map_free(struct bpf_map *map)
+{
+	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
+	struct hlist_nulls_node *n;
+	struct hlist_nulls_head *head;
+	struct htab_elem *l;
+	int i;
+
+	for (i = 0; i < htab->n_buckets; i++) {
+		head = select_bucket(htab, i);
+
+		hlist_nulls_for_each_entry_safe(l, n, head, hash_node) {
+			void *ptr = fd_htab_map_get_ptr(map, l);
+
+			map->ops->map_fd_put_ptr(ptr);
+		}
+	}
+
+	htab_map_free(map);
+}
+
+/* only called from syscall */
+int bpf_fd_htab_map_update_elem(struct bpf_map *map, struct file *map_file,
+				void *key, void *value, u64 map_flags)
+{
+	void *ptr;
+	int ret;
+	u32 ufd = *(u32 *)value;
+
+	ptr = map->ops->map_fd_get_ptr(map, map_file, ufd);
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
+
+	ret = htab_map_update_elem(map, key, &ptr, map_flags);
+	if (ret)
+		map->ops->map_fd_put_ptr(ptr);
+
+	return ret;
+}
+
+static struct bpf_map *htab_of_map_alloc(union bpf_attr *attr)
+{
+	struct bpf_map *map, *inner_map_meta;
+
+	inner_map_meta = bpf_map_meta_alloc(attr->inner_map_fd);
+	if (IS_ERR(inner_map_meta))
+		return inner_map_meta;
+
+	map = fd_htab_map_alloc(attr);
+	if (IS_ERR(map)) {
+		bpf_map_meta_free(inner_map_meta);
+		return map;
+	}
+
+	map->inner_map_meta = inner_map_meta;
+
+	return map;
+}
+
+static void *htab_of_map_lookup_elem(struct bpf_map *map, void *key)
+{
+	struct bpf_map **inner_map  = htab_map_lookup_elem(map, key);
+
+	if (!inner_map)
+		return NULL;
+
+	return READ_ONCE(*inner_map);
+}
+
+static void htab_of_map_free(struct bpf_map *map)
+{
+	bpf_map_meta_free(map->inner_map_meta);
+	fd_htab_map_free(map);
+}
+
+static const struct bpf_map_ops htab_of_map_ops = {
+	.map_alloc = htab_of_map_alloc,
+	.map_free = htab_of_map_free,
+	.map_get_next_key = htab_map_get_next_key,
+	.map_lookup_elem = htab_of_map_lookup_elem,
+	.map_delete_elem = htab_map_delete_elem,
+	.map_fd_get_ptr = bpf_map_fd_get_ptr,
+	.map_fd_put_ptr = bpf_map_fd_put_ptr,
+};
+
+static struct bpf_map_type_list htab_of_map_type __ro_after_init = {
+	.ops = &htab_of_map_ops,
+	.type = BPF_MAP_TYPE_HASH_OF_MAPS,
+};
+
 static int __init register_htab_map(void)
 {
 	bpf_register_map_type(&htab_type);
 	bpf_register_map_type(&htab_percpu_type);
 	bpf_register_map_type(&htab_lru_type);
 	bpf_register_map_type(&htab_lru_percpu_type);
+	bpf_register_map_type(&htab_of_map_type);
 	return 0;
 }
 late_initcall(register_htab_map);
