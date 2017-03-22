@@ -819,16 +819,14 @@ int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter)
 {
 	struct rndis_request *request;
 	struct rndis_set_request *set;
-	struct rndis_set_complete *set_complete;
 	int ret;
 
 	request = get_rndis_request(dev, RNDIS_MSG_SET,
 			RNDIS_MESSAGE_SIZE(struct rndis_set_request) +
 			sizeof(u32));
-	if (!request) {
-		ret = -ENOMEM;
-		goto cleanup;
-	}
+	if (!request)
+		return -ENOMEM;
+
 
 	/* Setup the rndis set */
 	set = &request->request_msg.msg.set_req;
@@ -840,15 +838,11 @@ int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter)
 	       &new_filter, sizeof(u32));
 
 	ret = rndis_filter_send_request(dev, request);
-	if (ret != 0)
-		goto cleanup;
+	if (ret == 0)
+		wait_for_completion(&request->wait_event);
 
-	wait_for_completion(&request->wait_event);
+	put_rndis_request(dev, request);
 
-	set_complete = &request->response_msg.msg.set_complete;
-cleanup:
-	if (request)
-		put_rndis_request(dev, request);
 	return ret;
 }
 
