@@ -500,9 +500,10 @@ static int xge_open(struct net_device *ndev)
 
 	xge_intr_enable(pdata);
 	xge_wr_csr(pdata, DMARXCTRL, 1);
+
+	phy_start(ndev->phydev);
 	xge_mac_enable(pdata);
 	netif_start_queue(ndev);
-	netif_carrier_on(ndev);
 
 	return 0;
 }
@@ -511,9 +512,9 @@ static int xge_close(struct net_device *ndev)
 {
 	struct xge_pdata *pdata = netdev_priv(ndev);
 
-	netif_carrier_off(ndev);
 	netif_stop_queue(ndev);
 	xge_mac_disable(pdata);
+	phy_stop(ndev->phydev);
 
 	xge_intr_disable(pdata);
 	xge_free_irq(ndev);
@@ -683,9 +684,12 @@ static int xge_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
+	ret = xge_mdio_config(ndev);
+	if (ret)
+		goto err;
+
 	netif_napi_add(ndev, &pdata->napi, xge_napi, NAPI_POLL_WEIGHT);
 
-	netif_carrier_off(ndev);
 	ret = register_netdev(ndev);
 	if (ret) {
 		netdev_err(ndev, "Failed to register netdev\n");
@@ -713,6 +717,7 @@ static int xge_remove(struct platform_device *pdev)
 		dev_close(ndev);
 	rtnl_unlock();
 
+	xge_mdio_remove(ndev);
 	unregister_netdev(ndev);
 	free_netdev(ndev);
 

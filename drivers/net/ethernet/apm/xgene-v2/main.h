@@ -65,11 +65,15 @@ struct xge_pdata {
 	struct xge_desc_ring *rx_ring;
 	struct platform_device *pdev;
 	char irq_name[IRQ_ID_SIZE];
+	struct mii_bus *mdio_bus;
 	struct net_device *ndev;
 	struct napi_struct napi;
 	struct xge_stats stats;
 	int phy_speed;
 	u8 nbufs;
 };
+
+int xge_mdio_config(struct net_device *ndev);
+void xge_mdio_remove(struct net_device *ndev);
 
 #endif /* __XGENE_ENET_V2_MAIN_H__ */
