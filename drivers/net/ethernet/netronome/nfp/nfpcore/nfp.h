@@ -66,14 +66,7 @@ int nfp_nsp_write_eth_table(struct nfp_nsp *state,
 
 /* Implemented in nfp_resource.c */
 
-#define NFP_RESOURCE_TBL_TARGET		NFP_CPP_TARGET_MU
-#define NFP_RESOURCE_TBL_BASE		0x8100000000ULL
-
-/* NFP Resource Table self-identifier */
-#define NFP_RESOURCE_TBL_NAME		"nfp.res"
-#define NFP_RESOURCE_TBL_KEY		0x00000000 /* Special key for entry 0 */
-
-/* All other keys are CRC32-POSIX of the 8-byte identification string */
+/* All keys are CRC32-POSIX of the 8-byte identification string */
 
 /* ARM/PCI vNIC Interfaces 0..3 */
 #define NFP_RESOURCE_VNIC_PCI_0		"vnic.p0"
