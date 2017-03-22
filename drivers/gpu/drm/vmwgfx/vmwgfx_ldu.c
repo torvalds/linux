@@ -208,7 +208,8 @@ static int vmw_ldu_add_active(struct vmw_private *vmw_priv,
 	return 0;
 }
 
-static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
+static int vmw_ldu_crtc_set_config(struct drm_mode_set *set,
+				   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_legacy_display_unit *ldu;

@@ -509,7 +509,8 @@ out_srf_unref:
  * RETURNS:
  * 0 on success, error code otherwise
  */
-static int vmw_stdu_crtc_set_config(struct drm_mode_set *set)
+static int vmw_stdu_crtc_set_config(struct drm_mode_set *set,
+				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_framebuffer *vfb;

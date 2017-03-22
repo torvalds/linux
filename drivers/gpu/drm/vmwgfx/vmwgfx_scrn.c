@@ -248,7 +248,8 @@ static int vmw_sou_backing_alloc(struct vmw_private *dev_priv,
 	return ret;
 }
 
-static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
+static int vmw_sou_crtc_set_config(struct drm_mode_set *set,
+				   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_object_unit *sou;

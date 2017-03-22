@@ -2265,6 +2265,7 @@ static int update_output_state(struct drm_atomic_state *state,
 /**
  * drm_atomic_helper_set_config - set a new config from userspace
  * @set: mode set configuration
+ * @ctx: lock acquisition context
  *
  * Provides a default crtc set_config handler using the atomic driver interface.
  *
@@ -2277,7 +2278,8 @@ static int update_output_state(struct drm_atomic_state *state,
  * Returns:
  * Returns 0 on success, negative errno numbers on failure.
  */
-int drm_atomic_helper_set_config(struct drm_mode_set *set)
+int drm_atomic_helper_set_config(struct drm_mode_set *set,
+				 struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_atomic_state *state;
 	struct drm_crtc *crtc = set->crtc;

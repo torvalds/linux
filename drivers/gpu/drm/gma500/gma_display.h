@@ -79,7 +79,8 @@ extern void gma_crtc_prepare(struct drm_crtc *crtc);
 extern void gma_crtc_commit(struct drm_crtc *crtc);
 extern void gma_crtc_disable(struct drm_crtc *crtc);
 extern void gma_crtc_destroy(struct drm_crtc *crtc);
-extern int gma_crtc_set_config(struct drm_mode_set *set);
+extern int gma_crtc_set_config(struct drm_mode_set *set,
+			       struct drm_modeset_acquire_ctx *ctx);
 
 extern void gma_crtc_save(struct drm_crtc *crtc);
 extern void gma_crtc_restore(struct drm_crtc *crtc);

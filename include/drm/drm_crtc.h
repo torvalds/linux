@@ -347,7 +347,8 @@ struct drm_crtc_funcs {
 	 *
 	 * 0 on success or a negative error code on failure.
 	 */
-	int (*set_config)(struct drm_mode_set *set);
+	int (*set_config)(struct drm_mode_set *set,
+			  struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @page_flip:

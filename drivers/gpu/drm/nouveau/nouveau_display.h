@@ -88,7 +88,6 @@ int  nouveau_display_dumb_map_offset(struct drm_file *, struct drm_device *,
 
 void nouveau_hdmi_mode_set(struct drm_encoder *, struct drm_display_mode *);
 
-int nouveau_crtc_set_config(struct drm_mode_set *set);
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
 extern int nouveau_backlight_init(struct drm_device *);
 extern void nouveau_backlight_exit(struct drm_device *);

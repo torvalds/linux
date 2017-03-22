@@ -371,7 +371,7 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * drm_mode_setplane() already handles the basic refcounting for the
 	 * framebuffers involved in this operation.
 	 */
-	ret = crtc->funcs->set_config(&set);
+	ret = crtc->funcs->set_config(&set, ctx);
 
 	kfree(connector_list);
 	return ret;
