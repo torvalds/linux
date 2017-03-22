@@ -510,7 +510,7 @@ static int __setplane_internal(struct drm_plane *plane,
 	plane->old_fb = plane->fb;
 	ret = plane->funcs->update_plane(plane, crtc, fb,
 					 crtc_x, crtc_y, crtc_w, crtc_h,
-					 src_x, src_y, src_w, src_h);
+					 src_x, src_y, src_w, src_h, ctx);
 	if (!ret) {
 		plane->crtc = crtc;
 		plane->fb = fb;

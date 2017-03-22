@@ -2077,6 +2077,7 @@ EXPORT_SYMBOL(drm_atomic_helper_swap_state);
  * @src_y: y offset of @fb for panning
  * @src_w: width of source rectangle in @fb
  * @src_h: height of source rectangle in @fb
+ * @ctx: lock acquire context
  *
  * Provides a default plane update handler using the atomic driver interface.
  *
@@ -2089,7 +2090,8 @@ int drm_atomic_helper_update_plane(struct drm_plane *plane,
 				   int crtc_x, int crtc_y,
 				   unsigned int crtc_w, unsigned int crtc_h,
 				   uint32_t src_x, uint32_t src_y,
-				   uint32_t src_w, uint32_t src_h)
+				   uint32_t src_w, uint32_t src_h,
+				   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_atomic_state *state;
 	struct drm_plane_state *plane_state;

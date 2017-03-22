@@ -94,7 +94,8 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
 		  unsigned int crtc_w, unsigned int crtc_h,
 		  uint32_t src_x, uint32_t src_y,
-		  uint32_t src_w, uint32_t src_h)
+		  uint32_t src_w, uint32_t src_h,
+		  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nouveau_drm *drm = nouveau_drm(plane->dev);
 	struct nvif_object *dev = &drm->client.device.object;
@@ -345,7 +346,8 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
 		  unsigned int crtc_w, unsigned int crtc_h,
 		  uint32_t src_x, uint32_t src_y,
-		  uint32_t src_w, uint32_t src_h)
+		  uint32_t src_w, uint32_t src_h,
+		  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
 	struct nouveau_plane *nv_plane =

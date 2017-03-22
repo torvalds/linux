@@ -177,7 +177,8 @@ shmob_drm_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 		       struct drm_framebuffer *fb, int crtc_x, int crtc_y,
 		       unsigned int crtc_w, unsigned int crtc_h,
 		       uint32_t src_x, uint32_t src_y,
-		       uint32_t src_w, uint32_t src_h)
+		       uint32_t src_w, uint32_t src_h,
+		       struct drm_modeset_acquire_ctx *ctx)
 {
 	struct shmob_drm_plane *splane = to_shmob_plane(plane);
 	struct shmob_drm_device *sdev = plane->dev->dev_private;
