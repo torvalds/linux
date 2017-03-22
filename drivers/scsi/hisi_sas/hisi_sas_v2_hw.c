@@ -1075,6 +1075,17 @@ static void enable_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHY_CFG, cfg);
 }
 
+static bool is_sata_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	u32 context;
+
+	context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
+	if (context & (1 << phy_no))
+		return true;
+
+	return false;
+}
+
 static void disable_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
@@ -2286,7 +2297,7 @@ static int prep_abort_v2_hw(struct hisi_hba *hisi_hba,
 static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
 	int i, res = IRQ_HANDLED;
-	u32 context, port_id, link_rate, hard_phy_linkrate;
+	u32 port_id, link_rate, hard_phy_linkrate;
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct device *dev = &hisi_hba->pdev->dev;
@@ -2295,9 +2306,7 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_PHY_ENA_MSK, 1);
 
-	/* Check for SATA dev */
-	context = hisi_sas_read32(hisi_hba, PHY_CONTEXT);
-	if (context & (1 << phy_no))
+	if (is_sata_phy_v2_hw(hisi_hba, phy_no))
 		goto end;
 
 	if (phy_no == 8) {
