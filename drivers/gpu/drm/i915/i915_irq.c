@@ -1741,8 +1741,8 @@ static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 gt_iir)
 			I915_WRITE(SOFT_SCRATCH(15), msg & ~flush);
 
 			/* Handle flush interrupt in bottom half */
-			queue_work(dev_priv->guc.log.flush_wq,
-				   &dev_priv->guc.log.flush_work);
+			queue_work(dev_priv->guc.log.runtime.flush_wq,
+				   &dev_priv->guc.log.runtime.flush_work);
 
 			dev_priv->guc.log.flush_interrupt_count++;
 		} else {

@@ -132,11 +132,13 @@ struct intel_uc_fw {
 struct intel_guc_log {
 	uint32_t flags;
 	struct i915_vma *vma;
-	void *buf_addr;
-	struct workqueue_struct *flush_wq;
-	struct work_struct flush_work;
-	struct rchan *relay_chan;
-
+	/* The runtime stuff gets created only when GuC logging gets enabled */
+	struct {
+		void *buf_addr;
+		struct workqueue_struct *flush_wq;
+		struct work_struct flush_work;
+		struct rchan *relay_chan;
+	} runtime;
 	/* logging related stats */
 	u32 capture_miss_count;
 	u32 flush_interrupt_count;
