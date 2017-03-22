@@ -192,7 +192,7 @@ static void slice_flush_segments(void *parm)
 	if (mm != current->active_mm)
 		return;
 
-	copy_mm_to_paca(&current->active_mm->context);
+	copy_mm_to_paca(current->active_mm);
 
 	local_irq_save(flags);
 	slb_flush_and_rebolt();

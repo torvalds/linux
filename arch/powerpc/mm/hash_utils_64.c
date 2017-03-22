@@ -1133,7 +1133,7 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 	copro_flush_all_slbs(mm);
 	if ((get_paca_psize(addr) != MMU_PAGE_4K) && (current->mm == mm)) {
 
-		copy_mm_to_paca(&mm->context);
+		copy_mm_to_paca(mm);
 		slb_flush_and_rebolt();
 	}
 }
@@ -1205,7 +1205,7 @@ static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
 {
 	if (user_region) {
 		if (psize != get_paca_psize(ea)) {
-			copy_mm_to_paca(&mm->context);
+			copy_mm_to_paca(mm);
 			slb_flush_and_rebolt();
 		}
 	} else if (get_paca()->vmalloc_sllp !=
