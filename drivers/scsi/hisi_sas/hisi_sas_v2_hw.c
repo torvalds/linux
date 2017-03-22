@@ -1737,6 +1737,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 			hisi_hba->complete_hdr[slot->cmplt_queue];
 	struct hisi_sas_complete_v2_hdr *complete_hdr =
 			&complete_queue[slot->cmplt_queue_slot];
+	int aborted;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return -EINVAL;
@@ -1745,11 +1746,20 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	device = task->dev;
 	sas_dev = device->lldd_dev;
 
+	spin_lock(&task->task_state_lock);
+	aborted = task->task_state_flags & SAS_TASK_STATE_ABORTED;
 	task->task_state_flags &=
 		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
+	spin_unlock(&task->task_state_lock);
 
 	memset(ts, 0, sizeof(*ts));
 	ts->resp = SAS_TASK_COMPLETE;
+
+	if (unlikely(aborted)) {
+		ts->stat = SAS_ABORTED_TASK;
+		hisi_sas_slot_task_free(hisi_hba, task, slot);
+		return -1;
+	}
 
 	if (unlikely(!sas_dev)) {
 		dev_dbg(dev, "slot complete: port has no device\n");
