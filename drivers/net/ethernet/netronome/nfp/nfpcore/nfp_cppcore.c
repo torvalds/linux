@@ -65,28 +65,49 @@ struct nfp_cpp_resource {
 	u64 end;
 };
 
+/**
+ * struct nfp_cpp - main nfpcore device structure
+ * Following fields are read-only after probe() exits or netdevs are spawned.
+ * @dev:		embedded device structure
+ * @op:			low-level implementation ops
+ * @priv:		private data of the low-level implementation
+ * @model:		chip model
+ * @interface:		chip interface id we are using to reach it
+ * @serial:		chip serial number
+ * @imb_cat_table:	CPP Mapping Table
+ *
+ * Following fields can be used only in probe() or with rtnl held:
+ * @hwinfo:		HWInfo database fetched from the device
+ * @rtsym:		firmware run time symbols
+ *
+ * Following fields use explicit locking:
+ * @resource_list:	NFP CPP resource list
+ * @resource_lock:	protects @resource_list
+ *
+ * @area_cache_list:	cached areas for cpp/xpb read/write speed up
+ * @area_cache_mutex:	protects @area_cache_list
+ *
+ * @waitq:		area wait queue
+ */
 struct nfp_cpp {
 	struct device dev;
 
-	void *priv; /* Private data of the low-level implementation */
+	void *priv;
 
 	u32 model;
 	u16 interface;
 	u8 serial[NFP_SERIAL_LEN];
 
 	const struct nfp_cpp_operations *op;
-	struct list_head resource_list;	/* NFP CPP resource list */
+	struct list_head resource_list;
 	rwlock_t resource_lock;
 	wait_queue_head_t waitq;
 
-	/* NFP6000 CPP Mapping Table */
 	u32 imb_cat_table[16];
 
-	/* Cached areas for cpp/xpb readl/writel speedups */
-	struct mutex area_cache_mutex;  /* Lock for the area cache */
+	struct mutex area_cache_mutex;
 	struct list_head area_cache_list;
 
-	/* Cached information */
 	void *hwinfo;
 	void *rtsym;
 };
