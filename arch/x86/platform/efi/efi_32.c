@@ -68,7 +68,7 @@ pgd_t * __init efi_call_phys_prolog(void)
 	load_cr3(initial_page_table);
 	__flush_tlb_all();
 
-	gdt_descr.address = __pa(get_cpu_gdt_rw(0));
+	gdt_descr.address = get_cpu_gdt_paddr(0);
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
 
