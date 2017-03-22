@@ -149,7 +149,6 @@ struct bq24190_dev_info {
 	struct power_supply		*charger;
 	struct power_supply		*battery;
 	char				model_name[I2C_NAME_SIZE];
-	kernel_ulong_t			model;
 	bool				initialized;
 	bool				irq_event;
 	struct mutex			f_reg_lock;
@@ -1291,8 +1290,11 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
 	if (ret < 0)
 		return ret;
 
-	if (v != bdi->model)
+	if (v != BQ24190_REG_VPRS_PN_24190 &&
+	    v != BQ24190_REG_VPRS_PN_24192I) {
+		dev_err(bdi->dev, "Error unknown model: 0x%02x\n", v);
 		return -ENODEV;
+	}
 
 	ret = bq24190_register_reset(bdi);
 	if (ret < 0)
@@ -1327,7 +1329,6 @@ static int bq24190_probe(struct i2c_client *client,
 
 	bdi->client = client;
 	bdi->dev = dev;
-	bdi->model = id->driver_data;
 	strncpy(bdi->model_name, id->name, I2C_NAME_SIZE);
 	mutex_init(&bdi->f_reg_lock);
 	bdi->f_reg = 0;
@@ -1526,13 +1527,9 @@ static const struct dev_pm_ops bq24190_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(bq24190_pm_suspend, bq24190_pm_resume)
 };
 
-/*
- * Only support the bq24190 right now.  The bq24192, bq24192i, and bq24193
- * are similar but not identical so the driver needs to be extended to
- * support them.
- */
 static const struct i2c_device_id bq24190_i2c_ids[] = {
-	{ "bq24190", BQ24190_REG_VPRS_PN_24190 },
+	{ "bq24190" },
+	{ "bq24192i" },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, bq24190_i2c_ids);
