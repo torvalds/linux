@@ -35,5 +35,10 @@
 #define CLKID_SD_EMMC_C		96
 #define CLKID_SAR_ADC_CLK	97
 #define CLKID_SAR_ADC_SEL	98
+#define CLKID_MALI_0_SEL	100
+#define CLKID_MALI_0		102
+#define CLKID_MALI_1_SEL	103
+#define CLKID_MALI_1		105
+#define CLKID_MALI		106
 
 #endif /* __GXBB_CLKC_H */

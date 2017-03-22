@@ -268,8 +268,15 @@
 /* CLKID_SAR_ADC_CLK */
 /* CLKID_SAR_ADC_SEL */
 #define CLKID_SAR_ADC_DIV	  99
+/* CLKID_MALI_0_SEL */
+#define CLKID_MALI_0_DIV	 101
+/* CLKID_MALI_0	*/
+/* CLKID_MALI_1_SEL */
+#define CLKID_MALI_1_DIV	 104
+/* CLKID_MALI_1	*/
+/* CLKID_MALI	*/
 
-#define NR_CLKS			  100
+#define NR_CLKS			  107
 
 /* include the CLKIDs that have been made part of the stable DT binding */
 #include <dt-bindings/clock/gxbb-clkc.h>
