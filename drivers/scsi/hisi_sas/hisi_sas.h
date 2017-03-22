@@ -167,6 +167,7 @@ struct hisi_sas_hw {
 			  int device_id, int abort_flag, int tag_to_abort);
 	int (*slot_complete)(struct hisi_hba *hisi_hba,
 			     struct hisi_sas_slot *slot, int abort);
+	void (*phys_init)(struct hisi_hba *hisi_hba);
 	void (*phy_enable)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*phy_disable)(struct hisi_hba *hisi_hba, int phy_no);
 	void (*phy_hard_reset)(struct hisi_hba *hisi_hba, int phy_no);
@@ -195,7 +196,6 @@ struct hisi_hba {
 	u8 sas_addr[SAS_ADDR_SIZE];
 
 	int n_phy;
-	int scan_finished;
 	spinlock_t lock;
 
 	struct timer_list timer;

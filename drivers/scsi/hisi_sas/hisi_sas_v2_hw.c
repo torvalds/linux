@@ -2864,8 +2864,6 @@ static int hisi_sas_v2_init(struct hisi_hba *hisi_hba)
 	if (rc)
 		return rc;
 
-	phys_init_v2_hw(hisi_hba);
-
 	return 0;
 }
 
@@ -2965,6 +2963,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.get_free_slot = get_free_slot_v2_hw,
 	.start_delivery = start_delivery_v2_hw,
 	.slot_complete = slot_complete_v2_hw,
+	.phys_init = phys_init_v2_hw,
 	.phy_enable = enable_phy_v2_hw,
 	.phy_disable = disable_phy_v2_hw,
 	.phy_hard_reset = phy_hard_reset_v2_hw,

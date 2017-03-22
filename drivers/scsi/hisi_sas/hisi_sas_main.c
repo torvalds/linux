@@ -493,12 +493,8 @@ static int hisi_sas_slave_configure(struct scsi_device *sdev)
 static void hisi_sas_scan_start(struct Scsi_Host *shost)
 {
 	struct hisi_hba *hisi_hba = shost_priv(shost);
-	int i;
 
-	for (i = 0; i < hisi_hba->n_phy; ++i)
-		hisi_sas_bytes_dmaed(hisi_hba, i);
-
-	hisi_hba->scan_finished = 1;
+	hisi_hba->hw->phys_init(hisi_hba);
 }
 
 static int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time)
@@ -506,7 +502,8 @@ static int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	struct hisi_hba *hisi_hba = shost_priv(shost);
 	struct sas_ha_struct *sha = &hisi_hba->sha;
 
-	if (hisi_hba->scan_finished == 0)
+	/* Wait for PHY up interrupt to occur */
+	if (time < HZ)
 		return 0;
 
 	sas_drain_work(sha);
