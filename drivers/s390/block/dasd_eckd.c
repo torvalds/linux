@@ -3783,21 +3783,24 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_raw(struct dasd_device *startdev,
 						   struct dasd_block *block,
 						   struct request *req)
 {
-	unsigned long *idaws;
-	struct dasd_device *basedev;
-	struct dasd_ccw_req *cqr;
-	struct ccw1 *ccw;
-	struct req_iterator iter;
-	struct bio_vec bv;
-	char *dst;
-	unsigned char cmd;
-	unsigned int trkcount;
+	sector_t start_padding_sectors, end_sector_offset, end_padding_sectors;
 	unsigned int seg_len, len_to_track_end;
-	unsigned int first_offs;
 	unsigned int cidaw, cplength, datasize;
 	sector_t first_trk, last_trk, sectors;
-	sector_t start_padding_sectors, end_sector_offset, end_padding_sectors;
-	unsigned int pfx_datasize;
+	struct dasd_eckd_private *base_priv;
+	struct dasd_device *basedev;
+	struct req_iterator iter;
+	struct dasd_ccw_req *cqr;
+	unsigned int first_offs;
+	unsigned int trkcount;
+	unsigned long *idaws;
+	unsigned int size;
+	unsigned char cmd;
+	struct bio_vec bv;
+	struct ccw1 *ccw;
+	int use_prefix;
+	void *data;
+	char *dst;
 
 	/*
 	 * raw track access needs to be mutiple of 64k and on 64k boundary
@@ -3815,8 +3818,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_raw(struct dasd_device *startdev,
 		DBF_DEV_EVENT(DBF_ERR, basedev,
 			      "raw write not track aligned (%lu,%lu) req %p",
 			      start_padding_sectors, end_padding_sectors, req);
-		cqr = ERR_PTR(-EINVAL);
-		goto out;
+		return ERR_PTR(-EINVAL);
 	}
 
 	first_trk = blk_rq_pos(req) / DASD_RAW_SECTORS_PER_TRACK;
@@ -3829,10 +3831,8 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_raw(struct dasd_device *startdev,
 		cmd = DASD_ECKD_CCW_READ_TRACK;
 	else if (rq_data_dir(req) == WRITE)
 		cmd = DASD_ECKD_CCW_WRITE_FULL_TRACK;
-	else {
-		cqr = ERR_PTR(-EINVAL);
-		goto out;
-	}
+	else
+		return ERR_PTR(-EINVAL);
 
 	/*
 	 * Raw track based I/O needs IDAWs for each page,
@@ -3840,38 +3840,46 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_raw(struct dasd_device *startdev,
 	 */
 	cidaw = trkcount * DASD_RAW_BLOCK_PER_TRACK;
 
-	/* 1x prefix + one read/write ccw per track */
-	cplength = 1 + trkcount;
-
 	/*
-	 * struct PFX_eckd_data has up to 2 byte as extended parameter
-	 * this is needed for write full track and has to be mentioned
-	 * separately
-	 * add 8 instead of 2 to keep 8 byte boundary
+	 * struct PFX_eckd_data and struct LRE_eckd_data can have up to 2 bytes
+	 * of extended parameter. This is needed for write full track.
 	 */
-	pfx_datasize = sizeof(struct PFX_eckd_data) + 8;
+	base_priv = basedev->private;
+	use_prefix = base_priv->features.feature[8] & 0x01;
+	if (use_prefix) {
+		cplength = 1 + trkcount;
+		size = sizeof(struct PFX_eckd_data) + 2;
+	} else {
+		cplength = 2 + trkcount;
+		size = sizeof(struct DE_eckd_data) +
+			sizeof(struct LRE_eckd_data) + 2;
+	}
+	size = ALIGN(size, 8);
 
-	datasize = pfx_datasize + cidaw * sizeof(unsigned long long);
+	datasize = size + cidaw * sizeof(unsigned long long);
 
 	/* Allocate the ccw request. */
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, cplength,
 				   datasize, startdev);
 	if (IS_ERR(cqr))
-		goto out;
-	ccw = cqr->cpaddr;
+		return cqr;
 
-	if (prefix_LRE(ccw++, cqr->data, first_trk, last_trk, cmd,
-		       basedev, startdev, 1 /* format */, first_offs + 1,
-		       trkcount, 0, 0) == -EAGAIN) {
-		/* Clock not in sync and XRC is enabled.
-		 * Try again later.
-		 */
-		dasd_sfree_request(cqr, startdev);
-		cqr = ERR_PTR(-EAGAIN);
-		goto out;
+	ccw = cqr->cpaddr;
+	data = cqr->data;
+
+	if (use_prefix) {
+		prefix_LRE(ccw++, data, first_trk, last_trk, cmd, basedev,
+			   startdev, 1, first_offs + 1, trkcount, 0, 0);
+	} else {
+		define_extent(ccw++, data, first_trk, last_trk, cmd, basedev, 0);
+		ccw[-1].flags |= CCW_FLAG_CC;
+
+		data += sizeof(struct DE_eckd_data);
+		locate_record_ext(ccw++, data, first_trk, first_offs + 1,
+				  trkcount, cmd, basedev, 0, 0);
 	}
 
-	idaws = (unsigned long *)(cqr->data + pfx_datasize);
+	idaws = (unsigned long *)(cqr->data + size);
 	len_to_track_end = 0;
 	if (start_padding_sectors) {
 		ccw[-1].flags |= CCW_FLAG_CC;
@@ -3921,9 +3929,6 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_raw(struct dasd_device *startdev,
 	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 
-	if (IS_ERR(cqr) && PTR_ERR(cqr) != -EAGAIN)
-		cqr = NULL;
-out:
 	return cqr;
 }
 
