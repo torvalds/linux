@@ -1051,6 +1051,12 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_fence *f;
 
+	/*
+	 * GPU lock must already be held, otherwise fence completion order might
+	 * not match the seqno order assigned here.
+	 */
+	lockdep_assert_held(&gpu->lock);
+
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
 	if (!f)
 		return NULL;
