@@ -103,7 +103,7 @@ struct mlxsw_sp_fid {
 	struct list_head list;
 	unsigned int ref_count;
 	struct net_device *dev;
-	struct mlxsw_sp_rif *r;
+	struct mlxsw_sp_rif *rif;
 	u16 fid;
 };
 
@@ -577,7 +577,7 @@ int mlxsw_sp_netdevice_router_port_event(struct net_device *dev);
 int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
 			    unsigned long event, void *ptr);
 void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_rif *r);
+				 struct mlxsw_sp_rif *rif);
 int mlxsw_sp_vport_vrf_join(struct mlxsw_sp_port *mlxsw_sp_vport);
 void mlxsw_sp_vport_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_vport);
 int mlxsw_sp_port_vrf_join(struct mlxsw_sp_port *mlxsw_sp_port);
