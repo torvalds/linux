@@ -457,7 +457,8 @@ static int __setplane_internal(struct drm_plane *plane,
 			       uint32_t crtc_w, uint32_t crtc_h,
 			       /* src_{x,y,w,h} values are 16.16 fixed point */
 			       uint32_t src_x, uint32_t src_y,
-			       uint32_t src_w, uint32_t src_h)
+			       uint32_t src_w, uint32_t src_h,
+			       struct drm_modeset_acquire_ctx *ctx)
 {
 	int ret = 0;
 
@@ -537,13 +538,26 @@ static int setplane_internal(struct drm_plane *plane,
 			     uint32_t src_x, uint32_t src_y,
 			     uint32_t src_w, uint32_t src_h)
 {
+	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	drm_modeset_lock_all(plane->dev);
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	ret = drm_modeset_lock_all_ctx(plane->dev, &ctx);
+	if (ret)
+		goto fail;
+	plane->dev->mode_config.acquire_ctx = &ctx;
 	ret = __setplane_internal(plane, crtc, fb,
 				  crtc_x, crtc_y, crtc_w, crtc_h,
-				  src_x, src_y, src_w, src_h);
-	drm_modeset_unlock_all(plane->dev);
+				  src_x, src_y, src_w, src_h, &ctx);
+
+fail:
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
 	return ret;
 }
@@ -613,10 +627,21 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 	int32_t crtc_x, crtc_y;
 	uint32_t crtc_w = 0, crtc_h = 0;
 	uint32_t src_w = 0, src_h = 0;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
 	BUG_ON(!crtc->cursor);
 	WARN_ON(crtc->cursor->crtc != crtc && crtc->cursor->crtc != NULL);
+
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	ret = drm_modeset_lock(&crtc->mutex, &ctx);
+	if (ret)
+		goto fail;
+	ret = drm_modeset_lock(&crtc->cursor->mutex, &ctx);
+	if (ret)
+		goto fail;
+	crtc->acquire_ctx = &ctx;
 
 	/*
 	 * Obtain fb we'll be using (either new or existing) and take an extra
@@ -662,13 +687,22 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 	 */
 	ret = __setplane_internal(crtc->cursor, crtc, fb,
 				crtc_x, crtc_y, crtc_w, crtc_h,
-				0, 0, src_w, src_h);
+				0, 0, src_w, src_h, &ctx);
 
 	/* Update successful; save new cursor position, if necessary */
 	if (ret == 0 && req->flags & DRM_MODE_CURSOR_MOVE) {
 		crtc->cursor_x = req->x;
 		crtc->cursor_y = req->y;
 	}
+
+fail:
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
 	return ret;
 }
@@ -696,12 +730,10 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 	 * If this crtc has a universal cursor plane, call that plane's update
 	 * handler rather than using legacy cursor handlers.
 	 */
-	drm_modeset_lock_crtc(crtc, crtc->cursor);
-	if (crtc->cursor) {
-		ret = drm_mode_cursor_universal(crtc, req, file_priv);
-		goto out;
-	}
+	if (crtc->cursor)
+		return drm_mode_cursor_universal(crtc, req, file_priv);
 
+	drm_modeset_lock_crtc(crtc, crtc->cursor);
 	if (req->flags & DRM_MODE_CURSOR_BO) {
 		if (!crtc->funcs->cursor_set && !crtc->funcs->cursor_set2) {
 			ret = -ENXIO;
