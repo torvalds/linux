@@ -203,7 +203,7 @@ void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
 			case FIP_DT_MAC:
 				mp = (struct fip_mac_desc *)desc;
 				QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_LL2,
-				    "fd_mac=%pM.\n", __func__, mp->fd_mac);
+				    "fd_mac=%pM\n", mp->fd_mac);
 				ether_addr_copy(cvl_mac, mp->fd_mac);
 				break;
 			case FIP_DT_NAME:

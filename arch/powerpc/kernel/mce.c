@@ -58,6 +58,15 @@ static void mce_set_error_info(struct machine_check_event *mce,
 	case MCE_ERROR_TYPE_TLB:
 		mce->u.tlb_error.tlb_error_type = mce_err->u.tlb_error_type;
 		break;
+	case MCE_ERROR_TYPE_USER:
+		mce->u.user_error.user_error_type = mce_err->u.user_error_type;
+		break;
+	case MCE_ERROR_TYPE_RA:
+		mce->u.ra_error.ra_error_type = mce_err->u.ra_error_type;
+		break;
+	case MCE_ERROR_TYPE_LINK:
+		mce->u.link_error.link_error_type = mce_err->u.link_error_type;
+		break;
 	case MCE_ERROR_TYPE_UNKNOWN:
 	default:
 		break;
@@ -90,13 +99,14 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	mce->gpr3 = regs->gpr[3];
 	mce->in_use = 1;
 
-	mce->initiator = MCE_INITIATOR_CPU;
 	/* Mark it recovered if we have handled it and MSR(RI=1). */
 	if (handled && (regs->msr & MSR_RI))
 		mce->disposition = MCE_DISPOSITION_RECOVERED;
 	else
 		mce->disposition = MCE_DISPOSITION_NOT_RECOVERED;
-	mce->severity = MCE_SEV_ERROR_SYNC;
+
+	mce->initiator = mce_err->initiator;
+	mce->severity = mce_err->severity;
 
 	/*
 	 * Populate the mce error_type and type-specific error_type.
@@ -115,6 +125,15 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	} else if (mce->error_type == MCE_ERROR_TYPE_ERAT) {
 		mce->u.erat_error.effective_address_provided = true;
 		mce->u.erat_error.effective_address = addr;
+	} else if (mce->error_type == MCE_ERROR_TYPE_USER) {
+		mce->u.user_error.effective_address_provided = true;
+		mce->u.user_error.effective_address = addr;
+	} else if (mce->error_type == MCE_ERROR_TYPE_RA) {
+		mce->u.ra_error.effective_address_provided = true;
+		mce->u.ra_error.effective_address = addr;
+	} else if (mce->error_type == MCE_ERROR_TYPE_LINK) {
+		mce->u.link_error.effective_address_provided = true;
+		mce->u.link_error.effective_address = addr;
 	} else if (mce->error_type == MCE_ERROR_TYPE_UE) {
 		mce->u.ue_error.effective_address_provided = true;
 		mce->u.ue_error.effective_address = addr;
@@ -239,6 +258,29 @@ void machine_check_print_event_info(struct machine_check_event *evt)
 		"Parity",
 		"Multihit",
 	};
+	static const char *mc_user_types[] = {
+		"Indeterminate",
+		"tlbie(l) invalid",
+	};
+	static const char *mc_ra_types[] = {
+		"Indeterminate",
+		"Instruction fetch (bad)",
+		"Page table walk ifetch (bad)",
+		"Page table walk ifetch (foreign)",
+		"Load (bad)",
+		"Store (bad)",
+		"Page table walk Load/Store (bad)",
+		"Page table walk Load/Store (foreign)",
+		"Load/Store (foreign)",
+	};
+	static const char *mc_link_types[] = {
+		"Indeterminate",
+		"Instruction fetch (timeout)",
+		"Page table walk ifetch (timeout)",
+		"Load (timeout)",
+		"Store (timeout)",
+		"Page table walk Load/Store (timeout)",
+	};
 
 	/* Print things out */
 	if (evt->version != MCE_V1) {
@@ -315,6 +357,36 @@ void machine_check_print_event_info(struct machine_check_event *evt)
 			printk("%s    Effective address: %016llx\n",
 			       level, evt->u.tlb_error.effective_address);
 		break;
+	case MCE_ERROR_TYPE_USER:
+		subtype = evt->u.user_error.user_error_type <
+			ARRAY_SIZE(mc_user_types) ?
+			mc_user_types[evt->u.user_error.user_error_type]
+			: "Unknown";
+		printk("%s  Error type: User [%s]\n", level, subtype);
+		if (evt->u.user_error.effective_address_provided)
+			printk("%s    Effective address: %016llx\n",
+			       level, evt->u.user_error.effective_address);
+		break;
+	case MCE_ERROR_TYPE_RA:
+		subtype = evt->u.ra_error.ra_error_type <
+			ARRAY_SIZE(mc_ra_types) ?
+			mc_ra_types[evt->u.ra_error.ra_error_type]
+			: "Unknown";
+		printk("%s  Error type: Real address [%s]\n", level, subtype);
+		if (evt->u.ra_error.effective_address_provided)
+			printk("%s    Effective address: %016llx\n",
+			       level, evt->u.ra_error.effective_address);
+		break;
+	case MCE_ERROR_TYPE_LINK:
+		subtype = evt->u.link_error.link_error_type <
+			ARRAY_SIZE(mc_link_types) ?
+			mc_link_types[evt->u.link_error.link_error_type]
+			: "Unknown";
+		printk("%s  Error type: Link [%s]\n", level, subtype);
+		if (evt->u.link_error.effective_address_provided)
+			printk("%s    Effective address: %016llx\n",
+			       level, evt->u.link_error.effective_address);
+		break;
 	default:
 	case MCE_ERROR_TYPE_UNKNOWN:
 		printk("%s  Error type: Unknown\n", level);
@@ -340,6 +412,18 @@ uint64_t get_mce_fault_addr(struct machine_check_event *evt)
 	case MCE_ERROR_TYPE_TLB:
 		if (evt->u.tlb_error.effective_address_provided)
 			return evt->u.tlb_error.effective_address;
+		break;
+	case MCE_ERROR_TYPE_USER:
+		if (evt->u.user_error.effective_address_provided)
+			return evt->u.user_error.effective_address;
+		break;
+	case MCE_ERROR_TYPE_RA:
+		if (evt->u.ra_error.effective_address_provided)
+			return evt->u.ra_error.effective_address;
+		break;
+	case MCE_ERROR_TYPE_LINK:
+		if (evt->u.link_error.effective_address_provided)
+			return evt->u.link_error.effective_address;
 		break;
 	default:
 	case MCE_ERROR_TYPE_UNKNOWN:
