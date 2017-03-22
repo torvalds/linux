@@ -759,6 +759,7 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 		nn_dp_warn(dp, "TX ring %d busy. wrp=%u rdp=%u\n",
 			   qidx, tx_ring->wr_p, tx_ring->rd_p);
 		netif_tx_stop_queue(nd_q);
+		nfp_net_tx_xmit_more_flush(tx_ring);
 		u64_stats_update_begin(&r_vec->tx_sync);
 		r_vec->tx_busy++;
 		u64_stats_update_end(&r_vec->tx_sync);
@@ -867,6 +868,7 @@ err_unmap:
 	tx_ring->txbufs[wr_idx].fidx = -2;
 err_free:
 	nn_dp_warn(dp, "Failed to map DMA TX buffer\n");
+	nfp_net_tx_xmit_more_flush(tx_ring);
 	u64_stats_update_begin(&r_vec->tx_sync);
 	r_vec->tx_errors++;
 	u64_stats_update_end(&r_vec->tx_sync);
