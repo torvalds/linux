@@ -743,14 +743,6 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 				dev_err(dev, "abort tmf: TMF task timeout\n");
-				if (task->lldd_task) {
-					struct hisi_sas_slot *slot =
-						task->lldd_task;
-
-					hisi_sas_slot_task_free(hisi_hba,
-								task, slot);
-				}
-
 				goto ex_err;
 			}
 		}
@@ -1248,15 +1240,10 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		goto exit;
 	}
 
-	/* TMF timed out, return direct. */
+	/* Internal abort timed out */
 	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 			dev_err(dev, "internal task abort: timeout.\n");
-			if (task->lldd_task) {
-				struct hisi_sas_slot *slot = task->lldd_task;
-
-				hisi_sas_slot_task_free(hisi_hba, task, slot);
-			}
 		}
 	}
 
