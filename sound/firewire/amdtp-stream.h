@@ -130,6 +130,7 @@ struct amdtp_stream {
 	/* To wait for first packet. */
 	bool callbacked;
 	wait_queue_head_t callback_wait;
+	u32 start_cycle;
 
 	/* For backends to process data blocks. */
 	void *protocol;

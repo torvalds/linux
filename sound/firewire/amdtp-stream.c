@@ -671,6 +671,8 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 					void *header, void *private_data)
 {
 	struct amdtp_stream *s = private_data;
+	u32 cycle;
+	unsigned int packets;
 
 	/*
 	 * For in-stream, first packet has come.
@@ -679,10 +681,19 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	s->callbacked = true;
 	wake_up(&s->callback_wait);
 
-	if (s->direction == AMDTP_IN_STREAM)
+	cycle = compute_cycle_count(tstamp);
+
+	if (s->direction == AMDTP_IN_STREAM) {
+		packets = header_length / IN_PACKET_HEADER_SIZE;
+		cycle = decrement_cycle_count(cycle, packets);
 		context->callback.sc = in_stream_callback;
-	else
+	} else {
+		packets = header_length / 4;
+		cycle = increment_cycle_count(cycle, QUEUE_LENGTH - packets);
 		context->callback.sc = out_stream_callback;
+	}
+
+	s->start_cycle = cycle;
 
 	context->callback.sc(context, tstamp, header_length, header, s);
 }
