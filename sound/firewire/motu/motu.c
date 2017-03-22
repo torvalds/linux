@@ -31,9 +31,11 @@ static void name_card(struct snd_motu *motu)
 	}
 
 	strcpy(motu->card->driver, "FW-MOTU");
+	strcpy(motu->card->shortname, motu->spec->name);
+	strcpy(motu->card->mixername, motu->spec->name);
 	snprintf(motu->card->longname, sizeof(motu->card->longname),
-		 "MOTU (version:%d), GUID %08x%08x at %s, S%d",
-		 version,
+		 "MOTU %s (version:%d), GUID %08x%08x at %s, S%d",
+		 motu->spec->name, version,
 		 fw_dev->config_rom[3], fw_dev->config_rom[4],
 		 dev_name(&motu->unit->device), 100 << fw_dev->max_speed);
 }
@@ -101,6 +103,7 @@ static int motu_probe(struct fw_unit *unit,
 	if (motu == NULL)
 		return -ENOMEM;
 
+	motu->spec = (const struct snd_motu_spec *)entry->driver_data;
 	motu->unit = fw_unit_get(unit);
 	dev_set_drvdata(&unit->device, motu);
 
@@ -142,7 +145,7 @@ static void motu_bus_update(struct fw_unit *unit)
 		snd_fw_schedule_registration(unit, &motu->dwork);
 }
 
-#define SND_MOTU_DEV_ENTRY(model)			\
+#define SND_MOTU_DEV_ENTRY(model, data)			\
 {							\
 	.match_flags	= IEEE1394_MATCH_VENDOR_ID |	\
 			  IEEE1394_MATCH_MODEL_ID |	\
@@ -150,6 +153,7 @@ static void motu_bus_update(struct fw_unit *unit)
 	.vendor_id	= OUI_MOTU,			\
 	.model_id	= model,			\
 	.specifier_id	= OUI_MOTU,			\
+	.driver_data	= (kernel_ulong_t)data,		\
 }
 
 static const struct ieee1394_device_id motu_id_table[] = {
