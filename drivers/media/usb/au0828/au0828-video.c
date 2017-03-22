@@ -809,16 +809,9 @@ static void au0828_analog_stream_reset(struct au0828_dev *dev)
  */
 static int au0828_stream_interrupt(struct au0828_dev *dev)
 {
-	int ret = 0;
-
 	dev->stream_state = STREAM_INTERRUPT;
 	if (test_bit(DEV_DISCONNECTED, &dev->dev_state))
 		return -ENODEV;
-	else if (ret) {
-		set_bit(DEV_MISCONFIGURED, &dev->dev_state);
-		dprintk(1, "%s device is misconfigured!\n", __func__);
-		return ret;
-	}
 	return 0;
 }
 
