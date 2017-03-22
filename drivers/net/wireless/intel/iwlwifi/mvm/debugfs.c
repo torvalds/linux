@@ -1008,7 +1008,7 @@ static ssize_t iwl_dbgfs_cont_recording_write(struct iwl_mvm *mvm,
 		return -EOPNOTSUPP;
 
 	if (dest->monitor_mode != SMEM_MODE ||
-	    trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
+	    trans->cfg->device_family < IWL_DEVICE_FAMILY_8000)
 		return -EOPNOTSUPP;
 
 	ret = kstrtoint(buf, 0, &rec_mode);

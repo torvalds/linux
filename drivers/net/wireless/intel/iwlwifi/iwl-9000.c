@@ -128,7 +128,7 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 #define IWL_DEVICE_9000							\
 	.ucode_api_max = IWL9000_UCODE_API_MAX,				\
 	.ucode_api_min = IWL9000_UCODE_API_MIN,				\
-	.device_family = IWL_DEVICE_FAMILY_8000,			\
+	.device_family = IWL_DEVICE_FAMILY_9000,			\
 	.max_inst_size = IWL60_RTC_INST_SIZE,				\
 	.max_data_size = IWL60_RTC_DATA_SIZE,				\
 	.base_params = &iwl9000_base_params,				\

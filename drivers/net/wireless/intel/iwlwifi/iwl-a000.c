@@ -103,7 +103,7 @@ static const struct iwl_ht_params iwl_a000_ht_params = {
 #define IWL_DEVICE_A000							\
 	.ucode_api_max = IWL_A000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL_A000_UCODE_API_MIN,			\
-	.device_family = IWL_DEVICE_FAMILY_8000,			\
+	.device_family = IWL_DEVICE_FAMILY_A000,			\
 	.max_inst_size = IWL60_RTC_INST_SIZE,				\
 	.max_data_size = IWL60_RTC_DATA_SIZE,				\
 	.base_params = &iwl_a000_base_params,				\
