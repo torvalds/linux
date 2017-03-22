@@ -251,6 +251,8 @@
 #define THS_PRE_PROGRAM_EN	BIT(7)
 #define THS_ZERO_PROGRAM_EN	BIT(6)
 
+#define DW_MIPI_NEEDS_PHY_CFG_CLK	BIT(0)
+
 enum {
 	BANDGAP_97_07,
 	BANDGAP_98_05,
@@ -279,6 +281,7 @@ struct dw_mipi_dsi_plat_data {
 	u32 grf_switch_reg;
 	u32 grf_dsi0_mode;
 	u32 grf_dsi0_mode_reg;
+	unsigned int flags;
 	unsigned int max_data_lanes;
 };
 
@@ -1136,6 +1139,7 @@ static struct dw_mipi_dsi_plat_data rk3399_mipi_dsi_drv_data = {
 	.grf_switch_reg = RK3399_GRF_SOC_CON19,
 	.grf_dsi0_mode = RK3399_GRF_DSI_MODE,
 	.grf_dsi0_mode_reg = RK3399_GRF_SOC_CON22,
+	.flags = DW_MIPI_NEEDS_PHY_CFG_CLK,
 	.max_data_lanes = 4,
 };
 
@@ -1227,15 +1231,13 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		clk_disable_unprepare(dsi->pclk);
 	}
 
-	dsi->phy_cfg_clk = devm_clk_get(dev, "phy_cfg");
-	if (IS_ERR(dsi->phy_cfg_clk)) {
-		ret = PTR_ERR(dsi->phy_cfg_clk);
-		if (ret != -ENOENT) {
+	if (pdata->flags & DW_MIPI_NEEDS_PHY_CFG_CLK) {
+		dsi->phy_cfg_clk = devm_clk_get(dev, "phy_cfg");
+		if (IS_ERR(dsi->phy_cfg_clk)) {
+			ret = PTR_ERR(dsi->phy_cfg_clk);
 			dev_err(dev, "Unable to get phy_cfg_clk: %d\n", ret);
 			return ret;
 		}
-		dsi->phy_cfg_clk = NULL;
-		dev_dbg(dev, "have not phy_cfg_clk\n");
 	}
 
 	ret = clk_prepare_enable(dsi->pllref_clk);
