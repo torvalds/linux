@@ -83,7 +83,10 @@ void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 
 void intel_uc_init_early(struct drm_i915_private *dev_priv)
 {
-	mutex_init(&dev_priv->guc.send_mutex);
+	struct intel_guc *guc = &dev_priv->guc;
+
+	mutex_init(&guc->send_mutex);
+	guc->send = intel_guc_send_mmio;
 }
 
 void intel_uc_init_fw(struct drm_i915_private *dev_priv)
@@ -216,7 +219,7 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
  * Read GuC command/status register (SOFT_SCRATCH_0)
  * Return true if it contains a response rather than a command
  */
-static bool intel_guc_recv(struct intel_guc *guc, u32 *status)
+static bool guc_recv(struct intel_guc *guc, u32 *status)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
@@ -225,7 +228,10 @@ static bool intel_guc_recv(struct intel_guc *guc, u32 *status)
 	return INTEL_GUC_RECV_IS_RESPONSE(val);
 }
 
-int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
+/*
+ * This function implements the MMIO based host to GuC interface.
+ */
+int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	u32 status;
@@ -253,9 +259,9 @@ int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 	 * up to that length of time, then switch to a slower sleep-wait loop.
 	 * No inte_guc_send command should ever take longer than 10ms.
 	 */
-	ret = wait_for_us(intel_guc_recv(guc, &status), 10);
+	ret = wait_for_us(guc_recv(guc, &status), 10);
 	if (ret)
-		ret = wait_for(intel_guc_recv(guc, &status), 10);
+		ret = wait_for(guc_recv(guc, &status), 10);
 	if (status != INTEL_GUC_STATUS_SUCCESS) {
 		/*
 		 * Either the GuC explicitly returned an error (which
