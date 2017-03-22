@@ -2388,9 +2388,6 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 	if (priv->hw->mac->rx_queue_enable)
 		stmmac_mac_enable_rx_queues(priv);
 
-	/* Set the HW DMA mode and the COE */
-	stmmac_dma_operation_mode(priv);
-
 	/* Set RX priorities */
 	if (rx_queues_count > 1 && priv->hw->mac->rx_queue_prio)
 		stmmac_mac_config_rx_queues_prio(priv);
@@ -2467,6 +2464,9 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 		stmmac_dwmac4_set_mac(priv->ioaddr, true);
 	else
 		stmmac_set_mac(priv->ioaddr, true);
+
+	/* Set the HW DMA mode and the COE */
+	stmmac_dma_operation_mode(priv);
 
 	stmmac_mmc_setup(priv);
 
