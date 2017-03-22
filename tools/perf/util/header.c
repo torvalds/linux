@@ -378,7 +378,7 @@ static int write_cmdline(int fd, struct perf_header *h __maybe_unused,
 	 * actual atual path to perf binary
 	 */
 	sprintf(proc, "/proc/%d/exe", getpid());
-	ret = readlink(proc, buf, sizeof(buf));
+	ret = readlink(proc, buf, sizeof(buf) - 1);
 	if (ret <= 0)
 		return -1;
 
