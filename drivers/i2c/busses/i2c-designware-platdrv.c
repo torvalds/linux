@@ -113,7 +113,7 @@ static int dw_i2c_acpi_configure(struct platform_device *pdev)
 
 	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
 	if (id && id->driver_data)
-		dev->accessor_flags |= (u32)id->driver_data;
+		dev->flags |= (u32)id->driver_data;
 
 	return 0;
 }
@@ -124,7 +124,7 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "INT3432", 0 },
 	{ "INT3433", 0 },
 	{ "80860F41", 0 },
-	{ "808622C1", 0 },
+	{ "808622C1", MODEL_CHERRYTRAIL },
 	{ "AMD0010", ACCESS_INTR_MASK },
 	{ "AMDI0010", ACCESS_INTR_MASK },
 	{ "AMDI0510", 0 },
@@ -248,7 +248,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		goto exit_reset;
 	}
 
-	r = i2c_dw_eval_lock_support(dev);
+	r = i2c_dw_probe_lock_support(dev);
 	if (r)
 		goto exit_reset;
 
@@ -326,6 +326,8 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 		pm_runtime_disable(&pdev->dev);
 	if (!IS_ERR_OR_NULL(dev->rst))
 		reset_control_assert(dev->rst);
+
+	i2c_dw_remove_lock_support(dev);
 
 	return 0;
 }

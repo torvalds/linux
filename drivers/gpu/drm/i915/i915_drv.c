@@ -1456,7 +1456,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_notify_adapter(dev_priv, opregion_target_state);
 
-	intel_uncore_forcewake_reset(dev_priv, false);
+	intel_uncore_suspend(dev_priv);
 	intel_opregion_unregister(dev_priv);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
@@ -1701,7 +1701,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
 			  ret);
 
-	intel_uncore_early_sanitize(dev_priv, true);
+	intel_uncore_resume_early(dev_priv);
 
 	if (IS_GEN9_LP(dev_priv)) {
 		if (!dev_priv->suspended_to_idle)
@@ -2343,7 +2343,7 @@ static int intel_runtime_suspend(struct device *kdev)
 		return ret;
 	}
 
-	intel_uncore_forcewake_reset(dev_priv, false);
+	intel_uncore_suspend(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 	WARN_ON_ONCE(atomic_read(&dev_priv->pm.wakeref_count));
