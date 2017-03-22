@@ -810,14 +810,6 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	/* Return upper bound of timestamp precision error. */
 	*max_error = duration_ns;
 
-	/* Check if in vblank area:
-	 * vpos is >=0 in video scanout area, but negative
-	 * within vblank area, counting down the number of lines until
-	 * start of scanout.
-	 */
-	if (vbl_status & DRM_SCANOUTPOS_IN_VBLANK)
-		ret |= DRM_VBLANKTIME_IN_VBLANK;
-
 	/* Convert scanout position into elapsed time at raw_time query
 	 * since start of scanout at first display scanline. delta_ns
 	 * can be negative if start of scanout hasn't happened yet.
