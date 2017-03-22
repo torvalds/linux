@@ -162,6 +162,11 @@
 	status = "disabled";
 };
 
+&gpu {
+	status = "okay";
+	mali-supply = <&vdd_logic>;
+};
+
 &io_domains {
 	status = "okay";
 
