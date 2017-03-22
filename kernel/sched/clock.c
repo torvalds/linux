@@ -221,7 +221,7 @@ static inline u64 wrap_max(u64 x, u64 y)
  */
 static u64 sched_clock_local(struct sched_clock_data *scd)
 {
-	u64 now, clock, old_clock, min_clock, max_clock;
+	u64 now, clock, old_clock, min_clock, max_clock, gtod;
 	s64 delta;
 
 again:
@@ -238,9 +238,10 @@ again:
 	 *		      scd->tick_gtod + TICK_NSEC);
 	 */
 
-	clock = scd->tick_gtod + __gtod_offset + delta;
-	min_clock = wrap_max(scd->tick_gtod, old_clock);
-	max_clock = wrap_max(old_clock, scd->tick_gtod + TICK_NSEC);
+	gtod = scd->tick_gtod + __gtod_offset;
+	clock = gtod + delta;
+	min_clock = wrap_max(gtod, old_clock);
+	max_clock = wrap_max(old_clock, gtod + TICK_NSEC);
 
 	clock = wrap_max(clock, min_clock);
 	clock = wrap_min(clock, max_clock);
