@@ -1037,23 +1037,43 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 
 static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 {
-	struct hisi_sas_tmf_task tmf_task;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = &hisi_hba->pdev->dev;
 	unsigned long flags;
 	int rc = TMF_RESP_FUNC_FAILED;
 
-	tmf_task.tmf = TMF_LU_RESET;
 	sas_dev->dev_status = HISI_SAS_DEV_EH;
-	rc = hisi_sas_debug_issue_ssp_tmf(device, lun, &tmf_task);
-	if (rc == TMF_RESP_FUNC_COMPLETE) {
-		spin_lock_irqsave(&hisi_hba->lock, flags);
-		hisi_sas_release_task(hisi_hba, device);
-		spin_unlock_irqrestore(&hisi_hba->lock, flags);
-	}
+	if (dev_is_sata(device)) {
+		struct sas_phy *phy;
 
-	/* If failed, fall-through I_T_Nexus reset */
+		/* Clear internal IO and then hardreset */
+		rc = hisi_sas_internal_task_abort(hisi_hba, device,
+						  HISI_SAS_INT_ABT_DEV, 0);
+		if (rc == TMF_RESP_FUNC_FAILED)
+			goto out;
+
+		phy = sas_get_local_phy(device);
+
+		rc = sas_phy_reset(phy, 1);
+
+		if (rc == 0) {
+			spin_lock_irqsave(&hisi_hba->lock, flags);
+			hisi_sas_release_task(hisi_hba, device);
+			spin_unlock_irqrestore(&hisi_hba->lock, flags);
+		}
+		sas_put_local_phy(phy);
+	} else {
+		struct hisi_sas_tmf_task tmf_task = { .tmf =  TMF_LU_RESET };
+
+		rc = hisi_sas_debug_issue_ssp_tmf(device, lun, &tmf_task);
+		if (rc == TMF_RESP_FUNC_COMPLETE) {
+			spin_lock_irqsave(&hisi_hba->lock, flags);
+			hisi_sas_release_task(hisi_hba, device);
+			spin_unlock_irqrestore(&hisi_hba->lock, flags);
+		}
+	}
+out:
 	dev_err(dev, "lu_reset: for device[%llx]:rc= %d\n",
 		sas_dev->device_id, rc);
 	return rc;
