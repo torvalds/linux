@@ -77,7 +77,7 @@
 /* Default NVM size to read */
 #define IWL_NVM_DEFAULT_CHUNK_SIZE (2*1024)
 #define IWL_MAX_NVM_SECTION_SIZE	0x1b58
-#define IWL_MAX_NVM_8000_SECTION_SIZE	0x1ffc
+#define IWL_MAX_EXT_NVM_SECTION_SIZE	0x1ffc
 
 #define NVM_WRITE_OPCODE 1
 #define NVM_READ_OPCODE 0
@@ -300,7 +300,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	bool lar_enabled;
 
 	/* Checking for required sections */
-	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
+	if (!mvm->trans->cfg->ext_nvm) {
 		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
 		    !mvm->nvm_sections[mvm->cfg->nvm_hw_section_num].data) {
 			IWL_ERR(mvm, "Can't parse empty OTP/NVM sections\n");
@@ -391,19 +391,19 @@ int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 
 #define NVM_WORD1_LEN(x) (8 * (x & 0x03FF))
 #define NVM_WORD2_ID(x) (x >> 12)
-#define NVM_WORD2_LEN_FAMILY_8000(x) (2 * ((x & 0xFF) << 8 | x >> 8))
-#define NVM_WORD1_ID_FAMILY_8000(x) (x >> 4)
+#define EXT_NVM_WORD2_LEN(x) (2 * (((x) & 0xFF) << 8 | (x) >> 8))
+#define EXT_NVM_WORD1_ID(x) ((x) >> 4)
 #define NVM_HEADER_0	(0x2A504C54)
 #define NVM_HEADER_1	(0x4E564D2A)
 #define NVM_HEADER_SIZE	(4 * sizeof(u32))
 
 	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from external NVM\n");
 
-	/* Maximal size depends on HW family and step */
-	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
+	/* Maximal size depends on NVM version */
+	if (!mvm->trans->cfg->ext_nvm)
 		max_section_size = IWL_MAX_NVM_SECTION_SIZE;
 	else
-		max_section_size = IWL_MAX_NVM_8000_SECTION_SIZE;
+		max_section_size = IWL_MAX_EXT_NVM_SECTION_SIZE;
 
 	/*
 	 * Obtain NVM image via request_firmware. Since we already used
@@ -472,14 +472,14 @@ int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 			break;
 		}
 
-		if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
+		if (!mvm->trans->cfg->ext_nvm) {
 			section_size =
 				2 * NVM_WORD1_LEN(le16_to_cpu(file_sec->word1));
 			section_id = NVM_WORD2_ID(le16_to_cpu(file_sec->word2));
 		} else {
-			section_size = 2 * NVM_WORD2_LEN_FAMILY_8000(
+			section_size = 2 * EXT_NVM_WORD2_LEN(
 						le16_to_cpu(file_sec->word2));
-			section_id = NVM_WORD1_ID_FAMILY_8000(
+			section_id = EXT_NVM_WORD1_ID(
 						le16_to_cpu(file_sec->word1));
 		}
 
@@ -846,7 +846,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	struct ieee80211_regdomain *regd;
 	char mcc[3];
 
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
+	if (mvm->cfg->ext_nvm) {
 		tlv_lar = fw_has_capa(&mvm->fw->ucode_capa,
 				      IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 		nvm_lar = mvm->nvm_data->lar_enabled;
