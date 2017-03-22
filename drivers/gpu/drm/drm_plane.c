@@ -554,7 +554,6 @@ retry:
 	ret = drm_modeset_lock_all_ctx(plane->dev, &ctx);
 	if (ret)
 		goto fail;
-	plane->dev->mode_config.acquire_ctx = &ctx;
 	ret = __setplane_internal(plane, crtc, fb,
 				  crtc_x, crtc_y, crtc_w, crtc_h,
 				  src_x, src_y, src_w, src_h, &ctx);
@@ -649,7 +648,6 @@ retry:
 	ret = drm_modeset_lock(&crtc->cursor->mutex, &ctx);
 	if (ret)
 		goto fail;
-	crtc->acquire_ctx = &ctx;
 
 	/*
 	 * Obtain fb we'll be using (either new or existing) and take an extra

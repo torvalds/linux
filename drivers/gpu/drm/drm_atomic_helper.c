@@ -2101,8 +2101,7 @@ int drm_atomic_helper_update_plane(struct drm_plane *plane,
 	if (!state)
 		return -ENOMEM;
 
-	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
-retry:
+	state->acquire_ctx = ctx;
 	plane_state = drm_atomic_get_plane_state(state, plane);
 	if (IS_ERR(plane_state)) {
 		ret = PTR_ERR(plane_state);
@@ -2127,24 +2126,8 @@ retry:
 
 	ret = drm_atomic_commit(state);
 fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-
 	drm_atomic_state_put(state);
 	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	/*
-	 * Someone might have exchanged the framebuffer while we dropped locks
-	 * in the backoff code. We need to fix up the fb refcount tracking the
-	 * core does for us.
-	 */
-	plane->old_fb = plane->fb;
-
-	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_update_plane);
 
@@ -2165,23 +2148,11 @@ int drm_atomic_helper_disable_plane(struct drm_plane *plane,
 	struct drm_plane_state *plane_state;
 	int ret = 0;
 
-	/*
-	 * FIXME: Without plane->crtc set we can't get at the implicit legacy
-	 * acquire context. The real fix will be to wire the acquire ctx through
-	 * everywhere we need it, but meanwhile prevent chaos by just skipping
-	 * this noop. The critical case is the cursor ioctls which a) only grab
-	 * crtc/cursor-plane locks (so we need the crtc to get at the right
-	 * acquire context) and b) can try to disable the plane multiple times.
-	 */
-	if (!plane->crtc)
-		return 0;
-
 	state = drm_atomic_state_alloc(plane->dev);
 	if (!state)
 		return -ENOMEM;
 
-	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(plane->crtc);
-retry:
+	state->acquire_ctx = ctx;
 	plane_state = drm_atomic_get_plane_state(state, plane);
 	if (IS_ERR(plane_state)) {
 		ret = PTR_ERR(plane_state);
@@ -2197,24 +2168,8 @@ retry:
 
 	ret = drm_atomic_commit(state);
 fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-
 	drm_atomic_state_put(state);
 	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	/*
-	 * Someone might have exchanged the framebuffer while we dropped locks
-	 * in the backoff code. We need to fix up the fb refcount tracking the
-	 * core does for us.
-	 */
-	plane->old_fb = plane->fb;
-
-	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_disable_plane);
 
