@@ -218,40 +218,22 @@
 
 #define INTR_STATUS(__bank)	(0x410 + ((__bank) * 0x50))
 #define INTR_EN(__bank)		(0x420 + ((__bank) * 0x50))
-
-#define     INTR_STATUS__ECC_TRANSACTION_DONE		0x0001
-#define     INTR_STATUS__ECC_ERR			0x0002
-#define     INTR_STATUS__DMA_CMD_COMP			0x0004
-#define     INTR_STATUS__TIME_OUT			0x0008
-#define     INTR_STATUS__PROGRAM_FAIL			0x0010
-#define     INTR_STATUS__ERASE_FAIL			0x0020
-#define     INTR_STATUS__LOAD_COMP			0x0040
-#define     INTR_STATUS__PROGRAM_COMP			0x0080
-#define     INTR_STATUS__ERASE_COMP			0x0100
-#define     INTR_STATUS__PIPE_CPYBCK_CMD_COMP		0x0200
-#define     INTR_STATUS__LOCKED_BLK			0x0400
-#define     INTR_STATUS__UNSUP_CMD			0x0800
-#define     INTR_STATUS__INT_ACT			0x1000
-#define     INTR_STATUS__RST_COMP			0x2000
-#define     INTR_STATUS__PIPE_CMD_ERR			0x4000
-#define     INTR_STATUS__PAGE_XFER_INC			0x8000
-
-#define     INTR_EN__ECC_TRANSACTION_DONE		0x0001
-#define     INTR_EN__ECC_ERR				0x0002
-#define     INTR_EN__DMA_CMD_COMP			0x0004
-#define     INTR_EN__TIME_OUT				0x0008
-#define     INTR_EN__PROGRAM_FAIL			0x0010
-#define     INTR_EN__ERASE_FAIL				0x0020
-#define     INTR_EN__LOAD_COMP				0x0040
-#define     INTR_EN__PROGRAM_COMP			0x0080
-#define     INTR_EN__ERASE_COMP				0x0100
-#define     INTR_EN__PIPE_CPYBCK_CMD_COMP		0x0200
-#define     INTR_EN__LOCKED_BLK				0x0400
-#define     INTR_EN__UNSUP_CMD				0x0800
-#define     INTR_EN__INT_ACT				0x1000
-#define     INTR_EN__RST_COMP				0x2000
-#define     INTR_EN__PIPE_CMD_ERR			0x4000
-#define     INTR_EN__PAGE_XFER_INC			0x8000
+#define     INTR__ECC_TRANSACTION_DONE			0x0001
+#define     INTR__ECC_ERR				0x0002
+#define     INTR__DMA_CMD_COMP				0x0004
+#define     INTR__TIME_OUT				0x0008
+#define     INTR__PROGRAM_FAIL				0x0010
+#define     INTR__ERASE_FAIL				0x0020
+#define     INTR__LOAD_COMP				0x0040
+#define     INTR__PROGRAM_COMP				0x0080
+#define     INTR__ERASE_COMP				0x0100
+#define     INTR__PIPE_CPYBCK_CMD_COMP			0x0200
+#define     INTR__LOCKED_BLK				0x0400
+#define     INTR__UNSUP_CMD				0x0800
+#define     INTR__INT_ACT				0x1000
+#define     INTR__RST_COMP				0x2000
+#define     INTR__PIPE_CMD_ERR				0x4000
+#define     INTR__PAGE_XFER_INC				0x8000
 
 #define PAGE_CNT(__bank)	(0x430 + ((__bank) * 0x50))
 #define ERR_PAGE_ADDR(__bank)	(0x440 + ((__bank) * 0x50))
@@ -284,20 +266,13 @@
 #define     IGNORE_ECC_DONE__FLAG			0x0001
 
 #define DMA_INTR				0x720
+#define DMA_INTR_EN				0x730
 #define     DMA_INTR__TARGET_ERROR			0x0001
 #define     DMA_INTR__DESC_COMP_CHANNEL0		0x0002
 #define     DMA_INTR__DESC_COMP_CHANNEL1		0x0004
 #define     DMA_INTR__DESC_COMP_CHANNEL2		0x0008
 #define     DMA_INTR__DESC_COMP_CHANNEL3		0x0010
-#define     DMA_INTR__MEMCOPY_DESC_COMP		0x0020
-
-#define DMA_INTR_EN				0x730
-#define     DMA_INTR_EN__TARGET_ERROR			0x0001
-#define     DMA_INTR_EN__DESC_COMP_CHANNEL0		0x0002
-#define     DMA_INTR_EN__DESC_COMP_CHANNEL1		0x0004
-#define     DMA_INTR_EN__DESC_COMP_CHANNEL2		0x0008
-#define     DMA_INTR_EN__DESC_COMP_CHANNEL3		0x0010
-#define     DMA_INTR_EN__MEMCOPY_DESC_COMP		0x0020
+#define     DMA_INTR__MEMCOPY_DESC_COMP			0x0020
 
 #define TARGET_ERR_ADDR_LO			0x740
 #define     TARGET_ERR_ADDR_LO__VALUE			0xffff
