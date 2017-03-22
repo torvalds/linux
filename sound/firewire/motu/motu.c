@@ -14,6 +14,18 @@ MODULE_DESCRIPTION("MOTU FireWire driver");
 MODULE_AUTHOR("Takashi Sakamoto <o-takashi@sakamocchi.jp>");
 MODULE_LICENSE("GPL v2");
 
+const unsigned int snd_motu_clock_rates[SND_MOTU_CLOCK_RATE_COUNT] = {
+	/* mode 0 */
+	[0] =  44100,
+	[1] =  48000,
+	/* mode 1 */
+	[2] =  88200,
+	[3] =  96000,
+	/* mode 2 */
+	[4] = 176400,
+	[5] = 192000,
+};
+
 static void name_card(struct snd_motu *motu)
 {
 	struct fw_device *fw_dev = fw_parent_device(motu->unit);

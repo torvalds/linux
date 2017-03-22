@@ -22,6 +22,16 @@
 
 #include "../lib.h"
 
+struct snd_motu_packet_format {
+	unsigned char midi_flag_offset;
+	unsigned char midi_byte_offset;
+	unsigned char pcm_byte_offset;
+
+	unsigned char msg_chunks;
+	unsigned char fixed_part_pcm_chunks[3];
+	unsigned char differed_part_pcm_chunks[3];
+};
+
 struct snd_motu {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -32,6 +42,10 @@ struct snd_motu {
 
 	/* Model dependent information. */
 	const struct snd_motu_spec *spec;
+
+	/* For packet streaming */
+	struct snd_motu_packet_format tx_packet_formats;
+	struct snd_motu_packet_format rx_packet_formats;
 };
 
 enum snd_motu_spec_flags {
@@ -46,12 +60,41 @@ enum snd_motu_spec_flags {
 	SND_MOTU_SPEC_HAS_MIDI		= 0x0100,
 };
 
+#define SND_MOTU_CLOCK_RATE_COUNT	6
+extern const unsigned int snd_motu_clock_rates[SND_MOTU_CLOCK_RATE_COUNT];
+
+enum snd_motu_clock_source {
+	SND_MOTU_CLOCK_SOURCE_INTERNAL,
+	SND_MOTU_CLOCK_SOURCE_ADAT_ON_DSUB,
+	SND_MOTU_CLOCK_SOURCE_ADAT_ON_OPT,
+	SND_MOTU_CLOCK_SOURCE_ADAT_ON_OPT_A,
+	SND_MOTU_CLOCK_SOURCE_ADAT_ON_OPT_B,
+	SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT,
+	SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT_A,
+	SND_MOTU_CLOCK_SOURCE_SPDIF_ON_OPT_B,
+	SND_MOTU_CLOCK_SOURCE_SPDIF_ON_COAX,
+	SND_MOTU_CLOCK_SOURCE_AESEBU_ON_XLR,
+	SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC,
+	SND_MOTU_CLOCK_SOURCE_UNKNOWN,
+};
+
+struct snd_motu_protocol {
+	int (*get_clock_rate)(struct snd_motu *motu, unsigned int *rate);
+	int (*set_clock_rate)(struct snd_motu *motu, unsigned int rate);
+	int (*get_clock_source)(struct snd_motu *motu,
+				enum snd_motu_clock_source *source);
+	int (*switch_fetching_mode)(struct snd_motu *motu, bool enable);
+	int (*cache_packet_formats)(struct snd_motu *motu);
+};
+
 struct snd_motu_spec {
 	const char *const name;
 	enum snd_motu_spec_flags flags;
 
 	unsigned char analog_in_ports;
 	unsigned char analog_out_ports;
+
+	const struct snd_motu_protocol *const protocol;
 };
 
 #endif
