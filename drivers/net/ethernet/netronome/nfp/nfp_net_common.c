@@ -479,10 +479,7 @@ nfp_net_rx_ring_init(struct nfp_net_rx_ring *rx_ring,
 	rx_ring->r_vec = r_vec;
 
 	rx_ring->fl_qcidx = rx_ring->idx * nn->stride_rx;
-	rx_ring->rx_qcidx = rx_ring->fl_qcidx + (nn->stride_rx - 1);
-
 	rx_ring->qcp_fl = nn->rx_bar + NFP_QCP_QUEUE_OFF(rx_ring->fl_qcidx);
-	rx_ring->qcp_rx = nn->rx_bar + NFP_QCP_QUEUE_OFF(rx_ring->rx_qcidx);
 }
 
 /**
