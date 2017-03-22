@@ -409,7 +409,7 @@ static inline unsigned long hpt_vpn(unsigned long ea,
 static inline unsigned long hpt_hash(unsigned long vpn,
 				     unsigned int shift, int ssize)
 {
-	int mask;
+	unsigned long mask;
 	unsigned long hash, vsid;
 
 	/* VPN_SHIFT can be atmost 12 */
