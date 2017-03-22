@@ -480,8 +480,9 @@ static int handle_in_packet(struct amdtp_stream *s,
 	 * This module supports 'Two-quadlet CIP header with SYT field'.
 	 * For convenience, also check FMT field is AM824 or not.
 	 */
-	if (((cip_header[0] & CIP_EOH_MASK) == CIP_EOH) ||
-	    ((cip_header[1] & CIP_EOH_MASK) != CIP_EOH)) {
+	if ((((cip_header[0] & CIP_EOH_MASK) == CIP_EOH) ||
+	     ((cip_header[1] & CIP_EOH_MASK) != CIP_EOH)) &&
+	    (!(s->flags & CIP_HEADER_WITHOUT_EOH))) {
 		dev_info_ratelimited(&s->unit->device,
 				"Invalid CIP header for AMDTP: %08X:%08X\n",
 				cip_header[0], cip_header[1]);
