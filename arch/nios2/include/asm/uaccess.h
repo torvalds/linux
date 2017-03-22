@@ -73,35 +73,16 @@ static inline unsigned long __must_check clear_user(void __user *to,
 	return __clear_user(to, n);
 }
 
-extern long __copy_from_user(void *to, const void __user *from,
-				unsigned long n);
-extern long __copy_to_user(void __user *to, const void *from, unsigned long n);
-
-static inline long copy_from_user(void *to, const void __user *from,
-				unsigned long n)
-{
-	unsigned long res = n;
-	if (access_ok(VERIFY_READ, from, n))
-		res = __copy_from_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
-}
-
-static inline long copy_to_user(void __user *to, const void *from,
-				unsigned long n)
-{
-	if (!access_ok(VERIFY_WRITE, to, n))
-		return n;
-	return __copy_to_user(to, from, n);
-}
+extern unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n);
+extern unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n);
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 extern long strncpy_from_user(char *__to, const char __user *__from,
 				long __len);
 extern long strnlen_user(const char __user *s, long n);
-
-#define __copy_from_user_inatomic	__copy_from_user
-#define __copy_to_user_inatomic		__copy_to_user
 
 /* Optimized macros */
 #define __get_user_asm(val, insn, addr, err)				\
