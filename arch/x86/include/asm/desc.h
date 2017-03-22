@@ -53,20 +53,10 @@ static inline struct desc_struct *get_cpu_gdt_rw(unsigned int cpu)
 	return per_cpu(gdt_page, cpu).gdt;
 }
 
-static inline unsigned long get_cpu_gdt_rw_vaddr(unsigned int cpu)
-{
-	return (unsigned long)get_cpu_gdt_rw(cpu);
-}
-
 /* Provide the current original GDT */
 static inline struct desc_struct *get_current_gdt_rw(void)
 {
 	return this_cpu_ptr(&gdt_page)->gdt;
-}
-
-static inline unsigned long get_current_gdt_rw_vaddr(void)
-{
-	return (unsigned long)get_current_gdt_rw();
 }
 
 /* Get the fixmap index for a specific processor */
@@ -82,20 +72,10 @@ static inline struct desc_struct *get_cpu_gdt_ro(int cpu)
 	return (struct desc_struct *)__fix_to_virt(idx);
 }
 
-static inline unsigned long get_cpu_gdt_ro_vaddr(int cpu)
-{
-	return (unsigned long)get_cpu_gdt_ro(cpu);
-}
-
 /* Provide the current read-only GDT */
 static inline struct desc_struct *get_current_gdt_ro(void)
 {
 	return get_cpu_gdt_ro(smp_processor_id());
-}
-
-static inline unsigned long get_current_gdt_ro_vaddr(void)
-{
-	return (unsigned long)get_current_gdt_ro();
 }
 
 /* Provide the physical address of the GDT page. */

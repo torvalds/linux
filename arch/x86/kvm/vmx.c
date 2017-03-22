@@ -2264,7 +2264,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	}
 
 	if (!already_loaded) {
-		unsigned long gdt = get_current_gdt_ro_vaddr();
+		void *gdt = get_current_gdt_ro();
 		unsigned long sysenter_esp;
 
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
@@ -2275,7 +2275,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		 */
 		vmcs_writel(HOST_TR_BASE,
 			    (unsigned long)this_cpu_ptr(&cpu_tss));
-		vmcs_writel(HOST_GDTR_BASE, gdt);   /* 22.2.4 */
+		vmcs_writel(HOST_GDTR_BASE, (unsigned long)gdt);   /* 22.2.4 */
 
 		/*
 		 * VM exits change the host TR limit to 0x67 after a VM
