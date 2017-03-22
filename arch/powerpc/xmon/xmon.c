@@ -185,8 +185,6 @@ static void dump_tlb_44x(void);
 static void dump_tlb_book3e(void);
 #endif
 
-static int xmon_no_auto_backtrace;
-
 #ifdef CONFIG_PPC64
 #define REG		"%.16lx"
 #else
@@ -885,10 +883,7 @@ cmds(struct pt_regs *excp)
 	last_cmd = NULL;
 	xmon_regs = excp;
 
-	if (!xmon_no_auto_backtrace) {
-		xmon_no_auto_backtrace = 1;
-		xmon_show_stack(excp->gpr[1], excp->link, excp->nip);
-	}
+	xmon_show_stack(excp->gpr[1], excp->link, excp->nip);
 
 	for(;;) {
 #ifdef CONFIG_SMP
@@ -3318,10 +3313,10 @@ static int __init setup_xmon_sysrq(void)
 	register_sysrq_key('x', &sysrq_xmon_op);
 	return 0;
 }
-__initcall(setup_xmon_sysrq);
+device_initcall(setup_xmon_sysrq);
 #endif /* CONFIG_MAGIC_SYSRQ */
 
-static int __initdata xmon_early;
+static int xmon_early __initdata;
 
 static int __init early_parse_xmon(char *p)
 {
@@ -3335,8 +3330,6 @@ static int __init early_parse_xmon(char *p)
 		xmon_on = 1;
 	} else if (strncmp(p, "off", 3) == 0)
 		xmon_on = 0;
-	else if (strncmp(p, "nobt", 4) == 0)
-		xmon_no_auto_backtrace = 1;
 	else
 		return 1;
 
