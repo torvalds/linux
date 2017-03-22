@@ -622,7 +622,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	if (WARN_ON(!fw))
 		return -EINVAL;
 	mvm->cur_ucode = ucode_type;
-	mvm->ucode_loaded = false;
+	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 
 	iwl_init_notification_wait(&mvm->notif_wait, &alive_wait,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),
@@ -696,7 +696,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	for (i = 0; i < IEEE80211_MAX_QUEUES; i++)
 		atomic_set(&mvm->mac80211_queue_stop_count[i], 0);
 
-	mvm->ucode_loaded = true;
+	set_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 
 	return 0;
 }
