@@ -428,7 +428,7 @@
 		};
 	};
 
-	pcie_ctlr: pcie-controller@40000000 {
+	pcie_ctlr: pcie@40000000 {
 		compatible = "arm,juno-r1-pcie", "plda,xpressrich3-axi", "pci-host-ecam-generic";
 		device_type = "pci";
 		reg = <0 0x40000000 0 0x10000000>;	/* ECAM config space */
