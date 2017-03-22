@@ -50,7 +50,27 @@ static void handle_message(struct fw_card *card, struct fw_request *request,
 			   int generation, unsigned long long offset,
 			   void *data, size_t length, void *callback_data)
 {
+	struct snd_motu *motu = callback_data;
+	__be32 *buf = (__be32 *)data;
+	unsigned long flags;
+
+	if (tcode != TCODE_WRITE_QUADLET_REQUEST) {
+		fw_send_response(card, request, RCODE_COMPLETE);
+		return;
+	}
+
+	if (offset != motu->async_handler.offset || length != 4) {
+		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
+		return;
+	}
+
+	spin_lock_irqsave(&motu->lock, flags);
+	motu->msg = be32_to_cpu(*buf);
+	spin_unlock_irqrestore(&motu->lock, flags);
+
 	fw_send_response(card, request, RCODE_COMPLETE);
+
+	wake_up(&motu->hwdep_wait);
 }
 
 int snd_motu_transaction_reregister(struct snd_motu *motu)

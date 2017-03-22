@@ -26,7 +26,7 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 
 	spin_lock_irq(&motu->lock);
 
-	while (!motu->dev_lock_changed) {
+	while (!motu->dev_lock_changed && motu->msg == 0) {
 		prepare_to_wait(&motu->hwdep_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_unlock_irq(&motu->lock);
 		schedule();
@@ -43,6 +43,12 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 		motu->dev_lock_changed = false;
 
 		count = min_t(long, count, sizeof(event.lock_status));
+	} else {
+		event.motu_notification.type = SNDRV_FIREWIRE_EVENT_MOTU_NOTIFICATION;
+		event.motu_notification.message = motu->msg;
+		motu->msg = 0;
+
+		count = min_t(long, count, sizeof(event.motu_notification));
 	}
 
 	spin_unlock_irq(&motu->lock);
@@ -62,7 +68,7 @@ static unsigned int hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 	poll_wait(file, &motu->hwdep_wait, wait);
 
 	spin_lock_irq(&motu->lock);
-	if (motu->dev_lock_changed)
+	if (motu->dev_lock_changed || motu->msg)
 		events = POLLIN | POLLRDNORM;
 	else
 		events = 0;
