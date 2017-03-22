@@ -1199,6 +1199,9 @@ static int check_map_func_compatibility(struct bpf_map *map, int func_id)
 		    func_id != BPF_FUNC_current_task_under_cgroup)
 			goto error;
 		break;
+	case BPF_MAP_TYPE_ARRAY_OF_MAPS:
+		if (func_id != BPF_FUNC_map_lookup_elem)
+			goto error;
 	default:
 		break;
 	}
@@ -2101,14 +2104,19 @@ static void mark_map_reg(struct bpf_reg_state *regs, u32 regno, u32 id,
 	struct bpf_reg_state *reg = &regs[regno];
 
 	if (reg->type == PTR_TO_MAP_VALUE_OR_NULL && reg->id == id) {
-		reg->type = type;
+		if (type == UNKNOWN_VALUE) {
+			__mark_reg_unknown_value(regs, regno);
+		} else if (reg->map_ptr->inner_map_meta) {
+			reg->type = CONST_PTR_TO_MAP;
+			reg->map_ptr = reg->map_ptr->inner_map_meta;
+		} else {
+			reg->type = type;
+		}
 		/* We don't need id from this point onwards anymore, thus we
 		 * should better reset it, so that state pruning has chances
 		 * to take effect.
 		 */
 		reg->id = 0;
-		if (type == UNKNOWN_VALUE)
-			__mark_reg_unknown_value(regs, regno);
 	}
 }
 
@@ -3033,16 +3041,32 @@ process_bpf_exit:
 	return 0;
 }
 
+static int check_map_prealloc(struct bpf_map *map)
+{
+	return (map->map_type != BPF_MAP_TYPE_HASH &&
+		map->map_type != BPF_MAP_TYPE_PERCPU_HASH) ||
+		!(map->map_flags & BPF_F_NO_PREALLOC);
+}
+
 static int check_map_prog_compatibility(struct bpf_map *map,
 					struct bpf_prog *prog)
 
 {
-	if (prog->type == BPF_PROG_TYPE_PERF_EVENT &&
-	    (map->map_type == BPF_MAP_TYPE_HASH ||
-	     map->map_type == BPF_MAP_TYPE_PERCPU_HASH) &&
-	    (map->map_flags & BPF_F_NO_PREALLOC)) {
-		verbose("perf_event programs can only use preallocated hash map\n");
-		return -EINVAL;
+	/* Make sure that BPF_PROG_TYPE_PERF_EVENT programs only use
+	 * preallocated hash maps, since doing memory allocation
+	 * in overflow_handler can crash depending on where nmi got
+	 * triggered.
+	 */
+	if (prog->type == BPF_PROG_TYPE_PERF_EVENT) {
+		if (!check_map_prealloc(map)) {
+			verbose("perf_event programs can only use preallocated hash map\n");
+			return -EINVAL;
+		}
+		if (map->inner_map_meta &&
+		    !check_map_prealloc(map->inner_map_meta)) {
+			verbose("perf_event programs can only use preallocated inner hash map\n");
+			return -EINVAL;
+		}
 	}
 	return 0;
 }

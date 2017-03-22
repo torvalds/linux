@@ -50,6 +50,7 @@ struct bpf_map {
 	const struct bpf_map_ops *ops;
 	struct work_struct work;
 	atomic_t usercnt;
+	struct bpf_map *inner_map_meta;
 };
 
 struct bpf_map_type_list {
