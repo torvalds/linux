@@ -313,8 +313,8 @@ static void tx_device_task(void *dev)
 	int rc = 0;
 
 	DPRINTK(4, "\n");
-	if (cnt_txqbody(priv) > 0
-	    && atomic_read(&priv->psstatus.status) != PS_SNOOZE) {
+	if (cnt_txqbody(priv) > 0 &&
+	    atomic_read(&priv->psstatus.status) != PS_SNOOZE) {
 		sp = &priv->tx_dev.tx_dev_buff[priv->tx_dev.qhead];
 		if (priv->dev_state >= DEVICE_STATE_BOOT) {
 			rc = write_to_device(priv, sp->sendp, sp->size);
@@ -558,8 +558,8 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 		/* read (General Communication B register) */
 		/* bit5 -> Write Status Idle */
 		/* bit2 -> Read Status Busy  */
-		if (status & INT_GCR_B
-		    || atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
+		if (status & INT_GCR_B ||
+		    atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
 			retval =
 			    ks7010_sdio_read(priv, GCR_B, &rw_data,
 					     sizeof(rw_data));
