@@ -447,18 +447,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	return 0;
 }
 
-/**
- * drm_mode_set_config_internal - helper to call &drm_mode_config_funcs.set_config
- * @set: modeset config to set
- *
- * This is a little helper to wrap internal calls to the
- * &drm_mode_config_funcs.set_config driver interface. The only thing it adds is
- * correct refcounting dance.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
-int drm_mode_set_config_internal(struct drm_mode_set *set)
+static int __drm_mode_set_config_internal(struct drm_mode_set *set)
 {
 	struct drm_crtc *crtc = set->crtc;
 	struct drm_framebuffer *fb;
@@ -490,6 +479,25 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 	}
 
 	return ret;
+}
+/**
+ * drm_mode_set_config_internal - helper to call &drm_mode_config_funcs.set_config
+ * @set: modeset config to set
+ *
+ * This is a little helper to wrap internal calls to the
+ * &drm_mode_config_funcs.set_config driver interface. The only thing it adds is
+ * correct refcounting dance.
+ *
+ * This should only be used by non-atomic legacy drivers.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_mode_set_config_internal(struct drm_mode_set *set)
+{
+	WARN_ON(drm_drv_uses_atomic_modeset(set->crtc->dev));
+
+	return __drm_mode_set_config_internal(set);
 }
 EXPORT_SYMBOL(drm_mode_set_config_internal);
 
@@ -688,7 +696,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	set.connectors = connector_set;
 	set.num_connectors = crtc_req->count_connectors;
 	set.fb = fb;
-	ret = drm_mode_set_config_internal(&set);
+	ret = __drm_mode_set_config_internal(&set);
 
 out:
 	if (fb)
