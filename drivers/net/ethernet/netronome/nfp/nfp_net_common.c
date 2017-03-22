@@ -336,9 +336,9 @@ nfp_net_irqs_assign(struct nfp_net *nn, struct msix_entry *irq_entries,
 
 	if (dp->num_rx_rings > dp->num_r_vecs ||
 	    dp->num_tx_rings > dp->num_r_vecs)
-		nn_warn(nn, "More rings (%d,%d) than vectors (%d).\n",
-			dp->num_rx_rings, dp->num_tx_rings,
-			dp->num_r_vecs);
+		dev_warn(nn->dp.dev, "More rings (%d,%d) than vectors (%d).\n",
+			 dp->num_rx_rings, dp->num_tx_rings,
+			 dp->num_r_vecs);
 
 	dp->num_rx_rings = min(dp->num_r_vecs, dp->num_rx_rings);
 	dp->num_tx_rings = min(dp->num_r_vecs, dp->num_tx_rings);
