@@ -351,8 +351,8 @@ struct denali_nand_info {
 	struct device *dev;
 	int total_used_banks;
 	uint16_t page;
-	void __iomem *flash_reg;  /* Mapped io reg base address */
-	void __iomem *flash_mem;  /* Mapped io reg base address */
+	void __iomem *flash_reg;	/* Register Interface */
+	void __iomem *flash_mem;	/* Host Data/Command Interface */
 
 	/* elements used by ISR */
 	struct completion complete;
