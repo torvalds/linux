@@ -411,7 +411,41 @@ nfp_cpp_area_alloc(struct nfp_cpp *cpp, u32 dest,
  */
 void nfp_cpp_area_free(struct nfp_cpp_area *area)
 {
+	if (atomic_read(&area->refcount))
+		nfp_warn(area->cpp, "Warning: freeing busy area\n");
 	nfp_cpp_area_put(area);
+}
+
+static bool nfp_cpp_area_acquire_try(struct nfp_cpp_area *area, int *status)
+{
+	*status = area->cpp->op->area_acquire(area);
+
+	return *status != -EAGAIN;
+}
+
+static int __nfp_cpp_area_acquire(struct nfp_cpp_area *area)
+{
+	int err, status;
+
+	if (atomic_inc_return(&area->refcount) > 1)
+		return 0;
+
+	if (!area->cpp->op->area_acquire)
+		return 0;
+
+	err = wait_event_interruptible(area->cpp->waitq,
+				       nfp_cpp_area_acquire_try(area, &status));
+	if (!err)
+		err = status;
+	if (err) {
+		nfp_warn(area->cpp, "Warning: area wait failed: %d\n", err);
+		atomic_dec(&area->refcount);
+		return err;
+	}
+
+	nfp_cpp_area_get(area);
+
+	return 0;
 }
 
 /**
@@ -425,27 +459,13 @@ void nfp_cpp_area_free(struct nfp_cpp_area *area)
  */
 int nfp_cpp_area_acquire(struct nfp_cpp_area *area)
 {
+	int ret;
+
 	mutex_lock(&area->mutex);
-	if (atomic_inc_return(&area->refcount) == 1) {
-		int (*a_a)(struct nfp_cpp_area *);
-
-		a_a = area->cpp->op->area_acquire;
-		if (a_a) {
-			int err;
-
-			wait_event_interruptible(area->cpp->waitq,
-						 (err = a_a(area)) != -EAGAIN);
-			if (err < 0) {
-				atomic_dec(&area->refcount);
-				mutex_unlock(&area->mutex);
-				return err;
-			}
-		}
-	}
+	ret = __nfp_cpp_area_acquire(area);
 	mutex_unlock(&area->mutex);
 
-	nfp_cpp_area_get(area);
-	return 0;
+	return ret;
 }
 
 /**
