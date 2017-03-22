@@ -29,6 +29,10 @@ struct denali_dt {
 	struct clk		*clk;
 };
 
+struct denali_dt_data {
+	unsigned int caps;
+};
+
 static const struct of_device_id denali_nand_dt_ids[] = {
 		{ .compatible = "denali,denali-nand-dt" },
 		{ /* sentinel */ }
@@ -42,22 +46,18 @@ static int denali_dt_probe(struct platform_device *ofdev)
 {
 	struct resource *denali_reg, *nand_data;
 	struct denali_dt *dt;
+	const struct denali_dt_data *data;
 	struct denali_nand_info *denali;
 	int ret;
-	const struct of_device_id *of_id;
-
-	of_id = of_match_device(denali_nand_dt_ids, &ofdev->dev);
-	if (of_id) {
-		ofdev->id_entry = of_id->data;
-	} else {
-		pr_err("Failed to find the right device id.\n");
-		return -ENOMEM;
-	}
 
 	dt = devm_kzalloc(&ofdev->dev, sizeof(*dt), GFP_KERNEL);
 	if (!dt)
 		return -ENOMEM;
 	denali = &dt->denali;
+
+	data = of_device_get_match_data(&ofdev->dev);
+	if (data)
+		denali->caps = data->caps;
 
 	denali->platform = DT;
 	denali->dev = &ofdev->dev;

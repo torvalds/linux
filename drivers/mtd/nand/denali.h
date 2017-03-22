@@ -338,6 +338,7 @@ struct denali_nand_info {
 	uint32_t devnum;	/* represent how many nands connected */
 	uint32_t bbtskipbytes;
 	uint32_t max_banks;
+	unsigned int caps;
 };
 
 extern int denali_init(struct denali_nand_info *denali);
