@@ -7170,6 +7170,7 @@ S:	Supported
 F:	Documentation/s390/kvm.txt
 F:	arch/s390/include/asm/kvm*
 F:	arch/s390/kvm/
+F:	arch/s390/mm/gmap.c
 
 KERNEL VIRTUAL MACHINE (KVM) FOR ARM
 M:	Christoffer Dall <christoffer.dall@linaro.org>
