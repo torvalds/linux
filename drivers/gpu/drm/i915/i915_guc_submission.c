@@ -1049,11 +1049,11 @@ static int guc_ads_create(struct intel_guc *guc)
 
 	/* MMIO reg state */
 	for_each_engine(engine, dev_priv, id) {
-		blob->reg_state.mmio_white_list[engine->guc_id].mmio_start =
+		blob->reg_state.white_list[engine->guc_id].mmio_start =
 			engine->mmio_base + GUC_MMIO_WHITE_LIST_START;
 
 		/* Nothing to be saved or restored for now. */
-		blob->reg_state.mmio_white_list[engine->guc_id].count = 0;
+		blob->reg_state.white_list[engine->guc_id].count = 0;
 	}
 
 	/*

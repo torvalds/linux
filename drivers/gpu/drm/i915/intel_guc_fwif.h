@@ -409,16 +409,17 @@ struct guc_mmio_regset {
 	u32 number_of_registers;
 } __packed;
 
+/* MMIO registers that are set as non privileged */
+struct mmio_white_list {
+	u32 mmio_start;
+	u32 offsets[GUC_MMIO_WHITE_LIST_MAX];
+	u32 count;
+} __packed;
+
 struct guc_mmio_reg_state {
 	struct guc_mmio_regset global_reg;
 	struct guc_mmio_regset engine_reg[GUC_MAX_ENGINES_NUM];
-
-	/* MMIO registers that are set as non privileged */
-	struct __packed {
-		u32 mmio_start;
-		u32 offsets[GUC_MMIO_WHITE_LIST_MAX];
-		u32 count;
-	} mmio_white_list[GUC_MAX_ENGINES_NUM];
+	struct mmio_white_list white_list[GUC_MAX_ENGINES_NUM];
 } __packed;
 
 /* GuC Additional Data Struct */
