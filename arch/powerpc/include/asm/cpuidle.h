@@ -46,6 +46,7 @@ extern u32 pnv_fastsleep_workaround_at_exit[];
 
 extern u64 pnv_first_deep_stop_state;
 
+unsigned long pnv_cpu_offline(unsigned int cpu);
 int validate_psscr_val_mask(u64 *psscr_val, u64 *psscr_mask, u32 flags);
 static inline void report_invalid_psscr_val(u64 psscr_val, int err)
 {

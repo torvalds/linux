@@ -266,6 +266,31 @@ u64 pnv_deepest_stop_psscr_val;
 u64 pnv_deepest_stop_psscr_mask;
 
 /*
+ * pnv_cpu_offline: A function that puts the CPU into the deepest
+ * available platform idle state on a CPU-Offline.
+ */
+unsigned long pnv_cpu_offline(unsigned int cpu)
+{
+	unsigned long srr1;
+
+	u32 idle_states = pnv_get_supported_cpuidle_states();
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		srr1 = power9_idle_stop(pnv_deepest_stop_psscr_val,
+					pnv_deepest_stop_psscr_mask);
+	} else if (idle_states & OPAL_PM_WINKLE_ENABLED) {
+		srr1 = power7_winkle();
+	} else if ((idle_states & OPAL_PM_SLEEP_ENABLED) ||
+		   (idle_states & OPAL_PM_SLEEP_ENABLED_ER1)) {
+		srr1 = power7_sleep();
+	} else {
+		srr1 = power7_nap(1);
+	}
+
+	return srr1;
+}
+
+/*
  * Power ISA 3.0 idle initialization.
  *
  * POWER ISA 3.0 defines a new SPR Processor stop Status and Control

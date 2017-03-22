@@ -35,6 +35,7 @@
 #include <asm/dbell.h>
 #include <asm/kvm_ppc.h>
 #include <asm/ppc-opcode.h>
+#include <asm/cpuidle.h>
 
 #include "powernv.h"
 
@@ -140,7 +141,6 @@ static void pnv_smp_cpu_kill_self(void)
 {
 	unsigned int cpu;
 	unsigned long srr1, wmask;
-	u32 idle_states;
 
 	/* Standard hot unplug procedure */
 	local_irq_disable();
@@ -154,8 +154,6 @@ static void pnv_smp_cpu_kill_self(void)
 	wmask = SRR1_WAKEMASK;
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		wmask = SRR1_WAKEMASK_P8;
-
-	idle_states = pnv_get_supported_cpuidle_states();
 
 	/* We don't want to take decrementer interrupts while we are offline,
 	 * so clear LPCR:PECE1. We keep PECE2 (and LPCR_PECE_HVEE on P9)
@@ -184,19 +182,7 @@ static void pnv_smp_cpu_kill_self(void)
 		kvmppc_set_host_ipi(cpu, 0);
 
 		ppc64_runlatch_off();
-
-		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-			srr1 = power9_idle_stop(pnv_deepest_stop_psscr_val,
-						pnv_deepest_stop_psscr_mask);
-		} else if (idle_states & OPAL_PM_WINKLE_ENABLED) {
-			srr1 = power7_winkle();
-		} else if ((idle_states & OPAL_PM_SLEEP_ENABLED) ||
-			   (idle_states & OPAL_PM_SLEEP_ENABLED_ER1)) {
-			srr1 = power7_sleep();
-		} else {
-			srr1 = power7_nap(1);
-		}
-
+		srr1 = pnv_cpu_offline(cpu);
 		ppc64_runlatch_on();
 
 		/*
