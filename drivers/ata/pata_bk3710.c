@@ -264,9 +264,9 @@ static void pata_bk3710_chipinit(void __iomem *base)
 
 	/*
 	 * IORDYTMP IORDY Timer for Primary Register
-	 * (ATA_IORDYTMP_IORDYTMP     , 0xffff  )
+	 * (ATA_IORDYTMP_IORDYTMP	, DISABLE)
 	 */
-	iowrite32(0xFFFF, base + BK3710_IORDYTMP);
+	iowrite32(0, base + BK3710_IORDYTMP);
 
 	/*
 	 * Configure BMISP Register
