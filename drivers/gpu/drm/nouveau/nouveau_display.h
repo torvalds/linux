@@ -76,7 +76,8 @@ int  nouveau_display_vblstamp(struct drm_device *, unsigned int, int *,
 
 int  nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			    struct drm_pending_vblank_event *event,
-			    uint32_t page_flip_flags);
+			    uint32_t page_flip_flags,
+			    struct drm_modeset_acquire_ctx *ctx);
 int  nouveau_finish_page_flip(struct nouveau_channel *,
 			      struct nouveau_page_flip_state *);
 

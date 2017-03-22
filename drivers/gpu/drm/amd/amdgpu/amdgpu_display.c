@@ -311,7 +311,8 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
 				 struct drm_pending_vblank_event *event,
 				 uint32_t page_flip_flags,
-				 uint32_t target)
+				 uint32_t target,
+				 struct drm_modeset_acquire_ctx *ctx)
 {
 	struct amdgpu_bo *new_abo;
 	struct amdgpu_flip_work *work;

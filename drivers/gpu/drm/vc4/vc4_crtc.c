@@ -807,12 +807,13 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 static int vc4_page_flip(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,
 			 struct drm_pending_vblank_event *event,
-			 uint32_t flags)
+			 uint32_t flags,
+			 struct drm_modeset_acquire_ctx *ctx)
 {
 	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
 		return vc4_async_page_flip(crtc, fb, event, flags);
 	else
-		return drm_atomic_helper_page_flip(crtc, fb, event, flags);
+		return drm_atomic_helper_page_flip(crtc, fb, event, flags, ctx);
 }
 
 static struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)

@@ -649,7 +649,8 @@ static int vmw_stdu_crtc_set_config(struct drm_mode_set *set)
 static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
 				   struct drm_framebuffer *new_fb,
 				   struct drm_pending_vblank_event *event,
-				   uint32_t flags)
+				   uint32_t flags,
+				   struct drm_modeset_acquire_ctx *ctx)
 
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);

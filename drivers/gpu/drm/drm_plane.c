@@ -932,9 +932,11 @@ retry:
 	if (crtc->funcs->page_flip_target)
 		ret = crtc->funcs->page_flip_target(crtc, fb, e,
 						    page_flip->flags,
-						    target_vblank);
+						    target_vblank,
+						    &ctx);
 	else
-		ret = crtc->funcs->page_flip(crtc, fb, e, page_flip->flags);
+		ret = crtc->funcs->page_flip(crtc, fb, e, page_flip->flags,
+					     &ctx);
 	if (ret) {
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT)
 			drm_event_cancel_free(dev, &e->base);
