@@ -673,6 +673,7 @@ static int xge_probe(struct platform_device *pdev)
 		goto err;
 
 	ndev->hw_features = ndev->features;
+	xge_set_ethtool_ops(ndev);
 
 	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret) {
