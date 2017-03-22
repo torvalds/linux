@@ -2469,9 +2469,15 @@ static void __init copy_pid_params(struct pstate_adjust_policy *policy)
 #ifdef CONFIG_ACPI
 static void intel_pstate_use_acpi_profile(void)
 {
-	if (acpi_gbl_FADT.preferred_profile == PM_MOBILE)
+	switch (acpi_gbl_FADT.preferred_profile) {
+	case PM_MOBILE:
+	case PM_TABLET:
+	case PM_APPLIANCE_PC:
+	case PM_DESKTOP:
+	case PM_WORKSTATION:
 		pstate_funcs.get_target_pstate =
 				get_target_pstate_use_cpu_load;
+	}
 }
 #else
 static void intel_pstate_use_acpi_profile(void)
