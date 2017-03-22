@@ -99,17 +99,6 @@ extern u64 ppc64_pft_size;
 #define GET_HIGH_SLICE_INDEX(addr)	((addr) >> SLICE_HIGH_SHIFT)
 
 #ifndef __ASSEMBLY__
-/*
- * One bit per slice. We have lower slices which cover 256MB segments
- * upto 4G range. That gets us 16 low slices. For the rest we track slices
- * in 1TB size.
- * 64 below is actually SLICE_NUM_HIGH to fixup complie errros
- */
-struct slice_mask {
-	u16 low_slices;
-	DECLARE_BITMAP(high_slices, 64);
-};
-
 struct mm_struct;
 
 extern unsigned long slice_get_unmapped_area(unsigned long addr,
