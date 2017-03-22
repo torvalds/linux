@@ -1382,7 +1382,7 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 	struct tegra_dc *dc = node->info_ent->data;
 	int err = 0;
 
-	drm_modeset_lock_crtc(&dc->base, NULL);
+	drm_modeset_lock(&dc->base.mutex, NULL);
 
 	if (!dc->base.state->active) {
 		err = -EBUSY;
@@ -1609,7 +1609,7 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 #undef DUMP_REG
 
 unlock:
-	drm_modeset_unlock_crtc(&dc->base);
+	drm_modeset_unlock(&dc->base.mutex);
 	return err;
 }
 
@@ -1620,7 +1620,7 @@ static int tegra_dc_show_crc(struct seq_file *s, void *data)
 	int err = 0;
 	u32 value;
 
-	drm_modeset_lock_crtc(&dc->base, NULL);
+	drm_modeset_lock(&dc->base.mutex, NULL);
 
 	if (!dc->base.state->active) {
 		err = -EBUSY;
@@ -1640,7 +1640,7 @@ static int tegra_dc_show_crc(struct seq_file *s, void *data)
 	tegra_dc_writel(dc, 0, DC_COM_CRC_CONTROL);
 
 unlock:
-	drm_modeset_unlock_crtc(&dc->base);
+	drm_modeset_unlock(&dc->base.mutex);
 	return err;
 }
 
