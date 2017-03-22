@@ -821,10 +821,7 @@ area_cache_get(struct nfp_cpp *cpp, u32 id,
 	 * the need for special case code below when
 	 * checking against available cache size.
 	 */
-	if (length == 0)
-		return NULL;
-
-	if (list_empty(&cpp->area_cache_list) || id == 0)
+	if (length == 0 || id == 0)
 		return NULL;
 
 	/* Remap from cpp_island to cpp_target */
@@ -832,9 +829,14 @@ area_cache_get(struct nfp_cpp *cpp, u32 id,
 	if (err < 0)
 		return NULL;
 
-	addr += *offset;
-
 	mutex_lock(&cpp->area_cache_mutex);
+
+	if (list_empty(&cpp->area_cache_list)) {
+		mutex_unlock(&cpp->area_cache_mutex);
+		return NULL;
+	}
+
+	addr += *offset;
 
 	/* See if we have a match */
 	list_for_each_entry(cache, &cpp->area_cache_list, entry) {
