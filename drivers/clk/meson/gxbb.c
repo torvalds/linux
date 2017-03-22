@@ -352,6 +352,13 @@ static struct meson_clk_pll gxbb_sys_pll = {
 	},
 };
 
+struct pll_params_table gxbb_gp0_params_table[] = {
+	PLL_PARAM(HHI_GP0_PLL_CNTL, 0x6a000228),
+	PLL_PARAM(HHI_GP0_PLL_CNTL2, 0x69c80000),
+	PLL_PARAM(HHI_GP0_PLL_CNTL3, 0x0a5590c4),
+	PLL_PARAM(HHI_GP0_PLL_CNTL4, 0x0000500d),
+};
+
 static struct meson_clk_pll gxbb_gp0_pll = {
 	.m = {
 		.reg_off = HHI_GP0_PLL_CNTL,
@@ -367,6 +374,12 @@ static struct meson_clk_pll gxbb_gp0_pll = {
 		.reg_off = HHI_GP0_PLL_CNTL,
 		.shift   = 16,
 		.width   = 2,
+	},
+	.params = {
+		.params_table = gxbb_gp0_params_table,
+		.params_count =	ARRAY_SIZE(gxbb_gp0_params_table),
+		.no_init_reset = true,
+		.clear_reset_for_lock = true,
 	},
 	.rate_table = gp0_pll_rate_table,
 	.rate_count = ARRAY_SIZE(gp0_pll_rate_table),
