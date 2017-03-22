@@ -234,60 +234,22 @@ __asm__ __volatile__(			\
  * Copy to/from user space
  */
 
-/*
- * We use a generic, arbitrary-sized copy subroutine.  The Xtensa
- * architecture would cause heavy code bloat if we tried to inline
- * these functions and provide __constant_copy_* equivalents like the
- * i386 versions.  __xtensa_copy_user is quite efficient.  See the
- * .fixup section of __xtensa_copy_user for a discussion on the
- * X_zeroing equivalents for Xtensa.
- */
-
 extern unsigned __xtensa_copy_user(void *to, const void *from, unsigned n);
-#define __copy_user(to, from, size) __xtensa_copy_user(to, from, size)
-
 
 static inline unsigned long
-__generic_copy_from_user_nocheck(void *to, const void *from, unsigned long n)
-{
-	return __copy_user(to, from, n);
-}
-
-static inline unsigned long
-__generic_copy_to_user_nocheck(void *to, const void *from, unsigned long n)
-{
-	return __copy_user(to, from, n);
-}
-
-static inline unsigned long
-__generic_copy_to_user(void *to, const void *from, unsigned long n)
-{
-	prefetch(from);
-	if (access_ok(VERIFY_WRITE, to, n))
-		return __copy_user(to, from, n);
-	return n;
-}
-
-static inline unsigned long
-__generic_copy_from_user(void *to, const void *from, unsigned long n)
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	prefetchw(to);
-	if (access_ok(VERIFY_READ, from, n))
-		return __copy_user(to, from, n);
-	else
-		memset(to, 0, n);
-	return n;
+	return __xtensa_copy_user(to, (__force const void *)from, n);
 }
-
-#define copy_to_user(to, from, n) __generic_copy_to_user((to), (from), (n))
-#define copy_from_user(to, from, n) __generic_copy_from_user((to), (from), (n))
-#define __copy_to_user(to, from, n) \
-	__generic_copy_to_user_nocheck((to), (from), (n))
-#define __copy_from_user(to, from, n) \
-	__generic_copy_from_user_nocheck((to), (from), (n))
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	prefetchw(from);
+	return __xtensa_copy_user((__force void *)to, from, n);
+}
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 /*
  * We need to return the number of bytes not cleared.  Our memset()
