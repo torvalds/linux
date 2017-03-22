@@ -122,6 +122,8 @@ struct snd_motu_spec {
 	const struct snd_motu_protocol *const protocol;
 };
 
+extern const struct snd_motu_protocol snd_motu_protocol_v2;
+
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
 		    const struct snd_motu_protocol *const protocol);

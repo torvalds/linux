@@ -146,6 +146,7 @@ config SND_FIREWIRE_MOTU
 	select SND_HWDEP
 	help
 	 Say Y here to enable support for FireWire devices which MOTU produced:
+	  * 828mk2
 
 	 To compile this driver as a module, choose M here: the module
 	 will be called snd-firewire-motu.
