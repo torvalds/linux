@@ -2326,6 +2326,13 @@ static struct tegra_clk tegra210_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_dmic1_sync_clk_mux] = { .dt_id = TEGRA210_CLK_DMIC1_SYNC_CLK_MUX, .present = true },
 	[tegra_clk_dmic2_sync_clk_mux] = { .dt_id = TEGRA210_CLK_DMIC2_SYNC_CLK_MUX, .present = true },
 	[tegra_clk_dmic3_sync_clk_mux] = { .dt_id = TEGRA210_CLK_DMIC3_SYNC_CLK_MUX, .present = true },
+	[tegra_clk_dp2] = { .dt_id = TEGRA210_CLK_DP2, .present = true },
+	[tegra_clk_iqc1] = { .dt_id = TEGRA210_CLK_IQC1, .present = true },
+	[tegra_clk_iqc2] = { .dt_id = TEGRA210_CLK_IQC2, .present = true },
+	[tegra_clk_pll_a_out_adsp] = { .dt_id = TEGRA210_CLK_PLL_A_OUT_ADSP, .present = true },
+	[tegra_clk_pll_a_out0_out_adsp] = { .dt_id = TEGRA210_CLK_PLL_A_OUT0_OUT_ADSP, .present = true },
+	[tegra_clk_adsp] = { .dt_id = TEGRA210_CLK_ADSP, .present = true },
+	[tegra_clk_adsp_neon] = { .dt_id = TEGRA210_CLK_ADSP_NEON, .present = true },
 };
 
 static struct tegra_devclk devclks[] __initdata = {
