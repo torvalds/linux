@@ -206,11 +206,21 @@ static int __create_doorbell(struct i915_guc_client *client)
 
 static int __destroy_doorbell(struct i915_guc_client *client)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(client->guc);
 	struct guc_doorbell_info *doorbell;
+	u16 db_id = client->doorbell_id;
+
+	GEM_BUG_ON(db_id >= GUC_DOORBELL_INVALID);
 
 	doorbell = __get_doorbell(client);
 	doorbell->db_status = GUC_DOORBELL_DISABLED;
 	doorbell->cookie = 0;
+
+	/* Doorbell release flow requires that we wait for GEN8_DRB_VALID bit
+	 * to go to zero after updating db_status before we call the GuC to
+	 * release the doorbell */
+	if (wait_for_us(!(I915_READ(GEN8_DRBREGL(db_id)) & GEN8_DRB_VALID), 10))
+		WARN_ONCE(true, "Doorbell never became invalid after disable\n");
 
 	return __guc_deallocate_doorbell(client->guc, client->ctx_index);
 }
