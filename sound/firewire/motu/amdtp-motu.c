@@ -11,6 +11,7 @@
 #include "motu.h"
 
 #define CIP_FMT_MOTU		0x02
+#define CIP_FMT_MOTU_TX_V3	0x22
 #define MOTU_FDF_AM824		0x22
 
 /*
@@ -359,6 +360,17 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 
 	if (dir == AMDTP_IN_STREAM) {
 		process_data_blocks = process_tx_data_blocks;
+
+		/*
+		 * Units of version 3 transmits packets with invalid CIP header
+		 * against IEC 61883-1.
+		 */
+		if (protocol == &snd_motu_protocol_v3) {
+			flags |= CIP_WRONG_DBS |
+				 CIP_SKIP_DBC_ZERO_CHECK |
+				 CIP_HEADER_WITHOUT_EOH;
+			fmt = CIP_FMT_MOTU_TX_V3;
+		}
 	} else {
 		process_data_blocks = process_rx_data_blocks;
 		flags |= CIP_DBC_IS_END_EVENT;

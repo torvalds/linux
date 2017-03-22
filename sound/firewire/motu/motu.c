@@ -203,6 +203,22 @@ static struct snd_motu_spec motu_828mk2 = {
 	.analog_out_ports = 8,
 };
 
+static struct snd_motu_spec motu_828mk3 = {
+	.name = "828mk3",
+	.protocol = &snd_motu_protocol_v3,
+	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
+		 SND_MOTU_SPEC_SUPPORT_CLOCK_X4 |
+		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
+		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
+		 SND_MOTU_SPEC_TX_REVERB_CHUNK |
+		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
+		 SND_MOTU_SPEC_HAS_OPT_IFACE_B |
+		 SND_MOTU_SPEC_HAS_MIDI,
+
+	.analog_in_ports = 8,
+	.analog_out_ports = 8,
+};
+
 #define SND_MOTU_DEV_ENTRY(model, data)			\
 {							\
 	.match_flags	= IEEE1394_MATCH_VENDOR_ID |	\
@@ -216,6 +232,8 @@ static struct snd_motu_spec motu_828mk2 = {
 
 static const struct ieee1394_device_id motu_id_table[] = {
 	SND_MOTU_DEV_ENTRY(0x101800, &motu_828mk2),
+	SND_MOTU_DEV_ENTRY(0x106800, &motu_828mk3),	/* FireWire only. */
+	SND_MOTU_DEV_ENTRY(0x100800, &motu_828mk3),	/* Hybrid. */
 	{ }
 };
 MODULE_DEVICE_TABLE(ieee1394, motu_id_table);
