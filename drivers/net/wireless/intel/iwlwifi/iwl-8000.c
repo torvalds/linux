@@ -98,7 +98,6 @@
 	IWL8265_FW_PRE __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_8000		10
-#define DEFAULT_NVM_FILE_FAMILY_8000B		"nvmData-8000B"
 #define DEFAULT_NVM_FILE_FAMILY_8000C		"nvmData-8000C"
 
 /* Max SDIO RX/TX aggregation sizes of the ADDBA request/response */
@@ -162,7 +161,6 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.dccm2_len = IWL8260_DCCM2_LEN,					\
 	.smem_offset = IWL8260_SMEM_OFFSET,				\
 	.smem_len = IWL8260_SMEM_LEN,					\
-	.default_nvm_file_B_step = DEFAULT_NVM_FILE_FAMILY_8000B,	\
 	.default_nvm_file_C_step = DEFAULT_NVM_FILE_FAMILY_8000C,	\
 	.thermal_params = &iwl8000_tt_params,				\
 	.apmg_not_supported = true,					\

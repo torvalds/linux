@@ -448,9 +448,7 @@ int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 
 		/* nvm file validation, dword_buff[2] holds the file version */
 		if ((CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_C_STEP &&
-		     le32_to_cpu(dword_buff[2]) < 0xE4A) ||
-		    (CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_B_STEP &&
-		     le32_to_cpu(dword_buff[2]) >= 0xE4A)) {
+		     le32_to_cpu(dword_buff[2]) < 0xE4A)) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -644,7 +642,6 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 	int ret, section;
 	u32 size_read = 0;
 	u8 *nvm_buffer, *temp;
-	const char *nvm_file_B = mvm->cfg->default_nvm_file_B_step;
 	const char *nvm_file_C = mvm->cfg->default_nvm_file_C_step;
 
 	if (WARN_ON_ONCE(mvm->cfg->nvm_hw_section_num >= NVM_MAX_NUM_SECTIONS))
@@ -714,14 +711,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 		/* read External NVM file from the mod param */
 		ret = iwl_mvm_read_external_nvm(mvm);
 		if (ret) {
-			/* choose the nvm_file name according to the
-			 * HW step
-			 */
-			if (CSR_HW_REV_STEP(mvm->trans->hw_rev) ==
-			    SILICON_B_STEP)
-				mvm->nvm_file_name = nvm_file_B;
-			else
-				mvm->nvm_file_name = nvm_file_C;
+			mvm->nvm_file_name = nvm_file_C;
 
 			if ((ret == -EFAULT || ret == -ENOENT) &&
 			    mvm->nvm_file_name) {
