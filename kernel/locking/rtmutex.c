@@ -1669,6 +1669,37 @@ void rt_mutex_proxy_unlock(struct rt_mutex *lock,
 	rt_mutex_set_owner(lock, NULL);
 }
 
+int __rt_mutex_start_proxy_lock(struct rt_mutex *lock,
+			      struct rt_mutex_waiter *waiter,
+			      struct task_struct *task)
+{
+	int ret;
+
+	if (try_to_take_rt_mutex(lock, task, NULL))
+		return 1;
+
+	/* We enforce deadlock detection for futexes */
+	ret = task_blocks_on_rt_mutex(lock, waiter, task,
+				      RT_MUTEX_FULL_CHAINWALK);
+
+	if (ret && !rt_mutex_owner(lock)) {
+		/*
+		 * Reset the return value. We might have
+		 * returned with -EDEADLK and the owner
+		 * released the lock while we were walking the
+		 * pi chain.  Let the waiter sort it out.
+		 */
+		ret = 0;
+	}
+
+	if (unlikely(ret))
+		remove_waiter(lock, waiter);
+
+	debug_rt_mutex_print_deadlock(waiter);
+
+	return ret;
+}
+
 /**
  * rt_mutex_start_proxy_lock() - Start lock acquisition for another task
  * @lock:		the rt_mutex to take
@@ -1689,32 +1720,8 @@ int rt_mutex_start_proxy_lock(struct rt_mutex *lock,
 	int ret;
 
 	raw_spin_lock_irq(&lock->wait_lock);
-
-	if (try_to_take_rt_mutex(lock, task, NULL)) {
-		raw_spin_unlock_irq(&lock->wait_lock);
-		return 1;
-	}
-
-	/* We enforce deadlock detection for futexes */
-	ret = task_blocks_on_rt_mutex(lock, waiter, task,
-				      RT_MUTEX_FULL_CHAINWALK);
-
-	if (ret && !rt_mutex_owner(lock)) {
-		/*
-		 * Reset the return value. We might have
-		 * returned with -EDEADLK and the owner
-		 * released the lock while we were walking the
-		 * pi chain.  Let the waiter sort it out.
-		 */
-		ret = 0;
-	}
-
-	if (unlikely(ret))
-		remove_waiter(lock, waiter);
-
+	ret = __rt_mutex_start_proxy_lock(lock, waiter, task);
 	raw_spin_unlock_irq(&lock->wait_lock);
-
-	debug_rt_mutex_print_deadlock(waiter);
 
 	return ret;
 }

@@ -2654,20 +2654,33 @@ retry_private:
 		goto no_block;
 	}
 
-	/*
-	 * We must add ourselves to the rt_mutex waitlist while holding hb->lock
-	 * such that the hb and rt_mutex wait lists match.
-	 */
 	rt_mutex_init_waiter(&rt_waiter);
-	ret = rt_mutex_start_proxy_lock(&q.pi_state->pi_mutex, &rt_waiter, current);
+
+	/*
+	 * On PREEMPT_RT_FULL, when hb->lock becomes an rt_mutex, we must not
+	 * hold it while doing rt_mutex_start_proxy(), because then it will
+	 * include hb->lock in the blocking chain, even through we'll not in
+	 * fact hold it while blocking. This will lead it to report -EDEADLK
+	 * and BUG when futex_unlock_pi() interleaves with this.
+	 *
+	 * Therefore acquire wait_lock while holding hb->lock, but drop the
+	 * latter before calling rt_mutex_start_proxy_lock(). This still fully
+	 * serializes against futex_unlock_pi() as that does the exact same
+	 * lock handoff sequence.
+	 */
+	raw_spin_lock_irq(&q.pi_state->pi_mutex.wait_lock);
+	spin_unlock(q.lock_ptr);
+	ret = __rt_mutex_start_proxy_lock(&q.pi_state->pi_mutex, &rt_waiter, current);
+	raw_spin_unlock_irq(&q.pi_state->pi_mutex.wait_lock);
+
 	if (ret) {
 		if (ret == 1)
 			ret = 0;
 
+		spin_lock(q.lock_ptr);
 		goto no_block;
 	}
 
-	spin_unlock(q.lock_ptr);
 
 	if (unlikely(to))
 		hrtimer_start_expires(&to->timer, HRTIMER_MODE_ABS);
@@ -2680,6 +2693,9 @@ retry_private:
 	 * first acquire the hb->lock before removing the lock from the
 	 * rt_mutex waitqueue, such that we can keep the hb and rt_mutex
 	 * wait lists consistent.
+	 *
+	 * In particular; it is important that futex_unlock_pi() can not
+	 * observe this inconsistency.
 	 */
 	if (ret && !rt_mutex_cleanup_proxy_lock(&q.pi_state->pi_mutex, &rt_waiter))
 		ret = 0;
@@ -2791,10 +2807,6 @@ retry:
 
 		get_pi_state(pi_state);
 		/*
-		 * Since modifying the wait_list is done while holding both
-		 * hb->lock and wait_lock, holding either is sufficient to
-		 * observe it.
-		 *
 		 * By taking wait_lock while still holding hb->lock, we ensure
 		 * there is no point where we hold neither; and therefore
 		 * wake_futex_pi() must observe a state consistent with what we
