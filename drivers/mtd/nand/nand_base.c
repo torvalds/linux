@@ -4225,12 +4225,6 @@ static int nand_dt_init(struct nand_chip *chip)
 	ecc_strength = of_get_nand_ecc_strength(dn);
 	ecc_step = of_get_nand_ecc_step_size(dn);
 
-	if ((ecc_step >= 0 && !(ecc_strength >= 0)) ||
-	    (!(ecc_step >= 0) && ecc_strength >= 0)) {
-		pr_err("must set both strength and step size in DT\n");
-		return -EINVAL;
-	}
-
 	if (ecc_mode >= 0)
 		chip->ecc.mode = ecc_mode;
 
