@@ -1398,15 +1398,10 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_pi_state *pi_
 	DEFINE_WAKE_Q(wake_q);
 	int ret = 0;
 
-	raw_spin_lock_irq(&pi_state->pi_mutex.wait_lock);
 	new_owner = rt_mutex_next_owner(&pi_state->pi_mutex);
-	if (!new_owner) {
+	if (WARN_ON_ONCE(!new_owner)) {
 		/*
-		 * Since we held neither hb->lock nor wait_lock when coming
-		 * into this function, we could have raced with futex_lock_pi()
-		 * such that we might observe @this futex_q waiter, but the
-		 * rt_mutex's wait_list can be empty (either still, or again,
-		 * depending on which side we land).
+		 * As per the comment in futex_unlock_pi() this should not happen.
 		 *
 		 * When this happens, give up our locks and try again, giving
 		 * the futex_lock_pi() instance time to complete, either by
@@ -2794,15 +2789,18 @@ retry:
 		if (pi_state->owner != current)
 			goto out_unlock;
 
-		/*
-		 * Grab a reference on the pi_state and drop hb->lock.
-		 *
-		 * The reference ensures pi_state lives, dropping the hb->lock
-		 * is tricky.. wake_futex_pi() will take rt_mutex::wait_lock to
-		 * close the races against futex_lock_pi(), but in case of
-		 * _any_ fail we'll abort and retry the whole deal.
-		 */
 		get_pi_state(pi_state);
+		/*
+		 * Since modifying the wait_list is done while holding both
+		 * hb->lock and wait_lock, holding either is sufficient to
+		 * observe it.
+		 *
+		 * By taking wait_lock while still holding hb->lock, we ensure
+		 * there is no point where we hold neither; and therefore
+		 * wake_futex_pi() must observe a state consistent with what we
+		 * observed.
+		 */
+		raw_spin_lock_irq(&pi_state->pi_mutex.wait_lock);
 		spin_unlock(&hb->lock);
 
 		ret = wake_futex_pi(uaddr, uval, pi_state);
