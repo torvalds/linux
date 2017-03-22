@@ -2290,32 +2290,15 @@ int drm_atomic_helper_set_config(struct drm_mode_set *set,
 		return -ENOMEM;
 
 	state->legacy_set_config = true;
-	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
-retry:
+	state->acquire_ctx = ctx;
 	ret = __drm_atomic_helper_set_config(set, state);
 	if (ret != 0)
-		goto fail;
+		return ret;
 
 	ret = drm_atomic_commit(state);
-fail:
-	if (ret == -EDEADLK)
-		goto backoff;
 
 	drm_atomic_state_put(state);
 	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	/*
-	 * Someone might have exchanged the framebuffer while we dropped locks
-	 * in the backoff code. We need to fix up the fb refcount tracking the
-	 * core does for us.
-	 */
-	crtc->primary->old_fb = crtc->primary->fb;
-
-	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_set_config);
 
