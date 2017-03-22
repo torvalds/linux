@@ -1392,6 +1392,7 @@ config SERIAL_ALTERA_UART_CONSOLE
 	bool "Altera UART console support"
 	depends on SERIAL_ALTERA_UART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Altera UART port to be the system console.
 
