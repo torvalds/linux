@@ -334,7 +334,7 @@ lnet_mt_test_exhausted(struct lnet_match_table *mtable, int pos)
 	bmap = &mtable->mt_exhausted[pos >> LNET_MT_BITS_U64];
 	pos &= (1 << LNET_MT_BITS_U64) - 1;
 
-	return (*bmap & (1ULL << pos));
+	return (*bmap & BIT(pos));
 }
 
 static void

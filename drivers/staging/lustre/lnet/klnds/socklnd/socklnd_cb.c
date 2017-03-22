@@ -1906,14 +1906,14 @@ ksocknal_connect(struct ksock_route *route)
 		if (retry_later) /* needs reschedule */
 			break;
 
-		if (wanted & (1 << SOCKLND_CONN_ANY)) {
+		if (wanted & BIT(SOCKLND_CONN_ANY)) {
 			type = SOCKLND_CONN_ANY;
-		} else if (wanted & (1 << SOCKLND_CONN_CONTROL)) {
+		} else if (wanted & BIT(SOCKLND_CONN_CONTROL)) {
 			type = SOCKLND_CONN_CONTROL;
-		} else if (wanted & (1 << SOCKLND_CONN_BULK_IN)) {
+		} else if (wanted & BIT(SOCKLND_CONN_BULK_IN)) {
 			type = SOCKLND_CONN_BULK_IN;
 		} else {
-			LASSERT(wanted & (1 << SOCKLND_CONN_BULK_OUT));
+			LASSERT(wanted & BIT(SOCKLND_CONN_BULK_OUT));
 			type = SOCKLND_CONN_BULK_OUT;
 		}
 
