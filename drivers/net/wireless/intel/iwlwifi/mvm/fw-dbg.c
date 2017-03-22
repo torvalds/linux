@@ -927,7 +927,7 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 	mvm->fw_dump_desc = desc;
 	mvm->fw_dump_trig = trigger;
 
-	queue_delayed_work(system_wq, &mvm->fw_dump_wk, delay);
+	schedule_delayed_work(&mvm->fw_dump_wk, delay);
 
 	return 0;
 }
