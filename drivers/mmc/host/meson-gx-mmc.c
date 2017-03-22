@@ -424,6 +424,7 @@ static void meson_mmc_request_done(struct mmc_host *mmc,
 static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 {
 	struct meson_host *host = mmc_priv(mmc);
+	struct mmc_data *data = cmd->data;
 	struct sd_emmc_desc *desc, desc_tmp;
 	u32 cfg;
 	u8 blk_len, cmd_cfg_timeout;
@@ -456,41 +457,41 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 	}
 
 	/* data? */
-	if (cmd->data) {
+	if (data) {
 		desc->cmd_cfg |= CMD_CFG_DATA_IO;
-		if (cmd->data->blocks > 1) {
+		if (data->blocks > 1) {
 			desc->cmd_cfg |= CMD_CFG_BLOCK_MODE;
 			desc->cmd_cfg |=
-				(cmd->data->blocks & CMD_CFG_LENGTH_MASK) <<
+				(data->blocks & CMD_CFG_LENGTH_MASK) <<
 				CMD_CFG_LENGTH_SHIFT;
 
 			/* check if block-size matches, if not update */
 			cfg = readl(host->regs + SD_EMMC_CFG);
 			blk_len = cfg & (CFG_BLK_LEN_MASK << CFG_BLK_LEN_SHIFT);
 			blk_len >>= CFG_BLK_LEN_SHIFT;
-			if (blk_len != ilog2(cmd->data->blksz)) {
+			if (blk_len != ilog2(data->blksz)) {
 				dev_dbg(host->dev, "%s: update blk_len %d -> %d\n",
 					__func__, blk_len,
-					ilog2(cmd->data->blksz));
-				blk_len = ilog2(cmd->data->blksz);
+					ilog2(data->blksz));
+				blk_len = ilog2(data->blksz);
 				cfg &= ~(CFG_BLK_LEN_MASK << CFG_BLK_LEN_SHIFT);
 				cfg |= blk_len << CFG_BLK_LEN_SHIFT;
 				writel(cfg, host->regs + SD_EMMC_CFG);
 			}
 		} else {
 			desc->cmd_cfg |=
-				(cmd->data->blksz & CMD_CFG_LENGTH_MASK) <<
+				(data->blksz & CMD_CFG_LENGTH_MASK) <<
 				CMD_CFG_LENGTH_SHIFT;
 		}
 
-		cmd->data->bytes_xfered = 0;
-		xfer_bytes = cmd->data->blksz * cmd->data->blocks;
-		if (cmd->data->flags & MMC_DATA_WRITE) {
+		data->bytes_xfered = 0;
+		xfer_bytes = data->blksz * data->blocks;
+		if (data->flags & MMC_DATA_WRITE) {
 			desc->cmd_cfg |= CMD_CFG_DATA_WR;
 			WARN_ON(xfer_bytes > host->bounce_buf_size);
-			sg_copy_to_buffer(cmd->data->sg, cmd->data->sg_len,
+			sg_copy_to_buffer(data->sg, data->sg_len,
 					  host->bounce_buf, xfer_bytes);
-			cmd->data->bytes_xfered = xfer_bytes;
+			data->bytes_xfered = xfer_bytes;
 			dma_wmb();
 		}
 
