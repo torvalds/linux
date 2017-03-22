@@ -62,8 +62,6 @@ MODULE_PARM_DESC(onfi_timing_mode,
  */
 #define CHIP_SELECT_INVALID	-1
 
-#define SUPPORT_8BITECC		1
-
 /*
  * This macro divides two integers and rounds fractional values up
  * to the nearest integer value.
@@ -347,14 +345,8 @@ static void get_toshiba_nand_para(struct denali_nand_info *denali)
 	 * spare area size for some kind of Toshiba NAND device
 	 */
 	if ((ioread32(denali->flash_reg + DEVICE_MAIN_AREA_SIZE) == 4096) &&
-		(ioread32(denali->flash_reg + DEVICE_SPARE_AREA_SIZE) == 64)) {
+		(ioread32(denali->flash_reg + DEVICE_SPARE_AREA_SIZE) == 64))
 		iowrite32(216, denali->flash_reg + DEVICE_SPARE_AREA_SIZE);
-#if SUPPORT_15BITECC
-		iowrite32(15, denali->flash_reg + ECC_CORRECTION);
-#elif SUPPORT_8BITECC
-		iowrite32(8, denali->flash_reg + ECC_CORRECTION);
-#endif
-	}
 }
 
 static void get_hynix_nand_para(struct denali_nand_info *denali,
@@ -367,11 +359,6 @@ static void get_hynix_nand_para(struct denali_nand_info *denali,
 		iowrite32(4096, denali->flash_reg + DEVICE_MAIN_AREA_SIZE);
 		iowrite32(224, denali->flash_reg + DEVICE_SPARE_AREA_SIZE);
 		iowrite32(0, denali->flash_reg + DEVICE_WIDTH);
-#if SUPPORT_15BITECC
-		iowrite32(15, denali->flash_reg + ECC_CORRECTION);
-#elif SUPPORT_8BITECC
-		iowrite32(8, denali->flash_reg + ECC_CORRECTION);
-#endif
 		break;
 	default:
 		dev_warn(denali->dev,

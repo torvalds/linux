@@ -292,9 +292,6 @@
 #define CLK_X  5
 #define CLK_MULTI 4
 
-#define SUPPORT_15BITECC        1
-#define SUPPORT_8BITECC         1
-
 #define ONFI_BLOOM_TIME         1
 #define MODE5_WORKAROUND        0
 
