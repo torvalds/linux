@@ -20,10 +20,15 @@
 #include <sound/control.h>
 #include <sound/core.h>
 
+#include "../lib.h"
+
 struct snd_motu {
 	struct snd_card *card;
 	struct fw_unit *unit;
 	struct mutex mutex;
+
+	bool registered;
+	struct delayed_work dwork;
 };
 
 #endif
