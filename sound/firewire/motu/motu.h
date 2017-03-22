@@ -48,6 +48,10 @@ struct snd_motu {
 	struct snd_motu_packet_format rx_packet_formats;
 	struct amdtp_stream tx_stream;
 	struct amdtp_stream rx_stream;
+
+	/* For notification. */
+	struct fw_address_handler async_handler;
+	u32 msg;
 };
 
 enum snd_motu_spec_flags {
@@ -106,4 +110,12 @@ int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 			      struct snd_motu_packet_format *formats);
 int amdtp_motu_add_pcm_hw_constraints(struct amdtp_stream *s,
 				      struct snd_pcm_runtime *runtime);
+
+int snd_motu_transaction_read(struct snd_motu *motu, u32 offset, __be32 *reg,
+			      size_t size);
+int snd_motu_transaction_write(struct snd_motu *motu, u32 offset, __be32 *reg,
+			       size_t size);
+int snd_motu_transaction_register(struct snd_motu *motu);
+int snd_motu_transaction_reregister(struct snd_motu *motu);
+void snd_motu_transaction_unregister(struct snd_motu *motu);
 #endif
