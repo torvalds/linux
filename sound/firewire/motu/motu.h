@@ -19,12 +19,12 @@
 
 #include <sound/control.h>
 #include <sound/core.h>
+#include <sound/pcm.h>
 
 #include "../lib.h"
+#include "../amdtp-stream.h"
 
 struct snd_motu_packet_format {
-	unsigned char midi_flag_offset;
-	unsigned char midi_byte_offset;
 	unsigned char pcm_byte_offset;
 
 	unsigned char msg_chunks;
@@ -46,6 +46,8 @@ struct snd_motu {
 	/* For packet streaming */
 	struct snd_motu_packet_format tx_packet_formats;
 	struct snd_motu_packet_format rx_packet_formats;
+	struct amdtp_stream tx_stream;
+	struct amdtp_stream rx_stream;
 };
 
 enum snd_motu_spec_flags {
@@ -97,4 +99,11 @@ struct snd_motu_spec {
 	const struct snd_motu_protocol *const protocol;
 };
 
+int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
+		    enum amdtp_stream_direction dir,
+		    const struct snd_motu_protocol *const protocol);
+int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
+			      struct snd_motu_packet_format *formats);
+int amdtp_motu_add_pcm_hw_constraints(struct amdtp_stream *s,
+				      struct snd_pcm_runtime *runtime);
 #endif
