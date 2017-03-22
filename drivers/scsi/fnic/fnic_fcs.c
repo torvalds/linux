@@ -362,7 +362,7 @@ static void fnic_fcoe_send_vlan_req(struct fnic *fnic)
 
 	vlan->fip.fip_ver = FIP_VER_ENCAPS(FIP_VER);
 	vlan->fip.fip_op = htons(FIP_OP_VLAN);
-	vlan->fip.fip_subcode = FIP_SC_VL_NOTE;
+	vlan->fip.fip_subcode = FIP_SC_VL_REQ;
 	vlan->fip.fip_dl_len = htons(sizeof(vlan->desc) / FIP_BPW);
 
 	vlan->desc.mac.fd_desc.fip_dtype = FIP_DT_MAC;
