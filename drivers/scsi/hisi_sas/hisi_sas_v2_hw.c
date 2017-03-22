@@ -1737,6 +1737,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 			hisi_hba->complete_hdr[slot->cmplt_queue];
 	struct hisi_sas_complete_v2_hdr *complete_hdr =
 			&complete_queue[slot->cmplt_queue_slot];
+	unsigned long flags;
 	int aborted;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
@@ -1746,11 +1747,11 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	device = task->dev;
 	sas_dev = device->lldd_dev;
 
-	spin_lock(&task->task_state_lock);
+	spin_lock_irqsave(&task->task_state_lock, flags);
 	aborted = task->task_state_flags & SAS_TASK_STATE_ABORTED;
 	task->task_state_flags &=
 		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
-	spin_unlock(&task->task_state_lock);
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	memset(ts, 0, sizeof(*ts));
 	ts->resp = SAS_TASK_COMPLETE;
@@ -1849,7 +1850,9 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	}
 
 out:
+	spin_lock_irqsave(&task->task_state_lock, flags);
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
 	sts = ts->stat;
 

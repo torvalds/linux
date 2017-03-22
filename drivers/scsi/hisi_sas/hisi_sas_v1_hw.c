@@ -1288,6 +1288,7 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_complete_v1_hdr *complete_queue =
 			hisi_hba->complete_hdr[slot->cmplt_queue];
 	struct hisi_sas_complete_v1_hdr *complete_hdr;
+	unsigned long flags;
 	u32 cmplt_hdr_data;
 
 	complete_hdr = &complete_queue[slot->cmplt_queue_slot];
@@ -1300,9 +1301,11 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	device = task->dev;
 	sas_dev = device->lldd_dev;
 
+	spin_lock_irqsave(&task->task_state_lock, flags);
 	task->task_state_flags &=
 		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 	memset(ts, 0, sizeof(*ts));
 	ts->resp = SAS_TASK_COMPLETE;
