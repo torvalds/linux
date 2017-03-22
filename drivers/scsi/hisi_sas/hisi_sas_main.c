@@ -1028,11 +1028,12 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 
 	rc = hisi_sas_debug_I_T_nexus_reset(device);
 
-	spin_lock_irqsave(&hisi_hba->lock, flags);
-	hisi_sas_release_task(hisi_hba, device);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
-
-	return 0;
+	if (rc == TMF_RESP_FUNC_COMPLETE) {
+		spin_lock_irqsave(&hisi_hba->lock, flags);
+		hisi_sas_release_task(hisi_hba, device);
+		spin_unlock_irqrestore(&hisi_hba->lock, flags);
+	}
+	return rc;
 }
 
 static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
