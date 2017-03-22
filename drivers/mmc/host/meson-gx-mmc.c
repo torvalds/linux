@@ -562,6 +562,8 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 		goto out;
 	}
 
+	meson_mmc_read_resp(host->mmc, cmd);
+
 	cmd->error = 0;
 	if (status & IRQ_RXD_ERR_MASK) {
 		dev_dbg(host->dev, "Unhandled IRQ: RXD error\n");
@@ -608,10 +610,8 @@ out:
 	/* ack all (enabled) interrupts */
 	writel(status, host->regs + SD_EMMC_STATUS);
 
-	if (ret == IRQ_HANDLED) {
-		meson_mmc_read_resp(host->mmc, cmd);
+	if (ret == IRQ_HANDLED)
 		meson_mmc_request_done(host->mmc, cmd->mrq);
-	}
 
 	spin_unlock(&host->lock);
 	return ret;
@@ -636,7 +636,6 @@ static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
 		data->bytes_xfered = xfer_bytes;
 	}
 
-	meson_mmc_read_resp(host->mmc, cmd);
 	if (!data || !data->stop || cmd->mrq->sbc)
 		meson_mmc_request_done(host->mmc, cmd->mrq);
 	else
