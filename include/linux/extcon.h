@@ -422,15 +422,4 @@ static inline int extcon_unregister_interest(struct extcon_specific_cable_nb
 {
 	return -EINVAL;
 }
-
-static inline int extcon_get_cable_state_(struct extcon_dev *edev, unsigned int id)
-{
-	return extcon_get_state(edev, id);
-}
-
-static inline int extcon_set_cable_state_(struct extcon_dev *edev, unsigned int id,
-				   bool cable_state)
-{
-	return extcon_set_state_sync(edev, id, cable_state);
-}
 #endif /* __LINUX_EXTCON_H__ */
