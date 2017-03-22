@@ -336,9 +336,9 @@ nfp_net_irqs_assign(struct nfp_net *nn, struct msix_entry *irq_entries,
 
 	if (dp->num_rx_rings > dp->num_r_vecs ||
 	    dp->num_tx_rings > dp->num_r_vecs)
-		nn_warn(nn, "More rings (%d,%d) than vectors (%d).\n",
-			dp->num_rx_rings, dp->num_tx_rings,
-			dp->num_r_vecs);
+		dev_warn(nn->dp.dev, "More rings (%d,%d) than vectors (%d).\n",
+			 dp->num_rx_rings, dp->num_tx_rings,
+			 dp->num_r_vecs);
 
 	dp->num_rx_rings = min(dp->num_r_vecs, dp->num_rx_rings);
 	dp->num_tx_rings = min(dp->num_r_vecs, dp->num_tx_rings);
@@ -479,10 +479,7 @@ nfp_net_rx_ring_init(struct nfp_net_rx_ring *rx_ring,
 	rx_ring->r_vec = r_vec;
 
 	rx_ring->fl_qcidx = rx_ring->idx * nn->stride_rx;
-	rx_ring->rx_qcidx = rx_ring->fl_qcidx + (nn->stride_rx - 1);
-
 	rx_ring->qcp_fl = nn->rx_bar + NFP_QCP_QUEUE_OFF(rx_ring->fl_qcidx);
-	rx_ring->qcp_rx = nn->rx_bar + NFP_QCP_QUEUE_OFF(rx_ring->rx_qcidx);
 }
 
 /**
@@ -762,6 +759,7 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 		nn_dp_warn(dp, "TX ring %d busy. wrp=%u rdp=%u\n",
 			   qidx, tx_ring->wr_p, tx_ring->rd_p);
 		netif_tx_stop_queue(nd_q);
+		nfp_net_tx_xmit_more_flush(tx_ring);
 		u64_stats_update_begin(&r_vec->tx_sync);
 		r_vec->tx_busy++;
 		u64_stats_update_end(&r_vec->tx_sync);
@@ -870,6 +868,7 @@ err_unmap:
 	tx_ring->txbufs[wr_idx].fidx = -2;
 err_free:
 	nn_dp_warn(dp, "Failed to map DMA TX buffer\n");
+	nfp_net_tx_xmit_more_flush(tx_ring);
 	u64_stats_update_begin(&r_vec->tx_sync);
 	r_vec->tx_errors++;
 	u64_stats_update_end(&r_vec->tx_sync);
@@ -2128,7 +2127,11 @@ nfp_net_tx_ring_hw_cfg_write(struct nfp_net *nn,
 	nn_writeb(nn, NFP_NET_CFG_TXR_VEC(idx), tx_ring->r_vec->irq_entry);
 }
 
-static int __nfp_net_set_config_and_enable(struct nfp_net *nn)
+/**
+ * nfp_net_set_config_and_enable() - Write control BAR and enable NFP
+ * @nn:      NFP Net device to reconfigure
+ */
+static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 {
 	u32 new_ctrl, update = 0;
 	unsigned int r;
@@ -2177,6 +2180,10 @@ static int __nfp_net_set_config_and_enable(struct nfp_net *nn)
 
 	nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
 	err = nfp_net_reconfig(nn, update);
+	if (err) {
+		nfp_net_clear_config_and_disable(nn);
+		return err;
+	}
 
 	nn->dp.ctrl = new_ctrl;
 
@@ -2192,22 +2199,7 @@ static int __nfp_net_set_config_and_enable(struct nfp_net *nn)
 		udp_tunnel_get_rx_info(nn->dp.netdev);
 	}
 
-	return err;
-}
-
-/**
- * nfp_net_set_config_and_enable() - Write control BAR and enable NFP
- * @nn:      NFP Net device to reconfigure
- */
-static int nfp_net_set_config_and_enable(struct nfp_net *nn)
-{
-	int err;
-
-	err = __nfp_net_set_config_and_enable(nn);
-	if (err)
-		nfp_net_clear_config_and_disable(nn);
-
-	return err;
+	return 0;
 }
 
 /**
@@ -2233,11 +2225,6 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	int err, r;
-
-	if (nn->dp.ctrl & NFP_NET_CFG_CTRL_ENABLE) {
-		nn_err(nn, "Dev is already enabled: 0x%08x\n", nn->dp.ctrl);
-		return -EBUSY;
-	}
 
 	/* Step 1: Allocate resources for rings and the like
 	 * - Request interrupts
@@ -2369,11 +2356,6 @@ static int nfp_net_netdev_close(struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 
-	if (!(nn->dp.ctrl & NFP_NET_CFG_CTRL_ENABLE)) {
-		nn_err(nn, "Dev is not up: 0x%08x\n", nn->dp.ctrl);
-		return 0;
-	}
-
 	/* Step 1: Disable RX and TX rings from the Linux kernel perspective
 	 */
 	nfp_net_close_stack(nn);
@@ -2458,7 +2440,7 @@ static int nfp_net_dp_swap_enable(struct nfp_net *nn, struct nfp_net_dp *dp)
 			return err;
 	}
 
-	return __nfp_net_set_config_and_enable(nn);
+	return nfp_net_set_config_and_enable(nn);
 }
 
 struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn)

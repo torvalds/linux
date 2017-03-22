@@ -40,9 +40,9 @@ static struct dentry *nfp_dir;
 
 static int nfp_net_debugfs_rx_q_read(struct seq_file *file, void *data)
 {
-	int fl_rd_p, fl_wr_p, rx_rd_p, rx_wr_p, rxd_cnt;
 	struct nfp_net_r_vector *r_vec = file->private;
 	struct nfp_net_rx_ring *rx_ring;
+	int fl_rd_p, fl_wr_p, rxd_cnt;
 	struct nfp_net_rx_desc *rxd;
 	struct nfp_net *nn;
 	void *frag;
@@ -61,14 +61,11 @@ static int nfp_net_debugfs_rx_q_read(struct seq_file *file, void *data)
 
 	fl_rd_p = nfp_qcp_rd_ptr_read(rx_ring->qcp_fl);
 	fl_wr_p = nfp_qcp_wr_ptr_read(rx_ring->qcp_fl);
-	rx_rd_p = nfp_qcp_rd_ptr_read(rx_ring->qcp_rx);
-	rx_wr_p = nfp_qcp_wr_ptr_read(rx_ring->qcp_rx);
 
-	seq_printf(file, "RX[%02d,%02d,%02d]: cnt=%d dma=%pad host=%p   H_RD=%d H_WR=%d FL_RD=%d FL_WR=%d RX_RD=%d RX_WR=%d\n",
-		   rx_ring->idx, rx_ring->fl_qcidx, rx_ring->rx_qcidx,
+	seq_printf(file, "RX[%02d,%02d]: cnt=%d dma=%pad host=%p   H_RD=%d H_WR=%d FL_RD=%d FL_WR=%d\n",
+		   rx_ring->idx, rx_ring->fl_qcidx,
 		   rx_ring->cnt, &rx_ring->dma, rx_ring->rxds,
-		   rx_ring->rd_p, rx_ring->wr_p,
-		   fl_rd_p, fl_wr_p, rx_rd_p, rx_wr_p);
+		   rx_ring->rd_p, rx_ring->wr_p, fl_rd_p, fl_wr_p);
 
 	for (i = 0; i < rxd_cnt; i++) {
 		rxd = &rx_ring->rxds[i];
@@ -91,10 +88,6 @@ static int nfp_net_debugfs_rx_q_read(struct seq_file *file, void *data)
 			seq_puts(file, " FL_RD");
 		if (i == fl_wr_p % rxd_cnt)
 			seq_puts(file, " FL_WR");
-		if (i == rx_rd_p % rxd_cnt)
-			seq_puts(file, " RX_RD");
-		if (i == rx_wr_p % rxd_cnt)
-			seq_puts(file, " RX_WR");
 
 		seq_putc(file, '\n');
 	}
