@@ -30,16 +30,25 @@
 /**
  * DOC: GuC-based command submission
  *
- * i915_guc_client:
- * We use the term client to avoid confusion with contexts. A i915_guc_client is
- * equivalent to GuC object guc_context_desc. This context descriptor is
- * allocated from a pool of 1024 entries. Kernel driver will allocate doorbell
- * and workqueue for it. Also the process descriptor (guc_process_desc), which
- * is mapped to client space. So the client can write Work Item then ring the
- * doorbell.
+ * GuC client:
+ * A i915_guc_client refers to a submission path through GuC. Currently, there
+ * is only one of these (the execbuf_client) and this one is charged with all
+ * submissions to the GuC. This struct is the owner of a doorbell, a process
+ * descriptor and a workqueue (all of them inside a single gem object that
+ * contains all required pages for these elements).
  *
- * To simplify the implementation, we allocate one gem object that contains all
- * pages for doorbell, process descriptor and workqueue.
+ * GuC context descriptor:
+ * During initialization, the driver allocates a static pool of 1024 such
+ * descriptors, and shares them with the GuC.
+ * Currently, there exists a 1:1 mapping between a i915_guc_client and a
+ * guc_context_desc (via the client's context_index), so effectively only
+ * one guc_context_desc gets used. This context descriptor lets the GuC know
+ * about the doorbell, workqueue and process descriptor. Theoretically, it also
+ * lets the GuC know about our HW contexts (Context ID, etc...), but we actually
+ * employ a kind of submission where the GuC uses the LRCA sent via the work
+ * item instead (the single guc_context_desc associated to execbuf client
+ * contains information about the default kernel context only, but this is
+ * essentially unused). This is called a "proxy" submission.
  *
  * The Scratch registers:
  * There are 16 MMIO-based registers start from 0xC180. The kernel driver writes
@@ -308,10 +317,17 @@ static void guc_ctx_desc_init(struct intel_guc *guc,
 		if (!ce->state)
 			break;	/* XXX: continue? */
 
+		/*
+		 * XXX: When this is a GUC_CTX_DESC_ATTR_KERNEL client (proxy
+		 * submission or, in other words, not using a direct submission
+		 * model) the KMD's LRCA is not used for any work submission.
+		 * Instead, the GuC uses the LRCA of the user mode context (see
+		 * guc_wq_item_append below).
+		 */
 		lrc->context_desc = lower_32_bits(ce->lrc_desc);
 
 		/* The state page is after PPHWSP */
-		lrc->ring_lcra =
+		lrc->ring_lrca =
 			guc_ggtt_offset(ce->state) + LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
 				(guc_engine_id << GUC_ELC_ENGINE_OFFSET);
@@ -341,10 +357,6 @@ static void guc_ctx_desc_init(struct intel_guc *guc,
 	desc->wq_addr = gfx_addr + client->wq_offset;
 	desc->wq_size = client->wq_size;
 
-	/*
-	 * XXX: Take LRCs from an existing context if this is not an
-	 * IsKMDCreatedContext client
-	 */
 	desc->desc_private = (uintptr_t)client;
 }
 
@@ -468,7 +480,7 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 	/* The GuC wants only the low-order word of the context descriptor */
 	wqi->context_desc = (u32)intel_lr_context_descriptor(rq->ctx, engine);
 
-	wqi->ring_tail = tail << WQ_RING_TAIL_SHIFT;
+	wqi->submit_element_info = tail << WQ_RING_TAIL_SHIFT;
 	wqi->fence_id = rq->global_seqno;
 }
 

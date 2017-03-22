@@ -34,7 +34,9 @@ struct drm_i915_gem_request;
 
 /*
  * This structure primarily describes the GEM object shared with the GuC.
- * The GEM object is held for the entire lifetime of our interaction with
+ * The specs sometimes refer to this object as a "GuC context", but we use
+ * the term "client" to avoid confusion with hardware contexts. This
+ * GEM object is held for the entire lifetime of our interaction with
  * the GuC, being allocated before the GuC is loaded with its firmware.
  * Because there's no way to update the address used by the GuC after
  * initialisation, the shared object must stay pinned into the GGTT as
@@ -44,7 +46,7 @@ struct drm_i915_gem_request;
  *
  * The single GEM object described here is actually made up of several
  * separate areas, as far as the GuC is concerned. The first page (kept
- * kmap'd) includes the "process decriptor" which holds sequence data for
+ * kmap'd) includes the "process descriptor" which holds sequence data for
  * the doorbell, and one cacheline which actually *is* the doorbell; a
  * write to this will "ring the doorbell" (i.e. send an interrupt to the
  * GuC). The subsequent  pages of the client object constitute the work

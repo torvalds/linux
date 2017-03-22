@@ -251,7 +251,7 @@ union guc_doorbell_qw {
 struct guc_wq_item {
 	u32 header;
 	u32 context_desc;
-	u32 ring_tail;
+	u32 submit_element_info;
 	u32 fence_id;
 } __packed;
 
@@ -278,7 +278,7 @@ struct guc_execlist_context {
 	u32 context_desc;
 	u32 context_id;
 	u32 ring_status;
-	u32 ring_lcra;
+	u32 ring_lrca;
 	u32 ring_begin;
 	u32 ring_end;
 	u32 ring_next_free_location;
