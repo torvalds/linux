@@ -149,7 +149,13 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
 	 * For userspace addresses, make sure this is region 0.
 	 */
 	cmpdi	r9, 0
-	bne	8f
+	bne-	8f
+        /*
+         * user space make sure we are within the allowed limit
+	 */
+	ld	r11,PACA_ADDR_LIMIT(r13)
+	cmpld	r3,r11
+	bge-	8f
 
 	/* when using slices, we extract the psize off the slice bitmaps
 	 * and then we need to get the sllp encoding off the mmu_psize_defs
