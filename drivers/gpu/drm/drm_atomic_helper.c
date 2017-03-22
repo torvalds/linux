@@ -2884,34 +2884,16 @@ int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 	if (!state)
 		return -ENOMEM;
 
-	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+	state->acquire_ctx = ctx;
 
-retry:
 	ret = page_flip_common(state, crtc, fb, event, flags);
 	if (ret != 0)
 		goto fail;
 
 	ret = drm_atomic_nonblocking_commit(state);
-
 fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-
 	drm_atomic_state_put(state);
 	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	/*
-	 * Someone might have exchanged the framebuffer while we dropped locks
-	 * in the backoff code. We need to fix up the fb refcount tracking the
-	 * core does for us.
-	 */
-	plane->old_fb = plane->fb;
-
-	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_page_flip);
 
@@ -2948,9 +2930,8 @@ int drm_atomic_helper_page_flip_target(
 	if (!state)
 		return -ENOMEM;
 
-	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+	state->acquire_ctx = ctx;
 
-retry:
 	ret = page_flip_common(state, crtc, fb, event, flags);
 	if (ret != 0)
 		goto fail;
@@ -2963,26 +2944,9 @@ retry:
 	crtc_state->target_vblank = target;
 
 	ret = drm_atomic_nonblocking_commit(state);
-
 fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-
 	drm_atomic_state_put(state);
 	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	/*
-	 * Someone might have exchanged the framebuffer while we dropped locks
-	 * in the backoff code. We need to fix up the fb refcount tracking the
-	 * core does for us.
-	 */
-	plane->old_fb = plane->fb;
-
-	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_page_flip_target);
 

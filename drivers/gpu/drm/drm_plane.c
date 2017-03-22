@@ -875,7 +875,6 @@ retry:
 	ret = drm_modeset_lock(&crtc->cursor->mutex, &ctx);
 	if (ret)
 		goto out;
-	crtc->acquire_ctx = &ctx;
 
 	if (crtc->primary->fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
