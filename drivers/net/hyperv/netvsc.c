@@ -605,7 +605,6 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 {
 	struct sk_buff *skb = (struct sk_buff *)(unsigned long)desc->trans_id;
 	struct net_device *ndev = hv_get_drvdata(device);
-	struct net_device_context *net_device_ctx = netdev_priv(ndev);
 	struct vmbus_channel *channel = device->channel;
 	u16 q_idx = 0;
 	int queue_sends;
@@ -639,7 +638,6 @@ static void netvsc_send_tx_complete(struct netvsc_device *net_device,
 		wake_up(&net_device->wait_drain);
 
 	if (netif_tx_queue_stopped(netdev_get_tx_queue(ndev, q_idx)) &&
-	    !net_device_ctx->start_remove &&
 	    (hv_ringbuf_avail_percent(&channel->outbound) > RING_AVAIL_PERCENT_HIWATER ||
 	     queue_sends < 1))
 		netif_tx_wake_queue(netdev_get_tx_queue(ndev, q_idx));
@@ -1326,8 +1324,6 @@ int netvsc_device_add(struct hv_device *device,
 	/* Writing nvdev pointer unlocks netvsc_send(), make sure chn_table is
 	 * populated.
 	 */
-	wmb();
-
 	rcu_assign_pointer(net_device_ctx->nvdev, net_device);
 
 	/* Connect with the NetVsp */

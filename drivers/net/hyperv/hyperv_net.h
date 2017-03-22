@@ -708,9 +708,6 @@ struct net_device_context {
 	u32 speed;
 	struct netvsc_ethtool_stats eth_stats;
 
-	/* the device is going away */
-	bool start_remove;
-
 	/* State to manage the associated VF interface. */
 	struct net_device __rcu *vf_netdev;
 
