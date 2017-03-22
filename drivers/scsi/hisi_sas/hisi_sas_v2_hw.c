@@ -549,7 +549,7 @@ enum {
 #define ERR_ON_RX_PHASE(err_phase) (err_phase == 0x10 || \
 		err_phase == 0x20 || err_phase == 0x40)
 
-static void hisi_sas_link_timeout_disable_link(unsigned long data);
+static void link_timeout_disable_link(unsigned long data);
 
 static u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
@@ -1006,7 +1006,7 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 			 upper_32_bits(hisi_hba->initial_fis_dma));
 }
 
-static void hisi_sas_link_timeout_enable_link(unsigned long data)
+static void link_timeout_enable_link(unsigned long data)
 {
 	struct hisi_hba *hisi_hba = (struct hisi_hba *)data;
 	int i, reg_val;
@@ -1020,11 +1020,11 @@ static void hisi_sas_link_timeout_enable_link(unsigned long data)
 		}
 	}
 
-	hisi_hba->timer.function = hisi_sas_link_timeout_disable_link;
+	hisi_hba->timer.function = link_timeout_disable_link;
 	mod_timer(&hisi_hba->timer, jiffies + msecs_to_jiffies(900));
 }
 
-static void hisi_sas_link_timeout_disable_link(unsigned long data)
+static void link_timeout_disable_link(unsigned long data)
 {
 	struct hisi_hba *hisi_hba = (struct hisi_hba *)data;
 	int i, reg_val;
@@ -1038,14 +1038,14 @@ static void hisi_sas_link_timeout_disable_link(unsigned long data)
 		}
 	}
 
-	hisi_hba->timer.function = hisi_sas_link_timeout_enable_link;
+	hisi_hba->timer.function = link_timeout_enable_link;
 	mod_timer(&hisi_hba->timer, jiffies + msecs_to_jiffies(100));
 }
 
 static void set_link_timer_quirk(struct hisi_hba *hisi_hba)
 {
 	hisi_hba->timer.data = (unsigned long)hisi_hba;
-	hisi_hba->timer.function = hisi_sas_link_timeout_disable_link;
+	hisi_hba->timer.function = link_timeout_disable_link;
 	hisi_hba->timer.expires = jiffies + msecs_to_jiffies(1000);
 	add_timer(&hisi_hba->timer);
 }
