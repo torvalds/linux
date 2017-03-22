@@ -59,17 +59,6 @@ config MTD_NAND_DENALI_DT
 	  Enable the driver for NAND flash on platforms using a Denali NAND
 	  controller as a DT device.
 
-config MTD_NAND_DENALI_SCRATCH_REG_ADDR
-        hex "Denali NAND size scratch register address"
-        default "0xFF108018"
-        depends on MTD_NAND_DENALI_PCI
-        help
-          Some platforms place the NAND chip size in a scratch register
-          because (some versions of) the driver aren't able to automatically
-          determine the size of certain chips. Set the address of the
-          scratch register here to enable this feature. On Intel Moorestown
-          boards, the scratch register is at 0xFF108018.
-
 config MTD_NAND_GPIO
 	tristate "GPIO assisted NAND Flash driver"
 	depends on GPIOLIB || COMPILE_TEST

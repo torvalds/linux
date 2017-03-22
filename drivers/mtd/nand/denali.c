@@ -91,11 +91,6 @@ static inline struct denali_nand_info *mtd_to_denali(struct mtd_info *mtd)
 #define DENALI_READ	0
 #define DENALI_WRITE	0x100
 
-/* types of device accesses. We can issue commands and get status */
-#define COMMAND_CYCLE	0
-#define ADDR_CYCLE	1
-#define STATUS_CYCLE	2
-
 /*
  * this is a helper macro that allows us to
  * format the bank into the proper bits for the controller
