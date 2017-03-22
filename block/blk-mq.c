@@ -1569,32 +1569,32 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 		list_add_tail(&rq->queuelist, &plug->mq_list);
 		goto done;
-	} else if (((plug && !blk_queue_nomerges(q)) || is_sync)) {
-		struct request *old_rq = NULL;
-
+	} else if (plug && !blk_queue_nomerges(q)) {
 		blk_mq_bio_to_request(rq, bio);
 
 		/*
 		 * We do limited plugging. If the bio can be merged, do that.
 		 * Otherwise the existing request in the plug list will be
 		 * issued. So the plug list will have one request at most
+		 * The plug list might get flushed before this. If that happens,
+		 * the plug list is empty, and same_queue_rq is invalid.
 		 */
-		if (plug) {
-			/*
-			 * The plug list might get flushed before this. If that
-			 * happens, same_queue_rq is invalid and plug list is
-			 * empty
-			 */
-			if (same_queue_rq && !list_empty(&plug->mq_list)) {
-				old_rq = same_queue_rq;
-				list_del_init(&old_rq->queuelist);
-			}
-			list_add_tail(&rq->queuelist, &plug->mq_list);
-		} else /* is_sync */
-			old_rq = rq;
+		if (list_empty(&plug->mq_list))
+			same_queue_rq = NULL;
+		if (same_queue_rq)
+			list_del_init(&same_queue_rq->queuelist);
+		list_add_tail(&rq->queuelist, &plug->mq_list);
+
 		blk_mq_put_ctx(data.ctx);
-		if (old_rq)
-			blk_mq_try_issue_directly(data.hctx, old_rq, &cookie);
+		if (same_queue_rq)
+			blk_mq_try_issue_directly(data.hctx, same_queue_rq,
+					&cookie);
+		goto done;
+	} else if (is_sync) {
+		blk_mq_bio_to_request(rq, bio);
+
+		blk_mq_put_ctx(data.ctx);
+		blk_mq_try_issue_directly(data.hctx, rq, &cookie);
 		goto done;
 	}
 
