@@ -124,7 +124,8 @@ static const struct iwl_ht_params iwl_a000_ht_params = {
 	.use_tfh = true,						\
 	.rf_id = true,							\
 	.gen2 = true,							\
-	.ext_nvm = true
+	.ext_nvm = true,						\
+	.dbgc_supported = true
 
 const struct iwl_cfg iwla000_2ac_cfg_hr = {
 		.name = "Intel(R) Dual Band Wireless AC a000",

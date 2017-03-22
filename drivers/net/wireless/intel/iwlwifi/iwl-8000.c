@@ -164,7 +164,8 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.default_nvm_file_C_step = DEFAULT_NVM_FILE_FAMILY_8000C,	\
 	.thermal_params = &iwl8000_tt_params,				\
 	.apmg_not_supported = true,					\
-	.ext_nvm = true
+	.ext_nvm = true,						\
+	.dbgc_supported = true
 
 #define IWL_DEVICE_8000							\
 	IWL_DEVICE_8000_COMMON,						\

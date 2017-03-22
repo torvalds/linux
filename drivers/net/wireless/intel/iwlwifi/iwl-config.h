@@ -366,7 +366,8 @@ struct iwl_cfg {
 	    use_tfh:1,
 	    gen2:1,
 	    cdb:1,
-	    ext_nvm:1;
+	    ext_nvm:1,
+	    dbgc_supported:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
