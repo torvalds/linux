@@ -589,11 +589,18 @@ extern void slb_set_size(u16 size);
 #define VSID_MULTIPLIER_256M	ASM_CONST(12538073)	/* 24-bit prime */
 #define VSID_BITS_256M		(VA_BITS - SID_SHIFT)
 #define VSID_BITS_65_256M	(65 - SID_SHIFT)
+/*
+ * Modular multiplicative inverse of VSID_MULTIPLIER under modulo VSID_MODULUS
+ */
+#define VSID_MULINV_256M	ASM_CONST(665548017062)
 
 #define VSID_MULTIPLIER_1T	ASM_CONST(12538073)	/* 24-bit prime */
 #define VSID_BITS_1T		(VA_BITS - SID_SHIFT_1T)
 #define VSID_BITS_65_1T		(65 - SID_SHIFT_1T)
+#define VSID_MULINV_1T		ASM_CONST(209034062)
 
+/* 1TB VSID reserved for VRMA */
+#define VRMA_VSID	0x1ffffffUL
 #define USER_VSID_RANGE	(1UL << (ESID_BITS + SID_SHIFT))
 
 /* 4 bits per slice and we have one slice per 1TB */

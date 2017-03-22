@@ -57,6 +57,22 @@ again:
 	return index;
 }
 
+void hash__reserve_context_id(int id)
+{
+	int rc, result = 0;
+
+	do {
+		if (!ida_pre_get(&mmu_context_ida, GFP_KERNEL))
+			break;
+
+		spin_lock(&mmu_context_lock);
+		rc = ida_get_new_above(&mmu_context_ida, id, &result);
+		spin_unlock(&mmu_context_lock);
+	} while (rc == -EAGAIN);
+
+	WARN(result != id, "mmu: Failed to reserve context id %d (rc %d)\n", id, result);
+}
+
 int hash__alloc_context_id(void)
 {
 	unsigned long max;
