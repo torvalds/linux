@@ -64,6 +64,11 @@ struct iommu_table_ops {
 			long index,
 			unsigned long *hpa,
 			enum dma_data_direction *direction);
+	/* Real mode */
+	int (*exchange_rm)(struct iommu_table *tbl,
+			long index,
+			unsigned long *hpa,
+			enum dma_data_direction *direction);
 #endif
 	void (*clear)(struct iommu_table *tbl,
 			long index, long npages);
@@ -207,6 +212,8 @@ extern int iommu_add_device(struct device *dev);
 extern void iommu_del_device(struct device *dev);
 extern int __init tce_iommu_bus_notifier_init(void);
 extern long iommu_tce_xchg(struct iommu_table *tbl, unsigned long entry,
+		unsigned long *hpa, enum dma_data_direction *direction);
+extern long iommu_tce_xchg_rm(struct iommu_table *tbl, unsigned long entry,
 		unsigned long *hpa, enum dma_data_direction *direction);
 #else
 static inline void iommu_register_group(struct iommu_table_group *table_group,
