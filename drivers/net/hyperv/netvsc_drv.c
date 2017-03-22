@@ -743,6 +743,7 @@ static int netvsc_set_channels(struct net_device *net,
 	struct hv_device *dev = net_device_ctx->device_ctx;
 	struct netvsc_device *nvdev = net_device_ctx->nvdev;
 	unsigned int count = channels->combined_count;
+	bool was_running;
 	int ret;
 
 	/* We do not support separate count for rx, tx, or other */
@@ -762,9 +763,12 @@ static int netvsc_set_channels(struct net_device *net,
 	if (count > nvdev->max_chn)
 		return -EINVAL;
 
-	ret = netvsc_close(net);
-	if (ret)
-		return ret;
+	was_running = netif_running(net);
+	if (was_running) {
+		ret = netvsc_close(net);
+		if (ret)
+			return ret;
+	}
 
 	net_device_ctx->start_remove = true;
 	rndis_filter_device_remove(dev, nvdev);
@@ -775,8 +779,10 @@ static int netvsc_set_channels(struct net_device *net,
 	else
 		netvsc_set_queues(net, dev, nvdev->num_chn);
 
-	netvsc_open(net);
 	net_device_ctx->start_remove = false;
+
+	if (was_running)
+		ret = netvsc_open(net);
 
 	/* We may have missed link change notifications */
 	schedule_delayed_work(&net_device_ctx->dwork, 0);
@@ -845,14 +851,18 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	struct netvsc_device *nvdev = ndevctx->nvdev;
 	struct hv_device *hdev = ndevctx->device_ctx;
 	struct netvsc_device_info device_info;
+	bool was_running;
 	int ret;
 
 	if (ndevctx->start_remove || !nvdev || nvdev->destroy)
 		return -ENODEV;
 
-	ret = netvsc_close(ndev);
-	if (ret)
-		goto out;
+	was_running = netif_running(ndev);
+	if (was_running) {
+		ret = netvsc_close(ndev);
+		if (ret)
+			return ret;
+	}
 
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
@@ -872,9 +882,10 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 
 	rndis_filter_device_add(hdev, &device_info);
 
-out:
-	netvsc_open(ndev);
 	ndevctx->start_remove = false;
+
+	if (was_running)
+		ret = netvsc_open(ndev);
 
 	/* We may have missed link change notifications */
 	schedule_delayed_work(&ndevctx->dwork, 0);
