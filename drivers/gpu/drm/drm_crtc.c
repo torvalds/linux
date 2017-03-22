@@ -447,7 +447,8 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	return 0;
 }
 
-static int __drm_mode_set_config_internal(struct drm_mode_set *set)
+static int __drm_mode_set_config_internal(struct drm_mode_set *set,
+					  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_crtc *crtc = set->crtc;
 	struct drm_framebuffer *fb;
@@ -497,7 +498,7 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 {
 	WARN_ON(drm_drv_uses_atomic_modeset(set->crtc->dev));
 
-	return __drm_mode_set_config_internal(set);
+	return __drm_mode_set_config_internal(set, NULL);
 }
 EXPORT_SYMBOL(drm_mode_set_config_internal);
 
@@ -554,6 +555,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	struct drm_display_mode *mode = NULL;
 	struct drm_mode_set set;
 	uint32_t __user *set_connectors_ptr;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 	int i;
 
@@ -567,15 +569,19 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	if (crtc_req->x & 0xffff0000 || crtc_req->y & 0xffff0000)
 		return -ERANGE;
 
-	drm_modeset_lock_all(dev);
 	crtc = drm_crtc_find(dev, crtc_req->crtc_id);
 	if (!crtc) {
 		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", crtc_req->crtc_id);
-		ret = -ENOENT;
-		goto out;
+		return -ENOENT;
 	}
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	ret = drm_modeset_lock_all_ctx(crtc->dev, &ctx);
+	if (ret)
+		goto out;
+	dev->mode_config.acquire_ctx = &ctx;
 	if (crtc_req->mode_valid) {
 		/* If we have a mode we need a framebuffer. */
 		/* If we pass -1, set the mode with the currently bound fb */
@@ -696,7 +702,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	set.connectors = connector_set;
 	set.num_connectors = crtc_req->count_connectors;
 	set.fb = fb;
-	ret = __drm_mode_set_config_internal(&set);
+	ret = __drm_mode_set_config_internal(&set, &ctx);
 
 out:
 	if (fb)
@@ -710,7 +716,13 @@ out:
 	}
 	kfree(connector_set);
 	drm_mode_destroy(dev, mode);
-	drm_modeset_unlock_all(dev);
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
 	return ret;
 }
 
