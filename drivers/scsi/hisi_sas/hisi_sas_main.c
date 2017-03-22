@@ -659,8 +659,9 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 		break;
 
 	case PHY_FUNC_LINK_RESET:
+		hisi_hba->hw->phy_disable(hisi_hba, phy_no);
+		msleep(100);
 		hisi_hba->hw->phy_enable(hisi_hba, phy_no);
-		hisi_hba->hw->phy_hard_reset(hisi_hba, phy_no);
 		break;
 
 	case PHY_FUNC_DISABLE:
