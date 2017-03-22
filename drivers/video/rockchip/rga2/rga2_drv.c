@@ -159,8 +159,22 @@ static inline int rga2_init_version(void)
 		pr_err("rga2_drvdata is null\n");
 		return -EINVAL;
 	}
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_get_sync(rga2_drvdata->dev);
+#endif
+
+	clk_prepare_enable(rga2_drvdata->aclk_rga2);
+	clk_prepare_enable(rga2_drvdata->hclk_rga2);
 
 	reg_version = rga2_read(0x028);
+
+	clk_disable_unprepare(rga2_drvdata->aclk_rga2);
+	clk_disable_unprepare(rga2_drvdata->hclk_rga2);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_put(rga2_drvdata->dev);
+#endif
+
 	major_version = (reg_version & RGA2_MAJOR_VERSION_MASK) >> 24;
 	minor_version = (reg_version & RGA2_MINOR_VERSION_MASK) >> 20;
 
