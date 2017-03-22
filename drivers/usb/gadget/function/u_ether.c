@@ -178,6 +178,7 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req);
 static int
 rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 {
+	struct usb_gadget *g = dev->gadget;
 	struct sk_buff	*skb;
 	int		retval = -ENOMEM;
 	size_t		size = 0;
@@ -209,8 +210,11 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 	 */
 	size += sizeof(struct ethhdr) + dev->net->mtu + RX_EXTRA;
 	size += dev->port_usb->header_len;
-	size += out->maxpacket - 1;
-	size -= size % out->maxpacket;
+
+	if (g->quirk_ep_out_aligned_size) {
+		size += out->maxpacket - 1;
+		size -= size % out->maxpacket;
+	}
 
 	if (dev->port_usb->is_fixed)
 		size = max_t(size_t, size, dev->port_usb->fixed_out_len);
