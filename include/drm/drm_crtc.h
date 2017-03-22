@@ -590,8 +590,11 @@ struct drm_crtc_funcs {
 	 * When CRC generation is enabled, the driver should call
 	 * drm_crtc_add_crc_entry() at each frame, providing any information
 	 * that characterizes the frame contents in the crcN arguments, as
-	 * provided from the configured source. Drivers must accept a "auto"
+	 * provided from the configured source. Drivers must accept an "auto"
 	 * source name that will select a default source for this CRTC.
+	 *
+	 * Note that "auto" can depend upon the current modeset configuration,
+	 * e.g. it could pick an encoder or output specific CRC sampling point.
 	 *
 	 * This callback is optional if the driver does not support any CRC
 	 * generation functionality.

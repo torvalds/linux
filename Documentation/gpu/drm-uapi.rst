@@ -207,6 +207,9 @@ Display CRC Support
 .. kernel-doc:: drivers/gpu/drm/drm_debugfs_crc.c
    :doc: CRC ABI
 
+.. kernel-doc:: drivers/gpu/drm/drm_debugfs_crc.c
+   :export:
+
 VBlank event handling
 =====================
 
