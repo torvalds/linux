@@ -587,23 +587,29 @@ struct phy_driver {
 	 */
 	void (*link_change_notify)(struct phy_device *dev);
 
-	/* A function provided by a phy specific driver to override the
-	 * the PHY driver framework support for reading a MMD register
-	 * from the PHY. If not supported, return -1. This function is
-	 * optional for PHY specific drivers, if not provided then the
-	 * default MMD read function is used by the PHY framework.
+	/*
+	 * Phy specific driver override for reading a MMD register.
+	 * This function is optional for PHY specific drivers.  When
+	 * not provided, the default MMD read function will be used
+	 * by phy_read_mmd(), which will use either a direct read for
+	 * Clause 45 PHYs or an indirect read for Clause 22 PHYs.
+	 *  devnum is the MMD device number within the PHY device,
+	 *  regnum is the register within the selected MMD device.
 	 */
-	int (*read_mmd_indirect)(struct phy_device *dev, int ptrad,
-				 int devnum, int regnum);
+	int (*read_mmd)(struct phy_device *dev, int devnum, u16 regnum);
 
-	/* A function provided by a phy specific driver to override the
-	 * the PHY driver framework support for writing a MMD register
-	 * from the PHY. This function is optional for PHY specific drivers,
-	 * if not provided then the default MMD read function is used by
-	 * the PHY framework.
+	/*
+	 * Phy specific driver override for writing a MMD register.
+	 * This function is optional for PHY specific drivers.  When
+	 * not provided, the default MMD write function will be used
+	 * by phy_write_mmd(), which will use either a direct write for
+	 * Clause 45 PHYs, or an indirect write for Clause 22 PHYs.
+	 *  devnum is the MMD device number within the PHY device,
+	 *  regnum is the register within the selected MMD device.
+	 *  val is the value to be written.
 	 */
-	void (*write_mmd_indirect)(struct phy_device *dev, int ptrad,
-				   int devnum, int regnum, u32 val);
+	int (*write_mmd)(struct phy_device *dev, int devnum, u16 regnum,
+			 u16 val);
 
 	/* Get the size and type of the eeprom contained within a plug-in
 	 * module */
@@ -651,25 +657,7 @@ struct phy_fixup {
  *
  * Same rules as for phy_read();
  */
-static inline int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
-{
-	if (!phydev->is_c45)
-		return -EOPNOTSUPP;
-
-	return mdiobus_read(phydev->mdio.bus, phydev->mdio.addr,
-			    MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff));
-}
-
-/**
- * phy_read_mmd_indirect - reads data from the MMD registers
- * @phydev: The PHY device bus
- * @prtad: MMD Address
- * @addr: PHY address on the MII bus
- *
- * Description: it reads data from the MMD registers (clause 22 to access to
- * clause 45) of the specified phy address.
- */
-int phy_read_mmd_indirect(struct phy_device *phydev, int prtad, int devad);
+int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum);
 
 /**
  * phy_read - Convenience function for reading a given PHY register
@@ -752,29 +740,7 @@ static inline bool phy_is_pseudo_fixed_link(struct phy_device *phydev)
  *
  * Same rules as for phy_write();
  */
-static inline int phy_write_mmd(struct phy_device *phydev, int devad,
-				u32 regnum, u16 val)
-{
-	if (!phydev->is_c45)
-		return -EOPNOTSUPP;
-
-	regnum = MII_ADDR_C45 | ((devad & 0x1f) << 16) | (regnum & 0xffff);
-
-	return mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, regnum, val);
-}
-
-/**
- * phy_write_mmd_indirect - writes data to the MMD registers
- * @phydev: The PHY device
- * @prtad: MMD Address
- * @devad: MMD DEVAD
- * @data: data to write in the MMD register
- *
- * Description: Write data from the MMD registers of the specified
- * phy address.
- */
-void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
-			    int devad, u32 data);
+int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
 
 struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 				     bool is_c45,
