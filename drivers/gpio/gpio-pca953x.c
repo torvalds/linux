@@ -777,7 +777,13 @@ static int pca953x_probe(struct i2c_client *client,
 		chip->gpio_start = -1;
 		irq_base = 0;
 
-		/* See if we need to de-assert a reset pin */
+		/*
+		 * See if we need to de-assert a reset pin.
+		 *
+		 * There is no known ACPI-enabled platforms that are
+		 * using "reset" GPIO. Otherwise any of those platform
+		 * must use _DSD method with corresponding property.
+		 */
 		reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
 						     GPIOD_OUT_LOW);
 		if (IS_ERR(reset_gpio))
