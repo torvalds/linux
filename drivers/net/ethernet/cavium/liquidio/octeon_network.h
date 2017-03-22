@@ -129,6 +129,9 @@ struct lio {
 	/* work queue for  txq status */
 	struct cavium_wq	txq_status_wq;
 
+	/* work queue for  rxq oom status */
+	struct cavium_wq	rxq_status_wq;
+
 	/* work queue for  link status */
 	struct cavium_wq	link_status_wq;
 
@@ -151,6 +154,10 @@ struct lio {
  * @param param1    Parameter to command
  */
 int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1);
+
+int setup_rx_oom_poll_fn(struct net_device *netdev);
+
+void cleanup_rx_oom_poll_fn(struct net_device *netdev);
 
 /**
  * \brief Link control command completion callback

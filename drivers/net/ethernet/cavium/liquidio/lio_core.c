@@ -26,6 +26,9 @@
 #include "octeon_main.h"
 #include "octeon_network.h"
 
+/* OOM task polling interval */
+#define LIO_OOM_POLL_INTERVAL_MS 250
+
 int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1)
 {
 	struct lio *lio = GET_LIO(netdev);
@@ -292,4 +295,57 @@ void octeon_pf_changed_vf_macaddr(struct octeon_device *oct, u8 *mac)
 	/* no need to notify the firmware of the macaddr change because
 	 * the PF did that already
 	 */
+}
+
+static void octnet_poll_check_rxq_oom_status(struct work_struct *work)
+{
+	struct cavium_wk *wk = (struct cavium_wk *)work;
+	struct lio *lio = (struct lio *)wk->ctxptr;
+	struct octeon_device *oct = lio->oct_dev;
+	struct octeon_droq *droq;
+	int q, q_no = 0;
+
+	if (ifstate_check(lio, LIO_IFSTATE_RUNNING)) {
+		for (q = 0; q < lio->linfo.num_rxpciq; q++) {
+			q_no = lio->linfo.rxpciq[q].s.q_no;
+			droq = oct->droq[q_no];
+			if (!droq)
+				continue;
+			octeon_droq_check_oom(droq);
+		}
+	}
+	queue_delayed_work(lio->rxq_status_wq.wq,
+			   &lio->rxq_status_wq.wk.work,
+			   msecs_to_jiffies(LIO_OOM_POLL_INTERVAL_MS));
+}
+
+int setup_rx_oom_poll_fn(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	lio->rxq_status_wq.wq = alloc_workqueue("rxq-oom-status",
+						WQ_MEM_RECLAIM, 0);
+	if (!lio->rxq_status_wq.wq) {
+		dev_err(&oct->pci_dev->dev, "unable to create cavium rxq oom status wq\n");
+		return -ENOMEM;
+	}
+	INIT_DELAYED_WORK(&lio->rxq_status_wq.wk.work,
+			  octnet_poll_check_rxq_oom_status);
+	lio->rxq_status_wq.wk.ctxptr = lio;
+	queue_delayed_work(lio->rxq_status_wq.wq,
+			   &lio->rxq_status_wq.wk.work,
+			   msecs_to_jiffies(LIO_OOM_POLL_INTERVAL_MS));
+	return 0;
+}
+
+void cleanup_rx_oom_poll_fn(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+
+	if (lio->rxq_status_wq.wq) {
+		cancel_delayed_work_sync(&lio->rxq_status_wq.wk.work);
+		flush_workqueue(lio->rxq_status_wq.wq);
+		destroy_workqueue(lio->rxq_status_wq.wq);
+	}
 }

@@ -513,6 +513,32 @@ octeon_droq_refill(struct octeon_device *octeon_dev, struct octeon_droq *droq)
 	return desc_refilled;
 }
 
+/** check if we can allocate packets to get out of oom.
+ *  @param  droq - Droq being checked.
+ *  @return does not return anything
+ */
+void octeon_droq_check_oom(struct octeon_droq *droq)
+{
+	int desc_refilled;
+	struct octeon_device *oct = droq->oct_dev;
+
+	if (readl(droq->pkts_credit_reg) <= CN23XX_SLI_DEF_BP) {
+		spin_lock_bh(&droq->lock);
+		desc_refilled = octeon_droq_refill(oct, droq);
+		if (desc_refilled) {
+			/* Flush the droq descriptor data to memory to be sure
+			 * that when we update the credits the data in memory
+			 * is accurate.
+			 */
+			wmb();
+			writel(desc_refilled, droq->pkts_credit_reg);
+			/* make sure mmio write completes */
+			mmiowb();
+		}
+		spin_unlock_bh(&droq->lock);
+	}
+}
+
 static inline u32
 octeon_droq_get_bufcount(u32 buf_size, u32 total_len)
 {

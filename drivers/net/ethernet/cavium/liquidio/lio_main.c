@@ -1673,6 +1673,8 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 
 	cleanup_link_status_change_wq(netdev);
 
+	cleanup_rx_oom_poll_fn(netdev);
+
 	delete_glists(lio);
 
 	free_netdev(netdev);
@@ -4145,6 +4147,9 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 					     OCTNET_CMD_VERBOSE_ENABLE, 0);
 
 		if (setup_link_status_change_wq(netdev))
+			goto setup_nic_dev_fail;
+
+		if (setup_rx_oom_poll_fn(netdev))
 			goto setup_nic_dev_fail;
 
 		/* Register the network device with the OS */
