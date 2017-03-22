@@ -690,7 +690,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 		err = 0;
 
 	/* Update SDT cache : error is just warned */
-	if (build_id_cache__add_sdt_cache(sbuild_id, realname) < 0)
+	if (realname && build_id_cache__add_sdt_cache(sbuild_id, realname) < 0)
 		pr_debug4("Failed to update/scan SDT cache for %s\n", realname);
 
 out_free:
