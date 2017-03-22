@@ -129,7 +129,7 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 	memcpy(ap->rate_set.body, ap_info->rate_set.body,
 	       ap_info->rate_set.size);
 	ap->rate_set.size = ap_info->rate_set.size;
-	if (ap_info->ext_rate_set.size) {
+	if (ap_info->ext_rate_set.size != 0) {
 		/* rate_set */
 		memcpy(&ap->rate_set.body[ap->rate_set.size],
 		       ap_info->ext_rate_set.body,

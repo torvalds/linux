@@ -335,7 +335,7 @@ static int ks_wlan_get_essid(struct net_device *dev,
 	/* Note : if dwrq->flags != 0, we should
 	 * get the relevant SSID from the SSID list...
 	 */
-	if (priv->reg.ssid.size) {
+	if (priv->reg.ssid.size != 0) {
 		/* Get the current SSID */
 		memcpy(extra, priv->reg.ssid.body, priv->reg.ssid.size);
 
@@ -928,7 +928,7 @@ static int ks_wlan_set_encode(struct net_device *dev,
 			/* Do we want to just set the transmit key index ? */
 			if ((index >= 0) && (index < 4)) {
 				/* set_wep_key(priv, index, 0, 0, 1);   xxx */
-				if (priv->reg.wep_key[index].size) {
+				if (priv->reg.wep_key[index].size != 0) {
 					priv->reg.wep_index = index;
 					priv->need_commit |= SME_WEP_INDEX;
 				} else {
@@ -1531,7 +1531,7 @@ static int ks_wlan_get_scan(struct net_device *dev,
 		return -EAGAIN;
 	}
 
-	if (!priv->aplist.size) {
+	if (priv->aplist.size == 0) {
 		/* Client error, no scan results...
 		 * The caller need to restart the scan.
 		 */

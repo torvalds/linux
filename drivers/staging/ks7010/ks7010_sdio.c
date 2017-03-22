@@ -591,7 +591,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 			}
 			DPRINTK(4, "WSTATUS_RSIZE=%02X\n", rw_data);
 			rsize = rw_data & RSIZE_MASK;
-			if (rsize) {	/* Read schedule */
+			if (rsize != 0) {	/* Read schedule */
 				ks_wlan_hw_rx((void *)priv,
 					      (uint16_t)(rsize << 4));
 			}
@@ -829,7 +829,7 @@ static void ks7010_card_init(struct ks_wlan_private *priv)
 		DPRINTK(1, "wait time out!! SME_START\n");
 	}
 
-	if (priv->mac_address_valid && priv->version_size)
+	if (priv->mac_address_valid && priv->version_size != 0)
 		priv->dev_state = DEVICE_STATE_PREINIT;
 
 	hostif_sme_enqueue(priv, SME_GET_EEPROM_CKSUM);
