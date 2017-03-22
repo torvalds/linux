@@ -109,6 +109,10 @@ static void do_registration(struct work_struct *work)
 			goto error;
 	}
 
+	err = snd_motu_create_hwdep_device(motu);
+	if (err < 0)
+		goto error;
+
 	err = snd_card_register(motu->card);
 	if (err < 0)
 		goto error;
@@ -145,6 +149,7 @@ static int motu_probe(struct fw_unit *unit,
 
 	mutex_init(&motu->mutex);
 	spin_lock_init(&motu->lock);
+	init_waitqueue_head(&motu->hwdep_wait);
 
 	/* Allocate and register this sound card later. */
 	INIT_DEFERRABLE_WORK(&motu->dwork, do_registration);

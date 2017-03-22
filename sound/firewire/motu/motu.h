@@ -16,12 +16,16 @@
 #include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/compat.h>
+#include <linux/sched/signal.h>
 
 #include <sound/control.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/info.h>
 #include <sound/rawmidi.h>
+#include <sound/firewire.h>
+#include <sound/hwdep.h>
 
 #include "../lib.h"
 #include "../amdtp-stream.h"
@@ -62,6 +66,11 @@ struct snd_motu {
 	/* For notification. */
 	struct fw_address_handler async_handler;
 	u32 msg;
+
+	/* For uapi */
+	int dev_lock_count;
+	bool dev_lock_changed;
+	wait_queue_head_t hwdep_wait;
 };
 
 enum snd_motu_spec_flags {
@@ -136,10 +145,14 @@ int snd_motu_stream_init_duplex(struct snd_motu *motu);
 void snd_motu_stream_destroy_duplex(struct snd_motu *motu);
 int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate);
 void snd_motu_stream_stop_duplex(struct snd_motu *motu);
+int snd_motu_stream_lock_try(struct snd_motu *motu);
+void snd_motu_stream_lock_release(struct snd_motu *motu);
 
 void snd_motu_proc_init(struct snd_motu *motu);
 
 int snd_motu_create_pcm_devices(struct snd_motu *motu);
 
 int snd_motu_create_midi_devices(struct snd_motu *motu);
+
+int snd_motu_create_hwdep_device(struct snd_motu *motu);
 #endif

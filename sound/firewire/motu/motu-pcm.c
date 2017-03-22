@@ -159,15 +159,19 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	unsigned int rate;
 	int err;
 
+	err = snd_motu_stream_lock_try(motu);
+	if (err < 0)
+		return err;
+
 	mutex_lock(&motu->mutex);
 
 	err = protocol->cache_packet_formats(motu);
 	if (err < 0)
-		return err;
+		goto err_locked;
 
 	err = init_hw_info(motu, substream);
 	if (err < 0)
-		return err;
+		goto err_locked;
 
 	/*
 	 * When source of clock is not internal or any PCM streams are running,
@@ -175,13 +179,13 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	 */
 	err = protocol->get_clock_source(motu, &src);
 	if (err < 0)
-		return err;
+		goto err_locked;
 	if (src != SND_MOTU_CLOCK_SOURCE_INTERNAL ||
 	    amdtp_stream_pcm_running(&motu->tx_stream) ||
 	    amdtp_stream_pcm_running(&motu->rx_stream)) {
 		err = protocol->get_clock_rate(motu, &rate);
 		if (err < 0)
-			return err;
+			goto err_locked;
 		substream->runtime->hw.rate_min = rate;
 		substream->runtime->hw.rate_max = rate;
 	}
@@ -191,10 +195,18 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	mutex_unlock(&motu->mutex);
 
 	return err;
+err_locked:
+	mutex_unlock(&motu->mutex);
+	snd_motu_stream_lock_release(motu);
+	return err;
 }
 
 static int pcm_close(struct snd_pcm_substream *substream)
 {
+	struct snd_motu *motu = substream->private_data;
+
+	snd_motu_stream_lock_release(motu);
+
 	return 0;
 }
 
