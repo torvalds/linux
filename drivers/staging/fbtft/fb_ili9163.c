@@ -194,7 +194,7 @@ static int set_var(struct fbtft_par *par)
 
 	/* Colorspcae */
 	if (par->bgr)
-		mactrl_data |= (1 << 2);
+		mactrl_data |= BIT(2);
 	write_reg(par, MIPI_DCS_SET_ADDRESS_MODE, mactrl_data);
 	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 	return 0;
