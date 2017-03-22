@@ -1403,6 +1403,36 @@ static void denali_drv_init(struct denali_nand_info *denali)
 	denali->irq_status = 0;
 }
 
+static void denali_multidev_fixup(struct denali_nand_info *denali)
+{
+	struct nand_chip *chip = &denali->nand;
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
+	/*
+	 * Support for multi device:
+	 * When the IP configuration is x16 capable and two x8 chips are
+	 * connected in parallel, DEVICES_CONNECTED should be set to 2.
+	 * In this case, the core framework knows nothing about this fact,
+	 * so we should tell it the _logical_ pagesize and anything necessary.
+	 */
+	denali->devnum = ioread32(denali->flash_reg + DEVICES_CONNECTED);
+
+	mtd->size <<= denali->devnum - 1;
+	mtd->erasesize <<= denali->devnum - 1;
+	mtd->writesize <<= denali->devnum - 1;
+	mtd->oobsize <<= denali->devnum - 1;
+	chip->chipsize <<= denali->devnum - 1;
+	chip->page_shift += denali->devnum - 1;
+	chip->phys_erase_shift += denali->devnum - 1;
+	chip->bbt_erase_shift += denali->devnum - 1;
+	chip->chip_shift += denali->devnum - 1;
+	chip->pagemask <<= denali->devnum - 1;
+	chip->ecc.size *= denali->devnum;
+	chip->ecc.bytes *= denali->devnum;
+	chip->ecc.strength *= denali->devnum;
+	denali->bbtskipbytes *= denali->devnum;
+}
+
 int denali_init(struct denali_nand_info *denali)
 {
 	struct nand_chip *chip = &denali->nand;
@@ -1485,24 +1515,6 @@ int denali_init(struct denali_nand_info *denali)
 	}
 
 	/*
-	 * support for multi nand
-	 * MTD known nothing about multi nand, so we should tell it
-	 * the real pagesize and anything necessery
-	 */
-	denali->devnum = ioread32(denali->flash_reg + DEVICES_CONNECTED);
-	chip->chipsize <<= denali->devnum - 1;
-	chip->page_shift += denali->devnum - 1;
-	chip->pagemask = (chip->chipsize >> chip->page_shift) - 1;
-	chip->bbt_erase_shift += denali->devnum - 1;
-	chip->phys_erase_shift = chip->bbt_erase_shift;
-	chip->chip_shift += denali->devnum - 1;
-	mtd->writesize <<= denali->devnum - 1;
-	mtd->oobsize <<= denali->devnum - 1;
-	mtd->erasesize <<= denali->devnum - 1;
-	mtd->size = chip->numchips * chip->chipsize;
-	denali->bbtskipbytes *= denali->devnum;
-
-	/*
 	 * second stage of the NAND scan
 	 * this stage requires information regarding ECC and
 	 * bad block management.
@@ -1545,11 +1557,9 @@ int denali_init(struct denali_nand_info *denali)
 	}
 
 	mtd_set_ooblayout(mtd, &denali_ooblayout_ops);
-	chip->ecc.bytes *= denali->devnum;
-	chip->ecc.strength *= denali->devnum;
 
 	/* override the default read operations */
-	chip->ecc.size = ECC_SECTOR_SIZE * denali->devnum;
+	chip->ecc.size = ECC_SECTOR_SIZE;
 	chip->ecc.read_page = denali_read_page;
 	chip->ecc.read_page_raw = denali_read_page_raw;
 	chip->ecc.write_page = denali_write_page;
@@ -1557,6 +1567,8 @@ int denali_init(struct denali_nand_info *denali)
 	chip->ecc.read_oob = denali_read_oob;
 	chip->ecc.write_oob = denali_write_oob;
 	chip->erase = denali_erase;
+
+	denali_multidev_fixup(denali);
 
 	ret = nand_scan_tail(mtd);
 	if (ret)
