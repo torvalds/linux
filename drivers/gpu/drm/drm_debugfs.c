@@ -34,9 +34,12 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_debugfs.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_atomic.h>
+#include <drm/drmP.h>
+
 #include "drm_internal.h"
 #include "drm_crtc_internal.h"
 

@@ -78,6 +78,7 @@
 #include <drm/drm_prime.h>
 #include <drm/drm_pci.h>
 #include <drm/drm_file.h>
+#include <drm/drm_debugfs.h>
 
 struct module;
 
@@ -371,27 +372,6 @@ struct drm_ioctl_desc {
 #define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
 
 /**
- * Info file list entry. This structure represents a debugfs or proc file to
- * be created by the drm core
- */
-struct drm_info_list {
-	const char *name; /** file name */
-	int (*show)(struct seq_file*, void*); /** show callback */
-	u32 driver_features; /**< Required driver features for this entry */
-	void *data;
-};
-
-/**
- * debugfs node structure. This structure represents a debugfs file.
- */
-struct drm_info_node {
-	struct list_head list;
-	struct drm_minor *minor;
-	const struct drm_info_list *info_ent;
-	struct dentry *dent;
-};
-
-/**
  * DRM device structure. This structure represent a complete card that
  * may contain multiple heads.
  */
@@ -591,28 +571,6 @@ int drm_invalid_op(struct drm_device *dev, void *data,
  * These are exported to drivers so that they can implement fencing using
  * DMA quiscent + idle. DMA quiescent usually requires the hardware lock.
  */
-
-				/* Debugfs support */
-#if defined(CONFIG_DEBUG_FS)
-extern int drm_debugfs_create_files(const struct drm_info_list *files,
-				    int count, struct dentry *root,
-				    struct drm_minor *minor);
-extern int drm_debugfs_remove_files(const struct drm_info_list *files,
-				    int count, struct drm_minor *minor);
-#else
-static inline int drm_debugfs_create_files(const struct drm_info_list *files,
-					   int count, struct dentry *root,
-					   struct drm_minor *minor)
-{
-	return 0;
-}
-
-static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
-					   int count, struct drm_minor *minor)
-{
-	return 0;
-}
-#endif
 
 			       /* sysfs support (drm_sysfs.c) */
 extern void drm_sysfs_hotplug_event(struct drm_device *dev);
