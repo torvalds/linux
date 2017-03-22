@@ -363,6 +363,21 @@ exit:
 	mutex_unlock(&chip->i2c_lock);
 }
 
+static int pca953x_gpio_get_direction(struct gpio_chip *gc, unsigned off)
+{
+	struct pca953x_chip *chip = gpiochip_get_data(gc);
+	u32 reg_val;
+	int ret;
+
+	mutex_lock(&chip->i2c_lock);
+	ret = pca953x_read_single(chip, chip->regs->direction, &reg_val, off);
+	mutex_unlock(&chip->i2c_lock);
+	if (ret < 0)
+		return ret;
+
+	return !!(reg_val & (1u << (off % BANK_SZ)));
+}
+
 static void pca953x_gpio_set_multiple(struct gpio_chip *gc,
 				      unsigned long *mask, unsigned long *bits)
 {
@@ -408,6 +423,7 @@ static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 	gc->direction_output = pca953x_gpio_direction_output;
 	gc->get = pca953x_gpio_get_value;
 	gc->set = pca953x_gpio_set_value;
+	gc->get_direction = pca953x_gpio_get_direction;
 	gc->set_multiple = pca953x_gpio_set_multiple;
 	gc->can_sleep = true;
 
