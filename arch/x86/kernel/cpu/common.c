@@ -461,8 +461,8 @@ pgprot_t pg_fixmap_gdt_flags = PAGE_KERNEL;
 /* Setup the fixmap mapping only once per-processor */
 static inline void setup_fixmap_gdt(int cpu)
 {
-	__set_fixmap(get_cpu_gdt_ro_index(cpu),
-		     __pa(get_cpu_gdt_rw(cpu)), pg_fixmap_gdt_flags);
+	__set_fixmap(get_cpu_gdt_ro_index(cpu), get_cpu_gdt_paddr(cpu),
+		     pg_fixmap_gdt_flags);
 }
 
 /* Load the original GDT from the per-cpu structure */

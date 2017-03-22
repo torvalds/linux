@@ -98,6 +98,12 @@ static inline unsigned long get_current_gdt_ro_vaddr(void)
 	return (unsigned long)get_current_gdt_ro();
 }
 
+/* Provide the physical address of the GDT page. */
+static inline phys_addr_t get_cpu_gdt_paddr(unsigned int cpu)
+{
+	return per_cpu_ptr_to_phys(get_cpu_gdt_rw(cpu));
+}
+
 #ifdef CONFIG_X86_64
 
 static inline void pack_gate(gate_desc *gate, unsigned type, unsigned long func,
