@@ -426,7 +426,7 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 	struct meson_host *host = mmc_priv(mmc);
 	struct mmc_data *data = cmd->data;
 	u32 cfg, cmd_cfg = 0, cmd_data = 0;
-	u8 blk_len, cmd_cfg_timeout;
+	u8 blk_len;
 	unsigned int xfer_bytes = 0;
 
 	/* Setup descriptors */
@@ -454,6 +454,9 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 	/* data? */
 	if (data) {
 		cmd_cfg |= CMD_CFG_DATA_IO;
+		cmd_cfg |= ilog2(SD_EMMC_CMD_TIMEOUT_DATA) <<
+			   CMD_CFG_TIMEOUT_SHIFT;
+
 		if (data->blocks > 1) {
 			cmd_cfg |= CMD_CFG_BLOCK_MODE;
 			cmd_cfg |= (data->blocks & CMD_CFG_LENGTH_MASK) <<
@@ -488,13 +491,9 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 		}
 
 		cmd_data = host->bounce_dma_addr & CMD_DATA_MASK;
-
-		cmd_cfg_timeout = ilog2(SD_EMMC_CMD_TIMEOUT_DATA);
 	} else {
-		cmd_cfg_timeout = ilog2(SD_EMMC_CMD_TIMEOUT);
+		cmd_cfg |= ilog2(SD_EMMC_CMD_TIMEOUT) << CMD_CFG_TIMEOUT_SHIFT;
 	}
-	cmd_cfg |= (cmd_cfg_timeout & CMD_CFG_TIMEOUT_MASK) <<
-		   CMD_CFG_TIMEOUT_SHIFT;
 
 	host->cmd = cmd;
 
