@@ -3317,9 +3317,12 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	 */
 	wmb();
 	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv)) {
-		spin_lock_irq(&dev_priv->uncore.lock);
-		POSTING_READ_FW(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
-		spin_unlock_irq(&dev_priv->uncore.lock);
+		if (intel_runtime_pm_get_if_in_use(dev_priv)) {
+			spin_lock_irq(&dev_priv->uncore.lock);
+			POSTING_READ_FW(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
+			spin_unlock_irq(&dev_priv->uncore.lock);
+			intel_runtime_pm_put(dev_priv);
+		}
 	}
 
 	intel_fb_obj_flush(obj, write_origin(obj, I915_GEM_DOMAIN_GTT));
