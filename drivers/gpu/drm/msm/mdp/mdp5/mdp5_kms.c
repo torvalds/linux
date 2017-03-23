@@ -93,6 +93,7 @@ struct mdp5_state *mdp5_get_state(struct drm_atomic_state *s)
 
 	/* Copy state: */
 	new_state->hwpipe = mdp5_kms->state->hwpipe;
+	new_state->hwmixer = mdp5_kms->state->hwmixer;
 	if (mdp5_kms->smp)
 		new_state->smp = mdp5_kms->state->smp;
 

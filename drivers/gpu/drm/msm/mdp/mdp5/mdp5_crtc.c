@@ -367,6 +367,30 @@ static void mdp5_crtc_enable(struct drm_crtc *crtc)
 	mdp5_crtc->enabled = true;
 }
 
+int mdp5_crtc_setup_pipeline(struct drm_crtc *crtc,
+			     struct drm_crtc_state *new_crtc_state)
+{
+	struct mdp5_crtc_state *mdp5_cstate =
+			to_mdp5_crtc_state(new_crtc_state);
+	struct mdp5_pipeline *pipeline = &mdp5_cstate->pipeline;
+	bool new_mixer = false;
+
+	new_mixer = !pipeline->mixer;
+
+	if (new_mixer) {
+		struct mdp5_hw_mixer *old_mixer = pipeline->mixer;
+
+		pipeline->mixer = mdp5_mixer_assign(new_crtc_state->state, crtc,
+						    MDP_LM_CAP_DISPLAY);
+		if (IS_ERR(pipeline->mixer))
+			return PTR_ERR(pipeline->mixer);
+
+		mdp5_mixer_release(new_crtc_state->state, old_mixer);
+	}
+
+	return 0;
+}
+
 struct plane_state {
 	struct drm_plane *plane;
 	struct mdp5_plane_state *state;
@@ -399,6 +423,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	const struct drm_plane_state *pstate;
 	bool cursor_plane = false;
 	int cnt = 0, base = 0, i;
+	int ret;
 
 	DBG("%s: check", crtc->name);
 
@@ -410,6 +435,12 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 
 		if (plane->type == DRM_PLANE_TYPE_CURSOR)
 			cursor_plane = true;
+	}
+
+	ret = mdp5_crtc_setup_pipeline(crtc, state);
+	if (ret) {
+		dev_err(dev->dev, "couldn't assign mixers %d\n", ret);
+		return ret;
 	}
 
 	/* assign a stage based on sorted zpos property */

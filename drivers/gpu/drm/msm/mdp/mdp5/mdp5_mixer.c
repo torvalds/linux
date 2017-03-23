@@ -16,6 +16,61 @@
 
 #include "mdp5_kms.h"
 
+struct mdp5_hw_mixer *mdp5_mixer_assign(struct drm_atomic_state *s,
+					struct drm_crtc *crtc, uint32_t caps)
+{
+	struct msm_drm_private *priv = s->dev->dev_private;
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
+	struct mdp5_state *state = mdp5_get_state(s);
+	struct mdp5_hw_mixer_state *new_state;
+	struct mdp5_hw_mixer *mixer = NULL;
+	int i;
+
+	if (IS_ERR(state))
+		return ERR_CAST(state);
+
+	new_state = &state->hwmixer;
+
+	for (i = 0; i < mdp5_kms->num_hwmixers; i++) {
+		struct mdp5_hw_mixer *cur = mdp5_kms->hwmixers[i];
+
+		/* skip if already in-use */
+		if (new_state->hwmixer_to_crtc[cur->idx])
+			continue;
+
+		/* skip if doesn't support some required caps: */
+		if (caps & ~cur->caps)
+			continue;
+
+		if (!mixer)
+			mixer = cur;
+	}
+
+	if (!mixer)
+		return ERR_PTR(-ENOMEM);
+
+	new_state->hwmixer_to_crtc[mixer->idx] = crtc;
+
+	return mixer;
+}
+
+void mdp5_mixer_release(struct drm_atomic_state *s, struct mdp5_hw_mixer *mixer)
+{
+	struct mdp5_state *state = mdp5_get_state(s);
+	struct mdp5_hw_mixer_state *new_state = &state->hwmixer;
+
+	if (!mixer)
+		return;
+
+	if (WARN_ON(!new_state->hwmixer_to_crtc[mixer->idx]))
+		return;
+
+	DBG("%s: release from crtc %s", mixer->name,
+	    new_state->hwmixer_to_crtc[mixer->idx]->name);
+
+	new_state->hwmixer_to_crtc[mixer->idx] = NULL;
+}
+
 void mdp5_mixer_destroy(struct mdp5_hw_mixer *mixer)
 {
 	kfree(mixer);
