@@ -1380,6 +1380,12 @@ liquidio_probe(struct pci_dev *pdev,
 	return 0;
 }
 
+static bool fw_type_is_none(void)
+{
+	return strncmp(fw_type, LIO_FW_NAME_TYPE_NONE,
+		       sizeof(LIO_FW_NAME_TYPE_NONE)) == 0;
+}
+
 /**
  *\brief Destroy resources associated with octeon device
  * @param pdev PCI device structure
@@ -1522,9 +1528,12 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		/* fallthrough */
 	case OCT_DEV_PCI_MAP_DONE:
-		/* Soft reset the octeon device before exiting */
-		if ((!OCTEON_CN23XX_PF(oct)) || !oct->octeon_id)
-			oct->fn_list.soft_reset(oct);
+		if (!fw_type_is_none()) {
+			/* Soft reset the octeon device before exiting */
+			if (!OCTEON_CN23XX_PF(oct) ||
+			    (OCTEON_CN23XX_PF(oct) && !oct->octeon_id))
+				oct->fn_list.soft_reset(oct);
+		}
 
 		octeon_unmap_pci_barx(oct, 0);
 		octeon_unmap_pci_barx(oct, 1);
@@ -1656,6 +1665,15 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 
 	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_RUNNING)
 		liquidio_stop(netdev);
+
+	if (fw_type_is_none()) {
+		struct octnic_ctrl_pkt nctrl;
+
+		memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+		nctrl.ncmd.s.cmd = OCTNET_CMD_RESET_PF;
+		nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+		octnet_send_nic_ctrl_pkt(oct, &nctrl);
+	}
 
 	if (oct->props[lio->ifidx].napi_enabled == 1) {
 		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
@@ -2142,8 +2160,7 @@ static int load_firmware(struct octeon_device *oct)
 	char fw_name[LIO_MAX_FW_FILENAME_LEN];
 	char *tmp_fw_type;
 
-	if (strncmp(fw_type, LIO_FW_NAME_TYPE_NONE,
-		    sizeof(LIO_FW_NAME_TYPE_NONE)) == 0) {
+	if (fw_type_is_none()) {
 		dev_info(&oct->pci_dev->dev, "Skipping firmware load\n");
 		return ret;
 	}
@@ -4479,14 +4496,16 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 	if (OCTEON_CN23XX_PF(octeon_dev)) {
 		if (!cn23xx_fw_loaded(octeon_dev)) {
 			fw_loaded = 0;
-			/* Do a soft reset of the Octeon device. */
-			if (octeon_dev->fn_list.soft_reset(octeon_dev))
-				return 1;
-			/* things might have changed */
-			if (!cn23xx_fw_loaded(octeon_dev))
-				fw_loaded = 0;
-			else
-				fw_loaded = 1;
+			if (!fw_type_is_none()) {
+				/* Do a soft reset of the Octeon device. */
+				if (octeon_dev->fn_list.soft_reset(octeon_dev))
+					return 1;
+				/* things might have changed */
+				if (!cn23xx_fw_loaded(octeon_dev))
+					fw_loaded = 0;
+				else
+					fw_loaded = 1;
+			}
 		} else {
 			fw_loaded = 1;
 		}
