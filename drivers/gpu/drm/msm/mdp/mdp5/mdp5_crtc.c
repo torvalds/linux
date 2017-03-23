@@ -512,6 +512,29 @@ static bool is_fullscreen(struct drm_crtc_state *cstate,
 		((pstate->crtc_y + pstate->crtc_h) >= cstate->mode.vdisplay);
 }
 
+enum mdp_mixer_stage_id get_start_stage(struct drm_crtc *crtc,
+					struct drm_crtc_state *new_crtc_state,
+					struct drm_plane_state *bpstate)
+{
+	struct mdp5_crtc_state *mdp5_cstate =
+			to_mdp5_crtc_state(new_crtc_state);
+
+	/*
+	 * if we're in source split mode, it's mandatory to have
+	 * border out on the base stage
+	 */
+	if (mdp5_cstate->pipeline.r_mixer)
+		return STAGE0;
+
+	/* if the bottom-most layer is not fullscreen, we need to use
+	 * it for solid-color:
+	 */
+	if (!is_fullscreen(new_crtc_state, bpstate))
+		return STAGE0;
+
+	return STAGE_BASE;
+}
+
 static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
@@ -522,8 +545,9 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	const struct mdp5_cfg_hw *hw_cfg;
 	const struct drm_plane_state *pstate;
 	bool cursor_plane = false;
-	int cnt = 0, base = 0, i;
+	int cnt = 0, i;
 	int ret;
+	enum mdp_mixer_stage_id start;
 
 	DBG("%s: check", crtc->name);
 
@@ -537,6 +561,10 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 			cursor_plane = true;
 	}
 
+	/* bail out early if there aren't any planes */
+	if (!cnt)
+		return 0;
+
 	ret = mdp5_crtc_setup_pipeline(crtc, state);
 	if (ret) {
 		dev_err(dev->dev, "couldn't assign mixers %d\n", ret);
@@ -546,23 +574,20 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	/* assign a stage based on sorted zpos property */
 	sort(pstates, cnt, sizeof(pstates[0]), pstate_cmp, NULL);
 
-	/* if the bottom-most layer is not fullscreen, we need to use
-	 * it for solid-color:
-	 */
-	if ((cnt > 0) && !is_fullscreen(state, &pstates[0].state->base))
-		base++;
-
 	/* trigger a warning if cursor isn't the highest zorder */
 	WARN_ON(cursor_plane &&
 		(pstates[cnt - 1].plane->type != DRM_PLANE_TYPE_CURSOR));
+
+	start = get_start_stage(crtc, state, &pstates[0].state->base);
 
 	/* verify that there are not too many planes attached to crtc
 	 * and that we don't have conflicting mixer stages:
 	 */
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
-	if ((cnt + base) >= hw_cfg->lm.nb_stages) {
-		dev_err(dev->dev, "too many planes! cnt=%d, base=%d\n", cnt, base);
+	if ((cnt + start - 1) >= hw_cfg->lm.nb_stages) {
+		dev_err(dev->dev, "too many planes! cnt=%d, start stage=%d\n",
+			cnt, start);
 		return -EINVAL;
 	}
 
@@ -570,7 +595,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 		if (cursor_plane && (i == (cnt - 1)))
 			pstates[i].state->stage = hw_cfg->lm.nb_stages;
 		else
-			pstates[i].state->stage = STAGE_BASE + i + base;
+			pstates[i].state->stage = start + i;
 		DBG("%s: assign pipe %s on stage=%d", crtc->name,
 				pstates[i].plane->name,
 				pstates[i].state->stage);
