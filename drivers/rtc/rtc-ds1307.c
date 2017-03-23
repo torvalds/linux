@@ -39,6 +39,7 @@ enum ds_type {
 	ds_1340,
 	ds_1388,
 	ds_3231,
+	m41t0,
 	m41t00,
 	mcp794xx,
 	rx_8025,
@@ -53,6 +54,7 @@ enum ds_type {
 #	define DS1340_BIT_nEOSC		0x80
 #	define MCP794XX_BIT_ST		0x80
 #define DS1307_REG_MIN		0x01	/* 00-59 */
+#	define M41T0_BIT_OF		0x80
 #define DS1307_REG_HOUR		0x02	/* 00-23, or 1-12{am,pm} */
 #	define DS1307_BIT_12HR		0x40	/* in REG_HOUR */
 #	define DS1307_BIT_PM		0x20	/* in REG_HOUR */
@@ -183,6 +185,7 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1388", ds_1388 },
 	{ "ds1340", ds_1340 },
 	{ "ds3231", ds_3231 },
+	{ "m41t0", m41t0 },
 	{ "m41t00", m41t00 },
 	{ "mcp7940x", mcp794xx },
 	{ "mcp7941x", mcp794xx },
@@ -261,6 +264,7 @@ static const struct acpi_device_id ds1307_acpi_ids[] = {
 	{ .id = "DS1388", .driver_data = ds_1388 },
 	{ .id = "DS1340", .driver_data = ds_1340 },
 	{ .id = "DS3231", .driver_data = ds_3231 },
+	{ .id = "M41T0", .driver_data = m41t0 },
 	{ .id = "M41T00", .driver_data = m41t00 },
 	{ .id = "MCP7940X", .driver_data = mcp794xx },
 	{ .id = "MCP7941X", .driver_data = mcp794xx },
@@ -455,6 +459,13 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 	}
 
 	dev_dbg(dev, "%s: %7ph\n", "read", ds1307->regs);
+
+	/* if oscillator fail bit is set, no data can be trusted */
+	if (ds1307->type == m41t0 &&
+	    ds1307->regs[DS1307_REG_MIN] & M41T0_BIT_OF) {
+		dev_warn_once(dev, "oscillator failed, set time!\n");
+		return -EINVAL;
+	}
 
 	t->tm_sec = bcd2bin(ds1307->regs[DS1307_REG_SECS] & 0x7f);
 	t->tm_min = bcd2bin(ds1307->regs[DS1307_REG_MIN] & 0x7f);
@@ -1578,6 +1589,7 @@ read_rtc:
 	tmp = ds1307->regs[DS1307_REG_SECS];
 	switch (ds1307->type) {
 	case ds_1307:
+	case m41t0:
 	case m41t00:
 		/* clock halted?  turn it on, so clock can tick. */
 		if (tmp & DS1307_BIT_CH) {
@@ -1642,6 +1654,7 @@ read_rtc:
 	tmp = ds1307->regs[DS1307_REG_HOUR];
 	switch (ds1307->type) {
 	case ds_1340:
+	case m41t0:
 	case m41t00:
 		/*
 		 * NOTE: ignores century bits; fix before deploying
