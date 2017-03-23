@@ -1461,9 +1461,10 @@ static int i915_forcewake_domains(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_uncore_forcewake_domain *fw_domain;
+	unsigned int tmp;
 
 	spin_lock_irq(&dev_priv->uncore.lock);
-	for_each_fw_domain(fw_domain, dev_priv) {
+	for_each_fw_domain(fw_domain, dev_priv, tmp) {
 		seq_printf(m, "%s.wake_count = %u\n",
 			   intel_uncore_forcewake_domain_to_str(fw_domain->id),
 			   fw_domain->wake_count);

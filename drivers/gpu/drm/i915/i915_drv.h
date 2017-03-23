@@ -703,9 +703,9 @@ enum forcewake_domain_id {
 };
 
 enum forcewake_domains {
-	FORCEWAKE_RENDER = (1 << FW_DOMAIN_ID_RENDER),
-	FORCEWAKE_BLITTER = (1 << FW_DOMAIN_ID_BLITTER),
-	FORCEWAKE_MEDIA	= (1 << FW_DOMAIN_ID_MEDIA),
+	FORCEWAKE_RENDER = BIT(FW_DOMAIN_ID_RENDER),
+	FORCEWAKE_BLITTER = BIT(FW_DOMAIN_ID_BLITTER),
+	FORCEWAKE_MEDIA	= BIT(FW_DOMAIN_ID_MEDIA),
 	FORCEWAKE_ALL = (FORCEWAKE_RENDER |
 			 FORCEWAKE_BLITTER |
 			 FORCEWAKE_MEDIA)
@@ -790,15 +790,19 @@ struct intel_uncore {
 	int unclaimed_mmio_check;
 };
 
-/* Iterate over initialised fw domains */
-#define for_each_fw_domain_masked(domain__, mask__, dev_priv__) \
-	for ((domain__) = &(dev_priv__)->uncore.fw_domain[0]; \
-	     (domain__) < &(dev_priv__)->uncore.fw_domain[FW_DOMAIN_ID_COUNT]; \
-	     (domain__)++) \
-		for_each_if ((mask__) & (domain__)->mask)
+#define __mask_next_bit(mask) ({					\
+	int __idx = ffs(mask) - 1;					\
+	mask &= ~BIT(__idx);						\
+	__idx;								\
+})
 
-#define for_each_fw_domain(domain__, dev_priv__) \
-	for_each_fw_domain_masked(domain__, FORCEWAKE_ALL, dev_priv__)
+/* Iterate over initialised fw domains */
+#define for_each_fw_domain_masked(domain__, mask__, dev_priv__, tmp__) \
+	for (tmp__ = (mask__); \
+	     tmp__ ? (domain__ = &(dev_priv__)->uncore.fw_domain[__mask_next_bit(tmp__)]), 1 : 0;)
+
+#define for_each_fw_domain(domain__, dev_priv__, tmp__) \
+	for_each_fw_domain_masked(domain__, (dev_priv__)->uncore.fw_domains, dev_priv__, tmp__)
 
 #define CSR_VERSION(major, minor)	((major) << 16 | (minor))
 #define CSR_VERSION_MAJOR(version)	((version) >> 16)
@@ -2580,12 +2584,6 @@ static inline struct drm_i915_private *huc_to_i915(struct intel_huc *huc)
 	     (id__) < I915_NUM_ENGINES; \
 	     (id__)++) \
 		for_each_if ((engine__) = (dev_priv__)->engine[(id__)])
-
-#define __mask_next_bit(mask) ({					\
-	int __idx = ffs(mask) - 1;					\
-	mask &= ~BIT(__idx);						\
-	__idx;								\
-})
 
 /* Iterator over subset of engines selected by mask */
 #define for_each_engine_masked(engine__, dev_priv__, mask__, tmp__) \
