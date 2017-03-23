@@ -111,9 +111,9 @@
 #define SYN_CAP_EXT_BUTTONS_STICK(ex10)	((ex10) & 0x010000)
 #define SYN_CAP_SECUREPAD(ex10)		((ex10) & 0x020000)
 
-#define SYN_CAP_EXT_BUTTON_STICK_L(eb)	(!!((eb) & 0x01))
-#define SYN_CAP_EXT_BUTTON_STICK_M(eb)	(!!((eb) & 0x02))
-#define SYN_CAP_EXT_BUTTON_STICK_R(eb)	(!!((eb) & 0x04))
+#define SYN_EXT_BUTTON_STICK_L(eb)	(((eb) & BIT(0)) >> 0)
+#define SYN_EXT_BUTTON_STICK_M(eb)	(((eb) & BIT(1)) >> 1)
+#define SYN_EXT_BUTTON_STICK_R(eb)	(((eb) & BIT(2)) >> 2)
 
 /* synaptics modes query bits */
 #define SYN_MODE_ABSOLUTE(m)		((m) & (1 << 7))

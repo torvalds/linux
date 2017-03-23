@@ -884,9 +884,9 @@ static void synaptics_report_ext_buttons(struct psmouse *psmouse,
 		u8 pt_buttons;
 
 		/* The trackstick expects at most 3 buttons */
-		pt_buttons = SYN_CAP_EXT_BUTTON_STICK_L(hw->ext_buttons)      |
-			     SYN_CAP_EXT_BUTTON_STICK_R(hw->ext_buttons) << 1 |
-			     SYN_CAP_EXT_BUTTON_STICK_M(hw->ext_buttons) << 2;
+		pt_buttons = SYN_EXT_BUTTON_STICK_L(hw->ext_buttons)      |
+			     SYN_EXT_BUTTON_STICK_R(hw->ext_buttons) << 1 |
+			     SYN_EXT_BUTTON_STICK_M(hw->ext_buttons) << 2;
 
 		serio_interrupt(priv->pt_port,
 				PSMOUSE_OOB_EXTRA_BTNS, SERIO_OOB_DATA);
