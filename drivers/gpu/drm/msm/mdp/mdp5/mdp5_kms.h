@@ -23,9 +23,9 @@
 #include "mdp/mdp_kms.h"
 #include "mdp5_cfg.h"	/* must be included before mdp5.xml.h */
 #include "mdp5.xml.h"
-#include "mdp5_ctl.h"
 #include "mdp5_pipe.h"
 #include "mdp5_mixer.h"
+#include "mdp5_ctl.h"
 #include "mdp5_smp.h"
 
 struct mdp5_state;
@@ -253,7 +253,7 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc);
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
 
-int mdp5_crtc_get_lm(struct drm_crtc *crtc);
+struct mdp5_hw_mixer *mdp5_crtc_get_mixer(struct drm_crtc *crtc);
 void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
 		struct mdp5_interface *intf, struct mdp5_ctl *ctl);
 void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc);

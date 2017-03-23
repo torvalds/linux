@@ -215,7 +215,7 @@ static void mdp5_vid_encoder_disable(struct drm_encoder *encoder)
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
 	struct mdp5_ctl *ctl = mdp5_encoder->ctl;
-	int lm = mdp5_crtc_get_lm(encoder->crtc);
+	struct mdp5_hw_mixer *mixer = mdp5_crtc_get_mixer(encoder->crtc);
 	struct mdp5_interface *intf = &mdp5_encoder->intf;
 	int intfn = mdp5_encoder->intf.num;
 	unsigned long flags;
@@ -238,7 +238,7 @@ static void mdp5_vid_encoder_disable(struct drm_encoder *encoder)
 	 * the settings changes for the new modeset (like new
 	 * scanout buffer) don't latch properly..
 	 */
-	mdp_irq_wait(&mdp5_kms->base, intf2vblank(lm, intf));
+	mdp_irq_wait(&mdp5_kms->base, intf2vblank(mixer->lm, intf));
 
 	bs_set(mdp5_encoder, 0);
 

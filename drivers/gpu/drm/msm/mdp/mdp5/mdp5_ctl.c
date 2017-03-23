@@ -43,7 +43,7 @@ struct mdp5_ctl {
 	struct mdp5_ctl_manager *ctlm;
 
 	u32 id;
-	int lm;
+	struct mdp5_hw_mixer *mixer;
 
 	/* CTL status bitmask */
 	u32 status;
@@ -174,8 +174,8 @@ static void set_ctl_op(struct mdp5_ctl *ctl, struct mdp5_interface *intf)
 	spin_unlock_irqrestore(&ctl->hw_lock, flags);
 }
 
-int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl,
-		struct mdp5_interface *intf, int lm)
+int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl, struct mdp5_interface *intf,
+			  struct mdp5_hw_mixer *mixer)
 {
 	struct mdp5_ctl_manager *ctl_mgr = ctl->ctlm;
 	struct mdp5_kms *mdp5_kms = get_kms(ctl_mgr);
@@ -187,11 +187,11 @@ int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl,
 		return -EINVAL;
 	}
 
-	ctl->lm = lm;
+	ctl->mixer = mixer;
 
 	memcpy(&ctl->pipeline.intf, intf, sizeof(*intf));
 
-	ctl->pipeline.start_mask = mdp_ctl_flush_mask_lm(ctl->lm) |
+	ctl->pipeline.start_mask = mdp_ctl_flush_mask_lm(mixer->lm) |
 				   mdp_ctl_flush_mask_encoder(intf);
 
 	/* Virtual interfaces need not set a display intf (e.g.: Writeback) */
@@ -241,7 +241,7 @@ static void refill_start_mask(struct mdp5_ctl *ctl)
 	struct op_mode *pipeline = &ctl->pipeline;
 	struct mdp5_interface *intf = &ctl->pipeline.intf;
 
-	pipeline->start_mask = mdp_ctl_flush_mask_lm(ctl->lm);
+	pipeline->start_mask = mdp_ctl_flush_mask_lm(ctl->mixer->lm);
 
 	/*
 	 * Writeback encoder needs to program & flush
@@ -285,24 +285,24 @@ int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, int cursor_id, bool enable)
 	struct mdp5_ctl_manager *ctl_mgr = ctl->ctlm;
 	unsigned long flags;
 	u32 blend_cfg;
-	int lm = ctl->lm;
+	struct mdp5_hw_mixer *mixer = ctl->mixer;
 
-	if (unlikely(WARN_ON(lm < 0))) {
-		dev_err(ctl_mgr->dev->dev, "CTL %d cannot find LM: %d",
-				ctl->id, lm);
+	if (unlikely(WARN_ON(!mixer))) {
+		dev_err(ctl_mgr->dev->dev, "CTL %d cannot find LM",
+			ctl->id);
 		return -EINVAL;
 	}
 
 	spin_lock_irqsave(&ctl->hw_lock, flags);
 
-	blend_cfg = ctl_read(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, lm));
+	blend_cfg = ctl_read(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, mixer->lm));
 
 	if (enable)
 		blend_cfg |=  MDP5_CTL_LAYER_REG_CURSOR_OUT;
 	else
 		blend_cfg &= ~MDP5_CTL_LAYER_REG_CURSOR_OUT;
 
-	ctl_write(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, lm), blend_cfg);
+	ctl_write(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, mixer->lm), blend_cfg);
 	ctl->cursor_on = enable;
 
 	spin_unlock_irqrestore(&ctl->hw_lock, flags);
@@ -358,6 +358,7 @@ static u32 mdp_ctl_blend_ext_mask(enum mdp5_pipe pipe,
 int mdp5_ctl_blend(struct mdp5_ctl *ctl, enum mdp5_pipe *stage, u32 stage_cnt,
 		   u32 ctl_blend_op_flags)
 {
+	struct mdp5_hw_mixer *mixer = ctl->mixer;
 	unsigned long flags;
 	u32 blend_cfg = 0, blend_ext_cfg = 0;
 	int i, start_stage;
@@ -378,13 +379,14 @@ int mdp5_ctl_blend(struct mdp5_ctl *ctl, enum mdp5_pipe *stage, u32 stage_cnt,
 	if (ctl->cursor_on)
 		blend_cfg |=  MDP5_CTL_LAYER_REG_CURSOR_OUT;
 
-	ctl_write(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, ctl->lm), blend_cfg);
-	ctl_write(ctl, REG_MDP5_CTL_LAYER_EXT_REG(ctl->id, ctl->lm), blend_ext_cfg);
+	ctl_write(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, mixer->lm), blend_cfg);
+	ctl_write(ctl, REG_MDP5_CTL_LAYER_EXT_REG(ctl->id, mixer->lm),
+		  blend_ext_cfg);
 	spin_unlock_irqrestore(&ctl->hw_lock, flags);
 
-	ctl->pending_ctl_trigger = mdp_ctl_flush_mask_lm(ctl->lm);
+	ctl->pending_ctl_trigger = mdp_ctl_flush_mask_lm(mixer->lm);
 
-	DBG("lm%d: blend config = 0x%08x. ext_cfg = 0x%08x", ctl->lm,
+	DBG("lm%d: blend config = 0x%08x. ext_cfg = 0x%08x", mixer->lm,
 		blend_cfg, blend_ext_cfg);
 
 	return 0;
@@ -452,7 +454,7 @@ static u32 fix_sw_flush(struct mdp5_ctl *ctl, u32 flush_mask)
 
 	/* for some targets, cursor bit is the same as LM bit */
 	if (BIT_NEEDS_SW_FIX(MDP5_CTL_FLUSH_CURSOR_0))
-		sw_mask |= mdp_ctl_flush_mask_lm(ctl->lm);
+		sw_mask |= mdp_ctl_flush_mask_lm(ctl->mixer->lm);
 
 	return sw_mask;
 }
@@ -620,7 +622,7 @@ struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctl_mgr,
 found:
 	ctl = &ctl_mgr->ctls[c];
 	ctl->pipeline.intf.num = intf_num;
-	ctl->lm = -1;
+	ctl->mixer = NULL;
 	ctl->status |= CTL_STAT_BUSY;
 	ctl->pending_ctl_trigger = 0;
 	DBG("CTL %d allocated", ctl->id);

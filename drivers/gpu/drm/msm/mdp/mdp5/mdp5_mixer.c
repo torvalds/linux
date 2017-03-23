@@ -29,6 +29,10 @@ struct mdp5_hw_mixer *mdp5_mixer_init(const struct mdp5_lm_instance *lm)
 {
 	struct mdp5_hw_mixer *mixer;
 
+	/* ignore WB bound mixers for now */
+	if (lm->caps & MDP_LM_CAP_WB)
+		return NULL;
+
 	mixer = kzalloc(sizeof(*mixer), GFP_KERNEL);
 	if (!mixer)
 		return ERR_PTR(-ENOMEM);

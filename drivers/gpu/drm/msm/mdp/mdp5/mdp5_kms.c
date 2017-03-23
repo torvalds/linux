@@ -428,7 +428,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	 * the MDP5 interfaces) than the number of layer mixers present in HW,
 	 * but let's be safe here anyway
 	 */
-	num_crtcs = min(priv->num_encoders, mdp5_cfg->lm.count);
+	num_crtcs = min(priv->num_encoders, mdp5_kms->num_hwmixers);
 
 	/*
 	 * Construct planes equaling the number of hw pipes, and CRTCs for the
@@ -850,6 +850,10 @@ static int hwmixer_init(struct mdp5_kms *mdp5_kms)
 				i, ret);
 			return ret;
 		}
+
+		/* Don't create LMs connected to WB for now */
+		if (!mixer)
+			continue;
 
 		mixer->idx = mdp5_kms->num_hwmixers;
 		mdp5_kms->hwmixers[mdp5_kms->num_hwmixers++] = mixer;

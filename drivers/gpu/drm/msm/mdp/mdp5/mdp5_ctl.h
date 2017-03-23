@@ -38,7 +38,7 @@ int mdp5_ctl_get_ctl_id(struct mdp5_ctl *ctl);
 
 struct mdp5_interface;
 int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl, struct mdp5_interface *intf,
-				int lm);
+			  struct mdp5_hw_mixer *lm);
 int mdp5_ctl_set_encoder_state(struct mdp5_ctl *ctl, bool enabled);
 
 int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, int cursor_id, bool enable);
