@@ -284,18 +284,10 @@ static const struct of_device_id imx_gpc_dt_ids[] = {
 	{ }
 };
 
-static bool imx_gpc_readable_reg(struct device *dev, unsigned int reg)
-{
-	return (reg % 4 == 0) && (reg <= 0x2ac);
-}
-
 static const struct regmap_config imx_gpc_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-
-	.readable_reg = imx_gpc_readable_reg,
-
 	.max_register = 0x2ac,
 };
 
