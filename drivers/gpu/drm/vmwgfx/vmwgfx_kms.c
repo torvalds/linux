@@ -390,6 +390,61 @@ void vmw_du_primary_plane_destroy(struct drm_plane *plane)
 }
 
 
+int vmw_du_crtc_atomic_check(struct drm_crtc *crtc,
+			     struct drm_crtc_state *new_state)
+{
+	struct vmw_display_unit *du = vmw_crtc_to_du(new_state->crtc);
+	int connector_mask = 1 << drm_connector_index(&du->connector);
+	bool has_primary = new_state->plane_mask &
+			   BIT(drm_plane_index(crtc->primary));
+
+	/* We always want to have an active plane with an active CRTC */
+	if (has_primary != new_state->enable)
+		return -EINVAL;
+
+
+	if (new_state->connector_mask != connector_mask &&
+	    new_state->connector_mask != 0) {
+		DRM_ERROR("Invalid connectors configuration\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Our virtual device does not have a dot clock, so use the logical
+	 * clock value as the dot clock.
+	 */
+	if (new_state->mode.crtc_clock == 0)
+		new_state->adjusted_mode.crtc_clock = new_state->mode.clock;
+
+	return 0;
+}
+
+
+void vmw_du_crtc_atomic_begin(struct drm_crtc *crtc,
+			      struct drm_crtc_state *old_crtc_state)
+{
+}
+
+
+void vmw_du_crtc_atomic_flush(struct drm_crtc *crtc,
+			      struct drm_crtc_state *old_crtc_state)
+{
+	struct drm_pending_vblank_event *event = crtc->state->event;
+
+	if (event) {
+		crtc->state->event = NULL;
+
+		spin_lock_irq(&crtc->dev->event_lock);
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, event);
+		else
+			drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+	}
+
+}
+
+
 /**
  * vmw_du_crtc_duplicate_state - duplicate crtc state
  * @crtc: DRM crtc

@@ -500,6 +500,106 @@ out_srf_unref:
 	return ret;
 }
 
+
+/**
+ * vmw_stdu_crtc_mode_set_nofb - Updates screen target size
+ *
+ * @crtc: CRTC associated with the screen target
+ *
+ * This function defines/destroys a screen target
+ *
+ */
+static void vmw_stdu_crtc_mode_set_nofb(struct drm_crtc *crtc)
+{
+	struct vmw_private *dev_priv;
+	struct vmw_screen_target_display_unit *stdu;
+	int ret;
+
+
+	stdu     = vmw_crtc_to_stdu(crtc);
+	dev_priv = vmw_priv(crtc->dev);
+
+	if (stdu->defined) {
+		ret = vmw_stdu_bind_st(dev_priv, stdu, NULL);
+		if (ret)
+			DRM_ERROR("Failed to blank CRTC\n");
+
+		(void) vmw_stdu_update_st(dev_priv, stdu);
+
+		ret = vmw_stdu_destroy_st(dev_priv, stdu);
+		if (ret)
+			DRM_ERROR("Failed to destroy Screen Target\n");
+
+		stdu->content_fb_type = SAME_AS_DISPLAY;
+	}
+
+	if (!crtc->state->enable)
+		return;
+
+	vmw_svga_enable(dev_priv);
+	ret = vmw_stdu_define_st(dev_priv, stdu, &crtc->mode, crtc->x, crtc->y);
+
+	if (ret)
+		DRM_ERROR("Failed to define Screen Target of size %dx%d\n",
+			  crtc->x, crtc->y);
+}
+
+
+static void vmw_stdu_crtc_helper_prepare(struct drm_crtc *crtc)
+{
+}
+
+
+static void vmw_stdu_crtc_helper_commit(struct drm_crtc *crtc)
+{
+	struct vmw_private *dev_priv;
+	struct vmw_screen_target_display_unit *stdu;
+	struct vmw_framebuffer *vfb;
+	struct drm_framebuffer *fb;
+
+
+	stdu     = vmw_crtc_to_stdu(crtc);
+	dev_priv = vmw_priv(crtc->dev);
+	fb       = crtc->primary->fb;
+
+	vfb = (fb) ? vmw_framebuffer_to_vfb(fb) : NULL;
+
+	if (vfb)
+		vmw_kms_add_active(dev_priv, &stdu->base, vfb);
+	else
+		vmw_kms_del_active(dev_priv, &stdu->base);
+}
+
+static void vmw_stdu_crtc_helper_disable(struct drm_crtc *crtc)
+{
+	struct vmw_private *dev_priv;
+	struct vmw_screen_target_display_unit *stdu;
+	int ret;
+
+
+	if (!crtc) {
+		DRM_ERROR("CRTC is NULL\n");
+		return;
+	}
+
+	stdu     = vmw_crtc_to_stdu(crtc);
+	dev_priv = vmw_priv(crtc->dev);
+
+	if (stdu->defined) {
+		ret = vmw_stdu_bind_st(dev_priv, stdu, NULL);
+		if (ret)
+			DRM_ERROR("Failed to blank CRTC\n");
+
+		(void) vmw_stdu_update_st(dev_priv, stdu);
+
+		ret = vmw_stdu_destroy_st(dev_priv, stdu);
+		if (ret)
+			DRM_ERROR("Failed to destroy Screen Target\n");
+
+		stdu->content_fb_type = SAME_AS_DISPLAY;
+	}
+}
+
 /**
  * vmw_stdu_crtc_set_config - Sets a mode
  *
@@ -1113,6 +1213,21 @@ static const struct drm_plane_funcs vmw_stdu_cursor_funcs = {
 };
 
 
+/*
+ * Atomic Helpers
+ */
+static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
+	.prepare = vmw_stdu_crtc_helper_prepare,
+	.commit = vmw_stdu_crtc_helper_commit,
+	.disable = vmw_stdu_crtc_helper_disable,
+	.mode_set = drm_helper_crtc_mode_set,
+	.mode_set_nofb = vmw_stdu_crtc_mode_set_nofb,
+	.atomic_check = vmw_du_crtc_atomic_check,
+	.atomic_begin = vmw_du_crtc_atomic_begin,
+	.atomic_flush = vmw_du_crtc_atomic_flush,
+};
+
+
 /**
  * vmw_stdu_init - Sets up a Screen Target Display Unit
  *
@@ -1218,6 +1333,8 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 		DRM_ERROR("Failed to initialize CRTC\n");
 		goto err_free_unregister;
 	}
+
+	drm_crtc_helper_add(crtc, &vmw_stdu_crtc_helper_funcs);
 
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 

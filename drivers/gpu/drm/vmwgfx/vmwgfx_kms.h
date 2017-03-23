@@ -161,6 +161,7 @@ struct vmw_crtc_state {
  * @surf Display surface for STDU
  * @dmabuf display dmabuf for SOU
  * @content_fb_type Used by STDU.
+ * @dmabuf_size Size of the dmabuf, used by Screen Object Display Unit
  * @pinned pin count for STDU display surface
  */
 struct vmw_plane_state {
@@ -169,6 +170,7 @@ struct vmw_plane_state {
 	struct vmw_dma_buffer *dmabuf;
 
 	int content_fb_type;
+	unsigned long dmabuf_size;
 
 	int pinned;
 };
@@ -342,10 +344,17 @@ int vmw_du_cursor_plane_update(struct drm_plane *plane,
 			       uint32_t src_x, uint32_t src_y,
 			       uint32_t src_w, uint32_t src_h);
 
+/* Atomic Helpers */
 void vmw_du_plane_reset(struct drm_plane *plane);
 struct drm_plane_state *vmw_du_plane_duplicate_state(struct drm_plane *plane);
 void vmw_du_plane_destroy_state(struct drm_plane *plane,
 				struct drm_plane_state *state);
+int vmw_du_crtc_atomic_check(struct drm_crtc *crtc,
+			     struct drm_crtc_state *state);
+void vmw_du_crtc_atomic_begin(struct drm_crtc *crtc,
+			      struct drm_crtc_state *old_crtc_state);
+void vmw_du_crtc_atomic_flush(struct drm_crtc *crtc,
+			      struct drm_crtc_state *old_crtc_state);
 void vmw_du_crtc_reset(struct drm_crtc *crtc);
 struct drm_crtc_state *vmw_du_crtc_duplicate_state(struct drm_crtc *crtc);
 void vmw_du_crtc_destroy_state(struct drm_crtc *crtc,

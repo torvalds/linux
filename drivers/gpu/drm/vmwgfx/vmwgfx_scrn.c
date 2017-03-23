@@ -250,6 +250,109 @@ static int vmw_sou_backing_alloc(struct vmw_private *dev_priv,
 	return ret;
 }
 
+/**
+ * vmw_sou_crtc_mode_set_nofb - Create new screen
+ *
+ * @crtc: CRTC associated with the new screen
+ *
+ * This function creates/destroys a screen.  This function cannot fail, so if
+ * somehow we run into a failure, just do the best we can to get out.
+ */
+static void vmw_sou_crtc_mode_set_nofb(struct drm_crtc *crtc)
+{
+	struct vmw_private *dev_priv;
+	struct vmw_screen_object_unit *sou;
+	struct vmw_framebuffer *vfb;
+	struct drm_framebuffer *fb;
+	struct drm_plane_state *ps;
+	struct vmw_plane_state *vps;
+	int ret;
+
+
+	sou      = vmw_crtc_to_sou(crtc);
+	dev_priv = vmw_priv(crtc->dev);
+	ps       = crtc->primary->state;
+	fb       = ps->fb;
+	vps      = vmw_plane_state_to_vps(ps);
+
+	vfb = (fb) ? vmw_framebuffer_to_vfb(fb) : NULL;
+
+	if (sou->defined) {
+		ret = vmw_sou_fifo_destroy(dev_priv, sou);
+		if (ret) {
+			DRM_ERROR("Failed to destroy Screen Object\n");
+			return;
+		}
+	}
+
+	if (vfb) {
+		sou->buffer = vps->dmabuf;
+		sou->buffer_size = vps->dmabuf_size;
+
+		ret = vmw_sou_fifo_create(dev_priv, sou, crtc->x, crtc->y,
+					  &crtc->mode);
+		if (ret)
+			DRM_ERROR("Failed to define Screen Object %dx%d\n",
+				  crtc->x, crtc->y);
+
+		vmw_kms_add_active(dev_priv, &sou->base, vfb);
+	} else {
+		sou->buffer = NULL;
+		sou->buffer_size = 0;
+
+		vmw_kms_del_active(dev_priv, &sou->base);
+	}
+}
+
+/**
+ * vmw_sou_crtc_helper_prepare - Noop
+ *
+ * @crtc: CRTC associated with the new screen
+ *
+ * Prepares the CRTC for a mode set, but we don't need to do anything here.
+ */
+static void vmw_sou_crtc_helper_prepare(struct drm_crtc *crtc)
+{
+}
+
+/**
+ * vmw_sou_crtc_helper_commit - Noop
+ *
+ * @crtc: CRTC associated with the new screen
+ *
+ * This is called after a mode set has been completed.
+ */
+static void vmw_sou_crtc_helper_commit(struct drm_crtc *crtc)
+{
+}
+
+/**
+ * vmw_sou_crtc_helper_disable - Turns off CRTC
+ *
+ * @crtc: CRTC to be turned off
+ */
+static void vmw_sou_crtc_helper_disable(struct drm_crtc *crtc)
+{
+	struct vmw_private *dev_priv;
+	struct vmw_screen_object_unit *sou;
+	int ret;
+
+
+	if (!crtc) {
+		DRM_ERROR("CRTC is NULL\n");
+		return;
+	}
+
+	sou = vmw_crtc_to_sou(crtc);
+	dev_priv = vmw_priv(crtc->dev);
+
+	if (sou->defined) {
+		ret = vmw_sou_fifo_destroy(dev_priv, sou);
+		if (ret)
+			DRM_ERROR("Failed to destroy Screen Object\n");
+	}
+}
+
 static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 {
 	struct vmw_private *dev_priv;
@@ -527,6 +630,20 @@ static const struct drm_plane_funcs vmw_sou_cursor_funcs = {
 	.atomic_destroy_state = vmw_du_plane_destroy_state,
 };
 
+/*
+ * Atomic Helpers
+ */
+static const struct drm_crtc_helper_funcs vmw_sou_crtc_helper_funcs = {
+	.prepare = vmw_sou_crtc_helper_prepare,
+	.commit = vmw_sou_crtc_helper_commit,
+	.disable = vmw_sou_crtc_helper_disable,
+	.mode_set = drm_helper_crtc_mode_set,
+	.mode_set_nofb = vmw_sou_crtc_mode_set_nofb,
+	.atomic_check = vmw_du_crtc_atomic_check,
+	.atomic_begin = vmw_du_crtc_atomic_begin,
+	.atomic_flush = vmw_du_crtc_atomic_flush,
+};
+
 
 static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 {
@@ -625,6 +742,8 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 		DRM_ERROR("Failed to initialize CRTC\n");
 		goto err_free_unregister;
 	}
+
+	drm_crtc_helper_add(crtc, &vmw_sou_crtc_helper_funcs);
 
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
