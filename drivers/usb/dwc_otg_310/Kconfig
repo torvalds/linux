@@ -11,7 +11,6 @@ config USB20_HOST
 config USB20_HOST_EN
 	boolean "---usb2.0 host controller enable"
 	depends on USB20_HOST
-	default y
 
 config USB20_OTG
 	tristate "RockChip USB 2.0 OTG controller"
@@ -23,7 +22,6 @@ config USB20_OTG
 config USB20_OTG_EN
 	bool "---usb2.0 otg host controller enable"
 	depends on DWC_OTG_HOST_ONLY || DWC_OTG_BOTH_HOST_SLAVE
-	default y
 
 config DWC_OTG_310
 	tristate
