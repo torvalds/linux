@@ -18,6 +18,7 @@
 #include <linux/err.h>
 #include <linux/export.h>
 
+#include <drm/drm_edid.h>
 #include <drm/drm_sysfs.h>
 #include <drm/drm_core.h>
 #include <drm/drmP.h>
@@ -31,6 +32,24 @@ static struct device_type drm_sysfs_device_minor = {
 };
 
 struct class *drm_class;
+
+static const char * const audioformatstr[] = {
+	"",
+	"LPCM",		/*AUDIO_LPCM = 1,*/
+	"AC3",		/*AUDIO_AC3,*/
+	"MPEG1",	/*AUDIO_MPEG1,*/
+	"MP3",		/*AUDIO_MP3,*/
+	"MPEG2",	/*AUDIO_MPEG2,*/
+	"AAC-LC",	/*AUDIO_AAC_LC, AAC*/
+	"DTS",		/*AUDIO_DTS,*/
+	"ATARC",	/*AUDIO_ATARC,*/
+	"DSD",		/*AUDIO_DSD, One bit Audio */
+	"E-AC3",	/*AUDIO_E_AC3,*/
+	"DTS-HD",	/*AUDIO_DTS_HD,*/
+	"MLP",		/*AUDIO_MLP,*/
+	"DST",		/*AUDIO_DST,*/
+	"WMA-PRO",	/*AUDIO_WMA_PRO*/
+};
 
 /**
  * __drm_class_suspend - internal DRM class suspend routine
@@ -248,6 +267,50 @@ static ssize_t enabled_show(struct device *device,
 			"disabled");
 }
 
+static int drm_get_audio_format(struct edid *edid,
+			       char *audioformat, int len)
+{
+	int i, size = 0, num = 0;
+	struct cea_sad *sads;
+
+	memset(audioformat, 0, len);
+	num = drm_edid_to_sad(edid, &sads);
+	if (!num)
+		return 0;
+
+	for (i = 0; i < num; i++) {
+		if (sads[i].format < 1 || sads[i].format > 14) {
+			DRM_ERROR("audio type unsupported.\n");
+			continue;
+		}
+		size = strlen(audioformatstr[sads[i].format]);
+		memcpy(audioformat, audioformatstr[sads[i].format], size);
+		audioformat[size] = ',';
+		audioformat += (size + 1);
+	}
+	return num;
+}
+
+static ssize_t audioformat_show(struct device *device,
+				struct device_attribute *attr,
+				char *buf)
+{
+	char audioformat[200];
+	int ret = 0;
+	struct edid *edid;
+	struct drm_connector *connector = to_drm_connector(device);
+
+	if (!connector->edid_blob_ptr)
+		return 0;
+
+	edid = (struct edid *)connector->edid_blob_ptr->data;
+	ret = drm_get_audio_format(edid, audioformat, 200);
+	if (ret)
+		return snprintf(buf, PAGE_SIZE, "%s\n", audioformat);
+
+	return 0;
+}
+
 static ssize_t edid_show(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *attr, char *buf, loff_t off,
 			 size_t count)
@@ -426,6 +489,7 @@ static DEVICE_ATTR_RO(enabled);
 static DEVICE_ATTR_RO(dpms);
 static DEVICE_ATTR_RO(modes);
 static DEVICE_ATTR_RO(mode);
+static DEVICE_ATTR_RO(audioformat);
 
 static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_status.attr,
@@ -433,6 +497,7 @@ static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_dpms.attr,
 	&dev_attr_modes.attr,
 	&dev_attr_mode.attr,
+	&dev_attr_audioformat.attr,
 	NULL
 };
 
