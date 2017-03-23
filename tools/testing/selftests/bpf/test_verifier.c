@@ -8,6 +8,8 @@
  * License as published by the Free Software Foundation.
  */
 
+#include <asm/types.h>
+#include <linux/types.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -4583,10 +4585,12 @@ static bool is_admin(void)
 	cap_flag_value_t sysadmin = CAP_CLEAR;
 	const cap_value_t cap_val = CAP_SYS_ADMIN;
 
+#ifdef CAP_IS_SUPPORTED
 	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) {
 		perror("cap_get_flag");
 		return false;
 	}
+#endif
 	caps = cap_get_proc();
 	if (!caps) {
 		perror("cap_get_proc");
