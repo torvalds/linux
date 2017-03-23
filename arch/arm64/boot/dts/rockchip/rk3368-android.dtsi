@@ -173,6 +173,18 @@
 	status = "okay";
 };
 
+&vpu_combo {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
+};
+
+&hevc_mmu {
+	status = "okay";
+};
+
 &vop {
 	status = "okay";
 };
