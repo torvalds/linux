@@ -104,7 +104,7 @@ static int imx6_pm_domain_power_on(struct generic_pm_domain *genpd)
 	regmap_update_bits(pd->regmap, pd->reg_offs + GPC_PGC_PDN_OFFS,
 			   0x1, 0x1);
 
-	/* Read ISO and ISO2SW power down delays */
+	/* Read ISO and ISO2SW power up delays */
 	regmap_read(pd->regmap, pd->reg_offs + GPC_PGC_PUPSCR_OFFS, &val);
 	sw = val & 0x3f;
 	sw2iso = (val >> 8) & 0x3f;
