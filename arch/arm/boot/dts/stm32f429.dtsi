@@ -450,6 +450,8 @@
 				clocks = <&rcc 0 STM32F4_APB2_CLOCK(ADC1)>;
 				interrupt-parent = <&adc>;
 				interrupts = <0>;
+				dmas = <&dma2 0 0 0x400 0x0>;
+				dma-names = "rx";
 				status = "disabled";
 			};
 
@@ -460,6 +462,8 @@
 				clocks = <&rcc 0 STM32F4_APB2_CLOCK(ADC2)>;
 				interrupt-parent = <&adc>;
 				interrupts = <1>;
+				dmas = <&dma2 3 1 0x400 0x0>;
+				dma-names = "rx";
 				status = "disabled";
 			};
 
@@ -470,6 +474,8 @@
 				clocks = <&rcc 0 STM32F4_APB2_CLOCK(ADC3)>;
 				interrupt-parent = <&adc>;
 				interrupts = <2>;
+				dmas = <&dma2 1 2 0x400 0x0>;
+				dma-names = "rx";
 				status = "disabled";
 			};
 		};
