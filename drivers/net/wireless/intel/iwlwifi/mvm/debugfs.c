@@ -1056,6 +1056,8 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 
 	if (ret)
 		return ret;
+	if (count == 0)
+		return 0;
 
 	iwl_mvm_fw_dbg_collect(mvm, FW_DBG_TRIGGER_USER, buf,
 			       (count - 1), NULL);
