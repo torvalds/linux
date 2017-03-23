@@ -605,7 +605,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 	 * enabled we continue, but stop the requeueing in the chain
 	 * walk.
 	 */
-	if (waiter->prio == task->prio) {
+	if (waiter->prio == task->prio && !dl_task(task)) {
 		if (!detect_deadlock)
 			goto out_unlock_pi;
 		else
