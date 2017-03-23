@@ -173,6 +173,10 @@ struct vmw_plane_state {
 	unsigned long dmabuf_size;
 
 	int pinned;
+
+	/* For CPU Blit */
+	struct ttm_bo_kmap_obj host_map, guest_map;
+	unsigned int cpp;
 };
 
 
