@@ -226,24 +226,6 @@ static void vmw_ldu_crtc_helper_prepare(struct drm_crtc *crtc)
  */
 static void vmw_ldu_crtc_helper_commit(struct drm_crtc *crtc)
 {
-	struct vmw_private *dev_priv;
-	struct vmw_legacy_display_unit *ldu;
-	struct vmw_framebuffer *vfb;
-	struct drm_framebuffer *fb;
-
-
-	ldu = vmw_crtc_to_ldu(crtc);
-	dev_priv = vmw_priv(crtc->dev);
-	fb       = crtc->primary->state->fb;
-
-	vfb = (fb) ? vmw_framebuffer_to_vfb(fb) : NULL;
-
-	if (vfb)
-		vmw_ldu_add_active(dev_priv, ldu, vfb);
-	else
-		vmw_ldu_del_active(dev_priv, ldu);
-
-	vmw_ldu_commit_list(dev_priv);
 }
 
 /**
@@ -310,7 +292,7 @@ drm_connector_helper_funcs vmw_ldu_connector_helper_funcs = {
  */
 
 /**
- * vmw_ldu_primary_plane_cleanup_fb - Unpin fb
+ * vmw_ldu_primary_plane_cleanup_fb - Noop
  *
  * @plane:  display plane
  * @old_state: Contains the FB to clean up
@@ -327,7 +309,7 @@ vmw_ldu_primary_plane_cleanup_fb(struct drm_plane *plane,
 
 
 /**
- * vmw_ldu_primary_plane_prepare_fb -
+ * vmw_ldu_primary_plane_prepare_fb - Noop
  *
  * @plane:  display plane
  * @new_state: info on the new plane state, including the FB
@@ -346,6 +328,25 @@ static void
 vmw_ldu_primary_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_plane_state *old_state)
 {
+	struct vmw_private *dev_priv;
+	struct vmw_legacy_display_unit *ldu;
+	struct vmw_framebuffer *vfb;
+	struct drm_framebuffer *fb;
+	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
+
+
+	ldu = vmw_crtc_to_ldu(crtc);
+	dev_priv = vmw_priv(plane->dev);
+	fb       = plane->state->fb;
+
+	vfb = (fb) ? vmw_framebuffer_to_vfb(fb) : NULL;
+
+	if (vfb)
+		vmw_ldu_add_active(dev_priv, ldu, vfb);
+	else
+		vmw_ldu_del_active(dev_priv, ldu);
+
+	vmw_ldu_commit_list(dev_priv);
 }
 
 
