@@ -264,10 +264,11 @@ static int hd44780_probe(struct platform_device *pdev)
 	}
 
 	/* Required properties */
-	ret = device_property_read_u32(dev, "display-height", &lcd->height);
+	ret = device_property_read_u32(dev, "display-height-chars",
+				       &lcd->height);
 	if (ret)
 		goto fail;
-	ret = device_property_read_u32(dev, "display-width", &lcd->width);
+	ret = device_property_read_u32(dev, "display-width-chars", &lcd->width);
 	if (ret)
 		goto fail;
 

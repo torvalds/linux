@@ -15,8 +15,8 @@ Required properties:
   - rs-gpios: Must contain a GPIO specifier, referring to the GPIO pin
     connected to the "RS" (Register Select) signal line of the LCD Controller's
     bus interface,
-  - display-height: Height of the display, in character cells,
-  - display-width: Width of the display, in character cells.
+  - display-height-chars: Height of the display, in character cells,
+  - display-width-chars: Width of the display, in character cells.
 
 Optional properties:
   - rw-gpios: Must contain a GPIO specifier, referring to the GPIO pin
@@ -25,7 +25,8 @@ Optional properties:
   - backlight-gpios: Must contain a GPIO specifier, referring to the GPIO pin
     used for enabling the LCD's backlight,
   - internal-buffer-width: Internal buffer width (default is 40 for displays
-    with 1 or 2 lines, and display-width for displays with more than 2 lines).
+    with 1 or 2 lines, and display-width-chars for displays with more than 2
+    lines).
 
 Example:
 
@@ -39,6 +40,6 @@ Example:
 		enable-gpios = <&hc595 4 GPIO_ACTIVE_HIGH>;
 		rs-gpios = <&hc595 5 GPIO_ACTIVE_HIGH>;
 
-		display-height = <2>;
-		display-width = <16>;
+		display-height-chars = <2>;
+		display-width-chars = <16>;
 	};
