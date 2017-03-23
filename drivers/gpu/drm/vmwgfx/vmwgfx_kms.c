@@ -26,6 +26,8 @@
  **************************************************************************/
 
 #include "vmwgfx_kms.h"
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 
 
 /* Might need a hrtimer here? */
@@ -385,6 +387,84 @@ void vmw_du_primary_plane_destroy(struct drm_plane *plane)
 	drm_plane_cleanup(plane);
 
 	/* Planes are static in our case so we don't free it */
+}
+
+
+/**
+ * vmw_du_crtc_duplicate_state - duplicate crtc state
+ * @crtc: DRM crtc
+ *
+ * Allocates and returns a copy of the crtc state (both common and
+ * vmw-specific) for the specified crtc.
+ *
+ * Returns: The newly allocated crtc state, or NULL on failure.
+ */
+struct drm_crtc_state *
+vmw_du_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct drm_crtc_state *state;
+	struct vmw_crtc_state *vcs;
+
+	if (WARN_ON(!crtc->state))
+		return NULL;
+
+	vcs = kmemdup(crtc->state, sizeof(*vcs), GFP_KERNEL);
+
+	if (!vcs)
+		return NULL;
+
+	state = &vcs->base;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, state);
+
+	return state;
+}
+
+
+/**
+ * vmw_du_crtc_reset - creates a blank vmw crtc state
+ * @crtc: DRM crtc
+ *
+ * Resets the atomic state for @crtc by freeing the state pointer (which
+ * might be NULL, e.g. at driver load time) and allocating a new empty state
+ * object.
+ */
+void vmw_du_crtc_reset(struct drm_crtc *crtc)
+{
+	struct vmw_crtc_state *vcs;
+
+
+	if (crtc->state) {
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+
+		kfree(vmw_crtc_state_to_vcs(crtc->state));
+	}
+
+	vcs = kzalloc(sizeof(*vcs), GFP_KERNEL);
+
+	if (!vcs) {
+		DRM_ERROR("Cannot allocate vmw_crtc_state\n");
+		return;
+	}
+
+	crtc->state = &vcs->base;
+	crtc->state->crtc = crtc;
+}
+
+
+/**
+ * vmw_du_crtc_destroy_state - destroy crtc state
+ * @crtc: DRM crtc
+ * @state: state object to destroy
+ *
+ * Destroys the crtc state (both common and vmw-specific) for the
+ * specified plane.
+ */
+void
+vmw_du_crtc_destroy_state(struct drm_crtc *crtc,
+			  struct drm_crtc_state *state)
+{
+	drm_atomic_helper_crtc_destroy_state(crtc, state);
 }
 
 
@@ -1598,6 +1678,7 @@ int vmw_du_connector_set_property(struct drm_connector *connector,
 
 	return 0;
 }
+
 
 
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,

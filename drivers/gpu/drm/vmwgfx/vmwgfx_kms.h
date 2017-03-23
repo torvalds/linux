@@ -139,6 +139,19 @@ static const uint32_t vmw_cursor_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
+
+#define vmw_crtc_state_to_vcs(x) container_of(x, struct vmw_crtc_state, base)
+
+
+/**
+ * Derived class for crtc state object
+ *
+ * @base DRM crtc object
+ */
+struct vmw_crtc_state {
+	struct drm_crtc_state base;
+};
+
 /**
  * Base class display unit.
  *
@@ -205,6 +218,9 @@ int vmw_du_crtc_cursor_set2(struct drm_crtc *crtc, struct drm_file *file_priv,
 			    uint32_t handle, uint32_t width, uint32_t height,
 			    int32_t hot_x, int32_t hot_y);
 int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
+int vmw_du_connector_set_property(struct drm_connector *connector,
+				  struct drm_property *property,
+				  uint64_t val);
 int vmw_du_connector_dpms(struct drm_connector *connector, int mode);
 void vmw_du_connector_save(struct drm_connector *connector);
 void vmw_du_connector_restore(struct drm_connector *connector);
@@ -212,9 +228,6 @@ enum drm_connector_status
 vmw_du_connector_detect(struct drm_connector *connector, bool force);
 int vmw_du_connector_fill_modes(struct drm_connector *connector,
 				uint32_t max_width, uint32_t max_height);
-int vmw_du_connector_set_property(struct drm_connector *connector,
-				  struct drm_property *property,
-				  uint64_t val);
 int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 			 struct vmw_framebuffer *framebuffer,
 			 const struct drm_clip_rect *clips,
@@ -285,6 +298,10 @@ int vmw_du_cursor_plane_update(struct drm_plane *plane,
 			       uint32_t src_x, uint32_t src_y,
 			       uint32_t src_w, uint32_t src_h);
 
+void vmw_du_crtc_reset(struct drm_crtc *crtc);
+struct drm_crtc_state *vmw_du_crtc_duplicate_state(struct drm_crtc *crtc);
+void vmw_du_crtc_destroy_state(struct drm_crtc *crtc,
+				struct drm_crtc_state *state);
 
 /*
  * Legacy display unit functions - vmwgfx_ldu.c

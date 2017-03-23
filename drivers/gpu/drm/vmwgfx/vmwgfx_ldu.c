@@ -280,6 +280,9 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 static const struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
 	.gamma_set = vmw_du_crtc_gamma_set,
 	.destroy = vmw_ldu_crtc_destroy,
+	.reset = vmw_du_crtc_reset,
+	.atomic_duplicate_state = vmw_du_crtc_duplicate_state,
+	.atomic_destroy_state = vmw_du_crtc_destroy_state,
 	.set_config = vmw_ldu_crtc_set_config,
 };
 
@@ -355,6 +358,11 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	ldu->base.pref_width = dev_priv->initial_width;
 	ldu->base.pref_height = dev_priv->initial_height;
 	ldu->base.pref_mode = NULL;
+
+	/*
+	 * Remove this after enabling atomic because property values can
+	 * only exist in a state object
+	 */
 	ldu->base.is_implicit = true;
 
 	/* Initialize primary plane */
@@ -405,6 +413,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free_encoder;
 	}
 
+	/* FIXME: Turn on after plane/connector states are implemented. */
+	/* vmw_du_crtc_reset(crtc); */
 	ret = drm_crtc_init_with_planes(dev, crtc, &ldu->base.primary,
 					&ldu->base.cursor,
 					&vmw_legacy_crtc_funcs, NULL);

@@ -461,6 +461,9 @@ out_no_fence:
 static const struct drm_crtc_funcs vmw_screen_object_crtc_funcs = {
 	.gamma_set = vmw_du_crtc_gamma_set,
 	.destroy = vmw_sou_crtc_destroy,
+	.reset = vmw_du_crtc_reset,
+	.atomic_duplicate_state = vmw_du_crtc_duplicate_state,
+	.atomic_destroy_state = vmw_du_crtc_destroy_state,
 	.set_config = vmw_sou_crtc_set_config,
 	.page_flip = vmw_sou_crtc_page_flip,
 };
@@ -535,6 +538,11 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	sou->base.pref_width = dev_priv->initial_width;
 	sou->base.pref_height = dev_priv->initial_height;
 	sou->base.pref_mode = NULL;
+
+	/*
+	 * Remove this after enabling atomic because property values can
+	 * only exist in a state object
+	 */
 	sou->base.is_implicit = false;
 
 	/* Initialize primary plane */
@@ -586,6 +594,8 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free_encoder;
 	}
 
+	/* FIXME: Turn on after plane/connector states are implemented. */
+	/* vmw_du_crtc_reset(crtc); */
 	ret = drm_crtc_init_with_planes(dev, crtc, &sou->base.primary,
 					&sou->base.cursor,
 					&vmw_screen_object_crtc_funcs, NULL);
