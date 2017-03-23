@@ -57,6 +57,7 @@ struct amdgpu_hpd;
 #define to_amdgpu_connector(x) container_of(x, struct amdgpu_connector, base)
 #define to_amdgpu_encoder(x) container_of(x, struct amdgpu_encoder, base)
 #define to_amdgpu_framebuffer(x) container_of(x, struct amdgpu_framebuffer, base)
+#define to_amdgpu_plane(x)	container_of(x, struct amdgpu_plane, base)
 
 #define AMDGPU_MAX_HPD_PINS 6
 #define AMDGPU_MAX_CRTCS 6
@@ -438,6 +439,18 @@ struct amdgpu_crtc {
 	const struct dc_stream *stream;
 	struct drm_pending_vblank_event *event;
 };
+
+struct amdgpu_drm_plane_state {
+	struct drm_plane_state base;
+	unsigned int h_ratio;
+	unsigned int v_ratio;
+};
+
+static inline struct amdgpu_drm_plane_state *
+to_amdgpu_plane_state(struct drm_plane_state *state)
+{
+	return container_of(state, struct amdgpu_drm_plane_state, base);
+}
 
 struct amdgpu_plane {
 	struct drm_plane base;
