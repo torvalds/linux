@@ -1894,10 +1894,10 @@ static void gfx_v9_0_map_queue_enable(struct amdgpu_ring *kiq_ring,
 	udelay(50);
 }
 
-static int gfx_v9_0_mqd_init(struct amdgpu_ring *ring,
-			     struct v9_mqd *mqd)
+static int gfx_v9_0_mqd_init(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
+	struct v9_mqd *mqd = ring->mqd_ptr;
 	uint64_t hqd_gpu_addr, wb_gpu_addr, eop_base_addr;
 	uint32_t tmp;
 
@@ -2020,10 +2020,10 @@ static int gfx_v9_0_mqd_init(struct amdgpu_ring *ring,
 	return 0;
 }
 
-static int gfx_v9_0_kiq_init_register(struct amdgpu_ring *ring,
-				      struct v9_mqd *mqd)
+static int gfx_v9_0_kiq_init_register(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
+	struct v9_mqd *mqd = ring->mqd_ptr;
 	uint32_t tmp;
 	int j;
 
@@ -2131,11 +2131,11 @@ static int gfx_v9_0_kiq_init_register(struct amdgpu_ring *ring,
 	return 0;
 }
 
-static int gfx_v9_0_kiq_init_queue(struct amdgpu_ring *ring,
-				   struct v9_mqd *mqd)
+static int gfx_v9_0_kiq_init_queue(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct v9_mqd *mqd = ring->mqd_ptr;
 	bool is_kiq = (ring->funcs->type == AMDGPU_RING_TYPE_KIQ);
 	int mqd_idx = AMDGPU_MAX_COMPUTE_RINGS;
 
@@ -2149,9 +2149,9 @@ static int gfx_v9_0_kiq_init_queue(struct amdgpu_ring *ring,
 		memset((void *)mqd, 0, sizeof(*mqd));
 		mutex_lock(&adev->srbm_mutex);
 		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
-		gfx_v9_0_mqd_init(ring, mqd);
+		gfx_v9_0_mqd_init(ring);
 		if (is_kiq)
-			gfx_v9_0_kiq_init_register(ring, mqd);
+			gfx_v9_0_kiq_init_register(ring);
 		soc15_grbm_select(adev, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
 
@@ -2164,7 +2164,7 @@ static int gfx_v9_0_kiq_init_queue(struct amdgpu_ring *ring,
 		if (is_kiq) {
 		    mutex_lock(&adev->srbm_mutex);
 		    soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
-		    gfx_v9_0_kiq_init_register(ring, mqd);
+		    gfx_v9_0_kiq_init_register(ring);
 		    soc15_grbm_select(adev, 0, 0, 0, 0);
 		    mutex_unlock(&adev->srbm_mutex);
 		}
@@ -2193,7 +2193,7 @@ static int gfx_v9_0_kiq_resume(struct amdgpu_device *adev)
 
 	r = amdgpu_bo_kmap(ring->mqd_obj, (void **)&ring->mqd_ptr);
 	if (!r) {
-		r = gfx_v9_0_kiq_init_queue(ring, ring->mqd_ptr);
+		r = gfx_v9_0_kiq_init_queue(ring);
 		amdgpu_bo_kunmap(ring->mqd_obj);
 		ring->mqd_ptr = NULL;
 	}
@@ -2209,7 +2209,7 @@ static int gfx_v9_0_kiq_resume(struct amdgpu_device *adev)
 			goto done;
 		r = amdgpu_bo_kmap(ring->mqd_obj, (void **)&ring->mqd_ptr);
 		if (!r) {
-			r = gfx_v9_0_kiq_init_queue(ring, ring->mqd_ptr);
+			r = gfx_v9_0_kiq_init_queue(ring);
 			amdgpu_bo_kunmap(ring->mqd_obj);
 			ring->mqd_ptr = NULL;
 		}
