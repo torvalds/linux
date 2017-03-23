@@ -152,6 +152,7 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
 	struct amdgpu_bo_va *bo_va;
+	struct dma_fence *fence = NULL;
 	int r;
 
 	INIT_LIST_HEAD(&list);
@@ -173,6 +174,17 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	if (bo_va) {
 		if (--bo_va->ref_count == 0) {
 			amdgpu_vm_bo_rmv(adev, bo_va);
+
+			r = amdgpu_vm_clear_freed(adev, vm, &fence);
+			if (unlikely(r)) {
+				dev_err(adev->dev, "failed to clear page "
+					"tables on GEM object close (%d)\n", r);
+			}
+
+			if (fence) {
+				amdgpu_bo_fence(bo, fence, true);
+				dma_fence_put(fence);
+			}
 		}
 	}
 	ttm_eu_backoff_reservation(&ticket, &list);
