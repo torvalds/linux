@@ -21,9 +21,10 @@
 #include "dwc-xlgmac.h"
 #include "dwc-xlgmac-reg.h"
 
+MODULE_LICENSE("Dual BSD/GPL");
+
 static int debug = -1;
 module_param(debug, int, 0644);
-MODULE_LICENSE("GPL");
 MODULE_PARM_DESC(debug, "DWC ethernet debug level (0=none,...,16=all)");
 static const u32 default_msg_level = (NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
 				      NETIF_MSG_IFUP);
