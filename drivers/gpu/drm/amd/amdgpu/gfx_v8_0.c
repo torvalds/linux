@@ -5004,10 +5004,6 @@ static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
 		amdgpu_bo_unreserve(ring->mqd_obj);
 		if (r)
 			goto done;
-	}
-
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-		ring = &adev->gfx.compute_ring[i];
 
 		ring->ready = true;
 		r = amdgpu_ring_test_ring(ring);
