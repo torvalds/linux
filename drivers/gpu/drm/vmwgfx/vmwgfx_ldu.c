@@ -95,7 +95,7 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 
 		if (crtc == NULL)
 			return 0;
-		fb = entry->base.crtc.primary->fb;
+		fb = entry->base.crtc.primary->state->fb;
 
 		return vmw_kms_write_svga(dev_priv, w, h, fb->pitches[0],
 					  fb->format->cpp[0] * 8,
@@ -104,7 +104,7 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 
 	if (!list_empty(&lds->active)) {
 		entry = list_entry(lds->active.next, typeof(*entry), active);
-		fb = entry->base.crtc.primary->fb;
+		fb = entry->base.crtc.primary->state->fb;
 
 		vmw_kms_write_svga(dev_priv, fb->width, fb->height, fb->pitches[0],
 				   fb->format->cpp[0] * 8, fb->format->depth);
@@ -255,102 +255,13 @@ static void vmw_ldu_crtc_helper_disable(struct drm_crtc *crtc)
 {
 }
 
-static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
-{
-	struct vmw_private *dev_priv;
-	struct vmw_legacy_display_unit *ldu;
-	struct drm_connector *connector;
-	struct drm_display_mode *mode;
-	struct drm_encoder *encoder;
-	struct vmw_framebuffer *vfb;
-	struct drm_framebuffer *fb;
-	struct drm_crtc *crtc;
-
-	if (!set)
-		return -EINVAL;
-
-	if (!set->crtc)
-		return -EINVAL;
-
-	/* get the ldu */
-	crtc = set->crtc;
-	ldu = vmw_crtc_to_ldu(crtc);
-	vfb = set->fb ? vmw_framebuffer_to_vfb(set->fb) : NULL;
-	dev_priv = vmw_priv(crtc->dev);
-
-	if (set->num_connectors > 1) {
-		DRM_ERROR("to many connectors\n");
-		return -EINVAL;
-	}
-
-	if (set->num_connectors == 1 &&
-	    set->connectors[0] != &ldu->base.connector) {
-		DRM_ERROR("connector doesn't match %p %p\n",
-			set->connectors[0], &ldu->base.connector);
-		return -EINVAL;
-	}
-
-	/* ldu only supports one fb active at the time */
-	if (dev_priv->ldu_priv->fb && vfb &&
-	    !(dev_priv->ldu_priv->num_active == 1 &&
-	      !list_empty(&ldu->active)) &&
-	    dev_priv->ldu_priv->fb != vfb) {
-		DRM_ERROR("Multiple framebuffers not supported\n");
-		return -EINVAL;
-	}
-
-	/* since they always map one to one these are safe */
-	connector = &ldu->base.connector;
-	encoder = &ldu->base.encoder;
-
-	/* should we turn the crtc off? */
-	if (set->num_connectors == 0 || !set->mode || !set->fb) {
-
-		connector->encoder = NULL;
-		encoder->crtc = NULL;
-		crtc->primary->fb = NULL;
-		crtc->enabled = false;
-
-		vmw_ldu_del_active(dev_priv, ldu);
-
-		return vmw_ldu_commit_list(dev_priv);
-	}
-
-
-	/* we now know we want to set a mode */
-	mode = set->mode;
-	fb = set->fb;
-
-	if (set->x + mode->hdisplay > fb->width ||
-	    set->y + mode->vdisplay > fb->height) {
-		DRM_ERROR("set outside of framebuffer\n");
-		return -EINVAL;
-	}
-
-	vmw_svga_enable(dev_priv);
-
-	crtc->primary->fb = fb;
-	encoder->crtc = crtc;
-	connector->encoder = encoder;
-	crtc->x = set->x;
-	crtc->y = set->y;
-	crtc->mode = *mode;
-	crtc->enabled = true;
-	ldu->base.set_gui_x = set->x;
-	ldu->base.set_gui_y = set->y;
-
-	vmw_ldu_add_active(dev_priv, ldu, vfb);
-
-	return vmw_ldu_commit_list(dev_priv);
-}
-
 static const struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
 	.gamma_set = vmw_du_crtc_gamma_set,
 	.destroy = vmw_ldu_crtc_destroy,
 	.reset = vmw_du_crtc_reset,
 	.atomic_duplicate_state = vmw_du_crtc_duplicate_state,
 	.atomic_destroy_state = vmw_du_crtc_destroy_state,
-	.set_config = vmw_ldu_crtc_set_config,
+	.set_config = vmw_kms_set_config,
 };
 
 
@@ -439,8 +350,8 @@ vmw_ldu_primary_plane_atomic_update(struct drm_plane *plane,
 
 
 static const struct drm_plane_funcs vmw_ldu_plane_funcs = {
-	.update_plane = drm_primary_helper_update,
-	.disable_plane = drm_primary_helper_disable,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = vmw_du_primary_plane_destroy,
 	.reset = vmw_du_plane_reset,
 	.atomic_duplicate_state = vmw_du_plane_duplicate_state,
@@ -448,8 +359,8 @@ static const struct drm_plane_funcs vmw_ldu_plane_funcs = {
 };
 
 static const struct drm_plane_funcs vmw_ldu_cursor_funcs = {
-	.update_plane = vmw_du_cursor_plane_update,
-	.disable_plane = vmw_du_cursor_plane_disable,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = vmw_du_cursor_plane_destroy,
 	.reset = vmw_du_plane_reset,
 	.atomic_duplicate_state = vmw_du_plane_duplicate_state,

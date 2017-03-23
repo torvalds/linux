@@ -205,52 +205,6 @@ static int vmw_sou_fifo_destroy(struct vmw_private *dev_priv,
 }
 
 /**
- * Free the backing store.
- */
-static void vmw_sou_backing_free(struct vmw_private *dev_priv,
-				 struct vmw_screen_object_unit *sou)
-{
-	vmw_dmabuf_unreference(&sou->buffer);
-	sou->buffer_size = 0;
-}
-
-/**
- * Allocate the backing store for the buffer.
- */
-static int vmw_sou_backing_alloc(struct vmw_private *dev_priv,
-				 struct vmw_screen_object_unit *sou,
-				 unsigned long size)
-{
-	int ret;
-
-	if (sou->buffer_size == size)
-		return 0;
-
-	if (sou->buffer)
-		vmw_sou_backing_free(dev_priv, sou);
-
-	sou->buffer = kzalloc(sizeof(*sou->buffer), GFP_KERNEL);
-	if (unlikely(sou->buffer == NULL))
-		return -ENOMEM;
-
-	/* After we have alloced the backing store might not be able to
-	 * resume the overlays, this is preferred to failing to alloc.
-	 */
-	vmw_overlay_pause_all(dev_priv);
-	ret = vmw_dmabuf_init(dev_priv, sou->buffer, size,
-			      &vmw_vram_ne_placement,
-			      false, &vmw_dmabuf_bo_free);
-	vmw_overlay_resume_all(dev_priv);
-
-	if (unlikely(ret != 0))
-		sou->buffer = NULL; /* vmw_dmabuf_init frees on error */
-	else
-		sou->buffer_size = size;
-
-	return ret;
-}
-
-/**
  * vmw_sou_crtc_mode_set_nofb - Create new screen
  *
  * @crtc: CRTC associated with the new screen
@@ -353,158 +307,14 @@ static void vmw_sou_crtc_helper_disable(struct drm_crtc *crtc)
 	}
 }
 
-static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
-{
-	struct vmw_private *dev_priv;
-	struct vmw_screen_object_unit *sou;
-	struct drm_connector *connector;
-	struct drm_display_mode *mode;
-	struct drm_encoder *encoder;
-	struct vmw_framebuffer *vfb;
-	struct drm_framebuffer *fb;
-	struct drm_crtc *crtc;
-	int ret = 0;
-
-	if (!set)
-		return -EINVAL;
-
-	if (!set->crtc)
-		return -EINVAL;
-
-	/* get the sou */
-	crtc = set->crtc;
-	sou = vmw_crtc_to_sou(crtc);
-	vfb = set->fb ? vmw_framebuffer_to_vfb(set->fb) : NULL;
-	dev_priv = vmw_priv(crtc->dev);
-
-	if (set->num_connectors > 1) {
-		DRM_ERROR("Too many connectors\n");
-		return -EINVAL;
-	}
-
-	if (set->num_connectors == 1 &&
-	    set->connectors[0] != &sou->base.connector) {
-		DRM_ERROR("Connector doesn't match %p %p\n",
-			set->connectors[0], &sou->base.connector);
-		return -EINVAL;
-	}
-
-	/* Only one active implicit frame-buffer at a time. */
-	mutex_lock(&dev_priv->global_kms_state_mutex);
-	if (sou->base.is_implicit &&
-	    dev_priv->implicit_fb && vfb &&
-	    !(dev_priv->num_implicit == 1 &&
-	      sou->base.active_implicit) &&
-	    dev_priv->implicit_fb != vfb) {
-		mutex_unlock(&dev_priv->global_kms_state_mutex);
-		DRM_ERROR("Multiple implicit framebuffers not supported.\n");
-		return -EINVAL;
-	}
-	mutex_unlock(&dev_priv->global_kms_state_mutex);
-
-	/* since they always map one to one these are safe */
-	connector = &sou->base.connector;
-	encoder = &sou->base.encoder;
-
-	/* should we turn the crtc off */
-	if (set->num_connectors == 0 || !set->mode || !set->fb) {
-		ret = vmw_sou_fifo_destroy(dev_priv, sou);
-		/* the hardware has hung don't do anything more */
-		if (unlikely(ret != 0))
-			return ret;
-
-		connector->encoder = NULL;
-		encoder->crtc = NULL;
-		crtc->primary->fb = NULL;
-		crtc->x = 0;
-		crtc->y = 0;
-		crtc->enabled = false;
-
-		vmw_kms_del_active(dev_priv, &sou->base);
-
-		vmw_sou_backing_free(dev_priv, sou);
-
-		return 0;
-	}
-
-
-	/* we now know we want to set a mode */
-	mode = set->mode;
-	fb = set->fb;
-
-	if (set->x + mode->hdisplay > fb->width ||
-	    set->y + mode->vdisplay > fb->height) {
-		DRM_ERROR("set outside of framebuffer\n");
-		return -EINVAL;
-	}
-
-	vmw_svga_enable(dev_priv);
-
-	if (mode->hdisplay != crtc->mode.hdisplay ||
-	    mode->vdisplay != crtc->mode.vdisplay) {
-		/* no need to check if depth is different, because backing
-		 * store depth is forced to 4 by the device.
-		 */
-
-		ret = vmw_sou_fifo_destroy(dev_priv, sou);
-		/* the hardware has hung don't do anything more */
-		if (unlikely(ret != 0))
-			return ret;
-
-		vmw_sou_backing_free(dev_priv, sou);
-	}
-
-	if (!sou->buffer) {
-		/* forced to depth 4 by the device */
-		size_t size = mode->hdisplay * mode->vdisplay * 4;
-		ret = vmw_sou_backing_alloc(dev_priv, sou, size);
-		if (unlikely(ret != 0))
-			return ret;
-	}
-
-	ret = vmw_sou_fifo_create(dev_priv, sou, set->x, set->y, mode);
-	if (unlikely(ret != 0)) {
-		/*
-		 * We are in a bit of a situation here, the hardware has
-		 * hung and we may or may not have a buffer hanging of
-		 * the screen object, best thing to do is not do anything
-		 * if we where defined, if not just turn the crtc of.
-		 * Not what userspace wants but it needs to htfu.
-		 */
-		if (sou->defined)
-			return ret;
-
-		connector->encoder = NULL;
-		encoder->crtc = NULL;
-		crtc->primary->fb = NULL;
-		crtc->x = 0;
-		crtc->y = 0;
-		crtc->enabled = false;
-
-		return ret;
-	}
-
-	vmw_kms_add_active(dev_priv, &sou->base, vfb);
-
-	connector->encoder = encoder;
-	encoder->crtc = crtc;
-	crtc->mode = *mode;
-	crtc->primary->fb = fb;
-	crtc->x = set->x;
-	crtc->y = set->y;
-	crtc->enabled = true;
-
-	return 0;
-}
-
 static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
-				  struct drm_framebuffer *fb,
+				  struct drm_framebuffer *new_fb,
 				  struct drm_pending_vblank_event *event,
 				  uint32_t flags)
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
-	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(fb);
+	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(new_fb);
 	struct vmw_fence_obj *fence = NULL;
 	struct drm_vmw_rect vclips;
 	int ret;
@@ -512,7 +322,12 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 	if (!vmw_kms_crtc_flippable(dev_priv, crtc))
 		return -EINVAL;
 
-	crtc->primary->fb = fb;
+	flags &= ~DRM_MODE_PAGE_FLIP_ASYNC;
+	ret = drm_atomic_helper_page_flip(crtc, new_fb, NULL, flags);
+	if (ret) {
+		DRM_ERROR("Page flip error %d.\n", ret);
+		return ret;
+	}
 
 	/* do a full screen dirty update */
 	vclips.x = crtc->x;
@@ -559,7 +374,7 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 	return ret;
 
 out_no_fence:
-	crtc->primary->fb = old_fb;
+	drm_atomic_set_fb_for_plane(crtc->primary->state, old_fb);
 	return ret;
 }
 
@@ -569,7 +384,7 @@ static const struct drm_crtc_funcs vmw_screen_object_crtc_funcs = {
 	.reset = vmw_du_crtc_reset,
 	.atomic_duplicate_state = vmw_du_crtc_duplicate_state,
 	.atomic_destroy_state = vmw_du_crtc_destroy_state,
-	.set_config = vmw_sou_crtc_set_config,
+	.set_config = vmw_kms_set_config,
 	.page_flip = vmw_sou_crtc_page_flip,
 };
 
@@ -711,12 +526,16 @@ static void
 vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_plane_state *old_state)
 {
+	struct drm_crtc *crtc = plane->state->crtc;
+
+	if (crtc)
+		crtc->primary->fb = plane->state->fb;
 }
 
 
 static const struct drm_plane_funcs vmw_sou_plane_funcs = {
-	.update_plane = drm_primary_helper_update,
-	.disable_plane = drm_primary_helper_disable,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = vmw_du_primary_plane_destroy,
 	.reset = vmw_du_plane_reset,
 	.atomic_duplicate_state = vmw_du_plane_duplicate_state,
@@ -724,8 +543,8 @@ static const struct drm_plane_funcs vmw_sou_plane_funcs = {
 };
 
 static const struct drm_plane_funcs vmw_sou_cursor_funcs = {
-	.update_plane = vmw_du_cursor_plane_update,
-	.disable_plane = vmw_du_cursor_plane_disable,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = vmw_du_cursor_plane_destroy,
 	.reset = vmw_du_plane_reset,
 	.atomic_duplicate_state = vmw_du_plane_duplicate_state,
