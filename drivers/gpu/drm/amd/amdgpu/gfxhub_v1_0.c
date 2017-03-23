@@ -195,7 +195,8 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 	for (i = 0; i <= 14; i++) {
 		tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT1_CNTL) + i);
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, ENABLE_CONTEXT, 1);
-		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_DEPTH, 1);
+		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_DEPTH,
+				    adev->vm_manager.num_level);
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
 				RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
