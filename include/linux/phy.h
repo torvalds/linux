@@ -745,8 +745,24 @@ int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
 struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 				     bool is_c45,
 				     struct phy_c45_device_ids *c45_ids);
+#if IS_ENABLED(CONFIG_PHYLIB)
 struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45);
 int phy_device_register(struct phy_device *phy);
+void phy_device_free(struct phy_device *phydev);
+#else
+static inline
+struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
+{
+	return NULL;
+}
+
+static inline int phy_device_register(struct phy_device *phy)
+{
+	return 0;
+}
+
+static inline void phy_device_free(struct phy_device *phydev) { }
+#endif /* CONFIG_PHYLIB */
 void phy_device_remove(struct phy_device *phydev);
 int phy_init_hw(struct phy_device *phydev);
 int phy_suspend(struct phy_device *phydev);
@@ -827,7 +843,6 @@ int phy_ethtool_ksettings_set(struct phy_device *phydev,
 int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd);
 int phy_start_interrupts(struct phy_device *phydev);
 void phy_print_status(struct phy_device *phydev);
-void phy_device_free(struct phy_device *phydev);
 int phy_set_max_speed(struct phy_device *phydev, u32 max_speed);
 
 int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
@@ -854,8 +869,10 @@ int phy_ethtool_set_link_ksettings(struct net_device *ndev,
 				   const struct ethtool_link_ksettings *cmd);
 int phy_ethtool_nway_reset(struct net_device *ndev);
 
+#if IS_ENABLED(CONFIG_PHYLIB)
 int __init mdio_bus_init(void);
 void mdio_bus_exit(void);
+#endif
 
 extern struct bus_type mdio_bus_type;
 
@@ -866,7 +883,7 @@ struct mdio_board_info {
 	const void	*platform_data;
 };
 
-#if IS_ENABLED(CONFIG_PHYLIB)
+#if IS_ENABLED(CONFIG_MDIO_DEVICE)
 int mdiobus_register_board_info(const struct mdio_board_info *info,
 				unsigned int n);
 #else

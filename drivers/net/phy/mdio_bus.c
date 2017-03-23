@@ -648,9 +648,18 @@ int __init mdio_bus_init(void)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mdio_bus_init);
 
+#if IS_ENABLED(CONFIG_PHYLIB)
 void mdio_bus_exit(void)
 {
 	class_unregister(&mdio_bus_class);
 	bus_unregister(&mdio_bus_type);
 }
+EXPORT_SYMBOL_GPL(mdio_bus_exit);
+#else
+module_init(mdio_bus_init);
+/* no module_exit, intentional */
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("MDIO bus/device layer");
+#endif
