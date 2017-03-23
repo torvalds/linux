@@ -177,9 +177,14 @@ mdp5_plane_atomic_print_state(struct drm_printer *p,
 		const struct drm_plane_state *state)
 {
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(state);
+	struct mdp5_kms *mdp5_kms = get_kms(state->plane);
 
 	drm_printf(p, "\thwpipe=%s\n", pstate->hwpipe ?
 			pstate->hwpipe->name : "(null)");
+	if (mdp5_kms->caps & MDP_CAP_SRC_SPLIT)
+		drm_printf(p, "\tright-hwpipe=%s\n",
+			   pstate->r_hwpipe ? pstate->r_hwpipe->name :
+					      "(null)");
 	drm_printf(p, "\tpremultiplied=%u\n", pstate->premultiplied);
 	drm_printf(p, "\tzpos=%u\n", pstate->zpos);
 	drm_printf(p, "\talpha=%u\n", pstate->alpha);
@@ -299,7 +304,9 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 	struct drm_plane_state *old_state = plane->state;
 	struct mdp5_cfg *config = mdp5_cfg_get_config(get_kms(plane)->cfg);
 	bool new_hwpipe = false;
+	bool need_right_hwpipe = false;
 	uint32_t max_width, max_height;
+	bool out_of_bounds = false;
 	uint32_t caps = 0;
 	struct drm_rect clip;
 	int min_scale, max_scale;
@@ -312,7 +319,23 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 	max_height = config->hw->lm.max_height << 16;
 
 	/* Make sure source dimensions are within bounds. */
-	if ((state->src_w > max_width) || (state->src_h > max_height)) {
+	if (state->src_h > max_height)
+		out_of_bounds = true;
+
+	if (state->src_w > max_width) {
+		/* If source split is supported, we can go up to 2x
+		 * the max LM width, but we'd need to stage another
+		 * hwpipe to the right LM. So, the drm_plane would
+		 * consist of 2 hwpipes.
+		 */
+		if (config->hw->mdp.caps & MDP_CAP_SRC_SPLIT &&
+		    (state->src_w <= 2 * max_width))
+			need_right_hwpipe = true;
+		else
+			out_of_bounds = true;
+	}
+
+	if (out_of_bounds) {
 		struct drm_rect src = drm_plane_state_src(state);
 		DBG("Invalid source size "DRM_RECT_FP_FMT,
 				DRM_RECT_FP_ARG(&src));
@@ -363,6 +386,15 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 		if (!mdp5_state->hwpipe || (caps & ~mdp5_state->hwpipe->caps))
 			new_hwpipe = true;
 
+		/*
+		 * (re)allocte hw pipe if we're either requesting for 2 hw pipes
+		 * or we're switching from 2 hw pipes to 1 hw pipe because the
+		 * new src_w can be supported by 1 hw pipe itself.
+		 */
+		if ((need_right_hwpipe && !mdp5_state->r_hwpipe) ||
+		    (!need_right_hwpipe && mdp5_state->r_hwpipe))
+			new_hwpipe = true;
+
 		if (mdp5_kms->smp) {
 			const struct mdp_format *format =
 				to_mdp_format(msm_framebuffer_format(state->fb));
@@ -381,13 +413,36 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 			 * it available for other planes?
 			 */
 			struct mdp5_hw_pipe *old_hwpipe = mdp5_state->hwpipe;
+			struct mdp5_hw_pipe *old_right_hwpipe =
+							  mdp5_state->r_hwpipe;
+
 			mdp5_state->hwpipe = mdp5_pipe_assign(state->state,
 					plane, caps, blkcfg);
 			if (IS_ERR(mdp5_state->hwpipe)) {
 				DBG("%s: failed to assign hwpipe!", plane->name);
 				return PTR_ERR(mdp5_state->hwpipe);
 			}
+
+			if (need_right_hwpipe) {
+				mdp5_state->r_hwpipe =
+					mdp5_pipe_assign(state->state, plane,
+							 caps, blkcfg);
+				if (IS_ERR(mdp5_state->r_hwpipe)) {
+					DBG("%s: failed to assign right hwpipe",
+					    plane->name);
+					return PTR_ERR(mdp5_state->r_hwpipe);
+				}
+			} else {
+				/*
+				 * set it to NULL so that the driver knows we
+				 * don't have a right hwpipe when committing a
+				 * new state
+				 */
+				mdp5_state->r_hwpipe = NULL;
+			}
+
 			mdp5_pipe_release(state->state, old_hwpipe);
+			mdp5_pipe_release(state->state, old_right_hwpipe);
 		}
 	}
 
