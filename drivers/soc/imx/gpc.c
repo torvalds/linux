@@ -143,7 +143,7 @@ static int imx_pgc_get_clocks(struct device *dev, struct imx_pm_domain *domain)
 	return 0;
 
 clk_err:
-	for (; i >= 0; i--)
+	while (i--)
 		clk_put(domain->clk[i]);
 
 	return ret;
