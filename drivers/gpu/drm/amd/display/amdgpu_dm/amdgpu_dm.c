@@ -907,9 +907,8 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 	 *    for acknowledging and handling. */
 
 	/* Use VBLANK interrupt */
-	for (i = 1; i <= adev->mode_info.num_crtc; i++) {
+	for (i = VISLANDS30_IV_SRCID_D1_VERTICAL_INTERRUPT0; i <= VISLANDS30_IV_SRCID_D6_VERTICAL_INTERRUPT0; i++) {
 		r = amdgpu_irq_add_id(adev, client_id, i, &adev->crtc_irq);
-
 		if (r) {
 			DRM_ERROR("Failed to add crtc irq id!\n");
 			return r;
