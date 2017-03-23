@@ -3894,6 +3894,10 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 }
 
+/*
+ * Invoked early in the CPU-online process, when pretty much all
+ * services are available.  The incoming CPU is not present.
+ */
 int rcutree_prepare_cpu(unsigned int cpu)
 {
 	struct rcu_state *rsp;
@@ -3907,6 +3911,9 @@ int rcutree_prepare_cpu(unsigned int cpu)
 	return 0;
 }
 
+/*
+ * Update RCU priority boot kthread affinity for CPU-hotplug changes.
+ */
 static void rcutree_affinity_setting(unsigned int cpu, int outgoing)
 {
 	struct rcu_data *rdp = per_cpu_ptr(rcu_state_p->rda, cpu);
@@ -3914,6 +3921,10 @@ static void rcutree_affinity_setting(unsigned int cpu, int outgoing)
 	rcu_boost_kthread_setaffinity(rdp->mynode, outgoing);
 }
 
+/*
+ * Near the end of the CPU-online process.  Pretty much all services
+ * enabled, and the CPU is now very much alive.
+ */
 int rcutree_online_cpu(unsigned int cpu)
 {
 	sync_sched_exp_online_cleanup(cpu);
@@ -3921,13 +3932,19 @@ int rcutree_online_cpu(unsigned int cpu)
 	return 0;
 }
 
+/*
+ * Near the beginning of the process.  The CPU is still very much alive
+ * with pretty much all services enabled.
+ */
 int rcutree_offline_cpu(unsigned int cpu)
 {
 	rcutree_affinity_setting(cpu, cpu);
 	return 0;
 }
 
-
+/*
+ * Near the end of the offline process.  We do only tracing here.
+ */
 int rcutree_dying_cpu(unsigned int cpu)
 {
 	struct rcu_state *rsp;
@@ -3937,6 +3954,9 @@ int rcutree_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
+/*
+ * The outgoing CPU is gone and we are running elsewhere.
+ */
 int rcutree_dead_cpu(unsigned int cpu)
 {
 	struct rcu_state *rsp;
@@ -3954,6 +3974,10 @@ int rcutree_dead_cpu(unsigned int cpu)
  * incoming CPUs are not allowed to use RCU read-side critical sections
  * until this function is called.  Failing to observe this restriction
  * will result in lockdep splats.
+ *
+ * Note that this function is special in that it is invoked directly
+ * from the incoming CPU rather than from the cpuhp_step mechanism.
+ * This is because this function must be invoked at a precise location.
  */
 void rcu_cpu_starting(unsigned int cpu)
 {
@@ -3979,9 +4003,6 @@ void rcu_cpu_starting(unsigned int cpu)
  * The CPU is exiting the idle loop into the arch_cpu_idle_dead()
  * function.  We now remove it from the rcu_node tree's ->qsmaskinit
  * bit masks.
- * The CPU is exiting the idle loop into the arch_cpu_idle_dead()
- * function.  We now remove it from the rcu_node tree's ->qsmaskinit
- * bit masks.
  */
 static void rcu_cleanup_dying_idle_cpu(int cpu, struct rcu_state *rsp)
 {
@@ -3997,6 +4018,14 @@ static void rcu_cleanup_dying_idle_cpu(int cpu, struct rcu_state *rsp)
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 }
 
+/*
+ * The outgoing function has no further need of RCU, so remove it from
+ * the list of CPUs that RCU must track.
+ *
+ * Note that this function is special in that it is invoked directly
+ * from the outgoing CPU rather than from the cpuhp_step mechanism.
+ * This is because this function must be invoked at a precise location.
+ */
 void rcu_report_dead(unsigned int cpu)
 {
 	struct rcu_state *rsp;
@@ -4011,6 +4040,10 @@ void rcu_report_dead(unsigned int cpu)
 }
 #endif
 
+/*
+ * On non-huge systems, use expedited RCU grace periods to make suspend
+ * and hibernation run faster.
+ */
 static int rcu_pm_notify(struct notifier_block *self,
 			 unsigned long action, void *hcpu)
 {
