@@ -138,9 +138,10 @@ static void set_display_intf(struct mdp5_kms *mdp5_kms,
 	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
 }
 
-static void set_ctl_op(struct mdp5_ctl *ctl, struct mdp5_interface *intf)
+static void set_ctl_op(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline)
 {
 	unsigned long flags;
+	struct mdp5_interface *intf = pipeline->intf;
 	u32 ctl_op = 0;
 
 	if (!mdp5_cfg_intf_is_virtual(intf->type))
@@ -160,6 +161,10 @@ static void set_ctl_op(struct mdp5_ctl *ctl, struct mdp5_interface *intf)
 	default:
 		break;
 	}
+
+	if (pipeline->r_mixer)
+		ctl_op |= MDP5_CTL_OP_PACK_3D_ENABLE |
+			  MDP5_CTL_OP_PACK_3D(1);
 
 	spin_lock_irqsave(&ctl->hw_lock, flags);
 	ctl_write(ctl, REG_MDP5_CTL_OP(ctl->id), ctl_op);
@@ -183,7 +188,7 @@ int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline)
 	if (!mdp5_cfg_intf_is_virtual(intf->type))
 		set_display_intf(mdp5_kms, intf);
 
-	set_ctl_op(ctl, intf);
+	set_ctl_op(ctl, pipeline);
 
 	return 0;
 }
