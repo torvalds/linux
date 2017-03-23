@@ -2885,3 +2885,23 @@ vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv,
 					  "implicit_placement", 0, 1);
 
 }
+
+
+/**
+ * vmw_kms_set_config - Wrapper around drm_atomic_helper_set_config
+ *
+ * @set: The configuration to set.
+ *
+ * The vmwgfx Xorg driver doesn't assign the mode::type member, which
+ * when drm_mode_set_crtcinfo is called as part of the configuration setting
+ * causes it to return incorrect crtc dimensions causing severe problems in
+ * the vmwgfx modesetting. So explicitly clear that member before calling
+ * into drm_atomic_helper_set_config.
+ */
+int vmw_kms_set_config(struct drm_mode_set *set)
+{
+	if (set && set->mode)
+		set->mode->type = 0;
+
+	return drm_atomic_helper_set_config(set);
+}
