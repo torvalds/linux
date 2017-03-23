@@ -1165,14 +1165,10 @@ hfc_usb_init(hfcusb_data *hfc)
 	hfc->old_led_state = 0;
 
 	/* init the t3 timer */
-	init_timer(&hfc->t3_timer);
-	hfc->t3_timer.data = (long) hfc;
-	hfc->t3_timer.function = (void *) l1_timer_expire_t3;
+	setup_timer(&hfc->t3_timer, (void *)l1_timer_expire_t3, (long)hfc);
 
 	/* init the t4 timer */
-	init_timer(&hfc->t4_timer);
-	hfc->t4_timer.data = (long) hfc;
-	hfc->t4_timer.function = (void *) l1_timer_expire_t4;
+	setup_timer(&hfc->t4_timer, (void *)l1_timer_expire_t4, (long)hfc);
 
 	/* init the background machinery for control requests */
 	hfc->ctrl_read.bRequestType = 0xc0;

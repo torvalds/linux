@@ -796,9 +796,8 @@ isac_init(struct isac_hw *isac)
 	}
 	isac->mon_tx = NULL;
 	isac->mon_rx = NULL;
-	isac->dch.timer.function = (void *) dbusy_timer_handler;
-	isac->dch.timer.data = (long)isac;
-	init_timer(&isac->dch.timer);
+	setup_timer(&isac->dch.timer, (void *)dbusy_timer_handler,
+		    (long)isac);
 	isac->mocr = 0xaa;
 	if (isac->type & IPAC_TYPE_ISACX) {
 		/* Disable all IRQ */

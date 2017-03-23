@@ -157,10 +157,8 @@ int cf_command(int drvid, int mode,
 	/* allocate mem for information struct */
 	if (!(cs = kmalloc(sizeof(struct call_struc), GFP_ATOMIC)))
 		return (-ENOMEM); /* no memory */
-	init_timer(&cs->timer);
+	setup_timer(&cs->timer, deflect_timer_expire, (ulong)cs);
 	cs->info[0] = '\0';
-	cs->timer.function = deflect_timer_expire;
-	cs->timer.data = (ulong) cs; /* pointer to own structure */
 	cs->ics.driver = drvid;
 	cs->ics.command = ISDN_CMD_PROT_IO; /* protocol specific io */
 	cs->ics.arg = DSS1_CMD_INVOKE; /* invoke supplementary service */
@@ -452,10 +450,9 @@ static int isdn_divert_icall(isdn_ctrl *ic)
 					return (0); /* no external deflection needed */
 			if (!(cs = kmalloc(sizeof(struct call_struc), GFP_ATOMIC)))
 				return (0); /* no memory */
-			init_timer(&cs->timer);
+			setup_timer(&cs->timer, deflect_timer_expire,
+				    (ulong)cs);
 			cs->info[0] = '\0';
-			cs->timer.function = deflect_timer_expire;
-			cs->timer.data = (ulong) cs; /* pointer to own structure */
 
 			cs->ics = *ic; /* copy incoming data */
 			if (!cs->ics.parm.setup.phone[0]) strcpy(cs->ics.parm.setup.phone, "0");
