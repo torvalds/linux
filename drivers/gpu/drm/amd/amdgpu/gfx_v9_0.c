@@ -655,8 +655,8 @@ static int gfx_v9_0_compute_mqd_soft_init(struct amdgpu_device *adev)
 	ring = &adev->gfx.kiq.ring;
 	if (!ring->mqd_obj) {
 		r = amdgpu_bo_create_kernel(adev, sizeof(struct v9_mqd), PAGE_SIZE,
-						AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
-						&ring->mqd_gpu_addr, (void **)&ring->mqd_ptr);
+					    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
+					    &ring->mqd_gpu_addr, (void **)&ring->mqd_ptr);
 		if (r) {
 			dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
 			return r;
@@ -666,13 +666,12 @@ static int gfx_v9_0_compute_mqd_soft_init(struct amdgpu_device *adev)
 	}
 
 	/* create MQD for each KCQ */
-	for (i = 0; i < adev->gfx.num_compute_rings; i++)
-	{
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
 		if (!ring->mqd_obj) {
 			r = amdgpu_bo_create_kernel(adev, sizeof(struct v9_mqd), PAGE_SIZE,
-							AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
-							&ring->mqd_gpu_addr, (void **)&ring->mqd_ptr);
+						    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
+						    &ring->mqd_gpu_addr, (void **)&ring->mqd_ptr);
 			if (r) {
 				dev_warn(adev->dev, "failed to create ring mqd ob (%d)", r);
 				return r;
