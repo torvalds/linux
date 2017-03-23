@@ -389,6 +389,11 @@ static const struct drm_connector_funcs vmw_legacy_connector_funcs = {
 	.atomic_get_property = vmw_du_connector_atomic_get_property,
 };
 
+static const struct
+drm_connector_helper_funcs vmw_ldu_connector_helper_funcs = {
+	.best_encoder = drm_atomic_helper_best_encoder,
+};
+
 /*
  * Legacy Display Plane Functions
  */
@@ -555,6 +560,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 		DRM_ERROR("Failed to initialize connector\n");
 		goto err_free;
 	}
+
+	drm_connector_helper_add(connector, &vmw_ldu_connector_helper_funcs);
 	connector->status = vmw_du_connector_detect(connector, true);
 	vmw_connector_state_to_vcs(connector->state)->is_implicit = true;
 
