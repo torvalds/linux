@@ -2460,10 +2460,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	}
 
 	/* Enable the MAC Rx/Tx */
-	if (priv->synopsys_id >= DWMAC_CORE_4_00)
-		stmmac_dwmac4_set_mac(priv->ioaddr, true);
-	else
-		stmmac_set_mac(priv->ioaddr, true);
+	priv->hw->mac->set_mac(priv->ioaddr, true);
 
 	/* Set the HW DMA mode and the COE */
 	stmmac_dma_operation_mode(priv);
@@ -2663,7 +2660,7 @@ static int stmmac_release(struct net_device *dev)
 	free_dma_desc_resources(priv);
 
 	/* Disable the MAC Rx/Tx */
-	stmmac_set_mac(priv->ioaddr, false);
+	priv->hw->mac->set_mac(priv->ioaddr, false);
 
 	netif_carrier_off(dev);
 
@@ -4230,7 +4227,7 @@ int stmmac_dvr_remove(struct device *dev)
 
 	stmmac_stop_all_dma(priv);
 
-	stmmac_set_mac(priv->ioaddr, false);
+	priv->hw->mac->set_mac(priv->ioaddr, false);
 	netif_carrier_off(ndev);
 	unregister_netdev(ndev);
 	if (priv->plat->stmmac_rst)
@@ -4281,7 +4278,7 @@ int stmmac_suspend(struct device *dev)
 		priv->hw->mac->pmt(priv->hw, priv->wolopts);
 		priv->irq_wake = 1;
 	} else {
-		stmmac_set_mac(priv->ioaddr, false);
+		priv->hw->mac->set_mac(priv->ioaddr, false);
 		pinctrl_pm_select_sleep_state(priv->device);
 		/* Disable clock in case of PWM is off */
 		clk_disable(priv->plat->pclk);
