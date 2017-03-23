@@ -115,6 +115,20 @@ struct mdp5_plane_state {
 #define to_mdp5_plane_state(x) \
 		container_of(x, struct mdp5_plane_state, base)
 
+struct mdp5_pipeline {
+	struct mdp5_interface *intf;
+	struct mdp5_hw_mixer *mixer;
+};
+
+struct mdp5_crtc_state {
+	struct drm_crtc_state base;
+
+	struct mdp5_ctl *ctl;
+	struct mdp5_pipeline pipeline;
+};
+#define to_mdp5_crtc_state(x) \
+		container_of(x, struct mdp5_crtc_state, base)
+
 enum mdp5_intf_mode {
 	MDP5_INTF_MODE_NONE = 0,
 

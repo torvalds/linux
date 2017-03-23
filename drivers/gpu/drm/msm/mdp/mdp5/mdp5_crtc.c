@@ -639,16 +639,75 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
+static void
+mdp5_crtc_atomic_print_state(struct drm_printer *p,
+			     const struct drm_crtc_state *state)
+{
+	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(state);
+	struct mdp5_pipeline *pipeline = &mdp5_cstate->pipeline;
+
+	if (WARN_ON(!pipeline))
+		return;
+
+	drm_printf(p, "\thwmixer=%s\n", pipeline->mixer ?
+			pipeline->mixer->name : "(null)");
+}
+
+static void mdp5_crtc_reset(struct drm_crtc *crtc)
+{
+	struct mdp5_crtc_state *mdp5_cstate;
+
+	if (crtc->state) {
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+		kfree(to_mdp5_crtc_state(crtc->state));
+	}
+
+	mdp5_cstate = kzalloc(sizeof(*mdp5_cstate), GFP_KERNEL);
+
+	if (mdp5_cstate) {
+		mdp5_cstate->base.crtc = crtc;
+		crtc->state = &mdp5_cstate->base;
+	}
+}
+
+static struct drm_crtc_state *
+mdp5_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct mdp5_crtc_state *mdp5_cstate;
+
+	if (WARN_ON(!crtc->state))
+		return NULL;
+
+	mdp5_cstate = kmemdup(to_mdp5_crtc_state(crtc->state),
+			      sizeof(*mdp5_cstate), GFP_KERNEL);
+	if (!mdp5_cstate)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &mdp5_cstate->base);
+
+	return &mdp5_cstate->base;
+}
+
+static void mdp5_crtc_destroy_state(struct drm_crtc *crtc, struct drm_crtc_state *state)
+{
+	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(state);
+
+	__drm_atomic_helper_crtc_destroy_state(state);
+
+	kfree(mdp5_cstate);
+}
+
 static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = mdp5_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
 	.set_property = drm_atomic_helper_crtc_set_property,
-	.reset = drm_atomic_helper_crtc_reset,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.reset = mdp5_crtc_reset,
+	.atomic_duplicate_state = mdp5_crtc_duplicate_state,
+	.atomic_destroy_state = mdp5_crtc_destroy_state,
 	.cursor_set = mdp5_crtc_cursor_set,
 	.cursor_move = mdp5_crtc_cursor_move,
+	.atomic_print_state = mdp5_crtc_atomic_print_state,
 };
 
 static const struct drm_crtc_funcs mdp5_crtc_no_lm_cursor_funcs = {
@@ -656,9 +715,10 @@ static const struct drm_crtc_funcs mdp5_crtc_no_lm_cursor_funcs = {
 	.destroy = mdp5_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
 	.set_property = drm_atomic_helper_crtc_set_property,
-	.reset = drm_atomic_helper_crtc_reset,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.reset = mdp5_crtc_reset,
+	.atomic_duplicate_state = mdp5_crtc_duplicate_state,
+	.atomic_destroy_state = mdp5_crtc_destroy_state,
+	.atomic_print_state = mdp5_crtc_atomic_print_state,
 };
 
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
