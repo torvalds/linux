@@ -308,7 +308,7 @@ static void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
 	if (fw)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, fw);
 
-	fw_domains_reset(dev_priv, FORCEWAKE_ALL);
+	fw_domains_reset(dev_priv, dev_priv->uncore.fw_domains);
 
 	if (restore) { /* If reset with a user forcewake, try to restore */
 		if (fw)
