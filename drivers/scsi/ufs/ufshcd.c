@@ -553,15 +553,14 @@ static inline u32 ufshcd_get_intr_mask(struct ufs_hba *hba)
 	case UFSHCI_VERSION_10:
 		intr_mask = INTERRUPT_MASK_ALL_VER_10;
 		break;
-	/* allow fall through */
 	case UFSHCI_VERSION_11:
 	case UFSHCI_VERSION_20:
 		intr_mask = INTERRUPT_MASK_ALL_VER_11;
 		break;
-	/* allow fall through */
 	case UFSHCI_VERSION_21:
 	default:
 		intr_mask = INTERRUPT_MASK_ALL_VER_21;
+		break;
 	}
 
 	return intr_mask;
