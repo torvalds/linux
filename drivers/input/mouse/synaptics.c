@@ -905,9 +905,9 @@ static void synaptics_report_ext_buttons(struct psmouse *psmouse,
 	if (!SYN_CAP_EXT_BUTTONS_STICK(priv->info.ext_cap_10)) {
 		for (i = 0; i < ext_bits; i++) {
 			input_report_key(dev, BTN_0 + 2 * i,
-				hw->ext_buttons & (1 << i));
+				hw->ext_buttons & BIT(i));
 			input_report_key(dev, BTN_1 + 2 * i,
-				hw->ext_buttons & (1 << (i + ext_bits)));
+				hw->ext_buttons & BIT(i + ext_bits));
 		}
 		return;
 	}
@@ -1519,7 +1519,7 @@ static int synaptics_init_ps2(struct psmouse *psmouse,
 					SYN_NEWABS : SYN_OLDABS;
 
 	psmouse_info(psmouse,
-		     "Touchpad model: %u, fw: %u.%u, id: %#x, caps: %#x/%#x/%#x/%#x, board id: %u, fw id: %u\n",
+		     "Touchpad model: %lu, fw: %lu.%lu, id: %#x, caps: %#x/%#x/%#x/%#x, board id: %u, fw id: %u\n",
 		     SYN_ID_MODEL(info->identity),
 		     SYN_ID_MAJOR(info->identity), SYN_ID_MINOR(info->identity),
 		     info->model_id,
