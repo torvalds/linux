@@ -22,6 +22,8 @@
 struct mdp5_plane {
 	struct drm_plane base;
 
+	spinlock_t pipe_lock;     /* protect REG_MDP5_PIPE_* registers */
+
 	uint32_t nformats;
 	uint32_t formats[32];
 };
@@ -719,6 +721,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		struct drm_rect *src, struct drm_rect *dest)
 {
+	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct drm_plane_state *pstate = plane->state;
 	struct mdp5_hw_pipe *hwpipe = to_mdp5_plane_state(pstate)->hwpipe;
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
@@ -798,7 +801,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	hflip = !!(rotation & DRM_REFLECT_X);
 	vflip = !!(rotation & DRM_REFLECT_Y);
 
-	spin_lock_irqsave(&hwpipe->pipe_lock, flags);
+	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
 
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_IMG_SIZE(pipe),
 			MDP5_PIPE_SRC_IMG_SIZE_WIDTH(min(fb->width, src_w)) |
@@ -877,7 +880,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 
 	set_scanout_locked(plane, fb);
 
-	spin_unlock_irqrestore(&hwpipe->pipe_lock, flags);
+	spin_unlock_irqrestore(&mdp5_plane->pipe_lock, flags);
 
 	return ret;
 }
@@ -997,6 +1000,8 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 
 	mdp5_plane->nformats = mdp_get_formats(mdp5_plane->formats,
 		ARRAY_SIZE(mdp5_plane->formats), false);
+
+	spin_lock_init(&mdp5_plane->pipe_lock);
 
 	if (type == DRM_PLANE_TYPE_CURSOR)
 		ret = drm_universal_plane_init(dev, plane, 0xff,
