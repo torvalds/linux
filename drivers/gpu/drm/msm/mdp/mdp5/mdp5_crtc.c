@@ -449,7 +449,8 @@ static void mdp5_crtc_enable(struct drm_crtc *crtc)
 }
 
 int mdp5_crtc_setup_pipeline(struct drm_crtc *crtc,
-			     struct drm_crtc_state *new_crtc_state)
+			     struct drm_crtc_state *new_crtc_state,
+			     bool need_right_mixer)
 {
 	struct mdp5_crtc_state *mdp5_cstate =
 			to_mdp5_crtc_state(new_crtc_state);
@@ -459,15 +460,32 @@ int mdp5_crtc_setup_pipeline(struct drm_crtc *crtc,
 
 	new_mixer = !pipeline->mixer;
 
+	if ((need_right_mixer && !pipeline->r_mixer) ||
+	    (!need_right_mixer && pipeline->r_mixer))
+		new_mixer = true;
+
 	if (new_mixer) {
 		struct mdp5_hw_mixer *old_mixer = pipeline->mixer;
+		struct mdp5_hw_mixer *old_r_mixer = pipeline->r_mixer;
+		u32 caps;
+		int ret;
 
-		pipeline->mixer = mdp5_mixer_assign(new_crtc_state->state, crtc,
-						    MDP_LM_CAP_DISPLAY);
-		if (IS_ERR(pipeline->mixer))
-			return PTR_ERR(pipeline->mixer);
+		caps = MDP_LM_CAP_DISPLAY;
+		if (need_right_mixer)
+			caps |= MDP_LM_CAP_PAIR;
+
+		ret = mdp5_mixer_assign(new_crtc_state->state, crtc, caps,
+					&pipeline->mixer, need_right_mixer ?
+					&pipeline->r_mixer : NULL);
+		if (ret)
+			return ret;
 
 		mdp5_mixer_release(new_crtc_state->state, old_mixer);
+		if (old_r_mixer) {
+			mdp5_mixer_release(new_crtc_state->state, old_r_mixer);
+			if (!need_right_mixer)
+				pipeline->r_mixer = NULL;
+		}
 	}
 
 	/*
@@ -544,7 +562,9 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	struct plane_state pstates[STAGE_MAX + 1];
 	const struct mdp5_cfg_hw *hw_cfg;
 	const struct drm_plane_state *pstate;
+	const struct drm_display_mode *mode = &state->adjusted_mode;
 	bool cursor_plane = false;
+	bool need_right_mixer = false;
 	int cnt = 0, i;
 	int ret;
 	enum mdp_mixer_stage_id start;
@@ -555,6 +575,12 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 		pstates[cnt].plane = plane;
 		pstates[cnt].state = to_mdp5_plane_state(pstate);
 
+		/*
+		 * if any plane on this crtc uses 2 hwpipes, then we need
+		 * the crtc to have a right hwmixer.
+		 */
+		if (pstates[cnt].state->r_hwpipe)
+			need_right_mixer = true;
 		cnt++;
 
 		if (plane->type == DRM_PLANE_TYPE_CURSOR)
@@ -565,7 +591,16 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	if (!cnt)
 		return 0;
 
-	ret = mdp5_crtc_setup_pipeline(crtc, state);
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
+
+	/*
+	 * we need a right hwmixer if the mode's width is greater than a single
+	 * LM's max width
+	 */
+	if (mode->hdisplay > hw_cfg->lm.max_width)
+		need_right_mixer = true;
+
+	ret = mdp5_crtc_setup_pipeline(crtc, state, need_right_mixer);
 	if (ret) {
 		dev_err(dev->dev, "couldn't assign mixers %d\n", ret);
 		return ret;
@@ -583,8 +618,6 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	/* verify that there are not too many planes attached to crtc
 	 * and that we don't have conflicting mixer stages:
 	 */
-	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
-
 	if ((cnt + start - 1) >= hw_cfg->lm.nb_stages) {
 		dev_err(dev->dev, "too many planes! cnt=%d, start stage=%d\n",
 			cnt, start);
