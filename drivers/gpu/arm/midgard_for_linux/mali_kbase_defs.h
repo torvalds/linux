@@ -1035,6 +1035,7 @@ struct kbase_device {
 	struct devfreq *devfreq;
 	unsigned long current_freq;
 	unsigned long current_voltage;
+	struct devfreq_simple_ondemand_data ondemand_data;
 #ifdef CONFIG_DEVFREQ_THERMAL
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)
 	struct devfreq_cooling_device *devfreq_cooling;
