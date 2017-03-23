@@ -1377,6 +1377,7 @@ static int gfx_v8_0_kiq_init_ring(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  struct amdgpu_irq_src *irq)
 {
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 	int r = 0;
 
 	r = amdgpu_wb_get(adev, &adev->virt.reg_val_offs);
@@ -1396,6 +1397,7 @@ static int gfx_v8_0_kiq_init_ring(struct amdgpu_device *adev,
 	}
 
 	ring->queue = 0;
+	ring->eop_gpu_addr = kiq->eop_gpu_addr;
 	sprintf(ring->name, "kiq %d.%d.%d", ring->me, ring->pipe, ring->queue);
 	r = amdgpu_ring_init(adev, ring, 1024,
 			     irq, AMDGPU_CP_KIQ_IRQ_DRIVER0);
@@ -2153,6 +2155,7 @@ static int gfx_v8_0_sw_init(void *handle)
 		ring->me = 1; /* first MEC */
 		ring->pipe = i / 8;
 		ring->queue = i % 8;
+		ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr + (i * MEC_HPD_SIZE);
 		sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
 		/* type-2 packets are deprecated on MEC, use type-3 instead */
@@ -4692,8 +4695,7 @@ static void gfx_v8_0_map_queue_enable(struct amdgpu_ring *kiq_ring,
 }
 
 static int gfx_v8_0_mqd_init(struct amdgpu_ring *ring,
-			     struct vi_mqd *mqd,
-			     uint64_t eop_gpu_addr)
+			     struct vi_mqd *mqd)
 {
 	struct amdgpu_device *adev = ring->adev;
 	uint64_t hqd_gpu_addr, wb_gpu_addr, eop_base_addr;
@@ -4707,7 +4709,7 @@ static int gfx_v8_0_mqd_init(struct amdgpu_ring *ring,
 	mqd->compute_static_thread_mgmt_se3 = 0xffffffff;
 	mqd->compute_misc_reserved = 0x00000003;
 
-	eop_base_addr = eop_gpu_addr >> 8;
+	eop_base_addr = ring->eop_gpu_addr >> 8;
 	mqd->cp_hqd_eop_base_addr_lo = eop_base_addr;
 	mqd->cp_hqd_eop_base_addr_hi = upper_32_bits(eop_base_addr);
 
@@ -4906,16 +4908,12 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring,
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
-	uint64_t eop_gpu_addr;
 	bool is_kiq = (ring->funcs->type == AMDGPU_RING_TYPE_KIQ);
 	int mqd_idx = AMDGPU_MAX_COMPUTE_RINGS;
 
 	if (is_kiq) {
-		eop_gpu_addr = kiq->eop_gpu_addr;
 		gfx_v8_0_kiq_setting(&kiq->ring);
 	} else {
-		eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr +
-					ring->queue * MEC_HPD_SIZE;
 		mqd_idx = ring - &adev->gfx.compute_ring[0];
 	}
 
@@ -4923,7 +4921,7 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring,
 		memset((void *)mqd, 0, sizeof(*mqd));
 		mutex_lock(&adev->srbm_mutex);
 		vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
-		gfx_v8_0_mqd_init(ring, mqd, eop_gpu_addr);
+		gfx_v8_0_mqd_init(ring, mqd);
 		if (is_kiq)
 			gfx_v8_0_kiq_init_register(ring, mqd);
 		vi_srbm_select(adev, 0, 0, 0, 0);
