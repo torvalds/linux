@@ -201,8 +201,8 @@ static inline uint32_t intf2err(int intf_num)
 	}
 }
 
-#define GET_PING_PONG_ID(layer_mixer)	((layer_mixer == 5) ? 3 : layer_mixer)
-static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
+static inline uint32_t intf2vblank(struct mdp5_hw_mixer *mixer,
+				   struct mdp5_interface *intf)
 {
 	/*
 	 * In case of DSI Command Mode, the Ping Pong's read pointer IRQ
@@ -212,7 +212,7 @@ static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
 
 	if ((intf->type == INTF_DSI) &&
 			(intf->mode == MDP5_INTF_DSI_MODE_COMMAND))
-		return MDP5_IRQ_PING_PONG_0_RD_PTR << GET_PING_PONG_ID(lm);
+		return MDP5_IRQ_PING_PONG_0_RD_PTR << mixer->pp;
 
 	if (intf->type == INTF_WB)
 		return MDP5_IRQ_WB_2_DONE;
@@ -226,9 +226,9 @@ static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
 	}
 }
 
-static inline uint32_t lm2ppdone(int lm)
+static inline uint32_t lm2ppdone(struct mdp5_hw_mixer *mixer)
 {
-	return MDP5_IRQ_PING_PONG_0_DONE << GET_PING_PONG_ID(lm);
+	return MDP5_IRQ_PING_PONG_0_DONE << mixer->pp;
 }
 
 int mdp5_disable(struct mdp5_kms *mdp5_kms);

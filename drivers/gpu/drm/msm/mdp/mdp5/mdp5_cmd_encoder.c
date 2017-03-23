@@ -52,7 +52,7 @@ static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 	u32 total_lines_x100, vclks_line, cfg;
 	long vsync_clk_speed;
 	struct mdp5_hw_mixer *mixer = mdp5_crtc_get_mixer(encoder->crtc);
-	int pp_id = GET_PING_PONG_ID(mixer->lm);
+	int pp_id = mixer->pp;
 
 	if (IS_ERR_OR_NULL(mdp5_kms->vsync_clk)) {
 		dev_err(dev, "vsync_clk is not initialized\n");
@@ -96,7 +96,7 @@ static int pingpong_tearcheck_enable(struct drm_encoder *encoder)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
 	struct mdp5_hw_mixer *mixer = mdp5_crtc_get_mixer(encoder->crtc);
-	int pp_id = GET_PING_PONG_ID(mixer->lm);
+	int pp_id = mixer->pp;
 	int ret;
 
 	ret = clk_set_rate(mdp5_kms->vsync_clk,
@@ -122,7 +122,7 @@ static void pingpong_tearcheck_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
 	struct mdp5_hw_mixer *mixer = mdp5_crtc_get_mixer(encoder->crtc);
-	int pp_id = GET_PING_PONG_ID(mixer->lm);
+	int pp_id = mixer->pp;
 
 	mdp5_write(mdp5_kms, REG_MDP5_PP_TEAR_CHECK_EN(pp_id), 0);
 	clk_disable_unprepare(mdp5_kms->vsync_clk);

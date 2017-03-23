@@ -755,15 +755,14 @@ void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct mdp5_hw_mixer *mixer = mdp5_crtc->mixer;
-	uint32_t lm = mixer->lm;
 
 	/* now that we know what irq's we want: */
 	mdp5_crtc->err.irqmask = intf2err(intf->num);
-	mdp5_crtc->vblank.irqmask = intf2vblank(lm, intf);
+	mdp5_crtc->vblank.irqmask = intf2vblank(mixer, intf);
 
 	if ((intf->type == INTF_DSI) &&
 		(intf->mode == MDP5_INTF_DSI_MODE_COMMAND)) {
-		mdp5_crtc->pp_done.irqmask = lm2ppdone(lm);
+		mdp5_crtc->pp_done.irqmask = lm2ppdone(mixer);
 		mdp5_crtc->pp_done.irq = mdp5_crtc_pp_done_irq;
 		mdp5_crtc->cmd_mode = true;
 	} else {
