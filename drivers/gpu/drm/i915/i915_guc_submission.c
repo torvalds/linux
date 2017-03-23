@@ -280,6 +280,12 @@ static unsigned long __select_cacheline(struct intel_guc* guc)
 	return offset;
 }
 
+static inline struct guc_process_desc *
+__get_process_desc(struct i915_guc_client *client)
+{
+	return client->vaddr + client->proc_desc_offset;
+}
+
 /*
  * Initialise the process descriptor shared with the GuC firmware.
  */
@@ -288,9 +294,7 @@ static void guc_proc_desc_init(struct intel_guc *guc,
 {
 	struct guc_process_desc *desc;
 
-	desc = client->vaddr + client->proc_desc_offset;
-
-	memset(desc, 0, sizeof(*desc));
+	desc = memset(__get_process_desc(client), 0, sizeof(*desc));
 
 	/*
 	 * XXX: pDoorbell and WQVBaseAddress are pointers in process address
@@ -422,8 +426,7 @@ int i915_guc_wq_reserve(struct drm_i915_gem_request *request)
 {
 	const size_t wqi_size = sizeof(struct guc_wq_item);
 	struct i915_guc_client *client = request->i915->guc.execbuf_client;
-	struct guc_process_desc *desc = client->vaddr +
-					client->proc_desc_offset;
+	struct guc_process_desc *desc = __get_process_desc(client);
 	u32 freespace;
 	int ret;
 
@@ -468,11 +471,9 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 	const size_t wqi_size = sizeof(struct guc_wq_item);
 	const u32 wqi_len = wqi_size/sizeof(u32) - 1;
 	struct intel_engine_cs *engine = rq->engine;
-	struct guc_process_desc *desc;
+	struct guc_process_desc *desc = __get_process_desc(client);
 	struct guc_wq_item *wqi;
 	u32 freespace, tail, wq_off;
-
-	desc = client->vaddr + client->proc_desc_offset;
 
 	/* Free space is guaranteed, see i915_guc_wq_reserve() above */
 	freespace = CIRC_SPACE(client->wq_tail, desc->head, client->wq_size);
@@ -519,8 +520,7 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 
 static void guc_reset_wq(struct i915_guc_client *client)
 {
-	struct guc_process_desc *desc = client->vaddr +
-					client->proc_desc_offset;
+	struct guc_process_desc *desc = __get_process_desc(client);
 
 	desc->head = 0;
 	desc->tail = 0;
@@ -530,12 +530,10 @@ static void guc_reset_wq(struct i915_guc_client *client)
 
 static int guc_ring_doorbell(struct i915_guc_client *client)
 {
-	struct guc_process_desc *desc;
+	struct guc_process_desc *desc = __get_process_desc(client);
 	union guc_doorbell_qw db_cmp, db_exc, db_ret;
 	union guc_doorbell_qw *db;
 	int attempt = 2, ret = -EAGAIN;
-
-	desc = client->vaddr + client->proc_desc_offset;
 
 	/* Update the tail so it is visible to GuC */
 	desc->tail = client->wq_tail;
