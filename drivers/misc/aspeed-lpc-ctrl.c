@@ -229,8 +229,7 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 	if (rc)
 		dev_err(dev, "Unable to register device\n");
 	else
-		dev_info(dev, "Loaded at %pap (0x%08x)\n",
-			&lpc_ctrl->mem_base, lpc_ctrl->mem_size);
+		dev_info(dev, "Loaded at %pr\n", &resm);
 
 	return rc;
 }
