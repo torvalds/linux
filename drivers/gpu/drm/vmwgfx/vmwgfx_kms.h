@@ -33,6 +33,8 @@
 #include <drm/drm_encoder.h>
 #include "vmwgfx_drv.h"
 
+
+
 /**
  * struct vmw_kms_dirty - closure structure for the vmw_kms_helper_dirty
  * function.
@@ -125,19 +127,17 @@ struct vmw_framebuffer_dmabuf {
 };
 
 
-/*
- * Basic cursor manipulation
- */
-int vmw_cursor_update_image(struct vmw_private *dev_priv,
-			    u32 *image, u32 width, u32 height,
-			    u32 hotspotX, u32 hotspotY);
-int vmw_cursor_update_dmabuf(struct vmw_private *dev_priv,
-			     struct vmw_dma_buffer *dmabuf,
-			     u32 width, u32 height,
-			     u32 hotspotX, u32 hotspotY);
-void vmw_cursor_update_position(struct vmw_private *dev_priv,
-				bool show, int x, int y);
+static const uint32_t vmw_primary_plane_formats[] = {
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+};
 
+static const uint32_t vmw_cursor_plane_formats[] = {
+	DRM_FORMAT_ARGB8888,
+};
 
 /**
  * Base class display unit.
@@ -150,6 +150,8 @@ struct vmw_display_unit {
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
 	struct drm_connector connector;
+	struct drm_plane primary;
+	struct drm_plane cursor;
 
 	struct vmw_surface *cursor_surface;
 	struct vmw_dma_buffer *cursor_dmabuf;
@@ -269,6 +271,19 @@ void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv,
 				struct drm_crtc *crtc);
 void vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv,
 						bool immutable);
+
+/* Universal Plane Helpers */
+void vmw_du_primary_plane_destroy(struct drm_plane *plane);
+void vmw_du_cursor_plane_destroy(struct drm_plane *plane);
+int vmw_du_cursor_plane_disable(struct drm_plane *plane);
+int vmw_du_cursor_plane_update(struct drm_plane *plane,
+			       struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       int crtc_x, int crtc_y,
+			       unsigned int crtc_w,
+			       unsigned int crtc_h,
+			       uint32_t src_x, uint32_t src_y,
+			       uint32_t src_w, uint32_t src_h);
 
 
 /*

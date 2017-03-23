@@ -33,10 +33,9 @@
 
 void vmw_du_cleanup(struct vmw_display_unit *du)
 {
-	if (du->cursor_surface)
-		vmw_surface_unreference(&du->cursor_surface);
-	if (du->cursor_dmabuf)
-		vmw_dmabuf_unreference(&du->cursor_dmabuf);
+	drm_plane_cleanup(&du->primary);
+	drm_plane_cleanup(&du->cursor);
+
 	drm_connector_unregister(&du->connector);
 	drm_crtc_cleanup(&du->crtc);
 	drm_encoder_cleanup(&du->encoder);
@@ -47,9 +46,9 @@ void vmw_du_cleanup(struct vmw_display_unit *du)
  * Display Unit Cursor functions
  */
 
-int vmw_cursor_update_image(struct vmw_private *dev_priv,
-			    u32 *image, u32 width, u32 height,
-			    u32 hotspotX, u32 hotspotY)
+static int vmw_cursor_update_image(struct vmw_private *dev_priv,
+				   u32 *image, u32 width, u32 height,
+				   u32 hotspotX, u32 hotspotY)
 {
 	struct {
 		u32 cmd;
@@ -83,10 +82,10 @@ int vmw_cursor_update_image(struct vmw_private *dev_priv,
 	return 0;
 }
 
-int vmw_cursor_update_dmabuf(struct vmw_private *dev_priv,
-			     struct vmw_dma_buffer *dmabuf,
-			     u32 width, u32 height,
-			     u32 hotspotX, u32 hotspotY)
+static int vmw_cursor_update_dmabuf(struct vmw_private *dev_priv,
+				    struct vmw_dma_buffer *dmabuf,
+				    u32 width, u32 height,
+				    u32 hotspotX, u32 hotspotY)
 {
 	struct ttm_bo_kmap_obj map;
 	unsigned long kmap_offset;
@@ -120,144 +119,21 @@ err_unreserve:
 }
 
 
-void vmw_cursor_update_position(struct vmw_private *dev_priv,
-				bool show, int x, int y)
+static void vmw_cursor_update_position(struct vmw_private *dev_priv,
+				       bool show, int x, int y)
 {
 	u32 *fifo_mem = dev_priv->mmio_virt;
 	uint32_t count;
 
+	spin_lock(&dev_priv->cursor_lock);
 	vmw_mmio_write(show ? 1 : 0, fifo_mem + SVGA_FIFO_CURSOR_ON);
 	vmw_mmio_write(x, fifo_mem + SVGA_FIFO_CURSOR_X);
 	vmw_mmio_write(y, fifo_mem + SVGA_FIFO_CURSOR_Y);
 	count = vmw_mmio_read(fifo_mem + SVGA_FIFO_CURSOR_COUNT);
 	vmw_mmio_write(++count, fifo_mem + SVGA_FIFO_CURSOR_COUNT);
+	spin_unlock(&dev_priv->cursor_lock);
 }
 
-
-/*
- * vmw_du_crtc_cursor_set2 - Driver cursor_set2 callback.
- */
-int vmw_du_crtc_cursor_set2(struct drm_crtc *crtc, struct drm_file *file_priv,
-			    uint32_t handle, uint32_t width, uint32_t height,
-			    int32_t hot_x, int32_t hot_y)
-{
-	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
-	struct vmw_surface *surface = NULL;
-	struct vmw_dma_buffer *dmabuf = NULL;
-	s32 hotspot_x, hotspot_y;
-	int ret;
-
-	/*
-	 * FIXME: Unclear whether there's any global state touched by the
-	 * cursor_set function, especially vmw_cursor_update_position looks
-	 * suspicious. For now take the easy route and reacquire all locks. We
-	 * can do this since the caller in the drm core doesn't check anything
-	 * which is protected by any looks.
-	 */
-	drm_modeset_unlock_crtc(crtc);
-	drm_modeset_lock_all(dev_priv->dev);
-	hotspot_x = hot_x + du->hotspot_x;
-	hotspot_y = hot_y + du->hotspot_y;
-
-	/* A lot of the code assumes this */
-	if (handle && (width != 64 || height != 64)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (handle) {
-		struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-
-		ret = vmw_user_lookup_handle(dev_priv, tfile,
-					     handle, &surface, &dmabuf);
-		if (ret) {
-			DRM_ERROR("failed to find surface or dmabuf: %i\n", ret);
-			ret = -EINVAL;
-			goto out;
-		}
-	}
-
-	/* need to do this before taking down old image */
-	if (surface && !surface->snooper.image) {
-		DRM_ERROR("surface not suitable for cursor\n");
-		vmw_surface_unreference(&surface);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* takedown old cursor */
-	if (du->cursor_surface) {
-		vmw_surface_unreference(&du->cursor_surface);
-	}
-	if (du->cursor_dmabuf)
-		vmw_dmabuf_unreference(&du->cursor_dmabuf);
-
-	/* setup new image */
-	ret = 0;
-	if (surface) {
-		/* vmw_user_surface_lookup takes one reference */
-		du->cursor_surface = surface;
-
-		du->cursor_age = du->cursor_surface->snooper.age;
-		ret = vmw_cursor_update_image(dev_priv, surface->snooper.image,
-					      64, 64, hotspot_x, hotspot_y);
-	} else if (dmabuf) {
-		/* vmw_user_surface_lookup takes one reference */
-		du->cursor_dmabuf = dmabuf;
-
-		ret = vmw_cursor_update_dmabuf(dev_priv, dmabuf, width, height,
-					       hotspot_x, hotspot_y);
-	} else {
-		vmw_cursor_update_position(dev_priv, false, 0, 0);
-		goto out;
-	}
-
-	if (!ret) {
-		vmw_cursor_update_position(dev_priv, true,
-					   du->cursor_x + hotspot_x,
-					   du->cursor_y + hotspot_y);
-		du->core_hotspot_x = hot_x;
-		du->core_hotspot_y = hot_y;
-	}
-
-out:
-	drm_modeset_unlock_all(dev_priv->dev);
-	drm_modeset_lock_crtc(crtc, crtc->cursor);
-
-	return ret;
-}
-
-int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
-{
-	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
-	bool shown = du->cursor_surface || du->cursor_dmabuf ? true : false;
-
-	du->cursor_x = x + du->set_gui_x;
-	du->cursor_y = y + du->set_gui_y;
-
-	/*
-	 * FIXME: Unclear whether there's any global state touched by the
-	 * cursor_set function, especially vmw_cursor_update_position looks
-	 * suspicious. For now take the easy route and reacquire all locks. We
-	 * can do this since the caller in the drm core doesn't check anything
-	 * which is protected by any looks.
-	 */
-	drm_modeset_unlock_crtc(crtc);
-	drm_modeset_lock_all(dev_priv->dev);
-
-	vmw_cursor_update_position(dev_priv, shown,
-				   du->cursor_x + du->hotspot_x +
-				   du->core_hotspot_x,
-				   du->cursor_y + du->hotspot_y +
-				   du->core_hotspot_y);
-
-	drm_modeset_unlock_all(dev_priv->dev);
-	drm_modeset_lock_crtc(crtc, crtc->cursor);
-
-	return 0;
-}
 
 void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 			  struct ttm_object_file *tfile,
@@ -392,6 +268,125 @@ void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 
 	mutex_unlock(&dev->mode_config.mutex);
 }
+
+
+
+/**
+ * vmw_du_cursor_plane_update() - Update cursor image and location
+ *
+ * @plane: plane object to update
+ * @crtc: owning CRTC of @plane
+ * @fb: framebuffer to flip onto plane
+ * @crtc_x: x offset of plane on crtc
+ * @crtc_y: y offset of plane on crtc
+ * @crtc_w: width of plane rectangle on crtc
+ * @crtc_h: height of plane rectangle on crtc
+ * @src_x: Not used
+ * @src_y: Not used
+ * @src_w: Not used
+ * @src_h: Not used
+ *
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+int vmw_du_cursor_plane_update(struct drm_plane *plane,
+			       struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       int crtc_x, int crtc_y,
+			       unsigned int crtc_w,
+			       unsigned int crtc_h,
+			       uint32_t src_x, uint32_t src_y,
+			       uint32_t src_w, uint32_t src_h)
+{
+	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
+	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+	struct vmw_surface *surface = NULL;
+	struct vmw_dma_buffer *dmabuf = NULL;
+	s32 hotspot_x, hotspot_y;
+	int ret;
+
+	hotspot_x = du->hotspot_x + fb->hot_x;
+	hotspot_y = du->hotspot_y + fb->hot_y;
+
+	/* A lot of the code assumes this */
+	if (crtc_w != 64 || crtc_h != 64) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (vmw_framebuffer_to_vfb(fb)->dmabuf)
+		dmabuf = vmw_framebuffer_to_vfbd(fb)->buffer;
+	else
+		surface = vmw_framebuffer_to_vfbs(fb)->surface;
+
+	if (surface && !surface->snooper.image) {
+		DRM_ERROR("surface not suitable for cursor\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* setup new image */
+	ret = 0;
+	if (surface) {
+		/* vmw_user_surface_lookup takes one reference */
+		du->cursor_surface = surface;
+
+		du->cursor_age = du->cursor_surface->snooper.age;
+
+		ret = vmw_cursor_update_image(dev_priv, surface->snooper.image,
+					      64, 64, hotspot_x, hotspot_y);
+	} else if (dmabuf) {
+		/* vmw_user_surface_lookup takes one reference */
+		du->cursor_dmabuf = dmabuf;
+
+		ret = vmw_cursor_update_dmabuf(dev_priv, dmabuf, crtc_w, crtc_h,
+					       hotspot_x, hotspot_y);
+	} else {
+		vmw_cursor_update_position(dev_priv, false, 0, 0);
+		goto out;
+	}
+
+	if (!ret) {
+		du->cursor_x = crtc_x + du->set_gui_x;
+		du->cursor_y = crtc_y + du->set_gui_y;
+
+		vmw_cursor_update_position(dev_priv, true,
+					   du->cursor_x + hotspot_x,
+					   du->cursor_y + hotspot_y);
+	}
+
+out:
+	return ret;
+}
+
+
+int vmw_du_cursor_plane_disable(struct drm_plane *plane)
+{
+	if (plane->fb) {
+		drm_framebuffer_unreference(plane->fb);
+		plane->fb = NULL;
+	}
+
+	return -EINVAL;
+}
+
+
+void vmw_du_cursor_plane_destroy(struct drm_plane *plane)
+{
+	vmw_cursor_update_position(plane->dev->dev_private, false, 0, 0);
+
+	drm_plane_cleanup(plane);
+}
+
+
+void vmw_du_primary_plane_destroy(struct drm_plane *plane)
+{
+	drm_plane_cleanup(plane);
+
+	/* Planes are static in our case so we don't free it */
+}
+
 
 /*
  * Generic framebuffer code

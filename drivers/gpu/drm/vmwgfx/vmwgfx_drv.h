@@ -414,6 +414,7 @@ struct vmw_private {
 	unsigned num_implicit;
 	struct vmw_framebuffer *implicit_fb;
 	struct mutex global_kms_state_mutex;
+	spinlock_t cursor_lock;
 
 	/*
 	 * Context and surface management.

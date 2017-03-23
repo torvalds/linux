@@ -1015,8 +1015,6 @@ out_finish:
  *  Screen Target CRTC dispatch table
  */
 static const struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
-	.cursor_set2 = vmw_du_crtc_cursor_set2,
-	.cursor_move = vmw_du_crtc_cursor_move,
 	.gamma_set = vmw_du_crtc_gamma_set,
 	.destroy = vmw_stdu_crtc_destroy,
 	.set_config = vmw_stdu_crtc_set_config,
@@ -1081,6 +1079,23 @@ static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
 
 
 
+/******************************************************************************
+ * Screen Target Display Plane Functions
+ *****************************************************************************/
+
+static const struct drm_plane_funcs vmw_stdu_plane_funcs = {
+	.update_plane = drm_primary_helper_update,
+	.disable_plane = drm_primary_helper_disable,
+	.destroy = vmw_du_primary_plane_destroy,
+};
+
+static const struct drm_plane_funcs vmw_stdu_cursor_funcs = {
+	.update_plane = vmw_du_cursor_plane_update,
+	.disable_plane = vmw_du_cursor_plane_disable,
+	.destroy = vmw_du_cursor_plane_destroy,
+};
+
+
 /**
  * vmw_stdu_init - Sets up a Screen Target Display Unit
  *
@@ -1097,7 +1112,9 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
+	struct drm_plane *primary, *cursor;
 	struct drm_crtc *crtc;
+	int    ret;
 
 
 	stdu = kzalloc(sizeof(*stdu), GFP_KERNEL);
@@ -1108,25 +1125,69 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	crtc = &stdu->base.crtc;
 	encoder = &stdu->base.encoder;
 	connector = &stdu->base.connector;
+	primary = &stdu->base.primary;
+	cursor = &stdu->base.cursor;
 
 	stdu->base.pref_active = (unit == 0);
 	stdu->base.pref_width  = dev_priv->initial_width;
 	stdu->base.pref_height = dev_priv->initial_height;
 	stdu->base.is_implicit = false;
 
-	drm_connector_init(dev, connector, &vmw_stdu_connector_funcs,
-			   DRM_MODE_CONNECTOR_VIRTUAL);
+	/* Initialize primary plane */
+	ret = drm_universal_plane_init(dev, primary,
+				       0, &vmw_stdu_plane_funcs,
+				       vmw_primary_plane_formats,
+				       ARRAY_SIZE(vmw_primary_plane_formats),
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret) {
+		DRM_ERROR("Failed to initialize primary plane");
+		goto err_free;
+	}
+
+	/* Initialize cursor plane */
+	ret = drm_universal_plane_init(dev, cursor,
+			0, &vmw_stdu_cursor_funcs,
+			vmw_cursor_plane_formats,
+			ARRAY_SIZE(vmw_cursor_plane_formats),
+			DRM_PLANE_TYPE_CURSOR, NULL);
+	if (ret) {
+		DRM_ERROR("Failed to initialize cursor plane");
+		drm_plane_cleanup(&stdu->base.primary);
+		goto err_free;
+	}
+
+	ret = drm_connector_init(dev, connector, &vmw_stdu_connector_funcs,
+				 DRM_MODE_CONNECTOR_VIRTUAL);
+	if (ret) {
+		DRM_ERROR("Failed to initialize connector\n");
+		goto err_free;
+	}
 	connector->status = vmw_du_connector_detect(connector, false);
 
-	drm_encoder_init(dev, encoder, &vmw_stdu_encoder_funcs,
-			 DRM_MODE_ENCODER_VIRTUAL, NULL);
-	drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_encoder_init(dev, encoder, &vmw_stdu_encoder_funcs,
+			       DRM_MODE_ENCODER_VIRTUAL, NULL);
+	if (ret) {
+		DRM_ERROR("Failed to initialize encoder\n");
+		goto err_free_connector;
+	}
+
+	(void) drm_mode_connector_attach_encoder(connector, encoder);
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
 
-	(void) drm_connector_register(connector);
+	ret = drm_connector_register(connector);
+	if (ret) {
+		DRM_ERROR("Failed to register connector\n");
+		goto err_free_encoder;
+	}
 
-	drm_crtc_init(dev, crtc, &vmw_stdu_crtc_funcs);
+	ret = drm_crtc_init_with_planes(dev, crtc, &stdu->base.primary,
+					&stdu->base.cursor,
+					&vmw_stdu_crtc_funcs, NULL);
+	if (ret) {
+		DRM_ERROR("Failed to initialize CRTC\n");
+		goto err_free_unregister;
+	}
 
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
@@ -1142,6 +1203,16 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 			 dev_priv->implicit_placement_property,
 			 stdu->base.is_implicit);
 	return 0;
+
+err_free_unregister:
+	drm_connector_unregister(connector);
+err_free_encoder:
+	drm_encoder_cleanup(encoder);
+err_free_connector:
+	drm_connector_cleanup(connector);
+err_free:
+	kfree(stdu);
+	return ret;
 }
 
 
