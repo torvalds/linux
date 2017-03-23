@@ -668,6 +668,7 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 	case NAND_CMD_ERASE2:
 	case NAND_CMD_SEQIN:
 	case NAND_CMD_STATUS:
+	case NAND_CMD_READID:
 		return;
 
 	case NAND_CMD_RESET:
@@ -786,6 +787,7 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 	case NAND_CMD_ERASE2:
 	case NAND_CMD_SEQIN:
 	case NAND_CMD_STATUS:
+	case NAND_CMD_READID:
 		return;
 
 	case NAND_CMD_RNDIN:
