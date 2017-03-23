@@ -1330,7 +1330,8 @@ static inline int rt_mutex_slowtrylock(struct rt_mutex *lock)
 
 /*
  * Slow path to release a rt-mutex.
- * Return whether the current task needs to undo a potential priority boosting.
+ *
+ * Return whether the current task needs to call rt_mutex_postunlock().
  */
 static bool __sched rt_mutex_slowunlock(struct rt_mutex *lock,
 					struct wake_q_head *wake_q)
@@ -1401,8 +1402,7 @@ static bool __sched rt_mutex_slowunlock(struct rt_mutex *lock,
 
 	raw_spin_unlock_irqrestore(&lock->wait_lock, flags);
 
-	/* check PI boosting */
-	return true;
+	return true; /* call rt_mutex_postunlock() */
 }
 
 /*
@@ -1449,15 +1449,14 @@ rt_mutex_fasttrylock(struct rt_mutex *lock,
 }
 
 /*
- * Undo pi boosting (if necessary) and wake top waiter.
+ * Performs the wakeup of the the top-waiter and re-enables preemption.
  */
-void rt_mutex_postunlock(struct wake_q_head *wake_q, bool deboost)
+void rt_mutex_postunlock(struct wake_q_head *wake_q)
 {
 	wake_up_q(wake_q);
 
 	/* Pairs with preempt_disable() in rt_mutex_slowunlock() */
-	if (deboost)
-		preempt_enable();
+	preempt_enable();
 }
 
 static inline void
@@ -1466,14 +1465,12 @@ rt_mutex_fastunlock(struct rt_mutex *lock,
 				   struct wake_q_head *wqh))
 {
 	DEFINE_WAKE_Q(wake_q);
-	bool deboost;
 
 	if (likely(rt_mutex_cmpxchg_release(lock, current, NULL)))
 		return;
 
-	deboost = slowfn(lock, &wake_q);
-
-	rt_mutex_postunlock(&wake_q, deboost);
+	if (slowfn(lock, &wake_q))
+		rt_mutex_postunlock(&wake_q);
 }
 
 /**
@@ -1593,19 +1590,20 @@ bool __sched __rt_mutex_futex_unlock(struct rt_mutex *lock,
 	 */
 	preempt_disable();
 
-	return true; /* deboost and wakeups */
+	return true; /* call postunlock() */
 }
 
 void __sched rt_mutex_futex_unlock(struct rt_mutex *lock)
 {
 	DEFINE_WAKE_Q(wake_q);
-	bool deboost;
+	bool postunlock;
 
 	raw_spin_lock_irq(&lock->wait_lock);
-	deboost = __rt_mutex_futex_unlock(lock, &wake_q);
+	postunlock = __rt_mutex_futex_unlock(lock, &wake_q);
 	raw_spin_unlock_irq(&lock->wait_lock);
 
-	rt_mutex_postunlock(&wake_q, deboost);
+	if (postunlock)
+		rt_mutex_postunlock(&wake_q);
 }
 
 /**
