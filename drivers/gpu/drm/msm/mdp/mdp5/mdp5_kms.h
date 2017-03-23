@@ -25,6 +25,7 @@
 #include "mdp5.xml.h"
 #include "mdp5_ctl.h"
 #include "mdp5_pipe.h"
+#include "mdp5_mixer.h"
 #include "mdp5_smp.h"
 
 struct mdp5_state;
@@ -38,6 +39,9 @@ struct mdp5_kms {
 
 	unsigned num_hwpipes;
 	struct mdp5_hw_pipe *hwpipes[SSPP_MAX];
+
+	unsigned num_hwmixers;
+	struct mdp5_hw_mixer *hwmixers[8];
 
 	struct mdp5_cfg_handler *cfg;
 	uint32_t caps;	/* MDP capabilities (MDP_CAP_XXX bits) */

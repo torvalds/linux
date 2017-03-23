@@ -165,6 +165,9 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 	struct msm_gem_address_space *aspace = mdp5_kms->aspace;
 	int i;
 
+	for (i = 0; i < mdp5_kms->num_hwmixers; i++)
+		mdp5_mixer_destroy(mdp5_kms->hwmixers[i]);
+
 	for (i = 0; i < mdp5_kms->num_hwpipes; i++)
 		mdp5_pipe_destroy(mdp5_kms->hwpipes[i]);
 
@@ -829,6 +832,32 @@ static int hwpipe_init(struct mdp5_kms *mdp5_kms)
 	return 0;
 }
 
+static int hwmixer_init(struct mdp5_kms *mdp5_kms)
+{
+	struct drm_device *dev = mdp5_kms->dev;
+	const struct mdp5_cfg_hw *hw_cfg;
+	int i, ret;
+
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
+
+	for (i = 0; i < hw_cfg->lm.count; i++) {
+		struct mdp5_hw_mixer *mixer;
+
+		mixer = mdp5_mixer_init(&hw_cfg->lm.instances[i]);
+		if (IS_ERR(mixer)) {
+			ret = PTR_ERR(mixer);
+			dev_err(dev->dev, "failed to construct LM%d (%d)\n",
+				i, ret);
+			return ret;
+		}
+
+		mixer->idx = mdp5_kms->num_hwmixers;
+		mdp5_kms->hwmixers[mdp5_kms->num_hwmixers++] = mixer;
+	}
+
+	return 0;
+}
+
 static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -926,6 +955,10 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	}
 
 	ret = hwpipe_init(mdp5_kms);
+	if (ret)
+		goto fail;
+
+	ret = hwmixer_init(mdp5_kms);
 	if (ret)
 		goto fail;
 
