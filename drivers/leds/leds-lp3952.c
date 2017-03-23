@@ -102,10 +102,11 @@ static int lp3952_get_label(struct device *dev, const char *label, char *dest)
 	const char *str;
 
 	ret = device_property_read_string(dev, label, &str);
-	if (!ret)
-		strncpy(dest, str, LP3952_LABEL_MAX_LEN);
+	if (ret)
+		return ret;
 
-	return ret;
+	strncpy(dest, str, LP3952_LABEL_MAX_LEN);
+	return 0;
 }
 
 static int lp3952_register_led_classdev(struct lp3952_led_array *priv)
