@@ -1823,8 +1823,6 @@ static int mac80211_hwsim_get_survey(struct ieee80211_hw *hw, int idx,
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;
 
-	wiphy_debug(hw->wiphy, "%s (idx=%d)\n", __func__, idx);
-
 	if (idx < 0 || idx >= ARRAY_SIZE(hwsim->survey_data))
 		return -ENOENT;
 
