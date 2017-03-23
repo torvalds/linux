@@ -8,6 +8,7 @@
 #include <linux/stddef.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
 #include <linux/vmalloc.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>

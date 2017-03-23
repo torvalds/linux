@@ -6,6 +6,7 @@
 #include <linux/kernel.h> /* UINT_MAX */
 #include <linux/mount.h>
 #include <linux/sched.h>
+#include <linux/sched/user.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 

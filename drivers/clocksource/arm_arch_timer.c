@@ -24,6 +24,7 @@
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/sched/clock.h>
 #include <linux/sched_clock.h>
 #include <linux/acpi.h>
 

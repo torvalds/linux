@@ -12,6 +12,7 @@
 #include <linux/perf_event.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>

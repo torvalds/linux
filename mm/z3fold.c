@@ -667,6 +667,7 @@ next:
 			z3fold_page_unlock(zhdr);
 			spin_lock(&pool->lock);
 			if (kref_put(&zhdr->refcount, release_z3fold_page)) {
+				spin_unlock(&pool->lock);
 				atomic64_dec(&pool->pages_nr);
 				return 0;
 			}

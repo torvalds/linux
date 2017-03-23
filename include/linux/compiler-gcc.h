@@ -200,8 +200,8 @@
 #ifdef CONFIG_STACK_VALIDATION
 #define annotate_unreachable() ({					\
 	asm("%c0:\t\n"							\
-	    ".pushsection __unreachable, \"a\"\t\n"			\
-	    ".long %c0b\t\n"						\
+	    ".pushsection .discard.unreachable\t\n"			\
+	    ".long %c0b - .\t\n"					\
 	    ".popsection\t\n" : : "i" (__LINE__));			\
 })
 #else

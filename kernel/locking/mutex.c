@@ -19,8 +19,10 @@
  */
 #include <linux/mutex.h>
 #include <linux/ww_mutex.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/sched/rt.h>
+#include <linux/sched/wake_q.h>
+#include <linux/sched/debug.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>

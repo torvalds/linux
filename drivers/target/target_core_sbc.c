@@ -604,7 +604,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 
 	spin_lock_irq(&cmd->t_state_lock);
 	cmd->t_state = TRANSPORT_PROCESSING;
-	cmd->transport_state |= CMD_T_ACTIVE|CMD_T_BUSY|CMD_T_SENT;
+	cmd->transport_state |= CMD_T_ACTIVE | CMD_T_SENT;
 	spin_unlock_irq(&cmd->t_state_lock);
 
 	__target_execute_cmd(cmd, false);
@@ -1105,9 +1105,15 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return ret;
 		break;
 	case VERIFY:
+	case VERIFY_16:
 		size = 0;
-		sectors = transport_get_sectors_10(cdb);
-		cmd->t_task_lba = transport_lba_32(cdb);
+		if (cdb[0] == VERIFY) {
+			sectors = transport_get_sectors_10(cdb);
+			cmd->t_task_lba = transport_lba_32(cdb);
+		} else {
+			sectors = transport_get_sectors_16(cdb);
+			cmd->t_task_lba = transport_lba_64(cdb);
+		}
 		cmd->execute_cmd = sbc_emulate_noop;
 		goto check_lba;
 	case REZERO_UNIT:

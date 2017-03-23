@@ -11,7 +11,7 @@
 
 #include <linux/thread_info.h>
 #include <asm/current.h>
-#include <linux/sched.h>		/* remove ASAP */
+#include <linux/sched/signal.h>		/* remove ASAP */
 #include <linux/falloc.h>
 #include <linux/fs.h>
 #include <linux/mount.h>

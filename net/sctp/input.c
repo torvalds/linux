@@ -884,14 +884,17 @@ int sctp_hash_transport(struct sctp_transport *t)
 	arg.paddr = &t->ipaddr;
 	arg.lport = htons(t->asoc->base.bind_addr.port);
 
+	rcu_read_lock();
 	list = rhltable_lookup(&sctp_transport_hashtable, &arg,
 			       sctp_hash_params);
 
 	rhl_for_each_entry_rcu(transport, tmp, list, node)
 		if (transport->asoc->ep == t->asoc->ep) {
+			rcu_read_unlock();
 			err = -EEXIST;
 			goto out;
 		}
+	rcu_read_unlock();
 
 	err = rhltable_insert_key(&sctp_transport_hashtable, &arg,
 				  &t->node, sctp_hash_params);

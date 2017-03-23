@@ -104,6 +104,8 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 
 	pci->dev = dev;
 
+	dw_plat_pcie->pci = pci;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pci->dbi_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(pci->dbi_base))

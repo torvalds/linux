@@ -28,7 +28,8 @@
 #include <linux/kernel.h>
 #include <linux/tracehook.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task.h>
 #include <linux/lsm_hooks.h>
 #include <linux/xattr.h>
 #include <linux/capability.h>
@@ -480,12 +481,13 @@ static int selinux_is_sblabel_mnt(struct super_block *sb)
 		sbsec->behavior == SECURITY_FS_USE_NATIVE ||
 		/* Special handling. Genfs but also in-core setxattr handler */
 		!strcmp(sb->s_type->name, "sysfs") ||
-		!strcmp(sb->s_type->name, "cgroup") ||
-		!strcmp(sb->s_type->name, "cgroup2") ||
 		!strcmp(sb->s_type->name, "pstore") ||
 		!strcmp(sb->s_type->name, "debugfs") ||
 		!strcmp(sb->s_type->name, "tracefs") ||
-		!strcmp(sb->s_type->name, "rootfs");
+		!strcmp(sb->s_type->name, "rootfs") ||
+		(selinux_policycap_cgroupseclabel &&
+		 (!strcmp(sb->s_type->name, "cgroup") ||
+		  !strcmp(sb->s_type->name, "cgroup2")));
 }
 
 static int sb_finish_set_opts(struct super_block *sb)

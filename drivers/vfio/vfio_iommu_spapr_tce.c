@@ -20,6 +20,9 @@
 #include <linux/err.h>
 #include <linux/vfio.h>
 #include <linux/vmalloc.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/signal.h>
+
 #include <asm/iommu.h>
 #include <asm/tce.h>
 #include <asm/mmu_context.h>

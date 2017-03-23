@@ -2998,8 +2998,10 @@ static int ixgbe_set_rxfh(struct net_device *netdev, const u32 *indir,
 	}
 
 	/* Fill out the rss hash key */
-	if (key)
+	if (key) {
 		memcpy(adapter->rss_key, key, ixgbe_get_rxfh_key_size(netdev));
+		ixgbe_store_key(adapter);
+	}
 
 	ixgbe_store_reta(adapter);
 

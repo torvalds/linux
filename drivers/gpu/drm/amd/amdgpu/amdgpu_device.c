@@ -2094,8 +2094,11 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	r = amdgpu_late_init(adev);
-	if (r)
+	if (r) {
+		if (fbcon)
+			console_unlock();
 		return r;
+	}
 
 	/* pin cursors */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -2587,7 +2590,7 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 		use_bank = 0;
 	}
 
-	*pos &= 0x3FFFF;
+	*pos &= (1UL << 22) - 1;
 
 	if (use_bank) {
 		if ((sh_bank != 0xFFFFFFFF && sh_bank >= adev->gfx.config.max_sh_per_se) ||
@@ -2663,7 +2666,7 @@ static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
 		use_bank = 0;
 	}
 
-	*pos &= 0x3FFFF;
+	*pos &= (1UL << 22) - 1;
 
 	if (use_bank) {
 		if ((sh_bank != 0xFFFFFFFF && sh_bank >= adev->gfx.config.max_sh_per_se) ||

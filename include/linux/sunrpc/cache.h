@@ -63,15 +63,6 @@ struct cache_head {
 
 #define	CACHE_NEW_EXPIRY 120	/* keep new things pending confirmation for 120 seconds */
 
-struct cache_detail_procfs {
-	struct proc_dir_entry	*proc_ent;
-	struct proc_dir_entry   *flush_ent, *channel_ent, *content_ent;
-};
-
-struct cache_detail_pipefs {
-	struct dentry *dir;
-};
-
 struct cache_detail {
 	struct module *		owner;
 	int			hash_size;
@@ -123,9 +114,9 @@ struct cache_detail {
 	time_t			last_warn;		/* when we last warned about no readers */
 
 	union {
-		struct cache_detail_procfs procfs;
-		struct cache_detail_pipefs pipefs;
-	} u;
+		struct proc_dir_entry	*procfs;
+		struct dentry		*pipefs;
+	};
 	struct net		*net;
 };
 

@@ -65,6 +65,13 @@ optprobe_template_entry:
 	mfdsisr	r5
 	std	r5,_DSISR(r1)
 
+	/*
+	 * We may get here from a module, so load the kernel TOC in r2.
+	 * The original TOC gets restored when pt_regs is restored
+	 * further below.
+	 */
+	ld	r2,PACATOC(r13)
+
 	.global optprobe_template_op_address
 optprobe_template_op_address:
 	/*

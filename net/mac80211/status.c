@@ -51,7 +51,8 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	int ac;
 
-	if (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER) {
+	if (info->flags & (IEEE80211_TX_CTL_NO_PS_BUFFER |
+			   IEEE80211_TX_CTL_AMPDU)) {
 		ieee80211_free_txskb(&local->hw, skb);
 		return;
 	}

@@ -11,6 +11,8 @@
 #include <cpu/mmu_context.h>
 #include <asm/tlbflush.h>
 #include <linux/uaccess.h>
+#include <linux/mm_types.h>
+
 #include <asm/io.h>
 #include <asm-generic/mm_hooks.h>
 

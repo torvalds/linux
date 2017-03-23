@@ -1053,9 +1053,6 @@ static int ff_layout_async_handle_error_v4(struct rpc_task *task,
 	struct nfs_client *mds_client = mds_server->nfs_client;
 	struct nfs4_slot_table *tbl = &clp->cl_session->fc_slot_table;
 
-	if (task->tk_status >= 0)
-		return 0;
-
 	switch (task->tk_status) {
 	/* MDS state errors */
 	case -NFS4ERR_DELEG_REVOKED:
@@ -1157,9 +1154,6 @@ static int ff_layout_async_handle_error_v3(struct rpc_task *task,
 {
 	struct nfs4_deviceid_node *devid = FF_LAYOUT_DEVID_NODE(lseg, idx);
 
-	if (task->tk_status >= 0)
-		return 0;
-
 	switch (task->tk_status) {
 	/* File access problems. Don't mark the device as unavailable */
 	case -EACCES:
@@ -1194,6 +1188,13 @@ static int ff_layout_async_handle_error(struct rpc_task *task,
 					int idx)
 {
 	int vers = clp->cl_nfs_mod->rpc_vers->number;
+
+	if (task->tk_status >= 0)
+		return 0;
+
+	/* Handle the case of an invalid layout segment */
+	if (!pnfs_is_valid_lseg(lseg))
+		return -NFS4ERR_RESET_TO_PNFS;
 
 	switch (vers) {
 	case 3:
@@ -1384,30 +1385,14 @@ static void ff_layout_read_prepare_v3(struct rpc_task *task, void *data)
 	rpc_call_start(task);
 }
 
-static int ff_layout_setup_sequence(struct nfs_client *ds_clp,
-				    struct nfs4_sequence_args *args,
-				    struct nfs4_sequence_res *res,
-				    struct rpc_task *task)
-{
-	if (ds_clp->cl_session)
-		return nfs41_setup_sequence(ds_clp->cl_session,
-					   args,
-					   res,
-					   task);
-	return nfs40_setup_sequence(ds_clp->cl_slot_tbl,
-				   args,
-				   res,
-				   task);
-}
-
 static void ff_layout_read_prepare_v4(struct rpc_task *task, void *data)
 {
 	struct nfs_pgio_header *hdr = data;
 
-	if (ff_layout_setup_sequence(hdr->ds_clp,
-				     &hdr->args.seq_args,
-				     &hdr->res.seq_res,
-				     task))
+	if (nfs4_setup_sequence(hdr->ds_clp,
+				&hdr->args.seq_args,
+				&hdr->res.seq_res,
+				task))
 		return;
 
 	if (ff_layout_read_prepare_common(task, hdr))
@@ -1578,10 +1563,10 @@ static void ff_layout_write_prepare_v4(struct rpc_task *task, void *data)
 {
 	struct nfs_pgio_header *hdr = data;
 
-	if (ff_layout_setup_sequence(hdr->ds_clp,
-				     &hdr->args.seq_args,
-				     &hdr->res.seq_res,
-				     task))
+	if (nfs4_setup_sequence(hdr->ds_clp,
+				&hdr->args.seq_args,
+				&hdr->res.seq_res,
+				task))
 		return;
 
 	if (ff_layout_write_prepare_common(task, hdr))
@@ -1667,10 +1652,10 @@ static void ff_layout_commit_prepare_v4(struct rpc_task *task, void *data)
 {
 	struct nfs_commit_data *wdata = data;
 
-	if (ff_layout_setup_sequence(wdata->ds_clp,
-				 &wdata->args.seq_args,
-				 &wdata->res.seq_res,
-				 task))
+	if (nfs4_setup_sequence(wdata->ds_clp,
+				&wdata->args.seq_args,
+				&wdata->res.seq_res,
+				task))
 		return;
 	ff_layout_commit_prepare_common(task, data);
 }
@@ -1965,10 +1950,7 @@ static int ff_layout_encode_ioerr(struct xdr_stream *xdr,
 static void
 encode_opaque_fixed(struct xdr_stream *xdr, const void *buf, size_t len)
 {
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, len);
-	xdr_encode_opaque_fixed(p, buf, len);
+	WARN_ON_ONCE(xdr_stream_encode_opaque_fixed(xdr, buf, len) < 0);
 }
 
 static void
@@ -2092,7 +2074,7 @@ ff_layout_free_layoutreturn(struct nfs4_xdr_opaque_data *args)
 	kfree(ff_args);
 }
 
-const struct nfs4_xdr_opaque_ops layoutreturn_ops = {
+static const struct nfs4_xdr_opaque_ops layoutreturn_ops = {
 	.encode = ff_layout_encode_layoutreturn,
 	.free = ff_layout_free_layoutreturn,
 };

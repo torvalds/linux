@@ -188,14 +188,14 @@ Example 1: Single cluster Dual-core ARM cortex A9, switch DVFS states together.
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <970000 975000 985000>;
+			opp-microvolt = <975000 970000 985000>;
 			opp-microamp = <70000>;
 			clock-latency-ns = <300000>;
 			opp-suspend;
 		};
 		opp@1100000000 {
 			opp-hz = /bits/ 64 <1100000000>;
-			opp-microvolt = <980000 1000000 1010000>;
+			opp-microvolt = <1000000 980000 1010000>;
 			opp-microamp = <80000>;
 			clock-latency-ns = <310000>;
 		};
@@ -267,14 +267,14 @@ independently.
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <970000 975000 985000>;
+			opp-microvolt = <975000 970000 985000>;
 			opp-microamp = <70000>;
 			clock-latency-ns = <300000>;
 			opp-suspend;
 		};
 		opp@1100000000 {
 			opp-hz = /bits/ 64 <1100000000>;
-			opp-microvolt = <980000 1000000 1010000>;
+			opp-microvolt = <1000000 980000 1010000>;
 			opp-microamp = <80000>;
 			clock-latency-ns = <310000>;
 		};
@@ -343,14 +343,14 @@ DVFS state together.
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <970000 975000 985000>;
+			opp-microvolt = <975000 970000 985000>;
 			opp-microamp = <70000>;
 			clock-latency-ns = <300000>;
 			opp-suspend;
 		};
 		opp@1100000000 {
 			opp-hz = /bits/ 64 <1100000000>;
-			opp-microvolt = <980000 1000000 1010000>;
+			opp-microvolt = <1000000 980000 1010000>;
 			opp-microamp = <80000>;
 			clock-latency-ns = <310000>;
 		};
@@ -369,7 +369,7 @@ DVFS state together.
 
 		opp@1300000000 {
 			opp-hz = /bits/ 64 <1300000000>;
-			opp-microvolt = <1045000 1050000 1055000>;
+			opp-microvolt = <1050000 1045000 1055000>;
 			opp-microamp = <95000>;
 			clock-latency-ns = <400000>;
 			opp-suspend;
@@ -382,7 +382,7 @@ DVFS state together.
 		};
 		opp@1500000000 {
 			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <1010000 1100000 1110000>;
+			opp-microvolt = <1100000 1010000 1110000>;
 			opp-microamp = <95000>;
 			clock-latency-ns = <400000>;
 			turbo-mode;
@@ -424,9 +424,9 @@ Example 4: Handling multiple regulators
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <970000 975000 985000>, /* Supply 0 */
-					<960000 965000 975000>, /* Supply 1 */
-					<960000 965000 975000>; /* Supply 2 */
+			opp-microvolt = <975000 970000 985000>, /* Supply 0 */
+					<965000 960000 975000>, /* Supply 1 */
+					<965000 960000 975000>; /* Supply 2 */
 			opp-microamp =  <70000>,		/* Supply 0 */
 					<70000>,		/* Supply 1 */
 					<70000>;		/* Supply 2 */
@@ -437,9 +437,9 @@ Example 4: Handling multiple regulators
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <970000 975000 985000>, /* Supply 0 */
-					<960000 965000 975000>, /* Supply 1 */
-					<960000 965000 975000>; /* Supply 2 */
+			opp-microvolt = <975000 970000 985000>, /* Supply 0 */
+					<965000 960000 975000>, /* Supply 1 */
+					<965000 960000 975000>; /* Supply 2 */
 			opp-microamp =  <70000>,		/* Supply 0 */
 					<0>,			/* Supply 1 doesn't need this */
 					<70000>;		/* Supply 2 */
@@ -474,7 +474,7 @@ Example 5: opp-supported-hw
 			 */
 			opp-supported-hw = <0xF 0xFFFFFFFF 0xFFFFFFFF>
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <900000 915000 925000>;
+			opp-microvolt = <915000 900000 925000>;
 			...
 		};
 
@@ -487,7 +487,7 @@ Example 5: opp-supported-hw
 			 */
 			opp-supported-hw = <0x20 0xff0000ff 0x0000f4f0>
 			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <900000 915000 925000>;
+			opp-microvolt = <915000 900000 925000>;
 			...
 		};
 	};
@@ -512,18 +512,18 @@ Example 6: opp-microvolt-<name>, opp-microamp-<name>:
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt-slow = <900000 915000 925000>;
-			opp-microvolt-fast = <970000 975000 985000>;
+			opp-microvolt-slow = <915000 900000 925000>;
+			opp-microvolt-fast = <975000 970000 985000>;
 			opp-microamp-slow =  <70000>;
 			opp-microamp-fast =  <71000>;
 		};
 
 		opp@1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt-slow = <900000 915000 925000>, /* Supply vcc0 */
-					      <910000 925000 935000>; /* Supply vcc1 */
-			opp-microvolt-fast = <970000 975000 985000>, /* Supply vcc0 */
-					     <960000 965000 975000>; /* Supply vcc1 */
+			opp-microvolt-slow = <915000 900000 925000>, /* Supply vcc0 */
+					      <925000 910000 935000>; /* Supply vcc1 */
+			opp-microvolt-fast = <975000 970000 985000>, /* Supply vcc0 */
+					     <965000 960000 975000>; /* Supply vcc1 */
 			opp-microamp =  <70000>; /* Will be used for both slow/fast */
 		};
 	};

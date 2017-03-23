@@ -555,10 +555,9 @@ static void send_mode_select(struct work_struct *work)
 		(char *) h->ctlr->array_name, h->ctlr->index,
 		(retry_cnt == RDAC_RETRY_COUNT) ? "queueing" : "retrying");
 
-	if (scsi_execute_req_flags(sdev, cdb, DMA_TO_DEVICE,
-				   &h->ctlr->mode_select, data_size, &sshdr,
-				   RDAC_TIMEOUT * HZ,
-				   RDAC_RETRIES, NULL, req_flags, 0)) {
+	if (scsi_execute(sdev, cdb, DMA_TO_DEVICE, &h->ctlr->mode_select,
+			data_size, NULL, &sshdr, RDAC_TIMEOUT * HZ,
+			RDAC_RETRIES, req_flags, 0, NULL)) {
 		err = mode_select_handle_sense(sdev, &sshdr);
 		if (err == SCSI_DH_RETRY && retry_cnt--)
 			goto retry;

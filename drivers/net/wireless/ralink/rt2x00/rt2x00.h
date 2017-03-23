@@ -257,7 +257,7 @@ struct link_qual {
 	int tx_failed;
 };
 
-DECLARE_EWMA(rssi, 1024, 8)
+DECLARE_EWMA(rssi, 10, 8)
 
 /*
  * Antenna settings about the currently active link.

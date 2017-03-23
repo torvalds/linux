@@ -2,6 +2,7 @@
  * Generic entry point for the idle threads
  */
 #include <linux/sched.h>
+#include <linux/sched/idle.h>
 #include <linux/cpu.h>
 #include <linux/cpuidle.h>
 #include <linux/cpuhotplug.h>

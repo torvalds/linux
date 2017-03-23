@@ -52,6 +52,8 @@
 #include "sunrpc.h"
 
 static void xs_close(struct rpc_xprt *xprt);
+static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
+		struct socket *sock);
 
 /*
  * xprtsock tunables
@@ -665,6 +667,9 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	 */
 	if (task->tk_flags & RPC_TASK_SENT)
 		zerocopy = false;
+
+	if (test_bit(XPRT_SOCK_UPD_TIMEOUT, &transport->sock_state))
+		xs_tcp_set_socket_timeouts(xprt, transport->sock);
 
 	/* Continue transmitting the packet/record. We must be careful
 	 * to cope with writespace callbacks arriving _after_ we have
@@ -1734,7 +1739,9 @@ static void xs_udp_set_buffer_size(struct rpc_xprt *xprt, size_t sndsize, size_t
  */
 static void xs_udp_timer(struct rpc_xprt *xprt, struct rpc_task *task)
 {
+	spin_lock_bh(&xprt->transport_lock);
 	xprt_adjust_cwnd(xprt, task, -ETIMEDOUT);
+	spin_unlock_bh(&xprt->transport_lock);
 }
 
 static unsigned short xs_get_random_port(void)
@@ -2235,6 +2242,66 @@ static void xs_tcp_shutdown(struct rpc_xprt *xprt)
 		xs_reset_transport(transport);
 }
 
+static void xs_tcp_set_socket_timeouts(struct rpc_xprt *xprt,
+		struct socket *sock)
+{
+	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+	unsigned int keepidle;
+	unsigned int keepcnt;
+	unsigned int opt_on = 1;
+	unsigned int timeo;
+
+	spin_lock_bh(&xprt->transport_lock);
+	keepidle = DIV_ROUND_UP(xprt->timeout->to_initval, HZ);
+	keepcnt = xprt->timeout->to_retries + 1;
+	timeo = jiffies_to_msecs(xprt->timeout->to_initval) *
+		(xprt->timeout->to_retries + 1);
+	clear_bit(XPRT_SOCK_UPD_TIMEOUT, &transport->sock_state);
+	spin_unlock_bh(&xprt->transport_lock);
+
+	/* TCP Keepalive options */
+	kernel_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+			(char *)&opt_on, sizeof(opt_on));
+	kernel_setsockopt(sock, SOL_TCP, TCP_KEEPIDLE,
+			(char *)&keepidle, sizeof(keepidle));
+	kernel_setsockopt(sock, SOL_TCP, TCP_KEEPINTVL,
+			(char *)&keepidle, sizeof(keepidle));
+	kernel_setsockopt(sock, SOL_TCP, TCP_KEEPCNT,
+			(char *)&keepcnt, sizeof(keepcnt));
+
+	/* TCP user timeout (see RFC5482) */
+	kernel_setsockopt(sock, SOL_TCP, TCP_USER_TIMEOUT,
+			(char *)&timeo, sizeof(timeo));
+}
+
+static void xs_tcp_set_connect_timeout(struct rpc_xprt *xprt,
+		unsigned long connect_timeout,
+		unsigned long reconnect_timeout)
+{
+	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+	struct rpc_timeout to;
+	unsigned long initval;
+
+	spin_lock_bh(&xprt->transport_lock);
+	if (reconnect_timeout < xprt->max_reconnect_timeout)
+		xprt->max_reconnect_timeout = reconnect_timeout;
+	if (connect_timeout < xprt->connect_timeout) {
+		memcpy(&to, xprt->timeout, sizeof(to));
+		initval = DIV_ROUND_UP(connect_timeout, to.to_retries + 1);
+		/* Arbitrary lower limit */
+		if (initval <  XS_TCP_INIT_REEST_TO << 1)
+			initval = XS_TCP_INIT_REEST_TO << 1;
+		to.to_initval = initval;
+		to.to_maxval = initval;
+		memcpy(&transport->tcp_timeout, &to,
+				sizeof(transport->tcp_timeout));
+		xprt->timeout = &transport->tcp_timeout;
+		xprt->connect_timeout = connect_timeout;
+	}
+	set_bit(XPRT_SOCK_UPD_TIMEOUT, &transport->sock_state);
+	spin_unlock_bh(&xprt->transport_lock);
+}
+
 static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
@@ -2242,21 +2309,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 
 	if (!transport->inet) {
 		struct sock *sk = sock->sk;
-		unsigned int keepidle = xprt->timeout->to_initval / HZ;
-		unsigned int keepcnt = xprt->timeout->to_retries + 1;
-		unsigned int opt_on = 1;
-		unsigned int timeo;
 		unsigned int addr_pref = IPV6_PREFER_SRC_PUBLIC;
-
-		/* TCP Keepalive options */
-		kernel_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
-				(char *)&opt_on, sizeof(opt_on));
-		kernel_setsockopt(sock, SOL_TCP, TCP_KEEPIDLE,
-				(char *)&keepidle, sizeof(keepidle));
-		kernel_setsockopt(sock, SOL_TCP, TCP_KEEPINTVL,
-				(char *)&keepidle, sizeof(keepidle));
-		kernel_setsockopt(sock, SOL_TCP, TCP_KEEPCNT,
-				(char *)&keepcnt, sizeof(keepcnt));
 
 		/* Avoid temporary address, they are bad for long-lived
 		 * connections such as NFS mounts.
@@ -2268,11 +2321,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		kernel_setsockopt(sock, SOL_IPV6, IPV6_ADDR_PREFERENCES,
 				(char *)&addr_pref, sizeof(addr_pref));
 
-		/* TCP user timeout (see RFC5482) */
-		timeo = jiffies_to_msecs(xprt->timeout->to_initval) *
-			(xprt->timeout->to_retries + 1);
-		kernel_setsockopt(sock, SOL_TCP, TCP_USER_TIMEOUT,
-				(char *)&timeo, sizeof(timeo));
+		xs_tcp_set_socket_timeouts(xprt, sock);
 
 		write_lock_bh(&sk->sk_callback_lock);
 
@@ -2721,6 +2770,7 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
 	.close			= xs_tcp_shutdown,
 	.destroy		= xs_destroy,
+	.set_connect_timeout	= xs_tcp_set_connect_timeout,
 	.print_stats		= xs_tcp_print_stats,
 	.enable_swap		= xs_enable_swap,
 	.disable_swap		= xs_disable_swap,
@@ -3007,6 +3057,8 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 	xprt->timeout = &xs_tcp_default_timeout;
 
 	xprt->max_reconnect_timeout = xprt->timeout->to_maxval;
+	xprt->connect_timeout = xprt->timeout->to_initval *
+		(xprt->timeout->to_retries + 1);
 
 	INIT_WORK(&transport->recv_worker, xs_tcp_data_receive_workfn);
 	INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_setup_socket);
@@ -3209,7 +3261,9 @@ static int param_set_uint_minmax(const char *val,
 	if (!val)
 		return -EINVAL;
 	ret = kstrtouint(val, 0, &num);
-	if (ret == -EINVAL || num < min || num > max)
+	if (ret)
+		return ret;
+	if (num < min || num > max)
 		return -EINVAL;
 	*((unsigned int *)kp->arg) = num;
 	return 0;

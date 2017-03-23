@@ -16,6 +16,8 @@
 #include <linux/export.h>
 #include <linux/user_namespace.h>
 #include <linux/net_namespace.h>
+#include <linux/sched/task.h>
+
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/net_namespace.h>

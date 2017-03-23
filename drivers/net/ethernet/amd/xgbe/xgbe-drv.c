@@ -1131,11 +1131,11 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 	hw_if->disable_tx(pdata);
 	hw_if->disable_rx(pdata);
 
+	phy_if->phy_stop(pdata);
+
 	xgbe_free_irqs(pdata);
 
 	xgbe_napi_disable(pdata, 1);
-
-	phy_if->phy_stop(pdata);
 
 	hw_if->exit(pdata);
 
@@ -2272,10 +2272,7 @@ static int xgbe_one_poll(struct napi_struct *napi, int budget)
 	processed = xgbe_rx_poll(channel, budget);
 
 	/* If we processed everything, we are done */
-	if (processed < budget) {
-		/* Turn off polling */
-		napi_complete_done(napi, processed);
-
+	if ((processed < budget) && napi_complete_done(napi, processed)) {
 		/* Enable Tx and Rx interrupts */
 		if (pdata->channel_irq_mode)
 			xgbe_enable_rx_tx_int(pdata, channel);
@@ -2317,10 +2314,7 @@ static int xgbe_all_poll(struct napi_struct *napi, int budget)
 	} while ((processed < budget) && (processed != last_processed));
 
 	/* If we processed everything, we are done */
-	if (processed < budget) {
-		/* Turn off polling */
-		napi_complete_done(napi, processed);
-
+	if ((processed < budget) && napi_complete_done(napi, processed)) {
 		/* Enable Tx and Rx interrupts */
 		xgbe_enable_rx_tx_ints(pdata);
 	}

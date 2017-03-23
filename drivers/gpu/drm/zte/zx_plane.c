@@ -159,7 +159,7 @@ static void zx_vl_rsz_setup(struct zx_plane *zplane, uint32_t format,
 	void __iomem *rsz = zplane->rsz;
 	u32 src_chroma_w = src_w;
 	u32 src_chroma_h = src_h;
-	u32 fmt;
+	int fmt;
 
 	/* Set up source and destination resolution */
 	zx_writel(rsz + RSZ_SRC_CFG, RSZ_VER(src_h - 1) | RSZ_HOR(src_w - 1));
@@ -203,7 +203,7 @@ static void zx_vl_plane_atomic_update(struct drm_plane *plane,
 	u32 src_x, src_y, src_w, src_h;
 	u32 dst_x, dst_y, dst_w, dst_h;
 	uint32_t format;
-	u32 fmt;
+	int fmt;
 	int num_planes;
 	int i;
 

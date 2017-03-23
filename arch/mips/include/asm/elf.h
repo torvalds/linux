@@ -10,6 +10,8 @@
 
 #include <linux/auxvec.h>
 #include <linux/fs.h>
+#include <linux/mm_types.h>
+
 #include <uapi/linux/elf.h>
 
 #include <asm/current.h>

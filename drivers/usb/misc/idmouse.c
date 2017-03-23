@@ -17,6 +17,7 @@
 */
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/slab.h>

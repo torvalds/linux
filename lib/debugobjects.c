@@ -13,6 +13,7 @@
 #include <linux/debugobjects.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>

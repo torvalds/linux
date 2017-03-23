@@ -12,7 +12,8 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/kdb.h>
 #include <linux/nmi.h>
 #include "kdb_private.h"

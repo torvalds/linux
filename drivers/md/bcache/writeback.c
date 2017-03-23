@@ -13,6 +13,7 @@
 
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/sched/clock.h>
 #include <trace/events/bcache.h>
 
 /* Rate limiting */

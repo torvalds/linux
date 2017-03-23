@@ -16,6 +16,7 @@
 #include <linux/seq_file.h>
 #include <linux/irq.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/syscore_ops.h>
 #include <linux/gpio.h>
 #include <asm/delay.h>

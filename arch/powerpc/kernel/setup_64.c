@@ -113,14 +113,12 @@ void __init setup_tlb_core_data(void)
 		 * If we have threads, we need either tlbsrx.
 		 * or e6500 tablewalk mode, or else TLB handlers
 		 * will be racy and could produce duplicate entries.
+		 * Should we panic instead?
 		 */
-		if (smt_enabled_at_boot >= 2 &&
-		    !mmu_has_feature(MMU_FTR_USE_TLBRSRV) &&
-		    book3e_htw_mode != PPC_HTW_E6500) {
-			/* Should we panic instead? */
-			WARN_ONCE("%s: unsupported MMU configuration -- expect problems\n",
-				  __func__);
-		}
+		WARN_ONCE(smt_enabled_at_boot >= 2 &&
+			  !mmu_has_feature(MMU_FTR_USE_TLBRSRV) &&
+			  book3e_htw_mode != PPC_HTW_E6500,
+			  "%s: unsupported MMU configuration\n", __func__);
 	}
 }
 #endif
@@ -410,7 +408,10 @@ static void init_cache_info(struct ppc_cache_info *info, u32 size, u32 lsize,
 	info->line_size = lsize;
 	info->block_size = bsize;
 	info->log_block_size = __ilog2(bsize);
-	info->blocks_per_page = PAGE_SIZE / bsize;
+	if (bsize)
+		info->blocks_per_page = PAGE_SIZE / bsize;
+	else
+		info->blocks_per_page = 0;
 
 	if (sets == 0)
 		info->assoc = 0xffff;

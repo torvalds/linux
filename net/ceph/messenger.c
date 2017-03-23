@@ -520,7 +520,8 @@ static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
 	int r;
 
-	r = kernel_recvmsg(sock, &msg, &iov, 1, len, msg.msg_flags);
+	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1, len);
+	r = sock_recvmsg(sock, &msg, msg.msg_flags);
 	if (r == -EAGAIN)
 		r = 0;
 	return r;
@@ -529,17 +530,20 @@ static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
 static int ceph_tcp_recvpage(struct socket *sock, struct page *page,
 		     int page_offset, size_t length)
 {
-	void *kaddr;
-	int ret;
+	struct bio_vec bvec = {
+		.bv_page = page,
+		.bv_offset = page_offset,
+		.bv_len = length
+	};
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	int r;
 
 	BUG_ON(page_offset + length > PAGE_SIZE);
-
-	kaddr = kmap(page);
-	BUG_ON(!kaddr);
-	ret = ceph_tcp_recvmsg(sock, kaddr + page_offset, length);
-	kunmap(page);
-
-	return ret;
+	iov_iter_bvec(&msg.msg_iter, READ | ITER_BVEC, &bvec, 1, length);
+	r = sock_recvmsg(sock, &msg, msg.msg_flags);
+	if (r == -EAGAIN)
+		r = 0;
+	return r;
 }
 
 /*
@@ -579,18 +583,28 @@ static int __ceph_tcp_sendpage(struct socket *sock, struct page *page,
 static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
 		     int offset, size_t size, bool more)
 {
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
+	struct bio_vec bvec;
 	int ret;
-	struct kvec iov;
 
 	/* sendpage cannot properly handle pages with page_count == 0,
 	 * we need to fallback to sendmsg if that's the case */
 	if (page_count(page) >= 1)
 		return __ceph_tcp_sendpage(sock, page, offset, size, more);
 
-	iov.iov_base = kmap(page) + offset;
-	iov.iov_len = size;
-	ret = ceph_tcp_sendmsg(sock, &iov, 1, size, more);
-	kunmap(page);
+	bvec.bv_page = page;
+	bvec.bv_offset = offset;
+	bvec.bv_len = size;
+
+	if (more)
+		msg.msg_flags |= MSG_MORE;
+	else
+		msg.msg_flags |= MSG_EOR;  /* superfluous, but what the hell */
+
+	iov_iter_bvec(&msg.msg_iter, WRITE | ITER_BVEC, &bvec, 1, size);
+	ret = sock_sendmsg(sock, &msg);
+	if (ret == -EAGAIN)
+		ret = 0;
 
 	return ret;
 }

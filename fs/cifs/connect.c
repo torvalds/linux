@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/net.h>
 #include <linux/string.h>
+#include <linux/sched/signal.h>
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
@@ -2073,7 +2074,8 @@ match_security(struct TCP_Server_Info *server, struct smb_vol *vol)
 	 * that was specified, or "Unspecified" if that sectype was not
 	 * compatible with the given NEGOTIATE request.
 	 */
-	if (select_sectype(server, vol->sectype) == Unspecified)
+	if (server->ops->select_sectype(server, vol->sectype)
+	     == Unspecified)
 		return false;
 
 	/*
@@ -2455,7 +2457,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 	}
 
 	down_read(&key->sem);
-	upayload = user_key_payload(key);
+	upayload = user_key_payload_locked(key);
 	if (IS_ERR_OR_NULL(upayload)) {
 		rc = upayload ? PTR_ERR(upayload) : -EINVAL;
 		goto out_key_put;

@@ -35,6 +35,7 @@
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
+#include <linux/sched/task_stack.h>
 
 #define __ARCH_WANT_KPROBES_INSN_SLOT
 

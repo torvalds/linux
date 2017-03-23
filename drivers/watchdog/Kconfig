@@ -142,6 +142,7 @@ config GPIO_WATCHDOG_ARCH_INITCALL
 config MENF21BMC_WATCHDOG
 	tristate "MEN 14F021P00 BMC Watchdog"
 	depends on MFD_MENF21BMC || COMPILE_TEST
+	depends on I2C
 	select WATCHDOG_CORE
 	help
 	  Say Y here to include support for the MEN 14F021P00 BMC Watchdog.
@@ -176,7 +177,7 @@ config WDAT_WDT
 
 config WM831X_WATCHDOG
 	tristate "WM831x watchdog"
-	depends on MFD_WM831X || COMPILE_TEST
+	depends on MFD_WM831X
 	select WATCHDOG_CORE
 	help
 	  Support for the watchdog in the WM831x AudioPlus PMICs.  When
@@ -217,7 +218,7 @@ config ZIIRAVE_WATCHDOG
 
 config ARM_SP805_WATCHDOG
 	tristate "ARM SP805 Watchdog"
-	depends on (ARM || ARM64) && (ARM_AMBA || COMPILE_TEST)
+	depends on (ARM || ARM64 || COMPILE_TEST) && ARM_AMBA
 	select WATCHDOG_CORE
 	help
 	  ARM Primecell SP805 Watchdog timer. This will reboot your system when
@@ -573,7 +574,7 @@ config IMX2_WDT
 
 config UX500_WATCHDOG
 	tristate "ST-Ericsson Ux500 watchdog"
-	depends on MFD_DB8500_PRCMU || (ARM && COMPILE_TEST)
+	depends on MFD_DB8500_PRCMU
 	select WATCHDOG_CORE
 	default y
 	help
@@ -585,7 +586,7 @@ config UX500_WATCHDOG
 
 config RETU_WATCHDOG
 	tristate "Retu watchdog"
-	depends on MFD_RETU || COMPILE_TEST
+	depends on MFD_RETU
 	select WATCHDOG_CORE
 	help
 	  Retu watchdog driver for Nokia Internet Tablets (770, N800,
@@ -851,7 +852,7 @@ config SP5100_TCO
 
 config GEODE_WDT
 	tristate "AMD Geode CS5535/CS5536 Watchdog"
-	depends on CS5535_MFGPT || (X86 && COMPILE_TEST)
+	depends on CS5535_MFGPT
 	help
 	  This driver enables a watchdog capability built into the
 	  CS5535/CS5536 companion chips for the AMD Geode GX and LX
@@ -1063,7 +1064,7 @@ config HP_WATCHDOG
 
 config KEMPLD_WDT
 	tristate "Kontron COM Watchdog Timer"
-	depends on MFD_KEMPLD || COMPILE_TEST
+	depends on MFD_KEMPLD
 	select WATCHDOG_CORE
 	help
 	  Support for the PLD watchdog on some Kontron ETX and COMexpress
@@ -1495,7 +1496,7 @@ config BCM63XX_WDT
 
 config BCM2835_WDT
 	tristate "Broadcom BCM2835 hardware watchdog"
-	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on ARCH_BCM2835 || (OF && COMPILE_TEST)
 	select WATCHDOG_CORE
 	help
 	  Watchdog driver for the built in watchdog hardware in Broadcom

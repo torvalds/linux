@@ -135,7 +135,7 @@ ENTRY(crc32c_pmull_le)
 	vld1.8		{q3-q4}, [BUF, :128]!
 	vmov.i8		qzr, #0
 	vmov.i8		qCONSTANT, #0
-	vmov		dCONSTANTl[0], CRC
+	vmov.32		dCONSTANTl[0], CRC
 	veor.8		d2, d2, dCONSTANTl
 	sub		LEN, LEN, #0x40
 	cmp		LEN, #0x40

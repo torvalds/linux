@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>

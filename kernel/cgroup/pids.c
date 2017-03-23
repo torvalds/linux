@@ -214,7 +214,7 @@ static void pids_cancel_attach(struct cgroup_taskset *tset)
 
 /*
  * task_css_check(true) in pids_can_fork() and pids_cancel_fork() relies
- * on threadgroup_change_begin() held by the copy_process().
+ * on cgroup_threadgroup_change_begin() held by the copy_process().
  */
 static int pids_can_fork(struct task_struct *task)
 {
@@ -229,7 +229,7 @@ static int pids_can_fork(struct task_struct *task)
 		/* Only log the first time events_limit is incremented. */
 		if (atomic64_inc_return(&pids->events_limit) == 1) {
 			pr_info("cgroup: fork rejected by pids controller in ");
-			pr_cont_cgroup_path(task_cgroup(current, pids_cgrp_id));
+			pr_cont_cgroup_path(css->cgroup);
 			pr_cont("\n");
 		}
 		cgroup_file_notify(&pids->events_file);

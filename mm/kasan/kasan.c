@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <linux/stacktrace.h>
 #include <linux/string.h>
@@ -38,6 +39,16 @@
 
 #include "kasan.h"
 #include "../slab.h"
+
+void kasan_enable_current(void)
+{
+	current->kasan_depth++;
+}
+
+void kasan_disable_current(void)
+{
+	current->kasan_depth--;
+}
 
 /*
  * Poisons the shadow memory for 'size' bytes starting from 'addr'.

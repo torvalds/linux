@@ -96,7 +96,7 @@
 #define IXGBE_MAX_FRAME_BUILD_SKB \
 	(SKB_WITH_OVERHEAD(IXGBE_RXBUFFER_2K) - IXGBE_SKB_PAD)
 #else
-#define IGB_MAX_FRAME_BUILD_SKB IXGBE_RXBUFFER_2K
+#define IXGBE_MAX_FRAME_BUILD_SKB IXGBE_RXBUFFER_2K
 #endif
 
 /*
@@ -929,6 +929,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 				  struct ixgbe_adapter *adapter,
 				  struct ixgbe_ring *tx_ring);
 u32 ixgbe_rss_indir_tbl_entries(struct ixgbe_adapter *adapter);
+void ixgbe_store_key(struct ixgbe_adapter *adapter);
 void ixgbe_store_reta(struct ixgbe_adapter *adapter);
 s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
 		       u32 adv_sym, u32 adv_asm, u32 lp_sym, u32 lp_asm);

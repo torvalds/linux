@@ -466,6 +466,7 @@ header-y += virtio_console.h
 header-y += virtio_gpu.h
 header-y += virtio_ids.h
 header-y += virtio_input.h
+header-y += virtio_mmio.h
 header-y += virtio_net.h
 header-y += virtio_pci.h
 header-y += virtio_ring.h

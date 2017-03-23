@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/fs.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>

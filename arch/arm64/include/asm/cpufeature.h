@@ -184,16 +184,22 @@ static inline u64 arm64_ftr_reg_user_value(const struct arm64_ftr_reg *reg)
 }
 
 static inline int __attribute_const__
-cpuid_feature_extract_field(u64 features, int field, bool sign)
+cpuid_feature_extract_field_width(u64 features, int field, int width, bool sign)
 {
 	return (sign) ?
-		cpuid_feature_extract_signed_field(features, field) :
-		cpuid_feature_extract_unsigned_field(features, field);
+		cpuid_feature_extract_signed_field_width(features, field, width) :
+		cpuid_feature_extract_unsigned_field_width(features, field, width);
+}
+
+static inline int __attribute_const__
+cpuid_feature_extract_field(u64 features, int field, bool sign)
+{
+	return cpuid_feature_extract_field_width(features, field, 4, sign);
 }
 
 static inline s64 arm64_ftr_value(const struct arm64_ftr_bits *ftrp, u64 val)
 {
-	return (s64)cpuid_feature_extract_field(val, ftrp->shift, ftrp->sign);
+	return (s64)cpuid_feature_extract_field_width(val, ftrp->shift, ftrp->width, ftrp->sign);
 }
 
 static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)
@@ -245,7 +251,7 @@ static inline bool system_supports_fpsimd(void)
 static inline bool system_uses_ttbr0_pan(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_SW_TTBR0_PAN) &&
-		!cpus_have_cap(ARM64_HAS_PAN);
+		!cpus_have_const_cap(ARM64_HAS_PAN);
 }
 
 #endif /* __ASSEMBLY__ */

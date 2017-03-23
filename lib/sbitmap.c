@@ -15,6 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <linux/sched.h>
 #include <linux/random.h>
 #include <linux/sbitmap.h>
 #include <linux/seq_file.h>

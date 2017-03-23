@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/highuid.h>
 #include <linux/security.h>
+#include <linux/cred.h>
 #include <linux/syscalls.h>
 
 #include <linux/uaccess.h>

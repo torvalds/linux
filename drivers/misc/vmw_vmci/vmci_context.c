@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/slab.h>
 
 #include "vmci_queue_pair.h"

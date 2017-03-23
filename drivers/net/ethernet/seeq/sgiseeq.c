@@ -807,7 +807,7 @@ err_out:
 	return err;
 }
 
-static int __exit sgiseeq_remove(struct platform_device *pdev)
+static int sgiseeq_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sgiseeq_private *sp = netdev_priv(dev);
@@ -822,7 +822,7 @@ static int __exit sgiseeq_remove(struct platform_device *pdev)
 
 static struct platform_driver sgiseeq_driver = {
 	.probe	= sgiseeq_probe,
-	.remove	= __exit_p(sgiseeq_remove),
+	.remove	= sgiseeq_remove,
 	.driver = {
 		.name	= "sgiseeq",
 	}

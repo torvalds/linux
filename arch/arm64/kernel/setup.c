@@ -42,6 +42,7 @@
 #include <linux/of_fdt.h>
 #include <linux/efi.h>
 #include <linux/psci.h>
+#include <linux/sched/task.h>
 #include <linux/mm.h>
 
 #include <asm/acpi.h>

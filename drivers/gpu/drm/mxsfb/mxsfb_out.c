@@ -112,6 +112,7 @@ static int mxsfb_attach_endpoint(struct drm_device *drm,
 
 int mxsfb_create_output(struct drm_device *drm)
 {
+	struct mxsfb_drm_private *mxsfb = drm->dev_private;
 	struct device_node *ep_np = NULL;
 	struct of_endpoint ep;
 	int ret;
@@ -126,6 +127,9 @@ int mxsfb_create_output(struct drm_device *drm)
 			return ret;
 		}
 	}
+
+	if (!mxsfb->panel)
+		return -EPROBE_DEFER;
 
 	return 0;
 }

@@ -339,13 +339,13 @@ static int add_dead_ends(struct objtool_file *file)
 	struct instruction *insn;
 	bool found;
 
-	sec = find_section_by_name(file->elf, ".rela__unreachable");
+	sec = find_section_by_name(file->elf, ".rela.discard.unreachable");
 	if (!sec)
 		return 0;
 
 	list_for_each_entry(rela, &sec->rela_list, list) {
 		if (rela->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in .rela__unreachable");
+			WARN("unexpected relocation symbol type in %s", sec->name);
 			return -1;
 		}
 		insn = find_insn(file, rela->sym->sec, rela->addend);
@@ -805,11 +805,20 @@ static struct rela *find_switch_table(struct objtool_file *file,
 		     insn->jump_dest->offset > orig_insn->offset))
 		    break;
 
+		/* look for a relocation which references .rodata */
 		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,
 						    insn->len);
-		if (text_rela && text_rela->sym == file->rodata->sym)
-			return find_rela_by_dest(file->rodata,
-						 text_rela->addend);
+		if (!text_rela || text_rela->sym != file->rodata->sym)
+			continue;
+
+		/*
+		 * Make sure the .rodata address isn't associated with a
+		 * symbol.  gcc jump tables are anonymous data.
+		 */
+		if (find_symbol_containing(file->rodata, text_rela->addend))
+			continue;
+
+		return find_rela_by_dest(file->rodata, text_rela->addend);
 	}
 
 	return NULL;
@@ -1272,7 +1281,7 @@ int cmd_check(int argc, const char **argv)
 
 	INIT_LIST_HEAD(&file.insn_list);
 	hash_init(file.insn_hash);
-	file.whitelist = find_section_by_name(file.elf, "__func_stack_frame_non_standard");
+	file.whitelist = find_section_by_name(file.elf, ".discard.func_stack_frame_non_standard");
 	file.rodata = find_section_by_name(file.elf, ".rodata");
 	file.ignore_unreachables = false;
 	file.c_file = find_section_by_name(file.elf, ".comment");

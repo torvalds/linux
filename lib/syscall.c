@@ -1,5 +1,6 @@
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/export.h>
 #include <asm/syscall.h>
 

@@ -346,7 +346,7 @@ static int ax88772_reset(struct usbnet *dev)
 	if (ret < 0)
 		goto out;
 
-	asix_write_medium_mode(dev, AX88772_MEDIUM_DEFAULT, 0);
+	ret = asix_write_medium_mode(dev, AX88772_MEDIUM_DEFAULT, 0);
 	if (ret < 0)
 		goto out;
 

@@ -731,12 +731,10 @@ struct _event_ack_list {
 struct adapter_reply_queue {
 	struct MPT3SAS_ADAPTER	*ioc;
 	u8			msix_index;
-	unsigned int		vector;
 	u32			reply_post_host_index;
 	Mpi2ReplyDescriptorsUnion_t *reply_post_free;
 	char			name[MPT_NAME_LENGTH];
 	atomic_t		busy;
-	cpumask_var_t		affinity_hint;
 	struct list_head	list;
 };
 
@@ -1444,9 +1442,6 @@ void mpt3sas_transport_update_links(struct MPT3SAS_ADAPTER *ioc,
 	u64 sas_address, u16 handle, u8 phy_number, u8 link_rate);
 extern struct sas_function_template mpt3sas_transport_functions;
 extern struct scsi_transport_template *mpt3sas_transport_template;
-extern int scsi_internal_device_block(struct scsi_device *sdev);
-extern int scsi_internal_device_unblock(struct scsi_device *sdev,
-				enum scsi_device_state new_state);
 /* trigger data externs */
 void mpt3sas_send_trigger_data_event(struct MPT3SAS_ADAPTER *ioc,
 	struct SL_WH_TRIGGERS_EVENT_DATA_T *event_data);

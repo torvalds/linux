@@ -61,6 +61,8 @@ extern void exit_cifs_idmap(void);
 extern int init_cifs_spnego(void);
 extern void exit_cifs_spnego(void);
 extern char *build_path_from_dentry(struct dentry *);
+extern char *build_path_from_dentry_optional_prefix(struct dentry *direntry,
+						    bool prefix);
 extern char *cifs_build_path_to_root(struct smb_vol *vol,
 				     struct cifs_sb_info *cifs_sb,
 				     struct cifs_tcon *tcon,
@@ -284,6 +286,11 @@ extern int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 			const struct nls_table *nls_codepage,
 			unsigned int *num_referrals,
 			struct dfs_info3_param **referrals, int remap);
+extern int parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
+			       unsigned int *num_of_nodes,
+			       struct dfs_info3_param **target_nodes,
+			       const struct nls_table *nls_codepage, int remap,
+			       const char *searchName, bool is_unicode);
 extern void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
 				 struct cifs_sb_info *cifs_sb,
 				 struct smb_vol *vol);
@@ -526,4 +533,6 @@ int cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 int __cifs_calc_signature(struct smb_rqst *rqst,
 			struct TCP_Server_Info *server, char *signature,
 			struct shash_desc *shash);
+enum securityEnum cifs_select_sectype(struct TCP_Server_Info *,
+					enum securityEnum);
 #endif			/* _CIFSPROTO_H */

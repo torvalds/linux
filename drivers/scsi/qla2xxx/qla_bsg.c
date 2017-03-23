@@ -13,28 +13,25 @@
 
 /* BSG support for ELS/CT pass through */
 void
-qla2x00_bsg_job_done(void *data, void *ptr, int res)
+qla2x00_bsg_job_done(void *ptr, int res)
 {
-	srb_t *sp = (srb_t *)ptr;
-	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
+	srb_t *sp = ptr;
 	struct bsg_job *bsg_job = sp->u.bsg_job;
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 
 	bsg_reply->result = res;
 	bsg_job_done(bsg_job, bsg_reply->result,
 		       bsg_reply->reply_payload_rcv_len);
-	sp->free(vha, sp);
+	sp->free(sp);
 }
 
 void
-qla2x00_bsg_sp_free(void *data, void *ptr)
+qla2x00_bsg_sp_free(void *ptr)
 {
-	srb_t *sp = (srb_t *)ptr;
-	struct scsi_qla_host *vha = sp->fcport->vha;
+	srb_t *sp = ptr;
+	struct qla_hw_data *ha = sp->vha->hw;
 	struct bsg_job *bsg_job = sp->u.bsg_job;
 	struct fc_bsg_request *bsg_request = bsg_job->request;
-
-	struct qla_hw_data *ha = vha->hw;
 	struct qla_mt_iocb_rqst_fx00 *piocb_rqst;
 
 	if (sp->type == SRB_FXIOCB_BCMD) {
@@ -62,7 +59,7 @@ qla2x00_bsg_sp_free(void *data, void *ptr)
 	    sp->type == SRB_FXIOCB_BCMD ||
 	    sp->type == SRB_ELS_CMD_HST)
 		kfree(sp->fcport);
-	qla2x00_rel_sp(vha, sp);
+	qla2x00_rel_sp(sp);
 }
 
 int
@@ -394,7 +391,7 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x700e,
 		    "qla2x00_start_sp failed = %d\n", rval);
-		qla2x00_rel_sp(vha, sp);
+		qla2x00_rel_sp(sp);
 		rval = -EIO;
 		goto done_unmap_sg;
 	}
@@ -542,7 +539,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x7017,
 		    "qla2x00_start_sp failed=%d.\n", rval);
-		qla2x00_rel_sp(vha, sp);
+		qla2x00_rel_sp(sp);
 		rval = -EIO;
 		goto done_free_fcport;
 	}
@@ -2578,6 +2575,6 @@ qla24xx_bsg_timeout(struct bsg_job *bsg_job)
 
 done:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	sp->free(vha, sp);
+	sp->free(sp);
 	return 0;
 }

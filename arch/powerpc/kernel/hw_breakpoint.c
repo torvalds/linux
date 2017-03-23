@@ -211,9 +211,11 @@ int hw_breakpoint_handler(struct die_args *args)
 	int rc = NOTIFY_STOP;
 	struct perf_event *bp;
 	struct pt_regs *regs = args->regs;
+#ifndef CONFIG_PPC_8xx
 	int stepped = 1;
-	struct arch_hw_breakpoint *info;
 	unsigned int instr;
+#endif
+	struct arch_hw_breakpoint *info;
 	unsigned long dar = regs->dar;
 
 	/* Disable breakpoints during exception handling */
@@ -257,6 +259,7 @@ int hw_breakpoint_handler(struct die_args *args)
 	      (dar - bp->attr.bp_addr < bp->attr.bp_len)))
 		info->type |= HW_BRK_TYPE_EXTRANEOUS_IRQ;
 
+#ifndef CONFIG_PPC_8xx
 	/* Do not emulate user-space instructions, instead single-step them */
 	if (user_mode(regs)) {
 		current->thread.last_hit_ubp = bp;
@@ -280,6 +283,7 @@ int hw_breakpoint_handler(struct die_args *args)
 		perf_event_disable_inatomic(bp);
 		goto out;
 	}
+#endif
 	/*
 	 * As a policy, the callback is invoked in a 'trigger-after-execute'
 	 * fashion

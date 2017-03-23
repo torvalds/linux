@@ -24,6 +24,8 @@
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 #include <linux/syscalls.h>
+#include <linux/sched/signal.h>
+
 #include <net/kcm.h>
 #include <net/netns/generic.h>
 #include <net/sock.h>

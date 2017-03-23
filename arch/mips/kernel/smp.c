@@ -28,7 +28,7 @@
 #include <linux/export.h>
 #include <linux/time.h>
 #include <linux/timex.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/cpumask.h>
 #include <linux/cpu.h>
 #include <linux/err.h>

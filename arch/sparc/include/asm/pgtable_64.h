@@ -12,6 +12,7 @@
  * the SpitFire page tables.
  */
 
+#include <asm-generic/5level-fixup.h>
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <asm/types.h>
@@ -877,6 +878,9 @@ static inline unsigned long pud_pfn(pud_t pud)
 #define pte_offset_kernel		pte_index
 #define pte_offset_map			pte_index
 #define pte_unmap(pte)			do { } while (0)
+
+/* We cannot include <linux/mm_types.h> at this point yet: */
+extern struct mm_struct init_mm;
 
 /* Actual page table PTE updates.  */
 void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,

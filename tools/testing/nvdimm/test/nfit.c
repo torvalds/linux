@@ -887,7 +887,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 0+1;
 	memdev->region_index = 4+1;
 	memdev->region_size = SPA0_SIZE/2;
-	memdev->region_offset = t->spa_set_dma[0];
+	memdev->region_offset = 1;
 	memdev->address = 0;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 2;
@@ -902,7 +902,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 0+1;
 	memdev->region_index = 5+1;
 	memdev->region_size = SPA0_SIZE/2;
-	memdev->region_offset = t->spa_set_dma[0] + SPA0_SIZE/2;
+	memdev->region_offset = (1 << 8);
 	memdev->address = 0;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 2;
@@ -917,7 +917,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 1+1;
 	memdev->region_index = 4+1;
 	memdev->region_size = SPA1_SIZE/4;
-	memdev->region_offset = t->spa_set_dma[1];
+	memdev->region_offset = (1 << 16);
 	memdev->address = SPA0_SIZE/2;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 4;
@@ -932,7 +932,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 1+1;
 	memdev->region_index = 5+1;
 	memdev->region_size = SPA1_SIZE/4;
-	memdev->region_offset = t->spa_set_dma[1] + SPA1_SIZE/4;
+	memdev->region_offset = (1 << 24);
 	memdev->address = SPA0_SIZE/2;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 4;
@@ -947,7 +947,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 1+1;
 	memdev->region_index = 6+1;
 	memdev->region_size = SPA1_SIZE/4;
-	memdev->region_offset = t->spa_set_dma[1] + 2*SPA1_SIZE/4;
+	memdev->region_offset = (1ULL << 32);
 	memdev->address = SPA0_SIZE/2;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 4;
@@ -962,7 +962,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 1+1;
 	memdev->region_index = 7+1;
 	memdev->region_size = SPA1_SIZE/4;
-	memdev->region_offset = t->spa_set_dma[1] + 3*SPA1_SIZE/4;
+	memdev->region_offset = (1ULL << 40);
 	memdev->address = SPA0_SIZE/2;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 4;
@@ -1380,7 +1380,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 		memdev->range_index = 11+1;
 		memdev->region_index = 9+1;
 		memdev->region_size = SPA0_SIZE;
-		memdev->region_offset = t->spa_set_dma[2];
+		memdev->region_offset = (1ULL << 48);
 		memdev->address = 0;
 		memdev->interleave_index = 0;
 		memdev->interleave_ways = 1;

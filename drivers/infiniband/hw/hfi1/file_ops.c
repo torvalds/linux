@@ -48,6 +48,7 @@
 #include <linux/cdev.h>
 #include <linux/vmalloc.h>
 #include <linux/io.h>
+#include <linux/sched/mm.h>
 
 #include <rdma/ib.h>
 

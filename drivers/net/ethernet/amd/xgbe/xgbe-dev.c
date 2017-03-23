@@ -1323,7 +1323,7 @@ static int xgbe_read_ext_mii_regs(struct xgbe_prv_data *pdata, int addr,
 static int xgbe_set_ext_mii_mode(struct xgbe_prv_data *pdata, unsigned int port,
 				 enum xgbe_mdio_mode mode)
 {
-	unsigned int reg_val = 0;
+	unsigned int reg_val = XGMAC_IOREAD(pdata, MAC_MDIOCL22R);
 
 	switch (mode) {
 	case XGBE_MDIO_MODE_CL22:

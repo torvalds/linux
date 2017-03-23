@@ -37,7 +37,7 @@
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/sem.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>

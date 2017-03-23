@@ -13,7 +13,7 @@
  */
 
 #include <linux/spinlock.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/interrupt.h>
 #include <linux/profile.h>
 #include <linux/mm.h>

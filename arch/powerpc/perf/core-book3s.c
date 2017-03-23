@@ -57,6 +57,7 @@ struct cpu_hw_events {
 	void				*bhrb_context;
 	struct	perf_branch_stack	bhrb_stack;
 	struct	perf_branch_entry	bhrb_entries[BHRB_MAX_ENTRIES];
+	u64				ic_init;
 };
 
 static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
@@ -127,6 +128,10 @@ static inline void power_pmu_bhrb_disable(struct perf_event *event) {}
 static void power_pmu_sched_task(struct perf_event_context *ctx, bool sched_in) {}
 static inline void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw) {}
 static void pmao_restore_workaround(bool ebb) { }
+static bool use_ic(u64 event)
+{
+	return false;
+}
 #endif /* CONFIG_PPC32 */
 
 static bool regs_use_siar(struct pt_regs *regs)
@@ -183,6 +188,8 @@ static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp)
 			sdsync = POWER7P_MMCRA_SDAR_VALID;
 		else if (ppmu->flags & PPMU_ALT_SIPR)
 			sdsync = POWER6_MMCRA_SDSYNC;
+		else if (ppmu->flags & PPMU_NO_SIAR)
+			sdsync = MMCRA_SAMPLE_ENABLE;
 		else
 			sdsync = MMCRA_SDSYNC;
 
@@ -243,7 +250,7 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 	 */
 	if (ppmu->flags & PPMU_NO_SIPR) {
 		unsigned long siar = mfspr(SPRN_SIAR);
-		if (siar >= PAGE_OFFSET)
+		if (is_kernel_addr(siar))
 			return PERF_RECORD_MISC_KERNEL;
 		return PERF_RECORD_MISC_USER;
 	}
@@ -688,6 +695,15 @@ static void pmao_restore_workaround(bool ebb)
 	mtspr(SPRN_PMC5, pmcs[4]);
 	mtspr(SPRN_PMC6, pmcs[5]);
 }
+
+static bool use_ic(u64 event)
+{
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1) &&
+			(event == 0x200f2 || event == 0x300f2))
+		return true;
+
+	return false;
+}
 #endif /* CONFIG_PPC64 */
 
 static void perf_event_interrupt(struct pt_regs *regs);
@@ -1007,6 +1023,7 @@ static u64 check_and_compute_delta(u64 prev, u64 val)
 static void power_pmu_read(struct perf_event *event)
 {
 	s64 val, delta, prev;
+	struct cpu_hw_events *cpuhw = this_cpu_ptr(&cpu_hw_events);
 
 	if (event->hw.state & PERF_HES_STOPPED)
 		return;
@@ -1016,6 +1033,13 @@ static void power_pmu_read(struct perf_event *event)
 
 	if (is_ebb_event(event)) {
 		val = read_pmc(event->hw.idx);
+		if (use_ic(event->attr.config)) {
+			val = mfspr(SPRN_IC);
+			if (val > cpuhw->ic_init)
+				val = val - cpuhw->ic_init;
+			else
+				val = val + (0 - cpuhw->ic_init);
+		}
 		local64_set(&event->hw.prev_count, val);
 		return;
 	}
@@ -1029,6 +1053,13 @@ static void power_pmu_read(struct perf_event *event)
 		prev = local64_read(&event->hw.prev_count);
 		barrier();
 		val = read_pmc(event->hw.idx);
+		if (use_ic(event->attr.config)) {
+			val = mfspr(SPRN_IC);
+			if (val > cpuhw->ic_init)
+				val = val - cpuhw->ic_init;
+			else
+				val = val + (0 - cpuhw->ic_init);
+		}
 		delta = check_and_compute_delta(prev, val);
 		if (!delta)
 			return;
@@ -1465,6 +1496,13 @@ nocheck:
 		cpuhw->bhrb_filter = ppmu->bhrb_filter_map(
 					event->attr.branch_sample_type);
 	}
+
+	/*
+	 * Workaround for POWER9 DD1 to use the Instruction Counter
+	 * register value for instruction counting
+	 */
+	if (use_ic(event->attr.config))
+		cpuhw->ic_init = mfspr(SPRN_IC);
 
 	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);

@@ -35,7 +35,7 @@ static const char * osst_version = "0.99.4";
 
 #include <linux/fs.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/proc_fs.h>
 #include <linux/mm.h>
 #include <linux/slab.h>

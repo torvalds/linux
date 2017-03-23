@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/poll.h>
+#include <linux/sched/signal.h>
 #include <linux/uio.h>
 #include <linux/miscdevice.h>
 #include <linux/pagemap.h>
