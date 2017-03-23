@@ -785,7 +785,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 	if (r)
 		return r;
 
-	r = amdgpu_vm_clear_freed(adev, vm);
+	r = amdgpu_vm_clear_freed(adev, vm, NULL);
 	if (r)
 		return r;
 
