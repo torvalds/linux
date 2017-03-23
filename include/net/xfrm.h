@@ -816,12 +816,12 @@ static inline void xfrm_state_hold(struct xfrm_state *x)
 }
 
 static inline bool addr_match(const void *token1, const void *token2,
-			      int prefixlen)
+			      unsigned int prefixlen)
 {
 	const __be32 *a1 = token1;
 	const __be32 *a2 = token2;
-	int pdw;
-	int pbi;
+	unsigned int pdw;
+	unsigned int pbi;
 
 	pdw = prefixlen >> 5;	  /* num of whole u32 in prefix */
 	pbi = prefixlen &  0x1f;  /* num of bits in incomplete u32 in prefix */
