@@ -560,7 +560,7 @@ static int ad7280_attr_init(struct ad7280_state *st)
 			st->iio_attr[cnt].address =
 				AD7280A_DEVADDR(dev) << 8 | ch;
 			st->iio_attr[cnt].dev_attr.attr.mode =
-				S_IWUSR | S_IRUGO;
+				0644;
 			st->iio_attr[cnt].dev_attr.show =
 				ad7280_show_balance_sw;
 			st->iio_attr[cnt].dev_attr.store =
@@ -577,7 +577,7 @@ static int ad7280_attr_init(struct ad7280_state *st)
 				AD7280A_DEVADDR(dev) << 8 |
 				(AD7280A_CB1_TIMER + ch);
 			st->iio_attr[cnt].dev_attr.attr.mode =
-				S_IWUSR | S_IRUGO;
+				0644;
 			st->iio_attr[cnt].dev_attr.show =
 				ad7280_show_balance_timer;
 			st->iio_attr[cnt].dev_attr.store =
@@ -746,26 +746,26 @@ out:
 
 static IIO_DEVICE_ATTR_NAMED(in_thresh_low_value,
 		in_voltage-voltage_thresh_low_value,
-		S_IRUGO | S_IWUSR,
+		0644,
 		ad7280_read_channel_config,
 		ad7280_write_channel_config,
 		AD7280A_CELL_UNDERVOLTAGE);
 
 static IIO_DEVICE_ATTR_NAMED(in_thresh_high_value,
 		in_voltage-voltage_thresh_high_value,
-		S_IRUGO | S_IWUSR,
+		0644,
 		ad7280_read_channel_config,
 		ad7280_write_channel_config,
 		AD7280A_CELL_OVERVOLTAGE);
 
 static IIO_DEVICE_ATTR(in_temp_thresh_low_value,
-		S_IRUGO | S_IWUSR,
+		0644,
 		ad7280_read_channel_config,
 		ad7280_write_channel_config,
 		AD7280A_AUX_ADC_UNDERVOLTAGE);
 
 static IIO_DEVICE_ATTR(in_temp_thresh_high_value,
-		S_IRUGO | S_IWUSR,
+		0644,
 		ad7280_read_channel_config,
 		ad7280_write_channel_config,
 		AD7280A_AUX_ADC_OVERVOLTAGE);
