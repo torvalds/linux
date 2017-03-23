@@ -1325,7 +1325,7 @@ struct intel_gen6_power_mgmt {
 	unsigned boosts;
 
 	/* manual wa residency calculations */
-	struct intel_rps_ei up_ei, down_ei;
+	struct intel_rps_ei ei;
 
 	/*
 	 * Protects RPS/RC6 register access and PCU communication.
@@ -2063,8 +2063,6 @@ struct drm_i915_private {
 	struct kmem_cache *dependencies;
 
 	const struct intel_device_info info;
-
-	int relative_constants_mode;
 
 	void __iomem *regs;
 
@@ -3342,6 +3340,7 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 }
 
 int i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
+void i915_gem_reset(struct drm_i915_private *dev_priv);
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
