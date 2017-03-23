@@ -106,6 +106,7 @@ struct vmw_screen_target_display_unit {
 	struct vmw_display_unit base;
 	const struct vmw_surface *display_srf;
 	enum stdu_content_type content_fb_type;
+	s32 display_width, display_height;
 
 	bool defined;
 };
@@ -184,6 +185,8 @@ static int vmw_stdu_define_st(struct vmw_private *dev_priv,
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 
 	stdu->defined = true;
+	stdu->display_width  = mode->hdisplay;
+	stdu->display_height = mode->vdisplay;
 
 	return 0;
 }
@@ -281,7 +284,6 @@ static int vmw_stdu_update_st(struct vmw_private *dev_priv,
 			      struct vmw_screen_target_display_unit *stdu)
 {
 	struct vmw_stdu_update *cmd;
-	struct drm_crtc *crtc = &stdu->base.crtc;
 
 	if (!stdu->defined) {
 		DRM_ERROR("No screen target defined");
@@ -295,8 +297,9 @@ static int vmw_stdu_update_st(struct vmw_private *dev_priv,
 		return -ENOMEM;
 	}
 
-	vmw_stdu_populate_update(cmd, stdu->base.unit, 0, crtc->mode.hdisplay,
-				 0, crtc->mode.vdisplay);
+	vmw_stdu_populate_update(cmd, stdu->base.unit,
+				 0, stdu->display_width,
+				 0, stdu->display_height);
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 
@@ -346,6 +349,8 @@ static int vmw_stdu_destroy_st(struct vmw_private *dev_priv,
 		DRM_ERROR("Failed to sync with HW");
 
 	stdu->defined = false;
+	stdu->display_width  = 0;
+	stdu->display_height = 0;
 
 	return ret;
 }
