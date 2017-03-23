@@ -1502,7 +1502,7 @@ static int cdn_dp_probe(struct platform_device *pdev)
 	struct cdn_dp_device *dp;
 	struct extcon_dev *extcon;
 	struct phy *phy;
-	int i;
+	int ret, i;
 
 	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
 	if (!dp)
@@ -1542,9 +1542,19 @@ static int cdn_dp_probe(struct platform_device *pdev)
 	mutex_init(&dp->lock);
 	dev_set_drvdata(dev, dp);
 
-	device_create_file(dev, &dev_attr_hdcp_key);
+	ret = device_create_file(dev, &dev_attr_hdcp_key);
+	if (ret)
+		return ret;
 
-	return component_add(dev, &cdn_dp_component_ops);
+	ret = component_add(dev, &cdn_dp_component_ops);
+	if (ret)
+		goto err;
+
+	return 0;
+
+err:
+	device_remove_file(dev, &dev_attr_hdcp_key);
+	return ret;
 }
 
 static int cdn_dp_remove(struct platform_device *pdev)
@@ -1553,6 +1563,7 @@ static int cdn_dp_remove(struct platform_device *pdev)
 
 	cdn_dp_suspend(dp->dev);
 	component_del(&pdev->dev, &cdn_dp_component_ops);
+	device_remove_file(&pdev->dev, &dev_attr_hdcp_key);
 
 	return 0;
 }
