@@ -1163,6 +1163,12 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 		if (f2fs_discard_en(sbi) &&
 			!f2fs_test_and_set_bit(offset, se->discard_map))
 			sbi->discard_blks--;
+
+		/* don't overwrite by SSR to keep node chain */
+		if (se->type == CURSEG_WARM_NODE) {
+			if (!f2fs_test_and_set_bit(offset, se->ckpt_valid_map))
+				se->ckpt_valid_blocks++;
+		}
 	} else {
 		if (!f2fs_test_and_clear_bit(offset, se->cur_valid_map)) {
 #ifdef CONFIG_F2FS_CHECK_FS
