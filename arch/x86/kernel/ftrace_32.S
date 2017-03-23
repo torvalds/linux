@@ -54,34 +54,33 @@ WEAK(ftrace_stub)
 END(ftrace_caller)
 
 ENTRY(ftrace_regs_caller)
-	pushf	/* push flags before compare (in cs location) */
-
 	/*
 	 * i386 does not save SS and ESP when coming from kernel.
 	 * Instead, to get sp, &regs->sp is used (see ptrace.h).
 	 * Unfortunately, that means eflags must be at the same location
 	 * as the current return ip is. We move the return ip into the
-	 * ip location, and move flags into the return ip location.
+	 * regs->ip location, and move flags into the return ip location.
 	 */
-	pushl	4(%esp)				/* save return ip into ip slot */
-
+	pushl	$__KERNEL_CS
+	pushl	4(%esp)				/* Save the return ip */
 	pushl	$0				/* Load 0 into orig_ax */
 	pushl	%gs
 	pushl	%fs
 	pushl	%es
 	pushl	%ds
 	pushl	%eax
+
+	/* Get flags and place them into the return ip slot */
+	pushf
+	popl	%eax
+	movl	%eax, 8*4(%esp)
+
 	pushl	%ebp
 	pushl	%edi
 	pushl	%esi
 	pushl	%edx
 	pushl	%ecx
 	pushl	%ebx
-
-	movl	13*4(%esp), %eax		/* Get the saved flags */
-	movl	%eax, 14*4(%esp)		/* Move saved flags into regs->flags location */
-						/* clobbering return ip */
-	movl	$__KERNEL_CS, 13*4(%esp)
 
 	movl	12*4(%esp), %eax		/* Load ip (1st parameter) */
 	subl	$MCOUNT_INSN_SIZE, %eax		/* Adjust ip */
@@ -93,10 +92,14 @@ GLOBAL(ftrace_regs_call)
 	call	ftrace_stub
 
 	addl	$4, %esp			/* Skip pt_regs */
-	movl	14*4(%esp), %eax		/* Move flags back into cs */
-	movl	%eax, 13*4(%esp)		/* Needed to keep addl	from modifying flags */
-	movl	12*4(%esp), %eax		/* Get return ip from regs->ip */
-	movl	%eax, 14*4(%esp)		/* Put return ip back for ret */
+
+	/* restore flags */
+	push	14*4(%esp)
+	popf
+
+	/* Move return ip back to its original location */
+	movl	12*4(%esp), %eax
+	movl	%eax, 14*4(%esp)
 
 	popl	%ebx
 	popl	%ecx
@@ -109,12 +112,11 @@ GLOBAL(ftrace_regs_call)
 	popl	%es
 	popl	%fs
 	popl	%gs
-	addl	$8, %esp			/* Skip orig_ax and ip */
-	popf					/* Pop flags at end (no addl to corrupt flags) */
-	jmp	.Lftrace_ret
 
-	popf
-	jmp	ftrace_stub
+	/* use lea to not affect flags */
+	lea	3*4(%esp), %esp			/* Skip orig_ax, ip and cs */
+
+	jmp	.Lftrace_ret
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
 ENTRY(mcount)
