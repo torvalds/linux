@@ -3035,14 +3035,12 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	int plane = intel_crtc->plane;
 	u32 linear_offset;
-	u32 dspcntr;
+	u32 dspcntr = plane_state->ctl;
 	i915_reg_t reg = DSPCNTR(plane);
 	unsigned int rotation = plane_state->base.rotation;
 	int x = plane_state->base.src.x1 >> 16;
 	int y = plane_state->base.src.y1 >> 16;
 	unsigned long irqflags;
-
-	dspcntr = i9xx_plane_ctl(crtc_state, plane_state);
 
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
 
@@ -3133,14 +3131,12 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	int plane = intel_crtc->plane;
 	u32 linear_offset;
-	u32 dspcntr;
+	u32 dspcntr = plane_state->ctl;
 	i915_reg_t reg = DSPCNTR(plane);
 	unsigned int rotation = plane_state->base.rotation;
 	int x = plane_state->base.src.x1 >> 16;
 	int y = plane_state->base.src.y1 >> 16;
 	unsigned long irqflags;
-
-	dspcntr = i9xx_plane_ctl(crtc_state, plane_state);
 
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
 
@@ -3358,7 +3354,7 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	enum plane_id plane_id = to_intel_plane(plane)->id;
 	enum pipe pipe = to_intel_plane(plane)->pipe;
-	u32 plane_ctl;
+	u32 plane_ctl = plane_state->ctl;
 	unsigned int rotation = plane_state->base.rotation;
 	u32 stride = skl_plane_stride(fb, 0, rotation);
 	u32 surf_addr = plane_state->main.offset;
@@ -3372,8 +3368,6 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	int dst_w = drm_rect_width(&plane_state->base.dst);
 	int dst_h = drm_rect_height(&plane_state->base.dst);
 	unsigned long irqflags;
-
-	plane_ctl = skl_plane_ctl(crtc_state, plane_state);
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -9187,7 +9181,6 @@ static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 }
 
 static void i845_update_cursor(struct drm_crtc *crtc, u32 base,
-			       const struct intel_crtc_state *crtc_state,
 			       const struct intel_plane_state *plane_state)
 {
 	struct drm_device *dev = crtc->dev;
@@ -9199,7 +9192,7 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base,
 		unsigned int width = plane_state->base.crtc_w;
 		unsigned int height = plane_state->base.crtc_h;
 
-		cntl = i845_cursor_ctl(crtc_state, plane_state);
+		cntl = plane_state->ctl;
 		size = (height << 12) | width;
 	}
 
@@ -9270,7 +9263,6 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 }
 
 static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base,
-			       const struct intel_crtc_state *crtc_state,
 			       const struct intel_plane_state *plane_state)
 {
 	struct drm_device *dev = crtc->dev;
@@ -9280,7 +9272,7 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base,
 	uint32_t cntl = 0;
 
 	if (plane_state && plane_state->base.visible)
-		cntl = i9xx_cursor_ctl(crtc_state, plane_state);
+		cntl = plane_state->ctl;
 
 	if (intel_crtc->cursor_cntl != cntl) {
 		I915_WRITE_FW(CURCNTR(pipe), cntl);
@@ -9297,7 +9289,6 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base,
 
 /* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
 static void intel_crtc_update_cursor(struct drm_crtc *crtc,
-				     const struct intel_crtc_state *crtc_state,
 				     const struct intel_plane_state *plane_state)
 {
 	struct drm_device *dev = crtc->dev;
@@ -9337,9 +9328,9 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	I915_WRITE_FW(CURPOS(pipe), pos);
 
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv))
-		i845_update_cursor(crtc, base, crtc_state, plane_state);
+		i845_update_cursor(crtc, base, plane_state);
 	else
-		i9xx_update_cursor(crtc, base, crtc_state, plane_state);
+		i9xx_update_cursor(crtc, base, plane_state);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -13371,6 +13362,10 @@ intel_check_primary_plane(struct drm_plane *plane,
 		ret = skl_check_plane_surface(state);
 		if (ret)
 			return ret;
+
+		state->ctl = skl_plane_ctl(crtc_state, state);
+	} else {
+		state->ctl = i9xx_plane_ctl(crtc_state, state);
 	}
 
 	return 0;
@@ -13706,6 +13701,7 @@ intel_check_cursor_plane(struct drm_plane *plane,
 			 struct intel_crtc_state *crtc_state,
 			 struct intel_plane_state *state)
 {
+	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 	struct drm_framebuffer *fb = state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	enum pipe pipe = to_intel_plane(plane)->pipe;
@@ -13725,7 +13721,7 @@ intel_check_cursor_plane(struct drm_plane *plane,
 		return 0;
 
 	/* Check for which cursor types we support */
-	if (!cursor_size_ok(to_i915(plane->dev), state->base.crtc_w,
+	if (!cursor_size_ok(dev_priv, state->base.crtc_w,
 			    state->base.crtc_h)) {
 		DRM_DEBUG("Cursor dimension %dx%d not supported\n",
 			  state->base.crtc_w, state->base.crtc_h);
@@ -13753,11 +13749,16 @@ intel_check_cursor_plane(struct drm_plane *plane,
 	 * display power well must be turned off and on again.
 	 * Refuse the put the cursor into that compromised position.
 	 */
-	if (IS_CHERRYVIEW(to_i915(plane->dev)) && pipe == PIPE_C &&
+	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_C &&
 	    state->base.visible && state->base.crtc_x < 0) {
 		DRM_DEBUG_KMS("CHV cursor C not allowed to straddle the left screen edge\n");
 		return -EINVAL;
 	}
+
+	if (IS_I845G(dev_priv) || IS_I865G(dev_priv))
+		state->ctl = i845_cursor_ctl(crtc_state, state);
+	else
+		state->ctl = i9xx_cursor_ctl(crtc_state, state);
 
 	return 0;
 }
@@ -13769,7 +13770,7 @@ intel_disable_cursor_plane(struct drm_plane *plane,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	intel_crtc->cursor_addr = 0;
-	intel_crtc_update_cursor(crtc, NULL, NULL);
+	intel_crtc_update_cursor(crtc, NULL);
 }
 
 static void
@@ -13791,7 +13792,7 @@ intel_update_cursor_plane(struct drm_plane *plane,
 		addr = obj->phys_handle->busaddr;
 
 	intel_crtc->cursor_addr = addr;
-	intel_crtc_update_cursor(crtc, crtc_state, state);
+	intel_crtc_update_cursor(crtc, state);
 }
 
 static struct intel_plane *

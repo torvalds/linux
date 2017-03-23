@@ -217,7 +217,7 @@ skl_update_plane(struct drm_plane *drm_plane,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	enum plane_id plane_id = intel_plane->id;
 	enum pipe pipe = intel_plane->pipe;
-	u32 plane_ctl;
+	u32 plane_ctl = plane_state->ctl;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	u32 surf_addr = plane_state->main.offset;
 	unsigned int rotation = plane_state->base.rotation;
@@ -231,8 +231,6 @@ skl_update_plane(struct drm_plane *drm_plane,
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
-
-	plane_ctl = skl_plane_ctl(crtc_state, plane_state);
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -420,7 +418,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	enum pipe pipe = intel_plane->pipe;
 	enum plane_id plane_id = intel_plane->id;
-	u32 sprctl;
+	u32 sprctl = plane_state->ctl;
 	u32 sprsurf_offset, linear_offset;
 	unsigned int rotation = plane_state->base.rotation;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
@@ -433,8 +431,6 @@ vlv_update_plane(struct drm_plane *dplane,
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
-
-	sprctl = vlv_sprite_ctl(crtc_state, plane_state);
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -569,7 +565,7 @@ ivb_update_plane(struct drm_plane *plane,
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	enum pipe pipe = intel_plane->pipe;
-	u32 sprctl, sprscale = 0;
+	u32 sprctl = plane_state->ctl, sprscale = 0;
 	u32 sprsurf_offset, linear_offset;
 	unsigned int rotation = plane_state->base.rotation;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
@@ -582,8 +578,6 @@ ivb_update_plane(struct drm_plane *plane,
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
-
-	sprctl = ivb_sprite_ctl(crtc_state, plane_state);
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -722,7 +716,7 @@ ilk_update_plane(struct drm_plane *plane,
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	int pipe = intel_plane->pipe;
-	u32 dvscntr, dvsscale;
+	u32 dvscntr = plane_state->ctl, dvsscale;
 	u32 dvssurf_offset, linear_offset;
 	unsigned int rotation = plane_state->base.rotation;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
@@ -735,8 +729,6 @@ ilk_update_plane(struct drm_plane *plane,
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
-
-	dvscntr = ilk_sprite_ctl(crtc_state, plane_state);
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -986,6 +978,14 @@ intel_check_sprite_plane(struct drm_plane *plane,
 		ret = skl_check_plane_surface(state);
 		if (ret)
 			return ret;
+
+		state->ctl = skl_plane_ctl(crtc_state, state);
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		state->ctl = vlv_sprite_ctl(crtc_state, state);
+	} else if (INTEL_GEN(dev_priv) >= 7) {
+		state->ctl = ivb_sprite_ctl(crtc_state, state);
+	} else {
+		state->ctl = ilk_sprite_ctl(crtc_state, state);
 	}
 
 	return 0;
