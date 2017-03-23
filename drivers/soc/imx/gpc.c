@@ -309,12 +309,13 @@ static struct genpd_onecell_data imx_gpc_onecell_data = {
 	.num_domains = 2,
 };
 
-static int imx_gpc_old_dt_init(struct device *dev, struct regmap *regmap)
+static int imx_gpc_old_dt_init(struct device *dev, struct regmap *regmap,
+			       unsigned int num_domains)
 {
 	struct imx_pm_domain *domain;
 	int i, ret;
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < num_domains; i++) {
 		domain = &imx_gpc_domains[i];
 		domain->regmap = regmap;
 		domain->ipg_rate_mhz = 66;
@@ -332,7 +333,7 @@ static int imx_gpc_old_dt_init(struct device *dev, struct regmap *regmap)
 		}
 	}
 
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < num_domains; i++)
 		pm_genpd_init(&imx_gpc_domains[i].base, NULL, false);
 
 	if (IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)) {
@@ -345,7 +346,7 @@ static int imx_gpc_old_dt_init(struct device *dev, struct regmap *regmap)
 	return 0;
 
 genpd_err:
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < num_domains; i++)
 		pm_genpd_remove(&imx_gpc_domains[i].base);
 	imx_pgc_put_clocks(&imx_gpc_domains[1]);
 clk_err:
@@ -385,13 +386,8 @@ static int imx_gpc_probe(struct platform_device *pdev)
 	}
 
 	if (!pgc_node) {
-		/* old DT layout is only supported for mx6q aka 2 domains */
-		if (of_id_data->num_domains != 2) {
-			dev_err(&pdev->dev, "could not find pgc DT node\n");
-			return -ENODEV;
-		}
-
-		ret = imx_gpc_old_dt_init(&pdev->dev, regmap);
+		ret = imx_gpc_old_dt_init(&pdev->dev, regmap,
+					  of_id_data->num_domains);
 		if (ret)
 			return ret;
 	} else {
