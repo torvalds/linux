@@ -55,6 +55,44 @@
 			reg = <0x00960000 0x20000>;
 			clocks = <&clks IMX6QDL_CLK_OCRAM>;
 		};
+
+		aips-bus@02100000 {
+			pre1: pre@21c8000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021c8000 0x1000>;
+				interrupts = <GIC_SPI 90 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE0>;
+				clock-names = "axi";
+				fsl,iram = <&ocram2>;
+			};
+
+			pre2: pre@21c9000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021c9000 0x1000>;
+				interrupts = <GIC_SPI 97 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE1>;
+				clock-names = "axi";
+				fsl,iram = <&ocram2>;
+			};
+
+			pre3: pre@21ca000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021ca000 0x1000>;
+				interrupts = <GIC_SPI 98 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE2>;
+				clock-names = "axi";
+				fsl,iram = <&ocram3>;
+			};
+
+			pre4: pre@21cb000 {
+				compatible = "fsl,imx6qp-pre";
+				reg = <0x021cb000 0x1000>;
+				interrupts = <GIC_SPI 99 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clks IMX6QDL_CLK_PRE3>;
+				clock-names = "axi";
+				fsl,iram = <&ocram3>;
+			};
+		};
 	};
 };
 
