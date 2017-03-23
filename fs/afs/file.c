@@ -30,6 +30,7 @@ static int afs_readpages(struct file *filp, struct address_space *mapping,
 
 const struct file_operations afs_file_operations = {
 	.open		= afs_open,
+	.flush		= afs_flush,
 	.release	= afs_release,
 	.llseek		= generic_file_llseek,
 	.read_iter	= generic_file_read_iter,
@@ -184,10 +185,13 @@ int afs_page_filler(void *data, struct page *page)
 		if (!req)
 			goto enomem;
 
+		/* We request a full page.  If the page is a partial one at the
+		 * end of the file, the server will return a short read and the
+		 * unmarshalling code will clear the unfilled space.
+		 */
 		atomic_set(&req->usage, 1);
 		req->pos = (loff_t)page->index << PAGE_SHIFT;
-		req->len = min_t(size_t, i_size_read(inode) - req->pos,
-				 PAGE_SIZE);
+		req->len = PAGE_SIZE;
 		req->nr_pages = 1;
 		req->pages[0] = page;
 		get_page(page);
@@ -208,7 +212,13 @@ int afs_page_filler(void *data, struct page *page)
 			fscache_uncache_page(vnode->cache, page);
 #endif
 			BUG_ON(PageFsCache(page));
-			goto error;
+
+			if (ret == -EINTR ||
+			    ret == -ENOMEM ||
+			    ret == -ERESTARTSYS ||
+			    ret == -EAGAIN)
+				goto error;
+			goto io_error;
 		}
 
 		SetPageUptodate(page);
@@ -227,10 +237,12 @@ int afs_page_filler(void *data, struct page *page)
 	_leave(" = 0");
 	return 0;
 
+io_error:
+	SetPageError(page);
+	goto error;
 enomem:
 	ret = -ENOMEM;
 error:
-	SetPageError(page);
 	unlock_page(page);
 	_leave(" = %d", ret);
 	return ret;
