@@ -145,7 +145,7 @@ void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 			mode->vsync_end, mode->vtotal,
 			mode->type, mode->flags);
 	pingpong_tearcheck_setup(encoder, mode);
-	mdp5_crtc_set_pipeline(encoder->crtc, &mdp5_cmd_enc->intf,
+	mdp5_crtc_set_pipeline(encoder->crtc, mdp5_cmd_enc->intf,
 				mdp5_cmd_enc->ctl);
 }
 
@@ -153,7 +153,7 @@ void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
 	struct mdp5_ctl *ctl = mdp5_cmd_enc->ctl;
-	struct mdp5_interface *intf = &mdp5_cmd_enc->intf;
+	struct mdp5_interface *intf = mdp5_cmd_enc->intf;
 
 	if (WARN_ON(!mdp5_cmd_enc->enabled))
 		return;
@@ -172,7 +172,7 @@ void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
 	struct mdp5_ctl *ctl = mdp5_cmd_enc->ctl;
-	struct mdp5_interface *intf = &mdp5_cmd_enc->intf;
+	struct mdp5_interface *intf = mdp5_cmd_enc->intf;
 
 	if (WARN_ON(mdp5_cmd_enc->enabled))
 		return;
@@ -200,7 +200,7 @@ int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 		return -EINVAL;
 
 	mdp5_kms = get_kms(encoder);
-	intf_num = mdp5_cmd_enc->intf.num;
+	intf_num = mdp5_cmd_enc->intf->num;
 
 	/* Switch slave encoder's trigger MUX, to use the master's
 	 * start signal for the slave encoder

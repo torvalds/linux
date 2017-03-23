@@ -271,19 +271,14 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 }
 
 static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
-		enum mdp5_intf_type intf_type, int intf_num,
-		struct mdp5_ctl *ctl)
+					     struct mdp5_interface *intf,
+					     struct mdp5_ctl *ctl)
 {
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_encoder *encoder;
-	struct mdp5_interface intf = {
-			.num	= intf_num,
-			.type	= intf_type,
-			.mode	= MDP5_INTF_MODE_NONE,
-	};
 
-	encoder = mdp5_encoder_init(dev, &intf, ctl);
+	encoder = mdp5_encoder_init(dev, intf, ctl);
 	if (IS_ERR(encoder)) {
 		dev_err(dev->dev, "failed to construct encoder\n");
 		return encoder;
@@ -312,32 +307,28 @@ static int get_dsi_id_from_intf(const struct mdp5_cfg_hw *hw_cfg, int intf_num)
 	return -EINVAL;
 }
 
-static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
+static int modeset_init_intf(struct mdp5_kms *mdp5_kms,
+			     struct mdp5_interface *intf)
 {
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
-	const struct mdp5_cfg_hw *hw_cfg =
-					mdp5_cfg_get_hw_config(mdp5_kms->cfg);
-	enum mdp5_intf_type intf_type = hw_cfg->intf.connect[intf_num];
 	struct mdp5_ctl_manager *ctlm = mdp5_kms->ctlm;
 	struct mdp5_ctl *ctl;
 	struct drm_encoder *encoder;
 	int ret = 0;
 
-	switch (intf_type) {
-	case INTF_DISABLED:
-		break;
+	switch (intf->type) {
 	case INTF_eDP:
 		if (!priv->edp)
 			break;
 
-		ctl = mdp5_ctlm_request(ctlm, intf_num);
+		ctl = mdp5_ctlm_request(ctlm, intf->num);
 		if (!ctl) {
 			ret = -EINVAL;
 			break;
 		}
 
-		encoder = construct_encoder(mdp5_kms, INTF_eDP, intf_num, ctl);
+		encoder = construct_encoder(mdp5_kms, intf, ctl);
 		if (IS_ERR(encoder)) {
 			ret = PTR_ERR(encoder);
 			break;
@@ -349,13 +340,13 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 		if (!priv->hdmi)
 			break;
 
-		ctl = mdp5_ctlm_request(ctlm, intf_num);
+		ctl = mdp5_ctlm_request(ctlm, intf->num);
 		if (!ctl) {
 			ret = -EINVAL;
 			break;
 		}
 
-		encoder = construct_encoder(mdp5_kms, INTF_HDMI, intf_num, ctl);
+		encoder = construct_encoder(mdp5_kms, intf, ctl);
 		if (IS_ERR(encoder)) {
 			ret = PTR_ERR(encoder);
 			break;
@@ -365,11 +356,13 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 		break;
 	case INTF_DSI:
 	{
-		int dsi_id = get_dsi_id_from_intf(hw_cfg, intf_num);
+		const struct mdp5_cfg_hw *hw_cfg =
+					mdp5_cfg_get_hw_config(mdp5_kms->cfg);
+		int dsi_id = get_dsi_id_from_intf(hw_cfg, intf->num);
 
 		if ((dsi_id >= ARRAY_SIZE(priv->dsi)) || (dsi_id < 0)) {
 			dev_err(dev->dev, "failed to find dsi from intf %d\n",
-				intf_num);
+				intf->num);
 			ret = -EINVAL;
 			break;
 		}
@@ -377,13 +370,13 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 		if (!priv->dsi[dsi_id])
 			break;
 
-		ctl = mdp5_ctlm_request(ctlm, intf_num);
+		ctl = mdp5_ctlm_request(ctlm, intf->num);
 		if (!ctl) {
 			ret = -EINVAL;
 			break;
 		}
 
-		encoder = construct_encoder(mdp5_kms, INTF_DSI, intf_num, ctl);
+		encoder = construct_encoder(mdp5_kms, intf, ctl);
 		if (IS_ERR(encoder)) {
 			ret = PTR_ERR(encoder);
 			break;
@@ -393,7 +386,7 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 		break;
 	}
 	default:
-		dev_err(dev->dev, "unknown intf: %d\n", intf_type);
+		dev_err(dev->dev, "unknown intf: %d\n", intf->type);
 		ret = -EINVAL;
 		break;
 	}
@@ -417,8 +410,8 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	 * Construct encoders and modeset initialize connector devices
 	 * for each external display interface.
 	 */
-	for (i = 0; i < ARRAY_SIZE(hw_cfg->intf.connect); i++) {
-		ret = modeset_init_intf(mdp5_kms, i);
+	for (i = 0; i < mdp5_kms->num_intfs; i++) {
+		ret = modeset_init_intf(mdp5_kms, mdp5_kms->intfs[i]);
 		if (ret)
 			goto fail;
 	}
@@ -747,6 +740,7 @@ fail:
 static void mdp5_destroy(struct platform_device *pdev)
 {
 	struct mdp5_kms *mdp5_kms = platform_get_drvdata(pdev);
+	int i;
 
 	if (mdp5_kms->ctlm)
 		mdp5_ctlm_destroy(mdp5_kms->ctlm);
@@ -754,6 +748,9 @@ static void mdp5_destroy(struct platform_device *pdev)
 		mdp5_smp_destroy(mdp5_kms->smp);
 	if (mdp5_kms->cfg)
 		mdp5_cfg_destroy(mdp5_kms->cfg);
+
+	for (i = 0; i < mdp5_kms->num_intfs; i++)
+		kfree(mdp5_kms->intfs[i]);
 
 	if (mdp5_kms->rpm_enabled)
 		pm_runtime_disable(&pdev->dev);
@@ -862,6 +859,38 @@ static int hwmixer_init(struct mdp5_kms *mdp5_kms)
 	return 0;
 }
 
+static int interface_init(struct mdp5_kms *mdp5_kms)
+{
+	struct drm_device *dev = mdp5_kms->dev;
+	const struct mdp5_cfg_hw *hw_cfg;
+	const enum mdp5_intf_type *intf_types;
+	int i;
+
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
+	intf_types = hw_cfg->intf.connect;
+
+	for (i = 0; i < ARRAY_SIZE(hw_cfg->intf.connect); i++) {
+		struct mdp5_interface *intf;
+
+		if (intf_types[i] == INTF_DISABLED)
+			continue;
+
+		intf = kzalloc(sizeof(*intf), GFP_KERNEL);
+		if (!intf) {
+			dev_err(dev->dev, "failed to construct INTF%d\n", i);
+			return -ENOMEM;
+		}
+
+		intf->num = i;
+		intf->type = intf_types[i];
+		intf->mode = MDP5_INTF_MODE_NONE;
+		intf->idx = mdp5_kms->num_intfs;
+		mdp5_kms->intfs[mdp5_kms->num_intfs++] = intf;
+	}
+
+	return 0;
+}
+
 static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -963,6 +992,10 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 		goto fail;
 
 	ret = hwmixer_init(mdp5_kms);
+	if (ret)
+		goto fail;
+
+	ret = interface_init(mdp5_kms);
 	if (ret)
 		goto fail;
 

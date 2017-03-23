@@ -43,6 +43,9 @@ struct mdp5_kms {
 	unsigned num_hwmixers;
 	struct mdp5_hw_mixer *hwmixers[8];
 
+	unsigned num_intfs;
+	struct mdp5_interface *intfs[5];
+
 	struct mdp5_cfg_handler *cfg;
 	uint32_t caps;	/* MDP capabilities (MDP_CAP_XXX bits) */
 
@@ -125,6 +128,7 @@ enum mdp5_intf_mode {
 };
 
 struct mdp5_interface {
+	int idx;
 	int num; /* display interface number */
 	enum mdp5_intf_type type;
 	enum mdp5_intf_mode mode;
@@ -132,11 +136,11 @@ struct mdp5_interface {
 
 struct mdp5_encoder {
 	struct drm_encoder base;
-	struct mdp5_interface intf;
 	spinlock_t intf_lock;	/* protect REG_MDP5_INTF_* registers */
 	bool enabled;
 	uint32_t bsc;
 
+	struct mdp5_interface *intf;
 	struct mdp5_ctl *ctl;
 };
 #define to_mdp5_encoder(x) container_of(x, struct mdp5_encoder, base)

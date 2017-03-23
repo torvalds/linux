@@ -33,7 +33,7 @@
 #define CTL_STAT_BOOKED	0x2
 
 struct op_mode {
-	struct mdp5_interface intf;
+	struct mdp5_interface *intf;
 
 	bool encoder_enabled;
 	uint32_t start_mask;
@@ -180,16 +180,8 @@ int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl, struct mdp5_interface *intf,
 	struct mdp5_ctl_manager *ctl_mgr = ctl->ctlm;
 	struct mdp5_kms *mdp5_kms = get_kms(ctl_mgr);
 
-	if (unlikely(WARN_ON(intf->num != ctl->pipeline.intf.num))) {
-		dev_err(mdp5_kms->dev->dev,
-			"CTL %d is allocated by INTF %d, but used by INTF %d\n",
-			ctl->id, ctl->pipeline.intf.num, intf->num);
-		return -EINVAL;
-	}
-
 	ctl->mixer = mixer;
-
-	memcpy(&ctl->pipeline.intf, intf, sizeof(*intf));
+	ctl->pipeline.intf = intf;
 
 	ctl->pipeline.start_mask = mdp_ctl_flush_mask_lm(mixer->lm) |
 				   mdp_ctl_flush_mask_encoder(intf);
@@ -210,11 +202,11 @@ static bool start_signal_needed(struct mdp5_ctl *ctl)
 	if (!pipeline->encoder_enabled || pipeline->start_mask != 0)
 		return false;
 
-	switch (pipeline->intf.type) {
+	switch (pipeline->intf->type) {
 	case INTF_WB:
 		return true;
 	case INTF_DSI:
-		return pipeline->intf.mode == MDP5_INTF_DSI_MODE_COMMAND;
+		return pipeline->intf->mode == MDP5_INTF_DSI_MODE_COMMAND;
 	default:
 		return false;
 	}
@@ -239,7 +231,7 @@ static void send_start_signal(struct mdp5_ctl *ctl)
 static void refill_start_mask(struct mdp5_ctl *ctl)
 {
 	struct op_mode *pipeline = &ctl->pipeline;
-	struct mdp5_interface *intf = &ctl->pipeline.intf;
+	struct mdp5_interface *intf = pipeline->intf;
 
 	pipeline->start_mask = mdp_ctl_flush_mask_lm(ctl->mixer->lm);
 
@@ -265,7 +257,7 @@ int mdp5_ctl_set_encoder_state(struct mdp5_ctl *ctl, bool enabled)
 		return -EINVAL;
 
 	ctl->pipeline.encoder_enabled = enabled;
-	DBG("intf_%d: %s", ctl->pipeline.intf.num, enabled ? "on" : "off");
+	DBG("intf_%d: %s", ctl->pipeline.intf->num, enabled ? "on" : "off");
 
 	if (start_signal_needed(ctl)) {
 		send_start_signal(ctl);
@@ -621,7 +613,6 @@ struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctl_mgr,
 
 found:
 	ctl = &ctl_mgr->ctls[c];
-	ctl->pipeline.intf.num = intf_num;
 	ctl->mixer = NULL;
 	ctl->status |= CTL_STAT_BUSY;
 	ctl->pending_ctl_trigger = 0;
