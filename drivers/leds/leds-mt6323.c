@@ -417,7 +417,7 @@ static int mt6323_led_probe(struct platform_device *pdev)
 			goto put_child_node;
 		}
 
-		if (reg < 0 || reg > MT6323_MAX_LEDS || leds->led[reg]) {
+		if (reg >= MT6323_MAX_LEDS || leds->led[reg]) {
 			dev_err(dev, "Invalid led reg %u\n", reg);
 			ret = -EINVAL;
 			goto put_child_node;
