@@ -54,7 +54,9 @@ struct bdi_writeback_congested {
 	atomic_t refcnt;		/* nr of attached wb's and blkg */
 
 #ifdef CONFIG_CGROUP_WRITEBACK
-	struct backing_dev_info *bdi;	/* the associated bdi */
+	struct backing_dev_info *__bdi;	/* the associated bdi, set to NULL
+					 * on bdi unregistration. For memcg-wb
+					 * internal use only! */
 	int blkcg_id;			/* ID of the associated blkcg */
 	struct rb_node rb_node;		/* on bdi->cgwb_congestion_tree */
 #endif

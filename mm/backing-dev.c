@@ -438,7 +438,7 @@ retry:
 		return NULL;
 
 	atomic_set(&new_congested->refcnt, 0);
-	new_congested->bdi = bdi;
+	new_congested->__bdi = bdi;
 	new_congested->blkcg_id = blkcg_id;
 	goto retry;
 
@@ -466,10 +466,10 @@ void wb_congested_put(struct bdi_writeback_congested *congested)
 	}
 
 	/* bdi might already have been destroyed leaving @congested unlinked */
-	if (congested->bdi) {
+	if (congested->__bdi) {
 		rb_erase(&congested->rb_node,
-			 &congested->bdi->cgwb_congested_tree);
-		congested->bdi = NULL;
+			 &congested->__bdi->cgwb_congested_tree);
+		congested->__bdi = NULL;
 	}
 
 	spin_unlock_irqrestore(&cgwb_lock, flags);
@@ -752,7 +752,7 @@ static void cgwb_bdi_exit(struct backing_dev_info *bdi)
 			rb_entry(rbn, struct bdi_writeback_congested, rb_node);
 
 		rb_erase(rbn, &bdi->cgwb_congested_tree);
-		congested->bdi = NULL;	/* mark @congested unlinked */
+		congested->__bdi = NULL;	/* mark @congested unlinked */
 	}
 	spin_unlock_irq(&cgwb_lock);
 }
