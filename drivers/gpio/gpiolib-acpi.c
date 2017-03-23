@@ -571,8 +571,10 @@ struct gpio_desc *acpi_find_gpio(struct device *dev,
 		}
 
 		desc = acpi_get_gpiod_by_index(adev, propname, idx, &info);
-		if (!IS_ERR(desc) || (PTR_ERR(desc) == -EPROBE_DEFER))
+		if (!IS_ERR(desc))
 			break;
+		if (PTR_ERR(desc) == -EPROBE_DEFER)
+			return ERR_CAST(desc);
 	}
 
 	/* Then from plain _CRS GPIOs */
