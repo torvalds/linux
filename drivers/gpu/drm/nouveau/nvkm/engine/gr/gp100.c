@@ -30,7 +30,7 @@
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-static void
+void
 gp100_gr_init_rop_active_fbps(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -40,7 +40,7 @@ gp100_gr_init_rop_active_fbps(struct gf100_gr *gr)
 	nvkm_mask(device, 0x408958, 0x0000000f, fbp_count); /* crop */
 }
 
-static int
+int
 gp100_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -85,6 +85,8 @@ gp100_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, GPC_BCAST(0x033c), nvkm_rd32(device, 0x100804));
 
 	gr->func->init_rop_active_fbps(gr);
+	if (gr->func->init_swdx_pes_mask)
+		gr->func->init_swdx_pes_mask(gr);
 
 	nvkm_wr32(device, 0x400500, 0x00010001);
 	nvkm_wr32(device, 0x400100, 0xffffffff);

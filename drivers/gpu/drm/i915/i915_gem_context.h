@@ -140,8 +140,6 @@ struct i915_gem_context {
 	 */
 	int priority;
 
-	/** ggtt_alignment: alignment restriction for context objects */
-	u32 ggtt_alignment;
 	/** ggtt_offset_bias: placement restriction for context objects */
 	u32 ggtt_offset_bias;
 
@@ -159,9 +157,6 @@ struct i915_gem_context {
 	u32 ring_size;
 	/** desc_template: invariant fields for the HW context descriptor */
 	u32 desc_template;
-
-	/** status_notifier: list of callbacks for context-switch changes */
-	struct atomic_notifier_head status_notifier;
 
 	/** guilty_count: How many times this context has caused a GPU hang. */
 	unsigned int guilty_count;

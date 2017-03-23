@@ -1,9 +1,12 @@
 #ifndef _ASM_POWERPC_BOOK3S_64_PGTABLE_H_
 #define _ASM_POWERPC_BOOK3S_64_PGTABLE_H_
 
+#include <asm-generic/5level-fixup.h>
+
 #ifndef __ASSEMBLY__
 #include <linux/mmdebug.h>
 #endif
+
 /*
  * Common bits between hash and Radix page table
  */
@@ -347,23 +350,58 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
 	__r;							\
 })
 
+static inline int __pte_write(pte_t pte)
+{
+	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_WRITE));
+}
+
+#ifdef CONFIG_NUMA_BALANCING
+#define pte_savedwrite pte_savedwrite
+static inline bool pte_savedwrite(pte_t pte)
+{
+	/*
+	 * Saved write ptes are prot none ptes that doesn't have
+	 * privileged bit sit. We mark prot none as one which has
+	 * present and pviliged bit set and RWX cleared. To mark
+	 * protnone which used to have _PAGE_WRITE set we clear
+	 * the privileged bit.
+	 */
+	return !(pte_raw(pte) & cpu_to_be64(_PAGE_RWX | _PAGE_PRIVILEGED));
+}
+#else
+#define pte_savedwrite pte_savedwrite
+static inline bool pte_savedwrite(pte_t pte)
+{
+	return false;
+}
+#endif
+
+static inline int pte_write(pte_t pte)
+{
+	return __pte_write(pte) || pte_savedwrite(pte);
+}
+
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pte_t *ptep)
 {
-	if ((pte_raw(*ptep) & cpu_to_be64(_PAGE_WRITE)) == 0)
-		return;
-
-	pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 0);
+	if (__pte_write(*ptep))
+		pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 0);
+	else if (unlikely(pte_savedwrite(*ptep)))
+		pte_update(mm, addr, ptep, 0, _PAGE_PRIVILEGED, 0);
 }
 
 static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 					   unsigned long addr, pte_t *ptep)
 {
-	if ((pte_raw(*ptep) & cpu_to_be64(_PAGE_WRITE)) == 0)
-		return;
-
-	pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 1);
+	/*
+	 * We should not find protnone for hugetlb, but this complete the
+	 * interface.
+	 */
+	if (__pte_write(*ptep))
+		pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 1);
+	else if (unlikely(pte_savedwrite(*ptep)))
+		pte_update(mm, addr, ptep, 0, _PAGE_PRIVILEGED, 1);
 }
 
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
@@ -395,11 +433,6 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 			     pte_t * ptep)
 {
 	pte_update(mm, addr, ptep, ~0UL, 0, 0);
-}
-
-static inline int pte_write(pte_t pte)
-{
-	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_WRITE));
 }
 
 static inline int pte_dirty(pte_t pte)
@@ -465,19 +498,12 @@ static inline pte_t pte_clear_savedwrite(pte_t pte)
 	VM_BUG_ON(!pte_protnone(pte));
 	return __pte(pte_val(pte) | _PAGE_PRIVILEGED);
 }
-
-#define pte_savedwrite pte_savedwrite
-static inline bool pte_savedwrite(pte_t pte)
+#else
+#define pte_clear_savedwrite pte_clear_savedwrite
+static inline pte_t pte_clear_savedwrite(pte_t pte)
 {
-	/*
-	 * Saved write ptes are prot none ptes that doesn't have
-	 * privileged bit sit. We mark prot none as one which has
-	 * present and pviliged bit set and RWX cleared. To mark
-	 * protnone which used to have _PAGE_WRITE set we clear
-	 * the privileged bit.
-	 */
-	VM_BUG_ON(!pte_protnone(pte));
-	return !(pte_raw(pte) & cpu_to_be64(_PAGE_RWX | _PAGE_PRIVILEGED));
+	VM_WARN_ON(1);
+	return __pte(pte_val(pte) & ~_PAGE_WRITE);
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
@@ -506,6 +532,8 @@ static inline unsigned long pte_pfn(pte_t pte)
 /* Generic modifiers for PTE bits */
 static inline pte_t pte_wrprotect(pte_t pte)
 {
+	if (unlikely(pte_savedwrite(pte)))
+		return pte_clear_savedwrite(pte);
 	return __pte(pte_val(pte) & ~_PAGE_WRITE);
 }
 
@@ -926,6 +954,7 @@ static inline int pmd_protnone(pmd_t pmd)
 
 #define __HAVE_ARCH_PMD_WRITE
 #define pmd_write(pmd)		pte_write(pmd_pte(pmd))
+#define __pmd_write(pmd)	__pte_write(pmd_pte(pmd))
 #define pmd_savedwrite(pmd)	pte_savedwrite(pmd_pte(pmd))
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -982,11 +1011,10 @@ static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
 static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pmd_t *pmdp)
 {
-
-	if ((pmd_raw(*pmdp) & cpu_to_be64(_PAGE_WRITE)) == 0)
-		return;
-
-	pmd_hugepage_update(mm, addr, pmdp, _PAGE_WRITE, 0);
+	if (__pmd_write((*pmdp)))
+		pmd_hugepage_update(mm, addr, pmdp, _PAGE_WRITE, 0);
+	else if (unlikely(pmd_savedwrite(*pmdp)))
+		pmd_hugepage_update(mm, addr, pmdp, 0, _PAGE_PRIVILEGED);
 }
 
 static inline int pmd_trans_huge(pmd_t pmd)

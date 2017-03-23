@@ -25,6 +25,17 @@
 #ifndef __I915_UTILS_H
 #define __I915_UTILS_H
 
+#if GCC_VERSION >= 70000
+#define add_overflows(A, B) \
+	__builtin_add_overflow_p((A), (B), (typeof((A) + (B)))0)
+#else
+#define add_overflows(A, B) ({ \
+	typeof(A) a = (A); \
+	typeof(B) b = (B); \
+	a + b < a; \
+})
+#endif
+
 #define range_overflows(start, size, max) ({ \
 	typeof(start) start__ = (start); \
 	typeof(size) size__ = (size); \
@@ -54,6 +65,8 @@
 
 #define ptr_pack_bits(ptr, bits)					\
 	((typeof(ptr))((unsigned long)(ptr) | (bits)))
+
+#define ptr_offset(ptr, member) offsetof(typeof(*(ptr)), member)
 
 #define fetch_and_zero(ptr) ({						\
 	typeof(*ptr) __T = *(ptr);					\

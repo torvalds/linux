@@ -902,12 +902,11 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-	enum intel_display_power_domain power_domain;
 	u32 tmp;
 	bool ret;
 
-	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv,
+						encoder->power_domain))
 		return false;
 
 	ret = false;
@@ -927,7 +926,7 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	ret = true;
 
 out:
-	intel_display_power_put(dev_priv, power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain);
 
 	return ret;
 }
@@ -1298,16 +1297,34 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 
 static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc_state->base.crtc->dev;
+	struct drm_i915_private *dev_priv =
+		to_i915(crtc_state->base.crtc->dev);
+	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_connector_state *connector_state;
+	struct drm_connector *connector;
+	int i;
 
-	if (HAS_GMCH_DISPLAY(to_i915(dev)))
+	if (HAS_GMCH_DISPLAY(dev_priv))
 		return false;
 
 	/*
 	 * HDMI 12bpc affects the clocks, so it's only possible
 	 * when not cloning with other encoder types.
 	 */
-	return crtc_state->output_types == 1 << INTEL_OUTPUT_HDMI;
+	if (crtc_state->output_types != 1 << INTEL_OUTPUT_HDMI)
+		return false;
+
+	for_each_connector_in_state(state, connector, connector_state, i) {
+		const struct drm_display_info *info = &connector->display_info;
+
+		if (connector_state->crtc != crtc_state->base.crtc)
+			continue;
+
+		if ((info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_36) == 0)
+			return false;
+	}
+
+	return true;
 }
 
 bool intel_hdmi_compute_config(struct intel_encoder *encoder,
@@ -1869,14 +1886,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	switch (port) {
 	case PORT_B:
-		/*
-		 * On BXT A0/A1, sw needs to activate DDIA HPD logic and
-		 * interrupts to check the external panel connection.
-		 */
-		if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-			intel_encoder->hpd_pin = HPD_PORT_A;
-		else
-			intel_encoder->hpd_pin = HPD_PORT_B;
+		intel_encoder->hpd_pin = HPD_PORT_B;
 		break;
 	case PORT_C:
 		intel_encoder->hpd_pin = HPD_PORT_C;
@@ -1988,6 +1998,7 @@ void intel_hdmi_init(struct drm_i915_private *dev_priv,
 	}
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
+	intel_encoder->power_domain = intel_port_to_power_domain(port);
 	intel_encoder->port = port;
 	if (IS_CHERRYVIEW(dev_priv)) {
 		if (port == PORT_D)

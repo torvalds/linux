@@ -1136,14 +1136,10 @@ static void netvsc_receive(struct net_device *ndev,
 static void netvsc_send_table(struct hv_device *hdev,
 			      struct nvsp_message *nvmsg)
 {
-	struct netvsc_device *nvscdev;
 	struct net_device *ndev = hv_get_drvdata(hdev);
+	struct net_device_context *net_device_ctx = netdev_priv(ndev);
 	int i;
 	u32 count, *tab;
-
-	nvscdev = get_outbound_net_device(hdev);
-	if (!nvscdev)
-		return;
 
 	count = nvmsg->msg.v5_msg.send_table.count;
 	if (count != VRSS_SEND_TAB_SIZE) {
@@ -1155,7 +1151,7 @@ static void netvsc_send_table(struct hv_device *hdev,
 		      nvmsg->msg.v5_msg.send_table.offset);
 
 	for (i = 0; i < count; i++)
-		nvscdev->send_table[i] = tab[i];
+		net_device_ctx->tx_send_table[i] = tab[i];
 }
 
 static void netvsc_send_vf(struct net_device_context *net_device_ctx,

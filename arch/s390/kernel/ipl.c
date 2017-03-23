@@ -564,6 +564,8 @@ static struct kset *ipl_kset;
 
 static void __ipl_run(void *unused)
 {
+	if (MACHINE_IS_LPAR && ipl_info.type == IPL_TYPE_CCW)
+		diag308(DIAG308_LOAD_NORMAL_DUMP, NULL);
 	diag308(DIAG308_LOAD_CLEAR, NULL);
 	if (MACHINE_IS_VM)
 		__cpcmd("IPL", NULL, 0, NULL);

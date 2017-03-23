@@ -99,12 +99,13 @@ struct lpfc_sli2_slim;
 #define FC_MAX_ADPTMSG		64
 
 #define MAX_HBAEVT	32
+#define MAX_HBAS_NO_RESET 16
 
 /* Number of MSI-X vectors the driver uses */
 #define LPFC_MSIX_VECTORS	2
 
 /* lpfc wait event data ready flag */
-#define LPFC_DATA_READY		(1<<0)
+#define LPFC_DATA_READY		0	/* bit 0 */
 
 /* queue dump line buffer size */
 #define LPFC_LBUF_SZ		128
@@ -692,6 +693,7 @@ struct lpfc_hba {
 					 * capability
 					 */
 #define HBA_NVME_IOQ_FLUSH      0x80000 /* NVME IO queues flushed. */
+#define NVME_XRI_ABORT_EVENT	0x100000
 
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
 	struct lpfc_dmabuf slim2p;

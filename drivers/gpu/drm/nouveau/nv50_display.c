@@ -3628,7 +3628,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 		struct nvkm_i2c_aux *aux =
 			nvkm_i2c_aux_find(i2c, dcbe->i2c_index);
 		if (aux) {
-			nv_encoder->i2c = &aux->i2c;
+			nv_encoder->i2c = &nv_connector->aux.ddc;
 			nv_encoder->aux = aux;
 		}
 
@@ -3778,6 +3778,7 @@ nv50_pior_func = {
 static int
 nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nvkm_i2c_bus *bus = NULL;
@@ -3795,7 +3796,7 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 		break;
 	case DCB_OUTPUT_DP:
 		aux  = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_EXT(dcbe->extdev));
-		ddc  = aux ? &aux->i2c : NULL;
+		ddc  = aux ? &nv_connector->aux.ddc : NULL;
 		type = DRM_MODE_ENCODER_TMDS;
 		break;
 	default:

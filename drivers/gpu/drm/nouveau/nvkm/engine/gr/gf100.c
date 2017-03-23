@@ -1647,8 +1647,18 @@ static int
 gf100_gr_oneinit(struct nvkm_gr *base)
 {
 	struct gf100_gr *gr = gf100_gr(base);
-	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	int i, j;
+	int ret;
+
+	ret = nvkm_falcon_v1_new(subdev, "FECS", 0x409000, &gr->fecs);
+	if (ret)
+		return ret;
+
+	ret = nvkm_falcon_v1_new(subdev, "GPCCS", 0x41a000, &gr->gpccs);
+	if (ret)
+		return ret;
 
 	nvkm_pmu_pgob(device->pmu, false);
 
@@ -1856,24 +1866,13 @@ int
 gf100_gr_ctor(const struct gf100_gr_func *func, struct nvkm_device *device,
 	      int index, struct gf100_gr *gr)
 {
-	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
-	int ret;
-
 	gr->func = func;
 	gr->firmware = nvkm_boolopt(device->cfgopt, "NvGrUseFW",
 				    func->fecs.ucode == NULL);
 
-	ret = nvkm_gr_ctor(&gf100_gr_, device, index,
-			   gr->firmware || func->fecs.ucode != NULL,
-			   &gr->base);
-	if (ret)
-		return ret;
-
-	ret = nvkm_falcon_v1_new(subdev, "FECS", 0x409000, &gr->fecs);
-	if (ret)
-		return ret;
-
-	return nvkm_falcon_v1_new(subdev, "GPCCS", 0x41a000, &gr->gpccs);
+	return nvkm_gr_ctor(&gf100_gr_, device, index,
+			    gr->firmware || func->fecs.ucode != NULL,
+			    &gr->base);
 }
 
 int

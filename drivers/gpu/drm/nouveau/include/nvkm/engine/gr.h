@@ -43,4 +43,5 @@ int gm107_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int gm200_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int gm20b_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int gp100_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gp102_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 #endif

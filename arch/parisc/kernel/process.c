@@ -142,6 +142,8 @@ void machine_power_off(void)
 
 	printk(KERN_EMERG "System shut down completed.\n"
 	       "Please power this system off now.");
+
+	for (;;);
 }
 
 void (*pm_power_off)(void) = machine_power_off;

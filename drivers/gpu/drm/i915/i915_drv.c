@@ -43,6 +43,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
@@ -248,6 +249,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_IRQ_ACTIVE:
 	case I915_PARAM_ALLOW_BATCHBUFFER:
 	case I915_PARAM_LAST_DISPATCH:
+	case I915_PARAM_HAS_EXEC_CONSTANTS:
 		/* Reject all old ums/dri params. */
 		return -ENODEV;
 	case I915_PARAM_CHIPSET_ID:
@@ -273,9 +275,6 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_BSD2:
 		value = !!dev_priv->engine[VCS2];
-		break;
-	case I915_PARAM_HAS_EXEC_CONSTANTS:
-		value = INTEL_GEN(dev_priv) >= 4;
 		break;
 	case I915_PARAM_HAS_LLC:
 		value = HAS_LLC(dev_priv);
@@ -318,10 +317,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = INTEL_INFO(dev_priv)->sseu.min_eu_in_pool;
 		break;
 	case I915_PARAM_HUC_STATUS:
-		/* The register is already force-woken. We dont need
-		 * any rpm here
-		 */
+		intel_runtime_pm_get(dev_priv);
 		value = I915_READ(HUC_STATUS2) & HUC_FW_VERIFIED;
+		intel_runtime_pm_put(dev_priv);
 		break;
 	case I915_PARAM_MMAP_GTT_VERSION:
 		/* Though we've started our numbering from 1, and so class all
@@ -350,6 +348,8 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_EXEC_HANDLE_LUT:
 	case I915_PARAM_HAS_COHERENT_PHYS_GTT:
 	case I915_PARAM_HAS_EXEC_SOFTPIN:
+	case I915_PARAM_HAS_EXEC_ASYNC:
+	case I915_PARAM_HAS_EXEC_FENCE:
 		/* For the time being all of these are always true;
 		 * if some supported hardware does not have one of these
 		 * features this value needs to be provided from
@@ -567,9 +567,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
-	ret = intel_bios_init(dev_priv);
-	if (ret)
-		DRM_INFO("failed to find VBIOS tables\n");
+	intel_bios_init(dev_priv);
 
 	/* If we have > 1 VGA cards, then we need to arbitrate access
 	 * to the common VGA resources.
@@ -607,8 +605,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_irq;
 
-	intel_huc_init(dev_priv);
-	intel_guc_init(dev_priv);
+	intel_uc_init_fw(dev_priv);
 
 	ret = i915_gem_init(dev_priv);
 	if (ret)
@@ -756,6 +753,15 @@ out_err:
 	return -ENOMEM;
 }
 
+static void i915_engines_cleanup(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, i915, id)
+		kfree(engine);
+}
+
 static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 {
 	destroy_workqueue(dev_priv->hotplug.dp_wq);
@@ -769,10 +775,17 @@ static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
  */
 static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 {
-	if (IS_HSW_EARLY_SDV(dev_priv) ||
-	    IS_SKL_REVID(dev_priv, 0, SKL_REVID_F0))
+	bool pre = false;
+
+	pre |= IS_HSW_EARLY_SDV(dev_priv);
+	pre |= IS_SKL_REVID(dev_priv, 0, SKL_REVID_F0);
+	pre |= IS_BXT_REVID(dev_priv, 0, BXT_REVID_B_LAST);
+
+	if (pre) {
 		DRM_ERROR("This is a pre-production stepping. "
 			  "It may not be fully functional.\n");
+		add_taint(TAINT_MACHINE_CHECK, LOCKDEP_STILL_OK);
+	}
 }
 
 /**
@@ -808,9 +821,9 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	spin_lock_init(&dev_priv->gpu_error.lock);
 	mutex_init(&dev_priv->backlight_lock);
 	spin_lock_init(&dev_priv->uncore.lock);
+
 	spin_lock_init(&dev_priv->mm.object_stat_lock);
 	spin_lock_init(&dev_priv->mmio_flip_lock);
-	spin_lock_init(&dev_priv->wm.dsparb_lock);
 	mutex_init(&dev_priv->sb_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
 	mutex_init(&dev_priv->av_mutex);
@@ -818,12 +831,15 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	mutex_init(&dev_priv->pps_mutex);
 
 	intel_uc_init_early(dev_priv);
-
 	i915_memcpy_init_early(dev_priv);
+
+	ret = intel_engines_init_early(dev_priv);
+	if (ret)
+		return ret;
 
 	ret = i915_workqueues_init(dev_priv);
 	if (ret < 0)
-		return ret;
+		goto err_engines;
 
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(dev_priv);
@@ -852,6 +868,8 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 err_workqueues:
 	i915_workqueues_cleanup(dev_priv);
+err_engines:
+	i915_engines_cleanup(dev_priv);
 	return ret;
 }
 
@@ -864,6 +882,7 @@ static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 	i915_perf_fini(dev_priv);
 	i915_gem_load_cleanup(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
+	i915_engines_cleanup(dev_priv);
 }
 
 static int i915_mmio_setup(struct drm_i915_private *dev_priv)
@@ -930,6 +949,7 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 		goto put_bridge;
 
 	intel_uncore_init(dev_priv);
+	i915_gem_init_mmio(dev_priv);
 
 	return 0;
 
@@ -967,7 +987,9 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915.enable_ppgtt);
 
 	i915.semaphores = intel_sanitize_semaphores(dev_priv, i915.semaphores);
-	DRM_DEBUG_DRIVER("use GPU sempahores? %s\n", yesno(i915.semaphores));
+	DRM_DEBUG_DRIVER("use GPU semaphores? %s\n", yesno(i915.semaphores));
+
+	intel_uc_sanitize_options(dev_priv);
 }
 
 /**
@@ -1185,11 +1207,15 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
  */
 int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	const struct intel_device_info *match_info =
+		(struct intel_device_info *)ent->driver_data;
 	struct drm_i915_private *dev_priv;
 	int ret;
 
-	if (i915.nuclear_pageflip)
-		driver.driver_features |= DRIVER_ATOMIC;
+	/* Enable nuclear pageflip on ILK+, except vlv/chv */
+	if (!i915.nuclear_pageflip &&
+	    (match_info->gen < 5 || match_info->has_gmch_display))
+		driver.driver_features &= ~DRIVER_ATOMIC;
 
 	ret = -ENOMEM;
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
@@ -1197,8 +1223,7 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = drm_dev_init(&dev_priv->drm, &driver, &pdev->dev);
 	if (ret) {
 		DRM_DEV_ERROR(&pdev->dev, "allocation failed\n");
-		kfree(dev_priv);
-		return ret;
+		goto out_free;
 	}
 
 	dev_priv->drm.pdev = pdev;
@@ -1206,7 +1231,7 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ret = pci_enable_device(pdev);
 	if (ret)
-		goto out_free_priv;
+		goto out_fini;
 
 	pci_set_drvdata(pdev, &dev_priv->drm);
 
@@ -1270,9 +1295,11 @@ out_runtime_pm_put:
 	i915_driver_cleanup_early(dev_priv);
 out_pci_disable:
 	pci_disable_device(pdev);
-out_free_priv:
+out_fini:
 	i915_load_error(dev_priv, "Device initialization failed (%d)\n", ret);
-	drm_dev_unref(&dev_priv->drm);
+	drm_dev_fini(&dev_priv->drm);
+out_free:
+	kfree(dev_priv);
 	return ret;
 }
 
@@ -1280,6 +1307,8 @@ void i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct drm_modeset_acquire_ctx ctx;
+	int ret;
 
 	intel_fbdev_fini(dev);
 
@@ -1287,6 +1316,24 @@ void i915_driver_unload(struct drm_device *dev)
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
 
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+
+	drm_modeset_acquire_init(&ctx, 0);
+	while (1) {
+		ret = drm_modeset_lock_all_ctx(dev, &ctx);
+		if (!ret)
+			ret = drm_atomic_helper_disable_all(dev, &ctx);
+
+		if (ret != -EDEADLK)
+			break;
+
+		drm_modeset_backoff(&ctx);
+	}
+
+	if (ret)
+		DRM_ERROR("Disabling all crtc's during unload failed with %i\n", ret);
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
 	intel_gvt_cleanup(dev_priv);
 
@@ -1317,7 +1364,7 @@ void i915_driver_unload(struct drm_device *dev)
 
 	/* Free error state after interrupts are fully disabled. */
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
-	i915_destroy_error_state(dev_priv);
+	i915_reset_error_state(dev_priv);
 
 	/* Flush any outstanding unpin_work. */
 	drain_workqueue(dev_priv->wq);
@@ -1333,8 +1380,16 @@ void i915_driver_unload(struct drm_device *dev)
 	i915_driver_cleanup_mmio(dev_priv);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+}
+
+static void i915_driver_release(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	i915_driver_cleanup_early(dev_priv);
+	drm_dev_fini(&dev_priv->drm);
+
+	kfree(dev_priv);
 }
 
 static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
@@ -1366,17 +1421,14 @@ static void i915_driver_lastclose(struct drm_device *dev)
 	vga_switcheroo_process_delayed_switch();
 }
 
-static void i915_driver_preclose(struct drm_device *dev, struct drm_file *file)
+static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_context_close(dev, file);
 	i915_gem_release(dev, file);
 	mutex_unlock(&dev->struct_mutex);
-}
-
-static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
-{
-	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	kfree(file_priv);
 }
@@ -1455,7 +1507,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_notify_adapter(dev_priv, opregion_target_state);
 
-	intel_uncore_forcewake_reset(dev_priv, false);
+	intel_uncore_suspend(dev_priv);
 	intel_opregion_unregister(dev_priv);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
@@ -1700,7 +1752,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
 			  ret);
 
-	intel_uncore_early_sanitize(dev_priv, true);
+	intel_uncore_resume_early(dev_priv);
 
 	if (IS_GEN9_LP(dev_priv)) {
 		if (!dev_priv->suspended_to_idle)
@@ -1715,6 +1767,8 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	if (IS_GEN9_LP(dev_priv) ||
 	    !(dev_priv->suspended_to_idle && dev_priv->csr.dmc_payload))
 		intel_power_domains_init_hw(dev_priv, true);
+
+	i915_gem_sanitize(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
@@ -1761,12 +1815,15 @@ void i915_reset(struct drm_i915_private *dev_priv)
 	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
 
-	if (!test_and_clear_bit(I915_RESET_IN_PROGRESS, &error->flags))
+	if (!test_bit(I915_RESET_HANDOFF, &error->flags))
 		return;
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
-	__clear_bit(I915_WEDGED, &error->flags);
+	if (!i915_gem_unset_wedged(dev_priv))
+		goto wakeup;
+
 	error->reset_count++;
 
 	pr_notice("drm/i915: Resetting chip after gpu hang\n");
@@ -1787,7 +1844,7 @@ void i915_reset(struct drm_i915_private *dev_priv)
 		goto error;
 	}
 
-	i915_gem_reset_finish(dev_priv);
+	i915_gem_reset(dev_priv);
 	intel_overlay_reset(dev_priv);
 
 	/* Ok, now get things going again... */
@@ -1812,14 +1869,18 @@ void i915_reset(struct drm_i915_private *dev_priv)
 
 	i915_queue_hangcheck(dev_priv);
 
-wakeup:
+finish:
+	i915_gem_reset_finish(dev_priv);
 	enable_irq(dev_priv->drm.irq);
-	wake_up_bit(&error->flags, I915_RESET_IN_PROGRESS);
+
+wakeup:
+	clear_bit(I915_RESET_HANDOFF, &error->flags);
+	wake_up_bit(&error->flags, I915_RESET_HANDOFF);
 	return;
 
 error:
 	i915_gem_set_wedged(dev_priv);
-	goto wakeup;
+	goto finish;
 }
 
 static int i915_pm_suspend(struct device *kdev)
@@ -2342,7 +2403,7 @@ static int intel_runtime_suspend(struct device *kdev)
 		return ret;
 	}
 
-	intel_uncore_forcewake_reset(dev_priv, false);
+	intel_uncore_suspend(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 	WARN_ON_ONCE(atomic_read(&dev_priv->pm.wakeref_count));
@@ -2532,7 +2593,7 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_HWS_ADDR, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_GEM_INIT, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_GEM_EXECBUFFER, i915_gem_execbuffer, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_GEM_EXECBUFFER2, i915_gem_execbuffer2, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(I915_GEM_EXECBUFFER2_WR, i915_gem_execbuffer2, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_PIN, i915_gem_reject_pin_ioctl, DRM_AUTH|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_GEM_UNPIN, i915_gem_reject_pin_ioctl, DRM_AUTH|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_GEM_BUSY, i915_gem_busy_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
@@ -2574,10 +2635,10 @@ static struct drm_driver driver = {
 	 */
 	.driver_features =
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME |
-	    DRIVER_RENDER | DRIVER_MODESET,
+	    DRIVER_RENDER | DRIVER_MODESET | DRIVER_ATOMIC,
+	.release = i915_driver_release,
 	.open = i915_driver_open,
 	.lastclose = i915_driver_lastclose,
-	.preclose = i915_driver_preclose,
 	.postclose = i915_driver_postclose,
 	.set_busid = drm_pci_set_busid,
 
@@ -2603,3 +2664,7 @@ static struct drm_driver driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftests/mock_drm.c"
+#endif

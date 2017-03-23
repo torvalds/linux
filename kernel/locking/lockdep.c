@@ -3262,10 +3262,17 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (depth) {
 		hlock = curr->held_locks + depth - 1;
 		if (hlock->class_idx == class_idx && nest_lock) {
-			if (hlock->references)
+			if (hlock->references) {
+				/*
+				 * Check: unsigned int references:12, overflow.
+				 */
+				if (DEBUG_LOCKS_WARN_ON(hlock->references == (1 << 12)-1))
+					return 0;
+
 				hlock->references++;
-			else
+			} else {
 				hlock->references = 2;
+			}
 
 			return 1;
 		}
@@ -3856,11 +3863,13 @@ void lockdep_set_current_reclaim_state(gfp_t gfp_mask)
 {
 	current->lockdep_reclaim_gfp = gfp_mask;
 }
+EXPORT_SYMBOL_GPL(lockdep_set_current_reclaim_state);
 
 void lockdep_clear_current_reclaim_state(void)
 {
 	current->lockdep_reclaim_gfp = 0;
 }
+EXPORT_SYMBOL_GPL(lockdep_clear_current_reclaim_state);
 
 #ifdef CONFIG_LOCK_STAT
 static int

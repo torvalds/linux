@@ -121,7 +121,7 @@ struct intel_uc_fw {
 	uint16_t major_ver_found;
 	uint16_t minor_ver_found;
 
-	enum intel_uc_fw_type fw;
+	enum intel_uc_fw_type type;
 	uint32_t header_size;
 	uint32_t header_offset;
 	uint32_t rsa_size;
@@ -184,19 +184,22 @@ struct intel_huc {
 };
 
 /* intel_uc.c */
+void intel_uc_sanitize_options(struct drm_i915_private *dev_priv);
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
+void intel_uc_init_fw(struct drm_i915_private *dev_priv);
+int intel_uc_init_hw(struct drm_i915_private *dev_priv);
+void intel_uc_prepare_fw(struct drm_i915_private *dev_priv,
+			 struct intel_uc_fw *uc_fw);
 int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
 
 /* intel_guc_loader.c */
-extern void intel_guc_init(struct drm_i915_private *dev_priv);
-extern int intel_guc_setup(struct drm_i915_private *dev_priv);
-extern void intel_guc_fini(struct drm_i915_private *dev_priv);
-extern const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status);
-extern int intel_guc_suspend(struct drm_i915_private *dev_priv);
-extern int intel_guc_resume(struct drm_i915_private *dev_priv);
-void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
-	struct intel_uc_fw *uc_fw);
+int intel_guc_select_fw(struct intel_guc *guc);
+int intel_guc_init_hw(struct intel_guc *guc);
+void intel_guc_fini(struct drm_i915_private *dev_priv);
+const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status);
+int intel_guc_suspend(struct drm_i915_private *dev_priv);
+int intel_guc_resume(struct drm_i915_private *dev_priv);
 u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv);
 
 /* i915_guc_submission.c */
@@ -223,9 +226,9 @@ static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 }
 
 /* intel_huc.c */
-void intel_huc_init(struct drm_i915_private *dev_priv);
+void intel_huc_select_fw(struct intel_huc *huc);
 void intel_huc_fini(struct drm_i915_private  *dev_priv);
-int intel_huc_load(struct drm_i915_private *dev_priv);
+int intel_huc_init_hw(struct intel_huc *huc);
 void intel_guc_auth_huc(struct drm_i915_private *dev_priv);
 
 #endif

@@ -134,7 +134,7 @@ struct anx9805_aux {
 
 static int
 anx9805_aux_xfer(struct nvkm_i2c_aux *base, bool retry,
-		 u8 type, u32 addr, u8 *data, u8 size)
+		 u8 type, u32 addr, u8 *data, u8 *size)
 {
 	struct anx9805_aux *aux = anx9805_aux(base);
 	struct anx9805_pad *pad = aux->pad;
@@ -143,7 +143,7 @@ anx9805_aux_xfer(struct nvkm_i2c_aux *base, bool retry,
 	u8 buf[16] = {};
 	u8 tmp;
 
-	AUX_DBG(&aux->base, "%02x %05x %d", type, addr, size);
+	AUX_DBG(&aux->base, "%02x %05x %d", type, addr, *size);
 
 	tmp = nvkm_rdi2cr(adap, pad->addr, 0x07) & ~0x04;
 	nvkm_wri2cr(adap, pad->addr, 0x07, tmp | 0x04);
@@ -152,12 +152,12 @@ anx9805_aux_xfer(struct nvkm_i2c_aux *base, bool retry,
 
 	nvkm_wri2cr(adap, aux->addr, 0xe4, 0x80);
 	if (!(type & 1)) {
-		memcpy(buf, data, size);
+		memcpy(buf, data, *size);
 		AUX_DBG(&aux->base, "%16ph", buf);
-		for (i = 0; i < size; i++)
+		for (i = 0; i < *size; i++)
 			nvkm_wri2cr(adap, aux->addr, 0xf0 + i, buf[i]);
 	}
-	nvkm_wri2cr(adap, aux->addr, 0xe5, ((size - 1) << 4) | type);
+	nvkm_wri2cr(adap, aux->addr, 0xe5, ((*size - 1) << 4) | type);
 	nvkm_wri2cr(adap, aux->addr, 0xe6, (addr & 0x000ff) >>  0);
 	nvkm_wri2cr(adap, aux->addr, 0xe7, (addr & 0x0ff00) >>  8);
 	nvkm_wri2cr(adap, aux->addr, 0xe8, (addr & 0xf0000) >> 16);
@@ -176,10 +176,10 @@ anx9805_aux_xfer(struct nvkm_i2c_aux *base, bool retry,
 	}
 
 	if (type & 1) {
-		for (i = 0; i < size; i++)
+		for (i = 0; i < *size; i++)
 			buf[i] = nvkm_rdi2cr(adap, aux->addr, 0xf0 + i);
 		AUX_DBG(&aux->base, "%16ph", buf);
-		memcpy(data, buf, size);
+		memcpy(data, buf, *size);
 	}
 
 	ret = 0;
