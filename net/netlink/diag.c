@@ -8,41 +8,6 @@
 
 #include "af_netlink.h"
 
-#ifdef CONFIG_NETLINK_MMAP
-static int sk_diag_put_ring(struct netlink_ring *ring, int nl_type,
-			    struct sk_buff *nlskb)
-{
-	struct netlink_diag_ring ndr;
-
-	ndr.ndr_block_size = ring->pg_vec_pages << PAGE_SHIFT;
-	ndr.ndr_block_nr   = ring->pg_vec_len;
-	ndr.ndr_frame_size = ring->frame_size;
-	ndr.ndr_frame_nr   = ring->frame_max + 1;
-
-	return nla_put(nlskb, nl_type, sizeof(ndr), &ndr);
-}
-
-static int sk_diag_put_rings_cfg(struct sock *sk, struct sk_buff *nlskb)
-{
-	struct netlink_sock *nlk = nlk_sk(sk);
-	int ret;
-
-	mutex_lock(&nlk->pg_vec_lock);
-	ret = sk_diag_put_ring(&nlk->rx_ring, NETLINK_DIAG_RX_RING, nlskb);
-	if (!ret)
-		ret = sk_diag_put_ring(&nlk->tx_ring, NETLINK_DIAG_TX_RING,
-				       nlskb);
-	mutex_unlock(&nlk->pg_vec_lock);
-
-	return ret;
-}
-#else
-static int sk_diag_put_rings_cfg(struct sock *sk, struct sk_buff *nlskb)
-{
-	return 0;
-}
-#endif
-
 static int sk_diag_dump_groups(struct sock *sk, struct sk_buff *nlskb)
 {
 	struct netlink_sock *nlk = nlk_sk(sk);
@@ -85,10 +50,6 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 
 	if ((req->ndiag_show & NDIAG_SHOW_MEMINFO) &&
 	    sock_diag_put_meminfo(sk, skb, NETLINK_DIAG_MEMINFO))
-		goto out_nlmsg_trim;
-
-	if ((req->ndiag_show & NDIAG_SHOW_RING_CFG) &&
-	    sk_diag_put_rings_cfg(sk, skb))
 		goto out_nlmsg_trim;
 
 	nlmsg_end(skb, nlh);
