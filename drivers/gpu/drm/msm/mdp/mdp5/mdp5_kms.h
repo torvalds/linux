@@ -126,6 +126,13 @@ struct mdp5_crtc_state {
 
 	struct mdp5_ctl *ctl;
 	struct mdp5_pipeline pipeline;
+
+	/* these are derivatives of intf/mixer state in mdp5_pipeline */
+	u32 vblank_irqmask;
+	u32 err_irqmask;
+	u32 pp_done_irqmask;
+
+	bool cmd_mode;
 };
 #define to_mdp5_crtc_state(x) \
 		container_of(x, struct mdp5_crtc_state, base)

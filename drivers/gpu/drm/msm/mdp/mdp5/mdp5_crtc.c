@@ -373,6 +373,7 @@ int mdp5_crtc_setup_pipeline(struct drm_crtc *crtc,
 	struct mdp5_crtc_state *mdp5_cstate =
 			to_mdp5_crtc_state(new_crtc_state);
 	struct mdp5_pipeline *pipeline = &mdp5_cstate->pipeline;
+	struct mdp5_interface *intf;
 	bool new_mixer = false;
 
 	new_mixer = !pipeline->mixer;
@@ -386,6 +387,24 @@ int mdp5_crtc_setup_pipeline(struct drm_crtc *crtc,
 			return PTR_ERR(pipeline->mixer);
 
 		mdp5_mixer_release(new_crtc_state->state, old_mixer);
+	}
+
+	/*
+	 * these should have been already set up in the encoder's atomic
+	 * check (called by drm_atomic_helper_check_modeset)
+	 */
+	intf = pipeline->intf;
+
+	mdp5_cstate->err_irqmask = intf2err(intf->num);
+	mdp5_cstate->vblank_irqmask = intf2vblank(pipeline->mixer, intf);
+
+	if ((intf->type == INTF_DSI) &&
+	    (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)) {
+		mdp5_cstate->pp_done_irqmask = lm2ppdone(pipeline->mixer);
+		mdp5_cstate->cmd_mode = true;
+	} else {
+		mdp5_cstate->pp_done_irqmask = 0;
+		mdp5_cstate->cmd_mode = false;
 	}
 
 	return 0;
