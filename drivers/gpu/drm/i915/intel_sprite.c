@@ -419,34 +419,20 @@ vlv_update_plane(struct drm_plane *dplane,
 	enum pipe pipe = intel_plane->pipe;
 	enum plane_id plane_id = intel_plane->id;
 	u32 sprctl = plane_state->ctl;
-	u32 sprsurf_offset, linear_offset;
-	unsigned int rotation = plane_state->base.rotation;
+	u32 sprsurf_offset = plane_state->main.offset;
+	u32 linear_offset;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
 	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
 	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
-	uint32_t x = plane_state->base.src.x1 >> 16;
-	uint32_t y = plane_state->base.src.y1 >> 16;
-	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
-	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
+	uint32_t x = plane_state->main.x;
+	uint32_t y = plane_state->main.y;
 	unsigned long irqflags;
 
 	/* Sizes are 0 based */
-	src_w--;
-	src_h--;
 	crtc_w--;
 	crtc_h--;
-
-	intel_add_fb_offsets(&x, &y, plane_state, 0);
-	sprsurf_offset = intel_compute_tile_offset(&x, &y, plane_state, 0);
-
-	if (rotation & DRM_ROTATE_180) {
-		x += src_w;
-		y += src_h;
-	} else if (rotation & DRM_REFLECT_X) {
-		x += src_w;
-	}
 
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
@@ -566,15 +552,15 @@ ivb_update_plane(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	enum pipe pipe = intel_plane->pipe;
 	u32 sprctl = plane_state->ctl, sprscale = 0;
-	u32 sprsurf_offset, linear_offset;
-	unsigned int rotation = plane_state->base.rotation;
+	u32 sprsurf_offset = plane_state->main.offset;
+	u32 linear_offset;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
 	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
 	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
-	uint32_t x = plane_state->base.src.x1 >> 16;
-	uint32_t y = plane_state->base.src.y1 >> 16;
+	uint32_t x = plane_state->main.x;
+	uint32_t y = plane_state->main.y;
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
@@ -587,16 +573,6 @@ ivb_update_plane(struct drm_plane *plane,
 
 	if (crtc_w != src_w || crtc_h != src_h)
 		sprscale = SPRITE_SCALE_ENABLE | (src_w << 16) | src_h;
-
-	intel_add_fb_offsets(&x, &y, plane_state, 0);
-	sprsurf_offset = intel_compute_tile_offset(&x, &y, plane_state, 0);
-
-	/* HSW+ does this automagically in hardware */
-	if (!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv) &&
-	    rotation & DRM_ROTATE_180) {
-		x += src_w;
-		y += src_h;
-	}
 
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
@@ -716,16 +692,16 @@ ilk_update_plane(struct drm_plane *plane,
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	int pipe = intel_plane->pipe;
-	u32 dvscntr = plane_state->ctl, dvsscale;
-	u32 dvssurf_offset, linear_offset;
-	unsigned int rotation = plane_state->base.rotation;
+	u32 dvscntr = plane_state->ctl, dvsscale = 0;
+	u32 dvssurf_offset = plane_state->main.offset;
+	u32 linear_offset;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
 	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
 	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
-	uint32_t x = plane_state->base.src.x1 >> 16;
-	uint32_t y = plane_state->base.src.y1 >> 16;
+	uint32_t x = plane_state->main.x;
+	uint32_t y = plane_state->main.y;
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	unsigned long irqflags;
@@ -736,17 +712,8 @@ ilk_update_plane(struct drm_plane *plane,
 	crtc_w--;
 	crtc_h--;
 
-	dvsscale = 0;
 	if (crtc_w != src_w || crtc_h != src_h)
 		dvsscale = DVS_SCALE_ENABLE | (src_w << 16) | src_h;
-
-	intel_add_fb_offsets(&x, &y, plane_state, 0);
-	dvssurf_offset = intel_compute_tile_offset(&x, &y, plane_state, 0);
-
-	if (rotation & DRM_ROTATE_180) {
-		x += src_w;
-		y += src_h;
-	}
 
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
@@ -981,10 +948,22 @@ intel_check_sprite_plane(struct drm_plane *plane,
 
 		state->ctl = skl_plane_ctl(crtc_state, state);
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		ret = i9xx_check_plane_surface(state);
+		if (ret)
+			return ret;
+
 		state->ctl = vlv_sprite_ctl(crtc_state, state);
 	} else if (INTEL_GEN(dev_priv) >= 7) {
+		ret = i9xx_check_plane_surface(state);
+		if (ret)
+			return ret;
+
 		state->ctl = ivb_sprite_ctl(crtc_state, state);
 	} else {
+		ret = i9xx_check_plane_surface(state);
+		if (ret)
+			return ret;
+
 		state->ctl = ilk_sprite_ctl(crtc_state, state);
 	}
 

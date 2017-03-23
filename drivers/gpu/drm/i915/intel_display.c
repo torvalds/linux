@@ -3026,7 +3026,7 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 	return dspcntr;
 }
 
-static int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
+int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv =
 		to_i915(plane_state->base.plane->dev);

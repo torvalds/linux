@@ -1453,6 +1453,7 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
 		     unsigned int rotation);
 int skl_check_plane_surface(struct intel_plane_state *plane_state);
+int i9xx_check_plane_surface(struct intel_plane_state *plane_state);
 
 /* intel_csr.c */
 void intel_csr_ucode_init(struct drm_i915_private *);
