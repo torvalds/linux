@@ -915,6 +915,10 @@ int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
 	if (trigger)
 		delay = msecs_to_jiffies(le32_to_cpu(trigger->stop_delay));
 
+	if (WARN(mvm->trans->state == IWL_TRANS_NO_FW,
+		 "Can't collect dbg data when FW isn't alive\n"))
+		return -EIO;
+
 	if (test_and_set_bit(IWL_MVM_STATUS_DUMPING_FW_LOG, &mvm->status))
 		return -EBUSY;
 
