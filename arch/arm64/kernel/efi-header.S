@@ -15,7 +15,7 @@ coff_header:
 	.short	2					// nr_sections
 	.long	0 					// TimeDateStamp
 	.long	0					// PointerToSymbolTable
-	.long	1					// NumberOfSymbols
+	.long	0					// NumberOfSymbols
 	.short	section_table - optional_header		// SizeOfOptionalHeader
 	.short	0x206					// Characteristics.
 							// IMAGE_FILE_DEBUG_STRIPPED |
@@ -88,7 +88,7 @@ section_table:
 	.long	0					// PointerToLineNumbers
 	.short	0					// NumberOfRelocations
 	.short	0					// NumberOfLineNumbers
-	.long	0x42100040				// Characteristics (section flags)
+	.long	0x42000040				// Characteristics (section flags)
 
 
 	.ascii	".text"
@@ -104,7 +104,7 @@ section_table:
 	.long	0					// PointerToLineNumbers
 	.short	0					// NumberOfRelocations
 	.short	0					// NumberOfLineNumbers
-	.long	0xe0500020				// Characteristics
+	.long	0xe0000020				// Characteristics
 
 #ifdef CONFIG_DEBUG_EFI
 	/*
