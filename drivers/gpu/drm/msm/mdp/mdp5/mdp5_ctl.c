@@ -355,6 +355,22 @@ static u32 mdp_ctl_blend_ext_mask(enum mdp5_pipe pipe,
 	}
 }
 
+static void mdp5_ctl_reset_blend_regs(struct mdp5_ctl *ctl)
+{
+	unsigned long flags;
+	struct mdp5_ctl_manager *ctl_mgr = ctl->ctlm;
+	int i;
+
+	spin_lock_irqsave(&ctl->hw_lock, flags);
+
+	for (i = 0; i < ctl_mgr->nlm; i++) {
+		ctl_write(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, i), 0x0);
+		ctl_write(ctl, REG_MDP5_CTL_LAYER_EXT_REG(ctl->id, i), 0x0);
+	}
+
+	spin_unlock_irqrestore(&ctl->hw_lock, flags);
+}
+
 #define PIPE_LEFT	0
 #define PIPE_RIGHT	1
 int mdp5_ctl_blend(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
@@ -368,6 +384,8 @@ int mdp5_ctl_blend(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
 	u32 blend_cfg = 0, blend_ext_cfg = 0;
 	u32 r_blend_cfg = 0, r_blend_ext_cfg = 0;
 	int i, start_stage;
+
+	mdp5_ctl_reset_blend_regs(ctl);
 
 	if (ctl_blend_op_flags & MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT) {
 		start_stage = STAGE0;
