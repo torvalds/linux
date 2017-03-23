@@ -14,6 +14,7 @@
  * only version 2 as published by the Free Software Foundation.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -53,6 +54,7 @@
 struct exynos_lpass {
 	/* pointer to the LPASS TOP regmap */
 	struct regmap *top;
+	struct clk *sfr0_clk;
 };
 
 static void exynos_lpass_core_sw_reset(struct exynos_lpass *lpass, int mask)
@@ -72,6 +74,8 @@ static void exynos_lpass_core_sw_reset(struct exynos_lpass *lpass, int mask)
 
 static void exynos_lpass_enable(struct exynos_lpass *lpass)
 {
+	clk_prepare_enable(lpass->sfr0_clk);
+
 	/* Unmask SFR, DMA and I2S interrupt */
 	regmap_write(lpass->top, SFR_LPASS_INTR_CA5_MASK,
 		     LPASS_INTR_SFR | LPASS_INTR_DMA | LPASS_INTR_I2S);
@@ -89,6 +93,8 @@ static void exynos_lpass_disable(struct exynos_lpass *lpass)
 	/* Mask any unmasked IP interrupt sources */
 	regmap_write(lpass->top, SFR_LPASS_INTR_CPU_MASK, 0);
 	regmap_write(lpass->top, SFR_LPASS_INTR_CA5_MASK, 0);
+
+	clk_disable_unprepare(lpass->sfr0_clk);
 }
 
 static const struct regmap_config exynos_lpass_reg_conf = {
@@ -114,6 +120,10 @@ static int exynos_lpass_probe(struct platform_device *pdev)
 	base_top = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base_top))
 		return PTR_ERR(base_top);
+
+	lpass->sfr0_clk = devm_clk_get(dev, "sfr0_ctrl");
+	if (IS_ERR(lpass->sfr0_clk))
+		return PTR_ERR(lpass->sfr0_clk);
 
 	lpass->top = regmap_init_mmio(dev, base_top,
 					&exynos_lpass_reg_conf);
