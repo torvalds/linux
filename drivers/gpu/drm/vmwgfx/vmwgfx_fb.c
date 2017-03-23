@@ -451,13 +451,15 @@ static int vmw_fb_kms_detach(struct vmw_fb_par *par,
 	}
 
 	if (par->vmw_bo && detach_bo) {
+		struct vmw_private *vmw_priv = par->vmw_priv;
+
 		if (par->bo_ptr) {
 			ttm_bo_kunmap(&par->map);
 			par->bo_ptr = NULL;
 		}
 		if (unref_bo)
 			vmw_dmabuf_unreference(&par->vmw_bo);
-		else
+		else if (vmw_priv->active_display_unit != vmw_du_legacy)
 			vmw_dmabuf_unpin(par->vmw_priv, par->vmw_bo, false);
 	}
 
@@ -585,18 +587,25 @@ static int vmw_fb_set_par(struct fb_info *info)
 
 		/*
 		 * Pin before mapping. Since we don't know in what placement
-		 * to pin, call into KMS to do it for us.
+		 * to pin, call into KMS to do it for us.  LDU doesn't require
+		 * additional pinning because set_config() would've pinned
+		 * it already
 		 */
-		ret = vfb->pin(vfb);
-		if (ret) {
-			DRM_ERROR("Could not pin the fbdev framebuffer.\n");
-			goto out_unlock;
+		if (vmw_priv->active_display_unit != vmw_du_legacy) {
+			ret = vfb->pin(vfb);
+			if (ret) {
+				DRM_ERROR("Could not pin the fbdev "
+					  "framebuffer.\n");
+				goto out_unlock;
+			}
 		}
 
 		ret = ttm_bo_kmap(&par->vmw_bo->base, 0,
 				  par->vmw_bo->base.num_pages, &par->map);
 		if (ret) {
-			vfb->unpin(vfb);
+			if (vmw_priv->active_display_unit != vmw_du_legacy)
+				vfb->unpin(vfb);
+
 			DRM_ERROR("Could not map the fbdev framebuffer.\n");
 			goto out_unlock;
 		}
