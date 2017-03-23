@@ -652,6 +652,16 @@ int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 }
 EXPORT_SYMBOL(kernel_sendmsg);
 
+static bool skb_is_err_queue(const struct sk_buff *skb)
+{
+	/* pkt_type of skbs enqueued on the error queue are set to
+	 * PACKET_OUTGOING in skb_set_err_queue(). This is only safe to do
+	 * in recvmsg, since skbs received on a local socket will never
+	 * have a pkt_type of PACKET_OUTGOING.
+	 */
+	return skb->pkt_type == PACKET_OUTGOING;
+}
+
 /*
  * called from sock_recv_timestamp() if sock_flag(sk, SOCK_RCVTSTAMP)
  */
@@ -695,7 +705,8 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 		put_cmsg(msg, SOL_SOCKET,
 			 SCM_TIMESTAMPING, sizeof(tss), &tss);
 
-		if (skb->len && (sk->sk_tsflags & SOF_TIMESTAMPING_OPT_STATS))
+		if (skb_is_err_queue(skb) && skb->len &&
+		    SKB_EXT_ERR(skb)->opt_stats)
 			put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMPING_OPT_STATS,
 				 skb->len, skb->data);
 	}
