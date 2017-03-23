@@ -783,7 +783,6 @@ struct intel_uncore {
 		u32 val_set;
 		u32 val_clear;
 		i915_reg_t reg_ack;
-		i915_reg_t reg_post;
 		u32 val_reset;
 	} fw_domain[FW_DOMAIN_ID_COUNT];
 

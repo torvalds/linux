@@ -105,15 +105,6 @@ fw_domain_put(struct drm_i915_private *i915,
 	__raw_i915_write32(i915, d->reg_set, d->val_clear);
 }
 
-static inline void
-fw_domain_posting_read(struct drm_i915_private *i915,
-		       const struct intel_uncore_forcewake_domain *d)
-{
-	/* something from same cacheline, but not from the set register */
-	if (i915_mmio_reg_valid(d->reg_post))
-		__raw_posting_read(i915, d->reg_post);
-}
-
 static void
 fw_domains_get(struct drm_i915_private *i915, enum forcewake_domains fw_domains)
 {
@@ -141,25 +132,10 @@ fw_domains_put(struct drm_i915_private *i915, enum forcewake_domains fw_domains)
 
 	GEM_BUG_ON(fw_domains & ~i915->uncore.fw_domains);
 
-	for_each_fw_domain_masked(d, fw_domains, i915, tmp) {
+	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
 		fw_domain_put(i915, d);
-		fw_domain_posting_read(i915, d);
-	}
 
 	i915->uncore.fw_domains_active &= ~fw_domains;
-}
-
-static void
-fw_domains_posting_read(struct drm_i915_private *i915)
-{
-	struct intel_uncore_forcewake_domain *d;
-	unsigned int tmp;
-
-	/* No need to do for all, just do for first found */
-	for_each_fw_domain(d, i915, tmp) {
-		fw_domain_posting_read(i915, d);
-		break;
-	}
 }
 
 static void
@@ -176,8 +152,6 @@ fw_domains_reset(struct drm_i915_private *i915,
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
 		fw_domain_reset(i915, d);
-
-	fw_domains_posting_read(i915);
 }
 
 static void __gen6_gt_wait_for_thread_c0(struct drm_i915_private *dev_priv)
@@ -1179,11 +1153,6 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 		d->val_set = _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL);
 		d->val_clear = _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL);
 	}
-
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		d->reg_post = FORCEWAKE_ACK_VLV;
-	else if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv) || IS_GEN8(dev_priv))
-		d->reg_post = ECOBUS;
 
 	d->id = domain_id;
 
