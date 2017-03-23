@@ -21,7 +21,7 @@
 
 #define GPC_CNTR		0x000
 
-#define GPC_PGC_PDN_OFFS	0x0
+#define GPC_PGC_CTRL_OFFS	0x0
 #define GPC_PGC_PUPSCR_OFFS	0x4
 #define GPC_PGC_PDNSCR_OFFS	0x8
 #define GPC_PGC_SW2ISO_SHIFT	0x8
@@ -65,7 +65,7 @@ static int imx6_pm_domain_power_off(struct generic_pm_domain *genpd)
 	iso2sw = (val >> 8) & 0x3f;
 
 	/* Gate off domain when powered down */
-	regmap_update_bits(pd->regmap, pd->reg_offs + GPC_PGC_PDN_OFFS,
+	regmap_update_bits(pd->regmap, pd->reg_offs + GPC_PGC_CTRL_OFFS,
 			   0x1, 0x1);
 
 	/* Request GPC to power down domain */
@@ -101,7 +101,7 @@ static int imx6_pm_domain_power_on(struct generic_pm_domain *genpd)
 		clk_prepare_enable(pd->clk[i]);
 
 	/* Gate off domain when powered down */
-	regmap_update_bits(pd->regmap, pd->reg_offs + GPC_PGC_PDN_OFFS,
+	regmap_update_bits(pd->regmap, pd->reg_offs + GPC_PGC_CTRL_OFFS,
 			   0x1, 0x1);
 
 	/* Read ISO and ISO2SW power up delays */
