@@ -435,18 +435,30 @@ static int psp_resume(void *handle)
 {
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct psp_context *psp = &adev->psp;
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		return 0;
 
+	DRM_INFO("PSP is resuming...\n");
+
 	mutex_lock(&adev->firmware.mutex);
 
-	ret = psp_load_fw(adev);
+	ret = psp_hw_start(psp);
 	if (ret)
-		DRM_ERROR("PSP resume failed\n");
+		goto failed;
+
+	ret = psp_np_fw_load(psp);
+	if (ret)
+		goto failed;
 
 	mutex_unlock(&adev->firmware.mutex);
 
+	return 0;
+
+failed:
+	DRM_ERROR("PSP resume failed\n");
+	mutex_unlock(&adev->firmware.mutex);
 	return ret;
 }
 
