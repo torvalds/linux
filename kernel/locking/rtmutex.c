@@ -224,6 +224,12 @@ static inline bool unlock_rt_mutex_safe(struct rt_mutex *lock,
 }
 #endif
 
+/*
+ * Only use with rt_mutex_waiter_{less,equal}()
+ */
+#define task_to_waiter(p)	\
+	&(struct rt_mutex_waiter){ .prio = (p)->prio, .deadline = (p)->dl.deadline }
+
 static inline int
 rt_mutex_waiter_less(struct rt_mutex_waiter *left,
 		     struct rt_mutex_waiter *right)
@@ -241,6 +247,25 @@ rt_mutex_waiter_less(struct rt_mutex_waiter *left,
 		return dl_time_before(left->deadline, right->deadline);
 
 	return 0;
+}
+
+static inline int
+rt_mutex_waiter_equal(struct rt_mutex_waiter *left,
+		      struct rt_mutex_waiter *right)
+{
+	if (left->prio != right->prio)
+		return 0;
+
+	/*
+	 * If both waiters have dl_prio(), we check the deadlines of the
+	 * associated tasks.
+	 * If left waiter has a dl_prio(), and we didn't return 0 above,
+	 * then right waiter has a dl_prio() too.
+	 */
+	if (dl_prio(left->prio))
+		return left->deadline == right->deadline;
+
+	return 1;
 }
 
 static void
@@ -553,7 +578,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 	 * enabled we continue, but stop the requeueing in the chain
 	 * walk.
 	 */
-	if (waiter->prio == task->prio && !dl_task(task)) {
+	if (rt_mutex_waiter_equal(waiter, task_to_waiter(task))) {
 		if (!detect_deadlock)
 			goto out_unlock_pi;
 		else
@@ -856,7 +881,8 @@ static int try_to_take_rt_mutex(struct rt_mutex *lock, struct task_struct *task,
 			 * the top waiter priority (kernel view),
 			 * @task lost.
 			 */
-			if (task->prio >= rt_mutex_top_waiter(lock)->prio)
+			if (!rt_mutex_waiter_less(task_to_waiter(task),
+						  rt_mutex_top_waiter(lock)))
 				return 0;
 
 			/*
@@ -1119,7 +1145,7 @@ void rt_mutex_adjust_pi(struct task_struct *task)
 	raw_spin_lock_irqsave(&task->pi_lock, flags);
 
 	waiter = task->pi_blocked_on;
-	if (!waiter || (waiter->prio == task->prio && !dl_prio(task->prio))) {
+	if (!waiter || rt_mutex_waiter_equal(waiter, task_to_waiter(task))) {
 		raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 		return;
 	}
