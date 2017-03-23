@@ -1579,8 +1579,56 @@ err_out:
 	return &vfb->base;
 }
 
+
+
+/**
+ * vmw_kms_atomic_check_modeset- validate state object for modeset changes
+ *
+ * @dev: DRM device
+ * @state: the driver state object
+ *
+ * This is a simple wrapper around drm_atomic_helper_check_modeset() for
+ * us to assign a value to mode->crtc_clock so that
+ * drm_calc_timestamping_constants() won't throw an error message
+ *
+ * RETURNS
+ * Zero for success or -errno
+ */
+int
+vmw_kms_atomic_check_modeset(struct drm_device *dev,
+			     struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	int i;
+
+
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		unsigned long requested_bb_mem = 0;
+
+		if (dev_priv->active_display_unit == vmw_du_screen_target) {
+			if (crtc->primary->fb) {
+				int cpp = crtc->primary->fb->pitches[0] /
+					  crtc->primary->fb->width;
+
+				requested_bb_mem += crtc->mode.hdisplay * cpp *
+						    crtc->mode.vdisplay;
+			}
+
+			if (requested_bb_mem > dev_priv->prim_bb_mem)
+				return -EINVAL;
+		}
+	}
+
+	return drm_atomic_helper_check(dev, state);
+}
+
+
 static const struct drm_mode_config_funcs vmw_kms_funcs = {
 	.fb_create = vmw_kms_fb_create,
+	.atomic_check = vmw_kms_atomic_check_modeset,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int vmw_kms_generic_present(struct vmw_private *dev_priv,
