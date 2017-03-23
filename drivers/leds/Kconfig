@@ -249,7 +249,6 @@ config LEDS_LP3952
 	tristate "LED Support for TI LP3952 2 channel LED driver"
 	depends on LEDS_CLASS
 	depends on I2C
-	depends on ACPI
 	depends on GPIOLIB
 	select REGMAP_I2C
 	help

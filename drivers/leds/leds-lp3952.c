@@ -10,7 +10,6 @@
  *
  */
 
-#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
@@ -276,19 +275,9 @@ static const struct i2c_device_id lp3952_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lp3952_id);
 
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id lp3952_acpi_match[] = {
-	{"TXNW3952", 0},
-	{}
-};
-
-MODULE_DEVICE_TABLE(acpi, lp3952_acpi_match);
-#endif
-
 static struct i2c_driver lp3952_i2c_driver = {
 	.driver = {
 			.name = LP3952_NAME,
-			.acpi_match_table = ACPI_PTR(lp3952_acpi_match),
 	},
 	.probe = lp3952_probe,
 	.remove = lp3952_remove,
