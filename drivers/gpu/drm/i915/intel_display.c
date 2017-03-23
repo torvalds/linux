@@ -2974,8 +2974,12 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 
 	dspcntr = DISPLAY_PLANE_ENABLE | DISPPLANE_GAMMA_ENABLE;
 
-	if (IS_G4X(dev_priv))
+	if (IS_G4X(dev_priv) || IS_GEN5(dev_priv) ||
+	    IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
+
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		dspcntr |= DISPPLANE_PIPE_CSC_ENABLE;
 
 	if (INTEL_GEN(dev_priv) < 4) {
 		if (crtc->pipe == PIPE_B)
@@ -3119,56 +3123,6 @@ static void i9xx_disable_primary_plane(struct drm_plane *primary,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static u32 ironlake_plane_ctl(const struct intel_crtc_state *crtc_state,
-			      const struct intel_plane_state *plane_state)
-{
-	struct drm_i915_private *dev_priv =
-		to_i915(plane_state->base.plane->dev);
-	const struct drm_framebuffer *fb = plane_state->base.fb;
-	unsigned int rotation = plane_state->base.rotation;
-	u32 dspcntr;
-
-	dspcntr = DISPLAY_PLANE_ENABLE | DISPPLANE_GAMMA_ENABLE;
-
-	if (!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv))
-		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
-
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		dspcntr |= DISPPLANE_PIPE_CSC_ENABLE;
-
-	switch (fb->format->format) {
-	case DRM_FORMAT_C8:
-		dspcntr |= DISPPLANE_8BPP;
-		break;
-	case DRM_FORMAT_RGB565:
-		dspcntr |= DISPPLANE_BGRX565;
-		break;
-	case DRM_FORMAT_XRGB8888:
-		dspcntr |= DISPPLANE_BGRX888;
-		break;
-	case DRM_FORMAT_XBGR8888:
-		dspcntr |= DISPPLANE_RGBX888;
-		break;
-	case DRM_FORMAT_XRGB2101010:
-		dspcntr |= DISPPLANE_BGRX101010;
-		break;
-	case DRM_FORMAT_XBGR2101010:
-		dspcntr |= DISPPLANE_RGBX101010;
-		break;
-	default:
-		MISSING_CASE(fb->format->format);
-		return 0;
-	}
-
-	if (fb->modifier == I915_FORMAT_MOD_X_TILED)
-		dspcntr |= DISPPLANE_TILED;
-
-	if (rotation & DRM_ROTATE_180)
-		dspcntr |= DISPPLANE_ROTATE_180;
-
-	return dspcntr;
-}
-
 static void ironlake_update_primary_plane(struct drm_plane *primary,
 					  const struct intel_crtc_state *crtc_state,
 					  const struct intel_plane_state *plane_state)
@@ -3186,7 +3140,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	int y = plane_state->base.src.y1 >> 16;
 	unsigned long irqflags;
 
-	dspcntr = ironlake_plane_ctl(crtc_state, plane_state);
+	dspcntr = i9xx_plane_ctl(crtc_state, plane_state);
 
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
 
