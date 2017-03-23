@@ -270,6 +270,20 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 			kvmppc_set_gpr(vcpu, ra, vcpu->arch.vaddr_accessed);
 			break;
 
+		case OP_31_XOP_LFIWAX:
+			if (kvmppc_check_fp_disabled(vcpu))
+				return EMULATE_DONE;
+			emulated = kvmppc_handle_loads(run, vcpu,
+				KVM_MMIO_REG_FPR|rt, 4, 1);
+			break;
+
+		case OP_31_XOP_LFIWZX:
+			if (kvmppc_check_fp_disabled(vcpu))
+				return EMULATE_DONE;
+			emulated = kvmppc_handle_load(run, vcpu,
+				KVM_MMIO_REG_FPR|rt, 4, 1);
+			break;
+
 		case OP_31_XOP_STFSX:
 			if (kvmppc_check_fp_disabled(vcpu))
 				return EMULATE_DONE;

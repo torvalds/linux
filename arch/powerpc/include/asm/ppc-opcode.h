@@ -122,6 +122,8 @@
 #define OP_31_XOP_STFDX     727
 #define OP_31_XOP_STFDUX    759
 #define OP_31_XOP_LHBRX     790
+#define OP_31_XOP_LFIWAX    855
+#define OP_31_XOP_LFIWZX    887
 #define OP_31_XOP_STHBRX    918
 #define OP_31_XOP_STFIWX    983
 
