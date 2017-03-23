@@ -325,12 +325,18 @@ static const struct drm_plane_funcs vmw_ldu_plane_funcs = {
 	.update_plane = drm_primary_helper_update,
 	.disable_plane = drm_primary_helper_disable,
 	.destroy = vmw_du_primary_plane_destroy,
+	.reset = vmw_du_plane_reset,
+	.atomic_duplicate_state = vmw_du_plane_duplicate_state,
+	.atomic_destroy_state = vmw_du_plane_destroy_state,
 };
 
 static const struct drm_plane_funcs vmw_ldu_cursor_funcs = {
 	.update_plane = vmw_du_cursor_plane_update,
 	.disable_plane = vmw_du_cursor_plane_disable,
 	.destroy = vmw_du_cursor_plane_destroy,
+	.reset = vmw_du_plane_reset,
+	.atomic_duplicate_state = vmw_du_plane_duplicate_state,
+	.atomic_destroy_state = vmw_du_plane_destroy_state,
 };
 
 
@@ -340,6 +346,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
+	struct drm_plane *primary, *cursor;
 	struct drm_crtc *crtc;
 	int ret;
 
@@ -351,6 +358,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	crtc = &ldu->base.crtc;
 	encoder = &ldu->base.encoder;
 	connector = &ldu->base.connector;
+	primary = &ldu->base.primary;
+	cursor = &ldu->base.cursor;
 
 	INIT_LIST_HEAD(&ldu->active);
 
@@ -366,6 +375,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	ldu->base.is_implicit = true;
 
 	/* Initialize primary plane */
+	vmw_du_plane_reset(primary);
+
 	ret = drm_universal_plane_init(dev, &ldu->base.primary,
 				       0, &vmw_ldu_plane_funcs,
 				       vmw_primary_plane_formats,
@@ -377,6 +388,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	}
 
 	/* Initialize cursor plane */
+	vmw_du_plane_reset(cursor);
+
 	ret = drm_universal_plane_init(dev, &ldu->base.cursor,
 			0, &vmw_ldu_cursor_funcs,
 			vmw_cursor_plane_formats,

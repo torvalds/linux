@@ -468,6 +468,96 @@ vmw_du_crtc_destroy_state(struct drm_crtc *crtc,
 }
 
 
+/**
+ * vmw_du_plane_duplicate_state - duplicate plane state
+ * @plane: drm plane
+ *
+ * Allocates and returns a copy of the plane state (both common and
+ * vmw-specific) for the specified plane.
+ *
+ * Returns: The newly allocated plane state, or NULL on failure.
+ */
+struct drm_plane_state *
+vmw_du_plane_duplicate_state(struct drm_plane *plane)
+{
+	struct drm_plane_state *state;
+	struct vmw_plane_state *vps;
+
+	vps = kmemdup(plane->state, sizeof(*vps), GFP_KERNEL);
+
+	if (!vps)
+		return NULL;
+
+	vps->pinned = 0;
+
+	/* Each ref counted resource needs to be acquired again */
+	if (vps->surf)
+		(void) vmw_surface_reference(vps->surf);
+
+	if (vps->dmabuf)
+		(void) vmw_dmabuf_reference(vps->dmabuf);
+
+	state = &vps->base;
+
+	__drm_atomic_helper_plane_duplicate_state(plane, state);
+
+	return state;
+}
+
+
+/**
+ * vmw_du_plane_reset - creates a blank vmw plane state
+ * @plane: drm plane
+ *
+ * Resets the atomic state for @plane by freeing the state pointer (which might
+ * be NULL, e.g. at driver load time) and allocating a new empty state object.
+ */
+void vmw_du_plane_reset(struct drm_plane *plane)
+{
+	struct vmw_plane_state *vps;
+
+
+	if (plane->state)
+		vmw_du_plane_destroy_state(plane, plane->state);
+
+	vps = kzalloc(sizeof(*vps), GFP_KERNEL);
+
+	if (!vps) {
+		DRM_ERROR("Cannot allocate vmw_plane_state\n");
+		return;
+	}
+
+	plane->state = &vps->base;
+	plane->state->plane = plane;
+	plane->state->rotation = DRM_ROTATE_0;
+}
+
+
+/**
+ * vmw_du_plane_destroy_state - destroy plane state
+ * @plane: DRM plane
+ * @state: state object to destroy
+ *
+ * Destroys the plane state (both common and vmw-specific) for the
+ * specified plane.
+ */
+void
+vmw_du_plane_destroy_state(struct drm_plane *plane,
+			   struct drm_plane_state *state)
+{
+	struct vmw_plane_state *vps = vmw_plane_state_to_vps(state);
+
+
+	if (vps->surf)
+		vmw_surface_unreference(&vps->surf);
+
+	if (vps->dmabuf)
+		vmw_dmabuf_unreference(&vps->dmabuf);
+
+	drm_atomic_helper_plane_destroy_state(plane, state);
+}
+
+
 /*
  * Generic framebuffer code
  */

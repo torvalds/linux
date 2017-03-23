@@ -141,6 +141,7 @@ static const uint32_t vmw_cursor_plane_formats[] = {
 
 
 #define vmw_crtc_state_to_vcs(x) container_of(x, struct vmw_crtc_state, base)
+#define vmw_plane_state_to_vps(x) container_of(x, struct vmw_plane_state, base)
 
 
 /**
@@ -150,6 +151,25 @@ static const uint32_t vmw_cursor_plane_formats[] = {
  */
 struct vmw_crtc_state {
 	struct drm_crtc_state base;
+};
+
+/**
+ * Derived class for plane state object
+ *
+ * @base DRM plane object
+ * @surf Display surface for STDU
+ * @dmabuf display dmabuf for SOU
+ * @content_fb_type Used by STDU.
+ * @pinned pin count for STDU display surface
+ */
+struct vmw_plane_state {
+	struct drm_plane_state base;
+	struct vmw_surface *surf;
+	struct vmw_dma_buffer *dmabuf;
+
+	int content_fb_type;
+
+	int pinned;
 };
 
 /**
@@ -298,6 +318,10 @@ int vmw_du_cursor_plane_update(struct drm_plane *plane,
 			       uint32_t src_x, uint32_t src_y,
 			       uint32_t src_w, uint32_t src_h);
 
+void vmw_du_plane_reset(struct drm_plane *plane);
+struct drm_plane_state *vmw_du_plane_duplicate_state(struct drm_plane *plane);
+void vmw_du_plane_destroy_state(struct drm_plane *plane,
+				struct drm_plane_state *state);
 void vmw_du_crtc_reset(struct drm_crtc *crtc);
 struct drm_crtc_state *vmw_du_crtc_duplicate_state(struct drm_crtc *crtc);
 void vmw_du_crtc_destroy_state(struct drm_crtc *crtc,
