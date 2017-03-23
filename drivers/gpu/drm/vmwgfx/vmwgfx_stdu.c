@@ -1194,6 +1194,230 @@ static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
  * Screen Target Display Plane Functions
  *****************************************************************************/
 
+
+
+/**
+ * vmw_stdu_primary_plane_cleanup_fb - Unpins the display surface
+ *
+ * @plane:  display plane
+ * @old_state: Contains the FB to clean up
+ *
+ * Unpins the display surface
+ *
+ * Returns 0 on success
+ */
+static void
+vmw_stdu_primary_plane_cleanup_fb(struct drm_plane *plane,
+				  struct drm_plane_state *old_state)
+{
+	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
+
+	if (vps->surf)
+		WARN_ON(!vps->pinned);
+
+	vmw_du_plane_cleanup_fb(plane, old_state);
+
+	vps->content_fb_type = SAME_AS_DISPLAY;
+}
+
+
+
+/**
+ * vmw_stdu_primary_plane_prepare_fb - Readies the display surface
+ *
+ * @plane:  display plane
+ * @new_state: info on the new plane state, including the FB
+ *
+ * This function allocates a new display surface if the content is
+ * backed by a DMA.  The display surface is pinned here, and it'll
+ * be unpinned in .cleanup_fb()
+ *
+ * Returns 0 on success
+ */
+static int
+vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
+				  struct drm_plane_state *new_state)
+{
+	struct drm_framebuffer *new_fb = new_state->fb;
+	struct vmw_framebuffer *vfb;
+	struct vmw_plane_state *vps = vmw_plane_state_to_vps(new_state);
+	enum stdu_content_type new_content_type;
+	struct vmw_framebuffer_surface *new_vfbs;
+	struct drm_crtc *crtc = new_state->crtc;
+	uint32_t hdisplay = new_state->crtc_w, vdisplay = new_state->crtc_h;
+	int ret;
+
+	/* No FB to prepare */
+	if (!new_fb) {
+		if (vps->surf) {
+			WARN_ON(vps->pinned != 0);
+			vmw_surface_unreference(&vps->surf);
+		}
+
+		return 0;
+	}
+
+	vfb = vmw_framebuffer_to_vfb(new_fb);
+	new_vfbs = (vfb->dmabuf) ? NULL : vmw_framebuffer_to_vfbs(new_fb);
+
+	if (new_vfbs && new_vfbs->surface->base_size.width == hdisplay &&
+	    new_vfbs->surface->base_size.height == vdisplay)
+		new_content_type = SAME_AS_DISPLAY;
+	else if (vfb->dmabuf)
+		new_content_type = SEPARATE_DMA;
+	else
+		new_content_type = SEPARATE_SURFACE;
+
+	if (new_content_type != SAME_AS_DISPLAY) {
+		struct vmw_surface content_srf;
+		struct drm_vmw_size display_base_size = {0};
+
+		display_base_size.width  = hdisplay;
+		display_base_size.height = vdisplay;
+		display_base_size.depth  = 1;
+
+		/*
+		 * If content buffer is a DMA buf, then we have to construct
+		 * surface info
+		 */
+		if (new_content_type == SEPARATE_DMA) {
+
+			switch (new_fb->format->cpp[0]*8) {
+			case 32:
+				content_srf.format = SVGA3D_X8R8G8B8;
+				break;
+
+			case 16:
+				content_srf.format = SVGA3D_R5G6B5;
+				break;
+
+			case 8:
+				content_srf.format = SVGA3D_P8;
+				break;
+
+			default:
+				DRM_ERROR("Invalid format\n");
+				return -EINVAL;
+			}
+
+			content_srf.flags             = 0;
+			content_srf.mip_levels[0]     = 1;
+			content_srf.multisample_count = 0;
+		} else {
+			content_srf = *new_vfbs->surface;
+		}
+
+		if (vps->surf) {
+			struct drm_vmw_size cur_base_size = vps->surf->base_size;
+
+			if (cur_base_size.width != display_base_size.width ||
+			    cur_base_size.height != display_base_size.height ||
+			    vps->surf->format != content_srf.format) {
+				WARN_ON(vps->pinned != 0);
+				vmw_surface_unreference(&vps->surf);
+			}
+
+		}
+
+		if (!vps->surf) {
+			ret = vmw_surface_gb_priv_define
+				(crtc->dev,
+				 /* Kernel visible only */
+				 0,
+				 content_srf.flags,
+				 content_srf.format,
+				 true,  /* a scanout buffer */
+				 content_srf.mip_levels[0],
+				 content_srf.multisample_count,
+				 0,
+				 display_base_size,
+				 &vps->surf);
+			if (ret != 0) {
+				DRM_ERROR("Couldn't allocate STDU surface.\n");
+				return ret;
+			}
+		}
+	} else {
+		/*
+		 * prepare_fb and clean_fb should only take care of pinning
+		 * and unpinning.  References are tracked by state objects.
+		 * The only time we add a reference in prepare_fb is if the
+		 * state object doesn't have a reference to begin with
+		 */
+		if (vps->surf) {
+			WARN_ON(vps->pinned != 0);
+			vmw_surface_unreference(&vps->surf);
+		}
+
+		vps->surf = vmw_surface_reference(new_vfbs->surface);
+	}
+
+	if (vps->surf) {
+
+		/* Pin new surface before flipping */
+		ret = vmw_resource_pin(&vps->surf->res, false);
+		if (ret)
+			goto out_srf_unref;
+
+		vps->pinned++;
+	}
+
+	vps->content_fb_type = new_content_type;
+	return 0;
+
+out_srf_unref:
+	vmw_surface_unreference(&vps->surf);
+	return ret;
+}
+
+
+
+/**
+ * vmw_stdu_primary_plane_atomic_update - formally switches STDU to new plane
+ *
+ * @plane: display plane
+ * @old_state: Only used to get crtc info
+ *
+ * Formally update stdu->display_srf to the new plane, and bind the new
+ * plane STDU.  This function is called during the commit phase when
+ * all the preparation have been done and all the configurations have
+ * been checked.
+ */
+static void
+vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
+				     struct drm_plane_state *old_state)
+{
+	struct vmw_private *dev_priv;
+	struct vmw_screen_target_display_unit *stdu;
+	struct vmw_plane_state *vps = vmw_plane_state_to_vps(plane->state);
+	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
+	int ret;
+
+	stdu     = vmw_crtc_to_stdu(crtc);
+	dev_priv = vmw_priv(crtc->dev);
+
+	stdu->display_srf = vps->surf;
+	stdu->content_fb_type = vps->content_fb_type;
+
+	if (!stdu->defined)
+		return;
+
+	if (plane->state->fb)
+		ret = vmw_stdu_bind_st(dev_priv, stdu, &stdu->display_srf->res);
+	else
+		ret = vmw_stdu_bind_st(dev_priv, stdu, NULL);
+
+	/*
+	 * We cannot really fail this function, so if we do, then output an
+	 * error and quit
+	 */
+	if (ret)
+		DRM_ERROR("Failed to bind surface to STDU.\n");
+	else
+		crtc->primary->fb = plane->state->fb;
+}
+
+
 static const struct drm_plane_funcs vmw_stdu_plane_funcs = {
 	.update_plane = drm_primary_helper_update,
 	.disable_plane = drm_primary_helper_disable,
@@ -1216,6 +1440,22 @@ static const struct drm_plane_funcs vmw_stdu_cursor_funcs = {
 /*
  * Atomic Helpers
  */
+static const struct
+drm_plane_helper_funcs vmw_stdu_cursor_plane_helper_funcs = {
+	.atomic_check = vmw_du_cursor_plane_atomic_check,
+	.atomic_update = vmw_du_cursor_plane_atomic_update,
+	.prepare_fb = vmw_du_cursor_plane_prepare_fb,
+	.cleanup_fb = vmw_du_plane_cleanup_fb,
+};
+
+static const struct
+drm_plane_helper_funcs vmw_stdu_primary_plane_helper_funcs = {
+	.atomic_check = vmw_du_primary_plane_atomic_check,
+	.atomic_update = vmw_stdu_primary_plane_atomic_update,
+	.prepare_fb = vmw_stdu_primary_plane_prepare_fb,
+	.cleanup_fb = vmw_stdu_primary_plane_cleanup_fb,
+};
+
 static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
 	.prepare = vmw_stdu_crtc_helper_prepare,
 	.commit = vmw_stdu_crtc_helper_commit,
@@ -1283,6 +1523,8 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free;
 	}
 
+	drm_plane_helper_add(primary, &vmw_stdu_primary_plane_helper_funcs);
+
 	/* Initialize cursor plane */
 	vmw_du_plane_reset(cursor);
 
@@ -1296,6 +1538,8 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 		drm_plane_cleanup(&stdu->base.primary);
 		goto err_free;
 	}
+
+	drm_plane_helper_add(cursor, &vmw_stdu_cursor_plane_helper_funcs);
 
 	vmw_du_connector_reset(connector);
 

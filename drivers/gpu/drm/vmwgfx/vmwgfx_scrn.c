@@ -612,6 +612,100 @@ static const struct drm_connector_funcs vmw_sou_connector_funcs = {
  * Screen Object Display Plane Functions
  */
 
+/**
+ * vmw_sou_primary_plane_cleanup_fb - Frees sou backing buffer
+ *
+ * @plane:  display plane
+ * @old_state: Contains the FB to clean up
+ *
+ * Unpins the display surface
+ *
+ * Returns 0 on success
+ */
+static void
+vmw_sou_primary_plane_cleanup_fb(struct drm_plane *plane,
+				 struct drm_plane_state *old_state)
+{
+	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
+
+	vmw_dmabuf_unreference(&vps->dmabuf);
+	vps->dmabuf_size = 0;
+
+	vmw_du_plane_cleanup_fb(plane, old_state);
+}
+
+
+/**
+ * vmw_sou_primary_plane_prepare_fb - allocate backing buffer
+ *
+ * @plane:  display plane
+ * @new_state: info on the new plane state, including the FB
+ *
+ * The SOU backing buffer is our equivalent of the display plane.
+ *
+ * Returns 0 on success
+ */
+static int
+vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
+				 struct drm_plane_state *new_state)
+{
+	struct drm_framebuffer *new_fb = new_state->fb;
+	struct drm_crtc *crtc = plane->state->crtc ?: new_state->crtc;
+	struct vmw_plane_state *vps = vmw_plane_state_to_vps(new_state);
+	struct vmw_private *dev_priv;
+	size_t size;
+	int ret;
+
+
+	if (!new_fb) {
+		vmw_dmabuf_unreference(&vps->dmabuf);
+		vps->dmabuf_size = 0;
+
+		return 0;
+	}
+
+	size = new_state->crtc_w * new_state->crtc_h * 4;
+
+	if (vps->dmabuf) {
+		if (vps->dmabuf_size == size)
+			return 0;
+
+		vmw_dmabuf_unreference(&vps->dmabuf);
+		vps->dmabuf_size = 0;
+	}
+
+	vps->dmabuf = kzalloc(sizeof(*vps->dmabuf), GFP_KERNEL);
+	if (!vps->dmabuf)
+		return -ENOMEM;
+
+	dev_priv = vmw_priv(crtc->dev);
+	vmw_svga_enable(dev_priv);
+
+	/* After we have alloced the backing store might not be able to
+	 * resume the overlays, this is preferred to failing to alloc.
+	 */
+	vmw_overlay_pause_all(dev_priv);
+	ret = vmw_dmabuf_init(dev_priv, vps->dmabuf, size,
+			      &vmw_vram_ne_placement,
+			      false, &vmw_dmabuf_bo_free);
+	vmw_overlay_resume_all(dev_priv);
+
+	if (ret != 0)
+		vps->dmabuf = NULL; /* vmw_dmabuf_init frees on error */
+	else
+		vps->dmabuf_size = size;
+
+	return ret;
+}
+
+
+static void
+vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
+				    struct drm_plane_state *old_state)
+{
+}
+
+
 static const struct drm_plane_funcs vmw_sou_plane_funcs = {
 	.update_plane = drm_primary_helper_update,
 	.disable_plane = drm_primary_helper_disable,
@@ -633,6 +727,22 @@ static const struct drm_plane_funcs vmw_sou_cursor_funcs = {
 /*
  * Atomic Helpers
  */
+static const struct
+drm_plane_helper_funcs vmw_sou_cursor_plane_helper_funcs = {
+	.atomic_check = vmw_du_cursor_plane_atomic_check,
+	.atomic_update = vmw_du_cursor_plane_atomic_update,
+	.prepare_fb = vmw_du_cursor_plane_prepare_fb,
+	.cleanup_fb = vmw_du_plane_cleanup_fb,
+};
+
+static const struct
+drm_plane_helper_funcs vmw_sou_primary_plane_helper_funcs = {
+	.atomic_check = vmw_du_primary_plane_atomic_check,
+	.atomic_update = vmw_sou_primary_plane_atomic_update,
+	.prepare_fb = vmw_sou_primary_plane_prepare_fb,
+	.cleanup_fb = vmw_sou_primary_plane_cleanup_fb,
+};
+
 static const struct drm_crtc_helper_funcs vmw_sou_crtc_helper_funcs = {
 	.prepare = vmw_sou_crtc_helper_prepare,
 	.commit = vmw_sou_crtc_helper_commit,
@@ -691,6 +801,8 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free;
 	}
 
+	drm_plane_helper_add(primary, &vmw_sou_primary_plane_helper_funcs);
+
 	/* Initialize cursor plane */
 	vmw_du_plane_reset(cursor);
 
@@ -705,6 +817,9 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free;
 	}
 
+	drm_plane_helper_add(cursor, &vmw_sou_cursor_plane_helper_funcs);
+
+	vmw_du_connector_reset(connector);
 	ret = drm_connector_init(dev, connector, &vmw_sou_connector_funcs,
 				 DRM_MODE_CONNECTOR_VIRTUAL);
 	if (ret) {

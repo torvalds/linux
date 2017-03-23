@@ -26,8 +26,10 @@
  **************************************************************************/
 
 #include "vmwgfx_kms.h"
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_rect.h>
 
 
 /* Might need a hrtimer here? */
@@ -387,6 +389,260 @@ void vmw_du_primary_plane_destroy(struct drm_plane *plane)
 	drm_plane_cleanup(plane);
 
 	/* Planes are static in our case so we don't free it */
+}
+
+
+/**
+ * vmw_du_vps_unpin_surf - unpins resource associated with a framebuffer surface
+ *
+ * @vps: plane state associated with the display surface
+ * @unreference: true if we also want to unreference the display.
+ */
+void vmw_du_plane_unpin_surf(struct vmw_plane_state *vps,
+			     bool unreference)
+{
+	if (vps->surf) {
+		if (vps->pinned) {
+			vmw_resource_unpin(&vps->surf->res);
+			vps->pinned--;
+		}
+
+		if (unreference) {
+			if (vps->pinned)
+				DRM_ERROR("Surface still pinned\n");
+			vmw_surface_unreference(&vps->surf);
+		}
+	}
+}
+
+
+/**
+ * vmw_du_plane_cleanup_fb - Unpins the cursor
+ *
+ * @plane:  display plane
+ * @old_state: Contains the FB to clean up
+ *
+ * Unpins the framebuffer surface
+ *
+ * Returns 0 on success
+ */
+void
+vmw_du_plane_cleanup_fb(struct drm_plane *plane,
+			struct drm_plane_state *old_state)
+{
+	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
+
+	vmw_du_plane_unpin_surf(vps, false);
+}
+
+
+/**
+ * vmw_du_cursor_plane_prepare_fb - Readies the cursor by referencing it
+ *
+ * @plane:  display plane
+ * @new_state: info on the new plane state, including the FB
+ *
+ * Returns 0 on success
+ */
+int
+vmw_du_cursor_plane_prepare_fb(struct drm_plane *plane,
+			       struct drm_plane_state *new_state)
+{
+	struct drm_framebuffer *fb = new_state->fb;
+	struct vmw_plane_state *vps = vmw_plane_state_to_vps(new_state);
+
+
+	if (vps->surf)
+		vmw_surface_unreference(&vps->surf);
+
+	if (vps->dmabuf)
+		vmw_dmabuf_unreference(&vps->dmabuf);
+
+	if (fb) {
+		if (vmw_framebuffer_to_vfb(fb)->dmabuf) {
+			vps->dmabuf = vmw_framebuffer_to_vfbd(fb)->buffer;
+			vmw_dmabuf_reference(vps->dmabuf);
+		} else {
+			vps->surf = vmw_framebuffer_to_vfbs(fb)->surface;
+			vmw_surface_reference(vps->surf);
+		}
+	}
+
+	return 0;
+}
+
+
+void
+vmw_du_cursor_plane_atomic_disable(struct drm_plane *plane,
+				   struct drm_plane_state *old_state)
+{
+	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
+	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
+
+	drm_atomic_set_fb_for_plane(plane->state, NULL);
+	vmw_cursor_update_position(dev_priv, false, 0, 0);
+}
+
+
+void
+vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
+				  struct drm_plane_state *old_state)
+{
+	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
+	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
+	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+	struct vmw_plane_state *vps = vmw_plane_state_to_vps(plane->state);
+	s32 hotspot_x, hotspot_y;
+	int ret = 0;
+
+
+	hotspot_x = du->hotspot_x;
+	hotspot_y = du->hotspot_y;
+	du->cursor_surface = vps->surf;
+	du->cursor_dmabuf = vps->dmabuf;
+
+	/* setup new image */
+	if (vps->surf) {
+		du->cursor_age = du->cursor_surface->snooper.age;
+
+		ret = vmw_cursor_update_image(dev_priv,
+					      vps->surf->snooper.image,
+					      64, 64, hotspot_x, hotspot_y);
+	} else if (vps->dmabuf) {
+		ret = vmw_cursor_update_dmabuf(dev_priv, vps->dmabuf,
+					       plane->state->crtc_w,
+					       plane->state->crtc_h,
+					       hotspot_x, hotspot_y);
+	} else {
+		vmw_cursor_update_position(dev_priv, false, 0, 0);
+		return;
+	}
+
+	if (!ret) {
+		du->cursor_x = plane->state->crtc_x + du->set_gui_x;
+		du->cursor_y = plane->state->crtc_y + du->set_gui_y;
+
+		vmw_cursor_update_position(dev_priv, true,
+					   du->cursor_x + hotspot_x,
+					   du->cursor_y + hotspot_y);
+	} else {
+		DRM_ERROR("Failed to update cursor image\n");
+	}
+}
+
+
+/**
+ * vmw_du_primary_plane_atomic_check - check if the new state is okay
+ *
+ * @plane: display plane
+ * @state: info on the new plane state, including the FB
+ *
+ * Check if the new state is settable given the current state.  Other
+ * than what the atomic helper checks, we care about crtc fitting
+ * the FB and maintaining one active framebuffer.
+ *
+ * Returns 0 on success
+ */
+int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
+				      struct drm_plane_state *state)
+{
+	struct drm_framebuffer *new_fb = state->fb;
+	bool visible;
+
+	struct drm_rect src = {
+		.x1 = state->src_x,
+		.y1 = state->src_y,
+		.x2 = state->src_x + state->src_w,
+		.y2 = state->src_y + state->src_h,
+	};
+	struct drm_rect dest = {
+		.x1 = state->crtc_x,
+		.y1 = state->crtc_y,
+		.x2 = state->crtc_x + state->crtc_w,
+		.y2 = state->crtc_y + state->crtc_h,
+	};
+	struct drm_rect clip = dest;
+	int ret;
+
+	ret = drm_plane_helper_check_update(plane, state->crtc, new_fb,
+					    &src, &dest, &clip,
+					    DRM_ROTATE_0,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    false, true, &visible);
+
+
+	if (!ret && new_fb) {
+		struct drm_crtc *crtc = state->crtc;
+		struct vmw_connector_state *vcs;
+		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+		struct vmw_private *dev_priv = vmw_priv(crtc->dev);
+		struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(new_fb);
+
+		vcs = vmw_connector_state_to_vcs(du->connector.state);
+
+		if ((dest.x2 > new_fb->width ||
+		     dest.y2 > new_fb->height)) {
+			DRM_ERROR("CRTC area outside of framebuffer\n");
+			return -EINVAL;
+		}
+
+		/* Only one active implicit framebuffer at a time. */
+		mutex_lock(&dev_priv->global_kms_state_mutex);
+		if (vcs->is_implicit && dev_priv->implicit_fb &&
+		    !(dev_priv->num_implicit == 1 && du->active_implicit)
+		    && dev_priv->implicit_fb != vfb) {
+			DRM_ERROR("Multiple implicit framebuffers "
+				  "not supported.\n");
+			ret = -EINVAL;
+		}
+		mutex_unlock(&dev_priv->global_kms_state_mutex);
+	}
+
+
+	return ret;
+}
+
+
+/**
+ * vmw_du_cursor_plane_atomic_check - check if the new state is okay
+ *
+ * @plane: cursor plane
+ * @state: info on the new plane state
+ *
+ * This is a chance to fail if the new cursor state does not fit
+ * our requirements.
+ *
+ * Returns 0 on success
+ */
+int vmw_du_cursor_plane_atomic_check(struct drm_plane *plane,
+				     struct drm_plane_state *new_state)
+{
+	int ret = 0;
+	struct vmw_surface *surface = NULL;
+	struct drm_framebuffer *fb = new_state->fb;
+
+
+	/* Turning off */
+	if (!fb)
+		return ret;
+
+	/* A lot of the code assumes this */
+	if (new_state->crtc_w != 64 || new_state->crtc_h != 64) {
+		DRM_ERROR("Invalid cursor dimensions (%d, %d)\n",
+			  new_state->crtc_w, new_state->crtc_h);
+		ret = -EINVAL;
+	}
+
+	if (!vmw_framebuffer_to_vfb(fb)->dmabuf)
+		surface = vmw_framebuffer_to_vfbs(fb)->surface;
+
+	if (surface && !surface->snooper.image) {
+		DRM_ERROR("surface not suitable for cursor\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 

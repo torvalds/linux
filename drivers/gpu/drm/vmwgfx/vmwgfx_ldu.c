@@ -234,7 +234,7 @@ static void vmw_ldu_crtc_helper_commit(struct drm_crtc *crtc)
 
 	ldu = vmw_crtc_to_ldu(crtc);
 	dev_priv = vmw_priv(crtc->dev);
-	fb       = crtc->primary->fb;
+	fb       = crtc->primary->state->fb;
 
 	vfb = (fb) ? vmw_framebuffer_to_vfb(fb) : NULL;
 
@@ -242,6 +242,8 @@ static void vmw_ldu_crtc_helper_commit(struct drm_crtc *crtc)
 		vmw_ldu_add_active(dev_priv, ldu, vfb);
 	else
 		vmw_ldu_del_active(dev_priv, ldu);
+
+	vmw_ldu_commit_list(dev_priv);
 }
 
 /**
@@ -391,6 +393,46 @@ static const struct drm_connector_funcs vmw_legacy_connector_funcs = {
  * Legacy Display Plane Functions
  */
 
+/**
+ * vmw_ldu_primary_plane_cleanup_fb - Unpin fb
+ *
+ * @plane:  display plane
+ * @old_state: Contains the FB to clean up
+ *
+ * Unpins the display surface
+ *
+ * Returns 0 on success
+ */
+static void
+vmw_ldu_primary_plane_cleanup_fb(struct drm_plane *plane,
+				 struct drm_plane_state *old_state)
+{
+}
+
+
+/**
+ * vmw_ldu_primary_plane_prepare_fb -
+ *
+ * @plane:  display plane
+ * @new_state: info on the new plane state, including the FB
+ *
+ * Returns 0 on success
+ */
+static int
+vmw_ldu_primary_plane_prepare_fb(struct drm_plane *plane,
+				 struct drm_plane_state *new_state)
+{
+	return 0;
+}
+
+
+static void
+vmw_ldu_primary_plane_atomic_update(struct drm_plane *plane,
+				    struct drm_plane_state *old_state)
+{
+}
+
+
 static const struct drm_plane_funcs vmw_ldu_plane_funcs = {
 	.update_plane = drm_primary_helper_update,
 	.disable_plane = drm_primary_helper_disable,
@@ -412,6 +454,22 @@ static const struct drm_plane_funcs vmw_ldu_cursor_funcs = {
 /*
  * Atomic Helpers
  */
+static const struct
+drm_plane_helper_funcs vmw_ldu_cursor_plane_helper_funcs = {
+	.atomic_check = vmw_du_cursor_plane_atomic_check,
+	.atomic_update = vmw_du_cursor_plane_atomic_update,
+	.prepare_fb = vmw_du_cursor_plane_prepare_fb,
+	.cleanup_fb = vmw_du_plane_cleanup_fb,
+};
+
+static const struct
+drm_plane_helper_funcs vmw_ldu_primary_plane_helper_funcs = {
+	.atomic_check = vmw_du_primary_plane_atomic_check,
+	.atomic_update = vmw_ldu_primary_plane_atomic_update,
+	.prepare_fb = vmw_ldu_primary_plane_prepare_fb,
+	.cleanup_fb = vmw_ldu_primary_plane_cleanup_fb,
+};
+
 static const struct drm_crtc_helper_funcs vmw_ldu_crtc_helper_funcs = {
 	.prepare = vmw_ldu_crtc_helper_prepare,
 	.commit = vmw_ldu_crtc_helper_commit,
@@ -471,6 +529,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free;
 	}
 
+	drm_plane_helper_add(primary, &vmw_ldu_primary_plane_helper_funcs);
+
 	/* Initialize cursor plane */
 	vmw_du_plane_reset(cursor);
 
@@ -485,6 +545,10 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free;
 	}
 
+	drm_plane_helper_add(cursor, &vmw_ldu_cursor_plane_helper_funcs);
+
+
+	vmw_du_connector_reset(connector);
 	ret = drm_connector_init(dev, connector, &vmw_legacy_connector_funcs,
 				 DRM_MODE_CONNECTOR_VIRTUAL);
 	if (ret) {
