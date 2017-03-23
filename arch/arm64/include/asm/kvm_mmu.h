@@ -308,7 +308,7 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 
 static inline unsigned int kvm_get_vmid_bits(void)
 {
-	int reg = read_system_reg(SYS_ID_AA64MMFR1_EL1);
+	int reg = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
 
 	return (cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR1_VMIDBITS_SHIFT) == 2) ? 16 : 8;
 }
