@@ -12,7 +12,7 @@
 	.short 	0
 coff_header:
 	.short	0xaa64					// AArch64
-	.short	2					// nr_sections
+	.short	1					// nr_sections
 	.long	0 					// TimeDateStamp
 	.long	0					// PointerToSymbolTable
 	.long	0					// NumberOfSymbols
@@ -71,26 +71,6 @@ extra_header_fields:
 
 	// Section table
 section_table:
-
-	/*
-	 * The EFI application loader requires a relocation section
-	 * because EFI applications must be relocatable.  This is a
-	 * dummy section as far as we are concerned.
-	 */
-	.ascii	".reloc"
-	.byte	0
-	.byte	0					// end of 0 padding of section name
-	.long	0
-	.long	0
-	.long	0					// SizeOfRawData
-	.long	0					// PointerToRawData
-	.long	0					// PointerToRelocations
-	.long	0					// PointerToLineNumbers
-	.short	0					// NumberOfRelocations
-	.short	0					// NumberOfLineNumbers
-	.long	0x42000040				// Characteristics (section flags)
-
-
 	.ascii	".text"
 	.byte	0
 	.byte	0
