@@ -188,7 +188,6 @@ int vmw_du_crtc_cursor_set2(struct drm_crtc *crtc, struct drm_file *file_priv,
 
 	/* takedown old cursor */
 	if (du->cursor_surface) {
-		du->cursor_surface->snooper.crtc = NULL;
 		vmw_surface_unreference(&du->cursor_surface);
 	}
 	if (du->cursor_dmabuf)
@@ -200,7 +199,6 @@ int vmw_du_crtc_cursor_set2(struct drm_crtc *crtc, struct drm_file *file_priv,
 		/* vmw_user_surface_lookup takes one reference */
 		du->cursor_surface = surface;
 
-		du->cursor_surface->snooper.crtc = crtc;
 		du->cursor_age = du->cursor_surface->snooper.age;
 		ret = vmw_cursor_update_image(dev_priv, surface->snooper.image,
 					      64, 64, hotspot_x, hotspot_y);

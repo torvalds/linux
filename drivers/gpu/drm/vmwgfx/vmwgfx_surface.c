@@ -814,7 +814,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	} else {
 		srf->snooper.image = NULL;
 	}
-	srf->snooper.crtc = NULL;
 
 	user_srf->prime.base.shareable = false;
 	user_srf->prime.base.tfile = NULL;

@@ -153,7 +153,6 @@ enum vmw_cmdbuf_res_type {
 struct vmw_cmdbuf_res_manager;
 
 struct vmw_cursor_snooper {
-	struct drm_crtc *crtc;
 	size_t age;
 	uint32_t *image;
 };
