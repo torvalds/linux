@@ -881,6 +881,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	struct mdp5_hw_pipe *hwpipe = to_mdp5_plane_state(pstate)->hwpipe;
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	enum mdp5_pipe pipe = hwpipe->pipe;
+	struct mdp5_hw_pipe *right_hwpipe;
 	const struct mdp_format *format;
 	uint32_t nplanes, config = 0;
 	struct phase_step step = { 0 };
@@ -894,6 +895,8 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	uint32_t src_x, src_y;
 	uint32_t src_w, src_h;
 	uint32_t src_img_w, src_img_h;
+	uint32_t src_x_r;
+	int crtc_x_r;
 	unsigned long flags;
 	int ret;
 
@@ -928,6 +931,21 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	DBG("%s: FB[%u] %u,%u,%u,%u -> CRTC[%u] %d,%d,%u,%u", plane->name,
 			fb->base.id, src_x, src_y, src_w, src_h,
 			crtc->base.id, crtc_x, crtc_y, crtc_w, crtc_h);
+
+	right_hwpipe = to_mdp5_plane_state(pstate)->r_hwpipe;
+	if (right_hwpipe) {
+		/*
+		 * if the plane comprises of 2 hw pipes, assume that the width
+		 * is split equally across them. The only parameters that varies
+		 * between the 2 pipes are src_x and crtc_x
+		 */
+		crtc_w /= 2;
+		src_w /= 2;
+		src_img_w /= 2;
+
+		crtc_x_r = crtc_x + crtc_w;
+		src_x_r = src_x + src_w;
+	}
 
 	ret = calc_scalex_steps(plane, pix_format, src_w, crtc_w, step.x);
 	if (ret)
@@ -965,6 +983,12 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 			     crtc_x, crtc_y, crtc_w, crtc_h,
 			     src_img_w, src_img_h,
 			     src_x, src_y, src_w, src_h);
+	if (right_hwpipe)
+		mdp5_hwpipe_mode_set(mdp5_kms, right_hwpipe, fb, &step, &pe,
+				     config, hdecm, vdecm, hflip, vflip,
+				     crtc_x_r, crtc_y, crtc_w, crtc_h,
+				     src_img_w, src_img_h,
+				     src_x_r, src_y, src_w, src_h);
 
 	spin_unlock_irqrestore(&mdp5_plane->pipe_lock, flags);
 
@@ -1051,6 +1075,10 @@ slow:
 					      src_x, src_y, src_w, src_h, ctx);
 }
 
+/*
+ * Use this func and the one below only after the atomic state has been
+ * successfully swapped
+ */
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane)
 {
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
@@ -1061,14 +1089,30 @@ enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane)
 	return pstate->hwpipe->pipe;
 }
 
+enum mdp5_pipe mdp5_plane_right_pipe(struct drm_plane *plane)
+{
+	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
+
+	if (!pstate->r_hwpipe)
+		return SSPP_NONE;
+
+	return pstate->r_hwpipe->pipe;
+}
+
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane)
 {
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
+	u32 mask;
 
 	if (WARN_ON(!pstate->hwpipe))
 		return 0;
 
-	return pstate->hwpipe->flush_mask;
+	mask = pstate->hwpipe->flush_mask;
+
+	if (pstate->r_hwpipe)
+		mask |= pstate->r_hwpipe->flush_mask;
+
+	return mask;
 }
 
 /* initialize plane */

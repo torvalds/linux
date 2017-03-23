@@ -275,6 +275,7 @@ void mdp5_irq_domain_fini(struct mdp5_kms *mdp5_kms);
 
 uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
+enum mdp5_pipe mdp5_plane_right_pipe(struct drm_plane *plane);
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 				  enum drm_plane_type type);
 
