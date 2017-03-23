@@ -413,7 +413,7 @@ static int imx_gpc_probe(struct platform_device *pdev)
 				of_node_put(np);
 				return ret;
 			}
-			if (domain_index >= ARRAY_SIZE(imx_gpc_domains))
+			if (domain_index >= of_id_data->num_domains)
 				continue;
 
 			domain = &imx_gpc_domains[domain_index];
