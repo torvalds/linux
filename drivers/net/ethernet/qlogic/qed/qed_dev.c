@@ -1565,17 +1565,22 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 		non_l2_sbs = feat_num[QED_RDMA_CNQ];
 	}
 
-	feat_num[QED_PF_L2_QUE] = min_t(u32,
-					RESC_NUM(p_hwfn, QED_SB) -
-					non_l2_sbs,
-					RESC_NUM(p_hwfn, QED_L2_QUEUE));
-
-	memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
-	qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
-	feat_num[QED_VF_L2_QUE] =
-	    min_t(u32,
-		  RESC_NUM(p_hwfn, QED_L2_QUEUE) -
-		  FEAT_NUM(p_hwfn, QED_PF_L2_QUE), sb_cnt_info.sb_iov_cnt);
+	if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE ||
+	    p_hwfn->hw_info.personality == QED_PCI_ETH) {
+		/* Start by allocating VF queues, then PF's */
+		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
+		qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
+		feat_num[QED_VF_L2_QUE] = min_t(u32,
+						RESC_NUM(p_hwfn, QED_L2_QUEUE),
+						sb_cnt_info.sb_iov_cnt);
+		feat_num[QED_PF_L2_QUE] = min_t(u32,
+						RESC_NUM(p_hwfn, QED_SB) -
+						non_l2_sbs,
+						RESC_NUM(p_hwfn,
+							 QED_L2_QUEUE) -
+						FEAT_NUM(p_hwfn,
+							 QED_VF_L2_QUE));
+	}
 
 	DP_VERBOSE(p_hwfn,
 		   NETIF_MSG_PROBE,
