@@ -73,12 +73,6 @@
 			size = <0x0 0x8000000>;
 			linux,cma-default;
 		};
-
-		/* reg = <0x0 0x0 0x0 0x0> will be updated by uboot */
-		rockchip_logo: rockchip-logo@00000000 {
-			compatible = "rockchip,drm-logo";
-			reg = <0x0 0x0 0x0 0x0>;
-		};
 	};
 
 	ion {
