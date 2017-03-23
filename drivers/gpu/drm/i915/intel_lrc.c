@@ -540,7 +540,17 @@ static void intel_lrc_irq_handler(unsigned long data)
 			dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0));
 		unsigned int csb, head, tail;
 
-		clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
+		/* The write will be ordered by the uncached read (itself
+		 * a memory barrier), so we do not need another in the form
+		 * of a locked instruction. The race between the interrupt
+		 * handler and the split test/clear is harmless as we order
+		 * our clear before the CSB read. If the interrupt arrived
+		 * first between the test and the clear, we read the updated
+		 * CSB and clear the bit. If the interrupt arrives as we read
+		 * the CSB or later (i.e. after we had cleared the bit) the bit
+		 * is set and we do a new loop.
+		 */
+		__clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 		csb = readl(csb_mmio);
 		head = GEN8_CSB_READ_PTR(csb);
 		tail = GEN8_CSB_WRITE_PTR(csb);
