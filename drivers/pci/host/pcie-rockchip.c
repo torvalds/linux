@@ -438,24 +438,25 @@ static void rockchip_pcie_set_power_limit(struct rockchip_pcie *rockchip)
 	 * to the actual power supply.
 	 */
 	curr = regulator_get_current_limit(rockchip->vpcie3v3);
-	if (curr > 0) {
-		scale = 3; /* 0.001x */
-		curr = curr / 1000; /* convert to mA */
-		power = (curr * 3300) / 1000; /* milliwatt */
-		while (power > PCIE_RC_CONFIG_DCR_CSPL_LIMIT) {
-			if (!scale) {
-				dev_warn(rockchip->dev, "invalid power supply\n");
-				return;
-			}
-			scale--;
-			power = power / 10;
-		}
+	if (curr <= 0)
+		return;
 
-		status = rockchip_pcie_read(rockchip, PCIE_RC_CONFIG_DCR);
-		status |= (power << PCIE_RC_CONFIG_DCR_CSPL_SHIFT) |
-			  (scale << PCIE_RC_CONFIG_DCR_CPLS_SHIFT);
-		rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_DCR);
+	scale = 3; /* 0.001x */
+	curr = curr / 1000; /* convert to mA */
+	power = (curr * 3300) / 1000; /* milliwatt */
+	while (power > PCIE_RC_CONFIG_DCR_CSPL_LIMIT) {
+		if (!scale) {
+			dev_warn(rockchip->dev, "invalid power supply\n");
+			return;
+		}
+		scale--;
+		power = power / 10;
 	}
+
+	status = rockchip_pcie_read(rockchip, PCIE_RC_CONFIG_DCR);
+	status |= (power << PCIE_RC_CONFIG_DCR_CSPL_SHIFT) |
+		  (scale << PCIE_RC_CONFIG_DCR_CPLS_SHIFT);
+	rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_DCR);
 }
 
 /**
