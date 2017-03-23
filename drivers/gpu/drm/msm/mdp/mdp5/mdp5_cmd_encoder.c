@@ -132,8 +132,6 @@ void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
 {
-	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
-
 	mode = adjusted_mode;
 
 	DBG("set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
@@ -145,8 +143,7 @@ void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 			mode->vsync_end, mode->vtotal,
 			mode->type, mode->flags);
 	pingpong_tearcheck_setup(encoder, mode);
-	mdp5_crtc_set_pipeline(encoder->crtc, mdp5_cmd_enc->intf,
-				mdp5_cmd_enc->ctl);
+	mdp5_crtc_set_pipeline(encoder->crtc);
 }
 
 void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
@@ -154,14 +151,15 @@ void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
 	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
 	struct mdp5_ctl *ctl = mdp5_cmd_enc->ctl;
 	struct mdp5_interface *intf = mdp5_cmd_enc->intf;
+	struct mdp5_pipeline *pipeline = mdp5_crtc_get_pipeline(encoder->crtc);
 
 	if (WARN_ON(!mdp5_cmd_enc->enabled))
 		return;
 
 	pingpong_tearcheck_disable(encoder);
 
-	mdp5_ctl_set_encoder_state(ctl, false);
-	mdp5_ctl_commit(ctl, mdp_ctl_flush_mask_encoder(intf));
+	mdp5_ctl_set_encoder_state(ctl, pipeline, false);
+	mdp5_ctl_commit(ctl, pipeline, mdp_ctl_flush_mask_encoder(intf));
 
 	bs_set(mdp5_cmd_enc, 0);
 
@@ -173,6 +171,7 @@ void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
 	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
 	struct mdp5_ctl *ctl = mdp5_cmd_enc->ctl;
 	struct mdp5_interface *intf = mdp5_cmd_enc->intf;
+	struct mdp5_pipeline *pipeline = mdp5_crtc_get_pipeline(encoder->crtc);
 
 	if (WARN_ON(mdp5_cmd_enc->enabled))
 		return;
@@ -181,9 +180,9 @@ void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
 	if (pingpong_tearcheck_enable(encoder))
 		return;
 
-	mdp5_ctl_commit(ctl, mdp_ctl_flush_mask_encoder(intf));
+	mdp5_ctl_commit(ctl, pipeline, mdp_ctl_flush_mask_encoder(intf));
 
-	mdp5_ctl_set_encoder_state(ctl, true);
+	mdp5_ctl_set_encoder_state(ctl, pipeline, true);
 
 	mdp5_cmd_enc->enabled = true;
 }

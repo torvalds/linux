@@ -937,6 +937,7 @@ static int mdp5_update_cursor_plane_legacy(struct drm_plane *plane,
 
 	if (new_plane_state->visible) {
 		struct mdp5_ctl *ctl;
+		struct mdp5_pipeline *pipeline = mdp5_crtc_get_pipeline(crtc);
 
 		ret = mdp5_plane_mode_set(plane, crtc, fb,
 					  &new_plane_state->src,
@@ -945,7 +946,7 @@ static int mdp5_update_cursor_plane_legacy(struct drm_plane *plane,
 
 		ctl = mdp5_crtc_get_ctl(crtc);
 
-		mdp5_ctl_commit(ctl, mdp5_plane_get_flush(plane));
+		mdp5_ctl_commit(ctl, pipeline, mdp5_plane_get_flush(plane));
 	}
 
 	*to_mdp5_plane_state(plane_state) =
