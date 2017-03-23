@@ -3109,7 +3109,12 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	I915_WRITE_FW(reg, dspcntr);
 
 	I915_WRITE_FW(DSPSTRIDE(plane), fb->pitches[0]);
-	if (INTEL_GEN(dev_priv) >= 4) {
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
+		I915_WRITE_FW(DSPSURF(plane),
+			      intel_plane_ggtt_offset(plane_state) +
+			      intel_crtc->dspaddr_offset);
+		I915_WRITE_FW(DSPOFFSET(plane), (y << 16) | x);
+	} else if (INTEL_GEN(dev_priv) >= 4) {
 		I915_WRITE_FW(DSPSURF(plane),
 			      intel_plane_ggtt_offset(plane_state) +
 			      intel_crtc->dspaddr_offset);
@@ -3142,48 +3147,6 @@ static void i9xx_disable_primary_plane(struct drm_plane *primary,
 	else
 		I915_WRITE_FW(DSPADDR(plane), 0);
 	POSTING_READ_FW(DSPCNTR(plane));
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
-}
-
-static void ironlake_update_primary_plane(struct drm_plane *primary,
-					  const struct intel_crtc_state *crtc_state,
-					  const struct intel_plane_state *plane_state)
-{
-	struct drm_device *dev = primary->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_framebuffer *fb = plane_state->base.fb;
-	int plane = intel_crtc->plane;
-	u32 linear_offset;
-	u32 dspcntr = plane_state->ctl;
-	i915_reg_t reg = DSPCNTR(plane);
-	int x = plane_state->main.x;
-	int y = plane_state->main.y;
-	unsigned long irqflags;
-
-	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
-
-	intel_crtc->dspaddr_offset = plane_state->main.offset;
-
-	intel_crtc->adjusted_x = x;
-	intel_crtc->adjusted_y = y;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
-	I915_WRITE_FW(reg, dspcntr);
-
-	I915_WRITE_FW(DSPSTRIDE(plane), fb->pitches[0]);
-	I915_WRITE_FW(DSPSURF(plane),
-		      intel_plane_ggtt_offset(plane_state) +
-		      intel_crtc->dspaddr_offset);
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		I915_WRITE_FW(DSPOFFSET(plane), (y << 16) | x);
-	} else {
-		I915_WRITE_FW(DSPTILEOFF(plane), (y << 16) | x);
-		I915_WRITE_FW(DSPLINOFF(plane), linear_offset);
-	}
-	POSTING_READ_FW(reg);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -13642,12 +13605,6 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 		primary->update_plane = skylake_update_primary_plane;
 		primary->disable_plane = skylake_disable_primary_plane;
-	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		intel_primary_formats = i965_primary_formats;
-		num_formats = ARRAY_SIZE(i965_primary_formats);
-
-		primary->update_plane = ironlake_update_primary_plane;
-		primary->disable_plane = i9xx_disable_primary_plane;
 	} else if (INTEL_GEN(dev_priv) >= 4) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);
