@@ -3026,6 +3026,43 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 	return dspcntr;
 }
 
+static int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	int src_x = plane_state->base.src.x1 >> 16;
+	int src_y = plane_state->base.src.y1 >> 16;
+	u32 offset;
+
+	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
+
+	if (INTEL_GEN(dev_priv) >= 4)
+		offset = intel_compute_tile_offset(&src_x, &src_y,
+						   plane_state, 0);
+	else
+		offset = 0;
+
+	/* HSW/BDW do this automagically in hardware */
+	if (!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv)) {
+		unsigned int rotation = plane_state->base.rotation;
+		int src_w = drm_rect_width(&plane_state->base.src) >> 16;
+		int src_h = drm_rect_height(&plane_state->base.src) >> 16;
+
+		if (rotation & DRM_ROTATE_180) {
+			src_x += src_w - 1;
+			src_y += src_h - 1;
+		} else if (rotation & DRM_REFLECT_X) {
+			src_x += src_w - 1;
+		}
+	}
+
+	plane_state->main.offset = offset;
+	plane_state->main.x = src_x;
+	plane_state->main.y = src_y;
+
+	return 0;
+}
+
 static void i9xx_update_primary_plane(struct drm_plane *primary,
 				      const struct intel_crtc_state *crtc_state,
 				      const struct intel_plane_state *plane_state)
@@ -3037,27 +3074,15 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	u32 linear_offset;
 	u32 dspcntr = plane_state->ctl;
 	i915_reg_t reg = DSPCNTR(plane);
-	unsigned int rotation = plane_state->base.rotation;
-	int x = plane_state->base.src.x1 >> 16;
-	int y = plane_state->base.src.y1 >> 16;
+	int x = plane_state->main.x;
+	int y = plane_state->main.y;
 	unsigned long irqflags;
-
-	intel_add_fb_offsets(&x, &y, plane_state, 0);
-
-	if (INTEL_GEN(dev_priv) >= 4)
-		intel_crtc->dspaddr_offset =
-			intel_compute_tile_offset(&x, &y, plane_state, 0);
-
-	if (rotation & DRM_ROTATE_180) {
-		x += crtc_state->pipe_src_w - 1;
-		y += crtc_state->pipe_src_h - 1;
-	} else if (rotation & DRM_REFLECT_X) {
-		x += crtc_state->pipe_src_w - 1;
-	}
 
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
-	if (INTEL_GEN(dev_priv) < 4)
+	if (INTEL_GEN(dev_priv) >= 4)
+		intel_crtc->dspaddr_offset = plane_state->main.offset;
+	else
 		intel_crtc->dspaddr_offset = linear_offset;
 
 	intel_crtc->adjusted_x = x;
@@ -3133,24 +3158,13 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	u32 linear_offset;
 	u32 dspcntr = plane_state->ctl;
 	i915_reg_t reg = DSPCNTR(plane);
-	unsigned int rotation = plane_state->base.rotation;
-	int x = plane_state->base.src.x1 >> 16;
-	int y = plane_state->base.src.y1 >> 16;
+	int x = plane_state->main.x;
+	int y = plane_state->main.y;
 	unsigned long irqflags;
 
-	intel_add_fb_offsets(&x, &y, plane_state, 0);
-
-	intel_crtc->dspaddr_offset =
-		intel_compute_tile_offset(&x, &y, plane_state, 0);
-
-	/* HSW+ does this automagically in hardware */
-	if (!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv) &&
-	    rotation & DRM_ROTATE_180) {
-		x += crtc_state->pipe_src_w - 1;
-		y += crtc_state->pipe_src_h - 1;
-	}
-
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
+
+	intel_crtc->dspaddr_offset = plane_state->main.offset;
 
 	intel_crtc->adjusted_x = x;
 	intel_crtc->adjusted_y = y;
@@ -13365,6 +13379,10 @@ intel_check_primary_plane(struct drm_plane *plane,
 
 		state->ctl = skl_plane_ctl(crtc_state, state);
 	} else {
+		ret = i9xx_check_plane_surface(state);
+		if (ret)
+			return ret;
+
 		state->ctl = i9xx_plane_ctl(crtc_state, state);
 	}
 
