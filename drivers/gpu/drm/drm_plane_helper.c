@@ -469,7 +469,7 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 	 * Drivers may optionally implement the ->atomic_disable callback, so
 	 * special-case that here.
 	 */
-	if (drm_atomic_plane_disabling(plane, plane_state) &&
+	if (drm_atomic_plane_disabling(plane_state, plane->state) &&
 	    plane_funcs->atomic_disable)
 		plane_funcs->atomic_disable(plane, plane_state);
 	else

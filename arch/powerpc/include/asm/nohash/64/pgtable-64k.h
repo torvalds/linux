@@ -1,6 +1,7 @@
 #ifndef _ASM_POWERPC_NOHASH_64_PGTABLE_64K_H
 #define _ASM_POWERPC_NOHASH_64_PGTABLE_64K_H
 
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopud.h>
 
 

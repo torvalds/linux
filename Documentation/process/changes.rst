@@ -318,9 +318,10 @@ PDF outputs, it is recommended to use version 1.4.6.
 .. note::
 
   Please notice that, for PDF and LaTeX output, you'll also need ``XeLaTeX``
-  version 3.14159265. Depending on the distribution, you may also need
-  to install a series of ``texlive`` packages that provide the minimal
-  set of functionalities required for ``XeLaTex`` to work.
+  version 3.14159265. Depending on the distribution, you may also need to
+  install a series of ``texlive`` packages that provide the minimal set of
+  functionalities required for ``XeLaTex`` to work. For PDF output you'll also
+  need ``convert(1)`` from ImageMagick (https://www.imagemagick.org).
 
 Other tools
 -----------

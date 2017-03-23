@@ -24,7 +24,7 @@
 #define DRM_IF_MAJOR 1
 #define DRM_IF_MINOR 4
 
-/* drm_fops.c */
+/* drm_file.c */
 extern struct mutex drm_global_mutex;
 void drm_lastclose(struct drm_device *dev);
 

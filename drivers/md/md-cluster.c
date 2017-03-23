@@ -777,7 +777,6 @@ static int gather_all_resync_info(struct mddev *mddev, int total_slots)
 		bm_lockres->flags |= DLM_LKF_NOQUEUE;
 		ret = dlm_lock_sync(bm_lockres, DLM_LOCK_PW);
 		if (ret == -EAGAIN) {
-			memset(bm_lockres->lksb.sb_lvbptr, '\0', LVB_SIZE);
 			s = read_resync_info(mddev, bm_lockres);
 			if (s) {
 				pr_info("%s:%d Resync[%llu..%llu] in progress on %d\n",
@@ -974,6 +973,7 @@ static int leave(struct mddev *mddev)
 	lockres_free(cinfo->bitmap_lockres);
 	unlock_all_bitmaps(mddev);
 	dlm_release_lockspace(cinfo->lockspace, 2);
+	kfree(cinfo);
 	return 0;
 }
 

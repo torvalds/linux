@@ -510,11 +510,10 @@ nvkm_msgqueue_del(struct nvkm_msgqueue **queue)
 void
 nvkm_msgqueue_recv(struct nvkm_msgqueue *queue)
 {
-	if (!queue || !queue->func || !queue->func->recv) {
+	if (!queue->func || !queue->func->recv) {
 		const struct nvkm_subdev *subdev = queue->falcon->owner;
 
-		nvkm_warn(subdev,
-		      "cmdqueue recv function called while no firmware set!\n");
+		nvkm_warn(subdev, "missing msgqueue recv function\n");
 		return;
 	}
 

@@ -30,7 +30,6 @@
 #include <asm/hypervisor.h>
 #include <asm/timer.h>
 #include <asm/apic.h>
-#include <asm/timer.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt)	"vmware: " fmt

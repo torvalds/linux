@@ -3464,6 +3464,12 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		    (adev->pdev->device == 0x6667)) {
 			max_sclk = 75000;
 		}
+	} else if (adev->asic_type == CHIP_OLAND) {
+		if ((adev->pdev->device == 0x6604) &&
+		    (adev->pdev->subsystem_vendor == 0x1028) &&
+		    (adev->pdev->subsystem_device == 0x066F)) {
+			max_sclk = 75000;
+		}
 	}
 
 	if (rps->vce_active) {

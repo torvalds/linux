@@ -59,7 +59,8 @@ gp102_run_secure_scrub(struct nvkm_secboot *sb)
 
 	nvkm_debug(subdev, "running VPR scrubber binary on NVDEC...\n");
 
-	if (!(engine = nvkm_engine_ref(&device->nvdec->engine)))
+	engine = nvkm_engine_ref(&device->nvdec->engine);
+	if (IS_ERR(engine))
 		return PTR_ERR(engine);
 	falcon = device->nvdec->falcon;
 

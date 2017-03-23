@@ -25,8 +25,7 @@
  *
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_fb_helper.h>
+#include <linux/module.h>
 
 #include "drm_crtc_helper_internal.h"
 

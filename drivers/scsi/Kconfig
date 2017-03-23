@@ -1241,18 +1241,31 @@ config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
 	depends on PCI && SCSI
 	depends on SCSI_FC_ATTRS
-	depends on NVME_FC && NVME_TARGET_FC
 	select CRC_T10DIF
-	help
+	---help---
           This lpfc driver supports the Emulex LightPulse
           Family of Fibre Channel PCI host adapters.
 
 config SCSI_LPFC_DEBUG_FS
 	bool "Emulex LightPulse Fibre Channel debugfs Support"
 	depends on SCSI_LPFC && DEBUG_FS
-	help
+	---help---
 	  This makes debugging information from the lpfc driver
 	  available via the debugfs filesystem.
+
+config LPFC_NVME_INITIATOR
+	bool "Emulex LightPulse Fibre Channel NVME Initiator Support"
+	depends on SCSI_LPFC && NVME_FC
+	---help---
+	  This enables NVME Initiator support in the Emulex lpfc driver.
+
+config LPFC_NVME_TARGET
+	bool "Emulex LightPulse Fibre Channel NVME Initiator Support"
+	depends on SCSI_LPFC && NVME_TARGET_FC
+	---help---
+	  This enables NVME Target support in the Emulex lpfc driver.
+	  Target enablement must still be enabled on a per adapter
+	  basis by module parameters.
 
 config SCSI_SIM710
 	tristate "Simple 53c710 SCSI support (Compaq, NCR machines)"

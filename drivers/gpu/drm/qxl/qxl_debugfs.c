@@ -129,16 +129,3 @@ int qxl_debugfs_add_files(struct qxl_device *qdev,
 #endif
 	return 0;
 }
-
-void qxl_debugfs_remove_files(struct qxl_device *qdev)
-{
-#if defined(CONFIG_DEBUG_FS)
-	unsigned i;
-
-	for (i = 0; i < qdev->debugfs_count; i++) {
-		drm_debugfs_remove_files(qdev->debugfs[i].files,
-					 qdev->debugfs[i].num_files,
-					 qdev->ddev.primary);
-	}
-#endif
-}

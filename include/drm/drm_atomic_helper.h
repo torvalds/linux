@@ -220,10 +220,10 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 			      __drm_atomic_get_current_plane_state((crtc_state)->state, \
 								   plane)))
 
-/*
+/**
  * drm_atomic_plane_disabling - check whether a plane is being disabled
- * @plane: plane object
- * @old_state: previous atomic state
+ * @old_plane_state: old atomic plane state
+ * @new_plane_state: new atomic plane state
  *
  * Checks the atomic state of a plane to determine whether it's being disabled
  * or not. This also WARNs if it detects an invalid state (both CRTC and FB
@@ -233,28 +233,18 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
  * True if the plane is being disabled, false otherwise.
  */
 static inline bool
-drm_atomic_plane_disabling(struct drm_plane *plane,
-			   struct drm_plane_state *old_state)
+drm_atomic_plane_disabling(struct drm_plane_state *old_plane_state,
+			   struct drm_plane_state *new_plane_state)
 {
 	/*
 	 * When disabling a plane, CRTC and FB should always be NULL together.
 	 * Anything else should be considered a bug in the atomic core, so we
 	 * gently warn about it.
 	 */
-	WARN_ON((plane->state->crtc == NULL && plane->state->fb != NULL) ||
-		(plane->state->crtc != NULL && plane->state->fb == NULL));
+	WARN_ON((new_plane_state->crtc == NULL && new_plane_state->fb != NULL) ||
+		(new_plane_state->crtc != NULL && new_plane_state->fb == NULL));
 
-	/*
-	 * When using the transitional helpers, old_state may be NULL. If so,
-	 * we know nothing about the current state and have to assume that it
-	 * might be enabled.
-	 *
-	 * When using the atomic helpers, old_state won't be NULL. Therefore
-	 * this check assumes that either the driver will have reconstructed
-	 * the correct state in ->reset() or that the driver will have taken
-	 * appropriate measures to disable all planes.
-	 */
-	return (!old_state || old_state->crtc) && !plane->state->crtc;
+	return old_plane_state->crtc && !new_plane_state->crtc;
 }
 
 #endif /* DRM_ATOMIC_HELPER_H_ */

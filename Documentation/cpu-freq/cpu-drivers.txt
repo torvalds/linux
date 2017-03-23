@@ -231,7 +231,7 @@ the reference implementation in drivers/cpufreq/longrun.c
 Only for drivers with target_index() and CPUFREQ_ASYNC_NOTIFICATION unset.
 
 get_intermediate should return a stable intermediate frequency platform wants to
-switch to, and target_intermediate() should set CPU to to that frequency, before
+switch to, and target_intermediate() should set CPU to that frequency, before
 jumping to the frequency corresponding to 'index'. Core will take care of
 sending notifications and driver doesn't have to handle them in
 target_intermediate() or target_index().

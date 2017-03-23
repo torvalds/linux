@@ -27,7 +27,6 @@
 
 static int init_vgpu_opregion(struct intel_vgpu *vgpu, u32 gpa)
 {
-	void __iomem *host_va = vgpu->gvt->opregion.opregion_va;
 	u8 *buf;
 	int i;
 
@@ -43,8 +42,8 @@ static int init_vgpu_opregion(struct intel_vgpu *vgpu, u32 gpa)
 	if (!vgpu_opregion(vgpu)->va)
 		return -ENOMEM;
 
-	memcpy_fromio(vgpu_opregion(vgpu)->va, host_va,
-			INTEL_GVT_OPREGION_SIZE);
+	memcpy(vgpu_opregion(vgpu)->va, vgpu->gvt->opregion.opregion_va,
+	       INTEL_GVT_OPREGION_SIZE);
 
 	for (i = 0; i < INTEL_GVT_OPREGION_PAGES; i++)
 		vgpu_opregion(vgpu)->gfn[i] = (gpa >> PAGE_SHIFT) + i;

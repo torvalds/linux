@@ -267,7 +267,7 @@ int free_swap_slot(swp_entry_t entry)
 {
 	struct swap_slots_cache *cache;
 
-	BUG_ON(!swap_slot_cache_initialized);
+	WARN_ON_ONCE(!swap_slot_cache_initialized);
 
 	cache = &get_cpu_var(swp_slots);
 	if (use_swap_slot_cache && cache->slots_ret) {
