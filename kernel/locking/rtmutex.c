@@ -323,6 +323,19 @@ rt_mutex_dequeue_pi(struct task_struct *task, struct rt_mutex_waiter *waiter)
 }
 
 /*
+ * Must hold both p->pi_lock and task_rq(p)->lock.
+ */
+void rt_mutex_update_top_task(struct task_struct *p)
+{
+	if (!task_has_pi_waiters(p)) {
+		p->pi_top_task = NULL;
+		return;
+	}
+
+	p->pi_top_task = task_top_pi_waiter(p)->task;
+}
+
+/*
  * Calculate task priority from the waiter tree priority
  *
  * Return task->normal_prio when the waiter tree is empty or when
@@ -337,12 +350,12 @@ int rt_mutex_getprio(struct task_struct *task)
 		   task->normal_prio);
 }
 
+/*
+ * Must hold either p->pi_lock or task_rq(p)->lock.
+ */
 struct task_struct *rt_mutex_get_top_task(struct task_struct *task)
 {
-	if (likely(!task_has_pi_waiters(task)))
-		return NULL;
-
-	return task_top_pi_waiter(task)->task;
+	return task->pi_top_task;
 }
 
 /*
@@ -351,12 +364,12 @@ struct task_struct *rt_mutex_get_top_task(struct task_struct *task)
  */
 int rt_mutex_get_effective_prio(struct task_struct *task, int newprio)
 {
-	if (!task_has_pi_waiters(task))
+	struct task_struct *top_task = rt_mutex_get_top_task(task);
+
+	if (!top_task)
 		return newprio;
 
-	if (task_top_pi_waiter(task)->task->prio <= newprio)
-		return task_top_pi_waiter(task)->task->prio;
-	return newprio;
+	return min(top_task->prio, newprio);
 }
 
 /*
