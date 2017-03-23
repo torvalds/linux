@@ -103,6 +103,13 @@
 			};
 		};
 
+		uart_ao_b_0_1_pins: uart_ao_b_0_1 {
+			mux {
+				groups = "uart_tx_ao_b_0", "uart_rx_ao_b_1";
+				function = "uart_ao_b";
+			};
+		};
+
 		uart_ao_b_cts_rts_pins: uart_ao_b_cts_rts {
 			mux {
 				groups = "uart_cts_ao_b",
@@ -115,6 +122,14 @@
 			mux {
 				groups = "remote_input_ao";
 				function = "remote_input_ao";
+			};
+		};
+
+		i2c_ao_pins: i2c_ao {
+			mux {
+				groups = "i2c_sck_ao",
+				       "i2c_sda_ao";
+				function = "i2c_ao";
 			};
 		};
 
@@ -135,6 +150,13 @@
 		pwm_ao_b_pins: pwm_ao_b {
 			mux {
 				groups = "pwm_ao_b";
+				function = "pwm_ao_b";
+			};
+		};
+
+		pwm_ao_b_6_pins: pwm_ao_b_6 {
+			mux {
+				groups = "pwm_ao_b_6";
 				function = "pwm_ao_b";
 			};
 		};
@@ -165,6 +187,16 @@
 				       "emmc_clk",
 				       "emmc_ds";
 				function = "emmc";
+			};
+		};
+
+		nor_pins: nor {
+			mux {
+				groups = "nor_d",
+				       "nor_q",
+				       "nor_c",
+				       "nor_cs";
+				function = "nor";
 			};
 		};
 
