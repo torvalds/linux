@@ -849,10 +849,6 @@ static int hwmixer_init(struct mdp5_kms *mdp5_kms)
 			return ret;
 		}
 
-		/* Don't create LMs connected to WB for now */
-		if (!mixer)
-			continue;
-
 		mixer->idx = mdp5_kms->num_hwmixers;
 		mdp5_kms->hwmixers[mdp5_kms->num_hwmixers++] = mixer;
 	}
