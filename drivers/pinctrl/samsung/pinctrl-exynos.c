@@ -777,6 +777,7 @@ exynos_retention_init(struct samsung_pinctrl_drv_data *drvdata,
 {
 	struct samsung_retention_ctrl *ctrl;
 	struct regmap *pmu_regs;
+	int i;
 
 	ctrl = devm_kzalloc(drvdata->dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
@@ -793,6 +794,10 @@ exynos_retention_init(struct samsung_pinctrl_drv_data *drvdata,
 	ctrl->refcnt = data->refcnt;
 	ctrl->enable = exynos_retention_enable;
 	ctrl->disable = exynos_retention_disable;
+
+	/* Ensure that retention is disabled on driver init */
+	for (i = 0; i < ctrl->nr_regs; i++)
+		regmap_write(pmu_regs, ctrl->regs[i], ctrl->value);
 
 	return ctrl;
 }
