@@ -142,7 +142,8 @@ static const uint32_t vmw_cursor_plane_formats[] = {
 
 #define vmw_crtc_state_to_vcs(x) container_of(x, struct vmw_crtc_state, base)
 #define vmw_plane_state_to_vps(x) container_of(x, struct vmw_plane_state, base)
-
+#define vmw_connector_state_to_vcs(x) \
+		container_of(x, struct vmw_connector_state, base)
 
 /**
  * Derived class for crtc state object
@@ -170,6 +171,20 @@ struct vmw_plane_state {
 	int content_fb_type;
 
 	int pinned;
+};
+
+
+/**
+ * Derived class for connector state object
+ *
+ * @base DRM connector object
+ * @is_implicit connector property
+ *
+ */
+struct vmw_connector_state {
+	struct drm_connector_state base;
+
+	bool is_implicit;
 };
 
 /**
@@ -241,6 +256,15 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
 int vmw_du_connector_set_property(struct drm_connector *connector,
 				  struct drm_property *property,
 				  uint64_t val);
+int vmw_du_connector_atomic_set_property(struct drm_connector *connector,
+					 struct drm_connector_state *state,
+					 struct drm_property *property,
+					 uint64_t val);
+int
+vmw_du_connector_atomic_get_property(struct drm_connector *connector,
+				     const struct drm_connector_state *state,
+				     struct drm_property *property,
+				     uint64_t *val);
 int vmw_du_connector_dpms(struct drm_connector *connector, int mode);
 void vmw_du_connector_save(struct drm_connector *connector);
 void vmw_du_connector_restore(struct drm_connector *connector);
@@ -326,6 +350,12 @@ void vmw_du_crtc_reset(struct drm_crtc *crtc);
 struct drm_crtc_state *vmw_du_crtc_duplicate_state(struct drm_crtc *crtc);
 void vmw_du_crtc_destroy_state(struct drm_crtc *crtc,
 				struct drm_crtc_state *state);
+void vmw_du_connector_reset(struct drm_connector *connector);
+struct drm_connector_state *
+vmw_du_connector_duplicate_state(struct drm_connector *connector);
+
+void vmw_du_connector_destroy_state(struct drm_connector *connector,
+				    struct drm_connector_state *state);
 
 /*
  * Legacy display unit functions - vmwgfx_ldu.c

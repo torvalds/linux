@@ -558,6 +558,81 @@ vmw_du_plane_destroy_state(struct drm_plane *plane,
 }
 
 
+/**
+ * vmw_du_connector_duplicate_state - duplicate connector state
+ * @connector: DRM connector
+ *
+ * Allocates and returns a copy of the connector state (both common and
+ * vmw-specific) for the specified connector.
+ *
+ * Returns: The newly allocated connector state, or NULL on failure.
+ */
+struct drm_connector_state *
+vmw_du_connector_duplicate_state(struct drm_connector *connector)
+{
+	struct drm_connector_state *state;
+	struct vmw_connector_state *vcs;
+
+	if (WARN_ON(!connector->state))
+		return NULL;
+
+	vcs = kmemdup(connector->state, sizeof(*vcs), GFP_KERNEL);
+
+	if (!vcs)
+		return NULL;
+
+	state = &vcs->base;
+
+	__drm_atomic_helper_connector_duplicate_state(connector, state);
+
+	return state;
+}
+
+
+/**
+ * vmw_du_connector_reset - creates a blank vmw connector state
+ * @connector: DRM connector
+ *
+ * Resets the atomic state for @connector by freeing the state pointer (which
+ * might be NULL, e.g. at driver load time) and allocating a new empty state
+ * object.
+ */
+void vmw_du_connector_reset(struct drm_connector *connector)
+{
+	struct vmw_connector_state *vcs;
+
+
+	if (connector->state) {
+		__drm_atomic_helper_connector_destroy_state(connector->state);
+
+		kfree(vmw_connector_state_to_vcs(connector->state));
+	}
+
+	vcs = kzalloc(sizeof(*vcs), GFP_KERNEL);
+
+	if (!vcs) {
+		DRM_ERROR("Cannot allocate vmw_connector_state\n");
+		return;
+	}
+
+	__drm_atomic_helper_connector_reset(connector, &vcs->base);
+}
+
+
+/**
+ * vmw_du_connector_destroy_state - destroy connector state
+ * @connector: DRM connector
+ * @state: state object to destroy
+ *
+ * Destroys the connector state (both common and vmw-specific) for the
+ * specified plane.
+ */
+void
+vmw_du_connector_destroy_state(struct drm_connector *connector,
+			  struct drm_connector_state *state)
+{
+	drm_atomic_helper_connector_destroy_state(connector, state);
+}
 /*
  * Generic framebuffer code
  */
@@ -1769,6 +1844,70 @@ int vmw_du_connector_set_property(struct drm_connector *connector,
 	return 0;
 }
 
+
+
+/**
+ * vmw_du_connector_atomic_set_property - Atomic version of get property
+ *
+ * @crtc - crtc the property is associated with
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int
+vmw_du_connector_atomic_set_property(struct drm_connector *connector,
+				     struct drm_connector_state *state,
+				     struct drm_property *property,
+				     uint64_t val)
+{
+	struct vmw_private *dev_priv = vmw_priv(connector->dev);
+	struct vmw_connector_state *vcs = vmw_connector_state_to_vcs(state);
+	struct vmw_display_unit *du = vmw_connector_to_du(connector);
+
+
+	if (property == dev_priv->implicit_placement_property) {
+		vcs->is_implicit = val;
+
+		/*
+		 * We should really be doing a drm_atomic_commit() to
+		 * commit the new state, but since this doesn't cause
+		 * an immedate state change, this is probably ok
+		 */
+		du->is_implicit = vcs->is_implicit;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+
+/**
+ * vmw_du_connector_atomic_get_property - Atomic version of get property
+ *
+ * @connector - connector the property is associated with
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int
+vmw_du_connector_atomic_get_property(struct drm_connector *connector,
+				     const struct drm_connector_state *state,
+				     struct drm_property *property,
+				     uint64_t *val)
+{
+	struct vmw_private *dev_priv = vmw_priv(connector->dev);
+	struct vmw_connector_state *vcs = vmw_connector_state_to_vcs(state);
+
+	if (property == dev_priv->implicit_placement_property)
+		*val = vcs->is_implicit;
+	else {
+		DRM_ERROR("Invalid Property %s\n", property->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,

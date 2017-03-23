@@ -27,6 +27,8 @@
 
 #include "vmwgfx_kms.h"
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 
 
 #define vmw_crtc_to_ldu(x) \
@@ -315,6 +317,11 @@ static const struct drm_connector_funcs vmw_legacy_connector_funcs = {
 	.fill_modes = vmw_du_connector_fill_modes,
 	.set_property = vmw_du_connector_set_property,
 	.destroy = vmw_ldu_connector_destroy,
+	.reset = vmw_du_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_set_property = vmw_du_connector_atomic_set_property,
+	.atomic_get_property = vmw_du_connector_atomic_get_property,
 };
 
 /*
@@ -408,6 +415,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free;
 	}
 	connector->status = vmw_du_connector_detect(connector, true);
+	vmw_connector_state_to_vcs(connector->state)->is_implicit = true;
+
 
 	ret = drm_encoder_init(dev, encoder, &vmw_legacy_encoder_funcs,
 			       DRM_MODE_ENCODER_VIRTUAL, NULL);
@@ -426,8 +435,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free_encoder;
 	}
 
-	/* FIXME: Turn on after plane/connector states are implemented. */
-	/* vmw_du_crtc_reset(crtc); */
+
+	vmw_du_crtc_reset(crtc);
 	ret = drm_crtc_init_with_planes(dev, crtc, &ldu->base.primary,
 					&ldu->base.cursor,
 					&vmw_legacy_crtc_funcs, NULL);
