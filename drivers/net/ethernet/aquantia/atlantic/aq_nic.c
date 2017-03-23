@@ -487,6 +487,9 @@ static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
 		dx_buff->mss = skb_shinfo(skb)->gso_size;
 		dx_buff->is_txc = 1U;
 
+		dx_buff->is_ipv6 =
+			(ip_hdr(skb)->version == 6) ? 1U : 0U;
+
 		dx = aq_ring_next_dx(ring, dx);
 		dx_buff = &ring->buff_ring[dx];
 		++ret;
