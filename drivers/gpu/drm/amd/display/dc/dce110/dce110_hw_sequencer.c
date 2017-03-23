@@ -1722,6 +1722,9 @@ enum dc_status dce110_apply_ctx_to_hw(
 				context,
 				dc);
 
+		if (dc->hwss.power_on_front_end)
+			dc->hwss.power_on_front_end(dc, pipe_ctx, context);
+
 		if (DC_OK != status)
 			return status;
 	}
