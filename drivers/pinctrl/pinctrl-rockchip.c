@@ -714,7 +714,6 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	int iomux_num = (pin / 8);
 	struct regmap *regmap;
 	int reg, ret, mask, mux_type;
-	unsigned long flags;
 	u8 bit;
 	u32 data, rmask;
 
@@ -763,14 +762,10 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	if (ctrl->iomux_recalc && (mux_type & IOMUX_RECALCED))
 		ctrl->iomux_recalc(bank->bank_num, pin, &reg, &bit, &mask);
 
-	spin_lock_irqsave(&bank->slock, flags);
-
 	data = (mask << (bit + 16));
 	rmask = data | (data >> 16);
 	data |= (mux & mask) << bit;
 	ret = regmap_update_bits(regmap, reg, rmask, data);
-
-	spin_unlock_irqrestore(&bank->slock, flags);
 
 	return ret;
 }
@@ -1355,7 +1350,6 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 	struct rockchip_pinctrl *info = bank->drvdata;
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 	struct regmap *regmap, *extra_regmap;
-	unsigned long flags;
 	int reg, ret, i;
 	u32 data, temp, rmask, rmask_bits;
 	u8 bit, extra_bit;
@@ -1394,8 +1388,6 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		return ret;
 	}
 
-	spin_lock_irqsave(&bank->slock, flags);
-
 	switch (drv_type) {
 	case DRV_TYPE_IO_1V8_3V0_AUTO:
 	case DRV_TYPE_IO_3V3_ONLY:
@@ -1416,17 +1408,14 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 			rmask = BIT(15) | BIT(31);
 			data |= BIT(31);
 			ret = regmap_update_bits(regmap, reg, rmask, data);
-			if (ret) {
-				spin_unlock_irqrestore(&bank->slock, flags);
+			if (ret)
 				return ret;
-			}
 
 			rmask = 0x3 | (0x3 << 16);
 			temp |= (0x3 << 16);
 			reg += 0x4;
 			ret = regmap_update_bits(regmap, reg, rmask, temp);
 
-			spin_unlock_irqrestore(&bank->slock, flags);
 			return ret;
 		case 18 ... 21:
 			/* setting fully enclosed in the second register */
@@ -1434,7 +1423,6 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 			bit -= 16;
 			break;
 		default:
-			spin_unlock_irqrestore(&bank->slock, flags);
 			dev_err(info->dev, "unsupported bit: %d for pinctrl drive type: %d\n",
 				bit, drv_type);
 			return -EINVAL;
@@ -1461,19 +1449,15 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		data |= (extra_value << extra_bit);
 
 		/* write drive strength of N channel */
-		if (regmap_update_bits(extra_regmap, extra_reg, rmask, data)) {
-			spin_unlock_irqrestore(&bank->slock, flags);
+		if (regmap_update_bits(extra_regmap, extra_reg, rmask, data))
 			return -EINVAL;
-		}
 
-		if (extra_drv_type == DRV_TYPE_EXTRA_SAME_OFFSET) {
+		if (extra_drv_type == DRV_TYPE_EXTRA_SAME_OFFSET)
 			extra_bit += 2;
-		} else if (extra_drv_type == DRV_TYPE_EXTRA_SAME_BITS) {
+		else if (extra_drv_type == DRV_TYPE_EXTRA_SAME_BITS)
 			extra_reg += 0x4;
-		} else {
-			spin_unlock_irqrestore(&bank->slock, flags);
+		else
 			return -EINVAL;
-		}
 
 		/* enable the write to the equivalent lower bits */
 		data = ((1 << rmask_bits) - 1) << (extra_bit + 16);
@@ -1481,10 +1465,8 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		data |= (extra_value << extra_bit);
 
 		/* write drive strength of P channel */
-		if (regmap_update_bits(extra_regmap, extra_reg, rmask, data)) {
-			spin_unlock_irqrestore(&bank->slock, flags);
+		if (regmap_update_bits(extra_regmap, extra_reg, rmask, data))
 			return -EINVAL;
-		}
 
 		break;
 	case DRV_TYPE_IO_DEFAULT:
@@ -1494,7 +1476,6 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		rmask_bits = RK3288_DRV_BITS_PER_PIN;
 		break;
 	default:
-		spin_unlock_irqrestore(&bank->slock, flags);
 		dev_err(info->dev, "unsupported pinctrl drive type: %d\n",
 			drv_type);
 		return -EINVAL;
@@ -1506,7 +1487,6 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 	data |= (ret << bit);
 
 	ret = regmap_update_bits(regmap, reg, rmask, data);
-	spin_unlock_irqrestore(&bank->slock, flags);
 
 	return ret;
 }
@@ -1573,7 +1553,6 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 	struct regmap *regmap;
 	int reg, ret, i, pull_type;
-	unsigned long flags;
 	u8 bit;
 	u32 data, rmask;
 
@@ -1588,14 +1567,10 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 
 	switch (ctrl->type) {
 	case RK2928:
-		spin_lock_irqsave(&bank->slock, flags);
-
 		data = BIT(bit + 16);
 		if (pull == PIN_CONFIG_BIAS_DISABLE)
 			data |= BIT(bit);
 		ret = regmap_write(regmap, reg, data);
-
-		spin_unlock_irqrestore(&bank->slock, flags);
 		break;
 	case RK3188:
 	case RK3288:
@@ -1617,16 +1592,12 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 			return ret;
 		}
 
-		spin_lock_irqsave(&bank->slock, flags);
-
 		/* enable the write to the equivalent lower bits */
 		data = ((1 << RK3188_PULL_BITS_PER_PIN) - 1) << (bit + 16);
 		rmask = data | (data >> 16);
 		data |= (ret << bit);
 
 		ret = regmap_update_bits(regmap, reg, rmask, data);
-
-		spin_unlock_irqrestore(&bank->slock, flags);
 		break;
 	default:
 		dev_err(info->dev, "unsupported pinctrl type\n");
@@ -1686,7 +1657,6 @@ static int rockchip_set_schmitt(struct rockchip_pin_bank *bank,
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 	struct regmap *regmap;
 	int reg, ret;
-	unsigned long flags;
 	u8 bit;
 	u32 data, rmask;
 
@@ -1697,16 +1667,11 @@ static int rockchip_set_schmitt(struct rockchip_pin_bank *bank,
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&bank->slock, flags);
-
 	/* enable the write to the equivalent lower bits */
 	data = BIT(bit + 16) | (enable << bit);
 	rmask = BIT(bit + 16) | BIT(bit);
 
-	ret = regmap_update_bits(regmap, reg, rmask, data);
-	spin_unlock_irqrestore(&bank->slock, flags);
-
-	return ret;
+	return regmap_update_bits(regmap, reg, rmask, data);
 }
 
 /*
