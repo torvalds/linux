@@ -51,8 +51,6 @@
 #define  LPASS_INTR_SFR			BIT(0)
 
 struct exynos_lpass {
-	/* pointer to the Power Management Unit regmap */
-	struct regmap *pmu;
 	/* pointer to the LPASS TOP regmap */
 	struct regmap *top;
 };
@@ -81,10 +79,6 @@ static void exynos_lpass_enable(struct exynos_lpass *lpass)
 	regmap_write(lpass->top, SFR_LPASS_INTR_CPU_MASK,
 		     LPASS_INTR_SFR | LPASS_INTR_DMA | LPASS_INTR_I2S);
 
-	/* Activate related PADs from retention state */
-	regmap_write(lpass->pmu, EXYNOS5433_PAD_RETENTION_AUD_OPTION,
-		     EXYNOS_WAKEUP_FROM_LOWPWR);
-
 	exynos_lpass_core_sw_reset(lpass, LPASS_I2S_SW_RESET);
 	exynos_lpass_core_sw_reset(lpass, LPASS_DMA_SW_RESET);
 	exynos_lpass_core_sw_reset(lpass, LPASS_MEM_SW_RESET);
@@ -95,9 +89,6 @@ static void exynos_lpass_disable(struct exynos_lpass *lpass)
 	/* Mask any unmasked IP interrupt sources */
 	regmap_write(lpass->top, SFR_LPASS_INTR_CPU_MASK, 0);
 	regmap_write(lpass->top, SFR_LPASS_INTR_CA5_MASK, 0);
-
-	/* Deactivate related PADs from retention state */
-	regmap_write(lpass->pmu, EXYNOS5433_PAD_RETENTION_AUD_OPTION, 0);
 }
 
 static const struct regmap_config exynos_lpass_reg_conf = {
@@ -129,13 +120,6 @@ static int exynos_lpass_probe(struct platform_device *pdev)
 	if (IS_ERR(lpass->top)) {
 		dev_err(dev, "LPASS top regmap initialization failed\n");
 		return PTR_ERR(lpass->top);
-	}
-
-	lpass->pmu = syscon_regmap_lookup_by_phandle(dev->of_node,
-						"samsung,pmu-syscon");
-	if (IS_ERR(lpass->pmu)) {
-		dev_err(dev, "Failed to lookup PMU regmap\n");
-		return PTR_ERR(lpass->pmu);
 	}
 
 	platform_set_drvdata(pdev, lpass);
