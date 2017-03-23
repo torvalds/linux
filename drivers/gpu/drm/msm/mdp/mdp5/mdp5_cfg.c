@@ -191,6 +191,7 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.mdp = {
 		.count = 1,
 		.caps = MDP_CAP_SMP |
+			MDP_CAP_SRC_SPLIT |
 			0,
 	},
 	.smp = {
@@ -237,11 +238,13 @@ const struct mdp5_cfg_hw apq8084_config = {
 		.base = { 0x03900, 0x03d00, 0x04100, 0x04500, 0x04900, 0x04d00 },
 		.instances = {
 				{ .id = 0, .pp = 0, .dspp = 0,
-				  .caps = MDP_LM_CAP_DISPLAY, },
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
 				{ .id = 1, .pp = 1, .dspp = 1,
 				  .caps = MDP_LM_CAP_DISPLAY, },
 				{ .id = 2, .pp = 2, .dspp = 2,
-				  .caps = MDP_LM_CAP_DISPLAY, },
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
 				{ .id = 3, .pp = -1, .dspp = -1,
 				  .caps = MDP_LM_CAP_WB, },
 				{ .id = 4, .pp = -1, .dspp = -1,
@@ -350,6 +353,7 @@ const struct mdp5_cfg_hw msm8x94_config = {
 	.mdp = {
 		.count = 1,
 		.caps = MDP_CAP_SMP |
+			MDP_CAP_SRC_SPLIT |
 			0,
 	},
 	.smp = {
@@ -396,11 +400,13 @@ const struct mdp5_cfg_hw msm8x94_config = {
 		.base = { 0x44000, 0x45000, 0x46000, 0x47000, 0x48000, 0x49000 },
 		.instances = {
 				{ .id = 0, .pp = 0, .dspp = 0,
-				  .caps = MDP_LM_CAP_DISPLAY, },
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
 				{ .id = 1, .pp = 1, .dspp = 1,
 				  .caps = MDP_LM_CAP_DISPLAY, },
 				{ .id = 2, .pp = 2, .dspp = 2,
-				  .caps = MDP_LM_CAP_DISPLAY, },
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
 				{ .id = 3, .pp = -1, .dspp = -1,
 				  .caps = MDP_LM_CAP_WB, },
 				{ .id = 4, .pp = -1, .dspp = -1,
@@ -443,6 +449,7 @@ const struct mdp5_cfg_hw msm8x96_config = {
 		.count = 1,
 		.caps = MDP_CAP_DSC |
 			MDP_CAP_CDM |
+			MDP_CAP_SRC_SPLIT |
 			0,
 	},
 	.ctl = {
@@ -494,11 +501,13 @@ const struct mdp5_cfg_hw msm8x96_config = {
 		.base = { 0x44000, 0x45000, 0x46000, 0x47000, 0x48000, 0x49000 },
 		.instances = {
 				{ .id = 0, .pp = 0, .dspp = 0,
-				  .caps = MDP_LM_CAP_DISPLAY },
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
 				{ .id = 1, .pp = 1, .dspp = 1,
 				  .caps = MDP_LM_CAP_DISPLAY, },
 				{ .id = 2, .pp = 2, .dspp = -1,
-				  .caps = MDP_LM_CAP_DISPLAY },
+				  .caps = MDP_LM_CAP_DISPLAY |
+					  MDP_LM_CAP_PAIR, },
 				{ .id = 3, .pp = -1, .dspp = -1,
 				  .caps = MDP_LM_CAP_WB, },
 				{ .id = 4, .pp = -1, .dspp = -1,
