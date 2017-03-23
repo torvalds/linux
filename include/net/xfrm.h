@@ -586,7 +586,6 @@ struct xfrm_migrate {
 
 struct xfrm_mgr {
 	struct list_head	list;
-	char			*id;
 	int			(*notify)(struct xfrm_state *x, const struct km_event *c);
 	int			(*acquire)(struct xfrm_state *x, struct xfrm_tmpl *, struct xfrm_policy *xp);
 	struct xfrm_policy	*(*compile_policy)(struct sock *sk, int opt, u8 *data, int len, int *dir);
