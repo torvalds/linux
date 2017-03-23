@@ -1869,6 +1869,48 @@ void dce110_tg_set_colors(struct timing_generator *tg,
 		dce110_tg_set_overscan_color(tg, overscan_color);
 }
 
+/* Gets first line of blank region of the display timing for CRTC
+ * and programms is as a trigger to fire vertical interrupt
+ */
+bool dce110_arm_vert_intr(struct timing_generator *tg, uint8_t width)
+{
+	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+	uint32_t vbl = 0;
+	uint32_t val = 0;
+	uint32_t position, vbl_start;
+
+	tg->funcs->get_scanoutpos(
+			tg,
+			&vbl,
+			&position);
+
+	if (vbl == 0)
+		return false;
+
+	vbl_start =
+		get_reg_field_value(
+		vbl,
+		CRTC_V_BLANK_START_END,
+		CRTC_V_BLANK_START);
+
+	set_reg_field_value(
+		val,
+		vbl_start,
+		CRTC_VERTICAL_INTERRUPT0_POSITION,
+		CRTC_VERTICAL_INTERRUPT0_LINE_START);
+
+	/* Set interaval width for interrupt to fire to 1 scanline */
+	set_reg_field_value(
+		val,
+		vbl_start + width,
+		CRTC_VERTICAL_INTERRUPT0_POSITION,
+		CRTC_VERTICAL_INTERRUPT0_LINE_END);
+
+	dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_VERTICAL_INTERRUPT0_POSITION), val);
+
+	return true;
+}
+
 static const struct timing_generator_funcs dce110_tg_funcs = {
 		.validate_timing = dce110_tg_validate_timing,
 		.program_timing = dce110_tg_program_timing,
@@ -1901,8 +1943,8 @@ static const struct timing_generator_funcs dce110_tg_funcs = {
 				dce110_timing_generator_set_drr,
 		.set_static_screen_control =
 			dce110_timing_generator_set_static_screen_control,
-		.set_test_pattern = dce110_timing_generator_set_test_pattern
-
+		.set_test_pattern = dce110_timing_generator_set_test_pattern,
+		.arm_vert_intr = dce110_arm_vert_intr,
 };
 
 bool dce110_timing_generator_construct(

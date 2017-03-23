@@ -1039,6 +1039,35 @@ void dce120_timing_generator_set_test_pattern(
 	}
 }
 
+static bool dce120_arm_vert_intr(
+		struct timing_generator *tg,
+		uint8_t width)
+{
+	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
+	uint32_t vbl, position, vbl_start;
+
+	tg->funcs->get_scanoutpos(
+				tg,
+				&vbl,
+				&position);
+
+	if (vbl == 0)
+		return false;
+
+	vbl_start =
+		get_reg_field_value(
+		vbl,
+		CRTC0_CRTC_V_BLANK_START_END,
+		CRTC_V_BLANK_START);
+
+	CRTC_REG_SET_2(
+			CRTC0_CRTC_VERTICAL_INTERRUPT0_POSITION,
+			CRTC_VERTICAL_INTERRUPT0_LINE_START, vbl_start,
+			CRTC_VERTICAL_INTERRUPT0_LINE_END, vbl_start + width);
+
+	return true;
+}
+
 static struct timing_generator_funcs dce120_tg_funcs = {
 		.validate_timing = dce120_tg_validate_timing,
 		.program_timing = dce120_tg_program_timing,
@@ -1068,7 +1097,8 @@ static struct timing_generator_funcs dce120_tg_funcs = {
 		.enable_advanced_request = dce120_timing_generator_enable_advanced_request,
 		.set_drr = dce120_timing_generator_set_drr,
 		.set_static_screen_control = dce120_timing_generator_set_static_screen_control,
-		.set_test_pattern = dce120_timing_generator_set_test_pattern
+		.set_test_pattern = dce120_timing_generator_set_test_pattern,
+		.arm_vert_intr = dce120_arm_vert_intr,
 };
 
 

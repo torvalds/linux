@@ -31,14 +31,10 @@
 
 #include "dce/dce_11_0_d.h"
 #include "dce/dce_11_0_sh_mask.h"
+
 #include "ivsrcid/ivsrcid_vislands30.h"
 
-#define VISLANDS30_IV_SRCID_D1_VBLANK                        1
-#define VISLANDS30_IV_SRCID_D2_VBLANK                        2
-#define VISLANDS30_IV_SRCID_D3_VBLANK                        3
-#define VISLANDS30_IV_SRCID_D4_VBLANK                        4
-#define VISLANDS30_IV_SRCID_D5_VBLANK                        5
-#define VISLANDS30_IV_SRCID_D6_VBLANK                        6
+#include "core_dc.h"
 
 static bool hpd_ack(
 	struct irq_service *irq_service,
@@ -83,7 +79,7 @@ static const struct irq_source_info_funcs pflip_irq_info_funcs = {
 };
 
 static const struct irq_source_info_funcs vblank_irq_info_funcs = {
-	.set = NULL,
+	.set = dce110_vblank_set,
 	.ack = NULL
 };
 
@@ -148,18 +144,19 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 
 #define vblank_int_entry(reg_num)\
 	[DC_IRQ_SOURCE_VBLANK1 + reg_num] = {\
-		.enable_reg = mmLB ## reg_num ## _LB_INTERRUPT_MASK,\
+		.enable_reg = mmCRTC ## reg_num ## _CRTC_VERTICAL_INTERRUPT0_CONTROL,\
 		.enable_mask =\
-			LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK,\
+		CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_INT_ENABLE_MASK,\
 		.enable_value = {\
-			LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK,\
-			~LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK},\
-		.ack_reg = mmLB ## reg_num ## _LB_VBLANK_STATUS,\
+			CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_INT_ENABLE_MASK,\
+			~CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_INT_ENABLE_MASK},\
+		.ack_reg = mmCRTC ## reg_num ## _CRTC_VERTICAL_INTERRUPT0_CONTROL,\
 		.ack_mask =\
-		LB_VBLANK_STATUS__VBLANK_ACK_MASK,\
+		CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_CLEAR_MASK,\
 		.ack_value =\
-		LB_VBLANK_STATUS__VBLANK_ACK_MASK,\
-		.funcs = &vblank_irq_info_funcs\
+		CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_CLEAR_MASK,\
+		.funcs = &vblank_irq_info_funcs,\
+		.src_id = VISLANDS30_IV_SRCID_D1_VERTICAL_INTERRUPT0 + reg_num\
 	}
 
 #define dummy_irq_entry() \
@@ -200,6 +197,35 @@ bool dal_irq_service_dummy_ack(
 		"%s: called for non-implemented irq source\n",
 		__func__);
 	return false;
+}
+
+
+bool dce110_vblank_set(
+		struct irq_service *irq_service,
+		const struct irq_source_info *info,
+		bool enable)
+{
+	struct dc_context *dc_ctx = irq_service->ctx;
+	struct core_dc *core_dc = DC_TO_CORE(irq_service->ctx->dc);
+	enum dc_irq_source dal_irq_src = dc_interrupt_to_irq_source(
+										irq_service->ctx->dc,
+										info->src_id,
+										info->ext_id);
+	uint8_t pipe_offset = dal_irq_src - IRQ_TYPE_VBLANK;
+
+	struct timing_generator *tg =
+			core_dc->current_context->res_ctx.pipe_ctx[pipe_offset].tg;
+
+	if (enable) {
+		if (!tg->funcs->arm_vert_intr(tg, 2)) {
+			DC_ERROR("Failed to get VBLANK!\n");
+			return false;
+		}
+	}
+
+	dal_irq_service_set_generic(irq_service, info, enable);
+	return true;
+
 }
 
 static const struct irq_source_info_funcs dummy_irq_info_funcs = {
@@ -302,17 +328,17 @@ enum dc_irq_source to_dal_irq_source_dce110(
 		uint32_t ext_id)
 {
 	switch (src_id) {
-	case VISLANDS30_IV_SRCID_D1_VBLANK:
+	case VISLANDS30_IV_SRCID_D1_VERTICAL_INTERRUPT0:
 		return DC_IRQ_SOURCE_VBLANK1;
-	case VISLANDS30_IV_SRCID_D2_VBLANK:
+	case VISLANDS30_IV_SRCID_D2_VERTICAL_INTERRUPT0:
 		return DC_IRQ_SOURCE_VBLANK2;
-	case VISLANDS30_IV_SRCID_D3_VBLANK:
+	case VISLANDS30_IV_SRCID_D3_VERTICAL_INTERRUPT0:
 		return DC_IRQ_SOURCE_VBLANK3;
-	case VISLANDS30_IV_SRCID_D4_VBLANK:
+	case VISLANDS30_IV_SRCID_D4_VERTICAL_INTERRUPT0:
 		return DC_IRQ_SOURCE_VBLANK4;
-	case VISLANDS30_IV_SRCID_D5_VBLANK:
+	case VISLANDS30_IV_SRCID_D5_VERTICAL_INTERRUPT0:
 		return DC_IRQ_SOURCE_VBLANK5;
-	case VISLANDS30_IV_SRCID_D6_VBLANK:
+	case VISLANDS30_IV_SRCID_D6_VERTICAL_INTERRUPT0:
 		return DC_IRQ_SOURCE_VBLANK6;
 	case VISLANDS30_IV_SRCID_D1_V_UPDATE_INT:
 		return DC_IRQ_SOURCE_VUPDATE1;

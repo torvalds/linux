@@ -271,4 +271,7 @@ void dce110_tg_set_colors(struct timing_generator *tg,
 	const struct tg_color *blank_color,
 	const struct tg_color *overscan_color);
 
+bool dce110_arm_vert_intr(
+		struct timing_generator *tg, uint8_t width);
+
 #endif /* __DC_TIMING_GENERATOR_DCE110_H__ */

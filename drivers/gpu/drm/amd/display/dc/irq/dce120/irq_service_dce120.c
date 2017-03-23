@@ -79,7 +79,7 @@ static const struct irq_source_info_funcs pflip_irq_info_funcs = {
 };
 
 static const struct irq_source_info_funcs vblank_irq_info_funcs = {
-	.set = NULL,
+	.set = dce110_vblank_set,
 	.ack = NULL
 };
 
@@ -144,10 +144,11 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 
 #define vblank_int_entry(reg_num)\
 	[DC_IRQ_SOURCE_VBLANK1 + reg_num] = {\
-		IRQ_REG_ENTRY(LB, reg_num,\
-			LB_INTERRUPT_MASK, VBLANK_INTERRUPT_MASK,\
-			LB_VBLANK_STATUS, VBLANK_ACK),\
-		.funcs = &vblank_irq_info_funcs\
+		IRQ_REG_ENTRY(CRTC, reg_num,\
+				CRTC_VERTICAL_INTERRUPT0_CONTROL, CRTC_VERTICAL_INTERRUPT0_INT_ENABLE,\
+				CRTC_VERTICAL_INTERRUPT0_CONTROL, CRTC_VERTICAL_INTERRUPT0_CLEAR),\
+		.funcs = &vblank_irq_info_funcs,\
+		.src_id = VISLANDS30_IV_SRCID_D1_VERTICAL_INTERRUPT0 + reg_num\
 	}
 
 #define dummy_irq_entry() \

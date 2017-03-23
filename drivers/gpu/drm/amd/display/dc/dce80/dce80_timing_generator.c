@@ -145,6 +145,7 @@ static const struct timing_generator_funcs dce80_tg_funcs = {
 		.set_static_screen_control =
 			dce110_timing_generator_set_static_screen_control,
 		.set_test_pattern = dce110_timing_generator_set_test_pattern,
+		.arm_vert_intr = dce110_arm_vert_intr,
 
 		/* DCE8.0 overrides */
 		.enable_advanced_request =

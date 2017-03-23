@@ -156,6 +156,8 @@ struct timing_generator_funcs {
 		enum controller_dp_test_pattern test_pattern,
 		enum dc_color_depth color_depth);
 
+	bool (*arm_vert_intr)(struct timing_generator *tg, uint8_t width);
+
 };
 
 #endif

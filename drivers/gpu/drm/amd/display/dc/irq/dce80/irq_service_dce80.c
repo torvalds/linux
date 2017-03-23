@@ -35,6 +35,9 @@
 
 #include "ivsrcid/ivsrcid_vislands30.h"
 
+#include "dc_types.h"
+#include "inc/core_dc.h"
+
 static bool hpd_ack(
 	struct irq_service *irq_service,
 	const struct irq_source_info *info)
@@ -78,7 +81,7 @@ static const struct irq_source_info_funcs pflip_irq_info_funcs = {
 };
 
 static const struct irq_source_info_funcs vblank_irq_info_funcs = {
-	.set = NULL,
+	.set = dce110_vblank_set,
 	.ack = NULL
 };
 
@@ -145,18 +148,19 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 
 #define vblank_int_entry(reg_num)\
 	[DC_IRQ_SOURCE_VBLANK1 + reg_num] = {\
-		.enable_reg = mmLB ## reg_num ## _LB_INTERRUPT_MASK,\
+		.enable_reg = mmCRTC ## reg_num ## _CRTC_VERTICAL_INTERRUPT0_CONTROL,\
 		.enable_mask =\
-			LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK,\
+		CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_INT_ENABLE_MASK,\
 		.enable_value = {\
-			LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK,\
-			~LB_INTERRUPT_MASK__VBLANK_INTERRUPT_MASK_MASK},\
-		.ack_reg = mmLB ## reg_num ## _LB_VBLANK_STATUS,\
+			CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_INT_ENABLE_MASK,\
+			~CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_INT_ENABLE_MASK},\
+		.ack_reg = mmCRTC ## reg_num ## _CRTC_VERTICAL_INTERRUPT0_CONTROL,\
 		.ack_mask =\
-		LB_VBLANK_STATUS__VBLANK_ACK_MASK,\
+		CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_CLEAR_MASK,\
 		.ack_value =\
-		LB_VBLANK_STATUS__VBLANK_ACK_MASK,\
-		.funcs = &vblank_irq_info_funcs\
+		CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_CLEAR_MASK,\
+		.funcs = &vblank_irq_info_funcs,\
+		.src_id = VISLANDS30_IV_SRCID_D1_VERTICAL_INTERRUPT0 + reg_num\
 	}
 
 #define dummy_irq_entry() \
