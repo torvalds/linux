@@ -682,11 +682,7 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 		p_index = rdma_readl(priv, RDMA_CONS_INDEX);
 	p_index &= RDMA_PROD_INDEX_MASK;
 
-	if (p_index < priv->rx_c_index)
-		to_process = (RDMA_CONS_INDEX_MASK + 1) -
-			priv->rx_c_index + p_index;
-	else
-		to_process = p_index - priv->rx_c_index;
+	to_process = (p_index - priv->rx_c_index) & RDMA_CONS_INDEX_MASK;
 
 	netif_dbg(priv, rx_status, ndev,
 		  "p_index=%d rx_c_index=%d to_process=%d\n",
