@@ -373,24 +373,6 @@ static void __rt_mutex_adjust_prio(struct task_struct *task)
 }
 
 /*
- * Adjust task priority (undo boosting). Called from the exit path of
- * rt_mutex_slowunlock() and rt_mutex_slowlock().
- *
- * (Note: We do this outside of the protection of lock->wait_lock to
- * allow the lock to be taken while or before we readjust the priority
- * of task. We do not use the spin_xx_mutex() variants here as we are
- * outside of the debug path.)
- */
-void rt_mutex_adjust_prio(struct task_struct *task)
-{
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&task->pi_lock, flags);
-	__rt_mutex_adjust_prio(task);
-	raw_spin_unlock_irqrestore(&task->pi_lock, flags);
-}
-
-/*
  * Deadlock detection is conditional:
  *
  * If CONFIG_DEBUG_RT_MUTEXES=n, deadlock detection is only conducted
@@ -1051,6 +1033,7 @@ static void mark_wakeup_next_waiter(struct wake_q_head *wake_q,
 	 * lock->wait_lock.
 	 */
 	rt_mutex_dequeue_pi(current, waiter);
+	__rt_mutex_adjust_prio(current);
 
 	/*
 	 * As we are waking up the top waiter, and the waiter stays
@@ -1393,6 +1376,16 @@ static bool __sched rt_mutex_slowunlock(struct rt_mutex *lock,
 	 */
 	mark_wakeup_next_waiter(wake_q, lock);
 
+	/*
+	 * We should deboost before waking the top waiter task such that
+	 * we don't run two tasks with the 'same' priority. This however
+	 * can lead to prio-inversion if we would get preempted after
+	 * the deboost but before waking our high-prio task, hence the
+	 * preempt_disable before unlock. Pairs with preempt_enable() in
+	 * rt_mutex_postunlock();
+	 */
+	preempt_disable();
+
 	raw_spin_unlock_irqrestore(&lock->wait_lock, flags);
 
 	/* check PI boosting */
@@ -1442,6 +1435,18 @@ rt_mutex_fasttrylock(struct rt_mutex *lock,
 	return slowfn(lock);
 }
 
+/*
+ * Undo pi boosting (if necessary) and wake top waiter.
+ */
+void rt_mutex_postunlock(struct wake_q_head *wake_q, bool deboost)
+{
+	wake_up_q(wake_q);
+
+	/* Pairs with preempt_disable() in rt_mutex_slowunlock() */
+	if (deboost)
+		preempt_enable();
+}
+
 static inline void
 rt_mutex_fastunlock(struct rt_mutex *lock,
 		    bool (*slowfn)(struct rt_mutex *lock,
@@ -1455,11 +1460,7 @@ rt_mutex_fastunlock(struct rt_mutex *lock,
 
 	deboost = slowfn(lock, &wake_q);
 
-	wake_up_q(&wake_q);
-
-	/* Undo pi boosting if necessary: */
-	if (deboost)
-		rt_mutex_adjust_prio(current);
+	rt_mutex_postunlock(&wake_q, deboost);
 }
 
 /**
@@ -1572,6 +1573,13 @@ bool __sched __rt_mutex_futex_unlock(struct rt_mutex *lock,
 	}
 
 	mark_wakeup_next_waiter(wake_q, lock);
+	/*
+	 * We've already deboosted, retain preempt_disabled when dropping
+	 * the wait_lock to avoid inversion until the wakeup. Matched
+	 * by rt_mutex_postunlock();
+	 */
+	preempt_disable();
+
 	return true; /* deboost and wakeups */
 }
 
@@ -1584,10 +1592,7 @@ void __sched rt_mutex_futex_unlock(struct rt_mutex *lock)
 	deboost = __rt_mutex_futex_unlock(lock, &wake_q);
 	raw_spin_unlock_irq(&lock->wait_lock);
 
-	if (deboost) {
-		wake_up_q(&wake_q);
-		rt_mutex_adjust_prio(current);
-	}
+	rt_mutex_postunlock(&wake_q, deboost);
 }
 
 /**
