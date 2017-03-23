@@ -27,7 +27,7 @@ KASAN_SANITIZE_stacktrace.o := n
 
 OBJECT_FILES_NON_STANDARD_head_$(BITS).o		:= y
 OBJECT_FILES_NON_STANDARD_relocate_kernel_$(BITS).o	:= y
-OBJECT_FILES_NON_STANDARD_mcount_$(BITS).o		:= y
+OBJECT_FILES_NON_STANDARD_ftrace_$(BITS).o		:= y
 OBJECT_FILES_NON_STANDARD_test_nx.o			:= y
 
 # If instrumentation of this dir is enabled, boot hangs during first second.
@@ -46,7 +46,7 @@ obj-$(CONFIG_MODIFY_LDT_SYSCALL)	+= ldt.o
 obj-y			+= setup.o x86_init.o i8259.o irqinit.o jump_label.o
 obj-$(CONFIG_IRQ_WORK)  += irq_work.o
 obj-y			+= probe_roms.o
-obj-$(CONFIG_X86_64)	+= sys_x86_64.o mcount_64.o
+obj-$(CONFIG_X86_64)	+= sys_x86_64.o ftrace_64.o
 obj-$(CONFIG_X86_ESPFIX64)	+= espfix_64.o
 obj-$(CONFIG_SYSFS)	+= ksysfs.o
 obj-y			+= bootflag.o e820.o

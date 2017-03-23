@@ -1,6 +1,4 @@
 /*
- *  linux/arch/x86_64/mcount_64.S
- *
  *  Copyright (C) 2014  Steven Rostedt, Red Hat Inc
  */
 
