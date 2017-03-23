@@ -1600,6 +1600,7 @@ int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt, u8 *mac)
 {
 	struct qed_mcp_mb_params mb_params;
+	u32 mfw_mac[2];
 	int rc;
 
 	memset(&mb_params, 0, sizeof(mb_params));
@@ -1608,8 +1609,16 @@ int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
 			  DRV_MSG_CODE_VMAC_TYPE_SHIFT;
 	mb_params.param |= MCP_PF_ID(p_hwfn);
 
-	mb_params.p_data_src = mac;
-	mb_params.data_src_size = 6;
+	/* MCP is BE, and on LE platforms PCI would swap access to SHMEM
+	 * in 32-bit granularity.
+	 * So the MAC has to be set in native order [and not byte order],
+	 * otherwise it would be read incorrectly by MFW after swap.
+	 */
+	mfw_mac[0] = mac[0] << 24 | mac[1] << 16 | mac[2] << 8 | mac[3];
+	mfw_mac[1] = mac[4] << 24 | mac[5] << 16;
+
+	mb_params.p_data_src = (u8 *)mfw_mac;
+	mb_params.data_src_size = 8;
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
 		DP_ERR(p_hwfn, "Failed to send mac address, rc = %d\n", rc);
