@@ -303,10 +303,26 @@ static void mdp5_encoder_enable(struct drm_encoder *encoder)
 		mdp5_vid_encoder_enable(encoder);
 }
 
+static int mdp5_encoder_atomic_check(struct drm_encoder *encoder,
+				     struct drm_crtc_state *crtc_state,
+				     struct drm_connector_state *conn_state)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc_state);
+	struct mdp5_interface *intf = mdp5_encoder->intf;
+	struct mdp5_ctl *ctl = mdp5_encoder->ctl;
+
+	mdp5_cstate->ctl = ctl;
+	mdp5_cstate->pipeline.intf = intf;
+
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs mdp5_encoder_helper_funcs = {
 	.mode_set = mdp5_encoder_mode_set,
 	.disable = mdp5_encoder_disable,
 	.enable = mdp5_encoder_enable,
+	.atomic_check = mdp5_encoder_atomic_check,
 };
 
 int mdp5_encoder_get_linecount(struct drm_encoder *encoder)
