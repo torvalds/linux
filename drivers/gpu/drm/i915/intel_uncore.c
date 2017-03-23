@@ -55,8 +55,7 @@ static inline void
 fw_domain_reset(struct drm_i915_private *i915,
 		const struct intel_uncore_forcewake_domain *d)
 {
-	WARN_ON(!i915_mmio_reg_valid(d->reg_set));
-	__raw_i915_write32(i915, d->reg_set, d->val_reset);
+	__raw_i915_write32(i915, d->reg_set, i915->uncore.fw_reset);
 }
 
 static inline void
@@ -70,7 +69,7 @@ fw_domain_arm_timer(struct intel_uncore_forcewake_domain *d)
 }
 
 static inline void
-fw_domain_wait_ack_clear(struct drm_i915_private *i915,
+fw_domain_wait_ack_clear(const struct drm_i915_private *i915,
 			 const struct intel_uncore_forcewake_domain *d)
 {
 	if (wait_for_atomic((__raw_i915_read32(i915, d->reg_ack) &
@@ -84,11 +83,11 @@ static inline void
 fw_domain_get(struct drm_i915_private *i915,
 	      const struct intel_uncore_forcewake_domain *d)
 {
-	__raw_i915_write32(i915, d->reg_set, d->val_set);
+	__raw_i915_write32(i915, d->reg_set, i915->uncore.fw_set);
 }
 
 static inline void
-fw_domain_wait_ack(struct drm_i915_private *i915,
+fw_domain_wait_ack(const struct drm_i915_private *i915,
 		   const struct intel_uncore_forcewake_domain *d)
 {
 	if (wait_for_atomic((__raw_i915_read32(i915, d->reg_ack) &
@@ -99,10 +98,10 @@ fw_domain_wait_ack(struct drm_i915_private *i915,
 }
 
 static inline void
-fw_domain_put(struct drm_i915_private *i915,
+fw_domain_put(const struct drm_i915_private *i915,
 	      const struct intel_uncore_forcewake_domain *d)
 {
-	__raw_i915_write32(i915, d->reg_set, d->val_clear);
+	__raw_i915_write32(i915, d->reg_set, i915->uncore.fw_clear);
 }
 
 static void
@@ -1139,20 +1138,12 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 
 	WARN_ON(d->wake_count);
 
+	WARN_ON(!i915_mmio_reg_valid(reg_set));
+	WARN_ON(!i915_mmio_reg_valid(reg_ack));
+
 	d->wake_count = 0;
 	d->reg_set = reg_set;
 	d->reg_ack = reg_ack;
-
-	if (IS_GEN6(dev_priv)) {
-		d->val_reset = 0;
-		d->val_set = FORCEWAKE_KERNEL;
-		d->val_clear = 0;
-	} else {
-		/* WaRsClearFWBitsAtReset:bdw,skl */
-		d->val_reset = _MASKED_BIT_DISABLE(0xffff);
-		d->val_set = _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL);
-		d->val_clear = _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL);
-	}
 
 	d->id = domain_id;
 
@@ -1165,7 +1156,7 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 	hrtimer_init(&d->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	d->timer.function = intel_uncore_fw_release_timer;
 
-	dev_priv->uncore.fw_domains |= (1 << domain_id);
+	dev_priv->uncore.fw_domains |= BIT(domain_id);
 
 	fw_domain_reset(dev_priv, d);
 }
@@ -1174,6 +1165,17 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 {
 	if (INTEL_GEN(dev_priv) <= 5 || intel_vgpu_active(dev_priv))
 		return;
+
+	if (IS_GEN6(dev_priv)) {
+		dev_priv->uncore.fw_reset = 0;
+		dev_priv->uncore.fw_set = FORCEWAKE_KERNEL;
+		dev_priv->uncore.fw_clear = 0;
+	} else {
+		/* WaRsClearFWBitsAtReset:bdw,skl */
+		dev_priv->uncore.fw_reset = _MASKED_BIT_DISABLE(0xffff);
+		dev_priv->uncore.fw_set = _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL);
+		dev_priv->uncore.fw_clear = _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL);
+	}
 
 	if (IS_GEN9(dev_priv)) {
 		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;

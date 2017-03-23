@@ -774,16 +774,17 @@ struct intel_uncore {
 	enum forcewake_domains fw_domains;
 	enum forcewake_domains fw_domains_active;
 
+	u32 fw_set;
+	u32 fw_clear;
+	u32 fw_reset;
+
 	struct intel_uncore_forcewake_domain {
 		enum forcewake_domain_id id;
 		enum forcewake_domains mask;
 		unsigned wake_count;
 		struct hrtimer timer;
 		i915_reg_t reg_set;
-		u32 val_set;
-		u32 val_clear;
 		i915_reg_t reg_ack;
-		u32 val_reset;
 	} fw_domain[FW_DOMAIN_ID_COUNT];
 
 	int unclaimed_mmio_check;
@@ -3956,14 +3957,14 @@ u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
 
 #define __raw_read(x, s) \
-static inline uint##x##_t __raw_i915_read##x(struct drm_i915_private *dev_priv, \
+static inline uint##x##_t __raw_i915_read##x(const struct drm_i915_private *dev_priv, \
 					     i915_reg_t reg) \
 { \
 	return read##s(dev_priv->regs + i915_mmio_reg_offset(reg)); \
 }
 
 #define __raw_write(x, s) \
-static inline void __raw_i915_write##x(struct drm_i915_private *dev_priv, \
+static inline void __raw_i915_write##x(const struct drm_i915_private *dev_priv, \
 				       i915_reg_t reg, uint##x##_t val) \
 { \
 	write##s(val, dev_priv->regs + i915_mmio_reg_offset(reg)); \
