@@ -1930,13 +1930,13 @@ static void
 bfa_ioc_send_enable(struct bfa_ioc *ioc)
 {
 	struct bfi_ioc_ctrl_req enable_req;
-	struct timeval tv;
 
 	bfi_h2i_set(enable_req.mh, BFI_MC_IOC, BFI_IOC_H2I_ENABLE_REQ,
 		    bfa_ioc_portid(ioc));
 	enable_req.clscode = htons(ioc->clscode);
-	do_gettimeofday(&tv);
-	enable_req.tv_sec = ntohl(tv.tv_sec);
+	enable_req.rsvd = htons(0);
+	/* overflow in 2106 */
+	enable_req.tv_sec = ntohl(ktime_get_real_seconds());
 	bfa_ioc_mbox_send(ioc, &enable_req, sizeof(struct bfi_ioc_ctrl_req));
 }
 
@@ -1947,6 +1947,10 @@ bfa_ioc_send_disable(struct bfa_ioc *ioc)
 
 	bfi_h2i_set(disable_req.mh, BFI_MC_IOC, BFI_IOC_H2I_DISABLE_REQ,
 		    bfa_ioc_portid(ioc));
+	disable_req.clscode = htons(ioc->clscode);
+	disable_req.rsvd = htons(0);
+	/* overflow in 2106 */
+	disable_req.tv_sec = ntohl(ktime_get_real_seconds());
 	bfa_ioc_mbox_send(ioc, &disable_req, sizeof(struct bfi_ioc_ctrl_req));
 }
 
