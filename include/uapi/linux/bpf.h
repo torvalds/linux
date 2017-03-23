@@ -465,6 +465,12 @@ union bpf_attr {
  *     @skb: pointer to skb
  *     Return: 8 Bytes non-decreasing number on success or 0 if the socket
  *     field is missing inside sk_buff
+ *
+ * u32 bpf_get_socket_uid(skb)
+ *     Get the owner uid of the socket stored inside sk_buff.
+ *     @skb: pointer to skb
+ *     Return: uid of the socket owner on success or 0 if the socket pointer
+ *     inside sk_buff is NULL
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -513,7 +519,8 @@ union bpf_attr {
 	FN(skb_change_head),		\
 	FN(xdp_adjust_head),		\
 	FN(probe_read_str),		\
-	FN(get_socket_cookie),
+	FN(get_socket_cookie),		\
+	FN(get_socket_uid),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
