@@ -32,13 +32,6 @@
 #define CTL_STAT_BUSY		0x1
 #define CTL_STAT_BOOKED	0x2
 
-struct op_mode {
-	struct mdp5_interface *intf;
-
-	bool encoder_enabled;
-	uint32_t start_mask;
-};
-
 struct mdp5_ctl {
 	struct mdp5_ctl_manager *ctlm;
 
@@ -49,7 +42,10 @@ struct mdp5_ctl {
 	u32 status;
 
 	/* Operation Mode Configuration for the Pipeline */
-	struct op_mode pipeline;
+	struct mdp5_interface *intf;
+
+	bool encoder_enabled;
+	uint32_t start_mask;
 
 	/* REG_MDP5_CTL_*(<id>) registers access info + lock: */
 	spinlock_t hw_lock;
@@ -181,10 +177,10 @@ int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl, struct mdp5_interface *intf,
 	struct mdp5_kms *mdp5_kms = get_kms(ctl_mgr);
 
 	ctl->mixer = mixer;
-	ctl->pipeline.intf = intf;
+	ctl->intf = intf;
 
-	ctl->pipeline.start_mask = mdp_ctl_flush_mask_lm(mixer->lm) |
-				   mdp_ctl_flush_mask_encoder(intf);
+	ctl->start_mask = mdp_ctl_flush_mask_lm(mixer->lm) |
+			  mdp_ctl_flush_mask_encoder(intf);
 
 	/* Virtual interfaces need not set a display intf (e.g.: Writeback) */
 	if (!mdp5_cfg_intf_is_virtual(intf->type))
@@ -197,16 +193,14 @@ int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl, struct mdp5_interface *intf,
 
 static bool start_signal_needed(struct mdp5_ctl *ctl)
 {
-	struct op_mode *pipeline = &ctl->pipeline;
-
-	if (!pipeline->encoder_enabled || pipeline->start_mask != 0)
+	if (!ctl->encoder_enabled || ctl->start_mask != 0)
 		return false;
 
-	switch (pipeline->intf->type) {
+	switch (ctl->intf->type) {
 	case INTF_WB:
 		return true;
 	case INTF_DSI:
-		return pipeline->intf->mode == MDP5_INTF_DSI_MODE_COMMAND;
+		return ctl->intf->mode == MDP5_INTF_DSI_MODE_COMMAND;
 	default:
 		return false;
 	}
@@ -230,17 +224,16 @@ static void send_start_signal(struct mdp5_ctl *ctl)
 
 static void refill_start_mask(struct mdp5_ctl *ctl)
 {
-	struct op_mode *pipeline = &ctl->pipeline;
-	struct mdp5_interface *intf = pipeline->intf;
+	struct mdp5_interface *intf = ctl->intf;
 
-	pipeline->start_mask = mdp_ctl_flush_mask_lm(ctl->mixer->lm);
+	ctl->start_mask = mdp_ctl_flush_mask_lm(ctl->mixer->lm);
 
 	/*
 	 * Writeback encoder needs to program & flush
 	 * address registers for each page flip..
 	 */
 	if (intf->type == INTF_WB)
-		pipeline->start_mask |= mdp_ctl_flush_mask_encoder(intf);
+		ctl->start_mask |= mdp_ctl_flush_mask_encoder(intf);
 }
 
 /**
@@ -256,8 +249,8 @@ int mdp5_ctl_set_encoder_state(struct mdp5_ctl *ctl, bool enabled)
 	if (WARN_ON(!ctl))
 		return -EINVAL;
 
-	ctl->pipeline.encoder_enabled = enabled;
-	DBG("intf_%d: %s", ctl->pipeline.intf->num, enabled ? "on" : "off");
+	ctl->encoder_enabled = enabled;
+	DBG("intf_%d: %s", ctl->intf->num, enabled ? "on" : "off");
 
 	if (start_signal_needed(ctl)) {
 		send_start_signal(ctl);
@@ -495,15 +488,14 @@ static void fix_for_single_flush(struct mdp5_ctl *ctl, u32 *flush_mask,
 u32 mdp5_ctl_commit(struct mdp5_ctl *ctl, u32 flush_mask)
 {
 	struct mdp5_ctl_manager *ctl_mgr = ctl->ctlm;
-	struct op_mode *pipeline = &ctl->pipeline;
 	unsigned long flags;
 	u32 flush_id = ctl->id;
 	u32 curr_ctl_flush_mask;
 
-	pipeline->start_mask &= ~flush_mask;
+	ctl->start_mask &= ~flush_mask;
 
 	VERB("flush_mask=%x, start_mask=%x, trigger=%x", flush_mask,
-			pipeline->start_mask, ctl->pending_ctl_trigger);
+			ctl->start_mask, ctl->pending_ctl_trigger);
 
 	if (ctl->pending_ctl_trigger & flush_mask) {
 		flush_mask |= MDP5_CTL_FLUSH_CTL;
