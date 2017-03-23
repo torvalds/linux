@@ -101,10 +101,10 @@ static inline u32 xgene_get_reg_bits(u32 var, int pos, int len)
 struct xge_pdata;
 
 void xge_mac_reset(struct xge_pdata *pdata);
+void xge_mac_set_speed(struct xge_pdata *pdata);
 void xge_mac_enable(struct xge_pdata *pdata);
 void xge_mac_disable(struct xge_pdata *pdata);
 void xge_mac_init(struct xge_pdata *pdata);
-int xge_port_init(struct net_device *ndev);
 void xge_mac_set_station_addr(struct xge_pdata *pdata);
 
 #endif /* __XGENE_ENET_V2_MAC_H__ */

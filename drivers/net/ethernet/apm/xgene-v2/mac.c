@@ -27,7 +27,7 @@ void xge_mac_reset(struct xge_pdata *pdata)
 	xge_wr_csr(pdata, MAC_CONFIG_1, 0);
 }
 
-static void xge_mac_set_speed(struct xge_pdata *pdata)
+void xge_mac_set_speed(struct xge_pdata *pdata)
 {
 	u32 icm0, icm2, ecm0, mc2;
 	u32 intf_ctrl, rgmii;

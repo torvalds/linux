@@ -28,6 +28,7 @@
 #define CFG_MEM_RAM_SHUTDOWN	0xd070
 #define BLOCK_MEM_RDY		0xd074
 
+#define MEM_RDY			0xffffffff
 #define DEVM_ARAUX_COH		BIT(19)
 #define DEVM_AWAUX_COH		BIT(3)
 
@@ -39,5 +40,6 @@
 void xge_wr_csr(struct xge_pdata *pdata, u32 offset, u32 val);
 u32 xge_rd_csr(struct xge_pdata *pdata, u32 offset);
 int xge_port_reset(struct net_device *ndev);
+void xge_port_init(struct net_device *ndev);
 
 #endif  /* __XGENE_ENET_V2_ENET__H__ */
