@@ -1535,12 +1535,19 @@ static int f2fs_ioc_set_encryption_policy(struct file *filp, unsigned long arg)
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
 	struct f2fs_encryption_policy policy;
 	struct inode *inode = file_inode(filp);
+	int err;
 
 	if (copy_from_user(&policy, (struct f2fs_encryption_policy __user *)arg,
 				sizeof(policy)))
 		return -EFAULT;
 
-	return f2fs_process_policy(&policy, inode);
+	mutex_lock(&inode->i_mutex);
+
+	err = f2fs_process_policy(&policy, inode);
+
+	mutex_unlock(&inode->i_mutex);
+
+	return err;
 #else
 	return -EOPNOTSUPP;
 #endif
