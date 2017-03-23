@@ -669,6 +669,9 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 	u16 len, status;
 	struct bcm_rsb *rsb;
 
+	/* Clear status before servicing to reduce spurious interrupts */
+	intrl2_0_writel(priv, INTRL2_0_RDMA_MBDONE, INTRL2_CPU_CLEAR);
+
 	/* Determine how much we should process since last call, SYSTEMPORT Lite
 	 * groups the producer and consumer indexes into the same 32-bit
 	 * which we access using RDMA_CONS_INDEX
@@ -813,6 +816,13 @@ static unsigned int __bcm_sysport_tx_reclaim(struct bcm_sysport_priv *priv,
 	unsigned int pkts_compl = 0, bytes_compl = 0;
 	struct bcm_sysport_cb *cb;
 	u32 hw_ind;
+
+	/* Clear status before servicing to reduce spurious interrupts */
+	if (!ring->priv->is_lite)
+		intrl2_1_writel(ring->priv, BIT(ring->index), INTRL2_CPU_CLEAR);
+	else
+		intrl2_0_writel(ring->priv, BIT(ring->index +
+				INTRL2_0_TDMA_MBDONE_SHIFT), INTRL2_CPU_CLEAR);
 
 	/* Compute how many descriptors have been processed since last call */
 	hw_ind = tdma_readl(priv, TDMA_DESC_RING_PROD_CONS_INDEX(ring->index));
