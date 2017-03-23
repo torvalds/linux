@@ -53,6 +53,15 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 				mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB),
 				(u32)(value >> 44));
 
+	if (amdgpu_sriov_vf(adev)) {
+		/* MC_VM_FB_LOCATION_BASE/TOP is NULL for VF, becuase they are VF copy registers so
+		vbios post doesn't program them, for SRIOV driver need to program them */
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_FB_LOCATION_BASE),
+				adev->mc.vram_start >> 24);
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_FB_LOCATION_TOP),
+				adev->mc.vram_end >> 24);
+	}
+
 	/* Disable AGP. */
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_AGP_BASE), 0);
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_AGP_TOP), 0);

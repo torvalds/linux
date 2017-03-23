@@ -382,7 +382,9 @@ static int gmc_v9_0_late_init(void *handle)
 static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 					struct amdgpu_mc *mc)
 {
-	u64 base = mmhub_v1_0_get_fb_location(adev);
+	u64 base = 0;
+	if (!amdgpu_sriov_vf(adev))
+		base = mmhub_v1_0_get_fb_location(adev);
 	amdgpu_vram_location(adev, &adev->mc, base);
 	adev->mc.gtt_base_align = 0;
 	amdgpu_gtt_location(adev, mc);
