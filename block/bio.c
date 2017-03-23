@@ -427,7 +427,8 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
  *   RETURNS:
  *   Pointer to new bio on success, NULL on failure.
  */
-struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
+struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned int nr_iovecs,
+			     struct bio_set *bs)
 {
 	gfp_t saved_gfp = gfp_mask;
 	unsigned front_pad;
