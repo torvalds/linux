@@ -856,10 +856,19 @@ ip_dynaddr - BOOLEAN
 ip_early_demux - BOOLEAN
 	Optimize input packet processing down to one demux for
 	certain kinds of local sockets.  Currently we only do this
-	for established TCP sockets.
+	for established TCP and connected UDP sockets.
 
 	It may add an additional cost for pure routing workloads that
 	reduces overall throughput, in such case you should disable it.
+	Default: 1
+
+tcp_early_demux - BOOLEAN
+	Enable early demux for established TCP sockets.
+	Default: 1
+
+udp_early_demux - BOOLEAN
+	Enable early demux for connected UDP sockets. Disable this if
+	your system could experience more unconnected load.
 	Default: 1
 
 icmp_echo_ignore_all - BOOLEAN

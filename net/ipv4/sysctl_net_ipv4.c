@@ -24,6 +24,7 @@
 #include <net/cipso_ipv4.h>
 #include <net/inet_frag.h>
 #include <net/ping.h>
+#include <net/protocol.h>
 
 static int zero;
 static int one = 1;
@@ -291,6 +292,58 @@ bad_key:
 	       user_key[0], user_key[1], user_key[2], user_key[3],
 	       (char *)tbl.data, ret);
 	kfree(tbl.data);
+	return ret;
+}
+
+static void proc_configure_early_demux(int enabled, int protocol)
+{
+	struct net_protocol *ipprot;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct inet6_protocol *ip6prot;
+#endif
+
+	ipprot = rcu_dereference(inet_protos[protocol]);
+	if (ipprot)
+		ipprot->early_demux = enabled ? ipprot->early_demux_handler :
+						NULL;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	ip6prot = rcu_dereference(inet6_protos[protocol]);
+	if (ip6prot)
+		ip6prot->early_demux = enabled ? ip6prot->early_demux_handler :
+						 NULL;
+#endif
+}
+
+static int proc_tcp_early_demux(struct ctl_table *table, int write,
+				void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret = 0;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (write && !ret) {
+		int enabled = init_net.ipv4.sysctl_tcp_early_demux;
+
+		proc_configure_early_demux(enabled, IPPROTO_TCP);
+	}
+
+	return ret;
+}
+
+static int proc_udp_early_demux(struct ctl_table *table, int write,
+				void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret = 0;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (write && !ret) {
+		int enabled = init_net.ipv4.sysctl_udp_early_demux;
+
+		proc_configure_early_demux(enabled, IPPROTO_UDP);
+	}
+
 	return ret;
 }
 
@@ -748,6 +801,20 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname       = "udp_early_demux",
+		.data           = &init_net.ipv4.sysctl_udp_early_demux,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_udp_early_demux
+	},
+	{
+		.procname       = "tcp_early_demux",
+		.data           = &init_net.ipv4.sysctl_tcp_early_demux,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_tcp_early_demux
 	},
 	{
 		.procname	= "ip_default_ttl",

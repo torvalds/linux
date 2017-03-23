@@ -26,7 +26,7 @@
 #include <net/protocol.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
-const struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS] __read_mostly;
+struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS] __read_mostly;
 EXPORT_SYMBOL(inet6_protos);
 
 int inet6_add_protocol(const struct inet6_protocol *prot, unsigned char protocol)
