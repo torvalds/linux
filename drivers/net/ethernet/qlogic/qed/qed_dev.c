@@ -1550,7 +1550,7 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 {
 	u32 *feat_num = p_hwfn->hw_info.feat_num;
 	struct qed_sb_cnt_info sb_cnt_info;
-	int num_features = 1;
+	u32 non_l2_sbs = 0;
 
 	if (IS_ENABLED(CONFIG_QED_RDMA) &&
 	    p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
@@ -1558,15 +1558,16 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 		 * the status blocks equally between L2 / RoCE but with
 		 * consideration as to how many l2 queues / cnqs we have.
 		 */
-		num_features++;
-
 		feat_num[QED_RDMA_CNQ] =
-			min_t(u32, RESC_NUM(p_hwfn, QED_SB) / num_features,
+			min_t(u32, RESC_NUM(p_hwfn, QED_SB) / 2,
 			      RESC_NUM(p_hwfn, QED_RDMA_CNQ_RAM));
+
+		non_l2_sbs = feat_num[QED_RDMA_CNQ];
 	}
 
-	feat_num[QED_PF_L2_QUE] = min_t(u32, RESC_NUM(p_hwfn, QED_SB) /
-						num_features,
+	feat_num[QED_PF_L2_QUE] = min_t(u32,
+					RESC_NUM(p_hwfn, QED_SB) -
+					non_l2_sbs,
 					RESC_NUM(p_hwfn, QED_L2_QUEUE));
 
 	memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
@@ -1578,11 +1579,11 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 
 	DP_VERBOSE(p_hwfn,
 		   NETIF_MSG_PROBE,
-		   "#PF_L2_QUEUES=%d VF_L2_QUEUES=%d #ROCE_CNQ=%d #SBS=%d num_features=%d\n",
+		   "#PF_L2_QUEUES=%d VF_L2_QUEUES=%d #ROCE_CNQ=%d #SBS=%d\n",
 		   (int)FEAT_NUM(p_hwfn, QED_PF_L2_QUE),
 		   (int)FEAT_NUM(p_hwfn, QED_VF_L2_QUE),
 		   (int)FEAT_NUM(p_hwfn, QED_RDMA_CNQ),
-		   RESC_NUM(p_hwfn, QED_SB), num_features);
+		   RESC_NUM(p_hwfn, QED_SB));
 }
 
 static enum resource_id_enum qed_hw_get_mfw_res_id(enum qed_resources res_id)
