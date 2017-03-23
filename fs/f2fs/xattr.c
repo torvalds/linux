@@ -256,7 +256,7 @@ static int lookup_all_xattrs(struct inode *inode, struct page *ipage,
 	if (!size && !inline_size)
 		return -ENODATA;
 
-	txattr_addr = kzalloc(inline_size + size + RESERVED_XATTR_SIZE,
+	txattr_addr = kzalloc(inline_size + size + XATTR_PADDING_SIZE,
 							GFP_F2FS_ZERO);
 	if (!txattr_addr)
 		return -ENOMEM;
@@ -332,7 +332,7 @@ static int read_all_xattrs(struct inode *inode, struct page *ipage,
 	void *txattr_addr;
 	int err;
 
-	txattr_addr = kzalloc(inline_size + size + RESERVED_XATTR_SIZE,
+	txattr_addr = kzalloc(inline_size + size + XATTR_PADDING_SIZE,
 							GFP_F2FS_ZERO);
 	if (!txattr_addr)
 		return -ENOMEM;
@@ -451,7 +451,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 	}
 
 	xattr_addr = page_address(xpage);
-	memcpy(xattr_addr, txattr_addr + inline_size, MAX_XATTR_BLOCK_SIZE);
+	memcpy(xattr_addr, txattr_addr + inline_size, VALID_XATTR_BLOCK_SIZE);
 	set_page_dirty(xpage);
 	f2fs_put_page(xpage, 1);
 
