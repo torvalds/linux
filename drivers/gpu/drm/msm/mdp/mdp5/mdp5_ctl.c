@@ -380,14 +380,18 @@ int mdp5_ctl_blend(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
 
 	for (i = start_stage; stage_cnt && i <= STAGE_MAX; i++) {
 		blend_cfg |=
-			mdp_ctl_blend_mask(stage[i][PIPE_LEFT], i);
+			mdp_ctl_blend_mask(stage[i][PIPE_LEFT], i) |
+			mdp_ctl_blend_mask(stage[i][PIPE_RIGHT], i);
 		blend_ext_cfg |=
-			mdp_ctl_blend_ext_mask(stage[i][PIPE_LEFT], i);
+			mdp_ctl_blend_ext_mask(stage[i][PIPE_LEFT], i) |
+			mdp_ctl_blend_ext_mask(stage[i][PIPE_RIGHT], i);
 		if (r_mixer) {
 			r_blend_cfg |=
-				mdp_ctl_blend_mask(r_stage[i][PIPE_LEFT], i);
+				mdp_ctl_blend_mask(r_stage[i][PIPE_LEFT], i) |
+				mdp_ctl_blend_mask(r_stage[i][PIPE_RIGHT], i);
 			r_blend_ext_cfg |=
-				mdp_ctl_blend_ext_mask(r_stage[i][PIPE_LEFT], i);
+			     mdp_ctl_blend_ext_mask(r_stage[i][PIPE_LEFT], i) |
+			     mdp_ctl_blend_ext_mask(r_stage[i][PIPE_RIGHT], i);
 		}
 	}
 
