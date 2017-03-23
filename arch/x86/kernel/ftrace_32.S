@@ -9,26 +9,68 @@
 #include <asm/ftrace.h>
 
 #ifdef CONFIG_FUNCTION_TRACER
+
+#ifdef CC_USING_FENTRY
+# define function_hook	__fentry__
+EXPORT_SYMBOL(__fentry__)
+#else
+# define function_hook	mcount
+EXPORT_SYMBOL(mcount)
+#endif
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-ENTRY(mcount)
+/* mcount uses a frame pointer even if CONFIG_FRAME_POINTER is not set */
+#if !defined(CC_USING_FENTRY) || defined(CONFIG_FRAME_POINTER)
+# define USING_FRAME_POINTER
+#endif
+
+#ifdef USING_FRAME_POINTER
+# define MCOUNT_FRAME			1	/* using frame = true  */
+#else
+# define MCOUNT_FRAME			0	/* using frame = false */
+#endif
+
+ENTRY(function_hook)
 	ret
-END(mcount)
+END(function_hook)
 
 ENTRY(ftrace_caller)
 
+#ifdef USING_FRAME_POINTER
+# ifdef CC_USING_FENTRY
+	/*
+	 * Frame pointers are of ip followed by bp.
+	 * Since fentry is an immediate jump, we are left with
+	 * parent-ip, function-ip. We need to add a frame with
+	 * parent-ip followed by ebp.
+	 */
+	pushl	4(%esp)				/* parent ip */
 	pushl	%ebp
 	movl	%esp, %ebp
-
+	pushl	2*4(%esp)			/* function ip */
+# endif
+	/* For mcount, the function ip is directly above */
+	pushl	%ebp
+	movl	%esp, %ebp
+#endif
 	pushl	%eax
 	pushl	%ecx
 	pushl	%edx
 	pushl	$0				/* Pass NULL as regs pointer */
-	movl	5*4(%esp), %eax
-	/* Copy original ebp into %edx */
+
+#ifdef USING_FRAME_POINTER
+	/* Load parent ebp into edx */
 	movl	4*4(%esp), %edx
+#else
+	/* There's no frame pointer, load the appropriate stack addr instead */
+	lea	4*4(%esp), %edx
+#endif
+
+	movl	(MCOUNT_FRAME+4)*4(%esp), %eax	/* load the rip */
 	/* Get the parent ip */
-	movl	0x4(%edx), %edx
+	movl	4(%edx), %edx			/* edx has ebp */
+
 	movl	function_trace_op, %ecx
 	subl	$MCOUNT_INSN_SIZE, %eax
 
@@ -40,7 +82,14 @@ ftrace_call:
 	popl	%edx
 	popl	%ecx
 	popl	%eax
+#ifdef USING_FRAME_POINTER
 	popl	%ebp
+# ifdef CC_USING_FENTRY
+	addl	$4,%esp				/* skip function ip */
+	popl	%ebp				/* this is the orig bp */
+	addl	$4, %esp			/* skip parent ip */
+# endif
+#endif
 .Lftrace_ret:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 .globl ftrace_graph_call
@@ -81,6 +130,10 @@ ENTRY(ftrace_regs_caller)
 	pushl	%edx
 	pushl	%ecx
 	pushl	%ebx
+#ifdef CC_USING_FENTRY
+	/* Load 4 off of the parent ip addr into ebp */
+	lea	14*4(%esp), %ebp
+#endif
 
 	movl	12*4(%esp), %eax		/* Load ip (1st parameter) */
 	subl	$MCOUNT_INSN_SIZE, %eax		/* Adjust ip */
@@ -119,7 +172,7 @@ GLOBAL(ftrace_regs_call)
 	jmp	.Lftrace_ret
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
-ENTRY(mcount)
+ENTRY(function_hook)
 	cmpl	$__PAGE_OFFSET, %esp
 	jb	ftrace_stub			/* Paging not enabled yet? */
 
@@ -151,9 +204,8 @@ ftrace_stub:
 	popl	%ecx
 	popl	%eax
 	jmp	ftrace_stub
-END(mcount)
+END(function_hook)
 #endif /* CONFIG_DYNAMIC_FTRACE */
-EXPORT_SYMBOL(mcount)
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -161,9 +213,15 @@ ENTRY(ftrace_graph_caller)
 	pushl	%eax
 	pushl	%ecx
 	pushl	%edx
-	movl	0xc(%esp), %eax
+	movl	3*4(%esp), %eax
+	/* Even with frame pointers, fentry doesn't have one here */
+#ifdef CC_USING_FENTRY
+	lea	4*4(%esp), %edx
+	movl	$0, %ecx
+#else
 	lea	0x4(%ebp), %edx
 	movl	(%ebp), %ecx
+#endif
 	subl	$MCOUNT_INSN_SIZE, %eax
 	call	prepare_ftrace_return
 	popl	%edx
@@ -176,7 +234,11 @@ END(ftrace_graph_caller)
 return_to_handler:
 	pushl	%eax
 	pushl	%edx
+#ifdef CC_USING_FENTRY
+	movl	$0, %eax
+#else
 	movl	%ebp, %eax
+#endif
 	call	ftrace_return_to_handler
 	movl	%eax, %ecx
 	popl	%edx
