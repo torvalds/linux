@@ -73,7 +73,8 @@ struct f2fs_xattr_entry {
 				!IS_XATTR_LAST_ENTRY(entry);\
 				entry = XATTR_NEXT_ENTRY(entry))
 #define MAX_XATTR_BLOCK_SIZE	(PAGE_SIZE - sizeof(struct node_footer))
-#define VALID_XATTR_BLOCK_SIZE	(MAX_XATTR_BLOCK_SIZE - sizeof(__u32))
+#define RESERVED_XATTR_SIZE	(sizeof(__u32))
+#define VALID_XATTR_BLOCK_SIZE	(MAX_XATTR_BLOCK_SIZE - RESERVED_XATTR_SIZE)
 #define MIN_OFFSET(i)		XATTR_ALIGN(inline_xattr_size(i) +	\
 						VALID_XATTR_BLOCK_SIZE)
 
