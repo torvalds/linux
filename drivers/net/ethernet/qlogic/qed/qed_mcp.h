@@ -516,8 +516,10 @@ struct qed_mcp_info {
 struct qed_mcp_mb_params {
 	u32			cmd;
 	u32			param;
-	union drv_union_data	*p_data_src;
-	union drv_union_data	*p_data_dst;
+	void			*p_data_src;
+	u8			data_src_size;
+	void			*p_data_dst;
+	u8			data_dst_size;
 	u32			mcp_resp;
 	u32			mcp_param;
 };
