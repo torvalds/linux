@@ -112,13 +112,19 @@
 			interrupts = <7>;
 			bus-width = <4>;
 		};
+	};
 
-		/* Embedded Vision subsystem UIO mappings; only relevant for EV VDK */
-		uio_ev: uio@0xD0000000 {
-			compatible = "generic-uio";
-			reg = <0xD0000000 0x2000 0xD1000000 0x2000 0x90000000 0x10000000 0xC0000000 0x10000000>;
-			reg-names = "ev_gsa", "ev_ctrl", "ev_shared_mem", "ev_code_mem";
-			interrupts = <23>;
-		};
+	/*
+	 * Embedded Vision subsystem UIO mappings; only relevant for EV VDK
+	 *
+	 * This node is intentionally put outside of MB above becase
+	 * it maps areas outside of MB's 0xEz-0xFz.
+	 */
+	uio_ev: uio@0xD0000000 {
+		compatible = "generic-uio";
+		reg = <0xD0000000 0x2000 0xD1000000 0x2000 0x90000000 0x10000000 0xC0000000 0x10000000>;
+		reg-names = "ev_gsa", "ev_ctrl", "ev_shared_mem", "ev_code_mem";
+		interrupt-parent = <&mb_intc>;
+		interrupts = <23>;
 	};
 };
