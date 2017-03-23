@@ -84,6 +84,7 @@
 /* Stride register offsets relative to Lx_BASE */
 #define MALIDP_DE_LG_STRIDE		0x18
 #define MALIDP_DE_LV_STRIDE0		0x18
+#define MALIDP550_DE_LS_R1_STRIDE	0x28
 
 /* macros to set values into registers */
 #define MALIDP_DE_H_FRONTPORCH(x)	(((x) & 0xfff) << 0)
