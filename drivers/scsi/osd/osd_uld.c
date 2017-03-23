@@ -524,10 +524,9 @@ static int osd_remove(struct device *dev)
 	struct scsi_device *scsi_device = to_scsi_device(dev);
 	struct osd_uld_device *oud = dev_get_drvdata(dev);
 
-	if (!oud || (oud->od.scsi_device != scsi_device)) {
-		OSD_ERR("Half cooked osd-device %p,%p || %p!=%p",
-			dev, oud, oud ? oud->od.scsi_device : NULL,
-			scsi_device);
+	if (oud->od.scsi_device != scsi_device) {
+		OSD_ERR("Half cooked osd-device %p, || %p!=%p",
+			dev, oud->od.scsi_device, scsi_device);
 	}
 
 	device_unregister(&oud->class_dev);
