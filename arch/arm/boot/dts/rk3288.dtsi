@@ -1466,6 +1466,9 @@
 		power-domains = <&power RK3288_PD_GPU>;
 		status = "disabled";
 
+		upthreshold = <75>;
+		downdifferential = <10>;
+
 		gpu_power_model: power_model {
 			compatible = "arm,mali-simple-power-model";
 			voltage = <950>;
