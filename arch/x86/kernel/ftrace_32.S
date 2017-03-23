@@ -16,12 +16,19 @@ ENTRY(mcount)
 END(mcount)
 
 ENTRY(ftrace_caller)
+
+	pushl	%ebp
+	movl	%esp, %ebp
+
 	pushl	%eax
 	pushl	%ecx
 	pushl	%edx
 	pushl	$0				/* Pass NULL as regs pointer */
-	movl	4*4(%esp), %eax
-	movl	0x4(%ebp), %edx
+	movl	5*4(%esp), %eax
+	/* Copy original ebp into %edx */
+	movl	4*4(%esp), %edx
+	/* Get the parent ip */
+	movl	0x4(%edx), %edx
 	movl	function_trace_op, %ecx
 	subl	$MCOUNT_INSN_SIZE, %eax
 
@@ -33,6 +40,7 @@ ftrace_call:
 	popl	%edx
 	popl	%ecx
 	popl	%eax
+	popl	%ebp
 .Lftrace_ret:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 .globl ftrace_graph_call
