@@ -31,19 +31,29 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 	unsigned int tmp;
 	arch_spinlock_t lockval;
 
+	/*
+	 * Ensure prior spin_lock operations to other locks have completed
+	 * on this CPU before we test whether "lock" is locked.
+	 */
+	smp_mb();
+
 	asm volatile(
 "	sevl\n"
 "1:	wfe\n"
 "2:	ldaxr	%w0, %2\n"
 "	eor	%w1, %w0, %w0, ror #16\n"
 "	cbnz	%w1, 1b\n"
+	/* Serialise against any concurrent lockers */
 	ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
 "	stxr	%w1, %w0, %2\n"
-"	cbnz	%w1, 2b\n", /* Serialise against any concurrent lockers */
-	/* LSE atomics */
 "	nop\n"
-"	nop\n")
+"	nop\n",
+	/* LSE atomics */
+"	mov	%w1, %w0\n"
+"	cas	%w0, %w0, %2\n"
+"	eor	%w1, %w1, %w0\n")
+"	cbnz	%w1, 2b\n"
 	: "=&r" (lockval), "=&r" (tmp), "+Q" (*lock)
 	:
 	: "memory");
@@ -148,6 +158,7 @@ static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
 
 static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 {
+	smp_mb(); /* See arch_spin_unlock_wait */
 	return !arch_spin_value_unlocked(READ_ONCE(*lock));
 }
 
