@@ -1739,9 +1739,9 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring, void *sr
 	if (ring->count_dw < count_dw) {
 		DRM_ERROR("amdgpu: writing more dwords to the ring than expected!\n");
 	} else {
-		occupied = ring->wptr & ring->ptr_mask;
+		occupied = ring->wptr & ring->buf_mask;
 		dst = (void *)&ring->ring[occupied];
-		chunk1 = ring->ptr_mask + 1 - occupied;
+		chunk1 = ring->buf_mask + 1 - occupied;
 		chunk1 = (chunk1 >= count_dw) ? count_dw: chunk1;
 		chunk2 = count_dw - chunk1;
 		chunk1 <<= 2;
