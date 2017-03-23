@@ -102,14 +102,18 @@ static void mxsfb_pipe_enable(struct drm_simple_display_pipe *pipe,
 {
 	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
 
+	drm_panel_prepare(mxsfb->panel);
 	mxsfb_crtc_enable(mxsfb);
+	drm_panel_enable(mxsfb->panel);
 }
 
 static void mxsfb_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
 
+	drm_panel_disable(mxsfb->panel);
 	mxsfb_crtc_disable(mxsfb);
+	drm_panel_unprepare(mxsfb->panel);
 }
 
 static void mxsfb_pipe_update(struct drm_simple_display_pipe *pipe,

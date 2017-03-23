@@ -336,7 +336,6 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 		if (likely((port < TOTAL_NUMBER_OF_PORTS) &&
 			   cvm_oct_device[port])) {
 			struct net_device *dev = cvm_oct_device[port];
-			struct octeon_ethernet *priv = netdev_priv(dev);
 
 			/*
 			 * Only accept packets for devices that are

@@ -571,6 +571,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6102 Bad state IO x%x aborted\n",
 				ctxp->oxid);
+		rc = -ENXIO;
 		goto aerr;
 	}
 
@@ -580,6 +581,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6152 FCP Drop IO x%x: Prep\n",
 				ctxp->oxid);
+		rc = -ENXIO;
 		goto aerr;
 	}
 
@@ -618,8 +620,9 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	ctxp->wqeq->hba_wqidx = 0;
 	nvmewqeq->context2 = NULL;
 	nvmewqeq->context3 = NULL;
+	rc = -EBUSY;
 aerr:
-	return -ENXIO;
+	return rc;
 }
 
 static void
@@ -668,9 +671,13 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 	lpfc_tgttemplate.target_features = NVMET_FCTGTFEAT_READDATA_RSP |
 					   NVMET_FCTGTFEAT_NEEDS_CMD_CPUSCHED;
 
+#ifdef CONFIG_LPFC_NVME_TARGET
 	error = nvmet_fc_register_targetport(&pinfo, &lpfc_tgttemplate,
 					     &phba->pcidev->dev,
 					     &phba->targetport);
+#else
+	error = -ENOMEM;
+#endif
 	if (error) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC,
 				"6025 Cannot register NVME targetport "
@@ -731,9 +738,25 @@ lpfc_nvmet_update_targetport(struct lpfc_hba *phba)
 	return 0;
 }
 
+/**
+ * lpfc_sli4_nvmet_xri_aborted - Fast-path process of nvmet xri abort
+ * @phba: pointer to lpfc hba data structure.
+ * @axri: pointer to the nvmet xri abort wcqe structure.
+ *
+ * This routine is invoked by the worker thread to process a SLI4 fast-path
+ * NVMET aborted xri.
+ **/
+void
+lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
+			    struct sli4_wcqe_xri_aborted *axri)
+{
+	/* TODO: work in progress */
+}
+
 void
 lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
 {
+#ifdef CONFIG_LPFC_NVME_TARGET
 	struct lpfc_nvmet_tgtport *tgtp;
 
 	if (phba->nvmet_support == 0)
@@ -745,6 +768,7 @@ lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
 		wait_for_completion_timeout(&tgtp->tport_unreg_done, 5);
 	}
 	phba->targetport = NULL;
+#endif
 }
 
 /**
@@ -764,6 +788,7 @@ static void
 lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			   struct hbq_dmabuf *nvmebuf)
 {
+#ifdef CONFIG_LPFC_NVME_TARGET
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct fc_frame_header *fc_hdr;
 	struct lpfc_nvmet_rcv_ctx *ctxp;
@@ -844,6 +869,7 @@ dropit:
 
 	atomic_inc(&tgtp->xmt_ls_abort);
 	lpfc_nvmet_unsol_ls_issue_abort(phba, ctxp, sid, oxid);
+#endif
 }
 
 /**
@@ -865,6 +891,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 			    struct rqb_dmabuf *nvmebuf,
 			    uint64_t isr_timestamp)
 {
+#ifdef CONFIG_LPFC_NVME_TARGET
 	struct lpfc_nvmet_rcv_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct fc_frame_header *fc_hdr;
@@ -955,7 +982,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 
 	atomic_inc(&tgtp->rcv_fcp_cmd_drop);
 	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-			"6159 FCP Drop IO x%x: nvmet_fc_rcv_fcp_req x%x\n",
+			"6159 FCP Drop IO x%x: err x%x\n",
 			ctxp->oxid, rc);
 dropit:
 	lpfc_nvmeio_data(phba, "NVMET FCP DROP: xri x%x sz %d from %06x\n",
@@ -970,6 +997,7 @@ dropit:
 		/* We assume a rcv'ed cmd ALWAYs fits into 1 buffer */
 		lpfc_nvmet_rq_post(phba, NULL, &nvmebuf->hbuf);
 	}
+#endif
 }
 
 /**
@@ -1114,7 +1142,7 @@ lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *phba,
 	bf_set(wqe_dfctl, &wqe->xmit_sequence.wge_ctl, 0);
 	bf_set(wqe_ls, &wqe->xmit_sequence.wge_ctl, 1);
 	bf_set(wqe_la, &wqe->xmit_sequence.wge_ctl, 0);
-	bf_set(wqe_rctl, &wqe->xmit_sequence.wge_ctl, FC_RCTL_DD_SOL_CTL);
+	bf_set(wqe_rctl, &wqe->xmit_sequence.wge_ctl, FC_RCTL_ELS4_REP);
 	bf_set(wqe_type, &wqe->xmit_sequence.wge_ctl, FC_TYPE_NVME);
 
 	/* Word 6 */
@@ -1445,7 +1473,6 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 
 	case NVMET_FCOP_RSP:
 		/* Words 0 - 2 */
-		sgel = &rsp->sg[0];
 		physaddr = rsp->rspdma;
 		wqe->fcp_trsp.bde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
 		wqe->fcp_trsp.bde.tus.f.bdeSize = rsp->rsplen;
@@ -1681,8 +1708,8 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
 	struct lpfc_nodelist *ndlp;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-			"6067 %s: Entrypoint: sid %x xri %x\n", __func__,
-			sid, xri);
+			"6067 Abort: sid %x xri x%x/x%x\n",
+			sid, xri, ctxp->wqeq->sli4_xritag);
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 
@@ -1693,7 +1720,7 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_WARNING, LOG_NVME_ABTS,
 				"6134 Drop ABTS - wrong NDLP state x%x.\n",
-				ndlp->nlp_state);
+				(ndlp) ? ndlp->nlp_state : NLP_STE_MAX_STATE);
 
 		/* No failure to an ABTS request. */
 		return 0;
@@ -1791,7 +1818,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_WARNING, LOG_NVME_ABTS,
 				"6160 Drop ABTS - wrong NDLP state x%x.\n",
-				ndlp->nlp_state);
+				(ndlp) ? ndlp->nlp_state : NLP_STE_MAX_STATE);
 
 		/* No failure to an ABTS request. */
 		return 0;

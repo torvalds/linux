@@ -751,7 +751,9 @@ void __init hpte_init_pseries(void)
 	mmu_hash_ops.flush_hash_range	 = pSeries_lpar_flush_hash_range;
 	mmu_hash_ops.hpte_clear_all      = pseries_hpte_clear_all;
 	mmu_hash_ops.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
-	mmu_hash_ops.resize_hpt		 = pseries_lpar_resize_hpt;
+
+	if (firmware_has_feature(FW_FEATURE_HPT_RESIZE))
+		mmu_hash_ops.resize_hpt = pseries_lpar_resize_hpt;
 }
 
 void radix_init_pseries(void)

@@ -133,7 +133,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info, struct plugin_gc
 #if BUILDING_GCC_VERSION < 6000
 	register_callback(plugin_name, PLUGIN_START_UNIT, &sancov_start_unit, NULL);
 	register_callback(plugin_name, PLUGIN_REGISTER_GGC_ROOTS, NULL, (void *)&gt_ggc_r_gt_sancov);
-	register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &sancov_plugin_pass_info);
+	register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, NULL, &sancov_pass_info);
 #endif
 
 	return 0;

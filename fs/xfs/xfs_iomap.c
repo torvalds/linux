@@ -630,6 +630,11 @@ retry:
 		goto out_unlock;
 	}
 
+	/*
+	 * Flag newly allocated delalloc blocks with IOMAP_F_NEW so we punch
+	 * them out if the write happens to fail.
+	 */
+	iomap->flags = IOMAP_F_NEW;
 	trace_xfs_iomap_alloc(ip, offset, count, 0, &got);
 done:
 	if (isnullstartblock(got.br_startblock))
@@ -1071,16 +1076,22 @@ xfs_file_iomap_end_delalloc(
 	struct xfs_inode	*ip,
 	loff_t			offset,
 	loff_t			length,
-	ssize_t			written)
+	ssize_t			written,
+	struct iomap		*iomap)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		start_fsb;
 	xfs_fileoff_t		end_fsb;
 	int			error = 0;
 
-	/* behave as if the write failed if drop writes is enabled */
-	if (xfs_mp_drop_writes(mp))
+	/*
+	 * Behave as if the write failed if drop writes is enabled. Set the NEW
+	 * flag to force delalloc cleanup.
+	 */
+	if (xfs_mp_drop_writes(mp)) {
+		iomap->flags |= IOMAP_F_NEW;
 		written = 0;
+	}
 
 	/*
 	 * start_fsb refers to the first unused block after a short write. If
@@ -1094,14 +1105,14 @@ xfs_file_iomap_end_delalloc(
 	end_fsb = XFS_B_TO_FSB(mp, offset + length);
 
 	/*
-	 * Trim back delalloc blocks if we didn't manage to write the whole
-	 * range reserved.
+	 * Trim delalloc blocks if they were allocated by this write and we
+	 * didn't manage to write the whole range.
 	 *
 	 * We don't need to care about racing delalloc as we hold i_mutex
 	 * across the reserve/allocate/unreserve calls. If there are delalloc
 	 * blocks in the range, they are ours.
 	 */
-	if (start_fsb < end_fsb) {
+	if ((iomap->flags & IOMAP_F_NEW) && start_fsb < end_fsb) {
 		truncate_pagecache_range(VFS_I(ip), XFS_FSB_TO_B(mp, start_fsb),
 					 XFS_FSB_TO_B(mp, end_fsb) - 1);
 
@@ -1131,7 +1142,7 @@ xfs_file_iomap_end(
 {
 	if ((flags & IOMAP_WRITE) && iomap->type == IOMAP_DELALLOC)
 		return xfs_file_iomap_end_delalloc(XFS_I(inode), offset,
-				length, written);
+				length, written, iomap);
 	return 0;
 }
 
