@@ -225,6 +225,7 @@ static void blend_setup(struct drm_crtc *crtc)
 	int i, plane_cnt = 0;
 	bool bg_alpha_enabled = false;
 	u32 mixer_op_mode = 0;
+	u32 val;
 #define blender(stage)	((stage) - STAGE0)
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
@@ -324,10 +325,14 @@ static void blend_setup(struct drm_crtc *crtc)
 		}
 	}
 
-	mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(lm), mixer_op_mode);
-	if (r_mixer)
+	val = mdp5_read(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(lm));
+	mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(lm),
+		   val | mixer_op_mode);
+	if (r_mixer) {
+		val = mdp5_read(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(r_lm));
 		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(r_lm),
-			   mixer_op_mode);
+			   val | mixer_op_mode);
+	}
 
 	mdp5_ctl_blend(ctl, pipeline, stage, r_stage, plane_cnt,
 		       ctl_blend_flags);
@@ -343,6 +348,7 @@ static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct mdp5_hw_mixer *mixer = mdp5_cstate->pipeline.mixer;
 	struct mdp5_hw_mixer *r_mixer = mdp5_cstate->pipeline.r_mixer;
 	uint32_t lm = mixer->lm;
+	u32 mixer_width, val;
 	unsigned long flags;
 	struct drm_display_mode *mode;
 
@@ -360,14 +366,33 @@ static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 			mode->vsync_end, mode->vtotal,
 			mode->type, mode->flags);
 
+	mixer_width = mode->hdisplay;
+	if (r_mixer)
+		mixer_width /= 2;
+
 	spin_lock_irqsave(&mdp5_crtc->lm_lock, flags);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_OUT_SIZE(lm),
-			MDP5_LM_OUT_SIZE_WIDTH(mode->hdisplay) |
+			MDP5_LM_OUT_SIZE_WIDTH(mixer_width) |
 			MDP5_LM_OUT_SIZE_HEIGHT(mode->vdisplay));
-	if (r_mixer)
-		mdp5_write(mdp5_kms, REG_MDP5_LM_OUT_SIZE(r_mixer->lm),
-			   MDP5_LM_OUT_SIZE_WIDTH(mode->hdisplay) |
+
+	/* Assign mixer to LEFT side in source split mode */
+	val = mdp5_read(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(lm));
+	val &= ~MDP5_LM_BLEND_COLOR_OUT_SPLIT_LEFT_RIGHT;
+	mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(lm), val);
+
+	if (r_mixer) {
+		u32 r_lm = r_mixer->lm;
+
+		mdp5_write(mdp5_kms, REG_MDP5_LM_OUT_SIZE(r_lm),
+			   MDP5_LM_OUT_SIZE_WIDTH(mixer_width) |
 			   MDP5_LM_OUT_SIZE_HEIGHT(mode->vdisplay));
+
+		/* Assign mixer to RIGHT side in source split mode */
+		val = mdp5_read(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(r_lm));
+		val |= MDP5_LM_BLEND_COLOR_OUT_SPLIT_LEFT_RIGHT;
+		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(r_lm), val);
+	}
+
 	spin_unlock_irqrestore(&mdp5_crtc->lm_lock, flags);
 }
 
