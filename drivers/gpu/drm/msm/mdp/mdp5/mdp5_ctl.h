@@ -46,6 +46,8 @@ int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
 			int cursor_id, bool enable);
 int mdp5_ctl_pair(struct mdp5_ctl *ctlx, struct mdp5_ctl *ctly, bool enable);
 
+#define MAX_PIPE_STAGE		2
+
 /*
  * mdp5_ctl_blend() - Blend multiple layers on a Layer Mixer (LM)
  *
@@ -59,8 +61,9 @@ int mdp5_ctl_pair(struct mdp5_ctl *ctlx, struct mdp5_ctl *ctly, bool enable);
  */
 #define MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT	BIT(0)
 int mdp5_ctl_blend(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
-		   enum mdp5_pipe *stage, u32 stage_cnt,
-		   u32 ctl_blend_op_flags);
+		   enum mdp5_pipe stage[][MAX_PIPE_STAGE],
+		   enum mdp5_pipe r_stage[][MAX_PIPE_STAGE],
+		   u32 stage_cnt, u32 ctl_blend_op_flags);
 
 /**
  * mdp_ctl_flush_mask...() - Register FLUSH masks

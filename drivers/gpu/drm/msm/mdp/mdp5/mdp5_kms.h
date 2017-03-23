@@ -119,6 +119,7 @@ struct mdp5_plane_state {
 struct mdp5_pipeline {
 	struct mdp5_interface *intf;
 	struct mdp5_hw_mixer *mixer;
+	struct mdp5_hw_mixer *r_mixer;	/* right mixer */
 };
 
 struct mdp5_crtc_state {

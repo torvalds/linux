@@ -172,9 +172,12 @@ int mdp5_ctl_set_pipeline(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline)
 	struct mdp5_kms *mdp5_kms = get_kms(ctl_mgr);
 	struct mdp5_interface *intf = pipeline->intf;
 	struct mdp5_hw_mixer *mixer = pipeline->mixer;
+	struct mdp5_hw_mixer *r_mixer = pipeline->r_mixer;
 
 	ctl->start_mask = mdp_ctl_flush_mask_lm(mixer->lm) |
 			  mdp_ctl_flush_mask_encoder(intf);
+	if (r_mixer)
+		ctl->start_mask |= mdp_ctl_flush_mask_lm(r_mixer->lm);
 
 	/* Virtual interfaces need not set a display intf (e.g.: Writeback) */
 	if (!mdp5_cfg_intf_is_virtual(intf->type))
@@ -224,8 +227,11 @@ static void refill_start_mask(struct mdp5_ctl *ctl,
 {
 	struct mdp5_interface *intf = pipeline->intf;
 	struct mdp5_hw_mixer *mixer = pipeline->mixer;
+	struct mdp5_hw_mixer *r_mixer = pipeline->r_mixer;
 
 	ctl->start_mask = mdp_ctl_flush_mask_lm(mixer->lm);
+	if (r_mixer)
+		ctl->start_mask |= mdp_ctl_flush_mask_lm(r_mixer->lm);
 
 	/*
 	 * Writeback encoder needs to program & flush
@@ -279,6 +285,11 @@ int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
 	if (unlikely(WARN_ON(!mixer))) {
 		dev_err(ctl_mgr->dev->dev, "CTL %d cannot find LM",
 			ctl->id);
+		return -EINVAL;
+	}
+
+	if (pipeline->r_mixer) {
+		dev_err(ctl_mgr->dev->dev, "unsupported configuration");
 		return -EINVAL;
 	}
 
@@ -344,24 +355,40 @@ static u32 mdp_ctl_blend_ext_mask(enum mdp5_pipe pipe,
 	}
 }
 
+#define PIPE_LEFT	0
+#define PIPE_RIGHT	1
 int mdp5_ctl_blend(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
-		   enum mdp5_pipe *stage, u32 stage_cnt, u32 ctl_blend_op_flags)
+		   enum mdp5_pipe stage[][MAX_PIPE_STAGE],
+		   enum mdp5_pipe r_stage[][MAX_PIPE_STAGE],
+		   u32 stage_cnt, u32 ctl_blend_op_flags)
 {
 	struct mdp5_hw_mixer *mixer = pipeline->mixer;
+	struct mdp5_hw_mixer *r_mixer = pipeline->r_mixer;
 	unsigned long flags;
 	u32 blend_cfg = 0, blend_ext_cfg = 0;
+	u32 r_blend_cfg = 0, r_blend_ext_cfg = 0;
 	int i, start_stage;
 
 	if (ctl_blend_op_flags & MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT) {
 		start_stage = STAGE0;
 		blend_cfg |= MDP5_CTL_LAYER_REG_BORDER_COLOR;
+		if (r_mixer)
+			r_blend_cfg |= MDP5_CTL_LAYER_REG_BORDER_COLOR;
 	} else {
 		start_stage = STAGE_BASE;
 	}
 
 	for (i = start_stage; stage_cnt && i <= STAGE_MAX; i++) {
-		blend_cfg |= mdp_ctl_blend_mask(stage[i], i);
-		blend_ext_cfg |= mdp_ctl_blend_ext_mask(stage[i], i);
+		blend_cfg |=
+			mdp_ctl_blend_mask(stage[i][PIPE_LEFT], i);
+		blend_ext_cfg |=
+			mdp_ctl_blend_ext_mask(stage[i][PIPE_LEFT], i);
+		if (r_mixer) {
+			r_blend_cfg |=
+				mdp_ctl_blend_mask(r_stage[i][PIPE_LEFT], i);
+			r_blend_ext_cfg |=
+				mdp_ctl_blend_ext_mask(r_stage[i][PIPE_LEFT], i);
+		}
 	}
 
 	spin_lock_irqsave(&ctl->hw_lock, flags);
@@ -371,12 +398,23 @@ int mdp5_ctl_blend(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
 	ctl_write(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, mixer->lm), blend_cfg);
 	ctl_write(ctl, REG_MDP5_CTL_LAYER_EXT_REG(ctl->id, mixer->lm),
 		  blend_ext_cfg);
+	if (r_mixer) {
+		ctl_write(ctl, REG_MDP5_CTL_LAYER_REG(ctl->id, r_mixer->lm),
+			  r_blend_cfg);
+		ctl_write(ctl, REG_MDP5_CTL_LAYER_EXT_REG(ctl->id, r_mixer->lm),
+			  r_blend_ext_cfg);
+	}
 	spin_unlock_irqrestore(&ctl->hw_lock, flags);
 
 	ctl->pending_ctl_trigger = mdp_ctl_flush_mask_lm(mixer->lm);
+	if (r_mixer)
+		ctl->pending_ctl_trigger |= mdp_ctl_flush_mask_lm(r_mixer->lm);
 
 	DBG("lm%d: blend config = 0x%08x. ext_cfg = 0x%08x", mixer->lm,
 		blend_cfg, blend_ext_cfg);
+	if (r_mixer)
+		DBG("lm%d: blend config = 0x%08x. ext_cfg = 0x%08x",
+		    r_mixer->lm, r_blend_cfg, r_blend_ext_cfg);
 
 	return 0;
 }
