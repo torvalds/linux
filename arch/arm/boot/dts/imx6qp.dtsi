@@ -92,6 +92,24 @@
 				clock-names = "axi";
 				fsl,iram = <&ocram3>;
 			};
+
+			prg1: prg@21cc000 {
+				compatible = "fsl,imx6qp-prg";
+				reg = <0x021cc000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRG0_APB>,
+					 <&clks IMX6QDL_CLK_PRG0_AXI>;
+				clock-names = "ipg", "axi";
+				fsl,pres = <&pre1>, <&pre2>, <&pre3>;
+			};
+
+			prg2: prg@21cd000 {
+				compatible = "fsl,imx6qp-prg";
+				reg = <0x021cd000 0x1000>;
+				clocks = <&clks IMX6QDL_CLK_PRG1_APB>,
+					 <&clks IMX6QDL_CLK_PRG1_AXI>;
+				clock-names = "ipg", "axi";
+				fsl,pres = <&pre4>, <&pre2>, <&pre3>;
+			};
 		};
 	};
 };
@@ -104,10 +122,12 @@
 
 &ipu1 {
 	compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
+	fsl,prg = <&prg1>;
 };
 
 &ipu2 {
 	compatible = "fsl,imx6qp-ipu", "fsl,imx6q-ipu";
+	fsl,prg = <&prg2>;
 };
 
 &ldb {
