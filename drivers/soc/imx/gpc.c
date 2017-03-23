@@ -289,22 +289,12 @@ static bool imx_gpc_readable_reg(struct device *dev, unsigned int reg)
 	return (reg % 4 == 0) && (reg <= 0x2ac);
 }
 
-static bool imx_gpc_volatile_reg(struct device *dev, unsigned int reg)
-{
-	if (reg == GPC_CNTR)
-		return true;
-
-	return false;
-}
-
 static const struct regmap_config imx_gpc_regmap_config = {
-	.cache_type = REGCACHE_FLAT,
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
 
 	.readable_reg = imx_gpc_readable_reg,
-	.volatile_reg = imx_gpc_volatile_reg,
 
 	.max_register = 0x2ac,
 };
