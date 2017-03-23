@@ -510,10 +510,22 @@ static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		dx_buff->is_ip_cso = (htons(ETH_P_IP) == skb->protocol) ?
 			1U : 0U;
-		dx_buff->is_tcp_cso =
-			(ip_hdr(skb)->protocol == IPPROTO_TCP) ? 1U : 0U;
-		dx_buff->is_udp_cso =
-			(ip_hdr(skb)->protocol == IPPROTO_UDP) ? 1U : 0U;
+
+		if (ip_hdr(skb)->version == 4) {
+			dx_buff->is_tcp_cso =
+				(ip_hdr(skb)->protocol == IPPROTO_TCP) ?
+					1U : 0U;
+			dx_buff->is_udp_cso =
+				(ip_hdr(skb)->protocol == IPPROTO_UDP) ?
+					1U : 0U;
+		} else if (ip_hdr(skb)->version == 6) {
+			dx_buff->is_tcp_cso =
+				(ipv6_hdr(skb)->nexthdr == NEXTHDR_TCP) ?
+					1U : 0U;
+			dx_buff->is_udp_cso =
+				(ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP) ?
+					1U : 0U;
+		}
 	}
 
 	for (; nr_frags--; ++frag_count) {
