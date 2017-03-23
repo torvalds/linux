@@ -27,8 +27,8 @@ optional_header:
 	.short	PE_OPT_MAGIC_PE32PLUS			// PE32+ format
 	.byte	0x02					// MajorLinkerVersion
 	.byte	0x14					// MinorLinkerVersion
-	.long	_end - efi_header_end			// SizeOfCode
-	.long	0					// SizeOfInitializedData
+	.long	__initdata_begin - efi_header_end	// SizeOfCode
+	.long	__pecoff_data_size			// SizeOfInitializedData
 	.long	0					// SizeOfUninitializedData
 	.long	__efistub_entry - _head			// AddressOfEntryPoint
 	.long	efi_header_end - _head			// BaseOfCode
@@ -74,9 +74,9 @@ extra_header_fields:
 	// Section table
 section_table:
 	.ascii	".text\0\0\0"
-	.long	_end - efi_header_end			// VirtualSize
+	.long	__initdata_begin - efi_header_end	// VirtualSize
 	.long	efi_header_end - _head			// VirtualAddress
-	.long	_edata - efi_header_end			// SizeOfRawData
+	.long	__initdata_begin - efi_header_end	// SizeOfRawData
 	.long	efi_header_end - _head			// PointerToRawData
 
 	.long	0					// PointerToRelocations
@@ -84,7 +84,20 @@ section_table:
 	.short	0					// NumberOfRelocations
 	.short	0					// NumberOfLineNumbers
 	.long	IMAGE_SCN_CNT_CODE | \
-		IMAGE_SCN_MEM_EXECUTE | \
+		IMAGE_SCN_MEM_READ | \
+		IMAGE_SCN_MEM_EXECUTE			// Characteristics
+
+	.ascii	".data\0\0\0"
+	.long	__pecoff_data_size			// VirtualSize
+	.long	__initdata_begin - _head		// VirtualAddress
+	.long	__pecoff_data_rawsize			// SizeOfRawData
+	.long	__initdata_begin - _head		// PointerToRawData
+
+	.long	0					// PointerToRelocations
+	.long	0					// PointerToLineNumbers
+	.short	0					// NumberOfRelocations
+	.short	0					// NumberOfLineNumbers
+	.long	IMAGE_SCN_CNT_INITIALIZED_DATA | \
 		IMAGE_SCN_MEM_READ | \
 		IMAGE_SCN_MEM_WRITE			// Characteristics
 
