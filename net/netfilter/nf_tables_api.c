@@ -3173,7 +3173,6 @@ int nf_tables_bind_set(const struct nft_ctx *ctx, struct nft_set *set,
 		iter.count	= 0;
 		iter.err	= 0;
 		iter.fn		= nf_tables_bind_check_setelem;
-		iter.flush	= false;
 
 		set->ops->walk(ctx, set, &iter);
 		if (iter.err < 0)
@@ -3427,7 +3426,6 @@ static int nf_tables_dump_set(struct sk_buff *skb, struct netlink_callback *cb)
 	args.iter.count		= 0;
 	args.iter.err		= 0;
 	args.iter.fn		= nf_tables_dump_setelem;
-	args.iter.flush		= false;
 	set->ops->walk(&ctx, set, &args.iter);
 
 	nla_nest_end(skb, nest);
@@ -3991,7 +3989,6 @@ static int nf_tables_delsetelem(struct net *net, struct sock *nlsk,
 		struct nft_set_iter iter = {
 			.genmask	= genmask,
 			.fn		= nft_flush_set,
-			.flush		= true,
 		};
 		set->ops->walk(&ctx, set, &iter);
 
@@ -5143,7 +5140,6 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 			iter.count	= 0;
 			iter.err	= 0;
 			iter.fn		= nf_tables_loop_check_setelem;
-			iter.flush	= false;
 
 			set->ops->walk(ctx, set, &iter);
 			if (iter.err < 0)

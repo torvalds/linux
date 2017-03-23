@@ -1714,7 +1714,8 @@ static int __process_pages_contig(struct address_space *mapping,
 			 * can we find nothing at @index.
 			 */
 			ASSERT(page_ops & PAGE_LOCK);
-			return ret;
+			err = -EAGAIN;
+			goto out;
 		}
 
 		for (i = 0; i < ret; i++) {

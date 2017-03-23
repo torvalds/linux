@@ -133,6 +133,23 @@ err_create_ft:
 	return rule;
 }
 
+static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
+				  struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_fc *counter = NULL;
+
+	if (!IS_ERR(flow->rule)) {
+		counter = mlx5_flow_rule_counter(flow->rule);
+		mlx5_del_flow_rules(flow->rule);
+		mlx5_fc_destroy(priv->mdev, counter);
+	}
+
+	if (!mlx5e_tc_num_filters(priv) && (priv->fs.tc.t)) {
+		mlx5_destroy_flow_table(priv->fs.tc.t);
+		priv->fs.tc.t = NULL;
+	}
+}
+
 static struct mlx5_flow_handle *
 mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		      struct mlx5_flow_spec *spec,
@@ -149,7 +166,24 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 }
 
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
-			       struct mlx5e_tc_flow *flow) {
+			       struct mlx5e_tc_flow *flow);
+
+static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
+				  struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+
+	mlx5_eswitch_del_offloaded_rule(esw, flow->rule, flow->attr);
+
+	mlx5_eswitch_del_vlan_action(esw, flow->attr);
+
+	if (flow->attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
+		mlx5e_detach_encap(priv, flow);
+}
+
+static void mlx5e_detach_encap(struct mlx5e_priv *priv,
+			       struct mlx5e_tc_flow *flow)
+{
 	struct list_head *next = flow->encap.next;
 
 	list_del(&flow->encap);
@@ -173,25 +207,10 @@ static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow)
 {
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5_fc *counter = NULL;
-
-	if (!IS_ERR(flow->rule)) {
-		counter = mlx5_flow_rule_counter(flow->rule);
-		mlx5_del_flow_rules(flow->rule);
-		mlx5_fc_destroy(priv->mdev, counter);
-	}
-
-	if (flow->flags & MLX5E_TC_FLOW_ESWITCH) {
-		mlx5_eswitch_del_vlan_action(esw, flow->attr);
-		if (flow->attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
-			mlx5e_detach_encap(priv, flow);
-	}
-
-	if (!mlx5e_tc_num_filters(priv) && (priv->fs.tc.t)) {
-		mlx5_destroy_flow_table(priv->fs.tc.t);
-		priv->fs.tc.t = NULL;
-	}
+	if (flow->flags & MLX5E_TC_FLOW_ESWITCH)
+		mlx5e_tc_del_fdb_flow(priv, flow);
+	else
+		mlx5e_tc_del_nic_flow(priv, flow);
 }
 
 static void parse_vxlan_attr(struct mlx5_flow_spec *spec,
@@ -248,12 +267,15 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 			skb_flow_dissector_target(f->dissector,
 						  FLOW_DISSECTOR_KEY_ENC_PORTS,
 						  f->mask);
+		struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+		struct net_device *up_dev = mlx5_eswitch_get_uplink_netdev(esw);
+		struct mlx5e_priv *up_priv = netdev_priv(up_dev);
 
 		/* Full udp dst port must be given */
 		if (memchr_inv(&mask->dst, 0xff, sizeof(mask->dst)))
 			goto vxlan_match_offload_err;
 
-		if (mlx5e_vxlan_lookup_port(priv, be16_to_cpu(key->dst)) &&
+		if (mlx5e_vxlan_lookup_port(up_priv, be16_to_cpu(key->dst)) &&
 		    MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap))
 			parse_vxlan_attr(spec, f);
 		else {
@@ -976,6 +998,8 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct mlx5_esw_flow_attr *attr)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct net_device *up_dev = mlx5_eswitch_get_uplink_netdev(esw);
+	struct mlx5e_priv *up_priv = netdev_priv(up_dev);
 	unsigned short family = ip_tunnel_info_af(tun_info);
 	struct ip_tunnel_key *key = &tun_info->key;
 	struct mlx5_encap_entry *e;
@@ -996,7 +1020,7 @@ vxlan_encap_offload_err:
 		return -EOPNOTSUPP;
 	}
 
-	if (mlx5e_vxlan_lookup_port(priv, be16_to_cpu(key->tp_dst)) &&
+	if (mlx5e_vxlan_lookup_port(up_priv, be16_to_cpu(key->tp_dst)) &&
 	    MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap)) {
 		tunnel_type = MLX5_HEADER_TYPE_VXLAN;
 	} else {
@@ -1112,14 +1136,16 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 		}
 
 		if (is_tcf_vlan(a)) {
-			if (tcf_vlan_action(a) == VLAN_F_POP) {
+			if (tcf_vlan_action(a) == TCA_VLAN_ACT_POP) {
 				attr->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
-			} else if (tcf_vlan_action(a) == VLAN_F_PUSH) {
+			} else if (tcf_vlan_action(a) == TCA_VLAN_ACT_PUSH) {
 				if (tcf_vlan_push_proto(a) != htons(ETH_P_8021Q))
 					return -EOPNOTSUPP;
 
 				attr->action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
 				attr->vlan = tcf_vlan_push_vid(a);
+			} else { /* action is TCA_VLAN_ACT_MODIFY */
+				return -EOPNOTSUPP;
 			}
 			continue;
 		}

@@ -3,6 +3,7 @@ config SCSI_QLA_FC
 	depends on PCI && SCSI
 	depends on SCSI_FC_ATTRS
 	select FW_LOADER
+	select BTREE
 	---help---
 	This qla2xxx driver supports all QLogic Fibre Channel
 	PCI and PCIe host adapters.
