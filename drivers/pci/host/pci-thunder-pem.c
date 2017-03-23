@@ -346,7 +346,7 @@ static int thunder_pem_acpi_init(struct pci_config_window *cfg)
 	if (!res_pem)
 		return -ENOMEM;
 
-	ret = acpi_get_rc_resources(dev, "THRX0002", root->segment, res_pem);
+	ret = acpi_get_rc_resources(dev, "CAVA02B", root->segment, res_pem);
 	if (ret) {
 		dev_err(dev, "can't get rc base address\n");
 		return ret;
