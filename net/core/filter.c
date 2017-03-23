@@ -26,6 +26,7 @@
 #include <linux/mm.h>
 #include <linux/fcntl.h>
 #include <linux/socket.h>
+#include <linux/sock_diag.h>
 #include <linux/in.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
@@ -2606,6 +2607,18 @@ static const struct bpf_func_proto bpf_xdp_event_output_proto = {
 	.arg5_type	= ARG_CONST_SIZE,
 };
 
+BPF_CALL_1(bpf_get_socket_cookie, struct sk_buff *, skb)
+{
+	return skb->sk ? sock_gen_cookie(skb->sk) : 0;
+}
+
+static const struct bpf_func_proto bpf_get_socket_cookie_proto = {
+	.func           = bpf_get_socket_cookie,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type      = ARG_PTR_TO_CTX,
+};
+
 static const struct bpf_func_proto *
 bpf_base_func_proto(enum bpf_func_id func_id)
 {
@@ -2640,6 +2653,8 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 	switch (func_id) {
 	case BPF_FUNC_skb_load_bytes:
 		return &bpf_skb_load_bytes_proto;
+	case BPF_FUNC_get_socket_cookie:
+		return &bpf_get_socket_cookie_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -2699,6 +2714,8 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 		return &bpf_get_smp_processor_id_proto;
 	case BPF_FUNC_skb_under_cgroup:
 		return &bpf_skb_under_cgroup_proto;
+	case BPF_FUNC_get_socket_cookie:
+		return &bpf_get_socket_cookie_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}

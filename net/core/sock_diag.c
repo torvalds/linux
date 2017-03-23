@@ -19,7 +19,7 @@ static int (*inet_rcv_compat)(struct sk_buff *skb, struct nlmsghdr *nlh);
 static DEFINE_MUTEX(sock_diag_table_mutex);
 static struct workqueue_struct *broadcast_wq;
 
-static u64 sock_gen_cookie(struct sock *sk)
+u64 sock_gen_cookie(struct sock *sk)
 {
 	while (1) {
 		u64 res = atomic64_read(&sk->sk_cookie);
