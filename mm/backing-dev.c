@@ -345,6 +345,8 @@ out_put_bdi:
 	return err;
 }
 
+static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb);
+
 /*
  * Remove bdi from the global list and shutdown any threads we have running
  */
@@ -358,6 +360,7 @@ static void wb_shutdown(struct bdi_writeback *wb)
 	}
 	spin_unlock_bh(&wb->work_lock);
 
+	cgwb_remove_from_bdi_list(wb);
 	/*
 	 * Drain work list and shutdown the delayed_work.  !WB_registered
 	 * tells wb_workfn() that @wb is dying and its work_list needs to
@@ -491,10 +494,6 @@ static void cgwb_release_workfn(struct work_struct *work)
 						release_work);
 	struct backing_dev_info *bdi = wb->bdi;
 
-	spin_lock_irq(&cgwb_lock);
-	list_del_rcu(&wb->bdi_node);
-	spin_unlock_irq(&cgwb_lock);
-
 	wb_shutdown(wb);
 
 	css_put(wb->memcg_css);
@@ -524,6 +523,13 @@ static void cgwb_kill(struct bdi_writeback *wb)
 	list_del(&wb->memcg_node);
 	list_del(&wb->blkcg_node);
 	percpu_ref_kill(&wb->refcnt);
+}
+
+static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb)
+{
+	spin_lock_irq(&cgwb_lock);
+	list_del_rcu(&wb->bdi_node);
+	spin_unlock_irq(&cgwb_lock);
 }
 
 static int cgwb_create(struct backing_dev_info *bdi,
@@ -766,6 +772,13 @@ static void cgwb_bdi_exit(struct backing_dev_info *bdi)
 	spin_unlock_irq(&cgwb_lock);
 }
 
+static void cgwb_bdi_register(struct backing_dev_info *bdi)
+{
+	spin_lock_irq(&cgwb_lock);
+	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
+	spin_unlock_irq(&cgwb_lock);
+}
+
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
 static int cgwb_bdi_init(struct backing_dev_info *bdi)
@@ -793,6 +806,16 @@ static void cgwb_bdi_exit(struct backing_dev_info *bdi)
 	wb_congested_put(bdi->wb_congested);
 }
 
+static void cgwb_bdi_register(struct backing_dev_info *bdi)
+{
+	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
+}
+
+static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb)
+{
+	list_del_rcu(&wb->bdi_node);
+}
+
 #endif	/* CONFIG_CGROUP_WRITEBACK */
 
 int bdi_init(struct backing_dev_info *bdi)
@@ -810,8 +833,6 @@ int bdi_init(struct backing_dev_info *bdi)
 	init_waitqueue_head(&bdi->wb_waitq);
 
 	ret = cgwb_bdi_init(bdi);
-
-	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
 
 	return ret;
 }
@@ -848,6 +869,7 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
+	cgwb_bdi_register(bdi);
 	bdi->dev = dev;
 
 	bdi_debug_register(bdi, dev_name(dev));
