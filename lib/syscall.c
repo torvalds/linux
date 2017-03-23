@@ -11,6 +11,7 @@ static int collect_syscall(struct task_struct *target, long *callno,
 
 	if (!try_get_task_stack(target)) {
 		/* Task has no stack, so the task isn't in a syscall. */
+		*sp = *pc = 0;
 		*callno = -1;
 		return 0;
 	}
