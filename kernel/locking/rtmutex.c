@@ -322,67 +322,16 @@ rt_mutex_dequeue_pi(struct task_struct *task, struct rt_mutex_waiter *waiter)
 	RB_CLEAR_NODE(&waiter->pi_tree_entry);
 }
 
-/*
- * Must hold both p->pi_lock and task_rq(p)->lock.
- */
-void rt_mutex_update_top_task(struct task_struct *p)
+static void rt_mutex_adjust_prio(struct task_struct *p)
 {
-	if (!task_has_pi_waiters(p)) {
-		p->pi_top_task = NULL;
-		return;
-	}
+	struct task_struct *pi_task = NULL;
 
-	p->pi_top_task = task_top_pi_waiter(p)->task;
-}
+	lockdep_assert_held(&p->pi_lock);
 
-/*
- * Calculate task priority from the waiter tree priority
- *
- * Return task->normal_prio when the waiter tree is empty or when
- * the waiter is not allowed to do priority boosting
- */
-int rt_mutex_getprio(struct task_struct *task)
-{
-	if (likely(!task_has_pi_waiters(task)))
-		return task->normal_prio;
+	if (task_has_pi_waiters(p))
+		pi_task = task_top_pi_waiter(p)->task;
 
-	return min(task_top_pi_waiter(task)->prio,
-		   task->normal_prio);
-}
-
-/*
- * Must hold either p->pi_lock or task_rq(p)->lock.
- */
-struct task_struct *rt_mutex_get_top_task(struct task_struct *task)
-{
-	return task->pi_top_task;
-}
-
-/*
- * Called by sched_setscheduler() to get the priority which will be
- * effective after the change.
- */
-int rt_mutex_get_effective_prio(struct task_struct *task, int newprio)
-{
-	struct task_struct *top_task = rt_mutex_get_top_task(task);
-
-	if (!top_task)
-		return newprio;
-
-	return min(top_task->prio, newprio);
-}
-
-/*
- * Adjust the priority of a task, after its pi_waiters got modified.
- *
- * This can be both boosting and unboosting. task->pi_lock must be held.
- */
-static void __rt_mutex_adjust_prio(struct task_struct *task)
-{
-	int prio = rt_mutex_getprio(task);
-
-	if (task->prio != prio || dl_prio(prio))
-		rt_mutex_setprio(task, prio);
+	rt_mutex_setprio(p, pi_task);
 }
 
 /*
@@ -742,7 +691,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 		 */
 		rt_mutex_dequeue_pi(task, prerequeue_top_waiter);
 		rt_mutex_enqueue_pi(task, waiter);
-		__rt_mutex_adjust_prio(task);
+		rt_mutex_adjust_prio(task);
 
 	} else if (prerequeue_top_waiter == waiter) {
 		/*
@@ -758,7 +707,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 		rt_mutex_dequeue_pi(task, waiter);
 		waiter = rt_mutex_top_waiter(lock);
 		rt_mutex_enqueue_pi(task, waiter);
-		__rt_mutex_adjust_prio(task);
+		rt_mutex_adjust_prio(task);
 	} else {
 		/*
 		 * Nothing changed. No need to do any priority
@@ -966,7 +915,7 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 		return -EDEADLK;
 
 	raw_spin_lock(&task->pi_lock);
-	__rt_mutex_adjust_prio(task);
+	rt_mutex_adjust_prio(task);
 	waiter->task = task;
 	waiter->lock = lock;
 	waiter->prio = task->prio;
@@ -988,7 +937,7 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 		rt_mutex_dequeue_pi(owner, top_waiter);
 		rt_mutex_enqueue_pi(owner, waiter);
 
-		__rt_mutex_adjust_prio(owner);
+		rt_mutex_adjust_prio(owner);
 		if (owner->pi_blocked_on)
 			chain_walk = 1;
 	} else if (rt_mutex_cond_detect_deadlock(waiter, chwalk)) {
@@ -1040,13 +989,14 @@ static void mark_wakeup_next_waiter(struct wake_q_head *wake_q,
 	waiter = rt_mutex_top_waiter(lock);
 
 	/*
-	 * Remove it from current->pi_waiters. We do not adjust a
-	 * possible priority boost right now. We execute wakeup in the
-	 * boosted mode and go back to normal after releasing
-	 * lock->wait_lock.
+	 * Remove it from current->pi_waiters and deboost.
+	 *
+	 * We must in fact deboost here in order to ensure we call
+	 * rt_mutex_setprio() to update p->pi_top_task before the
+	 * task unblocks.
 	 */
 	rt_mutex_dequeue_pi(current, waiter);
-	__rt_mutex_adjust_prio(current);
+	rt_mutex_adjust_prio(current);
 
 	/*
 	 * As we are waking up the top waiter, and the waiter stays
@@ -1058,9 +1008,19 @@ static void mark_wakeup_next_waiter(struct wake_q_head *wake_q,
 	 */
 	lock->owner = (void *) RT_MUTEX_HAS_WAITERS;
 
-	raw_spin_unlock(&current->pi_lock);
-
+	/*
+	 * We deboosted before waking the top waiter task such that we don't
+	 * run two tasks with the 'same' priority (and ensure the
+	 * p->pi_top_task pointer points to a blocked task). This however can
+	 * lead to priority inversion if we would get preempted after the
+	 * deboost but before waking our donor task, hence the preempt_disable()
+	 * before unlock.
+	 *
+	 * Pairs with preempt_enable() in rt_mutex_postunlock();
+	 */
+	preempt_disable();
 	wake_q_add(wake_q, waiter->task);
+	raw_spin_unlock(&current->pi_lock);
 }
 
 /*
@@ -1095,7 +1055,7 @@ static void remove_waiter(struct rt_mutex *lock,
 	if (rt_mutex_has_waiters(lock))
 		rt_mutex_enqueue_pi(owner, rt_mutex_top_waiter(lock));
 
-	__rt_mutex_adjust_prio(owner);
+	rt_mutex_adjust_prio(owner);
 
 	/* Store the lock on which owner is blocked or NULL */
 	next_lock = task_blocked_on_lock(owner);
@@ -1134,8 +1094,7 @@ void rt_mutex_adjust_pi(struct task_struct *task)
 	raw_spin_lock_irqsave(&task->pi_lock, flags);
 
 	waiter = task->pi_blocked_on;
-	if (!waiter || (waiter->prio == task->prio &&
-			!dl_prio(task->prio))) {
+	if (!waiter || (waiter->prio == task->prio && !dl_prio(task->prio))) {
 		raw_spin_unlock_irqrestore(&task->pi_lock, flags);
 		return;
 	}
@@ -1389,17 +1348,6 @@ static bool __sched rt_mutex_slowunlock(struct rt_mutex *lock,
 	 * Queue the next waiter for wakeup once we release the wait_lock.
 	 */
 	mark_wakeup_next_waiter(wake_q, lock);
-
-	/*
-	 * We should deboost before waking the top waiter task such that
-	 * we don't run two tasks with the 'same' priority. This however
-	 * can lead to prio-inversion if we would get preempted after
-	 * the deboost but before waking our high-prio task, hence the
-	 * preempt_disable before unlock. Pairs with preempt_enable() in
-	 * rt_mutex_postunlock();
-	 */
-	preempt_disable();
-
 	raw_spin_unlock_irqrestore(&lock->wait_lock, flags);
 
 	return true; /* call rt_mutex_postunlock() */
