@@ -506,7 +506,9 @@ union bpf_attr {
 	FN(get_numa_node_id),		\
 	FN(skb_change_head),		\
 	FN(xdp_adjust_head),		\
-	FN(probe_read_str),
+	FN(probe_read_str),		\
+	FN(get_socket_cookie),		\
+	FN(get_socket_uid),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
