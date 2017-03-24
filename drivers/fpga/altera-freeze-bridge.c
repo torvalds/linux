@@ -203,7 +203,7 @@ static int altera_freeze_br_enable_show(struct fpga_bridge *bridge)
 	return priv->enable;
 }
 
-static struct fpga_bridge_ops altera_freeze_br_br_ops = {
+static const struct fpga_bridge_ops altera_freeze_br_br_ops = {
 	.enable_set = altera_freeze_br_enable_set,
 	.enable_show = altera_freeze_br_enable_show,
 };
