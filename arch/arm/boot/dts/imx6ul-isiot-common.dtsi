@@ -40,6 +40,34 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+&i2c1 {
+	stmpe811: gpio-expander@44 {
+		compatible = "st,stmpe811";
+		reg = <0x44>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_stmpe>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		stmpe: touchscreen {
+			compatible = "st,stmpe-ts";
+			st,sample-time = <4>;
+			st,mod-12b = <1>;
+			st,ref-sel = <0>;
+			st,adc-freq = <1>;
+			st,ave-ctrl = <1>;
+			st,touch-det-delay = <2>;
+			st,settling = <2>;
+			st,fraction-z = <7>;
+			st,i-drive = <1>;
+		};
+	};
+};
+
 &lcdif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lcdif_dat
@@ -102,6 +130,12 @@
 			MX6UL_PAD_LCD_DATA15__LCDIF_DATA15  0x79
 			MX6UL_PAD_LCD_DATA16__LCDIF_DATA16  0x79
 			MX6UL_PAD_LCD_DATA17__LCDIF_DATA17  0x79
+		>;
+	};
+
+	pinctrl_stmpe: stmpegrp  {
+		fsl,pins = <
+			MX6UL_PAD_UART1_CTS_B__GPIO1_IO18 0x1b0b0
 		>;
 	};
 };
