@@ -79,9 +79,9 @@
 /*
  * Set the synaptics touchpad mode byte by special commands
  */
-static int synaptics_mode_cmd(struct psmouse *psmouse, unsigned char mode)
+static int synaptics_mode_cmd(struct psmouse *psmouse, u8 mode)
 {
-	unsigned char param[1];
+	u8 param[1];
 	int error;
 
 	error = psmouse_sliced_command(psmouse, mode);
@@ -99,7 +99,7 @@ static int synaptics_mode_cmd(struct psmouse *psmouse, unsigned char mode)
 int synaptics_detect(struct psmouse *psmouse, bool set_properties)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
-	unsigned char param[4];
+	u8 param[4];
 
 	param[0] = 0;
 
@@ -179,12 +179,11 @@ static const char * const smbus_pnp_ids[] = {
 /*
  * Send a command to the synpatics touchpad by special commands
  */
-static int synaptics_send_cmd(struct psmouse *psmouse,
-			      unsigned char c, unsigned char *param)
+static int synaptics_send_cmd(struct psmouse *psmouse, u8 cmd, u8 *param)
 {
 	int error;
 
-	error = psmouse_sliced_command(psmouse, c);
+	error = psmouse_sliced_command(psmouse, cmd);
 	if (error)
 		return error;
 
@@ -254,7 +253,7 @@ static int synaptics_firmware_id(struct psmouse *psmouse,
 static int synaptics_query_modes(struct psmouse *psmouse,
 				 struct synaptics_device_info *info)
 {
-	unsigned char bid[3];
+	u8 bid[3];
 	int error;
 
 	/* firmwares prior 7.5 have no board_id encoded */
@@ -338,7 +337,7 @@ static int synaptics_capability(struct psmouse *psmouse,
 static int synaptics_resolution(struct psmouse *psmouse,
 				struct synaptics_device_info *info)
 {
-	unsigned char resp[3];
+	u8 resp[3];
 	int error;
 
 	if (SYN_ID_MAJOR(info->identity) < 4)
@@ -537,7 +536,7 @@ static void synaptics_apply_quirks(struct psmouse *psmouse,
 
 static int synaptics_set_advanced_gesture_mode(struct psmouse *psmouse)
 {
-	static unsigned char param = 0xc8;
+	static u8 param = 0xc8;
 	struct synaptics_data *priv = psmouse->private;
 	int error;
 
@@ -609,7 +608,7 @@ static void synaptics_set_rate(struct psmouse *psmouse, unsigned int rate)
 /*****************************************************************************
  *	Synaptics pass-through PS/2 port support
  ****************************************************************************/
-static int synaptics_pt_write(struct serio *serio, unsigned char c)
+static int synaptics_pt_write(struct serio *serio, u8 c)
 {
 	struct psmouse *parent = serio_get_drvdata(serio->parent);
 	u8 rate_param = SYN_PS_CLIENT_CMD; /* indicates that we want pass-through port */
@@ -648,13 +647,12 @@ static void synaptics_pt_stop(struct serio *serio)
 	serio_continue_rx(parent->ps2dev.serio);
 }
 
-static int synaptics_is_pt_packet(unsigned char *buf)
+static int synaptics_is_pt_packet(u8 *buf)
 {
 	return (buf[0] & 0xFC) == 0x84 && (buf[3] & 0xCC) == 0xC4;
 }
 
-static void synaptics_pass_pt_packet(struct serio *ptport,
-				     unsigned char *packet)
+static void synaptics_pass_pt_packet(struct serio *ptport, u8 *packet)
 {
 	struct psmouse *child = serio_get_drvdata(ptport);
 
@@ -717,7 +715,7 @@ static void synaptics_pt_create(struct psmouse *psmouse)
  *	Functions to interpret the absolute mode packets
  ****************************************************************************/
 
-static void synaptics_parse_agm(const unsigned char buf[],
+static void synaptics_parse_agm(const u8 buf[],
 				struct synaptics_data *priv,
 				struct synaptics_hw_state *hw)
 {
@@ -744,7 +742,7 @@ static void synaptics_parse_agm(const unsigned char buf[],
 	}
 }
 
-static void synaptics_parse_ext_buttons(const unsigned char buf[],
+static void synaptics_parse_ext_buttons(const u8 buf[],
 					struct synaptics_data *priv,
 					struct synaptics_hw_state *hw)
 {
@@ -756,7 +754,7 @@ static void synaptics_parse_ext_buttons(const unsigned char buf[],
 	hw->ext_buttons |= (buf[5] & ext_mask) << ext_bits;
 }
 
-static int synaptics_parse_hw_state(const unsigned char buf[],
+static int synaptics_parse_hw_state(const u8 buf[],
 				    struct synaptics_data *priv,
 				    struct synaptics_hw_state *hw)
 {
@@ -832,7 +830,7 @@ static int synaptics_parse_hw_state(const unsigned char buf[],
 		} else if (SYN_CAP_MIDDLE_BUTTON(priv->info.capabilities)) {
 			hw->middle = ((buf[0] ^ buf[3]) & 0x01) ? 1 : 0;
 			if (hw->w == 2)
-				hw->scroll = (signed char)(buf[1]);
+				hw->scroll = (s8)buf[1];
 		}
 
 		if (SYN_CAP_FOUR_BUTTON(priv->info.capabilities)) {
@@ -1134,18 +1132,18 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 	input_sync(dev);
 }
 
-static int synaptics_validate_byte(struct psmouse *psmouse,
-				   int idx, unsigned char pkt_type)
+static bool synaptics_validate_byte(struct psmouse *psmouse,
+				    int idx, enum synaptics_pkt_type pkt_type)
 {
-	static const unsigned char newabs_mask[]	= { 0xC8, 0x00, 0x00, 0xC8, 0x00 };
-	static const unsigned char newabs_rel_mask[]	= { 0xC0, 0x00, 0x00, 0xC0, 0x00 };
-	static const unsigned char newabs_rslt[]	= { 0x80, 0x00, 0x00, 0xC0, 0x00 };
-	static const unsigned char oldabs_mask[]	= { 0xC0, 0x60, 0x00, 0xC0, 0x60 };
-	static const unsigned char oldabs_rslt[]	= { 0xC0, 0x00, 0x00, 0x80, 0x00 };
-	const char *packet = psmouse->packet;
+	static const u8 newabs_mask[]	  = { 0xC8, 0x00, 0x00, 0xC8, 0x00 };
+	static const u8 newabs_rel_mask[] = { 0xC0, 0x00, 0x00, 0xC0, 0x00 };
+	static const u8 newabs_rslt[]	  = { 0x80, 0x00, 0x00, 0xC0, 0x00 };
+	static const u8 oldabs_mask[]	  = { 0xC0, 0x60, 0x00, 0xC0, 0x60 };
+	static const u8 oldabs_rslt[]	  = { 0xC0, 0x00, 0x00, 0x80, 0x00 };
+	const u8 *packet = psmouse->packet;
 
 	if (idx < 0 || idx > 4)
-		return 0;
+		return false;
 
 	switch (pkt_type) {
 
@@ -1161,19 +1159,21 @@ static int synaptics_validate_byte(struct psmouse *psmouse,
 
 	default:
 		psmouse_err(psmouse, "unknown packet type %d\n", pkt_type);
-		return 0;
+		return false;
 	}
 }
 
-static unsigned char synaptics_detect_pkt_type(struct psmouse *psmouse)
+static enum synaptics_pkt_type
+synaptics_detect_pkt_type(struct psmouse *psmouse)
 {
 	int i;
 
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < 5; i++) {
 		if (!synaptics_validate_byte(psmouse, i, SYN_NEWABS_STRICT)) {
 			psmouse_info(psmouse, "using relaxed packet validation\n");
 			return SYN_NEWABS_RELAXED;
 		}
+	}
 
 	return SYN_NEWABS_STRICT;
 }
@@ -1378,7 +1378,7 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv = psmouse->private;
 	struct synaptics_device_info info;
-	unsigned char param[2];
+	u8 param[2];
 	int retry = 0;
 	int error;
 

@@ -137,14 +137,16 @@
 #define SYN_PS_SET_MODE2		0x14
 #define SYN_PS_CLIENT_CMD		0x28
 
-/* synaptics packet types */
-#define SYN_NEWABS			0
-#define SYN_NEWABS_STRICT		1
-#define SYN_NEWABS_RELAXED		2
-#define SYN_OLDABS			3
-
 /* amount to fuzz position data when touchpad reports reduced filtering */
 #define SYN_REDUCED_FILTER_FUZZ		8
+
+/* synaptics packet types */
+enum synaptics_pkt_type {
+	SYN_NEWABS,
+	SYN_NEWABS_STRICT,
+	SYN_NEWABS_RELAXED,
+	SYN_OLDABS,
+};
 
 /*
  * A structure to describe the state of the touchpad hardware (buttons and pad)
@@ -159,8 +161,8 @@ struct synaptics_hw_state {
 	unsigned int middle:1;
 	unsigned int up:1;
 	unsigned int down:1;
-	unsigned char ext_buttons;
-	signed char scroll;
+	u8 ext_buttons;
+	s8 scroll;
 };
 
 /* Data read from the touchpad */
@@ -181,8 +183,8 @@ struct synaptics_device_info {
 struct synaptics_data {
 	struct synaptics_device_info info;
 
-	unsigned char pkt_type;			/* packet type - old, new, etc */
-	unsigned char mode;			/* current mode byte */
+	enum synaptics_pkt_type pkt_type;	/* packet type - old, new, etc */
+	u8 mode;				/* current mode byte */
 	int scroll;
 
 	bool absolute_mode;			/* run in Absolute mode */
