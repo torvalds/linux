@@ -157,8 +157,9 @@ ENTRY(vector_swi)
 #endif
 	zero_fp
 	alignment_trap r10, ip, __cr_alignment
-	enable_irq
-	ct_user_exit
+	asm_trace_hardirqs_on save=0
+	enable_irq_notrace
+	ct_user_exit save=0
 
 	/*
 	 * Get the system call number.
@@ -216,6 +217,11 @@ ENTRY(vector_swi)
 	eor	scno, scno, #__NR_SYSCALL_BASE	@ check OS number
 #endif
 	get_thread_info tsk
+	/*
+	 * Reload the registers that may have been corrupted on entry to
+	 * the syscall assembly (by tracing or context tracking.)
+	 */
+ TRACE(	ldmia	sp, {r0 - r3}		)
 
 local_restart:
 	ldr	r10, [tsk, #TI_FLAGS]		@ check for syscall tracing
