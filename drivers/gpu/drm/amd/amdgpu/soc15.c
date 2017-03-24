@@ -322,6 +322,22 @@ static uint32_t soc15_read_indexed_register(struct amdgpu_device *adev, u32 se_n
 	return val;
 }
 
+static uint32_t soc15_get_register_value(struct amdgpu_device *adev,
+					 bool indexed, u32 se_num,
+					 u32 sh_num, u32 reg_offset)
+{
+	if (indexed) {
+		return soc15_read_indexed_register(adev, se_num, sh_num, reg_offset);
+	} else {
+		switch (reg_offset) {
+		case SOC15_REG_OFFSET(GC, 0, mmGB_ADDR_CONFIG):
+			return adev->gfx.config.gb_addr_config;
+		default:
+			return RREG32(reg_offset);
+		}
+	}
+}
+
 static int soc15_read_register(struct amdgpu_device *adev, u32 se_num,
 			    u32 sh_num, u32 reg_offset, u32 *value)
 {
@@ -345,10 +361,9 @@ static int soc15_read_register(struct amdgpu_device *adev, u32 se_num,
 			if (reg_offset != asic_register_entry->reg_offset)
 				continue;
 			if (!asic_register_entry->untouched)
-				*value = asic_register_entry->grbm_indexed ?
-					soc15_read_indexed_register(adev, se_num,
-								 sh_num, reg_offset) :
-					RREG32(reg_offset);
+				*value = soc15_get_register_value(adev,
+								  asic_register_entry->grbm_indexed,
+								  se_num, sh_num, reg_offset);
 			return 0;
 		}
 	}
@@ -358,10 +373,9 @@ static int soc15_read_register(struct amdgpu_device *adev, u32 se_num,
 			continue;
 
 		if (!soc15_allowed_read_registers[i].untouched)
-			*value = soc15_allowed_read_registers[i].grbm_indexed ?
-				soc15_read_indexed_register(adev, se_num,
-							 sh_num, reg_offset) :
-				RREG32(reg_offset);
+			*value = soc15_get_register_value(adev,
+							  soc15_allowed_read_registers[i].grbm_indexed,
+							  se_num, sh_num, reg_offset);
 		return 0;
 	}
 	return -EINVAL;
