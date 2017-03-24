@@ -524,7 +524,7 @@ void dce_mem_input_free_dmif(struct mem_input *mi,
 
 	REG_WAIT(DMIF_BUFFER_CONTROL,
 			DMIF_BUFFERS_ALLOCATION_COMPLETED, 1,
-			10, 0xBB8);
+			10, 3500);
 
 	if (mi->wa.single_head_rdreq_dmif_limit) {
 		uint32_t eanble =  (total_stream_num > 1) ? 0 :
