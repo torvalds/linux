@@ -48,6 +48,8 @@
 #include <linux/mman.h>
 #include <asm/cacheflush.h>
 #include <linux/list.h>
+#include <linux/sched.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_IDE
 #include <linux/ide.h>
@@ -95,6 +97,7 @@ enum ctype {
 	CT_OVERFLOW,
 	CT_CORRUPT_LIST_ADD,
 	CT_CORRUPT_LIST_DEL,
+	CT_CORRUPT_USER_DS,
 	CT_CORRUPT_STACK,
 	CT_UNALIGNED_LOAD_STORE_WRITE,
 	CT_OVERWRITE_ALLOCATION,
@@ -135,6 +138,7 @@ static char* cp_type[] = {
 	"OVERFLOW",
 	"CORRUPT_LIST_ADD",
 	"CORRUPT_LIST_DEL",
+	"CORRUPT_USER_DS",
 	"CORRUPT_STACK",
 	"UNALIGNED_LOAD_STORE_WRITE",
 	"OVERWRITE_ALLOCATION",
@@ -616,6 +620,14 @@ static void lkdtm_do_action(enum ctype which)
 			pr_err("Overwrite did not happen, but no BUG?!\n");
 		else
 			pr_err("list_del() corruption not detected!\n");
+		break;
+	}
+	case CT_CORRUPT_USER_DS: {
+		pr_info("setting bad task size limit\n");
+		set_fs(KERNEL_DS);
+
+		/* Make sure we do not keep running with a KERNEL_DS! */
+		force_sig(SIGKILL, current);
 		break;
 	}
 	case CT_NONE:
