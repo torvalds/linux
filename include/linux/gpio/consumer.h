@@ -143,15 +143,6 @@ struct gpio_desc *devm_fwnode_get_index_gpiod_from_child(struct device *dev,
 						struct fwnode_handle *child,
 						enum gpiod_flags flags,
 						const char *label);
-/* FIXME: delete this helper when users are switched over */
-static inline struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
-			  const char *con_id, struct fwnode_handle *child)
-{
-	return devm_fwnode_get_index_gpiod_from_child(dev, con_id,
-						      0, child,
-						      GPIOD_ASIS,
-						      "?");
-}
 
 #else /* CONFIG_GPIOLIB */
 
@@ -440,13 +431,6 @@ struct gpio_desc *devm_fwnode_get_index_gpiod_from_child(struct device *dev,
 						struct fwnode_handle *child,
 						enum gpiod_flags flags,
 						const char *label)
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-/* FIXME: delete this when all users are switched over */
-static inline struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
-			  const char *con_id, struct fwnode_handle *child)
 {
 	return ERR_PTR(-ENOSYS);
 }

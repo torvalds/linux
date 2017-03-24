@@ -2579,7 +2579,9 @@ static void wacom_remove(struct hid_device *hdev)
 
 	/* make sure we don't trigger the LEDs */
 	wacom_led_groups_release(wacom);
-	wacom_release_resources(wacom);
+
+	if (wacom->wacom_wac.features.type != REMOTE)
+		wacom_release_resources(wacom);
 
 	hid_set_drvdata(hdev, NULL);
 }

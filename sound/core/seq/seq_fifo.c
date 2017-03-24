@@ -72,6 +72,9 @@ void snd_seq_fifo_delete(struct snd_seq_fifo **fifo)
 		return;
 	*fifo = NULL;
 
+	if (f->pool)
+		snd_seq_pool_mark_closing(f->pool);
+
 	snd_seq_fifo_clear(f);
 
 	/* wake up clients if any */
