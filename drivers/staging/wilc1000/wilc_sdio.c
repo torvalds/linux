@@ -243,15 +243,11 @@ static void wilc_sdio_disable_interrupt(struct wilc *dev)
 	struct sdio_func *func = container_of(dev->dev, struct sdio_func, dev);
 	int ret;
 
-	dev_dbg(&func->dev, "wilc_sdio_disable_interrupt IN\n");
-
 	sdio_claim_host(func);
 	ret = sdio_release_irq(func);
 	if (ret < 0)
 		dev_err(&func->dev, "can't release sdio_irq, err(%d)\n", ret);
 	sdio_release_host(func);
-
-	dev_info(&func->dev, "wilc_sdio_disable_interrupt OUT\n");
 }
 
 /********************************************
