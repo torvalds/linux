@@ -192,7 +192,7 @@ static enum blk_eh_timer_return nbd_xmit_timeout(struct request *req,
 
 	dev_err(nbd_to_dev(nbd), "Connection timed out, shutting down connection\n");
 	set_bit(NBD_TIMEDOUT, &nbd->runtime_flags);
-	req->errors++;
+	req->errors = -EIO;
 
 	mutex_lock(&nbd->config_lock);
 	sock_shutdown(nbd);
@@ -432,7 +432,7 @@ static struct nbd_cmd *nbd_read_stat(struct nbd_device *nbd, int index)
 	if (ntohl(reply.error)) {
 		dev_err(disk_to_dev(nbd->disk), "Other side returned error (%d)\n",
 			ntohl(reply.error));
-		req->errors++;
+		req->errors = -EIO;
 		return cmd;
 	}
 
@@ -448,7 +448,7 @@ static struct nbd_cmd *nbd_read_stat(struct nbd_device *nbd, int index)
 			if (result <= 0) {
 				dev_err(disk_to_dev(nbd->disk), "Receive data failed (result %d)\n",
 					result);
-				req->errors++;
+				req->errors = -EIO;
 				return cmd;
 			}
 			dev_dbg(nbd_to_dev(nbd), "request %p: got %d bytes data\n",
@@ -518,7 +518,7 @@ static void nbd_clear_req(struct request *req, void *data, bool reserved)
 	if (!blk_mq_request_started(req))
 		return;
 	cmd = blk_mq_rq_to_pdu(req);
-	req->errors++;
+	req->errors = -EIO;
 	nbd_end_request(cmd);
 }
 
