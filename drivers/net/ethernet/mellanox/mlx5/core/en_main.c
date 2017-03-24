@@ -847,6 +847,7 @@ static int mlx5e_open_rq(struct mlx5e_channel *c,
 {
 	struct mlx5e_sq *sq = &c->icosq;
 	u16 pi = sq->pc & sq->wq.sz_m1;
+	struct mlx5e_tx_wqe *nopwqe;
 	int err;
 
 	err = mlx5e_create_rq(c, param, rq);
@@ -867,8 +868,9 @@ static int mlx5e_open_rq(struct mlx5e_channel *c,
 
 	sq->db.ico_wqe[pi].opcode     = MLX5_OPCODE_NOP;
 	sq->db.ico_wqe[pi].num_wqebbs = 1;
-	mlx5e_send_nop(sq, true); /* trigger mlx5e_post_rx_wqes() */
-
+	nopwqe = mlx5e_post_nop(&sq->wq, sq->sqn, &sq->pc);
+	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &nopwqe->ctrl);
+	sq->stats.nop++; /* TODO no need for SQ stats in ico */
 	return 0;
 
 err_disable_rq:
@@ -1202,9 +1204,12 @@ static void mlx5e_close_sq(struct mlx5e_sq *sq)
 		netif_tx_disable_queue(sq->txq);
 
 		/* last doorbell out, godspeed .. */
-		if (mlx5e_sq_has_room_for(sq, 1)) {
+		if (mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, 1)) {
+			struct mlx5e_tx_wqe *nop;
+
 			sq->db.txq.skb[(sq->pc & sq->wq.sz_m1)] = NULL;
-			mlx5e_send_nop(sq, true);
+			nop = mlx5e_post_nop(&sq->wq, sq->sqn, &sq->pc);
+			mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, &nop->ctrl);
 		}
 	}
 

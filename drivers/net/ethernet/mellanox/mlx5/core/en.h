@@ -375,10 +375,10 @@ struct mlx5e_sq {
 	u8                         type;
 } ____cacheline_aligned_in_smp;
 
-static inline bool mlx5e_sq_has_room_for(struct mlx5e_sq *sq, u16 n)
+static inline bool
+mlx5e_wqc_has_room_for(struct mlx5_wq_cyc *wq, u16 cc, u16 pc, u16 n)
 {
-	return (((sq->wq.sz_m1 & (sq->cc - sq->pc)) >= n) ||
-		(sq->cc  == sq->pc));
+	return (((wq->sz_m1 & (cc - pc)) >= n) || (cc == pc));
 }
 
 struct mlx5e_dma_info {
@@ -721,7 +721,6 @@ struct mlx5e_priv {
 
 void mlx5e_build_ptys2ethtool_map(void);
 
-void mlx5e_send_nop(struct mlx5e_sq *sq, bool notify_hw);
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       void *accel_priv, select_queue_fallback_t fallback);
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev);
@@ -807,20 +806,40 @@ void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params,
 				 u8 cq_period_mode);
 void mlx5e_set_rq_type_params(struct mlx5e_priv *priv, u8 rq_type);
 
-static inline void
-mlx5e_tx_notify_hw(struct mlx5e_sq *sq, struct mlx5_wqe_ctrl_seg *ctrl)
+static inline
+struct mlx5e_tx_wqe *mlx5e_post_nop(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
 {
+	u16                         pi   = *pc & wq->sz_m1;
+	struct mlx5e_tx_wqe        *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
+	struct mlx5_wqe_ctrl_seg   *cseg = &wqe->ctrl;
+
+	memset(cseg, 0, sizeof(*cseg));
+
+	cseg->opmod_idx_opcode = cpu_to_be32((*pc << 8) | MLX5_OPCODE_NOP);
+	cseg->qpn_ds           = cpu_to_be32((sqn << 8) | 0x01);
+
+	(*pc)++;
+
+	return wqe;
+}
+
+static inline
+void mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc,
+		     void __iomem *uar_map,
+		     struct mlx5_wqe_ctrl_seg *ctrl)
+{
+	ctrl->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
 	/* ensure wqe is visible to device before updating doorbell record */
 	dma_wmb();
 
-	*sq->wq.db = cpu_to_be32(sq->pc);
+	*wq->db = cpu_to_be32(pc);
 
 	/* ensure doorbell record is visible to device before ringing the
 	 * doorbell
 	 */
 	wmb();
 
-	mlx5_write64((__be32 *)ctrl, sq->uar_map, NULL);
+	mlx5_write64((__be32 *)ctrl, uar_map, NULL);
 }
 
 static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
