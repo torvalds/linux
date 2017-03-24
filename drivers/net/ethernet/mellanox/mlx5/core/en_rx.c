@@ -641,7 +641,7 @@ static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_sq *sq)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5e_tx_wqe *wqe;
-	u16 pi = (sq->pc - MLX5E_XDP_TX_WQEBBS) & wq->sz_m1; /* last pi */
+	u16 pi = (sq->pc - 1) & wq->sz_m1; /* last pi */
 
 	wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
 
@@ -657,16 +657,16 @@ static inline bool mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 	struct mlx5_wq_cyc       *wq   = &sq->wq;
 	u16                      pi    = sq->pc & wq->sz_m1;
 	struct mlx5e_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
-	struct mlx5e_sq_wqe_info *wi   = &sq->db.xdp.wqe_info[pi];
 
 	struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
 	struct mlx5_wqe_eth_seg  *eseg = &wqe->eth;
 	struct mlx5_wqe_data_seg *dseg;
-	u8 ds_cnt = MLX5E_XDP_TX_DS_COUNT;
 
 	ptrdiff_t data_offset = xdp->data - xdp->data_hard_start;
 	dma_addr_t dma_addr  = di->addr + data_offset;
 	unsigned int dma_len = xdp->data_end - xdp->data;
+
+	prefetchw(wqe);
 
 	if (unlikely(dma_len < MLX5E_XDP_MIN_INLINE ||
 		     MLX5E_SW2HW_MTU(rq->netdev->mtu) < dma_len)) {
@@ -675,7 +675,7 @@ static inline bool mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 		return false;
 	}
 
-	if (unlikely(!mlx5e_sq_has_room_for(sq, MLX5E_XDP_TX_WQEBBS))) {
+	if (unlikely(!mlx5e_sq_has_room_for(sq, 1))) {
 		if (sq->db.xdp.doorbell) {
 			/* SQ is full, ring doorbell */
 			mlx5e_xmit_xdp_doorbell(sq);
@@ -686,35 +686,29 @@ static inline bool mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 		return false;
 	}
 
-	dma_sync_single_for_device(sq->pdev, dma_addr, dma_len,
-				   PCI_DMA_TODEVICE);
+	dma_sync_single_for_device(sq->pdev, dma_addr, dma_len, PCI_DMA_TODEVICE);
 
-	memset(wqe, 0, sizeof(*wqe));
+	cseg->fm_ce_se = 0;
 
 	dseg = (struct mlx5_wqe_data_seg *)eseg + 1;
+
 	/* copy the inline part if required */
 	if (sq->min_inline_mode != MLX5_INLINE_MODE_NONE) {
 		memcpy(eseg->inline_hdr.start, xdp->data, MLX5E_XDP_MIN_INLINE);
 		eseg->inline_hdr.sz = cpu_to_be16(MLX5E_XDP_MIN_INLINE);
 		dma_len  -= MLX5E_XDP_MIN_INLINE;
 		dma_addr += MLX5E_XDP_MIN_INLINE;
-
-		ds_cnt   += MLX5E_XDP_IHS_DS_COUNT;
 		dseg++;
 	}
 
 	/* write the dma part */
 	dseg->addr       = cpu_to_be64(dma_addr);
 	dseg->byte_count = cpu_to_be32(dma_len);
-	dseg->lkey       = sq->mkey_be;
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_SEND);
-	cseg->qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_cnt);
 
 	sq->db.xdp.di[pi] = *di;
-	wi->opcode     = MLX5_OPCODE_SEND;
-	wi->num_wqebbs = MLX5E_XDP_TX_WQEBBS;
-	sq->pc += MLX5E_XDP_TX_WQEBBS;
+	sq->pc++;
 
 	sq->db.xdp.doorbell = true;
 	rq->stats.xdp_tx++;
@@ -1023,7 +1017,6 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 		wqe_counter = be16_to_cpu(cqe->wqe_counter);
 
 		do {
-			struct mlx5e_sq_wqe_info *wi;
 			struct mlx5e_dma_info *di;
 			u16 ci;
 
@@ -1031,14 +1024,8 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 
 			ci = sqcc & sq->wq.sz_m1;
 			di = &sq->db.xdp.di[ci];
-			wi = &sq->db.xdp.wqe_info[ci];
 
-			if (unlikely(wi->opcode == MLX5_OPCODE_NOP)) {
-				sqcc++;
-				continue;
-			}
-
-			sqcc += wi->num_wqebbs;
+			sqcc++;
 			/* Recycle RX page */
 			mlx5e_page_release(rq, di, true);
 		} while (!last_wqe);
@@ -1056,21 +1043,13 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 void mlx5e_free_xdpsq_descs(struct mlx5e_sq *sq)
 {
 	struct mlx5e_rq *rq = container_of(sq, struct mlx5e_rq, xdpsq);
-	struct mlx5e_sq_wqe_info *wi;
 	struct mlx5e_dma_info *di;
 	u16 ci;
 
 	while (sq->cc != sq->pc) {
 		ci = sq->cc & sq->wq.sz_m1;
 		di = &sq->db.xdp.di[ci];
-		wi = &sq->db.xdp.wqe_info[ci];
-
-		if (wi->opcode == MLX5_OPCODE_NOP) {
-			sq->cc++;
-			continue;
-		}
-
-		sq->cc += wi->num_wqebbs;
+		sq->cc++;
 
 		mlx5e_page_release(rq, di, false);
 	}
