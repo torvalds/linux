@@ -246,6 +246,12 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 {
 	int rc = 0;
 
+	if (!tag || tag > MAX_MCC_CMD) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BC_%d : invalid tag %u\n", tag);
+		return -EINVAL;
+	}
+
 	if (beiscsi_hba_in_error(phba)) {
 		clear_bit(MCC_TAG_STATE_RUNNING,
 			  &phba->ctrl.ptag_state[tag].tag_state);
