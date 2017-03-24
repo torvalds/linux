@@ -359,9 +359,10 @@ static bool mlxsw_sp_span_is_egress_mirror(struct mlxsw_sp_port *port)
 	return false;
 }
 
-static int mlxsw_sp_span_mtu_to_buffsize(int mtu)
+static int mlxsw_sp_span_mtu_to_buffsize(const struct mlxsw_sp *mlxsw_sp,
+					 int mtu)
 {
-	return MLXSW_SP_BYTES_TO_CELLS(mtu * 5 / 2) + 1;
+	return mlxsw_sp_bytes_cells(mlxsw_sp, mtu * 5 / 2) + 1;
 }
 
 static int mlxsw_sp_span_port_mtu_update(struct mlxsw_sp_port *port, u16 mtu)
@@ -374,8 +375,9 @@ static int mlxsw_sp_span_port_mtu_update(struct mlxsw_sp_port *port, u16 mtu)
 	 * updated according to the mtu value
 	 */
 	if (mlxsw_sp_span_is_egress_mirror(port)) {
-		mlxsw_reg_sbib_pack(sbib_pl, port->local_port,
-				    mlxsw_sp_span_mtu_to_buffsize(mtu));
+		u32 buffsize = mlxsw_sp_span_mtu_to_buffsize(mlxsw_sp, mtu);
+
+		mlxsw_reg_sbib_pack(sbib_pl, port->local_port, buffsize);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbib), sbib_pl);
 		if (err) {
 			netdev_err(port->dev, "Could not update shared buffer for mirroring\n");
@@ -412,8 +414,10 @@ mlxsw_sp_span_inspected_port_bind(struct mlxsw_sp_port *port,
 
 	/* if it is an egress SPAN, bind a shared buffer to it */
 	if (type == MLXSW_SP_SPAN_EGRESS) {
-		mlxsw_reg_sbib_pack(sbib_pl, port->local_port,
-				    mlxsw_sp_span_mtu_to_buffsize(port->dev->mtu));
+		u32 buffsize = mlxsw_sp_span_mtu_to_buffsize(mlxsw_sp,
+							     port->dev->mtu);
+
+		mlxsw_reg_sbib_pack(sbib_pl, port->local_port, buffsize);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbib), sbib_pl);
 		if (err) {
 			netdev_err(port->dev, "Could not create shared buffer for mirroring\n");
@@ -800,19 +804,47 @@ static int mlxsw_sp_port_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static void mlxsw_sp_pg_buf_pack(char *pbmc_pl, int pg_index, int mtu,
-				 bool pause_en, bool pfc_en, u16 delay)
+static u16 mlxsw_sp_pg_buf_threshold_get(const struct mlxsw_sp *mlxsw_sp,
+					 int mtu)
 {
-	u16 pg_size = 2 * MLXSW_SP_BYTES_TO_CELLS(mtu);
+	return 2 * mlxsw_sp_bytes_cells(mlxsw_sp, mtu);
+}
 
-	delay = pfc_en ? mlxsw_sp_pfc_delay_get(mtu, delay) :
-			 MLXSW_SP_PAUSE_DELAY;
+#define MLXSW_SP_CELL_FACTOR 2	/* 2 * cell_size / (IPG + cell_size + 1) */
 
-	if (pause_en || pfc_en)
-		mlxsw_reg_pbmc_lossless_buffer_pack(pbmc_pl, pg_index,
-						    pg_size + delay, pg_size);
+static u16 mlxsw_sp_pfc_delay_get(const struct mlxsw_sp *mlxsw_sp, int mtu,
+				  u16 delay)
+{
+	delay = mlxsw_sp_bytes_cells(mlxsw_sp, DIV_ROUND_UP(delay,
+							    BITS_PER_BYTE));
+	return MLXSW_SP_CELL_FACTOR * delay + mlxsw_sp_bytes_cells(mlxsw_sp,
+								   mtu);
+}
+
+/* Maximum delay buffer needed in case of PAUSE frames, in bytes.
+ * Assumes 100m cable and maximum MTU.
+ */
+#define MLXSW_SP_PAUSE_DELAY 58752
+
+static u16 mlxsw_sp_pg_buf_delay_get(const struct mlxsw_sp *mlxsw_sp, int mtu,
+				     u16 delay, bool pfc, bool pause)
+{
+	if (pfc)
+		return mlxsw_sp_pfc_delay_get(mlxsw_sp, mtu, delay);
+	else if (pause)
+		return mlxsw_sp_bytes_cells(mlxsw_sp, MLXSW_SP_PAUSE_DELAY);
 	else
-		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, pg_index, pg_size);
+		return 0;
+}
+
+static void mlxsw_sp_pg_buf_pack(char *pbmc_pl, int index, u16 size, u16 thres,
+				 bool lossy)
+{
+	if (lossy)
+		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, index, size);
+	else
+		mlxsw_reg_pbmc_lossless_buffer_pack(pbmc_pl, index, size,
+						    thres);
 }
 
 int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
@@ -833,6 +865,8 @@ int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
 		bool configure = false;
 		bool pfc = false;
+		bool lossy;
+		u16 thres;
 
 		for (j = 0; j < IEEE_8021QAZ_MAX_TCS; j++) {
 			if (prio_tc[j] == i) {
@@ -844,7 +878,12 @@ int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
 
 		if (!configure)
 			continue;
-		mlxsw_sp_pg_buf_pack(pbmc_pl, i, mtu, pause_en, pfc, delay);
+
+		lossy = !(pfc || pause_en);
+		thres = mlxsw_sp_pg_buf_threshold_get(mlxsw_sp, mtu);
+		delay = mlxsw_sp_pg_buf_delay_get(mlxsw_sp, mtu, delay, pfc,
+						  pause_en);
+		mlxsw_sp_pg_buf_pack(pbmc_pl, i, thres + delay, thres, lossy);
 	}
 
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
@@ -1550,6 +1589,7 @@ err_port_pause_configure:
 struct mlxsw_sp_port_hw_stats {
 	char str[ETH_GSTRING_LEN];
 	u64 (*getter)(const char *payload);
+	bool cells_bytes;
 };
 
 static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_stats[] = {
@@ -1670,17 +1710,11 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_prio_stats[] = {
 
 #define MLXSW_SP_PORT_HW_PRIO_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_hw_prio_stats)
 
-static u64 mlxsw_reg_ppcnt_tc_transmit_queue_bytes_get(const char *ppcnt_pl)
-{
-	u64 transmit_queue = mlxsw_reg_ppcnt_tc_transmit_queue_get(ppcnt_pl);
-
-	return MLXSW_SP_CELLS_TO_BYTES(transmit_queue);
-}
-
 static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_tc_stats[] = {
 	{
 		.str = "tc_transmit_queue_tc",
-		.getter = mlxsw_reg_ppcnt_tc_transmit_queue_bytes_get,
+		.getter = mlxsw_reg_ppcnt_tc_transmit_queue_get,
+		.cells_bytes = true,
 	},
 	{
 		.str = "tc_no_buffer_discard_uc_tc",
@@ -1792,6 +1826,8 @@ static void __mlxsw_sp_port_get_stats(struct net_device *dev,
 				      enum mlxsw_reg_ppcnt_grp grp, int prio,
 				      u64 *data, int data_index)
 {
+	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_port_hw_stats *hw_stats;
 	char ppcnt_pl[MLXSW_REG_PPCNT_LEN];
 	int i, len;
@@ -1801,8 +1837,13 @@ static void __mlxsw_sp_port_get_stats(struct net_device *dev,
 	if (err)
 		return;
 	mlxsw_sp_port_get_stats_raw(dev, grp, prio, ppcnt_pl);
-	for (i = 0; i < len; i++)
+	for (i = 0; i < len; i++) {
 		data[data_index + i] = hw_stats[i].getter(ppcnt_pl);
+		if (!hw_stats[i].cells_bytes)
+			continue;
+		data[data_index + i] = mlxsw_sp_cells_bytes(mlxsw_sp,
+							    data[data_index + i]);
+	}
 }
 
 static void mlxsw_sp_port_get_stats(struct net_device *dev,
@@ -2595,25 +2636,33 @@ static void mlxsw_sp_ports_remove(struct mlxsw_sp *mlxsw_sp)
 {
 	int i;
 
-	for (i = 1; i < MLXSW_PORT_MAX_PORTS; i++)
+	for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++)
 		if (mlxsw_sp_port_created(mlxsw_sp, i))
 			mlxsw_sp_port_remove(mlxsw_sp, i);
+	kfree(mlxsw_sp->port_to_module);
 	kfree(mlxsw_sp->ports);
 }
 
 static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 {
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
 	u8 module, width, lane;
 	size_t alloc_size;
 	int i;
 	int err;
 
-	alloc_size = sizeof(struct mlxsw_sp_port *) * MLXSW_PORT_MAX_PORTS;
+	alloc_size = sizeof(struct mlxsw_sp_port *) * max_ports;
 	mlxsw_sp->ports = kzalloc(alloc_size, GFP_KERNEL);
 	if (!mlxsw_sp->ports)
 		return -ENOMEM;
 
-	for (i = 1; i < MLXSW_PORT_MAX_PORTS; i++) {
+	mlxsw_sp->port_to_module = kcalloc(max_ports, sizeof(u8), GFP_KERNEL);
+	if (!mlxsw_sp->port_to_module) {
+		err = -ENOMEM;
+		goto err_port_to_module_alloc;
+	}
+
+	for (i = 1; i < max_ports; i++) {
 		err = mlxsw_sp_port_module_info_get(mlxsw_sp, i, &module,
 						    &width, &lane);
 		if (err)
@@ -2633,6 +2682,8 @@ err_port_module_info_get:
 	for (i--; i >= 1; i--)
 		if (mlxsw_sp_port_created(mlxsw_sp, i))
 			mlxsw_sp_port_remove(mlxsw_sp, i);
+	kfree(mlxsw_sp->port_to_module);
+err_port_to_module_alloc:
 	kfree(mlxsw_sp->ports);
 	return err;
 }

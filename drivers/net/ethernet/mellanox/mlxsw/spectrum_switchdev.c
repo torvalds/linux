@@ -1012,7 +1012,7 @@ static int mlxsw_sp_port_smid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 mid,
 
 	mlxsw_reg_smid_pack(smid_pl, mid, mlxsw_sp_port->local_port, add);
 	if (clear_all_ports) {
-		for (i = 1; i < MLXSW_PORT_MAX_PORTS; i++)
+		for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++)
 			if (mlxsw_sp->ports[i])
 				mlxsw_reg_smid_port_mask_set(smid_pl, i, 1);
 	}

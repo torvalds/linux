@@ -63,32 +63,10 @@
 
 #define MLXSW_SP_PORTS_PER_CLUSTER_MAX 4
 
-#define MLXSW_SP_LPM_TREE_MIN 2 /* trees 0 and 1 are reserved */
-#define MLXSW_SP_LPM_TREE_MAX 22
-#define MLXSW_SP_LPM_TREE_COUNT (MLXSW_SP_LPM_TREE_MAX - MLXSW_SP_LPM_TREE_MIN)
-
 #define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
-
-#define MLXSW_SP_BYTES_PER_CELL 96
-
-#define MLXSW_SP_BYTES_TO_CELLS(b) DIV_ROUND_UP(b, MLXSW_SP_BYTES_PER_CELL)
-#define MLXSW_SP_CELLS_TO_BYTES(c) (c * MLXSW_SP_BYTES_PER_CELL)
 
 #define MLXSW_SP_KVD_LINEAR_SIZE 65536 /* entries */
 #define MLXSW_SP_KVD_GRANULARITY 128
-
-/* Maximum delay buffer needed in case of PAUSE frames, in cells.
- * Assumes 100m cable and maximum MTU.
- */
-#define MLXSW_SP_PAUSE_DELAY 612
-
-#define MLXSW_SP_CELL_FACTOR 2	/* 2 * cell_size / (IPG + cell_size + 1) */
-
-static inline u16 mlxsw_sp_pfc_delay_get(int mtu, u16 delay)
-{
-	delay = MLXSW_SP_BYTES_TO_CELLS(DIV_ROUND_UP(delay, BITS_PER_BYTE));
-	return MLXSW_SP_CELL_FACTOR * delay + MLXSW_SP_BYTES_TO_CELLS(mtu);
-}
 
 struct mlxsw_sp_port;
 struct mlxsw_sp_rif;
@@ -156,12 +134,15 @@ struct mlxsw_sp_sb_pm {
 #define MLXSW_SP_SB_POOL_COUNT	4
 #define MLXSW_SP_SB_TC_COUNT	8
 
+struct mlxsw_sp_sb_port {
+	struct mlxsw_sp_sb_cm cms[2][MLXSW_SP_SB_TC_COUNT];
+	struct mlxsw_sp_sb_pm pms[2][MLXSW_SP_SB_POOL_COUNT];
+};
+
 struct mlxsw_sp_sb {
 	struct mlxsw_sp_sb_pr prs[2][MLXSW_SP_SB_POOL_COUNT];
-	struct {
-		struct mlxsw_sp_sb_cm cms[2][MLXSW_SP_SB_TC_COUNT];
-		struct mlxsw_sp_sb_pm pms[2][MLXSW_SP_SB_POOL_COUNT];
-	} ports[MLXSW_PORT_MAX_PORTS];
+	struct mlxsw_sp_sb_port *ports;
+	u32 cell_size;
 };
 
 #define MLXSW_SP_PREFIX_COUNT (sizeof(struct in6_addr) * BITS_PER_BYTE)
@@ -230,11 +211,14 @@ struct mlxsw_sp_port_mall_tc_entry {
 };
 
 struct mlxsw_sp_router {
-	struct mlxsw_sp_lpm_tree lpm_trees[MLXSW_SP_LPM_TREE_COUNT];
 	struct mlxsw_sp_vr *vrs;
 	struct rhashtable neigh_ht;
 	struct rhashtable nexthop_group_ht;
 	struct rhashtable nexthop_ht;
+	struct {
+		struct mlxsw_sp_lpm_tree *trees;
+		unsigned int tree_count;
+	} lpm;
 	struct {
 		struct delayed_work dw;
 		unsigned long interval;	/* ms */
@@ -274,7 +258,7 @@ struct mlxsw_sp {
 	u32 ageing_time;
 	struct mlxsw_sp_upper master_bridge;
 	struct mlxsw_sp_upper *lags;
-	u8 port_to_module[MLXSW_PORT_MAX_PORTS];
+	u8 *port_to_module;
 	struct mlxsw_sp_sb sb;
 	struct mlxsw_sp_router router;
 	struct mlxsw_sp_acl *acl;
@@ -294,6 +278,18 @@ static inline struct mlxsw_sp_upper *
 mlxsw_sp_lag_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
 {
 	return &mlxsw_sp->lags[lag_id];
+}
+
+static inline u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp,
+				       u32 cells)
+{
+	return mlxsw_sp->sb.cell_size * cells;
+}
+
+static inline u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp,
+				       u32 bytes)
+{
+	return DIV_ROUND_UP(bytes, mlxsw_sp->sb.cell_size);
 }
 
 struct mlxsw_sp_port_pcpu_stats {
