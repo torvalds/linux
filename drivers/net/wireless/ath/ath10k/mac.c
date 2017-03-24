@@ -2451,6 +2451,8 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 	enum nl80211_band band;
 	const u16 *vht_mcs_mask;
 	u8 ampdu_factor;
+	u8 max_nss, vht_mcs;
+	int i;
 
 	if (WARN_ON(ath10k_mac_vif_chan(vif, &def)))
 		return;
@@ -2489,6 +2491,18 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 	if (sta->bandwidth == IEEE80211_STA_RX_BW_160)
 		arg->peer_flags |= ar->wmi.peer_flags->bw160;
 
+	/* Calculate peer NSS capability from VHT capabilities if STA
+	 * supports VHT.
+	 */
+	for (i = 0, max_nss = 0, vht_mcs = 0; i < NL80211_VHT_NSS_MAX; i++) {
+		vht_mcs = __le16_to_cpu(vht_cap->vht_mcs.rx_mcs_map) >>
+			  (2 * i) & 3;
+
+		if ((vht_mcs != IEEE80211_VHT_MCS_NOT_SUPPORTED) &&
+		    vht_mcs_mask[i])
+			max_nss = i + 1;
+	}
+	arg->peer_num_spatial_streams = min(sta->rx_nss, max_nss);
 	arg->peer_vht_rates.rx_max_rate =
 		__le16_to_cpu(vht_cap->vht_mcs.rx_highest);
 	arg->peer_vht_rates.rx_mcs_set =
