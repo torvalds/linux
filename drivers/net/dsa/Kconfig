@@ -11,7 +11,7 @@ config NET_DSA_MV88E6060
 
 config NET_DSA_BCM_SF2
 	tristate "Broadcom Starfighter 2 Ethernet switch support"
-	depends on HAS_IOMEM && NET_DSA
+	depends on HAS_IOMEM && NET_DSA && OF_MDIO
 	select NET_DSA_TAG_BRCM
 	select FIXED_PHY
 	select BCM7XXX_PHY
