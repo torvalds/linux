@@ -495,6 +495,7 @@ static void dce_clock_read_ss_info(struct dce_disp_clk *clk_dce)
 	}
 }
 
+
 static bool dce_apply_clock_voltage_request(
 	struct display_clock *clk,
 	enum dm_pp_clock_type clocks_type,
@@ -502,6 +503,7 @@ static bool dce_apply_clock_voltage_request(
 	bool pre_mode_set,
 	bool update_dp_phyclk)
 {
+	bool send_request = false;
 	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
 
 	switch (clocks_type) {
@@ -522,9 +524,8 @@ static bool dce_apply_clock_voltage_request(
 		switch (clocks_type) {
 		case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
 			if (clocks_in_khz > clk->cur_clocks_value.dispclk_in_khz) {
-				dm_pp_apply_clock_for_voltage_request(
-						clk->ctx, &clock_voltage_req);
 				clk->cur_clocks_value.dispclk_notify_pplib_done = true;
+				send_request = true;
 			} else
 				clk->cur_clocks_value.dispclk_notify_pplib_done = false;
 			/* no matter incrase or decrase clock, update current clock value */
@@ -532,9 +533,8 @@ static bool dce_apply_clock_voltage_request(
 			break;
 		case DM_PP_CLOCK_TYPE_PIXELCLK:
 			if (clocks_in_khz > clk->cur_clocks_value.max_pixelclk_in_khz) {
-				dm_pp_apply_clock_for_voltage_request(
-						clk->ctx, &clock_voltage_req);
 				clk->cur_clocks_value.pixelclk_notify_pplib_done = true;
+				send_request = true;
 			} else
 				clk->cur_clocks_value.pixelclk_notify_pplib_done = false;
 			/* no matter incrase or decrase clock, update current clock value */
@@ -542,9 +542,8 @@ static bool dce_apply_clock_voltage_request(
 			break;
 		case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
 			if (clocks_in_khz > clk->cur_clocks_value.max_non_dp_phyclk_in_khz) {
-				dm_pp_apply_clock_for_voltage_request(
-						clk->ctx, &clock_voltage_req);
 				clk->cur_clocks_value.phyclk_notigy_pplib_done = true;
+				send_request = true;
 			} else
 				clk->cur_clocks_value.phyclk_notigy_pplib_done = false;
 			/* no matter incrase or decrase clock, update current clock value */
@@ -554,35 +553,37 @@ static bool dce_apply_clock_voltage_request(
 			ASSERT(0);
 			break;
 		}
+
 	} else {
 		switch (clocks_type) {
 		case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
 			if (!clk->cur_clocks_value.dispclk_notify_pplib_done)
-				dm_pp_apply_clock_for_voltage_request(
-						clk->ctx, &clock_voltage_req);
+				send_request = true;
 			break;
 		case DM_PP_CLOCK_TYPE_PIXELCLK:
 			if (!clk->cur_clocks_value.pixelclk_notify_pplib_done)
-				dm_pp_apply_clock_for_voltage_request(
-						clk->ctx, &clock_voltage_req);
+				send_request = true;
 			break;
 		case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
 			if (!clk->cur_clocks_value.phyclk_notigy_pplib_done)
-				dm_pp_apply_clock_for_voltage_request(
-						clk->ctx, &clock_voltage_req);
+				send_request = true;
 			break;
 		default:
 			ASSERT(0);
 			break;
 		}
 	}
-
+	if (send_request) {
+		dm_pp_apply_clock_for_voltage_request(
+			clk->ctx, &clock_voltage_req);
+	}
 	if (update_dp_phyclk && (clocks_in_khz >
 	clk->cur_clocks_value.max_dp_phyclk_in_khz))
 		clk->cur_clocks_value.max_dp_phyclk_in_khz = clocks_in_khz;
 
 	return true;
 }
+
 
 static const struct display_clock_funcs dce120_funcs = {
 	.get_dp_ref_clk_frequency = dce_clocks_get_dp_ref_freq,

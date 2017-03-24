@@ -28,6 +28,7 @@
 
 #include "dm_services_types.h"
 
+
 struct clocks_value {
 	int dispclk_in_khz;
 	int max_pixelclk_in_khz;
@@ -37,6 +38,7 @@ struct clocks_value {
 	bool pixelclk_notify_pplib_done;
 	bool phyclk_notigy_pplib_done;
 };
+
 
 /* Structure containing all state-dependent clocks
  * (dependent on "enum clocks_state") */

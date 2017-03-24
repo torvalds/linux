@@ -1035,6 +1035,7 @@ static void get_ss_info_from_atombios(
 	}
 
 	*spread_spectrum_data = ss_data;
+	dm_free(ss_data);
 	dm_free(ss_info);
 	return;
 
