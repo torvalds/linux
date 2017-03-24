@@ -89,17 +89,17 @@ static int rmi_smb_get_command_code(struct rmi_transport_dev *xport,
 
 	mutex_lock(&rmi_smb->mappingtable_mutex);
 	for (i = 0; i < RMI_SMB2_MAP_SIZE; i++) {
-		if (rmi_smb->mapping_table[i].rmiaddr == rmiaddr) {
+		struct mapping_table_entry *entry = &rmi_smb->mapping_table[i];
+
+		if (le16_to_cpu(entry->rmiaddr) == rmiaddr) {
 			if (isread) {
-				if (rmi_smb->mapping_table[i].readcount
-							== bytecount) {
+				if (entry->readcount == bytecount) {
 					*commandcode = i;
 					retval = 0;
 					goto exit;
 				}
 			} else {
-				if (rmi_smb->mapping_table[i].flags &
-							RMI_SMB2_MAP_FLAGS_WE) {
+				if (entry->flags & RMI_SMB2_MAP_FLAGS_WE) {
 					*commandcode = i;
 					retval = 0;
 					goto exit;
