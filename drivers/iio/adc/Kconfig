@@ -195,6 +195,17 @@ config CC10001_ADC
 	  This driver can also be built as a module. If so, the module will be
 	  called cc10001_adc.
 
+config CPCAP_ADC
+	tristate "Motorola CPCAP PMIC ADC driver"
+	depends on MFD_CPCAP
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Motorola CPCAP PMIC ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cpcap-adc.
+
 config DA9150_GPADC
 	tristate "Dialog DA9150 GPADC driver support"
 	depends on MFD_DA9150
