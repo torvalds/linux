@@ -4207,9 +4207,7 @@ static int __init do_floppy_init(void)
 		disks[drive]->fops = &floppy_fops;
 		sprintf(disks[drive]->disk_name, "fd%d", drive);
 
-		init_timer(&motor_off_timer[drive]);
-		motor_off_timer[drive].data = drive;
-		motor_off_timer[drive].function = motor_off_callback;
+		setup_timer(&motor_off_timer[drive], motor_off_callback, drive);
 	}
 
 	err = register_blkdev(FLOPPY_MAJOR, "fd");
