@@ -135,7 +135,9 @@
 			<&cru SCLK_VDU_CORE>, <&cru ACLK_USB3>,
 			<&cru FCLK_CM0S>, <&cru ACLK_CCI>,
 			<&cru PCLK_ALIVE>, <&cru SCLK_CS>,
-			<&cru SCLK_CCI_TRACE>;
+			<&cru SCLK_CCI_TRACE>, <&cru ACLK_VOP0>,
+			<&cru HCLK_VOP0>, <&cru ACLK_VOP1>,
+			<&cru HCLK_VOP1>;
 		assigned-clock-rates =
 			 <75000000>, <50000000>,
 			 <50000000>, <50000000>,
@@ -171,7 +173,9 @@
 			 <300000000>, <300000000>,
 			 <300000000>, <300000000>,
 			 <100000000>, <150000000>,
-			 <150000000>;
+			 <150000000>, <400000000>,
+			 <100000000>, <400000000>,
+			 <100000000>;
 };
 #endif
 
