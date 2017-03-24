@@ -1292,6 +1292,8 @@ static bool construct(
 	dc->public.caps.i2c_speed_in_khz = 100;
 	dc->public.caps.max_cursor_size = 256;
 
+	dc->public.caps.max_slave_planes = 1;
+
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->public.debug = debug_defaults_drv;
 	else
