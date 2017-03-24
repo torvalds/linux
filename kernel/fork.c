@@ -1679,9 +1679,12 @@ static __latent_entropy struct task_struct *copy_process(
 		goto bad_fork_cleanup_perf;
 	/* copy all the process information */
 	shm_init_task(p);
-	retval = copy_semundo(clone_flags, p);
+	retval = security_task_alloc(p, clone_flags);
 	if (retval)
 		goto bad_fork_cleanup_audit;
+	retval = copy_semundo(clone_flags, p);
+	if (retval)
+		goto bad_fork_cleanup_security;
 	retval = copy_files(clone_flags, p);
 	if (retval)
 		goto bad_fork_cleanup_semundo;
@@ -1903,6 +1906,8 @@ bad_fork_cleanup_files:
 	exit_files(p); /* blocking */
 bad_fork_cleanup_semundo:
 	exit_sem(p);
+bad_fork_cleanup_security:
+	security_task_free(p);
 bad_fork_cleanup_audit:
 	audit_free(p);
 bad_fork_cleanup_perf:

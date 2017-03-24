@@ -533,8 +533,13 @@
  *	manual page for definitions of the @clone_flags.
  *	@clone_flags contains the flags indicating what should be shared.
  *	Return 0 if permission is granted.
+ * @task_alloc:
+ *	@task task being allocated.
+ *	@clone_flags contains the flags indicating what should be shared.
+ *	Handle allocation of task-related resources.
+ *	Returns a zero on success, negative values on failure.
  * @task_free:
- *	@task task being freed
+ *	@task task about to be freed.
  *	Handle release of task-related resources. (Note that this can be called
  *	from interrupt context.)
  * @cred_alloc_blank:
@@ -1482,6 +1487,7 @@ union security_list_options {
 	int (*file_open)(struct file *file, const struct cred *cred);
 
 	int (*task_create)(unsigned long clone_flags);
+	int (*task_alloc)(struct task_struct *task, unsigned long clone_flags);
 	void (*task_free)(struct task_struct *task);
 	int (*cred_alloc_blank)(struct cred *cred, gfp_t gfp);
 	void (*cred_free)(struct cred *cred);
@@ -1748,6 +1754,7 @@ struct security_hook_heads {
 	struct list_head file_receive;
 	struct list_head file_open;
 	struct list_head task_create;
+	struct list_head task_alloc;
 	struct list_head task_free;
 	struct list_head cred_alloc_blank;
 	struct list_head cred_free;
