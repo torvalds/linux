@@ -245,7 +245,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 		return -EINVAL;
 
 	mutex_lock(&guc->send_mutex);
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_BLITTER);
 
 	dev_priv->guc.action_count += 1;
 	dev_priv->guc.action_cmd = action[0];
@@ -283,7 +283,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 	}
 	dev_priv->guc.action_status = status;
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_BLITTER);
 	mutex_unlock(&guc->send_mutex);
 
 	return ret;
