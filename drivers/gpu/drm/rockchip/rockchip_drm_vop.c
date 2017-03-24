@@ -1701,6 +1701,10 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	val |= vact_end;
 	VOP_CTRL_SET(vop, vact_st_end, val);
 	VOP_CTRL_SET(vop, vpost_st_end, val);
+
+	VOP_INTR_SET(vop, line_flag_num[0], vact_end);
+	VOP_INTR_SET(vop, line_flag_num[1],
+		     vact_end - us_to_vertical_line(adjusted_mode, 1000));
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		u16 vact_st_f1 = vtotal + vact_st + 1;
 		u16 vact_end_f1 = vact_st_f1 + vdisplay;
