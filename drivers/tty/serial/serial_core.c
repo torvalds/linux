@@ -2744,6 +2744,12 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	state->pm_state = UART_PM_STATE_UNDEFINED;
 	uport->cons = drv->cons;
 	uport->minor = drv->tty_driver->minor_start + uport->line;
+	uport->name = kasprintf(GFP_KERNEL, "%s%d", drv->dev_name,
+				drv->tty_driver->name_base + uport->line);
+	if (!uport->name) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/*
 	 * If this port is a console, then the spinlock is already
@@ -2861,6 +2867,7 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	if (uport->type != PORT_UNKNOWN && uport->ops->release_port)
 		uport->ops->release_port(uport);
 	kfree(uport->tty_groups);
+	kfree(uport->name);
 
 	/*
 	 * Indicate that there isn't a port here anymore.
