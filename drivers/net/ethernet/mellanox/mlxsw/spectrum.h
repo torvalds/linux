@@ -65,11 +65,6 @@
 
 #define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
 
-#define MLXSW_SP_BYTES_PER_CELL 96
-
-#define MLXSW_SP_BYTES_TO_CELLS(b) DIV_ROUND_UP(b, MLXSW_SP_BYTES_PER_CELL)
-#define MLXSW_SP_CELLS_TO_BYTES(c) (c * MLXSW_SP_BYTES_PER_CELL)
-
 #define MLXSW_SP_KVD_LINEAR_SIZE 65536 /* entries */
 #define MLXSW_SP_KVD_GRANULARITY 128
 
@@ -147,6 +142,7 @@ struct mlxsw_sp_sb_port {
 struct mlxsw_sp_sb {
 	struct mlxsw_sp_sb_pr prs[2][MLXSW_SP_SB_POOL_COUNT];
 	struct mlxsw_sp_sb_port *ports;
+	u32 cell_size;
 };
 
 #define MLXSW_SP_PREFIX_COUNT (sizeof(struct in6_addr) * BITS_PER_BYTE)
@@ -282,6 +278,18 @@ static inline struct mlxsw_sp_upper *
 mlxsw_sp_lag_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
 {
 	return &mlxsw_sp->lags[lag_id];
+}
+
+static inline u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp,
+				       u32 cells)
+{
+	return mlxsw_sp->sb.cell_size * cells;
+}
+
+static inline u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp,
+				       u32 bytes)
+{
+	return DIV_ROUND_UP(bytes, mlxsw_sp->sb.cell_size);
 }
 
 struct mlxsw_sp_port_pcpu_stats {
