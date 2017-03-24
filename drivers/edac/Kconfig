@@ -392,6 +392,17 @@ config EDAC_OCTEON_PCI
 	  Support for error detection and correction on the
 	  Cavium Octeon family of SOCs.
 
+config EDAC_THUNDERX
+	tristate "Cavium ThunderX EDAC"
+	depends on EDAC_MM_EDAC
+	depends on ARM64
+	depends on PCI
+	help
+	  Support for error detection and correction on the
+	  Cavium ThunderX memory controllers (LMC), Cache
+	  Coherent Processor Interconnect (CCPI) and L2 cache
+	  blocks (TAD, CBC, MCI).
+
 config EDAC_ALTERA
 	bool "Altera SOCFPGA ECC"
 	depends on EDAC_MM_EDAC=y && ARCH_SOCFPGA
