@@ -226,6 +226,7 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->mcesad = mcesa_origin | mcesa_bits;
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
+	lc->spinlock_index = 0;
 	if (vdso_alloc_per_cpu(lc))
 		goto out;
 	lowcore_ptr[cpu] = lc;
@@ -273,6 +274,7 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	cpumask_set_cpu(cpu, mm_cpumask(&init_mm));
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
+	lc->spinlock_index = 0;
 	lc->percpu_offset = __per_cpu_offset[cpu];
 	lc->kernel_asce = S390_lowcore.kernel_asce;
 	lc->machine_flags = S390_lowcore.machine_flags;
@@ -281,6 +283,7 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	save_access_regs((unsigned int *) lc->access_regs_save_area);
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
 	       MAX_FACILITY_BIT/8);
+	arch_spin_lock_setup(cpu);
 }
 
 static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
@@ -967,6 +970,7 @@ void __init smp_setup_processor_id(void)
 	pcpu_devices[0].address = stap();
 	S390_lowcore.cpu_nr = 0;
 	S390_lowcore.spinlock_lockval = arch_spin_lockval(0);
+	S390_lowcore.spinlock_index = 0;
 }
 
 /*
