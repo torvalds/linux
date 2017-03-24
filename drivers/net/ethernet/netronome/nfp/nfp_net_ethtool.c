@@ -40,6 +40,7 @@
  *          Brad Petrus <brad.petrus@netronome.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -126,9 +127,9 @@ static const struct _nfp_net_et_stats nfp_net_et_stats[] = {
 };
 
 #define NN_ET_GLOBAL_STATS_LEN ARRAY_SIZE(nfp_net_et_stats)
-#define NN_ET_RVEC_STATS_LEN (nn->num_r_vecs * 3)
+#define NN_ET_RVEC_STATS_LEN (nn->dp.num_r_vecs * 3)
 #define NN_ET_RVEC_GATHER_STATS 7
-#define NN_ET_QUEUE_STATS_LEN ((nn->num_tx_rings + nn->num_rx_rings) * 2)
+#define NN_ET_QUEUE_STATS_LEN ((nn->dp.num_tx_rings + nn->dp.num_rx_rings) * 2)
 #define NN_ET_STATS_LEN (NN_ET_GLOBAL_STATS_LEN + NN_ET_RVEC_GATHER_STATS + \
 			 NN_ET_RVEC_STATS_LEN + NN_ET_QUEUE_STATS_LEN)
 
@@ -179,30 +180,22 @@ static void nfp_net_get_ringparam(struct net_device *netdev,
 
 	ring->rx_max_pending = NFP_NET_MAX_RX_DESCS;
 	ring->tx_max_pending = NFP_NET_MAX_TX_DESCS;
-	ring->rx_pending = nn->rxd_cnt;
-	ring->tx_pending = nn->txd_cnt;
+	ring->rx_pending = nn->dp.rxd_cnt;
+	ring->tx_pending = nn->dp.txd_cnt;
 }
 
 static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
 {
-	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
-	struct nfp_net_ring_set rx = {
-		.n_rings = nn->num_rx_rings,
-		.mtu = nn->netdev->mtu,
-		.dcnt = rxd_cnt,
-	};
-	struct nfp_net_ring_set tx = {
-		.n_rings = nn->num_tx_rings,
-		.dcnt = txd_cnt,
-	};
+	struct nfp_net_dp *dp;
 
-	if (nn->rxd_cnt != rxd_cnt)
-		reconfig_rx = &rx;
-	if (nn->txd_cnt != txd_cnt)
-		reconfig_tx = &tx;
+	dp = nfp_net_clone_dp(nn);
+	if (!dp)
+		return -ENOMEM;
 
-	return nfp_net_ring_reconfig(nn, &nn->xdp_prog,
-				     reconfig_rx, reconfig_tx);
+	dp->rxd_cnt = rxd_cnt;
+	dp->txd_cnt = txd_cnt;
+
+	return nfp_net_ring_reconfig(nn, dp);
 }
 
 static int nfp_net_set_ringparam(struct net_device *netdev,
@@ -223,11 +216,11 @@ static int nfp_net_set_ringparam(struct net_device *netdev,
 	    txd_cnt < NFP_NET_MIN_TX_DESCS || txd_cnt > NFP_NET_MAX_TX_DESCS)
 		return -EINVAL;
 
-	if (nn->rxd_cnt == rxd_cnt && nn->txd_cnt == txd_cnt)
+	if (nn->dp.rxd_cnt == rxd_cnt && nn->dp.txd_cnt == txd_cnt)
 		return 0;
 
 	nn_dbg(nn, "Change ring size: RxQ %u->%u, TxQ %u->%u\n",
-	       nn->rxd_cnt, rxd_cnt, nn->txd_cnt, txd_cnt);
+	       nn->dp.rxd_cnt, rxd_cnt, nn->dp.txd_cnt, txd_cnt);
 
 	return nfp_net_set_ring_size(nn, rxd_cnt, txd_cnt);
 }
@@ -245,7 +238,7 @@ static void nfp_net_get_strings(struct net_device *netdev,
 			memcpy(p, nfp_net_et_stats[i].name, ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
-		for (i = 0; i < nn->num_r_vecs; i++) {
+		for (i = 0; i < nn->dp.num_r_vecs; i++) {
 			sprintf(p, "rvec_%u_rx_pkts", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "rvec_%u_tx_pkts", i);
@@ -267,13 +260,13 @@ static void nfp_net_get_strings(struct net_device *netdev,
 		p += ETH_GSTRING_LEN;
 		strncpy(p, "tx_lso", ETH_GSTRING_LEN);
 		p += ETH_GSTRING_LEN;
-		for (i = 0; i < nn->num_tx_rings; i++) {
+		for (i = 0; i < nn->dp.num_tx_rings; i++) {
 			sprintf(p, "txq_%u_pkts", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "txq_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
 		}
-		for (i = 0; i < nn->num_rx_rings; i++) {
+		for (i = 0; i < nn->dp.num_rx_rings; i++) {
 			sprintf(p, "rxq_%u_pkts", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "rxq_%u_bytes", i);
@@ -306,12 +299,12 @@ static void nfp_net_get_stats(struct net_device *netdev,
 			break;
 
 		case NFP_NET_DEV_ET_STATS:
-			io_p = nn->ctrl_bar + nfp_net_et_stats[i].off;
+			io_p = nn->dp.ctrl_bar + nfp_net_et_stats[i].off;
 			data[i] = readq(io_p);
 			break;
 		}
 	}
-	for (j = 0; j < nn->num_r_vecs; j++) {
+	for (j = 0; j < nn->dp.num_r_vecs; j++) {
 		unsigned int start;
 
 		do {
@@ -337,16 +330,16 @@ static void nfp_net_get_stats(struct net_device *netdev,
 	}
 	for (j = 0; j < NN_ET_RVEC_GATHER_STATS; j++)
 		data[i++] = gathered_stats[j];
-	for (j = 0; j < nn->num_tx_rings; j++) {
-		io_p = nn->ctrl_bar + NFP_NET_CFG_TXR_STATS(j);
+	for (j = 0; j < nn->dp.num_tx_rings; j++) {
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_TXR_STATS(j);
 		data[i++] = readq(io_p);
-		io_p = nn->ctrl_bar + NFP_NET_CFG_TXR_STATS(j) + 8;
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_TXR_STATS(j) + 8;
 		data[i++] = readq(io_p);
 	}
-	for (j = 0; j < nn->num_rx_rings; j++) {
-		io_p = nn->ctrl_bar + NFP_NET_CFG_RXR_STATS(j);
+	for (j = 0; j < nn->dp.num_rx_rings; j++) {
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_RXR_STATS(j);
 		data[i++] = readq(io_p);
-		io_p = nn->ctrl_bar + NFP_NET_CFG_RXR_STATS(j) + 8;
+		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_RXR_STATS(j) + 8;
 		data[i++] = readq(io_p);
 	}
 }
@@ -410,7 +403,7 @@ static int nfp_net_get_rxnfc(struct net_device *netdev,
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
-		cmd->data = nn->num_rx_rings;
+		cmd->data = nn->dp.num_rx_rings;
 		return 0;
 	case ETHTOOL_GRXFH:
 		return nfp_net_get_rss_hash_opts(nn, cmd);
@@ -454,13 +447,13 @@ static int nfp_net_set_rss_hash_opt(struct nfp_net *nn,
 		return -EINVAL;
 	}
 
-	new_rss_cfg |= NFP_NET_CFG_RSS_TOEPLITZ;
+	new_rss_cfg |= FIELD_PREP(NFP_NET_CFG_RSS_HFUNC, nn->rss_hfunc);
 	new_rss_cfg |= NFP_NET_CFG_RSS_MASK;
 
 	if (new_rss_cfg == nn->rss_cfg)
 		return 0;
 
-	writel(new_rss_cfg, nn->ctrl_bar + NFP_NET_CFG_RSS_CTRL);
+	writel(new_rss_cfg, nn->dp.ctrl_bar + NFP_NET_CFG_RSS_CTRL);
 	err = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_RSS);
 	if (err)
 		return err;
@@ -496,7 +489,12 @@ static u32 nfp_net_get_rxfh_indir_size(struct net_device *netdev)
 
 static u32 nfp_net_get_rxfh_key_size(struct net_device *netdev)
 {
-	return NFP_NET_CFG_RSS_KEY_SZ;
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	if (!(nn->cap & NFP_NET_CFG_CTRL_RSS))
+		return -EOPNOTSUPP;
+
+	return nfp_net_rss_key_sz(nn);
 }
 
 static int nfp_net_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
@@ -512,9 +510,12 @@ static int nfp_net_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		for (i = 0; i < ARRAY_SIZE(nn->rss_itbl); i++)
 			indir[i] = nn->rss_itbl[i];
 	if (key)
-		memcpy(key, nn->rss_key, NFP_NET_CFG_RSS_KEY_SZ);
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+		memcpy(key, nn->rss_key, nfp_net_rss_key_sz(nn));
+	if (hfunc) {
+		*hfunc = nn->rss_hfunc;
+		if (*hfunc >= 1 << ETH_RSS_HASH_FUNCS_COUNT)
+			*hfunc = ETH_RSS_HASH_UNKNOWN;
+	}
 
 	return 0;
 }
@@ -527,14 +528,14 @@ static int nfp_net_set_rxfh(struct net_device *netdev,
 	int i;
 
 	if (!(nn->cap & NFP_NET_CFG_CTRL_RSS) ||
-	    !(hfunc == ETH_RSS_HASH_NO_CHANGE || hfunc == ETH_RSS_HASH_TOP))
+	    !(hfunc == ETH_RSS_HASH_NO_CHANGE || hfunc == nn->rss_hfunc))
 		return -EOPNOTSUPP;
 
 	if (!key && !indir)
 		return 0;
 
 	if (key) {
-		memcpy(nn->rss_key, key, NFP_NET_CFG_RSS_KEY_SZ);
+		memcpy(nn->rss_key, key, nfp_net_rss_key_sz(nn));
 		nfp_net_rss_write_key(nn);
 	}
 	if (indir) {
@@ -564,7 +565,7 @@ static void nfp_net_get_regs(struct net_device *netdev,
 	regs->version = nn_readl(nn, NFP_NET_CFG_VERSION);
 
 	for (i = 0; i < NFP_NET_CFG_BAR_SZ / sizeof(u32); i++)
-		regs_buf[i] = readl(nn->ctrl_bar + (i * sizeof(u32)));
+		regs_buf[i] = readl(nn->dp.ctrl_bar + (i * sizeof(u32)));
 }
 
 static int nfp_net_get_coalesce(struct net_device *netdev,
@@ -736,16 +737,16 @@ static void nfp_net_get_channels(struct net_device *netdev,
 	struct nfp_net *nn = netdev_priv(netdev);
 	unsigned int num_tx_rings;
 
-	num_tx_rings = nn->num_tx_rings;
-	if (nn->xdp_prog)
-		num_tx_rings -= nn->num_rx_rings;
+	num_tx_rings = nn->dp.num_tx_rings;
+	if (nn->dp.xdp_prog)
+		num_tx_rings -= nn->dp.num_rx_rings;
 
 	channel->max_rx = min(nn->max_rx_rings, nn->max_r_vecs);
 	channel->max_tx = min(nn->max_tx_rings, nn->max_r_vecs);
 	channel->max_combined = min(channel->max_rx, channel->max_tx);
 	channel->max_other = NFP_NET_NON_Q_VECTORS;
-	channel->combined_count = min(nn->num_rx_rings, num_tx_rings);
-	channel->rx_count = nn->num_rx_rings - channel->combined_count;
+	channel->combined_count = min(nn->dp.num_rx_rings, num_tx_rings);
+	channel->rx_count = nn->dp.num_rx_rings - channel->combined_count;
 	channel->tx_count = num_tx_rings - channel->combined_count;
 	channel->other_count = NFP_NET_NON_Q_VECTORS;
 }
@@ -753,29 +754,19 @@ static void nfp_net_get_channels(struct net_device *netdev,
 static int nfp_net_set_num_rings(struct nfp_net *nn, unsigned int total_rx,
 				 unsigned int total_tx)
 {
-	struct nfp_net_ring_set *reconfig_rx = NULL, *reconfig_tx = NULL;
-	struct nfp_net_ring_set rx = {
-		.n_rings = total_rx,
-		.mtu = nn->netdev->mtu,
-		.dcnt = nn->rxd_cnt,
-	};
-	struct nfp_net_ring_set tx = {
-		.n_rings = total_tx,
-		.dcnt = nn->txd_cnt,
-	};
+	struct nfp_net_dp *dp;
 
-	if (nn->num_rx_rings != total_rx)
-		reconfig_rx = &rx;
-	if (nn->num_stack_tx_rings != total_tx ||
-	    (nn->xdp_prog && reconfig_rx))
-		reconfig_tx = &tx;
+	dp = nfp_net_clone_dp(nn);
+	if (!dp)
+		return -ENOMEM;
 
-	/* nfp_net_check_config() will catch tx.n_rings > nn->max_tx_rings */
-	if (nn->xdp_prog)
-		tx.n_rings += total_rx;
+	dp->num_rx_rings = total_rx;
+	dp->num_tx_rings = total_tx;
+	/* nfp_net_check_config() will catch num_tx_rings > nn->max_tx_rings */
+	if (dp->xdp_prog)
+		dp->num_tx_rings += total_rx;
 
-	return nfp_net_ring_reconfig(nn, &nn->xdp_prog,
-				     reconfig_rx, reconfig_tx);
+	return nfp_net_ring_reconfig(nn, dp);
 }
 
 static int nfp_net_set_channels(struct net_device *netdev,

@@ -11,6 +11,7 @@
 #include <linux/bcma/bcma.h>
 #include <linux/brcmphy.h>
 #include <linux/etherdevice.h>
+#include <linux/of_net.h>
 #include "bgmac.h"
 
 static inline bool bgmac_is_bcm4707_family(struct bcma_device *core)
@@ -114,7 +115,7 @@ static int bgmac_probe(struct bcma_device *core)
 	struct ssb_sprom *sprom = &core->bus->sprom;
 	struct mii_bus *mii_bus;
 	struct bgmac *bgmac;
-	u8 *mac;
+	const u8 *mac = NULL;
 	int err;
 
 	bgmac = bgmac_alloc(&core->dev);
@@ -127,21 +128,27 @@ static int bgmac_probe(struct bcma_device *core)
 
 	bcma_set_drvdata(core, bgmac);
 
-	switch (core->core_unit) {
-	case 0:
-		mac = sprom->et0mac;
-		break;
-	case 1:
-		mac = sprom->et1mac;
-		break;
-	case 2:
-		mac = sprom->et2mac;
-		break;
-	default:
-		dev_err(bgmac->dev, "Unsupported core_unit %d\n",
-			core->core_unit);
-		err = -ENOTSUPP;
-		goto err;
+	if (bgmac->dev->of_node)
+		mac = of_get_mac_address(bgmac->dev->of_node);
+
+	/* If no MAC address assigned via device tree, check SPROM */
+	if (!mac) {
+		switch (core->core_unit) {
+		case 0:
+			mac = sprom->et0mac;
+			break;
+		case 1:
+			mac = sprom->et1mac;
+			break;
+		case 2:
+			mac = sprom->et2mac;
+			break;
+		default:
+			dev_err(bgmac->dev, "Unsupported core_unit %d\n",
+				core->core_unit);
+			err = -ENOTSUPP;
+			goto err;
+		}
 	}
 
 	ether_addr_copy(bgmac->net_dev->dev_addr, mac);
@@ -192,48 +199,16 @@ static int bgmac_probe(struct bcma_device *core)
 		goto err1;
 	}
 
-	bgmac->has_robosw = !!(core->bus->sprom.boardflags_lo &
-			       BGMAC_BFL_ENETROBO);
+	bgmac->has_robosw = !!(sprom->boardflags_lo & BGMAC_BFL_ENETROBO);
 	if (bgmac->has_robosw)
 		dev_warn(bgmac->dev, "Support for Roboswitch not implemented\n");
 
-	if (core->bus->sprom.boardflags_lo & BGMAC_BFL_ENETADM)
+	if (sprom->boardflags_lo & BGMAC_BFL_ENETADM)
 		dev_warn(bgmac->dev, "Support for ADMtek ethernet switch not implemented\n");
 
 	/* Feature Flags */
-	switch (core->bus->chipinfo.id) {
-	case BCMA_CHIP_ID_BCM5357:
-		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
-		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
-		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL1;
-		bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_PHY;
-		if (core->bus->chipinfo.pkg == BCMA_PKG_ID_BCM47186) {
-			bgmac->feature_flags |= BGMAC_FEAT_IOST_ATTACHED;
-			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_RGMII;
-		}
-		if (core->bus->chipinfo.pkg == BCMA_PKG_ID_BCM5358)
-			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_EPHYRMII;
-		break;
-	case BCMA_CHIP_ID_BCM53572:
-		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
-		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
-		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL1;
-		bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_PHY;
-		if (core->bus->chipinfo.pkg == BCMA_PKG_ID_BCM47188) {
-			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_RGMII;
-			bgmac->feature_flags |= BGMAC_FEAT_IOST_ATTACHED;
-		}
-		break;
-	case BCMA_CHIP_ID_BCM4749:
-		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
-		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
-		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL1;
-		bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_PHY;
-		if (core->bus->chipinfo.pkg == 10) {
-			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_RGMII;
-			bgmac->feature_flags |= BGMAC_FEAT_IOST_ATTACHED;
-		}
-		break;
+	switch (ci->id) {
+	/* BCM 471X/535X family */
 	case BCMA_CHIP_ID_BCM4716:
 		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
 		/* fallthrough */
@@ -241,13 +216,19 @@ static int bgmac_probe(struct bcma_device *core)
 		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL2;
 		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
 		break;
-	/* bcm4707_family */
-	case BCMA_CHIP_ID_BCM4707:
-	case BCMA_CHIP_ID_BCM47094:
-	case BCMA_CHIP_ID_BCM53018:
+	case BCMA_CHIP_ID_BCM5357:
+	case BCMA_CHIP_ID_BCM53572:
+		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
 		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
-		bgmac->feature_flags |= BGMAC_FEAT_NO_RESET;
-		bgmac->feature_flags |= BGMAC_FEAT_FORCE_SPEED_2500;
+		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL1;
+		bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_PHY;
+		if (ci->pkg == BCMA_PKG_ID_BCM47188 ||
+		    ci->pkg == BCMA_PKG_ID_BCM47186) {
+			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_RGMII;
+			bgmac->feature_flags |= BGMAC_FEAT_IOST_ATTACHED;
+		}
+		if (ci->pkg == BCMA_PKG_ID_BCM5358)
+			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_EPHYRMII;
 		break;
 	case BCMA_CHIP_ID_BCM53573:
 		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
@@ -263,6 +244,24 @@ static int bgmac_probe(struct bcma_device *core)
 			bgmac->feature_flags |= BGMAC_FEAT_IRQ_ID_OOB_6;
 			bgmac->feature_flags |= BGMAC_FEAT_CC7_IF_TYPE_RGMII;
 		}
+		break;
+	case BCMA_CHIP_ID_BCM4749:
+		bgmac->feature_flags |= BGMAC_FEAT_SET_RXQ_CLK;
+		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
+		bgmac->feature_flags |= BGMAC_FEAT_FLW_CTRL1;
+		bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_PHY;
+		if (ci->pkg == 10) {
+			bgmac->feature_flags |= BGMAC_FEAT_SW_TYPE_RGMII;
+			bgmac->feature_flags |= BGMAC_FEAT_IOST_ATTACHED;
+		}
+		break;
+	/* bcm4707_family */
+	case BCMA_CHIP_ID_BCM4707:
+	case BCMA_CHIP_ID_BCM47094:
+	case BCMA_CHIP_ID_BCM53018:
+		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
+		bgmac->feature_flags |= BGMAC_FEAT_NO_RESET;
+		bgmac->feature_flags |= BGMAC_FEAT_FORCE_SPEED_2500;
 		break;
 	default:
 		bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;

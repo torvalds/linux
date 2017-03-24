@@ -233,6 +233,10 @@ struct dsa_switch {
 	u32			phys_mii_mask;
 	struct mii_bus		*slave_mii_bus;
 
+	/* Ageing Time limits in msecs */
+	unsigned int ageing_time_min;
+	unsigned int ageing_time_max;
+
 	/* Dynamically allocated ports, keep last */
 	size_t num_ports;
 	struct dsa_port ports[];
@@ -246,6 +250,11 @@ static inline bool dsa_is_cpu_port(struct dsa_switch *ds, int p)
 static inline bool dsa_is_dsa_port(struct dsa_switch *ds, int p)
 {
 	return !!((ds->dsa_port_mask) & (1 << p));
+}
+
+static inline bool dsa_is_normal_port(struct dsa_switch *ds, int p)
+{
+	return !dsa_is_cpu_port(ds, p) && !dsa_is_dsa_port(ds, p);
 }
 
 static inline bool dsa_is_port_initialized(struct dsa_switch *ds, int p)

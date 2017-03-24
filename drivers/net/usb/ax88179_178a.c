@@ -620,16 +620,18 @@ ax88179_get_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 	return 0;
 }
 
-static int ax88179_get_settings(struct net_device *net, struct ethtool_cmd *cmd)
+static int ax88179_get_link_ksettings(struct net_device *net,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct usbnet *dev = netdev_priv(net);
-	return mii_ethtool_gset(&dev->mii, cmd);
+	return mii_ethtool_get_link_ksettings(&dev->mii, cmd);
 }
 
-static int ax88179_set_settings(struct net_device *net, struct ethtool_cmd *cmd)
+static int ax88179_set_link_ksettings(struct net_device *net,
+				      const struct ethtool_link_ksettings *cmd)
 {
 	struct usbnet *dev = netdev_priv(net);
-	return mii_ethtool_sset(&dev->mii, cmd);
+	return mii_ethtool_set_link_ksettings(&dev->mii, cmd);
 }
 
 static int
@@ -826,11 +828,11 @@ static const struct ethtool_ops ax88179_ethtool_ops = {
 	.set_wol		= ax88179_set_wol,
 	.get_eeprom_len		= ax88179_get_eeprom_len,
 	.get_eeprom		= ax88179_get_eeprom,
-	.get_settings		= ax88179_get_settings,
-	.set_settings		= ax88179_set_settings,
 	.get_eee		= ax88179_get_eee,
 	.set_eee		= ax88179_set_eee,
 	.nway_reset		= usbnet_nway_reset,
+	.get_link_ksettings	= ax88179_get_link_ksettings,
+	.set_link_ksettings	= ax88179_set_link_ksettings,
 };
 
 static void ax88179_set_multicast(struct net_device *net)

@@ -319,6 +319,7 @@ enum rtattr_type_t {
 	RTA_EXPIRES,
 	RTA_PAD,
 	RTA_UID,
+	RTA_TTL_PROPAGATE,
 	__RTA_MAX
 };
 
@@ -545,6 +546,7 @@ enum {
 	TCA_STATS2,
 	TCA_STAB,
 	TCA_PAD,
+	TCA_DUMP_INVISIBLE,
 	__TCA_MAX
 };
 

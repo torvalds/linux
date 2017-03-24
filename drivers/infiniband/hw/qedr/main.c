@@ -587,9 +587,8 @@ void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 #define EVENT_TYPE_CQ		1
 #define EVENT_TYPE_QP		2
 	struct qedr_dev *dev = (struct qedr_dev *)context;
-	union event_ring_data *data = fw_handle;
-	u64 roce_handle64 = ((u64)data->roce_handle.hi << 32) +
-			    data->roce_handle.lo;
+	struct regpair *async_handle = (struct regpair *)fw_handle;
+	u64 roce_handle64 = ((u64) async_handle->hi << 32) + async_handle->lo;
 	u8 event_type = EVENT_TYPE_NOT_DEFINED;
 	struct ib_event event;
 	struct ib_cq *ibcq;

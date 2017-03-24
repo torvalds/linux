@@ -2267,9 +2267,8 @@ static int amb_probe(struct pci_dev *pci_dev,
 	dev->atm_dev->ci_range.vpi_bits = NUM_VPI_BITS;
 	dev->atm_dev->ci_range.vci_bits = NUM_VCI_BITS;
 
-	init_timer(&dev->housekeeping);
-	dev->housekeeping.function = do_housekeeping;
-	dev->housekeeping.data = (unsigned long) dev;
+	setup_timer(&dev->housekeeping, do_housekeeping,
+		    (unsigned long)dev);
 	mod_timer(&dev->housekeeping, jiffies);
 
 	// enable host interrupts

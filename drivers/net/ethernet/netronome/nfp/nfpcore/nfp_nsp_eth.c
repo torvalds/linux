@@ -134,9 +134,32 @@ nfp_eth_port_translate(const struct eth_table_entry *src, unsigned int index,
 
 	nfp_eth_copy_mac_reverse(dst->mac_addr, src->mac_addr);
 
-	snprintf(dst->label, sizeof(dst->label) - 1, "%llu.%llu",
-		 FIELD_GET(NSP_ETH_PORT_PHYLABEL, port),
-		 FIELD_GET(NSP_ETH_PORT_LABEL, port));
+	dst->label_port = FIELD_GET(NSP_ETH_PORT_PHYLABEL, port);
+	dst->label_subport = FIELD_GET(NSP_ETH_PORT_LABEL, port);
+}
+
+static void
+nfp_eth_mark_split_ports(struct nfp_cpp *cpp, struct nfp_eth_table *table)
+{
+	unsigned int i, j;
+
+	for (i = 0; i < table->count; i++)
+		for (j = 0; j < table->count; j++) {
+			if (i == j)
+				continue;
+			if (table->ports[i].label_port !=
+			    table->ports[j].label_port)
+				continue;
+			if (table->ports[i].label_subport ==
+			    table->ports[j].label_subport)
+				nfp_warn(cpp,
+					 "Port %d subport %d is a duplicate\n",
+					 table->ports[i].label_port,
+					 table->ports[i].label_subport);
+
+			table->ports[i].is_split = true;
+			break;
+		}
 }
 
 /**
@@ -168,8 +191,7 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 {
 	struct eth_table_entry *entries;
 	struct nfp_eth_table *table;
-	unsigned int cnt;
-	int i, j, ret;
+	int i, j, ret, cnt = 0;
 
 	entries = kzalloc(NSP_ETH_TABLE_SIZE, GFP_KERNEL);
 	if (!entries)
@@ -178,24 +200,27 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 	ret = nfp_nsp_read_eth_table(nsp, entries, NSP_ETH_TABLE_SIZE);
 	if (ret < 0) {
 		nfp_err(cpp, "reading port table failed %d\n", ret);
-		kfree(entries);
-		return NULL;
+		goto err;
 	}
 
-	/* Some versions of flash will give us 0 instead of port count */
-	cnt = ret;
-	if (!cnt) {
-		for (i = 0; i < NSP_ETH_MAX_COUNT; i++)
-			if (entries[i].port & NSP_ETH_PORT_LANES_MASK)
-				cnt++;
+	for (i = 0; i < NSP_ETH_MAX_COUNT; i++)
+		if (entries[i].port & NSP_ETH_PORT_LANES_MASK)
+			cnt++;
+
+	/* Some versions of flash will give us 0 instead of port count.
+	 * For those that give a port count, verify it against the value
+	 * calculated above.
+	 */
+	if (ret && ret != cnt) {
+		nfp_err(cpp, "table entry count reported (%d) does not match entries present (%d)\n",
+			ret, cnt);
+		goto err;
 	}
 
 	table = kzalloc(sizeof(*table) +
 			sizeof(struct nfp_eth_table_port) * cnt, GFP_KERNEL);
-	if (!table) {
-		kfree(entries);
-		return NULL;
-	}
+	if (!table)
+		goto err;
 
 	table->count = cnt;
 	for (i = 0, j = 0; i < NSP_ETH_MAX_COUNT; i++)
@@ -203,9 +228,15 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 			nfp_eth_port_translate(&entries[i], i,
 					       &table->ports[j++]);
 
+	nfp_eth_mark_split_ports(cpp, table);
+
 	kfree(entries);
 
 	return table;
+
+err:
+	kfree(entries);
+	return NULL;
 }
 
 /**

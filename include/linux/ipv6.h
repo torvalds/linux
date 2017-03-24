@@ -70,6 +70,7 @@ struct ipv6_devconf {
 #endif
 	__u32		enhanced_dad;
 	__u32		addr_gen_mode;
+	__s32		disable_policy;
 
 	struct ctl_table_header *sysctl_header;
 };

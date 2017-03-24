@@ -51,7 +51,7 @@
 #include "qed_hsi.h"
 
 extern const struct qed_common_ops qed_common_ops_pass;
-#define DRV_MODULE_VERSION "8.10.10.20"
+#define DRV_MODULE_VERSION "8.10.10.21"
 
 #define MAX_HWFNS_PER_DEVICE    (4)
 #define NAME_SIZE 16
@@ -219,7 +219,9 @@ enum QED_PORT_MODE {
 	QED_PORT_MODE_DE_4X20G,
 	QED_PORT_MODE_DE_1X40G,
 	QED_PORT_MODE_DE_2X25G,
-	QED_PORT_MODE_DE_1X25G
+	QED_PORT_MODE_DE_1X25G,
+	QED_PORT_MODE_DE_4X25G,
+	QED_PORT_MODE_DE_2X10G,
 };
 
 enum qed_dev_cap {
@@ -364,7 +366,8 @@ struct qed_hwfn {
 #define IS_LEAD_HWFN(edev)              (!((edev)->my_id))
 	u8				rel_pf_id;      /* Relative to engine*/
 	u8				abs_pf_id;
-#define QED_PATH_ID(_p_hwfn)		((_p_hwfn)->abs_pf_id & 1)
+#define QED_PATH_ID(_p_hwfn) \
+	(QED_IS_K2((_p_hwfn)->cdev) ? 0 : ((_p_hwfn)->abs_pf_id & 1))
 	u8				port_id;
 	bool				b_active;
 
@@ -523,9 +526,7 @@ struct qed_dev {
 	u8	dp_level;
 	char	name[NAME_SIZE];
 
-	u8	type;
-#define QED_DEV_TYPE_BB (0 << 0)
-#define QED_DEV_TYPE_AH BIT(0)
+	enum	qed_dev_type type;
 /* Translate type/revision combo into the proper conditions */
 #define QED_IS_BB(dev)  ((dev)->type == QED_DEV_TYPE_BB)
 #define QED_IS_BB_A0(dev)       (QED_IS_BB(dev) && \
@@ -540,6 +541,9 @@ struct qed_dev {
 
 	u16	vendor_id;
 	u16	device_id;
+#define QED_DEV_ID_MASK		0xff00
+#define QED_DEV_ID_MASK_BB	0x1600
+#define QED_DEV_ID_MASK_AH	0x8000
 
 	u16	chip_num;
 #define CHIP_NUM_MASK                   0xffff
@@ -654,10 +658,16 @@ struct qed_dev {
 	u32 rdma_max_srq_sge;
 };
 
-#define NUM_OF_VFS(dev)         MAX_NUM_VFS_BB
-#define NUM_OF_L2_QUEUES(dev)	MAX_NUM_L2_QUEUES_BB
-#define NUM_OF_SBS(dev)         MAX_SB_PER_PATH_BB
-#define NUM_OF_ENG_PFS(dev)     MAX_NUM_PFS_BB
+#define NUM_OF_VFS(dev)         (QED_IS_BB(dev) ? MAX_NUM_VFS_BB \
+						: MAX_NUM_VFS_K2)
+#define NUM_OF_L2_QUEUES(dev)   (QED_IS_BB(dev) ? MAX_NUM_L2_QUEUES_BB \
+						: MAX_NUM_L2_QUEUES_K2)
+#define NUM_OF_PORTS(dev)       (QED_IS_BB(dev) ? MAX_NUM_PORTS_BB \
+						: MAX_NUM_PORTS_K2)
+#define NUM_OF_SBS(dev)         (QED_IS_BB(dev) ? MAX_SB_PER_PATH_BB \
+						: MAX_SB_PER_PATH_K2)
+#define NUM_OF_ENG_PFS(dev)     (QED_IS_BB(dev) ? MAX_NUM_PFS_BB \
+						: MAX_NUM_PFS_K2)
 
 /**
  * @brief qed_concrete_to_sw_fid - get the sw function id from
@@ -694,6 +704,7 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
 
 void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 #define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
+int qed_device_num_engines(struct qed_dev *cdev);
 
 /* Other Linux specific common definitions */
 #define DP_NAME(cdev) ((cdev)->name)

@@ -181,7 +181,7 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 
 	if (!(cp->flags & IP_VS_CONN_F_HASHED)) {
 		cp->flags |= IP_VS_CONN_F_HASHED;
-		atomic_inc(&cp->refcnt);
+		refcount_inc(&cp->refcnt);
 		hlist_add_head_rcu(&cp->c_list, &ip_vs_conn_tab[hash]);
 		ret = 1;
 	} else {
@@ -215,7 +215,7 @@ static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
 	if (cp->flags & IP_VS_CONN_F_HASHED) {
 		hlist_del_rcu(&cp->c_list);
 		cp->flags &= ~IP_VS_CONN_F_HASHED;
-		atomic_dec(&cp->refcnt);
+		refcount_dec(&cp->refcnt);
 		ret = 1;
 	} else
 		ret = 0;
@@ -242,13 +242,13 @@ static inline bool ip_vs_conn_unlink(struct ip_vs_conn *cp)
 	if (cp->flags & IP_VS_CONN_F_HASHED) {
 		ret = false;
 		/* Decrease refcnt and unlink conn only if we are last user */
-		if (atomic_cmpxchg(&cp->refcnt, 1, 0) == 1) {
+		if (refcount_dec_if_one(&cp->refcnt)) {
 			hlist_del_rcu(&cp->c_list);
 			cp->flags &= ~IP_VS_CONN_F_HASHED;
 			ret = true;
 		}
 	} else
-		ret = atomic_read(&cp->refcnt) ? false : true;
+		ret = refcount_read(&cp->refcnt) ? false : true;
 
 	spin_unlock(&cp->lock);
 	ct_write_unlock_bh(hash);
@@ -475,7 +475,7 @@ static void __ip_vs_conn_put_timer(struct ip_vs_conn *cp)
 void ip_vs_conn_put(struct ip_vs_conn *cp)
 {
 	if ((cp->flags & IP_VS_CONN_F_ONE_PACKET) &&
-	    (atomic_read(&cp->refcnt) == 1) &&
+	    (refcount_read(&cp->refcnt) == 1) &&
 	    !timer_pending(&cp->timer))
 		/* expire connection immediately */
 		__ip_vs_conn_put_notimer(cp);
@@ -617,8 +617,8 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 		      IP_VS_DBG_ADDR(cp->af, &cp->vaddr), ntohs(cp->vport),
 		      IP_VS_DBG_ADDR(cp->daf, &cp->daddr), ntohs(cp->dport),
 		      ip_vs_fwd_tag(cp), cp->state,
-		      cp->flags, atomic_read(&cp->refcnt),
-		      atomic_read(&dest->refcnt));
+		      cp->flags, refcount_read(&cp->refcnt),
+		      refcount_read(&dest->refcnt));
 
 	/* Update the connection counters */
 	if (!(flags & IP_VS_CONN_F_TEMPLATE)) {
@@ -714,8 +714,8 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 		      IP_VS_DBG_ADDR(cp->af, &cp->vaddr), ntohs(cp->vport),
 		      IP_VS_DBG_ADDR(cp->daf, &cp->daddr), ntohs(cp->dport),
 		      ip_vs_fwd_tag(cp), cp->state,
-		      cp->flags, atomic_read(&cp->refcnt),
-		      atomic_read(&dest->refcnt));
+		      cp->flags, refcount_read(&cp->refcnt),
+		      refcount_read(&dest->refcnt));
 
 	/* Update the connection counters */
 	if (!(cp->flags & IP_VS_CONN_F_TEMPLATE)) {
@@ -863,10 +863,10 @@ static void ip_vs_conn_expire(unsigned long data)
 
   expire_later:
 	IP_VS_DBG(7, "delayed: conn->refcnt=%d conn->n_control=%d\n",
-		  atomic_read(&cp->refcnt),
+		  refcount_read(&cp->refcnt),
 		  atomic_read(&cp->n_control));
 
-	atomic_inc(&cp->refcnt);
+	refcount_inc(&cp->refcnt);
 	cp->timeout = 60*HZ;
 
 	if (ipvs->sync_state & IP_VS_STATE_MASTER)
@@ -941,7 +941,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 	 * it in the table, so that other thread run ip_vs_random_dropentry
 	 * but cannot drop this entry.
 	 */
-	atomic_set(&cp->refcnt, 1);
+	refcount_set(&cp->refcnt, 1);
 
 	cp->control = NULL;
 	atomic_set(&cp->n_control, 0);

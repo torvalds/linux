@@ -60,12 +60,6 @@ MODULE_PARM_DESC(fw_type, "Type of firmware to be loaded. Default \"nic\"");
 
 static int ptp_enable = 1;
 
-/* Bit mask values for lio->ifstate */
-#define   LIO_IFSTATE_DROQ_OPS             0x01
-#define   LIO_IFSTATE_REGISTERED           0x02
-#define   LIO_IFSTATE_RUNNING              0x04
-#define   LIO_IFSTATE_RX_TIMESTAMP_ENABLED 0x08
-
 /* Polling interval for determining when NIC application is alive */
 #define LIQUIDIO_STARTER_POLL_INTERVAL_MS 100
 
@@ -531,36 +525,6 @@ static void liquidio_deinit_pci(void)
 }
 
 /**
- * \brief check interface state
- * @param lio per-network private data
- * @param state_flag flag state to check
- */
-static inline int ifstate_check(struct lio *lio, int state_flag)
-{
-	return atomic_read(&lio->ifstate) & state_flag;
-}
-
-/**
- * \brief set interface state
- * @param lio per-network private data
- * @param state_flag flag state to set
- */
-static inline void ifstate_set(struct lio *lio, int state_flag)
-{
-	atomic_set(&lio->ifstate, (atomic_read(&lio->ifstate) | state_flag));
-}
-
-/**
- * \brief clear interface state
- * @param lio per-network private data
- * @param state_flag flag state to clear
- */
-static inline void ifstate_reset(struct lio *lio, int state_flag)
-{
-	atomic_set(&lio->ifstate, (atomic_read(&lio->ifstate) & ~(state_flag)));
-}
-
-/**
  * \brief Stop Tx queues
  * @param netdev network device
  */
@@ -805,7 +769,7 @@ static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 	}
 
 	for (i = 0; i < num_iqs; i++) {
-		int numa_node = cpu_to_node(i % num_online_cpus());
+		int numa_node = dev_to_node(&oct->pci_dev->dev);
 
 		spin_lock_init(&lio->glist_lock[i]);
 
@@ -1084,16 +1048,35 @@ static int octeon_setup_interrupt(struct octeon_device *oct)
 	int i;
 	int num_ioq_vectors;
 	int num_alloc_ioq_vectors;
+	char *queue_irq_names = NULL;
+	char *aux_irq_name = NULL;
 
 	if (OCTEON_CN23XX_PF(oct) && oct->msix_on) {
 		oct->num_msix_irqs = oct->sriov_info.num_pf_rings;
 		/* one non ioq interrupt for handling sli_mac_pf_int_sum */
 		oct->num_msix_irqs += 1;
 
+		/* allocate storage for the names assigned to each irq */
+		oct->irq_name_storage =
+			kcalloc((MAX_IOQ_INTERRUPTS_PER_PF + 1), INTRNAMSIZ,
+				GFP_KERNEL);
+		if (!oct->irq_name_storage) {
+			dev_err(&oct->pci_dev->dev, "Irq name storage alloc failed...\n");
+			return -ENOMEM;
+		}
+
+		queue_irq_names = oct->irq_name_storage;
+		aux_irq_name = &queue_irq_names
+				[IRQ_NAME_OFF(MAX_IOQ_INTERRUPTS_PER_PF)];
+
 		oct->msix_entries = kcalloc(
 		    oct->num_msix_irqs, sizeof(struct msix_entry), GFP_KERNEL);
-		if (!oct->msix_entries)
-			return 1;
+		if (!oct->msix_entries) {
+			dev_err(&oct->pci_dev->dev, "Memory Alloc failed...\n");
+			kfree(oct->irq_name_storage);
+			oct->irq_name_storage = NULL;
+			return -ENOMEM;
+		}
 
 		msix_entries = (struct msix_entry *)oct->msix_entries;
 		/*Assumption is that pf msix vectors start from pf srn to pf to
@@ -1111,7 +1094,9 @@ static int octeon_setup_interrupt(struct octeon_device *oct)
 			dev_err(&oct->pci_dev->dev, "unable to Allocate MSI-X interrupts\n");
 			kfree(oct->msix_entries);
 			oct->msix_entries = NULL;
-			return 1;
+			kfree(oct->irq_name_storage);
+			oct->irq_name_storage = NULL;
+			return num_alloc_ioq_vectors;
 		}
 		dev_dbg(&oct->pci_dev->dev, "OCTEON: Enough MSI-X interrupts are allocated...\n");
 
@@ -1119,9 +1104,12 @@ static int octeon_setup_interrupt(struct octeon_device *oct)
 
 		/** For PF, there is one non-ioq interrupt handler */
 		num_ioq_vectors -= 1;
+
+		snprintf(aux_irq_name, INTRNAMSIZ,
+			 "LiquidIO%u-pf%u-aux", oct->octeon_id, oct->pf_num);
 		irqret = request_irq(msix_entries[num_ioq_vectors].vector,
-				     liquidio_legacy_intr_handler, 0, "octeon",
-				     oct);
+				     liquidio_legacy_intr_handler, 0,
+				     aux_irq_name, oct);
 		if (irqret) {
 			dev_err(&oct->pci_dev->dev,
 				"OCTEON: Request_irq failed for MSIX interrupt Error: %d\n",
@@ -1129,13 +1117,20 @@ static int octeon_setup_interrupt(struct octeon_device *oct)
 			pci_disable_msix(oct->pci_dev);
 			kfree(oct->msix_entries);
 			oct->msix_entries = NULL;
-			return 1;
+			kfree(oct->irq_name_storage);
+			oct->irq_name_storage = NULL;
+			return irqret;
 		}
 
 		for (i = 0; i < num_ioq_vectors; i++) {
+			snprintf(&queue_irq_names[IRQ_NAME_OFF(i)], INTRNAMSIZ,
+				 "LiquidIO%u-pf%u-rxtx-%u",
+				 oct->octeon_id, oct->pf_num, i);
+
 			irqret = request_irq(msix_entries[i].vector,
 					     liquidio_msix_intr_handler, 0,
-					     "octeon", &oct->ioq_vector[i]);
+					     &queue_irq_names[IRQ_NAME_OFF(i)],
+					     &oct->ioq_vector[i]);
 			if (irqret) {
 				dev_err(&oct->pci_dev->dev,
 					"OCTEON: Request_irq failed for MSIX interrupt Error: %d\n",
@@ -1155,7 +1150,9 @@ static int octeon_setup_interrupt(struct octeon_device *oct)
 				pci_disable_msix(oct->pci_dev);
 				kfree(oct->msix_entries);
 				oct->msix_entries = NULL;
-				return 1;
+				kfree(oct->irq_name_storage);
+				oct->irq_name_storage = NULL;
+				return irqret;
 			}
 			oct->ioq_vector[i].vector = msix_entries[i].vector;
 			/* assign the cpu mask for this msix interrupt vector */
@@ -1173,15 +1170,29 @@ static int octeon_setup_interrupt(struct octeon_device *oct)
 		else
 			oct->flags |= LIO_FLAG_MSI_ENABLED;
 
+		/* allocate storage for the names assigned to the irq */
+		oct->irq_name_storage = kcalloc(1, INTRNAMSIZ, GFP_KERNEL);
+		if (!oct->irq_name_storage)
+			return -ENOMEM;
+
+		queue_irq_names = oct->irq_name_storage;
+
+		snprintf(&queue_irq_names[IRQ_NAME_OFF(0)], INTRNAMSIZ,
+			 "LiquidIO%u-pf%u-rxtx-%u",
+			 oct->octeon_id, oct->pf_num, 0);
+
 		irqret = request_irq(oct->pci_dev->irq,
-				     liquidio_legacy_intr_handler, IRQF_SHARED,
-				     "octeon", oct);
+				     liquidio_legacy_intr_handler,
+				     IRQF_SHARED,
+				     &queue_irq_names[IRQ_NAME_OFF(0)], oct);
 		if (irqret) {
 			if (oct->flags & LIO_FLAG_MSI_ENABLED)
 				pci_disable_msi(oct->pci_dev);
 			dev_err(&oct->pci_dev->dev, "Request IRQ failed with code: %d\n",
 				irqret);
-			return 1;
+			kfree(oct->irq_name_storage);
+			oct->irq_name_storage = NULL;
+			return irqret;
 		}
 	}
 	return 0;
@@ -1448,6 +1459,9 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 			if (oct->flags & LIO_FLAG_MSI_ENABLED)
 				pci_disable_msi(oct->pci_dev);
 		}
+
+		kfree(oct->irq_name_storage);
+		oct->irq_name_storage = NULL;
 
 	/* fallthrough */
 	case OCT_DEV_MSIX_ALLOC_VECTOR_DONE:
@@ -2211,8 +2225,8 @@ static void if_cfg_callback(struct octeon_device *oct,
 
 	oct = lio_get_device(ctx->octeon_id);
 	if (resp->status)
-		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: %llx\n",
-			CVM_CAST64(resp->status));
+		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: 0x%llx (0x%08x)\n",
+			CVM_CAST64(resp->status), status);
 	WRITE_ONCE(ctx->cond, 1);
 
 	snprintf(oct->fw_info.liquidio_firmware_version, 32, "%s",
@@ -2554,6 +2568,15 @@ static inline int setup_io_queues(struct octeon_device *octeon_dev,
 				" %s : Runtime IQ(TxQ) creation failed.\n",
 				__func__);
 			return 1;
+		}
+
+		if (octeon_dev->ioq_vector) {
+			struct octeon_ioq_vector *ioq_vector;
+
+			ioq_vector = &octeon_dev->ioq_vector[q];
+			netif_set_xps_queue(netdev,
+					    &ioq_vector->affinity_mask,
+					    ioq_vector->iq_index);
 		}
 	}
 
@@ -3596,7 +3619,8 @@ static int __liquidio_set_vf_mac(struct net_device *netdev, int vfidx,
 	nctrl.ncmd.s.param2 = (is_admin_assigned ? 1 : 0);
 	nctrl.ncmd.s.more = 1;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.cb_fn = 0;
+	nctrl.netpndev = (u64)netdev;
+	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 	nctrl.wait_time = LIO_CMD_WAIT_TM;
 
 	nctrl.udd[0] = 0;

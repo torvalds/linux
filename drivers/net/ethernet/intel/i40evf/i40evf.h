@@ -60,6 +60,7 @@ struct i40e_vsi {
 	int base_vector;
 	u16 work_limit;
 	u16 qs_handle;
+	void *priv;     /* client driver data reference. */
 };
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
@@ -169,6 +170,7 @@ enum i40evf_state_t {
 
 enum i40evf_critical_section_t {
 	__I40EVF_IN_CRITICAL_TASK,	/* cannot be interrupted */
+	__I40EVF_IN_CLIENT_TASK,
 };
 /* make common code happy */
 #define __I40E_DOWN __I40EVF_DOWN
@@ -178,6 +180,7 @@ struct i40evf_adapter {
 	struct timer_list watchdog_timer;
 	struct work_struct reset_task;
 	struct work_struct adminq_task;
+	struct delayed_work client_task;
 	struct delayed_work init_task;
 	struct i40e_q_vector *q_vectors;
 	struct list_head vlan_filter_list;
@@ -195,7 +198,10 @@ struct i40evf_adapter {
 	u64 hw_csum_rx_error;
 	u32 rx_desc_count;
 	int num_msix_vectors;
+	int num_iwarp_msix;
+	int iwarp_base_vector;
 	u32 client_pending;
+	struct i40e_client_instance *cinst;
 	struct msix_entry *msix_entries;
 
 	u32 flags;
@@ -211,8 +217,11 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE	BIT(12)
 #define I40EVF_FLAG_ADDR_SET_BY_PF		BIT(13)
 #define I40EVF_FLAG_SERVICE_CLIENT_REQUESTED	BIT(14)
-#define I40EVF_FLAG_PROMISC_ON			BIT(15)
-#define I40EVF_FLAG_ALLMULTI_ON			BIT(16)
+#define I40EVF_FLAG_CLIENT_NEEDS_OPEN		BIT(15)
+#define I40EVF_FLAG_CLIENT_NEEDS_CLOSE		BIT(16)
+#define I40EVF_FLAG_CLIENT_NEEDS_L2_PARAMS	BIT(17)
+#define I40EVF_FLAG_PROMISC_ON			BIT(18)
+#define I40EVF_FLAG_ALLMULTI_ON			BIT(19)
 /* duplicates for common code */
 #define I40E_FLAG_FDIR_ATR_ENABLED		0
 #define I40E_FLAG_DCB_ENABLED			0
@@ -258,10 +267,11 @@ struct i40evf_adapter {
 	bool link_up;
 	enum i40e_aq_link_speed link_speed;
 	enum i40e_virtchnl_ops current_op;
-#define CLIENT_ENABLED(_a) ((_a)->vf_res ? \
+#define CLIENT_ALLOWED(_a) ((_a)->vf_res ? \
 			    (_a)->vf_res->vf_offload_flags & \
 				I40E_VIRTCHNL_VF_OFFLOAD_IWARP : \
 			    0)
+#define CLIENT_ENABLED(_a) ((_a)->cinst)
 /* RSS by the PF should be preferred over RSS via other methods. */
 #define RSS_PF(_a) ((_a)->vf_res->vf_offload_flags & \
 		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF)
@@ -291,6 +301,12 @@ struct i40evf_adapter {
 
 
 /* Ethtool Private Flags */
+
+/* lan device */
+struct i40e_device {
+	struct list_head list;
+	struct i40evf_adapter *vf;
+};
 
 /* needed by i40evf_ethtool.c */
 extern char i40evf_driver_name[];
@@ -337,4 +353,11 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				enum i40e_virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);
 int i40evf_config_rss(struct i40evf_adapter *adapter);
+int i40evf_lan_add_device(struct i40evf_adapter *adapter);
+int i40evf_lan_del_device(struct i40evf_adapter *adapter);
+void i40evf_client_subtask(struct i40evf_adapter *adapter);
+void i40evf_notify_client_message(struct i40e_vsi *vsi, u8 *msg, u16 len);
+void i40evf_notify_client_l2_params(struct i40e_vsi *vsi);
+void i40evf_notify_client_open(struct i40e_vsi *vsi);
+void i40evf_notify_client_close(struct i40e_vsi *vsi, bool reset);
 #endif /* _I40EVF_H_ */

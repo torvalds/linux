@@ -43,14 +43,11 @@
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
 
-#include "qedr_hsi.h"
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_roce_if.h>
 #include "qedr.h"
-#include "qedr_hsi.h"
 #include "verbs.h"
 #include <rdma/qedr-abi.h>
-#include "qedr_hsi.h"
 #include "qedr_cm.h"
 
 void qedr_inc_sw_gsi_cons(struct qedr_qp_hwq_info *info)

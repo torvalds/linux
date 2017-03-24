@@ -953,20 +953,22 @@ static inline void pegasus_reset_wol(struct net_device *dev)
 }
 
 static int
-pegasus_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+pegasus_get_link_ksettings(struct net_device *dev,
+			   struct ethtool_link_ksettings *ecmd)
 {
 	pegasus_t *pegasus;
 
 	pegasus = netdev_priv(dev);
-	mii_ethtool_gset(&pegasus->mii, ecmd);
+	mii_ethtool_get_link_ksettings(&pegasus->mii, ecmd);
 	return 0;
 }
 
 static int
-pegasus_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+pegasus_set_link_ksettings(struct net_device *dev,
+			   const struct ethtool_link_ksettings *ecmd)
 {
 	pegasus_t *pegasus = netdev_priv(dev);
-	return mii_ethtool_sset(&pegasus->mii, ecmd);
+	return mii_ethtool_set_link_ksettings(&pegasus->mii, ecmd);
 }
 
 static int pegasus_nway_reset(struct net_device *dev)
@@ -995,14 +997,14 @@ static void pegasus_set_msglevel(struct net_device *dev, u32 v)
 
 static const struct ethtool_ops ops = {
 	.get_drvinfo = pegasus_get_drvinfo,
-	.get_settings = pegasus_get_settings,
-	.set_settings = pegasus_set_settings,
 	.nway_reset = pegasus_nway_reset,
 	.get_link = pegasus_get_link,
 	.get_msglevel = pegasus_get_msglevel,
 	.set_msglevel = pegasus_set_msglevel,
 	.get_wol = pegasus_get_wol,
 	.set_wol = pegasus_set_wol,
+	.get_link_ksettings = pegasus_get_link_ksettings,
+	.set_link_ksettings = pegasus_set_link_ksettings,
 };
 
 static int pegasus_ioctl(struct net_device *net, struct ifreq *rq, int cmd)

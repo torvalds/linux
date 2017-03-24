@@ -191,6 +191,8 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 			return PTR_ERR(child);
 	}
 
+	if (child != &noop_qdisc)
+		qdisc_hash_add(child, true);
 	sch_tree_lock(sch);
 	q->flags = ctl->flags;
 	q->limit = ctl->limit;

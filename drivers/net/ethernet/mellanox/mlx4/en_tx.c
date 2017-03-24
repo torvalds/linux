@@ -354,13 +354,11 @@ u32 mlx4_en_recycle_tx_desc(struct mlx4_en_priv *priv,
 	struct mlx4_en_rx_alloc frame = {
 		.page = tx_info->page,
 		.dma = tx_info->map0_dma,
-		.page_offset = XDP_PACKET_HEADROOM,
-		.page_size = PAGE_SIZE,
 	};
 
 	if (!mlx4_en_rx_recycle(ring->recycle_ring, &frame)) {
 		dma_unmap_page(priv->ddev, tx_info->map0_dma,
-			       PAGE_SIZE, priv->frag_info[0].dma_dir);
+			       PAGE_SIZE, priv->dma_dir);
 		put_page(tx_info->page);
 	}
 

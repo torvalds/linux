@@ -64,51 +64,50 @@ static const struct i40evf_stats i40evf_gstrings_stats[] = {
 	(I40EVF_GLOBAL_STATS_LEN + I40EVF_QUEUE_STATS_LEN(_dev))
 
 /**
- * i40evf_get_settings - Get Link Speed and Duplex settings
+ * i40evf_get_link_ksettings - Get Link Speed and Duplex settings
  * @netdev: network interface device structure
- * @ecmd: ethtool command
+ * @cmd: ethtool command
  *
  * Reports speed/duplex settings. Because this is a VF, we don't know what
  * kind of link we really have, so we fake it.
  **/
-static int i40evf_get_settings(struct net_device *netdev,
-			       struct ethtool_cmd *ecmd)
+static int i40evf_get_link_ksettings(struct net_device *netdev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
-	ecmd->supported = 0;
-	ecmd->autoneg = AUTONEG_DISABLE;
-	ecmd->transceiver = XCVR_DUMMY1;
-	ecmd->port = PORT_NONE;
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	cmd->base.autoneg = AUTONEG_DISABLE;
+	cmd->base.port = PORT_NONE;
 	/* Set speed and duplex */
 	switch (adapter->link_speed) {
 	case I40E_LINK_SPEED_40GB:
-		ethtool_cmd_speed_set(ecmd, SPEED_40000);
+		cmd->base.speed = SPEED_40000;
 		break;
 	case I40E_LINK_SPEED_25GB:
 #ifdef SPEED_25000
-		ethtool_cmd_speed_set(ecmd, SPEED_25000);
+		cmd->base.speed = SPEED_25000;
 #else
 		netdev_info(netdev,
 			    "Speed is 25G, display not supported by this version of ethtool.\n");
 #endif
 		break;
 	case I40E_LINK_SPEED_20GB:
-		ethtool_cmd_speed_set(ecmd, SPEED_20000);
+		cmd->base.speed = SPEED_20000;
 		break;
 	case I40E_LINK_SPEED_10GB:
-		ethtool_cmd_speed_set(ecmd, SPEED_10000);
+		cmd->base.speed = SPEED_10000;
 		break;
 	case I40E_LINK_SPEED_1GB:
-		ethtool_cmd_speed_set(ecmd, SPEED_1000);
+		cmd->base.speed = SPEED_1000;
 		break;
 	case I40E_LINK_SPEED_100MB:
-		ethtool_cmd_speed_set(ecmd, SPEED_100);
+		cmd->base.speed = SPEED_100;
 		break;
 	default:
 		break;
 	}
-	ecmd->duplex = DUPLEX_FULL;
+	cmd->base.duplex = DUPLEX_FULL;
 
 	return 0;
 }
@@ -643,7 +642,6 @@ static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
 }
 
 static const struct ethtool_ops i40evf_ethtool_ops = {
-	.get_settings		= i40evf_get_settings,
 	.get_drvinfo		= i40evf_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_ringparam		= i40evf_get_ringparam,
@@ -663,6 +661,7 @@ static const struct ethtool_ops i40evf_ethtool_ops = {
 	.set_rxfh		= i40evf_set_rxfh,
 	.get_channels		= i40evf_get_channels,
 	.get_rxfh_key_size	= i40evf_get_rxfh_key_size,
+	.get_link_ksettings	= i40evf_get_link_ksettings,
 };
 
 /**

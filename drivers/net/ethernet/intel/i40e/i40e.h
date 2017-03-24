@@ -208,8 +208,8 @@ struct i40e_fdir_filter {
 	u8 flow_type;
 	u8 ip4_proto;
 	/* TX packet view of src and dst */
-	__be32 dst_ip[4];
-	__be32 src_ip[4];
+	__be32 dst_ip;
+	__be32 src_ip;
 	__be16 src_port;
 	__be16 dst_port;
 	__be32 sctp_v_tag;
@@ -244,7 +244,8 @@ struct i40e_tc_configuration {
 };
 
 struct i40e_udp_port_config {
-	__be16 index;
+	/* AdminQ command interface expects port number in Host byte order */
+	u16 index;
 	u8 type;
 };
 
@@ -285,7 +286,14 @@ struct i40e_pf {
 	u32 fd_flush_cnt;
 	u32 fd_add_err;
 	u32 fd_atr_cnt;
-	u32 fd_tcp_rule;
+
+	/* Book-keeping of side-band filter count per flow-type.
+	 * This is used to detect and handle input set changes for
+	 * respective flow-type.
+	 */
+	u16 fd_tcp4_filter_cnt;
+	u16 fd_udp4_filter_cnt;
+	u16 fd_ip4_filter_cnt;
 
 	struct i40e_udp_port_config udp_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
 	u16 pending_udp_bitmap;
@@ -348,16 +356,23 @@ struct i40e_pf {
 #define I40E_FLAG_TRUE_PROMISC_SUPPORT		BIT_ULL(51)
 #define I40E_FLAG_HAVE_CRT_RETIMER		BIT_ULL(52)
 #define I40E_FLAG_PTP_L4_CAPABLE		BIT_ULL(53)
-#define I40E_FLAG_WOL_MC_MAGIC_PKT_WAKE		BIT_ULL(54)
+#define I40E_FLAG_CLIENT_RESET			BIT_ULL(54)
 #define I40E_FLAG_TEMP_LINK_POLLING		BIT_ULL(55)
+#define I40E_FLAG_CLIENT_L2_CHANGE		BIT_ULL(56)
+#define I40E_FLAG_WOL_MC_MAGIC_PKT_WAKE		BIT_ULL(57)
 
-	/* tracks features that get auto disabled by errors */
-	u64 auto_disable_flags;
+	/* Tracks features that are disabled due to hw limitations.
+	 * If a bit is set here, it means that the corresponding
+	 * bit in the 'flags' field is cleared i.e that feature
+	 * is disabled
+	 */
+	u64 hw_disabled_flags;
 
 #ifdef I40E_FCOE
 	struct i40e_fcoe fcoe;
 
 #endif /* I40E_FCOE */
+	struct i40e_client_instance *cinst;
 	bool stat_offsets_loaded;
 	struct i40e_hw_port_stats stats;
 	struct i40e_hw_port_stats stats_offsets;
@@ -813,8 +828,7 @@ void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi);
 void i40e_notify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset);
 void i40e_notify_client_of_vf_enable(struct i40e_pf *pf, u32 num_vfs);
 void i40e_notify_client_of_vf_reset(struct i40e_pf *pf, u32 vf_id);
-int i40e_vf_client_capable(struct i40e_pf *pf, u32 vf_id,
-			   enum i40e_client_type type);
+int i40e_vf_client_capable(struct i40e_pf *pf, u32 vf_id);
 /**
  * i40e_irq_dynamic_enable - Enable default interrupt generation settings
  * @vsi: pointer to a vsi

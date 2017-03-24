@@ -1161,6 +1161,8 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 				      sch->handle);
 	if (!q->link.q)
 		q->link.q = &noop_qdisc;
+	else
+		qdisc_hash_add(q->link.q, true);
 
 	q->link.priority = TC_CBQ_MAXPRIO - 1;
 	q->link.priority2 = TC_CBQ_MAXPRIO - 1;
@@ -1600,6 +1602,9 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	cl->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, classid);
 	if (!cl->q)
 		cl->q = &noop_qdisc;
+	else
+		qdisc_hash_add(cl->q, true);
+
 	cl->common.classid = classid;
 	cl->tparent = parent;
 	cl->qdisc = sch;

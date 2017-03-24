@@ -597,7 +597,7 @@ static u8 qed_ll2_convert_rx_parse_to_tx_flags(u16 parse_flags)
 	u8 bd_flags = 0;
 
 	if (GET_FIELD(parse_flags, PARSING_AND_ERR_FLAGS_TAG8021QEXIST))
-		SET_FIELD(bd_flags, CORE_TX_BD_FLAGS_VLAN_INSERTION, 1);
+		SET_FIELD(bd_flags, CORE_TX_BD_DATA_VLAN_INSERTION, 1);
 
 	return bd_flags;
 }
@@ -758,8 +758,8 @@ qed_ooo_submit_tx_buffers(struct qed_hwfn *p_hwfn,
 			     p_buffer->placement_offset;
 		parse_flags = p_buffer->parse_flags;
 		bd_flags = qed_ll2_convert_rx_parse_to_tx_flags(parse_flags);
-		SET_FIELD(bd_flags, CORE_TX_BD_FLAGS_FORCE_VLAN_MODE, 1);
-		SET_FIELD(bd_flags, CORE_TX_BD_FLAGS_L4_PROTOCOL, 1);
+		SET_FIELD(bd_flags, CORE_TX_BD_DATA_FORCE_VLAN_MODE, 1);
+		SET_FIELD(bd_flags, CORE_TX_BD_DATA_L4_PROTOCOL, 1);
 
 		rc = qed_ll2_prepare_tx_packet(p_hwfn, p_ll2_conn->my_id, 1,
 					       p_buffer->vlan, bd_flags,
@@ -1591,33 +1591,34 @@ static void qed_ll2_prepare_tx_packet_set(struct qed_hwfn *p_hwfn,
 	p_tx->cur_send_frag_num++;
 }
 
-static void qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
-					     struct qed_ll2_info *p_ll2,
-					     struct qed_ll2_tx_packet *p_curp,
-					     u8 num_of_bds,
-					     enum core_tx_dest tx_dest,
-					     u16 vlan,
-					     u8 bd_flags,
-					     u16 l4_hdr_offset_w,
-					     enum core_roce_flavor_type type,
-					     dma_addr_t first_frag,
-					     u16 first_frag_len)
+static void
+qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
+				 struct qed_ll2_info *p_ll2,
+				 struct qed_ll2_tx_packet *p_curp,
+				 u8 num_of_bds,
+				 enum core_tx_dest tx_dest,
+				 u16 vlan,
+				 u8 bd_flags,
+				 u16 l4_hdr_offset_w,
+				 enum core_roce_flavor_type roce_flavor,
+				 dma_addr_t first_frag,
+				 u16 first_frag_len)
 {
 	struct qed_chain *p_tx_chain = &p_ll2->tx_queue.txq_chain;
 	u16 prod_idx = qed_chain_get_prod_idx(p_tx_chain);
 	struct core_tx_bd *start_bd = NULL;
-	u16 frag_idx;
+	u16 bd_data = 0, frag_idx;
 
 	start_bd = (struct core_tx_bd *)qed_chain_produce(p_tx_chain);
 	start_bd->nw_vlan_or_lb_echo = cpu_to_le16(vlan);
 	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_L4_HDR_OFFSET_W,
 		  cpu_to_le16(l4_hdr_offset_w));
 	SET_FIELD(start_bd->bitfield1, CORE_TX_BD_TX_DST, tx_dest);
-	start_bd->bd_flags.as_bitfield = bd_flags;
-	start_bd->bd_flags.as_bitfield |= CORE_TX_BD_FLAGS_START_BD_MASK <<
-	    CORE_TX_BD_FLAGS_START_BD_SHIFT;
-	SET_FIELD(start_bd->bitfield0, CORE_TX_BD_NBDS, num_of_bds);
-	SET_FIELD(start_bd->bitfield0, CORE_TX_BD_ROCE_FLAV, type);
+	bd_data |= bd_flags;
+	SET_FIELD(bd_data, CORE_TX_BD_DATA_START_BD, 0x1);
+	SET_FIELD(bd_data, CORE_TX_BD_DATA_NBDS, num_of_bds);
+	SET_FIELD(bd_data, CORE_TX_BD_DATA_ROCE_FLAV, roce_flavor);
+	start_bd->bd_data.as_bitfield = cpu_to_le16(bd_data);
 	DMA_REGPAIR_LE(start_bd->addr, first_frag);
 	start_bd->nbytes = cpu_to_le16(first_frag_len);
 
@@ -1642,9 +1643,8 @@ static void qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 		struct core_tx_bd **p_bd = &p_curp->bds_set[frag_idx].txq_bd;
 
 		*p_bd = (struct core_tx_bd *)qed_chain_produce(p_tx_chain);
-		(*p_bd)->bd_flags.as_bitfield = 0;
+		(*p_bd)->bd_data.as_bitfield = 0;
 		(*p_bd)->bitfield1 = 0;
-		(*p_bd)->bitfield0 = 0;
 		p_curp->bds_set[frag_idx].tx_frag = 0;
 		p_curp->bds_set[frag_idx].frag_len = 0;
 	}
@@ -2241,11 +2241,11 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb)
 	/* Request HW to calculate IP csum */
 	if (!((vlan_get_protocol(skb) == htons(ETH_P_IPV6)) &&
 	      ipv6_hdr(skb)->nexthdr == NEXTHDR_IPV6))
-		flags |= BIT(CORE_TX_BD_FLAGS_IP_CSUM_SHIFT);
+		flags |= BIT(CORE_TX_BD_DATA_IP_CSUM_SHIFT);
 
 	if (skb_vlan_tag_present(skb)) {
 		vlan = skb_vlan_tag_get(skb);
-		flags |= BIT(CORE_TX_BD_FLAGS_VLAN_INSERTION_SHIFT);
+		flags |= BIT(CORE_TX_BD_DATA_VLAN_INSERTION_SHIFT);
 	}
 
 	rc = qed_ll2_prepare_tx_packet(QED_LEADING_HWFN(cdev),

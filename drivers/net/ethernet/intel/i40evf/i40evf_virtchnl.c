@@ -26,6 +26,7 @@
 
 #include "i40evf.h"
 #include "i40e_prototype.h"
+#include "i40evf_client.h"
 
 /* busy wait delay in msec */
 #define I40EVF_BUSY_WAIT_DELAY 10
@@ -999,6 +1000,16 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		if (v_opcode != adapter->current_op)
 			return;
 		break;
+	case I40E_VIRTCHNL_OP_IWARP:
+		/* Gobble zero-length replies from the PF. They indicate that
+		 * a previous message was received OK, and the client doesn't
+		 * care about that.
+		 */
+		if (msglen && CLIENT_ENABLED(adapter))
+			i40evf_notify_client_message(&adapter->vsi,
+						     msg, msglen);
+		break;
+
 	case I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP:
 		adapter->client_pending &=
 				~(BIT(I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP));
@@ -1014,7 +1025,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		}
 		break;
 	default:
-		if (v_opcode != adapter->current_op)
+		if (adapter->current_op && (v_opcode != adapter->current_op))
 			dev_warn(&adapter->pdev->dev, "Expected response %d from PF, received %d\n",
 				 adapter->current_op, v_opcode);
 		break;

@@ -38,4 +38,15 @@ int mv88e6095_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_g1_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
 
+int mv88e6xxx_g1_atu_set_learn2all(struct mv88e6xxx_chip *chip, bool learn2all);
+int mv88e6xxx_g1_atu_set_age_time(struct mv88e6xxx_chip *chip,
+				  unsigned int msecs);
+int mv88e6xxx_g1_atu_getnext(struct mv88e6xxx_chip *chip, u16 fid,
+			     struct mv88e6xxx_atu_entry *entry);
+int mv88e6xxx_g1_atu_loadpurge(struct mv88e6xxx_chip *chip, u16 fid,
+			       struct mv88e6xxx_atu_entry *entry);
+int mv88e6xxx_g1_atu_flush(struct mv88e6xxx_chip *chip, u16 fid, bool all);
+int mv88e6xxx_g1_atu_remove(struct mv88e6xxx_chip *chip, u16 fid, int port,
+			    bool all);
+
 #endif /* _MV88E6XXX_GLOBAL1_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Broadcom Corporation
+ * Copyright (C) 2015-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -221,9 +221,9 @@ int bcm_phy_set_eee(struct phy_device *phydev, bool enable)
 		return val;
 
 	if (enable)
-		val |= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+		val |= (MDIO_EEE_100TX | MDIO_EEE_1000T);
 	else
-		val &= ~(MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+		val &= ~(MDIO_EEE_100TX | MDIO_EEE_1000T);
 
 	phy_write_mmd_indirect(phydev, BCM_CL45VEN_EEE_ADV,
 			       MDIO_MMD_AN, (u32)val);

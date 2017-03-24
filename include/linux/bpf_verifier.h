@@ -66,7 +66,10 @@ struct bpf_verifier_state_list {
 };
 
 struct bpf_insn_aux_data {
-	enum bpf_reg_type ptr_type;	/* pointer type for load/store insns */
+	union {
+		enum bpf_reg_type ptr_type;	/* pointer type for load/store insns */
+		struct bpf_map *map_ptr;	/* pointer for call insn into lookup_elem */
+	};
 };
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */

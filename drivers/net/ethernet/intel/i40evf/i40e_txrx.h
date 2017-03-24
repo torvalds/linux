@@ -120,6 +120,9 @@ enum i40e_dyn_idx_t {
 #define I40E_RX_HDR_SIZE I40E_RXBUFFER_256
 #define i40e_rx_desc i40e_32byte_rx_desc
 
+#define I40E_RX_DMA_ATTR \
+	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
+
 /**
  * i40e_test_staterr - tests bits in Rx descriptor status and error fields
  * @rx_desc: pointer to receive descriptor (in le64 format)

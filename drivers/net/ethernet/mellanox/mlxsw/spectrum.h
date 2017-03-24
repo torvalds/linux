@@ -58,7 +58,6 @@
 #define MLXSW_SP_VFID_MAX 1024	/* Bridged VLAN interfaces */
 
 #define MLXSW_SP_RFID_BASE 15360
-#define MLXSW_SP_INVALID_RIF 0xffff
 
 #define MLXSW_SP_MID_MAX 7000
 
@@ -92,6 +91,7 @@ static inline u16 mlxsw_sp_pfc_delay_get(int mtu, u16 delay)
 }
 
 struct mlxsw_sp_port;
+struct mlxsw_sp_rif;
 
 struct mlxsw_sp_upper {
 	struct net_device *dev;
@@ -103,19 +103,8 @@ struct mlxsw_sp_fid {
 	struct list_head list;
 	unsigned int ref_count;
 	struct net_device *dev;
-	struct mlxsw_sp_rif *r;
+	struct mlxsw_sp_rif *rif;
 	u16 fid;
-};
-
-struct mlxsw_sp_rif {
-	struct list_head nexthop_list;
-	struct list_head neigh_list;
-	struct net_device *dev;
-	unsigned int ref_count;
-	struct mlxsw_sp_fid *f;
-	unsigned char addr[ETH_ALEN];
-	int mtu;
-	u16 rif;
 };
 
 struct mlxsw_sp_mid {
@@ -139,16 +128,6 @@ static inline u16 mlxsw_sp_fid_to_vfid(u16 fid)
 static inline bool mlxsw_sp_fid_is_vfid(u16 fid)
 {
 	return fid >= MLXSW_SP_VFID_BASE && fid < MLXSW_SP_RFID_BASE;
-}
-
-static inline bool mlxsw_sp_fid_is_rfid(u16 fid)
-{
-	return fid >= MLXSW_SP_RFID_BASE;
-}
-
-static inline u16 mlxsw_sp_rif_sp_to_fid(u16 rif)
-{
-	return MLXSW_SP_RFID_BASE + rif;
 }
 
 struct mlxsw_sp_sb_pr {
@@ -207,11 +186,9 @@ struct mlxsw_sp_fib;
 
 struct mlxsw_sp_vr {
 	u16 id; /* virtual router ID */
-	bool used;
-	enum mlxsw_sp_l3proto proto;
 	u32 tb_id; /* kernel fib table id */
-	struct mlxsw_sp_lpm_tree *lpm_tree;
-	struct mlxsw_sp_fib *fib;
+	unsigned int rif_count;
+	struct mlxsw_sp_fib *fib4;
 };
 
 enum mlxsw_sp_span_type {
@@ -269,6 +246,7 @@ struct mlxsw_sp_router {
 };
 
 struct mlxsw_sp_acl;
+struct mlxsw_sp_counter_pool;
 
 struct mlxsw_sp {
 	struct {
@@ -304,6 +282,7 @@ struct mlxsw_sp {
 		DECLARE_BITMAP(usage, MLXSW_SP_KVD_LINEAR_SIZE);
 	} kvdl;
 
+	struct mlxsw_sp_counter_pool *counter_pool;
 	struct {
 		struct mlxsw_sp_span_entry *entries;
 		int entries_count;
@@ -386,6 +365,7 @@ struct mlxsw_sp_port {
 };
 
 bool mlxsw_sp_port_dev_check(const struct net_device *dev);
+struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev);
 struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev);
 void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port);
 
@@ -497,19 +477,6 @@ mlxsw_sp_vfid_find(const struct mlxsw_sp *mlxsw_sp,
 	return NULL;
 }
 
-static inline struct mlxsw_sp_rif *
-mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
-			 const struct net_device *dev)
-{
-	int i;
-
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++)
-		if (mlxsw_sp->rifs[i] && mlxsw_sp->rifs[i]->dev == dev)
-			return mlxsw_sp->rifs[i];
-
-	return NULL;
-}
-
 enum mlxsw_sp_flood_table {
 	MLXSW_SP_FLOOD_TABLE_UC,
 	MLXSW_SP_FLOOD_TABLE_BC,
@@ -570,8 +537,6 @@ int mlxsw_sp_rif_fdb_op(struct mlxsw_sp *mlxsw_sp, const char *mac, u16 fid,
 			bool adding);
 struct mlxsw_sp_fid *mlxsw_sp_fid_create(struct mlxsw_sp *mlxsw_sp, u16 fid);
 void mlxsw_sp_fid_destroy(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *f);
-void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_rif *r);
 int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			  enum mlxsw_reg_qeec_hr hr, u8 index, u8 next_index,
 			  bool dwrr, u8 dwrr_weight);
@@ -608,8 +573,19 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_router_netevent_event(struct notifier_block *unused,
 				   unsigned long event, void *ptr);
-void mlxsw_sp_router_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_rif *r);
+int mlxsw_sp_netdevice_router_port_event(struct net_device *dev);
+int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
+			    unsigned long event, void *ptr);
+void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_rif *rif);
+int mlxsw_sp_vport_vrf_join(struct mlxsw_sp_port *mlxsw_sp_vport);
+void mlxsw_sp_vport_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_vport);
+int mlxsw_sp_port_vrf_join(struct mlxsw_sp_port *mlxsw_sp_port);
+void mlxsw_sp_port_vrf_leave(struct mlxsw_sp_port *mlxsw_sp_port);
+int mlxsw_sp_bridge_vrf_join(struct mlxsw_sp *mlxsw_sp,
+			     struct net_device *l3_dev);
+void mlxsw_sp_bridge_vrf_leave(struct mlxsw_sp *mlxsw_sp,
+			       struct net_device *l3_dev);
 
 int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count);
 void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index);
@@ -620,6 +596,8 @@ struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
 	struct mlxsw_afk_element_values values;
 	struct mlxsw_afa_block *act_block;
+	unsigned int counter_index;
+	bool counter_valid;
 };
 
 enum mlxsw_sp_acl_profile {
@@ -639,6 +617,8 @@ struct mlxsw_sp_acl_profile_ops {
 			void *ruleset_priv, void *rule_priv,
 			struct mlxsw_sp_acl_rule_info *rulei);
 	void (*rule_del)(struct mlxsw_sp *mlxsw_sp, void *rule_priv);
+	int (*rule_activity_get)(struct mlxsw_sp *mlxsw_sp, void *rule_priv,
+				 bool *activity);
 };
 
 struct mlxsw_sp_acl_ops {
@@ -679,6 +659,11 @@ int mlxsw_sp_acl_rulei_act_drop(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_acl_rule_info *rulei,
 			       struct net_device *out_dev);
+int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule_info *rulei,
+				u32 action, u16 vid, u16 proto, u8 prio);
+int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_rule_info *rulei);
 
 struct mlxsw_sp_acl_rule;
 
@@ -698,6 +683,9 @@ mlxsw_sp_acl_rule_lookup(struct mlxsw_sp *mlxsw_sp,
 			 unsigned long cookie);
 struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rule_rulei(struct mlxsw_sp_acl_rule *rule);
+int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule *rule,
+				u64 *packets, u64 *bytes, u64 *last_use);
 
 int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp);
@@ -708,5 +696,14 @@ int mlxsw_sp_flower_replace(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 			    __be16 protocol, struct tc_cls_flower_offload *f);
 void mlxsw_sp_flower_destroy(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
 			     struct tc_cls_flower_offload *f);
+int mlxsw_sp_flower_stats(struct mlxsw_sp_port *mlxsw_sp_port, bool ingress,
+			  struct tc_cls_flower_offload *f);
+int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
+			      unsigned int counter_index, u64 *packets,
+			      u64 *bytes);
+int mlxsw_sp_flow_counter_alloc(struct mlxsw_sp *mlxsw_sp,
+				unsigned int *p_counter_index);
+void mlxsw_sp_flow_counter_free(struct mlxsw_sp *mlxsw_sp,
+				unsigned int counter_index);
 
 #endif

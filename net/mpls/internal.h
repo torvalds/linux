@@ -90,6 +90,12 @@ struct mpls_nh { /* next hop label forwarding entry */
 	u8			nh_via_table;
 };
 
+enum mpls_ttl_propagation {
+	MPLS_TTL_PROP_DEFAULT,
+	MPLS_TTL_PROP_ENABLED,
+	MPLS_TTL_PROP_DISABLED,
+};
+
 /* The route, nexthops and vias are stored together in the same memory
  * block:
  *
@@ -116,6 +122,7 @@ struct mpls_route { /* next hop label forwarding entry */
 	u8			rt_protocol;
 	u8			rt_payload_type;
 	u8			rt_max_alen;
+	u8			rt_ttl_propagate;
 	unsigned int		rt_nhn;
 	unsigned int		rt_nhn_alive;
 	struct mpls_nh		rt_nh[0];

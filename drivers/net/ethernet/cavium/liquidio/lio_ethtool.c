@@ -213,17 +213,23 @@ static int lio_get_link_ksettings(struct net_device *netdev,
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct oct_link_info *linfo;
-	u32 supported, advertising;
+	u32 supported = 0, advertising = 0;
 
 	linfo = &lio->linfo;
 
 	if (linfo->link.s.if_mode == INTERFACE_MODE_XAUI ||
 	    linfo->link.s.if_mode == INTERFACE_MODE_RXAUI ||
+	    linfo->link.s.if_mode == INTERFACE_MODE_XLAUI ||
 	    linfo->link.s.if_mode == INTERFACE_MODE_XFI) {
 		ecmd->base.port = PORT_FIBRE;
-		supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE |
-			     SUPPORTED_Pause);
-		advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_Pause);
+
+		if (linfo->link.s.speed == SPEED_10000) {
+			supported = SUPPORTED_10000baseT_Full;
+			advertising = ADVERTISED_10000baseT_Full;
+		}
+
+		supported |= SUPPORTED_FIBRE | SUPPORTED_Pause;
+		advertising |= ADVERTISED_Pause;
 		ethtool_convert_legacy_u32_to_link_mode(
 			ecmd->link_modes.supported, supported);
 		ethtool_convert_legacy_u32_to_link_mode(

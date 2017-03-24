@@ -274,7 +274,7 @@ static struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
 	return NULL;
 }
 
-void qdisc_hash_add(struct Qdisc *q)
+void qdisc_hash_add(struct Qdisc *q, bool invisible)
 {
 	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS)) {
 		struct Qdisc *root = qdisc_dev(q)->qdisc;
@@ -282,6 +282,8 @@ void qdisc_hash_add(struct Qdisc *q)
 		WARN_ON_ONCE(root == &noop_qdisc);
 		ASSERT_RTNL();
 		hash_add_rcu(qdisc_dev(q)->qdisc_hash, &q->hash, q->handle);
+		if (invisible)
+			q->flags |= TCQ_F_INVISIBLE;
 	}
 }
 EXPORT_SYMBOL(qdisc_hash_add);
@@ -1003,7 +1005,7 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 				goto err_out4;
 		}
 
-		qdisc_hash_add(sch);
+		qdisc_hash_add(sch, false);
 
 		return sch;
 	}
@@ -1401,9 +1403,14 @@ nla_put_failure:
 	return -1;
 }
 
-static bool tc_qdisc_dump_ignore(struct Qdisc *q)
+static bool tc_qdisc_dump_ignore(struct Qdisc *q, bool dump_invisible)
 {
-	return (q->flags & TCQ_F_BUILTIN) ? true : false;
+	if (q->flags & TCQ_F_BUILTIN)
+		return true;
+	if ((q->flags & TCQ_F_INVISIBLE) && !dump_invisible)
+		return true;
+
+	return false;
 }
 
 static int qdisc_notify(struct net *net, struct sk_buff *oskb,
@@ -1417,12 +1424,12 @@ static int qdisc_notify(struct net *net, struct sk_buff *oskb,
 	if (!skb)
 		return -ENOBUFS;
 
-	if (old && !tc_qdisc_dump_ignore(old)) {
+	if (old && !tc_qdisc_dump_ignore(old, false)) {
 		if (tc_fill_qdisc(skb, old, clid, portid, n->nlmsg_seq,
 				  0, RTM_DELQDISC) < 0)
 			goto err_out;
 	}
-	if (new && !tc_qdisc_dump_ignore(new)) {
+	if (new && !tc_qdisc_dump_ignore(new, false)) {
 		if (tc_fill_qdisc(skb, new, clid, portid, n->nlmsg_seq,
 				  old ? NLM_F_REPLACE : 0, RTM_NEWQDISC) < 0)
 			goto err_out;
@@ -1439,7 +1446,8 @@ err_out:
 
 static int tc_dump_qdisc_root(struct Qdisc *root, struct sk_buff *skb,
 			      struct netlink_callback *cb,
-			      int *q_idx_p, int s_q_idx, bool recur)
+			      int *q_idx_p, int s_q_idx, bool recur,
+			      bool dump_invisible)
 {
 	int ret = 0, q_idx = *q_idx_p;
 	struct Qdisc *q;
@@ -1452,7 +1460,7 @@ static int tc_dump_qdisc_root(struct Qdisc *root, struct sk_buff *skb,
 	if (q_idx < s_q_idx) {
 		q_idx++;
 	} else {
-		if (!tc_qdisc_dump_ignore(q) &&
+		if (!tc_qdisc_dump_ignore(q, dump_invisible) &&
 		    tc_fill_qdisc(skb, q, q->parent, NETLINK_CB(cb->skb).portid,
 				  cb->nlh->nlmsg_seq, NLM_F_MULTI,
 				  RTM_NEWQDISC) <= 0)
@@ -1474,7 +1482,7 @@ static int tc_dump_qdisc_root(struct Qdisc *root, struct sk_buff *skb,
 			q_idx++;
 			continue;
 		}
-		if (!tc_qdisc_dump_ignore(q) &&
+		if (!tc_qdisc_dump_ignore(q, dump_invisible) &&
 		    tc_fill_qdisc(skb, q, q->parent, NETLINK_CB(cb->skb).portid,
 				  cb->nlh->nlmsg_seq, NLM_F_MULTI,
 				  RTM_NEWQDISC) <= 0)
@@ -1496,12 +1504,21 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	int idx, q_idx;
 	int s_idx, s_q_idx;
 	struct net_device *dev;
+	const struct nlmsghdr *nlh = cb->nlh;
+	struct tcmsg *tcm = nlmsg_data(nlh);
+	struct nlattr *tca[TCA_MAX + 1];
+	int err;
 
 	s_idx = cb->args[0];
 	s_q_idx = q_idx = cb->args[1];
 
 	idx = 0;
 	ASSERT_RTNL();
+
+	err = nlmsg_parse(nlh, sizeof(*tcm), tca, TCA_MAX, NULL);
+	if (err < 0)
+		return err;
+
 	for_each_netdev(net, dev) {
 		struct netdev_queue *dev_queue;
 
@@ -1512,13 +1529,14 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 		q_idx = 0;
 
 		if (tc_dump_qdisc_root(dev->qdisc, skb, cb, &q_idx, s_q_idx,
-				       true) < 0)
+				       true, tca[TCA_DUMP_INVISIBLE]) < 0)
 			goto done;
 
 		dev_queue = dev_ingress_queue(dev);
 		if (dev_queue &&
 		    tc_dump_qdisc_root(dev_queue->qdisc_sleeping, skb, cb,
-				       &q_idx, s_q_idx, false) < 0)
+				       &q_idx, s_q_idx, false,
+				       tca[TCA_DUMP_INVISIBLE]) < 0)
 			goto done;
 
 cont:
@@ -1762,7 +1780,7 @@ static int tc_dump_tclass_qdisc(struct Qdisc *q, struct sk_buff *skb,
 {
 	struct qdisc_dump_args arg;
 
-	if (tc_qdisc_dump_ignore(q) ||
+	if (tc_qdisc_dump_ignore(q, false) ||
 	    *t_p < s_t || !q->ops->cl_ops ||
 	    (tcm->tcm_parent &&
 	     TC_H_MAJ(tcm->tcm_parent) != q->handle)) {

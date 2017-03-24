@@ -517,6 +517,9 @@ struct octeon_device {
 
 	void *msix_entries;
 
+	/* when requesting IRQs, the names are stored here */
+	void *irq_name_storage;
+
 	struct octeon_sriov_info sriov_info;
 
 	struct octeon_pf_vf_hs_word pfvf_hsword;

@@ -1854,7 +1854,8 @@ static int xgbe_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
 	if (tc_to_netdev->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
-	tc = tc_to_netdev->tc;
+	tc_to_netdev->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	tc = tc_to_netdev->mqprio->num_tc;
 
 	if (tc > pdata->hw_feat.tc_cnt)
 		return -EINVAL;

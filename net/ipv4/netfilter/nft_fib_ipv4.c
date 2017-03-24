@@ -90,7 +90,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 
 	if (nft_hook(pkt) == NF_INET_PRE_ROUTING &&
 	    nft_fib_is_loopback(pkt->skb, nft_in(pkt))) {
-		nft_fib_store_result(dest, priv->result, pkt,
+		nft_fib_store_result(dest, priv, pkt,
 				     nft_in(pkt)->ifindex);
 		return;
 	}
@@ -99,7 +99,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	if (ipv4_is_zeronet(iph->saddr)) {
 		if (ipv4_is_lbcast(iph->daddr) ||
 		    ipv4_is_local_multicast(iph->daddr)) {
-			nft_fib_store_result(dest, priv->result, pkt,
+			nft_fib_store_result(dest, priv, pkt,
 					     get_ifindex(pkt->skb->dev));
 			return;
 		}

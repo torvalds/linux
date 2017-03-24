@@ -584,13 +584,14 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 }
 
 static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
+					     struct napi_struct *napi,
 					     const struct ndis_tcp_ip_checksum_info *csum_info,
 					     const struct ndis_pkt_8021q_info *vlan,
 					     void *data, u32 buflen)
 {
 	struct sk_buff *skb;
 
-	skb = netdev_alloc_skb_ip_align(net, buflen);
+	skb = napi_alloc_skb(napi, buflen);
 	if (!skb)
 		return skb;
 
@@ -637,11 +638,11 @@ int netvsc_recv_callback(struct net_device *net,
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct netvsc_device *net_device = net_device_ctx->nvdev;
+	u16 q_idx = channel->offermsg.offer.sub_channel_index;
+	struct netvsc_channel *nvchan = &net_device->chan_table[q_idx];
 	struct net_device *vf_netdev;
 	struct sk_buff *skb;
 	struct netvsc_stats *rx_stats;
-	u16 q_idx = channel->offermsg.offer.sub_channel_index;
-
 
 	if (net->reg_state != NETREG_REGISTERED)
 		return NVSP_STAT_FAIL;
@@ -659,7 +660,8 @@ int netvsc_recv_callback(struct net_device *net,
 		net = vf_netdev;
 
 	/* Allocate a skb - TODO direct I/O to pages? */
-	skb = netvsc_alloc_recv_skb(net, csum_info, vlan, data, len);
+	skb = netvsc_alloc_recv_skb(net, &nvchan->napi,
+				    csum_info, vlan, data, len);
 	if (unlikely(!skb)) {
 		++net->stats.rx_dropped;
 		rcu_read_unlock();
@@ -674,7 +676,7 @@ int netvsc_recv_callback(struct net_device *net,
 	 * on the synthetic device because modifying the VF device
 	 * statistics will not work correctly.
 	 */
-	rx_stats = &net_device->chan_table[q_idx].rx_stats;
+	rx_stats = &nvchan->rx_stats;
 	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->packets++;
 	rx_stats->bytes += len;
@@ -685,12 +687,7 @@ int netvsc_recv_callback(struct net_device *net,
 		++rx_stats->multicast;
 	u64_stats_update_end(&rx_stats->syncp);
 
-	/*
-	 * Pass the skb back up. Network stack will deallocate the skb when it
-	 * is done.
-	 * TODO - use NAPI?
-	 */
-	netif_receive_skb(skb);
+	napi_gro_receive(&nvchan->napi, skb);
 	rcu_read_unlock();
 
 	return 0;
@@ -787,18 +784,19 @@ static int netvsc_set_channels(struct net_device *net,
 	return ret;
 }
 
-static bool netvsc_validate_ethtool_ss_cmd(const struct ethtool_cmd *cmd)
+static bool
+netvsc_validate_ethtool_ss_cmd(const struct ethtool_link_ksettings *cmd)
 {
-	struct ethtool_cmd diff1 = *cmd;
-	struct ethtool_cmd diff2 = {};
+	struct ethtool_link_ksettings diff1 = *cmd;
+	struct ethtool_link_ksettings diff2 = {};
 
-	ethtool_cmd_speed_set(&diff1, 0);
-	diff1.duplex = 0;
+	diff1.base.speed = 0;
+	diff1.base.duplex = 0;
 	/* advertising and cmd are usually set */
-	diff1.advertising = 0;
-	diff1.cmd = 0;
+	ethtool_link_ksettings_zero_link_mode(&diff1, advertising);
+	diff1.base.cmd = 0;
 	/* We set port to PORT_OTHER */
-	diff2.port = PORT_OTHER;
+	diff2.base.port = PORT_OTHER;
 
 	return !memcmp(&diff1, &diff2, sizeof(diff1));
 }
@@ -811,30 +809,32 @@ static void netvsc_init_settings(struct net_device *dev)
 	ndc->duplex = DUPLEX_UNKNOWN;
 }
 
-static int netvsc_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int netvsc_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
 
-	ethtool_cmd_speed_set(cmd, ndc->speed);
-	cmd->duplex = ndc->duplex;
-	cmd->port = PORT_OTHER;
+	cmd->base.speed = ndc->speed;
+	cmd->base.duplex = ndc->duplex;
+	cmd->base.port = PORT_OTHER;
 
 	return 0;
 }
 
-static int netvsc_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int netvsc_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
 	u32 speed;
 
-	speed = ethtool_cmd_speed(cmd);
+	speed = cmd->base.speed;
 	if (!ethtool_validate_speed(speed) ||
-	    !ethtool_validate_duplex(cmd->duplex) ||
+	    !ethtool_validate_duplex(cmd->base.duplex) ||
 	    !netvsc_validate_ethtool_ss_cmd(cmd))
 		return -EINVAL;
 
 	ndc->speed = speed;
-	ndc->duplex = cmd->duplex;
+	ndc->duplex = cmd->base.duplex;
 
 	return 0;
 }
@@ -1168,13 +1168,13 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_channels   = netvsc_get_channels,
 	.set_channels   = netvsc_set_channels,
 	.get_ts_info	= ethtool_op_get_ts_info,
-	.get_settings	= netvsc_get_settings,
-	.set_settings	= netvsc_set_settings,
 	.get_rxnfc	= netvsc_get_rxnfc,
 	.get_rxfh_key_size = netvsc_get_rxfh_key_size,
 	.get_rxfh_indir_size = netvsc_rss_indir_size,
 	.get_rxfh	= netvsc_get_rxfh,
 	.set_rxfh	= netvsc_set_rxfh,
+	.get_link_ksettings = netvsc_get_link_ksettings,
+	.set_link_ksettings = netvsc_set_link_ksettings,
 };
 
 static const struct net_device_ops device_ops = {

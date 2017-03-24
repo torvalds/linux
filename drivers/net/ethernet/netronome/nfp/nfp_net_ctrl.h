@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -192,6 +192,14 @@
 #define NFP_NET_CFG_RX_OFFSET_DYNAMIC		0	/* Prepend mode */
 
 /**
+ * RSS capabilities
+ * @NFP_NET_CFG_RSS_CAP_HFUNC:	supported hash functions (same bits as
+ *				@NFP_NET_CFG_RSS_HFUNC)
+ */
+#define NFP_NET_CFG_RSS_CAP		0x0054
+#define   NFP_NET_CFG_RSS_CAP_HFUNC	  0xff000000
+
+/**
  * VXLAN/UDP encap configuration
  * @NFP_NET_CFG_VXLAN_PORT:	Base address of table of tunnels' UDP dst ports
  * @NFP_NET_CFG_VXLAN_SZ:	Size of the UDP port table in bytes
@@ -249,7 +257,11 @@
 #define   NFP_NET_CFG_RSS_IPV4_UDP        (1 << 11) /* RSS for IPv4/UDP */
 #define   NFP_NET_CFG_RSS_IPV6_TCP        (1 << 12) /* RSS for IPv6/TCP */
 #define   NFP_NET_CFG_RSS_IPV6_UDP        (1 << 13) /* RSS for IPv6/UDP */
+#define   NFP_NET_CFG_RSS_HFUNC		  0xff000000
 #define   NFP_NET_CFG_RSS_TOEPLITZ        (1 << 24) /* Use Toeplitz hash */
+#define   NFP_NET_CFG_RSS_XOR		  (1 << 25) /* Use XOR as hash */
+#define   NFP_NET_CFG_RSS_CRC32		  (1 << 26) /* Use CRC32 as hash */
+#define   NFP_NET_CFG_RSS_HFUNCS	  3
 #define NFP_NET_CFG_RSS_KEY             (NFP_NET_CFG_RSS_BASE + 0x4)
 #define NFP_NET_CFG_RSS_KEY_SZ          0x28
 #define NFP_NET_CFG_RSS_ITBL            (NFP_NET_CFG_RSS_BASE + 0x4 + \

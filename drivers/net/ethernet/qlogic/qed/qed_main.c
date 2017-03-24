@@ -238,6 +238,7 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 	dev_info->rdma_supported = (cdev->hwfns[0].hw_info.personality ==
 				    QED_PCI_ETH_ROCE);
 	dev_info->is_mf_default = IS_MF_DEFAULT(&cdev->hwfns[0]);
+	dev_info->dev_type = cdev->type;
 	ether_addr_copy(dev_info->hw_mac, cdev->hwfns[0].hw_info.hw_mac_addr);
 
 	if (IS_PF(cdev)) {
@@ -1653,8 +1654,10 @@ void qed_get_protocol_stats(struct qed_dev *cdev,
 	switch (type) {
 	case QED_MCP_LAN_STATS:
 		qed_get_vport_stats(cdev, &eth_stats);
-		stats->lan_stats.ucast_rx_pkts = eth_stats.rx_ucast_pkts;
-		stats->lan_stats.ucast_tx_pkts = eth_stats.tx_ucast_pkts;
+		stats->lan_stats.ucast_rx_pkts =
+					eth_stats.common.rx_ucast_pkts;
+		stats->lan_stats.ucast_tx_pkts =
+					eth_stats.common.tx_ucast_pkts;
 		stats->lan_stats.fcs_err = -1;
 		break;
 	case QED_MCP_FCOE_STATS:

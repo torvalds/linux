@@ -431,6 +431,7 @@ struct mvneta_port {
 	/* Flags for special SoC configurations */
 	bool neta_armada3700;
 	u16 rx_offset_correction;
+	const struct mbus_dram_target_info *dram_target_info;
 };
 
 /* The mvneta_tx_desc and mvneta_rx_desc structures describe the
@@ -4118,7 +4119,6 @@ static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 /* Device initialization routine */
 static int mvneta_probe(struct platform_device *pdev)
 {
-	const struct mbus_dram_target_info *dram_target_info;
 	struct resource *res;
 	struct device_node *dn = pdev->dev.of_node;
 	struct device_node *phy_node;
@@ -4267,13 +4267,13 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	pp->tx_csum_limit = tx_csum_limit;
 
-	dram_target_info = mv_mbus_dram_info();
+	pp->dram_target_info = mv_mbus_dram_info();
 	/* Armada3700 requires setting default configuration of Mbus
 	 * windows, however without using filled mbus_dram_target_info
 	 * structure.
 	 */
-	if (dram_target_info || pp->neta_armada3700)
-		mvneta_conf_mbus_windows(pp, dram_target_info);
+	if (pp->dram_target_info || pp->neta_armada3700)
+		mvneta_conf_mbus_windows(pp, pp->dram_target_info);
 
 	pp->tx_ring_size = MVNETA_MAX_TXD;
 	pp->rx_ring_size = MVNETA_MAX_RXD;
@@ -4405,6 +4405,58 @@ static int mvneta_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int mvneta_suspend(struct device *device)
+{
+	struct net_device *dev = dev_get_drvdata(device);
+	struct mvneta_port *pp = netdev_priv(dev);
+
+	if (netif_running(dev))
+		mvneta_stop(dev);
+	netif_device_detach(dev);
+	clk_disable_unprepare(pp->clk_bus);
+	clk_disable_unprepare(pp->clk);
+	return 0;
+}
+
+static int mvneta_resume(struct device *device)
+{
+	struct platform_device *pdev = to_platform_device(device);
+	struct net_device *dev = dev_get_drvdata(device);
+	struct mvneta_port *pp = netdev_priv(dev);
+	int err;
+
+	clk_prepare_enable(pp->clk);
+	if (!IS_ERR(pp->clk_bus))
+		clk_prepare_enable(pp->clk_bus);
+	if (pp->dram_target_info || pp->neta_armada3700)
+		mvneta_conf_mbus_windows(pp, pp->dram_target_info);
+	if (pp->bm_priv) {
+		err = mvneta_bm_port_init(pdev, pp);
+		if (err < 0) {
+			dev_info(&pdev->dev, "use SW buffer management\n");
+			pp->bm_priv = NULL;
+		}
+	}
+	mvneta_defaults_set(pp);
+	err = mvneta_port_power_up(pp, pp->phy_interface);
+	if (err < 0) {
+		dev_err(device, "can't power up port\n");
+		return err;
+	}
+
+	if (pp->use_inband_status)
+		mvneta_fixed_link_update(pp, dev->phydev);
+
+	netif_device_attach(dev);
+	if (netif_running(dev))
+		mvneta_open(dev);
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(mvneta_pm_ops, mvneta_suspend, mvneta_resume);
+
 static const struct of_device_id mvneta_match[] = {
 	{ .compatible = "marvell,armada-370-neta" },
 	{ .compatible = "marvell,armada-xp-neta" },
@@ -4419,6 +4471,7 @@ static struct platform_driver mvneta_driver = {
 	.driver = {
 		.name = MVNETA_DRIVER_NAME,
 		.of_match_table = mvneta_match,
+		.pm = &mvneta_pm_ops,
 	},
 };
 

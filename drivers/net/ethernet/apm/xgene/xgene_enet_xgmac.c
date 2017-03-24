@@ -341,7 +341,14 @@ static void xgene_xgmac_init(struct xgene_enet_pdata *pdata)
 
 	xgene_enet_rd_csr(pdata, XG_RSIF_CONFIG_REG_ADDR, &data);
 	data |= CFG_RSIF_FPBUFF_TIMEOUT_EN;
+	/* Errata 10GE_1 - FIFO threshold default value incorrect */
+	RSIF_CLE_BUFF_THRESH_SET(&data, XG_RSIF_CLE_BUFF_THRESH);
 	xgene_enet_wr_csr(pdata, XG_RSIF_CONFIG_REG_ADDR, data);
+
+	/* Errata 10GE_1 - FIFO threshold default value incorrect */
+	xgene_enet_rd_csr(pdata, XG_RSIF_CONFIG1_REG_ADDR, &data);
+	RSIF_PLC_CLE_BUFF_THRESH_SET(&data, XG_RSIF_PLC_CLE_BUFF_THRESH);
+	xgene_enet_wr_csr(pdata, XG_RSIF_CONFIG1_REG_ADDR, data);
 
 	xgene_enet_rd_csr(pdata, XG_ENET_SPARE_CFG_REG_ADDR, &data);
 	data |= BIT(12);

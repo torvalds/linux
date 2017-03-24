@@ -1,7 +1,7 @@
 /* sunvnet.c: Sun LDOM Virtual Network Driver.
  *
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
- * Copyright (C) 2016 Oracle. All rights reserved.
+ * Copyright (C) 2016-2017 Oracle. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -77,11 +77,125 @@ static void vnet_set_msglevel(struct net_device *dev, u32 value)
 	vp->msg_enable = value;
 }
 
+static const struct {
+	const char string[ETH_GSTRING_LEN];
+} ethtool_stats_keys[] = {
+	{ "rx_packets" },
+	{ "tx_packets" },
+	{ "rx_bytes" },
+	{ "tx_bytes" },
+	{ "rx_errors" },
+	{ "tx_errors" },
+	{ "rx_dropped" },
+	{ "tx_dropped" },
+	{ "multicast" },
+	{ "rx_length_errors" },
+	{ "rx_frame_errors" },
+	{ "rx_missed_errors" },
+	{ "tx_carrier_errors" },
+	{ "nports" },
+};
+
+static int vnet_get_sset_count(struct net_device *dev, int sset)
+{
+	struct vnet *vp = (struct vnet *)netdev_priv(dev);
+
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(ethtool_stats_keys)
+			+ (NUM_VNET_PORT_STATS * vp->nports);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void vnet_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
+{
+	struct vnet *vp = (struct vnet *)netdev_priv(dev);
+	struct vnet_port *port;
+	char *p = (char *)buf;
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		memcpy(buf, &ethtool_stats_keys, sizeof(ethtool_stats_keys));
+		p += sizeof(ethtool_stats_keys);
+
+		rcu_read_lock();
+		list_for_each_entry_rcu(port, &vp->port_list, list) {
+			snprintf(p, ETH_GSTRING_LEN, "p%u.%s-%pM",
+				 port->q_index, port->switch_port ? "s" : "q",
+				 port->raddr);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.rx_packets",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.tx_packets",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.rx_bytes",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.tx_bytes",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.event_up",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.event_reset",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+		}
+		rcu_read_unlock();
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+}
+
+static void vnet_get_ethtool_stats(struct net_device *dev,
+				   struct ethtool_stats *estats, u64 *data)
+{
+	struct vnet *vp = (struct vnet *)netdev_priv(dev);
+	struct vnet_port *port;
+	int i = 0;
+
+	data[i++] = dev->stats.rx_packets;
+	data[i++] = dev->stats.tx_packets;
+	data[i++] = dev->stats.rx_bytes;
+	data[i++] = dev->stats.tx_bytes;
+	data[i++] = dev->stats.rx_errors;
+	data[i++] = dev->stats.tx_errors;
+	data[i++] = dev->stats.rx_dropped;
+	data[i++] = dev->stats.tx_dropped;
+	data[i++] = dev->stats.multicast;
+	data[i++] = dev->stats.rx_length_errors;
+	data[i++] = dev->stats.rx_frame_errors;
+	data[i++] = dev->stats.rx_missed_errors;
+	data[i++] = dev->stats.tx_carrier_errors;
+	data[i++] = vp->nports;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(port, &vp->port_list, list) {
+		data[i++] = port->q_index;
+		data[i++] = port->stats.rx_packets;
+		data[i++] = port->stats.tx_packets;
+		data[i++] = port->stats.rx_bytes;
+		data[i++] = port->stats.tx_bytes;
+		data[i++] = port->stats.event_up;
+		data[i++] = port->stats.event_reset;
+	}
+	rcu_read_unlock();
+}
+
 static const struct ethtool_ops vnet_ethtool_ops = {
 	.get_drvinfo		= vnet_get_drvinfo,
 	.get_msglevel		= vnet_get_msglevel,
 	.set_msglevel		= vnet_set_msglevel,
 	.get_link		= ethtool_op_get_link,
+	.get_sset_count		= vnet_get_sset_count,
+	.get_strings		= vnet_get_strings,
+	.get_ethtool_stats	= vnet_get_ethtool_stats,
 };
 
 static LIST_HEAD(vnet_list);

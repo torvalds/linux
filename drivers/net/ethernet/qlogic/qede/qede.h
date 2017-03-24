@@ -50,7 +50,7 @@
 #define QEDE_MAJOR_VERSION		8
 #define QEDE_MINOR_VERSION		10
 #define QEDE_REVISION_VERSION		10
-#define QEDE_ENGINEERING_VERSION	20
+#define QEDE_ENGINEERING_VERSION	21
 #define DRV_MODULE_VERSION __stringify(QEDE_MAJOR_VERSION) "."	\
 		__stringify(QEDE_MINOR_VERSION) "."		\
 		__stringify(QEDE_REVISION_VERSION) "."		\
@@ -58,7 +58,7 @@
 
 #define DRV_MODULE_SYM		qede
 
-struct qede_stats {
+struct qede_stats_common {
 	u64 no_buff_discards;
 	u64 packet_too_big_discard;
 	u64 ttl0_discard;
@@ -90,11 +90,6 @@ struct qede_stats {
 	u64 rx_256_to_511_byte_packets;
 	u64 rx_512_to_1023_byte_packets;
 	u64 rx_1024_to_1518_byte_packets;
-	u64 rx_1519_to_1522_byte_packets;
-	u64 rx_1519_to_2047_byte_packets;
-	u64 rx_2048_to_4095_byte_packets;
-	u64 rx_4096_to_9216_byte_packets;
-	u64 rx_9217_to_16383_byte_packets;
 	u64 rx_crc_errors;
 	u64 rx_mac_crtl_frames;
 	u64 rx_pause_frames;
@@ -111,17 +106,39 @@ struct qede_stats {
 	u64 tx_256_to_511_byte_packets;
 	u64 tx_512_to_1023_byte_packets;
 	u64 tx_1024_to_1518_byte_packets;
+	u64 tx_pause_frames;
+	u64 tx_pfc_frames;
+	u64 brb_truncates;
+	u64 brb_discards;
+	u64 tx_mac_ctrl_frames;
+};
+
+struct qede_stats_bb {
+	u64 rx_1519_to_1522_byte_packets;
+	u64 rx_1519_to_2047_byte_packets;
+	u64 rx_2048_to_4095_byte_packets;
+	u64 rx_4096_to_9216_byte_packets;
+	u64 rx_9217_to_16383_byte_packets;
 	u64 tx_1519_to_2047_byte_packets;
 	u64 tx_2048_to_4095_byte_packets;
 	u64 tx_4096_to_9216_byte_packets;
 	u64 tx_9217_to_16383_byte_packets;
-	u64 tx_pause_frames;
-	u64 tx_pfc_frames;
 	u64 tx_lpi_entry_count;
 	u64 tx_total_collisions;
-	u64 brb_truncates;
-	u64 brb_discards;
-	u64 tx_mac_ctrl_frames;
+};
+
+struct qede_stats_ah {
+	u64 rx_1519_to_max_byte_packets;
+	u64 tx_1519_to_max_byte_packets;
+};
+
+struct qede_stats {
+	struct qede_stats_common common;
+
+	union {
+		struct qede_stats_bb bb;
+		struct qede_stats_ah ah;
+	};
 };
 
 struct qede_vlan {
@@ -158,6 +175,10 @@ struct qede_dev {
 	struct qed_dev_eth_info dev_info;
 #define QEDE_MAX_RSS_CNT(edev)	((edev)->dev_info.num_queues)
 #define QEDE_MAX_TSS_CNT(edev)	((edev)->dev_info.num_queues)
+#define QEDE_IS_BB(edev) \
+	((edev)->dev_info.common.dev_type == QED_DEV_TYPE_BB)
+#define QEDE_IS_AH(edev) \
+	((edev)->dev_info.common.dev_type == QED_DEV_TYPE_AH)
 
 	struct qede_fastpath		*fp_array;
 	u8				req_num_tx;

@@ -49,10 +49,13 @@
  * @lanes:	number of channels
  * @speed:	interface speed (in Mbps)
  * @mac_addr:	interface MAC address
- * @label:	interface id string
+ * @label_port:	port id
+ * @label_subport:  id of interface within port (for split ports)
  * @enabled:	is enabled?
  * @tx_enabled:	is TX enabled?
  * @rx_enabled:	is RX enabled?
+ *
+ * @is_split:	is interface part of a split port
  */
 struct nfp_eth_table {
 	unsigned int count;
@@ -65,13 +68,21 @@ struct nfp_eth_table {
 		unsigned int speed;
 
 		u8 mac_addr[ETH_ALEN];
-		char label[8];
+
+		u8 label_port;
+		u8 label_subport;
 
 		bool enabled;
 		bool tx_enabled;
 		bool rx_enabled;
+
+		/* Computed fields */
+		bool is_split;
 	} ports[0];
 };
+
+struct nfp_cpp;
+struct nfp_nsp;
 
 struct nfp_eth_table *nfp_eth_read_ports(struct nfp_cpp *cpp);
 struct nfp_eth_table *

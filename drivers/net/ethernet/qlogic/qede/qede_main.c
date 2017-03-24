@@ -84,6 +84,8 @@ static const struct qed_eth_ops *qed_ops;
 #define CHIP_NUM_57980S_50		0x1654
 #define CHIP_NUM_57980S_25		0x1656
 #define CHIP_NUM_57980S_IOV		0x1664
+#define CHIP_NUM_AH			0x8070
+#define CHIP_NUM_AH_IOV			0x8090
 
 #ifndef PCI_DEVICE_ID_NX2_57980E
 #define PCI_DEVICE_ID_57980S_40		CHIP_NUM_57980S_40
@@ -93,6 +95,9 @@ static const struct qed_eth_ops *qed_ops;
 #define PCI_DEVICE_ID_57980S_50		CHIP_NUM_57980S_50
 #define PCI_DEVICE_ID_57980S_25		CHIP_NUM_57980S_25
 #define PCI_DEVICE_ID_57980S_IOV	CHIP_NUM_57980S_IOV
+#define PCI_DEVICE_ID_AH		CHIP_NUM_AH
+#define PCI_DEVICE_ID_AH_IOV		CHIP_NUM_AH_IOV
+
 #endif
 
 enum qede_pci_private {
@@ -109,6 +114,10 @@ static const struct pci_device_id qede_pci_tbl[] = {
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_25), QEDE_PRIVATE_PF},
 #ifdef CONFIG_QED_SRIOV
 	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_IOV), QEDE_PRIVATE_VF},
+#endif
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_AH), QEDE_PRIVATE_PF},
+#ifdef CONFIG_QED_SRIOV
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_AH_IOV), QEDE_PRIVATE_VF},
 #endif
 	{ 0 }
 };
@@ -314,122 +323,135 @@ static int qede_close(struct net_device *ndev);
 
 void qede_fill_by_demand_stats(struct qede_dev *edev)
 {
+	struct qede_stats_common *p_common = &edev->stats.common;
 	struct qed_eth_stats stats;
 
 	edev->ops->get_vport_stats(edev->cdev, &stats);
-	edev->stats.no_buff_discards = stats.no_buff_discards;
-	edev->stats.packet_too_big_discard = stats.packet_too_big_discard;
-	edev->stats.ttl0_discard = stats.ttl0_discard;
-	edev->stats.rx_ucast_bytes = stats.rx_ucast_bytes;
-	edev->stats.rx_mcast_bytes = stats.rx_mcast_bytes;
-	edev->stats.rx_bcast_bytes = stats.rx_bcast_bytes;
-	edev->stats.rx_ucast_pkts = stats.rx_ucast_pkts;
-	edev->stats.rx_mcast_pkts = stats.rx_mcast_pkts;
-	edev->stats.rx_bcast_pkts = stats.rx_bcast_pkts;
-	edev->stats.mftag_filter_discards = stats.mftag_filter_discards;
-	edev->stats.mac_filter_discards = stats.mac_filter_discards;
 
-	edev->stats.tx_ucast_bytes = stats.tx_ucast_bytes;
-	edev->stats.tx_mcast_bytes = stats.tx_mcast_bytes;
-	edev->stats.tx_bcast_bytes = stats.tx_bcast_bytes;
-	edev->stats.tx_ucast_pkts = stats.tx_ucast_pkts;
-	edev->stats.tx_mcast_pkts = stats.tx_mcast_pkts;
-	edev->stats.tx_bcast_pkts = stats.tx_bcast_pkts;
-	edev->stats.tx_err_drop_pkts = stats.tx_err_drop_pkts;
-	edev->stats.coalesced_pkts = stats.tpa_coalesced_pkts;
-	edev->stats.coalesced_events = stats.tpa_coalesced_events;
-	edev->stats.coalesced_aborts_num = stats.tpa_aborts_num;
-	edev->stats.non_coalesced_pkts = stats.tpa_not_coalesced_pkts;
-	edev->stats.coalesced_bytes = stats.tpa_coalesced_bytes;
+	p_common->no_buff_discards = stats.common.no_buff_discards;
+	p_common->packet_too_big_discard = stats.common.packet_too_big_discard;
+	p_common->ttl0_discard = stats.common.ttl0_discard;
+	p_common->rx_ucast_bytes = stats.common.rx_ucast_bytes;
+	p_common->rx_mcast_bytes = stats.common.rx_mcast_bytes;
+	p_common->rx_bcast_bytes = stats.common.rx_bcast_bytes;
+	p_common->rx_ucast_pkts = stats.common.rx_ucast_pkts;
+	p_common->rx_mcast_pkts = stats.common.rx_mcast_pkts;
+	p_common->rx_bcast_pkts = stats.common.rx_bcast_pkts;
+	p_common->mftag_filter_discards = stats.common.mftag_filter_discards;
+	p_common->mac_filter_discards = stats.common.mac_filter_discards;
 
-	edev->stats.rx_64_byte_packets = stats.rx_64_byte_packets;
-	edev->stats.rx_65_to_127_byte_packets = stats.rx_65_to_127_byte_packets;
-	edev->stats.rx_128_to_255_byte_packets =
-				stats.rx_128_to_255_byte_packets;
-	edev->stats.rx_256_to_511_byte_packets =
-				stats.rx_256_to_511_byte_packets;
-	edev->stats.rx_512_to_1023_byte_packets =
-				stats.rx_512_to_1023_byte_packets;
-	edev->stats.rx_1024_to_1518_byte_packets =
-				stats.rx_1024_to_1518_byte_packets;
-	edev->stats.rx_1519_to_1522_byte_packets =
-				stats.rx_1519_to_1522_byte_packets;
-	edev->stats.rx_1519_to_2047_byte_packets =
-				stats.rx_1519_to_2047_byte_packets;
-	edev->stats.rx_2048_to_4095_byte_packets =
-				stats.rx_2048_to_4095_byte_packets;
-	edev->stats.rx_4096_to_9216_byte_packets =
-				stats.rx_4096_to_9216_byte_packets;
-	edev->stats.rx_9217_to_16383_byte_packets =
-				stats.rx_9217_to_16383_byte_packets;
-	edev->stats.rx_crc_errors = stats.rx_crc_errors;
-	edev->stats.rx_mac_crtl_frames = stats.rx_mac_crtl_frames;
-	edev->stats.rx_pause_frames = stats.rx_pause_frames;
-	edev->stats.rx_pfc_frames = stats.rx_pfc_frames;
-	edev->stats.rx_align_errors = stats.rx_align_errors;
-	edev->stats.rx_carrier_errors = stats.rx_carrier_errors;
-	edev->stats.rx_oversize_packets = stats.rx_oversize_packets;
-	edev->stats.rx_jabbers = stats.rx_jabbers;
-	edev->stats.rx_undersize_packets = stats.rx_undersize_packets;
-	edev->stats.rx_fragments = stats.rx_fragments;
-	edev->stats.tx_64_byte_packets = stats.tx_64_byte_packets;
-	edev->stats.tx_65_to_127_byte_packets = stats.tx_65_to_127_byte_packets;
-	edev->stats.tx_128_to_255_byte_packets =
-				stats.tx_128_to_255_byte_packets;
-	edev->stats.tx_256_to_511_byte_packets =
-				stats.tx_256_to_511_byte_packets;
-	edev->stats.tx_512_to_1023_byte_packets =
-				stats.tx_512_to_1023_byte_packets;
-	edev->stats.tx_1024_to_1518_byte_packets =
-				stats.tx_1024_to_1518_byte_packets;
-	edev->stats.tx_1519_to_2047_byte_packets =
-				stats.tx_1519_to_2047_byte_packets;
-	edev->stats.tx_2048_to_4095_byte_packets =
-				stats.tx_2048_to_4095_byte_packets;
-	edev->stats.tx_4096_to_9216_byte_packets =
-				stats.tx_4096_to_9216_byte_packets;
-	edev->stats.tx_9217_to_16383_byte_packets =
-				stats.tx_9217_to_16383_byte_packets;
-	edev->stats.tx_pause_frames = stats.tx_pause_frames;
-	edev->stats.tx_pfc_frames = stats.tx_pfc_frames;
-	edev->stats.tx_lpi_entry_count = stats.tx_lpi_entry_count;
-	edev->stats.tx_total_collisions = stats.tx_total_collisions;
-	edev->stats.brb_truncates = stats.brb_truncates;
-	edev->stats.brb_discards = stats.brb_discards;
-	edev->stats.tx_mac_ctrl_frames = stats.tx_mac_ctrl_frames;
+	p_common->tx_ucast_bytes = stats.common.tx_ucast_bytes;
+	p_common->tx_mcast_bytes = stats.common.tx_mcast_bytes;
+	p_common->tx_bcast_bytes = stats.common.tx_bcast_bytes;
+	p_common->tx_ucast_pkts = stats.common.tx_ucast_pkts;
+	p_common->tx_mcast_pkts = stats.common.tx_mcast_pkts;
+	p_common->tx_bcast_pkts = stats.common.tx_bcast_pkts;
+	p_common->tx_err_drop_pkts = stats.common.tx_err_drop_pkts;
+	p_common->coalesced_pkts = stats.common.tpa_coalesced_pkts;
+	p_common->coalesced_events = stats.common.tpa_coalesced_events;
+	p_common->coalesced_aborts_num = stats.common.tpa_aborts_num;
+	p_common->non_coalesced_pkts = stats.common.tpa_not_coalesced_pkts;
+	p_common->coalesced_bytes = stats.common.tpa_coalesced_bytes;
+
+	p_common->rx_64_byte_packets = stats.common.rx_64_byte_packets;
+	p_common->rx_65_to_127_byte_packets =
+	    stats.common.rx_65_to_127_byte_packets;
+	p_common->rx_128_to_255_byte_packets =
+	    stats.common.rx_128_to_255_byte_packets;
+	p_common->rx_256_to_511_byte_packets =
+	    stats.common.rx_256_to_511_byte_packets;
+	p_common->rx_512_to_1023_byte_packets =
+	    stats.common.rx_512_to_1023_byte_packets;
+	p_common->rx_1024_to_1518_byte_packets =
+	    stats.common.rx_1024_to_1518_byte_packets;
+	p_common->rx_crc_errors = stats.common.rx_crc_errors;
+	p_common->rx_mac_crtl_frames = stats.common.rx_mac_crtl_frames;
+	p_common->rx_pause_frames = stats.common.rx_pause_frames;
+	p_common->rx_pfc_frames = stats.common.rx_pfc_frames;
+	p_common->rx_align_errors = stats.common.rx_align_errors;
+	p_common->rx_carrier_errors = stats.common.rx_carrier_errors;
+	p_common->rx_oversize_packets = stats.common.rx_oversize_packets;
+	p_common->rx_jabbers = stats.common.rx_jabbers;
+	p_common->rx_undersize_packets = stats.common.rx_undersize_packets;
+	p_common->rx_fragments = stats.common.rx_fragments;
+	p_common->tx_64_byte_packets = stats.common.tx_64_byte_packets;
+	p_common->tx_65_to_127_byte_packets =
+	    stats.common.tx_65_to_127_byte_packets;
+	p_common->tx_128_to_255_byte_packets =
+	    stats.common.tx_128_to_255_byte_packets;
+	p_common->tx_256_to_511_byte_packets =
+	    stats.common.tx_256_to_511_byte_packets;
+	p_common->tx_512_to_1023_byte_packets =
+	    stats.common.tx_512_to_1023_byte_packets;
+	p_common->tx_1024_to_1518_byte_packets =
+	    stats.common.tx_1024_to_1518_byte_packets;
+	p_common->tx_pause_frames = stats.common.tx_pause_frames;
+	p_common->tx_pfc_frames = stats.common.tx_pfc_frames;
+	p_common->brb_truncates = stats.common.brb_truncates;
+	p_common->brb_discards = stats.common.brb_discards;
+	p_common->tx_mac_ctrl_frames = stats.common.tx_mac_ctrl_frames;
+
+	if (QEDE_IS_BB(edev)) {
+		struct qede_stats_bb *p_bb = &edev->stats.bb;
+
+		p_bb->rx_1519_to_1522_byte_packets =
+		    stats.bb.rx_1519_to_1522_byte_packets;
+		p_bb->rx_1519_to_2047_byte_packets =
+		    stats.bb.rx_1519_to_2047_byte_packets;
+		p_bb->rx_2048_to_4095_byte_packets =
+		    stats.bb.rx_2048_to_4095_byte_packets;
+		p_bb->rx_4096_to_9216_byte_packets =
+		    stats.bb.rx_4096_to_9216_byte_packets;
+		p_bb->rx_9217_to_16383_byte_packets =
+		    stats.bb.rx_9217_to_16383_byte_packets;
+		p_bb->tx_1519_to_2047_byte_packets =
+		    stats.bb.tx_1519_to_2047_byte_packets;
+		p_bb->tx_2048_to_4095_byte_packets =
+		    stats.bb.tx_2048_to_4095_byte_packets;
+		p_bb->tx_4096_to_9216_byte_packets =
+		    stats.bb.tx_4096_to_9216_byte_packets;
+		p_bb->tx_9217_to_16383_byte_packets =
+		    stats.bb.tx_9217_to_16383_byte_packets;
+		p_bb->tx_lpi_entry_count = stats.bb.tx_lpi_entry_count;
+		p_bb->tx_total_collisions = stats.bb.tx_total_collisions;
+	} else {
+		struct qede_stats_ah *p_ah = &edev->stats.ah;
+
+		p_ah->rx_1519_to_max_byte_packets =
+		    stats.ah.rx_1519_to_max_byte_packets;
+		p_ah->tx_1519_to_max_byte_packets =
+		    stats.ah.tx_1519_to_max_byte_packets;
+	}
 }
 
 static void qede_get_stats64(struct net_device *dev,
 			     struct rtnl_link_stats64 *stats)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	struct qede_stats_common *p_common;
 
 	qede_fill_by_demand_stats(edev);
+	p_common = &edev->stats.common;
 
-	stats->rx_packets = edev->stats.rx_ucast_pkts +
-			    edev->stats.rx_mcast_pkts +
-			    edev->stats.rx_bcast_pkts;
-	stats->tx_packets = edev->stats.tx_ucast_pkts +
-			    edev->stats.tx_mcast_pkts +
-			    edev->stats.tx_bcast_pkts;
+	stats->rx_packets = p_common->rx_ucast_pkts + p_common->rx_mcast_pkts +
+			    p_common->rx_bcast_pkts;
+	stats->tx_packets = p_common->tx_ucast_pkts + p_common->tx_mcast_pkts +
+			    p_common->tx_bcast_pkts;
 
-	stats->rx_bytes = edev->stats.rx_ucast_bytes +
-			  edev->stats.rx_mcast_bytes +
-			  edev->stats.rx_bcast_bytes;
+	stats->rx_bytes = p_common->rx_ucast_bytes + p_common->rx_mcast_bytes +
+			  p_common->rx_bcast_bytes;
+	stats->tx_bytes = p_common->tx_ucast_bytes + p_common->tx_mcast_bytes +
+			  p_common->tx_bcast_bytes;
 
-	stats->tx_bytes = edev->stats.tx_ucast_bytes +
-			  edev->stats.tx_mcast_bytes +
-			  edev->stats.tx_bcast_bytes;
+	stats->tx_errors = p_common->tx_err_drop_pkts;
+	stats->multicast = p_common->rx_mcast_pkts + p_common->rx_bcast_pkts;
 
-	stats->tx_errors = edev->stats.tx_err_drop_pkts;
-	stats->multicast = edev->stats.rx_mcast_pkts +
-			   edev->stats.rx_bcast_pkts;
+	stats->rx_fifo_errors = p_common->no_buff_discards;
 
-	stats->rx_fifo_errors = edev->stats.no_buff_discards;
-
-	stats->collisions = edev->stats.tx_total_collisions;
-	stats->rx_crc_errors = edev->stats.rx_crc_errors;
-	stats->rx_frame_errors = edev->stats.rx_align_errors;
+	if (QEDE_IS_BB(edev))
+		stats->collisions = edev->stats.bb.tx_total_collisions;
+	stats->rx_crc_errors = p_common->rx_crc_errors;
+	stats->rx_frame_errors = p_common->rx_align_errors;
 }
 
 #ifdef CONFIG_QED_SRIOV
