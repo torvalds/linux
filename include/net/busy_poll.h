@@ -76,14 +76,6 @@ static inline bool busy_loop_timeout(unsigned long end_time)
 
 bool sk_busy_loop(struct sock *sk, int nonblock);
 
-/* used in the NIC receive handler to mark the skb */
-static inline void skb_mark_napi_id(struct sk_buff *skb,
-				    struct napi_struct *napi)
-{
-	skb->napi_id = napi->napi_id;
-}
-
-
 #else /* CONFIG_NET_RX_BUSY_POLL */
 static inline unsigned long net_busy_loop_on(void)
 {
@@ -100,11 +92,6 @@ static inline bool sk_can_busy_loop(struct sock *sk)
 	return false;
 }
 
-static inline void skb_mark_napi_id(struct sk_buff *skb,
-				    struct napi_struct *napi)
-{
-}
-
 static inline bool busy_loop_timeout(unsigned long end_time)
 {
 	return true;
@@ -116,6 +103,15 @@ static inline bool sk_busy_loop(struct sock *sk, int nonblock)
 }
 
 #endif /* CONFIG_NET_RX_BUSY_POLL */
+
+/* used in the NIC receive handler to mark the skb */
+static inline void skb_mark_napi_id(struct sk_buff *skb,
+				    struct napi_struct *napi)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	skb->napi_id = napi->napi_id;
+#endif
+}
 
 /* used in the protocol hanlder to propagate the napi_id to the socket */
 static inline void sk_mark_napi_id(struct sock *sk, const struct sk_buff *skb)
