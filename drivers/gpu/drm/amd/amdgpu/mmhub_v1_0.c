@@ -552,6 +552,25 @@ static int mmhub_v1_0_set_clockgating_state(void *handle,
 	return 0;
 }
 
+static void mmhub_v1_0_get_clockgating_state(void *handle, u32 *flags)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int data;
+
+	if (amdgpu_sriov_vf(adev))
+		*flags = 0;
+
+	/* AMD_CG_SUPPORT_MC_MGCG */
+	data = RREG32(SOC15_REG_OFFSET(ATHUB, 0, mmATHUB_MISC_CNTL));
+	if (data & ATHUB_MISC_CNTL__CG_ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_MC_MGCG;
+
+	/* AMD_CG_SUPPORT_MC_LS */
+	data = RREG32(SOC15_REG_OFFSET(MMHUB, 0, mmATC_L2_MISC_CG));
+	if (data & ATC_L2_MISC_CG__MEM_LS_ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_MC_LS;
+}
+
 static int mmhub_v1_0_set_powergating_state(void *handle,
 					enum amd_powergating_state state)
 {
@@ -573,6 +592,7 @@ const struct amd_ip_funcs mmhub_v1_0_ip_funcs = {
 	.soft_reset = mmhub_v1_0_soft_reset,
 	.set_clockgating_state = mmhub_v1_0_set_clockgating_state,
 	.set_powergating_state = mmhub_v1_0_set_powergating_state,
+	.get_clockgating_state = mmhub_v1_0_get_clockgating_state,
 };
 
 const struct amdgpu_ip_block_version mmhub_v1_0_ip_block =
