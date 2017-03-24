@@ -1424,6 +1424,28 @@ static int wait_on_pipe(struct trace_iterator *iter, bool full)
 }
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
+static bool selftests_can_run;
+
+struct trace_selftests {
+	struct list_head		list;
+	struct tracer			*type;
+};
+
+static LIST_HEAD(postponed_selftests);
+
+static int save_selftest(struct tracer *type)
+{
+	struct trace_selftests *selftest;
+
+	selftest = kmalloc(sizeof(*selftest), GFP_KERNEL);
+	if (!selftest)
+		return -ENOMEM;
+
+	selftest->type = type;
+	list_add(&selftest->list, &postponed_selftests);
+	return 0;
+}
+
 static int run_tracer_selftest(struct tracer *type)
 {
 	struct trace_array *tr = &global_trace;
@@ -1432,6 +1454,14 @@ static int run_tracer_selftest(struct tracer *type)
 
 	if (!type->selftest || tracing_selftest_disabled)
 		return 0;
+
+	/*
+	 * If a tracer registers early in boot up (before scheduling is
+	 * initialized and such), then do not run its selftests yet.
+	 * Instead, run it a little later in the boot process.
+	 */
+	if (!selftests_can_run)
+		return save_selftest(type);
 
 	/*
 	 * Run a selftest on this tracer.
@@ -1482,6 +1512,47 @@ static int run_tracer_selftest(struct tracer *type)
 	printk(KERN_CONT "PASSED\n");
 	return 0;
 }
+
+static __init int init_trace_selftests(void)
+{
+	struct trace_selftests *p, *n;
+	struct tracer *t, **last;
+	int ret;
+
+	selftests_can_run = true;
+
+	mutex_lock(&trace_types_lock);
+
+	if (list_empty(&postponed_selftests))
+		goto out;
+
+	pr_info("Running postponed tracer tests:\n");
+
+	list_for_each_entry_safe(p, n, &postponed_selftests, list) {
+		ret = run_tracer_selftest(p->type);
+		/* If the test fails, then warn and remove from available_tracers */
+		if (ret < 0) {
+			WARN(1, "tracer: %s failed selftest, disabling\n",
+			     p->type->name);
+			last = &trace_types;
+			for (t = trace_types; t; t = t->next) {
+				if (t == p->type) {
+					*last = t->next;
+					break;
+				}
+				last = &t->next;
+			}
+		}
+		list_del(&p->list);
+		kfree(p);
+	}
+
+ out:
+	mutex_unlock(&trace_types_lock);
+
+	return 0;
+}
+early_initcall(init_trace_selftests);
 #else
 static inline int run_tracer_selftest(struct tracer *type)
 {
