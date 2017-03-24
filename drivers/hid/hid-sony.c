@@ -1998,13 +1998,13 @@ static void dualshock4_send_output_report(struct sony_sc *sc)
 	if (sc->quirks & (DUALSHOCK4_CONTROLLER_USB | DUALSHOCK4_DONGLE)) {
 		memset(buf, 0, DS4_OUTPUT_REPORT_0x05_SIZE);
 		buf[0] = 0x05;
-		buf[1] = 0xFF;
+		buf[1] = 0x07; /* blink + LEDs + motor */
 		offset = 4;
 	} else {
 		memset(buf, 0, DS4_OUTPUT_REPORT_0x11_SIZE);
 		buf[0] = 0x11;
 		buf[1] = 0xC0; /* HID + CRC */
-		buf[3] = 0x0F;
+		buf[3] = 0x07; /* blink + LEDs + motor */
 		offset = 6;
 	}
 
