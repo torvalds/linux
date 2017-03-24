@@ -996,8 +996,7 @@ static int adjust_historical_crosststamp(struct system_time_snapshot *history,
 		return 0;
 
 	/* Interpolate shortest distance from beginning or end of history */
-	interp_forward = partial_history_cycles > total_history_cycles/2 ?
-		true : false;
+	interp_forward = partial_history_cycles > total_history_cycles / 2;
 	partial_history_cycles = interp_forward ?
 		total_history_cycles - partial_history_cycles :
 		partial_history_cycles;
