@@ -538,7 +538,6 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int relocated;
 	int page_found = 0;
 	struct kvmppc_pte pte;
-	bool is_mmio = false;
 	bool dr = (kvmppc_get_msr(vcpu) & MSR_DR) ? true : false;
 	bool ir = (kvmppc_get_msr(vcpu) & MSR_IR) ? true : false;
 	u64 vsid;
@@ -616,8 +615,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		/* Page not found in guest SLB */
 		kvmppc_set_dar(vcpu, kvmppc_get_fault_dar(vcpu));
 		kvmppc_book3s_queue_irqprio(vcpu, vec + 0x80);
-	} else if (!is_mmio &&
-		   kvmppc_visible_gpa(vcpu, pte.raddr)) {
+	} else if (kvmppc_visible_gpa(vcpu, pte.raddr)) {
 		if (data && !(vcpu->arch.fault_dsisr & DSISR_NOHPTE)) {
 			/*
 			 * There is already a host HPTE there, presumably
