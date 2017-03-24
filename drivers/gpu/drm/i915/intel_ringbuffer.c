@@ -2117,7 +2117,7 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 
 			num_rings =
 				hweight32(INTEL_INFO(dev_priv)->ring_mask) - 1;
-			engine->emit_breadcrumb_sz += num_rings * 6;
+			engine->emit_breadcrumb_sz += num_rings * 8;
 		}
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		engine->init_context = intel_rcs_ctx_init;
