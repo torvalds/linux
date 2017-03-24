@@ -573,6 +573,8 @@ static const char *channel_names[] = {
 
 void omap_crtc_pre_init(void)
 {
+	memset(omap_crtcs, 0, sizeof(omap_crtcs));
+
 	dss_install_mgr_ops(&mgr_ops);
 }
 
@@ -583,18 +585,28 @@ void omap_crtc_pre_uninit(void)
 
 /* initialize crtc */
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
-		struct drm_plane *plane, enum omap_channel channel, int id)
+		struct drm_plane *plane, struct omap_dss_device *dssdev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc = NULL;
 	struct omap_crtc *omap_crtc;
+	enum omap_channel channel;
+	struct omap_dss_device *out;
 	int ret;
+
+	out = omapdss_find_output_from_display(dssdev);
+	channel = out->dispc_channel;
+	omap_dss_put_device(out);
 
 	DBG("%s", channel_names[channel]);
 
+	/* Multiple displays on same channel is not allowed */
+	if (WARN_ON(omap_crtcs[channel] != NULL))
+		return ERR_PTR(-EINVAL);
+
 	omap_crtc = kzalloc(sizeof(*omap_crtc), GFP_KERNEL);
 	if (!omap_crtc)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	crtc = &omap_crtc->base;
 
@@ -606,8 +618,10 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	ret = drm_crtc_init_with_planes(dev, crtc, plane, NULL,
 					&omap_crtc_funcs, NULL);
 	if (ret < 0) {
+		dev_err(dev->dev, "%s(): could not init crtc for: %s\n",
+			__func__, dssdev->name);
 		kfree(omap_crtc);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	drm_crtc_helper_add(crtc, &omap_crtc_helper_funcs);

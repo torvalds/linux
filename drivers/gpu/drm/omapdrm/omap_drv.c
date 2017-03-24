@@ -219,20 +219,6 @@ static int get_connector_type(struct omap_dss_device *dssdev)
 	}
 }
 
-static bool channel_used(struct drm_device *dev, enum omap_channel channel)
-{
-	struct omap_drm_private *priv = dev->dev_private;
-	int i;
-
-	for (i = 0; i < priv->num_crtcs; i++) {
-		struct drm_crtc *crtc = priv->crtcs[i];
-
-		if (omap_crtc_channel(crtc) == channel)
-			return true;
-	}
-
-	return false;
-}
 static void omap_disconnect_dssdevs(void)
 {
 	struct omap_dss_device *dssdev = NULL;
@@ -272,31 +258,6 @@ cleanup:
 	return r;
 }
 
-static int omap_modeset_create_crtc(struct drm_device *dev, int id,
-				    enum omap_channel channel,
-				    u32 possible_crtcs)
-{
-	struct omap_drm_private *priv = dev->dev_private;
-	struct drm_plane *plane;
-	struct drm_crtc *crtc;
-
-	plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_PRIMARY,
-		possible_crtcs);
-	if (IS_ERR(plane))
-		return PTR_ERR(plane);
-
-	crtc = omap_crtc_init(dev, plane, channel, id);
-
-	BUG_ON(priv->num_crtcs >= ARRAY_SIZE(priv->crtcs));
-	priv->crtcs[id] = crtc;
-	priv->num_crtcs++;
-
-	priv->planes[id] = plane;
-	priv->num_planes++;
-
-	return 0;
-}
-
 static int omap_modeset_init_properties(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
@@ -314,10 +275,9 @@ static int omap_modeset_init(struct drm_device *dev)
 	struct omap_dss_device *dssdev = NULL;
 	int num_ovls = priv->dispc_ops->get_num_ovls();
 	int num_mgrs = priv->dispc_ops->get_num_mgrs();
-	int num_crtcs = 0;
-	int i, id = 0;
+	int num_crtcs, crtc_idx, plane_idx;
 	int ret;
-	u32 possible_crtcs;
+	u32 plane_crtc_mask;
 
 	drm_mode_config_init(dev);
 
@@ -326,132 +286,89 @@ static int omap_modeset_init(struct drm_device *dev)
 		return ret;
 
 	/*
-	 * Let's create one CRTC for each connected DSS device if we
-	 * have display managers and overlays (for primary planes) for
-	 * them.
+	 * This function creates exactly one connector, encoder, crtc,
+	 * and primary plane per each connected dss-device. Each
+	 * connector->encoder->crtc chain is expected to be separate
+	 * and each crtc is connect to a single dss-channel. If the
+	 * configuration does not match the expectations or exceeds
+	 * the available resources, the configuration is rejected.
 	 */
+	num_crtcs = 0;
 	for_each_dss_dev(dssdev)
 		if (omapdss_device_is_connected(dssdev))
 			num_crtcs++;
 
-	num_crtcs = min3(num_crtcs, num_mgrs, num_ovls);
-	possible_crtcs = (1 << num_crtcs) - 1;
+	if (num_crtcs > num_mgrs || num_crtcs > num_ovls ||
+	    num_crtcs > ARRAY_SIZE(priv->crtcs) ||
+	    num_crtcs > ARRAY_SIZE(priv->planes) ||
+	    num_crtcs > ARRAY_SIZE(priv->encoders) ||
+	    num_crtcs > ARRAY_SIZE(priv->connectors)) {
+		dev_err(dev->dev, "%s(): Too many connected displays\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	/* All planes can be put to any CRTC */
+	plane_crtc_mask = (1 << num_crtcs) - 1;
 
 	dssdev = NULL;
 
+	crtc_idx = 0;
+	plane_idx = 0;
 	for_each_dss_dev(dssdev) {
 		struct drm_connector *connector;
 		struct drm_encoder *encoder;
-		enum omap_channel channel;
-		struct omap_dss_device *out;
+		struct drm_plane *plane;
+		struct drm_crtc *crtc;
 
 		if (!omapdss_device_is_connected(dssdev))
 			continue;
 
 		encoder = omap_encoder_init(dev, dssdev);
-
-		if (!encoder) {
-			dev_err(dev->dev, "could not create encoder: %s\n",
-					dssdev->name);
+		if (!encoder)
 			return -ENOMEM;
-		}
 
 		connector = omap_connector_init(dev,
 				get_connector_type(dssdev), dssdev, encoder);
-
-		if (!connector) {
-			dev_err(dev->dev, "could not create connector: %s\n",
-					dssdev->name);
+		if (!connector)
 			return -ENOMEM;
-		}
 
-		BUG_ON(priv->num_encoders >= ARRAY_SIZE(priv->encoders));
-		BUG_ON(priv->num_connectors >= ARRAY_SIZE(priv->connectors));
+		plane = omap_plane_init(dev, plane_idx, DRM_PLANE_TYPE_PRIMARY,
+					plane_crtc_mask);
+		if (IS_ERR(plane))
+			return PTR_ERR(plane);
 
+		crtc = omap_crtc_init(dev, plane, dssdev);
+		if (IS_ERR(crtc))
+			return PTR_ERR(crtc);
+
+		drm_mode_connector_attach_encoder(connector, encoder);
+		encoder->possible_crtcs = (1 << crtc_idx);
+
+		priv->crtcs[priv->num_crtcs++] = crtc;
+		priv->planes[priv->num_planes++] = plane;
 		priv->encoders[priv->num_encoders++] = encoder;
 		priv->connectors[priv->num_connectors++] = connector;
 
-		drm_mode_connector_attach_encoder(connector, encoder);
-
-		/*
-		 * if we have reached the limit of the crtcs we can
-		 * create, let's not try to create a crtc for this
-		 * panel/encoder and onwards.
-		 */
-		if (id == num_crtcs)
-			continue;
-
-		/*
-		 * get the recommended DISPC channel for this encoder. For now,
-		 * we only try to get create a crtc out of the recommended, the
-		 * other possible channels to which the encoder can connect are
-		 * not considered.
-		 */
-
-		out = omapdss_find_output_from_display(dssdev);
-		channel = out->dispc_channel;
-		omap_dss_put_device(out);
-
-		/*
-		 * if this channel hasn't already been taken by a previously
-		 * allocated crtc, we create a new crtc for it
-		 */
-		if (!channel_used(dev, channel)) {
-			ret = omap_modeset_create_crtc(dev, id, channel,
-				possible_crtcs);
-			if (ret < 0) {
-				dev_err(dev->dev,
-					"could not create CRTC (channel %u)\n",
-					channel);
-				return ret;
-			}
-
-			id++;
-		}
+		plane_idx++;
+		crtc_idx++;
 	}
 
 	/*
 	 * Create normal planes for the remaining overlays:
 	 */
-	for (; id < num_ovls; id++) {
+	for (; plane_idx < num_ovls; plane_idx++) {
 		struct drm_plane *plane;
 
-		plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_OVERLAY,
-			possible_crtcs);
+		if (WARN_ON(priv->num_planes >= ARRAY_SIZE(priv->planes)))
+			return -EINVAL;
+
+		plane = omap_plane_init(dev, plane_idx, DRM_PLANE_TYPE_OVERLAY,
+			plane_crtc_mask);
 		if (IS_ERR(plane))
 			return PTR_ERR(plane);
 
-		BUG_ON(priv->num_planes >= ARRAY_SIZE(priv->planes));
 		priv->planes[priv->num_planes++] = plane;
-	}
-
-	/*
-	 * populate the the possible_crtcs field for all the encoders
-	 * we created.
-	 */
-	for (i = 0; i < priv->num_encoders; i++) {
-		struct drm_encoder *encoder = priv->encoders[i];
-		struct omap_dss_device *dssdev =
-					omap_encoder_get_dssdev(encoder);
-		struct omap_dss_device *output;
-
-		output = omapdss_find_output_from_display(dssdev);
-
-		/* figure out which crtc's we can connect the encoder to: */
-		encoder->possible_crtcs = 0;
-		for (id = 0; id < priv->num_crtcs; id++) {
-			struct drm_crtc *crtc = priv->crtcs[id];
-			enum omap_channel crtc_channel;
-
-			crtc_channel = omap_crtc_channel(crtc);
-
-			if (output->dispc_channel == crtc_channel) {
-				encoder->possible_crtcs |= (1 << id);
-				break;
-			}
-		}
-
-		omap_dss_put_device(output);
 	}
 
 	DBG("registered %d planes, %d crtcs, %d encoders and %d connectors\n",
