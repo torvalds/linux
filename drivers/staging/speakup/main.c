@@ -1341,14 +1341,14 @@ static int edit_bits(struct vc_data *vc, u_char type, u_char ch, u_short key)
 }
 
 /* Allocation concurrency is protected by the console semaphore */
-static int speakup_allocate(struct vc_data *vc)
+static int speakup_allocate(struct vc_data *vc, gfp_t gfp_flags)
 {
 	int vc_num;
 
 	vc_num = vc->vc_num;
 	if (speakup_console[vc_num] == NULL) {
 		speakup_console[vc_num] = kzalloc(sizeof(*speakup_console[0]),
-						  GFP_ATOMIC);
+						  gfp_flags);
 		if (!speakup_console[vc_num])
 			return -ENOMEM;
 		speakup_date(vc);
@@ -2277,7 +2277,7 @@ static int vt_notifier_call(struct notifier_block *nb,
 	switch (code) {
 	case VT_ALLOCATE:
 		if (vc->vc_mode == KD_TEXT)
-			speakup_allocate(vc);
+			speakup_allocate(vc, GFP_ATOMIC);
 		break;
 	case VT_DEALLOCATE:
 		speakup_deallocate(vc);
@@ -2362,7 +2362,7 @@ static int __init speakup_init(void)
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
 		if (vc_cons[i].d) {
-			err = speakup_allocate(vc_cons[i].d);
+			err = speakup_allocate(vc_cons[i].d, GFP_KERNEL);
 			if (err)
 				goto error_kobjects;
 		}
