@@ -1242,10 +1242,12 @@ static void skl_tplg_fill_dma_id(struct skl_module_cfg *mcfg,
 		case SKL_DEVICE_HDALINK:
 			pipe->p_params->link_dma_id = params->link_dma_id;
 			pipe->p_params->link_index = params->link_index;
+			pipe->p_params->link_bps = params->link_bps;
 			break;
 
 		case SKL_DEVICE_HDAHOST:
 			pipe->p_params->host_dma_id = params->host_dma_id;
+			pipe->p_params->host_bps = params->host_bps;
 			break;
 
 		default:

@@ -257,6 +257,8 @@ struct skl_pipe_params {
 	snd_pcm_format_t format;
 	int link_index;
 	int stream;
+	unsigned int host_bps;
+	unsigned int link_bps;
 };
 
 struct skl_pipe {

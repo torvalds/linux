@@ -155,7 +155,7 @@ int skl_pcm_host_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 	snd_hdac_ext_stream_decouple(ebus, stream, true);
 
 	format_val = snd_hdac_calc_stream_format(params->s_freq,
-				params->ch, params->format, 32, 0);
+			params->ch, params->format, params->host_bps, 0);
 
 	dev_dbg(dev, "format_val=%d, rate=%d, ch=%d, format=%d\n",
 		format_val, params->s_freq, params->ch, params->format);
@@ -190,8 +190,8 @@ int skl_pcm_link_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 
 	stream = stream_to_hdac_ext_stream(hstream);
 	snd_hdac_ext_stream_decouple(ebus, stream, true);
-	format_val = snd_hdac_calc_stream_format(params->s_freq,
-				params->ch, params->format, 24, 0);
+	format_val = snd_hdac_calc_stream_format(params->s_freq, params->ch,
+					params->format, params->link_bps, 0);
 
 	dev_dbg(dev, "format_val=%d, rate=%d, ch=%d, format=%d\n",
 		format_val, params->s_freq, params->ch, params->format);
@@ -309,6 +309,11 @@ static int skl_pcm_hw_params(struct snd_pcm_substream *substream,
 	p_params.host_dma_id = dma_id;
 	p_params.stream = substream->stream;
 	p_params.format = params_format(params);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		p_params.host_bps = dai->driver->playback.sig_bits;
+	else
+		p_params.host_bps = dai->driver->capture.sig_bits;
+
 
 	m_cfg = skl_tplg_fe_get_cpr_module(dai, p_params.stream);
 	if (m_cfg)
@@ -547,6 +552,11 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 	p_params.link_index = link->index;
 	p_params.format = params_format(params);
 
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		p_params.link_bps = codec_dai->driver->playback.sig_bits;
+	else
+		p_params.link_bps = codec_dai->driver->capture.sig_bits;
+
 	return skl_tplg_be_update_params(dai, &p_params);
 }
 
@@ -652,6 +662,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_8000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE |
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
+		.sig_bits = 32,
 	},
 	.capture = {
 		.stream_name = "System Capture",
@@ -659,6 +670,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 		.channels_max = HDA_STEREO,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.sig_bits = 32,
 	},
 },
 {
@@ -670,6 +682,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 		.channels_max = HDA_QUAD,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.sig_bits = 32,
 	},
 },
 {
@@ -681,6 +694,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 		.channels_max = HDA_STEREO,
 		.rates = SNDRV_PCM_RATE_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.sig_bits = 32,
 	},
 },
 {
@@ -692,6 +706,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 		.channels_max = HDA_STEREO,
 		.rates = SNDRV_PCM_RATE_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.sig_bits = 32,
 	},
 },
 {
@@ -703,6 +718,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 		.channels_max = HDA_QUAD,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.sig_bits = 32,
 	},
 },
 {
@@ -718,6 +734,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 			SNDRV_PCM_RATE_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
 			SNDRV_PCM_FMTBIT_S32_LE,
+		.sig_bits = 32,
 	},
 },
 {
@@ -733,6 +750,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 			SNDRV_PCM_RATE_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
 			SNDRV_PCM_FMTBIT_S32_LE,
+		.sig_bits = 32,
 	},
 },
 {
@@ -748,6 +766,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 			SNDRV_PCM_RATE_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
 			SNDRV_PCM_FMTBIT_S32_LE,
+		.sig_bits = 32,
 	},
 },
 
