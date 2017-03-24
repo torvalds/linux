@@ -319,13 +319,7 @@ struct mlx5e_sq_wqe_info {
 	u8  num_wqebbs;
 };
 
-enum mlx5e_sq_type {
-	MLX5E_SQ_TXQ,
-	MLX5E_SQ_ICO,
-	MLX5E_SQ_XDP
-};
-
-struct mlx5e_sq {
+struct mlx5e_txqsq {
 	/* data path */
 
 	/* dirtied @completion */
@@ -339,18 +333,11 @@ struct mlx5e_sq {
 
 	struct mlx5e_cq            cq;
 
-	/* pointers to per tx element info: write@xmit, read@completion */
-	union {
-		struct {
-			struct sk_buff           **skb;
-			struct mlx5e_sq_dma       *dma_fifo;
-			struct mlx5e_tx_wqe_info  *wqe_info;
-		} txq;
-		struct mlx5e_sq_wqe_info *ico_wqe;
-		struct {
-			struct mlx5e_dma_info     *di;
-			bool                       doorbell;
-		} xdp;
+	/* write@xmit, read@completion */
+	struct {
+		struct sk_buff           **skb;
+		struct mlx5e_sq_dma       *dma_fifo;
+		struct mlx5e_tx_wqe_info  *wqe_info;
 	} db;
 
 	/* read only */
@@ -372,7 +359,67 @@ struct mlx5e_sq {
 	struct mlx5e_channel      *channel;
 	int                        tc;
 	u32                        rate_limit;
-	u8                         type;
+} ____cacheline_aligned_in_smp;
+
+struct mlx5e_xdpsq {
+	/* data path */
+
+	/* dirtied @rx completion */
+	u16                        cc;
+	u16                        pc;
+
+	struct mlx5e_cq            cq;
+
+	/* write@xmit, read@completion */
+	struct {
+		struct mlx5e_dma_info     *di;
+		bool                       doorbell;
+	} db;
+
+	/* read only */
+	struct mlx5_wq_cyc         wq;
+	void __iomem              *uar_map;
+	u32                        sqn;
+	struct device             *pdev;
+	__be32                     mkey_be;
+	u8                         min_inline_mode;
+	unsigned long              state;
+
+	/* control path */
+	struct mlx5_wq_ctrl        wq_ctrl;
+	struct mlx5e_channel      *channel;
+} ____cacheline_aligned_in_smp;
+
+struct mlx5e_icosq {
+	/* data path */
+
+	/* dirtied @completion */
+	u16                        cc;
+
+	/* dirtied @xmit */
+	u16                        pc ____cacheline_aligned_in_smp;
+	u32                        dma_fifo_pc;
+	u16                        prev_cc;
+
+	struct mlx5e_cq            cq;
+
+	/* write@xmit, read@completion */
+	struct {
+		struct mlx5e_sq_wqe_info *ico_wqe;
+	} db;
+
+	/* read only */
+	struct mlx5_wq_cyc         wq;
+	void __iomem              *uar_map;
+	u32                        sqn;
+	u16                        edge;
+	struct device             *pdev;
+	__be32                     mkey_be;
+	unsigned long              state;
+
+	/* control path */
+	struct mlx5_wq_ctrl        wq_ctrl;
+	struct mlx5e_channel      *channel;
 } ____cacheline_aligned_in_smp;
 
 static inline bool
@@ -477,7 +524,7 @@ struct mlx5e_rq {
 
 	/* XDP */
 	struct bpf_prog       *xdp_prog;
-	struct mlx5e_sq        xdpsq;
+	struct mlx5e_xdpsq     xdpsq;
 
 	/* control */
 	struct mlx5_wq_ctrl    wq_ctrl;
@@ -497,8 +544,8 @@ enum channel_flags {
 struct mlx5e_channel {
 	/* data path */
 	struct mlx5e_rq            rq;
-	struct mlx5e_sq            sq[MLX5E_MAX_NUM_TC];
-	struct mlx5e_sq            icosq;   /* internal control operations */
+	struct mlx5e_txqsq         sq[MLX5E_MAX_NUM_TC];
+	struct mlx5e_icosq         icosq;   /* internal control operations */
 	bool                       xdp;
 	struct napi_struct         napi;
 	struct device             *pdev;
@@ -680,7 +727,7 @@ struct mlx5e_profile {
 
 struct mlx5e_priv {
 	/* priv data path fields - start */
-	struct mlx5e_sq            **txq_to_sq_map;
+	struct mlx5e_txqsq         **txq_to_sq_map;
 	int channeltc_to_txq_map[MLX5E_MAX_NUM_CHANNELS][MLX5E_MAX_NUM_TC];
 	struct bpf_prog *xdp_prog;
 	/* priv data path fields - end */
@@ -731,8 +778,8 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget);
 bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget);
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
 bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq);
-void mlx5e_free_xdpsq_descs(struct mlx5e_sq *sq);
-void mlx5e_free_sq_descs(struct mlx5e_sq *sq);
+void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq);
+void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq);
 
 void mlx5e_page_release(struct mlx5e_rq *rq, struct mlx5e_dma_info *dma_info,
 			bool recycle);

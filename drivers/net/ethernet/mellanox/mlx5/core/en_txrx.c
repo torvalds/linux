@@ -51,7 +51,7 @@ struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq)
 
 static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 {
-	struct mlx5e_sq *sq = container_of(cq, struct mlx5e_sq, cq);
+	struct mlx5e_icosq *sq = container_of(cq, struct mlx5e_icosq, cq);
 	struct mlx5_wq_cyc *wq;
 	struct mlx5_cqe64 *cqe;
 	u16 sqcc;
