@@ -46,6 +46,13 @@ config FPGA_MGR_TS73XX
 	  FPGA manager driver support for the Altera Cyclone II FPGA
 	  present on the TS-73xx SBC boards.
 
+config FPGA_MGR_XILINX_SPI
+	tristate "Xilinx Configuration over Slave Serial (SPI)"
+	depends on SPI
+	help
+	  FPGA manager driver support for Xilinx FPGA configuration
+	  over slave serial interface.
+
 config FPGA_MGR_ZYNQ_FPGA
 	tristate "Xilinx Zynq FPGA"
 	depends on ARCH_ZYNQ || COMPILE_TEST
