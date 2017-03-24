@@ -438,14 +438,6 @@ intel_engine_flag(const struct intel_engine_cs *engine)
 	return 1 << engine->id;
 }
 
-static inline void
-intel_flush_status_page(struct intel_engine_cs *engine, int reg)
-{
-	mb();
-	clflush(&engine->status_page.page_addr[reg]);
-	mb();
-}
-
 static inline u32
 intel_read_status_page(struct intel_engine_cs *engine, int reg)
 {
