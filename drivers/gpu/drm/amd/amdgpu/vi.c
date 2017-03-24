@@ -464,15 +464,9 @@ static void vi_detect_hw_virtualization(struct amdgpu_device *adev)
 }
 
 static const struct amdgpu_allowed_register_entry tonga_allowed_read_registers[] = {
-	{mmGB_MACROTILE_MODE7, true},
 };
 
 static const struct amdgpu_allowed_register_entry cz_allowed_read_registers[] = {
-	{mmGB_TILE_MODE7, true},
-	{mmGB_TILE_MODE12, true},
-	{mmGB_TILE_MODE17, true},
-	{mmGB_TILE_MODE23, true},
-	{mmGB_MACROTILE_MODE7, true},
 };
 
 static const struct amdgpu_allowed_register_entry vi_allowed_read_registers[] = {
