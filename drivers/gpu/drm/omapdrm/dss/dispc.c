@@ -1802,8 +1802,7 @@ static void dispc_ovl_set_scaling(enum omap_plane_id plane,
 		rotation);
 }
 
-static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane,
-					 u8 rotation,
+static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 		enum omap_dss_rotation_type rotation_type,
 		bool mirroring, enum omap_color_mode color_mode)
 {
@@ -2834,7 +2833,7 @@ static int dispc_ovl_setup_common(enum omap_plane_id plane,
 }
 
 static int dispc_ovl_setup(enum omap_plane_id plane,
-			   const struct omap_overlay_info *oi,
+		const struct omap_overlay_info *oi,
 		const struct videomode *vm, bool mem_to_mem)
 {
 	int r;
