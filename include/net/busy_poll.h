@@ -46,32 +46,9 @@ static inline bool net_busy_loop_on(void)
 	return sysctl_net_busy_poll;
 }
 
-static inline u64 busy_loop_us_clock(void)
-{
-	return local_clock() >> 10;
-}
-
-static inline unsigned long sk_busy_loop_end_time(struct sock *sk)
-{
-	return busy_loop_us_clock() + ACCESS_ONCE(sk->sk_ll_usec);
-}
-
-/* in poll/select we use the global sysctl_net_ll_poll value */
-static inline unsigned long busy_loop_end_time(void)
-{
-	return busy_loop_us_clock() + ACCESS_ONCE(sysctl_net_busy_poll);
-}
-
 static inline bool sk_can_busy_loop(const struct sock *sk)
 {
 	return sk->sk_ll_usec && !signal_pending(current);
-}
-
-static inline bool busy_loop_timeout(unsigned long end_time)
-{
-	unsigned long now = busy_loop_us_clock();
-
-	return time_after(now, end_time);
 }
 
 void sk_busy_loop(struct sock *sk, int nonblock);
@@ -82,19 +59,9 @@ static inline unsigned long net_busy_loop_on(void)
 	return 0;
 }
 
-static inline unsigned long busy_loop_end_time(void)
-{
-	return 0;
-}
-
 static inline bool sk_can_busy_loop(struct sock *sk)
 {
 	return false;
-}
-
-static inline bool busy_loop_timeout(unsigned long end_time)
-{
-	return true;
 }
 
 static inline void sk_busy_loop(struct sock *sk, int nonblock)
@@ -102,6 +69,47 @@ static inline void sk_busy_loop(struct sock *sk, int nonblock)
 }
 
 #endif /* CONFIG_NET_RX_BUSY_POLL */
+
+static inline unsigned long busy_loop_current_time(void)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	return (unsigned long)(local_clock() >> 10);
+#else
+	return 0;
+#endif
+}
+
+/* in poll/select we use the global sysctl_net_ll_poll value */
+static inline bool busy_loop_timeout(unsigned long start_time)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned long bp_usec = READ_ONCE(sysctl_net_busy_poll);
+
+	if (bp_usec) {
+		unsigned long end_time = start_time + bp_usec;
+		unsigned long now = busy_loop_current_time();
+
+		return time_after(now, end_time);
+	}
+#endif
+	return true;
+}
+
+static inline bool sk_busy_loop_timeout(struct sock *sk,
+					unsigned long start_time)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned long bp_usec = READ_ONCE(sk->sk_ll_usec);
+
+	if (bp_usec) {
+		unsigned long end_time = start_time + bp_usec;
+		unsigned long now = busy_loop_current_time();
+
+		return time_after(now, end_time);
+	}
+#endif
+	return true;
+}
 
 /* used in the NIC receive handler to mark the skb */
 static inline void skb_mark_napi_id(struct sk_buff *skb,

@@ -5062,7 +5062,7 @@ static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock)
 
 void sk_busy_loop(struct sock *sk, int nonblock)
 {
-	unsigned long end_time = !nonblock ? sk_busy_loop_end_time(sk) : 0;
+	unsigned long start_time = nonblock ? 0 : busy_loop_current_time();
 	int (*napi_poll)(struct napi_struct *napi, int budget);
 	void *have_poll_lock = NULL;
 	struct napi_struct *napi;
@@ -5111,7 +5111,7 @@ count:
 		local_bh_enable();
 
 		if (nonblock || !skb_queue_empty(&sk->sk_receive_queue) ||
-		    busy_loop_timeout(end_time))
+		    sk_busy_loop_timeout(sk, start_time))
 			break;
 
 		if (unlikely(need_resched())) {
@@ -5121,7 +5121,7 @@ count:
 			rcu_read_unlock();
 			cond_resched();
 			if (!skb_queue_empty(&sk->sk_receive_queue) ||
-			    busy_loop_timeout(end_time))
+			    sk_busy_loop_timeout(sk, start_time))
 				return;
 			goto restart;
 		}
