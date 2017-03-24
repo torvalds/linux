@@ -6274,8 +6274,8 @@ static int e1000e_pm_freeze(struct device *dev)
 		/* Quiesce the device without resetting the hardware */
 		e1000e_down(adapter, false);
 		e1000_free_irq(adapter);
-		e1000e_reset_interrupt_capability(adapter);
 	}
+	e1000e_reset_interrupt_capability(adapter);
 
 	/* Allow time for pending master requests to run */
 	e1000e_disable_pcie_master(&adapter->hw);
