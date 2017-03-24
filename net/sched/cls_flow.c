@@ -508,9 +508,8 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 		get_random_bytes(&fnew->hashrnd, 4);
 	}
 
-	fnew->perturb_timer.function = flow_perturbation;
-	fnew->perturb_timer.data = (unsigned long)fnew;
-	init_timer_deferrable(&fnew->perturb_timer);
+	setup_deferrable_timer(&fnew->perturb_timer, flow_perturbation,
+			       (unsigned long)fnew);
 
 	tcf_exts_change(tp, &fnew->exts, &e);
 	tcf_em_tree_change(tp, &fnew->ematches, &t);
