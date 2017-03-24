@@ -24,8 +24,6 @@
 static u8 OSC_UUID[16] = {0x6E, 0x88, 0x9F, 0xA6, 0xEB, 0x6C, 0x94, 0x45,
 				0xA4, 0x1F, 0x7B, 0x5D, 0xCE, 0x24, 0xC5, 0x53};
 
-#define DSDT_NHLT_PATH "\\_SB.PCI0.HDAS"
-
 struct nhlt_acpi_table *skl_nhlt_init(struct device *dev)
 {
 	acpi_handle handle;
@@ -33,8 +31,9 @@ struct nhlt_acpi_table *skl_nhlt_init(struct device *dev)
 	struct nhlt_resource_desc  *nhlt_ptr = NULL;
 	struct nhlt_acpi_table *nhlt_table = NULL;
 
-	if (ACPI_FAILURE(acpi_get_handle(NULL, DSDT_NHLT_PATH, &handle))) {
-		dev_err(dev, "Requested NHLT device not found\n");
+	handle = ACPI_HANDLE(dev);
+	if (!handle) {
+		dev_err(dev, "Didn't find ACPI_HANDLE\n");
 		return NULL;
 	}
 
