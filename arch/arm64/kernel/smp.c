@@ -934,7 +934,7 @@ static bool have_cpu_die(void)
 #ifdef CONFIG_HOTPLUG_CPU
 	int any_cpu = raw_smp_processor_id();
 
-	if (cpu_ops[any_cpu]->cpu_die)
+	if (cpu_ops[any_cpu] && cpu_ops[any_cpu]->cpu_die)
 		return true;
 #endif
 	return false;
