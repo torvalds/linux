@@ -401,8 +401,7 @@ static int ti_qspi_dma_xfer(struct ti_qspi *qspi, dma_addr_t dma_dst,
 	struct dma_async_tx_descriptor *tx;
 	int ret;
 
-	tx = dma_dev->device_prep_dma_memcpy(chan, dma_dst, dma_src,
-					     len, flags);
+	tx = dmaengine_prep_dma_memcpy(chan, dma_dst, dma_src, len, flags);
 	if (!tx) {
 		dev_err(qspi->dev, "device_prep_dma_memcpy error\n");
 		return -EIO;
