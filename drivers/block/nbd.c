@@ -844,7 +844,10 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		nbd_size_set(nbd, bdev, nbd->blksize, arg);
 		return 0;
 	case NBD_SET_TIMEOUT:
-		nbd->tag_set.timeout = arg * HZ;
+		if (arg) {
+			nbd->tag_set.timeout = arg * HZ;
+			blk_queue_rq_timeout(nbd->disk->queue, arg * HZ);
+		}
 		return 0;
 
 	case NBD_SET_FLAGS:
