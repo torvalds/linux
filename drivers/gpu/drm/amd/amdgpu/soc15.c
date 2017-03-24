@@ -792,6 +792,42 @@ static int soc15_common_set_clockgating_state(void *handle,
 	return 0;
 }
 
+static void soc15_common_get_clockgating_state(void *handle, u32 *flags)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int data;
+
+	if (amdgpu_sriov_vf(adev))
+		*flags = 0;
+
+	nbio_v6_1_get_clockgating_state(adev, flags);
+
+	/* AMD_CG_SUPPORT_HDP_LS */
+	data = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MEM_POWER_LS));
+	if (data & HDP_MEM_POWER_LS__LS_ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_HDP_LS;
+
+	/* AMD_CG_SUPPORT_DRM_MGCG */
+	data = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_CGTT_CTRL0));
+	if (!(data & 0x01000000))
+		*flags |= AMD_CG_SUPPORT_DRM_MGCG;
+
+	/* AMD_CG_SUPPORT_DRM_LS */
+	data = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_LIGHT_SLEEP_CTRL));
+	if (data & 0x1)
+		*flags |= AMD_CG_SUPPORT_DRM_LS;
+
+	/* AMD_CG_SUPPORT_ROM_MGCG */
+	data = RREG32(SOC15_REG_OFFSET(SMUIO, 0, mmCGTT_ROM_CLK_CTRL0));
+	if (!(data & CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK))
+		*flags |= AMD_CG_SUPPORT_ROM_MGCG;
+
+	/* AMD_CG_SUPPORT_DF_MGCG */
+	data = RREG32(SOC15_REG_OFFSET(DF, 0, mmDF_PIE_AON0_DfGlobalClkGater));
+	if (data & DF_MGCG_ENABLE_15_CYCLE_DELAY)
+		*flags |= AMD_CG_SUPPORT_DF_MGCG;
+}
+
 static int soc15_common_set_powergating_state(void *handle,
 					    enum amd_powergating_state state)
 {
@@ -814,4 +850,5 @@ const struct amd_ip_funcs soc15_common_ip_funcs = {
 	.soft_reset = soc15_common_soft_reset,
 	.set_clockgating_state = soc15_common_set_clockgating_state,
 	.set_powergating_state = soc15_common_set_powergating_state,
+	.get_clockgating_state= soc15_common_get_clockgating_state,
 };
