@@ -1189,8 +1189,8 @@ nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 			validation_errors[ret]);
 		iod->lsreq->rsplen = nvmet_fc_format_rjt(acc,
 				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
-				ELS_RJT_LOGIC,
-				ELS_EXPL_NONE, 0);
+				FCNVME_RJT_RC_LOGIC,
+				FCNVME_RJT_EXP_NONE, 0);
 		return;
 	}
 
@@ -1281,8 +1281,9 @@ nvmet_fc_ls_create_connection(struct nvmet_fc_tgtport *tgtport,
 		iod->lsreq->rsplen = nvmet_fc_format_rjt(acc,
 				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
 				(ret == VERR_NO_ASSOC) ?
-						ELS_RJT_PROT : ELS_RJT_LOGIC,
-				ELS_EXPL_NONE, 0);
+					FCNVME_RJT_RC_INV_ASSOC :
+					FCNVME_RJT_RC_LOGIC,
+				FCNVME_RJT_EXP_NONE, 0);
 		return;
 	}
 
@@ -1369,8 +1370,12 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 			validation_errors[ret]);
 		iod->lsreq->rsplen = nvmet_fc_format_rjt(acc,
 				NVME_FC_MAX_LS_BUFFER_SIZE, rqst->w0.ls_cmd,
-				(ret == 8) ? ELS_RJT_PROT : ELS_RJT_LOGIC,
-				ELS_EXPL_NONE, 0);
+				(ret == VERR_NO_ASSOC) ?
+					FCNVME_RJT_RC_INV_ASSOC :
+					(ret == VERR_NO_CONN) ?
+						FCNVME_RJT_RC_INV_CONN :
+						FCNVME_RJT_RC_LOGIC,
+				FCNVME_RJT_EXP_NONE, 0);
 		return;
 	}
 
@@ -1479,7 +1484,7 @@ nvmet_fc_handle_ls_rqst(struct nvmet_fc_tgtport *tgtport,
 	default:
 		iod->lsreq->rsplen = nvmet_fc_format_rjt(iod->rspbuf,
 				NVME_FC_MAX_LS_BUFFER_SIZE, w0->ls_cmd,
-				ELS_RJT_INVAL, ELS_EXPL_NONE, 0);
+				FCNVME_RJT_RC_INVAL, FCNVME_RJT_EXP_NONE, 0);
 	}
 
 	nvmet_fc_xmt_ls_rsp(tgtport, iod);
