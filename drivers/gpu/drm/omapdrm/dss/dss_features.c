@@ -800,17 +800,17 @@ enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel
 	return omap_current_dss_features->supported_outputs[channel];
 }
 
-enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane)
+enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane_id plane)
 {
 	return omap_current_dss_features->supported_color_modes[plane];
 }
 
-enum omap_overlay_caps dss_feat_get_overlay_caps(enum omap_plane plane)
+enum omap_overlay_caps dss_feat_get_overlay_caps(enum omap_plane_id plane)
 {
 	return omap_current_dss_features->overlay_caps[plane];
 }
 
-bool dss_feat_color_mode_supported(enum omap_plane plane,
+bool dss_feat_color_mode_supported(enum omap_plane_id plane,
 		enum omap_color_mode color_mode)
 {
 	return omap_current_dss_features->supported_color_modes[plane] &

@@ -76,7 +76,7 @@ enum omap_display_type {
 	OMAP_DISPLAY_TYPE_DVI		= 1 << 6,
 };
 
-enum omap_plane {
+enum omap_plane_id {
 	OMAP_DSS_GFX	= 0,
 	OMAP_DSS_VIDEO1	= 1,
 	OMAP_DSS_VIDEO2	= 2,
@@ -338,7 +338,7 @@ struct omap_overlay {
 
 	/* static fields */
 	const char *name;
-	enum omap_plane id;
+	enum omap_plane_id id;
 	enum omap_color_mode supported_modes;
 	enum omap_overlay_caps caps;
 
@@ -785,7 +785,7 @@ const char *omapdss_get_default_display_name(void);
 
 int dss_feat_get_num_mgrs(void);
 int dss_feat_get_num_ovls(void);
-enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
+enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane_id plane);
 
 
 
@@ -923,14 +923,15 @@ struct dispc_ops {
 		const struct drm_color_lut *lut,
 		unsigned int length);
 
-	int (*ovl_enable)(enum omap_plane plane, bool enable);
-	bool (*ovl_enabled)(enum omap_plane plane);
-	void (*ovl_set_channel_out)(enum omap_plane plane,
+	int (*ovl_enable)(enum omap_plane_id plane, bool enable);
+	bool (*ovl_enabled)(enum omap_plane_id plane);
+	void (*ovl_set_channel_out)(enum omap_plane_id plane,
 			enum omap_channel channel);
-	int (*ovl_setup)(enum omap_plane plane, const struct omap_overlay_info *oi,
+	int (*ovl_setup)(enum omap_plane_id plane,
+			 const struct omap_overlay_info *oi,
 			const struct videomode *vm, bool mem_to_mem);
 
-	enum omap_color_mode (*ovl_get_color_modes)(enum omap_plane plane);
+	enum omap_color_mode (*ovl_get_color_modes)(enum omap_plane_id plane);
 };
 
 void dispc_set_ops(const struct dispc_ops *o);

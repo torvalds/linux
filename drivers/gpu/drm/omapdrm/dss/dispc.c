@@ -303,8 +303,8 @@ static unsigned long dispc_core_clk_rate(void);
 static unsigned long dispc_mgr_lclk_rate(enum omap_channel channel);
 static unsigned long dispc_mgr_pclk_rate(enum omap_channel channel);
 
-static unsigned long dispc_plane_pclk_rate(enum omap_plane plane);
-static unsigned long dispc_plane_lclk_rate(enum omap_plane plane);
+static unsigned long dispc_plane_pclk_rate(enum omap_plane_id plane);
+static unsigned long dispc_plane_lclk_rate(enum omap_plane_id plane);
 
 static void dispc_clear_irqstatus(u32 mask);
 static bool dispc_mgr_is_enabled(enum omap_channel channel);
@@ -653,7 +653,7 @@ bool dispc_wb_go_busy(void)
 
 void dispc_wb_go(void)
 {
-	enum omap_plane plane = OMAP_DSS_WB;
+	enum omap_plane_id plane = OMAP_DSS_WB;
 	bool enable, go;
 
 	enable = REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0) == 1;
@@ -670,29 +670,33 @@ void dispc_wb_go(void)
 	REG_FLD_MOD(DISPC_CONTROL2, 1, 6, 6);
 }
 
-static void dispc_ovl_write_firh_reg(enum omap_plane plane, int reg, u32 value)
+static void dispc_ovl_write_firh_reg(enum omap_plane_id plane, int reg,
+				     u32 value)
 {
 	dispc_write_reg(DISPC_OVL_FIR_COEF_H(plane, reg), value);
 }
 
-static void dispc_ovl_write_firhv_reg(enum omap_plane plane, int reg, u32 value)
+static void dispc_ovl_write_firhv_reg(enum omap_plane_id plane, int reg,
+				      u32 value)
 {
 	dispc_write_reg(DISPC_OVL_FIR_COEF_HV(plane, reg), value);
 }
 
-static void dispc_ovl_write_firv_reg(enum omap_plane plane, int reg, u32 value)
+static void dispc_ovl_write_firv_reg(enum omap_plane_id plane, int reg,
+				     u32 value)
 {
 	dispc_write_reg(DISPC_OVL_FIR_COEF_V(plane, reg), value);
 }
 
-static void dispc_ovl_write_firh2_reg(enum omap_plane plane, int reg, u32 value)
+static void dispc_ovl_write_firh2_reg(enum omap_plane_id plane, int reg,
+				      u32 value)
 {
 	BUG_ON(plane == OMAP_DSS_GFX);
 
 	dispc_write_reg(DISPC_OVL_FIR_COEF_H2(plane, reg), value);
 }
 
-static void dispc_ovl_write_firhv2_reg(enum omap_plane plane, int reg,
+static void dispc_ovl_write_firhv2_reg(enum omap_plane_id plane, int reg,
 		u32 value)
 {
 	BUG_ON(plane == OMAP_DSS_GFX);
@@ -700,14 +704,15 @@ static void dispc_ovl_write_firhv2_reg(enum omap_plane plane, int reg,
 	dispc_write_reg(DISPC_OVL_FIR_COEF_HV2(plane, reg), value);
 }
 
-static void dispc_ovl_write_firv2_reg(enum omap_plane plane, int reg, u32 value)
+static void dispc_ovl_write_firv2_reg(enum omap_plane_id plane, int reg,
+				      u32 value)
 {
 	BUG_ON(plane == OMAP_DSS_GFX);
 
 	dispc_write_reg(DISPC_OVL_FIR_COEF_V2(plane, reg), value);
 }
 
-static void dispc_ovl_set_scale_coef(enum omap_plane plane, int fir_hinc,
+static void dispc_ovl_set_scale_coef(enum omap_plane_id plane, int fir_hinc,
 				int fir_vinc, int five_taps,
 				enum omap_color_component color_comp)
 {
@@ -753,7 +758,7 @@ static void dispc_ovl_set_scale_coef(enum omap_plane plane, int fir_hinc,
 }
 
 
-static void dispc_ovl_write_color_conv_coef(enum omap_plane plane,
+static void dispc_ovl_write_color_conv_coef(enum omap_plane_id plane,
 		const struct color_conv_coef *ct)
 {
 #define CVAL(x, y) (FLD_VAL(x, 26, 16) | FLD_VAL(y, 10, 0))
@@ -789,27 +794,27 @@ static void dispc_setup_color_conv_coef(void)
 		dispc_ovl_write_color_conv_coef(OMAP_DSS_WB, &ctbl_bt601_5_wb);
 }
 
-static void dispc_ovl_set_ba0(enum omap_plane plane, u32 paddr)
+static void dispc_ovl_set_ba0(enum omap_plane_id plane, u32 paddr)
 {
 	dispc_write_reg(DISPC_OVL_BA0(plane), paddr);
 }
 
-static void dispc_ovl_set_ba1(enum omap_plane plane, u32 paddr)
+static void dispc_ovl_set_ba1(enum omap_plane_id plane, u32 paddr)
 {
 	dispc_write_reg(DISPC_OVL_BA1(plane), paddr);
 }
 
-static void dispc_ovl_set_ba0_uv(enum omap_plane plane, u32 paddr)
+static void dispc_ovl_set_ba0_uv(enum omap_plane_id plane, u32 paddr)
 {
 	dispc_write_reg(DISPC_OVL_BA0_UV(plane), paddr);
 }
 
-static void dispc_ovl_set_ba1_uv(enum omap_plane plane, u32 paddr)
+static void dispc_ovl_set_ba1_uv(enum omap_plane_id plane, u32 paddr)
 {
 	dispc_write_reg(DISPC_OVL_BA1_UV(plane), paddr);
 }
 
-static void dispc_ovl_set_pos(enum omap_plane plane,
+static void dispc_ovl_set_pos(enum omap_plane_id plane,
 		enum omap_overlay_caps caps, int x, int y)
 {
 	u32 val;
@@ -822,7 +827,7 @@ static void dispc_ovl_set_pos(enum omap_plane plane,
 	dispc_write_reg(DISPC_OVL_POSITION(plane), val);
 }
 
-static void dispc_ovl_set_input_size(enum omap_plane plane, int width,
+static void dispc_ovl_set_input_size(enum omap_plane_id plane, int width,
 		int height)
 {
 	u32 val = FLD_VAL(height - 1, 26, 16) | FLD_VAL(width - 1, 10, 0);
@@ -833,7 +838,7 @@ static void dispc_ovl_set_input_size(enum omap_plane plane, int width,
 		dispc_write_reg(DISPC_OVL_PICTURE_SIZE(plane), val);
 }
 
-static void dispc_ovl_set_output_size(enum omap_plane plane, int width,
+static void dispc_ovl_set_output_size(enum omap_plane_id plane, int width,
 		int height)
 {
 	u32 val;
@@ -848,7 +853,7 @@ static void dispc_ovl_set_output_size(enum omap_plane plane, int width,
 		dispc_write_reg(DISPC_OVL_SIZE(plane), val);
 }
 
-static void dispc_ovl_set_zorder(enum omap_plane plane,
+static void dispc_ovl_set_zorder(enum omap_plane_id plane,
 		enum omap_overlay_caps caps, u8 zorder)
 {
 	if ((caps & OMAP_DSS_OVL_CAP_ZORDER) == 0)
@@ -868,7 +873,7 @@ static void dispc_ovl_enable_zorder_planes(void)
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(i), 1, 25, 25);
 }
 
-static void dispc_ovl_set_pre_mult_alpha(enum omap_plane plane,
+static void dispc_ovl_set_pre_mult_alpha(enum omap_plane_id plane,
 		enum omap_overlay_caps caps, bool enable)
 {
 	if ((caps & OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA) == 0)
@@ -877,7 +882,7 @@ static void dispc_ovl_set_pre_mult_alpha(enum omap_plane plane,
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable ? 1 : 0, 28, 28);
 }
 
-static void dispc_ovl_setup_global_alpha(enum omap_plane plane,
+static void dispc_ovl_setup_global_alpha(enum omap_plane_id plane,
 		enum omap_overlay_caps caps, u8 global_alpha)
 {
 	static const unsigned shifts[] = { 0, 8, 16, 24, };
@@ -890,17 +895,17 @@ static void dispc_ovl_setup_global_alpha(enum omap_plane plane,
 	REG_FLD_MOD(DISPC_GLOBAL_ALPHA, global_alpha, shift + 7, shift);
 }
 
-static void dispc_ovl_set_pix_inc(enum omap_plane plane, s32 inc)
+static void dispc_ovl_set_pix_inc(enum omap_plane_id plane, s32 inc)
 {
 	dispc_write_reg(DISPC_OVL_PIXEL_INC(plane), inc);
 }
 
-static void dispc_ovl_set_row_inc(enum omap_plane plane, s32 inc)
+static void dispc_ovl_set_row_inc(enum omap_plane_id plane, s32 inc)
 {
 	dispc_write_reg(DISPC_OVL_ROW_INC(plane), inc);
 }
 
-static void dispc_ovl_set_color_mode(enum omap_plane plane,
+static void dispc_ovl_set_color_mode(enum omap_plane_id plane,
 		enum omap_color_mode color_mode)
 {
 	u32 m = 0;
@@ -981,7 +986,7 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), m, 4, 1);
 }
 
-static void dispc_ovl_configure_burst_type(enum omap_plane plane,
+static void dispc_ovl_configure_burst_type(enum omap_plane_id plane,
 		enum omap_dss_rotation_type rotation_type)
 {
 	if (dss_has_feature(FEAT_BURST_2D) == 0)
@@ -993,7 +998,8 @@ static void dispc_ovl_configure_burst_type(enum omap_plane plane,
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), 0, 29, 29);
 }
 
-static void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel channel)
+static void dispc_ovl_set_channel_out(enum omap_plane_id plane,
+				      enum omap_channel channel)
 {
 	int shift;
 	u32 val;
@@ -1054,7 +1060,7 @@ static void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel c
 	dispc_write_reg(DISPC_OVL_ATTRIBUTES(plane), val);
 }
 
-static enum omap_channel dispc_ovl_get_channel_out(enum omap_plane plane)
+static enum omap_channel dispc_ovl_get_channel_out(enum omap_plane_id plane)
 {
 	int shift;
 	u32 val;
@@ -1096,12 +1102,12 @@ static enum omap_channel dispc_ovl_get_channel_out(enum omap_plane plane)
 
 void dispc_wb_set_channel_in(enum dss_writeback_channel channel)
 {
-	enum omap_plane plane = OMAP_DSS_WB;
+	enum omap_plane_id plane = OMAP_DSS_WB;
 
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), channel, 18, 16);
 }
 
-static void dispc_ovl_set_burst_size(enum omap_plane plane,
+static void dispc_ovl_set_burst_size(enum omap_plane_id plane,
 		enum omap_burst_size burst_size)
 {
 	static const unsigned shifts[] = { 6, 14, 14, 14, 14, };
@@ -1123,14 +1129,14 @@ static void dispc_configure_burst_sizes(void)
 		dispc_ovl_set_burst_size(OMAP_DSS_WB, burst_size);
 }
 
-static u32 dispc_ovl_get_burst_size(enum omap_plane plane)
+static u32 dispc_ovl_get_burst_size(enum omap_plane_id plane)
 {
 	unsigned unit = dss_feat_get_burst_size_unit();
 	/* burst multiplier is always x8 (see dispc_configure_burst_sizes()) */
 	return unit * 8;
 }
 
-static enum omap_color_mode dispc_ovl_get_color_modes(enum omap_plane plane)
+static enum omap_color_mode dispc_ovl_get_color_modes(enum omap_plane_id plane)
 {
 	return dss_feat_get_supported_color_modes(plane);
 }
@@ -1168,7 +1174,8 @@ static void dispc_mgr_set_cpr_coef(enum omap_channel channel,
 	dispc_write_reg(DISPC_CPR_COEF_B(channel), coef_b);
 }
 
-static void dispc_ovl_set_vid_color_conv(enum omap_plane plane, bool enable)
+static void dispc_ovl_set_vid_color_conv(enum omap_plane_id plane,
+					 bool enable)
 {
 	u32 val;
 
@@ -1179,7 +1186,7 @@ static void dispc_ovl_set_vid_color_conv(enum omap_plane plane, bool enable)
 	dispc_write_reg(DISPC_OVL_ATTRIBUTES(plane), val);
 }
 
-static void dispc_ovl_enable_replication(enum omap_plane plane,
+static void dispc_ovl_enable_replication(enum omap_plane_id plane,
 		enum omap_overlay_caps caps, bool enable)
 {
 	static const unsigned shifts[] = { 5, 10, 10, 10 };
@@ -1276,7 +1283,7 @@ static void dispc_init_fifos(void)
 	}
 }
 
-static u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
+static u32 dispc_ovl_get_fifo_size(enum omap_plane_id plane)
 {
 	int fifo;
 	u32 size = 0;
@@ -1289,7 +1296,8 @@ static u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
 	return size;
 }
 
-void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
+void dispc_ovl_set_fifo_threshold(enum omap_plane_id plane, u32 low,
+				  u32 high)
 {
 	u8 hi_start, hi_end, lo_start, lo_end;
 	u32 unit;
@@ -1338,7 +1346,7 @@ void dispc_enable_fifomerge(bool enable)
 	REG_FLD_MOD(DISPC_CONFIG, enable ? 1 : 0, 14, 14);
 }
 
-void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
+void dispc_ovl_compute_fifo_thresholds(enum omap_plane_id plane,
 		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge,
 		bool manual_update)
 {
@@ -1385,7 +1393,7 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 	}
 }
 
-static void dispc_ovl_set_mflag(enum omap_plane plane, bool enable)
+static void dispc_ovl_set_mflag(enum omap_plane_id plane, bool enable)
 {
 	int bit;
 
@@ -1397,7 +1405,7 @@ static void dispc_ovl_set_mflag(enum omap_plane plane, bool enable)
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable, bit, bit);
 }
 
-static void dispc_ovl_set_mflag_threshold(enum omap_plane plane,
+static void dispc_ovl_set_mflag_threshold(enum omap_plane_id plane,
 	int low, int high)
 {
 	dispc_write_reg(DISPC_OVL_MFLAG_THRESHOLD(plane),
@@ -1461,7 +1469,7 @@ static void dispc_init_mflag(void)
 	}
 }
 
-static void dispc_ovl_set_fir(enum omap_plane plane,
+static void dispc_ovl_set_fir(enum omap_plane_id plane,
 				int hinc, int vinc,
 				enum omap_color_component color_comp)
 {
@@ -1484,7 +1492,8 @@ static void dispc_ovl_set_fir(enum omap_plane plane,
 	}
 }
 
-static void dispc_ovl_set_vid_accu0(enum omap_plane plane, int haccu, int vaccu)
+static void dispc_ovl_set_vid_accu0(enum omap_plane_id plane, int haccu,
+				    int vaccu)
 {
 	u32 val;
 	u8 hor_start, hor_end, vert_start, vert_end;
@@ -1498,7 +1507,8 @@ static void dispc_ovl_set_vid_accu0(enum omap_plane plane, int haccu, int vaccu)
 	dispc_write_reg(DISPC_OVL_ACCU0(plane), val);
 }
 
-static void dispc_ovl_set_vid_accu1(enum omap_plane plane, int haccu, int vaccu)
+static void dispc_ovl_set_vid_accu1(enum omap_plane_id plane, int haccu,
+				    int vaccu)
 {
 	u32 val;
 	u8 hor_start, hor_end, vert_start, vert_end;
@@ -1512,7 +1522,7 @@ static void dispc_ovl_set_vid_accu1(enum omap_plane plane, int haccu, int vaccu)
 	dispc_write_reg(DISPC_OVL_ACCU1(plane), val);
 }
 
-static void dispc_ovl_set_vid_accu2_0(enum omap_plane plane, int haccu,
+static void dispc_ovl_set_vid_accu2_0(enum omap_plane_id plane, int haccu,
 		int vaccu)
 {
 	u32 val;
@@ -1521,7 +1531,7 @@ static void dispc_ovl_set_vid_accu2_0(enum omap_plane plane, int haccu,
 	dispc_write_reg(DISPC_OVL_ACCU2_0(plane), val);
 }
 
-static void dispc_ovl_set_vid_accu2_1(enum omap_plane plane, int haccu,
+static void dispc_ovl_set_vid_accu2_1(enum omap_plane_id plane, int haccu,
 		int vaccu)
 {
 	u32 val;
@@ -1530,7 +1540,7 @@ static void dispc_ovl_set_vid_accu2_1(enum omap_plane plane, int haccu,
 	dispc_write_reg(DISPC_OVL_ACCU2_1(plane), val);
 }
 
-static void dispc_ovl_set_scale_param(enum omap_plane plane,
+static void dispc_ovl_set_scale_param(enum omap_plane_id plane,
 		u16 orig_width, u16 orig_height,
 		u16 out_width, u16 out_height,
 		bool five_taps, u8 rotation,
@@ -1546,7 +1556,7 @@ static void dispc_ovl_set_scale_param(enum omap_plane plane,
 	dispc_ovl_set_fir(plane, fir_hinc, fir_vinc, color_comp);
 }
 
-static void dispc_ovl_set_accu_uv(enum omap_plane plane,
+static void dispc_ovl_set_accu_uv(enum omap_plane_id plane,
 		u16 orig_width,	u16 orig_height, u16 out_width, u16 out_height,
 		bool ilace, enum omap_color_mode color_mode, u8 rotation)
 {
@@ -1634,7 +1644,7 @@ static void dispc_ovl_set_accu_uv(enum omap_plane plane,
 	dispc_ovl_set_vid_accu2_1(plane, h_accu2_1, v_accu2_1);
 }
 
-static void dispc_ovl_set_scaling_common(enum omap_plane plane,
+static void dispc_ovl_set_scaling_common(enum omap_plane_id plane,
 		u16 orig_width, u16 orig_height,
 		u16 out_width, u16 out_height,
 		bool ilace, bool five_taps,
@@ -1688,7 +1698,7 @@ static void dispc_ovl_set_scaling_common(enum omap_plane plane,
 	dispc_ovl_set_vid_accu1(plane, 0, accu1);
 }
 
-static void dispc_ovl_set_scaling_uv(enum omap_plane plane,
+static void dispc_ovl_set_scaling_uv(enum omap_plane_id plane,
 		u16 orig_width, u16 orig_height,
 		u16 out_width, u16 out_height,
 		bool ilace, bool five_taps,
@@ -1768,7 +1778,7 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane plane,
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), scale_y ? 1 : 0, 6, 6);
 }
 
-static void dispc_ovl_set_scaling(enum omap_plane plane,
+static void dispc_ovl_set_scaling(enum omap_plane_id plane,
 		u16 orig_width, u16 orig_height,
 		u16 out_width, u16 out_height,
 		bool ilace, bool five_taps,
@@ -1792,7 +1802,8 @@ static void dispc_ovl_set_scaling(enum omap_plane plane,
 		rotation);
 }
 
-static void dispc_ovl_set_rotation_attrs(enum omap_plane plane, u8 rotation,
+static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane,
+					 u8 rotation,
 		enum omap_dss_rotation_type rotation_type,
 		bool mirroring, enum omap_color_mode color_mode)
 {
@@ -2624,7 +2635,7 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 	return 0;
 }
 
-static int dispc_ovl_setup_common(enum omap_plane plane,
+static int dispc_ovl_setup_common(enum omap_plane_id plane,
 		enum omap_overlay_caps caps, u32 paddr, u32 p_uv_addr,
 		u16 screen_width, int pos_x, int pos_y, u16 width, u16 height,
 		u16 out_width, u16 out_height, enum omap_color_mode color_mode,
@@ -2822,7 +2833,8 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	return 0;
 }
 
-static int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
+static int dispc_ovl_setup(enum omap_plane_id plane,
+			   const struct omap_overlay_info *oi,
 		const struct videomode *vm, bool mem_to_mem)
 {
 	int r;
@@ -2852,7 +2864,7 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 {
 	int r;
 	u32 l;
-	enum omap_plane plane = OMAP_DSS_WB;
+	enum omap_plane_id plane = OMAP_DSS_WB;
 	const int pos_x = 0, pos_y = 0;
 	const u8 zorder = 0, global_alpha = 0;
 	const bool replication = true;
@@ -2915,7 +2927,7 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 	return r;
 }
 
-static int dispc_ovl_enable(enum omap_plane plane, bool enable)
+static int dispc_ovl_enable(enum omap_plane_id plane, bool enable)
 {
 	DSSDBG("dispc_enable_plane %d, %d\n", plane, enable);
 
@@ -2924,7 +2936,7 @@ static int dispc_ovl_enable(enum omap_plane plane, bool enable)
 	return 0;
 }
 
-static bool dispc_ovl_enabled(enum omap_plane plane)
+static bool dispc_ovl_enabled(enum omap_plane_id plane)
 {
 	return REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
 }
@@ -3392,7 +3404,7 @@ static unsigned long dispc_core_clk_rate(void)
 	return dispc.core_clk_rate;
 }
 
-static unsigned long dispc_plane_pclk_rate(enum omap_plane plane)
+static unsigned long dispc_plane_pclk_rate(enum omap_plane_id plane)
 {
 	enum omap_channel channel;
 
@@ -3404,7 +3416,7 @@ static unsigned long dispc_plane_pclk_rate(enum omap_plane plane)
 	return dispc_mgr_pclk_rate(channel);
 }
 
-static unsigned long dispc_plane_lclk_rate(enum omap_plane plane)
+static unsigned long dispc_plane_lclk_rate(enum omap_plane_id plane)
 {
 	enum omap_channel channel;
 
