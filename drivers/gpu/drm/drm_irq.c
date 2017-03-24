@@ -1699,6 +1699,7 @@ bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	unsigned long irqflags;
+	bool disable_irq;
 
 	if (WARN_ON_ONCE(!dev->num_crtcs))
 		return false;
@@ -1726,19 +1727,22 @@ bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe)
 	spin_unlock(&dev->vblank_time_lock);
 
 	wake_up(&vblank->queue);
-	drm_handle_vblank_events(dev, pipe);
 
 	/* With instant-off, we defer disabling the interrupt until after
-	 * we finish processing the following vblank. The disable has to
-	 * be last (after drm_handle_vblank_events) so that the timestamp
-	 * is always accurate.
+	 * we finish processing the following vblank after all events have
+	 * been signaled. The disable has to be last (after
+	 * drm_handle_vblank_events) so that the timestamp is always accurate.
 	 */
-	if (dev->vblank_disable_immediate &&
-	    drm_vblank_offdelay > 0 &&
-	    !atomic_read(&vblank->refcount))
-		vblank_disable_fn((unsigned long)vblank);
+	disable_irq = (dev->vblank_disable_immediate &&
+		       drm_vblank_offdelay > 0 &&
+		       !atomic_read(&vblank->refcount));
+
+	drm_handle_vblank_events(dev, pipe);
 
 	spin_unlock_irqrestore(&dev->event_lock, irqflags);
+
+	if (disable_irq)
+		vblank_disable_fn((unsigned long)vblank);
 
 	return true;
 }
