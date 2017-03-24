@@ -88,6 +88,13 @@ config ALTERA_PR_IP_CORE
         help
           Core driver support for Altera Partial Reconfiguration IP component
 
+config ALTERA_PR_IP_CORE_PLAT
+	tristate "Platform support of Altera Partial Reconfiguration IP Core"
+	depends on ALTERA_PR_IP_CORE && OF && HAS_IOMEM
+	help
+	  Platform driver support for Altera Partial Reconfiguration IP
+	  component
+
 endif # FPGA
 
 endmenu
