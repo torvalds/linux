@@ -1656,6 +1656,8 @@ static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
 		goto out;
 
 	filename_len = strlen(filename);
+	if (filename_len == 0)
+		goto out;
 
 	if (ttrace->filename.namelen < filename_len) {
 		char *f = realloc(ttrace->filename.name, filename_len + 1);
