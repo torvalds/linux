@@ -922,14 +922,6 @@ skip_epp:
 	}
 }
 
-static int intel_pstate_hwp_set_policy(struct cpufreq_policy *policy)
-{
-	if (hwp_active)
-		intel_pstate_hwp_set(policy);
-
-	return 0;
-}
-
 static int intel_pstate_hwp_save_state(struct cpufreq_policy *policy)
 {
 	struct cpudata *cpu_data = all_cpu_data[policy->cpu];
@@ -944,20 +936,17 @@ static int intel_pstate_hwp_save_state(struct cpufreq_policy *policy)
 
 static int intel_pstate_resume(struct cpufreq_policy *policy)
 {
-	int ret;
-
 	if (!hwp_active)
 		return 0;
 
 	mutex_lock(&intel_pstate_limits_lock);
 
 	all_cpu_data[policy->cpu]->epp_policy = 0;
-
-	ret = intel_pstate_hwp_set_policy(policy);
+	intel_pstate_hwp_set(policy);
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
-	return ret;
+	return 0;
 }
 
 static void intel_pstate_update_policies(void)
@@ -2130,7 +2119,8 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 
 	intel_pstate_set_update_util_hook(policy->cpu);
 
-	intel_pstate_hwp_set_policy(policy);
+	if (hwp_active)
+		intel_pstate_hwp_set(policy);
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
