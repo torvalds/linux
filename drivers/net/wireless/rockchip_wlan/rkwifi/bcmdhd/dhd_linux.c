@@ -10049,7 +10049,7 @@ static int wifi_init_thread(void *data)
 	return 0;
 }
 
-int __init rockchip_wifi_init_module_rkwifi(void)
+int rockchip_wifi_init_module_rkwifi(void)
 {
 	struct task_struct *kthread = NULL;
 
@@ -10060,7 +10060,7 @@ int __init rockchip_wifi_init_module_rkwifi(void)
 	return 0;
 }
 
-void __exit rockchip_wifi_exit_module_rkwifi(void)
+void rockchip_wifi_exit_module_rkwifi(void)
 {
 	dhd_module_exit();
 }
