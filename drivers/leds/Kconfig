@@ -76,6 +76,15 @@ config LEDS_BCM6358
 	  This option enables support for LEDs connected to the BCM6358
 	  LED HW controller accessed via MMIO registers.
 
+config LEDS_CPCAP
+	tristate "LED Support for Motorola CPCAP"
+	depends on LEDS_CLASS
+	depends on MFD_CPCAP
+	depends on OF
+	help
+	  This option enables support for LEDs offered by Motorola's
+	  CPCAP PMIC.
+
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
 	depends on LEDS_CLASS
