@@ -596,6 +596,7 @@ struct hd_async_handle {
 	u16 cri;
 	u8 is_header;
 	u8 is_final;
+	u8 in_use;
 };
 
 #define BEISCSI_ASYNC_HDQ_SIZE(phba, ulp) \
@@ -626,14 +627,7 @@ struct hd_async_buf_context {
 	void *va_base;
 	void *ring_base;
 	struct hd_async_handle *handle_base;
-	u16 free_entries;
 	u32 buffer_size;
-	/**
-	 * Once iSCSI layer finishes processing an async PDU, the
-	 * handles used for the PDU are added to this list.
-	 * They are posted back to FW in groups of 8.
-	 */
-	struct list_head free_list;
 	u16 pi;
 };
 
