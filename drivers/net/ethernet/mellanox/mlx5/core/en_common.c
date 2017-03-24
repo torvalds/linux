@@ -107,10 +107,18 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 		goto err_dealloc_transport_domain;
 	}
 
+	err = mlx5_alloc_bfreg(mdev, &res->bfreg, false, false);
+	if (err) {
+		mlx5_core_err(mdev, "alloc bfreg failed, %d\n", err);
+		goto err_destroy_mkey;
+	}
+
 	INIT_LIST_HEAD(&mdev->mlx5e_res.td.tirs_list);
 
 	return 0;
 
+err_destroy_mkey:
+	mlx5_core_destroy_mkey(mdev, &res->mkey);
 err_dealloc_transport_domain:
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 err_dealloc_pd:
@@ -122,6 +130,7 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 {
 	struct mlx5e_resources *res = &mdev->mlx5e_res;
 
+	mlx5_free_bfreg(mdev, &res->bfreg);
 	mlx5_core_destroy_mkey(mdev, &res->mkey);
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 	mlx5_core_dealloc_pd(mdev, res->pdn);

@@ -728,6 +728,7 @@ struct mlx5e_resources {
 	u32                        pdn;
 	struct mlx5_td             td;
 	struct mlx5_core_mkey      mkey;
+	struct mlx5_sq_bfreg       bfreg;
 };
 
 struct mlx5_core_dev {

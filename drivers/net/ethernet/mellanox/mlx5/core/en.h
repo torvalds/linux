@@ -483,7 +483,6 @@ struct mlx5e_sq {
 
 	/* control path */
 	struct mlx5_wq_ctrl        wq_ctrl;
-	struct mlx5_sq_bfreg	   bfreg;
 	struct mlx5e_channel      *channel;
 	int                        tc;
 	u32                        rate_limit;
