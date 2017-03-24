@@ -1178,13 +1178,57 @@ static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment *attachment,
 {
 	struct dma_buf *dmabuf = attachment->dmabuf;
 	struct ion_buffer *buffer = dmabuf->priv;
+	int nr_pages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
+	struct sg_table *table = buffer->sg_table;
+	struct scatterlist *sg;
+	struct sg_table *sgt;
+	int ret, i;
 
 	ion_buffer_sync_for_device(buffer, attachment->dev, direction);
-	if (!dma_map_sg(attachment->dev, buffer->sg_table->sgl,
-			buffer->sg_table->nents, direction))
+	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
+	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 
-	return buffer->sg_table;
+	if (!buffer->pages) {
+		int j, k = 0;
+
+		buffer->pages = vmalloc(sizeof(struct page *) * nr_pages);
+		if (!buffer->pages) {
+			ret = -ENOMEM;
+			goto err_free_sgt;
+		}
+
+		for_each_sg(table->sgl, sg, table->nents, i) {
+			struct page *page = sg_page(sg);
+
+			for (j = 0; j < sg->length / PAGE_SIZE; j++)
+				buffer->pages[k++] = page++;
+		}
+	}
+
+	ret = sg_alloc_table_from_pages(sgt, buffer->pages, nr_pages, 0,
+				nr_pages << PAGE_SHIFT, GFP_KERNEL);
+	if (ret)
+		goto err_free_sgt;
+
+	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
+		sg_dma_address(sg) = sg_phys(sg);
+		sg_dma_len(sg) = sg->length;
+	}
+
+	if (!dma_map_sg(attachment->dev, sgt->sgl,
+			sgt->nents, direction)) {
+		ret = -ENOMEM;
+		goto err_free_sg_table;
+	}
+
+	return sgt;
+
+err_free_sg_table:
+	sg_free_table(sgt);
+err_free_sgt:
+	kfree(sgt);
+	return ERR_PTR(ret);
 }
 
 static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
@@ -1192,6 +1236,8 @@ static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
 			      enum dma_data_direction direction)
 {
 	dma_unmap_sg(attachment->dev, table->sgl, table->nents, direction);
+	sg_free_table(table);
+	kfree(table);
 }
 
 void ion_pages_sync_for_device(struct device *dev, struct page *page,
