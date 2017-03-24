@@ -1644,9 +1644,8 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	spin_lock_init(&ssif_info->lock);
 	ssif_info->ssif_state = SSIF_NORMAL;
-	init_timer(&ssif_info->retry_timer);
-	ssif_info->retry_timer.data = (unsigned long) ssif_info;
-	ssif_info->retry_timer.function = retry_timeout;
+	setup_timer(&ssif_info->retry_timer, retry_timeout,
+		    (unsigned long)ssif_info);
 
 	for (i = 0; i < SSIF_NUM_STATS; i++)
 		atomic_set(&ssif_info->stats[i], 0);
