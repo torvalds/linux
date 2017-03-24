@@ -1294,6 +1294,9 @@ struct acpi_table_tpm2 {
 #define ACPI_TPM2_MEMORY_MAPPED                     6
 #define ACPI_TPM2_COMMAND_BUFFER                    7
 #define ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD  8
+#define ACPI_TPM2_COMMAND_BUFFER_WITH_SMC          11
+
+#define ACPI_TPM2_START_METHOD_PARAMETER_OFFSET    52
 
 /*******************************************************************************
  *
