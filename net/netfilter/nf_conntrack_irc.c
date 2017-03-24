@@ -243,6 +243,12 @@ static int __init nf_conntrack_irc_init(void)
 		return -EINVAL;
 	}
 
+	if (max_dcc_channels > NF_CT_EXPECT_MAX_CNT) {
+		pr_err("max_dcc_channels must not be more than %u\n",
+		       NF_CT_EXPECT_MAX_CNT);
+		return -EINVAL;
+	}
+
 	irc_exp_policy.max_expected = max_dcc_channels;
 	irc_exp_policy.timeout = dcc_timeout;
 
