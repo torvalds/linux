@@ -52,7 +52,8 @@
 #define SYN_CAP_PALMDETECT(c)		((c) & (1 << 0))
 #define SYN_CAP_SUBMODEL_ID(c)		(((c) & 0x00ff00) >> 8)
 #define SYN_EXT_CAP_REQUESTS(c)		(((c) & 0x700000) >> 20)
-#define SYN_CAP_MULTI_BUTTON_NO(ec)	(((ec) & 0x00f000) >> 12)
+#define SYN_CAP_MB_MASK			GENMASK(15, 12)
+#define SYN_CAP_MULTI_BUTTON_NO(ec)	(((ec) & SYN_CAP_MB_MASK) >> 12)
 #define SYN_CAP_PRODUCT_ID(ec)		(((ec) & 0xff0000) >> 16)
 #define SYN_MEXT_CAP_BIT(m)		((m) & (1 << 1))
 
