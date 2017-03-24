@@ -19,9 +19,7 @@
 #include "sched.h"
 #include "tune.h"
 
-#ifdef CONFIG_SCHED_WALT
 unsigned long boosted_cpu_util(int cpu);
-#endif
 
 /* Stub out fast switch routines present on mainline to reduce the backport
  * overhead. */
@@ -188,6 +186,15 @@ static unsigned int get_next_freq(struct sugov_cpu *sg_cpu, unsigned long util,
 	return cpufreq_driver_resolve_freq(policy, freq);
 }
 
+static inline bool use_pelt(void)
+{
+#ifdef CONFIG_SCHED_WALT
+	return (!sysctl_sched_use_walt_cpu_util || walt_disabled);
+#else
+	return true;
+#endif
+}
+
 static void sugov_get_util(unsigned long *util, unsigned long *max, u64 time)
 {
 	int cpu = smp_processor_id();
@@ -204,11 +211,10 @@ static void sugov_get_util(unsigned long *util, unsigned long *max, u64 time)
 	rt = div64_u64(rq->rt_avg, sched_avg_period() + delta);
 	rt = (rt * max_cap) >> SCHED_CAPACITY_SHIFT;
 
-	*util = min(rq->cfs.avg.util_avg + rt, max_cap);
-#ifdef CONFIG_SCHED_WALT
-	if (!walt_disabled && sysctl_sched_use_walt_cpu_util)
-		*util = boosted_cpu_util(cpu);
-#endif
+	*util = boosted_cpu_util(cpu);
+	if (likely(use_pelt()))
+		*util = min((*util + rt), max_cap);
+
 	*max = max_cap;
 }
 
