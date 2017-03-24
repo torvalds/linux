@@ -7518,9 +7518,12 @@ struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			break;
 
-		if (sk_can_busy_loop(sk) &&
-		    sk_busy_loop(sk, noblock))
-			continue;
+		if (sk_can_busy_loop(sk)) {
+			sk_busy_loop(sk, noblock);
+
+			if (!skb_queue_empty(&sk->sk_receive_queue))
+				continue;
+		}
 
 		/* User doesn't want to wait.  */
 		error = -EAGAIN;
