@@ -337,7 +337,7 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 		inv_tbl->task[nents] = task;
 		nents++;
 	}
-	spin_unlock_bh(&session->back_lock);
+	spin_unlock(&session->back_lock);
 	spin_unlock_bh(&session->frwd_lock);
 
 	rc = SUCCESS;
