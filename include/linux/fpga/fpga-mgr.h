@@ -77,11 +77,14 @@ enum fpga_mgr_states {
  * @flags: boolean flags as defined above
  * @enable_timeout_us: maximum time to enable traffic through bridge (uSec)
  * @disable_timeout_us: maximum time to disable traffic through bridge (uSec)
+ * @config_complete_timeout_us: maximum time for FPGA to switch to operating
+ *	   status in the write_complete op.
  */
 struct fpga_image_info {
 	u32 flags;
 	u32 enable_timeout_us;
 	u32 disable_timeout_us;
+	u32 config_complete_timeout_us;
 };
 
 /**

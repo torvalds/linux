@@ -385,6 +385,9 @@ static int fpga_region_notify_pre_apply(struct fpga_region *region,
 	of_property_read_u32(nd->overlay, "region-freeze-timeout-us",
 			     &info->disable_timeout_us);
 
+	of_property_read_u32(nd->overlay, "config-complete-timeout-us",
+			     &info->config_complete_timeout_us);
+
 	/* If FPGA was externally programmed, don't specify firmware */
 	if ((info->flags & FPGA_MGR_EXTERNAL_CONFIG) && firmware_name) {
 		pr_err("error: specified firmware and external-fpga-config");
