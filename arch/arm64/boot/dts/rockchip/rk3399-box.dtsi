@@ -840,3 +840,13 @@
 		<&gpio1 17 GPIO_ACTIVE_HIGH>,
 		<&gpio1 14 GPIO_ACTIVE_HIGH>;
 };
+
+&vopb {
+	assigned-clocks = <&cru DCLK_VOP0_DIV>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
+&vopl {
+	assigned-clocks = <&cru DCLK_VOP1_DIV>;
+	assigned-clock-parents = <&cru PLL_CPLL>;
+};
