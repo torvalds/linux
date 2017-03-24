@@ -297,115 +297,6 @@ struct mlx5e_cq {
 	struct mlx5_frag_wq_ctrl   wq_ctrl;
 } ____cacheline_aligned_in_smp;
 
-struct mlx5e_rq;
-typedef void (*mlx5e_fp_handle_rx_cqe)(struct mlx5e_rq *rq,
-				       struct mlx5_cqe64 *cqe);
-typedef int (*mlx5e_fp_alloc_wqe)(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe,
-				  u16 ix);
-
-typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq *rq, u16 ix);
-
-struct mlx5e_dma_info {
-	struct page	*page;
-	dma_addr_t	addr;
-};
-
-struct mlx5e_rx_am_stats {
-	int ppms; /* packets per msec */
-	int epms; /* events per msec */
-};
-
-struct mlx5e_rx_am_sample {
-	ktime_t		time;
-	unsigned int	pkt_ctr;
-	u16		event_ctr;
-};
-
-struct mlx5e_rx_am { /* Adaptive Moderation */
-	u8					state;
-	struct mlx5e_rx_am_stats		prev_stats;
-	struct mlx5e_rx_am_sample		start_sample;
-	struct work_struct			work;
-	u8					profile_ix;
-	u8					mode;
-	u8					tune_state;
-	u8					steps_right;
-	u8					steps_left;
-	u8					tired;
-};
-
-/* a single cache unit is capable to serve one napi call (for non-striding rq)
- * or a MPWQE (for striding rq).
- */
-#define MLX5E_CACHE_UNIT	(MLX5_MPWRQ_PAGES_PER_WQE > NAPI_POLL_WEIGHT ? \
-				 MLX5_MPWRQ_PAGES_PER_WQE : NAPI_POLL_WEIGHT)
-#define MLX5E_CACHE_SIZE	(2 * roundup_pow_of_two(MLX5E_CACHE_UNIT))
-struct mlx5e_page_cache {
-	u32 head;
-	u32 tail;
-	struct mlx5e_dma_info page_cache[MLX5E_CACHE_SIZE];
-};
-
-struct mlx5e_rq {
-	/* data path */
-	struct mlx5_wq_ll      wq;
-
-	union {
-		struct mlx5e_dma_info *dma_info;
-		struct {
-			struct mlx5e_mpw_info *info;
-			void                  *mtt_no_align;
-		} mpwqe;
-	};
-	struct {
-		u8             page_order;
-		u32            wqe_sz;    /* wqe data buffer size */
-		u8             map_dir;   /* dma map direction */
-	} buff;
-	__be32                 mkey_be;
-
-	struct device         *pdev;
-	struct net_device     *netdev;
-	struct mlx5e_tstamp   *tstamp;
-	struct mlx5e_rq_stats  stats;
-	struct mlx5e_cq        cq;
-	struct mlx5e_page_cache page_cache;
-
-	mlx5e_fp_handle_rx_cqe handle_rx_cqe;
-	mlx5e_fp_alloc_wqe     alloc_wqe;
-	mlx5e_fp_dealloc_wqe   dealloc_wqe;
-
-	unsigned long          state;
-	int                    ix;
-	u16                    rx_headroom;
-
-	struct mlx5e_rx_am     am; /* Adaptive Moderation */
-	struct bpf_prog       *xdp_prog;
-
-	/* control */
-	struct mlx5_wq_ctrl    wq_ctrl;
-	u8                     wq_type;
-	u32                    mpwqe_stride_sz;
-	u32                    mpwqe_num_strides;
-	u32                    rqn;
-	struct mlx5e_channel  *channel;
-	struct mlx5e_priv     *priv;
-	struct mlx5_core_mkey  umr_mkey;
-} ____cacheline_aligned_in_smp;
-
-struct mlx5e_umr_dma_info {
-	__be64                *mtt;
-	dma_addr_t             mtt_addr;
-	struct mlx5e_dma_info  dma_info[MLX5_MPWRQ_PAGES_PER_WQE];
-	struct mlx5e_umr_wqe   wqe;
-};
-
-struct mlx5e_mpw_info {
-	struct mlx5e_umr_dma_info umr;
-	u16 consumed_strides;
-	u16 skbs_frags[MLX5_MPWRQ_PAGES_PER_WQE];
-};
-
 struct mlx5e_tx_wqe_info {
 	u32 num_bytes;
 	u8  num_wqebbs;
@@ -494,6 +385,112 @@ static inline bool mlx5e_sq_has_room_for(struct mlx5e_sq *sq, u16 n)
 	return (((sq->wq.sz_m1 & (sq->cc - sq->pc)) >= n) ||
 		(sq->cc  == sq->pc));
 }
+
+struct mlx5e_dma_info {
+	struct page	*page;
+	dma_addr_t	addr;
+};
+
+struct mlx5e_umr_dma_info {
+	__be64                *mtt;
+	dma_addr_t             mtt_addr;
+	struct mlx5e_dma_info  dma_info[MLX5_MPWRQ_PAGES_PER_WQE];
+	struct mlx5e_umr_wqe   wqe;
+};
+
+struct mlx5e_mpw_info {
+	struct mlx5e_umr_dma_info umr;
+	u16 consumed_strides;
+	u16 skbs_frags[MLX5_MPWRQ_PAGES_PER_WQE];
+};
+
+struct mlx5e_rx_am_stats {
+	int ppms; /* packets per msec */
+	int epms; /* events per msec */
+};
+
+struct mlx5e_rx_am_sample {
+	ktime_t		time;
+	unsigned int	pkt_ctr;
+	u16		event_ctr;
+};
+
+struct mlx5e_rx_am { /* Adaptive Moderation */
+	u8					state;
+	struct mlx5e_rx_am_stats		prev_stats;
+	struct mlx5e_rx_am_sample		start_sample;
+	struct work_struct			work;
+	u8					profile_ix;
+	u8					mode;
+	u8					tune_state;
+	u8					steps_right;
+	u8					steps_left;
+	u8					tired;
+};
+
+/* a single cache unit is capable to serve one napi call (for non-striding rq)
+ * or a MPWQE (for striding rq).
+ */
+#define MLX5E_CACHE_UNIT	(MLX5_MPWRQ_PAGES_PER_WQE > NAPI_POLL_WEIGHT ? \
+				 MLX5_MPWRQ_PAGES_PER_WQE : NAPI_POLL_WEIGHT)
+#define MLX5E_CACHE_SIZE	(2 * roundup_pow_of_two(MLX5E_CACHE_UNIT))
+struct mlx5e_page_cache {
+	u32 head;
+	u32 tail;
+	struct mlx5e_dma_info page_cache[MLX5E_CACHE_SIZE];
+};
+
+struct mlx5e_rq;
+typedef void (*mlx5e_fp_handle_rx_cqe)(struct mlx5e_rq*, struct mlx5_cqe64*);
+typedef int (*mlx5e_fp_alloc_wqe)(struct mlx5e_rq*, struct mlx5e_rx_wqe*, u16);
+typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq*, u16);
+
+struct mlx5e_rq {
+	/* data path */
+	struct mlx5_wq_ll      wq;
+
+	union {
+		struct mlx5e_dma_info *dma_info;
+		struct {
+			struct mlx5e_mpw_info *info;
+			void                  *mtt_no_align;
+		} mpwqe;
+	};
+	struct {
+		u8             page_order;
+		u32            wqe_sz;    /* wqe data buffer size */
+		u8             map_dir;   /* dma map direction */
+	} buff;
+	__be32                 mkey_be;
+
+	struct device         *pdev;
+	struct net_device     *netdev;
+	struct mlx5e_tstamp   *tstamp;
+	struct mlx5e_rq_stats  stats;
+	struct mlx5e_cq        cq;
+	struct mlx5e_page_cache page_cache;
+
+	mlx5e_fp_handle_rx_cqe handle_rx_cqe;
+	mlx5e_fp_alloc_wqe     alloc_wqe;
+	mlx5e_fp_dealloc_wqe   dealloc_wqe;
+
+	unsigned long          state;
+	int                    ix;
+	u16                    rx_headroom;
+
+	struct mlx5e_rx_am     am; /* Adaptive Moderation */
+	struct bpf_prog       *xdp_prog;
+
+	/* control */
+	struct mlx5_wq_ctrl    wq_ctrl;
+	u8                     wq_type;
+	u32                    mpwqe_stride_sz;
+	u32                    mpwqe_num_strides;
+	u32                    rqn;
+	struct mlx5e_channel  *channel;
+	struct mlx5e_priv     *priv;
+	struct mlx5_core_mkey  umr_mkey;
+} ____cacheline_aligned_in_smp;
 
 enum channel_flags {
 	MLX5E_CHANNEL_NAPI_SCHED = 1,
