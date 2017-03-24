@@ -235,7 +235,6 @@ struct sgl_handle {
 struct hba_parameters {
 	unsigned int ios_per_ctrl;
 	unsigned int cxns_per_ctrl;
-	unsigned int asyncpdus_per_ctrl;
 	unsigned int icds_per_ctrl;
 	unsigned int num_sge_per_io;
 	unsigned int defpdu_hdr_sz;
@@ -598,6 +597,9 @@ struct hd_async_handle {
 	u8 is_header;
 	u8 is_final;
 };
+
+#define BEISCSI_ASYNC_HDQ_SIZE(phba, ulp) \
+	(BEISCSI_GET_CID_COUNT((phba), (ulp)) * 2)
 
 /**
  * This has list of async PDUs that are waiting to be processed.
