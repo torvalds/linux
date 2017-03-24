@@ -1624,6 +1624,8 @@ nvmet_fc_free_tgt_pgs(struct nvmet_fc_fcp_iod *fod)
 	for_each_sg(fod->data_sg, sg, fod->data_sg_cnt, count)
 		__free_page(sg_page(sg));
 	kfree(fod->data_sg);
+	fod->data_sg = NULL;
+	fod->data_sg_cnt = 0;
 }
 
 
