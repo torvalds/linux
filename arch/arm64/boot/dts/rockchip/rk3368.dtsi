@@ -600,26 +600,26 @@
 		status = "disabled";
 	};
 
-	thermal-zones {
-		cpu {
-			polling-delay-passive = <300>; /* milliseconds */
-			polling-delay = <300>; /* milliseconds */
+	thermal_zones: thermal-zones {
+		soc_thermal: soc-thermal {
+			polling-delay-passive = <200>; /* milliseconds */
+			polling-delay = <200>; /* milliseconds */
 			sustainable-power = <600>; /* milliwatts */
 
 			thermal-sensors = <&tsadc 0>;
 			trips {
-				cpu_alert0: cpu_alert0 {
+				threshold: trip-point@0 {
 					temperature = <70000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
-				cpu_alert1: cpu_alert1 {
+				target: trip-point@1 {
 					temperature = <80000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
-				cpu_crit: cpu_crit {
-					temperature = <90000>; /* millicelsius */
+				soc_crit: soc-crit {
+					temperature = <95000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "critical";
 				};
@@ -627,23 +627,29 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&cpu_alert1>;
+					trip = <&target>;
 					cooling-device =
 					<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
 				map1 {
-					trip = <&cpu_alert1>;
+					trip = <&target>;
 					cooling-device =
 					<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map2 {
+					trip = <&target>;
+					cooling-device =
+					<&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
 			};
 		};
 
 		gpu_thermal: gpu-thermal {
-			polling-delay-passive = <300>; /* milliseconds */
-			polling-delay = <300>; /* milliseconds */
+			polling-delay-passive = <200>; /* milliseconds */
+			polling-delay = <200>; /* milliseconds */
 			thermal-sensors = <&tsadc 1>;
 		};
 	};
@@ -1348,6 +1354,16 @@
 		interrupt-names = "rogue-g6110-irq";
 		power-domains = <&power RK3368_PD_GPU_1>;
 		operating-points-v2 = <&gpu_opp_table>;
+		#cooling-cells = <2>; /* min followed by max */
+		gpu_power_model: power_model {
+			compatible = "arm,mali-simple-power-model";
+			voltage = <900>;
+			frequency = <500>;
+			static-power = <300>;
+			dynamic-power = <396>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "gpu-thermal";
+		};
 	};
 
 	gpu_opp_table: gpu_opp_table {
