@@ -184,6 +184,11 @@ struct cec_adapter {
 	char input_drv[32];
 };
 
+static inline void *cec_get_drvdata(const struct cec_adapter *adap)
+{
+	return adap->priv;
+}
+
 static inline bool cec_has_log_addr(const struct cec_adapter *adap, u8 log_addr)
 {
 	return adap->log_addrs.log_addr_mask & (1 << log_addr);
