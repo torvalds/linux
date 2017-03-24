@@ -1997,7 +1997,7 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int plane)
 	unsigned int cpp = fb->format->cpp[plane];
 
 	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_NONE:
+	case DRM_FORMAT_MOD_LINEAR:
 		return cpp;
 	case I915_FORMAT_MOD_X_TILED:
 		if (IS_GEN2(dev_priv))
@@ -2033,7 +2033,7 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int plane)
 static unsigned int
 intel_tile_height(const struct drm_framebuffer *fb, int plane)
 {
-	if (fb->modifier == DRM_FORMAT_MOD_NONE)
+	if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
 		return 1;
 	else
 		return intel_tile_size(to_i915(fb->dev)) /
@@ -2107,7 +2107,7 @@ static unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 		return 4096;
 
 	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_NONE:
+	case DRM_FORMAT_MOD_LINEAR:
 		return intel_linear_alignment(dev_priv);
 	case I915_FORMAT_MOD_X_TILED:
 		if (INTEL_GEN(dev_priv) >= 9)
@@ -2290,7 +2290,7 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
 
 	WARN_ON(new_offset > old_offset);
 
-	if (fb->modifier != DRM_FORMAT_MOD_NONE) {
+	if (fb->modifier != DRM_FORMAT_MOD_LINEAR) {
 		unsigned int tile_size, tile_width, tile_height;
 		unsigned int pitch_tiles;
 
@@ -2345,7 +2345,7 @@ static u32 _intel_compute_tile_offset(const struct drm_i915_private *dev_priv,
 	if (alignment)
 		alignment--;
 
-	if (fb_modifier != DRM_FORMAT_MOD_NONE) {
+	if (fb_modifier != DRM_FORMAT_MOD_LINEAR) {
 		unsigned int tile_size, tile_width, tile_height;
 		unsigned int tile_rows, tiles, pitch_tiles;
 
@@ -2471,7 +2471,7 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 						    DRM_ROTATE_0, tile_size);
 		offset /= tile_size;
 
-		if (fb->modifier != DRM_FORMAT_MOD_NONE) {
+		if (fb->modifier != DRM_FORMAT_MOD_LINEAR) {
 			unsigned int tile_width, tile_height;
 			unsigned int pitch_tiles;
 			struct drm_rect r;
@@ -2803,7 +2803,7 @@ static int skl_max_plane_width(const struct drm_framebuffer *fb, int plane,
 	int cpp = fb->format->cpp[plane];
 
 	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_NONE:
+	case DRM_FORMAT_MOD_LINEAR:
 	case I915_FORMAT_MOD_X_TILED:
 		switch (cpp) {
 		case 8:
@@ -3154,7 +3154,7 @@ static void i9xx_disable_primary_plane(struct drm_plane *primary,
 static u32
 intel_fb_stride_alignment(const struct drm_framebuffer *fb, int plane)
 {
-	if (fb->modifier == DRM_FORMAT_MOD_NONE)
+	if (fb->modifier == DRM_FORMAT_MOD_LINEAR)
 		return 64;
 	else
 		return intel_tile_width_bytes(fb, plane);
@@ -3253,7 +3253,7 @@ static u32 skl_plane_ctl_format(uint32_t pixel_format)
 static u32 skl_plane_ctl_tiling(uint64_t fb_modifier)
 {
 	switch (fb_modifier) {
-	case DRM_FORMAT_MOD_NONE:
+	case DRM_FORMAT_MOD_LINEAR:
 		break;
 	case I915_FORMAT_MOD_X_TILED:
 		return PLANE_CTL_TILED_X;
@@ -8390,7 +8390,7 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	tiling = val & PLANE_CTL_TILED_MASK;
 	switch (tiling) {
 	case PLANE_CTL_TILED_LINEAR:
-		fb->modifier = DRM_FORMAT_MOD_NONE;
+		fb->modifier = DRM_FORMAT_MOD_LINEAR;
 		break;
 	case PLANE_CTL_TILED_X:
 		plane_config->tiling = I915_TILING_X;
@@ -10366,7 +10366,7 @@ static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
 	ctl = I915_READ(PLANE_CTL(pipe, 0));
 	ctl &= ~PLANE_CTL_TILED_MASK;
 	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_NONE:
+	case DRM_FORMAT_MOD_LINEAR:
 		break;
 	case I915_FORMAT_MOD_X_TILED:
 		ctl |= PLANE_CTL_TILED_X;
@@ -13729,7 +13729,7 @@ intel_check_cursor_plane(struct drm_plane *plane,
 		return -ENOMEM;
 	}
 
-	if (fb->modifier != DRM_FORMAT_MOD_NONE) {
+	if (fb->modifier != DRM_FORMAT_MOD_LINEAR) {
 		DRM_DEBUG_KMS("cursor cannot be tiled\n");
 		return -EINVAL;
 	}
@@ -14390,7 +14390,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 				      mode_cmd->modifier[0]);
 			goto err;
 		}
-	case DRM_FORMAT_MOD_NONE:
+	case DRM_FORMAT_MOD_LINEAR:
 	case I915_FORMAT_MOD_X_TILED:
 		break;
 	default:
@@ -14413,7 +14413,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 					   mode_cmd->pixel_format);
 	if (mode_cmd->pitches[0] > pitch_limit) {
 		DRM_DEBUG_KMS("%s pitch (%u) must be at most %d\n",
-			      mode_cmd->modifier[0] != DRM_FORMAT_MOD_NONE ?
+			      mode_cmd->modifier[0] != DRM_FORMAT_MOD_LINEAR ?
 			      "tiled" : "linear",
 			      mode_cmd->pitches[0], pitch_limit);
 		goto err;
