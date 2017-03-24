@@ -206,8 +206,8 @@ mlxsw_sp_lpm_tree_find_unused(struct mlxsw_sp *mlxsw_sp)
 	static struct mlxsw_sp_lpm_tree *lpm_tree;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_LPM_TREE_COUNT; i++) {
-		lpm_tree = &mlxsw_sp->router.lpm_trees[i];
+	for (i = 0; i < mlxsw_sp->router.lpm.tree_count; i++) {
+		lpm_tree = &mlxsw_sp->router.lpm.trees[i];
 		if (lpm_tree->ref_count == 0)
 			return lpm_tree;
 	}
@@ -303,8 +303,8 @@ mlxsw_sp_lpm_tree_get(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_lpm_tree *lpm_tree;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_LPM_TREE_COUNT; i++) {
-		lpm_tree = &mlxsw_sp->router.lpm_trees[i];
+	for (i = 0; i < mlxsw_sp->router.lpm.tree_count; i++) {
+		lpm_tree = &mlxsw_sp->router.lpm.trees[i];
 		if (lpm_tree->ref_count != 0 &&
 		    lpm_tree->proto == proto &&
 		    mlxsw_sp_prefix_usage_eq(&lpm_tree->prefix_usage,
@@ -329,15 +329,36 @@ static int mlxsw_sp_lpm_tree_put(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-static void mlxsw_sp_lpm_init(struct mlxsw_sp *mlxsw_sp)
+#define MLXSW_SP_LPM_TREE_MIN 2 /* trees 0 and 1 are reserved */
+
+static int mlxsw_sp_lpm_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_lpm_tree *lpm_tree;
+	u64 max_trees;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_LPM_TREE_COUNT; i++) {
-		lpm_tree = &mlxsw_sp->router.lpm_trees[i];
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_LPM_TREES))
+		return -EIO;
+
+	max_trees = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_LPM_TREES);
+	mlxsw_sp->router.lpm.tree_count = max_trees - MLXSW_SP_LPM_TREE_MIN;
+	mlxsw_sp->router.lpm.trees = kcalloc(mlxsw_sp->router.lpm.tree_count,
+					     sizeof(struct mlxsw_sp_lpm_tree),
+					     GFP_KERNEL);
+	if (!mlxsw_sp->router.lpm.trees)
+		return -ENOMEM;
+
+	for (i = 0; i < mlxsw_sp->router.lpm.tree_count; i++) {
+		lpm_tree = &mlxsw_sp->router.lpm.trees[i];
 		lpm_tree->id = i + MLXSW_SP_LPM_TREE_MIN;
 	}
+
+	return 0;
+}
+
+static void mlxsw_sp_lpm_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	kfree(mlxsw_sp->router.lpm.trees);
 }
 
 static bool mlxsw_sp_vr_is_used(const struct mlxsw_sp_vr *vr)
@@ -3372,7 +3393,10 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_nexthop_group_ht_init;
 
-	mlxsw_sp_lpm_init(mlxsw_sp);
+	err = mlxsw_sp_lpm_init(mlxsw_sp);
+	if (err)
+		goto err_lpm_init;
+
 	err = mlxsw_sp_vrs_init(mlxsw_sp);
 	if (err)
 		goto err_vrs_init;
@@ -3394,6 +3418,8 @@ err_register_fib_notifier:
 err_neigh_init:
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 err_vrs_init:
+	mlxsw_sp_lpm_fini(mlxsw_sp);
+err_lpm_init:
 	rhashtable_destroy(&mlxsw_sp->router.nexthop_group_ht);
 err_nexthop_group_ht_init:
 	rhashtable_destroy(&mlxsw_sp->router.nexthop_ht);
@@ -3407,6 +3433,7 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	unregister_fib_notifier(&mlxsw_sp->fib_nb);
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 	mlxsw_sp_vrs_fini(mlxsw_sp);
+	mlxsw_sp_lpm_fini(mlxsw_sp);
 	rhashtable_destroy(&mlxsw_sp->router.nexthop_group_ht);
 	rhashtable_destroy(&mlxsw_sp->router.nexthop_ht);
 	__mlxsw_sp_router_fini(mlxsw_sp);

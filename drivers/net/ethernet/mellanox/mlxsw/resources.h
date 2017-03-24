@@ -61,6 +61,7 @@ enum mlxsw_res_id {
 	MLXSW_RES_ID_MAX_CPU_POLICERS,
 	MLXSW_RES_ID_MAX_VRS,
 	MLXSW_RES_ID_MAX_RIFS,
+	MLXSW_RES_ID_MAX_LPM_TREES,
 
 	/* Internal resources.
 	 * Determined by the SW, not queried from the HW.
@@ -95,6 +96,7 @@ static u16 mlxsw_res_ids[] = {
 	[MLXSW_RES_ID_MAX_CPU_POLICERS] = 0x2A13,
 	[MLXSW_RES_ID_MAX_VRS] = 0x2C01,
 	[MLXSW_RES_ID_MAX_RIFS] = 0x2C02,
+	[MLXSW_RES_ID_MAX_LPM_TREES] = 0x2C30,
 };
 
 struct mlxsw_res {
