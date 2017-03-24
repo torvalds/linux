@@ -1102,6 +1102,10 @@ static struct bio *alloc_behind_master_bio(struct r1bio *r1_bio,
 	if (!behind_bio)
 		goto fail;
 
+	/* discard op, we don't support writezero/writesame yet */
+	if (!bio_has_data(bio))
+		goto skip_copy;
+
 	while (i < vcnt && size) {
 		struct page *page;
 		int len = min_t(int, PAGE_SIZE, size);
@@ -1118,7 +1122,7 @@ static struct bio *alloc_behind_master_bio(struct r1bio *r1_bio,
 
 	bio_copy_data_partial(behind_bio, bio, offset,
 			      behind_bio->bi_iter.bi_size);
-
+skip_copy:
 	r1_bio->behind_master_bio = behind_bio;;
 	set_bit(R1BIO_BehindIO, &r1_bio->state);
 
