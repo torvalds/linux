@@ -741,16 +741,8 @@ static struct iommu_domain *exynos_iommu_domain_alloc(unsigned type)
 		goto err_counter;
 
 	/* Workaround for System MMU v3.3 to prevent caching 1MiB mapping */
-	for (i = 0; i < NUM_LV1ENTRIES; i += 8) {
-		domain->pgtable[i + 0] = ZERO_LV2LINK;
-		domain->pgtable[i + 1] = ZERO_LV2LINK;
-		domain->pgtable[i + 2] = ZERO_LV2LINK;
-		domain->pgtable[i + 3] = ZERO_LV2LINK;
-		domain->pgtable[i + 4] = ZERO_LV2LINK;
-		domain->pgtable[i + 5] = ZERO_LV2LINK;
-		domain->pgtable[i + 6] = ZERO_LV2LINK;
-		domain->pgtable[i + 7] = ZERO_LV2LINK;
-	}
+	for (i = 0; i < NUM_LV1ENTRIES; i++)
+		domain->pgtable[i] = ZERO_LV2LINK;
 
 	handle = dma_map_single(dma_dev, domain->pgtable, LV1TABLE_SIZE,
 				DMA_TO_DEVICE);
