@@ -206,6 +206,21 @@ void nbio_v6_1_update_medium_grain_light_sleep(struct amdgpu_device *adev,
 		WREG32_PCIE(smnPCIE_CNTL2, data);
 }
 
+void nbio_v6_1_get_clockgating_state(struct amdgpu_device *adev, u32 *flags)
+{
+	int data;
+
+	/* AMD_CG_SUPPORT_BIF_MGCG */
+	data = RREG32_PCIE(smnCPM_CONTROL);
+	if (data & CPM_CONTROL__LCLK_DYN_GATE_ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_BIF_MGCG;
+
+	/* AMD_CG_SUPPORT_BIF_LS */
+	data = RREG32_PCIE(smnPCIE_CNTL2);
+	if (data & PCIE_CNTL2__SLV_MEM_LS_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_BIF_LS;
+}
+
 struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg;
 struct nbio_pcie_index_data nbio_v6_1_pcie_index_data;
 

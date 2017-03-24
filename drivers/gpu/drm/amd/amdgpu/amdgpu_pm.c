@@ -49,6 +49,7 @@ static const struct cg_flag_name clocks[] = {
 	{AMD_CG_SUPPORT_MC_MGCG, "Memory Controller Medium Grain Clock Gating"},
 	{AMD_CG_SUPPORT_SDMA_LS, "System Direct Memory Access Light Sleep"},
 	{AMD_CG_SUPPORT_SDMA_MGCG, "System Direct Memory Access Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_BIF_MGCG, "Bus Interface Medium Grain Clock Gating"},
 	{AMD_CG_SUPPORT_BIF_LS, "Bus Interface Light Sleep"},
 	{AMD_CG_SUPPORT_UVD_MGCG, "Unified Video Decoder Medium Grain Clock Gating"},
 	{AMD_CG_SUPPORT_VCE_MGCG, "Video Compression Engine Medium Grain Clock Gating"},
