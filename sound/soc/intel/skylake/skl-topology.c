@@ -539,6 +539,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 	int ret = 0;
 
 	list_for_each_entry(w_module, &pipe->w_list, node) {
+		uuid_le *uuid_mod;
 		w = w_module->w;
 		mconfig = w->priv;
 
@@ -576,13 +577,15 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		 * FE/BE params
 		 */
 		skl_tplg_update_module_params(w, ctx);
-		mconfig->id.pvt_id = skl_get_pvt_id(ctx, mconfig);
+		uuid_mod = (uuid_le *)mconfig->guid;
+		mconfig->id.pvt_id = skl_get_pvt_id(ctx, uuid_mod,
+						mconfig->id.instance_id);
 		if (mconfig->id.pvt_id < 0)
 			return ret;
 		skl_tplg_set_module_init_data(w);
 		ret = skl_init_module(ctx, mconfig);
 		if (ret < 0) {
-			skl_put_pvt_id(ctx, mconfig);
+			skl_put_pvt_id(ctx, uuid_mod, &mconfig->id.pvt_id);
 			return ret;
 		}
 		skl_tplg_alloc_pipe_mcps(skl, mconfig);
@@ -602,7 +605,9 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 	struct skl_module_cfg *mconfig = NULL;
 
 	list_for_each_entry(w_module, &pipe->w_list, node) {
+		uuid_le *uuid_mod;
 		mconfig  = w_module->w->priv;
+		uuid_mod = (uuid_le *)mconfig->guid;
 
 		if (mconfig->is_loadable && ctx->dsp->fw_ops.unload_mod &&
 			mconfig->m_state > SKL_MODULE_UNINIT) {
@@ -611,7 +616,7 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 			if (ret < 0)
 				return -EIO;
 		}
-		skl_put_pvt_id(ctx, mconfig);
+		skl_put_pvt_id(ctx, uuid_mod, &mconfig->id.pvt_id);
 	}
 
 	/* no modules to unload in this path, so return */

@@ -69,6 +69,14 @@ struct skl_d0i3_data {
 	struct delayed_work work;
 };
 
+#define SKL_LIB_NAME_LENGTH 128
+#define SKL_MAX_LIB 16
+
+struct skl_lib_info {
+	char name[SKL_LIB_NAME_LENGTH];
+	const struct firmware *fw;
+};
+
 struct skl_sst {
 	struct device *dev;
 	struct sst_dsp *dsp;

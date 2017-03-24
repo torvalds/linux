@@ -94,19 +94,6 @@ struct adsp_fw_hdr {
 	u32 load_offset;
 } __packed;
 
-#define MAX_INSTANCE_BUFF 2
-
-struct uuid_module {
-	uuid_le uuid;
-	int id;
-	int is_loadable;
-	int max_instance;
-	u64 pvt_id[MAX_INSTANCE_BUFF];
-	int *instance_id;
-
-	struct list_head list;
-};
-
 struct skl_ext_manifest_hdr {
 	u32 id;
 	u32 len;
@@ -114,32 +101,6 @@ struct skl_ext_manifest_hdr {
 	u16 version_minor;
 	u32 entries;
 };
-
-int snd_skl_get_module_info(struct skl_sst *ctx,
-				struct skl_module_cfg *mconfig)
-{
-	struct uuid_module *module;
-	uuid_le *uuid_mod;
-
-	uuid_mod = (uuid_le *)mconfig->guid;
-
-	if (list_empty(&ctx->uuid_list)) {
-		dev_err(ctx->dev, "Module list is empty\n");
-		return -EINVAL;
-	}
-
-	list_for_each_entry(module, &ctx->uuid_list, list) {
-		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
-			mconfig->id.module_id = module->id;
-			mconfig->is_loadable = module->is_loadable;
-
-			return 0;
-		}
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(snd_skl_get_module_info);
 
 static int skl_get_pvtid_map(struct uuid_module *module, int instance_id)
 {
@@ -222,21 +183,18 @@ static inline int skl_pvtid_128(struct uuid_module *module)
  * This generates a 128 bit private unique id for a module TYPE so that
  * module instance is unique
  */
-int skl_get_pvt_id(struct skl_sst *ctx, struct skl_module_cfg *mconfig)
+int skl_get_pvt_id(struct skl_sst *ctx, uuid_le *uuid_mod, int instance_id)
 {
 	struct uuid_module *module;
-	uuid_le *uuid_mod;
 	int pvt_id;
-
-	uuid_mod = (uuid_le *)mconfig->guid;
 
 	list_for_each_entry(module, &ctx->uuid_list, list) {
 		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
 
 			pvt_id = skl_pvtid_128(module);
 			if (pvt_id >= 0) {
-				module->instance_id[pvt_id] =
-						mconfig->id.instance_id;
+				module->instance_id[pvt_id] = instance_id;
+
 				return pvt_id;
 			}
 		}
@@ -254,23 +212,21 @@ EXPORT_SYMBOL_GPL(skl_get_pvt_id);
  *
  * This frees a 128 bit private unique id previously generated
  */
-int skl_put_pvt_id(struct skl_sst *ctx, struct skl_module_cfg *mconfig)
+int skl_put_pvt_id(struct skl_sst *ctx, uuid_le *uuid_mod, int *pvt_id)
 {
 	int i;
-	uuid_le *uuid_mod;
 	struct uuid_module *module;
 
-	uuid_mod = (uuid_le *)mconfig->guid;
 	list_for_each_entry(module, &ctx->uuid_list, list) {
 		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
 
-			if (mconfig->id.pvt_id != 0)
-				i = (mconfig->id.pvt_id) / 64;
+			if (*pvt_id != 0)
+				i = (*pvt_id) / 64;
 			else
 				i = 0;
 
-			module->pvt_id[i] &= ~(1 << (mconfig->id.pvt_id));
-			mconfig->id.pvt_id = -1;
+			module->pvt_id[i] &= ~(1 << (*pvt_id));
+			*pvt_id = -1;
 			return 0;
 		}
 	}

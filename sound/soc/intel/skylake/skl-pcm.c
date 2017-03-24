@@ -1174,29 +1174,52 @@ static int skl_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return retval;
 }
 
+static int skl_get_module_info(struct skl *skl, struct skl_module_cfg *mconfig)
+{
+	struct skl_sst *ctx = skl->skl_sst;
+	struct uuid_module *module;
+	uuid_le *uuid_mod;
+
+	uuid_mod = (uuid_le *)mconfig->guid;
+
+	if (list_empty(&ctx->uuid_list)) {
+		dev_err(ctx->dev, "Module list is empty\n");
+		return -EIO;
+	}
+
+	list_for_each_entry(module, &ctx->uuid_list, list) {
+		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
+			mconfig->id.module_id = module->id;
+			mconfig->is_loadable = module->is_loadable;
+			return 0;
+		}
+	}
+
+	return -EIO;
+}
+
 static int skl_populate_modules(struct skl *skl)
 {
 	struct skl_pipeline *p;
 	struct skl_pipe_module *m;
 	struct snd_soc_dapm_widget *w;
 	struct skl_module_cfg *mconfig;
-	int ret;
+	int ret = 0;
 
 	list_for_each_entry(p, &skl->ppl_list, node) {
 		list_for_each_entry(m, &p->pipe->w_list, node) {
-
 			w = m->w;
 			mconfig = w->priv;
 
-			ret = snd_skl_get_module_info(skl->skl_sst, mconfig);
+			ret = skl_get_module_info(skl, mconfig);
 			if (ret < 0) {
 				dev_err(skl->skl_sst->dev,
-					"query module info failed:%d\n", ret);
-				goto err;
+					"query module info failed\n");
+				return ret;
 			}
 		}
 	}
-err:
+
 	return ret;
 }
 
