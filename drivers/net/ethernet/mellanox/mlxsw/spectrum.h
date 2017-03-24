@@ -73,19 +73,6 @@
 #define MLXSW_SP_KVD_LINEAR_SIZE 65536 /* entries */
 #define MLXSW_SP_KVD_GRANULARITY 128
 
-/* Maximum delay buffer needed in case of PAUSE frames, in cells.
- * Assumes 100m cable and maximum MTU.
- */
-#define MLXSW_SP_PAUSE_DELAY 612
-
-#define MLXSW_SP_CELL_FACTOR 2	/* 2 * cell_size / (IPG + cell_size + 1) */
-
-static inline u16 mlxsw_sp_pfc_delay_get(int mtu, u16 delay)
-{
-	delay = MLXSW_SP_BYTES_TO_CELLS(DIV_ROUND_UP(delay, BITS_PER_BYTE));
-	return MLXSW_SP_CELL_FACTOR * delay + MLXSW_SP_BYTES_TO_CELLS(mtu);
-}
-
 struct mlxsw_sp_port;
 struct mlxsw_sp_rif;
 

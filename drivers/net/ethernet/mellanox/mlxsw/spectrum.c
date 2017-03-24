@@ -800,19 +800,40 @@ static int mlxsw_sp_port_set_mac_address(struct net_device *dev, void *p)
 	return 0;
 }
 
-static void mlxsw_sp_pg_buf_pack(char *pbmc_pl, int pg_index, int mtu,
-				 bool pause_en, bool pfc_en, u16 delay)
+static u16 mlxsw_sp_pg_buf_threshold_get(int mtu)
 {
-	u16 pg_size = 2 * MLXSW_SP_BYTES_TO_CELLS(mtu);
+	return 2 * MLXSW_SP_BYTES_TO_CELLS(mtu);
+}
 
-	delay = pfc_en ? mlxsw_sp_pfc_delay_get(mtu, delay) :
-			 MLXSW_SP_PAUSE_DELAY;
+#define MLXSW_SP_CELL_FACTOR 2	/* 2 * cell_size / (IPG + cell_size + 1) */
+static u16 mlxsw_sp_pfc_delay_get(int mtu, u16 delay)
+{
+	delay = MLXSW_SP_BYTES_TO_CELLS(DIV_ROUND_UP(delay, BITS_PER_BYTE));
+	return MLXSW_SP_CELL_FACTOR * delay + MLXSW_SP_BYTES_TO_CELLS(mtu);
+}
 
-	if (pause_en || pfc_en)
-		mlxsw_reg_pbmc_lossless_buffer_pack(pbmc_pl, pg_index,
-						    pg_size + delay, pg_size);
+/* Maximum delay buffer needed in case of PAUSE frames, in cells.
+ * Assumes 100m cable and maximum MTU.
+ */
+#define MLXSW_SP_PAUSE_DELAY 612
+static u16 mlxsw_sp_pg_buf_delay_get(int mtu, u16 delay, bool pfc, bool pause)
+{
+	if (pfc)
+		return mlxsw_sp_pfc_delay_get(mtu, delay);
+	else if (pause)
+		return MLXSW_SP_PAUSE_DELAY;
 	else
-		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, pg_index, pg_size);
+		return 0;
+}
+
+static void mlxsw_sp_pg_buf_pack(char *pbmc_pl, int index, u16 size, u16 thres,
+				 bool lossy)
+{
+	if (lossy)
+		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, index, size);
+	else
+		mlxsw_reg_pbmc_lossless_buffer_pack(pbmc_pl, index, size,
+						    thres);
 }
 
 int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
@@ -833,6 +854,8 @@ int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
 		bool configure = false;
 		bool pfc = false;
+		bool lossy;
+		u16 thres;
 
 		for (j = 0; j < IEEE_8021QAZ_MAX_TCS; j++) {
 			if (prio_tc[j] == i) {
@@ -844,7 +867,11 @@ int __mlxsw_sp_port_headroom_set(struct mlxsw_sp_port *mlxsw_sp_port, int mtu,
 
 		if (!configure)
 			continue;
-		mlxsw_sp_pg_buf_pack(pbmc_pl, i, mtu, pause_en, pfc, delay);
+
+		lossy = !(pfc || pause_en);
+		thres = mlxsw_sp_pg_buf_threshold_get(mtu);
+		delay = mlxsw_sp_pg_buf_delay_get(mtu, delay, pfc, pause_en);
+		mlxsw_sp_pg_buf_pack(pbmc_pl, i, thres + delay, thres, lossy);
 	}
 
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pbmc), pbmc_pl);
