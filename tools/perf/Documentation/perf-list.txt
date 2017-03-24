@@ -24,6 +24,10 @@ Don't print descriptions.
 --long-desc::
 Print longer event descriptions.
 
+--details::
+Print how named events are resolved internally into perf events, and also
+any extra expressions computed by perf stat.
+
 
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS

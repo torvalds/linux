@@ -6,6 +6,12 @@ const struct sample_reg __weak sample_reg_masks[] = {
 	SMPL_REG_END
 };
 
+int __weak sdt_rename_register(char **pdesc __maybe_unused,
+			char *old_name __maybe_unused)
+{
+	return 0;
+}
+
 #ifdef HAVE_PERF_REGS_SUPPORT
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id)
 {

@@ -44,6 +44,10 @@ static struct test generic_tests[] = {
 		.func = test__parse_events,
 	},
 	{
+		.desc = "Simple expression parser",
+		.func = test__expr,
+	},
+	{
 		.desc = "PERF_RECORD_* events & perf_sample fields",
 		.func = test__PERF_RECORD,
 	},
