@@ -1073,36 +1073,6 @@ static int skl_tplg_pga_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 }
 
 /*
- * In modelling, we assume there will be ONLY one mixer in a pipeline.  If
- * mixer is not required then it is treated as static mixer aka vmixer with
- * a hard path to source module
- * So we don't need to check if source is started or not as hard path puts
- * dependency on each other
- */
-static int skl_tplg_vmixer_event(struct snd_soc_dapm_widget *w,
-				struct snd_kcontrol *k, int event)
-{
-	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct skl *skl = get_skl_ctx(dapm->dev);
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		return skl_tplg_mixer_dapm_pre_pmu_event(w, skl);
-
-	case SND_SOC_DAPM_POST_PMU:
-		return skl_tplg_mixer_dapm_post_pmu_event(w, skl);
-
-	case SND_SOC_DAPM_PRE_PMD:
-		return skl_tplg_mixer_dapm_pre_pmd_event(w, skl);
-
-	case SND_SOC_DAPM_POST_PMD:
-		return skl_tplg_mixer_dapm_post_pmd_event(w, skl);
-	}
-
-	return 0;
-}
-
-/*
  * In modelling, we assume there will be ONLY one mixer in a pipeline. If a
  * second one is required that is created as another pipe entity.
  * The mixer is responsible for pipe management and represent a pipeline
@@ -1570,7 +1540,7 @@ int skl_tplg_be_update_params(struct snd_soc_dai *dai,
 
 static const struct snd_soc_tplg_widget_events skl_tplg_widget_ops[] = {
 	{SKL_MIXER_EVENT, skl_tplg_mixer_event},
-	{SKL_VMIXER_EVENT, skl_tplg_vmixer_event},
+	{SKL_VMIXER_EVENT, skl_tplg_mixer_event},
 	{SKL_PGA_EVENT, skl_tplg_pga_event},
 };
 
