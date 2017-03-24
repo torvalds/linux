@@ -137,9 +137,9 @@ enum nvmefc_fcp_datadir {
  *             transferred. Should equal payload_length on success.
  * @rcv_rsplen: length, in bytes, of the FCP RSP IU received.
  * @status:    Completion status of the FCP operation. must be 0 upon success,
- *             NVME_SC_FC_xxx value upon failure. Note: this is NOT a
- *             reflection of the NVME CQE completion status. Only the status
- *             of the FCP operation at the NVME-FC level.
+ *             negative errno value upon failure (ex: -EIO). Note: this is
+ *             NOT a reflection of the NVME CQE completion status. Only the
+ *             status of the FCP operation at the NVME-FC level.
  */
 struct nvmefc_fcp_req {
 	void			*cmdaddr;
