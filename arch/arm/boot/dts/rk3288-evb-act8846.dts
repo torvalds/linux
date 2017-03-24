@@ -105,6 +105,9 @@
 		regulator-enable-ramp-delay = <300>;
 		regulator-ramp-delay = <8000>;
 		vin-supply = <&vcc_sys>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
 	};
 
 	vdd_gpu: syr828@41 {
@@ -117,6 +120,9 @@
 		regulator-always-on;
 		regulator-ramp-delay = <6000>;
 		vin-supply = <&vcc_sys>;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
 	};
 
 	hym8563: hym8563@51 {
