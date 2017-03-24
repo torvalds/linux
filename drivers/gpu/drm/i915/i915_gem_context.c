@@ -582,8 +582,8 @@ mi_set_context(struct drm_i915_gem_request *req, u32 flags)
 	struct intel_engine_cs *engine = req->engine;
 	enum intel_engine_id id;
 	const int num_rings =
-		/* Use an extended w/a on ivb+ if signalling from other rings */
-		i915.semaphores ?
+		/* Use an extended w/a on gen7 if signalling from other rings */
+		(i915.semaphores && INTEL_GEN(dev_priv) == 7) ?
 		INTEL_INFO(dev_priv)->num_rings - 1 :
 		0;
 	int len;
