@@ -35,7 +35,6 @@ bool arch_vcpu_is_preempted(int cpu);
  * (the type definitions are in asm/spinlock_types.h)
  */
 
-void arch_lock_relax(int cpu);
 void arch_spin_relax(arch_spinlock_t *lock);
 
 void arch_spin_lock_wait(arch_spinlock_t *);
@@ -110,164 +109,63 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
  * read_can_lock - would read_trylock() succeed?
  * @lock: the rwlock in question.
  */
-#define arch_read_can_lock(x) ((int)(x)->lock >= 0)
+#define arch_read_can_lock(x) (((x)->cnts & 0xffff0000) == 0)
 
 /**
  * write_can_lock - would write_trylock() succeed?
  * @lock: the rwlock in question.
  */
-#define arch_write_can_lock(x) ((x)->lock == 0)
-
-extern int _raw_read_trylock_retry(arch_rwlock_t *lp);
-extern int _raw_write_trylock_retry(arch_rwlock_t *lp);
+#define arch_write_can_lock(x) ((x)->cnts == 0)
 
 #define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
 #define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
+#define arch_read_relax(rw) barrier()
+#define arch_write_relax(rw) barrier()
 
-static inline int arch_read_trylock_once(arch_rwlock_t *rw)
-{
-	int old = ACCESS_ONCE(rw->lock);
-	return likely(old >= 0 &&
-		      __atomic_cmpxchg_bool(&rw->lock, old, old + 1));
-}
-
-static inline int arch_write_trylock_once(arch_rwlock_t *rw)
-{
-	int old = ACCESS_ONCE(rw->lock);
-	return likely(old == 0 &&
-		      __atomic_cmpxchg_bool(&rw->lock, 0, 0x80000000));
-}
-
-#ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
-
-#define __RAW_OP_OR	"lao"
-#define __RAW_OP_AND	"lan"
-#define __RAW_OP_ADD	"laa"
-
-#define __RAW_LOCK(ptr, op_val, op_string)		\
-({							\
-	int old_val;					\
-							\
-	typecheck(int *, ptr);				\
-	asm volatile(					\
-		op_string "	%0,%2,%1\n"		\
-		"bcr	14,0\n"				\
-		: "=d" (old_val), "+Q" (*ptr)		\
-		: "d" (op_val)				\
-		: "cc", "memory");			\
-	old_val;					\
-})
-
-#define __RAW_UNLOCK(ptr, op_val, op_string)		\
-({							\
-	int old_val;					\
-							\
-	typecheck(int *, ptr);				\
-	asm volatile(					\
-		op_string "	%0,%2,%1\n"		\
-		: "=d" (old_val), "+Q" (*ptr)		\
-		: "d" (op_val)				\
-		: "cc", "memory");			\
-	old_val;					\
-})
-
-extern void _raw_read_lock_wait(arch_rwlock_t *lp);
-extern void _raw_write_lock_wait(arch_rwlock_t *lp, int prev);
+void arch_read_lock_wait(arch_rwlock_t *lp);
+void arch_write_lock_wait(arch_rwlock_t *lp);
 
 static inline void arch_read_lock(arch_rwlock_t *rw)
 {
 	int old;
 
-	old = __RAW_LOCK(&rw->lock, 1, __RAW_OP_ADD);
-	if (old < 0)
-		_raw_read_lock_wait(rw);
+	old = __atomic_add(1, &rw->cnts);
+	if (old & 0xffff0000)
+		arch_read_lock_wait(rw);
 }
 
 static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
-	__RAW_UNLOCK(&rw->lock, -1, __RAW_OP_ADD);
+	__atomic_add_const_barrier(-1, &rw->cnts);
 }
 
 static inline void arch_write_lock(arch_rwlock_t *rw)
 {
-	int old;
-
-	old = __RAW_LOCK(&rw->lock, 0x80000000, __RAW_OP_OR);
-	if (old != 0)
-		_raw_write_lock_wait(rw, old);
-	rw->owner = SPINLOCK_LOCKVAL;
+	if (!__atomic_cmpxchg_bool(&rw->cnts, 0, 0x30000))
+		arch_write_lock_wait(rw);
 }
 
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
-	rw->owner = 0;
-	__RAW_UNLOCK(&rw->lock, 0x7fffffff, __RAW_OP_AND);
+	__atomic_add_barrier(-0x30000, &rw->cnts);
 }
 
-#else /* CONFIG_HAVE_MARCH_Z196_FEATURES */
-
-extern void _raw_read_lock_wait(arch_rwlock_t *lp);
-extern void _raw_write_lock_wait(arch_rwlock_t *lp);
-
-static inline void arch_read_lock(arch_rwlock_t *rw)
-{
-	if (!arch_read_trylock_once(rw))
-		_raw_read_lock_wait(rw);
-}
-
-static inline void arch_read_unlock(arch_rwlock_t *rw)
-{
-	int old;
-
-	do {
-		old = ACCESS_ONCE(rw->lock);
-	} while (!__atomic_cmpxchg_bool(&rw->lock, old, old - 1));
-}
-
-static inline void arch_write_lock(arch_rwlock_t *rw)
-{
-	if (!arch_write_trylock_once(rw))
-		_raw_write_lock_wait(rw);
-	rw->owner = SPINLOCK_LOCKVAL;
-}
-
-static inline void arch_write_unlock(arch_rwlock_t *rw)
-{
-	typecheck(int, rw->lock);
-
-	rw->owner = 0;
-	asm volatile(
-		"st	%1,%0\n"
-		: "+Q" (rw->lock)
-		: "d" (0)
-		: "cc", "memory");
-}
-
-#endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
 
 static inline int arch_read_trylock(arch_rwlock_t *rw)
 {
-	if (!arch_read_trylock_once(rw))
-		return _raw_read_trylock_retry(rw);
-	return 1;
+	int old;
+
+	old = READ_ONCE(rw->cnts);
+	return (!(old & 0xffff0000) &&
+		__atomic_cmpxchg_bool(&rw->cnts, old, old + 1));
 }
 
 static inline int arch_write_trylock(arch_rwlock_t *rw)
 {
-	if (!arch_write_trylock_once(rw) && !_raw_write_trylock_retry(rw))
-		return 0;
-	rw->owner = SPINLOCK_LOCKVAL;
-	return 1;
-}
+	int old;
 
-static inline void arch_read_relax(arch_rwlock_t *rw)
-{
-	arch_lock_relax(rw->owner);
-}
-
-static inline void arch_write_relax(arch_rwlock_t *rw)
-{
-	arch_lock_relax(rw->owner);
+	old = READ_ONCE(rw->cnts);
+	return !old && __atomic_cmpxchg_bool(&rw->cnts, 0, 0x30000);
 }
 
 #endif /* __ASM_SPINLOCK_H */
