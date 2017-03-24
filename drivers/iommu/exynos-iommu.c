@@ -171,6 +171,9 @@ static u32 lv2ent_offset(sysmmu_iova_t iova)
 #define REG_V5_PT_BASE_PFN	0x00C
 #define REG_V5_MMU_FLUSH_ALL	0x010
 #define REG_V5_MMU_FLUSH_ENTRY	0x014
+#define REG_V5_MMU_FLUSH_RANGE	0x018
+#define REG_V5_MMU_FLUSH_START	0x020
+#define REG_V5_MMU_FLUSH_END	0x024
 #define REG_V5_INT_STATUS	0x060
 #define REG_V5_INT_CLEAR	0x064
 #define REG_V5_FAULT_AR_VA	0x070
@@ -319,14 +322,23 @@ static void __sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
 {
 	unsigned int i;
 
-	for (i = 0; i < num_inv; i++) {
-		if (MMU_MAJ_VER(data->version) < 5)
+	if (MMU_MAJ_VER(data->version) < 5) {
+		for (i = 0; i < num_inv; i++) {
 			writel((iova & SPAGE_MASK) | 1,
 				     data->sfrbase + REG_MMU_FLUSH_ENTRY);
-		else
+			iova += SPAGE_SIZE;
+		}
+	} else {
+		if (num_inv == 1) {
 			writel((iova & SPAGE_MASK) | 1,
 				     data->sfrbase + REG_V5_MMU_FLUSH_ENTRY);
-		iova += SPAGE_SIZE;
+		} else {
+			writel((iova & SPAGE_MASK),
+				     data->sfrbase + REG_V5_MMU_FLUSH_START);
+			writel((iova & SPAGE_MASK) + (num_inv - 1) * SPAGE_SIZE,
+				     data->sfrbase + REG_V5_MMU_FLUSH_END);
+			writel(1, data->sfrbase + REG_V5_MMU_FLUSH_RANGE);
+		}
 	}
 }
 
