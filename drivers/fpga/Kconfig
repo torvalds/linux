@@ -83,6 +83,11 @@ config ALTERA_FREEZE_BRIDGE
 	  isolate one region of the FPGA from the busses while that
 	  region is being reprogrammed.
 
+config ALTERA_PR_IP_CORE
+        tristate "Altera Partial Reconfiguration IP Core"
+        help
+          Core driver support for Altera Partial Reconfiguration IP component
+
 endif # FPGA
 
 endmenu
