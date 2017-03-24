@@ -342,6 +342,7 @@ struct kvmppc_pte {
 	bool may_read		: 1;
 	bool may_write		: 1;
 	bool may_execute	: 1;
+	unsigned long wimg;
 	u8 page_size;		/* MMU_PAGE_xxx */
 };
 

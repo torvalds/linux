@@ -537,7 +537,7 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int r = RESUME_GUEST;
 	int relocated;
 	int page_found = 0;
-	struct kvmppc_pte pte;
+	struct kvmppc_pte pte = { 0 };
 	bool dr = (kvmppc_get_msr(vcpu) & MSR_DR) ? true : false;
 	bool ir = (kvmppc_get_msr(vcpu) & MSR_IR) ? true : false;
 	u64 vsid;

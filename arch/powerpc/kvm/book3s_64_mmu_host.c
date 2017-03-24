@@ -145,6 +145,8 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 	else
 		kvmppc_mmu_flush_icache(pfn);
 
+	rflags = (rflags & ~HPTE_R_WIMG) | orig_pte->wimg;
+
 	/*
 	 * Use 64K pages if possible; otherwise, on 64K page kernels,
 	 * we need to transfer 4 more bits from guest real to host real addr.
