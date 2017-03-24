@@ -285,25 +285,11 @@ int omap_drm_irq_install(struct drm_device *dev)
 void omap_drm_irq_uninstall(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	unsigned long irqflags;
-	int i;
 
 	if (!dev->irq_enabled)
 		return;
 
 	dev->irq_enabled = false;
-
-	/* Wake up any waiters so they don't hang. */
-	if (dev->num_crtcs) {
-		spin_lock_irqsave(&dev->vbl_lock, irqflags);
-		for (i = 0; i < dev->num_crtcs; i++) {
-			wake_up(&dev->vblank[i].queue);
-			dev->vblank[i].enabled = false;
-			dev->vblank[i].last =
-				dev->driver->get_vblank_counter(dev, i);
-		}
-		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
-	}
 
 	priv->dispc_ops->free_irq(dev);
 }
