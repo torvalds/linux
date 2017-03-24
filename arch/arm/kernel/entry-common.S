@@ -152,7 +152,6 @@ ENTRY(vector_swi)
 	alignment_trap r10, ip, __cr_alignment
 	enable_irq
 	ct_user_exit
-	get_thread_info tsk
 
 	/*
 	 * Get the system call number.
@@ -209,6 +208,7 @@ ENTRY(vector_swi)
 	bic	scno, scno, #0xff000000		@ mask off SWI op-code
 	eor	scno, scno, #__NR_SYSCALL_BASE	@ check OS number
 #endif
+	get_thread_info tsk
 
 local_restart:
 	ldr	r10, [tsk, #TI_FLAGS]		@ check for syscall tracing
@@ -240,6 +240,7 @@ local_restart:
 9001:
 	sub	lr, saved_pc, #4
 	str	lr, [sp, #S_PC]
+	get_thread_info tsk
 	b	ret_fast_syscall
 #endif
 ENDPROC(vector_swi)
