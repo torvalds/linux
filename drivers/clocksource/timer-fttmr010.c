@@ -1,5 +1,5 @@
 /*
- * Gemini timer driver
+ * Faraday Technology FTTMR010 timer driver
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  *
  * Based on a rewrite of arch/arm/mach-gemini/timer.c:
@@ -77,12 +77,12 @@
 static unsigned int tick_rate;
 static void __iomem *base;
 
-static u64 notrace gemini_read_sched_clock(void)
+static u64 notrace fttmr010_read_sched_clock(void)
 {
 	return readl(base + TIMER3_COUNT);
 }
 
-static int gemini_timer_set_next_event(unsigned long cycles,
+static int fttmr010_timer_set_next_event(unsigned long cycles,
 				       struct clock_event_device *evt)
 {
 	u32 cr;
@@ -96,7 +96,7 @@ static int gemini_timer_set_next_event(unsigned long cycles,
 	return 0;
 }
 
-static int gemini_timer_shutdown(struct clock_event_device *evt)
+static int fttmr010_timer_shutdown(struct clock_event_device *evt)
 {
 	u32 cr;
 
@@ -127,7 +127,7 @@ static int gemini_timer_shutdown(struct clock_event_device *evt)
 	return 0;
 }
 
-static int gemini_timer_set_periodic(struct clock_event_device *evt)
+static int fttmr010_timer_set_periodic(struct clock_event_device *evt)
 {
 	u32 period = DIV_ROUND_CLOSEST(tick_rate, HZ);
 	u32 cr;
@@ -158,35 +158,35 @@ static int gemini_timer_set_periodic(struct clock_event_device *evt)
 }
 
 /* Use TIMER1 as clock event */
-static struct clock_event_device gemini_clockevent = {
+static struct clock_event_device fttmr010_clockevent = {
 	.name			= "TIMER1",
 	/* Reasonably fast and accurate clock event */
 	.rating			= 300,
 	.shift                  = 32,
 	.features		= CLOCK_EVT_FEAT_PERIODIC |
 				  CLOCK_EVT_FEAT_ONESHOT,
-	.set_next_event		= gemini_timer_set_next_event,
-	.set_state_shutdown	= gemini_timer_shutdown,
-	.set_state_periodic	= gemini_timer_set_periodic,
-	.set_state_oneshot	= gemini_timer_shutdown,
-	.tick_resume		= gemini_timer_shutdown,
+	.set_next_event		= fttmr010_timer_set_next_event,
+	.set_state_shutdown	= fttmr010_timer_shutdown,
+	.set_state_periodic	= fttmr010_timer_set_periodic,
+	.set_state_oneshot	= fttmr010_timer_shutdown,
+	.tick_resume		= fttmr010_timer_shutdown,
 };
 
 /*
  * IRQ handler for the timer
  */
-static irqreturn_t gemini_timer_interrupt(int irq, void *dev_id)
+static irqreturn_t fttmr010_timer_interrupt(int irq, void *dev_id)
 {
-	struct clock_event_device *evt = &gemini_clockevent;
+	struct clock_event_device *evt = &fttmr010_clockevent;
 
 	evt->event_handler(evt);
 	return IRQ_HANDLED;
 }
 
-static struct irqaction gemini_timer_irq = {
-	.name		= "Gemini Timer Tick",
+static struct irqaction fttmr010_timer_irq = {
+	.name		= "Faraday FTTMR010 Timer Tick",
 	.flags		= IRQF_TIMER,
-	.handler	= gemini_timer_interrupt,
+	.handler	= fttmr010_timer_interrupt,
 };
 
 static int __init gemini_timer_of_init(struct device_node *np)
@@ -255,9 +255,9 @@ static int __init gemini_timer_of_init(struct device_node *np)
 	writel(0, base + TIMER3_MATCH1);
 	writel(0, base + TIMER3_MATCH2);
 	clocksource_mmio_init(base + TIMER3_COUNT,
-			      "gemini_clocksource", tick_rate,
+			      "fttmr010_clocksource", tick_rate,
 			      300, 32, clocksource_mmio_readl_up);
-	sched_clock_register(gemini_read_sched_clock, 32, tick_rate);
+	sched_clock_register(fttmr010_read_sched_clock, 32, tick_rate);
 
 	/*
 	 * Setup clockevent timer (interrupt-driven.)
@@ -266,12 +266,11 @@ static int __init gemini_timer_of_init(struct device_node *np)
 	writel(0, base + TIMER1_LOAD);
 	writel(0, base + TIMER1_MATCH1);
 	writel(0, base + TIMER1_MATCH2);
-	setup_irq(irq, &gemini_timer_irq);
-	gemini_clockevent.cpumask = cpumask_of(0);
-	clockevents_config_and_register(&gemini_clockevent, tick_rate,
+	setup_irq(irq, &fttmr010_timer_irq);
+	fttmr010_clockevent.cpumask = cpumask_of(0);
+	clockevents_config_and_register(&fttmr010_clockevent, tick_rate,
 					1, 0xffffffff);
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(nomadik_mtu, "cortina,gemini-timer",
-		       gemini_timer_of_init);
+CLOCKSOURCE_OF_DECLARE(gemini, "cortina,gemini-timer", gemini_timer_of_init);

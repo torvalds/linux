@@ -67,15 +67,16 @@ config DW_APB_TIMER_OF
 	select DW_APB_TIMER
 	select CLKSRC_OF
 
-config GEMINI_TIMER
-	bool "Cortina Gemini timer driver" if COMPILE_TEST
+config FTTMR010_TIMER
+	bool "Faraday Technology timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
 	depends on HAS_IOMEM
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 	select MFD_SYSCON
 	help
-	  Enables support for the Gemini timer
+	  Enables support for the Faraday Technology timer block
+	  FTTMR010.
 
 config ROCKCHIP_TIMER
 	bool "Rockchip timer driver" if COMPILE_TEST
