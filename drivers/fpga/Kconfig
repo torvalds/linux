@@ -95,6 +95,16 @@ config ALTERA_PR_IP_CORE_PLAT
 	  Platform driver support for Altera Partial Reconfiguration IP
 	  component
 
+config XILINX_PR_DECOUPLER
+	tristate "Xilinx LogiCORE PR Decoupler"
+	depends on FPGA_BRIDGE
+	depends on HAS_IOMEM
+	help
+	  Say Y to enable drivers for Xilinx LogiCORE PR Decoupler.
+	  The PR Decoupler exists in the FPGA fabric to isolate one
+	  region of the FPGA from the busses while that region is
+	  being reprogrammed during partial reconfig.
+
 endif # FPGA
 
 endmenu
