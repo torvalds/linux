@@ -17,7 +17,7 @@ int spin_retry = -1;
 static int __init spin_retry_init(void)
 {
 	if (spin_retry < 0)
-		spin_retry = MACHINE_HAS_CAD ? 10 : 1000;
+		spin_retry = 1000;
 	return 0;
 }
 early_initcall(spin_retry_init);
@@ -31,11 +31,6 @@ static int __init spin_retry_setup(char *str)
 	return 1;
 }
 __setup("spin_retry=", spin_retry_setup);
-
-static inline void compare_and_delay(int *lock, int old)
-{
-	asm(".insn rsy,0xeb0000000022,%0,0,%1" : : "d" (old), "Q" (*lock));
-}
 
 void arch_spin_lock_wait(arch_spinlock_t *lp)
 {
@@ -60,8 +55,6 @@ void arch_spin_lock_wait(arch_spinlock_t *lp)
 		/* Loop for a while on the lock value. */
 		count = spin_retry;
 		do {
-			if (MACHINE_HAS_CAD)
-				compare_and_delay(&lp->lock, owner);
 			owner = ACCESS_ONCE(lp->lock);
 		} while (owner && count-- > 0);
 		if (!owner)
@@ -105,8 +98,6 @@ void arch_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 		/* Loop for a while on the lock value. */
 		count = spin_retry;
 		do {
-			if (MACHINE_HAS_CAD)
-				compare_and_delay(&lp->lock, owner);
 			owner = ACCESS_ONCE(lp->lock);
 		} while (owner && count-- > 0);
 		if (!owner)
@@ -135,8 +126,7 @@ int arch_spin_trylock_retry(arch_spinlock_t *lp)
 		if (!owner) {
 			if (__atomic_cmpxchg_bool(&lp->lock, 0, cpu))
 				return 1;
-		} else if (MACHINE_HAS_CAD)
-			compare_and_delay(&lp->lock, owner);
+		}
 	}
 	return 0;
 }
@@ -159,11 +149,8 @@ void _raw_read_lock_wait(arch_rwlock_t *rw)
 		}
 		old = ACCESS_ONCE(rw->lock);
 		owner = ACCESS_ONCE(rw->owner);
-		if (old < 0) {
-			if (MACHINE_HAS_CAD)
-				compare_and_delay(&rw->lock, old);
+		if (old < 0)
 			continue;
-		}
 		if (__atomic_cmpxchg_bool(&rw->lock, old, old + 1))
 			return;
 	}
@@ -177,11 +164,8 @@ int _raw_read_trylock_retry(arch_rwlock_t *rw)
 
 	while (count-- > 0) {
 		old = ACCESS_ONCE(rw->lock);
-		if (old < 0) {
-			if (MACHINE_HAS_CAD)
-				compare_and_delay(&rw->lock, old);
+		if (old < 0)
 			continue;
-		}
 		if (__atomic_cmpxchg_bool(&rw->lock, old, old + 1))
 			return 1;
 	}
@@ -212,8 +196,6 @@ void _raw_write_lock_wait(arch_rwlock_t *rw, int prev)
 		}
 		if ((old & 0x7fffffff) == 0 && prev >= 0)
 			break;
-		if (MACHINE_HAS_CAD)
-			compare_and_delay(&rw->lock, old);
 	}
 }
 EXPORT_SYMBOL(_raw_write_lock_wait);
@@ -242,8 +224,6 @@ void _raw_write_lock_wait(arch_rwlock_t *rw)
 			smp_mb();
 		if ((old & 0x7fffffff) == 0 && prev >= 0)
 			break;
-		if (MACHINE_HAS_CAD)
-			compare_and_delay(&rw->lock, old);
 	}
 }
 EXPORT_SYMBOL(_raw_write_lock_wait);
@@ -257,11 +237,8 @@ int _raw_write_trylock_retry(arch_rwlock_t *rw)
 
 	while (count-- > 0) {
 		old = ACCESS_ONCE(rw->lock);
-		if (old) {
-			if (MACHINE_HAS_CAD)
-				compare_and_delay(&rw->lock, old);
+		if (old)
 			continue;
-		}
 		if (__atomic_cmpxchg_bool(&rw->lock, 0, 0x80000000))
 			return 1;
 	}

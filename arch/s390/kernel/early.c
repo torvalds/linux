@@ -434,23 +434,16 @@ early_param("noexec", noexec_setup);
 
 static int __init cad_setup(char *str)
 {
-	int val;
+	bool enabled;
+	int rc;
 
-	get_option(&str, &val);
-	if (val && test_facility(128))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_CAD;
-	return 0;
-}
-early_param("cad", cad_setup);
-
-static int __init cad_init(void)
-{
-	if (MACHINE_HAS_CAD)
+	rc = kstrtobool(str, &enabled);
+	if (!rc && enabled && test_facility(128))
 		/* Enable problem state CAD. */
 		__ctl_set_bit(2, 3);
-	return 0;
+	return rc;
 }
-early_initcall(cad_init);
+early_param("cad", cad_setup);
 
 static __init void memmove_early(void *dst, const void *src, size_t n)
 {
