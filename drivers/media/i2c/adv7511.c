@@ -734,7 +734,7 @@ static int adv7511_s_power(struct v4l2_subdev *sd, int on)
 #if IS_ENABLED(CONFIG_VIDEO_ADV7511_CEC)
 static int adv7511_cec_adap_enable(struct cec_adapter *adap, bool enable)
 {
-	struct adv7511_state *state = adap->priv;
+	struct adv7511_state *state = cec_get_drvdata(adap);
 	struct v4l2_subdev *sd = &state->sd;
 
 	if (state->i2c_cec == NULL)
@@ -769,7 +769,7 @@ static int adv7511_cec_adap_enable(struct cec_adapter *adap, bool enable)
 
 static int adv7511_cec_adap_log_addr(struct cec_adapter *adap, u8 addr)
 {
-	struct adv7511_state *state = adap->priv;
+	struct adv7511_state *state = cec_get_drvdata(adap);
 	struct v4l2_subdev *sd = &state->sd;
 	unsigned int i, free_idx = ADV7511_MAX_ADDRS;
 
@@ -824,7 +824,7 @@ static int adv7511_cec_adap_log_addr(struct cec_adapter *adap, u8 addr)
 static int adv7511_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				     u32 signal_free_time, struct cec_msg *msg)
 {
-	struct adv7511_state *state = adap->priv;
+	struct adv7511_state *state = cec_get_drvdata(adap);
 	struct v4l2_subdev *sd = &state->sd;
 	u8 len = msg->len;
 	unsigned int i;
