@@ -111,7 +111,6 @@
 #define MLX5E_MAX_NUM_SQS              (MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC)
 #define MLX5E_TX_CQ_POLL_BUDGET        128
 #define MLX5E_UPDATE_STATS_INTERVAL    200 /* msecs */
-#define MLX5E_SQ_BF_BUDGET             16
 
 #define MLX5E_ICOSQ_MAX_WQEBBS \
 	(DIV_ROUND_UP(sizeof(struct mlx5e_umr_wqe), MLX5_SEND_WQE_BB))
@@ -426,7 +425,6 @@ struct mlx5e_sq_dma {
 
 enum {
 	MLX5E_SQ_STATE_ENABLED,
-	MLX5E_SQ_STATE_BF_ENABLE,
 };
 
 struct mlx5e_sq_wqe_info {
@@ -450,9 +448,6 @@ struct mlx5e_sq {
 	/* dirtied @xmit */
 	u16                        pc ____cacheline_aligned_in_smp;
 	u32                        dma_fifo_pc;
-	u16                        bf_offset;
-	u16                        prev_cc;
-	u8                         bf_budget;
 	struct mlx5e_sq_stats      stats;
 
 	struct mlx5e_cq            cq;
@@ -478,7 +473,6 @@ struct mlx5e_sq {
 	void __iomem              *uar_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
-	u16                        bf_buf_size;
 	u16                        max_inline;
 	u8                         min_inline_mode;
 	u16                        edge;
@@ -818,11 +812,9 @@ void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params,
 				 u8 cq_period_mode);
 void mlx5e_set_rq_type_params(struct mlx5e_priv *priv, u8 rq_type);
 
-static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
-				      struct mlx5_wqe_ctrl_seg *ctrl, int bf_sz)
+static inline void
+mlx5e_tx_notify_hw(struct mlx5e_sq *sq, struct mlx5_wqe_ctrl_seg *ctrl)
 {
-	u16 ofst = sq->bf_offset;
-
 	/* ensure wqe is visible to device before updating doorbell record */
 	dma_wmb();
 
@@ -832,14 +824,8 @@ static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 	 * doorbell
 	 */
 	wmb();
-	if (bf_sz)
-		__iowrite64_copy(sq->uar_map + ofst, ctrl, bf_sz);
-	else
-		mlx5_write64((__be32 *)ctrl, sq->uar_map + ofst, NULL);
-	/* flush the write-combining mapped buffer */
-	wmb();
 
-	sq->bf_offset ^= sq->bf_buf_size;
+	mlx5_write64((__be32 *)ctrl, sq->uar_map, NULL);
 }
 
 static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)

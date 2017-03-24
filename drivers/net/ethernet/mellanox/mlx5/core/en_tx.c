@@ -57,7 +57,7 @@ void mlx5e_send_nop(struct mlx5e_sq *sq, bool notify_hw)
 
 	if (notify_hw) {
 		cseg->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
-		mlx5e_tx_notify_hw(sq, &wqe->ctrl, 0);
+		mlx5e_tx_notify_hw(sq, &wqe->ctrl);
 	}
 }
 
@@ -175,25 +175,6 @@ static inline unsigned int mlx5e_calc_min_inline(enum mlx5_inline_modes mode,
 	}
 }
 
-static inline u16 mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq,
-					    struct sk_buff *skb, bool bf)
-{
-	/* Some NIC TX decisions, e.g loopback, are based on the packet
-	 * headers and occur before the data gather.
-	 * Therefore these headers must be copied into the WQE
-	 */
-	if (bf) {
-		u16 ihs = skb_headlen(skb);
-
-		if (skb_vlan_tag_present(skb))
-			ihs += VLAN_HLEN;
-
-		if (ihs <= sq->max_inline)
-			return skb_headlen(skb);
-	}
-	return mlx5e_calc_min_inline(sq->min_inline_mode, skb);
-}
-
 static inline void mlx5e_tx_skb_pull_inline(unsigned char **skb_data,
 					    unsigned int *skb_len,
 					    unsigned int len)
@@ -235,7 +216,6 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 	u8  opcode = MLX5_OPCODE_SEND;
 	dma_addr_t dma_addr = 0;
 	unsigned int num_bytes;
-	bool bf = false;
 	u16 headlen;
 	u16 ds_cnt;
 	u16 ihs;
@@ -255,11 +235,6 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 	} else
 		sq->stats.csum_none++;
 
-	if (sq->cc != sq->prev_cc) {
-		sq->prev_cc = sq->cc;
-		sq->bf_budget = (sq->cc == sq->pc) ? MLX5E_SQ_BF_BUDGET : 0;
-	}
-
 	if (skb_is_gso(skb)) {
 		eseg->mss    = cpu_to_be16(skb_shinfo(skb)->gso_size);
 		opcode       = MLX5_OPCODE_LSO;
@@ -277,10 +252,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 		sq->stats.packets += skb_shinfo(skb)->gso_segs;
 		num_bytes = skb->len + (skb_shinfo(skb)->gso_segs - 1) * ihs;
 	} else {
-		bf = sq->bf_budget &&
-		     !skb->xmit_more &&
-		     !skb_shinfo(skb)->nr_frags;
-		ihs = mlx5e_get_inline_hdr_size(sq, skb, bf);
+		ihs = mlx5e_calc_min_inline(sq->min_inline_mode, skb);
 		sq->stats.packets++;
 		num_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
 	}
@@ -366,13 +338,8 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 
 	sq->stats.xmit_more += skb->xmit_more;
 	if (!skb->xmit_more || netif_xmit_stopped(sq->txq)) {
-		int bf_sz = 0;
-
-		if (bf && test_bit(MLX5E_SQ_STATE_BF_ENABLE, &sq->state))
-			bf_sz = wi->num_wqebbs << 3;
-
 		cseg->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
-		mlx5e_tx_notify_hw(sq, &wqe->ctrl, bf_sz);
+		mlx5e_tx_notify_hw(sq, &wqe->ctrl);
 	}
 
 	/* fill sq edge with nops to avoid wqe wrap around */
@@ -380,9 +347,6 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 		sq->db.txq.skb[pi] = NULL;
 		mlx5e_send_nop(sq, false);
 	}
-
-	if (bf)
-		sq->bf_budget--;
 
 	return NETDEV_TX_OK;
 
