@@ -156,21 +156,22 @@ static struct ibm_pa_feature {
 	unsigned char	pabit;		/* bit number (big-endian) */
 	unsigned char	invert;		/* if 1, pa bit set => clear feature */
 } ibm_pa_features[] __initdata = {
-	{0, 0, PPC_FEATURE_HAS_MMU, 0,		0, 0, 0},
-	{0, 0, PPC_FEATURE_HAS_FPU, 0,		0, 1, 0},
-	{CPU_FTR_CTRL, 0, 0, 0,			0, 3, 0},
-	{CPU_FTR_NOEXECUTE, 0, 0, 0,		0, 6, 0},
-	{CPU_FTR_NODSISRALIGN, 0, 0, 0,		1, 1, 1},
-	{0, MMU_FTR_CI_LARGE_PAGE, 0, 0,		1, 2, 0},
-	{CPU_FTR_REAL_LE, 0, PPC_FEATURE_TRUE_LE, 0, 5, 0, 0},
+	{ .pabyte = 0,  .pabit = 0, .cpu_user_ftrs = PPC_FEATURE_HAS_MMU },
+	{ .pabyte = 0,  .pabit = 1, .cpu_user_ftrs = PPC_FEATURE_HAS_FPU },
+	{ .pabyte = 0,  .pabit = 3, .cpu_features  = CPU_FTR_CTRL },
+	{ .pabyte = 0,  .pabit = 6, .cpu_features  = CPU_FTR_NOEXECUTE },
+	{ .pabyte = 1,  .pabit = 2, .mmu_features  = MMU_FTR_CI_LARGE_PAGE },
+	{ .pabyte = 40, .pabit = 0, .mmu_features  = MMU_FTR_TYPE_RADIX },
+	{ .pabyte = 1,  .pabit = 1, .invert = 1, .cpu_features = CPU_FTR_NODSISRALIGN },
+	{ .pabyte = 5,  .pabit = 0, .cpu_features  = CPU_FTR_REAL_LE,
+				    .cpu_user_ftrs = PPC_FEATURE_TRUE_LE },
 	/*
 	 * If the kernel doesn't support TM (ie CONFIG_PPC_TRANSACTIONAL_MEM=n),
 	 * we don't want to turn on TM here, so we use the *_COMP versions
 	 * which are 0 if the kernel doesn't support TM.
 	 */
-	{CPU_FTR_TM_COMP, 0, 0,
-	 PPC_FEATURE2_HTM_COMP|PPC_FEATURE2_HTM_NOSC_COMP, 22, 0, 0},
-	{0, MMU_FTR_TYPE_RADIX, 0, 0,		40, 0, 0},
+	{ .pabyte = 22, .pabit = 0, .cpu_features = CPU_FTR_TM_COMP,
+	  .cpu_user_ftrs2 = PPC_FEATURE2_HTM_COMP | PPC_FEATURE2_HTM_NOSC_COMP },
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
@@ -427,7 +428,7 @@ static int __init early_init_dt_scan_chosen_ppc(unsigned long node,
 		tce_alloc_end = *lprop;
 #endif
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	lprop = of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
 	if (lprop)
 		crashk_res.start = *lprop;

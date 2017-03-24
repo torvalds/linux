@@ -652,7 +652,6 @@ static bool usb_dmac_chan_filter(struct dma_chan *chan, void *arg)
 static struct dma_chan *usb_dmac_of_xlate(struct of_phandle_args *dma_spec,
 					  struct of_dma *ofdma)
 {
-	struct usb_dmac_chan *uchan;
 	struct dma_chan *chan;
 	dma_cap_mask_t mask;
 
@@ -666,8 +665,6 @@ static struct dma_chan *usb_dmac_of_xlate(struct of_phandle_args *dma_spec,
 	chan = dma_request_channel(mask, usb_dmac_chan_filter, dma_spec);
 	if (!chan)
 		return NULL;
-
-	uchan = to_usb_dmac_chan(chan);
 
 	return chan;
 }

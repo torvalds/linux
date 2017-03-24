@@ -1011,7 +1011,6 @@ static int __maybe_unused sirfsoc_dma_pm_suspend(struct device *dev)
 {
 	struct sirfsoc_dma *sdma = dev_get_drvdata(dev);
 	struct sirfsoc_dma_regs *save = &sdma->regs_save;
-	struct sirfsoc_dma_desc *sdesc;
 	struct sirfsoc_dma_chan *schan;
 	int ch;
 	int ret;
@@ -1044,9 +1043,6 @@ static int __maybe_unused sirfsoc_dma_pm_suspend(struct device *dev)
 		schan = &sdma->channels[ch];
 		if (list_empty(&schan->active))
 			continue;
-		sdesc = list_first_entry(&schan->active,
-			struct sirfsoc_dma_desc,
-			node);
 		save->ctrl[ch] = readl_relaxed(sdma->base +
 			ch * 0x10 + SIRFSOC_DMA_CH_CTRL);
 	}

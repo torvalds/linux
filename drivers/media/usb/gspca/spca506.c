@@ -15,10 +15,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define MODULE_NAME "spca506"
@@ -581,8 +577,7 @@ static const struct sd_desc sd_desc = {
 /* -- module initialisation -- */
 static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x06e1, 0xa190)},
-/*fixme: may be IntelPCCameraPro BRIDGE_SPCA505
-	{USB_DEVICE(0x0733, 0x0430)}, */
+/*	{USB_DEVICE(0x0733, 0x0430)}, FIXME: may be IntelPCCameraPro BRIDGE_SPCA505 */
 	{USB_DEVICE(0x0734, 0x043b)},
 	{USB_DEVICE(0x99fa, 0x8988)},
 	{}

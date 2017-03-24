@@ -68,7 +68,7 @@ static u64 time_to_jiffies(u64 sec, u32 nsec)
 	if (sec || nsec) {
 		struct timespec64 ts = {
 			sec,
-			max_t(u32, nsec, NSEC_PER_SEC - 1)
+			min_t(u32, nsec, NSEC_PER_SEC - 1)
 		};
 
 		return get_jiffies_64() + timespec64_to_jiffies(&ts);
@@ -473,7 +473,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	if (err) {
 		fuse_sync_release(ff, flags);
 	} else {
-		file->private_data = fuse_file_get(ff);
+		file->private_data = ff;
 		fuse_finish_open(inode, file);
 	}
 	return err;
@@ -1739,8 +1739,6 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 		 * This should be done on write(), truncate() and chown().
 		 */
 		if (!fc->handle_killpriv) {
-			int kill;
-
 			/*
 			 * ia_mode calculation may have used stale i_mode.
 			 * Refresh and recalculate.
@@ -1750,12 +1748,11 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 				return ret;
 
 			attr->ia_mode = inode->i_mode;
-			kill = should_remove_suid(entry);
-			if (kill & ATTR_KILL_SUID) {
+			if (inode->i_mode & S_ISUID) {
 				attr->ia_valid |= ATTR_MODE;
 				attr->ia_mode &= ~S_ISUID;
 			}
-			if (kill & ATTR_KILL_SGID) {
+			if ((inode->i_mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
 				attr->ia_valid |= ATTR_MODE;
 				attr->ia_mode &= ~S_ISGID;
 			}
@@ -1780,10 +1777,10 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 	return ret;
 }
 
-static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
-			struct kstat *stat)
+static int fuse_getattr(const struct path *path, struct kstat *stat,
+			u32 request_mask, unsigned int flags)
 {
-	struct inode *inode = d_inode(entry);
+	struct inode *inode = d_inode(path->dentry);
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
 	if (!fuse_allow_current_process(fc))
@@ -1834,7 +1831,6 @@ static const struct inode_operations fuse_common_inode_operations = {
 static const struct inode_operations fuse_symlink_inode_operations = {
 	.setattr	= fuse_setattr,
 	.get_link	= fuse_get_link,
-	.readlink	= generic_readlink,
 	.getattr	= fuse_getattr,
 	.listxattr	= fuse_listxattr,
 };

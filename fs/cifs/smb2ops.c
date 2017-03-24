@@ -20,6 +20,8 @@
 #include <linux/pagemap.h>
 #include <linux/vfs.h>
 #include <linux/falloc.h>
+#include <linux/scatterlist.h>
+#include <crypto/aead.h>
 #include "cifsglob.h"
 #include "smb2pdu.h"
 #include "smb2proto.h"
@@ -119,7 +121,9 @@ smb2_get_credits_field(struct TCP_Server_Info *server, const int optype)
 static unsigned int
 smb2_get_credits(struct mid_q_entry *mid)
 {
-	return le16_to_cpu(((struct smb2_hdr *)mid->resp_buf)->CreditRequest);
+	struct smb2_sync_hdr *shdr = get_sync_hdr(mid->resp_buf);
+
+	return le16_to_cpu(shdr->CreditRequest);
 }
 
 static int
@@ -184,10 +188,10 @@ static struct mid_q_entry *
 smb2_find_mid(struct TCP_Server_Info *server, char *buf)
 {
 	struct mid_q_entry *mid;
-	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
-	__u64 wire_mid = le64_to_cpu(hdr->MessageId);
+	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
+	__u64 wire_mid = le64_to_cpu(shdr->MessageId);
 
-	if (hdr->ProtocolId == SMB2_TRANSFORM_PROTO_NUM) {
+	if (shdr->ProtocolId == SMB2_TRANSFORM_PROTO_NUM) {
 		cifs_dbg(VFS, "encrypted frame parsing not supported yet");
 		return NULL;
 	}
@@ -196,7 +200,7 @@ smb2_find_mid(struct TCP_Server_Info *server, char *buf)
 	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
 		if ((mid->mid == wire_mid) &&
 		    (mid->mid_state == MID_REQUEST_SUBMITTED) &&
-		    (mid->command == hdr->Command)) {
+		    (mid->command == shdr->Command)) {
 			spin_unlock(&GlobalMid_Lock);
 			return mid;
 		}
@@ -209,12 +213,12 @@ static void
 smb2_dump_detail(void *buf)
 {
 #ifdef CONFIG_CIFS_DEBUG2
-	struct smb2_hdr *smb = (struct smb2_hdr *)buf;
+	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
 
 	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Mid: %llu Pid: %d\n",
-		 smb->Command, smb->Status, smb->Flags, smb->MessageId,
-		 smb->ProcessId);
-	cifs_dbg(VFS, "smb buf %p len %u\n", smb, smb2_calc_size(smb));
+		 shdr->Command, shdr->Status, shdr->Flags, shdr->MessageId,
+		 shdr->ProcessId);
+	cifs_dbg(VFS, "smb buf %p len %u\n", buf, smb2_calc_size(buf));
 #endif
 }
 
@@ -278,6 +282,7 @@ SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
 
 	rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
 			FSCTL_QUERY_NETWORK_INTERFACE_INFO, true /* is_fsctl */,
+			false /* use_ipc */,
 			NULL /* no data input */, 0 /* no data input */,
 			(char **)&out_buf, &ret_data_len);
 	if (rc != 0)
@@ -567,6 +572,7 @@ SMB2_request_res_key(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = SMB2_ioctl(xid, tcon, persistent_fid, volatile_fid,
 			FSCTL_SRV_REQUEST_RESUME_KEY, true /* is_fsctl */,
+			false /* use_ipc */,
 			NULL, 0 /* no input */,
 			(char **)&res_key, &ret_data_len);
 
@@ -631,7 +637,8 @@ smb2_clone_range(const unsigned int xid,
 		/* Request server copy to target from src identified by key */
 		rc = SMB2_ioctl(xid, tcon, trgtfile->fid.persistent_fid,
 			trgtfile->fid.volatile_fid, FSCTL_SRV_COPYCHUNK_WRITE,
-			true /* is_fsctl */, (char *)pcchunk,
+			true /* is_fsctl */, false /* use_ipc */,
+			(char *)pcchunk,
 			sizeof(struct copychunk_ioctl),	(char **)&retbuf,
 			&ret_data_len);
 		if (rc == 0) {
@@ -783,7 +790,8 @@ static bool smb2_set_sparse(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
 			cfile->fid.volatile_fid, FSCTL_SET_SPARSE,
-			true /* is_fctl */, &setsparse, 1, NULL, NULL);
+			true /* is_fctl */, false /* use_ipc */,
+			&setsparse, 1, NULL, NULL);
 	if (rc) {
 		tcon->broken_sparse_sup = true;
 		cifs_dbg(FYI, "set sparse rc = %d\n", rc);
@@ -853,7 +861,8 @@ smb2_duplicate_extents(const unsigned int xid,
 	rc = SMB2_ioctl(xid, tcon, trgtfile->fid.persistent_fid,
 			trgtfile->fid.volatile_fid,
 			FSCTL_DUPLICATE_EXTENTS_TO_FILE,
-			true /* is_fsctl */, (char *)&dup_ext_buf,
+			true /* is_fsctl */, false /* use_ipc */,
+			(char *)&dup_ext_buf,
 			sizeof(struct duplicate_extents_to_file),
 			NULL,
 			&ret_data_len);
@@ -887,7 +896,8 @@ smb3_set_integrity(const unsigned int xid, struct cifs_tcon *tcon,
 	return SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
 			cfile->fid.volatile_fid,
 			FSCTL_SET_INTEGRITY_INFORMATION,
-			true /* is_fsctl */, (char *)&integr_info,
+			true /* is_fsctl */, false /* use_ipc */,
+			(char *)&integr_info,
 			sizeof(struct fsctl_set_integrity_information_req),
 			NULL,
 			&ret_data_len);
@@ -906,7 +916,8 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
 			cfile->fid.volatile_fid,
 			FSCTL_SRV_ENUMERATE_SNAPSHOTS,
-			true /* is_fsctl */, NULL, 0 /* no input data */,
+			true /* is_fsctl */, false /* use_ipc */,
+			NULL, 0 /* no input data */,
 			(char **)&retbuf,
 			&ret_data_len);
 	cifs_dbg(FYI, "enum snaphots ioctl returned %d and ret buflen is %d\n",
@@ -1002,14 +1013,14 @@ smb2_close_dir(const unsigned int xid, struct cifs_tcon *tcon,
 static bool
 smb2_is_status_pending(char *buf, struct TCP_Server_Info *server, int length)
 {
-	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
+	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
 
-	if (hdr->Status != STATUS_PENDING)
+	if (shdr->Status != STATUS_PENDING)
 		return false;
 
 	if (!length) {
 		spin_lock(&server->req_lock);
-		server->credits += le16_to_cpu(hdr->CreditRequest);
+		server->credits += le16_to_cpu(shdr->CreditRequest);
 		spin_unlock(&server->req_lock);
 		wake_up(&server->request_q);
 	}
@@ -1093,6 +1104,103 @@ smb2_new_lease_key(struct cifs_fid *fid)
 	generate_random_uuid(fid->lease_key);
 }
 
+static int
+smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
+		   const char *search_name,
+		   struct dfs_info3_param **target_nodes,
+		   unsigned int *num_of_nodes,
+		   const struct nls_table *nls_codepage, int remap)
+{
+	int rc;
+	__le16 *utf16_path = NULL;
+	int utf16_path_len = 0;
+	struct cifs_tcon *tcon;
+	struct fsctl_get_dfs_referral_req *dfs_req = NULL;
+	struct get_dfs_referral_rsp *dfs_rsp = NULL;
+	u32 dfs_req_size = 0, dfs_rsp_size = 0;
+
+	cifs_dbg(FYI, "smb2_get_dfs_refer path <%s>\n", search_name);
+
+	/*
+	 * Use any tcon from the current session. Here, the first one.
+	 */
+	spin_lock(&cifs_tcp_ses_lock);
+	tcon = list_first_entry_or_null(&ses->tcon_list, struct cifs_tcon,
+					tcon_list);
+	if (tcon)
+		tcon->tc_count++;
+	spin_unlock(&cifs_tcp_ses_lock);
+
+	if (!tcon) {
+		cifs_dbg(VFS, "session %p has no tcon available for a dfs referral request\n",
+			 ses);
+		rc = -ENOTCONN;
+		goto out;
+	}
+
+	utf16_path = cifs_strndup_to_utf16(search_name, PATH_MAX,
+					   &utf16_path_len,
+					   nls_codepage, remap);
+	if (!utf16_path) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	dfs_req_size = sizeof(*dfs_req) + utf16_path_len;
+	dfs_req = kzalloc(dfs_req_size, GFP_KERNEL);
+	if (!dfs_req) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	/* Highest DFS referral version understood */
+	dfs_req->MaxReferralLevel = DFS_VERSION;
+
+	/* Path to resolve in an UTF-16 null-terminated string */
+	memcpy(dfs_req->RequestFileName, utf16_path, utf16_path_len);
+
+	do {
+		/* try first with IPC */
+		rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
+				FSCTL_DFS_GET_REFERRALS,
+				true /* is_fsctl */, true /* use_ipc */,
+				(char *)dfs_req, dfs_req_size,
+				(char **)&dfs_rsp, &dfs_rsp_size);
+		if (rc == -ENOTCONN) {
+			/* try with normal tcon */
+			rc = SMB2_ioctl(xid, tcon, NO_FILE_ID, NO_FILE_ID,
+					FSCTL_DFS_GET_REFERRALS,
+					true /* is_fsctl */, false /*use_ipc*/,
+					(char *)dfs_req, dfs_req_size,
+					(char **)&dfs_rsp, &dfs_rsp_size);
+		}
+	} while (rc == -EAGAIN);
+
+	if (rc) {
+		cifs_dbg(VFS, "ioctl error in smb2_get_dfs_refer rc=%d\n", rc);
+		goto out;
+	}
+
+	rc = parse_dfs_referrals(dfs_rsp, dfs_rsp_size,
+				 num_of_nodes, target_nodes,
+				 nls_codepage, remap, search_name,
+				 true /* is_unicode */);
+	if (rc) {
+		cifs_dbg(VFS, "parse error in smb2_get_dfs_refer rc=%d\n", rc);
+		goto out;
+	}
+
+ out:
+	if (tcon) {
+		spin_lock(&cifs_tcp_ses_lock);
+		tcon->tc_count--;
+		spin_unlock(&cifs_tcp_ses_lock);
+	}
+	kfree(utf16_path);
+	kfree(dfs_req);
+	kfree(dfs_rsp);
+	return rc;
+}
 #define SMB2_SYMLINK_STRUCT_SIZE \
 	(sizeof(struct smb2_err_rsp) - 1 + sizeof(struct smb2_symlink_err_rsp))
 
@@ -1216,7 +1324,8 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 
 	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
 			cfile->fid.volatile_fid, FSCTL_SET_ZERO_DATA,
-			true /* is_fctl */, (char *)&fsctl_buf,
+			true /* is_fctl */, false /* use_ipc */,
+			(char *)&fsctl_buf,
 			sizeof(struct file_zero_data_information), NULL, NULL);
 	free_xid(xid);
 	return rc;
@@ -1250,7 +1359,8 @@ static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 
 	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
 			cfile->fid.volatile_fid, FSCTL_SET_ZERO_DATA,
-			true /* is_fctl */, (char *)&fsctl_buf,
+			true /* is_fctl */, false /* use_ipc */,
+			(char *)&fsctl_buf,
 			sizeof(struct file_zero_data_information), NULL, NULL);
 	free_xid(xid);
 	return rc;
@@ -1545,6 +1655,653 @@ smb2_dir_needs_close(struct cifsFileInfo *cfile)
 	return !cfile->invalidHandle;
 }
 
+static void
+fill_transform_hdr(struct smb2_transform_hdr *tr_hdr, struct smb_rqst *old_rq)
+{
+	struct smb2_sync_hdr *shdr =
+			(struct smb2_sync_hdr *)old_rq->rq_iov[1].iov_base;
+	unsigned int orig_len = get_rfc1002_length(old_rq->rq_iov[0].iov_base);
+
+	memset(tr_hdr, 0, sizeof(struct smb2_transform_hdr));
+	tr_hdr->ProtocolId = SMB2_TRANSFORM_PROTO_NUM;
+	tr_hdr->OriginalMessageSize = cpu_to_le32(orig_len);
+	tr_hdr->Flags = cpu_to_le16(0x01);
+	get_random_bytes(&tr_hdr->Nonce, SMB3_AES128CMM_NONCE);
+	memcpy(&tr_hdr->SessionId, &shdr->SessionId, 8);
+	inc_rfc1001_len(tr_hdr, sizeof(struct smb2_transform_hdr) - 4);
+	inc_rfc1001_len(tr_hdr, orig_len);
+}
+
+static struct scatterlist *
+init_sg(struct smb_rqst *rqst, u8 *sign)
+{
+	unsigned int sg_len = rqst->rq_nvec + rqst->rq_npages + 1;
+	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 24;
+	struct scatterlist *sg;
+	unsigned int i;
+	unsigned int j;
+
+	sg = kmalloc_array(sg_len, sizeof(struct scatterlist), GFP_KERNEL);
+	if (!sg)
+		return NULL;
+
+	sg_init_table(sg, sg_len);
+	sg_set_buf(&sg[0], rqst->rq_iov[0].iov_base + 24, assoc_data_len);
+	for (i = 1; i < rqst->rq_nvec; i++)
+		sg_set_buf(&sg[i], rqst->rq_iov[i].iov_base,
+						rqst->rq_iov[i].iov_len);
+	for (j = 0; i < sg_len - 1; i++, j++) {
+		unsigned int len = (j < rqst->rq_npages - 1) ? rqst->rq_pagesz
+							: rqst->rq_tailsz;
+		sg_set_page(&sg[i], rqst->rq_pages[j], len, 0);
+	}
+	sg_set_buf(&sg[sg_len - 1], sign, SMB2_SIGNATURE_SIZE);
+	return sg;
+}
+
+struct cifs_crypt_result {
+	int err;
+	struct completion completion;
+};
+
+static void cifs_crypt_complete(struct crypto_async_request *req, int err)
+{
+	struct cifs_crypt_result *res = req->data;
+
+	if (err == -EINPROGRESS)
+		return;
+
+	res->err = err;
+	complete(&res->completion);
+}
+
+static int
+smb2_get_enc_key(struct TCP_Server_Info *server, __u64 ses_id, int enc, u8 *key)
+{
+	struct cifs_ses *ses;
+	u8 *ses_enc_key;
+
+	spin_lock(&cifs_tcp_ses_lock);
+	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
+		if (ses->Suid != ses_id)
+			continue;
+		ses_enc_key = enc ? ses->smb3encryptionkey :
+							ses->smb3decryptionkey;
+		memcpy(key, ses_enc_key, SMB3_SIGN_KEY_SIZE);
+		spin_unlock(&cifs_tcp_ses_lock);
+		return 0;
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
+
+	return 1;
+}
+/*
+ * Encrypt or decrypt @rqst message. @rqst has the following format:
+ * iov[0] - transform header (associate data),
+ * iov[1-N] and pages - data to encrypt.
+ * On success return encrypted data in iov[1-N] and pages, leave iov[0]
+ * untouched.
+ */
+static int
+crypt_message(struct TCP_Server_Info *server, struct smb_rqst *rqst, int enc)
+{
+	struct smb2_transform_hdr *tr_hdr =
+			(struct smb2_transform_hdr *)rqst->rq_iov[0].iov_base;
+	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 24;
+	int rc = 0;
+	struct scatterlist *sg;
+	u8 sign[SMB2_SIGNATURE_SIZE] = {};
+	u8 key[SMB3_SIGN_KEY_SIZE];
+	struct aead_request *req;
+	char *iv;
+	unsigned int iv_len;
+	struct cifs_crypt_result result = {0, };
+	struct crypto_aead *tfm;
+	unsigned int crypt_len = le32_to_cpu(tr_hdr->OriginalMessageSize);
+
+	init_completion(&result.completion);
+
+	rc = smb2_get_enc_key(server, tr_hdr->SessionId, enc, key);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Could not get %scryption key\n", __func__,
+			 enc ? "en" : "de");
+		return 0;
+	}
+
+	rc = smb3_crypto_aead_allocate(server);
+	if (rc) {
+		cifs_dbg(VFS, "%s: crypto alloc failed\n", __func__);
+		return rc;
+	}
+
+	tfm = enc ? server->secmech.ccmaesencrypt :
+						server->secmech.ccmaesdecrypt;
+	rc = crypto_aead_setkey(tfm, key, SMB3_SIGN_KEY_SIZE);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Failed to set aead key %d\n", __func__, rc);
+		return rc;
+	}
+
+	rc = crypto_aead_setauthsize(tfm, SMB2_SIGNATURE_SIZE);
+	if (rc) {
+		cifs_dbg(VFS, "%s: Failed to set authsize %d\n", __func__, rc);
+		return rc;
+	}
+
+	req = aead_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		cifs_dbg(VFS, "%s: Failed to alloc aead request", __func__);
+		return -ENOMEM;
+	}
+
+	if (!enc) {
+		memcpy(sign, &tr_hdr->Signature, SMB2_SIGNATURE_SIZE);
+		crypt_len += SMB2_SIGNATURE_SIZE;
+	}
+
+	sg = init_sg(rqst, sign);
+	if (!sg) {
+		cifs_dbg(VFS, "%s: Failed to init sg %d", __func__, rc);
+		goto free_req;
+	}
+
+	iv_len = crypto_aead_ivsize(tfm);
+	iv = kzalloc(iv_len, GFP_KERNEL);
+	if (!iv) {
+		cifs_dbg(VFS, "%s: Failed to alloc IV", __func__);
+		goto free_sg;
+	}
+	iv[0] = 3;
+	memcpy(iv + 1, (char *)tr_hdr->Nonce, SMB3_AES128CMM_NONCE);
+
+	aead_request_set_crypt(req, sg, sg, crypt_len, iv);
+	aead_request_set_ad(req, assoc_data_len);
+
+	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				  cifs_crypt_complete, &result);
+
+	rc = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
+
+	if (rc == -EINPROGRESS || rc == -EBUSY) {
+		wait_for_completion(&result.completion);
+		rc = result.err;
+	}
+
+	if (!rc && enc)
+		memcpy(&tr_hdr->Signature, sign, SMB2_SIGNATURE_SIZE);
+
+	kfree(iv);
+free_sg:
+	kfree(sg);
+free_req:
+	kfree(req);
+	return rc;
+}
+
+static int
+smb3_init_transform_rq(struct TCP_Server_Info *server, struct smb_rqst *new_rq,
+		       struct smb_rqst *old_rq)
+{
+	struct kvec *iov;
+	struct page **pages;
+	struct smb2_transform_hdr *tr_hdr;
+	unsigned int npages = old_rq->rq_npages;
+	int i;
+	int rc = -ENOMEM;
+
+	pages = kmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return rc;
+
+	new_rq->rq_pages = pages;
+	new_rq->rq_npages = old_rq->rq_npages;
+	new_rq->rq_pagesz = old_rq->rq_pagesz;
+	new_rq->rq_tailsz = old_rq->rq_tailsz;
+
+	for (i = 0; i < npages; i++) {
+		pages[i] = alloc_page(GFP_KERNEL|__GFP_HIGHMEM);
+		if (!pages[i])
+			goto err_free_pages;
+	}
+
+	iov = kmalloc_array(old_rq->rq_nvec, sizeof(struct kvec), GFP_KERNEL);
+	if (!iov)
+		goto err_free_pages;
+
+	/* copy all iovs from the old except the 1st one (rfc1002 length) */
+	memcpy(&iov[1], &old_rq->rq_iov[1],
+				sizeof(struct kvec) * (old_rq->rq_nvec - 1));
+	new_rq->rq_iov = iov;
+	new_rq->rq_nvec = old_rq->rq_nvec;
+
+	tr_hdr = kmalloc(sizeof(struct smb2_transform_hdr), GFP_KERNEL);
+	if (!tr_hdr)
+		goto err_free_iov;
+
+	/* fill the 1st iov with a transform header */
+	fill_transform_hdr(tr_hdr, old_rq);
+	new_rq->rq_iov[0].iov_base = tr_hdr;
+	new_rq->rq_iov[0].iov_len = sizeof(struct smb2_transform_hdr);
+
+	/* copy pages form the old */
+	for (i = 0; i < npages; i++) {
+		char *dst = kmap(new_rq->rq_pages[i]);
+		char *src = kmap(old_rq->rq_pages[i]);
+		unsigned int len = (i < npages - 1) ? new_rq->rq_pagesz :
+							new_rq->rq_tailsz;
+		memcpy(dst, src, len);
+		kunmap(new_rq->rq_pages[i]);
+		kunmap(old_rq->rq_pages[i]);
+	}
+
+	rc = crypt_message(server, new_rq, 1);
+	cifs_dbg(FYI, "encrypt message returned %d", rc);
+	if (rc)
+		goto err_free_tr_hdr;
+
+	return rc;
+
+err_free_tr_hdr:
+	kfree(tr_hdr);
+err_free_iov:
+	kfree(iov);
+err_free_pages:
+	for (i = i - 1; i >= 0; i--)
+		put_page(pages[i]);
+	kfree(pages);
+	return rc;
+}
+
+static void
+smb3_free_transform_rq(struct smb_rqst *rqst)
+{
+	int i = rqst->rq_npages - 1;
+
+	for (; i >= 0; i--)
+		put_page(rqst->rq_pages[i]);
+	kfree(rqst->rq_pages);
+	/* free transform header */
+	kfree(rqst->rq_iov[0].iov_base);
+	kfree(rqst->rq_iov);
+}
+
+static int
+smb3_is_transform_hdr(void *buf)
+{
+	struct smb2_transform_hdr *trhdr = buf;
+
+	return trhdr->ProtocolId == SMB2_TRANSFORM_PROTO_NUM;
+}
+
+static int
+decrypt_raw_data(struct TCP_Server_Info *server, char *buf,
+		 unsigned int buf_data_size, struct page **pages,
+		 unsigned int npages, unsigned int page_data_size)
+{
+	struct kvec iov[2];
+	struct smb_rqst rqst = {NULL};
+	struct smb2_hdr *hdr;
+	int rc;
+
+	iov[0].iov_base = buf;
+	iov[0].iov_len = sizeof(struct smb2_transform_hdr);
+	iov[1].iov_base = buf + sizeof(struct smb2_transform_hdr);
+	iov[1].iov_len = buf_data_size;
+
+	rqst.rq_iov = iov;
+	rqst.rq_nvec = 2;
+	rqst.rq_pages = pages;
+	rqst.rq_npages = npages;
+	rqst.rq_pagesz = PAGE_SIZE;
+	rqst.rq_tailsz = (page_data_size % PAGE_SIZE) ? : PAGE_SIZE;
+
+	rc = crypt_message(server, &rqst, 0);
+	cifs_dbg(FYI, "decrypt message returned %d\n", rc);
+
+	if (rc)
+		return rc;
+
+	memmove(buf + 4, iov[1].iov_base, buf_data_size);
+	hdr = (struct smb2_hdr *)buf;
+	hdr->smb2_buf_length = cpu_to_be32(buf_data_size + page_data_size);
+	server->total_read = buf_data_size + page_data_size + 4;
+
+	return rc;
+}
+
+static int
+read_data_into_pages(struct TCP_Server_Info *server, struct page **pages,
+		     unsigned int npages, unsigned int len)
+{
+	int i;
+	int length;
+
+	for (i = 0; i < npages; i++) {
+		struct page *page = pages[i];
+		size_t n;
+
+		n = len;
+		if (len >= PAGE_SIZE) {
+			/* enough data to fill the page */
+			n = PAGE_SIZE;
+			len -= n;
+		} else {
+			zero_user(page, len, PAGE_SIZE - len);
+			len = 0;
+		}
+		length = cifs_read_page_from_socket(server, page, n);
+		if (length < 0)
+			return length;
+		server->total_read += length;
+	}
+
+	return 0;
+}
+
+static int
+init_read_bvec(struct page **pages, unsigned int npages, unsigned int data_size,
+	       unsigned int cur_off, struct bio_vec **page_vec)
+{
+	struct bio_vec *bvec;
+	int i;
+
+	bvec = kcalloc(npages, sizeof(struct bio_vec), GFP_KERNEL);
+	if (!bvec)
+		return -ENOMEM;
+
+	for (i = 0; i < npages; i++) {
+		bvec[i].bv_page = pages[i];
+		bvec[i].bv_offset = (i == 0) ? cur_off : 0;
+		bvec[i].bv_len = min_t(unsigned int, PAGE_SIZE, data_size);
+		data_size -= bvec[i].bv_len;
+	}
+
+	if (data_size != 0) {
+		cifs_dbg(VFS, "%s: something went wrong\n", __func__);
+		kfree(bvec);
+		return -EIO;
+	}
+
+	*page_vec = bvec;
+	return 0;
+}
+
+static int
+handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
+		 char *buf, unsigned int buf_len, struct page **pages,
+		 unsigned int npages, unsigned int page_data_size)
+{
+	unsigned int data_offset;
+	unsigned int data_len;
+	unsigned int cur_off;
+	unsigned int cur_page_idx;
+	unsigned int pad_len;
+	struct cifs_readdata *rdata = mid->callback_data;
+	struct smb2_sync_hdr *shdr = get_sync_hdr(buf);
+	struct bio_vec *bvec = NULL;
+	struct iov_iter iter;
+	struct kvec iov;
+	int length;
+
+	if (shdr->Command != SMB2_READ) {
+		cifs_dbg(VFS, "only big read responses are supported\n");
+		return -ENOTSUPP;
+	}
+
+	if (server->ops->is_status_pending &&
+			server->ops->is_status_pending(buf, server, 0))
+		return -1;
+
+	rdata->result = server->ops->map_error(buf, false);
+	if (rdata->result != 0) {
+		cifs_dbg(FYI, "%s: server returned error %d\n",
+			 __func__, rdata->result);
+		dequeue_mid(mid, rdata->result);
+		return 0;
+	}
+
+	data_offset = server->ops->read_data_offset(buf) + 4;
+	data_len = server->ops->read_data_length(buf);
+
+	if (data_offset < server->vals->read_rsp_size) {
+		/*
+		 * win2k8 sometimes sends an offset of 0 when the read
+		 * is beyond the EOF. Treat it as if the data starts just after
+		 * the header.
+		 */
+		cifs_dbg(FYI, "%s: data offset (%u) inside read response header\n",
+			 __func__, data_offset);
+		data_offset = server->vals->read_rsp_size;
+	} else if (data_offset > MAX_CIFS_SMALL_BUFFER_SIZE) {
+		/* data_offset is beyond the end of smallbuf */
+		cifs_dbg(FYI, "%s: data offset (%u) beyond end of smallbuf\n",
+			 __func__, data_offset);
+		rdata->result = -EIO;
+		dequeue_mid(mid, rdata->result);
+		return 0;
+	}
+
+	pad_len = data_offset - server->vals->read_rsp_size;
+
+	if (buf_len <= data_offset) {
+		/* read response payload is in pages */
+		cur_page_idx = pad_len / PAGE_SIZE;
+		cur_off = pad_len % PAGE_SIZE;
+
+		if (cur_page_idx != 0) {
+			/* data offset is beyond the 1st page of response */
+			cifs_dbg(FYI, "%s: data offset (%u) beyond 1st page of response\n",
+				 __func__, data_offset);
+			rdata->result = -EIO;
+			dequeue_mid(mid, rdata->result);
+			return 0;
+		}
+
+		if (data_len > page_data_size - pad_len) {
+			/* data_len is corrupt -- discard frame */
+			rdata->result = -EIO;
+			dequeue_mid(mid, rdata->result);
+			return 0;
+		}
+
+		rdata->result = init_read_bvec(pages, npages, page_data_size,
+					       cur_off, &bvec);
+		if (rdata->result != 0) {
+			dequeue_mid(mid, rdata->result);
+			return 0;
+		}
+
+		iov_iter_bvec(&iter, WRITE | ITER_BVEC, bvec, npages, data_len);
+	} else if (buf_len >= data_offset + data_len) {
+		/* read response payload is in buf */
+		WARN_ONCE(npages > 0, "read data can be either in buf or in pages");
+		iov.iov_base = buf + data_offset;
+		iov.iov_len = data_len;
+		iov_iter_kvec(&iter, WRITE | ITER_KVEC, &iov, 1, data_len);
+	} else {
+		/* read response payload cannot be in both buf and pages */
+		WARN_ONCE(1, "buf can not contain only a part of read data");
+		rdata->result = -EIO;
+		dequeue_mid(mid, rdata->result);
+		return 0;
+	}
+
+	/* set up first iov for signature check */
+	rdata->iov[0].iov_base = buf;
+	rdata->iov[0].iov_len = 4;
+	rdata->iov[1].iov_base = buf + 4;
+	rdata->iov[1].iov_len = server->vals->read_rsp_size - 4;
+	cifs_dbg(FYI, "0: iov_base=%p iov_len=%zu\n",
+		 rdata->iov[0].iov_base, server->vals->read_rsp_size);
+
+	length = rdata->copy_into_pages(server, rdata, &iter);
+
+	kfree(bvec);
+
+	if (length < 0)
+		return length;
+
+	dequeue_mid(mid, false);
+	return length;
+}
+
+static int
+receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid)
+{
+	char *buf = server->smallbuf;
+	struct smb2_transform_hdr *tr_hdr = (struct smb2_transform_hdr *)buf;
+	unsigned int npages;
+	struct page **pages;
+	unsigned int len;
+	unsigned int buflen = get_rfc1002_length(buf) + 4;
+	int rc;
+	int i = 0;
+
+	len = min_t(unsigned int, buflen, server->vals->read_rsp_size - 4 +
+		sizeof(struct smb2_transform_hdr)) - HEADER_SIZE(server) + 1;
+
+	rc = cifs_read_from_socket(server, buf + HEADER_SIZE(server) - 1, len);
+	if (rc < 0)
+		return rc;
+	server->total_read += rc;
+
+	len = le32_to_cpu(tr_hdr->OriginalMessageSize) + 4 -
+						server->vals->read_rsp_size;
+	npages = DIV_ROUND_UP(len, PAGE_SIZE);
+
+	pages = kmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages) {
+		rc = -ENOMEM;
+		goto discard_data;
+	}
+
+	for (; i < npages; i++) {
+		pages[i] = alloc_page(GFP_KERNEL|__GFP_HIGHMEM);
+		if (!pages[i]) {
+			rc = -ENOMEM;
+			goto discard_data;
+		}
+	}
+
+	/* read read data into pages */
+	rc = read_data_into_pages(server, pages, npages, len);
+	if (rc)
+		goto free_pages;
+
+	rc = cifs_discard_remaining_data(server);
+	if (rc)
+		goto free_pages;
+
+	rc = decrypt_raw_data(server, buf, server->vals->read_rsp_size - 4,
+			      pages, npages, len);
+	if (rc)
+		goto free_pages;
+
+	*mid = smb2_find_mid(server, buf);
+	if (*mid == NULL)
+		cifs_dbg(FYI, "mid not found\n");
+	else {
+		cifs_dbg(FYI, "mid found\n");
+		(*mid)->decrypted = true;
+		rc = handle_read_data(server, *mid, buf,
+				      server->vals->read_rsp_size,
+				      pages, npages, len);
+	}
+
+free_pages:
+	for (i = i - 1; i >= 0; i--)
+		put_page(pages[i]);
+	kfree(pages);
+	return rc;
+discard_data:
+	cifs_discard_remaining_data(server);
+	goto free_pages;
+}
+
+static int
+receive_encrypted_standard(struct TCP_Server_Info *server,
+			   struct mid_q_entry **mid)
+{
+	int length;
+	char *buf = server->smallbuf;
+	unsigned int pdu_length = get_rfc1002_length(buf);
+	unsigned int buf_size;
+	struct mid_q_entry *mid_entry;
+
+	/* switch to large buffer if too big for a small one */
+	if (pdu_length + 4 > MAX_CIFS_SMALL_BUFFER_SIZE) {
+		server->large_buf = true;
+		memcpy(server->bigbuf, buf, server->total_read);
+		buf = server->bigbuf;
+	}
+
+	/* now read the rest */
+	length = cifs_read_from_socket(server, buf + HEADER_SIZE(server) - 1,
+				pdu_length - HEADER_SIZE(server) + 1 + 4);
+	if (length < 0)
+		return length;
+	server->total_read += length;
+
+	buf_size = pdu_length + 4 - sizeof(struct smb2_transform_hdr);
+	length = decrypt_raw_data(server, buf, buf_size, NULL, 0, 0);
+	if (length)
+		return length;
+
+	mid_entry = smb2_find_mid(server, buf);
+	if (mid_entry == NULL)
+		cifs_dbg(FYI, "mid not found\n");
+	else {
+		cifs_dbg(FYI, "mid found\n");
+		mid_entry->decrypted = true;
+	}
+
+	*mid = mid_entry;
+
+	if (mid_entry && mid_entry->handle)
+		return mid_entry->handle(server, mid_entry);
+
+	return cifs_handle_standard(server, mid_entry);
+}
+
+static int
+smb3_receive_transform(struct TCP_Server_Info *server, struct mid_q_entry **mid)
+{
+	char *buf = server->smallbuf;
+	unsigned int pdu_length = get_rfc1002_length(buf);
+	struct smb2_transform_hdr *tr_hdr = (struct smb2_transform_hdr *)buf;
+	unsigned int orig_len = le32_to_cpu(tr_hdr->OriginalMessageSize);
+
+	if (pdu_length + 4 < sizeof(struct smb2_transform_hdr) +
+						sizeof(struct smb2_sync_hdr)) {
+		cifs_dbg(VFS, "Transform message is too small (%u)\n",
+			 pdu_length);
+		cifs_reconnect(server);
+		wake_up(&server->response_q);
+		return -ECONNABORTED;
+	}
+
+	if (pdu_length + 4 < orig_len + sizeof(struct smb2_transform_hdr)) {
+		cifs_dbg(VFS, "Transform message is broken\n");
+		cifs_reconnect(server);
+		wake_up(&server->response_q);
+		return -ECONNABORTED;
+	}
+
+	if (pdu_length + 4 > CIFSMaxBufSize + MAX_HEADER_SIZE(server))
+		return receive_encrypted_read(server, mid);
+
+	return receive_encrypted_standard(server, mid);
+}
+
+int
+smb3_handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid)
+{
+	char *buf = server->large_buf ? server->bigbuf : server->smallbuf;
+
+	return handle_read_data(server, mid, buf, get_rfc1002_length(buf) + 4,
+				NULL, 0, 0);
+}
+
 struct smb_version_operations smb20_operations = {
 	.compare_fids = smb2_compare_fids,
 	.setup_request = smb2_setup_request,
@@ -1623,6 +2380,8 @@ struct smb_version_operations smb20_operations = {
 	.clone_range = smb2_clone_range,
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
+	.get_dfs_refer = smb2_get_dfs_refer,
+	.select_sectype = smb2_select_sectype,
 };
 
 struct smb_version_operations smb21_operations = {
@@ -1704,6 +2463,8 @@ struct smb_version_operations smb21_operations = {
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
 	.enum_snapshots = smb3_enum_snapshots,
+	.get_dfs_refer = smb2_get_dfs_refer,
+	.select_sectype = smb2_select_sectype,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -1791,6 +2552,12 @@ struct smb_version_operations smb30_operations = {
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
 	.enum_snapshots = smb3_enum_snapshots,
+	.init_transform_rq = smb3_init_transform_rq,
+	.free_transform_rq = smb3_free_transform_rq,
+	.is_transform_hdr = smb3_is_transform_hdr,
+	.receive_transform = smb3_receive_transform,
+	.get_dfs_refer = smb2_get_dfs_refer,
+	.select_sectype = smb2_select_sectype,
 };
 
 #ifdef CONFIG_CIFS_SMB311
@@ -1879,6 +2646,12 @@ struct smb_version_operations smb311_operations = {
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
 	.enum_snapshots = smb3_enum_snapshots,
+	.init_transform_rq = smb3_init_transform_rq,
+	.free_transform_rq = smb3_free_transform_rq,
+	.is_transform_hdr = smb3_is_transform_hdr,
+	.receive_transform = smb3_receive_transform,
+	.get_dfs_refer = smb2_get_dfs_refer,
+	.select_sectype = smb2_select_sectype,
 };
 #endif /* CIFS_SMB311 */
 

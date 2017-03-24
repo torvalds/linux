@@ -42,7 +42,3 @@ int crypto_init_compress_ops(struct crypto_tfm *tfm)
 
 	return 0;
 }
-
-void crypto_exit_compress_ops(struct crypto_tfm *tfm)
-{
-}

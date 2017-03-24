@@ -11,10 +11,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -87,7 +83,7 @@
 #define	TDES0_ERROR_SUMMARY		BIT(15)
 #define	TDES0_IP_HEADER_ERROR		BIT(16)
 #define	TDES0_TIME_STAMP_STATUS		BIT(17)
-#define	TDES0_OWN			BIT(31)
+#define	TDES0_OWN			((u32)BIT(31))	/* silence sparse */
 /* TDES1 */
 #define	TDES1_BUFFER1_SIZE_MASK		GENMASK(10, 0)
 #define	TDES1_BUFFER2_SIZE_MASK		GENMASK(21, 11)
@@ -130,7 +126,7 @@
 #define	ETDES0_FIRST_SEGMENT		BIT(28)
 #define	ETDES0_LAST_SEGMENT		BIT(29)
 #define	ETDES0_INTERRUPT		BIT(30)
-#define	ETDES0_OWN			BIT(31)
+#define	ETDES0_OWN			((u32)BIT(31))	/* silence sparse */
 /* TDES1 */
 #define	ETDES1_BUFFER1_SIZE_MASK	GENMASK(12, 0)
 #define	ETDES1_BUFFER2_SIZE_MASK	GENMASK(28, 16)
@@ -170,19 +166,19 @@
 
 /* Basic descriptor structure for normal and alternate descriptors */
 struct dma_desc {
-	unsigned int des0;
-	unsigned int des1;
-	unsigned int des2;
-	unsigned int des3;
+	__le32 des0;
+	__le32 des1;
+	__le32 des2;
+	__le32 des3;
 };
 
 /* Extended descriptor structure (e.g. >= databook 3.50a) */
 struct dma_extended_desc {
 	struct dma_desc basic;	/* Basic descriptors */
-	unsigned int des4;	/* Extended Status */
-	unsigned int des5;	/* Reserved */
-	unsigned int des6;	/* Tx/Rx Timestamp Low */
-	unsigned int des7;	/* Tx/Rx Timestamp High */
+	__le32 des4;	/* Extended Status */
+	__le32 des5;	/* Reserved */
+	__le32 des6;	/* Tx/Rx Timestamp Low */
+	__le32 des7;	/* Tx/Rx Timestamp High */
 };
 
 /* Transmit checksum insertion control */

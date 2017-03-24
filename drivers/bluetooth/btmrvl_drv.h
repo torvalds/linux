@@ -32,7 +32,6 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/slab.h>
 #include <linux/of_irq.h>
 
 #define BTM_HEADER_LEN			4

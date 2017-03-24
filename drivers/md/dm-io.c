@@ -162,7 +162,10 @@ struct dpages {
 			 struct page **p, unsigned long *len, unsigned *offset);
 	void (*next_page)(struct dpages *dp);
 
-	unsigned context_u;
+	union {
+		unsigned context_u;
+		struct bvec_iter context_bi;
+	};
 	void *context_ptr;
 
 	void *vma_invalidate_address;
@@ -204,25 +207,36 @@ static void list_dp_init(struct dpages *dp, struct page_list *pl, unsigned offse
 static void bio_get_page(struct dpages *dp, struct page **p,
 			 unsigned long *len, unsigned *offset)
 {
-	struct bio_vec *bvec = dp->context_ptr;
-	*p = bvec->bv_page;
-	*len = bvec->bv_len - dp->context_u;
-	*offset = bvec->bv_offset + dp->context_u;
+	struct bio_vec bvec = bvec_iter_bvec((struct bio_vec *)dp->context_ptr,
+					     dp->context_bi);
+
+	*p = bvec.bv_page;
+	*len = bvec.bv_len;
+	*offset = bvec.bv_offset;
+
+	/* avoid figuring it out again in bio_next_page() */
+	dp->context_bi.bi_sector = (sector_t)bvec.bv_len;
 }
 
 static void bio_next_page(struct dpages *dp)
 {
-	struct bio_vec *bvec = dp->context_ptr;
-	dp->context_ptr = bvec + 1;
-	dp->context_u = 0;
+	unsigned int len = (unsigned int)dp->context_bi.bi_sector;
+
+	bvec_iter_advance((struct bio_vec *)dp->context_ptr,
+			  &dp->context_bi, len);
 }
 
 static void bio_dp_init(struct dpages *dp, struct bio *bio)
 {
 	dp->get_page = bio_get_page;
 	dp->next_page = bio_next_page;
-	dp->context_ptr = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
-	dp->context_u = bio->bi_iter.bi_bvec_done;
+
+	/*
+	 * We just use bvec iterator to retrieve pages, so it is ok to
+	 * access the bvec table directly here
+	 */
+	dp->context_ptr = bio->bi_io_vec;
+	dp->context_bi = bio->bi_iter;
 }
 
 /*

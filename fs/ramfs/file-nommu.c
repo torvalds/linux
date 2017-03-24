@@ -23,7 +23,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "internal.h"
 
 static int ramfs_nommu_setattr(struct dentry *, struct iattr *);

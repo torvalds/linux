@@ -9,12 +9,57 @@ struct mpls_entry_decoded {
 	u8 bos;
 };
 
-struct mpls_dev {
-	int			input_enabled;
-
-	struct ctl_table_header *sysctl;
-	struct rcu_head		rcu;
+struct mpls_pcpu_stats {
+	struct mpls_link_stats	stats;
+	struct u64_stats_sync	syncp;
 };
+
+struct mpls_dev {
+	int				input_enabled;
+	struct net_device		*dev;
+	struct mpls_pcpu_stats __percpu	*stats;
+
+	struct ctl_table_header		*sysctl;
+	struct rcu_head			rcu;
+};
+
+#if BITS_PER_LONG == 32
+
+#define MPLS_INC_STATS_LEN(mdev, len, pkts_field, bytes_field)		\
+	do {								\
+		__typeof__(*(mdev)->stats) *ptr =			\
+			raw_cpu_ptr((mdev)->stats);			\
+		local_bh_disable();					\
+		u64_stats_update_begin(&ptr->syncp);			\
+		ptr->stats.pkts_field++;				\
+		ptr->stats.bytes_field += (len);			\
+		u64_stats_update_end(&ptr->syncp);			\
+		local_bh_enable();					\
+	} while (0)
+
+#define MPLS_INC_STATS(mdev, field)					\
+	do {								\
+		__typeof__(*(mdev)->stats) *ptr =			\
+			raw_cpu_ptr((mdev)->stats);			\
+		local_bh_disable();					\
+		u64_stats_update_begin(&ptr->syncp);			\
+		ptr->stats.field++;					\
+		u64_stats_update_end(&ptr->syncp);			\
+		local_bh_enable();					\
+	} while (0)
+
+#else
+
+#define MPLS_INC_STATS_LEN(mdev, len, pkts_field, bytes_field)		\
+	do {								\
+		this_cpu_inc((mdev)->stats->stats.pkts_field);		\
+		this_cpu_add((mdev)->stats->stats.bytes_field, (len));	\
+	} while (0)
+
+#define MPLS_INC_STATS(mdev, field)			\
+	this_cpu_inc((mdev)->stats->stats.field)
+
+#endif
 
 struct sk_buff;
 
@@ -114,6 +159,11 @@ static inline struct mpls_entry_decoded mpls_entry_decode(struct mpls_shim_hdr *
 	return result;
 }
 
+static inline struct mpls_dev *mpls_dev_get(const struct net_device *dev)
+{
+	return rcu_dereference_rtnl(dev->mpls_ptr);
+}
+
 int nla_put_labels(struct sk_buff *skb, int attrtype,  u8 labels,
 		   const u32 label[]);
 int nla_get_labels(const struct nlattr *nla, u32 max_labels, u8 *labels,
@@ -123,5 +173,7 @@ int nla_get_via(const struct nlattr *nla, u8 *via_alen, u8 *via_table,
 bool mpls_output_possible(const struct net_device *dev);
 unsigned int mpls_dev_mtu(const struct net_device *dev);
 bool mpls_pkt_too_big(const struct sk_buff *skb, unsigned int mtu);
+void mpls_stats_inc_outucastpkts(struct net_device *dev,
+				 const struct sk_buff *skb);
 
 #endif /* MPLS_INTERNAL_H */

@@ -46,8 +46,11 @@ void ovs_match_init(struct sw_flow_match *match,
 
 int ovs_nla_put_key(const struct sw_flow_key *, const struct sw_flow_key *,
 		    int attr, bool is_mask, struct sk_buff *);
-int ovs_nla_get_flow_metadata(struct net *, const struct nlattr *,
-			      struct sw_flow_key *, bool log);
+int parse_flow_nlattrs(const struct nlattr *attr, const struct nlattr *a[],
+		       u64 *attrsp, bool log);
+int ovs_nla_get_flow_metadata(struct net *net,
+			      const struct nlattr *a[OVS_KEY_ATTR_MAX + 1],
+			      u64 attrs, struct sw_flow_key *key, bool log);
 
 int ovs_nla_put_identifier(const struct sw_flow *flow, struct sk_buff *skb);
 int ovs_nla_put_masked_key(const struct sw_flow *flow, struct sk_buff *skb);

@@ -27,9 +27,7 @@ Optional properties (port):
 
 - marvell,loopback: port is loopback mode
 - phy: a phandle to a phy node defining the PHY address (as the reg
-  property, a single integer). Note: if this property isn't present,
-  then fixed link is assumed, and the 'fixed-link' property is
-  mandatory.
+  property, a single integer).
 
 Example:
 

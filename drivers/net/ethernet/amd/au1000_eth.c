@@ -1103,7 +1103,6 @@ static const struct net_device_ops au1000_netdev_ops = {
 	.ndo_tx_timeout		= au1000_tx_timeout,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int au1000_probe(struct platform_device *pdev)

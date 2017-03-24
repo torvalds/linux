@@ -653,6 +653,9 @@ enum {
 
 extern const char *ceph_cap_op_name(int op);
 
+/* flags field in client cap messages (version >= 10) */
+#define CEPH_CLIENT_CAPS_SYNC	(0x1)
+
 /*
  * caps message, used for capability callbacks, acks, requests, etc.
  */

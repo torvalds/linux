@@ -969,12 +969,6 @@ static struct drm_connector_helper_funcs dw_mipi_dsi_connector_helper_funcs = {
 	.mode_valid = dw_mipi_dsi_mode_valid,
 };
 
-static enum drm_connector_status
-dw_mipi_dsi_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static void dw_mipi_dsi_drm_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
@@ -984,7 +978,6 @@ static void dw_mipi_dsi_drm_connector_destroy(struct drm_connector *connector)
 static struct drm_connector_funcs dw_mipi_dsi_atomic_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = dw_mipi_dsi_detect,
 	.destroy = dw_mipi_dsi_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,

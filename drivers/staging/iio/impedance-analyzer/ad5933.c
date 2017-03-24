@@ -23,8 +23,8 @@
 #include <linux/iio/kfifo_buf.h>
 
 /* AD5933/AD5934 Registers */
-#define AD5933_REG_CONTROL_HB		0x80	/* R/W, 2 bytes */
-#define AD5933_REG_CONTROL_LB		0x81	/* R/W, 2 bytes */
+#define AD5933_REG_CONTROL_HB		0x80	/* R/W, 1 byte */
+#define AD5933_REG_CONTROL_LB		0x81	/* R/W, 1 byte */
 #define AD5933_REG_FREQ_START		0x82	/* R/W, 3 bytes */
 #define AD5933_REG_FREQ_INC		0x85	/* R/W, 3 bytes */
 #define AD5933_REG_INC_NUM		0x88	/* R/W, 2 bytes, 9 bit */
@@ -726,13 +726,16 @@ static int ad5933_probe(struct i2c_client *client,
 	if (!pdata)
 		pdata = &ad5933_default_pdata;
 
-	st->reg = devm_regulator_get(&client->dev, "vcc");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
-		if (ret)
-			return ret;
-		voltage_uv = regulator_get_voltage(st->reg);
+	st->reg = devm_regulator_get(&client->dev, "vdd");
+	if (IS_ERR(st->reg))
+		return PTR_ERR(st->reg);
+
+	ret = regulator_enable(st->reg);
+	if (ret) {
+		dev_err(&client->dev, "Failed to enable specified VDD supply\n");
+		return ret;
 	}
+	voltage_uv = regulator_get_voltage(st->reg);
 
 	if (voltage_uv)
 		st->vref_mv = voltage_uv / 1000;
@@ -775,8 +778,7 @@ static int ad5933_probe(struct i2c_client *client,
 error_unreg_ring:
 	iio_kfifo_free(indio_dev->buffer);
 error_disable_reg:
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	regulator_disable(st->reg);
 
 	return ret;
 }
@@ -788,8 +790,7 @@ static int ad5933_remove(struct i2c_client *client)
 
 	iio_device_unregister(indio_dev);
 	iio_kfifo_free(indio_dev->buffer);
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	regulator_disable(st->reg);
 
 	return 0;
 }

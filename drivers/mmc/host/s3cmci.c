@@ -21,6 +21,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/gpio.h>
+#include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 
@@ -28,7 +29,6 @@
 #include <mach/dma.h>
 #include <mach/gpio-samsung.h>
 
-#include <linux/platform_data/dma-s3c24xx.h>
 #include <linux/platform_data/mmc-s3cmci.h>
 
 #include "s3cmci.h"
@@ -1682,19 +1682,13 @@ static int s3cmci_probe(struct platform_device *pdev)
 		gpio_direction_input(host->pdata->gpio_wprotect);
 	}
 
-	/* depending on the dma state, get a dma channel to use. */
+	/* Depending on the dma state, get a DMA channel to use. */
 
 	if (s3cmci_host_usedma(host)) {
-		dma_cap_mask_t mask;
-
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-
-		host->dma = dma_request_slave_channel_compat(mask,
-			s3c24xx_dma_filter, (void *)DMACH_SDI, &pdev->dev, "rx-tx");
-		if (!host->dma) {
+		host->dma = dma_request_chan(&pdev->dev, "rx-tx");
+		ret = PTR_ERR_OR_ZERO(host->dma);
+		if (ret) {
 			dev_err(&pdev->dev, "cannot get DMA channel.\n");
-			ret = -EBUSY;
 			goto probe_free_gpio_wp;
 		}
 	}

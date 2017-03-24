@@ -29,6 +29,11 @@
 #include "amd_shared.h"
 #include "cgs_common.h"
 
+extern const struct amd_ip_funcs pp_ip_funcs;
+extern const struct amd_powerplay_funcs pp_dpm_funcs;
+
+#define PP_DPM_DISABLED 0xCCCC
+
 enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GFX_SCLK = 0,
 	AMDGPU_PP_SENSOR_VDDNB,
@@ -133,17 +138,12 @@ enum amd_pp_event {
 	AMD_PP_EVENT_MAX
 };
 
-enum amd_dpm_forced_level {
-	AMD_DPM_FORCED_LEVEL_AUTO = 0,
-	AMD_DPM_FORCED_LEVEL_LOW = 1,
-	AMD_DPM_FORCED_LEVEL_HIGH = 2,
-	AMD_DPM_FORCED_LEVEL_MANUAL = 3,
-};
-
 struct amd_pp_init {
 	struct cgs_device *device;
 	uint32_t chip_family;
 	uint32_t chip_id;
+	bool pm_en;
+	uint32_t feature_mask;
 };
 
 enum amd_pp_display_config_type{
@@ -349,6 +349,7 @@ struct amd_powerplay_funcs {
 	int (*get_fan_control_mode)(void *handle);
 	int (*set_fan_speed_percent)(void *handle, uint32_t percent);
 	int (*get_fan_speed_percent)(void *handle, uint32_t *speed);
+	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
@@ -359,6 +360,7 @@ struct amd_powerplay_funcs {
 	int (*get_mclk_od)(void *handle);
 	int (*set_mclk_od)(void *handle, uint32_t value);
 	int (*read_sensor)(void *handle, int idx, int32_t *value);
+	struct amd_vce_state* (*get_vce_clock_state)(void *handle, unsigned idx);
 };
 
 struct amd_powerplay {
@@ -367,10 +369,10 @@ struct amd_powerplay {
 	const struct amd_powerplay_funcs *pp_funcs;
 };
 
-int amd_powerplay_init(struct amd_pp_init *pp_init,
-		       struct amd_powerplay *amd_pp);
+int amd_powerplay_create(struct amd_pp_init *pp_init,
+				void **handle);
 
-int amd_powerplay_fini(void *handle);
+int amd_powerplay_destroy(void *handle);
 
 int amd_powerplay_reset(void *handle);
 

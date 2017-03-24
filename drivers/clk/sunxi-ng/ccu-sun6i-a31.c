@@ -143,7 +143,7 @@ static SUNXI_CCU_NKM_WITH_MUX_GATE_LOCK(pll_mipi_clk, "pll-mipi",
 					4, 2,	/* K */
 					0, 4,	/* M */
 					21, 0,	/* mux */
-					BIT(31),	/* gate */
+					BIT(31) | BIT(23) | BIT(22), /* gate */
 					BIT(28),	/* lock */
 					CLK_SET_RATE_UNGATE);
 
@@ -468,8 +468,8 @@ static SUNXI_CCU_MUX_WITH_GATE(daudio0_clk, "daudio0", daudio_parents,
 static SUNXI_CCU_MUX_WITH_GATE(daudio1_clk, "daudio1", daudio_parents,
 			       0x0b4, 16, 2, BIT(31), CLK_SET_RATE_PARENT);
 
-static SUNXI_CCU_M_WITH_GATE(spdif_clk, "spdif", "pll-audio",
-			     0x0c0, 0, 4, BIT(31), CLK_SET_RATE_PARENT);
+static SUNXI_CCU_MUX_WITH_GATE(spdif_clk, "spdif", daudio_parents,
+			       0x0c0, 16, 2, BIT(31), CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_GATE(usb_phy0_clk,	"usb-phy0",	"osc24M",
 		      0x0cc, BIT(8), 0);

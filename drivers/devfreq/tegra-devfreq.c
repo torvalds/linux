@@ -487,15 +487,13 @@ static int tegra_devfreq_target(struct device *dev, unsigned long *freq,
 	struct dev_pm_opp *opp;
 	unsigned long rate = *freq * KHZ;
 
-	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, &rate, flags);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
 		dev_err(dev, "Failed to find opp for %lu KHz\n", *freq);
 		return PTR_ERR(opp);
 	}
 	rate = dev_pm_opp_get_freq(opp);
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	clk_set_min_rate(tegra->emc_clock, rate);
 	clk_set_rate(tegra->emc_clock, 0);

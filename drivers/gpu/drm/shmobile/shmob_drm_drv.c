@@ -104,7 +104,7 @@ static int shmob_drm_setup_clocks(struct shmob_drm_device *sdev,
  * DRM operations
  */
 
-static int shmob_drm_unload(struct drm_device *dev)
+static void shmob_drm_unload(struct drm_device *dev)
 {
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
@@ -112,8 +112,6 @@ static int shmob_drm_unload(struct drm_device *dev)
 	drm_irq_uninstall(dev);
 
 	dev->dev_private = NULL;
-
-	return 0;
 }
 
 static int shmob_drm_load(struct drm_device *dev, unsigned long flags)
@@ -245,9 +243,7 @@ static const struct file_operations shmob_drm_fops = {
 	.open		= drm_open,
 	.release	= drm_release,
 	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl	= drm_compat_ioctl,
-#endif
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.llseek		= no_llseek,

@@ -136,7 +136,8 @@ static const int lm85_scaling[] = {  /* .001 Volts */
 #define SCALE(val, from, to)	(((val) * (to) + ((from) / 2)) / (from))
 
 #define INS_TO_REG(n, val)	\
-		clamp_val(SCALE(val, lm85_scaling[n], 192), 0, 255)
+		SCALE(clamp_val(val, 0, 255 * lm85_scaling[n] / 192), \
+		      lm85_scaling[n], 192)
 
 #define INSEXT_FROM_REG(n, val, ext)	\
 		SCALE(((val) << 4) + (ext), 192 << 4, lm85_scaling[n])
@@ -603,8 +604,8 @@ show_fan_offset(4);
 
 /* vid, vrm, alarms */
 
-static ssize_t show_vid_reg(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t cpu0_vid_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct lm85_data *data = lm85_update_device(dev);
 	int vid;
@@ -620,17 +621,17 @@ static ssize_t show_vid_reg(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", vid);
 }
 
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
+static DEVICE_ATTR_RO(cpu0_vid);
 
-static ssize_t show_vrm_reg(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t vrm_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	struct lm85_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%ld\n", (long) data->vrm);
 }
 
-static ssize_t store_vrm_reg(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t vrm_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct lm85_data *data = dev_get_drvdata(dev);
 	unsigned long val;
@@ -647,16 +648,16 @@ static ssize_t store_vrm_reg(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg);
+static DEVICE_ATTR_RW(vrm);
 
-static ssize_t show_alarms_reg(struct device *dev, struct device_attribute
-		*attr, char *buf)
+static ssize_t alarms_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%u\n", data->alarms);
 }
 
-static DEVICE_ATTR(alarms, S_IRUGO, show_alarms_reg, NULL);
+static DEVICE_ATTR_RO(alarms);
 
 static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 		char *buf)

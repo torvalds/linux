@@ -280,7 +280,7 @@ static void s3c64xx_irq_set_function(struct samsung_pinctrl_drv_data *d,
 	u32 val;
 
 	/* Make sure that pin is configured as interrupt */
-	reg = d->virt_base + bank->pctl_offset;
+	reg = bank->pctl_base + bank->pctl_offset;
 	shift = pin;
 	if (bank_type->fld_width[PINCFG_TYPE_FUNC] * shift >= 32) {
 		/* 4-bit bank type with 2 con regs */
@@ -308,9 +308,8 @@ static void s3c64xx_irq_set_function(struct samsung_pinctrl_drv_data *d,
 static inline void s3c64xx_gpio_irq_set_mask(struct irq_data *irqd, bool mask)
 {
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
-	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	unsigned char index = EINT_OFFS(bank->eint_offset) + irqd->hwirq;
-	void __iomem *reg = d->virt_base + EINTMASK_REG(bank->eint_offset);
+	void __iomem *reg = bank->eint_base + EINTMASK_REG(bank->eint_offset);
 	u32 val;
 
 	val = readl(reg);
@@ -334,9 +333,8 @@ static void s3c64xx_gpio_irq_mask(struct irq_data *irqd)
 static void s3c64xx_gpio_irq_ack(struct irq_data *irqd)
 {
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
-	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	unsigned char index = EINT_OFFS(bank->eint_offset) + irqd->hwirq;
-	void __iomem *reg = d->virt_base + EINTPEND_REG(bank->eint_offset);
+	void __iomem *reg = bank->eint_base + EINTPEND_REG(bank->eint_offset);
 
 	writel(1 << index, reg);
 }
@@ -359,7 +357,7 @@ static int s3c64xx_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 	s3c64xx_irq_set_handler(irqd, type);
 
 	/* Set up interrupt trigger */
-	reg = d->virt_base + EINTCON_REG(bank->eint_offset);
+	reg = bank->eint_base + EINTCON_REG(bank->eint_offset);
 	shift = EINT_OFFS(bank->eint_offset) + irqd->hwirq;
 	shift = 4 * (shift / 4); /* 4 EINTs per trigger selector */
 
@@ -411,7 +409,8 @@ static void s3c64xx_eint_gpio_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct s3c64xx_eint_gpio_data *data = irq_desc_get_handler_data(desc);
-	struct samsung_pinctrl_drv_data *drvdata = data->drvdata;
+	struct irq_data *irqd = irq_desc_get_irq_data(desc);
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
 
 	chained_irq_enter(chip, desc);
 
@@ -421,7 +420,7 @@ static void s3c64xx_eint_gpio_irq(struct irq_desc *desc)
 		unsigned int pin;
 		unsigned int virq;
 
-		svc = readl(drvdata->virt_base + SERVICE_REG);
+		svc = readl(bank->eint_base + SERVICE_REG);
 		group = SVC_GROUP(svc);
 		pin = svc & SVC_NUM_MASK;
 
@@ -490,10 +489,8 @@ static int s3c64xx_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 
 	data = devm_kzalloc(dev, sizeof(*data)
 			+ nr_domains * sizeof(*data->domains), GFP_KERNEL);
-	if (!data) {
-		dev_err(dev, "failed to allocate handler data\n");
+	if (!data)
 		return -ENOMEM;
-	}
 	data->drvdata = d;
 
 	bank = d->pin_banks;
@@ -518,15 +515,15 @@ static inline void s3c64xx_eint0_irq_set_mask(struct irq_data *irqd, bool mask)
 {
 	struct s3c64xx_eint0_domain_data *ddata =
 					irq_data_get_irq_chip_data(irqd);
-	struct samsung_pinctrl_drv_data *d = ddata->bank->drvdata;
+	struct samsung_pin_bank *bank = ddata->bank;
 	u32 val;
 
-	val = readl(d->virt_base + EINT0MASK_REG);
+	val = readl(bank->eint_base + EINT0MASK_REG);
 	if (mask)
 		val |= 1 << ddata->eints[irqd->hwirq];
 	else
 		val &= ~(1 << ddata->eints[irqd->hwirq]);
-	writel(val, d->virt_base + EINT0MASK_REG);
+	writel(val, bank->eint_base + EINT0MASK_REG);
 }
 
 static void s3c64xx_eint0_irq_unmask(struct irq_data *irqd)
@@ -543,10 +540,10 @@ static void s3c64xx_eint0_irq_ack(struct irq_data *irqd)
 {
 	struct s3c64xx_eint0_domain_data *ddata =
 					irq_data_get_irq_chip_data(irqd);
-	struct samsung_pinctrl_drv_data *d = ddata->bank->drvdata;
+	struct samsung_pin_bank *bank = ddata->bank;
 
 	writel(1 << ddata->eints[irqd->hwirq],
-					d->virt_base + EINT0PEND_REG);
+					bank->eint_base + EINT0PEND_REG);
 }
 
 static int s3c64xx_eint0_irq_set_type(struct irq_data *irqd, unsigned int type)
@@ -554,7 +551,7 @@ static int s3c64xx_eint0_irq_set_type(struct irq_data *irqd, unsigned int type)
 	struct s3c64xx_eint0_domain_data *ddata =
 					irq_data_get_irq_chip_data(irqd);
 	struct samsung_pin_bank *bank = ddata->bank;
-	struct samsung_pinctrl_drv_data *d = bank->drvdata;
+	struct samsung_pinctrl_drv_data *d = ddata->bank->drvdata;
 	void __iomem *reg;
 	int trigger;
 	u8 shift;
@@ -569,7 +566,7 @@ static int s3c64xx_eint0_irq_set_type(struct irq_data *irqd, unsigned int type)
 	s3c64xx_irq_set_handler(irqd, type);
 
 	/* Set up interrupt trigger */
-	reg = d->virt_base + EINT0CON0_REG;
+	reg = bank->eint_base + EINT0CON0_REG;
 	shift = ddata->eints[irqd->hwirq];
 	if (shift >= EINT_MAX_PER_REG) {
 		reg += 4;
@@ -601,14 +598,19 @@ static struct irq_chip s3c64xx_eint0_irq_chip = {
 static inline void s3c64xx_irq_demux_eint(struct irq_desc *desc, u32 range)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct irq_data *irqd = irq_desc_get_irq_data(desc);
+	struct s3c64xx_eint0_domain_data *ddata =
+					irq_data_get_irq_chip_data(irqd);
+	struct samsung_pin_bank *bank = ddata->bank;
+
 	struct s3c64xx_eint0_data *data = irq_desc_get_handler_data(desc);
-	struct samsung_pinctrl_drv_data *drvdata = data->drvdata;
+
 	unsigned int pend, mask;
 
 	chained_irq_enter(chip, desc);
 
-	pend = readl(drvdata->virt_base + EINT0PEND_REG);
-	mask = readl(drvdata->virt_base + EINT0MASK_REG);
+	pend = readl(bank->eint_base + EINT0PEND_REG);
+	mask = readl(bank->eint_base + EINT0MASK_REG);
 
 	pend = pend & range & ~mask;
 	pend &= range;
@@ -711,10 +713,8 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 		return -ENODEV;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(dev, "could not allocate memory for wkup eint data\n");
+	if (!data)
 		return -ENOMEM;
-	}
 	data->drvdata = d;
 
 	for (i = 0; i < NUM_EINT0_IRQ; ++i) {
@@ -747,10 +747,8 @@ static int s3c64xx_eint_eint0_init(struct samsung_pinctrl_drv_data *d)
 
 		ddata = devm_kzalloc(dev,
 				sizeof(*ddata) + nr_eints, GFP_KERNEL);
-		if (!ddata) {
-			dev_err(dev, "failed to allocate domain data\n");
+		if (!ddata)
 			return -ENOMEM;
-		}
 		ddata->bank = bank;
 
 		bank->irq_domain = irq_domain_add_linear(bank->of_node,

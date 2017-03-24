@@ -125,6 +125,10 @@
 		};
 
 		i2c@118000 {
+			hwmon@2f {
+				compatible = "winbond,w83793";
+				reg = <0x2f>;
+			};
 			eeprom@52 {
 				compatible = "at24,24c256";
 				reg = <0x52>;

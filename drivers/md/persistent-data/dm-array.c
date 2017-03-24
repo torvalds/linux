@@ -700,13 +700,11 @@ static int populate_ablock_with_values(struct dm_array_info *info, struct array_
 {
 	int r;
 	unsigned i;
-	uint32_t nr_entries;
 	struct dm_btree_value_type *vt = &info->value_type;
 
 	BUG_ON(le32_to_cpu(ab->nr_entries));
 	BUG_ON(new_nr > le32_to_cpu(ab->max_entries));
 
-	nr_entries = le32_to_cpu(ab->nr_entries);
 	for (i = 0; i < new_nr; i++) {
 		r = fn(base + i, element_at(info, ab, i), context);
 		if (r)
@@ -977,6 +975,27 @@ int dm_array_cursor_next(struct dm_array_cursor *c)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dm_array_cursor_next);
+
+int dm_array_cursor_skip(struct dm_array_cursor *c, uint32_t count)
+{
+	int r;
+
+	do {
+		uint32_t remaining = le32_to_cpu(c->ab->nr_entries) - c->index;
+
+		if (count < remaining) {
+			c->index += count;
+			return 0;
+		}
+
+		count -= remaining;
+		r = dm_array_cursor_next(c);
+
+	} while (!r);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_array_cursor_skip);
 
 void dm_array_cursor_get_value(struct dm_array_cursor *c, void **value_le)
 {

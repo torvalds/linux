@@ -39,6 +39,16 @@ config TMP006
 	  This driver can also be built as a module. If so, the module will
 	  be called tmp006.
 
+config TMP007
+        tristate "TMP007 infrared thermopile sensor with Integrated Math Engine"
+        depends on I2C
+        help
+          If you say yes here you get support for the Texas Instruments
+          TMP007 infrared thermopile sensor with Integrated Math Engine.
+
+          This driver can also be built as a module. If so, the module will
+          be called tmp007.
+
 config TSYS01
 	tristate "Measurement Specialties TSYS01 temperature sensor using I2C bus connection"
 	depends on I2C

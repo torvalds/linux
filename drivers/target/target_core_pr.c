@@ -29,6 +29,8 @@
 #include <linux/list.h>
 #include <linux/vmalloc.h>
 #include <linux/file.h>
+#include <linux/fcntl.h>
+#include <linux/fs.h>
 #include <scsi/scsi_proto.h>
 #include <asm/unaligned.h>
 
@@ -253,8 +255,7 @@ target_scsi2_reservation_reserve(struct se_cmd *cmd)
 
 	if ((cmd->t_task_cdb[1] & 0x01) &&
 	    (cmd->t_task_cdb[1] & 0x02)) {
-		pr_err("LongIO and Obselete Bits set, returning"
-				" ILLEGAL_REQUEST\n");
+		pr_err("LongIO and Obsolete Bits set, returning ILLEGAL_REQUEST\n");
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 	/*
@@ -787,7 +788,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			 * __core_scsi3_add_registration()
 			 */
 			dest_lun = rcu_dereference_check(deve_tmp->se_lun,
-				atomic_read(&deve_tmp->pr_kref.refcount) != 0);
+				kref_read(&deve_tmp->pr_kref) != 0);
 
 			pr_reg_atp = __core_scsi3_do_alloc_registration(dev,
 						nacl_tmp, dest_lun, deve_tmp,
@@ -1462,7 +1463,7 @@ static int core_scsi3_lunacl_depend_item(struct se_dev_entry *se_deve)
 	 * For nacl->dynamic_node_acl=1
 	 */
 	lun_acl = rcu_dereference_check(se_deve->se_lun_acl,
-				atomic_read(&se_deve->pr_kref.refcount) != 0);
+				kref_read(&se_deve->pr_kref) != 0);
 	if (!lun_acl)
 		return 0;
 
@@ -1477,7 +1478,7 @@ static void core_scsi3_lunacl_undepend_item(struct se_dev_entry *se_deve)
 	 * For nacl->dynamic_node_acl=1
 	 */
 	lun_acl = rcu_dereference_check(se_deve->se_lun_acl,
-				atomic_read(&se_deve->pr_kref.refcount) != 0);
+				kref_read(&se_deve->pr_kref) != 0);
 	if (!lun_acl) {
 		kref_put(&se_deve->pr_kref, target_pr_kref_release);
 		return;
@@ -1758,7 +1759,7 @@ core_scsi3_decode_spec_i_port(
 		 * 2nd loop which will never fail.
 		 */
 		dest_lun = rcu_dereference_check(dest_se_deve->se_lun,
-				atomic_read(&dest_se_deve->pr_kref.refcount) != 0);
+				kref_read(&dest_se_deve->pr_kref) != 0);
 
 		dest_pr_reg = __core_scsi3_alloc_registration(cmd->se_dev,
 					dest_node_acl, dest_lun, dest_se_deve,
@@ -3465,7 +3466,7 @@ after_iport_check:
 					iport_ptr);
 	if (!dest_pr_reg) {
 		struct se_lun *dest_lun = rcu_dereference_check(dest_se_deve->se_lun,
-				atomic_read(&dest_se_deve->pr_kref.refcount) != 0);
+				kref_read(&dest_se_deve->pr_kref) != 0);
 
 		spin_unlock(&dev->dev_reservation_lock);
 		if (core_scsi3_alloc_registration(cmd->se_dev, dest_node_acl,

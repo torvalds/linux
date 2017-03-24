@@ -35,7 +35,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/shub_mmr.h>
@@ -463,9 +463,9 @@ static int mmtimer_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 static struct miscdevice mmtimer_miscdev = {
-	SGI_MMTIMER,
-	MMTIMER_NAME,
-	&mmtimer_fops
+	.minor = SGI_MMTIMER,
+	.name = MMTIMER_NAME,
+	.fops = &mmtimer_fops
 };
 
 static struct timespec sgi_clock_offset;

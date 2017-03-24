@@ -168,7 +168,10 @@ static int standby_boot_seq(struct platform_device *pdev)
 	if (apb->init_disabled)
 		return 0;
 
-	/* Even if it is in OFF state, then we do not want to change the state */
+	/*
+	 * Even if it is in OFF state,
+	 * then we do not want to change the state
+	 */
 	if (apb->state == ARCHE_PLATFORM_STATE_STANDBY ||
 			apb->state == ARCHE_PLATFORM_STATE_OFF)
 		return 0;
@@ -183,7 +186,7 @@ static int standby_boot_seq(struct platform_device *pdev)
 	 * Pasted from WDM spec,
 	 *  - A falling edge on POWEROFF_L is detected (a)
 	 *  - WDM enters standby mode, but no output signals are changed
-	 * */
+	 */
 
 	/* TODO: POWEROFF_L is input to WDM module  */
 	apb->state = ARCHE_PLATFORM_STATE_STANDBY;
@@ -285,8 +288,10 @@ static ssize_t state_store(struct device *dev,
 		if (apb->state == ARCHE_PLATFORM_STATE_FW_FLASHING)
 			return count;
 
-		/* First we want to make sure we power off everything
-		 * and then enter FW flashing state */
+		/*
+		 * First we want to make sure we power off everything
+		 * and then enter FW flashing state
+		 */
 		poweroff_seq(pdev);
 		ret = fw_flashing_seq(pdev);
 	} else {
@@ -459,7 +464,7 @@ static int arche_apb_ctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int arche_apb_ctrl_suspend(struct device *dev)
+static int __maybe_unused arche_apb_ctrl_suspend(struct device *dev)
 {
 	/*
 	 * If timing profile permits, we may shutdown bridge
@@ -473,7 +478,7 @@ static int arche_apb_ctrl_suspend(struct device *dev)
 	return 0;
 }
 
-static int arche_apb_ctrl_resume(struct device *dev)
+static int __maybe_unused arche_apb_ctrl_resume(struct device *dev)
 {
 	/*
 	 * Atleast for ES2 we have to meet the delay requirement between

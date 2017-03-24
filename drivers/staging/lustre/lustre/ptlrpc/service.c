@@ -343,9 +343,9 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 			     struct ptlrpc_service_conf *conf)
 {
 	struct ptlrpc_service_thr_conf *tc = &conf->psc_thr;
-	unsigned init;
-	unsigned total;
-	unsigned nthrs;
+	unsigned int init;
+	unsigned int total;
+	unsigned int nthrs;
 	int weight;
 
 	/*
@@ -1264,20 +1264,15 @@ static int ptlrpc_server_hpreq_init(struct ptlrpc_service_part *svcpt,
 		 */
 		if (req->rq_ops->hpreq_check) {
 			rc = req->rq_ops->hpreq_check(req);
-			/**
-			 * XXX: Out of all current
-			 * ptlrpc_hpreq_ops::hpreq_check(), only
-			 * ldlm_cancel_hpreq_check() can return an error code;
-			 * other functions assert in similar places, which seems
-			 * odd. What also does not seem right is that handlers
-			 * for those RPCs do not assert on the same checks, but
-			 * rather handle the error cases. e.g. see
-			 * ost_rw_hpreq_check(), and ost_brw_read(),
-			 * ost_brw_write().
+			if (rc == -ESTALE) {
+				req->rq_status = rc;
+				ptlrpc_error(req);
+			}
+			/** can only return error,
+			 * 0 for normal request,
+			 *  or 1 for high priority request
 			 */
-			if (rc < 0)
-				return rc;
-			LASSERT(rc == 0 || rc == 1);
+			LASSERT(rc <= 1);
 		}
 
 		spin_lock_bh(&req->rq_export->exp_rpc_lock);
@@ -2541,8 +2536,9 @@ int ptlrpc_hr_init(void)
 
 		hrp->hrp_nthrs = cfs_cpt_weight(ptlrpc_hr.hr_cpt_table, i);
 		hrp->hrp_nthrs /= weight;
+		if (hrp->hrp_nthrs == 0)
+			hrp->hrp_nthrs = 1;
 
-		LASSERT(hrp->hrp_nthrs > 0);
 		hrp->hrp_thrs =
 			kzalloc_node(hrp->hrp_nthrs * sizeof(*hrt), GFP_NOFS,
 				     cfs_cpt_spread_node(ptlrpc_hr.hr_cpt_table,

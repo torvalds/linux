@@ -216,10 +216,14 @@ static int etm4_parse_event_config(struct etmv4_drvdata *drvdata,
 		goto out;
 
 	/* Go from generic option to ETMv4 specifics */
-	if (attr->config & BIT(ETM_OPT_CYCACC))
-		config->cfg |= ETMv4_MODE_CYCACC;
+	if (attr->config & BIT(ETM_OPT_CYCACC)) {
+		config->cfg |= BIT(4);
+		/* TRM: Must program this for cycacc to work */
+		config->ccctlr = ETM_CYC_THRESHOLD_DEFAULT;
+	}
 	if (attr->config & BIT(ETM_OPT_TS))
-		config->cfg |= ETMv4_MODE_TIMESTAMP;
+		/* bit[11], Global timestamp tracing bit */
+		config->cfg |= BIT(11);
 
 out:
 	return ret;
@@ -986,11 +990,11 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_err(dev, "ETM arch init failed\n");
 
 	if (!etm4_count++) {
-		cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CORESIGHT4_STARTING,
-					  "AP_ARM_CORESIGHT4_STARTING",
+		cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING,
+					  "arm/coresight4:starting",
 					  etm4_starting_cpu, etm4_dying_cpu);
 		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-						"AP_ARM_CORESIGHT4_ONLINE",
+						"arm/coresight4:online",
 						etm4_online_cpu, NULL);
 		if (ret < 0)
 			goto err_arch_supported;
@@ -1037,7 +1041,7 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 
 err_arch_supported:
 	if (--etm4_count == 0) {
-		cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT4_STARTING);
+		cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
 		if (hp_online)
 			cpuhp_remove_state_nocalls(hp_online);
 	}

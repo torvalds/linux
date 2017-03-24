@@ -84,7 +84,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	start = 0x0100000000ULL;
 	limit = start + device->func->resource_size(device, 3);
 
-	ret = nvkm_vm_new(device, start, limit, start, &bar3_lock, &vm);
+	ret = nvkm_vm_new(device, start, limit - start, start, &bar3_lock, &vm);
 	if (ret)
 		return ret;
 
@@ -117,7 +117,7 @@ nv50_bar_oneinit(struct nvkm_bar *base)
 	start = 0x0000000000ULL;
 	limit = start + device->func->resource_size(device, 1);
 
-	ret = nvkm_vm_new(device, start, limit--, start, &bar1_lock, &vm);
+	ret = nvkm_vm_new(device, start, limit-- - start, start, &bar1_lock, &vm);
 	if (ret)
 		return ret;
 

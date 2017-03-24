@@ -685,6 +685,39 @@
 #define MIPS_WATCHHI_W		(_ULCAST_(1) << 0)
 #define MIPS_WATCHHI_IRW	(_ULCAST_(0x7) << 0)
 
+/* PerfCnt control register definitions */
+#define MIPS_PERFCTRL_EXL	(_ULCAST_(1) << 0)
+#define MIPS_PERFCTRL_K		(_ULCAST_(1) << 1)
+#define MIPS_PERFCTRL_S		(_ULCAST_(1) << 2)
+#define MIPS_PERFCTRL_U		(_ULCAST_(1) << 3)
+#define MIPS_PERFCTRL_IE	(_ULCAST_(1) << 4)
+#define MIPS_PERFCTRL_EVENT_S	5
+#define MIPS_PERFCTRL_EVENT	(_ULCAST_(0x3ff) << MIPS_PERFCTRL_EVENT_S)
+#define MIPS_PERFCTRL_PCTD	(_ULCAST_(1) << 15)
+#define MIPS_PERFCTRL_EC	(_ULCAST_(0x3) << 23)
+#define MIPS_PERFCTRL_EC_R	(_ULCAST_(0) << 23)
+#define MIPS_PERFCTRL_EC_RI	(_ULCAST_(1) << 23)
+#define MIPS_PERFCTRL_EC_G	(_ULCAST_(2) << 23)
+#define MIPS_PERFCTRL_EC_GRI	(_ULCAST_(3) << 23)
+#define MIPS_PERFCTRL_W		(_ULCAST_(1) << 30)
+#define MIPS_PERFCTRL_M		(_ULCAST_(1) << 31)
+
+/* PerfCnt control register MT extensions used by MIPS cores */
+#define MIPS_PERFCTRL_VPEID_S	16
+#define MIPS_PERFCTRL_VPEID	(_ULCAST_(0xf) << MIPS_PERFCTRL_VPEID_S)
+#define MIPS_PERFCTRL_TCID_S	22
+#define MIPS_PERFCTRL_TCID	(_ULCAST_(0xff) << MIPS_PERFCTRL_TCID_S)
+#define MIPS_PERFCTRL_MT_EN	(_ULCAST_(0x3) << 20)
+#define MIPS_PERFCTRL_MT_EN_ALL	(_ULCAST_(0) << 20)
+#define MIPS_PERFCTRL_MT_EN_VPE	(_ULCAST_(1) << 20)
+#define MIPS_PERFCTRL_MT_EN_TC	(_ULCAST_(2) << 20)
+
+/* PerfCnt control register MT extensions used by BMIPS5000 */
+#define BRCM_PERFCTRL_TC	(_ULCAST_(1) << 30)
+
+/* PerfCnt control register MT extensions used by Netlogic XLR */
+#define XLR_PERFCTRL_ALLTHREADS	(_ULCAST_(1) << 13)
+
 /* MAAR bit definitions */
 #define MIPS_MAAR_ADDR		((BIT_ULL(BITS_PER_LONG - 12) - 1) << 12)
 #define MIPS_MAAR_ADDR_SHIFT	12

@@ -90,7 +90,8 @@ static struct be_cmd_priv_map cmd_priv_map[] = {
 	{
 		OPCODE_COMMON_SET_HSW_CONFIG,
 		CMD_SUBSYSTEM_COMMON,
-		BE_PRIV_DEVCFG | BE_PRIV_VHADM
+		BE_PRIV_DEVCFG | BE_PRIV_VHADM |
+		BE_PRIV_DEVSEC
 	},
 	{
 		OPCODE_COMMON_GET_EXT_FAT_CAPABILITIES,
@@ -1117,7 +1118,7 @@ int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 err:
 	mutex_unlock(&adapter->mcc_lock);
 
-	 if (status == MCC_STATUS_UNAUTHORIZED_REQUEST)
+	 if (base_status(status) == MCC_STATUS_UNAUTHORIZED_REQUEST)
 		status = -EPERM;
 
 	return status;

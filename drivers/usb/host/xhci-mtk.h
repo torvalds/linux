@@ -118,11 +118,13 @@ struct xhci_hcd_mtk {
 	struct usb_hcd *hcd;
 	struct mu3h_sch_bw_info *sch_array;
 	struct mu3c_ippc_regs __iomem *ippc_regs;
+	bool has_ippc;
 	int num_u2_ports;
 	int num_u3_ports;
 	struct regulator *vusb33;
 	struct regulator *vbus;
 	struct clk *sys_clk;	/* sys and mac clock */
+	struct clk *ref_clk;
 	struct clk *wk_deb_p0;	/* port0's wakeup debounce clock */
 	struct clk *wk_deb_p1;
 	struct regmap *pericfg;

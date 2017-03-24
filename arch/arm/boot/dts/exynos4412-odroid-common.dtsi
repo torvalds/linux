@@ -43,16 +43,6 @@
 
 	sound: sound {
 		compatible = "simple-audio-card";
-		assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>,
-				<&clock_audss EXYNOS_MOUT_I2S>,
-				<&clock_audss EXYNOS_DOUT_SRP>,
-				<&clock_audss EXYNOS_DOUT_AUD_BUS>;
-		assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
-				<&clock_audss EXYNOS_MOUT_AUDSS>;
-		assigned-clock-rates = <0>,
-				<0>,
-				<192000000>,
-				<19200000>;
 
 		simple-audio-card,format = "i2s";
 		simple-audio-card,bitclock-master = <&link0_codec>;
@@ -97,11 +87,11 @@
 	thermal-zones {
 		cpu_thermal: cpu-thermal {
 			cooling-maps {
-				map0 {
+				cooling_map0: map0 {
 				     /* Corresponds to 800MHz at freq_table */
 				     cooling-device = <&cpu0 7 7>;
 				};
-				map1 {
+				cooling_map1: map1 {
 				     /* Corresponds to 200MHz at freq_table */
 				     cooling-device = <&cpu0 13 13>;
 			       };
@@ -155,6 +145,16 @@
 &bus_mfc {
 	devfreq = <&bus_leftbus>;
 	status = "okay";
+};
+
+&clock_audss {
+	assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>,
+			<&clock_audss EXYNOS_MOUT_I2S>,
+			<&clock_audss EXYNOS_DOUT_SRP>,
+			<&clock_audss EXYNOS_DOUT_AUD_BUS>;
+	assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
+			<&clock_audss EXYNOS_MOUT_AUDSS>;
+	assigned-clock-rates = <0>, <0>, <192000000>, <19200000>;
 };
 
 &cpu0 {
@@ -503,10 +503,6 @@
 	pinctrl-0 = <&i2s0_bus>;
 	pinctrl-names = "default";
 	status = "okay";
-	clocks = <&clock_audss EXYNOS_I2S_BUS>,
-		 <&clock_audss EXYNOS_DOUT_AUD_BUS>,
-		 <&clock_audss EXYNOS_SCLK_I2S>;
-	clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 };
 
 &mixer {

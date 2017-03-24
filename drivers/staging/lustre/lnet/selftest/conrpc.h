@@ -78,8 +78,8 @@ struct lstcon_rpc_trans {
 	struct list_head  tas_olink;	     /* link chain on owner list */
 	struct list_head  tas_link;	     /* link chain on global list */
 	int		  tas_opc;	     /* operation code of transaction */
-	unsigned	  tas_feats_updated; /* features mask is uptodate */
-	unsigned	  tas_features;      /* test features mask */
+	unsigned int	  tas_feats_updated; /* features mask is uptodate */
+	unsigned int	  tas_features;      /* test features mask */
 	wait_queue_head_t tas_waitq;	     /* wait queue head */
 	atomic_t	  tas_remaining;     /* # of un-scheduled rpcs */
 	struct list_head  tas_rpcs_list;     /* queued requests */
@@ -103,17 +103,19 @@ struct lstcon_rpc_trans {
 
 typedef int (*lstcon_rpc_cond_func_t)(int, struct lstcon_node *, void *);
 typedef int (*lstcon_rpc_readent_func_t)(int, struct srpc_msg *,
-					 lstcon_rpc_ent_t __user *);
+					 struct lstcon_rpc_ent __user *);
 
 int  lstcon_sesrpc_prep(struct lstcon_node *nd, int transop,
-			unsigned version, struct lstcon_rpc **crpc);
+			unsigned int version, struct lstcon_rpc **crpc);
 int  lstcon_dbgrpc_prep(struct lstcon_node *nd,
-			unsigned version, struct lstcon_rpc **crpc);
-int  lstcon_batrpc_prep(struct lstcon_node *nd, int transop, unsigned version,
-			struct lstcon_tsb_hdr *tsb, struct lstcon_rpc **crpc);
-int  lstcon_testrpc_prep(struct lstcon_node *nd, int transop, unsigned version,
-			 struct lstcon_test *test, struct lstcon_rpc **crpc);
-int  lstcon_statrpc_prep(struct lstcon_node *nd, unsigned version,
+			unsigned int version, struct lstcon_rpc **crpc);
+int  lstcon_batrpc_prep(struct lstcon_node *nd, int transop,
+			unsigned int version, struct lstcon_tsb_hdr *tsb,
+			struct lstcon_rpc **crpc);
+int  lstcon_testrpc_prep(struct lstcon_node *nd, int transop,
+			 unsigned int version, struct lstcon_test *test,
+			 struct lstcon_rpc **crpc);
+int  lstcon_statrpc_prep(struct lstcon_node *nd, unsigned int version,
 			 struct lstcon_rpc **crpc);
 void lstcon_rpc_put(struct lstcon_rpc *crpc);
 int  lstcon_rpc_trans_prep(struct list_head *translist,
@@ -123,13 +125,14 @@ int  lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 			     void *arg, lstcon_rpc_cond_func_t condition,
 			     struct lstcon_rpc_trans **transpp);
 void lstcon_rpc_trans_stat(struct lstcon_rpc_trans *trans,
-			   lstcon_trans_stat_t *stat);
+			   struct lstcon_trans_stat *stat);
 int  lstcon_rpc_trans_interpreter(struct lstcon_rpc_trans *trans,
 				  struct list_head __user *head_up,
 				  lstcon_rpc_readent_func_t readent);
 void lstcon_rpc_trans_abort(struct lstcon_rpc_trans *trans, int error);
 void lstcon_rpc_trans_destroy(struct lstcon_rpc_trans *trans);
-void lstcon_rpc_trans_addreq(struct lstcon_rpc_trans *trans, struct lstcon_rpc *req);
+void lstcon_rpc_trans_addreq(struct lstcon_rpc_trans *trans,
+			     struct lstcon_rpc *req);
 int  lstcon_rpc_trans_postwait(struct lstcon_rpc_trans *trans, int timeout);
 int  lstcon_rpc_pinger_start(void);
 void lstcon_rpc_pinger_stop(void);

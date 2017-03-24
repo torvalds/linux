@@ -36,7 +36,7 @@
 
 #include <asm/processor.h>
 #include <asm/bios_ebda.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
@@ -89,10 +89,10 @@ static int __init nonx32_setup(char *str)
 __setup("noexec32=", nonx32_setup);
 
 /*
- * When memory was added/removed make sure all the processes MM have
+ * When memory was added make sure all the processes MM have
  * suitable PGD entries in the local PGD level page.
  */
-void sync_global_pgds(unsigned long start, unsigned long end, int removed)
+void sync_global_pgds(unsigned long start, unsigned long end)
 {
 	unsigned long address;
 
@@ -100,12 +100,7 @@ void sync_global_pgds(unsigned long start, unsigned long end, int removed)
 		const pgd_t *pgd_ref = pgd_offset_k(address);
 		struct page *page;
 
-		/*
-		 * When it is called after memory hot remove, pgd_none()
-		 * returns true. In this case (removed == 1), we must clear
-		 * the PGD entries in the local PGD level page.
-		 */
-		if (pgd_none(*pgd_ref) && !removed)
+		if (pgd_none(*pgd_ref))
 			continue;
 
 		spin_lock(&pgd_lock);
@@ -122,13 +117,8 @@ void sync_global_pgds(unsigned long start, unsigned long end, int removed)
 				BUG_ON(pgd_page_vaddr(*pgd)
 				       != pgd_page_vaddr(*pgd_ref));
 
-			if (removed) {
-				if (pgd_none(*pgd_ref) && !pgd_none(*pgd))
-					pgd_clear(pgd);
-			} else {
-				if (pgd_none(*pgd))
-					set_pgd(pgd, *pgd_ref);
-			}
+			if (pgd_none(*pgd))
+				set_pgd(pgd, *pgd_ref);
 
 			spin_unlock(pgt_lock);
 		}
@@ -596,7 +586,7 @@ kernel_physical_mapping_init(unsigned long paddr_start,
 	}
 
 	if (pgd_changed)
-		sync_global_pgds(vaddr_start, vaddr_end - 1, 0);
+		sync_global_pgds(vaddr_start, vaddr_end - 1);
 
 	__flush_tlb_all();
 
@@ -689,7 +679,7 @@ static void __meminit free_pagetable(struct page *page, int order)
 	if (PageReserved(page)) {
 		__ClearPageReserved(page);
 
-		magic = (unsigned long)page->lru.next;
+		magic = (unsigned long)page->freelist;
 		if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
 			while (nr_pages--)
 				put_page_bootmem(page++);
@@ -1010,9 +1000,6 @@ void __init mem_init(void)
 	mem_init_print_info(NULL);
 }
 
-const int rodata_test_data = 0xC3;
-EXPORT_SYMBOL_GPL(rodata_test_data);
-
 int kernel_set_to_readonly;
 
 void set_kernel_text_rw(void)
@@ -1080,8 +1067,6 @@ void mark_rodata_ro(void)
 	 */
 	all_end = roundup((unsigned long)_brk_end, PMD_SIZE);
 	set_memory_nx(text_end, (all_end - text_end) >> PAGE_SHIFT);
-
-	rodata_test();
 
 #ifdef CONFIG_CPA_DEBUG
 	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, end);
@@ -1239,7 +1224,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	} else
 		err = vmemmap_populate_basepages(start, end, node);
 	if (!err)
-		sync_global_pgds(start, end - 1, 0);
+		sync_global_pgds(start, end - 1);
 	return err;
 }
 

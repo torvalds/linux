@@ -181,7 +181,7 @@ static int lpc18xx_wdt_restart(struct watchdog_device *wdt_dev,
 	return 0;
 }
 
-static struct watchdog_info lpc18xx_wdt_info = {
+static const struct watchdog_info lpc18xx_wdt_info = {
 	.identity	= "NXP LPC18xx Watchdog",
 	.options	= WDIOF_SETTIMEOUT |
 			  WDIOF_KEEPALIVEPING |

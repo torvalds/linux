@@ -42,7 +42,7 @@
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/string.h>
@@ -1157,8 +1157,8 @@ static ssize_t write(struct file *filep, const char __user *buf, size_t n,
 
 		/* Send the code */
 		if (ret == 0) {
-			ret = send_code(tx, (unsigned)command >> 16,
-					    (unsigned)command & 0xFFFF);
+			ret = send_code(tx, (unsigned int)command >> 16,
+					    (unsigned int)command & 0xFFFF);
 			if (ret == -EPROTO) {
 				mutex_unlock(&ir->ir_lock);
 				mutex_unlock(&tx->client_lock);

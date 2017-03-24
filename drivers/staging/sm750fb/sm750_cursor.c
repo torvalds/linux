@@ -20,7 +20,7 @@
 
 
 
-#define POKE32(addr, data) \
+#define poke32(addr, data) \
 writel((data), cursor->mmio + (addr))
 
 /* cursor control for voyager and 718/750*/
@@ -47,44 +47,44 @@ writel((data), cursor->mmio + (addr))
 
 
 /* hw_cursor_xxx works for voyager,718 and 750 */
-void hw_cursor_enable(struct lynx_cursor *cursor)
+void sm750_hw_cursor_enable(struct lynx_cursor *cursor)
 {
 	u32 reg;
 
 	reg = (cursor->offset & HWC_ADDRESS_ADDRESS_MASK) | HWC_ADDRESS_ENABLE;
-	POKE32(HWC_ADDRESS, reg);
+	poke32(HWC_ADDRESS, reg);
 }
-void hw_cursor_disable(struct lynx_cursor *cursor)
+void sm750_hw_cursor_disable(struct lynx_cursor *cursor)
 {
-	POKE32(HWC_ADDRESS, 0);
+	poke32(HWC_ADDRESS, 0);
 }
 
-void hw_cursor_setSize(struct lynx_cursor *cursor,
+void sm750_hw_cursor_setSize(struct lynx_cursor *cursor,
 						int w, int h)
 {
 	cursor->w = w;
 	cursor->h = h;
 }
-void hw_cursor_setPos(struct lynx_cursor *cursor,
+void sm750_hw_cursor_setPos(struct lynx_cursor *cursor,
 						int x, int y)
 {
 	u32 reg;
 
 	reg = (((y << HWC_LOCATION_Y_SHIFT) & HWC_LOCATION_Y_MASK) |
 		(x & HWC_LOCATION_X_MASK));
-	POKE32(HWC_LOCATION, reg);
+	poke32(HWC_LOCATION, reg);
 }
-void hw_cursor_setColor(struct lynx_cursor *cursor,
+void sm750_hw_cursor_setColor(struct lynx_cursor *cursor,
 						u32 fg, u32 bg)
 {
 	u32 reg = (fg << HWC_COLOR_12_2_RGB565_SHIFT) &
 		HWC_COLOR_12_2_RGB565_MASK;
 
-	POKE32(HWC_COLOR_12, reg | (bg & HWC_COLOR_12_1_RGB565_MASK));
-	POKE32(HWC_COLOR_3, 0xffe0);
+	poke32(HWC_COLOR_12, reg | (bg & HWC_COLOR_12_1_RGB565_MASK));
+	poke32(HWC_COLOR_3, 0xffe0);
 }
 
-void hw_cursor_setData(struct lynx_cursor *cursor,
+void sm750_hw_cursor_setData(struct lynx_cursor *cursor,
 			u16 rop, const u8 *pcol, const u8 *pmsk)
 {
 	int i, j, count, pitch, offset;
@@ -138,7 +138,7 @@ void hw_cursor_setData(struct lynx_cursor *cursor,
 }
 
 
-void hw_cursor_setData2(struct lynx_cursor *cursor,
+void sm750_hw_cursor_setData2(struct lynx_cursor *cursor,
 			u16 rop, const u8 *pcol, const u8 *pmsk)
 {
 	int i, j, count, pitch, offset;

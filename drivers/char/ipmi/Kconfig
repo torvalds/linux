@@ -78,7 +78,8 @@ config IPMI_POWEROFF
 endif # IPMI_HANDLER
 
 config ASPEED_BT_IPMI_BMC
-	depends on ARCH_ASPEED
+	depends on ARCH_ASPEED || COMPILE_TEST
+       depends on REGMAP && REGMAP_MMIO && MFD_SYSCON
 	tristate "BT IPMI bmc driver"
 	help
 	  Provides a driver for the BT (Block Transfer) IPMI interface

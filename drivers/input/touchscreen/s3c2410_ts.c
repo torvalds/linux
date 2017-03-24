@@ -250,7 +250,7 @@ static int s3c2410ts_probe(struct platform_device *pdev)
 
 	ts.dev = dev;
 
-	info = dev_get_platdata(&pdev->dev);
+	info = dev_get_platdata(dev);
 	if (!info) {
 		dev_err(dev, "no platform data, cannot attach\n");
 		return -EINVAL;

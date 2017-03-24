@@ -135,7 +135,6 @@ config MMC_SDHCI_OF_AT91
 	tristate "SDHCI OF support for the Atmel SDMMC controller"
 	depends on MMC_SDHCI_PLTFM
 	depends on OF
-	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Atmel SDMMC driver
 
@@ -144,6 +143,7 @@ config MMC_SDHCI_OF_ESDHC
 	depends on MMC_SDHCI_PLTFM
 	depends on PPC || ARCH_MXC || ARCH_LAYERSCAPE
 	select MMC_SDHCI_IO_ACCESSORS
+	select FSL_GUTS
 	help
 	  This selects the Freescale eSDHC controller support.
 
@@ -160,6 +160,17 @@ config MMC_SDHCI_OF_HLWD
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  found in the "Hollywood" chipset of the Nintendo Wii video game
 	  console.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_CADENCE
+	tristate "SDHCI support for the Cadence SD/SDIO/eMMC controller"
+	depends on MMC_SDHCI_PLTFM
+	depends on OF
+	help
+	  This selects the Cadence SD/SDIO/eMMC driver.
 
 	  If you have a controller with this interface, say Y or M here.
 
@@ -321,6 +332,16 @@ config MMC_SDHCI_IPROC
 	  say Y or M here.
 
 	  If unsure, say N.
+
+config MMC_MESON_GX
+	tristate "Amlogic S905/GX* SD/MMC Host Controller support"
+	depends on ARCH_MESON && MMC
+	help
+	  This selects support for the Amlogic SD/MMC Host Controller
+	  found on the S905/GX* family of SoCs.  This controller is
+	  MMC 5.1 compliant and supports SD, eMMC and SDIO interfaces.
+
+	  If you have a controller with this interface, say Y here.
 
 config MMC_MOXART
 	tristate "MOXART SD/MMC Host Controller support"
@@ -661,6 +682,15 @@ config MMC_DW_ROCKCHIP
 	  This selects support for Rockchip SoC specific extensions to the
 	  Synopsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on RK3066, RK3188 and RK3288 SoC's.
+
+config MMC_DW_ZX
+	tristate "ZTE specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW && ARCH_ZX
+	select MMC_DW_PLTFM
+	help
+	  This selects support for ZTE SoC specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  for platforms based on ZX296718 SoC's.
 
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"

@@ -21,6 +21,7 @@
 #define __RPMSG_INTERNAL_H__
 
 #include <linux/rpmsg.h>
+#include <linux/poll.h>
 
 #define to_rpmsg_device(d) container_of(d, struct rpmsg_device, dev)
 #define to_rpmsg_driver(d) container_of(d, struct rpmsg_driver, drv)
@@ -70,6 +71,8 @@ struct rpmsg_endpoint_ops {
 	int (*trysendto)(struct rpmsg_endpoint *ept, void *data, int len, u32 dst);
 	int (*trysend_offchannel)(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 			     void *data, int len);
+	unsigned int (*poll)(struct rpmsg_endpoint *ept, struct file *filp,
+			     poll_table *wait);
 };
 
 int rpmsg_register_device(struct rpmsg_device *rpdev);
@@ -78,5 +81,20 @@ int rpmsg_unregister_device(struct device *parent,
 
 struct device *rpmsg_find_device(struct device *parent,
 				 struct rpmsg_channel_info *chinfo);
+
+/**
+ * rpmsg_chrdev_register_device() - register chrdev device based on rpdev
+ * @rpdev:	prepared rpdev to be used for creating endpoints
+ *
+ * This function wraps rpmsg_register_device() preparing the rpdev for use as
+ * basis for the rpmsg chrdev.
+ */
+static inline int rpmsg_chrdev_register_device(struct rpmsg_device *rpdev)
+{
+	strcpy(rpdev->id.name, "rpmsg_chrdev");
+	rpdev->driver_override = "rpmsg_chrdev";
+
+	return rpmsg_register_device(rpdev);
+}
 
 #endif

@@ -33,6 +33,11 @@
  */
 #define SND_SOC_TPLG_STREAM_CONFIG_MAX  8
 
+/*
+ * Maximum number of physical link's hardware configs
+ */
+#define SND_SOC_TPLG_HW_CONFIG_MAX	8
+
 /* individual kcontrol info types - can be mixed with other types */
 #define SND_SOC_TPLG_CTL_VOLSW		1
 #define SND_SOC_TPLG_CTL_VOLSW_SX	2
@@ -77,7 +82,8 @@
 #define SND_SOC_TPLG_NUM_TEXTS		16
 
 /* ABI version */
-#define SND_SOC_TPLG_ABI_VERSION	0x5
+#define SND_SOC_TPLG_ABI_VERSION	0x5	/* current version */
+#define SND_SOC_TPLG_ABI_VERSION_MIN	0x4	/* oldest version supported */
 
 /* Max size of TLV data */
 #define SND_SOC_TPLG_TLV_SIZE		32
@@ -99,8 +105,8 @@
 #define SND_SOC_TPLG_TYPE_CODEC_LINK	9
 #define SND_SOC_TPLG_TYPE_BACKEND_LINK	10
 #define SND_SOC_TPLG_TYPE_PDATA		11
-#define SND_SOC_TPLG_TYPE_BE_DAI	12
-#define SND_SOC_TPLG_TYPE_MAX		SND_SOC_TPLG_TYPE_BE_DAI
+#define SND_SOC_TPLG_TYPE_DAI		12
+#define SND_SOC_TPLG_TYPE_MAX		SND_SOC_TPLG_TYPE_DAI
 
 /* vendor block IDs - please add new vendor types to end */
 #define SND_SOC_TPLG_TYPE_VENDOR_FW	1000
@@ -119,10 +125,31 @@
 #define SND_SOC_TPLG_TUPLE_TYPE_WORD	4
 #define SND_SOC_TPLG_TUPLE_TYPE_SHORT	5
 
-/* BE DAI flags */
+/* DAI flags */
 #define SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_RATES         (1 << 0)
 #define SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_CHANNELS      (1 << 1)
 #define SND_SOC_TPLG_DAI_FLGBIT_SYMMETRIC_SAMPLEBITS    (1 << 2)
+
+/* DAI physical PCM data formats.
+ * Add new formats to the end of the list.
+ */
+#define SND_SOC_DAI_FORMAT_I2S          1 /* I2S mode */
+#define SND_SOC_DAI_FORMAT_RIGHT_J      2 /* Right Justified mode */
+#define SND_SOC_DAI_FORMAT_LEFT_J       3 /* Left Justified mode */
+#define SND_SOC_DAI_FORMAT_DSP_A        4 /* L data MSB after FRM LRC */
+#define SND_SOC_DAI_FORMAT_DSP_B        5 /* L data MSB during FRM LRC */
+#define SND_SOC_DAI_FORMAT_AC97         6 /* AC97 */
+#define SND_SOC_DAI_FORMAT_PDM          7 /* Pulse density modulation */
+
+/* left and right justified also known as MSB and LSB respectively */
+#define SND_SOC_DAI_FORMAT_MSB          SND_SOC_DAI_FORMAT_LEFT_J
+#define SND_SOC_DAI_FORMAT_LSB          SND_SOC_DAI_FORMAT_RIGHT_J
+
+/* DAI link flags */
+#define SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_RATES         (1 << 0)
+#define SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_CHANNELS      (1 << 1)
+#define SND_SOC_TPLG_LNK_FLGBIT_SYMMETRIC_SAMPLEBITS    (1 << 2)
+#define SND_SOC_TPLG_LNK_FLGBIT_VOICE_WAKEUP            (1 << 3)
 
 /*
  * Block Header.
@@ -267,6 +294,35 @@ struct snd_soc_tplg_stream {
 	__le32 channels;	/* channels */
 } __attribute__((packed));
 
+
+/*
+ * Describes a physical link's runtime supported hardware config,
+ * i.e. hardware audio formats.
+ */
+struct snd_soc_tplg_hw_config {
+	__le32 size;            /* in bytes of this structure */
+	__le32 id;		/* unique ID - - used to match */
+	__le32 fmt;		/* SND_SOC_DAI_FORMAT_ format value */
+	__u8 clock_gated;	/* 1 if clock can be gated to save power */
+	__u8 invert_bclk;	/* 1 for inverted BCLK, 0 for normal */
+	__u8 invert_fsync;	/* 1 for inverted frame clock, 0 for normal */
+	__u8 bclk_master;	/* 1 for master of BCLK, 0 for slave */
+	__u8 fsync_master;	/* 1 for master of FSYNC, 0 for slave */
+	__u8 mclk_direction;    /* 0 for input, 1 for output */
+	__le16 reserved;	/* for 32bit alignment */
+	__le32 mclk_rate;	/* MCLK or SYSCLK freqency in Hz */
+	__le32 bclk_rate;	/* BCLK freqency in Hz */
+	__le32 fsync_rate;	/* frame clock in Hz */
+	__le32 tdm_slots;	/* number of TDM slots in use */
+	__le32 tdm_slot_width;	/* width in bits for each slot */
+	__le32 tx_slots;	/* bit mask for active Tx slots */
+	__le32 rx_slots;	/* bit mask for active Rx slots */
+	__le32 tx_channels;	/* number of Tx channels */
+	__le32 tx_chanmap[SND_SOC_TPLG_MAX_CHAN]; /* array of slot number */
+	__le32 rx_channels;	/* number of Rx channels */
+	__le32 rx_chanmap[SND_SOC_TPLG_MAX_CHAN]; /* array of slot number */
+} __attribute__((packed));
+
 /*
  * Manifest. List totals for each payload type. Not used in parsing, but will
  * be passed to the component driver before any other objects in order for any
@@ -286,7 +342,7 @@ struct snd_soc_tplg_manifest {
 	__le32 graph_elems;	/* number of graph elements */
 	__le32 pcm_elems;	/* number of PCM elements */
 	__le32 dai_link_elems;	/* number of DAI link elements */
-	__le32 be_dai_elems;	/* number of BE DAI elements */
+	__le32 dai_elems;	/* number of physical DAI elements */
 	__le32 reserved[20];	/* reserved for new ABI element types */
 	struct snd_soc_tplg_private priv;
 } __attribute__((packed));
@@ -434,13 +490,16 @@ struct snd_soc_tplg_pcm {
 	struct snd_soc_tplg_stream stream[SND_SOC_TPLG_STREAM_CONFIG_MAX]; /* for DAI link */
 	__le32 num_streams;	/* number of streams */
 	struct snd_soc_tplg_stream_caps caps[2]; /* playback and capture for DAI */
+	__le32 flag_mask;       /* bitmask of flags to configure */
+	__le32 flags;           /* SND_SOC_TPLG_LNK_FLGBIT_* flag value */
+	struct snd_soc_tplg_private priv;
 } __attribute__((packed));
 
 
 /*
- * Describes the BE or CC link runtime supported configs or params
+ * Describes the physical link runtime supported configs or params
  *
- * File block representation for BE/CC link config :-
+ * File block representation for physical link config :-
  * +-----------------------------------+-----+
  * | struct snd_soc_tplg_hdr           |  1  |
  * +-----------------------------------+-----+
@@ -450,21 +509,30 @@ struct snd_soc_tplg_pcm {
 struct snd_soc_tplg_link_config {
 	__le32 size;            /* in bytes of this structure */
 	__le32 id;              /* unique ID - used to match */
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN]; /* name - used to match */
+	char stream_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN]; /* stream name - used to match */
 	struct snd_soc_tplg_stream stream[SND_SOC_TPLG_STREAM_CONFIG_MAX]; /* supported configs playback and captrure */
 	__le32 num_streams;     /* number of streams */
+	struct snd_soc_tplg_hw_config hw_config[SND_SOC_TPLG_HW_CONFIG_MAX]; /* hw configs */
+	__le32 num_hw_configs;         /* number of hw configs */
+	__le32 default_hw_config_id;   /* default hw config ID for init */
+	__le32 flag_mask;       /* bitmask of flags to configure */
+	__le32 flags;           /* SND_SOC_TPLG_LNK_FLGBIT_* flag value */
+	struct snd_soc_tplg_private priv;
 } __attribute__((packed));
 
 /*
- * Describes SW/FW specific features of BE DAI.
+ * Describes SW/FW specific features of physical DAI.
+ * It can be used to configure backend DAIs for DPCM.
  *
- * File block representation for BE DAI :-
+ * File block representation for physical DAI :-
  * +-----------------------------------+-----+
  * | struct snd_soc_tplg_hdr           |  1  |
  * +-----------------------------------+-----+
- * | struct snd_soc_tplg_be_dai        |  N  |
+ * | struct snd_soc_tplg_dai           |  N  |
  * +-----------------------------------+-----+
  */
-struct snd_soc_tplg_be_dai {
+struct snd_soc_tplg_dai {
 	__le32 size;            /* in bytes of this structure */
 	char dai_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN]; /* name - used to match */
 	__le32 dai_id;          /* unique ID - used to match */

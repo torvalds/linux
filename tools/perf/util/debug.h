@@ -54,5 +54,6 @@ int veprintf(int level, int var, const char *fmt, va_list args);
 
 int perf_debug_option(const char *str);
 void perf_debug_setup(void);
+int perf_quiet_option(void);
 
 #endif	/* __PERF_DEBUG_H */

@@ -3,7 +3,7 @@
 Please refer to gpio.txt for generic information regarding GPIO bindings.
 
 Required properties:
- - compatible: "oxsemi,ox810se-gpio"
+ - compatible: "oxsemi,ox810se-gpio" or "oxsemi,ox820-gpio"
  - reg: Base address and length for the device.
  - interrupts: The port interrupt shared by all pins.
  - gpio-controller: Marks the port as GPIO controller.

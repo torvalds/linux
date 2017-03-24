@@ -323,7 +323,7 @@ static void gp8psk_fe_release(struct dvb_frontend* fe)
 	kfree(st);
 }
 
-static struct dvb_frontend_ops gp8psk_fe_ops;
+static const struct dvb_frontend_ops gp8psk_fe_ops;
 
 struct dvb_frontend *gp8psk_fe_attach(const struct gp8psk_fe_ops *ops,
 				      void *priv, bool is_rev1)
@@ -351,7 +351,7 @@ struct dvb_frontend *gp8psk_fe_attach(const struct gp8psk_fe_ops *ops,
 }
 EXPORT_SYMBOL_GPL(gp8psk_fe_attach);
 
-static struct dvb_frontend_ops gp8psk_fe_ops = {
+static const struct dvb_frontend_ops gp8psk_fe_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Genpix DVB-S",

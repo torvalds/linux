@@ -107,7 +107,8 @@ static int shadow_and_reallocate_code (struct snd_cs46xx * chip, u32 * data, u32
             
 						dev_dbg(chip->card->dev,
 							"handle_wideop:[2] %05x:%05x addr %04x\n",
-							hival, loval, address);						nreallocated++;
+							hival, loval, address);
+						nreallocated++;
 					} /* wide_opcodes[j] == wide_op */
 				} /* for */
 			} /* mod_type == 0 ... */

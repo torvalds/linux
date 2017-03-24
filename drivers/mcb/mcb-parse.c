@@ -149,7 +149,7 @@ static int chameleon_get_bar(char __iomem **base, phys_addr_t mapbase,
 		reg = readl(*base);
 
 		bar_count = BAR_CNT(reg);
-		if (bar_count <= 0 && bar_count > CHAMELEON_BAR_MAX)
+		if (bar_count <= 0 || bar_count > CHAMELEON_BAR_MAX)
 			return -ENODEV;
 
 		c = kcalloc(bar_count, sizeof(struct chameleon_bar),

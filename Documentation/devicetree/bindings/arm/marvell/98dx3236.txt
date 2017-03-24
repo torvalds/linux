@@ -1,0 +1,23 @@
+Marvell 98DX3236, 98DX3336 and 98DX4251 Platforms Device Tree Bindings
+----------------------------------------------------------------------
+
+Boards with a SoC of the Marvell 98DX3236, 98DX3336 and 98DX4251 families
+shall have the following property:
+
+Required root node property:
+
+compatible: must contain "marvell,armadaxp-98dx3236"
+
+In addition, boards using the Marvell 98DX3336 SoC shall have the
+following property:
+
+Required root node property:
+
+compatible: must contain "marvell,armadaxp-98dx3336"
+
+In addition, boards using the Marvell 98DX4251 SoC shall have the
+following property:
+
+Required root node property:
+
+compatible: must contain "marvell,armadaxp-98dx4251"

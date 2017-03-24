@@ -407,7 +407,6 @@ static const struct net_device_ops ni65_netdev_ops = {
 	.ndo_start_xmit		= ni65_send_packet,
 	.ndo_tx_timeout		= ni65_timeout,
 	.ndo_set_rx_mode	= set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

@@ -364,6 +364,7 @@
 			reg = <0x0 0xf7010000  0x0 0x27c>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#pinctrl-cells = <1>;
 			#gpio-range-cells = <3>;
 			pinctrl-single,register-width = <32>;
 			pinctrl-single,function-mask = <7>;
@@ -402,6 +403,7 @@
 			reg = <0x0 0xf7010800 0x0 0x28c>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#pinctrl-cells = <1>;
 			pinctrl-single,register-width = <32>;
 		};
 
@@ -410,6 +412,7 @@
 			reg = <0x0 0xf8001800 0x0 0x78>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#pinctrl-cells = <1>;
 			pinctrl-single,register-width = <32>;
 		};
 
@@ -747,7 +750,6 @@
 			clocks = <&sys_ctrl HI6220_USBOTG_HCLK>;
 			clock-names = "otg";
 			dr_mode = "otg";
-			g-use-dma;
 			g-rx-fifo-size = <512>;
 			g-np-tx-fifo-size = <128>;
 			g-tx-fifo-size = <128 128 128 128 128 128>;

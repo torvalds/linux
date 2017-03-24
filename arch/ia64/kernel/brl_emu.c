@@ -8,8 +8,8 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
-#include <asm/uaccess.h>
+#include <linux/sched/signal.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>
 
 extern char ia64_set_b1, ia64_set_b2, ia64_set_b3, ia64_set_b4, ia64_set_b5;

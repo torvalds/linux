@@ -6,12 +6,12 @@ config VFIO_IOMMU_TYPE1
 config VFIO_IOMMU_SPAPR_TCE
 	tristate
 	depends on VFIO && SPAPR_TCE_IOMMU
-	default n
+	default VFIO
 
 config VFIO_SPAPR_EEH
 	tristate
 	depends on EEH && VFIO_IOMMU_SPAPR_TCE
-	default n
+	default VFIO
 
 config VFIO_VIRQFD
 	tristate
@@ -22,8 +22,6 @@ menuconfig VFIO
 	tristate "VFIO Non-Privileged userspace driver framework"
 	depends on IOMMU_API
 	select VFIO_IOMMU_TYPE1 if (X86 || S390 || ARM_SMMU || ARM_SMMU_V3)
-	select VFIO_IOMMU_SPAPR_TCE if (PPC_POWERNV || PPC_PSERIES)
-	select VFIO_SPAPR_EEH if (PPC_POWERNV || PPC_PSERIES)
 	select ANON_INODES
 	help
 	  VFIO provides a framework for secure userspace device drivers.
@@ -48,4 +46,5 @@ menuconfig VFIO_NOIOMMU
 
 source "drivers/vfio/pci/Kconfig"
 source "drivers/vfio/platform/Kconfig"
+source "drivers/vfio/mdev/Kconfig"
 source "virt/lib/Kconfig"

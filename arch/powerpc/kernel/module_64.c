@@ -286,14 +286,6 @@ static void dedotify_versions(struct modversion_info *vers,
 	for (end = (void *)vers + size; vers < end; vers++)
 		if (vers->name[0] == '.') {
 			memmove(vers->name, vers->name+1, strlen(vers->name));
-#ifdef ARCH_RELOCATES_KCRCTAB
-			/* The TOC symbol has no CRC computed. To avoid CRC
-			 * check failing, we must force it to the expected
-			 * value (see CRC check in module.c).
-			 */
-			if (!strcmp(vers->name, "TOC."))
-				vers->crc = -(unsigned long)reloc_start;
-#endif
 		}
 }
 
@@ -650,6 +642,11 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		case R_PPC64_REL64:
 			/* 64 bits relative (used by features fixups) */
 			*location = value - (unsigned long)location;
+			break;
+
+		case R_PPC64_REL32:
+			/* 32 bits relative (used by relative exception tables) */
+			*(u32 *)location = value - (unsigned long)location;
 			break;
 
 		case R_PPC64_TOCSAVE:

@@ -23,7 +23,7 @@
 #include <linux/pfn_t.h>
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define SECTOR_SHIFT		9
 #define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
@@ -395,44 +395,9 @@ static long brd_direct_access(struct block_device *bdev, sector_t sector,
 #define brd_direct_access NULL
 #endif
 
-static int brd_ioctl(struct block_device *bdev, fmode_t mode,
-			unsigned int cmd, unsigned long arg)
-{
-	int error;
-	struct brd_device *brd = bdev->bd_disk->private_data;
-
-	if (cmd != BLKFLSBUF)
-		return -ENOTTY;
-
-	/*
-	 * ram device BLKFLSBUF has special semantics, we want to actually
-	 * release and destroy the ramdisk data.
-	 */
-	mutex_lock(&brd_mutex);
-	mutex_lock(&bdev->bd_mutex);
-	error = -EBUSY;
-	if (bdev->bd_openers <= 1) {
-		/*
-		 * Kill the cache first, so it isn't written back to the
-		 * device.
-		 *
-		 * Another thread might instantiate more buffercache here,
-		 * but there is not much we can do to close that race.
-		 */
-		kill_bdev(bdev);
-		brd_free_pages(brd);
-		error = 0;
-	}
-	mutex_unlock(&bdev->bd_mutex);
-	mutex_unlock(&brd_mutex);
-
-	return error;
-}
-
 static const struct block_device_operations brd_fops = {
 	.owner =		THIS_MODULE,
 	.rw_page =		brd_rw_page,
-	.ioctl =		brd_ioctl,
 	.direct_access =	brd_direct_access,
 };
 
@@ -443,8 +408,8 @@ static int rd_nr = CONFIG_BLK_DEV_RAM_COUNT;
 module_param(rd_nr, int, S_IRUGO);
 MODULE_PARM_DESC(rd_nr, "Maximum number of brd devices");
 
-int rd_size = CONFIG_BLK_DEV_RAM_SIZE;
-module_param(rd_size, int, S_IRUGO);
+unsigned long rd_size = CONFIG_BLK_DEV_RAM_SIZE;
+module_param(rd_size, ulong, S_IRUGO);
 MODULE_PARM_DESC(rd_size, "Size of each RAM disk in kbytes.");
 
 static int max_part = 1;

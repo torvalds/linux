@@ -38,11 +38,12 @@ enum {
 };
 
 /* values for flags field */
-#define NBD_FLAG_HAS_FLAGS    (1 << 0) /* nbd-server supports flags */
-#define NBD_FLAG_READ_ONLY    (1 << 1) /* device is read-only */
-#define NBD_FLAG_SEND_FLUSH   (1 << 2) /* can flush writeback cache */
+#define NBD_FLAG_HAS_FLAGS	(1 << 0) /* nbd-server supports flags */
+#define NBD_FLAG_READ_ONLY	(1 << 1) /* device is read-only */
+#define NBD_FLAG_SEND_FLUSH	(1 << 2) /* can flush writeback cache */
 /* there is a gap here to match userspace */
-#define NBD_FLAG_SEND_TRIM    (1 << 5) /* send trim/discard */
+#define NBD_FLAG_SEND_TRIM	(1 << 5) /* send trim/discard */
+#define NBD_FLAG_CAN_MULTI_CONN	(1 << 8)	/* Server supports multiple connections per export. */
 
 /* userspace doesn't need the nbd_device structure */
 

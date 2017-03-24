@@ -178,7 +178,7 @@ static struct wlcore_conf wl18xx_conf = {
 	.sg = {
 		.params = {
 			[WL18XX_CONF_SG_PARAM_0] = 0,
-			/* Configuartion Parameters */
+			/* Configuration Parameters */
 			[WL18XX_CONF_SG_ANTENNA_CONFIGURATION] = 0,
 			[WL18XX_CONF_SG_ZIGBEE_COEX] = 0,
 			[WL18XX_CONF_SG_TIME_SYNC] = 0,
@@ -1041,7 +1041,8 @@ static int wl18xx_boot(struct wl1271 *wl)
 		SMART_CONFIG_SYNC_EVENT_ID |
 		SMART_CONFIG_DECODE_EVENT_ID |
 		TIME_SYNC_EVENT_ID |
-		FW_LOGGER_INDICATION;
+		FW_LOGGER_INDICATION |
+		RX_BA_WIN_SIZE_CHANGE_EVENT_ID;
 
 	wl->ap_event_mask = MAX_TX_FAILURE_EVENT_ID;
 

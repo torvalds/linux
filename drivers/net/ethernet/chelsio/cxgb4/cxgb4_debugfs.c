@@ -1416,7 +1416,7 @@ static unsigned int xdigit2int(unsigned char c)
  * <pattern data>[/<pattern mask>][@<anchor>]
  *
  * Up to 2 filter patterns can be specified.  If 2 are supplied the first one
- * must be anchored at 0.  An omited mask is taken as a mask of 1s, an omitted
+ * must be anchored at 0.  An omitted mask is taken as a mask of 1s, an omitted
  * anchor is taken as 0.
  */
 static ssize_t mps_trc_write(struct file *file, const char __user *buf,
@@ -2511,18 +2511,6 @@ do { \
 		RL("FLMapErr:", fl.mapping_err);
 		RL("FLLow:", fl.low);
 		RL("FLStarving:", fl.starving);
-
-	} else if (ofld_idx < ofld_entries) {
-		const struct sge_ofld_txq *tx =
-			&adap->sge.ofldtxq[ofld_idx * 4];
-		int n = min(4, adap->sge.ofldqsets - 4 * ofld_idx);
-
-		S("QType:", "OFLD-Txq");
-		T("TxQ ID:", q.cntxt_id);
-		T("TxQ size:", q.size);
-		T("TxQ inuse:", q.in_use);
-		T("TxQ CIDX:", q.cidx);
-		T("TxQ PIDX:", q.pidx);
 
 	} else if (ctrl_idx < ctrl_entries) {
 		const struct sge_ctrl_txq *tx = &adap->sge.ctrlq[ctrl_idx * 4];

@@ -89,8 +89,8 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 
 		if (y_pages == y_dma.page_count) {
 			IVTV_DEBUG_WARN
-				("failed to map uv user pages, returned %d "
-				 "expecting %d\n", uv_pages, uv_dma.page_count);
+				("failed to map uv user pages, returned %d expecting %d\n",
+				 uv_pages, uv_dma.page_count);
 
 			if (uv_pages >= 0) {
 				for (i = 0; i < uv_pages; i++)
@@ -101,8 +101,8 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 			}
 		} else {
 			IVTV_DEBUG_WARN
-				("failed to map y user pages, returned %d "
-				 "expecting %d\n", y_pages, y_dma.page_count);
+				("failed to map y user pages, returned %d expecting %d\n",
+				 y_pages, y_dma.page_count);
 		}
 		if (y_pages >= 0) {
 			for (i = 0; i < y_pages; i++)

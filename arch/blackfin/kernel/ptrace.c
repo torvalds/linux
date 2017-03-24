@@ -7,6 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/elf.h>
@@ -270,7 +271,7 @@ long arch_ptrace(struct task_struct *child, long request,
 			switch (bfin_mem_access_type(addr, to_copy)) {
 			case BFIN_MEM_ACCESS_CORE:
 			case BFIN_MEM_ACCESS_CORE_ONLY:
-				copied = access_process_vm(child, addr, &tmp,
+				copied = ptrace_access_vm(child, addr, &tmp,
 							   to_copy, FOLL_FORCE);
 				if (copied)
 					break;
@@ -323,7 +324,7 @@ long arch_ptrace(struct task_struct *child, long request,
 			switch (bfin_mem_access_type(addr, to_copy)) {
 			case BFIN_MEM_ACCESS_CORE:
 			case BFIN_MEM_ACCESS_CORE_ONLY:
-				copied = access_process_vm(child, addr, &data,
+				copied = ptrace_access_vm(child, addr, &data,
 				                           to_copy,
 							   FOLL_FORCE | FOLL_WRITE);
 				break;

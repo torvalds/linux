@@ -532,7 +532,7 @@ static int chachapoly_init(struct crypto_aead *tfm)
 	if (IS_ERR(poly))
 		return PTR_ERR(poly);
 
-	chacha = crypto_spawn_skcipher2(&ictx->chacha);
+	chacha = crypto_spawn_skcipher(&ictx->chacha);
 	if (IS_ERR(chacha)) {
 		crypto_free_ahash(poly);
 		return PTR_ERR(chacha);
@@ -625,9 +625,9 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 		goto err_free_inst;
 
 	crypto_set_skcipher_spawn(&ctx->chacha, aead_crypto_instance(inst));
-	err = crypto_grab_skcipher2(&ctx->chacha, chacha_name, 0,
-				    crypto_requires_sync(algt->type,
-							 algt->mask));
+	err = crypto_grab_skcipher(&ctx->chacha, chacha_name, 0,
+				   crypto_requires_sync(algt->type,
+							algt->mask));
 	if (err)
 		goto err_drop_poly;
 

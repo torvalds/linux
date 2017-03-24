@@ -48,13 +48,6 @@ void gb_control_mode_switch_complete(struct gb_control *control);
 int gb_control_get_manifest_size_operation(struct gb_interface *intf);
 int gb_control_get_manifest_operation(struct gb_interface *intf, void *manifest,
 				      size_t size);
-int gb_control_timesync_enable(struct gb_control *control, u8 count,
-			       u64 frame_time, u32 strobe_delay, u32 refclk);
-int gb_control_timesync_disable(struct gb_control *control);
-int gb_control_timesync_get_last_event(struct gb_control *control,
-				       u64 *frame_time);
-int gb_control_timesync_authoritative(struct gb_control *control,
-				      u64 *frame_time);
 int gb_control_bundle_suspend(struct gb_control *control, u8 bundle_id);
 int gb_control_bundle_resume(struct gb_control *control, u8 bundle_id);
 int gb_control_bundle_deactivate(struct gb_control *control, u8 bundle_id);

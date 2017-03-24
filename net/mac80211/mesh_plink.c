@@ -9,6 +9,8 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
+#include <linux/rculist.h>
+
 #include "ieee80211_i.h"
 #include "rate.h"
 #include "mesh.h"
@@ -505,12 +507,14 @@ mesh_sta_info_alloc(struct ieee80211_sub_if_data *sdata, u8 *addr,
 
 	/* Userspace handles station allocation */
 	if (sdata->u.mesh.user_mpm ||
-	    sdata->u.mesh.security & IEEE80211_MESH_SEC_AUTHED)
-		cfg80211_notify_new_peer_candidate(sdata->dev, addr,
-						   elems->ie_start,
-						   elems->total_len,
-						   GFP_KERNEL);
-	else
+	    sdata->u.mesh.security & IEEE80211_MESH_SEC_AUTHED) {
+		if (mesh_peer_accepts_plinks(elems) &&
+		    mesh_plink_availables(sdata))
+			cfg80211_notify_new_peer_candidate(sdata->dev, addr,
+							   elems->ie_start,
+							   elems->total_len,
+							   GFP_KERNEL);
+	} else
 		sta = __mesh_sta_info_alloc(sdata, addr);
 
 	return sta;

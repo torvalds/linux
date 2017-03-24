@@ -140,7 +140,7 @@ struct pevent_plugin_option {
  *   struct pevent_plugin_option PEVENT_PLUGIN_OPTIONS[] = {
  *	{
  *		.name = "option-name",
- *		.plugin_alias = "overide-file-name", (optional)
+ *		.plugin_alias = "override-file-name", (optional)
  *		.description = "description of option to show users",
  *	},
  *	{
@@ -171,9 +171,6 @@ struct pevent_plugin_option {
 #define PEVENT_PLUGIN_UNLOADER_NAME MAKE_STR(PEVENT_PLUGIN_UNLOADER)
 #define PEVENT_PLUGIN_OPTIONS_NAME MAKE_STR(PEVENT_PLUGIN_OPTIONS)
 #define PEVENT_PLUGIN_ALIAS_NAME MAKE_STR(PEVENT_PLUGIN_ALIAS)
-
-#define NSECS_PER_SEC		1000000000ULL
-#define NSECS_PER_USEC		1000ULL
 
 enum format_flags {
 	FIELD_IS_ARRAY		= 1,
@@ -295,6 +292,7 @@ enum print_arg_type {
 	PRINT_FUNC,
 	PRINT_BITMASK,
 	PRINT_DYNAMIC_ARRAY_LEN,
+	PRINT_HEX_STR,
 };
 
 struct print_arg {
@@ -712,6 +710,8 @@ void pevent_data_lat_fmt(struct pevent *pevent,
 int pevent_data_type(struct pevent *pevent, struct pevent_record *rec);
 struct event_format *pevent_data_event_from_type(struct pevent *pevent, int type);
 int pevent_data_pid(struct pevent *pevent, struct pevent_record *rec);
+int pevent_data_preempt_count(struct pevent *pevent, struct pevent_record *rec);
+int pevent_data_flags(struct pevent *pevent, struct pevent_record *rec);
 const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid);
 struct cmdline;
 struct cmdline *pevent_data_pid_from_comm(struct pevent *pevent, const char *comm,

@@ -33,6 +33,8 @@ struct vdso_data {
 	__u32 ectg_available;		/* ECTG instruction present	0x58 */
 	__u32 tk_mult;			/* Mult. used for xtime_nsec	0x5c */
 	__u32 tk_shift;			/* Shift used for xtime_nsec	0x60 */
+	__u32 ts_dir;			/* TOD steering direction	0x64 */
+	__u64 ts_end;			/* TOD steering end		0x68 */
 };
 
 struct vdso_per_cpu_data {

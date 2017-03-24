@@ -236,15 +236,13 @@ static int regcache_lzo_read(struct regmap *map,
 {
 	struct regcache_lzo_ctx *lzo_block, **lzo_blocks;
 	int ret, blkindex, blkpos;
-	size_t blksize, tmp_dst_len;
+	size_t tmp_dst_len;
 	void *tmp_dst;
 
 	/* index of the compressed lzo block */
 	blkindex = regcache_lzo_get_blkindex(map, reg);
 	/* register index within the decompressed block */
 	blkpos = regcache_lzo_get_blkpos(map, reg);
-	/* size of the compressed block */
-	blksize = regcache_lzo_get_blksize(map);
 	lzo_blocks = map->cache;
 	lzo_block = lzo_blocks[blkindex];
 
@@ -275,15 +273,13 @@ static int regcache_lzo_write(struct regmap *map,
 {
 	struct regcache_lzo_ctx *lzo_block, **lzo_blocks;
 	int ret, blkindex, blkpos;
-	size_t blksize, tmp_dst_len;
+	size_t tmp_dst_len;
 	void *tmp_dst;
 
 	/* index of the compressed lzo block */
 	blkindex = regcache_lzo_get_blkindex(map, reg);
 	/* register index within the decompressed block */
 	blkpos = regcache_lzo_get_blkpos(map, reg);
-	/* size of the compressed block */
-	blksize = regcache_lzo_get_blksize(map);
 	lzo_blocks = map->cache;
 	lzo_block = lzo_blocks[blkindex];
 

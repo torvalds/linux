@@ -164,7 +164,7 @@ struct rvt_driver_params {
 /* Protection domain */
 struct rvt_pd {
 	struct ib_pd ibpd;
-	int user;               /* non-zero if created from user space */
+	bool user;
 };
 
 /* Address handle */
@@ -184,6 +184,27 @@ struct rvt_driver_provided {
 	 * providing and which verbs the driver is overriding. See
 	 * check_support() for details.
 	 */
+
+	/* hot path calldowns in a single cacheline */
+
+	/*
+	 * Give the driver a notice that there is send work to do. It is up to
+	 * the driver to generally push the packets out, this just queues the
+	 * work with the driver. There are two variants here. The no_lock
+	 * version requires the s_lock not to be held. The other assumes the
+	 * s_lock is held.
+	 */
+	void (*schedule_send)(struct rvt_qp *qp);
+	void (*schedule_send_no_lock)(struct rvt_qp *qp);
+
+	/* Driver specific work request checking */
+	int (*check_send_wqe)(struct rvt_qp *qp, struct rvt_swqe *wqe);
+
+	/*
+	 * Sometimes rdmavt needs to kick the driver's send progress. That is
+	 * done by this call back.
+	 */
+	void (*do_send)(struct rvt_qp *qp);
 
 	/* Passed to ib core registration. Callback to create syfs files */
 	int (*port_callback)(struct ib_device *, u8, struct kobject *);
@@ -221,22 +242,6 @@ struct rvt_driver_provided {
 	 * that it can clean up anything it needs to.
 	 */
 	void (*notify_qp_reset)(struct rvt_qp *qp);
-
-	/*
-	 * Give the driver a notice that there is send work to do. It is up to
-	 * the driver to generally push the packets out, this just queues the
-	 * work with the driver. There are two variants here. The no_lock
-	 * version requires the s_lock not to be held. The other assumes the
-	 * s_lock is held.
-	 */
-	void (*schedule_send)(struct rvt_qp *qp);
-	void (*schedule_send_no_lock)(struct rvt_qp *qp);
-
-	/*
-	 * Sometimes rdmavt needs to kick the driver's send progress. That is
-	 * done by this call back.
-	 */
-	void (*do_send)(struct rvt_qp *qp);
 
 	/*
 	 * Get a path mtu from the driver based on qp attributes.
@@ -324,15 +329,14 @@ struct rvt_driver_provided {
 	void (*modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask, struct ib_udata *udata);
 
-	/* Driver specific work request checking */
-	int (*check_send_wqe)(struct rvt_qp *qp, struct rvt_swqe *wqe);
-
 	/* Notify driver a mad agent has been created */
 	void (*notify_create_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 
 	/* Notify driver a mad agent has been removed */
 	void (*notify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 
+	/* Notify driver to restart rc */
+	void (*notify_restart_rc)(struct rvt_qp *qp, u32 psn, int wait);
 };
 
 struct rvt_dev_info {
@@ -355,11 +359,11 @@ struct rvt_dev_info {
 	/* post send table */
 	const struct rvt_operation_params *post_parms;
 
-	struct rvt_mregion __rcu *dma_mr;
-	struct rvt_lkey_table lkey_table;
-
 	/* Driver specific helper functions */
 	struct rvt_driver_provided driver_f;
+
+	struct rvt_mregion __rcu *dma_mr;
+	struct rvt_lkey_table lkey_table;
 
 	/* Internal use */
 	int n_pds_allocated;
@@ -479,6 +483,23 @@ static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
 				break;
 	}
 	return qp;
+}
+
+/**
+ * rvt_mod_retry_timer - mod a retry timer
+ * @qp - the QP
+ * Modify a potentially already running retry timer
+ */
+static inline void rvt_mod_retry_timer(struct rvt_qp *qp)
+{
+	struct ib_qp *ibqp = &qp->ibqp;
+	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
+
+	lockdep_assert_held(&qp->s_lock);
+	qp->s_flags |= RVT_S_TIMER;
+	/* 4.096 usec. * (1 << qp->timeout) */
+	mod_timer(&qp->s_timer, jiffies + qp->timeout_jiffies +
+		  rdi->busy_jiffies);
 }
 
 struct rvt_dev_info *rvt_alloc_device(size_t size, int nports);

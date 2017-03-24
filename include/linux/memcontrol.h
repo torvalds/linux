@@ -120,7 +120,7 @@ struct mem_cgroup_reclaim_iter {
  */
 struct mem_cgroup_per_node {
 	struct lruvec		lruvec;
-	unsigned long		lru_size[NR_LRU_LISTS];
+	unsigned long		lru_zone_size[MAX_NR_ZONES][NR_LRU_LISTS];
 
 	struct mem_cgroup_reclaim_iter	iter[DEF_PRIORITY + 1];
 
@@ -253,6 +253,7 @@ struct mem_cgroup {
         /* Index in the kmem_cache->memcg_params.memcg_caches array */
 	int kmemcg_id;
 	enum memcg_kmem_state kmem_state;
+	struct list_head kmem_caches;
 #endif
 
 	int last_scanned_node;
@@ -432,7 +433,7 @@ static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
 int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
 
 void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
-		int nr_pages);
+		int zid, int nr_pages);
 
 unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
 					   int nid, unsigned int lru_mask);
@@ -441,9 +442,23 @@ static inline
 unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
 {
 	struct mem_cgroup_per_node *mz;
+	unsigned long nr_pages = 0;
+	int zid;
 
 	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
-	return mz->lru_size[lru];
+	for (zid = 0; zid < MAX_NR_ZONES; zid++)
+		nr_pages += mz->lru_zone_size[zid][lru];
+	return nr_pages;
+}
+
+static inline
+unsigned long mem_cgroup_get_zone_lru_size(struct lruvec *lruvec,
+		enum lru_list lru, int zone_idx)
+{
+	struct mem_cgroup_per_node *mz;
+
+	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+	return mz->lru_zone_size[zone_idx][lru];
 }
 
 void mem_cgroup_handle_over_high(void);
@@ -671,6 +686,12 @@ mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
 {
 	return 0;
 }
+static inline
+unsigned long mem_cgroup_get_zone_lru_size(struct lruvec *lruvec,
+		enum lru_list lru, int zone_idx)
+{
+	return 0;
+}
 
 static inline unsigned long
 mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
@@ -809,6 +830,7 @@ void memcg_kmem_uncharge(struct page *page, int order);
 
 #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
 extern struct static_key_false memcg_kmem_enabled_key;
+extern struct workqueue_struct *memcg_kmem_cache_wq;
 
 extern int memcg_nr_cache_ids;
 void memcg_get_cache_ids(void);

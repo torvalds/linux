@@ -94,8 +94,17 @@ SECTIONS
 	 * detected, and will result in a crash at boot due to offsets being
 	 * wrong.
 	 */
+#ifdef CONFIG_PPC64
+	/*
+	 * BLOCK(0) overrides the default output section alignment because
+	 * this needs to start right after .head.text in order for fixed
+	 * section placement to work.
+	 */
+	.text BLOCK(0) : AT(ADDR(.text) - LOAD_OFFSET) {
+#else
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		ALIGN_FUNCTION();
+#endif
 		/* careful! __ftr_alt_* sections need to be close to .text */
 		*(.text .fixup __ftr_alt_* .ref.text)
 		SCHED_TEXT

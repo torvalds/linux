@@ -1191,7 +1191,7 @@ static int __init __gic_init_bases(struct gic_chip_data *gic,
 		set_smp_cross_call(gic_raise_softirq);
 #endif
 		cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_GIC_STARTING,
-					  "AP_IRQ_GIC_STARTING",
+					  "irqchip/arm/gic:starting",
 					  gic_starting_cpu, NULL);
 		set_handle_irq(gic_handle_irq);
 		if (static_key_true(&supports_deactivate))

@@ -16,7 +16,7 @@
 #include <linux/edac.h>
 
 #include <linux/io-64-nonatomic-lo-hi.h>
-#include "edac_core.h"
+#include "edac_module.h"
 
 #define X38_REVISION		"1.1"
 

@@ -4,6 +4,7 @@
 
 obj-$(CONFIG_W1_SLAVE_THERM)	+= w1_therm.o
 obj-$(CONFIG_W1_SLAVE_SMEM)	+= w1_smem.o
+obj-$(CONFIG_W1_SLAVE_DS2405)	+= w1_ds2405.o
 obj-$(CONFIG_W1_SLAVE_DS2408)	+= w1_ds2408.o
 obj-$(CONFIG_W1_SLAVE_DS2413)	+= w1_ds2413.o
 obj-$(CONFIG_W1_SLAVE_DS2406)	+= w1_ds2406.o

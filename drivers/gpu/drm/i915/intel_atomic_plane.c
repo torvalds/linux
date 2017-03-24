@@ -84,7 +84,8 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 	state = &intel_state->base;
 
 	__drm_atomic_helper_plane_duplicate_state(plane, state);
-	intel_state->wait_req = NULL;
+
+	intel_state->vma = NULL;
 
 	return state;
 }
@@ -101,23 +102,103 @@ void
 intel_plane_destroy_state(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
-	WARN_ON(state && to_intel_plane_state(state)->wait_req);
+	struct i915_vma *vma;
+
+	vma = fetch_and_zero(&to_intel_plane_state(state)->vma);
+
+	/*
+	 * FIXME: Normally intel_cleanup_plane_fb handles destruction of vma.
+	 * We currently don't clear all planes during driver unload, so we have
+	 * to be able to unpin vma here for now.
+	 *
+	 * Normally this can only happen during unload when kmscon is disabled
+	 * and userspace doesn't attempt to set a framebuffer at all.
+	 */
+	if (vma) {
+		mutex_lock(&plane->dev->struct_mutex);
+		intel_unpin_fb_vma(vma);
+		mutex_unlock(&plane->dev->struct_mutex);
+	}
+
 	drm_atomic_helper_plane_destroy_state(plane, state);
+}
+
+int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
+					struct intel_plane_state *intel_state)
+{
+	struct drm_plane *plane = intel_state->base.plane;
+	struct drm_i915_private *dev_priv = to_i915(plane->dev);
+	struct drm_plane_state *state = &intel_state->base;
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+	int ret;
+
+	/*
+	 * Both crtc and plane->crtc could be NULL if we're updating a
+	 * property while the plane is disabled.  We don't actually have
+	 * anything driver-specific we need to test in that case, so
+	 * just return success.
+	 */
+	if (!intel_state->base.crtc && !plane->state->crtc)
+		return 0;
+
+	/* Clip all planes to CRTC size, or 0x0 if CRTC is disabled */
+	intel_state->clip.x1 = 0;
+	intel_state->clip.y1 = 0;
+	intel_state->clip.x2 =
+		crtc_state->base.enable ? crtc_state->pipe_src_w : 0;
+	intel_state->clip.y2 =
+		crtc_state->base.enable ? crtc_state->pipe_src_h : 0;
+
+	if (state->fb && drm_rotation_90_or_270(state->rotation)) {
+		struct drm_format_name_buf format_name;
+
+		if (state->fb->modifier != I915_FORMAT_MOD_Y_TILED &&
+		    state->fb->modifier != I915_FORMAT_MOD_Yf_TILED) {
+			DRM_DEBUG_KMS("Y/Yf tiling required for 90/270!\n");
+			return -EINVAL;
+		}
+
+		/*
+		 * 90/270 is not allowed with RGB64 16:16:16:16,
+		 * RGB 16-bit 5:6:5, and Indexed 8-bit.
+		 * TBD: Add RGB64 case once its added in supported format list.
+		 */
+		switch (state->fb->format->format) {
+		case DRM_FORMAT_C8:
+		case DRM_FORMAT_RGB565:
+			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
+			              drm_get_format_name(state->fb->format->format,
+			                                  &format_name));
+			return -EINVAL;
+
+		default:
+			break;
+		}
+	}
+
+	/* CHV ignores the mirror bit when the rotate bit is set :( */
+	if (IS_CHERRYVIEW(dev_priv) &&
+	    state->rotation & DRM_ROTATE_180 &&
+	    state->rotation & DRM_REFLECT_X) {
+		DRM_DEBUG_KMS("Cannot rotate and reflect at the same time\n");
+		return -EINVAL;
+	}
+
+	intel_state->base.visible = false;
+	ret = intel_plane->check_plane(plane, crtc_state, intel_state);
+	if (ret)
+		return ret;
+
+	return intel_plane_atomic_calc_changes(&crtc_state->base, state);
 }
 
 static int intel_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
 	struct drm_crtc *crtc = state->crtc;
-	struct intel_crtc *intel_crtc;
-	struct intel_crtc_state *crtc_state;
-	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct intel_plane_state *intel_state = to_intel_plane_state(state);
 	struct drm_crtc_state *drm_crtc_state;
-	int ret;
 
 	crtc = crtc ? crtc : plane->state->crtc;
-	intel_crtc = to_intel_crtc(crtc);
 
 	/*
 	 * Both crtc and plane->crtc could be NULL if we're updating a
@@ -132,48 +213,8 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!drm_crtc_state))
 		return -EINVAL;
 
-	crtc_state = to_intel_crtc_state(drm_crtc_state);
-
-	/* Clip all planes to CRTC size, or 0x0 if CRTC is disabled */
-	intel_state->clip.x1 = 0;
-	intel_state->clip.y1 = 0;
-	intel_state->clip.x2 =
-		crtc_state->base.enable ? crtc_state->pipe_src_w : 0;
-	intel_state->clip.y2 =
-		crtc_state->base.enable ? crtc_state->pipe_src_h : 0;
-
-	if (state->fb && intel_rotation_90_or_270(state->rotation)) {
-		char *format_name;
-		if (!(state->fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
-			state->fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED)) {
-			DRM_DEBUG_KMS("Y/Yf tiling required for 90/270!\n");
-			return -EINVAL;
-		}
-
-		/*
-		 * 90/270 is not allowed with RGB64 16:16:16:16,
-		 * RGB 16-bit 5:6:5, and Indexed 8-bit.
-		 * TBD: Add RGB64 case once its added in supported format list.
-		 */
-		switch (state->fb->pixel_format) {
-		case DRM_FORMAT_C8:
-		case DRM_FORMAT_RGB565:
-			format_name = drm_get_format_name(state->fb->pixel_format);
-			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n", format_name);
-			kfree(format_name);
-			return -EINVAL;
-
-		default:
-			break;
-		}
-	}
-
-	intel_state->base.visible = false;
-	ret = intel_plane->check_plane(plane, crtc_state, intel_state);
-	if (ret)
-		return ret;
-
-	return intel_plane_atomic_calc_changes(&crtc_state->base, state);
+	return intel_plane_atomic_check_with_state(to_intel_crtc_state(drm_crtc_state),
+						   to_intel_plane_state(state));
 }
 
 static void intel_plane_atomic_update(struct drm_plane *plane,

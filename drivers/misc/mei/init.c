@@ -122,6 +122,10 @@ int mei_reset(struct mei_device *dev)
 			 mei_dev_state_str(state), fw_sts_str);
 	}
 
+	mei_clear_interrupts(dev);
+
+	mei_synchronize_irq(dev);
+
 	/* we're already in reset, cancel the init timer
 	 * if the reset was called due the hbm protocol error
 	 * we need to call it before hw start
@@ -273,8 +277,6 @@ int mei_restart(struct mei_device *dev)
 
 	mutex_lock(&dev->device_lock);
 
-	mei_clear_interrupts(dev);
-
 	dev->dev_state = MEI_DEV_POWER_UP;
 	dev->reset_count = 0;
 
@@ -347,16 +349,16 @@ EXPORT_SYMBOL_GPL(mei_stop);
 bool mei_write_is_idle(struct mei_device *dev)
 {
 	bool idle = (dev->dev_state == MEI_DEV_ENABLED &&
-		list_empty(&dev->ctrl_wr_list.list) &&
-		list_empty(&dev->write_list.list)   &&
-		list_empty(&dev->write_waiting_list.list));
+		list_empty(&dev->ctrl_wr_list) &&
+		list_empty(&dev->write_list)   &&
+		list_empty(&dev->write_waiting_list));
 
 	dev_dbg(dev->dev, "write pg: is idle[%d] state=%s ctrl=%01d write=%01d wwait=%01d\n",
 		idle,
 		mei_dev_state_str(dev->dev_state),
-		list_empty(&dev->ctrl_wr_list.list),
-		list_empty(&dev->write_list.list),
-		list_empty(&dev->write_waiting_list.list));
+		list_empty(&dev->ctrl_wr_list),
+		list_empty(&dev->write_list),
+		list_empty(&dev->write_waiting_list));
 
 	return idle;
 }
@@ -386,17 +388,17 @@ void mei_device_init(struct mei_device *dev,
 	dev->dev_state = MEI_DEV_INITIALIZING;
 	dev->reset_count = 0;
 
-	mei_io_list_init(&dev->write_list);
-	mei_io_list_init(&dev->write_waiting_list);
-	mei_io_list_init(&dev->ctrl_wr_list);
-	mei_io_list_init(&dev->ctrl_rd_list);
+	INIT_LIST_HEAD(&dev->write_list);
+	INIT_LIST_HEAD(&dev->write_waiting_list);
+	INIT_LIST_HEAD(&dev->ctrl_wr_list);
+	INIT_LIST_HEAD(&dev->ctrl_rd_list);
 
 	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
 	INIT_WORK(&dev->reset_work, mei_reset_work);
 	INIT_WORK(&dev->bus_rescan_work, mei_cl_bus_rescan_work);
 
 	INIT_LIST_HEAD(&dev->iamthif_cl.link);
-	mei_io_list_init(&dev->amthif_cmd_list);
+	INIT_LIST_HEAD(&dev->amthif_cmd_list);
 
 	bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
 	dev->open_handle_count = 0;

@@ -17,5 +17,11 @@ struct netns_nf {
 	struct ctl_table_header *nf_log_dir_header;
 #endif
 	struct nf_hook_entry __rcu *hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
+	bool			defrag_ipv4;
+#endif
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
+	bool			defrag_ipv6;
+#endif
 };
 #endif

@@ -198,6 +198,8 @@ enum i40iw_status_code i40iw_cqp_manage_vf_pble_bp(struct i40iw_sc_dev *dev,
 void i40iw_cqp_spawn_worker(struct i40iw_sc_dev *dev,
 			    struct i40iw_virtchnl_work_info *work_info, u32 iw_vf_idx);
 void *i40iw_remove_head(struct list_head *list);
+void i40iw_qp_suspend_resume(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp, bool suspend);
+void i40iw_qp_mss_modify(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp);
 
 void i40iw_term_modify_qp(struct i40iw_sc_qp *qp, u8 next_state, u8 term, u8 term_len);
 void i40iw_terminate_done(struct i40iw_sc_qp *qp, int timeout_occurred);
@@ -207,9 +209,9 @@ void i40iw_terminate_del_timer(struct i40iw_sc_qp *qp);
 enum i40iw_status_code i40iw_hw_manage_vf_pble_bp(struct i40iw_device *iwdev,
 						  struct i40iw_manage_vf_pble_info *info,
 						  bool wait);
-struct i40iw_dev_pestat;
-void i40iw_hw_stats_start_timer(struct i40iw_sc_dev *);
-void i40iw_hw_stats_del_timer(struct i40iw_sc_dev *);
+struct i40iw_sc_vsi;
+void i40iw_hw_stats_start_timer(struct i40iw_sc_vsi *vsi);
+void i40iw_hw_stats_stop_timer(struct i40iw_sc_vsi *vsi);
 #define i40iw_mmiowb() mmiowb()
 void i40iw_wr32(struct i40iw_hw *hw, u32 reg, u32 value);
 u32  i40iw_rd32(struct i40iw_hw *hw, u32 reg);

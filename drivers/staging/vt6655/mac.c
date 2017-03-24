@@ -12,11 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- *
  * File: mac.c
  *
  * Purpose:  MAC routines
@@ -146,7 +141,6 @@ void MACvSetShortRetryLimit(struct vnt_private *priv,
 	/* set SRT */
 	iowrite8(byRetryLimit, io_base + MAC_REG_SRT);
 }
-
 
 /*
  * Description:
@@ -321,7 +315,7 @@ bool MACbSoftwareReset(struct vnt_private *priv)
  */
 bool MACbSafeSoftwareReset(struct vnt_private *priv)
 {
-	unsigned char abyTmpRegData[MAC_MAX_CONTEXT_SIZE_PAGE0+MAC_MAX_CONTEXT_SIZE_PAGE1];
+	unsigned char abyTmpRegData[MAC_MAX_CONTEXT_SIZE_PAGE0 + MAC_MAX_CONTEXT_SIZE_PAGE1];
 	bool bRetVal;
 
 	/* PATCH....

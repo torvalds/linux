@@ -109,3 +109,7 @@
 &sdhci0 {
 	status = "okay";
 };
+
+&mspi {
+	status = "okay";
+};

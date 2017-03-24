@@ -1058,12 +1058,6 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_TIMEOUT]	= ccw_device_nop,
 		[DEV_EVENT_VERIFY]	= ccw_device_nop,
 	},
-	[DEV_STATE_SENSE_PGID] = {
-		[DEV_EVENT_NOTOPER]	= ccw_device_request_event,
-		[DEV_EVENT_INTERRUPT]	= ccw_device_request_event,
-		[DEV_EVENT_TIMEOUT]	= ccw_device_request_event,
-		[DEV_EVENT_VERIFY]	= ccw_device_nop,
-	},
 	[DEV_STATE_SENSE_ID] = {
 		[DEV_EVENT_NOTOPER]	= ccw_device_request_event,
 		[DEV_EVENT_INTERRUPT]	= ccw_device_request_event,

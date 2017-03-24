@@ -550,6 +550,18 @@ Unless /proc/sys/kernel/perf_event_paranoid is set to -1, unprivileged users
 have memory limits imposed upon them.  That affects what buffer sizes they can
 have as outlined above.
 
+The v4.2 kernel introduced support for a context switch metadata event,
+PERF_RECORD_SWITCH, which allows unprivileged users to see when their processes
+are scheduled out and in, just not by whom, which is left for the
+PERF_RECORD_SWITCH_CPU_WIDE, that is only accessible in system wide context,
+which in turn requires CAP_SYS_ADMIN.
+
+Please see the 45ac1403f564 ("perf: Add PERF_RECORD_SWITCH to indicate context
+switches") commit, that introduces these metadata events for further info.
+
+When working with kernels < v4.2, the following considerations must be taken,
+as the sched:sched_switch tracepoints will be used to receive such information:
+
 Unless /proc/sys/kernel/perf_event_paranoid is set to -1, unprivileged users are
 not permitted to use tracepoints which means there is insufficient side-band
 information to decode Intel PT in per-cpu mode, and potentially workload-only
@@ -564,8 +576,11 @@ sched_switch tracepoint
 -----------------------
 
 The sched_switch tracepoint is used to provide side-band data for Intel PT
-decoding.  sched_switch events are automatically added. e.g. the second event
-shown below
+decoding in kernels where the PERF_RECORD_SWITCH metadata event isn't
+available.
+
+The sched_switch events are automatically added. e.g. the second event shown
+below:
 
 	$ perf record -vv -e intel_pt//u uname
 	------------------------------------------------------------

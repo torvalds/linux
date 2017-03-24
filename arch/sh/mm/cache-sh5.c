@@ -17,7 +17,7 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 
 extern void __weak sh4__flush_region_init(void);

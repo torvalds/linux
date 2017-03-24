@@ -47,6 +47,7 @@ struct nvmet_ns {
 	loff_t			size;
 	u8			nguid[16];
 
+	bool			enabled;
 	struct nvmet_subsys	*subsys;
 	const char		*device_path;
 
@@ -59,11 +60,6 @@ struct nvmet_ns {
 static inline struct nvmet_ns *to_nvmet_ns(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct nvmet_ns, group);
-}
-
-static inline bool nvmet_ns_enabled(struct nvmet_ns *ns)
-{
-	return !list_empty_careful(&ns->dev_link);
 }
 
 struct nvmet_cq {
@@ -146,7 +142,6 @@ struct nvmet_subsys {
 	unsigned int		max_nsid;
 
 	struct list_head	ctrls;
-	struct ida		cntlid_ida;
 
 	struct list_head	hosts;
 	bool			allow_any_host;
@@ -238,7 +233,7 @@ static inline void nvmet_set_status(struct nvmet_req *req, u16 status)
 
 static inline void nvmet_set_result(struct nvmet_req *req, u32 result)
 {
-	req->rsp->result = cpu_to_le32(result);
+	req->rsp->result.u32 = cpu_to_le32(result);
 }
 
 /*
@@ -286,6 +281,7 @@ void nvmet_ctrl_put(struct nvmet_ctrl *ctrl);
 struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		enum nvme_subsys_type type);
 void nvmet_subsys_put(struct nvmet_subsys *subsys);
+void nvmet_subsys_del_ctrls(struct nvmet_subsys *subsys);
 
 struct nvmet_ns *nvmet_find_namespace(struct nvmet_ctrl *ctrl, __le32 nsid);
 void nvmet_put_namespace(struct nvmet_ns *ns);

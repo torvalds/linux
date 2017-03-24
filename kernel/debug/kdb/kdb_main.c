@@ -18,6 +18,9 @@
 #include <linux/kmsg_dump.h>
 #include <linux/reboot.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
+#include <linux/sched/stat.h>
+#include <linux/sched/debug.h>
 #include <linux/sysrq.h>
 #include <linux/smp.h>
 #include <linux/utsname.h>
@@ -60,7 +63,6 @@ int kdb_grep_trailing;
  * Kernel debugger state flags
  */
 int kdb_flags;
-atomic_t kdb_event;
 
 /*
  * kdb_lock protects updates to kdb_initial_cpu.  Used to

@@ -14,7 +14,7 @@
   * (C) 2000,2001,2002,2003,2004 Omnikey AG
   *
   * (C) 2005-2006 Harald Welte <laforge@gnumonks.org>
-  * 	- Adhere to Kernel CodingStyle
+  * 	- Adhere to Kernel process/coding-style.rst
   * 	- Port to 2.6.13 "new" style PCMCIA
   * 	- Check for copy_{from,to}_user return values
   * 	- Use nonseekable_open()
@@ -151,7 +151,7 @@ static struct pcmcia_device *dev_table[CM4000_MAX_DEV];
 static struct class *cmm_class;
 
 /* This table doesn't use spaces after the comma between fields and thus
- * violates CodingStyle.  However, I don't really think wrapping it around will
+ * violates process/coding-style.rst.  However, I don't really think wrapping it around will
  * make it any clearer to read -HW */
 static unsigned char fi_di_table[10][14] = {
 /*FI     00   01   02   03   04   05   06   07   08   09   10   11   12   13 */
@@ -655,7 +655,7 @@ static void terminate_monitor(struct cm4000_dev *dev)
  * monitor the card every 50msec. as a side-effect, retrieve the
  * atr once a card is inserted. another side-effect of retrieving the
  * atr is that the card will be powered on, so there is no need to
- * power on the card explictely from the application: the driver
+ * power on the card explicitly from the application: the driver
  * is already doing that for you.
  */
 
@@ -1037,7 +1037,7 @@ release_io:
 	clear_bit(LOCK_IO, &dev->flags);
 	wake_up_interruptible(&dev->ioq);
 
-	DEBUGP(2, dev, "<- cmm_read returns: rc = %Zi\n",
+	DEBUGP(2, dev, "<- cmm_read returns: rc = %zi\n",
 	       (rc < 0 ? rc : count));
 	return rc < 0 ? rc : count;
 }

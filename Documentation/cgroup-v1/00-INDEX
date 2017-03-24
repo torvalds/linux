@@ -8,7 +8,7 @@ cpuacct.txt
 	- CPU Accounting Controller; account CPU usage for groups of tasks.
 cpusets.txt
 	- documents the cpusets feature; assign CPUs and Mem to a set of tasks.
-devices.txt
+admin-guide/devices.rst
 	- Device Whitelist Controller; description, interface and security.
 freezer-subsystem.txt
 	- checkpointing; rationale to not use signals, interface.

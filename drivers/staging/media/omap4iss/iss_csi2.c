@@ -224,7 +224,7 @@ static u16 csi2_ctx_map_format(struct iss_csi2_device *csi2)
 		fmtidx = 3;
 		break;
 	default:
-		WARN(1, KERN_ERR "CSI2: pixel format %08x unsupported!\n",
+		WARN(1, "CSI2: pixel format %08x unsupported!\n",
 		     fmt->code);
 		return 0;
 	}

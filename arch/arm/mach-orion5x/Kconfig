@@ -84,13 +84,6 @@ config MACH_LINKSTATION_PRO
 	  Buffalo Linkstation Pro/Live platform. Both v1 and
 	  v2 devices are supported.
 
-config MACH_LINKSTATION_LSCHL
-	bool "Buffalo Linkstation Live v3 (LS-CHL)"
-	select I2C_BOARDINFO if I2C
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Buffalo Linkstation Live v3 (LS-CHL) platform.
-
 config MACH_LINKSTATION_MINI
 	bool "Buffalo Linkstation Mini (Flattened Device Tree)"
 	select ARCH_ORION5X_DT

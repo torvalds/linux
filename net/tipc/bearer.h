@@ -39,6 +39,7 @@
 
 #include "netlink.h"
 #include "core.h"
+#include "msg.h"
 #include <net/genetlink.h>
 
 #define MAX_MEDIA	3
@@ -58,6 +59,14 @@
 #define TIPC_MEDIA_TYPE_ETH	1
 #define TIPC_MEDIA_TYPE_IB	2
 #define TIPC_MEDIA_TYPE_UDP	3
+
+/* Minimum bearer MTU */
+#define TIPC_MIN_BEARER_MTU	(MAX_H_SIZE + INT_H_SIZE)
+
+/* Identifiers for distinguishing between broadcast/multicast and replicast
+ */
+#define TIPC_BROADCAST_SUPPORT  1
+#define TIPC_REPLICAST_SUPPORT  2
 
 /**
  * struct tipc_media_addr - destination address used by TIPC bearers
@@ -206,6 +215,7 @@ int tipc_bearer_setup(void);
 void tipc_bearer_cleanup(void);
 void tipc_bearer_stop(struct net *net);
 int tipc_bearer_mtu(struct net *net, u32 bearer_id);
+bool tipc_bearer_bcast_support(struct net *net, u32 bearer_id);
 void tipc_bearer_xmit_skb(struct net *net, u32 bearer_id,
 			  struct sk_buff *skb,
 			  struct tipc_media_addr *dest);
@@ -214,5 +224,14 @@ void tipc_bearer_xmit(struct net *net, u32 bearer_id,
 		      struct tipc_media_addr *dst);
 void tipc_bearer_bc_xmit(struct net *net, u32 bearer_id,
 			 struct sk_buff_head *xmitq);
+
+/* check if device MTU is too low for tipc headers */
+static inline bool tipc_mtu_bad(struct net_device *dev, unsigned int reserve)
+{
+	if (dev->mtu >= TIPC_MIN_BEARER_MTU + reserve)
+		return false;
+	netdev_warn(dev, "MTU too low for tipc bearer\n");
+	return true;
+}
 
 #endif	/* _TIPC_BEARER_H */

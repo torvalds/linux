@@ -14,6 +14,7 @@
  * Copyright (C) 2002 Maciej W. Rozycki
  */
 
+#include <linux/export.h>
 #include <linux/init.h>
 
 #include <asm/bootinfo.h>
@@ -88,7 +89,4 @@ static void wbflush_mips(void)
 {
 	__fast_iob();
 }
-
-#include <linux/module.h>
-
 EXPORT_SYMBOL(__wbflush);

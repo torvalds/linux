@@ -233,7 +233,8 @@ static int __init add_legacy_isa_port(struct device_node *np,
 	 *
 	 * Note: Don't even try on P8 lpc, we know it's not directly mapped
 	 */
-	if (!of_device_is_compatible(isa_brg, "ibm,power8-lpc")) {
+	if (!of_device_is_compatible(isa_brg, "ibm,power8-lpc") ||
+	    of_get_property(isa_brg, "ranges", NULL)) {
 		taddr = of_translate_address(np, reg);
 		if (taddr == OF_BAD_ADDR)
 			taddr = 0;

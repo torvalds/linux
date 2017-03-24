@@ -1,6 +1,9 @@
 #ifndef ISCSI_TARGET_DATAIN_VALUES_H
 #define ISCSI_TARGET_DATAIN_VALUES_H
 
+struct iscsi_cmd;
+struct iscsi_datain;
+
 extern struct iscsi_datain_req *iscsit_allocate_datain_req(void);
 extern void iscsit_attach_datain_req(struct iscsi_cmd *, struct iscsi_datain_req *);
 extern void iscsit_free_datain_req(struct iscsi_cmd *, struct iscsi_datain_req *);

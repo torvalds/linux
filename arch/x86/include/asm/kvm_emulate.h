@@ -441,5 +441,6 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 int emulate_int_real(struct x86_emulate_ctxt *ctxt, int irq);
 void emulator_invalidate_register_cache(struct x86_emulate_ctxt *ctxt);
 void emulator_writeback_register_cache(struct x86_emulate_ctxt *ctxt);
+bool emulator_can_use_gpa(struct x86_emulate_ctxt *ctxt);
 
 #endif /* _ASM_X86_KVM_X86_EMULATE_H */

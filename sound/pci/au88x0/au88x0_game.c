@@ -36,7 +36,7 @@
 #include <linux/gameport.h>
 #include <linux/export.h>
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 
 #define VORTEX_GAME_DWAIT	20	/* 20 ms */
 

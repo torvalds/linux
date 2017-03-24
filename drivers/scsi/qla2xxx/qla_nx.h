@@ -1176,8 +1176,7 @@ struct qla82xx_md_entry_queue {
 #define MD_MIU_TEST_AGT_ADDR_LO		0x41000094
 #define MD_MIU_TEST_AGT_ADDR_HI		0x41000098
 
-static const int MD_MIU_TEST_AGT_RDDATA[] = { 0x410000A8, 0x410000AC,
-	0x410000B8, 0x410000BC };
+extern const int MD_MIU_TEST_AGT_RDDATA[4];
 
 #define CRB_NIU_XG_PAUSE_CTL_P0        0x1
 #define CRB_NIU_XG_PAUSE_CTL_P1        0x8

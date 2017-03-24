@@ -51,7 +51,7 @@
 
 / {
 	model = "samtec VIN|ING FPGA";
-	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+	compatible = "samtec,vining", "altr,socfpga-cyclone5", "altr,socfpga";
 
 	chosen {
 		bootargs = "console=ttyS0,115200";

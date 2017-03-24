@@ -16,13 +16,10 @@
 
 #include "efistub.h"
 
-efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
-			unsigned long orig_fdt_size,
-			void *fdt, int new_fdt_size, char *cmdline_ptr,
-			u64 initrd_addr, u64 initrd_size,
-			efi_memory_desc_t *memory_map,
-			unsigned long map_size, unsigned long desc_size,
-			u32 desc_ver)
+static efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
+			       unsigned long orig_fdt_size,
+			       void *fdt, int new_fdt_size, char *cmdline_ptr,
+			       u64 initrd_addr, u64 initrd_size)
 {
 	int node, num_rsv;
 	int status;
@@ -101,25 +98,23 @@ efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 	if (status)
 		goto fdt_set_fail;
 
-	fdt_val64 = cpu_to_fdt64((u64)(unsigned long)memory_map);
+	fdt_val64 = U64_MAX; /* placeholder */
 	status = fdt_setprop(fdt, node, "linux,uefi-mmap-start",
 			     &fdt_val64,  sizeof(fdt_val64));
 	if (status)
 		goto fdt_set_fail;
 
-	fdt_val32 = cpu_to_fdt32(map_size);
+	fdt_val32 = U32_MAX; /* placeholder */
 	status = fdt_setprop(fdt, node, "linux,uefi-mmap-size",
 			     &fdt_val32,  sizeof(fdt_val32));
 	if (status)
 		goto fdt_set_fail;
 
-	fdt_val32 = cpu_to_fdt32(desc_size);
 	status = fdt_setprop(fdt, node, "linux,uefi-mmap-desc-size",
 			     &fdt_val32, sizeof(fdt_val32));
 	if (status)
 		goto fdt_set_fail;
 
-	fdt_val32 = cpu_to_fdt32(desc_ver);
 	status = fdt_setprop(fdt, node, "linux,uefi-mmap-desc-ver",
 			     &fdt_val32, sizeof(fdt_val32));
 	if (status)
@@ -148,6 +143,43 @@ fdt_set_fail:
 	return EFI_LOAD_ERROR;
 }
 
+static efi_status_t update_fdt_memmap(void *fdt, struct efi_boot_memmap *map)
+{
+	int node = fdt_path_offset(fdt, "/chosen");
+	u64 fdt_val64;
+	u32 fdt_val32;
+	int err;
+
+	if (node < 0)
+		return EFI_LOAD_ERROR;
+
+	fdt_val64 = cpu_to_fdt64((unsigned long)*map->map);
+	err = fdt_setprop_inplace(fdt, node, "linux,uefi-mmap-start",
+				  &fdt_val64, sizeof(fdt_val64));
+	if (err)
+		return EFI_LOAD_ERROR;
+
+	fdt_val32 = cpu_to_fdt32(*map->map_size);
+	err = fdt_setprop_inplace(fdt, node, "linux,uefi-mmap-size",
+				  &fdt_val32, sizeof(fdt_val32));
+	if (err)
+		return EFI_LOAD_ERROR;
+
+	fdt_val32 = cpu_to_fdt32(*map->desc_size);
+	err = fdt_setprop_inplace(fdt, node, "linux,uefi-mmap-desc-size",
+				  &fdt_val32, sizeof(fdt_val32));
+	if (err)
+		return EFI_LOAD_ERROR;
+
+	fdt_val32 = cpu_to_fdt32(*map->desc_ver);
+	err = fdt_setprop_inplace(fdt, node, "linux,uefi-mmap-desc-ver",
+				  &fdt_val32, sizeof(fdt_val32));
+	if (err)
+		return EFI_LOAD_ERROR;
+
+	return EFI_SUCCESS;
+}
+
 #ifndef EFI_FDT_ALIGN
 #define EFI_FDT_ALIGN EFI_PAGE_SIZE
 #endif
@@ -155,6 +187,7 @@ fdt_set_fail:
 struct exit_boot_struct {
 	efi_memory_desc_t *runtime_map;
 	int *runtime_entry_count;
+	void *new_fdt_addr;
 };
 
 static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
@@ -170,7 +203,7 @@ static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
 	efi_get_virtmap(*map->map, *map->map_size, *map->desc_size,
 			p->runtime_map, p->runtime_entry_count);
 
-	return EFI_SUCCESS;
+	return update_fdt_memmap(p->new_fdt_addr, map);
 }
 
 /*
@@ -243,20 +276,10 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 			goto fail;
 		}
 
-		/*
-		 * Now that we have done our final memory allocation (and free)
-		 * we can get the memory map key  needed for
-		 * exit_boot_services().
-		 */
-		status = efi_get_memory_map(sys_table, &map);
-		if (status != EFI_SUCCESS)
-			goto fail_free_new_fdt;
-
 		status = update_fdt(sys_table,
 				    (void *)fdt_addr, fdt_size,
 				    (void *)*new_fdt_addr, new_fdt_size,
-				    cmdline_ptr, initrd_addr, initrd_size,
-				    memory_map, map_size, desc_size, desc_ver);
+				    cmdline_ptr, initrd_addr, initrd_size);
 
 		/* Succeeding the first time is the expected case. */
 		if (status == EFI_SUCCESS)
@@ -266,22 +289,19 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 			/*
 			 * We need to allocate more space for the new
 			 * device tree, so free existing buffer that is
-			 * too small.  Also free memory map, as we will need
-			 * to get new one that reflects the free/alloc we do
-			 * on the device tree buffer.
+			 * too small.
 			 */
 			efi_free(sys_table, new_fdt_size, *new_fdt_addr);
-			sys_table->boottime->free_pool(memory_map);
 			new_fdt_size += EFI_PAGE_SIZE;
 		} else {
 			pr_efi_err(sys_table, "Unable to construct new device tree.\n");
-			goto fail_free_mmap;
+			goto fail_free_new_fdt;
 		}
 	}
 
-	sys_table->boottime->free_pool(memory_map);
 	priv.runtime_map = runtime_map;
 	priv.runtime_entry_count = &runtime_entry_count;
+	priv.new_fdt_addr = (void *)*new_fdt_addr;
 	status = efi_exit_boot_services(sys_table, handle, &map, &priv,
 					exit_boot_func);
 
@@ -318,9 +338,6 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	}
 
 	pr_efi_err(sys_table, "Exit boot services failed.\n");
-
-fail_free_mmap:
-	sys_table->boottime->free_pool(memory_map);
 
 fail_free_new_fdt:
 	efi_free(sys_table, new_fdt_size, *new_fdt_addr);

@@ -9,7 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 
 

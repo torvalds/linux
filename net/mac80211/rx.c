@@ -4,7 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1034,6 +1034,18 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata
 	buf_size = tid_agg_rx->buf_size;
 	head_seq_num = tid_agg_rx->head_seq_num;
 
+	/*
+	 * If the current MPDU's SN is smaller than the SSN, it shouldn't
+	 * be reordered.
+	 */
+	if (unlikely(!tid_agg_rx->started)) {
+		if (ieee80211_sn_less(mpdu_seq_num, head_seq_num)) {
+			ret = false;
+			goto out;
+		}
+		tid_agg_rx->started = true;
+	}
+
 	/* frame with out of date sequence number */
 	if (ieee80211_sn_less(mpdu_seq_num, head_seq_num)) {
 		dev_kfree_skb(skb);
@@ -1391,16 +1403,18 @@ EXPORT_SYMBOL(ieee80211_sta_pspoll);
 void ieee80211_sta_uapsd_trigger(struct ieee80211_sta *pubsta, u8 tid)
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
-	u8 ac = ieee802_1d_to_ac[tid & 7];
+	int ac = ieee80211_ac_from_tid(tid);
 
 	/*
-	 * If this AC is not trigger-enabled do nothing.
+	 * If this AC is not trigger-enabled do nothing unless the
+	 * driver is calling us after it already checked.
 	 *
 	 * NB: This could/should check a separate bitmap of trigger-
 	 * enabled queues, but for now we only implement uAPSD w/o
 	 * TSPEC changes to the ACs, so they're always the same.
 	 */
-	if (!(sta->sta.uapsd_queues & BIT(ac)))
+	if (!(sta->sta.uapsd_queues & ieee80211_ac_to_qos_mask[ac]) &&
+	    tid != IEEE80211_NUM_TIDS)
 		return;
 
 	/* if we are in a service period, do nothing */
@@ -1906,7 +1920,6 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 	unsigned int frag, seq;
 	struct ieee80211_fragment_entry *entry;
 	struct sk_buff *skb;
-	struct ieee80211_rx_status *status;
 
 	hdr = (struct ieee80211_hdr *)rx->skb->data;
 	fc = hdr->frame_control;
@@ -2031,9 +2044,6 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 		memcpy(skb_put(rx->skb, skb->len), skb->data, skb->len);
 		dev_kfree_skb(skb);
 	}
-
-	/* Complete frame has been reassembled - process it now */
-	status = IEEE80211_SKB_RXCB(rx->skb);
 
  out:
 	ieee80211_led_rx(rx->local);
@@ -2215,7 +2225,8 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
 	    !(sdata->flags & IEEE80211_SDATA_DONT_BRIDGE_PACKETS) &&
 	    (sdata->vif.type != NL80211_IFTYPE_AP_VLAN || !sdata->u.vlan.sta)) {
-		if (is_multicast_ether_addr(ehdr->h_dest)) {
+		if (is_multicast_ether_addr(ehdr->h_dest) &&
+		    ieee80211_vif_get_num_mcast_if(sdata) != 0) {
 			/*
 			 * send multicast frames both to higher layers in
 			 * local net stack and back to the wireless medium
@@ -2224,7 +2235,7 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 			if (!xmit_skb)
 				net_info_ratelimited("%s: failed to clone multicast frame\n",
 						    dev->name);
-		} else {
+		} else if (!is_multicast_ether_addr(ehdr->h_dest)) {
 			dsta = sta_info_get(sdata, skb->data);
 			if (dsta) {
 				/*
@@ -2469,7 +2480,8 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	if (!ifmsh->mshcfg.dot11MeshForwarding)
 		goto out;
 
-	fwd_skb = skb_copy(skb, GFP_ATOMIC);
+	fwd_skb = skb_copy_expand(skb, local->tx_headroom +
+				       sdata->encrypt_headroom, 0, GFP_ATOMIC);
 	if (!fwd_skb) {
 		net_info_ratelimited("%s: failed to clone mesh frame\n",
 				    sdata->name);
@@ -2877,17 +2889,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 		switch (mgmt->u.action.u.vht_opmode_notif.action_code) {
 		case WLAN_VHT_ACTION_OPMODE_NOTIF: {
-			u8 opmode;
-
 			/* verify opmode is present */
 			if (len < IEEE80211_MIN_ACTION_SIZE + 2)
 				goto invalid;
-
-			opmode = mgmt->u.action.u.vht_opmode_notif.operating_mode;
-
-			ieee80211_vht_handle_opmode(rx->sdata, rx->sta,
-						    opmode, status->band);
-			goto handled;
+			goto queue;
 		}
 		case WLAN_VHT_ACTION_GROUPID_MGMT: {
 			if (len < IEEE80211_MIN_ACTION_SIZE + 25)
@@ -3887,6 +3892,7 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	stats->last_rate = sta_stats_encode_rate(status);
 
 	stats->fragments++;
+	stats->packets++;
 
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		stats->last_signal = status->signal;
@@ -3939,21 +3945,31 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	u64_stats_update_end(&stats->syncp);
 
 	if (fast_rx->internal_forward) {
-		struct sta_info *dsta = sta_info_get(rx->sdata, skb->data);
+		struct sk_buff *xmit_skb = NULL;
+		bool multicast = is_multicast_ether_addr(skb->data);
 
-		if (dsta) {
+		if (multicast) {
+			xmit_skb = skb_copy(skb, GFP_ATOMIC);
+		} else if (sta_info_get(rx->sdata, skb->data)) {
+			xmit_skb = skb;
+			skb = NULL;
+		}
+
+		if (xmit_skb) {
 			/*
 			 * Send to wireless media and increase priority by 256
 			 * to keep the received priority instead of
 			 * reclassifying the frame (see cfg80211_classify8021d).
 			 */
-			skb->priority += 256;
-			skb->protocol = htons(ETH_P_802_3);
-			skb_reset_network_header(skb);
-			skb_reset_mac_header(skb);
-			dev_queue_xmit(skb);
-			return true;
+			xmit_skb->priority += 256;
+			xmit_skb->protocol = htons(ETH_P_802_3);
+			skb_reset_network_header(xmit_skb);
+			skb_reset_mac_header(xmit_skb);
+			dev_queue_xmit(xmit_skb);
 		}
+
+		if (!skb)
+			return true;
 	}
 
 	/* deliver to local stack */
@@ -4070,14 +4086,16 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		     ieee80211_is_beacon(hdr->frame_control)))
 		ieee80211_scan_rx(local, skb);
 
-	if (pubsta) {
-		rx.sta = container_of(pubsta, struct sta_info, sta);
-		rx.sdata = rx.sta->sdata;
-		if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
-			return;
-		goto out;
-	} else if (ieee80211_is_data(fc)) {
+	if (ieee80211_is_data(fc)) {
 		struct sta_info *sta, *prev_sta;
+
+		if (pubsta) {
+			rx.sta = container_of(pubsta, struct sta_info, sta);
+			rx.sdata = rx.sta->sdata;
+			if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
+				return;
+			goto out;
+		}
 
 		prev_sta = NULL;
 

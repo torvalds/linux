@@ -23,7 +23,6 @@ enum _dsm_op_index {
 enum _dsm_rst_type {
 	HNS_DSAF_RESET_FUNC     = 0x1,
 	HNS_PPE_RESET_FUNC      = 0x2,
-	HNS_XGE_CORE_RESET_FUNC = 0x3,
 	HNS_XGE_RESET_FUNC      = 0x4,
 	HNS_GE_RESET_FUNC       = 0x5,
 	HNS_DSAF_CHN_RESET_FUNC = 0x6,
@@ -213,26 +212,6 @@ static void hns_dsaf_xge_srst_by_port_acpi(struct dsaf_device *dsaf_dev,
 				   HNS_XGE_RESET_FUNC, port, dereset);
 }
 
-static void hns_dsaf_xge_core_srst_by_port(struct dsaf_device *dsaf_dev,
-					   u32 port, bool dereset)
-{
-	u32 reg_val = 0;
-	u32 reg_addr;
-
-	if (port >= DSAF_XGE_NUM)
-		return;
-
-	reg_val |= XGMAC_TRX_CORE_SRST_M
-		<< dsaf_dev->mac_cb[port]->port_rst_off;
-
-	if (!dereset)
-		reg_addr = DSAF_SUB_SC_XGE_RESET_REQ_REG;
-	else
-		reg_addr = DSAF_SUB_SC_XGE_RESET_DREQ_REG;
-
-	dsaf_write_sub(dsaf_dev, reg_addr, reg_val);
-}
-
 /**
  * hns_dsaf_srst_chns - reset dsaf channels
  * @dsaf_dev: dsaf device struct pointer
@@ -291,14 +270,6 @@ void hns_dsaf_roce_srst_acpi(struct dsaf_device *dsaf_dev, bool dereset)
 {
 	hns_dsaf_acpi_srst_by_port(dsaf_dev, HNS_OP_RESET_FUNC,
 				   HNS_ROCE_RESET_FUNC, 0, dereset);
-}
-
-static void
-hns_dsaf_xge_core_srst_by_port_acpi(struct dsaf_device *dsaf_dev,
-				    u32 port, bool dereset)
-{
-	hns_dsaf_acpi_srst_by_port(dsaf_dev, HNS_OP_RESET_FUNC,
-				   HNS_XGE_CORE_RESET_FUNC, port, dereset);
 }
 
 static void hns_dsaf_ge_srst_by_port(struct dsaf_device *dsaf_dev, u32 port,
@@ -597,7 +568,6 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 
 		misc_op->dsaf_reset = hns_dsaf_rst;
 		misc_op->xge_srst = hns_dsaf_xge_srst_by_port;
-		misc_op->xge_core_srst = hns_dsaf_xge_core_srst_by_port;
 		misc_op->ge_srst = hns_dsaf_ge_srst_by_port;
 		misc_op->ppe_srst = hns_ppe_srst_by_port;
 		misc_op->ppe_comm_srst = hns_ppe_com_srst;
@@ -615,7 +585,6 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 
 		misc_op->dsaf_reset = hns_dsaf_rst_acpi;
 		misc_op->xge_srst = hns_dsaf_xge_srst_by_port_acpi;
-		misc_op->xge_core_srst = hns_dsaf_xge_core_srst_by_port_acpi;
 		misc_op->ge_srst = hns_dsaf_ge_srst_by_port_acpi;
 		misc_op->ppe_srst = hns_ppe_srst_by_port_acpi;
 		misc_op->ppe_comm_srst = hns_ppe_com_srst;

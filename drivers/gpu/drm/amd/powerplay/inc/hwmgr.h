@@ -38,10 +38,6 @@ struct pp_hwmgr;
 struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
 
-extern int amdgpu_powercontainment;
-extern int amdgpu_sclk_deep_sleep_en;
-extern unsigned amdgpu_pp_feature_mask;
-
 #define VOLTAGE_SCALE 4
 
 uint8_t convert_to_vid(uint16_t vddc);
@@ -85,7 +81,9 @@ enum PP_FEATURE_MASK {
 	PP_SMC_VOLTAGE_CONTROL_MASK = 0x40,
 	PP_VBI_TIME_SUPPORT_MASK = 0x80,
 	PP_ULV_MASK = 0x100,
-	PP_ENABLE_GFX_CG_THRU_SMU = 0x200
+	PP_ENABLE_GFX_CG_THRU_SMU = 0x200,
+	PP_CLOCK_STRETCH_MASK = 0x400,
+	PP_OD_FUZZY_FAN_CONTROL_MASK = 0x800
 };
 
 enum PHM_BackEnd_Magic {
@@ -358,6 +356,8 @@ struct pp_hwmgr_func {
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, int32_t *value);
+	int (*request_firmware)(struct pp_hwmgr *hwmgr);
+	int (*release_firmware)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
@@ -367,7 +367,7 @@ struct pp_table_func {
 	int (*pptable_get_vce_state_table_entry)(
 						struct pp_hwmgr *hwmgr,
 						unsigned long i,
-						struct pp_vce_state *vce_state,
+						struct amd_vce_state *vce_state,
 						void **clock_info,
 						unsigned long *flag);
 };
@@ -586,18 +586,6 @@ struct phm_microcode_version_info {
 	uint32_t NB;
 };
 
-#define PP_MAX_VCE_LEVELS 6
-
-enum PP_VCE_LEVEL {
-	PP_VCE_LEVEL_AC_ALL = 0,     /* AC, All cases */
-	PP_VCE_LEVEL_DC_EE = 1,      /* DC, entropy encoding */
-	PP_VCE_LEVEL_DC_LL_LOW = 2,  /* DC, low latency queue, res <= 720 */
-	PP_VCE_LEVEL_DC_LL_HIGH = 3, /* DC, low latency queue, 1080 >= res > 720 */
-	PP_VCE_LEVEL_DC_GP_LOW = 4,  /* DC, general purpose queue, res <= 720 */
-	PP_VCE_LEVEL_DC_GP_HIGH = 5, /* DC, general purpose queue, 1080 >= res > 720 */
-};
-
-
 enum PP_TABLE_VERSION {
 	PP_TABLE_V0 = 0,
 	PP_TABLE_V1,
@@ -620,10 +608,11 @@ struct pp_hwmgr {
 	void *hardcode_pp_table;
 	bool need_pp_table_upload;
 
-	struct pp_vce_state vce_states[PP_MAX_VCE_LEVELS];
+	struct amd_vce_state vce_states[AMD_MAX_VCE_LEVELS];
 	uint32_t num_vce_state_tables;
 
 	enum amd_dpm_forced_level dpm_level;
+	enum amd_dpm_forced_level saved_dpm_level;
 	bool block_hw_access;
 	struct phm_gfx_arbiter gfx_arbiter;
 	struct phm_acp_arbiter acp_arbiter;
@@ -663,18 +652,11 @@ struct pp_hwmgr {
 	uint32_t feature_mask;
 };
 
-
-extern int hwmgr_init(struct amd_pp_init *pp_init,
-		      struct pp_instance *handle);
-
-extern int hwmgr_fini(struct pp_hwmgr *hwmgr);
-
-extern int hw_init_power_state_table(struct pp_hwmgr *hwmgr);
-
+extern int hwmgr_early_init(struct pp_instance *handle);
+extern int hwmgr_hw_init(struct pp_instance *handle);
+extern int hwmgr_hw_fini(struct pp_instance *handle);
 extern int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 				uint32_t value, uint32_t mask);
-
-
 
 extern void phm_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 				uint32_t indirect_port,
@@ -704,11 +686,10 @@ extern int phm_find_boot_level(void *table, uint32_t value, uint32_t *boot_level
 extern int phm_get_sclk_for_voltage_evv(struct pp_hwmgr *hwmgr, phm_ppt_v1_voltage_lookup_table *lookup_table,
 								uint16_t virtual_voltage_id, int32_t *sclk);
 extern int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
-extern int phm_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask);
 extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 
-extern int smu7_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 				uint32_t sclk, uint16_t id, uint16_t *voltage);
 

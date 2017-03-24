@@ -48,7 +48,7 @@
 #include <linux/module.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>

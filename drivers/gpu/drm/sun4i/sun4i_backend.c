@@ -95,12 +95,32 @@ static int sun4i_backend_drm_format_to_layer(struct drm_plane *plane,
 		*mode = SUN4I_BACKEND_LAY_FBFMT_ARGB8888;
 		break;
 
+	case DRM_FORMAT_ARGB4444:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_ARGB4444;
+		break;
+
+	case DRM_FORMAT_ARGB1555:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_ARGB1555;
+		break;
+
+	case DRM_FORMAT_RGBA5551:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_RGBA5551;
+		break;
+
+	case DRM_FORMAT_RGBA4444:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_RGBA4444;
+		break;
+
 	case DRM_FORMAT_XRGB8888:
 		*mode = SUN4I_BACKEND_LAY_FBFMT_XRGB8888;
 		break;
 
 	case DRM_FORMAT_RGB888:
 		*mode = SUN4I_BACKEND_LAY_FBFMT_RGB888;
+		break;
+
+	case DRM_FORMAT_RGB565:
+		*mode = SUN4I_BACKEND_LAY_FBFMT_RGB565;
 		break;
 
 	default:
@@ -169,10 +189,11 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 	DRM_DEBUG_DRIVER("Switching display backend interlaced mode %s\n",
 			 interlaced ? "on" : "off");
 
-	ret = sun4i_backend_drm_format_to_layer(plane, fb->pixel_format, &val);
+	ret = sun4i_backend_drm_format_to_layer(plane, fb->format->format,
+						&val);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
-		return val;
+		return ret;
 	}
 
 	regmap_update_bits(backend->regs, SUN4I_BACKEND_ATTCTL_REG1(layer),
@@ -198,7 +219,7 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->paddr);
 
 	/* Compute the start of the displayed memory */
-	bpp = drm_format_plane_cpp(fb->pixel_format, 0);
+	bpp = fb->format->cpp[0];
 	paddr = gem->paddr + fb->offsets[0];
 	paddr += (state->src_x >> 16) * bpp;
 	paddr += (state->src_y >> 16) * fb->pitches[0];
@@ -389,7 +410,7 @@ static void sun4i_backend_unbind(struct device *dev, struct device *master,
 	reset_control_assert(backend->reset);
 }
 
-static struct component_ops sun4i_backend_ops = {
+static const struct component_ops sun4i_backend_ops = {
 	.bind	= sun4i_backend_bind,
 	.unbind	= sun4i_backend_unbind,
 };
@@ -408,6 +429,7 @@ static int sun4i_backend_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun4i_backend_of_table[] = {
 	{ .compatible = "allwinner,sun5i-a13-display-backend" },
+	{ .compatible = "allwinner,sun6i-a31-display-backend" },
 	{ .compatible = "allwinner,sun8i-a33-display-backend" },
 	{ }
 };

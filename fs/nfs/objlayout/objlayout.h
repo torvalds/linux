@@ -175,7 +175,6 @@ extern void objlayout_encode_layoutcommit(
 	const struct nfs4_layoutcommit_args *);
 
 extern void objlayout_encode_layoutreturn(
-	struct pnfs_layout_hdr *,
 	struct xdr_stream *,
 	const struct nfs4_layoutreturn_args *);
 

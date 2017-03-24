@@ -68,6 +68,7 @@ MODULE_LICENSE("GPL");
 #define MT_QUIRK_HOVERING		(1 << 11)
 #define MT_QUIRK_CONTACT_CNT_ACCURATE	(1 << 12)
 #define MT_QUIRK_FORCE_GET_FEATURE	(1 << 13)
+#define MT_QUIRK_FIX_CONST_CONTACT_ID	(1 << 14)
 
 #define MT_INPUTMODE_TOUCHSCREEN	0x02
 #define MT_INPUTMODE_TOUCHPAD		0x03
@@ -108,6 +109,7 @@ struct mt_device {
 	int cc_value_index;	/* contact count value index in the field */
 	unsigned last_slot_field;	/* the last field of a slot */
 	unsigned mt_report_id;	/* the report ID of the multitouch device */
+	unsigned long initial_quirks;	/* initial quirks state */
 	__s16 inputmode;	/* InputMode HID feature, -1 if non-existent */
 	__s16 inputmode_index;	/* InputMode HID feature index in the report */
 	__s16 maxcontact_report_id;	/* Maximum Contact Number HID feature,
@@ -156,6 +158,7 @@ static void mt_post_parse(struct mt_device *td);
 #define MT_CLS_FLATFROG				0x0107
 #define MT_CLS_GENERALTOUCH_TWOFINGERS		0x0108
 #define MT_CLS_GENERALTOUCH_PWT_TENFINGERS	0x0109
+#define MT_CLS_LG				0x010a
 #define MT_CLS_VTL				0x0110
 
 #define MT_DEFAULT_MAXCONTACT	10
@@ -262,6 +265,12 @@ static struct mt_class mt_classes[] = {
 		.sn_move = 2048,
 		.maxcontacts = 40,
 	},
+	{ .name = MT_CLS_LG,
+		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_FIX_CONST_CONTACT_ID |
+			MT_QUIRK_IGNORE_DUPLICATES |
+			MT_QUIRK_HOVERING |
+			MT_QUIRK_CONTACT_CNT_ACCURATE },
 	{ .name = MT_CLS_VTL,
 		.quirks = MT_QUIRK_ALWAYS_VALID |
 			MT_QUIRK_CONTACT_CNT_ACCURATE |
@@ -318,13 +327,10 @@ static void mt_get_feature(struct hid_device *hdev, struct hid_report *report)
 	u8 *buf;
 
 	/*
-	 * Only fetch the feature report if initial reports are not already
-	 * been retrieved. Currently this is only done for Windows 8 touch
-	 * devices.
+	 * Do not fetch the feature report if the device has been explicitly
+	 * marked as non-capable.
 	 */
-	if (!(hdev->quirks & HID_QUIRK_NO_INIT_REPORTS))
-		return;
-	if (td->mtclass.name != MT_CLS_WIN_8)
+	if (td->initial_quirks & HID_QUIRK_NO_INIT_REPORTS)
 		return;
 
 	buf = hid_alloc_report_buf(report, GFP_KERNEL);
@@ -567,6 +573,14 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 	case HID_UP_BUTTON:
 		code = BTN_MOUSE + ((usage->hid - 1) & HID_USAGE);
+		/*
+		 * MS PTP spec says that external buttons left and right have
+		 * usages 2 and 3.
+		 */
+		if (cls->name == MT_CLS_WIN_8 &&
+		    field->application == HID_DG_TOUCHPAD &&
+		    (usage->hid & HID_USAGE) > 1)
+			code--;
 		hid_map_usage(hi, usage, bit, max, EV_KEY, code);
 		input_set_capability(hi->input, EV_KEY, code);
 		return 1;
@@ -842,7 +856,9 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	if (!td->mtclass.export_all_inputs &&
 	    field->application != HID_DG_TOUCHSCREEN &&
 	    field->application != HID_DG_PEN &&
-	    field->application != HID_DG_TOUCHPAD)
+	    field->application != HID_DG_TOUCHPAD &&
+	    field->application != HID_GD_KEYBOARD &&
+	    field->application != HID_CP_CONSUMER_CONTROL)
 		return -1;
 
 	/*
@@ -1070,6 +1086,34 @@ static int mt_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	return 0;
 }
 
+static void mt_fix_const_field(struct hid_field *field, unsigned int usage)
+{
+	if (field->usage[0].hid != usage ||
+	    !(field->flags & HID_MAIN_ITEM_CONSTANT))
+		return;
+
+	field->flags &= ~HID_MAIN_ITEM_CONSTANT;
+	field->flags |= HID_MAIN_ITEM_VARIABLE;
+}
+
+static void mt_fix_const_fields(struct hid_device *hdev, unsigned int usage)
+{
+	struct hid_report *report;
+	int i;
+
+	list_for_each_entry(report,
+			    &hdev->report_enum[HID_INPUT_REPORT].report_list,
+			    list) {
+
+		if (!report->maxfield)
+			continue;
+
+		for (i = 0; i < report->maxfield; i++)
+			if (report->field[i]->maxusage >= 1)
+				mt_fix_const_field(report->field[i], usage);
+	}
+}
+
 static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret, i;
@@ -1082,36 +1126,6 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			break;
 		}
 	}
-
-	/* This allows the driver to correctly support devices
-	 * that emit events over several HID messages.
-	 */
-	hdev->quirks |= HID_QUIRK_NO_INPUT_SYNC;
-
-	/*
-	 * This allows the driver to handle different input sensors
-	 * that emits events through different reports on the same HID
-	 * device.
-	 */
-	hdev->quirks |= HID_QUIRK_MULTI_INPUT;
-	hdev->quirks |= HID_QUIRK_NO_EMPTY_INPUT;
-
-	/*
-	 * Handle special quirks for Windows 8 certified devices.
-	 */
-	if (id->group == HID_GROUP_MULTITOUCH_WIN_8)
-		/*
-		 * Some multitouch screens do not like to be polled for input
-		 * reports. Fortunately, the Win8 spec says that all touches
-		 * should be sent during each report, making the initialization
-		 * of input reports unnecessary.
-		 *
-		 * In addition some touchpads do not behave well if we read
-		 * all feature reports from them. Instead we prevent
-		 * initial report fetching and then selectively fetch each
-		 * report we are interested in.
-		 */
-		hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
 
 	td = devm_kzalloc(&hdev->dev, sizeof(struct mt_device), GFP_KERNEL);
 	if (!td) {
@@ -1136,9 +1150,45 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (id->vendor == HID_ANY_ID && id->product == HID_ANY_ID)
 		td->serial_maybe = true;
 
+	/*
+	 * Store the initial quirk state
+	 */
+	td->initial_quirks = hdev->quirks;
+
+	/* This allows the driver to correctly support devices
+	 * that emit events over several HID messages.
+	 */
+	hdev->quirks |= HID_QUIRK_NO_INPUT_SYNC;
+
+	/*
+	 * This allows the driver to handle different input sensors
+	 * that emits events through different reports on the same HID
+	 * device.
+	 */
+	hdev->quirks |= HID_QUIRK_MULTI_INPUT;
+	hdev->quirks |= HID_QUIRK_NO_EMPTY_INPUT;
+
+	/*
+	 * Some multitouch screens do not like to be polled for input
+	 * reports. Fortunately, the Win8 spec says that all touches
+	 * should be sent during each report, making the initialization
+	 * of input reports unnecessary. For Win7 devices, well, let's hope
+	 * they will still be happy (this is only be a problem if a touch
+	 * was already there while probing the device).
+	 *
+	 * In addition some touchpads do not behave well if we read
+	 * all feature reports from them. Instead we prevent
+	 * initial report fetching and then selectively fetch each
+	 * report we are interested in.
+	 */
+	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
+
 	ret = hid_parse(hdev);
 	if (ret != 0)
 		return ret;
+
+	if (mtclass->quirks & MT_QUIRK_FIX_CONST_CONTACT_ID)
+		mt_fix_const_fields(hdev, HID_DG_CONTACTID);
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret)
@@ -1204,8 +1254,11 @@ static int mt_resume(struct hid_device *hdev)
 
 static void mt_remove(struct hid_device *hdev)
 {
+	struct mt_device *td = hid_get_drvdata(hdev);
+
 	sysfs_remove_group(&hdev->dev.kobj, &mt_attribute_group);
 	hid_hw_stop(hdev);
+	hdev->quirks = td->initial_quirks;
 }
 
 /*
@@ -1383,6 +1436,11 @@ static const struct hid_device_id mt_devices[] = {
 	{  .driver_data = MT_CLS_NSMU,
 		MT_USB_DEVICE(USB_VENDOR_ID_ILITEK,
 			USB_DEVICE_ID_ILITEK_MULTITOUCH) },
+
+	/* LG Melfas panel */
+	{ .driver_data = MT_CLS_LG,
+		HID_USB_DEVICE(USB_VENDOR_ID_LG,
+			USB_DEVICE_ID_LG_MELFAS_MT) },
 
 	/* MosArt panels */
 	{ .driver_data = MT_CLS_CONFIDENCE_MINUS_ONE,

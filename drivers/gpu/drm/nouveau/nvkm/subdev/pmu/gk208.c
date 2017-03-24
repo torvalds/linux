@@ -30,6 +30,12 @@ gk208_pmu = {
 	.code.size = sizeof(gk208_pmu_code),
 	.data.data = gk208_pmu_data,
 	.data.size = sizeof(gk208_pmu_data),
+	.reset = gt215_pmu_reset,
+	.init = gt215_pmu_init,
+	.fini = gt215_pmu_fini,
+	.intr = gt215_pmu_intr,
+	.send = gt215_pmu_send,
+	.recv = gt215_pmu_recv,
 	.pgob = gk110_pmu_pgob,
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -71,12 +71,12 @@ int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 __printf(2, 3);
 
 /* possibly ratelimited debug output */
-#define _batadv_dbg(type, bat_priv, ratelimited, fmt, arg...)	\
-	do {							\
-		if (atomic_read(&bat_priv->log_level) & type && \
-		    (!ratelimited || net_ratelimit()))		\
-			batadv_debug_log(bat_priv, fmt, ## arg);\
-	}							\
+#define _batadv_dbg(type, bat_priv, ratelimited, fmt, arg...)		\
+	do {								\
+		if (atomic_read(&(bat_priv)->log_level) & (type) &&	\
+		    (!(ratelimited) || net_ratelimit()))		\
+			batadv_debug_log(bat_priv, fmt, ## arg);	\
+	}								\
 	while (0)
 #else /* !CONFIG_BATMAN_ADV_DEBUG */
 __printf(4, 5)

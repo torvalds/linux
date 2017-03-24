@@ -10,7 +10,7 @@
 #include <asm/ptrace.h>
 #include <asm/pstate.h>
 #include <asm/fpumacro.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 
 /* OPF field of various VIS instructions.  */
@@ -30,7 +30,7 @@
 /* 001001011 - two 32-bit merges */
 #define FPMERGE_OPF	0x04b
 
-/* 000110001 - 8-by-16-bit partitoned product  */
+/* 000110001 - 8-by-16-bit partitioned product  */
 #define FMUL8x16_OPF	0x031
 
 /* 000110011 - 8-by-16-bit upper alpha partitioned product  */

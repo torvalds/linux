@@ -8,6 +8,7 @@
 #undef DEBUG
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 #include <linux/errno.h>
@@ -17,7 +18,7 @@
 #include <linux/notifier.h>
 
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ocd.h>
 #include <asm/mmu_context.h>
 #include <linux/kdebug.h>

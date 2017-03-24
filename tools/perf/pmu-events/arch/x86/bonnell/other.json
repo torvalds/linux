@@ -1,0 +1,450 @@
+[
+    {
+        "EventCode": "0x6",
+        "Counter": "0,1",
+        "UMask": "0x80",
+        "EventName": "SEGMENT_REG_LOADS.ANY",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Number of segment register loads."
+    },
+    {
+        "EventCode": "0x9",
+        "Counter": "0,1",
+        "UMask": "0x20",
+        "EventName": "DISPATCH_BLOCKED.ANY",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Memory cluster signals to block micro-op dispatch for any reason"
+    },
+    {
+        "EventCode": "0x3A",
+        "Counter": "0,1",
+        "UMask": "0x0",
+        "EventName": "EIST_TRANS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions"
+    },
+    {
+        "EventCode": "0x3B",
+        "Counter": "0,1",
+        "UMask": "0xc0",
+        "EventName": "THERMAL_TRIP",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Number of thermal trips"
+    },
+    {
+        "EventCode": "0x60",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_REQUEST_OUTSTANDING.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Outstanding cacheable data read bus requests duration."
+    },
+    {
+        "EventCode": "0x60",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_REQUEST_OUTSTANDING.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Outstanding cacheable data read bus requests duration."
+    },
+    {
+        "EventCode": "0x61",
+        "Counter": "0,1",
+        "UMask": "0x20",
+        "EventName": "BUS_BNR_DRV.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Number of Bus Not Ready signals asserted."
+    },
+    {
+        "EventCode": "0x61",
+        "Counter": "0,1",
+        "UMask": "0x0",
+        "EventName": "BUS_BNR_DRV.THIS_AGENT",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Number of Bus Not Ready signals asserted."
+    },
+    {
+        "EventCode": "0x62",
+        "Counter": "0,1",
+        "UMask": "0x20",
+        "EventName": "BUS_DRDY_CLOCKS.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Bus cycles when data is sent on the bus."
+    },
+    {
+        "EventCode": "0x62",
+        "Counter": "0,1",
+        "UMask": "0x0",
+        "EventName": "BUS_DRDY_CLOCKS.THIS_AGENT",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Bus cycles when data is sent on the bus."
+    },
+    {
+        "EventCode": "0x63",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_LOCK_CLOCKS.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Bus cycles when a LOCK signal is asserted."
+    },
+    {
+        "EventCode": "0x63",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_LOCK_CLOCKS.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Bus cycles when a LOCK signal is asserted."
+    },
+    {
+        "EventCode": "0x64",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_DATA_RCV.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Bus cycles while processor receives data."
+    },
+    {
+        "EventCode": "0x65",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_BRD.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Burst read bus transactions."
+    },
+    {
+        "EventCode": "0x65",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_BRD.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Burst read bus transactions."
+    },
+    {
+        "EventCode": "0x66",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_RFO.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "RFO bus transactions."
+    },
+    {
+        "EventCode": "0x66",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_RFO.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "RFO bus transactions."
+    },
+    {
+        "EventCode": "0x67",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_WB.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Explicit writeback bus transactions."
+    },
+    {
+        "EventCode": "0x67",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_WB.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Explicit writeback bus transactions."
+    },
+    {
+        "EventCode": "0x68",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_IFETCH.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Instruction-fetch bus transactions."
+    },
+    {
+        "EventCode": "0x68",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_IFETCH.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Instruction-fetch bus transactions."
+    },
+    {
+        "EventCode": "0x69",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_INVAL.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Invalidate bus transactions."
+    },
+    {
+        "EventCode": "0x69",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_INVAL.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Invalidate bus transactions."
+    },
+    {
+        "EventCode": "0x6A",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_PWR.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Partial write bus transaction."
+    },
+    {
+        "EventCode": "0x6A",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_PWR.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Partial write bus transaction."
+    },
+    {
+        "EventCode": "0x6B",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_P.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Partial bus transactions."
+    },
+    {
+        "EventCode": "0x6B",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_P.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Partial bus transactions."
+    },
+    {
+        "EventCode": "0x6C",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_IO.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "IO bus transactions."
+    },
+    {
+        "EventCode": "0x6C",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_IO.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "IO bus transactions."
+    },
+    {
+        "EventCode": "0x6D",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_DEF.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Deferred bus transactions."
+    },
+    {
+        "EventCode": "0x6D",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_DEF.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Deferred bus transactions."
+    },
+    {
+        "EventCode": "0x6E",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_BURST.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Burst (full cache-line) bus transactions."
+    },
+    {
+        "EventCode": "0x6E",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_BURST.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Burst (full cache-line) bus transactions."
+    },
+    {
+        "EventCode": "0x6F",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_MEM.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Memory bus transactions."
+    },
+    {
+        "EventCode": "0x6F",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_MEM.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Memory bus transactions."
+    },
+    {
+        "EventCode": "0x70",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "BUS_TRANS_ANY.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "All bus transactions."
+    },
+    {
+        "EventCode": "0x70",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_TRANS_ANY.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "All bus transactions."
+    },
+    {
+        "EventCode": "0x77",
+        "Counter": "0,1",
+        "UMask": "0xb",
+        "EventName": "EXT_SNOOP.THIS_AGENT.ANY",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "External snoops."
+    },
+    {
+        "EventCode": "0x77",
+        "Counter": "0,1",
+        "UMask": "0x1",
+        "EventName": "EXT_SNOOP.THIS_AGENT.CLEAN",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "External snoops."
+    },
+    {
+        "EventCode": "0x77",
+        "Counter": "0,1",
+        "UMask": "0x2",
+        "EventName": "EXT_SNOOP.THIS_AGENT.HIT",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "External snoops."
+    },
+    {
+        "EventCode": "0x77",
+        "Counter": "0,1",
+        "UMask": "0x8",
+        "EventName": "EXT_SNOOP.THIS_AGENT.HITM",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "External snoops."
+    },
+    {
+        "EventCode": "0x77",
+        "Counter": "0,1",
+        "UMask": "0x2b",
+        "EventName": "EXT_SNOOP.ALL_AGENTS.ANY",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "External snoops."
+    },
+    {
+        "EventCode": "0x77",
+        "Counter": "0,1",
+        "UMask": "0x21",
+        "EventName": "EXT_SNOOP.ALL_AGENTS.CLEAN",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "External snoops."
+    },
+    {
+        "EventCode": "0x77",
+        "Counter": "0,1",
+        "UMask": "0x22",
+        "EventName": "EXT_SNOOP.ALL_AGENTS.HIT",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "External snoops."
+    },
+    {
+        "EventCode": "0x77",
+        "Counter": "0,1",
+        "UMask": "0x28",
+        "EventName": "EXT_SNOOP.ALL_AGENTS.HITM",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "External snoops."
+    },
+    {
+        "EventCode": "0x7A",
+        "Counter": "0,1",
+        "UMask": "0x20",
+        "EventName": "BUS_HIT_DRV.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "HIT signal asserted."
+    },
+    {
+        "EventCode": "0x7A",
+        "Counter": "0,1",
+        "UMask": "0x0",
+        "EventName": "BUS_HIT_DRV.THIS_AGENT",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "HIT signal asserted."
+    },
+    {
+        "EventCode": "0x7B",
+        "Counter": "0,1",
+        "UMask": "0x20",
+        "EventName": "BUS_HITM_DRV.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "HITM signal asserted."
+    },
+    {
+        "EventCode": "0x7B",
+        "Counter": "0,1",
+        "UMask": "0x0",
+        "EventName": "BUS_HITM_DRV.THIS_AGENT",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "HITM signal asserted."
+    },
+    {
+        "EventCode": "0x7D",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUSQ_EMPTY.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Bus queue is empty."
+    },
+    {
+        "EventCode": "0x7E",
+        "Counter": "0,1",
+        "UMask": "0xe0",
+        "EventName": "SNOOP_STALL_DRV.ALL_AGENTS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Bus stalled for snoops."
+    },
+    {
+        "EventCode": "0x7E",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "SNOOP_STALL_DRV.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Bus stalled for snoops."
+    },
+    {
+        "EventCode": "0x7F",
+        "Counter": "0,1",
+        "UMask": "0x40",
+        "EventName": "BUS_IO_WAIT.SELF",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "IO requests waiting in the bus queue."
+    },
+    {
+        "EventCode": "0xC6",
+        "Counter": "0,1",
+        "UMask": "0x1",
+        "EventName": "CYCLES_INT_MASKED.CYCLES_INT_MASKED",
+        "SampleAfterValue": "2000000",
+        "BriefDescription": "Cycles during which interrupts are disabled."
+    },
+    {
+        "EventCode": "0xC6",
+        "Counter": "0,1",
+        "UMask": "0x2",
+        "EventName": "CYCLES_INT_MASKED.CYCLES_INT_PENDING_AND_MASKED",
+        "SampleAfterValue": "2000000",
+        "BriefDescription": "Cycles during which interrupts are pending and disabled."
+    },
+    {
+        "EventCode": "0xC8",
+        "Counter": "0,1",
+        "UMask": "0x0",
+        "EventName": "HW_INT_RCV",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Hardware interrupts received."
+    }
+]

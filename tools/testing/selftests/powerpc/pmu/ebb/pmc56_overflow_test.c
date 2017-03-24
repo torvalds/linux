@@ -66,7 +66,7 @@ int pmc56_overflow(void)
 
 	FAIL_IF(ebb_event_enable(&event));
 
-	mtspr(SPRN_PMC1, pmc_sample_period(sample_period));
+	mtspr(SPRN_PMC2, pmc_sample_period(sample_period));
 	mtspr(SPRN_PMC5, 0);
 	mtspr(SPRN_PMC6, 0);
 

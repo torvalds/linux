@@ -1,0 +1,27 @@
+Multi-Inno MI0283QT display panel
+
+Required properties:
+- compatible:	"multi-inno,mi0283qt".
+
+The node for this driver must be a child node of a SPI controller, hence
+all mandatory properties described in ../spi/spi-bus.txt must be specified.
+
+Optional properties:
+- dc-gpios:	D/C pin. The presence/absence of this GPIO determines
+		the panel interface mode (IM[3:0] pins):
+		- present: IM=x110 4-wire 8-bit data serial interface
+		- absent:  IM=x101 3-wire 9-bit data serial interface
+- reset-gpios:	Reset pin
+- power-supply:	A regulator node for the supply voltage.
+- backlight:	phandle of the backlight device attached to the panel
+- rotation:	panel rotation in degrees counter clockwise (0,90,180,270)
+
+Example:
+	mi0283qt@0{
+		compatible = "multi-inno,mi0283qt";
+		reg = <0>;
+		spi-max-frequency = <32000000>;
+		rotation = <90>;
+		dc-gpios = <&gpio 25 0>;
+		backlight = <&backlight>;
+	};

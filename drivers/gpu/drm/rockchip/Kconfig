@@ -1,7 +1,6 @@
 config DRM_ROCKCHIP
 	tristate "DRM Support for Rockchip"
 	depends on DRM && ROCKCHIP_IOMMU
-	depends on RESET_CONTROLLER
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_HELPER
 	select DRM_PANEL
@@ -21,6 +20,17 @@ config ROCKCHIP_ANALOGIX_DP
 	  This selects support for Rockchip SoC specific extensions
 	  for the Analogix Core DP driver. If you want to enable DP
 	  on RK3288 based SoC, you should selet this option.
+
+config ROCKCHIP_CDN_DP
+        tristate "Rockchip cdn DP"
+        depends on DRM_ROCKCHIP
+	depends on EXTCON
+	select SND_SOC_HDMI_CODEC if SND_SOC
+        help
+	  This selects support for Rockchip SoC specific extensions
+	  for the cdn DP driver. If you want to enable Dp on
+	  RK3399 based SoC, you should select this
+	  option.
 
 config ROCKCHIP_DW_HDMI
         tristate "Rockchip specific extensions for Synopsys DW HDMI"

@@ -89,4 +89,6 @@
 
 #define SO_CNX_ADVICE		0x402E
 
+#define SCM_TIMESTAMPING_OPT_STATS	0x402F
+
 #endif /* _UAPI_ASM_SOCKET_H */

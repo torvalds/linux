@@ -948,7 +948,6 @@ static inline int libipw_is_cck_rate(u8 rate)
 /* libipw.c */
 void free_libipw(struct net_device *dev, int monitor);
 struct net_device *alloc_libipw(int sizeof_priv, int monitor);
-int libipw_change_mtu(struct net_device *dev, int new_mtu);
 
 void libipw_networks_age(struct libipw_device *ieee, unsigned long age_secs);
 

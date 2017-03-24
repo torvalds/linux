@@ -9,7 +9,6 @@
 #include <linux/miscdevice.h>
 #include <linux/init.h>
 #include <linux/wait.h>
-#include <linux/module.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
@@ -18,6 +17,7 @@
 #include <linux/dlm.h>
 #include <linux/dlm_device.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 
 #include "dlm_internal.h"
 #include "lockspace.h"

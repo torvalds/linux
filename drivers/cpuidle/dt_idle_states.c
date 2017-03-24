@@ -38,6 +38,12 @@ static int init_state_node(struct cpuidle_state *idle_state,
 	 * state enter function.
 	 */
 	idle_state->enter = match_id->data;
+	/*
+	 * Since this is not a "coupled" state, it's safe to assume interrupts
+	 * won't be enabled when it exits allowing the tick to be frozen
+	 * safely. So enter() can be also enter_freeze() callback.
+	 */
+	idle_state->enter_freeze = match_id->data;
 
 	err = of_property_read_u32(state_node, "wakeup-latency-us",
 				   &idle_state->exit_latency);

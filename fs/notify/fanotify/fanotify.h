@@ -47,4 +47,4 @@ static inline struct fanotify_event_info *FANOTIFY_E(struct fsnotify_event *fse)
 }
 
 struct fanotify_event_info *fanotify_alloc_event(struct inode *inode, u32 mask,
-						 struct path *path);
+						 const struct path *path);

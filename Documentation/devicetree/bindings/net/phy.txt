@@ -19,8 +19,9 @@ Optional Properties:
   specifications. If neither of these are specified, the default is to
   assume clause 22.
 
-  If the phy's identifier is known then the list may contain an entry
-  of the form: "ethernet-phy-idAAAA.BBBB" where
+  If the PHY reports an incorrect ID (or none at all) then the
+  "compatible" list may contain an entry with the correct PHY ID in the
+  form: "ethernet-phy-idAAAA.BBBB" where
      AAAA - The value of the 16 bit Phy Identifier 1 register as
             4 hex digits. This is the chip vendor OUI bits 3:18
      BBBB - The value of the 16 bit Phy Identifier 2 register as
@@ -34,6 +35,22 @@ Optional Properties:
 
 - broken-turn-around: If set, indicates the PHY device does not correctly
   release the turn around line low at the end of a MDIO transaction.
+
+- enet-phy-lane-swap: If set, indicates the PHY will swap the TX/RX lanes to
+  compensate for the board being designed with the lanes swapped.
+
+- enet-phy-lane-no-swap: If set, indicates that PHY will disable swap of the
+  TX/RX lanes. This property allows the PHY to work correcly after e.g. wrong
+  bootstrap configuration caused by issues in PCB layout design.
+
+- eee-broken-100tx:
+- eee-broken-1000t:
+- eee-broken-10gt:
+- eee-broken-1000kx:
+- eee-broken-10gkx4:
+- eee-broken-10gkr:
+  Mark the corresponding energy efficient ethernet mode as broken and
+  request the ethernet to stop advertising it.
 
 Example:
 

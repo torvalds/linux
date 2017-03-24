@@ -14,6 +14,22 @@
 #define __PINCTRL_MVEBU_H__
 
 /**
+ * struct mvebu_mpp_ctrl_data - private data for the mpp ctrl operations
+ * @base: base address of pinctrl hardware
+ * @regmap.map: regmap structure
+ * @regmap.offset: regmap offset
+ */
+struct mvebu_mpp_ctrl_data {
+	union {
+		void __iomem *base;
+		struct {
+			struct regmap *map;
+			u32 offset;
+		} regmap;
+	};
+};
+
+/**
  * struct mvebu_mpp_ctrl - describe a mpp control
  * @name: name of the control group
  * @pid: first pin id handled by this control
@@ -37,10 +53,13 @@ struct mvebu_mpp_ctrl {
 	u8 pid;
 	u8 npins;
 	unsigned *pins;
-	int (*mpp_get)(unsigned pid, unsigned long *config);
-	int (*mpp_set)(unsigned pid, unsigned long config);
-	int (*mpp_gpio_req)(unsigned pid);
-	int (*mpp_gpio_dir)(unsigned pid, bool input);
+	int (*mpp_get)(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+		       unsigned long *config);
+	int (*mpp_set)(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+		       unsigned long config);
+	int (*mpp_gpio_req)(struct mvebu_mpp_ctrl_data *data, unsigned pid);
+	int (*mpp_gpio_dir)(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			    bool input);
 };
 
 /**
@@ -93,6 +112,7 @@ struct mvebu_mpp_mode {
  * struct mvebu_pinctrl_soc_info - SoC specific info passed to pinctrl-mvebu
  * @variant: variant mask of soc_info
  * @controls: list of available mvebu_mpp_ctrls
+ * @control_data: optional array, one entry for each control
  * @ncontrols: number of available mvebu_mpp_ctrls
  * @modes: list of available mvebu_mpp_modes
  * @nmodes: number of available mvebu_mpp_modes
@@ -105,7 +125,8 @@ struct mvebu_mpp_mode {
  */
 struct mvebu_pinctrl_soc_info {
 	u8 variant;
-	struct mvebu_mpp_ctrl *controls;
+	const struct mvebu_mpp_ctrl *controls;
+	struct mvebu_mpp_ctrl_data *control_data;
 	int ncontrols;
 	struct mvebu_mpp_mode *modes;
 	int nmodes;
@@ -177,30 +198,18 @@ struct mvebu_pinctrl_soc_info {
 #define MVEBU_MPP_BITS		4
 #define MVEBU_MPP_MASK		0xf
 
-static inline int default_mpp_ctrl_get(void __iomem *base, unsigned int pid,
-				       unsigned long *config)
-{
-	unsigned off = (pid / MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
-	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
-
-	*config = (readl(base + off) >> shift) & MVEBU_MPP_MASK;
-
-	return 0;
-}
-
-static inline int default_mpp_ctrl_set(void __iomem *base, unsigned int pid,
-				       unsigned long config)
-{
-	unsigned off = (pid / MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
-	unsigned shift = (pid % MVEBU_MPPS_PER_REG) * MVEBU_MPP_BITS;
-	unsigned long reg;
-
-	reg = readl(base + off) & ~(MVEBU_MPP_MASK << shift);
-	writel(reg | (config << shift), base + off);
-
-	return 0;
-}
+int mvebu_mmio_mpp_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			       unsigned long *config);
+int mvebu_mmio_mpp_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			       unsigned long config);
+int mvebu_regmap_mpp_ctrl_get(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			      unsigned long *config);
+int mvebu_regmap_mpp_ctrl_set(struct mvebu_mpp_ctrl_data *data, unsigned pid,
+			      unsigned long config);
 
 int mvebu_pinctrl_probe(struct platform_device *pdev);
+int mvebu_pinctrl_simple_mmio_probe(struct platform_device *pdev);
+int mvebu_pinctrl_simple_regmap_probe(struct platform_device *pdev,
+				      struct device *syscon_dev);
 
 #endif

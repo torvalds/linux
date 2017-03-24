@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/namei.h>
 #include <linux/security.h>
+#include <linux/lsm_hooks.h>
 #include <linux/magic.h>
 
 static struct vfsmount *mount;
@@ -204,6 +205,21 @@ void securityfs_remove(struct dentry *dentry)
 }
 EXPORT_SYMBOL_GPL(securityfs_remove);
 
+#ifdef CONFIG_SECURITY
+static struct dentry *lsm_dentry;
+static ssize_t lsm_read(struct file *filp, char __user *buf, size_t count,
+			loff_t *ppos)
+{
+	return simple_read_from_buffer(buf, count, ppos, lsm_names,
+		strlen(lsm_names));
+}
+
+static const struct file_operations lsm_ops = {
+	.read = lsm_read,
+	.llseek = generic_file_llseek,
+};
+#endif
+
 static int __init securityfs_init(void)
 {
 	int retval;
@@ -213,9 +229,15 @@ static int __init securityfs_init(void)
 		return retval;
 
 	retval = register_filesystem(&fs_type);
-	if (retval)
+	if (retval) {
 		sysfs_remove_mount_point(kernel_kobj, "security");
-	return retval;
+		return retval;
+	}
+#ifdef CONFIG_SECURITY
+	lsm_dentry = securityfs_create_file("lsm", 0444, NULL, NULL,
+						&lsm_ops);
+#endif
+	return 0;
 }
 
 core_initcall(securityfs_init);

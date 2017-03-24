@@ -8,10 +8,10 @@ int xfs_fs_map_blocks(struct inode *inode, loff_t offset, u64 length,
 int xfs_fs_commit_blocks(struct inode *inode, struct iomap *maps, int nr_maps,
 		struct iattr *iattr);
 
-int xfs_break_layouts(struct inode *inode, uint *iolock, bool with_imutex);
+int xfs_break_layouts(struct inode *inode, uint *iolock);
 #else
 static inline int
-xfs_break_layouts(struct inode *inode, uint *iolock, bool with_imutex)
+xfs_break_layouts(struct inode *inode, uint *iolock)
 {
 	return 0;
 }

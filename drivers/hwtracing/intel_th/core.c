@@ -29,6 +29,9 @@
 #include "intel_th.h"
 #include "debug.h"
 
+static bool host_mode __read_mostly;
+module_param(host_mode, bool, 0444);
+
 static DEFINE_IDA(intel_th_ida);
 
 static int intel_th_match(struct device *dev, struct device_driver *driver)
@@ -380,7 +383,7 @@ static void intel_th_device_free(struct intel_th_device *thdev)
 /*
  * Intel(R) Trace Hub subdevices
  */
-static struct intel_th_subdevice {
+static const struct intel_th_subdevice {
 	const char		*name;
 	struct resource		res[3];
 	unsigned		nres;
@@ -527,13 +530,18 @@ static int intel_th_populate(struct intel_th *th, struct resource *devres,
 {
 	struct resource res[3];
 	unsigned int req = 0;
-	int i, err;
+	int src, dst, err;
 
 	/* create devices for each intel_th_subdevice */
-	for (i = 0; i < ARRAY_SIZE(intel_th_subdevices); i++) {
-		struct intel_th_subdevice *subdev = &intel_th_subdevices[i];
+	for (src = 0, dst = 0; src < ARRAY_SIZE(intel_th_subdevices); src++) {
+		const struct intel_th_subdevice *subdev =
+			&intel_th_subdevices[src];
 		struct intel_th_device *thdev;
 		int r;
+
+		/* only allow SOURCE and SWITCH devices in host mode */
+		if (host_mode && subdev->type == INTEL_TH_OUTPUT)
+			continue;
 
 		thdev = intel_th_device_alloc(th, subdev->type, subdev->name,
 					      subdev->id);
@@ -577,10 +585,12 @@ static int intel_th_populate(struct intel_th *th, struct resource *devres,
 		}
 
 		if (subdev->type == INTEL_TH_OUTPUT) {
-			thdev->dev.devt = MKDEV(th->major, i);
+			thdev->dev.devt = MKDEV(th->major, dst);
 			thdev->output.type = subdev->otype;
 			thdev->output.port = -1;
 			thdev->output.scratchpad = subdev->scrpd;
+		} else if (subdev->type == INTEL_TH_SWITCH) {
+			thdev->host_mode = host_mode;
 		}
 
 		err = device_add(&thdev->dev);
@@ -597,14 +607,14 @@ static int intel_th_populate(struct intel_th *th, struct resource *devres,
 				req++;
 		}
 
-		th->thdev[i] = thdev;
+		th->thdev[dst++] = thdev;
 	}
 
 	return 0;
 
 kill_subdevs:
-	for (i-- ; i >= 0; i--)
-		intel_th_device_remove(th->thdev[i]);
+	for (; dst >= 0; dst--)
+		intel_th_device_remove(th->thdev[dst]);
 
 	return err;
 }
@@ -717,7 +727,7 @@ void intel_th_free(struct intel_th *th)
 
 	intel_th_request_hub_module_flush(th);
 	for (i = 0; i < TH_SUBDEVICE_MAX; i++)
-		if (th->thdev[i] != th->hub)
+		if (th->thdev[i] && th->thdev[i] != th->hub)
 			intel_th_device_remove(th->thdev[i]);
 
 	intel_th_device_remove(th->hub);

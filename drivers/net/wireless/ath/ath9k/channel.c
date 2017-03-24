@@ -118,8 +118,11 @@ void ath_chanctx_init(struct ath_softc *sc)
 		INIT_LIST_HEAD(&ctx->vifs);
 		ctx->txpower = ATH_TXPOWER_MAX;
 		ctx->flush_timeout = HZ / 5; /* 200ms */
-		for (j = 0; j < ARRAY_SIZE(ctx->acq); j++)
-			INIT_LIST_HEAD(&ctx->acq[j]);
+		for (j = 0; j < ARRAY_SIZE(ctx->acq); j++) {
+			INIT_LIST_HEAD(&ctx->acq[j].acq_new);
+			INIT_LIST_HEAD(&ctx->acq[j].acq_old);
+			spin_lock_init(&ctx->acq[j].lock);
+		}
 	}
 }
 
@@ -1010,7 +1013,6 @@ static void ath_scan_send_probe(struct ath_softc *sc,
 		goto error;
 
 	txctl.txq = sc->tx.txq_map[IEEE80211_AC_VO];
-	txctl.force_channel = true;
 	if (ath_tx_start(sc->hw, skb, &txctl))
 		goto error;
 
@@ -1133,7 +1135,6 @@ ath_chanctx_send_vif_ps_frame(struct ath_softc *sc, struct ath_vif *avp,
 	memset(&txctl, 0, sizeof(txctl));
 	txctl.txq = sc->tx.txq_map[IEEE80211_AC_VO];
 	txctl.sta = sta;
-	txctl.force_channel = true;
 	if (ath_tx_start(sc->hw, skb, &txctl)) {
 		ieee80211_free_txskb(sc->hw, skb);
 		return false;
@@ -1347,8 +1348,11 @@ void ath9k_offchannel_init(struct ath_softc *sc)
 	ctx->txpower = ATH_TXPOWER_MAX;
 	cfg80211_chandef_create(&ctx->chandef, chan, NL80211_CHAN_HT20);
 
-	for (i = 0; i < ARRAY_SIZE(ctx->acq); i++)
-		INIT_LIST_HEAD(&ctx->acq[i]);
+	for (i = 0; i < ARRAY_SIZE(ctx->acq); i++) {
+		INIT_LIST_HEAD(&ctx->acq[i].acq_new);
+		INIT_LIST_HEAD(&ctx->acq[i].acq_old);
+		spin_lock_init(&ctx->acq[i].lock);
+	}
 
 	sc->offchannel.chan.offchannel = true;
 }

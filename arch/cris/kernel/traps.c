@@ -15,12 +15,13 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/utsname.h>
+#include <linux/sched/debug.h>
 #ifdef CONFIG_KALLSYMS
 #include <linux/kallsyms.h>
 #endif
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <arch/system.h>
 
 extern void arch_enable_nmi(void);

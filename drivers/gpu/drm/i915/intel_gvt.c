@@ -31,13 +31,19 @@
  * GPU among multiple virtual machines on a time-sharing basis. Each
  * virtual machine is presented a virtual GPU (vGPU), which has equivalent
  * features as the underlying physical GPU (pGPU), so i915 driver can run
- * seamlessly in a virtual machine. This file provides the englightments
- * of GVT and the necessary components used by GVT in i915 driver.
+ * seamlessly in a virtual machine.
+ *
+ * To virtualize GPU resources GVT-g driver depends on hypervisor technology
+ * e.g KVM/VFIO/mdev, Xen, etc. to provide resource access trapping capability
+ * and be virtualized within GVT-g device module. More architectural design
+ * doc is available on https://01.org/group/2230/documentation-list.
  */
 
 static bool is_supported_device(struct drm_i915_private *dev_priv)
 {
 	if (IS_BROADWELL(dev_priv))
+		return true;
+	if (IS_SKYLAKE(dev_priv))
 		return true;
 	return false;
 }
@@ -59,6 +65,11 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 	if (!i915.enable_gvt) {
 		DRM_DEBUG_DRIVER("GVT-g is disabled by kernel params\n");
 		return 0;
+	}
+
+	if (intel_vgpu_active(dev_priv)) {
+		DRM_DEBUG_DRIVER("GVT-g is disabled for guest\n");
+		goto bail;
 	}
 
 	if (!is_supported_device(dev_priv)) {

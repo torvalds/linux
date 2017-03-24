@@ -40,6 +40,7 @@
 
 #include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
 #include <stdlib.h>
+#include <string.h>
 #include <linux/err.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
@@ -74,8 +75,6 @@ struct trace {
 		size_t		nr;
 		int		*entries;
 	}			ev_qualifier_ids;
-	struct intlist		*tid_list;
-	struct intlist		*pid_list;
 	struct {
 		size_t		nr;
 		pid_t		*entries;
@@ -843,7 +842,6 @@ static size_t fprintf_duration(unsigned long t, FILE *fp)
  */
 struct thread_trace {
 	u64		  entry_time;
-	u64		  exit_time;
 	bool		  entry_pending;
 	unsigned long	  nr_events;
 	unsigned long	  pfmaj, pfmin;
@@ -1401,7 +1399,7 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 	return &trace->syscalls.table[id];
 
 out_cant_read:
-	if (verbose) {
+	if (verbose > 0) {
 		fprintf(trace->output, "Problems reading syscall %d", id);
 		if (id <= trace->syscalls.max && trace->syscalls.table[id].name != NULL)
 			fprintf(trace->output, "(%s)", trace->syscalls.table[id].name);
@@ -1452,7 +1450,7 @@ static int trace__printf_interrupted_entry(struct trace *trace, struct perf_samp
 
 	duration = sample->time - ttrace->entry_time;
 
-	printed  = trace__fprintf_entry_head(trace, trace->current, duration, sample->time, trace->output);
+	printed  = trace__fprintf_entry_head(trace, trace->current, duration, ttrace->entry_time, trace->output);
 	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
 	ttrace->entry_pending = false;
 
@@ -1499,7 +1497,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 
 	if (sc->is_exit) {
 		if (!(trace->duration_filter || trace->summary_only || trace->min_stack)) {
-			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
+			trace__fprintf_entry_head(trace, thread, 1, ttrace->entry_time, trace->output);
 			fprintf(trace->output, "%-70s)\n", ttrace->entry_str);
 		}
 	} else {
@@ -1571,8 +1569,6 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 		++trace->stats.vfs_getname;
 	}
 
-	ttrace->exit_time = sample->time;
-
 	if (ttrace->entry_time) {
 		duration = sample->time - ttrace->entry_time;
 		if (trace__filter_duration(trace, duration))
@@ -1592,7 +1588,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	if (trace->summary_only)
 		goto out;
 
-	trace__fprintf_entry_head(trace, thread, duration, sample->time, trace->output);
+	trace__fprintf_entry_head(trace, thread, duration, ttrace->entry_time, trace->output);
 
 	if (ttrace->entry_pending) {
 		fprintf(trace->output, "%-70s", ttrace->entry_str);
@@ -1805,10 +1801,10 @@ static void print_location(FILE *f, struct perf_sample *sample,
 			   bool print_dso, bool print_sym)
 {
 
-	if ((verbose || print_dso) && al->map)
+	if ((verbose > 0 || print_dso) && al->map)
 		fprintf(f, "%s@", al->map->dso->long_name);
 
-	if ((verbose || print_sym) && al->sym)
+	if ((verbose > 0 || print_sym) && al->sym)
 		fprintf(f, "%s+0x%" PRIx64, al->sym->name,
 			al->addr - al->sym->start);
 	else if (al->map)
@@ -1893,18 +1889,6 @@ out_put:
 	return err;
 }
 
-static bool skip_sample(struct trace *trace, struct perf_sample *sample)
-{
-	if ((trace->pid_list && intlist__find(trace->pid_list, sample->pid)) ||
-	    (trace->tid_list && intlist__find(trace->tid_list, sample->tid)))
-		return false;
-
-	if (trace->pid_list || trace->tid_list)
-		return true;
-
-	return false;
-}
-
 static void trace__set_base_time(struct trace *trace,
 				 struct perf_evsel *evsel,
 				 struct perf_sample *sample)
@@ -1929,11 +1913,13 @@ static int trace__process_sample(struct perf_tool *tool,
 				 struct machine *machine __maybe_unused)
 {
 	struct trace *trace = container_of(tool, struct trace, tool);
+	struct thread *thread;
 	int err = 0;
 
 	tracepoint_handler handler = evsel->handler;
 
-	if (skip_sample(trace, sample))
+	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
+	if (thread && thread__is_filtered(thread))
 		return 0;
 
 	trace__set_base_time(trace, evsel, sample);
@@ -1944,27 +1930,6 @@ static int trace__process_sample(struct perf_tool *tool,
 	}
 
 	return err;
-}
-
-static int parse_target_str(struct trace *trace)
-{
-	if (trace->opts.target.pid) {
-		trace->pid_list = intlist__new(trace->opts.target.pid);
-		if (trace->pid_list == NULL) {
-			pr_err("Error parsing process id string\n");
-			return -EINVAL;
-		}
-	}
-
-	if (trace->opts.target.tid) {
-		trace->tid_list = intlist__new(trace->opts.target.tid);
-		if (trace->tid_list == NULL) {
-			pr_err("Error parsing thread id string\n");
-			return -EINVAL;
-		}
-	}
-
-	return 0;
 }
 
 static int trace__record(struct trace *trace, int argc, const char **argv)
@@ -2310,11 +2275,16 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_mmap;
 
-	if (!target__none(&trace->opts.target))
+	if (!target__none(&trace->opts.target) && !trace->opts.initial_delay)
 		perf_evlist__enable(evlist);
 
 	if (forks)
 		perf_evlist__start_workload(evlist);
+
+	if (trace->opts.initial_delay) {
+		usleep(trace->opts.initial_delay * 1000);
+		perf_evlist__enable(evlist);
+	}
 
 	trace->multiple_threads = thread_map__pid(evlist->threads, 0) == -1 ||
 				  evlist->threads->nr > 1 ||
@@ -2458,6 +2428,12 @@ static int trace__replay(struct trace *trace)
 	if (session == NULL)
 		return -1;
 
+	if (trace->opts.target.pid)
+		symbol_conf.pid_list_str = strdup(trace->opts.target.pid);
+
+	if (trace->opts.target.tid)
+		symbol_conf.tid_list_str = strdup(trace->opts.target.tid);
+
 	if (symbol__init(&session->header.env) < 0)
 		goto out;
 
@@ -2500,10 +2476,6 @@ static int trace__replay(struct trace *trace)
 		     evsel->attr.config == PERF_COUNT_SW_PAGE_FAULTS))
 			evsel->handler = trace__pgfault;
 	}
-
-	err = parse_target_str(trace);
-	if (err != 0)
-		goto out;
 
 	setup_pager();
 
@@ -2728,6 +2700,91 @@ static void evlist__set_evsel_handler(struct perf_evlist *evlist, void *handler)
 		evsel->handler = handler;
 }
 
+/*
+ * XXX: Hackish, just splitting the combined -e+--event (syscalls
+ * (raw_syscalls:{sys_{enter,exit}} + events (tracepoints, HW, SW, etc) to use
+ * existing facilities unchanged (trace->ev_qualifier + parse_options()).
+ *
+ * It'd be better to introduce a parse_options() variant that would return a
+ * list with the terms it didn't match to an event...
+ */
+static int trace__parse_events_option(const struct option *opt, const char *str,
+				      int unset __maybe_unused)
+{
+	struct trace *trace = (struct trace *)opt->value;
+	const char *s = str;
+	char *sep = NULL, *lists[2] = { NULL, NULL, };
+	int len = strlen(str), err = -1, list;
+	char *strace_groups_dir = system_path(STRACE_GROUPS_DIR);
+	char group_name[PATH_MAX];
+
+	if (strace_groups_dir == NULL)
+		return -1;
+
+	if (*s == '!') {
+		++s;
+		trace->not_ev_qualifier = true;
+	}
+
+	while (1) {
+		if ((sep = strchr(s, ',')) != NULL)
+			*sep = '\0';
+
+		list = 0;
+		if (syscalltbl__id(trace->sctbl, s) >= 0) {
+			list = 1;
+		} else {
+			path__join(group_name, sizeof(group_name), strace_groups_dir, s);
+			if (access(group_name, R_OK) == 0)
+				list = 1;
+		}
+
+		if (lists[list]) {
+			sprintf(lists[list] + strlen(lists[list]), ",%s", s);
+		} else {
+			lists[list] = malloc(len);
+			if (lists[list] == NULL)
+				goto out;
+			strcpy(lists[list], s);
+		}
+
+		if (!sep)
+			break;
+
+		*sep = ',';
+		s = sep + 1;
+	}
+
+	if (lists[1] != NULL) {
+		struct strlist_config slist_config = {
+			.dirname = strace_groups_dir,
+		};
+
+		trace->ev_qualifier = strlist__new(lists[1], &slist_config);
+		if (trace->ev_qualifier == NULL) {
+			fputs("Not enough memory to parse event qualifier", trace->output);
+			goto out;
+		}
+
+		if (trace__validate_ev_qualifier(trace))
+			goto out;
+	}
+
+	err = 0;
+
+	if (lists[0]) {
+		struct option o = OPT_CALLBACK('e', "event", &trace->evlist, "event",
+					       "event selector. use 'perf list' to list available events",
+					       parse_events_option);
+		err = parse_events_option(&o, lists[0], 0);
+	}
+out:
+	if (sep)
+		*sep = ',';
+
+	return err;
+}
+
 int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char *trace_usage[] = {
@@ -2759,15 +2816,15 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		.max_stack = UINT_MAX,
 	};
 	const char *output_name = NULL;
-	const char *ev_qualifier_str = NULL;
 	const struct option trace_options[] = {
-	OPT_CALLBACK(0, "event", &trace.evlist, "event",
-		     "event selector. use 'perf list' to list available events",
-		     parse_events_option),
+	OPT_CALLBACK('e', "event", &trace, "event",
+		     "event/syscall selector. use 'perf list' to list available events",
+		     trace__parse_events_option),
 	OPT_BOOLEAN(0, "comm", &trace.show_comm,
 		    "show the thread COMM next to its id"),
 	OPT_BOOLEAN(0, "tool_stats", &trace.show_tool_stats, "show tool stats"),
-	OPT_STRING('e', "expr", &ev_qualifier_str, "expr", "list of syscalls to trace"),
+	OPT_CALLBACK(0, "expr", &trace, "expr", "list of syscalls/events to trace",
+		     trace__parse_events_option),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
 	OPT_STRING('i', "input", &input_name, "file", "Analyze events in file"),
 	OPT_STRING('p', "pid", &trace.opts.target.pid, "pid",
@@ -2816,6 +2873,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
+	OPT_UINTEGER('D', "delay", &trace.opts.initial_delay,
+		     "ms to wait before starting measurement after program "
+		     "start"),
 	OPT_END()
 	};
 	bool __maybe_unused max_stack_user_set = true;
@@ -2889,7 +2949,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		return -1;
 	}
 
-	if (!trace.trace_syscalls && ev_qualifier_str) {
+	if (!trace.trace_syscalls && trace.ev_qualifier) {
 		pr_err("The -e option can't be used with --no-syscalls.\n");
 		goto out;
 	}
@@ -2903,28 +2963,6 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	trace.open_id = syscalltbl__id(trace.sctbl, "open");
-
-	if (ev_qualifier_str != NULL) {
-		const char *s = ev_qualifier_str;
-		struct strlist_config slist_config = {
-			.dirname = system_path(STRACE_GROUPS_DIR),
-		};
-
-		trace.not_ev_qualifier = *s == '!';
-		if (trace.not_ev_qualifier)
-			++s;
-		trace.ev_qualifier = strlist__new(s, &slist_config);
-		if (trace.ev_qualifier == NULL) {
-			fputs("Not enough memory to parse event qualifier",
-			      trace.output);
-			err = -ENOMEM;
-			goto out_close;
-		}
-
-		err = trace__validate_ev_qualifier(&trace);
-		if (err)
-			goto out_close;
-	}
 
 	err = target__validate(&trace.opts.target);
 	if (err) {

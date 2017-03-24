@@ -304,6 +304,8 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	struct device		*dev = &pdev->dev;
 	int			ret;
 	struct socfpga_dwmac	*dwmac;
+	struct net_device	*ndev;
+	struct stmmac_priv	*stpriv;
 
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
 	if (ret)
@@ -314,32 +316,43 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 		return PTR_ERR(plat_dat);
 
 	dwmac = devm_kzalloc(dev, sizeof(*dwmac), GFP_KERNEL);
-	if (!dwmac)
-		return -ENOMEM;
+	if (!dwmac) {
+		ret = -ENOMEM;
+		goto err_remove_config_dt;
+	}
 
 	ret = socfpga_dwmac_parse_data(dwmac, dev);
 	if (ret) {
 		dev_err(dev, "Unable to parse OF data\n");
-		return ret;
+		goto err_remove_config_dt;
 	}
 
 	plat_dat->bsp_priv = dwmac;
 	plat_dat->fix_mac_speed = socfpga_dwmac_fix_mac_speed;
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	if (ret)
+		goto err_remove_config_dt;
 
-	if (!ret) {
-		struct net_device *ndev = platform_get_drvdata(pdev);
-		struct stmmac_priv *stpriv = netdev_priv(ndev);
+	ndev = platform_get_drvdata(pdev);
+	stpriv = netdev_priv(ndev);
 
-		/* The socfpga driver needs to control the stmmac reset to
-		 * set the phy mode. Create a copy of the core reset handel
-		 * so it can be used by the driver later.
-		 */
-		dwmac->stmmac_rst = stpriv->stmmac_rst;
+	/* The socfpga driver needs to control the stmmac reset to set the phy
+	 * mode. Create a copy of the core reset handle so it can be used by
+	 * the driver later.
+	 */
+	dwmac->stmmac_rst = stpriv->plat->stmmac_rst;
 
-		ret = socfpga_dwmac_set_phy_mode(dwmac);
-	}
+	ret = socfpga_dwmac_set_phy_mode(dwmac);
+	if (ret)
+		goto err_dvr_remove;
+
+	return 0;
+
+err_dvr_remove:
+	stmmac_dvr_remove(&pdev->dev);
+err_remove_config_dt:
+	stmmac_remove_config_dt(pdev, plat_dat);
 
 	return ret;
 }
@@ -367,8 +380,8 @@ static int socfpga_dwmac_resume(struct device *dev)
 	 * control register 0, and can be modified by the phy driver
 	 * framework.
 	 */
-	if (priv->phydev)
-		phy_resume(priv->phydev);
+	if (ndev->phydev)
+		phy_resume(ndev->phydev);
 
 	return stmmac_resume(dev);
 }

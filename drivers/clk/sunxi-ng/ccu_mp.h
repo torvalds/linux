@@ -29,8 +29,8 @@
 struct ccu_mp {
 	u32			enable;
 
-	struct _ccu_div		m;
-	struct _ccu_div		p;
+	struct ccu_div_internal		m;
+	struct ccu_div_internal		p;
 	struct ccu_mux_internal	mux;
 	struct ccu_common	common;
 };

@@ -9,7 +9,7 @@
 
 /dts-v1/;
 
-#include "bcm4708.dtsi"
+#include "bcm4709.dtsi"
 #include "bcm5301x-nand-cs0-bch8.dtsi"
 
 / {
@@ -21,7 +21,8 @@
 	};
 
 	memory {
-		reg = <0x00000000 0x08000000>;
+		reg = <0x00000000 0x08000000
+		       0x88000000 0x08000000>;
 	};
 
 	leds {
@@ -103,6 +104,54 @@
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&pcie0 {
+	#address-cells = <3>;
+	#size-cells = <2>;
+
+	bridge@0,0,0 {
+		reg = <0x0000 0 0 0 0>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		wifi@0,1,0 {
+			reg = <0x0000 0 0 0 0>;
+			ieee80211-freq-limit = <5735000 5835000>;
+		};
+	};
+};
+
+&pcie1 {
+	#address-cells = <3>;
+	#size-cells = <2>;
+
+	bridge@1,0,0 {
+		reg = <0x0000 0 0 0 0>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		bridge@1,1,0 {
+			reg = <0x0000 0 0 0 0>;
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			bridge@1,2,2 {
+				reg = <0x1000 0 0 0 0>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+
+				wifi@1,4,0 {
+					reg = <0x0000 0 0 0 0>;
+					ieee80211-freq-limit = <5170000 5730000>;
+				};
+			};
 		};
 	};
 };

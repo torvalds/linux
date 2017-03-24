@@ -48,19 +48,6 @@ struct omap_drm_window {
 	uint32_t src_w, src_h;
 };
 
-/* For transiently registering for different DSS irqs that various parts
- * of the KMS code need during setup/configuration.  We these are not
- * necessarily the same as what drm_vblank_get/put() are requesting, and
- * the hysteresis in drm_vblank_put() is not necessarily desirable for
- * internal housekeeping related irq usage.
- */
-struct omap_drm_irq {
-	struct list_head node;
-	uint32_t irqmask;
-	bool registered;
-	void (*irq)(struct omap_drm_irq *irq, uint32_t irqstatus);
-};
-
 /* For KMS code that needs to wait for a certain # of IRQs:
  */
 struct omap_irq_wait;
@@ -101,9 +88,9 @@ struct omap_drm_private {
 	struct drm_property *zorder_prop;
 
 	/* irq handling: */
-	struct list_head irq_list;    /* list of omap_drm_irq */
-	uint32_t vblank_mask;         /* irq bits set for userspace vblank */
-	struct omap_drm_irq error_handler;
+	spinlock_t wait_lock;		/* protects the wait_list */
+	struct list_head wait_list;	/* list of omap_irq_wait */
+	uint32_t irq_mask;		/* enabled irqs in addition to wait_list */
 
 	/* atomic commit */
 	struct {
@@ -116,7 +103,6 @@ struct omap_drm_private {
 
 #ifdef CONFIG_DEBUG_FS
 int omap_debugfs_init(struct drm_minor *minor);
-void omap_debugfs_cleanup(struct drm_minor *minor);
 void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
 void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
@@ -128,10 +114,6 @@ int omap_gem_resume(struct device *dev);
 
 int omap_irq_enable_vblank(struct drm_device *dev, unsigned int pipe);
 void omap_irq_disable_vblank(struct drm_device *dev, unsigned int pipe);
-void __omap_irq_register(struct drm_device *dev, struct omap_drm_irq *irq);
-void __omap_irq_unregister(struct drm_device *dev, struct omap_drm_irq *irq);
-void omap_irq_register(struct drm_device *dev, struct omap_drm_irq *irq);
-void omap_irq_unregister(struct drm_device *dev, struct omap_drm_irq *irq);
 void omap_drm_irq_uninstall(struct drm_device *dev);
 int omap_drm_irq_install(struct drm_device *dev);
 
@@ -148,16 +130,19 @@ static inline void omap_fbdev_free(struct drm_device *dev)
 }
 #endif
 
-struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
+struct videomode *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
 void omap_crtc_pre_init(void);
 void omap_crtc_pre_uninit(void);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, enum omap_channel channel, int id);
 int omap_crtc_wait_pending(struct drm_crtc *crtc);
+void omap_crtc_error_irq(struct drm_crtc *crtc, uint32_t irqstatus);
+void omap_crtc_vblank_irq(struct drm_crtc *crtc);
 
 struct drm_plane *omap_plane_init(struct drm_device *dev,
-		int id, enum drm_plane_type type);
+		int id, enum drm_plane_type type,
+		u32 possible_crtcs);
 void omap_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
 
@@ -170,11 +155,6 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 struct drm_encoder *omap_connector_attached_encoder(
 		struct drm_connector *connector);
 bool omap_connector_get_hdmi_mode(struct drm_connector *connector);
-
-void copy_timings_omap_to_drm(struct drm_display_mode *mode,
-		struct omap_video_timings *timings);
-void copy_timings_drm_to_omap(struct omap_video_timings *timings,
-		struct drm_display_mode *mode);
 
 uint32_t omap_framebuffer_get_formats(uint32_t *pixel_formats,
 		uint32_t max_formats, enum omap_color_mode supported_modes);
@@ -208,7 +188,7 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 int omap_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 int omap_gem_mmap_obj(struct drm_gem_object *obj,
 		struct vm_area_struct *vma);
-int omap_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
+int omap_gem_fault(struct vm_fault *vmf);
 int omap_gem_op_start(struct drm_gem_object *obj, enum omap_gem_op op);
 int omap_gem_op_finish(struct drm_gem_object *obj, enum omap_gem_op op);
 int omap_gem_op_sync(struct drm_gem_object *obj, enum omap_gem_op op);
@@ -237,32 +217,6 @@ struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 		struct dma_buf *buffer);
 
 /* map crtc to vblank mask */
-uint32_t pipe2vbl(struct drm_crtc *crtc);
 struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder);
-
-/* should these be made into common util helpers?
- */
-
-static inline int objects_lookup(
-		struct drm_file *filp, uint32_t pixel_format,
-		struct drm_gem_object **bos, const uint32_t *handles)
-{
-	int i, n = drm_format_num_planes(pixel_format);
-
-	for (i = 0; i < n; i++) {
-		bos[i] = drm_gem_object_lookup(filp, handles[i]);
-		if (!bos[i])
-			goto fail;
-
-	}
-
-	return 0;
-
-fail:
-	while (--i > 0)
-		drm_gem_object_unreference_unlocked(bos[i]);
-
-	return -ENOENT;
-}
 
 #endif /* __OMAP_DRV_H__ */

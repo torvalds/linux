@@ -47,6 +47,8 @@ struct drm_mm_node;
 
 struct ttm_placement;
 
+struct ttm_place;
+
 /**
  * struct ttm_bus_placement
  *
@@ -209,9 +211,11 @@ struct ttm_buffer_object {
 	 * Members protected by a bo reservation.
 	 */
 
-	struct fence *moving;
+	struct dma_fence *moving;
 
 	struct drm_vma_offset_node vma_node;
+
+	unsigned priority;
 
 	/**
 	 * Special members that are protected by the reserve lock
@@ -330,19 +334,6 @@ extern int ttm_bo_validate(struct ttm_buffer_object *bo,
  */
 extern void ttm_bo_unref(struct ttm_buffer_object **bo);
 
-
-/**
- * ttm_bo_list_ref_sub
- *
- * @bo: The buffer object.
- * @count: The number of references with which to decrease @bo::list_kref;
- * @never_free: The refcount should not reach zero with this operation.
- *
- * Release @count lru list references to this buffer object.
- */
-extern void ttm_bo_list_ref_sub(struct ttm_buffer_object *bo, int count,
-				bool never_free);
-
 /**
  * ttm_bo_add_to_lru
  *
@@ -365,7 +356,7 @@ extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
  * and is usually called just immediately after the bo has been reserved to
  * avoid recursive reservation from lru lists.
  */
-extern int ttm_bo_del_from_lru(struct ttm_buffer_object *bo);
+extern void ttm_bo_del_from_lru(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_move_to_lru_tail
@@ -394,6 +385,17 @@ extern int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev);
  */
 extern void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev,
 					    int resched);
+
+/**
+ * ttm_bo_eviction_valuable
+ *
+ * @bo: The buffer object to evict
+ * @place: the placement we need to make room for
+ *
+ * Check if it is valuable to evict the BO to make room for the given placement.
+ */
+bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
+			      const struct ttm_place *place);
 
 /**
  * ttm_bo_synccpu_write_grab

@@ -123,7 +123,7 @@ Assume that you have volumes vg1/switch0 vg1/switch1 vg1/switch2 with
 the same size.
 
 Create a switch device with 64kB region size:
-    dmsetup create switch --table "0 `blockdev --getsize /dev/vg1/switch0`
+    dmsetup create switch --table "0 `blockdev --getsz /dev/vg1/switch0`
 	switch 3 128 0 /dev/vg1/switch0 0 /dev/vg1/switch1 0 /dev/vg1/switch2 0"
 
 Set mappings for the first 7 entries to point to devices switch0, switch1,

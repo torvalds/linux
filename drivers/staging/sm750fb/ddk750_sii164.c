@@ -173,7 +173,8 @@ long sii164InitChip(
 
 		i2cWriteReg(SII164_I2C_ADDRESS, SII164_CONFIGURATION, config);
 
-		/* De-skew enabled with default 111b value.
+		/*
+		 * De-skew enabled with default 111b value.
 		 * This fixes some artifacts problem in some mode on board 2.2.
 		 * Somehow this fix does not affect board 2.1.
 		 */

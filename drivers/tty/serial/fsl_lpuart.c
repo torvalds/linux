@@ -430,6 +430,65 @@ static void lpuart_flush_buffer(struct uart_port *port)
 	}
 }
 
+#if defined(CONFIG_CONSOLE_POLL)
+
+static int lpuart_poll_init(struct uart_port *port)
+{
+	struct lpuart_port *sport = container_of(port,
+					struct lpuart_port, port);
+	unsigned long flags;
+	unsigned char temp;
+
+	sport->port.fifosize = 0;
+
+	spin_lock_irqsave(&sport->port.lock, flags);
+	/* Disable Rx & Tx */
+	writeb(0, sport->port.membase + UARTCR2);
+
+	temp = readb(sport->port.membase + UARTPFIFO);
+	/* Enable Rx and Tx FIFO */
+	writeb(temp | UARTPFIFO_RXFE | UARTPFIFO_TXFE,
+			sport->port.membase + UARTPFIFO);
+
+	/* flush Tx and Rx FIFO */
+	writeb(UARTCFIFO_TXFLUSH | UARTCFIFO_RXFLUSH,
+			sport->port.membase + UARTCFIFO);
+
+	/* explicitly clear RDRF */
+	if (readb(sport->port.membase + UARTSR1) & UARTSR1_RDRF) {
+		readb(sport->port.membase + UARTDR);
+		writeb(UARTSFIFO_RXUF, sport->port.membase + UARTSFIFO);
+	}
+
+	writeb(0, sport->port.membase + UARTTWFIFO);
+	writeb(1, sport->port.membase + UARTRWFIFO);
+
+	/* Enable Rx and Tx */
+	writeb(UARTCR2_RE | UARTCR2_TE, sport->port.membase + UARTCR2);
+	spin_unlock_irqrestore(&sport->port.lock, flags);
+
+	return 0;
+}
+
+static void lpuart_poll_put_char(struct uart_port *port, unsigned char c)
+{
+	/* drain */
+	while (!(readb(port->membase + UARTSR1) & UARTSR1_TDRE))
+		barrier();
+
+	writeb(c, port->membase + UARTDR);
+}
+
+static int lpuart_poll_get_char(struct uart_port *port)
+{
+	if (!(readb(port->membase + UARTSR1) & UARTSR1_RDRF))
+		return NO_POLL_CHAR;
+
+	return readb(port->membase + UARTDR);
+}
+
+#endif
+
 static inline void lpuart_transmit_buffer(struct lpuart_port *sport)
 {
 	struct circ_buf *xmit = &sport->port.state->xmit;
@@ -1348,6 +1407,18 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* ask the core to calculate the divisor */
 	baud = uart_get_baud_rate(port, termios, old, 50, port->uartclk / 16);
 
+	/*
+	 * Need to update the Ring buffer length according to the selected
+	 * baud rate and restart Rx DMA path.
+	 *
+	 * Since timer function acqures sport->port.lock, need to stop before
+	 * acquring same lock because otherwise del_timer_sync() can deadlock.
+	 */
+	if (old && sport->lpuart_dma_rx_use) {
+		del_timer_sync(&sport->lpuart_timer);
+		lpuart_dma_rx_free(&sport->port);
+	}
+
 	spin_lock_irqsave(&sport->port.lock, flags);
 
 	sport->port.read_status_mask = 0;
@@ -1397,22 +1468,11 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* restore control register */
 	writeb(old_cr2, sport->port.membase + UARTCR2);
 
-	/*
-	 * If new baud rate is set, we will also need to update the Ring buffer
-	 * length according to the selected baud rate and restart Rx DMA path.
-	 */
-	if (old) {
-		if (sport->lpuart_dma_rx_use) {
-			del_timer_sync(&sport->lpuart_timer);
-			lpuart_dma_rx_free(&sport->port);
-		}
-
-		if (sport->dma_rx_chan && !lpuart_start_rx_dma(sport)) {
-			sport->lpuart_dma_rx_use = true;
+	if (old && sport->lpuart_dma_rx_use) {
+		if (!lpuart_start_rx_dma(sport))
 			rx_dma_timer_init(sport);
-		} else {
+		else
 			sport->lpuart_dma_rx_use = false;
-		}
 	}
 
 	spin_unlock_irqrestore(&sport->port.lock, flags);
@@ -1595,6 +1655,11 @@ static const struct uart_ops lpuart_pops = {
 	.config_port	= lpuart_config_port,
 	.verify_port	= lpuart_verify_port,
 	.flush_buffer	= lpuart_flush_buffer,
+#if defined(CONFIG_CONSOLE_POLL)
+	.poll_init	= lpuart_poll_init,
+	.poll_get_char	= lpuart_poll_get_char,
+	.poll_put_char	= lpuart_poll_put_char,
+#endif
 };
 
 static const struct uart_ops lpuart32_pops = {
@@ -2067,12 +2132,10 @@ static int lpuart_resume(struct device *dev)
 
 	if (sport->lpuart_dma_rx_use) {
 		if (sport->port.irq_wake) {
-			if (!lpuart_start_rx_dma(sport)) {
-				sport->lpuart_dma_rx_use = true;
+			if (!lpuart_start_rx_dma(sport))
 				rx_dma_timer_init(sport);
-			} else {
+			else
 				sport->lpuart_dma_rx_use = false;
-			}
 		}
 	}
 

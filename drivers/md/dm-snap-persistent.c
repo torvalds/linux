@@ -741,7 +741,7 @@ static void persistent_commit_exception(struct dm_exception_store *store,
 	/*
 	 * Commit exceptions to disk.
 	 */
-	if (ps->valid && area_io(ps, REQ_OP_WRITE, WRITE_FLUSH_FUA))
+	if (ps->valid && area_io(ps, REQ_OP_WRITE, REQ_PREFLUSH | REQ_FUA))
 		ps->valid = 0;
 
 	/*
@@ -818,7 +818,7 @@ static int persistent_commit_merge(struct dm_exception_store *store,
 	for (i = 0; i < nr_merged; i++)
 		clear_exception(ps, ps->current_committed - 1 - i);
 
-	r = area_io(ps, REQ_OP_WRITE, WRITE_FLUSH_FUA);
+	r = area_io(ps, REQ_OP_WRITE, REQ_PREFLUSH | REQ_FUA);
 	if (r < 0)
 		return r;
 

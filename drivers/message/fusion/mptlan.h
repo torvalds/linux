@@ -65,12 +65,11 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
     /* Override mptbase.h by pre-defining these! */

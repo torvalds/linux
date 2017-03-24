@@ -228,7 +228,7 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_BCAST_FILTERING	= BIT(29),
 };
 
-typedef unsigned int __bitwise__ iwl_ucode_tlv_api_t;
+typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
 
 /**
  * enum iwl_ucode_tlv_api - ucode api
@@ -258,7 +258,7 @@ enum iwl_ucode_tlv_api {
 #endif
 };
 
-typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
+typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
 
 /**
  * enum iwl_ucode_tlv_capa - ucode capabilities
@@ -293,6 +293,7 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
  *	is supported.
  * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
  * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan
+ * @IWL_UCODE_TLV_CAPA_STA_PM_NOTIF: firmware will send STA PM notification
  * @IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE: extended DTS measurement
  * @IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS: supports short PM timeouts
  * @IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT: supports bt-coex Multi-priority LUT
@@ -342,6 +343,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC		= (__force iwl_ucode_tlv_capa_t)29,
 	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= (__force iwl_ucode_tlv_capa_t)30,
 	IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT		= (__force iwl_ucode_tlv_capa_t)31,
+	IWL_UCODE_TLV_CAPA_STA_PM_NOTIF			= (__force iwl_ucode_tlv_capa_t)38,
 	IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE		= (__force iwl_ucode_tlv_capa_t)64,
 	IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS		= (__force iwl_ucode_tlv_capa_t)65,
 	IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT		= (__force iwl_ucode_tlv_capa_t)67,
@@ -377,7 +379,6 @@ enum iwl_ucode_tlv_capa {
  * For 16.0 uCode and above, there is no differentiation between sections,
  * just an offset to the HW address.
  */
-#define IWL_UCODE_SECTION_MAX 16
 #define CPU1_CPU2_SEPARATOR_SECTION	0xFFFFCCCC
 #define PAGING_SEPARATOR_SECTION	0xAAAABBBB
 
@@ -487,25 +488,22 @@ enum iwl_fw_dbg_monitor_mode {
 };
 
 /**
- * enum iwl_fw_mem_seg_type - data types for dumping on error
- *
- * @FW_DBG_MEM_SMEM: the data type is SMEM
- * @FW_DBG_MEM_DCCM_LMAC: the data type is DCCM_LMAC
- * @FW_DBG_MEM_DCCM_UMAC: the data type is DCCM_UMAC
+ * enum iwl_fw_mem_seg_type - memory segment type
+ * @FW_DBG_MEM_TYPE_MASK: mask for the type indication
+ * @FW_DBG_MEM_TYPE_REGULAR: regular memory
+ * @FW_DBG_MEM_TYPE_PRPH: periphery memory (requires special reading)
  */
-enum iwl_fw_dbg_mem_seg_type {
-	FW_DBG_MEM_DCCM_LMAC = 0,
-	FW_DBG_MEM_DCCM_UMAC,
-	FW_DBG_MEM_SMEM,
-
-	/* Must be last */
-	FW_DBG_MEM_MAX,
+enum iwl_fw_mem_seg_type {
+	FW_DBG_MEM_TYPE_MASK	= 0xff000000,
+	FW_DBG_MEM_TYPE_REGULAR	= 0x00000000,
+	FW_DBG_MEM_TYPE_PRPH	= 0x01000000,
 };
 
 /**
  * struct iwl_fw_dbg_mem_seg_tlv - configures the debug data memory segments
  *
- * @data_type: enum %iwl_fw_mem_seg_type
+ * @data_type: the memory segment type to record, see &enum iwl_fw_mem_seg_type
+ *	for what we care about
  * @ofs: the memory segment offset
  * @len: the memory segment length, in bytes
  *

@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -15,9 +15,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more
  * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
  **********************************************************************/
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -52,7 +49,7 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 	/* Add in the response related fields. Opcode and Param are already
 	 * there.
 	 */
-	if (OCTEON_CN23XX_PF(oct)) {
+	if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct)) {
 		ih3      = (struct octeon_instr_ih3 *)&sc->cmd.cmd3.ih3;
 		rdp     = (struct octeon_instr_rdp *)&sc->cmd.cmd3.rdp;
 		irh     = (struct octeon_instr_irh *)&sc->cmd.cmd3.irh;
@@ -73,7 +70,7 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 
 	*sc->status_word = COMPLETION_WORD_INIT;
 
-	if (OCTEON_CN23XX_PF(oct))
+	if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct))
 		sc->cmd.cmd3.rptr =  sc->dmarptr;
 	else
 		sc->cmd.cmd2.rptr =  sc->dmarptr;

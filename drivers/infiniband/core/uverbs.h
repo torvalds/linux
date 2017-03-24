@@ -228,6 +228,7 @@ struct ib_uverbs_flow_spec {
 		struct ib_uverbs_flow_spec_ipv4    ipv4;
 		struct ib_uverbs_flow_spec_tcp_udp tcp_udp;
 		struct ib_uverbs_flow_spec_ipv6    ipv6;
+		struct ib_uverbs_flow_spec_action_tag	flow_tag;
 	};
 };
 
@@ -289,5 +290,6 @@ IB_UVERBS_DECLARE_EX_CMD(modify_wq);
 IB_UVERBS_DECLARE_EX_CMD(destroy_wq);
 IB_UVERBS_DECLARE_EX_CMD(create_rwq_ind_table);
 IB_UVERBS_DECLARE_EX_CMD(destroy_rwq_ind_table);
+IB_UVERBS_DECLARE_EX_CMD(modify_qp);
 
 #endif /* UVERBS_H */

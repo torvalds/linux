@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="42.799767cm"
+   height="9.9348345cm"
+   viewBox="-194 128 840.06984 194.72276"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.91 r13725"
+   sodipodi:docname="subdev-image-processing-crop.svg">
+  <metadata
+     id="metadata100">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs98" />
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="997"
+     id="namedview96"
+     showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:zoom="0.3649199"
+     inkscape:cx="764.40286"
+     inkscape:cy="176.91347"
+     inkscape:window-x="1920"
+     inkscape:window-y="30"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg2" />
+  <rect
+     style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+     x="-9.6002426"
+     y="128.86047"
+     width="469.77399"
+     height="193"
+     id="rect4" />
+  <g
+     id="g6"
+     transform="translate(-1.6002426,-1.1395339)">
+    <rect
+       style="fill:#ffffff"
+       x="4.5"
+       y="189"
+       width="159"
+       height="104"
+       id="rect8" />
+    <rect
+       style="fill:none;fill-opacity:0;stroke:#a52a2a;stroke-width:2"
+       x="4.5"
+       y="189"
+       width="159"
+       height="104"
+       id="rect10" />
+  </g>
+  <g
+     id="g12"
+     transform="translate(-1.6002426,-1.1395339)">
+    <rect
+       style="fill:#ffffff"
+       x="63.5"
+       y="211"
+       width="94"
+       height="77"
+       id="rect14" />
+    <rect
+       style="fill:none;fill-opacity:0;stroke:#0000ff;stroke-width:2"
+       x="63.5"
+       y="211"
+       width="94"
+       height="77"
+       id="rect16" />
+  </g>
+  <text
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#0000ff"
+     x="72.899757"
+     y="226.61047"
+     id="text18">
+    <tspan
+       x="72.899757"
+       y="226.61047"
+       id="tspan20">sink</tspan>
+    <tspan
+       x="72.899757"
+       y="242.61047"
+       id="tspan22">crop</tspan>
+    <tspan
+       x="72.899757"
+       y="258.61047"
+       id="tspan24">selection</tspan>
+  </text>
+  <text
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     x="27.899757"
+     y="156.86047"
+     id="text26">
+    <tspan
+       x="27.899757"
+       y="156.86047"
+       id="tspan28" />
+  </text>
+  <text
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#a52a2a"
+     x="6.938117"
+     y="156.77448"
+     id="text30">
+    <tspan
+       x="6.938117"
+       y="156.77448"
+       id="tspan32">sink media</tspan>
+    <tspan
+       x="6.938117"
+       y="172.77448"
+       id="tspan34">bus format</tspan>
+  </text>
+  <text
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#8b6914"
+     x="348.17374"
+     y="153.86047"
+     id="text36">
+    <tspan
+       x="348.17374"
+       y="153.86047"
+       id="tspan38">source media</tspan>
+    <tspan
+       x="348.17374"
+       y="169.86047"
+       id="tspan40">bus format</tspan>
+  </text>
+  <g
+     id="g42"
+     transform="translate(-1.6002426,-1.1395339)">
+    <rect
+       style="fill:#ffffff"
+       x="350.48801"
+       y="190.834"
+       width="93.286301"
+       height="75.166"
+       id="rect44" />
+    <rect
+       style="fill:none;fill-opacity:0;stroke:#8b6914;stroke-width:2"
+       x="350.48801"
+       y="190.834"
+       width="93.286301"
+       height="75.166"
+       id="rect46" />
+  </g>
+  <line
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="348.88776"
+     y1="264.86047"
+     x2="61.899757"
+     y2="286.86047"
+     id="line48" />
+  <line
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="348.88776"
+     y1="189.69447"
+     x2="61.899757"
+     y2="209.86047"
+     id="line50" />
+  <line
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="442.17374"
+     y1="264.86047"
+     x2="155.89977"
+     y2="286.86047"
+     id="line52" />
+  <line
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="442.17374"
+     y1="189.69447"
+     x2="155.89977"
+     y2="209.86047"
+     id="line54" />
+  <g
+     id="g56"
+     transform="translate(-1.6002426,-1.1395339)">
+    <circle
+       style="fill:#ffffff"
+       cx="473.10001"
+       cy="219.98399"
+       id="ellipse58"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="473.10001"
+       cy="219.98399"
+       id="ellipse60"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="473.10001"
+       cy="219.98399"
+       id="ellipse62"
+       r="8.5" />
+  </g>
+  <g
+     id="g64"
+     transform="translate(-1.6002426,-1.1395339)">
+    <line
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       x1="481.60001"
+       y1="219.98399"
+       x2="637.93402"
+       y2="220.01199"
+       id="line66" />
+    <polygon
+       style="fill:#000000"
+       points="635.435,215.012 645.434,220.014 635.433,225.012 637.934,220.012 "
+       id="polygon68" />
+    <polygon
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       points="635.435,215.012 645.434,220.014 635.433,225.012 637.934,220.012 "
+       id="polygon70" />
+  </g>
+  <text
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     x="505.30774"
+     y="208.66048"
+     id="text72">
+    <tspan
+       x="505.30774"
+       y="208.66048"
+       id="tspan74">pad 1 (source)</tspan>
+  </text>
+  <g
+     id="g76"
+     transform="translate(-1.6002426,-1.1395339)">
+    <circle
+       style="fill:#ffffff"
+       cx="-20.398199"
+       cy="241.51199"
+       id="ellipse78"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="-20.398199"
+       cy="241.51199"
+       id="ellipse80"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="-20.398199"
+       cy="241.51199"
+       id="ellipse82"
+       r="8.5" />
+  </g>
+  <g
+     id="g84"
+     transform="translate(-1.6002426,-1.1395339)">
+    <line
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       x1="-192.39799"
+       y1="241.8"
+       x2="-38.6343"
+       y2="241.52901"
+       id="line86" />
+    <polygon
+       style="fill:#000000"
+       points="-41.1431,236.534 -31.1343,241.516 -41.1254,246.534 -38.6343,241.529 "
+       id="polygon88" />
+    <polygon
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       points="-41.1431,236.534 -31.1343,241.516 -41.1254,246.534 -38.6343,241.529 "
+       id="polygon90" />
+  </g>
+  <text
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     x="-149.45824"
+     y="228.66048"
+     id="text92">
+    <tspan
+       x="-149.45824"
+       y="228.66048"
+       id="tspan94">pad 0 (sink)</tspan>
+  </text>
+</svg>

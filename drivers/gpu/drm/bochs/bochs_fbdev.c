@@ -22,14 +22,10 @@ static int bochsfb_mmap(struct fb_info *info,
 
 static struct fb_ops bochsfb_ops = {
 	.owner = THIS_MODULE,
-	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par,
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_fillrect = drm_fb_helper_sys_fillrect,
 	.fb_copyarea = drm_fb_helper_sys_copyarea,
 	.fb_imageblit = drm_fb_helper_sys_imageblit,
-	.fb_pan_display = drm_fb_helper_pan_display,
-	.fb_blank = drm_fb_helper_blank,
-	.fb_setcmap = drm_fb_helper_setcmap,
 	.fb_mmap = bochsfb_mmap,
 };
 
@@ -127,7 +123,7 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &bochsfb_ops;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &bochs->fb.helper, sizes->fb_width,
 			       sizes->fb_height);
 
@@ -173,8 +169,7 @@ int bochs_fbdev_init(struct bochs_device *bochs)
 	drm_fb_helper_prepare(bochs->dev, &bochs->fb.helper,
 			      &bochs_fb_helper_funcs);
 
-	ret = drm_fb_helper_init(bochs->dev, &bochs->fb.helper,
-				 1, 1);
+	ret = drm_fb_helper_init(bochs->dev, &bochs->fb.helper, 1);
 	if (ret)
 		return ret;
 

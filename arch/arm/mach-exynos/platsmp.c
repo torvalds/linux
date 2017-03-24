@@ -353,7 +353,7 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		smp_rmb();
 
-		boot_addr = virt_to_phys(exynos4_secondary_startup);
+		boot_addr = __pa_symbol(exynos4_secondary_startup);
 
 		ret = exynos_set_boot_addr(core_id, boot_addr);
 		if (ret)
@@ -385,36 +385,6 @@ fail:
 	return pen_release != -1 ? ret : 0;
 }
 
-/*
- * Initialise the CPU possible map early - this describes the CPUs
- * which may be present or become present in the system.
- */
-
-static void __init exynos_smp_init_cpus(void)
-{
-	void __iomem *scu_base = scu_base_addr();
-	unsigned int i, ncores;
-
-	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
-		ncores = scu_base ? scu_get_core_count(scu_base) : 1;
-	else
-		/*
-		 * CPU Nodes are passed thru DT and set_cpu_possible
-		 * is set by "arm_dt_init_cpu_maps".
-		 */
-		return;
-
-	/* sanity check */
-	if (ncores > nr_cpu_ids) {
-		pr_warn("SMP: %u cores greater than maximum (%u), clipping\n",
-			ncores, nr_cpu_ids);
-		ncores = nr_cpu_ids;
-	}
-
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
-}
-
 static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 {
 	int i;
@@ -443,7 +413,7 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 
 		mpidr = cpu_logical_map(i);
 		core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-		boot_addr = virt_to_phys(exynos4_secondary_startup);
+		boot_addr = __pa_symbol(exynos4_secondary_startup);
 
 		ret = exynos_set_boot_addr(core_id, boot_addr);
 		if (ret)
@@ -479,7 +449,6 @@ static void exynos_cpu_die(unsigned int cpu)
 #endif /* CONFIG_HOTPLUG_CPU */
 
 const struct smp_operations exynos_smp_ops __initconst = {
-	.smp_init_cpus		= exynos_smp_init_cpus,
 	.smp_prepare_cpus	= exynos_smp_prepare_cpus,
 	.smp_secondary_init	= exynos_secondary_init,
 	.smp_boot_secondary	= exynos_boot_secondary,

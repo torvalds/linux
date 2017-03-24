@@ -178,11 +178,12 @@ out_nofree:
 }
 
 static int
-nfs_namespace_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+nfs_namespace_getattr(const struct path *path, struct kstat *stat,
+			u32 request_mask, unsigned int query_flags)
 {
-	if (NFS_FH(d_inode(dentry))->size != 0)
-		return nfs_getattr(mnt, dentry, stat);
-	generic_fillattr(d_inode(dentry), stat);
+	if (NFS_FH(d_inode(path->dentry))->size != 0)
+		return nfs_getattr(path, stat, request_mask, query_flags);
+	generic_fillattr(d_inode(path->dentry), stat);
 	return 0;
 }
 
@@ -226,7 +227,7 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
 					   const char *devname,
 					   struct nfs_clone_mount *mountdata)
 {
-	return vfs_kern_mount(&nfs_xdev_fs_type, 0, devname, mountdata);
+	return vfs_submount(mountdata->dentry, &nfs_xdev_fs_type, devname, mountdata);
 }
 
 /**

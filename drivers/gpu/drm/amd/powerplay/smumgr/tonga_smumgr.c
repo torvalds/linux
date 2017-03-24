@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -27,7 +28,6 @@
 
 #include "smumgr.h"
 #include "tonga_smumgr.h"
-#include "pp_debug.h"
 #include "smu_ucode_xfer_vi.h"
 #include "tonga_ppsmc.h"
 #include "smu/smu_7_1_2_d.h"
@@ -84,7 +84,7 @@ static int tonga_start_in_protection_mode(struct pp_smumgr *smumgr)
 	/* Check pass/failed indicator */
 	if (1 != SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device,
 				CGS_IND_REG__SMC, SMU_STATUS, SMU_PASS)) {
-		printk(KERN_ERR "[ powerplay ] SMU Firmware start failed\n");
+		pr_err("SMU Firmware start failed\n");
 		return -EINVAL;
 	}
 
@@ -140,7 +140,8 @@ static int tonga_start_smu(struct pp_smumgr *smumgr)
 	int result;
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!smu7_is_smc_ram_running(smumgr)) {
+	if (!(smu7_is_smc_ram_running(smumgr) ||
+		cgs_is_virtualization_enabled(smumgr->device))) {
 		/*Check if SMU is running in protected mode*/
 		if (0 == SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
 					SMU_FIRMWARE, SMU_MODE)) {
@@ -168,20 +169,25 @@ static int tonga_start_smu(struct pp_smumgr *smumgr)
  */
 static int tonga_smu_init(struct pp_smumgr *smumgr)
 {
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(smumgr->backend);
+	struct tonga_smumgr *tonga_priv = NULL;
+	int  i;
 
-	int i;
+	tonga_priv = kzalloc(sizeof(struct tonga_smumgr), GFP_KERNEL);
+	if (tonga_priv == NULL)
+		return -ENOMEM;
+
+	smumgr->backend = tonga_priv;
 
 	if (smu7_init(smumgr))
 		return -EINVAL;
 
 	for (i = 0; i < SMU72_MAX_LEVELS_GRAPHICS; i++)
-		smu_data->activity_target[i] = 30;
+		tonga_priv->activity_target[i] = 30;
 
 	return 0;
 }
 
-static const struct pp_smumgr_func tonga_smu_funcs = {
+const struct pp_smumgr_func tonga_smu_funcs = {
 	.smu_init = &tonga_smu_init,
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &tonga_start_smu,
@@ -204,18 +210,3 @@ static const struct pp_smumgr_func tonga_smu_funcs = {
 	.initialize_mc_reg_table = tonga_initialize_mc_reg_table,
 	.is_dpm_running = tonga_is_dpm_running,
 };
-
-int tonga_smum_init(struct pp_smumgr *smumgr)
-{
-	struct tonga_smumgr *tonga_smu = NULL;
-
-	tonga_smu = kzalloc(sizeof(struct tonga_smumgr), GFP_KERNEL);
-
-	if (tonga_smu == NULL)
-		return -ENOMEM;
-
-	smumgr->backend = tonga_smu;
-	smumgr->smumgr_funcs = &tonga_smu_funcs;
-
-	return 0;
-}

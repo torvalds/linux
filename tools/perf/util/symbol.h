@@ -58,6 +58,7 @@ struct symbol {
 	u16		namelen;
 	u8		binding;
 	u8		idle:1;
+	u8		ignore:1;
 	u8		arch_sym;
 	char		name[0];
 };
@@ -100,6 +101,7 @@ struct symbol_conf {
 			show_total_period,
 			use_callchain,
 			cumulate_callchain,
+			show_branchflag_count,
 			exclude_other,
 			show_cpu_utilization,
 			initialized,
@@ -130,14 +132,16 @@ struct symbol_conf {
 			*pid_list_str,
 			*tid_list_str,
 			*sym_list_str,
-			*col_width_list_str;
+			*col_width_list_str,
+			*bt_stop_list_str;
        struct strlist	*dso_list,
 			*comm_list,
 			*sym_list,
 			*dso_from_list,
 			*dso_to_list,
 			*sym_from_list,
-			*sym_to_list;
+			*sym_to_list,
+			*bt_stop_list;
 	struct intlist	*pid_list,
 			*tid_list;
 	const char	*symfs;
@@ -281,7 +285,8 @@ int symbol__annotation_init(void);
 struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name);
 size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
 				      const struct addr_location *al,
-				      bool unknown_as_addr, FILE *fp);
+				      bool unknown_as_addr,
+				      bool print_offsets, FILE *fp);
 size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 				    const struct addr_location *al, FILE *fp);
 size_t __symbol__fprintf_symname(const struct symbol *sym,

@@ -14,7 +14,7 @@
  */
 
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -473,11 +473,6 @@ static int vt8500_pinctrl_probe(struct platform_device *pdev)
 	return wmt_pinctrl_probe(pdev, data);
 }
 
-static int vt8500_pinctrl_remove(struct platform_device *pdev)
-{
-	return wmt_pinctrl_remove(pdev);
-}
-
 static const struct of_device_id wmt_pinctrl_of_match[] = {
 	{ .compatible = "via,vt8500-pinctrl" },
 	{ /* sentinel */ },
@@ -485,16 +480,10 @@ static const struct of_device_id wmt_pinctrl_of_match[] = {
 
 static struct platform_driver wmt_pinctrl_driver = {
 	.probe	= vt8500_pinctrl_probe,
-	.remove	= vt8500_pinctrl_remove,
 	.driver = {
 		.name	= "pinctrl-vt8500",
 		.of_match_table	= wmt_pinctrl_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
-
-module_platform_driver(wmt_pinctrl_driver);
-
-MODULE_AUTHOR("Tony Prisk <linux@prisktech.co.nz>");
-MODULE_DESCRIPTION("VIA VT8500 Pincontrol driver");
-MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, wmt_pinctrl_of_match);
+builtin_platform_driver(wmt_pinctrl_driver);

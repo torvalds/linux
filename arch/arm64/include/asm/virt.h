@@ -47,6 +47,7 @@
 #include <asm/ptrace.h>
 #include <asm/sections.h>
 #include <asm/sysreg.h>
+#include <asm/cpufeature.h>
 
 /*
  * __boot_cpu_mode records what mode CPUs were booted in.
@@ -78,6 +79,14 @@ static inline bool is_hyp_mode_mismatched(void)
 static inline bool is_kernel_in_hyp_mode(void)
 {
 	return read_sysreg(CurrentEL) == CurrentEL_EL2;
+}
+
+static inline bool has_vhe(void)
+{
+	if (cpus_have_const_cap(ARM64_HAS_VIRT_HOST_EXTN))
+		return true;
+
+	return false;
 }
 
 #ifdef CONFIG_ARM64_VHE

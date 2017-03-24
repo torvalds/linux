@@ -777,7 +777,7 @@ static u8 ixgbe_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	return err ? 1 : 0;
 }
 
-const struct dcbnl_rtnl_ops dcbnl_ops = {
+const struct dcbnl_rtnl_ops ixgbe_dcbnl_ops = {
 	.ieee_getets	= ixgbe_dcbnl_ieee_getets,
 	.ieee_setets	= ixgbe_dcbnl_ieee_setets,
 	.ieee_getpfc	= ixgbe_dcbnl_ieee_getpfc,

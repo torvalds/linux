@@ -269,7 +269,7 @@ rx_next:
 	}
 
 	if (rx < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rx);
 	}
 
 	priv->reg_imr |= RPKT_FINISH_M;
@@ -436,7 +436,7 @@ static void moxart_mac_set_rx_mode(struct net_device *ndev)
 	spin_unlock_irq(&priv->txlock);
 }
 
-static struct net_device_ops moxart_netdev_ops = {
+static const struct net_device_ops moxart_netdev_ops = {
 	.ndo_open		= moxart_mac_open,
 	.ndo_stop		= moxart_mac_stop,
 	.ndo_start_xmit		= moxart_mac_start_xmit,
@@ -444,7 +444,6 @@ static struct net_device_ops moxart_netdev_ops = {
 	.ndo_set_rx_mode	= moxart_mac_set_rx_mode,
 	.ndo_set_mac_address	= moxart_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int moxart_mac_probe(struct platform_device *pdev)

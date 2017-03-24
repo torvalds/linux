@@ -202,17 +202,16 @@ static void wcove_gpio_set(struct gpio_chip *chip,
 		regmap_update_bits(wg->regmap, to_reg(gpio, CTRL_OUT), 1, 0);
 }
 
-static int wcove_gpio_set_single_ended(struct gpio_chip *chip,
-					unsigned int gpio,
-					enum single_ended_mode mode)
+static int wcove_gpio_set_config(struct gpio_chip *chip, unsigned int gpio,
+				 unsigned long config)
 {
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
 
-	switch (mode) {
-	case LINE_MODE_OPEN_DRAIN:
+	switch (pinconf_to_config_param(config)) {
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		return regmap_update_bits(wg->regmap, to_reg(gpio, CTRL_OUT),
 						CTLO_DRV_MASK, CTLO_DRV_OD);
-	case LINE_MODE_PUSH_PULL:
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		return regmap_update_bits(wg->regmap, to_reg(gpio, CTRL_OUT),
 						CTLO_DRV_MASK, CTLO_DRV_CMOS);
 	default:
@@ -411,7 +410,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	wg->chip.get_direction = wcove_gpio_get_direction;
 	wg->chip.get = wcove_gpio_get;
 	wg->chip.set = wcove_gpio_set;
-	wg->chip.set_single_ended = wcove_gpio_set_single_ended,
+	wg->chip.set_config = wcove_gpio_set_config,
 	wg->chip.base = -1;
 	wg->chip.ngpio = WCOVE_VGPIO_NUM;
 	wg->chip.can_sleep = true;
@@ -426,8 +425,8 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = gpiochip_irqchip_add(&wg->chip, &wcove_irqchip, 0,
-			     handle_simple_irq, IRQ_TYPE_NONE);
+	ret = gpiochip_irqchip_add_nested(&wg->chip, &wcove_irqchip, 0,
+					  handle_simple_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(dev, "Failed to add irqchip: %d\n", ret);
 		return ret;
@@ -445,6 +444,8 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to request irq %d\n", virq);
 		return ret;
 	}
+
+	gpiochip_set_nested_irqchip(&wg->chip, &wcove_irqchip, virq);
 
 	return 0;
 }

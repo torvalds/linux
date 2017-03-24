@@ -72,12 +72,13 @@ enum i40iw_device_capabilities_const {
 	I40IW_MAX_SQ_PAYLOAD_SIZE =		2145386496,
 	I40IW_MAX_INLINE_DATA_SIZE =		48,
 	I40IW_MAX_PUSHMODE_INLINE_DATA_SIZE =	48,
-	I40IW_MAX_IRD_SIZE =			32,
-	I40IW_QPCTX_ENCD_MAXIRD =		3,
+	I40IW_MAX_IRD_SIZE =			63,
+	I40IW_MAX_ORD_SIZE =			127,
 	I40IW_MAX_WQ_ENTRIES =			2048,
-	I40IW_MAX_ORD_SIZE =			32,
 	I40IW_Q2_BUFFER_SIZE =			(248 + 100),
-	I40IW_QP_CTX_SIZE =			248
+	I40IW_MAX_WQE_SIZE_RQ =			128,
+	I40IW_QP_CTX_SIZE =			248,
+	I40IW_MAX_PDS = 			32768
 };
 
 #define i40iw_handle void *
@@ -96,13 +97,8 @@ enum i40iw_device_capabilities_const {
 #define i40iw_physical_fragment u64
 #define i40iw_address_list u64 *
 
-#define I40IW_CREATE_STAG(index, key)       (((index) << 8) + (key))
-
-#define I40IW_STAG_KEY_FROM_STAG(stag)      ((stag) && 0x000000FF)
-
-#define I40IW_STAG_INDEX_FROM_STAG(stag)    (((stag) && 0xFFFFFF00) >> 8)
-
 #define	I40IW_MAX_MR_SIZE	0x10000000000L
+#define	I40IW_MAX_RQ_WQE_SHIFT	2
 
 struct i40iw_qp_uk;
 struct i40iw_cq_uk;
@@ -411,7 +407,7 @@ struct i40iw_qp_uk_init_info {
 	u32 max_sq_frag_cnt;
 	u32 max_rq_frag_cnt;
 	u32 max_inline_data;
-
+	int abi_ver;
 };
 
 struct i40iw_cq_uk_init_info {

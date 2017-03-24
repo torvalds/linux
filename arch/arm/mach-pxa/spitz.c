@@ -31,7 +31,6 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/regulator/machine.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/memblock.h>
 

@@ -14,7 +14,7 @@
 #include <linux/compat.h>
 #include <linux/mount.h>
 #include <asm/current.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)

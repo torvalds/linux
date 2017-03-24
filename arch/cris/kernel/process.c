@@ -14,12 +14,13 @@
 
 #include <linux/atomic.h>
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/init_task.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/fs.h>
 #include <linux/user.h>
 #include <linux/elfcore.h>

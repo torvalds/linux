@@ -98,7 +98,7 @@ static int cpg_sd_clock_enable(struct clk_hw *hw)
 	u32 val, sd_fc;
 	unsigned int i;
 
-	val = clk_readl(clock->reg);
+	val = readl(clock->reg);
 
 	sd_fc = val & CPG_SD_FC_MASK;
 	for (i = 0; i < clock->div_num; i++)
@@ -111,7 +111,7 @@ static int cpg_sd_clock_enable(struct clk_hw *hw)
 	val &= ~(CPG_SD_STP_MASK);
 	val |= clock->div_table[i].val & CPG_SD_STP_MASK;
 
-	clk_writel(val, clock->reg);
+	writel(val, clock->reg);
 
 	return 0;
 }
@@ -120,14 +120,14 @@ static void cpg_sd_clock_disable(struct clk_hw *hw)
 {
 	struct sd_clock *clock = to_sd_clock(hw);
 
-	clk_writel(clk_readl(clock->reg) | CPG_SD_STP_MASK, clock->reg);
+	writel(readl(clock->reg) | CPG_SD_STP_MASK, clock->reg);
 }
 
 static int cpg_sd_clock_is_enabled(struct clk_hw *hw)
 {
 	struct sd_clock *clock = to_sd_clock(hw);
 
-	return !(clk_readl(clock->reg) & CPG_SD_STP_MASK);
+	return !(readl(clock->reg) & CPG_SD_STP_MASK);
 }
 
 static unsigned long cpg_sd_clock_recalc_rate(struct clk_hw *hw,
@@ -138,7 +138,7 @@ static unsigned long cpg_sd_clock_recalc_rate(struct clk_hw *hw,
 	u32 val, sd_fc;
 	unsigned int i;
 
-	val = clk_readl(clock->reg);
+	val = readl(clock->reg);
 
 	sd_fc = val & CPG_SD_FC_MASK;
 	for (i = 0; i < clock->div_num; i++)
@@ -189,10 +189,10 @@ static int cpg_sd_clock_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (i >= clock->div_num)
 		return -EINVAL;
 
-	val = clk_readl(clock->reg);
+	val = readl(clock->reg);
 	val &= ~(CPG_SD_STP_MASK | CPG_SD_FC_MASK);
 	val |= clock->div_table[i].val & (CPG_SD_STP_MASK | CPG_SD_FC_MASK);
-	clk_writel(val, clock->reg);
+	writel(val, clock->reg);
 
 	return 0;
 }
@@ -331,23 +331,6 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 
 	return clk_register_fixed_factor(NULL, core->name,
 					 __clk_get_name(parent), 0, mult, div);
-}
-
-/*
- * Reset register definitions.
- */
-#define MODEMR	0xe6160060
-
-u32 __init rcar_gen3_read_mode_pins(void)
-{
-	void __iomem *modemr = ioremap_nocache(MODEMR, 4);
-	u32 mode;
-
-	BUG_ON(!modemr);
-	mode = ioread32(modemr);
-	iounmap(modemr);
-
-	return mode;
 }
 
 int __init rcar_gen3_cpg_init(const struct rcar_gen3_cpg_pll_config *config,

@@ -26,7 +26,7 @@
 
 #if defined(CONFIG_CYCLES_CLOCKSOURCE)
 
-static notrace cycle_t bfin_read_cycles(struct clocksource *cs)
+static notrace u64 bfin_read_cycles(struct clocksource *cs)
 {
 #ifdef CONFIG_CPU_FREQ
 	return __bfin_cycles_off + (get_cycles() << __bfin_cycles_mod);
@@ -80,7 +80,7 @@ void __init setup_gptimer0(void)
 	enable_gptimers(TIMER0bit);
 }
 
-static cycle_t bfin_read_gptimer0(struct clocksource *cs)
+static u64 bfin_read_gptimer0(struct clocksource *cs)
 {
 	return bfin_read_TIMER0_COUNTER();
 }

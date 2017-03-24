@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/string.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 #define ldq_u(x,y) \

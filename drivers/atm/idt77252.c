@@ -45,7 +45,7 @@
 #include <linux/slab.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <asm/byteorder.h>
 
@@ -2132,12 +2132,8 @@ idt77252_init_est(struct vc_map *vc, int pcr)
 
 	est->interval = 2;		/* XXX: make this configurable */
 	est->ewma_log = 2;		/* XXX: make this configurable */
-	init_timer(&est->timer);
-	est->timer.data = (unsigned long)vc;
-	est->timer.function = idt77252_est_timer;
-
-	est->timer.expires = jiffies + ((HZ / 4) << est->interval);
-	add_timer(&est->timer);
+	setup_timer(&est->timer, idt77252_est_timer, (unsigned long)vc);
+	mod_timer(&est->timer, jiffies + ((HZ / 4) << est->interval));
 
 	return est;
 }
@@ -3638,9 +3634,7 @@ static int idt77252_init_one(struct pci_dev *pcidev,
 	spin_lock_init(&card->cmd_lock);
 	spin_lock_init(&card->tst_lock);
 
-	init_timer(&card->tst_timer);
-	card->tst_timer.data = (unsigned long)card;
-	card->tst_timer.function = tst_timer;
+	setup_timer(&card->tst_timer, tst_timer, (unsigned long)card);
 
 	/* Do the I/O remapping... */
 	card->membase = ioremap(membase, 1024);

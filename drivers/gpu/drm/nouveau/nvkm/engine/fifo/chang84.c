@@ -30,12 +30,12 @@
 
 #include <nvif/cl826e.h>
 
-int
+static int
 g84_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,
 		   struct nvkm_event **pevent)
 {
 	switch (type) {
-	case G82_CHANNEL_DMA_V0_NTFY_UEVENT:
+	case NV826E_V0_NTFY_NON_STALL_INTERRUPT:
 		*pevent = &chan->fifo->uevent;
 		return 0;
 	default:
@@ -129,7 +129,7 @@ g84_fifo_chan_engine_fini(struct nvkm_fifo_chan *base,
 }
 
 
-int
+static int
 g84_fifo_chan_engine_init(struct nvkm_fifo_chan *base,
 			  struct nvkm_engine *engine)
 {
@@ -170,7 +170,7 @@ g84_fifo_chan_engine_ctor(struct nvkm_fifo_chan *base,
 	return nvkm_object_bind(object, NULL, 0, &chan->engn[engn]);
 }
 
-int
+static int
 g84_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 			  struct nvkm_object *object)
 {

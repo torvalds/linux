@@ -40,9 +40,8 @@
  * sub-pixel accuracy, which is scaled up to a pixel-aligned destination
  * rectangle in the visible area of a &drm_crtc. The visible area of a CRTC is
  * defined by the horizontal and vertical visible pixels (stored in @hdisplay
- * and @vdisplay) of the requested mode (stored in @mode in the
- * &drm_crtc_state). These two rectangles are both stored in the
- * &drm_plane_state.
+ * and @vdisplay) of the requested mode (stored in &drm_crtc_state.mode). These
+ * two rectangles are both stored in the &drm_plane_state.
  *
  * For the atomic ioctl the following standard (atomic) properties on the plane object
  * encode the basic plane composition model:
@@ -89,7 +88,7 @@
  * On top of this basic transformation additional properties can be exposed by
  * the driver:
  *
- * - Rotation is set up with drm_mode_create_rotation_property(). It adds a
+ * - Rotation is set up with drm_plane_create_rotation_property(). It adds a
  *   rotation and reflection step between the source and destination rectangles.
  *   Without this property the rectangle is only scaled, but not rotated or
  *   reflected.
@@ -105,18 +104,12 @@
  */
 
 /**
- * drm_mode_create_rotation_property - create a new rotation property
- * @dev: DRM device
+ * drm_plane_create_rotation_property - create a new rotation property
+ * @plane: drm plane
+ * @rotation: initial value of the rotation property
  * @supported_rotations: bitmask of supported rotations and reflections
  *
  * This creates a new property with the selected support for transformations.
- * The resulting property should be stored in @rotation_property in
- * &drm_mode_config. It then must be attached to each plane which supports
- * rotations using drm_object_attach_property().
- *
- * FIXME: Probably better if the rotation property is created on each plane,
- * like the zpos property. Otherwise it's not possible to allow different
- * rotation modes on different planes.
  *
  * Since a rotation by 180° degress is the same as reflecting both along the x
  * and the y axis the rotation property is somewhat redundant. Drivers can use
@@ -144,8 +137,9 @@
  * rotation. After reflection, the rotation is applied to the image sampled from
  * the source rectangle, before scaling it to fit the destination rectangle.
  */
-struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
-						       unsigned int supported_rotations)
+int drm_plane_create_rotation_property(struct drm_plane *plane,
+				       unsigned int rotation,
+				       unsigned int supported_rotations)
 {
 	static const struct drm_prop_enum_list props[] = {
 		{ __builtin_ffs(DRM_ROTATE_0) - 1,   "rotate-0" },
@@ -155,12 +149,28 @@ struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
 		{ __builtin_ffs(DRM_REFLECT_X) - 1,  "reflect-x" },
 		{ __builtin_ffs(DRM_REFLECT_Y) - 1,  "reflect-y" },
 	};
+	struct drm_property *prop;
 
-	return drm_property_create_bitmask(dev, 0, "rotation",
+	WARN_ON((supported_rotations & DRM_ROTATE_MASK) == 0);
+	WARN_ON(!is_power_of_2(rotation & DRM_ROTATE_MASK));
+	WARN_ON(rotation & ~supported_rotations);
+
+	prop = drm_property_create_bitmask(plane->dev, 0, "rotation",
 					   props, ARRAY_SIZE(props),
 					   supported_rotations);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, rotation);
+
+	if (plane->state)
+		plane->state->rotation = rotation;
+
+	plane->rotation_property = prop;
+
+	return 0;
 }
-EXPORT_SYMBOL(drm_mode_create_rotation_property);
+EXPORT_SYMBOL(drm_plane_create_rotation_property);
 
 /**
  * drm_rotation_simplify() - Try to simplify the rotation
@@ -204,7 +214,7 @@ EXPORT_SYMBOL(drm_rotation_simplify);
  * for it in drm core. Drivers can then attach this property to planes to enable
  * support for configurable planes arrangement during blending operation.
  * Once mutable zpos property has been enabled, the DRM core will automatically
- * calculate drm_plane_state->normalized_zpos values. Usually min should be set
+ * calculate &drm_plane_state.normalized_zpos values. Usually min should be set
  * to 0 and max to maximal number of planes for given crtc - 1.
  *
  * If zpos of some planes cannot be changed (like fixed background or
@@ -356,8 +366,8 @@ done:
  * For every CRTC this function checks new states of all planes assigned to
  * it and calculates normalized zpos value for these planes. Planes are compared
  * first by their zpos values, then by plane id (if zpos is equal). The plane
- * with lowest zpos value is at the bottom. The plane_state->normalized_zpos is
- * then filled with unique values from 0 to number of active planes in crtc
+ * with lowest zpos value is at the bottom. The &drm_plane_state.normalized_zpos
+ * is then filled with unique values from 0 to number of active planes in crtc
  * minus one.
  *
  * RETURNS

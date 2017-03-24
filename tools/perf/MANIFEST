@@ -51,6 +51,7 @@ tools/include/asm-generic/bitops/arch_hweight.h
 tools/include/asm-generic/bitops/atomic.h
 tools/include/asm-generic/bitops/const_hweight.h
 tools/include/asm-generic/bitops/__ffs.h
+tools/include/asm-generic/bitops/__ffz.h
 tools/include/asm-generic/bitops/__fls.h
 tools/include/asm-generic/bitops/find.h
 tools/include/asm-generic/bitops/fls64.h
@@ -60,6 +61,7 @@ tools/include/asm-generic/bitops.h
 tools/include/linux/atomic.h
 tools/include/linux/bitops.h
 tools/include/linux/compiler.h
+tools/include/linux/compiler-gcc.h
 tools/include/linux/coresight-pmu.h
 tools/include/linux/filter.h
 tools/include/linux/hash.h

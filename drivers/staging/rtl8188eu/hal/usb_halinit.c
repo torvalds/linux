@@ -562,9 +562,6 @@ static void InitUsbAggregationSetting(struct adapter *Adapter)
 
 	/*  Rx aggregation setting */
 	usb_AggSettingRxUpdate(Adapter);
-
-	/*  201/12/10 MH Add for USB agg mode dynamic switch. */
-	Adapter->HalData->UsbRxHighSpeedMode = false;
 }
 
 static void _InitBeaconParameters(struct adapter *Adapter)
@@ -603,11 +600,6 @@ static void _BBTurnOnBlock(struct adapter *Adapter)
 	phy_set_bb_reg(Adapter, rFPGA0_RFMOD, bCCKEn, 0x1);
 	phy_set_bb_reg(Adapter, rFPGA0_RFMOD, bOFDMEn, 0x1);
 }
-
-enum {
-	Antenna_Lfet = 1,
-	Antenna_Right = 2,
-};
 
 static void _InitAntenna_Selection(struct adapter *Adapter)
 {
@@ -994,19 +986,16 @@ u32 rtw_hal_inirp_init(struct adapter *Adapter)
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
 		 ("===> usb_inirp_init\n"));
 
-	precvpriv->ff_hwaddr = RECV_BULK_IN_ADDR;
-
 	/* issue Rx irp to receive data */
-	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
+	precvbuf = precvpriv->precv_buf;
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		if (usb_read_port(Adapter, precvpriv->ff_hwaddr, 0, (unsigned char *)precvbuf) == false) {
+		if (usb_read_port(Adapter, RECV_BULK_IN_ADDR, precvbuf) == false) {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("usb_rx_init: usb_read_port error\n"));
 			status = _FAIL;
 			goto exit;
 		}
 
 		precvbuf++;
-		precvpriv->free_recv_buf_queue_cnt--;
 	}
 
 exit:
@@ -1107,18 +1096,12 @@ static void _ReadPROMContent(
 	readAdapterInfo_8188EU(Adapter);
 }
 
-static void _ReadRFType(struct adapter *Adapter)
-{
-	Adapter->HalData->rf_chip = RF_6052;
-}
-
 void rtw_hal_read_chip_info(struct adapter *Adapter)
 {
 	unsigned long start = jiffies;
 
 	MSG_88E("====> %s\n", __func__);
 
-	_ReadRFType(Adapter);/* rf_chip -> _InitRFType() */
 	_ReadPROMContent(Adapter);
 
 	MSG_88E("<==== %s in %d ms\n", __func__,

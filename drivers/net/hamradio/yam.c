@@ -68,7 +68,7 @@
 #include <linux/seq_file.h>
 #include <net/net_namespace.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/init.h>
 
 #include <linux/yam.h>

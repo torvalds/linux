@@ -46,7 +46,7 @@
 	model = "Rockchip RK3036 KylinBoard";
 	compatible = "rockchip,rk3036-kylin", "rockchip,rk3036";
 
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x20000000>;
 	};
@@ -55,7 +55,7 @@
 		compatible = "gpio-leds";
 
 		work {
-			gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 RK_PD6 GPIO_ACTIVE_HIGH>;
 			label = "kylin:red:led";
 			pinctrl-names = "default";
 			pinctrl-0 = <&led_ctl>;
@@ -74,9 +74,9 @@
 		 * - SDIO_RESET_L_WL_RST
 		 * - SDIO_RESET_L_BT_EN
 		 */
-		reset-gpios = <&gpio0 26 GPIO_ACTIVE_LOW>, /* WL_REG_ON */
-			      <&gpio0 27 GPIO_ACTIVE_LOW>, /* WL_RST */
-			      <&gpio2 9  GPIO_ACTIVE_LOW>; /* BT_EN */
+		reset-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_LOW>, /* WL_REG_ON */
+			      <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>, /* WL_RST */
+			      <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>; /* BT_EN */
 	};
 
 	sound {
@@ -121,7 +121,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&emac_xfer>, <&emac_mdio>;
 	phy = <&phy0>;
-	phy-reset-gpios = <&gpio2 22 GPIO_ACTIVE_LOW>; /* PHY_RST */
+	phy-reset-gpios = <&gpio2 RK_PC6 GPIO_ACTIVE_LOW>; /* PHY_RST */
 	phy-reset-duration = <10>; /* millisecond */
 
 	status = "okay";
@@ -148,7 +148,7 @@
 		compatible = "rockchip,rk808";
 		reg = <0x1b>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PA2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int &global_pwroff>;
 		rockchip,system-power-controller;

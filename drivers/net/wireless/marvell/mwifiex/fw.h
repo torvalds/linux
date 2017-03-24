@@ -181,6 +181,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_COALESCE_RULE      (PROPRIETARY_TLV_BASE_ID + 154)
 #define TLV_TYPE_KEY_PARAM_V2       (PROPRIETARY_TLV_BASE_ID + 156)
 #define TLV_TYPE_REPEAT_COUNT       (PROPRIETARY_TLV_BASE_ID + 176)
+#define TLV_TYPE_PS_PARAMS_IN_HS    (PROPRIETARY_TLV_BASE_ID + 181)
 #define TLV_TYPE_MULTI_CHAN_INFO    (PROPRIETARY_TLV_BASE_ID + 183)
 #define TLV_TYPE_MC_GROUP_INFO      (PROPRIETARY_TLV_BASE_ID + 184)
 #define TLV_TYPE_TDLS_IDLE_TIMEOUT  (PROPRIETARY_TLV_BASE_ID + 194)
@@ -218,6 +219,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define ISSUPP_TDLS_ENABLED(FwCapInfo) (FwCapInfo & BIT(14))
 #define ISSUPP_DRCS_ENABLED(FwCapInfo) (FwCapInfo & BIT(15))
 #define ISSUPP_SDIO_SPA_ENABLED(FwCapInfo) (FwCapInfo & BIT(16))
+#define ISSUPP_ADHOC_ENABLED(FwCapInfo) (FwCapInfo & BIT(25))
 
 #define MWIFIEX_DEF_HT_CAP	(IEEE80211_HT_CAP_DSSSCCK40 | \
 				 (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT) | \
@@ -432,14 +434,14 @@ enum mwifiex_channel_flags {
 #define HostCmd_ACT_BITWISE_SET               0x0002
 #define HostCmd_ACT_BITWISE_CLR               0x0003
 #define HostCmd_RESULT_OK                     0x0000
-
-#define HostCmd_ACT_MAC_RX_ON                 0x0001
-#define HostCmd_ACT_MAC_TX_ON                 0x0002
-#define HostCmd_ACT_MAC_WEP_ENABLE            0x0008
-#define HostCmd_ACT_MAC_ETHERNETII_ENABLE     0x0010
-#define HostCmd_ACT_MAC_PROMISCUOUS_ENABLE    0x0080
-#define HostCmd_ACT_MAC_ALL_MULTICAST_ENABLE  0x0100
-#define HostCmd_ACT_MAC_ADHOC_G_PROTECTION_ON     0x2000
+#define HostCmd_ACT_MAC_RX_ON                 BIT(0)
+#define HostCmd_ACT_MAC_TX_ON                 BIT(1)
+#define HostCmd_ACT_MAC_WEP_ENABLE            BIT(3)
+#define HostCmd_ACT_MAC_ETHERNETII_ENABLE     BIT(4)
+#define HostCmd_ACT_MAC_PROMISCUOUS_ENABLE    BIT(7)
+#define HostCmd_ACT_MAC_ALL_MULTICAST_ENABLE  BIT(8)
+#define HostCmd_ACT_MAC_ADHOC_G_PROTECTION_ON BIT(13)
+#define HostCmd_ACT_MAC_DYNAMIC_BW_ENABLE     BIT(16)
 
 #define HostCmd_BSS_MODE_IBSS               0x0002
 #define HostCmd_BSS_MODE_ANY                0x0003
@@ -548,6 +550,7 @@ enum mwifiex_channel_flags {
 #define EVENT_TX_DATA_PAUSE             0x00000055
 #define EVENT_EXT_SCAN_REPORT           0x00000058
 #define EVENT_RXBA_SYNC                 0x00000059
+#define EVENT_UNKNOWN_DEBUG             0x00000063
 #define EVENT_BG_SCAN_STOPPED           0x00000065
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 #define EVENT_MULTI_CHAN_INFO           0x0000006a
@@ -986,6 +989,15 @@ struct mwifiex_ps_param {
 	__le16 delay_to_ps;
 };
 
+#define HS_DEF_WAKE_INTERVAL          100
+#define HS_DEF_INACTIVITY_TIMEOUT      50
+
+struct mwifiex_ps_param_in_hs {
+	struct mwifiex_ie_types_header header;
+	__le32 hs_wake_int;
+	__le32 hs_inact_timeout;
+};
+
 #define BITMAP_AUTO_DS         0x01
 #define BITMAP_STA_PS          0x10
 
@@ -1073,8 +1085,7 @@ struct host_cmd_ds_802_11_mac_address {
 };
 
 struct host_cmd_ds_mac_control {
-	__le16 action;
-	__le16 reserved;
+	__le32 action;
 };
 
 struct host_cmd_ds_mac_multicast_adr {

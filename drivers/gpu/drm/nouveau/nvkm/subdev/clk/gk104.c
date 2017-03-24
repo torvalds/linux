@@ -491,7 +491,7 @@ gk104_clk = {
 	.domains = {
 		{ nv_clk_src_crystal, 0xff },
 		{ nv_clk_src_href   , 0xff },
-		{ nv_clk_src_gpc    , 0x00, NVKM_CLK_DOM_FLAG_CORE, "core", 2000 },
+		{ nv_clk_src_gpc    , 0x00, NVKM_CLK_DOM_FLAG_CORE | NVKM_CLK_DOM_FLAG_VPSTATE, "core", 2000 },
 		{ nv_clk_src_hubk07 , 0x01, NVKM_CLK_DOM_FLAG_CORE },
 		{ nv_clk_src_rop    , 0x02, NVKM_CLK_DOM_FLAG_CORE },
 		{ nv_clk_src_mem    , 0x03, 0, "memory", 500 },

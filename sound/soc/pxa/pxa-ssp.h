@@ -9,12 +9,6 @@
 #ifndef _PXA_SSP_H
 #define _PXA_SSP_H
 
-/* pxa DAI SSP IDs */
-#define PXA_DAI_SSP1			0
-#define PXA_DAI_SSP2			1
-#define PXA_DAI_SSP3			2
-#define PXA_DAI_SSP4			3
-
 /* SSP clock sources */
 #define PXA_SSP_CLK_PLL	0
 #define PXA_SSP_CLK_EXT	1

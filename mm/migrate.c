@@ -40,6 +40,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/page_idle.h>
 #include <linux/page_owner.h>
+#include <linux/sched/mm.h>
 
 #include <asm/tlbflush.h>
 
@@ -74,7 +75,7 @@ int migrate_prep_local(void)
 	return 0;
 }
 
-bool isolate_movable_page(struct page *page, isolate_mode_t mode)
+int isolate_movable_page(struct page *page, isolate_mode_t mode)
 {
 	struct address_space *mapping;
 
@@ -125,14 +126,14 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
 	__SetPageIsolated(page);
 	unlock_page(page);
 
-	return true;
+	return 0;
 
 out_no_isolated:
 	unlock_page(page);
 out_putpage:
 	put_page(page);
 out:
-	return false;
+	return -EBUSY;
 }
 
 /* It should be called on page which is PG_movable */
@@ -168,8 +169,6 @@ void putback_movable_pages(struct list_head *l)
 			continue;
 		}
 		list_del(&page->lru);
-		dec_node_page_state(page, NR_ISOLATED_ANON +
-				page_is_file_cache(page));
 		/*
 		 * We isolated non-lru movable page so here we can use
 		 * __PageMovable because LRU page's mapping cannot have
@@ -186,6 +185,8 @@ void putback_movable_pages(struct list_head *l)
 			put_page(page);
 		} else {
 			putback_lru_page(page);
+			dec_node_page_state(page, NR_ISOLATED_ANON +
+					page_is_file_cache(page));
 		}
 	}
 }
@@ -193,82 +194,62 @@ void putback_movable_pages(struct list_head *l)
 /*
  * Restore a potential migration pte to a working pte entry
  */
-static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+static int remove_migration_pte(struct page *page, struct vm_area_struct *vma,
 				 unsigned long addr, void *old)
 {
-	struct mm_struct *mm = vma->vm_mm;
+	struct page_vma_mapped_walk pvmw = {
+		.page = old,
+		.vma = vma,
+		.address = addr,
+		.flags = PVMW_SYNC | PVMW_MIGRATION,
+	};
+	struct page *new;
+	pte_t pte;
 	swp_entry_t entry;
- 	pmd_t *pmd;
-	pte_t *ptep, pte;
- 	spinlock_t *ptl;
 
-	if (unlikely(PageHuge(new))) {
-		ptep = huge_pte_offset(mm, addr);
-		if (!ptep)
-			goto out;
-		ptl = huge_pte_lockptr(hstate_vma(vma), mm, ptep);
-	} else {
-		pmd = mm_find_pmd(mm, addr);
-		if (!pmd)
-			goto out;
+	VM_BUG_ON_PAGE(PageTail(page), page);
+	while (page_vma_mapped_walk(&pvmw)) {
+		new = page - pvmw.page->index +
+			linear_page_index(vma, pvmw.address);
 
-		ptep = pte_offset_map(pmd, addr);
+		get_page(new);
+		pte = pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));
+		if (pte_swp_soft_dirty(*pvmw.pte))
+			pte = pte_mksoft_dirty(pte);
 
 		/*
-		 * Peek to check is_swap_pte() before taking ptlock?  No, we
-		 * can race mremap's move_ptes(), which skips anon_vma lock.
+		 * Recheck VMA as permissions can change since migration started
 		 */
-
-		ptl = pte_lockptr(mm, pmd);
-	}
-
- 	spin_lock(ptl);
-	pte = *ptep;
-	if (!is_swap_pte(pte))
-		goto unlock;
-
-	entry = pte_to_swp_entry(pte);
-
-	if (!is_migration_entry(entry) ||
-	    migration_entry_to_page(entry) != old)
-		goto unlock;
-
-	get_page(new);
-	pte = pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));
-	if (pte_swp_soft_dirty(*ptep))
-		pte = pte_mksoft_dirty(pte);
-
-	/* Recheck VMA as permissions can change since migration started  */
-	if (is_write_migration_entry(entry))
-		pte = maybe_mkwrite(pte, vma);
+		entry = pte_to_swp_entry(*pvmw.pte);
+		if (is_write_migration_entry(entry))
+			pte = maybe_mkwrite(pte, vma);
 
 #ifdef CONFIG_HUGETLB_PAGE
-	if (PageHuge(new)) {
-		pte = pte_mkhuge(pte);
-		pte = arch_make_huge_pte(pte, vma, new, 0);
-	}
+		if (PageHuge(new)) {
+			pte = pte_mkhuge(pte);
+			pte = arch_make_huge_pte(pte, vma, new, 0);
+		}
 #endif
-	flush_dcache_page(new);
-	set_pte_at(mm, addr, ptep, pte);
+		flush_dcache_page(new);
+		set_pte_at(vma->vm_mm, pvmw.address, pvmw.pte, pte);
 
-	if (PageHuge(new)) {
-		if (PageAnon(new))
-			hugepage_add_anon_rmap(new, vma, addr);
+		if (PageHuge(new)) {
+			if (PageAnon(new))
+				hugepage_add_anon_rmap(new, vma, pvmw.address);
+			else
+				page_dup_rmap(new, true);
+		} else if (PageAnon(new))
+			page_add_anon_rmap(new, vma, pvmw.address, false);
 		else
-			page_dup_rmap(new, true);
-	} else if (PageAnon(new))
-		page_add_anon_rmap(new, vma, addr, false);
-	else
-		page_add_file_rmap(new, false);
+			page_add_file_rmap(new, false);
 
-	if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
-		mlock_vma_page(new);
+		if (vma->vm_flags & VM_LOCKED && !PageTransCompound(new))
+			mlock_vma_page(new);
 
-	/* No need to invalidate - it was non-present before */
-	update_mmu_cache(vma, addr, ptep);
-unlock:
-	pte_unmap_unlock(ptep, ptl);
-out:
+		/* No need to invalidate - it was non-present before */
+		update_mmu_cache(vma, pvmw.address, pvmw.pte);
+	}
+
 	return SWAP_AGAIN;
 }
 
@@ -466,13 +447,15 @@ int migrate_page_move_mapping(struct address_space *mapping,
 	 */
 	newpage->index = page->index;
 	newpage->mapping = page->mapping;
-	if (PageSwapBacked(page))
-		__SetPageSwapBacked(newpage);
-
 	get_page(newpage);	/* add cache reference */
-	if (PageSwapCache(page)) {
-		SetPageSwapCache(newpage);
-		set_page_private(newpage, page_private(page));
+	if (PageSwapBacked(page)) {
+		__SetPageSwapBacked(newpage);
+		if (PageSwapCache(page)) {
+			SetPageSwapCache(newpage);
+			set_page_private(newpage, page_private(page));
+		}
+	} else {
+		VM_BUG_ON_PAGE(PageSwapCache(page), page);
 	}
 
 	/* Move dirty while page refs frozen and newpage not yet exposed */
@@ -482,7 +465,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
 		SetPageDirty(newpage);
 	}
 
-	radix_tree_replace_slot(pslot, newpage);
+	radix_tree_replace_slot(&mapping->page_tree, pslot, newpage);
 
 	/*
 	 * Drop cache reference from old page by unfreezing
@@ -556,7 +539,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
 
 	get_page(newpage);
 
-	radix_tree_replace_slot(pslot, newpage);
+	radix_tree_replace_slot(&mapping->page_tree, pslot, newpage);
 
 	page_ref_unfreeze(page, expected_count - 1);
 
@@ -1121,8 +1104,15 @@ out:
 		 * restored.
 		 */
 		list_del(&page->lru);
-		dec_node_page_state(page, NR_ISOLATED_ANON +
-				page_is_file_cache(page));
+
+		/*
+		 * Compaction can migrate also non-LRU pages which are
+		 * not accounted to NR_ISOLATED_*. They can be recognized
+		 * as __PageMovable
+		 */
+		if (likely(!__PageMovable(page)))
+			dec_node_page_state(page, NR_ISOLATED_ANON +
+					page_is_file_cache(page));
 	}
 
 	/*

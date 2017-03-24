@@ -19,7 +19,8 @@
 
 #include <linux/kernel.h>
 #include <linux/export.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/topology.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -193,7 +194,7 @@ int smp_request_message_ipi(int virq, int msg)
 	if (msg < 0 || msg > PPC_MSG_DEBUGGER_BREAK) {
 		return -EINVAL;
 	}
-#if !defined(CONFIG_DEBUGGER) && !defined(CONFIG_KEXEC)
+#if !defined(CONFIG_DEBUGGER) && !defined(CONFIG_KEXEC_CORE)
 	if (msg == PPC_MSG_DEBUGGER_BREAK) {
 		return 1;
 	}
@@ -325,7 +326,7 @@ void tick_broadcast(const struct cpumask *mask)
 }
 #endif
 
-#if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
+#if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC_CORE)
 void smp_send_debugger_break(void)
 {
 	int cpu;
@@ -340,7 +341,7 @@ void smp_send_debugger_break(void)
 }
 #endif
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 {
 	crash_ipi_function_ptr = crash_ipi_callback;
@@ -707,7 +708,7 @@ void start_secondary(void *unused)
 	unsigned int cpu = smp_processor_id();
 	int i, base;
 
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	smp_store_cpu_info(cpu);
@@ -795,7 +796,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	 * se we pin us down to CPU 0 for a short while
 	 */
 	alloc_cpumask_var(&old_mask, GFP_NOWAIT);
-	cpumask_copy(old_mask, tsk_cpus_allowed(current));
+	cpumask_copy(old_mask, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(boot_cpuid));
 	
 	if (smp_ops && smp_ops->setup_cpu)

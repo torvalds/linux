@@ -2209,8 +2209,9 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	nand_writereg(ctrl, cfg_offs,
 		      nand_readreg(ctrl, cfg_offs) & ~CFG_BUS_WIDTH);
 
-	if (nand_scan_ident(mtd, 1, NULL))
-		return -ENXIO;
+	ret = nand_scan_ident(mtd, 1, NULL);
+	if (ret)
+		return ret;
 
 	chip->options |= NAND_NO_SUBPAGE_WRITE;
 	/*
@@ -2234,8 +2235,9 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	if (ret)
 		return ret;
 
-	if (nand_scan_tail(mtd))
-		return -ENXIO;
+	ret = nand_scan_tail(mtd);
+	if (ret)
+		return ret;
 
 	return mtd_device_register(mtd, NULL, 0);
 }

@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /* Number of cs_rows needed per memory controller */
 #define SYNPS_EDAC_NR_CSROWS	1

@@ -1,6 +1,9 @@
 #ifndef ISCSI_SEQ_AND_PDU_LIST_H
 #define ISCSI_SEQ_AND_PDU_LIST_H
 
+#include <linux/types.h>
+#include <linux/cache.h>
+
 /* struct iscsi_pdu->status */
 #define DATAOUT_PDU_SENT			1
 
@@ -77,6 +80,8 @@ struct iscsi_seq {
 	u32		seq_no;
 	u32		xfer_len;
 } ____cacheline_aligned;
+
+struct iscsi_cmd;
 
 extern int iscsit_build_pdu_and_seq_lists(struct iscsi_cmd *, u32);
 extern struct iscsi_pdu *iscsit_get_pdu_holder(struct iscsi_cmd *, u32, u32);

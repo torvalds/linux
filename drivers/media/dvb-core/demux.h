@@ -21,10 +21,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  */
 
 #ifndef __DEMUX_H
@@ -103,7 +99,6 @@ struct dmx_ts_feed {
 		   u16 pid,
 		   int type,
 		   enum dmx_ts_pes pes_type,
-		   size_t circular_buffer_size,
 		   ktime_t timeout);
 	int (*start_filtering)(struct dmx_ts_feed *feed);
 	int (*stop_filtering)(struct dmx_ts_feed *feed);
@@ -181,7 +176,6 @@ struct dmx_section_feed {
 	/* public: */
 	int (*set)(struct dmx_section_feed *feed,
 		   u16 pid,
-		   size_t circular_buffer_size,
 		   int check_crc);
 	int (*allocate_filter)(struct dmx_section_feed *feed,
 			       struct dmx_section_filter **filter);
@@ -206,8 +200,7 @@ struct dmx_section_feed {
  * the &dmx_demux.
  * Any TS packets that match the filter settings are copied to a circular
  * buffer. The filtered TS packets are delivered to the client using this
- * callback function. The size of the circular buffer is controlled by the
- * circular_buffer_size parameter of the &dmx_ts_feed.@set function.
+ * callback function.
  * It is expected that the @buffer1 and @buffer2 callback parameters point to
  * addresses within the circular buffer, but other implementations are also
  * possible. Note that the called party should not try to free the memory

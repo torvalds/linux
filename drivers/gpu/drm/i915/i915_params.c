@@ -39,7 +39,7 @@ struct i915_params i915 __read_mostly = {
 	.enable_hangcheck = true,
 	.enable_ppgtt = -1,
 	.enable_psr = -1,
-	.preliminary_hw_support = IS_ENABLED(CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT),
+	.alpha_support = IS_ENABLED(CONFIG_DRM_I915_ALPHA_SUPPORT),
 	.disable_power_well = -1,
 	.enable_ips = 1,
 	.fastboot = 0,
@@ -47,9 +47,10 @@ struct i915_params i915 __read_mostly = {
 	.load_detect_test = 0,
 	.force_reset_modeset_test = 0,
 	.reset = true,
+	.error_capture = true,
 	.invert_brightness = 0,
 	.disable_display = 0,
-	.enable_cmd_parser = 1,
+	.enable_cmd_parser = true,
 	.use_mmio_flip = 0,
 	.mmio_debug = 0,
 	.verbose_state_checks = 1,
@@ -115,6 +116,14 @@ MODULE_PARM_DESC(vbt_sdvo_panel_type,
 module_param_named_unsafe(reset, i915.reset, bool, 0600);
 MODULE_PARM_DESC(reset, "Attempt GPU resets (default: true)");
 
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
+module_param_named(error_capture, i915.error_capture, bool, 0600);
+MODULE_PARM_DESC(error_capture,
+	"Record the GPU state following a hang. "
+	"This information in /sys/class/drm/card<N>/error is vital for "
+	"triaging and debugging hangs.");
+#endif
+
 module_param_named_unsafe(enable_hangcheck, i915.enable_hangcheck, bool, 0644);
 MODULE_PARM_DESC(enable_hangcheck,
 	"Periodically check GPU activity for detecting hangs. "
@@ -136,9 +145,10 @@ MODULE_PARM_DESC(enable_psr, "Enable PSR "
 		 "(0=disabled, 1=enabled - link mode chosen per-platform, 2=force link-standby mode, 3=force link-off mode) "
 		 "Default: -1 (use per-chip default)");
 
-module_param_named_unsafe(preliminary_hw_support, i915.preliminary_hw_support, int, 0400);
-MODULE_PARM_DESC(preliminary_hw_support,
-	"Enable preliminary hardware support.");
+module_param_named_unsafe(alpha_support, i915.alpha_support, int, 0400);
+MODULE_PARM_DESC(alpha_support,
+	"Enable alpha quality driver support for latest hardware. "
+	"See also CONFIG_DRM_I915_ALPHA_SUPPORT.");
 
 module_param_named_unsafe(disable_power_well, i915.disable_power_well, int, 0400);
 MODULE_PARM_DESC(disable_power_well,
@@ -178,9 +188,9 @@ MODULE_PARM_DESC(invert_brightness,
 module_param_named(disable_display, i915.disable_display, bool, 0400);
 MODULE_PARM_DESC(disable_display, "Disable display (default: false)");
 
-module_param_named_unsafe(enable_cmd_parser, i915.enable_cmd_parser, int, 0600);
+module_param_named_unsafe(enable_cmd_parser, i915.enable_cmd_parser, bool, 0400);
 MODULE_PARM_DESC(enable_cmd_parser,
-		 "Enable command parsing (1=enabled [default], 0=disabled)");
+		 "Enable command parsing (true=enabled [default], false=disabled)");
 
 module_param_named_unsafe(use_mmio_flip, i915.use_mmio_flip, int, 0600);
 MODULE_PARM_DESC(use_mmio_flip,

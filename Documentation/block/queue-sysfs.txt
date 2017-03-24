@@ -54,9 +54,23 @@ This is the hardware sector size of the device, in bytes.
 
 io_poll (RW)
 ------------
-When read, this file shows the total number of block IO polls and how
-many returned success.  Writing '0' to this file will disable polling
-for this device.  Writing any non-zero value will enable this feature.
+When read, this file shows whether polling is enabled (1) or disabled
+(0).  Writing '0' to this file will disable polling for this device.
+Writing any non-zero value will enable this feature.
+
+io_poll_delay (RW)
+------------------
+If polling is enabled, this controls what kind of polling will be
+performed. It defaults to -1, which is classic polling. In this mode,
+the CPU will repeatedly ask for completions without giving up any time.
+If set to 0, a hybrid polling mode is used, where the kernel will attempt
+to make an educated guess at when the IO will complete. Based on this
+guess, the kernel will put the process issuing IO to sleep for an amount
+of time, before entering a classic poll loop. This mode might be a
+little slower than pure classic polling, but it will be more efficient.
+If set to a value larger than 0, the kernel will put the process issuing
+IO to sleep for this amont of microseconds before entering classic
+polling.
 
 iostats (RW)
 -------------
@@ -168,6 +182,15 @@ write_same_max_bytes (RO)
 This is the number of bytes the device can write in a single write-same
 command.  A value of '0' means write-same is not supported by this
 device.
+
+wb_lat_usec (RW)
+----------------
+If the device is registered for writeback throttling, then this file shows
+the target minimum read latency. If this latency is exceeded in a given
+window of time (see wb_window_usec), then the writeback throttling will start
+scaling back writes. Writing a value of '0' to this file disables the
+feature. Writing a value of '-1' to this file resets the value to the
+default setting.
 
 
 Jens Axboe <jens.axboe@oracle.com>, February 2009

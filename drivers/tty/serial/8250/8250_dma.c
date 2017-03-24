@@ -72,9 +72,14 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 	struct dma_async_tx_descriptor	*desc;
 	int ret;
 
-	if (uart_tx_stopped(&p->port) || dma->tx_running ||
-	    uart_circ_empty(xmit))
+	if (dma->tx_running)
 		return 0;
+
+	if (uart_tx_stopped(&p->port) || uart_circ_empty(xmit)) {
+		/* We have been called from __dma_tx_complete() */
+		serial8250_rpm_put_tx(p);
+		return 0;
+	}
 
 	dma->tx_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 

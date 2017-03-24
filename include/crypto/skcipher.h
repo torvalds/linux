@@ -115,6 +115,9 @@ struct crypto_skcipher {
  *	    IV of exactly that size to perform the encrypt or decrypt operation.
  * @chunksize: Equal to the block size except for stream ciphers such as
  *	       CTR where it is set to the underlying block size.
+ * @walksize: Equal to the chunk size except in cases where the algorithm is
+ * 	      considerably more efficient if it can operate on multiple chunks
+ * 	      in parallel. Should be a multiple of chunksize.
  * @base: Definition of a generic crypto algorithm.
  *
  * All fields except @ivsize are mandatory and must be filled.
@@ -131,6 +134,7 @@ struct skcipher_alg {
 	unsigned int max_keysize;
 	unsigned int ivsize;
 	unsigned int chunksize;
+	unsigned int walksize;
 
 	struct crypto_alg base;
 };
@@ -289,6 +293,19 @@ static inline unsigned int crypto_skcipher_alg_chunksize(
 	return alg->chunksize;
 }
 
+static inline unsigned int crypto_skcipher_alg_walksize(
+	struct skcipher_alg *alg)
+{
+	if ((alg->base.cra_flags & CRYPTO_ALG_TYPE_MASK) ==
+	    CRYPTO_ALG_TYPE_BLKCIPHER)
+		return alg->base.cra_blocksize;
+
+	if (alg->base.cra_ablkcipher.encrypt)
+		return alg->base.cra_blocksize;
+
+	return alg->walksize;
+}
+
 /**
  * crypto_skcipher_chunksize() - obtain chunk size
  * @tfm: cipher handle
@@ -304,6 +321,23 @@ static inline unsigned int crypto_skcipher_chunksize(
 	struct crypto_skcipher *tfm)
 {
 	return crypto_skcipher_alg_chunksize(crypto_skcipher_alg(tfm));
+}
+
+/**
+ * crypto_skcipher_walksize() - obtain walk size
+ * @tfm: cipher handle
+ *
+ * In some cases, algorithms can only perform optimally when operating on
+ * multiple blocks in parallel. This is reflected by the walksize, which
+ * must be a multiple of the chunksize (or equal if the concern does not
+ * apply)
+ *
+ * Return: walk size in bytes
+ */
+static inline unsigned int crypto_skcipher_walksize(
+	struct crypto_skcipher *tfm)
+{
+	return crypto_skcipher_alg_walksize(crypto_skcipher_alg(tfm));
 }
 
 /**
@@ -516,7 +550,7 @@ static inline void skcipher_request_zero(struct skcipher_request *req)
  * skcipher_request_set_callback() - set asynchronous callback function
  * @req: request handle
  * @flags: specify zero or an ORing of the flags
- *         CRYPTO_TFM_REQ_MAY_BACKLOG the request queue may back log and
+ *	   CRYPTO_TFM_REQ_MAY_BACKLOG the request queue may back log and
  *	   increase the wait queue beyond the initial maximum size;
  *	   CRYPTO_TFM_REQ_MAY_SLEEP the request processing may sleep
  * @compl: callback function pointer to be registered with the request handle
@@ -533,7 +567,7 @@ static inline void skcipher_request_zero(struct skcipher_request *req)
  * cipher operation completes.
  *
  * The callback function is registered with the skcipher_request handle and
- * must comply with the following template
+ * must comply with the following template::
  *
  *	void callback_function(struct crypto_async_request *req, int error)
  */

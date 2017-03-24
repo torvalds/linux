@@ -180,7 +180,7 @@ gt215_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 	return 0;
 }
 
-int
+static int
 gt215_clk_info(struct nvkm_clk *base, int idx, u32 khz,
 	       struct gt215_clk_info *info)
 {

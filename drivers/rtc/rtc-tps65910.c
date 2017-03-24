@@ -21,6 +21,7 @@
 #include <linux/types.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/math64.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/tps65910.h>
@@ -33,7 +34,21 @@ struct tps65910_rtc {
 /* Total number of RTC registers needed to set time*/
 #define NUM_TIME_REGS	(TPS65910_YEARS - TPS65910_SECONDS + 1)
 
-static int tps65910_rtc_alarm_irq_enable(struct device *dev, unsigned enabled)
+/* Total number of RTC registers needed to set compensation registers */
+#define NUM_COMP_REGS	(TPS65910_RTC_COMP_MSB - TPS65910_RTC_COMP_LSB + 1)
+
+/* Min and max values supported with 'offset' interface (swapped sign) */
+#define MIN_OFFSET	(-277761)
+#define MAX_OFFSET	(277778)
+
+/* Number of ticks per hour */
+#define TICKS_PER_HOUR	(32768 * 3600)
+
+/* Multiplier for ppb conversions */
+#define PPB_MULT	(1000000000LL)
+
+static int tps65910_rtc_alarm_irq_enable(struct device *dev,
+					 unsigned int enabled)
 {
 	struct tps65910 *tps = dev_get_drvdata(dev->parent);
 	u8 val = 0;
@@ -187,6 +202,133 @@ static int tps65910_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	return ret;
 }
 
+static int tps65910_rtc_set_calibration(struct device *dev, int calibration)
+{
+	unsigned char comp_data[NUM_COMP_REGS];
+	struct tps65910 *tps = dev_get_drvdata(dev->parent);
+	s16 value;
+	int ret;
+
+	/*
+	 * TPS65910 uses two's complement 16 bit value for compensation for RTC
+	 * crystal inaccuracies. One time every hour when seconds counter
+	 * increments from 0 to 1 compensation value will be added to internal
+	 * RTC counter value.
+	 *
+	 * Compensation value 0x7FFF is prohibited value.
+	 *
+	 * Valid range for compensation value: [-32768 .. 32766]
+	 */
+	if ((calibration < -32768) || (calibration > 32766)) {
+		dev_err(dev, "RTC calibration value out of range: %d\n",
+			calibration);
+		return -EINVAL;
+	}
+
+	value = (s16)calibration;
+
+	comp_data[0] = (u16)value & 0xFF;
+	comp_data[1] = ((u16)value >> 8) & 0xFF;
+
+	/* Update all the compensation registers in one shot */
+	ret = regmap_bulk_write(tps->regmap, TPS65910_RTC_COMP_LSB,
+		comp_data, NUM_COMP_REGS);
+	if (ret < 0) {
+		dev_err(dev, "rtc_set_calibration error: %d\n", ret);
+		return ret;
+	}
+
+	/* Enable automatic compensation */
+	ret = regmap_update_bits(tps->regmap, TPS65910_RTC_CTRL,
+		TPS65910_RTC_CTRL_AUTO_COMP, TPS65910_RTC_CTRL_AUTO_COMP);
+	if (ret < 0)
+		dev_err(dev, "auto_comp enable failed with error: %d\n", ret);
+
+	return ret;
+}
+
+static int tps65910_rtc_get_calibration(struct device *dev, int *calibration)
+{
+	unsigned char comp_data[NUM_COMP_REGS];
+	struct tps65910 *tps = dev_get_drvdata(dev->parent);
+	unsigned int ctrl;
+	u16 value;
+	int ret;
+
+	ret = regmap_read(tps->regmap, TPS65910_RTC_CTRL, &ctrl);
+	if (ret < 0)
+		return ret;
+
+	/* If automatic compensation is not enabled report back zero */
+	if (!(ctrl & TPS65910_RTC_CTRL_AUTO_COMP)) {
+		*calibration = 0;
+		return 0;
+	}
+
+	ret = regmap_bulk_read(tps->regmap, TPS65910_RTC_COMP_LSB, comp_data,
+		NUM_COMP_REGS);
+	if (ret < 0) {
+		dev_err(dev, "rtc_get_calibration error: %d\n", ret);
+		return ret;
+	}
+
+	value = (u16)comp_data[0] | ((u16)comp_data[1] << 8);
+
+	*calibration = (s16)value;
+
+	return 0;
+}
+
+static int tps65910_read_offset(struct device *dev, long *offset)
+{
+	int calibration;
+	s64 tmp;
+	int ret;
+
+	ret = tps65910_rtc_get_calibration(dev, &calibration);
+	if (ret < 0)
+		return ret;
+
+	/* Convert from RTC calibration register format to ppb format */
+	tmp = calibration * (s64)PPB_MULT;
+	if (tmp < 0)
+		tmp -= TICKS_PER_HOUR / 2LL;
+	else
+		tmp += TICKS_PER_HOUR / 2LL;
+	tmp = div_s64(tmp, TICKS_PER_HOUR);
+
+	/* Offset value operates in negative way, so swap sign */
+	*offset = (long)-tmp;
+
+	return 0;
+}
+
+static int tps65910_set_offset(struct device *dev, long offset)
+{
+	int calibration;
+	s64 tmp;
+	int ret;
+
+	/* Make sure offset value is within supported range */
+	if (offset < MIN_OFFSET || offset > MAX_OFFSET)
+		return -ERANGE;
+
+	/* Convert from ppb format to RTC calibration register format */
+	tmp = offset * (s64)TICKS_PER_HOUR;
+	if (tmp < 0)
+		tmp -= PPB_MULT / 2LL;
+	else
+		tmp += PPB_MULT / 2LL;
+	tmp = div_s64(tmp, PPB_MULT);
+
+	/* Offset value operates in negative way, so swap sign */
+	calibration = (int)-tmp;
+
+	ret = tps65910_rtc_set_calibration(dev, calibration);
+
+	return ret;
+}
+
 static irqreturn_t tps65910_rtc_interrupt(int irq, void *rtc)
 {
 	struct device *dev = rtc;
@@ -219,6 +361,8 @@ static const struct rtc_class_ops tps65910_rtc_ops = {
 	.read_alarm	= tps65910_rtc_read_alarm,
 	.set_alarm	= tps65910_rtc_set_alarm,
 	.alarm_irq_enable = tps65910_rtc_alarm_irq_enable,
+	.read_offset	= tps65910_read_offset,
+	.set_offset	= tps65910_set_offset,
 };
 
 static int tps65910_rtc_probe(struct platform_device *pdev)

@@ -170,7 +170,7 @@
 
 	du_pins: du {
 		du0 {
-			groups = "du0_rgb888", "du0_sync_1", "du0_clk_out_0";
+			groups = "du0_rgb888", "du0_sync_1", "du0_clk_out_0", "du0_clk_in";
 			function = "du0";
 		};
 		du1 {
@@ -214,6 +214,10 @@
 		groups = "hspi0";
 		function = "hspi0";
 	};
+};
+
+&sata {
+	status = "okay";
 };
 
 &scif2 {

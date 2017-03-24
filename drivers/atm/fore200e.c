@@ -43,7 +43,7 @@
 #include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/atomic.h>
 
 #ifdef CONFIG_SBUS

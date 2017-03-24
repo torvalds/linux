@@ -193,6 +193,7 @@ static int pin2port(struct hdac_device *codec, hda_nid_t pin_nid)
  * snd_hdac_sync_audio_rate - Set N/CTS based on the sample rate
  * @codec: HDA codec
  * @nid: the pin widget NID
+ * @dev_id: device identifier
  * @rate: the sample rate to set
  *
  * This function is supposed to be used only by a HD-audio controller
@@ -201,18 +202,20 @@ static int pin2port(struct hdac_device *codec, hda_nid_t pin_nid)
  * This function sets N/CTS value based on the given sample rate.
  * Returns zero for success, or a negative error code.
  */
-int snd_hdac_sync_audio_rate(struct hdac_device *codec, hda_nid_t nid, int rate)
+int snd_hdac_sync_audio_rate(struct hdac_device *codec, hda_nid_t nid,
+			     int dev_id, int rate)
 {
 	struct hdac_bus *bus = codec->bus;
 	struct i915_audio_component *acomp = bus->audio_component;
-	int port;
+	int port, pipe;
 
 	if (!acomp || !acomp->ops || !acomp->ops->sync_audio_rate)
 		return -ENODEV;
 	port = pin2port(codec, nid);
 	if (port < 0)
 		return -EINVAL;
-	return acomp->ops->sync_audio_rate(acomp->dev, port, rate);
+	pipe = dev_id;
+	return acomp->ops->sync_audio_rate(acomp->dev, port, pipe, rate);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_sync_audio_rate);
 
@@ -220,6 +223,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_sync_audio_rate);
  * snd_hdac_acomp_get_eld - Get the audio state and ELD via component
  * @codec: HDA codec
  * @nid: the pin widget NID
+ * @dev_id: device identifier
  * @audio_enabled: the pointer to store the current audio state
  * @buffer: the buffer pointer to store ELD bytes
  * @max_bytes: the max bytes to be stored on @buffer
@@ -236,12 +240,12 @@ EXPORT_SYMBOL_GPL(snd_hdac_sync_audio_rate);
  * thus it may be over @max_bytes.  If it's over @max_bytes, it implies
  * that only a part of ELD bytes have been fetched.
  */
-int snd_hdac_acomp_get_eld(struct hdac_device *codec, hda_nid_t nid,
+int snd_hdac_acomp_get_eld(struct hdac_device *codec, hda_nid_t nid, int dev_id,
 			   bool *audio_enabled, char *buffer, int max_bytes)
 {
 	struct hdac_bus *bus = codec->bus;
 	struct i915_audio_component *acomp = bus->audio_component;
-	int port;
+	int port, pipe;
 
 	if (!acomp || !acomp->ops || !acomp->ops->get_eld)
 		return -ENODEV;
@@ -249,7 +253,9 @@ int snd_hdac_acomp_get_eld(struct hdac_device *codec, hda_nid_t nid,
 	port = pin2port(codec, nid);
 	if (port < 0)
 		return -EINVAL;
-	return acomp->ops->get_eld(acomp->dev, port, audio_enabled,
+
+	pipe = dev_id;
+	return acomp->ops->get_eld(acomp->dev, port, pipe, audio_enabled,
 				   buffer, max_bytes);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_acomp_get_eld);

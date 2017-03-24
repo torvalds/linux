@@ -92,8 +92,9 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 	struct request *rq;
 	int error;
 
-	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
+	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	scsi_req_init(rq);
+	ide_req(rq)->type = ATA_PRIV_MISC;
 	rq->special = (char *)pc;
 
 	if (buf && bufflen) {
@@ -103,9 +104,9 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 			goto put_req;
 	}
 
-	memcpy(rq->cmd, pc->c, 12);
+	memcpy(scsi_req(rq)->cmd, pc->c, 12);
 	if (drive->media == ide_tape)
-		rq->cmd[13] = REQ_IDETAPE_PC1;
+		scsi_req(rq)->cmd[13] = REQ_IDETAPE_PC1;
 	error = blk_execute_rq(drive->queue, disk, rq, 0);
 put_req:
 	blk_put_request(rq);
@@ -171,7 +172,8 @@ EXPORT_SYMBOL_GPL(ide_create_request_sense_cmd);
 void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 {
 	struct request_sense *sense = &drive->sense_data;
-	struct request *sense_rq = &drive->sense_rq;
+	struct request *sense_rq = drive->sense_rq;
+	struct scsi_request *req = scsi_req(sense_rq);
 	unsigned int cmd_len, sense_len;
 	int err;
 
@@ -191,12 +193,13 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 
 	BUG_ON(sense_len > sizeof(*sense));
 
-	if (rq->cmd_type == REQ_TYPE_ATA_SENSE || drive->sense_rq_armed)
+	if (ata_sense_request(rq) || drive->sense_rq_armed)
 		return;
 
 	memset(sense, 0, sizeof(*sense));
 
 	blk_rq_init(rq->q, sense_rq);
+	scsi_req_init(sense_rq);
 
 	err = blk_rq_map_kern(drive->queue, sense_rq, sense, sense_len,
 			      GFP_NOIO);
@@ -208,13 +211,14 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 	}
 
 	sense_rq->rq_disk = rq->rq_disk;
-	sense_rq->cmd[0] = GPCMD_REQUEST_SENSE;
-	sense_rq->cmd[4] = cmd_len;
-	sense_rq->cmd_type = REQ_TYPE_ATA_SENSE;
-	sense_rq->cmd_flags |= REQ_PREEMPT;
+	sense_rq->cmd_flags = REQ_OP_DRV_IN;
+	ide_req(sense_rq)->type = ATA_PRIV_SENSE;
+	sense_rq->rq_flags |= RQF_PREEMPT;
 
+	req->cmd[0] = GPCMD_REQUEST_SENSE;
+	req->cmd[4] = cmd_len;
 	if (drive->media == ide_tape)
-		sense_rq->cmd[13] = REQ_IDETAPE_PC1;
+		req->cmd[13] = REQ_IDETAPE_PC1;
 
 	drive->sense_rq_armed = true;
 }
@@ -229,12 +233,12 @@ int ide_queue_sense_rq(ide_drive_t *drive, void *special)
 		return -ENOMEM;
 	}
 
-	drive->sense_rq.special = special;
+	drive->sense_rq->special = special;
 	drive->sense_rq_armed = false;
 
 	drive->hwif->rq = NULL;
 
-	elv_add_request(drive->queue, &drive->sense_rq, ELEVATOR_INSERT_FRONT);
+	elv_add_request(drive->queue, drive->sense_rq, ELEVATOR_INSERT_FRONT);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ide_queue_sense_rq);
@@ -247,14 +251,14 @@ EXPORT_SYMBOL_GPL(ide_queue_sense_rq);
 void ide_retry_pc(ide_drive_t *drive)
 {
 	struct request *failed_rq = drive->hwif->rq;
-	struct request *sense_rq = &drive->sense_rq;
+	struct request *sense_rq = drive->sense_rq;
 	struct ide_atapi_pc *pc = &drive->request_sense_pc;
 
 	(void)ide_read_error(drive);
 
 	/* init pc from sense_rq */
 	ide_init_pc(pc);
-	memcpy(pc->c, sense_rq->cmd, 12);
+	memcpy(pc->c, scsi_req(sense_rq)->cmd, 12);
 
 	if (drive->media == ide_tape)
 		drive->atapi_flags |= IDE_AFLAG_IGNORE_DSC;
@@ -286,7 +290,7 @@ int ide_cd_expiry(ide_drive_t *drive)
 	 * commands/drives support that. Let ide_timer_expiry keep polling us
 	 * for these.
 	 */
-	switch (rq->cmd[0]) {
+	switch (scsi_req(rq)->cmd[0]) {
 	case GPCMD_BLANK:
 	case GPCMD_FORMAT_UNIT:
 	case GPCMD_RESERVE_RZONE_TRACK:
@@ -295,9 +299,9 @@ int ide_cd_expiry(ide_drive_t *drive)
 		wait = ATAPI_WAIT_PC;
 		break;
 	default:
-		if (!(rq->cmd_flags & REQ_QUIET))
+		if (!(rq->rq_flags & RQF_QUIET))
 			printk(KERN_INFO PFX "cmd 0x%x timed out\n",
-					 rq->cmd[0]);
+					 scsi_req(rq)->cmd[0]);
 		wait = 0;
 		break;
 	}
@@ -307,15 +311,21 @@ EXPORT_SYMBOL_GPL(ide_cd_expiry);
 
 int ide_cd_get_xferlen(struct request *rq)
 {
-	switch (rq->cmd_type) {
-	case REQ_TYPE_FS:
-		return 32768;
-	case REQ_TYPE_ATA_SENSE:
-	case REQ_TYPE_BLOCK_PC:
-	case REQ_TYPE_ATA_PC:
-		return blk_rq_bytes(rq);
+	switch (req_op(rq)) {
 	default:
-		return 0;
+		return 32768;
+	case REQ_OP_SCSI_IN:
+	case REQ_OP_SCSI_OUT:
+		return blk_rq_bytes(rq);
+	case REQ_OP_DRV_IN:
+	case REQ_OP_DRV_OUT:
+		switch (ide_req(rq)->type) {
+		case ATA_PRIV_PC:
+		case ATA_PRIV_SENSE:
+			return blk_rq_bytes(rq);
+		default:
+			return 0;
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(ide_cd_get_xferlen);
@@ -374,8 +384,8 @@ int ide_check_ireason(ide_drive_t *drive, struct request *rq, int len,
 				drive->name, __func__, ireason);
 	}
 
-	if (dev_is_idecd(drive) && rq->cmd_type == REQ_TYPE_ATA_PC)
-		rq->cmd_flags |= REQ_FAILED;
+	if (dev_is_idecd(drive) && ata_pc_request(rq))
+		rq->rq_flags |= RQF_FAILED;
 
 	return 1;
 }
@@ -420,7 +430,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 						     ? "write" : "read");
 			pc->flags |= PC_FLAG_DMA_ERROR;
 		} else
-			rq->resid_len = 0;
+			scsi_req(rq)->resid_len = 0;
 		debug_log("%s: DMA finished\n", drive->name);
 	}
 
@@ -436,7 +446,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		local_irq_enable_in_hardirq();
 
 		if (drive->media == ide_tape &&
-		    (stat & ATA_ERR) && rq->cmd[0] == REQUEST_SENSE)
+		    (stat & ATA_ERR) && scsi_req(rq)->cmd[0] == REQUEST_SENSE)
 			stat &= ~ATA_ERR;
 
 		if ((stat & ATA_ERR) || (pc->flags & PC_FLAG_DMA_ERROR)) {
@@ -446,7 +456,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			if (drive->media != ide_tape)
 				pc->rq->errors++;
 
-			if (rq->cmd[0] == REQUEST_SENSE) {
+			if (scsi_req(rq)->cmd[0] == REQUEST_SENSE) {
 				printk(KERN_ERR PFX "%s: I/O error in request "
 						"sense command\n", drive->name);
 				return ide_do_reset(drive);
@@ -477,12 +487,12 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		if (uptodate == 0)
 			drive->failed_pc = NULL;
 
-		if (rq->cmd_type == REQ_TYPE_DRV_PRIV) {
+		if (ata_misc_request(rq)) {
 			rq->errors = 0;
 			error = 0;
 		} else {
 
-			if (rq->cmd_type != REQ_TYPE_FS && uptodate <= 0) {
+			if (blk_rq_is_passthrough(rq) && uptodate <= 0) {
 				if (rq->errors == 0)
 					rq->errors = -EIO;
 			}
@@ -512,7 +522,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	ide_pio_bytes(drive, cmd, write, done);
 
 	/* Update transferred byte count */
-	rq->resid_len -= done;
+	scsi_req(rq)->resid_len -= done;
 
 	bcount -= done;
 
@@ -520,7 +530,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		ide_pad_transfer(drive, write, bcount);
 
 	debug_log("[cmd %x] transferred %d bytes, padded %d bytes, resid: %u\n",
-		  rq->cmd[0], done, bcount, rq->resid_len);
+		  rq->cmd[0], done, bcount, scsi_req(rq)->resid_len);
 
 	/* And set the interrupt handler again */
 	ide_set_handler(drive, ide_pc_intr, timeout);
@@ -603,7 +613,7 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 
 	if (dev_is_idecd(drive)) {
 		/* ATAPI commands get padded out to 12 bytes minimum */
-		cmd_len = COMMAND_SIZE(rq->cmd[0]);
+		cmd_len = COMMAND_SIZE(scsi_req(rq)->cmd[0]);
 		if (cmd_len < ATAPI_MIN_CDB_BYTES)
 			cmd_len = ATAPI_MIN_CDB_BYTES;
 
@@ -650,7 +660,7 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 
 	/* Send the actual packet */
 	if ((drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) == 0)
-		hwif->tp_ops->output_data(drive, NULL, rq->cmd, cmd_len);
+		hwif->tp_ops->output_data(drive, NULL, scsi_req(rq)->cmd, cmd_len);
 
 	/* Begin DMA, if necessary */
 	if (dev_is_idecd(drive)) {
@@ -695,7 +705,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 							     bytes, 63 * 1024));
 
 		/* We haven't transferred any data yet */
-		rq->resid_len = bcount;
+		scsi_req(rq)->resid_len = bcount;
 
 		if (pc->flags & PC_FLAG_DMA_ERROR) {
 			pc->flags &= ~PC_FLAG_DMA_ERROR;

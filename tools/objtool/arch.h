@@ -31,9 +31,8 @@
 #define INSN_CALL_DYNAMIC	8
 #define INSN_RETURN		9
 #define INSN_CONTEXT_SWITCH	10
-#define INSN_BUG		11
-#define INSN_NOP		12
-#define INSN_OTHER		13
+#define INSN_NOP		11
+#define INSN_OTHER		12
 #define INSN_LAST		INSN_OTHER
 
 int arch_decode_instruction(struct elf *elf, struct section *sec,

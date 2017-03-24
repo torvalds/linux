@@ -87,8 +87,7 @@ exit:
 
 	if (!err && (chan->txdone_method & TXDONE_BY_POLL))
 		/* kick start the timer immediately to avoid delays */
-		hrtimer_start(&chan->mbox->poll_hrt, ktime_set(0, 0),
-			      HRTIMER_MODE_REL);
+		hrtimer_start(&chan->mbox->poll_hrt, 0, HRTIMER_MODE_REL);
 }
 
 static void tx_tick(struct mbox_chan *chan, int r)

@@ -92,7 +92,7 @@ gf100_pci_func = {
 
 	.pcie.set_version = gf100_pcie_set_version,
 	.pcie.version = gf100_pcie_version,
-	.pcie.version_supported = g94_pcie_version_supported,
+	.pcie.version_supported = g92_pcie_version_supported,
 };
 
 int

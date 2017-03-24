@@ -8,6 +8,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
@@ -20,7 +21,7 @@
 #include <linux/slab.h>
 #include <linux/time64.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "usb_mon.h"
 
@@ -1223,9 +1224,9 @@ static void mon_bin_vma_close(struct vm_area_struct *vma)
 /*
  * Map ring pages to user space.
  */
-static int mon_bin_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int mon_bin_vma_fault(struct vm_fault *vmf)
 {
-	struct mon_reader_bin *rp = vma->vm_private_data;
+	struct mon_reader_bin *rp = vmf->vma->vm_private_data;
 	unsigned long offset, chunk_idx;
 	struct page *pageptr;
 

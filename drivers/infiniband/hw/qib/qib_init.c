@@ -133,11 +133,8 @@ int qib_create_ctxts(struct qib_devdata *dd)
 	 * cleanup iterates across all possible ctxts.
 	 */
 	dd->rcd = kcalloc(dd->ctxtcnt, sizeof(*dd->rcd), GFP_KERNEL);
-	if (!dd->rcd) {
-		qib_dev_err(dd,
-			"Unable to allocate ctxtdata array, failing\n");
+	if (!dd->rcd)
 		return -ENOMEM;
-	}
 
 	/* create (one or more) kctxt */
 	for (i = 0; i < dd->first_user_ctxt; ++i) {
@@ -265,39 +262,23 @@ int qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 	size = IB_CC_TABLE_CAP_DEFAULT * sizeof(struct ib_cc_table_entry)
 		* IB_CCT_ENTRIES;
 	ppd->ccti_entries = kzalloc(size, GFP_KERNEL);
-	if (!ppd->ccti_entries) {
-		qib_dev_err(dd,
-		  "failed to allocate congestion control table for port %d!\n",
-		  port);
+	if (!ppd->ccti_entries)
 		goto bail;
-	}
 
 	size = IB_CC_CCS_ENTRIES * sizeof(struct ib_cc_congestion_entry);
 	ppd->congestion_entries = kzalloc(size, GFP_KERNEL);
-	if (!ppd->congestion_entries) {
-		qib_dev_err(dd,
-		 "failed to allocate congestion setting list for port %d!\n",
-		 port);
+	if (!ppd->congestion_entries)
 		goto bail_1;
-	}
 
 	size = sizeof(struct cc_table_shadow);
 	ppd->ccti_entries_shadow = kzalloc(size, GFP_KERNEL);
-	if (!ppd->ccti_entries_shadow) {
-		qib_dev_err(dd,
-		 "failed to allocate shadow ccti list for port %d!\n",
-		 port);
+	if (!ppd->ccti_entries_shadow)
 		goto bail_2;
-	}
 
 	size = sizeof(struct ib_cc_congestion_setting_attr);
 	ppd->congestion_entries_shadow = kzalloc(size, GFP_KERNEL);
-	if (!ppd->congestion_entries_shadow) {
-		qib_dev_err(dd,
-		 "failed to allocate shadow congestion setting list for port %d!\n",
-		 port);
+	if (!ppd->congestion_entries_shadow)
 		goto bail_3;
-	}
 
 	return 0;
 
@@ -391,18 +372,12 @@ static void init_shadow_tids(struct qib_devdata *dd)
 	dma_addr_t *addrs;
 
 	pages = vzalloc(dd->cfgctxts * dd->rcvtidcnt * sizeof(struct page *));
-	if (!pages) {
-		qib_dev_err(dd,
-			"failed to allocate shadow page * array, no expected sends!\n");
+	if (!pages)
 		goto bail;
-	}
 
 	addrs = vzalloc(dd->cfgctxts * dd->rcvtidcnt * sizeof(dma_addr_t));
-	if (!addrs) {
-		qib_dev_err(dd,
-			"failed to allocate shadow dma handle array, no expected sends!\n");
+	if (!addrs)
 		goto bail_free;
-	}
 
 	dd->pageshadow = pages;
 	dd->physshadow = addrs;
@@ -1026,11 +1001,8 @@ static void qib_verify_pioperf(struct qib_devdata *dd)
 	cnt = 1024;
 
 	addr = vmalloc(cnt);
-	if (!addr) {
-		qib_devinfo(dd->pcidev,
-			 "Couldn't get memory for checking PIO perf, skipping\n");
+	if (!addr)
 		goto done;
-	}
 
 	preempt_disable();  /* we want reasonably accurate elapsed time */
 	msecs = 1 + jiffies_to_msecs(jiffies);
@@ -1172,9 +1144,6 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 				      sizeof(long), GFP_KERNEL);
 		if (qib_cpulist)
 			qib_cpulist_count = count;
-		else
-			qib_early_err(&pdev->dev,
-				"Could not alloc cpulist info, cpu affinity might be wrong\n");
 	}
 #ifdef CONFIG_DEBUG_FS
 	qib_dbg_ibdev_init(&dd->verbs_dev);

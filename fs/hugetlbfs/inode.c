@@ -11,7 +11,7 @@
 
 #include <linux/thread_info.h>
 #include <asm/current.h>
-#include <linux/sched.h>		/* remove ASAP */
+#include <linux/sched/signal.h>		/* remove ASAP */
 #include <linux/falloc.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -37,7 +37,7 @@
 #include <linux/migrate.h>
 #include <linux/uio.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static const struct super_operations hugetlbfs_ops;
 static const struct address_space_operations hugetlbfs_aops;

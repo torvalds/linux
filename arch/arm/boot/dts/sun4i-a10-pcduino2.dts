@@ -57,10 +57,8 @@
 
 &pio {
 	usb2_vbus_pin_pcduino2: usb2_vbus_pin@0 {
-		allwinner,pins = "PD2";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PD2";
+		function = "gpio_out";
 	};
 };
 

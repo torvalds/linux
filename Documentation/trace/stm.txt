@@ -69,12 +69,43 @@ stm device's channel mmio region is 64 bytes and hardware page size is
 width==64, you should be able to mmap() one page on this file
 descriptor and obtain direct access to an mmio region for 64 channels.
 
-For kernel-based trace sources, there is "stm_source" device
-class. Devices of this class can be connected and disconnected to/from
-stm devices at runtime via a sysfs attribute.
-
 Examples of STM devices are Intel(R) Trace Hub [1] and Coresight STM
 [2].
+
+stm_source
+==========
+
+For kernel-based trace sources, there is "stm_source" device
+class. Devices of this class can be connected and disconnected to/from
+stm devices at runtime via a sysfs attribute called "stm_source_link"
+by writing the name of the desired stm device there, for example:
+
+$ echo dummy_stm.0 > /sys/class/stm_source/console/stm_source_link
+
+For examples on how to use stm_source interface in the kernel, refer
+to stm_console or stm_heartbeat drivers.
+
+Each stm_source device will need to assume a master and a range of
+channels, depending on how many channels it requires. These are
+allocated for the device according to the policy configuration. If
+there's a node in the root of the policy directory that matches the
+stm_source device's name (for example, "console"), this node will be
+used to allocate master and channel numbers. If there's no such policy
+node, the stm core will pick the first contiguous chunk of channels
+within the first available master. Note that the node must exist
+before the stm_source device is connected to its stm device.
+
+stm_console
+===========
+
+One implementation of this interface also used in the example above is
+the "stm_console" driver, which basically provides a one-way console
+for kernel messages over an stm device.
+
+To configure the master/channel pair that will be assigned to this
+console in the STP stream, create a "console" policy entry (see the
+beginning of this text on how to do that). When initialized, it will
+consume one channel.
 
 [1] https://software.intel.com/sites/default/files/managed/d3/3c/intel-th-developer-manual.pdf
 [2] http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0444b/index.html

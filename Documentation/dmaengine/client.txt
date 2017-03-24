@@ -37,8 +37,8 @@ The slave DMA usage consists of following steps:
 2. Set slave and controller specific parameters
 
    Next step is always to pass some specific information to the DMA
-   driver.  Most of the generic information which a slave DMA can use
-   is in struct dma_slave_config.  This allows the clients to specify
+   driver. Most of the generic information which a slave DMA can use
+   is in struct dma_slave_config. This allows the clients to specify
    DMA direction, DMA addresses, bus widths, DMA burst lengths etc
    for the peripheral.
 
@@ -52,7 +52,7 @@ The slave DMA usage consists of following steps:
 				  struct dma_slave_config *config)
 
    Please see the dma_slave_config structure definition in dmaengine.h
-   for a detailed explanation of the struct members.  Please note
+   for a detailed explanation of the struct members. Please note
    that the 'direction' member will be going away as it duplicates the
    direction given in the prepare call.
 
@@ -101,7 +101,7 @@ The slave DMA usage consists of following steps:
 	desc = dmaengine_prep_slave_sg(chan, sgl, nr_sg, direction, flags);
 
    Once a descriptor has been obtained, the callback information can be
-   added and the descriptor must then be submitted.  Some DMA engine
+   added and the descriptor must then be submitted. Some DMA engine
    drivers may hold a spinlock between a successful preparation and
    submission so it is important that these two operations are closely
    paired.
@@ -138,7 +138,7 @@ The slave DMA usage consists of following steps:
    activity via other DMA engine calls not covered in this document.
 
    dmaengine_submit() will not start the DMA operation, it merely adds
-   it to the pending queue.  For this, see step 5, dma_async_issue_pending.
+   it to the pending queue. For this, see step 5, dma_async_issue_pending.
 
 5. Issue pending DMA requests and wait for callback notification
 
@@ -184,13 +184,13 @@ Further APIs:
 
 3. int dmaengine_resume(struct dma_chan *chan)
 
-   Resume a previously paused DMA channel.  It is invalid to resume a
+   Resume a previously paused DMA channel. It is invalid to resume a
    channel which is not currently paused.
 
 4. enum dma_status dma_async_is_tx_complete(struct dma_chan *chan,
         dma_cookie_t cookie, dma_cookie_t *last, dma_cookie_t *used)
 
-   This can be used to check the status of the channel.  Please see
+   This can be used to check the status of the channel. Please see
    the documentation in include/linux/dmaengine.h for a more complete
    description of this API.
 
@@ -200,7 +200,7 @@ Further APIs:
 
    Note:
 	Not all DMA engine drivers can return reliable information for
-	a running DMA channel.  It is recommended that DMA engine users
+	a running DMA channel. It is recommended that DMA engine users
 	pause or stop (via dmaengine_terminate_all()) the channel before
 	using this API.
 

@@ -43,8 +43,8 @@ struct cfs_var_array {
 void
 cfs_percpt_free(void *vars)
 {
-	struct	cfs_var_array *arr;
-	int	i;
+	struct cfs_var_array *arr;
+	int i;
 
 	arr = container_of(vars, struct cfs_var_array, va_ptrs[0]);
 
@@ -72,9 +72,9 @@ EXPORT_SYMBOL(cfs_percpt_free);
 void *
 cfs_percpt_alloc(struct cfs_cpt_table *cptab, unsigned int size)
 {
-	struct cfs_var_array	*arr;
-	int			count;
-	int			i;
+	struct cfs_var_array *arr;
+	int count;
+	int i;
 
 	count = cfs_cpt_number(cptab);
 
@@ -120,8 +120,8 @@ EXPORT_SYMBOL(cfs_percpt_number);
 void
 cfs_array_free(void *vars)
 {
-	struct cfs_var_array	*arr;
-	int			i;
+	struct cfs_var_array *arr;
+	int i;
 
 	arr = container_of(vars, struct cfs_var_array, va_ptrs[0]);
 
@@ -144,15 +144,15 @@ EXPORT_SYMBOL(cfs_array_free);
 void *
 cfs_array_alloc(int count, unsigned int size)
 {
-	struct cfs_var_array	*arr;
-	int			i;
+	struct cfs_var_array *arr;
+	int i;
 
 	LIBCFS_ALLOC(arr, offsetof(struct cfs_var_array, va_ptrs[count]));
 	if (!arr)
 		return NULL;
 
-	arr->va_count	= count;
-	arr->va_size	= size;
+	arr->va_count = count;
+	arr->va_size = size;
 
 	for (i = 0; i < count; i++) {
 		LIBCFS_ALLOC(arr->va_ptrs[i], size);

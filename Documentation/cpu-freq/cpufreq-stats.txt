@@ -34,20 +34,26 @@ cpufreq stats provides following statistics (explained in detail below).
 -  total_trans
 -  trans_table
 
-All the statistics will be from the time the stats driver has been inserted 
-to the time when a read of a particular statistic is done. Obviously, stats 
-driver will not have any information about the frequency transitions before
-the stats driver insertion.
+All the statistics will be from the time the stats driver has been inserted
+(or the time the stats were reset) to the time when a read of a particular
+statistic is done. Obviously, stats driver will not have any information
+about the frequency transitions before the stats driver insertion.
 
 --------------------------------------------------------------------------------
 <mysystem>:/sys/devices/system/cpu/cpu0/cpufreq/stats # ls -l
 total 0
 drwxr-xr-x  2 root root    0 May 14 16:06 .
 drwxr-xr-x  3 root root    0 May 14 15:58 ..
+--w-------  1 root root 4096 May 14 16:06 reset
 -r--r--r--  1 root root 4096 May 14 16:06 time_in_state
 -r--r--r--  1 root root 4096 May 14 16:06 total_trans
 -r--r--r--  1 root root 4096 May 14 16:06 trans_table
 --------------------------------------------------------------------------------
+
+-  reset
+Write-only attribute that can be used to reset the stat counters. This can be
+useful for evaluating system behaviour under different governors without the
+need for a reboot.
 
 -  time_in_state
 This gives the amount of time spent in each of the frequencies supported by
@@ -104,25 +110,13 @@ Config Main Menu
 		CPU Frequency scaling  --->
 			[*] CPU Frequency scaling
 			[*]   CPU frequency translation statistics
-			[*]     CPU frequency translation statistics details
 
 
 "CPU Frequency scaling" (CONFIG_CPU_FREQ) should be enabled to configure
 cpufreq-stats.
 
 "CPU frequency translation statistics" (CONFIG_CPU_FREQ_STAT) provides the
-basic statistics which includes time_in_state and total_trans.
+statistics which includes time_in_state, total_trans and trans_table.
 
-"CPU frequency translation statistics details" (CONFIG_CPU_FREQ_STAT_DETAILS)
-provides fine grained cpufreq stats by trans_table. The reason for having a
-separate config option for trans_table is:
-- trans_table goes against the traditional /sysfs rule of one value per
-  interface. It provides a whole bunch of value in a 2 dimensional matrix
-  form.
-
-Once these two options are enabled and your CPU supports cpufrequency, you
+Once this option is enabled and your CPU supports cpufrequency, you
 will be able to see the CPU frequency statistics in /sysfs.
-
-
-
-

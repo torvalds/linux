@@ -16,6 +16,7 @@
 #include <linux/log2.h>
 #include <linux/prefetch.h>
 #include <linux/irq.h>
+#include <linux/iommu.h>
 
 #include "nic_reg.h"
 #include "nic.h"
@@ -221,6 +222,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		nic->link_up = mbx.link_status.link_up;
 		nic->duplex = mbx.link_status.duplex;
 		nic->speed = mbx.link_status.speed;
+		nic->mac_type = mbx.link_status.mac_type;
 		if (nic->link_up) {
 			netdev_info(nic->netdev, "%s: Link is Up %d Mbps %s\n",
 				    nic->netdev->name, nic->speed,
@@ -253,6 +255,12 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		 * to primary VF's netdev.
 		 */
 		nic->pnicvf = (struct nicvf *)mbx.nicvf.nicvf;
+		nic->pf_acked = true;
+		break;
+	case NIC_MBOX_MSG_PFC:
+		nic->pfc.autoneg = mbx.pfc.autoneg;
+		nic->pfc.fc_rx = mbx.pfc.fc_rx;
+		nic->pfc.fc_tx = mbx.pfc.fc_tx;
 		nic->pf_acked = true;
 		break;
 	default:
@@ -518,7 +526,12 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 			/* Get actual TSO descriptors and free them */
 			tso_sqe =
 			 (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, hdr->rsvd2);
+			nicvf_unmap_sndq_buffers(nic, sq, hdr->rsvd2,
+						 tso_sqe->subdesc_cnt);
 			nicvf_put_sq_desc(sq, tso_sqe->subdesc_cnt + 1);
+		} else {
+			nicvf_unmap_sndq_buffers(nic, sq, cqe_tx->sqe_ptr,
+						 hdr->subdesc_cnt);
 		}
 		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 		prefetch(skb);
@@ -569,6 +582,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 {
 	struct sk_buff *skb;
 	struct nicvf *nic = netdev_priv(netdev);
+	struct nicvf *snic = nic;
 	int err = 0;
 	int rq_idx;
 
@@ -585,7 +599,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 	if (err && !cqe_rx->rb_cnt)
 		return;
 
-	skb = nicvf_get_rcv_skb(nic, cqe_rx);
+	skb = nicvf_get_rcv_skb(snic, cqe_rx);
 	if (!skb) {
 		netdev_dbg(nic->netdev, "Packet not received\n");
 		return;
@@ -637,6 +651,7 @@ static int nicvf_cq_intr_handler(struct net_device *netdev, u8 cq_idx,
 	struct cmp_queue *cq = &qs->cq[cq_idx];
 	struct cqe_rx_t *cq_desc;
 	struct netdev_queue *txq;
+	struct snd_queue *sq;
 	unsigned int tx_pkts = 0, tx_bytes = 0;
 
 	spin_lock_bh(&cq->lock);
@@ -702,16 +717,20 @@ loop:
 
 done:
 	/* Wakeup TXQ if its stopped earlier due to SQ full */
-	if (tx_done) {
+	sq = &nic->qs->sq[cq_idx];
+	if (tx_done ||
+	    (atomic_read(&sq->free_cnt) >= MIN_SQ_DESC_PER_PKT_XMIT)) {
 		netdev = nic->pnicvf->netdev;
 		txq = netdev_get_tx_queue(netdev,
 					  nicvf_netdev_qidx(nic, cq_idx));
 		if (tx_pkts)
 			netdev_tx_completed_queue(txq, tx_pkts, tx_bytes);
 
-		nic = nic->pnicvf;
+		/* To read updated queue and carrier status */
+		smp_mb();
 		if (netif_tx_queue_stopped(txq) && netif_carrier_ok(netdev)) {
-			netif_tx_start_queue(txq);
+			netif_tx_wake_queue(txq);
+			nic = nic->pnicvf;
 			this_cpu_inc(nic->drv_stats->txq_wake);
 			if (netif_msg_tx_err(nic))
 				netdev_warn(netdev,
@@ -737,7 +756,7 @@ static int nicvf_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		/* Slow packet rate, exit polling */
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		/* Re-enable interrupts */
 		cq_head = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_HEAD,
 					       cq->cq_idx);
@@ -1047,6 +1066,9 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct nicvf *nic = netdev_priv(netdev);
 	int qid = skb_get_queue_mapping(skb);
 	struct netdev_queue *txq = netdev_get_tx_queue(netdev, qid);
+	struct nicvf *snic;
+	struct snd_queue *sq;
+	int tmp;
 
 	/* Check for minimum packet length */
 	if (skb->len <= ETH_HLEN) {
@@ -1054,13 +1076,39 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-	if (!netif_tx_queue_stopped(txq) && !nicvf_sq_append_skb(nic, skb)) {
+	snic = nic;
+	/* Get secondary Qset's SQ structure */
+	if (qid >= MAX_SND_QUEUES_PER_QS) {
+		tmp = qid / MAX_SND_QUEUES_PER_QS;
+		snic = (struct nicvf *)nic->snicvf[tmp - 1];
+		if (!snic) {
+			netdev_warn(nic->netdev,
+				    "Secondary Qset#%d's ptr not initialized\n",
+				    tmp - 1);
+			dev_kfree_skb(skb);
+			return NETDEV_TX_OK;
+		}
+		qid = qid % MAX_SND_QUEUES_PER_QS;
+	}
+
+	sq = &snic->qs->sq[qid];
+	if (!netif_tx_queue_stopped(txq) &&
+	    !nicvf_sq_append_skb(snic, sq, skb, qid)) {
 		netif_tx_stop_queue(txq);
-		this_cpu_inc(nic->drv_stats->txq_stop);
-		if (netif_msg_tx_err(nic))
-			netdev_warn(netdev,
-				    "%s: Transmit ring full, stopping SQ%d\n",
-				    netdev->name, qid);
+
+		/* Barrier, so that stop_queue visible to other cpus */
+		smp_mb();
+
+		/* Check again, incase another cpu freed descriptors */
+		if (atomic_read(&sq->free_cnt) > MIN_SQ_DESC_PER_PKT_XMIT) {
+			netif_tx_wake_queue(txq);
+		} else {
+			this_cpu_inc(nic->drv_stats->txq_stop);
+			if (netif_msg_tx_err(nic))
+				netdev_warn(netdev,
+					    "%s: Transmit ring full, stopping SQ%d\n",
+					    netdev->name, qid);
+		}
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1233,7 +1281,8 @@ int nicvf_open(struct net_device *netdev)
 	/* Configure receive side scaling and MTU */
 	if (!nic->sqs_mode) {
 		nicvf_rss_init(nic);
-		if (nicvf_update_hw_max_frs(nic, netdev->mtu))
+		err = nicvf_update_hw_max_frs(nic, netdev->mtu);
+		if (err)
 			goto cleanup;
 
 		/* Clear percpu stats */
@@ -1291,20 +1340,17 @@ napi_del:
 static int nicvf_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct nicvf *nic = netdev_priv(netdev);
-
-	if (new_mtu > NIC_HW_MAX_FRS)
-		return -EINVAL;
-
-	if (new_mtu < NIC_HW_MIN_FRS)
-		return -EINVAL;
+	int orig_mtu = netdev->mtu;
 
 	netdev->mtu = new_mtu;
 
 	if (!netif_running(netdev))
 		return 0;
 
-	if (nicvf_update_hw_max_frs(nic, new_mtu))
+	if (nicvf_update_hw_max_frs(nic, new_mtu)) {
+		netdev->mtu = orig_mtu;
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1423,8 +1469,8 @@ void nicvf_update_stats(struct nicvf *nic)
 		nicvf_update_sq_stats(nic, qidx);
 }
 
-static struct rtnl_link_stats64 *nicvf_get_stats64(struct net_device *netdev,
-					    struct rtnl_link_stats64 *stats)
+static void nicvf_get_stats64(struct net_device *netdev,
+			      struct rtnl_link_stats64 *stats)
 {
 	struct nicvf *nic = netdev_priv(netdev);
 	struct nicvf_hw_stats *hw_stats = &nic->hw_stats;
@@ -1440,7 +1486,6 @@ static struct rtnl_link_stats64 *nicvf_get_stats64(struct net_device *netdev,
 	stats->tx_packets = hw_stats->tx_frames;
 	stats->tx_dropped = hw_stats->tx_drops;
 
-	return stats;
 }
 
 static void nicvf_tx_timeout(struct net_device *dev)
@@ -1605,6 +1650,9 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!pass1_silicon(nic->pdev))
 		nic->hw_tso = true;
 
+	/* Get iommu domain for iova to physical addr conversion */
+	nic->iommu_domain = iommu_get_domain_for_dev(dev);
+
 	pci_read_config_word(nic->pdev, PCI_SUBSYSTEM_ID, &sdevid);
 	if (sdevid == 0xA134)
 		nic->t88 = true;
@@ -1630,6 +1678,10 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev->netdev_ops = &nicvf_netdev_ops;
 	netdev->watchdog_timeo = NICVF_TX_TIMEOUT;
+
+	/* MTU range: 64 - 9200 */
+	netdev->min_mtu = NIC_HW_MIN_FRS;
+	netdev->max_mtu = NIC_HW_MAX_FRS;
 
 	INIT_WORK(&nic->reset_task, nicvf_reset_task);
 

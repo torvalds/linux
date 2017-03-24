@@ -1,15 +1,10 @@
-CC := $(CROSS_COMPILE)gcc
 CFLAGS := $(CFLAGS) -Wall -D_GNU_SOURCE
 LDFLAGS := $(LDFLAGS) -lm
 
-TARGETS := msr aperf
+TEST_GEN_FILES := msr aperf
 
-TEST_PROGS := $(TARGETS) run.sh
+TEST_PROGS := run.sh
 
-.PHONY: all clean
-all: $(TARGETS)
+include ../lib.mk
 
-$(TARGETS): $(HEADERS)
-
-clean:
-	rm -f $(TARGETS)
+$(TEST_GEN_FILES): $(HEADERS)

@@ -113,6 +113,7 @@ config ARCH_MVEBU
 
 config ARCH_QCOM
 	bool "Qualcomm Platforms"
+	select GPIOLIB
 	select PINCTRL
 	help
 	  This enables support for the ARMv8 based Qualcomm chipsets.
@@ -143,6 +144,7 @@ config ARCH_RENESAS
 	select PM
 	select PM_GENERIC_DOMAINS
 	select RENESAS_IRQC
+	select SOC_BUS
 	help
 	  This enables support for the ARMv8 based Renesas SoCs.
 
@@ -187,6 +189,13 @@ config ARCH_THUNDER
 	bool "Cavium Inc. Thunder SoC Family"
 	help
 	  This enables support for Cavium's Thunder Family of SoCs.
+
+config ARCH_THUNDER2
+	bool "Cavium ThunderX2 Server Processors"
+	select GPIOLIB
+	help
+	  This enables support for Cavium's ThunderX2 CN99XX family of
+	  server processors.
 
 config ARCH_UNIPHIER
 	bool "Socionext UniPhier SoC Family"

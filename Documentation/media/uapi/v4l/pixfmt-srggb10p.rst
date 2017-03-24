@@ -28,7 +28,7 @@ bits of each pixel, in the same order.
 Each n-pixel row contains n/2 green samples and n/2 blue or red samples,
 with alternating green-red and green-blue rows. They are conventionally
 described as GRGR... BGBG..., RGRG... GBGB..., etc. Below is an example
-of one of these formats:
+of a small V4L2_PIX_FMT_SBGGR10P image:
 
 **Byte Order.**
 Each cell is one byte.

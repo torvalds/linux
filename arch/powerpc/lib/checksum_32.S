@@ -103,17 +103,14 @@ EXPORT_SYMBOL(__csum_partial)
 	adde	r12,r12,r10
 
 #define CSUM_COPY_16_BYTES_EXCODE(n)		\
-.section __ex_table,"a";		\
-	.align	2;			\
-	.long	8 ## n ## 0b,src_error;	\
-	.long	8 ## n ## 1b,src_error;	\
-	.long	8 ## n ## 2b,src_error;	\
-	.long	8 ## n ## 3b,src_error;	\
-	.long	8 ## n ## 4b,dst_error;	\
-	.long	8 ## n ## 5b,dst_error;	\
-	.long	8 ## n ## 6b,dst_error;	\
-	.long	8 ## n ## 7b,dst_error;	\
-	.text
+	EX_TABLE(8 ## n ## 0b, src_error);	\
+	EX_TABLE(8 ## n ## 1b, src_error);	\
+	EX_TABLE(8 ## n ## 2b, src_error);	\
+	EX_TABLE(8 ## n ## 3b, src_error);	\
+	EX_TABLE(8 ## n ## 4b, dst_error);	\
+	EX_TABLE(8 ## n ## 5b, dst_error);	\
+	EX_TABLE(8 ## n ## 6b, dst_error);	\
+	EX_TABLE(8 ## n ## 7b, dst_error);
 
 	.text
 	.stabs	"arch/powerpc/lib/",N_SO,0,0,0f
@@ -263,14 +260,11 @@ dst_error:
 	stw	r0,0(r8)
 	blr
 
-	.section __ex_table,"a"
-	.align	2
-	.long	70b,src_error
-	.long	71b,dst_error
-	.long	72b,src_error
-	.long	73b,dst_error
-	.long	54b,dst_error
-	.text
+	EX_TABLE(70b, src_error);
+	EX_TABLE(71b, dst_error);
+	EX_TABLE(72b, src_error);
+	EX_TABLE(73b, dst_error);
+	EX_TABLE(54b, dst_error);
 
 /*
  * this stuff handles faults in the cacheline loop and branches to either
@@ -291,12 +285,11 @@ dst_error:
 #endif
 #endif
 
-	.section __ex_table,"a"
-	.align	2
-	.long	30b,src_error
-	.long	31b,dst_error
-	.long	40b,src_error
-	.long	41b,dst_error
-	.long	50b,src_error
-	.long	51b,dst_error
+	EX_TABLE(30b, src_error);
+	EX_TABLE(31b, dst_error);
+	EX_TABLE(40b, src_error);
+	EX_TABLE(41b, dst_error);
+	EX_TABLE(50b, src_error);
+	EX_TABLE(51b, dst_error);
+
 EXPORT_SYMBOL(csum_partial_copy_generic)

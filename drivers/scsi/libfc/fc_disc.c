@@ -36,6 +36,8 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/rculist.h>
+
 #include <asm/unaligned.h>
 
 #include <scsi/fc/fc_gs.h>
@@ -68,10 +70,14 @@ static void fc_disc_stop_rports(struct fc_disc *disc)
 
 	lport = fc_disc_lport(disc);
 
-	mutex_lock(&disc->disc_mutex);
-	list_for_each_entry_rcu(rdata, &disc->rports, peers)
-		lport->tt.rport_logoff(rdata);
-	mutex_unlock(&disc->disc_mutex);
+	rcu_read_lock();
+	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
+		if (kref_get_unless_zero(&rdata->kref)) {
+			fc_rport_logoff(rdata);
+			kref_put(&rdata->kref, fc_rport_destroy);
+		}
+	}
+	rcu_read_unlock();
 }
 
 /**
@@ -150,7 +156,7 @@ static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 			break;
 		}
 	}
-	lport->tt.seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
+	fc_seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 
 	/*
 	 * If not doing a complete rediscovery, do GPN_ID on
@@ -178,7 +184,7 @@ reject:
 	FC_DISC_DBG(disc, "Received a bad RSCN frame\n");
 	rjt_data.reason = ELS_RJT_LOGIC;
 	rjt_data.explan = ELS_EXPL_NONE;
-	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
+	fc_seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(fp);
 }
 
@@ -289,15 +295,19 @@ static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
 	 * Skip ports which were never discovered.  These are the dNS port
 	 * and ports which were created by PLOGI.
 	 */
+	rcu_read_lock();
 	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
-		if (!rdata->disc_id)
+		if (!kref_get_unless_zero(&rdata->kref))
 			continue;
-		if (rdata->disc_id == disc->disc_id)
-			lport->tt.rport_login(rdata);
-		else
-			lport->tt.rport_logoff(rdata);
+		if (rdata->disc_id) {
+			if (rdata->disc_id == disc->disc_id)
+				fc_rport_login(rdata);
+			else
+				fc_rport_logoff(rdata);
+		}
+		kref_put(&rdata->kref, fc_rport_destroy);
 	}
-
+	rcu_read_unlock();
 	mutex_unlock(&disc->disc_mutex);
 	disc->disc_callback(lport, event);
 	mutex_lock(&disc->disc_mutex);
@@ -446,7 +456,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 
 		if (ids.port_id != lport->port_id &&
 		    ids.port_name != lport->wwpn) {
-			rdata = lport->tt.rport_create(lport, ids.port_id);
+			rdata = fc_rport_create(lport, ids.port_id);
 			if (rdata) {
 				rdata->ids.port_name = ids.port_name;
 				rdata->disc_id = disc->disc_id;
@@ -592,7 +602,6 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 	lport = rdata->local_port;
 	disc = &lport->disc;
 
-	mutex_lock(&disc->disc_mutex);
 	if (PTR_ERR(fp) == -FC_EX_CLOSED)
 		goto out;
 	if (IS_ERR(fp))
@@ -607,37 +616,41 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 			goto redisc;
 		pn = (struct fc_ns_gid_pn *)(cp + 1);
 		port_name = get_unaligned_be64(&pn->fn_wwpn);
+		mutex_lock(&rdata->rp_mutex);
 		if (rdata->ids.port_name == -1)
 			rdata->ids.port_name = port_name;
 		else if (rdata->ids.port_name != port_name) {
 			FC_DISC_DBG(disc, "GPN_ID accepted.  WWPN changed. "
 				    "Port-id %6.6x wwpn %16.16llx\n",
 				    rdata->ids.port_id, port_name);
-			lport->tt.rport_logoff(rdata);
-
-			new_rdata = lport->tt.rport_create(lport,
-							   rdata->ids.port_id);
+			mutex_unlock(&rdata->rp_mutex);
+			fc_rport_logoff(rdata);
+			mutex_lock(&lport->disc.disc_mutex);
+			new_rdata = fc_rport_create(lport, rdata->ids.port_id);
+			mutex_unlock(&lport->disc.disc_mutex);
 			if (new_rdata) {
 				new_rdata->disc_id = disc->disc_id;
-				lport->tt.rport_login(new_rdata);
+				fc_rport_login(new_rdata);
 			}
 			goto out;
 		}
 		rdata->disc_id = disc->disc_id;
-		lport->tt.rport_login(rdata);
+		mutex_unlock(&rdata->rp_mutex);
+		fc_rport_login(rdata);
 	} else if (ntohs(cp->ct_cmd) == FC_FS_RJT) {
 		FC_DISC_DBG(disc, "GPN_ID rejected reason %x exp %x\n",
 			    cp->ct_reason, cp->ct_explan);
-		lport->tt.rport_logoff(rdata);
+		fc_rport_logoff(rdata);
 	} else {
 		FC_DISC_DBG(disc, "GPN_ID unexpected response code %x\n",
 			    ntohs(cp->ct_cmd));
 redisc:
+		mutex_lock(&disc->disc_mutex);
 		fc_disc_restart(disc);
+		mutex_unlock(&disc->disc_mutex);
 	}
 out:
-	mutex_unlock(&disc->disc_mutex);
-	kref_put(&rdata->kref, lport->tt.rport_destroy);
+	kref_put(&rdata->kref, fc_rport_destroy);
 }
 
 /**
@@ -678,7 +691,7 @@ static int fc_disc_single(struct fc_lport *lport, struct fc_disc_port *dp)
 {
 	struct fc_rport_priv *rdata;
 
-	rdata = lport->tt.rport_create(lport, dp->port_id);
+	rdata = fc_rport_create(lport, dp->port_id);
 	if (!rdata)
 		return -ENOMEM;
 	rdata->disc_id = 0;
@@ -708,7 +721,7 @@ static void fc_disc_stop(struct fc_lport *lport)
 static void fc_disc_stop_final(struct fc_lport *lport)
 {
 	fc_disc_stop(lport);
-	lport->tt.rport_flush_queue();
+	fc_rport_flush_queue();
 }
 
 /**

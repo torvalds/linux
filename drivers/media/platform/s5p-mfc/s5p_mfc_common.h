@@ -104,6 +104,8 @@ static inline dma_addr_t s5p_mfc_mem_cookie(void *a, void *b)
 #define S5P_MFC_R2H_CMD_ENC_BUFFER_FUL_RET	16
 #define S5P_MFC_R2H_CMD_ERR_RET			32
 
+#define MFC_MAX_CLOCKS		4
+
 #define mfc_read(dev, offset)		readl(dev->regs_base + (offset))
 #define mfc_write(dev, data, offset)	writel((data), dev->regs_base + \
 								(offset))
@@ -197,9 +199,12 @@ struct s5p_mfc_buf {
  * struct s5p_mfc_pm - power management data structure
  */
 struct s5p_mfc_pm {
-	struct clk	*clock;
 	struct clk	*clock_gate;
-	atomic_t	power;
+	const char	**clk_names;
+	struct clk	*clocks[MFC_MAX_CLOCKS];
+	int		num_clocks;
+	bool		use_clock_gating;
+
 	struct device	*device;
 };
 
@@ -235,6 +240,9 @@ struct s5p_mfc_variant {
 	struct s5p_mfc_buf_size *buf_size;
 	struct s5p_mfc_buf_align *buf_align;
 	char	*fw_name[MFC_FW_MAX_VERSIONS];
+	const char	*clk_names[MFC_MAX_CLOCKS];
+	int		num_clocks;
+	bool		use_clock_gating;
 };
 
 /**

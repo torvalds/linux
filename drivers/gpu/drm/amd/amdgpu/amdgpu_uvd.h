@@ -29,14 +29,15 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev);
 int amdgpu_uvd_suspend(struct amdgpu_device *adev);
 int amdgpu_uvd_resume(struct amdgpu_device *adev);
 int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
-			      struct fence **fence);
+			      struct dma_fence **fence);
 int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       bool direct, struct fence **fence);
+			       bool direct, struct dma_fence **fence);
 void amdgpu_uvd_free_handles(struct amdgpu_device *adev,
 			     struct drm_file *filp);
 int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx);
 void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring);
 int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout);
+uint32_t amdgpu_uvd_used_handles(struct amdgpu_device *adev);
 
 #endif

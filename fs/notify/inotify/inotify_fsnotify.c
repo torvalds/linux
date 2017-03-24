@@ -30,6 +30,7 @@
 #include <linux/slab.h> /* kmem_* */
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/sched/user.h>
 
 #include "inotify.h"
 
@@ -66,7 +67,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 			 struct inode *inode,
 			 struct fsnotify_mark *inode_mark,
 			 struct fsnotify_mark *vfsmount_mark,
-			 u32 mask, void *data, int data_type,
+			 u32 mask, const void *data, int data_type,
 			 const unsigned char *file_name, u32 cookie)
 {
 	struct inotify_inode_mark *i_mark;
@@ -80,7 +81,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 
 	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
 	    (data_type == FSNOTIFY_EVENT_PATH)) {
-		struct path *path = data;
+		const struct path *path = data;
 
 		if (d_unlinked(path->dentry))
 			return 0;
@@ -165,10 +166,8 @@ static void inotify_free_group_priv(struct fsnotify_group *group)
 	/* ideally the idr is empty and we won't hit the BUG in the callback */
 	idr_for_each(&group->inotify_data.idr, idr_callback, group);
 	idr_destroy(&group->inotify_data.idr);
-	if (group->inotify_data.user) {
-		atomic_dec(&group->inotify_data.user->inotify_devs);
-		free_uid(group->inotify_data.user);
-	}
+	if (group->inotify_data.ucounts)
+		dec_inotify_instances(group->inotify_data.ucounts);
 }
 
 static void inotify_free_event(struct fsnotify_event *fsn_event)

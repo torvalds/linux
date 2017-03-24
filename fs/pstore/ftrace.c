@@ -27,6 +27,9 @@
 #include <asm/barrier.h>
 #include "internal.h"
 
+/* This doesn't need to be atomic: speed is chosen over correctness here. */
+static u64 pstore_ftrace_stamp;
+
 static void notrace pstore_ftrace_call(unsigned long ip,
 				       unsigned long parent_ip,
 				       struct ftrace_ops *op,
@@ -42,6 +45,7 @@ static void notrace pstore_ftrace_call(unsigned long ip,
 
 	rec.ip = ip;
 	rec.parent_ip = parent_ip;
+	pstore_ftrace_write_timestamp(&rec, pstore_ftrace_stamp++);
 	pstore_ftrace_encode_cpu(&rec, raw_smp_processor_id());
 	psinfo->write_buf(PSTORE_TYPE_FTRACE, 0, NULL, 0, (void *)&rec,
 			  0, sizeof(rec), psinfo);
@@ -71,10 +75,13 @@ static ssize_t pstore_ftrace_knob_write(struct file *f, const char __user *buf,
 	if (!on ^ pstore_ftrace_enabled)
 		goto out;
 
-	if (on)
+	if (on) {
+		ftrace_ops_set_global_filter(&pstore_ftrace_ops);
 		ret = register_ftrace_function(&pstore_ftrace_ops);
-	else
+	} else {
 		ret = unregister_ftrace_function(&pstore_ftrace_ops);
+	}
+
 	if (ret) {
 		pr_err("%s: unable to %sregister ftrace ops: %zd\n",
 		       __func__, on ? "" : "un", ret);

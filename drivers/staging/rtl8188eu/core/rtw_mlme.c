@@ -659,6 +659,7 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 			}
 		} else {
 			int s_ret;
+
 			set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 			pmlmepriv->to_join = false;
 			s_ret = rtw_select_and_join_from_scanned_queue(pmlmepriv);
@@ -801,7 +802,7 @@ void rtw_indicate_connect(struct adapter *padapter)
 	if (!check_fwstate(&padapter->mlmepriv, _FW_LINKED)) {
 		set_fwstate(pmlmepriv, _FW_LINKED);
 
-		rtw_led_control(padapter, LED_CTL_LINK);
+		LedControl8188eu(padapter, LED_CTL_LINK);
 
 		rtw_os_indicate_connect(padapter);
 	}
@@ -833,7 +834,7 @@ void rtw_indicate_disconnect(struct adapter *padapter)
 		rtw_os_indicate_disconnect(padapter);
 
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
-		rtw_led_control(padapter, LED_CTL_NO_LINK);
+		LedControl8188eu(padapter, LED_CTL_NO_LINK);
 		rtw_clear_scan_deny(padapter);
 	}
 
@@ -1256,6 +1257,7 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 
 	if (mac_id >= 0) {
 		u16 media_status;
+
 		media_status = (mac_id<<8)|0; /*   MACID|OPMODE:0 means disconnect */
 		/* for STA, AP, ADHOC mode, report disconnect stauts to FW */
 		rtw_hal_set_hwreg(adapter, HW_VAR_H2C_MEDIA_STATUS_RPT, (u8 *)&media_status);
@@ -1542,6 +1544,7 @@ int rtw_select_and_join_from_scanned_queue(struct mlme_priv *pmlmepriv)
 	rtw_hal_get_def_var(adapter, HAL_DEF_IS_SUPPORT_ANT_DIV, &(supp_ant_div));
 	if (supp_ant_div) {
 		u8 cur_ant;
+
 		rtw_hal_get_def_var(adapter, HAL_DEF_CURRENT_ANTENNA, &(cur_ant));
 		DBG_88E("#### Opt_Ant_(%s), cur_Ant(%s)\n",
 			(2 == candidate->network.PhyInfo.Optimum_antenna) ? "A" : "B",

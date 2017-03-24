@@ -14,14 +14,16 @@
 #include <linux/const.h>
 
 #define CIF_MCCK_PENDING	0	/* machine check handling is pending */
-#define CIF_ASCE		1	/* user asce needs fixup / uaccess */
-#define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
-#define CIF_FPU			3	/* restore FPU registers */
-#define CIF_IGNORE_IRQ		4	/* ignore interrupt (for udelay) */
-#define CIF_ENABLED_WAIT	5	/* in enabled wait state */
+#define CIF_ASCE_PRIMARY	1	/* primary asce needs fixup / uaccess */
+#define CIF_ASCE_SECONDARY	2	/* secondary asce needs fixup / uaccess */
+#define CIF_NOHZ_DELAY		3	/* delay HZ disable for a tick */
+#define CIF_FPU			4	/* restore FPU registers */
+#define CIF_IGNORE_IRQ		5	/* ignore interrupt (for udelay) */
+#define CIF_ENABLED_WAIT	6	/* in enabled wait state */
 
 #define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
-#define _CIF_ASCE		_BITUL(CIF_ASCE)
+#define _CIF_ASCE_PRIMARY	_BITUL(CIF_ASCE_PRIMARY)
+#define _CIF_ASCE_SECONDARY	_BITUL(CIF_ASCE_SECONDARY)
 #define _CIF_NOHZ_DELAY		_BITUL(CIF_NOHZ_DELAY)
 #define _CIF_FPU		_BITUL(CIF_FPU)
 #define _CIF_IGNORE_IRQ		_BITUL(CIF_IGNORE_IRQ)
@@ -89,7 +91,8 @@ extern void execve_tail(void);
  * User space process size: 2GB for 31 bit, 4TB or 8PT for 64 bit.
  */
 
-#define TASK_SIZE_OF(tsk)	((tsk)->mm->context.asce_limit)
+#define TASK_SIZE_OF(tsk)	((tsk)->mm ? \
+				 (tsk)->mm->context.asce_limit : TASK_MAX_SIZE)
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
 					(1UL << 30) : (1UL << 41))
 #define TASK_SIZE		TASK_SIZE_OF(current)
@@ -110,14 +113,23 @@ typedef struct {
 struct thread_struct {
 	unsigned int  acrs[NUM_ACRS];
         unsigned long ksp;              /* kernel stack pointer             */
+	unsigned long user_timer;	/* task cputime in user space */
+	unsigned long guest_timer;	/* task cputime in kvm guest */
+	unsigned long system_timer;	/* task cputime in kernel space */
+	unsigned long hardirq_timer;	/* task cputime in hardirq context */
+	unsigned long softirq_timer;	/* task cputime in softirq context */
+	unsigned long sys_call_table;	/* system call table address */
 	mm_segment_t mm_segment;
 	unsigned long gmap_addr;	/* address of last gmap fault. */
 	unsigned int gmap_write_flag;	/* gmap fault write indication */
 	unsigned int gmap_int_code;	/* int code of last gmap fault */
 	unsigned int gmap_pfault;	/* signal of a pending guest pfault */
+	/* Per-thread information related to debugging */
 	struct per_regs per_user;	/* User specified PER registers */
 	struct per_event per_event;	/* Cause of the last PER trap */
 	unsigned long per_flags;	/* Flags to control debug behavior */
+	unsigned int system_call;	/* system call number in signal */
+	unsigned long last_break;	/* last breaking-event-address. */
         /* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
 	struct list_head list;
@@ -191,10 +203,12 @@ struct stack_frame {
 struct task_struct;
 struct mm_struct;
 struct seq_file;
+struct pt_regs;
 
 typedef int (*dump_trace_func_t)(void *data, unsigned long address, int reliable);
 void dump_trace(dump_trace_func_t func, void *data,
 		struct task_struct *task, unsigned long sp);
+void show_registers(struct pt_regs *regs);
 
 void show_cacheinfo(struct seq_file *m);
 
@@ -234,9 +248,10 @@ static inline unsigned short stap(void)
 /*
  * Give up the time slice of the virtual PU.
  */
-void cpu_relax(void);
+#define cpu_relax_yield cpu_relax_yield
+void cpu_relax_yield(void);
 
-#define cpu_relax_lowlatency()  barrier()
+#define cpu_relax() barrier()
 
 #define ECAG_CACHE_ATTRIBUTE	0
 #define ECAG_CPU_ATTRIBUTE	1
@@ -351,12 +366,12 @@ extern void (*s390_base_ext_handler_fn)(void);
 extern int memcpy_real(void *, void *, size_t);
 extern void memcpy_absolute(void *, void *, size_t);
 
-#define mem_assign_absolute(dest, val) {			\
+#define mem_assign_absolute(dest, val) do {			\
 	__typeof__(dest) __tmp = (val);				\
 								\
 	BUILD_BUG_ON(sizeof(__tmp) != sizeof(val));		\
 	memcpy_absolute(&(dest), &__tmp, sizeof(__tmp));	\
-}
+} while (0)
 
 #endif /* __ASSEMBLY__ */
 

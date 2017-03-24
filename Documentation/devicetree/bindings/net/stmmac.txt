@@ -1,7 +1,7 @@
 * STMicroelectronics 10/100/1000 Ethernet driver (GMAC)
 
 Required properties:
-- compatible: Should be "snps,dwmac-<ip_version>" "snps,dwmac"
+- compatible: Should be "snps,dwmac-<ip_version>", "snps,dwmac"
 	For backwards compatibility: "st,spear600-gmac" is also supported.
 - reg: Address and length of the register set for the device
 - interrupt-parent: Should be the phandle for the interrupt controller
@@ -34,7 +34,13 @@ Optional properties:
   platforms.
 - tx-fifo-depth: See ethernet.txt file in the same directory
 - rx-fifo-depth: See ethernet.txt file in the same directory
-- snps,pbl		Programmable Burst Length
+- snps,pbl		Programmable Burst Length (tx and rx)
+- snps,txpbl		Tx Programmable Burst Length. Only for GMAC and newer.
+			If set, DMA tx will use this value rather than snps,pbl.
+- snps,rxpbl		Rx Programmable Burst Length. Only for GMAC and newer.
+			If set, DMA rx will use this value rather than snps,pbl.
+- snps,no-pbl-x8	Don't multiply the pbl/txpbl/rxpbl values by 8.
+			For core rev < 3.50, don't multiply the values by 4.
 - snps,aal		Address-Aligned Beats
 - snps,fixed-burst	Program the DMA to use the fixed burst mode
 - snps,mixed-burst	Program the DMA to use the mixed burst mode
@@ -43,6 +49,8 @@ Optional properties:
 - snps,force_sf_dma_mode	Force DMA to use the Store and Forward
 				mode for both tx and rx. This flag is
 				ignored if force_thresh_dma_mode is set.
+- snps,en-tx-lpi-clockgating	Enable gating of the MAC TX clock during
+				TX low-power mode
 - snps,multicast-filter-bins:	Number of multicast filter hash bins
 				supported by this device instance
 - snps,perfect-filter-entries:	Number of perfect filter entries supported
@@ -50,6 +58,8 @@ Optional properties:
 - snps,ps-speed: port selection speed that can be passed to the core when
 		 PCS is supported. For example, this is used in case of SGMII
 		 and MAC2MAC connection.
+- snps,tso: this enables the TSO feature otherwise it will be managed by
+		 MAC HW capability register. Only for GMAC4 and newer.
 - AXI BUS Mode parameters: below the list of all the parameters to program the
 			   AXI register inside the DMA module:
 	- snps,lpi_en: enable Low Power Interface
@@ -57,13 +67,10 @@ Optional properties:
 	- snps,wr_osr_lmt: max write outstanding req. limit
 	- snps,rd_osr_lmt: max read outstanding req. limit
 	- snps,kbbe: do not cross 1KiB boundary.
-	- snps,axi_all: align address
 	- snps,blen: this is a vector of supported burst length.
 	- snps,fb: fixed-burst
 	- snps,mb: mixed-burst
 	- snps,rb: rebuild INCRx Burst
-	- snps,tso: this enables the TSO feature otherwise it will be managed by
-	    MAC HW capability register.
 - mdio: with compatible = "snps,dwmac-mdio", create and register mdio bus.
 
 Examples:

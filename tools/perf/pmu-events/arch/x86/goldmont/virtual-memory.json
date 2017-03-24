@@ -1,0 +1,75 @@
+[
+    {
+        "CollectPEBSRecord": "1",
+        "PublicDescription": "Counts the number of times the machine was unable to find a translation in the Instruction Translation Lookaside Buffer (ITLB) for a linear address of an instruction fetch.  It counts when new translation are filled into the ITLB.  The event is speculative in nature, but will not count translations (page walks) that are begun and not finished, or translations that are finished but not filled into the ITLB.",
+        "EventCode": "0x81",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "EventName": "ITLB.MISS",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "ITLB misses"
+    },
+    {
+        "PEBS": "2",
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts load uops retired that caused a DTLB miss.",
+        "EventCode": "0xD0",
+        "Counter": "0,1,2,3",
+        "UMask": "0x11",
+        "EventName": "MEM_UOPS_RETIRED.DTLB_MISS_LOADS",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Load uops retired that missed the DTLB (Precise event capable)"
+    },
+    {
+        "PEBS": "2",
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts store uops retired that caused a DTLB miss.",
+        "EventCode": "0xD0",
+        "Counter": "0,1,2,3",
+        "UMask": "0x12",
+        "EventName": "MEM_UOPS_RETIRED.DTLB_MISS_STORES",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Store uops retired that missed the DTLB (Precise event capable)"
+    },
+    {
+        "PEBS": "2",
+        "CollectPEBSRecord": "2",
+        "PublicDescription": "Counts uops retired that had a DTLB miss on load, store or either.  Note that when two distinct memory operations to the same page miss the DTLB, only one of them will be recorded as a DTLB miss.",
+        "EventCode": "0xD0",
+        "Counter": "0,1,2,3",
+        "UMask": "0x13",
+        "EventName": "MEM_UOPS_RETIRED.DTLB_MISS",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Memory uops retired that missed the DTLB (Precise event capable)"
+    },
+    {
+        "CollectPEBSRecord": "1",
+        "PublicDescription": "Counts every core cycle when a Data-side (walks due to a data operation) page walk is in progress.",
+        "EventCode": "0x05",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "PAGE_WALKS.D_SIDE_CYCLES",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Duration of D-side page-walks in cycles"
+    },
+    {
+        "CollectPEBSRecord": "1",
+        "PublicDescription": "Counts every core cycle when a Instruction-side (walks due to an instruction fetch) page walk is in progress.",
+        "EventCode": "0x05",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "PAGE_WALKS.I_SIDE_CYCLES",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Duration of I-side pagewalks in cycles"
+    },
+    {
+        "CollectPEBSRecord": "1",
+        "PublicDescription": "Counts every core cycle a page-walk is in progress due to either a data memory operation or an instruction fetch.",
+        "EventCode": "0x05",
+        "Counter": "0,1,2,3",
+        "UMask": "0x3",
+        "EventName": "PAGE_WALKS.CYCLES",
+        "SampleAfterValue": "200003",
+        "BriefDescription": "Duration of page-walks in cycles"
+    }
+]

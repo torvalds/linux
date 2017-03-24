@@ -75,7 +75,7 @@ config VIRTIO_MMIO_CMDLINE_DEVICES
 	 Allow virtio-mmio devices instantiation via the kernel command line
 	 or module parameters. Be aware that using incorrect parameters (base
 	 address in particular) can crash your system - you have been warned.
-	 See Documentation/kernel-parameters.txt for details.
+	 See Documentation/admin-guide/kernel-parameters.rst for details.
 
 	 If unsure, say 'N'.
 

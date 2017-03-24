@@ -16,11 +16,7 @@
 static uint32_t dlm_nl_seqnum;
 static uint32_t listener_nlportid;
 
-static struct genl_family family = {
-	.id		= GENL_ID_GENERATE,
-	.name		= DLM_GENL_NAME,
-	.version	= DLM_GENL_VERSION,
-};
+static struct genl_family family;
 
 static int prepare_data(u8 cmd, struct sk_buff **skbp, size_t size)
 {
@@ -69,16 +65,24 @@ static int user_cmd(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-static struct genl_ops dlm_nl_ops[] = {
+static const struct genl_ops dlm_nl_ops[] = {
 	{
 		.cmd	= DLM_CMD_HELLO,
 		.doit	= user_cmd,
 	},
 };
 
+static struct genl_family family __ro_after_init = {
+	.name		= DLM_GENL_NAME,
+	.version	= DLM_GENL_VERSION,
+	.ops		= dlm_nl_ops,
+	.n_ops		= ARRAY_SIZE(dlm_nl_ops),
+	.module		= THIS_MODULE,
+};
+
 int __init dlm_netlink_init(void)
 {
-	return genl_register_family_with_ops(&family, dlm_nl_ops);
+	return genl_register_family(&family);
 }
 
 void dlm_netlink_exit(void)

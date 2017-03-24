@@ -71,6 +71,14 @@ config PCIEASPM_POWERSAVE
 	  Enable PCI Express ASPM L0s and L1 where possible, even if the
 	  BIOS did not.
 
+config PCIEASPM_POWER_SUPERSAVE
+	bool "Power Supersave"
+	depends on PCIEASPM
+	help
+	  Same as PCIEASPM_POWERSAVE, except it also enables L1 substates where
+	  possible. This would result in higher power savings while staying in L1
+	  where the components support it.
+
 config PCIEASPM_PERFORMANCE
 	bool "Performance"
 	depends on PCIEASPM

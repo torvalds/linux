@@ -26,8 +26,7 @@
 
 int tda18271_debug;
 module_param_named(debug, tda18271_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debug level "
-		 "(info=1, map=2, reg=4, adv=8, cal=16 (or-able))");
+MODULE_PARM_DESC(debug, "set debug level (info=1, map=2, reg=4, adv=8, cal=16 (or-able))");
 
 static int tda18271_cal_on_startup = -1;
 module_param_named(cal, tda18271_cal_on_startup, int, 0644);
@@ -1049,7 +1048,7 @@ fail:
 	return ret;
 }
 
-static int tda18271_release(struct dvb_frontend *fe)
+static void tda18271_release(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 
@@ -1061,8 +1060,6 @@ static int tda18271_release(struct dvb_frontend *fe)
 	mutex_unlock(&tda18271_list_mutex);
 
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static int tda18271_get_frequency(struct dvb_frontend *fe, u32 *frequency)

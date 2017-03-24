@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -27,7 +28,6 @@
 #include "processpptables.h"
 #include <atom-types.h>
 #include <atombios.h>
-#include "pp_debug.h"
 #include "pptable.h"
 #include "power_state.h"
 #include "hwmgr.h"
@@ -1507,7 +1507,7 @@ static int init_phase_shedding_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int get_number_of_vce_state_table_entries(
+static int get_number_of_vce_state_table_entries(
 						  struct pp_hwmgr *hwmgr)
 {
 	const ATOM_PPLIB_POWERPLAYTABLE *table =
@@ -1521,9 +1521,9 @@ int get_number_of_vce_state_table_entries(
 	return 0;
 }
 
-int get_vce_state_table_entry(struct pp_hwmgr *hwmgr,
+static int get_vce_state_table_entry(struct pp_hwmgr *hwmgr,
 							unsigned long i,
-							struct pp_vce_state *vce_state,
+							struct amd_vce_state *vce_state,
 							void **clock_info,
 							unsigned long *flag)
 {

@@ -24,6 +24,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/of.h>
@@ -36,7 +37,7 @@
 #include <linux/mutex.h>
 
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * This is used to lock changes in serial line configuration.
@@ -73,7 +74,7 @@ static inline struct uart_port *uart_port_ref(struct uart_state *state)
 
 static inline void uart_port_deref(struct uart_port *uport)
 {
-	if (uport && atomic_dec_and_test(&uport->state->refcount))
+	if (atomic_dec_and_test(&uport->state->refcount))
 		wake_up(&uport->state->remove_wait);
 }
 
@@ -88,9 +89,10 @@ static inline void uart_port_deref(struct uart_port *uport)
 #define uart_port_unlock(uport, flags)					\
 	({								\
 		struct uart_port *__uport = uport;			\
-		if (__uport)						\
+		if (__uport) {						\
 			spin_unlock_irqrestore(&__uport->lock, flags);	\
-		uart_port_deref(__uport);				\
+			uart_port_deref(__uport);			\
+		}							\
 	})
 
 static inline struct uart_port *uart_port_check(struct uart_state *state)
@@ -1515,7 +1517,10 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 	unsigned long char_time, expire;
 
 	port = uart_port_ref(state);
-	if (!port || port->type == PORT_UNKNOWN || port->fifosize == 0) {
+	if (!port)
+		return;
+
+	if (port->type == PORT_UNKNOWN || port->fifosize == 0) {
 		uart_port_deref(port);
 		return;
 	}
@@ -2365,9 +2370,10 @@ static int uart_poll_get_char(struct tty_driver *driver, int line)
 
 	if (state) {
 		port = uart_port_ref(state);
-		if (port)
+		if (port) {
 			ret = port->ops->poll_get_char(port);
-		uart_port_deref(port);
+			uart_port_deref(port);
+		}
 	}
 	return ret;
 }

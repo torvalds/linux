@@ -168,17 +168,6 @@ config MPIC_BROKEN_REGREAD
 	  well, but enabling it uses about 8KB of memory to keep copies
 	  of the register contents in software.
 
-config IBMVIO
-	depends on PPC_PSERIES
-	bool
-	default y
-
-config IBMEBUS
-	depends on PPC_PSERIES
-	bool "Support for GX bus based adapters"
-	help
-	  Bus device driver for GX bus based adapters.
-
 config EEH
 	bool
 	depends on (PPC_POWERNV || PPC_PSERIES) && PCI

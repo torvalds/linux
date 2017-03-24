@@ -28,8 +28,9 @@
 #define CPACF_PPNO		0xb93c		/* MSA5 */
 
 /*
- * Decryption modifier bit
+ * En/decryption modifier bits
  */
+#define CPACF_ENCRYPT		0x00
 #define CPACF_DECRYPT		0x80
 
 /*
@@ -42,8 +43,13 @@
 #define CPACF_KM_AES_128	0x12
 #define CPACF_KM_AES_192	0x13
 #define CPACF_KM_AES_256	0x14
+#define CPACF_KM_PAES_128	0x1a
+#define CPACF_KM_PAES_192	0x1b
+#define CPACF_KM_PAES_256	0x1c
 #define CPACF_KM_XTS_128	0x32
 #define CPACF_KM_XTS_256	0x34
+#define CPACF_KM_PXTS_128	0x3a
+#define CPACF_KM_PXTS_256	0x3c
 
 /*
  * Function codes for the KMC (CIPHER MESSAGE WITH CHAINING)
@@ -56,6 +62,9 @@
 #define CPACF_KMC_AES_128	0x12
 #define CPACF_KMC_AES_192	0x13
 #define CPACF_KMC_AES_256	0x14
+#define CPACF_KMC_PAES_128	0x1a
+#define CPACF_KMC_PAES_192	0x1b
+#define CPACF_KMC_PAES_256	0x1c
 #define CPACF_KMC_PRNG		0x43
 
 /*
@@ -69,6 +78,9 @@
 #define CPACF_KMCTR_AES_128	0x12
 #define CPACF_KMCTR_AES_192	0x13
 #define CPACF_KMCTR_AES_256	0x14
+#define CPACF_KMCTR_PAES_128	0x1a
+#define CPACF_KMCTR_PAES_192	0x1b
+#define CPACF_KMCTR_PAES_256	0x1c
 
 /*
  * Function codes for the KIMD (COMPUTE INTERMEDIATE MESSAGE DIGEST)
@@ -97,6 +109,18 @@
 #define CPACF_KMAC_DEA		0x01
 #define CPACF_KMAC_TDEA_128	0x02
 #define CPACF_KMAC_TDEA_192	0x03
+
+/*
+ * Function codes for the PCKMO (PERFORM CRYPTOGRAPHIC KEY MANAGEMENT)
+ * instruction
+ */
+#define CPACF_PCKMO_QUERY		0x00
+#define CPACF_PCKMO_ENC_DES_KEY		0x01
+#define CPACF_PCKMO_ENC_TDES_128_KEY	0x02
+#define CPACF_PCKMO_ENC_TDES_192_KEY	0x03
+#define CPACF_PCKMO_ENC_AES_128_KEY	0x12
+#define CPACF_PCKMO_ENC_AES_192_KEY	0x13
+#define CPACF_PCKMO_ENC_AES_256_KEY	0x14
 
 /*
  * Function codes for the PPNO (PERFORM PSEUDORANDOM NUMBER OPERATION)
@@ -394,6 +418,26 @@ static inline void cpacf_pcc(unsigned long func, void *param)
 		"	brc	1,0b\n" /* handle partial completion */
 		:
 		: [fc] "d" (r0), [pba] "a" (r1), [opc] "i" (CPACF_PCC)
+		: "cc", "memory");
+}
+
+/**
+ * cpacf_pckmo() - executes the PCKMO (PERFORM CRYPTOGRAPHIC KEY
+ *		  MANAGEMENT) instruction
+ * @func: the function code passed to PCKMO; see CPACF_PCKMO_xxx defines
+ * @param: address of parameter block; see POP for details on each func
+ *
+ * Returns 0.
+ */
+static inline void cpacf_pckmo(long func, void *param)
+{
+	register unsigned long r0 asm("0") = (unsigned long) func;
+	register unsigned long r1 asm("1") = (unsigned long) param;
+
+	asm volatile(
+		"       .insn   rre,%[opc] << 16,0,0\n" /* PCKMO opcode */
+		:
+		: [fc] "d" (r0), [pba] "a" (r1), [opc] "i" (CPACF_PCKMO)
 		: "cc", "memory");
 }
 

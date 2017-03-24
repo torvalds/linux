@@ -78,18 +78,6 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substrm, int up)
 	spin_unlock_irqrestore(&dice->lock, flags);
 }
 
-static struct snd_rawmidi_ops capture_ops = {
-	.open		= midi_open,
-	.close		= midi_close,
-	.trigger	= midi_capture_trigger,
-};
-
-static struct snd_rawmidi_ops playback_ops = {
-	.open		= midi_open,
-	.close		= midi_close,
-	.trigger	= midi_playback_trigger,
-};
-
 static void set_midi_substream_names(struct snd_dice *dice,
 				     struct snd_rawmidi_str *str)
 {
@@ -103,6 +91,16 @@ static void set_midi_substream_names(struct snd_dice *dice,
 
 int snd_dice_create_midi(struct snd_dice *dice)
 {
+	static const struct snd_rawmidi_ops capture_ops = {
+		.open		= midi_open,
+		.close		= midi_close,
+		.trigger	= midi_capture_trigger,
+	};
+	static const struct snd_rawmidi_ops playback_ops = {
+		.open		= midi_open,
+		.close		= midi_close,
+		.trigger	= midi_playback_trigger,
+	};
 	__be32 reg;
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_str *str;

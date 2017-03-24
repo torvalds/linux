@@ -421,7 +421,6 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 	struct drbd_peer_device *peer_device = first_peer_device(device);
 	unsigned s = req->rq_state;
 	int c_put = 0;
-	int k_put = 0;
 
 	if (drbd_suspended(device) && !((s | clear) & RQ_COMPLETION_SUSP))
 		set |= RQ_COMPLETION_SUSP;
@@ -436,6 +435,8 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 		return;
 
 	/* intent: get references */
+
+	kref_get(&req->kref);
 
 	if (!(s & RQ_LOCAL_PENDING) && (set & RQ_LOCAL_PENDING))
 		atomic_inc(&req->completion_ref);
@@ -473,15 +474,12 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 
 	if (!(s & RQ_LOCAL_ABORTED) && (set & RQ_LOCAL_ABORTED)) {
 		D_ASSERT(device, req->rq_state & RQ_LOCAL_PENDING);
-		/* local completion may still come in later,
-		 * we need to keep the req object around. */
-		kref_get(&req->kref);
 		++c_put;
 	}
 
 	if ((s & RQ_LOCAL_PENDING) && (clear & RQ_LOCAL_PENDING)) {
 		if (req->rq_state & RQ_LOCAL_ABORTED)
-			++k_put;
+			kref_put(&req->kref, drbd_req_destroy);
 		else
 			++c_put;
 		list_del_init(&req->req_pending_local);
@@ -503,7 +501,7 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 		if (s & RQ_NET_SENT)
 			atomic_sub(req->i.size >> 9, &device->ap_in_flight);
 		if (s & RQ_EXP_BARR_ACK)
-			++k_put;
+			kref_put(&req->kref, drbd_req_destroy);
 		req->net_done_jif = jiffies;
 
 		/* in ahead/behind mode, or just in case,
@@ -516,25 +514,16 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 
 	/* potentially complete and destroy */
 
-	if (k_put || c_put) {
-		/* Completion does it's own kref_put.  If we are going to
-		 * kref_sub below, we need req to be still around then. */
-		int at_least = k_put + !!c_put;
-		int refcount = atomic_read(&req->kref.refcount);
-		if (refcount < at_least)
-			drbd_err(device,
-				"mod_rq_state: Logic BUG: %x -> %x: refcount = %d, should be >= %d\n",
-				s, req->rq_state, refcount, at_least);
-	}
-
 	/* If we made progress, retry conflicting peer requests, if any. */
 	if (req->i.waiting)
 		wake_up(&device->misc_wait);
 
-	if (c_put)
-		k_put += drbd_req_put_completion_ref(req, m, c_put);
-	if (k_put)
-		kref_sub(&req->kref, k_put, drbd_req_destroy);
+	if (c_put) {
+		if (drbd_req_put_completion_ref(req, m, c_put))
+			kref_put(&req->kref, drbd_req_destroy);
+	} else {
+		kref_put(&req->kref, drbd_req_destroy);
+	}
 }
 
 static void drbd_report_io_error(struct drbd_device *device, struct drbd_request *req)
@@ -938,7 +927,7 @@ static bool remote_due_to_read_balancing(struct drbd_device *device, sector_t se
 
 	switch (rbm) {
 	case RB_CONGESTED_REMOTE:
-		bdi = &device->ldev->backing_bdev->bd_disk->queue->backing_dev_info;
+		bdi = device->ldev->backing_bdev->bd_disk->queue->backing_dev_info;
 		return bdi_read_congested(bdi);
 	case RB_LEAST_PENDING:
 		return atomic_read(&device->local_cnt) >

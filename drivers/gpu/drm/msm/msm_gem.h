@@ -24,6 +24,20 @@
 /* Additional internal-use only BO flags: */
 #define MSM_BO_STOLEN        0x10000000    /* try to use stolen/splash memory */
 
+struct msm_gem_address_space {
+	const char *name;
+	/* NOTE: mm managed at the page level, size is in # of pages
+	 * and position mm_node->start is in # of pages:
+	 */
+	struct drm_mm mm;
+	struct msm_mmu *mmu;
+};
+
+struct msm_gem_vma {
+	struct drm_mm_node node;
+	uint64_t iova;
+};
+
 struct msm_gem_object {
 	struct drm_gem_object base;
 
@@ -61,10 +75,7 @@ struct msm_gem_object {
 	struct sg_table *sgt;
 	void *vaddr;
 
-	struct {
-		// XXX
-		uint32_t iova;
-	} domain[NUM_DOMAINS];
+	struct msm_gem_vma domain[NUM_DOMAINS];
 
 	/* normally (resv == &_resv) except for imported bo's */
 	struct reservation_object *resv;
@@ -104,7 +115,7 @@ struct msm_gem_submit {
 	struct list_head node;   /* node in gpu submit_list */
 	struct list_head bo_list;
 	struct ww_acquire_ctx ticket;
-	struct fence *fence;
+	struct dma_fence *fence;
 	struct pid *pid;    /* submitting process */
 	bool valid;         /* true if no cmdstream patching needed */
 	unsigned int nr_cmds;
@@ -112,13 +123,13 @@ struct msm_gem_submit {
 	struct {
 		uint32_t type;
 		uint32_t size;  /* in dwords */
-		uint32_t iova;
+		uint64_t iova;
 		uint32_t idx;   /* cmdstream buffer idx in bos[] */
 	} *cmd;  /* array of size nr_cmds */
 	struct {
 		uint32_t flags;
 		struct msm_gem_object *obj;
-		uint32_t iova;
+		uint64_t iova;
 	} bos[0];
 };
 

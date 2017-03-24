@@ -144,7 +144,6 @@ static enum bonding_slave_state is_eth_active_slave_of_bonding_rcu(struct net_de
 static int is_eth_port_of_netdev(struct ib_device *ib_dev, u8 port,
 				 struct net_device *rdma_ndev, void *cookie)
 {
-	struct net_device *event_ndev = (struct net_device *)cookie;
 	struct net_device *real_dev;
 	int res;
 
@@ -152,11 +151,11 @@ static int is_eth_port_of_netdev(struct ib_device *ib_dev, u8 port,
 		return 0;
 
 	rcu_read_lock();
-	real_dev = rdma_vlan_dev_real_dev(event_ndev);
+	real_dev = rdma_vlan_dev_real_dev(cookie);
 	if (!real_dev)
-		real_dev = event_ndev;
+		real_dev = cookie;
 
-	res = ((rdma_is_upper_dev_rcu(rdma_ndev, event_ndev) &&
+	res = ((rdma_is_upper_dev_rcu(rdma_ndev, cookie) &&
 	       (is_eth_active_slave_of_bonding_rcu(rdma_ndev, real_dev) &
 		REQUIRED_BOND_STATES)) ||
 	       real_dev == rdma_ndev);
@@ -192,17 +191,16 @@ static int pass_all_filter(struct ib_device *ib_dev, u8 port,
 static int upper_device_filter(struct ib_device *ib_dev, u8 port,
 			       struct net_device *rdma_ndev, void *cookie)
 {
-	struct net_device *event_ndev = (struct net_device *)cookie;
 	int res;
 
 	if (!rdma_ndev)
 		return 0;
 
-	if (rdma_ndev == event_ndev)
+	if (rdma_ndev == cookie)
 		return 1;
 
 	rcu_read_lock();
-	res = rdma_is_upper_dev_rcu(rdma_ndev, event_ndev);
+	res = rdma_is_upper_dev_rcu(rdma_ndev, cookie);
 	rcu_read_unlock();
 
 	return res;
@@ -304,10 +302,9 @@ static void enum_netdev_ipv4_ips(struct ib_device *ib_dev,
 	for_ifa(in_dev) {
 		struct sin_list *entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 
-		if (!entry) {
-			pr_warn("roce_gid_mgmt: couldn't allocate entry for IPv4 update\n");
+		if (!entry)
 			continue;
-		}
+
 		entry->ip.sin_family = AF_INET;
 		entry->ip.sin_addr.s_addr = ifa->ifa_address;
 		list_add_tail(&entry->list, &sin_list);
@@ -348,10 +345,8 @@ static void enum_netdev_ipv6_ips(struct ib_device *ib_dev,
 	list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {
 		struct sin6_list *entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 
-		if (!entry) {
-			pr_warn("roce_gid_mgmt: couldn't allocate entry for IPv6 update\n");
+		if (!entry)
 			continue;
-		}
 
 		entry->sin6.sin6_family = AF_INET6;
 		entry->sin6.sin6_addr = ifp->addr;
@@ -382,18 +377,14 @@ static void _add_netdev_ips(struct ib_device *ib_dev, u8 port,
 static void add_netdev_ips(struct ib_device *ib_dev, u8 port,
 			   struct net_device *rdma_ndev, void *cookie)
 {
-	struct net_device *event_ndev = (struct net_device *)cookie;
-
-	enum_netdev_default_gids(ib_dev, port, event_ndev, rdma_ndev);
-	_add_netdev_ips(ib_dev, port, event_ndev);
+	enum_netdev_default_gids(ib_dev, port, cookie, rdma_ndev);
+	_add_netdev_ips(ib_dev, port, cookie);
 }
 
 static void del_netdev_ips(struct ib_device *ib_dev, u8 port,
 			   struct net_device *rdma_ndev, void *cookie)
 {
-	struct net_device *event_ndev = (struct net_device *)cookie;
-
-	ib_cache_gid_del_all_netdev_gids(ib_dev, port, event_ndev);
+	ib_cache_gid_del_all_netdev_gids(ib_dev, port, cookie);
 }
 
 static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
@@ -437,37 +428,39 @@ static void callback_for_addr_gid_device_scan(struct ib_device *device,
 			  &parsed->gid_attr);
 }
 
+struct upper_list {
+	struct list_head list;
+	struct net_device *upper;
+};
+
+static int netdev_upper_walk(struct net_device *upper, void *data)
+{
+	struct upper_list *entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+	struct list_head *upper_list = data;
+
+	if (!entry)
+		return 0;
+
+	list_add_tail(&entry->list, upper_list);
+	dev_hold(upper);
+	entry->upper = upper;
+
+	return 0;
+}
+
 static void handle_netdev_upper(struct ib_device *ib_dev, u8 port,
 				void *cookie,
 				void (*handle_netdev)(struct ib_device *ib_dev,
 						      u8 port,
 						      struct net_device *ndev))
 {
-	struct net_device *ndev = (struct net_device *)cookie;
-	struct upper_list {
-		struct list_head list;
-		struct net_device *upper;
-	};
-	struct net_device *upper;
-	struct list_head *iter;
+	struct net_device *ndev = cookie;
 	struct upper_list *upper_iter;
 	struct upper_list *upper_temp;
 	LIST_HEAD(upper_list);
 
 	rcu_read_lock();
-	netdev_for_each_all_upper_dev_rcu(ndev, upper, iter) {
-		struct upper_list *entry = kmalloc(sizeof(*entry),
-						   GFP_ATOMIC);
-
-		if (!entry) {
-			pr_info("roce_gid_mgmt: couldn't allocate entry to delete ndev\n");
-			continue;
-		}
-
-		list_add_tail(&entry->list, &upper_list);
-		dev_hold(upper);
-		entry->upper = upper;
-	}
+	netdev_walk_all_upper_dev_rcu(ndev, netdev_upper_walk, &upper_list);
 	rcu_read_unlock();
 
 	handle_netdev(ib_dev, port, ndev);
@@ -520,9 +513,7 @@ static void del_netdev_default_ips_join(struct ib_device *ib_dev, u8 port,
 static void del_netdev_default_ips(struct ib_device *ib_dev, u8 port,
 				   struct net_device *rdma_ndev, void *cookie)
 {
-	struct net_device *event_ndev = (struct net_device *)cookie;
-
-	bond_delete_netdev_default_gids(ib_dev, port, event_ndev, rdma_ndev);
+	bond_delete_netdev_default_gids(ib_dev, port, cookie, rdma_ndev);
 }
 
 /* The following functions operate on all IB devices. netdevice_event and
@@ -555,10 +546,8 @@ static int netdevice_queue_work(struct netdev_event_work_cmd *cmds,
 	struct netdev_event_work *ndev_work =
 		kmalloc(sizeof(*ndev_work), GFP_KERNEL);
 
-	if (!ndev_work) {
-		pr_warn("roce_gid_mgmt: can't allocate work for netdevice_event\n");
+	if (!ndev_work)
 		return NOTIFY_DONE;
-	}
 
 	memcpy(ndev_work->cmds, cmds, sizeof(ndev_work->cmds));
 	for (i = 0; i < ARRAY_SIZE(ndev_work->cmds) && ndev_work->cmds[i].cb; i++) {
@@ -692,10 +681,8 @@ static int addr_event(struct notifier_block *this, unsigned long event,
 	}
 
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	if (!work) {
-		pr_warn("roce_gid_mgmt: Couldn't allocate work for addr_event\n");
+	if (!work)
 		return NOTIFY_DONE;
-	}
 
 	INIT_WORK(&work->work, update_gid_event_work_handler);
 

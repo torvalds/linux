@@ -47,7 +47,7 @@ renew_parental_timestamps(struct dentry *direntry)
 
 char *
 cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
-			struct cifs_tcon *tcon)
+			struct cifs_tcon *tcon, int add_treename)
 {
 	int pplen = vol->prepath ? strlen(vol->prepath) + 1 : 0;
 	int dfsplen;
@@ -59,7 +59,7 @@ cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 		return full_path;
 	}
 
-	if (tcon->Flags & SMB_SHARE_IS_IN_DFS)
+	if (add_treename)
 		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
 	else
 		dfsplen = 0;
@@ -81,6 +81,17 @@ cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 char *
 build_path_from_dentry(struct dentry *direntry)
 {
+	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	bool prefix = tcon->Flags & SMB_SHARE_IS_IN_DFS;
+
+	return build_path_from_dentry_optional_prefix(direntry,
+						      prefix);
+}
+
+char *
+build_path_from_dentry_optional_prefix(struct dentry *direntry, bool prefix)
+{
 	struct dentry *temp;
 	int namelen;
 	int dfsplen;
@@ -92,7 +103,7 @@ build_path_from_dentry(struct dentry *direntry)
 	unsigned seq;
 
 	dirsep = CIFS_DIR_SEP(cifs_sb);
-	if (tcon->Flags & SMB_SHARE_IS_IN_DFS)
+	if (prefix)
 		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
 	else
 		dfsplen = 0;

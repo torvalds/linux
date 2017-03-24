@@ -45,7 +45,7 @@
 #include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "mconsole.h"
 
 MODULE_LICENSE("GPL");

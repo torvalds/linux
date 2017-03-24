@@ -64,10 +64,7 @@ obj-$(CONFIG_KEXEC) += kexec.o
 obj-$(CONFIG_KEXEC_FILE) += kexec_file.o
 obj-$(CONFIG_BACKTRACE_SELF_TEST) += backtracetest.o
 obj-$(CONFIG_COMPAT) += compat.o
-obj-$(CONFIG_CGROUPS) += cgroup.o
-obj-$(CONFIG_CGROUP_FREEZER) += cgroup_freezer.o
-obj-$(CONFIG_CGROUP_PIDS) += cgroup_pids.o
-obj-$(CONFIG_CPUSETS) += cpuset.o
+obj-$(CONFIG_CGROUPS) += cgroup/
 obj-$(CONFIG_UTS_NS) += utsname.o
 obj-$(CONFIG_USER_NS) += user_namespace.o
 obj-$(CONFIG_PID_NS) += pid_namespace.o
@@ -84,6 +81,7 @@ obj-$(CONFIG_KPROBES) += kprobes.o
 obj-$(CONFIG_KGDB) += debug/
 obj-$(CONFIG_DETECT_HUNG_TASK) += hung_task.o
 obj-$(CONFIG_LOCKUP_DETECTOR) += watchdog.o
+obj-$(CONFIG_HARDLOCKUP_DETECTOR) += watchdog_hld.o
 obj-$(CONFIG_SECCOMP) += seccomp.o
 obj-$(CONFIG_RELAY) += relay.o
 obj-$(CONFIG_SYSCTL) += utsname_sysctl.o
@@ -115,8 +113,6 @@ obj-$(CONFIG_HAS_IOMEM) += memremap.o
 
 $(obj)/configs.o: $(obj)/config_data.h
 
-# config_data.h contains the same information as ikconfig.h but gzipped.
-# Info from config_data can be extracted from /proc/config*
 targets += config_data.gz
 $(obj)/config_data.gz: $(KCONFIG_CONFIG) FORCE
 	$(call if_changed,gzip)

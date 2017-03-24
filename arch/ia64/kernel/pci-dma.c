@@ -90,11 +90,11 @@ void __init pci_iommu_alloc(void)
 {
 	dma_ops = &intel_dma_ops;
 
-	dma_ops->sync_single_for_cpu = machvec_dma_sync_single;
-	dma_ops->sync_sg_for_cpu = machvec_dma_sync_sg;
-	dma_ops->sync_single_for_device = machvec_dma_sync_single;
-	dma_ops->sync_sg_for_device = machvec_dma_sync_sg;
-	dma_ops->dma_supported = iommu_dma_supported;
+	intel_dma_ops.sync_single_for_cpu = machvec_dma_sync_single;
+	intel_dma_ops.sync_sg_for_cpu = machvec_dma_sync_sg;
+	intel_dma_ops.sync_single_for_device = machvec_dma_sync_single;
+	intel_dma_ops.sync_sg_for_device = machvec_dma_sync_sg;
+	intel_dma_ops.dma_supported = iommu_dma_supported;
 
 	/*
 	 * The order of these functions is important for

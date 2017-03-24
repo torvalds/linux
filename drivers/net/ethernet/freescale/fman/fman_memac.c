@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/of_mdio.h>
 
 /* PCS registers */
@@ -1106,6 +1107,9 @@ int memac_init(struct fman_mac *memac)
 int memac_free(struct fman_mac *memac)
 {
 	free_init_resources(memac);
+
+	if (memac->pcsphy)
+		put_device(&memac->pcsphy->mdio.dev);
 
 	kfree(memac->memac_drv_param);
 	kfree(memac);

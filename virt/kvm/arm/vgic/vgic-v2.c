@@ -50,8 +50,10 @@ void vgic_v2_process_maintenance(struct kvm_vcpu *vcpu)
 
 			WARN_ON(cpuif->vgic_lr[lr] & GICH_LR_STATE);
 
-			kvm_notify_acked_irq(vcpu->kvm, 0,
-					     intid - VGIC_NR_PRIVATE_IRQS);
+			/* Only SPIs require notification */
+			if (vgic_valid_spi(vcpu->kvm, intid))
+				kvm_notify_acked_irq(vcpu->kvm, 0,
+						     intid - VGIC_NR_PRIVATE_IRQS);
 		}
 	}
 
@@ -102,7 +104,7 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 		/* Edge is the only case where we preserve the pending bit */
 		if (irq->config == VGIC_CONFIG_EDGE &&
 		    (val & GICH_LR_PENDING_BIT)) {
-			irq->pending = true;
+			irq->pending_latch = true;
 
 			if (vgic_irq_is_sgi(intid)) {
 				u32 cpuid = val & GICH_LR_PHYSID_CPUID;
@@ -118,9 +120,7 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 		 */
 		if (irq->config == VGIC_CONFIG_LEVEL) {
 			if (!(val & GICH_LR_PENDING_BIT))
-				irq->soft_pending = false;
-
-			irq->pending = irq->line_level || irq->soft_pending;
+				irq->pending_latch = false;
 		}
 
 		spin_unlock(&irq->irq_lock);
@@ -143,11 +143,11 @@ void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 {
 	u32 val = irq->intid;
 
-	if (irq->pending) {
+	if (irq_is_pending(irq)) {
 		val |= GICH_LR_PENDING_BIT;
 
 		if (irq->config == VGIC_CONFIG_EDGE)
-			irq->pending = false;
+			irq->pending_latch = false;
 
 		if (vgic_irq_is_sgi(irq->intid)) {
 			u32 src = ffs(irq->source);
@@ -156,7 +156,7 @@ void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 			val |= (src - 1) << GICH_LR_PHYSID_CPUID_SHIFT;
 			irq->source &= ~(1 << (src - 1));
 			if (irq->source)
-				irq->pending = true;
+				irq->pending_latch = true;
 		}
 	}
 
@@ -291,8 +291,6 @@ int vgic_v2_map_resources(struct kvm *kvm)
 	dist->ready = true;
 
 out:
-	if (ret)
-		kvm_vgic_destroy(kvm);
 	return ret;
 }
 

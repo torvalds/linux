@@ -46,6 +46,8 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
+#include <linux/ahci-remap.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include "ahci.h"
 
 #define DRV_NAME	"ahci"
@@ -1400,6 +1402,40 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
 }
 #endif
 
+static void ahci_remap_check(struct pci_dev *pdev, int bar,
+		struct ahci_host_priv *hpriv)
+{
+	int i, count = 0;
+	u32 cap;
+
+	/*
+	 * Check if this device might have remapped nvme devices.
+	 */
+	if (pdev->vendor != PCI_VENDOR_ID_INTEL ||
+	    pci_resource_len(pdev, bar) < SZ_512K ||
+	    bar != AHCI_PCI_BAR_STANDARD ||
+	    !(readl(hpriv->mmio + AHCI_VSCAP) & 1))
+		return;
+
+	cap = readq(hpriv->mmio + AHCI_REMAP_CAP);
+	for (i = 0; i < AHCI_MAX_REMAP; i++) {
+		if ((cap & (1 << i)) == 0)
+			continue;
+		if (readl(hpriv->mmio + ahci_remap_dcc(i))
+				!= PCI_CLASS_STORAGE_EXPRESS)
+			continue;
+
+		/* We've found a remapped device */
+		count++;
+	}
+
+	if (!count)
+		return;
+
+	dev_warn(&pdev->dev, "Found %d remapped NVMe devices.\n", count);
+	dev_warn(&pdev->dev, "Switch your BIOS from RAID to AHCI mode to use them.\n");
+}
+
 static int ahci_get_irq_vector(struct ata_host *host, int port)
 {
 	return pci_irq_vector(to_pci_dev(host->dev), port);
@@ -1540,6 +1576,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		hpriv->flags &= ~AHCI_HFLAG_32BIT_ONLY;
 
 	hpriv->mmio = pcim_iomap_table(pdev)[ahci_pci_bar];
+
+	/* detect remapped nvme devices */
+	ahci_remap_check(pdev, ahci_pci_bar, hpriv);
 
 	/* must set flag prior to save config in order to take effect */
 	if (ahci_broken_devslp(pdev))

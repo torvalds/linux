@@ -14,7 +14,6 @@
 #include <asm/apic.h>
 #include <asm/io_apic.h>
 #include <asm/irq.h>
-#include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/hw_irq.h>
 #include <asm/desc.h>
@@ -265,7 +264,7 @@ void __smp_x86_platform_ipi(void)
 		x86_platform_ipi_callback();
 }
 
-__visible void smp_x86_platform_ipi(struct pt_regs *regs)
+__visible void __irq_entry smp_x86_platform_ipi(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -316,7 +315,7 @@ __visible void smp_kvm_posted_intr_wakeup_ipi(struct pt_regs *regs)
 }
 #endif
 
-__visible void smp_trace_x86_platform_ipi(struct pt_regs *regs)
+__visible void __irq_entry smp_trace_x86_platform_ipi(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 

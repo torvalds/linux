@@ -47,7 +47,7 @@ struct ldt_struct {
 	 * allocations, but it's not worth trying to optimize.
 	 */
 	struct desc_struct *entries;
-	int size;
+	unsigned int size;
 };
 
 /*

@@ -2846,7 +2846,7 @@ JPEG Control IDs
     input image is sampled, in respect to maximum sample rate in each
     spatial dimension. See :ref:`itu-t81`, clause A.1.1. for more
     details. The ``V4L2_CID_JPEG_CHROMA_SUBSAMPLING`` control determines
-    how Cb and Cr components are downsampled after coverting an input
+    how Cb and Cr components are downsampled after converting an input
     image from RGB to Y'CbCr color space.
 
 .. tabularcolumns:: |p{7.0cm}|p{10.5cm}|
@@ -3016,6 +3016,10 @@ Image Process Control IDs
     Some capture/display/sensor devices have the capability to generate
     test pattern images. These hardware specific test patterns can be
     used to test if a device is working properly.
+
+``V4L2_CID_DEINTERLACING_MODE (menu)``
+    The video deinterlacing mode (such as Bob, Weave, ...). The menu items are
+    driver specific and are documented in :ref:`v4l-drivers`.
 
 
 .. _dv-controls:

@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 #ifndef CXGB3_ABI_USER_H
-#define CXBG3_ABI_USER_H
+#define CXGB3_ABI_USER_H
 
 #include <linux/types.h>
 

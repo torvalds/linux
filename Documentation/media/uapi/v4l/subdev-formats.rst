@@ -1514,23 +1514,28 @@ be named ``MEDIA_BUS_FMT_SRGGB10_2X8_PADHI_LE``.
 
 .. _bayer-patterns:
 
-.. figure::  subdev-formats_files/bayer.*
-    :alt:    bayer.png
+.. figure::  bayer.*
+    :alt:    bayer.pdf / bayer.svg
     :align:  center
 
     **Figure 4.8 Bayer Patterns**
-
-
 
 The following table lists existing packed Bayer formats. The data
 organization is given as an example for the first pixel only.
 
 
+.. HACK: ideally, we would be using adjustbox here. However, Sphinx
+.. is a very bad behaviored guy: if the table has more than 30 cols,
+.. it switches to long table, and there's no way to override it.
+
+
 .. raw:: latex
 
-    \newline\newline\begin{adjustbox}{width=\columnwidth}
+    \begingroup
+    \tiny
+    \setlength{\tabcolsep}{2pt}
 
-.. tabularcolumns:: |p{7.6cm}|p{1.6cm}|p{0.7cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|p{0.5cm}|
+.. tabularcolumns:: |p{4.0cm}|p{0.7cm}|p{0.3cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|
 
 .. _v4l2-mbus-pixelcode-bayer:
 
@@ -2314,7 +2319,7 @@ organization is given as an example for the first pixel only.
 
 .. raw:: latex
 
-    \end{adjustbox}\newline\newline
+    \endgroup
 
 
 Packed YUV Formats

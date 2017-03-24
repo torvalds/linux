@@ -177,6 +177,8 @@ enum {
 	PERF_IP_FLAG_TRACE_BEGIN	|\
 	PERF_IP_FLAG_TRACE_END)
 
+#define MAX_INSN 16
+
 struct perf_sample {
 	u64 ip;
 	u32 pid, tid;
@@ -193,6 +195,7 @@ struct perf_sample {
 	u32 flags;
 	u16 insn_len;
 	u8  cpumode;
+	char insn[MAX_INSN];
 	void *raw_data;
 	struct ip_callchain *callchain;
 	struct branch_stack *branch_stack;

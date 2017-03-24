@@ -1,8 +1,8 @@
 generic-y += bitsperlong.h
 generic-y += bug.h
 generic-y += clkdev.h
-generic-y += cputime.h
 generic-y += div64.h
+generic-y += dma-contiguous.h
 generic-y += emergency-restart.h
 generic-y += errno.h
 generic-y += exec.h
@@ -31,3 +31,4 @@ generic-y += topology.h
 generic-y += trace_clock.h
 generic-y += word-at-a-time.h
 generic-y += xor.h
+generic-y += kprobes.h

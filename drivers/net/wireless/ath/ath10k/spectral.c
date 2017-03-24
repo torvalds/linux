@@ -278,7 +278,7 @@ static ssize_t read_file_spec_scan_ctl(struct file *file, char __user *user_buf,
 {
 	struct ath10k *ar = file->private_data;
 	char *mode = "";
-	unsigned int len;
+	size_t len;
 	enum ath10k_spectral_mode spectral_mode;
 
 	mutex_lock(&ar->conf_mutex);
@@ -338,7 +338,7 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 		} else {
 			res = -EINVAL;
 		}
-	} else if (strncmp("background", buf, 9) == 0) {
+	} else if (strncmp("background", buf, 10) == 0) {
 		res = ath10k_spectral_scan_config(ar, SPECTRAL_BACKGROUND);
 	} else if (strncmp("manual", buf, 6) == 0) {
 		res = ath10k_spectral_scan_config(ar, SPECTRAL_MANUAL);
@@ -370,7 +370,7 @@ static ssize_t read_file_spectral_count(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	char buf[32];
-	unsigned int len;
+	size_t len;
 	u8 spectral_count;
 
 	mutex_lock(&ar->conf_mutex);
@@ -422,7 +422,8 @@ static ssize_t read_file_spectral_bins(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	char buf[32];
-	unsigned int len, bins, fft_size, bin_scale;
+	unsigned int bins, fft_size, bin_scale;
+	size_t len;
 
 	mutex_lock(&ar->conf_mutex);
 

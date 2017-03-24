@@ -28,7 +28,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/poll.h>

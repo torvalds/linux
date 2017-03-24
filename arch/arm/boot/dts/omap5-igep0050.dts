@@ -19,6 +19,10 @@
 		reg = <0x0 0x80000000 0 0x7f000000>;	/* 2032 MB */
 	};
 
+	aliases {
+		ethernet = &ethernet;
+	};
+
 	gpio_keys {
 		compatible = "gpio-keys";
 		pinctrl-0 = <&power_button_pin>;
@@ -115,4 +119,21 @@
 		OMAP5_IOPAD(0x1c4, PIN_OUTPUT | MUX_MODE6)	/* mcspi1_somi.gpio5_144 */
 		OMAP5_IOPAD(0x1ca, PIN_OUTPUT | MUX_MODE6)	/* perslimbus2_clock.gpio5_145 */
 	>;
+};
+
+&usbhsehci {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hub@2 {
+		compatible = "usb424,3503";
+		reg = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethernet: usbether@3 {
+			compatible = "usb424,7500";
+			reg = <3>;
+		};
+	};
 };

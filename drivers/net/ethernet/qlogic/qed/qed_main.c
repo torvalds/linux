@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/stddef.h>
@@ -29,9 +53,11 @@
 #include "qed_sp.h"
 #include "qed_dev_api.h"
 #include "qed_ll2.h"
+#include "qed_fcoe.h"
 #include "qed_mcp.h"
 #include "qed_hw.h"
 #include "qed_selftest.h"
+#include "qed_debug.h"
 
 #define QED_ROCE_QPS			(8192)
 #define QED_ROCE_DPIS			(8)
@@ -221,6 +247,10 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 		dev_info->fw_eng = FW_ENGINEERING_VERSION;
 		dev_info->mf_mode = cdev->mf_mode;
 		dev_info->tx_switching = true;
+
+		if (QED_LEADING_HWFN(cdev)->hw_info.b_wol_support ==
+		    QED_WOL_SUPPORT_PME)
+			dev_info->wol_support = true;
 	} else {
 		qed_vf_get_fw_version(&cdev->hwfns[0], &dev_info->fw_major,
 				      &dev_info->fw_minor, &dev_info->fw_rev,
@@ -242,6 +272,8 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 		qed_mcp_get_mfw_ver(QED_LEADING_HWFN(cdev), NULL,
 				    &dev_info->mfw_rev, NULL);
 	}
+
+	dev_info->mtu = QED_LEADING_HWFN(cdev)->hw_info.mtu;
 
 	return 0;
 }
@@ -847,6 +879,17 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 		params->rdma_pf_params.gl_pi = QED_ROCE_PROTOCOL_INDEX;
 	}
 
+	/* In case we might support RDMA, don't allow qede to be greedy
+	 * with the L2 contexts. Allow for 64 queues [rx, tx, xdp] per hwfn.
+	 */
+	if (QED_LEADING_HWFN(cdev)->hw_info.personality ==
+	    QED_PCI_ETH_ROCE) {
+		u16 *num_cons;
+
+		num_cons = &params->eth_pf_params.num_cons;
+		*num_cons = min_t(u16, *num_cons, 192);
+	}
+
 	for (i = 0; i < cdev->num_hwfns; i++) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
@@ -861,6 +904,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	struct qed_mcp_drv_version drv_version;
 	const u8 *data = NULL;
 	struct qed_hwfn *hwfn;
+	struct qed_ptt *p_ptt;
 	int rc = -EINVAL;
 
 	if (qed_iov_wq_start(cdev))
@@ -873,6 +917,14 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 			DP_NOTICE(cdev,
 				  "Failed to find fw file - /lib/firmware/%s\n",
 				  QED_FW_FILE_NAME);
+			goto err;
+		}
+
+		p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
+		if (p_ptt) {
+			QED_LEADING_HWFN(cdev)->p_ptp_ptt = p_ptt;
+		} else {
+			DP_NOTICE(cdev, "Failed to acquire PTT for PTP\n");
 			goto err;
 		}
 	}
@@ -962,6 +1014,10 @@ err:
 	if (IS_PF(cdev))
 		release_firmware(cdev->firmware);
 
+	if (IS_PF(cdev) && QED_LEADING_HWFN(cdev)->p_ptp_ptt)
+		qed_ptt_release(QED_LEADING_HWFN(cdev),
+				QED_LEADING_HWFN(cdev)->p_ptp_ptt);
+
 	qed_iov_wq_stop(cdev, false);
 
 	return rc;
@@ -975,6 +1031,8 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 	qed_ll2_dealloc_if(cdev);
 
 	if (IS_PF(cdev)) {
+		qed_ptt_release(QED_LEADING_HWFN(cdev),
+				QED_LEADING_HWFN(cdev)->p_ptp_ptt);
 		qed_free_stream_mem(cdev);
 		if (IS_QED_ETH_IF(cdev))
 			qed_sriov_disable(cdev, true);
@@ -1014,6 +1072,7 @@ static u32 qed_sb_init(struct qed_dev *cdev,
 		       enum qed_sb_type type)
 {
 	struct qed_hwfn *p_hwfn;
+	struct qed_ptt *p_ptt;
 	int hwfn_index;
 	u16 rel_sb_id;
 	u8 n_hwfns;
@@ -1035,8 +1094,18 @@ static u32 qed_sb_init(struct qed_dev *cdev,
 		   "hwfn [%d] <--[init]-- SB %04x [0x%04x upper]\n",
 		   hwfn_index, rel_sb_id, sb_id);
 
-	rc = qed_int_sb_init(p_hwfn, p_hwfn->p_main_ptt, sb_info,
-			     sb_virt_addr, sb_phy_addr, rel_sb_id);
+	if (IS_PF(p_hwfn->cdev)) {
+		p_ptt = qed_ptt_acquire(p_hwfn);
+		if (!p_ptt)
+			return -EBUSY;
+
+		rc = qed_int_sb_init(p_hwfn, p_ptt, sb_info, sb_virt_addr,
+				     sb_phy_addr, rel_sb_id);
+		qed_ptt_release(p_hwfn, p_ptt);
+	} else {
+		rc = qed_int_sb_init(p_hwfn, NULL, sb_info, sb_virt_addr,
+				     sb_phy_addr, rel_sb_id);
+	}
 
 	return rc;
 }
@@ -1077,11 +1146,17 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 	if (!cdev)
 		return -ENODEV;
 
-	if (IS_VF(cdev))
-		return 0;
-
 	/* The link should be set only once per PF */
 	hwfn = &cdev->hwfns[0];
+
+	/* When VF wants to set link, force it to read the bulletin instead.
+	 * This mimics the PF behavior, where a noitification [both immediate
+	 * and possible later] would be generated when changing properties.
+	 */
+	if (IS_VF(cdev)) {
+		qed_schedule_iov(hwfn, QED_IOV_WQ_VF_FORCE_LINK_QUERY_FLAG);
+		return 0;
+	}
 
 	ptt = qed_ptt_acquire(hwfn);
 	if (!ptt)
@@ -1430,11 +1505,106 @@ static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
 	return status;
 }
 
+static int qed_update_wol(struct qed_dev *cdev, bool enabled)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int rc = 0;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	rc = qed_mcp_ov_update_wol(hwfn, ptt, enabled ? QED_OV_WOL_ENABLED
+				   : QED_OV_WOL_DISABLED);
+	if (rc)
+		goto out;
+	rc = qed_mcp_ov_update_current_config(hwfn, ptt, QED_OV_CLIENT_DRV);
+
+out:
+	qed_ptt_release(hwfn, ptt);
+	return rc;
+}
+
+static int qed_update_drv_state(struct qed_dev *cdev, bool active)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int status = 0;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	status = qed_mcp_ov_update_driver_state(hwfn, ptt, active ?
+						QED_OV_DRIVER_STATE_ACTIVE :
+						QED_OV_DRIVER_STATE_DISABLED);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return status;
+}
+
+static int qed_update_mac(struct qed_dev *cdev, u8 *mac)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int status = 0;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	status = qed_mcp_ov_update_mac(hwfn, ptt, mac);
+	if (status)
+		goto out;
+
+	status = qed_mcp_ov_update_current_config(hwfn, ptt, QED_OV_CLIENT_DRV);
+
+out:
+	qed_ptt_release(hwfn, ptt);
+	return status;
+}
+
+static int qed_update_mtu(struct qed_dev *cdev, u16 mtu)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int status = 0;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	status = qed_mcp_ov_update_mtu(hwfn, ptt, mtu);
+	if (status)
+		goto out;
+
+	status = qed_mcp_ov_update_current_config(hwfn, ptt, QED_OV_CLIENT_DRV);
+
+out:
+	qed_ptt_release(hwfn, ptt);
+	return status;
+}
+
 static struct qed_selftest_ops qed_selftest_ops_pass = {
 	.selftest_memory = &qed_selftest_memory,
 	.selftest_interrupt = &qed_selftest_interrupt,
 	.selftest_register = &qed_selftest_register,
 	.selftest_clock = &qed_selftest_clock,
+	.selftest_nvram = &qed_selftest_nvram,
 };
 
 const struct qed_common_ops qed_common_ops_pass = {
@@ -1452,6 +1622,8 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.sb_release = &qed_sb_release,
 	.simd_handler_config = &qed_simd_handler_config,
 	.simd_handler_clean = &qed_simd_handler_clean,
+	.dbg_grc = &qed_dbg_grc,
+	.dbg_grc_size = &qed_dbg_grc_size,
 	.can_link_change = &qed_can_link_change,
 	.set_link = &qed_set_link,
 	.get_link = &qed_get_current_link,
@@ -1464,6 +1636,10 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.get_coalesce = &qed_get_coalesce,
 	.set_coalesce = &qed_set_coalesce,
 	.set_led = &qed_set_led,
+	.update_drv_state = &qed_update_drv_state,
+	.update_mac = &qed_update_mac,
+	.update_mtu = &qed_update_mtu,
+	.update_wol = &qed_update_wol,
 };
 
 void qed_get_protocol_stats(struct qed_dev *cdev,
@@ -1480,6 +1656,9 @@ void qed_get_protocol_stats(struct qed_dev *cdev,
 		stats->lan_stats.ucast_rx_pkts = eth_stats.rx_ucast_pkts;
 		stats->lan_stats.ucast_tx_pkts = eth_stats.tx_ucast_pkts;
 		stats->lan_stats.fcs_err = -1;
+		break;
+	case QED_MCP_FCOE_STATS:
+		qed_get_protocol_stats_fcoe(cdev, &stats->fcoe_stats);
 		break;
 	default:
 		DP_ERR(cdev, "Invalid protocol type = %d\n", type);

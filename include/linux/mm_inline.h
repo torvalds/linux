@@ -39,7 +39,7 @@ static __always_inline void update_lru_size(struct lruvec *lruvec,
 {
 	__update_lru_size(lruvec, lru, zid, nr_pages);
 #ifdef CONFIG_MEMCG
-	mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
+	mem_cgroup_update_lru_size(lruvec, lru, zid, nr_pages);
 #endif
 }
 
@@ -48,6 +48,13 @@ static __always_inline void add_page_to_lru_list(struct page *page,
 {
 	update_lru_size(lruvec, lru, page_zonenum(page), hpage_nr_pages(page));
 	list_add(&page->lru, &lruvec->lists[lru]);
+}
+
+static __always_inline void add_page_to_lru_list_tail(struct page *page,
+				struct lruvec *lruvec, enum lru_list lru)
+{
+	update_lru_size(lruvec, lru, page_zonenum(page), hpage_nr_pages(page));
+	list_add_tail(&page->lru, &lruvec->lists[lru]);
 }
 
 static __always_inline void del_page_from_lru_list(struct page *page,

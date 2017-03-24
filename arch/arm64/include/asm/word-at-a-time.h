@@ -16,7 +16,7 @@
 #ifndef __ASM_WORD_AT_A_TIME_H
 #define __ASM_WORD_AT_A_TIME_H
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifndef __AARCH64EB__
 

@@ -48,6 +48,14 @@
 
 #include "sun6i-a31.dtsi"
 
+&de {
+	compatible = "allwinner,sun6i-a31s-display-engine";
+};
+
 &pio {
 	compatible = "allwinner,sun6i-a31s-pinctrl";
+};
+
+&tcon0 {
+	compatible = "allwinner,sun6i-a31s-tcon";
 };

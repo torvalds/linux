@@ -29,7 +29,6 @@ const char perf_usage_string[] =
 const char perf_more_info_string[] =
 	"See 'perf help COMMAND' for more information on a specific command.";
 
-int use_browser = -1;
 static int use_pager = -1;
 const char *input_name;
 
@@ -43,9 +42,11 @@ static struct cmd_struct commands[] = {
 	{ "buildid-cache", cmd_buildid_cache, 0 },
 	{ "buildid-list", cmd_buildid_list, 0 },
 	{ "config",	cmd_config,	0 },
+	{ "c2c",	cmd_c2c,	0 },
 	{ "diff",	cmd_diff,	0 },
 	{ "evlist",	cmd_evlist,	0 },
 	{ "help",	cmd_help,	0 },
+	{ "kallsyms",	cmd_kallsyms,	0 },
 	{ "list",	cmd_list,	0 },
 	{ "record",	cmd_record,	0 },
 	{ "report",	cmd_report,	0 },
@@ -70,6 +71,7 @@ static struct cmd_struct commands[] = {
 	{ "inject",	cmd_inject,	0 },
 	{ "mem",	cmd_mem,	0 },
 	{ "data",	cmd_data,	0 },
+	{ "ftrace",	cmd_ftrace,	0 },
 };
 
 struct pager_config {
@@ -88,11 +90,12 @@ static int pager_command_config(const char *var, const char *value, void *data)
 /* returns 0 for "no pager", 1 for "use pager", and -1 for "not specified" */
 int check_pager_config(const char *cmd)
 {
+	int err;
 	struct pager_config c;
 	c.cmd = cmd;
 	c.val = -1;
-	perf_config(pager_command_config, &c);
-	return c.val;
+	err = perf_config(pager_command_config, &c);
+	return err ?: c.val;
 }
 
 static int browser_command_config(const char *var, const char *value, void *data)
@@ -111,11 +114,12 @@ static int browser_command_config(const char *var, const char *value, void *data
  */
 static int check_browser_config(const char *cmd)
 {
+	int err;
 	struct pager_config c;
 	c.cmd = cmd;
 	c.val = -1;
-	perf_config(browser_command_config, &c);
-	return c.val;
+	err = perf_config(browser_command_config, &c);
+	return err ?: c.val;
 }
 
 static void commit_pager_choice(void)
@@ -328,8 +332,6 @@ static int handle_alias(int *argcp, const char ***argv)
 	return ret;
 }
 
-const char perf_version_string[] = PERF_VERSION;
-
 #define RUN_SETUP	(1<<0)
 #define USE_PAGER	(1<<1)
 
@@ -509,6 +511,7 @@ static void cache_line_size(int *cacheline_sizep)
 
 int main(int argc, const char **argv)
 {
+	int err;
 	const char *cmd;
 	char sbuf[STRERR_BUFSIZE];
 	int value;
@@ -534,7 +537,9 @@ int main(int argc, const char **argv)
 	srandom(time(NULL));
 
 	perf_config__init();
-	perf_config(perf_default_config, NULL);
+	err = perf_config(perf_default_config, NULL);
+	if (err)
+		return err;
 	set_buildid_dir(NULL);
 
 	/* get debugfs/tracefs mount point from /proc/mounts */

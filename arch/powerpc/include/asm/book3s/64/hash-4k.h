@@ -16,9 +16,6 @@
 #define H_PUD_TABLE_SIZE	(sizeof(pud_t) << H_PUD_INDEX_SIZE)
 #define H_PGD_TABLE_SIZE	(sizeof(pgd_t) << H_PGD_INDEX_SIZE)
 
-/* With 4k base page size, hugepage PTEs go at the PMD level */
-#define MIN_HUGEPTE_SHIFT	PMD_SHIFT
-
 /* PTE flags to conserve for HPTE identification */
 #define _PAGE_HPTEFLAGS (H_PAGE_BUSY | H_PAGE_HASHPTE | \
 			 H_PAGE_F_SECOND | H_PAGE_F_GIX)
@@ -39,12 +36,13 @@
 #ifdef CONFIG_HUGETLB_PAGE
 static inline int hash__hugepd_ok(hugepd_t hpd)
 {
+	unsigned long hpdval = hpd_val(hpd);
 	/*
 	 * if it is not a pte and have hugepd shift mask
 	 * set, then it is a hugepd directory pointer
 	 */
-	if (!(hpd.pd & _PAGE_PTE) &&
-	    ((hpd.pd & HUGEPD_SHIFT_MASK) != 0))
+	if (!(hpdval & _PAGE_PTE) &&
+	    ((hpdval & HUGEPD_SHIFT_MASK) != 0))
 		return true;
 	return false;
 }

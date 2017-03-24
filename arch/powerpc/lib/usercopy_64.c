@@ -7,7 +7,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 unsigned long copy_from_user(void *to, const void __user *from, unsigned long n)
 {

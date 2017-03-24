@@ -20,7 +20,8 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/kdebug.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/clock.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
@@ -69,7 +70,7 @@ u64 x86_perf_event_update(struct perf_event *event)
 	int shift = 64 - x86_pmu.cntval_bits;
 	u64 prev_raw_count, new_raw_count;
 	int idx = hwc->idx;
-	s64 delta;
+	u64 delta;
 
 	if (idx == INTEL_PMC_IDX_FIXED_BTS)
 		return 0;
@@ -365,7 +366,11 @@ int x86_add_exclusive(unsigned int what)
 {
 	int i;
 
-	if (x86_pmu.lbr_pt_coexist)
+	/*
+	 * When lbr_pt_coexist we allow PT to coexist with either LBR or BTS.
+	 * LBR and BTS are still mutually exclusive.
+	 */
+	if (x86_pmu.lbr_pt_coexist && what == x86_lbr_exclusive_pt)
 		return 0;
 
 	if (!atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what])) {
@@ -388,7 +393,7 @@ fail_unlock:
 
 void x86_del_exclusive(unsigned int what)
 {
-	if (x86_pmu.lbr_pt_coexist)
+	if (x86_pmu.lbr_pt_coexist && what == x86_lbr_exclusive_pt)
 		return;
 
 	atomic_dec(&x86_pmu.lbr_exclusive[what]);
@@ -501,6 +506,10 @@ int x86_pmu_hw_config(struct perf_event *event)
 
 		if (event->attr.precise_ip > precise)
 			return -EOPNOTSUPP;
+
+		/* There's no sense in having PEBS for non sampling events: */
+		if (!is_sampling_event(event))
+			return -EINVAL;
 	}
 	/*
 	 * check that PEBS LBR correction does not conflict with
@@ -1816,18 +1825,18 @@ static int __init init_hw_perf_events(void)
 	 * Install callbacks. Core will call them for each online
 	 * cpu.
 	 */
-	err = cpuhp_setup_state(CPUHP_PERF_X86_PREPARE, "PERF_X86_PREPARE",
+	err = cpuhp_setup_state(CPUHP_PERF_X86_PREPARE, "perf/x86:prepare",
 				x86_pmu_prepare_cpu, x86_pmu_dead_cpu);
 	if (err)
 		return err;
 
 	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_STARTING,
-				"AP_PERF_X86_STARTING", x86_pmu_starting_cpu,
+				"perf/x86:starting", x86_pmu_starting_cpu,
 				x86_pmu_dying_cpu);
 	if (err)
 		goto out;
 
-	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_ONLINE, "AP_PERF_X86_ONLINE",
+	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_ONLINE, "perf/x86:online",
 				x86_pmu_online_cpu, NULL);
 	if (err)
 		goto out1;
@@ -2092,14 +2101,26 @@ static int x86_pmu_event_init(struct perf_event *event)
 
 static void refresh_pce(void *ignored)
 {
-	if (current->mm)
-		load_mm_cr4(current->mm);
+	if (current->active_mm)
+		load_mm_cr4(current->active_mm);
 }
 
 static void x86_pmu_event_mapped(struct perf_event *event)
 {
 	if (!(event->hw.flags & PERF_X86_EVENT_RDPMC_ALLOWED))
 		return;
+
+	/*
+	 * This function relies on not being called concurrently in two
+	 * tasks in the same mm.  Otherwise one task could observe
+	 * perf_rdpmc_allowed > 1 and return all the way back to
+	 * userspace with CR4.PCE clear while another task is still
+	 * doing on_each_cpu_mask() to propagate CR4.PCE.
+	 *
+	 * For now, this can't happen because all callers hold mmap_sem
+	 * for write.  If this changes, we'll need a different solution.
+	 */
+	lockdep_assert_held_exclusive(&current->mm->mmap_sem);
 
 	if (atomic_inc_return(&current->mm->context.perf_rdpmc_allowed) == 1)
 		on_each_cpu_mask(mm_cpumask(current->mm), refresh_pce, NULL, 1);
@@ -2299,7 +2320,7 @@ valid_user_frame(const void __user *fp, unsigned long size)
 static unsigned long get_segment_base(unsigned int segment)
 {
 	struct desc_struct *desc;
-	int idx = segment >> 3;
+	unsigned int idx = segment >> 3;
 
 	if ((segment & SEGMENT_TI_MASK) == SEGMENT_LDT) {
 #ifdef CONFIG_MODIFY_LDT_SYSCALL

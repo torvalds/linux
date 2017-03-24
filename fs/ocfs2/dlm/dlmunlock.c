@@ -251,7 +251,7 @@ leave:
 		mlog(0, "lock %u:%llu should be gone now! refs=%d\n",
 		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
-		     atomic_read(&lock->lock_refs.refcount)-1);
+		     kref_read(&lock->lock_refs)-1);
 		dlm_lock_put(lock);
 	}
 	if (actions & DLM_UNLOCK_CALL_AST)

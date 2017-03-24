@@ -54,7 +54,7 @@
 #if defined(CONFIG_SPI)
 #include <linux/spi/spi.h>
 #endif
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/div64.h>

@@ -447,7 +447,7 @@ struct jme_adapter {
 	u8			chip_sub_rev;
 	u8			pcirev;
 	u32			msg_enable;
-	struct ethtool_cmd	old_ecmd;
+	struct ethtool_link_ksettings old_cmd;
 	unsigned int		old_mtu;
 	struct dynpcc_info	dpi;
 	atomic_t		intr_sem;
@@ -1270,8 +1270,8 @@ static inline int new_phy_power_ctrl(u8 chip_main_rev)
 /*
  * Function prototypes
  */
-static int jme_set_settings(struct net_device *netdev,
-				struct ethtool_cmd *ecmd);
+static int jme_set_link_ksettings(struct net_device *netdev,
+				  const struct ethtool_link_ksettings *cmd);
 static void jme_set_unicastaddr(struct net_device *netdev);
 static void jme_set_multi(struct net_device *netdev);
 

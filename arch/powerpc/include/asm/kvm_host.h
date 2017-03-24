@@ -48,7 +48,7 @@
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #endif
-#define KVM_HALT_POLL_NS_DEFAULT 500000
+#define KVM_HALT_POLL_NS_DEFAULT 10000	/* 10 us */
 
 /* These values are internal and can be increased later */
 #define KVM_NR_IRQCHIPS          1
@@ -241,11 +241,25 @@ struct kvm_arch_memory_slot {
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 };
 
+struct kvm_hpt_info {
+	/* Host virtual (linear mapping) address of guest HPT */
+	unsigned long virt;
+	/* Array of reverse mapping entries for each guest HPTE */
+	struct revmap_entry *rev;
+	/* Guest HPT size is 2**(order) bytes */
+	u32 order;
+	/* 1 if HPT allocated with CMA, 0 otherwise */
+	int cma;
+};
+
+struct kvm_resize_hpt;
+
 struct kvm_arch {
 	unsigned int lpid;
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-	unsigned long hpt_virt;
-	struct revmap_entry *revmap;
+	unsigned int tlb_sets;
+	struct kvm_hpt_info hpt;
+	atomic64_t mmio_update;
 	unsigned int host_lpid;
 	unsigned long host_lpcr;
 	unsigned long sdr1;
@@ -254,16 +268,17 @@ struct kvm_arch {
 	unsigned long lpcr;
 	unsigned long vrma_slb_v;
 	int hpte_setup_done;
-	u32 hpt_order;
 	atomic_t vcpus_running;
 	u32 online_vcores;
-	unsigned long hpt_npte;
-	unsigned long hpt_mask;
 	atomic_t hpte_mod_interest;
 	cpumask_t need_tlb_flush;
-	int hpt_cma_alloc;
+	cpumask_t cpu_in_guest;
+	u8 radix;
+	pgd_t *pgtable;
+	u64 process_table;
 	struct dentry *debugfs_dir;
 	struct dentry *htab_dentry;
+	struct kvm_resize_hpt *resize_hpt; /* protected by kvm->lock */
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	struct mutex hpt_mutex;
@@ -408,6 +423,24 @@ struct kvmppc_passthru_irqmap {
 #define KVMPPC_IRQ_MPIC		1
 #define KVMPPC_IRQ_XICS		2
 
+#define MMIO_HPTE_CACHE_SIZE	4
+
+struct mmio_hpte_cache_entry {
+	unsigned long hpte_v;
+	unsigned long hpte_r;
+	unsigned long rpte;
+	unsigned long pte_index;
+	unsigned long eaddr;
+	unsigned long slb_v;
+	long mmio_update;
+	unsigned int slb_base_pshift;
+};
+
+struct mmio_hpte_cache {
+	struct mmio_hpte_cache_entry entry[MMIO_HPTE_CACHE_SIZE];
+	unsigned int index;
+};
+
 struct openpic;
 
 struct kvm_vcpu_arch {
@@ -498,6 +531,8 @@ struct kvm_vcpu_arch {
 	ulong tcscr;
 	ulong acop;
 	ulong wort;
+	ulong tid;
+	ulong psscr;
 	ulong shadow_srr1;
 #endif
 	u32 vrsave; /* also USPRG0 */
@@ -546,6 +581,7 @@ struct kvm_vcpu_arch {
 	u64 tfiar;
 
 	u32 cr_tm;
+	u64 xer_tm;
 	u64 lr_tm;
 	u64 ctr_tm;
 	u64 amr_tm;
@@ -580,6 +616,7 @@ struct kvm_vcpu_arch {
 	ulong fault_dar;
 	u32 fault_dsisr;
 	unsigned long intr_msr;
+	ulong fault_gpa;	/* guest real address of page fault (POWER9) */
 #endif
 
 #ifdef CONFIG_BOOKE
@@ -634,6 +671,7 @@ struct kvm_vcpu_arch {
 	int state;
 	int ptid;
 	int thread_cpu;
+	int prev_cpu;
 	bool timer_running;
 	wait_queue_head_t cpu_run;
 
@@ -655,9 +693,11 @@ struct kvm_vcpu_arch {
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	struct kvm_vcpu_arch_shared shregs;
 
+	struct mmio_hpte_cache mmio_cache;
 	unsigned long pgfault_addr;
 	long pgfault_index;
 	unsigned long pgfault_hpte[2];
+	struct mmio_hpte_cache_entry *pgfault_cache;
 
 	struct task_struct *run_task;
 	struct kvm_run *kvm_run;

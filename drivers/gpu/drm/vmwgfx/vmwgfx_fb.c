@@ -83,7 +83,7 @@ static int vmw_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		return 1;
 	}
 
-	switch (par->set_fb->depth) {
+	switch (par->set_fb->format->depth) {
 	case 24:
 	case 32:
 		pal[regno] = ((red & 0xff00) << 8) |
@@ -91,8 +91,9 @@ static int vmw_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			     ((blue  & 0xff00) >> 8);
 		break;
 	default:
-		DRM_ERROR("Bad depth %u, bpp %u.\n", par->set_fb->depth,
-			  par->set_fb->bits_per_pixel);
+		DRM_ERROR("Bad depth %u, bpp %u.\n",
+			  par->set_fb->format->depth,
+			  par->set_fb->format->cpp[0] * 8);
 		return 1;
 	}
 
@@ -197,7 +198,7 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 	 * Handle panning when copying from vmalloc to framebuffer.
 	 * Clip dirty area to framebuffer.
 	 */
-	cpp = (cur_fb->bits_per_pixel + 7) / 8;
+	cpp = cur_fb->format->cpp[0];
 	max_x = par->fb_x + cur_fb->width;
 	max_y = par->fb_y + cur_fb->height;
 
@@ -465,33 +466,33 @@ static int vmw_fb_kms_detach(struct vmw_fb_par *par,
 
 static int vmw_fb_kms_framebuffer(struct fb_info *info)
 {
-	struct drm_mode_fb_cmd mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd;
 	struct vmw_fb_par *par = info->par;
 	struct fb_var_screeninfo *var = &info->var;
 	struct drm_framebuffer *cur_fb;
 	struct vmw_framebuffer *vfb;
-	int ret = 0;
+	int ret = 0, depth;
 	size_t new_bo_size;
 
-	ret = vmw_fb_compute_depth(var, &mode_cmd.depth);
+	ret = vmw_fb_compute_depth(var, &depth);
 	if (ret)
 		return ret;
 
 	mode_cmd.width = var->xres;
 	mode_cmd.height = var->yres;
-	mode_cmd.bpp = var->bits_per_pixel;
-	mode_cmd.pitch = ((mode_cmd.bpp + 7) / 8) * mode_cmd.width;
+	mode_cmd.pitches[0] = ((var->bits_per_pixel + 7) / 8) * mode_cmd.width;
+	mode_cmd.pixel_format =
+		drm_mode_legacy_fb_format(var->bits_per_pixel, depth);
 
 	cur_fb = par->set_fb;
 	if (cur_fb && cur_fb->width == mode_cmd.width &&
 	    cur_fb->height == mode_cmd.height &&
-	    cur_fb->bits_per_pixel == mode_cmd.bpp &&
-	    cur_fb->depth == mode_cmd.depth &&
-	    cur_fb->pitches[0] == mode_cmd.pitch)
+	    cur_fb->format->format == mode_cmd.pixel_format &&
+	    cur_fb->pitches[0] == mode_cmd.pitches[0])
 		return 0;
 
 	/* Need new buffer object ? */
-	new_bo_size = (size_t) mode_cmd.pitch * (size_t) mode_cmd.height;
+	new_bo_size = (size_t) mode_cmd.pitches[0] * (size_t) mode_cmd.height;
 	ret = vmw_fb_kms_detach(par,
 				par->bo_size < new_bo_size ||
 				par->bo_size > 2*new_bo_size,

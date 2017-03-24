@@ -33,8 +33,7 @@ static const char hcd_name[] = "ehci-w90x900 ";
 
 static struct hc_driver __read_mostly ehci_w90x900_hc_driver;
 
-static int usb_w90x900_probe(const struct hc_driver *driver,
-		      struct platform_device *pdev)
+static int ehci_w90x900_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
@@ -42,7 +41,8 @@ static int usb_w90x900_probe(const struct hc_driver *driver,
 	int retval = 0, irq;
 	unsigned long val;
 
-	hcd = usb_create_hcd(driver, &pdev->dev, "w90x900 EHCI");
+	hcd = usb_create_hcd(&ehci_w90x900_hc_driver,
+			&pdev->dev, "w90x900 EHCI");
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err1;
@@ -63,9 +63,9 @@ static int usb_w90x900_probe(const struct hc_driver *driver,
 		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 
 	/* enable PHY 0,1,the regs only apply to w90p910
-	*  0xA4,0xA8 were offsets of PHY0 and PHY1 controller of
-	*  w90p910 IC relative to ehci->regs.
-	*/
+	 *  0xA4,0xA8 were offsets of PHY0 and PHY1 controller of
+	 *  w90p910 IC relative to ehci->regs.
+	 */
 	val = __raw_readl(ehci->regs+PHY0_CTR);
 	val |= ENPHY;
 	__raw_writel(val, ehci->regs+PHY0_CTR);
@@ -92,26 +92,12 @@ err1:
 	return retval;
 }
 
-static void usb_w90x900_remove(struct usb_hcd *hcd,
-			struct platform_device *pdev)
-{
-	usb_remove_hcd(hcd);
-	usb_put_hcd(hcd);
-}
-
-static int ehci_w90x900_probe(struct platform_device *pdev)
-{
-	if (usb_disabled())
-		return -ENODEV;
-
-	return usb_w90x900_probe(&ehci_w90x900_hc_driver, pdev);
-}
-
 static int ehci_w90x900_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
-	usb_w90x900_remove(hcd, pdev);
+	usb_remove_hcd(hcd);
+	usb_put_hcd(hcd);
 
 	return 0;
 }

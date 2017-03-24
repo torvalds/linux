@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include <core/device.h>
+#include <core/firmware.h>
 
 /**
  * nvkm_firmware_get - load firmware from the official nvidia/chip/ directory

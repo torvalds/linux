@@ -52,6 +52,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	struct rxrpc_sock *rx;
 	struct rxrpc_peer *peer;
 	struct rxrpc_call *call;
+	rxrpc_seq_t tx_hard_ack, rx_hard_ack;
 	char lbuff[50], rbuff[50];
 
 	if (v == &rxrpc_calls) {
@@ -82,9 +83,11 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	else
 		strcpy(rbuff, "no_connection");
 
+	tx_hard_ack = READ_ONCE(call->tx_hard_ack);
+	rx_hard_ack = READ_ONCE(call->rx_hard_ack);
 	seq_printf(seq,
 		   "UDP   %-47.47s %-47.47s %4x %08x %08x %s %3u"
-		   " %-8.8s %08x %lx\n",
+		   " %-8.8s %08x %lx %08x %02x %08x %02x\n",
 		   lbuff,
 		   rbuff,
 		   call->service_id,
@@ -94,7 +97,9 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   atomic_read(&call->usage),
 		   rxrpc_call_states[call->state],
 		   call->abort_code,
-		   call->user_call_ID);
+		   call->user_call_ID,
+		   tx_hard_ack, READ_ONCE(call->tx_top) - tx_hard_ack,
+		   rx_hard_ack, READ_ONCE(call->rx_top) - rx_hard_ack);
 
 	return 0;
 }

@@ -9,7 +9,5 @@ define filechk_facilities.h
 	$(obj)/gen_facilities
 endef
 
-$(obj)/gen_facilities.o: $(srctree)/arch/s390/tools/gen_facilities.c
-
 include/generated/facilities.h: $(obj)/gen_facilities FORCE
 	$(call filechk,facilities.h)

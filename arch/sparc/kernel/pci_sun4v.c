@@ -242,6 +242,7 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 	return ret;
 
 iommu_map_fail:
+	local_irq_restore(flags);
 	iommu_tbl_range_free(tbl, *dma_addrp, npages, IOMMU_ERROR_CODE);
 
 range_alloc_fail:
@@ -414,6 +415,7 @@ bad:
 	return DMA_ERROR_CODE;
 
 iommu_map_fail:
+	local_irq_restore(flags);
 	iommu_tbl_range_free(tbl, bus_addr, npages, IOMMU_ERROR_CODE);
 	return DMA_ERROR_CODE;
 }
@@ -478,11 +480,10 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 	BUG_ON(direction == DMA_NONE);
 
 	iommu = dev->archdata.iommu;
-	atu = iommu->atu;
-
 	if (nelems == 0 || !iommu)
 		return 0;
-	
+	atu = iommu->atu;
+
 	prot = HV_PCI_MAP_ATTR_READ;
 	if (direction != DMA_TO_DEVICE)
 		prot |= HV_PCI_MAP_ATTR_WRITE;
@@ -668,7 +669,7 @@ static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	local_irq_restore(flags);
 }
 
-static struct dma_map_ops sun4v_dma_ops = {
+static const struct dma_map_ops sun4v_dma_ops = {
 	.alloc				= dma_4v_alloc_coherent,
 	.free				= dma_4v_free_coherent,
 	.map_page			= dma_4v_map_page,

@@ -82,8 +82,8 @@ static const struct genl_multicast_group acpi_event_mcgrps[] = {
 	{ .name = ACPI_GENL_MCAST_GROUP_NAME, },
 };
 
-static struct genl_family acpi_event_genl_family = {
-	.id = GENL_ID_GENERATE,
+static struct genl_family acpi_event_genl_family __ro_after_init = {
+	.module = THIS_MODULE,
 	.name = ACPI_GENL_FAMILY_NAME,
 	.version = ACPI_GENL_VERSION,
 	.maxattr = ACPI_GENL_ATTR_MAX,
@@ -144,7 +144,7 @@ int acpi_bus_generate_netlink_event(const char *device_class,
 
 EXPORT_SYMBOL(acpi_bus_generate_netlink_event);
 
-static int acpi_event_genetlink_init(void)
+static int __init acpi_event_genetlink_init(void)
 {
 	return genl_register_family(&acpi_event_genl_family);
 }

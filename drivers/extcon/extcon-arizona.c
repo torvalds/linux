@@ -236,12 +236,8 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 
 	mode %= info->micd_num_modes;
 
-	if (arizona->pdata.micd_pol_gpio > 0)
-		gpio_set_value_cansleep(arizona->pdata.micd_pol_gpio,
-					info->micd_modes[mode].gpio);
-	else
-		gpiod_set_value_cansleep(info->micd_pol_gpio,
-					 info->micd_modes[mode].gpio);
+	gpiod_set_value_cansleep(info->micd_pol_gpio,
+				 info->micd_modes[mode].gpio);
 
 	regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
 			   ARIZONA_MICD_BIAS_SRC_MASK,
@@ -274,9 +270,10 @@ static void arizona_extcon_pulse_micbias(struct arizona_extcon_info *info)
 	struct arizona *arizona = info->arizona;
 	const char *widget = arizona_extcon_get_micbias(info);
 	struct snd_soc_dapm_context *dapm = arizona->dapm;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	int ret;
 
-	ret = snd_soc_dapm_force_enable_pin(dapm, widget);
+	ret = snd_soc_component_force_enable_pin(component, widget);
 	if (ret != 0)
 		dev_warn(arizona->dev, "Failed to enable %s: %d\n",
 			 widget, ret);
@@ -284,7 +281,7 @@ static void arizona_extcon_pulse_micbias(struct arizona_extcon_info *info)
 	snd_soc_dapm_sync(dapm);
 
 	if (!arizona->pdata.micd_force_micbias) {
-		ret = snd_soc_dapm_disable_pin(arizona->dapm, widget);
+		ret = snd_soc_component_disable_pin(component, widget);
 		if (ret != 0)
 			dev_warn(arizona->dev, "Failed to disable %s: %d\n",
 				 widget, ret);
@@ -349,6 +346,7 @@ static void arizona_stop_mic(struct arizona_extcon_info *info)
 	struct arizona *arizona = info->arizona;
 	const char *widget = arizona_extcon_get_micbias(info);
 	struct snd_soc_dapm_context *dapm = arizona->dapm;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	bool change;
 	int ret;
 
@@ -356,7 +354,7 @@ static void arizona_stop_mic(struct arizona_extcon_info *info)
 				 ARIZONA_MICD_ENA, 0,
 				 &change);
 
-	ret = snd_soc_dapm_disable_pin(dapm, widget);
+	ret = snd_soc_component_disable_pin(component, widget);
 	if (ret != 0)
 		dev_warn(arizona->dev,
 			 "Failed to disable %s: %d\n",
@@ -1410,21 +1408,21 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 		regmap_update_bits(arizona->regmap, ARIZONA_GP_SWITCH_1,
 				ARIZONA_SW1_MODE_MASK, arizona->pdata.gpsw);
 
-	if (arizona->pdata.micd_pol_gpio > 0) {
+	if (pdata->micd_pol_gpio > 0) {
 		if (info->micd_modes[0].gpio)
 			mode = GPIOF_OUT_INIT_HIGH;
 		else
 			mode = GPIOF_OUT_INIT_LOW;
 
-		ret = devm_gpio_request_one(&pdev->dev,
-					    arizona->pdata.micd_pol_gpio,
-					    mode,
-					    "MICD polarity");
+		ret = devm_gpio_request_one(&pdev->dev, pdata->micd_pol_gpio,
+					    mode, "MICD polarity");
 		if (ret != 0) {
 			dev_err(arizona->dev, "Failed to request GPIO%d: %d\n",
-				arizona->pdata.micd_pol_gpio, ret);
+				pdata->micd_pol_gpio, ret);
 			goto err_register;
 		}
+
+		info->micd_pol_gpio = gpio_to_desc(pdata->micd_pol_gpio);
 	} else {
 		if (info->micd_modes[0].gpio)
 			mode = GPIOD_OUT_HIGH;

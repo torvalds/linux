@@ -31,7 +31,7 @@
 static unsigned int
 redirect_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	return nf_nat_redirect_ipv6(skb, par->targinfo, par->hooknum);
+	return nf_nat_redirect_ipv6(skb, par->targinfo, xt_hooknum(par));
 }
 
 static int redirect_tg6_checkentry(const struct xt_tgchk_param *par)
@@ -40,7 +40,13 @@ static int redirect_tg6_checkentry(const struct xt_tgchk_param *par)
 
 	if (range->flags & NF_NAT_RANGE_MAP_IPS)
 		return -EINVAL;
-	return 0;
+
+	return nf_ct_netns_get(par->net, par->family);
+}
+
+static void redirect_tg_destroy(const struct xt_tgdtor_param *par)
+{
+	nf_ct_netns_put(par->net, par->family);
 }
 
 /* FIXME: Take multiple ranges --RR */
@@ -56,13 +62,13 @@ static int redirect_tg4_check(const struct xt_tgchk_param *par)
 		pr_debug("bad rangesize %u.\n", mr->rangesize);
 		return -EINVAL;
 	}
-	return 0;
+	return nf_ct_netns_get(par->net, par->family);
 }
 
 static unsigned int
 redirect_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	return nf_nat_redirect_ipv4(skb, par->targinfo, par->hooknum);
+	return nf_nat_redirect_ipv4(skb, par->targinfo, xt_hooknum(par));
 }
 
 static struct xt_target redirect_tg_reg[] __read_mostly = {
@@ -72,6 +78,7 @@ static struct xt_target redirect_tg_reg[] __read_mostly = {
 		.revision   = 0,
 		.table      = "nat",
 		.checkentry = redirect_tg6_checkentry,
+		.destroy    = redirect_tg_destroy,
 		.target     = redirect_tg6,
 		.targetsize = sizeof(struct nf_nat_range),
 		.hooks      = (1 << NF_INET_PRE_ROUTING) |
@@ -85,6 +92,7 @@ static struct xt_target redirect_tg_reg[] __read_mostly = {
 		.table      = "nat",
 		.target     = redirect_tg4,
 		.checkentry = redirect_tg4_check,
+		.destroy    = redirect_tg_destroy,
 		.targetsize = sizeof(struct nf_nat_ipv4_multi_range_compat),
 		.hooks      = (1 << NF_INET_PRE_ROUTING) |
 		              (1 << NF_INET_LOCAL_OUT),

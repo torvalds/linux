@@ -19,7 +19,7 @@
 #include <linux/mm.h>
 #include <asm/unwinder.h>
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/sections.h>
 #include <asm/stacktrace.h>
 

@@ -66,6 +66,10 @@ struct fjes_adapter {
 	bool interrupt_watch_enable;
 
 	struct fjes_hw hw;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *dbg_adapter;
+#endif
 };
 
 extern char fjes_driver_name[];
@@ -73,5 +77,17 @@ extern char fjes_driver_version[];
 extern const u32 fjes_support_mtu[];
 
 void fjes_set_ethtool_ops(struct net_device *);
+
+#ifdef CONFIG_DEBUG_FS
+void fjes_dbg_adapter_init(struct fjes_adapter *adapter);
+void fjes_dbg_adapter_exit(struct fjes_adapter *adapter);
+void fjes_dbg_init(void);
+void fjes_dbg_exit(void);
+#else
+static inline void fjes_dbg_adapter_init(struct fjes_adapter *adapter) {}
+static inline void fjes_dbg_adapter_exit(struct fjes_adapter *adapter) {}
+static inline void fjes_dbg_init(void) {}
+static inline void fjes_dbg_exit(void) {}
+#endif /* CONFIG_DEBUG_FS */
 
 #endif /* FJES_H_ */

@@ -1667,12 +1667,6 @@ static inline void fill_plug_rsp_nack(struct fwserial_mgmt_pkt *pkt)
 	pkt->hdr.len = cpu_to_be16(mgmt_pkt_expected_len(pkt->hdr.code));
 }
 
-static inline void fill_unplug_req(struct fwserial_mgmt_pkt *pkt)
-{
-	pkt->hdr.code = cpu_to_be16(FWSC_VIRT_CABLE_UNPLUG);
-	pkt->hdr.len = cpu_to_be16(mgmt_pkt_expected_len(pkt->hdr.code));
-}
-
 static inline void fill_unplug_rsp_nack(struct fwserial_mgmt_pkt *pkt)
 {
 	pkt->hdr.code = cpu_to_be16(FWSC_VIRT_CABLE_UNPLUG_RSP | FWSC_RSP_NACK);

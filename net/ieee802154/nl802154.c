@@ -26,23 +26,8 @@
 #include "rdev-ops.h"
 #include "core.h"
 
-static int nl802154_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
-			     struct genl_info *info);
-
-static void nl802154_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
-			       struct genl_info *info);
-
 /* the netlink family */
-static struct genl_family nl802154_fam = {
-	.id = GENL_ID_GENERATE,		/* don't bother with a hardcoded ID */
-	.name = NL802154_GENL_NAME,	/* have users key off the name instead */
-	.hdrsize = 0,			/* no private header */
-	.version = 1,			/* no particular meaning now */
-	.maxattr = NL802154_ATTR_MAX,
-	.netnsok = true,
-	.pre_doit = nl802154_pre_doit,
-	.post_doit = nl802154_post_doit,
-};
+static struct genl_family nl802154_fam;
 
 /* multicast groups */
 enum nl802154_multicast_groups {
@@ -263,13 +248,14 @@ nl802154_prepare_wpan_dev_dump(struct sk_buff *skb,
 
 	if (!cb->args[0]) {
 		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl802154_fam.hdrsize,
-				  nl802154_fam.attrbuf, nl802154_fam.maxattr,
+				  genl_family_attrbuf(&nl802154_fam),
+				  nl802154_fam.maxattr,
 				  nl802154_policy);
 		if (err)
 			goto out_unlock;
 
 		*wpan_dev = __cfg802154_wpan_dev_from_attrs(sock_net(skb->sk),
-							    nl802154_fam.attrbuf);
+							    genl_family_attrbuf(&nl802154_fam));
 		if (IS_ERR(*wpan_dev)) {
 			err = PTR_ERR(*wpan_dev);
 			goto out_unlock;
@@ -575,7 +561,7 @@ static int nl802154_dump_wpan_phy_parse(struct sk_buff *skb,
 					struct netlink_callback *cb,
 					struct nl802154_dump_wpan_phy_state *state)
 {
-	struct nlattr **tb = nl802154_fam.attrbuf;
+	struct nlattr **tb = genl_family_attrbuf(&nl802154_fam);
 	int ret = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl802154_fam.hdrsize,
 			      tb, nl802154_fam.maxattr, nl802154_policy);
 
@@ -2476,11 +2462,25 @@ static const struct genl_ops nl802154_ops[] = {
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };
 
+static struct genl_family nl802154_fam __ro_after_init = {
+	.name = NL802154_GENL_NAME,	/* have users key off the name instead */
+	.hdrsize = 0,			/* no private header */
+	.version = 1,			/* no particular meaning now */
+	.maxattr = NL802154_ATTR_MAX,
+	.netnsok = true,
+	.pre_doit = nl802154_pre_doit,
+	.post_doit = nl802154_post_doit,
+	.module = THIS_MODULE,
+	.ops = nl802154_ops,
+	.n_ops = ARRAY_SIZE(nl802154_ops),
+	.mcgrps = nl802154_mcgrps,
+	.n_mcgrps = ARRAY_SIZE(nl802154_mcgrps),
+};
+
 /* initialisation/exit functions */
-int nl802154_init(void)
+int __init nl802154_init(void)
 {
-	return genl_register_family_with_ops_groups(&nl802154_fam, nl802154_ops,
-						    nl802154_mcgrps);
+	return genl_register_family(&nl802154_fam);
 }
 
 void nl802154_exit(void)

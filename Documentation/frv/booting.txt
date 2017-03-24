@@ -119,7 +119,7 @@ separated by spaces:
 	253:0		Device with major 253 and minor 0
 
       Authoritative information can be found in
-      "Documentation/kernel-parameters.txt".
+      "Documentation/admin-guide/kernel-parameters.rst".
 
   (*) rw
 

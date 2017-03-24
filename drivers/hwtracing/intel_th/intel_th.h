@@ -54,6 +54,7 @@ struct intel_th_output {
  * @num_resources:	number of resources in @resource array
  * @type:		INTEL_TH_{SOURCE,OUTPUT,SWITCH}
  * @id:			device instance or -1
+ * @host_mode:		Intel TH is controlled by an external debug host
  * @output:		output descriptor for INTEL_TH_OUTPUT devices
  * @name:		device name to match the driver
  */
@@ -63,6 +64,9 @@ struct intel_th_device {
 	unsigned int	num_resources;
 	unsigned int	type;
 	int		id;
+
+	/* INTEL_TH_SWITCH specific */
+	bool			host_mode;
 
 	/* INTEL_TH_OUTPUT specific */
 	struct intel_th_output	output;

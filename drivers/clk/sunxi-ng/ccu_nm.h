@@ -30,9 +30,9 @@ struct ccu_nm {
 	u32			enable;
 	u32			lock;
 
-	struct _ccu_mult	n;
-	struct _ccu_div		m;
-	struct _ccu_frac	frac;
+	struct ccu_mult_internal	n;
+	struct ccu_div_internal		m;
+	struct ccu_frac_internal	frac;
 
 	struct ccu_common	common;
 };

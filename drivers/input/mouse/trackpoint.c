@@ -15,7 +15,7 @@
 #include <linux/input.h>
 #include <linux/libps2.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "psmouse.h"
 #include "trackpoint.h"
 
@@ -379,7 +379,7 @@ int trackpoint_detect(struct psmouse *psmouse, bool set_properties)
 	if (!set_properties)
 		return 0;
 
-	if (trackpoint_read(&psmouse->ps2dev, TP_EXT_BTN, &button_info)) {
+	if (trackpoint_read(ps2dev, TP_EXT_BTN, &button_info)) {
 		psmouse_warn(psmouse, "failed to get extended button data\n");
 		button_info = 0;
 	}
@@ -402,7 +402,7 @@ int trackpoint_detect(struct psmouse *psmouse, bool set_properties)
 
 	trackpoint_defaults(psmouse->private);
 
-	error = trackpoint_power_on_reset(&psmouse->ps2dev);
+	error = trackpoint_power_on_reset(ps2dev);
 
 	/* Write defaults to TP only if reset fails. */
 	if (error)

@@ -78,8 +78,7 @@ struct nfs_server *nfs3_clone_server(struct nfs_server *source,
  */
 struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 		const struct sockaddr *ds_addr, int ds_addrlen,
-		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans,
-		rpc_authflavor_t au_flavor)
+		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans)
 {
 	struct rpc_timeout ds_timeout;
 	struct nfs_client *mds_clp = mds_srv->nfs_client;
@@ -106,7 +105,7 @@ struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 
 	/* Use the MDS nfs_client cl_ipaddr. */
 	nfs_init_timeout_values(&ds_timeout, ds_proto, ds_timeo, ds_retrans);
-	clp = nfs_get_client(&cl_init, au_flavor);
+	clp = nfs_get_client(&cl_init);
 
 	return clp;
 }

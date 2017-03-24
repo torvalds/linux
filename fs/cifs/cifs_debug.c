@@ -24,7 +24,7 @@
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"

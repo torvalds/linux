@@ -1,7 +1,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/percpu.h>
@@ -12,6 +12,7 @@
 #include <linux/pfn.h>
 #include <asm/sections.h>
 #include <asm/processor.h>
+#include <asm/desc.h>
 #include <asm/setup.h>
 #include <asm/mpspec.h>
 #include <asm/apicdef.h>

@@ -406,8 +406,7 @@ static void pwc_vidioc_fill_fmt(struct v4l2_format *f,
 	f->fmt.pix.bytesperline = f->fmt.pix.width;
 	f->fmt.pix.sizeimage	= f->fmt.pix.height * f->fmt.pix.width * 3 / 2;
 	f->fmt.pix.colorspace	= V4L2_COLORSPACE_SRGB;
-	PWC_DEBUG_IOCTL("pwc_vidioc_fill_fmt() "
-			"width=%d, height=%d, bytesperline=%d, sizeimage=%d, pixelformat=%c%c%c%c\n",
+	PWC_DEBUG_IOCTL("pwc_vidioc_fill_fmt() width=%d, height=%d, bytesperline=%d, sizeimage=%d, pixelformat=%c%c%c%c\n",
 			f->fmt.pix.width,
 			f->fmt.pix.height,
 			f->fmt.pix.bytesperline,
@@ -473,8 +472,7 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 
 	pixelformat = f->fmt.pix.pixelformat;
 
-	PWC_DEBUG_IOCTL("Trying to set format to: width=%d height=%d fps=%d "
-			"format=%c%c%c%c\n",
+	PWC_DEBUG_IOCTL("Trying to set format to: width=%d height=%d fps=%d format=%c%c%c%c\n",
 			f->fmt.pix.width, f->fmt.pix.height, pdev->vframes,
 			(pixelformat)&255,
 			(pixelformat>>8)&255,

@@ -299,7 +299,6 @@ struct snic {
 
 	/* pci related */
 	struct pci_dev *pdev;
-	struct msix_entry msix_entry[SNIC_MSIX_INTR_MAX];
 	struct snic_msix_entry msix[SNIC_MSIX_INTR_MAX];
 
 	/* io related info */

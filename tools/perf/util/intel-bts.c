@@ -295,6 +295,7 @@ static int intel_bts_synth_branch_sample(struct intel_bts_queue *btsq,
 	sample.cpu = btsq->cpu;
 	sample.flags = btsq->sample_flags;
 	sample.insn_len = btsq->intel_pt_insn.length;
+	memcpy(sample.insn, btsq->intel_pt_insn.buf, INTEL_PT_INSN_BUF_SZ);
 
 	if (bts->synth_opts.inject) {
 		event.sample.header.size = bts->branches_event_size;
@@ -319,14 +320,11 @@ static int intel_bts_get_next_insn(struct intel_bts_queue *btsq, u64 ip)
 	struct machine *machine = btsq->bts->machine;
 	struct thread *thread;
 	struct addr_location al;
-	unsigned char buf[1024];
-	size_t bufsz;
+	unsigned char buf[INTEL_PT_INSN_BUF_SZ];
 	ssize_t len;
 	int x86_64;
 	uint8_t cpumode;
 	int err = -1;
-
-	bufsz = intel_pt_insn_max_size();
 
 	if (machine__kernel_ip(machine, ip))
 		cpumode = PERF_RECORD_MISC_KERNEL;
@@ -341,7 +339,8 @@ static int intel_bts_get_next_insn(struct intel_bts_queue *btsq, u64 ip)
 	if (!al.map || !al.map->dso)
 		goto out_put;
 
-	len = dso__data_read_addr(al.map->dso, al.map, machine, ip, buf, bufsz);
+	len = dso__data_read_addr(al.map->dso, al.map, machine, ip, buf,
+				  INTEL_PT_INSN_BUF_SZ);
 	if (len <= 0)
 		goto out_put;
 

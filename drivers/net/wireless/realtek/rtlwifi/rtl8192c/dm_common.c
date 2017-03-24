@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -642,7 +638,6 @@ EXPORT_SYMBOL(rtl92c_dm_init_edca_turbo);
 static void rtl92c_dm_check_edca_turbo(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 
 	static u64 last_txok_cnt;
@@ -655,20 +650,20 @@ static void rtl92c_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	u32 edca_be_dl = 0x5ea42b;
 	bool bt_change_edca = false;
 
-	if ((last_bt_edca_ul != rtlpcipriv->bt_coexist.bt_edca_ul) ||
-	    (last_bt_edca_dl != rtlpcipriv->bt_coexist.bt_edca_dl)) {
+	if ((last_bt_edca_ul != rtlpriv->btcoexist.bt_edca_ul) ||
+	    (last_bt_edca_dl != rtlpriv->btcoexist.bt_edca_dl)) {
 		rtlpriv->dm.current_turbo_edca = false;
-		last_bt_edca_ul = rtlpcipriv->bt_coexist.bt_edca_ul;
-		last_bt_edca_dl = rtlpcipriv->bt_coexist.bt_edca_dl;
+		last_bt_edca_ul = rtlpriv->btcoexist.bt_edca_ul;
+		last_bt_edca_dl = rtlpriv->btcoexist.bt_edca_dl;
 	}
 
-	if (rtlpcipriv->bt_coexist.bt_edca_ul != 0) {
-		edca_be_ul = rtlpcipriv->bt_coexist.bt_edca_ul;
+	if (rtlpriv->btcoexist.bt_edca_ul != 0) {
+		edca_be_ul = rtlpriv->btcoexist.bt_edca_ul;
 		bt_change_edca = true;
 	}
 
-	if (rtlpcipriv->bt_coexist.bt_edca_dl != 0) {
-		edca_be_ul = rtlpcipriv->bt_coexist.bt_edca_dl;
+	if (rtlpriv->btcoexist.bt_edca_dl != 0) {
+		edca_be_ul = rtlpriv->btcoexist.bt_edca_dl;
 		bt_change_edca = true;
 	}
 
@@ -677,7 +672,7 @@ static void rtl92c_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		return;
 	}
 
-	if ((!mac->ht_enable) && (!rtlpcipriv->bt_coexist.bt_coexistence)) {
+	if ((!mac->ht_enable) && (!rtlpriv->btcoexist.bt_coexistence)) {
 		if (!(edca_be_ul & 0xffff0000))
 			edca_be_ul |= 0x005e0000;
 
@@ -1475,7 +1470,6 @@ EXPORT_SYMBOL(rtl92c_dm_watchdog);
 u8 rtl92c_bt_rssi_state_change(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
 	long undec_sm_pwdb;
 	u8 curr_bt_rssi_state = 0x00;
 
@@ -1514,8 +1508,8 @@ u8 rtl92c_bt_rssi_state_change(struct ieee80211_hw *hw)
 	else
 		curr_bt_rssi_state &= (~BT_RSSI_STATE_BG_EDCA_LOW);
 
-	if (curr_bt_rssi_state != rtlpcipriv->bt_coexist.bt_rssi_state) {
-		rtlpcipriv->bt_coexist.bt_rssi_state = curr_bt_rssi_state;
+	if (curr_bt_rssi_state != rtlpriv->btcoexist.bt_rssi_state) {
+		rtlpriv->btcoexist.bt_rssi_state = curr_bt_rssi_state;
 		return true;
 	} else {
 		return false;
@@ -1526,7 +1520,6 @@ EXPORT_SYMBOL(rtl92c_bt_rssi_state_change);
 static bool rtl92c_bt_state_change(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
 
 	u32 polling, ratio_tx, ratio_pri;
 	u32 bt_tx, bt_pri;
@@ -1546,14 +1539,14 @@ static bool rtl92c_bt_state_change(struct ieee80211_hw *hw)
 		return false;
 
 	bt_state &= BIT_OFFSET_LEN_MASK_32(0, 1);
-	if (bt_state != rtlpcipriv->bt_coexist.bt_cur_state) {
-		rtlpcipriv->bt_coexist.bt_cur_state = bt_state;
+	if (bt_state != rtlpriv->btcoexist.bt_cur_state) {
+		rtlpriv->btcoexist.bt_cur_state = bt_state;
 
-		if (rtlpcipriv->bt_coexist.reg_bt_sco == 3) {
-			rtlpcipriv->bt_coexist.bt_service = BT_IDLE;
+		if (rtlpriv->btcoexist.reg_bt_sco == 3) {
+			rtlpriv->btcoexist.bt_service = BT_IDLE;
 
 			bt_state = bt_state |
-			  ((rtlpcipriv->bt_coexist.bt_ant_isolation == 1) ?
+			  ((rtlpriv->btcoexist.bt_ant_isolation == 1) ?
 			  0 : BIT_OFFSET_LEN_MASK_32(1, 1)) |
 			  BIT_OFFSET_LEN_MASK_32(2, 1);
 			rtl_write_byte(rtlpriv, 0x4fd, bt_state);
@@ -1563,10 +1556,10 @@ static bool rtl92c_bt_state_change(struct ieee80211_hw *hw)
 
 	ratio_tx = bt_tx * 1000 / polling;
 	ratio_pri = bt_pri * 1000 / polling;
-	rtlpcipriv->bt_coexist.ratio_tx = ratio_tx;
-	rtlpcipriv->bt_coexist.ratio_pri = ratio_pri;
+	rtlpriv->btcoexist.ratio_tx = ratio_tx;
+	rtlpriv->btcoexist.ratio_pri = ratio_pri;
 
-	if (bt_state && rtlpcipriv->bt_coexist.reg_bt_sco == 3) {
+	if (bt_state && rtlpriv->btcoexist.reg_bt_sco == 3) {
 
 		if ((ratio_tx < 30)  && (ratio_pri < 30))
 			cur_service_type = BT_IDLE;
@@ -1581,17 +1574,17 @@ static bool rtl92c_bt_state_change(struct ieee80211_hw *hw)
 		else
 			cur_service_type = BT_OTHER_ACTION;
 
-		if (cur_service_type != rtlpcipriv->bt_coexist.bt_service) {
-			rtlpcipriv->bt_coexist.bt_service = cur_service_type;
+		if (cur_service_type != rtlpriv->btcoexist.bt_service) {
+			rtlpriv->btcoexist.bt_service = cur_service_type;
 			bt_state = bt_state |
-			   ((rtlpcipriv->bt_coexist.bt_ant_isolation == 1) ?
+			   ((rtlpriv->btcoexist.bt_ant_isolation == 1) ?
 			   0 : BIT_OFFSET_LEN_MASK_32(1, 1)) |
-			   ((rtlpcipriv->bt_coexist.bt_service != BT_IDLE) ?
+			   ((rtlpriv->btcoexist.bt_service != BT_IDLE) ?
 			   0 : BIT_OFFSET_LEN_MASK_32(2, 1));
 
 			/* Add interrupt migration when bt is not ini
 			 * idle state (no traffic). */
-			if (rtlpcipriv->bt_coexist.bt_service != BT_IDLE) {
+			if (rtlpriv->btcoexist.bt_service != BT_IDLE) {
 				rtl_write_word(rtlpriv, 0x504, 0x0ccc);
 				rtl_write_byte(rtlpriv, 0x506, 0x54);
 				rtl_write_byte(rtlpriv, 0x507, 0x54);
@@ -1630,80 +1623,77 @@ static bool rtl92c_bt_wifi_connect_change(struct ieee80211_hw *hw)
 static void rtl92c_bt_set_normal(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
 
-
-	if (rtlpcipriv->bt_coexist.bt_service == BT_OTHERBUSY) {
-		rtlpcipriv->bt_coexist.bt_edca_ul = 0x5ea72b;
-		rtlpcipriv->bt_coexist.bt_edca_dl = 0x5ea72b;
-	} else if (rtlpcipriv->bt_coexist.bt_service == BT_BUSY) {
-		rtlpcipriv->bt_coexist.bt_edca_ul = 0x5eb82f;
-		rtlpcipriv->bt_coexist.bt_edca_dl = 0x5eb82f;
-	} else if (rtlpcipriv->bt_coexist.bt_service == BT_SCO) {
-		if (rtlpcipriv->bt_coexist.ratio_tx > 160) {
-			rtlpcipriv->bt_coexist.bt_edca_ul = 0x5ea72f;
-			rtlpcipriv->bt_coexist.bt_edca_dl = 0x5ea72f;
+	if (rtlpriv->btcoexist.bt_service == BT_OTHERBUSY) {
+		rtlpriv->btcoexist.bt_edca_ul = 0x5ea72b;
+		rtlpriv->btcoexist.bt_edca_dl = 0x5ea72b;
+	} else if (rtlpriv->btcoexist.bt_service == BT_BUSY) {
+		rtlpriv->btcoexist.bt_edca_ul = 0x5eb82f;
+		rtlpriv->btcoexist.bt_edca_dl = 0x5eb82f;
+	} else if (rtlpriv->btcoexist.bt_service == BT_SCO) {
+		if (rtlpriv->btcoexist.ratio_tx > 160) {
+			rtlpriv->btcoexist.bt_edca_ul = 0x5ea72f;
+			rtlpriv->btcoexist.bt_edca_dl = 0x5ea72f;
 		} else {
-			rtlpcipriv->bt_coexist.bt_edca_ul = 0x5ea32b;
-			rtlpcipriv->bt_coexist.bt_edca_dl = 0x5ea42b;
+			rtlpriv->btcoexist.bt_edca_ul = 0x5ea32b;
+			rtlpriv->btcoexist.bt_edca_dl = 0x5ea42b;
 		}
 	} else {
-		rtlpcipriv->bt_coexist.bt_edca_ul = 0;
-		rtlpcipriv->bt_coexist.bt_edca_dl = 0;
+		rtlpriv->btcoexist.bt_edca_ul = 0;
+		rtlpriv->btcoexist.bt_edca_dl = 0;
 	}
 
-	if ((rtlpcipriv->bt_coexist.bt_service != BT_IDLE) &&
-	     (rtlpriv->mac80211.mode == WIRELESS_MODE_G ||
+	if ((rtlpriv->btcoexist.bt_service != BT_IDLE) &&
+	    (rtlpriv->mac80211.mode == WIRELESS_MODE_G ||
 	     (rtlpriv->mac80211.mode == (WIRELESS_MODE_G | WIRELESS_MODE_B))) &&
-	     (rtlpcipriv->bt_coexist.bt_rssi_state &
+	    (rtlpriv->btcoexist.bt_rssi_state &
 	     BT_RSSI_STATE_BG_EDCA_LOW)) {
-		rtlpcipriv->bt_coexist.bt_edca_ul = 0x5eb82b;
-		rtlpcipriv->bt_coexist.bt_edca_dl = 0x5eb82b;
+		rtlpriv->btcoexist.bt_edca_ul = 0x5eb82b;
+		rtlpriv->btcoexist.bt_edca_dl = 0x5eb82b;
 	}
 }
 
 static void rtl92c_bt_ant_isolation(struct ieee80211_hw *hw, u8 tmp1byte)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
 
 
 	/* Only enable HW BT coexist when BT in "Busy" state. */
 	if (rtlpriv->mac80211.vendor == PEER_CISCO &&
-	    rtlpcipriv->bt_coexist.bt_service == BT_OTHER_ACTION) {
+	    rtlpriv->btcoexist.bt_service == BT_OTHER_ACTION) {
 		rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, 0xa0);
 	} else {
-		if ((rtlpcipriv->bt_coexist.bt_service == BT_BUSY) &&
-		    (rtlpcipriv->bt_coexist.bt_rssi_state &
+		if ((rtlpriv->btcoexist.bt_service == BT_BUSY) &&
+		    (rtlpriv->btcoexist.bt_rssi_state &
 		     BT_RSSI_STATE_NORMAL_POWER)) {
 			rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, 0xa0);
-		} else if ((rtlpcipriv->bt_coexist.bt_service ==
+		} else if ((rtlpriv->btcoexist.bt_service ==
 			    BT_OTHER_ACTION) && (rtlpriv->mac80211.mode <
 			    WIRELESS_MODE_N_24G) &&
-			    (rtlpcipriv->bt_coexist.bt_rssi_state &
+			    (rtlpriv->btcoexist.bt_rssi_state &
 			    BT_RSSI_STATE_SPECIAL_LOW)) {
 			rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, 0xa0);
-		} else if (rtlpcipriv->bt_coexist.bt_service == BT_PAN) {
+		} else if (rtlpriv->btcoexist.bt_service == BT_PAN) {
 			rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, tmp1byte);
 		} else {
 			rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, tmp1byte);
 		}
 	}
 
-	if (rtlpcipriv->bt_coexist.bt_service == BT_PAN)
+	if (rtlpriv->btcoexist.bt_service == BT_PAN)
 		rtl_write_dword(rtlpriv, REG_GPIO_PIN_CTRL, 0x10100);
 	else
 		rtl_write_dword(rtlpriv, REG_GPIO_PIN_CTRL, 0x0);
 
-	if (rtlpcipriv->bt_coexist.bt_rssi_state &
+	if (rtlpriv->btcoexist.bt_rssi_state &
 	    BT_RSSI_STATE_NORMAL_POWER) {
 		rtl92c_bt_set_normal(hw);
 	} else {
-		rtlpcipriv->bt_coexist.bt_edca_ul = 0;
-		rtlpcipriv->bt_coexist.bt_edca_dl = 0;
+		rtlpriv->btcoexist.bt_edca_ul = 0;
+		rtlpriv->btcoexist.bt_edca_dl = 0;
 	}
 
-	if (rtlpcipriv->bt_coexist.bt_service != BT_IDLE) {
+	if (rtlpriv->btcoexist.bt_service != BT_IDLE) {
 		rtlpriv->cfg->ops->set_rfreg(hw,
 				 RF90_PATH_A,
 				 0x1e,
@@ -1711,12 +1701,12 @@ static void rtl92c_bt_ant_isolation(struct ieee80211_hw *hw, u8 tmp1byte)
 	} else {
 		rtlpriv->cfg->ops->set_rfreg(hw,
 		     RF90_PATH_A, 0x1e, 0xf0,
-		     rtlpcipriv->bt_coexist.bt_rfreg_origin_1e);
+		     rtlpriv->btcoexist.bt_rfreg_origin_1e);
 	}
 
 	if (!rtlpriv->dm.dynamic_txpower_enable) {
-		if (rtlpcipriv->bt_coexist.bt_service != BT_IDLE) {
-			if (rtlpcipriv->bt_coexist.bt_rssi_state &
+		if (rtlpriv->btcoexist.bt_service != BT_IDLE) {
+			if (rtlpriv->btcoexist.bt_rssi_state &
 				BT_RSSI_STATE_TXPOWER_LOW) {
 				rtlpriv->dm.dynamic_txhighpower_lvl =
 							TXHIGHPWRLEVEL_BT2;
@@ -1736,37 +1726,34 @@ static void rtl92c_bt_ant_isolation(struct ieee80211_hw *hw, u8 tmp1byte)
 static void rtl92c_check_bt_change(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	u8 tmp1byte = 0;
 
 	if (IS_81XXC_VENDOR_UMC_B_CUT(rtlhal->version) &&
-	    rtlpcipriv->bt_coexist.bt_coexistence)
+	    rtlpriv->btcoexist.bt_coexistence)
 		tmp1byte |= BIT(5);
-	if (rtlpcipriv->bt_coexist.bt_cur_state) {
-		if (rtlpcipriv->bt_coexist.bt_ant_isolation)
+	if (rtlpriv->btcoexist.bt_cur_state) {
+		if (rtlpriv->btcoexist.bt_ant_isolation)
 			rtl92c_bt_ant_isolation(hw, tmp1byte);
 	} else {
 		rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG, tmp1byte);
 		rtlpriv->cfg->ops->set_rfreg(hw, RF90_PATH_A, 0x1e, 0xf0,
-				rtlpcipriv->bt_coexist.bt_rfreg_origin_1e);
+				rtlpriv->btcoexist.bt_rfreg_origin_1e);
 
-		rtlpcipriv->bt_coexist.bt_edca_ul = 0;
-		rtlpcipriv->bt_coexist.bt_edca_dl = 0;
+		rtlpriv->btcoexist.bt_edca_ul = 0;
+		rtlpriv->btcoexist.bt_edca_dl = 0;
 	}
 }
 
 void rtl92c_dm_bt_coexist(struct ieee80211_hw *hw)
 {
-	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
-
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	bool wifi_connect_change;
 	bool bt_state_change;
 	bool rssi_state_change;
 
-	if ((rtlpcipriv->bt_coexist.bt_coexistence) &&
-	     (rtlpcipriv->bt_coexist.bt_coexist_type == BT_CSR_BC4)) {
-
+	if ((rtlpriv->btcoexist.bt_coexistence) &&
+	    (rtlpriv->btcoexist.bt_coexist_type == BT_CSR_BC4)) {
 		wifi_connect_change = rtl92c_bt_wifi_connect_change(hw);
 		bt_state_change = rtl92c_bt_state_change(hw);
 		rssi_state_change = rtl92c_bt_rssi_state_change(hw);

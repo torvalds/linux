@@ -167,7 +167,7 @@ static int symbol__gtk_annotate(struct symbol *sym, struct map *map,
 	if (map->dso->annotate_warned)
 		return -1;
 
-	err = symbol__disassemble(sym, map, 0);
+	err = symbol__disassemble(sym, map, perf_evsel__env_arch(evsel), 0);
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));

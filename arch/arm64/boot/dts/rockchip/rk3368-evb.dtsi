@@ -90,7 +90,7 @@
 			240 241 242 243 244 245 246 247
 			248 249 250 251 252 253 254 255>;
 		default-brightness-level = <128>;
-		enable-gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&bl_en>;
 		pwms = <&pwm0 0 1000000 PWM_POLARITY_INVERTED>;
@@ -101,7 +101,7 @@
 		compatible = "mmc-pwrseq-emmc";
 		pinctrl-0 = <&emmc_reset>;
 		pinctrl-names = "default";
-		reset-gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>;
 	};
 
 	keys: gpio-keys {
@@ -111,7 +111,7 @@
 
 		power {
 			wakeup-source;
-			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";
 			linux,code = <KEY_POWER>;
 		};
@@ -121,7 +121,7 @@
 	vcc_host: vcc-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "vcc_host";
@@ -166,7 +166,7 @@
 	phy-supply = <&vcc_lan>;
 	phy-mode = "rmii";
 	clock_in_out = "output";
-	snps,reset-gpio = <&gpio3 12 0>;
+	snps,reset-gpio = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 1000000>;
 	pinctrl-names = "default";

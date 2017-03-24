@@ -43,7 +43,7 @@ static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 	struct drm_device *dev = fb->base.dev;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	bool store_for_later = false;
-	int bpp = fb->base.bits_per_pixel / 8;
+	int bpp = fb->base.format->cpp[0];
 	int x2, y2;
 	unsigned long flags;
 	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(fb->obj);
@@ -200,16 +200,10 @@ static void virtio_gpu_3d_imageblit(struct fb_info *info,
 
 static struct fb_ops virtio_gpufb_ops = {
 	.owner = THIS_MODULE,
-	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par, /* TODO: copy vmwgfx */
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_fillrect = virtio_gpu_3d_fillrect,
 	.fb_copyarea = virtio_gpu_3d_copyarea,
 	.fb_imageblit = virtio_gpu_3d_imageblit,
-	.fb_pan_display = drm_fb_helper_pan_display,
-	.fb_blank = drm_fb_helper_blank,
-	.fb_setcmap = drm_fb_helper_setcmap,
-	.fb_debug_enter = drm_fb_helper_debug_enter,
-	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 static int virtio_gpu_vmap_fb(struct virtio_gpu_device *vgdev,
@@ -337,9 +331,9 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	info->fbops = &virtio_gpufb_ops;
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 
-	info->screen_base = obj->vmap;
+	info->screen_buffer = obj->vmap;
 	info->screen_size = obj->gem_base.size;
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &vfbdev->helper,
 			       sizes->fb_width, sizes->fb_height);
 
@@ -393,7 +387,6 @@ int virtio_gpu_fbdev_init(struct virtio_gpu_device *vgdev)
 	drm_fb_helper_prepare(vgdev->ddev, &vgfbdev->helper,
 			      &virtio_gpu_fb_helper_funcs);
 	ret = drm_fb_helper_init(vgdev->ddev, &vgfbdev->helper,
-				 vgdev->num_scanouts,
 				 VIRTIO_GPUFB_CONN_LIMIT);
 	if (ret) {
 		kfree(vgfbdev);

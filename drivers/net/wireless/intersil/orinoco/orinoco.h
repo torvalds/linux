@@ -84,7 +84,6 @@ struct orinoco_private {
 
 	/* Net device stuff */
 	struct net_device *ndev;
-	struct net_device_stats stats;
 	struct iw_statistics wstats;
 
 	/* Hardware control variables */
@@ -152,8 +151,8 @@ struct orinoco_private {
 	u8 *wpa_ie;
 	int wpa_ie_len;
 
-	struct crypto_ahash *rx_tfm_mic;
-	struct crypto_ahash *tx_tfm_mic;
+	struct crypto_shash *rx_tfm_mic;
+	struct crypto_shash *tx_tfm_mic;
 
 	unsigned int wpa_enabled:1;
 	unsigned int tkip_cm_active:1;
@@ -206,7 +205,6 @@ int orinoco_process_xmit_skb(struct sk_buff *skb,
 /* Common ndo functions exported for reuse by orinoco_usb */
 int orinoco_open(struct net_device *dev);
 int orinoco_stop(struct net_device *dev);
-struct net_device_stats *orinoco_get_stats(struct net_device *dev);
 void orinoco_set_multicast_list(struct net_device *dev);
 int orinoco_change_mtu(struct net_device *dev, int new_mtu);
 void orinoco_tx_timeout(struct net_device *dev);

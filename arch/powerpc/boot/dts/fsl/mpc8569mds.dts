@@ -55,7 +55,7 @@
 				label = "kernel";
 				reg = <0x01c00000 0x002e0000>;
 			};
-			partiton@1ee0000 {
+			partition@1ee0000 {
 				label = "dtb";
 				reg = <0x01ee0000 0x00020000>;
 			};

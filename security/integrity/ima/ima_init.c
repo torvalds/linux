@@ -115,7 +115,8 @@ int __init ima_init(void)
 		ima_used_chip = 1;
 
 	if (!ima_used_chip)
-		pr_info("No TPM chip found, activating TPM-bypass!\n");
+		pr_info("No TPM chip found, activating TPM-bypass! (rc=%d)\n",
+			rc);
 
 	rc = integrity_init_keyring(INTEGRITY_KEYRING_IMA);
 	if (rc)
@@ -127,6 +128,8 @@ int __init ima_init(void)
 	rc = ima_init_template();
 	if (rc != 0)
 		return rc;
+
+	ima_load_kexec_buffer();
 
 	rc = ima_add_boot_aggregate();	/* boot aggregate must be first entry */
 	if (rc != 0)

@@ -49,34 +49,19 @@ static int intel_vbtn_input_setup(struct platform_device *device)
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
 	int ret;
 
-	priv->input_dev = input_allocate_device();
+	priv->input_dev = devm_input_allocate_device(&device->dev);
 	if (!priv->input_dev)
 		return -ENOMEM;
 
 	ret = sparse_keymap_setup(priv->input_dev, intel_vbtn_keymap, NULL);
 	if (ret)
-		goto err_free_device;
+		return ret;
 
 	priv->input_dev->dev.parent = &device->dev;
 	priv->input_dev->name = "Intel Virtual Button driver";
 	priv->input_dev->id.bustype = BUS_HOST;
 
-	ret = input_register_device(priv->input_dev);
-	if (ret)
-		goto err_free_device;
-
-	return 0;
-
-err_free_device:
-	input_free_device(priv->input_dev);
-	return ret;
-}
-
-static void intel_vbtn_input_destroy(struct platform_device *device)
-{
-	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
-
-	input_unregister_device(priv->input_dev);
+	return input_register_device(priv->input_dev);
 }
 
 static void notify_handler(acpi_handle handle, u32 event, void *context)
@@ -97,7 +82,7 @@ static int intel_vbtn_probe(struct platform_device *device)
 	int err;
 
 	status = acpi_evaluate_object(handle, "VBDL", NULL, NULL);
-	if (!ACPI_SUCCESS(status)) {
+	if (ACPI_FAILURE(status)) {
 		dev_warn(&device->dev, "failed to read Intel Virtual Button driver\n");
 		return -ENODEV;
 	}
@@ -117,24 +102,16 @@ static int intel_vbtn_probe(struct platform_device *device)
 					     ACPI_DEVICE_NOTIFY,
 					     notify_handler,
 					     device);
-	if (ACPI_FAILURE(status)) {
-		err = -EBUSY;
-		goto err_remove_input;
-	}
+	if (ACPI_FAILURE(status))
+		return -EBUSY;
 
 	return 0;
-
-err_remove_input:
-	intel_vbtn_input_destroy(device);
-
-	return err;
 }
 
 static int intel_vbtn_remove(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
-	intel_vbtn_input_destroy(device);
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 
 	/*

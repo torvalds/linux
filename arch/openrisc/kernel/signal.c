@@ -30,7 +30,7 @@
 #include <asm/processor.h>
 #include <asm/syscall.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define DEBUG_SIG 0
 

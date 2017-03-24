@@ -279,9 +279,8 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 		height /= 2;		/* we must set for 1-frame */
 
 	pr_debug("%s: width=%d, height=%d, both=%d\n"
-		 "  tvnorm h_delay=%d, h_start=%d, h_stop=%d, "
-		 "v_delay=%d, v_start=%d, v_stop=%d\n" , __func__,
-		width, height, V4L2_FIELD_HAS_BOTH(field),
+		 "  tvnorm h_delay=%d, h_start=%d, h_stop=%d, v_delay=%d, v_start=%d, v_stop=%d\n",
+		__func__, width, height, V4L2_FIELD_HAS_BOTH(field),
 		norm->h_delay, norm->h_start, norm->h_stop,
 		norm->v_delay, norm->video_v_start,
 		norm->video_v_stop);
@@ -309,16 +308,15 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 		V4L2_FIELD_HAS_TOP(field)    ? "T" : "",
 		V4L2_FIELD_HAS_BOTTOM(field) ? "B" : "",
 		v4l2_norm_to_name(dev->tvnorm->id));
-	pr_debug("%s: hactive=%d, hdelay=%d, hscale=%d; "
-		"vactive=%d, vdelay=%d, vscale=%d\n", __func__,
+	pr_debug("%s: hactive=%d, hdelay=%d, hscale=%d; vactive=%d, vdelay=%d, vscale=%d\n",
+		 __func__,
 		hactive, hdelay, hscale, vactive, vdelay, vscale);
 
 	comb =	((vdelay & 0x300)  >> 2) |
 		((vactive & 0x300) >> 4) |
 		((hdelay & 0x300)  >> 6) |
 		((hactive & 0x300) >> 8);
-	pr_debug("%s: setting CROP_HI=%02x, VDELAY_LO=%02x, "
-		"VACTIVE_LO=%02x, HDELAY_LO=%02x, HACTIVE_LO=%02x\n",
+	pr_debug("%s: setting CROP_HI=%02x, VDELAY_LO=%02x, VACTIVE_LO=%02x, HDELAY_LO=%02x, HACTIVE_LO=%02x\n",
 		__func__, comb, vdelay, vactive, hdelay, hactive);
 	tw_writeb(TW68_CROP_HI, comb);
 	tw_writeb(TW68_VDELAY_LO, vdelay & 0xff);
@@ -327,8 +325,8 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 	tw_writeb(TW68_HACTIVE_LO, hactive & 0xff);
 
 	comb = ((vscale & 0xf00) >> 4) | ((hscale & 0xf00) >> 8);
-	pr_debug("%s: setting SCALE_HI=%02x, VSCALE_LO=%02x, "
-		"HSCALE_LO=%02x\n", __func__, comb, vscale, hscale);
+	pr_debug("%s: setting SCALE_HI=%02x, VSCALE_LO=%02x, HSCALE_LO=%02x\n",
+		 __func__, comb, vscale, hscale);
 	tw_writeb(TW68_SCALE_HI, comb);
 	tw_writeb(TW68_VSCALE_LO, vscale);
 	tw_writeb(TW68_HSCALE_LO, hscale);

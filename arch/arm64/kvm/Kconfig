@@ -16,9 +16,6 @@ menuconfig VIRTUALIZATION
 
 if VIRTUALIZATION
 
-config KVM_ARM_VGIC_V3_ITS
-	bool
-
 config KVM
 	bool "Kernel-based Virtual Machine (KVM) support"
 	depends on OF
@@ -34,7 +31,6 @@ config KVM
 	select KVM_VFIO
 	select HAVE_KVM_EVENTFD
 	select HAVE_KVM_IRQFD
-	select KVM_ARM_VGIC_V3_ITS
 	select KVM_ARM_PMU if HW_PERF_EVENTS
 	select HAVE_KVM_MSI
 	select HAVE_KVM_IRQCHIP

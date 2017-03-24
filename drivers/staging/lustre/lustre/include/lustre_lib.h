@@ -42,7 +42,7 @@
  * @{
  */
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/signal.h>
 #include <linux/types.h>
 #include "../../include/linux/libcfs/libcfs.h"
@@ -349,8 +349,6 @@ do {									   \
 	struct l_wait_info lwi = { 0 };			 \
 	l_wait_event_exclusive_head(wq, condition, &lwi);       \
 })
-
-#define LIBLUSTRE_CLIENT (0)
 
 /** @} lib */
 

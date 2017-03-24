@@ -74,7 +74,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/debugfs.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -3234,33 +3234,16 @@ err:
 	return -ENOMEM;
 }
 
-static int ab8500_debug_remove(struct platform_device *plf)
-{
-	debugfs_remove_recursive(ab8500_dir);
-
-	return 0;
-}
-
 static struct platform_driver ab8500_debug_driver = {
 	.driver = {
 		.name = "ab8500-debug",
+		.suppress_bind_attrs = true,
 	},
 	.probe  = ab8500_debug_probe,
-	.remove = ab8500_debug_remove
 };
 
 static int __init ab8500_debug_init(void)
 {
 	return platform_driver_register(&ab8500_debug_driver);
 }
-
-static void __exit ab8500_debug_exit(void)
-{
-	platform_driver_unregister(&ab8500_debug_driver);
-}
 subsys_initcall(ab8500_debug_init);
-module_exit(ab8500_debug_exit);
-
-MODULE_AUTHOR("Mattias WALLIN <mattias.wallin@stericsson.com");
-MODULE_DESCRIPTION("AB8500 DEBUG");
-MODULE_LICENSE("GPL v2");

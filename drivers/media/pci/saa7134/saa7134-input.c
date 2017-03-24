@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 #include "saa7134.h"
@@ -123,8 +119,7 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_type *protocol,
 	struct saa7134_dev *dev = ir->c->adapter->algo_data;
 
 	if (dev == NULL) {
-		ir_dbg(ir, "get_key_flydvb_trio: "
-			   "ir->c->adapter->algo_data is NULL!\n");
+		ir_dbg(ir, "get_key_flydvb_trio: ir->c->adapter->algo_data is NULL!\n");
 		return -EIO;
 	}
 
@@ -150,8 +145,8 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_type *protocol,
 			msleep(10);
 			continue;
 		}
-		ir_dbg(ir, "send wake up byte to pic16C505 (IR chip)"
-			   "failed %dx\n", attempt);
+		ir_dbg(ir, "send wake up byte to pic16C505 (IR chip)failed %dx\n",
+		       attempt);
 		return -EIO;
 	}
 	if (1 != i2c_master_recv(ir->c, &b, 1)) {
@@ -174,8 +169,7 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, enum rc_type *protocol
 	/* <dev> is needed to access GPIO. Used by the saa_readl macro. */
 	struct saa7134_dev *dev = ir->c->adapter->algo_data;
 	if (dev == NULL) {
-		ir_dbg(ir, "get_key_msi_tvanywhere_plus: "
-			   "ir->c->adapter->algo_data is NULL!\n");
+		ir_dbg(ir, "get_key_msi_tvanywhere_plus: ir->c->adapter->algo_data is NULL!\n");
 		return -EIO;
 	}
 
@@ -223,8 +217,7 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_type *protocol,
 	/* <dev> is needed to access GPIO. Used by the saa_readl macro. */
 	struct saa7134_dev *dev = ir->c->adapter->algo_data;
 	if (dev == NULL) {
-		ir_dbg(ir, "get_key_kworld_pc150u: "
-			   "ir->c->adapter->algo_data is NULL!\n");
+		ir_dbg(ir, "get_key_kworld_pc150u: ir->c->adapter->algo_data is NULL!\n");
 		return -EIO;
 	}
 
@@ -849,7 +842,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	}
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!ir || !rc) {
 		err = -ENOMEM;
 		goto err_out_free;

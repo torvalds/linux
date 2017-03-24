@@ -117,6 +117,7 @@ void tpg_init(struct tpg_data *tpg, unsigned w, unsigned h)
 	tpg_s_fourcc(tpg, V4L2_PIX_FMT_RGB24);
 	tpg->colorspace = V4L2_COLORSPACE_SRGB;
 	tpg->perc_fill = 100;
+	tpg->hsv_enc = V4L2_HSV_ENC_180;
 }
 EXPORT_SYMBOL_GPL(tpg_init);
 
@@ -234,16 +235,18 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_XBGR32:
 	case V4L2_PIX_FMT_ARGB32:
 	case V4L2_PIX_FMT_ABGR32:
+		tpg->color_enc = TGP_COLOR_ENC_RGB;
+		break;
 	case V4L2_PIX_FMT_GREY:
 	case V4L2_PIX_FMT_Y16:
 	case V4L2_PIX_FMT_Y16_BE:
-		tpg->is_yuv = false;
+		tpg->color_enc = TGP_COLOR_ENC_LUMA;
 		break;
 	case V4L2_PIX_FMT_YUV444:
 	case V4L2_PIX_FMT_YUV555:
 	case V4L2_PIX_FMT_YUV565:
 	case V4L2_PIX_FMT_YUV32:
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_YUV420M:
 	case V4L2_PIX_FMT_YVU420M:
@@ -256,7 +259,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->hdownsampling[1] = 2;
 		tpg->hdownsampling[2] = 2;
 		tpg->planes = 3;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_YUV422M:
 	case V4L2_PIX_FMT_YVU422M:
@@ -268,7 +271,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->hdownsampling[1] = 2;
 		tpg->hdownsampling[2] = 2;
 		tpg->planes = 3;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
@@ -280,7 +283,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->hdownsampling[1] = 1;
 		tpg->hmask[1] = ~1;
 		tpg->planes = 2;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV21M:
@@ -292,7 +295,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->hdownsampling[1] = 1;
 		tpg->hmask[1] = ~1;
 		tpg->planes = 2;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_YUV444M:
 	case V4L2_PIX_FMT_YVU444M:
@@ -302,21 +305,25 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->vdownsampling[2] = 1;
 		tpg->hdownsampling[1] = 1;
 		tpg->hdownsampling[2] = 1;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_NV24:
 	case V4L2_PIX_FMT_NV42:
 		tpg->vdownsampling[1] = 1;
 		tpg->hdownsampling[1] = 1;
 		tpg->planes = 2;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YVYU:
 	case V4L2_PIX_FMT_VYUY:
 		tpg->hmask[0] = ~1;
-		tpg->is_yuv = true;
+		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
+		break;
+	case V4L2_PIX_FMT_HSV24:
+	case V4L2_PIX_FMT_HSV32:
+		tpg->color_enc = TGP_COLOR_ENC_HSV;
 		break;
 	default:
 		return false;
@@ -351,6 +358,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		break;
 	case V4L2_PIX_FMT_RGB24:
 	case V4L2_PIX_FMT_BGR24:
+	case V4L2_PIX_FMT_HSV24:
 		tpg->twopixelsize[0] = 2 * 3;
 		break;
 	case V4L2_PIX_FMT_BGR666:
@@ -361,6 +369,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_ARGB32:
 	case V4L2_PIX_FMT_ABGR32:
 	case V4L2_PIX_FMT_YUV32:
+	case V4L2_PIX_FMT_HSV32:
 		tpg->twopixelsize[0] = 2 * 4;
 		break;
 	case V4L2_PIX_FMT_NV12:
@@ -488,6 +497,71 @@ static inline int linear_to_rec709(int v)
 {
 	v = clamp(v, 0, 0xff0);
 	return tpg_linear_to_rec709[v];
+}
+
+static void color_to_hsv(struct tpg_data *tpg, int r, int g, int b,
+			   int *h, int *s, int *v)
+{
+	int max_rgb, min_rgb, diff_rgb;
+	int aux;
+	int third;
+	int third_size;
+
+	r >>= 4;
+	g >>= 4;
+	b >>= 4;
+
+	/* Value */
+	max_rgb = max3(r, g, b);
+	*v = max_rgb;
+	if (!max_rgb) {
+		*h = 0;
+		*s = 0;
+		return;
+	}
+
+	/* Saturation */
+	min_rgb = min3(r, g, b);
+	diff_rgb = max_rgb - min_rgb;
+	aux = 255 * diff_rgb;
+	aux += max_rgb / 2;
+	aux /= max_rgb;
+	*s = aux;
+	if (!aux) {
+		*h = 0;
+		return;
+	}
+
+	third_size = (tpg->real_hsv_enc == V4L2_HSV_ENC_180) ? 60 : 85;
+
+	/* Hue */
+	if (max_rgb == r) {
+		aux =  g - b;
+		third = 0;
+	} else if (max_rgb == g) {
+		aux =  b - r;
+		third = third_size;
+	} else {
+		aux =  r - g;
+		third = third_size * 2;
+	}
+
+	aux *= third_size / 2;
+	aux += diff_rgb / 2;
+	aux /= diff_rgb;
+	aux += third;
+
+	/* Clamp Hue */
+	if (tpg->real_hsv_enc == V4L2_HSV_ENC_180) {
+		if (aux < 0)
+			aux += 180;
+		else if (aux > 180)
+			aux -= 180;
+	} else {
+		aux = aux & 0xff;
+	}
+
+	*h = aux;
 }
 
 static void rgb2ycbcr(const int m[3][3], int r, int g, int b,
@@ -729,6 +803,8 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 	int r = tpg_colors[col].r;
 	int g = tpg_colors[col].g;
 	int b = tpg_colors[col].b;
+	int y, cb, cr;
+	bool ycbcr_valid = false;
 
 	if (k == TPG_COLOR_TEXTBG) {
 		col = tpg_get_textbg_color(tpg);
@@ -759,9 +835,9 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		g <<= 4;
 		b <<= 4;
 	}
-	if (tpg->qual == TPG_QUAL_GRAY || tpg->fourcc == V4L2_PIX_FMT_GREY ||
-	    tpg->fourcc == V4L2_PIX_FMT_Y16 ||
-	    tpg->fourcc == V4L2_PIX_FMT_Y16_BE) {
+
+	if (tpg->qual == TPG_QUAL_GRAY ||
+	    tpg->color_enc ==  TGP_COLOR_ENC_LUMA) {
 		/* Rec. 709 Luma function */
 		/* (0.2126, 0.7152, 0.0722) * (255 * 256) */
 		r = g = b = (13879 * r + 46688 * g + 4713 * b) >> 16;
@@ -775,7 +851,8 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 	 * Remember that r, g and b are still in the 0 - 0xff0 range.
 	 */
 	if (tpg->real_rgb_range == V4L2_DV_RGB_RANGE_LIMITED &&
-	    tpg->rgb_range == V4L2_DV_RGB_RANGE_FULL && !tpg->is_yuv) {
+	    tpg->rgb_range == V4L2_DV_RGB_RANGE_FULL &&
+	    tpg->color_enc == TGP_COLOR_ENC_RGB) {
 		/*
 		 * Convert from full range (which is what r, g and b are)
 		 * to limited range (which is the 'real' RGB range), which
@@ -785,7 +862,9 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		g = (g * 219) / 255 + (16 << 4);
 		b = (b * 219) / 255 + (16 << 4);
 	} else if (tpg->real_rgb_range != V4L2_DV_RGB_RANGE_LIMITED &&
-		   tpg->rgb_range == V4L2_DV_RGB_RANGE_LIMITED && !tpg->is_yuv) {
+		   tpg->rgb_range == V4L2_DV_RGB_RANGE_LIMITED &&
+		   tpg->color_enc == TGP_COLOR_ENC_RGB) {
+
 		/*
 		 * Clamp r, g and b to the limited range and convert to full
 		 * range since that's what we deliver.
@@ -798,10 +877,10 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		b = (b - (16 << 4)) * 255 / 219;
 	}
 
-	if (tpg->brightness != 128 || tpg->contrast != 128 ||
-	    tpg->saturation != 128 || tpg->hue) {
+	if ((tpg->brightness != 128 || tpg->contrast != 128 ||
+	     tpg->saturation != 128 || tpg->hue) &&
+	    tpg->color_enc != TGP_COLOR_ENC_LUMA) {
 		/* Implement these operations */
-		int y, cb, cr;
 		int tmp_cb, tmp_cr;
 
 		/* First convert to YCbCr */
@@ -818,29 +897,45 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 
 		cb = (128 << 4) + (tmp_cb * tpg->contrast * tpg->saturation) / (128 * 128);
 		cr = (128 << 4) + (tmp_cr * tpg->contrast * tpg->saturation) / (128 * 128);
-		if (tpg->is_yuv) {
-			tpg->colors[k][0] = clamp(y >> 4, 1, 254);
-			tpg->colors[k][1] = clamp(cb >> 4, 1, 254);
-			tpg->colors[k][2] = clamp(cr >> 4, 1, 254);
-			return;
-		}
-		ycbcr_to_color(tpg, y, cb, cr, &r, &g, &b);
+		if (tpg->color_enc == TGP_COLOR_ENC_YCBCR)
+			ycbcr_valid = true;
+		else
+			ycbcr_to_color(tpg, y, cb, cr, &r, &g, &b);
+	} else if ((tpg->brightness != 128 || tpg->contrast != 128) &&
+		   tpg->color_enc == TGP_COLOR_ENC_LUMA) {
+		r = (16 << 4) + ((r - (16 << 4)) * tpg->contrast) / 128;
+		r += (tpg->brightness << 4) - (128 << 4);
 	}
 
-	if (tpg->is_yuv) {
+	switch (tpg->color_enc) {
+	case TGP_COLOR_ENC_HSV:
+	{
+		int h, s, v;
+
+		color_to_hsv(tpg, r, g, b, &h, &s, &v);
+		tpg->colors[k][0] = h;
+		tpg->colors[k][1] = s;
+		tpg->colors[k][2] = v;
+		break;
+	}
+	case TGP_COLOR_ENC_YCBCR:
+	{
 		/* Convert to YCbCr */
-		int y, cb, cr;
+		if (!ycbcr_valid)
+			color_to_ycbcr(tpg, r, g, b, &y, &cb, &cr);
 
-		color_to_ycbcr(tpg, r, g, b, &y, &cb, &cr);
-
+		y >>= 4;
+		cb >>= 4;
+		cr >>= 4;
 		if (tpg->real_quantization == V4L2_QUANTIZATION_LIM_RANGE) {
-			y = clamp(y, 16 << 4, 235 << 4);
-			cb = clamp(cb, 16 << 4, 240 << 4);
-			cr = clamp(cr, 16 << 4, 240 << 4);
+			y = clamp(y, 16, 235);
+			cb = clamp(cb, 16, 240);
+			cr = clamp(cr, 16, 240);
+		} else {
+			y = clamp(y, 1, 254);
+			cb = clamp(cb, 1, 254);
+			cr = clamp(cr, 1, 254);
 		}
-		y = clamp(y >> 4, 1, 254);
-		cb = clamp(cb >> 4, 1, 254);
-		cr = clamp(cr >> 4, 1, 254);
 		switch (tpg->fourcc) {
 		case V4L2_PIX_FMT_YUV444:
 			y >>= 4;
@@ -861,7 +956,15 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		tpg->colors[k][0] = y;
 		tpg->colors[k][1] = cb;
 		tpg->colors[k][2] = cr;
-	} else {
+		break;
+	}
+	case TGP_COLOR_ENC_LUMA:
+	{
+		tpg->colors[k][0] = r >> 4;
+		break;
+	}
+	case TGP_COLOR_ENC_RGB:
+	{
 		if (tpg->real_quantization == V4L2_QUANTIZATION_LIM_RANGE) {
 			r = (r * 219) / 255 + (16 << 4);
 			g = (g * 219) / 255 + (16 << 4);
@@ -911,6 +1014,8 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		tpg->colors[k][0] = r;
 		tpg->colors[k][1] = g;
 		tpg->colors[k][2] = b;
+		break;
+	}
 	}
 }
 
@@ -928,7 +1033,7 @@ static void gen_twopix(struct tpg_data *tpg,
 {
 	unsigned offset = odd * tpg->twopixelsize[0] / 2;
 	u8 alpha = tpg->alpha_component;
-	u8 r_y, g_u, b_v;
+	u8 r_y_h, g_u_s, b_v;
 
 	if (tpg->alpha_red_only && color != TPG_COLOR_CSC_RED &&
 				   color != TPG_COLOR_100_RED &&
@@ -936,161 +1041,161 @@ static void gen_twopix(struct tpg_data *tpg,
 		alpha = 0;
 	if (color == TPG_COLOR_RANDOM)
 		precalculate_color(tpg, color);
-	r_y = tpg->colors[color][0]; /* R or precalculated Y */
-	g_u = tpg->colors[color][1]; /* G or precalculated U */
+	r_y_h = tpg->colors[color][0]; /* R or precalculated Y, H */
+	g_u_s = tpg->colors[color][1]; /* G or precalculated U, V */
 	b_v = tpg->colors[color][2]; /* B or precalculated V */
 
 	switch (tpg->fourcc) {
 	case V4L2_PIX_FMT_GREY:
-		buf[0][offset] = r_y;
+		buf[0][offset] = r_y_h;
 		break;
 	case V4L2_PIX_FMT_Y16:
 		/*
-		 * Ideally both bytes should be set to r_y, but then you won't
+		 * Ideally both bytes should be set to r_y_h, but then you won't
 		 * be able to detect endian problems. So keep it 0 except for
-		 * the corner case where r_y is 0xff so white really will be
+		 * the corner case where r_y_h is 0xff so white really will be
 		 * white (0xffff).
 		 */
-		buf[0][offset] = r_y == 0xff ? r_y : 0;
-		buf[0][offset+1] = r_y;
+		buf[0][offset] = r_y_h == 0xff ? r_y_h : 0;
+		buf[0][offset+1] = r_y_h;
 		break;
 	case V4L2_PIX_FMT_Y16_BE:
 		/* See comment for V4L2_PIX_FMT_Y16 above */
-		buf[0][offset] = r_y;
-		buf[0][offset+1] = r_y == 0xff ? r_y : 0;
+		buf[0][offset] = r_y_h;
+		buf[0][offset+1] = r_y_h == 0xff ? r_y_h : 0;
 		break;
 	case V4L2_PIX_FMT_YUV422M:
 	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YUV420M:
-		buf[0][offset] = r_y;
+		buf[0][offset] = r_y_h;
 		if (odd) {
-			buf[1][0] = (buf[1][0] + g_u) / 2;
+			buf[1][0] = (buf[1][0] + g_u_s) / 2;
 			buf[2][0] = (buf[2][0] + b_v) / 2;
 			buf[1][1] = buf[1][0];
 			buf[2][1] = buf[2][0];
 			break;
 		}
-		buf[1][0] = g_u;
+		buf[1][0] = g_u_s;
 		buf[2][0] = b_v;
 		break;
 	case V4L2_PIX_FMT_YVU422M:
 	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_YVU420M:
-		buf[0][offset] = r_y;
+		buf[0][offset] = r_y_h;
 		if (odd) {
 			buf[1][0] = (buf[1][0] + b_v) / 2;
-			buf[2][0] = (buf[2][0] + g_u) / 2;
+			buf[2][0] = (buf[2][0] + g_u_s) / 2;
 			buf[1][1] = buf[1][0];
 			buf[2][1] = buf[2][0];
 			break;
 		}
 		buf[1][0] = b_v;
-		buf[2][0] = g_u;
+		buf[2][0] = g_u_s;
 		break;
 
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV16M:
-		buf[0][offset] = r_y;
+		buf[0][offset] = r_y_h;
 		if (odd) {
-			buf[1][0] = (buf[1][0] + g_u) / 2;
+			buf[1][0] = (buf[1][0] + g_u_s) / 2;
 			buf[1][1] = (buf[1][1] + b_v) / 2;
 			break;
 		}
-		buf[1][0] = g_u;
+		buf[1][0] = g_u_s;
 		buf[1][1] = b_v;
 		break;
 	case V4L2_PIX_FMT_NV21:
 	case V4L2_PIX_FMT_NV21M:
 	case V4L2_PIX_FMT_NV61:
 	case V4L2_PIX_FMT_NV61M:
-		buf[0][offset] = r_y;
+		buf[0][offset] = r_y_h;
 		if (odd) {
 			buf[1][0] = (buf[1][0] + b_v) / 2;
-			buf[1][1] = (buf[1][1] + g_u) / 2;
+			buf[1][1] = (buf[1][1] + g_u_s) / 2;
 			break;
 		}
 		buf[1][0] = b_v;
-		buf[1][1] = g_u;
+		buf[1][1] = g_u_s;
 		break;
 
 	case V4L2_PIX_FMT_YUV444M:
-		buf[0][offset] = r_y;
-		buf[1][offset] = g_u;
+		buf[0][offset] = r_y_h;
+		buf[1][offset] = g_u_s;
 		buf[2][offset] = b_v;
 		break;
 
 	case V4L2_PIX_FMT_YVU444M:
-		buf[0][offset] = r_y;
+		buf[0][offset] = r_y_h;
 		buf[1][offset] = b_v;
-		buf[2][offset] = g_u;
+		buf[2][offset] = g_u_s;
 		break;
 
 	case V4L2_PIX_FMT_NV24:
-		buf[0][offset] = r_y;
-		buf[1][2 * offset] = g_u;
+		buf[0][offset] = r_y_h;
+		buf[1][2 * offset] = g_u_s;
 		buf[1][2 * offset + 1] = b_v;
 		break;
 
 	case V4L2_PIX_FMT_NV42:
-		buf[0][offset] = r_y;
+		buf[0][offset] = r_y_h;
 		buf[1][2 * offset] = b_v;
-		buf[1][2 * offset + 1] = g_u;
+		buf[1][2 * offset + 1] = g_u_s;
 		break;
 
 	case V4L2_PIX_FMT_YUYV:
-		buf[0][offset] = r_y;
+		buf[0][offset] = r_y_h;
 		if (odd) {
-			buf[0][1] = (buf[0][1] + g_u) / 2;
+			buf[0][1] = (buf[0][1] + g_u_s) / 2;
 			buf[0][3] = (buf[0][3] + b_v) / 2;
 			break;
 		}
-		buf[0][1] = g_u;
+		buf[0][1] = g_u_s;
 		buf[0][3] = b_v;
 		break;
 	case V4L2_PIX_FMT_UYVY:
-		buf[0][offset + 1] = r_y;
+		buf[0][offset + 1] = r_y_h;
 		if (odd) {
-			buf[0][0] = (buf[0][0] + g_u) / 2;
+			buf[0][0] = (buf[0][0] + g_u_s) / 2;
 			buf[0][2] = (buf[0][2] + b_v) / 2;
 			break;
 		}
-		buf[0][0] = g_u;
+		buf[0][0] = g_u_s;
 		buf[0][2] = b_v;
 		break;
 	case V4L2_PIX_FMT_YVYU:
-		buf[0][offset] = r_y;
+		buf[0][offset] = r_y_h;
 		if (odd) {
 			buf[0][1] = (buf[0][1] + b_v) / 2;
-			buf[0][3] = (buf[0][3] + g_u) / 2;
+			buf[0][3] = (buf[0][3] + g_u_s) / 2;
 			break;
 		}
 		buf[0][1] = b_v;
-		buf[0][3] = g_u;
+		buf[0][3] = g_u_s;
 		break;
 	case V4L2_PIX_FMT_VYUY:
-		buf[0][offset + 1] = r_y;
+		buf[0][offset + 1] = r_y_h;
 		if (odd) {
 			buf[0][0] = (buf[0][0] + b_v) / 2;
-			buf[0][2] = (buf[0][2] + g_u) / 2;
+			buf[0][2] = (buf[0][2] + g_u_s) / 2;
 			break;
 		}
 		buf[0][0] = b_v;
-		buf[0][2] = g_u;
+		buf[0][2] = g_u_s;
 		break;
 	case V4L2_PIX_FMT_RGB332:
-		buf[0][offset] = (r_y << 5) | (g_u << 2) | b_v;
+		buf[0][offset] = (r_y_h << 5) | (g_u_s << 2) | b_v;
 		break;
 	case V4L2_PIX_FMT_YUV565:
 	case V4L2_PIX_FMT_RGB565:
-		buf[0][offset] = (g_u << 5) | b_v;
-		buf[0][offset + 1] = (r_y << 3) | (g_u >> 3);
+		buf[0][offset] = (g_u_s << 5) | b_v;
+		buf[0][offset + 1] = (r_y_h << 3) | (g_u_s >> 3);
 		break;
 	case V4L2_PIX_FMT_RGB565X:
-		buf[0][offset] = (r_y << 3) | (g_u >> 3);
-		buf[0][offset + 1] = (g_u << 5) | b_v;
+		buf[0][offset] = (r_y_h << 3) | (g_u_s >> 3);
+		buf[0][offset + 1] = (g_u_s << 5) | b_v;
 		break;
 	case V4L2_PIX_FMT_RGB444:
 	case V4L2_PIX_FMT_XRGB444:
@@ -1098,8 +1203,8 @@ static void gen_twopix(struct tpg_data *tpg,
 		/* fall through */
 	case V4L2_PIX_FMT_YUV444:
 	case V4L2_PIX_FMT_ARGB444:
-		buf[0][offset] = (g_u << 4) | b_v;
-		buf[0][offset + 1] = (alpha & 0xf0) | r_y;
+		buf[0][offset] = (g_u_s << 4) | b_v;
+		buf[0][offset + 1] = (alpha & 0xf0) | r_y_h;
 		break;
 	case V4L2_PIX_FMT_RGB555:
 	case V4L2_PIX_FMT_XRGB555:
@@ -1107,42 +1212,45 @@ static void gen_twopix(struct tpg_data *tpg,
 		/* fall through */
 	case V4L2_PIX_FMT_YUV555:
 	case V4L2_PIX_FMT_ARGB555:
-		buf[0][offset] = (g_u << 5) | b_v;
-		buf[0][offset + 1] = (alpha & 0x80) | (r_y << 2) | (g_u >> 3);
+		buf[0][offset] = (g_u_s << 5) | b_v;
+		buf[0][offset + 1] = (alpha & 0x80) | (r_y_h << 2)
+						    | (g_u_s >> 3);
 		break;
 	case V4L2_PIX_FMT_RGB555X:
 	case V4L2_PIX_FMT_XRGB555X:
 		alpha = 0;
 		/* fall through */
 	case V4L2_PIX_FMT_ARGB555X:
-		buf[0][offset] = (alpha & 0x80) | (r_y << 2) | (g_u >> 3);
-		buf[0][offset + 1] = (g_u << 5) | b_v;
+		buf[0][offset] = (alpha & 0x80) | (r_y_h << 2) | (g_u_s >> 3);
+		buf[0][offset + 1] = (g_u_s << 5) | b_v;
 		break;
 	case V4L2_PIX_FMT_RGB24:
-		buf[0][offset] = r_y;
-		buf[0][offset + 1] = g_u;
+	case V4L2_PIX_FMT_HSV24:
+		buf[0][offset] = r_y_h;
+		buf[0][offset + 1] = g_u_s;
 		buf[0][offset + 2] = b_v;
 		break;
 	case V4L2_PIX_FMT_BGR24:
 		buf[0][offset] = b_v;
-		buf[0][offset + 1] = g_u;
-		buf[0][offset + 2] = r_y;
+		buf[0][offset + 1] = g_u_s;
+		buf[0][offset + 2] = r_y_h;
 		break;
 	case V4L2_PIX_FMT_BGR666:
-		buf[0][offset] = (b_v << 2) | (g_u >> 4);
-		buf[0][offset + 1] = (g_u << 4) | (r_y >> 2);
-		buf[0][offset + 2] = r_y << 6;
+		buf[0][offset] = (b_v << 2) | (g_u_s >> 4);
+		buf[0][offset + 1] = (g_u_s << 4) | (r_y_h >> 2);
+		buf[0][offset + 2] = r_y_h << 6;
 		buf[0][offset + 3] = 0;
 		break;
 	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_XRGB32:
+	case V4L2_PIX_FMT_HSV32:
 		alpha = 0;
 		/* fall through */
 	case V4L2_PIX_FMT_YUV32:
 	case V4L2_PIX_FMT_ARGB32:
 		buf[0][offset] = alpha;
-		buf[0][offset + 1] = r_y;
-		buf[0][offset + 2] = g_u;
+		buf[0][offset + 1] = r_y_h;
+		buf[0][offset + 2] = g_u_s;
 		buf[0][offset + 3] = b_v;
 		break;
 	case V4L2_PIX_FMT_BGR32:
@@ -1151,87 +1259,87 @@ static void gen_twopix(struct tpg_data *tpg,
 		/* fall through */
 	case V4L2_PIX_FMT_ABGR32:
 		buf[0][offset] = b_v;
-		buf[0][offset + 1] = g_u;
-		buf[0][offset + 2] = r_y;
+		buf[0][offset + 1] = g_u_s;
+		buf[0][offset + 2] = r_y_h;
 		buf[0][offset + 3] = alpha;
 		break;
 	case V4L2_PIX_FMT_SBGGR8:
-		buf[0][offset] = odd ? g_u : b_v;
-		buf[1][offset] = odd ? r_y : g_u;
+		buf[0][offset] = odd ? g_u_s : b_v;
+		buf[1][offset] = odd ? r_y_h : g_u_s;
 		break;
 	case V4L2_PIX_FMT_SGBRG8:
-		buf[0][offset] = odd ? b_v : g_u;
-		buf[1][offset] = odd ? g_u : r_y;
+		buf[0][offset] = odd ? b_v : g_u_s;
+		buf[1][offset] = odd ? g_u_s : r_y_h;
 		break;
 	case V4L2_PIX_FMT_SGRBG8:
-		buf[0][offset] = odd ? r_y : g_u;
-		buf[1][offset] = odd ? g_u : b_v;
+		buf[0][offset] = odd ? r_y_h : g_u_s;
+		buf[1][offset] = odd ? g_u_s : b_v;
 		break;
 	case V4L2_PIX_FMT_SRGGB8:
-		buf[0][offset] = odd ? g_u : r_y;
-		buf[1][offset] = odd ? b_v : g_u;
+		buf[0][offset] = odd ? g_u_s : r_y_h;
+		buf[1][offset] = odd ? b_v : g_u_s;
 		break;
 	case V4L2_PIX_FMT_SBGGR10:
-		buf[0][offset] = odd ? g_u << 2 : b_v << 2;
-		buf[0][offset + 1] = odd ? g_u >> 6 : b_v >> 6;
-		buf[1][offset] = odd ? r_y << 2 : g_u << 2;
-		buf[1][offset + 1] = odd ? r_y >> 6 : g_u >> 6;
+		buf[0][offset] = odd ? g_u_s << 2 : b_v << 2;
+		buf[0][offset + 1] = odd ? g_u_s >> 6 : b_v >> 6;
+		buf[1][offset] = odd ? r_y_h << 2 : g_u_s << 2;
+		buf[1][offset + 1] = odd ? r_y_h >> 6 : g_u_s >> 6;
 		buf[0][offset] |= (buf[0][offset] >> 2) & 3;
 		buf[1][offset] |= (buf[1][offset] >> 2) & 3;
 		break;
 	case V4L2_PIX_FMT_SGBRG10:
-		buf[0][offset] = odd ? b_v << 2 : g_u << 2;
-		buf[0][offset + 1] = odd ? b_v >> 6 : g_u >> 6;
-		buf[1][offset] = odd ? g_u << 2 : r_y << 2;
-		buf[1][offset + 1] = odd ? g_u >> 6 : r_y >> 6;
+		buf[0][offset] = odd ? b_v << 2 : g_u_s << 2;
+		buf[0][offset + 1] = odd ? b_v >> 6 : g_u_s >> 6;
+		buf[1][offset] = odd ? g_u_s << 2 : r_y_h << 2;
+		buf[1][offset + 1] = odd ? g_u_s >> 6 : r_y_h >> 6;
 		buf[0][offset] |= (buf[0][offset] >> 2) & 3;
 		buf[1][offset] |= (buf[1][offset] >> 2) & 3;
 		break;
 	case V4L2_PIX_FMT_SGRBG10:
-		buf[0][offset] = odd ? r_y << 2 : g_u << 2;
-		buf[0][offset + 1] = odd ? r_y >> 6 : g_u >> 6;
-		buf[1][offset] = odd ? g_u << 2 : b_v << 2;
-		buf[1][offset + 1] = odd ? g_u >> 6 : b_v >> 6;
+		buf[0][offset] = odd ? r_y_h << 2 : g_u_s << 2;
+		buf[0][offset + 1] = odd ? r_y_h >> 6 : g_u_s >> 6;
+		buf[1][offset] = odd ? g_u_s << 2 : b_v << 2;
+		buf[1][offset + 1] = odd ? g_u_s >> 6 : b_v >> 6;
 		buf[0][offset] |= (buf[0][offset] >> 2) & 3;
 		buf[1][offset] |= (buf[1][offset] >> 2) & 3;
 		break;
 	case V4L2_PIX_FMT_SRGGB10:
-		buf[0][offset] = odd ? g_u << 2 : r_y << 2;
-		buf[0][offset + 1] = odd ? g_u >> 6 : r_y >> 6;
-		buf[1][offset] = odd ? b_v << 2 : g_u << 2;
-		buf[1][offset + 1] = odd ? b_v >> 6 : g_u >> 6;
+		buf[0][offset] = odd ? g_u_s << 2 : r_y_h << 2;
+		buf[0][offset + 1] = odd ? g_u_s >> 6 : r_y_h >> 6;
+		buf[1][offset] = odd ? b_v << 2 : g_u_s << 2;
+		buf[1][offset + 1] = odd ? b_v >> 6 : g_u_s >> 6;
 		buf[0][offset] |= (buf[0][offset] >> 2) & 3;
 		buf[1][offset] |= (buf[1][offset] >> 2) & 3;
 		break;
 	case V4L2_PIX_FMT_SBGGR12:
-		buf[0][offset] = odd ? g_u << 4 : b_v << 4;
-		buf[0][offset + 1] = odd ? g_u >> 4 : b_v >> 4;
-		buf[1][offset] = odd ? r_y << 4 : g_u << 4;
-		buf[1][offset + 1] = odd ? r_y >> 4 : g_u >> 4;
+		buf[0][offset] = odd ? g_u_s << 4 : b_v << 4;
+		buf[0][offset + 1] = odd ? g_u_s >> 4 : b_v >> 4;
+		buf[1][offset] = odd ? r_y_h << 4 : g_u_s << 4;
+		buf[1][offset + 1] = odd ? r_y_h >> 4 : g_u_s >> 4;
 		buf[0][offset] |= (buf[0][offset] >> 4) & 0xf;
 		buf[1][offset] |= (buf[1][offset] >> 4) & 0xf;
 		break;
 	case V4L2_PIX_FMT_SGBRG12:
-		buf[0][offset] = odd ? b_v << 4 : g_u << 4;
-		buf[0][offset + 1] = odd ? b_v >> 4 : g_u >> 4;
-		buf[1][offset] = odd ? g_u << 4 : r_y << 4;
-		buf[1][offset + 1] = odd ? g_u >> 4 : r_y >> 4;
+		buf[0][offset] = odd ? b_v << 4 : g_u_s << 4;
+		buf[0][offset + 1] = odd ? b_v >> 4 : g_u_s >> 4;
+		buf[1][offset] = odd ? g_u_s << 4 : r_y_h << 4;
+		buf[1][offset + 1] = odd ? g_u_s >> 4 : r_y_h >> 4;
 		buf[0][offset] |= (buf[0][offset] >> 4) & 0xf;
 		buf[1][offset] |= (buf[1][offset] >> 4) & 0xf;
 		break;
 	case V4L2_PIX_FMT_SGRBG12:
-		buf[0][offset] = odd ? r_y << 4 : g_u << 4;
-		buf[0][offset + 1] = odd ? r_y >> 4 : g_u >> 4;
-		buf[1][offset] = odd ? g_u << 4 : b_v << 4;
-		buf[1][offset + 1] = odd ? g_u >> 4 : b_v >> 4;
+		buf[0][offset] = odd ? r_y_h << 4 : g_u_s << 4;
+		buf[0][offset + 1] = odd ? r_y_h >> 4 : g_u_s >> 4;
+		buf[1][offset] = odd ? g_u_s << 4 : b_v << 4;
+		buf[1][offset + 1] = odd ? g_u_s >> 4 : b_v >> 4;
 		buf[0][offset] |= (buf[0][offset] >> 4) & 0xf;
 		buf[1][offset] |= (buf[1][offset] >> 4) & 0xf;
 		break;
 	case V4L2_PIX_FMT_SRGGB12:
-		buf[0][offset] = odd ? g_u << 4 : r_y << 4;
-		buf[0][offset + 1] = odd ? g_u >> 4 : r_y >> 4;
-		buf[1][offset] = odd ? b_v << 4 : g_u << 4;
-		buf[1][offset + 1] = odd ? b_v >> 4 : g_u >> 4;
+		buf[0][offset] = odd ? g_u_s << 4 : r_y_h << 4;
+		buf[0][offset + 1] = odd ? g_u_s >> 4 : r_y_h >> 4;
+		buf[1][offset] = odd ? b_v << 4 : g_u_s << 4;
+		buf[1][offset + 1] = odd ? b_v >> 4 : g_u_s >> 4;
 		buf[0][offset] |= (buf[0][offset] >> 4) & 0xf;
 		buf[1][offset] |= (buf[1][offset] >> 4) & 0xf;
 		break;
@@ -1828,6 +1936,7 @@ static void tpg_recalc(struct tpg_data *tpg)
 		tpg->recalc_lines = true;
 		tpg->real_xfer_func = tpg->xfer_func;
 		tpg->real_ycbcr_enc = tpg->ycbcr_enc;
+		tpg->real_hsv_enc = tpg->hsv_enc;
 		tpg->real_quantization = tpg->quantization;
 
 		if (tpg->xfer_func == V4L2_XFER_FUNC_DEFAULT)
@@ -1840,7 +1949,8 @@ static void tpg_recalc(struct tpg_data *tpg)
 
 		if (tpg->quantization == V4L2_QUANTIZATION_DEFAULT)
 			tpg->real_quantization =
-				V4L2_MAP_QUANTIZATION_DEFAULT(!tpg->is_yuv,
+				V4L2_MAP_QUANTIZATION_DEFAULT(
+					tpg->color_enc != TGP_COLOR_ENC_YCBCR,
 					tpg->colorspace, tpg->real_ycbcr_enc);
 
 		tpg_precalculate_colors(tpg);
@@ -1887,11 +1997,28 @@ static int tpg_pattern_avg(const struct tpg_data *tpg,
 	return -1;
 }
 
+static const char *tpg_color_enc_str(enum tgp_color_enc
+						 color_enc)
+{
+	switch (color_enc) {
+	case TGP_COLOR_ENC_HSV:
+		return "HSV";
+	case TGP_COLOR_ENC_YCBCR:
+		return "Y'CbCr";
+	case TGP_COLOR_ENC_LUMA:
+		return "Luma";
+	case TGP_COLOR_ENC_RGB:
+	default:
+		return "R'G'B";
+
+	}
+}
+
 void tpg_log_status(struct tpg_data *tpg)
 {
 	pr_info("tpg source WxH: %ux%u (%s)\n",
-			tpg->src_width, tpg->src_height,
-			tpg->is_yuv ? "YCbCr" : "RGB");
+		tpg->src_width, tpg->src_height,
+		tpg_color_enc_str(tpg->color_enc));
 	pr_info("tpg field: %u\n", tpg->field);
 	pr_info("tpg crop: %ux%u@%dx%d\n", tpg->crop.width, tpg->crop.height,
 			tpg->crop.left, tpg->crop.top);
@@ -1900,6 +2027,7 @@ void tpg_log_status(struct tpg_data *tpg)
 	pr_info("tpg colorspace: %d\n", tpg->colorspace);
 	pr_info("tpg transfer function: %d/%d\n", tpg->xfer_func, tpg->real_xfer_func);
 	pr_info("tpg Y'CbCr encoding: %d/%d\n", tpg->ycbcr_enc, tpg->real_ycbcr_enc);
+	pr_info("tpg HSV encoding: %d/%d\n", tpg->hsv_enc, tpg->real_hsv_enc);
 	pr_info("tpg quantization: %d/%d\n", tpg->quantization, tpg->real_quantization);
 	pr_info("tpg RGB range: %d/%d\n", tpg->rgb_range, tpg->real_rgb_range);
 }

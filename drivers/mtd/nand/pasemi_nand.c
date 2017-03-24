@@ -156,10 +156,9 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	chip->bbt_options = NAND_BBT_USE_FLASH;
 
 	/* Scan to find existence of the device */
-	if (nand_scan(pasemi_nand_mtd, 1)) {
-		err = -ENXIO;
+	err = nand_scan(pasemi_nand_mtd, 1);
+	if (err)
 		goto out_lpc;
-	}
 
 	if (mtd_device_register(pasemi_nand_mtd, NULL, 0)) {
 		dev_err(dev, "Unable to register MTD device\n");

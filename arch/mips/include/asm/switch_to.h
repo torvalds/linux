@@ -66,13 +66,18 @@ do {									\
 #define __mips_mt_fpaff_switch_to(prev) do { (void) (prev); } while (0)
 #endif
 
-#define __clear_software_ll_bit()					\
-do {	if (cpu_has_rw_llb) {						\
+/*
+ * Clear LLBit during context switches on MIPSr6 such that eretnc can be used
+ * unconditionally when returning to userland in entry.S.
+ */
+#define __clear_r6_hw_ll_bit() do {					\
+	if (cpu_has_mips_r6)						\
 		write_c0_lladdr(0);					\
-	} else {							\
-		if (!__builtin_constant_p(cpu_has_llsc) || !cpu_has_llsc)\
-			ll_bit = 0;					\
-	}								\
+} while (0)
+
+#define __clear_software_ll_bit() do {					\
+	if (!__builtin_constant_p(cpu_has_llsc) || !cpu_has_llsc)	\
+		ll_bit = 0;						\
 } while (0)
 
 /*
@@ -120,6 +125,7 @@ do {									\
 		}							\
 		clear_c0_status(ST0_CU2);				\
 	}								\
+	__clear_r6_hw_ll_bit();						\
 	__clear_software_ll_bit();					\
 	if (cpu_has_userlocal)						\
 		write_c0_userlocal(task_thread_info(next)->tp_value);	\

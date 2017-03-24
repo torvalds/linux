@@ -6,6 +6,7 @@ enum dcb_gpio_func_name {
 	DCB_GPIO_TVDAC1 = 0x2d,
 	DCB_GPIO_FAN = 0x09,
 	DCB_GPIO_FAN_SENSE = 0x3d,
+	DCB_GPIO_LOGO_LED_PWM = 0x84,
 	DCB_GPIO_UNUSED = 0xff,
 	DCB_GPIO_VID0 = 0x04,
 	DCB_GPIO_VID1 = 0x05,

@@ -85,7 +85,6 @@ static int phy_berlin_sata_power_on(struct phy *phy)
 	struct phy_berlin_desc *desc = phy_get_drvdata(phy);
 	struct phy_berlin_priv *priv = dev_get_drvdata(phy->dev.parent);
 	void __iomem *ctrl_reg = priv->base + 0x60 + (desc->index * 0x80);
-	int ret = 0;
 	u32 regval;
 
 	clk_prepare_enable(priv->clk);
@@ -130,7 +129,7 @@ static int phy_berlin_sata_power_on(struct phy *phy)
 
 	clk_disable_unprepare(priv->clk);
 
-	return ret;
+	return 0;
 }
 
 static int phy_berlin_sata_power_off(struct phy *phy)

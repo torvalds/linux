@@ -8,9 +8,11 @@ vc4-y := \
 	vc4_crtc.o \
 	vc4_drv.o \
 	vc4_dpi.o \
+	vc4_dsi.o \
 	vc4_kms.o \
 	vc4_gem.o \
 	vc4_hdmi.o \
+	vc4_vec.o \
 	vc4_hvs.o \
 	vc4_irq.o \
 	vc4_plane.o \

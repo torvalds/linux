@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cache.h>
 #include <asm/cputable.h>
 #include <asm/emulated_ops.h>
@@ -204,7 +204,7 @@ static int emulate_dcbz(struct pt_regs *regs, unsigned char __user *addr)
 	int i, size;
 
 #ifdef __powerpc64__
-	size = ppc64_caches.dline_size;
+	size = ppc64_caches.l1d.block_size;
 #else
 	size = L1_CACHE_BYTES;
 #endif

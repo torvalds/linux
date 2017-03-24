@@ -421,13 +421,17 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 	dev = dev_get_by_name(net, driver_name);
 	if (!dev)
 		return -ENODEV;
+	if (tipc_mtu_bad(dev, 0)) {
+		dev_put(dev);
+		return -EINVAL;
+	}
 
 	/* Associate TIPC bearer with L2 bearer */
 	rcu_assign_pointer(b->media_ptr, dev);
 	memset(&b->bcast_addr, 0, sizeof(b->bcast_addr));
 	memcpy(b->bcast_addr.value, dev->broadcast, b->media->hwaddr_len);
 	b->bcast_addr.media_id = b->media->type_id;
-	b->bcast_addr.broadcast = 1;
+	b->bcast_addr.broadcast = TIPC_BROADCAST_SUPPORT;
 	b->mtu = dev->mtu;
 	b->media->raw2addr(b, &b->addr, (char *)dev->dev_addr);
 	rcu_assign_pointer(dev->tipc_ptr, b);
@@ -476,6 +480,19 @@ int tipc_l2_send_msg(struct net *net, struct sk_buff *skb,
 			dev->dev_addr, skb->len);
 	dev_queue_xmit(skb);
 	return 0;
+}
+
+bool tipc_bearer_bcast_support(struct net *net, u32 bearer_id)
+{
+	bool supp = false;
+	struct tipc_bearer *b;
+
+	rcu_read_lock();
+	b = bearer_get(net, bearer_id);
+	if (b)
+		supp = (b->bcast_addr.broadcast == TIPC_BROADCAST_SUPPORT);
+	rcu_read_unlock();
+	return supp;
 }
 
 int tipc_bearer_mtu(struct net *net, u32 bearer_id)
@@ -610,8 +627,6 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 	if (!b)
 		return NOTIFY_DONE;
 
-	b->mtu = dev->mtu;
-
 	switch (evt) {
 	case NETDEV_CHANGE:
 		if (netif_carrier_ok(dev))
@@ -624,6 +639,11 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 		tipc_reset_bearer(net, b);
 		break;
 	case NETDEV_CHANGEMTU:
+		if (tipc_mtu_bad(dev, 0)) {
+			bearer_disable(net, b);
+			break;
+		}
+		b->mtu = dev->mtu;
 		tipc_reset_bearer(net, b);
 		break;
 	case NETDEV_CHANGEADDR:

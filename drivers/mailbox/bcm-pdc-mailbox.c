@@ -60,7 +60,13 @@
 #define RING_ENTRY_SIZE   sizeof(struct dma64dd)
 
 /* # entries in PDC dma ring */
-#define PDC_RING_ENTRIES  128
+#define PDC_RING_ENTRIES  512
+/*
+ * Minimum number of ring descriptor entries that must be free to tell mailbox
+ * framework that it can submit another request
+ */
+#define PDC_RING_SPACE_MIN  15
+
 #define PDC_RING_SIZE    (PDC_RING_ENTRIES * RING_ENTRY_SIZE)
 /* Rings are 8k aligned */
 #define RING_ALIGN_ORDER  13
@@ -93,11 +99,9 @@
  * Interrupt mask and status definitions. Enable interrupts for tx and rx on
  * ring 0
  */
-#define PDC_XMTINT_0         (24 + PDC_RINGSET)
 #define PDC_RCVINT_0         (16 + PDC_RINGSET)
-#define PDC_XMTINTEN_0       BIT(PDC_XMTINT_0)
 #define PDC_RCVINTEN_0       BIT(PDC_RCVINT_0)
-#define PDC_INTMASK  (PDC_XMTINTEN_0 | PDC_RCVINTEN_0)
+#define PDC_INTMASK	     (PDC_RCVINTEN_0)
 #define PDC_LAZY_FRAMECOUNT  1
 #define PDC_LAZY_TIMEOUT     10000
 #define PDC_LAZY_INT  (PDC_LAZY_TIMEOUT | (PDC_LAZY_FRAMECOUNT << 24))
@@ -117,15 +121,16 @@
 
 /*
  * Sets the following bits for write to transmit control reg:
- *  0    - XmtEn - enable activity on the tx channel
  * 11    - PtyChkDisable - parity check is disabled
  * 20:18 - BurstLen = 3 -> 2^7 = 128 byte data reads from memory
  */
-#define PDC_TX_CTL              0x000C0801
+#define PDC_TX_CTL		0x000C0800
+
+/* Bit in tx control reg to enable tx channel */
+#define PDC_TX_ENABLE		0x1
 
 /*
  * Sets the following bits for write to receive control reg:
- * 0     - RcvEn - enable activity on the rx channel
  * 7:1   - RcvOffset - size in bytes of status region at start of rx frame buf
  * 9     - SepRxHdrDescEn - place start of new frames only in descriptors
  *                          that have StartOfFrame set
@@ -135,7 +140,10 @@
  * 11    - PtyChkDisable - parity check is disabled
  * 20:18 - BurstLen = 3 -> 2^7 = 128 byte data reads from memory
  */
-#define PDC_RX_CTL              0x000C0E01
+#define PDC_RX_CTL		0x000C0E00
+
+/* Bit in rx control reg to enable rx channel */
+#define PDC_RX_ENABLE		0x1
 
 #define CRYPTO_D64_RS0_CD_MASK   ((PDC_RING_ENTRIES * RING_ENTRY_SIZE) - 1)
 
@@ -252,11 +260,29 @@ struct pdc_ring_alloc {
 	u32	    size;    /* ring allocation size in bytes */
 };
 
+/*
+ * context associated with a receive descriptor.
+ * @rxp_ctx: opaque context associated with frame that starts at each
+ *           rx ring index.
+ * @dst_sg:  Scatterlist used to form reply frames beginning at a given ring
+ *           index. Retained in order to unmap each sg after reply is processed.
+ * @rxin_numd: Number of rx descriptors associated with the message that starts
+ *             at a descriptor index. Not set for every index. For example,
+ *             if descriptor index i points to a scatterlist with 4 entries,
+ *             then the next three descriptor indexes don't have a value set.
+ * @resp_hdr: Virtual address of buffer used to catch DMA rx status
+ * @resp_hdr_daddr: physical address of DMA rx status buffer
+ */
+struct pdc_rx_ctx {
+	void *rxp_ctx;
+	struct scatterlist *dst_sg;
+	u32  rxin_numd;
+	void *resp_hdr;
+	dma_addr_t resp_hdr_daddr;
+};
+
 /* PDC state structure */
 struct pdc_state {
-	/* synchronize access to this PDC state structure */
-	spinlock_t pdc_lock;
-
 	/* Index of the PDC whose state is in this structure instance */
 	u8 pdc_idx;
 
@@ -272,13 +298,8 @@ struct pdc_state {
 
 	unsigned int pdc_irq;
 
-	/*
-	 * Last interrupt status read from PDC device. Saved in interrupt
-	 * handler so the handler can clear the interrupt in the device,
-	 * and the interrupt thread called later can know which interrupt
-	 * bits are active.
-	 */
-	unsigned long intstatus;
+	/* tasklet for deferred processing after DMA rx interrupt */
+	struct tasklet_struct rx_tasklet;
 
 	/* Number of bytes of receive status prior to each rx frame */
 	u32 rx_status_len;
@@ -369,11 +390,7 @@ struct pdc_state {
 	/* Index of next rx descriptor to post. */
 	u32  rxout;
 
-	/*
-	 * opaque context associated with frame that starts at each
-	 * rx ring index.
-	 */
-	void *rxp_ctx[PDC_RING_ENTRIES];
+	struct pdc_rx_ctx rx_ctx[PDC_RING_ENTRIES];
 
 	/*
 	 * Scatterlists used to form request and reply frames beginning at a
@@ -381,27 +398,18 @@ struct pdc_state {
 	 * is processed
 	 */
 	struct scatterlist *src_sg[PDC_RING_ENTRIES];
-	struct scatterlist *dst_sg[PDC_RING_ENTRIES];
-
-	/*
-	 * Number of rx descriptors associated with the message that starts
-	 * at this descriptor index. Not set for every index. For example,
-	 * if descriptor index i points to a scatterlist with 4 entries, then
-	 * the next three descriptor indexes don't have a value set.
-	 */
-	u32  rxin_numd[PDC_RING_ENTRIES];
-
-	void *resp_hdr[PDC_RING_ENTRIES];
-	dma_addr_t resp_hdr_daddr[PDC_RING_ENTRIES];
 
 	struct dentry *debugfs_stats;  /* debug FS stats file for this PDC */
 
 	/* counters */
-	u32  pdc_requests;    /* number of request messages submitted */
-	u32  pdc_replies;     /* number of reply messages received */
-	u32  txnobuf;         /* count of tx ring full */
-	u32  rxnobuf;         /* count of rx ring full */
-	u32  rx_oflow;        /* count of rx overflows */
+	u32  pdc_requests;     /* number of request messages submitted */
+	u32  pdc_replies;      /* number of reply messages received */
+	u32  last_tx_not_done; /* too few tx descriptors to indicate done */
+	u32  tx_ring_full;     /* unable to accept msg because tx ring full */
+	u32  rx_ring_full;     /* unable to accept msg because rx ring full */
+	u32  txnobuf;          /* unable to create tx descriptor */
+	u32  rxnobuf;          /* unable to create rx descriptor */
+	u32  rx_oflow;         /* count of rx overflows */
 };
 
 /* Global variables */
@@ -434,20 +442,33 @@ static ssize_t pdc_debugfs_read(struct file *filp, char __user *ubuf,
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "SPU %u stats:\n", pdcs->pdc_idx);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "PDC requests............%u\n",
+			       "PDC requests....................%u\n",
 			       pdcs->pdc_requests);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "PDC responses...........%u\n",
+			       "PDC responses...................%u\n",
 			       pdcs->pdc_replies);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "Tx err ring full........%u\n",
+			       "Tx not done.....................%u\n",
+			       pdcs->last_tx_not_done);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "Tx ring full....................%u\n",
+			       pdcs->tx_ring_full);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "Rx ring full....................%u\n",
+			       pdcs->rx_ring_full);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "Tx desc write fail. Ring full...%u\n",
 			       pdcs->txnobuf);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "Rx err ring full........%u\n",
+			       "Rx desc write fail. Ring full...%u\n",
 			       pdcs->rxnobuf);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "Receive overflow........%u\n",
+			       "Receive overflow................%u\n",
 			       pdcs->rx_oflow);
+	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+			       "Num frags in rx ring............%u\n",
+			       NRXDACTIVE(pdcs->rxin, pdcs->last_rx_curr,
+					  pdcs->nrxpost));
 
 	if (out_offset > out_count)
 		out_offset = out_count;
@@ -480,17 +501,16 @@ static void pdc_setup_debugfs(struct pdc_state *pdcs)
 	if (!debugfs_dir)
 		debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
 
-	pdcs->debugfs_stats = debugfs_create_file(spu_stats_name, S_IRUSR,
+	/* S_IRUSR == 0400 */
+	pdcs->debugfs_stats = debugfs_create_file(spu_stats_name, 0400,
 						  debugfs_dir, pdcs,
 						  &pdc_debugfs_stats);
 }
 
 static void pdc_free_debugfs(void)
 {
-	if (debugfs_dir && simple_empty(debugfs_dir)) {
-		debugfs_remove_recursive(debugfs_dir);
-		debugfs_dir = NULL;
-	}
+	debugfs_remove_recursive(debugfs_dir);
+	debugfs_dir = NULL;
 }
 
 /**
@@ -505,17 +525,17 @@ pdc_build_rxd(struct pdc_state *pdcs, dma_addr_t dma_addr,
 	      u32 buf_len, u32 flags)
 {
 	struct device *dev = &pdcs->pdev->dev;
+	struct dma64dd *rxd = &pdcs->rxd_64[pdcs->rxout];
 
 	dev_dbg(dev,
 		"Writing rx descriptor for PDC %u at index %u with length %u. flags %#x\n",
 		pdcs->pdc_idx, pdcs->rxout, buf_len, flags);
 
-	iowrite32(lower_32_bits(dma_addr),
-		  (void *)&pdcs->rxd_64[pdcs->rxout].addrlow);
-	iowrite32(upper_32_bits(dma_addr),
-		  (void *)&pdcs->rxd_64[pdcs->rxout].addrhigh);
-	iowrite32(flags, (void *)&pdcs->rxd_64[pdcs->rxout].ctrl1);
-	iowrite32(buf_len, (void *)&pdcs->rxd_64[pdcs->rxout].ctrl2);
+	rxd->addrlow = cpu_to_le32(lower_32_bits(dma_addr));
+	rxd->addrhigh = cpu_to_le32(upper_32_bits(dma_addr));
+	rxd->ctrl1 = cpu_to_le32(flags);
+	rxd->ctrl2 = cpu_to_le32(buf_len);
+
 	/* bump ring index and return */
 	pdcs->rxout = NEXTRXD(pdcs->rxout, pdcs->nrxpost);
 }
@@ -533,53 +553,50 @@ pdc_build_txd(struct pdc_state *pdcs, dma_addr_t dma_addr, u32 buf_len,
 	      u32 flags)
 {
 	struct device *dev = &pdcs->pdev->dev;
+	struct dma64dd *txd = &pdcs->txd_64[pdcs->txout];
 
 	dev_dbg(dev,
 		"Writing tx descriptor for PDC %u at index %u with length %u, flags %#x\n",
 		pdcs->pdc_idx, pdcs->txout, buf_len, flags);
 
-	iowrite32(lower_32_bits(dma_addr),
-		  (void *)&pdcs->txd_64[pdcs->txout].addrlow);
-	iowrite32(upper_32_bits(dma_addr),
-		  (void *)&pdcs->txd_64[pdcs->txout].addrhigh);
-	iowrite32(flags, (void *)&pdcs->txd_64[pdcs->txout].ctrl1);
-	iowrite32(buf_len, (void *)&pdcs->txd_64[pdcs->txout].ctrl2);
+	txd->addrlow = cpu_to_le32(lower_32_bits(dma_addr));
+	txd->addrhigh = cpu_to_le32(upper_32_bits(dma_addr));
+	txd->ctrl1 = cpu_to_le32(flags);
+	txd->ctrl2 = cpu_to_le32(buf_len);
 
 	/* bump ring index and return */
 	pdcs->txout = NEXTTXD(pdcs->txout, pdcs->ntxpost);
 }
 
 /**
- * pdc_receive() - Receive a response message from a given SPU.
+ * pdc_receive_one() - Receive a response message from a given SPU.
  * @pdcs:    PDC state for the SPU to receive from
- * @mssg:    mailbox message to be returned to client
  *
  * When the return code indicates success, the response message is available in
  * the receive buffers provided prior to submission of the request.
- *
- * Input:
- *   pdcs - PDC state structure for the SPU to be polled
- *   mssg - mailbox message to be returned to client. This function sets the
- *	    context pointer on the message to help the client associate the
- *	    response with a request.
  *
  * Return:  PDC_SUCCESS if one or more receive descriptors was processed
  *          -EAGAIN indicates that no response message is available
  *          -EIO an error occurred
  */
 static int
-pdc_receive(struct pdc_state *pdcs, struct brcm_message *mssg)
+pdc_receive_one(struct pdc_state *pdcs)
 {
 	struct device *dev = &pdcs->pdev->dev;
+	struct mbox_controller *mbc;
+	struct mbox_chan *chan;
+	struct brcm_message mssg;
 	u32 len, rx_status;
 	u32 num_frags;
-	int i;
 	u8 *resp_hdr;    /* virtual addr of start of resp message DMA header */
 	u32 frags_rdy;   /* number of fragments ready to read */
 	u32 rx_idx;      /* ring index of start of receive frame */
 	dma_addr_t resp_hdr_daddr;
+	struct pdc_rx_ctx *rx_ctx;
 
-	spin_lock(&pdcs->pdc_lock);
+	mbc = &pdcs->mbc;
+	chan = &mbc->chans[0];
+	mssg.type = BRCM_MESSAGE_SPU;
 
 	/*
 	 * return if a complete response message is not yet ready.
@@ -587,47 +604,34 @@ pdc_receive(struct pdc_state *pdcs, struct brcm_message *mssg)
 	 * to read.
 	 */
 	frags_rdy = NRXDACTIVE(pdcs->rxin, pdcs->last_rx_curr, pdcs->nrxpost);
-	if ((frags_rdy == 0) || (frags_rdy < pdcs->rxin_numd[pdcs->rxin])) {
-		/* See if the hw has written more fragments than we know */
-		pdcs->last_rx_curr =
-		    (ioread32((void *)&pdcs->rxregs_64->status0) &
-		     CRYPTO_D64_RS0_CD_MASK) / RING_ENTRY_SIZE;
-		frags_rdy = NRXDACTIVE(pdcs->rxin, pdcs->last_rx_curr,
-				       pdcs->nrxpost);
-		if ((frags_rdy == 0) ||
-		    (frags_rdy < pdcs->rxin_numd[pdcs->rxin])) {
-			/* No response ready */
-			spin_unlock(&pdcs->pdc_lock);
-			return -EAGAIN;
-		}
-		/* can't read descriptors/data until write index is read */
-		rmb();
-	}
+	if ((frags_rdy == 0) ||
+	    (frags_rdy < pdcs->rx_ctx[pdcs->rxin].rxin_numd))
+		/* No response ready */
+		return -EAGAIN;
 
 	num_frags = pdcs->txin_numd[pdcs->txin];
+	WARN_ON(num_frags == 0);
+
 	dma_unmap_sg(dev, pdcs->src_sg[pdcs->txin],
 		     sg_nents(pdcs->src_sg[pdcs->txin]), DMA_TO_DEVICE);
 
-	for (i = 0; i < num_frags; i++)
-		pdcs->txin = NEXTTXD(pdcs->txin, pdcs->ntxpost);
+	pdcs->txin = (pdcs->txin + num_frags) & pdcs->ntxpost;
 
 	dev_dbg(dev, "PDC %u reclaimed %d tx descriptors",
 		pdcs->pdc_idx, num_frags);
 
 	rx_idx = pdcs->rxin;
-	num_frags = pdcs->rxin_numd[rx_idx];
+	rx_ctx = &pdcs->rx_ctx[rx_idx];
+	num_frags = rx_ctx->rxin_numd;
 	/* Return opaque context with result */
-	mssg->ctx = pdcs->rxp_ctx[rx_idx];
-	pdcs->rxp_ctx[rx_idx] = NULL;
-	resp_hdr = pdcs->resp_hdr[rx_idx];
-	resp_hdr_daddr = pdcs->resp_hdr_daddr[rx_idx];
-	dma_unmap_sg(dev, pdcs->dst_sg[rx_idx],
-		     sg_nents(pdcs->dst_sg[rx_idx]), DMA_FROM_DEVICE);
+	mssg.ctx = rx_ctx->rxp_ctx;
+	rx_ctx->rxp_ctx = NULL;
+	resp_hdr = rx_ctx->resp_hdr;
+	resp_hdr_daddr = rx_ctx->resp_hdr_daddr;
+	dma_unmap_sg(dev, rx_ctx->dst_sg, sg_nents(rx_ctx->dst_sg),
+		     DMA_FROM_DEVICE);
 
-	for (i = 0; i < num_frags; i++)
-		pdcs->rxin = NEXTRXD(pdcs->rxin, pdcs->nrxpost);
-
-	spin_unlock(&pdcs->pdc_lock);
+	pdcs->rxin = (pdcs->rxin + num_frags) & pdcs->nrxpost;
 
 	dev_dbg(dev, "PDC %u reclaimed %d rx descriptors",
 		pdcs->pdc_idx, num_frags);
@@ -659,12 +663,35 @@ pdc_receive(struct pdc_state *pdcs, struct brcm_message *mssg)
 
 	dma_pool_free(pdcs->rx_buf_pool, resp_hdr, resp_hdr_daddr);
 
+	mbox_chan_received_data(chan, &mssg);
+
 	pdcs->pdc_replies++;
-	/* if we read one or more rx descriptors, claim success */
-	if (num_frags > 0)
-		return PDC_SUCCESS;
-	else
-		return -EIO;
+	return PDC_SUCCESS;
+}
+
+/**
+ * pdc_receive() - Process as many responses as are available in the rx ring.
+ * @pdcs:  PDC state
+ *
+ * Called within the hard IRQ.
+ * Return:
+ */
+static int
+pdc_receive(struct pdc_state *pdcs)
+{
+	int rx_status;
+
+	/* read last_rx_curr from register once */
+	pdcs->last_rx_curr =
+	    (ioread32(&pdcs->rxregs_64->status0) &
+	     CRYPTO_D64_RS0_CD_MASK) / RING_ENTRY_SIZE;
+
+	do {
+		/* Could be many frames ready */
+		rx_status = pdc_receive_one(pdcs);
+	} while (rx_status == PDC_SUCCESS);
+
+	return 0;
 }
 
 /**
@@ -766,8 +793,8 @@ static int pdc_tx_list_final(struct pdc_state *pdcs)
 	 * before chip starts to process new request
 	 */
 	wmb();
-	iowrite32(pdcs->rxout << 4, (void *)&pdcs->rxregs_64->ptr);
-	iowrite32(pdcs->txout << 4, (void *)&pdcs->txregs_64->ptr);
+	iowrite32(pdcs->rxout << 4, &pdcs->rxregs_64->ptr);
+	iowrite32(pdcs->txout << 4, &pdcs->txregs_64->ptr);
 	pdcs->pdc_requests++;
 
 	return PDC_SUCCESS;
@@ -796,6 +823,7 @@ static int pdc_rx_list_init(struct pdc_state *pdcs, struct scatterlist *dst_sg,
 	u32 rx_pkt_cnt = 1;	/* Adding a single rx buffer */
 	dma_addr_t daddr;
 	void *vaddr;
+	struct pdc_rx_ctx *rx_ctx;
 
 	rx_avail = pdcs->nrxpost - NRXDACTIVE(pdcs->rxin, pdcs->rxout,
 					      pdcs->nrxpost);
@@ -806,7 +834,7 @@ static int pdc_rx_list_init(struct pdc_state *pdcs, struct scatterlist *dst_sg,
 
 	/* allocate a buffer for the dma rx status */
 	vaddr = dma_pool_zalloc(pdcs->rx_buf_pool, GFP_ATOMIC, &daddr);
-	if (!vaddr)
+	if (unlikely(!vaddr))
 		return -ENOMEM;
 
 	/*
@@ -819,15 +847,16 @@ static int pdc_rx_list_init(struct pdc_state *pdcs, struct scatterlist *dst_sg,
 
 	/* This is always the first descriptor in the receive sequence */
 	flags = D64_CTRL1_SOF;
-	pdcs->rxin_numd[pdcs->rx_msg_start] = 1;
+	pdcs->rx_ctx[pdcs->rx_msg_start].rxin_numd = 1;
 
 	if (unlikely(pdcs->rxout == (pdcs->nrxd - 1)))
 		flags |= D64_CTRL1_EOT;
 
-	pdcs->rxp_ctx[pdcs->rxout] = ctx;
-	pdcs->dst_sg[pdcs->rxout] = dst_sg;
-	pdcs->resp_hdr[pdcs->rxout] = vaddr;
-	pdcs->resp_hdr_daddr[pdcs->rxout] = daddr;
+	rx_ctx = &pdcs->rx_ctx[pdcs->rxout];
+	rx_ctx->rxp_ctx = ctx;
+	rx_ctx->dst_sg = dst_sg;
+	rx_ctx->resp_hdr = vaddr;
+	rx_ctx->resp_hdr_daddr = daddr;
 	pdc_build_rxd(pdcs, daddr, pdcs->pdc_resp_hdr_len, flags);
 	return PDC_SUCCESS;
 }
@@ -895,7 +924,7 @@ static int pdc_rx_list_sg_add(struct pdc_state *pdcs, struct scatterlist *sg)
 		desc_w++;
 		sg = sg_next(sg);
 	}
-	pdcs->rxin_numd[pdcs->rx_msg_start] += desc_w;
+	pdcs->rx_ctx[pdcs->rx_msg_start].rxin_numd += desc_w;
 
 	return PDC_SUCCESS;
 }
@@ -903,7 +932,7 @@ static int pdc_rx_list_sg_add(struct pdc_state *pdcs, struct scatterlist *sg)
 /**
  * pdc_irq_handler() - Interrupt handler called in interrupt context.
  * @irq:      Interrupt number that has fired
- * @cookie:   PDC state for DMA engine that generated the interrupt
+ * @data:     device struct for DMA engine that generated the interrupt
  *
  * We have to clear the device interrupt status flags here. So cache the
  * status for later use in the thread function. Other than that, just return
@@ -912,88 +941,39 @@ static int pdc_rx_list_sg_add(struct pdc_state *pdcs, struct scatterlist *sg)
  * Return: IRQ_WAKE_THREAD if interrupt is ours
  *         IRQ_NONE otherwise
  */
-static irqreturn_t pdc_irq_handler(int irq, void *cookie)
+static irqreturn_t pdc_irq_handler(int irq, void *data)
 {
-	struct pdc_state *pdcs = cookie;
+	struct device *dev = (struct device *)data;
+	struct pdc_state *pdcs = dev_get_drvdata(dev);
 	u32 intstatus = ioread32(pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
 
-	if (intstatus & PDC_XMTINTEN_0)
-		set_bit(PDC_XMTINT_0, &pdcs->intstatus);
-	if (intstatus & PDC_RCVINTEN_0)
-		set_bit(PDC_RCVINT_0, &pdcs->intstatus);
+	if (unlikely(intstatus == 0))
+		return IRQ_NONE;
+
+	/* Disable interrupts until soft handler runs */
+	iowrite32(0, pdcs->pdc_reg_vbase + PDC_INTMASK_OFFSET);
 
 	/* Clear interrupt flags in device */
 	iowrite32(intstatus, pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
 
 	/* Wakeup IRQ thread */
-	if (pdcs && (irq == pdcs->pdc_irq) && (intstatus & PDC_INTMASK))
-		return IRQ_WAKE_THREAD;
-
-	return IRQ_NONE;
+	tasklet_schedule(&pdcs->rx_tasklet);
+	return IRQ_HANDLED;
 }
 
 /**
- * pdc_irq_thread() - Function invoked on deferred thread when a DMA tx has
- * completed or data is available to receive.
- * @irq:    Interrupt number
- * @cookie: PDC state for PDC that generated the interrupt
- *
- * On DMA tx complete, notify the mailbox client. On DMA rx complete, process
- * as many SPU response messages as are available and send each to the mailbox
- * client.
- *
- * Return: IRQ_HANDLED if we recognized and handled the interrupt
- *         IRQ_NONE otherwise
+ * pdc_tasklet_cb() - Tasklet callback that runs the deferred processing after
+ * a DMA receive interrupt. Reenables the receive interrupt.
+ * @data: PDC state structure
  */
-static irqreturn_t pdc_irq_thread(int irq, void *cookie)
+static void pdc_tasklet_cb(unsigned long data)
 {
-	struct pdc_state *pdcs = cookie;
-	struct mbox_controller *mbc;
-	struct mbox_chan *chan;
-	bool tx_int;
-	bool rx_int;
-	int rx_status;
-	struct brcm_message mssg;
+	struct pdc_state *pdcs = (struct pdc_state *)data;
 
-	tx_int = test_and_clear_bit(PDC_XMTINT_0, &pdcs->intstatus);
-	rx_int = test_and_clear_bit(PDC_RCVINT_0, &pdcs->intstatus);
+	pdc_receive(pdcs);
 
-	if (pdcs && (tx_int || rx_int)) {
-		dev_dbg(&pdcs->pdev->dev,
-			"%s() got irq %d with tx_int %s, rx_int %s",
-			__func__, irq,
-			tx_int ? "set" : "clear", rx_int ? "set" : "clear");
-
-		mbc = &pdcs->mbc;
-		chan = &mbc->chans[0];
-
-		if (tx_int) {
-			dev_dbg(&pdcs->pdev->dev, "%s(): tx done", __func__);
-			/* only one frame in flight at a time */
-			mbox_chan_txdone(chan, PDC_SUCCESS);
-		}
-		if (rx_int) {
-			while (1) {
-				/* Could be many frames ready */
-				memset(&mssg, 0, sizeof(mssg));
-				mssg.type = BRCM_MESSAGE_SPU;
-				rx_status = pdc_receive(pdcs, &mssg);
-				if (rx_status >= 0) {
-					dev_dbg(&pdcs->pdev->dev,
-						"%s(): invoking client rx cb",
-						__func__);
-					mbox_chan_received_data(chan, &mssg);
-				} else {
-					dev_dbg(&pdcs->pdev->dev,
-						"%s(): no SPU response available",
-						__func__);
-					break;
-				}
-			}
-		}
-		return IRQ_HANDLED;
-	}
-	return IRQ_NONE;
+	/* reenable interrupts */
+	iowrite32(PDC_INTMASK, pdcs->pdc_reg_vbase + PDC_INTMASK_OFFSET);
 }
 
 /**
@@ -1016,14 +996,14 @@ static int pdc_ring_init(struct pdc_state *pdcs, int ringset)
 
 	/* Allocate tx ring */
 	tx.vbase = dma_pool_zalloc(pdcs->ring_pool, GFP_KERNEL, &tx.dmabase);
-	if (!tx.vbase) {
+	if (unlikely(!tx.vbase)) {
 		err = -ENOMEM;
 		goto done;
 	}
 
 	/* Allocate rx ring */
 	rx.vbase = dma_pool_zalloc(pdcs->ring_pool, GFP_KERNEL, &rx.dmabase);
-	if (!rx.vbase) {
+	if (unlikely(!rx.vbase)) {
 		err = -ENOMEM;
 		goto fail_dealloc;
 	}
@@ -1032,9 +1012,6 @@ static int pdc_ring_init(struct pdc_state *pdcs, int ringset)
 	dev_dbg(dev, " - base virtual addr of tx ring  %p", tx.vbase);
 	dev_dbg(dev, " - base DMA addr of rx ring      %pad", &rx.dmabase);
 	dev_dbg(dev, " - base virtual addr of rx ring  %p", rx.vbase);
-
-	/* lock after ring allocation to avoid scheduling while atomic */
-	spin_lock(&pdcs->pdc_lock);
 
 	memcpy(&pdcs->tx_ring_alloc, &tx, sizeof(tx));
 	memcpy(&pdcs->rx_ring_alloc, &rx, sizeof(rx));
@@ -1053,40 +1030,52 @@ static int pdc_ring_init(struct pdc_state *pdcs, int ringset)
 
 	/* Tell device the base DMA address of each ring */
 	dma_reg = &pdcs->regs->dmaregs[ringset];
+
+	/* But first disable DMA and set curptr to 0 for both TX & RX */
+	iowrite32(PDC_TX_CTL, &dma_reg->dmaxmt.control);
+	iowrite32((PDC_RX_CTL + (pdcs->rx_status_len << 1)),
+		  &dma_reg->dmarcv.control);
+	iowrite32(0, &dma_reg->dmaxmt.ptr);
+	iowrite32(0, &dma_reg->dmarcv.ptr);
+
+	/* Set base DMA addresses */
 	iowrite32(lower_32_bits(pdcs->tx_ring_alloc.dmabase),
-		  (void *)&dma_reg->dmaxmt.addrlow);
+		  &dma_reg->dmaxmt.addrlow);
 	iowrite32(upper_32_bits(pdcs->tx_ring_alloc.dmabase),
-		  (void *)&dma_reg->dmaxmt.addrhigh);
+		  &dma_reg->dmaxmt.addrhigh);
 
 	iowrite32(lower_32_bits(pdcs->rx_ring_alloc.dmabase),
-		  (void *)&dma_reg->dmarcv.addrlow);
+		  &dma_reg->dmarcv.addrlow);
 	iowrite32(upper_32_bits(pdcs->rx_ring_alloc.dmabase),
-		  (void *)&dma_reg->dmarcv.addrhigh);
+		  &dma_reg->dmarcv.addrhigh);
+
+	/* Re-enable DMA */
+	iowrite32(PDC_TX_CTL | PDC_TX_ENABLE, &dma_reg->dmaxmt.control);
+	iowrite32((PDC_RX_CTL | PDC_RX_ENABLE | (pdcs->rx_status_len << 1)),
+		  &dma_reg->dmarcv.control);
 
 	/* Initialize descriptors */
 	for (i = 0; i < PDC_RING_ENTRIES; i++) {
 		/* Every tx descriptor can be used for start of frame. */
 		if (i != pdcs->ntxpost) {
 			iowrite32(D64_CTRL1_SOF | D64_CTRL1_EOF,
-				  (void *)&pdcs->txd_64[i].ctrl1);
+				  &pdcs->txd_64[i].ctrl1);
 		} else {
 			/* Last descriptor in ringset. Set End of Table. */
 			iowrite32(D64_CTRL1_SOF | D64_CTRL1_EOF |
-				  D64_CTRL1_EOT,
-				  (void *)&pdcs->txd_64[i].ctrl1);
+				  D64_CTRL1_EOT, &pdcs->txd_64[i].ctrl1);
 		}
 
 		/* Every rx descriptor can be used for start of frame */
 		if (i != pdcs->nrxpost) {
 			iowrite32(D64_CTRL1_SOF,
-				  (void *)&pdcs->rxd_64[i].ctrl1);
+				  &pdcs->rxd_64[i].ctrl1);
 		} else {
 			/* Last descriptor in ringset. Set End of Table. */
 			iowrite32(D64_CTRL1_SOF | D64_CTRL1_EOT,
-				  (void *)&pdcs->rxd_64[i].ctrl1);
+				  &pdcs->rxd_64[i].ctrl1);
 		}
 	}
-	spin_unlock(&pdcs->pdc_lock);
 	return PDC_SUCCESS;
 
 fail_dealloc:
@@ -1108,6 +1097,80 @@ static void pdc_ring_free(struct pdc_state *pdcs)
 			      pdcs->rx_ring_alloc.dmabase);
 		pdcs->rx_ring_alloc.vbase = NULL;
 	}
+}
+
+/**
+ * pdc_desc_count() - Count the number of DMA descriptors that will be required
+ * for a given scatterlist. Account for the max length of a DMA buffer.
+ * @sg:    Scatterlist to be DMA'd
+ * Return: Number of descriptors required
+ */
+static u32 pdc_desc_count(struct scatterlist *sg)
+{
+	u32 cnt = 0;
+
+	while (sg) {
+		cnt += ((sg->length / PDC_DMA_BUF_MAX) + 1);
+		sg = sg_next(sg);
+	}
+	return cnt;
+}
+
+/**
+ * pdc_rings_full() - Check whether the tx ring has room for tx_cnt descriptors
+ * and the rx ring has room for rx_cnt descriptors.
+ * @pdcs:  PDC state
+ * @tx_cnt: The number of descriptors required in the tx ring
+ * @rx_cnt: The number of descriptors required i the rx ring
+ *
+ * Return: true if one of the rings does not have enough space
+ *         false if sufficient space is available in both rings
+ */
+static bool pdc_rings_full(struct pdc_state *pdcs, int tx_cnt, int rx_cnt)
+{
+	u32 rx_avail;
+	u32 tx_avail;
+	bool full = false;
+
+	/* Check if the tx and rx rings are likely to have enough space */
+	rx_avail = pdcs->nrxpost - NRXDACTIVE(pdcs->rxin, pdcs->rxout,
+					      pdcs->nrxpost);
+	if (unlikely(rx_cnt > rx_avail)) {
+		pdcs->rx_ring_full++;
+		full = true;
+	}
+
+	if (likely(!full)) {
+		tx_avail = pdcs->ntxpost - NTXDACTIVE(pdcs->txin, pdcs->txout,
+						      pdcs->ntxpost);
+		if (unlikely(tx_cnt > tx_avail)) {
+			pdcs->tx_ring_full++;
+			full = true;
+		}
+	}
+	return full;
+}
+
+/**
+ * pdc_last_tx_done() - If both the tx and rx rings have at least
+ * PDC_RING_SPACE_MIN descriptors available, then indicate that the mailbox
+ * framework can submit another message.
+ * @chan:  mailbox channel to check
+ * Return: true if PDC can accept another message on this channel
+ */
+static bool pdc_last_tx_done(struct mbox_chan *chan)
+{
+	struct pdc_state *pdcs = chan->con_priv;
+	bool ret;
+
+	if (unlikely(pdc_rings_full(pdcs, PDC_RING_SPACE_MIN,
+				    PDC_RING_SPACE_MIN))) {
+		pdcs->last_tx_not_done++;
+		ret = false;
+	} else {
+		ret = true;
+	}
+	return ret;
 }
 
 /**
@@ -1141,29 +1204,43 @@ static int pdc_send_data(struct mbox_chan *chan, void *data)
 	int src_nent;
 	int dst_nent;
 	int nent;
+	u32 tx_desc_req;
+	u32 rx_desc_req;
 
-	if (mssg->type != BRCM_MESSAGE_SPU)
+	if (unlikely(mssg->type != BRCM_MESSAGE_SPU))
 		return -ENOTSUPP;
 
 	src_nent = sg_nents(mssg->spu.src);
-	if (src_nent) {
+	if (likely(src_nent)) {
 		nent = dma_map_sg(dev, mssg->spu.src, src_nent, DMA_TO_DEVICE);
-		if (nent == 0)
+		if (unlikely(nent == 0))
 			return -EIO;
 	}
 
 	dst_nent = sg_nents(mssg->spu.dst);
-	if (dst_nent) {
+	if (likely(dst_nent)) {
 		nent = dma_map_sg(dev, mssg->spu.dst, dst_nent,
 				  DMA_FROM_DEVICE);
-		if (nent == 0) {
+		if (unlikely(nent == 0)) {
 			dma_unmap_sg(dev, mssg->spu.src, src_nent,
 				     DMA_TO_DEVICE);
 			return -EIO;
 		}
 	}
 
-	spin_lock(&pdcs->pdc_lock);
+	/*
+	 * Check if the tx and rx rings have enough space. Do this prior to
+	 * writing any tx or rx descriptors. Need to ensure that we do not write
+	 * a partial set of descriptors, or write just rx descriptors but
+	 * corresponding tx descriptors don't fit. Note that we want this check
+	 * and the entire sequence of descriptor to happen without another
+	 * thread getting in. The channel spin lock in the mailbox framework
+	 * ensures this.
+	 */
+	tx_desc_req = pdc_desc_count(mssg->spu.src);
+	rx_desc_req = pdc_desc_count(mssg->spu.dst);
+	if (unlikely(pdc_rings_full(pdcs, tx_desc_req, rx_desc_req + 1)))
+		return -ENOSPC;
 
 	/* Create rx descriptors to SPU catch response */
 	err = pdc_rx_list_init(pdcs, mssg->spu.dst, mssg->ctx);
@@ -1173,9 +1250,7 @@ static int pdc_send_data(struct mbox_chan *chan, void *data)
 	err |= pdc_tx_list_sg_add(pdcs, mssg->spu.src);
 	err |= pdc_tx_list_final(pdcs);	/* initiate transfer */
 
-	spin_unlock(&pdcs->pdc_lock);
-
-	if (err)
+	if (unlikely(err))
 		dev_err(&pdcs->pdev->dev,
 			"%s failed with error %d", __func__, err);
 
@@ -1224,30 +1299,48 @@ void pdc_hw_init(struct pdc_state *pdcs)
 	/* initialize data structures */
 	pdcs->regs = (struct pdc_regs *)pdcs->pdc_reg_vbase;
 	pdcs->txregs_64 = (struct dma64_regs *)
-	    (void *)(((u8 *)pdcs->pdc_reg_vbase) +
+	    (((u8 *)pdcs->pdc_reg_vbase) +
 		     PDC_TXREGS_OFFSET + (sizeof(struct dma64) * ringset));
 	pdcs->rxregs_64 = (struct dma64_regs *)
-	    (void *)(((u8 *)pdcs->pdc_reg_vbase) +
+	    (((u8 *)pdcs->pdc_reg_vbase) +
 		     PDC_RXREGS_OFFSET + (sizeof(struct dma64) * ringset));
 
 	pdcs->ntxd = PDC_RING_ENTRIES;
 	pdcs->nrxd = PDC_RING_ENTRIES;
 	pdcs->ntxpost = PDC_RING_ENTRIES - 1;
 	pdcs->nrxpost = PDC_RING_ENTRIES - 1;
-	pdcs->regs->intmask = 0;
+	iowrite32(0, &pdcs->regs->intmask);
 
 	dma_reg = &pdcs->regs->dmaregs[ringset];
-	iowrite32(0, (void *)&dma_reg->dmaxmt.ptr);
-	iowrite32(0, (void *)&dma_reg->dmarcv.ptr);
 
-	iowrite32(PDC_TX_CTL, (void *)&dma_reg->dmaxmt.control);
+	/* Configure DMA but will enable later in pdc_ring_init() */
+	iowrite32(PDC_TX_CTL, &dma_reg->dmaxmt.control);
 
 	iowrite32(PDC_RX_CTL + (pdcs->rx_status_len << 1),
-		  (void *)&dma_reg->dmarcv.control);
+		  &dma_reg->dmarcv.control);
+
+	/* Reset current index pointers after making sure DMA is disabled */
+	iowrite32(0, &dma_reg->dmaxmt.ptr);
+	iowrite32(0, &dma_reg->dmarcv.ptr);
 
 	if (pdcs->pdc_resp_hdr_len == PDC_SPU2_RESP_HDR_LEN)
 		iowrite32(PDC_CKSUM_CTRL,
 			  pdcs->pdc_reg_vbase + PDC_CKSUM_CTRL_OFFSET);
+}
+
+/**
+ * pdc_hw_disable() - Disable the tx and rx control in the hw.
+ * @pdcs: PDC state structure
+ *
+ */
+static void pdc_hw_disable(struct pdc_state *pdcs)
+{
+	struct dma64 *dma_reg;
+
+	dma_reg = &pdcs->regs->dmaregs[PDC_RINGSET];
+	iowrite32(PDC_TX_CTL, &dma_reg->dmaxmt.control);
+	iowrite32(PDC_RX_CTL + (pdcs->rx_status_len << 1),
+		  &dma_reg->dmarcv.control);
 }
 
 /**
@@ -1301,8 +1394,6 @@ static int pdc_interrupts_init(struct pdc_state *pdcs)
 	struct device_node *dn = pdev->dev.of_node;
 	int err;
 
-	pdcs->intstatus = 0;
-
 	/* interrupt configuration */
 	iowrite32(PDC_INTMASK, pdcs->pdc_reg_vbase + PDC_INTMASK_OFFSET);
 	iowrite32(PDC_LAZY_INT, pdcs->pdc_reg_vbase + PDC_RCVLAZY0_OFFSET);
@@ -1311,11 +1402,11 @@ static int pdc_interrupts_init(struct pdc_state *pdcs)
 	pdcs->pdc_irq = irq_of_parse_and_map(dn, 0);
 	dev_dbg(dev, "pdc device %s irq %u for pdcs %p",
 		dev_name(dev), pdcs->pdc_irq, pdcs);
-	err = devm_request_threaded_irq(dev, pdcs->pdc_irq,
-					pdc_irq_handler,
-					pdc_irq_thread, 0, dev_name(dev), pdcs);
+
+	err = devm_request_irq(dev, pdcs->pdc_irq, pdc_irq_handler, 0,
+			       dev_name(dev), dev);
 	if (err) {
-		dev_err(dev, "threaded tx IRQ %u request failed with err %d\n",
+		dev_err(dev, "IRQ %u request failed with err %d\n",
 			pdcs->pdc_irq, err);
 		return err;
 	}
@@ -1324,6 +1415,7 @@ static int pdc_interrupts_init(struct pdc_state *pdcs)
 
 static const struct mbox_chan_ops pdc_mbox_chan_ops = {
 	.send_data = pdc_send_data,
+	.last_tx_done = pdc_last_tx_done,
 	.startup = pdc_startup,
 	.shutdown = pdc_shutdown
 };
@@ -1356,8 +1448,9 @@ static int pdc_mb_init(struct pdc_state *pdcs)
 	if (!mbc->chans)
 		return -ENOMEM;
 
-	mbc->txdone_irq = true;
-	mbc->txdone_poll = false;
+	mbc->txdone_irq = false;
+	mbc->txdone_poll = true;
+	mbc->txpoll_period = 1;
 	for (chan_index = 0; chan_index < mbc->num_chans; chan_index++)
 		mbc->chans[chan_index].con_priv = pdcs;
 
@@ -1427,7 +1520,6 @@ static int pdc_probe(struct platform_device *pdev)
 		goto cleanup;
 	}
 
-	spin_lock_init(&pdcs->pdc_lock);
 	pdcs->pdev = pdev;
 	platform_set_drvdata(pdev, pdcs);
 	pdcs->pdc_idx = pdcg.num_spu;
@@ -1473,6 +1565,9 @@ static int pdc_probe(struct platform_device *pdev)
 
 	pdc_hw_init(pdcs);
 
+	/* Init tasklet for deferred DMA rx processing */
+	tasklet_init(&pdcs->rx_tasklet, pdc_tasklet_cb, (unsigned long)pdcs);
+
 	err = pdc_interrupts_init(pdcs);
 	if (err)
 		goto cleanup_buf_pool;
@@ -1489,6 +1584,7 @@ static int pdc_probe(struct platform_device *pdev)
 	return PDC_SUCCESS;
 
 cleanup_buf_pool:
+	tasklet_kill(&pdcs->rx_tasklet);
 	dma_pool_destroy(pdcs->rx_buf_pool);
 
 cleanup_ring_pool:
@@ -1503,6 +1599,10 @@ static int pdc_remove(struct platform_device *pdev)
 	struct pdc_state *pdcs = platform_get_drvdata(pdev);
 
 	pdc_free_debugfs();
+
+	tasklet_kill(&pdcs->rx_tasklet);
+
+	pdc_hw_disable(pdcs);
 
 	mbox_controller_unregister(&pdcs->mbc);
 

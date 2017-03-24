@@ -13,7 +13,7 @@
 #include <libfdt.h>
 #include "../include/asm/opal-api.h"
 
-#ifdef __powerpc64__
+#ifdef CONFIG_PPC64_BOOT_WRAPPER
 
 /* Global OPAL struct used by opal-call.S */
 struct opal {

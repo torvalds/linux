@@ -156,7 +156,7 @@ static int rockchip_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		 */
 		mdelay(1); /* ensure the cpus other than cpu0 to startup */
 
-		writel(virt_to_phys(secondary_startup), sram_base_addr + 8);
+		writel(__pa_symbol(secondary_startup), sram_base_addr + 8);
 		writel(0xDEADBEAF, sram_base_addr + 4);
 		dsb_sev();
 	}
@@ -195,7 +195,7 @@ static int __init rockchip_smp_prepare_sram(struct device_node *node)
 	}
 
 	/* set the boot function for the sram code */
-	rockchip_boot_fn = virt_to_phys(secondary_startup);
+	rockchip_boot_fn = __pa_symbol(secondary_startup);
 
 	/* copy the trampoline to sram, that runs during startup of the core */
 	memcpy(sram_base_addr, &rockchip_secondary_trampoline, trampoline_sz);

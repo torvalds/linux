@@ -39,6 +39,7 @@
 #include "../dmaengine.h"
 
 static char *chanerr_str[] = {
+	"DMA Transfer Source Address Error",
 	"DMA Transfer Destination Address Error",
 	"Next Descriptor Address Error",
 	"Descriptor Error",
@@ -66,7 +67,6 @@ static char *chanerr_str[] = {
 	"Result Guard Tag verification Error",
 	"Result Application Tag verification Error",
 	"Result Reference Tag verification Error",
-	NULL
 };
 
 static void ioat_eh(struct ioatdma_chan *ioat_chan);
@@ -75,13 +75,10 @@ static void ioat_print_chanerrs(struct ioatdma_chan *ioat_chan, u32 chanerr)
 {
 	int i;
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < ARRAY_SIZE(chanerr_str); i++) {
 		if ((chanerr >> i) & 1) {
-			if (chanerr_str[i]) {
-				dev_err(to_dev(ioat_chan), "Err(%d): %s\n",
-					i, chanerr_str[i]);
-			} else
-				break;
+			dev_err(to_dev(ioat_chan), "Err(%d): %s\n",
+				i, chanerr_str[i]);
 		}
 	}
 }
@@ -341,14 +338,11 @@ ioat_alloc_ring_ent(struct dma_chan *chan, int idx, gfp_t flags)
 {
 	struct ioat_dma_descriptor *hw;
 	struct ioat_ring_ent *desc;
-	struct ioatdma_device *ioat_dma;
 	struct ioatdma_chan *ioat_chan = to_ioat_chan(chan);
 	int chunk;
 	dma_addr_t phys;
 	u8 *pos;
 	off_t offs;
-
-	ioat_dma = to_ioatdma_device(chan->device);
 
 	chunk = idx / IOAT_DESCS_PER_2M;
 	idx &= (IOAT_DESCS_PER_2M - 1);
@@ -614,11 +608,8 @@ static void __cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 
 		tx = &desc->txd;
 		if (tx->cookie) {
-			struct dmaengine_result res;
-
 			dma_cookie_complete(tx);
 			dma_descriptor_unmap(tx);
-			res.result = DMA_TRANS_NOERROR;
 			dmaengine_desc_get_callback_invoke(tx, NULL);
 			tx->callback = NULL;
 			tx->callback_result = NULL;

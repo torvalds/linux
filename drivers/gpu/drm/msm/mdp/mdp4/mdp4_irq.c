@@ -15,6 +15,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_print.h>
 
 #include "msm_drv.h"
 #include "mdp4_kms.h"
@@ -29,7 +30,16 @@ void mdp4_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask,
 
 static void mdp4_irq_error_handler(struct mdp_irq *irq, uint32_t irqstatus)
 {
+	struct mdp4_kms *mdp4_kms = container_of(irq, struct mdp4_kms, error_handler);
+	static DEFINE_RATELIMIT_STATE(rs, 5*HZ, 1);
+	extern bool dumpstate;
+
 	DRM_ERROR_RATELIMITED("errors: %08x\n", irqstatus);
+
+	if (dumpstate && __ratelimit(&rs)) {
+		struct drm_printer p = drm_info_printer(mdp4_kms->dev->dev);
+		drm_state_dump(mdp4_kms->dev, &p);
+	}
 }
 
 void mdp4_irq_preinstall(struct msm_kms *kms)

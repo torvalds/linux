@@ -18,11 +18,11 @@
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>
-#include <asm/xics.h>
 #include <asm/opal.h>
 #include <asm/prom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/debug.h>
+#include <asm/isa-bridge.h>
 
 static int opal_lpc_chip_id = -1;
 
@@ -386,7 +386,7 @@ static int opal_lpc_init_debugfs(void)
 machine_device_initcall(powernv, opal_lpc_init_debugfs);
 #endif  /* CONFIG_DEBUG_FS */
 
-void opal_lpc_init(void)
+void __init opal_lpc_init(void)
 {
 	struct device_node *np;
 
@@ -406,9 +406,17 @@ void opal_lpc_init(void)
 	if (opal_lpc_chip_id < 0)
 		return;
 
-	/* Setup special IO ops */
-	ppc_pci_io = opal_lpc_io;
-	isa_io_special = true;
+	/* Does it support direct mapping ? */
+	if (of_get_property(np, "ranges", NULL)) {
+		pr_info("OPAL: Found memory mapped LPC bus on chip %d\n",
+			opal_lpc_chip_id);
+		isa_bridge_init_non_pci(np);
+	} else {
+		pr_info("OPAL: Found non-mapped LPC bus on chip %d\n",
+			opal_lpc_chip_id);
 
-	pr_info("OPAL: Power8 LPC bus found, chip ID %d\n", opal_lpc_chip_id);
+		/* Setup special IO ops */
+		ppc_pci_io = opal_lpc_io;
+		isa_io_special = true;
+	}
 }

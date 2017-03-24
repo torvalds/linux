@@ -14,22 +14,79 @@ The properties described here are those specific to Marvell devices.
 Additional required and optional properties can be found in dsa.txt.
 
 Required properties:
-- compatible           : Should be one of "marvell,mv88e6085",
-- reg                  : Address on the MII bus for the switch.
+- compatible		: Should be one of "marvell,mv88e6085" or
+			  "marvell,mv88e6190"
+- reg			: Address on the MII bus for the switch.
 
 Optional properties:
 
 - reset-gpios		: Should be a gpio specifier for a reset line
+- interrupt-parent	: Parent interrupt controller
+- interrupts		: Interrupt from the switch
+- interrupt-controller	: Indicates the switch is itself an interrupt
+			  controller. This is used for the PHY interrupts.
+#interrupt-cells = <2>	: Controller uses two cells, number and flag
+- mdio			: Container of PHY and devices on the switches MDIO
+			  bus.
+- mdio?		: Container of PHYs and devices on the external MDIO
+			  bus. The node must contains a compatible string of
+			  "marvell,mv88e6xxx-mdio-external"
 
 Example:
 
-       mdio {
-               #address-cells = <1>;
-               #size-cells = <0>;
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
 
-               switch0: switch@0 {
-                       compatible = "marvell,mv88e6085";
-                       reg = <0>;
-		       reset-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
-               };
-       };
+		switch0: switch@0 {
+			compatible = "marvell,mv88e6085";
+			reg = <0>;
+			reset-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+		};
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			switch1phy0: switch1phy0@0 {
+				reg = <0>;
+				interrupt-parent = <&switch0>;
+				interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+	};
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		switch0: switch@0 {
+			compatible = "marvell,mv88e6390";
+			reg = <0>;
+			reset-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+		};
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			switch1phy0: switch1phy0@0 {
+				reg = <0>;
+				interrupt-parent = <&switch0>;
+				interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		mdio1 {
+			compatible = "marvell,mv88e6xxx-mdio-external";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			switch1phy9: switch1phy0@9 {
+				reg = <9>;
+			};
+		};
+	};

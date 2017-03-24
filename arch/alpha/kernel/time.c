@@ -34,7 +34,7 @@
 #include <linux/profile.h>
 #include <linux/irq_work.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/hwrpb.h>
 
@@ -133,7 +133,7 @@ init_rtc_clockevent(void)
  * The QEMU clock as a clocksource primitive.
  */
 
-static cycle_t
+static u64
 qemu_cs_read(struct clocksource *cs)
 {
 	return qemu_get_vmtime();
@@ -260,7 +260,7 @@ common_init_rtc(void)
  * use this method when WTINT is in use.
  */
 
-static cycle_t read_rpcc(struct clocksource *cs)
+static u64 read_rpcc(struct clocksource *cs)
 {
 	return rpcc();
 }

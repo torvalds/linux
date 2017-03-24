@@ -55,7 +55,7 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 		pVBInfo->XGINew_CR97 = 0xc1;
 		pVBInfo->SR18 = XG27_SR18;
 
-		/*Z11m DDR*/
+		/* Z11m DDR */
 		temp = xgifb_reg_get(pVBInfo->P3c4, 0x3B);
 		/* SR3B[7][3]MAA15 MAA11 (Power on Trapping) */
 		if (((temp & 0x88) == 0x80) || ((temp & 0x88) == 0x08))
@@ -73,7 +73,7 @@ static void XGI_SetSeqRegs(struct vb_device_info *pVBInfo)
 		/* Get SR1,2,3,4 from file */
 		/* SR1 is with screen off 0x20 */
 		SRdata = XGI330_StandTable.SR[i];
-		xgifb_reg_set(pVBInfo->P3c4, i+1, SRdata); /* Set SR 1 2 3 4 */
+		xgifb_reg_set(pVBInfo->P3c4, i + 1, SRdata); /* Set SR 1 2 3 4 */
 	}
 }
 
@@ -167,7 +167,8 @@ static unsigned char XGI_SetDefaultVCLK(struct vb_device_info *pVBInfo)
 }
 
 static unsigned char XGI_AjustCRT2Rate(unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex, unsigned short *i,
+				       unsigned short RefreshRateTableIndex,
+				       unsigned short *i,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short tempax, tempbx, resinfo, modeflag, infoflag;
@@ -244,7 +245,7 @@ static unsigned char XGI_AjustCRT2Rate(unsigned short ModeIdIndex,
 }
 
 static void XGI_SetSync(unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+			struct vb_device_info *pVBInfo)
 {
 	unsigned short sync, temp;
 
@@ -257,7 +258,7 @@ static void XGI_SetSync(unsigned short RefreshRateTableIndex,
 }
 
 static void XGI_SetCRT1Timing_H(struct vb_device_info *pVBInfo,
-		struct xgi_hw_device_info *HwDeviceExtension)
+				struct xgi_hw_device_info *HwDeviceExtension)
 {
 	unsigned char data, data1, pushax;
 	unsigned short i, j;
@@ -359,9 +360,9 @@ static void XGI_SetCRT1Timing_V(unsigned short ModeIdIndex,
 }
 
 static void XGI_SetCRT1CRTC(unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo,
-		struct xgi_hw_device_info *HwDeviceExtension)
+			    unsigned short RefreshRateTableIndex,
+			    struct vb_device_info *pVBInfo,
+			    struct xgi_hw_device_info *HwDeviceExtension)
 {
 	unsigned char index, data;
 	unsigned short i;
@@ -390,14 +391,14 @@ static void XGI_SetCRT1CRTC(unsigned short ModeIdIndex,
 		xgifb_reg_set(pVBInfo->P3d4, 0x14, 0x4F);
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_SetXG21CRTC */
-/* Input : Stand or enhance CRTC table */
-/* Output : Fill CRT Hsync/Vsync to SR2E/SR2F/SR30/SR33/SR34/SR3F */
-/* Description : Set LCD timing */
-/* --------------------------------------------------------------------- */
+/*
+ * Function : XGI_SetXG21CRTC
+ * Input : Stand or enhance CRTC table
+ * Output : Fill CRT Hsync/Vsync to SR2E/SR2F/SR30/SR33/SR34/SR3F
+ * Description : Set LCD timing
+ */
 static void XGI_SetXG21CRTC(unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+			    struct vb_device_info *pVBInfo)
 {
 	unsigned char index, Tempax, Tempbx, Tempcx, Tempdx;
 	unsigned short Temp1, Temp2, Temp3;
@@ -506,8 +507,8 @@ static void XGI_SetXG27CRTC(unsigned short RefreshRateTableIndex,
 
 	/* SR0B */
 	Tempax = XGI_CRT1Table[index].CR[5];
-	Tempax &= 0xC0; /* Tempax[7:6]: SR0B[7:6]: HRS[9:8]*/
-	Tempbx |= (Tempax << 2); /* Tempbx: HRS[9:0] */
+	Tempax &= 0xC0; /* Tempax[7:6]: SR0B[7:6]: HRS[9:8] */
+	Tempbx |= Tempax << 2; /* Tempbx: HRS[9:0] */
 
 	Tempax = XGI_CRT1Table[index].CR[4]; /* CR5 HRE */
 	Tempax &= 0x1F; /* Tempax[4:0]: HRE[4:0] */
@@ -530,7 +531,7 @@ static void XGI_SetXG27CRTC(unsigned short RefreshRateTableIndex,
 	Tempax = XGI_CRT1Table[index].CR[5]; /* SR0B */
 	Tempax &= 0xC0; /* Tempax[7:6]: SR0B[7:6]: HRS[9:8]*/
 	Tempax >>= 6; /* Tempax[1:0]: HRS[9:8]*/
-	Tempax |= ((Tempbx << 2) & 0xFF); /* Tempax[7:2]: HRE[5:0] */
+	Tempax |= (Tempbx << 2) & 0xFF; /* Tempax[7:2]: HRE[5:0] */
 	/* SR2F [7:2][1:0]: HRE[5:0]HRS[9:8] */
 	xgifb_reg_set(pVBInfo->P3c4, 0x2F, Tempax);
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x30, 0xE3, 00);
@@ -548,12 +549,12 @@ static void XGI_SetXG27CRTC(unsigned short RefreshRateTableIndex,
 	Tempax >>= 2; /* Tempax[0]: VRS[8] */
 	/* SR35[0]: VRS[8] */
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x35, ~0x01, Tempax);
-	Tempcx |= (Tempax << 8); /* Tempcx <= VRS[8:0] */
-	Tempcx |= ((Tempbx & 0x80) << 2); /* Tempcx <= VRS[9:0] */
+	Tempcx |= Tempax << 8; /* Tempcx <= VRS[8:0] */
+	Tempcx |= (Tempbx & 0x80) << 2; /* Tempcx <= VRS[9:0] */
 	/* Tempax: SR0A */
 	Tempax = XGI_CRT1Table[index].CR[14];
 	Tempax &= 0x08; /* SR0A[3] VRS[10] */
-	Tempcx |= (Tempax << 7); /* Tempcx <= VRS[10:0] */
+	Tempcx |= Tempax << 7; /* Tempcx <= VRS[10:0] */
 
 	/* Tempax: CR11 VRE */
 	Tempax = XGI_CRT1Table[index].CR[11];
@@ -636,12 +637,12 @@ static void xgifb_set_lcd(int chip_id,
 		xgifb_reg_or(pVBInfo->P3c4, 0x35, 0x80);
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_UpdateXG21CRTC */
-/* Input : */
-/* Output : CRT1 CRTC */
-/* Description : Modify CRT1 Hsync/Vsync to fix LCD mode timing */
-/* --------------------------------------------------------------------- */
+/*
+ * Function : XGI_UpdateXG21CRTC
+ * Input :
+ * Output : CRT1 CRTC
+ * Description : Modify CRT1 Hsync/Vsync to fix LCD mode timing
+ */
 static void XGI_UpdateXG21CRTC(unsigned short ModeNo,
 			       struct vb_device_info *pVBInfo,
 			       unsigned short RefreshRateTableIndex)
@@ -665,19 +666,19 @@ static void XGI_UpdateXG21CRTC(unsigned short ModeNo,
 
 	if (index != -1) {
 		xgifb_reg_set(pVBInfo->P3d4, 0x02,
-				XGI_UpdateCRT1Table[index].CR02);
+			      XGI_UpdateCRT1Table[index].CR02);
 		xgifb_reg_set(pVBInfo->P3d4, 0x03,
-				XGI_UpdateCRT1Table[index].CR03);
+			      XGI_UpdateCRT1Table[index].CR03);
 		xgifb_reg_set(pVBInfo->P3d4, 0x15,
-				XGI_UpdateCRT1Table[index].CR15);
+			      XGI_UpdateCRT1Table[index].CR15);
 		xgifb_reg_set(pVBInfo->P3d4, 0x16,
-				XGI_UpdateCRT1Table[index].CR16);
+			      XGI_UpdateCRT1Table[index].CR16);
 	}
 }
 
 static void XGI_SetCRT1DE(unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+			  unsigned short RefreshRateTableIndex,
+			  struct vb_device_info *pVBInfo)
 {
 	unsigned short resindex, tempax, tempbx, tempcx, temp, modeflag;
 
@@ -715,7 +716,7 @@ static void XGI_SetCRT1DE(unsigned short ModeIdIndex,
 	xgifb_reg_set(pVBInfo->P3d4, 0x11, data); /* Unlock CRTC */
 	xgifb_reg_set(pVBInfo->P3d4, 0x01, (unsigned short)(tempcx & 0xff));
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x0b, ~0x0c,
-			(unsigned short)((tempcx & 0x0ff00) >> 10));
+			 (unsigned short)((tempcx & 0x0ff00) >> 10));
 	xgifb_reg_set(pVBInfo->P3d4, 0x12, (unsigned short)(tempbx & 0xff));
 	tempax = 0;
 	tempbx >>= 8;
@@ -796,7 +797,7 @@ static void XGI_SetCRT1Offset(unsigned short ModeNo,
 	i |= temp;
 	xgifb_reg_set(pVBInfo->P3c4, 0x0E, i);
 
-	temp = (unsigned char) temp2;
+	temp = (unsigned char)temp2;
 	temp &= 0xFF; /* al */
 	xgifb_reg_set(pVBInfo->P3d4, 0x13, temp);
 
@@ -822,15 +823,15 @@ static void XGI_SetCRT1Offset(unsigned short ModeNo,
 }
 
 static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+				      unsigned short RefreshRateTableIndex,
+				      struct vb_device_info *pVBInfo)
 {
 	unsigned short VCLKIndex, modeflag;
 
 	/* si+Ext_ResInfo */
 	modeflag = XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 
-	if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) { /*301b*/
+	if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) { /* 301b */
 		if (pVBInfo->LCDResInfo != Panel_1024x768)
 			/* LCDXlat2VCLK */
 			VCLKIndex = VCLK108_2_315 + 5;
@@ -951,8 +952,8 @@ static void XGI_SetCRT1FIFO(struct xgi_hw_device_info *HwDeviceExtension,
 }
 
 static void XGI_SetVCLKState(struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+			     unsigned short RefreshRateTableIndex,
+			     struct vb_device_info *pVBInfo)
 {
 	unsigned short data, data2 = 0;
 	short VCLK;
@@ -989,9 +990,9 @@ static void XGI_SetVCLKState(struct xgi_hw_device_info *HwDeviceExtension,
 }
 
 static void XGI_SetCRT1ModeRegs(struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+				unsigned short ModeIdIndex,
+				unsigned short RefreshRateTableIndex,
+				struct vb_device_info *pVBInfo)
 {
 	unsigned short data, data2, data3, infoflag = 0, modeflag, resindex,
 			xres;
@@ -1087,9 +1088,9 @@ static void XGI_WriteDAC(unsigned short dl,
 		else
 			swap(bl, bh);
 	}
-	outb((unsigned short) dh, pVBInfo->P3c9);
-	outb((unsigned short) bh, pVBInfo->P3c9);
-	outb((unsigned short) bl, pVBInfo->P3c9);
+	outb((unsigned short)dh, pVBInfo->P3c9);
+	outb((unsigned short)bh, pVBInfo->P3c9);
+	outb((unsigned short)bl, pVBInfo->P3c9);
 }
 
 static void XGI_LoadDAC(struct vb_device_info *pVBInfo)
@@ -1187,8 +1188,8 @@ static void XGI_GetLVDSResInfo(unsigned short ModeIdIndex,
 }
 
 static void const *XGI_GetLcdPtr(struct XGI330_LCDDataTablStruct const *table,
-		unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
+				 unsigned short ModeIdIndex,
+				 struct vb_device_info *pVBInfo)
 {
 	unsigned short i, tempdx, tempbx, modeflag;
 
@@ -1201,12 +1202,12 @@ static void const *XGI_GetLcdPtr(struct XGI330_LCDDataTablStruct const *table,
 	while (table[i].PANELID != 0xff) {
 		tempdx = pVBInfo->LCDResInfo;
 		if (tempbx & 0x0080) { /* OEMUtil */
-			tempbx &= (~0x0080);
+			tempbx &= ~0x0080;
 			tempdx = pVBInfo->LCDTypeInfo;
 		}
 
 		if (pVBInfo->LCDInfo & EnableScalingLCD)
-			tempdx &= (~PanelResInfo);
+			tempdx &= ~PanelResInfo;
 
 		if (table[i].PANELID == tempdx) {
 			tempbx = table[i].MASK;
@@ -1226,8 +1227,8 @@ static void const *XGI_GetLcdPtr(struct XGI330_LCDDataTablStruct const *table,
 }
 
 static struct SiS_TVData const *XGI_GetTVPtr(unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+					     unsigned short RefreshRateTableIndex,
+					     struct vb_device_info *pVBInfo)
 {
 	unsigned short i, tempdx, tempal, modeflag;
 
@@ -1441,9 +1442,9 @@ static void XGI_SetLVDSRegs(unsigned short ModeIdIndex,
 	tempbx >>= 3;
 
 	xgifb_reg_set(pVBInfo->Part1Port, 0x16,
-			(unsigned short) (tempbx & 0xff));
+		      (unsigned short)(tempbx & 0xff));
 	xgifb_reg_set(pVBInfo->Part1Port, 0x17,
-			(unsigned short) (tempcx & 0xff));
+		      (unsigned short)(tempcx & 0xff));
 
 	tempax = pVBInfo->HT;
 
@@ -1469,7 +1470,7 @@ static void XGI_SetLVDSRegs(unsigned short ModeIdIndex,
 
 	xgifb_reg_set(pVBInfo->Part1Port, 0x15, tempax);
 	xgifb_reg_set(pVBInfo->Part1Port, 0x14,
-			(unsigned short) (tempbx & 0xff));
+		      (unsigned short)(tempbx & 0xff));
 
 	tempax = pVBInfo->VT;
 	tempbx = LCDPtr1->LCDVDES;
@@ -1480,17 +1481,14 @@ static void XGI_SetLVDSRegs(unsigned short ModeIdIndex,
 	if (tempcx >= tempax)
 		tempcx -= tempax;
 
-	xgifb_reg_set(pVBInfo->Part1Port, 0x1b,
-			(unsigned short) (tempbx & 0xff));
-	xgifb_reg_set(pVBInfo->Part1Port, 0x1c,
-			(unsigned short) (tempcx & 0xff));
+	xgifb_reg_set(pVBInfo->Part1Port, 0x1b,	(unsigned short)(tempbx & 0xff));
+	xgifb_reg_set(pVBInfo->Part1Port, 0x1c,	(unsigned short)(tempcx & 0xff));
 
 	tempbx = (tempbx >> 8) & 0x07;
 	tempcx = (tempcx >> 8) & 0x07;
 
-	xgifb_reg_set(pVBInfo->Part1Port, 0x1d,
-			(unsigned short) ((tempcx << 3)
-					| tempbx));
+	xgifb_reg_set(pVBInfo->Part1Port, 0x1d,	(unsigned short)((tempcx << 3) |
+		      tempbx));
 
 	tempax = pVBInfo->VT;
 	tempbx = LCDPtr1->LCDVRS;
@@ -1504,10 +1502,8 @@ static void XGI_SetLVDSRegs(unsigned short ModeIdIndex,
 	if (tempcx >= tempax)
 		tempcx -= tempax;
 
-	xgifb_reg_set(pVBInfo->Part1Port, 0x18,
-			(unsigned short) (tempbx & 0xff));
-	xgifb_reg_and_or(pVBInfo->Part1Port, 0x19, ~0x0f,
-			(unsigned short) (tempcx & 0x0f));
+	xgifb_reg_set(pVBInfo->Part1Port, 0x18,	(unsigned short)(tempbx & 0xff));
+	xgifb_reg_and_or(pVBInfo->Part1Port, 0x19, ~0x0f, (unsigned short)(tempcx & 0x0f));
 
 	tempax = ((tempbx >> 8) & 0x07) << 3;
 
@@ -1518,8 +1514,7 @@ static void XGI_SetLVDSRegs(unsigned short ModeIdIndex,
 	if (pVBInfo->LCDInfo & XGI_EnableLVDSDDA)
 		tempax |= 0x40;
 
-	xgifb_reg_and_or(pVBInfo->Part1Port, 0x1a, 0x07,
-				tempax);
+	xgifb_reg_and_or(pVBInfo->Part1Port, 0x1a, 0x07, tempax);
 
 	tempbx = pVBInfo->VDE;
 	tempax = pVBInfo->VGAVDE;
@@ -1527,7 +1522,7 @@ static void XGI_SetLVDSRegs(unsigned short ModeIdIndex,
 	temp = tempax; /* 0430 ylshieh */
 	temp1 = (temp << 18) / tempbx;
 
-	tempdx = (unsigned short) ((temp << 18) % tempbx);
+	tempdx = (unsigned short)((temp << 18) % tempbx);
 
 	if (tempdx != 0)
 		temp1 += 1;
@@ -1535,12 +1530,10 @@ static void XGI_SetLVDSRegs(unsigned short ModeIdIndex,
 	temp2 = temp1;
 	push3 = temp2;
 
-	xgifb_reg_set(pVBInfo->Part1Port, 0x37,
-			(unsigned short) (temp2 & 0xff));
-	xgifb_reg_set(pVBInfo->Part1Port, 0x36,
-			(unsigned short) ((temp2 >> 8) & 0xff));
+	xgifb_reg_set(pVBInfo->Part1Port, 0x37,	(unsigned short)(temp2 & 0xff));
+	xgifb_reg_set(pVBInfo->Part1Port, 0x36,	(unsigned short)((temp2 >> 8) & 0xff));
 
-	tempbx = (unsigned short) (temp2 >> 16);
+	tempbx = (unsigned short)(temp2 >> 16);
 	tempax = tempbx & 0x03;
 
 	tempbx = pVBInfo->VGAVDE;
@@ -1553,24 +1546,20 @@ static void XGI_SetLVDSRegs(unsigned short ModeIdIndex,
 		temp2 = push3;
 		xgifb_reg_set(pVBInfo->Part4Port,
 			      0x3c,
-			      (unsigned short) (temp2 & 0xff));
+			      (unsigned short)(temp2 & 0xff));
 		xgifb_reg_set(pVBInfo->Part4Port,
 			      0x3b,
-			      (unsigned short) ((temp2 >> 8) &
+			      (unsigned short)((temp2 >> 8) &
 			      0xff));
-		tempbx = (unsigned short) (temp2 >> 16);
-		xgifb_reg_and_or(pVBInfo->Part4Port, 0x3a,
-				~0xc0,
-				(unsigned short) ((tempbx &
-						   0xff) << 6));
+		tempbx = (unsigned short)(temp2 >> 16);
+		xgifb_reg_and_or(pVBInfo->Part4Port, 0x3a, ~0xc0,
+				 (unsigned short)((tempbx & 0xff) << 6));
 
 		tempcx = pVBInfo->VGAVDE;
 		if (tempcx == pVBInfo->VDE)
-			xgifb_reg_and_or(pVBInfo->Part4Port,
-					0x30, ~0x0c, 0x00);
+			xgifb_reg_and_or(pVBInfo->Part4Port, 0x30, ~0x0c, 0x00);
 		else
-			xgifb_reg_and_or(pVBInfo->Part4Port,
-					0x30, ~0x0c, 0x08);
+			xgifb_reg_and_or(pVBInfo->Part4Port, 0x30, ~0x0c, 0x08);
 	}
 
 	tempcx = pVBInfo->VGAHDE;
@@ -1578,7 +1567,7 @@ static void XGI_SetLVDSRegs(unsigned short ModeIdIndex,
 
 	temp1 = tempcx << 16;
 
-	tempax = (unsigned short) (temp1 / tempbx);
+	tempax = (unsigned short)(temp1 / tempbx);
 
 	if ((tempbx & 0xffff) == (tempcx & 0xffff))
 		tempax = 65535;
@@ -1592,42 +1581,38 @@ static void XGI_SetLVDSRegs(unsigned short ModeIdIndex,
 
 	temp3 = (temp3 & 0xffff0000) + (temp1 & 0xffff);
 
-	tempax = (unsigned short) (temp3 & 0xff);
+	tempax = (unsigned short)(temp3 & 0xff);
 	xgifb_reg_set(pVBInfo->Part1Port, 0x1f, tempax);
 
 	temp1 = pVBInfo->VGAVDE << 18;
 	temp1 = temp1 / push3;
-	tempbx = (unsigned short) (temp1 & 0xffff);
+	tempbx = (unsigned short)(temp1 & 0xffff);
 
 	if (pVBInfo->LCDResInfo == Panel_1024x768)
 		tempbx -= 1;
 
 	tempax = ((tempbx >> 8) & 0xff) << 3;
-	tempax |= (unsigned short) ((temp3 >> 8) & 0x07);
-	xgifb_reg_set(pVBInfo->Part1Port, 0x20,
-			(unsigned short) (tempax & 0xff));
-	xgifb_reg_set(pVBInfo->Part1Port, 0x21,
-			(unsigned short) (tempbx & 0xff));
+	tempax |= (unsigned short)((temp3 >> 8) & 0x07);
+	xgifb_reg_set(pVBInfo->Part1Port, 0x20, (unsigned short)(tempax & 0xff));
+	xgifb_reg_set(pVBInfo->Part1Port, 0x21, (unsigned short)(tempbx & 0xff));
 
 	temp3 >>= 16;
 
 	if (modeflag & HalfDCLK)
 		temp3 >>= 1;
 
-	xgifb_reg_set(pVBInfo->Part1Port, 0x22,
-			(unsigned short) ((temp3 >> 8) & 0xff));
-	xgifb_reg_set(pVBInfo->Part1Port, 0x23,
-			(unsigned short) (temp3 & 0xff));
+	xgifb_reg_set(pVBInfo->Part1Port, 0x22,	(unsigned short)((temp3 >> 8) & 0xff));
+	xgifb_reg_set(pVBInfo->Part1Port, 0x23,	(unsigned short)(temp3 & 0xff));
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_GETLCDVCLKPtr */
-/* Input : */
-/* Output : al -> VCLK Index */
-/* Description : */
-/* --------------------------------------------------------------------- */
+/*
+ * Function : XGI_GETLCDVCLKPtr
+ * Input :
+ * Output : al -> VCLK Index
+ * Description :
+ */
 static void XGI_GetLCDVCLKPtr(unsigned char *di_0, unsigned char *di_1,
-		struct vb_device_info *pVBInfo)
+			      struct vb_device_info *pVBInfo)
 {
 	unsigned short index;
 
@@ -1645,7 +1630,8 @@ static void XGI_GetLCDVCLKPtr(unsigned char *di_0, unsigned char *di_1,
 }
 
 static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
-		unsigned short ModeIdIndex, struct vb_device_info *pVBInfo)
+				    unsigned short ModeIdIndex,
+				    struct vb_device_info *pVBInfo)
 {
 	unsigned short index, modeflag;
 	unsigned char tempal;
@@ -1681,15 +1667,11 @@ static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
 				return tempal;
 			}
 
-			if (pVBInfo->TVInfo & TVSetYPbPr750p) {
-				tempal = XGI_YPbPr750pVCLK;
-				return tempal;
-			}
+			if (pVBInfo->TVInfo & TVSetYPbPr750p)
+				return XGI_YPbPr750pVCLK;
 
-			if (pVBInfo->TVInfo & TVSetYPbPr525p) {
-				tempal = YPbPr525pVCLK;
-				return tempal;
-			}
+			if (pVBInfo->TVInfo & TVSetYPbPr525p)
+				return YPbPr525pVCLK;
 
 			tempal = NTSC1024VCLK;
 
@@ -1705,12 +1687,11 @@ static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
 	} /* {End of VB} */
 
 	inb((pVBInfo->P3ca + 0x02));
-	tempal = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
-	return tempal;
+	return XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 }
 
 static void XGI_GetVCLKLen(unsigned char tempal, unsigned char *di_0,
-		unsigned char *di_1, struct vb_device_info *pVBInfo)
+			   unsigned char *di_1, struct vb_device_info *pVBInfo)
 {
 	if (pVBInfo->VBType & (VB_SIS301 | VB_SIS301B | VB_SIS302B
 			| VB_SIS301LV | VB_SIS302LV | VB_XGI301C)) {
@@ -1726,8 +1707,8 @@ static void XGI_GetVCLKLen(unsigned char tempal, unsigned char *di_0,
 }
 
 static void XGI_SetCRT2ECLK(unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+			    unsigned short RefreshRateTableIndex,
+			    struct vb_device_info *pVBInfo)
 {
 	unsigned char di_0, di_1, tempal;
 	int i;
@@ -1738,7 +1719,7 @@ static void XGI_SetCRT2ECLK(unsigned short ModeIdIndex,
 
 	for (i = 0; i < 4; i++) {
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x31, ~0x30,
-				(unsigned short) (0x10 * i));
+				 (unsigned short)(0x10 * i));
 		if (!(pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) &&
 		    !(pVBInfo->VBInfo & SetInSlaveMode)) {
 			xgifb_reg_set(pVBInfo->P3c4, 0x2e, di_0);
@@ -1876,8 +1857,7 @@ finish:
 	pVBInfo->VBType = tempbx;
 }
 
-static void XGI_GetVBInfo(unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
+static void XGI_GetVBInfo(unsigned short ModeIdIndex, struct vb_device_info *pVBInfo)
 {
 	unsigned short tempax, push, tempbx, temp, modeflag;
 
@@ -1921,7 +1901,7 @@ static void XGI_GetVBInfo(unsigned short ModeIdIndex,
 			tempbx |= SetCRT2ToHiVision;
 
 			if (temp != YPbPrMode1080i) {
-				tempbx &= (~SetCRT2ToHiVision);
+				tempbx &= ~SetCRT2ToHiVision;
 				tempbx |= SetCRT2ToYPbPr525750;
 			}
 		}
@@ -2002,8 +1982,7 @@ static void XGI_GetVBInfo(unsigned short ModeIdIndex,
 	pVBInfo->VBInfo = tempbx;
 }
 
-static void XGI_GetTVInfo(unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
+static void XGI_GetTVInfo(unsigned short ModeIdIndex, struct vb_device_info *pVBInfo)
 {
 	unsigned short tempbx = 0, resinfo = 0, modeflag, index1;
 
@@ -2078,7 +2057,7 @@ static unsigned char XGI_GetLCDInfo(unsigned short ModeIdIndex,
 	pVBInfo->LCDTypeInfo = 0;
 	pVBInfo->LCDInfo = 0;
 
-	/* si+Ext_ResInfo // */
+	/* si+Ext_ResInfo */
 	resinfo = XGI330_EModeIDTable[ModeIdIndex].Ext_RESINFO;
 	temp = xgifb_reg_get(pVBInfo->P3d4, 0x36); /* Get LCD Res.Info */
 	tempbx = temp & 0x0F;
@@ -2175,12 +2154,12 @@ static unsigned char XG21GPIODataTransfer(unsigned char ujDate)
 	return ujRet;
 }
 
-/*----------------------------------------------------------------------------*/
-/* output                                                                     */
-/*      bl[5] : LVDS signal                                                   */
-/*      bl[1] : LVDS backlight                                                */
-/*      bl[0] : LVDS VDD                                                      */
-/*----------------------------------------------------------------------------*/
+/*
+ * output
+ *	bl[5] : LVDS signal
+ *	bl[1] : LVDS backlight
+ *	bl[0] : LVDS VDD
+ */
 static unsigned char XGI_XG21GetPSCValue(struct vb_device_info *pVBInfo)
 {
 	unsigned char CR4A, temp;
@@ -2196,12 +2175,12 @@ static unsigned char XGI_XG21GetPSCValue(struct vb_device_info *pVBInfo)
 	return temp;
 }
 
-/*----------------------------------------------------------------------------*/
-/* output                                                                     */
-/*      bl[5] : LVDS signal                                                   */
-/*      bl[1] : LVDS backlight                                                */
-/*      bl[0] : LVDS VDD                                                      */
-/*----------------------------------------------------------------------------*/
+/*
+ * output
+ *	bl[5] : LVDS signal
+ *	bl[1] : LVDS backlight
+ *	bl[0] : LVDS VDD
+ */
 static unsigned char XGI_XG27GetPSCValue(struct vb_device_info *pVBInfo)
 {
 	unsigned char CR4A, CRB4, temp;
@@ -2219,17 +2198,17 @@ static unsigned char XGI_XG27GetPSCValue(struct vb_device_info *pVBInfo)
 	return temp;
 }
 
-/*----------------------------------------------------------------------------*/
-/* input                                                                      */
-/*      bl[5] : 1;LVDS signal on                                              */
-/*      bl[1] : 1;LVDS backlight on                                           */
-/*      bl[0] : 1:LVDS VDD on                                                 */
-/*      bh: 100000b : clear bit 5, to set bit5                                */
-/*          000010b : clear bit 1, to set bit1                                */
-/*          000001b : clear bit 0, to set bit0                                */
-/*----------------------------------------------------------------------------*/
+/*
+ * input
+ *	bl[5] : 1;LVDS signal on
+ *	bl[1] : 1;LVDS backlight on
+ *	bl[0] : 1:LVDS VDD on
+ *	bh: 100000b : clear bit 5, to set bit5
+ *	    000010b : clear bit 1, to set bit1
+ *	    000001b : clear bit 0, to set bit0
+ */
 static void XGI_XG21BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
-		struct vb_device_info *pVBInfo)
+				struct vb_device_info *pVBInfo)
 {
 	unsigned char CR4A, temp;
 
@@ -2254,7 +2233,7 @@ static void XGI_XG21BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
 }
 
 static void XGI_XG27BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
-		struct vb_device_info *pVBInfo)
+				struct vb_device_info *pVBInfo)
 {
 	unsigned char CR4A, temp;
 	unsigned short tempbh0, tempbl0;
@@ -2284,8 +2263,8 @@ static void XGI_XG27BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
 }
 
 static void XGI_DisplayOn(struct xgifb_video_info *xgifb_info,
-		struct xgi_hw_device_info *pXGIHWDE,
-		struct vb_device_info *pVBInfo)
+			  struct xgi_hw_device_info *pXGIHWDE,
+			  struct vb_device_info *pVBInfo)
 {
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x01, 0xDF, 0x00);
 	if (pXGIHWDE->jChipType == XG21) {
@@ -2328,8 +2307,8 @@ static void XGI_DisplayOn(struct xgifb_video_info *xgifb_info,
 }
 
 void XGI_DisplayOff(struct xgifb_video_info *xgifb_info,
-		struct xgi_hw_device_info *pXGIHWDE,
-		struct vb_device_info *pVBInfo)
+		    struct xgi_hw_device_info *pXGIHWDE,
+		    struct vb_device_info *pVBInfo)
 {
 	if (pXGIHWDE->jChipType == XG21) {
 		if (pVBInfo->IF_DEF_LVDS == 1) {
@@ -2448,7 +2427,7 @@ exit:
 static unsigned char XGI_IsLCDDualLink(struct vb_device_info *pVBInfo)
 {
 	if ((pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) &&
-			(pVBInfo->LCDInfo & SetLCDDualLink)) /* shampoo0129 */
+	    (pVBInfo->LCDInfo & SetLCDDualLink)) /* shampoo0129 */
 		return 1;
 
 	return 0;
@@ -2466,16 +2445,15 @@ static void XGI_GetRAMDAC2DATA(unsigned short ModeIdIndex,
 	modeflag = XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 	CRT1Index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
 	CRT1Index &= IndexMask;
-	temp1 = (unsigned short) XGI_CRT1Table[CRT1Index].CR[0];
-	temp2 = (unsigned short) XGI_CRT1Table[CRT1Index].CR[5];
+	temp1 = (unsigned short)XGI_CRT1Table[CRT1Index].CR[0];
+	temp2 = (unsigned short)XGI_CRT1Table[CRT1Index].CR[5];
 	tempax = (temp1 & 0xFF) | ((temp2 & 0x03) << 8);
-	tempbx = (unsigned short) XGI_CRT1Table[CRT1Index].CR[8];
-	tempcx = (unsigned short)
-			XGI_CRT1Table[CRT1Index].CR[14] << 8;
+	tempbx = (unsigned short)XGI_CRT1Table[CRT1Index].CR[8];
+	tempcx = (unsigned short)XGI_CRT1Table[CRT1Index].CR[14] << 8;
 	tempcx &= 0x0100;
 	tempcx <<= 2;
 	tempbx |= tempcx;
-	temp1 = (unsigned short) XGI_CRT1Table[CRT1Index].CR[9];
+	temp1 = (unsigned short)XGI_CRT1Table[CRT1Index].CR[9];
 
 	if (temp1 & 0x01)
 		tempbx |= 0x0100;
@@ -2497,8 +2475,8 @@ static void XGI_GetRAMDAC2DATA(unsigned short ModeIdIndex,
 }
 
 static void XGI_GetCRT2Data(unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+			    unsigned short RefreshRateTableIndex,
+			    struct vb_device_info *pVBInfo)
 {
 	unsigned short tempax = 0, tempbx = 0, modeflag, resinfo;
 
@@ -2667,8 +2645,8 @@ static void XGI_GetCRT2Data(unsigned short ModeIdIndex,
 }
 
 static void XGI_SetCRT2VCLK(unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+			    unsigned short RefreshRateTableIndex,
+			    struct vb_device_info *pVBInfo)
 {
 	unsigned char di_0, di_1, tempal;
 
@@ -2739,9 +2717,9 @@ static unsigned short XGI_GetOffset(unsigned short ModeNo,
 }
 
 static void XGI_SetCRT2Offset(unsigned short ModeNo,
-		unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+			      unsigned short ModeIdIndex,
+			      unsigned short RefreshRateTableIndex,
+			      struct vb_device_info *pVBInfo)
 {
 	unsigned short offset;
 	unsigned char temp;
@@ -2750,11 +2728,11 @@ static void XGI_SetCRT2Offset(unsigned short ModeNo,
 		return;
 
 	offset = XGI_GetOffset(ModeNo, ModeIdIndex, RefreshRateTableIndex);
-	temp = (unsigned char) (offset & 0xFF);
+	temp = (unsigned char)(offset & 0xFF);
 	xgifb_reg_set(pVBInfo->Part1Port, 0x07, temp);
-	temp = (unsigned char) ((offset & 0xFF00) >> 8);
+	temp = (unsigned char)((offset & 0xFF00) >> 8);
 	xgifb_reg_set(pVBInfo->Part1Port, 0x09, temp);
-	temp = (unsigned char) (((offset >> 3) & 0xFF) + 1);
+	temp = (unsigned char)(((offset >> 3) & 0xFF) + 1);
 	xgifb_reg_set(pVBInfo->Part1Port, 0x03, temp);
 }
 
@@ -2767,8 +2745,8 @@ static void XGI_SetCRT2FIFO(struct vb_device_info *pVBInfo)
 }
 
 static void XGI_PreSetGroup1(unsigned short ModeNo, unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+			     unsigned short RefreshRateTableIndex,
+			     struct vb_device_info *pVBInfo)
 {
 	u8 tempcx;
 
@@ -2783,8 +2761,8 @@ static void XGI_PreSetGroup1(unsigned short ModeNo, unsigned short ModeIdIndex,
 }
 
 static void XGI_SetGroup1(unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+			  unsigned short RefreshRateTableIndex,
+			  struct vb_device_info *pVBInfo)
 {
 	unsigned short temp = 0, tempax = 0, tempbx = 0, tempcx = 0,
 			pushbx = 0, CRT1Index, modeflag;
@@ -2933,11 +2911,11 @@ static unsigned short XGI_GetVGAHT2(struct vb_device_info *pVBInfo)
 	tempax = (pVBInfo->VT - pVBInfo->VDE) * pVBInfo->RVBHCFACT;
 	tempax = (tempax * pVBInfo->HT) / tempbx;
 
-	return (unsigned short) tempax;
+	return (unsigned short)tempax;
 }
 
 static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
+			    struct vb_device_info *pVBInfo)
 {
 	unsigned short push1, push2, tempax, tempbx = 0, tempcx, temp, resinfo,
 			modeflag;
@@ -3044,14 +3022,14 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 			if (ModeNo == 0x50) {
 				if (pVBInfo->TVInfo == SetNTSCTV) {
 					xgifb_reg_set(pVBInfo->Part1Port,
-							0x07, 0x30);
+						      0x07, 0x30);
 					xgifb_reg_set(pVBInfo->Part1Port,
-							0x08, 0x03);
+						      0x08, 0x03);
 				} else {
 					xgifb_reg_set(pVBInfo->Part1Port,
-							0x07, 0x2f);
+						      0x07, 0x2f);
 					xgifb_reg_set(pVBInfo->Part1Port,
-							0x08, 0x02);
+						      0x08, 0x02);
 				}
 			}
 		}
@@ -3064,7 +3042,7 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	tempbx = pVBInfo->VGAVT;
 	push1 = tempbx;
 	tempcx = 0x121;
-	tempbx = pVBInfo->VGAVDE; /* 0x0E Virtical Display End */
+	tempbx = pVBInfo->VGAVDE; /* 0x0E Vertical Display End */
 
 	if (tempbx == 357)
 		tempbx = 350;
@@ -3116,7 +3094,7 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	if (tempbx & 0x0400)
 		tempcx |= 0x0600;
 
-	/* 0x11 Vertival Blank End */
+	/* 0x11 Vertical Blank End */
 	xgifb_reg_set(pVBInfo->Part1Port, 0x11, 0x00);
 
 	tempax = push1;
@@ -3227,7 +3205,7 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 }
 
 static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
+			  struct vb_device_info *pVBInfo)
 {
 	unsigned short i, j, tempax, tempbx, tempcx, temp, push1, push2,
 			modeflag;
@@ -3315,7 +3293,7 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 		tempax = (tempax & 0x00FF) | ((tempax & 0x00FF) << 8);
 		push1 = tempax;
 		temp = (tempax & 0xFF00) >> 8;
-		temp += (unsigned short) TimingPoint[0];
+		temp += (unsigned short)TimingPoint[0];
 
 		if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV
 				| VB_SIS302LV | VB_XGI301C)) {
@@ -3526,7 +3504,7 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	tempcx = 0x0101;
 
-	if (pVBInfo->VBInfo & SetCRT2ToTV) { /*301b*/
+	if (pVBInfo->VBInfo & SetCRT2ToTV) { /* 301b */
 		if (pVBInfo->VGAHDE >= 1024) {
 			tempcx = 0x1920;
 			if (pVBInfo->VGAHDE >= 1280) {
@@ -3562,7 +3540,7 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 		if (temp2 != 0)
 			tempeax += 1;
 
-		tempax = (unsigned short) tempeax;
+		tempax = (unsigned short)tempeax;
 
 		/* 301b */
 		if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV
@@ -3572,9 +3550,9 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 		/* end 301b */
 
 		tempbx = push1;
-		tempbx = (unsigned short) (((tempeax & 0x0000FF00) & 0x1F00)
+		tempbx = (unsigned short)(((tempeax & 0x0000FF00) & 0x1F00)
 				| (tempbx & 0x00FF));
-		tempax = (unsigned short) (((tempeax & 0x000000FF) << 8)
+		tempax = (unsigned short)(((tempeax & 0x000000FF) << 8)
 				| (tempax & 0x00FF));
 		temp = (tempax & 0xFF00) >> 8;
 	} else {
@@ -3622,14 +3600,14 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	xgifb_reg_set(pVBInfo->Part2Port, 0x4d, temp);
 	temp = xgifb_reg_get(pVBInfo->Part2Port, 0x43); /* 301b change */
-	xgifb_reg_set(pVBInfo->Part2Port, 0x43, (unsigned short) (temp - 3));
+	xgifb_reg_set(pVBInfo->Part2Port, 0x43, (unsigned short)(temp - 3));
 
 	if (!(pVBInfo->TVInfo & (TVSetYPbPr525p | TVSetYPbPr750p))) {
 		if (pVBInfo->TVInfo & NTSC1024x768) {
 			TimingPoint = XGI_NTSC1024AdjTime;
 			for (i = 0x1c, j = 0; i <= 0x30; i++, j++) {
 				xgifb_reg_set(pVBInfo->Part2Port, i,
-						TimingPoint[j]);
+					      TimingPoint[j]);
 			}
 			xgifb_reg_set(pVBInfo->Part2Port, 0x43, 0x72);
 		}
@@ -3639,7 +3617,7 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 	if (pVBInfo->VBType & VB_XGI301C) {
 		if (pVBInfo->TVInfo & TVSetPALM)
 			xgifb_reg_and_or(pVBInfo->Part2Port, 0x4E, ~0x08,
-					0x08); /* PALM Mode */
+					 0x08); /* PALM Mode */
 	}
 
 	if (pVBInfo->TVInfo & TVSetPALM) {
@@ -3656,8 +3634,7 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 	}
 }
 
-static void XGI_SetLCDRegs(unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
+static void XGI_SetLCDRegs(unsigned short ModeIdIndex, struct vb_device_info *pVBInfo)
 {
 	unsigned short pushbx, tempax, tempbx, tempcx, temp, tempah,
 			tempbh, tempch;
@@ -3853,12 +3830,12 @@ static void XGI_SetLCDRegs(unsigned short ModeIdIndex,
 	}
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_GetTap4Ptr */
-/* Input : */
-/* Output : di -> Tap4 Reg. Setting Pointer */
-/* Description : */
-/* --------------------------------------------------------------------- */
+/*
+ * Function : XGI_GetTap4Ptr
+ * Input :
+ * Output : di -> Tap4 Reg. Setting Pointer
+ * Description :
+ */
 static struct XGI301C_Tap4TimingStruct const
 *XGI_GetTap4Ptr(unsigned short tempcx, struct vb_device_info *pVBInfo)
 {
@@ -3882,7 +3859,7 @@ static struct XGI301C_Tap4TimingStruct const
 
 	if (pVBInfo->VBInfo & SetCRT2ToYPbPr525750) {
 		if ((pVBInfo->TVInfo & TVSetYPbPr525i) ||
-			(pVBInfo->TVInfo & TVSetYPbPr525p))
+		    (pVBInfo->TVInfo & TVSetYPbPr525p))
 			Tap4TimingPtr = xgifb_ntsc_525_tap4_timing;
 		if (pVBInfo->TVInfo & TVSetYPbPr750p)
 			Tap4TimingPtr = YPbPr750pTap4Timing;
@@ -3988,8 +3965,8 @@ static void XGI_SetGroup3(unsigned short ModeIdIndex,
 }
 
 static void XGI_SetGroup4(unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+			  unsigned short RefreshRateTableIndex,
+			  struct vb_device_info *pVBInfo)
 {
 	unsigned short tempax, tempcx, tempbx, modeflag, temp, temp2;
 
@@ -4080,12 +4057,12 @@ static void XGI_SetGroup4(unsigned short ModeIdIndex,
 	if (templong != 0)
 		tempebx++;
 
-	temp = (unsigned short) (tempebx & 0x000000FF);
+	temp = (unsigned short)(tempebx & 0x000000FF);
 	xgifb_reg_set(pVBInfo->Part4Port, 0x1B, temp);
 
-	temp = (unsigned short) ((tempebx & 0x0000FF00) >> 8);
+	temp = (unsigned short)((tempebx & 0x0000FF00) >> 8);
 	xgifb_reg_set(pVBInfo->Part4Port, 0x1A, temp);
-	tempbx = (unsigned short) (tempebx >> 16);
+	tempbx = (unsigned short)(tempebx >> 16);
 	temp = tempbx & 0x00FF;
 	temp <<= 4;
 	temp |= ((tempcx & 0xFF00) >> 8);
@@ -4132,8 +4109,7 @@ static void XGI_SetGroup4(unsigned short ModeIdIndex,
 					| TVSetHiVision))) {
 				temp |= 0x0001;
 				if ((pVBInfo->VBInfo & SetInSlaveMode) &&
-						!(pVBInfo->TVInfo
-								& TVSimuMode))
+				    !(pVBInfo->TVInfo & TVSimuMode))
 					temp &= (~0x0001);
 			}
 		}
@@ -4174,7 +4150,8 @@ static void XGI_DisableGatingCRT(struct vb_device_info *pVBInfo)
 }
 
 static unsigned char XGI_XG21CheckLVDSMode(struct xgifb_video_info *xgifb_info,
-		unsigned short ModeNo, unsigned short ModeIdIndex)
+					   unsigned short ModeNo,
+					   unsigned short ModeIdIndex)
 {
 	unsigned short xres, yres, colordepth, modeflag, resindex;
 
@@ -4221,7 +4198,7 @@ static void xgifb_set_lvds(struct xgifb_video_info *xgifb_info,
 	unsigned short LVDSVT, LVDSVBS, LVDSVRS, LVDSVRE, LVDSVBE;
 	unsigned short value;
 
-	temp = (unsigned char) ((xgifb_info->lvds_data.LVDS_Capability &
+	temp = (unsigned char)((xgifb_info->lvds_data.LVDS_Capability &
 				(LCDPolarity << 8)) >> 8);
 	temp &= LCDPolarity;
 	Miscdata = inb(pVBInfo->P3cc);
@@ -4354,12 +4331,12 @@ static void xgifb_set_lvds(struct xgifb_video_info *xgifb_info,
 	if (chip_id == XG27) {
 		/* Panel VRS SR35[2:0] SR34[7:0] */
 		xgifb_reg_and_or(pVBInfo->P3c4, 0x35, ~0x07,
-					(value & 0x700) >> 8);
+				 (value & 0x700) >> 8);
 		xgifb_reg_set(pVBInfo->P3c4, 0x34, value & 0xFF);
 	} else {
 		/* Panel VRS SR3F[1:0] SR34[7:0] SR33[0] */
 		xgifb_reg_and_or(pVBInfo->P3c4, 0x3F, ~0x03,
-					(value & 0x600) >> 9);
+				 (value & 0x600) >> 9);
 		xgifb_reg_set(pVBInfo->P3c4, 0x34, (value >> 1) & 0xFF);
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x33, ~0x01, value & 0x01);
 	}
@@ -4372,11 +4349,11 @@ static void xgifb_set_lvds(struct xgifb_video_info *xgifb_info,
 	/* Panel VRE SR3F[7:2] */
 	if (chip_id == XG27)
 		xgifb_reg_and_or(pVBInfo->P3c4, 0x3F, ~0xFC,
-					(value << 2) & 0xFC);
+				 (value << 2) & 0xFC);
 	else
 		/* SR3F[7] has to be 0, h/w bug */
 		xgifb_reg_and_or(pVBInfo->P3c4, 0x3F, ~0xFC,
-					(value << 2) & 0x7C);
+				 (value << 2) & 0x7C);
 
 	for (temp = 0, value = 0; temp < 3; temp++) {
 		xgifb_reg_and_or(pVBInfo->P3c4, 0x31, ~0x30, value);
@@ -4400,13 +4377,13 @@ static void xgifb_set_lvds(struct xgifb_video_info *xgifb_info,
 	}
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_IsLCDON */
-/* Input : */
-/* Output : 0 : Skip PSC Control */
-/* 1: Disable PSC */
-/* Description : */
-/* --------------------------------------------------------------------- */
+/*
+ * Function : XGI_IsLCDON
+ * Input :
+ * Output : 0 : Skip PSC Control
+ * 1: Disable PSC
+ * Description :
+ */
 static unsigned char XGI_IsLCDON(struct vb_device_info *pVBInfo)
 {
 	unsigned short tempax;
@@ -4421,8 +4398,8 @@ static unsigned char XGI_IsLCDON(struct vb_device_info *pVBInfo)
 }
 
 static void XGI_DisableBridge(struct xgifb_video_info *xgifb_info,
-		struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
+			      struct xgi_hw_device_info *HwDeviceExtension,
+			      struct vb_device_info *pVBInfo)
 {
 	unsigned short tempah = 0;
 
@@ -4498,23 +4475,23 @@ static void XGI_DisableBridge(struct xgifb_video_info *xgifb_info,
 	}
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_GetTVPtrIndex */
-/* Input : */
-/* Output : */
-/* Description : bx 0 : ExtNTSC */
-/* 1 : StNTSC */
-/* 2 : ExtPAL */
-/* 3 : StPAL */
-/* 4 : ExtHiTV */
-/* 5 : StHiTV */
-/* 6 : Ext525i */
-/* 7 : St525i */
-/* 8 : Ext525p */
-/* 9 : St525p */
-/* A : Ext750p */
-/* B : St750p */
-/* --------------------------------------------------------------------- */
+/*
+ * Function : XGI_GetTVPtrIndex
+ * Input :
+ * Output :
+ * Description : bx 0 : ExtNTSC
+ * 1 : StNTSC
+ * 2 : ExtPAL
+ * 3 : StPAL
+ * 4 : ExtHiTV
+ * 5 : StHiTV
+ * 6 : Ext525i
+ * 7 : St525i
+ * 8 : Ext525p
+ * 9 : St525p
+ * A : Ext750p
+ * B : St750p
+ */
 static unsigned short XGI_GetTVPtrIndex(struct vb_device_info *pVBInfo)
 {
 	unsigned short tempbx = 0;
@@ -4535,24 +4512,24 @@ static unsigned short XGI_GetTVPtrIndex(struct vb_device_info *pVBInfo)
 	return tempbx;
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_GetTVPtrIndex2 */
-/* Input : */
-/* Output : bx 0 : NTSC */
-/* 1 : PAL */
-/* 2 : PALM */
-/* 3 : PALN */
-/* 4 : NTSC1024x768 */
-/* 5 : PAL-M 1024x768 */
-/* 6-7: reserved */
-/* cl 0 : YFilter1 */
-/* 1 : YFilter2 */
-/* ch 0 : 301A */
-/* 1 : 301B/302B/301LV/302LV */
-/* Description : */
-/* --------------------------------------------------------------------- */
+/*
+ * Function : XGI_GetTVPtrIndex2
+ * Input :
+ * Output : bx 0 : NTSC
+ * 1 : PAL
+ * 2 : PALM
+ * 3 : PALN
+ * 4 : NTSC1024x768
+ * 5 : PAL-M 1024x768
+ * 6-7: reserved
+ * cl 0 : YFilter1
+ * 1 : YFilter2
+ * ch 0 : 301A
+ * 1 : 301B/302B/301LV/302LV
+ * Description :
+ */
 static void XGI_GetTVPtrIndex2(unsigned short *tempbx, unsigned char *tempcl,
-		unsigned char *tempch, struct vb_device_info *pVBInfo)
+			       unsigned char *tempch, struct vb_device_info *pVBInfo)
 {
 	*tempbx = 0;
 	*tempcl = 0;
@@ -4637,33 +4614,32 @@ static void XGI_SetLCDCap_A(unsigned short tempcx,
 
 	if (temp & LCDRGB18Bit) {
 		xgifb_reg_and_or(pVBInfo->Part1Port, 0x19, 0x0F,
-				/* Enable Dither */
-				(unsigned short) (0x20 | (tempcx & 0x00C0)));
+				 /* Enable Dither */
+				 (unsigned short)(0x20 | (tempcx & 0x00C0)));
 		xgifb_reg_and_or(pVBInfo->Part1Port, 0x1A, 0x7F, 0x80);
 	} else {
 		xgifb_reg_and_or(pVBInfo->Part1Port, 0x19, 0x0F,
-				(unsigned short) (0x30 | (tempcx & 0x00C0)));
+				 (unsigned short)(0x30 | (tempcx & 0x00C0)));
 		xgifb_reg_and_or(pVBInfo->Part1Port, 0x1A, 0x7F, 0x00);
 	}
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_SetLCDCap_B */
-/* Input : cx -> LCD Capability */
-/* Output : */
-/* Description : */
-/* --------------------------------------------------------------------- */
+/*
+ * Function : XGI_SetLCDCap_B
+ * Input : cx -> LCD Capability
+ * Output :
+ * Description :
+ */
 static void XGI_SetLCDCap_B(unsigned short tempcx,
 			    struct vb_device_info *pVBInfo)
 {
 	if (tempcx & EnableLCD24bpp) /* 24bits */
 		xgifb_reg_and_or(pVBInfo->Part2Port, 0x1A, 0xE0,
-				(unsigned short) (((tempcx & 0x00ff) >> 6)
-						| 0x0c));
+				 (unsigned short)(((tempcx & 0x00ff) >> 6) | 0x0c));
 	else
 		xgifb_reg_and_or(pVBInfo->Part2Port, 0x1A, 0xE0,
-				(unsigned short) (((tempcx & 0x00ff) >> 6)
-						| 0x18)); /* Enable Dither */
+				 (unsigned short)(((tempcx & 0x00ff) >> 6) | 0x18));
+				  /* Enable Dither */
 }
 
 static void XGI_LongWait(struct vb_device_info *pVBInfo)
@@ -4698,13 +4674,13 @@ static void SetSpectrum(struct vb_device_info *pVBInfo)
 	XGI_LongWait(pVBInfo);
 
 	xgifb_reg_set(pVBInfo->Part4Port, 0x31,
-			pVBInfo->LCDCapList[index].Spectrum_31);
+		      pVBInfo->LCDCapList[index].Spectrum_31);
 	xgifb_reg_set(pVBInfo->Part4Port, 0x32,
-			pVBInfo->LCDCapList[index].Spectrum_32);
+		      pVBInfo->LCDCapList[index].Spectrum_32);
 	xgifb_reg_set(pVBInfo->Part4Port, 0x33,
-			pVBInfo->LCDCapList[index].Spectrum_33);
+		      pVBInfo->LCDCapList[index].Spectrum_33);
 	xgifb_reg_set(pVBInfo->Part4Port, 0x34,
-			pVBInfo->LCDCapList[index].Spectrum_34);
+		      pVBInfo->LCDCapList[index].Spectrum_34);
 	XGI_LongWait(pVBInfo);
 	xgifb_reg_or(pVBInfo->Part4Port, 0x30, 0x40); /* enable spectrum */
 }
@@ -4721,13 +4697,13 @@ static void XGI_SetLCDCap(struct vb_device_info *pVBInfo)
 		    (VB_SIS301LV | VB_SIS302LV | VB_XGI301C)) {
 			/* Set 301LV Capability */
 			xgifb_reg_set(pVBInfo->Part4Port, 0x24,
-					(unsigned char) (tempcx & 0x1F));
+				      (unsigned char)(tempcx & 0x1F));
 		}
 		/* VB Driving */
 		xgifb_reg_and_or(pVBInfo->Part4Port, 0x0D,
-				~((EnableVBCLKDRVLOW | EnablePLLSPLOW) >> 8),
-				(unsigned short) ((tempcx & (EnableVBCLKDRVLOW
-						| EnablePLLSPLOW)) >> 8));
+				 ~((EnableVBCLKDRVLOW | EnablePLLSPLOW) >> 8),
+				 (unsigned short)((tempcx & (EnableVBCLKDRVLOW |
+				 EnablePLLSPLOW)) >> 8));
 
 		if (pVBInfo->VBInfo & SetCRT2ToLCD)
 			XGI_SetLCDCap_B(tempcx, pVBInfo);
@@ -4744,12 +4720,12 @@ static void XGI_SetLCDCap(struct vb_device_info *pVBInfo)
 	}
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_SetAntiFlicker */
-/* Input : */
-/* Output : */
-/* Description : Set TV Customized Param. */
-/* --------------------------------------------------------------------- */
+/*
+ * Function : XGI_SetAntiFlicker
+ * Input :
+ * Output :
+ * Description : Set TV Customized Param.
+ */
 static void XGI_SetAntiFlicker(struct vb_device_info *pVBInfo)
 {
 	unsigned short tempbx;
@@ -4792,13 +4768,13 @@ static void XGI_SetPhaseIncr(struct vb_device_info *pVBInfo)
 	XGI_GetTVPtrIndex2(&tempbx, &tempcl, &tempch, pVBInfo); /* bx, cl, ch */
 	tempData = TVPhaseList[tempbx];
 
-	xgifb_reg_set(pVBInfo->Part2Port, 0x31, (unsigned short) (tempData
+	xgifb_reg_set(pVBInfo->Part2Port, 0x31, (unsigned short)(tempData
 			& 0x000000FF));
-	xgifb_reg_set(pVBInfo->Part2Port, 0x32, (unsigned short) ((tempData
+	xgifb_reg_set(pVBInfo->Part2Port, 0x32, (unsigned short)((tempData
 			& 0x0000FF00) >> 8));
-	xgifb_reg_set(pVBInfo->Part2Port, 0x33, (unsigned short) ((tempData
+	xgifb_reg_set(pVBInfo->Part2Port, 0x33, (unsigned short)((tempData
 			& 0x00FF0000) >> 16));
-	xgifb_reg_set(pVBInfo->Part2Port, 0x34, (unsigned short) ((tempData
+	xgifb_reg_set(pVBInfo->Part2Port, 0x34, (unsigned short)((tempData
 			& 0xFF000000) >> 24));
 }
 
@@ -4866,12 +4842,12 @@ static void XGI_SetYFilter(unsigned short ModeIdIndex,
 	}
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_OEM310Setting */
-/* Input : */
-/* Output : */
-/* Description : Customized Param. for 301 */
-/* --------------------------------------------------------------------- */
+/*
+ * Function : XGI_OEM310Setting
+ * Input :
+ * Output :
+ * Description : Customized Param. for 301
+ */
 static void XGI_OEM310Setting(unsigned short ModeIdIndex,
 			      struct vb_device_info *pVBInfo)
 {
@@ -4890,12 +4866,12 @@ static void XGI_OEM310Setting(unsigned short ModeIdIndex,
 	}
 }
 
-/* --------------------------------------------------------------------- */
-/* Function : XGI_SetCRT2ModeRegs */
-/* Input : */
-/* Output : */
-/* Description : Origin code for crt2group */
-/* --------------------------------------------------------------------- */
+/*
+ * Function : XGI_SetCRT2ModeRegs
+ * Input :
+ * Output :
+ * Description : Origin code for crt2group
+ */
 static void XGI_SetCRT2ModeRegs(struct vb_device_info *pVBInfo)
 {
 	unsigned short tempbl;
@@ -4999,8 +4975,8 @@ reg_and_or:
 				tempah |= 0x40;
 		}
 
-		if ((pVBInfo->LCDResInfo == Panel_1280x1024)
-				|| (pVBInfo->LCDResInfo == Panel_1280x1024x75))
+		if ((pVBInfo->LCDResInfo == Panel_1280x1024) ||
+		    (pVBInfo->LCDResInfo == Panel_1280x1024x75))
 			tempah |= 0x80;
 
 		if (pVBInfo->LCDResInfo == Panel_1280x960)
@@ -5068,8 +5044,9 @@ void XGI_LockCRT2(struct vb_device_info *pVBInfo)
 }
 
 unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
-		unsigned short ModeNo, unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
+				  unsigned short ModeNo,
+				  unsigned short ModeIdIndex,
+				  struct vb_device_info *pVBInfo)
 {
 	const u8 LCDARefreshIndex[] = {
 		0x00, 0x00, 0x03, 0x01, 0x01, 0x01, 0x01, 0x00 };
@@ -5143,14 +5120,14 @@ unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 }
 
 static void XGI_SetLCDAGroup(unsigned short ModeNo, unsigned short ModeIdIndex,
-		struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
+			     struct xgi_hw_device_info *HwDeviceExtension,
+			     struct vb_device_info *pVBInfo)
 {
 	unsigned short RefreshRateTableIndex;
 
 	pVBInfo->SetFlag |= ProgrammingCRT2;
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
-			ModeIdIndex, pVBInfo);
+						   ModeIdIndex, pVBInfo);
 	XGI_GetLVDSResInfo(ModeIdIndex, pVBInfo);
 	XGI_GetLVDSData(ModeIdIndex, pVBInfo);
 	XGI_ModCRT1Regs(ModeIdIndex, HwDeviceExtension, pVBInfo);
@@ -5159,8 +5136,8 @@ static void XGI_SetLCDAGroup(unsigned short ModeNo, unsigned short ModeIdIndex,
 }
 
 static unsigned char XGI_SetCRT2Group301(unsigned short ModeNo,
-		struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
+					 struct xgi_hw_device_info *HwDeviceExtension,
+					 struct vb_device_info *pVBInfo)
 {
 	unsigned short ModeIdIndex, RefreshRateTableIndex;
 
@@ -5168,7 +5145,7 @@ static unsigned char XGI_SetCRT2Group301(unsigned short ModeNo,
 	XGI_SearchModeID(ModeNo, &ModeIdIndex);
 	pVBInfo->SelectCRT2Rate = 4;
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
-			ModeIdIndex, pVBInfo);
+						   ModeIdIndex, pVBInfo);
 	XGI_SaveCRT2Info(ModeNo, pVBInfo);
 	XGI_GetCRT2ResInfo(ModeIdIndex, pVBInfo);
 	XGI_GetCRT2Data(ModeIdIndex, RefreshRateTableIndex, pVBInfo);
@@ -5210,39 +5187,39 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 	CR63 = xgifb_reg_get(pVBInfo->P3d4, 0x63);
 	SR01 = xgifb_reg_get(pVBInfo->P3c4, 0x01);
 
-	xgifb_reg_set(pVBInfo->P3c4, 0x01, (unsigned char) (SR01 & 0xDF));
-	xgifb_reg_set(pVBInfo->P3d4, 0x63, (unsigned char) (CR63 & 0xBF));
+	xgifb_reg_set(pVBInfo->P3c4, 0x01, (unsigned char)(SR01 & 0xDF));
+	xgifb_reg_set(pVBInfo->P3d4, 0x63, (unsigned char)(CR63 & 0xBF));
 
 	CR17 = xgifb_reg_get(pVBInfo->P3d4, 0x17);
-	xgifb_reg_set(pVBInfo->P3d4, 0x17, (unsigned char) (CR17 | 0x80));
+	xgifb_reg_set(pVBInfo->P3d4, 0x17, (unsigned char)(CR17 | 0x80));
 
 	SR1F = xgifb_reg_get(pVBInfo->P3c4, 0x1F);
-	xgifb_reg_set(pVBInfo->P3c4, 0x1F, (unsigned char) (SR1F | 0x04));
+	xgifb_reg_set(pVBInfo->P3c4, 0x1F, (unsigned char)(SR1F | 0x04));
 
 	SR07 = xgifb_reg_get(pVBInfo->P3c4, 0x07);
-	xgifb_reg_set(pVBInfo->P3c4, 0x07, (unsigned char) (SR07 & 0xFB));
+	xgifb_reg_set(pVBInfo->P3c4, 0x07, (unsigned char)(SR07 & 0xFB));
 	SR06 = xgifb_reg_get(pVBInfo->P3c4, 0x06);
-	xgifb_reg_set(pVBInfo->P3c4, 0x06, (unsigned char) (SR06 & 0xC3));
+	xgifb_reg_set(pVBInfo->P3c4, 0x06, (unsigned char)(SR06 & 0xC3));
 
 	xgifb_reg_set(pVBInfo->P3d4, 0x11, 0x00);
 
 	for (i = 0; i < 8; i++)
-		xgifb_reg_set(pVBInfo->P3d4, (unsigned short) i, CRTCData[i]);
+		xgifb_reg_set(pVBInfo->P3d4, (unsigned short)i, CRTCData[i]);
 
 	for (i = 8; i < 11; i++)
-		xgifb_reg_set(pVBInfo->P3d4, (unsigned short) (i + 8),
-				CRTCData[i]);
+		xgifb_reg_set(pVBInfo->P3d4, (unsigned short)(i + 8),
+			      CRTCData[i]);
 
 	for (i = 11; i < 13; i++)
-		xgifb_reg_set(pVBInfo->P3d4, (unsigned short) (i + 4),
-				CRTCData[i]);
+		xgifb_reg_set(pVBInfo->P3d4, (unsigned short)(i + 4),
+			      CRTCData[i]);
 
 	for (i = 13; i < 16; i++)
-		xgifb_reg_set(pVBInfo->P3c4, (unsigned short) (i - 3),
-				CRTCData[i]);
+		xgifb_reg_set(pVBInfo->P3c4, (unsigned short)(i - 3),
+			      CRTCData[i]);
 
-	xgifb_reg_set(pVBInfo->P3c4, 0x0E, (unsigned char) (CRTCData[16]
-			& 0xE0));
+	xgifb_reg_set(pVBInfo->P3c4, 0x0E, (unsigned char)(CRTCData[16]
+		      & 0xE0));
 
 	xgifb_reg_set(pVBInfo->P3c4, 0x31, 0x00);
 	xgifb_reg_set(pVBInfo->P3c4, 0x2B, 0x1B);
@@ -5275,12 +5252,12 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 
 	xgifb_reg_set(pVBInfo->P3d4, 0x53, (xgifb_reg_get(
 			pVBInfo->P3d4, 0x53) & 0xFD));
-	xgifb_reg_set(pVBInfo->P3c4, 0x1F, (unsigned char) SR1F);
+	xgifb_reg_set(pVBInfo->P3c4, 0x1F, (unsigned char)SR1F);
 }
 
 static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
-		struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
+			     struct xgi_hw_device_info *HwDeviceExtension,
+			     struct vb_device_info *pVBInfo)
 {
 	unsigned short tempah;
 
@@ -5310,11 +5287,11 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 
 		if (!(pVBInfo->VBInfo & DisableCRT2Display)) {
 			xgifb_reg_and_or(pVBInfo->Part2Port, 0x00, ~0xE0,
-					0x20); /* shampoo 0129 */
+					 0x20); /* shampoo 0129 */
 			if (pVBInfo->VBType & (VB_SIS302LV | VB_XGI301C)) {
 				if (pVBInfo->VBInfo &
 					(SetCRT2ToLCD | XGI_SetCRT2ToLCDA))
-					/* LVDS PLL power on */
+					 /* LVDS PLL power on */
 					xgifb_reg_and(pVBInfo->Part4Port, 0x2A,
 						      0x7F);
 				/* LVDS Driver power on */
@@ -5358,9 +5335,9 @@ static void XGI_EnableBridge(struct xgifb_video_info *xgifb_info,
 }
 
 static void XGI_SetCRT1Group(struct xgifb_video_info *xgifb_info,
-		struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned short ModeNo, unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
+			     struct xgi_hw_device_info *HwDeviceExtension,
+			     unsigned short ModeNo, unsigned short ModeIdIndex,
+			     struct vb_device_info *pVBInfo)
 {
 	unsigned short RefreshRateTableIndex, temp;
 
@@ -5389,14 +5366,14 @@ static void XGI_SetCRT1Group(struct xgifb_video_info *xgifb_info,
 	}
 
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
-			ModeIdIndex, pVBInfo);
+						   ModeIdIndex, pVBInfo);
 	if (RefreshRateTableIndex != 0xFFFF) {
 		XGI_SetSync(RefreshRateTableIndex, pVBInfo);
 		XGI_SetCRT1CRTC(ModeIdIndex, RefreshRateTableIndex,
 				pVBInfo, HwDeviceExtension);
 		XGI_SetCRT1DE(ModeIdIndex, RefreshRateTableIndex, pVBInfo);
 		XGI_SetCRT1Offset(ModeNo, ModeIdIndex, RefreshRateTableIndex,
-				HwDeviceExtension, pVBInfo);
+				  HwDeviceExtension, pVBInfo);
 		XGI_SetCRT1VCLK(ModeIdIndex, HwDeviceExtension,
 				RefreshRateTableIndex, pVBInfo);
 	}
@@ -5410,15 +5387,15 @@ static void XGI_SetCRT1Group(struct xgifb_video_info *xgifb_info,
 				XGI_SetXG21CRTC(RefreshRateTableIndex, pVBInfo);
 
 			XGI_UpdateXG21CRTC(ModeNo, pVBInfo,
-					RefreshRateTableIndex);
+					   RefreshRateTableIndex);
 
 			xgifb_set_lcd(HwDeviceExtension->jChipType,
 				      pVBInfo, RefreshRateTableIndex);
 
 			if (pVBInfo->IF_DEF_LVDS == 1)
 				xgifb_set_lvds(xgifb_info,
-						HwDeviceExtension->jChipType,
-						ModeIdIndex, pVBInfo);
+					       HwDeviceExtension->jChipType,
+					       ModeIdIndex, pVBInfo);
 		}
 	}
 
@@ -5430,8 +5407,8 @@ static void XGI_SetCRT1Group(struct xgifb_video_info *xgifb_info,
 }
 
 unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
-			struct xgi_hw_device_info *HwDeviceExtension,
-			unsigned short ModeNo)
+			    struct xgi_hw_device_info *HwDeviceExtension,
+			    unsigned short ModeNo)
 {
 	unsigned short ModeIdIndex;
 	struct vb_device_info VBINF;
@@ -5440,7 +5417,7 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 	pVBInfo->IF_DEF_LVDS = 0;
 
 	if (HwDeviceExtension->jChipType >= XG20)
-		pVBInfo->VBType = 0; /*set VBType default 0*/
+		pVBInfo->VBType = 0; /* set VBType default 0 */
 
 	XGIRegInit(pVBInfo, xgifb_info->vga_base);
 
@@ -5473,13 +5450,13 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 		XGI_DisableBridge(xgifb_info, HwDeviceExtension, pVBInfo);
 
 		if (pVBInfo->VBInfo & (SetSimuScanMode | XGI_SetCRT2ToLCDA) ||
-			!(pVBInfo->VBInfo & SwitchCRT2)) {
+		    !(pVBInfo->VBInfo & SwitchCRT2)) {
 			XGI_SetCRT1Group(xgifb_info, HwDeviceExtension, ModeNo,
-					ModeIdIndex, pVBInfo);
+					 ModeIdIndex, pVBInfo);
 
 			if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
 				XGI_SetLCDAGroup(ModeNo, ModeIdIndex,
-						HwDeviceExtension, pVBInfo);
+						 HwDeviceExtension, pVBInfo);
 			}
 		}
 
@@ -5488,7 +5465,7 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 			case VB_CHIP_301: /* fall through */
 			case VB_CHIP_302:
 				XGI_SetCRT2Group301(ModeNo, HwDeviceExtension,
-						pVBInfo); /*add for CRT2 */
+						    pVBInfo); /* add for CRT2 */
 				break;
 
 			default:
@@ -5497,7 +5474,7 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 		}
 
 		XGI_SetCRT2ModeRegs(pVBInfo);
-		XGI_OEM310Setting(ModeIdIndex, pVBInfo); /*0212*/
+		XGI_OEM310Setting(ModeIdIndex, pVBInfo); /* 0212 */
 		XGI_EnableBridge(xgifb_info, HwDeviceExtension, pVBInfo);
 	} /* !XG20 */
 	else {
@@ -5515,7 +5492,7 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 		XGI_DisplayOff(xgifb_info, HwDeviceExtension, pVBInfo);
 
 		XGI_SetCRT1Group(xgifb_info, HwDeviceExtension, ModeNo,
-				ModeIdIndex, pVBInfo);
+				 ModeIdIndex, pVBInfo);
 
 		XGI_DisplayOn(xgifb_info, HwDeviceExtension, pVBInfo);
 	}

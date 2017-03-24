@@ -41,6 +41,13 @@ struct pxa_spi_info {
 static struct dw_dma_slave byt_tx_param = { .dst_id = 0 };
 static struct dw_dma_slave byt_rx_param = { .src_id = 1 };
 
+static struct dw_dma_slave mrfld3_tx_param = { .dst_id = 15 };
+static struct dw_dma_slave mrfld3_rx_param = { .src_id = 14 };
+static struct dw_dma_slave mrfld5_tx_param = { .dst_id = 13 };
+static struct dw_dma_slave mrfld5_rx_param = { .src_id = 12 };
+static struct dw_dma_slave mrfld6_tx_param = { .dst_id = 11 };
+static struct dw_dma_slave mrfld6_rx_param = { .src_id = 10 };
+
 static struct dw_dma_slave bsw0_tx_param = { .dst_id = 0 };
 static struct dw_dma_slave bsw0_rx_param = { .src_id = 1 };
 static struct dw_dma_slave bsw1_tx_param = { .dst_id = 6 };
@@ -93,22 +100,39 @@ static int lpss_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 
 static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 {
+	struct pci_dev *dma_dev = pci_get_slot(dev->bus, PCI_DEVFN(21, 0));
+	struct dw_dma_slave *tx, *rx;
+
 	switch (PCI_FUNC(dev->devfn)) {
 	case 0:
 		c->port_id = 3;
 		c->num_chipselect = 1;
+		c->tx_param = &mrfld3_tx_param;
+		c->rx_param = &mrfld3_rx_param;
 		break;
 	case 1:
 		c->port_id = 5;
 		c->num_chipselect = 4;
+		c->tx_param = &mrfld5_tx_param;
+		c->rx_param = &mrfld5_rx_param;
 		break;
 	case 2:
 		c->port_id = 6;
 		c->num_chipselect = 1;
+		c->tx_param = &mrfld6_tx_param;
+		c->rx_param = &mrfld6_rx_param;
 		break;
 	default:
 		return -ENODEV;
 	}
+
+	tx = c->tx_param;
+	tx->dma_dev = &dma_dev->dev;
+
+	rx = c->rx_param;
+	rx->dma_dev = &dma_dev->dev;
+
+	c->dma_filter = lpss_dma_filter;
 	return 0;
 }
 
@@ -203,9 +227,15 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	ssp = &spi_pdata.ssp;
 	ssp->phys_base = pci_resource_start(dev, 0);
 	ssp->mmio_base = pcim_iomap_table(dev)[0];
-	ssp->irq = dev->irq;
 	ssp->port_id = (c->port_id >= 0) ? c->port_id : dev->devfn;
 	ssp->type = c->type;
+
+	pci_set_master(dev);
+
+	ret = pci_alloc_irq_vectors(dev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0)
+		return ret;
+	ssp->irq = pci_irq_vector(dev, 0);
 
 	snprintf(buf, sizeof(buf), "pxa2xx-spi.%d", ssp->port_id);
 	ssp->clk = clk_register_fixed_rate(&dev->dev, buf , NULL, 0,

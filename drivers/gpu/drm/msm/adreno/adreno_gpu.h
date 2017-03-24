@@ -28,6 +28,9 @@
 #include "adreno_pm4.xml.h"
 
 #define REG_ADRENO_DEFINE(_offset, _reg) [_offset] = (_reg) + 1
+#define REG_SKIP ~0
+#define REG_ADRENO_SKIP(_offset) [_offset] = REG_SKIP
+
 /**
  * adreno_regs: List of registers that are used in across all
  * 3D devices. Each device type has different offset value for the same
@@ -35,71 +38,19 @@
  * and are indexed by the enumeration values defined in this enum
  */
 enum adreno_regs {
-	REG_ADRENO_CP_DEBUG,
-	REG_ADRENO_CP_ME_RAM_WADDR,
-	REG_ADRENO_CP_ME_RAM_DATA,
-	REG_ADRENO_CP_PFP_UCODE_DATA,
-	REG_ADRENO_CP_PFP_UCODE_ADDR,
-	REG_ADRENO_CP_WFI_PEND_CTR,
 	REG_ADRENO_CP_RB_BASE,
+	REG_ADRENO_CP_RB_BASE_HI,
 	REG_ADRENO_CP_RB_RPTR_ADDR,
+	REG_ADRENO_CP_RB_RPTR_ADDR_HI,
 	REG_ADRENO_CP_RB_RPTR,
 	REG_ADRENO_CP_RB_WPTR,
-	REG_ADRENO_CP_PROTECT_CTRL,
-	REG_ADRENO_CP_ME_CNTL,
 	REG_ADRENO_CP_RB_CNTL,
-	REG_ADRENO_CP_IB1_BASE,
-	REG_ADRENO_CP_IB1_BUFSZ,
-	REG_ADRENO_CP_IB2_BASE,
-	REG_ADRENO_CP_IB2_BUFSZ,
-	REG_ADRENO_CP_TIMESTAMP,
-	REG_ADRENO_CP_ME_RAM_RADDR,
-	REG_ADRENO_CP_ROQ_ADDR,
-	REG_ADRENO_CP_ROQ_DATA,
-	REG_ADRENO_CP_MERCIU_ADDR,
-	REG_ADRENO_CP_MERCIU_DATA,
-	REG_ADRENO_CP_MERCIU_DATA2,
-	REG_ADRENO_CP_MEQ_ADDR,
-	REG_ADRENO_CP_MEQ_DATA,
-	REG_ADRENO_CP_HW_FAULT,
-	REG_ADRENO_CP_PROTECT_STATUS,
-	REG_ADRENO_SCRATCH_ADDR,
-	REG_ADRENO_SCRATCH_UMSK,
-	REG_ADRENO_SCRATCH_REG2,
-	REG_ADRENO_RBBM_STATUS,
-	REG_ADRENO_RBBM_PERFCTR_CTL,
-	REG_ADRENO_RBBM_PERFCTR_LOAD_CMD0,
-	REG_ADRENO_RBBM_PERFCTR_LOAD_CMD1,
-	REG_ADRENO_RBBM_PERFCTR_LOAD_CMD2,
-	REG_ADRENO_RBBM_PERFCTR_PWR_1_LO,
-	REG_ADRENO_RBBM_INT_0_MASK,
-	REG_ADRENO_RBBM_INT_0_STATUS,
-	REG_ADRENO_RBBM_AHB_ERROR_STATUS,
-	REG_ADRENO_RBBM_PM_OVERRIDE2,
-	REG_ADRENO_RBBM_AHB_CMD,
-	REG_ADRENO_RBBM_INT_CLEAR_CMD,
-	REG_ADRENO_RBBM_SW_RESET_CMD,
-	REG_ADRENO_RBBM_CLOCK_CTL,
-	REG_ADRENO_RBBM_AHB_ME_SPLIT_STATUS,
-	REG_ADRENO_RBBM_AHB_PFP_SPLIT_STATUS,
-	REG_ADRENO_VPC_DEBUG_RAM_SEL,
-	REG_ADRENO_VPC_DEBUG_RAM_READ,
-	REG_ADRENO_VSC_SIZE_ADDRESS,
-	REG_ADRENO_VFD_CONTROL_0,
-	REG_ADRENO_VFD_INDEX_MAX,
-	REG_ADRENO_SP_VS_PVT_MEM_ADDR_REG,
-	REG_ADRENO_SP_FS_PVT_MEM_ADDR_REG,
-	REG_ADRENO_SP_VS_OBJ_START_REG,
-	REG_ADRENO_SP_FS_OBJ_START_REG,
-	REG_ADRENO_PA_SC_AA_CONFIG,
-	REG_ADRENO_SQ_GPR_MANAGEMENT,
-	REG_ADRENO_SQ_INST_STORE_MANAGMENT,
-	REG_ADRENO_TP0_CHICKEN,
-	REG_ADRENO_RBBM_RBBM_CTL,
-	REG_ADRENO_UCHE_INVALIDATE0,
-	REG_ADRENO_RBBM_PERFCTR_LOAD_VALUE_LO,
-	REG_ADRENO_RBBM_PERFCTR_LOAD_VALUE_HI,
 	REG_ADRENO_REGISTER_MAX,
+};
+
+enum adreno_quirks {
+	ADRENO_QUIRK_TWO_PASS_USE_WFI = 1,
+	ADRENO_QUIRK_FAULT_DETECT_MASK = 2,
 };
 
 struct adreno_rev {
@@ -122,11 +73,16 @@ struct adreno_info {
 	uint32_t revn;
 	const char *name;
 	const char *pm4fw, *pfpfw;
+	const char *gpmufw;
 	uint32_t gmem;
+	enum adreno_quirks quirks;
 	struct msm_gpu *(*init)(struct drm_device *dev);
 };
 
 const struct adreno_info *adreno_info(struct adreno_rev rev);
+
+#define rbmemptr(adreno_gpu, member)  \
+	((adreno_gpu)->memptrs_iova + offsetof(struct adreno_rbmemptrs, member))
 
 struct adreno_rbmemptrs {
 	volatile uint32_t rptr;
@@ -153,7 +109,7 @@ struct adreno_gpu {
 	// different for z180..
 	struct adreno_rbmemptrs *memptrs;
 	struct drm_gem_object *memptrs_bo;
-	uint32_t memptrs_iova;
+	uint64_t memptrs_iova;
 
 	/*
 	 * Register offsets are different between some GPUs.
@@ -234,6 +190,11 @@ static inline int adreno_is_a430(struct adreno_gpu *gpu)
        return gpu->revn == 430;
 }
 
+static inline int adreno_is_a530(struct adreno_gpu *gpu)
+{
+	return gpu->revn == 530;
+}
+
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
 int adreno_hw_init(struct msm_gpu *gpu);
 uint32_t adreno_last_fence(struct msm_gpu *gpu);
@@ -241,7 +202,7 @@ void adreno_recover(struct msm_gpu *gpu);
 void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		struct msm_file_private *ctx);
 void adreno_flush(struct msm_gpu *gpu);
-void adreno_idle(struct msm_gpu *gpu);
+bool adreno_idle(struct msm_gpu *gpu);
 #ifdef CONFIG_DEBUG_FS
 void adreno_show(struct msm_gpu *gpu, struct seq_file *m);
 #endif
@@ -278,8 +239,38 @@ OUT_PKT3(struct msm_ringbuffer *ring, uint8_t opcode, uint16_t cnt)
 	OUT_RING(ring, CP_TYPE3_PKT | ((cnt-1) << 16) | ((opcode & 0xFF) << 8));
 }
 
+static inline u32 PM4_PARITY(u32 val)
+{
+	return (0x9669 >> (0xF & (val ^
+		(val >> 4) ^ (val >> 8) ^ (val >> 12) ^
+		(val >> 16) ^ ((val) >> 20) ^ (val >> 24) ^
+		(val >> 28)))) & 1;
+}
+
+/* Maximum number of values that can be executed for one opcode */
+#define TYPE4_MAX_PAYLOAD 127
+
+#define PKT4(_reg, _cnt) \
+	(CP_TYPE4_PKT | ((_cnt) << 0) | (PM4_PARITY((_cnt)) << 7) | \
+	 (((_reg) & 0x3FFFF) << 8) | (PM4_PARITY((_reg)) << 27))
+
+static inline void
+OUT_PKT4(struct msm_ringbuffer *ring, uint16_t regindx, uint16_t cnt)
+{
+	adreno_wait_ring(ring->gpu, cnt + 1);
+	OUT_RING(ring, PKT4(regindx, cnt));
+}
+
+static inline void
+OUT_PKT7(struct msm_ringbuffer *ring, uint8_t opcode, uint16_t cnt)
+{
+	adreno_wait_ring(ring->gpu, cnt + 1);
+	OUT_RING(ring, CP_TYPE7_PKT | (cnt << 0) | (PM4_PARITY(cnt) << 15) |
+		((opcode & 0x7F) << 16) | (PM4_PARITY(opcode) << 23));
+}
+
 /*
- * adreno_checkreg_off() - Checks the validity of a register enum
+ * adreno_reg_check() - Checks the validity of a register enum
  * @gpu:		Pointer to struct adreno_gpu
  * @offset_name:	The register enum that is checked
  */
@@ -290,6 +281,16 @@ static inline bool adreno_reg_check(struct adreno_gpu *gpu,
 			!gpu->reg_offsets[offset_name]) {
 		BUG();
 	}
+
+	/*
+	 * REG_SKIP is a special value that tell us that the register in
+	 * question isn't implemented on target but don't trigger a BUG(). This
+	 * is used to cleanly implement adreno_gpu_write64() and
+	 * adreno_gpu_read64() in a generic fashion
+	 */
+	if (gpu->reg_offsets[offset_name] == REG_SKIP)
+		return false;
+
 	return true;
 }
 
@@ -310,5 +311,40 @@ static inline void adreno_gpu_write(struct adreno_gpu *gpu,
 	if(adreno_reg_check(gpu, offset_name))
 		gpu_write(&gpu->base, reg - 1, data);
 }
+
+struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
+struct msm_gpu *a4xx_gpu_init(struct drm_device *dev);
+struct msm_gpu *a5xx_gpu_init(struct drm_device *dev);
+
+static inline void adreno_gpu_write64(struct adreno_gpu *gpu,
+		enum adreno_regs lo, enum adreno_regs hi, u64 data)
+{
+	adreno_gpu_write(gpu, lo, lower_32_bits(data));
+	adreno_gpu_write(gpu, hi, upper_32_bits(data));
+}
+
+/*
+ * Given a register and a count, return a value to program into
+ * REG_CP_PROTECT_REG(n) - this will block both reads and writes for _len
+ * registers starting at _reg.
+ *
+ * The register base needs to be a multiple of the length. If it is not, the
+ * hardware will quietly mask off the bits for you and shift the size. For
+ * example, if you intend the protection to start at 0x07 for a length of 4
+ * (0x07-0x0A) the hardware will actually protect (0x04-0x07) which might
+ * expose registers you intended to protect!
+ */
+#define ADRENO_PROTECT_RW(_reg, _len) \
+	((1 << 30) | (1 << 29) | \
+	((ilog2((_len)) & 0x1F) << 24) | (((_reg) << 2) & 0xFFFFF))
+
+/*
+ * Same as above, but allow reads over the range. For areas of mixed use (such
+ * as performance counters) this allows us to protect a much larger range with a
+ * single register
+ */
+#define ADRENO_PROTECT_RDONLY(_reg, _len) \
+	((1 << 29) \
+	((ilog2((_len)) & 0x1F) << 24) | (((_reg) << 2) & 0xFFFFF))
 
 #endif /* __ADRENO_GPU_H__ */

@@ -72,6 +72,7 @@
 #define RF5592				0x000f
 #define RF3070				0x3070
 #define RF3290				0x3290
+#define RF5350				0x5350
 #define RF5360				0x5360
 #define RF5362				0x5362
 #define RF5370				0x5370
@@ -2286,6 +2287,8 @@ struct mac_iveiv_entry {
 #define RFCSR30_RX_H20M			FIELD8(0x04)
 #define RFCSR30_RX_VCM			FIELD8(0x18)
 #define RFCSR30_RF_CALIBRATION		FIELD8(0x80)
+#define RF3322_RFCSR30_TX_H20M		FIELD8(0x01)
+#define RF3322_RFCSR30_RX_H20M		FIELD8(0x02)
 
 /*
  * RFCSR 31:
@@ -2301,6 +2304,12 @@ struct mac_iveiv_entry {
 #define RFCSR36_RF_BS			FIELD8(0x80)
 
 /*
+ * RFCSR 34:
+ */
+#define RFCSR34_TX0_EXT_PA		FIELD8(0x04)
+#define RFCSR34_TX1_EXT_PA		FIELD8(0x08)
+
+/*
  * RFCSR 38:
  */
 #define RFCSR38_RX_LO1_EN		FIELD8(0x20)
@@ -2310,6 +2319,18 @@ struct mac_iveiv_entry {
  */
 #define RFCSR39_RX_DIV			FIELD8(0x40)
 #define RFCSR39_RX_LO2_EN		FIELD8(0x80)
+
+/*
+ * RFCSR 41:
+ */
+#define RFCSR41_BIT1			FIELD8(0x01)
+#define RFCSR41_BIT4			FIELD8(0x08)
+
+/*
+ * RFCSR 42:
+ */
+#define RFCSR42_BIT1			FIELD8(0x01)
+#define RFCSR42_BIT4			FIELD8(0x08)
 
 /*
  * RFCSR 49:
@@ -2324,6 +2345,8 @@ struct mac_iveiv_entry {
  * RFCSR 50:
  */
 #define RFCSR50_TX			FIELD8(0x3f)
+#define RFCSR50_TX0_EXT_PA		FIELD8(0x02)
+#define RFCSR50_TX1_EXT_PA		FIELD8(0x10)
 #define RFCSR50_EP			FIELD8(0xc0)
 /* bits for RT3593 */
 #define RFCSR50_TX_LO1_EN		FIELD8(0x20)
@@ -2471,6 +2494,8 @@ enum rt2800_eeprom_word {
  * INTERNAL_TX_ALC: 0: disable, 1: enable
  * BT_COEXIST: 0: disable, 1: enable
  * DAC_TEST: 0: disable, 1: enable
+ * EXTERNAL_TX0_PA: 0: disable, 1: enable (only on RT3352)
+ * EXTERNAL_TX1_PA: 0: disable, 1: enable (only on RT3352)
  */
 #define EEPROM_NIC_CONF1_HW_RADIO		FIELD16(0x0001)
 #define EEPROM_NIC_CONF1_EXTERNAL_TX_ALC	FIELD16(0x0002)
@@ -2487,6 +2512,8 @@ enum rt2800_eeprom_word {
 #define EEPROM_NIC_CONF1_INTERNAL_TX_ALC	FIELD16(0x2000)
 #define EEPROM_NIC_CONF1_BT_COEXIST		FIELD16(0x4000)
 #define EEPROM_NIC_CONF1_DAC_TEST		FIELD16(0x8000)
+#define EEPROM_NIC_CONF1_EXTERNAL_TX0_PA_3352	FIELD16(0x4000)
+#define EEPROM_NIC_CONF1_EXTERNAL_TX1_PA_3352	FIELD16(0x8000)
 
 /*
  * EEPROM frequency
@@ -2979,7 +3006,9 @@ struct rt2800_drv_data {
 	u8 bbp26;
 	u8 txmixer_gain_24g;
 	u8 txmixer_gain_5g;
+	u8 max_psdu;
 	unsigned int tbtt_tick;
+	unsigned int ampdu_factor_cnt[4];
 	DECLARE_BITMAP(sta_ids, STA_IDS_SIZE);
 };
 

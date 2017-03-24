@@ -16,7 +16,7 @@
 #include <linux/dio.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static struct fb_info fb_info = {
 	.fix = {

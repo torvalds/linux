@@ -144,7 +144,7 @@ struct ovs_net {
 	bool xt_label;
 };
 
-extern int ovs_net_id;
+extern unsigned int ovs_net_id;
 void ovs_lock(void);
 void ovs_unlock(void);
 

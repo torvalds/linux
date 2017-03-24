@@ -159,8 +159,8 @@ static u32 getcrc32(u8 *buf, u32 len)
 }
 
 /*
-	Need to consider the fragment  situation
-*/
+ * Need to consider the fragment situation
+ */
 void r8712_wep_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 {	/* exclude ICV */
 	unsigned char	crc[4];
@@ -192,7 +192,7 @@ void r8712_wep_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 				length = pattrib->last_txcmdsz - pattrib->
 					 hdrlen - pattrib->iv_len -
 					 pattrib->icv_len;
-				*((u32 *)crc) = cpu_to_le32(getcrc32(
+				*((__le32 *)crc) = cpu_to_le32(getcrc32(
 						payload, length));
 				arcfour_init(&mycontext, wepkey, 3 + keylength);
 				arcfour_encrypt(&mycontext, payload, payload,
@@ -203,7 +203,7 @@ void r8712_wep_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 				length = pxmitpriv->frag_len -
 					 pattrib->hdrlen - pattrib->iv_len -
 					 pattrib->icv_len;
-				*((u32 *)crc) = cpu_to_le32(getcrc32(
+				*((__le32 *)crc) = cpu_to_le32(getcrc32(
 						payload, length));
 				arcfour_init(&mycontext, wepkey, 3 + keylength);
 				arcfour_encrypt(&mycontext, payload, payload,
@@ -248,7 +248,7 @@ void r8712_wep_decrypt(struct _adapter  *padapter, u8 *precvframe)
 		arcfour_init(&mycontext, wepkey, 3 + keylength);
 		arcfour_encrypt(&mycontext, payload, payload,  length);
 		/* calculate icv and compare the icv */
-		*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length - 4));
+		*((__le32 *)crc) = cpu_to_le32(getcrc32(payload, length - 4));
 	}
 }
 
@@ -467,22 +467,22 @@ static const unsigned short Sbox1[2][256] = {/* Sbox for hash (can be in ROM) */
 };
 
 /*
-**********************************************************************
-* Routine: Phase 1 -- generate P1K, given TA, TK, IV32
-*
-* Inputs:
-*     tk[]      = temporal key                         [128 bits]
-*     ta[]      = transmitter's MAC address            [ 48 bits]
-*     iv32      = upper 32 bits of IV                  [ 32 bits]
-* Output:
-*     p1k[]     = Phase 1 key                          [ 80 bits]
-*
-* Note:
-*     This function only needs to be called every 2**16 packets,
-*     although in theory it could be called every packet.
-*
-**********************************************************************
-*/
+ **********************************************************************
+ * Routine: Phase 1 -- generate P1K, given TA, TK, IV32
+ *
+ * Inputs:
+ *     tk[]      = temporal key                         [128 bits]
+ *     ta[]      = transmitter's MAC address            [ 48 bits]
+ *     iv32      = upper 32 bits of IV                  [ 32 bits]
+ * Output:
+ *     p1k[]     = Phase 1 key                          [ 80 bits]
+ *
+ * Note:
+ *     This function only needs to be called every 2**16 packets,
+ *     although in theory it could be called every packet.
+ *
+ **********************************************************************
+ */
 static void phase1(u16 *p1k, const u8 *tk, const u8 *ta, u32 iv32)
 {
 	sint  i;
@@ -506,28 +506,28 @@ static void phase1(u16 *p1k, const u8 *tk, const u8 *ta, u32 iv32)
 }
 
 /*
-**********************************************************************
-* Routine: Phase 2 -- generate RC4KEY, given TK, P1K, IV16
-*
-* Inputs:
-*     tk[]      = Temporal key                         [128 bits]
-*     p1k[]     = Phase 1 output key                   [ 80 bits]
-*     iv16      = low 16 bits of IV counter            [ 16 bits]
-* Output:
-*     rc4key[]  = the key used to encrypt the packet   [128 bits]
-*
-* Note:
-*     The value {TA,IV32,IV16} for Phase1/Phase2 must be unique
-*     across all packets using the same key TK value. Then, for a
-*     given value of TK[], this TKIP48 construction guarantees that
-*     the final RC4KEY value is unique across all packets.
-*
-* Suggested implementation optimization: if PPK[] is "overlaid"
-*     appropriately on RC4KEY[], there is no need for the final
-*     for loop below that copies the PPK[] result into RC4KEY[].
-*
-**********************************************************************
-*/
+ **********************************************************************
+ * Routine: Phase 2 -- generate RC4KEY, given TK, P1K, IV16
+ *
+ * Inputs:
+ *     tk[]      = Temporal key                         [128 bits]
+ *     p1k[]     = Phase 1 output key                   [ 80 bits]
+ *     iv16      = low 16 bits of IV counter            [ 16 bits]
+ * Output:
+ *     rc4key[]  = the key used to encrypt the packet   [128 bits]
+ *
+ * Note:
+ *     The value {TA,IV32,IV16} for Phase1/Phase2 must be unique
+ *     across all packets using the same key TK value. Then, for a
+ *     given value of TK[], this TKIP48 construction guarantees that
+ *     the final RC4KEY value is unique across all packets.
+ *
+ * Suggested implementation optimization: if PPK[] is "overlaid"
+ *     appropriately on RC4KEY[], there is no need for the final
+ *     for loop below that copies the PPK[] result into RC4KEY[].
+ *
+ **********************************************************************
+ */
 static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 {
 	sint  i;
@@ -616,7 +616,7 @@ u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 					     pattrib->hdrlen -
 					     pattrib->iv_len -
 					     pattrib->icv_len;
-					*((u32 *)crc) = cpu_to_le32(
+					*((__le32 *)crc) = cpu_to_le32(
 						getcrc32(payload, length));
 					arcfour_init(&mycontext, rc4key, 16);
 					arcfour_encrypt(&mycontext, payload,
@@ -628,7 +628,7 @@ u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 						 pattrib->hdrlen -
 						 pattrib->iv_len -
 						 pattrib->icv_len;
-					*((u32 *)crc) = cpu_to_le32(getcrc32(
+					*((__le32 *)crc) = cpu_to_le32(getcrc32(
 							payload, length));
 					arcfour_init(&mycontext, rc4key, 16);
 					arcfour_encrypt(&mycontext, payload,
@@ -696,7 +696,7 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 			/* 4 decrypt payload include icv */
 			arcfour_init(&mycontext, rc4key, 16);
 			arcfour_encrypt(&mycontext, payload, payload, length);
-			*((u32 *)crc) = cpu_to_le32(getcrc32(payload,
+			*((__le32 *)crc) = cpu_to_le32(getcrc32(payload,
 					length - 4));
 			if (crc[3] != payload[length - 1] ||
 			    crc[2] != payload[length - 2] ||
@@ -833,7 +833,7 @@ static void mix_column(u8 *in, u8 *out)
 	u8 add1b[4];
 	u8 add1bf7[4];
 	u8 rotl[4];
-	u8 swap_halfs[4];
+	u8 swap_halves[4];
 	u8 andf7[4];
 	u8 rotr[4];
 	u8 temp[4];
@@ -845,10 +845,10 @@ static void mix_column(u8 *in, u8 *out)
 		else
 			add1b[i] = 0x00;
 	}
-	swap_halfs[0] = in[2];    /* Swap halves */
-	swap_halfs[1] = in[3];
-	swap_halfs[2] = in[0];
-	swap_halfs[3] = in[1];
+	swap_halves[0] = in[2];    /* Swap halves */
+	swap_halves[1] = in[3];
+	swap_halves[2] = in[0];
+	swap_halves[3] = in[1];
 	rotl[0] = in[3];        /* Rotate left 8 bits */
 	rotl[1] = in[0];
 	rotl[2] = in[1];
@@ -872,7 +872,7 @@ static void mix_column(u8 *in, u8 *out)
 	rotr[2] = rotr[3];
 	rotr[3] = temp[0];
 	xor_32(add1bf7, rotr, temp);
-	xor_32(swap_halfs, rotl, tempb);
+	xor_32(swap_halves, rotl, tempb);
 	xor_32(temp, tempb, out);
 }
 
@@ -1047,8 +1047,8 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	u8 aes_out[16];
 	u8 padded_buffer[16];
 	u8 mic[8];
-	uint	frtype  = GetFrameType(pframe);
-	uint	frsubtype  = GetFrameSubType(pframe);
+	u16 frtype  = GetFrameType(pframe);
+	u16 frsubtype  = GetFrameSubType(pframe);
 
 	frsubtype >>= 4;
 	memset((void *)mic_iv, 0, 16);

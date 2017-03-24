@@ -644,7 +644,7 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 EXPORT_SYMBOL(ttm_bo_kunmap);
 
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
-			      struct fence *fence,
+			      struct dma_fence *fence,
 			      bool evict,
 			      struct ttm_mem_reg *new_mem)
 {
@@ -674,8 +674,8 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		 * operation has completed.
 		 */
 
-		fence_put(bo->moving);
-		bo->moving = fence_get(fence);
+		dma_fence_put(bo->moving);
+		bo->moving = dma_fence_get(fence);
 
 		ret = ttm_buffer_object_transfer(bo, &ghost_obj);
 		if (ret)
@@ -706,7 +706,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 EXPORT_SYMBOL(ttm_bo_move_accel_cleanup);
 
 int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
-			 struct fence *fence, bool evict,
+			 struct dma_fence *fence, bool evict,
 			 struct ttm_mem_reg *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
@@ -730,8 +730,8 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		 * operation has completed.
 		 */
 
-		fence_put(bo->moving);
-		bo->moving = fence_get(fence);
+		dma_fence_put(bo->moving);
+		bo->moving = dma_fence_get(fence);
 
 		ret = ttm_buffer_object_transfer(bo, &ghost_obj);
 		if (ret)
@@ -761,16 +761,16 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		 */
 
 		spin_lock(&from->move_lock);
-		if (!from->move || fence_is_later(fence, from->move)) {
-			fence_put(from->move);
-			from->move = fence_get(fence);
+		if (!from->move || dma_fence_is_later(fence, from->move)) {
+			dma_fence_put(from->move);
+			from->move = dma_fence_get(fence);
 		}
 		spin_unlock(&from->move_lock);
 
 		ttm_bo_free_old_node(bo);
 
-		fence_put(bo->moving);
-		bo->moving = fence_get(fence);
+		dma_fence_put(bo->moving);
+		bo->moving = dma_fence_get(fence);
 
 	} else {
 		/**

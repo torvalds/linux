@@ -192,7 +192,7 @@ static int softing_handle_1(struct softing *card)
 				/* a dead bus has no overflows */
 				continue;
 			++netdev->stats.rx_over_errors;
-			softing_netdev_rx(netdev, &msg, ktime_set(0, 0));
+			softing_netdev_rx(netdev, &msg, 0);
 		}
 		/* prepare for other use */
 		memset(&msg, 0, sizeof(msg));

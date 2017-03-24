@@ -147,6 +147,7 @@ EXPORT_SYMBOL(of_mdio_parse_addr);
  */
 static const struct of_device_id whitelist_phys[] = {
 	{ .compatible = "brcm,40nm-ephy" },
+	{ .compatible = "broadcom,bcm5241" },
 	{ .compatible = "marvell,88E1111", },
 	{ .compatible = "marvell,88e1116", },
 	{ .compatible = "marvell,88e1118", },
@@ -490,3 +491,18 @@ int of_phy_register_fixed_link(struct device_node *np)
 	return -ENODEV;
 }
 EXPORT_SYMBOL(of_phy_register_fixed_link);
+
+void of_phy_deregister_fixed_link(struct device_node *np)
+{
+	struct phy_device *phydev;
+
+	phydev = of_phy_find_device(np);
+	if (!phydev)
+		return;
+
+	fixed_phy_unregister(phydev);
+
+	put_device(&phydev->mdio.dev);	/* of_phy_find_device() */
+	phy_device_free(phydev);	/* fixed_phy_register() */
+}
+EXPORT_SYMBOL(of_phy_deregister_fixed_link);

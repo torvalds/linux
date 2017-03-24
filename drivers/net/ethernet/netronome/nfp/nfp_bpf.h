@@ -39,8 +39,6 @@
 #include <linux/list.h>
 #include <linux/types.h>
 
-#define FIELD_FIT(mask, val)  (!((((u64)val) << __bf_shf(mask)) & ~(mask)))
-
 /* For branch fixup logic use up-most byte of branch instruction as scratch
  * area.  Remember to clear this before sending instructions to HW!
  */
@@ -62,6 +60,7 @@ enum nfp_bpf_action_type {
 	NN_ACT_TC_DROP,
 	NN_ACT_TC_REDIR,
 	NN_ACT_DIRECT,
+	NN_ACT_XDP,
 };
 
 /* Software register representation, hardware encoding in asm.h */

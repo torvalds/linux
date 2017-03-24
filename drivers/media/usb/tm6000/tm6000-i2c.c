@@ -14,10 +14,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -173,8 +169,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			 * immediately after a 1 or 2 byte write to select
 			 * a register.  We cannot fulfil this request.
 			 */
-			i2c_dprintk(2, " read without preceding write not"
-				       " supported");
+			i2c_dprintk(2, " read without preceding write not supported");
 			rc = -EOPNOTSUPP;
 			goto err;
 		} else if (i + 1 < num && msgs[i].len <= 2 &&

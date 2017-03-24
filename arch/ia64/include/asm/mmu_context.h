@@ -26,6 +26,7 @@
 #include <linux/compiler.h>
 #include <linux/percpu.h>
 #include <linux/sched.h>
+#include <linux/mm_types.h>
 #include <linux/spinlock.h>
 
 #include <asm/processor.h>

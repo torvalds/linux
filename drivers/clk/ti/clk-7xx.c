@@ -201,7 +201,6 @@ static struct ti_dt_clk dra7xx_clks[] = {
 	DT_CLK(NULL, "atl_dpll_clk_mux", "atl_dpll_clk_mux"),
 	DT_CLK(NULL, "atl_gfclk_mux", "atl_gfclk_mux"),
 	DT_CLK(NULL, "dcan1_sys_clk_mux", "dcan1_sys_clk_mux"),
-	DT_CLK(NULL, "gmac_gmii_ref_clk_div", "gmac_gmii_ref_clk_div"),
 	DT_CLK(NULL, "gmac_rft_clk_mux", "gmac_rft_clk_mux"),
 	DT_CLK(NULL, "gpu_core_gclk_mux", "gpu_core_gclk_mux"),
 	DT_CLK(NULL, "gpu_hyd_gclk_mux", "gpu_hyd_gclk_mux"),

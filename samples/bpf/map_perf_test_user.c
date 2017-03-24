@@ -35,6 +35,9 @@ static __u64 time_get_ns(void)
 #define PERCPU_HASH_PREALLOC	(1 << 1)
 #define HASH_KMALLOC		(1 << 2)
 #define PERCPU_HASH_KMALLOC	(1 << 3)
+#define LRU_HASH_PREALLOC	(1 << 4)
+#define PERCPU_LRU_HASH_PREALLOC	(1 << 5)
+#define LPM_KMALLOC		(1 << 6)
 
 static int test_flags = ~0;
 
@@ -47,6 +50,30 @@ static void test_hash_prealloc(int cpu)
 	for (i = 0; i < MAX_CNT; i++)
 		syscall(__NR_getuid);
 	printf("%d:hash_map_perf pre-alloc %lld events per sec\n",
+	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+}
+
+static void test_lru_hash_prealloc(int cpu)
+{
+	__u64 start_time;
+	int i;
+
+	start_time = time_get_ns();
+	for (i = 0; i < MAX_CNT; i++)
+		syscall(__NR_getpid);
+	printf("%d:lru_hash_map_perf pre-alloc %lld events per sec\n",
+	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+}
+
+static void test_percpu_lru_hash_prealloc(int cpu)
+{
+	__u64 start_time;
+	int i;
+
+	start_time = time_get_ns();
+	for (i = 0; i < MAX_CNT; i++)
+		syscall(__NR_getppid);
+	printf("%d:lru_hash_map_perf pre-alloc %lld events per sec\n",
 	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
 }
 
@@ -86,6 +113,18 @@ static void test_percpu_hash_kmalloc(int cpu)
 	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
 }
 
+static void test_lpm_kmalloc(int cpu)
+{
+	__u64 start_time;
+	int i;
+
+	start_time = time_get_ns();
+	for (i = 0; i < MAX_CNT; i++)
+		syscall(__NR_gettid);
+	printf("%d:lpm_perf kmalloc %lld events per sec\n",
+	       cpu, MAX_CNT * 1000000000ll / (time_get_ns() - start_time));
+}
+
 static void loop(int cpu)
 {
 	cpu_set_t cpuset;
@@ -105,6 +144,15 @@ static void loop(int cpu)
 
 	if (test_flags & PERCPU_HASH_KMALLOC)
 		test_percpu_hash_kmalloc(cpu);
+
+	if (test_flags & LRU_HASH_PREALLOC)
+		test_lru_hash_prealloc(cpu);
+
+	if (test_flags & PERCPU_LRU_HASH_PREALLOC)
+		test_percpu_lru_hash_prealloc(cpu);
+
+	if (test_flags & LPM_KMALLOC)
+		test_lpm_kmalloc(cpu);
 }
 
 static void run_perf_test(int tasks)
@@ -130,6 +178,37 @@ static void run_perf_test(int tasks)
 	}
 }
 
+static void fill_lpm_trie(void)
+{
+	struct bpf_lpm_trie_key *key;
+	unsigned long value = 0;
+	unsigned int i;
+	int r;
+
+	key = alloca(sizeof(*key) + 4);
+	key->prefixlen = 32;
+
+	for (i = 0; i < 512; ++i) {
+		key->prefixlen = rand() % 33;
+		key->data[0] = rand() & 0xff;
+		key->data[1] = rand() & 0xff;
+		key->data[2] = rand() & 0xff;
+		key->data[3] = rand() & 0xff;
+		r = bpf_map_update_elem(map_fd[6], key, &value, 0);
+		assert(!r);
+	}
+
+	key->prefixlen = 32;
+	key->data[0] = 192;
+	key->data[1] = 168;
+	key->data[2] = 0;
+	key->data[3] = 1;
+	value = 128;
+
+	r = bpf_map_update_elem(map_fd[6], key, &value, 0);
+	assert(!r);
+}
+
 int main(int argc, char **argv)
 {
 	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
@@ -149,6 +228,8 @@ int main(int argc, char **argv)
 		printf("%s", bpf_log_buf);
 		return 1;
 	}
+
+	fill_lpm_trie();
 
 	run_perf_test(num_cpu);
 

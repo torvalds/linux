@@ -1,59 +1,61 @@
-FILES=					\
-	test-all.bin			\
-	test-backtrace.bin		\
-	test-bionic.bin			\
-	test-dwarf.bin			\
-	test-dwarf_getlocations.bin	\
-	test-fortify-source.bin		\
-	test-sync-compare-and-swap.bin	\
-	test-glibc.bin			\
-	test-gtk2.bin			\
-	test-gtk2-infobar.bin		\
-	test-hello.bin			\
-	test-libaudit.bin		\
-	test-libbfd.bin			\
-	test-liberty.bin		\
-	test-liberty-z.bin		\
-	test-cplus-demangle.bin		\
-	test-libelf.bin			\
-	test-libelf-getphdrnum.bin	\
-	test-libelf-gelf_getnote.bin	\
-	test-libelf-getshdrstrndx.bin	\
-	test-libelf-mmap.bin		\
-	test-libnuma.bin		\
-	test-numa_num_possible_cpus.bin	\
-	test-libperl.bin		\
-	test-libpython.bin		\
-	test-libpython-version.bin	\
-	test-libslang.bin		\
-	test-libcrypto.bin		\
-	test-libunwind.bin		\
-	test-libunwind-debug-frame.bin	\
-	test-libunwind-x86.bin		\
-	test-libunwind-x86_64.bin	\
-	test-libunwind-arm.bin		\
-	test-libunwind-aarch64.bin	\
-	test-libunwind-debug-frame-arm.bin	\
-	test-libunwind-debug-frame-aarch64.bin	\
-	test-pthread-attr-setaffinity-np.bin	\
-	test-stackprotector-all.bin	\
-	test-timerfd.bin		\
-	test-libdw-dwarf-unwind.bin	\
-	test-libbabeltrace.bin		\
-	test-compile-32.bin		\
-	test-compile-x32.bin		\
-	test-zlib.bin			\
-	test-lzma.bin			\
-	test-bpf.bin			\
-	test-get_cpuid.bin		\
-	test-sdt.bin			\
-	test-cxx.bin
+FILES=                                          \
+         test-all.bin                           \
+         test-backtrace.bin                     \
+         test-bionic.bin                        \
+         test-dwarf.bin                         \
+         test-dwarf_getlocations.bin            \
+         test-fortify-source.bin                \
+         test-sync-compare-and-swap.bin         \
+         test-glibc.bin                         \
+         test-gtk2.bin                          \
+         test-gtk2-infobar.bin                  \
+         test-hello.bin                         \
+         test-libaudit.bin                      \
+         test-libbfd.bin                        \
+         test-liberty.bin                       \
+         test-liberty-z.bin                     \
+         test-cplus-demangle.bin                \
+         test-libelf.bin                        \
+         test-libelf-getphdrnum.bin             \
+         test-libelf-gelf_getnote.bin           \
+         test-libelf-getshdrstrndx.bin          \
+         test-libelf-mmap.bin                   \
+         test-libnuma.bin                       \
+         test-numa_num_possible_cpus.bin        \
+         test-libperl.bin                       \
+         test-libpython.bin                     \
+         test-libpython-version.bin             \
+         test-libslang.bin                      \
+         test-libcrypto.bin                     \
+         test-libunwind.bin                     \
+         test-libunwind-debug-frame.bin         \
+         test-libunwind-x86.bin                 \
+         test-libunwind-x86_64.bin              \
+         test-libunwind-arm.bin                 \
+         test-libunwind-aarch64.bin             \
+         test-libunwind-debug-frame-arm.bin     \
+         test-libunwind-debug-frame-aarch64.bin \
+         test-pthread-attr-setaffinity-np.bin   \
+         test-stackprotector-all.bin            \
+         test-timerfd.bin                       \
+         test-libdw-dwarf-unwind.bin            \
+         test-libbabeltrace.bin                 \
+         test-compile-32.bin                    \
+         test-compile-x32.bin                   \
+         test-zlib.bin                          \
+         test-lzma.bin                          \
+         test-bpf.bin                           \
+         test-get_cpuid.bin                     \
+         test-sdt.bin                           \
+         test-cxx.bin                           \
+         test-jvmti.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
 CC := $(CROSS_COMPILE)gcc -MD
 CXX := $(CROSS_COMPILE)g++ -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
+LLVM_CONFIG ?= llvm-config
 
 all: $(FILES)
 
@@ -224,6 +226,30 @@ $(OUTPUT)test-sdt.bin:
 
 $(OUTPUT)test-cxx.bin:
 	$(BUILDXX) -std=gnu++11
+
+$(OUTPUT)test-jvmti.bin:
+	$(BUILD)
+
+$(OUTPUT)test-llvm.bin:
+	$(BUILDXX) -std=gnu++11 				\
+		-I$(shell $(LLVM_CONFIG) --includedir) 		\
+		-L$(shell $(LLVM_CONFIG) --libdir)		\
+		$(shell $(LLVM_CONFIG) --libs Core BPF)		\
+		$(shell $(LLVM_CONFIG) --system-libs)
+
+$(OUTPUT)test-llvm-version.bin:
+	$(BUILDXX) -std=gnu++11 				\
+		-I$(shell $(LLVM_CONFIG) --includedir)
+
+$(OUTPUT)test-clang.bin:
+	$(BUILDXX) -std=gnu++11 				\
+		-I$(shell $(LLVM_CONFIG) --includedir) 		\
+		-L$(shell $(LLVM_CONFIG) --libdir)		\
+		-Wl,--start-group -lclangBasic -lclangDriver	\
+		  -lclangFrontend -lclangEdit -lclangLex	\
+		  -lclangAST -Wl,--end-group 			\
+		$(shell $(LLVM_CONFIG) --libs Core option)	\
+		$(shell $(LLVM_CONFIG) --system-libs)
 
 -include $(OUTPUT)*.d
 

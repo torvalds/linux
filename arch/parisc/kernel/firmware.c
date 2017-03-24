@@ -1258,7 +1258,7 @@ int pdc_pat_cell_module(unsigned long *actcnt, unsigned long ploc, unsigned long
  *
  * Retrieve the cpu number for the cpu at the specified HPA.
  */
-int pdc_pat_cpu_get_number(struct pdc_pat_cpu_num *cpu_info, void *hpa)
+int pdc_pat_cpu_get_number(struct pdc_pat_cpu_num *cpu_info, unsigned long hpa)
 {
 	int retval;
 	unsigned long flags;

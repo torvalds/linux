@@ -406,12 +406,35 @@ static void register_fw_dump(struct fadump_mem_struct *fdm)
 void crash_fadump(struct pt_regs *regs, const char *str)
 {
 	struct fadump_crash_info_header *fdh = NULL;
+	int old_cpu, this_cpu;
 
 	if (!fw_dump.dump_registered || !fw_dump.fadumphdr_addr)
 		return;
 
+	/*
+	 * old_cpu == -1 means this is the first CPU which has come here,
+	 * go ahead and trigger fadump.
+	 *
+	 * old_cpu != -1 means some other CPU has already on it's way
+	 * to trigger fadump, just keep looping here.
+	 */
+	this_cpu = smp_processor_id();
+	old_cpu = cmpxchg(&crashing_cpu, -1, this_cpu);
+
+	if (old_cpu != -1) {
+		/*
+		 * We can't loop here indefinitely. Wait as long as fadump
+		 * is in force. If we race with fadump un-registration this
+		 * loop will break and then we go down to normal panic path
+		 * and reboot. If fadump is in force the first crashing
+		 * cpu will definitely trigger fadump.
+		 */
+		while (fw_dump.dump_registered)
+			cpu_relax();
+		return;
+	}
+
 	fdh = __va(fw_dump.fadumphdr_addr);
-	crashing_cpu = smp_processor_id();
 	fdh->crashing_cpu = crashing_cpu;
 	crash_save_vmcoreinfo();
 

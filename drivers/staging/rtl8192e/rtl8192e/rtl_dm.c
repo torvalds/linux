@@ -268,8 +268,8 @@ void rtl92e_dm_watchdog(struct net_device *dev)
 static void _rtl92e_dm_check_ac_dc_power(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	static char *ac_dc_script = "/etc/acpi/wireless-rtl-ac-dc-power.sh";
-	char *argv[] = {ac_dc_script, DRV_NAME, NULL};
+	static char const ac_dc_script[] = "/etc/acpi/wireless-rtl-ac-dc-power.sh";
+	char *argv[] = {(char *)ac_dc_script, DRV_NAME, NULL};
 	static char *envp[] = {"HOME=/",
 			"TERM=linux",
 			"PATH=/usr/bin:/bin",
@@ -1823,7 +1823,7 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 	enum rt_rf_power_state eRfPowerStateToSet;
 	bool bActuallySet = false;
 	char *argv[3];
-	static char *RadioPowerPath = "/etc/acpi/events/RadioPower.sh";
+	static char const RadioPowerPath[] = "/etc/acpi/events/RadioPower.sh";
 	static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin",
 			       NULL};
 
@@ -1862,7 +1862,7 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 		else
 			argv[1] = "RFON";
 
-		argv[0] = RadioPowerPath;
+		argv[0] = (char *)RadioPowerPath;
 		argv[2] = NULL;
 		call_usermodehelper(RadioPowerPath, argv, envp, UMH_WAIT_PROC);
 	}

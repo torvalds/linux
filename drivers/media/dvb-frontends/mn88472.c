@@ -411,7 +411,7 @@ err:
 	return ret;
 }
 
-static struct dvb_frontend_ops mn88472_ops = {
+static const struct dvb_frontend_ops mn88472_ops = {
 	.delsys = {SYS_DVBT, SYS_DVBT2, SYS_DVBC_ANNEX_A},
 	.info = {
 		.name = "Panasonic MN88472",
@@ -488,18 +488,6 @@ static int mn88472_probe(struct i2c_client *client,
 		goto err_kfree;
 	}
 
-	/* Check demod answers with correct chip id */
-	ret = regmap_read(dev->regmap[0], 0xff, &utmp);
-	if (ret)
-		goto err_regmap_0_regmap_exit;
-
-	dev_dbg(&client->dev, "chip id=%02x\n", utmp);
-
-	if (utmp != 0x02) {
-		ret = -ENODEV;
-		goto err_regmap_0_regmap_exit;
-	}
-
 	/*
 	 * Chip has three I2C addresses for different register banks. Used
 	 * addresses are 0x18, 0x1a and 0x1c. We register two dummy clients,
@@ -535,6 +523,18 @@ static int mn88472_probe(struct i2c_client *client,
 		goto err_client_2_i2c_unregister_device;
 	}
 	i2c_set_clientdata(dev->client[2], dev);
+
+	/* Check demod answers with correct chip id */
+	ret = regmap_read(dev->regmap[2], 0xff, &utmp);
+	if (ret)
+		goto err_regmap_2_regmap_exit;
+
+	dev_dbg(&client->dev, "chip id=%02x\n", utmp);
+
+	if (utmp != 0x02) {
+		ret = -ENODEV;
+		goto err_regmap_2_regmap_exit;
+	}
 
 	/* Sleep because chip is active by default */
 	ret = regmap_write(dev->regmap[2], 0x05, 0x3e);

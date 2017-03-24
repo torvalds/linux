@@ -33,7 +33,7 @@ static int amdgpu_benchmark_do_move(struct amdgpu_device *adev, unsigned size,
 {
 	unsigned long start_jiffies;
 	unsigned long end_jiffies;
-	struct fence *fence = NULL;
+	struct dma_fence *fence = NULL;
 	int i, r;
 
 	start_jiffies = jiffies;
@@ -43,17 +43,17 @@ static int amdgpu_benchmark_do_move(struct amdgpu_device *adev, unsigned size,
 				       false);
 		if (r)
 			goto exit_do_move;
-		r = fence_wait(fence, false);
+		r = dma_fence_wait(fence, false);
 		if (r)
 			goto exit_do_move;
-		fence_put(fence);
+		dma_fence_put(fence);
 	}
 	end_jiffies = jiffies;
 	r = jiffies_to_msecs(end_jiffies - start_jiffies);
 
 exit_do_move:
 	if (fence)
-		fence_put(fence);
+		dma_fence_put(fence);
 	return r;
 }
 

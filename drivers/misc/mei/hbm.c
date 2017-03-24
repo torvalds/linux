@@ -815,7 +815,7 @@ static void mei_hbm_cl_res(struct mei_device *dev,
 	struct mei_cl_cb *cb, *next;
 
 	cl = NULL;
-	list_for_each_entry_safe(cb, next, &dev->ctrl_rd_list.list, list) {
+	list_for_each_entry_safe(cb, next, &dev->ctrl_rd_list, list) {
 
 		cl = cb->cl;
 
@@ -989,6 +989,10 @@ static void mei_hbm_config_features(struct mei_device *dev)
 	/* Fixed Address Client Support */
 	if (dev->version.major_version >= HBM_MAJOR_VERSION_FA)
 		dev->hbm_f_fa_supported = 1;
+
+	/* OS ver message Support */
+	if (dev->version.major_version >= HBM_MAJOR_VERSION_OS)
+		dev->hbm_f_os_supported = 1;
 }
 
 /**

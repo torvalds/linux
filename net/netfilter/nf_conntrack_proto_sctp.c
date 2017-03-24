@@ -15,7 +15,6 @@
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/netfilter.h>
-#include <linux/module.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/sctp.h>
@@ -23,7 +22,9 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <net/sctp/checksum.h>
 
+#include <net/netfilter/nf_log.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
@@ -144,15 +145,9 @@ static const u8 sctp_conntracks[2][11][SCTP_CONNTRACK_MAX] = {
 	}
 };
 
-static int sctp_net_id	__read_mostly;
-struct sctp_net {
-	struct nf_proto_net pn;
-	unsigned int timeouts[SCTP_CONNTRACK_MAX];
-};
-
-static inline struct sctp_net *sctp_pernet(struct net *net)
+static inline struct nf_sctp_net *sctp_pernet(struct net *net)
 {
-	return net_generic(net, sctp_net_id);
+	return &net->ct.nf_ct_proto.sctp;
 }
 
 static bool sctp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
@@ -512,6 +507,34 @@ static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 }
 
+static int sctp_error(struct net *net, struct nf_conn *tpl, struct sk_buff *skb,
+		      unsigned int dataoff,
+		      u8 pf, unsigned int hooknum)
+{
+	const struct sctphdr *sh;
+	struct sctphdr _sctph;
+	const char *logmsg;
+
+	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
+	if (!sh) {
+		logmsg = "nf_ct_sctp: short packet ";
+		goto out_invalid;
+	}
+	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
+	    skb->ip_summed == CHECKSUM_NONE) {
+		if (sh->checksum != sctp_compute_cksum(skb, dataoff)) {
+			logmsg = "nf_ct_sctp: bad CRC ";
+			goto out_invalid;
+		}
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
+	return NF_ACCEPT;
+out_invalid:
+	if (LOG_INVALID(net, IPPROTO_SCTP))
+		nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL, "%s", logmsg);
+	return -NF_ACCEPT;
+}
+
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
 #include <linux/netfilter/nfnetlink.h>
@@ -600,7 +623,7 @@ static int sctp_timeout_nlattr_to_obj(struct nlattr *tb[],
 				      struct net *net, void *data)
 {
 	unsigned int *timeouts = data;
-	struct sctp_net *sn = sctp_pernet(net);
+	struct nf_sctp_net *sn = sctp_pernet(net);
 	int i;
 
 	/* set default SCTP timeouts. */
@@ -708,7 +731,7 @@ static struct ctl_table sctp_sysctl_table[] = {
 #endif
 
 static int sctp_kmemdup_sysctl_table(struct nf_proto_net *pn,
-				     struct sctp_net *sn)
+				     struct nf_sctp_net *sn)
 {
 #ifdef CONFIG_SYSCTL
 	if (pn->ctl_table)
@@ -735,7 +758,7 @@ static int sctp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 
 static int sctp_init_net(struct net *net, u_int16_t proto)
 {
-	struct sctp_net *sn = sctp_pernet(net);
+	struct nf_sctp_net *sn = sctp_pernet(net);
 	struct nf_proto_net *pn = &sn->pn;
 
 	if (!pn->users) {
@@ -748,7 +771,7 @@ static int sctp_init_net(struct net *net, u_int16_t proto)
 	return sctp_kmemdup_sysctl_table(pn, sn);
 }
 
-static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
+struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.l3proto		= PF_INET,
 	.l4proto 		= IPPROTO_SCTP,
 	.name 			= "sctp",
@@ -759,6 +782,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.packet 		= sctp_packet,
 	.get_timeouts		= sctp_get_timeouts,
 	.new 			= sctp_new,
+	.error			= sctp_error,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= sctp_to_nlattr,
@@ -778,11 +802,11 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 		.nla_policy	= sctp_timeout_nla_policy,
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
-	.net_id			= &sctp_net_id,
 	.init_net		= sctp_init_net,
 };
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_sctp4);
 
-static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
+struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.l3proto		= PF_INET6,
 	.l4proto 		= IPPROTO_SCTP,
 	.name 			= "sctp",
@@ -793,6 +817,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.packet 		= sctp_packet,
 	.get_timeouts		= sctp_get_timeouts,
 	.new 			= sctp_new,
+	.error			= sctp_error,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= sctp_to_nlattr,
@@ -812,81 +837,6 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 #endif
-	.net_id			= &sctp_net_id,
 	.init_net		= sctp_init_net,
 };
-
-static int sctp_net_init(struct net *net)
-{
-	int ret = 0;
-
-	ret = nf_ct_l4proto_pernet_register(net, &nf_conntrack_l4proto_sctp4);
-	if (ret < 0) {
-		pr_err("nf_conntrack_sctp4: pernet registration failed.\n");
-		goto out;
-	}
-	ret = nf_ct_l4proto_pernet_register(net, &nf_conntrack_l4proto_sctp6);
-	if (ret < 0) {
-		pr_err("nf_conntrack_sctp6: pernet registration failed.\n");
-		goto cleanup_sctp4;
-	}
-	return 0;
-
-cleanup_sctp4:
-	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_sctp4);
-out:
-	return ret;
-}
-
-static void sctp_net_exit(struct net *net)
-{
-	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_sctp6);
-	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_sctp4);
-}
-
-static struct pernet_operations sctp_net_ops = {
-	.init = sctp_net_init,
-	.exit = sctp_net_exit,
-	.id   = &sctp_net_id,
-	.size = sizeof(struct sctp_net),
-};
-
-static int __init nf_conntrack_proto_sctp_init(void)
-{
-	int ret;
-
-	ret = register_pernet_subsys(&sctp_net_ops);
-	if (ret < 0)
-		goto out_pernet;
-
-	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_sctp4);
-	if (ret < 0)
-		goto out_sctp4;
-
-	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_sctp6);
-	if (ret < 0)
-		goto out_sctp6;
-
-	return 0;
-out_sctp6:
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
-out_sctp4:
-	unregister_pernet_subsys(&sctp_net_ops);
-out_pernet:
-	return ret;
-}
-
-static void __exit nf_conntrack_proto_sctp_fini(void)
-{
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_sctp6);
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_sctp4);
-	unregister_pernet_subsys(&sctp_net_ops);
-}
-
-module_init(nf_conntrack_proto_sctp_init);
-module_exit(nf_conntrack_proto_sctp_fini);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Kiran Kumar Immidi");
-MODULE_DESCRIPTION("Netfilter connection tracking protocol helper for SCTP");
-MODULE_ALIAS("ip_conntrack_proto_sctp");
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_sctp6);

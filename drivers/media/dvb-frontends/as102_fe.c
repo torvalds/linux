@@ -415,7 +415,7 @@ static void as102_fe_release(struct dvb_frontend *fe)
 }
 
 
-static struct dvb_frontend_ops as102_fe_ops = {
+static const struct dvb_frontend_ops as102_fe_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Abilis AS102 DVB-T",

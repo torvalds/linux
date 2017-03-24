@@ -56,7 +56,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/miscdevice.h>
 #include <linux/interrupt.h>
 #include <linux/watchdog.h>
 #include <linux/cpumask.h>
@@ -374,7 +373,7 @@ void octeon_wdt_nmi_stage3(u64 reg[32])
 	octeon_wdt_write_string("*** Chip soft reset soon ***\r\n");
 }
 
-static void octeon_wdt_disable_interrupt(int cpu)
+static int octeon_wdt_cpu_pre_down(unsigned int cpu)
 {
 	unsigned int core;
 	unsigned int irq;
@@ -392,9 +391,10 @@ static void octeon_wdt_disable_interrupt(int cpu)
 	cvmx_write_csr(CVMX_CIU_WDOGX(core), ciu_wdog.u64);
 
 	free_irq(irq, octeon_wdt_poke_irq);
+	return 0;
 }
 
-static void octeon_wdt_setup_interrupt(int cpu)
+static int octeon_wdt_cpu_online(unsigned int cpu)
 {
 	unsigned int core;
 	unsigned int irq;
@@ -424,25 +424,8 @@ static void octeon_wdt_setup_interrupt(int cpu)
 	ciu_wdog.s.len = timeout_cnt;
 	ciu_wdog.s.mode = 3;	/* 3 = Interrupt + NMI + Soft-Reset */
 	cvmx_write_csr(CVMX_CIU_WDOGX(core), ciu_wdog.u64);
-}
 
-static int octeon_wdt_cpu_callback(struct notifier_block *nfb,
-					   unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_DOWN_PREPARE:
-		octeon_wdt_disable_interrupt(cpu);
-		break;
-	case CPU_ONLINE:
-	case CPU_DOWN_FAILED:
-		octeon_wdt_setup_interrupt(cpu);
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
+	return 0;
 }
 
 static int octeon_wdt_ping(struct watchdog_device __always_unused *wdog)
@@ -531,10 +514,6 @@ static int octeon_wdt_stop(struct watchdog_device *wdog)
 	return 0;
 }
 
-static struct notifier_block octeon_wdt_cpu_notifier = {
-	.notifier_call = octeon_wdt_cpu_callback,
-};
-
 static const struct watchdog_info octeon_wdt_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING,
 	.identity = "OCTEON",
@@ -553,6 +532,7 @@ static struct watchdog_device octeon_wdt = {
 	.ops	= &octeon_wdt_ops,
 };
 
+static enum cpuhp_state octeon_wdt_online;
 /**
  * Module/ driver initialization.
  *
@@ -562,7 +542,6 @@ static int __init octeon_wdt_init(void)
 {
 	int i;
 	int ret;
-	int cpu;
 	u64 *ptr;
 
 	/*
@@ -610,14 +589,16 @@ static int __init octeon_wdt_init(void)
 
 	cpumask_clear(&irq_enabled_cpus);
 
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		octeon_wdt_setup_interrupt(cpu);
-
-	__register_hotcpu_notifier(&octeon_wdt_cpu_notifier);
-	cpu_notifier_register_done();
-
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "watchdog/octeon:online",
+				octeon_wdt_cpu_online, octeon_wdt_cpu_pre_down);
+	if (ret < 0)
+		goto err;
+	octeon_wdt_online = ret;
 	return 0;
+err:
+	cvmx_write_csr(CVMX_MIO_BOOT_LOC_CFGX(0), 0);
+	watchdog_unregister_device(&octeon_wdt);
+	return ret;
 }
 
 /**
@@ -625,22 +606,8 @@ static int __init octeon_wdt_init(void)
  */
 static void __exit octeon_wdt_cleanup(void)
 {
-	int cpu;
-
 	watchdog_unregister_device(&octeon_wdt);
-
-	cpu_notifier_register_begin();
-	__unregister_hotcpu_notifier(&octeon_wdt_cpu_notifier);
-
-	for_each_online_cpu(cpu) {
-		int core = cpu2core(cpu);
-		/* Disable the watchdog */
-		cvmx_write_csr(CVMX_CIU_WDOGX(core), 0);
-		/* Free the interrupt handler */
-		free_irq(OCTEON_IRQ_WDOG0 + core, octeon_wdt_poke_irq);
-	}
-
-	cpu_notifier_register_done();
+	cpuhp_remove_state(octeon_wdt_online);
 
 	/*
 	 * Disable the boot-bus memory, the code it points to is soon

@@ -2267,10 +2267,9 @@ static int atmel_nand_probe(struct platform_device *pdev)
 		dev_info(host->dev, "No DMA support for NAND access.\n");
 
 	/* first scan to find the device and get the page size */
-	if (nand_scan_ident(mtd, 1, NULL)) {
-		res = -ENXIO;
+	res = nand_scan_ident(mtd, 1, NULL);
+	if (res)
 		goto err_scan_ident;
-	}
 
 	if (host->board.on_flash_bbt || on_flash_bbt)
 		nand_chip->bbt_options |= NAND_BBT_USE_FLASH;
@@ -2304,10 +2303,9 @@ static int atmel_nand_probe(struct platform_device *pdev)
 	}
 
 	/* second phase scan */
-	if (nand_scan_tail(mtd)) {
-		res = -ENXIO;
+	res = nand_scan_tail(mtd);
+	if (res)
 		goto err_scan_tail;
-	}
 
 	mtd->name = "atmel_nand";
 	res = mtd_device_register(mtd, host->board.parts,

@@ -130,7 +130,7 @@
 #include <linux/ide.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #define DRV_NAME "hpt366"

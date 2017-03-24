@@ -20,12 +20,9 @@ Required properties:
 - slaves		: Specifies number for slaves
 - active_slave		: Specifies the slave to use for time stamping,
 			  ethtool and SIOCGMIIPHY
-- cpts_clock_mult	: Numerator to convert input clock ticks into nanoseconds
-- cpts_clock_shift	: Denominator to convert input clock ticks into nanoseconds
 
 Optional properties:
 - ti,hwmods		: Must be "cpgmac0"
-- no_bd_ram		: Must be 0 or 1
 - dual_emac		: Specifies Switch to act as Dual EMAC
 - syscon		: Phandle to the system control device node, which is
 			  the control module device of the am33x
@@ -35,7 +32,11 @@ Optional properties:
 			  For example in dra72x-evm, pcf gpio has to be
 			  driven low so that cpsw slave 0 and phy data
 			  lines are connected via mux.
-
+- cpts_clock_mult	: Numerator to convert input clock ticks into nanoseconds
+- cpts_clock_shift	: Denominator to convert input clock ticks into nanoseconds
+			  Mult and shift will be calculated basing on CPTS
+			  rftclk frequency if both cpts_clock_shift and
+			  cpts_clock_mult properties are not provided.
 
 Slave Properties:
 Required properties:
@@ -68,7 +69,6 @@ Examples:
 		cpdma_channels = <8>;
 		ale_entries = <1024>;
 		bd_ram_size = <0x2000>;
-		no_bd_ram = <0>;
 		rx_descs = <64>;
 		mac_control = <0x20>;
 		slaves = <2>;
@@ -97,7 +97,6 @@ Examples:
 		cpdma_channels = <8>;
 		ale_entries = <1024>;
 		bd_ram_size = <0x2000>;
-		no_bd_ram = <0>;
 		rx_descs = <64>;
 		mac_control = <0x20>;
 		slaves = <2>;

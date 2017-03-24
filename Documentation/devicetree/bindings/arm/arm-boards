@@ -148,11 +148,12 @@ Example:
 
 /dts-v1/;
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "skeleton.dtsi"
 
 / {
 	model = "ARM RealView PB1176 with device tree";
 	compatible = "arm,realview-pb1176";
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	soc {
 		#address-cells = <1>;

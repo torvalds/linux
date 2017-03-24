@@ -44,11 +44,12 @@ extern unsigned int comedi_default_buf_maxsize_kb;
 extern struct comedi_driver *comedi_drivers;
 extern struct mutex comedi_drivers_list_lock;
 
-int insn_inval(struct comedi_device *, struct comedi_subdevice *,
-	       struct comedi_insn *, unsigned int *);
+int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
+	       struct comedi_insn *insn, unsigned int *data);
 
-void comedi_device_detach(struct comedi_device *);
-int comedi_device_attach(struct comedi_device *, struct comedi_devconfig *);
+void comedi_device_detach(struct comedi_device *dev);
+int comedi_device_attach(struct comedi_device *dev,
+			 struct comedi_devconfig *it);
 
 #ifdef CONFIG_PROC_FS
 

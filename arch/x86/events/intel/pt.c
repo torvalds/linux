@@ -36,13 +36,6 @@ static DEFINE_PER_CPU(struct pt, pt_ctx);
 
 static struct pt_pmu pt_pmu;
 
-enum cpuid_regs {
-	CR_EAX = 0,
-	CR_ECX,
-	CR_EDX,
-	CR_EBX
-};
-
 /*
  * Capabilities of Intel PT hardware, such as number of address bits or
  * supported output schemes, are cached and exported to userspace as "caps"
@@ -64,21 +57,21 @@ static struct pt_cap_desc {
 	u8		reg;
 	u32		mask;
 } pt_caps[] = {
-	PT_CAP(max_subleaf,		0, CR_EAX, 0xffffffff),
-	PT_CAP(cr3_filtering,		0, CR_EBX, BIT(0)),
-	PT_CAP(psb_cyc,			0, CR_EBX, BIT(1)),
-	PT_CAP(ip_filtering,		0, CR_EBX, BIT(2)),
-	PT_CAP(mtc,			0, CR_EBX, BIT(3)),
-	PT_CAP(ptwrite,			0, CR_EBX, BIT(4)),
-	PT_CAP(power_event_trace,	0, CR_EBX, BIT(5)),
-	PT_CAP(topa_output,		0, CR_ECX, BIT(0)),
-	PT_CAP(topa_multiple_entries,	0, CR_ECX, BIT(1)),
-	PT_CAP(single_range_output,	0, CR_ECX, BIT(2)),
-	PT_CAP(payloads_lip,		0, CR_ECX, BIT(31)),
-	PT_CAP(num_address_ranges,	1, CR_EAX, 0x3),
-	PT_CAP(mtc_periods,		1, CR_EAX, 0xffff0000),
-	PT_CAP(cycle_thresholds,	1, CR_EBX, 0xffff),
-	PT_CAP(psb_periods,		1, CR_EBX, 0xffff0000),
+	PT_CAP(max_subleaf,		0, CPUID_EAX, 0xffffffff),
+	PT_CAP(cr3_filtering,		0, CPUID_EBX, BIT(0)),
+	PT_CAP(psb_cyc,			0, CPUID_EBX, BIT(1)),
+	PT_CAP(ip_filtering,		0, CPUID_EBX, BIT(2)),
+	PT_CAP(mtc,			0, CPUID_EBX, BIT(3)),
+	PT_CAP(ptwrite,			0, CPUID_EBX, BIT(4)),
+	PT_CAP(power_event_trace,	0, CPUID_EBX, BIT(5)),
+	PT_CAP(topa_output,		0, CPUID_ECX, BIT(0)),
+	PT_CAP(topa_multiple_entries,	0, CPUID_ECX, BIT(1)),
+	PT_CAP(single_range_output,	0, CPUID_ECX, BIT(2)),
+	PT_CAP(payloads_lip,		0, CPUID_ECX, BIT(31)),
+	PT_CAP(num_address_ranges,	1, CPUID_EAX, 0x3),
+	PT_CAP(mtc_periods,		1, CPUID_EAX, 0xffff0000),
+	PT_CAP(cycle_thresholds,	1, CPUID_EBX, 0xffff),
+	PT_CAP(psb_periods,		1, CPUID_EBX, 0xffff0000),
 };
 
 static u32 pt_cap_get(enum pt_capabilities cap)
@@ -106,18 +99,24 @@ static struct attribute_group pt_cap_group = {
 };
 
 PMU_FORMAT_ATTR(cyc,		"config:1"	);
+PMU_FORMAT_ATTR(pwr_evt,	"config:4"	);
+PMU_FORMAT_ATTR(fup_on_ptw,	"config:5"	);
 PMU_FORMAT_ATTR(mtc,		"config:9"	);
 PMU_FORMAT_ATTR(tsc,		"config:10"	);
 PMU_FORMAT_ATTR(noretcomp,	"config:11"	);
+PMU_FORMAT_ATTR(ptw,		"config:12"	);
 PMU_FORMAT_ATTR(mtc_period,	"config:14-17"	);
 PMU_FORMAT_ATTR(cyc_thresh,	"config:19-22"	);
 PMU_FORMAT_ATTR(psb_period,	"config:24-27"	);
 
 static struct attribute *pt_formats_attr[] = {
 	&format_attr_cyc.attr,
+	&format_attr_pwr_evt.attr,
+	&format_attr_fup_on_ptw.attr,
 	&format_attr_mtc.attr,
 	&format_attr_tsc.attr,
 	&format_attr_noretcomp.attr,
+	&format_attr_ptw.attr,
 	&format_attr_mtc_period.attr,
 	&format_attr_cyc_thresh.attr,
 	&format_attr_psb_period.attr,
@@ -213,10 +212,10 @@ static int __init pt_pmu_hw_init(void)
 
 	for (i = 0; i < PT_CPUID_LEAVES; i++) {
 		cpuid_count(20, i,
-			    &pt_pmu.caps[CR_EAX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_EBX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_ECX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_EDX + i*PT_CPUID_REGS_NUM]);
+			    &pt_pmu.caps[CPUID_EAX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_EBX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_ECX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_EDX + i*PT_CPUID_REGS_NUM]);
 	}
 
 	ret = -ENOMEM;

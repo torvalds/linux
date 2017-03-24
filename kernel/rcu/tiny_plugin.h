@@ -60,12 +60,17 @@ EXPORT_SYMBOL_GPL(rcu_scheduler_active);
 
 /*
  * During boot, we forgive RCU lockdep issues.  After this function is
- * invoked, we start taking RCU lockdep issues seriously.
+ * invoked, we start taking RCU lockdep issues seriously.  Note that unlike
+ * Tree RCU, Tiny RCU transitions directly from RCU_SCHEDULER_INACTIVE
+ * to RCU_SCHEDULER_RUNNING, skipping the RCU_SCHEDULER_INIT stage.
+ * The reason for this is that Tiny RCU does not need kthreads, so does
+ * not have to care about the fact that the scheduler is half-initialized
+ * at a certain phase of the boot process.
  */
 void __init rcu_scheduler_starting(void)
 {
 	WARN_ON(nr_context_switches() > 0);
-	rcu_scheduler_active = 1;
+	rcu_scheduler_active = RCU_SCHEDULER_RUNNING;
 }
 
 #endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */

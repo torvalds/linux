@@ -479,7 +479,6 @@ static int radeon_atpx_power_state(enum vga_switcheroo_client_id id,
  */
 static bool radeon_atpx_pci_probe_handle(struct pci_dev *pdev)
 {
-	struct pci_dev *parent_pdev = pci_upstream_bridge(pdev);
 	acpi_handle dhandle, atpx_handle;
 	acpi_status status;
 
@@ -493,7 +492,6 @@ static bool radeon_atpx_pci_probe_handle(struct pci_dev *pdev)
 
 	radeon_atpx_priv.dhandle = dhandle;
 	radeon_atpx_priv.atpx.handle = atpx_handle;
-	radeon_atpx_priv.bridge_pm_usable = parent_pdev && parent_pdev->bridge_d3;
 	return true;
 }
 
@@ -555,11 +553,16 @@ static bool radeon_atpx_detect(void)
 	struct pci_dev *pdev = NULL;
 	bool has_atpx = false;
 	int vga_count = 0;
+	bool d3_supported = false;
+	struct pci_dev *parent_pdev;
 
 	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
 		vga_count++;
 
 		has_atpx |= (radeon_atpx_pci_probe_handle(pdev) == true);
+
+		parent_pdev = pci_upstream_bridge(pdev);
+		d3_supported |= parent_pdev && parent_pdev->bridge_d3;
 	}
 
 	/* some newer PX laptops mark the dGPU as a non-VGA display device */
@@ -567,6 +570,9 @@ static bool radeon_atpx_detect(void)
 		vga_count++;
 
 		has_atpx |= (radeon_atpx_pci_probe_handle(pdev) == true);
+
+		parent_pdev = pci_upstream_bridge(pdev);
+		d3_supported |= parent_pdev && parent_pdev->bridge_d3;
 	}
 
 	if (has_atpx && vga_count == 2) {
@@ -574,6 +580,7 @@ static bool radeon_atpx_detect(void)
 		printk(KERN_INFO "vga_switcheroo: detected switching method %s handle\n",
 		       acpi_method_name);
 		radeon_atpx_priv.atpx_detected = true;
+		radeon_atpx_priv.bridge_pm_usable = d3_supported;
 		radeon_atpx_init();
 		return true;
 	}

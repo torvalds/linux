@@ -15,6 +15,6 @@ struct lockd_net {
 	struct list_head nsm_handles;
 };
 
-extern int lockd_net_id;
+extern unsigned int lockd_net_id;
 
 #endif

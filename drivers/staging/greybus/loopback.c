@@ -124,7 +124,7 @@ static DEFINE_IDA(loopback_ida);
 
 #define GB_LOOPBACK_FIFO_DEFAULT			8192
 
-static unsigned kfifo_depth = GB_LOOPBACK_FIFO_DEFAULT;
+static unsigned int kfifo_depth = GB_LOOPBACK_FIFO_DEFAULT;
 module_param(kfifo_depth, uint, 0444);
 
 /* Maximum size of any one send data buffer we support */
@@ -629,6 +629,7 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	mutex_lock(&gb->mutex);
 	ret = gb_operation_request_send(operation,
 					gb_loopback_async_operation_callback,
+					0,
 					GFP_KERNEL);
 	if (ret)
 		goto error;
@@ -1008,11 +1009,22 @@ static int gb_loopback_fn(void *data)
 
 		/* Optionally terminate */
 		if (gb->send_count == gb->iteration_max) {
+			mutex_unlock(&gb->mutex);
+
+			/* Wait for synchronous and asynchronus completion */
+			gb_loopback_async_wait_all(gb);
+
+			/* Mark complete unless user-space has poked us */
+			mutex_lock(&gb->mutex);
 			if (gb->iteration_count == gb->iteration_max) {
 				gb->type = 0;
 				gb->send_count = 0;
 				sysfs_notify(&gb->dev->kobj,  NULL,
 						"iteration_count");
+				dev_dbg(&bundle->dev, "load test complete\n");
+			} else {
+				dev_dbg(&bundle->dev,
+					"continuing on with new test set\n");
 			}
 			mutex_unlock(&gb->mutex);
 			continue;
@@ -1026,13 +1038,12 @@ static int gb_loopback_fn(void *data)
 
 		/* Else operations to perform */
 		if (gb->async) {
-			if (type == GB_LOOPBACK_TYPE_PING) {
+			if (type == GB_LOOPBACK_TYPE_PING)
 				error = gb_loopback_async_ping(gb);
-			} else if (type == GB_LOOPBACK_TYPE_TRANSFER) {
+			else if (type == GB_LOOPBACK_TYPE_TRANSFER)
 				error = gb_loopback_async_transfer(gb, size);
-			} else if (type == GB_LOOPBACK_TYPE_SINK) {
+			else if (type == GB_LOOPBACK_TYPE_SINK)
 				error = gb_loopback_async_sink(gb, size);
-			}
 
 			if (error)
 				gb->error++;
@@ -1051,8 +1062,13 @@ static int gb_loopback_fn(void *data)
 			gb_loopback_calculate_stats(gb, !!error);
 		}
 		gb->send_count++;
-		if (us_wait)
-			udelay(us_wait);
+
+		if (us_wait) {
+			if (us_wait < 20000)
+				usleep_range(us_wait, us_wait + 100);
+			else
+				msleep(us_wait / 1000);
+		}
 	}
 
 	gb_pm_runtime_put_autosuspend(bundle);
@@ -1199,7 +1215,7 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 	/* Create per-connection sysfs and debugfs data-points */
 	snprintf(name, sizeof(name), "raw_latency_%s",
 		 dev_name(&connection->bundle->dev));
-	gb->file = debugfs_create_file(name, S_IFREG | S_IRUGO, gb_dev.root, gb,
+	gb->file = debugfs_create_file(name, S_IFREG | 0444, gb_dev.root, gb,
 				       &gb_loopback_debugfs_latency_ops);
 
 	gb->id = ida_simple_get(&loopback_ida, 0, 0, GFP_KERNEL);

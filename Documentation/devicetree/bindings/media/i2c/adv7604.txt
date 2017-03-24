@@ -34,6 +34,7 @@ The digital output port node must contain at least one endpoint.
 Optional Properties:
 
   - reset-gpios: Reference to the GPIO connected to the device's reset pin.
+  - default-input: Select which input is selected after reset.
 
 Optional Endpoint Properties:
 
@@ -46,8 +47,6 @@ Optional Endpoint Properties:
 
   If none of hsync-active, vsync-active and pclk-sample is specified the
   endpoint will use embedded BT.656 synchronization.
-
-  - default-input: Select which input is selected after reset.
 
 Example:
 

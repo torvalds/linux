@@ -22,9 +22,11 @@
 /* IDs of the 6 default common rings of msgbuf protocol */
 #define BRCMF_H2D_MSGRING_CONTROL_SUBMIT	0
 #define BRCMF_H2D_MSGRING_RXPOST_SUBMIT		1
+#define BRCMF_H2D_MSGRING_FLOWRING_IDSTART	2
 #define BRCMF_D2H_MSGRING_CONTROL_COMPLETE	2
 #define BRCMF_D2H_MSGRING_TX_COMPLETE		3
 #define BRCMF_D2H_MSGRING_RX_COMPLETE		4
+
 
 #define BRCMF_NROF_H2D_COMMON_MSGRINGS		2
 #define BRCMF_NROF_D2H_COMMON_MSGRINGS		3
@@ -95,14 +97,18 @@ struct brcmf_bus_ops {
  * @flowrings: commonrings which are dynamically created and destroyed for data.
  * @rx_dataoffset: if set then all rx data has this this offset.
  * @max_rxbufpost: maximum number of buffers to post for rx.
- * @nrof_flowrings: number of flowrings.
+ * @max_flowrings: maximum number of tx flow rings supported.
+ * @max_submissionrings: maximum number of submission rings(h2d) supported.
+ * @max_completionrings: maximum number of completion rings(d2h) supported.
  */
 struct brcmf_bus_msgbuf {
 	struct brcmf_commonring *commonrings[BRCMF_NROF_COMMON_MSGRINGS];
 	struct brcmf_commonring **flowrings;
 	u32 rx_dataoffset;
 	u32 max_rxbufpost;
-	u32 nrof_flowrings;
+	u16 max_flowrings;
+	u16 max_submissionrings;
+	u16 max_completionrings;
 };
 
 
@@ -212,9 +218,6 @@ int brcmf_bus_get_memdump(struct brcmf_bus *bus, void *data, size_t len)
  * interface functions from common layer
  */
 
-bool brcmf_c_prec_enq(struct device *dev, struct pktq *q, struct sk_buff *pkt,
-		      int prec);
-
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
 void brcmf_rx_frame(struct device *dev, struct sk_buff *rxp, bool handle_event);
 /* Receive async event packet from firmware. Callee disposes of rxp. */
@@ -235,13 +238,12 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success);
 /* Configure the "global" bus state used by upper layers */
 void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state);
 
-int brcmf_bus_start(struct device *dev);
+int brcmf_bus_started(struct device *dev);
 s32 brcmf_iovar_data_set(struct device *dev, char *name, void *data, u32 len);
 void brcmf_bus_add_txhdrlen(struct device *dev, uint len);
 
 #ifdef CONFIG_BRCMFMAC_SDIO
 void brcmf_sdio_exit(void);
-void brcmf_sdio_init(void);
 void brcmf_sdio_register(void);
 #endif
 #ifdef CONFIG_BRCMFMAC_USB

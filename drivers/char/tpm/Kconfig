@@ -6,6 +6,7 @@ menuconfig TCG_TPM
 	tristate "TPM Hardware Support"
 	depends on HAS_IOMEM
 	select SECURITYFS
+	select CRYPTO_HASH_INFO
 	---help---
 	  If you have a TPM security chip in your system, which
 	  implements the Trusted Computing Group's specification,
@@ -32,7 +33,7 @@ config TCG_TIS_CORE
 
 config TCG_TIS
 	tristate "TPM Interface Specification 1.2 Interface / TPM 2.0 FIFO Interface"
-	depends on X86
+	depends on X86 || OF
 	select TCG_TIS_CORE
 	---help---
 	  If you have a TPM security chip that is compliant with the

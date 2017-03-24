@@ -12,11 +12,8 @@
  * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
  *
- *************************************************************************
- *
  * Driver includes
- *
- *************************************************************************/
+ */
 
 #ifndef __DGNC_DRIVER_H
 #define __DGNC_DRIVER_H
@@ -26,19 +23,14 @@
 #include <linux/interrupt.h>
 
 #include "digi.h"		/* Digi specific ioctl header */
-#include "dgnc_sysfs.h"		/* Support for SYSFS */
 
-/*************************************************************************
- *
- * Driver defines
- *
- *************************************************************************/
+/* Driver defines */
 
-/* Driver identification and error statments */
-#define	PROCSTR		"dgnc"			/* /proc entries	 */
-#define	DEVSTR		"/dev/dg/dgnc"		/* /dev entries		 */
-#define	DRVSTR		"dgnc"			/* Driver name string	 */
-#define	DG_PART		"40002369_F"		/* RPM part number	 */
+/* Driver identification and error statements */
+#define	PROCSTR		"dgnc"			/* /proc entries */
+#define	DEVSTR		"/dev/dg/dgnc"		/* /dev entries */
+#define	DRVSTR		"dgnc"			/* Driver name string */
+#define	DG_PART		"40002369_F"		/* RPM part number */
 
 #define TRC_TO_CONSOLE 1
 
@@ -61,7 +53,8 @@
 #define PORT_NUM(dev)	((dev) & 0x7f)
 #define IS_PRINT(dev)	(((dev) & 0xff) >= 0x80)
 
-/* MAX number of stop characters we will send
+/*
+ *MAX number of stop characters we will send
  * when our read queue is getting full
  */
 #define MAX_STOPS_SENT 5
@@ -88,35 +81,28 @@
 #define   _POSIX_VDISABLE '\0'
 #endif
 
-/*
- * All the possible states the driver can be while being loaded.
- */
+/* All the possible states the driver can be while being loaded. */
+
 enum {
 	DRIVER_INITIALIZED = 0,
 	DRIVER_READY
 };
 
-/*
- * All the possible states the board can be while booting up.
- */
+/* All the possible states the board can be while booting up. */
+
 enum {
 	BOARD_FAILED = 0,
 	BOARD_FOUND,
 	BOARD_READY
 };
 
-/*************************************************************************
- *
- * Structures and closely related defines.
- *
- *************************************************************************/
+/* Structures and closely related defines. */
 
 struct dgnc_board;
 struct channel_t;
 
-/************************************************************************
- * Per board operations structure				       *
- ************************************************************************/
+/* Per board operations structure */
+
 struct board_ops {
 	void (*tasklet)(unsigned long data);
 	irqreturn_t (*intr)(int irq, void *voidbrd);
@@ -138,16 +124,14 @@ struct board_ops {
 	void (*send_immediate_char)(struct channel_t *ch, unsigned char);
 };
 
-/************************************************************************
- * Device flag definitions for bd_flags.
- ************************************************************************/
+/* Device flag definitions for bd_flags. */
+
 #define BD_IS_PCI_EXPRESS     0x0001	  /* Is a PCI Express board */
 
-/*
- *	Per-board information
- */
+/*	Per-board information */
+
 struct dgnc_board {
-	int		magic;		/* Board Magic number.  */
+	int		magic;		/* Board Magic number. */
 	int		boardnum;	/* Board number: 0-32 */
 
 	int		type;		/* Type of board */
@@ -220,62 +204,56 @@ struct dgnc_board {
 
 };
 
-/************************************************************************
- * Unit flag definitions for un_flags.
- ************************************************************************/
-#define UN_ISOPEN	0x0001		/* Device is open		*/
-#define UN_CLOSING	0x0002		/* Line is being closed		*/
-#define UN_IMM		0x0004		/* Service immediately		*/
-#define UN_BUSY		0x0008		/* Some work this channel	*/
-#define UN_BREAKI	0x0010		/* Input break received		*/
+/* Unit flag definitions for un_flags. */
+#define UN_ISOPEN	0x0001		/* Device is open */
+#define UN_CLOSING	0x0002		/* Line is being closed	*/
+#define UN_IMM		0x0004		/* Service immediately */
+#define UN_BUSY		0x0008		/* Some work this channel */
+#define UN_BREAKI	0x0010		/* Input break received	*/
 #define UN_PWAIT	0x0020		/* Printer waiting for terminal	*/
-#define UN_TIME		0x0040		/* Waiting on time		*/
-#define UN_EMPTY	0x0080		/* Waiting output queue empty	*/
+#define UN_TIME		0x0040		/* Waiting on time */
+#define UN_EMPTY	0x0080		/* Waiting output queue empty */
 #define UN_LOW		0x0100		/* Waiting output low water mark*/
-#define UN_EXCL_OPEN	0x0200		/* Open for exclusive use	*/
-#define UN_WOPEN	0x0400		/* Device waiting for open	*/
-#define UN_WIOCTL	0x0800		/* Device waiting for open	*/
-#define UN_HANGUP	0x8000		/* Carrier lost			*/
+#define UN_EXCL_OPEN	0x0200		/* Open for exclusive use */
+#define UN_WOPEN	0x0400		/* Device waiting for open */
+#define UN_WIOCTL	0x0800		/* Device waiting for open */
+#define UN_HANGUP	0x8000		/* Carrier lost	*/
 
 struct device;
 
-/************************************************************************
- * Structure for terminal or printer unit.
- ************************************************************************/
+/* Structure for terminal or printer unit. */
 struct un_t {
-	int	magic;		/* Unit Magic Number.			*/
+	int	magic;		/* Unit Magic Number. */
 	struct	channel_t *un_ch;
 	ulong	un_time;
 	uint	un_type;
-	uint	un_open_count;	/* Counter of opens to port		*/
-	struct tty_struct *un_tty;/* Pointer to unit tty structure	*/
-	uint	un_flags;	/* Unit flags				*/
+	uint	un_open_count;		/* Counter of opens to port */
+	struct tty_struct *un_tty;	/* Pointer to unit tty structure */
+	uint	un_flags;		/* Unit flags */
 	wait_queue_head_t un_flags_wait; /* Place to sleep to wait on unit */
-	uint	un_dev;		/* Minor device number			*/
+	uint	un_dev;			/* Minor device number */
 	struct device *un_sysfs;
 };
 
-/************************************************************************
- * Device flag definitions for ch_flags.
- ************************************************************************/
-#define CH_PRON		0x0001		/* Printer on string		*/
-#define CH_STOP		0x0002		/* Output is stopped		*/
-#define CH_STOPI	0x0004		/* Input is stopped		*/
-#define CH_CD		0x0008		/* Carrier is present		*/
-#define CH_FCAR		0x0010		/* Carrier forced on		*/
-#define CH_HANGUP       0x0020		/* Hangup received		*/
+/* Device flag definitions for ch_flags. */
+#define CH_PRON		0x0001		/* Printer on string */
+#define CH_STOP		0x0002		/* Output is stopped */
+#define CH_STOPI	0x0004		/* Input is stopped */
+#define CH_CD		0x0008		/* Carrier is present */
+#define CH_FCAR		0x0010		/* Carrier forced on */
+#define CH_HANGUP       0x0020		/* Hangup received */
 
-#define CH_RECEIVER_OFF	0x0040		/* Receiver is off		*/
-#define CH_OPENING	0x0080		/* Port in fragile open state	*/
-#define CH_CLOSING	0x0100		/* Port in fragile close state	*/
-#define CH_FIFO_ENABLED 0x0200		/* Port has FIFOs enabled	*/
-#define CH_TX_FIFO_EMPTY 0x0400		/* TX Fifo is completely empty	*/
-#define CH_TX_FIFO_LWM  0x0800		/* TX Fifo is below Low Water	*/
-#define CH_BREAK_SENDING 0x1000		/* Break is being sent		*/
-#define CH_LOOPBACK 0x2000		/* Channel is in lookback mode	*/
+#define CH_RECEIVER_OFF	0x0040		/* Receiver is off */
+#define CH_OPENING	0x0080		/* Port in fragile open state */
+#define CH_CLOSING	0x0100		/* Port in fragile close state */
+#define CH_FIFO_ENABLED 0x0200		/* Port has FIFOs enabled */
+#define CH_TX_FIFO_EMPTY 0x0400		/* TX Fifo is completely empty */
+#define CH_TX_FIFO_LWM  0x0800		/* TX Fifo is below Low Water */
+#define CH_BREAK_SENDING 0x1000		/* Break is being sent */
+#define CH_LOOPBACK	0x2000		/* Channel is in lookback mode */
 #define CH_BAUD0	0x08000		/* Used for checking B0 transitions */
-#define CH_FORCED_STOP  0x20000		/* Output is forcibly stopped	*/
-#define CH_FORCED_STOPI 0x40000		/* Input is forcibly stopped	*/
+#define CH_FORCED_STOP  0x20000		/* Output is forcibly stopped */
+#define CH_FORCED_STOPI 0x40000		/* Input is forcibly stopped */
 
 /* Our Read/Error/Write queue sizes */
 #define RQUEUEMASK	0x1FFF		/* 8 K - 1 */
@@ -285,43 +263,41 @@ struct un_t {
 #define EQUEUESIZE	RQUEUESIZE
 #define WQUEUESIZE	(WQUEUEMASK + 1)
 
-/************************************************************************
- * Channel information structure.
- ************************************************************************/
+/* Channel information structure. */
 struct channel_t {
-	int magic;			/* Channel Magic Number		*/
-	struct dgnc_board	*ch_bd;		/* Board structure pointer */
+	int magic;			/* Channel Magic Number	*/
+	struct dgnc_board *ch_bd;	/* Board structure pointer */
 	struct digi_t	ch_digi;	/* Transparent Print structure  */
-	struct un_t	ch_tun;		/* Terminal unit info	   */
-	struct un_t	ch_pun;		/* Printer unit info	    */
+	struct un_t	ch_tun;		/* Terminal unit info */
+	struct un_t	ch_pun;		/* Printer unit info */
 
 	spinlock_t	ch_lock;	/* provide for serialization */
 	wait_queue_head_t ch_flags_wait;
 
-	uint		ch_portnum;	/* Port number, 0 offset.	*/
-	uint		ch_open_count;	/* open count			*/
-	uint		ch_flags;	/* Channel flags		*/
+	uint		ch_portnum;	/* Port number, 0 offset. */
+	uint		ch_open_count;	/* open count */
+	uint		ch_flags;	/* Channel flags */
 
 	ulong		ch_close_delay;	/* How long we should
 					 * drop RTS/DTR for
 					 */
 
-	ulong		ch_cpstime;	/* Time for CPS calculations    */
+	ulong		ch_cpstime;	/* Time for CPS calculations */
 
-	tcflag_t	ch_c_iflag;	/* channel iflags	       */
-	tcflag_t	ch_c_cflag;	/* channel cflags	       */
-	tcflag_t	ch_c_oflag;	/* channel oflags	       */
-	tcflag_t	ch_c_lflag;	/* channel lflags	       */
-	unsigned char	ch_stopc;	/* Stop character	       */
-	unsigned char	ch_startc;	/* Start character	      */
+	tcflag_t	ch_c_iflag;	/* channel iflags */
+	tcflag_t	ch_c_cflag;	/* channel cflags */
+	tcflag_t	ch_c_oflag;	/* channel oflags */
+	tcflag_t	ch_c_lflag;	/* channel lflags */
+	unsigned char	ch_stopc;	/* Stop character */
+	unsigned char	ch_startc;	/* Start character */
 
 	uint		ch_old_baud;	/* Cache of the current baud */
 	uint		ch_custom_speed;/* Custom baud, if set */
 
 	uint		ch_wopen;	/* Waiting for open process cnt */
 
-	unsigned char		ch_mostat;	/* FEP output modem status */
-	unsigned char		ch_mistat;	/* FEP input modem status */
+	unsigned char	ch_mostat;	/* FEP output modem status */
+	unsigned char	ch_mistat;	/* FEP input modem status */
 
 	struct neo_uart_struct __iomem *ch_neo_uart;	/* Pointer to the
 							 * "mapped" UART struct
@@ -347,10 +323,10 @@ struct channel_t {
 	ulong		ch_rxcount;	/* total of data received so far */
 	ulong		ch_txcount;	/* total of data transmitted so far */
 
-	unsigned char		ch_r_tlevel;	/* Receive Trigger level */
-	unsigned char		ch_t_tlevel;	/* Transmit Trigger level */
+	unsigned char	ch_r_tlevel;	/* Receive Trigger level */
+	unsigned char	ch_t_tlevel;	/* Transmit Trigger level */
 
-	unsigned char		ch_r_watermark;	/* Receive Watermark */
+	unsigned char	ch_r_watermark;	/* Receive Watermark */
 
 	ulong		ch_stop_sending_break;	/* Time we should STOP
 						 * sending a break
@@ -374,16 +350,15 @@ struct channel_t {
 
 };
 
-/*
- * Our Global Variables.
- */
+/* Our Global Variables. */
+
 extern uint		dgnc_major;		/* Our driver/mgmt major */
 extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
 extern spinlock_t	dgnc_poll_lock;		/* Poll scheduling lock */
 extern uint		dgnc_num_boards;	/* Total number of boards */
-extern struct dgnc_board	*dgnc_board[MAXBOARDS];	/* Array of board
-							 * structs
-							 */
+extern struct dgnc_board *dgnc_board[MAXBOARDS];/* Array of board
+						 * structs
+						 */
 
 #endif

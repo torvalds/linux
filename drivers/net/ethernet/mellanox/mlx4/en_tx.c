@@ -66,7 +66,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	ring->size = size;
 	ring->size_mask = size - 1;
-	ring->stride = stride;
+	ring->sp_stride = stride;
 	ring->full_size = ring->size - HEADROOM - MAX_DESC_TXBBS;
 
 	tmp = size * sizeof(struct mlx4_en_tx_info);
@@ -90,22 +90,22 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			goto err_info;
 		}
 	}
-	ring->buf_size = ALIGN(size * ring->stride, MLX4_EN_PAGE_SIZE);
+	ring->buf_size = ALIGN(size * ring->sp_stride, MLX4_EN_PAGE_SIZE);
 
 	/* Allocate HW buffers on provided NUMA node */
 	set_dev_node(&mdev->dev->persist->pdev->dev, node);
-	err = mlx4_alloc_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
+	err = mlx4_alloc_hwq_res(mdev->dev, &ring->sp_wqres, ring->buf_size);
 	set_dev_node(&mdev->dev->persist->pdev->dev, mdev->dev->numa_node);
 	if (err) {
 		en_err(priv, "Failed allocating hwq resources\n");
 		goto err_bounce;
 	}
 
-	ring->buf = ring->wqres.buf.direct.buf;
+	ring->buf = ring->sp_wqres.buf.direct.buf;
 
 	en_dbg(DRV, priv, "Allocated TX ring (addr:%p) - buf:%p size:%d buf_size:%d dma:%llx\n",
 	       ring, ring->buf, ring->size, ring->buf_size,
-	       (unsigned long long) ring->wqres.buf.direct.map);
+	       (unsigned long long) ring->sp_wqres.buf.direct.map);
 
 	err = mlx4_qp_reserve_range(mdev->dev, 1, 1, &ring->qpn,
 				    MLX4_RESERVE_ETH_BF_QP);
@@ -114,12 +114,12 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 		goto err_hwq_res;
 	}
 
-	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp, GFP_KERNEL);
+	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->sp_qp, GFP_KERNEL);
 	if (err) {
 		en_err(priv, "Failed allocating qp %d\n", ring->qpn);
 		goto err_reserve;
 	}
-	ring->qp.event = mlx4_en_sqp_event;
+	ring->sp_qp.event = mlx4_en_sqp_event;
 
 	err = mlx4_bf_alloc(mdev->dev, &ring->bf, node);
 	if (err) {
@@ -141,7 +141,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	if (queue_index < priv->num_tx_rings_p_up)
 		cpumask_set_cpu(cpumask_local_spread(queue_index,
 						     priv->mdev->dev->numa_node),
-				&ring->affinity_mask);
+				&ring->sp_affinity_mask);
 
 	*pring = ring;
 	return 0;
@@ -149,7 +149,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 err_reserve:
 	mlx4_qp_release_range(mdev->dev, ring->qpn, 1);
 err_hwq_res:
-	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
+	mlx4_free_hwq_res(mdev->dev, &ring->sp_wqres, ring->buf_size);
 err_bounce:
 	kfree(ring->bounce_buf);
 	ring->bounce_buf = NULL;
@@ -171,10 +171,10 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 
 	if (ring->bf_alloced)
 		mlx4_bf_free(mdev->dev, &ring->bf);
-	mlx4_qp_remove(mdev->dev, &ring->qp);
-	mlx4_qp_free(mdev->dev, &ring->qp);
+	mlx4_qp_remove(mdev->dev, &ring->sp_qp);
+	mlx4_qp_free(mdev->dev, &ring->sp_qp);
 	mlx4_qp_release_range(priv->mdev->dev, ring->qpn, 1);
-	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
+	mlx4_free_hwq_res(mdev->dev, &ring->sp_wqres, ring->buf_size);
 	kfree(ring->bounce_buf);
 	ring->bounce_buf = NULL;
 	kvfree(ring->tx_info);
@@ -190,7 +190,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err;
 
-	ring->cqn = cq;
+	ring->sp_cqn = cq;
 	ring->prod = 0;
 	ring->cons = 0xffffffff;
 	ring->last_nr_txbb = 1;
@@ -198,21 +198,21 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 	memset(ring->buf, 0, ring->buf_size);
 	ring->free_tx_desc = mlx4_en_free_tx_desc;
 
-	ring->qp_state = MLX4_QP_STATE_RST;
-	ring->doorbell_qpn = cpu_to_be32(ring->qp.qpn << 8);
+	ring->sp_qp_state = MLX4_QP_STATE_RST;
+	ring->doorbell_qpn = cpu_to_be32(ring->sp_qp.qpn << 8);
 	ring->mr_key = cpu_to_be32(mdev->mr.key);
 
-	mlx4_en_fill_qp_context(priv, ring->size, ring->stride, 1, 0, ring->qpn,
-				ring->cqn, user_prio, &ring->context);
+	mlx4_en_fill_qp_context(priv, ring->size, ring->sp_stride, 1, 0, ring->qpn,
+				ring->sp_cqn, user_prio, &ring->sp_context);
 	if (ring->bf_alloced)
-		ring->context.usr_page =
+		ring->sp_context.usr_page =
 			cpu_to_be32(mlx4_to_hw_uar_index(mdev->dev,
 							 ring->bf.uar->index));
 
-	err = mlx4_qp_to_ready(mdev->dev, &ring->wqres.mtt, &ring->context,
-			       &ring->qp, &ring->qp_state);
-	if (!cpumask_empty(&ring->affinity_mask))
-		netif_set_xps_queue(priv->dev, &ring->affinity_mask,
+	err = mlx4_qp_to_ready(mdev->dev, &ring->sp_wqres.mtt, &ring->sp_context,
+			       &ring->sp_qp, &ring->sp_qp_state);
+	if (!cpumask_empty(&ring->sp_affinity_mask))
+		netif_set_xps_queue(priv->dev, &ring->sp_affinity_mask,
 				    ring->queue_index);
 
 	return err;
@@ -223,8 +223,8 @@ void mlx4_en_deactivate_tx_ring(struct mlx4_en_priv *priv,
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 
-	mlx4_qp_modify(mdev->dev, NULL, ring->qp_state,
-		       MLX4_QP_STATE_RST, NULL, 0, 0, &ring->qp);
+	mlx4_qp_modify(mdev->dev, NULL, ring->sp_qp_state,
+		       MLX4_QP_STATE_RST, NULL, 0, 0, &ring->sp_qp);
 }
 
 static inline bool mlx4_en_is_tx_ring_full(struct mlx4_en_tx_ring *ring)
@@ -354,7 +354,7 @@ u32 mlx4_en_recycle_tx_desc(struct mlx4_en_priv *priv,
 	struct mlx4_en_rx_alloc frame = {
 		.page = tx_info->page,
 		.dma = tx_info->map0_dma,
-		.page_offset = 0,
+		.page_offset = XDP_PACKET_HEADROOM,
 		.page_size = PAGE_SIZE,
 	};
 
@@ -392,7 +392,8 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 		cnt++;
 	}
 
-	netdev_tx_reset_queue(ring->tx_queue);
+	if (ring->tx_queue)
+		netdev_tx_reset_queue(ring->tx_queue);
 
 	if (cnt)
 		en_dbg(DRV, priv, "Freed %d uncompleted tx descriptors\n", cnt);
@@ -405,7 +406,7 @@ static bool mlx4_en_process_tx_cq(struct net_device *dev,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_cq *mcq = &cq->mcq;
-	struct mlx4_en_tx_ring *ring = priv->tx_ring[cq->ring];
+	struct mlx4_en_tx_ring *ring = priv->tx_ring[cq->type][cq->ring];
 	struct mlx4_cqe *cqe;
 	u16 index;
 	u16 new_index, ring_index, stamp_index;
@@ -709,7 +710,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb,
 	u16 rings_p_up = priv->num_tx_rings_p_up;
 	u8 up = 0;
 
-	if (dev->num_tc)
+	if (netdev_get_num_tc(dev))
 		return skb_tx_hash(dev, skb);
 
 	if (skb_vlan_tag_present(skb))
@@ -807,7 +808,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	bool bf_ok;
 
 	tx_ind = skb_get_queue_mapping(skb);
-	ring = priv->tx_ring[tx_ind];
+	ring = priv->tx_ring[TX][tx_ind];
 
 	if (!priv->port_up)
 		goto tx_drop;
@@ -1078,7 +1079,8 @@ tx_drop:
 	return NETDEV_TX_OK;
 }
 
-netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
+netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
+			       struct mlx4_en_rx_alloc *frame,
 			       struct net_device *dev, unsigned int length,
 			       int tx_ind, int *doorbell_pending)
 {
@@ -1101,7 +1103,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 	BUILD_BUG_ON_MSG(ALIGN(CTRL_SIZE + DS_SIZE, TXBB_SIZE) != TXBB_SIZE,
 			 "mlx4_en_xmit_frame requires minimum size tx desc");
 
-	ring = priv->tx_ring[tx_ind];
+	ring = priv->tx_ring[TX_XDP][tx_ind];
 
 	if (!priv->port_up)
 		goto tx_drop;
@@ -1130,7 +1132,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 	tx_info->page = frame->page;
 	frame->page = NULL;
 	tx_info->map0_dma = dma;
-	tx_info->map0_byte_count = length;
+	tx_info->map0_byte_count = PAGE_SIZE;
 	tx_info->nr_txbb = nr_txbb;
 	tx_info->nr_bytes = max_t(unsigned int, length, ETH_ZLEN);
 	tx_info->data_offset = (void *)data - (void *)tx_desc;
@@ -1139,9 +1141,10 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 	tx_info->linear = 1;
 	tx_info->inl = 0;
 
-	dma_sync_single_for_device(priv->ddev, dma, length, PCI_DMA_TODEVICE);
+	dma_sync_single_range_for_device(priv->ddev, dma, frame->page_offset,
+					 length, PCI_DMA_TODEVICE);
 
-	data->addr = cpu_to_be64(dma);
+	data->addr = cpu_to_be64(dma + frame->page_offset);
 	data->lkey = ring->mr_key;
 	dma_wmb();
 	data->byte_count = cpu_to_be32(length);
@@ -1153,8 +1156,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 		((ring->prod & ring->size) ?
 		 cpu_to_be32(MLX4_EN_BIT_DESC_OWN) : 0);
 
-	ring->packets++;
-	ring->bytes += tx_info->nr_bytes;
+	rx_ring->xdp_tx++;
 	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, length);
 
 	ring->prod += nr_txbb;
@@ -1178,7 +1180,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_alloc *frame,
 	return NETDEV_TX_OK;
 
 tx_drop_count:
-	ring->tx_dropped++;
+	rx_ring->xdp_tx_full++;
 tx_drop:
 	return NETDEV_TX_BUSY;
 }

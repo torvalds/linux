@@ -38,6 +38,12 @@
 #include <linux/backing-dev.h>
 #include <linux/security.h>
 #include <linux/xattr.h>
+#ifdef CONFIG_UBIFS_FS_ENCRYPTION
+#include <linux/fscrypt_supp.h>
+#else
+#include <linux/fscrypt_notsupp.h>
+#endif
+#include <linux/random.h>
 #include "ubifs-media.h"
 
 /* Version of this UBIFS implementation */
@@ -82,10 +88,6 @@
  * numbers.
  */
 #define BGT_NAME_PATTERN "ubifs_bgt%d_%d"
-
-/* Write-buffer synchronization timeout interval in seconds */
-#define WBUF_TIMEOUT_SOFTLIMIT 3
-#define WBUF_TIMEOUT_HARDLIMIT 5
 
 /* Maximum possible inode number (only 32-bit inodes are supported now) */
 #define MAX_INUM 0xFFFFFFFF
@@ -137,6 +139,12 @@
  * will not corrupt memory in case of worst case compression.
  */
 #define WORST_COMPR_FACTOR 2
+
+#ifdef CONFIG_UBIFS_FS_ENCRYPTION
+#define UBIFS_CIPHER_BLOCK_SIZE FS_CRYPTO_BLOCK_SIZE
+#else
+#define UBIFS_CIPHER_BLOCK_SIZE 0
+#endif
 
 /*
  * How much memory is needed for a buffer where we compress a data node.
@@ -645,9 +653,6 @@ typedef int (*ubifs_lpt_scan_callback)(struct ubifs_info *c,
  * @io_mutex: serializes write-buffer I/O
  * @lock: serializes @buf, @lnum, @offs, @avail, @used, @next_ino and @inodes
  *        fields
- * @softlimit: soft write-buffer timeout interval
- * @delta: hard and soft timeouts delta (the timer expire interval is @softlimit
- *         and @softlimit + @delta)
  * @timer: write-buffer timer
  * @no_timer: non-zero if this write-buffer does not have a timer
  * @need_sync: non-zero if the timer expired and the wbuf needs sync'ing
@@ -676,8 +681,6 @@ struct ubifs_wbuf {
 	int (*sync_callback)(struct ubifs_info *c, int lnum, int free, int pad);
 	struct mutex io_mutex;
 	spinlock_t lock;
-	ktime_t softlimit;
-	unsigned long long delta;
 	struct hrtimer timer;
 	unsigned int no_timer:1;
 	unsigned int need_sync:1;
@@ -1007,6 +1010,8 @@ struct ubifs_debug_info;
  *
  * @big_lpt: flag that LPT is too big to write whole during commit
  * @space_fixup: flag indicating that free space in LEBs needs to be cleaned up
+ * @double_hash: flag indicating that we can do lookups by hash
+ * @encrypted: flag indicating that this file system contains encrypted files
  * @no_chk_data_crc: do not check CRCs when reading data nodes (except during
  *                   recovery)
  * @bulk_read: enable bulk-reads
@@ -1249,6 +1254,8 @@ struct ubifs_info {
 
 	unsigned int big_lpt:1;
 	unsigned int space_fixup:1;
+	unsigned int double_hash:1;
+	unsigned int encrypted:1;
 	unsigned int no_chk_data_crc:1;
 	unsigned int bulk_read:1;
 	unsigned int default_compr:2;
@@ -1515,25 +1522,29 @@ int ubifs_consolidate_log(struct ubifs_info *c);
 
 /* journal.c */
 int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
-		     const struct qstr *nm, const struct inode *inode,
+		     const struct fscrypt_name *nm, const struct inode *inode,
 		     int deletion, int xent);
 int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 			 const union ubifs_key *key, const void *buf, int len);
 int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode);
 int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode);
 int ubifs_jnl_xrename(struct ubifs_info *c, const struct inode *fst_dir,
-		      const struct dentry *fst_dentry,
+		      const struct inode *fst_inode,
+		      const struct fscrypt_name *fst_nm,
 		      const struct inode *snd_dir,
-		      const struct dentry *snd_dentry, int sync);
+		      const struct inode *snd_inode,
+		      const struct fscrypt_name *snd_nm, int sync);
 int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
-		     const struct dentry *old_dentry,
+		     const struct inode *old_inode,
+		     const struct fscrypt_name *old_nm,
 		     const struct inode *new_dir,
-		     const struct dentry *new_dentry,
+		     const struct inode *new_inode,
+		     const struct fscrypt_name *new_nm,
 		     const struct inode *whiteout, int sync);
 int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 		       loff_t old_size, loff_t new_size);
 int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
-			   const struct inode *inode, const struct qstr *nm);
+			   const struct inode *inode, const struct fscrypt_name *nm);
 int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode1,
 			   const struct inode *inode2);
 
@@ -1568,7 +1579,9 @@ int ubifs_save_dirty_idx_lnums(struct ubifs_info *c);
 int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 			struct ubifs_znode **zn, int *n);
 int ubifs_tnc_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
-			void *node, const struct qstr *nm);
+			void *node, const struct fscrypt_name *nm);
+int ubifs_tnc_lookup_dh(struct ubifs_info *c, const union ubifs_key *key,
+			void *node, uint32_t secondary_hash);
 int ubifs_tnc_locate(struct ubifs_info *c, const union ubifs_key *key,
 		     void *node, int *lnum, int *offs);
 int ubifs_tnc_add(struct ubifs_info *c, const union ubifs_key *key, int lnum,
@@ -1576,16 +1589,16 @@ int ubifs_tnc_add(struct ubifs_info *c, const union ubifs_key *key, int lnum,
 int ubifs_tnc_replace(struct ubifs_info *c, const union ubifs_key *key,
 		      int old_lnum, int old_offs, int lnum, int offs, int len);
 int ubifs_tnc_add_nm(struct ubifs_info *c, const union ubifs_key *key,
-		     int lnum, int offs, int len, const struct qstr *nm);
+		     int lnum, int offs, int len, const struct fscrypt_name *nm);
 int ubifs_tnc_remove(struct ubifs_info *c, const union ubifs_key *key);
 int ubifs_tnc_remove_nm(struct ubifs_info *c, const union ubifs_key *key,
-			const struct qstr *nm);
+			const struct fscrypt_name *nm);
 int ubifs_tnc_remove_range(struct ubifs_info *c, union ubifs_key *from_key,
 			   union ubifs_key *to_key);
 int ubifs_tnc_remove_ino(struct ubifs_info *c, ino_t inum);
 struct ubifs_dent_node *ubifs_tnc_next_ent(struct ubifs_info *c,
 					   union ubifs_key *key,
-					   const struct qstr *nm);
+					   const struct fscrypt_name *nm);
 void ubifs_tnc_close(struct ubifs_info *c);
 int ubifs_tnc_has_node(struct ubifs_info *c, union ubifs_key *key, int level,
 		       int lnum, int offs, int is_idx);
@@ -1642,6 +1655,7 @@ int ubifs_read_superblock(struct ubifs_info *c);
 struct ubifs_sb_node *ubifs_read_sb_node(struct ubifs_info *c);
 int ubifs_write_sb_node(struct ubifs_info *c, struct ubifs_sb_node *sup);
 int ubifs_fixup_free_space(struct ubifs_info *c);
+int ubifs_enable_encryption(struct ubifs_info *c);
 
 /* replay.c */
 int ubifs_validate_entry(struct ubifs_info *c,
@@ -1733,16 +1747,21 @@ int ubifs_update_time(struct inode *inode, struct timespec *time, int flags);
 #endif
 
 /* dir.c */
-struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
+struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
 			      umode_t mode);
-int ubifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		  struct kstat *stat);
+int ubifs_getattr(const struct path *path, struct kstat *stat,
+		  u32 request_mask, unsigned int flags);
+int ubifs_check_dir_empty(struct inode *dir);
 
 /* xattr.c */
 extern const struct xattr_handler *ubifs_xattr_handlers[];
 ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 int ubifs_init_security(struct inode *dentry, struct inode *inode,
 			const struct qstr *qstr);
+int ubifs_xattr_set(struct inode *host, const char *name, const void *value,
+		    size_t size, int flags);
+ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
+			size_t size);
 
 /* super.c */
 struct inode *ubifs_iget(struct super_block *sb, unsigned long inum);
@@ -1780,6 +1799,44 @@ int ubifs_decompress(const struct ubifs_info *c, const void *buf, int len,
 #include "debug.h"
 #include "misc.h"
 #include "key.h"
+
+#ifndef CONFIG_UBIFS_FS_ENCRYPTION
+static inline int ubifs_encrypt(const struct inode *inode,
+				struct ubifs_data_node *dn,
+				unsigned int in_len, unsigned int *out_len,
+				int block)
+{
+	ubifs_assert(0);
+	return -EOPNOTSUPP;
+}
+static inline int ubifs_decrypt(const struct inode *inode,
+				struct ubifs_data_node *dn,
+				unsigned int *out_len, int block)
+{
+	ubifs_assert(0);
+	return -EOPNOTSUPP;
+}
+#else
+/* crypto.c */
+int ubifs_encrypt(const struct inode *inode, struct ubifs_data_node *dn,
+		  unsigned int in_len, unsigned int *out_len, int block);
+int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
+		  unsigned int *out_len, int block);
+#endif
+
+extern const struct fscrypt_operations ubifs_crypt_operations;
+
+static inline bool __ubifs_crypt_is_encrypted(struct inode *inode)
+{
+	struct ubifs_inode *ui = ubifs_inode(inode);
+
+	return ui->flags & UBIFS_CRYPT_FL;
+}
+
+static inline bool ubifs_crypt_is_encrypted(const struct inode *inode)
+{
+	return __ubifs_crypt_is_encrypted((struct inode *)inode);
+}
 
 /* Normal UBIFS messages */
 __printf(2, 3)

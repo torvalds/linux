@@ -13,7 +13,8 @@ echo "Usage: ftracetest [options] [testcase(s)] [testcase-directory(s)]"
 echo " Options:"
 echo "		-h|--help  Show help message"
 echo "		-k|--keep  Keep passed test logs"
-echo "		-v|--verbose Show all stdout messages in testcases"
+echo "		-v|--verbose Increase verbosity of test messages"
+echo "		-vv        Alias of -v -v (Show all results in stdout)"
 echo "		-d|--debug Debug mode (trace all shell commands)"
 exit $1
 }
@@ -54,8 +55,9 @@ parse_opts() { # opts
       KEEP_LOG=1
       shift 1
     ;;
-    --verbose|-v)
-      VERBOSE=1
+    --verbose|-v|-vv)
+      VERBOSE=$((VERBOSE + 1))
+      [ $1 == '-vv' ] && VERBOSE=$((VERBOSE + 1))
       shift 1
     ;;
     --debug|-d)
@@ -228,7 +230,7 @@ trap 'SIG_RESULT=$XFAIL' $SIG_XFAIL
 
 __run_test() { # testfile
   # setup PID and PPID, $$ is not updated.
-  (cd $TRACING_DIR; read PID _ < /proc/self/stat ; set -e; set -x; . $1)
+  (cd $TRACING_DIR; read PID _ < /proc/self/stat; set -e; set -x; initialize_ftrace; . $1)
   [ $? -ne 0 ] && kill -s $SIG_FAIL $SIG_PID
 }
 
@@ -236,10 +238,11 @@ __run_test() { # testfile
 run_test() { # testfile
   local testname=`basename $1`
   local testlog=`mktemp $LOG_DIR/${testname}-log.XXXXXX`
+  export TMPDIR=`mktemp -d /tmp/ftracetest-dir.XXXXXX`
   testcase $1
   echo "execute: "$1 > $testlog
   SIG_RESULT=0
-  if [ $VERBOSE -ne 0 ]; then
+  if [ $VERBOSE -ge 2 ]; then
     __run_test $1 2>> $testlog | tee -a $testlog
   else
     __run_test $1 >> $testlog 2>&1
@@ -249,9 +252,10 @@ run_test() { # testfile
     # Remove test log if the test was done as it was expected.
     [ $KEEP_LOG -eq 0 ] && rm $testlog
   else
-    catlog $testlog
+    [ $VERBOSE -ge 1 ] && catlog $testlog
     TOTAL_RESULT=1
   fi
+  rm -rf $TMPDIR
 }
 
 # load in the helper functions

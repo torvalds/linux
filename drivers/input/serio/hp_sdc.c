@@ -79,7 +79,7 @@
 # define sdc_readb(p)		gsc_readb(p)
 # define sdc_writeb(v,p)	gsc_writeb((v),(p))
 #elif defined(__mc68000__)
-# include <asm/uaccess.h>
+#include <linux/uaccess.h>
 # define sdc_readb(p)		in_8(p)
 # define sdc_writeb(v,p)	out_8((p),(v))
 #else

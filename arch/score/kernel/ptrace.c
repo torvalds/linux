@@ -28,8 +28,9 @@
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 #include <linux/regset.h>
+#include <linux/sched/task_stack.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * retrieve the contents of SCORE userspace general registers

@@ -22,7 +22,7 @@
 
 #define SKBMOD_TAB_MASK     15
 
-static int skbmod_net_id;
+static unsigned int skbmod_net_id;
 static struct tc_action_ops act_skbmod_ops;
 
 #define MAX_EDIT_LEN ETH_HLEN
@@ -228,7 +228,6 @@ static int tcf_skbmod_dump(struct sk_buff *skb, struct tc_action *a,
 
 	return skb->len;
 nla_put_failure:
-	rcu_read_unlock();
 	nlmsg_trim(skb, b);
 	return -1;
 }

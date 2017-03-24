@@ -29,6 +29,7 @@
 #include <linux/errno.h>
 #include <linux/kexec.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/bug.h>
@@ -563,11 +564,9 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 	 * as we may switch to the interrupt stack.
 	 */
 	debug_stack_usage_inc();
-	preempt_disable();
 	cond_local_irq_enable(regs);
 	do_trap(X86_TRAP_BP, SIGTRAP, "int3", regs, error_code, NULL);
 	cond_local_irq_disable(regs);
-	preempt_enable_no_resched();
 	debug_stack_usage_dec();
 exit:
 	ist_exit(regs);
@@ -742,14 +741,12 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	debug_stack_usage_inc();
 
 	/* It's safe to allow irq's after DR6 has been saved */
-	preempt_disable();
 	cond_local_irq_enable(regs);
 
 	if (v8086_mode(regs)) {
 		handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code,
 					X86_TRAP_DB);
 		cond_local_irq_disable(regs);
-		preempt_enable_no_resched();
 		debug_stack_usage_dec();
 		goto exit;
 	}
@@ -769,7 +766,6 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
 		send_sigtrap(tsk, regs, error_code, si_code);
 	cond_local_irq_disable(regs);
-	preempt_enable_no_resched();
 	debug_stack_usage_dec();
 
 exit:
@@ -853,6 +849,8 @@ do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 dotraplinkage void
 do_device_not_available(struct pt_regs *regs, long error_code)
 {
+	unsigned long cr0;
+
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 
 #ifdef CONFIG_MATH_EMULATION
@@ -866,10 +864,20 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 		return;
 	}
 #endif
-	fpu__restore(&current->thread.fpu); /* interrupts still off */
-#ifdef CONFIG_X86_32
-	cond_local_irq_enable(regs);
-#endif
+
+	/* This should not happen. */
+	cr0 = read_cr0();
+	if (WARN(cr0 & X86_CR0_TS, "CR0.TS was set")) {
+		/* Try to fix it up and carry on. */
+		write_cr0(cr0 & ~X86_CR0_TS);
+	} else {
+		/*
+		 * Something terrible happened, and we're better off trying
+		 * to kill the task than getting stuck in a never-ending
+		 * loop of #NM faults.
+		 */
+		die("unexpected #NM exception", regs, error_code);
+	}
 }
 NOKPROBE_SYMBOL(do_device_not_available);
 

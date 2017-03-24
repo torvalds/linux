@@ -1724,7 +1724,6 @@ static const struct net_device_ops zd1201_netdev_ops = {
 	.ndo_tx_timeout		= zd1201_tx_timeout,
 	.ndo_set_rx_mode	= zd1201_set_multicast,
 	.ndo_set_mac_address	= zd1201_set_mac_address,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 

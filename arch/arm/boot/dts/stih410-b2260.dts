@@ -62,6 +62,11 @@
 		/* Low speed expansion connector */
 		uart0: serial@9830000 {
 			label = "LS-UART0";
+			pinctrl-names = "default", "no-hw-flowctrl";
+			pinctrl-0 = <&pinctrl_serial0_hw_flowctrl>;
+			pinctrl-1 = <&pinctrl_serial0>;
+			rts-gpios = <&pio17 3 GPIO_ACTIVE_LOW>;
+			uart-has-rtscts;
 			status = "okay";
 		};
 
@@ -165,6 +170,9 @@
 			status = "okay";
 		};
 
+		sti_uni_player0: sti-uni-player@8d80000 {
+			status = "okay";
+		};
 		/* SSC11 to HDMI */
 		hdmiddc: i2c@9541000 {
 			/* HDMI V1.3a supports Standard mode only */
@@ -174,9 +182,22 @@
 			status = "okay";
 		};
 
-		sti-display-subsystem {
-			sti_hdmi: sti-hdmi@8d04000 {
-				status = "okay";
+		sound {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "STI-B2260";
+			status = "okay";
+
+			simple-audio-card,dai-link@0 {
+				/* DAC */
+				format = "i2s";
+				mclk-fs = <128>;
+				cpu {
+					sound-dai = <&sti_uni_player0>;
+				};
+
+				codec {
+					sound-dai = <&sti_hdmi>;
+				};
 			};
 		};
 

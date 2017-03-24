@@ -13,7 +13,7 @@
 #include <linux/errno.h>	/* error codes */
 #include <linux/capability.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/time.h>		/* struct timeval */
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
@@ -630,7 +630,7 @@ int vcc_sendmsg(struct socket *sock, struct msghdr *m, size_t size)
 		goto out;
 	skb->dev = NULL; /* for paths shared with net_device interfaces */
 	ATM_SKB(skb)->atm_options = vcc->atm_options;
-	if (copy_from_iter(skb_put(skb, size), size, &m->msg_iter) != size) {
+	if (!copy_from_iter_full(skb_put(skb, size), size, &m->msg_iter)) {
 		kfree_skb(skb);
 		error = -EFAULT;
 		goto out;

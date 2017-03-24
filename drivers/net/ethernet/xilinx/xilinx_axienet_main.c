@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
@@ -292,7 +293,8 @@ out:
  * This function is called to initialize the MAC address of the Axi Ethernet
  * core. It writes to the UAW0 and UAW1 registers of the core.
  */
-static void axienet_set_mac_address(struct net_device *ndev, void *address)
+static void axienet_set_mac_address(struct net_device *ndev,
+				    const void *address)
 {
 	struct axienet_local *lp = netdev_priv(ndev);
 
@@ -1034,9 +1036,6 @@ static int axienet_change_mtu(struct net_device *ndev, int new_mtu)
 		XAE_TRL_SIZE) > lp->rxmem)
 		return -EINVAL;
 
-	if ((new_mtu > XAE_JUMBO_MTU) || (new_mtu < 64))
-		return -EINVAL;
-
 	ndev->mtu = new_mtu;
 
 	return 0;
@@ -1459,7 +1458,7 @@ static int axienet_probe(struct platform_device *pdev)
 	struct device_node *np;
 	struct axienet_local *lp;
 	struct net_device *ndev;
-	u8 mac_addr[6];
+	const void *mac_addr;
 	struct resource *ethres, dmares;
 	u32 value;
 
@@ -1474,6 +1473,10 @@ static int axienet_probe(struct platform_device *pdev)
 	ndev->features = NETIF_F_SG;
 	ndev->netdev_ops = &axienet_netdev_ops;
 	ndev->ethtool_ops = &axienet_ethtool_ops;
+
+	/* MTU range: 64 - 9000 */
+	ndev->min_mtu = 64;
+	ndev->max_mtu = XAE_JUMBO_MTU;
 
 	lp = netdev_priv(ndev);
 	lp->ndev = ndev;
@@ -1566,13 +1569,12 @@ static int axienet_probe(struct platform_device *pdev)
 	}
 
 	/* Retrieve the MAC address */
-	ret = of_property_read_u8_array(pdev->dev.of_node,
-					"local-mac-address", mac_addr, 6);
-	if (ret) {
+	mac_addr = of_get_mac_address(pdev->dev.of_node);
+	if (!mac_addr) {
 		dev_err(&pdev->dev, "could not find MAC address\n");
 		goto free_netdev;
 	}
-	axienet_set_mac_address(ndev, (void *)mac_addr);
+	axienet_set_mac_address(ndev, mac_addr);
 
 	lp->coalesce_count_rx = XAXIDMA_DFT_RX_THRESHOLD;
 	lp->coalesce_count_tx = XAXIDMA_DFT_TX_THRESHOLD;

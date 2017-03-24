@@ -161,19 +161,22 @@ static int __init moxart_timer_init(struct device_node *node)
 	timer->base = of_iomap(node, 0);
 	if (!timer->base) {
 		pr_err("%s: of_iomap failed\n", node->full_name);
-		return -ENXIO;
+		ret = -ENXIO;
+		goto out_free;
 	}
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq <= 0) {
 		pr_err("%s: irq_of_parse_and_map failed\n", node->full_name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unmap;
 	}
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk))  {
 		pr_err("%s: of_clk_get failed\n", node->full_name);
-		return PTR_ERR(clk);
+		ret = PTR_ERR(clk);
+		goto out_unmap;
 	}
 
 	pclk = clk_get_rate(clk);
@@ -186,7 +189,8 @@ static int __init moxart_timer_init(struct device_node *node)
 		timer->t1_disable_val = ASPEED_TIMER1_DISABLE;
 	} else {
 		pr_err("%s: unknown platform\n", node->full_name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unmap;
 	}
 
 	timer->count_per_tick = DIV_ROUND_CLOSEST(pclk, HZ);
@@ -208,14 +212,14 @@ static int __init moxart_timer_init(struct device_node *node)
 				    clocksource_mmio_readl_down);
 	if (ret) {
 		pr_err("%s: clocksource_mmio_init failed\n", node->full_name);
-		return ret;
+		goto out_unmap;
 	}
 
 	ret = request_irq(irq, moxart_timer_interrupt, IRQF_TIMER,
 			  node->name, &timer->clkevt);
 	if (ret) {
 		pr_err("%s: setup_irq failed\n", node->full_name);
-		return ret;
+		goto out_unmap;
 	}
 
 	/* Clear match registers */
@@ -241,6 +245,12 @@ static int __init moxart_timer_init(struct device_node *node)
 	clockevents_config_and_register(&timer->clkevt, pclk, 0x4, 0xfffffffe);
 
 	return 0;
+
+out_unmap:
+	iounmap(timer->base);
+out_free:
+	kfree(timer);
+	return ret;
 }
 CLOCKSOURCE_OF_DECLARE(moxart, "moxa,moxart-timer", moxart_timer_init);
 CLOCKSOURCE_OF_DECLARE(aspeed, "aspeed,ast2400-timer", moxart_timer_init);

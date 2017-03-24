@@ -30,7 +30,7 @@ static void nft_dup_ipv4_eval(const struct nft_expr *expr,
 	};
 	int oif = priv->sreg_dev ? regs->data[priv->sreg_dev] : -1;
 
-	nf_dup_ipv4(pkt->net, pkt->skb, pkt->hook, &gw, oif);
+	nf_dup_ipv4(nft_net(pkt), pkt->skb, nft_hook(pkt), &gw, oif);
 }
 
 static int nft_dup_ipv4_init(const struct nft_ctx *ctx,
