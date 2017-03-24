@@ -126,7 +126,8 @@ static const char *nbdcmd_to_ascii(int cmd)
 
 static int nbd_size_clear(struct nbd_device *nbd, struct block_device *bdev)
 {
-	bd_set_size(bdev, 0);
+	if (bdev->bd_openers <= 1)
+		bd_set_size(bdev, 0);
 	set_capacity(nbd->disk, 0);
 	kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
 
@@ -665,6 +666,8 @@ static void nbd_reset(struct nbd_device *nbd)
 
 static void nbd_bdev_reset(struct block_device *bdev)
 {
+	if (bdev->bd_openers > 1)
+		return;
 	set_device_ro(bdev, false);
 	bdev->bd_inode->i_size = 0;
 	if (max_part > 0) {
@@ -728,7 +731,8 @@ static int nbd_clear_sock(struct nbd_device *nbd, struct block_device *bdev)
 {
 	sock_shutdown(nbd);
 	nbd_clear_que(nbd);
-	kill_bdev(bdev);
+
+	__invalidate_device(bdev, true);
 	nbd_bdev_reset(bdev);
 	/*
 	 * We want to give the run thread a chance to wait for everybody
