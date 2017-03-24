@@ -237,6 +237,9 @@ static int seg6_do_srh(struct sk_buff *skb)
 
 static int seg6_input(struct sk_buff *skb)
 {
+	struct dst_entry *orig_dst = skb_dst(skb);
+	struct dst_entry *dst = NULL;
+	struct seg6_lwt *slwt;
 	int err;
 
 	err = seg6_do_srh(skb);
@@ -245,8 +248,30 @@ static int seg6_input(struct sk_buff *skb)
 		return err;
 	}
 
+	slwt = seg6_lwt_lwtunnel(orig_dst->lwtstate);
+
+#ifdef CONFIG_DST_CACHE
+	preempt_disable();
+	dst = dst_cache_get(&slwt->cache);
+	preempt_enable();
+#endif
+
 	skb_dst_drop(skb);
-	ip6_route_input(skb);
+
+	if (!dst) {
+		ip6_route_input(skb);
+#ifdef CONFIG_DST_CACHE
+		dst = skb_dst(skb);
+		if (!dst->error) {
+			preempt_disable();
+			dst_cache_set_ip6(&slwt->cache, dst,
+					  &ipv6_hdr(skb)->saddr);
+			preempt_enable();
+		}
+#endif
+	} else {
+		skb_dst_set(skb, dst);
+	}
 
 	return dst_input(skb);
 }
