@@ -1769,13 +1769,15 @@ static int mpls_dump_route(struct sk_buff *skb, u32 portid, u32 seq, int event,
 			goto nla_put_failure;
 
 		for_nexthops(rt) {
+			dev = rtnl_dereference(nh->nh_dev);
+			if (!dev)
+				continue;
+
 			rtnh = nla_reserve_nohdr(skb, sizeof(*rtnh));
 			if (!rtnh)
 				goto nla_put_failure;
 
-			dev = rtnl_dereference(nh->nh_dev);
-			if (dev)
-				rtnh->rtnh_ifindex = dev->ifindex;
+			rtnh->rtnh_ifindex = dev->ifindex;
 			if (nh->nh_flags & RTNH_F_LINKDOWN) {
 				rtnh->rtnh_flags |= RTNH_F_LINKDOWN;
 				linkdown++;
