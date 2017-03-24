@@ -43,6 +43,7 @@ static int init_srcu_struct_fields(struct srcu_struct *sp)
 {
 	sp->completed = 0;
 	sp->srcu_gp_seq = 0;
+	atomic_set(&sp->srcu_exp_cnt, 0);
 	spin_lock_init(&sp->queue_lock);
 	rcu_segcblist_init(&sp->srcu_cblist);
 	INIT_DELAYED_WORK(&sp->work, process_srcu);
@@ -179,7 +180,6 @@ static bool srcu_readers_active(struct srcu_struct *sp)
 	return sum;
 }
 
-#define SRCU_CALLBACK_BATCH	10
 #define SRCU_INTERVAL		1
 
 /**
@@ -197,6 +197,7 @@ static bool srcu_readers_active(struct srcu_struct *sp)
  */
 void cleanup_srcu_struct(struct srcu_struct *sp)
 {
+	WARN_ON_ONCE(atomic_read(&sp->srcu_exp_cnt));
 	if (WARN_ON(srcu_readers_active(sp)))
 		return; /* Leakage unless caller handles error. */
 	if (WARN_ON(!rcu_segcblist_empty(&sp->srcu_cblist)))
@@ -244,13 +245,10 @@ EXPORT_SYMBOL_GPL(__srcu_read_unlock);
  * We use an adaptive strategy for synchronize_srcu() and especially for
  * synchronize_srcu_expedited().  We spin for a fixed time period
  * (defined below) to allow SRCU readers to exit their read-side critical
- * sections.  If there are still some readers after 10 microseconds,
- * we repeatedly block for 1-millisecond time periods.  This approach
- * has done well in testing, so there is no need for a config parameter.
+ * sections.  If there are still some readers after a few microseconds,
+ * we repeatedly block for 1-millisecond time periods.
  */
 #define SRCU_RETRY_CHECK_DELAY		5
-#define SYNCHRONIZE_SRCU_TRYCOUNT	2
-#define SYNCHRONIZE_SRCU_EXP_TRYCOUNT	12
 
 /*
  * Start an SRCU grace period.
@@ -267,16 +265,16 @@ static void srcu_gp_start(struct srcu_struct *sp)
 }
 
 /*
- * Wait until all readers counted by array index idx complete, but loop
- * a maximum of trycount times.  The caller must ensure that ->completed
- * is not changed while checking.
+ * Wait until all readers counted by array index idx complete, but
+ * loop an additional time if there is an expedited grace period pending.
+ * The caller must ensure that ->completed is not changed while checking.
  */
 static bool try_check_zero(struct srcu_struct *sp, int idx, int trycount)
 {
 	for (;;) {
 		if (srcu_readers_active_idx_check(sp, idx))
 			return true;
-		if (--trycount <= 0)
+		if (--trycount + !!atomic_read(&sp->srcu_exp_cnt) <= 0)
 			return false;
 		udelay(SRCU_RETRY_CHECK_DELAY);
 	}
@@ -364,7 +362,7 @@ static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay);
 /*
  * Helper function for synchronize_srcu() and synchronize_srcu_expedited().
  */
-static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
+static void __synchronize_srcu(struct srcu_struct *sp)
 {
 	struct rcu_synchronize rcu;
 	struct rcu_head *head = &rcu.head;
@@ -399,6 +397,32 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
 	wait_for_completion(&rcu.completion);
 	smp_mb(); /* Caller's later accesses after GP. */
 }
+
+/**
+ * synchronize_srcu_expedited - Brute-force SRCU grace period
+ * @sp: srcu_struct with which to synchronize.
+ *
+ * Wait for an SRCU grace period to elapse, but be more aggressive about
+ * spinning rather than blocking when waiting.
+ *
+ * Note that synchronize_srcu_expedited() has the same deadlock and
+ * memory-ordering properties as does synchronize_srcu().
+ */
+void synchronize_srcu_expedited(struct srcu_struct *sp)
+{
+	bool do_norm = rcu_gp_is_normal();
+
+	if (!do_norm) {
+		atomic_inc(&sp->srcu_exp_cnt);
+		smp_mb__after_atomic(); /* increment before GP. */
+	}
+	__synchronize_srcu(sp);
+	if (!do_norm) {
+		smp_mb__before_atomic(); /* GP before decrement. */
+		atomic_dec(&sp->srcu_exp_cnt);
+	}
+}
+EXPORT_SYMBOL_GPL(synchronize_srcu_expedited);
 
 /**
  * synchronize_srcu - wait for prior SRCU read-side critical-section completion
@@ -441,27 +465,12 @@ static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
  */
 void synchronize_srcu(struct srcu_struct *sp)
 {
-	__synchronize_srcu(sp, (rcu_gp_is_expedited() && !rcu_gp_is_normal())
-			   ? SYNCHRONIZE_SRCU_EXP_TRYCOUNT
-			   : SYNCHRONIZE_SRCU_TRYCOUNT);
+	if (rcu_gp_is_expedited())
+		synchronize_srcu_expedited(sp);
+	else
+		__synchronize_srcu(sp);
 }
 EXPORT_SYMBOL_GPL(synchronize_srcu);
-
-/**
- * synchronize_srcu_expedited - Brute-force SRCU grace period
- * @sp: srcu_struct with which to synchronize.
- *
- * Wait for an SRCU grace period to elapse, but be more aggressive about
- * spinning rather than blocking when waiting.
- *
- * Note that synchronize_srcu_expedited() has the same deadlock and
- * memory-ordering properties as does synchronize_srcu().
- */
-void synchronize_srcu_expedited(struct srcu_struct *sp)
-{
-	__synchronize_srcu(sp, SYNCHRONIZE_SRCU_EXP_TRYCOUNT);
-}
-EXPORT_SYMBOL_GPL(synchronize_srcu_expedited);
 
 /**
  * srcu_barrier - Wait until all in-flight call_srcu() callbacks complete.
@@ -490,7 +499,7 @@ EXPORT_SYMBOL_GPL(srcu_batches_completed);
  * Core SRCU state machine.  Advance callbacks from ->batch_check0 to
  * ->batch_check1 and then to ->batch_done as readers drain.
  */
-static void srcu_advance_batches(struct srcu_struct *sp, int trycount)
+static void srcu_advance_batches(struct srcu_struct *sp)
 {
 	int idx;
 
@@ -521,8 +530,8 @@ static void srcu_advance_batches(struct srcu_struct *sp, int trycount)
 
 	if (rcu_seq_state(READ_ONCE(sp->srcu_gp_seq)) == SRCU_STATE_SCAN1) {
 		idx = 1 ^ (sp->completed & 1);
-		if (!try_check_zero(sp, idx, trycount))
-			return; /* readers present, retry after SRCU_INTERVAL */
+		if (!try_check_zero(sp, idx, 1))
+			return; /* readers present, retry later. */
 		srcu_flip(sp);
 		rcu_seq_set_state(&sp->srcu_gp_seq, SRCU_STATE_SCAN2);
 	}
@@ -534,9 +543,8 @@ static void srcu_advance_batches(struct srcu_struct *sp, int trycount)
 		 * so check at least twice in quick succession after a flip.
 		 */
 		idx = 1 ^ (sp->completed & 1);
-		trycount = trycount < 2 ? 2 : trycount;
-		if (!try_check_zero(sp, idx, trycount))
-			return; /* readers present, retry after SRCU_INTERVAL */
+		if (!try_check_zero(sp, idx, 2))
+			return; /* readers present, retry after later. */
 		srcu_gp_end(sp);
 	}
 }
@@ -602,8 +610,8 @@ void process_srcu(struct work_struct *work)
 
 	sp = container_of(work, struct srcu_struct, work.work);
 
-	srcu_advance_batches(sp, 1);
+	srcu_advance_batches(sp);
 	srcu_invoke_callbacks(sp);
-	srcu_reschedule(sp, SRCU_INTERVAL);
+	srcu_reschedule(sp, atomic_read(&sp->srcu_exp_cnt) ? 0 : SRCU_INTERVAL);
 }
 EXPORT_SYMBOL_GPL(process_srcu);

@@ -42,6 +42,7 @@ struct srcu_array {
 struct srcu_struct {
 	unsigned long completed;
 	unsigned long srcu_gp_seq;
+	atomic_t srcu_exp_cnt;
 	struct srcu_array __percpu *per_cpu_ref;
 	spinlock_t queue_lock; /* protect ->srcu_cblist */
 	struct rcu_segcblist srcu_cblist;
