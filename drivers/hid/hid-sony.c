@@ -2400,6 +2400,12 @@ static int sony_check_add(struct sony_sc *sc)
 		 */
 		for (n = 0; n < 6; n++)
 			sc->mac_address[5-n] = buf[4+n];
+
+		snprintf(sc->hdev->uniq, sizeof(sc->hdev->uniq),
+			"%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+			sc->mac_address[5], sc->mac_address[4],
+			sc->mac_address[3], sc->mac_address[2],
+			sc->mac_address[1], sc->mac_address[0]);
 	} else {
 		return 0;
 	}
