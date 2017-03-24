@@ -296,7 +296,6 @@ static struct amdgpu_allowed_register_entry soc15_allowed_read_registers[] = {
 	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPF_BUSY_STAT), false},
 	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPF_STALLED_STAT1), false},
 	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPF_STATUS), false},
-	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPF_BUSY_STAT), false},
 	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPC_STALLED_STAT1), false},
 	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPC_STATUS), false},
 	{ SOC15_REG_OFFSET(GC, 0, mmGB_ADDR_CONFIG), false},
