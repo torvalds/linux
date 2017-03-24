@@ -105,7 +105,7 @@ static int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 	hdrlen = (osrh->hdrlen + 1) << 3;
 	tot_len = hdrlen + sizeof(*hdr);
 
-	err = pskb_expand_head(skb, tot_len, 0, GFP_ATOMIC);
+	err = skb_cow_head(skb, tot_len);
 	if (unlikely(err))
 		return err;
 
@@ -156,7 +156,7 @@ static int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 
 	hdrlen = (osrh->hdrlen + 1) << 3;
 
-	err = pskb_expand_head(skb, hdrlen, 0, GFP_ATOMIC);
+	err = skb_cow_head(skb, hdrlen);
 	if (unlikely(err))
 		return err;
 
