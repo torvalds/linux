@@ -1340,13 +1340,6 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 
 static bool kvmgt_guest_exit(struct kvmgt_guest_info *info)
 {
-	struct intel_vgpu *vgpu = info->vgpu;
-
-	if (!info) {
-		gvt_vgpu_err("kvmgt_guest_info invalid\n");
-		return false;
-	}
-
 	kvm_page_track_unregister_notifier(info->kvm, &info->track_node);
 	kvm_put_kvm(info->kvm);
 	kvmgt_protect_table_destroy(info);
