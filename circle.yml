@@ -19,7 +19,7 @@ dependencies:
     - /usr/local/android-ndk/build/tools/make-standalone-toolchain.sh --platform=android-21 --install-dir=/home/ubuntu/android-toolchain --arch=arm
     - sudo cp tools/lkl/bin/i686-w64-mingw32-* /usr/bin:
         parallel: true
-    - tools/lkl/scripts/checkpatch.sh
+    - git fetch --tags git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
   override:
     - mkdir -p ~/.ccache
     - cd tools/lkl && make clean:
@@ -33,6 +33,8 @@ dependencies:
 
 
 test:
+  pre:
+    - tools/lkl/scripts/checkpatch.sh
   override:
     - cd tools/lkl && if [ $CIRCLE_NODE_INDEX -eq 2 ] ; then make tests/boot-in.o; arm-linux-androideabi-gcc -o tests/boot tests/boot-in.o liblkl.a -static ; fi:
         parallel: true
