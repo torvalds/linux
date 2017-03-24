@@ -122,7 +122,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	busy |= work_done == budget;
 
 	if (c->xdp)
-		busy |= mlx5e_poll_xdpsq_cq(&c->xdp_sq.cq);
+		busy |= mlx5e_poll_xdpsq_cq(&c->rq.xdpsq.cq);
 
 	mlx5e_poll_ico_cq(&c->icosq.cq);
 

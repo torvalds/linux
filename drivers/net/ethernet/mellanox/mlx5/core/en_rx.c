@@ -653,7 +653,7 @@ static inline bool mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 					struct mlx5e_dma_info *di,
 					const struct xdp_buff *xdp)
 {
-	struct mlx5e_sq          *sq   = &rq->channel->xdp_sq;
+	struct mlx5e_sq          *sq   = &rq->xdpsq;
 	struct mlx5_wq_cyc       *wq   = &sq->wq;
 	u16                      pi    = sq->pc & wq->sz_m1;
 	struct mlx5e_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
@@ -950,7 +950,7 @@ mpwrq_cqe_out:
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 {
 	struct mlx5e_rq *rq = container_of(cq, struct mlx5e_rq, cq);
-	struct mlx5e_sq *xdp_sq = &rq->channel->xdp_sq;
+	struct mlx5e_sq *xdpsq = &rq->xdpsq;
 	int work_done = 0;
 
 	if (unlikely(!test_bit(MLX5E_RQ_STATE_ENABLED, &rq->state)))
@@ -977,9 +977,9 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 		rq->handle_rx_cqe(rq, cqe);
 	}
 
-	if (xdp_sq->db.xdp.doorbell) {
-		mlx5e_xmit_xdp_doorbell(xdp_sq);
-		xdp_sq->db.xdp.doorbell = false;
+	if (xdpsq->db.xdp.doorbell) {
+		mlx5e_xmit_xdp_doorbell(xdpsq);
+		xdpsq->db.xdp.doorbell = false;
 	}
 
 	mlx5_cqwq_update_db_record(&cq->wq);
@@ -993,6 +993,7 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 {
 	struct mlx5e_sq *sq;
+	struct mlx5e_rq *rq;
 	u16 sqcc;
 	int i;
 
@@ -1000,6 +1001,8 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 
 	if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state)))
 		return false;
+
+	rq = container_of(sq, struct mlx5e_rq, xdpsq);
 
 	/* sq->cc must be updated only after mlx5_cqwq_update_db_record(),
 	 * otherwise a cq overrun may occur
@@ -1037,7 +1040,7 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 
 			sqcc += wi->num_wqebbs;
 			/* Recycle RX page */
-			mlx5e_page_release(&sq->channel->rq, di, true);
+			mlx5e_page_release(rq, di, true);
 		} while (!last_wqe);
 	}
 
@@ -1052,6 +1055,7 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 
 void mlx5e_free_xdpsq_descs(struct mlx5e_sq *sq)
 {
+	struct mlx5e_rq *rq = container_of(sq, struct mlx5e_rq, xdpsq);
 	struct mlx5e_sq_wqe_info *wi;
 	struct mlx5e_dma_info *di;
 	u16 ci;
@@ -1068,6 +1072,6 @@ void mlx5e_free_xdpsq_descs(struct mlx5e_sq *sq)
 
 		sq->cc += wi->num_wqebbs;
 
-		mlx5e_page_release(&sq->channel->rq, di, false);
+		mlx5e_page_release(rq, di, false);
 	}
 }
