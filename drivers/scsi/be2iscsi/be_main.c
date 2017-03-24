@@ -1611,6 +1611,10 @@ beiscsi_hdl_fwd_pdu(struct beiscsi_conn *beiscsi_conn,
 			dlen = pasync_handle->buffer_len;
 			continue;
 		}
+		if (!pasync_handle->buffer_len ||
+		    (dlen + pasync_handle->buffer_len) >
+		    pasync_ctx->async_data.buffer_size)
+			break;
 		memcpy(pdata + dlen, pasync_handle->pbuffer,
 		       pasync_handle->buffer_len);
 		dlen += pasync_handle->buffer_len;
@@ -1619,8 +1623,9 @@ beiscsi_hdl_fwd_pdu(struct beiscsi_conn *beiscsi_conn,
 	if (!plast_handle->is_final) {
 		/* last handle should have final PDU notification from FW */
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_ISCSI,
-			    "BM_%d : cid %u %p fwd async PDU with last handle missing - HL%u:DN%u:DR%u\n",
+			    "BM_%d : cid %u %p fwd async PDU opcode %x with last handle missing - HL%u:DN%u:DR%u\n",
 			    beiscsi_conn->beiscsi_conn_cid, plast_handle,
+			    AMAP_GET_BITS(struct amap_pdu_base, opcode, phdr),
 			    pasync_ctx->async_entry[cri].wq.hdr_len,
 			    pasync_ctx->async_entry[cri].wq.bytes_needed,
 			    pasync_ctx->async_entry[cri].wq.bytes_received);
