@@ -634,6 +634,7 @@ struct hd_async_buf_context {
 	 * They are posted back to FW in groups of 8.
 	 */
 	struct list_head free_list;
+	u16 pi;
 };
 
 /**
