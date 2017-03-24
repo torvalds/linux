@@ -37,7 +37,7 @@ MODULE_PARM_DESC(debug, "debug level (0-2)");
 
 static int s5p_cec_adap_enable(struct cec_adapter *adap, bool enable)
 {
-	struct s5p_cec_dev *cec = adap->priv;
+	struct s5p_cec_dev *cec = cec_get_drvdata(adap);
 
 	if (enable) {
 		pm_runtime_get_sync(cec->dev);
@@ -61,7 +61,7 @@ static int s5p_cec_adap_enable(struct cec_adapter *adap, bool enable)
 
 static int s5p_cec_adap_log_addr(struct cec_adapter *adap, u8 addr)
 {
-	struct s5p_cec_dev *cec = adap->priv;
+	struct s5p_cec_dev *cec = cec_get_drvdata(adap);
 
 	s5p_cec_set_addr(cec, addr);
 	return 0;
@@ -70,7 +70,7 @@ static int s5p_cec_adap_log_addr(struct cec_adapter *adap, u8 addr)
 static int s5p_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				 u32 signal_free_time, struct cec_msg *msg)
 {
-	struct s5p_cec_dev *cec = adap->priv;
+	struct s5p_cec_dev *cec = cec_get_drvdata(adap);
 
 	/*
 	 * Unclear if 0 retries are allowed by the hardware, so have 1 as
