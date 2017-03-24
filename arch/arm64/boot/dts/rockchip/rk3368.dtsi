@@ -400,7 +400,7 @@
 		#clock-cells = <0>;
 	};
 
-	sdmmc: rksdmmc@ff0c0000 {
+	sdmmc: dwmmc@ff0c0000 {
 		compatible = "rockchip,rk3368-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff0c0000 0x0 0x4000>;
 		clock-freq-min-max = <400000 150000000>;
@@ -424,7 +424,7 @@
 		status = "disabled";
 	};
 
-	emmc: rksdmmc@ff0f0000 {
+	emmc: dwmmc@ff0f0000 {
 		compatible = "rockchip,rk3368-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff0f0000 0x0 0x4000>;
 		clock-freq-min-max = <400000 150000000>;
