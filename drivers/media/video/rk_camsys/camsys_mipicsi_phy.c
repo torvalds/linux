@@ -33,10 +33,10 @@ static int camsys_mipiphy_clkin_cb(void *ptr, unsigned int on)
 		}
 	}
 	if (on)
-		camsys_trace(1, "%s mipi phy clk in turn on",
+		camsys_trace(2, "%s mipiphy clk turn on",
 		dev_name(camsys_dev->miscdev.this_device));
 	else
-		camsys_trace(1, "%s mipi phy clk in turn off",
+		camsys_trace(2, "%s mipiphy clk turn off",
 		dev_name(camsys_dev->miscdev.this_device));
 
 	return 0;
@@ -270,11 +270,11 @@ struct platform_device *pdev, camsys_dev_t *camsys_dev)
 		/* get cru base */
 		node = of_parse_phandle(dev->of_node, "rockchip,cru", 0);
 		camsys_dev->rk_cru_base = (unsigned long)of_iomap(node, 0);
-		camsys_trace(1, "rk_cru_base=0x%lx", camsys_dev->rk_cru_base);
+		camsys_trace(2, "rk_cru_base=0x%lx", camsys_dev->rk_cru_base);
 		/* get grf base */
 		node = of_parse_phandle(dev->of_node, "rockchip,grf", 0);
 		camsys_dev->rk_grf_base = (unsigned long)of_iomap(node, 0);
-		camsys_trace(1, "rk_grf_base=0x%lx", camsys_dev->rk_grf_base);
+		camsys_trace(2, "rk_grf_base=0x%lx", camsys_dev->rk_grf_base);
 	}
 
 	return 0;

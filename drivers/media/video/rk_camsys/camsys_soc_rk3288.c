@@ -376,7 +376,7 @@ camsys_dev_t *camsys_dev, camsys_soc_cfg_t cfg_cmd, void *cfg_para)
 			cru_writel(0x40004000, 0x1d0);
 		else
 			cru_writel(0x40000000, 0x1d0);
-			camsys_trace(1, "Isp_SoftRst: %d", reset);
+			camsys_trace(2, "Isp_SoftRst: %d", reset);
 		break;
 	}
 

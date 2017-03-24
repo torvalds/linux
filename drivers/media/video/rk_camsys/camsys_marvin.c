@@ -455,10 +455,9 @@ static int camsys_mrv_drm_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 		camsys_dev->dma_buf_cnt++;
 		camsys_trace
 			(
-			1,
-			"%s:iommu map dma_addr 0x%lx,attach %p,"
+			2,
+			"dma buf map: dma_addr 0x%lx,attach %p,"
 			"dma_buf %p,sgt %p,fd %d,buf_cnt %d",
-			__func__,
 			(unsigned long)dma_addr,
 			attach,
 			dma_buf,
@@ -483,12 +482,13 @@ static int camsys_mrv_drm_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 		attach = camsys_dev->dma_buf[index].attach;
 		dma_buf = camsys_dev->dma_buf[index].dma_buf;
 		sgt = camsys_dev->dma_buf[index].sgt;
+		dma_addr = sg_dma_address(sgt->sgl);
 		camsys_trace
 				(
-				1,
-				"%s:iommu map ,attach %p,"
+				2,
+				"dma buf unmap: dma_addr 0x%lx,attach %p,"
 				"dma_buf %p,sgt %p,index %d",
-				__func__,
+				(unsigned long)dma_addr,
 				attach,
 				dma_buf,
 				sgt,
@@ -674,7 +674,7 @@ static int camsys_mrv_clkout_cb(void *ptr, unsigned int on, unsigned int inclk)
 		clk_set_rate(clk->cif_clk_out, inclk);
 		clk_prepare_enable(clk->cif_clk_out);
 		clk->out_on = on;
-		camsys_trace(1, "camsys %s clock out(rate: %dHz) turn on",
+		camsys_trace(1, "%s clock out(rate: %dHz) turn on",
 			dev_name(camsys_dev->miscdev.this_device),
 					inclk);
 	} else if (!on && clk->out_on) {

@@ -32,7 +32,7 @@ int camsys_soc_init(unsigned int chip_type)
 	if (chip_type == 3368) {
 		strlcpy(camsys_soc_p->name, "camsys_rk3368", 31);
 		camsys_soc_p->soc_cfg = camsys_rk3368_cfg;
-		camsys_err("camsys_soc_init exit!");
+		camsys_trace(2, "camsys_soc_init exit!");
 	} else if (chip_type == 3288) {
 		if (cpu_is_rk3288()) {
 			strlcpy(camsys_soc_p->name, "camsys_rk3288", 31);
@@ -44,11 +44,11 @@ int camsys_soc_init(unsigned int chip_type)
 	} else if (chip_type == 3366) {
 		strlcpy(camsys_soc_p->name, "camsys_rk3366", 31);
 		camsys_soc_p->soc_cfg = camsys_rk3366_cfg;
-		camsys_err("camsys_soc_init exit!");
+		camsys_trace(2, "camsys_soc_init exit!");
 	} else if (chip_type == 3399) {
 		strlcpy(camsys_soc_p->name, "camsys_rk3399", 31);
 		camsys_soc_p->soc_cfg = camsys_rk3399_cfg;
-		camsys_err("camsys_soc_init exit!");
+		camsys_trace(2, "camsys_soc_init exit!");
 	}
 
 	return 0;
