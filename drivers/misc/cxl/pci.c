@@ -123,6 +123,8 @@ static const struct pci_device_id cxl_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x044b), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x04cf), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x0601), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x0623), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x0628), },
 	{ PCI_DEVICE_CLASS(0x120000, ~0), },
 
 	{ }
