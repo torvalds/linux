@@ -1037,6 +1037,11 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 
 	skl_delete_pipe(ctx, mconfig->pipe);
 
+	list_for_each_entry(w_module, &s_pipe->w_list, node) {
+		src_module = w_module->w->priv;
+		src_module->m_state = SKL_MODULE_UNINIT;
+	}
+
 	return skl_tplg_unload_pipe_modules(ctx, s_pipe);
 }
 
