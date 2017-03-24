@@ -1949,7 +1949,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 		RCU_INIT_POINTER(rt2->rt_nh->nh_dev, lo);
 		rt2->rt_protocol = RTPROT_KERNEL;
 		rt2->rt_payload_type = MPT_IPV6;
-		rt0->rt_ttl_propagate = MPLS_TTL_PROP_DEFAULT;
+		rt2->rt_ttl_propagate = MPLS_TTL_PROP_DEFAULT;
 		rt2->rt_nh->nh_via_table = NEIGH_LINK_TABLE;
 		rt2->rt_nh->nh_via_alen = lo->addr_len;
 		memcpy(__mpls_nh_via(rt2, rt2->rt_nh), lo->dev_addr,
