@@ -408,10 +408,6 @@ static void next_entry(struct ctl_table_header **phead, struct ctl_table **pentr
 	*pentry = entry;
 }
 
-void register_sysctl_root(struct ctl_table_root *root)
-{
-}
-
 /*
  * sysctl_perm does NOT grant the superuser all rights automatically, because
  * some sysctl variables are readonly even to root.
