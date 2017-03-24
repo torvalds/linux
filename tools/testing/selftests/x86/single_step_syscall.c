@@ -56,9 +56,11 @@ static volatile sig_atomic_t sig_traps;
 #ifdef __x86_64__
 # define REG_IP REG_RIP
 # define WIDTH "q"
+# define INT80_CLOBBERS "r8", "r9", "r10", "r11"
 #else
 # define REG_IP REG_EIP
 # define WIDTH "l"
+# define INT80_CLOBBERS
 #endif
 
 static unsigned long get_eflags(void)
@@ -140,7 +142,8 @@ int main()
 
 	printf("[RUN]\tSet TF and check int80\n");
 	set_eflags(get_eflags() | X86_EFLAGS_TF);
-	asm volatile ("int $0x80" : "=a" (tmp) : "a" (SYS_getpid));
+	asm volatile ("int $0x80" : "=a" (tmp) : "a" (SYS_getpid)
+			: INT80_CLOBBERS);
 	check_result();
 
 	/*

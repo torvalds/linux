@@ -96,10 +96,10 @@ static int gvt_dma_map_iova(struct intel_vgpu *vgpu, kvm_pfn_t pfn,
 	struct device *dev = &vgpu->gvt->dev_priv->drm.pdev->dev;
 	dma_addr_t daddr;
 
-	page = pfn_to_page(pfn);
-	if (is_error_page(page))
+	if (unlikely(!pfn_valid(pfn)))
 		return -EFAULT;
 
+	page = pfn_to_page(pfn);
 	daddr = dma_map_page(dev, page, 0, PAGE_SIZE,
 			PCI_DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, daddr))
@@ -295,10 +295,10 @@ static ssize_t description_show(struct kobject *kobj, struct device *dev,
 		return 0;
 
 	return sprintf(buf, "low_gm_size: %dMB\nhigh_gm_size: %dMB\n"
-				"fence: %d\n",
-				BYTES_TO_MB(type->low_gm_size),
-				BYTES_TO_MB(type->high_gm_size),
-				type->fence);
+		       "fence: %d\nresolution: %s\n",
+		       BYTES_TO_MB(type->low_gm_size),
+		       BYTES_TO_MB(type->high_gm_size),
+		       type->fence, vgpu_edid_str(type->resolution));
 }
 
 static MDEV_TYPE_ATTR_RO(available_instances);

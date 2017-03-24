@@ -10,9 +10,9 @@
 #include <linux/bug.h>
 #include <linux/errno.h>
 
-#if 4 - defined(__PAGETABLE_PUD_FOLDED) - defined(__PAGETABLE_PMD_FOLDED) != \
-	CONFIG_PGTABLE_LEVELS
-#error CONFIG_PGTABLE_LEVELS is not consistent with __PAGETABLE_{PUD,PMD}_FOLDED
+#if 5 - defined(__PAGETABLE_P4D_FOLDED) - defined(__PAGETABLE_PUD_FOLDED) - \
+	defined(__PAGETABLE_PMD_FOLDED) != CONFIG_PGTABLE_LEVELS
+#error CONFIG_PGTABLE_LEVELS is not consistent with __PAGETABLE_{P4D,PUD,PMD}_FOLDED
 #endif
 
 /*
@@ -424,6 +424,13 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
 })
 
+#ifndef p4d_addr_end
+#define p4d_addr_end(addr, end)						\
+({	unsigned long __boundary = ((addr) + P4D_SIZE) & P4D_MASK;	\
+	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
+})
+#endif
+
 #ifndef pud_addr_end
 #define pud_addr_end(addr, end)						\
 ({	unsigned long __boundary = ((addr) + PUD_SIZE) & PUD_MASK;	\
@@ -444,6 +451,7 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
  * Do the tests inline, but report and clear the bad entry in mm/memory.c.
  */
 void pgd_clear_bad(pgd_t *);
+void p4d_clear_bad(p4d_t *);
 void pud_clear_bad(pud_t *);
 void pmd_clear_bad(pmd_t *);
 
@@ -453,6 +461,17 @@ static inline int pgd_none_or_clear_bad(pgd_t *pgd)
 		return 1;
 	if (unlikely(pgd_bad(*pgd))) {
 		pgd_clear_bad(pgd);
+		return 1;
+	}
+	return 0;
+}
+
+static inline int p4d_none_or_clear_bad(p4d_t *p4d)
+{
+	if (p4d_none(*p4d))
+		return 1;
+	if (unlikely(p4d_bad(*p4d))) {
+		p4d_clear_bad(p4d);
 		return 1;
 	}
 	return 0;
@@ -844,16 +863,39 @@ static inline int pmd_protnone(pmd_t pmd)
 #endif /* CONFIG_MMU */
 
 #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
+
+#ifndef __PAGETABLE_P4D_FOLDED
+int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot);
+int p4d_clear_huge(p4d_t *p4d);
+#else
+static inline int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot)
+{
+	return 0;
+}
+static inline int p4d_clear_huge(p4d_t *p4d)
+{
+	return 0;
+}
+#endif /* !__PAGETABLE_P4D_FOLDED */
+
 int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot);
 int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot);
 int pud_clear_huge(pud_t *pud);
 int pmd_clear_huge(pmd_t *pmd);
 #else	/* !CONFIG_HAVE_ARCH_HUGE_VMAP */
+static inline int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot)
+{
+	return 0;
+}
 static inline int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
 {
 	return 0;
 }
 static inline int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
+{
+	return 0;
+}
+static inline int p4d_clear_huge(p4d_t *p4d)
 {
 	return 0;
 }

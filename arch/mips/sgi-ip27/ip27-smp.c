@@ -8,10 +8,13 @@
  */
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/topology.h>
 #include <linux/nodemask.h>
+
 #include <asm/page.h>
 #include <asm/processor.h>
+#include <asm/ptrace.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/gda.h>
 #include <asm/sn/intr.h>

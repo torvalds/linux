@@ -610,7 +610,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 {
 	struct usba_ep *ep = to_usba_ep(_ep);
 	struct usba_udc *udc = ep->udc;
-	unsigned long flags, ept_cfg, maxpacket;
+	unsigned long flags, maxpacket;
 	unsigned int nr_trans;
 
 	DBG(DBG_GADGET, "%s: ep_enable: desc=%p\n", ep->ep.name, desc);
@@ -630,7 +630,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	ep->is_in = 0;
 
 	DBG(DBG_ERR, "%s: EPT_CFG = 0x%lx (maxpacket = %lu)\n",
-			ep->ep.name, ept_cfg, maxpacket);
+			ep->ep.name, ep->ept_cfg, maxpacket);
 
 	if (usb_endpoint_dir_in(desc)) {
 		ep->is_in = 1;

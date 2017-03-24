@@ -12,6 +12,7 @@
 
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
+#include <linux/ptrace.h>
 #include <linux/thread_info.h>
 #include <linux/bitops.h>
 
