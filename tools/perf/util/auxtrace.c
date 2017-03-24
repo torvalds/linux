@@ -1826,7 +1826,7 @@ static int addr_filter__resolve_kernel_syms(struct addr_filter *filt)
 		filt->addr = start;
 		if (filt->range && !filt->size && !filt->sym_to) {
 			filt->size = size;
-			no_size = !!size;
+			no_size = !size;
 		}
 	}
 
@@ -1840,7 +1840,7 @@ static int addr_filter__resolve_kernel_syms(struct addr_filter *filt)
 		if (err)
 			return err;
 		filt->size = start + size - filt->addr;
-		no_size = !!size;
+		no_size = !size;
 	}
 
 	/* The very last symbol in kallsyms does not imply a particular size */
