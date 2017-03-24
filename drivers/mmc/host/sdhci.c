@@ -3396,20 +3396,22 @@ int sdhci_setup_host(struct sdhci_host *host)
 	if (!(host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK)) {
 		host->timeout_clk = (host->caps & SDHCI_TIMEOUT_CLK_MASK) >>
 					SDHCI_TIMEOUT_CLK_SHIFT;
+
+		if (host->caps & SDHCI_TIMEOUT_CLK_UNIT)
+			host->timeout_clk *= 1000;
+
 		if (host->timeout_clk == 0) {
-			if (host->ops->get_timeout_clock) {
-				host->timeout_clk =
-					host->ops->get_timeout_clock(host);
-			} else {
+			if (!host->ops->get_timeout_clock) {
 				pr_err("%s: Hardware doesn't specify timeout clock frequency.\n",
 					mmc_hostname(mmc));
 				ret = -ENODEV;
 				goto undma;
 			}
-		}
 
-		if (host->caps & SDHCI_TIMEOUT_CLK_UNIT)
-			host->timeout_clk *= 1000;
+			host->timeout_clk =
+				DIV_ROUND_UP(host->ops->get_timeout_clock(host),
+					     1000);
+		}
 
 		if (override_timeout_clk)
 			host->timeout_clk = override_timeout_clk;

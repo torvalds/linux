@@ -105,9 +105,9 @@ static unsigned int sdhci_cdns_get_timeout_clock(struct sdhci_host *host)
 {
 	/*
 	 * Cadence's spec says the Timeout Clock Frequency is the same as the
-	 * Base Clock Frequency.  Divide it by 1000 to return a value in kHz.
+	 * Base Clock Frequency.
 	 */
-	return host->max_clk / 1000;
+	return host->max_clk;
 }
 
 static void sdhci_cdns_set_emmc_mode(struct sdhci_cdns_priv *priv, u32 mode)
