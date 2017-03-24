@@ -228,6 +228,9 @@ struct tpm_chip {
 	struct tpm_space work_space;
 	u32 nr_commands;
 	u32 *cc_attrs_tbl;
+
+	/* active locality */
+	int locality;
 };
 
 #define to_tpm_chip(d) container_of(d, struct tpm_chip, dev)

@@ -231,6 +231,7 @@ struct tpm_chip *tpm_chip_alloc(struct device *pdev,
 		goto out;
 	}
 
+	chip->locality = -1;
 	return chip;
 
 out:

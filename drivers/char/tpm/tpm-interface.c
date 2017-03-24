@@ -389,6 +389,7 @@ ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 	ssize_t len = 0;
 	u32 count, ordinal;
 	unsigned long stop;
+	bool need_locality;
 
 	if (!tpm_validate_command(chip, space, buf, bufsiz))
 		return -EINVAL;
@@ -411,6 +412,16 @@ ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 
 	if (chip->dev.parent)
 		pm_runtime_get_sync(chip->dev.parent);
+
+	/* Store the decision as chip->locality will be changed. */
+	need_locality = chip->locality == -1;
+
+	if (need_locality && chip->ops->request_locality)  {
+		rc = chip->ops->request_locality(chip, 0);
+		if (rc < 0)
+			goto out_no_locality;
+		chip->locality = rc;
+	}
 
 	rc = tpm2_prepare_space(chip, space, ordinal, buf);
 	if (rc)
@@ -471,6 +482,11 @@ out_recv:
 	rc = tpm2_commit_space(chip, space, ordinal, buf, &len);
 
 out:
+	if (need_locality && chip->ops->relinquish_locality) {
+		chip->ops->relinquish_locality(chip, chip->locality);
+		chip->locality = -1;
+	}
+out_no_locality:
 	if (chip->dev.parent)
 		pm_runtime_put_sync(chip->dev.parent);
 
