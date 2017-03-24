@@ -1653,17 +1653,17 @@ static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
 
 	ttrace = thread__priv(thread);
 	if (!ttrace)
-		goto out;
+		goto out_put;
 
 	filename_len = strlen(filename);
 	if (filename_len == 0)
-		goto out;
+		goto out_put;
 
 	if (ttrace->filename.namelen < filename_len) {
 		char *f = realloc(ttrace->filename.name, filename_len + 1);
 
 		if (f == NULL)
-			goto out;
+			goto out_put;
 
 		ttrace->filename.namelen = filename_len;
 		ttrace->filename.name = f;
@@ -1673,12 +1673,12 @@ static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
 	ttrace->filename.pending_open = true;
 
 	if (!ttrace->filename.ptr)
-		goto out;
+		goto out_put;
 
 	entry_str_len = strlen(ttrace->entry_str);
 	remaining_space = trace__entry_str_size - entry_str_len - 1; /* \0 */
 	if (remaining_space <= 0)
-		goto out;
+		goto out_put;
 
 	if (filename_len > (size_t)remaining_space) {
 		filename += filename_len - remaining_space;
@@ -1692,6 +1692,8 @@ static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
 
 	ttrace->filename.ptr = 0;
 	ttrace->filename.entry_str_pos = 0;
+out_put:
+	thread__put(thread);
 out:
 	return 0;
 }
@@ -1712,6 +1714,7 @@ static int trace__sched_stat_runtime(struct trace *trace, struct perf_evsel *evs
 
 	ttrace->runtime_ms += runtime_ms;
 	trace->runtime_ms += runtime_ms;
+out_put:
 	thread__put(thread);
 	return 0;
 
@@ -1722,8 +1725,7 @@ out_dump:
 	       (pid_t)perf_evsel__intval(evsel, sample, "pid"),
 	       runtime,
 	       perf_evsel__intval(evsel, sample, "vruntime"));
-	thread__put(thread);
-	return 0;
+	goto out_put;
 }
 
 static void bpf_output__printer(enum binary_printer_ops op,
@@ -1922,7 +1924,7 @@ static int trace__process_sample(struct perf_tool *tool,
 
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
 	if (thread && thread__is_filtered(thread))
-		return 0;
+		goto out;
 
 	trace__set_base_time(trace, evsel, sample);
 
@@ -1930,7 +1932,8 @@ static int trace__process_sample(struct perf_tool *tool,
 		++trace->nr_events;
 		handler(trace, evsel, event, sample);
 	}
-
+out:
+	thread__put(thread);
 	return err;
 }
 
