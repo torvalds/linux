@@ -44,7 +44,7 @@ struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq)
 		return NULL;
 
 	/* ensure cqe content is read after cqe ownership bit */
-	rmb();
+	dma_rmb();
 
 	return cqe;
 }
