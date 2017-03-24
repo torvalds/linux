@@ -133,7 +133,7 @@ struct stih_cec {
 
 static int stih_cec_adap_enable(struct cec_adapter *adap, bool enable)
 {
-	struct stih_cec *cec = adap->priv;
+	struct stih_cec *cec = cec_get_drvdata(adap);
 
 	if (enable) {
 		/* The doc says (input TCLK_PERIOD * CEC_CLK_DIV) = 0.1ms */
@@ -189,7 +189,7 @@ static int stih_cec_adap_enable(struct cec_adapter *adap, bool enable)
 
 static int stih_cec_adap_log_addr(struct cec_adapter *adap, u8 logical_addr)
 {
-	struct stih_cec *cec = adap->priv;
+	struct stih_cec *cec = cec_get_drvdata(adap);
 	u32 reg = readl(cec->regs + CEC_ADDR_TABLE);
 
 	reg |= 1 << logical_addr;
@@ -205,7 +205,7 @@ static int stih_cec_adap_log_addr(struct cec_adapter *adap, u8 logical_addr)
 static int stih_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				  u32 signal_free_time, struct cec_msg *msg)
 {
-	struct stih_cec *cec = adap->priv;
+	struct stih_cec *cec = cec_get_drvdata(adap);
 	int i;
 
 	/* Copy message into registers */
