@@ -3237,3 +3237,14 @@ static int __init proto_init(void)
 subsys_initcall(proto_init);
 
 #endif /* PROC_FS */
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+bool sk_busy_loop_end(void *p, unsigned long start_time)
+{
+	struct sock *sk = p;
+
+	return !skb_queue_empty(&sk->sk_receive_queue) ||
+	       sk_busy_loop_timeout(sk, start_time);
+}
+EXPORT_SYMBOL(sk_busy_loop_end);
+#endif /* CONFIG_NET_RX_BUSY_POLL */

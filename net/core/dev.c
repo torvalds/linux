@@ -5060,19 +5060,16 @@ static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock)
 		do_softirq();
 }
 
-void sk_busy_loop(struct sock *sk, int nonblock)
+void napi_busy_loop(unsigned int napi_id,
+		    bool (*loop_end)(void *, unsigned long),
+		    void *loop_end_arg)
 {
-	unsigned long start_time = nonblock ? 0 : busy_loop_current_time();
+	unsigned long start_time = loop_end ? busy_loop_current_time() : 0;
 	int (*napi_poll)(struct napi_struct *napi, int budget);
 	void *have_poll_lock = NULL;
 	struct napi_struct *napi;
-	unsigned int napi_id;
 
 restart:
-	napi_id = READ_ONCE(sk->sk_napi_id);
-	if (napi_id < MIN_NAPI_ID)
-		return;
-
 	napi_poll = NULL;
 
 	rcu_read_lock();
@@ -5106,12 +5103,11 @@ restart:
 		trace_napi_poll(napi, work, BUSY_POLL_BUDGET);
 count:
 		if (work > 0)
-			__NET_ADD_STATS(sock_net(sk),
+			__NET_ADD_STATS(dev_net(napi->dev),
 					LINUX_MIB_BUSYPOLLRXPACKETS, work);
 		local_bh_enable();
 
-		if (nonblock || !skb_queue_empty(&sk->sk_receive_queue) ||
-		    sk_busy_loop_timeout(sk, start_time))
+		if (!loop_end || loop_end(loop_end_arg, start_time))
 			break;
 
 		if (unlikely(need_resched())) {
@@ -5120,8 +5116,7 @@ count:
 			preempt_enable();
 			rcu_read_unlock();
 			cond_resched();
-			if (!skb_queue_empty(&sk->sk_receive_queue) ||
-			    sk_busy_loop_timeout(sk, start_time))
+			if (loop_end(loop_end_arg, start_time))
 				return;
 			goto restart;
 		}
@@ -5133,7 +5128,7 @@ count:
 out:
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(sk_busy_loop);
+EXPORT_SYMBOL(napi_busy_loop);
 
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
