@@ -20,9 +20,11 @@
 #include <net/tcp.h>
 
 static siphash_key_t net_secret __read_mostly;
+static siphash_key_t ts_secret __read_mostly;
 
 static __always_inline void net_secret_init(void)
 {
+	net_get_random_once(&ts_secret, sizeof(ts_secret));
 	net_get_random_once(&net_secret, sizeof(net_secret));
 }
 #endif
@@ -45,6 +47,23 @@ static u32 seq_scale(u32 seq)
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
+static u32 secure_tcpv6_ts_off(const __be32 *saddr, const __be32 *daddr)
+{
+	const struct {
+		struct in6_addr saddr;
+		struct in6_addr daddr;
+	} __aligned(SIPHASH_ALIGNMENT) combined = {
+		.saddr = *(struct in6_addr *)saddr,
+		.daddr = *(struct in6_addr *)daddr,
+	};
+
+	if (sysctl_tcp_timestamps != 1)
+		return 0;
+
+	return siphash(&combined, offsetofend(typeof(combined), daddr),
+		       &ts_secret);
+}
+
 u32 secure_tcpv6_sequence_number(const __be32 *saddr, const __be32 *daddr,
 				 __be16 sport, __be16 dport, u32 *tsoff)
 {
@@ -63,7 +82,7 @@ u32 secure_tcpv6_sequence_number(const __be32 *saddr, const __be32 *daddr,
 	net_secret_init();
 	hash = siphash(&combined, offsetofend(typeof(combined), dport),
 		       &net_secret);
-	*tsoff = sysctl_tcp_timestamps == 1 ? (hash >> 32) : 0;
+	*tsoff = secure_tcpv6_ts_off(saddr, daddr);
 	return seq_scale(hash);
 }
 EXPORT_SYMBOL(secure_tcpv6_sequence_number);
@@ -88,6 +107,14 @@ EXPORT_SYMBOL(secure_ipv6_port_ephemeral);
 #endif
 
 #ifdef CONFIG_INET
+static u32 secure_tcp_ts_off(__be32 saddr, __be32 daddr)
+{
+	if (sysctl_tcp_timestamps != 1)
+		return 0;
+
+	return siphash_2u32((__force u32)saddr, (__force u32)daddr,
+			    &ts_secret);
+}
 
 /* secure_tcp_sequence_number(a, b, 0, d) == secure_ipv4_port_ephemeral(a, b, d),
  * but fortunately, `sport' cannot be 0 in any circumstances. If this changes,
@@ -103,7 +130,7 @@ u32 secure_tcp_sequence_number(__be32 saddr, __be32 daddr,
 	hash = siphash_3u32((__force u32)saddr, (__force u32)daddr,
 			    (__force u32)sport << 16 | (__force u32)dport,
 			    &net_secret);
-	*tsoff = sysctl_tcp_timestamps == 1 ? (hash >> 32) : 0;
+	*tsoff = secure_tcp_ts_off(saddr, daddr);
 	return seq_scale(hash);
 }
 
