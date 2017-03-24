@@ -2946,6 +2946,48 @@ static int gfx_v9_0_set_clockgating_state(void *handle,
 	return 0;
 }
 
+static void gfx_v9_0_get_clockgating_state(void *handle, u32 *flags)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int data;
+
+	if (amdgpu_sriov_vf(adev))
+		*flags = 0;
+
+	/* AMD_CG_SUPPORT_GFX_MGCG */
+	data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CGTT_MGCG_OVERRIDE));
+	if (!(data & RLC_CGTT_MGCG_OVERRIDE__GFXIP_MGCG_OVERRIDE_MASK))
+		*flags |= AMD_CG_SUPPORT_GFX_MGCG;
+
+	/* AMD_CG_SUPPORT_GFX_CGCG */
+	data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CGCG_CGLS_CTRL));
+	if (data & RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_GFX_CGCG;
+
+	/* AMD_CG_SUPPORT_GFX_CGLS */
+	if (data & RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_GFX_CGLS;
+
+	/* AMD_CG_SUPPORT_GFX_RLC_LS */
+	data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_MEM_SLP_CNTL));
+	if (data & RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_GFX_RLC_LS | AMD_CG_SUPPORT_GFX_MGLS;
+
+	/* AMD_CG_SUPPORT_GFX_CP_LS */
+	data = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_MEM_SLP_CNTL));
+	if (data & CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_GFX_CP_LS | AMD_CG_SUPPORT_GFX_MGLS;
+
+	/* AMD_CG_SUPPORT_GFX_3D_CGCG */
+	data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CGCG_CGLS_CTRL_3D));
+	if (data & RLC_CGCG_CGLS_CTRL_3D__CGCG_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_GFX_3D_CGCG;
+
+	/* AMD_CG_SUPPORT_GFX_3D_CGLS */
+	if (data & RLC_CGCG_CGLS_CTRL_3D__CGLS_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_GFX_3D_CGLS;
+}
+
 static u64 gfx_v9_0_ring_get_rptr_gfx(struct amdgpu_ring *ring)
 {
 	return ring->adev->wb.wb[ring->rptr_offs]; /* gfx9 is 32bit rptr*/
@@ -3626,6 +3668,7 @@ const struct amd_ip_funcs gfx_v9_0_ip_funcs = {
 	.soft_reset = gfx_v9_0_soft_reset,
 	.set_clockgating_state = gfx_v9_0_set_clockgating_state,
 	.set_powergating_state = gfx_v9_0_set_powergating_state,
+	.get_clockgating_state = gfx_v9_0_get_clockgating_state,
 };
 
 static const struct amdgpu_ring_funcs gfx_v9_0_ring_funcs_gfx = {
