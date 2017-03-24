@@ -165,9 +165,20 @@ EXPORT_SYMBOL_GPL(usb_find_common_endpoints);
 
 /**
  * usb_find_common_endpoints_reverse() -- look up common endpoint descriptors
+ * @alt:	alternate setting to search
+ * @bulk_in:	pointer to descriptor pointer, or NULL
+ * @bulk_out:	pointer to descriptor pointer, or NULL
+ * @int_in:	pointer to descriptor pointer, or NULL
+ * @int_out:	pointer to descriptor pointer, or NULL
  *
- * Same as usb_find_common_endpoints(), but the endpoint descriptors are
- * searched in reverse order (see usb_find_common_endpoints() for details).
+ * Search the alternate setting's endpoint descriptors for the last bulk-in,
+ * bulk-out, interrupt-in and interrupt-out endpoints and return them in the
+ * provided pointers (unless they are NULL).
+ *
+ * If a requested endpoint is not found, the corresponding pointer is set to
+ * NULL.
+ *
+ * Return: Zero if all requested descriptors were found, or -ENXIO otherwise.
  */
 int usb_find_common_endpoints_reverse(struct usb_host_interface *alt,
 		struct usb_endpoint_descriptor **bulk_in,
