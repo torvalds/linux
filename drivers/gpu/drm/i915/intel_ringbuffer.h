@@ -432,10 +432,10 @@ struct intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
 
-static inline unsigned
+static inline unsigned int
 intel_engine_flag(const struct intel_engine_cs *engine)
 {
-	return 1 << engine->id;
+	return BIT(engine->id);
 }
 
 static inline u32
