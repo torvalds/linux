@@ -433,6 +433,9 @@ static int hw_atl_a0_hw_ring_tx_xmit(struct aq_hw_s *self,
 				    buff->len_l3 +
 				    buff->len_l2);
 			is_gso = true;
+
+			if (buff->is_ipv6)
+				txd->ctl |= HW_ATL_A0_TXD_CTL_CMD_IPV6;
 		} else {
 			buff_pa_len = buff->len;
 
@@ -458,6 +461,7 @@ static int hw_atl_a0_hw_ring_tx_xmit(struct aq_hw_s *self,
 			if (unlikely(buff->is_eop)) {
 				txd->ctl |= HW_ATL_A0_TXD_CTL_EOP;
 				txd->ctl |= HW_ATL_A0_TXD_CTL_CMD_WB;
+				is_gso = false;
 			}
 		}
 
