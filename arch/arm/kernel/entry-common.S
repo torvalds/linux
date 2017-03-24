@@ -28,7 +28,13 @@
 #include "entry-header.S"
 
 saved_psr	.req	r8
+#if defined(CONFIG_TRACE_IRQFLAGS) || defined(CONFIG_CONTEXT_TRACKING)
+saved_pc	.req	r9
+#define TRACE(x...) x
+#else
 saved_pc	.req	lr
+#define TRACE(x...)
+#endif
 
 	.align	5
 #if !(IS_ENABLED(CONFIG_TRACE_IRQFLAGS) || IS_ENABLED(CONFIG_CONTEXT_TRACKING))
@@ -144,6 +150,7 @@ ENTRY(vector_swi)
  THUMB(	mov	r8, sp			)
  THUMB(	store_user_sp_lr r8, r10, S_SP	)	@ calling sp, lr
 	mrs	saved_psr, spsr			@ called from non-FIQ mode, so ok.
+ TRACE(	mov	saved_pc, lr		)
 	str	saved_pc, [sp, #S_PC]		@ Save calling PC
 	str	saved_psr, [sp, #S_PSR]		@ Save CPSR
 	str	r0, [sp, #S_OLD_R0]		@ Save OLD_R0
