@@ -1883,19 +1883,12 @@ static void i40e_undo_add_filter_entries(struct i40e_vsi *vsi,
 static
 struct i40e_new_mac_filter *i40e_next_filter(struct i40e_new_mac_filter *next)
 {
-	while (next) {
-		next = hlist_entry(next->hlist.next,
-				   typeof(struct i40e_new_mac_filter),
-				   hlist);
-
-		/* keep going if we found a broadcast filter */
-		if (next && is_broadcast_ether_addr(next->f->macaddr))
-			continue;
-
-		break;
+	hlist_for_each_entry_continue(next, hlist) {
+		if (!is_broadcast_ether_addr(next->f->macaddr))
+			return next;
 	}
 
-	return next;
+	return NULL;
 }
 
 /**
@@ -3286,6 +3279,7 @@ static void i40e_fdir_filter_restore(struct i40e_vsi *vsi)
 	/* Reset FDir counters as we're replaying all existing filters */
 	pf->fd_tcp4_filter_cnt = 0;
 	pf->fd_udp4_filter_cnt = 0;
+	pf->fd_sctp4_filter_cnt = 0;
 	pf->fd_ip4_filter_cnt = 0;
 
 	hlist_for_each_entry_safe(filter, node,
@@ -5747,6 +5741,7 @@ err_setup_tx:
 static void i40e_fdir_filter_exit(struct i40e_pf *pf)
 {
 	struct i40e_fdir_filter *filter;
+	struct i40e_flex_pit *pit_entry, *tmp;
 	struct hlist_node *node2;
 
 	hlist_for_each_entry_safe(filter, node2,
@@ -5755,10 +5750,42 @@ static void i40e_fdir_filter_exit(struct i40e_pf *pf)
 		kfree(filter);
 	}
 
+	list_for_each_entry_safe(pit_entry, tmp, &pf->l3_flex_pit_list, list) {
+		list_del(&pit_entry->list);
+		kfree(pit_entry);
+	}
+	INIT_LIST_HEAD(&pf->l3_flex_pit_list);
+
+	list_for_each_entry_safe(pit_entry, tmp, &pf->l4_flex_pit_list, list) {
+		list_del(&pit_entry->list);
+		kfree(pit_entry);
+	}
+	INIT_LIST_HEAD(&pf->l4_flex_pit_list);
+
 	pf->fdir_pf_active_filters = 0;
 	pf->fd_tcp4_filter_cnt = 0;
 	pf->fd_udp4_filter_cnt = 0;
+	pf->fd_sctp4_filter_cnt = 0;
 	pf->fd_ip4_filter_cnt = 0;
+
+	/* Reprogram the default input set for TCP/IPv4 */
+	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_TCP,
+				I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
+				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
+
+	/* Reprogram the default input set for UDP/IPv4 */
+	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_UDP,
+				I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
+				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
+
+	/* Reprogram the default input set for SCTP/IPv4 */
+	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_SCTP,
+				I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
+				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
+
+	/* Reprogram the default input set for Other/IPv4 */
+	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_OTHER,
+				I40E_L3_SRC_MASK | I40E_L3_DST_MASK);
 }
 
 /**
@@ -11124,6 +11151,9 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->bus.func = PCI_FUNC(pdev->devfn);
 	hw->bus.bus_id = pdev->bus->number;
 	pf->instance = pfs_found;
+
+	INIT_LIST_HEAD(&pf->l3_flex_pit_list);
+	INIT_LIST_HEAD(&pf->l4_flex_pit_list);
 
 	/* set up the locks for the AQ, do this only once in probe
 	 * and destroy them only once in remove

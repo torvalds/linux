@@ -202,6 +202,15 @@ enum i40e_fd_stat_idx {
 #define I40E_FD_ATR_TUNNEL_STAT_IDX(pf_id) \
 			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_ATR_TUNNEL)
 
+/* The following structure contains the data parsed from the user-defined
+ * field of the ethtool_rx_flow_spec structure.
+ */
+struct i40e_rx_flow_userdef {
+	bool flex_filter;
+	u16 flex_word;
+	u16 flex_offset;
+};
+
 struct i40e_fdir_filter {
 	struct hlist_node fdir_node;
 	/* filter ipnut set */
@@ -213,6 +222,12 @@ struct i40e_fdir_filter {
 	__be16 src_port;
 	__be16 dst_port;
 	__be32 sctp_v_tag;
+
+	/* Flexible data to match within the packet payload */
+	__be16 flex_word;
+	u16 flex_offset;
+	bool flex_filter;
+
 	/* filter control */
 	u16 q_index;
 	u8  flex_off;
@@ -247,6 +262,75 @@ struct i40e_udp_port_config {
 	/* AdminQ command interface expects port number in Host byte order */
 	u16 index;
 	u8 type;
+};
+
+/* macros related to FLX_PIT */
+#define I40E_FLEX_SET_FSIZE(fsize) (((fsize) << \
+				    I40E_PRTQF_FLX_PIT_FSIZE_SHIFT) & \
+				    I40E_PRTQF_FLX_PIT_FSIZE_MASK)
+#define I40E_FLEX_SET_DST_WORD(dst) (((dst) << \
+				     I40E_PRTQF_FLX_PIT_DEST_OFF_SHIFT) & \
+				     I40E_PRTQF_FLX_PIT_DEST_OFF_MASK)
+#define I40E_FLEX_SET_SRC_WORD(src) (((src) << \
+				     I40E_PRTQF_FLX_PIT_SOURCE_OFF_SHIFT) & \
+				     I40E_PRTQF_FLX_PIT_SOURCE_OFF_MASK)
+#define I40E_FLEX_PREP_VAL(dst, fsize, src) (I40E_FLEX_SET_DST_WORD(dst) | \
+					     I40E_FLEX_SET_FSIZE(fsize) | \
+					     I40E_FLEX_SET_SRC_WORD(src))
+
+#define I40E_FLEX_PIT_GET_SRC(flex) (((flex) & \
+				     I40E_PRTQF_FLX_PIT_SOURCE_OFF_MASK) >> \
+				     I40E_PRTQF_FLX_PIT_SOURCE_OFF_SHIFT)
+#define I40E_FLEX_PIT_GET_DST(flex) (((flex) & \
+				     I40E_PRTQF_FLX_PIT_DEST_OFF_MASK) >> \
+				     I40E_PRTQF_FLX_PIT_DEST_OFF_SHIFT)
+#define I40E_FLEX_PIT_GET_FSIZE(flex) (((flex) & \
+				       I40E_PRTQF_FLX_PIT_FSIZE_MASK) >> \
+				       I40E_PRTQF_FLX_PIT_FSIZE_SHIFT)
+
+#define I40E_MAX_FLEX_SRC_OFFSET 0x1F
+
+/* macros related to GLQF_ORT */
+#define I40E_ORT_SET_IDX(idx)		(((idx) << \
+					  I40E_GLQF_ORT_PIT_INDX_SHIFT) & \
+					 I40E_GLQF_ORT_PIT_INDX_MASK)
+
+#define I40E_ORT_SET_COUNT(count)	(((count) << \
+					  I40E_GLQF_ORT_FIELD_CNT_SHIFT) & \
+					 I40E_GLQF_ORT_FIELD_CNT_MASK)
+
+#define I40E_ORT_SET_PAYLOAD(payload)	(((payload) << \
+					  I40E_GLQF_ORT_FLX_PAYLOAD_SHIFT) & \
+					 I40E_GLQF_ORT_FLX_PAYLOAD_MASK)
+
+#define I40E_ORT_PREP_VAL(idx, count, payload) (I40E_ORT_SET_IDX(idx) | \
+						I40E_ORT_SET_COUNT(count) | \
+						I40E_ORT_SET_PAYLOAD(payload))
+
+#define I40E_L3_GLQF_ORT_IDX		34
+#define I40E_L4_GLQF_ORT_IDX		35
+
+/* Flex PIT register index */
+#define I40E_FLEX_PIT_IDX_START_L2	0
+#define I40E_FLEX_PIT_IDX_START_L3	3
+#define I40E_FLEX_PIT_IDX_START_L4	6
+
+#define I40E_FLEX_PIT_TABLE_SIZE	3
+
+#define I40E_FLEX_DEST_UNUSED		63
+
+#define I40E_FLEX_INDEX_ENTRIES		8
+
+/* Flex MASK to disable all flexible entries */
+#define I40E_FLEX_INPUT_MASK	(I40E_FLEX_50_MASK | I40E_FLEX_51_MASK | \
+				 I40E_FLEX_52_MASK | I40E_FLEX_53_MASK | \
+				 I40E_FLEX_54_MASK | I40E_FLEX_55_MASK | \
+				 I40E_FLEX_56_MASK | I40E_FLEX_57_MASK)
+
+struct i40e_flex_pit {
+	struct list_head list;
+	u16 src_offset;
+	u8 pit_index;
 };
 
 /* struct that defines the Ethernet device */
@@ -293,7 +377,16 @@ struct i40e_pf {
 	 */
 	u16 fd_tcp4_filter_cnt;
 	u16 fd_udp4_filter_cnt;
+	u16 fd_sctp4_filter_cnt;
 	u16 fd_ip4_filter_cnt;
+
+	/* Flexible filter table values that need to be programmed into
+	 * hardware, which expects L3 and L4 to be programmed separately. We
+	 * need to ensure that the values are in ascended order and don't have
+	 * duplicates, so we track each L3 and L4 values in separate lists.
+	 */
+	struct list_head l3_flex_pit_list;
+	struct list_head l4_flex_pit_list;
 
 	struct i40e_udp_port_config udp_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
 	u16 pending_udp_bitmap;
@@ -732,6 +825,43 @@ static inline bool i40e_rx_is_programming_status(u64 qw)
 static inline int i40e_get_fd_cnt_all(struct i40e_pf *pf)
 {
 	return pf->hw.fdir_shared_filter_count + pf->fdir_pf_filter_count;
+}
+
+/**
+ * i40e_read_fd_input_set - reads value of flow director input set register
+ * @pf: pointer to the PF struct
+ * @addr: register addr
+ *
+ * This function reads value of flow director input set register
+ * specified by 'addr' (which is specific to flow-type)
+ **/
+static inline u64 i40e_read_fd_input_set(struct i40e_pf *pf, u16 addr)
+{
+	u64 val;
+
+	val = i40e_read_rx_ctl(&pf->hw, I40E_PRTQF_FD_INSET(addr, 1));
+	val <<= 32;
+	val += i40e_read_rx_ctl(&pf->hw, I40E_PRTQF_FD_INSET(addr, 0));
+
+	return val;
+}
+
+/**
+ * i40e_write_fd_input_set - writes value into flow director input set register
+ * @pf: pointer to the PF struct
+ * @addr: register addr
+ * @val: value to be written
+ *
+ * This function writes specified value to the register specified by 'addr'.
+ * This register is input set register based on flow-type.
+ **/
+static inline void i40e_write_fd_input_set(struct i40e_pf *pf,
+					   u16 addr, u64 val)
+{
+	i40e_write_rx_ctl(&pf->hw, I40E_PRTQF_FD_INSET(addr, 1),
+			  (u32)(val >> 32));
+	i40e_write_rx_ctl(&pf->hw, I40E_PRTQF_FD_INSET(addr, 0),
+			  (u32)(val & 0xFFFFFFFFULL));
 }
 
 /* needed by i40e_ethtool.c */
