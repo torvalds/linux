@@ -493,6 +493,9 @@ struct motion_output_report_02 {
 #define SENSOR_SUFFIX " Motion Sensors"
 #define DS4_TOUCHPAD_SUFFIX " Touchpad"
 
+/* Default to 4ms poll interval, which is same as USB (not adjustable). */
+#define DS4_BT_DEFAULT_POLL_INTERVAL_MS 4
+#define DS4_BT_MAX_POLL_INTERVAL_MS 62
 #define DS4_GYRO_RES_PER_DEG_S 1024
 #define DS4_ACC_RES_PER_G      8192
 
@@ -564,6 +567,7 @@ struct sony_sc {
 	u16 prev_timestamp;
 	unsigned int timestamp_us;
 
+	u8 ds4_bt_poll_interval;
 	enum ds4_dongle_state ds4_dongle_state;
 	/* DS4 calibration data */
 	struct ds4_calibration_data ds4_calib_data[6];
@@ -585,6 +589,44 @@ static inline void sony_schedule_work(struct sony_sc *sc,
 		break;
 	}
 }
+
+static ssize_t ds4_show_poll_interval(struct device *dev,
+				struct device_attribute
+				*attr, char *buf)
+{
+	struct hid_device *hdev = to_hid_device(dev);
+	struct sony_sc *sc = hid_get_drvdata(hdev);
+
+	return snprintf(buf, PAGE_SIZE, "%i\n", sc->ds4_bt_poll_interval);
+}
+
+static ssize_t ds4_store_poll_interval(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct hid_device *hdev = to_hid_device(dev);
+	struct sony_sc *sc = hid_get_drvdata(hdev);
+	unsigned long flags;
+	u8 interval;
+
+	if (kstrtou8(buf, 0, &interval))
+		return -EINVAL;
+
+	if (interval > DS4_BT_MAX_POLL_INTERVAL_MS)
+		return -EINVAL;
+
+	spin_lock_irqsave(&sc->lock, flags);
+	sc->ds4_bt_poll_interval = interval;
+	spin_unlock_irqrestore(&sc->lock, flags);
+
+	sony_schedule_work(sc, SONY_WORKER_STATE);
+
+	return count;
+}
+
+static DEVICE_ATTR(bt_poll_interval, 0644, ds4_show_poll_interval,
+		ds4_store_poll_interval);
+
 
 static u8 *motion_fixup(struct hid_device *hdev, u8 *rdesc,
 			     unsigned int *rsize)
@@ -1985,15 +2027,13 @@ static void dualshock4_send_output_report(struct sony_sc *sc)
 	int offset;
 
 	/*
-	 * NOTE: The buf[1] field of the Bluetooth report controls
-	 * the Dualshock 4 reporting rate.
-	 *
-	 * Known values include:
-	 *
-	 * 0x80 - 1000hz (full speed)
-	 * 0xA0 - 31hz
-	 * 0xB0 - 20hz
-	 * 0xD0 - 66hz
+	 * NOTE: The lower 6 bits of buf[1] field of the Bluetooth report
+	 * control the interval at which Dualshock 4 reports data:
+	 * 0x00 - 1ms
+	 * 0x01 - 1ms
+	 * 0x02 - 2ms
+	 * 0x3E - 62ms
+	 * 0x3F - disabled
 	 */
 	if (sc->quirks & (DUALSHOCK4_CONTROLLER_USB | DUALSHOCK4_DONGLE)) {
 		memset(buf, 0, DS4_OUTPUT_REPORT_0x05_SIZE);
@@ -2003,7 +2043,7 @@ static void dualshock4_send_output_report(struct sony_sc *sc)
 	} else {
 		memset(buf, 0, DS4_OUTPUT_REPORT_0x11_SIZE);
 		buf[0] = 0x11;
-		buf[1] = 0xC0; /* HID + CRC */
+		buf[1] = 0xC0 /* HID + CRC */ | sc->ds4_bt_poll_interval;
 		buf[3] = 0x07; /* blink + LEDs + motor */
 		offset = 6;
 	}
@@ -2454,6 +2494,7 @@ static inline void sony_cancel_work_sync(struct sony_sc *sc)
 		cancel_work_sync(&sc->state_worker);
 }
 
+
 static int sony_input_configured(struct hid_device *hdev,
 					struct hid_input *hidinput)
 {
@@ -2591,6 +2632,15 @@ static int sony_input_configured(struct hid_device *hdev,
 			goto err_stop;
 		}
 
+		if (sc->quirks & DUALSHOCK4_CONTROLLER_BT) {
+			sc->ds4_bt_poll_interval = DS4_BT_DEFAULT_POLL_INTERVAL_MS;
+			ret = device_create_file(&sc->hdev->dev, &dev_attr_bt_poll_interval);
+			if (ret)
+				hid_warn(sc->hdev,
+				 "can't create sysfs bt_poll_interval attribute err: %d\n",
+				 ret);
+		}
+
 		if (sc->quirks & DUALSHOCK4_DONGLE) {
 			INIT_WORK(&sc->hotplug_worker, dualshock4_calibration_work);
 			sc->hotplug_worker_initialized = 1;
@@ -2636,6 +2686,12 @@ static int sony_input_configured(struct hid_device *hdev,
 err_close:
 	hid_hw_close(hdev);
 err_stop:
+	/* Piggy back on the default ds4_bt_ poll_interval to determine
+	 * if we need to remove the file as we don't know for sure if we
+	 * executed that logic.
+	 */
+	if (sc->ds4_bt_poll_interval)
+		device_remove_file(&sc->hdev->dev, &dev_attr_bt_poll_interval);
 	if (sc->quirks & SONY_LED_SUPPORT)
 		sony_leds_remove(sc);
 	if (sc->quirks & SONY_BATTERY_SUPPORT)
@@ -2732,6 +2788,9 @@ static void sony_remove(struct hid_device *hdev)
 
 	if (sc->sensor_dev)
 		sony_unregister_sensors(sc);
+
+	if (sc->quirks & DUALSHOCK4_CONTROLLER_BT)
+		device_remove_file(&sc->hdev->dev, &dev_attr_bt_poll_interval);
 
 	sony_cancel_work_sync(sc);
 
