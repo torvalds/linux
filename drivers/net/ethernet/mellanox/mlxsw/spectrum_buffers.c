@@ -536,11 +536,14 @@ static int mlxsw_sp_sb_mms_init(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 }
 
-#define MLXSW_SP_SB_SIZE (16 * 1024 * 1024)
-
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 {
+	u64 sb_size;
 	int err;
+
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_BUFFER_SIZE))
+		return -EIO;
+	sb_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE);
 
 	err = mlxsw_sp_sb_ports_init(mlxsw_sp);
 	if (err)
@@ -554,8 +557,7 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 	err = mlxsw_sp_sb_mms_init(mlxsw_sp);
 	if (err)
 		goto err_sb_mms_init;
-	err = devlink_sb_register(priv_to_devlink(mlxsw_sp->core), 0,
-				  MLXSW_SP_SB_SIZE,
+	err = devlink_sb_register(priv_to_devlink(mlxsw_sp->core), 0, sb_size,
 				  MLXSW_SP_SB_POOL_COUNT,
 				  MLXSW_SP_SB_POOL_COUNT,
 				  MLXSW_SP_SB_TC_COUNT,
