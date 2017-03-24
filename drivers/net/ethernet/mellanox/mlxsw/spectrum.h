@@ -152,12 +152,14 @@ struct mlxsw_sp_sb_pm {
 #define MLXSW_SP_SB_POOL_COUNT	4
 #define MLXSW_SP_SB_TC_COUNT	8
 
+struct mlxsw_sp_sb_port {
+	struct mlxsw_sp_sb_cm cms[2][MLXSW_SP_SB_TC_COUNT];
+	struct mlxsw_sp_sb_pm pms[2][MLXSW_SP_SB_POOL_COUNT];
+};
+
 struct mlxsw_sp_sb {
 	struct mlxsw_sp_sb_pr prs[2][MLXSW_SP_SB_POOL_COUNT];
-	struct {
-		struct mlxsw_sp_sb_cm cms[2][MLXSW_SP_SB_TC_COUNT];
-		struct mlxsw_sp_sb_pm pms[2][MLXSW_SP_SB_POOL_COUNT];
-	} ports[MLXSW_PORT_MAX_PORTS];
+	struct mlxsw_sp_sb_port *ports;
 };
 
 #define MLXSW_SP_PREFIX_COUNT (sizeof(struct in6_addr) * BITS_PER_BYTE)
@@ -273,7 +275,7 @@ struct mlxsw_sp {
 	u32 ageing_time;
 	struct mlxsw_sp_upper master_bridge;
 	struct mlxsw_sp_upper *lags;
-	u8 port_to_module[MLXSW_PORT_MAX_PORTS];
+	u8 *port_to_module;
 	struct mlxsw_sp_sb sb;
 	struct mlxsw_sp_router router;
 	struct mlxsw_sp_acl *acl;

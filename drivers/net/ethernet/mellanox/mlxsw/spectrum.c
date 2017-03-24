@@ -2595,25 +2595,33 @@ static void mlxsw_sp_ports_remove(struct mlxsw_sp *mlxsw_sp)
 {
 	int i;
 
-	for (i = 1; i < MLXSW_PORT_MAX_PORTS; i++)
+	for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++)
 		if (mlxsw_sp_port_created(mlxsw_sp, i))
 			mlxsw_sp_port_remove(mlxsw_sp, i);
+	kfree(mlxsw_sp->port_to_module);
 	kfree(mlxsw_sp->ports);
 }
 
 static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 {
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
 	u8 module, width, lane;
 	size_t alloc_size;
 	int i;
 	int err;
 
-	alloc_size = sizeof(struct mlxsw_sp_port *) * MLXSW_PORT_MAX_PORTS;
+	alloc_size = sizeof(struct mlxsw_sp_port *) * max_ports;
 	mlxsw_sp->ports = kzalloc(alloc_size, GFP_KERNEL);
 	if (!mlxsw_sp->ports)
 		return -ENOMEM;
 
-	for (i = 1; i < MLXSW_PORT_MAX_PORTS; i++) {
+	mlxsw_sp->port_to_module = kcalloc(max_ports, sizeof(u8), GFP_KERNEL);
+	if (!mlxsw_sp->port_to_module) {
+		err = -ENOMEM;
+		goto err_port_to_module_alloc;
+	}
+
+	for (i = 1; i < max_ports; i++) {
 		err = mlxsw_sp_port_module_info_get(mlxsw_sp, i, &module,
 						    &width, &lane);
 		if (err)
@@ -2633,6 +2641,8 @@ err_port_module_info_get:
 	for (i--; i >= 1; i--)
 		if (mlxsw_sp_port_created(mlxsw_sp, i))
 			mlxsw_sp_port_remove(mlxsw_sp, i);
+	kfree(mlxsw_sp->port_to_module);
+err_port_to_module_alloc:
 	kfree(mlxsw_sp->ports);
 	return err;
 }

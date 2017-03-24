@@ -2976,6 +2976,11 @@ static struct mlxsw_sp_fid *mlxsw_sp_bridge_fid_get(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_sp_fid_find(mlxsw_sp, fid);
 }
 
+static u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp)
+{
+	return mlxsw_core_max_ports(mlxsw_sp->core) + 1;
+}
+
 static enum mlxsw_flood_table_type mlxsw_sp_flood_table_type_get(u16 fid)
 {
 	return mlxsw_sp_fid_is_vfid(fid) ? MLXSW_REG_SFGC_TABLE_TYPE_FID :
@@ -2990,6 +2995,7 @@ static u16 mlxsw_sp_flood_table_index_get(u16 fid)
 static int mlxsw_sp_router_port_flood_set(struct mlxsw_sp *mlxsw_sp, u16 fid,
 					  bool set)
 {
+	u8 router_port = mlxsw_sp_router_port(mlxsw_sp);
 	enum mlxsw_flood_table_type table_type;
 	char *sftr_pl;
 	u16 index;
@@ -3002,7 +3008,7 @@ static int mlxsw_sp_router_port_flood_set(struct mlxsw_sp *mlxsw_sp, u16 fid,
 	table_type = mlxsw_sp_flood_table_type_get(fid);
 	index = mlxsw_sp_flood_table_index_get(fid);
 	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BC, index, table_type,
-			    1, MLXSW_PORT_ROUTER_PORT, set);
+			    1, router_port, set);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
 
 	kfree(sftr_pl);

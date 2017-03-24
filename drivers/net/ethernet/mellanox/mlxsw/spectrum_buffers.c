@@ -209,11 +209,25 @@ static int mlxsw_sp_port_headroom_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	return mlxsw_sp_port_pb_prio_init(mlxsw_sp_port);
 }
 
-#define MLXSW_SP_SB_PR_INGRESS_SIZE				\
-	(15000000 - (2 * 20000 * MLXSW_PORT_MAX_PORTS))
+static int mlxsw_sp_sb_ports_init(struct mlxsw_sp *mlxsw_sp)
+{
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
+
+	mlxsw_sp->sb.ports = kcalloc(max_ports, sizeof(struct mlxsw_sp_sb_port),
+				     GFP_KERNEL);
+	if (!mlxsw_sp->sb.ports)
+		return -ENOMEM;
+	return 0;
+}
+
+static void mlxsw_sp_sb_ports_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	kfree(mlxsw_sp->sb.ports);
+}
+
+#define MLXSW_SP_SB_PR_INGRESS_SIZE	12440000
 #define MLXSW_SP_SB_PR_INGRESS_MNG_SIZE (200 * 1000)
-#define MLXSW_SP_SB_PR_EGRESS_SIZE				\
-	(14000000 - (8 * 1500 * MLXSW_PORT_MAX_PORTS))
+#define MLXSW_SP_SB_PR_EGRESS_SIZE	13232000
 
 #define MLXSW_SP_SB_PR(_mode, _size)	\
 	{				\
@@ -528,26 +542,41 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 {
 	int err;
 
+	err = mlxsw_sp_sb_ports_init(mlxsw_sp);
+	if (err)
+		return err;
 	err = mlxsw_sp_sb_prs_init(mlxsw_sp);
 	if (err)
-		return err;
+		goto err_sb_prs_init;
 	err = mlxsw_sp_cpu_port_sb_cms_init(mlxsw_sp);
 	if (err)
-		return err;
+		goto err_sb_cpu_port_sb_cms_init;
 	err = mlxsw_sp_sb_mms_init(mlxsw_sp);
 	if (err)
-		return err;
-	return devlink_sb_register(priv_to_devlink(mlxsw_sp->core), 0,
-				   MLXSW_SP_SB_SIZE,
-				   MLXSW_SP_SB_POOL_COUNT,
-				   MLXSW_SP_SB_POOL_COUNT,
-				   MLXSW_SP_SB_TC_COUNT,
-				   MLXSW_SP_SB_TC_COUNT);
+		goto err_sb_mms_init;
+	err = devlink_sb_register(priv_to_devlink(mlxsw_sp->core), 0,
+				  MLXSW_SP_SB_SIZE,
+				  MLXSW_SP_SB_POOL_COUNT,
+				  MLXSW_SP_SB_POOL_COUNT,
+				  MLXSW_SP_SB_TC_COUNT,
+				  MLXSW_SP_SB_TC_COUNT);
+	if (err)
+		goto err_devlink_sb_register;
+
+	return 0;
+
+err_devlink_sb_register:
+err_sb_mms_init:
+err_sb_cpu_port_sb_cms_init:
+err_sb_prs_init:
+	mlxsw_sp_sb_ports_fini(mlxsw_sp);
+	return err;
 }
 
 void mlxsw_sp_buffers_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	devlink_sb_unregister(priv_to_devlink(mlxsw_sp->core), 0);
+	mlxsw_sp_sb_ports_fini(mlxsw_sp);
 }
 
 int mlxsw_sp_port_buffers_init(struct mlxsw_sp_port *mlxsw_sp_port)
@@ -761,7 +790,7 @@ static void mlxsw_sp_sb_sr_occ_query_cb(struct mlxsw_core *mlxsw_core,
 
 	masked_count = 0;
 	for (local_port = cb_ctx.local_port_1;
-	     local_port < MLXSW_PORT_MAX_PORTS; local_port++) {
+	     local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
 		for (i = 0; i < MLXSW_SP_SB_TC_COUNT; i++) {
@@ -775,7 +804,7 @@ static void mlxsw_sp_sb_sr_occ_query_cb(struct mlxsw_core *mlxsw_core,
 	}
 	masked_count = 0;
 	for (local_port = cb_ctx.local_port_1;
-	     local_port < MLXSW_PORT_MAX_PORTS; local_port++) {
+	     local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
 		for (i = 0; i < MLXSW_SP_SB_TC_COUNT; i++) {
@@ -817,7 +846,7 @@ next_batch:
 		mlxsw_reg_sbsr_pg_buff_mask_set(sbsr_pl, i, 1);
 		mlxsw_reg_sbsr_tclass_mask_set(sbsr_pl, i, 1);
 	}
-	for (; local_port < MLXSW_PORT_MAX_PORTS; local_port++) {
+	for (; local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
 		mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl, local_port, 1);
@@ -847,7 +876,7 @@ do_query:
 				    cb_priv);
 	if (err)
 		goto out;
-	if (local_port < MLXSW_PORT_MAX_PORTS)
+	if (local_port < mlxsw_core_max_ports(mlxsw_core))
 		goto next_batch;
 
 out:
@@ -882,7 +911,7 @@ next_batch:
 		mlxsw_reg_sbsr_pg_buff_mask_set(sbsr_pl, i, 1);
 		mlxsw_reg_sbsr_tclass_mask_set(sbsr_pl, i, 1);
 	}
-	for (; local_port < MLXSW_PORT_MAX_PORTS; local_port++) {
+	for (; local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
 		mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl, local_port, 1);
@@ -908,7 +937,7 @@ do_query:
 				    &bulk_list, NULL, 0);
 	if (err)
 		goto out;
-	if (local_port < MLXSW_PORT_MAX_PORTS)
+	if (local_port < mlxsw_core_max_ports(mlxsw_core))
 		goto next_batch;
 
 out:

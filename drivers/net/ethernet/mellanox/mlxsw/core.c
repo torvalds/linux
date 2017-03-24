@@ -110,10 +110,41 @@ struct mlxsw_core {
 	struct mlxsw_res res;
 	struct mlxsw_hwmon *hwmon;
 	struct mlxsw_thermal *thermal;
-	struct mlxsw_core_port ports[MLXSW_PORT_MAX_PORTS];
+	struct mlxsw_core_port *ports;
+	unsigned int max_ports;
 	unsigned long driver_priv[0];
 	/* driver_priv has to be always the last item */
 };
+
+#define MLXSW_PORT_MAX_PORTS_DEFAULT	0x40
+
+static int mlxsw_ports_init(struct mlxsw_core *mlxsw_core)
+{
+	/* Switch ports are numbered from 1 to queried value */
+	if (MLXSW_CORE_RES_VALID(mlxsw_core, MAX_SYSTEM_PORT))
+		mlxsw_core->max_ports = MLXSW_CORE_RES_GET(mlxsw_core,
+							   MAX_SYSTEM_PORT) + 1;
+	else
+		mlxsw_core->max_ports = MLXSW_PORT_MAX_PORTS_DEFAULT + 1;
+
+	mlxsw_core->ports = kcalloc(mlxsw_core->max_ports,
+				    sizeof(struct mlxsw_core_port), GFP_KERNEL);
+	if (!mlxsw_core->ports)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void mlxsw_ports_fini(struct mlxsw_core *mlxsw_core)
+{
+	kfree(mlxsw_core->ports);
+}
+
+unsigned int mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_core->max_ports;
+}
+EXPORT_SYMBOL(mlxsw_core_max_ports);
 
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core)
 {
@@ -733,7 +764,7 @@ static int mlxsw_devlink_port_split(struct devlink *devlink,
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 
-	if (port_index >= MLXSW_PORT_MAX_PORTS)
+	if (port_index >= mlxsw_core->max_ports)
 		return -EINVAL;
 	if (!mlxsw_core->driver->port_split)
 		return -EOPNOTSUPP;
@@ -745,7 +776,7 @@ static int mlxsw_devlink_port_unsplit(struct devlink *devlink,
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 
-	if (port_index >= MLXSW_PORT_MAX_PORTS)
+	if (port_index >= mlxsw_core->max_ports)
 		return -EINVAL;
 	if (!mlxsw_core->driver->port_unsplit)
 		return -EOPNOTSUPP;
@@ -972,6 +1003,10 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_bus_init;
 
+	err = mlxsw_ports_init(mlxsw_core);
+	if (err)
+		goto err_ports_init;
+
 	if (MLXSW_CORE_RES_VALID(mlxsw_core, MAX_LAG) &&
 	    MLXSW_CORE_RES_VALID(mlxsw_core, MAX_LAG_MEMBERS)) {
 		alloc_size = sizeof(u8) *
@@ -1019,6 +1054,8 @@ err_devlink_register:
 err_emad_init:
 	kfree(mlxsw_core->lag.mapping);
 err_alloc_lag_mapping:
+	mlxsw_ports_fini(mlxsw_core);
+err_ports_init:
 	mlxsw_bus->fini(bus_priv);
 err_bus_init:
 	devlink_free(devlink);
@@ -1039,6 +1076,7 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core)
 	devlink_unregister(devlink);
 	mlxsw_emad_fini(mlxsw_core);
 	kfree(mlxsw_core->lag.mapping);
+	mlxsw_ports_fini(mlxsw_core);
 	mlxsw_core->bus->fini(mlxsw_core->bus_priv);
 	devlink_free(devlink);
 	mlxsw_core_driver_put(device_kind);
@@ -1508,7 +1546,7 @@ void mlxsw_core_skb_receive(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 			    __func__, local_port, rx_info->trap_id);
 
 	if ((rx_info->trap_id >= MLXSW_TRAP_ID_MAX) ||
-	    (local_port >= MLXSW_PORT_MAX_PORTS))
+	    (local_port >= mlxsw_core->max_ports))
 		goto drop;
 
 	rcu_read_lock();
