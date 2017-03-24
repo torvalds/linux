@@ -17,7 +17,6 @@
 #include <linux/seq_file.h>
 #include <linux/kernfs.h>
 #include <linux/jump_label.h>
-#include <linux/nsproxy.h>
 #include <linux/types.h>
 #include <linux/ns_common.h>
 #include <linux/nsproxy.h>
