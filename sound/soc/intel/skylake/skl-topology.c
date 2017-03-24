@@ -638,8 +638,9 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	struct skl_module_cfg *mconfig = w->priv;
 	struct skl_pipe_module *w_module;
 	struct skl_pipe *s_pipe = mconfig->pipe;
-	struct skl_module_cfg *src_module = NULL, *dst_module;
+	struct skl_module_cfg *src_module = NULL, *dst_module, *module;
 	struct skl_sst *ctx = skl->skl_sst;
+	struct skl_module_deferred_bind *modules;
 
 	/* check resource available */
 	if (!skl_is_pipe_mcps_avail(skl, mconfig))
@@ -678,6 +679,22 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 			return ret;
 
 		src_module = dst_module;
+	}
+
+	/*
+	 * When the destination module is initialized, check for these modules
+	 * in deferred bind list. If found, bind them.
+	 */
+	list_for_each_entry(w_module, &s_pipe->w_list, node) {
+		if (list_empty(&skl->bind_list))
+			break;
+
+		list_for_each_entry(modules, &skl->bind_list, node) {
+			module = w_module->w->priv;
+			if (modules->dst == module)
+				skl_bind_modules(ctx, modules->src,
+							modules->dst);
+		}
 	}
 
 	return 0;
@@ -776,6 +793,44 @@ static int skl_tplg_set_module_bind_params(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+
+static int skl_tplg_module_add_deferred_bind(struct skl *skl,
+	struct skl_module_cfg *src, struct skl_module_cfg *dst)
+{
+	struct skl_module_deferred_bind *m_list, *modules;
+	int i;
+
+	/* only supported for module with static pin connection */
+	for (i = 0; i < dst->max_in_queue; i++) {
+		struct skl_module_pin *pin = &dst->m_in_pin[i];
+
+		if (pin->is_dynamic)
+			continue;
+
+		if ((pin->id.module_id  == src->id.module_id) &&
+			(pin->id.instance_id  == src->id.instance_id)) {
+
+			if (!list_empty(&skl->bind_list)) {
+				list_for_each_entry(modules, &skl->bind_list, node) {
+					if (modules->src == src && modules->dst == dst)
+						return 0;
+				}
+			}
+
+			m_list = kzalloc(sizeof(*m_list), GFP_KERNEL);
+			if (!m_list)
+				return -ENOMEM;
+
+			m_list->src = src;
+			m_list->dst = dst;
+
+			list_add(&m_list->node, &skl->bind_list);
+		}
+	}
+
+	return 0;
+}
+
 static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 				struct skl *skl,
 				struct snd_soc_dapm_widget *src_w,
@@ -809,6 +864,28 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 
 			sink = p->sink;
 			sink_mconfig = sink->priv;
+
+			/*
+			 * Modules other than PGA leaf can be connected
+			 * directly or via switch to a module in another
+			 * pipeline. EX: reference path
+			 * when the path is enabled, the dst module that needs
+			 * to be bound may not be initialized. if the module is
+			 * not initialized, add these modules in the deferred
+			 * bind list and when the dst module is initialised,
+			 * bind this module to the dst_module in deferred list.
+			 */
+			if (((src_mconfig->m_state == SKL_MODULE_INIT_DONE)
+				&& (sink_mconfig->m_state == SKL_MODULE_UNINIT))) {
+
+				ret = skl_tplg_module_add_deferred_bind(skl,
+						src_mconfig, sink_mconfig);
+
+				if (ret < 0)
+					return ret;
+
+			}
+
 
 			if (src_mconfig->m_state == SKL_MODULE_UNINIT ||
 				sink_mconfig->m_state == SKL_MODULE_UNINIT)
@@ -1014,12 +1091,42 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	struct skl_module_cfg *src_module = NULL, *dst_module;
 	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_pipe *s_pipe = mconfig->pipe;
+	struct skl_module_deferred_bind *modules;
 
 	if (s_pipe->state == SKL_PIPE_INVALID)
 		return -EINVAL;
 
 	skl_tplg_free_pipe_mcps(skl, mconfig);
 	skl_tplg_free_pipe_mem(skl, mconfig);
+
+	list_for_each_entry(w_module, &s_pipe->w_list, node) {
+		if (list_empty(&skl->bind_list))
+			break;
+
+		src_module = w_module->w->priv;
+
+		list_for_each_entry(modules, &skl->bind_list, node) {
+			/*
+			 * When the destination module is deleted, Unbind the
+			 * modules from deferred bind list.
+			 */
+			if (modules->dst == src_module) {
+				skl_unbind_modules(ctx, modules->src,
+						modules->dst);
+			}
+
+			/*
+			 * When the source module is deleted, remove this entry
+			 * from the deferred bind list.
+			 */
+			if (modules->src == src_module) {
+				list_del(&modules->node);
+				modules->src = NULL;
+				modules->dst = NULL;
+				kfree(modules);
+			}
+		}
+	}
 
 	list_for_each_entry(w_module, &s_pipe->w_list, node) {
 		dst_module = w_module->w->priv;

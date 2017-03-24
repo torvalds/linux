@@ -336,6 +336,12 @@ struct skl_pipeline {
 	struct list_head node;
 };
 
+struct skl_module_deferred_bind {
+	struct skl_module_cfg *src;
+	struct skl_module_cfg *dst;
+	struct list_head node;
+};
+
 static inline struct skl *get_skl_ctx(struct device *dev)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
