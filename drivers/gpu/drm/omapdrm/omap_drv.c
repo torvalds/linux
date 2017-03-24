@@ -34,11 +34,6 @@
 #define DRIVER_MINOR		0
 #define DRIVER_PATCHLEVEL	0
 
-static int num_crtc = CONFIG_DRM_OMAP_NUM_CRTCS;
-
-MODULE_PARM_DESC(num_crtc, "Number of overlays to use as CRTCs");
-module_param(num_crtc, int, 0600);
-
 /*
  * mode config funcs
  */
@@ -319,7 +314,7 @@ static int omap_modeset_init(struct drm_device *dev)
 	struct omap_dss_device *dssdev = NULL;
 	int num_ovls = priv->dispc_ops->get_num_ovls();
 	int num_mgrs = priv->dispc_ops->get_num_mgrs();
-	int num_crtcs;
+	int num_crtcs = 0;
 	int i, id = 0;
 	int ret;
 	u32 possible_crtcs;
@@ -331,12 +326,15 @@ static int omap_modeset_init(struct drm_device *dev)
 		return ret;
 
 	/*
-	 * We usually don't want to create a CRTC for each manager, at least
-	 * not until we have a way to expose private planes to userspace.
-	 * Otherwise there would not be enough video pipes left for drm planes.
-	 * We use the num_crtc argument to limit the number of crtcs we create.
+	 * Let's create one CRTC for each connected DSS device if we
+	 * have display managers and overlays (for primary planes) for
+	 * them.
 	 */
-	num_crtcs = min3(num_crtc, num_mgrs, num_ovls);
+	for_each_dss_dev(dssdev)
+		if (omapdss_device_is_connected(dssdev))
+			num_crtcs++;
+
+	num_crtcs = min3(num_crtcs, num_mgrs, num_ovls);
 	possible_crtcs = (1 << num_crtcs) - 1;
 
 	dssdev = NULL;
@@ -376,11 +374,9 @@ static int omap_modeset_init(struct drm_device *dev)
 		drm_mode_connector_attach_encoder(connector, encoder);
 
 		/*
-		 * if we have reached the limit of the crtcs we are allowed to
-		 * create, let's not try to look for a crtc for this
-		 * panel/encoder and onwards, we will, of course, populate the
-		 * the possible_crtcs field for all the encoders with the final
-		 * set of crtcs we create
+		 * if we have reached the limit of the crtcs we can
+		 * create, let's not try to create a crtc for this
+		 * panel/encoder and onwards.
 		 */
 		if (id == num_crtcs)
 			continue;
@@ -415,33 +411,6 @@ static int omap_modeset_init(struct drm_device *dev)
 	}
 
 	/*
-	 * we have allocated crtcs according to the need of the panels/encoders,
-	 * adding more crtcs here if needed
-	 */
-	for (; id < num_crtcs; id++) {
-
-		/* find a free manager for this crtc */
-		for (i = 0; i < num_mgrs; i++) {
-			if (!channel_used(dev, i))
-				break;
-		}
-
-		if (i == num_mgrs) {
-			/* this shouldn't really happen */
-			dev_err(dev->dev, "no managers left for crtc\n");
-			return -ENOMEM;
-		}
-
-		ret = omap_modeset_create_crtc(dev, id, i,
-			possible_crtcs);
-		if (ret < 0) {
-			dev_err(dev->dev,
-				"could not create CRTC (channel %u)\n", i);
-			return ret;
-		}
-	}
-
-	/*
 	 * Create normal planes for the remaining overlays:
 	 */
 	for (; id < num_ovls; id++) {
@@ -456,6 +425,10 @@ static int omap_modeset_init(struct drm_device *dev)
 		priv->planes[priv->num_planes++] = plane;
 	}
 
+	/*
+	 * populate the the possible_crtcs field for all the encoders
+	 * we created.
+	 */
 	for (i = 0; i < priv->num_encoders; i++) {
 		struct drm_encoder *encoder = priv->encoders[i];
 		struct omap_dss_device *dssdev =
