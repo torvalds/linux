@@ -24,12 +24,6 @@
 #include "omap_dmm_tiler.h"
 #include "omap_drv.h"
 
-/* some hackery because omapdss has an 'enum omap_plane' (which would be
- * better named omap_plane_id).. and compiler seems unhappy about having
- * both a 'struct omap_plane' and 'enum omap_plane'
- */
-#define omap_plane _omap_plane
-
 /*
  * plane funcs
  */
@@ -38,7 +32,7 @@
 
 struct omap_plane {
 	struct drm_plane base;
-	int id;  /* TODO rename omap_plane -> omap_plane_id in omapdss so I can use the enum */
+	enum omap_plane_id id;
 	const char *name;
 
 	uint32_t nformats;
