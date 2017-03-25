@@ -567,6 +567,7 @@ void pci_iov_update_resource(struct pci_dev *dev, int resno)
 	struct resource *res = dev->resource + resno;
 	int vf_bar = resno - PCI_IOV_RESOURCES;
 	struct pci_bus_region region;
+	u16 cmd;
 	u32 new;
 	int reg;
 
@@ -577,6 +578,13 @@ void pci_iov_update_resource(struct pci_dev *dev, int resno)
 	 */
 	if (!iov)
 		return;
+
+	pci_read_config_word(dev, iov->pos + PCI_SRIOV_CTRL, &cmd);
+	if ((cmd & PCI_SRIOV_CTRL_VFE) && (cmd & PCI_SRIOV_CTRL_MSE)) {
+		dev_WARN(&dev->dev, "can't update enabled VF BAR%d %pR\n",
+			 vf_bar, res);
+		return;
+	}
 
 	/*
 	 * Ignore unimplemented BARs, unused resource slots for 64-bit
