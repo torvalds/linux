@@ -20,8 +20,11 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <soc/rockchip/rockchip_sip.h>
+#include <soc/rockchip/scpi.h>
 
 #include "clk.h"
+
+#define MHZ		(1000000)
 
 struct rockchip_ddrclk {
 	struct clk_hw	hw;
@@ -102,6 +105,40 @@ static const struct clk_ops rockchip_ddrclk_sip_ops = {
 	.get_parent = rockchip_ddrclk_get_parent,
 };
 
+static int rockchip_ddrclk_scpi_set_rate(struct clk_hw *hw, unsigned long drate,
+					 unsigned long prate)
+{
+	u32 ret;
+	u32 lcdc_type = 7;
+
+	ret = scpi_ddr_set_clk_rate(drate / MHZ, lcdc_type);
+
+	return ret;
+}
+
+static unsigned long rockchip_ddrclk_scpi_recalc_rate(struct clk_hw *hw,
+						      unsigned long parent_rate)
+{
+	return (MHZ * scpi_ddr_get_clk_rate());
+}
+
+static long rockchip_ddrclk_scpi_round_rate(struct clk_hw *hw,
+					    unsigned long rate,
+					    unsigned long *prate)
+{
+	rate = rate / MHZ;
+	rate = (rate / 12) * 12;
+
+	return (rate * MHZ);
+}
+
+static const struct clk_ops rockchip_ddrclk_scpi_ops = {
+	.recalc_rate = rockchip_ddrclk_scpi_recalc_rate,
+	.set_rate = rockchip_ddrclk_scpi_set_rate,
+	.round_rate = rockchip_ddrclk_scpi_round_rate,
+	.get_parent = rockchip_ddrclk_get_parent,
+};
+
 struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 					 const char *const *parent_names,
 					 u8 num_parents, int mux_offset,
@@ -129,6 +166,9 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 	switch (ddr_flag) {
 	case ROCKCHIP_DDRCLK_SIP:
 		init.ops = &rockchip_ddrclk_sip_ops;
+		break;
+	case ROCKCHIP_DDRCLK_SCPI:
+		init.ops = &rockchip_ddrclk_scpi_ops;
 		break;
 	default:
 		pr_err("%s: unsupported ddrclk type %d\n", __func__, ddr_flag);
