@@ -1200,7 +1200,8 @@ static void bcm2835_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		return;
 	}
 
-	host->use_sbc = !!mrq->sbc && (host->mrq->data->flags & MMC_DATA_READ);
+	host->use_sbc = !!mrq->sbc && host->mrq->data &&
+			(host->mrq->data->flags & MMC_DATA_READ);
 	if (host->use_sbc) {
 		if (bcm2835_send_command(host, mrq->sbc)) {
 			if (!host->use_busy)
