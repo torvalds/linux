@@ -1709,7 +1709,7 @@ __setup("rcu_nocbs=", rcu_nocb_setup);
 
 static int __init parse_rcu_nocb_poll(char *arg)
 {
-	rcu_nocb_poll = 1;
+	rcu_nocb_poll = true;
 	return 0;
 }
 early_param("rcu_nocb_poll", parse_rcu_nocb_poll);
