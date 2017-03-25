@@ -38,7 +38,6 @@
 #define REG_CTRL_CLKDIV_MASK	((BIT(10) - 1) << REG_CTRL_CLKDIV_SHIFT)
 
 #define I2C_TIMEOUT_MS		500
-#define DEFAULT_FREQ		100000
 
 enum {
 	TOKEN_END = 0,
@@ -387,15 +386,14 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct meson_i2c *i2c;
 	struct resource *mem;
-	u32 freq;
+	struct i2c_timings timings;
 	int irq, ret = 0;
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct meson_i2c), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
-	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency", &freq))
-		freq = DEFAULT_FREQ;
+	i2c_parse_fw_timings(&pdev->dev, &timings, true);
 
 	i2c->dev = &pdev->dev;
 	platform_set_drvdata(pdev, i2c);
@@ -452,7 +450,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	meson_i2c_set_clk_div(i2c, freq);
+	meson_i2c_set_clk_div(i2c, timings.bus_freq_hz);
 
 	return 0;
 }
