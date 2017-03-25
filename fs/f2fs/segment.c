@@ -490,6 +490,8 @@ repeat:
 		fcc->dispatch_list = llist_reverse_order(fcc->dispatch_list);
 
 		ret = submit_flush_wait(sbi);
+		atomic_inc(&fcc->issued_flush);
+
 		llist_for_each_entry_safe(cmd, next,
 					  fcc->dispatch_list, llnode) {
 			cmd->ret = ret;
@@ -507,25 +509,29 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 {
 	struct flush_cmd_control *fcc = SM_I(sbi)->fcc_info;
 	struct flush_cmd cmd;
+	int ret;
 
 	if (test_opt(sbi, NOBARRIER))
 		return 0;
 
-	if (!test_opt(sbi, FLUSH_MERGE))
-		return submit_flush_wait(sbi);
-
-	if (!atomic_read(&fcc->submit_flush)) {
-		int ret;
-
-		atomic_inc(&fcc->submit_flush);
+	if (!test_opt(sbi, FLUSH_MERGE)) {
 		ret = submit_flush_wait(sbi);
-		atomic_dec(&fcc->submit_flush);
+		atomic_inc(&fcc->issued_flush);
+		return ret;
+	}
+
+	if (!atomic_read(&fcc->issing_flush)) {
+		atomic_inc(&fcc->issing_flush);
+		ret = submit_flush_wait(sbi);
+		atomic_dec(&fcc->issing_flush);
+
+		atomic_inc(&fcc->issued_flush);
 		return ret;
 	}
 
 	init_completion(&cmd.wait);
 
-	atomic_inc(&fcc->submit_flush);
+	atomic_inc(&fcc->issing_flush);
 	llist_add(&cmd.llnode, &fcc->issue_list);
 
 	if (!fcc->dispatch_list)
@@ -533,10 +539,10 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 
 	if (fcc->f2fs_issue_flush) {
 		wait_for_completion(&cmd.wait);
-		atomic_dec(&fcc->submit_flush);
+		atomic_dec(&fcc->issing_flush);
 	} else {
 		llist_del_all(&fcc->issue_list);
-		atomic_set(&fcc->submit_flush, 0);
+		atomic_set(&fcc->issing_flush, 0);
 	}
 
 	return cmd.ret;
@@ -556,7 +562,8 @@ int create_flush_cmd_control(struct f2fs_sb_info *sbi)
 	fcc = kzalloc(sizeof(struct flush_cmd_control), GFP_KERNEL);
 	if (!fcc)
 		return -ENOMEM;
-	atomic_set(&fcc->submit_flush, 0);
+	atomic_set(&fcc->issued_flush, 0);
+	atomic_set(&fcc->issing_flush, 0);
 	init_waitqueue_head(&fcc->flush_wait_queue);
 	init_llist_head(&fcc->issue_list);
 	SM_I(sbi)->fcc_info = fcc;
@@ -691,7 +698,7 @@ static void __add_discard_cmd(struct f2fs_sb_info *sbi,
 static void __remove_discard_cmd(struct f2fs_sb_info *sbi, struct discard_cmd *dc)
 {
 	if (dc->state == D_DONE)
-		atomic_dec(&(SM_I(sbi)->dcc_info->submit_discard));
+		atomic_dec(&(SM_I(sbi)->dcc_info->issing_discard));
 
 	if (dc->error == -EOPNOTSUPP)
 		dc->error = 0;
@@ -810,7 +817,8 @@ static void __submit_discard_cmd(struct f2fs_sb_info *sbi,
 	if (!dc->error) {
 		/* should keep before submission to avoid D_DONE right away */
 		dc->state = D_SUBMIT;
-		atomic_inc(&dcc->submit_discard);
+		atomic_inc(&dcc->issued_discard);
+		atomic_inc(&dcc->issing_discard);
 		if (bio) {
 			bio->bi_private = dc;
 			bio->bi_end_io = f2fs_submit_discard_endio;
@@ -1214,7 +1222,8 @@ static int create_discard_cmd_control(struct f2fs_sb_info *sbi)
 	INIT_LIST_HEAD(&dcc->discard_entry_list);
 	INIT_LIST_HEAD(&dcc->discard_cmd_list);
 	mutex_init(&dcc->cmd_lock);
-	atomic_set(&dcc->submit_discard, 0);
+	atomic_set(&dcc->issued_discard, 0);
+	atomic_set(&dcc->issing_discard, 0);
 	dcc->nr_discards = 0;
 	dcc->max_discards = 0;
 
