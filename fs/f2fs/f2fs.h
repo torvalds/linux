@@ -214,7 +214,8 @@ struct discard_cmd_control {
 	wait_queue_head_t discard_wait_queue;	/* waiting queue for wake-up */
 	struct mutex cmd_lock;
 	int max_discards;			/* max. discards to be issued */
-	atomic_t submit_discard;		/* # of issued discard */
+	atomic_t issued_discard;		/* # of issued discard */
+	atomic_t issing_discard;		/* # of issing discard */
 };
 
 /* for the list of fsync inodes, used only during recovery */
@@ -643,7 +644,8 @@ struct flush_cmd {
 struct flush_cmd_control {
 	struct task_struct *f2fs_issue_flush;	/* flush thread */
 	wait_queue_head_t flush_wait_queue;	/* waiting queue for wake-up */
-	atomic_t submit_flush;			/* # of issued flushes */
+	atomic_t issued_flush;			/* # of issued flushes */
+	atomic_t issing_flush;			/* # of issing flushes */
 	struct llist_head issue_list;		/* list for command issue */
 	struct llist_node *dispatch_list;	/* list for command dispatch */
 };
@@ -2329,7 +2331,8 @@ struct f2fs_stat_info {
 	unsigned int ndirty_dirs, ndirty_files, ndirty_all;
 	int nats, dirty_nats, sits, dirty_sits, free_nids, alloc_nids;
 	int total_count, utilization;
-	int bg_gc, nr_wb_cp_data, nr_wb_data, nr_flush, nr_discard;
+	int bg_gc, nr_wb_cp_data, nr_wb_data;
+	int nr_flushing, nr_flushed, nr_discarding, nr_discarded;
 	int inline_xattr, inline_inode, inline_dir, append, update, orphans;
 	int aw_cnt, max_aw_cnt, vw_cnt, max_vw_cnt;
 	unsigned int valid_count, valid_node_count, valid_inode_count, discard_blks;
