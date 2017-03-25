@@ -4126,7 +4126,9 @@ i915_wedged_get(void *data, u64 *val)
 static int
 i915_wedged_set(void *data, u64 val)
 {
-	struct drm_i915_private *dev_priv = data;
+	struct drm_i915_private *i915 = data;
+	struct intel_engine_cs *engine;
+	unsigned int tmp;
 
 	/*
 	 * There is no safeguard against this debugfs entry colliding
@@ -4136,13 +4138,17 @@ i915_wedged_set(void *data, u64 val)
 	 * while it is writing to 'i915_wedged'
 	 */
 
-	if (i915_reset_backoff(&dev_priv->gpu_error))
+	if (i915_reset_backoff(&i915->gpu_error))
 		return -EAGAIN;
 
-	i915_handle_error(dev_priv, val,
-			  "Manually setting wedged to %llu", val);
+	for_each_engine_masked(engine, i915, val, tmp) {
+		engine->hangcheck.seqno = intel_engine_get_seqno(engine);
+		engine->hangcheck.stalled = true;
+	}
 
-	wait_on_bit(&dev_priv->gpu_error.flags,
+	i915_handle_error(i915, val, "Manually setting wedged to %llu", val);
+
+	wait_on_bit(&i915->gpu_error.flags,
 		    I915_RESET_HANDOFF,
 		    TASK_UNINTERRUPTIBLE);
 
