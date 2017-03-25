@@ -3085,7 +3085,7 @@ __rcu_process_callbacks(struct rcu_state *rsp)
 	bool needwake;
 	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
 
-	WARN_ON_ONCE(rdp->beenonline == 0);
+	WARN_ON_ONCE(!rdp->beenonline);
 
 	/* Update RCU state based on any recent quiescent states. */
 	rcu_check_quiescent_state(rsp, rdp);
