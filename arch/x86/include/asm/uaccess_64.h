@@ -261,14 +261,6 @@ extern long __copy_user_nocache(void *dst, const void __user *src,
 				unsigned size, int zerorest);
 
 static inline int
-__copy_from_user_nocache(void *dst, const void __user *src, unsigned size)
-{
-	might_fault();
-	kasan_check_write(dst, size);
-	return __copy_user_nocache(dst, src, size, 1);
-}
-
-static inline int
 __copy_from_user_inatomic_nocache(void *dst, const void __user *src,
 				  unsigned size)
 {

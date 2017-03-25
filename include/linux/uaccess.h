@@ -261,12 +261,6 @@ static inline unsigned long __copy_from_user_inatomic_nocache(void *to,
 	return __copy_from_user_inatomic(to, from, n);
 }
 
-static inline unsigned long __copy_from_user_nocache(void *to,
-				const void __user *from, unsigned long n)
-{
-	return __copy_from_user(to, from, n);
-}
-
 #endif		/* ARCH_HAS_NOCACHE_UACCESS */
 
 /*
