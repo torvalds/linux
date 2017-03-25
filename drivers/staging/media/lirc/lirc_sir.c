@@ -49,8 +49,6 @@ static struct platform_device *sir_ir_dev;
 
 static DEFINE_SPINLOCK(hardware_lock);
 
-static bool debug;
-
 /* SECTION: Prototypes */
 
 /* Communication with user-space */
@@ -361,7 +359,6 @@ static int init_sir_ir(void)
 	if (retval < 0)
 		return retval;
 	init_hardware();
-	pr_info("Installed.\n");
 	return 0;
 }
 
@@ -394,24 +391,18 @@ static int __init sir_ir_init(void)
 	int retval;
 
 	retval = platform_driver_register(&sir_ir_driver);
-	if (retval) {
-		pr_err("Platform driver register failed!\n");
-		return -ENODEV;
-	}
+	if (retval)
+		return retval;
 
 	sir_ir_dev = platform_device_alloc("sir_ir", 0);
 	if (!sir_ir_dev) {
-		pr_err("Platform device alloc failed!\n");
 		retval = -ENOMEM;
 		goto pdev_alloc_fail;
 	}
 
 	retval = platform_device_add(sir_ir_dev);
-	if (retval) {
-		pr_err("Platform device add failed!\n");
-		retval = -ENODEV;
+	if (retval)
 		goto pdev_add_fail;
-	}
 
 	return 0;
 
@@ -428,7 +419,6 @@ static void __exit sir_ir_exit(void)
 	drop_port();
 	platform_device_unregister(sir_ir_dev);
 	platform_driver_unregister(&sir_ir_driver);
-	pr_info("Uninstalled.\n");
 }
 
 module_init(sir_ir_init);
@@ -446,6 +436,3 @@ MODULE_PARM_DESC(irq, "Interrupt (4 or 3)");
 
 module_param(threshold, int, 0444);
 MODULE_PARM_DESC(threshold, "space detection threshold (3)");
-
-module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Enable debugging messages");
