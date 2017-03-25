@@ -99,7 +99,7 @@ static int psmouse_smbus_notifier_call(struct notifier_block *nb,
 		break;
 
 	case BUS_NOTIFY_REMOVED_DEVICE:
-		if (dev->type != &i2c_adapter_type)
+		if (dev->type == &i2c_client_type)
 			psmouse_smbus_detach_i2c_client(to_i2c_client(dev));
 		break;
 	}
