@@ -60,6 +60,7 @@
 	.has_overlay = 1, .overlay_needs_physical = 1, \
 	.has_gmch_display = 1, \
 	.hws_needs_physical = 1, \
+	.unfenced_needs_alignment = 1, \
 	.ring_mask = RENDER_RING, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	CURSOR_OFFSETS
@@ -101,6 +102,7 @@ static const struct intel_device_info intel_i915g_info = {
 	.platform = INTEL_I915G, .cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.hws_needs_physical = 1,
+	.unfenced_needs_alignment = 1,
 };
 
 static const struct intel_device_info intel_i915gm_info = {
@@ -112,6 +114,7 @@ static const struct intel_device_info intel_i915gm_info = {
 	.supports_tv = 1,
 	.has_fbc = 1,
 	.hws_needs_physical = 1,
+	.unfenced_needs_alignment = 1,
 };
 
 static const struct intel_device_info intel_i945g_info = {
@@ -120,6 +123,7 @@ static const struct intel_device_info intel_i945g_info = {
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.hws_needs_physical = 1,
+	.unfenced_needs_alignment = 1,
 };
 
 static const struct intel_device_info intel_i945gm_info = {
@@ -130,6 +134,7 @@ static const struct intel_device_info intel_i945gm_info = {
 	.supports_tv = 1,
 	.has_fbc = 1,
 	.hws_needs_physical = 1,
+	.unfenced_needs_alignment = 1,
 };
 
 static const struct intel_device_info intel_g33_info = {
