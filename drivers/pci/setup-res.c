@@ -34,10 +34,9 @@ static void pci_std_update_resource(struct pci_dev *dev, int resno)
 	int reg;
 	struct resource *res = dev->resource + resno;
 
-	if (dev->is_virtfn) {
-		dev_warn(&dev->dev, "can't update VF BAR%d\n", resno);
+	/* Per SR-IOV spec 3.4.1.11, VF BARs are RO zero */
+	if (dev->is_virtfn)
 		return;
-	}
 
 	/*
 	 * Ignore resources for unimplemented BARs and unused resource slots
