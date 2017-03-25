@@ -36,25 +36,25 @@ DECLARE_PER_CPU(struct exception_data, exception_data);
 extern unsigned long pa_memcpy(void *dst, const void *src,
 				unsigned long len);
 
-unsigned long __copy_to_user(void __user *dst, const void *src,
-			     unsigned long len)
+unsigned long raw_copy_to_user(void __user *dst, const void *src,
+			       unsigned long len)
 {
 	mtsp(get_kernel_space(), 1);
 	mtsp(get_user_space(), 2);
 	return pa_memcpy((void __force *)dst, src, len);
 }
-EXPORT_SYMBOL(__copy_to_user);
+EXPORT_SYMBOL(raw_copy_to_user);
 
-unsigned long __copy_from_user(void *dst, const void __user *src,
+unsigned long raw_copy_from_user(void *dst, const void __user *src,
 			       unsigned long len)
 {
 	mtsp(get_user_space(), 1);
 	mtsp(get_kernel_space(), 2);
 	return pa_memcpy(dst, (void __force *)src, len);
 }
-EXPORT_SYMBOL(__copy_from_user);
+EXPORT_SYMBOL(raw_copy_from_user);
 
-unsigned long copy_in_user(void __user *dst, const void __user *src, unsigned long len)
+unsigned long raw_copy_in_user(void __user *dst, const void __user *src, unsigned long len)
 {
 	mtsp(get_user_space(), 1);
 	mtsp(get_user_space(), 2);
@@ -70,7 +70,7 @@ void * memcpy(void * dst,const void *src, size_t count)
 	return dst;
 }
 
-EXPORT_SYMBOL(copy_in_user);
+EXPORT_SYMBOL(raw_copy_in_user);
 EXPORT_SYMBOL(memcpy);
 
 long probe_kernel_read(void *dst, const void *src, size_t size)
