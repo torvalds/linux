@@ -227,6 +227,7 @@ static int init_chrdev(void)
 	if (!rcdev)
 		return -ENOMEM;
 
+	rcdev->input_name = "SIR IrDA port";
 	rcdev->input_phys = KBUILD_MODNAME "/input0";
 	rcdev->input_id.bustype = BUS_HOST;
 	rcdev->input_id.vendor = 0x0001;
@@ -234,6 +235,7 @@ static int init_chrdev(void)
 	rcdev->input_id.version = 0x0100;
 	rcdev->tx_ir = sir_tx_ir;
 	rcdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rcdev->driver_name = KBUILD_MODNAME;
 	rcdev->map_name = RC_MAP_RC6_MCE;
 	rcdev->timeout = IR_DEFAULT_TIMEOUT;
 	rcdev->dev.parent = &sir_ir_dev->dev;
@@ -740,7 +742,13 @@ static int init_sir_ir(void)
 
 static int sir_ir_probe(struct platform_device *dev)
 {
-	return 0;
+	int retval;
+
+	retval = init_chrdev();
+	if (retval < 0)
+		return retval;
+
+	return init_sir_ir();
 }
 
 static int sir_ir_remove(struct platform_device *dev)
@@ -780,18 +788,8 @@ static int __init sir_ir_init(void)
 		goto pdev_add_fail;
 	}
 
-	retval = init_chrdev();
-	if (retval < 0)
-		goto fail;
-
-	retval = init_sir_ir();
-	if (retval)
-		goto fail;
-
 	return 0;
 
-fail:
-	platform_device_del(sir_ir_dev);
 pdev_add_fail:
 	platform_device_put(sir_ir_dev);
 pdev_alloc_fail:
