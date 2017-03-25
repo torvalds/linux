@@ -12,6 +12,24 @@
 
 bool srcline_full_filename;
 
+static const char *dso__name(struct dso *dso)
+{
+	const char *dso_name;
+
+	if (dso->symsrc_filename)
+		dso_name = dso->symsrc_filename;
+	else
+		dso_name = dso->long_name;
+
+	if (dso_name[0] == '[')
+		return NULL;
+
+	if (!strncmp(dso_name, "/tmp/perf-", 10))
+		return NULL;
+
+	return dso_name;
+}
+
 #ifdef HAVE_LIBBFD_SUPPORT
 
 /*
@@ -207,6 +225,27 @@ void dso__free_a2l(struct dso *dso)
 
 #else /* HAVE_LIBBFD_SUPPORT */
 
+static int filename_split(char *filename, unsigned int *line_nr)
+{
+	char *sep;
+
+	sep = strchr(filename, '\n');
+	if (sep)
+		*sep = '\0';
+
+	if (!strcmp(filename, "??:0"))
+		return 0;
+
+	sep = strchr(filename, ':');
+	if (sep) {
+		*sep++ = '\0';
+		*line_nr = strtoul(sep, NULL, 0);
+		return 1;
+	}
+
+	return 0;
+}
+
 static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line_nr,
 		     struct dso *dso __maybe_unused,
@@ -216,7 +255,6 @@ static int addr2line(const char *dso_name, u64 addr,
 	char cmd[PATH_MAX];
 	char *filename = NULL;
 	size_t len;
-	char *sep;
 	int ret = 0;
 
 	scnprintf(cmd, sizeof(cmd), "addr2line -e %s %016"PRIx64,
@@ -233,23 +271,14 @@ static int addr2line(const char *dso_name, u64 addr,
 		goto out;
 	}
 
-	sep = strchr(filename, '\n');
-	if (sep)
-		*sep = '\0';
-
-	if (!strcmp(filename, "??:0")) {
-		pr_debug("no debugging info in %s\n", dso_name);
+	ret = filename_split(filename, line_nr);
+	if (ret != 1) {
 		free(filename);
 		goto out;
 	}
 
-	sep = strchr(filename, ':');
-	if (sep) {
-		*sep++ = '\0';
-		*file = filename;
-		*line_nr = strtoul(sep, NULL, 0);
-		ret = 1;
-	}
+	*file = filename;
+
 out:
 	pclose(fp);
 	return ret;
@@ -278,15 +307,8 @@ char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 	if (!dso->has_srcline)
 		goto out;
 
-	if (dso->symsrc_filename)
-		dso_name = dso->symsrc_filename;
-	else
-		dso_name = dso->long_name;
-
-	if (dso_name[0] == '[')
-		goto out;
-
-	if (!strncmp(dso_name, "/tmp/perf-", 10))
+	dso_name = dso__name(dso);
+	if (dso_name == NULL)
 		goto out;
 
 	if (!addr2line(dso_name, addr, &file, &line, dso, unwind_inlines))
