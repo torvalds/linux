@@ -538,7 +538,7 @@ static void intel_lrc_irq_handler(unsigned long data)
 			dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_PTR(engine));
 		u32 __iomem *buf =
 			dev_priv->regs + i915_mmio_reg_offset(RING_CONTEXT_STATUS_BUF_LO(engine, 0));
-		unsigned int csb, head, tail;
+		unsigned int head, tail;
 
 		/* The write will be ordered by the uncached read (itself
 		 * a memory barrier), so we do not need another in the form
@@ -551,17 +551,14 @@ static void intel_lrc_irq_handler(unsigned long data)
 		 * is set and we do a new loop.
 		 */
 		__clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
-		csb = readl(csb_mmio);
-		head = GEN8_CSB_READ_PTR(csb);
-		tail = GEN8_CSB_WRITE_PTR(csb);
-		if (head == tail)
-			break;
+		head = readl(csb_mmio);
+		tail = GEN8_CSB_WRITE_PTR(head);
+		head = GEN8_CSB_READ_PTR(head);
+		while (head != tail) {
+			unsigned int status;
 
-		if (tail < head)
-			tail += GEN8_CSB_ENTRIES;
-		do {
-			unsigned int idx = ++head % GEN8_CSB_ENTRIES;
-			unsigned int status = readl(buf + 2 * idx);
+			if (++head == GEN8_CSB_ENTRIES)
+				head = 0;
 
 			/* We are flying near dragons again.
 			 *
@@ -580,11 +577,12 @@ static void intel_lrc_irq_handler(unsigned long data)
 			 * status notifier.
 			 */
 
+			status = readl(buf + 2 * head);
 			if (!(status & GEN8_CTX_STATUS_COMPLETED_MASK))
 				continue;
 
 			/* Check the context/desc id for this event matches */
-			GEM_DEBUG_BUG_ON(readl(buf + 2 * idx + 1) !=
+			GEM_DEBUG_BUG_ON(readl(buf + 2 * head + 1) !=
 					 port[0].context_id);
 
 			GEM_BUG_ON(port[0].count == 0);
@@ -602,10 +600,9 @@ static void intel_lrc_irq_handler(unsigned long data)
 
 			GEM_BUG_ON(port[0].count == 0 &&
 				   !(status & GEN8_CTX_STATUS_ACTIVE_IDLE));
-		} while (head < tail);
+		}
 
-		writel(_MASKED_FIELD(GEN8_CSB_READ_PTR_MASK,
-				     GEN8_CSB_WRITE_PTR(csb) << 8),
+		writel(_MASKED_FIELD(GEN8_CSB_READ_PTR_MASK, head << 8),
 		       csb_mmio);
 	}
 
