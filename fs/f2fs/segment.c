@@ -693,6 +693,8 @@ static void __add_discard_cmd(struct f2fs_sb_info *sbi,
 	mutex_lock(&dcc->cmd_lock);
 	list_add_tail(&dc->list, cmd_list);
 	mutex_unlock(&dcc->cmd_lock);
+
+	atomic_inc(&dcc->discard_cmd_cnt);
 }
 
 static void __remove_discard_cmd(struct f2fs_sb_info *sbi, struct discard_cmd *dc)
@@ -708,6 +710,7 @@ static void __remove_discard_cmd(struct f2fs_sb_info *sbi, struct discard_cmd *d
 				"Issue discard failed, ret: %d", dc->error);
 	list_del(&dc->list);
 	kmem_cache_free(discard_cmd_slab, dc);
+	atomic_dec(&SM_I(sbi)->dcc_info->discard_cmd_cnt);
 }
 
 static void f2fs_submit_discard_endio(struct bio *bio)
@@ -1145,6 +1148,7 @@ static int create_discard_cmd_control(struct f2fs_sb_info *sbi)
 	mutex_init(&dcc->cmd_lock);
 	atomic_set(&dcc->issued_discard, 0);
 	atomic_set(&dcc->issing_discard, 0);
+	atomic_set(&dcc->discard_cmd_cnt, 0);
 	dcc->nr_discards = 0;
 	dcc->max_discards = 0;
 

@@ -67,6 +67,8 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 			atomic_read(&SM_I(sbi)->dcc_info->issued_discard);
 		si->nr_discarding =
 			atomic_read(&SM_I(sbi)->dcc_info->issing_discard);
+		si->nr_discard_cmd =
+			atomic_read(&SM_I(sbi)->dcc_info->discard_cmd_cnt);
 	}
 	si->total_count = (int)sbi->user_block_count / sbi->blocks_per_seg;
 	si->rsvd_segs = reserved_segments(sbi);
@@ -220,8 +222,11 @@ get_cache:
 	/* build merge flush thread */
 	if (SM_I(sbi)->fcc_info)
 		si->cache_mem += sizeof(struct flush_cmd_control);
-	if (SM_I(sbi)->dcc_info)
+	if (SM_I(sbi)->dcc_info) {
 		si->cache_mem += sizeof(struct discard_cmd_control);
+		si->cache_mem += sizeof(struct discard_cmd) *
+			atomic_read(&SM_I(sbi)->dcc_info->discard_cmd_cnt);
+	}
 
 	/* free nids */
 	si->cache_mem += (NM_I(sbi)->nid_cnt[FREE_NID_LIST] +
@@ -343,10 +348,11 @@ static int stat_show(struct seq_file *s, void *v)
 				si->ext_tree, si->zombie_tree, si->ext_node);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
 		seq_printf(s, "  - IO (CP: %4d, Data: %4d, Flush: (%4d %4d), "
-			"Discard: (%4d %4d))\n",
+			"Discard: (%4d %4d)) cmd: %4d\n",
 			   si->nr_wb_cp_data, si->nr_wb_data,
 			   si->nr_flushing, si->nr_flushed,
-			   si->nr_discarding, si->nr_discarded);
+			   si->nr_discarding, si->nr_discarded,
+			   si->nr_discard_cmd);
 		seq_printf(s, "  - inmem: %4d, atomic IO: %4d (Max. %4d), "
 			"volatile IO: %4d (Max. %4d)\n",
 			   si->inmem_pages, si->aw_cnt, si->max_aw_cnt,
