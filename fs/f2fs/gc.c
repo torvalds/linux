@@ -182,7 +182,7 @@ static unsigned int get_max_cost(struct f2fs_sb_info *sbi,
 	if (p->alloc_mode == SSR)
 		return sbi->blocks_per_seg;
 	if (p->gc_mode == GC_GREEDY)
-		return sbi->blocks_per_seg * p->ofs_unit;
+		return 2 * sbi->blocks_per_seg * p->ofs_unit;
 	else if (p->gc_mode == GC_CB)
 		return UINT_MAX;
 	else /* No other gc_mode */
