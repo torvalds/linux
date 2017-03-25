@@ -26,6 +26,7 @@
 #include <net/tcp.h>
 #include <net/inet_common.h>
 #include <net/xfrm.h>
+#include <net/busy_poll.h>
 
 int sysctl_tcp_abort_on_overflow __read_mostly;
 
@@ -798,6 +799,9 @@ int tcp_child_process(struct sock *parent, struct sock *child,
 {
 	int ret = 0;
 	int state = child->sk_state;
+
+	/* record NAPI ID of child */
+	sk_mark_napi_id(child, skb);
 
 	tcp_segs_in(tcp_sk(child), skb);
 	if (!sock_owned_by_user(child)) {
