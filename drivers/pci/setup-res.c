@@ -68,6 +68,12 @@ static void pci_std_update_resource(struct pci_dev *dev, int resno)
 	if (resno < PCI_ROM_RESOURCE) {
 		reg = PCI_BASE_ADDRESS_0 + 4 * resno;
 	} else if (resno == PCI_ROM_RESOURCE) {
+
+		/*
+		 * Apparently some Matrox devices have ROM BARs that read
+		 * as zero when disabled, so don't update ROM BARs unless
+		 * they're enabled.  See https://lkml.org/lkml/2005/8/30/138.
+		 */
 		if (!(res->flags & IORESOURCE_ROM_ENABLE))
 			return;
 
