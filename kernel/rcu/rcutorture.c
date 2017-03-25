@@ -559,11 +559,12 @@ static void srcu_torture_barrier(void)
 
 static void srcu_torture_stats(void)
 {
-#ifdef CONFIG_TREE_SRCU
-	int cpu;
-	int idx = srcu_ctlp->completed & 0x1;
+	int __maybe_unused cpu;
+	int idx;
 
-	pr_alert("%s%s per-CPU(idx=%d):",
+#ifdef CONFIG_TREE_SRCU
+	idx = srcu_ctlp->completed & 0x1;
+	pr_alert("%s%s Tree SRCU per-CPU(idx=%d):",
 		 torture_type, TORTURE_FLAG, idx);
 	for_each_possible_cpu(cpu) {
 		unsigned long l0, l1;
@@ -588,6 +589,12 @@ static void srcu_torture_stats(void)
 		pr_cont(" %d(%ld,%ld)", cpu, c0, c1);
 	}
 	pr_cont("\n");
+#elif defined(CONFIG_TINY_SRCU)
+	idx = READ_ONCE(srcu_ctlp->srcu_idx) & 0x1;
+	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%d,%d)\n",
+		 torture_type, TORTURE_FLAG, idx,
+		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[!idx]),
+		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[idx]));
 #endif
 }
 
