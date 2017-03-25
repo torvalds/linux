@@ -559,6 +559,7 @@ static void srcu_torture_barrier(void)
 
 static void srcu_torture_stats(void)
 {
+#ifdef CONFIG_TREE_SRCU
 	int cpu;
 	int idx = srcu_ctlp->completed & 0x1;
 
@@ -587,6 +588,7 @@ static void srcu_torture_stats(void)
 		pr_cont(" %d(%ld,%ld)", cpu, c0, c1);
 	}
 	pr_cont("\n");
+#endif
 }
 
 static void srcu_torture_synchronize_expedited(void)

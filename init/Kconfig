@@ -526,6 +526,18 @@ config SRCU
 	  permits arbitrary sleeping or blocking within RCU read-side critical
 	  sections.
 
+config TINY_SRCU
+	bool
+	default y if TINY_RCU
+	help
+	  This option selects the single-CPU non-preemptible version of SRCU.
+
+config TREE_SRCU
+	bool
+	default y if !TINY_RCU
+	help
+	  This option selects the full-fledged version of SRCU.
+
 config TASKS_RCU
 	bool
 	default n
