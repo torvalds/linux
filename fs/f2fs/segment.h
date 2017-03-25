@@ -495,7 +495,7 @@ static inline bool need_SSR(struct f2fs_sb_info *sbi)
 		return false;
 
 	return free_sections(sbi) <= (node_secs + 2 * dent_secs + imeta_secs +
-						reserved_sections(sbi) + 1);
+						2 * reserved_sections(sbi));
 }
 
 static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi,
