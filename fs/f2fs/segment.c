@@ -1908,18 +1908,16 @@ static int __get_segment_type_6(struct page *page, enum page_type p_type)
 	if (p_type == DATA) {
 		struct inode *inode = page->mapping->host;
 
-		if (S_ISDIR(inode->i_mode))
-			return CURSEG_HOT_DATA;
-		else if (is_cold_data(page) || file_is_cold(inode))
+		if (is_cold_data(page) || file_is_cold(inode))
 			return CURSEG_COLD_DATA;
-		else
-			return CURSEG_WARM_DATA;
+		if (is_inode_flag_set(inode, FI_HOT_DATA))
+			return CURSEG_HOT_DATA;
+		return CURSEG_WARM_DATA;
 	} else {
 		if (IS_DNODE(page))
 			return is_cold_node(page) ? CURSEG_WARM_NODE :
 						CURSEG_HOT_NODE;
-		else
-			return CURSEG_COLD_NODE;
+		return CURSEG_COLD_NODE;
 	}
 }
 
@@ -3026,6 +3024,7 @@ int build_segment_manager(struct f2fs_sb_info *sbi)
 		sm_info->ipu_policy = 1 << F2FS_IPU_FSYNC;
 	sm_info->min_ipu_util = DEF_MIN_IPU_UTIL;
 	sm_info->min_fsync_blocks = DEF_MIN_FSYNC_BLOCKS;
+	sm_info->min_hot_blocks = DEF_MIN_HOT_BLOCKS;
 
 	sm_info->trim_sections = DEF_BATCHED_TRIM_SECTIONS;
 
