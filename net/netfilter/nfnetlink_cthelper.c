@@ -32,6 +32,13 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
 MODULE_DESCRIPTION("nfnl_cthelper: User-space connection tracking helpers");
 
+struct nfnl_cthelper {
+	struct list_head		list;
+	struct nf_conntrack_helper	helper;
+};
+
+static LIST_HEAD(nfnl_cthelper_list);
+
 static int
 nfnl_userspace_cthelper(struct sk_buff *skb, unsigned int protoff,
 			struct nf_conn *ct, enum ip_conntrack_info ctinfo)
@@ -205,14 +212,16 @@ nfnl_cthelper_create(const struct nlattr * const tb[],
 		     struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_helper *helper;
+	struct nfnl_cthelper *nfcth;
 	int ret;
 
 	if (!tb[NFCTH_TUPLE] || !tb[NFCTH_POLICY] || !tb[NFCTH_PRIV_DATA_LEN])
 		return -EINVAL;
 
-	helper = kzalloc(sizeof(struct nf_conntrack_helper), GFP_KERNEL);
-	if (helper == NULL)
+	nfcth = kzalloc(sizeof(*nfcth), GFP_KERNEL);
+	if (nfcth == NULL)
 		return -ENOMEM;
+	helper = &nfcth->helper;
 
 	ret = nfnl_cthelper_parse_expect_policy(helper, tb[NFCTH_POLICY]);
 	if (ret < 0)
@@ -249,11 +258,12 @@ nfnl_cthelper_create(const struct nlattr * const tb[],
 	if (ret < 0)
 		goto err2;
 
+	list_add_tail(&nfcth->list, &nfnl_cthelper_list);
 	return 0;
 err2:
 	kfree(helper->expect_policy);
 err1:
-	kfree(helper);
+	kfree(nfcth);
 	return ret;
 }
 
@@ -379,7 +389,8 @@ nfnl_cthelper_new(struct sock *nfnl, struct sk_buff *skb,
 	const char *helper_name;
 	struct nf_conntrack_helper *cur, *helper = NULL;
 	struct nf_conntrack_tuple tuple;
-	int ret = 0, i;
+	struct nfnl_cthelper *nlcth;
+	int ret = 0;
 
 	if (!tb[NFCTH_NAME] || !tb[NFCTH_TUPLE])
 		return -EINVAL;
@@ -390,40 +401,28 @@ nfnl_cthelper_new(struct sock *nfnl, struct sk_buff *skb,
 	if (ret < 0)
 		return ret;
 
-	rcu_read_lock();
-	for (i = 0; i < nf_ct_helper_hsize && !helper; i++) {
-		hlist_for_each_entry_rcu(cur, &nf_ct_helper_hash[i], hnode) {
+	list_for_each_entry(nlcth, &nfnl_cthelper_list, list) {
+		cur = &nlcth->helper;
 
-			/* skip non-userspace conntrack helpers. */
-			if (!(cur->flags & NF_CT_HELPER_F_USERSPACE))
-				continue;
+		if (strncmp(cur->name, helper_name, NF_CT_HELPER_NAME_LEN))
+			continue;
 
-			if (strncmp(cur->name, helper_name,
-					NF_CT_HELPER_NAME_LEN) != 0)
-				continue;
+		if ((tuple.src.l3num != cur->tuple.src.l3num ||
+		     tuple.dst.protonum != cur->tuple.dst.protonum))
+			continue;
 
-			if ((tuple.src.l3num != cur->tuple.src.l3num ||
-			     tuple.dst.protonum != cur->tuple.dst.protonum))
-				continue;
+		if (nlh->nlmsg_flags & NLM_F_EXCL)
+			return -EEXIST;
 
-			if (nlh->nlmsg_flags & NLM_F_EXCL) {
-				ret = -EEXIST;
-				goto err;
-			}
-			helper = cur;
-			break;
-		}
+		helper = cur;
+		break;
 	}
-	rcu_read_unlock();
 
 	if (helper == NULL)
 		ret = nfnl_cthelper_create(tb, &tuple);
 	else
 		ret = nfnl_cthelper_update(tb, helper);
 
-	return ret;
-err:
-	rcu_read_unlock();
 	return ret;
 }
 
@@ -588,11 +587,12 @@ static int
 nfnl_cthelper_get(struct sock *nfnl, struct sk_buff *skb,
 		  const struct nlmsghdr *nlh, const struct nlattr * const tb[])
 {
-	int ret = -ENOENT, i;
+	int ret = -ENOENT;
 	struct nf_conntrack_helper *cur;
 	struct sk_buff *skb2;
 	char *helper_name = NULL;
 	struct nf_conntrack_tuple tuple;
+	struct nfnl_cthelper *nlcth;
 	bool tuple_set = false;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
@@ -613,45 +613,39 @@ nfnl_cthelper_get(struct sock *nfnl, struct sk_buff *skb,
 		tuple_set = true;
 	}
 
-	for (i = 0; i < nf_ct_helper_hsize; i++) {
-		hlist_for_each_entry_rcu(cur, &nf_ct_helper_hash[i], hnode) {
+	list_for_each_entry(nlcth, &nfnl_cthelper_list, list) {
+		cur = &nlcth->helper;
+		if (helper_name &&
+		    strncmp(cur->name, helper_name, NF_CT_HELPER_NAME_LEN))
+			continue;
 
-			/* skip non-userspace conntrack helpers. */
-			if (!(cur->flags & NF_CT_HELPER_F_USERSPACE))
-				continue;
+		if (tuple_set &&
+		    (tuple.src.l3num != cur->tuple.src.l3num ||
+		     tuple.dst.protonum != cur->tuple.dst.protonum))
+			continue;
 
-			if (helper_name && strncmp(cur->name, helper_name,
-						NF_CT_HELPER_NAME_LEN) != 0) {
-				continue;
-			}
-			if (tuple_set &&
-			    (tuple.src.l3num != cur->tuple.src.l3num ||
-			     tuple.dst.protonum != cur->tuple.dst.protonum))
-				continue;
-
-			skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-			if (skb2 == NULL) {
-				ret = -ENOMEM;
-				break;
-			}
-
-			ret = nfnl_cthelper_fill_info(skb2, NETLINK_CB(skb).portid,
-						nlh->nlmsg_seq,
-						NFNL_MSG_TYPE(nlh->nlmsg_type),
-						NFNL_MSG_CTHELPER_NEW, cur);
-			if (ret <= 0) {
-				kfree_skb(skb2);
-				break;
-			}
-
-			ret = netlink_unicast(nfnl, skb2, NETLINK_CB(skb).portid,
-						MSG_DONTWAIT);
-			if (ret > 0)
-				ret = 0;
-
-			/* this avoids a loop in nfnetlink. */
-			return ret == -EAGAIN ? -ENOBUFS : ret;
+		skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+		if (skb2 == NULL) {
+			ret = -ENOMEM;
+			break;
 		}
+
+		ret = nfnl_cthelper_fill_info(skb2, NETLINK_CB(skb).portid,
+					      nlh->nlmsg_seq,
+					      NFNL_MSG_TYPE(nlh->nlmsg_type),
+					      NFNL_MSG_CTHELPER_NEW, cur);
+		if (ret <= 0) {
+			kfree_skb(skb2);
+			break;
+		}
+
+		ret = netlink_unicast(nfnl, skb2, NETLINK_CB(skb).portid,
+				      MSG_DONTWAIT);
+		if (ret > 0)
+			ret = 0;
+
+		/* this avoids a loop in nfnetlink. */
+		return ret == -EAGAIN ? -ENOBUFS : ret;
 	}
 	return ret;
 }
@@ -662,10 +656,10 @@ nfnl_cthelper_del(struct sock *nfnl, struct sk_buff *skb,
 {
 	char *helper_name = NULL;
 	struct nf_conntrack_helper *cur;
-	struct hlist_node *tmp;
 	struct nf_conntrack_tuple tuple;
 	bool tuple_set = false, found = false;
-	int i, j = 0, ret;
+	struct nfnl_cthelper *nlcth, *n;
+	int j = 0, ret;
 
 	if (tb[NFCTH_NAME])
 		helper_name = nla_data(tb[NFCTH_NAME]);
@@ -678,30 +672,27 @@ nfnl_cthelper_del(struct sock *nfnl, struct sk_buff *skb,
 		tuple_set = true;
 	}
 
-	for (i = 0; i < nf_ct_helper_hsize; i++) {
-		hlist_for_each_entry_safe(cur, tmp, &nf_ct_helper_hash[i],
-								hnode) {
-			/* skip non-userspace conntrack helpers. */
-			if (!(cur->flags & NF_CT_HELPER_F_USERSPACE))
-				continue;
+	list_for_each_entry_safe(nlcth, n, &nfnl_cthelper_list, list) {
+		cur = &nlcth->helper;
+		j++;
 
-			j++;
+		if (helper_name &&
+		    strncmp(cur->name, helper_name, NF_CT_HELPER_NAME_LEN))
+			continue;
 
-			if (helper_name && strncmp(cur->name, helper_name,
-						NF_CT_HELPER_NAME_LEN) != 0) {
-				continue;
-			}
-			if (tuple_set &&
-			    (tuple.src.l3num != cur->tuple.src.l3num ||
-			     tuple.dst.protonum != cur->tuple.dst.protonum))
-				continue;
+		if (tuple_set &&
+		    (tuple.src.l3num != cur->tuple.src.l3num ||
+		     tuple.dst.protonum != cur->tuple.dst.protonum))
+			continue;
 
-			found = true;
-			nf_conntrack_helper_unregister(cur);
-			kfree(cur->expect_policy);
-			kfree(cur);
-		}
+		found = true;
+		nf_conntrack_helper_unregister(cur);
+		kfree(cur->expect_policy);
+
+		list_del(&nlcth->list);
+		kfree(nlcth);
 	}
+
 	/* Make sure we return success if we flush and there is no helpers */
 	return (found || j == 0) ? 0 : -ENOENT;
 }
@@ -750,22 +741,16 @@ err_out:
 static void __exit nfnl_cthelper_exit(void)
 {
 	struct nf_conntrack_helper *cur;
-	struct hlist_node *tmp;
-	int i;
+	struct nfnl_cthelper *nlcth, *n;
 
 	nfnetlink_subsys_unregister(&nfnl_cthelper_subsys);
 
-	for (i=0; i<nf_ct_helper_hsize; i++) {
-		hlist_for_each_entry_safe(cur, tmp, &nf_ct_helper_hash[i],
-									hnode) {
-			/* skip non-userspace conntrack helpers. */
-			if (!(cur->flags & NF_CT_HELPER_F_USERSPACE))
-				continue;
+	list_for_each_entry_safe(nlcth, n, &nfnl_cthelper_list, list) {
+		cur = &nlcth->helper;
 
-			nf_conntrack_helper_unregister(cur);
-			kfree(cur->expect_policy);
-			kfree(cur);
-		}
+		nf_conntrack_helper_unregister(cur);
+		kfree(cur->expect_policy);
+		kfree(nlcth);
 	}
 }
 
