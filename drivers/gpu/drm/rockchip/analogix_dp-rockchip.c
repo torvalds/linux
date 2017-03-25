@@ -47,6 +47,7 @@ struct rockchip_dp_chip_data {
 	u32	lcdsel_big;
 	u32	lcdsel_lit;
 	u32	chip_type;
+	bool	has_vop_sel;
 };
 
 struct rockchip_dp_device {
@@ -139,6 +140,9 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder)
 	struct rockchip_dp_device *dp = to_dp(encoder);
 	int ret;
 	u32 val;
+
+	if (!dp->data->has_vop_sel)
+		return;
 
 	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node, encoder);
 	if (ret < 0)
@@ -382,6 +386,11 @@ static const struct rockchip_dp_chip_data rk3399_edp = {
 	.lcdsel_big = 0 | BIT(21),
 	.lcdsel_lit = BIT(5) | BIT(21),
 	.chip_type = RK3399_EDP,
+	.has_vop_sel = true,
+};
+
+static const struct rockchip_dp_chip_data rk3368_edp = {
+	.chip_type = RK3368_EDP,
 };
 
 static const struct rockchip_dp_chip_data rk3288_dp = {
@@ -389,10 +398,12 @@ static const struct rockchip_dp_chip_data rk3288_dp = {
 	.lcdsel_big = 0 | BIT(21),
 	.lcdsel_lit = BIT(5) | BIT(21),
 	.chip_type = RK3288_DP,
+	.has_vop_sel = true,
 };
 
 static const struct of_device_id rockchip_dp_dt_ids[] = {
 	{.compatible = "rockchip,rk3288-dp", .data = &rk3288_dp },
+	{.compatible = "rockchip,rk3368-edp", .data = &rk3368_edp },
 	{.compatible = "rockchip,rk3399-edp", .data = &rk3399_edp },
 	{}
 };

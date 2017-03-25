@@ -20,6 +20,7 @@ enum analogix_dp_devtype {
 
 enum analogix_dp_sub_devtype {
 	RK3288_DP,
+	RK3368_EDP,
 	RK3399_EDP,
 };
 

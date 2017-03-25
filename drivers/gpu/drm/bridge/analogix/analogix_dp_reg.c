@@ -76,7 +76,8 @@ void analogix_dp_init_analog_param(struct analogix_dp_device *dp)
 
 	if (dp->plat_data && (dp->plat_data->dev_type == ROCKCHIP_DP)) {
 		reg = REF_CLK_24M;
-		if (dp->plat_data->subdev_type == RK3288_DP)
+		if (dp->plat_data->subdev_type == RK3288_DP ||
+		    dp->plat_data->subdev_type == RK3368_EDP)
 			reg ^= REF_CLK_MASK;
 
 		writel(reg, dp->reg_base + ANALOGIX_DP_PLL_REG_1);
