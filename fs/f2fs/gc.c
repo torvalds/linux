@@ -172,7 +172,11 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 	if (gc_type != FG_GC && p->max_search > sbi->max_victim_search)
 		p->max_search = sbi->max_victim_search;
 
-	p->offset = sbi->last_victim[p->gc_mode];
+	/* let's select beginning hot/small space first */
+	if (type == CURSEG_HOT_DATA || IS_NODESEG(type))
+		p->offset = 0;
+	else
+		p->offset = sbi->last_victim[p->gc_mode];
 }
 
 static unsigned int get_max_cost(struct f2fs_sb_info *sbi,
