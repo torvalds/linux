@@ -53,6 +53,8 @@
 #include <dt-bindings/display/drm_mipi_dsi.h>
 #include <dt-bindings/display/media-bus-format.h>
 
+#include "rk3368-dram-default-timing.dtsi"
+
 / {
 	compatible = "rockchip,rk3368";
 	interrupt-parent = <&gic>;
@@ -1180,6 +1182,50 @@
 				interrupt-names = "linestate";
 				status = "disabled";
 			};
+		};
+
+		dfi: dfi {
+			compatible = "rockchip,rk3368-dfi";
+			status = "disabled";
+		};
+	};
+
+	dmc: dmc {
+		compatible = "rockchip,rk3368-dmc";
+		devfreq-events = <&dfi>;
+		clocks = <&cru SCLK_DDRCLK>, <&cru PCLK_DDRPHY>,
+			 <&cru PCLK_DDRUPCTL>;
+		clock-names = "dmc_clk", "pclk_phy", "pclk_upctl";
+		ddr_timing = <&ddr_timing>;
+		upthreshold = <50>;
+		downdifferential = <20>;
+		operating-points-v2 = <&dmc_opp_table>;
+		vop-dclk-mode = <0>;
+		status = "disabled";
+	};
+
+	dmc_opp_table: opp_table2 {
+		compatible = "operating-points-v2";
+
+		opp-192000000 {
+			opp-hz = /bits/ 64 <192000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp-396000000 {
+			opp-hz = /bits/ 64 <396000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp-528000000 {
+			opp-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1100000>;
 		};
 	};
 
