@@ -682,59 +682,6 @@ extern struct movsl_mask {
 # include <asm/uaccess_64.h>
 #endif
 
-unsigned long __must_check _copy_from_user(void *to, const void __user *from,
-					   unsigned n);
-unsigned long __must_check _copy_to_user(void __user *to, const void *from,
-					 unsigned n);
-
-extern void __compiletime_error("usercopy buffer size is too small")
-__bad_copy_user(void);
-
-static inline void copy_user_overflow(int size, unsigned long count)
-{
-	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
-}
-
-static __always_inline unsigned long __must_check
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	int sz = __compiletime_object_size(to);
-
-	might_fault();
-
-	kasan_check_write(to, n);
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(to, n, false);
-		n = _copy_from_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	return n;
-}
-
-static __always_inline unsigned long __must_check
-copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	int sz = __compiletime_object_size(from);
-
-	kasan_check_read(from, n);
-
-	might_fault();
-
-	if (likely(sz < 0 || sz >= n)) {
-		check_object_size(from, n, true);
-		n = _copy_to_user(to, from, n);
-	} else if (!__builtin_constant_p(n))
-		copy_user_overflow(sz, n);
-	else
-		__bad_copy_user();
-
-	return n;
-}
-
 /*
  * We rely on the nested NMI work to allow atomic faults from the NMI path; the
  * nested NMI paths are careful to preserve CR2.
