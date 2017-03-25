@@ -1598,6 +1598,14 @@ static void reset_curseg(struct f2fs_sb_info *sbi, int type, int modified)
 	__set_sit_entry_type(sbi, type, curseg->segno, modified);
 }
 
+static unsigned int __get_next_segno(struct f2fs_sb_info *sbi, int type)
+{
+	if (type == CURSEG_HOT_DATA || IS_NODESEG(type))
+		return 0;
+
+	return CURSEG_I(sbi, type)->segno;
+}
+
 /*
  * Allocate a current working segment.
  * This function always allocates a free segment in LFS manner.
@@ -1616,6 +1624,7 @@ static void new_curseg(struct f2fs_sb_info *sbi, int type, bool new_sec)
 	if (test_opt(sbi, NOHEAP))
 		dir = ALLOC_RIGHT;
 
+	segno = __get_next_segno(sbi, type);
 	get_new_segment(sbi, &segno, new_sec, dir);
 	curseg->next_segno = segno;
 	reset_curseg(sbi, type, 1);
