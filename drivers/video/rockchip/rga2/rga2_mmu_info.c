@@ -40,7 +40,7 @@ static void rga_dma_flush_range(void *pstart, void *pend)
 #ifdef CONFIG_ARM
 	dmac_flush_range(pstart, pend);
 	outer_flush_range(virt_to_phys(pstart), virt_to_phys(pend));
-#elif CONFIG_ARM64
+#elif defined(CONFIG_ARM64)
 	__dma_flush_range(pstart, pend);
 #endif
 }
