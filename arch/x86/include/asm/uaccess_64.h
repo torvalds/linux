@@ -185,62 +185,8 @@ int __copy_to_user(void __user *dst, const void *src, unsigned size)
 static __always_inline __must_check
 int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 {
-	int ret = 0;
-
-	might_fault();
-	if (!__builtin_constant_p(size))
-		return copy_user_generic((__force void *)dst,
-					 (__force void *)src, size);
-	switch (size) {
-	case 1: {
-		u8 tmp;
-		__uaccess_begin();
-		__get_user_asm(tmp, (u8 __user *)src,
-			       ret, "b", "b", "=q", 1);
-		if (likely(!ret))
-			__put_user_asm(tmp, (u8 __user *)dst,
-				       ret, "b", "b", "iq", 1);
-		__uaccess_end();
-		return ret;
-	}
-	case 2: {
-		u16 tmp;
-		__uaccess_begin();
-		__get_user_asm(tmp, (u16 __user *)src,
-			       ret, "w", "w", "=r", 2);
-		if (likely(!ret))
-			__put_user_asm(tmp, (u16 __user *)dst,
-				       ret, "w", "w", "ir", 2);
-		__uaccess_end();
-		return ret;
-	}
-
-	case 4: {
-		u32 tmp;
-		__uaccess_begin();
-		__get_user_asm(tmp, (u32 __user *)src,
-			       ret, "l", "k", "=r", 4);
-		if (likely(!ret))
-			__put_user_asm(tmp, (u32 __user *)dst,
-				       ret, "l", "k", "ir", 4);
-		__uaccess_end();
-		return ret;
-	}
-	case 8: {
-		u64 tmp;
-		__uaccess_begin();
-		__get_user_asm(tmp, (u64 __user *)src,
-			       ret, "q", "", "=r", 8);
-		if (likely(!ret))
-			__put_user_asm(tmp, (u64 __user *)dst,
-				       ret, "q", "", "er", 8);
-		__uaccess_end();
-		return ret;
-	}
-	default:
-		return copy_user_generic((__force void *)dst,
-					 (__force void *)src, size);
-	}
+	return copy_user_generic((__force void *)dst,
+				 (__force void *)src, size);
 }
 
 static __must_check __always_inline int
