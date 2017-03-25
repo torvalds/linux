@@ -80,9 +80,5 @@ copy_user_handle_tail(char *to, char *from, unsigned len)
 			break;
 	}
 	clac();
-
-	/* If the destination is a kernel buffer, we always clear the end */
-	if (!__addr_ok(to))
-		memset(to, 0, len);
 	return len;
 }

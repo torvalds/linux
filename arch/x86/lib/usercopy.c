@@ -76,10 +76,11 @@ EXPORT_SYMBOL(_copy_to_user);
  */
 unsigned long _copy_from_user(void *to, const void __user *from, unsigned n)
 {
+	unsigned long res = n;
 	if (access_ok(VERIFY_READ, from, n))
-		n = __copy_from_user(to, from, n);
-	else
-		memset(to, 0, n);
-	return n;
+		res = __copy_from_user_inatomic(to, from, n);
+	if (unlikely(res))
+		memset(to + n - res, 0, res);
+	return res;
 }
 EXPORT_SYMBOL(_copy_from_user);
