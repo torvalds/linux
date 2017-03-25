@@ -25,8 +25,7 @@
 #include <linux/slab.h>
 #include "pci.h"
 
-
-void pci_update_resource(struct pci_dev *dev, int resno)
+static void pci_std_update_resource(struct pci_dev *dev, int resno)
 {
 	struct pci_bus_region region;
 	bool disable;
@@ -108,6 +107,16 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 
 	if (disable)
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
+}
+
+void pci_update_resource(struct pci_dev *dev, int resno)
+{
+	if (resno <= PCI_ROM_RESOURCE)
+		pci_std_update_resource(dev, resno);
+#ifdef CONFIG_PCI_IOV
+	else if (resno >= PCI_IOV_RESOURCES && resno <= PCI_IOV_RESOURCE_END)
+		pci_iov_update_resource(dev, resno);
+#endif
 }
 
 int pci_claim_resource(struct pci_dev *dev, int resource)

@@ -572,6 +572,56 @@ int pci_iov_resource_bar(struct pci_dev *dev, int resno)
 		4 * (resno - PCI_IOV_RESOURCES);
 }
 
+/**
+ * pci_iov_update_resource - update a VF BAR
+ * @dev: the PCI device
+ * @resno: the resource number
+ *
+ * Update a VF BAR in the SR-IOV capability of a PF.
+ */
+void pci_iov_update_resource(struct pci_dev *dev, int resno)
+{
+	struct pci_sriov *iov = dev->is_physfn ? dev->sriov : NULL;
+	struct resource *res = dev->resource + resno;
+	int vf_bar = resno - PCI_IOV_RESOURCES;
+	struct pci_bus_region region;
+	u32 new;
+	int reg;
+
+	/*
+	 * The generic pci_restore_bars() path calls this for all devices,
+	 * including VFs and non-SR-IOV devices.  If this is not a PF, we
+	 * have nothing to do.
+	 */
+	if (!iov)
+		return;
+
+	/*
+	 * Ignore unimplemented BARs, unused resource slots for 64-bit
+	 * BARs, and non-movable resources, e.g., those described via
+	 * Enhanced Allocation.
+	 */
+	if (!res->flags)
+		return;
+
+	if (res->flags & IORESOURCE_UNSET)
+		return;
+
+	if (res->flags & IORESOURCE_PCI_FIXED)
+		return;
+
+	pcibios_resource_to_bus(dev->bus, &region, res);
+	new = region.start;
+	new |= res->flags & ~PCI_BASE_ADDRESS_MEM_MASK;
+
+	reg = iov->pos + PCI_SRIOV_BAR + 4 * vf_bar;
+	pci_write_config_dword(dev, reg, new);
+	if (res->flags & IORESOURCE_MEM_64) {
+		new = region.start >> 16 >> 16;
+		pci_write_config_dword(dev, reg + 4, new);
+	}
+}
+
 resource_size_t __weak pcibios_iov_resource_alignment(struct pci_dev *dev,
 						      int resno)
 {
