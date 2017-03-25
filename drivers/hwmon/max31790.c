@@ -311,7 +311,7 @@ static int max31790_write_pwm(struct device *dev, u32 attr, int channel,
 		data->pwm[channel] = val << 8;
 		err = i2c_smbus_write_word_swapped(client,
 						   MAX31790_REG_PWMOUT(channel),
-						   val);
+						   data->pwm[channel]);
 		break;
 	case hwmon_pwm_enable:
 		fan_config = data->fan_config[channel];
