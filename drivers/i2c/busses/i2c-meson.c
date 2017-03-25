@@ -73,7 +73,6 @@ enum {
  * @error:	Flag set when an error is received
  * @lock:	To avoid race conditions between irq handler and xfer code
  * @done:	Completion used to wait for transfer termination
- * @frequency:	Operating frequency of I2C bus clock
  * @tokens:	Sequence of tokens to be written to the device
  * @num_tokens:	Number of tokens
  */
@@ -92,7 +91,6 @@ struct meson_i2c {
 
 	spinlock_t		lock;
 	struct completion	done;
-	unsigned int		frequency;
 	u32			tokens[2];
 	int			num_tokens;
 };
@@ -131,17 +129,17 @@ static void meson_i2c_write_tokens(struct meson_i2c *i2c)
 	writel(i2c->tokens[1], i2c->regs + REG_TOK_LIST1);
 }
 
-static void meson_i2c_set_clk_div(struct meson_i2c *i2c)
+static void meson_i2c_set_clk_div(struct meson_i2c *i2c, unsigned int freq)
 {
 	unsigned long clk_rate = clk_get_rate(i2c->clk);
 	unsigned int div;
 
-	div = DIV_ROUND_UP(clk_rate, i2c->frequency * 4);
+	div = DIV_ROUND_UP(clk_rate, freq * 4);
 	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_CLKDIV_MASK,
 			   div << REG_CTRL_CLKDIV_SHIFT);
 
 	dev_dbg(i2c->dev, "%s: clk %lu, freq %u, div %u\n", __func__,
-		clk_rate, i2c->frequency, div);
+		clk_rate, freq, div);
 }
 
 static void meson_i2c_get_data(struct meson_i2c *i2c, char *buf, int len)
@@ -361,7 +359,6 @@ static int meson_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	int i, ret = 0, count = 0;
 
 	clk_enable(i2c->clk);
-	meson_i2c_set_clk_div(i2c);
 
 	for (i = 0; i < num; i++) {
 		ret = meson_i2c_xfer_msg(i2c, msgs + i, i == num - 1);
@@ -390,15 +387,15 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct meson_i2c *i2c;
 	struct resource *mem;
+	u32 freq;
 	int irq, ret = 0;
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct meson_i2c), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
-	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency",
-				 &i2c->frequency))
-		i2c->frequency = DEFAULT_FREQ;
+	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency", &freq))
+		freq = DEFAULT_FREQ;
 
 	i2c->dev = &pdev->dev;
 	platform_set_drvdata(pdev, i2c);
@@ -454,6 +451,8 @@ static int meson_i2c_probe(struct platform_device *pdev)
 		clk_unprepare(i2c->clk);
 		return ret;
 	}
+
+	meson_i2c_set_clk_div(i2c, freq);
 
 	return 0;
 }
