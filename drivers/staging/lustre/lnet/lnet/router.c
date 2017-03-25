@@ -804,7 +804,7 @@ lnet_wait_known_routerstate(void)
 
 		all_known = 1;
 		list_for_each(entry, &the_lnet.ln_routers) {
-			rtr = list_entry(entry,struct lnet_peer, lp_rtr_list);
+			rtr = list_entry(entry, struct lnet_peer, lp_rtr_list);
 
 			if (!rtr->lp_alive_count) {
 				all_known = 0;
