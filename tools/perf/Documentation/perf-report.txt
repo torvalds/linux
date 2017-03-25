@@ -430,6 +430,10 @@ include::itrace.txt[]
 --hierarchy::
 	Enable hierarchical output.
 
+--inline::
+	If a callgraph address belongs to an inlined function, the inline stack
+	will be printed. Each entry is function name or file/line.
+
 include::callchain-overhead-calculation.txt[]
 
 SEE ALSO

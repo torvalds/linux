@@ -845,6 +845,8 @@ int cmd_report(int argc, const char **argv)
 			     stdio__config_color, "always"),
 	OPT_STRING(0, "time", &report.time_str, "str",
 		   "Time span of interest (start,stop)"),
+	OPT_BOOLEAN(0, "inline", &symbol_conf.inline_name,
+		    "Show inline function"),
 	OPT_END()
 	};
 	struct perf_data_file file = {
