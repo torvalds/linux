@@ -595,7 +595,6 @@ static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 	struct mlxsw_sp *mlxsw_sp = priv;
 	char pefa_pl[MLXSW_REG_PEFA_LEN];
 	u32 kvdl_index;
-	int ret;
 	int err;
 
 	/* The first action set of a TCAM entry is stored directly in TCAM,
@@ -604,10 +603,10 @@ static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 	if (is_first)
 		return 0;
 
-	ret = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KDVL_ACT_EXT_SIZE);
-	if (ret < 0)
-		return ret;
-	kvdl_index = ret;
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KDVL_ACT_EXT_SIZE,
+				  &kvdl_index);
+	if (err)
+		return err;
 	mlxsw_reg_pefa_pack(pefa_pl, kvdl_index, enc_actions);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pefa), pefa_pl);
 	if (err)
@@ -636,13 +635,11 @@ static int mlxsw_sp_act_kvdl_fwd_entry_add(void *priv, u32 *p_kvdl_index,
 	struct mlxsw_sp *mlxsw_sp = priv;
 	char ppbs_pl[MLXSW_REG_PPBS_LEN];
 	u32 kvdl_index;
-	int ret;
 	int err;
 
-	ret = mlxsw_sp_kvdl_alloc(mlxsw_sp, 1);
-	if (ret < 0)
-		return ret;
-	kvdl_index = ret;
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, 1, &kvdl_index);
+	if (err)
+		return err;
 	mlxsw_reg_ppbs_pack(ppbs_pl, kvdl_index, local_port);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ppbs), ppbs_pl);
 	if (err)

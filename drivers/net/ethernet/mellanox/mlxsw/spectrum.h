@@ -583,7 +583,8 @@ int mlxsw_sp_bridge_vrf_join(struct mlxsw_sp *mlxsw_sp,
 void mlxsw_sp_bridge_vrf_leave(struct mlxsw_sp *mlxsw_sp,
 			       struct net_device *l3_dev);
 
-int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count);
+int mlxsw_sp_kvdl_alloc(struct mlxsw_sp *mlxsw_sp, unsigned int entry_count,
+			u32 *p_entry_index);
 void mlxsw_sp_kvdl_free(struct mlxsw_sp *mlxsw_sp, int entry_index);
 
 struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl);

@@ -1274,7 +1274,6 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 	bool old_adj_index_valid;
 	u32 old_adj_index;
 	u16 old_ecmp_size;
-	int ret;
 	int i;
 	int err;
 
@@ -1312,15 +1311,14 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 		 */
 		goto set_trap;
 
-	ret = mlxsw_sp_kvdl_alloc(mlxsw_sp, ecmp_size);
-	if (ret < 0) {
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, ecmp_size, &adj_index);
+	if (err) {
 		/* We ran out of KVD linear space, just set the
 		 * trap and let everything flow through kernel.
 		 */
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to allocate KVD linear area for nexthop group.\n");
 		goto set_trap;
 	}
-	adj_index = ret;
 	old_adj_index_valid = nh_grp->adj_index_valid;
 	old_adj_index = nh_grp->adj_index;
 	old_ecmp_size = nh_grp->ecmp_size;
