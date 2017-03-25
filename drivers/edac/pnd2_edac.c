@@ -1164,7 +1164,7 @@ static void pnd2_mce_output_error(struct mem_ctl_info *mci, const struct mce *m,
 
 	/* Call the helper to output message */
 	edac_mc_handle_error(tp_event, mci, core_err_cnt, m->addr >> PAGE_SHIFT,
-						 m->addr & ~PAGE_MASK, 0, daddr->chan, 0, -1, optype, msg);
+						 m->addr & ~PAGE_MASK, 0, daddr->chan, daddr->dimm, -1, optype, msg);
 
 	return;
 
