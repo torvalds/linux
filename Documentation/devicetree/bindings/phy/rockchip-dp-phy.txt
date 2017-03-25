@@ -4,13 +4,20 @@ Rockchip specific extensions to the Analogix Display Port PHY
 Required properties:
 - compatible : should be one of the following supported values:
 	 - "rockchip.rk3288-dp-phy"
+	 - "rockchip.rk3368-dp-phy"
 - clocks: from common clock binding: handle to dp clock.
 	of memory mapped region.
 - clock-names: from common clock binding:
 	Required elements: "24m"
 - #phy-cells : from the generic PHY bindings, must be 0;
 
+Optional properties
+ - resets : phandle to the reset of eDP 24m clock domain.
+ - reset-names : should be "edp_24m".
+
 Example:
+
+For Rockchip RK3288:
 
 grf: syscon@ff770000 {
 	compatible = "rockchip,rk3288-grf", "syscon", "simple-mfd";
@@ -21,6 +28,23 @@ grf: syscon@ff770000 {
 		compatible = "rockchip,rk3288-dp-phy";
 		clocks = <&cru SCLK_EDP_24M>;
 		clock-names = "24m";
+		#phy-cells = <0>;
+	};
+};
+
+For Rockchip RK3368:
+
+grf: syscon@ff770000 {
+	compatible = "rockchip,rk3368-grf", "syscon", "simple-mfd";
+
+...
+
+	edp_phy: edp-phy {
+		compatible = "rockchip,rk3368-dp-phy";
+		clocks = <&cru SCLK_EDP_24M>;
+		clock-names = "24m";
+		resets = <&cru SRST_EDP_24M>;
+		reset-names = "edp_24m";
 		#phy-cells = <0>;
 	};
 };
