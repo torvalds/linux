@@ -30,7 +30,7 @@
 /*---------------------  Export Definitions -------------------------*/
 /*
  * Baseband RF pair definition in eeprom (Bits 6..0)
-*/
+ */
 #define RF_RFMD2959             0x01
 #define RF_MAXIMAG              0x02
 #define RF_AIROHA               0x03
