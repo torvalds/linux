@@ -325,6 +325,8 @@ static int init_port(void)
 {
 	int retval;
 
+	setup_timer(&timerlist, sir_timeout, 0);
+
 	/* get I/O port access and IRQ line */
 	if (!request_region(io, 8, KBUILD_MODNAME)) {
 		pr_err("i/o port 0x%.4x already in use.\n", io);
@@ -338,8 +340,6 @@ static int init_port(void)
 		return retval;
 	}
 	pr_info("I/O port 0x%.4x, IRQ %d.\n", io, irq);
-
-	setup_timer(&timerlist, sir_timeout, 0);
 
 	return 0;
 }
