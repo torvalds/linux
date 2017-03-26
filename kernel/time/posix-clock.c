@@ -300,14 +300,17 @@ out:
 static int pc_clock_gettime(clockid_t id, struct timespec *ts)
 {
 	struct posix_clock_desc cd;
+	struct timespec64 ts64;
 	int err;
 
 	err = get_clock_desc(id, &cd);
 	if (err)
 		return err;
 
-	if (cd.clk->ops.clock_gettime)
-		err = cd.clk->ops.clock_gettime(cd.clk, ts);
+	if (cd.clk->ops.clock_gettime) {
+		err = cd.clk->ops.clock_gettime(cd.clk, &ts64);
+		*ts = timespec64_to_timespec(ts64);
+	}
 	else
 		err = -EOPNOTSUPP;
 
@@ -319,14 +322,17 @@ static int pc_clock_gettime(clockid_t id, struct timespec *ts)
 static int pc_clock_getres(clockid_t id, struct timespec *ts)
 {
 	struct posix_clock_desc cd;
+	struct timespec64 ts64;
 	int err;
 
 	err = get_clock_desc(id, &cd);
 	if (err)
 		return err;
 
-	if (cd.clk->ops.clock_getres)
-		err = cd.clk->ops.clock_getres(cd.clk, ts);
+	if (cd.clk->ops.clock_getres) {
+		err = cd.clk->ops.clock_getres(cd.clk, &ts64);
+		*ts = timespec64_to_timespec(ts64);
+	}
 	else
 		err = -EOPNOTSUPP;
 
@@ -337,6 +343,7 @@ static int pc_clock_getres(clockid_t id, struct timespec *ts)
 
 static int pc_clock_settime(clockid_t id, const struct timespec *ts)
 {
+	struct timespec64 ts64 = timespec_to_timespec64(*ts);
 	struct posix_clock_desc cd;
 	int err;
 
@@ -350,7 +357,7 @@ static int pc_clock_settime(clockid_t id, const struct timespec *ts)
 	}
 
 	if (cd.clk->ops.clock_settime)
-		err = cd.clk->ops.clock_settime(cd.clk, ts);
+		err = cd.clk->ops.clock_settime(cd.clk, &ts64);
 	else
 		err = -EOPNOTSUPP;
 out:
@@ -403,29 +410,36 @@ static void pc_timer_gettime(struct k_itimer *kit, struct itimerspec *ts)
 {
 	clockid_t id = kit->it_clock;
 	struct posix_clock_desc cd;
+	struct itimerspec64 ts64;
 
 	if (get_clock_desc(id, &cd))
 		return;
 
-	if (cd.clk->ops.timer_gettime)
-		cd.clk->ops.timer_gettime(cd.clk, kit, ts);
-
+	if (cd.clk->ops.timer_gettime) {
+		cd.clk->ops.timer_gettime(cd.clk, kit, &ts64);
+		*ts = itimerspec64_to_itimerspec(&ts64);
+	}
 	put_clock_desc(&cd);
 }
 
 static int pc_timer_settime(struct k_itimer *kit, int flags,
 			    struct itimerspec *ts, struct itimerspec *old)
 {
+	struct itimerspec64 ts64 = itimerspec_to_itimerspec64(ts);
 	clockid_t id = kit->it_clock;
 	struct posix_clock_desc cd;
+	struct itimerspec64 old64;
 	int err;
 
 	err = get_clock_desc(id, &cd);
 	if (err)
 		return err;
 
-	if (cd.clk->ops.timer_settime)
-		err = cd.clk->ops.timer_settime(cd.clk, kit, flags, ts, old);
+	if (cd.clk->ops.timer_settime) {
+		err = cd.clk->ops.timer_settime(cd.clk, kit, flags, &ts64, &old64);
+		if (old)
+			*old = itimerspec64_to_itimerspec(&old64);
+	}
 	else
 		err = -EOPNOTSUPP;
 
