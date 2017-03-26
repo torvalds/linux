@@ -297,20 +297,17 @@ out:
 	return err;
 }
 
-static int pc_clock_gettime(clockid_t id, struct timespec *ts)
+static int pc_clock_gettime(clockid_t id, struct timespec64 *ts)
 {
 	struct posix_clock_desc cd;
-	struct timespec64 ts64;
 	int err;
 
 	err = get_clock_desc(id, &cd);
 	if (err)
 		return err;
 
-	if (cd.clk->ops.clock_gettime) {
-		err = cd.clk->ops.clock_gettime(cd.clk, &ts64);
-		*ts = timespec64_to_timespec(ts64);
-	}
+	if (cd.clk->ops.clock_gettime)
+		err = cd.clk->ops.clock_gettime(cd.clk, ts);
 	else
 		err = -EOPNOTSUPP;
 

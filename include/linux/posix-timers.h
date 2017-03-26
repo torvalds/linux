@@ -90,7 +90,7 @@ struct k_clock {
 	int (*clock_getres) (const clockid_t which_clock, struct timespec *tp);
 	int (*clock_set) (const clockid_t which_clock,
 			  const struct timespec *tp);
-	int (*clock_get) (const clockid_t which_clock, struct timespec * tp);
+	int (*clock_get) (const clockid_t which_clock, struct timespec64 *tp);
 	int (*clock_adj) (const clockid_t which_clock, struct timex *tx);
 	int (*timer_create) (struct k_itimer *timer);
 	int (*nsleep) (const clockid_t which_clock, int flags,

@@ -204,9 +204,9 @@ static inline void unlock_timer(struct k_itimer *timr, unsigned long flags)
 }
 
 /* Get clock_realtime */
-static int posix_clock_realtime_get(clockid_t which_clock, struct timespec *tp)
+static int posix_clock_realtime_get(clockid_t which_clock, struct timespec64 *tp)
 {
-	ktime_get_real_ts(tp);
+	ktime_get_real_ts64(tp);
 	return 0;
 }
 
@@ -229,32 +229,32 @@ static int posix_clock_realtime_adj(const clockid_t which_clock,
 /*
  * Get monotonic time for posix timers
  */
-static int posix_ktime_get_ts(clockid_t which_clock, struct timespec *tp)
+static int posix_ktime_get_ts(clockid_t which_clock, struct timespec64 *tp)
 {
-	ktime_get_ts(tp);
+	ktime_get_ts64(tp);
 	return 0;
 }
 
 /*
  * Get monotonic-raw time for posix timers
  */
-static int posix_get_monotonic_raw(clockid_t which_clock, struct timespec *tp)
+static int posix_get_monotonic_raw(clockid_t which_clock, struct timespec64 *tp)
 {
-	getrawmonotonic(tp);
+	getrawmonotonic64(tp);
 	return 0;
 }
 
 
-static int posix_get_realtime_coarse(clockid_t which_clock, struct timespec *tp)
+static int posix_get_realtime_coarse(clockid_t which_clock, struct timespec64 *tp)
 {
-	*tp = current_kernel_time();
+	*tp = current_kernel_time64();
 	return 0;
 }
 
 static int posix_get_monotonic_coarse(clockid_t which_clock,
-						struct timespec *tp)
+						struct timespec64 *tp)
 {
-	*tp = get_monotonic_coarse();
+	*tp = get_monotonic_coarse64();
 	return 0;
 }
 
@@ -264,15 +264,15 @@ static int posix_get_coarse_res(const clockid_t which_clock, struct timespec *tp
 	return 0;
 }
 
-static int posix_get_boottime(const clockid_t which_clock, struct timespec *tp)
+static int posix_get_boottime(const clockid_t which_clock, struct timespec64 *tp)
 {
-	get_monotonic_boottime(tp);
+	get_monotonic_boottime64(tp);
 	return 0;
 }
 
-static int posix_get_tai(clockid_t which_clock, struct timespec *tp)
+static int posix_get_tai(clockid_t which_clock, struct timespec64 *tp)
 {
-	timekeeping_clocktai(tp);
+	timekeeping_clocktai64(tp);
 	return 0;
 }
 
@@ -1032,13 +1032,15 @@ SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
 		struct timespec __user *,tp)
 {
 	struct k_clock *kc = clockid_to_kclock(which_clock);
+	struct timespec64 kernel_tp64;
 	struct timespec kernel_tp;
 	int error;
 
 	if (!kc)
 		return -EINVAL;
 
-	error = kc->clock_get(which_clock, &kernel_tp);
+	error = kc->clock_get(which_clock, &kernel_tp64);
+	kernel_tp = timespec64_to_timespec(kernel_tp64);
 
 	if (!error && copy_to_user(tp, &kernel_tp, sizeof (kernel_tp)))
 		error = -EFAULT;

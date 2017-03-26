@@ -258,6 +258,11 @@ static inline void timekeeping_clocktai(struct timespec *ts)
 	*ts = ktime_to_timespec(ktime_get_clocktai());
 }
 
+static inline void timekeeping_clocktai64(struct timespec64 *ts)
+{
+	*ts = ktime_to_timespec64(ktime_get_clocktai());
+}
+
 /*
  * RTC specific
  */
