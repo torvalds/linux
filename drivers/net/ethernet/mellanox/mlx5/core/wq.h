@@ -35,6 +35,7 @@
 
 #include <linux/mlx5/mlx5_ifc.h>
 #include <linux/mlx5/cq.h>
+#include <linux/mlx5/qp.h>
 
 struct mlx5_wq_param {
 	int		linear;
@@ -59,6 +60,11 @@ struct mlx5_wq_cyc {
 	__be32			*db;
 	u16			sz_m1;
 	u8			log_stride;
+};
+
+struct mlx5_wq_qp {
+	struct mlx5_wq_cyc	rq;
+	struct mlx5_wq_cyc	sq;
 };
 
 struct mlx5_cqwq {
@@ -87,6 +93,10 @@ int mlx5_wq_cyc_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		       void *wqc, struct mlx5_wq_cyc *wq,
 		       struct mlx5_wq_ctrl *wq_ctrl);
 u32 mlx5_wq_cyc_get_size(struct mlx5_wq_cyc *wq);
+
+int mlx5_wq_qp_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
+		      void *qpc, struct mlx5_wq_qp *wq,
+		      struct mlx5_wq_ctrl *wq_ctrl);
 
 int mlx5_cqwq_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		     void *cqc, struct mlx5_cqwq *wq,
