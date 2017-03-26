@@ -562,7 +562,7 @@ static int cpu_timer_sample_group(const clockid_t which_clock,
  * and try again.  (This happens when the timer is in the middle of firing.)
  */
 static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
-			       struct itimerspec *new, struct itimerspec *old)
+			       struct itimerspec64 *new, struct itimerspec64 *old)
 {
 	unsigned long flags;
 	struct sighand_struct *sighand;
@@ -572,7 +572,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 
 	WARN_ON_ONCE(p == NULL);
 
-	new_expires = timespec_to_ns(&new->it_value);
+	new_expires = timespec64_to_ns(&new->it_value);
 
 	/*
 	 * Protect against sighand release/switch in exit/exec and p->cpu_timers
@@ -633,7 +633,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 			bump_cpu_timer(timer, val);
 			if (val < timer->it.cpu.expires) {
 				old_expires = timer->it.cpu.expires - val;
-				old->it_value = ns_to_timespec(old_expires);
+				old->it_value = ns_to_timespec64(old_expires);
 			} else {
 				old->it_value.tv_nsec = 1;
 				old->it_value.tv_sec = 0;
@@ -671,7 +671,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	 * Install the new reload setting, and
 	 * set up the signal and overrun bookkeeping.
 	 */
-	timer->it.cpu.incr = timespec_to_ns(&new->it_interval);
+	timer->it.cpu.incr = timespec64_to_ns(&new->it_interval);
 
 	/*
 	 * This acts as a modification timestamp for the timer,
@@ -695,12 +695,12 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	ret = 0;
  out:
 	if (old)
-		old->it_interval = ns_to_timespec(old_incr);
+		old->it_interval = ns_to_timespec64(old_incr);
 
 	return ret;
 }
 
-static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
+static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp)
 {
 	u64 now;
 	struct task_struct *p = timer->it.cpu.task;
@@ -710,7 +710,7 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 	/*
 	 * Easy part: convert the reload time.
 	 */
-	itp->it_interval = ns_to_timespec(timer->it.cpu.incr);
+	itp->it_interval = ns_to_timespec64(timer->it.cpu.incr);
 
 	if (timer->it.cpu.expires == 0) {	/* Timer not armed at all.  */
 		itp->it_value.tv_sec = itp->it_value.tv_nsec = 0;
@@ -739,7 +739,7 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 			 * Call the timer disarmed, nothing else to do.
 			 */
 			timer->it.cpu.expires = 0;
-			itp->it_value = ns_to_timespec(timer->it.cpu.expires);
+			itp->it_value = ns_to_timespec64(timer->it.cpu.expires);
 			return;
 		} else {
 			cpu_timer_sample_group(timer->it_clock, p, &now);
@@ -748,7 +748,7 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 	}
 
 	if (now < timer->it.cpu.expires) {
-		itp->it_value = ns_to_timespec(timer->it.cpu.expires - now);
+		itp->it_value = ns_to_timespec64(timer->it.cpu.expires - now);
 	} else {
 		/*
 		 * The timer should have expired already, but the firing
@@ -1221,6 +1221,7 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 			    struct timespec *rqtp, struct itimerspec *it)
 {
+	struct itimerspec64 it64;
 	struct k_itimer timer;
 	int error;
 
@@ -1234,13 +1235,14 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 	error = posix_cpu_timer_create(&timer);
 	timer.it_process = current;
 	if (!error) {
-		static struct itimerspec zero_it;
+		static struct itimerspec64 zero_it;
 
 		memset(it, 0, sizeof *it);
 		it->it_value = *rqtp;
 
 		spin_lock_irq(&timer.it_lock);
-		error = posix_cpu_timer_set(&timer, flags, it, NULL);
+		it64 = itimerspec_to_itimerspec64(it);
+		error = posix_cpu_timer_set(&timer, flags, &it64, NULL);
 		if (error) {
 			spin_unlock_irq(&timer.it_lock);
 			return error;
@@ -1270,7 +1272,9 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		 * We were interrupted by a signal.
 		 */
 		*rqtp = ns_to_timespec(timer.it.cpu.expires);
-		error = posix_cpu_timer_set(&timer, 0, &zero_it, it);
+		it64 = itimerspec_to_itimerspec64(it);
+		error = posix_cpu_timer_set(&timer, 0, &zero_it, &it64);
+		*it = itimerspec64_to_itimerspec(&it64);
 		if (!error) {
 			/*
 			 * Timer is now unarmed, deletion can not fail.

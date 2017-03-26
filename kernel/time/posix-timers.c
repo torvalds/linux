@@ -133,9 +133,9 @@ static struct k_clock posix_clocks[MAX_CLOCKS];
 static int common_nsleep(const clockid_t, int flags, struct timespec *t,
 			 struct timespec __user *rmtp);
 static int common_timer_create(struct k_itimer *new_timer);
-static void common_timer_get(struct k_itimer *, struct itimerspec *);
+static void common_timer_get(struct k_itimer *, struct itimerspec64 *);
 static int common_timer_set(struct k_itimer *, int,
-			    struct itimerspec *, struct itimerspec *);
+			    struct itimerspec64 *, struct itimerspec64 *);
 static int common_timer_del(struct k_itimer *timer);
 
 static enum hrtimer_restart posix_timer_fn(struct hrtimer *data);
@@ -734,18 +734,18 @@ static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
  * report.
  */
 static void
-common_timer_get(struct k_itimer *timr, struct itimerspec *cur_setting)
+common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 {
 	ktime_t now, remaining, iv;
 	struct hrtimer *timer = &timr->it.real.timer;
 
-	memset(cur_setting, 0, sizeof(struct itimerspec));
+	memset(cur_setting, 0, sizeof(*cur_setting));
 
 	iv = timr->it.real.interval;
 
 	/* interval timer ? */
 	if (iv)
-		cur_setting->it_interval = ktime_to_timespec(iv);
+		cur_setting->it_interval = ktime_to_timespec64(iv);
 	else if (!hrtimer_active(timer) &&
 		 (timr->it_sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_NONE)
 		return;
@@ -771,13 +771,14 @@ common_timer_get(struct k_itimer *timr, struct itimerspec *cur_setting)
 		if ((timr->it_sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_NONE)
 			cur_setting->it_value.tv_nsec = 1;
 	} else
-		cur_setting->it_value = ktime_to_timespec(remaining);
+		cur_setting->it_value = ktime_to_timespec64(remaining);
 }
 
 /* Get the time remaining on a POSIX.1b interval timer. */
 SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 		struct itimerspec __user *, setting)
 {
+	struct itimerspec64 cur_setting64;
 	struct itimerspec cur_setting;
 	struct k_itimer *timr;
 	struct k_clock *kc;
@@ -792,10 +793,11 @@ SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 	if (WARN_ON_ONCE(!kc || !kc->timer_get))
 		ret = -EINVAL;
 	else
-		kc->timer_get(timr, &cur_setting);
+		kc->timer_get(timr, &cur_setting64);
 
 	unlock_timer(timr, flags);
 
+	cur_setting = itimerspec64_to_itimerspec(&cur_setting64);
 	if (!ret && copy_to_user(setting, &cur_setting, sizeof (cur_setting)))
 		return -EFAULT;
 
@@ -831,7 +833,7 @@ SYSCALL_DEFINE1(timer_getoverrun, timer_t, timer_id)
 /* timr->it_lock is taken. */
 static int
 common_timer_set(struct k_itimer *timr, int flags,
-		 struct itimerspec *new_setting, struct itimerspec *old_setting)
+		 struct itimerspec64 *new_setting, struct itimerspec64 *old_setting)
 {
 	struct hrtimer *timer = &timr->it.real.timer;
 	enum hrtimer_mode mode;
@@ -860,10 +862,10 @@ common_timer_set(struct k_itimer *timr, int flags,
 	hrtimer_init(&timr->it.real.timer, timr->it_clock, mode);
 	timr->it.real.timer.function = posix_timer_fn;
 
-	hrtimer_set_expires(timer, timespec_to_ktime(new_setting->it_value));
+	hrtimer_set_expires(timer, timespec64_to_ktime(new_setting->it_value));
 
 	/* Convert interval */
-	timr->it.real.interval = timespec_to_ktime(new_setting->it_interval);
+	timr->it.real.interval = timespec64_to_ktime(new_setting->it_interval);
 
 	/* SIGEV_NONE timers are not queued ! See common_timer_get */
 	if (((timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE)) {
@@ -883,21 +885,23 @@ SYSCALL_DEFINE4(timer_settime, timer_t, timer_id, int, flags,
 		const struct itimerspec __user *, new_setting,
 		struct itimerspec __user *, old_setting)
 {
-	struct k_itimer *timr;
+	struct itimerspec64 new_spec64, old_spec64;
+	struct itimerspec64 *rtn = old_setting ? &old_spec64 : NULL;
 	struct itimerspec new_spec, old_spec;
-	int error = 0;
+	struct k_itimer *timr;
 	unsigned long flag;
-	struct itimerspec *rtn = old_setting ? &old_spec : NULL;
 	struct k_clock *kc;
+	int error = 0;
 
 	if (!new_setting)
 		return -EINVAL;
 
 	if (copy_from_user(&new_spec, new_setting, sizeof (new_spec)))
 		return -EFAULT;
+	new_spec64 = itimerspec_to_itimerspec64(&new_spec);
 
-	if (!timespec_valid(&new_spec.it_interval) ||
-	    !timespec_valid(&new_spec.it_value))
+	if (!timespec64_valid(&new_spec64.it_interval) ||
+	    !timespec64_valid(&new_spec64.it_value))
 		return -EINVAL;
 retry:
 	timr = lock_timer(timer_id, &flag);
@@ -908,7 +912,7 @@ retry:
 	if (WARN_ON_ONCE(!kc || !kc->timer_set))
 		error = -EINVAL;
 	else
-		error = kc->timer_set(timr, flags, &new_spec, rtn);
+		error = kc->timer_set(timr, flags, &new_spec64, rtn);
 
 	unlock_timer(timr, flag);
 	if (error == TIMER_RETRY) {
@@ -916,6 +920,7 @@ retry:
 		goto retry;
 	}
 
+	old_spec = itimerspec64_to_itimerspec(&old_spec64);
 	if (old_setting && !error &&
 	    copy_to_user(old_setting, &old_spec, sizeof (old_spec)))
 		error = -EFAULT;

@@ -399,40 +399,33 @@ static int pc_timer_delete(struct k_itimer *kit)
 	return err;
 }
 
-static void pc_timer_gettime(struct k_itimer *kit, struct itimerspec *ts)
+static void pc_timer_gettime(struct k_itimer *kit, struct itimerspec64 *ts)
 {
 	clockid_t id = kit->it_clock;
 	struct posix_clock_desc cd;
-	struct itimerspec64 ts64;
 
 	if (get_clock_desc(id, &cd))
 		return;
 
-	if (cd.clk->ops.timer_gettime) {
-		cd.clk->ops.timer_gettime(cd.clk, kit, &ts64);
-		*ts = itimerspec64_to_itimerspec(&ts64);
-	}
+	if (cd.clk->ops.timer_gettime)
+		cd.clk->ops.timer_gettime(cd.clk, kit, ts);
+
 	put_clock_desc(&cd);
 }
 
 static int pc_timer_settime(struct k_itimer *kit, int flags,
-			    struct itimerspec *ts, struct itimerspec *old)
+			    struct itimerspec64 *ts, struct itimerspec64 *old)
 {
-	struct itimerspec64 ts64 = itimerspec_to_itimerspec64(ts);
 	clockid_t id = kit->it_clock;
 	struct posix_clock_desc cd;
-	struct itimerspec64 old64;
 	int err;
 
 	err = get_clock_desc(id, &cd);
 	if (err)
 		return err;
 
-	if (cd.clk->ops.timer_settime) {
-		err = cd.clk->ops.timer_settime(cd.clk, kit, flags, &ts64, &old64);
-		if (old)
-			*old = itimerspec64_to_itimerspec(&old64);
-	}
+	if (cd.clk->ops.timer_settime)
+		err = cd.clk->ops.timer_settime(cd.clk, kit, flags, ts, old);
 	else
 		err = -EOPNOTSUPP;
 

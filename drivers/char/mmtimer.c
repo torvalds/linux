@@ -657,7 +657,7 @@ static int sgi_timer_del(struct k_itimer *timr)
 }
 
 /* Assumption: it_lock is already held with irq's disabled */
-static void sgi_timer_get(struct k_itimer *timr, struct itimerspec *cur_setting)
+static void sgi_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 {
 
 	if (timr->it.mmtimer.clock == TIMER_OFF) {
@@ -668,14 +668,14 @@ static void sgi_timer_get(struct k_itimer *timr, struct itimerspec *cur_setting)
 		return;
 	}
 
-	cur_setting->it_interval = ns_to_timespec(timr->it.mmtimer.incr * sgi_clock_period);
-	cur_setting->it_value = ns_to_timespec((timr->it.mmtimer.expires - rtc_time()) * sgi_clock_period);
+	cur_setting->it_interval = ns_to_timespec64(timr->it.mmtimer.incr * sgi_clock_period);
+	cur_setting->it_value = ns_to_timespec64((timr->it.mmtimer.expires - rtc_time()) * sgi_clock_period);
 }
 
 
 static int sgi_timer_set(struct k_itimer *timr, int flags,
-	struct itimerspec * new_setting,
-	struct itimerspec * old_setting)
+	struct itimerspec64 *new_setting,
+	struct itimerspec64 *old_setting)
 {
 	unsigned long when, period, irqflags;
 	int err = 0;
@@ -687,8 +687,8 @@ static int sgi_timer_set(struct k_itimer *timr, int flags,
 		sgi_timer_get(timr, old_setting);
 
 	sgi_timer_del(timr);
-	when = timespec_to_ns(&new_setting->it_value);
-	period = timespec_to_ns(&new_setting->it_interval);
+	when = timespec64_to_ns(&new_setting->it_value);
+	period = timespec64_to_ns(&new_setting->it_interval);
 
 	if (when == 0)
 		/* Clear timer */
@@ -699,11 +699,11 @@ static int sgi_timer_set(struct k_itimer *timr, int flags,
 		return -ENOMEM;
 
 	if (flags & TIMER_ABSTIME) {
-		struct timespec n;
+		struct timespec64 n;
 		unsigned long now;
 
-		getnstimeofday(&n);
-		now = timespec_to_ns(&n);
+		getnstimeofday64(&n);
+		now = timespec64_to_ns(&n);
 		if (when > now)
 			when -= now;
 		else

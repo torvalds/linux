@@ -96,13 +96,13 @@ struct k_clock {
 	int (*nsleep) (const clockid_t which_clock, int flags,
 		       struct timespec *, struct timespec __user *);
 	long (*nsleep_restart) (struct restart_block *restart_block);
-	int (*timer_set) (struct k_itimer * timr, int flags,
-			  struct itimerspec * new_setting,
-			  struct itimerspec * old_setting);
-	int (*timer_del) (struct k_itimer * timr);
+	int (*timer_set) (struct k_itimer *timr, int flags,
+			  struct itimerspec64 *new_setting,
+			  struct itimerspec64 *old_setting);
+	int (*timer_del) (struct k_itimer *timr);
 #define TIMER_RETRY 1
-	void (*timer_get) (struct k_itimer * timr,
-			   struct itimerspec * cur_setting);
+	void (*timer_get) (struct k_itimer *timr,
+			   struct itimerspec64 *cur_setting);
 };
 
 extern struct k_clock clock_posix_cpu;
