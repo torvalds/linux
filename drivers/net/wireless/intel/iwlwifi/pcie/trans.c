@@ -2575,8 +2575,15 @@ static u32 iwl_trans_pcie_fh_regs_dump(struct iwl_trans *trans,
 	(*data)->len = cpu_to_le32(fh_regs_len);
 	val = (void *)(*data)->data;
 
-	for (i = FH_MEM_LOWER_BOUND; i < FH_MEM_UPPER_BOUND; i += sizeof(u32))
-		*val++ = cpu_to_le32(iwl_trans_pcie_read32(trans, i));
+	if (!trans->cfg->gen2)
+		for (i = FH_MEM_LOWER_BOUND; i < FH_MEM_UPPER_BOUND;
+		     i += sizeof(u32))
+			*val++ = cpu_to_le32(iwl_trans_pcie_read32(trans, i));
+	else
+		for (i = FH_MEM_LOWER_BOUND_GEN2; i < FH_MEM_UPPER_BOUND_GEN2;
+		     i += sizeof(u32))
+			*val++ = cpu_to_le32(iwl_trans_pcie_read_prph(trans,
+								      i));
 
 	iwl_trans_release_nic_access(trans, &flags);
 
@@ -2752,7 +2759,12 @@ static struct iwl_trans_dump_data
 	len += sizeof(*data) + IWL_CSR_TO_DUMP;
 
 	/* FH registers */
-	len += sizeof(*data) + (FH_MEM_UPPER_BOUND - FH_MEM_LOWER_BOUND);
+	if (trans->cfg->gen2)
+		len += sizeof(*data) +
+		       (FH_MEM_UPPER_BOUND_GEN2 - FH_MEM_LOWER_BOUND_GEN2);
+	else
+		len += sizeof(*data) +
+		       (FH_MEM_UPPER_BOUND - FH_MEM_LOWER_BOUND);
 
 	if (dump_rbs) {
 		/* Dump RBs is supported only for pre-9000 devices (1 queue) */
