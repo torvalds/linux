@@ -49,13 +49,16 @@ SYS_NI(alarm);
 SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
 		const struct timespec __user *, tp)
 {
+	struct timespec64 new_tp64;
 	struct timespec new_tp;
 
 	if (which_clock != CLOCK_REALTIME)
 		return -EINVAL;
 	if (copy_from_user(&new_tp, tp, sizeof (*tp)))
 		return -EFAULT;
-	return do_sys_settimeofday(&new_tp, NULL);
+
+	new_tp64 = timespec_to_timespec64(new_tp);
+	return do_sys_settimeofday64(&new_tp64, NULL);
 }
 
 SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
