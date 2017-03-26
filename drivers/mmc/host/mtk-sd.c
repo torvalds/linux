@@ -474,11 +474,9 @@ static void msdc_prepare_data(struct msdc_host *host, struct mmc_request *mrq)
 	struct mmc_data *data = mrq->data;
 
 	if (!(data->host_cookie & MSDC_PREPARE_FLAG)) {
-		bool read = (data->flags & MMC_DATA_READ) != 0;
-
 		data->host_cookie |= MSDC_PREPARE_FLAG;
 		data->sg_count = dma_map_sg(host->dev, data->sg, data->sg_len,
-					   read ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+					    mmc_get_dma_dir(data));
 	}
 }
 
@@ -490,10 +488,8 @@ static void msdc_unprepare_data(struct msdc_host *host, struct mmc_request *mrq)
 		return;
 
 	if (data->host_cookie & MSDC_PREPARE_FLAG) {
-		bool read = (data->flags & MMC_DATA_READ) != 0;
-
 		dma_unmap_sg(host->dev, data->sg, data->sg_len,
-			     read ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+			     mmc_get_dma_dir(data));
 		data->host_cookie &= ~MSDC_PREPARE_FLAG;
 	}
 }
