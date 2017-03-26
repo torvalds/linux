@@ -704,7 +704,7 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 	 */
 
 	if ((sctp_sk(asoc->base.sk)->nodelay || inflight == 0) &&
-	    !chunk->msg->force_delay)
+	    !asoc->force_delay)
 		/* Nothing unacked */
 		return SCTP_XMIT_OK;
 
