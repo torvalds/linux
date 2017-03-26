@@ -765,7 +765,7 @@ static int sgi_timer_set(struct k_itimer *timr, int flags,
 	return err;
 }
 
-static int sgi_clock_getres(const clockid_t which_clock, struct timespec *tp)
+static int sgi_clock_getres(const clockid_t which_clock, struct timespec64 *tp)
 {
 	tp->tv_sec = 0;
 	tp->tv_nsec = sgi_clock_period;

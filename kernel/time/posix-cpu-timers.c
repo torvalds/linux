@@ -116,7 +116,7 @@ static inline u64 virt_ticks(struct task_struct *p)
 }
 
 static int
-posix_cpu_clock_getres(const clockid_t which_clock, struct timespec *tp)
+posix_cpu_clock_getres(const clockid_t which_clock, struct timespec64 *tp)
 {
 	int error = check_clock(which_clock);
 	if (!error) {
@@ -1369,7 +1369,7 @@ static long posix_cpu_nsleep_restart(struct restart_block *restart_block)
 #define THREAD_CLOCK	MAKE_THREAD_CPUCLOCK(0, CPUCLOCK_SCHED)
 
 static int process_cpu_clock_getres(const clockid_t which_clock,
-				    struct timespec *tp)
+				    struct timespec64 *tp)
 {
 	return posix_cpu_clock_getres(PROCESS_CLOCK, tp);
 }
@@ -1394,7 +1394,7 @@ static long process_cpu_nsleep_restart(struct restart_block *restart_block)
 	return -EINVAL;
 }
 static int thread_cpu_clock_getres(const clockid_t which_clock,
-				   struct timespec *tp)
+				   struct timespec64 *tp)
 {
 	return posix_cpu_clock_getres(THREAD_CLOCK, tp);
 }

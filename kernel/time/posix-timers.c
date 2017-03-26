@@ -258,9 +258,9 @@ static int posix_get_monotonic_coarse(clockid_t which_clock,
 	return 0;
 }
 
-static int posix_get_coarse_res(const clockid_t which_clock, struct timespec *tp)
+static int posix_get_coarse_res(const clockid_t which_clock, struct timespec64 *tp)
 {
-	*tp = ktime_to_timespec(KTIME_LOW_RES);
+	*tp = ktime_to_timespec64(KTIME_LOW_RES);
 	return 0;
 }
 
@@ -276,7 +276,7 @@ static int posix_get_tai(clockid_t which_clock, struct timespec64 *tp)
 	return 0;
 }
 
-static int posix_get_hrtimer_res(clockid_t which_clock, struct timespec *tp)
+static int posix_get_hrtimer_res(clockid_t which_clock, struct timespec64 *tp)
 {
 	tp->tv_sec = 0;
 	tp->tv_nsec = hrtimer_resolution;
@@ -1075,13 +1075,15 @@ SYSCALL_DEFINE2(clock_getres, const clockid_t, which_clock,
 		struct timespec __user *, tp)
 {
 	struct k_clock *kc = clockid_to_kclock(which_clock);
+	struct timespec64 rtn_tp64;
 	struct timespec rtn_tp;
 	int error;
 
 	if (!kc)
 		return -EINVAL;
 
-	error = kc->clock_getres(which_clock, &rtn_tp);
+	error = kc->clock_getres(which_clock, &rtn_tp64);
+	rtn_tp = timespec64_to_timespec(rtn_tp64);
 
 	if (!error && tp && copy_to_user(tp, &rtn_tp, sizeof (rtn_tp)))
 		error = -EFAULT;
