@@ -161,6 +161,20 @@
 				function = "pwm_ao_b";
 			};
 		};
+
+		i2s_out_ch23_ao_pins: i2s_out_ch23_ao {
+			mux {
+				groups = "i2s_out_ch23_ao";
+				function = "i2s_out_ao";
+			};
+		};
+
+		i2s_out_ch45_ao_pins: i2s_out_ch45_ao {
+			mux {
+				groups = "i2s_out_ch45_ao";
+				function = "i2s_out_ao";
+			};
+		};
 	};
 };
 
@@ -385,6 +399,54 @@
 			mux {
 				groups = "hdmi_sda", "hdmi_scl";
 				function = "hdmi_i2c";
+			};
+		};
+
+		i2s_am_clk_pins: i2s_am_clk {
+			mux {
+				groups = "i2s_am_clk";
+				function = "i2s_out";
+			};
+		};
+
+		i2s_out_ao_clk_pins: i2s_out_ao_clk {
+			mux {
+				groups = "i2s_out_ao_clk";
+				function = "i2s_out";
+			};
+		};
+
+		i2s_out_lr_clk_pins: i2s_out_lr_clk {
+			mux {
+				groups = "i2s_out_lr_clk";
+				function = "i2s_out";
+			};
+		};
+
+		i2s_out_ch01_pins: i2s_out_ch01 {
+			mux {
+				groups = "i2s_out_ch01";
+				function = "i2s_out";
+			};
+		};
+		i2sout_ch23_z_pins: i2sout_ch23_z {
+			mux {
+				groups = "i2sout_ch23_z";
+				function = "i2s_out";
+			};
+		};
+
+		i2sout_ch45_z_pins: i2sout_ch45_z {
+			mux {
+				groups = "i2sout_ch45_z";
+				function = "i2s_out";
+			};
+		};
+
+		i2sout_ch67_z_pins: i2sout_ch67_z {
+			mux {
+				groups = "i2sout_ch67_z";
+				function = "i2s_out";
 			};
 		};
 	};
