@@ -47,7 +47,6 @@
 			"device driver"
 #define DRIVER_NAME	"mceusb"
 
-#define USB_BUFLEN		32 /* USB reception buffer length */
 #define USB_CTRL_MSG_SZ		2  /* Size of usb ctrl msg on gen1 hw */
 #define MCE_G1_INIT_MSGS	40 /* Init messages on gen1 hw to throw out */
 
@@ -527,7 +526,7 @@ static int mceusb_cmd_datasize(u8 cmd, u8 subcmd)
 }
 
 static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
-				 int offset, int len, bool out)
+				 int buf_len, int offset, int len, bool out)
 {
 #if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	char *inout;
@@ -544,7 +543,8 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 		return;
 
 	dev_dbg(dev, "%cx data: %*ph (length=%d)",
-		(out ? 't' : 'r'), min(len, USB_BUFLEN), buf, len);
+		(out ? 't' : 'r'),
+		min(len, buf_len - offset), buf + offset, len);
 
 	inout = out ? "Request" : "Got";
 
@@ -701,7 +701,8 @@ static void mce_async_callback(struct urb *urb)
 	case 0:
 		len = urb->actual_length;
 
-		mceusb_dev_printdata(ir, urb->transfer_buffer, 0, len, true);
+		mceusb_dev_printdata(ir, urb->transfer_buffer, len,
+				     0, len, true);
 		break;
 
 	case -ECONNRESET:
@@ -721,7 +722,7 @@ static void mce_async_callback(struct urb *urb)
 	usb_free_urb(urb);
 }
 
-/* request incoming or send outgoing usb packet - used to initialize remote */
+/* request outgoing (send) usb packet - used to initialize remote */
 static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 								int size)
 {
@@ -732,7 +733,7 @@ static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 
 	async_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (unlikely(!async_urb)) {
-		dev_err(dev, "Error, couldn't allocate urb!\n");
+		dev_err(dev, "Error, couldn't allocate urb!");
 		return;
 	}
 
@@ -758,17 +759,17 @@ static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 	}
 	memcpy(async_buf, data, size);
 
-	dev_dbg(dev, "receive request called (size=%#x)", size);
+	dev_dbg(dev, "send request called (size=%#x)", size);
 
 	async_urb->transfer_buffer_length = size;
 	async_urb->dev = ir->usbdev;
 
 	res = usb_submit_urb(async_urb, GFP_ATOMIC);
 	if (res) {
-		dev_err(dev, "receive request FAILED! (res=%d)", res);
+		dev_err(dev, "send request FAILED! (res=%d)", res);
 		return;
 	}
-	dev_dbg(dev, "receive request complete (res=%d)", res);
+	dev_dbg(dev, "send request complete (res=%d)", res);
 }
 
 static void mce_async_out(struct mceusb_dev *ir, unsigned char *data, int size)
@@ -974,7 +975,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 		switch (ir->parser_state) {
 		case SUBCMD:
 			ir->rem = mceusb_cmd_datasize(ir->cmd, ir->buf_in[i]);
-			mceusb_dev_printdata(ir, ir->buf_in, i - 1,
+			mceusb_dev_printdata(ir, ir->buf_in, buf_len, i - 1,
 					     ir->rem + 2, false);
 			mceusb_handle_command(ir, i);
 			ir->parser_state = CMD_DATA;
@@ -986,7 +987,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			rawir.duration = (ir->buf_in[i] & MCE_PULSE_MASK)
 					 * US_TO_NS(MCE_TIME_UNIT);
 
-			dev_dbg(ir->dev, "Storing %s with duration %d",
+			dev_dbg(ir->dev, "Storing %s with duration %u",
 				rawir.pulse ? "pulse" : "space",
 				rawir.duration);
 
@@ -1007,7 +1008,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 				continue;
 			}
 			ir->rem = (ir->cmd & MCE_PACKET_LENGTH_MASK);
-			mceusb_dev_printdata(ir, ir->buf_in,
+			mceusb_dev_printdata(ir, ir->buf_in, buf_len,
 					     i, ir->rem + 1, false);
 			if (ir->rem)
 				ir->parser_state = PARSE_IRDATA;
@@ -1348,10 +1349,10 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 	ir->urb_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	/* flush buffers on the device */
-	dev_dbg(&intf->dev, "Flushing receive buffers\n");
+	dev_dbg(&intf->dev, "Flushing receive buffers");
 	res = usb_submit_urb(ir->urb_in, GFP_KERNEL);
 	if (res)
-		dev_err(&intf->dev, "failed to flush buffers: %d\n", res);
+		dev_err(&intf->dev, "failed to flush buffers: %d", res);
 
 	/* figure out which firmware/emulator version this hardware has */
 	mceusb_get_emulator_version(ir);
