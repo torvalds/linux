@@ -562,7 +562,7 @@ static void srcu_torture_stats(void)
 	int __maybe_unused cpu;
 	int idx;
 
-#ifdef CONFIG_TREE_SRCU
+#if defined(CONFIG_TREE_SRCU) || defined(CONFIG_CLASSIC_SRCU)
 	idx = srcu_ctlp->completed & 0x1;
 	pr_alert("%s%s Tree SRCU per-CPU(idx=%d):",
 		 torture_type, TORTURE_FLAG, idx);
