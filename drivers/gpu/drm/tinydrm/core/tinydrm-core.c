@@ -122,21 +122,6 @@ void tinydrm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 }
 EXPORT_SYMBOL_GPL(tinydrm_gem_cma_free_object);
 
-const struct file_operations tinydrm_fops = {
-	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= drm_compat_ioctl,
-#endif
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= no_llseek,
-	.mmap		= drm_gem_cma_mmap,
-};
-EXPORT_SYMBOL(tinydrm_fops);
-
 static struct drm_framebuffer *
 tinydrm_fb_create(struct drm_device *drm, struct drm_file *file_priv,
 		  const struct drm_mode_fb_cmd2 *mode_cmd)
