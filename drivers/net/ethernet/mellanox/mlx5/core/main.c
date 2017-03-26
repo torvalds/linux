@@ -56,6 +56,7 @@
 #ifdef CONFIG_MLX5_CORE_EN
 #include "eswitch.h"
 #endif
+#include "lib/mlx5.h"
 #include "fpga/core.h"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
@@ -936,6 +937,8 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 
 	mlx5_init_mkey_table(dev);
 
+	mlx5_init_reserved_gids(dev);
+
 	err = mlx5_init_rl_table(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init rate limiting\n");
@@ -986,6 +989,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 #endif
 	mlx5_cleanup_rl_table(dev);
+	mlx5_cleanup_reserved_gids(dev);
 	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);
@@ -1160,7 +1164,7 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	err = mlx5_fpga_device_start(dev);
 	if (err) {
 		dev_err(&pdev->dev, "fpga device start failed %d\n", err);
-		goto err_reg_dev;
+		goto err_fpga_start;
 	}
 
 	if (mlx5_device_registered(dev)) {
@@ -1181,6 +1185,9 @@ out:
 	return 0;
 
 err_reg_dev:
+	mlx5_fpga_device_stop(dev);
+
+err_fpga_start:
 	mlx5_sriov_detach(dev);
 
 err_sriov:
@@ -1259,6 +1266,8 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 
 	if (mlx5_device_registered(dev))
 		mlx5_detach_device(dev);
+
+	mlx5_fpga_device_stop(dev);
 
 	mlx5_sriov_detach(dev);
 #ifdef CONFIG_MLX5_CORE_EN

@@ -35,6 +35,7 @@
 #include <linux/mlx5/driver.h>
 
 #include "mlx5_core.h"
+#include "lib/mlx5.h"
 #include "fpga/core.h"
 
 static const char *const mlx5_fpga_error_strings[] = {
@@ -104,6 +105,7 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_fpga_device *fdev = mdev->fpga;
 	unsigned long flags;
+	unsigned int max_num_qps;
 	int err;
 
 	if (!fdev)
@@ -122,6 +124,9 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 		       MLX5_CAP_FPGA(fdev->mdev, fpga_device),
 		       mlx5_fpga_image_name(fdev->last_oper_image),
 		       MLX5_CAP_FPGA(fdev->mdev, image_version));
+
+	max_num_qps = MLX5_CAP_FPGA(mdev, shell_caps.max_num_qps);
+	err = mlx5_core_reserve_gids(mdev, max_num_qps);
 
 out:
 	spin_lock_irqsave(&fdev->state_lock, flags);
@@ -151,9 +156,33 @@ int mlx5_fpga_device_init(struct mlx5_core_dev *mdev)
 	return 0;
 }
 
+void mlx5_fpga_device_stop(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_fpga_device *fdev = mdev->fpga;
+	unsigned int max_num_qps;
+	unsigned long flags;
+
+	if (!fdev)
+		return;
+
+	spin_lock_irqsave(&fdev->state_lock, flags);
+	if (fdev->state != MLX5_FPGA_STATUS_SUCCESS) {
+		spin_unlock_irqrestore(&fdev->state_lock, flags);
+		return;
+	}
+	fdev->state = MLX5_FPGA_STATUS_NONE;
+	spin_unlock_irqrestore(&fdev->state_lock, flags);
+
+	max_num_qps = MLX5_CAP_FPGA(mdev, shell_caps.max_num_qps);
+	mlx5_core_unreserve_gids(mdev, max_num_qps);
+}
+
 void mlx5_fpga_device_cleanup(struct mlx5_core_dev *mdev)
 {
-	kfree(mdev->fpga);
+	struct mlx5_fpga_device *fdev = mdev->fpga;
+
+	mlx5_fpga_device_stop(mdev);
+	kfree(fdev);
 	mdev->fpga = NULL;
 }
 
