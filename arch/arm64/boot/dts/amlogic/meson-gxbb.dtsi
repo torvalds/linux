@@ -235,6 +235,20 @@
 				function = "i2s_out_ao";
 			};
 		};
+
+		spdif_out_ao_6_pins: spdif_out_ao_6 {
+			mux {
+				groups = "spdif_out_ao_6";
+				function = "spdif_out_ao";
+			};
+		};
+
+		spdif_out_ao_13_pins: spdif_out_ao_13 {
+			mux {
+				groups = "spdif_out_ao_13";
+				function = "spdif_out_ao";
+			};
+		};
 	};
 };
 
@@ -495,6 +509,13 @@
 			mux {
 				groups = "i2sout_ch67_y";
 				function = "i2s_out";
+			};
+		};
+
+		spdif_out_y_pins: spdif_out_y {
+			mux {
+				groups = "spdif_out_y";
+				function = "spdif_out";
 			};
 		};
 	};
