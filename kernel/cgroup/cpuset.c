@@ -2121,10 +2121,8 @@ int __init cpuset_init(void)
 {
 	int err = 0;
 
-	if (!alloc_cpumask_var(&top_cpuset.cpus_allowed, GFP_KERNEL))
-		BUG();
-	if (!alloc_cpumask_var(&top_cpuset.effective_cpus, GFP_KERNEL))
-		BUG();
+	BUG_ON(!alloc_cpumask_var(&top_cpuset.cpus_allowed, GFP_KERNEL));
+	BUG_ON(!alloc_cpumask_var(&top_cpuset.effective_cpus, GFP_KERNEL));
 
 	cpumask_setall(top_cpuset.cpus_allowed);
 	nodes_setall(top_cpuset.mems_allowed);
@@ -2139,8 +2137,7 @@ int __init cpuset_init(void)
 	if (err < 0)
 		return err;
 
-	if (!alloc_cpumask_var(&cpus_attach, GFP_KERNEL))
-		BUG();
+	BUG_ON(!alloc_cpumask_var(&cpus_attach, GFP_KERNEL));
 
 	return 0;
 }
