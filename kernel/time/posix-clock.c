@@ -335,9 +335,8 @@ static int pc_clock_getres(clockid_t id, struct timespec64 *ts)
 	return err;
 }
 
-static int pc_clock_settime(clockid_t id, const struct timespec *ts)
+static int pc_clock_settime(clockid_t id, const struct timespec64 *ts)
 {
-	struct timespec64 ts64 = timespec_to_timespec64(*ts);
 	struct posix_clock_desc cd;
 	int err;
 
@@ -351,7 +350,7 @@ static int pc_clock_settime(clockid_t id, const struct timespec *ts)
 	}
 
 	if (cd.clk->ops.clock_settime)
-		err = cd.clk->ops.clock_settime(cd.clk, &ts64);
+		err = cd.clk->ops.clock_settime(cd.clk, ts);
 	else
 		err = -EOPNOTSUPP;
 out:

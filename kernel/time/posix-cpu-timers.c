@@ -135,7 +135,7 @@ posix_cpu_clock_getres(const clockid_t which_clock, struct timespec64 *tp)
 }
 
 static int
-posix_cpu_clock_set(const clockid_t which_clock, const struct timespec *tp)
+posix_cpu_clock_set(const clockid_t which_clock, const struct timespec64 *tp)
 {
 	/*
 	 * You can never reset a CPU clock, but we check for other errors

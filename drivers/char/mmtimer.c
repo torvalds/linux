@@ -489,7 +489,7 @@ static int sgi_clock_get(clockid_t clockid, struct timespec64 *tp)
 	return 0;
 };
 
-static int sgi_clock_set(const clockid_t clockid, const struct timespec *tp)
+static int sgi_clock_set(const clockid_t clockid, const struct timespec64 *tp)
 {
 
 	u64 nsec;
