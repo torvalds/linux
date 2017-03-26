@@ -103,6 +103,7 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 		const struct timespec __user *, rqtp,
 		struct timespec __user *, rmtp)
 {
+	struct timespec64 t64;
 	struct timespec t;
 
 	switch (which_clock) {
@@ -111,9 +112,10 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 	case CLOCK_BOOTTIME:
 		if (copy_from_user(&t, rqtp, sizeof (struct timespec)))
 			return -EFAULT;
-		if (!timespec_valid(&t))
+		t64 = timespec_to_timespec64(t);
+		if (!timespec64_valid(&t64))
 			return -EINVAL;
-		return hrtimer_nanosleep(&t, rmtp, flags & TIMER_ABSTIME ?
+		return hrtimer_nanosleep(&t64, rmtp, flags & TIMER_ABSTIME ?
 					 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
 					 which_clock);
 	default:
