@@ -1002,6 +1002,11 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 	if (!nvchan->mrc.buf)
 		return;
 
+	/* Because the device uses NAPI, all the interrupt batching and
+	 * control is done via Net softirq, not the channel handling
+	 */
+	set_channel_read_mode(new_sc, HV_CALL_ISR);
+
 	ret = vmbus_open(new_sc, nvscdev->ring_size * PAGE_SIZE,
 			 nvscdev->ring_size * PAGE_SIZE, NULL, 0,
 			 netvsc_channel_cb, nvchan);

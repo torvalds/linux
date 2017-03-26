@@ -855,7 +855,7 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	struct hv_device *hdev = ndevctx->device_ctx;
 	struct netvsc_device_info device_info;
 	bool was_running;
-	int ret;
+	int ret = 0;
 
 	if (!nvdev || nvdev->destroy)
 		return -ENODEV;
