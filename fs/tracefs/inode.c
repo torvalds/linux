@@ -266,7 +266,7 @@ static const struct super_operations tracefs_super_operations = {
 
 static int trace_fill_super(struct super_block *sb, void *data, int silent)
 {
-	static struct tree_descr trace_files[] = {{""}};
+	static const struct tree_descr trace_files[] = {{""}};
 	struct tracefs_fs_info *fsi;
 	int err;
 

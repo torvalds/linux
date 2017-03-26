@@ -507,7 +507,7 @@ EXPORT_SYMBOL(simple_write_end);
  * to pass it an appropriate max_reserved value to avoid collisions.
  */
 int simple_fill_super(struct super_block *s, unsigned long magic,
-		      struct tree_descr *files)
+		      const struct tree_descr *files)
 {
 	struct inode *inode;
 	struct dentry *root;

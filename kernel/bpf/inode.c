@@ -429,7 +429,7 @@ static int bpf_parse_options(char *data, struct bpf_mount_opts *opts)
 
 static int bpf_fill_super(struct super_block *sb, void *data, int silent)
 {
-	static struct tree_descr bpf_rfiles[] = { { "" } };
+	static const struct tree_descr bpf_rfiles[] = { { "" } };
 	struct bpf_mount_opts opts;
 	struct inode *inode;
 	int ret;
