@@ -1939,9 +1939,9 @@ static int pinctrl_check_ops(struct pinctrl_dev *pctldev)
  * @dev: parent device for this pin controller
  * @driver_data: private pin controller data for this pin controller
  */
-struct pinctrl_dev *pinctrl_init_controller(struct pinctrl_desc *pctldesc,
-					    struct device *dev,
-					    void *driver_data)
+static struct pinctrl_dev *
+pinctrl_init_controller(struct pinctrl_desc *pctldesc, struct device *dev,
+			void *driver_data)
 {
 	struct pinctrl_dev *pctldev;
 	int ret;
