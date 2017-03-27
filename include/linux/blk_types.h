@@ -17,6 +17,10 @@ struct io_context;
 struct cgroup_subsys_state;
 typedef void (bio_end_io_t) (struct bio *);
 
+struct blk_issue_stat {
+	u64 stat;
+};
+
 /*
  * main unit of I/O for the block layer and lower layers (ie drivers and
  * stacking drivers)
@@ -60,6 +64,7 @@ struct bio {
 	struct cgroup_subsys_state *bi_css;
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 	void			*bi_cg_private;
+	struct blk_issue_stat	bi_issue_stat;
 #endif
 #endif
 	union {
@@ -285,10 +290,6 @@ static inline bool blk_qc_t_is_internal(blk_qc_t cookie)
 {
 	return (cookie & BLK_QC_T_INTERNAL) != 0;
 }
-
-struct blk_issue_stat {
-	u64 stat;
-};
 
 struct blk_rq_stat {
 	s64 mean;

@@ -108,6 +108,9 @@ static inline void blk_stat_set_issue(struct blk_issue_stat *stat,
 		(((u64)blk_capped_size(size)) << BLK_STAT_SIZE_SHIFT);
 }
 
+/* record time/size info in request but not add a callback */
+void blk_stat_enable_accounting(struct request_queue *q);
+
 /*
  * blk_stat_rq_ddir() - Bucket callback function for the request data direction.
  * @rq: Request.

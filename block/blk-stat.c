@@ -9,12 +9,14 @@
 
 #include "blk-stat.h"
 #include "blk-mq.h"
+#include "blk.h"
 
 #define BLK_RQ_STAT_BATCH	64
 
 struct blk_queue_stats {
 	struct list_head callbacks;
 	spinlock_t lock;
+	bool enable_accounting;
 };
 
 unsigned int blk_stat_rq_ddir(const struct request *rq)
@@ -95,6 +97,8 @@ void blk_stat_add(struct request *rq)
 		return;
 
 	value = now - blk_stat_time(&rq->issue_stat);
+
+	blk_throtl_stat_add(rq, value);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(cb, &q->stats->callbacks, list) {
@@ -190,7 +194,7 @@ void blk_stat_remove_callback(struct request_queue *q,
 {
 	spin_lock(&q->stats->lock);
 	list_del_rcu(&cb->list);
-	if (list_empty(&q->stats->callbacks))
+	if (list_empty(&q->stats->callbacks) && !q->stats->enable_accounting)
 		clear_bit(QUEUE_FLAG_STATS, &q->queue_flags);
 	spin_unlock(&q->stats->lock);
 
@@ -215,6 +219,14 @@ void blk_stat_free_callback(struct blk_stat_callback *cb)
 }
 EXPORT_SYMBOL_GPL(blk_stat_free_callback);
 
+void blk_stat_enable_accounting(struct request_queue *q)
+{
+	spin_lock(&q->stats->lock);
+	q->stats->enable_accounting = true;
+	set_bit(QUEUE_FLAG_STATS, &q->queue_flags);
+	spin_unlock(&q->stats->lock);
+}
+
 struct blk_queue_stats *blk_alloc_queue_stats(void)
 {
 	struct blk_queue_stats *stats;
@@ -225,6 +237,7 @@ struct blk_queue_stats *blk_alloc_queue_stats(void)
 
 	INIT_LIST_HEAD(&stats->callbacks);
 	spin_lock_init(&stats->lock);
+	stats->enable_accounting = false;
 
 	return stats;
 }
