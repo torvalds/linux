@@ -1508,73 +1508,6 @@ static int knl_get_turbo_pstate(void)
 	return ret;
 }
 
-static void intel_pstate_update_util_pid(struct update_util_data *data,
-					 u64 time, unsigned int flags);
-static void intel_pstate_update_util(struct update_util_data *data, u64 time,
-				     unsigned int flags);
-
-static struct cpu_defaults core_params = {
-	.funcs = {
-		.get_max = core_get_max_pstate,
-		.get_max_physical = core_get_max_pstate_physical,
-		.get_min = core_get_min_pstate,
-		.get_turbo = core_get_turbo_pstate,
-		.get_scaling = core_get_scaling,
-		.get_val = core_get_val,
-		.update_util = intel_pstate_update_util_pid,
-	},
-};
-
-static const struct cpu_defaults silvermont_params = {
-	.funcs = {
-		.get_max = atom_get_max_pstate,
-		.get_max_physical = atom_get_max_pstate,
-		.get_min = atom_get_min_pstate,
-		.get_turbo = atom_get_turbo_pstate,
-		.get_val = atom_get_val,
-		.get_scaling = silvermont_get_scaling,
-		.get_vid = atom_get_vid,
-		.update_util = intel_pstate_update_util,
-	},
-};
-
-static const struct cpu_defaults airmont_params = {
-	.funcs = {
-		.get_max = atom_get_max_pstate,
-		.get_max_physical = atom_get_max_pstate,
-		.get_min = atom_get_min_pstate,
-		.get_turbo = atom_get_turbo_pstate,
-		.get_val = atom_get_val,
-		.get_scaling = airmont_get_scaling,
-		.get_vid = atom_get_vid,
-		.update_util = intel_pstate_update_util,
-	},
-};
-
-static const struct cpu_defaults knl_params = {
-	.funcs = {
-		.get_max = core_get_max_pstate,
-		.get_max_physical = core_get_max_pstate_physical,
-		.get_min = core_get_min_pstate,
-		.get_turbo = knl_get_turbo_pstate,
-		.get_scaling = core_get_scaling,
-		.get_val = core_get_val,
-		.update_util = intel_pstate_update_util_pid,
-	},
-};
-
-static const struct cpu_defaults bxt_params = {
-	.funcs = {
-		.get_max = core_get_max_pstate,
-		.get_max_physical = core_get_max_pstate_physical,
-		.get_min = core_get_min_pstate,
-		.get_turbo = core_get_turbo_pstate,
-		.get_scaling = core_get_scaling,
-		.get_val = core_get_val,
-		.update_util = intel_pstate_update_util,
-	},
-};
-
 static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 {
 	int max_perf = cpu->pstate.turbo_pstate;
@@ -1875,6 +1808,68 @@ static void intel_pstate_update_util(struct update_util_data *data, u64 time,
 		intel_pstate_adjust_pstate(cpu, target_pstate);
 	}
 }
+
+static struct cpu_defaults core_params = {
+	.funcs = {
+		.get_max = core_get_max_pstate,
+		.get_max_physical = core_get_max_pstate_physical,
+		.get_min = core_get_min_pstate,
+		.get_turbo = core_get_turbo_pstate,
+		.get_scaling = core_get_scaling,
+		.get_val = core_get_val,
+		.update_util = intel_pstate_update_util_pid,
+	},
+};
+
+static const struct cpu_defaults silvermont_params = {
+	.funcs = {
+		.get_max = atom_get_max_pstate,
+		.get_max_physical = atom_get_max_pstate,
+		.get_min = atom_get_min_pstate,
+		.get_turbo = atom_get_turbo_pstate,
+		.get_val = atom_get_val,
+		.get_scaling = silvermont_get_scaling,
+		.get_vid = atom_get_vid,
+		.update_util = intel_pstate_update_util,
+	},
+};
+
+static const struct cpu_defaults airmont_params = {
+	.funcs = {
+		.get_max = atom_get_max_pstate,
+		.get_max_physical = atom_get_max_pstate,
+		.get_min = atom_get_min_pstate,
+		.get_turbo = atom_get_turbo_pstate,
+		.get_val = atom_get_val,
+		.get_scaling = airmont_get_scaling,
+		.get_vid = atom_get_vid,
+		.update_util = intel_pstate_update_util,
+	},
+};
+
+static const struct cpu_defaults knl_params = {
+	.funcs = {
+		.get_max = core_get_max_pstate,
+		.get_max_physical = core_get_max_pstate_physical,
+		.get_min = core_get_min_pstate,
+		.get_turbo = knl_get_turbo_pstate,
+		.get_scaling = core_get_scaling,
+		.get_val = core_get_val,
+		.update_util = intel_pstate_update_util_pid,
+	},
+};
+
+static const struct cpu_defaults bxt_params = {
+	.funcs = {
+		.get_max = core_get_max_pstate,
+		.get_max_physical = core_get_max_pstate_physical,
+		.get_min = core_get_min_pstate,
+		.get_turbo = core_get_turbo_pstate,
+		.get_scaling = core_get_scaling,
+		.get_val = core_get_val,
+		.update_util = intel_pstate_update_util,
+	},
+};
 
 #define ICPU(model, policy) \
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_APERFMPERF,\
