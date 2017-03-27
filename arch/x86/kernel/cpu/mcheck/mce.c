@@ -158,14 +158,14 @@ static struct mce_log mcelog = {
 	.recordlen	= sizeof(struct mce),
 };
 
-void mce_log(struct mce *mce)
+void mce_log(struct mce *m)
 {
 	unsigned next, entry;
 
 	/* Emit the trace record: */
-	trace_mce_record(mce);
+	trace_mce_record(m);
 
-	if (!mce_gen_pool_add(mce))
+	if (!mce_gen_pool_add(m))
 		irq_work_queue(&mce_irq_work);
 
 	wmb();
@@ -195,7 +195,7 @@ void mce_log(struct mce *mce)
 		if (cmpxchg(&mcelog.next, entry, next) == entry)
 			break;
 	}
-	memcpy(mcelog.entry + entry, mce, sizeof(struct mce));
+	memcpy(mcelog.entry + entry, m, sizeof(struct mce));
 	wmb();
 	mcelog.entry[entry].finished = 1;
 	wmb();
