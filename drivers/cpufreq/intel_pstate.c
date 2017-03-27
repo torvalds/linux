@@ -2345,7 +2345,7 @@ static int intel_pstate_update_status(const char *buf, size_t size)
 
 	if (size == 7 && !strncmp(buf, "passive", size)) {
 		if (intel_pstate_driver) {
-			if (intel_pstate_driver != &intel_pstate)
+			if (intel_pstate_driver == &intel_cpufreq)
 				return 0;
 
 			ret = intel_pstate_unregister_driver();
