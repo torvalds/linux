@@ -2443,13 +2443,7 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 			 hidpp->protocol_major, hidpp->protocol_minor);
 	}
 
-	hidpp_initialize_battery(hidpp);
-
-	if (!(hidpp->quirks & HIDPP_QUIRK_NO_HIDINPUT))
-		/* if HID created the input nodes for us, we can stop now */
-		return;
-
-	if (!hidpp->name || hidpp->name == hdev->name) {
+	if (hidpp->name == hdev->name && hidpp->protocol_major >= 2) {
 		name = hidpp_get_device_name(hidpp);
 		if (!name) {
 			hid_err(hdev,
@@ -2464,6 +2458,12 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 
 		hidpp->name = devm_name;
 	}
+
+	hidpp_initialize_battery(hidpp);
+
+	if (!(hidpp->quirks & HIDPP_QUIRK_NO_HIDINPUT))
+		/* if HID created the input nodes for us, we can stop now */
+		return;
 
 	input = hidpp_allocate_input(hdev);
 	if (!input) {
