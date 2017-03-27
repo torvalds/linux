@@ -261,6 +261,8 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 
 		ct = nf_ct_get(skb, &ctinfo);
 		if (ct && !nf_ct_is_untracked(ct) && nfct_nat(ct)) {
+			bool mangled;
+
 			/* If mangling fails this function will return 0
 			 * which will cause the packet to be dropped.
 			 * Mangling can only fail under memory pressure,
@@ -268,12 +270,13 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 			 * packet.
 			 */
 			rcu_read_lock();
-			ret = nf_nat_mangle_tcp_packet(skb, ct, ctinfo,
-						       iph->ihl * 4,
-						       start-data, end-start,
-						       buf, buf_len);
+			mangled = nf_nat_mangle_tcp_packet(skb, ct, ctinfo,
+							   iph->ihl * 4,
+							   start - data,
+							   end - start,
+							   buf, buf_len);
 			rcu_read_unlock();
-			if (ret) {
+			if (mangled) {
 				ip_vs_nfct_expect_related(skb, ct, n_cp,
 							  IPPROTO_TCP, 0, 0);
 				if (skb->ip_summed == CHECKSUM_COMPLETE)

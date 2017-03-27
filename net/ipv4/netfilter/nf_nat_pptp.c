@@ -177,11 +177,11 @@ pptp_outbound_pkt(struct sk_buff *skb,
 		 ntohs(REQ_CID(pptpReq, cid_off)), ntohs(new_callid));
 
 	/* mangle packet */
-	if (nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
-				     cid_off + sizeof(struct pptp_pkt_hdr) +
-				     sizeof(struct PptpControlHeader),
-				     sizeof(new_callid), (char *)&new_callid,
-				     sizeof(new_callid)) == 0)
+	if (!nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
+				      cid_off + sizeof(struct pptp_pkt_hdr) +
+				      sizeof(struct PptpControlHeader),
+				      sizeof(new_callid), (char *)&new_callid,
+				      sizeof(new_callid)))
 		return NF_DROP;
 	return NF_ACCEPT;
 }
@@ -271,11 +271,11 @@ pptp_inbound_pkt(struct sk_buff *skb,
 	pr_debug("altering peer call id from 0x%04x to 0x%04x\n",
 		 ntohs(REQ_CID(pptpReq, pcid_off)), ntohs(new_pcid));
 
-	if (nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
-				     pcid_off + sizeof(struct pptp_pkt_hdr) +
-				     sizeof(struct PptpControlHeader),
-				     sizeof(new_pcid), (char *)&new_pcid,
-				     sizeof(new_pcid)) == 0)
+	if (!nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
+				      pcid_off + sizeof(struct pptp_pkt_hdr) +
+				      sizeof(struct PptpControlHeader),
+				      sizeof(new_pcid), (char *)&new_pcid,
+				      sizeof(new_pcid)))
 		return NF_DROP;
 	return NF_ACCEPT;
 }
