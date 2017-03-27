@@ -69,15 +69,6 @@ struct rk3399_dmcfreq {
 	struct devfreq_event_dev *edev;
 	struct mutex lock;
 	struct dram_timing *timing;
-
-	/*
-	 * DDR Converser of Frequency (DCF) is used to implement DDR frequency
-	 * conversion without the participation of CPU, we will implement and
-	 * control it in arm trust firmware.
-	 */
-	wait_queue_head_t	wait_dcf_queue;
-	int irq;
-	int wait_dcf_flag;
 	struct regulator *vdd_center;
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
@@ -113,12 +104,11 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    INT_MAX);
 		if (err) {
-			dev_err(dev, "Cannot to set voltage %lu uV\n",
+			dev_err(dev, "Cannot set voltage %lu uV\n",
 				target_volt);
 			goto out;
 		}
 	}
-
 
 	mutex_lock(&dmcfreq->lock);
 
@@ -130,7 +120,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    INT_MAX);
 		if (err) {
-			dev_err(dev, "Cannot to set voltage %lu uV\n",
+			dev_err(dev, "Cannot set voltage %lu uV\n",
 				target_volt);
 			goto out;
 		}
@@ -138,7 +128,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
 	if (err) {
-		dev_err(dev, "Cannot to set frequency %lu (%d)\n",
+		dev_err(dev, "Cannot set frequency %lu (%d)\n",
 			target_rate, err);
 		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
 				      INT_MAX);
@@ -155,8 +145,8 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 
 	/* If get the incorrect rate, set voltage to old value. */
 	if (dmcfreq->rate != target_rate) {
-		dev_err(dev, "Get wrong ddr frequency, Request frequency %lu,\
-			Current frequency %lu\n", target_rate, dmcfreq->rate);
+		dev_err(dev, "Get wrong frequency, Request %lu, Current %lu\n",
+			target_rate, dmcfreq->rate);
 		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
 				      INT_MAX);
 		goto out;
@@ -164,7 +154,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    INT_MAX);
 		if (err) {
-			dev_err(dev, "Cannot to set vol %lu uV\n", target_volt);
+			dev_err(dev, "Cannot set vol %lu uV\n", target_volt);
 			goto out;
 		}
 	}
