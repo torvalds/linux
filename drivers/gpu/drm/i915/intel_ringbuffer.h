@@ -529,6 +529,17 @@ intel_ring_offset(const struct drm_i915_gem_request *req, void *addr)
 	return intel_ring_wrap(req->ring, offset);
 }
 
+static inline void
+assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
+{
+	/* We could combine these into a single tail operation, but keeping
+	 * them as seperate tests will help identify the cause should one
+	 * ever fire.
+	 */
+	GEM_BUG_ON(!IS_ALIGNED(tail, 8));
+	GEM_BUG_ON(tail >= ring->size);
+}
+
 void intel_ring_update_space(struct intel_ring *ring);
 
 void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);

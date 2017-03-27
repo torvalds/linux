@@ -481,7 +481,7 @@ static void guc_wq_item_append(struct i915_guc_client *client,
 
 	/* The GuC firmware wants the tail index in QWords, not bytes */
 	tail = rq->tail;
-	GEM_BUG_ON(tail & 7);
+	assert_ring_tail_valid(rq->ring, rq->tail);
 	tail >>= 3;
 	GEM_BUG_ON(tail > WQ_RING_TAIL_MAX);
 

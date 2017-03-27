@@ -774,8 +774,7 @@ static void i9xx_submit_request(struct drm_i915_gem_request *request)
 
 	i915_gem_request_submit(request);
 
-	GEM_BUG_ON(!IS_ALIGNED(request->tail, 8));
-	GEM_BUG_ON(request->tail >= request->ring->size);
+	assert_ring_tail_valid(request->ring, request->tail);
 	I915_WRITE_TAIL(request->engine, request->tail);
 }
 
@@ -787,8 +786,7 @@ static void i9xx_emit_breadcrumb(struct drm_i915_gem_request *req, u32 *cs)
 	*cs++ = MI_USER_INTERRUPT;
 
 	req->tail = intel_ring_offset(req, cs);
-	GEM_BUG_ON(!IS_ALIGNED(req->tail, 8));
-	GEM_BUG_ON(req->tail >= req->ring->size);
+	assert_ring_tail_valid(req->ring, req->tail);
 }
 
 static const int i9xx_emit_breadcrumb_sz = 4;
@@ -827,8 +825,7 @@ static void gen8_render_emit_breadcrumb(struct drm_i915_gem_request *req,
 	*cs++ = MI_NOOP;
 
 	req->tail = intel_ring_offset(req, cs);
-	GEM_BUG_ON(!IS_ALIGNED(req->tail, 8));
-	GEM_BUG_ON(req->tail >= req->ring->size);
+	assert_ring_tail_valid(req->ring, req->tail);
 }
 
 static const int gen8_render_emit_breadcrumb_sz = 8;
