@@ -860,6 +860,7 @@ static const char *const rk3368_critical_clocks[] __initconst = {
 	"aclk_bus",
 	"aclk_peri",
 	"pclk_pd_pmu",
+	"hclk_vio_noc",
 };
 
 static void __init rk3368_clk_init(struct device_node *np)
