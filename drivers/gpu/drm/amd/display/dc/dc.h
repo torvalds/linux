@@ -744,7 +744,7 @@ bool dc_stream_set_cursor_attributes(
 
 bool dc_stream_set_cursor_position(
 	const struct dc_stream *stream,
-	const struct dc_cursor_position *position);
+	struct dc_cursor_position *position);
 
 /* Newer interfaces  */
 struct dc_cursor {

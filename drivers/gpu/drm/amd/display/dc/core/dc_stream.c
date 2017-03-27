@@ -215,7 +215,7 @@ bool dc_stream_set_cursor_attributes(
 
 bool dc_stream_set_cursor_position(
 	const struct dc_stream *dc_stream,
-	const struct dc_cursor_position *position)
+	struct dc_cursor_position *position)
 {
 	int i;
 	struct core_stream *stream;
@@ -250,6 +250,9 @@ bool dc_stream_set_cursor_position(
 				.viewport_width = pipe_ctx->scl_data.viewport.width,
 				.h_scale_ratio = pipe_ctx->scl_data.ratios.horz,
 			};
+
+			if (pipe_ctx->top_pipe && pipe_ctx->surface != pipe_ctx->top_pipe->surface)
+				position->enable = false;
 
 			ipp->funcs->ipp_cursor_set_position(ipp, position, &param);
 			ret = true;
