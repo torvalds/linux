@@ -714,6 +714,7 @@ struct se_lun {
 #define SE_LUN_LINK_MAGIC			0xffff7771
 	u32			lun_link_magic;
 	u32			lun_access;
+	bool			lun_shutdown;
 	u32			lun_index;
 
 	/* RELATIVE TARGET PORT IDENTIFER */
