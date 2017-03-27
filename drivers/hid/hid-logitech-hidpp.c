@@ -503,6 +503,9 @@ static int hidpp_root_get_feature(struct hidpp_device *hidpp, u16 feature,
 	if (ret)
 		return ret;
 
+	if (response.fap.params[0] == 0)
+		return -ENOENT;
+
 	*feature_index = response.fap.params[0];
 	*feature_type = response.fap.params[1];
 
