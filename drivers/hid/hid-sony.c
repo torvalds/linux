@@ -2654,9 +2654,6 @@ static int sony_input_configured(struct hid_device *hdev,
 		ret = 0;
 	}
 
-	if (ret < 0)
-		goto err_stop;
-
 	if (sc->quirks & SONY_LED_SUPPORT) {
 		ret = sony_leds_init(sc);
 		if (ret < 0)
