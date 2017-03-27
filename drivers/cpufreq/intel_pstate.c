@@ -576,16 +576,6 @@ static inline void intel_pstate_busy_pid_reset(struct cpudata *cpu)
 	pid_reset(&cpu->pid, pid_params.setpoint, 100, pid_params.deadband, 0);
 }
 
-static inline void intel_pstate_reset_all_pid(void)
-{
-	unsigned int cpu;
-
-	for_each_online_cpu(cpu) {
-		if (all_cpu_data[cpu])
-			intel_pstate_busy_pid_reset(all_cpu_data[cpu]);
-	}
-}
-
 static inline void update_turbo_state(void)
 {
 	u64 misc_en;
@@ -941,9 +931,14 @@ static void intel_pstate_update_policies(void)
 /************************** debugfs begin ************************/
 static int pid_param_set(void *data, u64 val)
 {
+	unsigned int cpu;
+
 	*(u32 *)data = val;
 	pid_params.sample_rate_ns = pid_params.sample_rate_ms * NSEC_PER_MSEC;
-	intel_pstate_reset_all_pid();
+	for_each_possible_cpu(cpu)
+		if (all_cpu_data[cpu])
+			intel_pstate_busy_pid_reset(all_cpu_data[cpu]);
+
 	return 0;
 }
 
