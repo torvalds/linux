@@ -828,6 +828,9 @@ static int hidpp_initialize_battery(struct hidpp_device *hidpp)
 {
 	int ret;
 
+	if (hidpp->battery.ps)
+		return 0;
+
 	if (hidpp->protocol_major >= 2) {
 		ret = hidpp20_initialize_battery(hidpp);
 		if (ret == 0)
