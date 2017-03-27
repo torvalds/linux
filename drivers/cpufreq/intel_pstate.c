@@ -321,19 +321,26 @@ struct pstate_funcs {
 
 /**
  * struct cpu_defaults- Per CPU model default config data
- * @pid_policy:	PID config data
  * @funcs:		Callback function data
  */
 struct cpu_defaults {
-	struct pstate_adjust_policy pid_policy;
 	struct pstate_funcs funcs;
 };
 
 static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu);
 static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu);
 
-static struct pstate_adjust_policy pid_params __read_mostly;
 static struct pstate_funcs pstate_funcs __read_mostly;
+static struct pstate_adjust_policy pid_params __read_mostly = {
+	.sample_rate_ms = 10,
+	.sample_rate_ns = 10 * NSEC_PER_MSEC,
+	.deadband = 0,
+	.setpoint = 97,
+	.p_gain_pct = 20,
+	.d_gain_pct = 0,
+	.i_gain_pct = 0,
+};
+
 static int hwp_active __read_mostly;
 static bool per_cpu_limits __read_mostly;
 
@@ -1520,14 +1527,6 @@ static int knl_get_turbo_pstate(void)
 }
 
 static struct cpu_defaults core_params = {
-	.pid_policy = {
-		.sample_rate_ms = 10,
-		.deadband = 0,
-		.setpoint = 97,
-		.p_gain_pct = 20,
-		.d_gain_pct = 0,
-		.i_gain_pct = 0,
-	},
 	.funcs = {
 		.get_max = core_get_max_pstate,
 		.get_max_physical = core_get_max_pstate_physical,
@@ -1566,14 +1565,6 @@ static const struct cpu_defaults airmont_params = {
 };
 
 static const struct cpu_defaults knl_params = {
-	.pid_policy = {
-		.sample_rate_ms = 10,
-		.deadband = 0,
-		.setpoint = 97,
-		.p_gain_pct = 20,
-		.d_gain_pct = 0,
-		.i_gain_pct = 0,
-	},
 	.funcs = {
 		.get_max = core_get_max_pstate,
 		.get_max_physical = core_get_max_pstate_physical,
@@ -2412,17 +2403,6 @@ static int __init intel_pstate_msrs_not_valid(void)
 	return 0;
 }
 
-static void __init copy_pid_params(struct pstate_adjust_policy *policy)
-{
-	pid_params.sample_rate_ms = policy->sample_rate_ms;
-	pid_params.sample_rate_ns = pid_params.sample_rate_ms * NSEC_PER_MSEC;
-	pid_params.p_gain_pct = policy->p_gain_pct;
-	pid_params.i_gain_pct = policy->i_gain_pct;
-	pid_params.d_gain_pct = policy->d_gain_pct;
-	pid_params.deadband = policy->deadband;
-	pid_params.setpoint = policy->setpoint;
-}
-
 #ifdef CONFIG_ACPI
 static void intel_pstate_use_acpi_profile(void)
 {
@@ -2614,8 +2594,6 @@ static int __init intel_pstate_init(void)
 
 		cpu_def = (struct cpu_defaults *)id->driver_data;
 		copy_cpu_funcs(&cpu_def->funcs);
-		if (pstate_funcs.get_target_pstate == get_target_pstate_use_performance)
-			copy_pid_params(&cpu_def->pid_policy);
 	}
 
 	if (intel_pstate_msrs_not_valid())
