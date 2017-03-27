@@ -46,9 +46,8 @@ This document describes the Linux kernel Makefiles.
 	=== 7 Kbuild syntax for exported headers
 		--- 7.1 header-y
 		--- 7.2 genhdr-y
-		--- 7.3 destination-y
-		--- 7.4 generic-y
-		--- 7.5 generated-y
+		--- 7.3 generic-y
+		--- 7.4 generated-y
 
 	=== 8 Kbuild Variables
 	=== 9 Makefile language
@@ -1295,21 +1294,7 @@ See subsequent chapter for the syntax of the Kbuild file.
 			#include/linux/Kbuild
 			genhdr-y += version.h
 
-	--- 7.3 destination-y
-
-	When an architecture has a set of exported headers that needs to be
-	exported to a different directory destination-y is used.
-	destination-y specifies the destination directory for all exported
-	headers in the file where it is present.
-
-		Example:
-			#arch/xtensa/platforms/s6105/include/platform/Kbuild
-			destination-y := include/linux
-
-	In the example above all exported headers in the Kbuild file
-	will be located in the directory "include/linux" when exported.
-
-	--- 7.4 generic-y
+	--- 7.3 generic-y
 
 	If an architecture uses a verbatim copy of a header from
 	include/asm-generic then this is listed in the file
@@ -1336,7 +1321,7 @@ See subsequent chapter for the syntax of the Kbuild file.
 		Example: termios.h
 			#include <asm-generic/termios.h>
 
-	--- 7.5 generated-y
+	--- 7.4 generated-y
 
 	If an architecture generates other header files alongside generic-y
 	wrappers, and not included in genhdr-y, then generated-y specifies
