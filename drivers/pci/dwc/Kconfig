@@ -9,6 +9,11 @@ config PCIE_DW_HOST
 	depends on PCI_MSI_IRQ_DOMAIN
         select PCIE_DW
 
+config PCIE_DW_EP
+	bool
+	depends on PCI_ENDPOINT
+	select PCIE_DW
+
 config PCI_DRA7XX
 	bool "TI DRA7xx PCIe controller"
 	depends on PCI
