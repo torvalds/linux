@@ -9157,6 +9157,27 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
 	return base;
 }
 
+static u32 intel_cursor_position(const struct intel_plane_state *plane_state)
+{
+	int x = plane_state->base.crtc_x;
+	int y = plane_state->base.crtc_y;
+	u32 pos = 0;
+
+	if (x < 0) {
+		pos |= CURSOR_POS_SIGN << CURSOR_X_SHIFT;
+		x = -x;
+	}
+	pos |= x << CURSOR_X_SHIFT;
+
+	if (y < 0) {
+		pos |= CURSOR_POS_SIGN << CURSOR_Y_SHIFT;
+		y = -y;
+	}
+	pos |= y << CURSOR_Y_SHIFT;
+
+	return pos;
+}
+
 static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state)
 {
@@ -9294,22 +9315,8 @@ static void intel_crtc_update_cursor(struct intel_plane *plane,
 	unsigned long irqflags;
 
 	if (plane_state) {
-		int x = plane_state->base.crtc_x;
-		int y = plane_state->base.crtc_y;
-
-		if (x < 0) {
-			pos |= CURSOR_POS_SIGN << CURSOR_X_SHIFT;
-			x = -x;
-		}
-		pos |= x << CURSOR_X_SHIFT;
-
-		if (y < 0) {
-			pos |= CURSOR_POS_SIGN << CURSOR_Y_SHIFT;
-			y = -y;
-		}
-		pos |= y << CURSOR_Y_SHIFT;
-
 		base = intel_cursor_base(plane_state);
+		pos = intel_cursor_position(plane_state);
 	}
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
