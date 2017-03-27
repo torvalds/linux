@@ -1,7 +1,7 @@
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
- * Copyright (c) 2010 Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2010-2017 Intel Corporation. All Rights Reserved.
  *
  * Copyright (c) 2010 Silicon Hive www.siliconhive.com.
  *
@@ -45,12 +45,11 @@ struct hmm_pool	reserved_pool;
 static ia_css_ptr dummy_ptr;
 struct _hmm_mem_stat hmm_mem_stat;
 
-const char *hmm_bo_type_strings[HMM_BO_LAST] = {
-	"p", /* private */
-	"s", /* shared */
-	"u", /* user */
-	"i", /* ion */
-};
+/* p: private
+   s: shared
+   u: user
+   i: ion */
+static const char hmm_bo_type_string[] = "psui";
 
 static ssize_t bo_show(struct device *dev, struct device_attribute *attr,
 			char *buf, struct list_head *bo_list, bool active)
@@ -75,8 +74,8 @@ static ssize_t bo_show(struct device *dev, struct device_attribute *attr,
 		if ((active && (bo->status & HMM_BO_ALLOCED)) ||
 			(!active && !(bo->status & HMM_BO_ALLOCED))) {
 			ret = scnprintf(buf + index1, PAGE_SIZE - index1,
-				"%s %d\n",
-				hmm_bo_type_strings[bo->type], bo->pgnr);
+				"%c %d\n",
+				hmm_bo_type_string[bo->type], bo->pgnr);
 
 			total[bo->type] += bo->pgnr;
 			count[bo->type]++;
@@ -90,8 +89,8 @@ static ssize_t bo_show(struct device *dev, struct device_attribute *attr,
 		if (count[i]) {
 			ret = scnprintf(buf + index1 + index2,
 				PAGE_SIZE - index1 - index2,
-				"%ld %s buffer objects: %ld KB\n",
-				count[i], hmm_bo_type_strings[i], total[i] * 4);
+				"%ld %c buffer objects: %ld KB\n",
+				count[i], hmm_bo_type_string[i], total[i] * 4);
 			if (ret > 0)
 				index2 += ret;
 		}
