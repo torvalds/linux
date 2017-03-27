@@ -555,12 +555,12 @@ static void tegra210_pllcx_set_defaults(const char *name,
 {
 	pllcx->params->defaults_set = true;
 
-	if (readl_relaxed(clk_base + pllcx->params->base_reg) &
-			PLL_ENABLE && !pllcx->params->defaults_set) {
+	if (readl_relaxed(clk_base + pllcx->params->base_reg) & PLL_ENABLE) {
 		/* PLL is ON: only check if defaults already set */
 		pllcx_check_defaults(pllcx->params);
-		pr_warn("%s already enabled. Postponing set full defaults\n",
-			name);
+		if (!pllcx->params->defaults_set)
+			pr_warn("%s already enabled. Postponing set full defaults\n",
+				name);
 		return;
 	}
 
