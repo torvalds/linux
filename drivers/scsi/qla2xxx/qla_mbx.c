@@ -10,6 +10,28 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 
+static struct mb_cmd_name {
+	uint16_t cmd;
+	const char *str;
+} mb_str[] = {
+	{MBC_GET_PORT_DATABASE,		"GPDB"},
+	{MBC_GET_ID_LIST,		"GIDList"},
+	{MBC_GET_LINK_PRIV_STATS,	"Stats"},
+};
+
+static const char *mb_to_str(uint16_t cmd)
+{
+	int i;
+	struct mb_cmd_name *e;
+
+	for (i = 0; i < ARRAY_SIZE(mb_str); i++) {
+		e = mb_str + i;
+		if (cmd == e->cmd)
+			return e->str;
+	}
+	return "unknown";
+}
+
 static struct rom_cmd {
 	uint16_t cmd;
 } rom_cmds[] = {
@@ -2818,7 +2840,7 @@ qla2x00_get_link_status(scsi_qla_host_t *vha, uint16_t loop_id,
 
 int
 qla24xx_get_isp_stats(scsi_qla_host_t *vha, struct link_statistics *stats,
-    dma_addr_t stats_dma, uint options)
+    dma_addr_t stats_dma, uint16_t options)
 {
 	int rval;
 	mbx_cmd_t mc;
@@ -2828,19 +2850,17 @@ qla24xx_get_isp_stats(scsi_qla_host_t *vha, struct link_statistics *stats,
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1088,
 	    "Entered %s.\n", __func__);
 
-	mcp->mb[0] = MBC_GET_LINK_PRIV_STATS;
-	mcp->mb[2] = MSW(stats_dma);
-	mcp->mb[3] = LSW(stats_dma);
-	mcp->mb[6] = MSW(MSD(stats_dma));
-	mcp->mb[7] = LSW(MSD(stats_dma));
-	mcp->mb[8] = sizeof(struct link_statistics) / 4;
-	mcp->mb[9] = vha->vp_idx;
-	mcp->mb[10] = options;
-	mcp->out_mb = MBX_10|MBX_9|MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_0;
-	mcp->in_mb = MBX_2|MBX_1|MBX_0;
-	mcp->tov = MBX_TOV_SECONDS;
-	mcp->flags = IOCTL_CMD;
-	rval = qla2x00_mailbox_command(vha, mcp);
+	memset(&mc, 0, sizeof(mc));
+	mc.mb[0] = MBC_GET_LINK_PRIV_STATS;
+	mc.mb[2] = MSW(stats_dma);
+	mc.mb[3] = LSW(stats_dma);
+	mc.mb[6] = MSW(MSD(stats_dma));
+	mc.mb[7] = LSW(MSD(stats_dma));
+	mc.mb[8] = sizeof(struct link_statistics) / 4;
+	mc.mb[9] = cpu_to_le16(vha->vp_idx);
+	mc.mb[10] = cpu_to_le16(options);
+
+	rval = qla24xx_send_mb_cmd(vha, &mc);
 
 	if (rval == QLA_SUCCESS) {
 		if (mcp->mb[0] != MBS_COMMAND_COMPLETE) {
@@ -3603,6 +3623,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 	scsi_qla_host_t *vp = NULL;
 	unsigned long   flags;
 	int found;
+	port_id_t id;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10b6,
 	    "Entered %s.\n", __func__);
@@ -3610,28 +3631,27 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 	if (rptid_entry->entry_status != 0)
 		return;
 
+	id.b.domain = rptid_entry->port_id[2];
+	id.b.area   = rptid_entry->port_id[1];
+	id.b.al_pa  = rptid_entry->port_id[0];
+	id.b.rsvd_1 = 0;
+
 	if (rptid_entry->format == 0) {
 		/* loop */
-		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10b7,
+		ql_dbg(ql_dbg_async, vha, 0x10b7,
 		    "Format 0 : Number of VPs setup %d, number of "
 		    "VPs acquired %d.\n", rptid_entry->vp_setup,
 		    rptid_entry->vp_acquired);
-		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10b8,
+		ql_dbg(ql_dbg_async, vha, 0x10b8,
 		    "Primary port id %02x%02x%02x.\n",
 		    rptid_entry->port_id[2], rptid_entry->port_id[1],
 		    rptid_entry->port_id[0]);
 
-		vha->d_id.b.domain = rptid_entry->port_id[2];
-		vha->d_id.b.area = rptid_entry->port_id[1];
-		vha->d_id.b.al_pa = rptid_entry->port_id[0];
-
-		spin_lock_irqsave(&ha->vport_slock, flags);
-		qlt_update_vp_map(vha, SET_AL_PA);
-		spin_unlock_irqrestore(&ha->vport_slock, flags);
+		qlt_update_host_map(vha, id);
 
 	} else if (rptid_entry->format == 1) {
 		/* fabric */
-		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10b9,
+		ql_dbg(ql_dbg_async, vha, 0x10b9,
 		    "Format 1: VP[%d] enabled - status %d - with "
 		    "port id %02x%02x%02x.\n", rptid_entry->vp_idx,
 			rptid_entry->vp_status,
@@ -3653,12 +3673,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 					    WWN_SIZE);
 				}
 
-				vha->d_id.b.domain = rptid_entry->port_id[2];
-				vha->d_id.b.area = rptid_entry->port_id[1];
-				vha->d_id.b.al_pa = rptid_entry->port_id[0];
-				spin_lock_irqsave(&ha->vport_slock, flags);
-				qlt_update_vp_map(vha, SET_AL_PA);
-				spin_unlock_irqrestore(&ha->vport_slock, flags);
+				qlt_update_host_map(vha, id);
 			}
 
 			fc_host_port_name(vha->host) =
@@ -3694,12 +3709,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			if (!found)
 				return;
 
-			vp->d_id.b.domain = rptid_entry->port_id[2];
-			vp->d_id.b.area =  rptid_entry->port_id[1];
-			vp->d_id.b.al_pa = rptid_entry->port_id[0];
-			spin_lock_irqsave(&ha->vport_slock, flags);
-			qlt_update_vp_map(vp, SET_AL_PA);
-			spin_unlock_irqrestore(&ha->vport_slock, flags);
+			qlt_update_host_map(vp, id);
 
 			/*
 			 * Cannot configure here as we are still sitting on the
@@ -5825,5 +5835,227 @@ qla26xx_dport_diagnostics(scsi_qla_host_t *vha,
 	dma_unmap_single(&vha->hw->pdev->dev, dd_dma,
 	    size, DMA_FROM_DEVICE);
 
+	return rval;
+}
+
+static void qla2x00_async_mb_sp_done(void *s, int res)
+{
+	struct srb *sp = s;
+
+	sp->u.iocb_cmd.u.mbx.rc = res;
+
+	complete(&sp->u.iocb_cmd.u.mbx.comp);
+	/* don't free sp here. Let the caller do the free */
+}
+
+/*
+ * This mailbox uses the iocb interface to send MB command.
+ * This allows non-critial (non chip setup) command to go
+ * out in parrallel.
+ */
+int qla24xx_send_mb_cmd(struct scsi_qla_host *vha, mbx_cmd_t *mcp)
+{
+	int rval = QLA_FUNCTION_FAILED;
+	srb_t *sp;
+	struct srb_iocb *c;
+
+	if (!vha->hw->flags.fw_started)
+		goto done;
+
+	sp = qla2x00_get_sp(vha, NULL, GFP_KERNEL);
+	if (!sp)
+		goto done;
+
+	sp->type = SRB_MB_IOCB;
+	sp->name = mb_to_str(mcp->mb[0]);
+
+	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+
+	memcpy(sp->u.iocb_cmd.u.mbx.out_mb, mcp->mb, SIZEOF_IOCB_MB_REG);
+
+	c = &sp->u.iocb_cmd;
+	c->timeout = qla2x00_async_iocb_timeout;
+	init_completion(&c->u.mbx.comp);
+
+	sp->done = qla2x00_async_mb_sp_done;
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0xffff,
+		    "%s: %s Failed submission. %x.\n",
+		    __func__, sp->name, rval);
+		goto done_free_sp;
+	}
+
+	ql_dbg(ql_dbg_mbx, vha, 0xffff, "MB:%s hndl %x submitted\n",
+	    sp->name, sp->handle);
+
+	wait_for_completion(&c->u.mbx.comp);
+	memcpy(mcp->mb, sp->u.iocb_cmd.u.mbx.in_mb, SIZEOF_IOCB_MB_REG);
+
+	rval = c->u.mbx.rc;
+	switch (rval) {
+	case QLA_FUNCTION_TIMEOUT:
+		ql_dbg(ql_dbg_mbx, vha, 0xffff, "%s: %s Timeout. %x.\n",
+		    __func__, sp->name, rval);
+		break;
+	case  QLA_SUCCESS:
+		ql_dbg(ql_dbg_mbx, vha, 0xffff, "%s: %s done.\n",
+		    __func__, sp->name);
+		sp->free(sp);
+		break;
+	default:
+		ql_dbg(ql_dbg_mbx, vha, 0xffff, "%s: %s Failed. %x.\n",
+		    __func__, sp->name, rval);
+		sp->free(sp);
+		break;
+	}
+
+	return rval;
+
+done_free_sp:
+	sp->free(sp);
+done:
+	return rval;
+}
+
+/*
+ * qla24xx_gpdb_wait
+ * NOTE: Do not call this routine from DPC thread
+ */
+int qla24xx_gpdb_wait(struct scsi_qla_host *vha, fc_port_t *fcport, u8 opt)
+{
+	int rval = QLA_FUNCTION_FAILED;
+	dma_addr_t pd_dma;
+	struct port_database_24xx *pd;
+	struct qla_hw_data *ha = vha->hw;
+	mbx_cmd_t mc;
+
+	if (!vha->hw->flags.fw_started)
+		goto done;
+
+	pd = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
+	if (pd  == NULL) {
+		ql_log(ql_log_warn, vha, 0xffff,
+			"Failed to allocate port database structure.\n");
+		goto done_free_sp;
+	}
+	memset(pd, 0, max(PORT_DATABASE_SIZE, PORT_DATABASE_24XX_SIZE));
+
+	memset(&mc, 0, sizeof(mc));
+	mc.mb[0] = MBC_GET_PORT_DATABASE;
+	mc.mb[1] = cpu_to_le16(fcport->loop_id);
+	mc.mb[2] = MSW(pd_dma);
+	mc.mb[3] = LSW(pd_dma);
+	mc.mb[6] = MSW(MSD(pd_dma));
+	mc.mb[7] = LSW(MSD(pd_dma));
+	mc.mb[9] = cpu_to_le16(vha->vp_idx);
+	mc.mb[10] = cpu_to_le16((uint16_t)opt);
+
+	rval = qla24xx_send_mb_cmd(vha, &mc);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0xffff,
+		    "%s: %8phC fail\n", __func__, fcport->port_name);
+		goto done_free_sp;
+	}
+
+	rval = __qla24xx_parse_gpdb(vha, fcport, pd);
+
+	ql_dbg(ql_dbg_mbx, vha, 0xffff, "%s: %8phC done\n",
+	    __func__, fcport->port_name);
+
+done_free_sp:
+	if (pd)
+		dma_pool_free(ha->s_dma_pool, pd, pd_dma);
+done:
+	return rval;
+}
+
+int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
+    struct port_database_24xx *pd)
+{
+	int rval = QLA_SUCCESS;
+	uint64_t zero = 0;
+
+	/* Check for logged in state. */
+	if (pd->current_login_state != PDS_PRLI_COMPLETE &&
+		pd->last_login_state != PDS_PRLI_COMPLETE) {
+		ql_dbg(ql_dbg_mbx, vha, 0xffff,
+			   "Unable to verify login-state (%x/%x) for "
+			   "loop_id %x.\n", pd->current_login_state,
+			   pd->last_login_state, fcport->loop_id);
+		rval = QLA_FUNCTION_FAILED;
+		goto gpd_error_out;
+	}
+
+	if (fcport->loop_id == FC_NO_LOOP_ID ||
+	    (memcmp(fcport->port_name, (uint8_t *)&zero, 8) &&
+	     memcmp(fcport->port_name, pd->port_name, 8))) {
+		/* We lost the device mid way. */
+		rval = QLA_NOT_LOGGED_IN;
+		goto gpd_error_out;
+	}
+
+	/* Names are little-endian. */
+	memcpy(fcport->node_name, pd->node_name, WWN_SIZE);
+	memcpy(fcport->port_name, pd->port_name, WWN_SIZE);
+
+	/* Get port_id of device. */
+	fcport->d_id.b.domain = pd->port_id[0];
+	fcport->d_id.b.area = pd->port_id[1];
+	fcport->d_id.b.al_pa = pd->port_id[2];
+	fcport->d_id.b.rsvd_1 = 0;
+
+	/* If not target must be initiator or unknown type. */
+	if ((pd->prli_svc_param_word_3[0] & BIT_4) == 0)
+		fcport->port_type = FCT_INITIATOR;
+	else
+		fcport->port_type = FCT_TARGET;
+
+	/* Passback COS information. */
+	fcport->supported_classes = (pd->flags & PDF_CLASS_2) ?
+		FC_COS_CLASS2 : FC_COS_CLASS3;
+
+	if (pd->prli_svc_param_word_3[0] & BIT_7) {
+		fcport->flags |= FCF_CONF_COMP_SUPPORTED;
+		fcport->conf_compl_supported = 1;
+	}
+
+gpd_error_out:
+	return rval;
+}
+
+/*
+ * qla24xx_gidlist__wait
+ * NOTE: don't call this routine from DPC thread.
+ */
+int qla24xx_gidlist_wait(struct scsi_qla_host *vha,
+	void *id_list, dma_addr_t id_list_dma, uint16_t *entries)
+{
+	int rval = QLA_FUNCTION_FAILED;
+	mbx_cmd_t mc;
+
+	if (!vha->hw->flags.fw_started)
+		goto done;
+
+	memset(&mc, 0, sizeof(mc));
+	mc.mb[0] = MBC_GET_ID_LIST;
+	mc.mb[2] = MSW(id_list_dma);
+	mc.mb[3] = LSW(id_list_dma);
+	mc.mb[6] = MSW(MSD(id_list_dma));
+	mc.mb[7] = LSW(MSD(id_list_dma));
+	mc.mb[8] = 0;
+	mc.mb[9] = cpu_to_le16(vha->vp_idx);
+
+	rval = qla24xx_send_mb_cmd(vha, &mc);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0xffff,
+			"%s:  fail\n", __func__);
+	} else {
+		*entries = mc.mb[1];
+		ql_dbg(ql_dbg_mbx, vha, 0xffff,
+			"%s:  done\n", __func__);
+	}
+done:
 	return rval;
 }

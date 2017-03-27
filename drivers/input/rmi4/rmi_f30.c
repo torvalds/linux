@@ -170,6 +170,10 @@ static int rmi_f30_config(struct rmi_function *fn)
 				rmi_get_platform_data(fn->rmi_dev);
 	int error;
 
+	/* can happen if f30_data.disable is set */
+	if (!f30)
+		return 0;
+
 	if (pdata->f30_data.trackstick_buttons) {
 		/* Try [re-]establish link to F03. */
 		f30->f03 = rmi_find_function(fn->rmi_dev, 0x03);

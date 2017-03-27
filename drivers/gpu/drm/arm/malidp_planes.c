@@ -37,6 +37,8 @@
 #define   LAYER_V_VAL(x)		(((x) & 0x1fff) << 16)
 #define MALIDP_LAYER_COMP_SIZE		0x010
 #define MALIDP_LAYER_OFFSET		0x014
+#define MALIDP550_LS_ENABLE		0x01c
+#define MALIDP550_LS_R1_IN_SIZE		0x020
 
 /*
  * This 4-entry look-up-table is used to determine the full 8-bit alpha value
@@ -242,6 +244,11 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 			LAYER_V_VAL(plane->state->crtc_y),
 			mp->layer->base + MALIDP_LAYER_OFFSET);
 
+	if (mp->layer->id == DE_SMART)
+		malidp_hw_write(mp->hwdev,
+				LAYER_H_VAL(src_w) | LAYER_V_VAL(src_h),
+				mp->layer->base + MALIDP550_LS_R1_IN_SIZE);
+
 	/* first clear the rotation bits */
 	val = malidp_hw_read(mp->hwdev, mp->layer->base + MALIDP_LAYER_CONTROL);
 	val &= ~LAYER_ROT_MASK;
@@ -330,9 +337,16 @@ int malidp_de_planes_init(struct drm_device *drm)
 		plane->hwdev = malidp->dev;
 		plane->layer = &map->layers[i];
 
-		/* Skip the features which the SMART layer doesn't have */
-		if (id == DE_SMART)
+		if (id == DE_SMART) {
+			/*
+			 * Enable the first rectangle in the SMART layer to be
+			 * able to use it as a drm plane.
+			 */
+			malidp_hw_write(malidp->dev, 1,
+					plane->layer->base + MALIDP550_LS_ENABLE);
+			/* Skip the features which the SMART layer doesn't have. */
 			continue;
+		}
 
 		drm_plane_create_rotation_property(&plane->base, DRM_ROTATE_0, flags);
 		malidp_hw_write(malidp->dev, MALIDP_ALPHA_LUT,

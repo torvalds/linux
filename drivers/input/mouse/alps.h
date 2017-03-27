@@ -54,6 +54,16 @@ enum SS4_PACKET_ID {
 
 #define SS4_MASK_NORMAL_BUTTONS		0x07
 
+#define SS4PLUS_COUNT_PER_ELECTRODE	128
+#define SS4PLUS_NUMSENSOR_XOFFSET	16
+#define SS4PLUS_NUMSENSOR_YOFFSET	5
+#define SS4PLUS_MIN_PITCH_MM		37
+
+#define IS_SS4PLUS_DEV(_b)	(((_b[0]) == 0x73) &&	\
+				 ((_b[1]) == 0x03) &&	\
+				 ((_b[2]) == 0x28)		\
+				)
+
 #define SS4_IS_IDLE_V2(_b)	(((_b[0]) == 0x18) &&		\
 				 ((_b[1]) == 0x10) &&		\
 				 ((_b[2]) == 0x00) &&		\
@@ -283,6 +293,7 @@ struct alps_data {
 	int addr_command;
 	u16 proto_version;
 	u8 byte0, mask0;
+	u8 dev_id[3];
 	u8 fw_ver[3];
 	int flags;
 	int x_max;

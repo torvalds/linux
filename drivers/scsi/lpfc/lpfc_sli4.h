@@ -642,6 +642,7 @@ struct lpfc_sli4_hba {
 	struct list_head sp_asynce_work_queue;
 	struct list_head sp_fcp_xri_aborted_work_queue;
 	struct list_head sp_els_xri_aborted_work_queue;
+	struct list_head sp_nvme_xri_aborted_work_queue;
 	struct list_head sp_unsol_work_queue;
 	struct lpfc_sli4_link link_state;
 	struct lpfc_sli4_lnk_info lnk_info;
@@ -794,9 +795,14 @@ void lpfc_sli4_fcf_redisc_event_proc(struct lpfc_hba *);
 int lpfc_sli4_resume_rpi(struct lpfc_nodelist *,
 			void (*)(struct lpfc_hba *, LPFC_MBOXQ_t *), void *);
 void lpfc_sli4_fcp_xri_abort_event_proc(struct lpfc_hba *);
+void lpfc_sli4_nvme_xri_abort_event_proc(struct lpfc_hba *phba);
 void lpfc_sli4_els_xri_abort_event_proc(struct lpfc_hba *);
 void lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *,
 			       struct sli4_wcqe_xri_aborted *);
+void lpfc_sli4_nvme_xri_aborted(struct lpfc_hba *phba,
+				struct sli4_wcqe_xri_aborted *axri);
+void lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
+				 struct sli4_wcqe_xri_aborted *axri);
 void lpfc_sli4_els_xri_aborted(struct lpfc_hba *,
 			       struct sli4_wcqe_xri_aborted *);
 void lpfc_sli4_vport_delete_els_xri_aborted(struct lpfc_vport *);
