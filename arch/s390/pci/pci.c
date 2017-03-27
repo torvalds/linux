@@ -60,14 +60,6 @@ static DEFINE_SPINLOCK(zpci_domain_lock);
 static struct airq_iv *zpci_aisb_iv;
 static struct airq_iv *zpci_aibv[ZPCI_NR_DEVICES];
 
-/* Adapter interrupt definitions */
-static void zpci_irq_handler(struct airq_struct *airq);
-
-static struct airq_struct zpci_airq = {
-	.handler = zpci_irq_handler,
-	.isc = PCI_ISC,
-};
-
 #define ZPCI_IOMAP_ENTRIES						\
 	min(((unsigned long) ZPCI_NR_DEVICES * PCI_BAR_COUNT / 2),	\
 	    ZPCI_IOMAP_MAX_ENTRIES)
@@ -504,6 +496,11 @@ static void zpci_unmap_resources(struct pci_dev *pdev)
 			    pdev->resource[i].start);
 	}
 }
+
+static struct airq_struct zpci_airq = {
+	.handler = zpci_irq_handler,
+	.isc = PCI_ISC,
+};
 
 static int __init zpci_irq_init(void)
 {
