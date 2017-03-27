@@ -1019,8 +1019,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 		old_memslots = install_new_memslots(kvm, as_id, slots);
 
-		/* slot was deleted or moved, clear iommu mapping */
-		kvm_iommu_unmap_pages(kvm, &old);
 		/* From this point no new shadow pages pointing to a deleted,
 		 * or moved, memslot will be created.
 		 *
@@ -1055,21 +1053,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	kvm_free_memslot(kvm, &old, &new);
 	kvfree(old_memslots);
-
-	/*
-	 * IOMMU mapping:  New slots need to be mapped.  Old slots need to be
-	 * un-mapped and re-mapped if their base changes.  Since base change
-	 * unmapping is handled above with slot deletion, mapping alone is
-	 * needed here.  Anything else the iommu might care about for existing
-	 * slots (size changes, userspace addr changes and read-only flag
-	 * changes) is disallowed above, so any other attribute changes getting
-	 * here can be skipped.
-	 */
-	if (as_id == 0 && (change == KVM_MR_CREATE || change == KVM_MR_MOVE)) {
-		r = kvm_iommu_map_pages(kvm, &new);
-		return r;
-	}
-
 	return 0;
 
 out_slots:

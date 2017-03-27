@@ -27,7 +27,6 @@
 #include "kvm_cache_regs.h"
 #include "x86.h"
 #include "cpuid.h"
-#include "assigned-dev.h"
 #include "pmu.h"
 #include "hyperv.h"
 
@@ -2675,10 +2674,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_SET_BOOT_CPU_ID:
  	case KVM_CAP_SPLIT_IRQCHIP:
 	case KVM_CAP_IMMEDIATE_EXIT:
-#ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
-	case KVM_CAP_ASSIGN_DEV_IRQ:
-	case KVM_CAP_PCI_2_3:
-#endif
 		r = 1;
 		break;
 	case KVM_CAP_ADJUST_CLOCK:
@@ -2713,11 +2708,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_PV_MMU:	/* obsolete */
 		r = 0;
 		break;
-#ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
-	case KVM_CAP_IOMMU:
-		r = iommu_present(&pci_bus_type);
-		break;
-#endif
 	case KVM_CAP_MCE:
 		r = KVM_MAX_MCE_BANKS;
 		break;
@@ -4230,7 +4220,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		break;
 	}
 	default:
-		r = kvm_vm_ioctl_assigned_device(kvm, ioctl, arg);
+		r = -ENOTTY;
 	}
 out:
 	return r;
@@ -8068,7 +8058,6 @@ void kvm_arch_sync_events(struct kvm *kvm)
 {
 	cancel_delayed_work_sync(&kvm->arch.kvmclock_sync_work);
 	cancel_delayed_work_sync(&kvm->arch.kvmclock_update_work);
-	kvm_free_all_assigned_devices(kvm);
 	kvm_free_pit(kvm);
 }
 
@@ -8152,7 +8141,6 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	}
 	if (kvm_x86_ops->vm_destroy)
 		kvm_x86_ops->vm_destroy(kvm);
-	kvm_iommu_unmap_guest(kvm);
 	kvm_pic_destroy(kvm);
 	kvm_ioapic_destroy(kvm);
 	kvm_free_vcpus(kvm);
