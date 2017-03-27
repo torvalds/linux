@@ -1671,11 +1671,15 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 		src_line->nr_pcnt = nr_pcnt;
 
 		for (k = 0; k < nr_pcnt; k++) {
-			h = annotation__histogram(notes, evidx + k);
-			src_line->samples[k].percent = 100.0 * h->addr[i] / h->sum;
+			double percent = 0.0;
 
-			if (src_line->samples[k].percent > percent_max)
-				percent_max = src_line->samples[k].percent;
+			h = annotation__histogram(notes, evidx + k);
+			if (h->sum)
+				percent = 100.0 * h->addr[i] / h->sum;
+
+			if (percent > percent_max)
+				percent_max = percent;
+			src_line->samples[k].percent = percent;
 		}
 
 		if (percent_max <= 0.5)
