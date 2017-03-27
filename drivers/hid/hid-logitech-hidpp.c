@@ -62,10 +62,11 @@ MODULE_PARM_DESC(disable_tap_to_click,
 #define HIDPP_QUIRK_WTP_PHYSICAL_BUTTONS	BIT(22)
 #define HIDPP_QUIRK_NO_HIDINPUT			BIT(23)
 #define HIDPP_QUIRK_FORCE_OUTPUT_REPORTS	BIT(24)
-#define HIDPP_QUIRK_HIDPP20_BATTERY		BIT(25)
-#define HIDPP_QUIRK_HIDPP10_BATTERY		BIT(26)
 
 #define HIDPP_QUIRK_DELAYED_INIT		HIDPP_QUIRK_NO_HIDINPUT
+
+#define HIDPP_CAPABILITY_HIDPP10_BATTERY	BIT(0)
+#define HIDPP_CAPABILITY_HIDPP20_BATTERY	BIT(1)
 
 /*
  * There are two hidpp protocols in use, the first version hidpp10 is known
@@ -138,6 +139,7 @@ struct hidpp_device {
 	struct input_dev *delayed_input;
 
 	unsigned long quirks;
+	unsigned long capabilities;
 
 	struct hidpp_battery battery;
 };
@@ -834,7 +836,7 @@ static int hidpp_initialize_battery(struct hidpp_device *hidpp)
 	if (hidpp->protocol_major >= 2) {
 		ret = hidpp20_initialize_battery(hidpp);
 		if (ret == 0)
-			hidpp->quirks |= HIDPP_QUIRK_HIDPP20_BATTERY;
+			hidpp->capabilities |= HIDPP_CAPABILITY_HIDPP20_BATTERY;
 	}
 
 	return ret;
@@ -2283,7 +2285,7 @@ static int hidpp_raw_event(struct hid_device *hdev, struct hid_report *report,
 	if (ret != 0)
 		return ret;
 
-	if (hidpp->quirks & HIDPP_QUIRK_HIDPP20_BATTERY) {
+	if (hidpp->capabilities & HIDPP_CAPABILITY_HIDPP20_BATTERY) {
 		ret = hidpp20_battery_event(hidpp, data, size);
 		if (ret != 0)
 			return ret;
