@@ -670,7 +670,7 @@ int blk_queue_enter(struct request_queue *q, bool nowait)
 			return -EBUSY;
 
 		/*
-		 * read pair of barrier in blk_mq_freeze_queue_start(),
+		 * read pair of barrier in blk_freeze_queue_start(),
 		 * we need to order reading __PERCPU_REF_DEAD flag of
 		 * .q_usage_counter and reading .mq_freeze_depth,
 		 * otherwise the following wait may never return if the
