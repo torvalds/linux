@@ -845,6 +845,13 @@ struct vmbus_channel {
 	 * link up channels based on their CPU affinity.
 	 */
 	struct list_head percpu_list;
+
+	/*
+	 * Defer freeing channel until after all cpu's have
+	 * gone through grace period.
+	 */
+	struct rcu_head rcu;
+
 	/*
 	 * For performance critical channels (storage, networking
 	 * etc,), Hyper-V has a mechanism to enhance the throughput
@@ -1429,9 +1436,6 @@ extern bool vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp, u8 *buf,
 				const int *fw_version, int fw_vercnt,
 				const int *srv_version, int srv_vercnt,
 				int *nego_fw_version, int *nego_srv_version);
-
-void hv_event_tasklet_disable(struct vmbus_channel *channel);
-void hv_event_tasklet_enable(struct vmbus_channel *channel);
 
 void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid);
 
