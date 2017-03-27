@@ -1040,6 +1040,37 @@ static bool amdgpu_check_pot_argument(int arg)
 	return (arg & (arg - 1)) == 0;
 }
 
+static void amdgpu_get_block_size(struct amdgpu_device *adev)
+{
+	/* defines number of bits in page table versus page directory,
+	 * a page is 4KB so we have 12 bits offset, minimum 9 bits in the
+	 * page table and the remaining bits are in the page directory */
+	if (amdgpu_vm_block_size == -1) {
+
+		/* Total bits covered by PD + PTs */
+		unsigned bits = ilog2(amdgpu_vm_size) + 18;
+
+		/* Make sure the PD is 4K in size up to 8GB address space.
+		   Above that split equal between PD and PTs */
+		if (amdgpu_vm_size <= 8)
+			amdgpu_vm_block_size = bits - 9;
+		else
+			amdgpu_vm_block_size = (bits + 3) / 2;
+
+	} else if (amdgpu_vm_block_size < 9) {
+		dev_warn(adev->dev, "VM page table size (%d) too small\n",
+			 amdgpu_vm_block_size);
+		amdgpu_vm_block_size = 9;
+	}
+
+	if (amdgpu_vm_block_size > 24 ||
+	    (amdgpu_vm_size * 1024) < (1ull << amdgpu_vm_block_size)) {
+		dev_warn(adev->dev, "VM page table size (%d) too large\n",
+			 amdgpu_vm_block_size);
+		amdgpu_vm_block_size = 9;
+	}
+}
+
 /**
  * amdgpu_check_arguments - validate module params
  *
@@ -1090,33 +1121,7 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 		amdgpu_vm_size = 8;
 	}
 
-	/* defines number of bits in page table versus page directory,
-	 * a page is 4KB so we have 12 bits offset, minimum 9 bits in the
-	 * page table and the remaining bits are in the page directory */
-	if (amdgpu_vm_block_size == -1) {
-
-		/* Total bits covered by PD + PTs */
-		unsigned bits = ilog2(amdgpu_vm_size) + 18;
-
-		/* Make sure the PD is 4K in size up to 8GB address space.
-		   Above that split equal between PD and PTs */
-		if (amdgpu_vm_size <= 8)
-			amdgpu_vm_block_size = bits - 9;
-		else
-			amdgpu_vm_block_size = (bits + 3) / 2;
-
-	} else if (amdgpu_vm_block_size < 9) {
-		dev_warn(adev->dev, "VM page table size (%d) too small\n",
-			 amdgpu_vm_block_size);
-		amdgpu_vm_block_size = 9;
-	}
-
-	if (amdgpu_vm_block_size > 24 ||
-	    (amdgpu_vm_size * 1024) < (1ull << amdgpu_vm_block_size)) {
-		dev_warn(adev->dev, "VM page table size (%d) too large\n",
-			 amdgpu_vm_block_size);
-		amdgpu_vm_block_size = 9;
-	}
+	amdgpu_get_block_size(adev);
 
 	if (amdgpu_vram_page_split != -1 && (amdgpu_vram_page_split < 16 ||
 	    !amdgpu_check_pot_argument(amdgpu_vram_page_split))) {
