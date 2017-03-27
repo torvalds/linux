@@ -152,11 +152,7 @@
 #define SIZE_OF_IA_CSS_PTR		sizeof(uint32_t)
 
 /* Number of SP's */
-#if defined(HAS_SEC_SP)
-#define NUM_OF_SPS 2
-#else
 #define NUM_OF_SPS 1
-#endif /* HAS_SEC_SP */
 
 #if defined(HAS_BL)
 #define NUM_OF_BLS 1
@@ -167,9 +163,6 @@
 /* Enum for order of Binaries */
 enum sh_css_order_binaries {
 	SP_FIRMWARE = 0,
-#if defined(HAS_SEC_SP)
-	SP1_FIRMWARE,
-#endif /* HAS_SEC_SP */
 #if defined(HAS_BL)
 	BOOTLOADER_FIRMWARE,
 #endif

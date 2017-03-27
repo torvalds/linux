@@ -60,9 +60,6 @@ static const char *release_version = STR(irci_ecr-master_20150911_0724);
 static char FW_rel_ver_name[MAX_FW_REL_VER_NAME] = "---";
 
 struct ia_css_fw_info	  sh_css_sp_fw;
-#if defined(HAS_SEC_SP)
-struct ia_css_fw_info	  sh_css_sp1_fw;
-#endif /* HAS_SEC_SP */
 #if defined(HAS_BL)
 struct ia_css_fw_info     sh_css_bl_fw;
 #endif /* HAS_BL */
@@ -138,9 +135,6 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi, struct ia
 	bd->header = *bi;
 
 	if ((bi->type == ia_css_isp_firmware) || (bi->type == ia_css_sp_firmware)
-#if defined(HAS_SEC_SP)
-	|| (bi->type == ia_css_sp1_firmware)
-#endif /* HAS_SEC_SP */
 #if defined(HAS_BL)
 	|| (bi->type == ia_css_bootloader_firmware)
 #endif /* HAS_BL */
@@ -282,14 +276,6 @@ sh_css_load_firmware(const char *fw_data,
 			err = setup_binary(bi, fw_data, &sh_css_sp_fw, i);
 			if (err != IA_CSS_SUCCESS)
 				return err;
-#if defined(HAS_SEC_SP)
-		} else if (bi->type == ia_css_sp1_firmware) {
-			if (i != SP1_FIRMWARE)
-				return IA_CSS_ERR_INTERNAL_ERROR;
-			err = setup_binary(bi, fw_data, &sh_css_sp1_fw, i);
-			if (err != IA_CSS_SUCCESS)
-				return err;
-#endif /* HAS_SEC_SP */
 #if defined(HAS_BL)
 		} else if (bi->type == ia_css_bootloader_firmware) {
 			if (i != BOOTLOADER_FIRMWARE)
@@ -332,9 +318,6 @@ void sh_css_unload_firmware(void)
 	}
 
 	memset(&sh_css_sp_fw, 0, sizeof(sh_css_sp_fw));
-#if defined(HAS_SEC_SP)
-	memset(&sh_css_sp1_fw, 0, sizeof(sh_css_sp1_fw));
-#endif /* HAS_SEC_SP */
 	if (sh_css_blob_info) {
 		sh_css_free(sh_css_blob_info);
 		sh_css_blob_info = NULL;

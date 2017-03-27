@@ -103,9 +103,6 @@ static int thread_alive;
 
 /* Name of the sp program: should not be built-in */
 #define SP_PROG_NAME "sp"
-#if defined(HAS_SEC_SP)
-#define SP1_PROG_NAME "sp1"
-#endif /* HAS_SEC_SP */
 #if defined(HAS_BL)
 #define BL_PROG_NAME "bootloader"
 #endif
@@ -413,14 +410,6 @@ static unsigned int get_crop_lines_for_bayer_order(const struct ia_css_stream_co
 static unsigned int get_crop_columns_for_bayer_order(const struct ia_css_stream_config *config);
 static void get_pipe_extra_pixel(struct ia_css_pipe *pipe,
 		unsigned int *extra_row, unsigned int *extra_column);
-#endif
-
-#if defined(HAS_SEC_SP)
-static enum ia_css_err
-sh_css_start_sp1(void);
-
-static enum ia_css_err
-sh_css_stop_sp1(void);
 #endif
 
 #ifdef ISP2401
@@ -1725,9 +1714,6 @@ ia_css_init(const struct ia_css_env *env,
 #if defined(HAS_BL)
 	ia_css_blctrl_cfg blctrl_cfg;
 #endif
-#if defined(HAS_SEC_SP)
-	ia_css_spctrl_cfg sp1ctrl_cfg;
-#endif /* HAS_SEC_SP */
 
 	void *(*malloc_func)(size_t size, bool zero_mem);
 	void (*free_func)(void *ptr);
@@ -1890,15 +1876,6 @@ ia_css_init(const struct ia_css_env *env,
 		IA_CSS_LEAVE_ERR(err);
 		return err;
 	}
-#if defined(HAS_SEC_SP)
-	if(!sh_css_setup_spctrl_config(&sh_css_sp1_fw,SP1_PROG_NAME,&sp1ctrl_cfg))
-		return IA_CSS_ERR_INTERNAL_ERROR;
-	err = ia_css_spctrl_load_fw(SP1_ID, &sp1ctrl_cfg);
-	if (err != IA_CSS_SUCCESS) {
-		IA_CSS_LEAVE_ERR(err);
-		return err;
-	}
-#endif /* HAS_SEC_SP */
 
 #if defined(HAS_BL)
 	if (!sh_css_setup_blctrl_config(&sh_css_bl_fw, BL_PROG_NAME, &blctrl_cfg))
@@ -1908,14 +1885,7 @@ ia_css_init(const struct ia_css_env *env,
 		IA_CSS_LEAVE_ERR(err);
 		return err;
 	}
-#if defined(HAS_SEC_SP)
-	err = ia_css_blctrl_add_target_fw_info(&sh_css_sp1_fw, IA_CSS_SP1,
-					 get_sp_code_addr(SP1_ID));
-	if (err != IA_CSS_SUCCESS) {
-		IA_CSS_LEAVE_ERR(err);
-		return err;
-	}
-#endif
+
 #ifdef ISP2401
 	err = ia_css_blctrl_add_target_fw_info(&sh_css_sp_fw, IA_CSS_SP0,
 					 get_sp_code_addr(SP0_ID));
@@ -2709,11 +2679,6 @@ ia_css_uninit(void)
 	}
 	ia_css_spctrl_unload_fw(SP0_ID);
 	sh_css_sp_set_sp_running(false);
-#if defined(HAS_SEC_SP)
-	ia_css_spctrl_unload_fw(SP1_ID);
-	sh_css_sp1_set_sp1_running(false);
-#endif /* HAS_SEC_SP */
-
 #if defined(HAS_BL)
 	ia_css_blctrl_unload_fw();
 #endif
@@ -10668,33 +10633,6 @@ ia_css_start_bl(void)
 
 #define SP_START_TIMEOUT_US 30000000
 
-#if defined(HAS_SEC_SP)
-
-static enum ia_css_err
-sh_css_start_sp1(void)
-{
-
-	unsigned long timeout;
-
-	IA_CSS_ENTER_PRIVATE("void");
-	sh_css_sp1_start();
-	/* waiting for the SP is completely started */
-	timeout = SP_START_TIMEOUT_US;
-	while((ia_css_spctrl_get_state(SP1_ID) != IA_CSS_SP_SW_INITIALIZED) && timeout) {
-		timeout--;
-		hrt_sleep();
-	}
-	if (timeout == 0) {
-		IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_INTERNAL_ERROR);
-		return IA_CSS_ERR_INTERNAL_ERROR;
-	}
-	sh_css_write_host2sp1_command(host2sp_cmd_ready);
-
-	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
-	return IA_CSS_SUCCESS;
-}
-#endif
-
 enum ia_css_err
 ia_css_start_sp(void)
 {
@@ -10735,11 +10673,6 @@ ia_css_start_sp(void)
 	sh_css_setup_queues();
 	ia_css_bufq_dump_queue_info();
 
-#if defined(HAS_SEC_SP)
-	/* Start the SP1 Core */
-	err = sh_css_start_sp1();
-#endif /* HAS_SEC_SP */
-
 #ifdef ISP2401
 	if (ia_css_is_system_mode_suspend_or_resume() == false) { /* skip in suspend/resume flow */
 		ia_css_set_system_mode(IA_CSS_SYS_MODE_WORKING);
@@ -10755,42 +10688,6 @@ ia_css_start_sp(void)
  *	a proper error trace.
  */
 #define SP_SHUTDOWN_TIMEOUT_US 200000
-
-#if defined(HAS_SEC_SP)
-
-static enum ia_css_err
-sh_css_stop_sp1(void)
-{
-	unsigned long timeout;
-
-	IA_CSS_ENTER_PRIVATE("void");
-
-	/* For now, stop whole SP1 */
-	sh_css_write_host2sp1_command(host2sp_cmd_terminate);
-	sh_css_sp1_set_sp1_running(false);
-
-	timeout = SP_SHUTDOWN_TIMEOUT_US;
-	while ((ia_css_spctrl_get_state(SP1_ID)!= IA_CSS_SP_SW_TERMINATED) && timeout) {
-		timeout--;
-		hrt_sleep();
-	}
-	if (timeout == 0) {
-		IA_CSS_WARNING("SP1 is not terminated");
-	} else {
-		timeout = SP_SHUTDOWN_TIMEOUT_US;
-		while (!ia_css_spctrl_is_idle(SP1_ID) && 0 != timeout) {
-			timeout--;
-			hrt_sleep();
-		}
-		if (0 == timeout) {
-			IA_CSS_WARNING("SP1 is not idle");
-		}
-	}
-
-	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
-	return IA_CSS_SUCCESS;
-}
-#endif
 
 enum ia_css_err
 ia_css_stop_sp(void)
@@ -10854,11 +10751,6 @@ ia_css_stop_sp(void)
 		ia_css_set_system_mode(IA_CSS_SYS_MODE_INIT);  /* System is initialized but not 'running' */
 	}
 #endif
-
-#if defined(HAS_SEC_SP)
-	/* Stop SP1 Core */
-	sh_css_stop_sp1();
-#endif /* HAS_SEC_SP */
 
 	IA_CSS_LEAVE_ERR(err);
 	return err;

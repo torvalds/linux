@@ -79,11 +79,6 @@ sh_css_sp_uninit_pipeline(unsigned int pipe_num);
 
 bool sh_css_write_host2sp_command(enum host2sp_commands host2sp_command);
 
-#if defined(HAS_SEC_SP)
-void
-sh_css_write_host2sp1_command(enum host2sp_commands host2sp_command);
-#endif /* HAS_SEC_SP */
-
 enum host2sp_commands
 sh_css_read_host2sp_command(void);
 
@@ -147,18 +142,9 @@ sh_css_event_init_irq_mask(void);
 
 void
 sh_css_sp_start_isp(void);
-#if defined(HAS_SEC_SP)
-void
-sh_css_sp1_start(void);
-#endif /* HAS_SEC_SP */
 
 void
 sh_css_sp_set_sp_running(bool flag);
-
-#if defined(HAS_SEC_SP)
-void
-sh_css_sp1_set_sp1_running(bool flag);
-#endif /* HAS_SEC_SP */
 
 bool
 sh_css_sp_is_running(void);

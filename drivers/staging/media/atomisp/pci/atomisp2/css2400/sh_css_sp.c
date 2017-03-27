@@ -78,9 +78,6 @@ static struct sh_css_sp_per_frame_data per_frame_data;
 /* For the moment there is only code that sets this bool to true */
 /* TODO: add code that sets this bool to false */
 static bool sp_running;
-#if defined(HAS_SEC_SP)
-static bool sp1_running;
-#endif /* HAS_SEC_SP */
 
 static enum ia_css_err
 set_output_frame_buffer(const struct ia_css_frame *frame,
@@ -152,11 +149,6 @@ store_sp_per_frame_data(const struct ia_css_fw_info *fw)
 	case ia_css_sp_firmware:
 		HIVE_ADDR_sp_per_frame_data = fw->info.sp.per_frame_data;
 		break;
-#if defined(HAS_SEC_SP)
-	case ia_css_sp1_firmware:
-		(void)fw;
-		break;
-#endif /* HAS_SEC_SP */
 	case ia_css_acc_firmware:
 		HIVE_ADDR_sp_per_frame_data = fw->info.acc.per_frame_data;
 		break;
@@ -1385,23 +1377,6 @@ sh_css_sp_uninit_pipeline(unsigned int pipe_num)
 	sh_css_sp_group.pipe[thread_id].num_stages = 0;
 }
 
-#if defined(HAS_SEC_SP)
-void
-sh_css_write_host2sp1_command(enum host2sp_commands host2sp_command)
-{
-	unsigned int HIVE_ADDR_host_sp1_com = sh_css_sp1_fw.info.sp1.host_sp_com;
-	unsigned int offset = (unsigned int)offsetof(struct host_sp_communication, host2sp_command)
-				/ sizeof(int);
-	(void)HIVE_ADDR_host_sp1_com; /* Suppres warnings in CRUN */
-
-	/* Previous command must be handled by SP1 (by design) */
-	if (host2sp_command == host2sp_cmd_terminate)
-		assert(load_sp1_array_uint(host_sp1_com, offset) == host2sp_cmd_ready);
-
-	store_sp1_array_uint(host_sp1_com, offset, host2sp_command);
-}
-#endif /* HAS_SEC_SP */
-
 bool sh_css_write_host2sp_command(enum host2sp_commands host2sp_command)
 {
 	unsigned int HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
@@ -1698,66 +1673,11 @@ sh_css_sp_set_sp_running(bool flag)
 	sp_running = flag;
 }
 
-#if defined(HAS_SEC_SP)
-void
-sh_css_sp1_set_sp1_running(bool flag)
-{
-	sp1_running = flag;
-}
-#endif /* HAS_SEC_SP */
-
 bool
 sh_css_sp_is_running(void)
 {
 	return sp_running;
 }
-
-#if defined(HAS_SEC_SP)
-void
-sh_css_sp1_start(void)
-{
-	const struct ia_css_fw_info *fw;
-	unsigned int HIVE_ADDR_sp_sw_state;
-	fw = &sh_css_sp1_fw;
-	HIVE_ADDR_sp_sw_state = fw->info.sp1.sw_state;
-
-	if (sp1_running)
-		return;
-
-	(void)HIVE_ADDR_sp_sw_state; /* Suppres warnings in CRUN */
-
-	/* no longer here, sp started immediately */
-	/*ia_css_debug_pipe_graph_dump_epilogue();*/
-
-	/*store_sp_group_data();
-	store_sp_per_frame_data(fw);*/
-	sp_dmem_store_uint32(SP1_ID,
-		(unsigned int)sp1_address_of(sp_sw_state),
-		(uint32_t)(IA_CSS_SP_SW_TERMINATED));
-
-	/* Note 1: The sp_start_isp function contains a wait till
-	 * the input network is configured by the SP.
-	 * Note 2: Not all SP binaries supports host2sp_commands.
-	 * In case a binary does support it, the host2sp_command
-	 * will have status cmd_ready after return of the function
-	 * sh_css_hrt_sp_start_isp. There is no race-condition here
-	 * because only after the process_frame command has been
-	 * received, the SP starts configuring the input network.
-	 */
-
-	/* we need to set sp_running before we call ia_css_mmu_invalidate_cache
-	 * as ia_css_mmu_invalidate_cache checks on sp_running to
-	 * avoid that it accesses dmem while the SP is not powered
-	 */
-	sp1_running = true;
-	/* ia_css_mmu_invalidate_cache(); */
-	/* Invalidate all MMU caches */
-	/* mmu_invalidate_cache_all(); */
-
-	ia_css_spctrl_start(SP1_ID);
-
-}
-#endif /* HAS_SEC_SP */
 
 void
 sh_css_sp_start_isp(void)

@@ -185,11 +185,6 @@ ia_css_spctrl_sp_sw_state ia_css_spctrl_get_state(sp_ID_t sp_id)
 	(void)HIVE_ADDR_sp_sw_state; /* Suppres warnings in CRUN */
 	if (sp_id == SP0_ID)
 		state = sp_dmem_load_uint32(sp_id, (unsigned)sp_address_of(sp_sw_state));
-#if defined(HAS_SEC_SP)
-	else
-		state = sp_dmem_load_uint32(sp_id, (unsigned)sp1_address_of(sp_sw_state));
-#endif /* HAS_SEC_SP */
-
 	return state;
 }
 
