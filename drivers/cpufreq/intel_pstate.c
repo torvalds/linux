@@ -1893,6 +1893,8 @@ static const struct x86_cpu_id intel_pstate_cpu_ee_disable_ids[] = {
 	{}
 };
 
+static bool pid_in_use(void);
+
 static int intel_pstate_init_cpu(unsigned int cpunum)
 {
 	struct cpudata *cpu;
@@ -1923,7 +1925,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 			intel_pstate_disable_ee(cpunum);
 
 		intel_pstate_hwp_enable(cpu);
-	} else if (pstate_funcs.update_util == intel_pstate_update_util_pid) {
+	} else if (pid_in_use()) {
 		intel_pstate_pid_reset(cpu);
 	}
 
@@ -2269,6 +2271,12 @@ static struct cpufreq_driver intel_cpufreq = {
 
 static struct cpufreq_driver *default_driver = &intel_pstate;
 
+static bool pid_in_use(void)
+{
+	return intel_pstate_driver == &intel_pstate &&
+		pstate_funcs.update_util == intel_pstate_update_util_pid;
+}
+
 static void intel_pstate_driver_cleanup(void)
 {
 	unsigned int cpu;
@@ -2303,8 +2311,7 @@ static int intel_pstate_register_driver(struct cpufreq_driver *driver)
 
 	global.min_perf_pct = min_perf_pct_min();
 
-	if (intel_pstate_driver == &intel_pstate && !hwp_active &&
-	    pstate_funcs.update_util == intel_pstate_update_util_pid)
+	if (pid_in_use())
 		intel_pstate_debug_expose_params();
 
 	return 0;
@@ -2315,8 +2322,7 @@ static int intel_pstate_unregister_driver(void)
 	if (hwp_active)
 		return -EBUSY;
 
-	if (intel_pstate_driver == &intel_pstate &&
-	    pstate_funcs.update_util == intel_pstate_update_util_pid)
+	if (pid_in_use())
 		intel_pstate_debug_hide_params();
 
 	cpufreq_unregister_driver(intel_pstate_driver);
