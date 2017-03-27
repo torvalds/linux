@@ -37,6 +37,7 @@
 #include "mlx5_core.h"
 #include "lib/mlx5.h"
 #include "fpga/core.h"
+#include "fpga/conn.h"
 
 static const char *const mlx5_fpga_error_strings[] = {
 	"Null Syndrome",
@@ -127,7 +128,17 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 
 	max_num_qps = MLX5_CAP_FPGA(mdev, shell_caps.max_num_qps);
 	err = mlx5_core_reserve_gids(mdev, max_num_qps);
+	if (err)
+		goto out;
 
+	err = mlx5_fpga_conn_device_init(fdev);
+	if (err)
+		goto err_rsvd_gid;
+
+	goto out;
+
+err_rsvd_gid:
+	mlx5_core_unreserve_gids(mdev, max_num_qps);
 out:
 	spin_lock_irqsave(&fdev->state_lock, flags);
 	fdev->state = err ? MLX5_FPGA_STATUS_FAILURE : MLX5_FPGA_STATUS_SUCCESS;
@@ -173,6 +184,7 @@ void mlx5_fpga_device_stop(struct mlx5_core_dev *mdev)
 	fdev->state = MLX5_FPGA_STATUS_NONE;
 	spin_unlock_irqrestore(&fdev->state_lock, flags);
 
+	mlx5_fpga_conn_device_cleanup(fdev);
 	max_num_qps = MLX5_CAP_FPGA(mdev, shell_caps.max_num_qps);
 	mlx5_core_unreserve_gids(mdev, max_num_qps);
 }

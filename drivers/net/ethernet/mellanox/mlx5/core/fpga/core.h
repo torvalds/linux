@@ -44,6 +44,13 @@ struct mlx5_fpga_device {
 	enum mlx5_fpga_status state;
 	enum mlx5_fpga_image last_admin_image;
 	enum mlx5_fpga_image last_oper_image;
+
+	/* QP Connection resources */
+	struct {
+		u32 pdn;
+		struct mlx5_core_mkey mkey;
+		struct mlx5_uars_page *uar;
+	} conn_res;
 };
 
 #define mlx5_fpga_dbg(__adev, format, ...) \
