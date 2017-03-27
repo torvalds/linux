@@ -993,7 +993,7 @@ bool dce110_link_encoder_construct(
 			enc110->base.ctx->dc_bios, enc110->base.id,
 			&bp_cap_info)) {
 		enc110->base.features.flags.bits.IS_HBR2_CAPABLE =
-				bp_cap_info.DP_HBR2_CAP;
+				bp_cap_info.DP_HBR2_EN;
 		enc110->base.features.flags.bits.IS_HBR3_CAPABLE =
 				bp_cap_info.DP_HBR3_EN;
 	}

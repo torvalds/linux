@@ -88,7 +88,7 @@ static ATOM_HPD_INT_RECORD *get_hpd_record(struct bios_parser *bp,
 static struct device_id device_type_from_device_id(uint16_t device_id);
 static uint32_t signal_to_ss_id(enum as_signal_type signal);
 static uint32_t get_support_mask_for_device_id(struct device_id device_id);
-static ATOM_ENCODER_CAP_RECORD *get_encoder_cap_record(
+static ATOM_ENCODER_CAP_RECORD_V2 *get_encoder_cap_record(
 	struct bios_parser *bp,
 	ATOM_OBJECT *object);
 
@@ -1837,7 +1837,7 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	ATOM_OBJECT *object;
-	ATOM_ENCODER_CAP_RECORD *record = NULL;
+	ATOM_ENCODER_CAP_RECORD_V2 *record = NULL;
 
 	if (!info)
 		return BP_RESULT_BADINPUT;
@@ -1851,8 +1851,8 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 	if (!record)
 		return BP_RESULT_NORECORD;
 
-	info->DP_HBR2_CAP = record->usHBR2Cap;
 	info->DP_HBR2_EN = record->usHBR2En;
+	info->DP_HBR3_EN = record->usHBR3En;
 	return BP_RESULT_OK;
 }
 
@@ -1867,9 +1867,9 @@ static enum bp_result bios_parser_get_encoder_cap_info(
  * @return atom encoder cap record
  *
  * @note
- *  search all records to find the ATOM_ENCODER_CAP_RECORD record
+ *  search all records to find the ATOM_ENCODER_CAP_RECORD_V2 record
  */
-static ATOM_ENCODER_CAP_RECORD *get_encoder_cap_record(
+static ATOM_ENCODER_CAP_RECORD_V2 *get_encoder_cap_record(
 	struct bios_parser *bp,
 	ATOM_OBJECT *object)
 {
@@ -1899,8 +1899,8 @@ static ATOM_ENCODER_CAP_RECORD *get_encoder_cap_record(
 		if (ATOM_ENCODER_CAP_RECORD_TYPE != header->ucRecordType)
 			continue;
 
-		if (sizeof(ATOM_ENCODER_CAP_RECORD) <= header->ucRecordSize)
-			return (ATOM_ENCODER_CAP_RECORD *)header;
+		if (sizeof(ATOM_ENCODER_CAP_RECORD_V2) <= header->ucRecordSize)
+			return (ATOM_ENCODER_CAP_RECORD_V2 *)header;
 	}
 
 	return NULL;
