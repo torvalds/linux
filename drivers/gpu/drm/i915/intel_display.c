@@ -9232,30 +9232,28 @@ static void i845_update_cursor(struct intel_plane *plane,
 		 * whilst the cursor is disabled.
 		 */
 		I915_WRITE_FW(CURCNTR(PIPE_A), 0);
-		POSTING_READ_FW(CURCNTR(PIPE_A));
 		plane->cursor.cntl = 0;
 	}
 
-	if (plane->cursor.base != base) {
+	if (plane->cursor.base != base)
 		I915_WRITE_FW(CURBASE(PIPE_A), base);
-		plane->cursor.base = base;
-	}
 
-	if (plane->cursor.size != size) {
+	if (plane->cursor.size != size)
 		I915_WRITE_FW(CURSIZE, size);
-		plane->cursor.size = size;
-	}
 
 	if (cntl)
 		I915_WRITE_FW(CURPOS(PIPE_A), pos);
 
-	if (plane->cursor.cntl != cntl) {
+	if (plane->cursor.cntl != cntl)
 		I915_WRITE_FW(CURCNTR(PIPE_A), cntl);
-		POSTING_READ_FW(CURCNTR(PIPE_A));
-		plane->cursor.cntl = cntl;
-	}
+
+	POSTING_READ_FW(CURCNTR(PIPE_A));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+
+	plane->cursor.cntl = cntl;
+	plane->cursor.base = base;
+	plane->cursor.size = size;
 }
 
 static void i845_disable_cursor(struct intel_plane *plane,
@@ -9318,21 +9316,21 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	if (plane->cursor.cntl != cntl) {
+	if (plane->cursor.cntl != cntl)
 		I915_WRITE_FW(CURCNTR(pipe), cntl);
-		POSTING_READ_FW(CURCNTR(pipe));
-		plane->cursor.cntl = cntl;
-	}
 
 	if (cntl)
 		I915_WRITE_FW(CURPOS(pipe), pos);
 
-	/* and commit changes on next vblank */
-	I915_WRITE_FW(CURBASE(pipe), base);
+	if (plane->cursor.cntl != cntl ||
+	    plane->cursor.base != base)
+		I915_WRITE_FW(CURBASE(pipe), base);
+
 	POSTING_READ_FW(CURBASE(pipe));
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
+	plane->cursor.cntl = cntl;
 	plane->cursor.base = base;
 }
 
