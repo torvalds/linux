@@ -85,7 +85,14 @@ static int dw_hdmi_i2s_hw_params(struct device *dev, void *data,
 	hdmi_write(audio, inputclkfs, HDMI_AUD_INPUTCLKFS);
 	hdmi_write(audio, conf0, HDMI_AUD_CONF0);
 	hdmi_write(audio, conf1, HDMI_AUD_CONF1);
-
+	/*
+	 * dw-hdmi introduced insert_pcuv bit in version 2.10a.
+	 * When set (1'b1), this bit enables the insertion of the PCUV
+	 * (Parity, Channel Status, User bit and Validity) bits on the
+	 * incoming audio stream (support limited to Linear PCM audio)
+	 */
+	if (hdmi_read(audio, HDMI_DESIGN_ID) > 0x21)
+		hdmi_write(audio, HDMI_AUD_CONF2_INSERT_PCUV, HDMI_AUD_CONF2);
 	dw_hdmi_audio_enable(hdmi);
 
 	return 0;
