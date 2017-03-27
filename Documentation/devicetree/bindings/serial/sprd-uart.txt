@@ -1,7 +1,19 @@
 * Spreadtrum serial UART
 
 Required properties:
-- compatible: must be "sprd,sc9836-uart"
+- compatible: must be one of:
+  * "sprd,sc9836-uart"
+  * "sprd,sc9860-uart", "sprd,sc9836-uart"
+
 - reg: offset and length of the register set for the device
 - interrupts: exactly one interrupt specifier
 - clocks: phandles to input clocks.
+
+Example:
+	uart0: serial@0 {
+		compatible = "sprd,sc9860-uart",
+			     "sprd,sc9836-uart";
+		reg = <0x0 0x100>;
+		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&ext_26m>;
+	};
