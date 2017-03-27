@@ -1,5 +1,5 @@
-#ifndef __ASM_H8300_BITS_PER_LONG
-#define __ASM_H8300_BITS_PER_LONG
+#ifndef _UAPI__ASM_H8300_BITS_PER_LONG
+#define _UAPI__ASM_H8300_BITS_PER_LONG
 
 #include <asm-generic/bitsperlong.h>
 
@@ -11,4 +11,4 @@ typedef long		__kernel_ssize_t;
 typedef long		__kernel_ptrdiff_t;
 #endif
 
-#endif /* __ASM_H8300_BITS_PER_LONG */
+#endif /* _UAPI__ASM_H8300_BITS_PER_LONG */
