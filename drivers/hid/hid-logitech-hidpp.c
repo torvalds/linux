@@ -2309,6 +2309,8 @@ static void hidpp_overwrite_name(struct hid_device *hdev, bool use_unifying)
 		 * Ask the receiver for its name.
 		 */
 		name = hidpp_get_unifying_name(hidpp);
+	else if (hidpp->protocol_major < 2)
+		return;
 	else
 		name = hidpp_get_device_name(hidpp);
 
