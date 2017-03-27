@@ -26,6 +26,15 @@
 #include <linux/list.h>
 #include <linux/of.h>
 
+#define RK3368_GRF_DDRC0_CON0		0x600
+#define RK3368_GRF_SOC_STATUS5		0x494
+#define RK3368_GRF_SOC_STATUS6		0x498
+#define RK3368_GRF_SOC_STATUS8		0x4a0
+#define RK3368_GRF_SOC_STATUS9		0x4a4
+#define RK3368_GRF_SOC_STATUS10		0x4a8
+#define RK3368_DFI_EN			(0x30003 << 5)
+#define RK3368_DFI_DIS			(0x30000 << 5)
+
 #define RK3399_DMC_NUM_CH	2
 
 /* DDRMON_CTRL */
@@ -72,7 +81,75 @@ struct rockchip_dfi {
 	struct device *dev;
 	void __iomem *regs;
 	struct regmap *regmap_pmu;
+	struct regmap *regmap_grf;
 	struct clk *clk;
+};
+
+static void rk3368_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
+{
+	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
+
+	regmap_write(info->regmap_grf, RK3368_GRF_DDRC0_CON0, RK3368_DFI_EN);
+}
+
+static void rk3368_dfi_stop_hardware_counter(struct devfreq_event_dev *edev)
+{
+	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
+
+	regmap_write(info->regmap_grf, RK3368_GRF_DDRC0_CON0, RK3368_DFI_DIS);
+}
+
+static int rk3368_dfi_disable(struct devfreq_event_dev *edev)
+{
+	rk3368_dfi_stop_hardware_counter(edev);
+
+	return 0;
+}
+
+static int rk3368_dfi_enable(struct devfreq_event_dev *edev)
+{
+	rk3368_dfi_start_hardware_counter(edev);
+
+	return 0;
+}
+
+static int rk3368_dfi_set_event(struct devfreq_event_dev *edev)
+{
+	return 0;
+}
+
+static int rk3368_dfi_get_event(struct devfreq_event_dev *edev,
+				struct devfreq_event_data *edata)
+{
+	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
+	unsigned long flags;
+	u32 dfi0_wr, dfi0_rd, dfi1_wr, dfi1_rd, dfi_timer;
+
+	local_irq_save(flags);
+
+	rk3368_dfi_stop_hardware_counter(edev);
+
+	regmap_read(info->regmap_grf, RK3368_GRF_SOC_STATUS5, &dfi0_wr);
+	regmap_read(info->regmap_grf, RK3368_GRF_SOC_STATUS6, &dfi0_rd);
+	regmap_read(info->regmap_grf, RK3368_GRF_SOC_STATUS9, &dfi1_wr);
+	regmap_read(info->regmap_grf, RK3368_GRF_SOC_STATUS10, &dfi1_rd);
+	regmap_read(info->regmap_grf, RK3368_GRF_SOC_STATUS8, &dfi_timer);
+
+	edata->load_count = (dfi0_wr + dfi0_rd + dfi1_wr + dfi1_rd) * 2;
+	edata->total_count = dfi_timer;
+
+	rk3368_dfi_start_hardware_counter(edev);
+
+	local_irq_restore(flags);
+
+	return 0;
+}
+
+static const struct devfreq_event_ops rk3368_dfi_ops = {
+	.disable = rk3368_dfi_disable,
+	.enable = rk3368_dfi_enable,
+	.get_event = rk3368_dfi_get_event,
+	.set_event = rk3368_dfi_set_event,
 };
 
 static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
@@ -187,22 +264,31 @@ static const struct devfreq_event_ops rockchip_dfi_ops = {
 	.set_event = rockchip_dfi_set_event,
 };
 
-static const struct of_device_id rockchip_dfi_id_match[] = {
-	{ .compatible = "rockchip,rk3399-dfi" },
-	{ },
-};
-
-static int rockchip_dfi_probe(struct platform_device *pdev)
+static __init int rk3368_dfi_init(struct platform_device *pdev,
+				  struct rockchip_dfi *data,
+				  struct devfreq_event_desc *desc)
 {
 	struct device *dev = &pdev->dev;
-	struct rockchip_dfi *data;
-	struct resource *res;
-	struct devfreq_event_desc *desc;
-	struct device_node *np = pdev->dev.of_node, *node;
 
-	data = devm_kzalloc(dev, sizeof(struct rockchip_dfi), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	if (!dev->parent || !dev->parent->of_node)
+		return -EINVAL;
+
+	data->regmap_grf = syscon_node_to_regmap(dev->parent->of_node);
+	if (IS_ERR(data->regmap_grf))
+		return PTR_ERR(data->regmap_grf);
+
+	desc->ops = &rk3368_dfi_ops;
+
+	return 0;
+}
+
+static __init int rockchip_dfi_init(struct platform_device *pdev,
+				    struct rockchip_dfi *data,
+				    struct devfreq_event_desc *desc)
+{
+	struct device *dev = &pdev->dev;
+	struct resource *res;
+	struct device_node *np = pdev->dev.of_node, *node;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->regs = devm_ioremap_resource(&pdev->dev, res);
@@ -222,23 +308,59 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 		if (IS_ERR(data->regmap_pmu))
 			return PTR_ERR(data->regmap_pmu);
 	}
-	data->dev = dev;
+
+	desc->ops = &rockchip_dfi_ops;
+
+	return 0;
+}
+
+static const struct of_device_id rockchip_dfi_id_match[] = {
+	{ .compatible = "rockchip,rk3368-dfi", .data = rk3368_dfi_init },
+	{ .compatible = "rockchip,rk3399-dfi", .data = rockchip_dfi_init },
+	{ },
+};
+
+static int rockchip_dfi_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct rockchip_dfi *data;
+	struct devfreq_event_desc *desc;
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
+	int (*init)(struct platform_device *pdev, struct rockchip_dfi *data,
+		    struct devfreq_event_desc *desc);
+
+	data = devm_kzalloc(dev, sizeof(struct rockchip_dfi), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 
-	desc->ops = &rockchip_dfi_ops;
+	match = of_match_node(rockchip_dfi_id_match, pdev->dev.of_node);
+	if (match) {
+		init = match->data;
+		if (init) {
+			if (init(pdev, data, desc))
+				return -EINVAL;
+		} else {
+			return 0;
+		}
+	} else {
+		return 0;
+	}
+
 	desc->driver_data = data;
 	desc->name = np->name;
-	data->desc = desc;
 
-	data->edev = devm_devfreq_event_add_edev(&pdev->dev, desc);
+	data->edev = devm_devfreq_event_add_edev(dev, desc);
 	if (IS_ERR(data->edev)) {
-		dev_err(&pdev->dev,
-			"failed to add devfreq-event device\n");
+		dev_err(dev, "failed to add devfreq-event device\n");
 		return PTR_ERR(data->edev);
 	}
+	data->desc = desc;
+	data->dev = &pdev->dev;
 
 	platform_set_drvdata(pdev, data);
 
