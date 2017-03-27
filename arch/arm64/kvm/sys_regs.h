@@ -83,24 +83,6 @@ static inline bool read_zero(struct kvm_vcpu *vcpu,
 	return true;
 }
 
-static inline bool write_to_read_only(struct kvm_vcpu *vcpu,
-				      const struct sys_reg_params *params)
-{
-	kvm_debug("sys_reg write to read-only register at: %lx\n",
-		  *vcpu_pc(vcpu));
-	print_sys_reg_instr(params);
-	return false;
-}
-
-static inline bool read_from_write_only(struct kvm_vcpu *vcpu,
-					const struct sys_reg_params *params)
-{
-	kvm_debug("sys_reg read to write-only register at: %lx\n",
-		  *vcpu_pc(vcpu));
-	print_sys_reg_instr(params);
-	return false;
-}
-
 /* Reset functions */
 static inline void reset_unknown(struct kvm_vcpu *vcpu,
 				 const struct sys_reg_desc *r)

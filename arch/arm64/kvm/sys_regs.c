@@ -55,6 +55,15 @@
  * 64bit interface.
  */
 
+static bool read_from_write_only(struct kvm_vcpu *vcpu,
+				 const struct sys_reg_params *params)
+{
+	WARN_ONCE(1, "Unexpected sys_reg read to write-only register\n");
+	print_sys_reg_instr(params);
+	kvm_inject_undefined(vcpu);
+	return false;
+}
+
 /* 3 bits per cache level, as per CLIDR, but non-existent caches always 0 */
 static u32 cache_levels;
 
