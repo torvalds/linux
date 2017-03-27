@@ -69,7 +69,7 @@ static struct airq_struct zpci_airq = {
 };
 
 #define ZPCI_IOMAP_ENTRIES						\
-	min(((unsigned long) CONFIG_PCI_NR_FUNCTIONS * PCI_BAR_COUNT),	\
+	min(((unsigned long) ZPCI_NR_DEVICES * PCI_BAR_COUNT / 2),	\
 	    ZPCI_IOMAP_MAX_ENTRIES)
 
 static DEFINE_SPINLOCK(zpci_iomap_lock);
