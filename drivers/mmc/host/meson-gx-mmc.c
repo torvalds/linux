@@ -456,6 +456,23 @@ static void meson_mmc_set_blksz(struct mmc_host *mmc, unsigned int blksz)
 	writel(cfg, host->regs + SD_EMMC_CFG);
 }
 
+static void meson_mmc_set_response_bits(struct mmc_command *cmd, u32 *cmd_cfg)
+{
+	if (cmd->flags & MMC_RSP_PRESENT) {
+		if (cmd->flags & MMC_RSP_136)
+			*cmd_cfg |= CMD_CFG_RESP_128;
+		*cmd_cfg |= CMD_CFG_RESP_NUM;
+
+		if (!(cmd->flags & MMC_RSP_CRC))
+			*cmd_cfg |= CMD_CFG_RESP_NOCRC;
+
+		if (cmd->flags & MMC_RSP_BUSY)
+			*cmd_cfg |= CMD_CFG_R1B;
+	} else {
+		*cmd_cfg |= CMD_CFG_NO_RESP;
+	}
+}
+
 static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -469,20 +486,7 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 	cmd_cfg |= FIELD_PREP(CMD_CFG_CMD_INDEX_MASK, cmd->opcode);
 	cmd_cfg |= CMD_CFG_OWNER;  /* owned by CPU */
 
-	/* Response */
-	if (cmd->flags & MMC_RSP_PRESENT) {
-		if (cmd->flags & MMC_RSP_136)
-			cmd_cfg |= CMD_CFG_RESP_128;
-		cmd_cfg |= CMD_CFG_RESP_NUM;
-
-		if (!(cmd->flags & MMC_RSP_CRC))
-			cmd_cfg |= CMD_CFG_RESP_NOCRC;
-
-		if (cmd->flags & MMC_RSP_BUSY)
-			cmd_cfg |= CMD_CFG_R1B;
-	} else {
-		cmd_cfg |= CMD_CFG_NO_RESP;
-	}
+	meson_mmc_set_response_bits(cmd, &cmd_cfg);
 
 	/* data? */
 	if (data) {
