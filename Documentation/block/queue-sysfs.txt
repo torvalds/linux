@@ -192,5 +192,11 @@ scaling back writes. Writing a value of '0' to this file disables the
 feature. Writing a value of '-1' to this file resets the value to the
 default setting.
 
+throttle_sample_time (RW)
+-------------------------
+This is the time window that blk-throttle samples data, in millisecond.
+blk-throttle makes decision based on the samplings. Lower time means cgroups
+have more smooth throughput, but higher CPU overhead. This exists only when
+CONFIG_BLK_DEV_THROTTLING_LOW is enabled.
 
 Jens Axboe <jens.axboe@oracle.com>, February 2009
