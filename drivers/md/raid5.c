@@ -8292,17 +8292,41 @@ static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
 	}
 
 	if (strncmp(buf, "ppl", 3) == 0 && !raid5_has_ppl(conf)) {
-		mddev_suspend(mddev);
-		set_bit(MD_HAS_PPL, &mddev->flags);
-		err = log_init(conf, NULL);
-		if (!err)
+		/* ppl only works with RAID 5 */
+		if (conf->level == 5) {
+			mddev_suspend(mddev);
+			set_bit(MD_HAS_PPL, &mddev->flags);
+			err = log_init(conf, NULL);
+			if (!err)
+				raid5_reset_stripe_cache(mddev);
+			mddev_resume(mddev);
+		} else
+			err = -EINVAL;
+	} else if (strncmp(buf, "resync", 6) == 0) {
+		if (raid5_has_ppl(conf)) {
+			mddev_suspend(mddev);
+			log_exit(conf);
 			raid5_reset_stripe_cache(mddev);
-		mddev_resume(mddev);
-	} else if (strncmp(buf, "resync", 6) == 0 && raid5_has_ppl(conf)) {
-		mddev_suspend(mddev);
-		log_exit(conf);
-		raid5_reset_stripe_cache(mddev);
-		mddev_resume(mddev);
+			mddev_resume(mddev);
+		} else if (test_bit(MD_HAS_JOURNAL, &conf->mddev->flags) &&
+			   r5l_log_disk_error(conf)) {
+			bool journal_dev_exists = false;
+			struct md_rdev *rdev;
+
+			rdev_for_each(rdev, mddev)
+				if (test_bit(Journal, &rdev->flags)) {
+					journal_dev_exists = true;
+					break;
+				}
+
+			if (!journal_dev_exists) {
+				mddev_suspend(mddev);
+				clear_bit(MD_HAS_JOURNAL, &mddev->flags);
+				mddev_resume(mddev);
+			} else  /* need remove journal device first */
+				err = -EBUSY;
+		} else
+			err = -EINVAL;
 	} else {
 		err = -EINVAL;
 	}
@@ -8337,6 +8361,7 @@ static struct md_personality raid6_personality =
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid6_takeover,
 	.congested	= raid5_congested,
+	.change_consistency_policy = raid5_change_consistency_policy,
 };
 static struct md_personality raid5_personality =
 {
@@ -8385,6 +8410,7 @@ static struct md_personality raid4_personality =
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid4_takeover,
 	.congested	= raid5_congested,
+	.change_consistency_policy = raid5_change_consistency_policy,
 };
 
 static int __init raid5_init(void)
