@@ -243,7 +243,7 @@ unsigned char spk_serial_in_nowait(void)
 }
 EXPORT_SYMBOL_GPL(spk_serial_in_nowait);
 
-int spk_serial_out(struct spk_synth *in_synth, const char ch)
+static int spk_serial_out(struct spk_synth *in_synth, const char ch)
 {
 	if (in_synth->alive && spk_wait_for_xmitr(in_synth)) {
 		outb_p(ch, speakup_info.port_tts);
