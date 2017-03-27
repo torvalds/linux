@@ -1496,26 +1496,10 @@ static int knl_get_turbo_pstate(void)
 	return ret;
 }
 
-static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
+static int intel_pstate_get_base_pstate(struct cpudata *cpu)
 {
-	int max_perf = cpu->pstate.turbo_pstate;
-	int max_perf_adj;
-	int min_perf;
-
-	if (global.no_turbo || global.turbo_disabled)
-		max_perf = cpu->pstate.max_pstate;
-
-	/*
-	 * performance can be limited by user through sysfs, by cpufreq
-	 * policy, or by cpu specific default values determined through
-	 * experimentation.
-	 */
-	max_perf_adj = fp_ext_toint(max_perf * cpu->max_perf);
-	*max = clamp_t(int, max_perf_adj,
-			cpu->pstate.min_pstate, cpu->pstate.turbo_pstate);
-
-	min_perf = fp_ext_toint(max_perf * cpu->min_perf);
-	*min = clamp_t(int, min_perf, cpu->pstate.min_pstate, max_perf);
+	return global.no_turbo || global.turbo_disabled ?
+			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
 }
 
 static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
@@ -1538,11 +1522,13 @@ static void intel_pstate_set_min_pstate(struct cpudata *cpu)
 
 static void intel_pstate_max_within_limits(struct cpudata *cpu)
 {
-	int min_pstate, max_pstate;
+	int pstate;
 
 	update_turbo_state();
-	intel_pstate_get_min_max(cpu, &min_pstate, &max_pstate);
-	intel_pstate_set_pstate(cpu, max_pstate);
+	pstate = intel_pstate_get_base_pstate(cpu);
+	pstate = max(cpu->pstate.min_pstate,
+		     fp_ext_toint(pstate * cpu->max_perf));
+	intel_pstate_set_pstate(cpu, pstate);
 }
 
 static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
@@ -1704,11 +1690,13 @@ static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
 
 static int intel_pstate_prepare_request(struct cpudata *cpu, int pstate)
 {
-	int max_perf, min_perf;
+	int max_pstate = intel_pstate_get_base_pstate(cpu);
+	int min_pstate;
 
-	intel_pstate_get_min_max(cpu, &min_perf, &max_perf);
-	pstate = clamp_t(int, pstate, min_perf, max_perf);
-	return pstate;
+	min_pstate = max(cpu->pstate.min_pstate,
+			 fp_ext_toint(max_pstate * cpu->min_perf));
+	max_pstate = max(min_pstate, fp_ext_toint(max_pstate * cpu->max_perf));
+	return clamp_t(int, pstate, min_pstate, max_pstate);
 }
 
 static void intel_pstate_update_pstate(struct cpudata *cpu, int pstate)
