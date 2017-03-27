@@ -24,6 +24,7 @@
 
 #include <linux/pci-epc.h>
 #include <linux/pci-epf.h>
+#include <linux/pci-ep-cfs.h>
 
 static struct bus_type pci_epf_bus_type;
 static struct device_type pci_epf_type;
@@ -149,6 +150,7 @@ EXPORT_SYMBOL_GPL(pci_epf_alloc_space);
  */
 void pci_epf_unregister_driver(struct pci_epf_driver *driver)
 {
+	pci_ep_cfs_remove_epf_group(driver->group);
 	driver_unregister(&driver->driver);
 }
 EXPORT_SYMBOL_GPL(pci_epf_unregister_driver);
@@ -177,6 +179,8 @@ int __pci_epf_register_driver(struct pci_epf_driver *driver,
 	ret = driver_register(&driver->driver);
 	if (ret)
 		return ret;
+
+	driver->group = pci_ep_cfs_add_epf_group(driver->driver.name);
 
 	return 0;
 }

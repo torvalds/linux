@@ -82,6 +82,7 @@ struct pci_epf_ops {
  * @driver: PCI EPF driver
  * @ops: set of function pointers for performing EPF operations
  * @owner: the owner of the module that registers the PCI EPF driver
+ * @group: configfs group corresponding to the PCI EPF driver
  * @id_table: identifies EPF devices for probing
  */
 struct pci_epf_driver {
@@ -91,6 +92,7 @@ struct pci_epf_driver {
 	struct device_driver	driver;
 	struct pci_epf_ops	*ops;
 	struct module		*owner;
+	struct config_group	*group;
 	const struct pci_epf_device_id	*id_table;
 };
 

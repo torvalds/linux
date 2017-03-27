@@ -24,6 +24,7 @@
 
 #include <linux/pci-epc.h>
 #include <linux/pci-epf.h>
+#include <linux/pci-ep-cfs.h>
 
 static struct class *pci_epc_class;
 
@@ -442,6 +443,7 @@ EXPORT_SYMBOL_GPL(pci_epc_linkup);
  */
 void pci_epc_destroy(struct pci_epc *epc)
 {
+	pci_ep_cfs_remove_epc_group(epc->group);
 	device_unregister(&epc->dev);
 	kfree(epc);
 }
@@ -507,6 +509,8 @@ __pci_epc_create(struct device *dev, const struct pci_epc_ops *ops,
 	ret = device_add(&epc->dev);
 	if (ret)
 		goto put_dev;
+
+	epc->group = pci_ep_cfs_add_epc_group(dev_name(dev));
 
 	return epc;
 
