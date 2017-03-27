@@ -453,10 +453,10 @@ void ttm_object_file_release(struct ttm_object_file **p_tfile)
 		ttm_ref_object_release(&ref->kref);
 	}
 
+	spin_unlock(&tfile->lock);
 	for (i = 0; i < TTM_REF_NUM; ++i)
 		drm_ht_remove(&tfile->ref_hash[i]);
 
-	spin_unlock(&tfile->lock);
 	ttm_object_file_unref(&tfile);
 }
 EXPORT_SYMBOL(ttm_object_file_release);
@@ -533,9 +533,7 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
 
 	*p_tdev = NULL;
 
-	spin_lock(&tdev->object_lock);
 	drm_ht_remove(&tdev->object_hash);
-	spin_unlock(&tdev->object_lock);
 
 	kfree(tdev);
 }
