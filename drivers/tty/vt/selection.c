@@ -84,7 +84,7 @@ void clear_selection(void)
  */
 static u32 inwordLut[8]={
   0x00000000, /* control chars     */
-  0x03FF0000, /* digits            */
+  0x03FFE000, /* digits and "-./"  */
   0x87FFFFFE, /* uppercase and '_' */
   0x07FFFFFE, /* lowercase         */
   0x00000000,
