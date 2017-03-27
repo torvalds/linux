@@ -405,10 +405,8 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	if (unlikely(r != 0))
 		return r;
 
-	bo->tbo.priority = ilog2(bo->tbo.num_pages);
 	if (kernel)
-		bo->tbo.priority *= 2;
-	bo->tbo.priority = min(bo->tbo.priority, (unsigned)(TTM_MAX_BO_PRIORITY - 1));
+		bo->tbo.priority = 1;
 
 	if (flags & AMDGPU_GEM_CREATE_VRAM_CLEARED &&
 	    bo->tbo.mem.placement & TTM_PL_FLAG_VRAM) {
