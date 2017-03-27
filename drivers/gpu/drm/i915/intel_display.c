@@ -9178,6 +9178,31 @@ static u32 intel_cursor_position(const struct intel_plane_state *plane_state)
 	return pos;
 }
 
+static int intel_check_cursor(struct intel_crtc_state *crtc_state,
+			      struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	int ret;
+
+	ret = drm_plane_helper_check_state(&plane_state->base,
+					   &plane_state->clip,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   true, true);
+	if (ret)
+		return ret;
+
+	if (!fb)
+		return 0;
+
+	if (fb->modifier != DRM_FORMAT_MOD_LINEAR) {
+		DRM_DEBUG_KMS("cursor cannot be tiled\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state)
 {
@@ -9201,6 +9226,68 @@ static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 		CURSOR_GAMMA_ENABLE |
 		CURSOR_FORMAT_ARGB |
 		CURSOR_STRIDE(stride);
+}
+
+static bool i845_cursor_size_ok(const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	int width = plane_state->base.crtc_w;
+	int height = plane_state->base.crtc_h;
+
+	if (width == 0 || height == 0)
+		return false;
+
+	/*
+	 * 845g/865g are only limited by the width of their cursors,
+	 * the height is arbitrary up to the precision of the register.
+	 */
+	if (!IS_ALIGNED(width, 64))
+		return false;
+
+	if (width > (IS_I845G(dev_priv) ? 64 : 512))
+		return false;
+
+	if (height > 1023)
+		return false;
+
+	return true;
+}
+
+static int i845_check_cursor(struct intel_plane *plane,
+			     struct intel_crtc_state *crtc_state,
+			     struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	const struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	unsigned int stride;
+	int ret;
+
+	ret = intel_check_cursor(crtc_state, plane_state);
+	if (ret)
+		return ret;
+
+	/* if we want to turn off the cursor ignore width and height */
+	if (!obj)
+		return 0;
+
+	/* Check for which cursor types we support */
+	if (!i845_cursor_size_ok(plane_state)) {
+		DRM_DEBUG("Cursor dimension %dx%d not supported\n",
+			  plane_state->base.crtc_w,
+			  plane_state->base.crtc_h);
+		return -EINVAL;
+	}
+
+	stride = roundup_pow_of_two(plane_state->base.crtc_w) * 4;
+	if (obj->base.size < stride * plane_state->base.crtc_h) {
+		DRM_DEBUG_KMS("buffer is too small\n");
+		return -ENOMEM;
+	}
+
+	plane_state->ctl = i845_cursor_ctl(crtc_state, plane_state);
+
+	return 0;
 }
 
 static void i845_update_cursor(struct intel_plane *plane,
@@ -9298,6 +9385,88 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 	return cntl;
 }
 
+static bool i9xx_cursor_size_ok(const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	int width = plane_state->base.crtc_w;
+	int height = plane_state->base.crtc_h;
+
+	if (width == 0 || height == 0)
+		return false;
+
+	/*
+	 * Cursors are limited to a few power-of-two
+	 * sizes, and they must be square.
+	 */
+	switch (width | height) {
+	case 256:
+	case 128:
+		if (IS_GEN2(dev_priv))
+			return false;
+	case 64:
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+static int i9xx_check_cursor(struct intel_plane *plane,
+			     struct intel_crtc_state *crtc_state,
+			     struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	const struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	enum pipe pipe = plane->pipe;
+	unsigned int stride;
+	int ret;
+
+	ret = intel_check_cursor(crtc_state, plane_state);
+	if (ret)
+		return ret;
+
+	/* if we want to turn off the cursor ignore width and height */
+	if (!obj)
+		return 0;
+
+	/* Check for which cursor types we support */
+	if (!i9xx_cursor_size_ok(plane_state)) {
+		DRM_DEBUG("Cursor dimension %dx%d not supported\n",
+			  plane_state->base.crtc_w,
+			  plane_state->base.crtc_h);
+		return -EINVAL;
+	}
+
+	stride = roundup_pow_of_two(plane_state->base.crtc_w) * 4;
+	if (obj->base.size < stride * plane_state->base.crtc_h) {
+		DRM_DEBUG_KMS("buffer is too small\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * There's something wrong with the cursor on CHV pipe C.
+	 * If it straddles the left edge of the screen then
+	 * moving it away from the edge or disabling it often
+	 * results in a pipe underrun, and often that can lead to
+	 * dead pipe (constant underrun reported, and it scans
+	 * out just a solid color). To recover from that, the
+	 * display power well must be turned off and on again.
+	 * Refuse the put the cursor into that compromised position.
+	 */
+	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_C &&
+	    plane_state->base.visible && plane_state->base.crtc_x < 0) {
+		DRM_DEBUG_KMS("CHV cursor C not allowed to straddle the left screen edge\n");
+		return -EINVAL;
+	}
+
+	plane_state->ctl = i9xx_cursor_ctl(crtc_state, plane_state);
+
+	return 0;
+}
+
 static void i9xx_update_cursor(struct intel_plane *plane,
 			       const struct intel_crtc_state *crtc_state,
 			       const struct intel_plane_state *plane_state)
@@ -9340,42 +9509,6 @@ static void i9xx_disable_cursor(struct intel_plane *plane,
 	i9xx_update_cursor(plane, NULL, NULL);
 }
 
-static bool cursor_size_ok(struct drm_i915_private *dev_priv,
-			   uint32_t width, uint32_t height)
-{
-	if (width == 0 || height == 0)
-		return false;
-
-	/*
-	 * 845g/865g are special in that they are only limited by
-	 * the width of their cursors, the height is arbitrary up to
-	 * the precision of the register. Everything else requires
-	 * square cursors, limited to a few power-of-two sizes.
-	 */
-	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
-		if ((width & 63) != 0)
-			return false;
-
-		if (width > (IS_I845G(dev_priv) ? 64 : 512))
-			return false;
-
-		if (height > 1023)
-			return false;
-	} else {
-		switch (width | height) {
-		case 256:
-		case 128:
-			if (IS_GEN2(dev_priv))
-				return false;
-		case 64:
-			break;
-		default:
-			return false;
-		}
-	}
-
-	return true;
-}
 
 /* VESA 640x480x72Hz mode to set on the pipe */
 static struct drm_display_mode load_detect_mode = {
@@ -13668,73 +13801,6 @@ fail:
 	return ERR_PTR(ret);
 }
 
-static int
-intel_check_cursor_plane(struct intel_plane *plane,
-			 struct intel_crtc_state *crtc_state,
-			 struct intel_plane_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	const struct drm_framebuffer *fb = state->base.fb;
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	enum pipe pipe = plane->pipe;
-	unsigned stride;
-	int ret;
-
-	ret = drm_plane_helper_check_state(&state->base,
-					   &state->clip,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   true, true);
-	if (ret)
-		return ret;
-
-	/* if we want to turn off the cursor ignore width and height */
-	if (!obj)
-		return 0;
-
-	/* Check for which cursor types we support */
-	if (!cursor_size_ok(dev_priv, state->base.crtc_w,
-			    state->base.crtc_h)) {
-		DRM_DEBUG("Cursor dimension %dx%d not supported\n",
-			  state->base.crtc_w, state->base.crtc_h);
-		return -EINVAL;
-	}
-
-	stride = roundup_pow_of_two(state->base.crtc_w) * 4;
-	if (obj->base.size < stride * state->base.crtc_h) {
-		DRM_DEBUG_KMS("buffer is too small\n");
-		return -ENOMEM;
-	}
-
-	if (fb->modifier != DRM_FORMAT_MOD_LINEAR) {
-		DRM_DEBUG_KMS("cursor cannot be tiled\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * There's something wrong with the cursor on CHV pipe C.
-	 * If it straddles the left edge of the screen then
-	 * moving it away from the edge or disabling it often
-	 * results in a pipe underrun, and often that can lead to
-	 * dead pipe (constant underrun reported, and it scans
-	 * out just a solid color). To recover from that, the
-	 * display power well must be turned off and on again.
-	 * Refuse the put the cursor into that compromised position.
-	 */
-	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_C &&
-	    state->base.visible && state->base.crtc_x < 0) {
-		DRM_DEBUG_KMS("CHV cursor C not allowed to straddle the left screen edge\n");
-		return -EINVAL;
-	}
-
-	if (IS_I845G(dev_priv) || IS_I865G(dev_priv))
-		state->ctl = i845_cursor_ctl(crtc_state, state);
-	else
-		state->ctl = i9xx_cursor_ctl(crtc_state, state);
-
-	return 0;
-}
-
 static struct intel_plane *
 intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 			  enum pipe pipe)
@@ -13763,14 +13829,15 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 	cursor->plane = pipe;
 	cursor->id = PLANE_CURSOR;
 	cursor->frontbuffer_bit = INTEL_FRONTBUFFER_CURSOR(pipe);
-	cursor->check_plane = intel_check_cursor_plane;
 
 	if (IS_I845G(dev_priv) || IS_I865G(dev_priv)) {
 		cursor->update_plane = i845_update_cursor;
 		cursor->disable_plane = i845_disable_cursor;
+		cursor->check_plane = i845_check_cursor;
 	} else {
 		cursor->update_plane = i9xx_update_cursor;
 		cursor->disable_plane = i9xx_disable_cursor;
+		cursor->check_plane = i9xx_check_cursor;
 	}
 
 	cursor->cursor.base = ~0;
