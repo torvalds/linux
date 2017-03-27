@@ -685,6 +685,30 @@
 		vbus-5v-gpios = <&gpio2 0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+
+	gsl3680: gsl3680@41 {
+		status = "disabled";
+		compatible = "gslX680-pad";
+		reg = <0x41>;
+		screen_max_x = <1536>;
+		screen_max_y = <2048>;
+		touch-gpio = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpio = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+	};
+
+	mpu6050: mpu@68 {
+		status = "disabled";
+		compatible = "invensense,mpu6050";
+		reg = <0x68>;
+		mpu-int_config = <0x10>;
+		mpu-level_shifter = <0>;
+		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
+		orientation-x= <1>;
+		orientation-y= <1>;
+		orientation-z= <1>;
+		irq-gpio = <&gpio1 4 IRQ_TYPE_LEVEL_LOW>;
+		mpu-debug = <1>;
+	};
 };
 
 &i2s0 {
