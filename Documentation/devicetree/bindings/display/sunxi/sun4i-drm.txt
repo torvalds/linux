@@ -94,6 +94,7 @@ Required properties:
     * allwinner,sun6i-a31-display-backend
     * allwinner,sun8i-a33-display-backend
   - reg: base address and size of the memory-mapped region.
+  - interrupts: interrupt associated to this IP
   - clocks: phandles to the clocks feeding the frontend and backend
     * ahb: the backend interface clock
     * mod: the backend module clock
@@ -265,6 +266,7 @@ fe0: display-frontend@1e00000 {
 be0: display-backend@1e60000 {
 	compatible = "allwinner,sun5i-a13-display-backend";
 	reg = <0x01e60000 0x10000>;
+	interrupts = <47>;
 	clocks = <&ahb_gates 44>, <&de_be_clk>,
 		 <&dram_gates 26>;
 	clock-names = "ahb", "mod",
