@@ -772,16 +772,15 @@ static bool access_pmswinc(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	if (!kvm_arm_pmu_v3_ready(vcpu))
 		return trap_raz_wi(vcpu, p, r);
 
+	if (!p->is_write)
+		return read_from_write_only(vcpu, p);
+
 	if (pmu_write_swinc_el0_disabled(vcpu))
 		return false;
 
-	if (p->is_write) {
-		mask = kvm_pmu_valid_counter_mask(vcpu);
-		kvm_pmu_software_increment(vcpu, p->regval & mask);
-		return true;
-	}
-
-	return false;
+	mask = kvm_pmu_valid_counter_mask(vcpu);
+	kvm_pmu_software_increment(vcpu, p->regval & mask);
+	return true;
 }
 
 static bool access_pmuserenr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
