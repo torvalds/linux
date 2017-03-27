@@ -90,6 +90,10 @@ struct usb_card_rec {
 	struct urb_context tx_cmd;
 	u8 mc_resync_flag;
 	struct usb_tx_data_port port[MWIFIEX_TX_DATA_PORT];
+	int rx_cmd_ep_type;
+	u8 rx_cmd_interval;
+	int tx_cmd_ep_type;
+	u8 tx_cmd_interval;
 };
 
 struct fw_header {
