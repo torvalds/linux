@@ -74,6 +74,11 @@ static inline int ceiling_fp(int32_t x)
 	return ret;
 }
 
+static inline int32_t percent_fp(int percent)
+{
+	return div_fp(percent, 100);
+}
+
 static inline u64 mul_ext_fp(u64 x, u64 y)
 {
 	return (x * y) >> EXT_FRAC_BITS;
@@ -507,29 +512,6 @@ static inline void intel_pstate_exit_perf_limits(struct cpufreq_policy *policy)
 }
 #endif
 
-static inline void pid_reset(struct _pid *pid, int setpoint, int busy,
-			     int deadband, int integral) {
-	pid->setpoint = int_tofp(setpoint);
-	pid->deadband  = int_tofp(deadband);
-	pid->integral  = int_tofp(integral);
-	pid->last_err  = int_tofp(setpoint) - int_tofp(busy);
-}
-
-static inline void pid_p_gain_set(struct _pid *pid, int percent)
-{
-	pid->p_gain = div_fp(percent, 100);
-}
-
-static inline void pid_i_gain_set(struct _pid *pid, int percent)
-{
-	pid->i_gain = div_fp(percent, 100);
-}
-
-static inline void pid_d_gain_set(struct _pid *pid, int percent)
-{
-	pid->d_gain = div_fp(percent, 100);
-}
-
 static signed int pid_calc(struct _pid *pid, int32_t busy)
 {
 	signed int result;
@@ -567,13 +549,17 @@ static signed int pid_calc(struct _pid *pid, int32_t busy)
 	return (signed int)fp_toint(result);
 }
 
-static inline void intel_pstate_busy_pid_reset(struct cpudata *cpu)
+static inline void intel_pstate_pid_reset(struct cpudata *cpu)
 {
-	pid_p_gain_set(&cpu->pid, pid_params.p_gain_pct);
-	pid_d_gain_set(&cpu->pid, pid_params.d_gain_pct);
-	pid_i_gain_set(&cpu->pid, pid_params.i_gain_pct);
+	struct _pid *pid = &cpu->pid;
 
-	pid_reset(&cpu->pid, pid_params.setpoint, 100, pid_params.deadband, 0);
+	pid->p_gain = percent_fp(pid_params.p_gain_pct);
+	pid->d_gain = percent_fp(pid_params.d_gain_pct);
+	pid->i_gain = percent_fp(pid_params.i_gain_pct);
+	pid->setpoint = int_tofp(pid_params.setpoint);
+	pid->last_err  = pid->setpoint - int_tofp(100);
+	pid->deadband  = int_tofp(pid_params.deadband);
+	pid->integral  = 0;
 }
 
 static inline void update_turbo_state(void)
@@ -937,7 +923,7 @@ static int pid_param_set(void *data, u64 val)
 	pid_params.sample_rate_ns = pid_params.sample_rate_ms * NSEC_PER_MSEC;
 	for_each_possible_cpu(cpu)
 		if (all_cpu_data[cpu])
-			intel_pstate_busy_pid_reset(all_cpu_data[cpu]);
+			intel_pstate_pid_reset(all_cpu_data[cpu]);
 
 	return 0;
 }
@@ -1931,7 +1917,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 	intel_pstate_get_cpu_pstates(cpu);
 
-	intel_pstate_busy_pid_reset(cpu);
+	intel_pstate_pid_reset(cpu);
 
 	pr_debug("controlling: cpu %d\n", cpunum);
 
