@@ -6290,6 +6290,17 @@ intel_reduce_m_n_ratio(uint32_t *num, uint32_t *den)
 static void compute_m_n(unsigned int m, unsigned int n,
 			uint32_t *ret_m, uint32_t *ret_n)
 {
+	/*
+	 * Reduce M/N as much as possible without loss in precision. Several DP
+	 * dongles in particular seem to be fussy about too large *link* M/N
+	 * values. The passed in values are more likely to have the least
+	 * significant bits zero than M after rounding below, so do this first.
+	 */
+	while ((m & 1) == 0 && (n & 1) == 0) {
+		m >>= 1;
+		n >>= 1;
+	}
+
 	*ret_n = min_t(unsigned int, roundup_pow_of_two(n), DATA_LINK_N_MAX);
 	*ret_m = div_u64((uint64_t) m * *ret_n, n);
 	intel_reduce_m_n_ratio(ret_m, ret_n);
