@@ -1246,20 +1246,22 @@ init_thread:
 	return err;
 }
 
-static void destroy_discard_cmd_control(struct f2fs_sb_info *sbi, bool free)
+static void destroy_discard_cmd_control(struct f2fs_sb_info *sbi)
 {
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
 
-	if (dcc && dcc->f2fs_issue_discard) {
+	if (!dcc)
+		return;
+
+	if (dcc->f2fs_issue_discard) {
 		struct task_struct *discard_thread = dcc->f2fs_issue_discard;
 
 		dcc->f2fs_issue_discard = NULL;
 		kthread_stop(discard_thread);
 	}
-	if (free) {
-		kfree(dcc);
-		SM_I(sbi)->dcc_info = NULL;
-	}
+
+	kfree(dcc);
+	SM_I(sbi)->dcc_info = NULL;
 }
 
 static bool __mark_sit_entry_dirty(struct f2fs_sb_info *sbi, unsigned int segno)
@@ -3152,7 +3154,7 @@ void destroy_segment_manager(struct f2fs_sb_info *sbi)
 	if (!sm_info)
 		return;
 	destroy_flush_cmd_control(sbi, true);
-	destroy_discard_cmd_control(sbi, true);
+	destroy_discard_cmd_control(sbi);
 	destroy_dirty_segmap(sbi);
 	destroy_curseg(sbi);
 	destroy_free_segmap(sbi);
