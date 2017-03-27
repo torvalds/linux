@@ -2981,10 +2981,8 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		dspcntr |= DISPPLANE_PIPE_CSC_ENABLE;
 
-	if (INTEL_GEN(dev_priv) < 4) {
-		if (crtc->pipe == PIPE_B)
-			dspcntr |= DISPPLANE_SEL_PIPE_B;
-	}
+	if (INTEL_GEN(dev_priv) < 4)
+		dspcntr |= DISPPLANE_SEL_PIPE(crtc->pipe);
 
 	switch (fb->format->format) {
 	case DRM_FORMAT_C8:
@@ -9217,7 +9215,6 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv =
 		to_i915(plane_state->base.plane->dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	enum pipe pipe = crtc->pipe;
 	u32 cntl;
 
 	cntl = MCURSOR_GAMMA_ENABLE;
@@ -9225,7 +9222,7 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 	if (HAS_DDI(dev_priv))
 		cntl |= CURSOR_PIPE_CSC_ENABLE;
 
-	cntl |= pipe << 28; /* Connect to correct pipe */
+	cntl |= MCURSOR_PIPE_SELECT(crtc->pipe);
 
 	switch (plane_state->base.crtc_w) {
 	case 64:
