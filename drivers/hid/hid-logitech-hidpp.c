@@ -761,6 +761,7 @@ static int hidpp20_battery_event(struct hidpp_device *hidpp,
 static enum power_supply_property hidpp_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_SCOPE,
 };
 
 static int hidpp_battery_get_property(struct power_supply *psy,
@@ -776,6 +777,9 @@ static int hidpp_battery_get_property(struct power_supply *psy,
 			break;
 		case POWER_SUPPLY_PROP_CAPACITY:
 			val->intval = hidpp->battery.level;
+			break;
+		case POWER_SUPPLY_PROP_SCOPE:
+			val->intval = POWER_SUPPLY_SCOPE_DEVICE;
 			break;
 		default:
 			ret = -EINVAL;
