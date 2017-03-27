@@ -103,6 +103,17 @@ nf_ct_exp_equal(const struct nf_conntrack_tuple *tuple,
 	       nf_ct_zone_equal_any(i->master, zone);
 }
 
+bool nf_ct_remove_expect(struct nf_conntrack_expect *exp)
+{
+	if (del_timer(&exp->timeout)) {
+		nf_ct_unlink_expect(exp);
+		nf_ct_expect_put(exp);
+		return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(nf_ct_remove_expect);
+
 struct nf_conntrack_expect *
 __nf_ct_expect_find(struct net *net,
 		    const struct nf_conntrack_zone *zone,
@@ -211,10 +222,7 @@ void nf_ct_remove_expectations(struct nf_conn *ct)
 
 	spin_lock_bh(&nf_conntrack_expect_lock);
 	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
-		if (del_timer(&exp->timeout)) {
-			nf_ct_unlink_expect(exp);
-			nf_ct_expect_put(exp);
-		}
+		nf_ct_remove_expect(exp);
 	}
 	spin_unlock_bh(&nf_conntrack_expect_lock);
 }
@@ -255,10 +263,7 @@ static inline int expect_matches(const struct nf_conntrack_expect *a,
 void nf_ct_unexpect_related(struct nf_conntrack_expect *exp)
 {
 	spin_lock_bh(&nf_conntrack_expect_lock);
-	if (del_timer(&exp->timeout)) {
-		nf_ct_unlink_expect(exp);
-		nf_ct_expect_put(exp);
-	}
+	nf_ct_remove_expect(exp);
 	spin_unlock_bh(&nf_conntrack_expect_lock);
 }
 EXPORT_SYMBOL_GPL(nf_ct_unexpect_related);
@@ -394,10 +399,8 @@ static void evict_oldest_expect(struct nf_conn *master,
 			last = exp;
 	}
 
-	if (last && del_timer(&last->timeout)) {
-		nf_ct_unlink_expect(last);
-		nf_ct_expect_put(last);
-	}
+	if (last)
+		nf_ct_remove_expect(last);
 }
 
 static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
@@ -419,11 +422,8 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 	h = nf_ct_expect_dst_hash(net, &expect->tuple);
 	hlist_for_each_entry_safe(i, next, &nf_ct_expect_hash[h], hnode) {
 		if (expect_matches(i, expect)) {
-			if (del_timer(&i->timeout)) {
-				nf_ct_unlink_expect(i);
-				nf_ct_expect_put(i);
+			if (nf_ct_remove_expect(expect))
 				break;
-			}
 		} else if (expect_clash(i, expect)) {
 			ret = -EBUSY;
 			goto out;

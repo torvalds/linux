@@ -829,10 +829,8 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
 		if ((exp->class != SIP_EXPECT_SIGNALLING) ^ media)
 			continue;
-		if (!del_timer(&exp->timeout))
+		if (!nf_ct_remove_expect(exp))
 			continue;
-		nf_ct_unlink_expect(exp);
-		nf_ct_expect_put(exp);
 		if (!media)
 			break;
 	}

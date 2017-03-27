@@ -451,11 +451,8 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 			if ((rcu_dereference_protected(
 					help->helper,
 					lockdep_is_held(&nf_conntrack_expect_lock)
-					) == me || exp->helper == me) &&
-			    del_timer(&exp->timeout)) {
-				nf_ct_unlink_expect(exp);
-				nf_ct_expect_put(exp);
-			}
+					) == me || exp->helper == me))
+				nf_ct_remove_expect(exp);
 		}
 	}
 	spin_unlock_bh(&nf_conntrack_expect_lock);
