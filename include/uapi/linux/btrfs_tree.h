@@ -1,6 +1,7 @@
 #ifndef _BTRFS_CTREE_H_
 #define _BTRFS_CTREE_H_
 
+#include <linux/btrfs.h>
 #include <linux/types.h>
 
 /*
