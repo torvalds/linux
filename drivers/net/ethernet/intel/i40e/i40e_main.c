@@ -9253,6 +9253,8 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	u8 broadcast[ETH_ALEN];
 	u8 mac_addr[ETH_ALEN];
 	int etherdev_size;
+	netdev_features_t hw_enc_features;
+	netdev_features_t hw_features;
 
 	etherdev_size = sizeof(struct i40e_netdev_priv);
 	netdev = alloc_etherdev_mq(etherdev_size, vsi->alloc_queue_pairs);
@@ -9263,43 +9265,43 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	np = netdev_priv(netdev);
 	np->vsi = vsi;
 
-	netdev->hw_enc_features |= NETIF_F_SG			|
-				   NETIF_F_IP_CSUM		|
-				   NETIF_F_IPV6_CSUM		|
-				   NETIF_F_HIGHDMA		|
-				   NETIF_F_SOFT_FEATURES	|
-				   NETIF_F_TSO			|
-				   NETIF_F_TSO_ECN		|
-				   NETIF_F_TSO6			|
-				   NETIF_F_GSO_GRE		|
-				   NETIF_F_GSO_GRE_CSUM		|
-				   NETIF_F_GSO_IPXIP4		|
-				   NETIF_F_GSO_IPXIP6		|
-				   NETIF_F_GSO_UDP_TUNNEL	|
-				   NETIF_F_GSO_UDP_TUNNEL_CSUM	|
-				   NETIF_F_GSO_PARTIAL		|
-				   NETIF_F_SCTP_CRC		|
-				   NETIF_F_RXHASH		|
-				   NETIF_F_RXCSUM		|
-				   0;
+	hw_enc_features = NETIF_F_SG			|
+			  NETIF_F_IP_CSUM		|
+			  NETIF_F_IPV6_CSUM		|
+			  NETIF_F_HIGHDMA		|
+			  NETIF_F_SOFT_FEATURES		|
+			  NETIF_F_TSO			|
+			  NETIF_F_TSO_ECN		|
+			  NETIF_F_TSO6			|
+			  NETIF_F_GSO_GRE		|
+			  NETIF_F_GSO_GRE_CSUM		|
+			  NETIF_F_GSO_PARTIAL		|
+			  NETIF_F_GSO_UDP_TUNNEL	|
+			  NETIF_F_GSO_UDP_TUNNEL_CSUM	|
+			  NETIF_F_SCTP_CRC		|
+			  NETIF_F_RXHASH		|
+			  NETIF_F_RXCSUM		|
+			  0;
 
 	if (!(pf->flags & I40E_FLAG_OUTER_UDP_CSUM_CAPABLE))
 		netdev->gso_partial_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
 	netdev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
 
+	netdev->hw_enc_features |= hw_enc_features;
+
 	/* record features VLANs can make use of */
-	netdev->vlan_features |= netdev->hw_enc_features |
-				 NETIF_F_TSO_MANGLEID;
+	netdev->vlan_features |= hw_enc_features | NETIF_F_TSO_MANGLEID;
 
 	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
 		netdev->hw_features |= NETIF_F_NTUPLE;
+	hw_features = hw_enc_features		|
+		      NETIF_F_HW_VLAN_CTAG_TX	|
+		      NETIF_F_HW_VLAN_CTAG_RX;
 
-	netdev->hw_features |= netdev->hw_enc_features	|
-			       NETIF_F_HW_VLAN_CTAG_TX	|
-			       NETIF_F_HW_VLAN_CTAG_RX;
+	netdev->hw_features |= hw_features;
 
-	netdev->features |= netdev->hw_features | NETIF_F_HW_VLAN_CTAG_FILTER;
+	netdev->features |= hw_features | NETIF_F_HW_VLAN_CTAG_FILTER;
 	netdev->hw_enc_features |= NETIF_F_TSO_MANGLEID;
 
 	if (vsi->type == I40E_VSI_MAIN) {

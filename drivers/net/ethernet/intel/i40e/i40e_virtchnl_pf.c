@@ -1408,6 +1408,13 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 				I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2;
 	}
 
+	if (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_ENCAP)
+		vfres->vf_offload_flags |= I40E_VIRTCHNL_VF_OFFLOAD_ENCAP;
+
+	if ((pf->flags & I40E_FLAG_OUTER_UDP_CSUM_CAPABLE) &&
+	    (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM))
+		vfres->vf_offload_flags |= I40E_VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM;
+
 	if (vf->driver_caps & I40E_VIRTCHNL_VF_OFFLOAD_RX_POLLING) {
 		if (pf->flags & I40E_FLAG_MFP_ENABLED) {
 			dev_err(&pf->pdev->dev,
