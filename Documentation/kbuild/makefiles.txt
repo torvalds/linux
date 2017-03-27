@@ -49,7 +49,6 @@ This document describes the Linux kernel Makefiles.
 		--- 7.3 generic-y
 		--- 7.4 generated-y
 		--- 7.5 mandatory-y
-		--- 7.6 subdir-y
 
 	=== 8 Kbuild Variables
 	=== 9 Makefile language
@@ -1265,7 +1264,7 @@ The pre-processing does:
 - drop all sections that are kernel internal (guarded by ifdef __KERNEL__)
 
 All headers under include/uapi/, include/generated/uapi/,
-arch/<arch>/include/uapi/asm/ and arch/<arch>/include/generated/uapi/asm/
+arch/<arch>/include/uapi/ and arch/<arch>/include/generated/uapi/
 are exported.
 
 A Kbuild file may be defined under arch/<arch>/include/uapi/asm/ and
@@ -1334,18 +1333,6 @@ See subsequent chapter for the syntax of the Kbuild file.
 	mandatory-y is essentially used by include/uapi/asm-generic/Kbuild.asm
 	to define the minimun set of headers that must be exported in
 	include/asm.
-
-	The convention is to list one subdir per line and
-	preferably in alphabetic order.
-
-	--- 7.6 subdir-y
-
-	subdir-y may be used to specify a subdirectory to be exported.
-
-		Example:
-			#arch/cris/include/uapi/asm/Kbuild
-			subdir-y += ../arch-v10/arch/
-			subdir-y += ../arch-v32/arch/
 
 	The convention is to list one subdir per line and
 	preferably in alphabetic order.
