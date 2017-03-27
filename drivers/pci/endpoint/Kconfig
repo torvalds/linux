@@ -26,4 +26,6 @@ config PCI_ENDPOINT_CONFIGFS
 	   configure the endpoint function and used to bind the
 	   function with a endpoint controller.
 
+source "drivers/pci/endpoint/functions/Kconfig"
+
 endmenu
