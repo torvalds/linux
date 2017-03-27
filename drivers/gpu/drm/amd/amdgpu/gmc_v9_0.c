@@ -500,6 +500,12 @@ static int gmc_v9_0_vm_init(struct amdgpu_device *adev)
 	 * amdkfd will use VMIDs 8-15
 	 */
 	adev->vm_manager.num_ids = AMDGPU_NUM_OF_VMIDS;
+	/* Because of four level VMPTs, vm size at least is 256GB.
+	256TB is OK as well */
+	if (amdgpu_vm_size < 256) {
+		DRM_WARN("vm size at least is 256GB!\n");
+		amdgpu_vm_size = 256;
+	}
 	adev->vm_manager.num_level = 1;
 	amdgpu_vm_manager_init(adev);
 
