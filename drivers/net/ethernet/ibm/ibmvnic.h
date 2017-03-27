@@ -953,7 +953,6 @@ struct ibmvnic_adapter {
 	dma_addr_t bounce_buffer_dma;
 
 	/* Statistics */
-	struct net_device_stats net_stats;
 	struct ibmvnic_statistics stats;
 	dma_addr_t stats_token;
 	struct completion stats_done;
