@@ -422,6 +422,11 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	bool sec_split = pipe_ctx->top_pipe &&
 			pipe_ctx->top_pipe->surface == pipe_ctx->surface;
 
+	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_SIDE_BY_SIDE ||
+		stream->timing.timing_3d_format == TIMING_3D_FORMAT_TOP_AND_BOTTOM) {
+		pri_split = false;
+		sec_split = false;
+	}
 	/* The actual clip is an intersection between stream
 	 * source and surface clip
 	 */
@@ -532,14 +537,27 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 			stream->public.dst.y + stream->public.dst.height
 						- pipe_ctx->scl_data.recout.y;
 
-	/* Handle hsplit */
-	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->surface == pipe_ctx->surface) {
-		pipe_ctx->scl_data.recout.width /= 2;
-		pipe_ctx->scl_data.recout.x += pipe_ctx->scl_data.recout.width;
-		/* Floor primary pipe, ceil 2ndary pipe */
-		pipe_ctx->scl_data.recout.width += pipe_ctx->scl_data.recout.width % 2;
-	} else if (pipe_ctx->bottom_pipe && pipe_ctx->bottom_pipe->surface == pipe_ctx->surface) {
-		pipe_ctx->scl_data.recout.width /= 2;
+	/* Handle h & vsplit */
+	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->surface ==
+		pipe_ctx->surface) {
+		if (stream->public.timing.timing_3d_format ==
+			TIMING_3D_FORMAT_TOP_AND_BOTTOM) {
+			pipe_ctx->scl_data.recout.height /= 2;
+			pipe_ctx->scl_data.recout.y += pipe_ctx->scl_data.recout.height;
+			/* Floor primary pipe, ceil 2ndary pipe */
+			pipe_ctx->scl_data.recout.height += pipe_ctx->scl_data.recout.height % 2;
+		} else {
+			pipe_ctx->scl_data.recout.width /= 2;
+			pipe_ctx->scl_data.recout.x += pipe_ctx->scl_data.recout.width;
+			pipe_ctx->scl_data.recout.width += pipe_ctx->scl_data.recout.width % 2;
+		}
+	} else if (pipe_ctx->bottom_pipe &&
+			   pipe_ctx->bottom_pipe->surface == pipe_ctx->surface) {
+		if (stream->public.timing.timing_3d_format ==
+			TIMING_3D_FORMAT_TOP_AND_BOTTOM)
+			pipe_ctx->scl_data.recout.height /= 2;
+		else
+			pipe_ctx->scl_data.recout.width /= 2;
 	}
 
 	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream src offset)
