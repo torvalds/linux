@@ -16,3 +16,5 @@ endpoint/pci-endpoint.txt
 	- guide to add endpoint controller driver and endpoint function driver.
 endpoint/pci-endpoint-cfs.txt
 	- guide to use configfs to configure the PCI endpoint function.
+endpoint/pci-test-function.txt
+	- specification of *PCI test* function device.
