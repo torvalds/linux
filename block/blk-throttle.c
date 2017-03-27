@@ -165,6 +165,10 @@ struct throtl_grp {
 	unsigned long checked_last_finish_time; /* ns / 1024 */
 	unsigned long avg_idletime; /* ns / 1024 */
 	unsigned long idletime_threshold; /* us */
+
+	unsigned int bio_cnt; /* total bios */
+	unsigned int bad_bio_cnt; /* bios exceeding latency threshold */
+	unsigned long bio_cnt_reset_time;
 };
 
 /* We measure latency for request size from <= 4k to >= 1M */
@@ -1720,12 +1724,15 @@ static bool throtl_tg_is_idle(struct throtl_grp *tg)
 	 * - single idle is too long, longer than a fixed value (in case user
 	 *   configure a too big threshold) or 4 times of slice
 	 * - average think time is more than threshold
+	 * - IO latency is largely below threshold
 	 */
 	unsigned long time = jiffies_to_usecs(4 * tg->td->throtl_slice);
 
 	time = min_t(unsigned long, MAX_IDLE_TIME, time);
 	return (ktime_get_ns() >> 10) - tg->last_finish_time > time ||
-	       tg->avg_idletime > tg->idletime_threshold;
+	       tg->avg_idletime > tg->idletime_threshold ||
+	       (tg->latency_target && tg->bio_cnt &&
+		tg->bad_bio_cnt * 5 < tg->bio_cnt);
 }
 
 static bool throtl_tg_can_upgrade(struct throtl_grp *tg)
@@ -2194,12 +2201,36 @@ void blk_throtl_bio_endio(struct bio *bio)
 
 	start_time = blk_stat_time(&bio->bi_issue_stat) >> 10;
 	finish_time = __blk_stat_time(finish_time_ns) >> 10;
+	if (!start_time || finish_time <= start_time)
+		return;
+
+	lat = finish_time - start_time;
 	/* this is only for bio based driver */
-	if (start_time && finish_time > start_time &&
-	    !(bio->bi_issue_stat.stat & SKIP_LATENCY)) {
-		lat = finish_time - start_time;
+	if (!(bio->bi_issue_stat.stat & SKIP_LATENCY))
 		throtl_track_latency(tg->td, blk_stat_size(&bio->bi_issue_stat),
 			bio_op(bio), lat);
+
+	if (tg->latency_target) {
+		int bucket;
+		unsigned int threshold;
+
+		bucket = request_bucket_index(
+			blk_stat_size(&bio->bi_issue_stat));
+		threshold = tg->td->avg_buckets[bucket].latency +
+			tg->latency_target;
+		if (lat > threshold)
+			tg->bad_bio_cnt++;
+		/*
+		 * Not race free, could get wrong count, which means cgroups
+		 * will be throttled
+		 */
+		tg->bio_cnt++;
+	}
+
+	if (time_after(jiffies, tg->bio_cnt_reset_time) || tg->bio_cnt > 1024) {
+		tg->bio_cnt_reset_time = tg->td->throtl_slice + jiffies;
+		tg->bio_cnt /= 2;
+		tg->bad_bio_cnt /= 2;
 	}
 }
 #endif
