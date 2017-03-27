@@ -523,6 +523,15 @@ void blk_mq_start_request(struct request *rq)
 }
 EXPORT_SYMBOL(blk_mq_start_request);
 
+/*
+ * When we reach here because queue is busy, REQ_ATOM_COMPLETE
+ * flag isn't set yet, so there may be race with timeout hanlder,
+ * but given rq->deadline is just set in .queue_rq() under
+ * this situation, the race won't be possible in reality because
+ * rq->timeout should be set as big enough to cover the window
+ * between blk_mq_start_request() called from .queue_rq() and
+ * clearing REQ_ATOM_STARTED here.
+ */
 static void __blk_mq_requeue_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
@@ -696,6 +705,19 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 	if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
 		return;
 
+	/*
+	 * The rq being checked may have been freed and reallocated
+	 * out already here, we avoid this race by checking rq->deadline
+	 * and REQ_ATOM_COMPLETE flag together:
+	 *
+	 * - if rq->deadline is observed as new value because of
+	 *   reusing, the rq won't be timed out because of timing.
+	 * - if rq->deadline is observed as previous value,
+	 *   REQ_ATOM_COMPLETE flag won't be cleared in reuse path
+	 *   because we put a barrier between setting rq->deadline
+	 *   and clearing the flag in blk_mq_start_request(), so
+	 *   this rq won't be timed out too.
+	 */
 	if (time_after_eq(jiffies, rq->deadline)) {
 		if (!blk_mark_rq_complete(rq))
 			blk_mq_rq_timed_out(rq, reserved);
