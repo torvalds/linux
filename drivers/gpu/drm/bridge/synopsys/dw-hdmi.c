@@ -2003,13 +2003,16 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 
 	vmode->previous_pixelclock = vmode->mpixelclock;
 	vmode->mpixelclock = mode->crtc_clock * 1000;
-
-	vmode->mtmdsclock = hdmi_get_tmdsclock(hdmi, vmode->mpixelclock);
+	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) ==
+		DRM_MODE_FLAG_3D_FRAME_PACKING)
+		vmode->mpixelclock *= 2;
 	dev_dbg(hdmi->dev, "final pixclk = %d\n", vmode->mpixelclock);
 
 	vmode->previous_tmdsclock = vmode->mtmdsclock;
+	vmode->mtmdsclock = hdmi_get_tmdsclock(hdmi, vmode->mpixelclock);
 	if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
 		vmode->mtmdsclock /= 2;
+
 	/* Set up HDMI_FC_INVIDCONF */
 	inv_val = (hdmi->hdmi_data.hdcp_enable ||
 		   vmode->mtmdsclock > HDMI14_MAX_TMDSCLK ||
@@ -2076,6 +2079,9 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 		vblank /= 2;
 		v_de_vs /= 2;
 		vsync_len /= 2;
+	} else if ((mode->flags & DRM_MODE_FLAG_3D_MASK) ==
+		DRM_MODE_FLAG_3D_FRAME_PACKING) {
+		vdisplay += mode->vtotal;
 	}
 
 	/* Scrambling Control */
