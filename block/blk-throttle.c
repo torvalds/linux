@@ -18,8 +18,9 @@ static int throtl_grp_quantum = 8;
 /* Total max dispatch from all groups in one round */
 static int throtl_quantum = 32;
 
-/* Throttling is performed over 100ms slice and after that slice is renewed */
-#define DFL_THROTL_SLICE (HZ / 10)
+/* Throttling is performed over a slice and after that slice is renewed */
+#define DFL_THROTL_SLICE_HD (HZ / 10)
+#define DFL_THROTL_SLICE_SSD (HZ / 50)
 #define MAX_THROTL_SLICE (HZ)
 
 static struct blkcg_policy blkcg_policy_throtl;
@@ -1961,7 +1962,6 @@ int blk_throtl_init(struct request_queue *q)
 
 	q->td = td;
 	td->queue = q;
-	td->throtl_slice = DFL_THROTL_SLICE;
 
 	td->limit_valid[LIMIT_MAX] = true;
 	td->limit_index = LIMIT_MAX;
@@ -1980,6 +1980,23 @@ void blk_throtl_exit(struct request_queue *q)
 	throtl_shutdown_wq(q);
 	blkcg_deactivate_policy(q, &blkcg_policy_throtl);
 	kfree(q->td);
+}
+
+void blk_throtl_register_queue(struct request_queue *q)
+{
+	struct throtl_data *td;
+
+	td = q->td;
+	BUG_ON(!td);
+
+	if (blk_queue_nonrot(q))
+		td->throtl_slice = DFL_THROTL_SLICE_SSD;
+	else
+		td->throtl_slice = DFL_THROTL_SLICE_HD;
+#ifndef CONFIG_BLK_DEV_THROTTLING_LOW
+	/* if no low limit, use previous default */
+	td->throtl_slice = DFL_THROTL_SLICE_HD;
+#endif
 }
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW

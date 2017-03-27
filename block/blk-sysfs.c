@@ -906,6 +906,8 @@ int blk_register_queue(struct gendisk *disk)
 
 	blk_wb_init(q);
 
+	blk_throtl_register_queue(q);
+
 	if (q->request_fn || (q->mq_ops && q->elevator)) {
 		ret = elv_register_queue(q);
 		if (ret) {
