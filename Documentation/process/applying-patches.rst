@@ -250,17 +250,11 @@ specific homes.
 
 The 4.x.y (-stable) and 4.x patches live at
 
-	ftp://ftp.kernel.org/pub/linux/kernel/v4.x/
+	https://www.kernel.org/pub/linux/kernel/v4.x/
 
 The -rc patches live at
 
-	ftp://ftp.kernel.org/pub/linux/kernel/v4.x/testing/
-
-In place of ``ftp.kernel.org`` you can use ``ftp.cc.kernel.org``, where cc is a
-country code. This way you'll be downloading from a mirror site that's most
-likely geographically closer to you, resulting in faster downloads for you,
-less bandwidth used globally and less load on the main kernel.org servers --
-these are good things, so do use mirrors when possible.
+	https://www.kernel.org/pub/linux/kernel/v4.x/testing/
 
 
 The 4.x kernels
@@ -317,7 +311,7 @@ the current stable kernel.
  The -stable team usually do make incremental patches available as well
  as patches against the latest mainline release, but I only cover the
  non-incremental ones below. The incremental ones can be found at
- ftp://ftp.kernel.org/pub/linux/kernel/v4.x/incr/
+ https://www.kernel.org/pub/linux/kernel/v4.x/incr/
 
 These patches are not incremental, meaning that for example the 4.7.3
 patch does not apply on top of the 4.7.2 kernel source, but rather on top
