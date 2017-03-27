@@ -1405,6 +1405,9 @@ void dce110_link_encoder_dp_set_phy_pattern(
 	case DP_TEST_PATTERN_CP2520_2:
 		set_dp_phy_pattern_hbr2_compliance_cp2520_2(enc110, 2);
 		break;
+	case DP_TEST_PATTERN_CP2520_3:
+		set_dp_phy_pattern_hbr2_compliance_cp2520_2(enc110, 3);
+		break;
 	case DP_TEST_PATTERN_VIDEO_MODE: {
 		set_dp_phy_pattern_passthrough_mode(
 			enc110, param->dp_panel_mode);
