@@ -337,7 +337,8 @@ int drm_load_edid_firmware(struct drm_connector *connector);
 
 int
 drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
-					 const struct drm_display_mode *mode);
+					 const struct drm_display_mode *mode,
+					 bool is_hdmi2);
 int
 drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 					    const struct drm_display_mode *mode);

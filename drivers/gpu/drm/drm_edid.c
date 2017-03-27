@@ -4380,12 +4380,14 @@ EXPORT_SYMBOL(drm_set_preferred_mode);
  *                                              data from a DRM display mode
  * @frame: HDMI AVI infoframe
  * @mode: DRM display mode
+ * @is_hdmi2: Sink is HDMI 2.0 compliant
  *
  * Return: 0 on success or a negative error code on failure.
  */
 int
 drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
-					 const struct drm_display_mode *mode)
+					 const struct drm_display_mode *mode,
+					 bool is_hdmi2)
 {
 	int err;
 
@@ -4400,6 +4402,14 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 		frame->pixel_repeat = 1;
 
 	frame->video_code = drm_match_cea_mode(mode);
+
+	/*
+	 * HDMI 1.4 VIC range: 1 <= VIC <= 64 (CEA-861-D) but
+	 * HDMI 2.0 VIC range: 1 <= VIC <= 107 (CEA-861-F). So we
+	 * have to make sure we dont break HDMI 1.4 sinks.
+	 */
+	if (!is_hdmi2 && frame->video_code > 64)
+		frame->video_code = 0;
 
 	frame->picture_aspect = HDMI_PICTURE_ASPECT_NONE;
 
