@@ -2084,6 +2084,16 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 	}
 }
 
+static unsigned int intel_cursor_alignment(const struct drm_i915_private *dev_priv)
+{
+	if (IS_I830(dev_priv))
+		return 16 * 1024;
+	else if (IS_I85X(dev_priv))
+		return 256;
+	else
+		return 4 * 1024;
+}
+
 static unsigned int intel_linear_alignment(const struct drm_i915_private *dev_priv)
 {
 	if (INTEL_INFO(dev_priv)->gen >= 9)
@@ -13306,7 +13316,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	if (obj) {
 		if (plane->type == DRM_PLANE_TYPE_CURSOR &&
 		    INTEL_INFO(dev_priv)->cursor_needs_physical) {
-			const int align = IS_I830(dev_priv) ? 16 * 1024 : 256;
+			const int align = intel_cursor_alignment(dev_priv);
 
 			ret = i915_gem_object_attach_phys(obj, align);
 			if (ret) {
@@ -13619,7 +13629,7 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 		goto out_free;
 
 	if (INTEL_INFO(dev_priv)->cursor_needs_physical) {
-		int align = IS_I830(dev_priv) ? 16 * 1024 : 256;
+		int align = intel_cursor_alignment(dev_priv);
 
 		ret = i915_gem_object_attach_phys(intel_fb_obj(fb), align);
 		if (ret) {
