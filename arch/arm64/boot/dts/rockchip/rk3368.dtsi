@@ -132,6 +132,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			operating-points-v2 = <&cluster0_opp>;
+			sched-energy-costs = <&RK3368_CPU_COST_0 &RK3368_CLUSTER_COST_0>;
 			#cooling-cells = <2>; /* min followed by max */
 			dynamic-power-coefficient = <149>;
 		};
@@ -144,6 +145,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			operating-points-v2 = <&cluster0_opp>;
+			sched-energy-costs = <&RK3368_CPU_COST_0 &RK3368_CLUSTER_COST_0>;
 		};
 
 		cpu_l2: cpu@2 {
@@ -154,6 +156,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			operating-points-v2 = <&cluster0_opp>;
+			sched-energy-costs = <&RK3368_CPU_COST_0 &RK3368_CLUSTER_COST_0>;
 		};
 
 		cpu_l3: cpu@3 {
@@ -164,6 +167,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			operating-points-v2 = <&cluster0_opp>;
+			sched-energy-costs = <&RK3368_CPU_COST_0 &RK3368_CLUSTER_COST_0>;
 		};
 
 		cpu_b0: cpu@100 {
@@ -174,6 +178,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
 			operating-points-v2 = <&cluster1_opp>;
+			sched-energy-costs = <&RK3368_CPU_COST_1 &RK3368_CLUSTER_COST_1>;
 			#cooling-cells = <2>; /* min followed by max */
 			dynamic-power-coefficient = <160>;
 		};
@@ -186,6 +191,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
 			operating-points-v2 = <&cluster1_opp>;
+			sched-energy-costs = <&RK3368_CPU_COST_1 &RK3368_CLUSTER_COST_1>;
 		};
 
 		cpu_b2: cpu@102 {
@@ -196,6 +202,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
 			operating-points-v2 = <&cluster1_opp>;
+			sched-energy-costs = <&RK3368_CPU_COST_1 &RK3368_CLUSTER_COST_1>;
 		};
 
 		cpu_b3: cpu@103 {
@@ -206,6 +213,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
 			operating-points-v2 = <&cluster1_opp>;
+			sched-energy-costs = <&RK3368_CPU_COST_1 &RK3368_CLUSTER_COST_1>;
 		};
 	};
 
@@ -295,6 +303,78 @@
 			opp-hz = /bits/ 64 <1512000000>;
 			opp-microvolt = <1350000 1350000 1350000>;
 			clock-latency-ns = <40000>;
+		};
+	};
+
+	energy-costs {
+		RK3368_CPU_COST_0: rk3368-core-cost0 {
+			busy-cost-data = <
+				146    44	/*  216M */
+				276    72	/*  408M */
+				406    99	/*  600M */
+				552    147	/*  816M */
+				682    200	/* 1008M */
+				812    255	/* 1200M */
+			>;
+			idle-cost-data = <
+				  6
+				  6
+				  0
+			>;
+		};
+
+		RK3368_CPU_COST_1: rk3368-core-cost1 {
+			busy-cost-data = <
+				146    53	/*  216M */
+				276    86	/*  408M */
+				406    118	/*  600M */
+				552    166	/*  816M */
+				682    226	/* 1008M */
+				812    309	/* 1200M */
+				878    371	/* 1200M */
+				959    446	/* 1416M */
+				1024   513	/* 1512M */
+			>;
+			idle-cost-data = <
+				   6
+				   6
+				   0
+			>;
+		};
+
+		RK3368_CLUSTER_COST_0: rk3368-cluster-cost0 {
+			busy-cost-data = <
+				146    9	/*  216M */
+				276    14	/*  408M */
+				406    20	/*  600M */
+				552    29	/*  816M */
+				682    40	/* 1008M */
+				812    51	/* 1200M */
+			>;
+			idle-cost-data = <
+				56
+				56
+				56
+			>;
+		};
+
+		RK3368_CLUSTER_COST_1: rk3368-cluster-cost1 {
+			busy-cost-data = <
+				146    11	/*  216M */
+				276    17	/*  408M */
+				406    24	/*  600M */
+				552    33	/*  816M */
+				682    45	/* 1008M */
+				812    62	/* 1200M */
+				878    74	/* 1200M */
+				959    89	/* 1416M */
+				1024   103	/* 1512M */
+			>;
+			idle-cost-data = <
+				56
+				56
+				56
+			>;
 		};
 	};
 
