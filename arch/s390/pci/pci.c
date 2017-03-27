@@ -214,8 +214,6 @@ int zpci_fmb_disable_device(struct zpci_dev *zdev)
 	return rc;
 }
 
-#define ZPCI_PCIAS_CFGSPC	15
-
 static int zpci_cfg_load(struct zpci_dev *zdev, int offset, u32 *val, u8 len)
 {
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, ZPCI_PCIAS_CFGSPC, len);
