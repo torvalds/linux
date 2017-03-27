@@ -2250,6 +2250,7 @@ static int hidpp_raw_hidpp_event(struct hidpp_device *hidpp, u8 *data,
 	struct hidpp_report *question = hidpp->send_receive_buf;
 	struct hidpp_report *answer = hidpp->send_receive_buf;
 	struct hidpp_report *report = (struct hidpp_report *)data;
+	int ret;
 
 	/*
 	 * If the mutex is locked then we have a pending answer from a
@@ -2281,6 +2282,12 @@ static int hidpp_raw_hidpp_event(struct hidpp_device *hidpp, u8 *data,
 		if (schedule_work(&hidpp->work) == 0)
 			dbg_hid("%s: connect event already queued\n", __func__);
 		return 1;
+	}
+
+	if (hidpp->capabilities & HIDPP_CAPABILITY_HIDPP20_BATTERY) {
+		ret = hidpp20_battery_event(hidpp, data, size);
+		if (ret != 0)
+			return ret;
 	}
 
 	return 0;
@@ -2324,12 +2331,6 @@ static int hidpp_raw_event(struct hid_device *hdev, struct hid_report *report,
 	 * raw_event of subclasses. */
 	if (ret != 0)
 		return ret;
-
-	if (hidpp->capabilities & HIDPP_CAPABILITY_HIDPP20_BATTERY) {
-		ret = hidpp20_battery_event(hidpp, data, size);
-		if (ret != 0)
-			return ret;
-	}
 
 	if (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP)
 		return wtp_raw_event(hdev, data, size);
