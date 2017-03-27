@@ -398,6 +398,19 @@
 		status = "disabled";
 	};
 
+	i2c0: i2c@ff650000 {
+		compatible = "rockchip,rk3288-i2c";
+		reg = <0xff650000 0x1000>;
+		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-names = "i2c";
+		clocks = <&cru PCLK_I2C0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c0_xfer>;
+		status = "disabled";
+	};
+
 	i2c1: i2c@ff140000 {
 		compatible = "rockchip,rk3288-i2c";
 		reg = <0xff140000 0x1000>;
@@ -698,19 +711,6 @@
 		clock-names = "pclk_ddrupctl0", "pclk_publ0",
 			      "pclk_ddrupctl1", "pclk_publ1",
 			      "arm_clk", "aclk_dmac1";
-	};
-
-	i2c0: i2c@ff650000 {
-		compatible = "rockchip,rk3288-i2c";
-		reg = <0xff650000 0x1000>;
-		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		clock-names = "i2c";
-		clocks = <&cru PCLK_I2C0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c0_xfer>;
-		status = "disabled";
 	};
 
 	i2c2: i2c@ff660000 {
