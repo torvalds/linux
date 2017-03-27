@@ -506,7 +506,7 @@ static int gmc_v9_0_vm_init(struct amdgpu_device *adev)
 		DRM_WARN("vm size at least is 256GB!\n");
 		amdgpu_vm_size = 256;
 	}
-	adev->vm_manager.num_level = 1;
+	adev->vm_manager.num_level = 3;
 	amdgpu_vm_manager_init(adev);
 
 	/* base offset of vram pages */
