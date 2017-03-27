@@ -682,6 +682,7 @@ static void vpu_reset(struct vpu_subdev_data *data)
 
 	_vpu_reset(data);
 	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
+		clear_bit(MMU_ACTIVATED, &data->state);
 		if (atomic_read(&pservice->enabled)) {
 			/* Need to reset iommu */
 			vcodec_iommu_detach(data->iommu_info);
