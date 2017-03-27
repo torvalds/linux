@@ -681,7 +681,7 @@ const char report_callchain_help[] = "Display call graph (stack chain/backtrace)
 				     CALLCHAIN_REPORT_HELP
 				     "\n\t\t\t\tDefault: " CALLCHAIN_DEFAULT_OPT;
 
-int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_report(int argc, const char **argv)
 {
 	struct perf_session *session;
 	struct itrace_synth_opts itrace_synth_opts = { .set = 0, };

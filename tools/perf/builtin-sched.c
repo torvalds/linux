@@ -3272,10 +3272,10 @@ static int __cmd_record(int argc, const char **argv)
 
 	BUG_ON(i != rec_argc);
 
-	return cmd_record(i, rec_argv, NULL);
+	return cmd_record(i, rec_argv);
 }
 
-int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_sched(int argc, const char **argv)
 {
 	const char default_sort_order[] = "avg, max, switch, runtime";
 	struct perf_sched sched = {
@@ -3412,7 +3412,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	 * Aliased to 'perf script' for now:
 	 */
 	if (!strcmp(argv[0], "script"))
-		return cmd_script(argc, argv, prefix);
+		return cmd_script(argc, argv);
 
 	if (!strncmp(argv[0], "rec", 3)) {
 		return __cmd_record(argc, argv);

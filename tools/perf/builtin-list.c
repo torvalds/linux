@@ -20,7 +20,7 @@
 static bool desc_flag = true;
 static bool details_flag;
 
-int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_list(int argc, const char **argv)
 {
 	int i;
 	bool raw_dump = false;

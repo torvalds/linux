@@ -1773,7 +1773,7 @@ static int timechart__io_record(int argc, const char **argv)
 	for (i = 0; i < (unsigned int)argc; i++)
 		*p++ = argv[i];
 
-	return cmd_record(rec_argc, rec_argv, NULL);
+	return cmd_record(rec_argc, rec_argv);
 }
 
 
@@ -1864,7 +1864,7 @@ static int timechart__record(struct timechart *tchart, int argc, const char **ar
 	for (j = 0; j < (unsigned int)argc; j++)
 		*p++ = argv[j];
 
-	return cmd_record(rec_argc, rec_argv, NULL);
+	return cmd_record(rec_argc, rec_argv);
 }
 
 static int
@@ -1917,8 +1917,7 @@ parse_time(const struct option *opt, const char *arg, int __maybe_unused unset)
 	return 0;
 }
 
-int cmd_timechart(int argc, const char **argv,
-		  const char *prefix __maybe_unused)
+int cmd_timechart(int argc, const char **argv)
 {
 	struct timechart tchart = {
 		.tool = {

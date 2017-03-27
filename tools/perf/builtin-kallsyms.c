@@ -43,7 +43,7 @@ static int __cmd_kallsyms(int argc, const char **argv)
 	return 0;
 }
 
-int cmd_kallsyms(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_kallsyms(int argc, const char **argv)
 {
 	const struct option options[] = {
 	OPT_INCR('v', "verbose", &verbose, "be more verbose (show counter open errors, etc)"),

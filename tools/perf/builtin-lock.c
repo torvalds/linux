@@ -941,12 +941,12 @@ static int __cmd_record(int argc, const char **argv)
 
 	BUG_ON(i != rec_argc);
 
-	ret = cmd_record(i, rec_argv, NULL);
+	ret = cmd_record(i, rec_argv);
 	free(rec_argv);
 	return ret;
 }
 
-int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
@@ -1009,7 +1009,7 @@ int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
 		rc = __cmd_report(false);
 	} else if (!strcmp(argv[0], "script")) {
 		/* Aliased to 'perf script' */
-		return cmd_script(argc, argv, prefix);
+		return cmd_script(argc, argv);
 	} else if (!strcmp(argv[0], "info")) {
 		if (argc) {
 			argc = parse_options(argc, argv,

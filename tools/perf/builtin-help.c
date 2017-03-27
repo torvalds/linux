@@ -418,7 +418,7 @@ static int show_html_page(const char *perf_cmd)
 	return 0;
 }
 
-int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_help(int argc, const char **argv)
 {
 	bool show_all = false;
 	enum help_format help_format = HELP_FORMAT_MAN;

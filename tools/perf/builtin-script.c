@@ -2359,7 +2359,7 @@ int process_cpu_map_event(struct perf_tool *tool __maybe_unused,
 	return set_maps(script);
 }
 
-int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_script(int argc, const char **argv)
 {
 	bool show_full_info = false;
 	bool header = false;
@@ -2504,7 +2504,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (argc > 1 && !strncmp(argv[0], "rec", strlen("rec"))) {
 		rec_script_path = get_script_path(argv[1], RECORD_SUFFIX);
 		if (!rec_script_path)
-			return cmd_record(argc, argv, NULL);
+			return cmd_record(argc, argv);
 	}
 
 	if (argc > 1 && !strncmp(argv[0], "rep", strlen("rep"))) {

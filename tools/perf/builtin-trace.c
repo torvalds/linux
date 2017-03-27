@@ -1993,7 +1993,7 @@ static int trace__record(struct trace *trace, int argc, const char **argv)
 	for (i = 0; i < (unsigned int)argc; i++)
 		rec_argv[j++] = argv[i];
 
-	return cmd_record(j, rec_argv, NULL);
+	return cmd_record(j, rec_argv);
 }
 
 static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp);
@@ -2791,7 +2791,7 @@ out:
 	return err;
 }
 
-int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_trace(int argc, const char **argv)
 {
 	const char *trace_usage[] = {
 		"perf trace [<options>] [<command>]",

@@ -1767,7 +1767,7 @@ static int bench_all(void)
 	return 0;
 }
 
-int bench_numa(int argc, const char **argv, const char *prefix __maybe_unused)
+int bench_numa(int argc, const char **argv)
 {
 	init_params(&p0, "main,", argc, argv);
 	argc = parse_options(argc, argv, options, bench_numa_usage, 0);

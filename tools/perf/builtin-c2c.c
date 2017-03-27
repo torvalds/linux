@@ -2755,12 +2755,12 @@ static int perf_c2c__record(int argc, const char **argv)
 		pr_debug("\n");
 	}
 
-	ret = cmd_record(i, rec_argv, NULL);
+	ret = cmd_record(i, rec_argv);
 	free(rec_argv);
 	return ret;
 }
 
-int cmd_c2c(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_c2c(int argc, const char **argv)
 {
 	argc = parse_options(argc, argv, c2c_options, c2c_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);

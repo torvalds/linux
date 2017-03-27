@@ -284,7 +284,7 @@ static const char * const bench_mem_memcpy_usage[] = {
 	NULL
 };
 
-int bench_mem_memcpy(int argc, const char **argv, const char *prefix __maybe_unused)
+int bench_mem_memcpy(int argc, const char **argv)
 {
 	struct bench_mem_info info = {
 		.functions		= memcpy_functions,
@@ -358,7 +358,7 @@ static const struct function memset_functions[] = {
 	{ .name = NULL, }
 };
 
-int bench_mem_memset(int argc, const char **argv, const char *prefix __maybe_unused)
+int bench_mem_memset(int argc, const char **argv)
 {
 	struct bench_mem_info info = {
 		.functions		= memset_functions,

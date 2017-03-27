@@ -1321,7 +1321,7 @@ static int diff__config(const char *var, const char *value,
 	return 0;
 }
 
-int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_diff(int argc, const char **argv)
 {
 	int ret = hists__init();
 
