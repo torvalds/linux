@@ -771,6 +771,13 @@ config PANEL_BOOT_MESSAGE
 
 endif # PANEL
 
+config PCI_ENDPOINT_TEST
+	depends on PCI
+	tristate "PCI Endpoint Test driver"
+	---help---
+           Enable this configuration option to enable the host side test driver
+           for PCI Endpoint.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
