@@ -212,12 +212,28 @@ static struct throtl_data *sq_to_td(struct throtl_service_queue *sq)
 
 static uint64_t tg_bps_limit(struct throtl_grp *tg, int rw)
 {
-	return tg->bps[rw][tg->td->limit_index];
+	struct blkcg_gq *blkg = tg_to_blkg(tg);
+	uint64_t ret;
+
+	if (cgroup_subsys_on_dfl(io_cgrp_subsys) && !blkg->parent)
+		return U64_MAX;
+	ret = tg->bps[rw][tg->td->limit_index];
+	if (ret == 0 && tg->td->limit_index == LIMIT_LOW)
+		return tg->bps[rw][LIMIT_MAX];
+	return ret;
 }
 
 static unsigned int tg_iops_limit(struct throtl_grp *tg, int rw)
 {
-	return tg->iops[rw][tg->td->limit_index];
+	struct blkcg_gq *blkg = tg_to_blkg(tg);
+	unsigned int ret;
+
+	if (cgroup_subsys_on_dfl(io_cgrp_subsys) && !blkg->parent)
+		return UINT_MAX;
+	ret = tg->iops[rw][tg->td->limit_index];
+	if (ret == 0 && tg->td->limit_index == LIMIT_LOW)
+		return tg->iops[rw][LIMIT_MAX];
+	return ret;
 }
 
 /**
