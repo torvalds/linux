@@ -240,6 +240,8 @@ free_partial_kdata:
 	for (; i >= 0; i--)
 		drm_free_large(p->chunks[i].kdata);
 	kfree(p->chunks);
+	p->chunks = NULL;
+	p->nchunks = 0;
 put_ctx:
 	amdgpu_ctx_put(p->ctx);
 free_chunk:

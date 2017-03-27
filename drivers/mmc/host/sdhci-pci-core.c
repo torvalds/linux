@@ -451,6 +451,8 @@ static void sdhci_intel_set_power(struct sdhci_host *host, unsigned char mode,
 	if (mode == MMC_POWER_OFF)
 		return;
 
+	spin_unlock_irq(&host->lock);
+
 	/*
 	 * Bus power might not enable after D3 -> D0 transition due to the
 	 * present state not yet having propagated. Retry for up to 2ms.
@@ -463,6 +465,8 @@ static void sdhci_intel_set_power(struct sdhci_host *host, unsigned char mode,
 		reg |= SDHCI_POWER_ON;
 		sdhci_writeb(host, reg, SDHCI_POWER_CONTROL);
 	}
+
+	spin_lock_irq(&host->lock);
 }
 
 static const struct sdhci_ops sdhci_intel_byt_ops = {

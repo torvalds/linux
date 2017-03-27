@@ -71,10 +71,10 @@
 #define TRIGCON				0x1A4
 #define TRGMODE_ENABLE			(1 << 0)
 #define SWTRGCMD_ENABLE			(1 << 1)
-/* Exynos3250, 3472, 4415, 5260 5410, 5420 and 5422 only supported. */
+/* Exynos3250, 3472, 5260 5410, 5420 and 5422 only supported. */
 #define HWTRGEN_ENABLE			(1 << 3)
 #define HWTRGMASK_ENABLE		(1 << 4)
-/* Exynos3250, 3472, 4415, 5260, 5420 and 5422 only supported. */
+/* Exynos3250, 3472, 5260, 5420 and 5422 only supported. */
 #define HWTRIGEN_PER_ENABLE		(1 << 31)
 
 /* display mode change control register except exynos4 */
@@ -138,18 +138,6 @@ static struct fimd_driver_data exynos4_fimd_driver_data = {
 	.has_vtsel = 1,
 };
 
-static struct fimd_driver_data exynos4415_fimd_driver_data = {
-	.timing_base = 0x20000,
-	.lcdblk_offset = 0x210,
-	.lcdblk_vt_shift = 10,
-	.lcdblk_bypass_shift = 1,
-	.trg_type = I80_HW_TRG,
-	.has_shadowcon = 1,
-	.has_vidoutcon = 1,
-	.has_vtsel = 1,
-	.has_trigger_per_te = 1,
-};
-
 static struct fimd_driver_data exynos5_fimd_driver_data = {
 	.timing_base = 0x20000,
 	.lcdblk_offset = 0x214,
@@ -210,8 +198,6 @@ static const struct of_device_id fimd_driver_dt_match[] = {
 	  .data = &exynos3_fimd_driver_data },
 	{ .compatible = "samsung,exynos4210-fimd",
 	  .data = &exynos4_fimd_driver_data },
-	{ .compatible = "samsung,exynos4415-fimd",
-	  .data = &exynos4415_fimd_driver_data },
 	{ .compatible = "samsung,exynos5250-fimd",
 	  .data = &exynos5_fimd_driver_data },
 	{ .compatible = "samsung,exynos5420-fimd",
@@ -257,7 +243,7 @@ static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
 			val |= VIDINTCON0_INT_FRAME;
 
 			val &= ~VIDINTCON0_FRAMESEL0_MASK;
-			val |= VIDINTCON0_FRAMESEL0_VSYNC;
+			val |= VIDINTCON0_FRAMESEL0_FRONTPORCH;
 			val &= ~VIDINTCON0_FRAMESEL1_MASK;
 			val |= VIDINTCON0_FRAMESEL1_NONE;
 		}
@@ -723,6 +709,8 @@ static void fimd_atomic_flush(struct exynos_drm_crtc *crtc)
 
 	for (i = 0; i < WINDOWS_NR; i++)
 		fimd_shadow_protect_win(ctx, i, false);
+
+	exynos_crtc_handle_event(crtc);
 }
 
 static void fimd_update_plane(struct exynos_drm_crtc *crtc,

@@ -397,9 +397,8 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 				irq, err);
 			return err;
 		}
-		omap_rng_write(priv, RNG_INTMASK_REG, RNG_SHUTDOWN_OFLO_MASK);
 
-		priv->clk = of_clk_get(pdev->dev.of_node, 0);
+		priv->clk = devm_clk_get(&pdev->dev, NULL);
 		if (IS_ERR(priv->clk) && PTR_ERR(priv->clk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		if (!IS_ERR(priv->clk)) {
@@ -408,6 +407,19 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 				dev_err(&pdev->dev, "unable to enable the clk, "
 						    "err = %d\n", err);
 		}
+
+		/*
+		 * On OMAP4, enabling the shutdown_oflo interrupt is
+		 * done in the interrupt mask register. There is no
+		 * such register on EIP76, and it's enabled by the
+		 * same bit in the control register
+		 */
+		if (priv->pdata->regs[RNG_INTMASK_REG])
+			omap_rng_write(priv, RNG_INTMASK_REG,
+				       RNG_SHUTDOWN_OFLO_MASK);
+		else
+			omap_rng_write(priv, RNG_CONTROL_REG,
+				       RNG_SHUTDOWN_OFLO_MASK);
 	}
 	return 0;
 }

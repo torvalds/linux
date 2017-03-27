@@ -1269,6 +1269,8 @@ static void mpls_ifdown(struct net_device *dev, int event)
 {
 	struct mpls_route __rcu **platform_label;
 	struct net *net = dev_net(dev);
+	unsigned int nh_flags = RTNH_F_DEAD | RTNH_F_LINKDOWN;
+	unsigned int alive;
 	unsigned index;
 
 	platform_label = rtnl_dereference(net->mpls.platform_label);
@@ -1278,9 +1280,11 @@ static void mpls_ifdown(struct net_device *dev, int event)
 		if (!rt)
 			continue;
 
+		alive = 0;
 		change_nexthops(rt) {
 			if (rtnl_dereference(nh->nh_dev) != dev)
-				continue;
+				goto next;
+
 			switch (event) {
 			case NETDEV_DOWN:
 			case NETDEV_UNREGISTER:
@@ -1288,12 +1292,16 @@ static void mpls_ifdown(struct net_device *dev, int event)
 				/* fall through */
 			case NETDEV_CHANGE:
 				nh->nh_flags |= RTNH_F_LINKDOWN;
-				ACCESS_ONCE(rt->rt_nhn_alive) = rt->rt_nhn_alive - 1;
 				break;
 			}
 			if (event == NETDEV_UNREGISTER)
 				RCU_INIT_POINTER(nh->nh_dev, NULL);
+next:
+			if (!(nh->nh_flags & nh_flags))
+				alive++;
 		} endfor_nexthops(rt);
+
+		WRITE_ONCE(rt->rt_nhn_alive, alive);
 	}
 }
 
@@ -2028,6 +2036,7 @@ static void mpls_net_exit(struct net *net)
 	for (index = 0; index < platform_labels; index++) {
 		struct mpls_route *rt = rtnl_dereference(platform_label[index]);
 		RCU_INIT_POINTER(platform_label[index], NULL);
+		mpls_notify_route(net, index, rt, NULL, NULL);
 		mpls_rt_free(rt);
 	}
 	rtnl_unlock();

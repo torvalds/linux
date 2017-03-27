@@ -269,6 +269,7 @@ struct nicvf {
 #define	MAX_QUEUES_PER_QSET			8
 	struct queue_set	*qs;
 	struct nicvf_cq_poll	*napi[8];
+	void			*iommu_domain;
 	u8			vf_id;
 	u8			sqs_id;
 	bool                    sqs_mode;

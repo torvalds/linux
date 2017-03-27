@@ -71,9 +71,8 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 {
 	struct net *net = sock_net(sk);
 	struct sctp_sock *sp;
-	int i;
 	sctp_paramhdr_t *p;
-	int err;
+	int i;
 
 	/* Retrieve the SCTP per socket area.  */
 	sp = sctp_sk((struct sock *)sk);
@@ -264,8 +263,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	/* AUTH related initializations */
 	INIT_LIST_HEAD(&asoc->endpoint_shared_keys);
-	err = sctp_auth_asoc_copy_shkeys(ep, asoc, gfp);
-	if (err)
+	if (sctp_auth_asoc_copy_shkeys(ep, asoc, gfp))
 		goto fail_init;
 
 	asoc->active_key_id = ep->active_key_id;

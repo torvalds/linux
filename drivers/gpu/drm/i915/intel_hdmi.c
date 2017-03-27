@@ -1298,16 +1298,34 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 
 static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc_state->base.crtc->dev;
+	struct drm_i915_private *dev_priv =
+		to_i915(crtc_state->base.crtc->dev);
+	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_connector_state *connector_state;
+	struct drm_connector *connector;
+	int i;
 
-	if (HAS_GMCH_DISPLAY(to_i915(dev)))
+	if (HAS_GMCH_DISPLAY(dev_priv))
 		return false;
 
 	/*
 	 * HDMI 12bpc affects the clocks, so it's only possible
 	 * when not cloning with other encoder types.
 	 */
-	return crtc_state->output_types == 1 << INTEL_OUTPUT_HDMI;
+	if (crtc_state->output_types != 1 << INTEL_OUTPUT_HDMI)
+		return false;
+
+	for_each_connector_in_state(state, connector, connector_state, i) {
+		const struct drm_display_info *info = &connector->display_info;
+
+		if (connector_state->crtc != crtc_state->base.crtc)
+			continue;
+
+		if ((info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_36) == 0)
+			return false;
+	}
+
+	return true;
 }
 
 bool intel_hdmi_compute_config(struct intel_encoder *encoder,
