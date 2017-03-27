@@ -7985,6 +7985,36 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 	return 0;
 }
 
+static void igb_deliver_wake_packet(struct net_device *netdev)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	struct sk_buff *skb;
+	u32 wupl;
+
+	wupl = rd32(E1000_WUPL) & E1000_WUPL_MASK;
+
+	/* WUPM stores only the first 128 bytes of the wake packet.
+	 * Read the packet only if we have the whole thing.
+	 */
+	if ((wupl == 0) || (wupl > E1000_WUPM_BYTES))
+		return;
+
+	skb = netdev_alloc_skb_ip_align(netdev, E1000_WUPM_BYTES);
+	if (!skb)
+		return;
+
+	skb_put(skb, wupl);
+
+	/* Ensure reads are 32-bit aligned */
+	wupl = roundup(wupl, 4);
+
+	memcpy_fromio(skb->data, hw->hw_addr + E1000_WUPM_REG(0), wupl);
+
+	skb->protocol = eth_type_trans(skb, netdev);
+	netif_rx(skb);
+}
+
 #ifdef CONFIG_PM
 #ifdef CONFIG_PM_SLEEP
 static int igb_suspend(struct device *dev)
@@ -8014,7 +8044,7 @@ static int igb_resume(struct device *dev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 err;
+	u32 err, val;
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
@@ -8044,6 +8074,10 @@ static int igb_resume(struct device *dev)
 	 * driver.
 	 */
 	igb_get_hw_control(adapter);
+
+	val = rd32(E1000_WUS);
+	if (val & WAKE_PKT_WUS)
+		igb_deliver_wake_packet(netdev);
 
 	wr32(E1000_WUS, ~0);
 
