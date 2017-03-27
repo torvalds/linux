@@ -865,6 +865,8 @@ static int pdev_remove(struct platform_device *pdev)
 	if (priv->fbdev)
 		omap_fbdev_free(ddev);
 
+	drm_atomic_helper_shutdown(ddev);
+
 	drm_mode_config_cleanup(ddev);
 
 	omap_drm_irq_uninstall(ddev);
