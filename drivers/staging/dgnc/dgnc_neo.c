@@ -96,12 +96,7 @@ static inline void neo_set_cts_flow_control(struct channel_t *ch)
 	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn on auto CTS flow control */
-#if 1
 	ier |= UART_17158_IER_CTSDSR;
-#else
-	ier &= ~(UART_17158_IER_CTSDSR);
-#endif
-
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_CTSDSR);
 
 	/* Turn off auto Xon flow control */
@@ -135,11 +130,7 @@ static inline void neo_set_rts_flow_control(struct channel_t *ch)
 	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn on auto RTS flow control */
-#if 1
 	ier |= UART_17158_IER_RTSDTR;
-#else
-	ier &= ~(UART_17158_IER_RTSDTR);
-#endif
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_RTSDTR);
 
 	/* Turn off auto Xoff flow control */
