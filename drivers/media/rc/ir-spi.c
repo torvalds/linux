@@ -58,7 +58,7 @@ static int ir_spi_tx(struct rc_dev *dev,
 	/* convert the pulse/space signal to raw binary signal */
 	for (i = 0; i < count; i++) {
 		int j;
-		u16 val = ((i + 1) % 2) ? idata->pulse : idata->space;
+		u16 val;
 
 		if (len + buffer[i] >= IR_SPI_MAX_BUFSIZE)
 			return -EINVAL;
