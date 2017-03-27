@@ -163,12 +163,9 @@ static ssize_t iunit_dbgopt_store(struct device_driver *drv, const char *buf,
 }
 
 static struct driver_attribute iunit_drvfs_attrs[] = {
-	__ATTR(dbglvl, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH, iunit_dbglvl_show,
-		iunit_dbglvl_store),
-	__ATTR(dbgfun, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH, iunit_dbgfun_show,
-		iunit_dbgfun_store),
-	__ATTR(dbgopt, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH, iunit_dbgopt_show,
-		iunit_dbgopt_store),
+	__ATTR(dbglvl, 0644, iunit_dbglvl_show, iunit_dbglvl_store),
+	__ATTR(dbgfun, 0644, iunit_dbgfun_show, iunit_dbgfun_store),
+	__ATTR(dbgopt, 0644, iunit_dbgopt_show, iunit_dbgopt_store),
 };
 
 static int iunit_drvfs_create_files(struct pci_driver *drv)

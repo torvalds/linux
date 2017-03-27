@@ -160,10 +160,10 @@ static ssize_t dynamic_pool_show(struct device *dev,
 	return ret;
 };
 
-static DEVICE_ATTR(active_bo, S_IRUGO, active_bo_show, NULL);
-static DEVICE_ATTR(free_bo, S_IRUGO, free_bo_show, NULL);
-static DEVICE_ATTR(reserved_pool, S_IRUGO, reserved_pool_show, NULL);
-static DEVICE_ATTR(dynamic_pool, S_IRUGO, dynamic_pool_show, NULL);
+static DEVICE_ATTR(active_bo, 0444, active_bo_show, NULL);
+static DEVICE_ATTR(free_bo, 0444, free_bo_show, NULL);
+static DEVICE_ATTR(reserved_pool, 0444, reserved_pool_show, NULL);
+static DEVICE_ATTR(dynamic_pool, 0444, dynamic_pool_show, NULL);
 
 static struct attribute *sysfs_attrs_ctrl[] = {
 	&dev_attr_active_bo.attr,
