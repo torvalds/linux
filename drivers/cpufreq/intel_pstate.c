@@ -1911,8 +1911,6 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 			intel_pstate_disable_ee(cpunum);
 
 		intel_pstate_hwp_enable(cpu);
-		pid_params.sample_rate_ms = 50;
-		pid_params.sample_rate_ns = 50 * NSEC_PER_MSEC;
 	}
 
 	intel_pstate_get_cpu_pstates(cpu);
@@ -2563,6 +2561,7 @@ static int __init intel_pstate_init(void)
 		} else {
 			hwp_active++;
 			intel_pstate.attr = hwp_cpufreq_attrs;
+			pid_params.sample_rate_ns = 50 * NSEC_PER_MSEC;
 			goto hwp_cpu_matched;
 		}
 	} else {
