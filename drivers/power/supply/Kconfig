@@ -317,6 +317,14 @@ config BATTERY_RX51
 	  Say Y here to enable support for battery information on Nokia
 	  RX-51, also known as N900 tablet.
 
+config CHARGER_CPCAP
+	tristate "CPCAP PMIC Charger Driver"
+	depends on MFD_CPCAP && IIO
+	default MFD_CPCAP
+	help
+	  Say Y to enable support for CPCAP PMIC charger driver for Motorola
+	  mobile devices such as Droid 4.
+
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
 	depends on USB_PHY
