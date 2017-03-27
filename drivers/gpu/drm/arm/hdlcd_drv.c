@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/console.h>
 #include <linux/list.h>
 #include <linux/of_graph.h>
 #include <linux/of_reserved_mem.h>
@@ -432,9 +433,11 @@ static int __maybe_unused hdlcd_pm_suspend(struct device *dev)
 		return 0;
 
 	drm_kms_helper_poll_disable(drm);
+	drm_fbdev_cma_set_suspend_unlocked(hdlcd->fbdev, 1);
 
 	hdlcd->state = drm_atomic_helper_suspend(drm);
 	if (IS_ERR(hdlcd->state)) {
+		drm_fbdev_cma_set_suspend_unlocked(hdlcd->fbdev, 0);
 		drm_kms_helper_poll_enable(drm);
 		return PTR_ERR(hdlcd->state);
 	}
@@ -451,8 +454,8 @@ static int __maybe_unused hdlcd_pm_resume(struct device *dev)
 		return 0;
 
 	drm_atomic_helper_resume(drm, hdlcd->state);
+	drm_fbdev_cma_set_suspend_unlocked(hdlcd->fbdev, 0);
 	drm_kms_helper_poll_enable(drm);
-	pm_runtime_set_active(dev);
 
 	return 0;
 }
