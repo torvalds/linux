@@ -198,6 +198,11 @@ static long tce_iommu_register_pages(struct tce_container *container,
 		return ret;
 
 	tcemem = kzalloc(sizeof(*tcemem), GFP_KERNEL);
+	if (!tcemem) {
+		mm_iommu_put(container->mm, mem);
+		return -ENOMEM;
+	}
+
 	tcemem->mem = mem;
 	list_add(&tcemem->next, &container->prereg_list);
 
