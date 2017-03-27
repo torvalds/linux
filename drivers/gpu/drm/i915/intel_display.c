@@ -2750,7 +2750,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 				false);
 	intel_pre_disable_primary_noatomic(&intel_crtc->base);
 	trace_intel_disable_plane(primary, intel_crtc);
-	intel_plane->disable_plane(primary, &intel_crtc->base);
+	intel_plane->disable_plane(intel_plane, intel_crtc);
 
 	return;
 
@@ -3061,14 +3061,14 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 	return 0;
 }
 
-static void i9xx_update_primary_plane(struct drm_plane *primary,
+static void i9xx_update_primary_plane(struct intel_plane *primary,
 				      const struct intel_crtc_state *crtc_state,
 				      const struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(primary->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_framebuffer *fb = plane_state->base.fb;
-	int plane = intel_crtc->plane;
+	struct drm_i915_private *dev_priv = to_i915(primary->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	enum plane plane = primary->plane;
 	u32 linear_offset;
 	u32 dspcntr = plane_state->ctl;
 	i915_reg_t reg = DSPCNTR(plane);
@@ -3079,12 +3079,12 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
 	if (INTEL_GEN(dev_priv) >= 4)
-		intel_crtc->dspaddr_offset = plane_state->main.offset;
+		crtc->dspaddr_offset = plane_state->main.offset;
 	else
-		intel_crtc->dspaddr_offset = linear_offset;
+		crtc->dspaddr_offset = linear_offset;
 
-	intel_crtc->adjusted_x = x;
-	intel_crtc->adjusted_y = y;
+	crtc->adjusted_x = x;
+	crtc->adjusted_y = y;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
@@ -3110,31 +3110,29 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		I915_WRITE_FW(DSPSURF(plane),
 			      intel_plane_ggtt_offset(plane_state) +
-			      intel_crtc->dspaddr_offset);
+			      crtc->dspaddr_offset);
 		I915_WRITE_FW(DSPOFFSET(plane), (y << 16) | x);
 	} else if (INTEL_GEN(dev_priv) >= 4) {
 		I915_WRITE_FW(DSPSURF(plane),
 			      intel_plane_ggtt_offset(plane_state) +
-			      intel_crtc->dspaddr_offset);
+			      crtc->dspaddr_offset);
 		I915_WRITE_FW(DSPTILEOFF(plane), (y << 16) | x);
 		I915_WRITE_FW(DSPLINOFF(plane), linear_offset);
 	} else {
 		I915_WRITE_FW(DSPADDR(plane),
 			      intel_plane_ggtt_offset(plane_state) +
-			      intel_crtc->dspaddr_offset);
+			      crtc->dspaddr_offset);
 	}
 	POSTING_READ_FW(reg);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void i9xx_disable_primary_plane(struct drm_plane *primary,
-				       struct drm_crtc *crtc)
+static void i9xx_disable_primary_plane(struct intel_plane *primary,
+				       struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int plane = intel_crtc->plane;
+	struct drm_i915_private *dev_priv = to_i915(primary->base.dev);
+	enum plane plane = primary->plane;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -3319,16 +3317,15 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 	return plane_ctl;
 }
 
-static void skylake_update_primary_plane(struct drm_plane *plane,
+static void skylake_update_primary_plane(struct intel_plane *plane,
 					 const struct intel_crtc_state *crtc_state,
 					 const struct intel_plane_state *plane_state)
 {
-	struct drm_device *dev = plane->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_framebuffer *fb = plane_state->base.fb;
-	enum plane_id plane_id = to_intel_plane(plane)->id;
-	enum pipe pipe = to_intel_plane(plane)->pipe;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	enum plane_id plane_id = plane->id;
+	enum pipe pipe = plane->pipe;
 	u32 plane_ctl = plane_state->ctl;
 	unsigned int rotation = plane_state->base.rotation;
 	u32 stride = skl_plane_stride(fb, 0, rotation);
@@ -3350,10 +3347,10 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	dst_w--;
 	dst_h--;
 
-	intel_crtc->dspaddr_offset = surf_addr;
+	crtc->dspaddr_offset = surf_addr;
 
-	intel_crtc->adjusted_x = src_x;
-	intel_crtc->adjusted_y = src_y;
+	crtc->adjusted_x = src_x;
+	crtc->adjusted_y = src_y;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
@@ -3392,13 +3389,12 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void skylake_disable_primary_plane(struct drm_plane *primary,
-					  struct drm_crtc *crtc)
+static void skylake_disable_primary_plane(struct intel_plane *primary,
+					  struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum plane_id plane_id = to_intel_plane(primary)->id;
-	enum pipe pipe = to_intel_plane(primary)->pipe;
+	struct drm_i915_private *dev_priv = to_i915(primary->base.dev);
+	enum plane_id plane_id = primary->id;
+	enum pipe pipe = primary->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -3431,7 +3427,7 @@ static void intel_update_primary_planes(struct drm_device *dev)
 			trace_intel_update_plane(&plane->base,
 						 to_intel_crtc(crtc));
 
-			plane->update_plane(&plane->base,
+			plane->update_plane(plane,
 					    to_intel_crtc_state(crtc->state),
 					    plane_state);
 		}
@@ -5081,7 +5077,7 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc, unsigned plane_mask
 	intel_crtc_dpms_overlay_disable(intel_crtc);
 
 	drm_for_each_plane_mask(p, dev, plane_mask)
-		to_intel_plane(p)->disable_plane(p, crtc);
+		to_intel_plane(p)->disable_plane(to_intel_plane(p), intel_crtc);
 
 	/*
 	 * FIXME: Once we grow proper nuclear flip support out of this we need
@@ -13279,11 +13275,11 @@ skl_max_scale(struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state
 }
 
 static int
-intel_check_primary_plane(struct drm_plane *plane,
+intel_check_primary_plane(struct intel_plane *plane,
 			  struct intel_crtc_state *crtc_state,
 			  struct intel_plane_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct drm_crtc *crtc = state->base.crtc;
 	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
@@ -13498,12 +13494,12 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 
 	if (plane->state->visible) {
 		trace_intel_update_plane(plane, to_intel_crtc(crtc));
-		intel_plane->update_plane(plane,
+		intel_plane->update_plane(intel_plane,
 					  to_intel_crtc_state(crtc->state),
 					  to_intel_plane_state(plane->state));
 	} else {
 		trace_intel_disable_plane(plane, to_intel_crtc(crtc));
-		intel_plane->disable_plane(plane, crtc);
+		intel_plane->disable_plane(intel_plane, to_intel_crtc(crtc));
 	}
 
 	intel_cleanup_plane_fb(plane, new_plane_state);
@@ -13647,14 +13643,14 @@ fail:
 }
 
 static int
-intel_check_cursor_plane(struct drm_plane *plane,
+intel_check_cursor_plane(struct intel_plane *plane,
 			 struct intel_crtc_state *crtc_state,
 			 struct intel_plane_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
-	struct drm_framebuffer *fb = state->base.fb;
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = state->base.fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	enum pipe pipe = to_intel_plane(plane)->pipe;
+	enum pipe pipe = plane->pipe;
 	unsigned stride;
 	int ret;
 
@@ -13714,23 +13710,20 @@ intel_check_cursor_plane(struct drm_plane *plane,
 }
 
 static void
-intel_disable_cursor_plane(struct drm_plane *plane,
-			   struct drm_crtc *crtc)
+intel_disable_cursor_plane(struct intel_plane *plane,
+			   struct intel_crtc *crtc)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	intel_crtc->cursor_addr = 0;
-	intel_crtc_update_cursor(crtc, NULL);
+	crtc->cursor_addr = 0;
+	intel_crtc_update_cursor(&crtc->base, NULL);
 }
 
 static void
-intel_update_cursor_plane(struct drm_plane *plane,
+intel_update_cursor_plane(struct intel_plane *plane,
 			  const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *state)
 {
-	struct drm_crtc *crtc = crtc_state->base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_gem_object *obj = intel_fb_obj(state->base.fb);
 	uint32_t addr;
 
@@ -13741,8 +13734,8 @@ intel_update_cursor_plane(struct drm_plane *plane,
 	else
 		addr = obj->phys_handle->busaddr;
 
-	intel_crtc->cursor_addr = addr;
-	intel_crtc_update_cursor(crtc, state);
+	crtc->cursor_addr = addr;
+	intel_crtc_update_cursor(&crtc->base, state);
 }
 
 static struct intel_plane *
@@ -15160,7 +15153,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 				continue;
 
 			trace_intel_disable_plane(&plane->base, crtc);
-			plane->disable_plane(&plane->base, &crtc->base);
+			plane->disable_plane(plane, crtc);
 		}
 	}
 

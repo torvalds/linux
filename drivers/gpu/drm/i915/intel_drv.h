@@ -851,12 +851,12 @@ struct intel_plane {
 	 * the intel_plane_state structure and accessed via plane_state.
 	 */
 
-	void (*update_plane)(struct drm_plane *plane,
+	void (*update_plane)(struct intel_plane *plane,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state);
-	void (*disable_plane)(struct drm_plane *plane,
-			      struct drm_crtc *crtc);
-	int (*check_plane)(struct drm_plane *plane,
+	void (*disable_plane)(struct intel_plane *plane,
+			      struct intel_crtc *crtc);
+	int (*check_plane)(struct intel_plane *plane,
 			   struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *state);
 };

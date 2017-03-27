@@ -185,7 +185,7 @@ int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
 	}
 
 	intel_state->base.visible = false;
-	ret = intel_plane->check_plane(plane, crtc_state, intel_state);
+	ret = intel_plane->check_plane(intel_plane, crtc_state, intel_state);
 	if (ret)
 		return ret;
 
@@ -235,14 +235,14 @@ static void intel_plane_atomic_update(struct drm_plane *plane,
 		trace_intel_update_plane(plane,
 					 to_intel_crtc(crtc));
 
-		intel_plane->update_plane(plane,
+		intel_plane->update_plane(intel_plane,
 					  to_intel_crtc_state(crtc->state),
 					  intel_state);
 	} else {
 		trace_intel_disable_plane(plane,
 					  to_intel_crtc(crtc));
 
-		intel_plane->disable_plane(plane, crtc);
+		intel_plane->disable_plane(intel_plane, to_intel_crtc(crtc));
 	}
 }
 
