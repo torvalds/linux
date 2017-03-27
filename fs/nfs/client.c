@@ -325,10 +325,33 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 	return NULL;
 }
 
-static bool nfs_client_init_is_complete(const struct nfs_client *clp)
+/*
+ * Return true if @clp is done initializing, false if still working on it.
+ *
+ * Use nfs_client_init_status to check if it was successful.
+ */
+bool nfs_client_init_is_complete(const struct nfs_client *clp)
 {
 	return clp->cl_cons_state <= NFS_CS_READY;
 }
+EXPORT_SYMBOL_GPL(nfs_client_init_is_complete);
+
+/*
+ * Return 0 if @clp was successfully initialized, -errno otherwise.
+ *
+ * This must be called *after* nfs_client_init_is_complete() returns true,
+ * otherwise it will pop WARN_ON_ONCE and return -EINVAL
+ */
+int nfs_client_init_status(const struct nfs_client *clp)
+{
+	/* called without checking nfs_client_init_is_complete */
+	if (clp->cl_cons_state > NFS_CS_READY) {
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+	return clp->cl_cons_state;
+}
+EXPORT_SYMBOL_GPL(nfs_client_init_status);
 
 int nfs_wait_client_init_complete(const struct nfs_client *clp)
 {

@@ -218,7 +218,7 @@ extern void audit_log_name(struct audit_context *context,
 			   struct audit_names *n, const struct path *path,
 			   int record_num, int *call_panic);
 
-extern int audit_pid;
+extern int auditd_test_task(const struct task_struct *task);
 
 #define AUDIT_INODE_BUCKETS	32
 extern struct list_head audit_inode_hash[AUDIT_INODE_BUCKETS];
@@ -249,10 +249,6 @@ struct audit_netlink_list {
 };
 
 int audit_send_list(void *);
-
-struct audit_net {
-	struct sock *nlsk;
-};
 
 extern int selinux_audit_rule_update(void);
 
@@ -340,8 +336,7 @@ extern int audit_filter(int msgtype, unsigned int listtype);
 extern int __audit_signal_info(int sig, struct task_struct *t);
 static inline int audit_signal_info(int sig, struct task_struct *t)
 {
-	if (unlikely((audit_pid && t->tgid == audit_pid) ||
-		     (audit_signals && !audit_dummy_context())))
+	if (auditd_test_task(t) || (audit_signals && !audit_dummy_context()))
 		return __audit_signal_info(sig, t);
 	return 0;
 }

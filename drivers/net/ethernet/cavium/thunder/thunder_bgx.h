@@ -22,7 +22,6 @@
 #define    MAX_BGX_PER_CN88XX			2
 #define    MAX_BGX_PER_CN81XX			3 /* 2 BGXs + 1 RGX */
 #define    MAX_BGX_PER_CN83XX			4
-#define    MAX_BGX_PER_NODE			4
 #define    MAX_LMAC_PER_BGX			4
 #define    MAX_BGX_CHANS_PER_LMAC		16
 #define    MAX_DMAC_PER_LMAC			8

@@ -100,6 +100,9 @@ struct vsock_transport {
 	void (*destruct)(struct vsock_sock *);
 	void (*release)(struct vsock_sock *);
 
+	/* Cancel all pending packets sent on vsock. */
+	int (*cancel_pkt)(struct vsock_sock *vsk);
+
 	/* Connections. */
 	int (*connect)(struct vsock_sock *);
 

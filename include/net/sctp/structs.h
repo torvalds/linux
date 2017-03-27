@@ -83,6 +83,7 @@ struct sctp_bind_addr;
 struct sctp_ulpq;
 struct sctp_ep_common;
 struct crypto_shash;
+struct sctp_stream;
 
 
 #include <net/sctp/tsnmap.h>
@@ -476,7 +477,8 @@ struct sctp_pf {
 	int  (*send_verify) (struct sctp_sock *, union sctp_addr *);
 	int  (*supported_addrs)(const struct sctp_sock *, __be16 *);
 	struct sock *(*create_accept_sk) (struct sock *sk,
-					  struct sctp_association *asoc);
+					  struct sctp_association *asoc,
+					  bool kern);
 	int (*addr_to_user)(struct sctp_sock *sk, union sctp_addr *addr);
 	void (*to_sk_saddr)(union sctp_addr *, struct sock *sk);
 	void (*to_sk_daddr)(union sctp_addr *, struct sock *sk);
@@ -752,6 +754,8 @@ struct sctp_transport {
 		/* Is the Path MTU update pending on this tranport */
 		pmtu_pending:1,
 
+		dst_pending_confirm:1,	/* need to confirm neighbour */
+
 		/* Has this transport moved the ctsn since we last sacked */
 		sack_generation:1;
 	u32 dst_cookie;
@@ -804,8 +808,6 @@ struct sctp_transport {
 	__u32 flight_size;
 
 	__u32 burst_limited;	/* Holds old cwnd when max.burst is applied */
-
-	__u32 dst_pending_confirm;	/* need to confirm neighbour */
 
 	/* Destination */
 	struct dst_entry *dst;

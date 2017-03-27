@@ -937,8 +937,10 @@ static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
 		if (relid == 0)
 			continue;
 
+		rcu_read_lock();
+
 		/* Find channel based on relid */
-		list_for_each_entry(channel, &hv_cpu->chan_list, percpu_list) {
+		list_for_each_entry_rcu(channel, &hv_cpu->chan_list, percpu_list) {
 			if (channel->offermsg.child_relid != relid)
 				continue;
 
@@ -954,6 +956,8 @@ static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
 				tasklet_schedule(&channel->callback_event);
 			}
 		}
+
+		rcu_read_unlock();
 	}
 }
 
