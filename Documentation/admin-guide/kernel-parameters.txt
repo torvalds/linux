@@ -3172,6 +3172,12 @@
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/blockdev/ramdisk.txt.
 
+	ras=option[,option,...]	[KNL] RAS-specific options
+
+		cec_disable	[X86]
+				Disable the Correctable Errors Collector,
+				see CONFIG_RAS_CEC help text.
+
 	rcu_nocbs=	[KNL]
 			The argument is a cpu list, as described above.
 

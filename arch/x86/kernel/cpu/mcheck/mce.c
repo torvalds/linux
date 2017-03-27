@@ -35,6 +35,7 @@
 #include <linux/poll.h>
 #include <linux/nmi.h>
 #include <linux/cpu.h>
+#include <linux/ras.h>
 #include <linux/smp.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
@@ -160,47 +161,8 @@ static struct mce_log_buffer mcelog_buf = {
 
 void mce_log(struct mce *m)
 {
-	unsigned next, entry;
-
-	/* Emit the trace record: */
-	trace_mce_record(m);
-
 	if (!mce_gen_pool_add(m))
 		irq_work_queue(&mce_irq_work);
-
-	wmb();
-	for (;;) {
-		entry = mce_log_get_idx_check(mcelog_buf.next);
-		for (;;) {
-
-			/*
-			 * When the buffer fills up discard new entries.
-			 * Assume that the earlier errors are the more
-			 * interesting ones:
-			 */
-			if (entry >= MCE_LOG_LEN) {
-				set_bit(MCE_OVERFLOW,
-					(unsigned long *)&mcelog_buf.flags);
-				return;
-			}
-			/* Old left over entry. Skip: */
-			if (mcelog_buf.entry[entry].finished) {
-				entry++;
-				continue;
-			}
-			break;
-		}
-		smp_rmb();
-		next = entry + 1;
-		if (cmpxchg(&mcelog_buf.next, entry, next) == entry)
-			break;
-	}
-	memcpy(mcelog_buf.entry + entry, m, sizeof(struct mce));
-	wmb();
-	mcelog_buf.entry[entry].finished = 1;
-	wmb();
-
-	set_bit(0, &mce_need_notify);
 }
 
 void mce_inject_log(struct mce *m)
@@ -213,6 +175,12 @@ EXPORT_SYMBOL_GPL(mce_inject_log);
 
 static struct notifier_block mce_srao_nb;
 
+/*
+ * We run the default notifier if we have only the SRAO, the first and the
+ * default notifier registered. I.e., the mandatory NUM_DEFAULT_NOTIFIERS
+ * notifiers registered on the chain.
+ */
+#define NUM_DEFAULT_NOTIFIERS	3
 static atomic_t num_notifiers;
 
 void mce_register_decode_chain(struct notifier_block *nb)
@@ -522,7 +490,6 @@ static void mce_schedule_work(void)
 
 static void mce_irq_work_cb(struct irq_work *entry)
 {
-	mce_notify_irq();
 	mce_schedule_work();
 }
 
@@ -565,6 +532,111 @@ static int mce_usable_address(struct mce *m)
 	return 1;
 }
 
+static bool memory_error(struct mce *m)
+{
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	if (c->x86_vendor == X86_VENDOR_AMD) {
+		/* ErrCodeExt[20:16] */
+		u8 xec = (m->status >> 16) & 0x1f;
+
+		return (xec == 0x0 || xec == 0x8);
+	} else if (c->x86_vendor == X86_VENDOR_INTEL) {
+		/*
+		 * Intel SDM Volume 3B - 15.9.2 Compound Error Codes
+		 *
+		 * Bit 7 of the MCACOD field of IA32_MCi_STATUS is used for
+		 * indicating a memory error. Bit 8 is used for indicating a
+		 * cache hierarchy error. The combination of bit 2 and bit 3
+		 * is used for indicating a `generic' cache hierarchy error
+		 * But we can't just blindly check the above bits, because if
+		 * bit 11 is set, then it is a bus/interconnect error - and
+		 * either way the above bits just gives more detail on what
+		 * bus/interconnect error happened. Note that bit 12 can be
+		 * ignored, as it's the "filter" bit.
+		 */
+		return (m->status & 0xef80) == BIT(7) ||
+		       (m->status & 0xef00) == BIT(8) ||
+		       (m->status & 0xeffc) == 0xc;
+	}
+
+	return false;
+}
+
+static bool cec_add_mce(struct mce *m)
+{
+	if (!m)
+		return false;
+
+	/* We eat only correctable DRAM errors with usable addresses. */
+	if (memory_error(m) &&
+	    !(m->status & MCI_STATUS_UC) &&
+	    mce_usable_address(m))
+		if (!cec_add_elem(m->addr >> PAGE_SHIFT))
+			return true;
+
+	return false;
+}
+
+static int mce_first_notifier(struct notifier_block *nb, unsigned long val,
+			      void *data)
+{
+	struct mce *m = (struct mce *)data;
+	unsigned int next, entry;
+
+	if (!m)
+		return NOTIFY_DONE;
+
+	if (cec_add_mce(m))
+		return NOTIFY_STOP;
+
+	/* Emit the trace record: */
+	trace_mce_record(m);
+
+	wmb();
+	for (;;) {
+		entry = mce_log_get_idx_check(mcelog_buf.next);
+		for (;;) {
+
+			/*
+			 * When the buffer fills up discard new entries.
+			 * Assume that the earlier errors are the more
+			 * interesting ones:
+			 */
+			if (entry >= MCE_LOG_LEN) {
+				set_bit(MCE_OVERFLOW,
+					(unsigned long *)&mcelog_buf.flags);
+				return NOTIFY_DONE;
+			}
+			/* Old left over entry. Skip: */
+			if (mcelog_buf.entry[entry].finished) {
+				entry++;
+				continue;
+			}
+			break;
+		}
+		smp_rmb();
+		next = entry + 1;
+		if (cmpxchg(&mcelog_buf.next, entry, next) == entry)
+			break;
+	}
+	memcpy(mcelog_buf.entry + entry, m, sizeof(struct mce));
+	wmb();
+	mcelog_buf.entry[entry].finished = 1;
+	wmb();
+
+	set_bit(0, &mce_need_notify);
+
+	mce_notify_irq();
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block first_nb = {
+	.notifier_call	= mce_first_notifier,
+	.priority	= MCE_PRIO_FIRST,
+};
+
 static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
 				void *data)
 {
@@ -594,11 +666,7 @@ static int mce_default_notifier(struct notifier_block *nb, unsigned long val,
 	if (!m)
 		return NOTIFY_DONE;
 
-	/*
-	 * Run the default notifier if we have only the SRAO
-	 * notifier and us registered.
-	 */
-	if (atomic_read(&num_notifiers) > 2)
+	if (atomic_read(&num_notifiers) > NUM_DEFAULT_NOTIFIERS)
 		return NOTIFY_DONE;
 
 	/* Don't print when mcelog is running */
@@ -653,37 +721,6 @@ static void mce_read_aux(struct mce *m, int i)
 		if (m->status & MCI_STATUS_SYNDV)
 			m->synd = mce_rdmsrl(MSR_AMD64_SMCA_MCx_SYND(i));
 	}
-}
-
-static bool memory_error(struct mce *m)
-{
-	struct cpuinfo_x86 *c = &boot_cpu_data;
-
-	if (c->x86_vendor == X86_VENDOR_AMD) {
-		/* ErrCodeExt[20:16] */
-		u8 xec = (m->status >> 16) & 0x1f;
-
-		return (xec == 0x0 || xec == 0x8);
-	} else if (c->x86_vendor == X86_VENDOR_INTEL) {
-		/*
-		 * Intel SDM Volume 3B - 15.9.2 Compound Error Codes
-		 *
-		 * Bit 7 of the MCACOD field of IA32_MCi_STATUS is used for
-		 * indicating a memory error. Bit 8 is used for indicating a
-		 * cache hierarchy error. The combination of bit 2 and bit 3
-		 * is used for indicating a `generic' cache hierarchy error
-		 * But we can't just blindly check the above bits, because if
-		 * bit 11 is set, then it is a bus/interconnect error - and
-		 * either way the above bits just gives more detail on what
-		 * bus/interconnect error happened. Note that bit 12 can be
-		 * ignored, as it's the "filter" bit.
-		 */
-		return (m->status & 0xef80) == BIT(7) ||
-		       (m->status & 0xef00) == BIT(8) ||
-		       (m->status & 0xeffc) == 0xc;
-	}
-
-	return false;
 }
 
 DEFINE_PER_CPU(unsigned, mce_poll_count);
@@ -2167,6 +2204,7 @@ __setup("mce", mcheck_enable);
 int __init mcheck_init(void)
 {
 	mcheck_intel_therm_init();
+	mce_register_decode_chain(&first_nb);
 	mce_register_decode_chain(&mce_srao_nb);
 	mce_register_decode_chain(&mce_default_nb);
 	mcheck_vendor_init_severity();
@@ -2716,6 +2754,7 @@ static int __init mcheck_late_init(void)
 		static_branch_inc(&mcsafe_key);
 
 	mcheck_debugfs_init();
+	cec_init();
 
 	/*
 	 * Flush out everything that has been logged during early boot, now that
