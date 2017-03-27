@@ -9373,23 +9373,37 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 
 static bool i9xx_cursor_size_ok(const struct intel_plane_state *plane_state)
 {
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
 	int width = plane_state->base.crtc_w;
 	int height = plane_state->base.crtc_h;
 
 	if (!intel_cursor_size_ok(plane_state))
 		return false;
 
-	/*
-	 * Cursors are limited to a few power-of-two
-	 * sizes, and they must be square.
-	 */
-	switch (width | height) {
+	/* Cursor width is limited to a few power-of-two sizes */
+	switch (width) {
 	case 256:
 	case 128:
 	case 64:
 		break;
 	default:
 		return false;
+	}
+
+	/*
+	 * IVB+ have CUR_FBC_CTL which allows an arbitrary cursor
+	 * height from 8 lines up to the cursor width, when the
+	 * cursor is not rotated. Everything else requires square
+	 * cursors.
+	 */
+	if (HAS_CUR_FBC(dev_priv) &&
+	    plane_state->base.rotation & DRM_ROTATE_0) {
+		if (height < 8 || height > width)
+			return false;
+	} else {
+		if (height != width)
+			return false;
 	}
 
 	return true;
@@ -9453,11 +9467,14 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
-	u32 cntl = 0, base = 0, pos = 0;
+	u32 cntl = 0, base = 0, pos = 0, fbc_ctl = 0;
 	unsigned long irqflags;
 
 	if (plane_state && plane_state->base.visible) {
 		cntl = plane_state->ctl;
+
+		if (plane_state->base.crtc_h != plane_state->base.crtc_w)
+			fbc_ctl = CUR_FBC_CTL_EN | (plane_state->base.crtc_h - 1);
 
 		base = intel_cursor_base(plane_state);
 		pos = intel_cursor_position(plane_state);
@@ -9468,10 +9485,14 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	if (plane->cursor.cntl != cntl)
 		I915_WRITE_FW(CURCNTR(pipe), cntl);
 
+	if (plane->cursor.size != fbc_ctl)
+		I915_WRITE_FW(CUR_FBC_CTL(pipe), fbc_ctl);
+
 	if (cntl)
 		I915_WRITE_FW(CURPOS(pipe), pos);
 
 	if (plane->cursor.cntl != cntl ||
+	    plane->cursor.size != fbc_ctl ||
 	    plane->cursor.base != base)
 		I915_WRITE_FW(CURBASE(pipe), base);
 
@@ -9481,6 +9502,7 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 
 	plane->cursor.cntl = cntl;
 	plane->cursor.base = base;
+	plane->cursor.size = fbc_ctl;
 }
 
 static void i9xx_disable_cursor(struct intel_plane *plane,
@@ -13822,7 +13844,9 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 
 	cursor->cursor.base = ~0;
 	cursor->cursor.cntl = ~0;
-	cursor->cursor.size = ~0;
+
+	if (IS_I845G(dev_priv) || IS_I865G(dev_priv) || HAS_CUR_FBC(dev_priv))
+		cursor->cursor.size = ~0;
 
 	ret = drm_universal_plane_init(&dev_priv->drm, &cursor->base,
 				       0, &intel_cursor_plane_funcs,
