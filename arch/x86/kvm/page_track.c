@@ -156,6 +156,14 @@ bool kvm_page_track_is_active(struct kvm_vcpu *vcpu, gfn_t gfn,
 	return !!ACCESS_ONCE(slot->arch.gfn_track[mode][index]);
 }
 
+void kvm_page_track_cleanup(struct kvm *kvm)
+{
+	struct kvm_page_track_notifier_head *head;
+
+	head = &kvm->arch.track_notifier_head;
+	cleanup_srcu_struct(&head->track_srcu);
+}
+
 void kvm_page_track_init(struct kvm *kvm)
 {
 	struct kvm_page_track_notifier_head *head;
