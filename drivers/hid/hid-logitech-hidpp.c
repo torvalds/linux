@@ -2463,6 +2463,13 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 
 	hidpp_initialize_battery(hidpp);
 
+	/* forward current battery state */
+	if (hidpp->capabilities & HIDPP_CAPABILITY_HIDPP20_BATTERY) {
+		hidpp20_query_battery_info(hidpp);
+		if (hidpp->battery.ps)
+			power_supply_changed(hidpp->battery.ps);
+	}
+
 	if (!(hidpp->quirks & HIDPP_QUIRK_NO_HIDINPUT) || hidpp->delayed_input)
 		/* if the input nodes are already created, we can stop now */
 		return;
