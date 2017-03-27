@@ -32,27 +32,27 @@ enum {
 
 static inline void wbt_clear_state(struct blk_issue_stat *stat)
 {
-	stat->time &= BLK_STAT_TIME_MASK;
+	stat->stat &= ~BLK_STAT_RES_MASK;
 }
 
 static inline enum wbt_flags wbt_stat_to_mask(struct blk_issue_stat *stat)
 {
-	return (stat->time & BLK_STAT_MASK) >> BLK_STAT_SHIFT;
+	return (stat->stat & BLK_STAT_RES_MASK) >> BLK_STAT_RES_SHIFT;
 }
 
 static inline void wbt_track(struct blk_issue_stat *stat, enum wbt_flags wb_acct)
 {
-	stat->time |= ((u64) wb_acct) << BLK_STAT_SHIFT;
+	stat->stat |= ((u64) wb_acct) << BLK_STAT_RES_SHIFT;
 }
 
 static inline bool wbt_is_tracked(struct blk_issue_stat *stat)
 {
-	return (stat->time >> BLK_STAT_SHIFT) & WBT_TRACKED;
+	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_TRACKED;
 }
 
 static inline bool wbt_is_read(struct blk_issue_stat *stat)
 {
-	return (stat->time >> BLK_STAT_SHIFT) & WBT_READ;
+	return (stat->stat >> BLK_STAT_RES_SHIFT) & WBT_READ;
 }
 
 struct rq_wait {

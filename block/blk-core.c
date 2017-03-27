@@ -2483,7 +2483,7 @@ void blk_start_request(struct request *req)
 	blk_dequeue_request(req);
 
 	if (test_bit(QUEUE_FLAG_STATS, &req->q->queue_flags)) {
-		blk_stat_set_issue_time(&req->issue_stat);
+		blk_stat_set_issue(&req->issue_stat, blk_rq_sectors(req));
 		req->rq_flags |= RQF_STATS;
 		wbt_issue(req->q->rq_wb, &req->issue_stat);
 	}
