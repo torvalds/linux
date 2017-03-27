@@ -1274,9 +1274,13 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 {
 	struct hdmi_avi_infoframe frame;
 	u8 val;
+	bool is_hdmi2 = false;
 
+	if ((mode->flags & DRM_MODE_FLAG_420_MASK) ||
+	    hdmi->connector.scdc_present)
+		is_hdmi2 = true;
 	/* Initialise info frame from DRM mode */
-	drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
+	drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, is_hdmi2);
 
 	if (hdmi->hdmi_data.enc_out_format == YCBCR444)
 		frame.colorspace = HDMI_COLORSPACE_YUV444;
