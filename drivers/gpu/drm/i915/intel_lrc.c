@@ -1278,7 +1278,9 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	GEM_BUG_ON(request->ctx != port[0].request->ctx);
 
 	/* Reset WaIdleLiteRestore:bdw,skl as well */
-	request->tail = request->wa_tail - WA_TAIL_DWORDS * sizeof(u32);
+	request->tail =
+		intel_ring_wrap(request->ring,
+				request->wa_tail - WA_TAIL_DWORDS*sizeof(u32));
 	GEM_BUG_ON(!IS_ALIGNED(request->tail, 8));
 }
 
