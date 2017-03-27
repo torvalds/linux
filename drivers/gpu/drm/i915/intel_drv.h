@@ -799,11 +799,6 @@ struct intel_crtc {
 	int adjusted_x;
 	int adjusted_y;
 
-	uint32_t cursor_addr;
-	uint32_t cursor_cntl;
-	uint32_t cursor_size;
-	uint32_t cursor_base;
-
 	struct intel_crtc_state *config;
 
 	/* global reset count when the last flip was submitted */
@@ -844,6 +839,10 @@ struct intel_plane {
 	bool can_scale;
 	int max_downscale;
 	uint32_t frontbuffer_bit;
+
+	struct {
+		u32 base, cntl, size;
+	} cursor;
 
 	/*
 	 * NOTE: Do not place new plane state fields here (e.g., when adding
