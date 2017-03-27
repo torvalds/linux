@@ -377,7 +377,6 @@ static const struct vop_win_data rk3368_vop_win_data[] = {
 
 static const struct vop_data rk3368_vop = {
 	.version = VOP_VERSION(3, 2),
-	.feature = VOP_FEATURE_OUTPUT_10BIT,
 	.max_input = {4096, 8192},
 	.max_output = {4096, 2160},
 	.intr = &rk3368_vop_intr,
@@ -398,7 +397,6 @@ static const struct vop_intr rk3366_vop_intr = {
 
 static const struct vop_data rk3366_vop = {
 	.version = VOP_VERSION(3, 4),
-	.feature = VOP_FEATURE_OUTPUT_10BIT,
 	.max_input = {4096, 8192},
 	.max_output = {4096, 2160},
 	.intr = &rk3366_vop_intr,
