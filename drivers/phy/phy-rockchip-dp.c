@@ -43,11 +43,13 @@ static int rockchip_set_phy_state(struct phy *phy, bool enable)
 	int ret;
 
 	if (enable) {
-		/* EDP 24m clock domain software reset request. */
-		reset_control_assert(dp->rst_24m);
-		usleep_range(20, 40);
-		reset_control_deassert(dp->rst_24m);
-		usleep_range(20, 40);
+		if (dp->rst_24m) {
+			/* EDP 24m clock domain software reset request. */
+			reset_control_assert(dp->rst_24m);
+			usleep_range(20, 40);
+			reset_control_deassert(dp->rst_24m);
+			usleep_range(20, 40);
+		}
 
 		ret = regmap_write(dp->grf, drv_data->grf_reg_offset,
 				   drv_data->siddq_on);
