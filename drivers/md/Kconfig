@@ -115,7 +115,7 @@ config MD_RAID10
 
 	  RAID-10 requires mdadm-1.7.0 or later, available at:
 
-	  ftp://ftp.kernel.org/pub/linux/utils/raid/mdadm/
+	  https://www.kernel.org/pub/linux/utils/raid/mdadm/
 
 	  If unsure, say Y.
 
