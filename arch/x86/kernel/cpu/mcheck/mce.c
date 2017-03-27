@@ -157,9 +157,10 @@ static atomic_t num_notifiers;
 
 void mce_register_decode_chain(struct notifier_block *nb)
 {
-	atomic_inc(&num_notifiers);
+	if (WARN_ON(nb->priority > MCE_PRIO_LOWEST && nb->priority < MCE_PRIO_EDAC))
+		return;
 
-	WARN_ON(nb->priority > MCE_PRIO_LOWEST && nb->priority < MCE_PRIO_EDAC);
+	atomic_inc(&num_notifiers);
 
 	atomic_notifier_chain_register(&x86_mce_decoder_chain, nb);
 }
