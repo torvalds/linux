@@ -22,6 +22,9 @@ static int throtl_quantum = 32;
 #define DFL_THROTL_SLICE_HD (HZ / 10)
 #define DFL_THROTL_SLICE_SSD (HZ / 50)
 #define MAX_THROTL_SLICE (HZ)
+#define DFL_IDLE_THRESHOLD_SSD (1000L) /* 1 ms */
+#define DFL_IDLE_THRESHOLD_HD (100L * 1000) /* 100 ms */
+#define MAX_IDLE_TIME (5L * 1000 * 1000) /* 5 s */
 
 static struct blkcg_policy blkcg_policy_throtl;
 
@@ -154,6 +157,11 @@ struct throtl_grp {
 	/* When did we start a new slice */
 	unsigned long slice_start[2];
 	unsigned long slice_end[2];
+
+	unsigned long last_finish_time; /* ns / 1024 */
+	unsigned long checked_last_finish_time; /* ns / 1024 */
+	unsigned long avg_idletime; /* ns / 1024 */
+	unsigned long idletime_threshold; /* us */
 };
 
 struct throtl_data
@@ -468,6 +476,11 @@ static void throtl_pd_init(struct blkg_policy_data *pd)
 	if (cgroup_subsys_on_dfl(io_cgrp_subsys) && blkg->parent)
 		sq->parent_sq = &blkg_to_tg(blkg->parent)->service_queue;
 	tg->td = td;
+
+	if (blk_queue_nonrot(td->queue))
+		tg->idletime_threshold = DFL_IDLE_THRESHOLD_SSD;
+	else
+		tg->idletime_threshold = DFL_IDLE_THRESHOLD_HD;
 }
 
 /*
@@ -1644,6 +1657,21 @@ static unsigned long tg_last_low_overflow_time(struct throtl_grp *tg)
 	return ret;
 }
 
+static bool throtl_tg_is_idle(struct throtl_grp *tg)
+{
+	/*
+	 * cgroup is idle if:
+	 * - single idle is too long, longer than a fixed value (in case user
+	 *   configure a too big threshold) or 4 times of slice
+	 * - average think time is more than threshold
+	 */
+	unsigned long time = jiffies_to_usecs(4 * tg->td->throtl_slice);
+
+	time = min_t(unsigned long, MAX_IDLE_TIME, time);
+	return (ktime_get_ns() >> 10) - tg->last_finish_time > time ||
+	       tg->avg_idletime > tg->idletime_threshold;
+}
+
 static bool throtl_tg_can_upgrade(struct throtl_grp *tg)
 {
 	struct throtl_service_queue *sq = &tg->service_queue;
@@ -1843,6 +1871,19 @@ static void throtl_downgrade_check(struct throtl_grp *tg)
 	tg->last_io_disp[WRITE] = 0;
 }
 
+static void blk_throtl_update_idletime(struct throtl_grp *tg)
+{
+	unsigned long now = ktime_get_ns() >> 10;
+	unsigned long last_finish_time = tg->last_finish_time;
+
+	if (now <= last_finish_time || last_finish_time == 0 ||
+	    last_finish_time == tg->checked_last_finish_time)
+		return;
+
+	tg->avg_idletime = (tg->avg_idletime * 7 + now - last_finish_time) >> 3;
+	tg->checked_last_finish_time = last_finish_time;
+}
+
 bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 		    struct bio *bio)
 {
@@ -1851,6 +1892,7 @@ bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 	struct throtl_service_queue *sq;
 	bool rw = bio_data_dir(bio);
 	bool throttled = false;
+	int ret;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
@@ -1862,6 +1904,13 @@ bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 
 	if (unlikely(blk_queue_bypass(q)))
 		goto out_unlock;
+
+	ret = bio_associate_current(bio);
+#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+	if (ret == 0 || ret == -EBUSY)
+		bio->bi_cg_private = tg;
+#endif
+	blk_throtl_update_idletime(tg);
 
 	sq = &tg->service_queue;
 
@@ -1923,7 +1972,6 @@ again:
 
 	tg->last_low_overflow_time[rw] = jiffies;
 
-	bio_associate_current(bio);
 	tg->td->nr_queued[rw]++;
 	throtl_add_bio_tg(bio, qn, tg);
 	throttled = true;
@@ -1951,6 +1999,20 @@ out:
 		bio_clear_flag(bio, BIO_THROTTLED);
 	return throttled;
 }
+
+#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+void blk_throtl_bio_endio(struct bio *bio)
+{
+	struct throtl_grp *tg;
+
+	tg = bio->bi_cg_private;
+	if (!tg)
+		return;
+	bio->bi_cg_private = NULL;
+
+	tg->last_finish_time = ktime_get_ns() >> 10;
+}
+#endif
 
 /*
  * Dispatch all bios from all children tg's queued on @parent_sq.  On
@@ -2035,6 +2097,7 @@ int blk_throtl_init(struct request_queue *q)
 	td->limit_index = LIMIT_MAX;
 	td->low_upgrade_time = jiffies;
 	td->low_downgrade_time = jiffies;
+
 	/* activate policy */
 	ret = blkcg_activate_policy(q, &blkcg_policy_throtl);
 	if (ret)
@@ -2053,6 +2116,8 @@ void blk_throtl_exit(struct request_queue *q)
 void blk_throtl_register_queue(struct request_queue *q)
 {
 	struct throtl_data *td;
+	struct cgroup_subsys_state *pos_css;
+	struct blkcg_gq *blkg;
 
 	td = q->td;
 	BUG_ON(!td);
@@ -2065,6 +2130,21 @@ void blk_throtl_register_queue(struct request_queue *q)
 	/* if no low limit, use previous default */
 	td->throtl_slice = DFL_THROTL_SLICE_HD;
 #endif
+
+	/*
+	 * some tg are created before queue is fully initialized, eg, nonrot
+	 * isn't initialized yet
+	 */
+	rcu_read_lock();
+	blkg_for_each_descendant_post(blkg, pos_css, q->root_blkg) {
+		struct throtl_grp *tg = blkg_to_tg(blkg);
+
+		if (blk_queue_nonrot(q))
+			tg->idletime_threshold = DFL_IDLE_THRESHOLD_SSD;
+		else
+			tg->idletime_threshold = DFL_IDLE_THRESHOLD_HD;
+	}
+	rcu_read_unlock();
 }
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW

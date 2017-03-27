@@ -58,6 +58,9 @@ struct bio {
 	 */
 	struct io_context	*bi_ioc;
 	struct cgroup_subsys_state *bi_css;
+#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+	void			*bi_cg_private;
+#endif
 #endif
 	union {
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
