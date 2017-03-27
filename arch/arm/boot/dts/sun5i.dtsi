@@ -689,6 +689,7 @@
 		be0: display-backend@01e60000 {
 			compatible = "allwinner,sun5i-a13-display-backend";
 			reg = <0x01e60000 0x10000>;
+			interrupts = <47>;
 			clocks = <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
 				 <&ccu CLK_DRAM_DE_BE>;
 			clock-names = "ahb", "mod",
