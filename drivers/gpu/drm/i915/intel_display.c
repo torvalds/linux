@@ -9217,26 +9217,12 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state)
 {
-	unsigned int width = plane_state->base.crtc_w;
-	unsigned int stride = roundup_pow_of_two(width) * 4;
-
-	switch (stride) {
-	default:
-		WARN_ONCE(1, "Invalid cursor width/stride, width=%u, stride=%u\n",
-			  width, stride);
-		stride = 256;
-		/* fallthrough */
-	case 256:
-	case 512:
-	case 1024:
-	case 2048:
-		break;
-	}
+	const struct drm_framebuffer *fb = plane_state->base.fb;
 
 	return CURSOR_ENABLE |
 		CURSOR_GAMMA_ENABLE |
 		CURSOR_FORMAT_ARGB |
-		CURSOR_STRIDE(stride);
+		CURSOR_STRIDE(fb->pitches[0]);
 }
 
 static bool i845_cursor_size_ok(const struct intel_plane_state *plane_state)
@@ -9255,8 +9241,6 @@ static int i845_check_cursor(struct intel_plane *plane,
 			     struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->base.fb;
-	const struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	unsigned int stride;
 	int ret;
 
 	ret = intel_check_cursor(crtc_state, plane_state);
@@ -9264,7 +9248,7 @@ static int i845_check_cursor(struct intel_plane *plane,
 		return ret;
 
 	/* if we want to turn off the cursor ignore width and height */
-	if (!obj)
+	if (!fb)
 		return 0;
 
 	/* Check for which cursor types we support */
@@ -9275,10 +9259,16 @@ static int i845_check_cursor(struct intel_plane *plane,
 		return -EINVAL;
 	}
 
-	stride = roundup_pow_of_two(plane_state->base.crtc_w) * 4;
-	if (obj->base.size < stride * plane_state->base.crtc_h) {
-		DRM_DEBUG_KMS("buffer is too small\n");
-		return -ENOMEM;
+	switch (fb->pitches[0]) {
+	case 256:
+	case 512:
+	case 1024:
+	case 2048:
+		break;
+	default:
+		DRM_DEBUG_KMS("Invalid cursor stride (%u)\n",
+			      fb->pitches[0]);
+		return -EINVAL;
 	}
 
 	plane_state->ctl = i845_cursor_ctl(crtc_state, plane_state);
@@ -9411,9 +9401,7 @@ static int i9xx_check_cursor(struct intel_plane *plane,
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
-	const struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	enum pipe pipe = plane->pipe;
-	unsigned int stride;
 	int ret;
 
 	ret = intel_check_cursor(crtc_state, plane_state);
@@ -9421,7 +9409,7 @@ static int i9xx_check_cursor(struct intel_plane *plane,
 		return ret;
 
 	/* if we want to turn off the cursor ignore width and height */
-	if (!obj)
+	if (!fb)
 		return 0;
 
 	/* Check for which cursor types we support */
@@ -9432,10 +9420,10 @@ static int i9xx_check_cursor(struct intel_plane *plane,
 		return -EINVAL;
 	}
 
-	stride = roundup_pow_of_two(plane_state->base.crtc_w) * 4;
-	if (obj->base.size < stride * plane_state->base.crtc_h) {
-		DRM_DEBUG_KMS("buffer is too small\n");
-		return -ENOMEM;
+	if (fb->pitches[0] != plane_state->base.crtc_w * fb->format->cpp[0]) {
+		DRM_DEBUG_KMS("Invalid cursor stride (%u) (cursor width %d)\n",
+			      fb->pitches[0], plane_state->base.crtc_w);
+		return -EINVAL;
 	}
 
 	/*
