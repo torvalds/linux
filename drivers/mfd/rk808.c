@@ -184,6 +184,7 @@ static const struct rk808_reg_data rk808_pre_init_reg[] = {
 	{ RK808_BUCK1_CONFIG_REG, BUCK1_RATE_MASK,  BUCK_ILMIN_200MA },
 	{ RK808_BUCK2_CONFIG_REG, BUCK2_RATE_MASK,  BUCK_ILMIN_200MA },
 	{ RK808_DCDC_UV_ACT_REG,  BUCK_UV_ACT_MASK, BUCK_UV_ACT_DISABLE},
+	{ RK808_RTC_CTRL_REG, RTC_STOP, RTC_STOP},
 	{ RK808_VB_MON_REG,       MASK_ALL,         VB_LO_ACT |
 						    VB_LO_SEL_3500MV },
 };
@@ -269,6 +270,7 @@ static const struct rk808_reg_data rk818_pre_init_reg[] = {
 					BOOST_EN_ENABLE | SWITCH_EN_ENABLE },
 	{ RK818_SLEEP_SET_OFF_REG1, OTG_SLP_SET_MASK, OTG_SLP_SET_OFF },
 	{ RK818_BUCK4_CONFIG_REG, BUCK_ILMIN_MASK,  BUCK_ILMIN_250MA },
+	{ RK808_RTC_CTRL_REG, RTC_STOP, RTC_STOP},
 };
 
 static const struct regmap_irq rk818_irqs[] = {
@@ -416,6 +418,7 @@ static const struct mfd_cell rk805s[] = {
 static const struct rk808_reg_data rk805_pre_init_reg[] = {
 	{RK805_BUCK4_CONFIG_REG, BUCK_ILMIN_MASK, BUCK_ILMIN_400MA},
 	{RK805_GPIO_IO_POL_REG, SLP_SD_MSK, SLEEP_FUN},
+	{RK808_RTC_CTRL_REG, RTC_STOP, RTC_STOP},
 	{RK805_THERMAL_REG, TEMP_HOTDIE_MSK, TEMP115C},
 };
 

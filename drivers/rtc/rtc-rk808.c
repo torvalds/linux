@@ -387,6 +387,20 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 		break;
+	case RK808_ID:
+		np = of_get_child_by_name(pdev->dev.parent->of_node, "rtc");
+		if (np && !of_device_is_available(np)) {
+			dev_info(&pdev->dev, "device is disabled\n");
+			return -EINVAL;
+		}
+		break;
+	case RK818_ID:
+		np = of_get_child_by_name(pdev->dev.parent->of_node, "rtc");
+		if (np && !of_device_is_available(np)) {
+			dev_info(&pdev->dev, "device is disabled\n");
+			return -EINVAL;
+		}
+		break;
 	default:
 		break;
 	}
