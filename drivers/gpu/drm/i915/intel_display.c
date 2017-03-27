@@ -9178,6 +9178,17 @@ static u32 intel_cursor_position(const struct intel_plane_state *plane_state)
 	return pos;
 }
 
+static bool intel_cursor_size_ok(const struct intel_plane_state *plane_state)
+{
+	const struct drm_mode_config *config =
+		&plane_state->base.plane->dev->mode_config;
+	int width = plane_state->base.crtc_w;
+	int height = plane_state->base.crtc_h;
+
+	return width > 0 && width <= config->cursor_width &&
+		height > 0 && height <= config->cursor_height;
+}
+
 static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 			      struct intel_plane_state *plane_state)
 {
@@ -9230,28 +9241,13 @@ static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 
 static bool i845_cursor_size_ok(const struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(plane_state->base.plane->dev);
 	int width = plane_state->base.crtc_w;
-	int height = plane_state->base.crtc_h;
-
-	if (width == 0 || height == 0)
-		return false;
 
 	/*
 	 * 845g/865g are only limited by the width of their cursors,
 	 * the height is arbitrary up to the precision of the register.
 	 */
-	if (!IS_ALIGNED(width, 64))
-		return false;
-
-	if (width > (IS_I845G(dev_priv) ? 64 : 512))
-		return false;
-
-	if (height > 1023)
-		return false;
-
-	return true;
+	return intel_cursor_size_ok(plane_state) && IS_ALIGNED(width, 64);
 }
 
 static int i845_check_cursor(struct intel_plane *plane,
@@ -9387,12 +9383,10 @@ static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
 
 static bool i9xx_cursor_size_ok(const struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(plane_state->base.plane->dev);
 	int width = plane_state->base.crtc_w;
 	int height = plane_state->base.crtc_h;
 
-	if (width == 0 || height == 0)
+	if (!intel_cursor_size_ok(plane_state))
 		return false;
 
 	/*
@@ -9402,8 +9396,6 @@ static bool i9xx_cursor_size_ok(const struct intel_plane_state *plane_state)
 	switch (width | height) {
 	case 256:
 	case 128:
-		if (IS_GEN2(dev_priv))
-			return false;
 	case 64:
 		break;
 	default:
