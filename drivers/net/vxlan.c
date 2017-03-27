@@ -2322,6 +2322,9 @@ static void vxlan_cleanup(unsigned long arg)
 			if (f->state & (NUD_PERMANENT | NUD_NOARP))
 				continue;
 
+			if (f->flags & NTF_EXT_LEARNED)
+				continue;
+
 			timeout = f->used + vxlan->cfg.age_interval * HZ;
 			if (time_before_eq(timeout, jiffies)) {
 				netdev_dbg(vxlan->dev,
