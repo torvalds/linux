@@ -31,16 +31,18 @@
 #define SCREEN_DUAL_LVDS_10BIT	12
 #define SCREEN_DP		13
 
-#ifdef CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ
+struct dmcfreq_vop_info {
+	unsigned int bw_mbyte;
+	unsigned int plane_num;
+};
+
+#if IS_ENABLED(CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ)
 void rockchip_dmcfreq_lock(void);
 void rockchip_dmcfreq_lock_nested(void);
 void rockchip_dmcfreq_unlock(void);
 int rockchip_dmcfreq_wait_complete(void);
-int rockchip_dmcfreq_vop_bandwidth_request(struct devfreq *devfreq,
-					   unsigned int bw_mbyte);
-void rockchip_dmcfreq_vop_bandwidth_update(struct devfreq *devfreq,
-					   unsigned int bw_mbyte,
-					   unsigned int plane_num);
+int rockchip_dmcfreq_vop_bandwidth_request(struct dmcfreq_vop_info *vop_info);
+void rockchip_dmcfreq_vop_bandwidth_update(struct dmcfreq_vop_info *vop_info);
 
 #else
 static inline void rockchip_dmcfreq_lock(void)
@@ -61,16 +63,13 @@ static inline int rockchip_dmcfreq_wait_complete(void)
 }
 
 static inline int
-rockchip_dmcfreq_vop_bandwidth_request(struct devfreq *devfreq,
-				       unsigned int bw_mbyte)
+rockchip_dmcfreq_vop_bandwidth_request(struct dmcfreq_vop_info *vop_info)
 {
 	return 0;
 }
 
 static inline void
-rockchip_dmcfreq_vop_bandwidth_update(struct devfreq *devfreq,
-				      unsigned int bw_mbyte,
-				      unsigned int plane_num)
+rockchip_dmcfreq_vop_bandwidth_update(struct dmcfreq_vop_info *vop_info)
 {
 }
 #endif
