@@ -26,6 +26,7 @@ struct rga_cmdlist_node {
 struct rga_runqueue_node {
 	struct list_head	list;
 
+	struct drm_device	*drm_dev;
 	struct device		*dev;
 	pid_t			pid;
 	struct drm_file		*file;

@@ -51,16 +51,6 @@ static void __user *rga_compat_ptr(u64 value)
 #endif
 }
 
-static void rga_dma_flush_range(void *ptr, int size)
-{
-#ifdef CONFIG_ARM
-	dmac_flush_range(ptr, ptr + size);
-	outer_flush_range(virt_to_phys(ptr), virt_to_phys(ptr + size));
-#elif defined CONFIG_ARM64
-	__dma_flush_range(ptr, ptr + size);
-#endif
-}
-
 static inline void rga_write(struct rockchip_rga *rga, u32 reg, u32 value)
 {
 	writel(value, rga->regs + reg);
@@ -196,7 +186,9 @@ static int rga_alloc_dma_buf_for_cmdlist(struct rga_runqueue_node *runqueue)
 		dest[reg >> 2] = mmu_ctrl;
 	}
 
-	rga_dma_flush_range(cmdlist_pool_virt, cmdlist_cnt * RGA_CMDLIST_SIZE);
+	dma_sync_single_for_device(runqueue->drm_dev->dev,
+				   virt_to_phys(cmdlist_pool_virt),
+				   PAGE_SIZE, DMA_TO_DEVICE);
 
 	runqueue->cmdlist_dma_attrs = cmdlist_dma_attrs;
 	runqueue->cmdlist_pool_virt = cmdlist_pool_virt;
@@ -298,7 +290,8 @@ rga_gem_buf_to_pages(struct rockchip_rga *rga, void **mmu_pages, int fd)
 		mapped_size += len;
 	}
 
-	rga_dma_flush_range(pages, 32 * 1024);
+	dma_sync_single_for_device(rga->drm_dev->dev, virt_to_phys(pages),
+				   8 * PAGE_SIZE, DMA_TO_DEVICE);
 
 	*mmu_pages = pages;
 
@@ -657,6 +650,7 @@ int rockchip_rga_exec_ioctl(struct drm_device *drm_dev, void *data,
 		return -ENOMEM;
 	}
 
+	runqueue->drm_dev = drm_dev;
 	runqueue->dev = rga->dev;
 
 	init_completion(&runqueue->complete);
@@ -696,6 +690,10 @@ static int rockchip_rga_open(struct drm_device *drm_dev, struct device *dev,
 {
 	struct rockchip_drm_file_private *file_priv = file->driver_priv;
 	struct rockchip_drm_rga_private *rga_priv;
+	struct rockchip_rga *rga;
+
+	rga = dev_get_drvdata(dev);
+	rga->drm_dev = drm_dev;
 
 	rga_priv = kzalloc(sizeof(*rga_priv), GFP_KERNEL);
 	if (!rga_priv)
