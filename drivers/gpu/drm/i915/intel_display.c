@@ -2396,11 +2396,17 @@ u32 intel_compute_tile_offset(int *x, int *y,
 			      const struct intel_plane_state *state,
 			      int plane)
 {
-	const struct drm_i915_private *dev_priv = to_i915(state->base.plane->dev);
+	struct intel_plane *intel_plane = to_intel_plane(state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(intel_plane->base.dev);
 	const struct drm_framebuffer *fb = state->base.fb;
 	unsigned int rotation = state->base.rotation;
 	int pitch = intel_fb_pitch(fb, plane, rotation);
-	u32 alignment = intel_surf_alignment(fb, plane);
+	u32 alignment;
+
+	if (intel_plane->id == PLANE_CURSOR)
+		alignment = intel_cursor_alignment(dev_priv);
+	else
+		alignment = intel_surf_alignment(fb, plane);
 
 	return _intel_compute_tile_offset(dev_priv, x, y, fb, plane, pitch,
 					  rotation, alignment);
@@ -9158,6 +9164,8 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
 	else
 		base = intel_plane_ggtt_offset(plane_state);
 
+	base += plane_state->main.offset;
+
 	/* ILK+ do this automagically */
 	if (HAS_GMCH_DISPLAY(dev_priv) &&
 	    plane_state->base.rotation & DRM_ROTATE_180)
@@ -9203,6 +9211,8 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 			      struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->base.fb;
+	int src_x, src_y;
+	u32 offset;
 	int ret;
 
 	ret = drm_plane_helper_check_state(&plane_state->base,
@@ -9220,6 +9230,19 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 		DRM_DEBUG_KMS("cursor cannot be tiled\n");
 		return -EINVAL;
 	}
+
+	src_x = plane_state->base.src_x >> 16;
+	src_y = plane_state->base.src_y >> 16;
+
+	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
+	offset = intel_compute_tile_offset(&src_x, &src_y, plane_state, 0);
+
+	if (src_x != 0 || src_y != 0) {
+		DRM_DEBUG_KMS("Arbitrary cursor panning not supported\n");
+		return -EINVAL;
+	}
+
+	plane_state->main.offset = offset;
 
 	return 0;
 }
