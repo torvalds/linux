@@ -52,42 +52,9 @@
 	model = "Rockchip RK3399 Firefly Board (Linux Opensource)";
 	compatible = "rockchip,rk3399-firefly-linux", "rockchip,rk3399";
 
-	adc-keys {
-		compatible = "adc-keys";
-		io-channels = <&saradc 1>;
-		io-channel-names = "buttons";
-		poll-interval = <100>;
-		keyup-threshold-microvolt = <1800000>;
-
-		button-up {
-			label = "Volume Up";
-			linux,code = <KEY_VOLUMEUP>;
-			press-threshold-microvolt = <100000>;
-		};
-
-		button-down {
-			label = "Volume Down";
-			linux,code = <KEY_VOLUMEDOWN>;
-			press-threshold-microvolt = <300000>;
-		};
-
-		back {
-			label = "Back";
-			linux,code = <KEY_BACK>;
-			press-threshold-microvolt = <985000>;
-		};
-
-		menu {
-			label = "Menu";
-			linux,code = <KEY_MENU>;
-			press-threshold-microvolt = <1314000>;
-		};
-	};
-
 	backlight: backlight {
-		status = "okay";
+		status = "disabled";
 		compatible = "pwm-backlight";
-		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		pwms = <&pwm0 0 25000 0>;
 		brightness-levels = <
 			  0   1   2   3   4   5   6   7
@@ -139,10 +106,11 @@
 	};
 
 	edp_panel: edp-panel {
-		compatible = "lg,lp079qx1-sp0v", "panel-simple";
+		status = "disabled";
+		compatible = "sharp,lcd-f402", "panel-simple";
 		backlight = <&backlight>;
-		power-supply = <&vcc3v3_s0>;
-		enable-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		power-supply = <&vcc_lcd>;
+		enable-gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_panel_reset>;
 
@@ -337,6 +305,17 @@
 		regulator-max-microvolt = <1800000>;
 	};
 
+	vcc_lcd: vcc-lcd-regulator {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-boot-on;
+		enable-active-high;
+		gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_en>;
+		regulator-name = "vcc_lcd";
+	};
+
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
@@ -435,7 +414,6 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
-	ddc-i2c-bus = <&i2c3>;
 	status = "okay";
 };
 
@@ -671,15 +649,6 @@
 	i2c-scl-rising-time-ns = <300>;
 	i2c-scl-falling-time-ns = <15>;
 
-	gsl3673: gsl3673@40 {
-		compatible = "GSL,GSL3673";
-		reg = <0x40>;
-		screen_max_x = <1536>;
-		screen_max_y = <2048>;
-		irq_gpio_number = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio4 22 GPIO_ACTIVE_HIGH>;
-	};
-
 	rt5640: rt5640@1c {
 		#sound-dai-cells = <0>;
 		compatible = "realtek,rt5640";
@@ -715,20 +684,6 @@
 		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 		vbus-5v-gpios = <&gpio2 0 GPIO_ACTIVE_HIGH>;
 		status = "okay";
-	};
-
-	mpu6500@68 {
-		status = "okay";
-		compatible = "invensense,mpu6500";
-		reg = <0x68>;
-		irq-gpio = <&gpio1 22 IRQ_TYPE_EDGE_RISING>;
-		mpu-int_config = <0x10>;
-		mpu-level_shifter = <0>;
-		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
-		orientation-x= <1>;
-		orientation-y= <0>;
-		orientation-z= <0>;
-		mpu-debug = <1>;
 	};
 };
 
@@ -788,7 +743,11 @@
 
 	lcd-panel {
 		lcd_panel_reset: lcd-panel-reset {
-			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <4 29 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		lcd_en: lcd-en {
+			rockchip,pins = <1 1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
