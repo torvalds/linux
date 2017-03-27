@@ -624,7 +624,7 @@ if PCI
 config PCI_NR_FUNCTIONS
 	int "Maximum number of PCI functions (1-4096)"
 	range 1 4096
-	default "64"
+	default "128"
 	help
 	  This allows you to specify the maximum number of PCI functions which
 	  this kernel will support.
