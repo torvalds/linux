@@ -1412,10 +1412,10 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 						      GPIOD_OUT_LOW);
 	if (IS_ERR(cs35l35->reset_gpio)) {
 		ret = PTR_ERR(cs35l35->reset_gpio);
+		cs35l35->reset_gpio = NULL;
 		if (ret == -EBUSY) {
 			dev_info(dev,
 				 "Reset line busy, assuming shared reset\n");
-			cs35l35->reset_gpio = NULL;
 		} else {
 			dev_err(dev, "Failed to get reset GPIO: %d\n", ret);
 			goto err;
