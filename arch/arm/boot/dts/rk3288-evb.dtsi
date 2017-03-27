@@ -373,6 +373,21 @@
 	};
 };
 
+&i2c4 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	gsl3673@40 {
+		compatible = "GSL,GSL3673";
+		reg = <0x40>;
+		screen_max_x = <1536>;
+		screen_max_y = <2048>;
+		irq_gpio_number = <&gpio7 6 IRQ_TYPE_LEVEL_LOW>;
+		rst_gpio_number = <&gpio7 5 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
 &i2s {
 	#sound-dai-cells = <0>;
 	status = "okay";
