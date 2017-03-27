@@ -1,7 +1,8 @@
-* Rockchip rk3399 DMC(Dynamic Memory Controller) device
+* Rockchip DMC(Dynamic Memory Controller) device
 
 Required properties:
-- compatible: Must be "rockchip,rk3399-dmc".
+- compatible: Should be one of the following.
+  - "rockchip,rk3399-dmc" - for RK3399 SoCs.
 - devfreq-events: Node to get DDR loading, Refer to
 		  Documentation/devicetree/bindings/devfreq/rockchip-dfi.txt
 - interrupts: The interrupt number to the CPU. The interrupt specifier format

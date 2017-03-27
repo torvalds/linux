@@ -98,14 +98,14 @@ config ARM_TEGRA_DEVFREQ
          It reads ACTMON counters of memory controllers and adjusts the
          operating frequencies and voltages with OPP support.
 
-config ARM_RK3399_DMC_DEVFREQ
-	tristate "ARM RK3399 DMC DEVFREQ Driver"
+config ARM_ROCKCHIP_DMC_DEVFREQ
+	tristate "ARM ROCKCHIP DMC DEVFREQ Driver"
 	depends on ARCH_ROCKCHIP
 	select DEVFREQ_EVENT_ROCKCHIP_DFI
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select PM_OPP
 	help
-	  This adds the DEVFREQ driver for the RK3399 DMC(Dynamic Memory Controller).
+	  This adds the DEVFREQ driver for the ROCKCHIP DMC(Dynamic Memory Controller).
 	  It sets the frequency for the memory controller and reads the usage counts
 	  from hardware.
 
