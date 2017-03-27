@@ -766,6 +766,9 @@ struct iommu_table *pnv_pci_table_alloc(int nid)
 	struct iommu_table *tbl;
 
 	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL, nid);
+	if (!tbl)
+		return NULL;
+
 	INIT_LIST_HEAD_RCU(&tbl->it_group_list);
 	kref_init(&tbl->it_kref);
 

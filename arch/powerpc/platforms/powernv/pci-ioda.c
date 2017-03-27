@@ -2151,6 +2151,9 @@ static void pnv_pci_ioda1_setup_dma_pe(struct pnv_phb *phb,
 
 found:
 	tbl = pnv_pci_table_alloc(phb->hose->node);
+	if (WARN_ON(!tbl))
+		return;
+
 	iommu_register_group(&pe->table_group, phb->hose->global_number,
 			pe->pe_number);
 	pnv_pci_link_table_and_group(phb->hose->node, 0, tbl, &pe->table_group);
