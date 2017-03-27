@@ -253,6 +253,8 @@ int metag_rp_state_copyin(struct pt_regs *regs,
 	unsigned long long *ptr;
 	int ret, i;
 
+	if (count < 4*13)
+		return -EINVAL;
 	/* Read the entire pipeline before making any changes */
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 &rp, 0, 4*13);
