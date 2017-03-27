@@ -1,6 +1,7 @@
 config SUNXI_CCU
 	bool "Clock support for Allwinner SoCs"
 	depends on ARCH_SUNXI || COMPILE_TEST
+	select RESET_CONTROLLER
 	default ARCH_SUNXI
 
 if SUNXI_CCU
