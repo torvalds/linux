@@ -548,14 +548,18 @@ xfs_reflink_trim_irec_to_next_cow(
 }
 
 /*
- * Cancel all pending CoW reservations for some block range of an inode.
+ * Cancel CoW reservations for some block range of an inode.
+ *
+ * If cancel_real is true this function cancels all COW fork extents for the
+ * inode; if cancel_real is false, real extents are not cleared.
  */
 int
 xfs_reflink_cancel_cow_blocks(
 	struct xfs_inode		*ip,
 	struct xfs_trans		**tpp,
 	xfs_fileoff_t			offset_fsb,
-	xfs_fileoff_t			end_fsb)
+	xfs_fileoff_t			end_fsb,
+	bool				cancel_real)
 {
 	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 	struct xfs_bmbt_irec		got, del;
@@ -579,7 +583,7 @@ xfs_reflink_cancel_cow_blocks(
 					&idx, &got, &del);
 			if (error)
 				break;
-		} else {
+		} else if (del.br_state == XFS_EXT_UNWRITTEN || cancel_real) {
 			xfs_trans_ijoin(*tpp, ip, 0);
 			xfs_defer_init(&dfops, &firstfsb);
 
@@ -621,13 +625,17 @@ xfs_reflink_cancel_cow_blocks(
 }
 
 /*
- * Cancel all pending CoW reservations for some byte range of an inode.
+ * Cancel CoW reservations for some byte range of an inode.
+ *
+ * If cancel_real is true this function cancels all COW fork extents for the
+ * inode; if cancel_real is false, real extents are not cleared.
  */
 int
 xfs_reflink_cancel_cow_range(
 	struct xfs_inode	*ip,
 	xfs_off_t		offset,
-	xfs_off_t		count)
+	xfs_off_t		count,
+	bool			cancel_real)
 {
 	struct xfs_trans	*tp;
 	xfs_fileoff_t		offset_fsb;
@@ -653,7 +661,8 @@ xfs_reflink_cancel_cow_range(
 	xfs_trans_ijoin(tp, ip, 0);
 
 	/* Scrape out the old CoW reservations */
-	error = xfs_reflink_cancel_cow_blocks(ip, &tp, offset_fsb, end_fsb);
+	error = xfs_reflink_cancel_cow_blocks(ip, &tp, offset_fsb, end_fsb,
+			cancel_real);
 	if (error)
 		goto out_cancel;
 
@@ -1450,7 +1459,7 @@ next:
 	 * We didn't find any shared blocks so turn off the reflink flag.
 	 * First, get rid of any leftover CoW mappings.
 	 */
-	error = xfs_reflink_cancel_cow_blocks(ip, tpp, 0, NULLFILEOFF);
+	error = xfs_reflink_cancel_cow_blocks(ip, tpp, 0, NULLFILEOFF, true);
 	if (error)
 		return error;
 

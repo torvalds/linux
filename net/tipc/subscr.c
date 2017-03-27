@@ -141,6 +141,11 @@ void tipc_subscrp_report_overlap(struct tipc_subscription *sub, u32 found_lower,
 static void tipc_subscrp_timeout(unsigned long data)
 {
 	struct tipc_subscription *sub = (struct tipc_subscription *)data;
+	struct tipc_subscriber *subscriber = sub->subscriber;
+
+	spin_lock_bh(&subscriber->lock);
+	tipc_nametbl_unsubscribe(sub);
+	spin_unlock_bh(&subscriber->lock);
 
 	/* Notify subscriber of timeout */
 	tipc_subscrp_send_event(sub, sub->evt.s.seq.lower, sub->evt.s.seq.upper,
@@ -173,7 +178,6 @@ static void tipc_subscrp_kref_release(struct kref *kref)
 	struct tipc_subscriber *subscriber = sub->subscriber;
 
 	spin_lock_bh(&subscriber->lock);
-	tipc_nametbl_unsubscribe(sub);
 	list_del(&sub->subscrp_list);
 	atomic_dec(&tn->subscription_count);
 	spin_unlock_bh(&subscriber->lock);
@@ -205,6 +209,7 @@ static void tipc_subscrb_subscrp_delete(struct tipc_subscriber *subscriber,
 		if (s && memcmp(s, &sub->evt.s, sizeof(struct tipc_subscr)))
 			continue;
 
+		tipc_nametbl_unsubscribe(sub);
 		tipc_subscrp_get(sub);
 		spin_unlock_bh(&subscriber->lock);
 		tipc_subscrp_delete(sub);

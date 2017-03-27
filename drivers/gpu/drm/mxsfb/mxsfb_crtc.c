@@ -65,13 +65,11 @@ static int mxsfb_set_pixel_fmt(struct mxsfb_drm_private *mxsfb)
 	switch (format) {
 	case DRM_FORMAT_RGB565:
 		dev_dbg(drm->dev, "Setting up RGB565 mode\n");
-		ctrl |= CTRL_SET_BUS_WIDTH(STMLCDIF_16BIT);
 		ctrl |= CTRL_SET_WORD_LENGTH(0);
 		ctrl1 |= CTRL1_SET_BYTE_PACKAGING(0xf);
 		break;
 	case DRM_FORMAT_XRGB8888:
 		dev_dbg(drm->dev, "Setting up XRGB8888 mode\n");
-		ctrl |= CTRL_SET_BUS_WIDTH(STMLCDIF_24BIT);
 		ctrl |= CTRL_SET_WORD_LENGTH(3);
 		/* Do not use packed pixels = one pixel per word instead. */
 		ctrl1 |= CTRL1_SET_BYTE_PACKAGING(0x7);
@@ -85,6 +83,36 @@ static int mxsfb_set_pixel_fmt(struct mxsfb_drm_private *mxsfb)
 	writel(ctrl, mxsfb->base + LCDC_CTRL);
 
 	return 0;
+}
+
+static void mxsfb_set_bus_fmt(struct mxsfb_drm_private *mxsfb)
+{
+	struct drm_crtc *crtc = &mxsfb->pipe.crtc;
+	struct drm_device *drm = crtc->dev;
+	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	u32 reg;
+
+	reg = readl(mxsfb->base + LCDC_CTRL);
+
+	if (mxsfb->connector.display_info.num_bus_formats)
+		bus_format = mxsfb->connector.display_info.bus_formats[0];
+
+	reg &= ~CTRL_BUS_WIDTH_MASK;
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB565_1X16:
+		reg |= CTRL_SET_BUS_WIDTH(STMLCDIF_16BIT);
+		break;
+	case MEDIA_BUS_FMT_RGB666_1X18:
+		reg |= CTRL_SET_BUS_WIDTH(STMLCDIF_18BIT);
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X24:
+		reg |= CTRL_SET_BUS_WIDTH(STMLCDIF_24BIT);
+		break;
+	default:
+		dev_err(drm->dev, "Unknown media bus format %d\n", bus_format);
+		break;
+	}
+	writel(reg, mxsfb->base + LCDC_CTRL);
 }
 
 static void mxsfb_enable_controller(struct mxsfb_drm_private *mxsfb)
@@ -168,12 +196,21 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 		vdctrl0 |= VDCTRL0_HSYNC_ACT_HIGH;
 	if (m->flags & DRM_MODE_FLAG_PVSYNC)
 		vdctrl0 |= VDCTRL0_VSYNC_ACT_HIGH;
-	if (bus_flags & DRM_BUS_FLAG_DE_HIGH)
+	/* Make sure Data Enable is high active by default */
+	if (!(bus_flags & DRM_BUS_FLAG_DE_LOW))
 		vdctrl0 |= VDCTRL0_ENABLE_ACT_HIGH;
-	if (bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+	/*
+	 * DRM_BUS_FLAG_PIXDATA_ defines are controller centric,
+	 * controllers VDCTRL0_DOTCLK is display centric.
+	 * Drive on positive edge       -> display samples on falling edge
+	 * DRM_BUS_FLAG_PIXDATA_POSEDGE -> VDCTRL0_DOTCLK_ACT_FALLING
+	 */
+	if (bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
 		vdctrl0 |= VDCTRL0_DOTCLK_ACT_FALLING;
 
 	writel(vdctrl0, mxsfb->base + LCDC_VDCTRL0);
+
+	mxsfb_set_bus_fmt(mxsfb);
 
 	/* Frame length in lines. */
 	writel(m->crtc_vtotal, mxsfb->base + LCDC_VDCTRL1);
@@ -184,8 +221,8 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 	       VDCTRL2_SET_HSYNC_PERIOD(m->crtc_htotal),
 	       mxsfb->base + LCDC_VDCTRL2);
 
-	writel(SET_HOR_WAIT_CNT(m->crtc_hblank_end - m->crtc_hsync_end) |
-	       SET_VERT_WAIT_CNT(m->crtc_vblank_end - m->crtc_vsync_end),
+	writel(SET_HOR_WAIT_CNT(m->crtc_htotal - m->crtc_hsync_start) |
+	       SET_VERT_WAIT_CNT(m->crtc_vtotal - m->crtc_vsync_start),
 	       mxsfb->base + LCDC_VDCTRL3);
 
 	writel(SET_DOTCLK_H_VALID_DATA_CNT(m->hdisplay),

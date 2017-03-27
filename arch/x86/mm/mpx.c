@@ -590,7 +590,7 @@ static unsigned long mpx_bd_entry_to_bt_addr(struct mm_struct *mm,
  * we might run off the end of the bounds table if we are on
  * a 64-bit kernel and try to get 8 bytes.
  */
-int get_user_bd_entry(struct mm_struct *mm, unsigned long *bd_entry_ret,
+static int get_user_bd_entry(struct mm_struct *mm, unsigned long *bd_entry_ret,
 		long __user *bd_entry_ptr)
 {
 	u32 bd_entry_32;

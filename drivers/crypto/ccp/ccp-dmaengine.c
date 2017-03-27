@@ -390,6 +390,7 @@ static struct ccp_dma_desc *ccp_create_desc(struct dma_chan *dma_chan,
 			goto err;
 
 		ccp_cmd = &cmd->ccp_cmd;
+		ccp_cmd->ccp = chan->ccp;
 		ccp_pt = &ccp_cmd->u.passthru_nomap;
 		ccp_cmd->flags = CCP_CMD_MAY_BACKLOG;
 		ccp_cmd->flags |= CCP_CMD_PASSTHRU_NO_DMA_MAP;
