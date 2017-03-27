@@ -813,6 +813,9 @@ static enum power_supply_property hidpp_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_SCOPE,
+	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
 static int hidpp_battery_get_property(struct power_supply *psy,
@@ -831,6 +834,18 @@ static int hidpp_battery_get_property(struct power_supply *psy,
 			break;
 		case POWER_SUPPLY_PROP_SCOPE:
 			val->intval = POWER_SUPPLY_SCOPE_DEVICE;
+			break;
+		case POWER_SUPPLY_PROP_MODEL_NAME:
+			if (!strncmp(hidpp->name, "Logitech ", 9))
+				val->strval = hidpp->name + 9;
+			else
+				val->strval = hidpp->name;
+			break;
+		case POWER_SUPPLY_PROP_MANUFACTURER:
+			val->strval = "Logitech";
+			break;
+		case POWER_SUPPLY_PROP_SERIAL_NUMBER:
+			val->strval = hidpp->hid_dev->uniq;
 			break;
 		default:
 			ret = -EINVAL;
