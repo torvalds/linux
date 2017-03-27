@@ -128,7 +128,7 @@
  * debugging tools.  Each entry is only valid when its finished flag
  * is set.
  */
-struct mce_log {
+struct mce_log_buffer {
 	char signature[12]; /* "MACHINECHECK" */
 	unsigned len;	    /* = MCE_LOG_LEN */
 	unsigned next;

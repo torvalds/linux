@@ -152,7 +152,7 @@ EXPORT_PER_CPU_SYMBOL_GPL(injectm);
  * separate MCEs from kernel messages to avoid bogus bug reports.
  */
 
-static struct mce_log mcelog = {
+static struct mce_log_buffer mcelog_buf = {
 	.signature	= MCE_LOG_SIGNATURE,
 	.len		= MCE_LOG_LEN,
 	.recordlen	= sizeof(struct mce),
@@ -170,7 +170,7 @@ void mce_log(struct mce *m)
 
 	wmb();
 	for (;;) {
-		entry = mce_log_get_idx_check(mcelog.next);
+		entry = mce_log_get_idx_check(mcelog_buf.next);
 		for (;;) {
 
 			/*
@@ -180,11 +180,11 @@ void mce_log(struct mce *m)
 			 */
 			if (entry >= MCE_LOG_LEN) {
 				set_bit(MCE_OVERFLOW,
-					(unsigned long *)&mcelog.flags);
+					(unsigned long *)&mcelog_buf.flags);
 				return;
 			}
 			/* Old left over entry. Skip: */
-			if (mcelog.entry[entry].finished) {
+			if (mcelog_buf.entry[entry].finished) {
 				entry++;
 				continue;
 			}
@@ -192,12 +192,12 @@ void mce_log(struct mce *m)
 		}
 		smp_rmb();
 		next = entry + 1;
-		if (cmpxchg(&mcelog.next, entry, next) == entry)
+		if (cmpxchg(&mcelog_buf.next, entry, next) == entry)
 			break;
 	}
-	memcpy(mcelog.entry + entry, m, sizeof(struct mce));
+	memcpy(mcelog_buf.entry + entry, m, sizeof(struct mce));
 	wmb();
-	mcelog.entry[entry].finished = 1;
+	mcelog_buf.entry[entry].finished = 1;
 	wmb();
 
 	set_bit(0, &mce_need_notify);
@@ -1958,7 +1958,7 @@ static ssize_t mce_chrdev_read(struct file *filp, char __user *ubuf,
 			goto out;
 	}
 
-	next = mce_log_get_idx_check(mcelog.next);
+	next = mce_log_get_idx_check(mcelog_buf.next);
 
 	/* Only supports full reads right now */
 	err = -EINVAL;
@@ -1970,7 +1970,7 @@ static ssize_t mce_chrdev_read(struct file *filp, char __user *ubuf,
 	do {
 		for (i = prev; i < next; i++) {
 			unsigned long start = jiffies;
-			struct mce *m = &mcelog.entry[i];
+			struct mce *m = &mcelog_buf.entry[i];
 
 			while (!m->finished) {
 				if (time_after_eq(jiffies, start + 2)) {
@@ -1986,10 +1986,10 @@ timeout:
 			;
 		}
 
-		memset(mcelog.entry + prev, 0,
+		memset(mcelog_buf.entry + prev, 0,
 		       (next - prev) * sizeof(struct mce));
 		prev = next;
-		next = cmpxchg(&mcelog.next, prev, 0);
+		next = cmpxchg(&mcelog_buf.next, prev, 0);
 	} while (next != prev);
 
 	synchronize_sched();
@@ -2001,7 +2001,7 @@ timeout:
 	on_each_cpu(collect_tscs, cpu_tsc, 1);
 
 	for (i = next; i < MCE_LOG_LEN; i++) {
-		struct mce *m = &mcelog.entry[i];
+		struct mce *m = &mcelog_buf.entry[i];
 
 		if (m->finished && m->tsc < cpu_tsc[m->cpu]) {
 			err |= copy_to_user(buf, m, sizeof(*m));
@@ -2024,7 +2024,7 @@ out:
 static unsigned int mce_chrdev_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &mce_chrdev_wait, wait);
-	if (READ_ONCE(mcelog.next))
+	if (READ_ONCE(mcelog_buf.next))
 		return POLLIN | POLLRDNORM;
 	if (!mce_apei_read_done && apei_check_mce())
 		return POLLIN | POLLRDNORM;
@@ -2048,8 +2048,8 @@ static long mce_chrdev_ioctl(struct file *f, unsigned int cmd,
 		unsigned flags;
 
 		do {
-			flags = mcelog.flags;
-		} while (cmpxchg(&mcelog.flags, flags, 0) != flags);
+			flags = mcelog_buf.flags;
+		} while (cmpxchg(&mcelog_buf.flags, flags, 0) != flags);
 
 		return put_user(flags, p);
 	}
