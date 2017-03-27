@@ -1705,7 +1705,7 @@ i915_perf_open_ioctl_locked(struct drm_i915_private *dev_priv,
 	 */
 	if (WARN_ON(stream->sample_flags != props->sample_flags)) {
 		ret = -ENODEV;
-		goto err_alloc;
+		goto err_flags;
 	}
 
 	list_add(&stream->link, &dev_priv->perf.streams);
@@ -1728,6 +1728,7 @@ i915_perf_open_ioctl_locked(struct drm_i915_private *dev_priv,
 
 err_open:
 	list_del(&stream->link);
+err_flags:
 	if (stream->ops->destroy)
 		stream->ops->destroy(stream);
 err_alloc:
