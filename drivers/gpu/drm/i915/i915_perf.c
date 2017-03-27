@@ -1794,6 +1794,11 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 		if (ret)
 			return ret;
 
+		if (id == 0 || id >= DRM_I915_PERF_PROP_MAX) {
+			DRM_DEBUG("Unknown i915 perf property ID\n");
+			return -EINVAL;
+		}
+
 		switch ((enum drm_i915_perf_property_id)id) {
 		case DRM_I915_PERF_PROP_CTX_HANDLE:
 			props->single_context = 1;
@@ -1863,9 +1868,8 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 			props->oa_periodic = true;
 			props->oa_period_exponent = value;
 			break;
-		default:
+		case DRM_I915_PERF_PROP_MAX:
 			MISSING_CASE(id);
-			DRM_DEBUG("Unknown i915 perf property ID\n");
 			return -EINVAL;
 		}
 
