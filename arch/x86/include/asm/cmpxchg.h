@@ -212,8 +212,9 @@ extern void __add_wrong_size(void)
 	default:							\
 		__cmpxchg_wrong_size();					\
 	}								\
-	*_old = __old;							\
-	success;							\
+	if (unlikely(!success))						\
+		*_old = __old;						\
+	likely(success);						\
 })
 
 #define __try_cmpxchg(ptr, pold, new, size)				\
