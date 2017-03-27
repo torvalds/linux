@@ -1505,6 +1505,9 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	vmode->mpixelclock = mode->crtc_clock * 1000;
 	if (mode->flags & DRM_MODE_FLAG_420_MASK)
 		vmode->mpixelclock /= 2;
+	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) ==
+		DRM_MODE_FLAG_3D_FRAME_PACKING)
+		vmode->mpixelclock *= 2;
 	dev_dbg(hdmi->dev, "final pixclk = %d\n", vmode->mpixelclock);
 
 	/* Set up HDMI_FC_INVIDCONF
@@ -1576,6 +1579,9 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 		vblank /= 2;
 		v_de_vs /= 2;
 		vsync_len /= 2;
+	} else if ((mode->flags & DRM_MODE_FLAG_3D_MASK) ==
+		DRM_MODE_FLAG_3D_FRAME_PACKING) {
+		vdisplay += mode->vtotal;
 	}
 
 	/* Scrambling Control */
