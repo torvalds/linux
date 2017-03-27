@@ -175,7 +175,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		ch = dgnc_board[board]->channels[channel];
 
-		if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		if (!ch)
 			return -ENODEV;
 
 		memset(&ni, 0, sizeof(ni));

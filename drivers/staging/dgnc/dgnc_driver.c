@@ -110,7 +110,6 @@ static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 		return ERR_PTR(-ENOMEM);
 
 	/* store the info for the board we've found */
-	brd->magic = DGNC_BOARD_MAGIC;
 	brd->boardnum = dgnc_num_boards;
 	brd->vendor = dgnc_pci_tbl[id].vendor;
 	brd->device = dgnc_pci_tbl[id].device;
@@ -444,7 +443,7 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 {
 	int i = 0;
 
-	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
+	if (!brd)
 		return;
 
 	switch (brd->device) {

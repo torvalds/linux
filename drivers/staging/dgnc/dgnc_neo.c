@@ -392,7 +392,7 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 	unsigned long flags;
 
 	ch = brd->channels[port];
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	/* Here we try to figure out what caused the interrupt to happen */
@@ -505,14 +505,14 @@ static inline void neo_parse_lsr(struct dgnc_board *brd, uint port)
 	int linestatus;
 	unsigned long flags;
 
-	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
+	if (!brd)
 		return;
 
 	if (port >= brd->maxports)
 		return;
 
 	ch = brd->channels[port];
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	linestatus = readb(&ch->ch_neo_uart->lsr);
@@ -579,19 +579,19 @@ static void neo_param(struct tty_struct *tty)
 	struct channel_t *ch;
 	struct un_t   *un;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = (struct un_t *)tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	/* If baud rate is zero, flush queues, and set mval to drop DTR. */
@@ -822,7 +822,7 @@ static void neo_tasklet(unsigned long data)
 	int state = 0;
 	int ports = 0;
 
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	spin_lock_irqsave(&bd->bd_lock, flags);
@@ -839,9 +839,7 @@ static void neo_tasklet(unsigned long data)
 	if ((state == BOARD_READY) && (ports > 0)) {
 		for (i = 0; i < ports; i++) {
 			ch = bd->channels[i];
-
-			/* Just being careful... */
-			if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+			if (!ch)
 				continue;
 
 			/*
@@ -888,7 +886,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 	unsigned long flags;
 	unsigned long flags2;
 
-	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
+	if (!brd)
 		return IRQ_NONE;
 
 	/* Lock out the slow poller from running on this board. */
@@ -1023,7 +1021,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 	ushort tail;
 	unsigned long flags;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1195,15 +1193,15 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 	struct un_t *un;
 	int rc = 0;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return -ENXIO;
 
 	un = (struct un_t *)tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return -ENXIO;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return -ENXIO;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1227,7 +1225,7 @@ static void neo_flush_uart_write(struct channel_t *ch)
 	unsigned char tmp = 0;
 	int i = 0;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_XMIT),
@@ -1258,7 +1256,7 @@ static void neo_flush_uart_read(struct channel_t *ch)
 	unsigned char tmp = 0;
 	int i = 0;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	writeb(UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR,
@@ -1288,7 +1286,7 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 	uint len_written = 0;
 	unsigned long flags;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1425,7 +1423,7 @@ static void neo_parse_modem(struct channel_t *ch, unsigned char signals)
 {
 	unsigned char msignals = signals;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	/*
@@ -1482,7 +1480,7 @@ static void neo_assert_modem_signals(struct channel_t *ch)
 {
 	unsigned char out;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	out = ch->ch_mostat;
@@ -1499,7 +1497,7 @@ static void neo_assert_modem_signals(struct channel_t *ch)
 
 static void neo_send_start_character(struct channel_t *ch)
 {
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	if (ch->ch_startc != _POSIX_VDISABLE) {
@@ -1512,7 +1510,7 @@ static void neo_send_start_character(struct channel_t *ch)
 
 static void neo_send_stop_character(struct channel_t *ch)
 {
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	if (ch->ch_stopc != _POSIX_VDISABLE) {
@@ -1619,7 +1617,7 @@ static void neo_send_break(struct channel_t *ch, int msecs)
  */
 static void neo_send_immediate_char(struct channel_t *ch, unsigned char c)
 {
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	writeb(c, &ch->ch_neo_uart->txrx);
@@ -1672,7 +1670,7 @@ static void neo_vpd(struct dgnc_board *brd)
 	unsigned int i = 0;
 	unsigned int a;
 
-	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
+	if (!brd)
 		return;
 
 	if (!brd->re_map_membase)

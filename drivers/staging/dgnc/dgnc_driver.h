@@ -35,11 +35,6 @@
 #define	MAXPORTS	8
 #define MAXTTYNAMELEN	200
 
-/* Our 3 magic numbers for our board, channel and unit structs */
-#define DGNC_BOARD_MAGIC	0x5c6df104
-#define DGNC_CHANNEL_MAGIC	0x6c6df104
-#define DGNC_UNIT_MAGIC		0x7c6df104
-
 /* Serial port types */
 #define DGNC_SERIAL		0
 #define DGNC_PRINT		1
@@ -120,7 +115,6 @@ struct board_ops {
 
 /**
  * struct dgnc_board - Per board information.
- * @magic: Board magic number.
  * @boardnum: Board number (0 - 32).
  *
  * @type: Type of board.
@@ -163,7 +157,6 @@ struct board_ops {
  * @dgnc_board_table: Proc/<board> entry
  */
 struct dgnc_board {
-	int		magic;
 	int		boardnum;
 
 	int		type;
@@ -245,7 +238,6 @@ struct device;
 
 /**
  * struct un_t - terminal or printer unit
- * @magic: Unit magic number.
  * @un_open_count: Counter of opens to port.
  * @un_tty: Pointer to unit tty structure.
  * @un_flags: Unit flags.
@@ -253,7 +245,6 @@ struct device;
  * @un_dev: Minor device number.
  */
 struct un_t {
-	int	magic;
 	struct	channel_t *un_ch;
 	ulong	un_time;
 	uint	un_type;
@@ -295,7 +286,6 @@ struct un_t {
 
 /**
  * struct channel_t - Channel information.
- * @magic: Channel magic number.
  * @dgnc_board: Pointer to board structure.
  * @ch_bd: Transparent print structure.
  * @ch_tun: Terminal unit information.
@@ -348,7 +338,6 @@ struct un_t {
  * @dgnc_channel_table: Proc/<board>/<channel> entry.
  */
 struct channel_t {
-	int magic;
 	struct dgnc_board *ch_bd;
 	struct digi_t	ch_digi;
 	struct un_t	ch_tun;

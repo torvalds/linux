@@ -264,14 +264,10 @@ int dgnc_tty_init(struct dgnc_board *brd)
 	for (i = 0; i < brd->nasync; i++, ch = brd->channels[i]) {
 		spin_lock_init(&ch->ch_lock);
 
-		/* Store all our magic numbers */
-		ch->magic = DGNC_CHANNEL_MAGIC;
-		ch->ch_tun.magic = DGNC_UNIT_MAGIC;
 		ch->ch_tun.un_ch = ch;
 		ch->ch_tun.un_type = DGNC_SERIAL;
 		ch->ch_tun.un_dev = i;
 
-		ch->ch_pun.magic = DGNC_UNIT_MAGIC;
 		ch->ch_pun.un_ch = ch;
 		ch->ch_pun.un_type = DGNC_PRINT;
 		ch->ch_pun.un_dev = i + 128;
@@ -351,7 +347,7 @@ static void dgnc_wmove(struct channel_t *ch, char *buf, uint n)
 	int	remain;
 	uint	head;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	head = ch->ch_w_head & WQUEUEMASK;
@@ -401,13 +397,13 @@ void dgnc_input(struct channel_t *ch)
 	int s = 0;
 	int i = 0;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	tp = ch->ch_tun.un_tty;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -424,7 +420,7 @@ void dgnc_input(struct channel_t *ch)
 	 * If the device is not open, or CREAD is off,
 	 * flush input data and return immediately.
 	 */
-	if (!tp || (tp->magic != TTY_MAGIC) ||
+	if (!tp ||
 	    !(ch->ch_tun.un_flags & UN_ISOPEN) ||
 	    !C_CREAD(tp) ||
 	    (ch->ch_tun.un_flags & UN_CLOSING)) {
@@ -547,7 +543,7 @@ void dgnc_carrier(struct channel_t *ch)
 	int virt_carrier = 0;
 	int phys_carrier = 0;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	if (ch->ch_mistat & UART_MSR_DCD)
@@ -771,7 +767,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 	int qlen = 0;
 	unsigned long flags;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1163,7 +1159,7 @@ static int dgnc_block_til_ready(struct tty_struct *tty,
 /* Hangup the port.  Like a close, but don't wait for output to drain. */
 static void dgnc_tty_hangup(struct tty_struct *tty)
 {
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	/* flush the transmit queues */
@@ -1177,19 +1173,19 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 	struct un_t *un;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1322,11 +1318,11 @@ static int dgnc_tty_chars_in_buffer(struct tty_struct *tty)
 		return 0;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return 0;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return 0;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1398,11 +1394,11 @@ static int dgnc_tty_write_room(struct tty_struct *tty)
 		return 0;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return 0;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return 0;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1469,11 +1465,11 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		return 0;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return 0;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return 0;
 
 	if (!count)
@@ -1584,15 +1580,15 @@ static int dgnc_tty_tiocmget(struct tty_struct *tty)
 	unsigned char mstat = 0;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return -EIO;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return -EIO;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return -EIO;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1628,19 +1624,19 @@ static int dgnc_tty_tiocmset(struct tty_struct *tty,
 	struct un_t *un;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return -EIO;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return -EIO;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return -EIO;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return -EIO;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1672,19 +1668,19 @@ static int dgnc_tty_send_break(struct tty_struct *tty, int msec)
 	struct un_t *un;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return -EIO;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return -EIO;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return -EIO;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return -EIO;
 
 	if (msec < 0)
@@ -1706,19 +1702,19 @@ static void dgnc_tty_wait_until_sent(struct tty_struct *tty, int timeout)
 	struct channel_t *ch;
 	struct un_t *un;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	bd->bd_ops->drain(tty, 0);
@@ -1732,19 +1728,19 @@ static void dgnc_tty_send_xchar(struct tty_struct *tty, char c)
 	struct un_t *un;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1759,7 +1755,7 @@ static inline int dgnc_get_mstat(struct channel_t *ch)
 	unsigned long flags;
 	int rc;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return -ENXIO;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -1864,15 +1860,15 @@ static int dgnc_tty_digigeta(struct tty_struct *tty,
 	if (!retinfo)
 		return -EFAULT;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return -EFAULT;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return -EFAULT;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return -EFAULT;
 
 	memset(&tmp, 0, sizeof(tmp));
@@ -1897,19 +1893,19 @@ static int dgnc_tty_digiseta(struct tty_struct *tty,
 	struct digi_t new_digi;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return -EFAULT;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return -EFAULT;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return -EFAULT;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return -EFAULT;
 
 	if (copy_from_user(&new_digi, new_info, sizeof(new_digi)))
@@ -1973,19 +1969,19 @@ static void dgnc_tty_set_termios(struct tty_struct *tty,
 	struct un_t *un;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -2009,15 +2005,15 @@ static void dgnc_tty_throttle(struct tty_struct *tty)
 	struct un_t *un;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -2033,15 +2029,15 @@ static void dgnc_tty_unthrottle(struct tty_struct *tty)
 	struct un_t *un;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -2058,19 +2054,19 @@ static void dgnc_tty_start(struct tty_struct *tty)
 	struct un_t *un;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -2087,19 +2083,19 @@ static void dgnc_tty_stop(struct tty_struct *tty)
 	struct un_t *un;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -2127,19 +2123,19 @@ static void dgnc_tty_flush_chars(struct tty_struct *tty)
 	struct un_t *un;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -2156,15 +2152,15 @@ static void dgnc_tty_flush_buffer(struct tty_struct *tty)
 	struct un_t *un;
 	unsigned long flags;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -2210,19 +2206,19 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	unsigned long flags;
 	void __user *uarg = (void __user *)arg;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return -ENODEV;
 
 	un = tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return -ENODEV;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return -ENODEV;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return -ENODEV;
 
 	ch_bd_ops = bd->bd_ops;

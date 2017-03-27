@@ -282,7 +282,7 @@ static inline void cls_clear_break(struct channel_t *ch, int force)
 {
 	unsigned long flags;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -314,7 +314,7 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 	ushort tail;
 	unsigned long flags;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -386,7 +386,7 @@ static void cls_assert_modem_signals(struct channel_t *ch)
 {
 	unsigned char out;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	out = ch->ch_mostat;
@@ -409,7 +409,7 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 	uint len_written = 0;
 	unsigned long flags;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -479,7 +479,7 @@ static void cls_parse_modem(struct channel_t *ch, unsigned char signals)
 	unsigned char msignals = signals;
 	unsigned long flags;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	/*
@@ -551,8 +551,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 		return;
 
 	ch = brd->channels[port];
-	if (ch->magic != DGNC_CHANNEL_MAGIC)
-		return;
 
 	/* Here we try to figure out what caused the interrupt to happen */
 	while (1) {
@@ -582,7 +580,7 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 /* Channel lock MUST be held before calling this function! */
 static void cls_flush_uart_write(struct channel_t *ch)
 {
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_XMIT),
@@ -597,7 +595,7 @@ static void cls_flush_uart_write(struct channel_t *ch)
 /* Channel lock MUST be held before calling this function! */
 static void cls_flush_uart_read(struct channel_t *ch)
 {
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	/*
@@ -627,19 +625,19 @@ static void cls_param(struct tty_struct *tty)
 	struct channel_t *ch;
 	struct un_t   *un;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return;
 
 	un = (struct un_t *)tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	bd = ch->ch_bd;
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	/* If baud rate is zero, flush queues, and set mval to drop DTR. */
@@ -858,7 +856,7 @@ static void cls_tasklet(unsigned long data)
 	int state = 0;
 	int ports = 0;
 
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
+	if (!bd)
 		return;
 
 	spin_lock_irqsave(&bd->bd_lock, flags);
@@ -914,7 +912,7 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 	unsigned char poll_reg;
 	unsigned long flags;
 
-	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
+	if (!brd)
 		return IRQ_NONE;
 
 	spin_lock_irqsave(&brd->bd_intr_lock, flags);
@@ -961,15 +959,15 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	struct channel_t *ch;
 	struct un_t *un;
 
-	if (!tty || tty->magic != TTY_MAGIC)
+	if (!tty)
 		return -ENXIO;
 
 	un = (struct un_t *)tty->driver_data;
-	if (!un || un->magic != DGNC_UNIT_MAGIC)
+	if (!un)
 		return -ENXIO;
 
 	ch = un->un_ch;
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return -ENXIO;
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
@@ -986,7 +984,7 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 
 static void cls_send_start_character(struct channel_t *ch)
 {
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	if (ch->ch_startc != _POSIX_VDISABLE) {
@@ -997,7 +995,7 @@ static void cls_send_start_character(struct channel_t *ch)
 
 static void cls_send_stop_character(struct channel_t *ch)
 {
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	if (ch->ch_stopc != _POSIX_VDISABLE) {
@@ -1056,7 +1054,7 @@ static uint cls_get_uart_bytes_left(struct channel_t *ch)
 	unsigned char left = 0;
 	unsigned char lsr = 0;
 
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return 0;
 
 	lsr = readb(&ch->ch_cls_uart->lsr);
@@ -1080,7 +1078,7 @@ static uint cls_get_uart_bytes_left(struct channel_t *ch)
  */
 static void cls_send_break(struct channel_t *ch, int msecs)
 {
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	/* If we receive a time of 0, this means turn off the break. */
@@ -1119,7 +1117,7 @@ static void cls_send_break(struct channel_t *ch, int msecs)
  */
 static void cls_send_immediate_char(struct channel_t *ch, unsigned char c)
 {
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+	if (!ch)
 		return;
 
 	writeb(c, &ch->ch_cls_uart->txrx);
