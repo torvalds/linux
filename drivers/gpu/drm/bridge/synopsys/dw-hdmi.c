@@ -1916,7 +1916,7 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 	if (intr_stat &
 	    (HDMI_IH_PHY_STAT0_RX_SENSE | HDMI_IH_PHY_STAT0_HPD)) {
 		mutex_lock(&hdmi->mutex);
-		if (!hdmi->disabled && !hdmi->force) {
+		if (!hdmi->force) {
 			/*
 			 * If the RX sense status indicates we're disconnected,
 			 * clear the software rxsense status.
