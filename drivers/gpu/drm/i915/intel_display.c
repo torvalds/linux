@@ -2090,6 +2090,8 @@ static unsigned int intel_cursor_alignment(const struct drm_i915_private *dev_pr
 		return 16 * 1024;
 	else if (IS_I85X(dev_priv))
 		return 256;
+	else if (IS_I845G(dev_priv) || IS_I865G(dev_priv))
+		return 32;
 	else
 		return 4 * 1024;
 }
