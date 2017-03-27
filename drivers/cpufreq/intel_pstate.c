@@ -792,84 +792,80 @@ static struct freq_attr *hwp_cpufreq_attrs[] = {
 	NULL,
 };
 
-static void intel_pstate_hwp_set(struct cpufreq_policy *policy)
+static void intel_pstate_hwp_set(unsigned int cpu)
 {
-	int min, hw_min, max, hw_max, cpu;
+	struct cpudata *cpu_data = all_cpu_data[cpu];
+	int min, hw_min, max, hw_max;
 	u64 value, cap;
+	s16 epp;
 
-	for_each_cpu(cpu, policy->cpus) {
-		struct cpudata *cpu_data = all_cpu_data[cpu];
-		s16 epp;
+	rdmsrl_on_cpu(cpu, MSR_HWP_CAPABILITIES, &cap);
+	hw_min = HWP_LOWEST_PERF(cap);
+	if (global.no_turbo)
+		hw_max = HWP_GUARANTEED_PERF(cap);
+	else
+		hw_max = HWP_HIGHEST_PERF(cap);
 
-		rdmsrl_on_cpu(cpu, MSR_HWP_CAPABILITIES, &cap);
-		hw_min = HWP_LOWEST_PERF(cap);
-		if (global.no_turbo)
-			hw_max = HWP_GUARANTEED_PERF(cap);
-		else
-			hw_max = HWP_HIGHEST_PERF(cap);
+	max = fp_ext_toint(hw_max * cpu_data->max_perf);
+	if (cpu_data->policy == CPUFREQ_POLICY_PERFORMANCE)
+		min = max;
+	else
+		min = fp_ext_toint(hw_max * cpu_data->min_perf);
 
-		max = fp_ext_toint(hw_max * cpu_data->max_perf);
-		if (cpu_data->policy == CPUFREQ_POLICY_PERFORMANCE)
-			min = max;
-		else
-			min = fp_ext_toint(hw_max * cpu_data->min_perf);
+	rdmsrl_on_cpu(cpu, MSR_HWP_REQUEST, &value);
 
-		rdmsrl_on_cpu(cpu, MSR_HWP_REQUEST, &value);
+	value &= ~HWP_MIN_PERF(~0L);
+	value |= HWP_MIN_PERF(min);
 
-		value &= ~HWP_MIN_PERF(~0L);
-		value |= HWP_MIN_PERF(min);
+	value &= ~HWP_MAX_PERF(~0L);
+	value |= HWP_MAX_PERF(max);
 
-		value &= ~HWP_MAX_PERF(~0L);
-		value |= HWP_MAX_PERF(max);
+	if (cpu_data->epp_policy == cpu_data->policy)
+		goto skip_epp;
 
-		if (cpu_data->epp_policy == cpu_data->policy)
+	cpu_data->epp_policy = cpu_data->policy;
+
+	if (cpu_data->epp_saved >= 0) {
+		epp = cpu_data->epp_saved;
+		cpu_data->epp_saved = -EINVAL;
+		goto update_epp;
+	}
+
+	if (cpu_data->policy == CPUFREQ_POLICY_PERFORMANCE) {
+		epp = intel_pstate_get_epp(cpu_data, value);
+		cpu_data->epp_powersave = epp;
+		/* If EPP read was failed, then don't try to write */
+		if (epp < 0)
 			goto skip_epp;
 
-		cpu_data->epp_policy = cpu_data->policy;
+		epp = 0;
+	} else {
+		/* skip setting EPP, when saved value is invalid */
+		if (cpu_data->epp_powersave < 0)
+			goto skip_epp;
 
-		if (cpu_data->epp_saved >= 0) {
-			epp = cpu_data->epp_saved;
-			cpu_data->epp_saved = -EINVAL;
-			goto update_epp;
-		}
+		/*
+		 * No need to restore EPP when it is not zero. This
+		 * means:
+		 *  - Policy is not changed
+		 *  - user has manually changed
+		 *  - Error reading EPB
+		 */
+		epp = intel_pstate_get_epp(cpu_data, value);
+		if (epp)
+			goto skip_epp;
 
-		if (cpu_data->policy == CPUFREQ_POLICY_PERFORMANCE) {
-			epp = intel_pstate_get_epp(cpu_data, value);
-			cpu_data->epp_powersave = epp;
-			/* If EPP read was failed, then don't try to write */
-			if (epp < 0)
-				goto skip_epp;
-
-
-			epp = 0;
-		} else {
-			/* skip setting EPP, when saved value is invalid */
-			if (cpu_data->epp_powersave < 0)
-				goto skip_epp;
-
-			/*
-			 * No need to restore EPP when it is not zero. This
-			 * means:
-			 *  - Policy is not changed
-			 *  - user has manually changed
-			 *  - Error reading EPB
-			 */
-			epp = intel_pstate_get_epp(cpu_data, value);
-			if (epp)
-				goto skip_epp;
-
-			epp = cpu_data->epp_powersave;
-		}
-update_epp:
-		if (static_cpu_has(X86_FEATURE_HWP_EPP)) {
-			value &= ~GENMASK_ULL(31, 24);
-			value |= (u64)epp << 24;
-		} else {
-			intel_pstate_set_epb(cpu, epp);
-		}
-skip_epp:
-		wrmsrl_on_cpu(cpu, MSR_HWP_REQUEST, value);
+		epp = cpu_data->epp_powersave;
 	}
+update_epp:
+	if (static_cpu_has(X86_FEATURE_HWP_EPP)) {
+		value &= ~GENMASK_ULL(31, 24);
+		value |= (u64)epp << 24;
+	} else {
+		intel_pstate_set_epb(cpu, epp);
+	}
+skip_epp:
+	wrmsrl_on_cpu(cpu, MSR_HWP_REQUEST, value);
 }
 
 static int intel_pstate_hwp_save_state(struct cpufreq_policy *policy)
@@ -892,7 +888,7 @@ static int intel_pstate_resume(struct cpufreq_policy *policy)
 	mutex_lock(&intel_pstate_limits_lock);
 
 	all_cpu_data[policy->cpu]->epp_policy = 0;
-	intel_pstate_hwp_set(policy);
+	intel_pstate_hwp_set(policy->cpu);
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
@@ -2057,7 +2053,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	intel_pstate_set_update_util_hook(policy->cpu);
 
 	if (hwp_active)
-		intel_pstate_hwp_set(policy);
+		intel_pstate_hwp_set(policy->cpu);
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
