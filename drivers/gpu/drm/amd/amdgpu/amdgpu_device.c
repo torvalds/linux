@@ -1042,6 +1042,14 @@ static bool amdgpu_check_pot_argument(int arg)
 
 static void amdgpu_get_block_size(struct amdgpu_device *adev)
 {
+	/* from AI, asic starts to support multiple level VMPT */
+	if (adev->family >= AMDGPU_FAMILY_AI) {
+		if (amdgpu_vm_block_size != 9)
+			dev_warn(adev->dev, "Multi-VMPT limits block size to"
+				 "one page!\n");
+		amdgpu_vm_block_size = 9;
+		return;
+	}
 	/* defines number of bits in page table versus page directory,
 	 * a page is 4KB so we have 12 bits offset, minimum 9 bits in the
 	 * page table and the remaining bits are in the page directory */
