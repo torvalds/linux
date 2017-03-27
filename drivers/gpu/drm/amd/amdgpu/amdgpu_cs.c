@@ -903,16 +903,17 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		if (chunk->chunk_id != AMDGPU_CHUNK_ID_IB)
 			continue;
 
-		if (ib->flags & AMDGPU_IB_FLAG_PREEMPT) {
-			if (ib->flags & AMDGPU_IB_FLAG_CE)
-				ce_preempt++;
-			else
-				de_preempt++;
-		}
+		if (chunk_ib->ip_type == AMDGPU_HW_IP_GFX && amdgpu_sriov_vf(adev)) {
+			if (chunk_ib->flags & AMDGPU_IB_FLAG_PREEMPT)
+				if (chunk_ib->flags & AMDGPU_IB_FLAG_CE)
+					ce_preempt++;
+				else
+					de_preempt++;
 
-		/* only one preemptible IB per submit for me/ce */
-		if (ce_preempt > 1 || de_preempt > 1)
-			return -EINVAL;
+			/* each GFX command submit allows 0 or 1 IB preemptible for CE & DE */
+			if (ce_preempt > 1 || de_preempt > 1)
+				BUG();
+		}
 
 		r = amdgpu_cs_get_ring(adev, chunk_ib->ip_type,
 				       chunk_ib->ip_instance, chunk_ib->ring,
