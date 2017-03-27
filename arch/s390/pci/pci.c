@@ -871,11 +871,6 @@ int zpci_report_error(struct pci_dev *pdev,
 }
 EXPORT_SYMBOL(zpci_report_error);
 
-static inline int barsize(u8 size)
-{
-	return (size) ? (1 << size) >> 10 : 0;
-}
-
 static int zpci_mem_init(void)
 {
 	BUILD_BUG_ON(!is_power_of_2(__alignof__(struct zpci_fmb)) ||
