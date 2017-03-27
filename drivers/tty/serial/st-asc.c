@@ -916,7 +916,7 @@ static void asc_console_write(struct console *co, const char *s, unsigned count)
 static int asc_console_setup(struct console *co, char *options)
 {
 	struct asc_port *ascport;
-	int baud = 9600;
+	int baud = 115200;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
