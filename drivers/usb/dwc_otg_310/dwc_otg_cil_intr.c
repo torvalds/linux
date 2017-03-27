@@ -507,7 +507,7 @@ static inline void rk_dwc_otg_phy_soft_reset(dwc_otg_core_if_t *core_if)
 	pldata = core_if->otg_dev->pldata;
 	guid.d32 = core_if->core_global_regs->guid;
 
-	if ((cpu_is_rk3288()) && ((guid.d32 & 0x01) == 0)) {
+	if ((is_rk3288_usb()) && ((guid.d32 & 0x01) == 0)) {
 		/* only used for HOST20, OTG HOST do not need.
 		 * first, do soft reset usb phy, and then usb phy
 		 * can drive resume signal.

@@ -155,4 +155,13 @@ struct rkehci_pdata_id {
 	char name[32];
 	struct rkehci_platform_data *pdata;
 };
+
+#ifdef CONFIG_ARM
+int is_rk3288_usb(void);
+#else
+static inline int is_rk3288_usb(void)
+{
+	return false;
+}
+#endif
 #endif

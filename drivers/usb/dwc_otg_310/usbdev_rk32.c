@@ -4,6 +4,14 @@
 #include "dwc_otg_regs.h"
 static struct dwc_otg_control_usb *control_usb;
 
+int is_rk3288_usb(void)
+{
+	if (!control_usb)
+		return false;
+
+	return control_usb->chip_id == RK3288_USB_CTLR ? true : false;
+}
+
 #ifdef CONFIG_USB20_OTG
 static void usb20otg_hw_init(void)
 {

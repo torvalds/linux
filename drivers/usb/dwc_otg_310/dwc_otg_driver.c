@@ -1626,7 +1626,7 @@ void rk_usb_power_up(void)
 	struct rkehci_platform_data *pldata_ehci;
 #endif
 
-	if (cpu_is_rk3288()) {
+	if (is_rk3288_usb()) {
 #ifdef CONFIG_RK_USB_UART
 		/* enable USB bypass UART function  */
 		writel_relaxed(0x00c00000 | usb_to_uart_status,
@@ -1682,7 +1682,7 @@ void rk_usb_power_down(void)
 	struct rkehci_platform_data *pldata_ehci;
 #endif
 
-	if (cpu_is_rk3288()) {
+	if (is_rk3288_usb()) {
 #ifdef CONFIG_RK_USB_UART
 		/* disable USB bypass UART function */
 		usb_to_uart_status =
