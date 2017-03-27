@@ -820,6 +820,7 @@ static void
 vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	unsigned long irqflags;
 	unsigned i;
 
 	/* If we got force-completed because of GPU reset rather than
@@ -840,6 +841,11 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 		list_del(&bo->unref_head);
 		drm_gem_object_unreference_unlocked(&bo->base.base);
 	}
+
+	/* Free up the allocation of any bin slots we used. */
+	spin_lock_irqsave(&vc4->job_lock, irqflags);
+	vc4->bin_alloc_used &= ~exec->bin_slots;
+	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 
 	mutex_lock(&vc4->power_lock);
 	if (--vc4->power_refcount == 0) {
@@ -1101,9 +1107,9 @@ vc4_gem_destroy(struct drm_device *dev)
 	/* V3D should already have disabled its interrupt and cleared
 	 * the overflow allocation registers.  Now free the object.
 	 */
-	if (vc4->overflow_mem) {
-		drm_gem_object_unreference_unlocked(&vc4->overflow_mem->base.base);
-		vc4->overflow_mem = NULL;
+	if (vc4->bin_bo) {
+		drm_gem_object_put_unlocked(&vc4->bin_bo->base.base);
+		vc4->bin_bo = NULL;
 	}
 
 	if (vc4->hang_state)
