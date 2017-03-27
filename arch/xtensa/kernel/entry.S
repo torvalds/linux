@@ -1971,6 +1971,12 @@ ENTRY(_switch_to)
 	s32i	a1, a2, THREAD_SP	# save stack pointer
 #endif
 
+#if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
+	movi	a6, __stack_chk_guard
+	l32i	a8, a3, TASK_STACK_CANARY
+	s32i	a8, a6, 0
+#endif
+
 	/* Disable ints while we manipulate the stack pointer. */
 
 	irq_save a14, a3
