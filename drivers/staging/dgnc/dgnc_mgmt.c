@@ -20,11 +20,11 @@
 
 #include <linux/kernel.h>
 #include <linux/ctype.h>
-#include <linux/sched.h>	/* For jiffies, task states */
-#include <linux/interrupt.h>	/* For tasklet and interrupt structs/defines */
+#include <linux/sched.h>
+#include <linux/interrupt.h>
 #include <linux/serial_reg.h>
 #include <linux/termios.h>
-#include <linux/uaccess.h>	/* For copy_from_user/copy_to_user */
+#include <linux/uaccess.h>
 
 #include "dgnc_driver.h"
 #include "dgnc_pci.h"
@@ -33,10 +33,8 @@
 /* Our "in use" variables, to enforce 1 open only */
 static int dgnc_mgmt_in_use[MAXMGMTDEVICES];
 
-/*
- * dgnc_mgmt_open()
- *
- * Open the mgmt/downld/dpa device
+/**
+ * dgnc_mgmt_open() - Open the mgmt/downld/dpa device.
  */
 int dgnc_mgmt_open(struct inode *inode, struct file *file)
 {
@@ -46,7 +44,6 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
 
 	spin_lock_irqsave(&dgnc_global_lock, flags);
 
-	/* mgmt device */
 	if (minor >= MAXMGMTDEVICES) {
 		rc = -ENXIO;
 		goto out;
@@ -64,10 +61,8 @@ out:
 	return rc;
 }
 
-/*
- * dgnc_mgmt_close()
- *
- * Open the mgmt/dpa device
+/**
+ * dgnc_mgmt_close() - Close the mgmt/dpa device
  */
 int dgnc_mgmt_close(struct inode *inode, struct file *file)
 {
@@ -77,7 +72,6 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 
 	spin_lock_irqsave(&dgnc_global_lock, flags);
 
-	/* mgmt device */
 	if (minor >= MAXMGMTDEVICES) {
 		rc = -ENXIO;
 		goto out;
@@ -90,12 +84,9 @@ out:
 	return rc;
 }
 
-/*
- * dgnc_mgmt_ioctl()
- *
- * ioctl the mgmt/dpa device
+/**
+ * dgnc_mgmt_ioctl() - Ioctl the mgmt/dpa device.
  */
-
 long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
@@ -176,11 +167,9 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		board = ni.board;
 		channel = ni.channel;
 
-		/* Verify boundaries on board */
 		if (board >= dgnc_num_boards)
 			return -ENODEV;
 
-		/* Verify boundaries on channel */
 		if (channel >= dgnc_board[board]->nasync)
 			return -ENODEV;
 
