@@ -120,6 +120,13 @@ enum dw_pcie_region_type {
 	DW_PCIE_REGION_OUTBOUND,
 };
 
+enum dw_pcie_device_mode {
+	DW_PCIE_UNKNOWN_TYPE,
+	DW_PCIE_EP_TYPE,
+	DW_PCIE_LEG_EP_TYPE,
+	DW_PCIE_RC_TYPE,
+};
+
 struct dw_pcie_host_ops {
 	int (*rd_own_conf)(struct pcie_port *pp, int where, int size, u32 *val);
 	int (*wr_own_conf)(struct pcie_port *pp, int where, int size, u32 val);
