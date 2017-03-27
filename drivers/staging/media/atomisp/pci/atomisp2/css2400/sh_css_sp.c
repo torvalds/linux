@@ -841,10 +841,6 @@ configure_isp_from_args(
 	ia_css_ref_configure(binary, (const struct ia_css_frame **)args->delay_frames, pipeline->dvs_frame_delay);
 	ia_css_tnr_configure(binary, (const struct ia_css_frame **)args->tnr_frames);
 	ia_css_bayer_io_config(binary, args);
-#ifdef HAS_TNR3
-	/* Remove support for TNR2 once TNR3 fully integrated */
-	ia_css_tnr3_configure(binary, (const struct ia_css_frame **)args->tnr_frames);
-#endif
 	return err;
 }
 
