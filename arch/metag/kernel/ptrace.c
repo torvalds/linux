@@ -303,7 +303,7 @@ static int metag_tls_set(struct task_struct *target,
 			const void *kbuf, const void __user *ubuf)
 {
 	int ret;
-	void __user *tls;
+	void __user *tls = target->thread.tls_ptr;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &tls, 0, -1);
 	if (ret)
