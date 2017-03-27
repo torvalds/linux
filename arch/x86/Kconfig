@@ -1043,6 +1043,14 @@ config X86_MCE
 	  The action the kernel takes depends on the severity of the problem,
 	  ranging from warning messages to halting the machine.
 
+config X86_MCELOG_LEGACY
+	bool "Support for deprecated /dev/mcelog character device"
+	depends on X86_MCE
+	---help---
+	  Enable support for /dev/mcelog which is needed by the old mcelog
+	  userspace logging daemon. Consider switching to the new generation
+	  rasdaemon solution.
+
 config X86_MCE_INTEL
 	def_bool y
 	prompt "Intel MCE features"
@@ -1072,7 +1080,7 @@ config X86_MCE_THRESHOLD
 	def_bool y
 
 config X86_MCE_INJECT
-	depends on X86_MCE && X86_LOCAL_APIC
+	depends on X86_MCE && X86_LOCAL_APIC && X86_MCELOG_LEGACY
 	tristate "Machine check injector support"
 	---help---
 	  Provide support for injecting machine checks for testing purposes.

@@ -196,6 +196,7 @@ enum mce_notifier_prios {
 	MCE_PRIO_EXTLOG		= INT_MAX - 2,
 	MCE_PRIO_NFIT		= INT_MAX - 3,
 	MCE_PRIO_EDAC		= INT_MAX - 4,
+	MCE_PRIO_MCELOG		= 1,
 	MCE_PRIO_LOWEST		= 0,
 };
 
