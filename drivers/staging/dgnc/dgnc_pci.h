@@ -13,8 +13,8 @@
  * PURPOSE.  See the GNU General Public License for more details.
  */
 
-#ifndef __DGNC_PCI_H
-#define __DGNC_PCI_H
+#ifndef _DGNC_PCI_H
+#define _DGNC_PCI_H
 
 /* Maximum number of PCI boards */
 #define PCIMAX 32
@@ -66,4 +66,4 @@
 /* Size of memory (2MB) */
 #define PCI_MEM_SIZE				0x1000
 
-#endif
+#endif	/* _DGNC_PCI_H */

@@ -13,8 +13,8 @@
  * PURPOSE.  See the GNU General Public License for more details.
  */
 
-#ifndef __DGNC_NEO_H
-#define __DGNC_NEO_H
+#ifndef _DGNC_NEO_H
+#define _DGNC_NEO_H
 
 #include "dgnc_driver.h"
 
@@ -172,4 +172,4 @@ struct neo_uart_struct {
 
 extern struct board_ops dgnc_neo_ops;
 
-#endif
+#endif	/* _DGNC_NEO_H */

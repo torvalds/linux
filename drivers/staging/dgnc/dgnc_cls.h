@@ -13,8 +13,8 @@
  * PURPOSE.  See the GNU General Public License for more details.
  */
 
-#ifndef __DGNC_CLS_H
-#define __DGNC_CLS_H
+#ifndef _DGNC_CLS_H
+#define _DGNC_CLS_H
 
 /**
  * struct cls_uart_struct - Per channel/port Classic UART.
@@ -73,4 +73,4 @@ struct cls_uart_struct {
 
 extern struct board_ops dgnc_cls_ops;
 
-#endif
+#endif	/* _DGNC_CLS_H */

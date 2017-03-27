@@ -13,8 +13,8 @@
  * PURPOSE.  See the GNU General Public License for more details.
  */
 
-#ifndef __DGNC_DRIVER_H
-#define __DGNC_DRIVER_H
+#ifndef _DGNC_DRIVER_H
+#define _DGNC_DRIVER_H
 
 #include <linux/types.h>
 #include <linux/tty.h>
@@ -428,4 +428,4 @@ extern spinlock_t	dgnc_poll_lock;		/* Poll scheduling lock */
 extern uint		dgnc_num_boards;	/* Total number of boards */
 extern struct dgnc_board *dgnc_board[MAXBOARDS];/* Array of boards */
 
-#endif
+#endif	/* _DGNC_DRIVER_H */

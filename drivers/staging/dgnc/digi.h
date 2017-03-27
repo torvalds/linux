@@ -13,8 +13,8 @@
  * PURPOSE.  See the GNU General Public License for more details.
  */
 
-#ifndef __DIGI_H
-#define __DIGI_H
+#ifndef _DIGI_H
+#define _DIGI_H
 
 #ifndef TIOCM_LE
 #define		TIOCM_LE	0x01		/* line enable */
@@ -210,4 +210,5 @@ struct ni_info {
 #define T_NEO 0000
 
 #define TTY_FLIPBUF_SIZE 512
-#endif /* DIGI_H */
+
+#endif	/* _DIGI_H */
