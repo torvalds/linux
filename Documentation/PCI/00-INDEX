@@ -18,5 +18,7 @@ endpoint/pci-endpoint-cfs.txt
 	- guide to use configfs to configure the PCI endpoint function.
 endpoint/pci-test-function.txt
 	- specification of *PCI test* function device.
+endpoint/pci-test-howto.txt
+	- userguide for PCI endpoint test function.
 endpoint/function/binding/
 	- binding documentation for PCI endpoint function
