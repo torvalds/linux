@@ -300,9 +300,6 @@ static struct amdgpu_allowed_register_entry soc15_allowed_read_registers[] = {
 	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPC_STALLED_STAT1), false},
 	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPC_STATUS), false},
 	{ SOC15_REG_OFFSET(GC, 0, mmGB_ADDR_CONFIG), false},
-	{ SOC15_REG_OFFSET(GC, 0, mmCC_RB_BACKEND_DISABLE), false, true},
-	{ SOC15_REG_OFFSET(GC, 0, mmGC_USER_RB_BACKEND_DISABLE), false, true},
-	{ SOC15_REG_OFFSET(GC, 0, mmGB_BACKEND_MAP), false, false},
 };
 
 static uint32_t soc15_read_indexed_register(struct amdgpu_device *adev, u32 se_num,
