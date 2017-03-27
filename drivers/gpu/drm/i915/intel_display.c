@@ -9135,6 +9135,31 @@ out:
 	return active;
 }
 
+static u32 intel_cursor_base(struct intel_crtc *crtc,
+			     const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	const struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	u32 base;
+
+	if (INTEL_INFO(dev_priv)->cursor_needs_physical)
+		base = obj->phys_handle->busaddr;
+	else
+		base = intel_plane_ggtt_offset(plane_state);
+
+	crtc->cursor_addr = base;
+
+	/* ILK+ do this automagically */
+	if (HAS_GMCH_DISPLAY(dev_priv) &&
+	    plane_state->base.rotation & DRM_ROTATE_180)
+		base += (plane_state->base.crtc_h *
+			 plane_state->base.crtc_w - 1) * fb->format->cpp[0];
+
+	return base;
+}
+
 static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
 			   const struct intel_plane_state *plane_state)
 {
@@ -9274,9 +9299,8 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 base = intel_crtc->cursor_addr;
+	u32 pos = 0, base = 0;
 	unsigned long irqflags;
-	u32 pos = 0;
 
 	if (plane_state) {
 		int x = plane_state->base.crtc_x;
@@ -9294,12 +9318,9 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 		}
 		pos |= y << CURSOR_Y_SHIFT;
 
-		/* ILK+ do this automagically */
-		if (HAS_GMCH_DISPLAY(dev_priv) &&
-		    plane_state->base.rotation & DRM_ROTATE_180) {
-			base += (plane_state->base.crtc_h *
-				 plane_state->base.crtc_w - 1) * 4;
-		}
+		base = intel_cursor_base(intel_crtc, plane_state);
+	} else {
+		intel_crtc->cursor_addr = 0;
 	}
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -13713,7 +13734,6 @@ static void
 intel_disable_cursor_plane(struct intel_plane *plane,
 			   struct intel_crtc *crtc)
 {
-	crtc->cursor_addr = 0;
 	intel_crtc_update_cursor(&crtc->base, NULL);
 }
 
@@ -13722,19 +13742,8 @@ intel_update_cursor_plane(struct intel_plane *plane,
 			  const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_i915_gem_object *obj = intel_fb_obj(state->base.fb);
-	uint32_t addr;
 
-	if (!obj)
-		addr = 0;
-	else if (!INTEL_INFO(dev_priv)->cursor_needs_physical)
-		addr = intel_plane_ggtt_offset(state);
-	else
-		addr = obj->phys_handle->busaddr;
-
-	crtc->cursor_addr = addr;
 	intel_crtc_update_cursor(&crtc->base, state);
 }
 
