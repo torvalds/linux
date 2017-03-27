@@ -1978,6 +1978,8 @@ static void udc_id_switch_for_host(struct ci_hdrc *ci)
 	 */
 	if (ci->is_otg)
 		hw_write_otgsc(ci, OTGSC_BSVIE | OTGSC_BSVIS, OTGSC_BSVIS);
+
+	ci->vbus_active = 0;
 }
 
 /**
