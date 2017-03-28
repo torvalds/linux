@@ -986,7 +986,7 @@ int brcmf_bus_started(struct device *dev)
 	}
 	brcmf_feat_attach(drvr);
 
-	ret = brcmf_fws_init(drvr);
+	ret = brcmf_proto_init_done(drvr);
 	if (ret < 0)
 		goto fail;
 

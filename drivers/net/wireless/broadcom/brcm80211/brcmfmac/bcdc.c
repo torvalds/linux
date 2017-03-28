@@ -417,6 +417,12 @@ brcmf_proto_bcdc_reset_if(struct brcmf_if *ifp)
 	brcmf_fws_reset_interface(ifp);
 }
 
+static int
+brcmf_proto_bcdc_init_done(struct brcmf_pub *drvr)
+{
+	return brcmf_fws_init(drvr);
+}
+
 int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_bcdc *bcdc;
@@ -443,6 +449,7 @@ int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 	drvr->proto->add_if = brcmf_proto_bcdc_add_if;
 	drvr->proto->del_if = brcmf_proto_bcdc_del_if;
 	drvr->proto->reset_if = brcmf_proto_bcdc_reset_if;
+	drvr->proto->init_done = brcmf_proto_bcdc_init_done;
 	drvr->proto->pd = bcdc;
 
 	drvr->hdrlen += BCDC_HEADER_LEN + BRCMF_PROT_FW_SIGNAL_MAX_TXBYTES;
