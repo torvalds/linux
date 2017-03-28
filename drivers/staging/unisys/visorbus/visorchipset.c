@@ -108,19 +108,19 @@ static ssize_t toolaction_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	u8 tool_action;
-	int ret;
+	int err;
 
 	if (kstrtou8(buf, 10, &tool_action))
 		return -EINVAL;
 
-	ret = visorchannel_write
+	err = visorchannel_write
 		(chipset_dev->controlvm_channel,
 		 offsetof(struct spar_controlvm_channel_protocol,
 			  tool_action),
 		 &tool_action, sizeof(u8));
 
-	if (ret)
-		return ret;
+	if (err)
+		return err;
 	return count;
 }
 static DEVICE_ATTR_RW(toolaction);
