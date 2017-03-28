@@ -36,8 +36,21 @@
 #define _RPAGE_RSV2		0x0800000000000000UL
 #define _RPAGE_RSV3		0x0400000000000000UL
 #define _RPAGE_RSV4		0x0200000000000000UL
+
+#define _PAGE_PTE		0x4000000000000000UL	/* distinguishes PTEs from pointers */
+#define _PAGE_PRESENT		0x8000000000000000UL	/* pte contains a translation */
+
+/*
+ * Top and bottom bits of RPN which can be used by hash
+ * translation mode, because we expect them to be zero
+ * otherwise.
+ */
 #define _RPAGE_RPN0		0x01000
 #define _RPAGE_RPN1		0x02000
+#define _RPAGE_RPN44		0x0100000000000000UL
+#define _RPAGE_RPN43		0x0080000000000000UL
+#define _RPAGE_RPN42		0x0040000000000000UL
+#define _RPAGE_RPN41		0x0020000000000000UL
 
 /* Max physical address bit as per radix table */
 #define _RPAGE_PA_MAX		57
@@ -65,9 +78,6 @@
 
 #define _PAGE_SOFT_DIRTY	_RPAGE_SW3 /* software: software dirty tracking */
 #define _PAGE_SPECIAL		_RPAGE_SW2 /* software: special page */
-
-#define _PAGE_PTE		0x4000000000000000UL	/* distinguishes PTEs from pointers */
-#define _PAGE_PRESENT		0x8000000000000000UL	/* pte contains a translation */
 /*
  * Drivers request for cache inhibited pte mapping using _PAGE_NO_CACHE
  * Instead of fixing all of them, add an alternate define which

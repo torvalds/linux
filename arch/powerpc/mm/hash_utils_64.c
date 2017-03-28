@@ -981,6 +981,19 @@ void __init hash__early_init_devtree(void)
 
 void __init hash__early_init_mmu(void)
 {
+	/*
+	 * We have code in __hash_page_64K() and elsewhere, which assumes it can
+	 * do the following:
+	 *   new_pte |= (slot << H_PAGE_F_GIX_SHIFT) & (H_PAGE_F_SECOND | H_PAGE_F_GIX);
+	 *
+	 * Where the slot number is between 0-15, and values of 8-15 indicate
+	 * the secondary bucket. For that code to work H_PAGE_F_SECOND and
+	 * H_PAGE_F_GIX must occupy four contiguous bits in the PTE, and
+	 * H_PAGE_F_SECOND must be placed above H_PAGE_F_GIX. Assert that here
+	 * with a BUILD_BUG_ON().
+	 */
+	BUILD_BUG_ON(H_PAGE_F_SECOND != (1ul  << (H_PAGE_F_GIX_SHIFT + 3)));
+
 	htab_init_page_sizes();
 
 	/*
