@@ -1557,16 +1557,14 @@ err_finish_ctx:
  * @channel_addr: address of the controlvm channel
  *
  * Return:
- *    false - this function will return false only in the case where the
- *            controlvm message was NOT processed, but processing must be
- *            retried before reading the next controlvm message; a
- *            scenario where this can occur is when we need to throttle
- *            the allocation of memory in which to copy out controlvm
- *            payload data
- *    true  - processing of the controlvm message completed,
- *            either successfully or with an error
+ *	0	- Successfully processed the message
+ *	-EAGAIN - ControlVM message was not processed and should be retried
+ *		  reading the next controlvm message; a scenario where this can
+ *		  occur is when we need to throttle the allocation of memory in
+ *		  which to copy out controlvm payload data.
+ *	< 0	- error: ControlVM message was processed but an error occurred.
  */
-static bool
+static int
 handle_command(struct controlvm_message inmsg, u64 channel_addr)
 {
 	struct controlvm_message_packet *cmd = &inmsg.cmd;
@@ -1575,11 +1573,13 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 	struct parser_context *parser_ctx = NULL;
 	bool local_addr;
 	struct controlvm_message ackmsg;
+	int err = 0;
 
 	/* create parsing context if necessary */
 	local_addr = (inmsg.hdr.flags.test_message == 1);
 	if (channel_addr == 0)
-		return true;
+		return -EINVAL;
+
 	parm_addr = channel_addr + inmsg.hdr.payload_vm_offset;
 	parm_bytes = inmsg.hdr.payload_bytes;
 
@@ -1595,66 +1595,68 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 		    parser_init_byte_stream(parm_addr, parm_bytes,
 					    local_addr, &retry);
 		if (!parser_ctx && retry)
-			return false;
+			return -EAGAIN;
 	}
 
 	if (!local_addr) {
 		controlvm_init_response(&ackmsg, &inmsg.hdr,
 					CONTROLVM_RESP_SUCCESS);
-		if (chipset_dev->controlvm_channel)
-			visorchannel_signalinsert(
-					chipset_dev->controlvm_channel,
-					CONTROLVM_QUEUE_ACK, &ackmsg);
+		err = visorchannel_signalinsert(chipset_dev->controlvm_channel,
+						CONTROLVM_QUEUE_ACK,
+						&ackmsg);
+		if (err)
+			return err;
 	}
 	switch (inmsg.hdr.id) {
 	case CONTROLVM_CHIPSET_INIT:
-		chipset_init(&inmsg);
+		err = chipset_init(&inmsg);
 		break;
 	case CONTROLVM_BUS_CREATE:
-		bus_create(&inmsg);
+		err = bus_create(&inmsg);
 		break;
 	case CONTROLVM_BUS_DESTROY:
-		bus_destroy(&inmsg);
+		err = bus_destroy(&inmsg);
 		break;
 	case CONTROLVM_BUS_CONFIGURE:
-		bus_configure(&inmsg, parser_ctx);
+		err = bus_configure(&inmsg, parser_ctx);
 		break;
 	case CONTROLVM_DEVICE_CREATE:
-		my_device_create(&inmsg);
+		err = my_device_create(&inmsg);
 		break;
 	case CONTROLVM_DEVICE_CHANGESTATE:
 		if (cmd->device_change_state.flags.phys_device) {
-			parahotplug_process_message(&inmsg);
+			err = parahotplug_process_message(&inmsg);
 		} else {
 			/*
 			 * save the hdr and cmd structures for later use
 			 * when sending back the response to Command
 			 */
-			my_device_changestate(&inmsg);
+			err = my_device_changestate(&inmsg);
 			break;
 		}
 		break;
 	case CONTROLVM_DEVICE_DESTROY:
-		my_device_destroy(&inmsg);
+		err = my_device_destroy(&inmsg);
 		break;
 	case CONTROLVM_DEVICE_CONFIGURE:
-		/* no op for now, just send a respond that we passed */
+		/* no op just send a respond that we passed */
 		if (inmsg.hdr.flags.response_expected)
 			controlvm_respond(&inmsg.hdr, CONTROLVM_RESP_SUCCESS);
 		break;
 	case CONTROLVM_CHIPSET_READY:
-		chipset_ready_uevent(&inmsg.hdr);
+		err = chipset_ready_uevent(&inmsg.hdr);
 		break;
 	case CONTROLVM_CHIPSET_SELFTEST:
-		chipset_selftest_uevent(&inmsg.hdr);
+		err = chipset_selftest_uevent(&inmsg.hdr);
 		break;
 	case CONTROLVM_CHIPSET_STOP:
-		chipset_notready_uevent(&inmsg.hdr);
+		err = chipset_notready_uevent(&inmsg.hdr);
 		break;
 	default:
+		err = -ENOMSG;
 		if (inmsg.hdr.flags.response_expected)
-			controlvm_respond
-				(&inmsg.hdr, -CONTROLVM_RESP_ID_UNKNOWN);
+			controlvm_respond(&inmsg.hdr,
+					  -CONTROLVM_RESP_ID_UNKNOWN);
 		break;
 	}
 
@@ -1662,7 +1664,7 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 		parser_done(parser_ctx);
 		parser_ctx = NULL;
 	}
-	return true;
+	return err;
 }
 
 /*
@@ -1671,19 +1673,23 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
  *                          channel
  * @msg: pointer to the retrieved message
  *
- * Return: true if a valid message was retrieved or false otherwise
+ * Return: 0 if valid message was retrieved or -error
  */
-static bool
+static int
 read_controlvm_event(struct controlvm_message *msg)
 {
-	if (!visorchannel_signalremove(chipset_dev->controlvm_channel,
-				       CONTROLVM_QUEUE_EVENT, msg)) {
-		/* got a message */
-		if (msg->hdr.flags.test_message == 1)
-			return false;
-		return true;
-	}
-	return false;
+	int err;
+
+	err = visorchannel_signalremove(chipset_dev->controlvm_channel,
+					CONTROLVM_QUEUE_EVENT, msg);
+	if (err)
+		return err;
+
+	/* got a message */
+	if (msg->hdr.flags.test_message == 1)
+		return -EINVAL;
+
+	return 0;
 }
 
 /*
@@ -1739,7 +1745,7 @@ controlvm_periodic_work(struct work_struct *work)
 			chipset_dev->controlvm_pending_msg_valid = false;
 			got_command = true;
 		} else {
-			got_command = read_controlvm_event(&inmsg);
+			got_command = (read_controlvm_event(&inmsg) == 0);
 		}
 	}
 
@@ -1748,8 +1754,8 @@ controlvm_periodic_work(struct work_struct *work)
 		chipset_dev->most_recent_message_jiffies = jiffies;
 		if (handle_command(inmsg,
 				   visorchannel_get_physaddr
-				   (chipset_dev->controlvm_channel)))
-			got_command = read_controlvm_event(&inmsg);
+				   (chipset_dev->controlvm_channel) != -EAGAIN))
+			got_command = (read_controlvm_event(&inmsg) == 0);
 		else {
 			/*
 			 * this is a scenario where throttling
