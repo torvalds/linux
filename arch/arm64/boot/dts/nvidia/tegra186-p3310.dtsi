@@ -51,6 +51,10 @@
 		};
 	};
 
+	memory-controller@2c00000 {
+		status = "okay";
+	};
+
 	serial@3100000 {
 		status = "okay";
 	};
