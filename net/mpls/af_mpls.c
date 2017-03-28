@@ -1040,8 +1040,8 @@ static int mpls_netconf_msgsize_devconf(int type)
 	return size;
 }
 
-static void mpls_netconf_notify_devconf(struct net *net, int type,
-					struct mpls_dev *mdev)
+static void mpls_netconf_notify_devconf(struct net *net, int event,
+					int type, struct mpls_dev *mdev)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
@@ -1050,8 +1050,7 @@ static void mpls_netconf_notify_devconf(struct net *net, int type,
 	if (!skb)
 		goto errout;
 
-	err = mpls_netconf_fill_devconf(skb, mdev, 0, 0, RTM_NEWNETCONF,
-					0, type);
+	err = mpls_netconf_fill_devconf(skb, mdev, 0, 0, event, 0, type);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in mpls_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
@@ -1184,9 +1183,8 @@ static int mpls_conf_proc(struct ctl_table *ctl, int write,
 
 		if (i == offsetof(struct mpls_dev, input_enabled) &&
 		    val != oval) {
-			mpls_netconf_notify_devconf(net,
-						    NETCONFA_INPUT,
-						    mdev);
+			mpls_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						    NETCONFA_INPUT, mdev);
 		}
 	}
 
