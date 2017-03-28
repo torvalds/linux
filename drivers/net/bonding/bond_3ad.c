@@ -2446,9 +2446,9 @@ void bond_3ad_adapter_speed_duplex_changed(struct slave *slave)
 
 	spin_lock_bh(&slave->bond->mode_lock);
 	ad_update_actor_keys(port, false);
+	spin_unlock_bh(&slave->bond->mode_lock);
 	netdev_dbg(slave->bond->dev, "Port %d slave %s changed speed/duplex\n",
 		   port->actor_port_number, slave->dev->name);
-	spin_unlock_bh(&slave->bond->mode_lock);
 }
 
 /**
@@ -2492,11 +2492,11 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 	agg = __get_first_agg(port);
 	ad_agg_selection_logic(agg, &dummy);
 
+	spin_unlock_bh(&slave->bond->mode_lock);
+
 	netdev_dbg(slave->bond->dev, "Port %d changed link status to %s\n",
 		   port->actor_port_number,
 		   link == BOND_LINK_UP ? "UP" : "DOWN");
-
-	spin_unlock_bh(&slave->bond->mode_lock);
 
 	/* RTNL is held and mode_lock is released so it's safe
 	 * to update slave_array here.
