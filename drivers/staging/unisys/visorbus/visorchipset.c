@@ -1354,6 +1354,25 @@ chipset_notready_uevent(struct controlvm_message_header *msg_hdr)
 	return res;
 }
 
+static int unisys_vmcall(unsigned long tuple, unsigned long param)
+{
+	int result = 0;
+	unsigned int cpuid_eax, cpuid_ebx, cpuid_ecx, cpuid_edx;
+	unsigned long reg_ebx;
+	unsigned long reg_ecx;
+
+	reg_ebx = param & 0xFFFFFFFF;
+	reg_ecx = param >> 32;
+
+	cpuid(0x00000001, &cpuid_eax, &cpuid_ebx, &cpuid_ecx, &cpuid_edx);
+	if (!(cpuid_ecx & 0x80000000))
+		return -EPERM;
+
+	__asm__ __volatile__(".byte 0x00f, 0x001, 0x0c1" : "=a"(result) :
+		"a"(tuple), "b"(reg_ebx), "c"(reg_ecx));
+
+	return result;
+}
 static unsigned int
 issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)
 {
@@ -1362,7 +1381,7 @@ issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)
 	u64 physaddr;
 
 	physaddr = virt_to_phys(&params);
-	unisys_vmcall(VMCALL_CONTROLVM_ADDR, physaddr, result);
+	result = unisys_vmcall(VMCALL_CONTROLVM_ADDR, physaddr);
 	if (VMCALL_SUCCESSFUL(result)) {
 		*control_addr = params.address;
 		*control_bytes = params.channel_bytes;
