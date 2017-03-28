@@ -27,22 +27,6 @@
  * command line
  */
 
-static inline void bus_device_info_init(
-		struct ultra_vbus_deviceinfo *bus_device_info_ptr,
-		const char *dev_type, const char *drv_name)
-{
-	memset(bus_device_info_ptr, 0, sizeof(struct ultra_vbus_deviceinfo));
-	snprintf(bus_device_info_ptr->devtype,
-		 sizeof(bus_device_info_ptr->devtype),
-		 "%s", (dev_type) ? dev_type : "unknownType");
-	snprintf(bus_device_info_ptr->drvname,
-		 sizeof(bus_device_info_ptr->drvname),
-		 "%s", (drv_name) ? drv_name : "unknownDriver");
-	snprintf(bus_device_info_ptr->infostrs,
-		 sizeof(bus_device_info_ptr->infostrs), "kernel ver. %s",
-		 utsname()->release);
-}
-
 void chipset_bus_create(struct visor_device *bus_info);
 void chipset_bus_destroy(struct visor_device *bus_info);
 void chipset_device_create(struct visor_device *dev_info);

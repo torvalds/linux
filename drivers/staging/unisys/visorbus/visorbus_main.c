@@ -763,6 +763,22 @@ write_vbus_dev_info(struct visorchannel *chan,
 	visorchannel_write(chan, off, info, sizeof(*info));
 }
 
+static void bus_device_info_init(
+		struct ultra_vbus_deviceinfo *bus_device_info_ptr,
+		const char *dev_type, const char *drv_name)
+{
+	memset(bus_device_info_ptr, 0, sizeof(struct ultra_vbus_deviceinfo));
+	snprintf(bus_device_info_ptr->devtype,
+		 sizeof(bus_device_info_ptr->devtype),
+		 "%s", (dev_type) ? dev_type : "unknownType");
+	snprintf(bus_device_info_ptr->drvname,
+		 sizeof(bus_device_info_ptr->drvname),
+		 "%s", (drv_name) ? drv_name : "unknownDriver");
+	snprintf(bus_device_info_ptr->infostrs,
+		 sizeof(bus_device_info_ptr->infostrs), "kernel ver. %s",
+		 utsname()->release);
+}
+
 /*
  * fix_vbus_dev_info() - for a child device just created on a client bus, fill
  *                       in information about the driver that is controlling
