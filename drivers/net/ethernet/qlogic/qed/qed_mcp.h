@@ -743,6 +743,41 @@ int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt, u32 mask_parities);
 
 /**
+ * @brief - Sets the MFW's max value for the given resource
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param res_id
+ *  @param resc_max_val
+ *  @param p_mcp_resp
+ *
+ * @return int - 0 - operation was successful.
+ */
+int
+qed_mcp_set_resc_max_val(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 enum qed_resources res_id,
+			 u32 resc_max_val, u32 *p_mcp_resp);
+
+/**
+ * @brief - Gets the MFW allocation info for the given resource
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param res_id
+ *  @param p_mcp_resp
+ *  @param p_resc_num
+ *  @param p_resc_start
+ *
+ * @return int - 0 - operation was successful.
+ */
+int
+qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
+		      struct qed_ptt *p_ptt,
+		      enum qed_resources res_id,
+		      u32 *p_mcp_resp, u32 *p_resc_num, u32 *p_resc_start);
+
+/**
  * @brief Send eswitch mode to MFW
  *
  *  @param p_hwfn
@@ -755,21 +790,13 @@ int qed_mcp_ov_update_eswitch(struct qed_hwfn *p_hwfn,
 			      struct qed_ptt *p_ptt,
 			      enum qed_ov_eswitch eswitch);
 
-/**
- * @brief - Gets the MFW allocation info for the given resource
- *
- *  @param p_hwfn
- *  @param p_ptt
- *  @param p_resc_info - descriptor of requested resource
- *  @param p_mcp_resp
- *  @param p_mcp_param
- *
- * @return int - 0 - operation was successful.
- */
-int qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt,
-			  struct resource_info *p_resc_info,
-			  u32 *p_mcp_resp, u32 *p_mcp_param);
+#define QED_MCP_RESC_LOCK_MIN_VAL       RESOURCE_DUMP
+#define QED_MCP_RESC_LOCK_MAX_VAL       31
+
+enum qed_resc_lock {
+	QED_RESC_LOCK_DBG_DUMP = QED_MCP_RESC_LOCK_MIN_VAL,
+	QED_RESC_LOCK_RESC_ALLOC = QED_MCP_RESC_LOCK_MAX_VAL
+};
 
 /**
  * @brief - Initiates PF FLR

@@ -2220,46 +2220,212 @@ int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-#define QED_RESC_ALLOC_VERSION_MAJOR    1
+static enum resource_id_enum qed_mcp_get_mfw_res_id(enum qed_resources res_id)
+{
+	enum resource_id_enum mfw_res_id = RESOURCE_NUM_INVALID;
+
+	switch (res_id) {
+	case QED_SB:
+		mfw_res_id = RESOURCE_NUM_SB_E;
+		break;
+	case QED_L2_QUEUE:
+		mfw_res_id = RESOURCE_NUM_L2_QUEUE_E;
+		break;
+	case QED_VPORT:
+		mfw_res_id = RESOURCE_NUM_VPORT_E;
+		break;
+	case QED_RSS_ENG:
+		mfw_res_id = RESOURCE_NUM_RSS_ENGINES_E;
+		break;
+	case QED_PQ:
+		mfw_res_id = RESOURCE_NUM_PQ_E;
+		break;
+	case QED_RL:
+		mfw_res_id = RESOURCE_NUM_RL_E;
+		break;
+	case QED_MAC:
+	case QED_VLAN:
+		/* Each VFC resource can accommodate both a MAC and a VLAN */
+		mfw_res_id = RESOURCE_VFC_FILTER_E;
+		break;
+	case QED_ILT:
+		mfw_res_id = RESOURCE_ILT_E;
+		break;
+	case QED_LL2_QUEUE:
+		mfw_res_id = RESOURCE_LL2_QUEUE_E;
+		break;
+	case QED_RDMA_CNQ_RAM:
+	case QED_CMDQS_CQS:
+		/* CNQ/CMDQS are the same resource */
+		mfw_res_id = RESOURCE_CQS_E;
+		break;
+	case QED_RDMA_STATS_QUEUE:
+		mfw_res_id = RESOURCE_RDMA_STATS_QUEUE_E;
+		break;
+	case QED_BDQ:
+		mfw_res_id = RESOURCE_BDQ_E;
+		break;
+	default:
+		break;
+	}
+
+	return mfw_res_id;
+}
+
+#define QED_RESC_ALLOC_VERSION_MAJOR    2
 #define QED_RESC_ALLOC_VERSION_MINOR    0
 #define QED_RESC_ALLOC_VERSION				     \
 	((QED_RESC_ALLOC_VERSION_MAJOR <<		     \
 	  DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_SHIFT) | \
 	 (QED_RESC_ALLOC_VERSION_MINOR <<		     \
 	  DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR_SHIFT))
-int qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt,
-			  struct resource_info *p_resc_info,
-			  u32 *p_mcp_resp, u32 *p_mcp_param)
+
+struct qed_resc_alloc_in_params {
+	u32 cmd;
+	enum qed_resources res_id;
+	u32 resc_max_val;
+};
+
+struct qed_resc_alloc_out_params {
+	u32 mcp_resp;
+	u32 mcp_param;
+	u32 resc_num;
+	u32 resc_start;
+	u32 vf_resc_num;
+	u32 vf_resc_start;
+	u32 flags;
+};
+
+static int
+qed_mcp_resc_allocation_msg(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt,
+			    struct qed_resc_alloc_in_params *p_in_params,
+			    struct qed_resc_alloc_out_params *p_out_params)
 {
 	struct qed_mcp_mb_params mb_params;
+	struct resource_info mfw_resc_info;
 	int rc;
 
-	memset(&mb_params, 0, sizeof(mb_params));
-	mb_params.cmd = DRV_MSG_GET_RESOURCE_ALLOC_MSG;
-	mb_params.param = QED_RESC_ALLOC_VERSION;
+	memset(&mfw_resc_info, 0, sizeof(mfw_resc_info));
 
-	mb_params.p_data_src = p_resc_info;
-	mb_params.data_src_size = sizeof(*p_resc_info);
-	mb_params.p_data_dst = p_resc_info;
-	mb_params.data_dst_size = sizeof(*p_resc_info);
+	mfw_resc_info.res_id = qed_mcp_get_mfw_res_id(p_in_params->res_id);
+	if (mfw_resc_info.res_id == RESOURCE_NUM_INVALID) {
+		DP_ERR(p_hwfn,
+		       "Failed to match resource %d [%s] with the MFW resources\n",
+		       p_in_params->res_id,
+		       qed_hw_get_resc_name(p_in_params->res_id));
+		return -EINVAL;
+	}
+
+	switch (p_in_params->cmd) {
+	case DRV_MSG_SET_RESOURCE_VALUE_MSG:
+		mfw_resc_info.size = p_in_params->resc_max_val;
+		/* Fallthrough */
+	case DRV_MSG_GET_RESOURCE_ALLOC_MSG:
+		break;
+	default:
+		DP_ERR(p_hwfn, "Unexpected resource alloc command [0x%08x]\n",
+		       p_in_params->cmd);
+		return -EINVAL;
+	}
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = p_in_params->cmd;
+	mb_params.param = QED_RESC_ALLOC_VERSION;
+	mb_params.p_data_src = &mfw_resc_info;
+	mb_params.data_src_size = sizeof(mfw_resc_info);
+	mb_params.p_data_dst = mb_params.p_data_src;
+	mb_params.data_dst_size = mb_params.data_src_size;
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "Resource message request: cmd 0x%08x, res_id %d [%s], hsi_version %d.%d, val 0x%x\n",
+		   p_in_params->cmd,
+		   p_in_params->res_id,
+		   qed_hw_get_resc_name(p_in_params->res_id),
+		   QED_MFW_GET_FIELD(mb_params.param,
+				     DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR),
+		   QED_MFW_GET_FIELD(mb_params.param,
+				     DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR),
+		   p_in_params->resc_max_val);
+
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
 		return rc;
 
-	/* Copy the data back */
-	*p_mcp_resp = mb_params.mcp_resp;
-	*p_mcp_param = mb_params.mcp_param;
+	p_out_params->mcp_resp = mb_params.mcp_resp;
+	p_out_params->mcp_param = mb_params.mcp_param;
+	p_out_params->resc_num = mfw_resc_info.size;
+	p_out_params->resc_start = mfw_resc_info.offset;
+	p_out_params->vf_resc_num = mfw_resc_info.vf_size;
+	p_out_params->vf_resc_start = mfw_resc_info.vf_offset;
+	p_out_params->flags = mfw_resc_info.flags;
 
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_SP,
-		   "MFW resource_info: version 0x%x, res_id 0x%x, size 0x%x, offset 0x%x, vf_size 0x%x, vf_offset 0x%x, flags 0x%x\n",
-		   *p_mcp_param,
-		   p_resc_info->res_id,
-		   p_resc_info->size,
-		   p_resc_info->offset,
-		   p_resc_info->vf_size,
-		   p_resc_info->vf_offset, p_resc_info->flags);
+		   "Resource message response: mfw_hsi_version %d.%d, num 0x%x, start 0x%x, vf_num 0x%x, vf_start 0x%x, flags 0x%08x\n",
+		   QED_MFW_GET_FIELD(p_out_params->mcp_param,
+				     FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR),
+		   QED_MFW_GET_FIELD(p_out_params->mcp_param,
+				     FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR),
+		   p_out_params->resc_num,
+		   p_out_params->resc_start,
+		   p_out_params->vf_resc_num,
+		   p_out_params->vf_resc_start, p_out_params->flags);
+
+	return 0;
+}
+
+int
+qed_mcp_set_resc_max_val(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 enum qed_resources res_id,
+			 u32 resc_max_val, u32 *p_mcp_resp)
+{
+	struct qed_resc_alloc_out_params out_params;
+	struct qed_resc_alloc_in_params in_params;
+	int rc;
+
+	memset(&in_params, 0, sizeof(in_params));
+	in_params.cmd = DRV_MSG_SET_RESOURCE_VALUE_MSG;
+	in_params.res_id = res_id;
+	in_params.resc_max_val = resc_max_val;
+	memset(&out_params, 0, sizeof(out_params));
+	rc = qed_mcp_resc_allocation_msg(p_hwfn, p_ptt, &in_params,
+					 &out_params);
+	if (rc)
+		return rc;
+
+	*p_mcp_resp = out_params.mcp_resp;
+
+	return 0;
+}
+
+int
+qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
+		      struct qed_ptt *p_ptt,
+		      enum qed_resources res_id,
+		      u32 *p_mcp_resp, u32 *p_resc_num, u32 *p_resc_start)
+{
+	struct qed_resc_alloc_out_params out_params;
+	struct qed_resc_alloc_in_params in_params;
+	int rc;
+
+	memset(&in_params, 0, sizeof(in_params));
+	in_params.cmd = DRV_MSG_GET_RESOURCE_ALLOC_MSG;
+	in_params.res_id = res_id;
+	memset(&out_params, 0, sizeof(out_params));
+	rc = qed_mcp_resc_allocation_msg(p_hwfn, p_ptt, &in_params,
+					 &out_params);
+	if (rc)
+		return rc;
+
+	*p_mcp_resp = out_params.mcp_resp;
+
+	if (*p_mcp_resp == FW_MSG_CODE_RESOURCE_ALLOC_OK) {
+		*p_resc_num = out_params.resc_num;
+		*p_resc_start = out_params.resc_start;
+	}
 
 	return 0;
 }

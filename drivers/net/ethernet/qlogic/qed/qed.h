@@ -219,6 +219,7 @@ enum qed_resources {
 	QED_LL2_QUEUE,
 	QED_CMDQS_CQS,
 	QED_RDMA_STATS_QUEUE,
+	QED_BDQ,
 	QED_MAX_RESC,
 };
 
