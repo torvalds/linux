@@ -999,6 +999,7 @@ int acpi_dev_prop_read(struct acpi_device *adev, const char *propname,
 
 struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 					    struct fwnode_handle *subnode);
+struct fwnode_handle *acpi_node_get_parent(struct fwnode_handle *fwnode);
 
 struct acpi_probe_entry;
 typedef bool (*acpi_probe_entry_validate_subtbl)(struct acpi_subtable_header *,
@@ -1117,6 +1118,12 @@ static inline int acpi_dev_prop_read(struct acpi_device *adev,
 
 static inline struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 						struct fwnode_handle *subnode)
+{
+	return NULL;
+}
+
+static inline struct fwnode_handle *
+acpi_node_get_parent(struct fwnode_handle *fwnode)
 {
 	return NULL;
 }

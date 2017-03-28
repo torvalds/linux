@@ -37,14 +37,16 @@ static const u8 ads_uuid[16] = {
 
 static bool acpi_enumerate_nondev_subnodes(acpi_handle scope,
 					   const union acpi_object *desc,
-					   struct acpi_device_data *data);
+					   struct acpi_device_data *data,
+					   struct fwnode_handle *parent);
 static bool acpi_extract_properties(const union acpi_object *desc,
 				    struct acpi_device_data *data);
 
 static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
 					acpi_handle handle,
 					const union acpi_object *link,
-					struct list_head *list)
+					struct list_head *list,
+					struct fwnode_handle *parent)
 {
 	struct acpi_data_node *dn;
 	bool result;
@@ -55,6 +57,7 @@ static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
 
 	dn->name = link->package.elements[0].string.pointer;
 	dn->fwnode.type = FWNODE_ACPI_DATA;
+	dn->parent = parent;
 	INIT_LIST_HEAD(&dn->data.subnodes);
 
 	result = acpi_extract_properties(desc, &dn->data);
@@ -71,9 +74,11 @@ static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
 		 */
 		status = acpi_get_parent(handle, &scope);
 		if (ACPI_SUCCESS(status)
-		    && acpi_enumerate_nondev_subnodes(scope, desc, &dn->data))
+		    && acpi_enumerate_nondev_subnodes(scope, desc, &dn->data,
+						      &dn->fwnode))
 			result = true;
-	} else if (acpi_enumerate_nondev_subnodes(NULL, desc, &dn->data)) {
+	} else if (acpi_enumerate_nondev_subnodes(NULL, desc, &dn->data,
+						  &dn->fwnode)) {
 		result = true;
 	}
 
@@ -91,7 +96,8 @@ static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
 
 static bool acpi_nondev_subnode_data_ok(acpi_handle handle,
 					const union acpi_object *link,
-					struct list_head *list)
+					struct list_head *list,
+					struct fwnode_handle *parent)
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
 	acpi_status status;
@@ -101,7 +107,8 @@ static bool acpi_nondev_subnode_data_ok(acpi_handle handle,
 	if (ACPI_FAILURE(status))
 		return false;
 
-	if (acpi_nondev_subnode_extract(buf.pointer, handle, link, list))
+	if (acpi_nondev_subnode_extract(buf.pointer, handle, link, list,
+					parent))
 		return true;
 
 	ACPI_FREE(buf.pointer);
@@ -110,7 +117,8 @@ static bool acpi_nondev_subnode_data_ok(acpi_handle handle,
 
 static bool acpi_nondev_subnode_ok(acpi_handle scope,
 				   const union acpi_object *link,
-				   struct list_head *list)
+				   struct list_head *list,
+				   struct fwnode_handle *parent)
 {
 	acpi_handle handle;
 	acpi_status status;
@@ -123,12 +131,13 @@ static bool acpi_nondev_subnode_ok(acpi_handle scope,
 	if (ACPI_FAILURE(status))
 		return false;
 
-	return acpi_nondev_subnode_data_ok(handle, link, list);
+	return acpi_nondev_subnode_data_ok(handle, link, list, parent);
 }
 
 static int acpi_add_nondev_subnodes(acpi_handle scope,
 				    const union acpi_object *links,
-				    struct list_head *list)
+				    struct list_head *list,
+				    struct fwnode_handle *parent)
 {
 	bool ret = false;
 	int i;
@@ -150,15 +159,18 @@ static int acpi_add_nondev_subnodes(acpi_handle scope,
 		/* The second one may be a string, a reference or a package. */
 		switch (link->package.elements[1].type) {
 		case ACPI_TYPE_STRING:
-			result = acpi_nondev_subnode_ok(scope, link, list);
+			result = acpi_nondev_subnode_ok(scope, link, list,
+							 parent);
 			break;
 		case ACPI_TYPE_LOCAL_REFERENCE:
 			handle = link->package.elements[1].reference.handle;
-			result = acpi_nondev_subnode_data_ok(handle, link, list);
+			result = acpi_nondev_subnode_data_ok(handle, link, list,
+							     parent);
 			break;
 		case ACPI_TYPE_PACKAGE:
 			desc = &link->package.elements[1];
-			result = acpi_nondev_subnode_extract(desc, NULL, link, list);
+			result = acpi_nondev_subnode_extract(desc, NULL, link,
+							     list, parent);
 			break;
 		default:
 			result = false;
@@ -172,7 +184,8 @@ static int acpi_add_nondev_subnodes(acpi_handle scope,
 
 static bool acpi_enumerate_nondev_subnodes(acpi_handle scope,
 					   const union acpi_object *desc,
-					   struct acpi_device_data *data)
+					   struct acpi_device_data *data,
+					   struct fwnode_handle *parent)
 {
 	int i;
 
@@ -194,7 +207,8 @@ static bool acpi_enumerate_nondev_subnodes(acpi_handle scope,
 		if (memcmp(uuid->buffer.pointer, ads_uuid, sizeof(ads_uuid)))
 			continue;
 
-		return acpi_add_nondev_subnodes(scope, links, &data->subnodes);
+		return acpi_add_nondev_subnodes(scope, links, &data->subnodes,
+						parent);
 	}
 
 	return false;
@@ -345,7 +359,8 @@ void acpi_init_properties(struct acpi_device *adev)
 		if (acpi_of)
 			acpi_init_of_compatible(adev);
 	}
-	if (acpi_enumerate_nondev_subnodes(adev->handle, buf.pointer, &adev->data))
+	if (acpi_enumerate_nondev_subnodes(adev->handle, buf.pointer,
+					&adev->data, acpi_fwnode_handle(adev)))
 		adev->data.pointer = buf.pointer;
 
 	if (!adev->data.pointer) {
@@ -918,5 +933,32 @@ struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 		}
 		return &dn->fwnode;
 	}
+	return NULL;
+}
+
+/**
+ * acpi_node_get_parent - Return parent fwnode of this fwnode
+ * @fwnode: Firmware node whose parent to get
+ *
+ * Returns parent node of an ACPI device or data firmware node or %NULL if
+ * not available.
+ */
+struct fwnode_handle *acpi_node_get_parent(struct fwnode_handle *fwnode)
+{
+	if (is_acpi_data_node(fwnode)) {
+		/* All data nodes have parent pointer so just return that */
+		return to_acpi_data_node(fwnode)->parent;
+	} else if (is_acpi_device_node(fwnode)) {
+		acpi_handle handle, parent_handle;
+
+		handle = to_acpi_device_node(fwnode)->handle;
+		if (ACPI_SUCCESS(acpi_get_parent(handle, &parent_handle))) {
+			struct acpi_device *adev;
+
+			if (!acpi_bus_get_device(parent_handle, &adev))
+				return acpi_fwnode_handle(adev);
+		}
+	}
+
 	return NULL;
 }
