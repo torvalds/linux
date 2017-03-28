@@ -32,7 +32,6 @@
 #include "p2p.h"
 #include "cfg80211.h"
 #include "fwil.h"
-#include "fwsignal.h"
 #include "feature.h"
 #include "proto.h"
 #include "pcie.h"
@@ -1034,10 +1033,6 @@ fail:
 		brcmf_cfg80211_detach(drvr->config);
 		drvr->config = NULL;
 	}
-	if (drvr->fws) {
-		brcmf_proto_del_if(ifp->drvr, ifp);
-		brcmf_fws_deinit(drvr);
-	}
 	brcmf_net_detach(ifp->ndev, false);
 	if (p2p_ifp)
 		brcmf_net_detach(p2p_ifp->ndev, false);
@@ -1102,8 +1097,6 @@ void brcmf_detach(struct device *dev)
 		brcmf_remove_interface(drvr->iflist[i], false);
 
 	brcmf_cfg80211_detach(drvr->config);
-
-	brcmf_fws_deinit(drvr);
 
 	brcmf_bus_stop(drvr->bus_if);
 

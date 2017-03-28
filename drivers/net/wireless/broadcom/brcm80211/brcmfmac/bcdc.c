@@ -464,6 +464,7 @@ fail:
 
 void brcmf_proto_bcdc_detach(struct brcmf_pub *drvr)
 {
+	brcmf_fws_deinit(drvr);
 	kfree(drvr->proto->pd);
 	drvr->proto->pd = NULL;
 }
