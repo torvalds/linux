@@ -464,16 +464,17 @@ dev_periodic_work(unsigned long __opaque)
 	mod_timer(&dev->timer, jiffies + POLLJIFFIES_NORMALCHANNEL);
 }
 
-static void
+static int
 dev_start_periodic_work(struct visor_device *dev)
 {
 	if (dev->being_removed || dev->timer_active)
-		return;
+		return -EINVAL;
 	/* now up by at least 2 */
 	get_device(&dev->device);
 	dev->timer.expires = jiffies + POLLJIFFIES_NORMALCHANNEL;
 	add_timer(&dev->timer);
 	dev->timer_active = true;
+	return 0;
 }
 
 static void
