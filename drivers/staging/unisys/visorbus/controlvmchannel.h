@@ -36,12 +36,12 @@
 #define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID 1
 
 #define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(ch) \
-	(spar_check_channel_client(ch, \
-		SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID, \
-		"controlvm", \
-		sizeof(struct spar_controlvm_channel_protocol), \
-		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
-		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE))
+	(spar_check_channel(ch, \
+			    SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID, \
+			    "controlvm", \
+			    sizeof(struct spar_controlvm_channel_protocol), \
+			    ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
+			    ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE))
 
 /* Defines for various channel queues */
 #define CONTROLVM_QUEUE_REQUEST	 0
