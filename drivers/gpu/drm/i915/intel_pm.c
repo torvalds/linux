@@ -8088,7 +8088,7 @@ static inline int gen6_check_mailbox_status(struct drm_i915_private *dev_priv)
 	case GEN6_PCODE_TIMEOUT:
 		return -ETIMEDOUT;
 	default:
-		MISSING_CASE(flags)
+		MISSING_CASE(flags);
 		return 0;
 	}
 }
