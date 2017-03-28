@@ -406,9 +406,9 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	if (!crtc)
 		return -ENOENT;
 
-	drm_modeset_lock_crtc(crtc, crtc->primary);
 	crtc_resp->gamma_size = crtc->gamma_size;
 
+	drm_modeset_lock(&crtc->primary->mutex, NULL);
 	if (crtc->primary->state && crtc->primary->state->fb)
 		crtc_resp->fb_id = crtc->primary->state->fb->base.id;
 	else if (!crtc->primary->state && crtc->primary->fb)
@@ -416,9 +416,14 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	else
 		crtc_resp->fb_id = 0;
 
-	if (crtc->state) {
+	if (crtc->primary->state) {
 		crtc_resp->x = crtc->primary->state->src_x >> 16;
 		crtc_resp->y = crtc->primary->state->src_y >> 16;
+	}
+	drm_modeset_unlock(&crtc->primary->mutex);
+
+	drm_modeset_lock(&crtc->mutex, NULL);
+	if (crtc->state) {
 		if (crtc->state->enable) {
 			drm_mode_convert_to_umode(&crtc_resp->mode, &crtc->state->mode);
 			crtc_resp->mode_valid = 1;
@@ -437,7 +442,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 			crtc_resp->mode_valid = 0;
 		}
 	}
-	drm_modeset_unlock_crtc(crtc);
+	drm_modeset_unlock(&crtc->mutex);
 
 	return 0;
 }
