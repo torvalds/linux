@@ -4125,6 +4125,60 @@ MLXSW_ITEM32(reg, ritr, sp_if_system_port, 0x08, 0, 16);
  */
 MLXSW_ITEM32(reg, ritr, sp_if_vid, 0x18, 0, 12);
 
+/* Shared between ingress/egress */
+enum mlxsw_reg_ritr_counter_set_type {
+	/* No Count. */
+	MLXSW_REG_RITR_COUNTER_SET_TYPE_NO_COUNT = 0x0,
+	/* Basic. Used for router interfaces, counting the following:
+	 *	- Error and Discard counters.
+	 *	- Unicast, Multicast and Broadcast counters. Sharing the
+	 *	  same set of counters for the different type of traffic
+	 *	  (IPv4, IPv6 and mpls).
+	 */
+	MLXSW_REG_RITR_COUNTER_SET_TYPE_BASIC = 0x9,
+};
+
+/* reg_ritr_ingress_counter_index
+ * Counter Index for flow counter.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ingress_counter_index, 0x38, 0, 24);
+
+/* reg_ritr_ingress_counter_set_type
+ * Igress Counter Set Type for router interface counter.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ingress_counter_set_type, 0x38, 24, 8);
+
+/* reg_ritr_egress_counter_index
+ * Counter Index for flow counter.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, egress_counter_index, 0x3C, 0, 24);
+
+/* reg_ritr_egress_counter_set_type
+ * Egress Counter Set Type for router interface counter.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, egress_counter_set_type, 0x3C, 24, 8);
+
+static inline void mlxsw_reg_ritr_counter_pack(char *payload, u32 index,
+					       bool enable, bool egress)
+{
+	enum mlxsw_reg_ritr_counter_set_type set_type;
+
+	if (enable)
+		set_type = MLXSW_REG_RITR_COUNTER_SET_TYPE_BASIC;
+	else
+		set_type = MLXSW_REG_RITR_COUNTER_SET_TYPE_NO_COUNT;
+	mlxsw_reg_ritr_egress_counter_set_type_set(payload, set_type);
+
+	if (egress)
+		mlxsw_reg_ritr_egress_counter_index_set(payload, index);
+	else
+		mlxsw_reg_ritr_ingress_counter_index_set(payload, index);
+}
+
 static inline void mlxsw_reg_ritr_rif_pack(char *payload, u16 rif)
 {
 	MLXSW_REG_ZERO(ritr, payload);
