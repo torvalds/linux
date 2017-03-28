@@ -182,7 +182,10 @@ static int klp_find_object_symbol(const char *objname, const char *name,
 	};
 
 	mutex_lock(&module_mutex);
-	kallsyms_on_each_symbol(klp_find_callback, &args);
+	if (objname)
+		module_kallsyms_on_each_symbol(klp_find_callback, &args);
+	else
+		kallsyms_on_each_symbol(klp_find_callback, &args);
 	mutex_unlock(&module_mutex);
 
 	/*
