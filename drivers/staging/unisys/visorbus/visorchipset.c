@@ -242,11 +242,15 @@ static ssize_t remaining_steps_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	u16 remaining_steps = 0;
+	int err;
 
-	visorchannel_read(chipset_dev->controlvm_channel,
-			  offsetof(struct spar_controlvm_channel_protocol,
-				   installation_remaining_steps),
-			  &remaining_steps, sizeof(u16));
+	err = visorchannel_read(chipset_dev->controlvm_channel,
+				offsetof(struct spar_controlvm_channel_protocol,
+					 installation_remaining_steps),
+				&remaining_steps, sizeof(u16));
+	if (err)
+		return err;
+
 	return sprintf(buf, "%hu\n", remaining_steps);
 }
 
