@@ -9887,9 +9887,11 @@ struct public_func {
 #define DRV_ID_PDA_COMP_VER_MASK	0x0000ffff
 #define DRV_ID_PDA_COMP_VER_SHIFT	0
 
+#define LOAD_REQ_HSI_VERSION		2
 #define DRV_ID_MCP_HSI_VER_MASK		0x00ff0000
 #define DRV_ID_MCP_HSI_VER_SHIFT	16
-#define DRV_ID_MCP_HSI_VER_CURRENT	(1 << DRV_ID_MCP_HSI_VER_SHIFT)
+#define DRV_ID_MCP_HSI_VER_CURRENT	(LOAD_REQ_HSI_VERSION << \
+					 DRV_ID_MCP_HSI_VER_SHIFT)
 
 #define DRV_ID_DRV_TYPE_MASK		0x7f000000
 #define DRV_ID_DRV_TYPE_SHIFT		24
@@ -10001,6 +10003,46 @@ struct resource_info {
 #define RESOURCE_ELEMENT_STRICT (1 << 0)
 };
 
+#define DRV_ROLE_NONE           0
+#define DRV_ROLE_PREBOOT        1
+#define DRV_ROLE_OS             2
+#define DRV_ROLE_KDUMP          3
+
+struct load_req_stc {
+	u32 drv_ver_0;
+	u32 drv_ver_1;
+	u32 fw_ver;
+	u32 misc0;
+#define LOAD_REQ_ROLE_MASK              0x000000FF
+#define LOAD_REQ_ROLE_SHIFT             0
+#define LOAD_REQ_LOCK_TO_MASK           0x0000FF00
+#define LOAD_REQ_LOCK_TO_SHIFT          8
+#define LOAD_REQ_LOCK_TO_DEFAULT        0
+#define LOAD_REQ_LOCK_TO_NONE           255
+#define LOAD_REQ_FORCE_MASK             0x000F0000
+#define LOAD_REQ_FORCE_SHIFT            16
+#define LOAD_REQ_FORCE_NONE             0
+#define LOAD_REQ_FORCE_PF               1
+#define LOAD_REQ_FORCE_ALL              2
+#define LOAD_REQ_FLAGS0_MASK            0x00F00000
+#define LOAD_REQ_FLAGS0_SHIFT           20
+#define LOAD_REQ_FLAGS0_AVOID_RESET     (0x1 << 0)
+};
+
+struct load_rsp_stc {
+	u32 drv_ver_0;
+	u32 drv_ver_1;
+	u32 fw_ver;
+	u32 misc0;
+#define LOAD_RSP_ROLE_MASK              0x000000FF
+#define LOAD_RSP_ROLE_SHIFT             0
+#define LOAD_RSP_HSI_MASK               0x0000FF00
+#define LOAD_RSP_HSI_SHIFT              8
+#define LOAD_RSP_FLAGS0_MASK            0x000F0000
+#define LOAD_RSP_FLAGS0_SHIFT           16
+#define LOAD_RSP_FLAGS0_DRV_EXISTS      (0x1 << 0)
+};
+
 union drv_union_data {
 	u32 ver_str[MCP_DRV_VER_STR_SIZE_DWORD];
 	struct mcp_mac wol_mac;
@@ -10032,6 +10074,7 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_LOAD_REQ			0x10000000
 #define DRV_MSG_CODE_LOAD_DONE			0x11000000
 #define DRV_MSG_CODE_INIT_HW			0x12000000
+#define DRV_MSG_CODE_CANCEL_LOAD_REQ            0x13000000
 #define DRV_MSG_CODE_UNLOAD_REQ			0x20000000
 #define DRV_MSG_CODE_UNLOAD_DONE		0x21000000
 #define DRV_MSG_CODE_INIT_PHY			0x22000000
@@ -10167,8 +10210,11 @@ struct public_drv_mb {
 #define FW_MSG_CODE_DRV_LOAD_PORT		0x10110000
 #define FW_MSG_CODE_DRV_LOAD_FUNCTION		0x10120000
 #define FW_MSG_CODE_DRV_LOAD_REFUSED_PDA	0x10200000
-#define FW_MSG_CODE_DRV_LOAD_REFUSED_HSI	0x10210000
+#define FW_MSG_CODE_DRV_LOAD_REFUSED_HSI_1	0x10210000
 #define FW_MSG_CODE_DRV_LOAD_REFUSED_DIAG	0x10220000
+#define FW_MSG_CODE_DRV_LOAD_REFUSED_HSI        0x10230000
+#define FW_MSG_CODE_DRV_LOAD_REFUSED_REQUIRES_FORCE 0x10300000
+#define FW_MSG_CODE_DRV_LOAD_REFUSED_REJECT     0x10310000
 #define FW_MSG_CODE_DRV_LOAD_DONE		0x11100000
 #define FW_MSG_CODE_DRV_UNLOAD_ENGINE		0x20110000
 #define FW_MSG_CODE_DRV_UNLOAD_PORT		0x20120000

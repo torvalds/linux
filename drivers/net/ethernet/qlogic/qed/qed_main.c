@@ -45,6 +45,7 @@
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
+#include <linux/crash_dump.h>
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_ll2_if.h>
 
@@ -901,6 +902,7 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 static int qed_slowpath_start(struct qed_dev *cdev,
 			      struct qed_slowpath_params *params)
 {
+	struct qed_drv_load_params drv_load_params;
 	struct qed_hw_init_params hw_init_params;
 	struct qed_tunn_start_params tunn_info;
 	struct qed_mcp_drv_version drv_version;
@@ -973,6 +975,13 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	hw_init_params.int_mode = cdev->int_params.out.int_mode;
 	hw_init_params.allow_npar_tx_switch = true;
 	hw_init_params.bin_fw_data = data;
+
+	memset(&drv_load_params, 0, sizeof(drv_load_params));
+	drv_load_params.is_crash_kernel = is_kdump_kernel();
+	drv_load_params.mfw_timeout_val = QED_LOAD_REQ_LOCK_TO_DEFAULT;
+	drv_load_params.avoid_eng_reset = false;
+	drv_load_params.override_force_load = QED_OVERRIDE_FORCE_LOAD_NONE;
+	hw_init_params.p_drv_load_params = &drv_load_params;
 
 	rc = qed_hw_init(cdev, &hw_init_params);
 	if (rc)

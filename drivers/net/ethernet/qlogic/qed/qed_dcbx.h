@@ -85,9 +85,6 @@ struct qed_dcbx_app_metadata {
 	enum qed_pci_personality personality;
 };
 
-#define QED_MFW_GET_FIELD(name, field) \
-	(((name) & (field ## _MASK)) >> (field ## _SHIFT))
-
 struct qed_dcbx_info {
 	struct lldp_status_params_s lldp_remote[LLDP_MAX_LLDP_AGENTS];
 	struct lldp_config_params_s lldp_local[LLDP_MAX_LLDP_AGENTS];

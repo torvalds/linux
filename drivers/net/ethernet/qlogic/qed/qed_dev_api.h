@@ -82,6 +82,35 @@ int qed_resc_alloc(struct qed_dev *cdev);
  */
 void qed_resc_setup(struct qed_dev *cdev);
 
+enum qed_override_force_load {
+	QED_OVERRIDE_FORCE_LOAD_NONE,
+	QED_OVERRIDE_FORCE_LOAD_ALWAYS,
+	QED_OVERRIDE_FORCE_LOAD_NEVER,
+};
+
+struct qed_drv_load_params {
+	/* Indicates whether the driver is running over a crash kernel.
+	 * As part of the load request, this will be used for providing the
+	 * driver role to the MFW.
+	 * In case of a crash kernel over PDA - this should be set to false.
+	 */
+	bool is_crash_kernel;
+
+	/* The timeout value that the MFW should use when locking the engine for
+	 * the driver load process.
+	 * A value of '0' means the default value, and '255' means no timeout.
+	 */
+	u8 mfw_timeout_val;
+#define QED_LOAD_REQ_LOCK_TO_DEFAULT    0
+#define QED_LOAD_REQ_LOCK_TO_NONE       255
+
+	/* Avoid engine reset when first PF loads on it */
+	bool avoid_eng_reset;
+
+	/* Allow overriding the default force load behavior */
+	enum qed_override_force_load override_force_load;
+};
+
 struct qed_hw_init_params {
 	/* Tunneling parameters */
 	struct qed_tunn_start_params *p_tunn;
@@ -96,6 +125,9 @@ struct qed_hw_init_params {
 
 	/* Binary fw data pointer in binary fw file */
 	const u8 *bin_fw_data;
+
+	/* Driver load parameters */
+	struct qed_drv_load_params *p_drv_load_params;
 };
 
 /**

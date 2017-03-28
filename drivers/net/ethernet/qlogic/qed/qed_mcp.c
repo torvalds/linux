@@ -598,47 +598,351 @@ int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt, u32 *p_load_code)
+static bool
+qed_mcp_can_force_load(u8 drv_role,
+		       u8 exist_drv_role,
+		       enum qed_override_force_load override_force_load)
 {
-	struct qed_dev *cdev = p_hwfn->cdev;
-	struct qed_mcp_mb_params mb_params;
-	union drv_union_data union_data;
+	bool can_force_load = false;
+
+	switch (override_force_load) {
+	case QED_OVERRIDE_FORCE_LOAD_ALWAYS:
+		can_force_load = true;
+		break;
+	case QED_OVERRIDE_FORCE_LOAD_NEVER:
+		can_force_load = false;
+		break;
+	default:
+		can_force_load = (drv_role == DRV_ROLE_OS &&
+				  exist_drv_role == DRV_ROLE_PREBOOT) ||
+				 (drv_role == DRV_ROLE_KDUMP &&
+				  exist_drv_role == DRV_ROLE_OS);
+		break;
+	}
+
+	return can_force_load;
+}
+
+static int qed_mcp_cancel_load_req(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt)
+{
+	u32 resp = 0, param = 0;
 	int rc;
 
-	memset(&mb_params, 0, sizeof(mb_params));
-	/* Load Request */
-	mb_params.cmd = DRV_MSG_CODE_LOAD_REQ;
-	mb_params.param = PDA_COMP | DRV_ID_MCP_HSI_VER_CURRENT |
-			  cdev->drv_type;
-	memcpy(&union_data.ver_str, cdev->ver_str, MCP_DRV_VER_STR_SIZE);
-	mb_params.p_data_src = &union_data;
-	mb_params.data_src_size = sizeof(union_data.ver_str);
-	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_CANCEL_LOAD_REQ, 0,
+			 &resp, &param);
+	if (rc)
+		DP_NOTICE(p_hwfn,
+			  "Failed to send cancel load request, rc = %d\n", rc);
 
-	/* if mcp fails to respond we must abort */
+	return rc;
+}
+
+#define CONFIG_QEDE_BITMAP_IDX		BIT(0)
+#define CONFIG_QED_SRIOV_BITMAP_IDX	BIT(1)
+#define CONFIG_QEDR_BITMAP_IDX		BIT(2)
+#define CONFIG_QEDF_BITMAP_IDX		BIT(4)
+#define CONFIG_QEDI_BITMAP_IDX		BIT(5)
+#define CONFIG_QED_LL2_BITMAP_IDX	BIT(6)
+
+static u32 qed_get_config_bitmap(void)
+{
+	u32 config_bitmap = 0x0;
+
+	if (IS_ENABLED(CONFIG_QEDE))
+		config_bitmap |= CONFIG_QEDE_BITMAP_IDX;
+
+	if (IS_ENABLED(CONFIG_QED_SRIOV))
+		config_bitmap |= CONFIG_QED_SRIOV_BITMAP_IDX;
+
+	if (IS_ENABLED(CONFIG_QED_RDMA))
+		config_bitmap |= CONFIG_QEDR_BITMAP_IDX;
+
+	if (IS_ENABLED(CONFIG_QED_FCOE))
+		config_bitmap |= CONFIG_QEDF_BITMAP_IDX;
+
+	if (IS_ENABLED(CONFIG_QED_ISCSI))
+		config_bitmap |= CONFIG_QEDI_BITMAP_IDX;
+
+	if (IS_ENABLED(CONFIG_QED_LL2))
+		config_bitmap |= CONFIG_QED_LL2_BITMAP_IDX;
+
+	return config_bitmap;
+}
+
+struct qed_load_req_in_params {
+	u8 hsi_ver;
+#define QED_LOAD_REQ_HSI_VER_DEFAULT	0
+#define QED_LOAD_REQ_HSI_VER_1		1
+	u32 drv_ver_0;
+	u32 drv_ver_1;
+	u32 fw_ver;
+	u8 drv_role;
+	u8 timeout_val;
+	u8 force_cmd;
+	bool avoid_eng_reset;
+};
+
+struct qed_load_req_out_params {
+	u32 load_code;
+	u32 exist_drv_ver_0;
+	u32 exist_drv_ver_1;
+	u32 exist_fw_ver;
+	u8 exist_drv_role;
+	u8 mfw_hsi_ver;
+	bool drv_exists;
+};
+
+static int
+__qed_mcp_load_req(struct qed_hwfn *p_hwfn,
+		   struct qed_ptt *p_ptt,
+		   struct qed_load_req_in_params *p_in_params,
+		   struct qed_load_req_out_params *p_out_params)
+{
+	struct qed_mcp_mb_params mb_params;
+	struct load_req_stc load_req;
+	struct load_rsp_stc load_rsp;
+	u32 hsi_ver;
+	int rc;
+
+	memset(&load_req, 0, sizeof(load_req));
+	load_req.drv_ver_0 = p_in_params->drv_ver_0;
+	load_req.drv_ver_1 = p_in_params->drv_ver_1;
+	load_req.fw_ver = p_in_params->fw_ver;
+	QED_MFW_SET_FIELD(load_req.misc0, LOAD_REQ_ROLE, p_in_params->drv_role);
+	QED_MFW_SET_FIELD(load_req.misc0, LOAD_REQ_LOCK_TO,
+			  p_in_params->timeout_val);
+	QED_MFW_SET_FIELD(load_req.misc0, LOAD_REQ_FORCE,
+			  p_in_params->force_cmd);
+	QED_MFW_SET_FIELD(load_req.misc0, LOAD_REQ_FLAGS0,
+			  p_in_params->avoid_eng_reset);
+
+	hsi_ver = (p_in_params->hsi_ver == QED_LOAD_REQ_HSI_VER_DEFAULT) ?
+		  DRV_ID_MCP_HSI_VER_CURRENT :
+		  (p_in_params->hsi_ver << DRV_ID_MCP_HSI_VER_SHIFT);
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_LOAD_REQ;
+	mb_params.param = PDA_COMP | hsi_ver | p_hwfn->cdev->drv_type;
+	mb_params.p_data_src = &load_req;
+	mb_params.data_src_size = sizeof(load_req);
+	mb_params.p_data_dst = &load_rsp;
+	mb_params.data_dst_size = sizeof(load_rsp);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP,
+		   "Load Request: param 0x%08x [init_hw %d, drv_type %d, hsi_ver %d, pda 0x%04x]\n",
+		   mb_params.param,
+		   QED_MFW_GET_FIELD(mb_params.param, DRV_ID_DRV_INIT_HW),
+		   QED_MFW_GET_FIELD(mb_params.param, DRV_ID_DRV_TYPE),
+		   QED_MFW_GET_FIELD(mb_params.param, DRV_ID_MCP_HSI_VER),
+		   QED_MFW_GET_FIELD(mb_params.param, DRV_ID_PDA_COMP_VER));
+
+	if (p_in_params->hsi_ver != QED_LOAD_REQ_HSI_VER_1) {
+		DP_VERBOSE(p_hwfn, QED_MSG_SP,
+			   "Load Request: drv_ver 0x%08x_0x%08x, fw_ver 0x%08x, misc0 0x%08x [role %d, timeout %d, force %d, flags0 0x%x]\n",
+			   load_req.drv_ver_0,
+			   load_req.drv_ver_1,
+			   load_req.fw_ver,
+			   load_req.misc0,
+			   QED_MFW_GET_FIELD(load_req.misc0, LOAD_REQ_ROLE),
+			   QED_MFW_GET_FIELD(load_req.misc0,
+					     LOAD_REQ_LOCK_TO),
+			   QED_MFW_GET_FIELD(load_req.misc0, LOAD_REQ_FORCE),
+			   QED_MFW_GET_FIELD(load_req.misc0, LOAD_REQ_FLAGS0));
+	}
+
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc) {
-		DP_ERR(p_hwfn, "MCP response failure, aborting\n");
+		DP_NOTICE(p_hwfn, "Failed to send load request, rc = %d\n", rc);
 		return rc;
 	}
 
-	*p_load_code = mb_params.mcp_resp;
+	DP_VERBOSE(p_hwfn, QED_MSG_SP,
+		   "Load Response: resp 0x%08x\n", mb_params.mcp_resp);
+	p_out_params->load_code = mb_params.mcp_resp;
 
-	/* If MFW refused (e.g. other port is in diagnostic mode) we
-	 * must abort. This can happen in the following cases:
-	 * - Other port is in diagnostic mode
-	 * - Previously loaded function on the engine is not compliant with
-	 *   the requester.
-	 * - MFW cannot cope with the requester's DRV_MFW_HSI_VERSION.
-	 *      -
+	if (p_in_params->hsi_ver != QED_LOAD_REQ_HSI_VER_1 &&
+	    p_out_params->load_code != FW_MSG_CODE_DRV_LOAD_REFUSED_HSI_1) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_SP,
+			   "Load Response: exist_drv_ver 0x%08x_0x%08x, exist_fw_ver 0x%08x, misc0 0x%08x [exist_role %d, mfw_hsi %d, flags0 0x%x]\n",
+			   load_rsp.drv_ver_0,
+			   load_rsp.drv_ver_1,
+			   load_rsp.fw_ver,
+			   load_rsp.misc0,
+			   QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_ROLE),
+			   QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_HSI),
+			   QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_FLAGS0));
+
+		p_out_params->exist_drv_ver_0 = load_rsp.drv_ver_0;
+		p_out_params->exist_drv_ver_1 = load_rsp.drv_ver_1;
+		p_out_params->exist_fw_ver = load_rsp.fw_ver;
+		p_out_params->exist_drv_role =
+		    QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_ROLE);
+		p_out_params->mfw_hsi_ver =
+		    QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_HSI);
+		p_out_params->drv_exists =
+		    QED_MFW_GET_FIELD(load_rsp.misc0, LOAD_RSP_FLAGS0) &
+		    LOAD_RSP_FLAGS0_DRV_EXISTS;
+	}
+
+	return 0;
+}
+
+static int eocre_get_mfw_drv_role(struct qed_hwfn *p_hwfn,
+				  enum qed_drv_role drv_role,
+				  u8 *p_mfw_drv_role)
+{
+	switch (drv_role) {
+	case QED_DRV_ROLE_OS:
+		*p_mfw_drv_role = DRV_ROLE_OS;
+		break;
+	case QED_DRV_ROLE_KDUMP:
+		*p_mfw_drv_role = DRV_ROLE_KDUMP;
+		break;
+	default:
+		DP_ERR(p_hwfn, "Unexpected driver role %d\n", drv_role);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+enum qed_load_req_force {
+	QED_LOAD_REQ_FORCE_NONE,
+	QED_LOAD_REQ_FORCE_PF,
+	QED_LOAD_REQ_FORCE_ALL,
+};
+
+static void qed_get_mfw_force_cmd(struct qed_hwfn *p_hwfn,
+
+				  enum qed_load_req_force force_cmd,
+				  u8 *p_mfw_force_cmd)
+{
+	switch (force_cmd) {
+	case QED_LOAD_REQ_FORCE_NONE:
+		*p_mfw_force_cmd = LOAD_REQ_FORCE_NONE;
+		break;
+	case QED_LOAD_REQ_FORCE_PF:
+		*p_mfw_force_cmd = LOAD_REQ_FORCE_PF;
+		break;
+	case QED_LOAD_REQ_FORCE_ALL:
+		*p_mfw_force_cmd = LOAD_REQ_FORCE_ALL;
+		break;
+	}
+}
+
+int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
+		     struct qed_ptt *p_ptt,
+		     struct qed_load_req_params *p_params)
+{
+	struct qed_load_req_out_params out_params;
+	struct qed_load_req_in_params in_params;
+	u8 mfw_drv_role, mfw_force_cmd;
+	int rc;
+
+	memset(&in_params, 0, sizeof(in_params));
+	in_params.hsi_ver = QED_LOAD_REQ_HSI_VER_DEFAULT;
+	in_params.drv_ver_0 = QED_VERSION;
+	in_params.drv_ver_1 = qed_get_config_bitmap();
+	in_params.fw_ver = STORM_FW_VERSION;
+	rc = eocre_get_mfw_drv_role(p_hwfn, p_params->drv_role, &mfw_drv_role);
+	if (rc)
+		return rc;
+
+	in_params.drv_role = mfw_drv_role;
+	in_params.timeout_val = p_params->timeout_val;
+	qed_get_mfw_force_cmd(p_hwfn,
+			      QED_LOAD_REQ_FORCE_NONE, &mfw_force_cmd);
+
+	in_params.force_cmd = mfw_force_cmd;
+	in_params.avoid_eng_reset = p_params->avoid_eng_reset;
+
+	memset(&out_params, 0, sizeof(out_params));
+	rc = __qed_mcp_load_req(p_hwfn, p_ptt, &in_params, &out_params);
+	if (rc)
+		return rc;
+
+	/* First handle cases where another load request should/might be sent:
+	 * - MFW expects the old interface [HSI version = 1]
+	 * - MFW responds that a force load request is required
 	 */
-	if (!(*p_load_code) ||
-	    ((*p_load_code) == FW_MSG_CODE_DRV_LOAD_REFUSED_HSI) ||
-	    ((*p_load_code) == FW_MSG_CODE_DRV_LOAD_REFUSED_PDA) ||
-	    ((*p_load_code) == FW_MSG_CODE_DRV_LOAD_REFUSED_DIAG)) {
-		DP_ERR(p_hwfn, "MCP refused load request, aborting\n");
+	if (out_params.load_code == FW_MSG_CODE_DRV_LOAD_REFUSED_HSI_1) {
+		DP_INFO(p_hwfn,
+			"MFW refused a load request due to HSI > 1. Resending with HSI = 1\n");
+
+		in_params.hsi_ver = QED_LOAD_REQ_HSI_VER_1;
+		memset(&out_params, 0, sizeof(out_params));
+		rc = __qed_mcp_load_req(p_hwfn, p_ptt, &in_params, &out_params);
+		if (rc)
+			return rc;
+	} else if (out_params.load_code ==
+		   FW_MSG_CODE_DRV_LOAD_REFUSED_REQUIRES_FORCE) {
+		if (qed_mcp_can_force_load(in_params.drv_role,
+					   out_params.exist_drv_role,
+					   p_params->override_force_load)) {
+			DP_INFO(p_hwfn,
+				"A force load is required [{role, fw_ver, drv_ver}: loading={%d, 0x%08x, x%08x_0x%08x}, existing={%d, 0x%08x, 0x%08x_0x%08x}]\n",
+				in_params.drv_role, in_params.fw_ver,
+				in_params.drv_ver_0, in_params.drv_ver_1,
+				out_params.exist_drv_role,
+				out_params.exist_fw_ver,
+				out_params.exist_drv_ver_0,
+				out_params.exist_drv_ver_1);
+
+			qed_get_mfw_force_cmd(p_hwfn,
+					      QED_LOAD_REQ_FORCE_ALL,
+					      &mfw_force_cmd);
+
+			in_params.force_cmd = mfw_force_cmd;
+			memset(&out_params, 0, sizeof(out_params));
+			rc = __qed_mcp_load_req(p_hwfn, p_ptt, &in_params,
+						&out_params);
+			if (rc)
+				return rc;
+		} else {
+			DP_NOTICE(p_hwfn,
+				  "A force load is required [{role, fw_ver, drv_ver}: loading={%d, 0x%08x, x%08x_0x%08x}, existing={%d, 0x%08x, 0x%08x_0x%08x}] - Avoid\n",
+				  in_params.drv_role, in_params.fw_ver,
+				  in_params.drv_ver_0, in_params.drv_ver_1,
+				  out_params.exist_drv_role,
+				  out_params.exist_fw_ver,
+				  out_params.exist_drv_ver_0,
+				  out_params.exist_drv_ver_1);
+			DP_NOTICE(p_hwfn,
+				  "Avoid sending a force load request to prevent disruption of active PFs\n");
+
+			qed_mcp_cancel_load_req(p_hwfn, p_ptt);
+			return -EBUSY;
+		}
+	}
+
+	/* Now handle the other types of responses.
+	 * The "REFUSED_HSI_1" and "REFUSED_REQUIRES_FORCE" responses are not
+	 * expected here after the additional revised load requests were sent.
+	 */
+	switch (out_params.load_code) {
+	case FW_MSG_CODE_DRV_LOAD_ENGINE:
+	case FW_MSG_CODE_DRV_LOAD_PORT:
+	case FW_MSG_CODE_DRV_LOAD_FUNCTION:
+		if (out_params.mfw_hsi_ver != QED_LOAD_REQ_HSI_VER_1 &&
+		    out_params.drv_exists) {
+			/* The role and fw/driver version match, but the PF is
+			 * already loaded and has not been unloaded gracefully.
+			 */
+			DP_NOTICE(p_hwfn,
+				  "PF is already loaded\n");
+			return -EINVAL;
+		}
+		break;
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Unexpected refusal to load request [resp 0x%08x]. Aborting.\n",
+			  out_params.load_code);
 		return -EBUSY;
 	}
+
+	p_params->load_code = out_params.load_code;
 
 	return 0;
 }

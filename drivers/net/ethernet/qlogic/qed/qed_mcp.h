@@ -39,6 +39,7 @@
 #include <linux/spinlock.h>
 #include <linux/qed/qed_fcoe_if.h>
 #include "qed_hsi.h"
+#include "qed_dev_api.h"
 
 struct qed_mcp_link_speed_params {
 	bool    autoneg;
@@ -570,27 +571,35 @@ int qed_mcp_free(struct qed_hwfn *p_hwfn);
 int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt);
 
+enum qed_drv_role {
+	QED_DRV_ROLE_OS,
+	QED_DRV_ROLE_KDUMP,
+};
+
+struct qed_load_req_params {
+	/* Input params */
+	enum qed_drv_role drv_role;
+	u8 timeout_val;
+	bool avoid_eng_reset;
+	enum qed_override_force_load override_force_load;
+
+	/* Output params */
+	u32 load_code;
+};
+
 /**
- * @brief Sends a LOAD_REQ to the MFW, and in case operation
- *        succeed, returns whether this PF is the first on the
- *        chip/engine/port or function. This function should be
- *        called when driver is ready to accept MFW events after
- *        Storms initializations are done.
+ * @brief Sends a LOAD_REQ to the MFW, and in case the operation succeeds,
+ *        returns whether this PF is the first on the engine/port or function.
  *
- * @param p_hwfn       - hw function
- * @param p_ptt        - PTT required for register access
- * @param p_load_code  - The MCP response param containing one
- *      of the following:
- *      FW_MSG_CODE_DRV_LOAD_ENGINE
- *      FW_MSG_CODE_DRV_LOAD_PORT
- *      FW_MSG_CODE_DRV_LOAD_FUNCTION
- * @return int -
- *      0 - Operation was successul.
- *      -EBUSY - Operation failed
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_params
+ *
+ * @return int - 0 - Operation was successful.
  */
 int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 		     struct qed_ptt *p_ptt,
-		     u32 *p_load_code);
+		     struct qed_load_req_params *p_params);
 
 /**
  * @brief Sends a UNLOAD_REQ message to the MFW

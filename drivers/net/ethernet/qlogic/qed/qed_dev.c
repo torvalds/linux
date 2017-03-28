@@ -1106,8 +1106,22 @@ static void qed_reset_mb_shadow(struct qed_hwfn *p_hwfn,
 	       p_hwfn->mcp_info->mfw_mb_cur, p_hwfn->mcp_info->mfw_mb_length);
 }
 
+static void
+qed_fill_load_req_params(struct qed_load_req_params *p_load_req,
+			 struct qed_drv_load_params *p_drv_load)
+{
+	memset(p_load_req, 0, sizeof(*p_load_req));
+
+	p_load_req->drv_role = p_drv_load->is_crash_kernel ?
+			       QED_DRV_ROLE_KDUMP : QED_DRV_ROLE_OS;
+	p_load_req->timeout_val = p_drv_load->mfw_timeout_val;
+	p_load_req->avoid_eng_reset = p_drv_load->avoid_eng_reset;
+	p_load_req->override_force_load = p_drv_load->override_force_load;
+}
+
 int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 {
+	struct qed_load_req_params load_req_params;
 	u32 load_code, param, drv_mb_param;
 	bool b_default_mtu = true;
 	struct qed_hwfn *p_hwfn;
@@ -1145,17 +1159,21 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 		if (rc)
 			return rc;
 
-		rc = qed_mcp_load_req(p_hwfn, p_hwfn->p_main_ptt, &load_code);
+		qed_fill_load_req_params(&load_req_params,
+					 p_params->p_drv_load_params);
+		rc = qed_mcp_load_req(p_hwfn, p_hwfn->p_main_ptt,
+				      &load_req_params);
 		if (rc) {
-			DP_NOTICE(p_hwfn, "Failed sending LOAD_REQ command\n");
+			DP_NOTICE(p_hwfn, "Failed sending a LOAD_REQ command\n");
 			return rc;
 		}
 
-		qed_reset_mb_shadow(p_hwfn, p_hwfn->p_main_ptt);
-
+		load_code = load_req_params.load_code;
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
-			   "Load request was sent. Resp:0x%x, Load code: 0x%x\n",
-			   rc, load_code);
+			   "Load request was sent. Load code: 0x%x\n",
+			   load_code);
+
+		qed_reset_mb_shadow(p_hwfn, p_hwfn->p_main_ptt);
 
 		p_hwfn->first_on_engine = (load_code ==
 					   FW_MSG_CODE_DRV_LOAD_ENGINE);
@@ -1224,10 +1242,7 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 
 	if (IS_PF(cdev)) {
 		p_hwfn = QED_LEADING_HWFN(cdev);
-		drv_mb_param = (FW_MAJOR_VERSION << 24) |
-			       (FW_MINOR_VERSION << 16) |
-			       (FW_REVISION_VERSION << 8) |
-			       (FW_ENGINEERING_VERSION);
+		drv_mb_param = STORM_FW_VERSION;
 		rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
 				 DRV_MSG_CODE_OV_UPDATE_STORM_FW_VER,
 				 drv_mb_param, &load_code, &param);

@@ -51,7 +51,19 @@
 #include "qed_hsi.h"
 
 extern const struct qed_common_ops qed_common_ops_pass;
-#define DRV_MODULE_VERSION "8.10.10.21"
+
+#define QED_MAJOR_VERSION               8
+#define QED_MINOR_VERSION               10
+#define QED_REVISION_VERSION            10
+#define QED_ENGINEERING_VERSION 21
+
+#define QED_VERSION						 \
+	((QED_MAJOR_VERSION << 24) | (QED_MINOR_VERSION << 16) | \
+	 (QED_REVISION_VERSION << 8) | QED_ENGINEERING_VERSION)
+
+#define STORM_FW_VERSION				       \
+	((FW_MAJOR_VERSION << 24) | (FW_MINOR_VERSION << 16) | \
+	 (FW_REVISION_VERSION << 8) | FW_ENGINEERING_VERSION)
 
 #define MAX_HWFNS_PER_DEVICE    (4)
 #define NAME_SIZE 16
@@ -76,6 +88,15 @@ union qed_mcp_protocol_stats;
 enum qed_mcp_protocol_type;
 
 /* helpers */
+#define QED_MFW_GET_FIELD(name, field) \
+	(((name) & (field ## _MASK)) >> (field ## _SHIFT))
+
+#define QED_MFW_SET_FIELD(name, field, value)				       \
+	do {								       \
+		(name)	&= ~((field ## _MASK) << (field ## _SHIFT));	       \
+		(name)	|= (((value) << (field ## _SHIFT)) & (field ## _MASK));\
+	} while (0)
+
 static inline u32 qed_db_addr(u32 cid, u32 DEMS)
 {
 	u32 db_addr = FIELD_VALUE(DB_LEGACY_ADDR_DEMS, DEMS) |
@@ -354,6 +375,12 @@ struct qed_fw_data {
 	const u32		*arr_data;
 	u32			init_ops_size;
 };
+
+#define DRV_MODULE_VERSION		      \
+	__stringify(QED_MAJOR_VERSION) "."    \
+	__stringify(QED_MINOR_VERSION) "."    \
+	__stringify(QED_REVISION_VERSION) "." \
+	__stringify(QED_ENGINEERING_VERSION)
 
 struct qed_simd_fp_handler {
 	void	*token;
