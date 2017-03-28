@@ -1,7 +1,8 @@
 /*
  * Handling of a single switch chip, part of a switch fabric
  *
- * Copyright (c) 2017 Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+ * Copyright (c) 2017 Savoir-faire Linux Inc.
+ *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
