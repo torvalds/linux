@@ -710,9 +710,9 @@ get_vbus_header_info(struct visorchannel *chan,
 		return -EINVAL;
 
 	if (hdr_info->device_info_struct_bytes <
-	    sizeof(struct ultra_vbus_deviceinfo)) {
+	    sizeof(struct ultra_vbus_deviceinfo))
 		return -EINVAL;
-	}
+
 	return 0;
 }
 
