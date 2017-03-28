@@ -121,9 +121,7 @@ static int mv88e6xxx_g1_atu_data_read(struct mv88e6xxx_chip *chip,
 
 	entry->state = val & 0xf;
 	if (entry->state != GLOBAL_ATU_DATA_STATE_UNUSED) {
-		if (val & GLOBAL_ATU_DATA_TRUNK)
-			entry->trunk = true;
-
+		entry->trunk = !!(val & GLOBAL_ATU_DATA_TRUNK);
 		entry->portvec = (val >> 4) & mv88e6xxx_port_mask(chip);
 	}
 
