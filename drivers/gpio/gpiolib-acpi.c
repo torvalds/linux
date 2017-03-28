@@ -945,6 +945,32 @@ static int acpi_find_gpio_count(struct acpi_resource *ares, void *data)
 	return 1;
 }
 
+static int acpi_gpio_count_from_property(struct acpi_device *adev,
+					 const char *propname)
+{
+	const struct acpi_gpio_mapping *gm;
+	const union acpi_object *obj;
+	int count = -ENOENT;
+	int ret;
+
+	ret = acpi_dev_get_property(adev, propname, ACPI_TYPE_ANY,
+				    &obj);
+	if (ret == 0) {
+		if (obj->type == ACPI_TYPE_LOCAL_REFERENCE)
+			count = 1;
+		else if (obj->type == ACPI_TYPE_PACKAGE)
+			count = acpi_gpio_package_count(obj);
+	} else if (adev->driver_gpios) {
+		for (gm = adev->driver_gpios; gm->name; gm++)
+			if (strcmp(propname, gm->name) == 0) {
+				count = gm->size;
+				break;
+			}
+	}
+
+	return count;
+}
+
 /**
  * acpi_gpio_count - return the number of GPIOs associated with a
  *		device / function or -ENOENT if no GPIO has been
@@ -955,10 +981,7 @@ static int acpi_find_gpio_count(struct acpi_resource *ares, void *data)
 int acpi_gpio_count(struct device *dev, const char *con_id)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
-	const union acpi_object *obj;
-	const struct acpi_gpio_mapping *gm;
 	int count = -ENOENT;
-	int ret;
 	char propname[32];
 	unsigned int i;
 
@@ -971,20 +994,7 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 			snprintf(propname, sizeof(propname), "%s",
 				 gpio_suffixes[i]);
 
-		ret = acpi_dev_get_property(adev, propname, ACPI_TYPE_ANY,
-					    &obj);
-		if (ret == 0) {
-			if (obj->type == ACPI_TYPE_LOCAL_REFERENCE)
-				count = 1;
-			else if (obj->type == ACPI_TYPE_PACKAGE)
-				count = acpi_gpio_package_count(obj);
-		} else if (adev->driver_gpios) {
-			for (gm = adev->driver_gpios; gm->name; gm++)
-				if (strcmp(propname, gm->name) == 0) {
-					count = gm->size;
-					break;
-				}
-		}
+		count = acpi_gpio_count_from_property(adev, propname);
 		if (count >= 0)
 			break;
 	}
@@ -1046,3 +1056,47 @@ bool acpi_can_fallback_to_crs(struct acpi_device *adev, const char *con_id)
 		 (lookup->con_id && con_id &&
 		  strcmp(lookup->con_id, con_id) == 0));
 }
+
+/**
+ * acpi_node_add_pin_mapping - add a pin mapping for named GPIO resources
+ * @fwnode: pointer to an ACPI firmware node to get the GPIO information from
+ * @propname: Property name of the GPIO
+ * @pinctrl_name: the dev_name() of the pin controller to map to
+ * @pin_offset: the start offset in the pin controller number space
+ * @npins: the maximum number of pins from the offset of each pin space (GPIO
+ *         and pin controller) to map
+ *
+ * Lookup the GPIO resources and map them individually to the specified pins.
+ */
+int acpi_node_add_pin_mapping(struct fwnode_handle *fwnode,
+			      const char *propname,
+			      const char *pinctl_name,
+			      unsigned int pin_offset,
+			      unsigned int npins)
+{
+	struct acpi_device *adev = to_acpi_device_node(fwnode);
+	int count, i;
+
+	count = acpi_gpio_count_from_property(adev, propname);
+	if (count < 0)
+		return count;
+
+	for (i = 0; i < count && i < npins; i++) {
+		struct gpio_desc *desc;
+		int ret;
+
+		desc = acpi_node_get_gpiod(fwnode, propname, i, NULL);
+		if (IS_ERR(desc))
+			return PTR_ERR(desc);
+
+		/* The GPIOs may not be contiguous, so add them 1-by-1 */
+		ret = gpiochip_add_pin_range(gpiod_to_chip(desc), pinctl_name,
+					     gpio_chip_hwgpio(desc),
+					     pin_offset + i, 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_node_add_pin_mapping);
