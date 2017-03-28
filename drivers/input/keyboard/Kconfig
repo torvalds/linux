@@ -525,6 +525,16 @@ config KEYBOARD_GOLDFISH_EVENTS
 	  To compile this driver as a module, choose M here: the
 	  module will be called goldfish-events.
 
+config KEYBOARD_GOLDFISH_ROTARY
+	depends on GOLDFISH
+	tristate "Rotary encoder device for Goldfish"
+	help
+	  Say Y here to get an input event device for the Goldfish virtual
+	  device emulator that acts as a rotary encoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called goldfish-rotary.
+
 config KEYBOARD_STOWAWAY
 	tristate "Stowaway keyboard"
 	select SERIO
