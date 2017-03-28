@@ -33,6 +33,8 @@ enum dev_dma_attr {
 	DEV_DMA_COHERENT,
 };
 
+struct fwnode_handle *dev_fwnode(struct device *dev);
+
 bool device_property_present(struct device *dev, const char *propname);
 int device_property_read_u8_array(struct device *dev, const char *propname,
 				  u8 *val, size_t nval);
