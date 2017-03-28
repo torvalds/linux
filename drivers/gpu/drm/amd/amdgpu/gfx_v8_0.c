@@ -659,8 +659,8 @@ static u32 gfx_v8_0_get_csb_size(struct amdgpu_device *adev);
 static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev);
 static void gfx_v8_0_ring_emit_ce_meta_init(struct amdgpu_ring *ring, uint64_t addr);
 static void gfx_v8_0_ring_emit_de_meta_init(struct amdgpu_ring *ring, uint64_t addr);
-static int gfx_v8_0_compute_mqd_soft_init(struct amdgpu_device *adev);
-static void gfx_v8_0_compute_mqd_soft_fini(struct amdgpu_device *adev);
+static int gfx_v8_0_compute_mqd_sw_init(struct amdgpu_device *adev);
+static void gfx_v8_0_compute_mqd_sw_fini(struct amdgpu_device *adev);
 
 static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
@@ -2171,7 +2171,7 @@ static int gfx_v8_0_sw_init(void *handle)
 			return r;
 
 		/* create MQD for all compute queues as wel as KIQ for SRIOV case */
-		r = gfx_v8_0_compute_mqd_soft_init(adev);
+		r = gfx_v8_0_compute_mqd_sw_init(adev);
 		if (r)
 			return r;
 	}
@@ -2219,7 +2219,7 @@ static int gfx_v8_0_sw_fini(void *handle)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
 	if (amdgpu_sriov_vf(adev)) {
-		gfx_v8_0_compute_mqd_soft_fini(adev);
+		gfx_v8_0_compute_mqd_sw_fini(adev);
 		gfx_v8_0_kiq_free_ring(&adev->gfx.kiq.ring, &adev->gfx.kiq.irq);
 		gfx_v8_0_kiq_fini(adev);
 	}
@@ -7354,7 +7354,7 @@ static void gfx_v8_0_ring_emit_de_meta_init(struct amdgpu_ring *ring, uint64_t c
 }
 
 /* create MQD for each compute queue */
-static int gfx_v8_0_compute_mqd_soft_init(struct amdgpu_device *adev)
+static int gfx_v8_0_compute_mqd_sw_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = NULL;
 	int r, i;
@@ -7398,7 +7398,7 @@ static int gfx_v8_0_compute_mqd_soft_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void gfx_v8_0_compute_mqd_soft_fini(struct amdgpu_device *adev)
+static void gfx_v8_0_compute_mqd_sw_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = NULL;
 	int i;
