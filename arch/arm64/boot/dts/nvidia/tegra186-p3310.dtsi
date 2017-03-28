@@ -321,7 +321,7 @@
 						regulator-max-microvolt = <2800000>;
 					};
 
-					avdd_1v05: ldo7 {
+					vdd_hdmi_1v05: ldo7 {
 						regulator-name = "VDD_HDMI_1V05";
 						regulator-min-microvolt = <1050000>;
 						regulator-max-microvolt = <1050000>;
