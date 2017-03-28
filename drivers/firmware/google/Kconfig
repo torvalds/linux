@@ -20,8 +20,13 @@ config GOOGLE_SMI
 	  variables.
 
 config GOOGLE_MEMCONSOLE
-	tristate "Firmware Memory Console"
-	depends on DMI
+	tristate
+	depends on GOOGLE_MEMCONSOLE_X86_LEGACY
+
+config GOOGLE_MEMCONSOLE_X86_LEGACY
+	tristate "Firmware Memory Console - X86 Legacy support"
+	depends on X86 && ACPI && DMI
+	select GOOGLE_MEMCONSOLE
 	help
 	  This option enables the kernel to search for a firmware log in
 	  the EBDA on Google servers.  If found, this log is exported to
