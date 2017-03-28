@@ -3940,6 +3940,8 @@ void dw_hdmi_resume(struct device *dev)
 	pinctrl_pm_select_default_state(dev);
 	mutex_lock(&hdmi->mutex);
 	dw_hdmi_reg_initial(hdmi);
+	if (hdmi->i2c)
+		dw_hdmi_i2c_init(hdmi);
 	if (hdmi->irq)
 		enable_irq(hdmi->irq);
 	mutex_unlock(&hdmi->mutex);
