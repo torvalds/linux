@@ -909,7 +909,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		if (r)
 			return r;
 
-		if (ib->flags & AMDGPU_IB_FLAG_PREAMBLE) {
+		if (chunk_ib->flags & AMDGPU_IB_FLAG_PREAMBLE) {
 			parser->job->preamble_status |= AMDGPU_PREAMBLE_IB_PRESENT;
 			if (!parser->ctx->preamble_presented) {
 				parser->job->preamble_status |= AMDGPU_PREAMBLE_IB_PRESENT_FIRST;
