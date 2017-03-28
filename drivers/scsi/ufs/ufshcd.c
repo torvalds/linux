@@ -585,12 +585,12 @@ static inline u32 ufshcd_get_ufs_version(struct ufs_hba *hba)
  *			      the host controller
  * @hba: pointer to adapter instance
  *
- * Returns 1 if device present, 0 if no device detected
+ * Returns true if device present, false if no device detected
  */
-static inline int ufshcd_is_device_present(struct ufs_hba *hba)
+static inline bool ufshcd_is_device_present(struct ufs_hba *hba)
 {
 	return (ufshcd_readl(hba, REG_CONTROLLER_STATUS) &
-						DEVICE_PRESENT) ? 1 : 0;
+						DEVICE_PRESENT) ? true : false;
 }
 
 /**
@@ -832,11 +832,11 @@ static inline void ufshcd_hba_start(struct ufs_hba *hba)
  * ufshcd_is_hba_active - Get controller state
  * @hba: per adapter instance
  *
- * Returns zero if controller is active, 1 otherwise
+ * Returns false if controller is active, true otherwise
  */
-static inline int ufshcd_is_hba_active(struct ufs_hba *hba)
+static inline bool ufshcd_is_hba_active(struct ufs_hba *hba)
 {
-	return (ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & 0x1) ? 0 : 1;
+	return (ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & 0x1) ? false : true;
 }
 
 static const char *ufschd_uic_link_state_to_string(
