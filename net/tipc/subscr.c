@@ -54,8 +54,6 @@ struct tipc_subscriber {
 
 static void tipc_subscrp_delete(struct tipc_subscription *sub);
 static void tipc_subscrb_put(struct tipc_subscriber *subscriber);
-static void tipc_subscrp_put(struct tipc_subscription *subscription);
-static void tipc_subscrp_get(struct tipc_subscription *subscription);
 
 /**
  * htohl - convert value to endianness used by destination
@@ -125,7 +123,6 @@ void tipc_subscrp_report_overlap(struct tipc_subscription *sub, u32 found_lower,
 {
 	struct tipc_name_seq seq;
 
-	tipc_subscrp_get(sub);
 	tipc_subscrp_convert_seq(&sub->evt.s.seq, sub->swap, &seq);
 	if (!tipc_subscrp_check_overlap(&seq, found_lower, found_upper))
 		return;
@@ -135,7 +132,6 @@ void tipc_subscrp_report_overlap(struct tipc_subscription *sub, u32 found_lower,
 
 	tipc_subscrp_send_event(sub, found_lower, found_upper, event, port_ref,
 				node);
-	tipc_subscrp_put(sub);
 }
 
 static void tipc_subscrp_timeout(unsigned long data)
@@ -183,12 +179,12 @@ static void tipc_subscrp_kref_release(struct kref *kref)
 	tipc_subscrb_put(subscriber);
 }
 
-static void tipc_subscrp_put(struct tipc_subscription *subscription)
+void tipc_subscrp_put(struct tipc_subscription *subscription)
 {
 	kref_put(&subscription->kref, tipc_subscrp_kref_release);
 }
 
-static void tipc_subscrp_get(struct tipc_subscription *subscription)
+void tipc_subscrp_get(struct tipc_subscription *subscription)
 {
 	kref_get(&subscription->kref);
 }

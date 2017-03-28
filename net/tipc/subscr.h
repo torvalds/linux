@@ -78,4 +78,7 @@ u32 tipc_subscrp_convert_seq_type(u32 type, int swap);
 int tipc_topsrv_start(struct net *net);
 void tipc_topsrv_stop(struct net *net);
 
+void tipc_subscrp_put(struct tipc_subscription *subscription);
+void tipc_subscrp_get(struct tipc_subscription *subscription);
+
 #endif
