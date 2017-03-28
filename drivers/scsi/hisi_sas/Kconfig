@@ -2,7 +2,8 @@ config SCSI_HISI_SAS
 	tristate "HiSilicon SAS"
 	depends on HAS_DMA && HAS_IOMEM
 	depends on ARM64 || COMPILE_TEST
-	depends on SCSI_SAS_ATA
+	select SCSI_SAS_LIBSAS
 	select BLK_DEV_INTEGRITY
+	depends on ATA
 	help
 		This driver supports HiSilicon's SAS HBA
