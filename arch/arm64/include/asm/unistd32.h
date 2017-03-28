@@ -809,6 +809,14 @@ __SYSCALL(__NR_copy_file_range, sys_copy_file_range)
 __SYSCALL(__NR_preadv2, compat_sys_preadv2)
 #define __NR_pwritev2 393
 __SYSCALL(__NR_pwritev2, compat_sys_pwritev2)
+#define __NR_pkey_mprotect 394
+__SYSCALL(__NR_pkey_mprotect, sys_pkey_mprotect)
+#define __NR_pkey_alloc 395
+__SYSCALL(__NR_pkey_alloc, sys_pkey_alloc)
+#define __NR_pkey_free 396
+__SYSCALL(__NR_pkey_free, sys_pkey_free)
+#define __NR_statx 397
+__SYSCALL(__NR_statx, sys_statx)
 
 /*
  * Please add new compat syscalls above this comment and update

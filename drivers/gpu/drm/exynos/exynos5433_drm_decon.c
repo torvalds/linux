@@ -68,6 +68,8 @@ struct decon_context {
 	unsigned long			flags;
 	unsigned long			out_type;
 	int				first_win;
+	spinlock_t			vblank_lock;
+	u32				frame_id;
 };
 
 static const uint32_t decon_formats[] = {
@@ -103,7 +105,7 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 		if (ctx->out_type & IFTYPE_I80)
 			val |= VIDINTCON0_FRAMEDONE;
 		else
-			val |= VIDINTCON0_INTFRMEN;
+			val |= VIDINTCON0_INTFRMEN | VIDINTCON0_FRAMESEL_FP;
 
 		writel(val, ctx->addr + DECON_VIDINTCON0);
 	}
@@ -122,14 +124,56 @@ static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
 		writel(0, ctx->addr + DECON_VIDINTCON0);
 }
 
+/* return number of starts/ends of frame transmissions since reset */
+static u32 decon_get_frame_count(struct decon_context *ctx, bool end)
+{
+	u32 frm, pfrm, status, cnt = 2;
+
+	/* To get consistent result repeat read until frame id is stable.
+	 * Usually the loop will be executed once, in rare cases when the loop
+	 * is executed at frame change time 2nd pass will be needed.
+	 */
+	frm = readl(ctx->addr + DECON_CRFMID);
+	do {
+		status = readl(ctx->addr + DECON_VIDCON1);
+		pfrm = frm;
+		frm = readl(ctx->addr + DECON_CRFMID);
+	} while (frm != pfrm && --cnt);
+
+	/* CRFMID is incremented on BPORCH in case of I80 and on VSYNC in case
+	 * of RGB, it should be taken into account.
+	 */
+	if (!frm)
+		return 0;
+
+	switch (status & (VIDCON1_VSTATUS_MASK | VIDCON1_I80_ACTIVE)) {
+	case VIDCON1_VSTATUS_VS:
+		if (!(ctx->out_type & IFTYPE_I80))
+			--frm;
+		break;
+	case VIDCON1_VSTATUS_BP:
+		--frm;
+		break;
+	case VIDCON1_I80_ACTIVE:
+	case VIDCON1_VSTATUS_AC:
+		if (end)
+			--frm;
+		break;
+	default:
+		break;
+	}
+
+	return frm;
+}
+
 static void decon_setup_trigger(struct decon_context *ctx)
 {
 	if (!(ctx->out_type & (IFTYPE_I80 | I80_HW_TRG)))
 		return;
 
 	if (!(ctx->out_type & I80_HW_TRG)) {
-		writel(TRIGCON_TE_AUTO_MASK | TRIGCON_SWTRIGEN
-		       | TRIGCON_TE_AUTO_MASK | TRIGCON_SWTRIGEN,
+		writel(TRIGCON_TRIGEN_PER_F | TRIGCON_TRIGEN_F |
+		       TRIGCON_TE_AUTO_MASK | TRIGCON_SWTRIGEN,
 		       ctx->addr + DECON_TRIGCON);
 		return;
 	}
@@ -365,10 +409,13 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
+	unsigned long flags;
 	int i;
 
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
+
+	spin_lock_irqsave(&ctx->vblank_lock, flags);
 
 	for (i = ctx->first_win; i < WINDOWS_NR; i++)
 		decon_shadow_protect_win(ctx, i, false);
@@ -378,11 +425,18 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 
 	if (ctx->out_type & IFTYPE_I80)
 		set_bit(BIT_WIN_UPDATED, &ctx->flags);
+
+	ctx->frame_id = decon_get_frame_count(ctx, true);
+
+	exynos_crtc_handle_event(crtc);
+
+	spin_unlock_irqrestore(&ctx->vblank_lock, flags);
 }
 
 static void decon_swreset(struct decon_context *ctx)
 {
 	unsigned int tries;
+	unsigned long flags;
 
 	writel(0, ctx->addr + DECON_VIDCON0);
 	for (tries = 2000; tries; --tries) {
@@ -399,6 +453,10 @@ static void decon_swreset(struct decon_context *ctx)
 	}
 
 	WARN(tries == 0, "failed to software reset DECON\n");
+
+	spin_lock_irqsave(&ctx->vblank_lock, flags);
+	ctx->frame_id = 0;
+	spin_unlock_irqrestore(&ctx->vblank_lock, flags);
 
 	if (!(ctx->out_type & IFTYPE_HDMI))
 		return;
@@ -578,6 +636,24 @@ static const struct component_ops decon_component_ops = {
 	.unbind = decon_unbind,
 };
 
+static void decon_handle_vblank(struct decon_context *ctx)
+{
+	u32 frm;
+
+	spin_lock(&ctx->vblank_lock);
+
+	frm = decon_get_frame_count(ctx, true);
+
+	if (frm != ctx->frame_id) {
+		/* handle only if incremented, take care of wrap-around */
+		if ((s32)(frm - ctx->frame_id) > 0)
+			drm_crtc_handle_vblank(&ctx->crtc->base);
+		ctx->frame_id = frm;
+	}
+
+	spin_unlock(&ctx->vblank_lock);
+}
+
 static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 {
 	struct decon_context *ctx = dev_id;
@@ -598,7 +674,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 			    (VIDOUT_INTERLACE_EN_F | VIDOUT_INTERLACE_FIELD_F))
 				return IRQ_HANDLED;
 		}
-		drm_crtc_handle_vblank(&ctx->crtc->base);
+		decon_handle_vblank(ctx);
 	}
 
 out:
@@ -671,6 +747,7 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 	__set_bit(BIT_SUSPENDED, &ctx->flags);
 	ctx->dev = dev;
 	ctx->out_type = (unsigned long)of_device_get_match_data(dev);
+	spin_lock_init(&ctx->vblank_lock);
 
 	if (ctx->out_type & IFTYPE_HDMI) {
 		ctx->first_win = 1;
@@ -678,7 +755,7 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 		ctx->out_type |= IFTYPE_I80;
 	}
 
-	if (ctx->out_type | I80_HW_TRG) {
+	if (ctx->out_type & I80_HW_TRG) {
 		ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
 							"samsung,disp-sysreg");
 		if (IS_ERR(ctx->sysreg)) {
