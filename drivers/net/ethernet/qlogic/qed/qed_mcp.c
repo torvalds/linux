@@ -2263,3 +2263,11 @@ int qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
 
 	return 0;
 }
+
+int qed_mcp_initiate_pf_flr(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 mcp_resp, mcp_param;
+
+	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_INITIATE_PF_FLR, 0,
+			   &mcp_resp, &mcp_param);
+}

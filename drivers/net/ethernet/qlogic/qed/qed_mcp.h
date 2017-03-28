@@ -770,4 +770,14 @@ int qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt,
 			  struct resource_info *p_resc_info,
 			  u32 *p_mcp_resp, u32 *p_mcp_param);
+
+/**
+ * @brief - Initiates PF FLR
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_initiate_pf_flr(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 #endif

@@ -2280,6 +2280,15 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 		goto err2;
 	}
 
+	/* Sending a mailbox to the MFW should be done after qed_get_hw_info()
+	 * is called as it sets the ports number in an engine.
+	 */
+	if (IS_LEAD_HWFN(p_hwfn)) {
+		rc = qed_mcp_initiate_pf_flr(p_hwfn, p_hwfn->p_main_ptt);
+		if (rc)
+			DP_NOTICE(p_hwfn, "Failed to initiate PF FLR\n");
+	}
+
 	/* Allocate the init RT array and initialize the init-ops engine */
 	rc = qed_init_alloc(p_hwfn);
 	if (rc)
