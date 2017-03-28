@@ -218,21 +218,25 @@ intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
 	return (intel_dp->max_sink_link_bw >> 3) + 1;
 }
 
-static int
-intel_dp_source_rates(struct intel_dp *intel_dp, const int **source_rates)
+static void
+intel_dp_set_source_rates(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	const int *source_rates;
 	int size;
 
+	/* This should only be done once */
+	WARN_ON(intel_dp->source_rates || intel_dp->num_source_rates);
+
 	if (IS_GEN9_LP(dev_priv)) {
-		*source_rates = bxt_rates;
+		source_rates = bxt_rates;
 		size = ARRAY_SIZE(bxt_rates);
 	} else if (IS_GEN9_BC(dev_priv)) {
-		*source_rates = skl_rates;
+		source_rates = skl_rates;
 		size = ARRAY_SIZE(skl_rates);
 	} else {
-		*source_rates = default_rates;
+		source_rates = default_rates;
 		size = ARRAY_SIZE(default_rates);
 	}
 
@@ -240,7 +244,8 @@ intel_dp_source_rates(struct intel_dp *intel_dp, const int **source_rates)
 	if (!intel_dp_source_supports_hbr2(intel_dp))
 		size--;
 
-	return size;
+	intel_dp->source_rates = source_rates;
+	intel_dp->num_source_rates = size;
 }
 
 static int intersect_rates(const int *source_rates, int source_len,
@@ -281,13 +286,13 @@ static int intel_dp_rate_index(const int *rates, int len, int rate)
 static int intel_dp_common_rates(struct intel_dp *intel_dp,
 				 int *common_rates)
 {
-	const int *source_rates, *sink_rates;
-	int source_len, sink_len;
+	const int *sink_rates;
+	int sink_len;
 
 	sink_len = intel_dp_sink_rates(intel_dp, &sink_rates);
-	source_len = intel_dp_source_rates(intel_dp, &source_rates);
 
-	return intersect_rates(source_rates, source_len,
+	return intersect_rates(intel_dp->source_rates,
+			       intel_dp->num_source_rates,
 			       sink_rates, sink_len,
 			       common_rates);
 }
@@ -1493,16 +1498,16 @@ static void snprintf_int_array(char *str, size_t len,
 
 static void intel_dp_print_rates(struct intel_dp *intel_dp)
 {
-	const int *source_rates, *sink_rates;
-	int source_len, sink_len, common_len;
+	const int *sink_rates;
+	int sink_len, common_len;
 	int common_rates[DP_MAX_SUPPORTED_RATES];
 	char str[128]; /* FIXME: too big for stack? */
 
 	if ((drm_debug & DRM_UT_KMS) == 0)
 		return;
 
-	source_len = intel_dp_source_rates(intel_dp, &source_rates);
-	snprintf_int_array(str, sizeof(str), source_rates, source_len);
+	snprintf_int_array(str, sizeof(str),
+			   intel_dp->source_rates, intel_dp->num_source_rates);
 	DRM_DEBUG_KMS("source rates: %s\n", str);
 
 	sink_len = intel_dp_sink_rates(intel_dp, &sink_rates);
@@ -5942,6 +5947,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		 "Not enough lanes (%d) for DP on port %c\n",
 		 intel_dig_port->max_lanes, port_name(port)))
 		return false;
+
+	intel_dp_set_source_rates(intel_dp);
 
 	intel_dp->reset_link_params = true;
 	intel_dp->pps_pipe = INVALID_PIPE;

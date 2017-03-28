@@ -949,6 +949,9 @@ struct intel_dp {
 	uint8_t psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	uint8_t edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
+	/* source rates */
+	int num_source_rates;
+	const int *source_rates;
 	/* sink rates as reported by DP_SUPPORTED_LINK_RATES */
 	uint8_t num_sink_rates;
 	int sink_rates[DP_MAX_SUPPORTED_RATES];
