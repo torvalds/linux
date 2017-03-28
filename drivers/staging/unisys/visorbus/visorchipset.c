@@ -1371,22 +1371,37 @@ static int unisys_vmcall(unsigned long tuple, unsigned long param)
 	__asm__ __volatile__(".byte 0x00f, 0x001, 0x0c1" : "=a"(result) :
 		"a"(tuple), "b"(reg_ebx), "c"(reg_ecx));
 
-	return result;
+	if (result)
+		goto error;
+
+	return 0;
+
+error: /* Need to convert from VMCALL error codes to Linux */
+	switch (result) {
+	case VMCALL_RESULT_INVALID_PARAM:
+		return -EINVAL;
+	case VMCALL_RESULT_DATA_UNAVAILABLE:
+		return -ENODEV;
+	default:
+		return -EFAULT;
+	}
 }
 static unsigned int
 issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)
 {
 	struct vmcall_io_controlvm_addr_params params;
-	int result = VMCALL_SUCCESS;
+	int err;
 	u64 physaddr;
 
 	physaddr = virt_to_phys(&params);
-	result = unisys_vmcall(VMCALL_CONTROLVM_ADDR, physaddr);
-	if (VMCALL_SUCCESSFUL(result)) {
-		*control_addr = params.address;
-		*control_bytes = params.channel_bytes;
-	}
-	return result;
+	err = unisys_vmcall(VMCALL_CONTROLVM_ADDR, physaddr);
+	if (err)
+		return err;
+
+	*control_addr = params.address;
+	*control_bytes = params.channel_bytes;
+
+	return 0;
 }
 
 static u64 controlvm_get_channel_address(void)
@@ -1394,7 +1409,7 @@ static u64 controlvm_get_channel_address(void)
 	u64 addr = 0;
 	u32 size = 0;
 
-	if (!VMCALL_SUCCESSFUL(issue_vmcall_io_controlvm_addr(&addr, &size)))
+	if (issue_vmcall_io_controlvm_addr(&addr, &size))
 		return 0;
 
 	return addr;

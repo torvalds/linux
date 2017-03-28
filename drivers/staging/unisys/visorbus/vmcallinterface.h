@@ -62,8 +62,14 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 	VMCALL_UPDATE_PHYSICAL_TIME = 0x0a02
 };
 
-#define VMCALL_SUCCESS 0
-#define VMCALL_SUCCESSFUL(result) (result == 0)
+enum vmcall_result {
+	VMCALL_RESULT_SUCCESS = 0,
+	VMCALL_RESULT_INVALID_PARAM = 1,
+	VMCALL_RESULT_DATA_UNAVAILABLE = 2,
+	VMCALL_RESULT_FAILURE_UNAVAILABLE = 3,
+	VMCALL_RESULT_DEVICE_ERROR = 4,
+	VMCALL_RESULT_DEVICE_NOT_READY = 5
+};
 
 #define unisys_extended_vmcall(tuple, reg_ebx, reg_ecx, reg_edx) \
 	__unisys_extended_vmcall_gnuc(tuple, reg_ebx, reg_ecx, reg_edx)
