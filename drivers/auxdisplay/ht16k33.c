@@ -278,7 +278,7 @@ static bool ht16k33_keypad_scan(struct ht16k33_keypad *keypad)
 		}
 	}
 	input_sync(keypad->dev);
-	memcpy(keypad->last_key_state, new_state, sizeof(new_state));
+	memcpy(keypad->last_key_state, new_state, sizeof(u16) * keypad->cols);
 
 	return pressed;
 }
@@ -353,6 +353,12 @@ static int ht16k33_keypad_probe(struct i2c_client *client,
 	err = matrix_keypad_parse_of_params(&client->dev, &rows, &cols);
 	if (err)
 		return err;
+	if (rows > HT16K33_MATRIX_KEYPAD_MAX_ROWS ||
+	    cols > HT16K33_MATRIX_KEYPAD_MAX_COLS) {
+		dev_err(&client->dev, "%u rows or %u cols out of range in DT\n",
+			rows, cols);
+		return -ERANGE;
+	}
 
 	keypad->rows = rows;
 	keypad->cols = cols;
