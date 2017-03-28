@@ -784,8 +784,7 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 	}
 	btrfs_dev_replace_unlock(dev_replace, 1);
 
-	WARN_ON(atomic_xchg(
-		&fs_info->mutually_exclusive_operation_running, 1));
+	WARN_ON(test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags));
 	task = kthread_run(btrfs_dev_replace_kthread, fs_info, "btrfs-devrepl");
 	return PTR_ERR_OR_ZERO(task);
 }
@@ -814,7 +813,7 @@ static int btrfs_dev_replace_kthread(void *data)
 			(unsigned int)progress);
 	}
 	btrfs_dev_replace_continue_on_mount(fs_info);
-	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
+	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 
 	return 0;
 }

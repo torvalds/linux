@@ -705,6 +705,11 @@ struct btrfs_delayed_root;
 #define BTRFS_FS_BTREE_ERR			11
 #define BTRFS_FS_LOG1_ERR			12
 #define BTRFS_FS_LOG2_ERR			13
+/*
+ * Indicate that a whole-filesystem exclusive operation is running
+ * (device replace, resize, device add/delete, balance)
+ */
+#define BTRFS_FS_EXCL_OP			14
 
 struct btrfs_fs_info {
 	u8 fsid[BTRFS_FSID_SIZE];
@@ -1069,8 +1074,6 @@ struct btrfs_fs_info {
 
 	/* device replace state */
 	struct btrfs_dev_replace dev_replace;
-
-	atomic_t mutually_exclusive_operation_running;
 
 	struct percpu_counter bio_counter;
 	wait_queue_head_t replace_wait;

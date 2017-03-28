@@ -3761,7 +3761,7 @@ static void __cancel_balance(struct btrfs_fs_info *fs_info)
 	if (ret)
 		btrfs_handle_fs_error(fs_info, ret, NULL);
 
-	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
+	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 }
 
 /* Non-zero return value signifies invalidity */
@@ -3941,7 +3941,7 @@ out:
 		__cancel_balance(fs_info);
 	else {
 		kfree(bctl);
-		atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
+		clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 	}
 	return ret;
 }
@@ -4031,7 +4031,7 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 	btrfs_balance_sys(leaf, item, &disk_bargs);
 	btrfs_disk_balance_args_to_cpu(&bctl->sys, &disk_bargs);
 
-	WARN_ON(atomic_xchg(&fs_info->mutually_exclusive_operation_running, 1));
+	WARN_ON(test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags));
 
 	mutex_lock(&fs_info->volume_mutex);
 	mutex_lock(&fs_info->balance_mutex);
