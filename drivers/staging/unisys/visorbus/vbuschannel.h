@@ -64,41 +64,6 @@ struct ultra_vbus_deviceinfo {
 	u8 reserved[128];	/* pad size to 256 bytes */
 } __packed;
 
-/*
- * vbuschannel_print_devinfo() - format a struct ultra_vbus_deviceinfo
- *                               and write it to a seq_file
- * @devinfo: the struct ultra_vbus_deviceinfo to format
- * @seq: seq_file to write to
- * @devix: the device index to be included in the output data, or -1 if no
- *         device index is to be included
- *
- * Reads @devInfo, and writes it in human-readable notation to @seq.
- */
-static inline void
-vbuschannel_print_devinfo(struct ultra_vbus_deviceinfo *devinfo,
-			  struct seq_file *seq, int devix)
-{
-	if (!isprint(devinfo->devtype[0]))
-		return; /* uninitialized vbus device entry */
-
-	if (devix >= 0)
-		seq_printf(seq, "[%d]", devix);
-	else
-		/* vbus device entry is for bus or chipset */
-		seq_puts(seq, "   ");
-
-	/*
-	 * Note: because the s-Par back-end is free to scribble in this area,
-	 * we never assume '\0'-termination.
-	 */
-	seq_printf(seq, "%-*.*s ", (int)sizeof(devinfo->devtype),
-		   (int)sizeof(devinfo->devtype), devinfo->devtype);
-	seq_printf(seq, "%-*.*s ", (int)sizeof(devinfo->drvname),
-		   (int)sizeof(devinfo->drvname), devinfo->drvname);
-	seq_printf(seq, "%.*s\n", (int)sizeof(devinfo->infostrs),
-		   devinfo->infostrs);
-}
-
 struct spar_vbus_headerinfo {
 	u32 struct_bytes;	/* size of this struct in bytes */
 	u32 device_info_struct_bytes;	/* sizeof(ULTRA_VBUS_DEVICEINFO) */
