@@ -549,6 +549,9 @@ static int inet6_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 	if (nla_put_s32(skb, NETCONFA_IFINDEX, ifindex) < 0)
 		goto nla_put_failure;
 
+	if (!devconf)
+		goto out;
+
 	if ((all || type == NETCONFA_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_FORWARDING, devconf->forwarding) < 0)
 		goto nla_put_failure;
@@ -567,6 +570,7 @@ static int inet6_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 			devconf->ignore_routes_with_linkdown) < 0)
 		goto nla_put_failure;
 
+out:
 	nlmsg_end(skb, nlh);
 	return 0;
 
@@ -6368,7 +6372,8 @@ out:
 	return -ENOBUFS;
 }
 
-static void __addrconf_sysctl_unregister(struct ipv6_devconf *p)
+static void __addrconf_sysctl_unregister(struct net *net,
+					 struct ipv6_devconf *p, int ifindex)
 {
 	struct ctl_table *table;
 
@@ -6379,6 +6384,8 @@ static void __addrconf_sysctl_unregister(struct ipv6_devconf *p)
 	unregister_net_sysctl_table(p->sysctl_header);
 	p->sysctl_header = NULL;
 	kfree(table);
+
+	inet6_netconf_notify_devconf(net, RTM_DELNETCONF, 0, ifindex, NULL);
 }
 
 static int addrconf_sysctl_register(struct inet6_dev *idev)
@@ -6402,7 +6409,8 @@ static int addrconf_sysctl_register(struct inet6_dev *idev)
 
 static void addrconf_sysctl_unregister(struct inet6_dev *idev)
 {
-	__addrconf_sysctl_unregister(&idev->cnf);
+	__addrconf_sysctl_unregister(dev_net(idev->dev), &idev->cnf,
+				     idev->dev->ifindex);
 	neigh_sysctl_unregister(idev->nd_parms);
 }
 
@@ -6445,7 +6453,7 @@ static int __net_init addrconf_init_net(struct net *net)
 
 #ifdef CONFIG_SYSCTL
 err_reg_dflt:
-	__addrconf_sysctl_unregister(all);
+	__addrconf_sysctl_unregister(net, all, NETCONFA_IFINDEX_ALL);
 err_reg_all:
 	kfree(dflt);
 #endif
@@ -6458,8 +6466,10 @@ err_alloc_all:
 static void __net_exit addrconf_exit_net(struct net *net)
 {
 #ifdef CONFIG_SYSCTL
-	__addrconf_sysctl_unregister(net->ipv6.devconf_dflt);
-	__addrconf_sysctl_unregister(net->ipv6.devconf_all);
+	__addrconf_sysctl_unregister(net, net->ipv6.devconf_dflt,
+				     NETCONFA_IFINDEX_DEFAULT);
+	__addrconf_sysctl_unregister(net, net->ipv6.devconf_all,
+				     NETCONFA_IFINDEX_ALL);
 #endif
 	kfree(net->ipv6.devconf_dflt);
 	kfree(net->ipv6.devconf_all);
