@@ -853,14 +853,14 @@ my_device_create(struct controlvm_message *inmsg)
 			spar_vhba_channel_protocol_uuid) == 0) {
 		err = save_crash_message(inmsg, CRASH_DEV);
 		if (err)
-			goto err_free_dev_info;
+			goto err_destroy_visorchannel;
 	}
 
 	if (inmsg->hdr.flags.response_expected == 1) {
 		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr), GFP_KERNEL);
 		if (!pmsg_hdr) {
 			err = -ENOMEM;
-			goto err_free_dev_info;
+			goto err_destroy_visorchannel;
 		}
 
 		memcpy(pmsg_hdr, &inmsg->hdr,
@@ -868,10 +868,16 @@ my_device_create(struct controlvm_message *inmsg)
 		dev_info->pending_msg_hdr = pmsg_hdr;
 	}
 	/* Chipset_device_create will send response */
-	chipset_device_create(dev_info);
+	err = chipset_device_create(dev_info);
+	if (err)
+		goto err_destroy_visorchannel;
+
 	POSTCODE_LINUX(DEVICE_CREATE_EXIT_PC, dev_no, bus_no,
 		       DIAG_SEVERITY_PRINT);
 	return 0;
+
+err_destroy_visorchannel:
+	visorchannel_destroy(visorchannel);
 
 err_free_dev_info:
 	kfree(dev_info);

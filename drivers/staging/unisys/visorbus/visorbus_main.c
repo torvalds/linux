@@ -1118,25 +1118,29 @@ chipset_bus_destroy(struct visor_device *dev)
 	bus_destroy_response(dev, 0);
 }
 
-void
+int
 chipset_device_create(struct visor_device *dev_info)
 {
-	int rc;
+	int err;
 	u32 bus_no = dev_info->chipset_bus_no;
 	u32 dev_no = dev_info->chipset_dev_no;
 
 	POSTCODE_LINUX(DEVICE_CREATE_ENTRY_PC, dev_no, bus_no,
 		       DIAG_SEVERITY_PRINT);
 
-	rc = create_visor_device(dev_info);
-	device_create_response(dev_info, rc);
-
-	if (rc < 0)
+	err = create_visor_device(dev_info);
+	if (err < 0) {
 		POSTCODE_LINUX(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 			       DIAG_SEVERITY_ERR);
-	else
-		POSTCODE_LINUX(DEVICE_CREATE_SUCCESS_PC, dev_no, bus_no,
-			       DIAG_SEVERITY_PRINT);
+		return err;
+	}
+
+	POSTCODE_LINUX(DEVICE_CREATE_SUCCESS_PC, dev_no, bus_no,
+		       DIAG_SEVERITY_PRINT);
+
+	device_create_response(dev_info, err);
+
+	return 0;
 }
 
 void
