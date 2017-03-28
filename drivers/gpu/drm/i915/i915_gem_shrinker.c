@@ -263,7 +263,7 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 				I915_SHRINK_BOUND |
 				I915_SHRINK_UNBOUND |
 				I915_SHRINK_ACTIVE);
-	rcu_barrier(); /* wait until our RCU delayed slab frees are completed */
+	synchronize_rcu(); /* wait for our earlier RCU delayed slab frees */
 
 	return freed;
 }

@@ -45,6 +45,17 @@ static const unsigned int int3496_cable[] = {
 	EXTCON_NONE,
 };
 
+static const struct acpi_gpio_params id_gpios = { INT3496_GPIO_USB_ID, 0, false };
+static const struct acpi_gpio_params vbus_gpios = { INT3496_GPIO_VBUS_EN, 0, false };
+static const struct acpi_gpio_params mux_gpios = { INT3496_GPIO_USB_MUX, 0, false };
+
+static const struct acpi_gpio_mapping acpi_int3496_default_gpios[] = {
+	{ "id-gpios", &id_gpios, 1 },
+	{ "vbus-gpios", &vbus_gpios, 1 },
+	{ "mux-gpios", &mux_gpios, 1 },
+	{ },
+};
+
 static void int3496_do_usb_id(struct work_struct *work)
 {
 	struct int3496_data *data =
@@ -83,6 +94,13 @@ static int int3496_probe(struct platform_device *pdev)
 	struct int3496_data *data;
 	int ret;
 
+	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev),
+					acpi_int3496_default_gpios);
+	if (ret) {
+		dev_err(dev, "can't add GPIO ACPI mapping\n");
+		return ret;
+	}
+
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -90,30 +108,27 @@ static int int3496_probe(struct platform_device *pdev)
 	data->dev = dev;
 	INIT_DELAYED_WORK(&data->work, int3496_do_usb_id);
 
-	data->gpio_usb_id = devm_gpiod_get_index(dev, "id",
-						INT3496_GPIO_USB_ID,
-						GPIOD_IN);
+	data->gpio_usb_id = devm_gpiod_get(dev, "id", GPIOD_IN);
 	if (IS_ERR(data->gpio_usb_id)) {
 		ret = PTR_ERR(data->gpio_usb_id);
 		dev_err(dev, "can't request USB ID GPIO: %d\n", ret);
 		return ret;
+	} else if (gpiod_get_direction(data->gpio_usb_id) != GPIOF_DIR_IN) {
+		dev_warn(dev, FW_BUG "USB ID GPIO not in input mode, fixing\n");
+		gpiod_direction_input(data->gpio_usb_id);
 	}
 
 	data->usb_id_irq = gpiod_to_irq(data->gpio_usb_id);
-	if (data->usb_id_irq <= 0) {
+	if (data->usb_id_irq < 0) {
 		dev_err(dev, "can't get USB ID IRQ: %d\n", data->usb_id_irq);
-		return -EINVAL;
+		return data->usb_id_irq;
 	}
 
-	data->gpio_vbus_en = devm_gpiod_get_index(dev, "vbus en",
-						 INT3496_GPIO_VBUS_EN,
-						 GPIOD_ASIS);
+	data->gpio_vbus_en = devm_gpiod_get(dev, "vbus", GPIOD_ASIS);
 	if (IS_ERR(data->gpio_vbus_en))
 		dev_info(dev, "can't request VBUS EN GPIO\n");
 
-	data->gpio_usb_mux = devm_gpiod_get_index(dev, "usb mux",
-						 INT3496_GPIO_USB_MUX,
-						 GPIOD_ASIS);
+	data->gpio_usb_mux = devm_gpiod_get(dev, "mux", GPIOD_ASIS);
 	if (IS_ERR(data->gpio_usb_mux))
 		dev_info(dev, "can't request USB MUX GPIO\n");
 
@@ -153,6 +168,8 @@ static int int3496_remove(struct platform_device *pdev)
 
 	devm_free_irq(&pdev->dev, data->usb_id_irq, data);
 	cancel_delayed_work_sync(&data->work);
+
+	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&pdev->dev));
 
 	return 0;
 }

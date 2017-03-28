@@ -65,12 +65,41 @@ static bool is_event_valid(u64 event)
 	return !(event & ~valid_mask);
 }
 
-static u64 mmcra_sdar_mode(u64 event)
+static inline bool is_event_marked(u64 event)
 {
-	if (cpu_has_feature(CPU_FTR_ARCH_300) && !cpu_has_feature(CPU_FTR_POWER9_DD1))
-		return p9_SDAR_MODE(event) << MMCRA_SDAR_MODE_SHIFT;
+	if (event & EVENT_IS_MARKED)
+		return true;
 
-	return MMCRA_SDAR_MODE_TLB;
+	return false;
+}
+
+static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
+{
+	/*
+	 * MMCRA[SDAR_MODE] specifices how the SDAR should be updated in
+	 * continous sampling mode.
+	 *
+	 * Incase of Power8:
+	 * MMCRA[SDAR_MODE] will be programmed as "0b01" for continous sampling
+	 * mode and will be un-changed when setting MMCRA[63] (Marked events).
+	 *
+	 * Incase of Power9:
+	 * Marked event: MMCRA[SDAR_MODE] will be set to 0b00 ('No Updates'),
+	 *               or if group already have any marked events.
+	 * Non-Marked events (for DD1):
+	 *	MMCRA[SDAR_MODE] will be set to 0b01
+	 * For rest
+	 *	MMCRA[SDAR_MODE] will be set from event code.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		if (is_event_marked(event) || (*mmcra & MMCRA_SAMPLE_ENABLE))
+			*mmcra &= MMCRA_SDAR_MODE_NO_UPDATES;
+		else if (!cpu_has_feature(CPU_FTR_POWER9_DD1))
+			*mmcra |=  p9_SDAR_MODE(event) << MMCRA_SDAR_MODE_SHIFT;
+		else if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+			*mmcra |= MMCRA_SDAR_MODE_TLB;
+	} else
+		*mmcra |= MMCRA_SDAR_MODE_TLB;
 }
 
 static u64 thresh_cmp_val(u64 value)
@@ -180,7 +209,7 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 		value |= CNST_L1_QUAL_VAL(cache);
 	}
 
-	if (event & EVENT_IS_MARKED) {
+	if (is_event_marked(event)) {
 		mask  |= CNST_SAMPLE_MASK;
 		value |= CNST_SAMPLE_VAL(event >> EVENT_SAMPLE_SHIFT);
 	}
@@ -276,7 +305,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 		}
 
 		/* In continuous sampling mode, update SDAR on TLB miss */
-		mmcra |= mmcra_sdar_mode(event[i]);
+		mmcra_sdar_mode(event[i], &mmcra);
 
 		if (event[i] & EVENT_IS_L1) {
 			cache = event[i] >> EVENT_CACHE_SEL_SHIFT;
@@ -285,7 +314,7 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 			mmcr1 |= (cache & 1) << MMCR1_DC_QUAL_SHIFT;
 		}
 
-		if (event[i] & EVENT_IS_MARKED) {
+		if (is_event_marked(event[i])) {
 			mmcra |= MMCRA_SAMPLE_ENABLE;
 
 			val = (event[i] >> EVENT_SAMPLE_SHIFT) & EVENT_SAMPLE_MASK;
