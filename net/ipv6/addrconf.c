@@ -575,8 +575,8 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-void inet6_netconf_notify_devconf(struct net *net, int type, int ifindex,
-				  struct ipv6_devconf *devconf)
+void inet6_netconf_notify_devconf(struct net *net, int event, int type,
+				  int ifindex, struct ipv6_devconf *devconf)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
@@ -586,7 +586,7 @@ void inet6_netconf_notify_devconf(struct net *net, int type, int ifindex,
 		goto errout;
 
 	err = inet6_netconf_fill_devconf(skb, ifindex, devconf, 0, 0,
-					 RTM_NEWNETCONF, 0, type);
+					 event, 0, type);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in inet6_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
@@ -769,7 +769,8 @@ static void dev_forward_change(struct inet6_dev *idev)
 		else
 			addrconf_leave_anycast(ifa);
 	}
-	inet6_netconf_notify_devconf(dev_net(dev), NETCONFA_FORWARDING,
+	inet6_netconf_notify_devconf(dev_net(dev), RTM_NEWNETCONF,
+				     NETCONFA_FORWARDING,
 				     dev->ifindex, &idev->cnf);
 }
 
@@ -804,7 +805,8 @@ static int addrconf_fixup_forwarding(struct ctl_table *table, int *p, int newf)
 
 	if (p == &net->ipv6.devconf_dflt->forwarding) {
 		if ((!newf) ^ (!old))
-			inet6_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						     NETCONFA_FORWARDING,
 						     NETCONFA_IFINDEX_DEFAULT,
 						     net->ipv6.devconf_dflt);
 		rtnl_unlock();
@@ -816,13 +818,15 @@ static int addrconf_fixup_forwarding(struct ctl_table *table, int *p, int newf)
 
 		net->ipv6.devconf_dflt->forwarding = newf;
 		if ((!newf) ^ (!old_dflt))
-			inet6_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						     NETCONFA_FORWARDING,
 						     NETCONFA_IFINDEX_DEFAULT,
 						     net->ipv6.devconf_dflt);
 
 		addrconf_forward_change(net, newf);
 		if ((!newf) ^ (!old))
-			inet6_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						     NETCONFA_FORWARDING,
 						     NETCONFA_IFINDEX_ALL,
 						     net->ipv6.devconf_all);
 	} else if ((!newf) ^ (!old))
@@ -847,6 +851,7 @@ static void addrconf_linkdown_change(struct net *net, __s32 newf)
 			idev->cnf.ignore_routes_with_linkdown = newf;
 			if (changed)
 				inet6_netconf_notify_devconf(dev_net(dev),
+							     RTM_NEWNETCONF,
 							     NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN,
 							     dev->ifindex,
 							     &idev->cnf);
@@ -869,6 +874,7 @@ static int addrconf_fixup_linkdown(struct ctl_table *table, int *p, int newf)
 	if (p == &net->ipv6.devconf_dflt->ignore_routes_with_linkdown) {
 		if ((!newf) ^ (!old))
 			inet6_netconf_notify_devconf(net,
+						     RTM_NEWNETCONF,
 						     NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN,
 						     NETCONFA_IFINDEX_DEFAULT,
 						     net->ipv6.devconf_dflt);
@@ -881,6 +887,7 @@ static int addrconf_fixup_linkdown(struct ctl_table *table, int *p, int newf)
 		addrconf_linkdown_change(net, newf);
 		if ((!newf) ^ (!old))
 			inet6_netconf_notify_devconf(net,
+						     RTM_NEWNETCONF,
 						     NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN,
 						     NETCONFA_IFINDEX_ALL,
 						     net->ipv6.devconf_all);
@@ -5675,17 +5682,20 @@ int addrconf_sysctl_proxy_ndp(struct ctl_table *ctl, int write,
 			return restart_syscall();
 
 		if (valp == &net->ipv6.devconf_dflt->proxy_ndp)
-			inet6_netconf_notify_devconf(net, NETCONFA_PROXY_NEIGH,
+			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						     NETCONFA_PROXY_NEIGH,
 						     NETCONFA_IFINDEX_DEFAULT,
 						     net->ipv6.devconf_dflt);
 		else if (valp == &net->ipv6.devconf_all->proxy_ndp)
-			inet6_netconf_notify_devconf(net, NETCONFA_PROXY_NEIGH,
+			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						     NETCONFA_PROXY_NEIGH,
 						     NETCONFA_IFINDEX_ALL,
 						     net->ipv6.devconf_all);
 		else {
 			struct inet6_dev *idev = ctl->extra1;
 
-			inet6_netconf_notify_devconf(net, NETCONFA_PROXY_NEIGH,
+			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						     NETCONFA_PROXY_NEIGH,
 						     idev->dev->ifindex,
 						     &idev->cnf);
 		}
@@ -6348,7 +6358,8 @@ static int __addrconf_sysctl_register(struct net *net, char *dev_name,
 		ifindex = NETCONFA_IFINDEX_DEFAULT;
 	else
 		ifindex = idev->dev->ifindex;
-	inet6_netconf_notify_devconf(net, NETCONFA_ALL, ifindex, p);
+	inet6_netconf_notify_devconf(net, RTM_NEWNETCONF, NETCONFA_ALL,
+				     ifindex, p);
 	return 0;
 
 free:

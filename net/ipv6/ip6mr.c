@@ -815,7 +815,7 @@ static int mif6_delete(struct mr6_table *mrt, int vifi, struct list_head *head)
 	in6_dev = __in6_dev_get(dev);
 	if (in6_dev) {
 		in6_dev->cnf.mc_forwarding--;
-		inet6_netconf_notify_devconf(dev_net(dev),
+		inet6_netconf_notify_devconf(dev_net(dev), RTM_NEWNETCONF,
 					     NETCONFA_MC_FORWARDING,
 					     dev->ifindex, &in6_dev->cnf);
 	}
@@ -974,7 +974,7 @@ static int mif6_add(struct net *net, struct mr6_table *mrt,
 	in6_dev = __in6_dev_get(dev);
 	if (in6_dev) {
 		in6_dev->cnf.mc_forwarding++;
-		inet6_netconf_notify_devconf(dev_net(dev),
+		inet6_netconf_notify_devconf(dev_net(dev), RTM_NEWNETCONF,
 					     NETCONFA_MC_FORWARDING,
 					     dev->ifindex, &in6_dev->cnf);
 	}
@@ -1599,7 +1599,8 @@ static int ip6mr_sk_init(struct mr6_table *mrt, struct sock *sk)
 	write_unlock_bh(&mrt_lock);
 
 	if (!err)
-		inet6_netconf_notify_devconf(net, NETCONFA_MC_FORWARDING,
+		inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
+					     NETCONFA_MC_FORWARDING,
 					     NETCONFA_IFINDEX_ALL,
 					     net->ipv6.devconf_all);
 	rtnl_unlock();
@@ -1620,7 +1621,7 @@ int ip6mr_sk_done(struct sock *sk)
 			mrt->mroute6_sk = NULL;
 			net->ipv6.devconf_all->mc_forwarding--;
 			write_unlock_bh(&mrt_lock);
-			inet6_netconf_notify_devconf(net,
+			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
 						     NETCONFA_MC_FORWARDING,
 						     NETCONFA_IFINDEX_ALL,
 						     net->ipv6.devconf_all);
