@@ -268,4 +268,13 @@ int device_get_phy_mode(struct device *dev);
 
 void *device_get_mac_address(struct device *dev, char *addr, int alen);
 
+struct fwnode_handle *fwnode_graph_get_next_endpoint(
+	struct fwnode_handle *fwnode, struct fwnode_handle *prev);
+struct fwnode_handle *fwnode_graph_get_remote_port_parent(
+	struct fwnode_handle *fwnode);
+struct fwnode_handle *fwnode_graph_get_remote_port(
+	struct fwnode_handle *fwnode);
+struct fwnode_handle *fwnode_graph_get_remote_endpoint(
+	struct fwnode_handle *fwnode);
+
 #endif /* _LINUX_PROPERTY_H_ */
