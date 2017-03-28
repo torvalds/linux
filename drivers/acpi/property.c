@@ -714,6 +714,8 @@ static int acpi_data_prop_read_single(struct acpi_device_data *data,
 			return ret;
 
 		*(char **)val = obj->string.pointer;
+
+		return 1;
 	} else {
 		ret = -EINVAL;
 	}
@@ -723,7 +725,15 @@ static int acpi_data_prop_read_single(struct acpi_device_data *data,
 int acpi_dev_prop_read_single(struct acpi_device *adev, const char *propname,
 			      enum dev_prop_type proptype, void *val)
 {
-	return adev ? acpi_data_prop_read_single(&adev->data, propname, proptype, val) : -EINVAL;
+	int ret;
+
+	if (!adev)
+		return -EINVAL;
+
+	ret = acpi_data_prop_read_single(&adev->data, propname, proptype, val);
+	if (ret < 0 || proptype != ACPI_TYPE_STRING)
+		return ret;
+	return 0;
 }
 
 static int acpi_copy_property_array_u8(const union acpi_object *items, u8 *val,
@@ -799,7 +809,7 @@ static int acpi_copy_property_array_string(const union acpi_object *items,
 
 		val[i] = items[i].string.pointer;
 	}
-	return 0;
+	return nval;
 }
 
 static int acpi_data_prop_read(struct acpi_device_data *data,
@@ -813,7 +823,7 @@ static int acpi_data_prop_read(struct acpi_device_data *data,
 
 	if (val && nval == 1) {
 		ret = acpi_data_prop_read_single(data, propname, proptype, val);
-		if (!ret)
+		if (ret >= 0)
 			return ret;
 	}
 
@@ -824,7 +834,7 @@ static int acpi_data_prop_read(struct acpi_device_data *data,
 	if (!val)
 		return obj->package.count;
 
-	if (nval > obj->package.count)
+	if (proptype != DEV_PROP_STRING && nval > obj->package.count)
 		return -EOVERFLOW;
 	else if (nval <= 0)
 		return -EINVAL;
@@ -845,7 +855,9 @@ static int acpi_data_prop_read(struct acpi_device_data *data,
 		ret = acpi_copy_property_array_u64(items, (u64 *)val, nval);
 		break;
 	case DEV_PROP_STRING:
-		ret = acpi_copy_property_array_string(items, (char **)val, nval);
+		ret = acpi_copy_property_array_string(
+			items, (char **)val,
+			min_t(u32, nval, obj->package.count));
 		break;
 	default:
 		ret = -EINVAL;

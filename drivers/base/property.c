@@ -177,7 +177,7 @@ static int pset_prop_read_string_array(struct property_set *pset,
 
 	memcpy(strings, pointer, length);
 
-	return 0;
+	return array_len;
 }
 
 static int pset_prop_read_string(struct property_set *pset,
@@ -364,8 +364,8 @@ EXPORT_SYMBOL_GPL(device_property_read_u64_array);
  * Function reads an array of string properties with @propname from the device
  * firmware description and stores them to @val if found.
  *
- * Return: number of values if @val was %NULL,
- *         %0 if the property was found (success),
+ * Return: number of values read on success if @val is non-NULL,
+ *	   number of values available on success if @val is NULL,
  *	   %-EINVAL if given arguments are not valid,
  *	   %-ENODATA if the property does not have a value,
  *	   %-EPROTO or %-EILSEQ if the property is not an array of strings,
@@ -605,8 +605,8 @@ static int __fwnode_property_read_string(struct fwnode_handle *fwnode,
  * Read an string list property @propname from the given firmware node and store
  * them to @val if found.
  *
- * Return: number of values if @val was %NULL,
- *         %0 if the property was found (success),
+ * Return: number of values read on success if @val is non-NULL,
+ *	   number of values available on success if @val is NULL,
  *	   %-EINVAL if given arguments are not valid,
  *	   %-ENODATA if the property does not have a value,
  *	   %-EPROTO or %-EILSEQ if the property is not an array of strings,
@@ -653,7 +653,7 @@ int fwnode_property_read_string(struct fwnode_handle *fwnode,
 	    !IS_ERR_OR_NULL(fwnode->secondary))
 		ret = __fwnode_property_read_string(fwnode->secondary,
 						    propname, val);
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string);
 
