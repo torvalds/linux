@@ -16,9 +16,9 @@
 #define __VMCALLINTERFACE_H__
 
 /*
- * This file contains all structures needed to support the VMCALLs for IO
- * Virtualization.  The VMCALLs are provided by Monitor and used by IO code
- * running on IO Partitions.
+ * This file contains all structures needed to support the VMCALLs for s-Par
+ * Virtualization.  The VMCALLs are provided by Monitor and used by s-Par
+ * drivers running in a Linux guest partition.
  */
 static inline unsigned long
 __unisys_vmcall_gnuc(unsigned long tuple, unsigned long reg_ebx,
