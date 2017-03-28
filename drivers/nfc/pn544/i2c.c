@@ -878,58 +878,10 @@ static const struct acpi_gpio_mapping acpi_pn544_gpios[] = {
 	{ },
 };
 
-static int pn544_hci_i2c_acpi_request_resources(struct i2c_client *client)
-{
-	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
-	struct device *dev = &client->dev;
-	int ret;
-
-	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev), acpi_pn544_gpios);
-	if (ret)
-		return ret;
-
-	/* Get EN GPIO from ACPI */
-	phy->gpiod_en = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(phy->gpiod_en)) {
-		nfc_err(dev, "Unable to get EN GPIO\n");
-		return PTR_ERR(phy->gpiod_en);
-	}
-
-	/* Get FW GPIO from ACPI */
-	phy->gpiod_fw = devm_gpiod_get(dev, "firmware", GPIOD_OUT_LOW);
-	if (IS_ERR(phy->gpiod_fw)) {
-		nfc_err(dev, "Unable to get FW GPIO\n");
-		return PTR_ERR(phy->gpiod_fw);
-	}
-
-	return 0;
-}
-
-static int pn544_hci_i2c_of_request_resources(struct i2c_client *client)
-{
-	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
-	struct device *dev = &client->dev;
-
-	/* Obtaining EN GPIO from device tree */
-	phy->gpiod_en = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(phy->gpiod_en)) {
-		nfc_err(dev, "Failed to get EN gpio\n");
-		return PTR_ERR(phy->gpiod_en);
-	}
-
-	/* Obtaining FW GPIO from device tree */
-	phy->gpiod_fw = devm_gpiod_get(dev, "firmware", GPIOD_OUT_LOW);
-	if (IS_ERR(phy->gpiod_fw)) {
-		nfc_err(dev, "Failed to get FW gpio\n");
-		return PTR_ERR(phy->gpiod_fw);
-	}
-
-	return 0;
-}
-
 static int pn544_hci_i2c_probe(struct i2c_client *client,
 			       const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct pn544_i2c_phy *phy;
 	int r = 0;
 
@@ -952,24 +904,22 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
 
-	/* No platform data, using device tree. */
-	if (client->dev.of_node) {
-		r = pn544_hci_i2c_of_request_resources(client);
-		if (r) {
-			nfc_err(&client->dev, "No DT data\n");
-			return r;
-		}
-	/* Using ACPI */
-	} else if (ACPI_HANDLE(&client->dev)) {
-		r = pn544_hci_i2c_acpi_request_resources(client);
-		if (r) {
-			nfc_err(&client->dev,
-				"Cannot get ACPI data\n");
-			return r;
-		}
-	} else {
-		nfc_err(&client->dev, "No platform data\n");
-		return -EINVAL;
+	r = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev), acpi_pn544_gpios);
+	if (r)
+		dev_dbg(dev, "Unable to add GPIO mapping table\n");
+
+	/* Get EN GPIO */
+	phy->gpiod_en = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
+	if (IS_ERR(phy->gpiod_en)) {
+		nfc_err(dev, "Unable to get EN GPIO\n");
+		return PTR_ERR(phy->gpiod_en);
+	}
+
+	/* Get FW GPIO */
+	phy->gpiod_fw = devm_gpiod_get(dev, "firmware", GPIOD_OUT_LOW);
+	if (IS_ERR(phy->gpiod_fw)) {
+		nfc_err(dev, "Unable to get FW GPIO\n");
+		return PTR_ERR(phy->gpiod_fw);
 	}
 
 	pn544_hci_i2c_platform_init(phy);
