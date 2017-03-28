@@ -1,7 +1,7 @@
 /*
- * drivers/net/ethernet/mellanox/mlxsw/spectrum_cnt.h
+ * drivers/net/ethernet/mellanox/mlxsw/spectrum_router.h
  * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Arkadi Sharshevsky <arkdis@mellanox.com>
+ * Copyright (c) 2017 Arkadi Sharshevsky <arkadis@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,23 +32,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MLXSW_SPECTRUM_CNT_H
-#define _MLXSW_SPECTRUM_CNT_H
+#ifndef _MLXSW_ROUTER_H_
+#define _MLXSW_ROUTER_H_
 
 #include "spectrum.h"
 
-enum mlxsw_sp_counter_sub_pool_id {
-	MLXSW_SP_COUNTER_SUB_POOL_FLOW,
-	MLXSW_SP_COUNTER_SUB_POOL_RIF,
+enum mlxsw_sp_rif_counter_dir {
+	MLXSW_SP_RIF_COUNTER_INGRESS,
+	MLXSW_SP_RIF_COUNTER_EGRESS,
 };
 
-int mlxsw_sp_counter_alloc(struct mlxsw_sp *mlxsw_sp,
-			   enum mlxsw_sp_counter_sub_pool_id sub_pool_id,
-			   unsigned int *p_counter_index);
-void mlxsw_sp_counter_free(struct mlxsw_sp *mlxsw_sp,
-			   enum mlxsw_sp_counter_sub_pool_id sub_pool_id,
-			   unsigned int counter_index);
-int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp);
-void mlxsw_sp_counter_pool_fini(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_rif_counter_value_get(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_rif *rif,
+				   enum mlxsw_sp_rif_counter_dir dir,
+				   u64 *cnt);
+void mlxsw_sp_rif_counter_free(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_rif *rif,
+			       enum mlxsw_sp_rif_counter_dir dir);
+int mlxsw_sp_rif_counter_alloc(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_rif *rif,
+			       enum mlxsw_sp_rif_counter_dir dir);
 
-#endif
+#endif /* _MLXSW_ROUTER_H_*/
