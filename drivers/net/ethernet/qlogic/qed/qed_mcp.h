@@ -780,4 +780,69 @@ int qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
  * @return int - 0 - operation was successful.
  */
 int qed_mcp_initiate_pf_flr(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+struct qed_resc_lock_params {
+	/* Resource number [valid values are 0..31] */
+	u8 resource;
+
+	/* Lock timeout value in seconds [default, none or 1..254] */
+	u8 timeout;
+#define QED_MCP_RESC_LOCK_TO_DEFAULT    0
+#define QED_MCP_RESC_LOCK_TO_NONE       255
+
+	/* Number of times to retry locking */
+	u8 retry_num;
+
+	/* The interval in usec between retries */
+	u16 retry_interval;
+
+	/* Use sleep or delay between retries */
+	bool sleep_b4_retry;
+
+	/* Will be set as true if the resource is free and granted */
+	bool b_granted;
+
+	/* Will be filled with the resource owner.
+	 * [0..15 = PF0-15, 16 = MFW]
+	 */
+	u8 owner;
+};
+
+/**
+ * @brief Acquires MFW generic resource lock
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param p_params
+ *
+ * @return int - 0 - operation was successful.
+ */
+int
+qed_mcp_resc_lock(struct qed_hwfn *p_hwfn,
+		  struct qed_ptt *p_ptt, struct qed_resc_lock_params *p_params);
+
+struct qed_resc_unlock_params {
+	/* Resource number [valid values are 0..31] */
+	u8 resource;
+
+	/* Allow to release a resource even if belongs to another PF */
+	bool b_force;
+
+	/* Will be set as true if the resource is released */
+	bool b_released;
+};
+
+/**
+ * @brief Releases MFW generic resource lock
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param p_params
+ *
+ * @return int - 0 - operation was successful.
+ */
+int
+qed_mcp_resc_unlock(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt,
+		    struct qed_resc_unlock_params *p_params);
+
 #endif

@@ -2271,3 +2271,179 @@ int qed_mcp_initiate_pf_flr(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_INITIATE_PF_FLR, 0,
 			   &mcp_resp, &mcp_param);
 }
+
+static int qed_mcp_resource_cmd(struct qed_hwfn *p_hwfn,
+				struct qed_ptt *p_ptt,
+				u32 param, u32 *p_mcp_resp, u32 *p_mcp_param)
+{
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_RESOURCE_CMD, param,
+			 p_mcp_resp, p_mcp_param);
+	if (rc)
+		return rc;
+
+	if (*p_mcp_resp == FW_MSG_CODE_UNSUPPORTED) {
+		DP_INFO(p_hwfn,
+			"The resource command is unsupported by the MFW\n");
+		return -EINVAL;
+	}
+
+	if (*p_mcp_param == RESOURCE_OPCODE_UNKNOWN_CMD) {
+		u8 opcode = QED_MFW_GET_FIELD(param, RESOURCE_CMD_REQ_OPCODE);
+
+		DP_NOTICE(p_hwfn,
+			  "The resource command is unknown to the MFW [param 0x%08x, opcode %d]\n",
+			  param, opcode);
+		return -EINVAL;
+	}
+
+	return rc;
+}
+
+int
+__qed_mcp_resc_lock(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt,
+		    struct qed_resc_lock_params *p_params)
+{
+	u32 param = 0, mcp_resp, mcp_param;
+	u8 opcode;
+	int rc;
+
+	switch (p_params->timeout) {
+	case QED_MCP_RESC_LOCK_TO_DEFAULT:
+		opcode = RESOURCE_OPCODE_REQ;
+		p_params->timeout = 0;
+		break;
+	case QED_MCP_RESC_LOCK_TO_NONE:
+		opcode = RESOURCE_OPCODE_REQ_WO_AGING;
+		p_params->timeout = 0;
+		break;
+	default:
+		opcode = RESOURCE_OPCODE_REQ_W_AGING;
+		break;
+	}
+
+	QED_MFW_SET_FIELD(param, RESOURCE_CMD_REQ_RESC, p_params->resource);
+	QED_MFW_SET_FIELD(param, RESOURCE_CMD_REQ_OPCODE, opcode);
+	QED_MFW_SET_FIELD(param, RESOURCE_CMD_REQ_AGE, p_params->timeout);
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "Resource lock request: param 0x%08x [age %d, opcode %d, resource %d]\n",
+		   param, p_params->timeout, opcode, p_params->resource);
+
+	/* Attempt to acquire the resource */
+	rc = qed_mcp_resource_cmd(p_hwfn, p_ptt, param, &mcp_resp, &mcp_param);
+	if (rc)
+		return rc;
+
+	/* Analyze the response */
+	p_params->owner = QED_MFW_GET_FIELD(mcp_param, RESOURCE_CMD_RSP_OWNER);
+	opcode = QED_MFW_GET_FIELD(mcp_param, RESOURCE_CMD_RSP_OPCODE);
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "Resource lock response: mcp_param 0x%08x [opcode %d, owner %d]\n",
+		   mcp_param, opcode, p_params->owner);
+
+	switch (opcode) {
+	case RESOURCE_OPCODE_GNT:
+		p_params->b_granted = true;
+		break;
+	case RESOURCE_OPCODE_BUSY:
+		p_params->b_granted = false;
+		break;
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Unexpected opcode in resource lock response [mcp_param 0x%08x, opcode %d]\n",
+			  mcp_param, opcode);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int
+qed_mcp_resc_lock(struct qed_hwfn *p_hwfn,
+		  struct qed_ptt *p_ptt, struct qed_resc_lock_params *p_params)
+{
+	u32 retry_cnt = 0;
+	int rc;
+
+	do {
+		/* No need for an interval before the first iteration */
+		if (retry_cnt) {
+			if (p_params->sleep_b4_retry) {
+				u16 retry_interval_in_ms =
+				    DIV_ROUND_UP(p_params->retry_interval,
+						 1000);
+
+				msleep(retry_interval_in_ms);
+			} else {
+				udelay(p_params->retry_interval);
+			}
+		}
+
+		rc = __qed_mcp_resc_lock(p_hwfn, p_ptt, p_params);
+		if (rc)
+			return rc;
+
+		if (p_params->b_granted)
+			break;
+	} while (retry_cnt++ < p_params->retry_num);
+
+	return 0;
+}
+
+int
+qed_mcp_resc_unlock(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt,
+		    struct qed_resc_unlock_params *p_params)
+{
+	u32 param = 0, mcp_resp, mcp_param;
+	u8 opcode;
+	int rc;
+
+	opcode = p_params->b_force ? RESOURCE_OPCODE_FORCE_RELEASE
+				   : RESOURCE_OPCODE_RELEASE;
+	QED_MFW_SET_FIELD(param, RESOURCE_CMD_REQ_RESC, p_params->resource);
+	QED_MFW_SET_FIELD(param, RESOURCE_CMD_REQ_OPCODE, opcode);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP,
+		   "Resource unlock request: param 0x%08x [opcode %d, resource %d]\n",
+		   param, opcode, p_params->resource);
+
+	/* Attempt to release the resource */
+	rc = qed_mcp_resource_cmd(p_hwfn, p_ptt, param, &mcp_resp, &mcp_param);
+	if (rc)
+		return rc;
+
+	/* Analyze the response */
+	opcode = QED_MFW_GET_FIELD(mcp_param, RESOURCE_CMD_RSP_OPCODE);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP,
+		   "Resource unlock response: mcp_param 0x%08x [opcode %d]\n",
+		   mcp_param, opcode);
+
+	switch (opcode) {
+	case RESOURCE_OPCODE_RELEASED_PREVIOUS:
+		DP_INFO(p_hwfn,
+			"Resource unlock request for an already released resource [%d]\n",
+			p_params->resource);
+		/* Fallthrough */
+	case RESOURCE_OPCODE_RELEASED:
+		p_params->b_released = true;
+		break;
+	case RESOURCE_OPCODE_WRONG_OWNER:
+		p_params->b_released = false;
+		break;
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Unexpected opcode in resource unlock response [mcp_param 0x%08x, opcode %d]\n",
+			  mcp_param, opcode);
+		return -EINVAL;
+	}
+
+	return 0;
+}
