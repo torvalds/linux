@@ -512,7 +512,7 @@ static void mwifiex_terminate_workqueue(struct mwifiex_adapter *adapter)
  *      - Download the correct firmware to card
  *      - Issue the init commands to firmware
  */
-static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
+static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 {
 	int ret;
 	char fmt[64];
@@ -665,11 +665,18 @@ done:
 		mwifiex_free_adapter(adapter);
 	/* Tell all current and future waiters we're finished */
 	complete_all(fw_done);
-	return;
+
+	return init_failed ? -EIO : 0;
+}
+
+static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
+{
+	_mwifiex_fw_dpc(firmware, context);
 }
 
 /*
- * This function initializes the hardware and gets firmware.
+ * This function gets the firmware and (if called asynchronously) kicks off the
+ * HW init when done.
  */
 static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter,
 			      bool req_fw_nowait)
@@ -692,20 +699,15 @@ static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter,
 		ret = request_firmware_nowait(THIS_MODULE, 1, adapter->fw_name,
 					      adapter->dev, GFP_KERNEL, adapter,
 					      mwifiex_fw_dpc);
-		if (ret < 0)
-			mwifiex_dbg(adapter, ERROR,
-				    "request_firmware_nowait error %d\n", ret);
 	} else {
 		ret = request_firmware(&adapter->firmware,
 				       adapter->fw_name,
 				       adapter->dev);
-		if (ret < 0)
-			mwifiex_dbg(adapter, ERROR,
-				    "request_firmware error %d\n", ret);
-		else
-			mwifiex_fw_dpc(adapter->firmware, (void *)adapter);
 	}
 
+	if (ret < 0)
+		mwifiex_dbg(adapter, ERROR, "request_firmware%s error %d\n",
+			    req_fw_nowait ? "_nowait" : "", ret);
 	return ret;
 }
 
@@ -1427,6 +1429,8 @@ EXPORT_SYMBOL_GPL(mwifiex_shutdown_sw);
 int
 mwifiex_reinit_sw(struct mwifiex_adapter *adapter)
 {
+	int ret;
+
 	mwifiex_init_lock_list(adapter);
 	if (adapter->if_ops.up_dev)
 		adapter->if_ops.up_dev(adapter);
@@ -1472,6 +1476,13 @@ mwifiex_reinit_sw(struct mwifiex_adapter *adapter)
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: firmware init failed\n", __func__);
 		goto err_init_fw;
+	}
+
+	/* _mwifiex_fw_dpc() does its own cleanup */
+	ret = _mwifiex_fw_dpc(adapter->firmware, adapter);
+	if (ret) {
+		pr_err("Failed to bring up adapter: %d\n", ret);
+		return ret;
 	}
 	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
 
