@@ -77,7 +77,7 @@
 		status = "okay";
 	};
 
-	i2c@3190000 {
+	ddc: i2c@3190000 {
 		status = "okay";
 	};
 
