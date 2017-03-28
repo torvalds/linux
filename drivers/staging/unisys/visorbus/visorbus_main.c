@@ -691,6 +691,8 @@ static int
 get_vbus_header_info(struct visorchannel *chan,
 		     struct spar_vbus_headerinfo *hdr_info)
 {
+	int err;
+
 	if (!spar_check_channel(visorchannel_get_header(chan),
 				spar_vbus_channel_protocol_uuid,
 				"vbus",
@@ -699,10 +701,11 @@ get_vbus_header_info(struct visorchannel *chan,
 				SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE))
 		return -EINVAL;
 
-	if (visorchannel_read(chan, sizeof(struct channel_header), hdr_info,
-			      sizeof(*hdr_info)) < 0) {
-		return -EIO;
-	}
+	err = visorchannel_read(chan, sizeof(struct channel_header), hdr_info,
+				sizeof(*hdr_info));
+	if (err < 0)
+		return err;
+
 	if (hdr_info->struct_bytes < sizeof(struct spar_vbus_headerinfo))
 		return -EINVAL;
 
