@@ -284,9 +284,9 @@
 };
 
 &mmc1 {
-	vmmc-supply = <&vsimcard>;
+	vmmc-supply = <&vwlan2>;
 	bus-width = <4>;
-	cd-gpios = <&gpio4 10 GPIO_ACTIVE_LOW>;	/* gpio106 */
+	cd-gpios = <&gpio6 16 GPIO_ACTIVE_LOW>;	/* gpio176 */
 };
 
 &mmc2 {

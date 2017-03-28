@@ -155,6 +155,7 @@
 		regulator-enable-ramp-delay = <1000>;
 	};
 
+	/* Used by micro-SDIO at mmc1 */
 	vwlan2: VWLAN2 {
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
@@ -167,7 +168,6 @@
 		regulator-enable-ramp-delay = <1000>;
 	};
 
-	/* Used by micro-SDIO at mmc1 */
 	vsimcard: VSIMCARD {
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <2900000>;
