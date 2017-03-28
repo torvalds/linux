@@ -3846,7 +3846,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.atu_move_port_mask = 0x1f,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
 		.flags = MV88E6XXX_FLAGS_FAMILY_6390,
-		.ops = &mv88e6391_ops,
+		.ops = &mv88e6191_ops,
 	},
 
 	[MV88E6240] = {
