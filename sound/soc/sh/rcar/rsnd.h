@@ -611,9 +611,6 @@ struct rsnd_kctrl_cfg_s {
 	u32 val;
 };
 
-void _rsnd_kctrl_remove(struct rsnd_kctrl_cfg *cfg);
-#define rsnd_kctrl_remove(_cfg)	_rsnd_kctrl_remove(&((_cfg).cfg))
-
 int rsnd_kctrl_new_m(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
 		     struct snd_soc_pcm_runtime *rtd,

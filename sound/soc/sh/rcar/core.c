@@ -1039,15 +1039,6 @@ static int __rsnd_kctrl_new(struct rsnd_mod *mod,
 	return 0;
 }
 
-void _rsnd_kctrl_remove(struct rsnd_kctrl_cfg *cfg)
-{
-	if (cfg->card && cfg->kctrl)
-		snd_ctl_remove(cfg->card, cfg->kctrl);
-
-	cfg->card = NULL;
-	cfg->kctrl = NULL;
-}
-
 int rsnd_kctrl_new_m(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
 		     struct snd_soc_pcm_runtime *rtd,
