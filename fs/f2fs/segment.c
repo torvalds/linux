@@ -1041,32 +1041,6 @@ static int f2fs_issue_discard(struct f2fs_sb_info *sbi,
 	return err;
 }
 
-static void __add_discard_entry(struct f2fs_sb_info *sbi,
-		struct cp_control *cpc, struct seg_entry *se,
-		unsigned int start, unsigned int end)
-{
-	struct list_head *head = &SM_I(sbi)->dcc_info->discard_entry_list;
-	struct discard_entry *new, *last;
-
-	if (!list_empty(head)) {
-		last = list_last_entry(head, struct discard_entry, list);
-		if (START_BLOCK(sbi, cpc->trim_start) + start ==
-				last->blkaddr + last->len &&
-				last->len < MAX_DISCARD_BLOCKS(sbi)) {
-			last->len += end - start;
-			goto done;
-		}
-	}
-
-	new = f2fs_kmem_cache_alloc(discard_entry_slab, GFP_NOFS);
-	INIT_LIST_HEAD(&new->list);
-	new->blkaddr = START_BLOCK(sbi, cpc->trim_start) + start;
-	new->len = end - start;
-	list_add_tail(&new->list, head);
-done:
-	SM_I(sbi)->dcc_info->nr_discards += end - start;
-}
-
 static bool add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc,
 							bool check_only)
 {
@@ -1079,6 +1053,8 @@ static bool add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc,
 	unsigned long *dmap = SIT_I(sbi)->tmp_map;
 	unsigned int start = 0, end = -1;
 	bool force = (cpc->reason == CP_DISCARD);
+	struct discard_entry *de = NULL;
+	struct list_head *head = &SM_I(sbi)->dcc_info->discard_entry_list;
 	int i;
 
 	if (se->valid_blocks == max_blocks || !f2fs_discard_en(sbi))
@@ -1110,7 +1086,17 @@ static bool add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc,
 		if (check_only)
 			return true;
 
-		__add_discard_entry(sbi, cpc, se, start, end);
+		if (!de) {
+			de = f2fs_kmem_cache_alloc(discard_entry_slab,
+								GFP_F2FS_ZERO);
+			de->start_blkaddr = START_BLOCK(sbi, cpc->trim_start);
+			list_add_tail(&de->list, head);
+		}
+
+		for (i = start; i < end; i++)
+			__set_bit_le(i, (void *)de->discard_map);
+
+		SM_I(sbi)->dcc_info->nr_discards += end - start;
 	}
 	return false;
 }
@@ -1196,13 +1182,35 @@ next:
 
 	/* send small discards */
 	list_for_each_entry_safe(entry, this, head, list) {
-		if (force && entry->len < cpc->trim_minlen)
-			goto skip;
-		f2fs_issue_discard(sbi, entry->blkaddr, entry->len);
-		cpc->trimmed += entry->len;
+		unsigned int cur_pos = 0, next_pos, len, total_len = 0;
+		bool is_valid = test_bit_le(0, entry->discard_map);
+
+find_next:
+		if (is_valid) {
+			next_pos = find_next_zero_bit_le(entry->discard_map,
+					sbi->blocks_per_seg, cur_pos);
+			len = next_pos - cur_pos;
+
+			if (force && len < cpc->trim_minlen)
+				goto skip;
+
+			f2fs_issue_discard(sbi, entry->start_blkaddr + cur_pos,
+									len);
+			cpc->trimmed += len;
+			total_len += len;
+		} else {
+			next_pos = find_next_bit_le(entry->discard_map,
+					sbi->blocks_per_seg, cur_pos);
+		}
 skip:
+		cur_pos = next_pos;
+		is_valid = !is_valid;
+
+		if (cur_pos < sbi->blocks_per_seg)
+			goto find_next;
+
 		list_del(&entry->list);
-		SM_I(sbi)->dcc_info->nr_discards -= entry->len;
+		SM_I(sbi)->dcc_info->nr_discards -= total_len;
 		kmem_cache_free(discard_entry_slab, entry);
 	}
 }
