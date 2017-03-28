@@ -556,6 +556,8 @@ static int gmc_v9_0_sw_init(void *handle)
 	/* This interrupt is VMC page fault.*/
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VMC, 0,
 				&adev->mc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_UTCL2, 0,
+				&adev->mc.vm_fault);
 
 	if (r)
 		return r;
