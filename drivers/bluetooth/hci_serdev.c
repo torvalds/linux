@@ -353,3 +353,4 @@ err_alloc:
 	p->close(hu);
 	return err;
 }
+EXPORT_SYMBOL_GPL(hci_uart_register_device);

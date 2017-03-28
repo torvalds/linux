@@ -134,6 +134,7 @@ int hci_uart_tx_wakeup(struct hci_uart *hu)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hci_uart_tx_wakeup);
 
 static void hci_uart_write_work(struct work_struct *work)
 {
