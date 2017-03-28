@@ -1538,12 +1538,12 @@ bool intel_dp_read_desc(struct intel_dp *intel_dp)
 	return true;
 }
 
-static int rate_to_index(int find, const int *rates)
+static int rate_to_index(const int *rates, int len, int rate)
 {
-	int i = 0;
+	int i;
 
-	for (i = 0; i < DP_MAX_SUPPORTED_RATES; ++i)
-		if (find == rates[i])
+	for (i = 0; i < len; i++)
+		if (rate == rates[i])
 			break;
 
 	return i;
@@ -1564,7 +1564,8 @@ intel_dp_max_link_rate(struct intel_dp *intel_dp)
 
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate)
 {
-	return rate_to_index(rate, intel_dp->sink_rates);
+	return rate_to_index(intel_dp->sink_rates, intel_dp->num_sink_rates,
+			     rate);
 }
 
 void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
