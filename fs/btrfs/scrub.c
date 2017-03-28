@@ -1331,7 +1331,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 		 * represents one mirror
 		 */
 		ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
-				logical, &mapped_length, &bbio, 0, 1);
+				logical, &mapped_length, &bbio);
 		if (ret || !bbio || mapped_length < sublen) {
 			btrfs_put_bbio(bbio);
 			return -EIO;
@@ -2192,7 +2192,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 	int i;
 
 	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
-			&length, &bbio, 0, 1);
+			&length, &bbio);
 	if (ret || !bbio || !bbio->raid_map)
 		goto bbio_out;
 
@@ -2780,7 +2780,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 
 	length = sparity->logic_end - sparity->logic_start;
 	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_WRITE, sparity->logic_start,
-			       &length, &bbio, 0, 1);
+			       &length, &bbio);
 	if (ret || !bbio || !bbio->raid_map)
 		goto bbio_out;
 

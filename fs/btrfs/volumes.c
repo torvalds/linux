@@ -5952,11 +5952,9 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 /* For Scrub/replace */
 int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
-		     struct btrfs_bio **bbio_ret, int mirror_num,
-		     int need_raid_map)
+		     struct btrfs_bio **bbio_ret)
 {
-	return __btrfs_map_block(fs_info, op, logical, length, bbio_ret,
-				 mirror_num, need_raid_map);
+	return __btrfs_map_block(fs_info, op, logical, length, bbio_ret, 0, 1);
 }
 
 int btrfs_rmap_block(struct btrfs_fs_info *fs_info,
