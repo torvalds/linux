@@ -92,6 +92,9 @@ struct hci_uart {
 
 	unsigned int init_speed;
 	unsigned int oper_speed;
+
+	u8			alignment;
+	u8			padding;
 };
 
 /* HCI_UART proto flag bits */
