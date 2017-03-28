@@ -40,6 +40,7 @@
 #include "xfs_fsmap.h"
 #include "xfs_refcount.h"
 #include "xfs_refcount_btree.h"
+#include "xfs_alloc_btree.h"
 
 /* Convert an xfs_fsmap to an fsmap. */
 void
@@ -157,6 +158,9 @@ xfs_fsmap_owner_from_rmap(
 		break;
 	case XFS_RMAP_OWN_COW:
 		dest->fmr_owner = XFS_FMR_OWN_COW;
+		break;
+	case XFS_RMAP_OWN_NULL:	/* "free" */
+		dest->fmr_owner = XFS_FMR_OWN_FREE;
 		break;
 	default:
 		return -EFSCORRUPTED;
@@ -360,6 +364,30 @@ xfs_getfsmap_datadev_helper(
 	rec_daddr = XFS_FSB_TO_DADDR(mp, fsb);
 
 	return xfs_getfsmap_helper(cur->bc_tp, info, rec, rec_daddr);
+}
+
+/* Transform a bnobt irec into a fsmap */
+STATIC int
+xfs_getfsmap_datadev_bnobt_helper(
+	struct xfs_btree_cur		*cur,
+	struct xfs_alloc_rec_incore	*rec,
+	void				*priv)
+{
+	struct xfs_mount		*mp = cur->bc_mp;
+	struct xfs_getfsmap_info	*info = priv;
+	struct xfs_rmap_irec		irec;
+	xfs_daddr_t			rec_daddr;
+
+	rec_daddr = XFS_AGB_TO_DADDR(mp, cur->bc_private.a.agno,
+			rec->ar_startblock);
+
+	irec.rm_startblock = rec->ar_startblock;
+	irec.rm_blockcount = rec->ar_blockcount;
+	irec.rm_owner = XFS_RMAP_OWN_NULL;	/* "free" */
+	irec.rm_offset = 0;
+	irec.rm_flags = 0;
+
+	return xfs_getfsmap_helper(cur->bc_tp, info, &irec, rec_daddr);
 }
 
 /* Set rmap flags based on the getfsmap flags */
@@ -572,6 +600,43 @@ xfs_getfsmap_datadev_rmapbt(
 			xfs_getfsmap_datadev_rmapbt_query, NULL);
 }
 
+/* Actually query the bno btree. */
+STATIC int
+xfs_getfsmap_datadev_bnobt_query(
+	struct xfs_trans		*tp,
+	struct xfs_getfsmap_info	*info,
+	struct xfs_btree_cur		**curpp,
+	void				*priv)
+{
+	struct xfs_alloc_rec_incore	*key = priv;
+
+	/* Report any gap at the end of the last AG. */
+	if (info->last)
+		return xfs_getfsmap_datadev_bnobt_helper(*curpp, &key[1], info);
+
+	/* Allocate cursor for this AG and query_range it. */
+	*curpp = xfs_allocbt_init_cursor(tp->t_mountp, tp, info->agf_bp,
+			info->agno, XFS_BTNUM_BNO);
+	key->ar_startblock = info->low.rm_startblock;
+	key[1].ar_startblock = info->high.rm_startblock;
+	return xfs_alloc_query_range(*curpp, key, &key[1],
+			xfs_getfsmap_datadev_bnobt_helper, info);
+}
+
+/* Execute a getfsmap query against the regular data device's bnobt. */
+STATIC int
+xfs_getfsmap_datadev_bnobt(
+	struct xfs_trans		*tp,
+	struct xfs_fsmap		*keys,
+	struct xfs_getfsmap_info	*info)
+{
+	struct xfs_alloc_rec_incore	akeys[2];
+
+	info->missing_owner = XFS_FMR_OWN_UNKNOWN;
+	return __xfs_getfsmap_datadev(tp, keys, info,
+			xfs_getfsmap_datadev_bnobt_query, &akeys[0]);
+}
+
 /* Do we recognize the device? */
 STATIC bool
 xfs_getfsmap_is_valid_device(
@@ -652,8 +717,6 @@ xfs_getfsmap(
 	int				i;
 	int				error = 0;
 
-	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
-		return -EOPNOTSUPP;
 	if (head->fmh_iflags & ~FMH_IF_VALID)
 		return -EINVAL;
 	if (!xfs_getfsmap_is_valid_device(mp, &head->fmh_keys[0]) ||
@@ -665,7 +728,10 @@ xfs_getfsmap(
 	/* Set up our device handlers. */
 	memset(handlers, 0, sizeof(handlers));
 	handlers[0].dev = new_encode_dev(mp->m_ddev_targp->bt_dev);
-	handlers[0].fn = xfs_getfsmap_datadev_rmapbt;
+	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
+		handlers[0].fn = xfs_getfsmap_datadev_rmapbt;
+	else
+		handlers[0].fn = xfs_getfsmap_datadev_bnobt;
 	if (mp->m_logdev_targp != mp->m_ddev_targp) {
 		handlers[1].dev = new_encode_dev(mp->m_logdev_targp->bt_dev);
 		handlers[1].fn = xfs_getfsmap_logdev;
