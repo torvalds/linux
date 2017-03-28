@@ -203,6 +203,7 @@
 #define HCLK_VCODEC		476
 #define HCLK_CPU		477
 #define HCLK_PERI		478
+#define HCLK_USB_PERI		479
 
 #define CLK_NR_CLKS		(HCLK_PERI + 1)
 
