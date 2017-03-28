@@ -2177,23 +2177,21 @@ static int gfx_v8_0_sw_init(void *handle)
 			return r;
 	}
 
-	if (amdgpu_sriov_vf(adev)) {
-		r = gfx_v8_0_kiq_init(adev);
-		if (r) {
-			DRM_ERROR("Failed to init KIQ BOs!\n");
-			return r;
-		}
-
-		kiq = &adev->gfx.kiq;
-		r = gfx_v8_0_kiq_init_ring(adev, &kiq->ring, &kiq->irq);
-		if (r)
-			return r;
-
-		/* create MQD for all compute queues as wel as KIQ for SRIOV case */
-		r = gfx_v8_0_compute_mqd_sw_init(adev);
-		if (r)
-			return r;
+	r = gfx_v8_0_kiq_init(adev);
+	if (r) {
+		DRM_ERROR("Failed to init KIQ BOs!\n");
+		return r;
 	}
+
+	kiq = &adev->gfx.kiq;
+	r = gfx_v8_0_kiq_init_ring(adev, &kiq->ring, &kiq->irq);
+	if (r)
+		return r;
+
+	/* create MQD for all compute queues as well as KIQ for SRIOV case */
+	r = gfx_v8_0_compute_mqd_sw_init(adev);
+	if (r)
+		return r;
 
 	/* reserve GDS, GWS and OA resource for gfx */
 	r = amdgpu_bo_create_kernel(adev, adev->gds.mem.gfx_partition_size,
@@ -2237,11 +2235,9 @@ static int gfx_v8_0_sw_fini(void *handle)
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
-	if (amdgpu_sriov_vf(adev)) {
-		gfx_v8_0_compute_mqd_sw_fini(adev);
-		gfx_v8_0_kiq_free_ring(&adev->gfx.kiq.ring, &adev->gfx.kiq.irq);
-		gfx_v8_0_kiq_fini(adev);
-	}
+	gfx_v8_0_compute_mqd_sw_fini(adev);
+	gfx_v8_0_kiq_free_ring(&adev->gfx.kiq.ring, &adev->gfx.kiq.irq);
+	gfx_v8_0_kiq_fini(adev);
 
 	gfx_v8_0_mec_fini(adev);
 	gfx_v8_0_rlc_fini(adev);
@@ -4628,29 +4624,6 @@ static int gfx_v8_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void gfx_v8_0_cp_compute_fini(struct amdgpu_device *adev)
-{
-	int i, r;
-
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
-
-		if (ring->mqd_obj) {
-			r = amdgpu_bo_reserve(ring->mqd_obj, false);
-			if (unlikely(r != 0))
-				dev_warn(adev->dev, "(%d) reserve MQD bo failed\n", r);
-
-			amdgpu_bo_unpin(ring->mqd_obj);
-			amdgpu_bo_unreserve(ring->mqd_obj);
-
-			amdgpu_bo_unref(&ring->mqd_obj);
-			ring->mqd_obj = NULL;
-			ring->mqd_ptr = NULL;
-			ring->mqd_gpu_addr = 0;
-		}
-	}
-}
-
 /* KIQ functions */
 static void gfx_v8_0_kiq_setting(struct amdgpu_ring *ring)
 {
@@ -4937,7 +4910,7 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 		mqd_idx = ring - &adev->gfx.compute_ring[0];
 	}
 
-	if (!adev->gfx.in_reset) {
+	if (!adev->gfx.in_reset && !adev->gfx.in_suspend) {
 		memset((void *)mqd, 0, sizeof(*mqd));
 		mutex_lock(&adev->srbm_mutex);
 		vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
@@ -5031,256 +5004,6 @@ done:
 	return r;
 }
 
-static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
-{
-	int r, i, j;
-	u32 tmp;
-	bool use_doorbell = true;
-	u64 hqd_gpu_addr;
-	u64 mqd_gpu_addr;
-	u64 eop_gpu_addr;
-	u64 wb_gpu_addr;
-	u32 *buf;
-	struct vi_mqd *mqd;
-
-	/* init the queues.  */
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
-
-		if (ring->mqd_obj == NULL) {
-			r = amdgpu_bo_create(adev,
-					     sizeof(struct vi_mqd),
-					     PAGE_SIZE, true,
-					     AMDGPU_GEM_DOMAIN_GTT, 0, NULL,
-					     NULL, &ring->mqd_obj);
-			if (r) {
-				dev_warn(adev->dev, "(%d) create MQD bo failed\n", r);
-				return r;
-			}
-		}
-
-		r = amdgpu_bo_reserve(ring->mqd_obj, false);
-		if (unlikely(r != 0)) {
-			gfx_v8_0_cp_compute_fini(adev);
-			return r;
-		}
-		r = amdgpu_bo_pin(ring->mqd_obj, AMDGPU_GEM_DOMAIN_GTT,
-				  &mqd_gpu_addr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) pin MQD bo failed\n", r);
-			gfx_v8_0_cp_compute_fini(adev);
-			return r;
-		}
-		r = amdgpu_bo_kmap(ring->mqd_obj, (void **)&buf);
-		if (r) {
-			dev_warn(adev->dev, "(%d) map MQD bo failed\n", r);
-			gfx_v8_0_cp_compute_fini(adev);
-			return r;
-		}
-
-		/* init the mqd struct */
-		memset(buf, 0, sizeof(struct vi_mqd));
-
-		mqd = (struct vi_mqd *)buf;
-		mqd->header = 0xC0310800;
-		mqd->compute_pipelinestat_enable = 0x00000001;
-		mqd->compute_static_thread_mgmt_se0 = 0xffffffff;
-		mqd->compute_static_thread_mgmt_se1 = 0xffffffff;
-		mqd->compute_static_thread_mgmt_se2 = 0xffffffff;
-		mqd->compute_static_thread_mgmt_se3 = 0xffffffff;
-		mqd->compute_misc_reserved = 0x00000003;
-
-		mutex_lock(&adev->srbm_mutex);
-		vi_srbm_select(adev, ring->me,
-			       ring->pipe,
-			       ring->queue, 0);
-
-		eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr + (i * MEC_HPD_SIZE);
-		eop_gpu_addr >>= 8;
-
-		/* write the EOP addr */
-		WREG32(mmCP_HQD_EOP_BASE_ADDR, eop_gpu_addr);
-		WREG32(mmCP_HQD_EOP_BASE_ADDR_HI, upper_32_bits(eop_gpu_addr));
-
-		/* set the VMID assigned */
-		WREG32(mmCP_HQD_VMID, 0);
-
-		/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
-		tmp = RREG32(mmCP_HQD_EOP_CONTROL);
-		tmp = REG_SET_FIELD(tmp, CP_HQD_EOP_CONTROL, EOP_SIZE,
-				    (order_base_2(MEC_HPD_SIZE / 4) - 1));
-		WREG32(mmCP_HQD_EOP_CONTROL, tmp);
-
-		/* disable wptr polling */
-		tmp = RREG32(mmCP_PQ_WPTR_POLL_CNTL);
-		tmp = REG_SET_FIELD(tmp, CP_PQ_WPTR_POLL_CNTL, EN, 0);
-		WREG32(mmCP_PQ_WPTR_POLL_CNTL, tmp);
-
-		mqd->cp_hqd_eop_base_addr_lo =
-			RREG32(mmCP_HQD_EOP_BASE_ADDR);
-		mqd->cp_hqd_eop_base_addr_hi =
-			RREG32(mmCP_HQD_EOP_BASE_ADDR_HI);
-
-		/* enable doorbell? */
-		tmp = RREG32(mmCP_HQD_PQ_DOORBELL_CONTROL);
-		if (use_doorbell) {
-			tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_EN, 1);
-		} else {
-			tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_EN, 0);
-		}
-		WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, tmp);
-		mqd->cp_hqd_pq_doorbell_control = tmp;
-
-		/* disable the queue if it's active */
-		mqd->cp_hqd_dequeue_request = 0;
-		mqd->cp_hqd_pq_rptr = 0;
-		mqd->cp_hqd_pq_wptr= 0;
-		if (RREG32(mmCP_HQD_ACTIVE) & 1) {
-			WREG32(mmCP_HQD_DEQUEUE_REQUEST, 1);
-			for (j = 0; j < adev->usec_timeout; j++) {
-				if (!(RREG32(mmCP_HQD_ACTIVE) & 1))
-					break;
-				udelay(1);
-			}
-			WREG32(mmCP_HQD_DEQUEUE_REQUEST, mqd->cp_hqd_dequeue_request);
-			WREG32(mmCP_HQD_PQ_RPTR, mqd->cp_hqd_pq_rptr);
-			WREG32(mmCP_HQD_PQ_WPTR, mqd->cp_hqd_pq_wptr);
-		}
-
-		/* set the pointer to the MQD */
-		mqd->cp_mqd_base_addr_lo = mqd_gpu_addr & 0xfffffffc;
-		mqd->cp_mqd_base_addr_hi = upper_32_bits(mqd_gpu_addr);
-		WREG32(mmCP_MQD_BASE_ADDR, mqd->cp_mqd_base_addr_lo);
-		WREG32(mmCP_MQD_BASE_ADDR_HI, mqd->cp_mqd_base_addr_hi);
-
-		/* set MQD vmid to 0 */
-		tmp = RREG32(mmCP_MQD_CONTROL);
-		tmp = REG_SET_FIELD(tmp, CP_MQD_CONTROL, VMID, 0);
-		WREG32(mmCP_MQD_CONTROL, tmp);
-		mqd->cp_mqd_control = tmp;
-
-		/* set the pointer to the HQD, this is similar CP_RB0_BASE/_HI */
-		hqd_gpu_addr = ring->gpu_addr >> 8;
-		mqd->cp_hqd_pq_base_lo = hqd_gpu_addr;
-		mqd->cp_hqd_pq_base_hi = upper_32_bits(hqd_gpu_addr);
-		WREG32(mmCP_HQD_PQ_BASE, mqd->cp_hqd_pq_base_lo);
-		WREG32(mmCP_HQD_PQ_BASE_HI, mqd->cp_hqd_pq_base_hi);
-
-		/* set up the HQD, this is similar to CP_RB0_CNTL */
-		tmp = RREG32(mmCP_HQD_PQ_CONTROL);
-		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, QUEUE_SIZE,
-				    (order_base_2(ring->ring_size / 4) - 1));
-		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, RPTR_BLOCK_SIZE,
-			       ((order_base_2(AMDGPU_GPU_PAGE_SIZE / 4) - 1) << 8));
-#ifdef __BIG_ENDIAN
-		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, ENDIAN_SWAP, 1);
-#endif
-		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, UNORD_DISPATCH, 0);
-		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, ROQ_PQ_IB_FLIP, 0);
-		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, PRIV_STATE, 1);
-		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, KMD_QUEUE, 1);
-		WREG32(mmCP_HQD_PQ_CONTROL, tmp);
-		mqd->cp_hqd_pq_control = tmp;
-
-		/* set the wb address wether it's enabled or not */
-		wb_gpu_addr = adev->wb.gpu_addr + (ring->rptr_offs * 4);
-		mqd->cp_hqd_pq_rptr_report_addr_lo = wb_gpu_addr & 0xfffffffc;
-		mqd->cp_hqd_pq_rptr_report_addr_hi =
-			upper_32_bits(wb_gpu_addr) & 0xffff;
-		WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR,
-		       mqd->cp_hqd_pq_rptr_report_addr_lo);
-		WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI,
-		       mqd->cp_hqd_pq_rptr_report_addr_hi);
-
-		/* only used if CP_PQ_WPTR_POLL_CNTL.CP_PQ_WPTR_POLL_CNTL__EN_MASK=1 */
-		wb_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
-		mqd->cp_hqd_pq_wptr_poll_addr_lo = wb_gpu_addr & 0xfffffffc;
-		mqd->cp_hqd_pq_wptr_poll_addr_hi = upper_32_bits(wb_gpu_addr) & 0xffff;
-		WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR, mqd->cp_hqd_pq_wptr_poll_addr_lo);
-		WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR_HI,
-		       mqd->cp_hqd_pq_wptr_poll_addr_hi);
-
-		/* enable the doorbell if requested */
-		if (use_doorbell) {
-			if ((adev->asic_type == CHIP_CARRIZO) ||
-			    (adev->asic_type == CHIP_FIJI) ||
-			    (adev->asic_type == CHIP_STONEY) ||
-			    (adev->asic_type == CHIP_POLARIS11) ||
-			    (adev->asic_type == CHIP_POLARIS10) ||
-			    (adev->asic_type == CHIP_POLARIS12)) {
-				WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER,
-				       AMDGPU_DOORBELL_KIQ << 2);
-				WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER,
-				       AMDGPU_DOORBELL_MEC_RING7 << 2);
-			}
-			tmp = RREG32(mmCP_HQD_PQ_DOORBELL_CONTROL);
-			tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL,
-					    DOORBELL_OFFSET, ring->doorbell_index);
-			tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_EN, 1);
-			tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_SOURCE, 0);
-			tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_HIT, 0);
-			mqd->cp_hqd_pq_doorbell_control = tmp;
-
-		} else {
-			mqd->cp_hqd_pq_doorbell_control = 0;
-		}
-		WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL,
-		       mqd->cp_hqd_pq_doorbell_control);
-
-		/* reset read and write pointers, similar to CP_RB0_WPTR/_RPTR */
-		ring->wptr = 0;
-		mqd->cp_hqd_pq_wptr = lower_32_bits(ring->wptr);
-		WREG32(mmCP_HQD_PQ_WPTR, mqd->cp_hqd_pq_wptr);
-		mqd->cp_hqd_pq_rptr = RREG32(mmCP_HQD_PQ_RPTR);
-
-		/* set the vmid for the queue */
-		mqd->cp_hqd_vmid = 0;
-		WREG32(mmCP_HQD_VMID, mqd->cp_hqd_vmid);
-
-		tmp = RREG32(mmCP_HQD_PERSISTENT_STATE);
-		tmp = REG_SET_FIELD(tmp, CP_HQD_PERSISTENT_STATE, PRELOAD_SIZE, 0x53);
-		WREG32(mmCP_HQD_PERSISTENT_STATE, tmp);
-		mqd->cp_hqd_persistent_state = tmp;
-		if (adev->asic_type == CHIP_STONEY ||
-			adev->asic_type == CHIP_POLARIS11 ||
-			adev->asic_type == CHIP_POLARIS10 ||
-			adev->asic_type == CHIP_POLARIS12) {
-			tmp = RREG32(mmCP_ME1_PIPE3_INT_CNTL);
-			tmp = REG_SET_FIELD(tmp, CP_ME1_PIPE3_INT_CNTL, GENERIC2_INT_ENABLE, 1);
-			WREG32(mmCP_ME1_PIPE3_INT_CNTL, tmp);
-		}
-
-		/* activate the queue */
-		mqd->cp_hqd_active = 1;
-		WREG32(mmCP_HQD_ACTIVE, mqd->cp_hqd_active);
-
-		vi_srbm_select(adev, 0, 0, 0, 0);
-		mutex_unlock(&adev->srbm_mutex);
-
-		amdgpu_bo_kunmap(ring->mqd_obj);
-		amdgpu_bo_unreserve(ring->mqd_obj);
-	}
-
-	if (use_doorbell) {
-		tmp = RREG32(mmCP_PQ_STATUS);
-		tmp = REG_SET_FIELD(tmp, CP_PQ_STATUS, DOORBELL_ENABLE, 1);
-		WREG32(mmCP_PQ_STATUS, tmp);
-	}
-
-	gfx_v8_0_cp_compute_enable(adev, true);
-
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
-
-		ring->ready = true;
-		r = amdgpu_ring_test_ring(ring);
-		if (r)
-			ring->ready = false;
-	}
-
-	return 0;
-}
-
 static int gfx_v8_0_cp_resume(struct amdgpu_device *adev)
 {
 	int r;
@@ -5331,10 +5054,7 @@ static int gfx_v8_0_cp_resume(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	if (amdgpu_sriov_vf(adev))
-		r = gfx_v8_0_kiq_resume(adev);
-	else
-		r = gfx_v8_0_cp_compute_resume(adev);
+	r = gfx_v8_0_kiq_resume(adev);
 	if (r)
 		return r;
 
@@ -5378,7 +5098,6 @@ static int gfx_v8_0_hw_fini(void *handle)
 	}
 	gfx_v8_0_cp_enable(adev, false);
 	gfx_v8_0_rlc_stop(adev);
-	gfx_v8_0_cp_compute_fini(adev);
 
 	amdgpu_set_powergating_state(adev,
 			AMD_IP_BLOCK_TYPE_GFX, AMD_PG_STATE_UNGATE);
@@ -5389,15 +5108,18 @@ static int gfx_v8_0_hw_fini(void *handle)
 static int gfx_v8_0_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
+	adev->gfx.in_suspend = true;
 	return gfx_v8_0_hw_fini(adev);
 }
 
 static int gfx_v8_0_resume(void *handle)
 {
+	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	return gfx_v8_0_hw_init(adev);
+	r = gfx_v8_0_hw_init(adev);
+	adev->gfx.in_suspend = false;
+	return r;
 }
 
 static bool gfx_v8_0_is_idle(void *handle)
@@ -5644,7 +5366,7 @@ static int gfx_v8_0_post_soft_reset(void *handle)
 
 			gfx_v8_0_init_hqd(adev, ring);
 		}
-		gfx_v8_0_cp_compute_resume(adev);
+		gfx_v8_0_kiq_resume(adev);
 	}
 	gfx_v8_0_rlc_start(adev);
 
