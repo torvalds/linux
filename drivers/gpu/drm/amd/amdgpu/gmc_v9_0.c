@@ -131,7 +131,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 {
 	struct amdgpu_vmhub *gfxhub = &adev->vmhub[AMDGPU_GFXHUB];
 	struct amdgpu_vmhub *mmhub = &adev->vmhub[AMDGPU_MMHUB];
-	uint32_t status;
+	uint32_t status = 0;
 	u64 addr;
 
 	addr = (u64)entry->src_data[0] << 12;
@@ -145,19 +145,20 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			status = RREG32(gfxhub->vm_l2_pro_fault_status);
 			WREG32_P(gfxhub->vm_l2_pro_fault_cntl, 1, ~1);
 		}
+	}
 
-		DRM_ERROR("[%s]VMC page fault (src_id:%u ring:%u vm_id:%u pas_id:%u) "
-		  "at page 0x%016llx from %d\n"
-		  "VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
-		  entry->vm_id_src ? "mmhub" : "gfxhub",
-		  entry->src_id, entry->ring_id, entry->vm_id, entry->pas_id,
-		  addr, entry->client_id, status);
-	} else {
-		DRM_ERROR("[%s]VMC page fault (src_id:%u ring:%u vm_id:%u pas_id:%u) "
-		  "at page 0x%016llx from %d\n",
-		  entry->vm_id_src ? "mmhub" : "gfxhub",
-		  entry->src_id, entry->ring_id, entry->vm_id, entry->pas_id,
-		  addr, entry->client_id);
+	if (printk_ratelimit()) {
+		dev_err(adev->dev,
+			"[%s] VMC page fault (src_id:%u ring:%u vm_id:%u pas_id:%u)\n",
+			entry->vm_id_src ? "mmhub" : "gfxhub",
+			entry->src_id, entry->ring_id, entry->vm_id,
+			entry->pas_id);
+		dev_err(adev->dev, "  at page 0x%016llx from %d\n",
+			addr, entry->client_id);
+		if (!amdgpu_sriov_vf(adev))
+			dev_err(adev->dev,
+				"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
+				status);
 	}
 
 	return 0;
