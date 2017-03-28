@@ -165,6 +165,7 @@ static int tegra_flowctrl_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id tegra_flowctrl_match[] = {
+	{ .compatible = "nvidia,tegra210-flowctrl" },
 	{ .compatible = "nvidia,tegra124-flowctrl" },
 	{ .compatible = "nvidia,tegra114-flowctrl" },
 	{ .compatible = "nvidia,tegra30-flowctrl" },
@@ -184,9 +185,7 @@ builtin_platform_driver(tegra_flowctrl_driver);
 
 static int __init tegra_flowctrl_init(void)
 {
-	/* hardcoded fallback if device tree node is missing */
-	unsigned long base = 0x60007000;
-	unsigned long size = SZ_4K;
+	struct resource res;
 	struct device_node *np;
 
 	if (!soc_is_tegra())
@@ -194,17 +193,29 @@ static int __init tegra_flowctrl_init(void)
 
 	np = of_find_matching_node(NULL, tegra_flowctrl_match);
 	if (np) {
-		struct resource res;
-
-		if (of_address_to_resource(np, 0, &res) == 0) {
-			size = resource_size(&res);
-			base = res.start;
+		if (of_address_to_resource(np, 0, &res) < 0) {
+			pr_err("failed to get flowctrl register\n");
+			return -ENXIO;
 		}
-
 		of_node_put(np);
+	} else if (IS_ENABLED(CONFIG_ARM)) {
+		/*
+		 * Hardcoded fallback for 32-bit Tegra
+		 * devices if device tree node is missing.
+		 */
+		res.start = 0x60007000;
+		res.end = 0x60007fff;
+		res.flags = IORESOURCE_MEM;
+	} else {
+		/*
+		 * At this point we're running on a Tegra,
+		 * that doesn't support the flow controller
+		 * (eg. Tegra186), so just return.
+		 */
+		return 0;
 	}
 
-	tegra_flowctrl_base = ioremap_nocache(base, size);
+	tegra_flowctrl_base = ioremap_nocache(res.start, resource_size(&res));
 	if (!tegra_flowctrl_base)
 		return -ENXIO;
 

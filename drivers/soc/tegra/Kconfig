@@ -63,6 +63,7 @@ if ARM64
 config ARCH_TEGRA_132_SOC
 	bool "NVIDIA Tegra132 SoC"
 	select PINCTRL_TEGRA124
+	select SOC_TEGRA_FLOWCTRL
 	select SOC_TEGRA_PMC
 	help
 	  Enable support for NVIDIA Tegra132 SoC, based on the Denver
@@ -73,6 +74,7 @@ config ARCH_TEGRA_132_SOC
 config ARCH_TEGRA_210_SOC
 	bool "NVIDIA Tegra210 SoC"
 	select PINCTRL_TEGRA210
+	select SOC_TEGRA_FLOWCTRL
 	select SOC_TEGRA_PMC
 	help
 	  Enable support for the NVIDIA Tegra210 SoC. Also known as Tegra X1,
