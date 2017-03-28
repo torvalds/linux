@@ -1,8 +1,10 @@
 #include <string.h>
+#include <regex.h>
 
 #include "../../perf.h"
 #include "../../util/util.h"
 #include "../../util/perf_regs.h"
+#include "../../util/debug.h"
 
 const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(AX, PERF_REG_X86_AX),
@@ -37,7 +39,7 @@ struct sdt_name_reg {
 #define SDT_NAME_REG(n, m) {.sdt_name = "%" #n, .uprobe_name = "%" #m}
 #define SDT_NAME_REG_END {.sdt_name = NULL, .uprobe_name = NULL}
 
-static const struct sdt_name_reg sdt_reg_renamings[] = {
+static const struct sdt_name_reg sdt_reg_tbl[] = {
 	SDT_NAME_REG(eax, ax),
 	SDT_NAME_REG(rax, ax),
 	SDT_NAME_REG(al,  ax),
@@ -95,45 +97,158 @@ static const struct sdt_name_reg sdt_reg_renamings[] = {
 	SDT_NAME_REG_END,
 };
 
-int sdt_rename_register(char **pdesc, char *old_name)
+/*
+ * Perf only supports OP which is in  +/-NUM(REG)  form.
+ * Here plus-minus sign, NUM and parenthesis are optional,
+ * only REG is mandatory.
+ *
+ * SDT events also supports indirect addressing mode with a
+ * symbol as offset, scaled mode and constants in OP. But
+ * perf does not support them yet. Below are few examples.
+ *
+ * OP with scaled mode:
+ *     (%rax,%rsi,8)
+ *     10(%ras,%rsi,8)
+ *
+ * OP with indirect addressing mode:
+ *     check_action(%rip)
+ *     mp_+52(%rip)
+ *     44+mp_(%rip)
+ *
+ * OP with constant values:
+ *     $0
+ *     $123
+ *     $-1
+ */
+#define SDT_OP_REGEX  "^([+\\-]?)([0-9]*)(\\(?)(%[a-z][a-z0-9]+)(\\)?)$"
+
+static regex_t sdt_op_regex;
+
+static int sdt_init_op_regex(void)
 {
-	const struct sdt_name_reg *rnames = sdt_reg_renamings;
-	char *new_desc, *old_desc = *pdesc;
-	size_t prefix_len, sdt_len, uprobe_len, old_desc_len, offset;
-	int ret = -1;
+	static int initialized;
+	int ret = 0;
 
-	while (ret != 0 && rnames->sdt_name != NULL) {
-		sdt_len = strlen(rnames->sdt_name);
-		ret = strncmp(old_name, rnames->sdt_name, sdt_len);
-		rnames += !!ret;
-	}
-
-	if (rnames->sdt_name == NULL)
+	if (initialized)
 		return 0;
 
-	sdt_len = strlen(rnames->sdt_name);
-	uprobe_len = strlen(rnames->uprobe_name);
-	old_desc_len = strlen(old_desc) + 1;
+	ret = regcomp(&sdt_op_regex, SDT_OP_REGEX, REG_EXTENDED);
+	if (ret < 0) {
+		pr_debug4("Regex compilation error.\n");
+		return ret;
+	}
 
-	new_desc = zalloc(old_desc_len + uprobe_len - sdt_len);
-	if (new_desc == NULL)
-		return -1;
-
-	/* Copy the chars before the register name (at least '%') */
-	prefix_len = old_name - old_desc;
-	memcpy(new_desc, old_desc, prefix_len);
-
-	/* Copy the new register name */
-	memcpy(new_desc + prefix_len, rnames->uprobe_name, uprobe_len);
-
-	/* Copy the chars after the register name (if need be) */
-	offset = prefix_len + sdt_len;
-	if (offset < old_desc_len)
-		memcpy(new_desc + prefix_len + uprobe_len,
-			old_desc + offset, old_desc_len - offset);
-
-	free(old_desc);
-	*pdesc = new_desc;
-
+	initialized = 1;
 	return 0;
+}
+
+/*
+ * Max x86 register name length is 5(ex: %r15d). So, 6th char
+ * should always contain NULL. This helps to find register name
+ * length using strlen, insted of maintaing one more variable.
+ */
+#define SDT_REG_NAME_SIZE  6
+
+/*
+ * The uprobe parser does not support all gas register names;
+ * so, we have to replace them (ex. for x86_64: %rax -> %ax).
+ * Note: If register does not require renaming, just copy
+ * paste as it is, but don't leave it empty.
+ */
+static void sdt_rename_register(char *sdt_reg, int sdt_len, char *uprobe_reg)
+{
+	int i = 0;
+
+	for (i = 0; sdt_reg_tbl[i].sdt_name != NULL; i++) {
+		if (!strncmp(sdt_reg_tbl[i].sdt_name, sdt_reg, sdt_len)) {
+			strcpy(uprobe_reg, sdt_reg_tbl[i].uprobe_name);
+			return;
+		}
+	}
+
+	strncpy(uprobe_reg, sdt_reg, sdt_len);
+}
+
+int arch_sdt_arg_parse_op(char *old_op, char **new_op)
+{
+	char new_reg[SDT_REG_NAME_SIZE] = {0};
+	int new_len = 0, ret;
+	/*
+	 * rm[0]:  +/-NUM(REG)
+	 * rm[1]:  +/-
+	 * rm[2]:  NUM
+	 * rm[3]:  (
+	 * rm[4]:  REG
+	 * rm[5]:  )
+	 */
+	regmatch_t rm[6];
+	/*
+	 * Max prefix length is 2 as it may contains sign(+/-)
+	 * and displacement 0 (Both sign and displacement 0 are
+	 * optional so it may be empty). Use one more character
+	 * to hold last NULL so that strlen can be used to find
+	 * prefix length, instead of maintaing one more variable.
+	 */
+	char prefix[3] = {0};
+
+	ret = sdt_init_op_regex();
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * If unsupported OR does not match with regex OR
+	 * register name too long, skip it.
+	 */
+	if (strchr(old_op, ',') || strchr(old_op, '$') ||
+	    regexec(&sdt_op_regex, old_op, 6, rm, 0)   ||
+	    rm[4].rm_eo - rm[4].rm_so > SDT_REG_NAME_SIZE) {
+		pr_debug4("Skipping unsupported SDT argument: %s\n", old_op);
+		return SDT_ARG_SKIP;
+	}
+
+	/*
+	 * Prepare prefix.
+	 * If SDT OP has parenthesis but does not provide
+	 * displacement, add 0 for displacement.
+	 *     SDT         Uprobe     Prefix
+	 *     -----------------------------
+	 *     +24(%rdi)   +24(%di)   +
+	 *     24(%rdi)    +24(%di)   +
+	 *     %rdi        %di
+	 *     (%rdi)      +0(%di)    +0
+	 *     -80(%rbx)   -80(%bx)   -
+	 */
+	if (rm[3].rm_so != rm[3].rm_eo) {
+		if (rm[1].rm_so != rm[1].rm_eo)
+			prefix[0] = *(old_op + rm[1].rm_so);
+		else if (rm[2].rm_so != rm[2].rm_eo)
+			prefix[0] = '+';
+		else
+			strncpy(prefix, "+0", 2);
+	}
+
+	/* Rename register */
+	sdt_rename_register(old_op + rm[4].rm_so, rm[4].rm_eo - rm[4].rm_so,
+			    new_reg);
+
+	/* Prepare final OP which should be valid for uprobe_events */
+	new_len = strlen(prefix)              +
+		  (rm[2].rm_eo - rm[2].rm_so) +
+		  (rm[3].rm_eo - rm[3].rm_so) +
+		  strlen(new_reg)             +
+		  (rm[5].rm_eo - rm[5].rm_so) +
+		  1;					/* NULL */
+
+	*new_op = zalloc(new_len);
+	if (!*new_op)
+		return -ENOMEM;
+
+	scnprintf(*new_op, new_len, "%.*s%.*s%.*s%.*s%.*s",
+		  strlen(prefix), prefix,
+		  (int)(rm[2].rm_eo - rm[2].rm_so), old_op + rm[2].rm_so,
+		  (int)(rm[3].rm_eo - rm[3].rm_so), old_op + rm[3].rm_so,
+		  strlen(new_reg), new_reg,
+		  (int)(rm[5].rm_eo - rm[5].rm_so), old_op + rm[5].rm_so);
+
+	return SDT_ARG_VALID;
 }

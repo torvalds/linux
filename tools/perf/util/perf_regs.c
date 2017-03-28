@@ -6,10 +6,10 @@ const struct sample_reg __weak sample_reg_masks[] = {
 	SMPL_REG_END
 };
 
-int __weak sdt_rename_register(char **pdesc __maybe_unused,
-			char *old_name __maybe_unused)
+int __weak arch_sdt_arg_parse_op(char *old_op __maybe_unused,
+				 char **new_op __maybe_unused)
 {
-	return 0;
+	return SDT_ARG_SKIP;
 }
 
 #ifdef HAVE_PERF_REGS_SUPPORT

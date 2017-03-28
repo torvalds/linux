@@ -694,10 +694,29 @@ static const char * const type_to_suffix[] = {
 	"", ":u8", ":u16", "", ":u32", "", "", "", ":u64"
 };
 
+/*
+ * Isolate the string number and convert it into a decimal value;
+ * this will be an index to get suffix of the uprobe name (defining
+ * the type)
+ */
+static int sdt_arg_parse_size(char *n_ptr, const char **suffix)
+{
+	long type_idx;
+
+	type_idx = strtol(n_ptr, NULL, 10);
+	if (type_idx < -8 || type_idx > 8) {
+		pr_debug4("Failed to get a valid sdt type\n");
+		return -1;
+	}
+
+	*suffix = type_to_suffix[type_idx + 8];
+	return 0;
+}
+
 static int synthesize_sdt_probe_arg(struct strbuf *buf, int i, const char *arg)
 {
-	char *tmp, *desc = strdup(arg);
-	const char *prefix = "", *suffix = "";
+	char *op, *desc = strdup(arg), *new_op = NULL;
+	const char *suffix = "";
 	int ret = -1;
 
 	if (desc == NULL) {
@@ -705,112 +724,37 @@ static int synthesize_sdt_probe_arg(struct strbuf *buf, int i, const char *arg)
 		return ret;
 	}
 
-	tmp = strchr(desc, '@');
-	if (tmp) {
-		long type_idx;
-		/*
-		 * Isolate the string number and convert it into a
-		 * binary value; this will be an index to get suffix
-		 * of the uprobe name (defining the type)
-		 */
-		tmp[0] = '\0';
-		type_idx = strtol(desc, NULL, 10);
-		/* Check that the conversion went OK */
-		if (type_idx == LONG_MIN || type_idx == LONG_MAX) {
-			pr_debug4("Failed to parse sdt type\n");
+	/*
+	 * Argument is in N@OP format. N is size of the argument and OP is
+	 * the actual assembly operand. N can be omitted; in that case
+	 * argument is just OP(without @).
+	 */
+	op = strchr(desc, '@');
+	if (op) {
+		op[0] = '\0';
+		op++;
+
+		if (sdt_arg_parse_size(desc, &suffix))
 			goto error;
-		}
-		/* Check that the converted value is OK */
-		if (type_idx < -8 || type_idx > 8) {
-			pr_debug4("Failed to get a valid sdt type\n");
-			goto error;
-		}
-		suffix = type_to_suffix[type_idx + 8];
-		/* Get rid of the sdt prefix which is now useless */
-		tmp++;
-		memmove(desc, tmp, strlen(tmp) + 1);
+	} else {
+		op = desc;
 	}
 
-	/*
-	 * The uprobe tracer format does not support all the
-	 * addressing modes (notably: in x86 the scaled mode); so, we
-	 * detect ',' characters, if there is just one, there is no
-	 * use converting the sdt arg into a uprobe one.
-	 */
-	if (strchr(desc, ',')) {
-		pr_debug4("Skipping unsupported SDT argument; %s\n", desc);
-		goto out;
-	}
+	ret = arch_sdt_arg_parse_op(op, &new_op);
 
-	/*
-	 * If the argument addressing mode is indirect, we must check
-	 * a few things...
-	 */
-	tmp = strchr(desc, '(');
-	if (tmp) {
-		int j;
-
-		/*
-		 * ...if the addressing mode is indirect with a
-		 * positive offset (ex.: "1608(%ax)"), we need to add
-		 * a '+' prefix so as to be compliant with uprobe
-		 * format.
-		 */
-		if (desc[0] != '+' && desc[0] != '-')
-			prefix = "+";
-
-		/*
-		 * ...or if the addressing mode is indirect with a symbol
-		 * as offset, the argument will not be supported by
-		 * the uprobe tracer format; so, let's skip this one.
-		 */
-		for (j = 0; j < tmp - desc; j++) {
-			if (desc[j] != '+' && desc[j] != '-' &&
-				!isdigit(desc[j])) {
-				pr_debug4("Skipping unsupported SDT argument; "
-					"%s\n", desc);
-				goto out;
-			}
-		}
-	}
-
-	/*
-	 * The uprobe tracer format does not support constants; if we
-	 * find one in the current argument, let's skip the argument.
-	 */
-	if (strchr(desc, '$')) {
-		pr_debug4("Skipping unsupported SDT argument; %s\n", desc);
-		goto out;
-	}
-
-	/*
-	 * The uprobe parser does not support all gas register names;
-	 * so, we have to replace them (ex. for x86_64: %rax -> %ax);
-	 * the loop below looks for the register names (starting with
-	 * a '%' and tries to perform the needed renamings.
-	 */
-	tmp = strchr(desc, '%');
-	while (tmp) {
-		size_t offset = tmp - desc;
-
-		ret = sdt_rename_register(&desc, desc + offset);
-		if (ret < 0)
-			goto error;
-
-		/*
-		 * The desc pointer might have changed; so, let's not
-		 * try to reuse tmp for next lookup
-		 */
-		tmp = strchr(desc + offset + 1, '%');
-	}
-
-	if (strbuf_addf(buf, " arg%d=%s%s%s", i + 1, prefix, desc, suffix) < 0)
+	if (ret < 0)
 		goto error;
 
-out:
+	if (ret == SDT_ARG_VALID) {
+		ret = strbuf_addf(buf, " arg%d=%s%s", i + 1, new_op, suffix);
+		if (ret < 0)
+			goto error;
+	}
+
 	ret = 0;
 error:
 	free(desc);
+	free(new_op);
 	return ret;
 }
 
