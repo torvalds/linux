@@ -266,6 +266,18 @@ static int intersect_rates(const int *source_rates, int source_len,
 	return k;
 }
 
+/* return index of rate in rates array, or -1 if not found */
+static int intel_dp_rate_index(const int *rates, int len, int rate)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		if (rate == rates[i])
+			return i;
+
+	return -1;
+}
+
 static int intel_dp_common_rates(struct intel_dp *intel_dp,
 				 int *common_rates)
 {
@@ -284,15 +296,10 @@ static int intel_dp_link_rate_index(struct intel_dp *intel_dp,
 				    int *common_rates, int link_rate)
 {
 	int common_len;
-	int index;
 
 	common_len = intel_dp_common_rates(intel_dp, common_rates);
-	for (index = 0; index < common_len; index++) {
-		if (link_rate == common_rates[common_len - index - 1])
-			return common_len - index - 1;
-	}
 
-	return -1;
+	return intel_dp_rate_index(common_rates, common_len, link_rate);
 }
 
 int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
@@ -1538,17 +1545,6 @@ bool intel_dp_read_desc(struct intel_dp *intel_dp)
 	return true;
 }
 
-static int rate_to_index(const int *rates, int len, int rate)
-{
-	int i;
-
-	for (i = 0; i < len; i++)
-		if (rate == rates[i])
-			return i;
-
-	return -1;
-}
-
 int
 intel_dp_max_link_rate(struct intel_dp *intel_dp)
 {
@@ -1564,8 +1560,8 @@ intel_dp_max_link_rate(struct intel_dp *intel_dp)
 
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate)
 {
-	int i = rate_to_index(intel_dp->sink_rates, intel_dp->num_sink_rates,
-			      rate);
+	int i = intel_dp_rate_index(intel_dp->sink_rates,
+				    intel_dp->num_sink_rates, rate);
 
 	if (WARN_ON(i < 0))
 		i = 0;
