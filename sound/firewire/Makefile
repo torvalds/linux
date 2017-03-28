@@ -13,3 +13,4 @@ obj-$(CONFIG_SND_FIREWORKS) += fireworks/
 obj-$(CONFIG_SND_BEBOB) += bebob/
 obj-$(CONFIG_SND_FIREWIRE_DIGI00X) += digi00x/
 obj-$(CONFIG_SND_FIREWIRE_TASCAM) += tascam/
+obj-$(CONFIG_SND_FIREWIRE_MOTU) += motu/

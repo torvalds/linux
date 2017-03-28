@@ -37,6 +37,8 @@
 #define CIP_SID_MASK		0x3f000000
 #define CIP_DBS_MASK		0x00ff0000
 #define CIP_DBS_SHIFT		16
+#define CIP_SPH_MASK		0x00000400
+#define CIP_SPH_SHIFT		10
 #define CIP_DBC_MASK		0x000000ff
 #define CIP_FMT_SHIFT		24
 #define CIP_FMT_MASK		0x3f000000
@@ -424,15 +426,22 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
 	data_blocks = calculate_data_blocks(s, syt);
 	pcm_frames = s->process_data_blocks(s, buffer + 2, data_blocks, &syt);
 
+	if (s->flags & CIP_DBC_IS_END_EVENT)
+		s->data_block_counter =
+				(s->data_block_counter + data_blocks) & 0xff;
+
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
 				(s->data_block_quadlets << CIP_DBS_SHIFT) |
+				((s->sph << CIP_SPH_SHIFT) & CIP_SPH_MASK) |
 				s->data_block_counter);
 	buffer[1] = cpu_to_be32(CIP_EOH |
 				((s->fmt << CIP_FMT_SHIFT) & CIP_FMT_MASK) |
 				((s->fdf << CIP_FDF_SHIFT) & CIP_FDF_MASK) |
 				(syt & CIP_SYT_MASK));
 
-	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
+	if (!(s->flags & CIP_DBC_IS_END_EVENT))
+		s->data_block_counter =
+				(s->data_block_counter + data_blocks) & 0xff;
 	payload_length = 8 + data_blocks * 4 * s->data_block_quadlets;
 
 	trace_out_packet(s, cycle, buffer, payload_length, index);
@@ -454,7 +463,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 {
 	__be32 *buffer;
 	u32 cip_header[2];
-	unsigned int fmt, fdf, syt;
+	unsigned int sph, fmt, fdf, syt;
 	unsigned int data_block_quadlets, data_block_counter, dbc_interval;
 	unsigned int data_blocks;
 	struct snd_pcm_substream *pcm;
@@ -471,8 +480,9 @@ static int handle_in_packet(struct amdtp_stream *s,
 	 * This module supports 'Two-quadlet CIP header with SYT field'.
 	 * For convenience, also check FMT field is AM824 or not.
 	 */
-	if (((cip_header[0] & CIP_EOH_MASK) == CIP_EOH) ||
-	    ((cip_header[1] & CIP_EOH_MASK) != CIP_EOH)) {
+	if ((((cip_header[0] & CIP_EOH_MASK) == CIP_EOH) ||
+	     ((cip_header[1] & CIP_EOH_MASK) != CIP_EOH)) &&
+	    (!(s->flags & CIP_HEADER_WITHOUT_EOH))) {
 		dev_info_ratelimited(&s->unit->device,
 				"Invalid CIP header for AMDTP: %08X:%08X\n",
 				cip_header[0], cip_header[1]);
@@ -482,8 +492,9 @@ static int handle_in_packet(struct amdtp_stream *s,
 	}
 
 	/* Check valid protocol or not. */
+	sph = (cip_header[0] & CIP_SPH_MASK) >> CIP_SPH_SHIFT;
 	fmt = (cip_header[1] & CIP_FMT_MASK) >> CIP_FMT_SHIFT;
-	if (fmt != s->fmt) {
+	if (sph != s->sph || fmt != s->fmt) {
 		dev_info_ratelimited(&s->unit->device,
 				     "Detect unexpected protocol: %08x %08x\n",
 				     cip_header[0], cip_header[1]);
@@ -671,6 +682,8 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 					void *header, void *private_data)
 {
 	struct amdtp_stream *s = private_data;
+	u32 cycle;
+	unsigned int packets;
 
 	/*
 	 * For in-stream, first packet has come.
@@ -679,10 +692,19 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	s->callbacked = true;
 	wake_up(&s->callback_wait);
 
-	if (s->direction == AMDTP_IN_STREAM)
+	cycle = compute_cycle_count(tstamp);
+
+	if (s->direction == AMDTP_IN_STREAM) {
+		packets = header_length / IN_PACKET_HEADER_SIZE;
+		cycle = decrement_cycle_count(cycle, packets);
 		context->callback.sc = in_stream_callback;
-	else
+	} else {
+		packets = header_length / 4;
+		cycle = increment_cycle_count(cycle, QUEUE_LENGTH - packets);
 		context->callback.sc = out_stream_callback;
+	}
+
+	s->start_cycle = cycle;
 
 	context->callback.sc(context, tstamp, header_length, header, s);
 }
