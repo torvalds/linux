@@ -1012,9 +1012,12 @@ static int gpu_state_release(struct inode *inode, struct file *file)
 
 static int i915_gpu_info_open(struct inode *inode, struct file *file)
 {
+	struct drm_i915_private *i915 = inode->i_private;
 	struct i915_gpu_state *gpu;
 
-	gpu = i915_capture_gpu_state(inode->i_private);
+	intel_runtime_pm_get(i915);
+	gpu = i915_capture_gpu_state(i915);
+	intel_runtime_pm_put(i915);
 	if (!gpu)
 		return -ENOMEM;
 
