@@ -190,7 +190,7 @@ static inline void __hostap_cmd_queue_free(local_info_t *local,
 		}
 	}
 
-	if (atomic_dec_and_test(&entry->usecnt) && entry->del_req)
+	if (refcount_dec_and_test(&entry->usecnt) && entry->del_req)
 		kfree(entry);
 }
 
@@ -228,7 +228,7 @@ static void prism2_clear_cmd_queue(local_info_t *local)
 	spin_lock_irqsave(&local->cmdlock, flags);
 	list_for_each_safe(ptr, n, &local->cmd_queue) {
 		entry = list_entry(ptr, struct hostap_cmd_queue, list);
-		atomic_inc(&entry->usecnt);
+		refcount_inc(&entry->usecnt);
 		printk(KERN_DEBUG "%s: removed pending cmd_queue entry "
 		       "(type=%d, cmd=0x%04x, param0=0x%04x)\n",
 		       local->dev->name, entry->type, entry->cmd,
@@ -350,7 +350,7 @@ static int hfa384x_cmd(struct net_device *dev, u16 cmd, u16 param0,
 	if (entry == NULL)
 		return -ENOMEM;
 
-	atomic_set(&entry->usecnt, 1);
+	refcount_set(&entry->usecnt, 1);
 	entry->type = CMD_SLEEP;
 	entry->cmd = cmd;
 	entry->param0 = param0;
@@ -516,7 +516,7 @@ static int hfa384x_cmd_callback(struct net_device *dev, u16 cmd, u16 param0,
 	if (entry == NULL)
 		return -ENOMEM;
 
-	atomic_set(&entry->usecnt, 1);
+	refcount_set(&entry->usecnt, 1);
 	entry->type = CMD_CALLBACK;
 	entry->cmd = cmd;
 	entry->param0 = param0;
@@ -666,7 +666,7 @@ static void prism2_cmd_ev(struct net_device *dev)
 	if (!list_empty(&local->cmd_queue)) {
 		entry = list_entry(local->cmd_queue.next,
 				   struct hostap_cmd_queue, list);
-		atomic_inc(&entry->usecnt);
+		refcount_inc(&entry->usecnt);
 		list_del_init(&entry->list);
 		local->cmd_queue_len--;
 
@@ -718,7 +718,7 @@ static void prism2_cmd_ev(struct net_device *dev)
 			entry = NULL;
 		}
 		if (entry)
-			atomic_inc(&entry->usecnt);
+			refcount_inc(&entry->usecnt);
 	}
 	spin_unlock(&local->cmdlock);
 
