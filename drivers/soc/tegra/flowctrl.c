@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/platform_device.h>
 
 #include <soc/tegra/common.h>
 #include <soc/tegra/flowctrl.h>
@@ -47,7 +48,7 @@ static void __iomem *tegra_flowctrl_base;
 
 static void flowctrl_update(u8 offset, u32 value)
 {
-	if (WARN_ONCE(!tegra_flowctrl_base,
+	if (WARN_ONCE(IS_ERR_OR_NULL(tegra_flowctrl_base),
 		      "Tegra flowctrl not initialised!\n"))
 		return;
 
@@ -62,7 +63,7 @@ u32 flowctrl_read_cpu_csr(unsigned int cpuid)
 {
 	u8 offset = flowctrl_offset_cpu_csr[cpuid];
 
-	if (WARN_ONCE(!tegra_flowctrl_base,
+	if (WARN_ONCE(IS_ERR_OR_NULL(tegra_flowctrl_base),
 		      "Tegra flowctrl not initialised!\n"))
 		return 0;
 
@@ -148,13 +149,38 @@ void flowctrl_cpu_suspend_exit(unsigned int cpuid)
 	flowctrl_write_cpu_csr(cpuid, reg);
 }
 
-static const struct of_device_id matches[] __initconst = {
+static int tegra_flowctrl_probe(struct platform_device *pdev)
+{
+	void __iomem *base = tegra_flowctrl_base;
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	tegra_flowctrl_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(tegra_flowctrl_base))
+		return PTR_ERR(base);
+
+	iounmap(base);
+
+	return 0;
+}
+
+static const struct of_device_id tegra_flowctrl_match[] = {
 	{ .compatible = "nvidia,tegra124-flowctrl" },
 	{ .compatible = "nvidia,tegra114-flowctrl" },
 	{ .compatible = "nvidia,tegra30-flowctrl" },
 	{ .compatible = "nvidia,tegra20-flowctrl" },
 	{ }
 };
+
+static struct platform_driver tegra_flowctrl_driver = {
+	.driver = {
+		.name = "tegra-flowctrl",
+		.suppress_bind_attrs = true,
+		.of_match_table = tegra_flowctrl_match,
+	},
+	.probe = tegra_flowctrl_probe,
+};
+builtin_platform_driver(tegra_flowctrl_driver);
 
 static int __init tegra_flowctrl_init(void)
 {
@@ -166,7 +192,7 @@ static int __init tegra_flowctrl_init(void)
 	if (!soc_is_tegra())
 		return 0;
 
-	np = of_find_matching_node(NULL, matches);
+	np = of_find_matching_node(NULL, tegra_flowctrl_match);
 	if (np) {
 		struct resource res;
 
