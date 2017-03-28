@@ -150,8 +150,9 @@ struct rtl_usb {
 };
 
 struct rtl_usb_priv {
-	struct rtl_usb dev;
+	struct bt_coexist_info bt_coexist;
 	struct rtl_led_ctl ledctl;
+	struct rtl_usb dev;
 };
 
 #define rtl_usbpriv(hw)	 (((struct rtl_usb_priv *)(rtl_priv(hw))->priv))

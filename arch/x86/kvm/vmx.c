@@ -3499,7 +3499,7 @@ static void fix_rmode_seg(int seg, struct kvm_segment *save)
 	}
 
 	vmcs_write16(sf->selector, var.selector);
-	vmcs_write32(sf->base, var.base);
+	vmcs_writel(sf->base, var.base);
 	vmcs_write32(sf->limit, var.limit);
 	vmcs_write32(sf->ar_bytes, vmx_segment_access_rights(&var));
 }
@@ -4866,6 +4866,12 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 	if (vmx_xsaves_supported())
 		vmcs_write64(XSS_EXIT_BITMAP, VMX_XSS_EXIT_BITMAP);
+
+	if (enable_pml) {
+		ASSERT(vmx->pml_pg);
+		vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
+		vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
+	}
 
 	return 0;
 }
@@ -7839,22 +7845,6 @@ static void vmx_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2)
 	*info2 = vmcs_read32(VM_EXIT_INTR_INFO);
 }
 
-static int vmx_create_pml_buffer(struct vcpu_vmx *vmx)
-{
-	struct page *pml_pg;
-
-	pml_pg = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (!pml_pg)
-		return -ENOMEM;
-
-	vmx->pml_pg = pml_pg;
-
-	vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
-	vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
-
-	return 0;
-}
-
 static void vmx_destroy_pml_buffer(struct vcpu_vmx *vmx)
 {
 	if (vmx->pml_pg) {
@@ -7915,7 +7905,7 @@ static void kvm_flush_pml_buffers(struct kvm *kvm)
 static void vmx_dump_sel(char *name, uint32_t sel)
 {
 	pr_err("%s sel=0x%04x, attr=0x%05x, limit=0x%08x, base=0x%016lx\n",
-	       name, vmcs_read32(sel),
+	       name, vmcs_read16(sel),
 	       vmcs_read32(sel + GUEST_ES_AR_BYTES - GUEST_ES_SELECTOR),
 	       vmcs_read32(sel + GUEST_ES_LIMIT - GUEST_ES_SELECTOR),
 	       vmcs_readl(sel + GUEST_ES_BASE - GUEST_ES_SELECTOR));
@@ -8789,14 +8779,26 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto free_vcpu;
 
+	err = -ENOMEM;
+
+	/*
+	 * If PML is turned on, failure on enabling PML just results in failure
+	 * of creating the vcpu, therefore we can simplify PML logic (by
+	 * avoiding dealing with cases, such as enabling PML partially on vcpus
+	 * for the guest, etc.
+	 */
+	if (enable_pml) {
+		vmx->pml_pg = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		if (!vmx->pml_pg)
+			goto uninit_vcpu;
+	}
+
 	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	BUILD_BUG_ON(ARRAY_SIZE(vmx_msr_index) * sizeof(vmx->guest_msrs[0])
 		     > PAGE_SIZE);
 
-	err = -ENOMEM;
-	if (!vmx->guest_msrs) {
-		goto uninit_vcpu;
-	}
+	if (!vmx->guest_msrs)
+		goto free_pml;
 
 	vmx->loaded_vmcs = &vmx->vmcs01;
 	vmx->loaded_vmcs->vmcs = alloc_vmcs();
@@ -8840,18 +8842,6 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	vmx->nested.current_vmptr = -1ull;
 	vmx->nested.current_vmcs12 = NULL;
 
-	/*
-	 * If PML is turned on, failure on enabling PML just results in failure
-	 * of creating the vcpu, therefore we can simplify PML logic (by
-	 * avoiding dealing with cases, such as enabling PML partially on vcpus
-	 * for the guest, etc.
-	 */
-	if (enable_pml) {
-		err = vmx_create_pml_buffer(vmx);
-		if (err)
-			goto free_vmcs;
-	}
-
 	return &vmx->vcpu;
 
 free_vmcs:
@@ -8859,6 +8849,8 @@ free_vmcs:
 	free_loaded_vmcs(vmx->loaded_vmcs);
 free_msrs:
 	kfree(vmx->guest_msrs);
+free_pml:
+	vmx_destroy_pml_buffer(vmx);
 uninit_vcpu:
 	kvm_vcpu_uninit(&vmx->vcpu);
 free_vcpu:

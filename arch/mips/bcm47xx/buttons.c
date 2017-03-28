@@ -17,6 +17,12 @@
 		.active_low	= 1,					\
 	}
 
+#define BCM47XX_GPIO_KEY_H(_gpio, _code)				\
+	{								\
+		.code		= _code,				\
+		.gpio		= _gpio,				\
+	}
+
 /* Asus */
 
 static const struct gpio_keys_button
@@ -79,8 +85,8 @@ bcm47xx_buttons_asus_wl500gpv2[] __initconst = {
 
 static const struct gpio_keys_button
 bcm47xx_buttons_asus_wl500w[] __initconst = {
-	BCM47XX_GPIO_KEY(6, KEY_RESTART),
-	BCM47XX_GPIO_KEY(7, KEY_WPS_BUTTON),
+	BCM47XX_GPIO_KEY_H(6, KEY_RESTART),
+	BCM47XX_GPIO_KEY_H(7, KEY_WPS_BUTTON),
 };
 
 static const struct gpio_keys_button

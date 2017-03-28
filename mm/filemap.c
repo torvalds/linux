@@ -865,9 +865,12 @@ void page_endio(struct page *page, int rw, int err)
 		unlock_page(page);
 	} else { /* rw == WRITE */
 		if (err) {
+			struct address_space *mapping;
+
 			SetPageError(page);
-			if (page->mapping)
-				mapping_set_error(page->mapping, err);
+			mapping = page_mapping(page);
+			if (mapping)
+				mapping_set_error(mapping, err);
 		}
 		end_page_writeback(page);
 	}

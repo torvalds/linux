@@ -1389,6 +1389,7 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	tunnel->dst_cache = alloc_percpu(struct ip_tunnel_dst);
 	if (!tunnel->dst_cache) {
 		free_percpu(dev->tstats);
+		dev->tstats = NULL;
 		return -ENOMEM;
 	}
 
