@@ -1544,9 +1544,9 @@ static int rate_to_index(const int *rates, int len, int rate)
 
 	for (i = 0; i < len; i++)
 		if (rate == rates[i])
-			break;
+			return i;
 
-	return i;
+	return -1;
 }
 
 int
@@ -1564,8 +1564,13 @@ intel_dp_max_link_rate(struct intel_dp *intel_dp)
 
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate)
 {
-	return rate_to_index(intel_dp->sink_rates, intel_dp->num_sink_rates,
-			     rate);
+	int i = rate_to_index(intel_dp->sink_rates, intel_dp->num_sink_rates,
+			      rate);
+
+	if (WARN_ON(i < 0))
+		i = 0;
+
+	return i;
 }
 
 void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
