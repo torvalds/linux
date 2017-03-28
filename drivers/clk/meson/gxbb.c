@@ -1388,6 +1388,10 @@ static int gxbb_clkc_probe(struct platform_device *pdev)
 	 * register all clks
 	 */
 	for (clkid = 0; clkid < clkc_data->hw_onecell_data->num; clkid++) {
+		/* array might be sparse */
+		if (!clkc_data->hw_onecell_data->hws[clkid])
+			continue;
+
 		ret = devm_clk_hw_register(dev,
 					clkc_data->hw_onecell_data->hws[clkid]);
 		if (ret)
