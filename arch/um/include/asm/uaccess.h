@@ -21,8 +21,8 @@
 #define __addr_range_nowrap(addr, size) \
 	((unsigned long) (addr) <= ((unsigned long) (addr) + (size)))
 
-extern long __copy_from_user(void *to, const void __user *from, unsigned long n);
-extern long __copy_to_user(void __user *to, const void *from, unsigned long n);
+extern unsigned long raw_copy_from_user(void *to, const void __user *from, unsigned long n);
+extern unsigned long raw_copy_to_user(void __user *to, const void *from, unsigned long n);
 extern long __strncpy_from_user(char *dst, const char __user *src, long count);
 extern long __strnlen_user(const void __user *str, long len);
 extern unsigned long __clear_user(void __user *mem, unsigned long len);
@@ -33,8 +33,8 @@ static inline int __access_ok(unsigned long addr, unsigned long size);
 #define __clear_user __clear_user
 #define __strnlen_user __strnlen_user
 #define __strncpy_from_user __strncpy_from_user
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 #include <asm-generic/uaccess.h>
 

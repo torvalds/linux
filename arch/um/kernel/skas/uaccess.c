@@ -139,7 +139,7 @@ static int copy_chunk_from_user(unsigned long from, int len, void *arg)
 	return 0;
 }
 
-long __copy_from_user(void *to, const void __user *from, unsigned long n)
+unsigned long raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	if (uaccess_kernel()) {
 		memcpy(to, (__force void*)from, n);
@@ -148,7 +148,7 @@ long __copy_from_user(void *to, const void __user *from, unsigned long n)
 
 	return buffer_op((unsigned long) from, n, 0, copy_chunk_from_user, &to);
 }
-EXPORT_SYMBOL(__copy_from_user);
+EXPORT_SYMBOL(raw_copy_from_user);
 
 static int copy_chunk_to_user(unsigned long to, int len, void *arg)
 {
@@ -159,7 +159,7 @@ static int copy_chunk_to_user(unsigned long to, int len, void *arg)
 	return 0;
 }
 
-long __copy_to_user(void __user *to, const void *from, unsigned long n)
+unsigned long raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	if (uaccess_kernel()) {
 		memcpy((__force void *) to, from, n);
@@ -168,7 +168,7 @@ long __copy_to_user(void __user *to, const void *from, unsigned long n)
 
 	return buffer_op((unsigned long) to, n, 1, copy_chunk_to_user, &from);
 }
-EXPORT_SYMBOL(__copy_to_user);
+EXPORT_SYMBOL(raw_copy_to_user);
 
 static int strncpy_chunk_from_user(unsigned long from, int len, void *arg)
 {

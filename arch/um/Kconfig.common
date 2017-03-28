@@ -13,6 +13,7 @@ config UML
 	select GENERIC_CLOCKEVENTS
 	select HAVE_GCC_PLUGINS
 	select TTY # Needed for line.c
+	select ARCH_HAS_RAW_COPY_USER
 
 config MMU
 	bool
