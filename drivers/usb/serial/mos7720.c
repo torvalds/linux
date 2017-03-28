@@ -1688,7 +1688,6 @@ static void mos7720_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	int status;
-	unsigned int cflag;
 	struct usb_serial *serial;
 	struct moschip_port *mos7720_port;
 
@@ -1703,16 +1702,6 @@ static void mos7720_set_termios(struct tty_struct *tty,
 		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
 		return;
 	}
-
-	dev_dbg(&port->dev, "setting termios - ASPIRE\n");
-
-	cflag = tty->termios.c_cflag;
-
-	dev_dbg(&port->dev, "%s - cflag %08x iflag %08x\n", __func__,
-		tty->termios.c_cflag, RELEVANT_IFLAG(tty->termios.c_iflag));
-
-	dev_dbg(&port->dev, "%s - old cflag %08x old iflag %08x\n", __func__,
-		old_termios->c_cflag, RELEVANT_IFLAG(old_termios->c_iflag));
 
 	/* change the port settings to the new ones specified */
 	change_port_settings(tty, mos7720_port, old_termios);

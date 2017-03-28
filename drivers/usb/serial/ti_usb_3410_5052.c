@@ -929,20 +929,12 @@ static void ti_set_termios(struct tty_struct *tty,
 {
 	struct ti_port *tport = usb_get_serial_port_data(port);
 	struct ti_uart_config *config;
-	tcflag_t cflag, iflag;
 	int baud;
 	int status;
 	int port_number = port->port_number;
 	unsigned int mcr;
 	u16 wbaudrate;
 	u16 wflags = 0;
-
-	cflag = tty->termios.c_cflag;
-	iflag = tty->termios.c_iflag;
-
-	dev_dbg(&port->dev, "%s - cflag %08x, iflag %08x\n", __func__, cflag, iflag);
-	dev_dbg(&port->dev, "%s - old clfag %08x, old iflag %08x\n", __func__,
-		old_termios->c_cflag, old_termios->c_iflag);
 
 	config = kmalloc(sizeof(*config), GFP_KERNEL);
 	if (!config)
