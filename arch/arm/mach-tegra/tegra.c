@@ -48,7 +48,6 @@
 #include "board.h"
 #include "common.h"
 #include "cpuidle.h"
-#include "flowctrl.h"
 #include "iomap.h"
 #include "irq.h"
 #include "pm.h"
@@ -75,7 +74,6 @@ static void __init tegra_init_early(void)
 {
 	of_register_trusted_foundations();
 	tegra_cpu_reset_handler_init();
-	tegra_flowctrl_init();
 }
 
 static void __init tegra_dt_init_irq(void)
