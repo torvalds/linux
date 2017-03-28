@@ -677,58 +677,6 @@ update_vlvfb:
 	}
 }
 
-static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-	struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
-	u8 num_tcs = netdev_get_num_tc(adapter->netdev);
-
-	/* remove VLAN filters beloning to this VF */
-	ixgbe_clear_vf_vlans(adapter, vf);
-
-	/* add back PF assigned VLAN or VLAN 0 */
-	ixgbe_set_vf_vlan(adapter, true, vfinfo->pf_vlan, vf);
-
-	/* reset offloads to defaults */
-	ixgbe_set_vmolr(hw, vf, !vfinfo->pf_vlan);
-
-	/* set outgoing tags for VFs */
-	if (!vfinfo->pf_vlan && !vfinfo->pf_qos && !num_tcs) {
-		ixgbe_clear_vmvir(adapter, vf);
-	} else {
-		if (vfinfo->pf_qos || !num_tcs)
-			ixgbe_set_vmvir(adapter, vfinfo->pf_vlan,
-					vfinfo->pf_qos, vf);
-		else
-			ixgbe_set_vmvir(adapter, vfinfo->pf_vlan,
-					adapter->default_up, vf);
-
-		if (vfinfo->spoofchk_enabled)
-			hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
-	}
-
-	/* reset multicast table array for vf */
-	adapter->vfinfo[vf].num_vf_mc_hashes = 0;
-
-	/* Flush and reset the mta with the new values */
-	ixgbe_set_rx_mode(adapter->netdev);
-
-	ixgbe_del_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
-
-	/* reset VF api back to unknown */
-	adapter->vfinfo[vf].vf_api = ixgbe_mbox_api_10;
-}
-
-static int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
-			    int vf, unsigned char *mac_addr)
-{
-	ixgbe_del_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
-	memcpy(adapter->vfinfo[vf].vf_mac_addresses, mac_addr, ETH_ALEN);
-	ixgbe_add_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
-
-	return 0;
-}
-
 static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 				int vf, int index, unsigned char *mac_addr)
 {
@@ -780,6 +728,59 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 	memcpy(entry->vf_macvlan, mac_addr, ETH_ALEN);
 
 	ixgbe_add_mac_filter(adapter, mac_addr, vf);
+
+	return 0;
+}
+
+static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
+	u8 num_tcs = netdev_get_num_tc(adapter->netdev);
+
+	/* remove VLAN filters beloning to this VF */
+	ixgbe_clear_vf_vlans(adapter, vf);
+
+	/* add back PF assigned VLAN or VLAN 0 */
+	ixgbe_set_vf_vlan(adapter, true, vfinfo->pf_vlan, vf);
+
+	/* reset offloads to defaults */
+	ixgbe_set_vmolr(hw, vf, !vfinfo->pf_vlan);
+
+	/* set outgoing tags for VFs */
+	if (!vfinfo->pf_vlan && !vfinfo->pf_qos && !num_tcs) {
+		ixgbe_clear_vmvir(adapter, vf);
+	} else {
+		if (vfinfo->pf_qos || !num_tcs)
+			ixgbe_set_vmvir(adapter, vfinfo->pf_vlan,
+					vfinfo->pf_qos, vf);
+		else
+			ixgbe_set_vmvir(adapter, vfinfo->pf_vlan,
+					adapter->default_up, vf);
+
+		if (vfinfo->spoofchk_enabled)
+			hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
+	}
+
+	/* reset multicast table array for vf */
+	adapter->vfinfo[vf].num_vf_mc_hashes = 0;
+
+	/* Flush and reset the mta with the new values */
+	ixgbe_set_rx_mode(adapter->netdev);
+
+	ixgbe_del_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
+	ixgbe_set_vf_macvlan(adapter, vf, 0, NULL);
+
+	/* reset VF api back to unknown */
+	adapter->vfinfo[vf].vf_api = ixgbe_mbox_api_10;
+}
+
+static int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
+			    int vf, unsigned char *mac_addr)
+{
+	ixgbe_del_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
+	memcpy(adapter->vfinfo[vf].vf_mac_addresses, mac_addr, ETH_ALEN);
+	ixgbe_add_mac_filter(adapter, adapter->vfinfo[vf].vf_mac_addresses, vf);
 
 	return 0;
 }
