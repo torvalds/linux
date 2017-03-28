@@ -1665,7 +1665,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 	start = map__rip_2objdump(map, sym->start);
 
 	for (i = 0; i < len; i++) {
-		u64 offset;
+		u64 offset, nr_samples;
 		double percent_max = 0.0;
 
 		src_line->nr_pcnt = nr_pcnt;
@@ -1674,12 +1674,14 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 			double percent = 0.0;
 
 			h = annotation__histogram(notes, evidx + k);
+			nr_samples = h->addr[i];
 			if (h->sum)
-				percent = 100.0 * h->addr[i] / h->sum;
+				percent = 100.0 * nr_samples / h->sum;
 
 			if (percent > percent_max)
 				percent_max = percent;
 			src_line->samples[k].percent = percent;
+			src_line->samples[k].nr = nr_samples;
 		}
 
 		if (percent_max <= 0.5)
