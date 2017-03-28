@@ -205,12 +205,16 @@ static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	u32 text_id = 0;
+	int err;
 
-	visorchannel_read
-		(chipset_dev->controlvm_channel,
-		 offsetof(struct spar_controlvm_channel_protocol,
-			  installation_text_id),
-		 &text_id, sizeof(u32));
+	err = visorchannel_read
+			(chipset_dev->controlvm_channel,
+			 offsetof(struct spar_controlvm_channel_protocol,
+				  installation_text_id),
+			 &text_id, sizeof(u32));
+	if (err)
+		return err;
+
 	return sprintf(buf, "%i\n", text_id);
 }
 
