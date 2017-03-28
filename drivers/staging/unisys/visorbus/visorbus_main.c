@@ -33,7 +33,6 @@ static int visorbus_forcenomatch;
 #define CURRENT_FILE_PC VISOR_BUS_PC_visorbus_main_c
 #define POLLJIFFIES_NORMALCHANNEL 10
 
-static int busreg_rc = -ENODEV; /* stores the result from bus registration */
 static struct dentry *visorbus_debugfs_dir;
 
 /*
@@ -967,9 +966,6 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 {
 	int rc = 0;
 
-	if (busreg_rc < 0)
-		return -ENODEV; /*can't register on a nonexistent bus*/
-
 	drv->driver.name = drv->name;
 	drv->driver.bus = &visorbus_type;
 	drv->driver.probe = visordriver_probe_device;
@@ -1078,29 +1074,6 @@ remove_bus_instance(struct visor_device *dev)
 	kfree(dev->vbus_hdr_info);
 	list_del(&dev->list_all);
 	device_unregister(&dev->device);
-}
-
-/*
- * create_bus_type() - create and register the one-and-only one instance of
- *                     the visor bus type (visorbus_type)
- * Return: 0 for success, otherwise negative errno value returned by
- *         bus_register() indicating the reason for failure
- */
-static int
-create_bus_type(void)
-{
-	busreg_rc = bus_register(&visorbus_type);
-	return busreg_rc;
-}
-
-/*
- * remove_bus_type() - remove the one-and-only one instance of the visor bus
- *                     type (visorbus_type)
- */
-static void
-remove_bus_type(void)
-{
-	bus_unregister(&visorbus_type);
 }
 
 /*
@@ -1335,7 +1308,7 @@ visorbus_init(void)
 
 	bus_device_info_init(&clientbus_driverinfo, "clientbus", "visorbus");
 
-	err = create_bus_type();
+	err = bus_register(&visorbus_type);
 	if (err < 0) {
 		POSTCODE_LINUX(BUS_CREATE_ENTRY_PC, 0, 0, DIAG_SEVERITY_ERR);
 		goto error;
@@ -1363,7 +1336,8 @@ visorbus_exit(void)
 						      list_all);
 		remove_bus_instance(dev);
 	}
-	remove_bus_type();
+
+	bus_unregister(&visorbus_type);
 	debugfs_remove_recursive(visorbus_debugfs_dir);
 }
 
