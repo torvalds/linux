@@ -879,6 +879,7 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 
 			if ((filter >= 0) && (filter <= 7)) {
 				const u8 *f = XGI_TV_filter[filter_tb].filter[filter];
+
 				pr_debug("FilterTable[%d]-%d: %*ph\n",
 					 filter_tb, filter, 4, f);
 				xgifb_reg_set(XGIPART2, 0x35, f[0]);
