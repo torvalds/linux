@@ -22,6 +22,7 @@ config H8300
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_HASH
 	select CPU_NO_EFFICIENT_FFS
+	select ARCH_HAS_RAW_COPY_USER
 
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
