@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/termios.h>
+#include <linux/delay.h>
 
 struct serdev_controller;
 struct serdev_device;
@@ -253,6 +254,36 @@ static inline int serdev_device_write_room(struct serdev_device *sdev)
 #define serdev_device_driver_unregister(x)
 
 #endif /* CONFIG_SERIAL_DEV_BUS */
+
+static inline bool serdev_device_get_cts(struct serdev_device *serdev)
+{
+	int status = serdev_device_get_tiocm(serdev);
+	return !!(status & TIOCM_CTS);
+}
+
+static inline int serdev_device_wait_for_cts(struct serdev_device *serdev, bool state, int timeout_ms)
+{
+	unsigned long timeout;
+	bool signal;
+
+	timeout = jiffies + msecs_to_jiffies(timeout_ms);
+	while (time_is_after_jiffies(timeout)) {
+		signal = serdev_device_get_cts(serdev);
+		if (signal == state)
+			return 0;
+		usleep_range(1000, 2000);
+	}
+
+	return -ETIMEDOUT;
+}
+
+static inline int serdev_device_set_rts(struct serdev_device *serdev, bool enable)
+{
+	if (enable)
+		return serdev_device_set_tiocm(serdev, TIOCM_RTS, 0);
+	else
+		return serdev_device_set_tiocm(serdev, 0, TIOCM_RTS);
+}
 
 /*
  * serdev hooks into TTY core
