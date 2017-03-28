@@ -959,8 +959,6 @@ visordriver_probe_device(struct device *xdev)
  */
 int visorbus_register_visor_driver(struct visor_driver *drv)
 {
-	int rc = 0;
-
 	drv->driver.name = drv->name;
 	drv->driver.bus = &visorbus_type;
 	drv->driver.probe = visordriver_probe_device;
@@ -980,10 +978,7 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 	 *                 dev.drv = NULL
 	 */
 
-	rc = driver_register(&drv->driver);
-	if (rc < 0)
-		driver_unregister(&drv->driver);
-	return rc;
+	return driver_register(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(visorbus_register_visor_driver);
 
