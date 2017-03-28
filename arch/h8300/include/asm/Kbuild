@@ -69,7 +69,6 @@ generic-y += tlbflush.h
 generic-y += trace_clock.h
 generic-y += topology.h
 generic-y += types.h
-generic-y += uaccess.h
 generic-y += ucontext.h
 generic-y += unaligned.h
 generic-y += vga.h

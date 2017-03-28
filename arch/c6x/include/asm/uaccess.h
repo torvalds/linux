@@ -94,9 +94,6 @@ static inline __must_check long __copy_to_user(void __user *to,
 	return 0;
 }
 
-#define __copy_to_user   __copy_to_user
-#define __copy_from_user __copy_from_user
-
 extern int _access_ok(unsigned long addr, unsigned long size);
 #ifdef CONFIG_ACCESS_CHECK
 #define __access_ok _access_ok

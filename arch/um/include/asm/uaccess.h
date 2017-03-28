@@ -31,8 +31,6 @@ static inline int __access_ok(unsigned long addr, unsigned long size);
 /* Teach asm-generic/uaccess.h that we have C functions for these. */
 #define __access_ok __access_ok
 #define __clear_user __clear_user
-#define __copy_to_user __copy_to_user
-#define __copy_from_user __copy_from_user
 #define __strnlen_user __strnlen_user
 #define __strncpy_from_user __strncpy_from_user
 #define __copy_to_user_inatomic __copy_to_user
