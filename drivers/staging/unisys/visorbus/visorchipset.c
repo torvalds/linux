@@ -1727,52 +1727,49 @@ static void
 controlvm_periodic_work(struct work_struct *work)
 {
 	struct controlvm_message inmsg;
-	bool got_command = false;
-	bool handle_command_failed = false;
+	int err;
 
-	while (!visorchannel_signalremove(chipset_dev->controlvm_channel,
-					  CONTROLVM_QUEUE_RESPONSE,
-					  &inmsg))
-		;
-	if (!got_command) {
-		if (chipset_dev->controlvm_pending_msg_valid) {
-			/*
-			 * we throttled processing of a prior
-			 * msg, so try to process it again
-			 * rather than reading a new one
-			 */
-			inmsg = chipset_dev->controlvm_pending_msg;
-			chipset_dev->controlvm_pending_msg_valid = false;
-			got_command = true;
-		} else {
-			got_command = (read_controlvm_event(&inmsg) == 0);
-		}
+	/* Drain the RESPONSE queue make it empty */
+	do {
+		err = visorchannel_signalremove(chipset_dev->controlvm_channel,
+						CONTROLVM_QUEUE_RESPONSE,
+						&inmsg);
+	} while (!err);
+
+	if (err != -EAGAIN)
+		goto schedule_out;
+
+	if (chipset_dev->controlvm_pending_msg_valid) {
+		/*
+		 * we throttled processing of a prior
+		 * msg, so try to process it again
+		 * rather than reading a new one
+		 */
+		inmsg = chipset_dev->controlvm_pending_msg;
+		chipset_dev->controlvm_pending_msg_valid = false;
+		err = 0;
+	} else {
+		err = read_controlvm_event(&inmsg);
 	}
 
-	handle_command_failed = false;
-	while (got_command && (!handle_command_failed)) {
+	while (!err) {
 		chipset_dev->most_recent_message_jiffies = jiffies;
-		if (handle_command(inmsg,
-				   visorchannel_get_physaddr
-				   (chipset_dev->controlvm_channel) != -EAGAIN))
-			got_command = (read_controlvm_event(&inmsg) == 0);
-		else {
-			/*
-			 * this is a scenario where throttling
-			 * is required, but probably NOT an
-			 * error...; we stash the current
-			 * controlvm msg so we will attempt to
-			 * reprocess it on our next loop
-			 */
-			handle_command_failed = true;
+		err = handle_command(inmsg,
+				     visorchannel_get_physaddr
+				     (chipset_dev->controlvm_channel));
+		if (err == -EAGAIN) {
 			chipset_dev->controlvm_pending_msg = inmsg;
 			chipset_dev->controlvm_pending_msg_valid = true;
+			break;
 		}
+
+		err = read_controlvm_event(&inmsg);
 	}
 
 	/* parahotplug_worker */
 	parahotplug_process_list();
 
+schedule_out:
 	if (time_after(jiffies, chipset_dev->most_recent_message_jiffies +
 				(HZ * MIN_IDLE_SECONDS))) {
 		/*
