@@ -1481,22 +1481,25 @@ static bool handle_hpd_irq_psr_sink(const struct core_link *link)
 	if (link->public.psr_caps.psr_version == 0)
 		return false;
 
-	dal_ddc_service_read_dpcd_data(
-					link->ddc,
-					368 /*DpcdAddress_PSR_Enable_Cfg*/,
-					&psr_configuration.raw,
-					sizeof(psr_configuration.raw));
+	dm_helpers_dp_read_dpcd(
+		link->ctx,
+		&link->public,
+		368,/*DpcdAddress_PSR_Enable_Cfg*/
+		&psr_configuration.raw,
+		sizeof(psr_configuration.raw));
+
 
 	if (psr_configuration.bits.ENABLE) {
 		unsigned char dpcdbuf[3] = {0};
 		union psr_error_status psr_error_status;
 		union psr_sink_psr_status psr_sink_psr_status;
 
-		dal_ddc_service_read_dpcd_data(
-					link->ddc,
-					0x2006 /*DpcdAddress_PSR_Error_Status*/,
-					(unsigned char *) dpcdbuf,
-					sizeof(dpcdbuf));
+		dm_helpers_dp_read_dpcd(
+			link->ctx,
+			&link->public,
+			0x2006, /*DpcdAddress_PSR_Error_Status*/
+			(unsigned char *) dpcdbuf,
+			sizeof(dpcdbuf));
 
 		/*DPCD 2006h   ERROR STATUS*/
 		psr_error_status.raw = dpcdbuf[0];
@@ -1506,9 +1509,10 @@ static bool handle_hpd_irq_psr_sink(const struct core_link *link)
 		if (psr_error_status.bits.LINK_CRC_ERROR ||
 				psr_error_status.bits.RFB_STORAGE_ERROR) {
 			/* Acknowledge and clear error bits */
-			dal_ddc_service_write_dpcd_data(
-				link->ddc,
-				8198 /*DpcdAddress_PSR_Error_Status*/,
+			dm_helpers_dp_write_dpcd(
+				link->ctx,
+				&link->public,
+				8198,/*DpcdAddress_PSR_Error_Status*/
 				&psr_error_status.raw,
 				sizeof(psr_error_status.raw));
 

@@ -185,6 +185,7 @@ bool dal_i2caux_submit_aux_command(
 	struct aux_engine *engine;
 	uint8_t index_of_payload = 0;
 	bool result;
+	bool mot;
 
 	if (!ddc) {
 		BREAK_TO_DEBUGGER();
@@ -207,11 +208,13 @@ bool dal_i2caux_submit_aux_command(
 	result = true;
 
 	while (index_of_payload < cmd->number_of_payloads) {
-		bool mot = (index_of_payload != cmd->number_of_payloads - 1);
-
 		struct aux_payload *payload = cmd->payloads + index_of_payload;
-
 		struct i2caux_transaction_request request = { 0 };
+
+		if (cmd->mot == I2C_MOT_UNDEF)
+			mot = (index_of_payload != cmd->number_of_payloads - 1);
+		else
+			mot = (cmd->mot == I2C_MOT_TRUE);
 
 		request.operation = payload->write ?
 			I2CAUX_TRANSACTION_WRITE :

@@ -58,30 +58,6 @@ struct dp_hdmi_dongle_signature_data {
 	uint8_t eot;/* end of transmition '\x4' */
 };
 
-/* Address range from 0x00 to 0x1F.*/
-#define DP_ADAPTOR_TYPE2_SIZE 0x20
-#define DP_ADAPTOR_TYPE2_REG_ID 0x10
-#define DP_ADAPTOR_TYPE2_REG_MAX_TMDS_CLK 0x1D
-/* Identifies adaptor as Dual-mode adaptor */
-#define DP_ADAPTOR_TYPE2_ID 0xA0
-/* MHz*/
-#define DP_ADAPTOR_TYPE2_MAX_TMDS_CLK 600
-/* MHz*/
-#define DP_ADAPTOR_TYPE2_MIN_TMDS_CLK 25
-/* kHZ*/
-#define DP_ADAPTOR_DVI_MAX_TMDS_CLK 165000
-/* kHZ*/
-#define DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK 165000
-
-#define DDC_I2C_COMMAND_ENGINE I2C_COMMAND_ENGINE_SW
-
-enum edid_read_result {
-	EDID_READ_RESULT_EDID_MATCH = 0,
-	EDID_READ_RESULT_EDID_MISMATCH,
-	EDID_READ_RESULT_CHECKSUM_READ_ERR,
-	EDID_READ_RESULT_VENDOR_READ_ERR
-};
-
 /* SCDC Address defines (HDMI 2.0)*/
 #define HDMI_SCDC_WRITE_UPDATE_0_ARRAY 3
 #define HDMI_SCDC_ADDRESS  0x54
@@ -392,7 +368,7 @@ static uint32_t defer_delay_converter_wa(
 
 #define DP_TRANSLATOR_DELAY 5
 
-static uint32_t get_defer_delay(struct ddc_service *ddc)
+uint32_t get_defer_delay(struct ddc_service *ddc)
 {
 	uint32_t defer_delay = 0;
 
@@ -449,307 +425,6 @@ static bool i2c_read(
 			ddc->ctx,
 			&ddc->link->public,
 			&command);
-}
-
-static uint8_t aux_read_edid_block(
-	struct ddc_service *ddc,
-	uint8_t address,
-	uint8_t index,
-	uint8_t *buf)
-{
-	struct aux_command cmd = {
-		.payloads = NULL,
-		.number_of_payloads = 0,
-		.defer_delay = get_defer_delay(ddc),
-		.max_defer_write_retry = 0 };
-
-	uint8_t retrieved = 0;
-	uint8_t base_offset =
-		(index % DDC_EDID_BLOCKS_PER_SEGMENT) * DDC_EDID_BLOCK_SIZE;
-	uint8_t segment = index / DDC_EDID_BLOCKS_PER_SEGMENT;
-
-	for (retrieved = 0; retrieved < DDC_EDID_BLOCK_SIZE;
-		retrieved += DEFAULT_AUX_MAX_DATA_SIZE) {
-
-		uint8_t offset = base_offset + retrieved;
-
-		struct aux_payload payloads[3] = {
-			{
-			.i2c_over_aux = true,
-			.write = true,
-			.address = DDC_EDID_SEGMENT_ADDRESS,
-			.length = 1,
-			.data = &segment },
-			{
-			.i2c_over_aux = true,
-			.write = true,
-			.address = address,
-			.length = 1,
-			.data = &offset },
-			{
-			.i2c_over_aux = true,
-			.write = false,
-			.address = address,
-			.length = DEFAULT_AUX_MAX_DATA_SIZE,
-			.data = &buf[retrieved] } };
-
-		if (segment == 0) {
-			cmd.payloads = &payloads[1];
-			cmd.number_of_payloads = 2;
-		} else {
-			cmd.payloads = payloads;
-			cmd.number_of_payloads = 3;
-		}
-
-		if (!dal_i2caux_submit_aux_command(
-			ddc->ctx->i2caux,
-			ddc->ddc_pin,
-			&cmd))
-			/* cannot read, break*/
-			break;
-	}
-
-	/* Reset segment to 0. Needed by some panels */
-	if (0 != segment) {
-		struct aux_payload payloads[1] = { {
-			.i2c_over_aux = true,
-			.write = true,
-			.address = DDC_EDID_SEGMENT_ADDRESS,
-			.length = 1,
-			.data = &segment } };
-		bool result = false;
-
-		segment = 0;
-
-		cmd.number_of_payloads = ARRAY_SIZE(payloads);
-		cmd.payloads = payloads;
-
-		result = dal_i2caux_submit_aux_command(
-			ddc->ctx->i2caux,
-			ddc->ddc_pin,
-			&cmd);
-
-		if (false == result)
-			dm_logger_write(
-				ddc->ctx->logger, LOG_ERROR,
-				"%s: Writing of EDID Segment (0x30) failed!\n",
-				__func__);
-	}
-
-	return retrieved;
-}
-
-static uint8_t i2c_read_edid_block(
-	struct ddc_service *ddc,
-	uint8_t address,
-	uint8_t index,
-	uint8_t *buf)
-{
-	bool ret = false;
-	uint8_t offset = (index % DDC_EDID_BLOCKS_PER_SEGMENT) *
-		DDC_EDID_BLOCK_SIZE;
-	uint8_t segment = index / DDC_EDID_BLOCKS_PER_SEGMENT;
-
-	struct i2c_command cmd = {
-		.payloads = NULL,
-		.number_of_payloads = 0,
-		.engine = DDC_I2C_COMMAND_ENGINE,
-		.speed = ddc->ctx->dc->caps.i2c_speed_in_khz };
-
-	struct i2c_payload payloads[3] = {
-		{
-		.write = true,
-		.address = DDC_EDID_SEGMENT_ADDRESS,
-		.length = 1,
-		.data = &segment },
-		{
-		.write = true,
-		.address = address,
-		.length = 1,
-		.data = &offset },
-		{
-		.write = false,
-		.address = address,
-		.length = DDC_EDID_BLOCK_SIZE,
-		.data = buf } };
-/*
- * Some I2C engines don't handle stop/start between write-offset and read-data
- * commands properly. For those displays, we have to force the newer E-DDC
- * behavior of repeated-start which can be enabled by runtime parameter. */
-/* Originally implemented for OnLive using NXP receiver chip */
-
-	if (index == 0 && !ddc->flags.FORCE_READ_REPEATED_START) {
-		/* base block, use use DDC2B, submit as 2 commands */
-		cmd.payloads = &payloads[1];
-		cmd.number_of_payloads = 1;
-
-		if (dm_helpers_submit_i2c(
-			ddc->ctx,
-			&ddc->link->public,
-			&cmd)) {
-
-			cmd.payloads = &payloads[2];
-			cmd.number_of_payloads = 1;
-
-			ret = dm_helpers_submit_i2c(
-					ddc->ctx,
-					&ddc->link->public,
-					&cmd);
-		}
-
-	} else {
-		/*
-		 * extension block use E-DDC, submit as 1 command
-		 * or if repeated-start is forced by runtime parameter
-		 */
-		if (segment != 0) {
-			/* include segment offset in command*/
-			cmd.payloads = payloads;
-			cmd.number_of_payloads = 3;
-		} else {
-			/* we are reading first segment,
-			 * segment offset is not required */
-			cmd.payloads = &payloads[1];
-			cmd.number_of_payloads = 2;
-		}
-
-		ret = dm_helpers_submit_i2c(
-				ddc->ctx,
-				&ddc->link->public,
-				&cmd);
-	}
-
-	return ret ? DDC_EDID_BLOCK_SIZE : 0;
-}
-
-static uint32_t query_edid_block(
-	struct ddc_service *ddc,
-	uint8_t address,
-	uint8_t index,
-	uint8_t *buf,
-	uint32_t size)
-{
-	uint32_t size_retrieved = 0;
-
-	if (size < DDC_EDID_BLOCK_SIZE)
-		return 0;
-
-	if (dal_ddc_service_is_in_aux_transaction_mode(ddc)) {
-		size_retrieved =
-			aux_read_edid_block(ddc, address, index, buf);
-	} else {
-		size_retrieved =
-			i2c_read_edid_block(ddc, address, index, buf);
-	}
-
-	return size_retrieved;
-}
-
-#define DDC_DPCD_EDID_CHECKSUM_WRITE_ADDRESS 0x261
-#define DDC_TEST_ACK_ADDRESS 0x260
-#define DDC_DPCD_EDID_TEST_ACK 0x04
-#define DDC_DPCD_EDID_TEST_MASK 0x04
-#define DDC_DPCD_TEST_REQUEST_ADDRESS 0x218
-
-/* AG TODO GO throug DM callback here like for DPCD */
-
-static void write_dp_edid_checksum(
-	struct ddc_service *ddc,
-	uint8_t checksum)
-{
-	uint8_t dpcd_data;
-
-	dal_ddc_service_read_dpcd_data(
-		ddc,
-		DDC_DPCD_TEST_REQUEST_ADDRESS,
-		&dpcd_data,
-		1);
-
-	if (dpcd_data & DDC_DPCD_EDID_TEST_MASK) {
-
-		dal_ddc_service_write_dpcd_data(
-			ddc,
-			DDC_DPCD_EDID_CHECKSUM_WRITE_ADDRESS,
-			&checksum,
-			1);
-
-		dpcd_data = DDC_DPCD_EDID_TEST_ACK;
-
-		dal_ddc_service_write_dpcd_data(
-			ddc,
-			DDC_TEST_ACK_ADDRESS,
-			&dpcd_data,
-			1);
-	}
-}
-
-uint32_t dal_ddc_service_edid_query(struct ddc_service *ddc)
-{
-	uint32_t bytes_read = 0;
-	uint32_t ext_cnt = 0;
-
-	uint8_t address;
-	uint32_t i;
-
-	for (address = DDC_EDID_ADDRESS_START;
-		address <= DDC_EDID_ADDRESS_END; ++address) {
-
-		bytes_read = query_edid_block(
-			ddc,
-			address,
-			0,
-			ddc->edid_buf,
-			sizeof(ddc->edid_buf) - bytes_read);
-
-		if (bytes_read != DDC_EDID_BLOCK_SIZE)
-			continue;
-
-		/* get the number of ext blocks*/
-		ext_cnt = ddc->edid_buf[DDC_EDID_EXT_COUNT_OFFSET];
-
-		/* EDID 2.0, need to read 1 more block because EDID2.0 is
-		 * 256 byte in size*/
-		if (ddc->edid_buf[DDC_EDID_20_SIGNATURE_OFFSET] ==
-			DDC_EDID_20_SIGNATURE)
-				ext_cnt = 1;
-
-		for (i = 0; i < ext_cnt; i++) {
-			/* read additional ext blocks accordingly */
-			bytes_read += query_edid_block(
-					ddc,
-					address,
-					i+1,
-					&ddc->edid_buf[bytes_read],
-					sizeof(ddc->edid_buf) - bytes_read);
-		}
-
-		/*this is special code path for DP compliance*/
-		if (DDC_TRANSACTION_TYPE_I2C_OVER_AUX == ddc->transaction_type)
-			write_dp_edid_checksum(
-				ddc,
-				ddc->edid_buf[(ext_cnt * DDC_EDID_BLOCK_SIZE) +
-				DDC_EDID1X_CHECKSUM_OFFSET]);
-
-		/*remembers the address where we fetch the EDID from
-		 * for later signature check use */
-		ddc->address = address;
-
-		break;/* already read edid, done*/
-	}
-
-	ddc->edid_buf_len = bytes_read;
-	return bytes_read;
-}
-
-uint32_t dal_ddc_service_get_edid_buf_len(struct ddc_service *ddc)
-{
-	return ddc->edid_buf_len;
-}
-
-void dal_ddc_service_get_edid_buf(struct ddc_service *ddc, uint8_t *edid_buf)
-{
-	memmove(edid_buf,
-			ddc->edid_buf, ddc->edid_buf_len);
 }
 
 void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
@@ -960,12 +635,14 @@ bool dal_ddc_service_query_ddc_data(
 
 enum ddc_result dal_ddc_service_read_dpcd_data(
 	struct ddc_service *ddc,
+	bool i2c,
+	enum i2c_mot_mode mot,
 	uint32_t address,
 	uint8_t *data,
 	uint32_t len)
 {
 	struct aux_payload read_payload = {
-		.i2c_over_aux = false,
+		.i2c_over_aux = i2c,
 		.write = false,
 		.address = address,
 		.length = len,
@@ -976,6 +653,7 @@ enum ddc_result dal_ddc_service_read_dpcd_data(
 		.number_of_payloads = 1,
 		.defer_delay = 0,
 		.max_defer_write_retry = 0,
+		.mot = mot
 	};
 
 	if (len > DEFAULT_AUX_MAX_DATA_SIZE) {
@@ -994,12 +672,14 @@ enum ddc_result dal_ddc_service_read_dpcd_data(
 
 enum ddc_result dal_ddc_service_write_dpcd_data(
 	struct ddc_service *ddc,
+	bool i2c,
+	enum i2c_mot_mode mot,
 	uint32_t address,
 	const uint8_t *data,
 	uint32_t len)
 {
 	struct aux_payload write_payload = {
-		.i2c_over_aux = false,
+		.i2c_over_aux = i2c,
 		.write = true,
 		.address = address,
 		.length = len,
@@ -1010,6 +690,7 @@ enum ddc_result dal_ddc_service_write_dpcd_data(
 		.number_of_payloads = 1,
 		.defer_delay = 0,
 		.max_defer_write_retry = 0,
+		.mot = mot
 	};
 
 	if (len > DEFAULT_AUX_MAX_DATA_SIZE) {

@@ -464,39 +464,6 @@ static void link_disconnect_sink(struct core_link *link)
 	link->dpcd_sink_count = 0;
 }
 
-static enum dc_edid_status read_edid(
-	struct core_link *link,
-	struct core_sink *sink)
-{
-	uint32_t edid_retry = 3;
-	enum dc_edid_status edid_status;
-
-	/* some dongles read edid incorrectly the first time,
-	 * do check sum and retry to make sure read correct edid.
-	 */
-	do {
-		sink->public.dc_edid.length =
-				dal_ddc_service_edid_query(link->ddc);
-
-		if (0 == sink->public.dc_edid.length)
-			return EDID_NO_RESPONSE;
-
-		dal_ddc_service_get_edid_buf(link->ddc,
-				sink->public.dc_edid.raw_edid);
-		edid_status = dm_helpers_parse_edid_caps(
-				sink->ctx,
-				&sink->public.dc_edid,
-				&sink->public.edid_caps);
-		--edid_retry;
-		if (edid_status == EDID_BAD_CHECKSUM)
-			dm_logger_write(link->ctx->logger, LOG_WARNING,
-					"Bad EDID checksum, retry remain: %d\n",
-					edid_retry);
-	} while (edid_status == EDID_BAD_CHECKSUM && edid_retry > 0);
-
-	return edid_status;
-}
-
 static void detect_dp(
 	struct core_link *link,
 	struct display_sink_capability *sink_caps,
@@ -673,6 +640,9 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 						link->ddc,
 						sink_caps.transaction_type);
 
+		link->public.aux_mode = dal_ddc_service_is_in_aux_transaction_mode(
+				link->ddc);
+
 		sink_init_data.link = &link->public;
 		sink_init_data.sink_signal = sink_caps.signal;
 
@@ -688,7 +658,10 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 		sink = DC_SINK_TO_CORE(dc_sink);
 		link->public.local_sink = &sink->public;
 
-		edid_status = read_edid(link, sink);
+		edid_status = dm_helpers_read_local_edid(
+				link->ctx,
+				&link->public,
+				&sink->public);
 
 		switch (edid_status) {
 		case EDID_BAD_CHECKSUM:
@@ -1500,11 +1473,13 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 			 */
 			psr_configuration.bits.IRQ_HPD_WITH_CRC_ERROR    = 1;
 		}
-		dal_ddc_service_write_dpcd_data(
-					link->ddc,
-					368,
-					&psr_configuration.raw,
-					sizeof(psr_configuration.raw));
+
+		dm_helpers_dp_write_dpcd(
+			link->ctx,
+			dc_link,
+			368,
+			&psr_configuration.raw,
+			sizeof(psr_configuration.raw));
 
 		psr_context.channel = link->ddc->ddc_pin->hw_info.ddc_channel;
 		if (psr_context.channel == 0)

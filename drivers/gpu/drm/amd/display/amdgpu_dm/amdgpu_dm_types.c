@@ -2047,7 +2047,7 @@ int amdgpu_dm_connector_init(
 
 	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort
 		|| connector_type == DRM_MODE_CONNECTOR_eDP)
-		amdgpu_dm_initialize_mst_connector(dm, aconnector);
+		amdgpu_dm_initialize_dp_connector(dm, aconnector);
 
 #if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||\
 	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
@@ -3038,9 +3038,11 @@ static bool is_dp_capable_without_timing_msa(
 	uint8_t dpcd_data;
 	bool capable = false;
 	if (amdgpu_connector->dc_link &&
-	    dc_read_dpcd(dc, amdgpu_connector->dc_link->link_index,
-			 DP_DOWN_STREAM_PORT_COUNT,
-			 &dpcd_data, sizeof(dpcd_data)) )
+		dc_read_aux_dpcd(
+			dc,
+			amdgpu_connector->dc_link->link_index,
+			DP_DOWN_STREAM_PORT_COUNT,
+			&dpcd_data, sizeof(dpcd_data)))
 		capable = (dpcd_data & DP_MSA_TIMING_PAR_IGNORED) ? true:false;
 
 	return capable;

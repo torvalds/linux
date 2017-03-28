@@ -489,4 +489,10 @@ struct psr_caps {
 	unsigned int psr_sdp_transmit_line_num_deadline;
 };
 
+enum i2c_mot_mode {
+	I2C_MOT_UNDEF,
+	I2C_MOT_TRUE,
+	I2C_MOT_FALSE
+};
+
 #endif /* DC_TYPES_H_ */

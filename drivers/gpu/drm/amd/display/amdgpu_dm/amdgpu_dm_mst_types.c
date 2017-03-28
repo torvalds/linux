@@ -81,24 +81,43 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg 
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	struct amdgpu_device *adev = drm_dev->dev_private;
 	struct dc *dc = adev->dm.dc;
+	enum i2c_mot_mode mot = (msg->request & DP_AUX_I2C_MOT) ? I2C_MOT_TRUE : I2C_MOT_FALSE;
 	bool res;
 
-	switch (msg->request) {
+	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_READ:
-		res = dc_read_dpcd(
-			dc,
-			TO_DM_AUX(aux)->link_index,
-			msg->address,
-			msg->buffer,
-			msg->size);
+		res = dc_read_aux_dpcd(
+				dc,
+				TO_DM_AUX(aux)->link_index,
+				msg->address,
+				msg->buffer,
+				msg->size);
 		break;
 	case DP_AUX_NATIVE_WRITE:
-		res = dc_write_dpcd(
-			dc,
-			TO_DM_AUX(aux)->link_index,
-			msg->address,
-			msg->buffer,
-			msg->size);
+		res = dc_write_aux_dpcd(
+				dc,
+				TO_DM_AUX(aux)->link_index,
+				msg->address,
+				msg->buffer,
+				msg->size);
+		break;
+	case DP_AUX_I2C_READ:
+		res = dc_read_aux_i2c(
+				dc,
+				TO_DM_AUX(aux)->link_index,
+				mot,
+				msg->address,
+				msg->buffer,
+				msg->size);
+		break;
+	case DP_AUX_I2C_WRITE:
+		res = dc_write_aux_i2c(
+				dc,
+				TO_DM_AUX(aux)->link_index,
+				mot,
+				msg->address,
+				msg->buffer,
+				msg->size);
 		break;
 	default:
 		return 0;
@@ -418,7 +437,7 @@ static const struct drm_dp_mst_topology_cbs dm_mst_cbs = {
 	.register_connector = dm_dp_mst_register_connector
 };
 
-void amdgpu_dm_initialize_mst_connector(
+void amdgpu_dm_initialize_dp_connector(
 	struct amdgpu_display_manager *dm,
 	struct amdgpu_connector *aconnector)
 {

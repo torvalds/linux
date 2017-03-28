@@ -594,6 +594,7 @@ struct dc_link {
 	union compliance_test_state compliance_test_state;
 
 	void *priv;
+	bool aux_mode;
 };
 
 struct dpcd_caps {
@@ -788,16 +789,32 @@ const struct ddc_service *dc_get_ddc_at_index(
  * DPCD access interfaces
  */
 
-bool dc_read_dpcd(
+bool dc_read_aux_dpcd(
 		struct dc *dc,
 		uint32_t link_index,
 		uint32_t address,
 		uint8_t *data,
 		uint32_t size);
 
-bool dc_write_dpcd(
+bool dc_write_aux_dpcd(
 		struct dc *dc,
 		uint32_t link_index,
+		uint32_t address,
+		const uint8_t *data,
+		uint32_t size);
+
+bool dc_read_aux_i2c(
+		struct dc *dc,
+		uint32_t link_index,
+		enum i2c_mot_mode mot,
+		uint32_t address,
+		uint8_t *data,
+		uint32_t size);
+
+bool dc_write_aux_i2c(
+		struct dc *dc,
+		uint32_t link_index,
+		enum i2c_mot_mode mot,
 		uint32_t address,
 		const uint8_t *data,
 		uint32_t size);

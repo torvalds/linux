@@ -26,6 +26,7 @@
 #ifndef __DAL_I2CAUX_INTERFACE_H__
 #define __DAL_I2CAUX_INTERFACE_H__
 
+#include "dc_types.h"
 #include "gpio_service_interface.h"
 
 
@@ -54,6 +55,8 @@ struct aux_command {
 
 	/* zero means "use default value" */
 	uint32_t max_defer_write_retry;
+
+	enum i2c_mot_mode mot;
 };
 
 union aux_config {

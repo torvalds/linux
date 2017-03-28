@@ -115,34 +115,6 @@ struct av_sync_data {
 	uint8_t aud_del_ins3;/* DPCD 0002Dh */
 };
 
-/** EDID retrieval related constants, also used by MstMgr **/
-
-#define DDC_EDID_SEGMENT_SIZE 256
-#define DDC_EDID_BLOCK_SIZE 128
-#define DDC_EDID_BLOCKS_PER_SEGMENT \
-	(DDC_EDID_SEGMENT_SIZE / DDC_EDID_BLOCK_SIZE)
-
-#define DDC_EDID_EXT_COUNT_OFFSET 0x7E
-
-#define DDC_EDID_ADDRESS_START 0x50
-#define DDC_EDID_ADDRESS_END 0x52
-#define DDC_EDID_SEGMENT_ADDRESS 0x30
-
-/* signatures for Edid 1x */
-#define DDC_EDID1X_VENDORID_SIGNATURE_OFFSET 8
-#define DDC_EDID1X_VENDORID_SIGNATURE_LEN 4
-#define DDC_EDID1X_EXT_CNT_AND_CHECKSUM_OFFSET 126
-#define DDC_EDID1X_EXT_CNT_AND_CHECKSUM_LEN 2
-#define DDC_EDID1X_CHECKSUM_OFFSET 127
-/* signatures for Edid 20*/
-#define DDC_EDID_20_SIGNATURE_OFFSET 0
-#define DDC_EDID_20_SIGNATURE 0x20
-
-#define DDC_EDID20_VENDORID_SIGNATURE_OFFSET 1
-#define DDC_EDID20_VENDORID_SIGNATURE_LEN 4
-#define DDC_EDID20_CHECKSUM_OFFSET 255
-#define DDC_EDID20_CHECKSUM_LEN 1
-
 /*DP to VGA converter*/
 static const uint8_t DP_VGA_CONVERTER_ID_1[] = "mVGAa";
 /*DP to Dual link DVI converter*/

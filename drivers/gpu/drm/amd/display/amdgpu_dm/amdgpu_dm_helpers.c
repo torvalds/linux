@@ -435,3 +435,50 @@ bool dm_helpers_submit_i2c(
 
 	return result;
 }
+
+enum dc_edid_status dm_helpers_read_local_edid(
+		struct dc_context *ctx,
+		struct dc_link *link,
+		struct dc_sink *sink)
+{
+	struct amdgpu_connector *aconnector = link->priv;
+	struct i2c_adapter *ddc;
+	int retry = 3;
+	enum dc_edid_status edid_status;
+	struct edid *edid;
+
+	if (link->aux_mode)
+		ddc = &aconnector->dm_dp_aux.aux.ddc;
+	else
+		ddc = &aconnector->i2c->base;
+
+	/* some dongles read edid incorrectly the first time,
+	 * do check sum and retry to make sure read correct edid.
+	 */
+	do {
+
+		edid = drm_get_edid(&aconnector->base, ddc);
+
+		if (!edid)
+			return EDID_NO_RESPONSE;
+
+		sink->dc_edid.length = EDID_LENGTH * (edid->extensions + 1);
+		memmove(sink->dc_edid.raw_edid, (uint8_t *)edid, sink->dc_edid.length);
+
+		/* We don't need the original edid anymore */
+		kfree(edid);
+
+		edid_status = dm_helpers_parse_edid_caps(
+						ctx,
+						&sink->dc_edid,
+						&sink->edid_caps);
+
+	} while (edid_status == EDID_BAD_CHECKSUM && --retry > 0);
+
+	if (edid_status != EDID_OK)
+		DRM_ERROR("EDID err: %d, on connector: %s",
+				edid_status,
+				aconnector->base.name);
+
+	return edid_status;
+}

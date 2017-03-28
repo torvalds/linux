@@ -1553,7 +1553,7 @@ void dc_resume(const struct dc *dc)
 		core_link_resume(core_dc->links[i]);
 }
 
-bool dc_read_dpcd(
+bool dc_read_aux_dpcd(
 		struct dc *dc,
 		uint32_t link_index,
 		uint32_t address,
@@ -1565,6 +1565,70 @@ bool dc_read_dpcd(
 	struct core_link *link = core_dc->links[link_index];
 	enum ddc_result r = dal_ddc_service_read_dpcd_data(
 			link->ddc,
+			false,
+			I2C_MOT_UNDEF,
+			address,
+			data,
+			size);
+	return r == DDC_RESULT_SUCESSFULL;
+}
+
+bool dc_write_aux_dpcd(
+		struct dc *dc,
+		uint32_t link_index,
+		uint32_t address,
+		const uint8_t *data,
+		uint32_t size)
+{
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct core_link *link = core_dc->links[link_index];
+
+	enum ddc_result r = dal_ddc_service_write_dpcd_data(
+			link->ddc,
+			false,
+			I2C_MOT_UNDEF,
+			address,
+			data,
+			size);
+	return r == DDC_RESULT_SUCESSFULL;
+}
+
+bool dc_read_aux_i2c(
+		struct dc *dc,
+		uint32_t link_index,
+		enum i2c_mot_mode mot,
+		uint32_t address,
+		uint8_t *data,
+		uint32_t size)
+{
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+
+		struct core_link *link = core_dc->links[link_index];
+		enum ddc_result r = dal_ddc_service_read_dpcd_data(
+			link->ddc,
+			true,
+			mot,
+			address,
+			data,
+			size);
+		return r == DDC_RESULT_SUCESSFULL;
+}
+
+bool dc_write_aux_i2c(
+		struct dc *dc,
+		uint32_t link_index,
+		enum i2c_mot_mode mot,
+		uint32_t address,
+		const uint8_t *data,
+		uint32_t size)
+{
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct core_link *link = core_dc->links[link_index];
+
+	enum ddc_result r = dal_ddc_service_write_dpcd_data(
+			link->ddc,
+			true,
+			mot,
 			address,
 			data,
 			size);
@@ -1593,26 +1657,6 @@ bool dc_query_ddc_data(
 			read_size);
 
 	return result;
-}
-
-
-bool dc_write_dpcd(
-		struct dc *dc,
-		uint32_t link_index,
-		uint32_t address,
-		const uint8_t *data,
-		uint32_t size)
-{
-	struct core_dc *core_dc = DC_TO_CORE(dc);
-
-	struct core_link *link = core_dc->links[link_index];
-
-	enum ddc_result r = dal_ddc_service_write_dpcd_data(
-			link->ddc,
-			address,
-			data,
-			size);
-	return r == DDC_RESULT_SUCESSFULL;
 }
 
 bool dc_submit_i2c(

@@ -29,7 +29,7 @@
 struct amdgpu_display_manager;
 struct amdgpu_connector;
 
-void amdgpu_dm_initialize_mst_connector(
+void amdgpu_dm_initialize_dp_connector(
 	struct amdgpu_display_manager *dm,
 	struct amdgpu_connector *aconnector);
 
