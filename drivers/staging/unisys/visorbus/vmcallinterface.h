@@ -81,13 +81,11 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 #define VMCALL_SUCCESS 0
 #define VMCALL_SUCCESSFUL(result) (result == 0)
 
-#define unisys_vmcall(tuple, reg_ebx, reg_ecx) \
-	__unisys_vmcall_gnuc(tuple, reg_ebx, reg_ecx)
 #define unisys_extended_vmcall(tuple, reg_ebx, reg_ecx, reg_edx) \
 	__unisys_extended_vmcall_gnuc(tuple, reg_ebx, reg_ecx, reg_edx)
-#define ISSUE_IO_VMCALL(method, param, result) \
-	(result = unisys_vmcall(method, (param) & 0xFFFFFFFF, \
-				(param) >> 32))
+#define unisys_vmcall(method, param, result) \
+	(result = __unisys_vmcall_gnuc((method), (param) & 0xFFFFFFFF, \
+				       (param) >> 32))
 
 /* Structures for IO VMCALLs */
 
