@@ -432,7 +432,7 @@ static int setup_header(struct sk_buff *skb, struct net_device *netdev,
 		}
 
 		daddr = peer->lladdr;
-		peer_addr = &peer->chan->dst;
+		*peer_addr = peer->chan->dst;
 		*peer_addr_type = peer->chan->dst_type;
 		lowpan_cb(skb)->chan = peer->chan;
 
