@@ -69,10 +69,12 @@ struct spar_segment_state  {
 	u16 ready:1;
 	/* Bit 7: resource is configured and operating */
 	u16 operating:1;
+	/* Natural alignment*/
+	u16 reserved:8;
 /* Note: don't use high bit unless we need to switch to ushort
  * which is non-compliant
  */
-};
+} __packed;
 
 static const struct spar_segment_state segment_state_running = {
 	1, 1, 1, 0, 1, 1, 1, 1
@@ -145,7 +147,7 @@ struct irq_info {
      */
 	u8 recv_irq_shared;
 	u8 reserved[3];	/* Natural alignment purposes */
-};
+} __packed;
 
 struct efi_spar_indication  {
 	u64 boot_to_fw_ui:1;		/* Bit 0: Stop in uefi ui */
@@ -153,7 +155,8 @@ struct efi_spar_indication  {
 	u64 clear_cmos:1;		/* Bit 2: Clear CMOS */
 	u64 boot_to_tool:1;		/* Bit 3: Run install tool */
 	/* remaining bits are available */
-};
+	u64 reserved:60;		/* Natural alignment */
+} __packed;
 
 enum ultra_chipset_feature {
 	ULTRA_CHIPSET_FEATURE_REPLY = 0x00000001,
@@ -195,7 +198,9 @@ struct controlvm_message_header  {
 		u32 preserve:1;
 		/* =1 the DiagWriter is active in the Diagnostic Partition */
 		u32 writer_in_diag:1;
-	} flags;
+		/* Natural alignment */
+		u32 reserve:25;
+	} __packed flags;
 	/* Natural alignment */
 	u32 reserved;
 	/* Identifies the particular message instance */
@@ -208,7 +213,7 @@ struct controlvm_message_header  {
 	/* Actual number of bytes of payload area to copy between IO/Command */
 	u32 payload_bytes;
 	/* if non-zero, there is a payload to copy. */
-};
+} __packed;
 
 struct controlvm_packet_device_create  {
 	u32 bus_no;		/* bus # (0..n-1) from the msg receiver's end */
@@ -221,24 +226,24 @@ struct controlvm_packet_device_create  {
 	uuid_le data_type_uuid;	/* specifies format of data in channel */
 	uuid_le dev_inst_uuid;	/* instance guid for the device */
 	struct irq_info intr;	/* specifies interrupt information */
-};	/* for CONTROLVM_DEVICE_CREATE */
+} __packed;	/* for CONTROLVM_DEVICE_CREATE */
 
 struct controlvm_packet_device_configure  {
 	/* bus # (0..n-1) from the msg receiver's perspective */
 	u32 bus_no;
 	/* Control uses header SegmentIndex field to access bus number... */
 	u32 dev_no;	      /* bus-relative (0..n-1) device number */
-} ;	/* for CONTROLVM_DEVICE_CONFIGURE */
+} __packed;	/* for CONTROLVM_DEVICE_CONFIGURE */
 
 struct controlvm_message_device_create {
 	struct controlvm_message_header header;
 	struct controlvm_packet_device_create packet;
-};	/* total 128 bytes */
+} __packed;	/* total 128 bytes */
 
 struct controlvm_message_device_configure  {
 	struct controlvm_message_header header;
 	struct controlvm_packet_device_configure packet;
-};	/* total 56 bytes */
+} __packed;	/* total 56 bytes */
 
 /* This is the format for a message in any ControlVm queue. */
 struct controlvm_message_packet  {
@@ -256,12 +261,12 @@ struct controlvm_message_packet  {
 	/* indicates format of data in bus channel*/
 			uuid_le bus_data_type_uuid;
 			uuid_le bus_inst_uuid;	/* instance uuid for the bus */
-		} create_bus;	/* for CONTROLVM_BUS_CREATE */
+		} __packed create_bus;	/* for CONTROLVM_BUS_CREATE */
 		struct  {
 	/* bus # (0..n-1) from the msg receiver's perspective */
 			u32 bus_no;
 			u32 reserved;	/* Natural alignment purposes */
-		} destroy_bus;	/* for CONTROLVM_BUS_DESTROY */
+		} __packed destroy_bus;	/* for CONTROLVM_BUS_DESTROY */
 		struct  {
 	/* bus # (0..n-1) from the receiver's perspective */
 			u32 bus_no;
@@ -275,26 +280,27 @@ struct controlvm_message_packet  {
 				 * notifications.  The corresponding
 				 * sendBusInterruptHandle is kept in CP.
 				 */
-		} configure_bus;	/* for CONTROLVM_BUS_CONFIGURE */
+		} __packed configure_bus;      /* for CONTROLVM_BUS_CONFIGURE */
 		/* for CONTROLVM_DEVICE_CREATE */
 		struct controlvm_packet_device_create create_device;
 		struct  {
 		/* bus # (0..n-1) from the msg receiver's perspective */
 			u32 bus_no;
 			u32 dev_no;	/* bus-relative (0..n-1) device # */
-		} destroy_device;	/* for CONTROLVM_DEVICE_DESTROY */
+		} __packed destroy_device;    /* for CONTROLVM_DEVICE_DESTROY */
 		/* for CONTROLVM_DEVICE_CONFIGURE */
 		struct controlvm_packet_device_configure configure_device;
 		struct  {
 		/* bus # (0..n-1) from the msg receiver's perspective */
 			u32 bus_no;
 			u32 dev_no;	/* bus-relative (0..n-1) device # */
-		} reconfigure_device;	/* for CONTROLVM_DEVICE_RECONFIGURE */
+		} __packed reconfigure_device;
+			/* for CONTROLVM_DEVICE_RECONFIGURE */
 		struct  {
 			u32 bus_no;
 			struct spar_segment_state state;
 			u8 reserved[2];	/* Natural alignment purposes */
-		} bus_change_state;	/* for CONTROLVM_BUS_CHANGESTATE */
+		} __packed bus_change_state; /* for CONTROLVM_BUS_CHANGESTATE */
 		struct  {
 			u32 bus_no;
 			u32 dev_no;
@@ -302,15 +308,18 @@ struct controlvm_message_packet  {
 			struct  {
 				/* =1 if message is for a physical device */
 				u32 phys_device:1;
-			} flags;
+				u32 reserved:31;	/* Natural alignment */
+				u32 reserved1;		/* Natural alignment */
+			} __packed flags;
 			u8 reserved[2];	/* Natural alignment purposes */
-		} device_change_state;	/* for CONTROLVM_DEVICE_CHANGESTATE */
+		} __packed device_change_state;
+			/* for CONTROLVM_DEVICE_CHANGESTATE */
 		struct  {
 			u32 bus_no;
 			u32 dev_no;
 			struct spar_segment_state state;
 			u8 reserved[6];	/* Natural alignment purposes */
-		} device_change_state_event;
+		} __packed device_change_state_event;
 			/* for CONTROLVM_DEVICE_CHANGESTATE_EVENT */
 		struct  {
 			/* indicates the max number of busses */
@@ -319,11 +328,12 @@ struct controlvm_message_packet  {
 			u32 switch_count;
 			enum ultra_chipset_feature features;
 			u32 platform_number;	/* Platform Number */
-		} init_chipset;	/* for CONTROLVM_CHIPSET_INIT */
+		} __packed init_chipset;	/* for CONTROLVM_CHIPSET_INIT */
 		struct  {
 			u32 options;	/* reserved */
 			u32 test;	/* bit 0 set to run embedded selftest */
-		} chipset_selftest;	/* for CONTROLVM_CHIPSET_SELFTEST */
+		} __packed chipset_selftest;
+			/* for CONTROLVM_CHIPSET_SELFTEST */
 		/* a physical address of something, that can be dereferenced
 		 * by the receiver of this ControlVm command
 		 */
@@ -331,13 +341,13 @@ struct controlvm_message_packet  {
 		/* a handle of something (depends on command id) */
 		u64 handle;
 	};
-};
+} __packed;
 
 /* All messages in any ControlVm queue have this layout. */
 struct controlvm_message {
 	struct controlvm_message_header hdr;
 	struct controlvm_message_packet cmd;
-};
+} __packed;
 
 struct spar_controlvm_channel_protocol {
 	struct channel_header header;
@@ -424,7 +434,7 @@ struct spar_controlvm_channel_protocol {
 
 	 /* Message stored during IOVM creation to be reused after crash */
 	 struct controlvm_message saved_crash_msg[CONTROLVM_CRASHMSG_MAX];
-};
+} __packed;
 
 /* The following header will be located at the beginning of PayloadVmOffset for
  * various ControlVm commands. The receiver of a ControlVm command with a
@@ -450,7 +460,7 @@ struct spar_controlvm_parameters_header {
 	uuid_le id;
 	u32 revision;
 	u32 reserved;		/* Natural alignment */
-};
+} __packed;
 
 /* General Errors------------------------------------------------------[0-99] */
 #define CONTROLVM_RESP_SUCCESS			   0
