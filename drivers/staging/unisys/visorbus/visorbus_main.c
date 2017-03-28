@@ -23,9 +23,6 @@
 
 #define MYDRVNAME "visorbus"
 
-/* module parameters */
-static int visorbus_forcenomatch;
-
 /* Display string that is guaranteed to be no longer the 99 characters*/
 #define LINESIZE 99
 
@@ -111,8 +108,6 @@ visorbus_match(struct device *xdev, struct device_driver *xdrv)
 	drv = to_visor_driver(xdrv);
 	channel_type = visorchannel_get_uuid(dev->visorchannel);
 
-	if (visorbus_forcenomatch)
-		return 0;
 	if (!drv->channel_types)
 		return 0;
 
@@ -1337,7 +1332,3 @@ visorbus_exit(void)
 	bus_unregister(&visorbus_type);
 	debugfs_remove_recursive(visorbus_debugfs_dir);
 }
-
-module_param_named(forcenomatch, visorbus_forcenomatch, int, 0444);
-MODULE_PARM_DESC(visorbus_forcenomatch,
-		 "1 to force an UNsuccessful dev <--> drv match");
