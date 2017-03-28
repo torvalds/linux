@@ -13,11 +13,12 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/list.h>
+#include <linux/netdevice.h>
 #include <linux/slab.h>
 #include <linux/rtnetlink.h>
-#include <net/dsa.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <net/dsa.h>
 #include "dsa_priv.h"
 
 static LIST_HEAD(dsa_switch_trees);

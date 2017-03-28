@@ -17,6 +17,7 @@
 #include <linux/of_mdio.h>
 #include <linux/mdio.h>
 #include <linux/list.h>
+#include <net/dsa.h>
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
 #include <net/pkt_cls.h>
