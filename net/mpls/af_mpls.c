@@ -1880,6 +1880,8 @@ static inline size_t lfib_nlmsg_size(struct mpls_route *rt)
 		size_t nhsize = 0;
 
 		for_nexthops(rt) {
+			if (!rtnl_dereference(nh->nh_dev))
+				continue;
 			nhsize += nla_total_size(sizeof(struct rtnexthop));
 			/* RTA_VIA */
 			if (nh->nh_via_table != MPLS_NEIGH_TABLE_UNSPEC)
