@@ -86,8 +86,7 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 
 static inline int __put_user_fn(size_t size, void __user *ptr, void *x)
 {
-	size = __copy_to_user(ptr, x, size);
-	return size ? -EFAULT : size;
+	return unlikely(__copy_to_user(ptr, x, size)) ? -EFAULT : 0;
 }
 
 #define __put_user_fn(sz, u, k)	__put_user_fn(sz, u, k)
@@ -102,28 +101,28 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 	__chk_user_ptr(ptr);					\
 	switch (sizeof(*(ptr))) {				\
 	case 1: {						\
-		unsigned char __x;				\
+		unsigned char __x = 0;				\
 		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
 					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 2: {						\
-		unsigned short __x;				\
+		unsigned short __x = 0;				\
 		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
 					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 4: {						\
-		unsigned int __x;				\
+		unsigned int __x = 0;				\
 		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
 					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
 		break;						\
 	};							\
 	case 8: {						\
-		unsigned long long __x;				\
+		unsigned long long __x = 0;			\
 		__gu_err = __get_user_fn(sizeof (*(ptr)),	\
 					 ptr, &__x);		\
 		(x) = *(__force __typeof__(*(ptr)) *) &__x;	\
@@ -148,12 +147,7 @@ extern int __put_user_bad(void) __attribute__((noreturn));
 #ifndef __get_user_fn
 static inline int __get_user_fn(size_t size, const void __user *ptr, void *x)
 {
-	size_t n = __copy_from_user(x, ptr, size);
-	if (unlikely(n)) {
-		memset(x + (size - n), 0, n);
-		return -EFAULT;
-	}
-	return 0;
+	return unlikely(__copy_from_user(x, ptr, size)) ? -EFAULT : 0;
 }
 
 #define __get_user_fn(sz, u, k)	__get_user_fn(sz, u, k)
