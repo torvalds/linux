@@ -419,22 +419,22 @@ static int ccp5_perform_des3(struct ccp_op *op)
 	CCP_DES3_ENCRYPT(&function) = op->u.des3.action;
 	CCP_DES3_MODE(&function) = op->u.des3.mode;
 	CCP_DES3_TYPE(&function) = op->u.des3.type;
-	CCP5_CMD_FUNCTION(&desc) = cpu_to_le32(function.raw);
+	CCP5_CMD_FUNCTION(&desc) = function.raw;
 
-	CCP5_CMD_LEN(&desc) = cpu_to_le32(op->src.u.dma.length);
+	CCP5_CMD_LEN(&desc) = op->src.u.dma.length;
 
-	CCP5_CMD_SRC_LO(&desc) = cpu_to_le32(ccp_addr_lo(&op->src.u.dma));
-	CCP5_CMD_SRC_HI(&desc) = cpu_to_le32(ccp_addr_hi(&op->src.u.dma));
-	CCP5_CMD_SRC_MEM(&desc) = cpu_to_le32(CCP_MEMTYPE_SYSTEM);
+	CCP5_CMD_SRC_LO(&desc) = ccp_addr_lo(&op->src.u.dma);
+	CCP5_CMD_SRC_HI(&desc) = ccp_addr_hi(&op->src.u.dma);
+	CCP5_CMD_SRC_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
 
-	CCP5_CMD_DST_LO(&desc) = cpu_to_le32(ccp_addr_lo(&op->dst.u.dma));
-	CCP5_CMD_DST_HI(&desc) = cpu_to_le32(ccp_addr_hi(&op->dst.u.dma));
-	CCP5_CMD_DST_MEM(&desc) = cpu_to_le32(CCP_MEMTYPE_SYSTEM);
+	CCP5_CMD_DST_LO(&desc) = ccp_addr_lo(&op->dst.u.dma);
+	CCP5_CMD_DST_HI(&desc) = ccp_addr_hi(&op->dst.u.dma);
+	CCP5_CMD_DST_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
 
-	CCP5_CMD_KEY_LO(&desc) = cpu_to_le32(lower_32_bits(key_addr));
+	CCP5_CMD_KEY_LO(&desc) = lower_32_bits(key_addr);
 	CCP5_CMD_KEY_HI(&desc) = 0;
-	CCP5_CMD_KEY_MEM(&desc) = cpu_to_le32(CCP_MEMTYPE_SB);
-	CCP5_CMD_LSB_ID(&desc) = cpu_to_le32(op->sb_ctx);
+	CCP5_CMD_KEY_MEM(&desc) = CCP_MEMTYPE_SB;
+	CCP5_CMD_LSB_ID(&desc) = op->sb_ctx;
 
 	return ccp5_do_cmd(&desc, op->cmd_q);
 }
