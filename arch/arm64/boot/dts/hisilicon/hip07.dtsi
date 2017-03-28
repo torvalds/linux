@@ -1014,11 +1014,72 @@
 		compatible = "hisilicon,mbigen-v2";
 		reg = <0x0 0xa0080000 0x0 0x10000>;
 
+		mbigen_pcie2_a: intc_pcie2_a {
+			msi-parent = <&p0_its_dsa_a 0x40087>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <10>;
+		};
+
+		mbigen_sas1: intc_sas1 {
+			msi-parent = <&p0_its_dsa_a 0x40000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <128>;
+		};
+
+		mbigen_sas2: intc_sas2 {
+			msi-parent = <&p0_its_dsa_a 0x40040>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <128>;
+		};
+
+		mbigen_smmu_pcie: intc_smmu_pcie {
+			msi-parent = <&p0_its_dsa_a 0x40b0c>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+
 		mbigen_usb: intc_usb {
 			msi-parent = <&p0_its_dsa_a 0x40080>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			num-pins = <2>;
+		};
+	};
+
+	p0_mbigen_dsa_a: interrupt-controller@c0080000 {
+		compatible = "hisilicon,mbigen-v2";
+		reg = <0x0 0xc0080000 0x0 0x10000>;
+
+		mbigen_dsaf0: intc_dsaf0 {
+			msi-parent = <&p0_its_dsa_a 0x40800>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <409>;
+		};
+
+		mbigen_dsa_roce: intc-roce {
+			msi-parent = <&p0_its_dsa_a 0x40B1E>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <34>;
+		};
+
+		mbigen_sas0: intc-sas0 {
+			msi-parent = <&p0_its_dsa_a 0x40900>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <128>;
+		};
+
+		mbigen_smmu_dsa: intc_smmu_dsa {
+			msi-parent = <&p0_its_dsa_a 0x40b20>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
 		};
 	};
 
