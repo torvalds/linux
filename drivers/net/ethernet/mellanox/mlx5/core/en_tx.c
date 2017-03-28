@@ -88,6 +88,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	int channel_ix = fallback(dev, skb);
+	u16 num_channels;
 	int up = 0;
 
 	if (!netdev_get_num_tc(dev))
@@ -99,11 +100,11 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	/* channel_ix can be larger than num_channels since
 	 * dev->num_real_tx_queues = num_channels * num_tc
 	 */
-	if (channel_ix >= priv->params.num_channels)
-		channel_ix = reciprocal_scale(channel_ix,
-					      priv->params.num_channels);
+	num_channels = priv->channels.params.num_channels;
+	if (channel_ix >= num_channels)
+		channel_ix = reciprocal_scale(channel_ix, num_channels);
 
-	return priv->channeltc_to_txq_map[channel_ix][up];
+	return priv->channel_tc2txq[channel_ix][up];
 }
 
 static inline int mlx5e_skb_l2_header_offset(struct sk_buff *skb)
@@ -339,7 +340,7 @@ dma_unmap_wqe_err:
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5e_txqsq *sq = priv->txq_to_sq_map[skb_get_queue_mapping(skb)];
+	struct mlx5e_txqsq *sq = priv->txq2sq[skb_get_queue_mapping(skb)];
 
 	return mlx5e_sq_xmit(sq, skb);
 }
