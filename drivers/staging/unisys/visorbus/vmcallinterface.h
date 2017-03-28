@@ -54,10 +54,6 @@ __unisys_extended_vmcall_gnuc(unsigned long long tuple,
 	return result;
 }
 
-#ifdef VMCALL_CONTROLVM_ADDR
-#undef VMCALL_CONTROLVM_ADDR
-#endif	/*  */
-
 /* define subsystem number for AppOS, used in uislib driver  */
 #define MDS_APPOS 0x4000000000000000L /* subsystem = 62 - AppOS */
 enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
