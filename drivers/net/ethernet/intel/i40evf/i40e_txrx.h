@@ -244,7 +244,12 @@ struct i40e_tx_buffer {
 struct i40e_rx_buffer {
 	dma_addr_t dma;
 	struct page *page;
-	unsigned int page_offset;
+#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
+	__u32 page_offset;
+#else
+	__u16 page_offset;
+#endif
+	__u16 pagecnt_bias;
 };
 
 struct i40e_queue_stats {
@@ -463,19 +468,7 @@ static inline bool i40e_chk_linearize(struct sk_buff *skb, int count)
 	/* we can support up to 8 data buffers for a single send */
 	return count != I40E_MAX_BUFFER_TXD;
 }
-
 /**
- * i40e_rx_is_fcoe - returns true if the Rx packet type is FCoE
- * @ptype: the packet type field from Rx descriptor write-back
- **/
-static inline bool i40e_rx_is_fcoe(u16 ptype)
-{
-	return (ptype >= I40E_RX_PTYPE_L2_FCOE_PAY3) &&
-	       (ptype <= I40E_RX_PTYPE_L2_FCOE_VFT_FCOTHER);
-}
-
-/**
- * txring_txq - Find the netdev Tx ring based on the i40e Tx ring
  * @ring: Tx ring to find the netdev equivalent of
  **/
 static inline struct netdev_queue *txring_txq(const struct i40e_ring *ring)

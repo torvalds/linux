@@ -45,4 +45,3 @@ i40e-objs := i40e_main.o \
 	i40e_virtchnl_pf.o
 
 i40e-$(CONFIG_I40E_DCB) += i40e_dcb.o i40e_dcb_nl.o
-i40e-$(CONFIG_I40E_FCOE) += i40e_fcoe.o

@@ -87,7 +87,6 @@ struct i40e_vf {
 	u16 stag;
 
 	struct i40e_virtchnl_ether_addr default_lan_addr;
-	struct i40e_virtchnl_ether_addr default_fcoe_addr;
 	u16 port_vlan_id;
 	bool pf_set_mac;	/* The VMM admin set the VF MAC address */
 	bool trusted;

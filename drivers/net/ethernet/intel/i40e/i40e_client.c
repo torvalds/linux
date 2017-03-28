@@ -147,6 +147,8 @@ void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi)
 		dev_dbg(&vsi->back->pdev->dev, "Client is not open, abort l2 param change\n");
 		return;
 	}
+	memset(&params, 0, sizeof(params));
+	i40e_client_get_params(vsi, &params);
 	memcpy(&cdev->lan_info.params, &params, sizeof(struct i40e_params));
 	cdev->client->ops->l2_param_change(&cdev->lan_info, cdev->client,
 					   &params);
