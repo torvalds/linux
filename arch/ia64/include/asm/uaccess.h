@@ -276,16 +276,6 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	return n;
 }
 
-#define __copy_in_user(to, from, size)	__copy_user((to), (from), (size))
-
-static inline unsigned long
-copy_in_user (void __user *to, const void __user *from, unsigned long n)
-{
-	if (likely(access_ok(VERIFY_READ, from, n) && access_ok(VERIFY_WRITE, to, n)))
-		n = __copy_user(to, from, n);
-	return n;
-}
-
 extern unsigned long __do_clear_user (void __user *, unsigned long);
 
 #define __clear_user(to, n)		__do_clear_user(to, n)
