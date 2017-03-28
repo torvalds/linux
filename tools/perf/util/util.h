@@ -287,9 +287,9 @@ struct symbol;
 
 extern bool srcline_full_filename;
 char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym);
+		  bool show_sym, bool show_addr);
 char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym, bool unwind_inlines);
+		  bool show_sym, bool show_addr, bool unwind_inlines);
 void free_srcline(char *srcline);
 
 int perf_event_paranoid(void);
@@ -364,4 +364,20 @@ int is_printable_array(char *p, unsigned int len);
 int timestamp__scnprintf_usec(u64 timestamp, char *buf, size_t sz);
 
 int unit_number__scnprintf(char *buf, size_t size, u64 n);
+
+struct inline_list {
+	char			*filename;
+	char			*funcname;
+	unsigned int		line_nr;
+	struct list_head	list;
+};
+
+struct inline_node {
+	u64			addr;
+	struct list_head	val;
+};
+
+struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr);
+void inline_node__delete(struct inline_node *node);
+
 #endif /* GIT_COMPAT_UTIL_H */

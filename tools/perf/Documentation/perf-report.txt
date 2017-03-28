@@ -235,6 +235,7 @@ OPTIONS
 	sort_key can be:
 	- function: compare on functions (default)
 	- address: compare on individual code addresses
+	- srcline: compare on source filename and line number
 
 	branch can be:
 	- branch: include last branch information in callgraph when available.
@@ -429,6 +430,10 @@ include::itrace.txt[]
 
 --hierarchy::
 	Enable hierarchical output.
+
+--inline::
+	If a callgraph address belongs to an inlined function, the inline stack
+	will be printed. Each entry is function name or file/line.
 
 include::callchain-overhead-calculation.txt[]
 

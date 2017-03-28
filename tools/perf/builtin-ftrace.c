@@ -304,7 +304,7 @@ static int perf_ftrace_config(const char *var, const char *value, void *cb)
 	return -1;
 }
 
-int cmd_ftrace(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_ftrace(int argc, const char **argv)
 {
 	int ret;
 	struct perf_ftrace ftrace = {

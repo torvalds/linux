@@ -34,7 +34,7 @@ const char *input_name;
 
 struct cmd_struct {
 	const char *cmd;
-	int (*fn)(int, const char **, const char *);
+	int (*fn)(int, const char **);
 	int option;
 };
 
@@ -339,12 +339,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 {
 	int status;
 	struct stat st;
-	const char *prefix;
 	char sbuf[STRERR_BUFSIZE];
-
-	prefix = NULL;
-	if (p->option & RUN_SETUP)
-		prefix = NULL; /* setup_perf_directory(); */
 
 	if (use_browser == -1)
 		use_browser = check_browser_config(p->cmd);
@@ -356,7 +351,7 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	commit_pager_choice();
 
 	perf_env__set_cmdline(&perf_env, argc, argv);
-	status = p->fn(argc, argv, prefix);
+	status = p->fn(argc, argv);
 	perf_config__exit();
 	exit_browser(status);
 	perf_env__exit(&perf_env);
@@ -566,7 +561,7 @@ int main(int argc, const char **argv)
 #ifdef HAVE_LIBAUDIT_SUPPORT
 		setup_path();
 		argv[0] = "trace";
-		return cmd_trace(argc, argv, NULL);
+		return cmd_trace(argc, argv);
 #else
 		fprintf(stderr,
 			"trace command not available: missing audit-libs devel package at build time.\n");

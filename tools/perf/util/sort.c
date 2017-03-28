@@ -323,7 +323,7 @@ char *hist_entry__get_srcline(struct hist_entry *he)
 		return SRCLINE_UNKNOWN;
 
 	return get_srcline(map->dso, map__rip_2objdump(map, he->ip),
-			   he->ms.sym, true);
+			   he->ms.sym, true, true);
 }
 
 static int64_t
@@ -366,7 +366,8 @@ sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 			left->branch_info->srcline_from = get_srcline(map->dso,
 					   map__rip_2objdump(map,
 							     left->branch_info->from.al_addr),
-							 left->branch_info->from.sym, true);
+							 left->branch_info->from.sym,
+							 true, true);
 	}
 	if (!right->branch_info->srcline_from) {
 		struct map *map = right->branch_info->from.map;
@@ -376,7 +377,8 @@ sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 			right->branch_info->srcline_from = get_srcline(map->dso,
 					     map__rip_2objdump(map,
 							       right->branch_info->from.al_addr),
-						     right->branch_info->from.sym, true);
+						     right->branch_info->from.sym,
+						     true, true);
 	}
 	return strcmp(right->branch_info->srcline_from, left->branch_info->srcline_from);
 }
@@ -407,7 +409,8 @@ sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 			left->branch_info->srcline_to = get_srcline(map->dso,
 					   map__rip_2objdump(map,
 							     left->branch_info->to.al_addr),
-							 left->branch_info->from.sym, true);
+							 left->branch_info->from.sym,
+							 true, true);
 	}
 	if (!right->branch_info->srcline_to) {
 		struct map *map = right->branch_info->to.map;
@@ -417,7 +420,8 @@ sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 			right->branch_info->srcline_to = get_srcline(map->dso,
 					     map__rip_2objdump(map,
 							       right->branch_info->to.al_addr),
-						     right->branch_info->to.sym, true);
+						     right->branch_info->to.sym,
+						     true, true);
 	}
 	return strcmp(right->branch_info->srcline_to, left->branch_info->srcline_to);
 }
@@ -448,7 +452,7 @@ static char *hist_entry__get_srcfile(struct hist_entry *e)
 		return no_srcfile;
 
 	sf = __get_srcline(map->dso, map__rip_2objdump(map, e->ip),
-			 e->ms.sym, false, true);
+			 e->ms.sym, false, true, true);
 	if (!strcmp(sf, SRCLINE_UNKNOWN))
 		return no_srcfile;
 	p = strchr(sf, ':');

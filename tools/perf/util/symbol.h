@@ -118,7 +118,8 @@ struct symbol_conf {
 			show_ref_callgraph,
 			hide_unresolved,
 			raw_trace,
-			report_hierarchy;
+			report_hierarchy,
+			inline_name;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
@@ -304,6 +305,8 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, int kmodule);
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss,
 				struct map *map);
+
+char *dso__demangle_sym(struct dso *dso, int kmodule, char *elf_name);
 
 void __symbols__insert(struct rb_root *symbols, struct symbol *sym, bool kernel);
 void symbols__insert(struct rb_root *symbols, struct symbol *sym);

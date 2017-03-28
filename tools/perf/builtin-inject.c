@@ -738,7 +738,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	return ret;
 }
 
-int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_inject(int argc, const char **argv)
 {
 	struct perf_inject inject = {
 		.tool = {

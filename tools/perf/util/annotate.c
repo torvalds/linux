@@ -1307,6 +1307,7 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 {
 	char linkname[PATH_MAX];
 	char *build_id_filename;
+	char *build_id_path = NULL;
 
 	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
 	    !dso__is_kcore(dso))
@@ -1322,8 +1323,14 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 		goto fallback;
 	}
 
+	build_id_path = strdup(filename);
+	if (!build_id_path)
+		return -1;
+
+	dirname(build_id_path);
+
 	if (dso__is_kcore(dso) ||
-	    readlink(filename, linkname, sizeof(linkname)) < 0 ||
+	    readlink(build_id_path, linkname, sizeof(linkname)) < 0 ||
 	    strstr(linkname, DSO__NAME_KALLSYMS) ||
 	    access(filename, R_OK)) {
 fallback:
@@ -1335,6 +1342,7 @@ fallback:
 		__symbol__join_symfs(filename, filename_size, dso->long_name);
 	}
 
+	free(build_id_path);
 	return 0;
 }
 
@@ -1663,18 +1671,23 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 		src_line->nr_pcnt = nr_pcnt;
 
 		for (k = 0; k < nr_pcnt; k++) {
-			h = annotation__histogram(notes, evidx + k);
-			src_line->samples[k].percent = 100.0 * h->addr[i] / h->sum;
+			double percent = 0.0;
 
-			if (src_line->samples[k].percent > percent_max)
-				percent_max = src_line->samples[k].percent;
+			h = annotation__histogram(notes, evidx + k);
+			if (h->sum)
+				percent = 100.0 * h->addr[i] / h->sum;
+
+			if (percent > percent_max)
+				percent_max = percent;
+			src_line->samples[k].percent = percent;
 		}
 
 		if (percent_max <= 0.5)
 			goto next;
 
 		offset = start + i;
-		src_line->path = get_srcline(map->dso, offset, NULL, false);
+		src_line->path = get_srcline(map->dso, offset, NULL,
+					     false, true);
 		insert_source_line(&tmp_root, src_line);
 
 	next:

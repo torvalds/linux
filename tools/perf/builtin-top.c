@@ -1075,7 +1075,7 @@ parse_percent_limit(const struct option *opt, const char *arg,
 const char top_callchain_help[] = CALLCHAIN_RECORD_HELP CALLCHAIN_REPORT_HELP
 	"\n\t\t\t\tDefault: fp,graph,0.5,caller,function";
 
-int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_top(int argc, const char **argv)
 {
 	char errbuf[BUFSIZ];
 	struct perf_top top = {

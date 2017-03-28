@@ -87,8 +87,7 @@ out:
 	return 0;
 }
 
-int cmd_buildid_list(int argc, const char **argv,
-		     const char *prefix __maybe_unused)
+int cmd_buildid_list(int argc, const char **argv)
 {
 	bool show_kernel = false;
 	bool with_hits = false;

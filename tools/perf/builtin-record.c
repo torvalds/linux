@@ -1667,7 +1667,7 @@ static struct option __record_options[] = {
 
 struct option *record_options = __record_options;
 
-int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_record(int argc, const char **argv)
 {
 	int err;
 	struct record *rec = &record;
