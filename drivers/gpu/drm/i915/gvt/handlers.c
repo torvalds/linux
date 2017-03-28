@@ -181,11 +181,9 @@ static int sanitize_fence_mmio_access(struct intel_vgpu *vgpu,
 					GVT_FAILSAFE_UNSUPPORTED_GUEST);
 
 		if (!vgpu->mmio.disable_warn_untrack) {
-			gvt_err("vgpu%d: found oob fence register access\n",
-					vgpu->id);
-			gvt_err("vgpu%d: total fence %d, access fence %d\n",
-					vgpu->id, vgpu_fence_sz(vgpu),
-					fence_num);
+			gvt_vgpu_err("found oob fence register access\n");
+			gvt_vgpu_err("total fence %d, access fence %d\n",
+					vgpu_fence_sz(vgpu), fence_num);
 		}
 		memset(p_data, 0, bytes);
 		return -EINVAL;
@@ -249,7 +247,7 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 			break;
 		default:
 			/*should not hit here*/
-			gvt_err("invalid forcewake offset 0x%x\n", offset);
+			gvt_vgpu_err("invalid forcewake offset 0x%x\n", offset);
 			return -EINVAL;
 		}
 	} else {
@@ -530,7 +528,7 @@ static int check_fdi_rx_train_status(struct intel_vgpu *vgpu,
 		fdi_tx_train_bits = FDI_LINK_TRAIN_PATTERN_2;
 		fdi_iir_check_bits = FDI_RX_SYMBOL_LOCK;
 	} else {
-		gvt_err("Invalid train pattern %d\n", train_pattern);
+		gvt_vgpu_err("Invalid train pattern %d\n", train_pattern);
 		return -EINVAL;
 	}
 
@@ -588,7 +586,7 @@ static int update_fdi_rx_iir_status(struct intel_vgpu *vgpu,
 	else if (FDI_RX_IMR_TO_PIPE(offset) != INVALID_INDEX)
 		index = FDI_RX_IMR_TO_PIPE(offset);
 	else {
-		gvt_err("Unsupport registers %x\n", offset);
+		gvt_vgpu_err("Unsupport registers %x\n", offset);
 		return -EINVAL;
 	}
 
@@ -818,7 +816,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 	u32 data;
 
 	if (!dpy_is_valid_port(port_index)) {
-		gvt_err("GVT(%d): Unsupported DP port access!\n", vgpu->id);
+		gvt_vgpu_err("Unsupported DP port access!\n");
 		return 0;
 	}
 
@@ -1016,8 +1014,7 @@ static void write_virtual_sbi_register(struct intel_vgpu *vgpu,
 
 	if (i == num) {
 		if (num == SBI_REG_MAX) {
-			gvt_err("vgpu%d: SBI caching meets maximum limits\n",
-					vgpu->id);
+			gvt_vgpu_err("SBI caching meets maximum limits\n");
 			return;
 		}
 		display->sbi.number++;
@@ -1097,7 +1094,7 @@ static int pvinfo_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 		break;
 	}
 	if (invalid_read)
-		gvt_err("invalid pvinfo read: [%x:%x] = %x\n",
+		gvt_vgpu_err("invalid pvinfo read: [%x:%x] = %x\n",
 				offset, bytes, *(u32 *)p_data);
 	vgpu->pv_notified = true;
 	return 0;
@@ -1125,7 +1122,7 @@ static int handle_g2v_notification(struct intel_vgpu *vgpu, int notification)
 	case 1:	/* Remove this in guest driver. */
 		break;
 	default:
-		gvt_err("Invalid PV notification %d\n", notification);
+		gvt_vgpu_err("Invalid PV notification %d\n", notification);
 	}
 	return ret;
 }
@@ -1181,7 +1178,7 @@ static int pvinfo_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		enter_failsafe_mode(vgpu, GVT_FAILSAFE_INSUFFICIENT_RESOURCE);
 		break;
 	default:
-		gvt_err("invalid pvinfo write offset %x bytes %x data %x\n",
+		gvt_vgpu_err("invalid pvinfo write offset %x bytes %x data %x\n",
 				offset, bytes, data);
 		break;
 	}
@@ -1415,7 +1412,8 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	if (execlist->elsp_dwords.index == 3) {
 		ret = intel_vgpu_submit_execlist(vgpu, ring_id);
 		if(ret)
-			gvt_err("fail submit workload on ring %d\n", ring_id);
+			gvt_vgpu_err("fail submit workload on ring %d\n",
+				ring_id);
 	}
 
 	++execlist->elsp_dwords.index;
@@ -2987,4 +2985,21 @@ int intel_vgpu_default_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 {
 	write_vreg(vgpu, offset, p_data, bytes);
 	return 0;
+}
+
+/**
+ * intel_gvt_in_force_nonpriv_whitelist - if a mmio is in whitelist to be
+ * force-nopriv register
+ *
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ * Returns:
+ * True if the register is in force-nonpriv whitelist;
+ * False if outside;
+ */
+bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
+					  unsigned int offset)
+{
+	return in_whitelist(offset);
 }

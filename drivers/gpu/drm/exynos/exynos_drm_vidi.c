@@ -170,6 +170,7 @@ static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
 	.update_plane = vidi_update_plane,
+	.atomic_flush = exynos_crtc_handle_event,
 };
 
 static void vidi_fake_vblank_timer(unsigned long arg)
