@@ -883,7 +883,7 @@ my_device_changestate(struct controlvm_message *inmsg)
 	u32 dev_no = cmd->device_change_state.dev_no;
 	struct spar_segment_state state = cmd->device_change_state.state;
 	struct visor_device *dev_info;
-	int err;
+	int err = 0;
 
 	dev_info = visorbus_get_device_by_id(bus_no, dev_no, NULL);
 	if (!dev_info) {
@@ -918,7 +918,7 @@ my_device_changestate(struct controlvm_message *inmsg)
 	if (state.alive == segment_state_running.alive &&
 	    state.operating == segment_state_running.operating)
 		/* Response will be sent from chipset_device_resume */
-		chipset_device_resume(dev_info);
+		err = chipset_device_resume(dev_info);
 	/* ServerNotReady / ServerLost / SegmentStateStandby */
 	else if (state.alive == segment_state_standby.alive &&
 		 state.operating == segment_state_standby.operating)
@@ -926,7 +926,10 @@ my_device_changestate(struct controlvm_message *inmsg)
 		 * technically this is standby case where server is lost.
 		 * Response will be sent from chipset_device_pause.
 		 */
-		chipset_device_pause(dev_info);
+		err = chipset_device_pause(dev_info);
+	if (err)
+		goto err_respond;
+
 	return 0;
 
 err_respond:
