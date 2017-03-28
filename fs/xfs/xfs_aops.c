@@ -1261,8 +1261,8 @@ xfs_get_blocks(
 
 	if (nimaps) {
 		trace_xfs_get_blocks_found(ip, offset, size,
-				ISUNWRITTEN(&imap) ? XFS_IO_UNWRITTEN
-						   : XFS_IO_OVERWRITE, &imap);
+			imap.br_state == XFS_EXT_UNWRITTEN ?
+				XFS_IO_UNWRITTEN : XFS_IO_OVERWRITE, &imap);
 		xfs_iunlock(ip, lockmode);
 	} else {
 		trace_xfs_get_blocks_notfound(ip, offset, size);

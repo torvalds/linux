@@ -30,7 +30,6 @@ struct xfs_trans;
 #define XFS_EXTFMT_INODE(x)	\
 	(xfs_sb_version_hasextflgbit(&((x)->i_mount->m_sb)) ? \
 		XFS_EXTFMT_HASSTATE : XFS_EXTFMT_NOSTATE)
-#define ISUNWRITTEN(x)	((x)->br_state == XFS_EXT_UNWRITTEN)
 
 /*
  * Btree block header size depends on a superblock flag.
