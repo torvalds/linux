@@ -82,9 +82,7 @@ visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env)
 	dev = to_visor_device(xdev);
 	guid = visorchannel_get_uuid(dev->visorchannel);
 
-	if (add_uevent_var(env, "MODALIAS=visorbus:%pUl", &guid))
-		return -ENOMEM;
-	return 0;
+	return add_uevent_var(env, "MODALIAS=visorbus:%pUl", &guid);
 }
 
 /*
