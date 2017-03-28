@@ -212,7 +212,7 @@ static struct attribute *ad5504_ev_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group ad5504_ev_attribute_group = {
+static const struct attribute_group ad5504_ev_attribute_group = {
 	.attrs = ad5504_ev_attributes,
 };
 
