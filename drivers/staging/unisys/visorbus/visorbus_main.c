@@ -1023,46 +1023,35 @@ create_bus_instance(struct visor_device *dev)
 
 	dev->debugfs_dir = debugfs_create_dir(dev_name(&dev->device),
 					      visorbus_debugfs_dir);
-	if (!dev->debugfs_dir) {
-		err = -ENOMEM;
-		goto err_hdr_info;
-	}
 	dev->debugfs_client_bus_info =
 		debugfs_create_file("client_bus_info", 0440,
 				    dev->debugfs_dir, dev,
 				    &client_bus_info_debugfs_fops);
-	if (!dev->debugfs_client_bus_info) {
-		err = -ENOMEM;
+
+	dev_set_drvdata(&dev->device, dev);
+	err = get_vbus_header_info(dev->visorchannel, hdr_info);
+	if (err < 0)
+		goto err_debugfs_dir;
+
+	err = device_register(&dev->device);
+	if (err < 0) {
+		POSTCODE_LINUX(DEVICE_CREATE_FAILURE_PC, 0, id,
+			       DIAG_SEVERITY_ERR);
 		goto err_debugfs_dir;
 	}
 
-	if (device_register(&dev->device) < 0) {
-		POSTCODE_LINUX(DEVICE_CREATE_FAILURE_PC, 0, id,
-			       DIAG_SEVERITY_ERR);
-		err = -ENODEV;
-		goto err_debugfs_created;
-	}
-
-	if (get_vbus_header_info(dev->visorchannel, hdr_info) >= 0) {
-		dev->vbus_hdr_info = (void *)hdr_info;
-		write_vbus_chp_info(dev->visorchannel, hdr_info,
-				    &chipset_driverinfo);
-		write_vbus_bus_info(dev->visorchannel, hdr_info,
-				    &clientbus_driverinfo);
-	} else {
-		kfree(hdr_info);
-	}
 	list_add_tail(&dev->list_all, &list_all_bus_instances);
-	dev_set_drvdata(&dev->device, dev);
-	return 0;
 
-err_debugfs_created:
-	debugfs_remove(dev->debugfs_client_bus_info);
+	dev->vbus_hdr_info = (void *)hdr_info;
+	write_vbus_chp_info(dev->visorchannel, hdr_info,
+			    &chipset_driverinfo);
+	write_vbus_bus_info(dev->visorchannel, hdr_info,
+			    &clientbus_driverinfo);
+
+	return 0;
 
 err_debugfs_dir:
 	debugfs_remove_recursive(dev->debugfs_dir);
-
-err_hdr_info:
 	kfree(hdr_info);
 	return err;
 }
