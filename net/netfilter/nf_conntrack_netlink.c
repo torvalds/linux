@@ -3038,6 +3038,10 @@ ctnetlink_alloc_expect(const struct nlattr * const cda[], struct nf_conn *ct,
 	struct nf_conn_help *help;
 	int err;
 
+	help = nfct_help(ct);
+	if (!help)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (cda[CTA_EXPECT_CLASS] && helper) {
 		class = ntohl(nla_get_be32(cda[CTA_EXPECT_CLASS]));
 		if (class > helper->expect_class_max)
@@ -3047,26 +3051,11 @@ ctnetlink_alloc_expect(const struct nlattr * const cda[], struct nf_conn *ct,
 	if (!exp)
 		return ERR_PTR(-ENOMEM);
 
-	help = nfct_help(ct);
-	if (!help) {
-		if (!cda[CTA_EXPECT_TIMEOUT]) {
-			err = -EINVAL;
-			goto err_out;
-		}
-		exp->timeout.expires =
-		  jiffies + ntohl(nla_get_be32(cda[CTA_EXPECT_TIMEOUT])) * HZ;
-
-		exp->flags = NF_CT_EXPECT_USERSPACE;
-		if (cda[CTA_EXPECT_FLAGS]) {
-			exp->flags |=
-				ntohl(nla_get_be32(cda[CTA_EXPECT_FLAGS]));
-		}
+	if (cda[CTA_EXPECT_FLAGS]) {
+		exp->flags = ntohl(nla_get_be32(cda[CTA_EXPECT_FLAGS]));
+		exp->flags &= ~NF_CT_EXPECT_USERSPACE;
 	} else {
-		if (cda[CTA_EXPECT_FLAGS]) {
-			exp->flags = ntohl(nla_get_be32(cda[CTA_EXPECT_FLAGS]));
-			exp->flags &= ~NF_CT_EXPECT_USERSPACE;
-		} else
-			exp->flags = 0;
+		exp->flags = 0;
 	}
 	if (cda[CTA_EXPECT_FN]) {
 		const char *name = nla_data(cda[CTA_EXPECT_FN]);
