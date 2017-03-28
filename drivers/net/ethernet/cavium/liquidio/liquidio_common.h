@@ -27,7 +27,7 @@
 
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
-#define LIQUIDIO_BASE_MINOR_VERSION 4
+#define LIQUIDIO_BASE_MINOR_VERSION 5
 #define LIQUIDIO_BASE_MICRO_VERSION 1
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
@@ -83,6 +83,7 @@ enum octeon_tag_type {
 #define OPCODE_NIC_INTRMOD_CFG         0x08
 #define OPCODE_NIC_IF_CFG              0x09
 #define OPCODE_NIC_VF_DRV_NOTICE       0x0A
+#define OPCODE_NIC_INTRMOD_PARAMS      0x0B
 #define VF_DRV_LOADED                  1
 #define VF_DRV_REMOVED                -1
 #define VF_DRV_MACADDR_CHANGED         2
@@ -850,29 +851,6 @@ struct oct_mdio_cmd {
 };
 
 #define OCT_LINK_STATS_SIZE   (sizeof(struct oct_link_stats))
-
-/* intrmod: max. packet rate threshold */
-#define LIO_INTRMOD_MAXPKT_RATETHR	196608
-/* intrmod: min. packet rate threshold */
-#define LIO_INTRMOD_MINPKT_RATETHR	9216
-/* intrmod: max. packets to trigger interrupt */
-#define LIO_INTRMOD_RXMAXCNT_TRIGGER	384
-/* intrmod: min. packets to trigger interrupt */
-#define LIO_INTRMOD_RXMINCNT_TRIGGER	0
-/* intrmod: max. time to trigger interrupt */
-#define LIO_INTRMOD_RXMAXTMR_TRIGGER	128
-/* 66xx:intrmod: min. time to trigger interrupt
- * (value of 1 is optimum for TCP_RR)
- */
-#define LIO_INTRMOD_RXMINTMR_TRIGGER	1
-
-/* intrmod: max. packets to trigger interrupt */
-#define LIO_INTRMOD_TXMAXCNT_TRIGGER	64
-/* intrmod: min. packets to trigger interrupt */
-#define LIO_INTRMOD_TXMINCNT_TRIGGER	0
-
-/* intrmod: poll interval in seconds */
-#define LIO_INTRMOD_CHECK_INTERVAL  1
 
 struct oct_intrmod_cfg {
 	u64 rx_enable;

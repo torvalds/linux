@@ -453,9 +453,6 @@ struct octeon_device {
 	/** List of dispatch functions */
 	struct octeon_dispatch_list dispatch;
 
-	/* Interrupt Moderation */
-	struct oct_intrmod_cfg intrmod;
-
 	u32 int_status;
 
 	u64 droq_intr;
@@ -541,6 +538,10 @@ struct octeon_device {
 	u32 priv_flags;
 
 	void *watchdog_task;
+
+	u32 rx_coalesce_usecs;
+	u32 rx_max_coalesced_frames;
+	u32 tx_max_coalesced_frames;
 };
 
 #define  OCT_DRV_ONLINE 1
@@ -553,12 +554,6 @@ struct octeon_device {
 #define  OCTEON_CN23XX_VF(oct)        ((oct)->chip_id == OCTEON_CN23XX_VF_VID)
 #define CHIP_CONF(oct, TYPE)             \
 	(((struct octeon_ ## TYPE  *)((oct)->chip))->conf)
-
-struct oct_intrmod_cmd {
-	struct octeon_device *oct_dev;
-	struct octeon_soft_command *sc;
-	struct oct_intrmod_cfg *cfg;
-};
 
 /*------------------ Function Prototypes ----------------------*/
 
