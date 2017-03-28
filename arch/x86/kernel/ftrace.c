@@ -533,7 +533,13 @@ static void do_sync_core(void *data)
 
 static void run_sync(void)
 {
-	int enable_irqs = irqs_disabled();
+	int enable_irqs;
+
+	/* No need to sync if there's only one CPU */
+	if (num_online_cpus() == 1)
+		return;
+
+	enable_irqs = irqs_disabled();
 
 	/* We may be called with interrupts disabled (on bootup). */
 	if (enable_irqs)
