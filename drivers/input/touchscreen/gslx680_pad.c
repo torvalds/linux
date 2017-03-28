@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/async.h>
 #include <linux/irq.h>
+#include <linux/uaccess.h>
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
 #include <linux/input/mt.h>
