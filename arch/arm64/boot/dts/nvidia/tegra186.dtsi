@@ -3,6 +3,7 @@
 #include <dt-bindings/gpio/tegra186-gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/mailbox/tegra186-hsp.h>
+#include <dt-bindings/memory/tegra186-mc.h>
 #include <dt-bindings/power/tegra186-powergate.h>
 #include <dt-bindings/reset/tegra186-reset.h>
 #include <dt-bindings/thermal/tegra186-bpmp-thermal.h>
@@ -65,6 +66,12 @@
 		snps,burst-map = <0x7>;
 		snps,txpbl = <32>;
 		snps,rxpbl = <8>;
+	};
+
+	memory-controller@2c00000 {
+		compatible = "nvidia,tegra186-mc";
+		reg = <0x0 0x02c00000 0x0 0xb0000>;
+		status = "disabled";
 	};
 
 	uarta: serial@3100000 {
