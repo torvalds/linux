@@ -38,6 +38,7 @@ obj-$(CONFIG_TOUCHSCREEN_EGALAX)	+= egalax_ts.o
 obj-$(CONFIG_TOUCHSCREEN_FT6236)	+= ft6236.o
 obj-$(CONFIG_TOUCHSCREEN_FUJITSU)	+= fujitsu_ts.o
 obj-$(CONFIG_TOUCHSCREEN_GOODIX)	+= goodix.o
+obj-$(CONFIG_TOUCHSCREEN_GSLX680_PAD)	+= gslx680_pad.o gsl_point_id.o
 obj-$(CONFIG_TOUCHSCREEN_GSLX680_VR)	+= gslx680.o gsl_point_id.o
 obj-$(CONFIG_TOUCHSCREEN_GSL3673)	+= gsl3673.o gsl_point_id.o
 obj-$(CONFIG_TOUCHSCREEN_GT9XX)		+= gt9xx/

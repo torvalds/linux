@@ -335,6 +335,11 @@ config TOUCHSCREEN_GOODIX
 	  To compile this driver as a module, choose M here: the
 	  module will be called goodix.
 
+config TOUCHSCREEN_GSLX680_PAD
+	tristate "gslX680 touchpad driver for pad"
+	help
+	  gslX680 touchpad driver for pad
+
 config TOUCHSCREEN_GSLX680_VR
 	tristate "gslX680 touchpad driver for VR"
 	help
