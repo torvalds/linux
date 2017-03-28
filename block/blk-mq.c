@@ -2234,10 +2234,6 @@ struct request_queue *blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 	/* mark the queue as mq asap */
 	q->mq_ops = set->ops;
 
-	q->stats = blk_alloc_queue_stats();
-	if (!q->stats)
-		goto err_exit;
-
 	q->poll_cb = blk_stat_alloc_callback(blk_mq_poll_stats_fn,
 					     blk_stat_rq_ddir, 2, q);
 	if (!q->poll_cb)
