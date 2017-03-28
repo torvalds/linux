@@ -43,14 +43,6 @@ static const uuid_le spar_vbus_channel_protocol_uuid =
  */
 #define SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID 1
 
-#define SPAR_VBUS_CHANNEL_OK_CLIENT(ch) \
-	spar_check_channel_client(ch, \
-				  spar_vbus_channel_protocol_uuid, \
-				  "vbus", \
-				  sizeof(struct spar_vbus_channel_protocol), \
-				  SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
-				  SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE)
-
 /*
  * An array of this struct is present in the channel area for each vbus.
  * (See vbuschannel.h.)
