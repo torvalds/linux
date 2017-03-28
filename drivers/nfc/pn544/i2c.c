@@ -30,7 +30,7 @@
 #include <linux/nfc.h>
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
-#include <linux/platform_data/pn544.h>
+
 #include <asm/unaligned.h>
 
 #include <net/nfc/hci.h>
@@ -972,7 +972,6 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 			       const struct i2c_device_id *id)
 {
 	struct pn544_i2c_phy *phy;
-	struct pn544_nfc_platform_data *pdata;
 	int r = 0;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
@@ -994,32 +993,13 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
 
-	pdata = client->dev.platform_data;
-
 	/* No platform data, using device tree. */
-	if (!pdata && client->dev.of_node) {
+	if (client->dev.of_node) {
 		r = pn544_hci_i2c_of_request_resources(client);
 		if (r) {
 			nfc_err(&client->dev, "No DT data\n");
 			return r;
 		}
-	/* Using platform data. */
-	} else if (pdata) {
-
-		if (pdata->request_resources == NULL) {
-			nfc_err(&client->dev, "request_resources() missing\n");
-			return -EINVAL;
-		}
-
-		r = pdata->request_resources(client);
-		if (r) {
-			nfc_err(&client->dev,
-				"Cannot get platform resources\n");
-			return r;
-		}
-
-		phy->gpio_en = pdata->get_gpio(NFC_GPIO_ENABLE);
-		phy->gpio_fw = pdata->get_gpio(NFC_GPIO_FW_RESET);
 	/* Using ACPI */
 	} else if (ACPI_HANDLE(&client->dev)) {
 		r = pn544_hci_i2c_acpi_request_resources(client);
@@ -1056,12 +1036,8 @@ err_hci:
 	free_irq(client->irq, phy);
 
 err_rti:
-	if (!pdata) {
-		gpio_free(phy->gpio_en);
-		gpio_free(phy->gpio_fw);
-	} else if (pdata->free_resources) {
-		pdata->free_resources();
-	}
+	gpio_free(phy->gpio_en);
+	gpio_free(phy->gpio_fw);
 
 	return r;
 }
@@ -1069,7 +1045,6 @@ err_rti:
 static int pn544_hci_i2c_remove(struct i2c_client *client)
 {
 	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
-	struct pn544_nfc_platform_data *pdata = client->dev.platform_data;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -1084,14 +1059,8 @@ static int pn544_hci_i2c_remove(struct i2c_client *client)
 
 	free_irq(client->irq, phy);
 
-	/* No platform data, GPIOs have been requested by this driver */
-	if (!pdata) {
-		gpio_free(phy->gpio_en);
-		gpio_free(phy->gpio_fw);
-	/* Using platform data */
-	} else if (pdata->free_resources) {
-		pdata->free_resources();
-	}
+	gpio_free(phy->gpio_en);
+	gpio_free(phy->gpio_fw);
 
 	return 0;
 }
