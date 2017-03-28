@@ -290,6 +290,36 @@ static inline void of_mdiobus_link_mdiodev(struct mii_bus *mdio,
 #endif
 
 /**
+ * mdiobus_create_device_from_board_info - create a full MDIO device given
+ * a mdio_board_info structure
+ * @bus: MDIO bus to create the devices on
+ * @bi: mdio_board_info structure describing the devices
+ *
+ * Returns 0 on success or < 0 on error.
+ */
+static int mdiobus_create_device(struct mii_bus *bus,
+				 struct mdio_board_info *bi)
+{
+	struct mdio_device *mdiodev;
+	int ret = 0;
+
+	mdiodev = mdio_device_create(bus, bi->mdio_addr);
+	if (IS_ERR(mdiodev))
+		return -ENODEV;
+
+	strncpy(mdiodev->modalias, bi->modalias,
+		sizeof(mdiodev->modalias));
+	mdiodev->bus_match = mdio_device_bus_match;
+	mdiodev->dev.platform_data = (void *)bi->platform_data;
+
+	ret = mdio_device_register(mdiodev);
+	if (ret)
+		mdio_device_free(mdiodev);
+
+	return ret;
+}
+
+/**
  * __mdiobus_register - bring up all the PHYs on a given bus and attach them to bus
  * @bus: target mii_bus
  * @owner: module containing bus accessor functions
@@ -345,7 +375,7 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 		}
 	}
 
-	mdiobus_setup_mdiodev_from_board_info(bus);
+	mdiobus_setup_mdiodev_from_board_info(bus, mdiobus_create_device);
 
 	bus->state = MDIOBUS_REGISTERED;
 	pr_info("%s: probed\n", bus->name);

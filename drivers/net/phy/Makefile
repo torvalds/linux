@@ -1,7 +1,11 @@
 # Makefile for Linux PHY drivers and MDIO bus drivers
 
 libphy-y			:= phy.o phy-core.o phy_device.o
-mdio-bus-y			+= mdio_bus.o mdio_device.o mdio-boardinfo.o
+mdio-bus-y			+= mdio_bus.o mdio_device.o
+
+ifdef CONFIG_MDIO_DEVICE
+obj-y				+= mdio-boardinfo.o
+endif
 
 # PHYLIB implies MDIO_DEVICE, in that case, we have a bunch of circular
 # dependencies that does not make it possible to split mdio-bus objects into a
