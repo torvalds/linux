@@ -758,6 +758,29 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 	}
 	writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBAR(cfg->cbndx));
 
+	/*
+	 * TTBCR
+	 * We must write this before the TTBRs, since it determines the
+	 * access behaviour of some fields (in particular, ASID[15:8]).
+	 */
+	if (stage1) {
+		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
+			reg = pgtbl_cfg->arm_v7s_cfg.tcr;
+			reg2 = 0;
+		} else {
+			reg = pgtbl_cfg->arm_lpae_s1_cfg.tcr;
+			reg2 = pgtbl_cfg->arm_lpae_s1_cfg.tcr >> 32;
+			reg2 |= TTBCR2_SEP_UPSTREAM;
+			if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64)
+				reg2 |= TTBCR2_AS;
+		}
+		if (smmu->version > ARM_SMMU_V1)
+			writel_relaxed(reg2, cb_base + ARM_SMMU_CB_TTBCR2);
+	} else {
+		reg = pgtbl_cfg->arm_lpae_s2_cfg.vtcr;
+	}
+	writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBCR);
+
 	/* TTBRs */
 	if (stage1) {
 		u16 asid = ARM_SMMU_CB_ASID(smmu, cfg);
@@ -780,25 +803,6 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 		reg64 = pgtbl_cfg->arm_lpae_s2_cfg.vttbr;
 		writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR0);
 	}
-
-	/* TTBCR */
-	if (stage1) {
-		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
-			reg = pgtbl_cfg->arm_v7s_cfg.tcr;
-			reg2 = 0;
-		} else {
-			reg = pgtbl_cfg->arm_lpae_s1_cfg.tcr;
-			reg2 = pgtbl_cfg->arm_lpae_s1_cfg.tcr >> 32;
-			reg2 |= TTBCR2_SEP_UPSTREAM;
-			if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64)
-				reg2 |= TTBCR2_AS;
-		}
-		if (smmu->version > ARM_SMMU_V1)
-			writel_relaxed(reg2, cb_base + ARM_SMMU_CB_TTBCR2);
-	} else {
-		reg = pgtbl_cfg->arm_lpae_s2_cfg.vtcr;
-	}
-	writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBCR);
 
 	/* MAIRs (stage-1 only) */
 	if (stage1) {
