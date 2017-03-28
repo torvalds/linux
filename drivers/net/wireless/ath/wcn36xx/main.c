@@ -22,7 +22,7 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
-#include <linux/soc/qcom/smd.h>
+#include <linux/rpmsg.h>
 #include <linux/soc/qcom/smem_state.h>
 #include <linux/soc/qcom/wcnss_ctrl.h>
 #include "wcn36xx.h"
@@ -1218,14 +1218,12 @@ static int wcn36xx_probe(struct platform_device *pdev)
 
 	INIT_WORK(&wcn->scan_work, wcn36xx_hw_scan_worker);
 
-	wcn->smd_channel = qcom_wcnss_open_channel(wcnss, "WLAN_CTRL", wcn36xx_smd_rsp_process);
+	wcn->smd_channel = qcom_wcnss_open_channel(wcnss, "WLAN_CTRL", wcn36xx_smd_rsp_process, hw);
 	if (IS_ERR(wcn->smd_channel)) {
 		wcn36xx_err("failed to open WLAN_CTRL channel\n");
 		ret = PTR_ERR(wcn->smd_channel);
 		goto out_wq;
 	}
-
-	qcom_smd_set_drvdata(wcn->smd_channel, hw);
 
 	addr = of_get_property(pdev->dev.of_node, "local-mac-address", &ret);
 	if (addr && ret != ETH_ALEN) {
