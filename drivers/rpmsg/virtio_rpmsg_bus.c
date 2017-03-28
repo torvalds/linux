@@ -195,6 +195,28 @@ static const struct rpmsg_endpoint_ops virtio_endpoint_ops = {
 };
 
 /**
+ * rpmsg_sg_init - initialize scatterlist according to cpu address location
+ * @sg: scatterlist to fill
+ * @cpu_addr: virtual address of the buffer
+ * @len: buffer length
+ *
+ * An internal function filling scatterlist according to virtual address
+ * location (in vmalloc or in kernel).
+ */
+static void
+rpmsg_sg_init(struct scatterlist *sg, void *cpu_addr, unsigned int len)
+{
+	if (is_vmalloc_addr(cpu_addr)) {
+		sg_init_table(sg, 1);
+		sg_set_page(sg, vmalloc_to_page(cpu_addr), len,
+			    offset_in_page(cpu_addr));
+	} else {
+		WARN_ON(!virt_addr_valid(cpu_addr));
+		sg_init_one(sg, cpu_addr, len);
+	}
+}
+
+/**
  * __ept_release() - deallocate an rpmsg endpoint
  * @kref: the ept's reference count
  *
@@ -612,7 +634,7 @@ static int rpmsg_send_offchannel_raw(struct rpmsg_device *rpdev,
 			 msg, sizeof(*msg) + msg->len, true);
 #endif
 
-	sg_init_one(&sg, msg, sizeof(*msg) + len);
+	rpmsg_sg_init(&sg, msg, sizeof(*msg) + len);
 
 	mutex_lock(&vrp->tx_lock);
 
@@ -736,7 +758,7 @@ static int rpmsg_recv_single(struct virtproc_info *vrp, struct device *dev,
 		dev_warn(dev, "msg received with no recipient\n");
 
 	/* publish the real size of the buffer */
-	sg_init_one(&sg, msg, vrp->buf_size);
+	rpmsg_sg_init(&sg, msg, vrp->buf_size);
 
 	/* add the buffer back to the remote processor's virtqueue */
 	err = virtqueue_add_inbuf(vrp->rvq, &sg, 1, msg, GFP_KERNEL);
@@ -920,7 +942,7 @@ static int rpmsg_probe(struct virtio_device *vdev)
 		struct scatterlist sg;
 		void *cpu_addr = vrp->rbufs + i * vrp->buf_size;
 
-		sg_init_one(&sg, cpu_addr, vrp->buf_size);
+		rpmsg_sg_init(&sg, cpu_addr, vrp->buf_size);
 
 		err = virtqueue_add_inbuf(vrp->rvq, &sg, 1, cpu_addr,
 					  GFP_KERNEL);
