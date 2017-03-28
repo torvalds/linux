@@ -214,5 +214,7 @@ int xfs_rmap_find_left_neighbor(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 int xfs_rmap_lookup_le_range(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 		uint64_t owner, uint64_t offset, unsigned int flags,
 		struct xfs_rmap_irec *irec, int	*stat);
+int xfs_rmap_compare(const struct xfs_rmap_irec *a,
+		const struct xfs_rmap_irec *b);
 
 #endif	/* __XFS_RMAP_H__ */

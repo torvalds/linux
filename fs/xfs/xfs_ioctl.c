@@ -41,6 +41,9 @@
 #include "xfs_trans.h"
 #include "xfs_pnfs.h"
 #include "xfs_acl.h"
+#include "xfs_btree.h"
+#include <linux/fsmap.h>
+#include "xfs_fsmap.h"
 
 #include <linux/capability.h>
 #include <linux/cred.h>
@@ -1609,6 +1612,84 @@ xfs_ioc_getbmapx(
 	return 0;
 }
 
+struct getfsmap_info {
+	struct xfs_mount	*mp;
+	struct fsmap __user	*data;
+	__u32			last_flags;
+};
+
+STATIC int
+xfs_getfsmap_format(struct xfs_fsmap *xfm, void *priv)
+{
+	struct getfsmap_info	*info = priv;
+	struct fsmap		fm;
+
+	trace_xfs_getfsmap_mapping(info->mp, xfm);
+
+	info->last_flags = xfm->fmr_flags;
+	xfs_fsmap_from_internal(&fm, xfm);
+	if (copy_to_user(info->data, &fm, sizeof(struct fsmap)))
+		return -EFAULT;
+
+	info->data++;
+	return 0;
+}
+
+STATIC int
+xfs_ioc_getfsmap(
+	struct xfs_inode	*ip,
+	void			__user *arg)
+{
+	struct getfsmap_info	info = {0};
+	struct xfs_fsmap_head	xhead = {0};
+	struct fsmap_head	head;
+	bool			aborted = false;
+	int			error;
+
+	if (copy_from_user(&head, arg, sizeof(struct fsmap_head)))
+		return -EFAULT;
+	if (memchr_inv(head.fmh_reserved, 0, sizeof(head.fmh_reserved)) ||
+	    memchr_inv(head.fmh_keys[0].fmr_reserved, 0,
+		       sizeof(head.fmh_keys[0].fmr_reserved)) ||
+	    memchr_inv(head.fmh_keys[1].fmr_reserved, 0,
+		       sizeof(head.fmh_keys[1].fmr_reserved)))
+		return -EINVAL;
+
+	xhead.fmh_iflags = head.fmh_iflags;
+	xhead.fmh_count = head.fmh_count;
+	xfs_fsmap_to_internal(&xhead.fmh_keys[0], &head.fmh_keys[0]);
+	xfs_fsmap_to_internal(&xhead.fmh_keys[1], &head.fmh_keys[1]);
+
+	trace_xfs_getfsmap_low_key(ip->i_mount, &xhead.fmh_keys[0]);
+	trace_xfs_getfsmap_high_key(ip->i_mount, &xhead.fmh_keys[1]);
+
+	info.mp = ip->i_mount;
+	info.data = ((__force struct fsmap_head *)arg)->fmh_recs;
+	error = xfs_getfsmap(ip->i_mount, &xhead, xfs_getfsmap_format, &info);
+	if (error == XFS_BTREE_QUERY_RANGE_ABORT) {
+		error = 0;
+		aborted = true;
+	} else if (error)
+		return error;
+
+	/* If we didn't abort, set the "last" flag in the last fmx */
+	if (!aborted && xhead.fmh_entries) {
+		info.data--;
+		info.last_flags |= FMR_OF_LAST;
+		if (copy_to_user(&info.data->fmr_flags, &info.last_flags,
+				sizeof(info.last_flags)))
+			return -EFAULT;
+	}
+
+	/* copy back header */
+	head.fmh_entries = xhead.fmh_entries;
+	head.fmh_oflags = xhead.fmh_oflags;
+	if (copy_to_user(arg, &head, sizeof(struct fsmap_head)))
+		return -EFAULT;
+
+	return 0;
+}
+
 int
 xfs_ioc_swapext(
 	xfs_swapext_t	*sxp)
@@ -1788,6 +1869,9 @@ xfs_file_ioctl(
 
 	case XFS_IOC_GETBMAPX:
 		return xfs_ioc_getbmapx(ip, arg);
+
+	case FS_IOC_GETFSMAP:
+		return xfs_ioc_getfsmap(ip, arg);
 
 	case XFS_IOC_FD_TO_HANDLE:
 	case XFS_IOC_PATH_TO_HANDLE:
