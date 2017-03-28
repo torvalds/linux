@@ -379,6 +379,18 @@ config MAX11100
 	  To compile this driver as a module, choose M here: the module will be
 	  called max11100.
 
+config MAX1118
+	tristate "Maxim max1117/max1118/max1119 ADCs driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Maxim max1117/max1118/max1119
+	  8-bit, dual-channel ADCs.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max1118.
+
 config MAX1363
 	tristate "Maxim max1363 ADC driver"
 	depends on I2C
