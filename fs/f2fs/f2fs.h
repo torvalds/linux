@@ -182,11 +182,11 @@ struct inode_entry {
 	struct inode *inode;	/* vfs inode pointer */
 };
 
-/* for the list of blockaddresses to be discarded */
+/* for the bitmap indicate blocks to be discarded */
 struct discard_entry {
 	struct list_head list;	/* list head */
-	block_t blkaddr;	/* block address to be discarded */
-	int len;		/* # of consecutive blocks of the discard */
+	block_t start_blkaddr;	/* start blockaddr of current segment */
+	unsigned char discard_map[SIT_VBLOCK_MAP_SIZE];	/* segment discard bitmap */
 };
 
 enum {
