@@ -259,18 +259,18 @@ static ssize_t remaining_steps_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	u16 remaining_steps;
-	int ret;
+	int err;
 
 	if (kstrtou16(buf, 10, &remaining_steps))
 		return -EINVAL;
 
-	ret = visorchannel_write
+	err = visorchannel_write
 		(chipset_dev->controlvm_channel,
 		 offsetof(struct spar_controlvm_channel_protocol,
 			  installation_remaining_steps),
 		 &remaining_steps, sizeof(u16));
-	if (ret)
-		return ret;
+	if (err)
+		return err;
 	return count;
 }
 static DEVICE_ATTR_RW(remaining_steps);
