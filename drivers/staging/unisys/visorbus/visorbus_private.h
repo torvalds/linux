@@ -27,7 +27,7 @@
  * command line
  */
 
-void chipset_bus_create(struct visor_device *bus_info);
+int chipset_bus_create(struct visor_device *bus_info);
 void chipset_bus_destroy(struct visor_device *bus_info);
 void chipset_device_create(struct visor_device *dev_info);
 void chipset_device_destroy(struct visor_device *dev_info);

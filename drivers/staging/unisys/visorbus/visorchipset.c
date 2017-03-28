@@ -656,10 +656,16 @@ bus_create(struct controlvm_message *inmsg)
 	bus_info->visorchannel = visorchannel;
 
 	/* Response will be handled by chipset_bus_create */
-	chipset_bus_create(bus_info);
+	err = chipset_bus_create(bus_info);
+	/* If error chipset_bus_create didn't respond, need to respond here */
+	if (err)
+		goto err_destroy_channel;
 
 	POSTCODE_LINUX(BUS_CREATE_EXIT_PC, 0, bus_no, DIAG_SEVERITY_PRINT);
 	return 0;
+
+err_destroy_channel:
+	visorchannel_destroy(visorchannel);
 
 err_free_pending_msg:
 	kfree(bus_info->pending_msg_hdr);
