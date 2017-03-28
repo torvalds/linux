@@ -311,7 +311,7 @@ void machine_check_print_event_info(struct machine_check_event *evt)
 	printk("%s%s Machine check interrupt [%s]\n", level, sevstr,
 	       evt->disposition == MCE_DISPOSITION_RECOVERED ?
 	       "Recovered" : "Not recovered");
-	printk("%s  NIP: %016llx\n", level, evt->srr0);
+	printk("%s  NIP [%016llx]: %pS\n", level, evt->srr0, (void *)evt->srr0);
 	printk("%s  Initiator: %s\n", level,
 	       evt->initiator == MCE_INITIATOR_CPU ? "CPU" : "Unknown");
 	switch (evt->error_type) {
