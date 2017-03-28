@@ -91,10 +91,15 @@ static ssize_t toolaction_show(struct device *dev,
 			       char *buf)
 {
 	u8 tool_action = 0;
+	int err;
 
-	visorchannel_read(chipset_dev->controlvm_channel,
-			  offsetof(struct spar_controlvm_channel_protocol,
-				   tool_action), &tool_action, sizeof(u8));
+	err = visorchannel_read(chipset_dev->controlvm_channel,
+				offsetof(struct spar_controlvm_channel_protocol,
+					 tool_action),
+				&tool_action, sizeof(u8));
+	if (err)
+		return err;
+
 	return sprintf(buf, "%u\n", tool_action);
 }
 
