@@ -456,16 +456,6 @@ static void xen_pv_stop_other_cpus(int wait)
 	smp_call_function(stop_self, NULL, wait);
 }
 
-static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id)
-{
-	irq_enter();
-	generic_smp_call_function_interrupt();
-	inc_irq_stat(irq_call_count);
-	irq_exit();
-
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t xen_irq_work_interrupt(int irq, void *dev_id)
 {
 	irq_enter();
