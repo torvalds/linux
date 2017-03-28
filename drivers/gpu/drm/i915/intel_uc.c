@@ -254,6 +254,9 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 {
 	int ret, attempts;
 
+	if (!i915.enable_guc_loading)
+		return 0;
+
 	gen9_reset_guc_interrupts(dev_priv);
 
 	/* We need to notify the guc whenever we change the GGTT */
@@ -343,6 +346,9 @@ err_guc:
 
 void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 {
+	if (!i915.enable_guc_loading)
+		return;
+
 	if (i915.enable_guc_submission) {
 		i915_guc_submission_disable(dev_priv);
 		gen9_disable_guc_interrupts(dev_priv);
