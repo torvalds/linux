@@ -2932,6 +2932,16 @@ mlxsw_sp_rif_alloc(u16 rif_index, u16 vr_id, struct net_device *l3_dev,
 	return rif;
 }
 
+u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif)
+{
+	return rif->rif_index;
+}
+
+int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif)
+{
+	return rif->dev->ifindex;
+}
+
 static struct mlxsw_sp_rif *
 mlxsw_sp_vport_rif_sp_create(struct mlxsw_sp_port *mlxsw_sp_vport,
 			     struct net_device *l3_dev)

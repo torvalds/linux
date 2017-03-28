@@ -42,6 +42,8 @@ enum mlxsw_sp_rif_counter_dir {
 	MLXSW_SP_RIF_COUNTER_EGRESS,
 };
 
+u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif);
+int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif);
 int mlxsw_sp_rif_counter_value_get(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_rif *rif,
 				   enum mlxsw_sp_rif_counter_dir dir,
