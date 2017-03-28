@@ -170,7 +170,14 @@ int psp_v3_1_bootloader_load_sysdrv(struct psp_context *psp)
 	void *psp_sysdrv_virt = NULL;
 	uint64_t psp_sysdrv_mem;
 	struct amdgpu_device *adev = psp->adev;
-	uint32_t size;
+	uint32_t size, sol_reg;
+
+	/* Check sOS sign of life register to confirm sys driver and sOS
+	 * are already been loaded.
+	 */
+	sol_reg = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_81));
+	if (sol_reg)
+		return 0;
 
 	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
@@ -222,7 +229,14 @@ int psp_v3_1_bootloader_load_sos(struct psp_context *psp)
 	void *psp_sos_virt = NULL;
 	uint64_t psp_sos_mem;
 	struct amdgpu_device *adev = psp->adev;
-	uint32_t size;
+	uint32_t size, sol_reg;
+
+	/* Check sOS sign of life register to confirm sys driver and sOS
+	 * are already been loaded.
+	 */
+	sol_reg = RREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_81));
+	if (sol_reg)
+		return 0;
 
 	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
