@@ -537,9 +537,9 @@ save_crash_message(struct controlvm_message *msg, enum crash_obj_type typ)
 }
 
 static int
-bus_responder(enum controlvm_id cmd_id,
-	      struct controlvm_message_header *pending_msg_hdr,
-	      int response)
+controlvm_responder(enum controlvm_id cmd_id,
+		    struct controlvm_message_header *pending_msg_hdr,
+		    int response)
 {
 	if (!pending_msg_hdr)
 		return -EIO;
@@ -572,20 +572,6 @@ device_changestate_responder(enum controlvm_id cmd_id,
 
 	return visorchannel_signalinsert(chipset_dev->controlvm_channel,
 					 CONTROLVM_QUEUE_REQUEST, &outmsg);
-}
-
-static int
-device_responder(enum controlvm_id cmd_id,
-		 struct controlvm_message_header *pending_msg_hdr,
-		 int response)
-{
-	if (!pending_msg_hdr)
-		return -EIO;
-
-	if (pending_msg_hdr->id != (u32)cmd_id)
-		return -EINVAL;
-
-	return controlvm_respond(pending_msg_hdr, response);
 }
 
 static int
@@ -675,7 +661,7 @@ err_free_bus_info:
 
 err_respond:
 	if (inmsg->hdr.flags.response_expected == 1)
-		bus_responder(inmsg->hdr.id, &inmsg->hdr, err);
+		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
 }
 
@@ -723,7 +709,7 @@ bus_destroy(struct controlvm_message *inmsg)
 
 err_respond:
 	if (inmsg->hdr.flags.response_expected == 1)
-		bus_responder(inmsg->hdr.id, &inmsg->hdr, err);
+		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
 }
 
@@ -773,12 +759,12 @@ bus_configure(struct controlvm_message *inmsg,
 		       DIAG_SEVERITY_PRINT);
 
 	if (inmsg->hdr.flags.response_expected == 1)
-		bus_responder(inmsg->hdr.id, &inmsg->hdr, err);
+		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return 0;
 
 err_respond:
 	if (inmsg->hdr.flags.response_expected == 1)
-		bus_responder(inmsg->hdr.id, &inmsg->hdr, err);
+		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
 }
 
@@ -884,7 +870,7 @@ err_free_dev_info:
 
 err_respond:
 	if (inmsg->hdr.flags.response_expected == 1)
-		device_responder(inmsg->hdr.id, &inmsg->hdr, err);
+		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
 }
 
@@ -945,7 +931,7 @@ my_device_changestate(struct controlvm_message *inmsg)
 
 err_respond:
 	if (inmsg->hdr.flags.response_expected == 1)
-		device_responder(inmsg->hdr.id, &inmsg->hdr, err);
+		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
 }
 
@@ -991,7 +977,7 @@ my_device_destroy(struct controlvm_message *inmsg)
 
 err_respond:
 	if (inmsg->hdr.flags.response_expected == 1)
-		device_responder(inmsg->hdr.id, &inmsg->hdr, err);
+		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
 }
 
@@ -1484,8 +1470,8 @@ bus_create_response(struct visor_device *bus_info, int response)
 	if (response >= 0)
 		bus_info->state.created = 1;
 
-	bus_responder(CONTROLVM_BUS_CREATE, bus_info->pending_msg_hdr,
-		      response);
+	controlvm_responder(CONTROLVM_BUS_CREATE, bus_info->pending_msg_hdr,
+			    response);
 
 	kfree(bus_info->pending_msg_hdr);
 	bus_info->pending_msg_hdr = NULL;
@@ -1494,8 +1480,8 @@ bus_create_response(struct visor_device *bus_info, int response)
 void
 bus_destroy_response(struct visor_device *bus_info, int response)
 {
-	bus_responder(CONTROLVM_BUS_DESTROY, bus_info->pending_msg_hdr,
-		      response);
+	controlvm_responder(CONTROLVM_BUS_DESTROY, bus_info->pending_msg_hdr,
+			    response);
 
 	kfree(bus_info->pending_msg_hdr);
 	bus_info->pending_msg_hdr = NULL;
@@ -1507,8 +1493,8 @@ device_create_response(struct visor_device *dev_info, int response)
 	if (response >= 0)
 		dev_info->state.created = 1;
 
-	device_responder(CONTROLVM_DEVICE_CREATE, dev_info->pending_msg_hdr,
-			 response);
+	controlvm_responder(CONTROLVM_DEVICE_CREATE, dev_info->pending_msg_hdr,
+			    response);
 
 	kfree(dev_info->pending_msg_hdr);
 	dev_info->pending_msg_hdr = NULL;
@@ -1517,8 +1503,8 @@ device_create_response(struct visor_device *dev_info, int response)
 void
 device_destroy_response(struct visor_device *dev_info, int response)
 {
-	device_responder(CONTROLVM_DEVICE_DESTROY, dev_info->pending_msg_hdr,
-			 response);
+	controlvm_responder(CONTROLVM_DEVICE_DESTROY, dev_info->pending_msg_hdr,
+			    response);
 
 	kfree(dev_info->pending_msg_hdr);
 	dev_info->pending_msg_hdr = NULL;
