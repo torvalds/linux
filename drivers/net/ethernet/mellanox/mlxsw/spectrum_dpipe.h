@@ -38,4 +38,6 @@
 int mlxsw_sp_dpipe_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_dpipe_fini(struct mlxsw_sp *mlxsw_sp);
 
+#define MLXSW_SP_DPIPE_TABLE_NAME_ERIF "mlxsw_erif"
+
 #endif /* _MLXSW_PIPELINE_H_*/
