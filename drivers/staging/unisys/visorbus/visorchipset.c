@@ -1181,7 +1181,7 @@ static const struct attribute_group *visorchipset_dev_groups[] = {
  * Cause uevent to run the user level script to do the disable/enable specified
  * in the parahotplug_request.
  */
-static void
+static int
 parahotplug_request_kickoff(struct parahotplug_request *req)
 {
 	struct controlvm_message_packet *cmd = &req->msg.cmd;
@@ -1202,8 +1202,8 @@ parahotplug_request_kickoff(struct parahotplug_request *req)
 	sprintf(env_func, "SPAR_PARAHOTPLUG_FUNCTION=%d",
 		cmd->device_change_state.dev_no & 0x7);
 
-	kobject_uevent_env(&chipset_dev->acpi_device->dev.kobj, KOBJ_CHANGE,
-			   envp);
+	return kobject_uevent_env(&chipset_dev->acpi_device->dev.kobj,
+				  KOBJ_CHANGE, envp);
 }
 
 /*
@@ -1215,6 +1215,7 @@ static int
 parahotplug_process_message(struct controlvm_message *inmsg)
 {
 	struct parahotplug_request *req;
+	int err;
 
 	req = parahotplug_request_create(inmsg);
 
@@ -1233,26 +1234,37 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 		 * devices are automatically enabled at
 		 * initialization.
 		 */
-		parahotplug_request_kickoff(req);
+		err = parahotplug_request_kickoff(req);
+		if (err)
+			goto err_respond;
 		controlvm_respond_physdev_changestate
 			(&inmsg->hdr,
 			 CONTROLVM_RESP_SUCCESS,
 			 inmsg->cmd.device_change_state.state);
 		parahotplug_request_destroy(req);
-	} else {
-		/*
-		 * For disable messages, add the request to the
-		 * request list before kicking off the udev script. It
-		 * won't get responded to until the script has
-		 * indicated it's done.
-		 */
-		spin_lock(&parahotplug_request_list_lock);
-		list_add_tail(&req->list, &parahotplug_request_list);
-		spin_unlock(&parahotplug_request_list_lock);
-
-		parahotplug_request_kickoff(req);
+		return 0;
 	}
+
+	/*
+	 * For disable messages, add the request to the
+	 * request list before kicking off the udev script. It
+	 * won't get responded to until the script has
+	 * indicated it's done.
+	 */
+	spin_lock(&parahotplug_request_list_lock);
+	list_add_tail(&req->list, &parahotplug_request_list);
+	spin_unlock(&parahotplug_request_list_lock);
+
+	err = parahotplug_request_kickoff(req);
+	if (err)
+		goto err_respond;
 	return 0;
+
+err_respond:
+	controlvm_respond_physdev_changestate
+				(&inmsg->hdr, err,
+				 inmsg->cmd.device_change_state.state);
+	return err;
 }
 
 /*
