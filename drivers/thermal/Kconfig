@@ -303,6 +303,16 @@ config DB8500_CPUFREQ_COOLING
 	  bound cpufreq cooling device turns active to set CPU frequency low to
 	  cool down the CPU.
 
+config DA9062_THERMAL
+	tristate "DA9062/DA9061 Dialog Semiconductor thermal driver"
+	depends on MFD_DA9062 || COMPILE_TEST
+	depends on OF
+	help
+	  Enable this for the Dialog Semiconductor thermal sensor driver.
+	  This will report PMIC junction over-temperature for one thermal trip
+	  zone.
+	  Compatible with the DA9062 and DA9061 PMICs.
+
 config INTEL_POWERCLAMP
 	tristate "Intel PowerClamp idle injection driver"
 	depends on THERMAL
