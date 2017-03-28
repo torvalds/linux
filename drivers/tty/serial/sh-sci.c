@@ -683,24 +683,37 @@ static void sci_init_pins(struct uart_port *port, unsigned int cflag)
 	}
 
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
+		u16 data = serial_port_in(port, SCPDR);
 		u16 ctrl = serial_port_in(port, SCPCR);
 
 		/* Enable RXD and TXD pin functions */
 		ctrl &= ~(SCPCR_RXDC | SCPCR_TXDC);
 		if (to_sci_port(port)->has_rtscts) {
-			/* RTS# is output, driven 1 */
-			ctrl |= SCPCR_RTSC;
-			serial_port_out(port, SCPDR,
-				serial_port_in(port, SCPDR) | SCPDR_RTSD);
+			/* RTS# is output, active low, unless autorts */
+			if (!(port->mctrl & TIOCM_RTS)) {
+				ctrl |= SCPCR_RTSC;
+				data |= SCPDR_RTSD;
+			} else if (!s->autorts) {
+				ctrl |= SCPCR_RTSC;
+				data &= ~SCPDR_RTSD;
+			} else {
+				/* Enable RTS# pin function */
+				ctrl &= ~SCPCR_RTSC;
+			}
 			/* Enable CTS# pin function */
 			ctrl &= ~SCPCR_CTSC;
 		}
+		serial_port_out(port, SCPDR, data);
 		serial_port_out(port, SCPCR, ctrl);
 	} else if (sci_getreg(port, SCSPTR)->size) {
 		u16 status = serial_port_in(port, SCSPTR);
 
-		/* RTS# is output, driven 1 */
-		status |= SCSPTR_RTSIO | SCSPTR_RTSDT;
+		/* RTS# is always output; and active low, unless autorts */
+		status |= SCSPTR_RTSIO;
+		if (!(port->mctrl & TIOCM_RTS))
+			status |= SCSPTR_RTSDT;
+		else if (!s->autorts)
+			status &= ~SCSPTR_RTSDT;
 		/* CTS# and SCK are inputs */
 		status &= ~(SCSPTR_CTSIO | SCSPTR_SCKIO);
 		serial_port_out(port, SCSPTR, status);
