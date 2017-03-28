@@ -1709,6 +1709,7 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		{
 			ts->stat = SAS_OPEN_REJECT;
 			ts->open_rej_reason = SAS_OREJ_NO_DEST;
+			break;
 		}
 		case TRANS_TX_OPEN_CNX_ERR_PROTOCOL_NOT_SUPPORTED:
 		{
