@@ -1276,9 +1276,7 @@ xfs_get_blocks(
 	 * For unwritten extents do not report a disk address in the buffered
 	 * read case (treat as if we're reading into a hole).
 	 */
-	if (imap.br_startblock != HOLESTARTBLOCK &&
-	    imap.br_startblock != DELAYSTARTBLOCK &&
-	    !ISUNWRITTEN(&imap))
+	if (xfs_bmap_is_real_extent(&imap))
 		xfs_map_buffer(inode, bh_result, &imap, offset);
 
 	/*

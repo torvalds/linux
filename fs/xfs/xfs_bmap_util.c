@@ -448,10 +448,9 @@ xfs_getbmap_adjust_shared(
 	next_map->br_blockcount = 0;
 
 	/* Only written data blocks can be shared. */
-	if (!xfs_is_reflink_inode(ip) || whichfork != XFS_DATA_FORK ||
-	    map->br_startblock == DELAYSTARTBLOCK ||
-	    map->br_startblock == HOLESTARTBLOCK ||
-	    ISUNWRITTEN(map))
+	if (!xfs_is_reflink_inode(ip) ||
+	    whichfork != XFS_DATA_FORK ||
+	    !xfs_bmap_is_real_extent(map))
 		return 0;
 
 	agno = XFS_FSB_TO_AGNO(mp, map->br_startblock);

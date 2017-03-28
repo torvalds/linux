@@ -206,11 +206,7 @@ xfs_reflink_trim_around_shared(
 	int			error = 0;
 
 	/* Holes, unwritten, and delalloc extents cannot be shared */
-	if (!xfs_is_reflink_inode(ip) ||
-	    ISUNWRITTEN(irec) ||
-	    irec->br_startblock == HOLESTARTBLOCK ||
-	    irec->br_startblock == DELAYSTARTBLOCK ||
-	    isnullstartblock(irec->br_startblock)) {
+	if (!xfs_is_reflink_inode(ip) || !xfs_bmap_is_real_extent(irec)) {
 		*shared = false;
 		return 0;
 	}
@@ -1045,12 +1041,12 @@ xfs_reflink_remap_extent(
 	xfs_off_t		new_isize)
 {
 	struct xfs_mount	*mp = ip->i_mount;
+	bool			real_extent = xfs_bmap_is_real_extent(irec);
 	struct xfs_trans	*tp;
 	xfs_fsblock_t		firstfsb;
 	unsigned int		resblks;
 	struct xfs_defer_ops	dfops;
 	struct xfs_bmbt_irec	uirec;
-	bool			real_extent;
 	xfs_filblks_t		rlen;
 	xfs_filblks_t		unmap_len;
 	xfs_off_t		newlen;
@@ -1058,11 +1054,6 @@ xfs_reflink_remap_extent(
 
 	unmap_len = irec->br_startoff + irec->br_blockcount - destoff;
 	trace_xfs_reflink_punch_range(ip, destoff, unmap_len);
-
-	/* Only remap normal extents. */
-	real_extent =  (irec->br_startblock != HOLESTARTBLOCK &&
-			irec->br_startblock != DELAYSTARTBLOCK &&
-			!ISUNWRITTEN(irec));
 
 	/* No reflinking if we're low on space */
 	if (real_extent) {
@@ -1359,9 +1350,7 @@ xfs_reflink_dirty_extents(
 			goto out;
 		if (nmaps == 0)
 			break;
-		if (map[0].br_startblock == HOLESTARTBLOCK ||
-		    map[0].br_startblock == DELAYSTARTBLOCK ||
-		    ISUNWRITTEN(&map[0]))
+		if (!xfs_bmap_is_real_extent(&map[0]))
 			goto next;
 
 		map[1] = map[0];
@@ -1435,9 +1424,7 @@ xfs_reflink_clear_inode_flag(
 			return error;
 		if (nmaps == 0)
 			break;
-		if (map.br_startblock == HOLESTARTBLOCK ||
-		    map.br_startblock == DELAYSTARTBLOCK ||
-		    ISUNWRITTEN(&map))
+		if (!xfs_bmap_is_real_extent(&map))
 			goto next;
 
 		agno = XFS_FSB_TO_AGNO(mp, map.br_startblock);

@@ -172,6 +172,18 @@ static inline int xfs_bmapi_whichfork(int bmapi_flags)
 
 
 /*
+ * Return true if the extent is a real, allocated extent, or false if it is  a
+ * delayed allocation, and unwritten extent or a hole.
+ */
+static inline bool xfs_bmap_is_real_extent(struct xfs_bmbt_irec *irec)
+{
+	return irec->br_state != XFS_EXT_UNWRITTEN &&
+		irec->br_startblock != HOLESTARTBLOCK &&
+		irec->br_startblock != DELAYSTARTBLOCK &&
+		!isnullstartblock(irec->br_startblock);
+}
+
+/*
  * This macro is used to determine how many extents will be shifted
  * in one write transaction. We could require two splits,
  * an extent move on the first and an extent merge on the second,
