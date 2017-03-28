@@ -840,9 +840,6 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		const struct common_firmware_header *header;
 		struct amdgpu_firmware_info *ucode = NULL;
 
-		if (CGS_UCODE_ID_SMU_SK == type)
-			amdgpu_cgs_rel_firmware(cgs_device, CGS_UCODE_ID_SMU);
-
 		if (!adev->pm.fw) {
 			switch (adev->asic_type) {
 			case CHIP_TOPAZ:
