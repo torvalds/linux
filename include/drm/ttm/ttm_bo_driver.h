@@ -42,7 +42,7 @@
 #include <linux/spinlock.h>
 #include <linux/reservation.h>
 
-#define TTM_MAX_BO_PRIORITY	16U
+#define TTM_MAX_BO_PRIORITY	4U
 
 struct ttm_backend_func {
 	/**
