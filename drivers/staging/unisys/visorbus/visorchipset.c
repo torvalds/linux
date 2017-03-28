@@ -147,21 +147,21 @@ static ssize_t boottotool_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	int val, ret;
+	int val, err;
 	struct efi_spar_indication efi_spar_indication;
 
 	if (kstrtoint(buf, 10, &val))
 		return -EINVAL;
 
 	efi_spar_indication.boot_to_tool = val;
-	ret = visorchannel_write
+	err = visorchannel_write
 		(chipset_dev->controlvm_channel,
 		 offsetof(struct spar_controlvm_channel_protocol,
 			  efi_spar_ind), &(efi_spar_indication),
 		 sizeof(struct efi_spar_indication));
 
-	if (ret)
-		return ret;
+	if (err)
+		return err;
 	return count;
 }
 static DEVICE_ATTR_RW(boottotool);
