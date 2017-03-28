@@ -418,12 +418,9 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	 * release later on.
 	 */
 	channel->requested = request_mem_region(physaddr, size, MYDRVNAME);
-	if (!channel->requested) {
-		if (uuid_le_cmp(guid, spar_video_guid)) {
-			/* Not the video channel we care about this */
-			goto err_destroy_channel;
-		}
-	}
+	if (!channel->requested && uuid_le_cmp(guid, spar_video_guid))
+		/* we only care about errors if this is not the video channel */
+		goto err_destroy_channel;
 
 	channel->mapped = memremap(physaddr, size, MEMREMAP_WB);
 	if (!channel->mapped) {
@@ -451,12 +448,9 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	channel->mapped = NULL;
 	channel->requested = request_mem_region(channel->physaddr,
 						channel_bytes, MYDRVNAME);
-	if (!channel->requested) {
-		if (uuid_le_cmp(guid, spar_video_guid)) {
-			/* Different we care about this */
-			goto err_destroy_channel;
-		}
-	}
+	if (!channel->requested && uuid_le_cmp(guid, spar_video_guid))
+		/* we only care about errors if this is not the video channel */
+		goto err_destroy_channel;
 
 	channel->mapped = memremap(channel->physaddr, channel_bytes,
 			MEMREMAP_WB);
