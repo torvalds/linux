@@ -417,8 +417,8 @@ static void si_dma_vm_set_pte_pde(struct amdgpu_ib *ib,
 		ib->ptr[ib->length_dw++] = DMA_PTE_PDE_PACKET(ndw);
 		ib->ptr[ib->length_dw++] = pe; /* dst addr */
 		ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-		ib->ptr[ib->length_dw++] = flags; /* mask */
-		ib->ptr[ib->length_dw++] = 0;
+		ib->ptr[ib->length_dw++] = lower_32_bits(flags); /* mask */
+		ib->ptr[ib->length_dw++] = upper_32_bits(flags);
 		ib->ptr[ib->length_dw++] = value; /* value */
 		ib->ptr[ib->length_dw++] = upper_32_bits(value);
 		ib->ptr[ib->length_dw++] = incr; /* increment size */
