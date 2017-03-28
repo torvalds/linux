@@ -642,8 +642,10 @@ create_visor_device(struct visor_device *dev)
 	 * (NOT bus instance).  That's why we need to include the bus
 	 * number within the name.
 	 */
-	dev_set_name(&dev->device, "vbus%u:dev%u",
-		     chipset_bus_no, chipset_dev_no);
+	err = dev_set_name(&dev->device, "vbus%u:dev%u",
+			   chipset_bus_no, chipset_dev_no);
+	if (err)
+		goto err_put;
 
 	/*
 	 * device_add does this:
