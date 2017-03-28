@@ -545,10 +545,21 @@ static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
 	tmp |= PORT_LOGIC_SPEED_CHANGE;
 	dw_pcie_writel_dbi(pci, PCIE_LINK_WIDTH_SPEED_CONTROL, tmp);
 
-	ret = imx6_pcie_wait_for_speed_change(imx6_pcie);
-	if (ret) {
-		dev_err(dev, "Failed to bring link up!\n");
-		goto err_reset_phy;
+	if (imx6_pcie->variant != IMX7D) {
+		/*
+		 * On i.MX7, DIRECT_SPEED_CHANGE behaves differently
+		 * from i.MX6 family when no link speed transition
+		 * occurs and we go Gen1 -> yep, Gen1. The difference
+		 * is that, in such case, it will not be cleared by HW
+		 * which will cause the following code to report false
+		 * failure.
+		 */
+
+		ret = imx6_pcie_wait_for_speed_change(imx6_pcie);
+		if (ret) {
+			dev_err(dev, "Failed to bring link up!\n");
+			goto err_reset_phy;
+		}
 	}
 
 	/* Make sure link training is finished as well! */
