@@ -704,7 +704,7 @@ struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
 {
 	enum mmc_blk_status status;
 	int start_err = 0;
-	struct mmc_async_req *data = host->areq;
+	struct mmc_async_req *previous = host->areq;
 
 	/* Prepare a new request */
 	if (areq)
@@ -712,13 +712,12 @@ struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
 
 	/* Finalize previous request */
 	status = mmc_finalize_areq(host);
+	if (ret_stat)
+		*ret_stat = status;
 
 	/* The previous request is still going on... */
-	if (status == MMC_BLK_NEW_REQUEST) {
-		if (ret_stat)
-			*ret_stat = status;
+	if (status == MMC_BLK_NEW_REQUEST)
 		return NULL;
-	}
 
 	/* Fine so far, start the new request! */
 	if (status == MMC_BLK_SUCCESS && areq)
@@ -737,9 +736,7 @@ struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
 	else
 		host->areq = areq;
 
-	if (ret_stat)
-		*ret_stat = status;
-	return data;
+	return previous;
 }
 EXPORT_SYMBOL(mmc_start_areq);
 
