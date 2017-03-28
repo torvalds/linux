@@ -185,18 +185,18 @@ static ssize_t error_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 	u32 error;
-	int ret;
+	int err;
 
 	if (kstrtou32(buf, 10, &error))
 		return -EINVAL;
 
-	ret = visorchannel_write
+	err = visorchannel_write
 		(chipset_dev->controlvm_channel,
 		 offsetof(struct spar_controlvm_channel_protocol,
 			  installation_error),
 		 &error, sizeof(u32));
-	if (ret)
-		return ret;
+	if (err)
+		return err;
 	return count;
 }
 static DEVICE_ATTR_RW(error);
