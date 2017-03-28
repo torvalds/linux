@@ -1227,14 +1227,6 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 		return;
 	}
 
-	/*
-	 * Note that even though both drv->pause() and drv->resume
-	 * specify a callback function, it is NOT necessary for us to
-	 * increment our local module usage count.  Reason is, there
-	 * is already a linkage dependency between child function
-	 * drivers and visorbus, so it is already IMPOSSIBLE to unload
-	 * visorbus while child function drivers are still running.
-	 */
 	if (is_pause) {
 		if (!drv->pause) {
 			(*notify_func)(dev, -EINVAL);
