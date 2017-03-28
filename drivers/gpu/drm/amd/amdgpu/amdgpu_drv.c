@@ -103,6 +103,11 @@ unsigned amdgpu_pg_mask = 0xffffffff;
 char *amdgpu_disable_cu = NULL;
 char *amdgpu_virtual_display = NULL;
 unsigned amdgpu_pp_feature_mask = 0xffffffff;
+int amdgpu_ngg = 0;
+int amdgpu_prim_buf_per_se = 0;
+int amdgpu_pos_buf_per_se = 0;
+int amdgpu_cntl_sb_buf_per_se = 0;
+int amdgpu_param_buf_per_se = 0;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -209,6 +214,22 @@ module_param_named(disable_cu, amdgpu_disable_cu, charp, 0444);
 MODULE_PARM_DESC(virtual_display,
 		 "Enable virtual display feature (the virtual_display will be set like xxxx:xx:xx.x,x;xxxx:xx:xx.x,x)");
 module_param_named(virtual_display, amdgpu_virtual_display, charp, 0444);
+
+MODULE_PARM_DESC(ngg, "Next Generation Graphics (1 = enable, 0 = disable(default depending on gfx))");
+module_param_named(ngg, amdgpu_ngg, int, 0444);
+
+MODULE_PARM_DESC(prim_buf_per_se, "the size of Primitive Buffer per Shader Engine (default depending on gfx)");
+module_param_named(prim_buf_per_se, amdgpu_prim_buf_per_se, int, 0444);
+
+MODULE_PARM_DESC(pos_buf_per_se, "the size of Position Buffer per Shader Engine (default depending on gfx)");
+module_param_named(pos_buf_per_se, amdgpu_pos_buf_per_se, int, 0444);
+
+MODULE_PARM_DESC(cntl_sb_buf_per_se, "the size of Control Sideband per Shader Engine (default depending on gfx)");
+module_param_named(cntl_sb_buf_per_se, amdgpu_cntl_sb_buf_per_se, int, 0444);
+
+MODULE_PARM_DESC(param_buf_per_se, "the size of Off-Chip Pramater Cache per Shader Engine (default depending on gfx)");
+module_param_named(param_buf_per_se, amdgpu_param_buf_per_se, int, 0444);
+
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI

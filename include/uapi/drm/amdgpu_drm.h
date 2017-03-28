@@ -743,6 +743,14 @@ struct drm_amdgpu_info_device {
 	__u32 vce_harvest_config;
 	/* gfx double offchip LDS buffers */
 	__u32 gc_double_offchip_lds_buf;
+	/* NGG Primitive Buffer */
+	__u64 prim_buf_gpu_addr;
+	/* NGG Position Buffer */
+	__u64 pos_buf_gpu_addr;
+	/* NGG Control Sideband */
+	__u64 cntl_sb_buf_gpu_addr;
+	/* NGG Parameter Cache */
+	__u64 param_buf_gpu_addr;
 };
 
 struct drm_amdgpu_info_hw_ip {

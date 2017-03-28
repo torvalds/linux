@@ -103,6 +103,11 @@ extern char *amdgpu_disable_cu;
 extern char *amdgpu_virtual_display;
 extern unsigned amdgpu_pp_feature_mask;
 extern int amdgpu_vram_page_split;
+extern int amdgpu_ngg;
+extern int amdgpu_prim_buf_per_se;
+extern int amdgpu_pos_buf_per_se;
+extern int amdgpu_cntl_sb_buf_per_se;
+extern int amdgpu_param_buf_per_se;
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */
@@ -957,6 +962,28 @@ struct amdgpu_gfx_funcs {
 	void (*read_wave_sgprs)(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t start, uint32_t size, uint32_t *dst);
 };
 
+struct amdgpu_ngg_buf {
+	struct amdgpu_bo	*bo;
+	uint64_t		gpu_addr;
+	uint32_t		size;
+	uint32_t		bo_size;
+};
+
+enum {
+	PRIM = 0,
+	POS,
+	CNTL,
+	PARAM,
+	NGG_BUF_MAX
+};
+
+struct amdgpu_ngg {
+	struct amdgpu_ngg_buf	buf[NGG_BUF_MAX];
+	uint32_t		gds_reserve_addr;
+	uint32_t		gds_reserve_size;
+	bool			init;
+};
+
 struct amdgpu_gfx {
 	struct mutex			gpu_clock_mutex;
 	struct amdgpu_gfx_config	config;
@@ -1000,6 +1027,8 @@ struct amdgpu_gfx {
 	uint32_t                        grbm_soft_reset;
 	uint32_t                        srbm_soft_reset;
 	bool                            in_reset;
+	/* NGG */
+	struct amdgpu_ngg		ngg;
 };
 
 int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
