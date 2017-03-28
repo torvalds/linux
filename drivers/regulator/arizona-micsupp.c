@@ -197,7 +197,8 @@ static const struct regulator_init_data arizona_micsupp_ext_default = {
 	.num_consumer_supplies = 1,
 };
 
-static int arizona_micsupp_of_get_pdata(struct arizona *arizona,
+static int arizona_micsupp_of_get_pdata(struct device *dev,
+					struct arizona *arizona,
 					struct regulator_config *config,
 					const struct regulator_desc *desc)
 {
@@ -211,7 +212,7 @@ static int arizona_micsupp_of_get_pdata(struct arizona *arizona,
 	if (np) {
 		config->of_node = np;
 
-		init_data = of_get_regulator_init_data(arizona->dev, np, desc);
+		init_data = of_get_regulator_init_data(dev, np, desc);
 
 		if (init_data) {
 			init_data->consumer_supplies = &micsupp->supply;
@@ -266,8 +267,8 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 
 	if (IS_ENABLED(CONFIG_OF)) {
 		if (!dev_get_platdata(arizona->dev)) {
-			ret = arizona_micsupp_of_get_pdata(arizona, &config,
-							   desc);
+			ret = arizona_micsupp_of_get_pdata(&pdev->dev, arizona,
+							   &config, desc);
 			if (ret < 0)
 				return ret;
 		}
