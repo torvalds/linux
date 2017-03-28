@@ -133,6 +133,7 @@ struct drm_scdc {
  * This information is available in CEA-861-F extension blocks (like HF-VSDB).
  */
 struct drm_hdmi_info {
+	/** @scdc: sink's scdc support and capabilities */
 	struct drm_scdc scdc;
 };
 
