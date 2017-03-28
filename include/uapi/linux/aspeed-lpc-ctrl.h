@@ -11,6 +11,7 @@
 #define _UAPI_LINUX_ASPEED_LPC_CTRL_H
 
 #include <linux/ioctl.h>
+#include <linux/types.h>
 
 /* Window types */
 #define ASPEED_LPC_CTRL_WINDOW_FLASH	1
