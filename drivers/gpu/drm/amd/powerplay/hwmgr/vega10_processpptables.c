@@ -261,6 +261,48 @@ static int get_mm_clock_voltage_table(
 	return 0;
 }
 
+static void get_scl_sda_value(uint8_t line, uint8_t *scl, uint8_t* sda)
+{
+	switch(line){
+	case Vega10_I2CLineID_DDC1:
+		*scl = Vega10_I2C_DDC1CLK;
+		*sda = Vega10_I2C_DDC1DATA;
+		break;
+	case Vega10_I2CLineID_DDC2:
+		*scl = Vega10_I2C_DDC2CLK;
+		*sda = Vega10_I2C_DDC2DATA;
+		break;
+	case Vega10_I2CLineID_DDC3:
+		*scl = Vega10_I2C_DDC3CLK;
+		*sda = Vega10_I2C_DDC3DATA;
+		break;
+	case Vega10_I2CLineID_DDC4:
+		*scl = Vega10_I2C_DDC4CLK;
+		*sda = Vega10_I2C_DDC4DATA;
+		break;
+	case Vega10_I2CLineID_DDC5:
+		*scl = Vega10_I2C_DDC5CLK;
+		*sda = Vega10_I2C_DDC5DATA;
+		break;
+	case Vega10_I2CLineID_DDC6:
+		*scl = Vega10_I2C_DDC6CLK;
+		*sda = Vega10_I2C_DDC6DATA;
+		break;
+	case Vega10_I2CLineID_SCLSDA:
+		*scl = Vega10_I2C_SCL;
+		*sda = Vega10_I2C_SDA;
+		break;
+	case Vega10_I2CLineID_DDCVGA:
+		*scl = Vega10_I2C_DDCVGACLK;
+		*sda = Vega10_I2C_DDCVGADATA;
+		break;
+	default:
+		*scl = 0;
+		*sda = 0;
+		break;
+	}
+}
+
 static int get_tdp_table(
 		struct pp_hwmgr *hwmgr,
 		struct phm_tdp_table **info_tdp_table,
@@ -268,59 +310,99 @@ static int get_tdp_table(
 {
 	uint32_t table_size;
 	struct phm_tdp_table *tdp_table;
-
-	const ATOM_Vega10_PowerTune_Table *power_tune_table =
-			(ATOM_Vega10_PowerTune_Table *)table;
-
-	table_size = sizeof(uint32_t) + sizeof(struct phm_cac_tdp_table);
-	hwmgr->dyn_state.cac_dtp_table = (struct phm_cac_tdp_table *)
-			kzalloc(table_size, GFP_KERNEL);
-
-	if (!hwmgr->dyn_state.cac_dtp_table)
-		return -ENOMEM;
+	uint8_t scl;
+	uint8_t sda;
+	const ATOM_Vega10_PowerTune_Table *power_tune_table;
+	const ATOM_Vega10_PowerTune_Table_V2 *power_tune_table_v2;
 
 	table_size = sizeof(uint32_t) + sizeof(struct phm_tdp_table);
+
 	tdp_table = kzalloc(table_size, GFP_KERNEL);
 
-	if (!tdp_table) {
-		kfree(hwmgr->dyn_state.cac_dtp_table);
-		hwmgr->dyn_state.cac_dtp_table = NULL;
+	if (!tdp_table)
 		return -ENOMEM;
+
+	if (table->ucRevId == 5) {
+		power_tune_table = (ATOM_Vega10_PowerTune_Table *)table;
+		tdp_table->usMaximumPowerDeliveryLimit = le16_to_cpu(power_tune_table->usSocketPowerLimit);
+		tdp_table->usTDC = le16_to_cpu(power_tune_table->usTdcLimit);
+		tdp_table->usEDCLimit = le16_to_cpu(power_tune_table->usEdcLimit);
+		tdp_table->usSoftwareShutdownTemp =
+				le16_to_cpu(power_tune_table->usSoftwareShutdownTemp);
+		tdp_table->usTemperatureLimitTedge =
+				le16_to_cpu(power_tune_table->usTemperatureLimitTedge);
+		tdp_table->usTemperatureLimitHotspot =
+				le16_to_cpu(power_tune_table->usTemperatureLimitHotSpot);
+		tdp_table->usTemperatureLimitLiquid1 =
+				le16_to_cpu(power_tune_table->usTemperatureLimitLiquid1);
+		tdp_table->usTemperatureLimitLiquid2 =
+				le16_to_cpu(power_tune_table->usTemperatureLimitLiquid2);
+		tdp_table->usTemperatureLimitHBM =
+				le16_to_cpu(power_tune_table->usTemperatureLimitHBM);
+		tdp_table->usTemperatureLimitVrVddc =
+				le16_to_cpu(power_tune_table->usTemperatureLimitVrSoc);
+		tdp_table->usTemperatureLimitVrMvdd =
+				le16_to_cpu(power_tune_table->usTemperatureLimitVrMem);
+		tdp_table->usTemperatureLimitPlx =
+				le16_to_cpu(power_tune_table->usTemperatureLimitPlx);
+		tdp_table->ucLiquid1_I2C_address = power_tune_table->ucLiquid1_I2C_address;
+		tdp_table->ucLiquid2_I2C_address = power_tune_table->ucLiquid2_I2C_address;
+		tdp_table->ucLiquid_I2C_Line = power_tune_table->ucLiquid_I2C_LineSCL;
+		tdp_table->ucLiquid_I2C_LineSDA = power_tune_table->ucLiquid_I2C_LineSDA;
+		tdp_table->ucVr_I2C_address = power_tune_table->ucVr_I2C_address;
+		tdp_table->ucVr_I2C_Line = power_tune_table->ucVr_I2C_LineSCL;
+		tdp_table->ucVr_I2C_LineSDA = power_tune_table->ucVr_I2C_LineSDA;
+		tdp_table->ucPlx_I2C_address = power_tune_table->ucPlx_I2C_address;
+		tdp_table->ucPlx_I2C_Line = power_tune_table->ucPlx_I2C_LineSCL;
+		tdp_table->ucPlx_I2C_LineSDA = power_tune_table->ucPlx_I2C_LineSDA;
+		hwmgr->platform_descriptor.LoadLineSlope = power_tune_table->usLoadLineResistance;
+	} else {
+		power_tune_table_v2 = (ATOM_Vega10_PowerTune_Table_V2 *)table;
+		tdp_table->usMaximumPowerDeliveryLimit = le16_to_cpu(power_tune_table_v2->usSocketPowerLimit);
+		tdp_table->usTDC = le16_to_cpu(power_tune_table_v2->usTdcLimit);
+		tdp_table->usEDCLimit = le16_to_cpu(power_tune_table_v2->usEdcLimit);
+		tdp_table->usSoftwareShutdownTemp =
+				le16_to_cpu(power_tune_table_v2->usSoftwareShutdownTemp);
+		tdp_table->usTemperatureLimitTedge =
+				le16_to_cpu(power_tune_table_v2->usTemperatureLimitTedge);
+		tdp_table->usTemperatureLimitHotspot =
+				le16_to_cpu(power_tune_table_v2->usTemperatureLimitHotSpot);
+		tdp_table->usTemperatureLimitLiquid1 =
+				le16_to_cpu(power_tune_table_v2->usTemperatureLimitLiquid1);
+		tdp_table->usTemperatureLimitLiquid2 =
+				le16_to_cpu(power_tune_table_v2->usTemperatureLimitLiquid2);
+		tdp_table->usTemperatureLimitHBM =
+				le16_to_cpu(power_tune_table_v2->usTemperatureLimitHBM);
+		tdp_table->usTemperatureLimitVrVddc =
+				le16_to_cpu(power_tune_table_v2->usTemperatureLimitVrSoc);
+		tdp_table->usTemperatureLimitVrMvdd =
+				le16_to_cpu(power_tune_table_v2->usTemperatureLimitVrMem);
+		tdp_table->usTemperatureLimitPlx =
+				le16_to_cpu(power_tune_table_v2->usTemperatureLimitPlx);
+		tdp_table->ucLiquid1_I2C_address = power_tune_table_v2->ucLiquid1_I2C_address;
+		tdp_table->ucLiquid2_I2C_address = power_tune_table_v2->ucLiquid2_I2C_address;
+
+		get_scl_sda_value(power_tune_table_v2->ucLiquid_I2C_Line, &scl, &sda);
+
+		tdp_table->ucLiquid_I2C_Line = scl;
+		tdp_table->ucLiquid_I2C_LineSDA = sda;
+
+		tdp_table->ucVr_I2C_address = power_tune_table_v2->ucVr_I2C_address;
+
+		get_scl_sda_value(power_tune_table_v2->ucVr_I2C_Line, &scl, &sda);
+
+		tdp_table->ucVr_I2C_Line = scl;
+		tdp_table->ucVr_I2C_LineSDA = sda;
+		tdp_table->ucPlx_I2C_address = power_tune_table_v2->ucPlx_I2C_address;
+
+		get_scl_sda_value(power_tune_table_v2->ucPlx_I2C_Line, &scl, &sda);
+
+		tdp_table->ucPlx_I2C_Line = scl;
+		tdp_table->ucPlx_I2C_LineSDA = sda;
+
+		hwmgr->platform_descriptor.LoadLineSlope =
+					power_tune_table_v2->usLoadLineResistance;
 	}
-
-	tdp_table->usMaximumPowerDeliveryLimit = le16_to_cpu(power_tune_table->usSocketPowerLimit);
-	tdp_table->usTDC = le16_to_cpu(power_tune_table->usTdcLimit);
-	tdp_table->usEDCLimit = le16_to_cpu(power_tune_table->usEdcLimit);
-	tdp_table->usSoftwareShutdownTemp =
-			le16_to_cpu(power_tune_table->usSoftwareShutdownTemp);
-	tdp_table->usTemperatureLimitTedge =
-			le16_to_cpu(power_tune_table->usTemperatureLimitTedge);
-	tdp_table->usTemperatureLimitHotspot =
-			le16_to_cpu(power_tune_table->usTemperatureLimitHotSpot);
-	tdp_table->usTemperatureLimitLiquid1 =
-			le16_to_cpu(power_tune_table->usTemperatureLimitLiquid1);
-	tdp_table->usTemperatureLimitLiquid2 =
-			le16_to_cpu(power_tune_table->usTemperatureLimitLiquid2);
-	tdp_table->usTemperatureLimitHBM =
-			le16_to_cpu(power_tune_table->usTemperatureLimitHBM);
-	tdp_table->usTemperatureLimitVrVddc =
-			le16_to_cpu(power_tune_table->usTemperatureLimitVrSoc);
-	tdp_table->usTemperatureLimitVrMvdd =
-			le16_to_cpu(power_tune_table->usTemperatureLimitVrMem);
-	tdp_table->usTemperatureLimitPlx =
-			le16_to_cpu(power_tune_table->usTemperatureLimitPlx);
-	tdp_table->ucLiquid1_I2C_address = power_tune_table->ucLiquid1_I2C_address;
-	tdp_table->ucLiquid2_I2C_address = power_tune_table->ucLiquid2_I2C_address;
-	tdp_table->ucLiquid_I2C_Line = power_tune_table->ucLiquid_I2C_LineSCL;
-	tdp_table->ucLiquid_I2C_LineSDA = power_tune_table->ucLiquid_I2C_LineSDA;
-	tdp_table->ucVr_I2C_address = power_tune_table->ucVr_I2C_address;
-	tdp_table->ucVr_I2C_Line = power_tune_table->ucVr_I2C_LineSCL;
-	tdp_table->ucVr_I2C_LineSDA = power_tune_table->ucVr_I2C_LineSDA;
-	tdp_table->ucPlx_I2C_address = power_tune_table->ucPlx_I2C_address;
-	tdp_table->ucPlx_I2C_Line = power_tune_table->ucPlx_I2C_LineSCL;
-	tdp_table->ucPlx_I2C_LineSDA = power_tune_table->ucPlx_I2C_LineSDA;
-
-	hwmgr->platform_descriptor.LoadLineSlope = power_tune_table->usLoadLineResistance;
 
 	*info_tdp_table = tdp_table;
 
@@ -836,7 +918,7 @@ static int init_dpm_2_parameters(
 				(((unsigned long)powerplay_table) +
 				le16_to_cpu(powerplay_table->usVddcLookupTableOffset));
 		result = get_vddc_lookup_table(hwmgr,
-				&pp_table_info->vddc_lookup_table, vddc_table, 16);
+				&pp_table_info->vddc_lookup_table, vddc_table, 8);
 	}
 
 	if (powerplay_table->usVddmemLookupTableOffset) {
@@ -845,7 +927,7 @@ static int init_dpm_2_parameters(
 				(((unsigned long)powerplay_table) +
 				le16_to_cpu(powerplay_table->usVddmemLookupTableOffset));
 		result = get_vddc_lookup_table(hwmgr,
-				&pp_table_info->vddmem_lookup_table, vdd_mem_table, 16);
+				&pp_table_info->vddmem_lookup_table, vdd_mem_table, 4);
 	}
 
 	if (powerplay_table->usVddciLookupTableOffset) {
@@ -854,7 +936,7 @@ static int init_dpm_2_parameters(
 				(((unsigned long)powerplay_table) +
 				le16_to_cpu(powerplay_table->usVddciLookupTableOffset));
 		result = get_vddc_lookup_table(hwmgr,
-				&pp_table_info->vddci_lookup_table, vddci_table, 16);
+				&pp_table_info->vddci_lookup_table, vddci_table, 4);
 	}
 
 	return result;
