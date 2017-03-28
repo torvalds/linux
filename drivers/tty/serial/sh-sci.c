@@ -2366,6 +2366,10 @@ done:
 		 */
 		udelay(DIV_ROUND_UP(10 * 1000000, baud));
 	}
+	if (port->flags & UPF_HARD_FLOW) {
+		/* Refresh (Auto) RTS */
+		sci_set_mctrl(port, port->mctrl);
+	}
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	/*
