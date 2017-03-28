@@ -1989,6 +1989,9 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		case TRB_NORMAL:
 			td->urb->actual_length = requested - remaining;
 			goto finish_td;
+		case TRB_STATUS:
+			td->urb->actual_length = requested;
+			goto finish_td;
 		default:
 			xhci_warn(xhci, "WARN: unexpected TRB Type %d\n",
 				  trb_type);
