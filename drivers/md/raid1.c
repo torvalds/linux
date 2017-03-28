@@ -2157,7 +2157,7 @@ static void process_checks(struct r1bio *r1_bio)
 		struct page **ppages = get_resync_pages(pbio)->pages;
 		struct page **spages = get_resync_pages(sbio)->pages;
 		struct bio_vec *bi;
-		int page_len[RESYNC_PAGES];
+		int page_len[RESYNC_PAGES] = { 0 };
 
 		if (sbio->bi_end_io != end_sync_read)
 			continue;
