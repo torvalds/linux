@@ -95,7 +95,6 @@ static void malidp_plane_atomic_print_state(struct drm_printer *p,
 					    const struct drm_plane_state *state)
 {
 	struct malidp_plane_state *ms = to_malidp_plane_state(state);
-	struct malidp_plane *mp = to_malidp_plane(state->plane);
 
 	drm_printf(p, "\trotmem_size=%u\n", ms->rotmem_size);
 	drm_printf(p, "\tformat_id=%u\n", ms->format);
