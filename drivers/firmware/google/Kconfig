@@ -1,6 +1,5 @@
 menuconfig GOOGLE_FIRMWARE
 	bool "Google Firmware Drivers"
-	depends on X86
 	default n
 	help
 	  These firmware drivers are used by Google's servers.  They are
@@ -11,7 +10,7 @@ if GOOGLE_FIRMWARE
 
 config GOOGLE_SMI
 	tristate "SMI interface for Google platforms"
-	depends on ACPI && DMI && EFI
+	depends on X86 && ACPI && DMI && EFI
 	select EFI_VARS
 	help
 	  Say Y here if you want to enable SMI callbacks for Google
@@ -21,7 +20,7 @@ config GOOGLE_SMI
 
 config GOOGLE_COREBOOT_TABLE
 	tristate
-	depends on GOOGLE_COREBOOT_TABLE_ACPI
+	depends on GOOGLE_COREBOOT_TABLE_ACPI || GOOGLE_COREBOOT_TABLE_OF
 
 config GOOGLE_COREBOOT_TABLE_ACPI
 	tristate "Coreboot Table Access - ACPI"
@@ -31,6 +30,16 @@ config GOOGLE_COREBOOT_TABLE_ACPI
 	  This option enables the coreboot_table module, which provides other
 	  firmware modules to access to the coreboot table. The coreboot table
 	  pointer is accessed through the ACPI "GOOGCB00" object.
+	  If unsure say N.
+
+config GOOGLE_COREBOOT_TABLE_OF
+	tristate "Coreboot Table Access - Device Tree"
+	depends on OF
+	select GOOGLE_COREBOOT_TABLE
+	help
+	  This option enable the coreboot_table module, which provide other
+	  firmware modules to access coreboot table. The coreboot table pointer
+	  is accessed through the device tree node /firmware/coreboot.
 	  If unsure say N.
 
 config GOOGLE_MEMCONSOLE
