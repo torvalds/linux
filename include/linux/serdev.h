@@ -15,6 +15,7 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
+#include <linux/termios.h>
 
 struct serdev_controller;
 struct serdev_device;
@@ -82,6 +83,8 @@ struct serdev_controller_ops {
 	void (*set_flow_control)(struct serdev_controller *, bool);
 	unsigned int (*set_baudrate)(struct serdev_controller *, unsigned int);
 	void (*wait_until_sent)(struct serdev_controller *, long);
+	int (*get_tiocm)(struct serdev_controller *);
+	int (*set_tiocm)(struct serdev_controller *, unsigned int, unsigned int);
 };
 
 /**
@@ -188,6 +191,8 @@ void serdev_device_close(struct serdev_device *);
 unsigned int serdev_device_set_baudrate(struct serdev_device *, unsigned int);
 void serdev_device_set_flow_control(struct serdev_device *, bool);
 void serdev_device_wait_until_sent(struct serdev_device *, long);
+int serdev_device_get_tiocm(struct serdev_device *);
+int serdev_device_set_tiocm(struct serdev_device *, int, int);
 int serdev_device_write_buf(struct serdev_device *, const unsigned char *, size_t);
 void serdev_device_write_flush(struct serdev_device *);
 int serdev_device_write_room(struct serdev_device *);
@@ -226,6 +231,14 @@ static inline unsigned int serdev_device_set_baudrate(struct serdev_device *sdev
 }
 static inline void serdev_device_set_flow_control(struct serdev_device *sdev, bool enable) {}
 static inline void serdev_device_wait_until_sent(struct serdev_device *sdev, long timeout) {}
+static inline int serdev_device_get_tiocm(struct serdev_device *serdev)
+{
+	return -ENOTSUPP;
+}
+static inline int serdev_device_set_tiocm(struct serdev_device *serdev, int set, int clear)
+{
+	return -ENOTSUPP;
+}
 static inline int serdev_device_write_buf(struct serdev_device *sdev, const unsigned char *buf, size_t count)
 {
 	return -ENODEV;
