@@ -239,7 +239,7 @@
 			#size-cells = <0>;
 			reg = <4>;
 
-			switch2: switch2@0 {
+			switch2: switch@0 {
 				compatible = "marvell,mv88e6085";
 				#address-cells = <1>;
 				#size-cells = <0>;
