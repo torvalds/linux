@@ -438,7 +438,7 @@ static int nf_tables_fill_table_info(struct sk_buff *skb, struct net *net,
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 
-	event |= NFNL_SUBSYS_NFTABLES << 8;
+	event = nfnl_msg_type(NFNL_SUBSYS_NFTABLES, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(struct nfgenmsg), flags);
 	if (nlh == NULL)
 		goto nla_put_failure;
@@ -989,7 +989,7 @@ static int nf_tables_fill_chain_info(struct sk_buff *skb, struct net *net,
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 
-	event |= NFNL_SUBSYS_NFTABLES << 8;
+	event = nfnl_msg_type(NFNL_SUBSYS_NFTABLES, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(struct nfgenmsg), flags);
 	if (nlh == NULL)
 		goto nla_put_failure;
@@ -1885,10 +1885,9 @@ static int nf_tables_fill_rule_info(struct sk_buff *skb, struct net *net,
 	const struct nft_expr *expr, *next;
 	struct nlattr *list;
 	const struct nft_rule *prule;
-	int type = event | NFNL_SUBSYS_NFTABLES << 8;
+	u16 type = nfnl_msg_type(NFNL_SUBSYS_NFTABLES, event);
 
-	nlh = nlmsg_put(skb, portid, seq, type, sizeof(struct nfgenmsg),
-			flags);
+	nlh = nlmsg_put(skb, portid, seq, type, sizeof(struct nfgenmsg), flags);
 	if (nlh == NULL)
 		goto nla_put_failure;
 
@@ -2645,7 +2644,7 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 	u32 portid = ctx->portid;
 	u32 seq = ctx->seq;
 
-	event |= NFNL_SUBSYS_NFTABLES << 8;
+	event = nfnl_msg_type(NFNL_SUBSYS_NFTABLES, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(struct nfgenmsg),
 			flags);
 	if (nlh == NULL)
@@ -3395,8 +3394,7 @@ static int nf_tables_dump_set(struct sk_buff *skb, struct netlink_callback *cb)
 	if (IS_ERR(set))
 		return PTR_ERR(set);
 
-	event  = NFT_MSG_NEWSETELEM;
-	event |= NFNL_SUBSYS_NFTABLES << 8;
+	event  = nfnl_msg_type(NFNL_SUBSYS_NFTABLES, NFT_MSG_NEWSETELEM);
 	portid = NETLINK_CB(cb->skb).portid;
 	seq    = cb->nlh->nlmsg_seq;
 
@@ -3481,7 +3479,7 @@ static int nf_tables_fill_setelem_info(struct sk_buff *skb,
 	struct nlattr *nest;
 	int err;
 
-	event |= NFNL_SUBSYS_NFTABLES << 8;
+	event = nfnl_msg_type(NFNL_SUBSYS_NFTABLES, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(struct nfgenmsg),
 			flags);
 	if (nlh == NULL)
@@ -4253,7 +4251,7 @@ static int nf_tables_fill_obj_info(struct sk_buff *skb, struct net *net,
 	struct nfgenmsg *nfmsg;
 	struct nlmsghdr *nlh;
 
-	event |= NFNL_SUBSYS_NFTABLES << 8;
+	event = nfnl_msg_type(NFNL_SUBSYS_NFTABLES, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(struct nfgenmsg), flags);
 	if (nlh == NULL)
 		goto nla_put_failure;
@@ -4526,7 +4524,7 @@ static int nf_tables_fill_gen_info(struct sk_buff *skb, struct net *net,
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	int event = (NFNL_SUBSYS_NFTABLES << 8) | NFT_MSG_NEWGEN;
+	int event = nfnl_msg_type(NFNL_SUBSYS_NFTABLES, NFT_MSG_NEWGEN);
 
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(struct nfgenmsg), 0);
 	if (nlh == NULL)

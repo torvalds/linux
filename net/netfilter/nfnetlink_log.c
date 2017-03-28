@@ -411,7 +411,7 @@ __build_packet_message(struct nfnl_log_net *log,
 	const unsigned char *hwhdrp;
 
 	nlh = nlmsg_put(inst->skb, 0, 0,
-			NFNL_SUBSYS_ULOG << 8 | NFULNL_MSG_PACKET,
+			nfnl_msg_type(NFNL_SUBSYS_ULOG, NFULNL_MSG_PACKET),
 			sizeof(struct nfgenmsg), 0);
 	if (!nlh)
 		return -1;

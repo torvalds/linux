@@ -139,7 +139,7 @@ nfnl_acct_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	u64 pkts, bytes;
 	u32 old_flags;
 
-	event |= NFNL_SUBSYS_ACCT << 8;
+	event = nfnl_msg_type(NFNL_SUBSYS_ACCT, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
 	if (nlh == NULL)
 		goto nlmsg_failure;

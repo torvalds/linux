@@ -769,7 +769,7 @@ start_msg(struct sk_buff *skb, u32 portid, u32 seq, unsigned int flags,
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 
-	nlh = nlmsg_put(skb, portid, seq, cmd | (NFNL_SUBSYS_IPSET << 8),
+	nlh = nlmsg_put(skb, portid, seq, nfnl_msg_type(NFNL_SUBSYS_IPSET, cmd),
 			sizeof(*nfmsg), flags);
 	if (!nlh)
 		return NULL;
