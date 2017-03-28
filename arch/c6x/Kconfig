@@ -18,6 +18,7 @@ config C6X
 	select GENERIC_CLOCKEVENTS
 	select MODULES_USE_ELF_RELA
 	select ARCH_NO_COHERENT_DMA_MMAP
+	select ARCH_HAS_RAW_COPY_USER
 
 config MMU
 	def_bool n
