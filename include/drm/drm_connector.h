@@ -656,7 +656,6 @@ struct drm_cmdline_mode {
  * @bad_edid_counter: track sinks that give us an EDID with invalid checksum
  * @edid_corrupt: indicates whether the last read EDID was corrupt
  * @debugfs_entry: debugfs directory for this connector
- * @state: current atomic state for this connector
  * @has_tile: is this connector connected to a tiled monitor
  * @tile_group: tile group for the connected monitor
  * @tile_is_single_monitor: whether the tile is one monitor housing
@@ -824,6 +823,21 @@ struct drm_connector {
 
 	struct dentry *debugfs_entry;
 
+	/**
+	 * @state:
+	 *
+	 * Current atomic state for this connector.
+	 *
+	 * This is protected by @drm_mode_config.connection_mutex. Note that
+	 * nonblocking atomic commits access the current connector state without
+	 * taking locks. Either by going through the &struct drm_atomic_state
+	 * pointers, see for_each_connector_in_state(),
+	 * for_each_oldnew_connector_in_state(),
+	 * for_each_old_connector_in_state() and
+	 * for_each_new_connector_in_state(). Or through careful ordering of
+	 * atomic commit operations as implemented in the atomic helpers, see
+	 * &struct drm_crtc_commit.
+	 */
 	struct drm_connector_state *state;
 
 	/* DisplayID bits */
