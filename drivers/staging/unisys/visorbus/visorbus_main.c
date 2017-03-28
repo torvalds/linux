@@ -1199,62 +1199,38 @@ resume_state_change_complete(struct visor_device *dev, int status)
  * via a callback function; see pause_state_change_complete() and
  * resume_state_change_complete().
  */
-static void
+static int
 initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 {
-	int rc;
+	int err;
 	struct visor_driver *drv = NULL;
-	void (*notify_func)(struct visor_device *dev, int response) = NULL;
-
-	if (is_pause)
-		notify_func = device_pause_response;
-	else
-		notify_func = device_resume_response;
-	if (!notify_func)
-		return;
 
 	drv = to_visor_driver(dev->device.driver);
-	if (!drv) {
-		(*notify_func)(dev, -ENODEV);
-		return;
-	}
+	if (!drv)
+		return -ENODEV;
 
-	if (dev->pausing || dev->resuming) {
-		(*notify_func)(dev, -EBUSY);
-		return;
-	}
+	if (dev->pausing || dev->resuming)
+		return -EBUSY;
 
 	if (is_pause) {
-		if (!drv->pause) {
-			(*notify_func)(dev, -EINVAL);
-			return;
-		}
+		if (!drv->pause)
+			return -EINVAL;
 
 		dev->pausing = true;
-		rc = drv->pause(dev, pause_state_change_complete);
+		err = drv->pause(dev, pause_state_change_complete);
 	} else {
-		/* This should be done at BUS resume time, but an
-		 * existing problem prevents us from ever getting a bus
-		 * resume...  This hack would fail to work should we
-		 * ever have a bus that contains NO devices, since we
-		 * would never even get here in that case.
+		/* The vbus_dev_info structure in the channel was been
+		 * cleared, make sure it is valid.
 		 */
 		fix_vbus_dev_info(dev);
-		if (!drv->resume) {
-			(*notify_func)(dev, -EINVAL);
-			return;
-		}
+		if (!drv->resume)
+			return -EINVAL;
 
 		dev->resuming = true;
-		rc = drv->resume(dev, resume_state_change_complete);
+		err = drv->resume(dev, resume_state_change_complete);
 	}
-	if (rc < 0) {
-		if (is_pause)
-			dev->pausing = false;
-		else
-			dev->resuming = false;
-		(*notify_func)(dev, -EINVAL);
-	}
+
+	return err;
 }
 
 /**
@@ -1268,7 +1244,14 @@ initiate_chipset_device_pause_resume(struct visor_device *dev, bool is_pause)
 void
 chipset_device_pause(struct visor_device *dev_info)
 {
-	initiate_chipset_device_pause_resume(dev_info, true);
+	int err;
+
+	err = initiate_chipset_device_pause_resume(dev_info, true);
+
+	if (err < 0) {
+		dev_info->pausing = false;
+		device_pause_response(dev_info, err);
+	}
 }
 
 /**
@@ -1282,7 +1265,14 @@ chipset_device_pause(struct visor_device *dev_info)
 void
 chipset_device_resume(struct visor_device *dev_info)
 {
-	initiate_chipset_device_pause_resume(dev_info, false);
+	int err;
+
+	err = initiate_chipset_device_pause_resume(dev_info, false);
+
+	if (err < 0) {
+		device_resume_response(dev_info, err);
+		dev_info->resuming = false;
+	}
 }
 
 int
