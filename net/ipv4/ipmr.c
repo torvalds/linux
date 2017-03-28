@@ -631,7 +631,7 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 	in_dev = __in_dev_get_rtnl(dev);
 	if (in_dev) {
 		IPV4_DEVCONF(in_dev->cnf, MC_FORWARDING)--;
-		inet_netconf_notify_devconf(dev_net(dev),
+		inet_netconf_notify_devconf(dev_net(dev), RTM_NEWNETCONF,
 					    NETCONFA_MC_FORWARDING,
 					    dev->ifindex, &in_dev->cnf);
 		ip_rt_multicast_event(in_dev);
@@ -820,8 +820,8 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 		return -EADDRNOTAVAIL;
 	}
 	IPV4_DEVCONF(in_dev->cnf, MC_FORWARDING)++;
-	inet_netconf_notify_devconf(net, NETCONFA_MC_FORWARDING, dev->ifindex,
-				    &in_dev->cnf);
+	inet_netconf_notify_devconf(net, RTM_NEWNETCONF, NETCONFA_MC_FORWARDING,
+				    dev->ifindex, &in_dev->cnf);
 	ip_rt_multicast_event(in_dev);
 
 	/* Fill in the VIF structures */
@@ -1282,7 +1282,8 @@ static void mrtsock_destruct(struct sock *sk)
 	ipmr_for_each_table(mrt, net) {
 		if (sk == rtnl_dereference(mrt->mroute_sk)) {
 			IPV4_DEVCONF_ALL(net, MC_FORWARDING)--;
-			inet_netconf_notify_devconf(net, NETCONFA_MC_FORWARDING,
+			inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						    NETCONFA_MC_FORWARDING,
 						    NETCONFA_IFINDEX_ALL,
 						    net->ipv4.devconf_all);
 			RCU_INIT_POINTER(mrt->mroute_sk, NULL);
@@ -1344,7 +1345,8 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 		if (ret == 0) {
 			rcu_assign_pointer(mrt->mroute_sk, sk);
 			IPV4_DEVCONF_ALL(net, MC_FORWARDING)++;
-			inet_netconf_notify_devconf(net, NETCONFA_MC_FORWARDING,
+			inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						    NETCONFA_MC_FORWARDING,
 						    NETCONFA_IFINDEX_ALL,
 						    net->ipv4.devconf_all);
 		}
