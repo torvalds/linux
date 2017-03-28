@@ -183,6 +183,7 @@ typedef struct xfs_mount {
 	struct workqueue_struct	*m_reclaim_workqueue;
 	struct workqueue_struct	*m_log_workqueue;
 	struct workqueue_struct *m_eofblocks_workqueue;
+	struct workqueue_struct	*m_sync_workqueue;
 
 	/*
 	 * Generation of the filesysyem layout.  This is incremented by each

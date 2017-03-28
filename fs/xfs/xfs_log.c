@@ -1293,7 +1293,7 @@ void
 xfs_log_work_queue(
 	struct xfs_mount        *mp)
 {
-	queue_delayed_work(mp->m_log_workqueue, &mp->m_log->l_work,
+	queue_delayed_work(mp->m_sync_workqueue, &mp->m_log->l_work,
 				msecs_to_jiffies(xfs_syncd_centisecs * 10));
 }
 
