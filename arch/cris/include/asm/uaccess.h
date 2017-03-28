@@ -336,63 +336,32 @@ static inline size_t clear_user(void __user *to, size_t n)
 		return __do_clear_user(to, n);
 }
 
-static inline size_t copy_from_user(void *to, const void __user *from, size_t n)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	size_t res = n;
-	if (likely(access_ok(VERIFY_READ, from, n))) {
-		if (__builtin_constant_p(n))
-			res = __constant_copy_from_user(to, from, n);
-		else
-			res = __copy_user_in(to, from, n);
-	}
-	if (unlikely(res))
-		memset(to + n - res , 0, res);
-	return res;
+	if (__builtin_constant_p(n))
+		return __constant_copy_from_user(to, from, n);
+	else
+		return __copy_user_in(to, from, n);
 }
 
-static inline size_t copy_to_user(void __user *to, const void *from, size_t n)
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (unlikely(!access_ok(VERIFY_WRITE, to, n)))
-		return n;
 	if (__builtin_constant_p(n))
 		return __constant_copy_to_user(to, from, n);
 	else
 		return __copy_user(to, from, n);
 }
 
-/* We let the __ versions of copy_from/to_user inline, because they're often
- * used in fast paths and have only a small space overhead.
- */
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 static inline unsigned long
-__generic_copy_from_user_nocheck(void *to, const void __user *from,
-				 unsigned long n)
-{
-	return __copy_user_in(to, from, n);
-}
-
-static inline unsigned long
-__generic_copy_to_user_nocheck(void __user *to, const void *from,
-			       unsigned long n)
-{
-	return __copy_user(to, from, n);
-}
-
-static inline unsigned long
-__generic_clear_user_nocheck(void __user *to, unsigned long n)
+__clear_user(void __user *to, unsigned long n)
 {
 	return __do_clear_user(to, n);
 }
-
-/* without checking */
-
-#define __copy_to_user(to, from, n) \
-	__generic_copy_to_user_nocheck((to), (from), (n))
-#define __copy_from_user(to, from, n) \
-	__generic_copy_from_user_nocheck((to), (from), (n))
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-#define __clear_user(to, n) __generic_clear_user_nocheck((to), (n))
 
 #define strlen_user(str)	strnlen_user((str), 0x7ffffffe)
 
