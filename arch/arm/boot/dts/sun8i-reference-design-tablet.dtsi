@@ -50,8 +50,6 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pinctrl-names = "default";
-		pinctrl-0 = <&bl_en_pin>;
 		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
 		default-brightness-level = <8>;
@@ -93,11 +91,6 @@
 };
 
 &pio {
-	bl_en_pin: bl_en_pin@0 {
-		pins = "PH6";
-		function = "gpio_in";
-	};
-
 	mmc0_cd_pin: mmc0_cd_pin@0 {
 		pins = "PB4";
 		function = "gpio_in";

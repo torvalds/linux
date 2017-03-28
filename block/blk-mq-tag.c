@@ -295,6 +295,9 @@ int blk_mq_reinit_tagset(struct blk_mq_tag_set *set)
 	for (i = 0; i < set->nr_hw_queues; i++) {
 		struct blk_mq_tags *tags = set->tags[i];
 
+		if (!tags)
+			continue;
+
 		for (j = 0; j < tags->nr_tags; j++) {
 			if (!tags->static_rqs[j])
 				continue;

@@ -160,9 +160,6 @@ struct i915_gem_context {
 	/** desc_template: invariant fields for the HW context descriptor */
 	u32 desc_template;
 
-	/** status_notifier: list of callbacks for context-switch changes */
-	struct atomic_notifier_head status_notifier;
-
 	/** guilty_count: How many times this context has caused a GPU hang. */
 	unsigned int guilty_count;
 	/**
