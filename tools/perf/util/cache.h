@@ -15,7 +15,6 @@
 #define PERF_TRACEFS_ENVIRONMENT "PERF_TRACEFS_DIR"
 #define PERF_PAGER_ENVIRONMENT "PERF_PAGER"
 
-char *alias_lookup(const char *alias);
 int split_cmdline(char *cmdline, const char ***argv);
 
 #define alloc_nr(x) (((x)+16)*3/2)

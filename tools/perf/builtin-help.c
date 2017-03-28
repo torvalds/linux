@@ -301,12 +301,6 @@ void list_common_cmds_help(void)
 	}
 }
 
-static int is_perf_command(const char *s)
-{
-	return is_in_cmdlist(&main_cmds, s) ||
-		is_in_cmdlist(&other_cmds, s);
-}
-
 static const char *cmd_to_page(const char *perf_cmd)
 {
 	char *s;
@@ -446,7 +440,6 @@ int cmd_help(int argc, const char **argv)
 		"perf help [--all] [--man|--web|--info] [command]",
 		NULL
 	};
-	const char *alias;
 	int rc;
 
 	load_command_list("perf-", &main_cmds, &other_cmds);
@@ -469,12 +462,6 @@ int cmd_help(int argc, const char **argv)
 		printf("\n usage: %s\n\n", perf_usage_string);
 		list_common_cmds_help();
 		printf("\n %s\n\n", perf_more_info_string);
-		return 0;
-	}
-
-	alias = alias_lookup(argv[0]);
-	if (alias && !is_perf_command(argv[0])) {
-		printf("`perf %s' is aliased to `%s'\n", argv[0], alias);
 		return 0;
 	}
 
