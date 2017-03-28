@@ -836,7 +836,8 @@ static inline void ufshcd_hba_start(struct ufs_hba *hba)
  */
 static inline bool ufshcd_is_hba_active(struct ufs_hba *hba)
 {
-	return (ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & 0x1) ? false : true;
+	return (ufshcd_readl(hba, REG_CONTROLLER_ENABLE) & CONTROLLER_ENABLE)
+		? false : true;
 }
 
 static const char *ufschd_uic_link_state_to_string(
