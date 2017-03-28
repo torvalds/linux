@@ -71,8 +71,6 @@ extern const struct qed_common_ops qed_common_ops_pass;
 
 #define QED_WFQ_UNIT	100
 
-#define ISCSI_BDQ_ID(_port_id) (_port_id)
-#define FCOE_BDQ_ID(_port_id) ((_port_id) + 2)
 #define QED_WID_SIZE            (1024)
 #define QED_PF_DEMS_SIZE        (4)
 
