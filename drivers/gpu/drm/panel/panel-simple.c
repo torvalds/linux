@@ -1115,6 +1115,31 @@ static const struct panel_desc lg_lb070wv8 = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
 };
 
+static const struct drm_display_mode sharp_lcd_f402_mode = {
+	.clock = 205000,
+	.hdisplay = 1536,
+	.hsync_start = 1536 + 12,
+	.hsync_end = 1536 + 12 + 48,
+	.htotal = 1536 + 12 + 48 + 16,
+	.vdisplay = 2048,
+	.vsync_start = 2048 + 8,
+	.vsync_end = 2048 + 8 + 8,
+	.vtotal = 2048 + 8 + 8 + 4,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc sharp_lcd_f402 = {
+	.modes = &sharp_lcd_f402_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 95,
+		.height = 54,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
 static const struct drm_display_mode lg_lp079qx1_sp0v_mode = {
 	.clock = 200000,
 	.hdisplay = 1536,
@@ -1471,6 +1496,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "samsung,ltn140at29-301",
 		.data = &samsung_ltn140at29_301,
+	}, {
+		.compatible = "sharp,lcd-f402",
+		.data = &sharp_lcd_f402,
 	}, {
 		.compatible = "shelly,sca07010-bfn-lnn",
 		.data = &shelly_sca07010_bfn_lnn,
