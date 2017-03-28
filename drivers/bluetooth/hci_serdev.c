@@ -104,13 +104,9 @@ static void hci_uart_write_work(struct work_struct *work)
 /* Initialize device */
 static int hci_uart_open(struct hci_dev *hdev)
 {
-	struct hci_uart *hu  = hci_get_drvdata(hdev);
-
 	BT_DBG("%s %p", hdev->name, hdev);
 
-	serdev_device_set_client_ops(hu->serdev, &hci_serdev_client_ops);
-
-	return serdev_device_open(hu->serdev);
+	return 0;
 }
 
 /* Reset device */
@@ -136,14 +132,10 @@ static int hci_uart_flush(struct hci_dev *hdev)
 /* Close device */
 static int hci_uart_close(struct hci_dev *hdev)
 {
-	struct hci_uart *hu  = hci_get_drvdata(hdev);
-
 	BT_DBG("hdev %p", hdev);
 
 	hci_uart_flush(hdev);
 	hdev->flush = NULL;
-
-	serdev_device_close(hu->serdev);
 
 	return 0;
 }
@@ -288,6 +280,8 @@ int hci_uart_register_device(struct hci_uart *hu,
 	struct hci_dev *hdev;
 
 	BT_DBG("");
+
+	serdev_device_set_client_ops(hu->serdev, &hci_serdev_client_ops);
 
 	err = p->open(hu);
 	if (err)
