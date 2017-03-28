@@ -1005,6 +1005,10 @@ static int __init inet6_init(void)
 	if (err)
 		goto seg6_fail;
 
+	err = igmp6_late_init();
+	if (err)
+		goto igmp6_late_err;
+
 #ifdef CONFIG_SYSCTL
 	err = ipv6_sysctl_register();
 	if (err)
@@ -1015,8 +1019,10 @@ out:
 
 #ifdef CONFIG_SYSCTL
 sysctl_fail:
-	seg6_exit();
+	igmp6_late_cleanup();
 #endif
+igmp6_late_err:
+	seg6_exit();
 seg6_fail:
 	calipso_exit();
 calipso_fail:
