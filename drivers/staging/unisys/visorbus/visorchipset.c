@@ -222,18 +222,18 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	u32 text_id;
-	int ret;
+	int err;
 
 	if (kstrtou32(buf, 10, &text_id))
 		return -EINVAL;
 
-	ret = visorchannel_write
+	err = visorchannel_write
 		(chipset_dev->controlvm_channel,
 		 offsetof(struct spar_controlvm_channel_protocol,
 			  installation_text_id),
 		 &text_id, sizeof(u32));
-	if (ret)
-		return ret;
+	if (err)
+		return err;
 	return count;
 }
 static DEVICE_ATTR_RW(textid);
