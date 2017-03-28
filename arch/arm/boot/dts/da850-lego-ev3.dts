@@ -177,13 +177,6 @@
 &pmx_core {
 	status = "okay";
 
-	spi0_cs3_pin: pinmux_spi0_cs3_pin {
-		pinctrl-single,bits = <
-			/* CS3 */
-			0xc 0x01000000 0x0f000000
-		>;
-	};
-
 	mmc0_cd_pin: pinmux_mmc0_cd {
 		pinctrl-single,bits = <
 			/* GP5[14] */

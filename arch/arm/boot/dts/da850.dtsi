@@ -153,6 +153,12 @@
 					0x10 0x00000010 0x000000f0
 				>;
 			};
+			spi0_cs3_pin: pinmux_spi0_cs3_pin {
+				pinctrl-single,bits = <
+					/* CS3 */
+					0xc 0x01000000 0x0f000000
+				>;
+			};
 			spi1_pins: pinmux_spi1_pins {
 				pinctrl-single,bits = <
 					/* SIMO, SOMI, CLK */
