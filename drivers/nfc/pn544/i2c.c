@@ -869,22 +869,34 @@ exit_state_wait_secure_write_answer:
 	}
 }
 
+static const struct acpi_gpio_params enable_gpios = { 1, 0, false };
+static const struct acpi_gpio_params firmware_gpios = { 2, 0, false };
+
+static const struct acpi_gpio_mapping acpi_pn544_gpios[] = {
+	{ "enable-gpios", &enable_gpios, 1 },
+	{ "firmware-gpios", &firmware_gpios, 1 },
+	{ },
+};
+
 static int pn544_hci_i2c_acpi_request_resources(struct i2c_client *client)
 {
 	struct pn544_i2c_phy *phy = i2c_get_clientdata(client);
 	struct device *dev = &client->dev;
+	int ret;
+
+	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev), acpi_pn544_gpios);
+	if (ret)
+		return ret;
 
 	/* Get EN GPIO from ACPI */
-	phy->gpiod_en = devm_gpiod_get_index(dev, PN544_GPIO_NAME_EN, 1,
-					     GPIOD_OUT_LOW);
+	phy->gpiod_en = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(phy->gpiod_en)) {
 		nfc_err(dev, "Unable to get EN GPIO\n");
 		return PTR_ERR(phy->gpiod_en);
 	}
 
 	/* Get FW GPIO from ACPI */
-	phy->gpiod_fw = devm_gpiod_get_index(dev, PN544_GPIO_NAME_FW, 2,
-					     GPIOD_OUT_LOW);
+	phy->gpiod_fw = devm_gpiod_get(dev, "firmware", GPIOD_OUT_LOW);
 	if (IS_ERR(phy->gpiod_fw)) {
 		nfc_err(dev, "Unable to get FW GPIO\n");
 		return PTR_ERR(phy->gpiod_fw);
@@ -996,6 +1008,7 @@ static int pn544_hci_i2c_remove(struct i2c_client *client)
 	if (phy->powered)
 		pn544_hci_i2c_disable(phy);
 
+	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&client->dev));
 	return 0;
 }
 
