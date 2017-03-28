@@ -146,7 +146,8 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp)
 		link_config[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_BW_SET, link_config, 2);
 
-	if (intel_dp->num_sink_rates)
+	/* eDP 1.4 rate select method. */
+	if (!link_bw)
 		drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_RATE_SET,
 				  &rate_select, 1);
 
