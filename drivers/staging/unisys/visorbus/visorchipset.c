@@ -1277,12 +1277,15 @@ err_respond:
 static int
 chipset_ready_uevent(struct controlvm_message_header *msg_hdr)
 {
-	kobject_uevent(&chipset_dev->acpi_device->dev.kobj, KOBJ_ONLINE);
+	int res;
+
+	res = kobject_uevent(&chipset_dev->acpi_device->dev.kobj,
+			     KOBJ_ONLINE);
 
 	if (msg_hdr->flags.response_expected)
-		return controlvm_respond(msg_hdr, CONTROLVM_RESP_SUCCESS);
+		controlvm_respond(msg_hdr, res);
 
-	return 0;
+	return res;
 }
 
 /*
@@ -1297,15 +1300,16 @@ chipset_selftest_uevent(struct controlvm_message_header *msg_hdr)
 {
 	char env_selftest[20];
 	char *envp[] = { env_selftest, NULL };
+	int res;
 
 	sprintf(env_selftest, "SPARSP_SELFTEST=%d", 1);
-	kobject_uevent_env(&chipset_dev->acpi_device->dev.kobj, KOBJ_CHANGE,
-			   envp);
+	res = kobject_uevent_env(&chipset_dev->acpi_device->dev.kobj,
+				 KOBJ_CHANGE, envp);
 
 	if (msg_hdr->flags.response_expected)
-		return controlvm_respond(msg_hdr, CONTROLVM_RESP_SUCCESS);
+		controlvm_respond(msg_hdr, res);
 
-	return 0;
+	return res;
 }
 
 /*
@@ -1318,12 +1322,14 @@ chipset_selftest_uevent(struct controlvm_message_header *msg_hdr)
 static int
 chipset_notready_uevent(struct controlvm_message_header *msg_hdr)
 {
-	kobject_uevent(&chipset_dev->acpi_device->dev.kobj, KOBJ_OFFLINE);
+	int res;
 
+	res = kobject_uevent(&chipset_dev->acpi_device->dev.kobj,
+			     KOBJ_OFFLINE);
 	if (msg_hdr->flags.response_expected)
-		return controlvm_respond(msg_hdr, CONTROLVM_RESP_SUCCESS);
+		controlvm_respond(msg_hdr, res);
 
-	return 0;
+	return res;
 }
 
 static unsigned int
