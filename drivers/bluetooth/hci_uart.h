@@ -58,6 +58,7 @@
 #define HCI_UART_VND_DETECT	5
 
 struct hci_uart;
+struct serdev_device;
 
 struct hci_uart_proto {
 	unsigned int id;
@@ -77,6 +78,7 @@ struct hci_uart_proto {
 
 struct hci_uart {
 	struct tty_struct	*tty;
+	struct serdev_device	*serdev;
 	struct hci_dev		*hdev;
 	unsigned long		flags;
 	unsigned long		hdev_flags;
@@ -108,6 +110,8 @@ struct hci_uart {
 
 int hci_uart_register_proto(const struct hci_uart_proto *p);
 int hci_uart_unregister_proto(const struct hci_uart_proto *p);
+int hci_uart_register_device(struct hci_uart *hu, const struct hci_uart_proto *p);
+
 int hci_uart_tx_wakeup(struct hci_uart *hu);
 int hci_uart_init_ready(struct hci_uart *hu);
 void hci_uart_init_tty(struct hci_uart *hu);
