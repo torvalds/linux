@@ -617,6 +617,7 @@ struct request_queue {
 #define QUEUE_FLAG_STATS       27	/* track rq completion times */
 #define QUEUE_FLAG_RESTART     28	/* queue needs restart at completion */
 #define QUEUE_FLAG_POLL_STATS  29	/* collecting stats for hybrid polling */
+#define QUEUE_FLAG_REGISTERED  30	/* queue has been registered to a disk */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_STACKABLE)	|	\
