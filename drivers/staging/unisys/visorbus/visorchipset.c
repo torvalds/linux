@@ -1211,7 +1211,7 @@ parahotplug_request_kickoff(struct parahotplug_request *req)
  *                                 off a udev script
  * @inmsg: the message indicating whether to enable or disable
  */
-static void
+static int
 parahotplug_process_message(struct controlvm_message *inmsg)
 {
 	struct parahotplug_request *req;
@@ -1219,7 +1219,7 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 	req = parahotplug_request_create(inmsg);
 
 	if (!req)
-		return;
+		return -ENOMEM;
 
 	if (inmsg->cmd.device_change_state.state.active) {
 		/*
@@ -1252,6 +1252,7 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 
 		parahotplug_request_kickoff(req);
 	}
+	return 0;
 }
 
 /*
