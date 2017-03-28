@@ -93,7 +93,7 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction)
 			btrfs_put_block_group_trimming(cache);
 			btrfs_put_block_group(cache);
 		}
-		kmem_cache_free(btrfs_transaction_cachep, transaction);
+		kfree(transaction);
 	}
 }
 
@@ -228,7 +228,7 @@ loop:
 	 */
 	BUG_ON(type == TRANS_JOIN_NOLOCK);
 
-	cur_trans = kmem_cache_alloc(btrfs_transaction_cachep, GFP_NOFS);
+	cur_trans = kmalloc(sizeof(*cur_trans), GFP_NOFS);
 	if (!cur_trans)
 		return -ENOMEM;
 
@@ -238,11 +238,11 @@ loop:
 		 * someone started a transaction after we unlocked.  Make sure
 		 * to redo the checks above
 		 */
-		kmem_cache_free(btrfs_transaction_cachep, cur_trans);
+		kfree(cur_trans);
 		goto loop;
 	} else if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
 		spin_unlock(&fs_info->trans_lock);
-		kmem_cache_free(btrfs_transaction_cachep, cur_trans);
+		kfree(cur_trans);
 		return -EROFS;
 	}
 

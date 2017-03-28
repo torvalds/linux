@@ -86,7 +86,6 @@ static const struct extent_io_ops btrfs_extent_io_ops;
 
 static struct kmem_cache *btrfs_inode_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
-struct kmem_cache *btrfs_transaction_cachep;
 struct kmem_cache *btrfs_path_cachep;
 struct kmem_cache *btrfs_free_space_cachep;
 
@@ -9513,7 +9512,6 @@ void btrfs_destroy_cachep(void)
 	rcu_barrier();
 	kmem_cache_destroy(btrfs_inode_cachep);
 	kmem_cache_destroy(btrfs_trans_handle_cachep);
-	kmem_cache_destroy(btrfs_transaction_cachep);
 	kmem_cache_destroy(btrfs_path_cachep);
 	kmem_cache_destroy(btrfs_free_space_cachep);
 }
@@ -9531,12 +9529,6 @@ int btrfs_init_cachep(void)
 			sizeof(struct btrfs_trans_handle), 0,
 			SLAB_TEMPORARY | SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_trans_handle_cachep)
-		goto fail;
-
-	btrfs_transaction_cachep = kmem_cache_create("btrfs_transaction",
-			sizeof(struct btrfs_transaction), 0,
-			SLAB_TEMPORARY | SLAB_MEM_SPREAD, NULL);
-	if (!btrfs_transaction_cachep)
 		goto fail;
 
 	btrfs_path_cachep = kmem_cache_create("btrfs_path",
