@@ -793,21 +793,22 @@ int acpi_node_prop_read(struct fwnode_handle *fwnode,  const char *propname,
 }
 
 /**
- * acpi_get_next_subnode - Return the next child node handle for a device.
- * @dev: Device to find the next child node for.
+ * acpi_get_next_subnode - Return the next child node handle for a fwnode
+ * @fwnode: Firmware node to find the next child node for.
  * @child: Handle to one of the device's child nodes or a null handle.
  */
-struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
+struct fwnode_handle *acpi_get_next_subnode(struct fwnode_handle *fwnode,
 					    struct fwnode_handle *child)
 {
-	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct acpi_device *adev = to_acpi_device_node(fwnode);
 	struct list_head *head, *next;
 
-	if (!adev)
-		return NULL;
-
 	if (!child || child->type == FWNODE_ACPI) {
-		head = &adev->children;
+		if (adev)
+			head = &adev->children;
+		else
+			goto nondev;
+
 		if (list_empty(head))
 			goto nondev;
 
@@ -827,9 +828,16 @@ struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 
  nondev:
 	if (!child || child->type == FWNODE_ACPI_DATA) {
+		struct acpi_data_node *data = to_acpi_data_node(fwnode);
 		struct acpi_data_node *dn;
 
-		head = &adev->data.subnodes;
+		if (adev)
+			head = &adev->data.subnodes;
+		else if (data)
+			head = &data->data.subnodes;
+		else
+			return NULL;
+
 		if (list_empty(head))
 			return NULL;
 
