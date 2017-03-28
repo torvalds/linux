@@ -27,6 +27,7 @@
 #define MAX_USB_MINORS	256
 static const struct file_operations *usb_minors[MAX_USB_MINORS];
 static DECLARE_RWSEM(minor_rwsem);
+static DEFINE_MUTEX(init_usb_class_mutex);
 
 static int usb_open(struct inode *inode, struct file *file)
 {
@@ -109,8 +110,9 @@ static void release_usb_class(struct kref *kref)
 
 static void destroy_usb_class(void)
 {
-	if (usb_class)
-		kref_put(&usb_class->kref, release_usb_class);
+	mutex_lock(&init_usb_class_mutex);
+	kref_put(&usb_class->kref, release_usb_class);
+	mutex_unlock(&init_usb_class_mutex);
 }
 
 int usb_major_init(void)
@@ -171,7 +173,10 @@ int usb_register_dev(struct usb_interface *intf,
 	if (intf->minor >= 0)
 		return -EADDRINUSE;
 
+	mutex_lock(&init_usb_class_mutex);
 	retval = init_usb_class();
+	mutex_unlock(&init_usb_class_mutex);
+
 	if (retval)
 		return retval;
 
