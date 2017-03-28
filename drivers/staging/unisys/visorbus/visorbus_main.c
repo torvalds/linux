@@ -580,17 +580,17 @@ EXPORT_SYMBOL_GPL(visorbus_write_channel);
  * Currently we don't yet have a real interrupt, so for now we just call the
  * interrupt function periodically via a timer.
  */
-void
+int
 visorbus_enable_channel_interrupts(struct visor_device *dev)
 {
 	struct visor_driver *drv = to_visor_driver(dev->device.driver);
 
 	if (!drv->channel_interrupt) {
 		dev_err(&dev->device, "%s no interrupt function!\n", __func__);
-		return;
+		return -ENOENT;
 	}
 
-	dev_start_periodic_work(dev);
+	return dev_start_periodic_work(dev);
 }
 EXPORT_SYMBOL_GPL(visorbus_enable_channel_interrupts);
 

@@ -180,7 +180,7 @@ int visorbus_read_channel(struct visor_device *dev,
 int visorbus_write_channel(struct visor_device *dev,
 			   unsigned long offset, void *src,
 			   unsigned long nbytes);
-void visorbus_enable_channel_interrupts(struct visor_device *dev);
+int visorbus_enable_channel_interrupts(struct visor_device *dev);
 void visorbus_disable_channel_interrupts(struct visor_device *dev);
 
 /* Levels of severity for diagnostic events, in order from lowest severity to
