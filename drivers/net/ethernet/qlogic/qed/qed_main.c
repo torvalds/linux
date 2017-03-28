@@ -901,6 +901,7 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 static int qed_slowpath_start(struct qed_dev *cdev,
 			      struct qed_slowpath_params *params)
 {
+	struct qed_hw_init_params hw_init_params;
 	struct qed_tunn_start_params tunn_info;
 	struct qed_mcp_drv_version drv_version;
 	const u8 *data = NULL;
@@ -966,9 +967,14 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	tunn_info.tunn_clss_ipgre = QED_TUNN_CLSS_MAC_VLAN;
 
 	/* Start the slowpath */
-	rc = qed_hw_init(cdev, &tunn_info, true,
-			 cdev->int_params.out.int_mode,
-			 true, data);
+	memset(&hw_init_params, 0, sizeof(hw_init_params));
+	hw_init_params.p_tunn = &tunn_info;
+	hw_init_params.b_hw_start = true;
+	hw_init_params.int_mode = cdev->int_params.out.int_mode;
+	hw_init_params.allow_npar_tx_switch = true;
+	hw_init_params.bin_fw_data = data;
+
+	rc = qed_hw_init(cdev, &hw_init_params);
 	if (rc)
 		goto err2;
 

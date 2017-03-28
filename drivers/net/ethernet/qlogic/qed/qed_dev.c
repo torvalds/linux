@@ -1106,25 +1106,20 @@ static void qed_reset_mb_shadow(struct qed_hwfn *p_hwfn,
 	       p_hwfn->mcp_info->mfw_mb_cur, p_hwfn->mcp_info->mfw_mb_length);
 }
 
-int qed_hw_init(struct qed_dev *cdev,
-		struct qed_tunn_start_params *p_tunn,
-		bool b_hw_start,
-		enum qed_int_mode int_mode,
-		bool allow_npar_tx_switch,
-		const u8 *bin_fw_data)
+int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 {
 	u32 load_code, param, drv_mb_param;
 	bool b_default_mtu = true;
 	struct qed_hwfn *p_hwfn;
 	int rc = 0, mfw_rc, i;
 
-	if ((int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
+	if ((p_params->int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
 		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
 		return -EINVAL;
 	}
 
 	if (IS_PF(cdev)) {
-		rc = qed_init_fw_data(cdev, bin_fw_data);
+		rc = qed_init_fw_data(cdev, p_params->bin_fw_data);
 		if (rc)
 			return rc;
 	}
@@ -1181,11 +1176,15 @@ int qed_hw_init(struct qed_dev *cdev,
 		/* Fall into */
 		case FW_MSG_CODE_DRV_LOAD_FUNCTION:
 			rc = qed_hw_init_pf(p_hwfn, p_hwfn->p_main_ptt,
-					    p_tunn, p_hwfn->hw_info.hw_mode,
-					    b_hw_start, int_mode,
-					    allow_npar_tx_switch);
+					    p_params->p_tunn,
+					    p_hwfn->hw_info.hw_mode,
+					    p_params->b_hw_start,
+					    p_params->int_mode,
+					    p_params->allow_npar_tx_switch);
 			break;
 		default:
+			DP_NOTICE(p_hwfn,
+				  "Unexpected load code [0x%08x]", load_code);
 			rc = -EINVAL;
 			break;
 		}

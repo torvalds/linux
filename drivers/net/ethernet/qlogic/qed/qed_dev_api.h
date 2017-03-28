@@ -82,26 +82,31 @@ int qed_resc_alloc(struct qed_dev *cdev);
  */
 void qed_resc_setup(struct qed_dev *cdev);
 
+struct qed_hw_init_params {
+	/* Tunneling parameters */
+	struct qed_tunn_start_params *p_tunn;
+
+	bool b_hw_start;
+
+	/* Interrupt mode [msix, inta, etc.] to use */
+	enum qed_int_mode int_mode;
+
+	/* NPAR tx switching to be used for vports for tx-switching */
+	bool allow_npar_tx_switch;
+
+	/* Binary fw data pointer in binary fw file */
+	const u8 *bin_fw_data;
+};
+
 /**
  * @brief qed_hw_init -
  *
  * @param cdev
- * @param p_tunn
- * @param b_hw_start
- * @param int_mode - interrupt mode [msix, inta, etc.] to use.
- * @param allow_npar_tx_switch - npar tx switching to be used
- *	  for vports configured for tx-switching.
- * @param bin_fw_data - binary fw data pointer in binary fw file.
- *			Pass NULL if not using binary fw file.
+ * @param p_params
  *
  * @return int
  */
-int qed_hw_init(struct qed_dev *cdev,
-		struct qed_tunn_start_params *p_tunn,
-		bool b_hw_start,
-		enum qed_int_mode int_mode,
-		bool allow_npar_tx_switch,
-		const u8 *bin_fw_data);
+int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params);
 
 /**
  * @brief qed_hw_timers_stop_all - stop the timers HW block
