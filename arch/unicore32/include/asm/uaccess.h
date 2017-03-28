@@ -24,15 +24,17 @@
 #define __access_ok(addr, size)	(__kernel_ok || __user_ok((addr), (size)))
 
 extern unsigned long __must_check
-__copy_from_user(void *to, const void __user *from, unsigned long n);
+raw_copy_from_user(void *to, const void __user *from, unsigned long n);
 extern unsigned long __must_check
-__copy_to_user(void __user *to, const void *from, unsigned long n);
+raw_copy_to_user(void __user *to, const void *from, unsigned long n);
 extern unsigned long __must_check
 __clear_user(void __user *addr, unsigned long n);
 extern unsigned long __must_check
 __strncpy_from_user(char *to, const char __user *from, unsigned long count);
 extern unsigned long
 __strnlen_user(const char __user *s, long n);
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 #include <asm-generic/uaccess.h>
 
