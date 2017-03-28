@@ -904,11 +904,12 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			continue;
 
 		if (chunk_ib->ip_type == AMDGPU_HW_IP_GFX && amdgpu_sriov_vf(adev)) {
-			if (chunk_ib->flags & AMDGPU_IB_FLAG_PREEMPT)
+			if (chunk_ib->flags & AMDGPU_IB_FLAG_PREEMPT) {
 				if (chunk_ib->flags & AMDGPU_IB_FLAG_CE)
 					ce_preempt++;
 				else
 					de_preempt++;
+			}
 
 			/* each GFX command submit allows 0 or 1 IB preemptible for CE & DE */
 			if (ce_preempt > 1 || de_preempt > 1)
