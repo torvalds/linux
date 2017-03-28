@@ -1303,27 +1303,53 @@ void qed_hw_timers_stop_all(struct qed_dev *cdev)
 
 int qed_hw_stop(struct qed_dev *cdev)
 {
-	int rc = 0, t_rc;
+	struct qed_hwfn *p_hwfn;
+	struct qed_ptt *p_ptt;
+	int rc, rc2 = 0;
 	int j;
 
 	for_each_hwfn(cdev, j) {
-		struct qed_hwfn *p_hwfn = &cdev->hwfns[j];
-		struct qed_ptt *p_ptt = p_hwfn->p_main_ptt;
+		p_hwfn = &cdev->hwfns[j];
+		p_ptt = p_hwfn->p_main_ptt;
 
 		DP_VERBOSE(p_hwfn, NETIF_MSG_IFDOWN, "Stopping hw/fw\n");
 
 		if (IS_VF(cdev)) {
 			qed_vf_pf_int_cleanup(p_hwfn);
+			rc = qed_vf_pf_reset(p_hwfn);
+			if (rc) {
+				DP_NOTICE(p_hwfn,
+					  "qed_vf_pf_reset failed. rc = %d.\n",
+					  rc);
+				rc2 = -EINVAL;
+			}
 			continue;
 		}
 
 		/* mark the hw as uninitialized... */
 		p_hwfn->hw_init_done = false;
 
-		rc = qed_sp_pf_stop(p_hwfn);
-		if (rc)
+		/* Send unload command to MCP */
+		rc = qed_mcp_unload_req(p_hwfn, p_ptt);
+		if (rc) {
 			DP_NOTICE(p_hwfn,
-				  "Failed to close PF against FW. Continue to stop HW to prevent illegal host access by the device\n");
+				  "Failed sending a UNLOAD_REQ command. rc = %d.\n",
+				  rc);
+			rc2 = -EINVAL;
+		}
+
+		qed_slowpath_irq_sync(p_hwfn);
+
+		/* After this point no MFW attentions are expected, e.g. prevent
+		 * race between pf stop and dcbx pf update.
+		 */
+		rc = qed_sp_pf_stop(p_hwfn);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "Failed to close PF against FW [rc = %d]. Continue to stop HW to prevent illegal host access by the device.\n",
+				  rc);
+			rc2 = -EINVAL;
+		}
 
 		qed_wr(p_hwfn, p_ptt,
 		       NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x1);
@@ -1346,20 +1372,37 @@ int qed_hw_stop(struct qed_dev *cdev)
 
 		/* Need to wait 1ms to guarantee SBs are cleared */
 		usleep_range(1000, 2000);
+
+		/* Disable PF in HW blocks */
+		qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_DB_ENABLE, 0);
+		qed_wr(p_hwfn, p_ptt, QM_REG_PF_EN, 0);
+
+		qed_mcp_unload_done(p_hwfn, p_ptt);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "Failed sending a UNLOAD_DONE command. rc = %d.\n",
+				  rc);
+			rc2 = -EINVAL;
+		}
 	}
 
 	if (IS_PF(cdev)) {
+		p_hwfn = QED_LEADING_HWFN(cdev);
+		p_ptt = QED_LEADING_HWFN(cdev)->p_main_ptt;
+
 		/* Disable DMAE in PXP - in CMT, this should only be done for
 		 * first hw-function, and only after all transactions have
 		 * stopped for all active hw-functions.
 		 */
-		t_rc = qed_change_pci_hwfn(&cdev->hwfns[0],
-					   cdev->hwfns[0].p_main_ptt, false);
-		if (t_rc != 0)
-			rc = t_rc;
+		rc = qed_change_pci_hwfn(p_hwfn, p_ptt, false);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "qed_change_pci_hwfn failed. rc = %d.\n", rc);
+			rc2 = -EINVAL;
+		}
 	}
 
-	return rc;
+	return rc2;
 }
 
 void qed_hw_stop_fastpath(struct qed_dev *cdev)
@@ -1402,89 +1445,6 @@ void qed_hw_start_fastpath(struct qed_hwfn *p_hwfn)
 	/* Re-open incoming traffic */
 	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
 	       NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x0);
-}
-
-static int qed_reg_assert(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt, u32 reg, bool expected)
-{
-	u32 assert_val = qed_rd(p_hwfn, p_ptt, reg);
-
-	if (assert_val != expected) {
-		DP_NOTICE(p_hwfn, "Value at address 0x%08x != 0x%08x\n",
-			  reg, expected);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int qed_hw_reset(struct qed_dev *cdev)
-{
-	int rc = 0;
-	u32 unload_resp, unload_param;
-	u32 wol_param;
-	int i;
-
-	switch (cdev->wol_config) {
-	case QED_OV_WOL_DISABLED:
-		wol_param = DRV_MB_PARAM_UNLOAD_WOL_DISABLED;
-		break;
-	case QED_OV_WOL_ENABLED:
-		wol_param = DRV_MB_PARAM_UNLOAD_WOL_ENABLED;
-		break;
-	default:
-		DP_NOTICE(cdev,
-			  "Unknown WoL configuration %02x\n", cdev->wol_config);
-		/* Fallthrough */
-	case QED_OV_WOL_DEFAULT:
-		wol_param = DRV_MB_PARAM_UNLOAD_WOL_MCP;
-	}
-
-	for_each_hwfn(cdev, i) {
-		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
-
-		if (IS_VF(cdev)) {
-			rc = qed_vf_pf_reset(p_hwfn);
-			if (rc)
-				return rc;
-			continue;
-		}
-
-		DP_VERBOSE(p_hwfn, NETIF_MSG_IFDOWN, "Resetting hw/fw\n");
-
-		/* Check for incorrect states */
-		qed_reg_assert(p_hwfn, p_hwfn->p_main_ptt,
-			       QM_REG_USG_CNT_PF_TX, 0);
-		qed_reg_assert(p_hwfn, p_hwfn->p_main_ptt,
-			       QM_REG_USG_CNT_PF_OTHER, 0);
-
-		/* Disable PF in HW blocks */
-		qed_wr(p_hwfn, p_hwfn->p_main_ptt, DORQ_REG_PF_DB_ENABLE, 0);
-		qed_wr(p_hwfn, p_hwfn->p_main_ptt, QM_REG_PF_EN, 0);
-		qed_wr(p_hwfn, p_hwfn->p_main_ptt,
-		       TCFC_REG_STRONG_ENABLE_PF, 0);
-		qed_wr(p_hwfn, p_hwfn->p_main_ptt,
-		       CCFC_REG_STRONG_ENABLE_PF, 0);
-
-		/* Send unload command to MCP */
-		rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
-				 DRV_MSG_CODE_UNLOAD_REQ, wol_param,
-				 &unload_resp, &unload_param);
-		if (rc) {
-			DP_NOTICE(p_hwfn, "qed_hw_reset: UNLOAD_REQ failed\n");
-			unload_resp = FW_MSG_CODE_DRV_UNLOAD_ENGINE;
-		}
-
-		rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
-				 DRV_MSG_CODE_UNLOAD_DONE,
-				 0, &unload_resp, &unload_param);
-		if (rc) {
-			DP_NOTICE(p_hwfn, "qed_hw_reset: UNLOAD_DONE failed\n");
-			return rc;
-		}
-	}
-
-	return rc;
 }
 
 /* Free hwfn memory and resources acquired in hw_hwfn_prepare */

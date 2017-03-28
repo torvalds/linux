@@ -140,14 +140,6 @@ void qed_hw_stop_fastpath(struct qed_dev *cdev);
  */
 void qed_hw_start_fastpath(struct qed_hwfn *p_hwfn);
 
-/**
- * @brief qed_hw_reset -
- *
- * @param cdev
- *
- * @return int
- */
-int qed_hw_reset(struct qed_dev *cdev);
 
 /**
  * @brief qed_hw_prepare -

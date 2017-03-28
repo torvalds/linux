@@ -550,31 +550,11 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 		u32 *o_mcp_param)
 {
 	struct qed_mcp_mb_params mb_params;
-	struct mcp_mac wol_mac;
 	int rc;
 
 	memset(&mb_params, 0, sizeof(mb_params));
 	mb_params.cmd = cmd;
 	mb_params.param = param;
-
-	/* In case of UNLOAD_DONE, set the primary MAC */
-	if ((cmd == DRV_MSG_CODE_UNLOAD_DONE) &&
-	    (p_hwfn->cdev->wol_config == QED_OV_WOL_ENABLED)) {
-		u8 *p_mac = p_hwfn->cdev->wol_mac;
-
-		memset(&wol_mac, 0, sizeof(wol_mac));
-		wol_mac.mac_upper = p_mac[0] << 8 | p_mac[1];
-		wol_mac.mac_lower = p_mac[2] << 24 | p_mac[3] << 16 |
-				    p_mac[4] << 8 | p_mac[5];
-
-		DP_VERBOSE(p_hwfn,
-			   (QED_MSG_SP | NETIF_MSG_IFDOWN),
-			   "Setting WoL MAC: %pM --> [%08x,%08x]\n",
-			   p_mac, wol_mac.mac_upper, wol_mac.mac_lower);
-
-		mb_params.p_data_src = &wol_mac;
-		mb_params.data_src_size = sizeof(wol_mac);
-	}
 
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
@@ -661,6 +641,59 @@ int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 	}
 
 	return 0;
+}
+
+int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 wol_param, mcp_resp, mcp_param;
+
+	switch (p_hwfn->cdev->wol_config) {
+	case QED_OV_WOL_DISABLED:
+		wol_param = DRV_MB_PARAM_UNLOAD_WOL_DISABLED;
+		break;
+	case QED_OV_WOL_ENABLED:
+		wol_param = DRV_MB_PARAM_UNLOAD_WOL_ENABLED;
+		break;
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Unknown WoL configuration %02x\n",
+			  p_hwfn->cdev->wol_config);
+		/* Fallthrough */
+	case QED_OV_WOL_DEFAULT:
+		wol_param = DRV_MB_PARAM_UNLOAD_WOL_MCP;
+	}
+
+	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_UNLOAD_REQ, wol_param,
+			   &mcp_resp, &mcp_param);
+}
+
+int qed_mcp_unload_done(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_mcp_mb_params mb_params;
+	struct mcp_mac wol_mac;
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_UNLOAD_DONE;
+
+	/* Set the primary MAC if WoL is enabled */
+	if (p_hwfn->cdev->wol_config == QED_OV_WOL_ENABLED) {
+		u8 *p_mac = p_hwfn->cdev->wol_mac;
+
+		memset(&wol_mac, 0, sizeof(wol_mac));
+		wol_mac.mac_upper = p_mac[0] << 8 | p_mac[1];
+		wol_mac.mac_lower = p_mac[2] << 24 | p_mac[3] << 16 |
+				    p_mac[4] << 8 | p_mac[5];
+
+		DP_VERBOSE(p_hwfn,
+			   (QED_MSG_SP | NETIF_MSG_IFDOWN),
+			   "Setting WoL MAC: %pM --> [%08x,%08x]\n",
+			   p_mac, wol_mac.mac_upper, wol_mac.mac_lower);
+
+		mb_params.p_data_src = &wol_mac;
+		mb_params.data_src_size = sizeof(wol_mac);
+	}
+
+	return qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 }
 
 static void qed_mcp_handle_vf_flr(struct qed_hwfn *p_hwfn,

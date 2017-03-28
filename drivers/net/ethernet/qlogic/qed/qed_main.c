@@ -589,6 +589,19 @@ int qed_slowpath_irq_req(struct qed_hwfn *hwfn)
 	return rc;
 }
 
+void qed_slowpath_irq_sync(struct qed_hwfn *p_hwfn)
+{
+	struct qed_dev *cdev = p_hwfn->cdev;
+	u8 id = p_hwfn->my_id;
+	u32 int_mode;
+
+	int_mode = cdev->int_params.out.int_mode;
+	if (int_mode == QED_INT_MODE_MSIX)
+		synchronize_irq(cdev->int_params.msix_table[id].vector);
+	else
+		synchronize_irq(cdev->pdev->irq);
+}
+
 static void qed_slowpath_irq_free(struct qed_dev *cdev)
 {
 	int i;
@@ -629,19 +642,6 @@ static int qed_nic_stop(struct qed_dev *cdev)
 	qed_dbg_pf_exit(cdev);
 
 	return rc;
-}
-
-static int qed_nic_reset(struct qed_dev *cdev)
-{
-	int rc;
-
-	rc = qed_hw_reset(cdev);
-	if (rc)
-		return rc;
-
-	qed_resc_free(cdev);
-
-	return 0;
 }
 
 static int qed_nic_setup(struct qed_dev *cdev)
@@ -1043,7 +1043,8 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 	}
 
 	qed_disable_msix(cdev);
-	qed_nic_reset(cdev);
+
+	qed_resc_free(cdev);
 
 	qed_iov_wq_stop(cdev, true);
 

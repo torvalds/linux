@@ -732,5 +732,6 @@ void qed_get_protocol_stats(struct qed_dev *cdev,
 			    enum qed_mcp_protocol_type type,
 			    union qed_mcp_protocol_stats *stats);
 int qed_slowpath_irq_req(struct qed_hwfn *hwfn);
+void qed_slowpath_irq_sync(struct qed_hwfn *p_hwfn);
 
 #endif /* _QED_H */

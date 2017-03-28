@@ -593,6 +593,26 @@ int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 		     u32 *p_load_code);
 
 /**
+ * @brief Sends a UNLOAD_REQ message to the MFW
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return int - 0 - Operation was successful.
+ */
+int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief Sends a UNLOAD_DONE message to the MFW
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return int - 0 - Operation was successful.
+ */
+int qed_mcp_unload_done(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
  * @brief Read the MFW mailbox into Current buffer.
  *
  * @param p_hwfn
