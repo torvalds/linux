@@ -19,9 +19,23 @@ config GOOGLE_SMI
 	  clearing the EFI event log and reading and writing NVRAM
 	  variables.
 
+config GOOGLE_COREBOOT_TABLE
+	tristate
+	depends on GOOGLE_COREBOOT_TABLE_ACPI
+
+config GOOGLE_COREBOOT_TABLE_ACPI
+	tristate "Coreboot Table Access - ACPI"
+	depends on ACPI
+	select GOOGLE_COREBOOT_TABLE
+	help
+	  This option enables the coreboot_table module, which provides other
+	  firmware modules to access to the coreboot table. The coreboot table
+	  pointer is accessed through the ACPI "GOOGCB00" object.
+	  If unsure say N.
+
 config GOOGLE_MEMCONSOLE
 	tristate
-	depends on GOOGLE_MEMCONSOLE_X86_LEGACY
+	depends on GOOGLE_MEMCONSOLE_X86_LEGACY || GOOGLE_MEMCONSOLE_COREBOOT
 
 config GOOGLE_MEMCONSOLE_X86_LEGACY
 	tristate "Firmware Memory Console - X86 Legacy support"
@@ -31,5 +45,14 @@ config GOOGLE_MEMCONSOLE_X86_LEGACY
 	  This option enables the kernel to search for a firmware log in
 	  the EBDA on Google servers.  If found, this log is exported to
 	  userland in the file /sys/firmware/log.
+
+config GOOGLE_MEMCONSOLE_COREBOOT
+	tristate "Firmware Memory Console"
+	depends on GOOGLE_COREBOOT_TABLE
+	select GOOGLE_MEMCONSOLE
+	help
+	  This option enables the kernel to search for a firmware log in
+	  the coreboot table.  If found, this log is exported to userland
+	  in the file /sys/firmware/log.
 
 endif # GOOGLE_FIRMWARE
