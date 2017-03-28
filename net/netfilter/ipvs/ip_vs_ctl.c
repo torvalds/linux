@@ -2130,8 +2130,8 @@ static int ip_vs_stats_show(struct seq_file *seq, void *v)
 /*               01234567 01234567 01234567 0123456701234567 0123456701234567 */
 	seq_puts(seq,
 		 "   Total Incoming Outgoing         Incoming         Outgoing\n");
-	seq_printf(seq,
-		   "   Conns  Packets  Packets            Bytes            Bytes\n");
+	seq_puts(seq,
+		 "   Conns  Packets  Packets            Bytes            Bytes\n");
 
 	ip_vs_copy_stats(&show, &net_ipvs(net)->tot_stats);
 	seq_printf(seq, "%8LX %8LX %8LX %16LX %16LX\n\n",
@@ -2178,8 +2178,8 @@ static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
 /*               01234567 01234567 01234567 0123456701234567 0123456701234567 */
 	seq_puts(seq,
 		 "       Total Incoming Outgoing         Incoming         Outgoing\n");
-	seq_printf(seq,
-		   "CPU    Conns  Packets  Packets            Bytes            Bytes\n");
+	seq_puts(seq,
+		 "CPU    Conns  Packets  Packets            Bytes            Bytes\n");
 
 	for_each_possible_cpu(i) {
 		struct ip_vs_cpu_stats *u = per_cpu_ptr(cpustats, i);

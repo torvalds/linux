@@ -287,9 +287,9 @@ static int synproxy_cpu_seq_show(struct seq_file *seq, void *v)
 	struct synproxy_stats *stats = v;
 
 	if (v == SEQ_START_TOKEN) {
-		seq_printf(seq, "entries\t\tsyn_received\t"
-				"cookie_invalid\tcookie_valid\t"
-				"cookie_retrans\tconn_reopened\n");
+		seq_puts(seq, "entries\t\tsyn_received\t"
+			      "cookie_invalid\tcookie_valid\t"
+			      "cookie_retrans\tconn_reopened\n");
 		return 0;
 	}
 

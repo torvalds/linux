@@ -549,7 +549,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 		seq_printf(s, "%ld ", timer_pending(&expect->timeout)
 			   ? (long)(expect->timeout.expires - jiffies)/HZ : 0);
 	else
-		seq_printf(s, "- ");
+		seq_puts(s, "- ");
 	seq_printf(s, "l3proto = %u proto=%u ",
 		   expect->tuple.src.l3num,
 		   expect->tuple.dst.protonum);
@@ -559,7 +559,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 				       expect->tuple.dst.protonum));
 
 	if (expect->flags & NF_CT_EXPECT_PERMANENT) {
-		seq_printf(s, "PERMANENT");
+		seq_puts(s, "PERMANENT");
 		delim = ",";
 	}
 	if (expect->flags & NF_CT_EXPECT_INACTIVE) {
