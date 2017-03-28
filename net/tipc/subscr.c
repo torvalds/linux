@@ -145,6 +145,7 @@ static void tipc_subscrp_timeout(unsigned long data)
 
 	spin_lock_bh(&subscriber->lock);
 	tipc_nametbl_unsubscribe(sub);
+	list_del(&sub->subscrp_list);
 	spin_unlock_bh(&subscriber->lock);
 
 	/* Notify subscriber of timeout */
@@ -177,10 +178,7 @@ static void tipc_subscrp_kref_release(struct kref *kref)
 	struct tipc_net *tn = net_generic(sub->net, tipc_net_id);
 	struct tipc_subscriber *subscriber = sub->subscriber;
 
-	spin_lock_bh(&subscriber->lock);
-	list_del(&sub->subscrp_list);
 	atomic_dec(&tn->subscription_count);
-	spin_unlock_bh(&subscriber->lock);
 	kfree(sub);
 	tipc_subscrb_put(subscriber);
 }
@@ -210,11 +208,8 @@ static void tipc_subscrb_subscrp_delete(struct tipc_subscriber *subscriber,
 			continue;
 
 		tipc_nametbl_unsubscribe(sub);
-		tipc_subscrp_get(sub);
-		spin_unlock_bh(&subscriber->lock);
+		list_del(&sub->subscrp_list);
 		tipc_subscrp_delete(sub);
-		tipc_subscrp_put(sub);
-		spin_lock_bh(&subscriber->lock);
 
 		if (s)
 			break;
