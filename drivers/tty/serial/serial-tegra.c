@@ -691,7 +691,8 @@ static irqreturn_t tegra_uart_isr(int irq, void *data)
 	spin_lock_irqsave(&u->lock, flags);
 	while (1) {
 		iir = tegra_uart_read(tup, UART_IIR);
-		if (iir & UART_IIR_NO_INT) {
+		iir &= UART_IIR_MASK;
+		if (iir == UART_IIR_NO_INT) {
 			if (is_rx_int) {
 				tegra_uart_handle_rx_dma(tup);
 				if (tup->rx_in_progress) {

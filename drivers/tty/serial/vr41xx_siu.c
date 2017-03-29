@@ -429,7 +429,7 @@ static irqreturn_t siu_interrupt(int irq, void *dev_id)
 	port = (struct uart_port *)dev_id;
 
 	iir = siu_read(port, UART_IIR);
-	if (iir & UART_IIR_NO_INT)
+	if ((iir & UART_IIR_MASK) == UART_IIR_NO_INT)
 		return IRQ_NONE;
 
 	lsr = siu_read(port, UART_LSR);

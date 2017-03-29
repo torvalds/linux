@@ -475,7 +475,7 @@ static irqreturn_t sunsu_serial_interrupt(int irq, void *dev_id)
 
 		spin_lock_irqsave(&up->port.lock, flags);
 
-	} while (!(serial_in(up, UART_IIR) & UART_IIR_NO_INT));
+	} while ((serial_in(up, UART_IIR) & UART_IIR_MASK) != UART_IIR_NO_INT);
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 

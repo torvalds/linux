@@ -569,7 +569,6 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 {
 	struct uart_omap_port *up = dev_id;
 	unsigned int iir, lsr;
-	unsigned int type;
 	irqreturn_t ret = IRQ_NONE;
 	int max_count = 256;
 
@@ -578,16 +577,15 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 
 	do {
 		iir = serial_in(up, UART_IIR);
-		if (iir & UART_IIR_NO_INT)
+		iir &= (UART_IIR_MASK | UART_IIR_EXT_MASK);
+		if (iir == UART_IIR_NO_INT)
 			break;
 
 		ret = IRQ_HANDLED;
 		lsr = serial_in(up, UART_LSR);
 
 		/* extract IRQ type from IIR register */
-		type = iir & 0x3e;
-
-		switch (type) {
+		switch (iir) {
 		case UART_IIR_MSI:
 			check_modem_status(up);
 			break;
@@ -607,10 +605,12 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 			break;
 		case UART_IIR_XOFF:
 			/* FALLTHROUGH */
+		case UART_IIR_BUSY:
+			/* FALLTHROUGH */
 		default:
 			break;
 		}
-	} while (!(iir & UART_IIR_NO_INT) && max_count--);
+	} while ((iir != UART_IIR_NO_INT) && max_count--);
 
 	spin_unlock(&up->port.lock);
 

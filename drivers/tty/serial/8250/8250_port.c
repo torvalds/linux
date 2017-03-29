@@ -1836,7 +1836,7 @@ EXPORT_SYMBOL_GPL(serial8250_modem_status);
 
 static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
 {
-	switch (iir & 0x3f) {
+	switch (iir & UART_IIR_MASK) {
 	case UART_IIR_RX_TIMEOUT:
 		serial8250_rx_dma_flush(up);
 		/* fall-through */
@@ -1855,7 +1855,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	unsigned long flags;
 	struct uart_8250_port *up = up_to_u8250p(port);
 
-	if (iir & UART_IIR_NO_INT)
+	if ((iir & UART_IIR_MASK) == UART_IIR_NO_INT)
 		return 0;
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -1922,7 +1922,7 @@ static int serial8250_tx_threshold_handle_irq(struct uart_port *port)
 	unsigned int iir = serial_port_in(port, UART_IIR);
 
 	/* TX Threshold IRQ triggered so load up FIFO */
-	if ((iir & UART_IIR_ID) == UART_IIR_THRI) {
+	if ((iir & UART_IIR_MASK) == UART_IIR_THRI) {
 		struct uart_8250_port *up = up_to_u8250p(port);
 
 		spin_lock_irqsave(&port->lock, flags);
@@ -2290,7 +2290,8 @@ int serial8250_do_startup(struct uart_port *port)
 		 * don't trust the iir, setup a timer to kick the UART
 		 * on a regular basis.
 		 */
-		if ((!(iir1 & UART_IIR_NO_INT) && (iir & UART_IIR_NO_INT)) ||
+		if ((((iir1 & UART_IIR_MASK) != UART_IIR_NO_INT) &&
+		     ((iir & UART_IIR_MASK) == UART_IIR_NO_INT)) ||
 		    up->port.flags & UPF_BUG_THRE) {
 			up->bugs |= UART_BUG_THRE;
 		}
@@ -2341,7 +2342,7 @@ int serial8250_do_startup(struct uart_port *port)
 	iir = serial_port_in(port, UART_IIR);
 	serial_port_out(port, UART_IER, 0);
 
-	if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT) {
+	if (lsr & UART_LSR_TEMT && ((iir & UART_IIR_MASK) == UART_IIR_NO_INT)) {
 		if (!(up->bugs & UART_BUG_TXEN)) {
 			up->bugs |= UART_BUG_TXEN;
 			pr_debug("ttyS%d - enabling bad tx status workarounds\n",

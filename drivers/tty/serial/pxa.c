@@ -253,7 +253,7 @@ static inline irqreturn_t serial_pxa_irq(int irq, void *dev_id)
 	unsigned int iir, lsr;
 
 	iir = serial_in(up, UART_IIR);
-	if (iir & UART_IIR_NO_INT)
+	if ((iir & UART_IIR_MASK) == UART_IIR_NO_INT)
 		return IRQ_NONE;
 	spin_lock(&up->port.lock);
 	lsr = serial_in(up, UART_LSR);
