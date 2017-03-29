@@ -2191,6 +2191,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 	int ret;
 	int i;
 
+	btrfs_bio_counter_inc_blocked(fs_info);
 	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
 			&length, &bbio);
 	if (ret || !bbio || !bbio->raid_map)
@@ -2235,6 +2236,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 rbio_out:
 	bio_put(bio);
 bbio_out:
+	btrfs_bio_counter_dec(fs_info);
 	btrfs_put_bbio(bbio);
 	spin_lock(&sctx->stat_lock);
 	sctx->stat.malloc_errors++;
@@ -2778,6 +2780,8 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 		goto out;
 
 	length = sparity->logic_end - sparity->logic_start;
+
+	btrfs_bio_counter_inc_blocked(fs_info);
 	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_WRITE, sparity->logic_start,
 			       &length, &bbio);
 	if (ret || !bbio || !bbio->raid_map)
@@ -2805,6 +2809,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 rbio_out:
 	bio_put(bio);
 bbio_out:
+	btrfs_bio_counter_dec(fs_info);
 	btrfs_put_bbio(bbio);
 	bitmap_or(sparity->ebitmap, sparity->ebitmap, sparity->dbitmap,
 		  sparity->nsectors);

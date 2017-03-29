@@ -2198,6 +2198,8 @@ static void read_rebuild_work(struct btrfs_work *work)
 /*
  * The following code is used to scrub/replace the parity stripe
  *
+ * Caller must have already increased bio_counter for getting @bbio.
+ *
  * Note: We need make sure all the pages that add into the scrub/replace
  * raid bio are correct and not be changed during the scrub/replace. That
  * is those pages just hold metadata or file data with checksum.
@@ -2234,6 +2236,12 @@ raid56_parity_alloc_scrub_rbio(struct btrfs_fs_info *fs_info, struct bio *bio,
 	ASSERT(fs_info->sectorsize == PAGE_SIZE);
 	ASSERT(rbio->stripe_npages == stripe_nsectors);
 	bitmap_copy(rbio->dbitmap, dbitmap, stripe_nsectors);
+
+	/*
+	 * We have already increased bio_counter when getting bbio, record it
+	 * so we can free it at rbio_orig_end_io().
+	 */
+	rbio->generic_bio_cnt = 1;
 
 	return rbio;
 }
@@ -2676,6 +2684,12 @@ raid56_alloc_missing_rbio(struct btrfs_fs_info *fs_info, struct bio *bio,
 		kfree(rbio);
 		return NULL;
 	}
+
+	/*
+	 * When we get bbio, we have already increased bio_counter, record it
+	 * so we can free it at rbio_orig_end_io()
+	 */
+	rbio->generic_bio_cnt = 1;
 
 	return rbio;
 }
