@@ -30,6 +30,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_print.h>
+#include <drm/drm_writeback.h>
 #include <linux/sync_file.h>
 
 #include "drm_crtc_internal.h"
@@ -691,6 +692,45 @@ static void drm_atomic_crtc_print_state(struct drm_printer *p,
 }
 
 /**
+ * drm_atomic_connector_check - check connector state
+ * @connector: connector to check
+ * @state: connector state to check
+ *
+ * Provides core sanity checks for connector state.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
+static int drm_atomic_connector_check(struct drm_connector *connector,
+		struct drm_connector_state *state)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_writeback_job *writeback_job = state->writeback_job;
+
+	if ((connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK) || !writeback_job)
+		return 0;
+
+	if (writeback_job->fb && !state->crtc) {
+		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] framebuffer without CRTC\n",
+				 connector->base.id, connector->name);
+		return -EINVAL;
+	}
+
+	if (state->crtc)
+		crtc_state = drm_atomic_get_existing_crtc_state(state->state,
+								state->crtc);
+
+	if (writeback_job->fb && !crtc_state->active) {
+		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] has framebuffer, but [CRTC:%d] is off\n",
+				 connector->base.id, connector->name,
+				 state->crtc->base.id);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
  * drm_atomic_get_plane_state - get plane state
  * @state: global atomic state object
  * @plane: plane to get state object for
@@ -1321,6 +1361,12 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 			return -EINVAL;
 		}
 		state->content_protection = val;
+	} else if (property == config->writeback_fb_id_property) {
+		struct drm_framebuffer *fb = drm_framebuffer_lookup(dev, NULL, val);
+		int ret = drm_atomic_set_writeback_fb_for_connector(state, fb);
+		if (fb)
+			drm_framebuffer_put(fb);
+		return ret;
 	} else if (connector->funcs->atomic_set_property) {
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
@@ -1407,6 +1453,9 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = state->scaling_mode;
 	} else if (property == connector->content_protection_property) {
 		*val = state->content_protection;
+	} else if (property == config->writeback_fb_id_property) {
+		/* Writeback framebuffer is one-shot, write and forget */
+		*val = 0;
 	} else if (connector->funcs->atomic_get_property) {
 		return connector->funcs->atomic_get_property(connector,
 				state, property, val);
@@ -1631,6 +1680,70 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 }
 EXPORT_SYMBOL(drm_atomic_set_crtc_for_connector);
 
+/*
+ * drm_atomic_get_writeback_job - return or allocate a writeback job
+ * @conn_state: Connector state to get the job for
+ *
+ * Writeback jobs have a different lifetime to the atomic state they are
+ * associated with. This convenience function takes care of allocating a job
+ * if there isn't yet one associated with the connector state, otherwise
+ * it just returns the existing job.
+ *
+ * Returns: The writeback job for the given connector state
+ */
+static struct drm_writeback_job *
+drm_atomic_get_writeback_job(struct drm_connector_state *conn_state)
+{
+	WARN_ON(conn_state->connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK);
+
+	if (!conn_state->writeback_job)
+		conn_state->writeback_job =
+			kzalloc(sizeof(*conn_state->writeback_job), GFP_KERNEL);
+
+	return conn_state->writeback_job;
+}
+
+/**
+ * drm_atomic_set_writeback_fb_for_connector - set writeback framebuffer
+ * @conn_state: atomic state object for the connector
+ * @fb: fb to use for the connector
+ *
+ * This is used to set the framebuffer for a writeback connector, which outputs
+ * to a buffer instead of an actual physical connector.
+ * Changing the assigned framebuffer requires us to grab a reference to the new
+ * fb and drop the reference to the old fb, if there is one. This function
+ * takes care of all these details besides updating the pointer in the
+ * state object itself.
+ *
+ * Note: The only way conn_state can already have an fb set is if the commit
+ * sets the property more than once.
+ *
+ * See also: drm_writeback_connector_init()
+ *
+ * Returns: 0 on success
+ */
+int drm_atomic_set_writeback_fb_for_connector(
+		struct drm_connector_state *conn_state,
+		struct drm_framebuffer *fb)
+{
+	struct drm_writeback_job *job =
+		drm_atomic_get_writeback_job(conn_state);
+	if (!job)
+		return -ENOMEM;
+
+	drm_framebuffer_assign(&job->fb, fb);
+
+	if (fb)
+		DRM_DEBUG_ATOMIC("Set [FB:%d] for connector state %p\n",
+				 fb->base.id, conn_state);
+	else
+		DRM_DEBUG_ATOMIC("Set [NOFB] for connector state %p\n",
+				 conn_state);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_atomic_set_writeback_fb_for_connector);
+
 /**
  * drm_atomic_add_affected_connectors - add connectors for crtc
  * @state: atomic state
@@ -1752,6 +1865,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 	struct drm_plane_state *plane_state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
+	struct drm_connector *conn;
+	struct drm_connector_state *conn_state;
 	int i, ret = 0;
 
 	DRM_DEBUG_ATOMIC("checking %p\n", state);
@@ -1770,6 +1885,15 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] atomic core check failed\n",
 					 crtc->base.id, crtc->name);
+			return ret;
+		}
+	}
+
+	for_each_new_connector_in_state(state, conn, conn_state, i) {
+		ret = drm_atomic_connector_check(conn, conn_state);
+		if (ret) {
+			DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] atomic core check failed\n",
+					 conn->base.id, conn->name);
 			return ret;
 		}
 	}

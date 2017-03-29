@@ -437,6 +437,19 @@ struct drm_connector_state {
 	 * protection. This is most commonly used for HDCP.
 	 */
 	unsigned int content_protection;
+
+	/**
+	 * @writeback_job: Writeback job for writeback connectors
+	 *
+	 * Holds the framebuffer for a writeback connector. As the writeback
+	 * completion may be asynchronous to the normal commit cycle, the
+	 * writeback job lifetime is managed separately from the normal atomic
+	 * state by this object.
+	 *
+	 * See also: drm_writeback_queue_job() and
+	 * drm_writeback_signal_completion()
+	 */
+	struct drm_writeback_job *writeback_job;
 };
 
 /**

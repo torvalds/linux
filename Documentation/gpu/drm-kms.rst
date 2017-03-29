@@ -373,6 +373,15 @@ Connector Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :export:
 
+Writeback Connectors
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_writeback.c
+  :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_writeback.c
+  :export:
+
 Encoder Abstraction
 ===================
 

@@ -784,6 +784,21 @@ struct drm_mode_config {
 	 */
 	struct drm_property *panel_orientation_property;
 
+	/**
+	 * @writeback_fb_id_property: Property for writeback connectors, storing
+	 * the ID of the output framebuffer.
+	 * See also: drm_writeback_connector_init()
+	 */
+	struct drm_property *writeback_fb_id_property;
+
+	/**
+	 * @writeback_pixel_formats_property: Property for writeback connectors,
+	 * storing an array of the supported pixel formats for the writeback
+	 * engine (read-only).
+	 * See also: drm_writeback_connector_init()
+	 */
+	struct drm_property *writeback_pixel_formats_property;
+
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
 

@@ -30,6 +30,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_writeback.h>
 #include <linux/dma-fence.h>
 
 #include "drm_crtc_helper_internal.h"
@@ -1172,6 +1173,25 @@ void drm_atomic_helper_commit_modeset_disables(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_disables);
 
+static void drm_atomic_helper_commit_writebacks(struct drm_device *dev,
+						struct drm_atomic_state *old_state)
+{
+	struct drm_connector *connector;
+	struct drm_connector_state *new_conn_state;
+	int i;
+
+	for_each_new_connector_in_state(old_state, connector, new_conn_state, i) {
+		const struct drm_connector_helper_funcs *funcs;
+
+		funcs = connector->helper_private;
+
+		if (new_conn_state->writeback_job && new_conn_state->writeback_job->fb) {
+			WARN_ON(connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK);
+			funcs->atomic_commit(connector, new_conn_state->writeback_job);
+		}
+	}
+}
+
 /**
  * drm_atomic_helper_commit_modeset_enables - modeset commit to enable outputs
  * @dev: DRM device
@@ -1251,6 +1271,8 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 
 		drm_bridge_enable(encoder->bridge);
 	}
+
+	drm_atomic_helper_commit_writebacks(dev, old_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_enables);
 
@@ -3647,6 +3669,9 @@ __drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector,
 	if (state->crtc)
 		drm_connector_get(connector);
 	state->commit = NULL;
+
+	/* Don't copy over a writeback job, they are used only once */
+	state->writeback_job = NULL;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_connector_duplicate_state);
 
