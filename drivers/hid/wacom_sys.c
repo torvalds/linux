@@ -2216,6 +2216,8 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	/* touch only Bamboo doesn't support pen */
 	if ((features->type == BAMBOO_TOUCH) &&
 	    (features->device_type & WACOM_DEVICETYPE_PEN)) {
+		cancel_delayed_work_sync(&wacom->init_work);
+		_wacom_query_tablet_data(wacom);
 		error = -ENODEV;
 		goto fail_quirks;
 	}
