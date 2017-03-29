@@ -1802,6 +1802,9 @@ static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 	if (nla_put_s32(skb, NETCONFA_IFINDEX, ifindex) < 0)
 		goto nla_put_failure;
 
+	if (!devconf)
+		goto out;
+
 	if ((all || type == NETCONFA_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_FORWARDING,
 			IPV4_DEVCONF(*devconf, FORWARDING)) < 0)
@@ -1823,6 +1826,7 @@ static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 			IPV4_DEVCONF(*devconf, IGNORE_ROUTES_WITH_LINKDOWN)) < 0)
 		goto nla_put_failure;
 
+out:
 	nlmsg_end(skb, nlh);
 	return 0;
 
@@ -1831,8 +1835,8 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-void inet_netconf_notify_devconf(struct net *net, int type, int ifindex,
-				 struct ipv4_devconf *devconf)
+void inet_netconf_notify_devconf(struct net *net, int event, int type,
+				 int ifindex, struct ipv4_devconf *devconf)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
@@ -1842,7 +1846,7 @@ void inet_netconf_notify_devconf(struct net *net, int type, int ifindex,
 		goto errout;
 
 	err = inet_netconf_fill_devconf(skb, ifindex, devconf, 0, 0,
-					RTM_NEWNETCONF, 0, type);
+					event, 0, type);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in inet_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
@@ -2021,10 +2025,12 @@ static void inet_forward_change(struct net *net)
 
 	IPV4_DEVCONF_ALL(net, ACCEPT_REDIRECTS) = !on;
 	IPV4_DEVCONF_DFLT(net, FORWARDING) = on;
-	inet_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+	inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+				    NETCONFA_FORWARDING,
 				    NETCONFA_IFINDEX_ALL,
 				    net->ipv4.devconf_all);
-	inet_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+	inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+				    NETCONFA_FORWARDING,
 				    NETCONFA_IFINDEX_DEFAULT,
 				    net->ipv4.devconf_dflt);
 
@@ -2037,7 +2043,8 @@ static void inet_forward_change(struct net *net)
 		in_dev = __in_dev_get_rtnl(dev);
 		if (in_dev) {
 			IN_DEV_CONF_SET(in_dev, FORWARDING, on);
-			inet_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+			inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						    NETCONFA_FORWARDING,
 						    dev->ifindex, &in_dev->cnf);
 		}
 	}
@@ -2082,19 +2089,22 @@ static int devinet_conf_proc(struct ctl_table *ctl, int write,
 		if (i == IPV4_DEVCONF_RP_FILTER - 1 &&
 		    new_value != old_value) {
 			ifindex = devinet_conf_ifindex(net, cnf);
-			inet_netconf_notify_devconf(net, NETCONFA_RP_FILTER,
+			inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						    NETCONFA_RP_FILTER,
 						    ifindex, cnf);
 		}
 		if (i == IPV4_DEVCONF_PROXY_ARP - 1 &&
 		    new_value != old_value) {
 			ifindex = devinet_conf_ifindex(net, cnf);
-			inet_netconf_notify_devconf(net, NETCONFA_PROXY_NEIGH,
+			inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						    NETCONFA_PROXY_NEIGH,
 						    ifindex, cnf);
 		}
 		if (i == IPV4_DEVCONF_IGNORE_ROUTES_WITH_LINKDOWN - 1 &&
 		    new_value != old_value) {
 			ifindex = devinet_conf_ifindex(net, cnf);
-			inet_netconf_notify_devconf(net, NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN,
+			inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						    NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN,
 						    ifindex, cnf);
 		}
 	}
@@ -2129,7 +2139,7 @@ static int devinet_sysctl_forward(struct ctl_table *ctl, int write,
 					container_of(cnf, struct in_device, cnf);
 				if (*valp)
 					dev_disable_lro(idev->dev);
-				inet_netconf_notify_devconf(net,
+				inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
 							    NETCONFA_FORWARDING,
 							    idev->dev->ifindex,
 							    cnf);
@@ -2137,7 +2147,8 @@ static int devinet_sysctl_forward(struct ctl_table *ctl, int write,
 			rtnl_unlock();
 			rt_cache_flush(net);
 		} else
-			inet_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+			inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						    NETCONFA_FORWARDING,
 						    NETCONFA_IFINDEX_DEFAULT,
 						    net->ipv4.devconf_dflt);
 	}
@@ -2259,7 +2270,8 @@ static int __devinet_sysctl_register(struct net *net, char *dev_name,
 
 	p->sysctl = t;
 
-	inet_netconf_notify_devconf(net, NETCONFA_ALL, ifindex, p);
+	inet_netconf_notify_devconf(net, RTM_NEWNETCONF, NETCONFA_ALL,
+				    ifindex, p);
 	return 0;
 
 free:
@@ -2268,16 +2280,18 @@ out:
 	return -ENOBUFS;
 }
 
-static void __devinet_sysctl_unregister(struct ipv4_devconf *cnf)
+static void __devinet_sysctl_unregister(struct net *net,
+					struct ipv4_devconf *cnf, int ifindex)
 {
 	struct devinet_sysctl_table *t = cnf->sysctl;
 
-	if (!t)
-		return;
+	if (t) {
+		cnf->sysctl = NULL;
+		unregister_net_sysctl_table(t->sysctl_header);
+		kfree(t);
+	}
 
-	cnf->sysctl = NULL;
-	unregister_net_sysctl_table(t->sysctl_header);
-	kfree(t);
+	inet_netconf_notify_devconf(net, RTM_DELNETCONF, 0, ifindex, NULL);
 }
 
 static int devinet_sysctl_register(struct in_device *idev)
@@ -2299,7 +2313,9 @@ static int devinet_sysctl_register(struct in_device *idev)
 
 static void devinet_sysctl_unregister(struct in_device *idev)
 {
-	__devinet_sysctl_unregister(&idev->cnf);
+	struct net *net = dev_net(idev->dev);
+
+	__devinet_sysctl_unregister(net, &idev->cnf, idev->dev->ifindex);
 	neigh_sysctl_unregister(idev->arp_parms);
 }
 
@@ -2374,9 +2390,9 @@ static __net_init int devinet_init_net(struct net *net)
 
 #ifdef CONFIG_SYSCTL
 err_reg_ctl:
-	__devinet_sysctl_unregister(dflt);
+	__devinet_sysctl_unregister(net, dflt, NETCONFA_IFINDEX_DEFAULT);
 err_reg_dflt:
-	__devinet_sysctl_unregister(all);
+	__devinet_sysctl_unregister(net, all, NETCONFA_IFINDEX_ALL);
 err_reg_all:
 	if (tbl != ctl_forward_entry)
 		kfree(tbl);
@@ -2398,8 +2414,10 @@ static __net_exit void devinet_exit_net(struct net *net)
 
 	tbl = net->ipv4.forw_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv4.forw_hdr);
-	__devinet_sysctl_unregister(net->ipv4.devconf_dflt);
-	__devinet_sysctl_unregister(net->ipv4.devconf_all);
+	__devinet_sysctl_unregister(net, net->ipv4.devconf_dflt,
+				    NETCONFA_IFINDEX_DEFAULT);
+	__devinet_sysctl_unregister(net, net->ipv4.devconf_all,
+				    NETCONFA_IFINDEX_ALL);
 	kfree(tbl);
 #endif
 	kfree(net->ipv4.devconf_dflt);

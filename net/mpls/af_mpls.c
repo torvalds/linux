@@ -1040,8 +1040,8 @@ static int mpls_netconf_msgsize_devconf(int type)
 	return size;
 }
 
-static void mpls_netconf_notify_devconf(struct net *net, int type,
-					struct mpls_dev *mdev)
+static void mpls_netconf_notify_devconf(struct net *net, int event,
+					int type, struct mpls_dev *mdev)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
@@ -1050,8 +1050,7 @@ static void mpls_netconf_notify_devconf(struct net *net, int type,
 	if (!skb)
 		goto errout;
 
-	err = mpls_netconf_fill_devconf(skb, mdev, 0, 0, RTM_NEWNETCONF,
-					0, type);
+	err = mpls_netconf_fill_devconf(skb, mdev, 0, 0, event, 0, type);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in mpls_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
@@ -1184,9 +1183,8 @@ static int mpls_conf_proc(struct ctl_table *ctl, int write,
 
 		if (i == offsetof(struct mpls_dev, input_enabled) &&
 		    val != oval) {
-			mpls_netconf_notify_devconf(net,
-						    NETCONFA_INPUT,
-						    mdev);
+			mpls_netconf_notify_devconf(net, RTM_NEWNETCONF,
+						    NETCONFA_INPUT, mdev);
 		}
 	}
 
@@ -1227,10 +1225,11 @@ static int mpls_dev_sysctl_register(struct net_device *dev,
 
 	snprintf(path, sizeof(path), "net/mpls/conf/%s", dev->name);
 
-	mdev->sysctl = register_net_sysctl(dev_net(dev), path, table);
+	mdev->sysctl = register_net_sysctl(net, path, table);
 	if (!mdev->sysctl)
 		goto free;
 
+	mpls_netconf_notify_devconf(net, RTM_NEWNETCONF, NETCONFA_ALL, mdev);
 	return 0;
 
 free:
@@ -1239,13 +1238,17 @@ out:
 	return -ENOBUFS;
 }
 
-static void mpls_dev_sysctl_unregister(struct mpls_dev *mdev)
+static void mpls_dev_sysctl_unregister(struct net_device *dev,
+				       struct mpls_dev *mdev)
 {
+	struct net *net = dev_net(dev);
 	struct ctl_table *table;
 
 	table = mdev->sysctl->ctl_table_arg;
 	unregister_net_sysctl_table(mdev->sysctl);
 	kfree(table);
+
+	mpls_netconf_notify_devconf(net, RTM_DELNETCONF, 0, mdev);
 }
 
 static struct mpls_dev *mpls_add_dev(struct net_device *dev)
@@ -1271,11 +1274,12 @@ static struct mpls_dev *mpls_add_dev(struct net_device *dev)
 		u64_stats_init(&mpls_stats->syncp);
 	}
 
+	mdev->dev = dev;
+
 	err = mpls_dev_sysctl_register(dev, mdev);
 	if (err)
 		goto free;
 
-	mdev->dev = dev;
 	rcu_assign_pointer(dev->mpls_ptr, mdev);
 
 	return mdev;
@@ -1421,7 +1425,7 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 		mpls_ifdown(dev, event);
 		mdev = mpls_dev_get(dev);
 		if (mdev) {
-			mpls_dev_sysctl_unregister(mdev);
+			mpls_dev_sysctl_unregister(dev, mdev);
 			RCU_INIT_POINTER(dev->mpls_ptr, NULL);
 			call_rcu(&mdev->rcu, mpls_dev_destroy_rcu);
 		}
@@ -1431,7 +1435,7 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 		if (mdev) {
 			int err;
 
-			mpls_dev_sysctl_unregister(mdev);
+			mpls_dev_sysctl_unregister(dev, mdev);
 			err = mpls_dev_sysctl_register(dev, mdev);
 			if (err)
 				return notifier_from_errno(err);
