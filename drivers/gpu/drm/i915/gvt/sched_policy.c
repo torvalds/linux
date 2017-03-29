@@ -47,11 +47,33 @@ static bool vgpu_has_pending_workload(struct intel_vgpu *vgpu)
 	return false;
 }
 
+struct vgpu_sched_data {
+	struct list_head list;
+	struct intel_vgpu *vgpu;
+
+	ktime_t sched_in_time;
+	ktime_t sched_out_time;
+	ktime_t sched_time;
+	ktime_t left_ts;
+	ktime_t allocated_ts;
+
+	struct vgpu_sched_ctl sched_ctl;
+};
+
+struct gvt_sched_data {
+	struct intel_gvt *gvt;
+	struct hrtimer timer;
+	unsigned long period;
+	struct list_head runq_head;
+};
+
 static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 {
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	enum intel_engine_id i;
 	struct intel_engine_cs *engine;
+	struct vgpu_sched_data *vgpu_data;
+	ktime_t cur_time;
 
 	/* no target to schedule */
 	if (!scheduler->next_vgpu)
@@ -77,6 +99,14 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	gvt_dbg_sched("switch to next vgpu %d\n",
 			scheduler->next_vgpu->id);
 
+	cur_time = ktime_get();
+	if (scheduler->current_vgpu) {
+		vgpu_data = scheduler->current_vgpu->sched_data;
+		vgpu_data->sched_out_time = cur_time;
+	}
+	vgpu_data = scheduler->next_vgpu->sched_data;
+	vgpu_data->sched_in_time = cur_time;
+
 	/* switch current vgpu */
 	scheduler->current_vgpu = scheduler->next_vgpu;
 	scheduler->next_vgpu = NULL;
@@ -88,25 +118,12 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 		wake_up(&scheduler->waitq[i]);
 }
 
-struct tbs_vgpu_data {
-	struct list_head list;
-	struct intel_vgpu *vgpu;
-	/* put some per-vgpu sched stats here */
-};
-
-struct tbs_sched_data {
-	struct intel_gvt *gvt;
-	struct hrtimer timer;
-	unsigned long period;
-	struct list_head runq_head;
-};
-
 /* in nanosecond */
 #define GVT_DEFAULT_TIME_SLICE 1000000
 
-static void tbs_sched_func(struct tbs_sched_data *sched_data)
+static void tbs_sched_func(struct gvt_sched_data *sched_data)
 {
-	struct tbs_vgpu_data *vgpu_data;
+	struct vgpu_sched_data *vgpu_data;
 
 	struct intel_gvt *gvt = sched_data->gvt;
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
@@ -130,7 +147,7 @@ static void tbs_sched_func(struct tbs_sched_data *sched_data)
 		if (pos == &sched_data->runq_head)
 			continue;
 
-		vgpu_data = container_of(pos, struct tbs_vgpu_data, list);
+		vgpu_data = container_of(pos, struct vgpu_sched_data, list);
 		if (!vgpu_has_pending_workload(vgpu_data->vgpu))
 			continue;
 
@@ -152,7 +169,7 @@ out:
 
 void intel_gvt_schedule(struct intel_gvt *gvt)
 {
-	struct tbs_sched_data *sched_data = gvt->scheduler.sched_data;
+	struct gvt_sched_data *sched_data = gvt->scheduler.sched_data;
 
 	mutex_lock(&gvt->lock);
 	tbs_sched_func(sched_data);
@@ -161,9 +178,9 @@ void intel_gvt_schedule(struct intel_gvt *gvt)
 
 static enum hrtimer_restart tbs_timer_fn(struct hrtimer *timer_data)
 {
-	struct tbs_sched_data *data;
+	struct gvt_sched_data *data;
 
-	data = container_of(timer_data, struct tbs_sched_data, timer);
+	data = container_of(timer_data, struct gvt_sched_data, timer);
 
 	intel_gvt_request_service(data->gvt, INTEL_GVT_REQUEST_SCHED);
 
@@ -177,7 +194,7 @@ static int tbs_sched_init(struct intel_gvt *gvt)
 	struct intel_gvt_workload_scheduler *scheduler =
 		&gvt->scheduler;
 
-	struct tbs_sched_data *data;
+	struct gvt_sched_data *data;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -198,7 +215,7 @@ static void tbs_sched_clean(struct intel_gvt *gvt)
 {
 	struct intel_gvt_workload_scheduler *scheduler =
 		&gvt->scheduler;
-	struct tbs_sched_data *data = scheduler->sched_data;
+	struct gvt_sched_data *data = scheduler->sched_data;
 
 	hrtimer_cancel(&data->timer);
 
@@ -208,7 +225,7 @@ static void tbs_sched_clean(struct intel_gvt *gvt)
 
 static int tbs_sched_init_vgpu(struct intel_vgpu *vgpu)
 {
-	struct tbs_vgpu_data *data;
+	struct vgpu_sched_data *data;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -230,8 +247,8 @@ static void tbs_sched_clean_vgpu(struct intel_vgpu *vgpu)
 
 static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)
 {
-	struct tbs_sched_data *sched_data = vgpu->gvt->scheduler.sched_data;
-	struct tbs_vgpu_data *vgpu_data = vgpu->sched_data;
+	struct gvt_sched_data *sched_data = vgpu->gvt->scheduler.sched_data;
+	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
 
 	if (!list_empty(&vgpu_data->list))
 		return;
@@ -245,7 +262,7 @@ static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)
 
 static void tbs_sched_stop_schedule(struct intel_vgpu *vgpu)
 {
-	struct tbs_vgpu_data *vgpu_data = vgpu->sched_data;
+	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
 
 	list_del_init(&vgpu_data->list);
 }

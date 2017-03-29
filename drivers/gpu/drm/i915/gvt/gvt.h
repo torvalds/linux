@@ -138,6 +138,10 @@ struct intel_vgpu_display {
 	struct intel_vgpu_sbi sbi;
 };
 
+struct vgpu_sched_ctl {
+	int weight;
+};
+
 struct intel_vgpu {
 	struct intel_gvt *gvt;
 	int id;
@@ -160,6 +164,7 @@ struct intel_vgpu {
 	struct list_head workload_q_head[I915_NUM_ENGINES];
 	struct kmem_cache *workloads;
 	atomic_t running_workload_num;
+	ktime_t last_ctx_submit_time;
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	struct i915_gem_context *shadow_ctx;
 
