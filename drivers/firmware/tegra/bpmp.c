@@ -810,6 +810,10 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto free_mrq;
 
+	err = tegra_bpmp_init_powergates(bpmp);
+	if (err < 0)
+		goto free_mrq;
+
 	platform_set_drvdata(pdev, bpmp);
 
 	return 0;
