@@ -141,12 +141,6 @@ void resource_validate_ctx_update_pointer_after_copy(
 		const struct validate_context *src_ctx,
 		struct validate_context *dst_ctx);
 
-void resource_validate_ctx_copy_construct(
-		const struct validate_context *src_ctx,
-		struct validate_context *dst_ctx);
-
-void resource_validate_ctx_destruct(struct validate_context *context);
-
 enum dc_status resource_map_clock_resources(
 		const struct core_dc *dc,
 		struct validate_context *context);

@@ -522,6 +522,12 @@ bool dc_validate_guaranteed(
 		const struct dc *dc,
 		const struct dc_stream *stream);
 
+void dc_resource_validate_ctx_copy_construct(
+		const struct validate_context *src_ctx,
+		struct validate_context *dst_ctx);
+
+void dc_resource_validate_ctx_destruct(struct validate_context *context);
+
 /*
  * Set up streams and links associated to drive sinks
  * The streams parameter is an absolute set of all active streams.

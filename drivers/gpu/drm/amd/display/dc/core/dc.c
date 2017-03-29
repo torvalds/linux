@@ -389,7 +389,7 @@ static void allocate_dc_stream_funcs(struct core_dc *core_dc)
 
 static void destruct(struct core_dc *dc)
 {
-	resource_validate_ctx_destruct(dc->current_context);
+	dc_resource_validate_ctx_destruct(dc->current_context);
 
 	destroy_links(dc);
 
@@ -654,7 +654,7 @@ bool dc_validate_resources(
 	result = core_dc->res_pool->funcs->validate_with_context(
 						core_dc, set, set_count, context);
 
-	resource_validate_ctx_destruct(context);
+	dc_resource_validate_ctx_destruct(context);
 	dm_free(context);
 
 context_alloc_fail:
@@ -684,7 +684,7 @@ bool dc_validate_guaranteed(
 	result = core_dc->res_pool->funcs->validate_guaranteed(
 					core_dc, stream, context);
 
-	resource_validate_ctx_destruct(context);
+	dc_resource_validate_ctx_destruct(context);
 	dm_free(context);
 
 context_alloc_fail:
@@ -838,7 +838,7 @@ bool dc_commit_streams(
 					__func__,
 					result);
 		BREAK_TO_DEBUGGER();
-		resource_validate_ctx_destruct(context);
+		dc_resource_validate_ctx_destruct(context);
 		goto fail;
 	}
 
@@ -870,7 +870,7 @@ bool dc_commit_streams(
 				context->streams[i]->public.timing.pix_clk_khz);
 	}
 
-	resource_validate_ctx_destruct(core_dc->current_context);
+	dc_resource_validate_ctx_destruct(core_dc->current_context);
 	dm_free(core_dc->current_context);
 
 	core_dc->current_context = context;
@@ -903,7 +903,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 		dm_error("%s: failed to create validate ctx\n", __func__);
 		return false;
 	}
-	resource_validate_ctx_copy_construct(core_dc->current_context, context);
+	dc_resource_validate_ctx_copy_construct(core_dc->current_context, context);
 
 	post_surface_trace(dc);
 	for (i = 0; i < context->res_ctx.pool->pipe_count; i++)
@@ -920,9 +920,9 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 	core_dc->hwss.set_bandwidth(core_dc, context, true);
 
-	resource_validate_ctx_copy_construct(context, core_dc->current_context);
+	dc_resource_validate_ctx_copy_construct(context, core_dc->current_context);
 
-	resource_validate_ctx_destruct(context);
+	dc_resource_validate_ctx_destruct(context);
 	dm_free(context);
 
 	return true;
@@ -1205,7 +1205,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 		/* initialize scratch memory for building context */
 		context = dm_alloc(sizeof(*context));
-		resource_validate_ctx_copy_construct(
+		dc_resource_validate_ctx_copy_construct(
 				core_dc->current_context, context);
 
 		/* add surface to context */
@@ -1409,7 +1409,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	}
 
 	if (core_dc->current_context != context) {
-		resource_validate_ctx_destruct(core_dc->current_context);
+		dc_resource_validate_ctx_destruct(core_dc->current_context);
 		dm_free(core_dc->current_context);
 
 		core_dc->current_context = context;
@@ -1418,7 +1418,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 fail:
 	if (core_dc->current_context != context) {
-		resource_validate_ctx_destruct(context);
+		dc_resource_validate_ctx_destruct(context);
 		dm_free(context);
 	}
 }

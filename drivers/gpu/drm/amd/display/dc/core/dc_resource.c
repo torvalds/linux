@@ -2050,7 +2050,7 @@ static void set_vsc_info_packet(
 	/*TODO: stereo 3D support and extend pixel encoding colorimetry*/
 }
 
-void resource_validate_ctx_destruct(struct validate_context *context)
+void dc_resource_validate_ctx_destruct(struct validate_context *context)
 {
 	int i, j;
 
@@ -2069,7 +2069,7 @@ void resource_validate_ctx_destruct(struct validate_context *context)
  * Copy src_ctx into dst_ctx and retain all surfaces and streams referenced
  * by the src_ctx
  */
-void resource_validate_ctx_copy_construct(
+void dc_resource_validate_ctx_copy_construct(
 		const struct validate_context *src_ctx,
 		struct validate_context *dst_ctx)
 {
