@@ -32,18 +32,19 @@
 #define UART_IERX_SLEEP		0x10 /* Enable sleep mode */
 
 #define UART_IIR	2	/* In:  Interrupt ID Register */
-#define UART_IIR_NO_INT		0x01 /* No interrupts pending */
-#define UART_IIR_ID		0x0e /* Mask for the interrupt ID */
 #define UART_IIR_MSI		0x00 /* Modem status interrupt */
+#define UART_IIR_NO_INT		0x01 /* No interrupts pending */
 #define UART_IIR_THRI		0x02 /* Transmitter holding register empty */
 #define UART_IIR_RDI		0x04 /* Receiver data interrupt */
 #define UART_IIR_RLSI		0x06 /* Receiver line status interrupt */
+#define UART_IIR_BUSY		0x07 /* Busy Detect */
+#define UART_IIR_RX_TIMEOUT	0x0c /* RX Timeout interrupt */
+#define UART_IIR_ID		0x0e /* Legacy mask for the interrupt ID */
+#define UART_IIR_MASK		0x0f /* Generic IIR mask */
 
-#define UART_IIR_BUSY		0x07 /* DesignWare APB Busy Detect */
-
-#define UART_IIR_RX_TIMEOUT	0x0c /* OMAP RX Timeout interrupt */
-#define UART_IIR_XOFF		0x10 /* OMAP XOFF/Special Character */
-#define UART_IIR_CTS_RTS_DSR	0x20 /* OMAP CTS/RTS/DSR Change */
+#define UART_IIR_XOFF		0x10 /* XOFF/Special Character */
+#define UART_IIR_CTS_RTS_DSR	0x20 /* CTS/RTS/DSR Change */
+#define UART_IIR_EXT_MASK	0x30 /* Extended IIR mask */
 
 #define UART_FCR	2	/* Out: FIFO Control Register */
 #define UART_FCR_ENABLE_FIFO	0x01 /* Enable the FIFO */

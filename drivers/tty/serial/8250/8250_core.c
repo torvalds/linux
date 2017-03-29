@@ -18,30 +18,33 @@
  * (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/ioport.h>
+#include <linux/console.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/ioport.h>
 #include <linux/irqreturn.h>
-#include <linux/console.h>
-#include <linux/sysrq.h>
-#include <linux/delay.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/mutex.h>
+#include <linux/nmi.h>
 #include <linux/platform_device.h>
-#include <linux/tty.h>
+#include <linux/pm_runtime.h>
 #include <linux/ratelimit.h>
-#include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
-#include <linux/nmi.h>
-#include <linux/mutex.h>
+#include <linux/serial_core.h>
 #include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/pm_runtime.h>
-#include <linux/io.h>
+#include <linux/spinlock.h>
+#include <linux/stddef.h>
 #ifdef CONFIG_SPARC
 #include <linux/sunserialcore.h>
 #endif
+#include <linux/sysrq.h>
+#include <linux/tty.h>
+#include <linux/tty_flip.h>
+#include <linux/uaccess.h>
 
 #include "8250.h"
 
