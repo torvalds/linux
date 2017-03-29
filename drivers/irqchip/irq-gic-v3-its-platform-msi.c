@@ -48,6 +48,11 @@ static int of_pmsi_get_dev_id(struct irq_domain *domain, struct device *dev,
 	return ret;
 }
 
+int __weak iort_pmsi_get_dev_id(struct device *dev, u32 *dev_id)
+{
+	return -1;
+}
+
 static int its_pmsi_prepare(struct irq_domain *domain, struct device *dev,
 			    int nvec, msi_alloc_info_t *info)
 {
@@ -57,7 +62,10 @@ static int its_pmsi_prepare(struct irq_domain *domain, struct device *dev,
 
 	msi_info = msi_get_domain_info(domain->parent);
 
-	ret = of_pmsi_get_dev_id(domain, dev, &dev_id);
+	if (dev->of_node)
+		ret = of_pmsi_get_dev_id(domain, dev, &dev_id);
+	else
+		ret = iort_pmsi_get_dev_id(dev, &dev_id);
 	if (ret)
 		return ret;
 
