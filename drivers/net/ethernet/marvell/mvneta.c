@@ -4099,6 +4099,8 @@ static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		ctrl |= MVNETA_GMAC2_PORT_RGMII;
 		break;
 	default:
