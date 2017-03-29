@@ -52,6 +52,9 @@
 #include "spectrum.h"
 #include "core.h"
 #include "reg.h"
+#include "spectrum_cnt.h"
+#include "spectrum_dpipe.h"
+#include "spectrum_router.h"
 
 struct mlxsw_sp_rif {
 	struct list_head nexthop_list;
@@ -62,7 +65,156 @@ struct mlxsw_sp_rif {
 	int mtu;
 	u16 rif_index;
 	u16 vr_id;
+	unsigned int counter_ingress;
+	bool counter_ingress_valid;
+	unsigned int counter_egress;
+	bool counter_egress_valid;
 };
+
+static unsigned int *
+mlxsw_sp_rif_p_counter_get(struct mlxsw_sp_rif *rif,
+			   enum mlxsw_sp_rif_counter_dir dir)
+{
+	switch (dir) {
+	case MLXSW_SP_RIF_COUNTER_EGRESS:
+		return &rif->counter_egress;
+	case MLXSW_SP_RIF_COUNTER_INGRESS:
+		return &rif->counter_ingress;
+	}
+	return NULL;
+}
+
+static bool
+mlxsw_sp_rif_counter_valid_get(struct mlxsw_sp_rif *rif,
+			       enum mlxsw_sp_rif_counter_dir dir)
+{
+	switch (dir) {
+	case MLXSW_SP_RIF_COUNTER_EGRESS:
+		return rif->counter_egress_valid;
+	case MLXSW_SP_RIF_COUNTER_INGRESS:
+		return rif->counter_ingress_valid;
+	}
+	return false;
+}
+
+static void
+mlxsw_sp_rif_counter_valid_set(struct mlxsw_sp_rif *rif,
+			       enum mlxsw_sp_rif_counter_dir dir,
+			       bool valid)
+{
+	switch (dir) {
+	case MLXSW_SP_RIF_COUNTER_EGRESS:
+		rif->counter_egress_valid = valid;
+		break;
+	case MLXSW_SP_RIF_COUNTER_INGRESS:
+		rif->counter_ingress_valid = valid;
+		break;
+	}
+}
+
+static int mlxsw_sp_rif_counter_edit(struct mlxsw_sp *mlxsw_sp, u16 rif_index,
+				     unsigned int counter_index, bool enable,
+				     enum mlxsw_sp_rif_counter_dir dir)
+{
+	char ritr_pl[MLXSW_REG_RITR_LEN];
+	bool is_egress = false;
+	int err;
+
+	if (dir == MLXSW_SP_RIF_COUNTER_EGRESS)
+		is_egress = true;
+	mlxsw_reg_ritr_rif_pack(ritr_pl, rif_index);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_ritr_counter_pack(ritr_pl, counter_index, enable,
+				    is_egress);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+}
+
+int mlxsw_sp_rif_counter_value_get(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_rif *rif,
+				   enum mlxsw_sp_rif_counter_dir dir, u64 *cnt)
+{
+	char ricnt_pl[MLXSW_REG_RICNT_LEN];
+	unsigned int *p_counter_index;
+	bool valid;
+	int err;
+
+	valid = mlxsw_sp_rif_counter_valid_get(rif, dir);
+	if (!valid)
+		return -EINVAL;
+
+	p_counter_index = mlxsw_sp_rif_p_counter_get(rif, dir);
+	if (!p_counter_index)
+		return -EINVAL;
+	mlxsw_reg_ricnt_pack(ricnt_pl, *p_counter_index,
+			     MLXSW_REG_RICNT_OPCODE_NOP);
+	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ricnt), ricnt_pl);
+	if (err)
+		return err;
+	*cnt = mlxsw_reg_ricnt_good_unicast_packets_get(ricnt_pl);
+	return 0;
+}
+
+static int mlxsw_sp_rif_counter_clear(struct mlxsw_sp *mlxsw_sp,
+				      unsigned int counter_index)
+{
+	char ricnt_pl[MLXSW_REG_RICNT_LEN];
+
+	mlxsw_reg_ricnt_pack(ricnt_pl, counter_index,
+			     MLXSW_REG_RICNT_OPCODE_CLEAR);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ricnt), ricnt_pl);
+}
+
+int mlxsw_sp_rif_counter_alloc(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_rif *rif,
+			       enum mlxsw_sp_rif_counter_dir dir)
+{
+	unsigned int *p_counter_index;
+	int err;
+
+	p_counter_index = mlxsw_sp_rif_p_counter_get(rif, dir);
+	if (!p_counter_index)
+		return -EINVAL;
+	err = mlxsw_sp_counter_alloc(mlxsw_sp, MLXSW_SP_COUNTER_SUB_POOL_RIF,
+				     p_counter_index);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_rif_counter_clear(mlxsw_sp, *p_counter_index);
+	if (err)
+		goto err_counter_clear;
+
+	err = mlxsw_sp_rif_counter_edit(mlxsw_sp, rif->rif_index,
+					*p_counter_index, true, dir);
+	if (err)
+		goto err_counter_edit;
+	mlxsw_sp_rif_counter_valid_set(rif, dir, true);
+	return 0;
+
+err_counter_edit:
+err_counter_clear:
+	mlxsw_sp_counter_free(mlxsw_sp, MLXSW_SP_COUNTER_SUB_POOL_RIF,
+			      *p_counter_index);
+	return err;
+}
+
+void mlxsw_sp_rif_counter_free(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_rif *rif,
+			       enum mlxsw_sp_rif_counter_dir dir)
+{
+	unsigned int *p_counter_index;
+
+	p_counter_index = mlxsw_sp_rif_p_counter_get(rif, dir);
+	if (WARN_ON(!p_counter_index))
+		return;
+	mlxsw_sp_rif_counter_edit(mlxsw_sp, rif->rif_index,
+				  *p_counter_index, false, dir);
+	mlxsw_sp_counter_free(mlxsw_sp, MLXSW_SP_COUNTER_SUB_POOL_RIF,
+			      *p_counter_index);
+	mlxsw_sp_rif_counter_valid_set(rif, dir, false);
+}
 
 static struct mlxsw_sp_rif *
 mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
@@ -2780,6 +2932,16 @@ mlxsw_sp_rif_alloc(u16 rif_index, u16 vr_id, struct net_device *l3_dev,
 	return rif;
 }
 
+u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif)
+{
+	return rif->rif_index;
+}
+
+int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif)
+{
+	return rif->dev->ifindex;
+}
+
 static struct mlxsw_sp_rif *
 mlxsw_sp_vport_rif_sp_create(struct mlxsw_sp_port *mlxsw_sp_vport,
 			     struct net_device *l3_dev)
@@ -2822,6 +2984,15 @@ mlxsw_sp_vport_rif_sp_create(struct mlxsw_sp_port *mlxsw_sp_vport,
 		goto err_rif_alloc;
 	}
 
+	if (devlink_dpipe_table_counter_enabled(priv_to_devlink(mlxsw_sp->core),
+						MLXSW_SP_DPIPE_TABLE_NAME_ERIF)) {
+		err = mlxsw_sp_rif_counter_alloc(mlxsw_sp, rif,
+						 MLXSW_SP_RIF_COUNTER_EGRESS);
+		if (err)
+			netdev_dbg(mlxsw_sp_vport->dev,
+				   "Counter alloc Failed err=%d\n", err);
+	}
+
 	f->rif = rif;
 	mlxsw_sp->rifs[rif_index] = rif;
 	vr->rif_count++;
@@ -2851,6 +3022,9 @@ static void mlxsw_sp_vport_rif_sp_destroy(struct mlxsw_sp_port *mlxsw_sp_vport,
 	u16 fid = f->fid;
 
 	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, rif);
+
+	mlxsw_sp_rif_counter_free(mlxsw_sp, rif, MLXSW_SP_RIF_COUNTER_EGRESS);
+	mlxsw_sp_rif_counter_free(mlxsw_sp, rif, MLXSW_SP_RIF_COUNTER_INGRESS);
 
 	vr->rif_count--;
 	mlxsw_sp->rifs[rif_index] = NULL;

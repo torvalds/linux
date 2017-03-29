@@ -56,6 +56,9 @@ static struct mlxsw_sp_counter_sub_pool mlxsw_sp_counter_sub_pools[] = {
 	[MLXSW_SP_COUNTER_SUB_POOL_FLOW] = {
 		.bank_count = 6,
 	},
+	[MLXSW_SP_COUNTER_SUB_POOL_RIF] = {
+		.bank_count = 2,
+	}
 };
 
 static int mlxsw_sp_counter_pool_validate(struct mlxsw_sp *mlxsw_sp)
@@ -83,6 +86,12 @@ static int mlxsw_sp_counter_sub_pools_prepare(struct mlxsw_sp *mlxsw_sp)
 		return -EIO;
 	sub_pool->entry_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
 						  COUNTER_SIZE_PACKETS_BYTES);
+	/* Prepare erif pool*/
+	sub_pool = &mlxsw_sp_counter_sub_pools[MLXSW_SP_COUNTER_SUB_POOL_RIF];
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, COUNTER_SIZE_ROUTER_BASIC))
+		return -EIO;
+	sub_pool->entry_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
+						  COUNTER_SIZE_ROUTER_BASIC);
 	return 0;
 }
 

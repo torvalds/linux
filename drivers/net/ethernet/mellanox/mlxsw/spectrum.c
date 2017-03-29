@@ -67,6 +67,7 @@
 #include "trap.h"
 #include "txheader.h"
 #include "spectrum_cnt.h"
+#include "spectrum_dpipe.h"
 
 static const char mlxsw_sp_driver_name[] = "mlxsw_spectrum";
 static const char mlxsw_sp_driver_version[] = "1.0";
@@ -3339,6 +3340,12 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_counter_pool_init;
 	}
 
+	err = mlxsw_sp_dpipe_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to init pipeline debug\n");
+		goto err_dpipe_init;
+	}
+
 	err = mlxsw_sp_ports_create(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to create ports\n");
@@ -3348,6 +3355,8 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	return 0;
 
 err_ports_create:
+	mlxsw_sp_dpipe_fini(mlxsw_sp);
+err_dpipe_init:
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
 err_counter_pool_init:
 	mlxsw_sp_acl_fini(mlxsw_sp);
@@ -3372,6 +3381,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sp_ports_remove(mlxsw_sp);
+	mlxsw_sp_dpipe_fini(mlxsw_sp);
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
 	mlxsw_sp_span_fini(mlxsw_sp);
