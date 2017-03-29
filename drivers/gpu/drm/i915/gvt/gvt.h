@@ -243,6 +243,7 @@ struct intel_gvt {
 	DECLARE_HASHTABLE(cmd_table, GVT_CMD_HASH_BITS);
 	struct intel_vgpu_type *types;
 	unsigned int num_types;
+	struct intel_vgpu *idle_vgpu;
 
 	struct task_struct *service_thread;
 	wait_queue_head_t service_thread_wq;
@@ -386,6 +387,8 @@ static inline void intel_vgpu_write_pci_bar(struct intel_vgpu *vgpu,
 int intel_gvt_init_vgpu_types(struct intel_gvt *gvt);
 void intel_gvt_clean_vgpu_types(struct intel_gvt *gvt);
 
+struct intel_vgpu *intel_gvt_create_idle_vgpu(struct intel_gvt *gvt);
+void intel_gvt_destroy_idle_vgpu(struct intel_vgpu *vgpu);
 struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 					 struct intel_vgpu_type *type);
 void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);

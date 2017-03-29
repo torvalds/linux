@@ -233,6 +233,59 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	mutex_unlock(&gvt->lock);
 }
 
+#define IDLE_VGPU_IDR 0
+
+/**
+ * intel_gvt_create_idle_vgpu - create an idle virtual GPU
+ * @gvt: GVT device
+ *
+ * This function is called when user wants to create an idle virtual GPU.
+ *
+ * Returns:
+ * pointer to intel_vgpu, error pointer if failed.
+ */
+struct intel_vgpu *intel_gvt_create_idle_vgpu(struct intel_gvt *gvt)
+{
+	struct intel_vgpu *vgpu;
+	enum intel_engine_id i;
+	int ret;
+
+	vgpu = vzalloc(sizeof(*vgpu));
+	if (!vgpu)
+		return ERR_PTR(-ENOMEM);
+
+	vgpu->id = IDLE_VGPU_IDR;
+	vgpu->gvt = gvt;
+
+	for (i = 0; i < I915_NUM_ENGINES; i++)
+		INIT_LIST_HEAD(&vgpu->workload_q_head[i]);
+
+	ret = intel_vgpu_init_sched_policy(vgpu);
+	if (ret)
+		goto out_free_vgpu;
+
+	vgpu->active = false;
+
+	return vgpu;
+
+out_free_vgpu:
+	vfree(vgpu);
+	return ERR_PTR(ret);
+}
+
+/**
+ * intel_gvt_destroy_vgpu - destroy an idle virtual GPU
+ * @vgpu: virtual GPU
+ *
+ * This function is called when user wants to destroy an idle virtual GPU.
+ *
+ */
+void intel_gvt_destroy_idle_vgpu(struct intel_vgpu *vgpu)
+{
+	intel_vgpu_clean_sched_policy(vgpu);
+	vfree(vgpu);
+}
+
 static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 		struct intel_vgpu_creation_params *param)
 {
@@ -249,7 +302,8 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 
 	mutex_lock(&gvt->lock);
 
-	ret = idr_alloc(&gvt->vgpu_idr, vgpu, 1, GVT_MAX_VGPU, GFP_KERNEL);
+	ret = idr_alloc(&gvt->vgpu_idr, vgpu, IDLE_VGPU_IDR + 1, GVT_MAX_VGPU,
+		GFP_KERNEL);
 	if (ret < 0)
 		goto out_free_vgpu;
 

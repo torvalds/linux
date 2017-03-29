@@ -202,6 +202,8 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 
 	idr_destroy(&gvt->vgpu_idr);
 
+	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
+
 	kfree(dev_priv->gvt);
 	dev_priv->gvt = NULL;
 }
@@ -220,6 +222,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 {
 	struct intel_gvt *gvt;
+	struct intel_vgpu *vgpu;
 	int ret;
 
 	/*
@@ -291,6 +294,14 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 		gvt_err("failed to register gvt-g host device: %d\n", ret);
 		goto out_clean_types;
 	}
+
+	vgpu = intel_gvt_create_idle_vgpu(gvt);
+	if (IS_ERR(vgpu)) {
+		ret = PTR_ERR(vgpu);
+		gvt_err("failed to create idle vgpu\n");
+		goto out_clean_types;
+	}
+	gvt->idle_vgpu = vgpu;
 
 	gvt_dbg_core("gvt device initialization is done\n");
 	dev_priv->gvt = gvt;
