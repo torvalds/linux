@@ -4689,11 +4689,9 @@ static int gfx_v8_0_kiq_enable(struct amdgpu_ring *ring)
 	return r;
 }
 
-static int gfx_v8_0_map_queue_enable(struct amdgpu_ring *kiq_ring,
-				     struct amdgpu_ring *ring)
+static int gfx_v8_0_map_queues_enable(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = kiq_ring->adev;
-	uint64_t mqd_addr, wptr_addr;
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
 	uint32_t scratch, tmp = 0;
 	int r, i;
 
@@ -4704,27 +4702,30 @@ static int gfx_v8_0_map_queue_enable(struct amdgpu_ring *kiq_ring,
 	}
 	WREG32(scratch, 0xCAFEDEAD);
 
-	mqd_addr = amdgpu_bo_gpu_offset(ring->mqd_obj);
-	wptr_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
-
-	r = amdgpu_ring_alloc(kiq_ring, 11);
+	r = amdgpu_ring_alloc(kiq_ring, (8 * adev->gfx.num_compute_rings) + 3);
 	if (r) {
 		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
 		amdgpu_gfx_scratch_free(adev, scratch);
 		return r;
 	}
-	/* map queues */
-	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_MAP_QUEUES, 5));
-	/* Q_sel:0, vmid:0, vidmem: 1, engine:0, num_Q:1*/
-	amdgpu_ring_write(kiq_ring, 0x21010000);
-	amdgpu_ring_write(kiq_ring, (ring->doorbell_index << 2) |
-			(ring->queue << 26) |
-			(ring->pipe << 29) |
-			((ring->me == 1 ? 0 : 1) << 31)); /* doorbell */
-	amdgpu_ring_write(kiq_ring, lower_32_bits(mqd_addr));
-	amdgpu_ring_write(kiq_ring, upper_32_bits(mqd_addr));
-	amdgpu_ring_write(kiq_ring, lower_32_bits(wptr_addr));
-	amdgpu_ring_write(kiq_ring, upper_32_bits(wptr_addr));
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
+		uint64_t mqd_addr = amdgpu_bo_gpu_offset(ring->mqd_obj);
+		uint64_t wptr_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
+
+		/* map queues */
+		amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_MAP_QUEUES, 5));
+		/* Q_sel:0, vmid:0, vidmem: 1, engine:0, num_Q:1*/
+		amdgpu_ring_write(kiq_ring, 0x21010000);
+		amdgpu_ring_write(kiq_ring, (ring->doorbell_index << 2) |
+				  (ring->queue << 26) |
+				  (ring->pipe << 29) |
+				  ((ring->me == 1 ? 0 : 1) << 31)); /* doorbell */
+		amdgpu_ring_write(kiq_ring, lower_32_bits(mqd_addr));
+		amdgpu_ring_write(kiq_ring, upper_32_bits(mqd_addr));
+		amdgpu_ring_write(kiq_ring, lower_32_bits(wptr_addr));
+		amdgpu_ring_write(kiq_ring, upper_32_bits(wptr_addr));
+	}
 	/* write to scratch for completion */
 	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
 	amdgpu_ring_write(kiq_ring, (scratch - PACKET3_SET_UCONFIG_REG_START));
@@ -4738,8 +4739,8 @@ static int gfx_v8_0_map_queue_enable(struct amdgpu_ring *kiq_ring,
 		DRM_UDELAY(1);
 	}
 	if (i >= adev->usec_timeout) {
-		DRM_ERROR("KCQ %d enable failed (scratch(0x%04X)=0x%08X)\n",
-			  ring->idx, scratch, tmp);
+		DRM_ERROR("KCQ enable failed (scratch(0x%04X)=0x%08X)\n",
+			  scratch, tmp);
 		r = -EINVAL;
 	}
 	amdgpu_gfx_scratch_free(adev, scratch);
@@ -5009,7 +5010,6 @@ static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	struct vi_mqd *mqd = ring->mqd_ptr;
 	int mqd_idx = ring - &adev->gfx.compute_ring[0];
-	int r;
 
 	if (!adev->gfx.in_reset && !adev->gfx.in_suspend) {
 		memset((void *)mqd, 0, sizeof(*mqd));
@@ -5031,9 +5031,7 @@ static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
 		amdgpu_ring_clear_ring(ring);
 	}
 
-	r = gfx_v8_0_map_queue_enable(&kiq->ring, ring);
-
-	return r;
+	return 0;
 }
 
 static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
@@ -5081,7 +5079,14 @@ static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
 		amdgpu_bo_unreserve(ring->mqd_obj);
 		if (r)
 			goto done;
+	}
 
+	r = gfx_v8_0_map_queues_enable(adev);
+	if (r)
+		goto done;
+
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		ring = &adev->gfx.compute_ring[i];
 		ring->ready = true;
 		r = amdgpu_ring_test_ring(ring);
 		if (r)
