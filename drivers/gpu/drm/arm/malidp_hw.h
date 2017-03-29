@@ -33,6 +33,7 @@ enum {
 	DE_GRAPHICS2 = BIT(2), /* used only in DP500 */
 	DE_VIDEO2 = BIT(3),
 	DE_SMART = BIT(4),
+	SE_MEMWRITE = BIT(5),
 };
 
 struct malidp_format_id {
