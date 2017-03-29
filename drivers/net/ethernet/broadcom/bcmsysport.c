@@ -22,6 +22,7 @@
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
+#include <net/dsa.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 

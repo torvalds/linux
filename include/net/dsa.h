@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/of.h>
 #include <linux/ethtool.h>
+#include <net/devlink.h>
 
 struct tc_action;
 struct phy_device;
@@ -182,6 +183,7 @@ struct dsa_port {
 	unsigned int		ageing_time;
 	u8			stp_state;
 	struct net_device	*bridge_dev;
+	struct devlink_port	devlink_port;
 };
 
 struct dsa_switch {
@@ -236,6 +238,9 @@ struct dsa_switch {
 	/* Ageing Time limits in msecs */
 	unsigned int ageing_time_min;
 	unsigned int ageing_time_max;
+
+	/* devlink used to represent this switch device */
+	struct devlink		*devlink;
 
 	/* Dynamically allocated ports, keep last */
 	size_t num_ports;
@@ -466,6 +471,15 @@ struct net_device *dsa_dev_to_net_device(struct device *dev);
 static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
 {
 	return dst->rcv != NULL;
+}
+
+static inline bool netdev_uses_dsa(struct net_device *dev)
+{
+#if IS_ENABLED(CONFIG_NET_DSA)
+	if (dev->dsa_ptr != NULL)
+		return dsa_uses_tagged_protocol(dev->dsa_ptr);
+#endif
+	return false;
 }
 
 struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n);

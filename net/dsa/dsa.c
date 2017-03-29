@@ -14,15 +14,16 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <net/dsa.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 #include <linux/of_net.h>
 #include <linux/of_gpio.h>
+#include <linux/netdevice.h>
 #include <linux/sysfs.h>
 #include <linux/phy_fixed.h>
 #include <linux/gpio/consumer.h>
+#include <net/dsa.h>
 #include "dsa_priv.h"
 
 static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,

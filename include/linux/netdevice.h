@@ -41,7 +41,6 @@
 
 #include <linux/ethtool.h>
 #include <net/net_namespace.h>
-#include <net/dsa.h>
 #ifdef CONFIG_DCB
 #include <net/dcbnl.h>
 #endif
@@ -57,6 +56,8 @@
 struct netpoll_info;
 struct device;
 struct phy_device;
+struct dsa_switch_tree;
+
 /* 802.11 specific */
 struct wireless_dev;
 /* 802.15.4 specific */
@@ -2002,15 +2003,6 @@ static inline
 void dev_net_set(struct net_device *dev, struct net *net)
 {
 	write_pnet(&dev->nd_net, net);
-}
-
-static inline bool netdev_uses_dsa(struct net_device *dev)
-{
-#if IS_ENABLED(CONFIG_NET_DSA)
-	if (dev->dsa_ptr != NULL)
-		return dsa_uses_tagged_protocol(dev->dsa_ptr);
-#endif
-	return false;
 }
 
 /**

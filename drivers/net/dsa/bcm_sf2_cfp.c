@@ -10,10 +10,11 @@
  */
 
 #include <linux/list.h>
-#include <net/dsa.h>
 #include <linux/ethtool.h>
 #include <linux/if_ether.h>
 #include <linux/in.h>
+#include <linux/netdevice.h>
+#include <net/dsa.h>
 #include <linux/bitmap.h>
 
 #include "bcm_sf2.h"

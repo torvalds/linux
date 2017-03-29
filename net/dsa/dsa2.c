@@ -13,15 +13,19 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/list.h>
+#include <linux/netdevice.h>
 #include <linux/slab.h>
 #include <linux/rtnetlink.h>
-#include <net/dsa.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <net/dsa.h>
 #include "dsa_priv.h"
 
 static LIST_HEAD(dsa_switch_trees);
 static DEFINE_MUTEX(dsa2_mutex);
+
+static const struct devlink_ops dsa_devlink_ops = {
+};
 
 static struct dsa_switch_tree *dsa_get_dst(u32 tree)
 {
@@ -222,12 +226,18 @@ static int dsa_dsa_port_apply(struct dsa_port *port, u32 index,
 		return err;
 	}
 
-	return 0;
+	memset(&ds->ports[index].devlink_port, 0,
+	       sizeof(ds->ports[index].devlink_port));
+
+	return devlink_port_register(ds->devlink,
+				     &ds->ports[index].devlink_port,
+				     index);
 }
 
 static void dsa_dsa_port_unapply(struct dsa_port *port, u32 index,
 				 struct dsa_switch *ds)
 {
+	devlink_port_unregister(&ds->ports[index].devlink_port);
 	dsa_cpu_dsa_destroy(port);
 }
 
@@ -245,12 +255,17 @@ static int dsa_cpu_port_apply(struct dsa_port *port, u32 index,
 
 	ds->cpu_port_mask |= BIT(index);
 
-	return 0;
+	memset(&ds->ports[index].devlink_port, 0,
+	       sizeof(ds->ports[index].devlink_port));
+	err = devlink_port_register(ds->devlink, &ds->ports[index].devlink_port,
+				    index);
+	return err;
 }
 
 static void dsa_cpu_port_unapply(struct dsa_port *port, u32 index,
 				 struct dsa_switch *ds)
 {
+	devlink_port_unregister(&ds->ports[index].devlink_port);
 	dsa_cpu_dsa_destroy(port);
 	ds->cpu_port_mask &= ~BIT(index);
 
@@ -275,12 +290,23 @@ static int dsa_user_port_apply(struct dsa_port *port, u32 index,
 		return err;
 	}
 
+	memset(&ds->ports[index].devlink_port, 0,
+	       sizeof(ds->ports[index].devlink_port));
+	err = devlink_port_register(ds->devlink, &ds->ports[index].devlink_port,
+				    index);
+	if (err)
+		return err;
+
+	devlink_port_type_eth_set(&ds->ports[index].devlink_port,
+				  ds->ports[index].netdev);
+
 	return 0;
 }
 
 static void dsa_user_port_unapply(struct dsa_port *port, u32 index,
 				  struct dsa_switch *ds)
 {
+	devlink_port_unregister(&ds->ports[index].devlink_port);
 	if (ds->ports[index].netdev) {
 		dsa_slave_destroy(ds->ports[index].netdev);
 		ds->ports[index].netdev = NULL;
@@ -300,6 +326,17 @@ static int dsa_ds_apply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 	 * devices or not
 	 */
 	ds->phys_mii_mask = ds->enabled_port_mask;
+
+	/* Add the switch to devlink before calling setup, so that setup can
+	 * add dpipe tables
+	 */
+	ds->devlink = devlink_alloc(&dsa_devlink_ops, 0);
+	if (!ds->devlink)
+		return -ENOMEM;
+
+	err = devlink_register(ds->devlink, ds->dev);
+	if (err)
+		return err;
 
 	err = ds->ops->setup(ds);
 	if (err < 0)
@@ -381,6 +418,13 @@ static void dsa_ds_unapply(struct dsa_switch_tree *dst, struct dsa_switch *ds)
 		mdiobus_unregister(ds->slave_mii_bus);
 
 	dsa_switch_unregister_notifier(ds);
+
+	if (ds->devlink) {
+		devlink_unregister(ds->devlink);
+		devlink_free(ds->devlink);
+		ds->devlink = NULL;
+	}
+
 }
 
 static int dsa_dst_apply(struct dsa_switch_tree *dst)
