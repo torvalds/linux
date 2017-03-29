@@ -604,19 +604,6 @@ static void show_loader_logo(struct drm_device *drm_dev)
 
 	list_for_each_entry_safe(set, tmp, &mode_set_list, head) {
 		struct drm_crtc *crtc = set->crtc;
-		struct drm_connector *conn = set->connector;
-
-		if (!set->mode_changed) {
-			/*
-			 * restore connector and crtc's state, keep all the
-			 * reference fine.
-			 */
-			WARN_ON(drm_atomic_set_crtc_for_connector(conn->state,
-								  NULL));
-			WARN_ON(drm_atomic_set_mode_for_crtc(crtc->state,
-							     NULL));
-			crtc->state->active = false;
-		}
 
 		list_del(&set->head);
 		kfree(set);

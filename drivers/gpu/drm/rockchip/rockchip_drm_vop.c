@@ -1494,11 +1494,6 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	u16 vact_end = vact_st + vdisplay;
 	uint32_t val;
 
-	if (vop->loader_protect) {
-		vop->loader_protect = false;
-		return;
-	}
-
 	vop_initial(crtc);
 
 	val = BIT(DCLK_INVERT);
