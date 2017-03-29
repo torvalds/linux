@@ -56,8 +56,6 @@
 
 unsigned long highstart_pfn, highend_pfn;
 
-static noinline int do_test_wp_bit(void);
-
 bool __read_mostly __vmalloc_start_set = false;
 
 /*
@@ -726,22 +724,21 @@ void __init paging_init(void)
  */
 static void __init test_wp_bit(void)
 {
-	int wp_works_ok;
+	char z = 0;
 
 	printk(KERN_INFO
   "Checking if this processor honours the WP bit even in supervisor mode...");
 
-	/* Any page-aligned address will do, the test is non-destructive */
-	__set_fixmap(FIX_WP_TEST, __pa(&swapper_pg_dir), PAGE_KERNEL_RO);
-	wp_works_ok = do_test_wp_bit();
-	clear_fixmap(FIX_WP_TEST);
+	__set_fixmap(FIX_WP_TEST, __pa_symbol(empty_zero_page), PAGE_KERNEL_RO);
 
-	if (!wp_works_ok) {
+	if (probe_kernel_write((char *)fix_to_virt(FIX_WP_TEST), &z, 1) == 0) {
 		printk(KERN_CONT "No.\n");
 		panic("Linux doesn't support CPUs with broken WP.");
-	} else {
-		printk(KERN_CONT "Ok.\n");
 	}
+
+	clear_fixmap(FIX_WP_TEST);
+
+	printk(KERN_CONT "Ok.\n");
 }
 
 void __init mem_init(void)
@@ -850,30 +847,6 @@ int arch_remove_memory(u64 start, u64 size)
 }
 #endif
 #endif
-
-/*
- * This function cannot be __init, since exceptions don't work in that
- * section.  Put this after the callers, so that it cannot be inlined.
- */
-static noinline int do_test_wp_bit(void)
-{
-	char tmp_reg;
-	int flag;
-
-	__asm__ __volatile__(
-		"	movb %0, %1	\n"
-		"1:	movb %1, %0	\n"
-		"	xorl %2, %2	\n"
-		"2:			\n"
-		_ASM_EXTABLE(1b,2b)
-		:"=m" (*(char *)fix_to_virt(FIX_WP_TEST)),
-		 "=q" (tmp_reg),
-		 "=r" (flag)
-		:"2" (1)
-		:"memory");
-
-	return flag;
-}
 
 int kernel_set_to_readonly __read_mostly;
 
