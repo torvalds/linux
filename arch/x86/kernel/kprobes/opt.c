@@ -65,7 +65,10 @@ found:
 	 * overwritten by jump destination address. In this case, original
 	 * bytes must be recovered from op->optinsn.copied_insn buffer.
 	 */
-	memcpy(buf, (void *)addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
+	if (probe_kernel_read(buf, (void *)addr,
+		MAX_INSN_SIZE * sizeof(kprobe_opcode_t)))
+		return 0UL;
+
 	if (addr == (unsigned long)kp->addr) {
 		buf[0] = kp->opcode;
 		memcpy(buf + 1, op->optinsn.copied_insn, RELATIVE_ADDR_SIZE);

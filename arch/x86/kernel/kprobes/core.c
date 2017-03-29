@@ -259,7 +259,10 @@ __recover_probed_insn(kprobe_opcode_t *buf, unsigned long addr)
 	 * Fortunately, we know that the original code is the ideal 5-byte
 	 * long NOP.
 	 */
-	memcpy(buf, (void *)addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
+	if (probe_kernel_read(buf, (void *)addr,
+		MAX_INSN_SIZE * sizeof(kprobe_opcode_t)))
+		return 0UL;
+
 	if (faddr)
 		memcpy(buf, ideal_nops[NOP_ATOMIC5], 5);
 	else
@@ -271,7 +274,7 @@ __recover_probed_insn(kprobe_opcode_t *buf, unsigned long addr)
  * Recover the probed instruction at addr for further analysis.
  * Caller must lock kprobes by kprobe_mutex, or disable preemption
  * for preventing to release referencing kprobes.
- * Returns zero if the instruction can not get recovered.
+ * Returns zero if the instruction can not get recovered (or access failed).
  */
 unsigned long recover_probed_instruction(kprobe_opcode_t *buf, unsigned long addr)
 {
@@ -365,7 +368,10 @@ int __copy_instruction(u8 *dest, u8 *src)
 	/* Another subsystem puts a breakpoint, failed to recover */
 	if (insn.opcode.bytes[0] == BREAKPOINT_INSTRUCTION)
 		return 0;
-	memcpy(dest, insn.kaddr, length);
+
+	/* This can access kernel text if given address is not recovered */
+	if (kernel_probe_read(dest, insn.kaddr, length))
+		return 0;
 
 #ifdef CONFIG_X86_64
 	/* Only x86_64 has RIP relative instructions */
