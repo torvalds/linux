@@ -48,7 +48,7 @@ static bool vgpu_has_pending_workload(struct intel_vgpu *vgpu)
 }
 
 struct vgpu_sched_data {
-	struct list_head list;
+	struct list_head lru_list;
 	struct intel_vgpu *vgpu;
 
 	ktime_t sched_in_time;
@@ -64,7 +64,7 @@ struct gvt_sched_data {
 	struct intel_gvt *gvt;
 	struct hrtimer timer;
 	unsigned long period;
-	struct list_head runq_head;
+	struct list_head lru_runq_head;
 };
 
 static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
@@ -118,36 +118,17 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 		wake_up(&scheduler->waitq[i]);
 }
 
-/* in nanosecond */
-#define GVT_DEFAULT_TIME_SLICE 1000000
-
-static void tbs_sched_func(struct gvt_sched_data *sched_data)
+static struct intel_vgpu *find_busy_vgpu(struct gvt_sched_data *sched_data)
 {
 	struct vgpu_sched_data *vgpu_data;
-
-	struct intel_gvt *gvt = sched_data->gvt;
-	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
-
 	struct intel_vgpu *vgpu = NULL;
-	struct list_head *pos, *head;
-
-	/* no vgpu or has already had a target */
-	if (list_empty(&sched_data->runq_head) || scheduler->next_vgpu)
-		goto out;
-
-	if (scheduler->current_vgpu) {
-		vgpu_data = scheduler->current_vgpu->sched_data;
-		head = &vgpu_data->list;
-	} else {
-		head = &sched_data->runq_head;
-	}
+	struct list_head *head = &sched_data->lru_runq_head;
+	struct list_head *pos;
 
 	/* search a vgpu with pending workload */
 	list_for_each(pos, head) {
-		if (pos == &sched_data->runq_head)
-			continue;
 
-		vgpu_data = container_of(pos, struct vgpu_sched_data, list);
+		vgpu_data = container_of(pos, struct vgpu_sched_data, lru_list);
 		if (!vgpu_has_pending_workload(vgpu_data->vgpu))
 			continue;
 
@@ -155,8 +136,33 @@ static void tbs_sched_func(struct gvt_sched_data *sched_data)
 		break;
 	}
 
+	return vgpu;
+}
+
+/* in nanosecond */
+#define GVT_DEFAULT_TIME_SLICE 1000000
+
+static void tbs_sched_func(struct gvt_sched_data *sched_data)
+{
+	struct intel_gvt *gvt = sched_data->gvt;
+	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
+	struct vgpu_sched_data *vgpu_data;
+	struct intel_vgpu *vgpu = NULL;
+
+	/* no active vgpu or has already had a target */
+	if (list_empty(&sched_data->lru_runq_head) || scheduler->next_vgpu)
+		goto out;
+
+	vgpu = find_busy_vgpu(sched_data);
 	if (vgpu) {
 		scheduler->next_vgpu = vgpu;
+
+		/* Move the last used vGPU to the tail of lru_list */
+		vgpu_data = vgpu->sched_data;
+		list_del_init(&vgpu_data->lru_list);
+		list_add_tail(&vgpu_data->lru_list,
+				&sched_data->lru_runq_head);
+
 		gvt_dbg_sched("pick next vgpu %d\n", vgpu->id);
 	}
 out:
@@ -200,7 +206,7 @@ static int tbs_sched_init(struct intel_gvt *gvt)
 	if (!data)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&data->runq_head);
+	INIT_LIST_HEAD(&data->lru_runq_head);
 	hrtimer_init(&data->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	data->timer.function = tbs_timer_fn;
 	data->period = GVT_DEFAULT_TIME_SLICE;
@@ -232,7 +238,7 @@ static int tbs_sched_init_vgpu(struct intel_vgpu *vgpu)
 		return -ENOMEM;
 
 	data->vgpu = vgpu;
-	INIT_LIST_HEAD(&data->list);
+	INIT_LIST_HEAD(&data->lru_list);
 
 	vgpu->sched_data = data;
 
@@ -250,10 +256,10 @@ static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)
 	struct gvt_sched_data *sched_data = vgpu->gvt->scheduler.sched_data;
 	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
 
-	if (!list_empty(&vgpu_data->list))
+	if (!list_empty(&vgpu_data->lru_list))
 		return;
 
-	list_add_tail(&vgpu_data->list, &sched_data->runq_head);
+	list_add_tail(&vgpu_data->lru_list, &sched_data->lru_runq_head);
 
 	if (!hrtimer_active(&sched_data->timer))
 		hrtimer_start(&sched_data->timer, ktime_add_ns(ktime_get(),
@@ -264,7 +270,7 @@ static void tbs_sched_stop_schedule(struct intel_vgpu *vgpu)
 {
 	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
 
-	list_del_init(&vgpu_data->list);
+	list_del_init(&vgpu_data->lru_list);
 }
 
 static struct intel_gvt_sched_policy_ops tbs_schedule_ops = {
