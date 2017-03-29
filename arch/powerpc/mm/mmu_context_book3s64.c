@@ -30,7 +30,7 @@
 static DEFINE_SPINLOCK(mmu_context_lock);
 static DEFINE_IDA(mmu_context_ida);
 
-int __init_new_context(void)
+static int __init_new_context(void)
 {
 	int index;
 	int err;
@@ -57,7 +57,13 @@ again:
 
 	return index;
 }
-EXPORT_SYMBOL_GPL(__init_new_context);
+
+int hash__alloc_context_id(void)
+{
+	return __init_new_context();
+}
+EXPORT_SYMBOL_GPL(hash__alloc_context_id);
+
 static int radix__init_new_context(struct mm_struct *mm, int index)
 {
 	unsigned long rts_field;

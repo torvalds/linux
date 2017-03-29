@@ -390,7 +390,7 @@ int kvmppc_mmu_init(struct kvm_vcpu *vcpu)
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	int err;
 
-	err = __init_new_context();
+	err = hash__alloc_context_id();
 	if (err < 0)
 		return -1;
 	vcpu3s->context_id[0] = err;
