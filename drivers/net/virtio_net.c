@@ -1747,7 +1747,6 @@ static int virtnet_reset(struct virtnet_info *vi, int curr_qp, int xdp_qp)
 	virtnet_freeze_down(dev);
 	_remove_vq_common(vi);
 
-	dev->config->reset(dev);
 	virtio_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
 	virtio_add_status(dev, VIRTIO_CONFIG_S_DRIVER);
 
