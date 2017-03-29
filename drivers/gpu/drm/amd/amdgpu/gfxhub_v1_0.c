@@ -227,8 +227,9 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32) + i*2, 0);
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_HI32) + i*2, 0);
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT1_PAGE_TABLE_END_ADDR_LO32) + i*2,
-				adev->vm_manager.max_pfn - 1);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT1_PAGE_TABLE_END_ADDR_HI32) + i*2, 0);
+			lower_32_bits(adev->vm_manager.max_pfn - 1));
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT1_PAGE_TABLE_END_ADDR_HI32) + i*2,
+			upper_32_bits(adev->vm_manager.max_pfn - 1));
 	}
 
 
