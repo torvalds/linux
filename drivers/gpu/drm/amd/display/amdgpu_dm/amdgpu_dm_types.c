@@ -2981,7 +2981,6 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	struct amdgpu_device *adev = dev->dev_private;
 	struct dc *dc = adev->dm.dc;
 	bool need_to_validate = false;
-	struct validate_context *context;
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	/*
@@ -3216,10 +3215,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		}
 	}
 
-	context = dc_get_validate_context(dc, dm_state->set, dm_state->set_count);
+	dm_state->context = dc_get_validate_context(dc, dm_state->set, dm_state->set_count);
 
-	if (need_to_validate == false || dm_state->set_count == 0 || context) {
-
+	if (need_to_validate == false || dm_state->set_count == 0 || dm_state->context) {
 		ret = 0;
 		/*
 		 * For full updates case when
@@ -3234,18 +3232,6 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			ret = do_aquire_global_lock(dev, state);
 
 	}
-
-	if (context) {
-		dc_resource_validate_ctx_destruct(context);
-		dm_free(context);
-	}
-
-	for (i = 0; i < dm_state->set_count; i++)
-		for (j = 0; j < dm_state->set[i].surface_count; j++)
-			dc_surface_release(dm_state->set[i].surfaces[j]);
-
-	for (i = 0; i < new_stream_count; i++)
-		dc_stream_release(new_streams[i]);
 
 	if (ret != 0) {
 		if (ret == -EDEADLK)

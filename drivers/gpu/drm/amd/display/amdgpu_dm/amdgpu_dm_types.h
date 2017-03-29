@@ -55,7 +55,7 @@ struct dm_atomic_state {
 
 	struct dc_validation_set set[MAX_STREAMS];
 	int set_count;
-
+	struct validate_context *context;
 };
 
 #define to_dm_atomic_state(x) container_of(x, struct dm_atomic_state, base)
