@@ -1497,14 +1497,18 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 
 		bio_add_page(bio, page->page, PAGE_SIZE, 0);
 		if (!retry_failed_mirror && scrub_is_page_on_raid56(page)) {
-			if (scrub_submit_raid56_bio_wait(fs_info, bio, page))
+			if (scrub_submit_raid56_bio_wait(fs_info, bio, page)) {
+				page->io_error = 1;
 				sblock->no_io_error_seen = 0;
+			}
 		} else {
 			bio->bi_iter.bi_sector = page->physical >> 9;
 			bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
-			if (btrfsic_submit_bio_wait(bio))
+			if (btrfsic_submit_bio_wait(bio)) {
+				page->io_error = 1;
 				sblock->no_io_error_seen = 0;
+			}
 		}
 
 		bio_put(bio);
