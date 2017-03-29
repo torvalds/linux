@@ -1525,6 +1525,7 @@ static void nvme_rdma_complete_rq(struct request *rq)
 
 	if (unlikely(rq->errors)) {
 		if (nvme_req_needs_retry(rq, rq->errors)) {
+			rq->retries++;
 			nvme_requeue_req(rq);
 			return;
 		}
