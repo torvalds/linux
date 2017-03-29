@@ -158,15 +158,24 @@ nf_conntrack_helper_try_module_get(const char *name, u16 l3num, u8 protonum)
 {
 	struct nf_conntrack_helper *h;
 
+	rcu_read_lock();
+
 	h = __nf_conntrack_helper_find(name, l3num, protonum);
 #ifdef CONFIG_MODULES
 	if (h == NULL) {
-		if (request_module("nfct-helper-%s", name) == 0)
+		rcu_read_unlock();
+		if (request_module("nfct-helper-%s", name) == 0) {
+			rcu_read_lock();
 			h = __nf_conntrack_helper_find(name, l3num, protonum);
+		} else {
+			return h;
+		}
 	}
 #endif
 	if (h != NULL && !try_module_get(h->me))
 		h = NULL;
+
+	rcu_read_unlock();
 
 	return h;
 }
@@ -311,38 +320,36 @@ void nf_ct_helper_expectfn_unregister(struct nf_ct_helper_expectfn *n)
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper_expectfn_unregister);
 
+/* Caller should hold the rcu lock */
 struct nf_ct_helper_expectfn *
 nf_ct_helper_expectfn_find_by_name(const char *name)
 {
 	struct nf_ct_helper_expectfn *cur;
 	bool found = false;
 
-	rcu_read_lock();
 	list_for_each_entry_rcu(cur, &nf_ct_helper_expectfn_list, head) {
 		if (!strcmp(cur->name, name)) {
 			found = true;
 			break;
 		}
 	}
-	rcu_read_unlock();
 	return found ? cur : NULL;
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper_expectfn_find_by_name);
 
+/* Caller should hold the rcu lock */
 struct nf_ct_helper_expectfn *
 nf_ct_helper_expectfn_find_by_symbol(const void *symbol)
 {
 	struct nf_ct_helper_expectfn *cur;
 	bool found = false;
 
-	rcu_read_lock();
 	list_for_each_entry_rcu(cur, &nf_ct_helper_expectfn_list, head) {
 		if (cur->expectfn == symbol) {
 			found = true;
 			break;
 		}
 	}
-	rcu_read_unlock();
 	return found ? cur : NULL;
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper_expectfn_find_by_symbol);

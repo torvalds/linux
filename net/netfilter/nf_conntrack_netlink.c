@@ -3133,23 +3133,27 @@ ctnetlink_create_expect(struct net *net,
 		return -ENOENT;
 	ct = nf_ct_tuplehash_to_ctrack(h);
 
+	rcu_read_lock();
 	if (cda[CTA_EXPECT_HELP_NAME]) {
 		const char *helpname = nla_data(cda[CTA_EXPECT_HELP_NAME]);
 
 		helper = __nf_conntrack_helper_find(helpname, u3,
 						    nf_ct_protonum(ct));
 		if (helper == NULL) {
+			rcu_read_unlock();
 #ifdef CONFIG_MODULES
 			if (request_module("nfct-helper-%s", helpname) < 0) {
 				err = -EOPNOTSUPP;
 				goto err_ct;
 			}
+			rcu_read_lock();
 			helper = __nf_conntrack_helper_find(helpname, u3,
 							    nf_ct_protonum(ct));
 			if (helper) {
 				err = -EAGAIN;
-				goto err_ct;
+				goto err_rcu;
 			}
+			rcu_read_unlock();
 #endif
 			err = -EOPNOTSUPP;
 			goto err_ct;
@@ -3159,11 +3163,13 @@ ctnetlink_create_expect(struct net *net,
 	exp = ctnetlink_alloc_expect(cda, ct, helper, &tuple, &mask);
 	if (IS_ERR(exp)) {
 		err = PTR_ERR(exp);
-		goto err_ct;
+		goto err_rcu;
 	}
 
 	err = nf_ct_expect_related_report(exp, portid, report);
 	nf_ct_expect_put(exp);
+err_rcu:
+	rcu_read_unlock();
 err_ct:
 	nf_ct_put(ct);
 	return err;
