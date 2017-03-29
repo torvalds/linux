@@ -202,10 +202,6 @@ static int ehci_platform_probe(struct platform_device *dev)
 					  "has-transaction-translator"))
 			hcd->has_tt = 1;
 
-		if (of_property_read_bool(dev->dev.of_node,
-					  "no-relinquish-port"))
-			ehci_platform_hc_driver.relinquish_port = NULL;
-
 		priv->num_phys = of_count_phandle_with_args(dev->dev.of_node,
 				"phys", "#phy-cells");
 
