@@ -54,13 +54,19 @@ static int i2c_read(struct i2c_adapter *adapter, u8 adr, u8 *val)
 	return (i2c_transfer(adapter, msgs, 1) == 1) ? 0 : -1;
 }
 
-static int i2c_read_reg(struct i2c_adapter *adapter, u8 adr, u8 reg, u8 *val)
+static int i2c_read_regs(struct i2c_adapter *adapter,
+			 u8 adr, u8 reg, u8 *val, u8 len)
 {
 	struct i2c_msg msgs[2] = {{.addr = adr,  .flags = 0,
 				   .buf  = &reg, .len   = 1 },
 				  {.addr = adr,  .flags = I2C_M_RD,
-				   .buf  = val,  .len   = 1 } };
+				   .buf  = val,  .len   = len } };
 	return (i2c_transfer(adapter, msgs, 2) == 2) ? 0 : -1;
+}
+
+static int i2c_read_reg(struct i2c_adapter *adapter, u8 adr, u8 reg, u8 *val)
+{
+	return i2c_read_regs(adapter, adr, reg, val, 1);
 }
 
 static int i2c_read_reg16(struct i2c_adapter *adapter, u8 adr,
