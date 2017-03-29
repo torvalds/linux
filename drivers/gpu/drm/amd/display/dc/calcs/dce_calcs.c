@@ -2614,7 +2614,7 @@ static void populate_initial_data(
 		data->v_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->public.timing.v_total);
 		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->public.timing.pix_clk_khz, 1000);
 		data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.viewport.width);
-		data->pitch_in_pixels[num_displays + 4] = bw_int_to_fixed(pipe[i].surface->public.plane_size.grph.surface_pitch);
+		data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
 		data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.viewport.height);
 		data->h_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.taps.h_taps);
 		data->v_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.taps.v_taps);
@@ -2712,7 +2712,7 @@ static void populate_initial_data(
 		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->public.timing.pix_clk_khz, 1000);
 		if (pipe[i].surface) {
 			data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.viewport.width);
-			data->pitch_in_pixels[num_displays + 4] = bw_int_to_fixed(pipe[i].surface->public.plane_size.grph.surface_pitch);
+			data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
 			data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.viewport.height);
 			data->h_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.taps.h_taps);
 			data->v_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.taps.v_taps);
