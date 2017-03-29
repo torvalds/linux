@@ -86,6 +86,7 @@ struct ddb_input {
 
 	struct dvb_adapter     adap;
 	struct dvb_device     *dev;
+	struct i2c_client     *i2c_client[1];
 	struct dvb_frontend   *fe;
 	struct dvb_frontend   *fe2;
 	struct dmxdev          dmxdev;
