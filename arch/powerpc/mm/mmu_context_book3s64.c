@@ -30,17 +30,16 @@
 static DEFINE_SPINLOCK(mmu_context_lock);
 static DEFINE_IDA(mmu_context_ida);
 
-static int __init_new_context(void)
+static int alloc_context_id(int min_id, int max_id)
 {
-	int index;
-	int err;
+	int index, err;
 
 again:
 	if (!ida_pre_get(&mmu_context_ida, GFP_KERNEL))
 		return -ENOMEM;
 
 	spin_lock(&mmu_context_lock);
-	err = ida_get_new_above(&mmu_context_ida, 1, &index);
+	err = ida_get_new_above(&mmu_context_ida, min_id, &index);
 	spin_unlock(&mmu_context_lock);
 
 	if (err == -EAGAIN)
@@ -48,7 +47,7 @@ again:
 	else if (err)
 		return err;
 
-	if (index > MAX_USER_CONTEXT) {
+	if (index > max_id) {
 		spin_lock(&mmu_context_lock);
 		ida_remove(&mmu_context_ida, index);
 		spin_unlock(&mmu_context_lock);
@@ -60,7 +59,7 @@ again:
 
 int hash__alloc_context_id(void)
 {
-	return __init_new_context();
+	return alloc_context_id(1, MAX_USER_CONTEXT);
 }
 EXPORT_SYMBOL_GPL(hash__alloc_context_id);
 
@@ -80,7 +79,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	int index;
 
-	index = __init_new_context();
+	index = hash__alloc_context_id();
 	if (index < 0)
 		return index;
 
