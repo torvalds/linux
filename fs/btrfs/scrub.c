@@ -2769,7 +2769,6 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct bio *bio;
 	struct btrfs_raid_bio *rbio;
-	struct scrub_page *spage;
 	struct btrfs_bio *bbio = NULL;
 	u64 length;
 	int ret;
@@ -2798,9 +2797,6 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 					      sparity->nsectors);
 	if (!rbio)
 		goto rbio_out;
-
-	list_for_each_entry(spage, &sparity->spages, list)
-		raid56_add_scrub_pages(rbio, spage->page, spage->logical);
 
 	scrub_pending_bio_inc(sctx);
 	raid56_parity_submit_scrub_rbio(rbio);
