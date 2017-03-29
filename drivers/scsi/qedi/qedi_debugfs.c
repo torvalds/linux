@@ -240,5 +240,5 @@ const struct file_operations qedi_dbg_fops[] = {
 	qedi_dbg_fileops_seq(qedi, gbl_ctx),
 	qedi_dbg_fileops(qedi, do_not_recover),
 	qedi_dbg_fileops_seq(qedi, io_trace),
-	{ NULL, NULL },
+	{ },
 };

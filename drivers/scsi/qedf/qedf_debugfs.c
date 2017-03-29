@@ -449,7 +449,7 @@ const struct file_operations qedf_dbg_fops[] = {
 	qedf_dbg_fileops(qedf, clear_stats),
 	qedf_dbg_fileops_seq(qedf, offload_stats),
 	/* This must be last */
-	{ NULL, NULL },
+	{ },
 };
 
 #else /* CONFIG_DEBUG_FS */
