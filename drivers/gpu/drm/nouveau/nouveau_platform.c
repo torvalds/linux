@@ -53,10 +53,12 @@ static int nouveau_platform_remove(struct platform_device *pdev)
 #if IS_ENABLED(CONFIG_OF)
 static const struct nvkm_device_tegra_func gk20a_platform_data = {
 	.iommu_bit = 34,
+	.require_vdd = true,
 };
 
 static const struct nvkm_device_tegra_func gm20b_platform_data = {
 	.iommu_bit = 34,
+	.require_vdd = true,
 	.require_ref_clk = true,
 };
 
