@@ -1079,6 +1079,36 @@ static void amdgpu_get_block_size(struct amdgpu_device *adev)
 	}
 }
 
+static void amdgpu_check_vm_size(struct amdgpu_device *adev)
+{
+	if (!amdgpu_check_pot_argument(amdgpu_vm_size)) {
+		dev_warn(adev->dev, "VM size (%d) must be a power of 2\n",
+			 amdgpu_vm_size);
+		goto def_value;
+	}
+
+	if (amdgpu_vm_size < 1) {
+		dev_warn(adev->dev, "VM size (%d) too small, min is 1GB\n",
+			 amdgpu_vm_size);
+		goto def_value;
+	}
+
+	/*
+	 * Max GPUVM size for Cayman, SI, CI VI are 40 bits.
+	 */
+	if (amdgpu_vm_size > 1024) {
+		dev_warn(adev->dev, "VM size (%d) too large, max is 1TB\n",
+			 amdgpu_vm_size);
+		goto def_value;
+	}
+
+	return;
+
+def_value:
+	amdgpu_vm_size = 8;
+	dev_info(adev->dev, "set default VM size %dGB\n", amdgpu_vm_size);
+}
+
 /**
  * amdgpu_check_arguments - validate module params
  *
@@ -1108,26 +1138,7 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 		}
 	}
 
-	if (!amdgpu_check_pot_argument(amdgpu_vm_size)) {
-		dev_warn(adev->dev, "VM size (%d) must be a power of 2\n",
-			 amdgpu_vm_size);
-		amdgpu_vm_size = 8;
-	}
-
-	if (amdgpu_vm_size < 1) {
-		dev_warn(adev->dev, "VM size (%d) too small, min is 1GB\n",
-			 amdgpu_vm_size);
-		amdgpu_vm_size = 8;
-	}
-
-	/*
-	 * Max GPUVM size for Cayman, SI and CI are 40 bits.
-	 */
-	if (amdgpu_vm_size > 1024) {
-		dev_warn(adev->dev, "VM size (%d) too large, max is 1TB\n",
-			 amdgpu_vm_size);
-		amdgpu_vm_size = 8;
-	}
+	amdgpu_check_vm_size(adev);
 
 	amdgpu_get_block_size(adev);
 
