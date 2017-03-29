@@ -101,6 +101,7 @@ static struct mcfg_fixup mcfg_quirks[] = {
 	/* SoC pass2.x */
 	THUNDER_PEM_QUIRK(1, 0),
 	THUNDER_PEM_QUIRK(1, 1),
+	THUNDER_ECAM_QUIRK(1, 10),
 
 	/* SoC pass1.x */
 	THUNDER_PEM_QUIRK(2, 0),	/* off-chip devices */
