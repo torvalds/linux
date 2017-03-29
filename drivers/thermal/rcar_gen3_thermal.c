@@ -88,6 +88,7 @@ struct rcar_gen3_thermal_priv {
 	struct rcar_gen3_thermal_tsc *tscs[TSC_MAX_NUM];
 	unsigned int num_tscs;
 	spinlock_t lock; /* Protect interrupts on and off */
+	const struct rcar_gen3_thermal_data *data;
 };
 
 struct rcar_gen3_thermal_data {
@@ -351,8 +352,6 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	struct thermal_zone_device *zone;
 	int ret, irq, i;
 	char *irqname;
-	const struct rcar_gen3_thermal_data *match_data =
-		of_device_get_match_data(dev);
 
 	/* default values if FUSEs are missing */
 	/* TODO: Read values from hardware on supported platforms */
@@ -366,6 +365,8 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	priv->data = of_device_get_match_data(dev);
 
 	spin_lock_init(&priv->lock);
 
@@ -417,7 +418,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 
 		priv->tscs[i] = tsc;
 
-		match_data->thermal_init(tsc);
+		priv->data->thermal_init(tsc);
 		rcar_gen3_thermal_calc_coefs(&tsc->coef, ptat, thcode[i]);
 
 		zone = devm_thermal_zone_of_sensor_register(dev, i, tsc,
