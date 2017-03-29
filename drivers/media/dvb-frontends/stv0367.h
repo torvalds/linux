@@ -44,6 +44,9 @@ dvb_frontend *stv0367ter_attach(const struct stv0367_config *config,
 extern struct
 dvb_frontend *stv0367cab_attach(const struct stv0367_config *config,
 					struct i2c_adapter *i2c);
+extern struct
+dvb_frontend *stv0367ddb_attach(const struct stv0367_config *config,
+					struct i2c_adapter *i2c);
 #else
 static inline struct
 dvb_frontend *stv0367ter_attach(const struct stv0367_config *config,
@@ -54,6 +57,13 @@ dvb_frontend *stv0367ter_attach(const struct stv0367_config *config,
 }
 static inline struct
 dvb_frontend *stv0367cab_attach(const struct stv0367_config *config,
+					struct i2c_adapter *i2c)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return NULL;
+}
+static inline struct
+dvb_frontend *stv0367ddb_attach(const struct stv0367_config *config,
 					struct i2c_adapter *i2c)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);

@@ -46,6 +46,8 @@ module_param_named(i2c_debug, i2cdebug, int, 0644);
 	} while (0)
 	/* DVB-C */
 
+enum active_demod_state { demod_none, demod_ter, demod_cab };
+
 struct stv0367cab_state {
 	enum stv0367_cab_signal_type	state;
 	u32	mclk;
@@ -96,6 +98,7 @@ struct stv0367_state {
 	u8 deftabs;
 	u8 reinit_on_setfrontend;
 	u8 auto_if_khz;
+	enum active_demod_state activedemod;
 };
 
 #define RF_LOOKUP_TABLE_SIZE  31
@@ -2879,6 +2882,327 @@ error:
 	return NULL;
 }
 EXPORT_SYMBOL(stv0367cab_attach);
+
+/*
+ * Functions for operation on Digital Devices hardware
+ */
+
+static void stv0367ddb_setup_ter(struct stv0367_state *state)
+{
+	stv0367_writereg(state, R367TER_DEBUG_LT4, 0x00);
+	stv0367_writereg(state, R367TER_DEBUG_LT5, 0x00);
+	stv0367_writereg(state, R367TER_DEBUG_LT6, 0x00); /* R367CAB_CTRL_1 */
+	stv0367_writereg(state, R367TER_DEBUG_LT7, 0x00); /* R367CAB_CTRL_2 */
+	stv0367_writereg(state, R367TER_DEBUG_LT8, 0x00);
+	stv0367_writereg(state, R367TER_DEBUG_LT9, 0x00);
+
+	/* Tuner Setup */
+	/* Buffer Q disabled, I Enabled, unsigned ADC */
+	stv0367_writereg(state, R367TER_ANADIGCTRL, 0x89);
+	stv0367_writereg(state, R367TER_DUAL_AD12, 0x04); /* ADCQ disabled */
+
+	/* Clock setup */
+	/* PLL bypassed and disabled */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x0D);
+	stv0367_writereg(state, R367TER_TOPCTRL, 0x00); /* Set OFDM */
+
+	/* IC runs at 54 MHz with a 27 MHz crystal */
+	stv0367_pll_setup(state, STV0367_ICSPEED_53125, state->config->xtal);
+
+	msleep(50);
+	/* PLL enabled and used */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x00);
+
+	state->activedemod = demod_ter;
+}
+
+static void stv0367ddb_setup_cab(struct stv0367_state *state)
+{
+	stv0367_writereg(state, R367TER_DEBUG_LT4, 0x00);
+	stv0367_writereg(state, R367TER_DEBUG_LT5, 0x01);
+	stv0367_writereg(state, R367TER_DEBUG_LT6, 0x06); /* R367CAB_CTRL_1 */
+	stv0367_writereg(state, R367TER_DEBUG_LT7, 0x03); /* R367CAB_CTRL_2 */
+	stv0367_writereg(state, R367TER_DEBUG_LT8, 0x00);
+	stv0367_writereg(state, R367TER_DEBUG_LT9, 0x00);
+
+	/* Tuner Setup */
+	/* Buffer Q disabled, I Enabled, signed ADC */
+	stv0367_writereg(state, R367TER_ANADIGCTRL, 0x8B);
+	/* ADCQ disabled */
+	stv0367_writereg(state, R367TER_DUAL_AD12, 0x04);
+
+	/* Clock setup */
+	/* PLL bypassed and disabled */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x0D);
+	/* Set QAM */
+	stv0367_writereg(state, R367TER_TOPCTRL, 0x10);
+
+	/* IC runs at 58 MHz with a 27 MHz crystal */
+	stv0367_pll_setup(state, STV0367_ICSPEED_58000, state->config->xtal);
+
+	msleep(50);
+	/* PLL enabled and used */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x00);
+
+	state->cab_state->mclk = stv0367cab_get_mclk(&state->fe,
+		state->config->xtal);
+	state->cab_state->adc_clk = stv0367cab_get_adc_freq(&state->fe,
+		state->config->xtal);
+
+	state->activedemod = demod_cab;
+}
+
+static int stv0367ddb_set_frontend(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+
+	switch (fe->dtv_property_cache.delivery_system) {
+	case SYS_DVBT:
+		if (state->activedemod != demod_ter)
+			stv0367ddb_setup_ter(state);
+
+		return stv0367ter_set_frontend(fe);
+	case SYS_DVBC_ANNEX_A:
+		if (state->activedemod != demod_cab)
+			stv0367ddb_setup_cab(state);
+
+		/* protect against division error oopses */
+		if (fe->dtv_property_cache.symbol_rate == 0) {
+			printk(KERN_ERR "Invalid symbol rate\n");
+			return -EINVAL;
+		}
+
+		return stv0367cab_set_frontend(fe);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int stv0367ddb_read_status(struct dvb_frontend *fe,
+				  enum fe_status *status)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		return stv0367ter_read_status(fe, status);
+	case demod_cab:
+		return stv0367cab_read_status(fe, status);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int stv0367ddb_get_frontend(struct dvb_frontend *fe,
+				   struct dtv_frontend_properties *p)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		return stv0367ter_get_frontend(fe, p);
+	case demod_cab:
+		return stv0367cab_get_frontend(fe, p);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int stv0367ddb_sleep(struct dvb_frontend *fe)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+
+	switch (state->activedemod) {
+	case demod_ter:
+		state->activedemod = demod_none;
+		return stv0367ter_sleep(fe);
+	case demod_cab:
+		state->activedemod = demod_none;
+		return stv0367cab_sleep(fe);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int stv0367ddb_init(struct stv0367_state *state)
+{
+	struct stv0367ter_state *ter_state = state->ter_state;
+
+	stv0367_writereg(state, R367TER_TOPCTRL, 0x10);
+
+	if (stv0367_deftabs[state->deftabs][STV0367_TAB_BASE])
+		stv0367_write_table(state,
+			stv0367_deftabs[state->deftabs][STV0367_TAB_BASE]);
+
+	stv0367_write_table(state,
+		stv0367_deftabs[state->deftabs][STV0367_TAB_CAB]);
+
+	stv0367_writereg(state, R367TER_TOPCTRL, 0x00);
+	stv0367_write_table(state,
+		stv0367_deftabs[state->deftabs][STV0367_TAB_TER]);
+
+	stv0367_writereg(state, R367TER_GAIN_SRC1, 0x2A);
+	stv0367_writereg(state, R367TER_GAIN_SRC2, 0xD6);
+	stv0367_writereg(state, R367TER_INC_DEROT1, 0x55);
+	stv0367_writereg(state, R367TER_INC_DEROT2, 0x55);
+	stv0367_writereg(state, R367TER_TRL_CTL, 0x14);
+	stv0367_writereg(state, R367TER_TRL_NOMRATE1, 0xAE);
+	stv0367_writereg(state, R367TER_TRL_NOMRATE2, 0x56);
+	stv0367_writereg(state, R367TER_FEPATH_CFG, 0x0);
+
+	/* OFDM TS Setup */
+
+	stv0367_writereg(state, R367TER_TSCFGH, 0x70);
+	stv0367_writereg(state, R367TER_TSCFGM, 0xC0);
+	stv0367_writereg(state, R367TER_TSCFGL, 0x20);
+	stv0367_writereg(state, R367TER_TSSPEED, 0x40); /* Fixed at 54 MHz */
+
+	stv0367_writereg(state, R367TER_TSCFGH, 0x71);
+	stv0367_writereg(state, R367TER_TSCFGH, 0x70);
+
+	stv0367_writereg(state, R367TER_TOPCTRL, 0x10);
+
+	/* Also needed for QAM */
+	stv0367_writereg(state, R367TER_AGC12C, 0x01); /* AGC Pin setup */
+
+	stv0367_writereg(state, R367TER_AGCCTRL1, 0x8A);
+
+	/* QAM TS setup, note exact format also depends on descrambler */
+	/* settings */
+	/* Inverted Clock, Swap, serial */
+	stv0367_writereg(state, R367CAB_OUTFORMAT_0, 0x85);
+
+	/* Clock setup (PLL bypassed and disabled) */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x0D);
+
+	/* IC runs at 58 MHz with a 27 MHz crystal */
+	stv0367_pll_setup(state, STV0367_ICSPEED_58000, state->config->xtal);
+
+	/* Tuner setup */
+	/* Buffer Q disabled, I Enabled, signed ADC */
+	stv0367_writereg(state, R367TER_ANADIGCTRL, 0x8b);
+	stv0367_writereg(state, R367TER_DUAL_AD12, 0x04); /* ADCQ disabled */
+
+	/* Improves the C/N lock limit */
+	stv0367_writereg(state, R367CAB_FSM_SNR2_HTH, 0x23);
+	/* ZIF/IF Automatic mode */
+	stv0367_writereg(state, R367CAB_IQ_QAM, 0x01);
+	/* Improving burst noise performances */
+	stv0367_writereg(state, R367CAB_EQU_FFE_LEAKAGE, 0x83);
+	/* Improving ACI performances */
+	stv0367_writereg(state, R367CAB_IQDEM_ADJ_EN, 0x05);
+
+	/* PLL enabled and used */
+	stv0367_writereg(state, R367TER_ANACTRL, 0x00);
+
+	stv0367_writereg(state, R367TER_I2CRPT, (0x08 | ((5 & 0x07) << 4)));
+
+	ter_state->pBER = 0;
+	ter_state->first_lock = 0;
+	ter_state->unlock_counter = 2;
+
+	return 0;
+}
+
+static const struct dvb_frontend_ops stv0367ddb_ops = {
+	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBT },
+	.info = {
+		.name			= "ST STV0367 DDB DVB-C/T",
+		.frequency_min		= 47000000,
+		.frequency_max		= 865000000,
+		.frequency_stepsize	= 166667,
+		.frequency_tolerance	= 0,
+		.symbol_rate_min	= 870000,
+		.symbol_rate_max	= 11700000,
+		.caps = /* DVB-C */
+			0x400 |/* FE_CAN_QAM_4 */
+			FE_CAN_QAM_16 | FE_CAN_QAM_32  |
+			FE_CAN_QAM_64 | FE_CAN_QAM_128 |
+			FE_CAN_QAM_256 | FE_CAN_FEC_AUTO |
+			/* DVB-T */
+			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
+			FE_CAN_FEC_3_4 | FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 |
+			FE_CAN_FEC_AUTO |
+			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
+			FE_CAN_QAM_128 | FE_CAN_QAM_256 | FE_CAN_QAM_AUTO |
+			FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_RECOVER |
+			FE_CAN_INVERSION_AUTO |
+			FE_CAN_MUTE_TS
+	},
+	.release = stv0367_release,
+	.sleep = stv0367ddb_sleep,
+	.i2c_gate_ctrl = stv0367cab_gate_ctrl, /* valid for TER and CAB */
+	.set_frontend = stv0367ddb_set_frontend,
+	.get_frontend = stv0367ddb_get_frontend,
+	.get_tune_settings = stv0367_get_tune_settings,
+	.read_status = stv0367ddb_read_status,
+};
+
+struct dvb_frontend *stv0367ddb_attach(const struct stv0367_config *config,
+				   struct i2c_adapter *i2c)
+{
+	struct stv0367_state *state = NULL;
+	struct stv0367ter_state *ter_state = NULL;
+	struct stv0367cab_state *cab_state = NULL;
+
+	/* allocate memory for the internal state */
+	state = kzalloc(sizeof(struct stv0367_state), GFP_KERNEL);
+	if (state == NULL)
+		goto error;
+	ter_state = kzalloc(sizeof(struct stv0367ter_state), GFP_KERNEL);
+	if (ter_state == NULL)
+		goto error;
+	cab_state = kzalloc(sizeof(struct stv0367cab_state), GFP_KERNEL);
+	if (cab_state == NULL)
+		goto error;
+
+	/* setup the state */
+	state->i2c = i2c;
+	state->config = config;
+	state->ter_state = ter_state;
+	cab_state->search_range = 280000;
+	cab_state->qamfec_status_reg = F367CAB_DESCR_SYNCSTATE;
+	state->cab_state = cab_state;
+	state->fe.ops = stv0367ddb_ops;
+	state->fe.demodulator_priv = state;
+	state->chip_id = stv0367_readreg(state, R367TER_ID);
+
+	/* demod operation options */
+	state->use_i2c_gatectrl = 0;
+	state->deftabs = STV0367_DEFTAB_DDB;
+	state->reinit_on_setfrontend = 0;
+	state->auto_if_khz = 1;
+	state->activedemod = demod_none;
+
+	dprintk("%s: chip_id = 0x%x\n", __func__, state->chip_id);
+
+	/* check if the demod is there */
+	if ((state->chip_id != 0x50) && (state->chip_id != 0x60))
+		goto error;
+
+	dev_info(&i2c->dev, "Found %s with ChipID %02X at adr %02X\n",
+		state->fe.ops.info.name, state->chip_id,
+		config->demod_address);
+
+	stv0367ddb_init(state);
+
+	return &state->fe;
+
+error:
+	kfree(cab_state);
+	kfree(ter_state);
+	kfree(state);
+	return NULL;
+}
+EXPORT_SYMBOL(stv0367ddb_attach);
 
 MODULE_PARM_DESC(debug, "Set debug");
 MODULE_PARM_DESC(i2c_debug, "Set i2c debug");
