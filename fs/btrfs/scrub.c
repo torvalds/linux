@@ -1643,7 +1643,7 @@ static int scrub_write_page_to_dev_replace(struct scrub_block *sblock,
 	if (spage->io_error) {
 		void *mapped_buffer = kmap_atomic(spage->page);
 
-		memset(mapped_buffer, 0, PAGE_SIZE);
+		clear_page(mapped_buffer);
 		flush_dcache_page(spage->page);
 		kunmap_atomic(mapped_buffer);
 	}
