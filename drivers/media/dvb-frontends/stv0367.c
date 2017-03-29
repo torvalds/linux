@@ -93,6 +93,7 @@ struct stv0367_state {
 	/* flags for operation control */
 	u8 use_i2c_gatectrl;
 	u8 deftabs;
+	u8 reinit_on_setfrontend;
 };
 
 #define RF_LOOKUP_TABLE_SIZE  31
@@ -1217,7 +1218,8 @@ static int stv0367ter_set_frontend(struct dvb_frontend *fe)
 	s8 num_trials, index;
 	u8 SenseTrials[] = { INVERSION_ON, INVERSION_OFF };
 
-	stv0367ter_init(fe);
+	if (state->reinit_on_setfrontend)
+		stv0367ter_init(fe);
 
 	if (fe->ops.tuner_ops.set_params) {
 		if (state->use_i2c_gatectrl && fe->ops.i2c_gate_ctrl)
@@ -1717,6 +1719,7 @@ struct dvb_frontend *stv0367ter_attach(const struct stv0367_config *config,
 	/* demod operation options */
 	state->use_i2c_gatectrl = 1;
 	state->deftabs = STV0367_DEFTAB_GENERIC;
+	state->reinit_on_setfrontend = 1;
 
 	dprintk("%s: chip_id = 0x%x\n", __func__, state->chip_id);
 
@@ -2511,7 +2514,8 @@ static int stv0367cab_set_frontend(struct dvb_frontend *fe)
 		break;
 	}
 
-	stv0367cab_init(fe);
+	if (state->reinit_on_setfrontend)
+		stv0367cab_init(fe);
 
 	/* Tuner Frequency Setting */
 	if (fe->ops.tuner_ops.set_params) {
@@ -2835,6 +2839,7 @@ struct dvb_frontend *stv0367cab_attach(const struct stv0367_config *config,
 	/* demod operation options */
 	state->use_i2c_gatectrl = 1;
 	state->deftabs = STV0367_DEFTAB_GENERIC;
+	state->reinit_on_setfrontend = 1;
 
 	dprintk("%s: chip_id = 0x%x\n", __func__, state->chip_id);
 
