@@ -534,9 +534,9 @@ static void bxt_reduce_dma_latency(struct azx *chip)
 {
 	u32 val;
 
-	val = azx_readl(chip, SKL_EM4L);
+	val = azx_readl(chip, VS_EM4L);
 	val &= (0x3 << 20);
-	azx_writel(chip, SKL_EM4L, val);
+	azx_writel(chip, VS_EM4L, val);
 }
 
 static void hda_intel_init_chip(struct azx *chip, bool full_reset)
