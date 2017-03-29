@@ -634,6 +634,8 @@ static int ca8210_test_int_driver_write(
 		dev_dbg(&priv->spi->dev, "%#03x\n", buf[i]);
 
 	fifo_buffer = kmalloc(len, GFP_KERNEL);
+	if (!fifo_buffer)
+		return -ENOMEM;
 	memcpy(fifo_buffer, buf, len);
 	kfifo_in(&test->up_fifo, &fifo_buffer, 4);
 	wake_up_interruptible(&priv->test.readq);
@@ -759,10 +761,10 @@ static void ca8210_rx_done(struct cas_control *cas_ctl)
 				&priv->spi->dev,
 				"Resetting MAC...\n");
 
-			mlme_reset_wpc = kmalloc(
-				sizeof(struct work_priv_container),
-				GFP_KERNEL
-			);
+			mlme_reset_wpc = kmalloc(sizeof(*mlme_reset_wpc),
+						 GFP_KERNEL);
+			if (!mlme_reset_wpc)
+				goto finish;
 			INIT_WORK(
 				&mlme_reset_wpc->work,
 				ca8210_mlme_reset_worker
@@ -925,10 +927,10 @@ static int ca8210_spi_transfer(
 
 	dev_dbg(&spi->dev, "ca8210_spi_transfer called\n");
 
-	cas_ctl = kmalloc(
-		sizeof(struct cas_control),
-		GFP_ATOMIC
-	);
+	cas_ctl = kmalloc(sizeof(*cas_ctl), GFP_ATOMIC);
+	if (!cas_ctl)
+		return -ENOMEM;
+
 	cas_ctl->priv = priv;
 	memset(cas_ctl->tx_buf, SPI_IDLE, CA8210_SPI_BUF_SIZE);
 	memset(cas_ctl->tx_in_buf, SPI_IDLE, CA8210_SPI_BUF_SIZE);
