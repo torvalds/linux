@@ -1440,7 +1440,9 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	GEM_BUG_ON(request->ctx != port[0].request->ctx);
 
 	/* Reset WaIdleLiteRestore:bdw,skl as well */
-	request->tail = request->wa_tail - WA_TAIL_DWORDS * sizeof(u32);
+	request->tail =
+		intel_ring_wrap(request->ring,
+				request->wa_tail - WA_TAIL_DWORDS*sizeof(u32));
 }
 
 static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
