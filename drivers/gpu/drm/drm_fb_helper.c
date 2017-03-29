@@ -109,31 +109,38 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
 	for (({ lockdep_assert_held(&(fbh)->dev->mode_config.mutex); }), \
 	     i__ = 0; i__ < (fbh)->connector_count; i__++)
 
-int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_connector *connector)
+int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper,
+				    struct drm_connector *connector)
 {
+	struct drm_fb_helper_connector *fb_conn;
 	struct drm_fb_helper_connector **temp;
-	struct drm_fb_helper_connector *fb_helper_connector;
+	unsigned int count;
 
 	if (!drm_fbdev_emulation)
 		return 0;
 
 	WARN_ON(!mutex_is_locked(&fb_helper->dev->mode_config.mutex));
-	if (fb_helper->connector_count + 1 > fb_helper->connector_info_alloc_count) {
-		temp = krealloc(fb_helper->connector_info, sizeof(struct drm_fb_helper_connector *) * (fb_helper->connector_count + 1), GFP_KERNEL);
+
+	count = fb_helper->connector_count + 1;
+
+	if (count > fb_helper->connector_info_alloc_count) {
+		size_t size = count * sizeof(fb_conn);
+
+		temp = krealloc(fb_helper->connector_info, size, GFP_KERNEL);
 		if (!temp)
 			return -ENOMEM;
 
-		fb_helper->connector_info_alloc_count = fb_helper->connector_count + 1;
+		fb_helper->connector_info_alloc_count = count;
 		fb_helper->connector_info = temp;
 	}
 
-	fb_helper_connector = kzalloc(sizeof(struct drm_fb_helper_connector), GFP_KERNEL);
-	if (!fb_helper_connector)
+	fb_conn = kzalloc(sizeof(*fb_conn), GFP_KERNEL);
+	if (!fb_conn)
 		return -ENOMEM;
 
 	drm_connector_get(connector);
-	fb_helper_connector->connector = connector;
-	fb_helper->connector_info[fb_helper->connector_count++] = fb_helper_connector;
+	fb_conn->connector = connector;
+	fb_helper->connector_info[fb_helper->connector_count++] = fb_conn;
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_add_one_connector);
