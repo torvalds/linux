@@ -154,7 +154,7 @@ config BCM_PDC_MBOX
 
 config BCM_FLEXRM_MBOX
 	tristate "Broadcom FlexRM Mailbox"
-	depends on ARM64 || COMPILE_TEST
+	depends on ARM64
 	depends on HAS_DMA
 	select GENERIC_MSI_IRQ_DOMAIN
 	default ARCH_BCM_IPROC
