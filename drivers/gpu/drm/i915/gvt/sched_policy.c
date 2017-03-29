@@ -96,17 +96,16 @@ struct tbs_vgpu_data {
 
 struct tbs_sched_data {
 	struct intel_gvt *gvt;
-	struct delayed_work work;
+	struct hrtimer timer;
 	unsigned long period;
 	struct list_head runq_head;
 };
 
-#define GVT_DEFAULT_TIME_SLICE (msecs_to_jiffies(1))
+/* in nanosecond */
+#define GVT_DEFAULT_TIME_SLICE 1000000
 
-static void tbs_sched_func(struct work_struct *work)
+static void tbs_sched_func(struct tbs_sched_data *sched_data)
 {
-	struct tbs_sched_data *sched_data = container_of(work,
-			struct tbs_sched_data, work.work);
 	struct tbs_vgpu_data *vgpu_data;
 
 	struct intel_gvt *gvt = sched_data->gvt;
@@ -114,8 +113,6 @@ static void tbs_sched_func(struct work_struct *work)
 
 	struct intel_vgpu *vgpu = NULL;
 	struct list_head *pos, *head;
-
-	mutex_lock(&gvt->lock);
 
 	/* no vgpu or has already had a target */
 	if (list_empty(&sched_data->runq_head) || scheduler->next_vgpu)
@@ -151,15 +148,28 @@ out:
 				scheduler->next_vgpu->id);
 		try_to_schedule_next_vgpu(gvt);
 	}
+}
 
-	/*
-	 * still have vgpu on runq
-	 * or last schedule haven't finished due to running workload
-	 */
-	if (!list_empty(&sched_data->runq_head) || scheduler->next_vgpu)
-		schedule_delayed_work(&sched_data->work, sched_data->period);
+void intel_gvt_schedule(struct intel_gvt *gvt)
+{
+	struct tbs_sched_data *sched_data = gvt->scheduler.sched_data;
 
+	mutex_lock(&gvt->lock);
+	tbs_sched_func(sched_data);
 	mutex_unlock(&gvt->lock);
+}
+
+static enum hrtimer_restart tbs_timer_fn(struct hrtimer *timer_data)
+{
+	struct tbs_sched_data *data;
+
+	data = container_of(timer_data, struct tbs_sched_data, timer);
+
+	intel_gvt_request_service(data->gvt, INTEL_GVT_REQUEST_SCHED);
+
+	hrtimer_add_expires_ns(&data->timer, data->period);
+
+	return HRTIMER_RESTART;
 }
 
 static int tbs_sched_init(struct intel_gvt *gvt)
@@ -174,11 +184,13 @@ static int tbs_sched_init(struct intel_gvt *gvt)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&data->runq_head);
-	INIT_DELAYED_WORK(&data->work, tbs_sched_func);
+	hrtimer_init(&data->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	data->timer.function = tbs_timer_fn;
 	data->period = GVT_DEFAULT_TIME_SLICE;
 	data->gvt = gvt;
 
 	scheduler->sched_data = data;
+
 	return 0;
 }
 
@@ -188,7 +200,8 @@ static void tbs_sched_clean(struct intel_gvt *gvt)
 		&gvt->scheduler;
 	struct tbs_sched_data *data = scheduler->sched_data;
 
-	cancel_delayed_work(&data->work);
+	hrtimer_cancel(&data->timer);
+
 	kfree(data);
 	scheduler->sched_data = NULL;
 }
@@ -205,6 +218,7 @@ static int tbs_sched_init_vgpu(struct intel_vgpu *vgpu)
 	INIT_LIST_HEAD(&data->list);
 
 	vgpu->sched_data = data;
+
 	return 0;
 }
 
@@ -223,7 +237,10 @@ static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)
 		return;
 
 	list_add_tail(&vgpu_data->list, &sched_data->runq_head);
-	schedule_delayed_work(&sched_data->work, 0);
+
+	if (!hrtimer_active(&sched_data->timer))
+		hrtimer_start(&sched_data->timer, ktime_add_ns(ktime_get(),
+			sched_data->period), HRTIMER_MODE_ABS);
 }
 
 static void tbs_sched_stop_schedule(struct intel_vgpu *vgpu)

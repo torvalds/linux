@@ -249,6 +249,7 @@ static inline struct intel_gvt *to_gvt(struct drm_i915_private *i915)
 
 enum {
 	INTEL_GVT_REQUEST_EMULATE_VBLANK = 0,
+	INTEL_GVT_REQUEST_SCHED = 1,
 };
 
 static inline void intel_gvt_request_service(struct intel_gvt *gvt,

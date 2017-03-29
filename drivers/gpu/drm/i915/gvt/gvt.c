@@ -144,6 +144,11 @@ static int gvt_service_thread(void *data)
 			intel_gvt_emulate_vblank(gvt);
 			mutex_unlock(&gvt->lock);
 		}
+
+		if (test_and_clear_bit(INTEL_GVT_REQUEST_SCHED,
+					(void *)&gvt->service_request)) {
+			intel_gvt_schedule(gvt);
+		}
 	}
 
 	return 0;
