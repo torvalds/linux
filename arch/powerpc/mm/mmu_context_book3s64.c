@@ -59,7 +59,7 @@ again:
 
 int hash__alloc_context_id(void)
 {
-	return alloc_context_id(1, MAX_USER_CONTEXT);
+	return alloc_context_id(MIN_USER_CONTEXT, MAX_USER_CONTEXT);
 }
 EXPORT_SYMBOL_GPL(hash__alloc_context_id);
 

@@ -45,13 +45,6 @@ _GLOBAL(slb_allocate_realmode)
 	/* r3 = address, r10 = esid, cr7 = <> PAGE_OFFSET */
 	blt	cr7,0f			/* user or kernel? */
 
-	/* kernel address: proto-VSID = ESID */
-	/* WARNING - MAGIC: we don't use the VSID 0xfffffffff, but
-	 * this code will generate the protoVSID 0xfffffffff for the
-	 * top segment.  That's ok, the scramble below will translate
-	 * it to VSID 0, which is reserved as a bad VSID - one which
-	 * will never have any pages in it.  */
-
 	/* Check if hitting the linear mapping or some other kernel space
 	*/
 	bne	cr7,1f
@@ -63,12 +56,10 @@ _GLOBAL(slb_allocate_realmode)
 slb_miss_kernel_load_linear:
 	li	r11,0
 	/*
-	 * context = (MAX_USER_CONTEXT) + ((ea >> 60) - 0xc) + 1
+	 * context = (ea >> 60) - (0xc - 1)
 	 * r9 = region id.
 	 */
-	addis	r9,r9,(MAX_USER_CONTEXT - 0xc + 1)@ha
-	addi	r9,r9,(MAX_USER_CONTEXT - 0xc + 1)@l
-
+	subi	r9,r9,KERNEL_REGION_CONTEXT_OFFSET
 
 BEGIN_FTR_SECTION
 	b	.Lslb_finish_load
@@ -77,9 +68,9 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
 
 1:
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-	/* Check virtual memmap region. To be patches at kernel boot */
 	cmpldi	cr0,r9,0xf
 	bne	1f
+/* Check virtual memmap region. To be patched at kernel boot */
 .globl slb_miss_kernel_load_vmemmap
 slb_miss_kernel_load_vmemmap:
 	li	r11,0
@@ -102,11 +93,10 @@ slb_miss_kernel_load_io:
 	li	r11,0
 6:
 	/*
-	 * context = (MAX_USER_CONTEXT) + ((ea >> 60) - 0xc) + 1
+	 * context = (ea >> 60) - (0xc - 1)
 	 * r9 = region id.
 	 */
-	addis	r9,r9,(MAX_USER_CONTEXT - 0xc + 1)@ha
-	addi	r9,r9,(MAX_USER_CONTEXT - 0xc + 1)@l
+	subi	r9,r9,KERNEL_REGION_CONTEXT_OFFSET
 
 BEGIN_FTR_SECTION
 	b	.Lslb_finish_load

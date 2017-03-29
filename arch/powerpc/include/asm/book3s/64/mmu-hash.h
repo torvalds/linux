@@ -491,13 +491,14 @@ extern void slb_set_size(u16 size);
  * We first generate a 37-bit "proto-VSID". Proto-VSIDs are generated
  * from mmu context id and effective segment id of the address.
  *
- * For user processes max context id is limited to ((1ul << 19) - 5)
- * for kernel space, we use the top 4 context ids to map address as below
+ * For user processes max context id is limited to MAX_USER_CONTEXT.
+
+ * For kernel space, we use context ids 1-5 to map address as below:
  * NOTE: each context only support 64TB now.
- * 0x7fffc -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
- * 0x7fffd -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
- * 0x7fffe -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
- * 0x7ffff -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
+ * 0x00001 -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
+ * 0x00002 -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
+ * 0x00003 -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
+ * 0x00004 -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
  *
  * The proto-VSIDs are then scrambled into real VSIDs with the
  * multiplicative hash:
@@ -511,15 +512,13 @@ extern void slb_set_size(u16 size);
  * robust scattering in the hash table (at least based on some initial
  * results).
  *
- * We also consider VSID 0 special. We use VSID 0 for slb entries mapping
- * bad address. This enables us to consolidate bad address handling in
- * hash_page.
+ * We use VSID 0 to indicate an invalid VSID. The means we can't use context id
+ * 0, because a context id of 0 and an EA of 0 gives a proto-VSID of 0, which
+ * will produce a VSID of 0.
  *
  * We also need to avoid the last segment of the last context, because that
  * would give a protovsid of 0x1fffffffff. That will result in a VSID 0
- * because of the modulo operation in vsid scramble. But the vmemmap
- * (which is what uses region 0xf) will never be close to 64TB in size
- * (it's 56 bytes per page of system memory).
+ * because of the modulo operation in vsid scramble.
  */
 
 #define CONTEXT_BITS		19
@@ -532,12 +531,19 @@ extern void slb_set_size(u16 size);
 /*
  * 256MB segment
  * The proto-VSID space has 2^(CONTEX_BITS + ESID_BITS) - 1 segments
- * available for user + kernel mapping. The top 4 contexts are used for
- * kernel mapping. Each segment contains 2^28 bytes. Each
- * context maps 2^46 bytes (64TB) so we can support 2^19-1 contexts
- * (19 == 37 + 28 - 46).
+ * available for user + kernel mapping. VSID 0 is reserved as invalid, contexts
+ * 1-4 are used for kernel mapping. Each segment contains 2^28 bytes. Each
+ * context maps 2^46 bytes (64TB).
+ *
+ * We also need to avoid the last segment of the last context, because that
+ * would give a protovsid of 0x1fffffffff. That will result in a VSID 0
+ * because of the modulo operation in vsid scramble.
  */
-#define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 5)
+#define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 2)
+#define MIN_USER_CONTEXT	(5)
+
+/* Would be nice to use KERNEL_REGION_ID here */
+#define KERNEL_REGION_CONTEXT_OFFSET	(0xc - 1)
 
 /*
  * This should be computed such that protovosid * vsid_mulitplier
@@ -671,21 +677,25 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 
 /*
  * This is only valid for addresses >= PAGE_OFFSET
- *
- * For kernel space, we use the top 4 context ids to map address as below
- * 0x7fffc -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
- * 0x7fffd -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
- * 0x7fffe -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
- * 0x7ffff -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
  */
 static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 {
 	unsigned long context;
 
 	/*
-	 * kernel take the top 4 context from the available range
+	 * For kernel space, we use context ids 1-4 to map the address space as
+	 * below:
+	 *
+	 * 0x00001 -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
+	 * 0x00002 -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
+	 * 0x00003 -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
+	 * 0x00004 -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
+	 *
+	 * So we can compute the context from the region (top nibble) by
+	 * subtracting 11, or 0xc - 1.
 	 */
-	context = (MAX_USER_CONTEXT) + ((ea >> 60) - 0xc) + 1;
+	context = (ea >> 60) - KERNEL_REGION_CONTEXT_OFFSET;
+
 	return get_vsid(context, ea, ssize);
 }
 
