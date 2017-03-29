@@ -350,11 +350,10 @@ static int is_IF_modifier(kprobe_opcode_t *insn)
 }
 
 /*
- * Copy an instruction and adjust the displacement if the instruction
- * uses the %rip-relative addressing mode.
- * If it does, Return the address of the 32-bit displacement word.
- * If not, return null.
- * Only applicable to 64-bit x86.
+ * Copy an instruction with recovering modified instruction by kprobes
+ * and adjust the displacement if the instruction uses the %rip-relative
+ * addressing mode.
+ * This returns the length of copied instruction, or 0 if it has an error.
  */
 int __copy_instruction(u8 *dest, u8 *src)
 {
@@ -376,6 +375,7 @@ int __copy_instruction(u8 *dest, u8 *src)
 	memcpy(dest, insn.kaddr, length);
 
 #ifdef CONFIG_X86_64
+	/* Only x86_64 has RIP relative instructions */
 	if (insn_rip_relative(&insn)) {
 		s64 newdisp;
 		u8 *disp;
