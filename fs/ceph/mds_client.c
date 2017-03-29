@@ -2638,8 +2638,10 @@ static void handle_session(struct ceph_mds_session *session,
 	seq = le64_to_cpu(h->seq);
 
 	mutex_lock(&mdsc->mutex);
-	if (op == CEPH_SESSION_CLOSE)
+	if (op == CEPH_SESSION_CLOSE) {
+		get_session(session);
 		__unregister_session(mdsc, session);
+	}
 	/* FIXME: this ttl calculation is generous */
 	session->s_ttl = jiffies + HZ*mdsc->mdsmap->m_session_autoclose;
 	mutex_unlock(&mdsc->mutex);
@@ -2728,6 +2730,8 @@ static void handle_session(struct ceph_mds_session *session,
 			kick_requests(mdsc, mds);
 		mutex_unlock(&mdsc->mutex);
 	}
+	if (op == CEPH_SESSION_CLOSE)
+		ceph_put_mds_session(session);
 	return;
 
 bad:
@@ -3128,8 +3132,10 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 			if (s->s_state == CEPH_MDS_SESSION_OPENING) {
 				/* the session never opened, just close it
 				 * out now */
-				__wake_requests(mdsc, &s->s_waiting);
+				get_session(s);
 				__unregister_session(mdsc, s);
+				__wake_requests(mdsc, &s->s_waiting);
+				ceph_put_mds_session(s);
 			} else {
 				/* just close it */
 				mutex_unlock(&mdsc->mutex);
