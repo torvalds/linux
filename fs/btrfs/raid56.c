@@ -2117,6 +2117,11 @@ int raid56_parity_recover(struct btrfs_fs_info *fs_info, struct bio *bio,
 	struct btrfs_raid_bio *rbio;
 	int ret;
 
+	if (generic_io) {
+		ASSERT(bbio->mirror_num == mirror_num);
+		btrfs_io_bio(bio)->mirror_num = mirror_num;
+	}
+
 	rbio = alloc_rbio(fs_info, bbio, stripe_len);
 	if (IS_ERR(rbio)) {
 		if (generic_io)
