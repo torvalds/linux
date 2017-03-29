@@ -409,9 +409,9 @@ static void prepare_boost(struct kprobe *p, int length)
 		 * jumps back to correct address.
 		 */
 		synthesize_reljump(p->ainsn.insn + length, p->addr + length);
-		p->ainsn.boostable = 1;
+		p->ainsn.boostable = true;
 	} else {
-		p->ainsn.boostable = -1;
+		p->ainsn.boostable = false;
 	}
 }
 
@@ -467,7 +467,7 @@ void arch_disarm_kprobe(struct kprobe *p)
 void arch_remove_kprobe(struct kprobe *p)
 {
 	if (p->ainsn.insn) {
-		free_insn_slot(p->ainsn.insn, (p->ainsn.boostable == 1));
+		free_insn_slot(p->ainsn.insn, p->ainsn.boostable);
 		p->ainsn.insn = NULL;
 	}
 }
@@ -539,7 +539,7 @@ static void setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 		return;
 
 #if !defined(CONFIG_PREEMPT)
-	if (p->ainsn.boostable == 1 && !p->post_handler) {
+	if (p->ainsn.boostable && !p->post_handler) {
 		/* Boost up -- we can execute copied instructions directly */
 		if (!reenter)
 			reset_current_kprobe();
@@ -859,7 +859,7 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs,
 	case 0xcf:
 	case 0xea:	/* jmp absolute -- ip is correct */
 		/* ip is already adjusted, no more changes required */
-		p->ainsn.boostable = 1;
+		p->ainsn.boostable = true;
 		goto no_change;
 	case 0xe8:	/* call relative - Fix return addr */
 		*tos = orig_ip + (*tos - copy_ip);
@@ -884,7 +884,7 @@ static void resume_execution(struct kprobe *p, struct pt_regs *regs,
 			 * jmp near and far, absolute indirect
 			 * ip is correct. And this is boostable
 			 */
-			p->ainsn.boostable = 1;
+			p->ainsn.boostable = true;
 			goto no_change;
 		}
 	default:
