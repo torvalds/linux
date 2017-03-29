@@ -1036,7 +1036,9 @@ static bool ttm_bo_places_compat(const struct ttm_place *places,
 
 		*new_flags = heap->flags;
 		if ((*new_flags & mem->placement & TTM_PL_MASK_CACHING) &&
-		    (*new_flags & mem->placement & TTM_PL_MASK_MEM))
+		    (*new_flags & mem->placement & TTM_PL_MASK_MEM) &&
+		    (!(*new_flags & TTM_PL_FLAG_CONTIGUOUS) ||
+		     (mem->placement & TTM_PL_FLAG_CONTIGUOUS)))
 			return true;
 	}
 	return false;
