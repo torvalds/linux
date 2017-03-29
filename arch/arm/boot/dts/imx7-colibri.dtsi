@@ -181,7 +181,7 @@
 			reg_LDO1: LDO1 { /* PWR_EN_+V3.3_ETH */
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
+				regulator-boot-on;
 			};
 
 			reg_LDO2: LDO2 { /* +V1.8_SD */
