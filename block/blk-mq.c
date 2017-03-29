@@ -525,7 +525,7 @@ EXPORT_SYMBOL(blk_mq_start_request);
 
 /*
  * When we reach here because queue is busy, REQ_ATOM_COMPLETE
- * flag isn't set yet, so there may be race with timeout hanlder,
+ * flag isn't set yet, so there may be race with timeout handler,
  * but given rq->deadline is just set in .queue_rq() under
  * this situation, the race won't be possible in reality because
  * rq->timeout should be set as big enough to cover the window
@@ -672,7 +672,7 @@ void blk_mq_rq_timed_out(struct request *req, bool reserved)
 	 * just be ignored. This can happen due to the bitflag ordering.
 	 * Timeout first checks if STARTED is set, and if it is, assumes
 	 * the request is active. But if we race with completion, then
-	 * we both flags will get cleared. So check here again, and ignore
+	 * both flags will get cleared. So check here again, and ignore
 	 * a timeout event with a request that isn't active.
 	 */
 	if (!test_bit(REQ_ATOM_STARTED, &req->atomic_flags))
