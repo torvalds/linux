@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2010-2015 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * EXYNOS - Power management unit definition
@@ -49,6 +49,13 @@
 #define S5P_EINT_WAKEUP_MASK			0x0604
 #define S5P_WAKEUP_MASK				0x0608
 #define S5P_WAKEUP_MASK2				0x0614
+
+/* MIPI_PHYn_CONTROL, valid for Exynos3250, Exynos4, Exynos5250 and Exynos5433 */
+#define EXYNOS4_MIPI_PHY_CONTROL(n)		(0x0710 + (n) * 4)
+#define EXYNOS4_MIPI_PHY_ENABLE			(1 << 0)
+#define EXYNOS4_MIPI_PHY_SRESETN		(1 << 1)
+#define EXYNOS4_MIPI_PHY_MRESETN		(1 << 2)
+#define EXYNOS4_MIPI_PHY_RESET_MASK		(3 << 1)
 
 #define S5P_INFORM0				0x0800
 #define S5P_INFORM1				0x0804
