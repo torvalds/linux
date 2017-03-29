@@ -20,6 +20,7 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 
 #include <drm/drm_mipi_dsi.h>
 
@@ -236,6 +237,7 @@ struct inno_mipi_dphy {
 	void __iomem *regs;
 	struct clk *ref_clk;
 	struct clk *pclk;
+	struct reset_control *rst;
 
 	struct dsi_panel *panel;
 	u32 lanes;
@@ -560,6 +562,13 @@ static int inno_mipi_dphy_power_on(struct phy *phy)
 	clk_prepare_enable(inno->ref_clk);
 	clk_prepare_enable(inno->pclk);
 
+	if (inno->rst) {
+		/* MIPI DSI PHY APB software reset request. */
+		reset_control_assert(inno->rst);
+		usleep_range(20, 40);
+		reset_control_deassert(inno->rst);
+	}
+
 	inno_mipi_dphy_pll_init(inno);
 	inno_mipi_dphy_pll_ldo_enable(inno);
 	inno_mipi_dphy_lane_enable(inno);
@@ -693,11 +702,19 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 		return PTR_ERR(inno->ref_clk);
 	}
 
+	clk_set_rate(inno->ref_clk, 24000000);
+
 	inno->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(inno->pclk)) {
 		dev_err(&pdev->dev, "failed to get mipi dphy pclk\n");
 		return PTR_ERR(inno->pclk);
-	};
+	}
+
+	inno->rst = devm_reset_control_get_optional(&pdev->dev, "apb");
+	if (IS_ERR(inno->rst)) {
+		dev_info(&pdev->dev, "No reset control specified\n");
+		inno->rst = NULL;
+	}
 
 	phy = devm_phy_create(&pdev->dev, NULL, &inno_mipi_dphy_ops);
 	if (IS_ERR(phy)) {

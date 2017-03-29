@@ -12,6 +12,10 @@ Required properties:
  - rockchip,dsi-panel : phandle to MIPI DSI panel node, used to get the display
 			timing of the panel provided to the PHY module.
 
+Optional properties
+ - resets : phandle to the reset of MIPI DSI PHY APB clock.
+ - reset-names : should be "apb".
+
 Example:
 
 For Rockchip RK3368
@@ -22,6 +26,8 @@ mipi_dphy: mipi-dphy@ff968000 {
 	#phy-cells = <0>;
 	clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX0>;
 	clock-names = "ref", "pclk";
+	resets = <&cru SRST_MIPIDPHYTX>;
+	reset-names = "apb";
 	rockchip,dsi-panel = <&dsi_panel>;
 };
 
