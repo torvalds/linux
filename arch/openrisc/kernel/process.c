@@ -90,6 +90,7 @@ void arch_cpu_idle(void)
 }
 
 void (*pm_power_off) (void) = machine_power_off;
+EXPORT_SYMBOL(pm_power_off);
 
 /*
  * When a process does an "exec", machine state like FPU and debug

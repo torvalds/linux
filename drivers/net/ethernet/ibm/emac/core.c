@@ -2589,8 +2589,6 @@ static int emac_dt_mdio_probe(struct emac_instance *dev)
 static int emac_dt_phy_connect(struct emac_instance *dev,
 			       struct device_node *phy_handle)
 {
-	int res;
-
 	dev->phy.def = devm_kzalloc(&dev->ofdev->dev, sizeof(*dev->phy.def),
 				    GFP_KERNEL);
 	if (!dev->phy.def)
@@ -2617,7 +2615,7 @@ static int emac_dt_phy_probe(struct emac_instance *dev)
 {
 	struct device_node *np = dev->ofdev->dev.of_node;
 	struct device_node *phy_handle;
-	int res = 0;
+	int res = 1;
 
 	phy_handle = of_parse_phandle(np, "phy-handle", 0);
 
@@ -2714,13 +2712,24 @@ static int emac_init_phy(struct emac_instance *dev)
 	if (emac_has_feature(dev, EMAC_FTR_HAS_RGMII)) {
 		int res = emac_dt_phy_probe(dev);
 
-		mutex_unlock(&emac_phy_map_lock);
-		if (!res)
+		switch (res) {
+		case 1:
+			/* No phy-handle property configured.
+			 * Continue with the existing phy probe
+			 * and setup code.
+			 */
+			break;
+
+		case 0:
+			mutex_unlock(&emac_phy_map_lock);
 			goto init_phy;
 
-		dev_err(&dev->ofdev->dev, "failed to attach dt phy (%d).\n",
-			res);
-		return res;
+		default:
+			mutex_unlock(&emac_phy_map_lock);
+			dev_err(&dev->ofdev->dev, "failed to attach dt phy (%d).\n",
+				res);
+			return res;
+		}
 	}
 
 	if (dev->phy_address != 0xffffffff)

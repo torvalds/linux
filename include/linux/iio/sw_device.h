@@ -62,7 +62,7 @@ void iio_swd_group_init_type_name(struct iio_sw_device *d,
 				  const char *name,
 				  struct config_item_type *type)
 {
-#ifdef CONFIG_CONFIGFS_FS
+#if IS_ENABLED(CONFIG_CONFIGFS_FS)
 	config_group_init_type_name(&d->group, name, type);
 #endif
 }
