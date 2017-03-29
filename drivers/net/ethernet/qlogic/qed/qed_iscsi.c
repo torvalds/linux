@@ -216,7 +216,7 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 		p_queue->cq_cmdq_sb_num_arr[i] = cpu_to_le16(val);
 	}
 
-	p_queue->bdq_resource_id = ISCSI_BDQ_ID(p_hwfn->port_id);
+	p_queue->bdq_resource_id = (u8)RESC_START(p_hwfn, QED_BDQ);
 
 	DMA_REGPAIR_LE(p_queue->bdq_pbl_base_address[BDQ_ID_RQ],
 		       p_params->bdq_pbl_base_addr[BDQ_ID_RQ]);
@@ -593,21 +593,31 @@ static void __iomem *qed_iscsi_get_db_addr(struct qed_hwfn *p_hwfn, u32 cid)
 static void __iomem *qed_iscsi_get_primary_bdq_prod(struct qed_hwfn *p_hwfn,
 						    u8 bdq_id)
 {
-	u8 bdq_function_id = ISCSI_BDQ_ID(p_hwfn->port_id);
-
-	return (u8 __iomem *)p_hwfn->regview + GTT_BAR0_MAP_REG_MSDM_RAM +
-			     MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(bdq_function_id,
-							     bdq_id);
+	if (RESC_NUM(p_hwfn, QED_BDQ)) {
+		return (u8 __iomem *)p_hwfn->regview +
+		       GTT_BAR0_MAP_REG_MSDM_RAM +
+		       MSTORM_SCSI_BDQ_EXT_PROD_OFFSET(RESC_START(p_hwfn,
+								  QED_BDQ),
+						       bdq_id);
+	} else {
+		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
+		return NULL;
+	}
 }
 
 static void __iomem *qed_iscsi_get_secondary_bdq_prod(struct qed_hwfn *p_hwfn,
 						      u8 bdq_id)
 {
-	u8 bdq_function_id = ISCSI_BDQ_ID(p_hwfn->port_id);
-
-	return (u8 __iomem *)p_hwfn->regview + GTT_BAR0_MAP_REG_TSDM_RAM +
-			     TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(bdq_function_id,
-							     bdq_id);
+	if (RESC_NUM(p_hwfn, QED_BDQ)) {
+		return (u8 __iomem *)p_hwfn->regview +
+		       GTT_BAR0_MAP_REG_TSDM_RAM +
+		       TSTORM_SCSI_BDQ_EXT_PROD_OFFSET(RESC_START(p_hwfn,
+								  QED_BDQ),
+						       bdq_id);
+	} else {
+		DP_NOTICE(p_hwfn, "BDQ is not allocated!\n");
+		return NULL;
+	}
 }
 
 static int qed_iscsi_setup_connection(struct qed_hwfn *p_hwfn,
