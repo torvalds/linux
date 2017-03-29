@@ -3355,12 +3355,13 @@ ftrace_avail_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 
 	iter = __seq_open_private(file, &show_ftrace_seq_ops, sizeof(*iter));
-	if (iter) {
-		iter->pg = ftrace_pages_start;
-		iter->ops = &global_ops;
-	}
+	if (!iter)
+		return -ENOMEM;
 
-	return iter ? 0 : -ENOMEM;
+	iter->pg = ftrace_pages_start;
+	iter->ops = &global_ops;
+
+	return 0;
 }
 
 static int
@@ -3369,13 +3370,14 @@ ftrace_enabled_open(struct inode *inode, struct file *file)
 	struct ftrace_iterator *iter;
 
 	iter = __seq_open_private(file, &show_ftrace_seq_ops, sizeof(*iter));
-	if (iter) {
-		iter->pg = ftrace_pages_start;
-		iter->flags = FTRACE_ITER_ENABLED;
-		iter->ops = &global_ops;
-	}
+	if (!iter)
+		return -ENOMEM;
 
-	return iter ? 0 : -ENOMEM;
+	iter->pg = ftrace_pages_start;
+	iter->flags = FTRACE_ITER_ENABLED;
+	iter->ops = &global_ops;
+
+	return 0;
 }
 
 /**
