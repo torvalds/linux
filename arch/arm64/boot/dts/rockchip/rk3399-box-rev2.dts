@@ -140,6 +140,10 @@
 	status = "disabled";
 };
 
+&route_hdmi {
+	status = "okay";
+};
+
 &vdd_cpu_b {
 	vsel-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 	fcs,suspend-voltage-selector = <0>;
