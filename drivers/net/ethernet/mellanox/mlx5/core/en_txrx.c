@@ -49,10 +49,40 @@ struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq)
 	return cqe;
 }
 
+static inline void mlx5e_poll_ico_single_cqe(struct mlx5e_cq *cq,
+					     struct mlx5e_icosq *sq,
+					     struct mlx5_cqe64 *cqe,
+					     u16 *sqcc)
+{
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	u16 ci = be16_to_cpu(cqe->wqe_counter) & wq->sz_m1;
+	struct mlx5e_sq_wqe_info *icowi = &sq->db.ico_wqe[ci];
+	struct mlx5e_rq *rq = &sq->channel->rq;
+
+	prefetch(rq);
+	mlx5_cqwq_pop(&cq->wq);
+	*sqcc += icowi->num_wqebbs;
+
+	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_REQ)) {
+		WARN_ONCE(true, "mlx5e: Bad OP in ICOSQ CQE: 0x%x\n",
+			  cqe->op_own);
+		return;
+	}
+
+	if (likely(icowi->opcode == MLX5_OPCODE_UMR)) {
+		mlx5e_post_rx_mpwqe(rq);
+		return;
+	}
+
+	if (unlikely(icowi->opcode != MLX5_OPCODE_NOP))
+		WARN_ONCE(true,
+			  "mlx5e: Bad OPCODE in ICOSQ WQE info: 0x%x\n",
+			  icowi->opcode);
+}
+
 static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 {
 	struct mlx5e_icosq *sq = container_of(cq, struct mlx5e_icosq, cq);
-	struct mlx5_wq_cyc *wq;
 	struct mlx5_cqe64 *cqe;
 	u16 sqcc;
 
@@ -63,39 +93,13 @@ static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 	if (likely(!cqe))
 		return;
 
-	wq = &sq->wq;
-
 	/* sq->cc must be updated only after mlx5_cqwq_update_db_record(),
 	 * otherwise a cq overrun may occur
 	 */
 	sqcc = sq->cc;
 
-	do {
-		u16 ci = be16_to_cpu(cqe->wqe_counter) & wq->sz_m1;
-		struct mlx5e_sq_wqe_info *icowi = &sq->db.ico_wqe[ci];
-
-		mlx5_cqwq_pop(&cq->wq);
-		sqcc += icowi->num_wqebbs;
-
-		if (unlikely((cqe->op_own >> 4) != MLX5_CQE_REQ)) {
-			WARN_ONCE(true, "mlx5e: Bad OP in ICOSQ CQE: 0x%x\n",
-				  cqe->op_own);
-			break;
-		}
-
-		switch (icowi->opcode) {
-		case MLX5_OPCODE_NOP:
-			break;
-		case MLX5_OPCODE_UMR:
-			mlx5e_post_rx_mpwqe(&sq->channel->rq);
-			break;
-		default:
-			WARN_ONCE(true,
-				  "mlx5e: Bad OPCODE in ICOSQ WQE info: 0x%x\n",
-				  icowi->opcode);
-		}
-
-	} while ((cqe = mlx5e_get_cqe(cq)));
+	/* by design, there's only a single cqe */
+	mlx5e_poll_ico_single_cqe(cq, sq, cqe, &sqcc);
 
 	mlx5_cqwq_update_db_record(&cq->wq);
 
