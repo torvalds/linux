@@ -1673,7 +1673,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	ret = copy_gma_to_hva(s->vgpu, s->vgpu->gtt.ggtt_mm,
 			      gma, gma + bb_size,
 			      dst);
-	if (ret) {
+	if (ret < 0) {
 		gvt_vgpu_err("fail to copy guest ring buffer\n");
 		goto unmap_src;
 	}
@@ -2666,7 +2666,7 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 	if (gma_head > gma_tail) {
 		ret = copy_gma_to_hva(vgpu, vgpu->gtt.ggtt_mm,
 				      gma_head, gma_top, cs);
-		if (ret) {
+		if (ret < 0) {
 			gvt_vgpu_err("fail to copy guest ring buffer\n");
 			return ret;
 		}
@@ -2676,7 +2676,7 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 
 	/* copy head or start <-> tail */
 	ret = copy_gma_to_hva(vgpu, vgpu->gtt.ggtt_mm, gma_head, gma_tail, cs);
-	if (ret) {
+	if (ret < 0) {
 		gvt_vgpu_err("fail to copy guest ring buffer\n");
 		return ret;
 	}
@@ -2737,7 +2737,7 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 				wa_ctx->workload->vgpu->gtt.ggtt_mm,
 				guest_gma, guest_gma + ctx_size,
 				map);
-	if (ret) {
+	if (ret < 0) {
 		gvt_vgpu_err("fail to copy guest indirect ctx\n");
 		goto unmap_src;
 	}
