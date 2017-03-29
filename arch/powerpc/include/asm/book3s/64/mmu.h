@@ -65,6 +65,8 @@ extern struct patb_entry *partition_tb;
  * MAX_USER_CONTEXT * 16 bytes of space.
  */
 #define PRTB_SIZE_SHIFT	(CONTEXT_BITS + 4)
+#define PRTB_ENTRIES	(1ul << CONTEXT_BITS)
+
 /*
  * Power9 currently only support 64K partition table size.
  */

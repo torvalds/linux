@@ -63,19 +63,7 @@ int hash__alloc_context_id(void)
 }
 EXPORT_SYMBOL_GPL(hash__alloc_context_id);
 
-static int radix__init_new_context(struct mm_struct *mm, int index)
-{
-	unsigned long rts_field;
-
-	/*
-	 * set the process table entry,
-	 */
-	rts_field = radix__get_tree_size();
-	process_tb[index].prtb0 = cpu_to_be64(rts_field | __pa(mm->pgd) | RADIX_PGD_INDEX_SIZE);
-	return 0;
-}
-
-int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+static int hash__init_new_context(struct mm_struct *mm)
 {
 	int index;
 
@@ -83,27 +71,58 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	if (index < 0)
 		return index;
 
-	if (radix_enabled()) {
-		radix__init_new_context(mm, index);
-	} else {
+	/*
+	 * The old code would re-promote on fork, we don't do that when using
+	 * slices as it could cause problem promoting slices that have been
+	 * forced down to 4K.
+	 *
+	 * For book3s we have MMU_NO_CONTEXT set to be ~0. Hence check
+	 * explicitly against context.id == 0. This ensures that we properly
+	 * initialize context slice details for newly allocated mm's (which will
+	 * have id == 0) and don't alter context slice inherited via fork (which
+	 * will have id != 0).
+	 *
+	 * We should not be calling init_new_context() on init_mm. Hence a
+	 * check against 0 is OK.
+	 */
+	if (mm->context.id == 0)
+		slice_set_user_psize(mm, mmu_virtual_psize);
 
-		/* The old code would re-promote on fork, we don't do that
-		 * when using slices as it could cause problem promoting slices
-		 * that have been forced down to 4K
-		 *
-		 * For book3s we have MMU_NO_CONTEXT set to be ~0. Hence check
-		 * explicitly against context.id == 0. This ensures that we
-		 * properly initialize context slice details for newly allocated
-		 * mm's (which will have id == 0) and don't alter context slice
-		 * inherited via fork (which will have id != 0).
-		 *
-		 * We should not be calling init_new_context() on init_mm. Hence a
-		 * check against 0 is ok.
-		 */
-		if (mm->context.id == 0)
-			slice_set_user_psize(mm, mmu_virtual_psize);
-		subpage_prot_init_new_context(mm);
-	}
+	subpage_prot_init_new_context(mm);
+
+	return index;
+}
+
+static int radix__init_new_context(struct mm_struct *mm)
+{
+	unsigned long rts_field;
+	int index;
+
+	index = alloc_context_id(1, PRTB_ENTRIES - 1);
+	if (index < 0)
+		return index;
+
+	/*
+	 * set the process table entry,
+	 */
+	rts_field = radix__get_tree_size();
+	process_tb[index].prtb0 = cpu_to_be64(rts_field | __pa(mm->pgd) | RADIX_PGD_INDEX_SIZE);
+
+	return index;
+}
+
+int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+{
+	int index;
+
+	if (radix_enabled())
+		index = radix__init_new_context(mm);
+	else
+		index = hash__init_new_context(mm);
+
+	if (index < 0)
+		return index;
+
 	mm->context.id = index;
 #ifdef CONFIG_PPC_ICSWX
 	mm->context.cop_lockp = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
