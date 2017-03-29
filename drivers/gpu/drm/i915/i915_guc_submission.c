@@ -662,18 +662,6 @@ static bool i915_guc_dequeue(struct intel_engine_cs *engine)
 	struct rb_node *rb;
 	bool submit = false;
 
-	/* After execlist_first is updated, the tasklet will be rescheduled.
-	 *
-	 * If we are currently running (inside the tasklet) and a third
-	 * party queues a request and so updates engine->execlist_first under
-	 * the spinlock (which we have elided), it will atomically set the
-	 * TASKLET_SCHED flag causing the us to be re-executed and pick up
-	 * the change in state (the update to TASKLET_SCHED incurs a memory
-	 * barrier making this cross-cpu checking safe).
-	 */
-	if (!READ_ONCE(engine->execlist_first))
-		return false;
-
 	spin_lock_irq(&engine->timeline->lock);
 	rb = engine->execlist_first;
 	while (rb) {
