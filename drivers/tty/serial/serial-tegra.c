@@ -83,6 +83,8 @@
 #define TEGRA_TX_PIO				1
 #define TEGRA_TX_DMA				2
 
+#define TEGRA_UART_IIR_EOD			0x8
+
 /**
  * tegra_uart_chip_data: SOC specific data.
  *
@@ -707,20 +709,20 @@ static irqreturn_t tegra_uart_isr(int irq, void *data)
 			return IRQ_HANDLED;
 		}
 
-		switch ((iir >> 1) & 0x7) {
-		case 0: /* Modem signal change interrupt */
+		switch (iir) {
+		case UART_IIR_MSI: /* Modem signal change interrupt */
 			tegra_uart_handle_modem_signal_change(u);
 			break;
 
-		case 1: /* Transmit interrupt only triggered when using PIO */
+		case UART_IIR_THRI: /* Transmit interrupt only triggered when using PIO */
 			tup->ier_shadow &= ~UART_IER_THRI;
 			tegra_uart_write(tup, tup->ier_shadow, UART_IER);
 			tegra_uart_handle_tx_pio(tup);
 			break;
 
-		case 4: /* End of data */
-		case 6: /* Rx timeout */
-		case 2: /* Receive */
+		case TEGRA_UART_IIR_EOD: /* End of data */
+		case UART_IIR_RX_TIMEOUT: /* Rx timeout */
+		case UART_IIR_RDI: /* Receive */
 			if (!is_rx_int) {
 				is_rx_int = true;
 				/* Disable Rx interrupts */
@@ -734,13 +736,12 @@ static irqreturn_t tegra_uart_isr(int irq, void *data)
 			}
 			break;
 
-		case 3: /* Receive error */
+		case UART_IIR_RLSI: /* Receive error */
 			tegra_uart_decode_rx_error(tup,
 					tegra_uart_read(tup, UART_LSR));
 			break;
 
-		case 5: /* break nothing to handle */
-		case 7: /* break nothing to handle */
+		default:
 			break;
 		}
 	}
