@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -72,7 +71,6 @@ struct rcar_gen3_thermal_tsc {
 	void __iomem *base;
 	struct thermal_zone_device *zone;
 	struct equation_coefs coef;
-	struct mutex lock;
 };
 
 struct rcar_gen3_thermal_priv {
@@ -163,15 +161,11 @@ static int rcar_gen3_thermal_get_temp(void *devdata, int *temp)
 	u32 reg;
 
 	/* Read register and convert to mili Celsius */
-	mutex_lock(&tsc->lock);
-
 	reg = rcar_gen3_thermal_read(tsc, REG_GEN3_TEMP) & CTEMP_MASK;
 
 	val1 = FIXPT_DIV(FIXPT_INT(reg) - tsc->coef.b1, tsc->coef.a1);
 	val2 = FIXPT_DIV(FIXPT_INT(reg) - tsc->coef.b2, tsc->coef.a2);
 	mcelsius = FIXPT_TO_MCELSIUS((val1 + val2) / 2);
-
-	mutex_unlock(&tsc->lock);
 
 	/* Make sure we are inside specifications */
 	if ((mcelsius < MCELSIUS(-40)) || (mcelsius > MCELSIUS(125)))
@@ -299,7 +293,6 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 		}
 
 		priv->tscs[i] = tsc;
-		mutex_init(&tsc->lock);
 
 		match_data->thermal_init(tsc);
 		rcar_gen3_thermal_calc_coefs(&tsc->coef, ptat, thcode[i]);
