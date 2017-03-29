@@ -44,6 +44,17 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	panel: panel {
+		compatible = "edt,et057090dhu";
+		backlight = <&bl>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&lcdif_out>;
+			};
+		};
+	};
 };
 
 &bl {
@@ -75,32 +86,11 @@
 };
 
 &lcdif {
-	display = <&display0>;
 	status = "okay";
 
-	display0: lcd-display {
-		bits-per-pixel = <16>;
-		bus-width = <18>;
-
-		display-timings {
-			native-mode = <&timing_vga>;
-
-			/* Standard VGA timing */
-			timing_vga: 640x480 {
-				clock-frequency = <25175000>;
-				hactive = <640>;
-				vactive = <480>;
-				hback-porch = <40>;
-				hfront-porch = <24>;
-				vback-porch = <32>;
-				vfront-porch = <11>;
-				hsync-len = <96>;
-				vsync-len = <2>;
-				de-active = <1>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				pixelclk-active = <0>;
-			};
+	port {
+		lcdif_out: endpoint {
+			remote-endpoint = <&panel_in>;
 		};
 	};
 };
