@@ -636,6 +636,10 @@ static void native_flush_hash_range(unsigned long number, int local)
 	unsigned long psize = batch->psize;
 	int ssize = batch->ssize;
 	int i;
+	unsigned int use_local;
+
+	use_local = local && mmu_has_feature(MMU_FTR_TLBIEL) &&
+		mmu_psize_defs[psize].tlbiel && !cxl_ctx_in_use();
 
 	local_irq_save(flags);
 
@@ -665,8 +669,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 		} pte_iterate_hashed_end();
 	}
 
-	if (mmu_has_feature(MMU_FTR_TLBIEL) &&
-	    mmu_psize_defs[psize].tlbiel && local) {
+	if (use_local) {
 		asm volatile("ptesync":::"memory");
 		for (i = 0; i < number; i++) {
 			vpn = batch->vpn[i];
