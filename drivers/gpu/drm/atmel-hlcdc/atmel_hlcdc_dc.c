@@ -451,8 +451,7 @@ static void atmel_hlcdc_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct atmel_hlcdc_dc *dc = dev->dev_private;
 
-	if (dc->fbdev)
-		drm_fbdev_cma_hotplug_event(dc->fbdev);
+	drm_fbdev_cma_hotplug_event(dc->fbdev);
 }
 
 struct atmel_hlcdc_dc_commit {
