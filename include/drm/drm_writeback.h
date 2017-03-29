@@ -50,6 +50,32 @@ struct drm_writeback_connector {
 	 * drm_writeback_signal_completion()
 	 */
 	struct list_head job_queue;
+
+	/**
+	 * @fence_context:
+	 *
+	 * timeline context used for fence operations.
+	 */
+	unsigned int fence_context;
+	/**
+	 * @fence_lock:
+	 *
+	 * spinlock to protect the fences in the fence_context.
+	 */
+	spinlock_t fence_lock;
+	/**
+	 * @fence_seqno:
+	 *
+	 * Seqno variable used as monotonic counter for the fences
+	 * created on the connector's timeline.
+	 */
+	unsigned long fence_seqno;
+	/**
+	 * @timeline_name:
+	 *
+	 * The name of the connector's fence timeline.
+	 */
+	char timeline_name[32];
 };
 
 struct drm_writeback_job {
@@ -75,6 +101,13 @@ struct drm_writeback_job {
 	 * directly, use drm_atomic_set_writeback_fb_for_connector()
 	 */
 	struct drm_framebuffer *fb;
+
+	/**
+	 * @out_fence:
+	 *
+	 * Fence which will signal once the writeback has completed
+	 */
+	struct dma_fence *out_fence;
 };
 
 int drm_writeback_connector_init(struct drm_device *dev,
@@ -87,5 +120,11 @@ void drm_writeback_queue_job(struct drm_writeback_connector *wb_connector,
 			     struct drm_writeback_job *job);
 
 void drm_writeback_cleanup_job(struct drm_writeback_job *job);
-void drm_writeback_signal_completion(struct drm_writeback_connector *wb_connector);
+
+void
+drm_writeback_signal_completion(struct drm_writeback_connector *wb_connector,
+				int status);
+
+struct dma_fence *
+drm_writeback_get_out_fence(struct drm_writeback_connector *wb_connector);
 #endif
