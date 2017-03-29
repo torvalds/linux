@@ -187,8 +187,11 @@ static struct intel_vgpu *find_busy_vgpu(struct gvt_sched_data *sched_data)
 		if (!vgpu_has_pending_workload(vgpu_data->vgpu))
 			continue;
 
-		vgpu = vgpu_data->vgpu;
-		break;
+		/* Return the vGPU only if it has time slice left */
+		if (vgpu_data->left_ts > 0) {
+			vgpu = vgpu_data->vgpu;
+			break;
+		}
 	}
 
 	return vgpu;
@@ -223,6 +226,8 @@ static void tbs_sched_func(struct gvt_sched_data *sched_data)
 				&sched_data->lru_runq_head);
 
 		gvt_dbg_sched("pick next vgpu %d\n", vgpu->id);
+	} else {
+		scheduler->next_vgpu = gvt->idle_vgpu;
 	}
 out:
 	if (scheduler->next_vgpu) {
