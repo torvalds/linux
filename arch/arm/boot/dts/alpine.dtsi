@@ -120,7 +120,7 @@
 				     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		uart0:uart@fd883000 {
+		uart0: uart@fd883000 {
 			compatible = "ns16550a";
 			reg = <0x0 0xfd883000 0x0 0x1000>;
 			clock-frequency = <0>; /* Filled by loader */
@@ -129,7 +129,7 @@
 			reg-io-width = <4>;
 		};
 
-		uart1:uart@fd884000 {
+		uart1: uart@fd884000 {
 			compatible = "ns16550a";
 			reg = <0x0 0xfd884000 0x0 0x1000>;
 			clock-frequency = <0>; /* Filled by loader */
