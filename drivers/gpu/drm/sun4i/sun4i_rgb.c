@@ -15,6 +15,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 
 #include "sun4i_drv.h"
@@ -218,9 +219,9 @@ int sun4i_rgb_init(struct drm_device *drm)
 	rgb->drv = drv;
 	encoder = &rgb->encoder;
 
-	tcon->panel = sun4i_tcon_find_panel(tcon->dev->of_node);
-	bridge = sun4i_tcon_find_bridge(tcon->dev->of_node);
-	if (IS_ERR(tcon->panel) && IS_ERR(bridge)) {
+	ret = drm_of_find_panel_or_bridge(tcon->dev->of_node, 1, 0,
+					  &tcon->panel, &bridge);
+	if (ret) {
 		dev_info(drm->dev, "No panel or bridge found... RGB output disabled\n");
 		return 0;
 	}
@@ -240,7 +241,7 @@ int sun4i_rgb_init(struct drm_device *drm)
 	/* The RGB encoder can only work with the TCON channel 0 */
 	rgb->encoder.possible_crtcs = BIT(0);
 
-	if (!IS_ERR(tcon->panel)) {
+	if (tcon->panel) {
 		drm_connector_helper_add(&rgb->connector,
 					 &sun4i_rgb_con_helper_funcs);
 		ret = drm_connector_init(drm, &rgb->connector,
@@ -261,7 +262,7 @@ int sun4i_rgb_init(struct drm_device *drm)
 		}
 	}
 
-	if (!IS_ERR(bridge)) {
+	if (bridge) {
 		ret = drm_bridge_attach(encoder, bridge, NULL);
 		if (ret) {
 			dev_err(drm->dev, "Couldn't attach our bridge\n");

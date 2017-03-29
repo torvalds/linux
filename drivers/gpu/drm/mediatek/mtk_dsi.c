@@ -16,11 +16,11 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_of.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/of_graph.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <video/videomode.h>
@@ -801,7 +801,6 @@ static int mtk_dsi_probe(struct platform_device *pdev)
 {
 	struct mtk_dsi *dsi;
 	struct device *dev = &pdev->dev;
-	struct device_node *remote_node, *endpoint;
 	struct resource *regs;
 	int comp_id;
 	int ret;
@@ -813,22 +812,10 @@ static int mtk_dsi_probe(struct platform_device *pdev)
 	dsi->host.ops = &mtk_dsi_ops;
 	dsi->host.dev = dev;
 
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (endpoint) {
-		remote_node = of_graph_get_remote_port_parent(endpoint);
-		if (!remote_node) {
-			dev_err(dev, "No panel connected\n");
-			return -ENODEV;
-		}
-
-		dsi->bridge = of_drm_find_bridge(remote_node);
-		dsi->panel = of_drm_find_panel(remote_node);
-		of_node_put(remote_node);
-		if (!dsi->bridge && !dsi->panel) {
-			dev_info(dev, "Waiting for bridge or panel driver\n");
-			return -EPROBE_DEFER;
-		}
-	}
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
+					  &dsi->panel, &dsi->bridge);
+	if (ret)
+		return ret;
 
 	dsi->engine_clk = devm_clk_get(dev, "engine");
 	if (IS_ERR(dsi->engine_clk)) {
