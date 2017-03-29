@@ -140,6 +140,10 @@
 	phy-mode = "rgmii-id";
 };
 
+&cpm_crypto {
+	status = "okay";
+};
+
 /* CON5 on CP1 expansion */
 &cps_pcie2 {
 	status = "okay";
