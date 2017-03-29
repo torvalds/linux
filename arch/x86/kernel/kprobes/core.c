@@ -169,35 +169,33 @@ NOKPROBE_SYMBOL(skip_prefixes);
  */
 int can_boost(kprobe_opcode_t *opcodes, void *addr)
 {
+	struct insn insn;
 	kprobe_opcode_t opcode;
-	kprobe_opcode_t *orig_opcodes = opcodes;
 
 	if (search_exception_tables((unsigned long)addr))
 		return 0;	/* Page fault may occur on this address. */
 
-retry:
-	if (opcodes - orig_opcodes > MAX_INSN_SIZE - 1)
-		return 0;
-	opcode = *(opcodes++);
+	kernel_insn_init(&insn, (void *)opcodes, MAX_INSN_SIZE);
+	insn_get_opcode(&insn);
 
 	/* 2nd-byte opcode */
-	if (opcode == 0x0f) {
-		if (opcodes - orig_opcodes > MAX_INSN_SIZE - 1)
-			return 0;
-		return test_bit(*opcodes,
+	if (insn.opcode.nbytes == 2)
+		return test_bit(insn.opcode.bytes[1],
 				(unsigned long *)twobyte_is_boostable);
-	}
+
+	if (insn.opcode.nbytes != 1)
+		return 0;
+
+	/* Can't boost Address-size override prefix */
+	if (unlikely(inat_is_address_size_prefix(insn.attr)))
+		return 0;
+
+	opcode = insn.opcode.bytes[0];
 
 	switch (opcode & 0xf0) {
-#ifdef CONFIG_X86_64
-	case 0x40:
-		goto retry; /* REX prefix is boostable */
-#endif
 	case 0x60:
-		if (0x63 < opcode && opcode < 0x67)
-			goto retry; /* prefixes */
-		/* can't boost Address-size override and bound */
-		return (opcode != 0x62 && opcode != 0x67);
+		/* can't boost "bound" */
+		return (opcode != 0x62);
 	case 0x70:
 		return 0; /* can't boost conditional jump */
 	case 0x90:
@@ -212,14 +210,9 @@ retry:
 		/* can boost in/out and absolute jmps */
 		return ((opcode & 0x04) || opcode == 0xea);
 	case 0xf0:
-		if ((opcode & 0x0c) == 0 && opcode != 0xf1)
-			goto retry; /* lock/rep(ne) prefix */
 		/* clear and set flags are boostable */
 		return (opcode == 0xf5 || (0xf7 < opcode && opcode < 0xfe));
 	default:
-		/* segment override prefixes are boostable */
-		if (opcode == 0x26 || opcode == 0x36 || opcode == 0x3e)
-			goto retry; /* prefixes */
 		/* CS override prefix and call are not boostable */
 		return (opcode != 0x2e && opcode != 0x9a);
 	}
