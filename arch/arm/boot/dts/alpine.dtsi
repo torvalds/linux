@@ -41,28 +41,28 @@
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
 			reg = <0>;
-			clock-frequency = <0>; /* Filled by loader */
+			clock-frequency = <1700000000>;
 		};
 
 		cpu@1 {
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
 			reg = <1>;
-			clock-frequency = <0>; /* Filled by loader */
+			clock-frequency = <1700000000>;
 		};
 
 		cpu@2 {
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
 			reg = <2>;
-			clock-frequency = <0>; /* Filled by loader */
+			clock-frequency = <1700000000>;
 		};
 
 		cpu@3 {
 			compatible = "arm,cortex-a15";
 			device_type = "cpu";
 			reg = <3>;
-			clock-frequency = <0>; /* Filled by loader */
+			clock-frequency = <1700000000>;
 		};
 	};
 
@@ -81,7 +81,7 @@
 				<GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 				<GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 				<GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
-			clock-frequency = <0>; /* Filled by loader */
+			clock-frequency = <50000000>;
 		};
 
 		/* Interrupt Controller */
@@ -123,7 +123,7 @@
 		uart0: uart@fd883000 {
 			compatible = "ns16550a";
 			reg = <0x0 0xfd883000 0x0 0x1000>;
-			clock-frequency = <0>; /* Filled by loader */
+			clock-frequency = <375000000>;
 			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -132,7 +132,7 @@
 		uart1: uart@fd884000 {
 			compatible = "ns16550a";
 			reg = <0x0 0xfd884000 0x0 0x1000>;
-			clock-frequency = <0>; /* Filled by loader */
+			clock-frequency = <375000000>;
 			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
