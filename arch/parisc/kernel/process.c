@@ -140,6 +140,8 @@ void machine_power_off(void)
 	printk(KERN_EMERG "System shut down completed.\n"
 	       "Please power this system off now.");
 
+	/* prevent soft lockup/stalled CPU messages for endless loop. */
+	rcu_sysrq_start();
 	for (;;);
 }
 
