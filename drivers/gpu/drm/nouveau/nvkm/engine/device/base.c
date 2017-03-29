@@ -2315,6 +2315,29 @@ nv137_chipset = {
 	.fifo = gp100_fifo_new,
 };
 
+static const struct nvkm_device_chip
+nv13b_chipset = {
+	.name = "GP10B",
+	.bar = gk20a_bar_new,
+	.bus = gf100_bus_new,
+	.fb = gp10b_fb_new,
+	.fuse = gm107_fuse_new,
+	.ibus = gp10b_ibus_new,
+	.imem = gk20a_instmem_new,
+	.ltc = gp100_ltc_new,
+	.mc = gp10b_mc_new,
+	.mmu = gf100_mmu_new,
+	.secboot = gp10b_secboot_new,
+	.pmu = gm20b_pmu_new,
+	.timer = gk20a_timer_new,
+	.top = gk104_top_new,
+	.ce[2] = gp102_ce_new,
+	.dma = gf119_dma_new,
+	.fifo = gp10b_fifo_new,
+	.gr = gp10b_gr_new,
+	.sw = gf100_sw_new,
+};
+
 static int
 nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
 		       struct nvkm_notify *notify)
@@ -2754,6 +2777,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x134: device->chip = &nv134_chipset; break;
 		case 0x136: device->chip = &nv136_chipset; break;
 		case 0x137: device->chip = &nv137_chipset; break;
+		case 0x13b: device->chip = &nv13b_chipset; break;
 		default:
 			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
 			goto done;
