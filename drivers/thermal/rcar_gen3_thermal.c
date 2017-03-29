@@ -222,6 +222,8 @@ static void r8a7796_thermal_init(struct rcar_gen3_thermal_tsc *tsc)
 	reg_val = rcar_gen3_thermal_read(tsc, REG_GEN3_THCTR);
 	reg_val |= THCTR_THSST;
 	rcar_gen3_thermal_write(tsc, REG_GEN3_THCTR, reg_val);
+
+	usleep_range(1000, 2000);
 }
 
 static const struct rcar_gen3_thermal_data r8a7795_data = {
