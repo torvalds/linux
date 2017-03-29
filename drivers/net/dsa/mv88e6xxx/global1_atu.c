@@ -63,7 +63,14 @@ int mv88e6xxx_g1_atu_set_age_time(struct mv88e6xxx_chip *chip,
 	val &= ~0xff0;
 	val |= age_time << 4;
 
-	return mv88e6xxx_g1_write(chip, GLOBAL_ATU_CONTROL, val);
+	err = mv88e6xxx_g1_write(chip, GLOBAL_ATU_CONTROL, val);
+	if (err)
+		return err;
+
+	dev_dbg(chip->dev, "AgeTime set to 0x%02x (%d ms)\n", age_time,
+		age_time * coeff);
+
+	return 0;
 }
 
 /* Offset 0x0B: ATU Operation Register */
