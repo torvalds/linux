@@ -129,7 +129,7 @@
 			reg-io-width = <4>;
 		};
 
-		uart1:uart@0xfd884000 {
+		uart1:uart@fd884000 {
 			compatible = "ns16550a";
 			reg = <0x0 0xfd884000 0x0 0x1000>;
 			clock-frequency = <0>; /* Filled by loader */
