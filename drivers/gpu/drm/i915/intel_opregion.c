@@ -989,6 +989,8 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 			opregion->vbt = vbt;
 			opregion->vbt_size = vbt_size;
 			goto out;
+		} else {
+			DRM_DEBUG_KMS("Invalid VBT in ACPI OpRegion (RVDA)\n");
 		}
 	}
 
@@ -1007,6 +1009,8 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 		DRM_DEBUG_KMS("Found valid VBT in ACPI OpRegion (Mailbox #4)\n");
 		opregion->vbt = vbt;
 		opregion->vbt_size = vbt_size;
+	} else {
+		DRM_DEBUG_KMS("Invalid VBT in ACPI OpRegion (Mailbox #4)\n");
 	}
 
 out:
