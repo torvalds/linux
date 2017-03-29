@@ -171,7 +171,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	 */
 	fw = intel_uncore_forcewake_for_reg(dev_priv, reg,
 					    FW_REG_READ | FW_REG_WRITE);
-	if (ring_id == RCS && IS_SKYLAKE(dev_priv))
+	if (ring_id == RCS && (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)))
 		fw |= FORCEWAKE_RENDER;
 
 	intel_uncore_forcewake_get(dev_priv, fw);
@@ -204,7 +204,7 @@ static void load_mocs(struct intel_vgpu *vgpu, int ring_id)
 	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
 		return;
 
-	if (!IS_SKYLAKE(dev_priv))
+	if (!(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)))
 		return;
 
 	offset.reg = regs[ring_id];
@@ -242,7 +242,7 @@ static void restore_mocs(struct intel_vgpu *vgpu, int ring_id)
 	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
 		return;
 
-	if (!IS_SKYLAKE(dev_priv))
+	if (!(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)))
 		return;
 
 	offset.reg = regs[ring_id];
@@ -277,7 +277,8 @@ void intel_gvt_load_render_mmio(struct intel_vgpu *vgpu, int ring_id)
 	u32 inhibit_mask =
 		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 
-	if (IS_SKYLAKE(vgpu->gvt->dev_priv)) {
+	if (IS_SKYLAKE(vgpu->gvt->dev_priv)
+		|| IS_KABYLAKE(vgpu->gvt->dev_priv)) {
 		mmio = gen9_render_mmio_list;
 		array_size = ARRAY_SIZE(gen9_render_mmio_list);
 		load_mocs(vgpu, ring_id);
@@ -324,7 +325,7 @@ void intel_gvt_restore_render_mmio(struct intel_vgpu *vgpu, int ring_id)
 	u32 v;
 	int i, array_size;
 
-	if (IS_SKYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		mmio = gen9_render_mmio_list;
 		array_size = ARRAY_SIZE(gen9_render_mmio_list);
 		restore_mocs(vgpu, ring_id);
