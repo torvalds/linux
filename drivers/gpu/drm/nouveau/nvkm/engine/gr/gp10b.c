@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat Inc.
+ * Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -14,54 +14,46 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
  */
+
 #include "gf100.h"
 #include "ctxgf100.h"
 
 #include <nvif/class.h>
 
 static void
-gp102_gr_init_swdx_pes_mask(struct gf100_gr *gr)
+gp10b_gr_init_num_active_ltcs(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	u32 mask = 0, data, gpc;
 
-	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		data = nvkm_rd32(device, GPC_UNIT(gpc, 0x0c50)) & 0x0000000f;
-		mask |= data << (gpc * 4);
-	}
-
-	nvkm_wr32(device, 0x4181d0, mask);
+	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
 }
 
 static const struct gf100_gr_func
-gp102_gr = {
+gp10b_gr = {
 	.init = gp100_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
 	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
-	.init_swdx_pes_mask = gp102_gr_init_swdx_pes_mask,
-	.init_num_active_ltcs = gp100_gr_init_num_active_ltcs,
+	.init_num_active_ltcs = gp10b_gr_init_num_active_ltcs,
 	.rops = gm200_gr_rops,
-	.ppc_nr = 3,
+	.ppc_nr = 1,
 	.grctx = &gp102_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
-		{ -1, -1, PASCAL_B, &gf100_fermi },
-		{ -1, -1, PASCAL_COMPUTE_B },
+		{ -1, -1, PASCAL_A, &gf100_fermi },
+		{ -1, -1, PASCAL_COMPUTE_A },
 		{}
 	}
 };
 
 int
-gp102_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+gp10b_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	return gm200_gr_new_(&gp102_gr, device, index, pgr);
+	return gm200_gr_new_(&gp10b_gr, device, index, pgr);
 }
