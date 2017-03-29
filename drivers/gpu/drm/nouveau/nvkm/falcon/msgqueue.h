@@ -205,6 +205,8 @@ void nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *,
 
 int msgqueue_0137c63d_new(struct nvkm_falcon *, const struct nvkm_secboot *,
 			  struct nvkm_msgqueue **);
+int msgqueue_0137bca5_new(struct nvkm_falcon *, const struct nvkm_secboot *,
+			  struct nvkm_msgqueue **);
 int msgqueue_0148cdec_new(struct nvkm_falcon *, const struct nvkm_secboot *,
 			  struct nvkm_msgqueue **);
 

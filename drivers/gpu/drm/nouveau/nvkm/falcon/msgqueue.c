@@ -501,6 +501,9 @@ nvkm_msgqueue_new(u32 version, struct nvkm_falcon *falcon,
 	case 0x0137c63d:
 		ret = msgqueue_0137c63d_new(falcon, sb, queue);
 		break;
+	case 0x0137bca5:
+		ret = msgqueue_0137bca5_new(falcon, sb, queue);
+		break;
 	case 0x0148cdec:
 		ret = msgqueue_0148cdec_new(falcon, sb, queue);
 		break;
