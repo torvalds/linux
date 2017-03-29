@@ -73,7 +73,7 @@ acr_ls_ucode_load_msgqueue(const struct nvkm_subdev *subdev, const char *name,
 	return 0;
 }
 
-static void
+static int
 acr_ls_msgqueue_post_run(struct nvkm_msgqueue *queue,
 			 struct nvkm_falcon *falcon, u32 addr_args)
 {
@@ -85,6 +85,8 @@ acr_ls_msgqueue_post_run(struct nvkm_msgqueue *queue,
 	nvkm_falcon_load_dmem(falcon, buf, addr_args, cmdline_size, 0);
 	/* rearm the queue so it will wait for the init message */
 	nvkm_msgqueue_reinit(queue);
+
+	return 0;
 }
 
 int
@@ -106,14 +108,19 @@ acr_ls_ucode_load_pmu(const struct nvkm_secboot *sb, struct ls_ucode_img *img)
 	return 0;
 }
 
-void
+int
 acr_ls_pmu_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 {
 	struct nvkm_device *device = sb->subdev.device;
 	struct nvkm_pmu *pmu = device->pmu;
 	u32 addr_args = pmu->falcon->data.limit - NVKM_MSGQUEUE_CMDLINE_SIZE;
+	int ret;
 
-	acr_ls_msgqueue_post_run(pmu->queue, pmu->falcon, addr_args);
+	ret = acr_ls_msgqueue_post_run(pmu->queue, pmu->falcon, addr_args);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 int
@@ -135,13 +142,19 @@ acr_ls_ucode_load_sec2(const struct nvkm_secboot *sb, struct ls_ucode_img *img)
 	return 0;
 }
 
-void
+int
 acr_ls_sec2_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 {
 	struct nvkm_device *device = sb->subdev.device;
 	struct nvkm_sec2 *sec = device->sec2;
 	/* on SEC arguments are always at the beginning of EMEM */
 	u32 addr_args = 0x01000000;
+	int ret;
 
-	acr_ls_msgqueue_post_run(sec->queue, sec->falcon, addr_args);
+	ret = acr_ls_msgqueue_post_run(sec->queue, sec->falcon, addr_args);
+	if (ret)
+		return ret;
+
+
+	return 0;
 }

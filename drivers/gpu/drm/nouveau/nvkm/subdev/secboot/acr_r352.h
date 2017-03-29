@@ -61,7 +61,7 @@ struct acr_r352_ls_func {
 	void (*generate_bl_desc)(const struct nvkm_acr *,
 				 const struct ls_ucode_img *, u64, void *);
 	u32 bl_desc_size;
-	void (*post_run)(const struct nvkm_acr *, const struct nvkm_secboot *);
+	int (*post_run)(const struct nvkm_acr *, const struct nvkm_secboot *);
 	u32 lhdr_flags;
 };
 

@@ -920,8 +920,11 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 		const struct acr_r352_ls_func *func =
 						  acr->func->ls_func[falcon_id];
 
-		if (func->post_run)
-			func->post_run(&acr->base, sb);
+		if (func->post_run) {
+			ret = func->post_run(&acr->base, sb);
+			if (ret)
+				return ret;
+		}
 	}
 
 	/* Re-start ourselves if we are managed */
