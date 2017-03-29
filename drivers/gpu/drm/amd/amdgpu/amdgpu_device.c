@@ -1043,10 +1043,10 @@ static bool amdgpu_check_pot_argument(int arg)
 static void amdgpu_get_block_size(struct amdgpu_device *adev)
 {
 	/* from AI, asic starts to support multiple level VMPT */
-	if (adev->family >= AMDGPU_FAMILY_AI) {
+	if (adev->asic_type >= CHIP_VEGA10) {
 		if (amdgpu_vm_block_size != 9)
-			dev_warn(adev->dev, "Multi-VMPT limits block size to"
-				 "one page!\n");
+			dev_warn(adev->dev,
+				 "Multi-VMPT limits block size to one page!\n");
 		amdgpu_vm_block_size = 9;
 		return;
 	}
