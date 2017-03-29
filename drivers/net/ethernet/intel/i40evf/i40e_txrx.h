@@ -104,10 +104,8 @@ enum i40e_dyn_idx_t {
 
 /* Supported Rx Buffer Sizes (a multiple of 128) */
 #define I40E_RXBUFFER_256   256
+#define I40E_RXBUFFER_1536  1536  /* 128B aligned standard Ethernet frame */
 #define I40E_RXBUFFER_2048  2048
-#define I40E_RXBUFFER_3072  3072   /* For FCoE MTU of 2158 */
-#define I40E_RXBUFFER_4096  4096
-#define I40E_RXBUFFER_8192  8192
 #define I40E_MAX_RXBUFFER   9728  /* largest size for single descriptor */
 
 /* NOTE: netdev_alloc_skb reserves up to 64 bytes, NET_IP_ALIGN means we
@@ -391,20 +389,6 @@ void i40evf_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector);
 u32 i40evf_get_tx_pending(struct i40e_ring *ring, bool in_sw);
 int __i40evf_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
 bool __i40evf_chk_linearize(struct sk_buff *skb);
-
-/**
- * i40e_get_head - Retrieve head from head writeback
- * @tx_ring: Tx ring to fetch head of
- *
- * Returns value of Tx ring head based on value stored
- * in head write-back location
- **/
-static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
-{
-	void *head = (struct i40e_tx_desc *)tx_ring->desc + tx_ring->count;
-
-	return le32_to_cpu(*(volatile __le32 *)head);
-}
 
 /**
  * i40e_xmit_descriptor_count - calculate number of Tx descriptors needed

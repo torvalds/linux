@@ -72,10 +72,6 @@ struct i40e_vsi {
 #define I40EVF_MAX_RXD		4096
 #define I40EVF_MIN_RXD		64
 #define I40EVF_REQ_DESCRIPTOR_MULTIPLE	32
-
-/* Supported Rx Buffer Sizes */
-#define I40EVF_RXBUFFER_2048	2048
-#define I40EVF_MAX_RXBUFFER	16384  /* largest size for single descriptor */
 #define I40EVF_MAX_AQ_BUF_SIZE	4096
 #define I40EVF_AQ_LEN		32
 #define I40EVF_AQ_MAX_ERR	20 /* times to try before resetting AQ */
@@ -222,6 +218,7 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_CLIENT_NEEDS_L2_PARAMS	BIT(17)
 #define I40EVF_FLAG_PROMISC_ON			BIT(18)
 #define I40EVF_FLAG_ALLMULTI_ON			BIT(19)
+#define I40EVF_FLAG_LEGACY_RX			BIT(20)
 /* duplicates for common code */
 #define I40E_FLAG_FDIR_ATR_ENABLED		0
 #define I40E_FLAG_DCB_ENABLED			0
@@ -229,6 +226,7 @@ struct i40evf_adapter {
 #define I40E_FLAG_RX_CSUM_ENABLED		I40EVF_FLAG_RX_CSUM_ENABLED
 #define I40E_FLAG_WB_ON_ITR_CAPABLE		I40EVF_FLAG_WB_ON_ITR_CAPABLE
 #define I40E_FLAG_OUTER_UDP_CSUM_CAPABLE	I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE
+#define I40E_FLAG_LEGACY_RX			I40EVF_FLAG_LEGACY_RX
 	/* flags for admin queue service task */
 	u32 aq_required;
 #define I40EVF_FLAG_AQ_ENABLE_QUEUES		BIT(0)
