@@ -246,6 +246,9 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	if (!sctp_ulpq_init(&asoc->ulpq, asoc))
 		goto fail_init;
 
+	if (sctp_stream_new(asoc, gfp))
+		goto fail_init;
+
 	/* Assume that peer would support both address types unless we are
 	 * told otherwise.
 	 */
@@ -264,7 +267,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	/* AUTH related initializations */
 	INIT_LIST_HEAD(&asoc->endpoint_shared_keys);
 	if (sctp_auth_asoc_copy_shkeys(ep, asoc, gfp))
-		goto fail_init;
+		goto stream_free;
 
 	asoc->active_key_id = ep->active_key_id;
 	asoc->prsctp_enable = ep->prsctp_enable;
@@ -287,6 +290,8 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	return asoc;
 
+stream_free:
+	sctp_stream_free(asoc->stream);
 fail_init:
 	sock_put(asoc->base.sk);
 	sctp_endpoint_put(asoc->ep);

@@ -377,7 +377,8 @@ typedef struct sctp_sender_hb_info {
 	__u64 hb_nonce;
 } sctp_sender_hb_info_t;
 
-struct sctp_stream *sctp_stream_new(__u16 incnt, __u16 outcnt, gfp_t gfp);
+int sctp_stream_new(struct sctp_association *asoc, gfp_t gfp);
+int sctp_stream_init(struct sctp_association *asoc, gfp_t gfp);
 void sctp_stream_free(struct sctp_stream *stream);
 void sctp_stream_clear(struct sctp_stream *stream);
 
