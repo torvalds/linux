@@ -23,6 +23,48 @@
 #include <asm/pgtable.h>
 #include <asm/firmware.h>
 
+/*
+ * This macro generates asm code to compute the VSID scramble
+ * function.  Used in slb_allocate() and do_stab_bolted.  The function
+ * computed is: (protovsid*VSID_MULTIPLIER) % VSID_MODULUS
+ *
+ *	rt = register containing the proto-VSID and into which the
+ *		VSID will be stored
+ *	rx = scratch register (clobbered)
+ *	rf = flags
+ *
+ *	- rt and rx must be different registers
+ *	- The answer will end up in the low VSID_BITS bits of rt.  The higher
+ *	  bits may contain other garbage, so you may need to mask the
+ *	  result.
+ */
+#define ASM_VSID_SCRAMBLE(rt, rx, rf, size)				\
+	lis	rx,VSID_MULTIPLIER_##size@h;				\
+	ori	rx,rx,VSID_MULTIPLIER_##size@l;				\
+	mulld	rt,rt,rx;		/* rt = rt * MULTIPLIER */	\
+/*									\
+ * powermac get slb fault before feature fixup, so make 65 bit part     \
+ * the default part of feature fixup					\
+ */									\
+BEGIN_MMU_FTR_SECTION							\
+	srdi	rx,rt,VSID_BITS_65_##size;				\
+	clrldi	rt,rt,(64-VSID_BITS_65_##size);				\
+	add	rt,rt,rx;						\
+	addi	rx,rt,1;						\
+	srdi	rx,rx,VSID_BITS_65_##size;				\
+	add	rt,rt,rx;						\
+	rldimi	rf,rt,SLB_VSID_SHIFT_##size,(64 - (SLB_VSID_SHIFT_##size + VSID_BITS_65_##size)); \
+MMU_FTR_SECTION_ELSE							\
+	srdi	rx,rt,VSID_BITS_##size;					\
+	clrldi	rt,rt,(64-VSID_BITS_##size);				\
+	add	rt,rt,rx;		/* add high and low bits */	\
+	addi	rx,rt,1;						\
+	srdi	rx,rx,VSID_BITS_##size;	/* extract 2^VSID_BITS bit */	\
+	add	rt,rt,rx;						\
+	rldimi	rf,rt,SLB_VSID_SHIFT_##size,(64 - (SLB_VSID_SHIFT_##size + VSID_BITS_##size)); \
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_68_BIT_VA)
+
+
 /* void slb_allocate_realmode(unsigned long ea);
  *
  * Create an SLB entry for the given EA (user or kernel).
@@ -179,13 +221,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
  */
 .Lslb_finish_load:
 	rldimi  r10,r9,ESID_BITS,0
-	ASM_VSID_SCRAMBLE(r10,r9,256M)
-	/*
-	 * bits above VSID_BITS_256M need to be ignored from r10
-	 * also combine VSID and flags
-	 */
-	rldimi	r11,r10,SLB_VSID_SHIFT,(64 - (SLB_VSID_SHIFT + VSID_BITS_256M))
-
+	ASM_VSID_SCRAMBLE(r10,r9,r11,256M)
 	/* r3 = EA, r11 = VSID data */
 	/*
 	 * Find a slot, round robin. Previously we tried to find a
@@ -249,12 +285,12 @@ slb_compare_rr_to_size:
 .Lslb_finish_load_1T:
 	srdi	r10,r10,(SID_SHIFT_1T - SID_SHIFT)	/* get 1T ESID */
 	rldimi  r10,r9,ESID_BITS_1T,0
-	ASM_VSID_SCRAMBLE(r10,r9,1T)
+	ASM_VSID_SCRAMBLE(r10,r9,r11,1T)
 	/*
 	 * bits above VSID_BITS_1T need to be ignored from r10
 	 * also combine VSID and flags
 	 */
-	rldimi	r11,r10,SLB_VSID_SHIFT_1T,(64 - (SLB_VSID_SHIFT_1T + VSID_BITS_1T))
+
 	li	r10,MMU_SEGSIZE_1T
 	rldimi	r11,r10,SLB_VSID_SSIZE_SHIFT,0	/* insert segment size */
 

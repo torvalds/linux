@@ -59,7 +59,14 @@ again:
 
 int hash__alloc_context_id(void)
 {
-	return alloc_context_id(MIN_USER_CONTEXT, MAX_USER_CONTEXT);
+	unsigned long max;
+
+	if (mmu_has_feature(MMU_FTR_68_BIT_VA))
+		max = MAX_USER_CONTEXT;
+	else
+		max = MAX_USER_CONTEXT_65BIT_VA;
+
+	return alloc_context_id(MIN_USER_CONTEXT, max);
 }
 EXPORT_SYMBOL_GPL(hash__alloc_context_id);
 
