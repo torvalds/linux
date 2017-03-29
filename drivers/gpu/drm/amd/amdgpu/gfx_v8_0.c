@@ -4639,9 +4639,25 @@ static void gfx_v8_0_kiq_setting(struct amdgpu_ring *ring)
 	WREG32(mmRLC_CP_SCHEDULERS, tmp);
 }
 
-static void gfx_v8_0_kiq_enable(struct amdgpu_ring *ring)
+static int gfx_v8_0_kiq_enable(struct amdgpu_ring *ring)
 {
-	amdgpu_ring_alloc(ring, 8);
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t scratch, tmp = 0;
+	int r, i;
+
+	r = amdgpu_gfx_scratch_get(adev, &scratch);
+	if (r) {
+		DRM_ERROR("Failed to get scratch reg (%d).\n", r);
+		return r;
+	}
+	WREG32(scratch, 0xCAFEDEAD);
+
+	r = amdgpu_ring_alloc(ring, 11);
+	if (r) {
+		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
+		amdgpu_gfx_scratch_free(adev, scratch);
+		return r;
+	}
 	/* set resources */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_RESOURCES, 6));
 	amdgpu_ring_write(ring, 0);	/* vmid_mask:0 queue_type:0 (KIQ) */
@@ -4651,20 +4667,53 @@ static void gfx_v8_0_kiq_enable(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 0);	/* gws mask hi */
 	amdgpu_ring_write(ring, 0);	/* oac mask */
 	amdgpu_ring_write(ring, 0);	/* gds heap base:0, gds heap size:0 */
+	/* write to scratch for completion */
+	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
+	amdgpu_ring_write(ring, (scratch - PACKET3_SET_UCONFIG_REG_START));
+	amdgpu_ring_write(ring, 0xDEADBEEF);
 	amdgpu_ring_commit(ring);
-	udelay(50);
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		tmp = RREG32(scratch);
+		if (tmp == 0xDEADBEEF)
+			break;
+		DRM_UDELAY(1);
+	}
+	if (i >= adev->usec_timeout) {
+		DRM_ERROR("KIQ enable failed (scratch(0x%04X)=0x%08X)\n",
+			  scratch, tmp);
+		r = -EINVAL;
+	}
+	amdgpu_gfx_scratch_free(adev, scratch);
+
+	return r;
 }
 
-static void gfx_v8_0_map_queue_enable(struct amdgpu_ring *kiq_ring,
-				   struct amdgpu_ring *ring)
+static int gfx_v8_0_map_queue_enable(struct amdgpu_ring *kiq_ring,
+				     struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = kiq_ring->adev;
 	uint64_t mqd_addr, wptr_addr;
+	uint32_t scratch, tmp = 0;
+	int r, i;
+
+	r = amdgpu_gfx_scratch_get(adev, &scratch);
+	if (r) {
+		DRM_ERROR("Failed to get scratch reg (%d).\n", r);
+		return r;
+	}
+	WREG32(scratch, 0xCAFEDEAD);
 
 	mqd_addr = amdgpu_bo_gpu_offset(ring->mqd_obj);
 	wptr_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
-	amdgpu_ring_alloc(kiq_ring, 8);
 
+	r = amdgpu_ring_alloc(kiq_ring, 11);
+	if (r) {
+		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
+		amdgpu_gfx_scratch_free(adev, scratch);
+		return r;
+	}
+	/* map queues */
 	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_MAP_QUEUES, 5));
 	/* Q_sel:0, vmid:0, vidmem: 1, engine:0, num_Q:1*/
 	amdgpu_ring_write(kiq_ring, 0x21010000);
@@ -4676,8 +4725,26 @@ static void gfx_v8_0_map_queue_enable(struct amdgpu_ring *kiq_ring,
 	amdgpu_ring_write(kiq_ring, upper_32_bits(mqd_addr));
 	amdgpu_ring_write(kiq_ring, lower_32_bits(wptr_addr));
 	amdgpu_ring_write(kiq_ring, upper_32_bits(wptr_addr));
+	/* write to scratch for completion */
+	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
+	amdgpu_ring_write(kiq_ring, (scratch - PACKET3_SET_UCONFIG_REG_START));
+	amdgpu_ring_write(kiq_ring, 0xDEADBEEF);
 	amdgpu_ring_commit(kiq_ring);
-	udelay(50);
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		tmp = RREG32(scratch);
+		if (tmp == 0xDEADBEEF)
+			break;
+		DRM_UDELAY(1);
+	}
+	if (i >= adev->usec_timeout) {
+		DRM_ERROR("KCQ %d enable failed (scratch(0x%04X)=0x%08X)\n",
+			  ring->idx, scratch, tmp);
+		r = -EINVAL;
+	}
+	amdgpu_gfx_scratch_free(adev, scratch);
+
+	return r;
 }
 
 static int gfx_v8_0_mqd_init(struct amdgpu_ring *ring)
@@ -4903,6 +4970,7 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 	struct vi_mqd *mqd = ring->mqd_ptr;
 	bool is_kiq = (ring->funcs->type == AMDGPU_RING_TYPE_KIQ);
 	int mqd_idx = AMDGPU_MAX_COMPUTE_RINGS;
+	int r;
 
 	if (is_kiq) {
 		gfx_v8_0_kiq_setting(&kiq->ring);
@@ -4941,11 +5009,11 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 	}
 
 	if (is_kiq)
-		gfx_v8_0_kiq_enable(ring);
+		r = gfx_v8_0_kiq_enable(ring);
 	else
-		gfx_v8_0_map_queue_enable(&kiq->ring, ring);
+		r = gfx_v8_0_map_queue_enable(&kiq->ring, ring);
 
-	return 0;
+	return r;
 }
 
 static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
