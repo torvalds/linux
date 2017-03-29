@@ -234,6 +234,7 @@ struct dsi_panel {
 
 struct inno_mipi_dphy {
 	struct device *dev;
+	struct phy *phy;
 	void __iomem *regs;
 	struct clk *ref_clk;
 	struct clk *pclk;
@@ -475,7 +476,8 @@ static void inno_mipi_dphy_pll_init(struct inno_mipi_dphy *inno)
 			break;
 	}
 
-	inno->lane_mbps = pllref / prediv * fbdiv;
+	inno->lane_mbps = pllref * fbdiv / prediv;
+	phy_set_bus_width(inno->phy, inno->lane_mbps);
 
 	mask = M_FBDIV_8 | M_PREDIV;
 	val = V_FBDIV_8(fbdiv >> 8) | V_PREDIV(prediv);
@@ -674,7 +676,6 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct inno_mipi_dphy *inno;
-	struct phy *phy;
 	struct phy_provider *phy_provider;
 	struct resource *res;
 	int ret;
@@ -716,13 +717,13 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 		inno->rst = NULL;
 	}
 
-	phy = devm_phy_create(&pdev->dev, NULL, &inno_mipi_dphy_ops);
-	if (IS_ERR(phy)) {
+	inno->phy = devm_phy_create(&pdev->dev, NULL, &inno_mipi_dphy_ops);
+	if (IS_ERR(inno->phy)) {
 		dev_err(&pdev->dev, "failed to create MIPI D-PHY\n");
-		return PTR_ERR(phy);
+		return PTR_ERR(inno->phy);
 	}
 
-	phy_set_drvdata(phy, inno);
+	phy_set_drvdata(inno->phy, inno);
 
 	phy_provider = devm_of_phy_provider_register(&pdev->dev,
 						     of_phy_simple_xlate);
