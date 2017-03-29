@@ -295,10 +295,12 @@ static ssize_t description_show(struct kobject *kobj, struct device *dev,
 		return 0;
 
 	return sprintf(buf, "low_gm_size: %dMB\nhigh_gm_size: %dMB\n"
-		       "fence: %d\nresolution: %s\n",
+		       "fence: %d\nresolution: %s\n"
+		       "weight: %d\n",
 		       BYTES_TO_MB(type->low_gm_size),
 		       BYTES_TO_MB(type->high_gm_size),
-		       type->fence, vgpu_edid_str(type->resolution));
+		       type->fence, vgpu_edid_str(type->resolution),
+		       type->weight);
 }
 
 static MDEV_TYPE_ATTR_RO(available_instances);

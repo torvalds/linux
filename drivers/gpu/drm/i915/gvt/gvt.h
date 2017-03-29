@@ -151,6 +151,7 @@ struct intel_vgpu {
 	bool failsafe;
 	bool resetting;
 	void *sched_data;
+	struct vgpu_sched_ctl sched_ctl;
 
 	struct intel_vgpu_fence fence;
 	struct intel_vgpu_gm gm;
@@ -220,6 +221,7 @@ struct intel_vgpu_type {
 	unsigned int low_gm_size;
 	unsigned int high_gm_size;
 	unsigned int fence;
+	unsigned int weight;
 	enum intel_vgpu_edid resolution;
 };
 
@@ -328,6 +330,8 @@ struct intel_vgpu_creation_params {
 	__u64 resolution;
 	__s32 primary;
 	__u64 vgpu_id;
+
+	__u32 weight;
 };
 
 int intel_vgpu_alloc_resource(struct intel_vgpu *vgpu,

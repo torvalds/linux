@@ -237,6 +237,7 @@ static int tbs_sched_init_vgpu(struct intel_vgpu *vgpu)
 	if (!data)
 		return -ENOMEM;
 
+	data->sched_ctl.weight = vgpu->sched_ctl.weight;
 	data->vgpu = vgpu;
 	INIT_LIST_HEAD(&data->lru_list);
 
