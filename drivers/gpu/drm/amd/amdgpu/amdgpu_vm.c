@@ -275,13 +275,18 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 		memset(parent->entries, 0 , sizeof(struct amdgpu_vm_pt));
 	}
 
-	from = (saddr >> shift) % amdgpu_vm_num_entries(adev, level);
-	to = (eaddr >> shift) % amdgpu_vm_num_entries(adev, level);
+	from = saddr >> shift;
+	to = eaddr >> shift;
+	if (from >= amdgpu_vm_num_entries(adev, level) ||
+	    to >= amdgpu_vm_num_entries(adev, level))
+		return -EINVAL;
 
 	if (to > parent->last_entry_used)
 		parent->last_entry_used = to;
 
 	++level;
+	saddr = saddr & ((1 << shift) - 1);
+	eaddr = eaddr & ((1 << shift) - 1);
 
 	/* walk over the address space and allocate the page tables */
 	for (pt_idx = from; pt_idx <= to; ++pt_idx) {
@@ -312,8 +317,11 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 		}
 
 		if (level < adev->vm_manager.num_level) {
-			r = amdgpu_vm_alloc_levels(adev, vm, entry, saddr,
-						   eaddr, level);
+			uint64_t sub_saddr = (pt_idx == from) ? saddr : 0;
+			uint64_t sub_eaddr = (pt_idx == to) ? eaddr :
+				((1 << shift) - 1);
+			r = amdgpu_vm_alloc_levels(adev, vm, entry, sub_saddr,
+						   sub_eaddr, level);
 			if (r)
 				return r;
 		}
@@ -990,8 +998,10 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	/* initialize the variables */
 	addr = start;
 	pt = amdgpu_vm_get_pt(params, addr);
-	if (!pt)
+	if (!pt) {
+		pr_err("PT not found, aborting update_ptes\n");
 		return;
+	}
 
 	if (params->shadow) {
 		if (!pt->shadow)
@@ -1015,8 +1025,10 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	/* walk over the address space and update the page tables */
 	while (addr < end) {
 		pt = amdgpu_vm_get_pt(params, addr);
-		if (!pt)
+		if (!pt) {
+			pr_err("PT not found, aborting update_ptes\n");
 			return;
+		}
 
 		if (params->shadow) {
 			if (!pt->shadow)
