@@ -15,6 +15,7 @@
 #include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/mfd/syscon.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
@@ -298,6 +299,7 @@ struct dw_mipi_dsi {
 	struct drm_panel *panel;
 	struct device *dev;
 	struct regmap *grf_regmap;
+	struct reset_control *rst;
 	void __iomem *base;
 
 	struct clk *pllref_clk;
@@ -927,6 +929,14 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 		return;
 	}
 
+	if (dsi->rst) {
+		/* MIPI DSI APB software reset request. */
+		reset_control_assert(dsi->rst);
+		udelay(10);
+		reset_control_deassert(dsi->rst);
+		udelay(10);
+	}
+
 	ret = dw_mipi_dsi_get_lane_bps(dsi);
 	if (ret < 0)
 		return;
@@ -1248,6 +1258,12 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	if (ret) {
 		dev_err(dev, "%s: Failed to enable pllref_clk\n", __func__);
 		return ret;
+	}
+
+	dsi->rst = devm_reset_control_get_optional(dev, "apb");
+	if (IS_ERR(dsi->rst)) {
+		dev_info(dev, "no reset control specified\n");
+		dsi->rst = NULL;
 	}
 
 	ret = dw_mipi_dsi_register(drm, dsi);

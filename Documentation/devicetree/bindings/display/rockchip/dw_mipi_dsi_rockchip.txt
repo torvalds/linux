@@ -21,9 +21,12 @@ Optional properties
 - phys: phandle to third party MIPI PHY node
 - phy-names: the string "mipi_dphy" when is found in a node, along with "phys"
   attribute, provides phandle to MIPI PHY node
+- resets : phandle to the reset of MIPI DSI APB Clock.
+- reset-names : should be "apb".
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Documentation/devicetree/bindings/media/video-interfaces.txt
+[3] Documentation/devicetree/bindings/reset/reset.txt
 
 Example:
 
@@ -78,6 +81,8 @@ mipi_dsi_host: mipi-dsi-host@ff960000 {
 	compatible = "rockchip,rk3368-mipi-dsi";
 	phys = <&mipi_dphy>;
 	phy-names = "mipi_dphy";
+	resets = <&cru SRST_MIPIDSI0>;
+	reset-names = "apb";
 	...
 
 	ports@1 {
