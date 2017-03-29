@@ -3157,7 +3157,6 @@ static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
-	struct ftrace_ops *ops = iter->ops;
 	struct dyn_ftrace *rec = NULL;
 
 	if (unlikely(ftrace_disabled))
@@ -3181,11 +3180,8 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		}
 	} else {
 		rec = &iter->pg->records[iter->idx++];
-		if (((iter->flags & FTRACE_ITER_FILTER) &&
-		     !(ftrace_lookup_ip(ops->func_hash->filter_hash, rec->ip))) ||
-
-		    ((iter->flags & FTRACE_ITER_NOTRACE) &&
-		     !ftrace_lookup_ip(ops->func_hash->notrace_hash, rec->ip)) ||
+		if (((iter->flags & (FTRACE_ITER_FILTER | FTRACE_ITER_NOTRACE)) &&
+		     !ftrace_lookup_ip(iter->hash, rec->ip)) ||
 
 		    ((iter->flags & FTRACE_ITER_ENABLED) &&
 		     !(rec->flags & FTRACE_FL_ENABLED))) {
@@ -3213,7 +3209,6 @@ static void reset_iter_read(struct ftrace_iterator *iter)
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
-	struct ftrace_ops *ops = iter->ops;
 	void *p = NULL;
 	loff_t l;
 
@@ -3233,10 +3228,8 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	 * off, we can short cut and just print out that all
 	 * functions are enabled.
 	 */
-	if ((iter->flags & FTRACE_ITER_FILTER &&
-	     ftrace_hash_empty(ops->func_hash->filter_hash)) ||
-	    (iter->flags & FTRACE_ITER_NOTRACE &&
-	     ftrace_hash_empty(ops->func_hash->notrace_hash))) {
+	if ((iter->flags & (FTRACE_ITER_FILTER | FTRACE_ITER_NOTRACE)) &&
+	    ftrace_hash_empty(iter->hash)) {
 		if (*pos > 0)
 			return t_hash_start(m, pos);
 		iter->flags |= FTRACE_ITER_PRINTALL;
@@ -3442,7 +3435,8 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 			ret = -ENOMEM;
 			goto out_unlock;
 		}
-	}
+	} else
+		iter->hash = hash;
 
 	if (file->f_mode & FMODE_READ) {
 		iter->pg = ftrace_pages_start;
@@ -4526,6 +4520,9 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 			free_ftrace_hash_rcu(old_hash);
 		}
 		mutex_unlock(&ftrace_lock);
+	} else {
+		/* For read only, the hash is the ops hash */
+		iter->hash = NULL;
 	}
 
 	mutex_unlock(&iter->ops->func_hash->regex_lock);
