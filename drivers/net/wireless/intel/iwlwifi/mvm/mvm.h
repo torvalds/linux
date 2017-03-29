@@ -1756,6 +1756,7 @@ static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 	if (!iwl_mvm_has_new_tx_api(mvm))
 		iwl_free_fw_paging(mvm);
 	mvm->ucode_loaded = false;
+	mvm->fw_dbg_conf = FW_DBG_INVALID;
 	iwl_trans_stop_device(mvm->trans);
 }
 
