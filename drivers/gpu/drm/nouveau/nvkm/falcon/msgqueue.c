@@ -491,17 +491,18 @@ nvkm_msgqueue_acr_boot_falcons(struct nvkm_msgqueue *queue,
 }
 
 int
-nvkm_msgqueue_new(u32 version, struct nvkm_falcon *falcon, struct nvkm_msgqueue **queue)
+nvkm_msgqueue_new(u32 version, struct nvkm_falcon *falcon,
+		  const struct nvkm_secboot *sb, struct nvkm_msgqueue **queue)
 {
 	const struct nvkm_subdev *subdev = falcon->owner;
 	int ret = -EINVAL;
 
 	switch (version) {
 	case 0x0137c63d:
-		ret = msgqueue_0137c63d_new(falcon, queue);
+		ret = msgqueue_0137c63d_new(falcon, sb, queue);
 		break;
 	case 0x0148cdec:
-		ret = msgqueue_0148cdec_new(falcon, queue);
+		ret = msgqueue_0148cdec_new(falcon, sb, queue);
 		break;
 	default:
 		nvkm_error(subdev, "unhandled firmware version 0x%08x\n",

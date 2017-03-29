@@ -203,7 +203,9 @@ int nvkm_msgqueue_post(struct nvkm_msgqueue *, enum msgqueue_msg_priority,
 void nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *,
 				struct nvkm_msgqueue_queue *);
 
-int msgqueue_0137c63d_new(struct nvkm_falcon *, struct nvkm_msgqueue **);
-int msgqueue_0148cdec_new(struct nvkm_falcon *, struct nvkm_msgqueue **);
+int msgqueue_0137c63d_new(struct nvkm_falcon *, const struct nvkm_secboot *,
+			  struct nvkm_msgqueue **);
+int msgqueue_0148cdec_new(struct nvkm_falcon *, const struct nvkm_secboot *,
+			  struct nvkm_msgqueue **);
 
 #endif

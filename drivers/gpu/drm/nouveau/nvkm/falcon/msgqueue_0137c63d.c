@@ -307,7 +307,8 @@ msgqueue_0137c63d_func = {
 };
 
 int
-msgqueue_0137c63d_new(struct nvkm_falcon *falcon, struct nvkm_msgqueue **queue)
+msgqueue_0137c63d_new(struct nvkm_falcon *falcon, const struct nvkm_secboot *sb,
+		      struct nvkm_msgqueue **queue)
 {
 	struct msgqueue_0137c63d *ret;
 

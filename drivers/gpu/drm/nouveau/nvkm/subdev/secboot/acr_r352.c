@@ -241,6 +241,7 @@ struct ls_ucode_img_r352 {
  */
 struct ls_ucode_img *
 acr_r352_ls_ucode_img_load(const struct acr_r352 *acr,
+			   const struct nvkm_secboot *sb,
 			   enum nvkm_secboot_falcon falcon_id)
 {
 	const struct nvkm_subdev *subdev = acr->base.subdev;
@@ -253,7 +254,7 @@ acr_r352_ls_ucode_img_load(const struct acr_r352 *acr,
 
 	img->base.falcon_id = falcon_id;
 
-	ret = acr->func->ls_func[falcon_id]->load(subdev, &img->base);
+	ret = acr->func->ls_func[falcon_id]->load(sb, &img->base);
 
 	if (ret) {
 		kfree(img->base.ucode_data);
@@ -462,12 +463,14 @@ acr_r352_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
  * will be copied into the WPR region by the HS firmware.
  */
 static int
-acr_r352_prepare_ls_blob(struct acr_r352 *acr, u64 wpr_addr, u32 wpr_size)
+acr_r352_prepare_ls_blob(struct acr_r352 *acr, struct nvkm_secboot *sb)
 {
 	const struct nvkm_subdev *subdev = acr->base.subdev;
 	struct list_head imgs;
 	struct ls_ucode_img *img, *t;
 	unsigned long managed_falcons = acr->base.managed_falcons;
+	u64 wpr_addr = sb->wpr_addr;
+	u32 wpr_size = sb->wpr_size;
 	int managed_count = 0;
 	u32 image_wpr_size, ls_blob_size;
 	int falcon_id;
@@ -479,7 +482,7 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, u64 wpr_addr, u32 wpr_size)
 	for_each_set_bit(falcon_id, &managed_falcons, NVKM_SECBOOT_FALCON_END) {
 		struct ls_ucode_img *img;
 
-		img = acr->func->ls_ucode_img_load(acr, falcon_id);
+		img = acr->func->ls_ucode_img_load(acr, sb, falcon_id);
 		if (IS_ERR(img)) {
 			if (acr->base.optional_falcons & BIT(falcon_id)) {
 				managed_falcons &= ~BIT(falcon_id);
@@ -704,7 +707,7 @@ acr_r352_load_blobs(struct acr_r352 *acr, struct nvkm_secboot *sb)
 		return 0;
 
 	/* Load and prepare the managed falcon's firmwares */
-	ret = acr_r352_prepare_ls_blob(acr, sb->wpr_addr, sb->wpr_size);
+	ret = acr_r352_prepare_ls_blob(acr, sb);
 	if (ret)
 		return ret;
 
