@@ -682,6 +682,9 @@ static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 {
 	unsigned long context;
 
+	if (!is_kernel_addr(ea))
+		return 0;
+
 	/*
 	 * For kernel space, we use context ids 1-4 to map the address space as
 	 * below:
