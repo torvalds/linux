@@ -635,7 +635,7 @@ static bool is_validation_required(
 	return false;
 }
 
-bool dc_validate_resources(
+struct validate_context *dc_get_validate_context(
 		const struct dc *dc,
 		const struct dc_validation_set set[],
 		uint8_t set_count)
@@ -644,18 +644,17 @@ bool dc_validate_resources(
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
 
-	if (!is_validation_required(core_dc, set, set_count))
-		return true;
-
 	context = dm_alloc(sizeof(struct validate_context));
 	if(context == NULL)
 		goto context_alloc_fail;
 
+	if (!is_validation_required(core_dc, set, set_count)) {
+		dc_resource_validate_ctx_copy_construct(core_dc->current_context, context);
+		return context;
+	}
+
 	result = core_dc->res_pool->funcs->validate_with_context(
 						core_dc, set, set_count, context);
-
-	dc_resource_validate_ctx_destruct(context);
-	dm_free(context);
 
 context_alloc_fail:
 	if (result != DC_OK) {
@@ -663,10 +662,31 @@ context_alloc_fail:
 				"%s:resource validation failed, dc_status:%d\n",
 				__func__,
 				result);
+
+		dc_resource_validate_ctx_destruct(context);
+		dm_free(context);
+		context = NULL;
 	}
 
-	return (result == DC_OK);
+	return context;
 
+}
+
+bool dc_validate_resources(
+		const struct dc *dc,
+		const struct dc_validation_set set[],
+		uint8_t set_count)
+{
+	struct validate_context *ctx;
+
+	ctx = dc_get_validate_context(dc, set, set_count);
+	if (ctx) {
+		dc_resource_validate_ctx_destruct(ctx);
+		dm_free(ctx);
+		return true;
+	}
+
+	return false;
 }
 
 bool dc_validate_guaranteed(

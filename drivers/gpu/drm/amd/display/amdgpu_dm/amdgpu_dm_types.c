@@ -1384,6 +1384,7 @@ int amdgpu_dm_connector_mode_valid(
 	/* TODO: Unhardcode stream count */
 	struct dc_stream *stream;
 	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
+	struct validate_context *context;
 
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
 			(mode->flags & DRM_MODE_FLAG_DBLSCAN))
@@ -1418,8 +1419,13 @@ int amdgpu_dm_connector_mode_valid(
 	stream->src.height = mode->vdisplay;
 	stream->dst = stream->src;
 
-	if (dc_validate_resources(adev->dm.dc, &val_set, 1))
+	context = dc_get_validate_context(adev->dm.dc, &val_set, 1);
+
+	if (context) {
 		result = MODE_OK;
+		dc_resource_validate_ctx_destruct(context);
+		dm_free(context);
+	}
 
 	dc_stream_release(stream);
 
@@ -2842,6 +2848,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	struct amdgpu_device *adev = dev->dev_private;
 	struct dc *dc = adev->dm.dc;
 	bool need_to_validate = false;
+	struct validate_context *context;
 
 	ret = drm_atomic_helper_check(dev, state);
 
@@ -3064,15 +3071,20 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		}
 	}
 
-	if (need_to_validate == false || set_count == 0 ||
-		dc_validate_resources(dc, set, set_count))
+	context = dc_get_validate_context(dc, set, set_count);
+
+	if (need_to_validate == false || set_count == 0 || context)
 		ret = 0;
 
-	for (i = 0; i < set_count; i++) {
-		for (j = 0; j < set[i].surface_count; j++) {
-			dc_surface_release(set[i].surfaces[j]);
-		}
+	if (context) {
+		dc_resource_validate_ctx_destruct(context);
+		dm_free(context);
 	}
+
+	for (i = 0; i < set_count; i++)
+		for (j = 0; j < set[i].surface_count; j++)
+			dc_surface_release(set[i].surfaces[j]);
+
 	for (i = 0; i < new_stream_count; i++)
 		dc_stream_release(new_streams[i]);
 

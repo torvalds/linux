@@ -505,6 +505,11 @@ struct dc_validation_set {
  * After this call:
  *   No hardware is programmed for call.  Only validation is done.
  */
+struct validate_context *dc_get_validate_context(
+		const struct dc *dc,
+		const struct dc_validation_set set[],
+		uint8_t set_count);
+
 bool dc_validate_resources(
 		const struct dc *dc,
 		const struct dc_validation_set set[],
