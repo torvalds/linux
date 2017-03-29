@@ -48,6 +48,18 @@ struct ehci_platform_priv {
 
 static const char hcd_name[] = "ehci-platform";
 
+static void ehci_rockchip_relinquish_port(struct usb_hcd *hcd, int portnum)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	u32 __iomem *status_reg = &ehci->regs->port_status[--portnum];
+	u32 portsc;
+
+	portsc = ehci_readl(ehci, status_reg);
+	portsc &= ~(PORT_OWNER | PORT_RWC_BITS);
+
+	ehci_writel(ehci, portsc, status_reg);
+}
+
 static int ehci_platform_reset(struct usb_hcd *hcd)
 {
 	struct platform_device *pdev = to_platform_device(hcd->self.controller);
@@ -177,6 +189,11 @@ static int ehci_platform_probe(struct platform_device *dev)
 		if (of_property_read_bool(dev->dev.of_node,
 					  "has-transaction-translator"))
 			hcd->has_tt = 1;
+
+		if (of_property_read_bool(dev->dev.of_node,
+					  "rockchip-relinquish-port"))
+			ehci_platform_hc_driver.relinquish_port =
+					  ehci_rockchip_relinquish_port;
 
 		for (clk = 0; clk < EHCI_MAX_CLKS; clk++) {
 			priv->clks[clk] = of_clk_get(dev->dev.of_node, clk);
