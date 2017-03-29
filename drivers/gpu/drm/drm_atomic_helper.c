@@ -2293,10 +2293,11 @@ int drm_atomic_helper_set_config(struct drm_mode_set *set,
 	state->acquire_ctx = ctx;
 	ret = __drm_atomic_helper_set_config(set, state);
 	if (ret != 0)
-		return ret;
+		goto fail;
 
 	ret = drm_atomic_commit(state);
 
+fail:
 	drm_atomic_state_put(state);
 	return ret;
 }
