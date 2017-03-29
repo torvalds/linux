@@ -4451,8 +4451,11 @@ static int mvneta_resume(struct device *device)
 		mvneta_fixed_link_update(pp, dev->phydev);
 
 	netif_device_attach(dev);
-	if (netif_running(dev))
+	if (netif_running(dev)) {
 		mvneta_open(dev);
+		mvneta_set_rx_mode(dev);
+	}
+
 	return 0;
 }
 #endif
