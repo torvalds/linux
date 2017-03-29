@@ -82,6 +82,8 @@ struct rcar_gen3_thermal_tsc {
 	void __iomem *base;
 	struct thermal_zone_device *zone;
 	struct equation_coefs coef;
+	int low;
+	int high;
 };
 
 struct rcar_gen3_thermal_priv {
@@ -216,6 +218,9 @@ static int rcar_gen3_thermal_set_trips(void *devdata, int low, int high)
 
 	rcar_gen3_thermal_write(tsc, REG_GEN3_IRQTEMP2,
 				rcar_gen3_thermal_mcelsius_to_temp(tsc, high));
+
+	tsc->low = low;
+	tsc->high = high;
 
 	return 0;
 }
@@ -454,9 +459,39 @@ error_unregister:
 	return ret;
 }
 
+static int __maybe_unused rcar_gen3_thermal_suspend(struct device *dev)
+{
+	struct rcar_gen3_thermal_priv *priv = dev_get_drvdata(dev);
+
+	rcar_thermal_irq_set(priv, false);
+
+	return 0;
+}
+
+static int __maybe_unused rcar_gen3_thermal_resume(struct device *dev)
+{
+	struct rcar_gen3_thermal_priv *priv = dev_get_drvdata(dev);
+	unsigned int i;
+
+	for (i = 0; i < priv->num_tscs; i++) {
+		struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
+
+		priv->data->thermal_init(tsc);
+		rcar_gen3_thermal_set_trips(tsc, tsc->low, tsc->high);
+	}
+
+	rcar_thermal_irq_set(priv, true);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rcar_gen3_thermal_pm_ops, rcar_gen3_thermal_suspend,
+			 rcar_gen3_thermal_resume);
+
 static struct platform_driver rcar_gen3_thermal_driver = {
 	.driver	= {
 		.name	= "rcar_gen3_thermal",
+		.pm = &rcar_gen3_thermal_pm_ops,
 		.of_match_table = rcar_gen3_thermal_dt_ids,
 	},
 	.probe		= rcar_gen3_thermal_probe,
