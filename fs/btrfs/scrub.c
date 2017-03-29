@@ -860,9 +860,11 @@ static inline void scrub_get_recover(struct scrub_recover *recover)
 	refcount_inc(&recover->refs);
 }
 
-static inline void scrub_put_recover(struct scrub_recover *recover)
+static inline void scrub_put_recover(struct btrfs_fs_info *fs_info,
+				     struct scrub_recover *recover)
 {
 	if (refcount_dec_and_test(&recover->refs)) {
+		btrfs_bio_counter_dec(fs_info);
 		btrfs_put_bbio(recover->bbio);
 		kfree(recover);
 	}
@@ -1241,7 +1243,7 @@ out:
 				sblock->pagev[page_index]->sblock = NULL;
 				recover = sblock->pagev[page_index]->recover;
 				if (recover) {
-					scrub_put_recover(recover);
+					scrub_put_recover(fs_info, recover);
 					sblock->pagev[page_index]->recover =
 									NULL;
 				}
@@ -1330,16 +1332,19 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 		 * with a length of PAGE_SIZE, each returned stripe
 		 * represents one mirror
 		 */
+		btrfs_bio_counter_inc_blocked(fs_info);
 		ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
 				logical, &mapped_length, &bbio);
 		if (ret || !bbio || mapped_length < sublen) {
 			btrfs_put_bbio(bbio);
+			btrfs_bio_counter_dec(fs_info);
 			return -EIO;
 		}
 
 		recover = kzalloc(sizeof(struct scrub_recover), GFP_NOFS);
 		if (!recover) {
 			btrfs_put_bbio(bbio);
+			btrfs_bio_counter_dec(fs_info);
 			return -ENOMEM;
 		}
 
@@ -1365,7 +1370,7 @@ leave_nomem:
 				spin_lock(&sctx->stat_lock);
 				sctx->stat.malloc_errors++;
 				spin_unlock(&sctx->stat_lock);
-				scrub_put_recover(recover);
+				scrub_put_recover(fs_info, recover);
 				return -ENOMEM;
 			}
 			scrub_page_get(page);
@@ -1407,7 +1412,7 @@ leave_nomem:
 			scrub_get_recover(recover);
 			page->recover = recover;
 		}
-		scrub_put_recover(recover);
+		scrub_put_recover(fs_info, recover);
 		length -= sublen;
 		logical += sublen;
 		page_index++;
