@@ -179,6 +179,47 @@ static void intel_gvt_update_vgpu_types(struct intel_gvt *gvt)
 }
 
 /**
+ * intel_gvt_active_vgpu - activate a virtual GPU
+ * @vgpu: virtual GPU
+ *
+ * This function is called when user wants to activate a virtual GPU.
+ *
+ */
+void intel_gvt_activate_vgpu(struct intel_vgpu *vgpu)
+{
+	mutex_lock(&vgpu->gvt->lock);
+	vgpu->active = true;
+	mutex_unlock(&vgpu->gvt->lock);
+}
+
+/**
+ * intel_gvt_deactive_vgpu - deactivate a virtual GPU
+ * @vgpu: virtual GPU
+ *
+ * This function is called when user wants to deactivate a virtual GPU.
+ * All virtual GPU runtime information will be destroyed.
+ *
+ */
+void intel_gvt_deactivate_vgpu(struct intel_vgpu *vgpu)
+{
+	struct intel_gvt *gvt = vgpu->gvt;
+
+	mutex_lock(&gvt->lock);
+
+	vgpu->active = false;
+
+	if (atomic_read(&vgpu->running_workload_num)) {
+		mutex_unlock(&gvt->lock);
+		intel_gvt_wait_vgpu_idle(vgpu);
+		mutex_lock(&gvt->lock);
+	}
+
+	intel_vgpu_stop_schedule(vgpu);
+
+	mutex_unlock(&gvt->lock);
+}
+
+/**
  * intel_gvt_destroy_vgpu - destroy a virtual GPU
  * @vgpu: virtual GPU
  *
@@ -191,16 +232,9 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 
 	mutex_lock(&gvt->lock);
 
-	vgpu->active = false;
+	WARN(vgpu->active, "vGPU is still active!\n");
+
 	idr_remove(&gvt->vgpu_idr, vgpu->id);
-
-	if (atomic_read(&vgpu->running_workload_num)) {
-		mutex_unlock(&gvt->lock);
-		intel_gvt_wait_vgpu_idle(vgpu);
-		mutex_lock(&gvt->lock);
-	}
-
-	intel_vgpu_stop_schedule(vgpu);
 	intel_vgpu_clean_sched_policy(vgpu);
 	intel_vgpu_clean_gvt_context(vgpu);
 	intel_vgpu_clean_execlist(vgpu);
@@ -277,7 +311,6 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (ret)
 		goto out_clean_shadow_ctx;
 
-	vgpu->active = true;
 	mutex_unlock(&gvt->lock);
 
 	return vgpu;
