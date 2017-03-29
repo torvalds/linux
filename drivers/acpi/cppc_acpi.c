@@ -972,9 +972,9 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 {
 	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpunum);
-	struct cpc_register_resource *highest_reg, *lowest_reg, *ref_perf,
-								 *nom_perf;
-	u64 high, low, nom;
+	struct cpc_register_resource *highest_reg, *lowest_reg,
+		*lowest_non_linear_reg, *nominal_reg;
+	u64 high, low, nom, min_nonlinear;
 	int ret = 0, regs_in_pcc = 0;
 
 	if (!cpc_desc) {
@@ -984,12 +984,12 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 
 	highest_reg = &cpc_desc->cpc_regs[HIGHEST_PERF];
 	lowest_reg = &cpc_desc->cpc_regs[LOWEST_PERF];
-	ref_perf = &cpc_desc->cpc_regs[REFERENCE_PERF];
-	nom_perf = &cpc_desc->cpc_regs[NOMINAL_PERF];
+	lowest_non_linear_reg = &cpc_desc->cpc_regs[LOW_NON_LINEAR_PERF];
+	nominal_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
 
 	/* Are any of the regs PCC ?*/
 	if (CPC_IN_PCC(highest_reg) || CPC_IN_PCC(lowest_reg) ||
-		CPC_IN_PCC(ref_perf) || CPC_IN_PCC(nom_perf)) {
+		CPC_IN_PCC(lowest_non_linear_reg) || CPC_IN_PCC(nominal_reg)) {
 		regs_in_pcc = 1;
 		down_write(&pcc_data.pcc_lock);
 		/* Ring doorbell once to update PCC subspace */
@@ -1005,10 +1005,13 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	cpc_read(cpunum, lowest_reg, &low);
 	perf_caps->lowest_perf = low;
 
-	cpc_read(cpunum, nom_perf, &nom);
+	cpc_read(cpunum, nominal_reg, &nom);
 	perf_caps->nominal_perf = nom;
 
-	if (!high || !low || !nom)
+	cpc_read(cpunum, lowest_non_linear_reg, &min_nonlinear);
+	perf_caps->lowest_nonlinear_perf = min_nonlinear;
+
+	if (!high || !low || !nom || !min_nonlinear)
 		ret = -EFAULT;
 
 out_err:

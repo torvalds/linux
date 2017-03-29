@@ -103,6 +103,7 @@ struct cppc_perf_caps {
 	u32 highest_perf;
 	u32 nominal_perf;
 	u32 lowest_perf;
+	u32 lowest_nonlinear_perf;
 };
 
 struct cppc_perf_ctrls {
