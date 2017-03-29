@@ -1584,9 +1584,6 @@ EXPORT_SYMBOL_GPL(pm_genpd_remove);
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS_OF
 
-typedef struct generic_pm_domain *(*genpd_xlate_t)(struct of_phandle_args *args,
-						   void *data);
-
 /*
  * Device Tree based PM domain providers.
  *
@@ -1742,6 +1739,9 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 
 	mutex_lock(&gpd_list_lock);
 
+	if (!data->xlate)
+		data->xlate = genpd_xlate_onecell;
+
 	for (i = 0; i < data->num_domains; i++) {
 		if (!data->domains[i])
 			continue;
@@ -1752,7 +1752,7 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 		data->domains[i]->has_provider = true;
 	}
 
-	ret = genpd_add_provider(np, genpd_xlate_onecell, data);
+	ret = genpd_add_provider(np, data->xlate, data);
 	if (ret < 0)
 		goto error;
 
