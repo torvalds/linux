@@ -101,9 +101,11 @@ struct nvkm_msgqueue_init_func {
  * struct nvkm_msgqueue_acr_func - msgqueue functions related to ACR
  *
  * @boot_falcon:	build and send the command to reset a given falcon
+ * @boot_multiple_falcons: build and send the command to reset several falcons
  */
 struct nvkm_msgqueue_acr_func {
 	int (*boot_falcon)(struct nvkm_msgqueue *, enum nvkm_secboot_falcon);
+	int (*boot_multiple_falcons)(struct nvkm_msgqueue *, unsigned long);
 };
 
 struct nvkm_msgqueue_func {

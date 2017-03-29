@@ -976,15 +976,16 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
  */
 static int
 acr_r352_reset_nopmu(struct acr_r352 *acr, struct nvkm_secboot *sb,
-		     enum nvkm_secboot_falcon falcon)
+		     unsigned long falcon_mask)
 {
+	int falcon;
 	int ret;
 
 	/*
 	 * Perform secure boot each time we are called on FECS. Since only FECS
 	 * and GPCCS are managed and started together, this ought to be safe.
 	 */
-	if (falcon != NVKM_SECBOOT_FALCON_FECS)
+	if (!(falcon_mask & BIT(NVKM_SECBOOT_FALCON_FECS)))
 		goto end;
 
 	ret = acr_r352_shutdown(acr, sb);
@@ -996,7 +997,9 @@ acr_r352_reset_nopmu(struct acr_r352 *acr, struct nvkm_secboot *sb,
 		return ret;
 
 end:
-	acr->falcon_state[falcon] = RESET;
+	for_each_set_bit(falcon, &falcon_mask, NVKM_SECBOOT_FALCON_END) {
+		acr->falcon_state[falcon] = RESET;
+	}
 	return 0;
 }
 
@@ -1009,11 +1012,11 @@ end:
  */
 static int
 acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
-	       enum nvkm_secboot_falcon falcon)
+	       unsigned long falcon_mask)
 {
 	struct acr_r352 *acr = acr_r352(_acr);
 	struct nvkm_msgqueue *queue;
-	const char *fname = nvkm_secboot_falcon_name[falcon];
+	int falcon;
 	bool wpr_already_set = sb->wpr_set;
 	int ret;
 
@@ -1026,7 +1029,7 @@ acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 	if (!nvkm_secboot_is_managed(sb, _acr->boot_falcon)) {
 		/* Redo secure boot entirely if it was already done */
 		if (wpr_already_set)
-			return acr_r352_reset_nopmu(acr, sb, falcon);
+			return acr_r352_reset_nopmu(acr, sb, falcon_mask);
 		/* Else return the result of the initial invokation */
 		else
 			return ret;
@@ -1044,13 +1047,15 @@ acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 	}
 
 	/* Otherwise just ask the LS firmware to reset the falcon */
-	nvkm_debug(&sb->subdev, "resetting %s falcon\n", fname);
-	ret = nvkm_msgqueue_acr_boot_falcon(queue, falcon);
+	for_each_set_bit(falcon, &falcon_mask, NVKM_SECBOOT_FALCON_END)
+		nvkm_debug(&sb->subdev, "resetting %s falcon\n",
+			   nvkm_secboot_falcon_name[falcon]);
+	ret = nvkm_msgqueue_acr_boot_falcons(queue, falcon_mask);
 	if (ret) {
-		nvkm_error(&sb->subdev, "cannot boot %s falcon\n", fname);
+		nvkm_error(&sb->subdev, "error during falcon reset: %d\n", ret);
 		return ret;
 	}
-	nvkm_debug(&sb->subdev, "falcon %s reset\n", fname);
+	nvkm_debug(&sb->subdev, "falcon reset done\n");
 
 	return 0;
 }

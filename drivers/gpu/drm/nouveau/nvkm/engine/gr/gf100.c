@@ -1463,25 +1463,27 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_secboot *sb = device->secboot;
-	int ret = 0;
+	u32 secboot_mask = 0;
 
 	/* load fuc microcode */
 	nvkm_mc_unk260(device, 0);
 
 	/* securely-managed falcons must be reset using secure boot */
 	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_FECS))
-		ret = nvkm_secboot_reset(sb, NVKM_SECBOOT_FALCON_FECS);
+		secboot_mask |= BIT(NVKM_SECBOOT_FALCON_FECS);
 	else
 		gf100_gr_init_fw(gr->fecs, &gr->fuc409c, &gr->fuc409d);
-	if (ret)
-		return ret;
 
 	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_GPCCS))
-		ret = nvkm_secboot_reset(sb, NVKM_SECBOOT_FALCON_GPCCS);
+		secboot_mask |= BIT(NVKM_SECBOOT_FALCON_GPCCS);
 	else
 		gf100_gr_init_fw(gr->gpccs, &gr->fuc41ac, &gr->fuc41ad);
-	if (ret)
-		return ret;
+
+	if (secboot_mask != 0) {
+		int ret = nvkm_secboot_reset(sb, secboot_mask);
+		if (ret)
+			return ret;
+	}
 
 	nvkm_mc_unk260(device, 1);
 

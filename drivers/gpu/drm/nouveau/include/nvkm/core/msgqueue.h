@@ -41,7 +41,6 @@ int nvkm_msgqueue_reinit(struct nvkm_msgqueue *);
 void nvkm_msgqueue_write_cmdline(struct nvkm_msgqueue *, void *);
 
 /* interface to ACR unit running on falcon (NVIDIA signed firmware) */
-int nvkm_msgqueue_acr_boot_falcon(struct nvkm_msgqueue *,
-				  enum nvkm_secboot_falcon);
+int nvkm_msgqueue_acr_boot_falcons(struct nvkm_msgqueue *, unsigned long);
 
 #endif
