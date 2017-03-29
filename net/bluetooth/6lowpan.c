@@ -38,7 +38,6 @@ struct skb_cb {
 	struct in6_addr addr;
 	struct in6_addr gw;
 	struct l2cap_chan *chan;
-	int status;
 };
 #define lowpan_cb(skb) ((struct skb_cb *)((skb)->cb))
 
@@ -485,7 +484,7 @@ static int send_pkt(struct l2cap_chan *chan, struct sk_buff *skb,
 	}
 
 	if (!err)
-		err = lowpan_cb(skb)->status;
+		err = (!chan->tx_credits ? -EAGAIN : 0);
 
 	if (err < 0) {
 		if (err == -EAGAIN)
@@ -880,26 +879,12 @@ static struct sk_buff *chan_alloc_skb_cb(struct l2cap_chan *chan,
 
 static void chan_suspend_cb(struct l2cap_chan *chan)
 {
-	struct sk_buff *skb = chan->data;
-
-	BT_DBG("chan %p conn %p skb %p", chan, chan->conn, skb);
-
-	if (!skb)
-		return;
-
-	lowpan_cb(skb)->status = -EAGAIN;
+	BT_DBG("chan %p suspend", chan);
 }
 
 static void chan_resume_cb(struct l2cap_chan *chan)
 {
-	struct sk_buff *skb = chan->data;
-
-	BT_DBG("chan %p conn %p skb %p", chan, chan->conn, skb);
-
-	if (!skb)
-		return;
-
-	lowpan_cb(skb)->status = 0;
+	BT_DBG("chan %p resume", chan);
 }
 
 static long chan_get_sndtimeo_cb(struct l2cap_chan *chan)
