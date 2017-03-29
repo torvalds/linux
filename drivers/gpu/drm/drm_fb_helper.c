@@ -213,9 +213,9 @@ int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 	fb_helper_connector = fb_helper->connector_info[i];
 	drm_connector_put(fb_helper_connector->connector);
 
-	for (j = i + 1; j < fb_helper->connector_count; j++) {
+	for (j = i + 1; j < fb_helper->connector_count; j++)
 		fb_helper->connector_info[j - 1] = fb_helper->connector_info[j];
-	}
+
 	fb_helper->connector_count--;
 	kfree(fb_helper_connector);
 
@@ -316,6 +316,7 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 
 	for (i = 0; i < helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &helper->crtc_info[i].mode_set;
+
 		crtc = mode_set->crtc;
 		funcs = crtc->helper_private;
 		fb = drm_mode_config_fb(crtc);
@@ -346,7 +347,7 @@ static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper)
 	struct drm_plane *plane;
 	struct drm_atomic_state *state;
 	int i, ret;
-	unsigned plane_mask;
+	unsigned int plane_mask;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
@@ -378,7 +379,7 @@ retry:
 			goto fail;
 	}
 
-	for(i = 0; i < fb_helper->crtc_count; i++) {
+	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
 
 		ret = __drm_atomic_helper_set_config(mode_set, state);
@@ -488,8 +489,10 @@ static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 	struct drm_crtc *crtc;
 	int bound = 0, crtcs_bound = 0;
 
-	/* Sometimes user space wants everything disabled, so don't steal the
-	 * display if there's a master. */
+	/*
+	 * Sometimes user space wants everything disabled, so don't steal the
+	 * display if there's a master.
+	 */
 	if (READ_ONCE(dev->master))
 		return false;
 
@@ -537,6 +540,7 @@ static bool drm_fb_helper_force_kernel_mode(void)
 static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 {
 	bool ret;
+
 	ret = drm_fb_helper_force_kernel_mode();
 	if (ret == true)
 		DRM_ERROR("Failed to restore crtc configuration\n");
@@ -870,9 +874,8 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	mutex_lock(&kernel_fb_helper_lock);
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
-		if (list_empty(&kernel_fb_helper_list)) {
+		if (list_empty(&kernel_fb_helper_list))
 			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
-		}
 	}
 	mutex_unlock(&kernel_fb_helper_lock);
 
@@ -1165,6 +1168,7 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 			(blue << info->var.blue.offset);
 		if (info->var.transp.length > 0) {
 			u32 mask = (1 << info->var.transp.length) - 1;
+
 			mask <<= info->var.transp.offset;
 			value |= mask;
 		}
@@ -1447,7 +1451,7 @@ static int pan_display_atomic(struct fb_var_screeninfo *var,
 	struct drm_atomic_state *state;
 	struct drm_plane *plane;
 	int i, ret;
-	unsigned plane_mask;
+	unsigned int plane_mask;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
@@ -1456,7 +1460,7 @@ static int pan_display_atomic(struct fb_var_screeninfo *var,
 	state->acquire_ctx = dev->mode_config.acquire_ctx;
 retry:
 	plane_mask = 0;
-	for(i = 0; i < fb_helper->crtc_count; i++) {
+	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set;
 
 		mode_set = &fb_helper->crtc_info[i].mode_set;
@@ -1561,11 +1565,10 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	memset(&sizes, 0, sizeof(struct drm_fb_helper_surface_size));
 	sizes.surface_depth = 24;
 	sizes.surface_bpp = 32;
-	sizes.fb_width = (unsigned)-1;
-	sizes.fb_height = (unsigned)-1;
+	sizes.fb_width = (u32)-1;
+	sizes.fb_height = (u32)-1;
 
-	/* if driver picks 8 or 16 by default use that
-	   for both depth/bpp */
+	/* if driver picks 8 or 16 by default use that for both depth/bpp */
 	if (preferred_bpp != sizes.surface_bpp)
 		sizes.surface_depth = sizes.surface_bpp = preferred_bpp;
 
@@ -1630,6 +1633,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 		for (j = 0; j < mode_set->num_connectors; j++) {
 			struct drm_connector *connector = mode_set->connectors[j];
+
 			if (connector->has_tile) {
 				lasth = (connector->tile_h_loc == (connector->num_h_tile - 1));
 				lastv = (connector->tile_v_loc == (connector->num_v_tile - 1));
@@ -1645,8 +1649,10 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	}
 
 	if (crtc_count == 0 || sizes.fb_width == -1 || sizes.fb_height == -1) {
-		/* hmm everyone went away - assume VGA cable just fell out
-		   and will come back later. */
+		/*
+		 * hmm everyone went away - assume VGA cable just fell out
+		 * and will come back later.
+		 */
 		DRM_INFO("Cannot find any crtc or sizes - going 1024x768\n");
 		sizes.fb_width = sizes.surface_width = 1024;
 		sizes.fb_height = sizes.surface_height = 768;
@@ -1703,7 +1709,6 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 	info->fix.accel = FB_ACCEL_NONE;
 
 	info->fix.line_length = pitch;
-	return;
 }
 EXPORT_SYMBOL(drm_fb_helper_fill_fix);
 
@@ -1725,6 +1730,7 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 			    uint32_t fb_width, uint32_t fb_height)
 {
 	struct drm_framebuffer *fb = fb_helper->fb;
+
 	info->pseudo_palette = fb_helper->pseudo_palette;
 	info->var.xres_virtual = fb->width;
 	info->var.yres_virtual = fb->height;
@@ -2057,13 +2063,15 @@ retry:
 				continue;
 
 		} else {
-			if (fb_helper_conn->connector->tile_h_loc != tile_pass -1 &&
+			if (fb_helper_conn->connector->tile_h_loc != tile_pass - 1 &&
 			    fb_helper_conn->connector->tile_v_loc != tile_pass - 1)
 			/* if this tile_pass doesn't cover any of the tiles - keep going */
 				continue;
 
-			/* find the tile offsets for this pass - need
-			   to find all tiles left and above */
+			/*
+			 * find the tile offsets for this pass - need to find
+			 * all tiles left and above
+			 */
 			drm_get_tile_offsets(fb_helper, modes, offsets,
 					     i, fb_helper_conn->connector->tile_h_loc, fb_helper_conn->connector->tile_v_loc);
 		}
@@ -2147,8 +2155,10 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	if (!encoder)
 		goto out;
 
-	/* select a crtc for this connector and then attempt to configure
-	   remaining connectors */
+	/*
+	 * select a crtc for this connector and then attempt to configure
+	 * remaining connectors
+	 */
 	for (c = 0; c < fb_helper->crtc_count; c++) {
 		crtc = &fb_helper->crtc_info[c];
 
