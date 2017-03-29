@@ -772,20 +772,10 @@ enum ibmvnic_commands {
 	ERROR_INDICATION = 0x08,
 	REQUEST_ERROR_INFO = 0x09,
 	REQUEST_ERROR_RSP = 0x89,
-	REQUEST_DUMP_SIZE = 0x0A,
-	REQUEST_DUMP_SIZE_RSP = 0x8A,
-	REQUEST_DUMP = 0x0B,
-	REQUEST_DUMP_RSP = 0x8B,
 	LOGICAL_LINK_STATE = 0x0C,
 	LOGICAL_LINK_STATE_RSP = 0x8C,
 	REQUEST_STATISTICS = 0x0D,
 	REQUEST_STATISTICS_RSP = 0x8D,
-	REQUEST_RAS_COMP_NUM = 0x0E,
-	REQUEST_RAS_COMP_NUM_RSP = 0x8E,
-	REQUEST_RAS_COMPS = 0x0F,
-	REQUEST_RAS_COMPS_RSP = 0x8F,
-	CONTROL_RAS = 0x10,
-	CONTROL_RAS_RSP = 0x90,
 	COLLECT_FW_TRACE = 0x11,
 	COLLECT_FW_TRACE_RSP = 0x91,
 	LINK_STATE_INDICATION = 0x12,
@@ -806,8 +796,6 @@ enum ibmvnic_commands {
 	ACL_CHANGE_INDICATION = 0x1A,
 	ACL_QUERY = 0x1B,
 	ACL_QUERY_RSP = 0x9B,
-	REQUEST_DEBUG_STATS = 0x1C,
-	REQUEST_DEBUG_STATS_RSP = 0x9C,
 	QUERY_MAP = 0x1D,
 	QUERY_MAP_RSP = 0x9D,
 	REQUEST_MAP = 0x1E,
@@ -925,13 +913,6 @@ struct ibmvnic_error_buff {
 	__be32 error_id;
 };
 
-struct ibmvnic_fw_comp_internal {
-	struct ibmvnic_adapter *adapter;
-	int num;
-	struct debugfs_blob_wrapper desc_blob;
-	int paused;
-};
-
 struct ibmvnic_inflight_cmd {
 	union ibmvnic_crq crq;
 	struct list_head list;
@@ -995,18 +976,7 @@ struct ibmvnic_adapter {
 	struct list_head errors;
 	spinlock_t error_list_lock;
 
-	/* debugfs */
-	struct dentry *debugfs_dir;
-	struct dentry *debugfs_dump;
 	struct completion fw_done;
-	char *dump_data;
-	dma_addr_t dump_data_token;
-	int dump_data_size;
-	int ras_comp_num;
-	struct ibmvnic_fw_component *ras_comps;
-	struct ibmvnic_fw_comp_internal *ras_comp_int;
-	dma_addr_t ras_comps_tok;
-	struct dentry *ras_comps_ent;
 
 	/* in-flight commands that allocate and/or map memory*/
 	struct list_head inflight;

@@ -65,7 +65,6 @@
 #include <linux/irq.h>
 #include <linux/kthread.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
 #include <linux/interrupt.h>
 #include <net/net_namespace.h>
 #include <asm/hvcall.h>
@@ -615,20 +614,10 @@ static void ibmvnic_release_resources(struct ibmvnic_adapter *adapter)
 	release_sub_crqs(adapter);
 	ibmvnic_release_crq_queue(adapter);
 
-	if (adapter->debugfs_dir && !IS_ERR(adapter->debugfs_dir))
-		debugfs_remove_recursive(adapter->debugfs_dir);
-
 	if (adapter->stats_token)
 		dma_unmap_single(dev, adapter->stats_token,
 				 sizeof(struct ibmvnic_statistics),
 				 DMA_FROM_DEVICE);
-
-	if (adapter->ras_comps)
-		dma_free_coherent(dev, adapter->ras_comp_num *
-				  sizeof(struct ibmvnic_fw_component),
-				  adapter->ras_comps, adapter->ras_comps_tok);
-
-	kfree(adapter->ras_comp_int);
 }
 
 static int ibmvnic_close(struct net_device *netdev)
@@ -2332,57 +2321,6 @@ static void handle_error_info_rsp(union ibmvnic_crq *crq,
 	kfree(error_buff);
 }
 
-static void handle_dump_size_rsp(union ibmvnic_crq *crq,
-				 struct ibmvnic_adapter *adapter)
-{
-	int len = be32_to_cpu(crq->request_dump_size_rsp.len);
-	struct ibmvnic_inflight_cmd *inflight_cmd;
-	struct device *dev = &adapter->vdev->dev;
-	union ibmvnic_crq newcrq;
-	unsigned long flags;
-
-	/* allocate and map buffer */
-	adapter->dump_data = kmalloc(len, GFP_KERNEL);
-	if (!adapter->dump_data) {
-		complete(&adapter->fw_done);
-		return;
-	}
-
-	adapter->dump_data_token = dma_map_single(dev, adapter->dump_data, len,
-						  DMA_FROM_DEVICE);
-
-	if (dma_mapping_error(dev, adapter->dump_data_token)) {
-		if (!firmware_has_feature(FW_FEATURE_CMO))
-			dev_err(dev, "Couldn't map dump data\n");
-		kfree(adapter->dump_data);
-		complete(&adapter->fw_done);
-		return;
-	}
-
-	inflight_cmd = kmalloc(sizeof(*inflight_cmd), GFP_ATOMIC);
-	if (!inflight_cmd) {
-		dma_unmap_single(dev, adapter->dump_data_token, len,
-				 DMA_FROM_DEVICE);
-		kfree(adapter->dump_data);
-		complete(&adapter->fw_done);
-		return;
-	}
-
-	memset(&newcrq, 0, sizeof(newcrq));
-	newcrq.request_dump.first = IBMVNIC_CRQ_CMD;
-	newcrq.request_dump.cmd = REQUEST_DUMP;
-	newcrq.request_dump.ioba = cpu_to_be32(adapter->dump_data_token);
-	newcrq.request_dump.len = cpu_to_be32(adapter->dump_data_size);
-
-	memcpy(&inflight_cmd->crq, &newcrq, sizeof(newcrq));
-
-	spin_lock_irqsave(&adapter->inflight_lock, flags);
-	list_add_tail(&inflight_cmd->list, &adapter->inflight);
-	spin_unlock_irqrestore(&adapter->inflight_lock, flags);
-
-	ibmvnic_send_crq(adapter, &newcrq);
-}
-
 static void handle_error_indication(union ibmvnic_crq *crq,
 				    struct ibmvnic_adapter *adapter)
 {
@@ -2563,7 +2501,6 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_login_rsp_buffer *login_rsp = adapter->login_rsp_buf;
 	struct ibmvnic_login_buffer *login = adapter->login_buf;
-	union ibmvnic_crq crq;
 	int i;
 
 	dma_unmap_single(dev, adapter->login_buf_token, adapter->login_buf_sz,
@@ -2597,11 +2534,6 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 		return -EIO;
 	}
 	complete(&adapter->init_done);
-
-	memset(&crq, 0, sizeof(crq));
-	crq.request_ras_comp_num.first = IBMVNIC_CRQ_CMD;
-	crq.request_ras_comp_num.cmd = REQUEST_RAS_COMP_NUM;
-	ibmvnic_send_crq(adapter, &crq);
 
 	return 0;
 }
@@ -2838,476 +2770,6 @@ out:
 	}
 }
 
-static void handle_control_ras_rsp(union ibmvnic_crq *crq,
-				   struct ibmvnic_adapter *adapter)
-{
-	u8 correlator = crq->control_ras_rsp.correlator;
-	struct device *dev = &adapter->vdev->dev;
-	bool found = false;
-	int i;
-
-	if (crq->control_ras_rsp.rc.code) {
-		dev_warn(dev, "Control ras failed rc=%d\n",
-			 crq->control_ras_rsp.rc.code);
-		return;
-	}
-
-	for (i = 0; i < adapter->ras_comp_num; i++) {
-		if (adapter->ras_comps[i].correlator == correlator) {
-			found = true;
-			break;
-		}
-	}
-
-	if (!found) {
-		dev_warn(dev, "Correlator not found on control_ras_rsp\n");
-		return;
-	}
-
-	switch (crq->control_ras_rsp.op) {
-	case IBMVNIC_TRACE_LEVEL:
-		adapter->ras_comps[i].trace_level = crq->control_ras.level;
-		break;
-	case IBMVNIC_ERROR_LEVEL:
-		adapter->ras_comps[i].error_check_level =
-		    crq->control_ras.level;
-		break;
-	case IBMVNIC_TRACE_PAUSE:
-		adapter->ras_comp_int[i].paused = 1;
-		break;
-	case IBMVNIC_TRACE_RESUME:
-		adapter->ras_comp_int[i].paused = 0;
-		break;
-	case IBMVNIC_TRACE_ON:
-		adapter->ras_comps[i].trace_on = 1;
-		break;
-	case IBMVNIC_TRACE_OFF:
-		adapter->ras_comps[i].trace_on = 0;
-		break;
-	case IBMVNIC_CHG_TRACE_BUFF_SZ:
-		/* trace_buff_sz is 3 bytes, stuff it into an int */
-		((u8 *)(&adapter->ras_comps[i].trace_buff_size))[0] = 0;
-		((u8 *)(&adapter->ras_comps[i].trace_buff_size))[1] =
-		    crq->control_ras_rsp.trace_buff_sz[0];
-		((u8 *)(&adapter->ras_comps[i].trace_buff_size))[2] =
-		    crq->control_ras_rsp.trace_buff_sz[1];
-		((u8 *)(&adapter->ras_comps[i].trace_buff_size))[3] =
-		    crq->control_ras_rsp.trace_buff_sz[2];
-		break;
-	default:
-		dev_err(dev, "invalid op %d on control_ras_rsp",
-			crq->control_ras_rsp.op);
-	}
-}
-
-static ssize_t trace_read(struct file *file, char __user *user_buf, size_t len,
-			  loff_t *ppos)
-{
-	struct ibmvnic_fw_comp_internal *ras_comp_int = file->private_data;
-	struct ibmvnic_adapter *adapter = ras_comp_int->adapter;
-	struct device *dev = &adapter->vdev->dev;
-	struct ibmvnic_fw_trace_entry *trace;
-	int num = ras_comp_int->num;
-	union ibmvnic_crq crq;
-	dma_addr_t trace_tok;
-
-	if (*ppos >= be32_to_cpu(adapter->ras_comps[num].trace_buff_size))
-		return 0;
-
-	trace =
-	    dma_alloc_coherent(dev,
-			       be32_to_cpu(adapter->ras_comps[num].
-					   trace_buff_size), &trace_tok,
-			       GFP_KERNEL);
-	if (!trace) {
-		dev_err(dev, "Couldn't alloc trace buffer\n");
-		return 0;
-	}
-
-	memset(&crq, 0, sizeof(crq));
-	crq.collect_fw_trace.first = IBMVNIC_CRQ_CMD;
-	crq.collect_fw_trace.cmd = COLLECT_FW_TRACE;
-	crq.collect_fw_trace.correlator = adapter->ras_comps[num].correlator;
-	crq.collect_fw_trace.ioba = cpu_to_be32(trace_tok);
-	crq.collect_fw_trace.len = adapter->ras_comps[num].trace_buff_size;
-
-	init_completion(&adapter->fw_done);
-	ibmvnic_send_crq(adapter, &crq);
-	wait_for_completion(&adapter->fw_done);
-
-	if (*ppos + len > be32_to_cpu(adapter->ras_comps[num].trace_buff_size))
-		len =
-		    be32_to_cpu(adapter->ras_comps[num].trace_buff_size) -
-		    *ppos;
-
-	copy_to_user(user_buf, &((u8 *)trace)[*ppos], len);
-
-	dma_free_coherent(dev,
-			  be32_to_cpu(adapter->ras_comps[num].trace_buff_size),
-			  trace, trace_tok);
-	*ppos += len;
-	return len;
-}
-
-static const struct file_operations trace_ops = {
-	.owner		= THIS_MODULE,
-	.open		= simple_open,
-	.read		= trace_read,
-};
-
-static ssize_t paused_read(struct file *file, char __user *user_buf, size_t len,
-			   loff_t *ppos)
-{
-	struct ibmvnic_fw_comp_internal *ras_comp_int = file->private_data;
-	struct ibmvnic_adapter *adapter = ras_comp_int->adapter;
-	int num = ras_comp_int->num;
-	char buff[5]; /*  1 or 0 plus \n and \0 */
-	int size;
-
-	size = sprintf(buff, "%d\n", adapter->ras_comp_int[num].paused);
-
-	if (*ppos >= size)
-		return 0;
-
-	copy_to_user(user_buf, buff, size);
-	*ppos += size;
-	return size;
-}
-
-static ssize_t paused_write(struct file *file, const char __user *user_buf,
-			    size_t len, loff_t *ppos)
-{
-	struct ibmvnic_fw_comp_internal *ras_comp_int = file->private_data;
-	struct ibmvnic_adapter *adapter = ras_comp_int->adapter;
-	int num = ras_comp_int->num;
-	union ibmvnic_crq crq;
-	unsigned long val;
-	char buff[9]; /* decimal max int plus \n and \0 */
-
-	copy_from_user(buff, user_buf, sizeof(buff));
-	val = kstrtoul(buff, 10, NULL);
-
-	adapter->ras_comp_int[num].paused = val ? 1 : 0;
-
-	memset(&crq, 0, sizeof(crq));
-	crq.control_ras.first = IBMVNIC_CRQ_CMD;
-	crq.control_ras.cmd = CONTROL_RAS;
-	crq.control_ras.correlator = adapter->ras_comps[num].correlator;
-	crq.control_ras.op = val ? IBMVNIC_TRACE_PAUSE : IBMVNIC_TRACE_RESUME;
-	ibmvnic_send_crq(adapter, &crq);
-
-	return len;
-}
-
-static const struct file_operations paused_ops = {
-	.owner		= THIS_MODULE,
-	.open		= simple_open,
-	.read		= paused_read,
-	.write		= paused_write,
-};
-
-static ssize_t tracing_read(struct file *file, char __user *user_buf,
-			    size_t len, loff_t *ppos)
-{
-	struct ibmvnic_fw_comp_internal *ras_comp_int = file->private_data;
-	struct ibmvnic_adapter *adapter = ras_comp_int->adapter;
-	int num = ras_comp_int->num;
-	char buff[5]; /*  1 or 0 plus \n and \0 */
-	int size;
-
-	size = sprintf(buff, "%d\n", adapter->ras_comps[num].trace_on);
-
-	if (*ppos >= size)
-		return 0;
-
-	copy_to_user(user_buf, buff, size);
-	*ppos += size;
-	return size;
-}
-
-static ssize_t tracing_write(struct file *file, const char __user *user_buf,
-			     size_t len, loff_t *ppos)
-{
-	struct ibmvnic_fw_comp_internal *ras_comp_int = file->private_data;
-	struct ibmvnic_adapter *adapter = ras_comp_int->adapter;
-	int num = ras_comp_int->num;
-	union ibmvnic_crq crq;
-	unsigned long val;
-	char buff[9]; /* decimal max int plus \n and \0 */
-
-	copy_from_user(buff, user_buf, sizeof(buff));
-	val = kstrtoul(buff, 10, NULL);
-
-	memset(&crq, 0, sizeof(crq));
-	crq.control_ras.first = IBMVNIC_CRQ_CMD;
-	crq.control_ras.cmd = CONTROL_RAS;
-	crq.control_ras.correlator = adapter->ras_comps[num].correlator;
-	crq.control_ras.op = val ? IBMVNIC_TRACE_ON : IBMVNIC_TRACE_OFF;
-
-	return len;
-}
-
-static const struct file_operations tracing_ops = {
-	.owner		= THIS_MODULE,
-	.open		= simple_open,
-	.read		= tracing_read,
-	.write		= tracing_write,
-};
-
-static ssize_t error_level_read(struct file *file, char __user *user_buf,
-				size_t len, loff_t *ppos)
-{
-	struct ibmvnic_fw_comp_internal *ras_comp_int = file->private_data;
-	struct ibmvnic_adapter *adapter = ras_comp_int->adapter;
-	int num = ras_comp_int->num;
-	char buff[5]; /* decimal max char plus \n and \0 */
-	int size;
-
-	size = sprintf(buff, "%d\n", adapter->ras_comps[num].error_check_level);
-
-	if (*ppos >= size)
-		return 0;
-
-	copy_to_user(user_buf, buff, size);
-	*ppos += size;
-	return size;
-}
-
-static ssize_t error_level_write(struct file *file, const char __user *user_buf,
-				 size_t len, loff_t *ppos)
-{
-	struct ibmvnic_fw_comp_internal *ras_comp_int = file->private_data;
-	struct ibmvnic_adapter *adapter = ras_comp_int->adapter;
-	int num = ras_comp_int->num;
-	union ibmvnic_crq crq;
-	unsigned long val;
-	char buff[9]; /* decimal max int plus \n and \0 */
-
-	copy_from_user(buff, user_buf, sizeof(buff));
-	val = kstrtoul(buff, 10, NULL);
-
-	if (val > 9)
-		val = 9;
-
-	memset(&crq, 0, sizeof(crq));
-	crq.control_ras.first = IBMVNIC_CRQ_CMD;
-	crq.control_ras.cmd = CONTROL_RAS;
-	crq.control_ras.correlator = adapter->ras_comps[num].correlator;
-	crq.control_ras.op = IBMVNIC_ERROR_LEVEL;
-	crq.control_ras.level = val;
-	ibmvnic_send_crq(adapter, &crq);
-
-	return len;
-}
-
-static const struct file_operations error_level_ops = {
-	.owner		= THIS_MODULE,
-	.open		= simple_open,
-	.read		= error_level_read,
-	.write		= error_level_write,
-};
-
-static ssize_t trace_level_read(struct file *file, char __user *user_buf,
-				size_t len, loff_t *ppos)
-{
-	struct ibmvnic_fw_comp_internal *ras_comp_int = file->private_data;
-	struct ibmvnic_adapter *adapter = ras_comp_int->adapter;
-	int num = ras_comp_int->num;
-	char buff[5]; /* decimal max char plus \n and \0 */
-	int size;
-
-	size = sprintf(buff, "%d\n", adapter->ras_comps[num].trace_level);
-	if (*ppos >= size)
-		return 0;
-
-	copy_to_user(user_buf, buff, size);
-	*ppos += size;
-	return size;
-}
-
-static ssize_t trace_level_write(struct file *file, const char __user *user_buf,
-				 size_t len, loff_t *ppos)
-{
-	struct ibmvnic_fw_comp_internal *ras_comp_int = file->private_data;
-	struct ibmvnic_adapter *adapter = ras_comp_int->adapter;
-	union ibmvnic_crq crq;
-	unsigned long val;
-	char buff[9]; /* decimal max int plus \n and \0 */
-
-	copy_from_user(buff, user_buf, sizeof(buff));
-	val = kstrtoul(buff, 10, NULL);
-	if (val > 9)
-		val = 9;
-
-	memset(&crq, 0, sizeof(crq));
-	crq.control_ras.first = IBMVNIC_CRQ_CMD;
-	crq.control_ras.cmd = CONTROL_RAS;
-	crq.control_ras.correlator =
-	    adapter->ras_comps[ras_comp_int->num].correlator;
-	crq.control_ras.op = IBMVNIC_TRACE_LEVEL;
-	crq.control_ras.level = val;
-	ibmvnic_send_crq(adapter, &crq);
-
-	return len;
-}
-
-static const struct file_operations trace_level_ops = {
-	.owner		= THIS_MODULE,
-	.open		= simple_open,
-	.read		= trace_level_read,
-	.write		= trace_level_write,
-};
-
-static ssize_t trace_buff_size_read(struct file *file, char __user *user_buf,
-				    size_t len, loff_t *ppos)
-{
-	struct ibmvnic_fw_comp_internal *ras_comp_int = file->private_data;
-	struct ibmvnic_adapter *adapter = ras_comp_int->adapter;
-	int num = ras_comp_int->num;
-	char buff[9]; /* decimal max int plus \n and \0 */
-	int size;
-
-	size = sprintf(buff, "%d\n", adapter->ras_comps[num].trace_buff_size);
-	if (*ppos >= size)
-		return 0;
-
-	copy_to_user(user_buf, buff, size);
-	*ppos += size;
-	return size;
-}
-
-static ssize_t trace_buff_size_write(struct file *file,
-				     const char __user *user_buf, size_t len,
-				     loff_t *ppos)
-{
-	struct ibmvnic_fw_comp_internal *ras_comp_int = file->private_data;
-	struct ibmvnic_adapter *adapter = ras_comp_int->adapter;
-	union ibmvnic_crq crq;
-	unsigned long val;
-	char buff[9]; /* decimal max int plus \n and \0 */
-
-	copy_from_user(buff, user_buf, sizeof(buff));
-	val = kstrtoul(buff, 10, NULL);
-
-	memset(&crq, 0, sizeof(crq));
-	crq.control_ras.first = IBMVNIC_CRQ_CMD;
-	crq.control_ras.cmd = CONTROL_RAS;
-	crq.control_ras.correlator =
-	    adapter->ras_comps[ras_comp_int->num].correlator;
-	crq.control_ras.op = IBMVNIC_CHG_TRACE_BUFF_SZ;
-	/* trace_buff_sz is 3 bytes, stuff an int into it */
-	crq.control_ras.trace_buff_sz[0] = ((u8 *)(&val))[5];
-	crq.control_ras.trace_buff_sz[1] = ((u8 *)(&val))[6];
-	crq.control_ras.trace_buff_sz[2] = ((u8 *)(&val))[7];
-	ibmvnic_send_crq(adapter, &crq);
-
-	return len;
-}
-
-static const struct file_operations trace_size_ops = {
-	.owner		= THIS_MODULE,
-	.open		= simple_open,
-	.read		= trace_buff_size_read,
-	.write		= trace_buff_size_write,
-};
-
-static void handle_request_ras_comps_rsp(union ibmvnic_crq *crq,
-					 struct ibmvnic_adapter *adapter)
-{
-	struct device *dev = &adapter->vdev->dev;
-	struct dentry *dir_ent;
-	struct dentry *ent;
-	int i;
-
-	debugfs_remove_recursive(adapter->ras_comps_ent);
-
-	adapter->ras_comps_ent = debugfs_create_dir("ras_comps",
-						    adapter->debugfs_dir);
-	if (!adapter->ras_comps_ent || IS_ERR(adapter->ras_comps_ent)) {
-		dev_info(dev, "debugfs create ras_comps dir failed\n");
-		return;
-	}
-
-	for (i = 0; i < adapter->ras_comp_num; i++) {
-		dir_ent = debugfs_create_dir(adapter->ras_comps[i].name,
-					     adapter->ras_comps_ent);
-		if (!dir_ent || IS_ERR(dir_ent)) {
-			dev_info(dev, "debugfs create %s dir failed\n",
-				 adapter->ras_comps[i].name);
-			continue;
-		}
-
-		adapter->ras_comp_int[i].adapter = adapter;
-		adapter->ras_comp_int[i].num = i;
-		adapter->ras_comp_int[i].desc_blob.data =
-		    &adapter->ras_comps[i].description;
-		adapter->ras_comp_int[i].desc_blob.size =
-		    sizeof(adapter->ras_comps[i].description);
-
-		/* Don't need to remember the dentry's because the debugfs dir
-		 * gets removed recursively
-		 */
-		ent = debugfs_create_blob("description", S_IRUGO, dir_ent,
-					  &adapter->ras_comp_int[i].desc_blob);
-		ent = debugfs_create_file("trace_buf_size", S_IRUGO | S_IWUSR,
-					  dir_ent, &adapter->ras_comp_int[i],
-					  &trace_size_ops);
-		ent = debugfs_create_file("trace_level",
-					  S_IRUGO |
-					  (adapter->ras_comps[i].trace_level !=
-					   0xFF  ? S_IWUSR : 0),
-					   dir_ent, &adapter->ras_comp_int[i],
-					   &trace_level_ops);
-		ent = debugfs_create_file("error_level",
-					  S_IRUGO |
-					  (adapter->
-					   ras_comps[i].error_check_level !=
-					   0xFF ? S_IWUSR : 0),
-					  dir_ent, &adapter->ras_comp_int[i],
-					  &trace_level_ops);
-		ent = debugfs_create_file("tracing", S_IRUGO | S_IWUSR,
-					  dir_ent, &adapter->ras_comp_int[i],
-					  &tracing_ops);
-		ent = debugfs_create_file("paused", S_IRUGO | S_IWUSR,
-					  dir_ent, &adapter->ras_comp_int[i],
-					  &paused_ops);
-		ent = debugfs_create_file("trace", S_IRUGO, dir_ent,
-					  &adapter->ras_comp_int[i],
-					  &trace_ops);
-	}
-}
-
-static void handle_request_ras_comp_num_rsp(union ibmvnic_crq *crq,
-					    struct ibmvnic_adapter *adapter)
-{
-	int len = adapter->ras_comp_num * sizeof(struct ibmvnic_fw_component);
-	struct device *dev = &adapter->vdev->dev;
-	union ibmvnic_crq newcrq;
-
-	adapter->ras_comps = dma_alloc_coherent(dev, len,
-						&adapter->ras_comps_tok,
-						GFP_KERNEL);
-	if (!adapter->ras_comps) {
-		if (!firmware_has_feature(FW_FEATURE_CMO))
-			dev_err(dev, "Couldn't alloc fw comps buffer\n");
-		return;
-	}
-
-	adapter->ras_comp_int = kmalloc(adapter->ras_comp_num *
-					sizeof(struct ibmvnic_fw_comp_internal),
-					GFP_KERNEL);
-	if (!adapter->ras_comp_int)
-		dma_free_coherent(dev, len, adapter->ras_comps,
-				  adapter->ras_comps_tok);
-
-	memset(&newcrq, 0, sizeof(newcrq));
-	newcrq.request_ras_comps.first = IBMVNIC_CRQ_CMD;
-	newcrq.request_ras_comps.cmd = REQUEST_RAS_COMPS;
-	newcrq.request_ras_comps.ioba = cpu_to_be32(adapter->ras_comps_tok);
-	newcrq.request_ras_comps.len = cpu_to_be32(len);
-	ibmvnic_send_crq(adapter, &newcrq);
-}
-
 static void ibmvnic_free_inflight(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_inflight_cmd *inflight_cmd, *tmp1;
@@ -3328,9 +2790,6 @@ static void ibmvnic_free_inflight(struct ibmvnic_adapter *adapter)
 					 DMA_BIDIRECTIONAL);
 			kfree(adapter->login_rsp_buf);
 			kfree(adapter->login_buf);
-			break;
-		case REQUEST_DUMP:
-			complete(&adapter->fw_done);
 			break;
 		case REQUEST_ERROR_INFO:
 			spin_lock_irqsave(&adapter->error_list_lock, flags2);
@@ -3491,14 +2950,6 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 		netdev_dbg(netdev, "Got Statistics Response\n");
 		complete(&adapter->stats_done);
 		break;
-	case REQUEST_DUMP_SIZE_RSP:
-		netdev_dbg(netdev, "Got Request Dump Size Response\n");
-		handle_dump_size_rsp(crq, adapter);
-		break;
-	case REQUEST_DUMP_RSP:
-		netdev_dbg(netdev, "Got Request Dump Response\n");
-		complete(&adapter->fw_done);
-		break;
 	case QUERY_IP_OFFLOAD_RSP:
 		netdev_dbg(netdev, "Got Query IP offload Response\n");
 		handle_query_ip_offload_rsp(adapter);
@@ -3512,24 +2963,6 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 				 sizeof(adapter->ip_offload_ctrl),
 				 DMA_TO_DEVICE);
 		complete(&adapter->init_done);
-		break;
-	case REQUEST_RAS_COMP_NUM_RSP:
-		netdev_dbg(netdev, "Got Request RAS Comp Num Response\n");
-		if (crq->request_ras_comp_num_rsp.rc.code == 10) {
-			netdev_dbg(netdev, "Request RAS Comp Num not supported\n");
-			break;
-		}
-		adapter->ras_comp_num =
-		    be32_to_cpu(crq->request_ras_comp_num_rsp.num_components);
-		handle_request_ras_comp_num_rsp(crq, adapter);
-		break;
-	case REQUEST_RAS_COMPS_RSP:
-		netdev_dbg(netdev, "Got Request RAS Comps Response\n");
-		handle_request_ras_comps_rsp(crq, adapter);
-		break;
-	case CONTROL_RAS_RSP:
-		netdev_dbg(netdev, "Got Control RAS Response\n");
-		handle_control_ras_rsp(crq, adapter);
 		break;
 	case COLLECT_FW_TRACE_RSP:
 		netdev_dbg(netdev, "Got Collect firmware trace Response\n");
@@ -3725,45 +3158,6 @@ map_failed:
 	return retrc;
 }
 
-/* debugfs for dump */
-static int ibmvnic_dump_show(struct seq_file *seq, void *v)
-{
-	struct net_device *netdev = seq->private;
-	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	struct device *dev = &adapter->vdev->dev;
-	union ibmvnic_crq crq;
-
-	memset(&crq, 0, sizeof(crq));
-	crq.request_dump_size.first = IBMVNIC_CRQ_CMD;
-	crq.request_dump_size.cmd = REQUEST_DUMP_SIZE;
-
-	init_completion(&adapter->fw_done);
-	ibmvnic_send_crq(adapter, &crq);
-	wait_for_completion(&adapter->fw_done);
-
-	seq_write(seq, adapter->dump_data, adapter->dump_data_size);
-
-	dma_unmap_single(dev, adapter->dump_data_token, adapter->dump_data_size,
-			 DMA_BIDIRECTIONAL);
-
-	kfree(adapter->dump_data);
-
-	return 0;
-}
-
-static int ibmvnic_dump_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ibmvnic_dump_show, inode->i_private);
-}
-
-static const struct file_operations ibmvnic_dump_ops = {
-	.owner          = THIS_MODULE,
-	.open           = ibmvnic_dump_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
-
 static void handle_crq_init_rsp(struct work_struct *work)
 {
 	struct ibmvnic_adapter *adapter = container_of(work,
@@ -3826,8 +3220,6 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
 	unsigned long timeout = msecs_to_jiffies(30000);
-	struct dentry *ent;
-	char buf[17]; /* debugfs name buf */
 	int rc;
 
 	rc = ibmvnic_init_crq_queue(adapter);
@@ -3845,30 +3237,10 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 		return -ENOMEM;
 	}
 
-	snprintf(buf, sizeof(buf), "ibmvnic_%x", adapter->vdev->unit_address);
-	ent = debugfs_create_dir(buf, NULL);
-	if (!ent || IS_ERR(ent)) {
-		dev_info(dev, "debugfs create directory failed\n");
-		adapter->debugfs_dir = NULL;
-	} else {
-		adapter->debugfs_dir = ent;
-		ent = debugfs_create_file("dump", S_IRUGO,
-					  adapter->debugfs_dir,
-					  adapter->netdev, &ibmvnic_dump_ops);
-		if (!ent || IS_ERR(ent)) {
-			dev_info(dev, "debugfs create dump file failed\n");
-			adapter->debugfs_dump = NULL;
-		} else {
-			adapter->debugfs_dump = ent;
-		}
-	}
-
 	init_completion(&adapter->init_done);
 	ibmvnic_send_crq_init(adapter);
 	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
 		dev_err(dev, "Initialization sequence timed out\n");
-		if (adapter->debugfs_dir && !IS_ERR(adapter->debugfs_dir))
-			debugfs_remove_recursive(adapter->debugfs_dir);
 		ibmvnic_release_crq_queue(adapter);
 		return -1;
 	}
