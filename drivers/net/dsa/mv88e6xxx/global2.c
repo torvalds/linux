@@ -13,6 +13,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include "mv88e6xxx.h"
 #include "global2.h"
