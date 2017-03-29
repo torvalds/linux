@@ -108,6 +108,33 @@ static struct ib_client ipoib_client = {
 	.get_net_dev_by_params = ipoib_get_net_dev_by_params,
 };
 
+#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+static int ipoib_netdev_event(struct notifier_block *this,
+			      unsigned long event, void *ptr)
+{
+	struct netdev_notifier_info *ni = ptr;
+	struct net_device *dev = ni->dev;
+
+	if (dev->netdev_ops->ndo_open != ipoib_open)
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case NETDEV_REGISTER:
+		ipoib_create_debug_files(dev);
+		break;
+	case NETDEV_CHANGENAME:
+		ipoib_delete_debug_files(dev);
+		ipoib_create_debug_files(dev);
+		break;
+	case NETDEV_UNREGISTER:
+		ipoib_delete_debug_files(dev);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+#endif
+
 int ipoib_open(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -1655,8 +1682,6 @@ void ipoib_dev_cleanup(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	ipoib_delete_debug_files(dev);
-
 	/* Delete any child interfaces first */
 	list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list) {
 		/* Stop GC on child */
@@ -2074,8 +2099,6 @@ static struct net_device *ipoib_add_port(const char *format,
 		goto register_failed;
 	}
 
-	ipoib_create_debug_files(priv->dev);
-
 	if (ipoib_cm_add_mode_attr(priv->dev))
 		goto sysfs_failed;
 	if (ipoib_add_pkey_attr(priv->dev))
@@ -2090,7 +2113,6 @@ static struct net_device *ipoib_add_port(const char *format,
 	return priv->dev;
 
 sysfs_failed:
-	ipoib_delete_debug_files(priv->dev);
 	unregister_netdev(priv->dev);
 
 register_failed:
@@ -2175,6 +2197,12 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 	kfree(dev_list);
 }
 
+#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+static struct notifier_block ipoib_netdev_notifier = {
+	.notifier_call = ipoib_netdev_event,
+};
+#endif
+
 static int __init ipoib_init_module(void)
 {
 	int ret;
@@ -2227,6 +2255,9 @@ static int __init ipoib_init_module(void)
 	if (ret)
 		goto err_client;
 
+#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+	register_netdevice_notifier(&ipoib_netdev_notifier);
+#endif
 	return 0;
 
 err_client:
@@ -2244,6 +2275,9 @@ err_fs:
 
 static void __exit ipoib_cleanup_module(void)
 {
+#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+	unregister_netdevice_notifier(&ipoib_netdev_notifier);
+#endif
 	ipoib_netlink_fini();
 	ib_unregister_client(&ipoib_client);
 	ib_sa_unregister_client(&ipoib_sa_client);
