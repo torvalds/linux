@@ -1262,9 +1262,9 @@ stv0367_ter_signal_type stv0367ter_check_cpamp(struct stv0367_state *state,
 	dprintk("******last CPAMPvalue= %d at wd=%d\n", CPAMPvalue, wd);
 	if (CPAMPvalue < CPAMPMin) {
 		CPAMPStatus = FE_TER_NOCPAMP;
-		printk(KERN_ERR "CPAMP failed\n");
+		dprintk("%s: CPAMP failed\n", __func__);
 	} else {
-		printk(KERN_ERR "CPAMP OK !\n");
+		dprintk("%s: CPAMP OK !\n", __func__);
 		CPAMPStatus = FE_TER_CPAMPOK;
 	}
 
