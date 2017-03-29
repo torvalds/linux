@@ -853,7 +853,7 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, WRITE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_BLOCK_SIZE,
-			    amdgpu_vm_block_size - 9);
+			    adev->vm_manager.block_size - 9);
 	WREG32(mmVM_CONTEXT1_CNTL, tmp);
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
 		gmc_v8_0_set_fault_enable_default(adev, false);
@@ -1087,7 +1087,12 @@ static int gmc_v8_0_sw_init(void *handle)
 	 * Currently set to 4GB ((1 << 20) 4k pages).
 	 * Max GPUVM size for cayman and SI is 40 bits.
 	 */
-	adev->vm_manager.max_pfn = amdgpu_vm_size << 18;
+	adev->vm_manager.vm_size = amdgpu_vm_size;
+	adev->vm_manager.block_size = amdgpu_vm_block_size;
+	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
+
+	DRM_INFO("vm size is %llu GB, block size is %d-bit\n",
+		adev->vm_manager.vm_size, adev->vm_manager.block_size);
 
 	/* Set the internal MC address mask
 	 * This is the max address of the GPU's

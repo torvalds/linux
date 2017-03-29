@@ -100,13 +100,14 @@ static unsigned amdgpu_vm_num_entries(struct amdgpu_device *adev,
 	if (level == 0)
 		/* For the root directory */
 		return adev->vm_manager.max_pfn >>
-			(amdgpu_vm_block_size * adev->vm_manager.num_level);
+			(adev->vm_manager.block_size *
+			 adev->vm_manager.num_level);
 	else if (level == adev->vm_manager.num_level)
 		/* For the page tables on the leaves */
-		return AMDGPU_VM_PTE_COUNT;
+		return AMDGPU_VM_PTE_COUNT(adev);
 	else
 		/* Everything in between */
-		return 1 << amdgpu_vm_block_size;
+		return 1 << adev->vm_manager.block_size;
 }
 
 /**
@@ -271,7 +272,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 				  unsigned level)
 {
 	unsigned shift = (adev->vm_manager.num_level - level) *
-		amdgpu_vm_block_size;
+		adev->vm_manager.block_size;
 	unsigned pt_idx, from, to;
 	int r;
 
@@ -976,7 +977,7 @@ static struct amdgpu_bo *amdgpu_vm_get_pt(struct amdgpu_pte_update_params *p,
 	unsigned idx, level = p->adev->vm_manager.num_level;
 
 	while (entry->entries) {
-		idx = addr >> (amdgpu_vm_block_size * level--);
+		idx = addr >> (p->adev->vm_manager.block_size * level--);
 		idx %= amdgpu_bo_size(entry->bo) / 8;
 		entry = &entry->entries[idx];
 	}
@@ -1003,7 +1004,8 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 				  uint64_t start, uint64_t end,
 				  uint64_t dst, uint64_t flags)
 {
-	const uint64_t mask = AMDGPU_VM_PTE_COUNT - 1;
+	struct amdgpu_device *adev = params->adev;
+	const uint64_t mask = AMDGPU_VM_PTE_COUNT(adev) - 1;
 
 	uint64_t cur_pe_start, cur_nptes, cur_dst;
 	uint64_t addr; /* next GPU address to be updated */
@@ -1027,7 +1029,7 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	if ((addr & ~mask) == (end & ~mask))
 		nptes = end - addr;
 	else
-		nptes = AMDGPU_VM_PTE_COUNT - (addr & mask);
+		nptes = AMDGPU_VM_PTE_COUNT(adev) - (addr & mask);
 
 	cur_pe_start = amdgpu_bo_gpu_offset(pt);
 	cur_pe_start += (addr & mask) * 8;
@@ -1055,7 +1057,7 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
 		else
-			nptes = AMDGPU_VM_PTE_COUNT - (addr & mask);
+			nptes = AMDGPU_VM_PTE_COUNT(adev) - (addr & mask);
 
 		next_pe_start = amdgpu_bo_gpu_offset(pt);
 		next_pe_start += (addr & mask) * 8;
@@ -1202,7 +1204,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	 * reserve space for one command every (1 << BLOCK_SIZE)
 	 *  entries or 2k dwords (whatever is smaller)
 	 */
-	ncmds = (nptes >> min(amdgpu_vm_block_size, 11)) + 1;
+	ncmds = (nptes >> min(adev->vm_manager.block_size, 11u)) + 1;
 
 	/* padding, etc. */
 	ndw = 64;
@@ -2073,7 +2075,7 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	const unsigned align = min(AMDGPU_VM_PTB_ALIGN_SIZE,
-		AMDGPU_VM_PTE_COUNT * 8);
+		AMDGPU_VM_PTE_COUNT(adev) * 8);
 	unsigned ring_instance;
 	struct amdgpu_ring *ring;
 	struct amd_sched_rq *rq;

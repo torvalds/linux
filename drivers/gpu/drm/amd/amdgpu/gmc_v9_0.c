@@ -532,10 +532,22 @@ static int gmc_v9_0_sw_init(void *handle)
 
 	if (adev->flags & AMD_IS_APU) {
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
+		adev->vm_manager.vm_size = amdgpu_vm_size;
+		adev->vm_manager.block_size = amdgpu_vm_block_size;
 	} else {
 		/* XXX Don't know how to get VRAM type yet. */
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_HBM;
+		/*
+		 * To fulfill 4-level page support,
+		 * vm size is 256TB (48bit), maximum size of Vega10,
+		 * block size 512 (9bit)
+		 */
+		adev->vm_manager.vm_size = 1U << 18;
+		adev->vm_manager.block_size = 9;
 	}
+
+	DRM_INFO("vm size is %llu GB, block size is %d-bit\n",
+		adev->vm_manager.vm_size, adev->vm_manager.block_size);
 
 	/* This interrupt is VMC page fault.*/
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VMC, 0,
@@ -546,14 +558,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	/* Because of four level VMPTs, vm size is at least 512GB.
-	 * The maximum size is 256TB (48bit).
-	 */
-	if (amdgpu_vm_size < 512) {
-		DRM_WARN("VM size is at least 512GB!\n");
-		amdgpu_vm_size = 512;
-	}
-	adev->vm_manager.max_pfn = (uint64_t)amdgpu_vm_size << 18;
+	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
 
 	/* Set the internal MC address mask
 	 * This is the max address of the GPU's

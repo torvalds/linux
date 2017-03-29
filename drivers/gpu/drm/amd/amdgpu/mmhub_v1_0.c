@@ -242,7 +242,7 @@ int mmhub_v1_0_gart_enable(struct amdgpu_device *adev)
 				EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
 				PAGE_TABLE_BLOCK_SIZE,
-				amdgpu_vm_block_size - 9);
+				adev->vm_manager.block_size - 9);
 		WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmVM_CONTEXT1_CNTL) + i, tmp);
 		WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32) + i*2, 0);
 		WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_HI32) + i*2, 0);
