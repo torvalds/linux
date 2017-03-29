@@ -2511,6 +2511,28 @@ static int tipc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	}
 }
 
+static int tipc_socketpair(struct socket *sock1, struct socket *sock2)
+{
+	struct tipc_sock *tsk2 = tipc_sk(sock2->sk);
+	struct tipc_sock *tsk1 = tipc_sk(sock1->sk);
+	u32 onode = tipc_own_addr(sock_net(sock1->sk));
+
+	tsk1->peer.family = AF_TIPC;
+	tsk1->peer.addrtype = TIPC_ADDR_ID;
+	tsk1->peer.scope = TIPC_NODE_SCOPE;
+	tsk1->peer.addr.id.ref = tsk2->portid;
+	tsk1->peer.addr.id.node = onode;
+	tsk2->peer.family = AF_TIPC;
+	tsk2->peer.addrtype = TIPC_ADDR_ID;
+	tsk2->peer.scope = TIPC_NODE_SCOPE;
+	tsk2->peer.addr.id.ref = tsk1->portid;
+	tsk2->peer.addr.id.node = onode;
+
+	tipc_sk_finish_conn(tsk1, tsk2->portid, onode);
+	tipc_sk_finish_conn(tsk2, tsk1->portid, onode);
+	return 0;
+}
+
 /* Protocol switches for the various types of TIPC sockets */
 
 static const struct proto_ops msg_ops = {
@@ -2519,7 +2541,7 @@ static const struct proto_ops msg_ops = {
 	.release	= tipc_release,
 	.bind		= tipc_bind,
 	.connect	= tipc_connect,
-	.socketpair	= sock_no_socketpair,
+	.socketpair	= tipc_socketpair,
 	.accept		= sock_no_accept,
 	.getname	= tipc_getname,
 	.poll		= tipc_poll,
@@ -2540,7 +2562,7 @@ static const struct proto_ops packet_ops = {
 	.release	= tipc_release,
 	.bind		= tipc_bind,
 	.connect	= tipc_connect,
-	.socketpair	= sock_no_socketpair,
+	.socketpair	= tipc_socketpair,
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
 	.poll		= tipc_poll,
@@ -2561,7 +2583,7 @@ static const struct proto_ops stream_ops = {
 	.release	= tipc_release,
 	.bind		= tipc_bind,
 	.connect	= tipc_connect,
-	.socketpair	= sock_no_socketpair,
+	.socketpair	= tipc_socketpair,
 	.accept		= tipc_accept,
 	.getname	= tipc_getname,
 	.poll		= tipc_poll,
