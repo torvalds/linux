@@ -669,17 +669,16 @@ int tty_ldisc_reinit(struct tty_struct *tty, int disc)
 		tty_ldisc_put(tty->ldisc);
 	}
 
+	/* switch the line discipline */
+	tty->ldisc = ld;
 	tty_set_termios_ldisc(tty, disc);
-	retval = tty_ldisc_open(tty, ld);
+	retval = tty_ldisc_open(tty, tty->ldisc);
 	if (retval) {
 		if (!WARN_ON(disc == N_TTY)) {
-			tty_ldisc_put(ld);
-			ld = NULL;
+			tty_ldisc_put(tty->ldisc);
+			tty->ldisc = NULL;
 		}
 	}
-
-	/* switch the line discipline */
-	smp_store_release(&tty->ldisc, ld);
 	return retval;
 }
 
