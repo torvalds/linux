@@ -152,6 +152,7 @@ struct fs_fte {
 	u32				index;
 	u32				action;
 	u32				encap_id;
+	u32				modify_id;
 	enum fs_fte_status		status;
 	struct mlx5_fc			*counter;
 };

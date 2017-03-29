@@ -476,6 +476,7 @@ static struct fs_fte *alloc_fte(struct mlx5_flow_act *flow_act,
 	fte->index = index;
 	fte->action = flow_act->action;
 	fte->encap_id = flow_act->encap_id;
+	fte->modify_id = flow_act->modify_id;
 
 	return fte;
 }

@@ -174,13 +174,9 @@ static int arfs_add_default_rule(struct mlx5e_priv *priv,
 				 enum arfs_type type)
 {
 	struct arfs_table *arfs_t = &priv->fs.arfs.arfs_tables[type];
-	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-		.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG,
-		.encap_id = 0,
-	};
-	struct mlx5_flow_destination dest;
 	struct mlx5e_tir *tir = priv->indir_tir;
+	struct mlx5_flow_destination dest;
+	MLX5_DECLARE_FLOW_ACT(flow_act);
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
@@ -469,15 +465,11 @@ static struct arfs_table *arfs_get_table(struct mlx5e_arfs_tables *arfs,
 static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 					      struct arfs_rule *arfs_rule)
 {
-	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-		.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG,
-		.encap_id = 0,
-	};
 	struct mlx5e_arfs_tables *arfs = &priv->fs.arfs;
 	struct arfs_tuple *tuple = &arfs_rule->tuple;
 	struct mlx5_flow_handle *rule = NULL;
 	struct mlx5_flow_destination dest;
+	MLX5_DECLARE_FLOW_ACT(flow_act);
 	struct arfs_table *arfs_table;
 	struct mlx5_flow_spec *spec;
 	struct mlx5_flow_table *ft;

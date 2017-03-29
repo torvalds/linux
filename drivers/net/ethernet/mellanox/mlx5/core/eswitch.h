@@ -285,8 +285,8 @@ enum {
 	SET_VLAN_INSERT	= BIT(1)
 };
 
-#define MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  0x40
-#define MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH 0x80
+#define MLX5_FLOW_CONTEXT_ACTION_VLAN_POP  0x4000
+#define MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH 0x8000
 
 struct mlx5_encap_entry {
 	struct hlist_node encap_hlist;
@@ -308,6 +308,7 @@ struct mlx5_esw_flow_attr {
 	u16	vlan;
 	bool	vlan_handled;
 	struct mlx5_encap_entry *encap;
+	u32	mod_hdr_id;
 };
 
 int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,
