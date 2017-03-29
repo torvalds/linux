@@ -24,6 +24,8 @@ Optional Properties:
 - debounce-delay-ms:	debounce interval in milliseconds
 - col-scan-delay-us:	delay, measured in microseconds, that is needed
 			before we can scan keypad after activating column gpio
+- drive-inactive-cols:	drive inactive columns during scan,
+			default is to turn inactive columns into inputs.
 
 Example:
 	matrix-keypad {

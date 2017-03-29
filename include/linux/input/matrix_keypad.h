@@ -49,6 +49,8 @@ struct matrix_keymap_data {
  * @wakeup: controls whether the device should be set up as wakeup
  *	source
  * @no_autorepeat: disable key autorepeat
+ * @drive_inactive_cols: drive inactive columns during scan, rather than
+ *	making them inputs.
  *
  * This structure represents platform-specific data that use used by
  * matrix_keypad driver to perform proper initialization.
@@ -73,6 +75,7 @@ struct matrix_keypad_platform_data {
 	bool		active_low;
 	bool		wakeup;
 	bool		no_autorepeat;
+	bool		drive_inactive_cols;
 };
 
 int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
