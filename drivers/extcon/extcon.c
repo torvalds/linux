@@ -377,7 +377,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	for (i = 0; i < edev->max_supported; i++) {
 		count += sprintf(buf + count, "%s=%d\n",
 				extcon_info[edev->supported_cable[i]].name,
-				 !!(edev->state & (1 << i)));
+				 !!(edev->state & BIT(i)));
 	}
 
 	return count;
