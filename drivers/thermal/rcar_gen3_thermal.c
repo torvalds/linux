@@ -276,15 +276,15 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	for (i = 0; i < TSC_MAX_NUM; i++) {
 		struct rcar_gen3_thermal_tsc *tsc;
 
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (!res)
+			break;
+
 		tsc = devm_kzalloc(dev, sizeof(*tsc), GFP_KERNEL);
 		if (!tsc) {
 			ret = -ENOMEM;
 			goto error_unregister;
 		}
-
-		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		if (!res)
-			break;
 
 		tsc->base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(tsc->base)) {
