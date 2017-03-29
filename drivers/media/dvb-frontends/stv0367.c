@@ -271,6 +271,53 @@ static void stv0367_write_table(struct stv0367_state *state,
 	}
 }
 
+static void stv0367_pll_setup(struct stv0367_state *state,
+				u32 icspeed, u32 xtal)
+{
+	/* note on regs: R367TER_* and R367CAB_* defines each point to
+	 * 0xf0d8, so just use R367TER_ for both cases
+	 */
+
+	switch (icspeed) {
+	case STV0367_ICSPEED_58000:
+		switch (xtal) {
+		default:
+		case 27000000:
+			dprintk("STV0367 SetCLKgen for 58MHz IC and 27Mhz crystal\n");
+			/* PLLMDIV: 27, PLLNDIV: 232 */
+			stv0367_writereg(state, R367TER_PLLMDIV, 0x1b);
+			stv0367_writereg(state, R367TER_PLLNDIV, 0xe8);
+			break;
+		}
+		break;
+	default:
+	case STV0367_ICSPEED_53125:
+		switch (xtal) {
+			/* set internal freq to 53.125MHz */
+		case 16000000:
+			stv0367_writereg(state, R367TER_PLLMDIV, 0x2);
+			stv0367_writereg(state, R367TER_PLLNDIV, 0x1b);
+			break;
+		case 25000000:
+			stv0367_writereg(state, R367TER_PLLMDIV, 0xa);
+			stv0367_writereg(state, R367TER_PLLNDIV, 0x55);
+			break;
+		default:
+		case 27000000:
+			dprintk("FE_STV0367TER_SetCLKgen for 27Mhz\n");
+			stv0367_writereg(state, R367TER_PLLMDIV, 0x1);
+			stv0367_writereg(state, R367TER_PLLNDIV, 0x8);
+			break;
+		case 30000000:
+			stv0367_writereg(state, R367TER_PLLMDIV, 0xc);
+			stv0367_writereg(state, R367TER_PLLNDIV, 0x55);
+			break;
+		}
+	}
+
+	stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
+}
+
 static int stv0367ter_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct stv0367_state *state = fe->demodulator_priv;
@@ -918,31 +965,7 @@ static int stv0367ter_init(struct dvb_frontend *fe)
 	stv0367_write_table(state,
 		stv0367_deftabs[state->deftabs][STV0367_TAB_TER]);
 
-	switch (state->config->xtal) {
-		/*set internal freq to 53.125MHz */
-	case 16000000:
-		stv0367_writereg(state, R367TER_PLLMDIV, 0x2);
-		stv0367_writereg(state, R367TER_PLLNDIV, 0x1b);
-		stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
-		break;
-	case 25000000:
-		stv0367_writereg(state, R367TER_PLLMDIV, 0xa);
-		stv0367_writereg(state, R367TER_PLLNDIV, 0x55);
-		stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
-		break;
-	default:
-	case 27000000:
-		dprintk("FE_STV0367TER_SetCLKgen for 27Mhz\n");
-		stv0367_writereg(state, R367TER_PLLMDIV, 0x1);
-		stv0367_writereg(state, R367TER_PLLNDIV, 0x8);
-		stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
-		break;
-	case 30000000:
-		stv0367_writereg(state, R367TER_PLLMDIV, 0xc);
-		stv0367_writereg(state, R367TER_PLLNDIV, 0x55);
-		stv0367_writereg(state, R367TER_PLLSETUP, 0x18);
-		break;
-	}
+	stv0367_pll_setup(state, STV0367_ICSPEED_53125, state->config->xtal);
 
 	stv0367_writereg(state, R367TER_I2CRPT, 0xa0);
 	stv0367_writereg(state, R367TER_ANACTRL, 0x00);

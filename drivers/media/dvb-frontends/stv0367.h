@@ -25,6 +25,9 @@
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
+#define STV0367_ICSPEED_53125	53125000
+#define STV0367_ICSPEED_58000	58000000
+
 struct stv0367_config {
 	u8 demod_address;
 	u32 xtal;
