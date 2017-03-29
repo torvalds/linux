@@ -60,13 +60,6 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	reg_vref_1v8: regulator-vref-1v8 {
-		compatible = "regulator-fixed";
-		regulator-name = "vref-1v8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "imx7-sgtl5000";
@@ -85,11 +78,11 @@
 };
 
 &adc1 {
-	vref-supply = <&reg_vref_1v8>;
+	vref-supply = <&reg_DCDC3>;
 };
 
 &adc2 {
-	vref-supply = <&reg_vref_1v8>;
+	vref-supply = <&reg_DCDC3>;
 };
 
 &cpu0 {
