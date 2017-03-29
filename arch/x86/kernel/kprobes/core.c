@@ -164,33 +164,29 @@ static kprobe_opcode_t *skip_prefixes(kprobe_opcode_t *insn)
 NOKPROBE_SYMBOL(skip_prefixes);
 
 /*
- * Returns non-zero if opcode is boostable.
+ * Returns non-zero if INSN is boostable.
  * RIP relative instructions are adjusted at copying time in 64 bits mode
  */
-int can_boost(kprobe_opcode_t *opcodes, void *addr)
+int can_boost(struct insn *insn, void *addr)
 {
-	struct insn insn;
 	kprobe_opcode_t opcode;
 
 	if (search_exception_tables((unsigned long)addr))
 		return 0;	/* Page fault may occur on this address. */
 
-	kernel_insn_init(&insn, (void *)opcodes, MAX_INSN_SIZE);
-	insn_get_opcode(&insn);
-
 	/* 2nd-byte opcode */
-	if (insn.opcode.nbytes == 2)
-		return test_bit(insn.opcode.bytes[1],
+	if (insn->opcode.nbytes == 2)
+		return test_bit(insn->opcode.bytes[1],
 				(unsigned long *)twobyte_is_boostable);
 
-	if (insn.opcode.nbytes != 1)
+	if (insn->opcode.nbytes != 1)
 		return 0;
 
 	/* Can't boost Address-size override prefix */
-	if (unlikely(inat_is_address_size_prefix(insn.attr)))
+	if (unlikely(inat_is_address_size_prefix(insn->attr)))
 		return 0;
 
-	opcode = insn.opcode.bytes[0];
+	opcode = insn->opcode.bytes[0];
 
 	switch (opcode & 0xf0) {
 	case 0x60:
@@ -351,35 +347,31 @@ static int is_IF_modifier(kprobe_opcode_t *insn)
  * addressing mode.
  * This returns the length of copied instruction, or 0 if it has an error.
  */
-int __copy_instruction(u8 *dest, u8 *src)
+int __copy_instruction(u8 *dest, u8 *src, struct insn *insn)
 {
-	struct insn insn;
 	kprobe_opcode_t buf[MAX_INSN_SIZE];
-	int length;
 	unsigned long recovered_insn =
 		recover_probed_instruction(buf, (unsigned long)src);
 
-	if (!recovered_insn)
-		return 0;
-	kernel_insn_init(&insn, (void *)recovered_insn, MAX_INSN_SIZE);
-	insn_get_length(&insn);
-	length = insn.length;
-
-	/* Another subsystem puts a breakpoint, failed to recover */
-	if (insn.opcode.bytes[0] == BREAKPOINT_INSTRUCTION)
+	if (!recovered_insn || !insn)
 		return 0;
 
 	/* This can access kernel text if given address is not recovered */
-	if (kernel_probe_read(dest, insn.kaddr, length))
+	if (probe_kernel_read(dest, (void *)recovered_insn, MAX_INSN_SIZE))
+		return 0;
+
+	kernel_insn_init(insn, dest, MAX_INSN_SIZE);
+	insn_get_length(insn);
+
+	/* Another subsystem puts a breakpoint, failed to recover */
+	if (insn->opcode.bytes[0] == BREAKPOINT_INSTRUCTION)
 		return 0;
 
 #ifdef CONFIG_X86_64
 	/* Only x86_64 has RIP relative instructions */
-	if (insn_rip_relative(&insn)) {
+	if (insn_rip_relative(insn)) {
 		s64 newdisp;
 		u8 *disp;
-		kernel_insn_init(&insn, dest, length);
-		insn_get_displacement(&insn);
 		/*
 		 * The copied instruction uses the %rip-relative addressing
 		 * mode.  Adjust the displacement for the difference between
@@ -392,29 +384,32 @@ int __copy_instruction(u8 *dest, u8 *src)
 		 * extension of the original signed 32-bit displacement would
 		 * have given.
 		 */
-		newdisp = (u8 *) src + (s64) insn.displacement.value - (u8 *) dest;
+		newdisp = (u8 *) src + (s64) insn->displacement.value
+			  - (u8 *) dest;
 		if ((s64) (s32) newdisp != newdisp) {
 			pr_err("Kprobes error: new displacement does not fit into s32 (%llx)\n", newdisp);
-			pr_err("\tSrc: %p, Dest: %p, old disp: %x\n", src, dest, insn.displacement.value);
+			pr_err("\tSrc: %p, Dest: %p, old disp: %x\n",
+				src, dest, insn->displacement.value);
 			return 0;
 		}
-		disp = (u8 *) dest + insn_offset_displacement(&insn);
+		disp = (u8 *) dest + insn_offset_displacement(insn);
 		*(s32 *) disp = (s32) newdisp;
 	}
 #endif
-	return length;
+	return insn->length;
 }
 
 /* Prepare reljump right after instruction to boost */
-static void prepare_boost(struct kprobe *p, int length)
+static void prepare_boost(struct kprobe *p, struct insn *insn)
 {
-	if (can_boost(p->ainsn.insn, p->addr) &&
-	    MAX_INSN_SIZE - length >= RELATIVEJUMP_SIZE) {
+	if (can_boost(insn, p->addr) &&
+	    MAX_INSN_SIZE - insn->length >= RELATIVEJUMP_SIZE) {
 		/*
 		 * These instructions can be executed directly if it
 		 * jumps back to correct address.
 		 */
-		synthesize_reljump(p->ainsn.insn + length, p->addr + length);
+		synthesize_reljump(p->ainsn.insn + insn->length,
+				   p->addr + insn->length);
 		p->ainsn.boostable = true;
 	} else {
 		p->ainsn.boostable = false;
@@ -423,12 +418,13 @@ static void prepare_boost(struct kprobe *p, int length)
 
 static int arch_copy_kprobe(struct kprobe *p)
 {
+	struct insn insn;
 	int len;
 
 	set_memory_rw((unsigned long)p->ainsn.insn & PAGE_MASK, 1);
 
 	/* Copy an instruction with recovering if other optprobe modifies it.*/
-	len = __copy_instruction(p->ainsn.insn, p->addr);
+	len = __copy_instruction(p->ainsn.insn, p->addr, &insn);
 	if (!len)
 		return -EINVAL;
 
@@ -436,7 +432,7 @@ static int arch_copy_kprobe(struct kprobe *p)
 	 * __copy_instruction can modify the displacement of the instruction,
 	 * but it doesn't affect boostable check.
 	 */
-	prepare_boost(p, len);
+	prepare_boost(p, &insn);
 
 	set_memory_ro((unsigned long)p->ainsn.insn & PAGE_MASK, 1);
 

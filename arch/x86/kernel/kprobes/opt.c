@@ -177,11 +177,12 @@ NOKPROBE_SYMBOL(optimized_callback);
 
 static int copy_optimized_instructions(u8 *dest, u8 *src)
 {
+	struct insn insn;
 	int len = 0, ret;
 
 	while (len < RELATIVEJUMP_SIZE) {
-		ret = __copy_instruction(dest + len, src + len);
-		if (!ret || !can_boost(dest + len, src + len))
+		ret = __copy_instruction(dest + len, src + len, &insn);
+		if (!ret || !can_boost(&insn, src + len))
 			return -EINVAL;
 		len += ret;
 	}
