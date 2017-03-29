@@ -47,6 +47,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 
 #define BQ25700_MANUFACTURER		"Texas Instruments"
 #define BQ25700_ID			0x59
+#define BQ25703_ID			0x58
 
 #define DEFAULT_INPUTVOL		((5000 - 1280) * 1000)
 #define MAX_INPUTVOLTAGE		24000000
@@ -197,6 +198,7 @@ struct bq25700_device {
 	struct gpio_desc		*typec1_enable_io;
 	struct gpio_desc		*typec0_discharge_io;
 	struct gpio_desc		*typec1_discharge_io;
+	struct gpio_desc		*otg_mode_en_io;
 
 	struct regmap			*regmap;
 	struct regmap_field		*rmap_fields[F_MAX_FIELDS];
@@ -204,6 +206,8 @@ struct bq25700_device {
 	struct bq25700_init_data	init_data;
 	struct bq25700_state		state;
 	int				pd_charge_only;
+	unsigned int			bc_event;
+	bool				usb_bc;
 };
 
 static const struct reg_field bq25700_reg_fields[] = {
@@ -344,6 +348,146 @@ static const struct reg_field bq25700_reg_fields[] = {
 	[DEVICE_ID] = REG_FIELD(0xFF, 0, 7),
 };
 
+static const struct reg_field bq25703_reg_fields[] = {
+	/*REG00*/
+	[EN_LWPWR] = REG_FIELD(0x00, 15, 15),
+	[WDTWR_ADJ] = REG_FIELD(0x00, 13, 14),
+	[IDPM_AUTO_DISABLE] = REG_FIELD(0x00, 12, 12),
+	[EN_OOA] = REG_FIELD(0x00, 10, 10),
+	[PWM_FREQ] = REG_FIELD(0x00, 9, 9),
+	[EN_LEARN] = REG_FIELD(0x00, 5, 5),
+	[IADP_GAIN] = REG_FIELD(0x00, 4, 4),
+	[IBAT_GAIN] = REG_FIELD(0x00, 3, 3),
+	[EN_LDO] = REG_FIELD(0x00, 2, 2),
+	[EN_IDPM] = REG_FIELD(0x00, 1, 1),
+	[CHRG_INHIBIT] = REG_FIELD(0x00, 0, 0),
+	/*REG0x02*/
+	[CHARGE_CURRENT] = REG_FIELD(0x02, 6, 12),
+	/*REG0x04*/
+	[MAX_CHARGE_VOLTAGE] = REG_FIELD(0x04, 4, 14),
+	/*REG20*/
+	[AC_STAT] = REG_FIELD(0x20, 15, 15),
+	[ICO_DONE] = REG_FIELD(0x20, 14, 14),
+	[IN_VINDPM] = REG_FIELD(0x20, 12, 12),
+	[IN_IINDPM] = REG_FIELD(0x20, 11, 11),
+	[IN_FCHRG] = REG_FIELD(0x20, 10, 10),
+	[IN_PCHRG] = REG_FIELD(0x20, 9, 9),
+	[IN_OTG] = REG_FIELD(0x20, 8, 8),
+	[F_ACOV] = REG_FIELD(0x20, 7, 7),
+	[F_BATOC] = REG_FIELD(0x20, 6, 6),
+	[F_ACOC] = REG_FIELD(0x20, 5, 5),
+	[SYSOVP_STAT] = REG_FIELD(0x20, 4, 4),
+	[F_LATCHOFF] = REG_FIELD(0x20, 2, 2),
+	[F_OTG_OVP] = REG_FIELD(0x20, 1, 1),
+	[F_OTG_OCP] = REG_FIELD(0x20, 0, 0),
+	/*REG22*/
+	[STAT_COMP] = REG_FIELD(0x22, 6, 6),
+	[STAT_ICRIT] = REG_FIELD(0x22, 5, 5),
+	[STAT_INOM] = REG_FIELD(0x22, 4, 4),
+	[STAT_IDCHG] = REG_FIELD(0x22, 3, 3),
+	[STAT_VSYS] = REG_FIELD(0x22, 2, 2),
+	[STAT_BAT_REMOV] = REG_FIELD(0x22, 1, 1),
+	[STAT_ADP_REMOV] = REG_FIELD(0x22, 0, 0),
+	/*REG24*/
+	[INPUT_CURRENT_DPM] = REG_FIELD(0x24, 8, 14),
+
+	/*REG26H*/
+	[OUTPUT_INPUT_VOL] = REG_FIELD(0x26, 8, 15),
+	[OUTPUT_SYS_POWER] = REG_FIELD(0x26, 0, 7),
+	/*REG28H*/
+	[OUTPUT_DSG_CUR] = REG_FIELD(0x28, 8, 14),
+	[OUTPUT_CHG_CUR] = REG_FIELD(0x28, 0, 6),
+	/*REG2aH*/
+	[OUTPUT_INPUT_CUR] = REG_FIELD(0x2a, 8, 15),
+	[OUTPUT_CMPIN_VOL] = REG_FIELD(0x2a, 0, 7),
+	/*REG2cH*/
+	[OUTPUT_SYS_VOL] = REG_FIELD(0x2c, 8, 15),
+	[OUTPUT_BAT_VOL] = REG_FIELD(0x2c, 0, 6),
+
+	/*REG30*/
+	[EN_IBAT] = REG_FIELD(0x30, 15, 15),
+	[EN_PROCHOT_LPWR] = REG_FIELD(0x30, 13, 14),
+	[EN_PSYS] = REG_FIELD(0x30, 12, 12),
+	[RSNS_RAC] = REG_FIELD(0x30, 11, 11),
+	[RSNS_RSR] = REG_FIELD(0x30, 10, 10),
+	[PSYS_RATIO] = REG_FIELD(0x30, 9, 9),
+	[CMP_REF] = REG_FIELD(0x30, 7, 7),
+	[CMP_POL] = REG_FIELD(0x30, 6, 6),
+	[CMP_DEG] = REG_FIELD(0x30, 4, 5),
+	[FORCE_LATCHOFF] = REG_FIELD(0x30, 3, 3),
+	[EN_SHIP_DCHG] = REG_FIELD(0x30, 1, 1),
+	[AUTO_WAKEUP_EN] = REG_FIELD(0x30, 0, 0),
+	/*REG32*/
+	[PKPWR_TOVLD_REG] = REG_FIELD(0x32, 14, 15),
+	[EN_PKPWR_IDPM] = REG_FIELD(0x32, 13, 13),
+	[EN_PKPWR_VSYS] = REG_FIELD(0x32, 12, 12),
+	[PKPWER_OVLD_STAT] = REG_FIELD(0x32, 11, 11),
+	[PKPWR_RELAX_STAT] = REG_FIELD(0x32, 10, 10),
+	[PKPWER_TMAX] = REG_FIELD(0x32, 8, 9),
+	[EN_EXTILIM] = REG_FIELD(0x32, 7, 7),
+	[EN_ICHG_IDCHG] = REG_FIELD(0x32, 6, 6),
+	[Q2_OCP] = REG_FIELD(0x32, 5, 5),
+	[ACX_OCP] = REG_FIELD(0x32, 4, 4),
+	[EN_ACOC] = REG_FIELD(0x32, 3, 3),
+	[ACOC_VTH] = REG_FIELD(0x32, 2, 2),
+	[EN_BATOC] = REG_FIELD(0x32, 1, 1),
+	[BATCOC_VTH] = REG_FIELD(0x32, 0, 0),
+	/*REG34*/
+	[EN_HIZ] = REG_FIELD(0x34, 15, 15),
+	[RESET_REG] = REG_FIELD(0x34, 14, 14),
+	[RESET_VINDPM] = REG_FIELD(0x34, 13, 13),
+	[EN_OTG] = REG_FIELD(0x34, 12, 12),
+	[EN_ICO_MODE] = REG_FIELD(0x34, 11, 11),
+	[BATFETOFF_HIZ] = REG_FIELD(0x34, 1, 1),
+	[PSYS_OTG_IDCHG] = REG_FIELD(0x34, 0, 0),
+	/*REG36*/
+	[ILIM2_VTH] = REG_FIELD(0x36, 11, 15),
+	[ICRIT_DEG] = REG_FIELD(0x36, 9, 10),
+	[VSYS_VTH] = REG_FIELD(0x36, 6, 7),
+	[EN_PROCHOT_EXT] = REG_FIELD(0x36, 5, 5),
+	[PROCHOT_WIDTH] = REG_FIELD(0x36, 3, 4),
+	[PROCHOT_CLEAR] = REG_FIELD(0x36, 2, 2),
+	[INOM_DEG] = REG_FIELD(0x36, 1, 1),
+	/*REG38*/
+	[IDCHG_VTH] = REG_FIELD(0x38, 10, 15),
+	[IDCHG_DEG] = REG_FIELD(0x38, 8, 9),
+	[PROCHOT_PROFILE_COMP] = REG_FIELD(0x38, 6, 6),
+	[PROCHOT_PROFILE_ICRIT] = REG_FIELD(0x38, 5, 5),
+	[PROCHOT_PROFILE_INOM] = REG_FIELD(0x38, 4, 4),
+	[PROCHOT_PROFILE_IDCHG] = REG_FIELD(0x38, 3, 3),
+	[PROCHOT_PROFILE_VSYS] = REG_FIELD(0x38, 2, 2),
+	[PROCHOT_PROFILE_BATPRES] = REG_FIELD(0x38, 1, 1),
+	[PROCHOT_PROFILE_ACOK] = REG_FIELD(0x38, 0, 0),
+	/*REG3a*/
+	[ADC_CONV] = REG_FIELD(0x3a, 15, 15),
+	[ADC_START] = REG_FIELD(0x3a, 14, 14),
+	[ADC_FULLSCALE] = REG_FIELD(0x3a, 13, 13),
+	[EN_ADC_CMPIN] = REG_FIELD(0x3a, 7, 7),
+	[EN_ADC_VBUS] = REG_FIELD(0x3a, 6, 6),
+	[EN_ADC_PSYS] = REG_FIELD(0x3a, 5, 5),
+	[EN_ADC_IIN] = REG_FIELD(0x3a, 4, 4),
+	[EN_ADC_IDCHG] = REG_FIELD(0x3a, 3, 3),
+	[EN_ADC_ICHG] = REG_FIELD(0x3a, 2, 2),
+	[EN_ADC_VSYS] = REG_FIELD(0x3a, 1, 1),
+	[EN_ADC_VBAT] = REG_FIELD(0x3a, 0, 0),
+
+	/*REG06*/
+	[OTG_VOLTAGE] = REG_FIELD(0x06, 6, 13),
+	/*REG08*/
+	[OTG_CURRENT] = REG_FIELD(0x08, 8, 14),
+	/*REG0a*/
+	[INPUT_VOLTAGE] = REG_FIELD(0x0a, 6, 13),
+	/*REG0C*/
+	[MIN_SYS_VOTAGE] = REG_FIELD(0x0c, 8, 13),
+	/*REG0e*/
+	[INPUT_CURRENT] = REG_FIELD(0x0e, 8, 14),
+
+	/*REG2E*/
+	[MANUFACTURE_ID] = REG_FIELD(0x2E, 0, 7),
+	/*REF2F*/
+	[DEVICE_ID] = REG_FIELD(0x2F, 0, 7),
+};
+
 /*
  * Most of the val -> idx conversions can be computed, given the minimum,
  * maximum and the step between values. For the rest of conversions, we use
@@ -425,6 +569,37 @@ static const struct regmap_config bq25700_regmap_config = {
 
 	.wr_table = &bq25700_writeable_regs,
 	.volatile_table = &bq25700_volatile_regs,
+	.val_format_endian = REGMAP_ENDIAN_LITTLE,
+};
+
+static const struct regmap_range bq25703_readonly_reg_ranges[] = {
+	regmap_reg_range(0x20, 0x2F),
+};
+
+static const struct regmap_access_table bq25703_writeable_regs = {
+	.no_ranges = bq25703_readonly_reg_ranges,
+	.n_no_ranges = ARRAY_SIZE(bq25703_readonly_reg_ranges),
+};
+
+static const struct regmap_range bq25703_volatile_reg_ranges[] = {
+	regmap_reg_range(0x00, 0x0F),
+	regmap_reg_range(0x20, 0x3B),
+};
+
+static const struct regmap_access_table bq25703_volatile_regs = {
+	.yes_ranges = bq25703_volatile_reg_ranges,
+	.n_yes_ranges = ARRAY_SIZE(bq25703_volatile_reg_ranges),
+};
+
+static const struct regmap_config bq25703_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 16,
+
+	.max_register = 0x3B,
+	.cache_type = REGCACHE_RBTREE,
+
+	.wr_table = &bq25703_writeable_regs,
+	.volatile_table = &bq25703_volatile_regs,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
@@ -587,12 +762,70 @@ static int bq25700_dump_regs(struct bq25700_device *charger)
 	return 0;
 }
 
+static int bq25703_dump_regs(struct bq25700_device *charger)
+{
+	int i = 0;
+	u32 val = 0;
+	struct bq25700_state state;
+
+	for (i = 0; i < 0x10; i += 0x02) {
+		regmap_read(charger->regmap, i, &val);
+		DBG("REG0x%x : 0x%x\n", i, val);
+	}
+	for (i = 0x20; i < 0x3C; i += 0x02) {
+		regmap_read(charger->regmap, i, &val);
+		DBG("REG0x%x : 0x%x\n", i, val);
+	}
+
+	DBG("battery charge current: %dmA\n",
+	    bq25700_field_read(charger, OUTPUT_DSG_CUR) * 64);
+	DBG("battery discharge current: %dmA\n",
+	    bq25700_field_read(charger, OUTPUT_CHG_CUR) * 256);
+	DBG("VSYS volatge: %dmV\n",
+	    2880 + bq25700_field_read(charger, OUTPUT_SYS_VOL) * 64);
+	DBG("BAT volatge: %dmV\n",
+	    2880 + bq25700_field_read(charger, OUTPUT_BAT_VOL) * 64);
+
+	DBG("SET CHARGE_CURRENT: %dmA\n",
+	    bq25700_field_read(charger, CHARGE_CURRENT) * 64);
+	DBG("MAX_CHARGE_VOLTAGE: %dmV\n",
+	    bq25700_field_read(charger, MAX_CHARGE_VOLTAGE) * 16);
+	DBG("	  INPUT_VOLTAGE: %dmV\n",
+	    3200 + bq25700_field_read(charger, INPUT_VOLTAGE) * 64);
+	DBG("	  INPUT_CURRENT: %dmA\n",
+	    bq25700_field_read(charger, INPUT_CURRENT) * 50);
+	DBG("	 MIN_SYS_VOTAGE: %dmV\n",
+	    1024 + bq25700_field_read(charger, MIN_SYS_VOTAGE) * 256);
+	bq25700_get_chip_state(charger, &state);
+
+	DBG("status:\n");
+	DBG("AC_STAT:  %d\n", state.ac_stat);
+	DBG("ICO_DONE: %d\n", state.ico_done);
+	DBG("IN_VINDPM: %d\n", state.in_vindpm);
+	DBG("IN_IINDPM: %d\n", state.in_iindpm);
+	DBG("IN_FCHRG: %d\n", state.in_fchrg);
+	DBG("IN_PCHRG: %d\n", state.in_pchrg);
+	DBG("IN_OTG: %d\n", state.in_otg);
+	DBG("F_ACOV: %d\n", state.fault_acov);
+	DBG("F_BATOC: %d\n", state.fault_batoc);
+	DBG("F_ACOC: %d\n", state.fault_acoc);
+	DBG("SYSOVP_STAT: %d\n", state.sysovp_stat);
+	DBG("F_LATCHOFF: %d\n", state.fault_latchoff);
+	DBG("F_OTGOVP: %d\n", state.fault_otg_ovp);
+	DBG("F_OTGOCP: %d\n", state.fault_otg_ocp);
+
+	return 0;
+}
+
 ssize_t bq25700_charge_info_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct bq25700_device *charger = dev_get_drvdata(dev);
 
-	bq25700_dump_regs(charger);
+	if ((charger->chip_id & 0xff) == BQ25700_ID)
+		bq25700_dump_regs(charger);
+	if ((charger->chip_id & 0xff) == BQ25703_ID)
+		bq25703_dump_regs(charger);
 
 	return 0;
 }
@@ -732,29 +965,6 @@ static int bq25700_fw_read_u32_props(struct bq25700_device *charger)
 	return 0;
 }
 
-static int bq25700_chip_reset(struct bq25700_device *charger)
-{
-	int ret;
-	int rst_check_counter = 10;
-
-	ret = bq25700_field_write(charger, RESET_REG, 1);
-	if (ret < 0)
-		return ret;
-
-	do {
-		ret = bq25700_field_read(charger, RESET_REG);
-		if (ret < 0)
-			return ret;
-
-		mdelay(4);
-	} while (ret == 1 && --rst_check_counter);
-
-	if (!rst_check_counter)
-		return -ETIMEDOUT;
-
-	return 0;
-}
-
 static int bq25700_hw_init(struct bq25700_device *charger)
 {
 	int ret;
@@ -767,15 +977,10 @@ static int bq25700_hw_init(struct bq25700_device *charger)
 	} init_data[] = {
 		{CHARGE_CURRENT,	 charger->init_data.ichg},
 		{MAX_CHARGE_VOLTAGE,	 charger->init_data.max_chg_vol},
-		{INPUT_CURRENT,	 charger->init_data.input_current},
 		{MIN_SYS_VOTAGE,	 charger->init_data.sys_min_voltage},
 		{OTG_VOLTAGE,	 charger->init_data.otg_voltage},
 		{OTG_CURRENT,	 charger->init_data.otg_current},
 	};
-
-	ret = bq25700_chip_reset(charger);
-	if (ret < 0)
-		return ret;
 
 	/* disable watchdog */
 	ret = bq25700_field_write(charger, WDTWR_ADJ, 0);
@@ -1234,13 +1439,42 @@ static void bq25700_charger_evt_handel(struct bq25700_device *charger,
 	power_supply_changed(charger->supply_charger);
 }
 
+static void bq25700_charger_usb_bc_handel(struct bq25700_device *charger)
+{
+	struct bq25700_state state;
+
+	switch (charger->bc_event) {
+	case USB_BC_TYPE_SDP:
+		bq25700_enable_charger(charger,
+				       charger->init_data.input_current_sdp);
+		DBG("USB_TYPE_USB_CHARGER\n");
+		break;
+	case USB_BC_TYPE_DCP:
+		bq25700_enable_charger(charger,
+				       charger->init_data.input_current_dcp);
+		break;
+	case USB_BC_TYPE_CDP:
+		bq25700_enable_charger(charger,
+				       charger->init_data.input_current_cdp);
+		DBG("USB_TYPE_CDP_CHARGER\n");
+		break;
+	default:
+		break;
+	}
+	bq25700_get_chip_state(charger, &state);
+	charger->state = state;
+	power_supply_changed(charger->supply_charger);
+}
+
 static void bq25700_charger_evt_worker(struct work_struct *work)
 {
 	struct bq25700_device *charger = container_of(work,
 				struct bq25700_device, usb_work.work);
 	struct extcon_dev *edev = charger->cable_edev;
-
-	bq25700_charger_evt_handel(charger, edev, USB_TYPEC_0);
+	if (charger->usb_bc == 0)
+		bq25700_charger_evt_handel(charger, edev, USB_TYPEC_0);
+	else
+		bq25700_charger_usb_bc_handel(charger);
 }
 
 static void bq25700_charger_evt_worker1(struct work_struct *work)
@@ -1258,7 +1492,7 @@ static int bq25700_charger_evt_notifier(struct notifier_block *nb,
 {
 	struct bq25700_device *charger =
 		container_of(nb, struct bq25700_device, cable_cg_nb);
-
+	charger->bc_event = event;
 	queue_delayed_work(charger->usb_charger_wq, &charger->usb_work,
 			   msecs_to_jiffies(10));
 
@@ -1286,9 +1520,13 @@ static void bq25700_host_evt_worker(struct work_struct *work)
 
 	/* Determine cable/charger type */
 	if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) > 0) {
+		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
+			gpiod_direction_output(charger->otg_mode_en_io, 0);
 		bq25700_field_write(charger, EN_OTG, 1);
 		DBG("OTG enable\n");
 	} else if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) == 0) {
+		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
+			gpiod_direction_output(charger->otg_mode_en_io, 0);
 		bq25700_field_write(charger, EN_OTG, 0);
 		DBG("OTG disable\n");
 	}
@@ -1302,9 +1540,13 @@ static void bq25700_host_evt_worker1(struct work_struct *work)
 
 	/* Determine cable/charger type */
 	if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) > 0) {
+		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
+			gpiod_direction_output(charger->otg_mode_en_io, 1);
 		bq25700_field_write(charger, EN_OTG, 1);
 		DBG("OTG enable\n");
 	} else if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) == 0) {
+		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
+			gpiod_direction_output(charger->otg_mode_en_io, 0);
 		bq25700_field_write(charger, EN_OTG, 0);
 		DBG("OTG disable\n");
 	}
@@ -1440,25 +1682,42 @@ static int bq25700_register_cg_extcon(struct bq25700_device *charger,
 
 static int bq25700_register_cg_nb(struct bq25700_device *charger)
 {
-	if (charger->cable_edev) {
-		/* Register chargers  */
+	enum bc_port_type bc_type;
+	int ret;
+
+	if (charger->usb_bc == 0) {
+		if (charger->cable_edev) {
+			/* Register chargers  */
+			INIT_DELAYED_WORK(&charger->usb_work,
+					  bq25700_charger_evt_worker);
+			charger->cable_cg_nb.notifier_call =
+				bq25700_charger_evt_notifier;
+			bq25700_register_cg_extcon(charger, charger->cable_edev,
+						   &charger->cable_cg_nb);
+		}
+
+		if (charger->cable_edev_1) {
+			INIT_DELAYED_WORK(&charger->usb_work1,
+					  bq25700_charger_evt_worker1);
+			charger->cable_cg_nb1.notifier_call =
+				bq25700_charger_evt_notifier1;
+			bq25700_register_cg_extcon(charger,
+						   charger->cable_edev_1,
+						   &charger->cable_cg_nb1);
+		}
+	} else {
 		INIT_DELAYED_WORK(&charger->usb_work,
 				  bq25700_charger_evt_worker);
 		charger->cable_cg_nb.notifier_call =
 			bq25700_charger_evt_notifier;
-		bq25700_register_cg_extcon(charger, charger->cable_edev,
-					   &charger->cable_cg_nb);
-	}
 
-	if (charger->cable_edev_1) {
-		INIT_DELAYED_WORK(&charger->usb_work1,
-				  bq25700_charger_evt_worker1);
-		charger->cable_cg_nb1.notifier_call =
-			bq25700_charger_evt_notifier1;
-		bq25700_register_cg_extcon(charger, charger->cable_edev_1,
-					   &charger->cable_cg_nb1);
+		ret = rk_bc_detect_notifier_register(&charger->cable_cg_nb,
+						     &bc_type);
+		if (ret) {
+			dev_err(charger->dev, "failed to register notifier for bc\n");
+			return -EINVAL;
+		}
 	}
-
 	return 0;
 }
 
@@ -1571,7 +1830,7 @@ static long bq25700_init_usb(struct bq25700_device *charger)
 	edev = extcon_get_edev_by_phandle(dev, 0);
 	if (IS_ERR(edev)) {
 		if (PTR_ERR(edev) != -EPROBE_DEFER)
-			dev_err(dev, "Invalid or missing extcon\n");
+			dev_err(dev, "Invalid or missing extcon dev0\n");
 		charger->cable_edev = NULL;
 	} else {
 		charger->cable_edev = edev;
@@ -1580,7 +1839,7 @@ static long bq25700_init_usb(struct bq25700_device *charger)
 	edev1 = extcon_get_edev_by_phandle(dev, 1);
 	if (IS_ERR(edev1)) {
 		if (PTR_ERR(edev1) != -EPROBE_DEFER)
-			dev_err(dev, "Invalid or missing extcon\n");
+			dev_err(dev, "Invalid or missing extcon dev1\n");
 		charger->cable_edev_1 = NULL;
 	} else {
 		charger->cable_edev_1 = edev1;
@@ -1611,6 +1870,7 @@ static int bq25700_parse_dt(struct bq25700_device *charger)
 {
 	int ret;
 	struct device_node *np = charger->dev->of_node;
+	struct device_node *temp_np = NULL;
 
 	charger->typec0_enable_io = devm_gpiod_get_optional(charger->dev,
 							    "typec0-enable",
@@ -1632,10 +1892,22 @@ static int bq25700_parse_dt(struct bq25700_device *charger)
 		devm_gpiod_get_optional(charger->dev, "typec1-discharge",
 					GPIOD_IN);
 
+	charger->otg_mode_en_io =  devm_gpiod_get_optional(charger->dev,
+							    "otg-mode-en",
+							    GPIOD_IN);
+	if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
+		gpiod_direction_output(charger->otg_mode_en_io, 0);
+
 	ret = of_property_read_u32(np, "pd-charge-only",
 				   &charger->pd_charge_only);
 	if (ret < 0)
 		dev_err(charger->dev, "pd-charge-only!\n");
+
+	temp_np = of_find_node_by_name(NULL, "usb_bc");
+	if (!temp_np)
+		charger->usb_bc = 0;
+	else
+		charger->usb_bc = 1;
 
 	return 0;
 }
@@ -1646,6 +1918,7 @@ static int bq25700_probe(struct i2c_client *client,
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct device *dev = &client->dev;
 	struct bq25700_device *charger;
+	struct device_node *charger_np;
 	int ret = 0;
 	u32 i = 0;
 	int irq_flag;
@@ -1659,27 +1932,50 @@ static int bq25700_probe(struct i2c_client *client,
 
 	charger->client = client;
 	charger->dev = dev;
-	charger->regmap = devm_regmap_init_i2c(client,
-					       &bq25700_regmap_config);
 
-	if (IS_ERR(charger->regmap)) {
-		dev_err(&client->dev, "Failed to initialize regmap\n");
-		return -EINVAL;
-	}
+	charger_np = of_find_compatible_node(NULL, NULL, "ti,bq25700");
+	if (charger_np) {
+		charger->regmap = devm_regmap_init_i2c(client,
+						       &bq25700_regmap_config);
+		if (IS_ERR(charger->regmap)) {
+			dev_err(&client->dev, "Failed to initialize regmap\n");
+			return -EINVAL;
+		}
 
-	for (i = 0; i < ARRAY_SIZE(bq25700_reg_fields); i++) {
-		const struct reg_field *reg_fields = bq25700_reg_fields;
+		for (i = 0; i < ARRAY_SIZE(bq25700_reg_fields); i++) {
+			const struct reg_field *reg_fields = bq25700_reg_fields;
 
-		charger->rmap_fields[i] =
-			devm_regmap_field_alloc(dev,
-						charger->regmap,
-						reg_fields[i]);
-		if (IS_ERR(charger->rmap_fields[i])) {
-			dev_err(dev, "cannot allocate regmap field\n");
-			return PTR_ERR(charger->rmap_fields[i]);
+			charger->rmap_fields[i] =
+				devm_regmap_field_alloc(dev,
+							charger->regmap,
+							reg_fields[i]);
+			if (IS_ERR(charger->rmap_fields[i])) {
+				dev_err(dev, "cannot allocate regmap field\n");
+				return PTR_ERR(charger->rmap_fields[i]);
+			}
+		}
+	} else {
+		charger->regmap = devm_regmap_init_i2c(client,
+						       &bq25703_regmap_config);
+
+		if (IS_ERR(charger->regmap)) {
+			dev_err(&client->dev, "Failed to initialize regmap\n");
+			return -EINVAL;
+		}
+
+		for (i = 0; i < ARRAY_SIZE(bq25703_reg_fields); i++) {
+			const struct reg_field *reg_fields = bq25703_reg_fields;
+
+			charger->rmap_fields[i] =
+				devm_regmap_field_alloc(dev,
+							charger->regmap,
+							reg_fields[i]);
+			if (IS_ERR(charger->rmap_fields[i])) {
+				dev_err(dev, "cannot allocate regmap field\n");
+				return PTR_ERR(charger->rmap_fields[i]);
+			}
 		}
 	}
-
 	i2c_set_clientdata(client, charger);
 
 	/*read chip id. Confirm whether to support the chip*/
@@ -1772,6 +2068,7 @@ MODULE_DEVICE_TABLE(i2c, bq25700_i2c_ids);
 #ifdef CONFIG_OF
 static const struct of_device_id bq25700_of_match[] = {
 	{ .compatible = "ti,bq25700", },
+	{ .compatible = "ti,bq25703", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bq25700_of_match);

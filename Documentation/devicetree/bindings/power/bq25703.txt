@@ -1,0 +1,24 @@
+Binding for TI bq25703 Li-Ion Charger
+
+Required properties:
+- compatible: Should contain one of the following:
+    * "ti,bq25703"
+- reg: integer, i2c address of the device.
+- ti,max-charge-voltage: integer, maximum charging voltage (in uV);
+- ti,charge-current: integer, maximum charging current (in uA);
+- ti,minimum-sys-voltage: integer, when battery is charging and it is below
+    minimum system voltage, the system will be regulated above
+    minimum-sys-voltage setting (in uV);
+
+Optional properties:
+
+Example:
+
+	bq25703@6b {
+		compatible = "ti,bq25703";
+		reg = <0x6b>;
+
+		ti,max-charge-voltage = <4200000>;
+		ti,charge-current = <1000000>;
+		ti,minimum-sys-voltage = <3600000>;
+	};
