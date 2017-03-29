@@ -530,6 +530,7 @@
 };
 
 &usb_host0_ehci {
+	rockchip-relinquish-port;
 	status = "okay";
 };
 
