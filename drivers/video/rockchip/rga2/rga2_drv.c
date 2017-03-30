@@ -913,8 +913,13 @@ static int rga2_blit_async(rga2_session *session, struct rga2_req *req)
 
 static int rga2_blit_sync(rga2_session *session, struct rga2_req *req)
 {
+	struct rga2_req req_bak;
+	int try = 10;
 	int ret = -1;
 	int ret_timeout = 0;
+
+	memcpy(&req_bak, req, sizeof(req_bak));
+retry:
 
 #if RGA2_TEST_MSG
 	if (1) {//req->bitblt_mode == 0x2) {
@@ -957,6 +962,10 @@ static int rga2_blit_sync(rga2_session *session, struct rga2_req *req)
 	rga2_end = ktime_sub(rga2_end, rga2_start);
 	printk("sync one cmd end time %d\n", (int)ktime_to_us(rga2_end));
 #endif
+	if (ret == -ETIMEDOUT && try--) {
+		memcpy(req, &req_bak, sizeof(req_bak));
+		goto retry;
+	}
 
 	return ret;
 	}
