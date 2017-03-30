@@ -80,7 +80,6 @@ CRC Functions
    :export:
 
 .. kernel-doc:: lib/crc32.c
-   :export:
 
 .. kernel-doc:: lib/crc-ccitt.c
    :export:
