@@ -161,7 +161,7 @@
 		vcc10-supply = <&vcc_sys>;
 		vcc11-supply = <&vcc_sys>;
 		vcc12-supply = <&vcc_io>;
-		clock-output-names = "rk808-clkout1", "rk808-clkout2";
+		clock-output-names = "xin32k", "rk808-clkout2";
 		#clock-cells = <1>;
 
 		regulators {

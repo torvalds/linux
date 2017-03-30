@@ -311,7 +311,7 @@
 		compatible = "rockchip,rk818";
 		status = "okay";
 		reg = <0x1c>;
-		clock-output-names = "rk808-clkout1", "wifibt_32kin";
+		clock-output-names = "xin32k", "wifibt_32kin";
 		interrupt-parent = <&gpio0>;
 		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";

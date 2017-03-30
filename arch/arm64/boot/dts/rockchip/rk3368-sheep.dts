@@ -235,7 +235,7 @@
 		reg = <0x1c>;
 		status = "okay";
 
-		clock-output-names = "rk808-clkout1", "wifibt_32kin";
+		clock-output-names = "xin32k", "wifibt_32kin";
 		interrupt-parent = <&gpio0>;
 		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
