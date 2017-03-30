@@ -347,6 +347,7 @@ struct denali_nand_info {
 };
 
 #define DENALI_CAP_HW_ECC_FIXUP			BIT(0)
+#define DENALI_CAP_DMA_64BIT			BIT(1)
 
 extern int denali_init(struct denali_nand_info *denali);
 extern void denali_remove(struct denali_nand_info *denali);
