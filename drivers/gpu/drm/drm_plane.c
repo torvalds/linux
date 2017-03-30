@@ -923,6 +923,7 @@ retry:
 		ret = drm_event_reserve_init(dev, file_priv, &e->base, &e->event.base);
 		if (ret) {
 			kfree(e);
+			e = NULL;
 			goto out;
 		}
 	}
