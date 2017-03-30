@@ -101,6 +101,25 @@ enum intel_uc_fw_status {
 	INTEL_UC_FIRMWARE_SUCCESS
 };
 
+/* User-friendly representation of an enum */
+static inline
+const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
+{
+	switch (status) {
+	case INTEL_UC_FIRMWARE_FAIL:
+		return "FAIL";
+	case INTEL_UC_FIRMWARE_NONE:
+		return "NONE";
+	case INTEL_UC_FIRMWARE_PENDING:
+		return "PENDING";
+	case INTEL_UC_FIRMWARE_SUCCESS:
+		return "SUCCESS";
+	default:
+		MISSING_CASE(status);
+		return "<invalid>";
+	}
+}
+
 enum intel_uc_fw_type {
 	INTEL_UC_FW_TYPE_GUC,
 	INTEL_UC_FW_TYPE_HUC
@@ -207,7 +226,6 @@ static inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 l
 /* intel_guc_loader.c */
 int intel_guc_select_fw(struct intel_guc *guc);
 int intel_guc_init_hw(struct intel_guc *guc);
-const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status);
 int intel_guc_suspend(struct drm_i915_private *dev_priv);
 int intel_guc_resume(struct drm_i915_private *dev_priv);
 u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv);
