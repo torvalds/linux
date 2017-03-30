@@ -136,13 +136,19 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 	}
 
 	/* eMMC Clock is fixed clock divided by 3 */
-	of_property_read_string_index(np, "clock-output-names",
-				      4, &name);
-	ap806_clks[4] = clk_register_fixed_factor(NULL, name, fixedclk_name,
-						  0, 1, 3);
-	if (IS_ERR(ap806_clks[4])) {
-		ret = PTR_ERR(ap806_clks[4]);
-		goto fail4;
+	if (of_property_read_string_index(np, "clock-output-names",
+					  4, &name)) {
+		ap806_clk_data.clk_num--;
+		dev_warn(&pdev->dev,
+			 "eMMC clock mising: update the device tree!\n");
+	} else {
+		ap806_clks[4] = clk_register_fixed_factor(NULL, name,
+							  fixedclk_name,
+							  0, 1, 3);
+		if (IS_ERR(ap806_clks[4])) {
+			ret = PTR_ERR(ap806_clks[4]);
+			goto fail4;
+		}
 	}
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &ap806_clk_data);
