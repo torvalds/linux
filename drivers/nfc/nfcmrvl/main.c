@@ -158,26 +158,28 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(enum nfcmrvl_phy phy,
 		goto error_free_gpio;
 	}
 
-	nci_set_drvdata(priv->ndev, priv);
-
-	rc = nci_register_device(priv->ndev);
-	if (rc) {
-		nfc_err(dev, "nci_register_device failed %d\n", rc);
-		goto error_free_dev;
-	}
-
-	/* Ensure that controller is powered off */
-	nfcmrvl_chip_halt(priv);
-
 	rc = nfcmrvl_fw_dnld_init(priv);
 	if (rc) {
 		nfc_err(dev, "failed to initialize FW download %d\n", rc);
 		goto error_free_dev;
 	}
 
+	nci_set_drvdata(priv->ndev, priv);
+
+	rc = nci_register_device(priv->ndev);
+	if (rc) {
+		nfc_err(dev, "nci_register_device failed %d\n", rc);
+		goto error_fw_dnld_deinit;
+	}
+
+	/* Ensure that controller is powered off */
+	nfcmrvl_chip_halt(priv);
+
 	nfc_info(dev, "registered with nci successfully\n");
 	return priv;
 
+error_fw_dnld_deinit:
+	nfcmrvl_fw_dnld_deinit(priv);
 error_free_dev:
 	nci_free_device(priv->ndev);
 error_free_gpio:
