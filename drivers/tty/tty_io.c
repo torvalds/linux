@@ -1520,7 +1520,7 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx)
 	 * This code guarantees that either everything succeeds and the
 	 * TTY is ready for operation, or else the table slots are vacated
 	 * and the allocated memory released.  (Except that the termios
-	 * and locked termios may be retained.)
+	 * may be retained.)
 	 */
 
 	if (!try_module_get(driver->owner))
@@ -3441,11 +3441,6 @@ static void destruct_tty_driver(struct kref *kref)
 	struct ktermios *tp;
 
 	if (driver->flags & TTY_DRIVER_INSTALLED) {
-		/*
-		 * Free the termios and termios_locked structures because
-		 * we don't want to get memory leaks when modular tty
-		 * drivers are removed from the kernel.
-		 */
 		for (i = 0; i < driver->num; i++) {
 			tp = driver->termios[i];
 			if (tp) {
