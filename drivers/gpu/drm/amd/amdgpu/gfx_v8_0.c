@@ -4675,11 +4675,13 @@ static int gfx_v8_0_kiq_kcq_enable(struct amdgpu_device *adev)
 		/* map queues */
 		amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_MAP_QUEUES, 5));
 		/* Q_sel:0, vmid:0, vidmem: 1, engine:0, num_Q:1*/
-		amdgpu_ring_write(kiq_ring, 0x21010000);
-		amdgpu_ring_write(kiq_ring, (ring->doorbell_index << 2) |
-				  (ring->queue << 26) |
-				  (ring->pipe << 29) |
-				  ((ring->me == 1 ? 0 : 1) << 31)); /* doorbell */
+		amdgpu_ring_write(kiq_ring,
+				  PACKET3_MAP_QUEUES_NUM_QUEUES(1));
+		amdgpu_ring_write(kiq_ring,
+				  PACKET3_MAP_QUEUES_DOORBELL_OFFSET(ring->doorbell_index) |
+				  PACKET3_MAP_QUEUES_QUEUE(ring->queue) |
+				  PACKET3_MAP_QUEUES_PIPE(ring->pipe) |
+				  PACKET3_MAP_QUEUES_ME(ring->me == 1 ? 0 : 1)); /* doorbell */
 		amdgpu_ring_write(kiq_ring, lower_32_bits(mqd_addr));
 		amdgpu_ring_write(kiq_ring, upper_32_bits(mqd_addr));
 		amdgpu_ring_write(kiq_ring, lower_32_bits(wptr_addr));
