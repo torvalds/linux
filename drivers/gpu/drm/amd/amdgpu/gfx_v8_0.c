@@ -4709,6 +4709,56 @@ static int gfx_v8_0_kiq_kcq_enable(struct amdgpu_device *adev)
 	return r;
 }
 
+static int gfx_v8_0_kiq_kcq_disable(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
+	uint32_t scratch, tmp = 0;
+	int r, i;
+
+	r = amdgpu_gfx_scratch_get(adev, &scratch);
+	if (r) {
+		DRM_ERROR("Failed to get scratch reg (%d).\n", r);
+		return r;
+	}
+	WREG32(scratch, 0xCAFEDEAD);
+
+	r = amdgpu_ring_alloc(kiq_ring, 6 + 3);
+	if (r) {
+		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
+		amdgpu_gfx_scratch_free(adev, scratch);
+		return r;
+	}
+	/* unmap queues */
+	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_UNMAP_QUEUES, 4));
+	amdgpu_ring_write(kiq_ring,
+			  PACKET3_UNMAP_QUEUES_ACTION(1)| /* RESET_QUEUES */
+			  PACKET3_UNMAP_QUEUES_QUEUE_SEL(2)); /* select all queues */
+	amdgpu_ring_write(kiq_ring, 0);
+	amdgpu_ring_write(kiq_ring, 0);
+	amdgpu_ring_write(kiq_ring, 0);
+	amdgpu_ring_write(kiq_ring, 0);
+	/* write to scratch for completion */
+	amdgpu_ring_write(kiq_ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
+	amdgpu_ring_write(kiq_ring, (scratch - PACKET3_SET_UCONFIG_REG_START));
+	amdgpu_ring_write(kiq_ring, 0xDEADBEEF);
+	amdgpu_ring_commit(kiq_ring);
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		tmp = RREG32(scratch);
+		if (tmp == 0xDEADBEEF)
+			break;
+		DRM_UDELAY(1);
+	}
+	if (i >= adev->usec_timeout) {
+		DRM_ERROR("KCQ enable failed (scratch(0x%04X)=0x%08X)\n",
+			  scratch, tmp);
+		r = -EINVAL;
+	}
+	amdgpu_gfx_scratch_free(adev, scratch);
+
+	return r;
+}
+
 static int gfx_v8_0_mqd_init(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
@@ -5150,6 +5200,7 @@ static int gfx_v8_0_hw_fini(void *handle)
 		pr_debug("For SRIOV client, shouldn't do anything.\n");
 		return 0;
 	}
+	gfx_v8_0_kiq_kcq_disable(adev);
 	gfx_v8_0_cp_enable(adev, false);
 	gfx_v8_0_rlc_stop(adev);
 
