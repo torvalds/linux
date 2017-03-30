@@ -856,6 +856,41 @@ static int denali_check_erased_page(struct mtd_info *mtd,
 	return max_bitflips;
 }
 
+static int denali_hw_ecc_fixup(struct mtd_info *mtd,
+			       struct denali_nand_info *denali,
+			       unsigned long *uncor_ecc_flags)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	int bank = denali->flash_bank;
+	uint32_t ecc_cor;
+	unsigned int max_bitflips;
+
+	ecc_cor = ioread32(denali->flash_reg + ECC_COR_INFO(bank));
+	ecc_cor >>= ECC_COR_INFO__SHIFT(bank);
+
+	if (ecc_cor & ECC_COR_INFO__UNCOR_ERR) {
+		/*
+		 * This flag is set when uncorrectable error occurs at least in
+		 * one ECC sector.  We can not know "how many sectors", or
+		 * "which sector(s)".  We need erase-page check for all sectors.
+		 */
+		*uncor_ecc_flags = GENMASK(chip->ecc.steps - 1, 0);
+		return 0;
+	}
+
+	max_bitflips = ecc_cor & ECC_COR_INFO__MAX_ERRORS;
+
+	/*
+	 * The register holds the maximum of per-sector corrected bitflips.
+	 * This is suitable for the return value of the ->read_page() callback.
+	 * Unfortunately, we can not know the total number of corrected bits in
+	 * the page.  Increase the stats by max_bitflips. (compromised solution)
+	 */
+	mtd->ecc_stats.corrected += max_bitflips;
+
+	return max_bitflips;
+}
+
 #define ECC_SECTOR_SIZE 512
 
 #define ECC_SECTOR(x)	(((x) & ECC_ERROR_ADDRESS__SECTOR_NR) >> 12)
@@ -865,8 +900,9 @@ static int denali_check_erased_page(struct mtd_info *mtd,
 #define ECC_ERR_DEVICE(x)	(((x) & ERR_CORRECTION_INFO__DEVICE_NR) >> 8)
 #define ECC_LAST_ERR(x)		((x) & ERR_CORRECTION_INFO__LAST_ERR_INFO)
 
-static int handle_ecc(struct mtd_info *mtd, struct denali_nand_info *denali,
-		      uint8_t *buf, unsigned long *uncor_ecc_flags)
+static int denali_sw_ecc_fixup(struct mtd_info *mtd,
+			       struct denali_nand_info *denali,
+			       unsigned long *uncor_ecc_flags, uint8_t *buf)
 {
 	unsigned int bitflips = 0;
 	unsigned int max_bitflips = 0;
@@ -1070,12 +1106,12 @@ static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			    uint8_t *buf, int oob_required, int page)
 {
 	struct denali_nand_info *denali = mtd_to_denali(mtd);
-
 	dma_addr_t addr = denali->buf.dma_buf;
 	size_t size = mtd->writesize + mtd->oobsize;
-
 	uint32_t irq_status;
-	uint32_t irq_mask = INTR__ECC_TRANSACTION_DONE | INTR__ECC_ERR;
+	uint32_t irq_mask = denali->caps & DENALI_CAP_HW_ECC_FIXUP ?
+				INTR__DMA_CMD_COMP | INTR__ECC_UNCOR_ERR :
+				INTR__ECC_TRANSACTION_DONE | INTR__ECC_ERR;
 	unsigned long uncor_ecc_flags = 0;
 	int stat = 0;
 
@@ -1101,8 +1137,10 @@ static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	memcpy(buf, denali->buf.buf, mtd->writesize);
 
-	if (irq_status & INTR__ECC_ERR)
-		stat = handle_ecc(mtd, denali, buf, &uncor_ecc_flags);
+	if (denali->caps & DENALI_CAP_HW_ECC_FIXUP)
+		stat = denali_hw_ecc_fixup(mtd, denali, &uncor_ecc_flags);
+	else if (irq_status & INTR__ECC_ERR)
+		stat = denali_sw_ecc_fixup(mtd, denali, &uncor_ecc_flags, buf);
 	denali_enable_dma(denali, false);
 
 	if (stat < 0)
