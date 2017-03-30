@@ -996,12 +996,6 @@ static int usb_serial_probe(struct usb_interface *interface,
 		serial->attached = 1;
 	}
 
-	/* Avoid race with tty_open and serial_install by setting the
-	 * disconnected flag and not clearing it until all ports have been
-	 * registered.
-	 */
-	serial->disconnected = 1;
-
 	if (allocate_minors(serial, num_ports)) {
 		dev_err(ddev, "No more free serial minor numbers\n");
 		goto probe_error;
@@ -1018,8 +1012,6 @@ static int usb_serial_probe(struct usb_interface *interface,
 		if (retval)
 			dev_err(ddev, "Error registering port device, continuing\n");
 	}
-
-	serial->disconnected = 0;
 
 	if (num_ports > 0)
 		usb_serial_console_init(serial->port[0]->minor);
