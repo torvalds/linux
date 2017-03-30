@@ -469,6 +469,7 @@ int json_events(const char *fn,
 				}
 				addfield(map, &desc, ". ", "Unit: ", NULL);
 				addfield(map, &desc, "", pmu, NULL);
+				addfield(map, &desc, "", " ", NULL);
 			} else if (json_streq(map, field, "Filter")) {
 				addfield(map, &filter, "", "", val);
 			} else if (json_streq(map, field, "ScaleUnit")) {
