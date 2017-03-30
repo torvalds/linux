@@ -2402,8 +2402,7 @@ sub push_parameter($$$) {
 	}
 
 	$anon_struct_union = 0;
-	my $param_name = $param;
-	$param_name =~ s/\[.*//;
+	$param =~ s/[\[\)].*//;
 
 	if ($type eq "" && $param =~ /\.\.\.$/)
 	{
@@ -2434,9 +2433,9 @@ sub push_parameter($$$) {
 	# but inline preprocessor statements);
 	# also ignore unnamed structs/unions;
 	if (!$anon_struct_union) {
-	if (!defined $parameterdescs{$param_name} && $param_name !~ /^#/) {
+	if (!defined $parameterdescs{$param} && $param !~ /^#/) {
 
-	    $parameterdescs{$param_name} = $undescribed;
+	    $parameterdescs{$param} = $undescribed;
 
 	    if (($type eq 'function') || ($type eq 'enum')) {
 		print STDERR "${file}:$.: warning: Function parameter ".
