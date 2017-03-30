@@ -56,9 +56,15 @@ typedef struct { pteval_t pte; } pte_t;
 
 /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
 #define MAXMEM		_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
+#ifdef CONFIG_X86_5LEVEL
+#define VMALLOC_SIZE_TB _AC(16384, UL)
+#define __VMALLOC_BASE	_AC(0xff92000000000000, UL)
+#define __VMEMMAP_BASE	_AC(0xffd4000000000000, UL)
+#else
 #define VMALLOC_SIZE_TB	_AC(32, UL)
 #define __VMALLOC_BASE	_AC(0xffffc90000000000, UL)
 #define __VMEMMAP_BASE	_AC(0xffffea0000000000, UL)
+#endif
 #ifdef CONFIG_RANDOMIZE_MEMORY
 #define VMALLOC_START	vmalloc_base
 #define VMEMMAP_START	vmemmap_base
