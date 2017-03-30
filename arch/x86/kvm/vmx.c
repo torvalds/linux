@@ -2767,6 +2767,8 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		vmx->nested.nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT |
 			VMX_EPT_EXTENT_CONTEXT_BIT | VMX_EPT_2MB_PAGE_BIT |
 			VMX_EPT_1GB_PAGE_BIT;
+	       if (enable_ept_ad_bits)
+		       vmx->nested.nested_vmx_ept_caps |= VMX_EPT_AD_BIT;
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
 
@@ -6211,6 +6213,17 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
+	if (is_guest_mode(vcpu)
+	    && !(exit_qualification & EPT_VIOLATION_GVA_TRANSLATED)) {
+		/*
+		 * Fix up exit_qualification according to whether guest
+		 * page table accesses are reads or writes.
+		 */
+		u64 eptp = nested_ept_get_cr3(vcpu);
+		if (eptp & VMX_EPT_AD_ENABLE_BIT)
+			exit_qualification &= ~EPT_VIOLATION_ACC_WRITE;
+	}
+
 	/*
 	 * EPT violation happened while executing iret from NMI,
 	 * "blocked by NMI" bit has to be set before next VM entry.
@@ -9416,17 +9429,26 @@ static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu)
 	return get_vmcs12(vcpu)->ept_pointer;
 }
 
-static void nested_ept_init_mmu_context(struct kvm_vcpu *vcpu)
+static int nested_ept_init_mmu_context(struct kvm_vcpu *vcpu)
 {
+	u64 eptp;
+
 	WARN_ON(mmu_is_nested(vcpu));
+	eptp = nested_ept_get_cr3(vcpu);
+	if ((eptp & VMX_EPT_AD_ENABLE_BIT) && !enable_ept_ad_bits)
+		return 1;
+
+	kvm_mmu_unload(vcpu);
 	kvm_init_shadow_ept_mmu(vcpu,
 			to_vmx(vcpu)->nested.nested_vmx_ept_caps &
-			VMX_EPT_EXECUTE_ONLY_BIT);
+			VMX_EPT_EXECUTE_ONLY_BIT,
+			eptp & VMX_EPT_AD_ENABLE_BIT);
 	vcpu->arch.mmu.set_cr3           = vmx_set_cr3;
 	vcpu->arch.mmu.get_cr3           = nested_ept_get_cr3;
 	vcpu->arch.mmu.inject_page_fault = nested_ept_inject_page_fault;
 
 	vcpu->arch.walk_mmu              = &vcpu->arch.nested_mmu;
+	return 0;
 }
 
 static void nested_ept_uninit_mmu_context(struct kvm_vcpu *vcpu)
@@ -10188,8 +10210,10 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	}
 
 	if (nested_cpu_has_ept(vmcs12)) {
-		kvm_mmu_unload(vcpu);
-		nested_ept_init_mmu_context(vcpu);
+		if (nested_ept_init_mmu_context(vcpu)) {
+			*entry_failure_code = ENTRY_FAIL_DEFAULT;
+			return 1;
+		}
 	} else if (nested_cpu_has2(vmcs12,
 				   SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
 		vmx_flush_tlb_ept_only(vcpu);

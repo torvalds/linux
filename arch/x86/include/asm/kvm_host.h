@@ -343,9 +343,10 @@ struct kvm_mmu {
 	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			   u64 *spte, const void *pte);
 	hpa_t root_hpa;
-	int root_level;
-	int shadow_root_level;
 	union kvm_mmu_page_role base_role;
+	u8 root_level;
+	u8 shadow_root_level;
+	u8 ept_ad;
 	bool direct_map;
 
 	/*

@@ -23,13 +23,6 @@
  * so the code in this file is compiled twice, once per pte size.
  */
 
-/*
- * This is used to catch non optimized PT_GUEST_(DIRTY|ACCESS)_SHIFT macro
- * uses for EPT without A/D paging type.
- */
-extern u64 __pure __using_nonexistent_pte_bit(void)
-	       __compiletime_error("wrong use of PT_GUEST_(DIRTY|ACCESS)_SHIFT");
-
 #if PTTYPE == 64
 	#define pt_element_t u64
 	#define guest_walker guest_walker64
@@ -39,8 +32,6 @@ extern u64 __pure __using_nonexistent_pte_bit(void)
 	#define PT_LVL_OFFSET_MASK(lvl) PT64_LVL_OFFSET_MASK(lvl)
 	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define PT_LEVEL_BITS PT64_LEVEL_BITS
-	#define PT_GUEST_ACCESSED_MASK PT_ACCESSED_MASK
-	#define PT_GUEST_DIRTY_MASK PT_DIRTY_MASK
 	#define PT_GUEST_DIRTY_SHIFT PT_DIRTY_SHIFT
 	#define PT_GUEST_ACCESSED_SHIFT PT_ACCESSED_SHIFT
 	#define PT_HAVE_ACCESSED_DIRTY(mmu) true
@@ -61,8 +52,6 @@ extern u64 __pure __using_nonexistent_pte_bit(void)
 	#define PT_INDEX(addr, level) PT32_INDEX(addr, level)
 	#define PT_LEVEL_BITS PT32_LEVEL_BITS
 	#define PT_MAX_FULL_LEVELS 2
-	#define PT_GUEST_ACCESSED_MASK PT_ACCESSED_MASK
-	#define PT_GUEST_DIRTY_MASK PT_DIRTY_MASK
 	#define PT_GUEST_DIRTY_SHIFT PT_DIRTY_SHIFT
 	#define PT_GUEST_ACCESSED_SHIFT PT_ACCESSED_SHIFT
 	#define PT_HAVE_ACCESSED_DIRTY(mmu) true
@@ -76,16 +65,17 @@ extern u64 __pure __using_nonexistent_pte_bit(void)
 	#define PT_LVL_OFFSET_MASK(lvl) PT64_LVL_OFFSET_MASK(lvl)
 	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define PT_LEVEL_BITS PT64_LEVEL_BITS
-	#define PT_GUEST_ACCESSED_MASK 0
-	#define PT_GUEST_DIRTY_MASK 0
-	#define PT_GUEST_DIRTY_SHIFT __using_nonexistent_pte_bit()
-	#define PT_GUEST_ACCESSED_SHIFT __using_nonexistent_pte_bit()
-	#define PT_HAVE_ACCESSED_DIRTY(mmu) false
+	#define PT_GUEST_DIRTY_SHIFT 9
+	#define PT_GUEST_ACCESSED_SHIFT 8
+	#define PT_HAVE_ACCESSED_DIRTY(mmu) ((mmu)->ept_ad)
 	#define CMPXCHG cmpxchg64
 	#define PT_MAX_FULL_LEVELS 4
 #else
 	#error Invalid PTTYPE value
 #endif
+
+#define PT_GUEST_DIRTY_MASK    (1 << PT_GUEST_DIRTY_SHIFT)
+#define PT_GUEST_ACCESSED_MASK (1 << PT_GUEST_ACCESSED_SHIFT)
 
 #define gpte_to_gfn_lvl FNAME(gpte_to_gfn_lvl)
 #define gpte_to_gfn(pte) gpte_to_gfn_lvl((pte), PT_PAGE_TABLE_LEVEL)
@@ -290,6 +280,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	pt_element_t __user *uninitialized_var(ptep_user);
 	gfn_t table_gfn;
 	unsigned index, pt_access, pte_access, accessed_dirty, pte_pkey;
+	unsigned nested_access;
 	gpa_t pte_gpa;
 	bool have_ad;
 	int offset;
@@ -319,6 +310,14 @@ retry_walk:
 	ASSERT(!(is_long_mode(vcpu) && !is_pae(vcpu)));
 
 	accessed_dirty = have_ad ? PT_GUEST_ACCESSED_MASK : 0;
+
+	/*
+	 * FIXME: on Intel processors, loads of the PDPTE registers for PAE paging
+	 * by the MOV to CR instruction are treated as reads and do not cause the
+	 * processor to set the dirty flag in any EPT paging-structure entry.
+	 */
+	nested_access = (have_ad ? PFERR_WRITE_MASK : 0) | PFERR_USER_MASK;
+
 	pt_access = pte_access = ACC_ALL;
 	++walker->level;
 
@@ -338,7 +337,7 @@ retry_walk:
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
 		real_gfn = mmu->translate_gpa(vcpu, gfn_to_gpa(table_gfn),
-					      PFERR_USER_MASK|PFERR_WRITE_MASK,
+					      nested_access,
 					      &walker->fault);
 
 		/*
