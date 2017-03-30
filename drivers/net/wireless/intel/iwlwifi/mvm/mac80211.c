@@ -2883,7 +2883,8 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
-		key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
+		if (!iwl_mvm_has_new_tx_api(mvm))
+			key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
@@ -2929,8 +2930,13 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 				ret = -EOPNOTSUPP;
 			else
 				ret = 0;
-			key->hw_key_idx = STA_KEY_IDX_INVALID;
-			break;
+
+			if (key->cipher != WLAN_CIPHER_SUITE_GCMP &&
+			    key->cipher != WLAN_CIPHER_SUITE_GCMP_256 &&
+			    !iwl_mvm_has_new_tx_api(mvm)) {
+				key->hw_key_idx = STA_KEY_IDX_INVALID;
+				break;
+			}
 		}
 
 		/* During FW restart, in order to restore the state as it was,
