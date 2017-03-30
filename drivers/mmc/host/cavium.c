@@ -864,6 +864,10 @@ static void cvm_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		break;
 	}
 
+	/* DDR is available for 4/8 bit bus width */
+	if (ios->bus_width && ios->timing == MMC_TIMING_MMC_DDR52)
+		bus_width |= 4;
+
 	/* Change the clock frequency. */
 	clock = ios->clock;
 	if (clock > 52000000)
@@ -1032,8 +1036,14 @@ int cvm_mmc_of_slot_probe(struct device *dev, struct cvm_mmc_host *host)
 	/* Set up host parameters */
 	mmc->ops = &cvm_mmc_ops;
 
+	/*
+	 * We only have a 3.3v supply, we cannot support any
+	 * of the UHS modes. We do support the high speed DDR
+	 * modes up to 52MHz.
+	 */
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
-		     MMC_CAP_ERASE | MMC_CAP_CMD23 | MMC_CAP_POWER_OFF_CARD;
+		     MMC_CAP_ERASE | MMC_CAP_CMD23 | MMC_CAP_POWER_OFF_CARD |
+		     MMC_CAP_3_3V_DDR;
 
 	if (host->use_sg)
 		mmc->max_segs = 16;
