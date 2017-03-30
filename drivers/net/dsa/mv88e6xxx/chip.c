@@ -1198,6 +1198,17 @@ static int mv88e6xxx_atu_setup(struct mv88e6xxx_chip *chip)
 	return mv88e6xxx_g1_atu_set_age_time(chip, 300000);
 }
 
+static int mv88e6xxx_pvt_setup(struct mv88e6xxx_chip *chip)
+{
+	if (!mv88e6xxx_has_pvt(chip))
+		return 0;
+
+	/* Clear 5 Bit Port for usage with Marvell Link Street devices:
+	 * use 4 bits for the Src_Port/Src_Trunk and 5 bits for the Src_Dev.
+	 */
+	return mv88e6xxx_g2_misc_4_bit_port(chip);
+}
+
 static void mv88e6xxx_port_fast_age(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
@@ -2593,6 +2604,10 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		if (err)
 			goto unlock;
 	}
+
+	err = mv88e6xxx_pvt_setup(chip);
+	if (err)
+		goto unlock;
 
 	err = mv88e6xxx_atu_setup(chip);
 	if (err)

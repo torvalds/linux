@@ -784,6 +784,31 @@ static int mv88e6xxx_g2_watchdog_setup(struct mv88e6xxx_chip *chip)
 	return err;
 }
 
+/* Offset 0x1D: Misc Register */
+
+static int mv88e6xxx_g2_misc_5_bit_port(struct mv88e6xxx_chip *chip,
+					bool port_5_bit)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g2_read(chip, GLOBAL2_MISC, &val);
+	if (err)
+		return err;
+
+	if (port_5_bit)
+		val |= GLOBAL2_MISC_5_BIT_PORT;
+	else
+		val &= ~GLOBAL2_MISC_5_BIT_PORT;
+
+	return mv88e6xxx_g2_write(chip, GLOBAL2_MISC, val);
+}
+
+int mv88e6xxx_g2_misc_4_bit_port(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g2_misc_5_bit_port(chip, false);
+}
+
 static void mv88e6xxx_g2_irq_mask(struct irq_data *d)
 {
 	struct mv88e6xxx_chip *chip = irq_data_get_irq_chip_data(d);
