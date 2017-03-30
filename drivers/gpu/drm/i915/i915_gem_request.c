@@ -191,7 +191,6 @@ i915_priotree_init(struct i915_priotree *pt)
 
 static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 {
-	struct i915_gem_timeline *timeline = &i915->gt.global_timeline;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int ret;
@@ -205,7 +204,8 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
 	for_each_engine(engine, i915, id) {
-		struct intel_timeline *tl = &timeline->engine[id];
+		struct i915_gem_timeline *timeline;
+		struct intel_timeline *tl = engine->timeline;
 
 		if (!i915_seqno_passed(seqno, tl->seqno)) {
 			/* spin until threads are complete */
@@ -216,14 +216,10 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 		/* Finally reset hw state */
 		tl->seqno = seqno;
 		intel_engine_init_global_seqno(engine, seqno);
-	}
 
-	list_for_each_entry(timeline, &i915->gt.timelines, link) {
-		for_each_engine(engine, i915, id) {
-			struct intel_timeline *tl = &timeline->engine[id];
-
-			memset(tl->sync_seqno, 0, sizeof(tl->sync_seqno));
-		}
+		list_for_each_entry(timeline, &i915->gt.timelines, link)
+			memset(timeline->engine[id].sync_seqno, 0,
+			       sizeof(timeline->engine[id].sync_seqno));
 	}
 
 	return 0;
