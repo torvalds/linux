@@ -5136,6 +5136,60 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
 #endif
 
 /**
+ * struct cfg80211_connect_resp_params - Connection response params
+ * @status: Status code, %WLAN_STATUS_SUCCESS for successful connection, use
+ *	%WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
+ *	the real status code for failures. If this call is used to report a
+ *	failure due to a timeout (e.g., not receiving an Authentication frame
+ *	from the AP) instead of an explicit rejection by the AP, -1 is used to
+ *	indicate that this is a failure, but without a status code.
+ *	@timeout_reason is used to report the reason for the timeout in that
+ *	case.
+ * @bssid: The BSSID of the AP (may be %NULL)
+ * @bss: Entry of bss to which STA got connected to, can be obtained through
+ *	cfg80211_get_bss() (may be %NULL). Only one parameter among @bssid and
+ *	@bss needs to be specified.
+ * @req_ie: Association request IEs (may be %NULL)
+ * @req_ie_len: Association request IEs length
+ * @resp_ie: Association response IEs (may be %NULL)
+ * @resp_ie_len: Association response IEs length
+ * @timeout_reason: Reason for connection timeout. This is used when the
+ *	connection fails due to a timeout instead of an explicit rejection from
+ *	the AP. %NL80211_TIMEOUT_UNSPECIFIED is used when the timeout reason is
+ *	not known. This value is used only if @status < 0 to indicate that the
+ *	failure is due to a timeout and not due to explicit rejection by the AP.
+ *	This value is ignored in other cases (@status >= 0).
+ */
+struct cfg80211_connect_resp_params {
+	int status;
+	const u8 *bssid;
+	struct cfg80211_bss *bss;
+	const u8 *req_ie;
+	size_t req_ie_len;
+	const u8 *resp_ie;
+	size_t resp_ie_len;
+	enum nl80211_timeout_reason timeout_reason;
+};
+
+/**
+ * cfg80211_connect_done - notify cfg80211 of connection result
+ *
+ * @dev: network device
+ * @params: connection response parameters
+ * @gfp: allocation flags
+ *
+ * It should be called by the underlying driver once execution of the connection
+ * request from connect() has been completed. This is similar to
+ * cfg80211_connect_bss(), but takes a structure pointer for connection response
+ * parameters. Only one of the functions among cfg80211_connect_bss(),
+ * cfg80211_connect_result(), cfg80211_connect_timeout(),
+ * and cfg80211_connect_done() should be called.
+ */
+void cfg80211_connect_done(struct net_device *dev,
+			   struct cfg80211_connect_resp_params *params,
+			   gfp_t gfp);
+
+/**
  * cfg80211_connect_bss - notify cfg80211 of connection result
  *
  * @dev: network device
@@ -5165,13 +5219,31 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
  * It should be called by the underlying driver once execution of the connection
  * request from connect() has been completed. This is similar to
  * cfg80211_connect_result(), but with the option of identifying the exact bss
- * entry for the connection. Only one of these functions should be called.
+ * entry for the connection. Only one of the functions among
+ * cfg80211_connect_bss(), cfg80211_connect_result(),
+ * cfg80211_connect_timeout(), and cfg80211_connect_done() should be called.
  */
-void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
-			  struct cfg80211_bss *bss, const u8 *req_ie,
-			  size_t req_ie_len, const u8 *resp_ie,
-			  size_t resp_ie_len, int status, gfp_t gfp,
-			  enum nl80211_timeout_reason timeout_reason);
+static inline void
+cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
+		     struct cfg80211_bss *bss, const u8 *req_ie,
+		     size_t req_ie_len, const u8 *resp_ie,
+		     size_t resp_ie_len, int status, gfp_t gfp,
+		     enum nl80211_timeout_reason timeout_reason)
+{
+	struct cfg80211_connect_resp_params params;
+
+	memset(&params, 0, sizeof(params));
+	params.status = status;
+	params.bssid = bssid;
+	params.bss = bss;
+	params.req_ie = req_ie;
+	params.req_ie_len = req_ie_len;
+	params.resp_ie = resp_ie;
+	params.resp_ie_len = resp_ie_len;
+	params.timeout_reason = timeout_reason;
+
+	cfg80211_connect_done(dev, &params, gfp);
+}
 
 /**
  * cfg80211_connect_result - notify cfg80211 of connection result
@@ -5190,7 +5262,8 @@ void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
  * It should be called by the underlying driver once execution of the connection
  * request from connect() has been completed. This is similar to
  * cfg80211_connect_bss() which allows the exact bss entry to be specified. Only
- * one of these functions should be called.
+ * one of the functions among cfg80211_connect_bss(), cfg80211_connect_result(),
+ * cfg80211_connect_timeout(), and cfg80211_connect_done() should be called.
  */
 static inline void
 cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
@@ -5217,7 +5290,9 @@ cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
  * in a sequence where no explicit authentication/association rejection was
  * received from the AP. This could happen, e.g., due to not being able to send
  * out the Authentication or Association Request frame or timing out while
- * waiting for the response.
+ * waiting for the response. Only one of the functions among
+ * cfg80211_connect_bss(), cfg80211_connect_result(),
+ * cfg80211_connect_timeout(), and cfg80211_connect_done() should be called.
  */
 static inline void
 cfg80211_connect_timeout(struct net_device *dev, const u8 *bssid,

@@ -13464,17 +13464,14 @@ void nl80211_send_assoc_timeout(struct cfg80211_registered_device *rdev,
 }
 
 void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
-				 struct net_device *netdev, const u8 *bssid,
-				 const u8 *req_ie, size_t req_ie_len,
-				 const u8 *resp_ie, size_t resp_ie_len,
-				 int status,
-				 enum nl80211_timeout_reason timeout_reason,
+				 struct net_device *netdev,
+				 struct cfg80211_connect_resp_params *cr,
 				 gfp_t gfp)
 {
 	struct sk_buff *msg;
 	void *hdr;
 
-	msg = nlmsg_new(100 + req_ie_len + resp_ie_len, gfp);
+	msg = nlmsg_new(100 + cr->req_ie_len + cr->resp_ie_len, gfp);
 	if (!msg)
 		return;
 
@@ -13486,17 +13483,20 @@ void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
 
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
 	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex) ||
-	    (bssid && nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, bssid)) ||
+	    (cr->bssid &&
+	     nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, cr->bssid)) ||
 	    nla_put_u16(msg, NL80211_ATTR_STATUS_CODE,
-			status < 0 ? WLAN_STATUS_UNSPECIFIED_FAILURE :
-			status) ||
-	    (status < 0 &&
+			cr->status < 0 ? WLAN_STATUS_UNSPECIFIED_FAILURE :
+			cr->status) ||
+	    (cr->status < 0 &&
 	     (nla_put_flag(msg, NL80211_ATTR_TIMED_OUT) ||
-	      nla_put_u32(msg, NL80211_ATTR_TIMEOUT_REASON, timeout_reason))) ||
-	    (req_ie &&
-	     nla_put(msg, NL80211_ATTR_REQ_IE, req_ie_len, req_ie)) ||
-	    (resp_ie &&
-	     nla_put(msg, NL80211_ATTR_RESP_IE, resp_ie_len, resp_ie)))
+	      nla_put_u32(msg, NL80211_ATTR_TIMEOUT_REASON,
+			  cr->timeout_reason))) ||
+	    (cr->req_ie &&
+	     nla_put(msg, NL80211_ATTR_REQ_IE, cr->req_ie_len, cr->req_ie)) ||
+	    (cr->resp_ie &&
+	     nla_put(msg, NL80211_ATTR_RESP_IE, cr->resp_ie_len,
+		     cr->resp_ie)))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);

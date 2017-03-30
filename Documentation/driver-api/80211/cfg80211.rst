@@ -180,6 +180,12 @@ Actions and configuration
    :functions: cfg80211_ibss_joined
 
 .. kernel-doc:: include/net/cfg80211.h
+   :functions: cfg80211_connect_resp_params
+
+.. kernel-doc:: include/net/cfg80211.h
+   :functions: cfg80211_connect_done
+
+.. kernel-doc:: include/net/cfg80211.h
    :functions: cfg80211_connect_result
 
 .. kernel-doc:: include/net/cfg80211.h
