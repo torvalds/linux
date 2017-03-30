@@ -88,7 +88,6 @@ MODULE_VERSION(IBMVNIC_DRIVER_VERSION);
 static int ibmvnic_version = IBMVNIC_INITIAL_VERSION;
 static int ibmvnic_remove(struct vio_dev *);
 static void release_sub_crqs(struct ibmvnic_adapter *);
-static void release_sub_crqs_no_irqs(struct ibmvnic_adapter *);
 static int ibmvnic_reset_crq(struct ibmvnic_adapter *);
 static int ibmvnic_send_crq_init(struct ibmvnic_adapter *);
 static int ibmvnic_reenable_crq_queue(struct ibmvnic_adapter *);
@@ -526,7 +525,7 @@ static int ibmvnic_login(struct net_device *netdev)
 	do {
 		if (adapter->renegotiate) {
 			adapter->renegotiate = false;
-			release_sub_crqs_no_irqs(adapter);
+			release_sub_crqs(adapter);
 
 			reinit_completion(&adapter->init_done);
 			send_cap_queries(adapter);
@@ -1371,49 +1370,40 @@ static void release_sub_crqs(struct ibmvnic_adapter *adapter)
 	int i;
 
 	if (adapter->tx_scrq) {
-		for (i = 0; i < adapter->req_tx_queues; i++)
-			if (adapter->tx_scrq[i]) {
+		for (i = 0; i < adapter->req_tx_queues; i++) {
+			if (!adapter->tx_scrq[i])
+				continue;
+
+			if (adapter->tx_scrq[i]->irq) {
 				free_irq(adapter->tx_scrq[i]->irq,
 					 adapter->tx_scrq[i]);
 				irq_dispose_mapping(adapter->tx_scrq[i]->irq);
-				release_sub_crq_queue(adapter,
-						      adapter->tx_scrq[i]);
+				adapter->tx_scrq[i]->irq = 0;
 			}
+
+			release_sub_crq_queue(adapter, adapter->tx_scrq[i]);
+		}
+
 		kfree(adapter->tx_scrq);
 		adapter->tx_scrq = NULL;
 	}
 
 	if (adapter->rx_scrq) {
-		for (i = 0; i < adapter->req_rx_queues; i++)
-			if (adapter->rx_scrq[i]) {
+		for (i = 0; i < adapter->req_rx_queues; i++) {
+			if (!adapter->rx_scrq[i])
+				continue;
+
+			if (adapter->rx_scrq[i]->irq) {
 				free_irq(adapter->rx_scrq[i]->irq,
 					 adapter->rx_scrq[i]);
 				irq_dispose_mapping(adapter->rx_scrq[i]->irq);
-				release_sub_crq_queue(adapter,
-						      adapter->rx_scrq[i]);
+				adapter->rx_scrq[i]->irq = 0;
 			}
+
+			release_sub_crq_queue(adapter, adapter->rx_scrq[i]);
+		}
+
 		kfree(adapter->rx_scrq);
-		adapter->rx_scrq = NULL;
-	}
-}
-
-static void release_sub_crqs_no_irqs(struct ibmvnic_adapter *adapter)
-{
-	int i;
-
-	if (adapter->tx_scrq) {
-		for (i = 0; i < adapter->req_tx_queues; i++)
-			if (adapter->tx_scrq[i])
-				release_sub_crq_queue(adapter,
-						      adapter->tx_scrq[i]);
-		adapter->tx_scrq = NULL;
-	}
-
-	if (adapter->rx_scrq) {
-		for (i = 0; i < adapter->req_rx_queues; i++)
-			if (adapter->rx_scrq[i])
-				release_sub_crq_queue(adapter,
-						      adapter->rx_scrq[i]);
 		adapter->rx_scrq = NULL;
 	}
 }
@@ -1609,7 +1599,7 @@ req_tx_irq_failed:
 		free_irq(adapter->tx_scrq[j]->irq, adapter->tx_scrq[j]);
 		irq_dispose_mapping(adapter->rx_scrq[j]->irq);
 	}
-	release_sub_crqs_no_irqs(adapter);
+	release_sub_crqs(adapter);
 	return rc;
 }
 
@@ -2499,7 +2489,7 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 			 *req_value,
 			 (long int)be64_to_cpu(crq->request_capability_rsp.
 					       number), name);
-		release_sub_crqs_no_irqs(adapter);
+		release_sub_crqs(adapter);
 		*req_value = be64_to_cpu(crq->request_capability_rsp.number);
 		init_sub_crqs(adapter, 1);
 		return;
