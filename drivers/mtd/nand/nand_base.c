@@ -4495,7 +4495,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
-	struct nand_buffers *nbuf;
+	struct nand_buffers *nbuf = NULL;
 	int ret;
 
 	/* New bad blocks should be marked in OOB, flash-based BBT, or both */
@@ -4509,13 +4509,28 @@ int nand_scan_tail(struct mtd_info *mtd)
 	}
 
 	if (!(chip->options & NAND_OWN_BUFFERS)) {
-		nbuf = kzalloc(sizeof(*nbuf) + mtd->writesize
-				+ mtd->oobsize * 3, GFP_KERNEL);
+		nbuf = kzalloc(sizeof(*nbuf), GFP_KERNEL);
 		if (!nbuf)
 			return -ENOMEM;
-		nbuf->ecccalc = (uint8_t *)(nbuf + 1);
-		nbuf->ecccode = nbuf->ecccalc + mtd->oobsize;
-		nbuf->databuf = nbuf->ecccode + mtd->oobsize;
+
+		nbuf->ecccalc = kmalloc(mtd->oobsize, GFP_KERNEL);
+		if (!nbuf->ecccalc) {
+			ret = -ENOMEM;
+			goto err_free;
+		}
+
+		nbuf->ecccode = kmalloc(mtd->oobsize, GFP_KERNEL);
+		if (!nbuf->ecccode) {
+			ret = -ENOMEM;
+			goto err_free;
+		}
+
+		nbuf->databuf = kmalloc(mtd->writesize + mtd->oobsize,
+					GFP_KERNEL);
+		if (!nbuf->databuf) {
+			ret = -ENOMEM;
+			goto err_free;
+		}
 
 		chip->buffers = nbuf;
 	} else {
@@ -4755,8 +4770,12 @@ int nand_scan_tail(struct mtd_info *mtd)
 	/* Build bad block table */
 	return chip->scan_bbt(mtd);
 err_free:
-	if (!(chip->options & NAND_OWN_BUFFERS))
-		kfree(chip->buffers);
+	if (nbuf) {
+		kfree(nbuf->databuf);
+		kfree(nbuf->ecccode);
+		kfree(nbuf->ecccalc);
+		kfree(nbuf);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(nand_scan_tail);
@@ -4807,8 +4826,12 @@ void nand_cleanup(struct nand_chip *chip)
 
 	/* Free bad block table memory */
 	kfree(chip->bbt);
-	if (!(chip->options & NAND_OWN_BUFFERS))
+	if (!(chip->options & NAND_OWN_BUFFERS) && chip->buffers) {
+		kfree(chip->buffers->databuf);
+		kfree(chip->buffers->ecccode);
+		kfree(chip->buffers->ecccalc);
 		kfree(chip->buffers);
+	}
 
 	/* Free bad block descriptor memory */
 	if (chip->badblock_pattern && chip->badblock_pattern->options
