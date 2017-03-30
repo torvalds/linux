@@ -1123,27 +1123,42 @@ out:
 	return err;
 }
 
-static int _mv88e6xxx_port_based_vlan_map(struct mv88e6xxx_chip *chip, int port)
+static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 {
-	struct dsa_switch *ds = chip->ds;
-	struct net_device *bridge = ds->ports[port].bridge_dev;
-	u16 output_ports = 0;
+	struct dsa_switch *ds = NULL;
+	struct net_device *br;
+	u16 pvlan;
 	int i;
 
-	/* allow CPU port or DSA link(s) to send frames to every port */
-	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)) {
-		output_ports = ~0;
-	} else {
-		for (i = 0; i < mv88e6xxx_num_ports(chip); ++i) {
-			/* allow sending frames to every group member */
-			if (bridge && ds->ports[i].bridge_dev == bridge)
-				output_ports |= BIT(i);
+	if (dev < DSA_MAX_SWITCHES)
+		ds = chip->ds->dst->ds[dev];
 
-			/* allow sending frames to CPU port and DSA link(s) */
-			if (dsa_is_cpu_port(ds, i) || dsa_is_dsa_port(ds, i))
-				output_ports |= BIT(i);
-		}
-	}
+	/* Prevent frames from unknown switch or port */
+	if (!ds || port >= ds->num_ports)
+		return 0;
+
+	/* Frames from DSA links and CPU ports can egress any local port */
+	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
+		return mv88e6xxx_port_mask(chip);
+
+	br = ds->ports[port].bridge_dev;
+	pvlan = 0;
+
+	/* Frames from user ports can egress any local DSA links and CPU ports,
+	 * as well as any local member of their bridge group.
+	 */
+	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
+		if (dsa_is_cpu_port(chip->ds, i) ||
+		    dsa_is_dsa_port(chip->ds, i) ||
+		    (br && chip->ds->ports[i].bridge_dev == br))
+			pvlan |= BIT(i);
+
+	return pvlan;
+}
+
+static int _mv88e6xxx_port_based_vlan_map(struct mv88e6xxx_chip *chip, int port)
+{
+	u16 output_ports = mv88e6xxx_port_vlan(chip, chip->ds->index, port);
 
 	/* prevent frames from going back out of the port they came in on */
 	output_ports &= ~BIT(port);
