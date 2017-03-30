@@ -117,6 +117,10 @@ static bool use_lightnvm;
 module_param(use_lightnvm, bool, S_IRUGO);
 MODULE_PARM_DESC(use_lightnvm, "Register as a LightNVM device");
 
+static bool blocking;
+module_param(blocking, bool, S_IRUGO);
+MODULE_PARM_DESC(blocking, "Register as a blocking blk-mq driver device");
+
 static int irqmode = NULL_IRQ_SOFTIRQ;
 
 static int null_set_irqmode(const char *str, const struct kernel_param *kp)
@@ -356,6 +360,8 @@ static int null_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
+
+	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
 
 	if (irqmode == NULL_IRQ_TIMER) {
 		hrtimer_init(&cmd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -723,6 +729,9 @@ static int null_add_dev(void)
 		nullb->tag_set.cmd_size	= sizeof(struct nullb_cmd);
 		nullb->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 		nullb->tag_set.driver_data = nullb;
+
+		if (blocking)
+			nullb->tag_set.flags |= BLK_MQ_F_BLOCKING;
 
 		rv = blk_mq_alloc_tag_set(&nullb->tag_set);
 		if (rv)
