@@ -724,14 +724,14 @@ enum iwl_mvm_queue_status {
 #ifdef CONFIG_ACPI
 #define IWL_MVM_SAR_TABLE_SIZE		10
 #define IWL_MVM_SAR_PROFILE_NUM		4
-#define IWL_MVM_GEO_TABLE_SIZE		18
+#define IWL_MVM_GEO_TABLE_SIZE		6
 
 struct iwl_mvm_sar_profile {
 	bool enabled;
 	u8 table[IWL_MVM_SAR_TABLE_SIZE];
 };
 
-struct iwl_mvm_geo_table {
+struct iwl_mvm_geo_profile {
 	u8 values[IWL_MVM_GEO_TABLE_SIZE];
 };
 #endif
@@ -1071,6 +1071,7 @@ struct iwl_mvm {
 	struct delayed_work cs_tx_unblock_dwork;
 #ifdef CONFIG_ACPI
 	struct iwl_mvm_sar_profile sar_profiles[IWL_MVM_SAR_PROFILE_NUM];
+	struct iwl_mvm_geo_profile geo_profiles[IWL_NUM_GEO_PROFILES];
 #endif
 };
 
@@ -1889,9 +1890,16 @@ bool iwl_mvm_lqm_active(struct iwl_mvm *mvm);
 
 #ifdef CONFIG_ACPI
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b);
+int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm);
 #else
 static inline
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
+{
+	return -ENOENT;
+}
+
+static inline
+int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 {
 	return -ENOENT;
 }

@@ -363,6 +363,7 @@ struct iwl_dev_tx_power_cmd {
 } __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
 
 #define IWL_NUM_GEO_PROFILES	3
+#define IWL_GEO_PER_CHAIN_SIZE	3
 
 /**
  * enum iwl_geo_per_chain_offset_operation - type of operation
@@ -400,6 +401,14 @@ struct iwl_geo_tx_power_profiles_cmd {
 	__le32 ops;
 	struct iwl_per_chain_offset_group table[IWL_NUM_GEO_PROFILES];
 } __packed; /* GEO_TX_POWER_LIMIT */
+
+/**
+ * struct iwl_geo_tx_power_profiles_resp -  response to GEO_TX_POWER_LIMIT cmd
+ * @profile_idx: current geo profile in use
+ */
+struct iwl_geo_tx_power_profiles_resp {
+	__le32 profile_idx;
+} __packed; /* GEO_TX_POWER_LIMIT_RESP */
 
 /**
  * struct iwl_beacon_filter_cmd
