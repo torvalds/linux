@@ -966,7 +966,7 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 				return err;
 	}
 
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAGS_PVT)) {
+	if (mv88e6xxx_has_pvt(chip)) {
 		/* Initialize Cross-chip Port VLAN Table to reset defaults */
 		err = mv88e6xxx_g2_write(chip, GLOBAL2_PVT_ADDR,
 					 GLOBAL2_PVT_ADDR_OP_INIT_ONES);
