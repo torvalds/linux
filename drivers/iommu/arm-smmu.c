@@ -237,6 +237,8 @@ enum arm_smmu_s2cr_privcfg {
 #define ARM_SMMU_CB_S1_TLBIVAL		0x620
 #define ARM_SMMU_CB_S2_TLBIIPAS2	0x630
 #define ARM_SMMU_CB_S2_TLBIIPAS2L	0x638
+#define ARM_SMMU_CB_TLBSYNC		0x7f0
+#define ARM_SMMU_CB_TLBSTATUS		0x7f4
 #define ARM_SMMU_CB_ATS1PR		0x800
 #define ARM_SMMU_CB_ATSR		0x8f0
 
@@ -569,14 +571,13 @@ static void __arm_smmu_free_bitmap(unsigned long *map, int idx)
 }
 
 /* Wait for any pending TLB invalidations to complete */
-static void __arm_smmu_tlb_sync(struct arm_smmu_device *smmu)
+static void __arm_smmu_tlb_sync(struct arm_smmu_device *smmu,
+				void __iomem *sync, void __iomem *status)
 {
 	int count = 0;
-	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 
-	writel_relaxed(0, gr0_base + ARM_SMMU_GR0_sTLBGSYNC);
-	while (readl_relaxed(gr0_base + ARM_SMMU_GR0_sTLBGSTATUS)
-	       & sTLBGSTATUS_GSACTIVE) {
+	writel_relaxed(0, sync);
+	while (readl_relaxed(status) & sTLBGSTATUS_GSACTIVE) {
 		cpu_relax();
 		if (++count == TLB_LOOP_TIMEOUT) {
 			dev_err_ratelimited(smmu->dev,
@@ -587,29 +588,49 @@ static void __arm_smmu_tlb_sync(struct arm_smmu_device *smmu)
 	}
 }
 
-static void arm_smmu_tlb_sync(void *cookie)
+static void arm_smmu_tlb_sync_global(struct arm_smmu_device *smmu)
 {
-	struct arm_smmu_domain *smmu_domain = cookie;
-	__arm_smmu_tlb_sync(smmu_domain->smmu);
+	void __iomem *base = ARM_SMMU_GR0(smmu);
+
+	__arm_smmu_tlb_sync(smmu, base + ARM_SMMU_GR0_sTLBGSYNC,
+			    base + ARM_SMMU_GR0_sTLBGSTATUS);
 }
 
-static void arm_smmu_tlb_inv_context(void *cookie)
+static void arm_smmu_tlb_sync_context(void *cookie)
+{
+	struct arm_smmu_domain *smmu_domain = cookie;
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	void __iomem *base = ARM_SMMU_CB(smmu, smmu_domain->cfg.cbndx);
+
+	__arm_smmu_tlb_sync(smmu, base + ARM_SMMU_CB_TLBSYNC,
+			    base + ARM_SMMU_CB_TLBSTATUS);
+}
+
+static void arm_smmu_tlb_sync_vmid(void *cookie)
+{
+	struct arm_smmu_domain *smmu_domain = cookie;
+
+	arm_smmu_tlb_sync_global(smmu_domain->smmu);
+}
+
+static void arm_smmu_tlb_inv_context_s1(void *cookie)
 {
 	struct arm_smmu_domain *smmu_domain = cookie;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
+	void __iomem *base = ARM_SMMU_CB(smmu_domain->smmu, cfg->cbndx);
+
+	writel_relaxed(cfg->asid, base + ARM_SMMU_CB_S1_TLBIASID);
+	arm_smmu_tlb_sync_context(cookie);
+}
+
+static void arm_smmu_tlb_inv_context_s2(void *cookie)
+{
+	struct arm_smmu_domain *smmu_domain = cookie;
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
-	bool stage1 = cfg->cbar != CBAR_TYPE_S2_TRANS;
-	void __iomem *base;
+	void __iomem *base = ARM_SMMU_GR0(smmu);
 
-	if (stage1) {
-		base = ARM_SMMU_CB(smmu, cfg->cbndx);
-		writel_relaxed(cfg->asid, base + ARM_SMMU_CB_S1_TLBIASID);
-	} else {
-		base = ARM_SMMU_GR0(smmu);
-		writel_relaxed(cfg->vmid, base + ARM_SMMU_GR0_TLBIVMID);
-	}
-
-	__arm_smmu_tlb_sync(smmu);
+	writel_relaxed(smmu_domain->cfg.vmid, base + ARM_SMMU_GR0_TLBIVMID);
+	arm_smmu_tlb_sync_global(smmu);
 }
 
 static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
@@ -617,12 +638,10 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 {
 	struct arm_smmu_domain *smmu_domain = cookie;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
-	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	bool stage1 = cfg->cbar != CBAR_TYPE_S2_TRANS;
-	void __iomem *reg;
+	void __iomem *reg = ARM_SMMU_CB(smmu_domain->smmu, cfg->cbndx);
 
 	if (stage1) {
-		reg = ARM_SMMU_CB(smmu, cfg->cbndx);
 		reg += leaf ? ARM_SMMU_CB_S1_TLBIVAL : ARM_SMMU_CB_S1_TLBIVA;
 
 		if (cfg->fmt != ARM_SMMU_CTX_FMT_AARCH64) {
@@ -640,8 +659,7 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 				iova += granule >> 12;
 			} while (size -= granule);
 		}
-	} else if (smmu->version == ARM_SMMU_V2) {
-		reg = ARM_SMMU_CB(smmu, cfg->cbndx);
+	} else {
 		reg += leaf ? ARM_SMMU_CB_S2_TLBIIPAS2L :
 			      ARM_SMMU_CB_S2_TLBIIPAS2;
 		iova >>= 12;
@@ -649,16 +667,40 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 			smmu_write_atomic_lq(iova, reg);
 			iova += granule >> 12;
 		} while (size -= granule);
-	} else {
-		reg = ARM_SMMU_GR0(smmu) + ARM_SMMU_GR0_TLBIVMID;
-		writel_relaxed(cfg->vmid, reg);
 	}
 }
 
-static const struct iommu_gather_ops arm_smmu_gather_ops = {
-	.tlb_flush_all	= arm_smmu_tlb_inv_context,
+/*
+ * On MMU-401 at least, the cost of firing off multiple TLBIVMIDs appears
+ * almost negligible, but the benefit of getting the first one in as far ahead
+ * of the sync as possible is significant, hence we don't just make this a
+ * no-op and set .tlb_sync to arm_smmu_inv_context_s2() as you might think.
+ */
+static void arm_smmu_tlb_inv_vmid_nosync(unsigned long iova, size_t size,
+					 size_t granule, bool leaf, void *cookie)
+{
+	struct arm_smmu_domain *smmu_domain = cookie;
+	void __iomem *base = ARM_SMMU_GR0(smmu_domain->smmu);
+
+	writel_relaxed(smmu_domain->cfg.vmid, base + ARM_SMMU_GR0_TLBIVMID);
+}
+
+static const struct iommu_gather_ops arm_smmu_s1_tlb_ops = {
+	.tlb_flush_all	= arm_smmu_tlb_inv_context_s1,
 	.tlb_add_flush	= arm_smmu_tlb_inv_range_nosync,
-	.tlb_sync	= arm_smmu_tlb_sync,
+	.tlb_sync	= arm_smmu_tlb_sync_context,
+};
+
+static const struct iommu_gather_ops arm_smmu_s2_tlb_ops_v2 = {
+	.tlb_flush_all	= arm_smmu_tlb_inv_context_s2,
+	.tlb_add_flush	= arm_smmu_tlb_inv_range_nosync,
+	.tlb_sync	= arm_smmu_tlb_sync_context,
+};
+
+static const struct iommu_gather_ops arm_smmu_s2_tlb_ops_v1 = {
+	.tlb_flush_all	= arm_smmu_tlb_inv_context_s2,
+	.tlb_add_flush	= arm_smmu_tlb_inv_vmid_nosync,
+	.tlb_sync	= arm_smmu_tlb_sync_vmid,
 };
 
 static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
@@ -833,6 +875,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	enum io_pgtable_fmt fmt;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
+	const struct iommu_gather_ops *tlb_ops;
 
 	mutex_lock(&smmu_domain->init_mutex);
 	if (smmu_domain->smmu)
@@ -904,6 +947,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 			ias = min(ias, 32UL);
 			oas = min(oas, 32UL);
 		}
+		tlb_ops = &arm_smmu_s1_tlb_ops;
 		break;
 	case ARM_SMMU_DOMAIN_NESTED:
 		/*
@@ -922,12 +966,15 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 			ias = min(ias, 40UL);
 			oas = min(oas, 40UL);
 		}
+		if (smmu->version == ARM_SMMU_V2)
+			tlb_ops = &arm_smmu_s2_tlb_ops_v2;
+		else
+			tlb_ops = &arm_smmu_s2_tlb_ops_v1;
 		break;
 	default:
 		ret = -EINVAL;
 		goto out_unlock;
 	}
-
 	ret = __arm_smmu_alloc_bitmap(smmu->context_map, start,
 				      smmu->num_context_banks);
 	if (ret < 0)
@@ -950,7 +997,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		.pgsize_bitmap	= smmu->pgsize_bitmap,
 		.ias		= ias,
 		.oas		= oas,
-		.tlb		= &arm_smmu_gather_ops,
+		.tlb		= tlb_ops,
 		.iommu_dev	= smmu->dev,
 	};
 
@@ -1734,7 +1781,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 		reg |= sCR0_EXIDENABLE;
 
 	/* Push the button */
-	__arm_smmu_tlb_sync(smmu);
+	arm_smmu_tlb_sync_global(smmu);
 	writel(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
 }
 
