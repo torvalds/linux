@@ -1222,7 +1222,7 @@ static int mv88e6xxx_pvt_map(struct mv88e6xxx_chip *chip, int dev, int port)
 
 	/* Skip the local source device, which uses in-chip port VLAN */
 	if (dev != chip->ds->index)
-		pvlan = mv88e6xxx_port_mask(chip);
+		pvlan = mv88e6xxx_port_vlan(chip, dev, port);
 
 	return mv88e6xxx_g2_pvt_write(chip, dev, port, pvlan);
 }
@@ -2200,6 +2200,36 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port,
 	if (mv88e6xxx_bridge_map(chip, br) ||
 	    mv88e6xxx_port_vlan_map(chip, port))
 		dev_err(ds->dev, "failed to remap in-chip Port VLAN\n");
+	mutex_unlock(&chip->reg_lock);
+}
+
+static int mv88e6xxx_crosschip_bridge_join(struct dsa_switch *ds, int dev,
+					   int port, struct net_device *br)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!mv88e6xxx_has_pvt(chip))
+		return 0;
+
+	mutex_lock(&chip->reg_lock);
+	err = mv88e6xxx_pvt_map(chip, dev, port);
+	mutex_unlock(&chip->reg_lock);
+
+	return err;
+}
+
+static void mv88e6xxx_crosschip_bridge_leave(struct dsa_switch *ds, int dev,
+					     int port, struct net_device *br)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+
+	if (!mv88e6xxx_has_pvt(chip))
+		return;
+
+	mutex_lock(&chip->reg_lock);
+	if (mv88e6xxx_pvt_map(chip, dev, port))
+		dev_err(ds->dev, "failed to remap cross-chip Port VLAN\n");
 	mutex_unlock(&chip->reg_lock);
 }
 
@@ -4313,6 +4343,8 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_mdb_add           = mv88e6xxx_port_mdb_add,
 	.port_mdb_del           = mv88e6xxx_port_mdb_del,
 	.port_mdb_dump          = mv88e6xxx_port_mdb_dump,
+	.crosschip_bridge_join	= mv88e6xxx_crosschip_bridge_join,
+	.crosschip_bridge_leave	= mv88e6xxx_crosschip_bridge_leave,
 };
 
 static struct dsa_switch_driver mv88e6xxx_switch_drv = {
