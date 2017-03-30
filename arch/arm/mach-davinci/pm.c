@@ -108,7 +108,6 @@ static int davinci_pm_enter(suspend_state_t state)
 	int ret = 0;
 
 	switch (state) {
-	case PM_SUSPEND_STANDBY:
 	case PM_SUSPEND_MEM:
 		davinci_pm_suspend();
 		break;
