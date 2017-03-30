@@ -146,7 +146,7 @@ static const u16 feedback_temp_array[] = {
 };
 
 static const u16 chrg_vol_sel_array[] = {
-	4050, 4100, 4150, 4200, 4250, 4300, 4350
+	4050, 4100, 4150, 4200, 4300, 4350
 };
 
 static const u16 chrg_cur_sel_array[] = {
