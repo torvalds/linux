@@ -99,6 +99,7 @@ struct amdgpu_ring_funcs {
 	uint32_t		align_mask;
 	u32			nop;
 	bool			support_64bit_ptrs;
+	unsigned		vmhub;
 
 	/* ring read/write ptr handling */
 	u64 (*get_rptr)(struct amdgpu_ring *ring);
