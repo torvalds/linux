@@ -165,9 +165,13 @@ int virtio_device_restore(struct virtio_device *dev);
  * @feature_table_legacy: same as feature_table but when working in legacy mode.
  * @feature_table_size_legacy: number of entries in feature table legacy array.
  * @probe: the function to call when a device is found.  Returns 0 or -errno.
+ * @scan: optional function to call after successful probe; intended
+ *    for virtio-scsi to invoke a scan.
  * @remove: the function to call when a device is removed.
  * @config_changed: optional function to call when the device configuration
  *    changes; may be called in interrupt context.
+ * @freeze: optional function to call during suspend/hibernation.
+ * @restore: optional function to call on resume.
  */
 struct virtio_driver {
 	struct device_driver driver;
