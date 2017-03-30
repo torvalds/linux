@@ -35,6 +35,13 @@ extern void paging_init(void);
 #define pud_ERROR(e)					\
 	pr_err("%s:%d: bad pud %p(%016lx)\n",		\
 	       __FILE__, __LINE__, &(e), pud_val(e))
+
+#if CONFIG_PGTABLE_LEVELS >= 5
+#define p4d_ERROR(e)					\
+	pr_err("%s:%d: bad p4d %p(%016lx)\n",		\
+	       __FILE__, __LINE__, &(e), p4d_val(e))
+#endif
+
 #define pgd_ERROR(e)					\
 	pr_err("%s:%d: bad pgd %p(%016lx)\n",		\
 	       __FILE__, __LINE__, &(e), pgd_val(e))
@@ -128,7 +135,11 @@ static inline void native_set_p4d(p4d_t *p4dp, p4d_t p4d)
 
 static inline void native_p4d_clear(p4d_t *p4d)
 {
+#ifdef CONFIG_X86_5LEVEL
+	native_set_p4d(p4d, native_make_p4d(0));
+#else
 	native_set_p4d(p4d, (p4d_t) { .pgd = native_make_pgd(0)});
+#endif
 }
 
 static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)

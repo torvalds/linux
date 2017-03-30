@@ -23,11 +23,31 @@ typedef struct { pteval_t pte; } pte_t;
 
 #define SHARED_KERNEL_PMD	0
 
+#ifdef CONFIG_X86_5LEVEL
+
+/*
+ * PGDIR_SHIFT determines what a top-level page table entry can map
+ */
+#define PGDIR_SHIFT	48
+#define PTRS_PER_PGD	512
+
+/*
+ * 4th level page in 5-level paging case
+ */
+#define P4D_SHIFT	39
+#define PTRS_PER_P4D	512
+#define P4D_SIZE	(_AC(1, UL) << P4D_SHIFT)
+#define P4D_MASK	(~(P4D_SIZE - 1))
+
+#else /* CONFIG_X86_5LEVEL */
+
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map
  */
 #define PGDIR_SHIFT	39
 #define PTRS_PER_PGD	512
+
+#endif /* CONFIG_X86_5LEVEL */
 
 /*
  * 3rd level page
