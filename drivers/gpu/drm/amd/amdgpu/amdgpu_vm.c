@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 #include <linux/dma-fence-array.h>
+#include <linux/interval_tree_generic.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
@@ -50,6 +51,15 @@
  * Cayman/Trinity support up to 8 active VMs at any given time;
  * SI supports 16.
  */
+
+#define START(node) ((node)->start)
+#define LAST(node) ((node)->last)
+
+INTERVAL_TREE_DEFINE(struct amdgpu_bo_va_mapping, rb, uint64_t, __subtree_last,
+		     START, LAST, static, amdgpu_vm_it)
+
+#undef START
+#undef LAST
 
 /* Local structure. Encapsulate some VM table update parameters to reduce
  * the number of function parameters
@@ -1301,7 +1311,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 				      struct drm_mm_node *nodes,
 				      struct dma_fence **fence)
 {
-	uint64_t pfn, src = 0, start = mapping->it.start;
+	uint64_t pfn, src = 0, start = mapping->start;
 	int r;
 
 	/* normally,bo_va->flags only contians READABLE and WIRTEABLE bit go here
@@ -1353,7 +1363,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		}
 		addr += pfn << PAGE_SHIFT;
 
-		last = min((uint64_t)mapping->it.last, start + max_entries - 1);
+		last = min((uint64_t)mapping->last, start + max_entries - 1);
 		r = amdgpu_vm_bo_update_mapping(adev, exclusive,
 						src, pages_addr, vm,
 						start, last, flags, addr,
@@ -1368,7 +1378,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		}
 		start = last + 1;
 
-	} while (unlikely(start != mapping->it.last + 1));
+	} while (unlikely(start != mapping->last + 1));
 
 	return 0;
 }
@@ -1724,9 +1734,8 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		     uint64_t saddr, uint64_t offset,
 		     uint64_t size, uint64_t flags)
 {
-	struct amdgpu_bo_va_mapping *mapping;
+	struct amdgpu_bo_va_mapping *mapping, *tmp;
 	struct amdgpu_vm *vm = bo_va->vm;
-	struct interval_tree_node *it;
 	uint64_t eaddr;
 
 	/* validate the parameters */
@@ -1743,14 +1752,12 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 	eaddr /= AMDGPU_GPU_PAGE_SIZE;
 
-	it = interval_tree_iter_first(&vm->va, saddr, eaddr);
-	if (it) {
-		struct amdgpu_bo_va_mapping *tmp;
-		tmp = container_of(it, struct amdgpu_bo_va_mapping, it);
+	tmp = amdgpu_vm_it_iter_first(&vm->va, saddr, eaddr);
+	if (tmp) {
 		/* bo and tmp overlap, invalid addr */
 		dev_err(adev->dev, "bo %p va 0x%010Lx-0x%010Lx conflict with "
-			"0x%010lx-0x%010lx\n", bo_va->bo, saddr, eaddr,
-			tmp->it.start, tmp->it.last + 1);
+			"0x%010Lx-0x%010Lx\n", bo_va->bo, saddr, eaddr,
+			tmp->start, tmp->last + 1);
 		return -EINVAL;
 	}
 
@@ -1759,13 +1766,13 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&mapping->list);
-	mapping->it.start = saddr;
-	mapping->it.last = eaddr;
+	mapping->start = saddr;
+	mapping->last = eaddr;
 	mapping->offset = offset;
 	mapping->flags = flags;
 
 	list_add(&mapping->list, &bo_va->invalids);
-	interval_tree_insert(&mapping->it, &vm->va);
+	amdgpu_vm_it_insert(mapping, &vm->va);
 
 	if (flags & AMDGPU_PTE_PRT)
 		amdgpu_vm_prt_get(adev);
@@ -1823,13 +1830,13 @@ int amdgpu_vm_bo_replace_map(struct amdgpu_device *adev,
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 	eaddr /= AMDGPU_GPU_PAGE_SIZE;
 
-	mapping->it.start = saddr;
-	mapping->it.last = eaddr;
+	mapping->start = saddr;
+	mapping->last = eaddr;
 	mapping->offset = offset;
 	mapping->flags = flags;
 
 	list_add(&mapping->list, &bo_va->invalids);
-	interval_tree_insert(&mapping->it, &vm->va);
+	amdgpu_vm_it_insert(mapping, &vm->va);
 
 	if (flags & AMDGPU_PTE_PRT)
 		amdgpu_vm_prt_get(adev);
@@ -1860,7 +1867,7 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 
 	list_for_each_entry(mapping, &bo_va->valids, list) {
-		if (mapping->it.start == saddr)
+		if (mapping->start == saddr)
 			break;
 	}
 
@@ -1868,7 +1875,7 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		valid = false;
 
 		list_for_each_entry(mapping, &bo_va->invalids, list) {
-			if (mapping->it.start == saddr)
+			if (mapping->start == saddr)
 				break;
 		}
 
@@ -1877,7 +1884,7 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 	}
 
 	list_del(&mapping->list);
-	interval_tree_remove(&mapping->it, &vm->va);
+	amdgpu_vm_it_remove(mapping, &vm->va);
 	trace_amdgpu_vm_bo_unmap(bo_va, mapping);
 
 	if (valid)
@@ -1905,7 +1912,6 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 				uint64_t saddr, uint64_t size)
 {
 	struct amdgpu_bo_va_mapping *before, *after, *tmp, *next;
-	struct interval_tree_node *it;
 	LIST_HEAD(removed);
 	uint64_t eaddr;
 
@@ -1927,43 +1933,42 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&after->list);
 
 	/* Now gather all removed mappings */
-	it = interval_tree_iter_first(&vm->va, saddr, eaddr);
-	while (it) {
-		tmp = container_of(it, struct amdgpu_bo_va_mapping, it);
-		it = interval_tree_iter_next(it, saddr, eaddr);
-
+	tmp = amdgpu_vm_it_iter_first(&vm->va, saddr, eaddr);
+	while (tmp) {
 		/* Remember mapping split at the start */
-		if (tmp->it.start < saddr) {
-			before->it.start = tmp->it.start;
-			before->it.last = saddr - 1;
+		if (tmp->start < saddr) {
+			before->start = tmp->start;
+			before->last = saddr - 1;
 			before->offset = tmp->offset;
 			before->flags = tmp->flags;
 			list_add(&before->list, &tmp->list);
 		}
 
 		/* Remember mapping split at the end */
-		if (tmp->it.last > eaddr) {
-			after->it.start = eaddr + 1;
-			after->it.last = tmp->it.last;
+		if (tmp->last > eaddr) {
+			after->start = eaddr + 1;
+			after->last = tmp->last;
 			after->offset = tmp->offset;
-			after->offset += after->it.start - tmp->it.start;
+			after->offset += after->start - tmp->start;
 			after->flags = tmp->flags;
 			list_add(&after->list, &tmp->list);
 		}
 
 		list_del(&tmp->list);
 		list_add(&tmp->list, &removed);
+
+		tmp = amdgpu_vm_it_iter_next(tmp, saddr, eaddr);
 	}
 
 	/* And free them up */
 	list_for_each_entry_safe(tmp, next, &removed, list) {
-		interval_tree_remove(&tmp->it, &vm->va);
+		amdgpu_vm_it_remove(tmp, &vm->va);
 		list_del(&tmp->list);
 
-		if (tmp->it.start < saddr)
-		    tmp->it.start = saddr;
-		if (tmp->it.last > eaddr)
-		    tmp->it.last = eaddr;
+		if (tmp->start < saddr)
+		    tmp->start = saddr;
+		if (tmp->last > eaddr)
+		    tmp->last = eaddr;
 
 		list_add(&tmp->list, &vm->freed);
 		trace_amdgpu_vm_bo_unmap(NULL, tmp);
@@ -1971,7 +1976,7 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 
 	/* Insert partial mapping before the range */
 	if (!list_empty(&before->list)) {
-		interval_tree_insert(&before->it, &vm->va);
+		amdgpu_vm_it_insert(before, &vm->va);
 		if (before->flags & AMDGPU_PTE_PRT)
 			amdgpu_vm_prt_get(adev);
 	} else {
@@ -1980,7 +1985,7 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 
 	/* Insert partial mapping after the range */
 	if (!list_empty(&after->list)) {
-		interval_tree_insert(&after->it, &vm->va);
+		amdgpu_vm_it_insert(after, &vm->va);
 		if (after->flags & AMDGPU_PTE_PRT)
 			amdgpu_vm_prt_get(adev);
 	} else {
@@ -2014,13 +2019,13 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 
 	list_for_each_entry_safe(mapping, next, &bo_va->valids, list) {
 		list_del(&mapping->list);
-		interval_tree_remove(&mapping->it, &vm->va);
+		amdgpu_vm_it_remove(mapping, &vm->va);
 		trace_amdgpu_vm_bo_unmap(bo_va, mapping);
 		list_add(&mapping->list, &vm->freed);
 	}
 	list_for_each_entry_safe(mapping, next, &bo_va->invalids, list) {
 		list_del(&mapping->list);
-		interval_tree_remove(&mapping->it, &vm->va);
+		amdgpu_vm_it_remove(mapping, &vm->va);
 		amdgpu_vm_free_mapping(adev, vm, mapping,
 				       bo_va->last_pt_update);
 	}
@@ -2162,9 +2167,9 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	if (!RB_EMPTY_ROOT(&vm->va)) {
 		dev_err(adev->dev, "still active bo inside vm\n");
 	}
-	rbtree_postorder_for_each_entry_safe(mapping, tmp, &vm->va, it.rb) {
+	rbtree_postorder_for_each_entry_safe(mapping, tmp, &vm->va, rb) {
 		list_del(&mapping->list);
-		interval_tree_remove(&mapping->it, &vm->va);
+		amdgpu_vm_it_remove(mapping, &vm->va);
 		kfree(mapping);
 	}
 	list_for_each_entry_safe(mapping, tmp, &vm->freed, list) {

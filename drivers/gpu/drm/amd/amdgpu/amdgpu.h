@@ -32,7 +32,7 @@
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/kref.h>
-#include <linux/interval_tree.h>
+#include <linux/rbtree.h>
 #include <linux/hashtable.h>
 #include <linux/dma-fence.h>
 
@@ -379,7 +379,10 @@ struct amdgpu_bo_list_entry {
 
 struct amdgpu_bo_va_mapping {
 	struct list_head		list;
-	struct interval_tree_node	it;
+	struct rb_node			rb;
+	uint64_t			start;
+	uint64_t			last;
+	uint64_t			__subtree_last;
 	uint64_t			offset;
 	uint64_t			flags;
 };

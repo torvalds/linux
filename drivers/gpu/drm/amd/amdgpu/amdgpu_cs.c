@@ -949,7 +949,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			}
 
 			if ((chunk_ib->va_start + chunk_ib->ib_bytes) >
-			    (m->it.last + 1) * AMDGPU_GPU_PAGE_SIZE) {
+			    (m->last + 1) * AMDGPU_GPU_PAGE_SIZE) {
 				DRM_ERROR("IB va_start+ib_bytes is invalid\n");
 				return -EINVAL;
 			}
@@ -960,7 +960,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 				return r;
 			}
 
-			offset = ((uint64_t)m->it.start) * AMDGPU_GPU_PAGE_SIZE;
+			offset = m->start * AMDGPU_GPU_PAGE_SIZE;
 			kptr += chunk_ib->va_start - offset;
 
 			r =  amdgpu_ib_get(adev, vm, chunk_ib->ib_bytes, ib);
@@ -1388,8 +1388,8 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 			continue;
 
 		list_for_each_entry(mapping, &lobj->bo_va->valids, list) {
-			if (mapping->it.start > addr ||
-			    addr > mapping->it.last)
+			if (mapping->start > addr ||
+			    addr > mapping->last)
 				continue;
 
 			*bo = lobj->bo_va->bo;
@@ -1397,8 +1397,8 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 		}
 
 		list_for_each_entry(mapping, &lobj->bo_va->invalids, list) {
-			if (mapping->it.start > addr ||
-			    addr > mapping->it.last)
+			if (mapping->start > addr ||
+			    addr > mapping->last)
 				continue;
 
 			*bo = lobj->bo_va->bo;
