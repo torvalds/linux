@@ -748,6 +748,11 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 		goto out_fname;
 
 	lock_2_inodes(dir, inode);
+
+	/* Handle O_TMPFILE corner case, it is allowed to link a O_TMPFILE. */
+	if (inode->i_nlink == 0)
+		ubifs_delete_orphan(c, inode->i_ino);
+
 	inc_nlink(inode);
 	ihold(inode);
 	inode->i_ctime = ubifs_current_time(inode);
@@ -768,6 +773,8 @@ out_cancel:
 	dir->i_size -= sz_change;
 	dir_ui->ui_size = dir->i_size;
 	drop_nlink(inode);
+	if (inode->i_nlink == 0)
+		ubifs_add_orphan(c, inode->i_ino);
 	unlock_2_inodes(dir, inode);
 	ubifs_release_budget(c, &req);
 	iput(inode);
