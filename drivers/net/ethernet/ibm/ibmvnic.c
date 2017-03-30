@@ -578,13 +578,23 @@ static int ibmvnic_login(struct net_device *netdev)
 	return 0;
 }
 
+static void release_resources(struct ibmvnic_adapter *adapter)
+{
+	release_bounce_buffer(adapter);
+	release_tx_pools(adapter);
+	release_rx_pools(adapter);
+
+	release_sub_crqs(adapter);
+	release_crq_queue(adapter);
+
+	release_stats_token(adapter);
+}
+
 static int ibmvnic_open(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	struct device *dev = &adapter->vdev->dev;
 	union ibmvnic_crq crq;
-	int rxadd_subcrqs;
-	int tx_subcrqs;
 	int rc = 0;
 	int i;
 
@@ -610,16 +620,11 @@ static int ibmvnic_open(struct net_device *netdev)
 		return -1;
 	}
 
-	rxadd_subcrqs =
-	    be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
-	tx_subcrqs =
-	    be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
-
 	adapter->map_id = 1;
 	adapter->napi = kcalloc(adapter->req_rx_queues,
 				sizeof(struct napi_struct), GFP_KERNEL);
 	if (!adapter->napi)
-		goto alloc_napi_failed;
+		goto ibmvnic_open_fail;
 	for (i = 0; i < adapter->req_rx_queues; i++) {
 		netif_napi_add(netdev, &adapter->napi[i], ibmvnic_poll,
 			       NAPI_POLL_WEIGHT);
@@ -630,15 +635,15 @@ static int ibmvnic_open(struct net_device *netdev)
 
 	rc = init_rx_pools(netdev);
 	if (rc)
-		goto rx_pool_failed;
+		goto ibmvnic_open_fail;
 
 	rc = init_tx_pools(netdev);
 	if (rc)
-		goto tx_pool_failed;
+		goto ibmvnic_open_fail;
 
 	rc = init_bounce_buffer(netdev);
 	if (rc)
-		goto bounce_init_failed;
+		goto ibmvnic_open_fail;
 
 	replenish_pools(adapter);
 
@@ -662,29 +667,11 @@ static int ibmvnic_open(struct net_device *netdev)
 
 	return 0;
 
-bounce_init_failed:
-	i = tx_subcrqs - 1;
-	kfree(adapter->tx_pool[i].free_map);
-tx_pool_failed:
-	i = rxadd_subcrqs;
-rx_pool_failed:
+ibmvnic_open_fail:
 	for (i = 0; i < adapter->req_rx_queues; i++)
 		napi_disable(&adapter->napi[i]);
-alloc_napi_failed:
-	release_sub_crqs(adapter);
+	release_resources(adapter);
 	return -ENOMEM;
-}
-
-static void ibmvnic_release_resources(struct ibmvnic_adapter *adapter)
-{
-	release_bounce_buffer(adapter);
-	release_tx_pools(adapter);
-	release_rx_pools(adapter);
-
-	release_sub_crqs(adapter);
-	release_crq_queue(adapter);
-
-	release_stats_token(adapter);
 }
 
 static int ibmvnic_close(struct net_device *netdev)
@@ -707,7 +694,7 @@ static int ibmvnic_close(struct net_device *netdev)
 	crq.logical_link_state.link_state = IBMVNIC_LOGICAL_LNK_DN;
 	ibmvnic_send_crq(adapter, &crq);
 
-	ibmvnic_release_resources(adapter);
+	release_resources(adapter);
 
 	adapter->is_closed = true;
 	adapter->closing = false;
