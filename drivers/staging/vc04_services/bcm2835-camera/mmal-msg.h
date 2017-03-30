@@ -160,7 +160,7 @@ struct mmal_msg_port_info_get_reply {
 	s32 found;             /* unused */
 	u32 port_handle;               /**< Handle to use for this port */
 	struct mmal_port port;
-	struct mmal_es_format format; /* elementry stream format */
+	struct mmal_es_format format; /* elementary stream format */
 	union mmal_es_specific_format es; /* es type specific data */
 	u8 extradata[MMAL_FORMAT_EXTRADATA_MAX_SIZE]; /* es extra data */
 };

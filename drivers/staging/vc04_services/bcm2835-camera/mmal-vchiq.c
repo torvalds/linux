@@ -906,7 +906,7 @@ static void dump_port_info(struct vchiq_mmal_port *port)
 		 port->current_buffer.num,
 		 port->current_buffer.size, port->current_buffer.alignment);
 
-	pr_debug("elementry stream: type:%d encoding:0x%x variant:0x%x\n",
+	pr_debug("elementary stream: type:%d encoding:0x%x variant:0x%x\n",
 		 port->format.type,
 		 port->format.encoding, port->format.encoding_variant);
 
@@ -970,7 +970,7 @@ static int port_info_set(struct vchiq_mmal_instance *instance,
 
 	port_to_mmal_msg(port, &m.u.port_info_set.port);
 
-	/* elementry stream format setup */
+	/* elementary stream format setup */
 	m.u.port_info_set.format.type = port->format.type;
 	m.u.port_info_set.format.encoding = port->format.encoding;
 	m.u.port_info_set.format.encoding_variant =
@@ -1079,7 +1079,7 @@ static int port_info_get(struct vchiq_mmal_instance *instance,
 	port->format.bitrate = rmsg->u.port_info_get_reply.format.bitrate;
 	port->format.flags = rmsg->u.port_info_get_reply.format.flags;
 
-	/* elementry stream format */
+	/* elementary stream format */
 	memcpy(&port->es,
 	       &rmsg->u.port_info_get_reply.es,
 	       sizeof(union mmal_es_specific_format));

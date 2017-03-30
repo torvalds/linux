@@ -75,7 +75,7 @@ struct vchiq_mmal_port {
 
 	/* stream format */
 	struct mmal_es_format_local format;
-	/* elementry stream format */
+	/* elementary stream format */
 	union mmal_es_specific_format es;
 
 	/* data buffers to fill */
