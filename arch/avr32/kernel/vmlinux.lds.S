@@ -75,6 +75,7 @@ SECTIONS
 
 		_edata = .;
 	}
+	BUG_TABLE
 
 	BSS_SECTION(0, 8, 8)
 	_end = .;
