@@ -171,7 +171,7 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx,
 					SKL_ADSP_REG_HIPCIE_DONE,
 					BXT_INIT_TIMEOUT, "HIPCIE Done");
 	if (ret < 0) {
-		dev_err(ctx->dev, "Timout for Purge Request%d\n", ret);
+		dev_err(ctx->dev, "Timeout for Purge Request%d\n", ret);
 		goto base_fw_load_failed;
 	}
 
