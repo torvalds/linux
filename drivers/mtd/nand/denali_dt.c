@@ -33,11 +33,17 @@ struct denali_dt_data {
 	unsigned int caps;
 };
 
-static const struct of_device_id denali_nand_dt_ids[] = {
-		{ .compatible = "denali,denali-nand-dt" },
-		{ /* sentinel */ }
-	};
+static const struct denali_dt_data denali_socfpga_data = {
+	.caps = DENALI_CAP_HW_ECC_FIXUP,
+};
 
+static const struct of_device_id denali_nand_dt_ids[] = {
+	{
+		.compatible = "altr,socfpga-denali-nand",
+		.data = &denali_socfpga_data,
+	},
+	{ /* sentinel */ }
+};
 MODULE_DEVICE_TABLE(of, denali_nand_dt_ids);
 
 static u64 denali_dma_mask;

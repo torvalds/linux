@@ -1,7 +1,8 @@
 * Denali NAND controller
 
 Required properties:
-  - compatible : should be "denali,denali-nand-dt"
+  - compatible : should be one of the following:
+      "altr,socfpga-denali-nand"            - for Altera SOCFPGA
   - reg : should contain registers location and length for data and reg.
   - reg-names: Should contain the reg names "nand_data" and "denali_reg"
   - interrupts : The interrupt number.
@@ -15,7 +16,7 @@ Examples:
 nand: nand@ff900000 {
 	#address-cells = <1>;
 	#size-cells = <1>;
-	compatible = "denali,denali-nand-dt";
+	compatible = "altr,socfpga-denali-nand";
 	reg = <0xff900000 0x100000>, <0xffb80000 0x10000>;
 	reg-names = "nand_data", "denali_reg";
 	interrupts = <0 144 4>;
