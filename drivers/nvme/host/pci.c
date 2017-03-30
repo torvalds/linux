@@ -628,34 +628,12 @@ out_free_cmd:
 	return ret;
 }
 
-static void nvme_complete_rq(struct request *req)
+static void nvme_pci_complete_rq(struct request *req)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
-	struct nvme_dev *dev = iod->nvmeq->dev;
-	int error = 0;
 
-	nvme_unmap_data(dev, req);
-
-	if (unlikely(req->errors)) {
-		if (nvme_req_needs_retry(req, req->errors)) {
-			req->retries++;
-			nvme_requeue_req(req);
-			return;
-		}
-
-		if (blk_rq_is_passthrough(req))
-			error = req->errors;
-		else
-			error = nvme_error_status(req->errors);
-	}
-
-	if (unlikely(iod->aborted)) {
-		dev_warn(dev->ctrl.device,
-			"completing aborted command with status: %04x\n",
-			req->errors);
-	}
-
-	blk_mq_end_request(req, error);
+	nvme_unmap_data(iod->nvmeq->dev, req);
+	nvme_complete_rq(req);
 }
 
 /* We read the CQE phase first to check if the rest of the entry is valid */
@@ -1131,7 +1109,7 @@ static int nvme_create_queue(struct nvme_queue *nvmeq, int qid)
 
 static const struct blk_mq_ops nvme_mq_admin_ops = {
 	.queue_rq	= nvme_queue_rq,
-	.complete	= nvme_complete_rq,
+	.complete	= nvme_pci_complete_rq,
 	.init_hctx	= nvme_admin_init_hctx,
 	.exit_hctx      = nvme_admin_exit_hctx,
 	.init_request	= nvme_admin_init_request,
@@ -1140,7 +1118,7 @@ static const struct blk_mq_ops nvme_mq_admin_ops = {
 
 static const struct blk_mq_ops nvme_mq_ops = {
 	.queue_rq	= nvme_queue_rq,
-	.complete	= nvme_complete_rq,
+	.complete	= nvme_pci_complete_rq,
 	.init_hctx	= nvme_init_hctx,
 	.init_request	= nvme_init_request,
 	.map_queues	= nvme_pci_map_queues,

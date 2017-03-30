@@ -91,25 +91,10 @@ static inline int nvme_loop_queue_idx(struct nvme_loop_queue *queue)
 static void nvme_loop_complete_rq(struct request *req)
 {
 	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(req);
-	int error = 0;
 
 	nvme_cleanup_cmd(req);
 	sg_free_table_chained(&iod->sg_table, true);
-
-	if (unlikely(req->errors)) {
-		if (nvme_req_needs_retry(req, req->errors)) {
-			req->retries++;
-			nvme_requeue_req(req);
-			return;
-		}
-
-		if (blk_rq_is_passthrough(req))
-			error = req->errors;
-		else
-			error = nvme_error_status(req->errors);
-	}
-
-	blk_mq_end_request(req, error);
+	nvme_complete_rq(req);
 }
 
 static struct blk_mq_tags *nvme_loop_tagset(struct nvme_loop_queue *queue)

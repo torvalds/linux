@@ -1925,29 +1925,13 @@ nvme_fc_complete_rq(struct request *rq)
 {
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
 	struct nvme_fc_ctrl *ctrl = op->ctrl;
-	int error = 0, state;
+	int state;
 
 	state = atomic_xchg(&op->state, FCPOP_STATE_IDLE);
 
 	nvme_cleanup_cmd(rq);
-
 	nvme_fc_unmap_data(ctrl, rq, op);
-
-	if (unlikely(rq->errors)) {
-		if (nvme_req_needs_retry(rq, rq->errors)) {
-			rq->retries++;
-			nvme_requeue_req(rq);
-			goto put_ctrl;
-		}
-
-		if (blk_rq_is_passthrough(rq))
-			error = rq->errors;
-		else
-			error = nvme_error_status(rq->errors);
-	}
-
-	blk_mq_end_request(rq, error);
-put_ctrl:
+	nvme_complete_rq(rq);
 	nvme_fc_ctrl_put(ctrl);
 
 }
