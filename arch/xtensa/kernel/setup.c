@@ -453,9 +453,9 @@ void cpu_reset(void)
 			tmpaddr += SZ_512M;
 
 		/* Invalidate mapping in the selected temporary area */
-		if (itlb_probe(tmpaddr) & 0x8)
+		if (itlb_probe(tmpaddr) & BIT(ITLB_HIT_BIT))
 			invalidate_itlb_entry(itlb_probe(tmpaddr));
-		if (itlb_probe(tmpaddr + PAGE_SIZE) & 0x8)
+		if (itlb_probe(tmpaddr + PAGE_SIZE) & BIT(ITLB_HIT_BIT))
 			invalidate_itlb_entry(itlb_probe(tmpaddr + PAGE_SIZE));
 
 		/*
