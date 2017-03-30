@@ -1482,8 +1482,6 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 			sizeof(psr_configuration.raw));
 
 		psr_context.channel = link->ddc->ddc_pin->hw_info.ddc_channel;
-		if (psr_context.channel == 0)
-			psr_context.channel = 1;
 		psr_context.transmitterId = link->link_enc->transmitter;
 		psr_context.engineId = link->link_enc->preferred_engine;
 
