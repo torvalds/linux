@@ -308,7 +308,7 @@ struct iwl_device_cmd {
 #define IWL_MAX_CMD_TBS_PER_TFD	2
 
 /**
- * struct iwl_hcmd_dataflag - flag for each one of the chunks of the command
+ * enum iwl_hcmd_dataflag - flag for each one of the chunks of the command
  *
  * @IWL_HCMD_DFL_NOCOPY: By default, the command is copied to the host command's
  *	ring. The transport layer doesn't map the command's buffer to DMA, but
