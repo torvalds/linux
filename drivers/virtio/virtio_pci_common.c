@@ -147,7 +147,7 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned nvqs,
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	const char *name = dev_name(&vp_dev->vdev.dev);
-	int i, err = -ENOMEM, allocated_vectors, nvectors;
+	int i, j, err = -ENOMEM, allocated_vectors, nvectors;
 	unsigned flags = PCI_IRQ_MSIX;
 	bool shared = false;
 	u16 msix_vec;
@@ -212,7 +212,7 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned nvqs,
 	if (!vp_dev->msix_vector_map)
 		goto out_disable_config_irq;
 
-	allocated_vectors = 1; /* vector 0 is the config interrupt */
+	allocated_vectors = j = 1; /* vector 0 is the config interrupt */
 	for (i = 0; i < nvqs; ++i) {
 		if (!names[i]) {
 			vqs[i] = NULL;
@@ -236,18 +236,19 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned nvqs,
 			continue;
 		}
 
-		snprintf(vp_dev->msix_names[i + 1],
+		snprintf(vp_dev->msix_names[j],
 			 sizeof(*vp_dev->msix_names), "%s-%s",
 			 dev_name(&vp_dev->vdev.dev), names[i]);
 		err = request_irq(pci_irq_vector(vp_dev->pci_dev, msix_vec),
 				  vring_interrupt, IRQF_SHARED,
-				  vp_dev->msix_names[i + 1], vqs[i]);
+				  vp_dev->msix_names[j], vqs[i]);
 		if (err) {
 			/* don't free this irq on error */
 			vp_dev->msix_vector_map[i] = VIRTIO_MSI_NO_VECTOR;
 			goto out_remove_vqs;
 		}
 		vp_dev->msix_vector_map[i] = msix_vec;
+		j++;
 
 		/*
 		 * Use a different vector for each queue if they are available,

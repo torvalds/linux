@@ -1231,8 +1231,11 @@ void netvsc_channel_cb(void *context)
 		return;
 
 	net_device = net_device_to_netvsc_device(ndev);
-	if (unlikely(net_device->destroy) &&
-	    netvsc_channel_idle(net_device, q_idx))
+	if (unlikely(!net_device))
+		return;
+
+	if (unlikely(net_device->destroy &&
+		     netvsc_channel_idle(net_device, q_idx)))
 		return;
 
 	/* commit_rd_index() -> hv_signal_on_read() needs this. */

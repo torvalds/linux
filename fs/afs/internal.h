@@ -11,6 +11,7 @@
 
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/rxrpc.h>
@@ -90,7 +91,10 @@ struct afs_call {
 	unsigned		request_size;	/* size of request data */
 	unsigned		reply_max;	/* maximum size of reply */
 	unsigned		first_offset;	/* offset into mapping[first] */
-	unsigned		last_to;	/* amount of mapping[last] */
+	union {
+		unsigned	last_to;	/* amount of mapping[last] */
+		unsigned	count2;		/* count used in unmarshalling */
+	};
 	unsigned char		unmarshall;	/* unmarshalling phase */
 	bool			incoming;	/* T if incoming call */
 	bool			send_pages;	/* T if data from mapping should be sent */
@@ -127,12 +131,11 @@ struct afs_call_type {
  */
 struct afs_read {
 	loff_t			pos;		/* Where to start reading */
-	loff_t			len;		/* How much to read */
+	loff_t			len;		/* How much we're asking for */
 	loff_t			actual_len;	/* How much we're actually getting */
+	loff_t			remain;		/* Amount remaining */
 	atomic_t		usage;
-	unsigned int		remain;		/* Amount remaining */
 	unsigned int		index;		/* Which page we're reading into */
-	unsigned int		pg_offset;	/* Offset in page we're at */
 	unsigned int		nr_pages;
 	void (*page_done)(struct afs_call *, struct afs_read *);
 	struct page		*pages[];
@@ -247,7 +250,7 @@ struct afs_cache_vhash {
  */
 struct afs_vlocation {
 	atomic_t		usage;
-	time_t			time_of_death;	/* time at which put reduced usage to 0 */
+	time64_t		time_of_death;	/* time at which put reduced usage to 0 */
 	struct list_head	link;		/* link in cell volume location list */
 	struct list_head	grave;		/* link in master graveyard list */
 	struct list_head	update;		/* link in master update list */
@@ -258,7 +261,7 @@ struct afs_vlocation {
 	struct afs_cache_vlocation vldb;	/* volume information DB record */
 	struct afs_volume	*vols[3];	/* volume access record pointer (index by type) */
 	wait_queue_head_t	waitq;		/* status change waitqueue */
-	time_t			update_at;	/* time at which record should be updated */
+	time64_t		update_at;	/* time at which record should be updated */
 	spinlock_t		lock;		/* access lock */
 	afs_vlocation_state_t	state;		/* volume location state */
 	unsigned short		upd_rej_cnt;	/* ENOMEDIUM count during update */
@@ -271,7 +274,7 @@ struct afs_vlocation {
  */
 struct afs_server {
 	atomic_t		usage;
-	time_t			time_of_death;	/* time at which put reduced usage to 0 */
+	time64_t		time_of_death;	/* time at which put reduced usage to 0 */
 	struct in_addr		addr;		/* server address */
 	struct afs_cell		*cell;		/* cell in which server resides */
 	struct list_head	link;		/* link in cell's server list */
@@ -374,8 +377,8 @@ struct afs_vnode {
 	struct rb_node		server_rb;	/* link in server->fs_vnodes */
 	struct rb_node		cb_promise;	/* link in server->cb_promises */
 	struct work_struct	cb_broken_work;	/* work to be done on callback break */
-	time_t			cb_expires;	/* time at which callback expires */
-	time_t			cb_expires_at;	/* time used to order cb_promise */
+	time64_t		cb_expires;	/* time at which callback expires */
+	time64_t		cb_expires_at;	/* time used to order cb_promise */
 	unsigned		cb_version;	/* callback version */
 	unsigned		cb_expiry;	/* callback expiry time */
 	afs_callback_type_t	cb_type;	/* type of callback */
@@ -557,7 +560,6 @@ extern const struct inode_operations afs_autocell_inode_operations;
 extern const struct file_operations afs_mntpt_file_operations;
 
 extern struct vfsmount *afs_d_automount(struct path *);
-extern int afs_mntpt_check_symlink(struct afs_vnode *, struct key *);
 extern void afs_mntpt_kill_timer(void);
 
 /*
@@ -718,6 +720,7 @@ extern int afs_writepages(struct address_space *, struct writeback_control *);
 extern void afs_pages_written_back(struct afs_vnode *, struct afs_call *);
 extern ssize_t afs_file_write(struct kiocb *, struct iov_iter *);
 extern int afs_writeback_all(struct afs_vnode *);
+extern int afs_flush(struct file *, fl_owner_t);
 extern int afs_fsync(struct file *, loff_t, loff_t, int);
 
 

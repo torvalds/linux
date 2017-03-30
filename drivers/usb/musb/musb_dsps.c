@@ -933,7 +933,7 @@ static int dsps_probe(struct platform_device *pdev)
 	if (usb_get_dr_mode(&pdev->dev) == USB_DR_MODE_PERIPHERAL) {
 		ret = dsps_setup_optional_vbus_irq(pdev, glue);
 		if (ret)
-			return ret;
+			goto err_iounmap;
 	}
 
 	platform_set_drvdata(pdev, glue);
@@ -946,6 +946,8 @@ static int dsps_probe(struct platform_device *pdev)
 
 err:
 	pm_runtime_disable(&pdev->dev);
+err_iounmap:
+	iounmap(glue->usbss_base);
 	return ret;
 }
 
@@ -956,6 +958,7 @@ static int dsps_remove(struct platform_device *pdev)
 	platform_device_unregister(glue->musb);
 
 	pm_runtime_disable(&pdev->dev);
+	iounmap(glue->usbss_base);
 
 	return 0;
 }
