@@ -67,6 +67,60 @@ struct gvt_sched_data {
 	struct list_head lru_runq_head;
 };
 
+static void vgpu_update_timeslice(struct intel_vgpu *pre_vgpu)
+{
+	ktime_t delta_ts;
+	struct vgpu_sched_data *vgpu_data = pre_vgpu->sched_data;
+
+	delta_ts = vgpu_data->sched_out_time - vgpu_data->sched_in_time;
+
+	vgpu_data->sched_time += delta_ts;
+	vgpu_data->left_ts -= delta_ts;
+}
+
+#define GVT_TS_BALANCE_PERIOD_MS 100
+#define GVT_TS_BALANCE_STAGE_NUM 10
+
+static void gvt_balance_timeslice(struct gvt_sched_data *sched_data)
+{
+	struct vgpu_sched_data *vgpu_data;
+	struct list_head *pos;
+	static uint64_t stage_check;
+	int stage = stage_check++ % GVT_TS_BALANCE_STAGE_NUM;
+
+	/* The timeslice accumulation reset at stage 0, which is
+	 * allocated again without adding previous debt.
+	 */
+	if (stage == 0) {
+		int total_weight = 0;
+		ktime_t fair_timeslice;
+
+		list_for_each(pos, &sched_data->lru_runq_head) {
+			vgpu_data = container_of(pos, struct vgpu_sched_data, lru_list);
+			total_weight += vgpu_data->sched_ctl.weight;
+		}
+
+		list_for_each(pos, &sched_data->lru_runq_head) {
+			vgpu_data = container_of(pos, struct vgpu_sched_data, lru_list);
+			fair_timeslice = ms_to_ktime(GVT_TS_BALANCE_PERIOD_MS) *
+						vgpu_data->sched_ctl.weight /
+						total_weight;
+
+			vgpu_data->allocated_ts = fair_timeslice;
+			vgpu_data->left_ts = vgpu_data->allocated_ts;
+		}
+	} else {
+		list_for_each(pos, &sched_data->lru_runq_head) {
+			vgpu_data = container_of(pos, struct vgpu_sched_data, lru_list);
+
+			/* timeslice for next 100ms should add the left/debt
+			 * slice of previous stages.
+			 */
+			vgpu_data->left_ts += vgpu_data->allocated_ts;
+		}
+	}
+}
+
 static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 {
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
@@ -103,6 +157,7 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	if (scheduler->current_vgpu) {
 		vgpu_data = scheduler->current_vgpu->sched_data;
 		vgpu_data->sched_out_time = cur_time;
+		vgpu_update_timeslice(scheduler->current_vgpu);
 	}
 	vgpu_data = scheduler->next_vgpu->sched_data;
 	vgpu_data->sched_in_time = cur_time;
@@ -148,6 +203,10 @@ static void tbs_sched_func(struct gvt_sched_data *sched_data)
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct vgpu_sched_data *vgpu_data;
 	struct intel_vgpu *vgpu = NULL;
+	static uint64_t timer_check;
+
+	if (!(timer_check++ % GVT_TS_BALANCE_PERIOD_MS))
+		gvt_balance_timeslice(sched_data);
 
 	/* no active vgpu or has already had a target */
 	if (list_empty(&sched_data->lru_runq_head) || scheduler->next_vgpu)
