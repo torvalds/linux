@@ -755,6 +755,7 @@ struct nand_manufacturer_ops {
  *			setting the read-retry mode. Mostly needed for MLC NAND.
  * @ecc:		[BOARDSPECIFIC] ECC control structure
  * @buffers:		buffer structure for read/write
+ * @buf_align:		minimum buffer alignment required by a platform
  * @hwcontrol:		platform-specific hardware control structure
  * @erase:		[REPLACEABLE] erase function
  * @scan_bbt:		[REPLACEABLE] function to scan bad block table
@@ -905,6 +906,7 @@ struct nand_chip {
 
 	struct nand_ecc_ctrl ecc;
 	struct nand_buffers *buffers;
+	unsigned long buf_align;
 	struct nand_hw_control hwcontrol;
 
 	uint8_t *bbt;
