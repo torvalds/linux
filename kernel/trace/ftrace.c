@@ -3255,7 +3255,7 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	}
 
 	if (!p)
-		return t_hash_start(m, pos);
+		return NULL;
 
 	return iter;
 }
