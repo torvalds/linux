@@ -124,8 +124,8 @@ extern int amdgpu_param_buf_per_se;
 
 /* max number of VMHUB */
 #define AMDGPU_MAX_VMHUBS			2
-#define AMDGPU_MMHUB				0
-#define AMDGPU_GFXHUB				1
+#define AMDGPU_GFXHUB				0
+#define AMDGPU_MMHUB				1
 
 /* hardcode that limit for now */
 #define AMDGPU_VA_RESERVED_SIZE			(8 << 20)

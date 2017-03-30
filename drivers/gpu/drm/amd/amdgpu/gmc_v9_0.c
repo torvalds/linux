@@ -129,8 +129,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 				struct amdgpu_irq_src *source,
 				struct amdgpu_iv_entry *entry)
 {
-	struct amdgpu_vmhub *gfxhub = &adev->vmhub[AMDGPU_GFXHUB];
-	struct amdgpu_vmhub *mmhub = &adev->vmhub[AMDGPU_MMHUB];
+	struct amdgpu_vmhub *hub = &adev->vmhub[entry->vm_id_src];
 	uint32_t status = 0;
 	u64 addr;
 
@@ -138,13 +137,8 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
 
 	if (!amdgpu_sriov_vf(adev)) {
-		if (entry->vm_id_src) {
-			status = RREG32(mmhub->vm_l2_pro_fault_status);
-			WREG32_P(mmhub->vm_l2_pro_fault_cntl, 1, ~1);
-		} else {
-			status = RREG32(gfxhub->vm_l2_pro_fault_status);
-			WREG32_P(gfxhub->vm_l2_pro_fault_cntl, 1, ~1);
-		}
+		status = RREG32(hub->vm_l2_pro_fault_status);
+		WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
 	}
 
 	if (printk_ratelimit()) {
