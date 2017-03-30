@@ -448,7 +448,8 @@ static int workload_thread(void *priv)
 	struct intel_vgpu_workload *workload = NULL;
 	struct intel_vgpu *vgpu = NULL;
 	int ret;
-	bool need_force_wake = IS_SKYLAKE(gvt->dev_priv);
+	bool need_force_wake = IS_SKYLAKE(gvt->dev_priv)
+			|| IS_KABYLAKE(gvt->dev_priv);
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 	kfree(p);
