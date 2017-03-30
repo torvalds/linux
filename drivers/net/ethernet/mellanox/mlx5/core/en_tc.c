@@ -639,7 +639,8 @@ static int parse_cls_flower(struct mlx5e_priv *priv,
 
 	if (!err && (flow->flags & MLX5E_TC_FLOW_ESWITCH) &&
 	    rep->vport != FDB_UPLINK_VPORT) {
-		if (min_inline > esw->offloads.inline_mode) {
+		if (esw->offloads.inline_mode != MLX5_INLINE_MODE_NONE &&
+		    esw->offloads.inline_mode < min_inline) {
 			netdev_warn(priv->netdev,
 				    "Flow is not offloaded due to min inline setting, required %d actual %d\n",
 				    min_inline, esw->offloads.inline_mode);
