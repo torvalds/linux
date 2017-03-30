@@ -2249,9 +2249,10 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	r = amdgpu_resume(adev);
-	if (r)
+	if (r) {
 		DRM_ERROR("amdgpu_resume failed (%d).\n", r);
-
+		return r;
+	}
 	amdgpu_fence_driver_resume(adev);
 
 	if (resume) {
