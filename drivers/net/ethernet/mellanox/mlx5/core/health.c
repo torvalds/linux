@@ -67,6 +67,7 @@ enum {
 
 enum {
 	MLX5_DROP_NEW_HEALTH_WORK,
+	MLX5_DROP_NEW_RECOVERY_WORK,
 };
 
 static u8 get_nic_state(struct mlx5_core_dev *dev)
@@ -193,7 +194,7 @@ static void health_care(struct work_struct *work)
 	mlx5_handle_bad_state(dev);
 
 	spin_lock(&health->wq_lock);
-	if (!test_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags))
+	if (!test_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags))
 		schedule_delayed_work(&health->recover_work, recover_delay);
 	else
 		dev_err(&dev->pdev->dev,
@@ -328,6 +329,7 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 	init_timer(&health->timer);
 	health->sick = 0;
 	clear_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
+	clear_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
 	health->health = &dev->iseg->health;
 	health->health_counter = &dev->iseg->health_counter;
 
@@ -350,9 +352,20 @@ void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
 
 	spin_lock(&health->wq_lock);
 	set_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
+	set_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
 	spin_unlock(&health->wq_lock);
 	cancel_delayed_work_sync(&health->recover_work);
 	cancel_work_sync(&health->work);
+}
+
+void mlx5_drain_health_recovery(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+
+	spin_lock(&health->wq_lock);
+	set_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
+	spin_unlock(&health->wq_lock);
+	cancel_delayed_work_sync(&dev->priv.health.recover_work);
 }
 
 void mlx5_health_cleanup(struct mlx5_core_dev *dev)
