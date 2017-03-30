@@ -406,8 +406,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_job *job)
 {
 	struct amdgpu_device *adev = ring->adev;
-	/* Temporary use only the first VM manager */
-	unsigned vmhub = 0; /*ring->funcs->vmhub;*/
+	unsigned vmhub = ring->funcs->vmhub;
 	struct amdgpu_vm_id_manager *id_mgr = &adev->vm_manager.id_mgr[vmhub];
 	uint64_t fence_context = adev->fence_context + ring->idx;
 	struct dma_fence *updates = sync->last_vm_update;

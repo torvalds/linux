@@ -968,44 +968,37 @@ static void vce_v4_0_ring_insert_end(struct amdgpu_ring *ring)
 static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
 			 unsigned int vm_id, uint64_t pd_addr)
 {
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
 	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
 	unsigned eng = ring->idx;
-	unsigned i;
 
 	pd_addr = pd_addr | 0x1; /* valid bit */
 	/* now only use physical base address of PDE and valid */
 	BUG_ON(pd_addr & 0xFFFF00000000003EULL);
 
-	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
-		struct amdgpu_vmhub *hub = &ring->adev->vmhub[i];
+	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
+	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_hi32 + vm_id * 2) << 2);
+	amdgpu_ring_write(ring, upper_32_bits(pd_addr));
 
-		amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
-		amdgpu_ring_write(ring,
-			(hub->ctx0_ptb_addr_hi32 + vm_id * 2) << 2);
-		amdgpu_ring_write(ring, upper_32_bits(pd_addr));
+	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
+	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2);
+	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
 
-		amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
-		amdgpu_ring_write(ring,
-			(hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2);
-		amdgpu_ring_write(ring, lower_32_bits(pd_addr));
+	amdgpu_ring_write(ring, VCE_CMD_REG_WAIT);
+	amdgpu_ring_write(ring,	(hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2);
+	amdgpu_ring_write(ring, 0xffffffff);
+	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
 
-		amdgpu_ring_write(ring, VCE_CMD_REG_WAIT);
-		amdgpu_ring_write(ring,
-			(hub->ctx0_ptb_addr_lo32 + vm_id * 2) << 2);
-		amdgpu_ring_write(ring, 0xffffffff);
-		amdgpu_ring_write(ring, lower_32_bits(pd_addr));
+	/* flush TLB */
+	amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
+	amdgpu_ring_write(ring,	(hub->vm_inv_eng0_req + eng) << 2);
+	amdgpu_ring_write(ring, req);
 
-		/* flush TLB */
-		amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
-		amdgpu_ring_write(ring,	(hub->vm_inv_eng0_req + eng) << 2);
-		amdgpu_ring_write(ring, req);
-
-		/* wait for flush */
-		amdgpu_ring_write(ring, VCE_CMD_REG_WAIT);
-		amdgpu_ring_write(ring, (hub->vm_inv_eng0_ack + eng) << 2);
-		amdgpu_ring_write(ring, 1 << vm_id);
-		amdgpu_ring_write(ring, 1 << vm_id);
-	}
+	/* wait for flush */
+	amdgpu_ring_write(ring, VCE_CMD_REG_WAIT);
+	amdgpu_ring_write(ring, (hub->vm_inv_eng0_ack + eng) << 2);
+	amdgpu_ring_write(ring, 1 << vm_id);
+	amdgpu_ring_write(ring, 1 << vm_id);
 }
 
 static int vce_v4_0_set_interrupt_state(struct amdgpu_device *adev,
@@ -1079,7 +1072,7 @@ static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.set_wptr = vce_v4_0_ring_set_wptr,
 	.parse_cs = amdgpu_vce_ring_parse_cs_vm,
 	.emit_frame_size =
-		17 * AMDGPU_MAX_VMHUBS + /* vce_v4_0_emit_vm_flush */
+		17 + /* vce_v4_0_emit_vm_flush */
 		5 + 5 + /* amdgpu_vce_ring_emit_fence x2 vm fence */
 		1, /* vce_v4_0_ring_insert_end */
 	.emit_ib_size = 5, /* vce_v4_0_ring_emit_ib */
