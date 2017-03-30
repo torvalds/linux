@@ -1121,6 +1121,8 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 		blk_mq_sched_dispatch_requests(hctx);
 		rcu_read_unlock();
 	} else {
+		might_sleep();
+
 		srcu_idx = srcu_read_lock(&hctx->queue_rq_srcu);
 		blk_mq_sched_dispatch_requests(hctx);
 		srcu_read_unlock(&hctx->queue_rq_srcu, srcu_idx);
@@ -1495,7 +1497,11 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		__blk_mq_try_issue_directly(rq, cookie, false);
 		rcu_read_unlock();
 	} else {
-		unsigned int srcu_idx = srcu_read_lock(&hctx->queue_rq_srcu);
+		unsigned int srcu_idx;
+
+		might_sleep();
+
+		srcu_idx = srcu_read_lock(&hctx->queue_rq_srcu);
 		__blk_mq_try_issue_directly(rq, cookie, true);
 		srcu_read_unlock(&hctx->queue_rq_srcu, srcu_idx);
 	}
@@ -1595,18 +1601,23 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 			list_del_init(&same_queue_rq->queuelist);
 		list_add_tail(&rq->queuelist, &plug->mq_list);
 
+		blk_mq_put_ctx(data.ctx);
+
 		if (same_queue_rq)
 			blk_mq_try_issue_directly(data.hctx, same_queue_rq,
 					&cookie);
+
+		return cookie;
 	} else if (q->nr_hw_queues > 1 && is_sync) {
+		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_try_issue_directly(data.hctx, rq, &cookie);
+		return cookie;
 	} else if (q->elevator) {
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_sched_insert_request(rq, false, true, true, true);
-	} else if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
+	} else if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio))
 		blk_mq_run_hw_queue(data.hctx, true);
-	}
 
 	blk_mq_put_ctx(data.ctx);
 	return cookie;
