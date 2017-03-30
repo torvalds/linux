@@ -182,6 +182,14 @@
 	status = "okay";
 };
 
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
+
 &vpu_combo {
 	status = "okay";
 };
