@@ -59,7 +59,7 @@
 #define RGA2_TEST_FLUSH_TIME 0
 #define RGA2_INFO_BUS_ERROR 1
 #define RGA2_POWER_OFF_DELAY	4*HZ /* 4s */
-#define RGA2_TIMEOUT_DELAY	2*HZ /* 2s */
+#define RGA2_TIMEOUT_DELAY	(HZ / 10) /* 100ms */
 #define RGA2_MAJOR		255
 #define RGA2_RESET_TIMEOUT	1000
 
