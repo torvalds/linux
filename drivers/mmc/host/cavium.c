@@ -377,9 +377,32 @@ static int finish_dma_single(struct cvm_mmc_host *host, struct mmc_data *data)
 	return 1;
 }
 
+static int finish_dma_sg(struct cvm_mmc_host *host, struct mmc_data *data)
+{
+	u64 fifo_cfg;
+	int count;
+
+	/* Check if there are any pending requests left */
+	fifo_cfg = readq(host->dma_base + MIO_EMM_DMA_FIFO_CFG(host));
+	count = FIELD_GET(MIO_EMM_DMA_FIFO_CFG_COUNT, fifo_cfg);
+	if (count)
+		dev_err(host->dev, "%u requests still pending\n", count);
+
+	data->bytes_xfered = data->blocks * data->blksz;
+	data->error = 0;
+
+	/* Clear and disable FIFO */
+	writeq(BIT_ULL(16), host->dma_base + MIO_EMM_DMA_FIFO_CFG(host));
+	dma_unmap_sg(host->dev, data->sg, data->sg_len, get_dma_dir(data));
+	return 1;
+}
+
 static int finish_dma(struct cvm_mmc_host *host, struct mmc_data *data)
 {
-	return finish_dma_single(host, data);
+	if (host->use_sg && data->sg_len > 1)
+		return finish_dma_sg(host, data);
+	else
+		return finish_dma_single(host, data);
 }
 
 static int check_status(u64 rsp_sts)
@@ -522,9 +545,81 @@ static u64 prepare_dma_single(struct cvm_mmc_host *host, struct mmc_data *data)
 	return addr;
 }
 
+/*
+ * Queue complete sg list into the FIFO.
+ * Returns 0 on error, 1 otherwise.
+ */
+static u64 prepare_dma_sg(struct cvm_mmc_host *host, struct mmc_data *data)
+{
+	struct scatterlist *sg;
+	u64 fifo_cmd, addr;
+	int count, i, rw;
+
+	count = dma_map_sg(host->dev, data->sg, data->sg_len,
+			   get_dma_dir(data));
+	if (!count)
+		return 0;
+	if (count > 16)
+		goto error;
+
+	/* Enable FIFO by removing CLR bit */
+	writeq(0, host->dma_base + MIO_EMM_DMA_FIFO_CFG(host));
+
+	for_each_sg(data->sg, sg, count, i) {
+		/* Program DMA address */
+		addr = sg_dma_address(sg);
+		if (addr & 7)
+			goto error;
+		writeq(addr, host->dma_base + MIO_EMM_DMA_FIFO_ADR(host));
+
+		/*
+		 * If we have scatter-gather support we also have an extra
+		 * register for the DMA addr, so no need to check
+		 * host->big_dma_addr here.
+		 */
+		rw = (data->flags & MMC_DATA_WRITE) ? 1 : 0;
+		fifo_cmd = FIELD_PREP(MIO_EMM_DMA_FIFO_CMD_RW, rw);
+
+		/* enable interrupts on the last element */
+		fifo_cmd |= FIELD_PREP(MIO_EMM_DMA_FIFO_CMD_INTDIS,
+				       (i + 1 == count) ? 0 : 1);
+
+#ifdef __LITTLE_ENDIAN
+		fifo_cmd |= FIELD_PREP(MIO_EMM_DMA_FIFO_CMD_ENDIAN, 1);
+#endif
+		fifo_cmd |= FIELD_PREP(MIO_EMM_DMA_FIFO_CMD_SIZE,
+				       sg_dma_len(sg) / 8 - 1);
+		/*
+		 * The write copies the address and the command to the FIFO
+		 * and increments the FIFO's COUNT field.
+		 */
+		writeq(fifo_cmd, host->dma_base + MIO_EMM_DMA_FIFO_CMD(host));
+		pr_debug("[%s] sg_dma_len: %u  sg_elem: %d/%d\n",
+			 (rw) ? "W" : "R", sg_dma_len(sg), i, count);
+	}
+
+	/*
+	 * In difference to prepare_dma_single we don't return the
+	 * address here, as it would not make sense for scatter-gather.
+	 * The dma fixup is only required on models that don't support
+	 * scatter-gather, so that is not a problem.
+	 */
+	return 1;
+
+error:
+	WARN_ON_ONCE(1);
+	dma_unmap_sg(host->dev, data->sg, data->sg_len, get_dma_dir(data));
+	/* Disable FIFO */
+	writeq(BIT_ULL(16), host->dma_base + MIO_EMM_DMA_FIFO_CFG(host));
+	return 0;
+}
+
 static u64 prepare_dma(struct cvm_mmc_host *host, struct mmc_data *data)
 {
-	return prepare_dma_single(host, data);
+	if (host->use_sg && data->sg_len > 1)
+		return prepare_dma_sg(host, data);
+	else
+		return prepare_dma_single(host, data);
 }
 
 static u64 prepare_ext_dma(struct mmc_host *mmc, struct mmc_request *mrq)
@@ -940,7 +1035,10 @@ int cvm_mmc_of_slot_probe(struct device *dev, struct cvm_mmc_host *host)
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
 		     MMC_CAP_ERASE | MMC_CAP_CMD23 | MMC_CAP_POWER_OFF_CARD;
 
-	mmc->max_segs = 1;
+	if (host->use_sg)
+		mmc->max_segs = 16;
+	else
+		mmc->max_segs = 1;
 
 	/* DMA size field can address up to 8 MB */
 	mmc->max_seg_size = 8 * 1024 * 1024;

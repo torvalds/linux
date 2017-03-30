@@ -23,12 +23,15 @@
 #define CAVIUM_MAX_MMC		4
 
 /* DMA register addresses */
-#define MIO_EMM_DMA_CFG(x)	(0x00 + x->reg_off_dma)
-#define MIO_EMM_DMA_ADR(x)	(0x08 + x->reg_off_dma)
-#define MIO_EMM_DMA_INT(x)	(0x10 + x->reg_off_dma)
-#define MIO_EMM_DMA_INT_W1S(x)	(0x18 + x->reg_off_dma)
-#define MIO_EMM_DMA_INT_ENA_W1S(x) (0x20 + x->reg_off_dma)
-#define MIO_EMM_DMA_INT_ENA_W1C(x) (0x28 + x->reg_off_dma)
+#define MIO_EMM_DMA_FIFO_CFG(x)	(0x00 + x->reg_off_dma)
+#define MIO_EMM_DMA_FIFO_ADR(x)	(0x10 + x->reg_off_dma)
+#define MIO_EMM_DMA_FIFO_CMD(x)	(0x18 + x->reg_off_dma)
+#define MIO_EMM_DMA_CFG(x)	(0x20 + x->reg_off_dma)
+#define MIO_EMM_DMA_ADR(x)	(0x28 + x->reg_off_dma)
+#define MIO_EMM_DMA_INT(x)	(0x30 + x->reg_off_dma)
+#define MIO_EMM_DMA_INT_W1S(x)	(0x38 + x->reg_off_dma)
+#define MIO_EMM_DMA_INT_ENA_W1S(x) (0x40 + x->reg_off_dma)
+#define MIO_EMM_DMA_INT_ENA_W1C(x) (0x48 + x->reg_off_dma)
 
 /* register addresses */
 #define MIO_EMM_CFG(x)		(0x00 + x->reg_off)
@@ -64,6 +67,7 @@ struct cvm_mmc_host {
 	struct mmc_request *current_req;
 	struct sg_mapping_iter smi;
 	bool dma_active;
+	bool use_sg;
 
 	bool has_ciu3;
 	bool big_dma_addr;
@@ -113,6 +117,18 @@ struct cvm_mmc_cr_mods {
 };
 
 /* Bitfield definitions */
+#define MIO_EMM_DMA_FIFO_CFG_CLR	BIT_ULL(16)
+#define MIO_EMM_DMA_FIFO_CFG_INT_LVL	GENMASK_ULL(12, 8)
+#define MIO_EMM_DMA_FIFO_CFG_COUNT	GENMASK_ULL(4, 0)
+
+#define MIO_EMM_DMA_FIFO_CMD_RW		BIT_ULL(62)
+#define MIO_EMM_DMA_FIFO_CMD_INTDIS	BIT_ULL(60)
+#define MIO_EMM_DMA_FIFO_CMD_SWAP32	BIT_ULL(59)
+#define MIO_EMM_DMA_FIFO_CMD_SWAP16	BIT_ULL(58)
+#define MIO_EMM_DMA_FIFO_CMD_SWAP8	BIT_ULL(57)
+#define MIO_EMM_DMA_FIFO_CMD_ENDIAN	BIT_ULL(56)
+#define MIO_EMM_DMA_FIFO_CMD_SIZE	GENMASK_ULL(55, 36)
+
 #define MIO_EMM_CMD_SKIP_BUSY		BIT_ULL(62)
 #define MIO_EMM_CMD_BUS_ID		GENMASK_ULL(61, 60)
 #define MIO_EMM_CMD_VAL			BIT_ULL(59)
