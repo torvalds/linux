@@ -315,6 +315,14 @@
 	dr_mode = "otg";
 };
 
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
+
 &vpu {
 	status = "okay";
 };
