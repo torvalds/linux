@@ -188,7 +188,7 @@ static void rga2_soft_reset(void)
 	u32 i;
 	u32 reg;
 
-	rga2_write((1 << 3) | (1 << 4), RGA2_SYS_CTRL); //RGA_SYS_CTRL
+	rga2_write((1 << 3) | (1 << 4) | (1 << 6), RGA2_SYS_CTRL);
 
 	for(i = 0; i < RGA2_RESET_TIMEOUT; i++)
 	{
