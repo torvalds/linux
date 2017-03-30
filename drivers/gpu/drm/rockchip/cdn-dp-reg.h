@@ -430,6 +430,18 @@
 #define SPDIF_JITTER_THRSH(x)			(((x) & 0xff) << 3)
 #define SPDIF_JITTER_AVG_WIN(x)			((x) & 0x7)
 
+/* SOURCE_PIF_WR_REQ */
+#define HOST_WR			BIT(0)
+
+/* SOURCE_PIF_PKT_ALLOC_REG */
+#define ACTIVE_IDLE_TYPE(x)	(((x) & 0x1) << 17)
+#define TYPE_VALID		BIT(16)
+#define PACKET_TYPE(x)		(((x) & 0xff) << 8)
+#define PKT_ALLOC_ADDRESS(x)	(((x) & 0xf) << 0)
+
+/* SOURCE_PIF_PKT_ALLOC_WR_EN */
+#define PKT_ALLOC_WR_EN		BIT(0)
+
 /* Reference cycles when using lane clock as reference */
 #define LANE_REF_CYC				0x8000
 
@@ -527,4 +539,6 @@ int cdn_dp_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio);
 int cdn_dp_audio_mute(struct cdn_dp_device *dp, bool enable);
 int cdn_dp_audio_config(struct cdn_dp_device *dp, struct audio_info *audio);
 int cdn_dp_software_train_link(struct cdn_dp_device *dp);
+void cdn_dp_infoframe_set(struct cdn_dp_device *dp, int entry_id, u8 *buf,
+			  u32 len, int type);
 #endif /* _CDN_DP_REG_H */
