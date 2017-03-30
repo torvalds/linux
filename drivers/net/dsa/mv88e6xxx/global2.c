@@ -172,6 +172,50 @@ static int mv88e6xxx_g2_clear_irl(struct mv88e6xxx_chip *chip)
 	return err;
 }
 
+/* Offset 0x0B: Cross-chip Port VLAN (Addr) Register
+ * Offset 0x0C: Cross-chip Port VLAN Data Register
+ */
+
+static int mv88e6xxx_g2_pvt_op_wait(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g2_wait(chip, GLOBAL2_PVT_ADDR, GLOBAL2_PVT_ADDR_BUSY);
+}
+
+static int mv88e6xxx_g2_pvt_op(struct mv88e6xxx_chip *chip, int src_dev,
+			       int src_port, u16 op)
+{
+	int err;
+
+	/* 9-bit Cross-chip PVT pointer: with GLOBAL2_MISC_5_BIT_PORT cleared,
+	 * source device is 5-bit, source port is 4-bit.
+	 */
+	op |= (src_dev & 0x1f) << 4;
+	op |= (src_port & 0xf);
+
+	err = mv88e6xxx_g2_write(chip, GLOBAL2_PVT_ADDR, op);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_pvt_op_wait(chip);
+}
+
+int mv88e6xxx_g2_pvt_write(struct mv88e6xxx_chip *chip, int src_dev,
+			   int src_port, u16 data)
+{
+	int err;
+
+	err = mv88e6xxx_g2_pvt_op_wait(chip);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g2_write(chip, GLOBAL2_PVT_DATA, data);
+	if (err)
+		return err;
+
+	return mv88e6xxx_g2_pvt_op(chip, src_dev, src_port,
+				   GLOBAL2_PVT_ADDR_OP_WRITE_PVLAN);
+}
+
 /* Offset 0x0D: Switch MAC/WoL/WoF register */
 
 static int mv88e6xxx_g2_switch_mac_write(struct mv88e6xxx_chip *chip,
@@ -989,14 +1033,6 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 		err = mv88e6xxx_g2_clear_irl(chip);
 			if (err)
 				return err;
-	}
-
-	if (mv88e6xxx_has_pvt(chip)) {
-		/* Initialize Cross-chip Port VLAN Table to reset defaults */
-		err = mv88e6xxx_g2_write(chip, GLOBAL2_PVT_ADDR,
-					 GLOBAL2_PVT_ADDR_OP_INIT_ONES);
-		if (err)
-			return err;
 	}
 
 	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_G2_POT)) {

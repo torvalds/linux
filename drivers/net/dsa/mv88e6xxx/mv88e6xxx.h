@@ -443,6 +443,10 @@
 
 #define MV88E6XXX_N_FID		4096
 
+/* PVT limits for 4-bit port and 5-bit switch */
+#define MV88E6XXX_MAX_PVT_SWITCHES	32
+#define MV88E6XXX_MAX_PVT_PORTS		16
+
 enum mv88e6xxx_frame_mode {
 	MV88E6XXX_FRAME_MODE_NORMAL,
 	MV88E6XXX_FRAME_MODE_DSA,

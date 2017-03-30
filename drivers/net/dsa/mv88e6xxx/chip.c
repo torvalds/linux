@@ -1198,15 +1198,44 @@ static int mv88e6xxx_atu_setup(struct mv88e6xxx_chip *chip)
 	return mv88e6xxx_g1_atu_set_age_time(chip, 300000);
 }
 
+static int mv88e6xxx_pvt_map(struct mv88e6xxx_chip *chip, int dev, int port)
+{
+	u16 pvlan = 0;
+
+	if (!mv88e6xxx_has_pvt(chip))
+		return -EOPNOTSUPP;
+
+	/* Skip the local source device, which uses in-chip port VLAN */
+	if (dev != chip->ds->index)
+		pvlan = mv88e6xxx_port_mask(chip);
+
+	return mv88e6xxx_g2_pvt_write(chip, dev, port, pvlan);
+}
+
 static int mv88e6xxx_pvt_setup(struct mv88e6xxx_chip *chip)
 {
+	int dev, port;
+	int err;
+
 	if (!mv88e6xxx_has_pvt(chip))
 		return 0;
 
 	/* Clear 5 Bit Port for usage with Marvell Link Street devices:
 	 * use 4 bits for the Src_Port/Src_Trunk and 5 bits for the Src_Dev.
 	 */
-	return mv88e6xxx_g2_misc_4_bit_port(chip);
+	err = mv88e6xxx_g2_misc_4_bit_port(chip);
+	if (err)
+		return err;
+
+	for (dev = 0; dev < MV88E6XXX_MAX_PVT_SWITCHES; ++dev) {
+		for (port = 0; port < MV88E6XXX_MAX_PVT_PORTS; ++port) {
+			err = mv88e6xxx_pvt_map(chip, dev, port);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
 }
 
 static void mv88e6xxx_port_fast_age(struct dsa_switch *ds, int port)
