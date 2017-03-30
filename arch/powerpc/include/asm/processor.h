@@ -114,9 +114,9 @@ void release_thread(struct task_struct *);
 /*
  * Max value currently used:
  */
-#define TASK_SIZE_USER64 TASK_SIZE_128TB
+#define TASK_SIZE_USER64	TASK_SIZE_512TB
 #else
-#define TASK_SIZE_USER64 TASK_SIZE_64TB
+#define TASK_SIZE_USER64	TASK_SIZE_64TB
 #endif
 
 /*
@@ -128,26 +128,37 @@ void release_thread(struct task_struct *);
 #define TASK_SIZE_OF(tsk) (test_tsk_thread_flag(tsk, TIF_32BIT) ? \
 		TASK_SIZE_USER32 : TASK_SIZE_USER64)
 #define TASK_SIZE	  TASK_SIZE_OF(current)
-
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
 #define TASK_UNMAPPED_BASE_USER32 (PAGE_ALIGN(TASK_SIZE_USER32 / 4))
-#define TASK_UNMAPPED_BASE_USER64 (PAGE_ALIGN(TASK_SIZE_USER64 / 4))
+#define TASK_UNMAPPED_BASE_USER64 (PAGE_ALIGN(TASK_SIZE_128TB / 4))
 
 #define TASK_UNMAPPED_BASE ((is_32bit_task()) ? \
 		TASK_UNMAPPED_BASE_USER32 : TASK_UNMAPPED_BASE_USER64 )
 #endif
 
+/*
+ * Initial task size value for user applications. For book3s 64 we start
+ * with 128TB and conditionally enable upto 512TB
+ */
+#ifdef CONFIG_PPC_BOOK3S_64
+#define DEFAULT_MAP_WINDOW	((is_32bit_task()) ? \
+				 TASK_SIZE_USER32 : TASK_SIZE_128TB)
+#else
+#define DEFAULT_MAP_WINDOW	TASK_SIZE
+#endif
+
 #ifdef __powerpc64__
 
-#define STACK_TOP_USER64 TASK_SIZE_USER64
+/* Limit stack to 128TB */
+#define STACK_TOP_USER64 TASK_SIZE_128TB
 #define STACK_TOP_USER32 TASK_SIZE_USER32
 
 #define STACK_TOP (is_32bit_task() ? \
 		   STACK_TOP_USER32 : STACK_TOP_USER64)
 
-#define STACK_TOP_MAX STACK_TOP_USER64
+#define STACK_TOP_MAX TASK_SIZE_USER64
 
 #else /* __powerpc64__ */
 

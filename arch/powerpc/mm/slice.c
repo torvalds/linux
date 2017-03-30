@@ -265,7 +265,7 @@ static bool slice_scan_available(unsigned long addr,
 static unsigned long slice_find_area_bottomup(struct mm_struct *mm,
 					      unsigned long len,
 					      struct slice_mask available,
-					      int psize)
+					      int psize, unsigned long high_limit)
 {
 	int pshift = max_t(int, mmu_psize_defs[psize].shift, PAGE_SHIFT);
 	unsigned long addr, found, next_end;
@@ -277,7 +277,10 @@ static unsigned long slice_find_area_bottomup(struct mm_struct *mm,
 	info.align_offset = 0;
 
 	addr = TASK_UNMAPPED_BASE;
-	while (addr < mm->context.addr_limit) {
+	/*
+	 * Check till the allow max value for this mmap request
+	 */
+	while (addr < high_limit) {
 		info.low_limit = addr;
 		if (!slice_scan_available(addr, available, 1, &addr))
 			continue;
@@ -308,7 +311,7 @@ static unsigned long slice_find_area_bottomup(struct mm_struct *mm,
 static unsigned long slice_find_area_topdown(struct mm_struct *mm,
 					     unsigned long len,
 					     struct slice_mask available,
-					     int psize)
+					     int psize, unsigned long high_limit)
 {
 	int pshift = max_t(int, mmu_psize_defs[psize].shift, PAGE_SHIFT);
 	unsigned long addr, found, prev;
@@ -320,6 +323,15 @@ static unsigned long slice_find_area_topdown(struct mm_struct *mm,
 	info.align_offset = 0;
 
 	addr = mm->mmap_base;
+	/*
+	 * If we are trying to allocate above DEFAULT_MAP_WINDOW
+	 * Add the different to the mmap_base.
+	 * Only for that request for which high_limit is above
+	 * DEFAULT_MAP_WINDOW we should apply this.
+	 */
+	if (high_limit  > DEFAULT_MAP_WINDOW)
+		addr += mm->context.addr_limit - DEFAULT_MAP_WINDOW;
+
 	while (addr > PAGE_SIZE) {
 		info.high_limit = addr;
 		if (!slice_scan_available(addr - 1, available, 0, &addr))
@@ -351,18 +363,18 @@ static unsigned long slice_find_area_topdown(struct mm_struct *mm,
 	 * can happen with large stack limits and large mmap()
 	 * allocations.
 	 */
-	return slice_find_area_bottomup(mm, len, available, psize);
+	return slice_find_area_bottomup(mm, len, available, psize, high_limit);
 }
 
 
 static unsigned long slice_find_area(struct mm_struct *mm, unsigned long len,
 				     struct slice_mask mask, int psize,
-				     int topdown)
+				     int topdown, unsigned long high_limit)
 {
 	if (topdown)
-		return slice_find_area_topdown(mm, len, mask, psize);
+		return slice_find_area_topdown(mm, len, mask, psize, high_limit);
 	else
-		return slice_find_area_bottomup(mm, len, mask, psize);
+		return slice_find_area_bottomup(mm, len, mask, psize, high_limit);
 }
 
 static inline void slice_or_mask(struct slice_mask *dst, struct slice_mask *src)
@@ -402,7 +414,22 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	int pshift = max_t(int, mmu_psize_defs[psize].shift, PAGE_SHIFT);
 	struct mm_struct *mm = current->mm;
 	unsigned long newaddr;
+	unsigned long high_limit;
 
+	/*
+	 * Check if we need to expland slice area.
+	 */
+	if (unlikely(addr > mm->context.addr_limit && addr < TASK_SIZE)) {
+		mm->context.addr_limit = TASK_SIZE;
+		on_each_cpu(slice_flush_segments, mm, 1);
+	}
+	/*
+	 * This mmap request can allocate upt to 512TB
+	 */
+	if (addr > DEFAULT_MAP_WINDOW)
+		high_limit = mm->context.addr_limit;
+	else
+		high_limit = DEFAULT_MAP_WINDOW;
 	/*
 	 * init different masks
 	 */
@@ -494,7 +521,8 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 		/* Now let's see if we can find something in the existing
 		 * slices for that size
 		 */
-		newaddr = slice_find_area(mm, len, good_mask, psize, topdown);
+		newaddr = slice_find_area(mm, len, good_mask,
+					  psize, topdown, high_limit);
 		if (newaddr != -ENOMEM) {
 			/* Found within the good mask, we don't have to setup,
 			 * we thus return directly
@@ -526,7 +554,8 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	 * anywhere in the good area.
 	 */
 	if (addr) {
-		addr = slice_find_area(mm, len, good_mask, psize, topdown);
+		addr = slice_find_area(mm, len, good_mask,
+				       psize, topdown, high_limit);
 		if (addr != -ENOMEM) {
 			slice_dbg(" found area at 0x%lx\n", addr);
 			return addr;
@@ -536,14 +565,15 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	/* Now let's see if we can find something in the existing slices
 	 * for that size plus free slices
 	 */
-	addr = slice_find_area(mm, len, potential_mask, psize, topdown);
+	addr = slice_find_area(mm, len, potential_mask,
+			       psize, topdown, high_limit);
 
 #ifdef CONFIG_PPC_64K_PAGES
 	if (addr == -ENOMEM && psize == MMU_PAGE_64K) {
 		/* retry the search with 4k-page slices included */
 		slice_or_mask(&potential_mask, &compat_mask);
-		addr = slice_find_area(mm, len, potential_mask, psize,
-				       topdown);
+		addr = slice_find_area(mm, len, potential_mask,
+				       psize, topdown, high_limit);
 	}
 #endif
 

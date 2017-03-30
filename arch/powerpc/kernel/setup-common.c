@@ -923,7 +923,7 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_PPC_MM_SLICES
 #ifdef CONFIG_PPC64
-	init_mm.context.addr_limit = TASK_SIZE_USER64;
+	init_mm.context.addr_limit = TASK_SIZE_128TB;
 #else
 #error	"context.addr_limit not initialized."
 #endif
