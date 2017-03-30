@@ -302,6 +302,36 @@ static void replenish_pools(struct ibmvnic_adapter *adapter)
 	}
 }
 
+static void release_stats_token(struct ibmvnic_adapter *adapter)
+{
+	struct device *dev = &adapter->vdev->dev;
+
+	if (!adapter->stats_token)
+		return;
+
+	dma_unmap_single(dev, adapter->stats_token,
+			 sizeof(struct ibmvnic_statistics),
+			 DMA_FROM_DEVICE);
+	adapter->stats_token = 0;
+}
+
+static int init_stats_token(struct ibmvnic_adapter *adapter)
+{
+	struct device *dev = &adapter->vdev->dev;
+	dma_addr_t stok;
+
+	stok = dma_map_single(dev, &adapter->stats,
+			      sizeof(struct ibmvnic_statistics),
+			      DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, stok)) {
+		dev_err(dev, "Couldn't map stats buffer\n");
+		return -1;
+	}
+
+	adapter->stats_token = stok;
+	return 0;
+}
+
 static void release_rx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_rx_pool *rx_pool;
@@ -647,8 +677,6 @@ alloc_napi_failed:
 
 static void ibmvnic_release_resources(struct ibmvnic_adapter *adapter)
 {
-	struct device *dev = &adapter->vdev->dev;
-
 	release_bounce_buffer(adapter);
 	release_tx_pools(adapter);
 	release_rx_pools(adapter);
@@ -656,10 +684,7 @@ static void ibmvnic_release_resources(struct ibmvnic_adapter *adapter)
 	release_sub_crqs(adapter);
 	release_crq_queue(adapter);
 
-	if (adapter->stats_token)
-		dma_unmap_single(dev, adapter->stats_token,
-				 sizeof(struct ibmvnic_statistics),
-				 DMA_FROM_DEVICE);
+	release_stats_token(adapter);
 }
 
 static int ibmvnic_close(struct net_device *netdev)
@@ -3269,13 +3294,10 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 		return rc;
 	}
 
-	adapter->stats_token = dma_map_single(dev, &adapter->stats,
-				      sizeof(struct ibmvnic_statistics),
-				      DMA_FROM_DEVICE);
-	if (dma_mapping_error(dev, adapter->stats_token)) {
+	rc = init_stats_token(adapter);
+	if (rc) {
 		release_crq_queue(adapter);
-		dev_err(dev, "Couldn't map stats buffer\n");
-		return -ENOMEM;
+		return rc;
 	}
 
 	init_completion(&adapter->init_done);
