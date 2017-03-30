@@ -30,6 +30,7 @@ struct denali_dt {
 };
 
 struct denali_dt_data {
+	unsigned int revision;
 	unsigned int caps;
 };
 
@@ -60,8 +61,10 @@ static int denali_dt_probe(struct platform_device *pdev)
 	denali = &dt->denali;
 
 	data = of_device_get_match_data(&pdev->dev);
-	if (data)
+	if (data) {
+		denali->revision = data->revision;
 		denali->caps = data->caps;
+	}
 
 	denali->platform = DT;
 	denali->dev = &pdev->dev;
