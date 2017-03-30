@@ -305,6 +305,8 @@ static void acm_process_notification(struct acm *acm, unsigned char *buf)
 		}
 
 		newctrl = get_unaligned_le16(data);
+		dev_dbg(&acm->control->dev,
+			"%s - serial state: 0x%x\n", __func__, newctrl);
 
 		if (!acm->clocal && (acm->ctrlin & ~newctrl & ACM_CTRL_DCD)) {
 			dev_dbg(&acm->control->dev,
