@@ -182,11 +182,19 @@ static const struct file_operations queue_poll_stat_fops = {
 	.release	= single_release,
 };
 
+static const char *const hctx_state_name[] = {
+	[BLK_MQ_S_STOPPED]	 = "STOPPED",
+	[BLK_MQ_S_TAG_ACTIVE]	 = "TAG_ACTIVE",
+	[BLK_MQ_S_SCHED_RESTART] = "SCHED_RESTART",
+	[BLK_MQ_S_TAG_WAITING]	 = "TAG_WAITING",
+
+};
 static int hctx_state_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
 
-	seq_printf(m, "0x%lx\n", hctx->state);
+	blk_flags_show(m, hctx->state, hctx_state_name,
+		       ARRAY_SIZE(hctx_state_name));
 	return 0;
 }
 
@@ -202,11 +210,34 @@ static const struct file_operations hctx_state_fops = {
 	.release	= single_release,
 };
 
+static const char *const alloc_policy_name[] = {
+	[BLK_TAG_ALLOC_FIFO]	= "fifo",
+	[BLK_TAG_ALLOC_RR]	= "rr",
+};
+
+static const char *const hctx_flag_name[] = {
+	[ilog2(BLK_MQ_F_SHOULD_MERGE)]	= "SHOULD_MERGE",
+	[ilog2(BLK_MQ_F_TAG_SHARED)]	= "TAG_SHARED",
+	[ilog2(BLK_MQ_F_SG_MERGE)]	= "SG_MERGE",
+	[ilog2(BLK_MQ_F_BLOCKING)]	= "BLOCKING",
+	[ilog2(BLK_MQ_F_NO_SCHED)]	= "NO_SCHED",
+};
+
 static int hctx_flags_show(struct seq_file *m, void *v)
 {
 	struct blk_mq_hw_ctx *hctx = m->private;
+	const int alloc_policy = BLK_MQ_FLAG_TO_ALLOC_POLICY(hctx->flags);
 
-	seq_printf(m, "0x%lx\n", hctx->flags);
+	seq_puts(m, "alloc_policy=");
+	if (alloc_policy < ARRAY_SIZE(alloc_policy_name) &&
+	    alloc_policy_name[alloc_policy])
+		seq_puts(m, alloc_policy_name[alloc_policy]);
+	else
+		seq_printf(m, "%d", alloc_policy);
+	seq_puts(m, " ");
+	blk_flags_show(m,
+		       hctx->flags ^ BLK_ALLOC_POLICY_TO_MQ_FLAG(alloc_policy),
+		       hctx_flag_name, ARRAY_SIZE(hctx_flag_name));
 	return 0;
 }
 
