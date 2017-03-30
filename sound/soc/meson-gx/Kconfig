@@ -1,0 +1,11 @@
+menuconfig SND_SOC_MESON_GX
+	tristate "ASoC WIP support for Amlogic GX SoCs"
+	depends on ARCH_MESON
+	select MFD_CORE
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Amlogic Meson SoCs Audio interfaces. You will also need to
+	  select the audio interfaces to support below. This WIP drivers
+	  are kept separated from the actual upstream amlogic ASoC driver
+	  to minimize conflicts until support is submitted and merged
