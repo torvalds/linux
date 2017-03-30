@@ -24,6 +24,11 @@
 
 /* DMA register addresses */
 #define MIO_EMM_DMA_CFG(x)	(0x00 + x->reg_off_dma)
+#define MIO_EMM_DMA_ADR(x)	(0x08 + x->reg_off_dma)
+#define MIO_EMM_DMA_INT(x)	(0x10 + x->reg_off_dma)
+#define MIO_EMM_DMA_INT_W1S(x)	(0x18 + x->reg_off_dma)
+#define MIO_EMM_DMA_INT_ENA_W1S(x) (0x20 + x->reg_off_dma)
+#define MIO_EMM_DMA_INT_ENA_W1C(x) (0x28 + x->reg_off_dma)
 
 /* register addresses */
 #define MIO_EMM_CFG(x)		(0x00 + x->reg_off)
@@ -39,6 +44,8 @@
 #define MIO_EMM_SAMPLE(x)	(0x90 + x->reg_off)
 #define MIO_EMM_STS_MASK(x)	(0x98 + x->reg_off)
 #define MIO_EMM_RCA(x)		(0xa0 + x->reg_off)
+#define MIO_EMM_INT_EN_SET(x)	(0xb0 + x->reg_off)
+#define MIO_EMM_INT_EN_CLR(x)	(0xb8 + x->reg_off)
 #define MIO_EMM_BUF_IDX(x)	(0xe0 + x->reg_off)
 #define MIO_EMM_BUF_DAT(x)	(0xe8 + x->reg_off)
 
