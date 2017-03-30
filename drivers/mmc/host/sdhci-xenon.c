@@ -280,6 +280,8 @@ static int xenon_start_signal_voltage_switch(struct mmc_host *mmc,
 	 */
 	xenon_enable_internal_clk(host);
 
+	xenon_soc_pad_ctrl(host, ios->signal_voltage);
+
 	/*
 	 * If Vqmmc is fixed on platform, vqmmc regulator should be unavailable.
 	 * Thus SDHCI_CTRL_VDD_180 bit might not work then.
