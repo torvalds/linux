@@ -16,6 +16,7 @@ Core utilities
    cpu_hotplug
    local_ops
    workqueue
+   genericirq
    flexible-arrays
 
 Interfaces for kernel debugging
