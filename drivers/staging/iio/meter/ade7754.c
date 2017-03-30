@@ -96,7 +96,7 @@
 /**
  * struct ade7754_state - device instance specific data
  * @us:			actual spi_device
- * @buf_lock:		mutex to protect tx and rx
+ * @buf_lock:		mutex to protect tx, rx and write frequency
  * @tx:			transmit buffer
  * @rx:			receive buffer
  **/
@@ -107,6 +107,17 @@ struct ade7754_state {
 	u8			rx[ADE7754_MAX_RX];
 };
 
+/* Unlocked version of ade7754_spi_write_reg_8 function */
+static int __ade7754_spi_write_reg_8(struct device *dev, u8 reg_address, u8 val)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ade7754_state *st = iio_priv(indio_dev);
+
+	st->tx[0] = ADE7754_WRITE_REG(reg_address);
+	st->tx[1] = val;
+	return spi_write(st->us, st->tx, 2);
+}
+
 static int ade7754_spi_write_reg_8(struct device *dev, u8 reg_address, u8 val)
 {
 	int ret;
@@ -114,10 +125,7 @@ static int ade7754_spi_write_reg_8(struct device *dev, u8 reg_address, u8 val)
 	struct ade7754_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->buf_lock);
-	st->tx[0] = ADE7754_WRITE_REG(reg_address);
-	st->tx[1] = val;
-
-	ret = spi_write(st->us, st->tx, 2);
+	ret = __ade7754_spi_write_reg_8(dev, reg_address, val);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -512,7 +520,7 @@ static ssize_t ade7754_write_frequency(struct device *dev,
 	if (!val)
 		return -EINVAL;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->buf_lock);
 
 	t = 26000 / val;
 	if (t > 0)
@@ -530,10 +538,10 @@ static ssize_t ade7754_write_frequency(struct device *dev,
 	reg &= ~(3 << 3);
 	reg |= t << 3;
 
-	ret = ade7754_spi_write_reg_8(dev, ADE7754_WAVMODE, reg);
+	ret = __ade7754_spi_write_reg_8(dev, ADE7754_WAVMODE, reg);
 
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->buf_lock);
 
 	return ret ? ret : len;
 }
