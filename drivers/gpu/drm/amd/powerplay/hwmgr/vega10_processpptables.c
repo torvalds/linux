@@ -116,14 +116,16 @@ static int init_thermal_controller(
 		const ATOM_Vega10_POWERPLAYTABLE *powerplay_table)
 {
 	const ATOM_Vega10_Thermal_Controller *thermal_controller;
-	const ATOM_Vega10_Fan_Table *fan_table;
+	const Vega10_PPTable_Generic_SubTable_Header *header;
+	const ATOM_Vega10_Fan_Table *fan_table_v1;
+	const ATOM_Vega10_Fan_Table_V2 *fan_table_v2;
 
 	thermal_controller = (ATOM_Vega10_Thermal_Controller *)
 			(((unsigned long)powerplay_table) +
 			le16_to_cpu(powerplay_table->usThermalControllerOffset));
 
 	PP_ASSERT_WITH_CODE((powerplay_table->usThermalControllerOffset != 0),
-			"Thermal controller table not set!", return -1);
+			"Thermal controller table not set!", return -EINVAL);
 
 	hwmgr->thermal_controller.ucType = thermal_controller->ucType;
 	hwmgr->thermal_controller.ucI2cLine = thermal_controller->ucI2cLine;
@@ -142,6 +144,9 @@ static int init_thermal_controller(
 	hwmgr->thermal_controller.fanInfo.ulMaxRPM =
 			thermal_controller->ucFanMaxRPM * 100UL;
 
+	hwmgr->thermal_controller.advanceFanControlParameters.ulCycleDelay
+			= 100000;
+
 	set_hw_cap(
 			hwmgr,
 			ATOM_VEGA10_PP_THERMALCONTROLLER_NONE != hwmgr->thermal_controller.ucType,
@@ -150,54 +155,101 @@ static int init_thermal_controller(
 	if (!powerplay_table->usFanTableOffset)
 		return 0;
 
-	fan_table = (const ATOM_Vega10_Fan_Table *)
+	header = (const Vega10_PPTable_Generic_SubTable_Header *)
 			(((unsigned long)powerplay_table) +
 			le16_to_cpu(powerplay_table->usFanTableOffset));
 
-	PP_ASSERT_WITH_CODE((fan_table->ucRevId >= 8),
-		"Invalid Input Fan Table!", return -1);
+	if (header->ucRevId == 10) {
+		fan_table_v1 = (ATOM_Vega10_Fan_Table *)header;
 
-	hwmgr->thermal_controller.advanceFanControlParameters.ulCycleDelay
-		= 100000;
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_MicrocodeFanControl);
+		PP_ASSERT_WITH_CODE((fan_table_v1->ucRevId >= 8),
+				"Invalid Input Fan Table!", return -EINVAL);
 
-	hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity =
-			le16_to_cpu(fan_table->usFanOutputSensitivity);
-	hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanRPM =
-			le16_to_cpu(fan_table->usFanRPMMax);
-	hwmgr->thermal_controller.advanceFanControlParameters.usFanRPMMaxLimit =
-			le16_to_cpu(fan_table->usThrottlingRPM);
-	hwmgr->thermal_controller.advanceFanControlParameters.ulMinFanSCLKAcousticLimit =
-			le32_to_cpu((uint32_t)(fan_table->usFanAcousticLimit));
-	hwmgr->thermal_controller.advanceFanControlParameters.usTMax =
-			le16_to_cpu(fan_table->usTargetTemperature);
-	hwmgr->thermal_controller.advanceFanControlParameters.usPWMMin =
-			le16_to_cpu(fan_table->usMinimumPWMLimit);
-	hwmgr->thermal_controller.advanceFanControlParameters.ulTargetGfxClk =
-			le32_to_cpu((uint32_t)(fan_table->usTargetGfxClk));
-	hwmgr->thermal_controller.advanceFanControlParameters.usFanGainEdge =
-			le16_to_cpu(fan_table->usFanGainEdge);
-	hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHotspot =
-			le16_to_cpu(fan_table->usFanGainHotspot);
-	hwmgr->thermal_controller.advanceFanControlParameters.usFanGainLiquid =
-			le16_to_cpu(fan_table->usFanGainLiquid);
-	hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrVddc =
-			le16_to_cpu(fan_table->usFanGainVrVddc);
-	hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrMvdd =
-			le16_to_cpu(fan_table->usFanGainVrMvdd);
-	hwmgr->thermal_controller.advanceFanControlParameters.usFanGainPlx =
-			le16_to_cpu(fan_table->usFanGainPlx);
-	hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHbm =
-			le16_to_cpu(fan_table->usFanGainHbm);
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_MicrocodeFanControl);
 
-	hwmgr->thermal_controller.advanceFanControlParameters.ucEnableZeroRPM =
-			fan_table->ucEnableZeroRPM;
-	hwmgr->thermal_controller.advanceFanControlParameters.usZeroRPMStopTemperature =
-			le16_to_cpu(fan_table->usFanStopTemperature);
-	hwmgr->thermal_controller.advanceFanControlParameters.usZeroRPMStartTemperature =
-			le16_to_cpu(fan_table->usFanStartTemperature);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity =
+				le16_to_cpu(fan_table_v1->usFanOutputSensitivity);
+		hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanRPM =
+				le16_to_cpu(fan_table_v1->usFanRPMMax);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanRPMMaxLimit =
+				le16_to_cpu(fan_table_v1->usThrottlingRPM);
+		hwmgr->thermal_controller.advanceFanControlParameters.ulMinFanSCLKAcousticLimit =
+				le16_to_cpu(fan_table_v1->usFanAcousticLimit);
+		hwmgr->thermal_controller.advanceFanControlParameters.usTMax =
+				le16_to_cpu(fan_table_v1->usTargetTemperature);
+		hwmgr->thermal_controller.advanceFanControlParameters.usPWMMin =
+				le16_to_cpu(fan_table_v1->usMinimumPWMLimit);
+		hwmgr->thermal_controller.advanceFanControlParameters.ulTargetGfxClk =
+				le16_to_cpu(fan_table_v1->usTargetGfxClk);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainEdge =
+				le16_to_cpu(fan_table_v1->usFanGainEdge);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHotspot =
+				le16_to_cpu(fan_table_v1->usFanGainHotspot);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainLiquid =
+				le16_to_cpu(fan_table_v1->usFanGainLiquid);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrVddc =
+				le16_to_cpu(fan_table_v1->usFanGainVrVddc);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrMvdd =
+				le16_to_cpu(fan_table_v1->usFanGainVrMvdd);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainPlx =
+				le16_to_cpu(fan_table_v1->usFanGainPlx);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHbm =
+				le16_to_cpu(fan_table_v1->usFanGainHbm);
 
+		hwmgr->thermal_controller.advanceFanControlParameters.ucEnableZeroRPM =
+				fan_table_v1->ucEnableZeroRPM;
+		hwmgr->thermal_controller.advanceFanControlParameters.usZeroRPMStopTemperature =
+				le16_to_cpu(fan_table_v1->usFanStopTemperature);
+		hwmgr->thermal_controller.advanceFanControlParameters.usZeroRPMStartTemperature =
+				le16_to_cpu(fan_table_v1->usFanStartTemperature);
+	} else if (header->ucRevId > 10) {
+		fan_table_v2 = (ATOM_Vega10_Fan_Table_V2 *)header;
+
+		hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution =
+				fan_table_v2->ucFanParameters & ATOM_VEGA10_PP_FANPARAMETERS_TACHOMETER_PULSES_PER_REVOLUTION_MASK;
+		hwmgr->thermal_controller.fanInfo.ulMinRPM = fan_table_v2->ucFanMinRPM * 100UL;
+		hwmgr->thermal_controller.fanInfo.ulMaxRPM = fan_table_v2->ucFanMaxRPM * 100UL;
+
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_MicrocodeFanControl);
+
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity =
+				le16_to_cpu(fan_table_v2->usFanOutputSensitivity);
+		hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanRPM =
+				fan_table_v2->ucFanMaxRPM * 100UL;
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanRPMMaxLimit =
+				le16_to_cpu(fan_table_v2->usThrottlingRPM);
+		hwmgr->thermal_controller.advanceFanControlParameters.ulMinFanSCLKAcousticLimit =
+				le16_to_cpu(fan_table_v2->usFanAcousticLimitRpm);
+		hwmgr->thermal_controller.advanceFanControlParameters.usTMax =
+				le16_to_cpu(fan_table_v2->usTargetTemperature);
+		hwmgr->thermal_controller.advanceFanControlParameters.usPWMMin =
+				le16_to_cpu(fan_table_v2->usMinimumPWMLimit);
+		hwmgr->thermal_controller.advanceFanControlParameters.ulTargetGfxClk =
+				le16_to_cpu(fan_table_v2->usTargetGfxClk);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainEdge =
+				le16_to_cpu(fan_table_v2->usFanGainEdge);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHotspot =
+				le16_to_cpu(fan_table_v2->usFanGainHotspot);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainLiquid =
+				le16_to_cpu(fan_table_v2->usFanGainLiquid);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrVddc =
+				le16_to_cpu(fan_table_v2->usFanGainVrVddc);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrMvdd =
+				le16_to_cpu(fan_table_v2->usFanGainVrMvdd);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainPlx =
+				le16_to_cpu(fan_table_v2->usFanGainPlx);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHbm =
+				le16_to_cpu(fan_table_v2->usFanGainHbm);
+
+		hwmgr->thermal_controller.advanceFanControlParameters.ucEnableZeroRPM =
+				fan_table_v2->ucEnableZeroRPM;
+		hwmgr->thermal_controller.advanceFanControlParameters.usZeroRPMStopTemperature =
+				le16_to_cpu(fan_table_v2->usFanStopTemperature);
+		hwmgr->thermal_controller.advanceFanControlParameters.usZeroRPMStartTemperature =
+				le16_to_cpu(fan_table_v2->usFanStartTemperature);
+	}
 	return 0;
 }
 

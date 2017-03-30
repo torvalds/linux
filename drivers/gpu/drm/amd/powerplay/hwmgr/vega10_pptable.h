@@ -250,6 +250,29 @@ typedef struct _ATOM_Vega10_Fan_Table {
 	USHORT  usFanStartTemperature;
 } ATOM_Vega10_Fan_Table;
 
+typedef struct _ATOM_Vega10_Fan_Table_V2 {
+	UCHAR   ucRevId;
+	USHORT  usFanOutputSensitivity;
+	USHORT  usFanAcousticLimitRpm;
+	USHORT  usThrottlingRPM;
+	USHORT  usTargetTemperature;
+	USHORT  usMinimumPWMLimit;
+	USHORT  usTargetGfxClk;
+	USHORT  usFanGainEdge;
+	USHORT  usFanGainHotspot;
+	USHORT  usFanGainLiquid;
+	USHORT  usFanGainVrVddc;
+	USHORT  usFanGainVrMvdd;
+	USHORT  usFanGainPlx;
+	USHORT  usFanGainHbm;
+	UCHAR   ucEnableZeroRPM;
+	USHORT  usFanStopTemperature;
+	USHORT  usFanStartTemperature;
+	UCHAR   ucFanParameters;
+	UCHAR   ucFanMinRPM;
+	UCHAR   ucFanMaxRPM;
+} ATOM_Vega10_Fan_Table_V2;
+
 typedef struct _ATOM_Vega10_Thermal_Controller {
 	UCHAR ucRevId;
 	UCHAR ucType;           /* one of ATOM_VEGA10_PP_THERMALCONTROLLER_*/
