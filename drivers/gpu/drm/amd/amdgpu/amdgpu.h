@@ -571,7 +571,6 @@ struct amdgpu_vmhub {
 	uint32_t	vm_l2_pro_fault_status;
 	uint32_t	vm_l2_pro_fault_cntl;
 	uint32_t	(*get_invalidate_req)(unsigned int vm_id);
-	uint32_t	(*get_vm_protection_bits)(void);
 };
 
 /*

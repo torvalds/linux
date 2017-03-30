@@ -318,17 +318,6 @@ static uint32_t gfxhub_v1_0_get_invalidate_req(unsigned int vm_id)
 	return req;
 }
 
-static uint32_t gfxhub_v1_0_get_vm_protection_bits(void)
-{
-	return (VM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		    VM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		    VM_CONTEXT1_CNTL__PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		    VM_CONTEXT1_CNTL__VALID_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		    VM_CONTEXT1_CNTL__READ_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		    VM_CONTEXT1_CNTL__WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-		    VM_CONTEXT1_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK);
-}
-
 static int gfxhub_v1_0_early_init(void *handle)
 {
 	return 0;
@@ -362,7 +351,6 @@ static int gfxhub_v1_0_sw_init(void *handle)
 		SOC15_REG_OFFSET(GC, 0, mmVM_L2_PROTECTION_FAULT_CNTL);
 
 	hub->get_invalidate_req = gfxhub_v1_0_get_invalidate_req;
-	hub->get_vm_protection_bits = gfxhub_v1_0_get_vm_protection_bits;
 
 	return 0;
 }

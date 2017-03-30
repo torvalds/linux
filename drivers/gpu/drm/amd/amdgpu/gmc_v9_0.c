@@ -75,11 +75,18 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 	struct amdgpu_vmhub *hub;
 	u32 tmp, reg, bits, i;
 
+	bits = VM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		VM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		VM_CONTEXT1_CNTL__PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		VM_CONTEXT1_CNTL__VALID_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		VM_CONTEXT1_CNTL__READ_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		VM_CONTEXT1_CNTL__WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
+		VM_CONTEXT1_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK;
+
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
 		/* MM HUB */
 		hub = &adev->vmhub[AMDGPU_MMHUB];
-		bits = hub->get_vm_protection_bits();
 		for (i = 0; i< 16; i++) {
 			reg = hub->vm_context0_cntl + i;
 			tmp = RREG32(reg);
@@ -89,7 +96,6 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 
 		/* GFX HUB */
 		hub = &adev->vmhub[AMDGPU_GFXHUB];
-		bits = hub->get_vm_protection_bits();
 		for (i = 0; i < 16; i++) {
 			reg = hub->vm_context0_cntl + i;
 			tmp = RREG32(reg);
@@ -100,7 +106,6 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 	case AMDGPU_IRQ_STATE_ENABLE:
 		/* MM HUB */
 		hub = &adev->vmhub[AMDGPU_MMHUB];
-		bits = hub->get_vm_protection_bits();
 		for (i = 0; i< 16; i++) {
 			reg = hub->vm_context0_cntl + i;
 			tmp = RREG32(reg);
@@ -110,7 +115,6 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 
 		/* GFX HUB */
 		hub = &adev->vmhub[AMDGPU_GFXHUB];
-		bits = hub->get_vm_protection_bits();
 		for (i = 0; i < 16; i++) {
 			reg = hub->vm_context0_cntl + i;
 			tmp = RREG32(reg);
