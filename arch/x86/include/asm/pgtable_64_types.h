@@ -98,7 +98,7 @@ typedef struct { pteval_t pte; } pte_t;
 #define MODULES_END   __fix_to_virt(__end_of_fixed_addresses + 1)
 #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
 #define ESPFIX_PGD_ENTRY _AC(-2, UL)
-#define ESPFIX_BASE_ADDR (ESPFIX_PGD_ENTRY << PGDIR_SHIFT)
+#define ESPFIX_BASE_ADDR (ESPFIX_PGD_ENTRY << P4D_SHIFT)
 #define EFI_VA_START	 ( -4 * (_AC(1, UL) << 30))
 #define EFI_VA_END	 (-68 * (_AC(1, UL) << 30))
 
