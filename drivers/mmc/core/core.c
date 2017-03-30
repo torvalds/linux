@@ -2806,7 +2806,7 @@ int mmc_flush_cache(struct mmc_card *card)
 			(card->ext_csd.cache_size > 0) &&
 			(card->ext_csd.cache_ctrl & 1)) {
 		err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				   EXT_CSD_FLUSH_CACHE, 1, 1,
+				   EXT_CSD_FLUSH_CACHE, 1, 0,
 				   true, false, false);
 		if (err)
 			pr_err("%s: cache flush error %d\n",
