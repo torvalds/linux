@@ -10,6 +10,7 @@
 
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/extcon.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -263,6 +264,8 @@ struct renesas_usb3 {
 
 	struct usb_gadget gadget;
 	struct usb_gadget_driver *driver;
+	struct extcon_dev *extcon;
+	struct work_struct extcon_work;
 
 	struct renesas_usb3_ep *usb3_ep;
 	int num_usb3_eps;
@@ -275,6 +278,8 @@ struct renesas_usb3 {
 	u8 ep0_buf[USB3_EP0_BUF_SIZE];
 	bool softconnect;
 	bool workaround_for_vbus;
+	bool extcon_host;		/* check id and set EXTCON_USB_HOST */
+	bool extcon_usb;		/* check vbus and set EXTCON_USB */
 };
 
 #define gadget_to_renesas_usb3(_gadget)	\
@@ -336,6 +341,15 @@ static int usb3_wait(struct renesas_usb3 *usb3, u32 reg, u32 mask,
 		__func__, reg, mask, expected);
 
 	return -EBUSY;
+}
+
+static void renesas_usb3_extcon_work(struct work_struct *work)
+{
+	struct renesas_usb3 *usb3 = container_of(work, struct renesas_usb3,
+						 extcon_work);
+
+	extcon_set_state_sync(usb3->extcon, EXTCON_USB_HOST, usb3->extcon_host);
+	extcon_set_state_sync(usb3->extcon, EXTCON_USB, usb3->extcon_usb);
 }
 
 static void usb3_enable_irq_1(struct renesas_usb3 *usb3, u32 bits)
@@ -533,10 +547,14 @@ static void usb3_check_vbus(struct renesas_usb3 *usb3)
 	if (usb3->workaround_for_vbus) {
 		usb3_connect(usb3);
 	} else {
-		if (usb3_read(usb3, USB3_USB_STA) & USB_STA_VBUS_STA)
+		usb3->extcon_usb = !!(usb3_read(usb3, USB3_USB_STA) &
+							USB_STA_VBUS_STA);
+		if (usb3->extcon_usb)
 			usb3_connect(usb3);
 		else
 			usb3_disconnect(usb3);
+
+		schedule_work(&usb3->extcon_work);
 	}
 }
 
@@ -569,10 +587,14 @@ static bool usb3_is_a_device(struct renesas_usb3 *usb3)
 
 static void usb3_check_id(struct renesas_usb3 *usb3)
 {
-	if (usb3_is_a_device(usb3))
+	usb3->extcon_host = usb3_is_a_device(usb3);
+
+	if (usb3->extcon_host)
 		usb3_mode_config(usb3, true, true);
 	else
 		usb3_mode_config(usb3, false, false);
+
+	schedule_work(&usb3->extcon_work);
 }
 
 static void renesas_usb3_init_controller(struct renesas_usb3 *usb3)
@@ -1953,6 +1975,12 @@ static const struct of_device_id usb3_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, usb3_of_match);
 
+static const unsigned int renesas_usb3_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_NONE,
+};
+
 static int renesas_usb3_probe(struct platform_device *pdev)
 {
 	struct renesas_usb3 *usb3;
@@ -1995,6 +2023,17 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 			       dev_name(&pdev->dev), usb3);
 	if (ret < 0)
 		return ret;
+
+	INIT_WORK(&usb3->extcon_work, renesas_usb3_extcon_work);
+	usb3->extcon = devm_extcon_dev_allocate(&pdev->dev, renesas_usb3_cable);
+	if (IS_ERR(usb3->extcon))
+		return PTR_ERR(usb3->extcon);
+
+	ret = devm_extcon_dev_register(&pdev->dev, usb3->extcon);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to register extcon\n");
+		return ret;
+	}
 
 	/* for ep0 handling */
 	usb3->ep0_req = __renesas_usb3_ep_alloc_request(GFP_KERNEL);
