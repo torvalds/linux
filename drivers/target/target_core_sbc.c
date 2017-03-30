@@ -828,6 +828,59 @@ sbc_check_dpofua(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb)
 	return 0;
 }
 
+/**
+ * sbc_parse_verify - parse VERIFY, VERIFY_16 and WRITE VERIFY commands
+ * @cmd:     (in)  structure that describes the SCSI command to be parsed.
+ * @sectors: (out) Number of logical blocks on the storage medium that will be
+ *           affected by the SCSI command.
+ * @bufflen: (out) Expected length of the SCSI Data-Out buffer.
+ */
+static sense_reason_t sbc_parse_verify(struct se_cmd *cmd, int *sectors,
+				       u32 *bufflen)
+{
+	struct se_device *dev = cmd->se_dev;
+	u8 *cdb = cmd->t_task_cdb;
+	u8 bytchk = (cdb[1] >> 1) & 3;
+	sense_reason_t ret;
+
+	switch (cdb[0]) {
+	case VERIFY:
+	case WRITE_VERIFY:
+		*sectors = transport_get_sectors_10(cdb);
+		cmd->t_task_lba = transport_lba_32(cdb);
+		break;
+	case VERIFY_16:
+		*sectors = transport_get_sectors_16(cdb);
+		cmd->t_task_lba = transport_lba_64(cdb);
+		break;
+	default:
+		WARN_ON_ONCE(true);
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
+	}
+
+	if (sbc_check_dpofua(dev, cmd, cdb))
+		return TCM_INVALID_CDB_FIELD;
+
+	ret = sbc_check_prot(dev, cmd, cdb, *sectors, true);
+	if (ret)
+		return ret;
+
+	switch (bytchk) {
+	case 0:
+		*bufflen = 0;
+		break;
+	case 1:
+		*bufflen = sbc_get_size(cmd, *sectors);
+		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		break;
+	default:
+		pr_err("Unsupported BYTCHK value %d for SCSI opcode %#x\n",
+		       bytchk, cdb[0]);
+		return TCM_INVALID_CDB_FIELD;
+	}
+	return TCM_NO_SENSE;
+}
+
 sense_reason_t
 sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 {
@@ -895,7 +948,6 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case WRITE_10:
-	case WRITE_VERIFY:
 		sectors = transport_get_sectors_10(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
 
@@ -909,6 +961,12 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
+	case WRITE_VERIFY:
+		ret = sbc_parse_verify(cmd, &sectors, &size);
+		if (ret)
+			return ret;
+		cmd->execute_cmd = sbc_execute_rw;
+		goto check_lba;
 	case WRITE_12:
 		sectors = transport_get_sectors_12(cdb);
 		cmd->t_task_lba = transport_lba_32(cdb);
@@ -1106,14 +1164,9 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		break;
 	case VERIFY:
 	case VERIFY_16:
-		size = 0;
-		if (cdb[0] == VERIFY) {
-			sectors = transport_get_sectors_10(cdb);
-			cmd->t_task_lba = transport_lba_32(cdb);
-		} else {
-			sectors = transport_get_sectors_16(cdb);
-			cmd->t_task_lba = transport_lba_64(cdb);
-		}
+		ret = sbc_parse_verify(cmd, &sectors, &size);
+		if (ret)
+			return ret;
 		cmd->execute_cmd = sbc_emulate_noop;
 		goto check_lba;
 	case REZERO_UNIT:
