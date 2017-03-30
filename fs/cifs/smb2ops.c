@@ -21,6 +21,7 @@
 #include <linux/vfs.h>
 #include <linux/falloc.h>
 #include <linux/scatterlist.h>
+#include <linux/uuid.h>
 #include <crypto/aead.h>
 #include "cifsglob.h"
 #include "smb2pdu.h"
