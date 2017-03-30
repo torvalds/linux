@@ -88,7 +88,6 @@ MODULE_VERSION(IBMVNIC_DRIVER_VERSION);
 static int ibmvnic_version = IBMVNIC_INITIAL_VERSION;
 static int ibmvnic_remove(struct vio_dev *);
 static void release_sub_crqs(struct ibmvnic_adapter *);
-static void release_sub_crqs_no_irqs(struct ibmvnic_adapter *);
 static int ibmvnic_reset_crq(struct ibmvnic_adapter *);
 static int ibmvnic_send_crq_init(struct ibmvnic_adapter *);
 static int ibmvnic_reenable_crq_queue(struct ibmvnic_adapter *);
@@ -113,7 +112,7 @@ static void send_login(struct ibmvnic_adapter *adapter);
 static void send_cap_queries(struct ibmvnic_adapter *adapter);
 static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter);
 static int ibmvnic_init(struct ibmvnic_adapter *);
-static void ibmvnic_release_crq_queue(struct ibmvnic_adapter *);
+static void release_crq_queue(struct ibmvnic_adapter *);
 
 struct ibmvnic_stat {
 	char name[ETH_GSTRING_LEN];
@@ -163,21 +162,6 @@ static long h_reg_sub_crq(unsigned long unit_address, unsigned long token,
 	return rc;
 }
 
-/* net_device_ops functions */
-
-static void init_rx_pool(struct ibmvnic_adapter *adapter,
-			 struct ibmvnic_rx_pool *rx_pool, int num, int index,
-			 int buff_size, int active)
-{
-	netdev_dbg(adapter->netdev,
-		   "Initializing rx_pool %d, %d buffs, %d bytes each\n",
-		   index, num, buff_size);
-	rx_pool->size = num;
-	rx_pool->index = index;
-	rx_pool->buff_size = buff_size;
-	rx_pool->active = active;
-}
-
 static int alloc_long_term_buff(struct ibmvnic_adapter *adapter,
 				struct ibmvnic_long_term_buff *ltb, int size)
 {
@@ -206,45 +190,12 @@ static void free_long_term_buff(struct ibmvnic_adapter *adapter,
 {
 	struct device *dev = &adapter->vdev->dev;
 
+	if (!ltb->buff)
+		return;
+
 	dma_free_coherent(dev, ltb->size, ltb->buff, ltb->addr);
 	if (!adapter->failover)
 		send_request_unmap(adapter, ltb->map_id);
-}
-
-static int alloc_rx_pool(struct ibmvnic_adapter *adapter,
-			 struct ibmvnic_rx_pool *pool)
-{
-	struct device *dev = &adapter->vdev->dev;
-	int i;
-
-	pool->free_map = kcalloc(pool->size, sizeof(int), GFP_KERNEL);
-	if (!pool->free_map)
-		return -ENOMEM;
-
-	pool->rx_buff = kcalloc(pool->size, sizeof(struct ibmvnic_rx_buff),
-				GFP_KERNEL);
-
-	if (!pool->rx_buff) {
-		dev_err(dev, "Couldn't alloc rx buffers\n");
-		kfree(pool->free_map);
-		return -ENOMEM;
-	}
-
-	if (alloc_long_term_buff(adapter, &pool->long_term_buff,
-				 pool->size * pool->buff_size)) {
-		kfree(pool->free_map);
-		kfree(pool->rx_buff);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < pool->size; ++i)
-		pool->free_map[i] = i;
-
-	atomic_set(&pool->available, 0);
-	pool->next_alloc = 0;
-	pool->next_free = 0;
-
-	return 0;
 }
 
 static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
@@ -351,25 +302,248 @@ static void replenish_pools(struct ibmvnic_adapter *adapter)
 	}
 }
 
-static void free_rx_pool(struct ibmvnic_adapter *adapter,
-			 struct ibmvnic_rx_pool *pool)
+static void release_stats_token(struct ibmvnic_adapter *adapter)
 {
-	int i;
+	struct device *dev = &adapter->vdev->dev;
 
-	kfree(pool->free_map);
-	pool->free_map = NULL;
-
-	if (!pool->rx_buff)
+	if (!adapter->stats_token)
 		return;
 
-	for (i = 0; i < pool->size; i++) {
-		if (pool->rx_buff[i].skb) {
-			dev_kfree_skb_any(pool->rx_buff[i].skb);
-			pool->rx_buff[i].skb = NULL;
-		}
+	dma_unmap_single(dev, adapter->stats_token,
+			 sizeof(struct ibmvnic_statistics),
+			 DMA_FROM_DEVICE);
+	adapter->stats_token = 0;
+}
+
+static int init_stats_token(struct ibmvnic_adapter *adapter)
+{
+	struct device *dev = &adapter->vdev->dev;
+	dma_addr_t stok;
+
+	stok = dma_map_single(dev, &adapter->stats,
+			      sizeof(struct ibmvnic_statistics),
+			      DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, stok)) {
+		dev_err(dev, "Couldn't map stats buffer\n");
+		return -1;
 	}
-	kfree(pool->rx_buff);
-	pool->rx_buff = NULL;
+
+	adapter->stats_token = stok;
+	return 0;
+}
+
+static void release_rx_pools(struct ibmvnic_adapter *adapter)
+{
+	struct ibmvnic_rx_pool *rx_pool;
+	int rx_scrqs;
+	int i, j;
+
+	if (!adapter->rx_pool)
+		return;
+
+	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
+	for (i = 0; i < rx_scrqs; i++) {
+		rx_pool = &adapter->rx_pool[i];
+
+		kfree(rx_pool->free_map);
+		free_long_term_buff(adapter, &rx_pool->long_term_buff);
+
+		if (!rx_pool->rx_buff)
+		continue;
+
+		for (j = 0; j < rx_pool->size; j++) {
+			if (rx_pool->rx_buff[j].skb) {
+				dev_kfree_skb_any(rx_pool->rx_buff[i].skb);
+				rx_pool->rx_buff[i].skb = NULL;
+			}
+		}
+
+		kfree(rx_pool->rx_buff);
+	}
+
+	kfree(adapter->rx_pool);
+	adapter->rx_pool = NULL;
+}
+
+static int init_rx_pools(struct net_device *netdev)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->vdev->dev;
+	struct ibmvnic_rx_pool *rx_pool;
+	int rxadd_subcrqs;
+	u64 *size_array;
+	int i, j;
+
+	rxadd_subcrqs =
+		be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
+	size_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
+		be32_to_cpu(adapter->login_rsp_buf->off_rxadd_buff_size));
+
+	adapter->rx_pool = kcalloc(rxadd_subcrqs,
+				   sizeof(struct ibmvnic_rx_pool),
+				   GFP_KERNEL);
+	if (!adapter->rx_pool) {
+		dev_err(dev, "Failed to allocate rx pools\n");
+		return -1;
+	}
+
+	for (i = 0; i < rxadd_subcrqs; i++) {
+		rx_pool = &adapter->rx_pool[i];
+
+		netdev_dbg(adapter->netdev,
+			   "Initializing rx_pool %d, %lld buffs, %lld bytes each\n",
+			   i, adapter->req_rx_add_entries_per_subcrq,
+			   be64_to_cpu(size_array[i]));
+
+		rx_pool->size = adapter->req_rx_add_entries_per_subcrq;
+		rx_pool->index = i;
+		rx_pool->buff_size = be64_to_cpu(size_array[i]);
+		rx_pool->active = 1;
+
+		rx_pool->free_map = kcalloc(rx_pool->size, sizeof(int),
+					    GFP_KERNEL);
+		if (!rx_pool->free_map) {
+			release_rx_pools(adapter);
+			return -1;
+		}
+
+		rx_pool->rx_buff = kcalloc(rx_pool->size,
+					   sizeof(struct ibmvnic_rx_buff),
+					   GFP_KERNEL);
+		if (!rx_pool->rx_buff) {
+			dev_err(dev, "Couldn't alloc rx buffers\n");
+			release_rx_pools(adapter);
+			return -1;
+		}
+
+		if (alloc_long_term_buff(adapter, &rx_pool->long_term_buff,
+					 rx_pool->size * rx_pool->buff_size)) {
+			release_rx_pools(adapter);
+			return -1;
+		}
+
+		for (j = 0; j < rx_pool->size; ++j)
+			rx_pool->free_map[j] = j;
+
+		atomic_set(&rx_pool->available, 0);
+		rx_pool->next_alloc = 0;
+		rx_pool->next_free = 0;
+	}
+
+	return 0;
+}
+
+static void release_tx_pools(struct ibmvnic_adapter *adapter)
+{
+	struct ibmvnic_tx_pool *tx_pool;
+	int i, tx_scrqs;
+
+	if (!adapter->tx_pool)
+		return;
+
+	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
+	for (i = 0; i < tx_scrqs; i++) {
+		tx_pool = &adapter->tx_pool[i];
+		kfree(tx_pool->tx_buff);
+		free_long_term_buff(adapter, &tx_pool->long_term_buff);
+		kfree(tx_pool->free_map);
+	}
+
+	kfree(adapter->tx_pool);
+	adapter->tx_pool = NULL;
+}
+
+static int init_tx_pools(struct net_device *netdev)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->vdev->dev;
+	struct ibmvnic_tx_pool *tx_pool;
+	int tx_subcrqs;
+	int i, j;
+
+	tx_subcrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
+	adapter->tx_pool = kcalloc(tx_subcrqs,
+				   sizeof(struct ibmvnic_tx_pool), GFP_KERNEL);
+	if (!adapter->tx_pool)
+		return -1;
+
+	for (i = 0; i < tx_subcrqs; i++) {
+		tx_pool = &adapter->tx_pool[i];
+		tx_pool->tx_buff = kcalloc(adapter->req_tx_entries_per_subcrq,
+					   sizeof(struct ibmvnic_tx_buff),
+					   GFP_KERNEL);
+		if (!tx_pool->tx_buff) {
+			dev_err(dev, "tx pool buffer allocation failed\n");
+			release_tx_pools(adapter);
+			return -1;
+		}
+
+		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
+					 adapter->req_tx_entries_per_subcrq *
+					 adapter->req_mtu)) {
+			release_tx_pools(adapter);
+			return -1;
+		}
+
+		tx_pool->free_map = kcalloc(adapter->req_tx_entries_per_subcrq,
+					    sizeof(int), GFP_KERNEL);
+		if (!tx_pool->free_map) {
+			release_tx_pools(adapter);
+			return -1;
+		}
+
+		for (j = 0; j < adapter->req_tx_entries_per_subcrq; j++)
+			tx_pool->free_map[j] = j;
+
+		tx_pool->consumer_index = 0;
+		tx_pool->producer_index = 0;
+	}
+
+	return 0;
+}
+
+static void release_bounce_buffer(struct ibmvnic_adapter *adapter)
+{
+	struct device *dev = &adapter->vdev->dev;
+
+	if (!adapter->bounce_buffer)
+		return;
+
+	if (!dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
+		dma_unmap_single(dev, adapter->bounce_buffer_dma,
+				 adapter->bounce_buffer_size,
+				 DMA_BIDIRECTIONAL);
+		adapter->bounce_buffer_dma = DMA_ERROR_CODE;
+	}
+
+	kfree(adapter->bounce_buffer);
+	adapter->bounce_buffer = NULL;
+}
+
+static int init_bounce_buffer(struct net_device *netdev)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->vdev->dev;
+	char *buf;
+	int buf_sz;
+	dma_addr_t map_addr;
+
+	buf_sz = (netdev->mtu + ETH_HLEN - 1) / PAGE_SIZE + 1;
+	buf = kmalloc(adapter->bounce_buffer_size, GFP_KERNEL);
+	if (!buf)
+		return -1;
+
+	map_addr = dma_map_single(dev, buf, buf_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, map_addr)) {
+		dev_err(dev, "Couldn't map bounce buffer\n");
+		kfree(buf);
+		return -1;
+	}
+
+	adapter->bounce_buffer = buf;
+	adapter->bounce_buffer_size = buf_sz;
+	adapter->bounce_buffer_dma = map_addr;
+	return 0;
 }
 
 static int ibmvnic_login(struct net_device *netdev)
@@ -381,7 +555,7 @@ static int ibmvnic_login(struct net_device *netdev)
 	do {
 		if (adapter->renegotiate) {
 			adapter->renegotiate = false;
-			release_sub_crqs_no_irqs(adapter);
+			release_sub_crqs(adapter);
 
 			reinit_completion(&adapter->init_done);
 			send_cap_queries(adapter);
@@ -404,17 +578,25 @@ static int ibmvnic_login(struct net_device *netdev)
 	return 0;
 }
 
+static void release_resources(struct ibmvnic_adapter *adapter)
+{
+	release_bounce_buffer(adapter);
+	release_tx_pools(adapter);
+	release_rx_pools(adapter);
+
+	release_sub_crqs(adapter);
+	release_crq_queue(adapter);
+
+	release_stats_token(adapter);
+}
+
 static int ibmvnic_open(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	struct device *dev = &adapter->vdev->dev;
-	struct ibmvnic_tx_pool *tx_pool;
 	union ibmvnic_crq crq;
-	int rxadd_subcrqs;
-	u64 *size_array;
-	int tx_subcrqs;
 	int rc = 0;
-	int i, j;
+	int i;
 
 	if (adapter->is_closed) {
 		rc = ibmvnic_init(adapter);
@@ -438,82 +620,31 @@ static int ibmvnic_open(struct net_device *netdev)
 		return -1;
 	}
 
-	rxadd_subcrqs =
-	    be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
-	tx_subcrqs =
-	    be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
-	size_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
-				  be32_to_cpu(adapter->login_rsp_buf->
-					      off_rxadd_buff_size));
 	adapter->map_id = 1;
 	adapter->napi = kcalloc(adapter->req_rx_queues,
 				sizeof(struct napi_struct), GFP_KERNEL);
 	if (!adapter->napi)
-		goto alloc_napi_failed;
+		goto ibmvnic_open_fail;
 	for (i = 0; i < adapter->req_rx_queues; i++) {
 		netif_napi_add(netdev, &adapter->napi[i], ibmvnic_poll,
 			       NAPI_POLL_WEIGHT);
 		napi_enable(&adapter->napi[i]);
 	}
-	adapter->rx_pool =
-	    kcalloc(rxadd_subcrqs, sizeof(struct ibmvnic_rx_pool), GFP_KERNEL);
 
-	if (!adapter->rx_pool)
-		goto rx_pool_arr_alloc_failed;
 	send_map_query(adapter);
-	for (i = 0; i < rxadd_subcrqs; i++) {
-		init_rx_pool(adapter, &adapter->rx_pool[i],
-			     adapter->req_rx_add_entries_per_subcrq, i,
-			     be64_to_cpu(size_array[i]), 1);
-		if (alloc_rx_pool(adapter, &adapter->rx_pool[i])) {
-			dev_err(dev, "Couldn't alloc rx pool\n");
-			goto rx_pool_alloc_failed;
-		}
-	}
-	adapter->tx_pool =
-	    kcalloc(tx_subcrqs, sizeof(struct ibmvnic_tx_pool), GFP_KERNEL);
 
-	if (!adapter->tx_pool)
-		goto tx_pool_arr_alloc_failed;
-	for (i = 0; i < tx_subcrqs; i++) {
-		tx_pool = &adapter->tx_pool[i];
-		tx_pool->tx_buff =
-		    kcalloc(adapter->req_tx_entries_per_subcrq,
-			    sizeof(struct ibmvnic_tx_buff), GFP_KERNEL);
-		if (!tx_pool->tx_buff)
-			goto tx_pool_alloc_failed;
+	rc = init_rx_pools(netdev);
+	if (rc)
+		goto ibmvnic_open_fail;
 
-		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
-					 adapter->req_tx_entries_per_subcrq *
-					 adapter->req_mtu))
-			goto tx_ltb_alloc_failed;
+	rc = init_tx_pools(netdev);
+	if (rc)
+		goto ibmvnic_open_fail;
 
-		tx_pool->free_map =
-		    kcalloc(adapter->req_tx_entries_per_subcrq,
-			    sizeof(int), GFP_KERNEL);
-		if (!tx_pool->free_map)
-			goto tx_fm_alloc_failed;
+	rc = init_bounce_buffer(netdev);
+	if (rc)
+		goto ibmvnic_open_fail;
 
-		for (j = 0; j < adapter->req_tx_entries_per_subcrq; j++)
-			tx_pool->free_map[j] = j;
-
-		tx_pool->consumer_index = 0;
-		tx_pool->producer_index = 0;
-	}
-	adapter->bounce_buffer_size =
-	    (netdev->mtu + ETH_HLEN - 1) / PAGE_SIZE + 1;
-	adapter->bounce_buffer = kmalloc(adapter->bounce_buffer_size,
-					 GFP_KERNEL);
-	if (!adapter->bounce_buffer)
-		goto bounce_alloc_failed;
-
-	adapter->bounce_buffer_dma = dma_map_single(dev, adapter->bounce_buffer,
-						    adapter->bounce_buffer_size,
-						    DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
-		dev_err(dev, "Couldn't map tx bounce buffer\n");
-		goto bounce_map_failed;
-	}
 	replenish_pools(adapter);
 
 	/* We're ready to receive frames, enable the sub-crq interrupts and
@@ -536,88 +667,11 @@ static int ibmvnic_open(struct net_device *netdev)
 
 	return 0;
 
-bounce_map_failed:
-	kfree(adapter->bounce_buffer);
-bounce_alloc_failed:
-	i = tx_subcrqs - 1;
-	kfree(adapter->tx_pool[i].free_map);
-tx_fm_alloc_failed:
-	free_long_term_buff(adapter, &adapter->tx_pool[i].long_term_buff);
-tx_ltb_alloc_failed:
-	kfree(adapter->tx_pool[i].tx_buff);
-tx_pool_alloc_failed:
-	for (j = 0; j < i; j++) {
-		kfree(adapter->tx_pool[j].tx_buff);
-		free_long_term_buff(adapter,
-				    &adapter->tx_pool[j].long_term_buff);
-		kfree(adapter->tx_pool[j].free_map);
-	}
-	kfree(adapter->tx_pool);
-	adapter->tx_pool = NULL;
-tx_pool_arr_alloc_failed:
-	i = rxadd_subcrqs;
-rx_pool_alloc_failed:
-	for (j = 0; j < i; j++) {
-		free_rx_pool(adapter, &adapter->rx_pool[j]);
-		free_long_term_buff(adapter,
-				    &adapter->rx_pool[j].long_term_buff);
-	}
-	kfree(adapter->rx_pool);
-	adapter->rx_pool = NULL;
-rx_pool_arr_alloc_failed:
+ibmvnic_open_fail:
 	for (i = 0; i < adapter->req_rx_queues; i++)
 		napi_disable(&adapter->napi[i]);
-alloc_napi_failed:
-	release_sub_crqs(adapter);
+	release_resources(adapter);
 	return -ENOMEM;
-}
-
-static void ibmvnic_release_resources(struct ibmvnic_adapter *adapter)
-{
-	struct device *dev = &adapter->vdev->dev;
-	int tx_scrqs, rx_scrqs;
-	int i;
-
-	if (adapter->bounce_buffer) {
-		if (!dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
-			dma_unmap_single(&adapter->vdev->dev,
-					 adapter->bounce_buffer_dma,
-					 adapter->bounce_buffer_size,
-					 DMA_BIDIRECTIONAL);
-			adapter->bounce_buffer_dma = DMA_ERROR_CODE;
-		}
-		kfree(adapter->bounce_buffer);
-		adapter->bounce_buffer = NULL;
-	}
-
-	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
-	for (i = 0; i < tx_scrqs; i++) {
-		struct ibmvnic_tx_pool *tx_pool = &adapter->tx_pool[i];
-
-		kfree(tx_pool->tx_buff);
-		free_long_term_buff(adapter, &tx_pool->long_term_buff);
-		kfree(tx_pool->free_map);
-	}
-	kfree(adapter->tx_pool);
-	adapter->tx_pool = NULL;
-
-	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
-	for (i = 0; i < rx_scrqs; i++) {
-		struct ibmvnic_rx_pool *rx_pool = &adapter->rx_pool[i];
-
-		free_rx_pool(adapter, rx_pool);
-		free_long_term_buff(adapter, &rx_pool->long_term_buff);
-	}
-	kfree(adapter->rx_pool);
-	adapter->rx_pool = NULL;
-
-	release_sub_crqs(adapter);
-	ibmvnic_release_crq_queue(adapter);
-
-	if (adapter->stats_token)
-		dma_unmap_single(dev, adapter->stats_token,
-				 sizeof(struct ibmvnic_statistics),
-				 DMA_FROM_DEVICE);
 }
 
 static int ibmvnic_close(struct net_device *netdev)
@@ -640,7 +694,7 @@ static int ibmvnic_close(struct net_device *netdev)
 	crq.logical_link_state.link_state = IBMVNIC_LOGICAL_LNK_DN;
 	ibmvnic_send_crq(adapter, &crq);
 
-	ibmvnic_release_resources(adapter);
+	release_resources(adapter);
 
 	adapter->is_closed = true;
 	adapter->closing = false;
@@ -1328,49 +1382,40 @@ static void release_sub_crqs(struct ibmvnic_adapter *adapter)
 	int i;
 
 	if (adapter->tx_scrq) {
-		for (i = 0; i < adapter->req_tx_queues; i++)
-			if (adapter->tx_scrq[i]) {
+		for (i = 0; i < adapter->req_tx_queues; i++) {
+			if (!adapter->tx_scrq[i])
+				continue;
+
+			if (adapter->tx_scrq[i]->irq) {
 				free_irq(adapter->tx_scrq[i]->irq,
 					 adapter->tx_scrq[i]);
 				irq_dispose_mapping(adapter->tx_scrq[i]->irq);
-				release_sub_crq_queue(adapter,
-						      adapter->tx_scrq[i]);
+				adapter->tx_scrq[i]->irq = 0;
 			}
+
+			release_sub_crq_queue(adapter, adapter->tx_scrq[i]);
+		}
+
 		kfree(adapter->tx_scrq);
 		adapter->tx_scrq = NULL;
 	}
 
 	if (adapter->rx_scrq) {
-		for (i = 0; i < adapter->req_rx_queues; i++)
-			if (adapter->rx_scrq[i]) {
+		for (i = 0; i < adapter->req_rx_queues; i++) {
+			if (!adapter->rx_scrq[i])
+				continue;
+
+			if (adapter->rx_scrq[i]->irq) {
 				free_irq(adapter->rx_scrq[i]->irq,
 					 adapter->rx_scrq[i]);
 				irq_dispose_mapping(adapter->rx_scrq[i]->irq);
-				release_sub_crq_queue(adapter,
-						      adapter->rx_scrq[i]);
+				adapter->rx_scrq[i]->irq = 0;
 			}
+
+			release_sub_crq_queue(adapter, adapter->rx_scrq[i]);
+		}
+
 		kfree(adapter->rx_scrq);
-		adapter->rx_scrq = NULL;
-	}
-}
-
-static void release_sub_crqs_no_irqs(struct ibmvnic_adapter *adapter)
-{
-	int i;
-
-	if (adapter->tx_scrq) {
-		for (i = 0; i < adapter->req_tx_queues; i++)
-			if (adapter->tx_scrq[i])
-				release_sub_crq_queue(adapter,
-						      adapter->tx_scrq[i]);
-		adapter->tx_scrq = NULL;
-	}
-
-	if (adapter->rx_scrq) {
-		for (i = 0; i < adapter->req_rx_queues; i++)
-			if (adapter->rx_scrq[i])
-				release_sub_crq_queue(adapter,
-						      adapter->rx_scrq[i]);
 		adapter->rx_scrq = NULL;
 	}
 }
@@ -1566,7 +1611,7 @@ req_tx_irq_failed:
 		free_irq(adapter->tx_scrq[j]->irq, adapter->tx_scrq[j]);
 		irq_dispose_mapping(adapter->rx_scrq[j]->irq);
 	}
-	release_sub_crqs_no_irqs(adapter);
+	release_sub_crqs(adapter);
 	return rc;
 }
 
@@ -2456,7 +2501,7 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 			 *req_value,
 			 (long int)be64_to_cpu(crq->request_capability_rsp.
 					       number), name);
-		release_sub_crqs_no_irqs(adapter);
+		release_sub_crqs(adapter);
 		*req_value = be64_to_cpu(crq->request_capability_rsp.number);
 		init_sub_crqs(adapter, 1);
 		return;
@@ -3069,11 +3114,14 @@ static int ibmvnic_reset_crq(struct ibmvnic_adapter *adapter)
 	return rc;
 }
 
-static void ibmvnic_release_crq_queue(struct ibmvnic_adapter *adapter)
+static void release_crq_queue(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_crq_queue *crq = &adapter->crq;
 	struct vio_dev *vdev = adapter->vdev;
 	long rc;
+
+	if (!crq->msgs)
+		return;
 
 	netdev_dbg(adapter->netdev, "Releasing CRQ\n");
 	free_irq(vdev->irq, adapter);
@@ -3085,14 +3133,18 @@ static void ibmvnic_release_crq_queue(struct ibmvnic_adapter *adapter)
 	dma_unmap_single(&vdev->dev, crq->msg_token, PAGE_SIZE,
 			 DMA_BIDIRECTIONAL);
 	free_page((unsigned long)crq->msgs);
+	crq->msgs = NULL;
 }
 
-static int ibmvnic_init_crq_queue(struct ibmvnic_adapter *adapter)
+static int init_crq_queue(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_crq_queue *crq = &adapter->crq;
 	struct device *dev = &adapter->vdev->dev;
 	struct vio_dev *vdev = adapter->vdev;
 	int rc, retrc = -ENOMEM;
+
+	if (crq->msgs)
+		return 0;
 
 	crq->msgs = (union ibmvnic_crq *)get_zeroed_page(GFP_KERNEL);
 	/* Should we allocate more than one page? */
@@ -3155,6 +3207,7 @@ reg_crq_failed:
 	dma_unmap_single(dev, crq->msg_token, PAGE_SIZE, DMA_BIDIRECTIONAL);
 map_failed:
 	free_page((unsigned long)crq->msgs);
+	crq->msgs = NULL;
 	return retrc;
 }
 
@@ -3222,26 +3275,23 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 	unsigned long timeout = msecs_to_jiffies(30000);
 	int rc;
 
-	rc = ibmvnic_init_crq_queue(adapter);
+	rc = init_crq_queue(adapter);
 	if (rc) {
 		dev_err(dev, "Couldn't initialize crq. rc=%d\n", rc);
 		return rc;
 	}
 
-	adapter->stats_token = dma_map_single(dev, &adapter->stats,
-				      sizeof(struct ibmvnic_statistics),
-				      DMA_FROM_DEVICE);
-	if (dma_mapping_error(dev, adapter->stats_token)) {
-		ibmvnic_release_crq_queue(adapter);
-		dev_err(dev, "Couldn't map stats buffer\n");
-		return -ENOMEM;
+	rc = init_stats_token(adapter);
+	if (rc) {
+		release_crq_queue(adapter);
+		return rc;
 	}
 
 	init_completion(&adapter->init_done);
 	ibmvnic_send_crq_init(adapter);
 	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
 		dev_err(dev, "Initialization sequence timed out\n");
-		ibmvnic_release_crq_queue(adapter);
+		release_crq_queue(adapter);
 		return -1;
 	}
 
