@@ -872,7 +872,7 @@ retry:
 	ret = drm_modeset_lock(&crtc->mutex, &ctx);
 	if (ret)
 		goto out;
-	ret = drm_modeset_lock(&crtc->cursor->mutex, &ctx);
+	ret = drm_modeset_lock(&crtc->primary->mutex, &ctx);
 	if (ret)
 		goto out;
 
