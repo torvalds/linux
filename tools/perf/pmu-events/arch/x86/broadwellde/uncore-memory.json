@@ -20,11 +20,18 @@
         "Unit": "iMC"
     },
     {
+        "BriefDescription": "Memory controller clock ticks",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_M_DCLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
         "BriefDescription": "Cycles where DRAM ranks are in power down (CKE) mode",
         "Counter": "0,1,2,3",
         "EventCode": "0x85",
         "EventName": "UNC_M_POWER_CHANNEL_PPD",
-        "MetricExpr": "(UNC_M_POWER_CHANNEL_PPD / UNC_M_CLOCKTICKS) * 100.",
+        "MetricExpr": "(UNC_M_POWER_CHANNEL_PPD / UNC_M_DCLOCKTICKS) * 100.",
         "MetricName": "power_channel_ppd %",
         "PerPkg": "1",
         "Unit": "iMC"
@@ -34,7 +41,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x86",
         "EventName": "UNC_M_POWER_CRITICAL_THROTTLE_CYCLES",
-        "MetricExpr": "(UNC_M_POWER_CRITICAL_THROTTLE_CYCLES / UNC_M_CLOCKTICKS) * 100.",
+        "MetricExpr": "(UNC_M_POWER_CRITICAL_THROTTLE_CYCLES / UNC_M_DCLOCKTICKS) * 100.",
         "MetricName": "power_critical_throttle_cycles %",
         "PerPkg": "1",
         "Unit": "iMC"
@@ -44,7 +51,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x43",
         "EventName": "UNC_M_POWER_SELF_REFRESH",
-        "MetricExpr": "(UNC_M_POWER_SELF_REFRESH / UNC_M_CLOCKTICKS) * 100.",
+        "MetricExpr": "(UNC_M_POWER_SELF_REFRESH / UNC_M_DCLOCKTICKS) * 100.",
         "MetricName": "power_self_refresh %",
         "PerPkg": "1",
         "Unit": "iMC"
