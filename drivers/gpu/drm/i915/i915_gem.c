@@ -4195,7 +4195,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 	 * catch if we ever need to fix it. In the meantime, if you do spot
 	 * such a local variable, please consider fixing!
 	 */
-	if (WARN_ON(size >> PAGE_SHIFT > INT_MAX))
+	if (size >> PAGE_SHIFT > INT_MAX)
 		return ERR_PTR(-E2BIG);
 
 	if (overflows_type(size, obj->base.size))
