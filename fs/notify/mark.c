@@ -158,9 +158,9 @@ static struct inode *fsnotify_detach_from_object(struct fsnotify_mark *mark)
 		if (conn->flags & FSNOTIFY_OBJ_TYPE_INODE)
 			inode = conn->inode;
 	}
+	__fsnotify_recalc_mask(conn);
 	mark->connector = NULL;
 	spin_unlock(lock);
-	fsnotify_recalc_mask(conn);
 
 	return inode;
 }
