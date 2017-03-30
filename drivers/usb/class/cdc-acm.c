@@ -36,6 +36,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/log2.h>
 #include <linux/tty.h>
 #include <linux/serial.h>
 #include <linux/tty_driver.h>
@@ -283,39 +284,13 @@ static DEVICE_ATTR(iCountryCodeRelDate, S_IRUGO, show_country_rel_date, NULL);
  * Interrupt handlers for various ACM device responses
  */
 
-/* control interface reports status changes with "interrupt" transfers */
-static void acm_ctrl_irq(struct urb *urb)
+static void acm_process_notification(struct acm *acm, unsigned char *buf)
 {
-	struct acm *acm = urb->context;
-	struct usb_cdc_notification *dr = urb->transfer_buffer;
-	unsigned char *data;
 	int newctrl;
 	int difference;
-	int retval;
-	int status = urb->status;
+	struct usb_cdc_notification *dr = (struct usb_cdc_notification *)buf;
+	unsigned char *data = buf + sizeof(struct usb_cdc_notification);
 
-	switch (status) {
-	case 0:
-		/* success */
-		break;
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-		/* this urb is terminated, clean up */
-		dev_dbg(&acm->control->dev,
-			"%s - urb shutting down with status: %d\n",
-			__func__, status);
-		return;
-	default:
-		dev_dbg(&acm->control->dev,
-			"%s - nonzero urb status received: %d\n",
-			__func__, status);
-		goto exit;
-	}
-
-	usb_mark_last_busy(acm->dev);
-
-	data = (unsigned char *)(dr + 1);
 	switch (dr->bNotificationType) {
 	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
 		dev_dbg(&acm->control->dev,
@@ -368,9 +343,83 @@ static void acm_ctrl_irq(struct urb *urb)
 			"%s - unknown notification %d received: index %d len %d\n",
 			__func__,
 			dr->bNotificationType, dr->wIndex, dr->wLength);
-
-		break;
 	}
+}
+
+/* control interface reports status changes with "interrupt" transfers */
+static void acm_ctrl_irq(struct urb *urb)
+{
+	struct acm *acm = urb->context;
+	struct usb_cdc_notification *dr = urb->transfer_buffer;
+	unsigned int current_size = urb->actual_length;
+	unsigned int expected_size, copy_size, alloc_size;
+	int retval;
+	int status = urb->status;
+
+	switch (status) {
+	case 0:
+		/* success */
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		/* this urb is terminated, clean up */
+		acm->nb_index = 0;
+		dev_dbg(&acm->control->dev,
+			"%s - urb shutting down with status: %d\n",
+			__func__, status);
+		return;
+	default:
+		dev_dbg(&acm->control->dev,
+			"%s - nonzero urb status received: %d\n",
+			__func__, status);
+		goto exit;
+	}
+
+	usb_mark_last_busy(acm->dev);
+
+	if (acm->nb_index)
+		dr = (struct usb_cdc_notification *)acm->notification_buffer;
+
+	/* size = notification-header + (optional) data */
+	expected_size = sizeof(struct usb_cdc_notification) +
+					le16_to_cpu(dr->wLength);
+
+	if (current_size < expected_size) {
+		/* notification is transmitted fragmented, reassemble */
+		if (acm->nb_size < expected_size) {
+			if (acm->nb_size) {
+				kfree(acm->notification_buffer);
+				acm->nb_size = 0;
+			}
+			alloc_size = roundup_pow_of_two(expected_size);
+			/*
+			 * kmalloc ensures a valid notification_buffer after a
+			 * use of kfree in case the previous allocation was too
+			 * small. Final freeing is done on disconnect.
+			 */
+			acm->notification_buffer =
+				kmalloc(alloc_size, GFP_ATOMIC);
+			if (!acm->notification_buffer)
+				goto exit;
+			acm->nb_size = alloc_size;
+		}
+
+		copy_size = min(current_size,
+				expected_size - acm->nb_index);
+
+		memcpy(&acm->notification_buffer[acm->nb_index],
+		       urb->transfer_buffer, copy_size);
+		acm->nb_index += copy_size;
+		current_size = acm->nb_index;
+	}
+
+	if (current_size >= expected_size) {
+		/* notification complete */
+		acm_process_notification(acm, (unsigned char *)dr);
+		acm->nb_index = 0;
+	}
+
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval && retval != -EPERM)
@@ -1483,6 +1532,9 @@ skip_countries:
 			 epctrl->bInterval ? epctrl->bInterval : 16);
 	acm->ctrlurb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	acm->ctrlurb->transfer_dma = acm->ctrl_dma;
+	acm->notification_buffer = NULL;
+	acm->nb_index = 0;
+	acm->nb_size = 0;
 
 	dev_info(&intf->dev, "ttyACM%d: USB ACM device\n", minor);
 
@@ -1574,6 +1626,8 @@ static void acm_disconnect(struct usb_interface *intf)
 	acm_write_buffers_free(acm);
 	usb_free_coherent(acm->dev, acm->ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
 	acm_read_buffers_free(acm);
+
+	kfree(acm->notification_buffer);
 
 	if (!acm->combined_interfaces)
 		usb_driver_release_interface(&acm_driver, intf == acm->control ?
