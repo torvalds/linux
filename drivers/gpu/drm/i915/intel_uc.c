@@ -112,6 +112,9 @@ static void fetch_uc_fw(struct drm_i915_private *dev_priv,
 	size_t size;
 	int err;
 
+	if (!uc_fw->path)
+		return;
+
 	uc_fw->fetch_status = INTEL_UC_FIRMWARE_PENDING;
 
 	DRM_DEBUG_DRIVER("before requesting firmware: uC fw fetch status %s\n",
@@ -239,11 +242,8 @@ fail:
 
 void intel_uc_init_fw(struct drm_i915_private *dev_priv)
 {
-	if (dev_priv->huc.fw.path)
-		fetch_uc_fw(dev_priv, &dev_priv->huc.fw);
-
-	if (dev_priv->guc.fw.path)
-		fetch_uc_fw(dev_priv, &dev_priv->guc.fw);
+	fetch_uc_fw(dev_priv, &dev_priv->huc.fw);
+	fetch_uc_fw(dev_priv, &dev_priv->guc.fw);
 }
 
 void intel_uc_fini_fw(struct drm_i915_private *dev_priv)
