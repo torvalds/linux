@@ -3285,6 +3285,9 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 			if (ret)
 				return ret;
 		}
+
+		i915_gem_retire_requests(i915);
+		GEM_BUG_ON(i915->gt.active_requests);
 	} else {
 		ret = wait_for_timeline(&i915->gt.global_timeline, flags);
 		if (ret)
@@ -4425,9 +4428,6 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 				     I915_WAIT_LOCKED);
 	if (ret)
 		goto err_unlock;
-
-	i915_gem_retire_requests(dev_priv);
-	GEM_BUG_ON(dev_priv->gt.active_requests);
 
 	assert_kernel_context_is_current(dev_priv);
 	i915_gem_context_lost(dev_priv);

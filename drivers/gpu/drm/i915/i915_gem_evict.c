@@ -196,7 +196,6 @@ search_again:
 	if (ret)
 		return ret;
 
-	i915_gem_retire_requests(dev_priv);
 	goto search_again;
 
 found:
@@ -383,7 +382,6 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 		if (ret)
 			return ret;
 
-		i915_gem_retire_requests(dev_priv);
 		WARN_ON(!list_empty(&vm->active_list));
 	}
 

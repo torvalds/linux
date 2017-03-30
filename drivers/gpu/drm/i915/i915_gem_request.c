@@ -203,9 +203,6 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 	if (ret)
 		return ret;
 
-	i915_gem_retire_requests(i915);
-	GEM_BUG_ON(i915->gt.active_requests > 1);
-
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
 	for_each_engine(engine, i915, id) {
 		struct intel_timeline *tl = &timeline->engine[id];

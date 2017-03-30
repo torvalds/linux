@@ -4179,10 +4179,6 @@ fault_irq_set(struct drm_i915_private *i915,
 	if (err)
 		goto err_unlock;
 
-	/* Retire to kick idle work */
-	i915_gem_retire_requests(i915);
-	GEM_BUG_ON(i915->gt.active_requests);
-
 	*irq = val;
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -4286,7 +4282,7 @@ i915_drop_caches_set(void *data, u64 val)
 			goto unlock;
 	}
 
-	if (val & (DROP_RETIRE | DROP_ACTIVE))
+	if (val & DROP_RETIRE)
 		i915_gem_retire_requests(dev_priv);
 
 	lockdep_set_current_reclaim_state(GFP_KERNEL);
