@@ -1051,6 +1051,53 @@ static int cdn_dp_parse_dt(struct cdn_dp_device *dp)
 	return 0;
 }
 
+struct dp_sdp {
+	struct edp_sdp_header sdp_header;
+	u8 db[28];
+} __packed;
+
+static int cdn_dp_setup_audio_infoframe(struct cdn_dp_device *dp)
+{
+	struct dp_sdp infoframe_sdp;
+	struct hdmi_audio_infoframe frame;
+	u8 buffer[14];
+	ssize_t err;
+
+	/* Prepare VSC packet as per EDP 1.4 spec, Table 6.9 */
+	memset(&infoframe_sdp, 0, sizeof(infoframe_sdp));
+	infoframe_sdp.sdp_header.HB0 = 0;
+	infoframe_sdp.sdp_header.HB1 = HDMI_INFOFRAME_TYPE_AUDIO;
+	infoframe_sdp.sdp_header.HB2 = 0x1b;
+	infoframe_sdp.sdp_header.HB3 = 0x48;
+
+	err = hdmi_audio_infoframe_init(&frame);
+	if (err < 0) {
+		DRM_DEV_ERROR(dp->dev, "Failed to setup audio infoframe: %zd\n",
+			      err);
+		return err;
+	}
+
+	frame.coding_type = HDMI_AUDIO_CODING_TYPE_STREAM;
+	frame.sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_STREAM;
+	frame.sample_size = HDMI_AUDIO_SAMPLE_SIZE_STREAM;
+	frame.channels = 0;
+
+	err = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		DRM_DEV_ERROR(dp->dev, "Failed to pack audio infoframe: %zd\n",
+			      err);
+		return err;
+	}
+
+	memcpy(&infoframe_sdp.db[0], &buffer[HDMI_INFOFRAME_HEADER_SIZE],
+	       sizeof(buffer) - HDMI_INFOFRAME_HEADER_SIZE);
+
+	cdn_dp_infoframe_set(dp, 0, (u8 *)&infoframe_sdp,
+			     sizeof(infoframe_sdp), 0x84);
+
+	return 0;
+}
+
 static int cdn_dp_audio_hw_params(struct device *dev,  void *data,
 				  struct hdmi_codec_daifmt *daifmt,
 				  struct hdmi_codec_params *params)
@@ -1081,6 +1128,10 @@ static int cdn_dp_audio_hw_params(struct device *dev,  void *data,
 		ret = -EINVAL;
 		goto out;
 	}
+
+	ret = cdn_dp_setup_audio_infoframe(dp);
+	if (ret)
+		goto out;
 
 	ret = cdn_dp_audio_config(dp, &audio);
 	if (!ret)
