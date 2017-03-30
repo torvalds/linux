@@ -113,7 +113,7 @@ static void send_login(struct ibmvnic_adapter *adapter);
 static void send_cap_queries(struct ibmvnic_adapter *adapter);
 static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter);
 static int ibmvnic_init(struct ibmvnic_adapter *);
-static void ibmvnic_release_crq_queue(struct ibmvnic_adapter *);
+static void release_crq_queue(struct ibmvnic_adapter *);
 
 struct ibmvnic_stat {
 	char name[ETH_GSTRING_LEN];
@@ -612,7 +612,7 @@ static void ibmvnic_release_resources(struct ibmvnic_adapter *adapter)
 	adapter->rx_pool = NULL;
 
 	release_sub_crqs(adapter);
-	ibmvnic_release_crq_queue(adapter);
+	release_crq_queue(adapter);
 
 	if (adapter->stats_token)
 		dma_unmap_single(dev, adapter->stats_token,
@@ -3069,11 +3069,14 @@ static int ibmvnic_reset_crq(struct ibmvnic_adapter *adapter)
 	return rc;
 }
 
-static void ibmvnic_release_crq_queue(struct ibmvnic_adapter *adapter)
+static void release_crq_queue(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_crq_queue *crq = &adapter->crq;
 	struct vio_dev *vdev = adapter->vdev;
 	long rc;
+
+	if (!crq->msgs)
+		return;
 
 	netdev_dbg(adapter->netdev, "Releasing CRQ\n");
 	free_irq(vdev->irq, adapter);
@@ -3085,14 +3088,18 @@ static void ibmvnic_release_crq_queue(struct ibmvnic_adapter *adapter)
 	dma_unmap_single(&vdev->dev, crq->msg_token, PAGE_SIZE,
 			 DMA_BIDIRECTIONAL);
 	free_page((unsigned long)crq->msgs);
+	crq->msgs = NULL;
 }
 
-static int ibmvnic_init_crq_queue(struct ibmvnic_adapter *adapter)
+static int init_crq_queue(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_crq_queue *crq = &adapter->crq;
 	struct device *dev = &adapter->vdev->dev;
 	struct vio_dev *vdev = adapter->vdev;
 	int rc, retrc = -ENOMEM;
+
+	if (crq->msgs)
+		return 0;
 
 	crq->msgs = (union ibmvnic_crq *)get_zeroed_page(GFP_KERNEL);
 	/* Should we allocate more than one page? */
@@ -3155,6 +3162,7 @@ reg_crq_failed:
 	dma_unmap_single(dev, crq->msg_token, PAGE_SIZE, DMA_BIDIRECTIONAL);
 map_failed:
 	free_page((unsigned long)crq->msgs);
+	crq->msgs = NULL;
 	return retrc;
 }
 
@@ -3222,7 +3230,7 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 	unsigned long timeout = msecs_to_jiffies(30000);
 	int rc;
 
-	rc = ibmvnic_init_crq_queue(adapter);
+	rc = init_crq_queue(adapter);
 	if (rc) {
 		dev_err(dev, "Couldn't initialize crq. rc=%d\n", rc);
 		return rc;
@@ -3232,7 +3240,7 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 				      sizeof(struct ibmvnic_statistics),
 				      DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, adapter->stats_token)) {
-		ibmvnic_release_crq_queue(adapter);
+		release_crq_queue(adapter);
 		dev_err(dev, "Couldn't map stats buffer\n");
 		return -ENOMEM;
 	}
@@ -3241,7 +3249,7 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 	ibmvnic_send_crq_init(adapter);
 	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
 		dev_err(dev, "Initialization sequence timed out\n");
-		ibmvnic_release_crq_queue(adapter);
+		release_crq_queue(adapter);
 		return -1;
 	}
 
