@@ -1944,10 +1944,6 @@ static void mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	}
 
 	mlx5e_build_common_cq_param(priv, param);
-
-	if (params->rx_am_enabled)
-		params->rx_cq_moderation =
-			mlx5e_am_get_def_profile(params->rx_cq_period_mode);
 }
 
 static void mlx5e_build_tx_cq_param(struct mlx5e_priv *priv,
@@ -3786,6 +3782,10 @@ void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params, u8 cq_period_mode)
 	if (cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE)
 		params->rx_cq_moderation.usec =
 			MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_USEC_FROM_CQE;
+
+	if (params->rx_am_enabled)
+		params->rx_cq_moderation =
+			mlx5e_am_get_def_profile(params->rx_cq_period_mode);
 
 	MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_CQE_BASED_MODER,
 			params->rx_cq_period_mode == MLX5_CQ_PERIOD_MODE_START_FROM_CQE);
