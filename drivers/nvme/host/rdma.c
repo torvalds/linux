@@ -1517,7 +1517,7 @@ static void nvme_rdma_complete_rq(struct request *rq)
 	blk_mq_end_request(rq, error);
 }
 
-static struct blk_mq_ops nvme_rdma_mq_ops = {
+static const struct blk_mq_ops nvme_rdma_mq_ops = {
 	.queue_rq	= nvme_rdma_queue_rq,
 	.complete	= nvme_rdma_complete_rq,
 	.init_request	= nvme_rdma_init_request,
@@ -1528,7 +1528,7 @@ static struct blk_mq_ops nvme_rdma_mq_ops = {
 	.timeout	= nvme_rdma_timeout,
 };
 
-static struct blk_mq_ops nvme_rdma_admin_mq_ops = {
+static const struct blk_mq_ops nvme_rdma_admin_mq_ops = {
 	.queue_rq	= nvme_rdma_queue_rq,
 	.complete	= nvme_rdma_complete_rq,
 	.init_request	= nvme_rdma_init_admin_request,

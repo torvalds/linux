@@ -761,7 +761,7 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_MQ_RQ_QUEUE_OK;
 }
 
-static struct blk_mq_ops dm_mq_ops = {
+static const struct blk_mq_ops dm_mq_ops = {
 	.queue_rq = dm_mq_queue_rq,
 	.complete = dm_softirq_done,
 	.init_request = dm_mq_init_request,

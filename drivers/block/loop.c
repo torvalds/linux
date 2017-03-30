@@ -1710,7 +1710,7 @@ static int loop_init_request(void *data, struct request *rq,
 	return 0;
 }
 
-static struct blk_mq_ops loop_mq_ops = {
+static const struct blk_mq_ops loop_mq_ops = {
 	.queue_rq       = loop_queue_rq,
 	.init_request	= loop_init_request,
 };

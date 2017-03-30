@@ -3889,7 +3889,7 @@ exit_handler:
 	return BLK_EH_RESET_TIMER;
 }
 
-static struct blk_mq_ops mtip_mq_ops = {
+static const struct blk_mq_ops mtip_mq_ops = {
 	.queue_rq	= mtip_queue_rq,
 	.init_request	= mtip_init_cmd,
 	.exit_request	= mtip_free_cmd,

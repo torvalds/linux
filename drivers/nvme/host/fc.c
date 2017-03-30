@@ -1948,7 +1948,7 @@ nvme_fc_complete_rq(struct request *rq)
 	blk_mq_end_request(rq, error);
 }
 
-static struct blk_mq_ops nvme_fc_mq_ops = {
+static const struct blk_mq_ops nvme_fc_mq_ops = {
 	.queue_rq	= nvme_fc_queue_rq,
 	.complete	= nvme_fc_complete_rq,
 	.init_request	= nvme_fc_init_request,
@@ -1959,7 +1959,7 @@ static struct blk_mq_ops nvme_fc_mq_ops = {
 	.timeout	= nvme_fc_timeout,
 };
 
-static struct blk_mq_ops nvme_fc_admin_mq_ops = {
+static const struct blk_mq_ops nvme_fc_admin_mq_ops = {
 	.queue_rq	= nvme_fc_queue_rq,
 	.complete	= nvme_fc_complete_rq,
 	.init_request	= nvme_fc_init_admin_request,

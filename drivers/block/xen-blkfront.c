@@ -907,7 +907,7 @@ out_busy:
 	return BLK_MQ_RQ_QUEUE_BUSY;
 }
 
-static struct blk_mq_ops blkfront_mq_ops = {
+static const struct blk_mq_ops blkfront_mq_ops = {
 	.queue_rq = blkif_queue_rq,
 };
 

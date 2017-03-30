@@ -4317,7 +4317,7 @@ static int rbd_init_request(void *data, struct request *rq,
 	return 0;
 }
 
-static struct blk_mq_ops rbd_mq_ops = {
+static const struct blk_mq_ops rbd_mq_ops = {
 	.queue_rq	= rbd_queue_rq,
 	.init_request	= rbd_init_request,
 };
