@@ -234,7 +234,9 @@ void __init timer64_init(void)
 	clockevents_calc_mult_shift(cd, c6x_core_freq / TIMER_DIVISOR, 5);
 
 	cd->max_delta_ns	= clockevent_delta2ns(0x7fffffff, cd);
+	cd->max_delta_ticks	= 0x7fffffff;
 	cd->min_delta_ns	= clockevent_delta2ns(250, cd);
+	cd->min_delta_ticks	= 250;
 
 	cd->cpumask		= cpumask_of(smp_processor_id());
 
