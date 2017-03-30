@@ -101,7 +101,6 @@ struct acm {
 	u8 *notification_buffer;			/* to reassemble fragmented notifications */
 	unsigned int nb_index;
 	unsigned int nb_size;
-	int write_used;					/* number of non-empty write buffers */
 	int transmitting;
 	spinlock_t write_lock;
 	struct mutex mutex;
