@@ -76,6 +76,14 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_VM_FAULT_STOP_FIRST	1
 #define AMDGPU_VM_FAULT_STOP_ALWAYS	2
 
+/* max number of VMHUB */
+#define AMDGPU_MAX_VMHUBS			2
+#define AMDGPU_GFXHUB				0
+#define AMDGPU_MMHUB				1
+
+/* hardcode that limit for now */
+#define AMDGPU_VA_RESERVED_SIZE			(8 << 20)
+
 struct amdgpu_vm_pt {
 	struct amdgpu_bo	*bo;
 	uint64_t		addr;

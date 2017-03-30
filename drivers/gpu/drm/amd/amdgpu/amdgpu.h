@@ -122,14 +122,6 @@ extern int amdgpu_param_buf_per_se;
 /* max number of IP instances */
 #define AMDGPU_MAX_SDMA_INSTANCES		2
 
-/* max number of VMHUB */
-#define AMDGPU_MAX_VMHUBS			2
-#define AMDGPU_GFXHUB				0
-#define AMDGPU_MMHUB				1
-
-/* hardcode that limit for now */
-#define AMDGPU_VA_RESERVED_SIZE			(8 << 20)
-
 /* hard reset data */
 #define AMDGPU_ASIC_RESET_DATA                  0x39d5e86b
 
