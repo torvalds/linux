@@ -251,7 +251,7 @@ int apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 	u32 *location;
 	unsigned int i, type;
 	Elf_Addr v;
-	int res;
+	int err = 0;
 
 	pr_debug("Applying relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
@@ -270,7 +270,8 @@ int apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 				continue;
 			pr_warn("%s: Unknown symbol %s\n",
 				me->name, strtab + sym->st_name);
-			return -ENOENT;
+			err = -ENOENT;
+			goto out;
 		}
 
 		type = ELF_MIPS_R_TYPE(rel[i]);
@@ -283,29 +284,32 @@ int apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 		if (!handler) {
 			pr_err("%s: Unknown relocation type %u\n",
 			       me->name, type);
-			return -EINVAL;
+			err = -EINVAL;
+			goto out;
 		}
 
 		v = sym->st_value;
-		res = handler(me, location, v);
-		if (res)
-			return res;
+		err = handler(me, location, v);
+		if (err)
+			goto out;
 	}
 
+out:
 	/*
-	 * Normally the hi16 list should be deallocated at this point.	A
+	 * Normally the hi16 list should be deallocated at this point. A
 	 * malformed binary however could contain a series of R_MIPS_HI16
-	 * relocations not followed by a R_MIPS_LO16 relocation.  In that
-	 * case, free up the list and return an error.
+	 * relocations not followed by a R_MIPS_LO16 relocation, or if we hit
+	 * an error processing a reloc we might have gotten here before
+	 * reaching the R_MIPS_LO16. In either case, free up the list and
+	 * return an error.
 	 */
 	if (me->arch.r_mips_hi16_list) {
 		free_relocation_chain(me->arch.r_mips_hi16_list);
 		me->arch.r_mips_hi16_list = NULL;
-
-		return -ENOEXEC;
+		err = err ?: -ENOEXEC;
 	}
 
-	return 0;
+	return err;
 }
 
 /* Given an address, look for it in the module exception tables. */
