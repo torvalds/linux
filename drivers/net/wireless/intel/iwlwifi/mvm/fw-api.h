@@ -571,7 +571,6 @@ enum iwl_debug_cmds {
  *	&enum iwl_phy_ops_subcmd_ids
  * @DATA_PATH_GROUP: data path group, uses command IDs from
  *	&enum iwl_data_path_subcmd_ids
- * @SCAN_GROUP: scan group, uses command IDs from &enum iwl_scan_subcmd_ids
  * @NAN_GROUP: NAN group, uses command IDs from &enum iwl_nan_subcmd_ids
  * @TOF_GROUP: TOF group, uses command IDs from &enum iwl_tof_subcmd_ids
  * @PROT_OFFLOAD_GROUP: protocol offload group, uses command IDs from
