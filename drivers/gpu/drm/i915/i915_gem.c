@@ -2998,10 +2998,15 @@ void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 	set_bit(I915_WEDGED, &dev_priv->gpu_error.flags);
 
+	/* Retire completed requests first so the list of inflight/incomplete
+	 * requests is accurate and we don't try and mark successful requests
+	 * as in error during __i915_gem_set_wedged_BKL().
+	 */
+	i915_gem_retire_requests(dev_priv);
+
 	stop_machine(__i915_gem_set_wedged_BKL, dev_priv, NULL);
 
 	i915_gem_context_lost(dev_priv);
-	i915_gem_retire_requests(dev_priv);
 
 	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 }
