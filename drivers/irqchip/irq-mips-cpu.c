@@ -41,13 +41,13 @@
 
 static inline void unmask_mips_irq(struct irq_data *d)
 {
-	set_c0_status(0x100 << (d->irq - MIPS_CPU_IRQ_BASE));
+	set_c0_status(IE_SW0 << (d->irq - MIPS_CPU_IRQ_BASE));
 	irq_enable_hazard();
 }
 
 static inline void mask_mips_irq(struct irq_data *d)
 {
-	clear_c0_status(0x100 << (d->irq - MIPS_CPU_IRQ_BASE));
+	clear_c0_status(IE_SW0 << (d->irq - MIPS_CPU_IRQ_BASE));
 	irq_disable_hazard();
 }
 
@@ -70,7 +70,7 @@ static unsigned int mips_mt_cpu_irq_startup(struct irq_data *d)
 {
 	unsigned int vpflags = dvpe();
 
-	clear_c0_cause(0x100 << (d->irq - MIPS_CPU_IRQ_BASE));
+	clear_c0_cause(C_SW0 << (d->irq - MIPS_CPU_IRQ_BASE));
 	evpe(vpflags);
 	unmask_mips_irq(d);
 	return 0;
@@ -83,7 +83,7 @@ static unsigned int mips_mt_cpu_irq_startup(struct irq_data *d)
 static void mips_mt_cpu_irq_ack(struct irq_data *d)
 {
 	unsigned int vpflags = dvpe();
-	clear_c0_cause(0x100 << (d->irq - MIPS_CPU_IRQ_BASE));
+	clear_c0_cause(C_SW0 << (d->irq - MIPS_CPU_IRQ_BASE));
 	evpe(vpflags);
 	mask_mips_irq(d);
 }
