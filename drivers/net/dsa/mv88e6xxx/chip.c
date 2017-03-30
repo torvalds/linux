@@ -2143,7 +2143,9 @@ static int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
 static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
 				struct net_device *br)
 {
+	struct dsa_switch *ds;
 	int port;
+	int dev;
 	int err;
 
 	/* Remap the Port VLAN of each local bridge group member */
@@ -2152,6 +2154,24 @@ static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
 			err = mv88e6xxx_port_vlan_map(chip, port);
 			if (err)
 				return err;
+		}
+	}
+
+	if (!mv88e6xxx_has_pvt(chip))
+		return 0;
+
+	/* Remap the Port VLAN of each cross-chip bridge group member */
+	for (dev = 0; dev < DSA_MAX_SWITCHES; ++dev) {
+		ds = chip->ds->dst->ds[dev];
+		if (!ds)
+			break;
+
+		for (port = 0; port < ds->num_ports; ++port) {
+			if (ds->ports[port].bridge_dev == br) {
+				err = mv88e6xxx_pvt_map(chip, dev, port);
+				if (err)
+					return err;
+			}
 		}
 	}
 
