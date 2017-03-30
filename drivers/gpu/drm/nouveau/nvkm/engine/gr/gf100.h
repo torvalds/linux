@@ -305,4 +305,5 @@ void gm200_gr_init_gpc_mmu(struct gf100_gr *);
 
 void gp100_gr_init_num_active_ltcs(struct gf100_gr *gr);
 
+void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 #endif
