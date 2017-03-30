@@ -372,6 +372,50 @@ static void free_rx_pool(struct ibmvnic_adapter *adapter,
 	pool->rx_buff = NULL;
 }
 
+static void release_bounce_buffer(struct ibmvnic_adapter *adapter)
+{
+	struct device *dev = &adapter->vdev->dev;
+
+	if (!adapter->bounce_buffer)
+		return;
+
+	if (!dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
+		dma_unmap_single(dev, adapter->bounce_buffer_dma,
+				 adapter->bounce_buffer_size,
+				 DMA_BIDIRECTIONAL);
+		adapter->bounce_buffer_dma = DMA_ERROR_CODE;
+	}
+
+	kfree(adapter->bounce_buffer);
+	adapter->bounce_buffer = NULL;
+}
+
+static int init_bounce_buffer(struct net_device *netdev)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->vdev->dev;
+	char *buf;
+	int buf_sz;
+	dma_addr_t map_addr;
+
+	buf_sz = (netdev->mtu + ETH_HLEN - 1) / PAGE_SIZE + 1;
+	buf = kmalloc(adapter->bounce_buffer_size, GFP_KERNEL);
+	if (!buf)
+		return -1;
+
+	map_addr = dma_map_single(dev, buf, buf_sz, DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, map_addr)) {
+		dev_err(dev, "Couldn't map bounce buffer\n");
+		kfree(buf);
+		return -1;
+	}
+
+	adapter->bounce_buffer = buf;
+	adapter->bounce_buffer_size = buf_sz;
+	adapter->bounce_buffer_dma = map_addr;
+	return 0;
+}
+
 static int ibmvnic_login(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
@@ -500,20 +544,11 @@ static int ibmvnic_open(struct net_device *netdev)
 		tx_pool->consumer_index = 0;
 		tx_pool->producer_index = 0;
 	}
-	adapter->bounce_buffer_size =
-	    (netdev->mtu + ETH_HLEN - 1) / PAGE_SIZE + 1;
-	adapter->bounce_buffer = kmalloc(adapter->bounce_buffer_size,
-					 GFP_KERNEL);
-	if (!adapter->bounce_buffer)
-		goto bounce_alloc_failed;
 
-	adapter->bounce_buffer_dma = dma_map_single(dev, adapter->bounce_buffer,
-						    adapter->bounce_buffer_size,
-						    DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
-		dev_err(dev, "Couldn't map tx bounce buffer\n");
-		goto bounce_map_failed;
-	}
+	rc = init_bounce_buffer(netdev);
+	if (rc)
+		goto bounce_init_failed;
+
 	replenish_pools(adapter);
 
 	/* We're ready to receive frames, enable the sub-crq interrupts and
@@ -536,9 +571,7 @@ static int ibmvnic_open(struct net_device *netdev)
 
 	return 0;
 
-bounce_map_failed:
-	kfree(adapter->bounce_buffer);
-bounce_alloc_failed:
+bounce_init_failed:
 	i = tx_subcrqs - 1;
 	kfree(adapter->tx_pool[i].free_map);
 tx_fm_alloc_failed:
@@ -578,17 +611,7 @@ static void ibmvnic_release_resources(struct ibmvnic_adapter *adapter)
 	int tx_scrqs, rx_scrqs;
 	int i;
 
-	if (adapter->bounce_buffer) {
-		if (!dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
-			dma_unmap_single(&adapter->vdev->dev,
-					 adapter->bounce_buffer_dma,
-					 adapter->bounce_buffer_size,
-					 DMA_BIDIRECTIONAL);
-			adapter->bounce_buffer_dma = DMA_ERROR_CODE;
-		}
-		kfree(adapter->bounce_buffer);
-		adapter->bounce_buffer = NULL;
-	}
+	release_bounce_buffer(adapter);
 
 	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
 	for (i = 0; i < tx_scrqs; i++) {
