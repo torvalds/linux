@@ -206,6 +206,9 @@ static void free_long_term_buff(struct ibmvnic_adapter *adapter,
 {
 	struct device *dev = &adapter->vdev->dev;
 
+	if (!ltb->buff)
+		return;
+
 	dma_free_coherent(dev, ltb->size, ltb->buff, ltb->addr);
 	if (!adapter->failover)
 		send_request_unmap(adapter, ltb->map_id);
@@ -372,6 +375,75 @@ static void free_rx_pool(struct ibmvnic_adapter *adapter,
 	pool->rx_buff = NULL;
 }
 
+static void release_tx_pools(struct ibmvnic_adapter *adapter)
+{
+	struct ibmvnic_tx_pool *tx_pool;
+	int i, tx_scrqs;
+
+	if (!adapter->tx_pool)
+		return;
+
+	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
+	for (i = 0; i < tx_scrqs; i++) {
+		tx_pool = &adapter->tx_pool[i];
+		kfree(tx_pool->tx_buff);
+		free_long_term_buff(adapter, &tx_pool->long_term_buff);
+		kfree(tx_pool->free_map);
+	}
+
+	kfree(adapter->tx_pool);
+	adapter->tx_pool = NULL;
+}
+
+static int init_tx_pools(struct net_device *netdev)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->vdev->dev;
+	struct ibmvnic_tx_pool *tx_pool;
+	int tx_subcrqs;
+	int i, j;
+
+	tx_subcrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
+	adapter->tx_pool = kcalloc(tx_subcrqs,
+				   sizeof(struct ibmvnic_tx_pool), GFP_KERNEL);
+	if (!adapter->tx_pool)
+		return -1;
+
+	for (i = 0; i < tx_subcrqs; i++) {
+		tx_pool = &adapter->tx_pool[i];
+		tx_pool->tx_buff = kcalloc(adapter->req_tx_entries_per_subcrq,
+					   sizeof(struct ibmvnic_tx_buff),
+					   GFP_KERNEL);
+		if (!tx_pool->tx_buff) {
+			dev_err(dev, "tx pool buffer allocation failed\n");
+			release_tx_pools(adapter);
+			return -1;
+		}
+
+		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
+					 adapter->req_tx_entries_per_subcrq *
+					 adapter->req_mtu)) {
+			release_tx_pools(adapter);
+			return -1;
+		}
+
+		tx_pool->free_map = kcalloc(adapter->req_tx_entries_per_subcrq,
+					    sizeof(int), GFP_KERNEL);
+		if (!tx_pool->free_map) {
+			release_tx_pools(adapter);
+			return -1;
+		}
+
+		for (j = 0; j < adapter->req_tx_entries_per_subcrq; j++)
+			tx_pool->free_map[j] = j;
+
+		tx_pool->consumer_index = 0;
+		tx_pool->producer_index = 0;
+	}
+
+	return 0;
+}
+
 static void release_bounce_buffer(struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
@@ -452,7 +524,6 @@ static int ibmvnic_open(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	struct device *dev = &adapter->vdev->dev;
-	struct ibmvnic_tx_pool *tx_pool;
 	union ibmvnic_crq crq;
 	int rxadd_subcrqs;
 	u64 *size_array;
@@ -514,36 +585,10 @@ static int ibmvnic_open(struct net_device *netdev)
 			goto rx_pool_alloc_failed;
 		}
 	}
-	adapter->tx_pool =
-	    kcalloc(tx_subcrqs, sizeof(struct ibmvnic_tx_pool), GFP_KERNEL);
 
-	if (!adapter->tx_pool)
-		goto tx_pool_arr_alloc_failed;
-	for (i = 0; i < tx_subcrqs; i++) {
-		tx_pool = &adapter->tx_pool[i];
-		tx_pool->tx_buff =
-		    kcalloc(adapter->req_tx_entries_per_subcrq,
-			    sizeof(struct ibmvnic_tx_buff), GFP_KERNEL);
-		if (!tx_pool->tx_buff)
-			goto tx_pool_alloc_failed;
-
-		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
-					 adapter->req_tx_entries_per_subcrq *
-					 adapter->req_mtu))
-			goto tx_ltb_alloc_failed;
-
-		tx_pool->free_map =
-		    kcalloc(adapter->req_tx_entries_per_subcrq,
-			    sizeof(int), GFP_KERNEL);
-		if (!tx_pool->free_map)
-			goto tx_fm_alloc_failed;
-
-		for (j = 0; j < adapter->req_tx_entries_per_subcrq; j++)
-			tx_pool->free_map[j] = j;
-
-		tx_pool->consumer_index = 0;
-		tx_pool->producer_index = 0;
-	}
+	rc = init_tx_pools(netdev);
+	if (rc)
+		goto tx_pool_failed;
 
 	rc = init_bounce_buffer(netdev);
 	if (rc)
@@ -574,20 +619,7 @@ static int ibmvnic_open(struct net_device *netdev)
 bounce_init_failed:
 	i = tx_subcrqs - 1;
 	kfree(adapter->tx_pool[i].free_map);
-tx_fm_alloc_failed:
-	free_long_term_buff(adapter, &adapter->tx_pool[i].long_term_buff);
-tx_ltb_alloc_failed:
-	kfree(adapter->tx_pool[i].tx_buff);
-tx_pool_alloc_failed:
-	for (j = 0; j < i; j++) {
-		kfree(adapter->tx_pool[j].tx_buff);
-		free_long_term_buff(adapter,
-				    &adapter->tx_pool[j].long_term_buff);
-		kfree(adapter->tx_pool[j].free_map);
-	}
-	kfree(adapter->tx_pool);
-	adapter->tx_pool = NULL;
-tx_pool_arr_alloc_failed:
+tx_pool_failed:
 	i = rxadd_subcrqs;
 rx_pool_alloc_failed:
 	for (j = 0; j < i; j++) {
@@ -608,21 +640,11 @@ alloc_napi_failed:
 static void ibmvnic_release_resources(struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
-	int tx_scrqs, rx_scrqs;
+	int rx_scrqs;
 	int i;
 
 	release_bounce_buffer(adapter);
-
-	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
-	for (i = 0; i < tx_scrqs; i++) {
-		struct ibmvnic_tx_pool *tx_pool = &adapter->tx_pool[i];
-
-		kfree(tx_pool->tx_buff);
-		free_long_term_buff(adapter, &tx_pool->long_term_buff);
-		kfree(tx_pool->free_map);
-	}
-	kfree(adapter->tx_pool);
-	adapter->tx_pool = NULL;
+	release_tx_pools(adapter);
 
 	rx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_rxadd_subcrqs);
 	for (i = 0; i < rx_scrqs; i++) {
