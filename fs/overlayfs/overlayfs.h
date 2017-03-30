@@ -8,6 +8,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/uuid.h>
 
 enum ovl_path_type {
 	__OVL_PATH_UPPER	= (1 << 0),
@@ -20,6 +21,41 @@ enum ovl_path_type {
 #define OVL_XATTR_PREFIX XATTR_TRUSTED_PREFIX "overlay."
 #define OVL_XATTR_OPAQUE OVL_XATTR_PREFIX "opaque"
 #define OVL_XATTR_REDIRECT OVL_XATTR_PREFIX "redirect"
+#define OVL_XATTR_ORIGIN OVL_XATTR_PREFIX "origin"
+
+/*
+ * The tuple (fh,uuid) is a universal unique identifier for a copy up origin,
+ * where:
+ * origin.fh	- exported file handle of the lower file
+ * origin.uuid	- uuid of the lower filesystem
+ */
+#define OVL_FH_VERSION	0
+#define OVL_FH_MAGIC	0xfb
+
+/* CPU byte order required for fid decoding:  */
+#define OVL_FH_FLAG_BIG_ENDIAN	(1 << 0)
+#define OVL_FH_FLAG_ANY_ENDIAN	(1 << 1)
+
+#define OVL_FH_FLAG_ALL (OVL_FH_FLAG_BIG_ENDIAN | OVL_FH_FLAG_ANY_ENDIAN)
+
+#if defined(__LITTLE_ENDIAN)
+#define OVL_FH_FLAG_CPU_ENDIAN 0
+#elif defined(__BIG_ENDIAN)
+#define OVL_FH_FLAG_CPU_ENDIAN OVL_FH_FLAG_BIG_ENDIAN
+#else
+#error Endianness not defined
+#endif
+
+/* On-disk and in-memeory format for redirect by file handle */
+struct ovl_fh {
+	u8 version;	/* 0 */
+	u8 magic;	/* 0xfb */
+	u8 len;		/* size of this header + size of fid */
+	u8 flags;	/* OVL_FH_FLAG_* */
+	u8 type;	/* fid_type of fid */
+	uuid_be uuid;	/* uuid of filesystem */
+	u8 fid[0];	/* file identifier */
+} __packed;
 
 #define OVL_ISUPPER_MASK 1UL
 
