@@ -182,10 +182,12 @@ static void fetch_uc_fw(struct drm_i915_private *dev_priv,
 	}
 
 	if (uc_fw->major_ver_wanted == 0 && uc_fw->minor_ver_wanted == 0) {
-		DRM_NOTE("Skipping uC firmware version check\n");
+		DRM_NOTE("Skipping %s firmware version check\n",
+			 intel_uc_fw_type_repr(uc_fw->type));
 	} else if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
 		   uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
-		DRM_NOTE("uC firmware version %d.%d, required %d.%d\n",
+		DRM_NOTE("%s firmware version %d.%d, required %d.%d\n",
+			 intel_uc_fw_type_repr(uc_fw->type),
 			 uc_fw->major_ver_found, uc_fw->minor_ver_found,
 			 uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
 		err = -ENOEXEC;

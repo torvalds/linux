@@ -125,6 +125,20 @@ enum intel_uc_fw_type {
 	INTEL_UC_FW_TYPE_HUC
 };
 
+/* User-friendly representation of an enum */
+static inline const char *intel_uc_fw_type_repr(enum intel_uc_fw_type type)
+{
+	switch (type) {
+	case INTEL_UC_FW_TYPE_GUC:
+		return "GuC";
+	case INTEL_UC_FW_TYPE_HUC:
+		return "HuC";
+	default:
+		MISSING_CASE(type);
+		return "<invalid>";
+	}
+}
+
 /*
  * This structure encapsulates all the data needed during the process
  * of fetching, caching, and loading the firmware image into the GuC.
