@@ -587,5 +587,10 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 
 void rsnd_adg_remove(struct rsnd_priv *priv)
 {
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct device_node *np = dev->of_node;
+
+	of_clk_del_provider(np);
+
 	rsnd_adg_clk_disable(priv);
 }
