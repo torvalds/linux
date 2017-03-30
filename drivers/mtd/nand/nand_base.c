@@ -1993,8 +1993,6 @@ read_retry:
 				break;
 			}
 
-			max_bitflips = max_t(unsigned int, max_bitflips, ret);
-
 			/* Transfer not aligned data */
 			if (use_bufpoi) {
 				if (!NAND_HAS_SUBPAGE_READ(chip) && !oob &&
@@ -2045,6 +2043,7 @@ read_retry:
 			}
 
 			buf += bytes;
+			max_bitflips = max_t(unsigned int, max_bitflips, ret);
 		} else {
 			memcpy(buf, chip->buffers->databuf + col, bytes);
 			buf += bytes;
