@@ -46,8 +46,6 @@ static const struct of_device_id denali_nand_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, denali_nand_dt_ids);
 
-static u64 denali_dma_mask;
-
 static int denali_dt_probe(struct platform_device *ofdev)
 {
 	struct resource *denali_reg, *nand_data;
@@ -82,13 +80,6 @@ static int denali_dt_probe(struct platform_device *ofdev)
 	denali->flash_mem = devm_ioremap_resource(&ofdev->dev, nand_data);
 	if (IS_ERR(denali->flash_mem))
 		return PTR_ERR(denali->flash_mem);
-
-	if (!of_property_read_u32(ofdev->dev.of_node,
-		"dma-mask", (u32 *)&denali_dma_mask)) {
-		denali->dev->dma_mask = &denali_dma_mask;
-	} else {
-		denali->dev->dma_mask = NULL;
-	}
 
 	dt->clk = devm_clk_get(&ofdev->dev, NULL);
 	if (IS_ERR(dt->clk)) {
