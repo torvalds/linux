@@ -971,6 +971,14 @@
 				no-loopback-test;
 				status = "disabled";
 			};
+
+			adc: adc@1e6e9000 {
+				compatible = "aspeed,ast2400-adc";
+				reg = <0x1e6e9000 0xb0>;
+				clocks = <&clk_apb>;
+				#io-channel-cells = <1>;
+				status = "disabled";
+			};
 		};
 	};
 };

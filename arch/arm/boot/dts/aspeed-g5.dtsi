@@ -384,7 +384,6 @@
 						function = "LAD0";
 						groups = "LAD0";
 					};
-
 					pinctrl_lad1_default: lad1_default {
 						function = "LAD1";
 						groups = "LAD1";
@@ -1113,6 +1112,14 @@
 				interrupts = <10>;
 				clocks = <&clk_uart>;
 				no-loopback-test;
+				status = "disabled";
+			};
+
+			adc: adc@1e6e9000 {
+				compatible = "aspeed,ast2500-adc";
+				reg = <0x1e6e9000 0xb0>;
+				clocks = <&clk_apb>;
+				#io-channel-cells = <1>;
 				status = "disabled";
 			};
 		};
