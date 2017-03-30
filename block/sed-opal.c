@@ -1831,7 +1831,7 @@ static int get_lsp_lifecycle_cont(struct opal_dev *dev)
 	/* 0x08 is Manufacured Inactive */
 	/* 0x09 is Manufactured */
 	if (lc_status != OPAL_MANUFACTURED_INACTIVE) {
-		pr_err("Couldn't determine the status of the Lifcycle state\n");
+		pr_err("Couldn't determine the status of the Lifecycle state\n");
 		return -ENODEV;
 	}
 
