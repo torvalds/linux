@@ -43,6 +43,7 @@ extern u64 __pure __using_nonexistent_pte_bit(void)
 	#define PT_GUEST_DIRTY_MASK PT_DIRTY_MASK
 	#define PT_GUEST_DIRTY_SHIFT PT_DIRTY_SHIFT
 	#define PT_GUEST_ACCESSED_SHIFT PT_ACCESSED_SHIFT
+	#define PT_HAVE_ACCESSED_DIRTY(mmu) true
 	#ifdef CONFIG_X86_64
 	#define PT_MAX_FULL_LEVELS 4
 	#define CMPXCHG cmpxchg
@@ -64,6 +65,7 @@ extern u64 __pure __using_nonexistent_pte_bit(void)
 	#define PT_GUEST_DIRTY_MASK PT_DIRTY_MASK
 	#define PT_GUEST_DIRTY_SHIFT PT_DIRTY_SHIFT
 	#define PT_GUEST_ACCESSED_SHIFT PT_ACCESSED_SHIFT
+	#define PT_HAVE_ACCESSED_DIRTY(mmu) true
 	#define CMPXCHG cmpxchg
 #elif PTTYPE == PTTYPE_EPT
 	#define pt_element_t u64
@@ -78,6 +80,7 @@ extern u64 __pure __using_nonexistent_pte_bit(void)
 	#define PT_GUEST_DIRTY_MASK 0
 	#define PT_GUEST_DIRTY_SHIFT __using_nonexistent_pte_bit()
 	#define PT_GUEST_ACCESSED_SHIFT __using_nonexistent_pte_bit()
+	#define PT_HAVE_ACCESSED_DIRTY(mmu) false
 	#define CMPXCHG cmpxchg64
 	#define PT_MAX_FULL_LEVELS 4
 #else
@@ -111,12 +114,13 @@ static gfn_t gpte_to_gfn_lvl(pt_element_t gpte, int lvl)
 	return (gpte & PT_LVL_ADDR_MASK(lvl)) >> PAGE_SHIFT;
 }
 
-static inline void FNAME(protect_clean_gpte)(unsigned *access, unsigned gpte)
+static inline void FNAME(protect_clean_gpte)(struct kvm_mmu *mmu, unsigned *access,
+					     unsigned gpte)
 {
 	unsigned mask;
 
 	/* dirty bit is not supported, so no need to track it */
-	if (!PT_GUEST_DIRTY_MASK)
+	if (!PT_HAVE_ACCESSED_DIRTY(mmu))
 		return;
 
 	BUILD_BUG_ON(PT_WRITABLE_MASK != ACC_WRITE_MASK);
@@ -171,7 +175,7 @@ static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
 		goto no_present;
 
 	/* if accessed bit is not supported prefetch non accessed gpte */
-	if (PT_GUEST_ACCESSED_MASK && !(gpte & PT_GUEST_ACCESSED_MASK))
+	if (PT_HAVE_ACCESSED_DIRTY(&vcpu->arch.mmu) && !(gpte & PT_GUEST_ACCESSED_MASK))
 		goto no_present;
 
 	return false;
@@ -217,7 +221,7 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 	int ret;
 
 	/* dirty/accessed bits are not supported, so no need to update them */
-	if (!PT_GUEST_DIRTY_MASK)
+	if (!PT_HAVE_ACCESSED_DIRTY(mmu))
 		return 0;
 
 	for (level = walker->max_level; level >= walker->level; --level) {
@@ -287,6 +291,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	gfn_t table_gfn;
 	unsigned index, pt_access, pte_access, accessed_dirty, pte_pkey;
 	gpa_t pte_gpa;
+	bool have_ad;
 	int offset;
 	const int write_fault = access & PFERR_WRITE_MASK;
 	const int user_fault  = access & PFERR_USER_MASK;
@@ -299,6 +304,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 retry_walk:
 	walker->level = mmu->root_level;
 	pte           = mmu->get_cr3(vcpu);
+	have_ad       = PT_HAVE_ACCESSED_DIRTY(mmu);
 
 #if PTTYPE == 64
 	if (walker->level == PT32E_ROOT_LEVEL) {
@@ -312,7 +318,7 @@ retry_walk:
 	walker->max_level = walker->level;
 	ASSERT(!(is_long_mode(vcpu) && !is_pae(vcpu)));
 
-	accessed_dirty = PT_GUEST_ACCESSED_MASK;
+	accessed_dirty = have_ad ? PT_GUEST_ACCESSED_MASK : 0;
 	pt_access = pte_access = ACC_ALL;
 	++walker->level;
 
@@ -394,7 +400,7 @@ retry_walk:
 	walker->gfn = real_gpa >> PAGE_SHIFT;
 
 	if (!write_fault)
-		FNAME(protect_clean_gpte)(&pte_access, pte);
+		FNAME(protect_clean_gpte)(mmu, &pte_access, pte);
 	else
 		/*
 		 * On a write fault, fold the dirty bit into accessed_dirty.
@@ -485,7 +491,7 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 
 	gfn = gpte_to_gfn(gpte);
 	pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
-	FNAME(protect_clean_gpte)(&pte_access, gpte);
+	FNAME(protect_clean_gpte)(&vcpu->arch.mmu, &pte_access, gpte);
 	pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
 			no_dirty_log && (pte_access & ACC_WRITE_MASK));
 	if (is_error_pfn(pfn))
@@ -979,7 +985,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		gfn = gpte_to_gfn(gpte);
 		pte_access = sp->role.access;
 		pte_access &= FNAME(gpte_access)(vcpu, gpte);
-		FNAME(protect_clean_gpte)(&pte_access, gpte);
+		FNAME(protect_clean_gpte)(&vcpu->arch.mmu, &pte_access, gpte);
 
 		if (sync_mmio_spte(vcpu, &sp->spt[i], gfn, pte_access,
 		      &nr_present))
@@ -1025,3 +1031,4 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 #undef PT_GUEST_DIRTY_MASK
 #undef PT_GUEST_DIRTY_SHIFT
 #undef PT_GUEST_ACCESSED_SHIFT
+#undef PT_HAVE_ACCESSED_DIRTY
