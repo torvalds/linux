@@ -88,4 +88,4 @@ ifeq ($(CONFIG_CB710_DEBUG),y)
 endif
 
 obj-$(CONFIG_MMC_SDHCI_XENON)	+= sdhci-xenon-driver.o
-sdhci-xenon-driver-y		+= sdhci-xenon.o
+sdhci-xenon-driver-y		+= sdhci-xenon.o sdhci-xenon-phy.o

@@ -257,6 +257,7 @@ static void xenon_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	sdhci_set_ios(mmc, ios);
+	xenon_phy_adj(host, ios);
 
 	if (host->clock > XENON_DEFAULT_SDCLK_FREQ)
 		xenon_set_sdclk_off_idle(host, priv->sdhc_id, true);
@@ -401,7 +402,7 @@ static int xenon_probe_dt(struct platform_device *pdev)
 	}
 	priv->tuning_count = tuning_count;
 
-	return 0;
+	return xenon_phy_parse_dt(np, host);
 }
 
 static int xenon_sdhc_prepare(struct sdhci_host *host)
@@ -483,7 +484,7 @@ static int xenon_probe(struct platform_device *pdev)
 
 	err = xenon_sdhc_prepare(host);
 	if (err)
-		goto err_clk;
+		goto clean_phy_param;
 
 	err = sdhci_add_host(host);
 	if (err)
@@ -493,6 +494,8 @@ static int xenon_probe(struct platform_device *pdev)
 
 remove_sdhc:
 	xenon_sdhc_unprepare(host);
+clean_phy_param:
+	xenon_clean_phy(host);
 err_clk:
 	clk_disable_unprepare(pltfm_host->clk);
 free_pltfm:
@@ -504,6 +507,8 @@ static int xenon_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+
+	xenon_clean_phy(host);
 
 	xenon_sdhc_unprepare(host);
 
