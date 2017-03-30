@@ -1937,7 +1937,7 @@ nvme_fc_complete_rq(struct request *rq)
 		if (nvme_req_needs_retry(rq, rq->errors)) {
 			rq->retries++;
 			nvme_requeue_req(rq);
-			return;
+			goto put_ctrl;
 		}
 
 		if (blk_rq_is_passthrough(rq))
@@ -1946,9 +1946,10 @@ nvme_fc_complete_rq(struct request *rq)
 			error = nvme_error_status(rq->errors);
 	}
 
+	blk_mq_end_request(rq, error);
+put_ctrl:
 	nvme_fc_ctrl_put(ctrl);
 
-	blk_mq_end_request(rq, error);
 }
 
 static const struct blk_mq_ops nvme_fc_mq_ops = {
