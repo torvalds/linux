@@ -966,7 +966,7 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	if (err) {
 		dev_err(&dev->pdev->dev, "Firmware over %d MS in initializing state, aborting\n",
 			FW_INIT_TIMEOUT_MILI);
-		goto out_err;
+		goto err_cmd_cleanup;
 	}
 
 	err = mlx5_core_enable_hca(dev, 0);
