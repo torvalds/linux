@@ -109,7 +109,6 @@
 
 		sata {
 			label = "caiman:white:sata";
-			linux,default-trigger = "disk-activity";
 		};
 	};
 };
