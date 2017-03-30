@@ -671,9 +671,13 @@ static int vcodec_drm_import(struct vcodec_iommu_session_info *session_info,
 		s = sg_next(s);
 	}
 
-	vcodec_dma_map_sg(drm_info->domain, drm_buffer->copy_sgt->sgl,
-			  drm_buffer->copy_sgt->nents,
-			  IOMMU_READ | IOMMU_WRITE);
+	ret = vcodec_dma_map_sg(drm_info->domain, drm_buffer->copy_sgt->sgl,
+				drm_buffer->copy_sgt->nents,
+				IOMMU_READ | IOMMU_WRITE);
+	if (!ret) {
+		ret = -ENOMEM;
+		goto fail_alloc;
+	}
 	drm_buffer->iova = sg_dma_address(drm_buffer->copy_sgt->sgl);
 	drm_buffer->size = drm_buffer->dma_buf->size;
 
@@ -712,8 +716,12 @@ static int vcodec_drm_import(struct vcodec_iommu_session_info *session_info,
 
 	return drm_buffer->index;
 
+fail_alloc:
+	sg_free_table(drm_buffer->copy_sgt);
+	kfree(drm_buffer->copy_sgt);
+	dma_buf_unmap_attachment(attach, sgt,
+				 DMA_BIDIRECTIONAL);
 fail_detach:
-	dev_err(dev, "dmabuf map attach failed\n");
 	dma_buf_detach(drm_buffer->dma_buf, attach);
 	dma_buf_put(drm_buffer->dma_buf);
 fail_out:
