@@ -774,11 +774,18 @@ static int param_get_aabool(char *buffer, const struct kernel_param *kp)
 
 static int param_set_aauint(const char *val, const struct kernel_param *kp)
 {
+	int error;
+
 	if (!apparmor_enabled)
 		return -EINVAL;
-	if (apparmor_initialized && !policy_admin_capable(NULL))
+	/* file is ro but enforce 2nd line check */
+	if (apparmor_initialized)
 		return -EPERM;
-	return param_set_uint(val, kp);
+
+	error = param_set_uint(val, kp);
+	pr_info("AppArmor: buffer size set to %d bytes\n", aa_g_path_max);
+
+	return error;
 }
 
 static int param_get_aauint(char *buffer, const struct kernel_param *kp)
