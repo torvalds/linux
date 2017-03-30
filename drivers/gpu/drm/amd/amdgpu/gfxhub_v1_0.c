@@ -172,7 +172,7 @@ int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 		(u32)(adev->dummy_page.addr >> 12));
 	WREG32(SOC15_REG_OFFSET(GC, 0,
 				mmVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32),
-		(u32)(adev->dummy_page.addr >> 44));
+		(u32)((u64)adev->dummy_page.addr >> 44));
 
 	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_L2_PROTECTION_FAULT_CNTL2));
 	tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL2,

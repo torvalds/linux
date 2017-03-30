@@ -103,7 +103,7 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	/* Ring Buffer base. [39:8] of 40-bit address of the beginning of the ring buffer*/
 	if (adev->irq.ih.use_bus_addr) {
 		WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE), adev->irq.ih.rb_dma_addr >> 8);
-		WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE_HI), (adev->irq.ih.rb_dma_addr >> 40) &0xff);
+		WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE_HI), ((u64)adev->irq.ih.rb_dma_addr >> 40) & 0xff);
 		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, MC_SPACE, 1);
 	} else {
 		WREG32(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_BASE), adev->irq.ih.gpu_addr >> 8);
