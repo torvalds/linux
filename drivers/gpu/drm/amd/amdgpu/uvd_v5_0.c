@@ -131,11 +131,7 @@ static int uvd_v5_0_sw_fini(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_uvd_sw_fini(adev);
-	if (r)
-		return r;
-
-	return r;
+	return amdgpu_uvd_sw_fini(adev);
 }
 
 /**
@@ -228,11 +224,7 @@ static int uvd_v5_0_suspend(void *handle)
 		return r;
 	uvd_v5_0_set_clockgating_state(adev, AMD_CG_STATE_GATE);
 
-	r = amdgpu_uvd_suspend(adev);
-	if (r)
-		return r;
-
-	return r;
+	return amdgpu_uvd_suspend(adev);
 }
 
 static int uvd_v5_0_resume(void *handle)
@@ -244,11 +236,7 @@ static int uvd_v5_0_resume(void *handle)
 	if (r)
 		return r;
 
-	r = uvd_v5_0_hw_init(adev);
-	if (r)
-		return r;
-
-	return r;
+	return uvd_v5_0_hw_init(adev);
 }
 
 /**

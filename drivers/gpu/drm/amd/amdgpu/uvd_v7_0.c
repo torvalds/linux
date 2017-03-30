@@ -438,11 +438,7 @@ static int uvd_v7_0_sw_fini(void *handle)
 	for (i = 0; i < adev->uvd.num_enc_rings; ++i)
 		amdgpu_ring_fini(&adev->uvd.ring_enc[i]);
 
-	r = amdgpu_uvd_sw_fini(adev);
-	if (r)
-		return r;
-
-	return r;
+	return amdgpu_uvd_sw_fini(adev);
 }
 
 /**
@@ -547,11 +543,8 @@ static int uvd_v7_0_suspend(void *handle)
 		return r;
 
 	/* Skip this for APU for now */
-	if (!(adev->flags & AMD_IS_APU)) {
+	if (!(adev->flags & AMD_IS_APU))
 		r = amdgpu_uvd_suspend(adev);
-		if (r)
-			return r;
-	}
 
 	return r;
 }
@@ -567,11 +560,7 @@ static int uvd_v7_0_resume(void *handle)
 		if (r)
 			return r;
 	}
-	r = uvd_v7_0_hw_init(adev);
-	if (r)
-		return r;
-
-	return r;
+	return uvd_v7_0_hw_init(adev);
 }
 
 /**
