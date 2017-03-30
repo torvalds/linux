@@ -178,8 +178,10 @@ static __init int xilinx_clockevent_init(void)
 				clockevent_xilinx_timer.shift);
 	clockevent_xilinx_timer.max_delta_ns =
 		clockevent_delta2ns((u32)~0, &clockevent_xilinx_timer);
+	clockevent_xilinx_timer.max_delta_ticks = (u32)~0;
 	clockevent_xilinx_timer.min_delta_ns =
 		clockevent_delta2ns(1, &clockevent_xilinx_timer);
+	clockevent_xilinx_timer.min_delta_ticks = 1;
 	clockevent_xilinx_timer.cpumask = cpumask_of(0);
 	clockevents_register_device(&clockevent_xilinx_timer);
 
