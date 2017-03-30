@@ -3271,6 +3271,29 @@ static int wait_for_timeline(struct i915_gem_timeline *tl, unsigned int flags)
 	return 0;
 }
 
+static int wait_for_engine(struct intel_engine_cs *engine, int timeout_ms)
+{
+	return wait_for(intel_engine_is_idle(engine), timeout_ms);
+}
+
+static int wait_for_engines(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, i915, id) {
+		if (GEM_WARN_ON(wait_for_engine(engine, 50))) {
+			i915_gem_set_wedged(i915);
+			return -EIO;
+		}
+
+		GEM_BUG_ON(intel_engine_get_seqno(engine) !=
+			   intel_engine_last_submit(engine));
+	}
+
+	return 0;
+}
+
 int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 {
 	int ret;
@@ -3288,13 +3311,13 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 
 		i915_gem_retire_requests(i915);
 		GEM_BUG_ON(i915->gt.active_requests);
+
+		ret = wait_for_engines(i915);
 	} else {
 		ret = wait_for_timeline(&i915->gt.global_timeline, flags);
-		if (ret)
-			return ret;
 	}
 
-	return 0;
+	return ret;
 }
 
 /** Flushes the GTT write domain for the object if it's dirty. */
