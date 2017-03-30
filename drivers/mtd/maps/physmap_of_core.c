@@ -116,32 +116,22 @@ static const char * const part_probe_types_def[] = {
 
 static const char * const *of_get_probes(struct device_node *dp)
 {
-	const char *cp;
-	int cplen;
-	unsigned int l;
-	unsigned int count;
 	const char **res;
+	int count;
 
-	cp = of_get_property(dp, "linux,part-probe", &cplen);
-	if (cp == NULL)
+	count = of_property_count_strings(dp, "linux,part-probe");
+	if (count < 0)
 		return part_probe_types_def;
 
-	count = 0;
-	for (l = 0; l != cplen; l++)
-		if (cp[l] == 0)
-			count++;
-
-	res = kzalloc((count + 1)*sizeof(*res), GFP_KERNEL);
+	res = kzalloc((count + 1) * sizeof(*res), GFP_KERNEL);
 	if (!res)
 		return NULL;
-	count = 0;
-	while (cplen > 0) {
-		res[count] = cp;
-		l = strlen(cp) + 1;
-		cp += l;
-		cplen -= l;
-		count++;
-	}
+
+	count = of_property_read_string_array(dp, "linux,part-probe", res,
+					      count);
+	if (count < 0)
+		return NULL;
+
 	return res;
 }
 
