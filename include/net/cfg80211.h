@@ -2073,6 +2073,19 @@ struct cfg80211_bss_selection {
  *	the BSSID of the current association, i.e., to the value that is
  *	included in the Current AP address field of the Reassociation Request
  *	frame.
+ * @fils_erp_username: EAP re-authentication protocol (ERP) username part of the
+ *	NAI or %NULL if not specified. This is used to construct FILS wrapped
+ *	data IE.
+ * @fils_erp_username_len: Length of @fils_erp_username in octets.
+ * @fils_erp_realm: EAP re-authentication protocol (ERP) realm part of NAI or
+ *	%NULL if not specified. This specifies the domain name of ER server and
+ *	is used to construct FILS wrapped data IE.
+ * @fils_erp_realm_len: Length of @fils_erp_realm in octets.
+ * @fils_erp_next_seq_num: The next sequence number to use in the FILS ERP
+ *	messages. This is also used to construct FILS wrapped data IE.
+ * @fils_erp_rrk: ERP re-authentication Root Key (rRK) used to derive additional
+ *	keys in FILS or %NULL if not specified.
+ * @fils_erp_rrk_len: Length of @fils_erp_rrk in octets.
  */
 struct cfg80211_connect_params {
 	struct ieee80211_channel *channel;
@@ -2098,6 +2111,13 @@ struct cfg80211_connect_params {
 	bool pbss;
 	struct cfg80211_bss_selection bss_select;
 	const u8 *prev_bssid;
+	const u8 *fils_erp_username;
+	size_t fils_erp_username_len;
+	const u8 *fils_erp_realm;
+	size_t fils_erp_realm_len;
+	u16 fils_erp_next_seq_num;
+	const u8 *fils_erp_rrk;
+	size_t fils_erp_rrk_len;
 };
 
 /**
@@ -2136,12 +2156,27 @@ enum wiphy_params_flags {
  * This structure is passed to the set/del_pmksa() method for PMKSA
  * caching.
  *
- * @bssid: The AP's BSSID.
- * @pmkid: The PMK material itself.
+ * @bssid: The AP's BSSID (may be %NULL).
+ * @pmkid: The identifier to refer a PMKSA.
+ * @pmk: The PMK for the PMKSA identified by @pmkid. This is used for key
+ *	derivation by a FILS STA. Otherwise, %NULL.
+ * @pmk_len: Length of the @pmk. The length of @pmk can differ depending on
+ *	the hash algorithm used to generate this.
+ * @ssid: SSID to specify the ESS within which a PMKSA is valid when using FILS
+ *	cache identifier (may be %NULL).
+ * @ssid_len: Length of the @ssid in octets.
+ * @cache_id: 2-octet cache identifier advertized by a FILS AP identifying the
+ *	scope of PMKSA. This is valid only if @ssid_len is non-zero (may be
+ *	%NULL).
  */
 struct cfg80211_pmksa {
 	const u8 *bssid;
 	const u8 *pmkid;
+	const u8 *pmk;
+	size_t pmk_len;
+	const u8 *ssid;
+	size_t ssid_len;
+	const u8 *cache_id;
 };
 
 /**
@@ -5153,6 +5188,17 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
  * @req_ie_len: Association request IEs length
  * @resp_ie: Association response IEs (may be %NULL)
  * @resp_ie_len: Association response IEs length
+ * @fils_kek: KEK derived from a successful FILS connection (may be %NULL)
+ * @fils_kek_len: Length of @fils_kek in octets
+ * @update_erp_next_seq_num: Boolean value to specify whether the value in
+ *	@fils_erp_next_seq_num is valid.
+ * @fils_erp_next_seq_num: The next sequence number to use in ERP message in
+ *	FILS Authentication. This value should be specified irrespective of the
+ *	status for a FILS connection.
+ * @pmk: A new PMK if derived from a successful FILS connection (may be %NULL).
+ * @pmk_len: Length of @pmk in octets
+ * @pmkid: A new PMKID if derived from a successful FILS connection or the PMKID
+ *	used for this FILS connection (may be %NULL).
  * @timeout_reason: Reason for connection timeout. This is used when the
  *	connection fails due to a timeout instead of an explicit rejection from
  *	the AP. %NL80211_TIMEOUT_UNSPECIFIED is used when the timeout reason is
@@ -5168,6 +5214,13 @@ struct cfg80211_connect_resp_params {
 	size_t req_ie_len;
 	const u8 *resp_ie;
 	size_t resp_ie_len;
+	const u8 *fils_kek;
+	size_t fils_kek_len;
+	bool update_erp_next_seq_num;
+	u16 fils_erp_next_seq_num;
+	const u8 *pmk;
+	size_t pmk_len;
+	const u8 *pmkid;
 	enum nl80211_timeout_reason timeout_reason;
 };
 

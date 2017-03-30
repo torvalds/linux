@@ -410,6 +410,15 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 		.len = sizeof(struct nl80211_bss_select_rssi_adjust)
 	},
 	[NL80211_ATTR_TIMEOUT_REASON] = { .type = NLA_U32 },
+	[NL80211_ATTR_FILS_ERP_USERNAME] = { .type = NLA_BINARY,
+					     .len = FILS_ERP_MAX_USERNAME_LEN },
+	[NL80211_ATTR_FILS_ERP_REALM] = { .type = NLA_BINARY,
+					  .len = FILS_ERP_MAX_REALM_LEN },
+	[NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM] = { .type = NLA_U16 },
+	[NL80211_ATTR_FILS_ERP_RRK] = { .type = NLA_BINARY,
+					.len = FILS_ERP_MAX_RRK_LEN },
+	[NL80211_ATTR_FILS_CACHE_ID] = { .len = 2 },
+	[NL80211_ATTR_PMK] = { .type = NLA_BINARY, .len = PMK_MAX_LEN },
 };
 
 /* policy for the key attributes */
@@ -3832,6 +3841,19 @@ static bool nl80211_valid_auth_type(struct cfg80211_registered_device *rdev,
 			return false;
 		return true;
 	case NL80211_CMD_CONNECT:
+		/* SAE not supported yet */
+		if (auth_type == NL80211_AUTHTYPE_SAE)
+			return false;
+		/* FILS with SK PFS or PK not supported yet */
+		if (auth_type == NL80211_AUTHTYPE_FILS_SK_PFS ||
+		    auth_type == NL80211_AUTHTYPE_FILS_PK)
+			return false;
+		if (!wiphy_ext_feature_isset(
+			    &rdev->wiphy,
+			    NL80211_EXT_FEATURE_FILS_SK_OFFLOAD) &&
+		    auth_type == NL80211_AUTHTYPE_FILS_SK)
+			return false;
+		return true;
 	case NL80211_CMD_START_AP:
 		/* SAE not supported yet */
 		if (auth_type == NL80211_AUTHTYPE_SAE)
@@ -8906,6 +8928,35 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
+	if (wiphy_ext_feature_isset(&rdev->wiphy,
+				    NL80211_EXT_FEATURE_FILS_SK_OFFLOAD) &&
+	    info->attrs[NL80211_ATTR_FILS_ERP_USERNAME] &&
+	    info->attrs[NL80211_ATTR_FILS_ERP_REALM] &&
+	    info->attrs[NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM] &&
+	    info->attrs[NL80211_ATTR_FILS_ERP_RRK]) {
+		connect.fils_erp_username =
+			nla_data(info->attrs[NL80211_ATTR_FILS_ERP_USERNAME]);
+		connect.fils_erp_username_len =
+			nla_len(info->attrs[NL80211_ATTR_FILS_ERP_USERNAME]);
+		connect.fils_erp_realm =
+			nla_data(info->attrs[NL80211_ATTR_FILS_ERP_REALM]);
+		connect.fils_erp_realm_len =
+			nla_len(info->attrs[NL80211_ATTR_FILS_ERP_REALM]);
+		connect.fils_erp_next_seq_num =
+			nla_get_u16(
+			   info->attrs[NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM]);
+		connect.fils_erp_rrk =
+			nla_data(info->attrs[NL80211_ATTR_FILS_ERP_RRK]);
+		connect.fils_erp_rrk_len =
+			nla_len(info->attrs[NL80211_ATTR_FILS_ERP_RRK]);
+	} else if (info->attrs[NL80211_ATTR_FILS_ERP_USERNAME] ||
+		   info->attrs[NL80211_ATTR_FILS_ERP_REALM] ||
+		   info->attrs[NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM] ||
+		   info->attrs[NL80211_ATTR_FILS_ERP_RRK]) {
+		kzfree(connkeys);
+		return -EINVAL;
+	}
+
 	wdev_lock(dev->ieee80211_ptr);
 
 	err = cfg80211_connect(rdev, dev, &connect, connkeys,
@@ -9025,14 +9076,28 @@ static int nl80211_setdel_pmksa(struct sk_buff *skb, struct genl_info *info)
 
 	memset(&pmksa, 0, sizeof(struct cfg80211_pmksa));
 
-	if (!info->attrs[NL80211_ATTR_MAC])
-		return -EINVAL;
-
 	if (!info->attrs[NL80211_ATTR_PMKID])
 		return -EINVAL;
 
 	pmksa.pmkid = nla_data(info->attrs[NL80211_ATTR_PMKID]);
-	pmksa.bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
+
+	if (info->attrs[NL80211_ATTR_MAC]) {
+		pmksa.bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
+	} else if (info->attrs[NL80211_ATTR_SSID] &&
+		   info->attrs[NL80211_ATTR_FILS_CACHE_ID] &&
+		   (info->genlhdr->cmd == NL80211_CMD_DEL_PMKSA ||
+		    info->attrs[NL80211_ATTR_PMK])) {
+		pmksa.ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
+		pmksa.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
+		pmksa.cache_id =
+			nla_data(info->attrs[NL80211_ATTR_FILS_CACHE_ID]);
+	} else {
+		return -EINVAL;
+	}
+	if (info->attrs[NL80211_ATTR_PMK]) {
+		pmksa.pmk = nla_data(info->attrs[NL80211_ATTR_PMK]);
+		pmksa.pmk_len = nla_len(info->attrs[NL80211_ATTR_PMK]);
+	}
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT)
@@ -13471,7 +13536,9 @@ void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
 	struct sk_buff *msg;
 	void *hdr;
 
-	msg = nlmsg_new(100 + cr->req_ie_len + cr->resp_ie_len, gfp);
+	msg = nlmsg_new(100 + cr->req_ie_len + cr->resp_ie_len +
+			cr->fils_kek_len + cr->pmk_len +
+			(cr->pmkid ? WLAN_PMKID_LEN : 0), gfp);
 	if (!msg)
 		return;
 
@@ -13496,7 +13563,18 @@ void nl80211_send_connect_result(struct cfg80211_registered_device *rdev,
 	     nla_put(msg, NL80211_ATTR_REQ_IE, cr->req_ie_len, cr->req_ie)) ||
 	    (cr->resp_ie &&
 	     nla_put(msg, NL80211_ATTR_RESP_IE, cr->resp_ie_len,
-		     cr->resp_ie)))
+		     cr->resp_ie)) ||
+	    (cr->update_erp_next_seq_num &&
+	     nla_put_u16(msg, NL80211_ATTR_FILS_ERP_NEXT_SEQ_NUM,
+			 cr->fils_erp_next_seq_num)) ||
+	    (cr->status == WLAN_STATUS_SUCCESS &&
+	     ((cr->fils_kek &&
+	       nla_put(msg, NL80211_ATTR_FILS_KEK, cr->fils_kek_len,
+		       cr->fils_kek)) ||
+	      (cr->pmk &&
+	       nla_put(msg, NL80211_ATTR_PMK, cr->pmk_len, cr->pmk)) ||
+	      (cr->pmkid &&
+	       nla_put(msg, NL80211_ATTR_PMKID, WLAN_PMKID_LEN, cr->pmkid)))))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
