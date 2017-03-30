@@ -321,7 +321,6 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q, int rw,
 
 	rq = blk_mq_sched_get_request(q, NULL, rw, &alloc_data);
 
-	blk_mq_put_ctx(alloc_data.ctx);
 	blk_queue_exit(q);
 
 	if (!rq)
