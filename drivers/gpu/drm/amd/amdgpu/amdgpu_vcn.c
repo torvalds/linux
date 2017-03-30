@@ -379,25 +379,20 @@ static int amdgpu_vcn_dec_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 	}
 
 	msg[0] = cpu_to_le32(0x00000028);
-	msg[1] = cpu_to_le32(0x0000004c);
+	msg[1] = cpu_to_le32(0x00000038);
 	msg[2] = cpu_to_le32(0x00000001);
 	msg[3] = cpu_to_le32(0x00000000);
 	msg[4] = cpu_to_le32(handle);
 	msg[5] = cpu_to_le32(0x00000000);
 	msg[6] = cpu_to_le32(0x00000001);
 	msg[7] = cpu_to_le32(0x00000028);
-	msg[8] = cpu_to_le32(0x00000024);
+	msg[8] = cpu_to_le32(0x00000010);
 	msg[9] = cpu_to_le32(0x00000000);
 	msg[10] = cpu_to_le32(0x00000007);
 	msg[11] = cpu_to_le32(0x00000000);
-	msg[12] = cpu_to_le32(0x00000000);
-	msg[13] = cpu_to_le32(0x00000780);
-	msg[14] = cpu_to_le32(0x00000440);
-	msg[15] = cpu_to_le32(0x00000000);
-	msg[16] = cpu_to_le32(0x01b37000);
-	msg[17] = cpu_to_le32(0x00000000);
-	msg[18] = cpu_to_le32(0x00000000);
-	for (i = 19; i < 1024; ++i)
+	msg[12] = cpu_to_le32(0x00000780);
+	msg[13] = cpu_to_le32(0x00000440);
+	for (i = 14; i < 1024; ++i)
 		msg[i] = cpu_to_le32(0x0);
 
 	amdgpu_bo_kunmap(bo);
