@@ -76,6 +76,7 @@
 #include "iwl-config.h"
 #include "iwl-fw.h"
 #include "iwl-op-mode.h"
+#include "iwl-fw-api.h"
 
 /**
  * DOC: Transport layer - what is it ?
@@ -110,104 +111,6 @@
  *
  *	6) Eventually, the free function will be called.
  */
-
-/**
- * DOC: Host command section
- *
- * A host command is a command issued by the upper layer to the fw. There are
- * several versions of fw that have several APIs. The transport layer is
- * completely agnostic to these differences.
- * The transport does provide helper functionality (i.e. SYNC / ASYNC mode),
- */
-#define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
-#define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
-#define SEQ_TO_INDEX(s)	((s) & 0xff)
-#define INDEX_TO_SEQ(i)	((i) & 0xff)
-#define SEQ_RX_FRAME	cpu_to_le16(0x8000)
-
-/*
- * those functions retrieve specific information from
- * the id field in the iwl_host_cmd struct which contains
- * the command id, the group id and the version of the command
- * and vice versa
-*/
-static inline u8 iwl_cmd_opcode(u32 cmdid)
-{
-	return cmdid & 0xFF;
-}
-
-static inline u8 iwl_cmd_groupid(u32 cmdid)
-{
-	return ((cmdid & 0xFF00) >> 8);
-}
-
-static inline u8 iwl_cmd_version(u32 cmdid)
-{
-	return ((cmdid & 0xFF0000) >> 16);
-}
-
-static inline u32 iwl_cmd_id(u8 opcode, u8 groupid, u8 version)
-{
-	return opcode + (groupid << 8) + (version << 16);
-}
-
-/* make u16 wide id out of u8 group and opcode */
-#define WIDE_ID(grp, opcode) ((grp << 8) | opcode)
-#define DEF_ID(opcode) ((1 << 8) | (opcode))
-
-/* due to the conversion, this group is special; new groups
- * should be defined in the appropriate fw-api header files
- */
-#define IWL_ALWAYS_LONG_GROUP	1
-
-/**
- * struct iwl_cmd_header
- *
- * This header format appears in the beginning of each command sent from the
- * driver, and each response/notification received from uCode.
- */
-struct iwl_cmd_header {
-	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
-	u8 group_id;
-	/*
-	 * The driver sets up the sequence number to values of its choosing.
-	 * uCode does not use this value, but passes it back to the driver
-	 * when sending the response to each driver-originated command, so
-	 * the driver can match the response to the command.  Since the values
-	 * don't get used by uCode, the driver may set up an arbitrary format.
-	 *
-	 * There is one exception:  uCode sets bit 15 when it originates
-	 * the response/notification, i.e. when the response/notification
-	 * is not a direct response to a command sent by the driver.  For
-	 * example, uCode issues REPLY_RX when it sends a received frame
-	 * to the driver; it is not a direct response to any driver command.
-	 *
-	 * The Linux driver uses the following format:
-	 *
-	 *  0:7		tfd index - position within TX queue
-	 *  8:12	TX queue id
-	 *  13:14	reserved
-	 *  15		unsolicited RX or uCode-originated notification
-	 */
-	__le16 sequence;
-} __packed;
-
-/**
- * struct iwl_cmd_header_wide
- *
- * This header format appears in the beginning of each command sent from the
- * driver, and each response/notification received from uCode.
- * this is the wide version that contains more information about the command
- * like length, version and command type
- */
-struct iwl_cmd_header_wide {
-	u8 cmd;
-	u8 group_id;
-	__le16 sequence;
-	__le16 length;
-	u8 reserved;
-	u8 version;
-} __packed;
 
 #define FH_RSCSR_FRAME_SIZE_MSK		0x00003FFF	/* bits 0-13 */
 #define FH_RSCSR_FRAME_INVALID		0x55550000
@@ -532,44 +435,6 @@ struct iwl_trans_txq_scd_cfg {
 	bool aggregate;
 	int frame_limit;
 };
-
-/* Available options for &struct iwl_tx_queue_cfg_cmd */
-enum iwl_tx_queue_cfg_actions {
-	TX_QUEUE_CFG_ENABLE_QUEUE		= BIT(0),
-	TX_QUEUE_CFG_TFD_SHORT_FORMAT		= BIT(1),
-};
-
-/**
- * struct iwl_tx_queue_cfg_cmd - txq hw scheduler config command
- * @sta_id: station id
- * @tid: tid of the queue
- * @flags: Bit 0 - on enable, off - disable, Bit 1 - short TFD format
- * @cb_size: size of TFD cyclic buffer. Value is exponent - 3.
- *	Minimum value 0 (8 TFDs), maximum value 5 (256 TFDs)
- * @byte_cnt_addr: address of byte count table
- * @tfdq_addr: address of TFD circular buffer
- */
-struct iwl_tx_queue_cfg_cmd {
-	u8 sta_id;
-	u8 tid;
-	__le16 flags;
-	__le32 cb_size;
-	__le64 byte_cnt_addr;
-	__le64 tfdq_addr;
-} __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_2 */
-
-/**
- * struct iwl_tx_queue_cfg_rsp - response to txq hw scheduler config
- * @queue_number: queue number assigned to this RA -TID
- * @flags: set on failure
- * @write_pointer: initial value for write pointer
- */
-struct iwl_tx_queue_cfg_rsp {
-	__le16 queue_number;
-	__le16 flags;
-	__le16 write_pointer;
-	__le16 reserved;
-} __packed; /* TX_QUEUE_CFG_RSP_API_S_VER_2 */
 
 /**
  * struct iwl_trans_ops - transport specific operations
