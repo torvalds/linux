@@ -131,7 +131,6 @@ struct amdgpu_vm {
 
 struct amdgpu_vm_id {
 	struct list_head	list;
-	struct dma_fence		*first;
 	struct amdgpu_sync	active;
 	struct dma_fence		*last_flush;
 	atomic64_t		owner;
