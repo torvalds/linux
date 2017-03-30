@@ -331,10 +331,16 @@ static uint64_t gmc_v9_0_get_vm_pte_flags(struct amdgpu_device *adev,
 	return pte_flag;
 }
 
+static u64 gmc_v9_0_adjust_mc_addr(struct amdgpu_device *adev, u64 mc_addr)
+{
+	return adev->vm_manager.vram_base_offset + mc_addr - adev->mc.vram_start;
+}
+
 static const struct amdgpu_gart_funcs gmc_v9_0_gart_funcs = {
 	.flush_gpu_tlb = gmc_v9_0_gart_flush_gpu_tlb,
 	.set_pte_pde = gmc_v9_0_gart_set_pte_pde,
-	.get_vm_pte_flags = gmc_v9_0_get_vm_pte_flags
+	.get_vm_pte_flags = gmc_v9_0_get_vm_pte_flags,
+	.adjust_mc_addr = gmc_v9_0_adjust_mc_addr,
 };
 
 static void gmc_v9_0_set_gart_funcs(struct amdgpu_device *adev)
@@ -343,26 +349,11 @@ static void gmc_v9_0_set_gart_funcs(struct amdgpu_device *adev)
 		adev->gart.gart_funcs = &gmc_v9_0_gart_funcs;
 }
 
-static u64 gmc_v9_0_adjust_mc_addr(struct amdgpu_device *adev, u64 mc_addr)
-{
-	return adev->vm_manager.vram_base_offset + mc_addr - adev->mc.vram_start;
-}
-
-static const struct amdgpu_mc_funcs gmc_v9_0_mc_funcs = {
-	.adjust_mc_addr = gmc_v9_0_adjust_mc_addr,
-};
-
-static void gmc_v9_0_set_mc_funcs(struct amdgpu_device *adev)
-{
-	adev->mc.mc_funcs = &gmc_v9_0_mc_funcs;
-}
-
 static int gmc_v9_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gmc_v9_0_set_gart_funcs(adev);
-	gmc_v9_0_set_mc_funcs(adev);
 	gmc_v9_0_set_irq_funcs(adev);
 
 	return 0;

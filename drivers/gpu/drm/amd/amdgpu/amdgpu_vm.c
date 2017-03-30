@@ -571,8 +571,8 @@ static u64 amdgpu_vm_adjust_mc_addr(struct amdgpu_device *adev, u64 mc_addr)
 {
 	u64 addr = mc_addr;
 
-	if (adev->mc.mc_funcs && adev->mc.mc_funcs->adjust_mc_addr)
-		addr = adev->mc.mc_funcs->adjust_mc_addr(adev, addr);
+	if (adev->gart.gart_funcs->adjust_mc_addr)
+		addr = adev->gart.gart_funcs->adjust_mc_addr(adev, addr);
 
 	return addr;
 }

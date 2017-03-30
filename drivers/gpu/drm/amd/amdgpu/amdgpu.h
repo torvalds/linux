@@ -304,10 +304,6 @@ struct amdgpu_gart_funcs {
 	/* set pte flags based per asic */
 	uint64_t (*get_vm_pte_flags)(struct amdgpu_device *adev,
 				     uint32_t flags);
-};
-
-/* provided by the mc block */
-struct amdgpu_mc_funcs {
 	/* adjust mc addr in fb for APU case */
 	u64 (*adjust_mc_addr)(struct amdgpu_device *adev, u64 addr);
 };
@@ -613,7 +609,6 @@ struct amdgpu_mc {
 	u64					private_aperture_end;
 	/* protects concurrent invalidation */
 	spinlock_t		invalidate_lock;
-	const struct amdgpu_mc_funcs *mc_funcs;
 };
 
 /*
