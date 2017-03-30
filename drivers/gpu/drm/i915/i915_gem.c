@@ -3112,9 +3112,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	 * Wait for last execlists context complete, but bail out in case a
 	 * new request is submitted.
 	 */
-	wait_for(READ_ONCE(dev_priv->gt.active_requests) ||
-		 intel_engines_are_idle(dev_priv),
-		 10);
+	wait_for(intel_engines_are_idle(dev_priv), 10);
 	if (READ_ONCE(dev_priv->gt.active_requests))
 		return;
 
