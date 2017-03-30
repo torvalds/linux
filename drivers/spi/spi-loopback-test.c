@@ -520,7 +520,7 @@ static int spi_test_check_elapsed_time(struct spi_device *spi,
 	estimated_time += delay_usecs * NSEC_PER_USEC;
 	if (test->elapsed_time < estimated_time) {
 		dev_err(&spi->dev,
-			"elapsed time %lld ns is shorter than minimam estimated time %lld ns\n",
+			"elapsed time %lld ns is shorter than minimum estimated time %lld ns\n",
 			test->elapsed_time, estimated_time);
 
 		return -EINVAL;
