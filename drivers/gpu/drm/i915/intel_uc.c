@@ -26,6 +26,19 @@
 #include "intel_uc.h"
 #include <linux/firmware.h>
 
+/* Cleans up uC firmware by releasing the firmware GEM obj.
+ */
+static void __intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
+{
+	struct drm_i915_gem_object *obj;
+
+	obj = fetch_and_zero(&uc_fw->obj);
+	if (obj)
+		i915_gem_object_put(obj);
+
+	uc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
+}
+
 /* Reset GuC providing us with fresh state for both GuC and HuC.
  */
 static int __intel_uc_reset_hw(struct drm_i915_private *dev_priv)
@@ -235,21 +248,8 @@ void intel_uc_init_fw(struct drm_i915_private *dev_priv)
 
 void intel_uc_fini_fw(struct drm_i915_private *dev_priv)
 {
-	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
-	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
-	struct drm_i915_gem_object *obj;
-
-	obj = fetch_and_zero(&guc_fw->obj);
-	if (obj)
-		i915_gem_object_put(obj);
-
-	guc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
-
-	obj = fetch_and_zero(&huc_fw->obj);
-	if (obj)
-		i915_gem_object_put(obj);
-
-	huc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
+	__intel_uc_fw_fini(&dev_priv->guc.fw);
+	__intel_uc_fw_fini(&dev_priv->huc.fw);
 }
 
 int intel_uc_init_hw(struct drm_i915_private *dev_priv)
