@@ -709,6 +709,24 @@
 	};
 };
 
+&audio {
+	clocks = <&clkc CLKID_AIU>,
+		 <&clkc CLKID_AIU_GLUE>,
+		 <&clkc CLKID_I2S_SPDIF>;
+	clock-names = "aiu_top", "aiu_glue", "audin";
+	resets = <&reset RESET_AIU>,
+		 <&reset RESET_AUDIN>;
+	reset-names = "aiu", "audin";
+};
+
+&aiu_i2s {
+	clocks = <&clkc CLKID_I2S_OUT>,
+		 <&clkc CLKID_MIXER_IFACE>,
+		 <&clkc CLKID_AOCLK_GATE>,
+		 <&clkc CLKID_CTS_AMCLK>;
+	clock-names = "fast", "iface", "bclks", "mclk";
+};
+
 &pwrc_vpu {
 	resets = <&reset RESET_VIU>,
 		 <&reset RESET_VENC>,
@@ -795,6 +813,15 @@
 	clock-names = "core";
 	resets = <&reset RESET_PERIPHS_SPICC>;
 	num-cs = <1>;
+};
+
+&aiu_spdif {
+	clocks = <&clkc CLKID_IEC958>,
+		 <&clkc CLKID_IEC958_GATE>,
+		 <&clkc CLKID_CTS_MCLK_I958>,
+		 <&clkc CLKID_CTS_AMCLK>,
+		 <&clkc CLKID_CTS_I958>;
+	clock-names = "fast", "iface", "mclk_i958", "mclk_i2s", "mclk";
 };
 
 &spifc {
