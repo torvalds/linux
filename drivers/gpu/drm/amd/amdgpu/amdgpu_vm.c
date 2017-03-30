@@ -462,10 +462,11 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	}
 	kfree(fences);
 
-	job->vm_needs_flush = true;
+	job->vm_needs_flush = false;
 	/* Check if we can use a VMID already assigned to this VM */
 	list_for_each_entry_reverse(id, &id_mgr->ids_lru, list) {
 		struct dma_fence *flushed;
+		bool needs_flush = false;
 
 		/* Check all the prerequisites to using this VMID */
 		if (amdgpu_vm_had_gpu_reset(adev, id))
@@ -477,16 +478,17 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (job->vm_pd_addr != id->pd_gpu_addr)
 			continue;
 
-		if (!id->last_flush)
-			continue;
-
-		if (id->last_flush->context != fence_context &&
-		    !dma_fence_is_signaled(id->last_flush))
-			continue;
+		if (!id->last_flush ||
+		    (id->last_flush->context != fence_context &&
+		     !dma_fence_is_signaled(id->last_flush)))
+			needs_flush = true;
 
 		flushed  = id->flushed_updates;
-		if (updates &&
-		    (!flushed || dma_fence_is_later(updates, flushed)))
+		if (updates && (!flushed || dma_fence_is_later(updates, flushed)))
+			needs_flush = true;
+
+		/* Concurrent flushes are only possible starting with Vega10 */
+		if (adev->asic_type < CHIP_VEGA10 && needs_flush)
 			continue;
 
 		/* Good we can use this VMID. Remember this submission as
@@ -496,14 +498,15 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (r)
 			goto error;
 
-		list_move_tail(&id->list, &id_mgr->ids_lru);
+		if (updates && (!flushed || dma_fence_is_later(updates, flushed))) {
+			dma_fence_put(id->flushed_updates);
+			id->flushed_updates = dma_fence_get(updates);
+		}
 
-		job->vm_id = id - id_mgr->ids;
-		job->vm_needs_flush = false;
-		trace_amdgpu_vm_grab_id(vm, ring->idx, job);
-
-		mutex_unlock(&id_mgr->lock);
-		return 0;
+		if (needs_flush)
+			goto needs_flush;
+		else
+			goto no_flush_needed;
 
 	};
 
@@ -515,16 +518,19 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	if (r)
 		goto error;
 
+	id->pd_gpu_addr = job->vm_pd_addr;
+	dma_fence_put(id->flushed_updates);
+	id->flushed_updates = dma_fence_get(updates);
+	id->current_gpu_reset_count = atomic_read(&adev->gpu_reset_counter);
+	atomic64_set(&id->owner, vm->client_id);
+
+needs_flush:
+	job->vm_needs_flush = true;
 	dma_fence_put(id->last_flush);
 	id->last_flush = NULL;
 
-	dma_fence_put(id->flushed_updates);
-	id->flushed_updates = dma_fence_get(updates);
-
-	id->pd_gpu_addr = job->vm_pd_addr;
-	id->current_gpu_reset_count = atomic_read(&adev->gpu_reset_counter);
+no_flush_needed:
 	list_move_tail(&id->list, &id_mgr->ids_lru);
-	atomic64_set(&id->owner, vm->client_id);
 
 	job->vm_id = id - id_mgr->ids;
 	trace_amdgpu_vm_grab_id(vm, ring->idx, job);
