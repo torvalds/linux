@@ -338,8 +338,10 @@ static void vblank_disable_and_save(struct drm_device *dev, unsigned int pipe)
 	 * calling the ->disable_vblank() operation in atomic context with the
 	 * hardware potentially runtime suspended.
 	 */
-	if (cmpxchg_relaxed(&vblank->enabled, true, false))
+	if (vblank->enabled) {
 		__disable_vblank(dev, pipe);
+		vblank->enabled = false;
+	}
 
 	/*
 	 * Always update the count and timestamp to maintain the
