@@ -44,6 +44,13 @@
 
 #include "phy-fsl-usb.h"
 
+#ifdef VERBOSE
+#define VDBG(fmt, args...) pr_debug("[%s]  " fmt, \
+				 __func__, ## args)
+#else
+#define VDBG(stuff...)	do {} while (0)
+#endif
+
 #define DRIVER_VERSION "Rev. 1.55"
 #define DRIVER_AUTHOR "Jerry Huang/Li Yang"
 #define DRIVER_DESC "Freescale USB OTG Transceiver Driver"
