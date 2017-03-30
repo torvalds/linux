@@ -3154,22 +3154,12 @@ t_hash_show(struct seq_file *m, struct ftrace_iterator *iter)
 }
 
 static void *
-t_next(struct seq_file *m, void *v, loff_t *pos)
+t_func_next(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
 	struct dyn_ftrace *rec = NULL;
 
-	if (unlikely(ftrace_disabled))
-		return NULL;
-
-	if (iter->flags & FTRACE_ITER_HASH)
-		return t_hash_next(m, pos);
-
 	(*pos)++;
-	iter->pos = iter->func_pos = *pos;
-
-	if (iter->flags & FTRACE_ITER_PRINTALL)
-		return t_hash_start(m, pos);
 
  retry:
 	if (iter->idx >= iter->pg->index) {
@@ -3192,11 +3182,38 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 	}
 
 	if (!rec)
-		return t_hash_start(m, pos);
+		return NULL;
 
+	iter->pos = iter->func_pos = *pos;
 	iter->func = rec;
 
 	return iter;
+}
+
+static void *
+t_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct ftrace_iterator *iter = m->private;
+	void *ret;
+
+	if (unlikely(ftrace_disabled))
+		return NULL;
+
+	if (iter->flags & FTRACE_ITER_HASH)
+		return t_hash_next(m, pos);
+
+	if (iter->flags & FTRACE_ITER_PRINTALL) {
+		/* next must increment pos, and t_hash_start does not */
+		(*pos)++;
+		return t_hash_start(m, pos);
+	}
+
+	ret = t_func_next(m, pos);
+
+	if (!ret)
+		return t_hash_start(m, pos);
+
+	return ret;
 }
 
 static void reset_iter_read(struct ftrace_iterator *iter)
@@ -3250,13 +3267,13 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	iter->pg = ftrace_pages_start;
 	iter->idx = 0;
 	for (l = 0; l <= *pos; ) {
-		p = t_next(m, p, &l);
+		p = t_func_next(m, &l);
 		if (!p)
 			break;
 	}
 
 	if (!p)
-		return NULL;
+		return t_hash_start(m, pos);
 
 	return iter;
 }
