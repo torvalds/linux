@@ -31,6 +31,7 @@
 
 #include "dce/dce_hwseq.h"
 #include "dce110/dce110_hw_sequencer.h"
+#include "dce100/dce100_hw_sequencer.h"
 
 /* include DCE8 register header files */
 #include "dce/dce_8_0_d.h"
@@ -118,6 +119,7 @@ static void set_bandwidth(
 		bool decrease_allowed)
 {
 	dc->hwss.set_displaymarks(dc, context);
+	dce100_pplib_apply_display_requirements(dc, context);
 }
 
 

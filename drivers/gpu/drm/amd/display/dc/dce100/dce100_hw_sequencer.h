@@ -29,8 +29,13 @@
 #include "core_types.h"
 
 struct core_dc;
+struct validate_context;
 
 bool dce100_hw_sequencer_construct(struct core_dc *dc);
+
+void dce100_pplib_apply_display_requirements(
+	struct core_dc *dc,
+	struct validate_context *context);
 
 #endif /* __DC_HWSS_DCE100_H__ */
 

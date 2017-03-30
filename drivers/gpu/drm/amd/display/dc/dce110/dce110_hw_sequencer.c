@@ -2097,7 +2097,7 @@ static void init_hw(struct core_dc *dc)
 	}
 }
 
-static void fill_display_configs(
+void dce110_fill_display_configs(
 	const struct validate_context *context,
 	struct dm_pp_display_configuration *pp_display_cfg)
 {
@@ -2146,7 +2146,7 @@ static void fill_display_configs(
 	pp_display_cfg->display_count = num_cfgs;
 }
 
-static uint32_t get_min_vblank_time_us(const struct validate_context *context)
+uint32_t dce110_get_min_vblank_time_us(const struct validate_context *context)
 {
 	uint8_t j;
 	uint32_t min_vertical_blank_time = -1;
@@ -2224,13 +2224,13 @@ static void pplib_apply_display_requirements(
 			= context->bw_results.required_sclk_deep_sleep;
 
 	pp_display_cfg->avail_mclk_switch_time_us =
-						get_min_vblank_time_us(context);
+						dce110_get_min_vblank_time_us(context);
 	/* TODO: dce11.2*/
 	pp_display_cfg->avail_mclk_switch_time_in_disp_active_us = 0;
 
 	pp_display_cfg->disp_clk_khz = context->dispclk_khz;
 
-	fill_display_configs(context, pp_display_cfg);
+	dce110_fill_display_configs(context, pp_display_cfg);
 
 	/* TODO: is this still applicable?*/
 	if (pp_display_cfg->display_count == 1) {

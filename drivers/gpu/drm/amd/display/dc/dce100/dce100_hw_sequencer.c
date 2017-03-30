@@ -104,6 +104,26 @@ static bool dce100_enable_display_power_gating(
 		return false;
 }
 
+void dce100_pplib_apply_display_requirements(
+	struct core_dc *dc,
+	struct validate_context *context)
+{
+	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
+
+	pp_display_cfg->avail_mclk_switch_time_us =
+						dce110_get_min_vblank_time_us(context);
+
+	dce110_fill_display_configs(context, pp_display_cfg);
+
+	if (memcmp(&dc->prev_display_config, pp_display_cfg, sizeof(
+			struct dm_pp_display_configuration)) !=  0)
+		dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
+
+	dc->prev_display_config = *pp_display_cfg;
+}
+
+
+
 static void set_displaymarks(
 		const struct core_dc *dc, struct validate_context *context)
 {
@@ -116,6 +136,7 @@ static void set_bandwidth(
 		bool decrease_allowed)
 {
 	dc->hwss.set_displaymarks(dc, context);
+	dce100_pplib_apply_display_requirements(dc, context);
 }
 
 
