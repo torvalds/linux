@@ -3230,6 +3230,7 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	 */
 	if ((iter->flags & (FTRACE_ITER_FILTER | FTRACE_ITER_NOTRACE)) &&
 	    ftrace_hash_empty(iter->hash)) {
+		iter->func_pos = 1; /* Account for the message */
 		if (*pos > 0)
 			return t_hash_start(m, pos);
 		iter->flags |= FTRACE_ITER_PRINTALL;
