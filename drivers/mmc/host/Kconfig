@@ -853,3 +853,11 @@ config MMC_SDHCI_BRCMSTB
 	  Broadcom STB SoCs.
 
 	  If unsure, say Y.
+
+config MMC_SDHCI_XENON
+	tristate "Marvell Xenon eMMC/SD/SDIO SDHCI driver"
+	depends on MMC_SDHCI_PLTFM
+	help
+	  This selects Marvell Xenon eMMC/SD/SDIO SDHCI.
+	  If you have a controller with this interface, say Y or M here.
+	  If unsure, say N.
