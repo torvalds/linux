@@ -27,6 +27,7 @@
 
 /* isochronous header parameters */
 #define ISO_DATA_LENGTH_SHIFT	16
+#define TAG_NO_CIP_HEADER	0
 #define TAG_CIP			1
 
 /* common isochronous packet header parameters */
@@ -234,11 +235,15 @@ EXPORT_SYMBOL(amdtp_stream_set_parameters);
 unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s)
 {
 	unsigned int multiplier = 1;
+	unsigned int header_size = 0;
 
 	if (s->flags & CIP_JUMBO_PAYLOAD)
 		multiplier = 5;
+	if (!(s->flags & CIP_NO_HEADER))
+		header_size = 8;
 
-	return 8 + s->syt_interval * s->data_block_quadlets * 4 * multiplier;
+	return header_size +
+		s->syt_interval * s->data_block_quadlets * 4 * multiplier;
 }
 EXPORT_SYMBOL(amdtp_stream_get_max_payload);
 
@@ -380,7 +385,7 @@ static int queue_packet(struct amdtp_stream *s, unsigned int header_length,
 		goto end;
 
 	p.interrupt = IS_ALIGNED(s->packet_index + 1, INTERRUPT_INTERVAL);
-	p.tag = TAG_CIP;
+	p.tag = s->tag;
 	p.header_length = header_length;
 	if (payload_length > 0)
 		p.payload_length = payload_length;
@@ -446,6 +451,34 @@ static int handle_out_packet(struct amdtp_stream *s,
 
 	trace_out_packet(s, cycle, buffer, payload_length, index);
 
+	if (queue_out_packet(s, payload_length) < 0)
+		return -EIO;
+
+	pcm = ACCESS_ONCE(s->pcm);
+	if (pcm && pcm_frames > 0)
+		update_pcm_pointers(s, pcm, pcm_frames);
+
+	/* No need to return the number of handled data blocks. */
+	return 0;
+}
+
+static int handle_out_packet_without_header(struct amdtp_stream *s,
+			unsigned int payload_length, unsigned int cycle,
+			unsigned int index)
+{
+	__be32 *buffer;
+	unsigned int syt;
+	unsigned int data_blocks;
+	unsigned int pcm_frames;
+	struct snd_pcm_substream *pcm;
+
+	buffer = s->buffer.packets[s->packet_index].buffer;
+	syt = calculate_syt(s, cycle);
+	data_blocks = calculate_data_blocks(s, syt);
+	pcm_frames = s->process_data_blocks(s, buffer, data_blocks, &syt);
+	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
+
+	payload_length = data_blocks * 4 * s->data_block_quadlets;
 	if (queue_out_packet(s, payload_length) < 0)
 		return -EIO;
 
@@ -573,6 +606,30 @@ end:
 	return 0;
 }
 
+static int handle_in_packet_without_header(struct amdtp_stream *s,
+			unsigned int payload_quadlets, unsigned int cycle,
+			unsigned int index)
+{
+	__be32 *buffer;
+	unsigned int data_blocks;
+	struct snd_pcm_substream *pcm;
+	unsigned int pcm_frames;
+
+	buffer = s->buffer.packets[s->packet_index].buffer;
+	data_blocks = payload_quadlets / s->data_block_quadlets;
+	pcm_frames = s->process_data_blocks(s, buffer, data_blocks, NULL);
+	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
+
+	if (queue_in_packet(s) < 0)
+		return -EIO;
+
+	pcm = ACCESS_ONCE(s->pcm);
+	if (pcm && pcm_frames > 0)
+		update_pcm_pointers(s, pcm, pcm_frames);
+
+	return 0;
+}
+
 /*
  * In CYCLE_TIMER register of IEEE 1394, 7 bits are used to represent second. On
  * the other hand, in DMA descriptors of 1394 OHCI, 3 bits are used to represent
@@ -616,7 +673,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 	for (i = 0; i < packets; ++i) {
 		cycle = increment_cycle_count(cycle, 1);
-		if (handle_out_packet(s, 0, cycle, i) < 0) {
+		if (s->handle_packet(s, 0, cycle, i) < 0) {
 			s->packet_index = -1;
 			amdtp_stream_pcm_abort(s);
 			return;
@@ -663,7 +720,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 			break;
 		}
 
-		if (handle_in_packet(s, payload_length, cycle, i) < 0)
+		if (s->handle_packet(s, payload_length, cycle, i) < 0)
 			break;
 	}
 
@@ -699,10 +756,18 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 		packets = header_length / IN_PACKET_HEADER_SIZE;
 		cycle = decrement_cycle_count(cycle, packets);
 		context->callback.sc = in_stream_callback;
+		if (s->flags & CIP_NO_HEADER)
+			s->handle_packet = handle_in_packet_without_header;
+		else
+			s->handle_packet = handle_in_packet;
 	} else {
 		packets = header_length / 4;
 		cycle = increment_cycle_count(cycle, QUEUE_LENGTH - packets);
 		context->callback.sc = out_stream_callback;
+		if (s->flags & CIP_NO_HEADER)
+			s->handle_packet = handle_out_packet_without_header;
+		else
+			s->handle_packet = handle_out_packet;
 	}
 
 	s->start_cycle = cycle;
@@ -782,6 +847,11 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 
 	amdtp_stream_update(s);
 
+	if (s->flags & CIP_NO_HEADER)
+		s->tag = TAG_NO_CIP_HEADER;
+	else
+		s->tag = TAG_CIP;
+
 	s->packet_index = 0;
 	do {
 		if (s->direction == AMDTP_IN_STREAM)
@@ -794,7 +864,7 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 
 	/* NOTE: TAG1 matches CIP. This just affects in stream. */
 	tag = FW_ISO_CONTEXT_MATCH_TAG1;
-	if (s->flags & CIP_EMPTY_WITH_TAG0)
+	if ((s->flags & CIP_EMPTY_WITH_TAG0) || (s->flags & CIP_NO_HEADER))
 		tag |= FW_ISO_CONTEXT_MATCH_TAG0;
 
 	s->callbacked = false;
