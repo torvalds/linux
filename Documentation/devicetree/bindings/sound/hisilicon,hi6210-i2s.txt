@@ -1,0 +1,34 @@
+* Hisilicon 6210 i2s controller
+
+Required properties:
+
+- compatible: should be one of the following:
+   - "hisilicon,hi6210-i2s"
+- reg: physical base address of the i2s controller unit and length of
+   memory mapped region.
+- interrupts: should contain the i2s interrupt.
+- clocks: a list of phandle + clock-specifier pairs, one for each entry
+  in clock-names.
+- clock-names: should contain following:
+   - "dacodec"
+   - "i2s-base"
+- dmas: DMA specifiers for tx dma. See the DMA client binding,
+  Documentation/devicetree/bindings/dma/dma.txt
+- dma-names: should be "tx" and "rx"
+- hisilicon,sysctrl-syscon: phandle to sysctrl syscon
+- #sound-dai-cells: Should be set to 1 (for multi-dai)
+
+Example for the hi6210 i2s controller:
+
+i2s0: i2s@f7118000{
+	compatible = "hisilicon,hi6210-i2s";
+	reg = <0x0 0xf7118000 0x0 0x8000>; /* i2s unit */
+	interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>; /* 155 "DigACodec_intr"-32 */
+	clocks = <&sys_ctrl HI6220_DACODEC_PCLK>,
+		 <&sys_ctrl HI6220_BBPPLL0_DIV>;
+	clock-names = "dacodec", "i2s-base";
+	dmas = <&dma0 15 &dma0 14>;
+	dma-names = "rx", "tx";
+	hisilicon,sysctrl-syscon = <&sys_ctrl>;
+	#sound-dai-cells = <1>;
+};
