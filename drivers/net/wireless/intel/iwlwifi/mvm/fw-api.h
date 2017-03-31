@@ -328,6 +328,12 @@ enum iwl_legacy_cmds {
 	SET_CALIB_DEFAULT_CMD = 0x8e,
 
 	BEACON_NOTIFICATION = 0x90,
+	/**
+	 * @BEACON_TEMPLATE_CMD:
+	 *	Uses one of &struct iwl_mac_beacon_cmd_v6,
+	 *	&struct iwl_mac_beacon_cmd_v7 or &struct iwl_mac_beacon_cmd
+	 *	depending on the device version.
+	 */
 	BEACON_TEMPLATE_CMD = 0x91,
 	/**
 	 * @TX_ANT_CONFIGURATION_CMD: &struct iwl_tx_ant_cfg_cmd
