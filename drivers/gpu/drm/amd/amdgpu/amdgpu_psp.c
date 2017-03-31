@@ -130,7 +130,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 
 	while (*((unsigned int *)psp->fence_buf) != index) {
 		msleep(1);
-	};
+	}
 
 	amdgpu_bo_free_kernel(&cmd_buf_bo,
 			      &cmd_buf_mc_addr,
