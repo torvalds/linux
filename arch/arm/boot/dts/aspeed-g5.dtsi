@@ -117,15 +117,49 @@
 			#size-cells = <1>;
 			ranges;
 
-			clk_clkin: clk_clkin@1e6e2070 {
-				#clock-cells = <0>;
-				compatible = "aspeed,g5-clkin-clock";
-				reg = <0x1e6e2070 0x04>;
-			};
-
 			syscon: syscon@1e6e2000 {
 				compatible = "aspeed,g5-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1a8>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				clk_clkin: clk_clkin@70 {
+					#clock-cells = <0>;
+					compatible = "aspeed,g5-clkin-clock", "fixed-clock";
+					reg = <0x70>;
+					clock-frequency = <24000000>;
+				};
+
+				clk_hpll: clk_hpll@24 {
+					#clock-cells = <0>;
+					compatible = "aspeed,g5-hpll-clock", "fixed-clock";
+					reg = <0x24>;
+					clocks = <&clk_clkin>;
+					clock-frequency = <792000000>;
+				};
+
+				clk_ahb: clk_ahb@70 {
+					#clock-cells = <0>;
+					compatible = "aspeed,g5-ahb-clock", "fixed-clock";
+					reg = <0x70>;
+					clocks = <&clk_hpll>;
+					clock-frequency = <198000000>;
+				};
+
+				clk_apb: clk_apb@08 {
+					#clock-cells = <0>;
+					compatible = "aspeed,g5-apb-clock", "fixed-clock";
+					reg = <0x08>;
+					clocks = <&clk_hpll>;
+					clock-frequency = <24750000>;
+				};
+
+				clk_uart: clk_uart@2c {
+					#clock-cells = <0>;
+					compatible = "aspeed,uart-clock", "fixed-clock";
+					reg = <0x2c>;
+					clock-frequency = <24000000>;
+				};
 
 				pinctrl: pinctrl {
 					compatible = "aspeed,g5-pinctrl";
@@ -937,33 +971,7 @@
 					};
 
 				};
-			};
 
-			clk_hpll: clk_hpll@1e6e2024 {
-				#clock-cells = <0>;
-				compatible = "aspeed,g5-hpll-clock";
-				reg = <0x1e6e2024 0x4>;
-				clocks = <&clk_clkin>;
-			};
-
-			clk_ahb: clk_ahb@1e6e2070 {
-				#clock-cells = <0>;
-				compatible = "aspeed,g5-ahb-clock";
-				reg = <0x1e6e2070 0x4>;
-				clocks = <&clk_hpll>;
-			};
-
-			clk_apb: clk_apb@1e6e2008 {
-				#clock-cells = <0>;
-				compatible = "aspeed,g5-apb-clock";
-				reg = <0x1e6e2008 0x4>;
-				clocks = <&clk_hpll>;
-			};
-
-			clk_uart: clk_uart@1e6e2008 {
-				#clock-cells = <0>;
-				compatible = "aspeed,uart-clock";
-				reg = <0x1e6e202c 0x4>;
 			};
 
 			gfx: display@1e6e6000 {
