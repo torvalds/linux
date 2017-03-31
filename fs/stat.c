@@ -159,9 +159,6 @@ EXPORT_SYMBOL(vfs_statx_fd);
  * Additionally, the use of AT_SYMLINK_NOFOLLOW in flags will prevent a symlink
  * at the given name from being referenced.
  *
- * The caller must have preset stat->request_mask as for vfs_getattr().  The
- * flags are also used to load up stat->query_flags.
- *
  * 0 will be returned on success, and a -ve error code if unsuccessful.
  */
 int vfs_statx(int dfd, const char __user *filename, int flags,
