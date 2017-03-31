@@ -6803,7 +6803,18 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 
 static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
+        u32 val;
+
+        /*
+        * On driver load, a pipe may be active and driving a DSI display.
+        * Preserve DPOUNIT_CLOCK_GATE_DISABLE to avoid the pipe getting stuck
+        * (and never recovering) in this case. intel_dsi_post_disable() will
+        * clear it when we turn off the display.
+        */
+        val = I915_READ(DSPCLK_GATE_D);
+        val &= DPOUNIT_CLOCK_GATE_DISABLE;
+        val |= VRHUNIT_CLOCK_GATE_DISABLE;
+        I915_WRITE(DSPCLK_GATE_D, val);
 
 	/*
 	 * Disable trickle feed and enable pnd deadline calculation

@@ -651,9 +651,11 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	struct kmem_cache *cachep;
 	int ret, tries = 0;
 
+	rcu_read_lock();
 	gl = rhashtable_lookup_fast(&gl_hash_table, &name, ht_parms);
 	if (gl && !lockref_get_not_dead(&gl->gl_lockref))
 		gl = NULL;
+	rcu_read_unlock();
 
 	*glp = gl;
 	if (gl)
@@ -721,15 +723,18 @@ again:
 
 	if (ret == -EEXIST) {
 		ret = 0;
+		rcu_read_lock();
 		tmp = rhashtable_lookup_fast(&gl_hash_table, &name, ht_parms);
 		if (tmp == NULL || !lockref_get_not_dead(&tmp->gl_lockref)) {
 			if (++tries < 100) {
+				rcu_read_unlock();
 				cond_resched();
 				goto again;
 			}
 			tmp = NULL;
 			ret = -ENOMEM;
 		}
+		rcu_read_unlock();
 	} else {
 		WARN_ON_ONCE(ret);
 	}

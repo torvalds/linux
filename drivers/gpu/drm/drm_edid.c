@@ -144,6 +144,9 @@ static struct edid_quirk {
 
 	/* Panel in Samsung NP700G7A-S01PL notebook reports 6bpc */
 	{ "SEC", 0xd033, EDID_QUIRK_FORCE_8BPC },
+
+	/* Rotel RSX-1058 forwards sink's EDID but only does HDMI 1.1*/
+	{ "ETR", 13896, EDID_QUIRK_FORCE_8BPC },
 };
 
 /*

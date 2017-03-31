@@ -1182,6 +1182,7 @@ struct lpfc_mbx_wq_create {
 #define lpfc_mbx_wq_create_page_size_SHIFT	0
 #define lpfc_mbx_wq_create_page_size_MASK	0x000000FF
 #define lpfc_mbx_wq_create_page_size_WORD	word1
+#define LPFC_WQ_PAGE_SIZE_4096	0x1
 #define lpfc_mbx_wq_create_wqe_size_SHIFT	8
 #define lpfc_mbx_wq_create_wqe_size_MASK	0x0000000F
 #define lpfc_mbx_wq_create_wqe_size_WORD	word1
@@ -1253,6 +1254,7 @@ struct rq_context {
 #define lpfc_rq_context_page_size_SHIFT	0		/* Version 1 Only */
 #define lpfc_rq_context_page_size_MASK	0x000000FF
 #define lpfc_rq_context_page_size_WORD	word0
+#define	LPFC_RQ_PAGE_SIZE_4096	0x1
 	uint32_t reserved1;
 	uint32_t word2;
 #define lpfc_rq_context_cq_id_SHIFT	16

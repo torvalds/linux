@@ -75,9 +75,21 @@ struct se_node_acl *core_tpg_get_initiator_node_acl(
 	unsigned char *initiatorname)
 {
 	struct se_node_acl *acl;
-
+	/*
+	 * Obtain se_node_acl->acl_kref using fabric driver provided
+	 * initiatorname[] during node acl endpoint lookup driven by
+	 * new se_session login.
+	 *
+	 * The reference is held until se_session shutdown -> release
+	 * occurs via fabric driver invoked transport_deregister_session()
+	 * or transport_free_session() code.
+	 */
 	mutex_lock(&tpg->acl_node_mutex);
 	acl = __core_tpg_get_initiator_node_acl(tpg, initiatorname);
+	if (acl) {
+		if (!kref_get_unless_zero(&acl->acl_kref))
+			acl = NULL;
+	}
 	mutex_unlock(&tpg->acl_node_mutex);
 
 	return acl;
@@ -232,6 +244,25 @@ static void target_add_node_acl(struct se_node_acl *acl)
 		acl->initiatorname);
 }
 
+bool target_tpg_has_node_acl(struct se_portal_group *tpg,
+			     const char *initiatorname)
+{
+	struct se_node_acl *acl;
+	bool found = false;
+
+	mutex_lock(&tpg->acl_node_mutex);
+	list_for_each_entry(acl, &tpg->acl_node_list, acl_list) {
+		if (!strcmp(acl->initiatorname, initiatorname)) {
+			found = true;
+			break;
+		}
+	}
+	mutex_unlock(&tpg->acl_node_mutex);
+
+	return found;
+}
+EXPORT_SYMBOL(target_tpg_has_node_acl);
+
 struct se_node_acl *core_tpg_check_initiator_node_acl(
 	struct se_portal_group *tpg,
 	unsigned char *initiatorname)
@@ -248,6 +279,15 @@ struct se_node_acl *core_tpg_check_initiator_node_acl(
 	acl = target_alloc_node_acl(tpg, initiatorname);
 	if (!acl)
 		return NULL;
+	/*
+	 * When allocating a dynamically generated node_acl, go ahead
+	 * and take the extra kref now before returning to the fabric
+	 * driver caller.
+	 *
+	 * Note this reference will be released at session shutdown
+	 * time within transport_free_session() code.
+	 */
+	kref_get(&acl->acl_kref);
 	acl->dynamic_node_acl = 1;
 
 	/*
@@ -499,7 +539,7 @@ static void core_tpg_lun_ref_release(struct percpu_ref *ref)
 {
 	struct se_lun *lun = container_of(ref, struct se_lun, lun_ref);
 
-	complete(&lun->lun_ref_comp);
+	complete(&lun->lun_shutdown_comp);
 }
 
 int core_tpg_register(
@@ -626,6 +666,7 @@ struct se_lun *core_tpg_alloc_lun(
 	lun->lun_link_magic = SE_LUN_LINK_MAGIC;
 	atomic_set(&lun->lun_acl_count, 0);
 	init_completion(&lun->lun_ref_comp);
+	init_completion(&lun->lun_shutdown_comp);
 	INIT_LIST_HEAD(&lun->lun_deve_list);
 	INIT_LIST_HEAD(&lun->lun_dev_link);
 	atomic_set(&lun->lun_tg_pt_secondary_offline, 0);

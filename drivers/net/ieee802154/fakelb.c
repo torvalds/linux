@@ -30,7 +30,7 @@
 static int numlbs = 2;
 
 static LIST_HEAD(fakelb_phys);
-static DEFINE_SPINLOCK(fakelb_phys_lock);
+static DEFINE_MUTEX(fakelb_phys_lock);
 
 static LIST_HEAD(fakelb_ifup_phys);
 static DEFINE_RWLOCK(fakelb_ifup_phys_lock);
@@ -180,9 +180,9 @@ static int fakelb_add_one(struct device *dev)
 	if (err)
 		goto err_reg;
 
-	spin_lock(&fakelb_phys_lock);
+	mutex_lock(&fakelb_phys_lock);
 	list_add_tail(&phy->list, &fakelb_phys);
-	spin_unlock(&fakelb_phys_lock);
+	mutex_unlock(&fakelb_phys_lock);
 
 	return 0;
 
@@ -214,10 +214,10 @@ static int fakelb_probe(struct platform_device *pdev)
 	return 0;
 
 err_slave:
-	spin_lock(&fakelb_phys_lock);
+	mutex_lock(&fakelb_phys_lock);
 	list_for_each_entry_safe(phy, tmp, &fakelb_phys, list)
 		fakelb_del(phy);
-	spin_unlock(&fakelb_phys_lock);
+	mutex_unlock(&fakelb_phys_lock);
 	return err;
 }
 
@@ -225,10 +225,10 @@ static int fakelb_remove(struct platform_device *pdev)
 {
 	struct fakelb_phy *phy, *tmp;
 
-	spin_lock(&fakelb_phys_lock);
+	mutex_lock(&fakelb_phys_lock);
 	list_for_each_entry_safe(phy, tmp, &fakelb_phys, list)
 		fakelb_del(phy);
-	spin_unlock(&fakelb_phys_lock);
+	mutex_unlock(&fakelb_phys_lock);
 	return 0;
 }
 

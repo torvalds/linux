@@ -1700,9 +1700,21 @@ static int snd_timer_user_params(struct file *file,
 		return -EBADFD;
 	if (copy_from_user(&params, _params, sizeof(params)))
 		return -EFAULT;
-	if (!(t->hw.flags & SNDRV_TIMER_HW_SLAVE) && params.ticks < 1) {
-		err = -EINVAL;
-		goto _end;
+	if (!(t->hw.flags & SNDRV_TIMER_HW_SLAVE)) {
+		u64 resolution;
+
+		if (params.ticks < 1) {
+			err = -EINVAL;
+			goto _end;
+		}
+
+		/* Don't allow resolution less than 1ms */
+		resolution = snd_timer_resolution(tu->timeri);
+		resolution *= params.ticks;
+		if (resolution < 1000000) {
+			err = -EINVAL;
+			goto _end;
+		}
 	}
 	if (params.queue_size > 0 &&
 	    (params.queue_size < 32 || params.queue_size > 1024)) {
