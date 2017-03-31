@@ -650,13 +650,13 @@ static inline const char *dwc3_trb_type_string(struct dwc3_trb *trb)
 	case DWC3_TRBCTL_NORMAL:
 		return "normal";
 	case DWC3_TRBCTL_CONTROL_SETUP:
-		return "control-setup";
+		return "setup";
 	case DWC3_TRBCTL_CONTROL_STATUS2:
-		return "control-status2";
+		return "status2";
 	case DWC3_TRBCTL_CONTROL_STATUS3:
-		return "control-status3";
+		return "status3";
 	case DWC3_TRBCTL_CONTROL_DATA:
-		return "control-data";
+		return "data";
 	case DWC3_TRBCTL_ISOCHRONOUS_FIRST:
 		return "isoc-first";
 	case DWC3_TRBCTL_ISOCHRONOUS:
