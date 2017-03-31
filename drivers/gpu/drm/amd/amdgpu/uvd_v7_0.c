@@ -1037,7 +1037,7 @@ static void uvd_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
 	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
 	uint32_t data0, data1, mask;
-	unsigned eng = ring->idx;
+	unsigned eng = ring->vm_inv_eng;
 
 	pd_addr = pd_addr | 0x1; /* valid bit */
 	/* now only use physical base address of PDE and valid */
@@ -1078,7 +1078,7 @@ static void uvd_v7_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
 	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
-	unsigned eng = ring->idx;
+	unsigned eng = ring->vm_inv_eng;
 
 	pd_addr = pd_addr | 0x1; /* valid bit */
 	/* now only use physical base address of PDE and valid */
