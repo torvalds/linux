@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
+#include <linux/platform_device.h>
 
 #include <clocksource/arm_arch_timer.h>
 
@@ -58,6 +59,17 @@ static inline bool is_timer_block(void *platform_timer)
 	struct acpi_gtdt_header *gh = platform_timer;
 
 	return gh->type == ACPI_GTDT_TYPE_TIMER_BLOCK;
+}
+
+static inline bool is_non_secure_watchdog(void *platform_timer)
+{
+	struct acpi_gtdt_header *gh = platform_timer;
+	struct acpi_gtdt_watchdog *wd = platform_timer;
+
+	if (gh->type != ACPI_GTDT_TYPE_WATCHDOG)
+		return false;
+
+	return !(wd->timer_flags & ACPI_GTDT_WATCHDOG_SECURE);
 }
 
 static int __init map_gt_gsi(u32 interrupt, u32 flags)
@@ -312,3 +324,94 @@ int __init acpi_arch_timer_mem_init(struct arch_timer_mem *timer_mem,
 
 	return 0;
 }
+
+/*
+ * Initialize a SBSA generic Watchdog platform device info from GTDT
+ */
+static int __init gtdt_import_sbsa_gwdt(struct acpi_gtdt_watchdog *wd,
+					int index)
+{
+	struct platform_device *pdev;
+	int irq = map_gt_gsi(wd->timer_interrupt, wd->timer_flags);
+
+	/*
+	 * According to SBSA specification the size of refresh and control
+	 * frames of SBSA Generic Watchdog is SZ_4K(Offset 0x000 – 0xFFF).
+	 */
+	struct resource res[] = {
+		DEFINE_RES_MEM(wd->control_frame_address, SZ_4K),
+		DEFINE_RES_MEM(wd->refresh_frame_address, SZ_4K),
+		DEFINE_RES_IRQ(irq),
+	};
+	int nr_res = ARRAY_SIZE(res);
+
+	pr_debug("found a Watchdog (0x%llx/0x%llx gsi:%u flags:0x%x).\n",
+		 wd->refresh_frame_address, wd->control_frame_address,
+		 wd->timer_interrupt, wd->timer_flags);
+
+	if (!(wd->refresh_frame_address && wd->control_frame_address)) {
+		pr_err(FW_BUG "failed to get the Watchdog base address.\n");
+		acpi_unregister_gsi(wd->timer_interrupt);
+		return -EINVAL;
+	}
+
+	if (irq <= 0) {
+		pr_warn("failed to map the Watchdog interrupt.\n");
+		nr_res--;
+	}
+
+	/*
+	 * Add a platform device named "sbsa-gwdt" to match the platform driver.
+	 * "sbsa-gwdt": SBSA(Server Base System Architecture) Generic Watchdog
+	 * The platform driver can get device info below by matching this name.
+	 */
+	pdev = platform_device_register_simple("sbsa-gwdt", index, res, nr_res);
+	if (IS_ERR(pdev)) {
+		acpi_unregister_gsi(wd->timer_interrupt);
+		return PTR_ERR(pdev);
+	}
+
+	return 0;
+}
+
+static int __init gtdt_sbsa_gwdt_init(void)
+{
+	void *platform_timer;
+	struct acpi_table_header *table;
+	int ret, timer_count, gwdt_count = 0;
+
+	if (acpi_disabled)
+		return 0;
+
+	if (ACPI_FAILURE(acpi_get_table(ACPI_SIG_GTDT, 0, &table)))
+		return -EINVAL;
+
+	/*
+	 * Note: Even though the global variable acpi_gtdt_desc has been
+	 * initialized by acpi_gtdt_init() while initializing the arch timers,
+	 * when we call this function to get SBSA watchdogs info from GTDT, the
+	 * pointers stashed in it are stale (since they are early temporary
+	 * mappings carried out before acpi_permanent_mmap is set) and we need
+	 * to re-initialize them with permanent mapped pointer values to let the
+	 * GTDT parsing possible.
+	 */
+	ret = acpi_gtdt_init(table, &timer_count);
+	if (ret || !timer_count)
+		return ret;
+
+	for_each_platform_timer(platform_timer) {
+		if (is_non_secure_watchdog(platform_timer)) {
+			ret = gtdt_import_sbsa_gwdt(platform_timer, gwdt_count);
+			if (ret)
+				break;
+			gwdt_count++;
+		}
+	}
+
+	if (gwdt_count)
+		pr_info("found %d SBSA generic Watchdog(s).\n", gwdt_count);
+
+	return ret;
+}
+
+device_initcall(gtdt_sbsa_gwdt_init);
