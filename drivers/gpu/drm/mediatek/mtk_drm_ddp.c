@@ -12,6 +12,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -32,9 +33,12 @@
 #define DISP_REG_CONFIG_MMSYS_CG_CON0		0x100
 
 #define DISP_REG_MUTEX_EN(n)	(0x20 + 0x20 * (n))
+#define DISP_REG_MUTEX(n)	(0x24 + 0x20 * (n))
 #define DISP_REG_MUTEX_RST(n)	(0x28 + 0x20 * (n))
 #define DISP_REG_MUTEX_MOD(n)	(0x2c + 0x20 * (n))
 #define DISP_REG_MUTEX_SOF(n)	(0x30 + 0x20 * (n))
+
+#define INT_MUTEX				BIT(1)
 
 #define MT8173_MUTEX_MOD_DISP_OVL0		BIT(11)
 #define MT8173_MUTEX_MOD_DISP_OVL1		BIT(12)
@@ -298,6 +302,27 @@ void mtk_disp_mutex_disable(struct mtk_disp_mutex *mutex)
 	WARN_ON(&ddp->mutex[mutex->id] != mutex);
 
 	writel(0, ddp->regs + DISP_REG_MUTEX_EN(mutex->id));
+}
+
+void mtk_disp_mutex_acquire(struct mtk_disp_mutex *mutex)
+{
+	struct mtk_ddp *ddp = container_of(mutex, struct mtk_ddp,
+					   mutex[mutex->id]);
+	u32 tmp;
+
+	writel(1, ddp->regs + DISP_REG_MUTEX_EN(mutex->id));
+	writel(1, ddp->regs + DISP_REG_MUTEX(mutex->id));
+	if (readl_poll_timeout_atomic(ddp->regs + DISP_REG_MUTEX(mutex->id),
+				      tmp, tmp & INT_MUTEX, 1, 10000))
+		pr_err("could not acquire mutex %d\n", mutex->id);
+}
+
+void mtk_disp_mutex_release(struct mtk_disp_mutex *mutex)
+{
+	struct mtk_ddp *ddp = container_of(mutex, struct mtk_ddp,
+					   mutex[mutex->id]);
+
+	writel(0, ddp->regs + DISP_REG_MUTEX(mutex->id));
 }
 
 static int mtk_ddp_probe(struct platform_device *pdev)

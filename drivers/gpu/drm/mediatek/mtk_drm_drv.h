@@ -33,6 +33,7 @@ struct mtk_mmsys_driver_data {
 	unsigned int main_len;
 	const enum mtk_ddp_comp_id *ext_path;
 	unsigned int ext_len;
+	bool shadow_register;
 };
 
 struct mtk_drm_private {
