@@ -1880,7 +1880,8 @@ static void stmmac_configure_cbs(struct stmmac_priv *priv)
 	u32 mode_to_use;
 	u32 queue;
 
-	for (queue = 0; queue < tx_queues_count; queue++) {
+	/* queue 0 is reserved for legacy traffic */
+	for (queue = 1; queue < tx_queues_count; queue++) {
 		mode_to_use = priv->plat->tx_queues_cfg[queue].mode_to_use;
 		if (mode_to_use == MTL_QUEUE_DCB)
 			continue;

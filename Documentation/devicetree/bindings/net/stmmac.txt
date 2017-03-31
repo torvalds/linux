@@ -103,6 +103,8 @@ Optional properties:
 		- Choose one of these modes:
 			- snps,dcb-algorithm: TX queue will be working in DCB
 			- snps,avb-algorithm: TX queue will be working in AVB
+			  [Attention] Queue 0 is reserved for legacy traffic
+			  and so no AVB is available in this queue.
 		- Configure Credit Base Shaper (if AVB Mode selected):
 			- snps,send_slope: enable Low Power Interface
 			- snps,idle_slope: unlock on WoL
