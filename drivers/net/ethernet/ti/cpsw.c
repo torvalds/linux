@@ -1817,6 +1817,8 @@ static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 	}
 
 	cpsw_intr_enable(cpsw);
+	netif_trans_update(ndev);
+	netif_tx_wake_all_queues(ndev);
 }
 
 static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
