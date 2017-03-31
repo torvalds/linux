@@ -259,67 +259,74 @@ void afs_flat_call_destructor(struct afs_call *call)
 	call->buffer = NULL;
 }
 
+#define AFS_BVEC_MAX 8
+
+/*
+ * Load the given bvec with the next few pages.
+ */
+static void afs_load_bvec(struct afs_call *call, struct msghdr *msg,
+			  struct bio_vec *bv, pgoff_t first, pgoff_t last,
+			  unsigned offset)
+{
+	struct page *pages[AFS_BVEC_MAX];
+	unsigned int nr, n, i, to, bytes = 0;
+
+	nr = min_t(pgoff_t, last - first + 1, AFS_BVEC_MAX);
+	n = find_get_pages_contig(call->mapping, first, nr, pages);
+	ASSERTCMP(n, ==, nr);
+
+	msg->msg_flags |= MSG_MORE;
+	for (i = 0; i < nr; i++) {
+		to = PAGE_SIZE;
+		if (first + i >= last) {
+			to = call->last_to;
+			msg->msg_flags &= ~MSG_MORE;
+		}
+		bv[i].bv_page = pages[i];
+		bv[i].bv_len = to - offset;
+		bv[i].bv_offset = offset;
+		bytes += to - offset;
+		offset = 0;
+	}
+
+	iov_iter_bvec(&msg->msg_iter, WRITE | ITER_BVEC, bv, nr, bytes);
+}
+
 /*
  * attach the data from a bunch of pages on an inode to a call
  */
 static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 {
-	struct page *pages[8];
-	unsigned count, n, loop, offset, to;
+	struct bio_vec bv[AFS_BVEC_MAX];
+	unsigned int bytes, nr, loop, offset;
 	pgoff_t first = call->first, last = call->last;
 	int ret;
-
-	_enter("");
 
 	offset = call->first_offset;
 	call->first_offset = 0;
 
 	do {
-		_debug("attach %lx-%lx", first, last);
+		afs_load_bvec(call, msg, bv, first, last, offset);
+		offset = 0;
+		bytes = msg->msg_iter.count;
+		nr = msg->msg_iter.nr_segs;
 
-		count = last - first + 1;
-		if (count > ARRAY_SIZE(pages))
-			count = ARRAY_SIZE(pages);
-		n = find_get_pages_contig(call->mapping, first, count, pages);
-		ASSERTCMP(n, ==, count);
-
-		loop = 0;
-		do {
-			struct bio_vec bvec = {.bv_page = pages[loop],
-					       .bv_offset = offset};
-			msg->msg_flags = 0;
-			to = PAGE_SIZE;
-			if (first + loop >= last)
-				to = call->last_to;
-			else
-				msg->msg_flags = MSG_MORE;
-			bvec.bv_len = to - offset;
-			offset = 0;
-
-			_debug("- range %u-%u%s",
-			       offset, to, msg->msg_flags ? " [more]" : "");
-			iov_iter_bvec(&msg->msg_iter, WRITE | ITER_BVEC,
-				      &bvec, 1, to - offset);
-
-			/* have to change the state *before* sending the last
-			 * packet as RxRPC might give us the reply before it
-			 * returns from sending the request */
-			if (first + loop >= last)
-				call->state = AFS_CALL_AWAIT_REPLY;
-			ret = rxrpc_kernel_send_data(afs_socket, call->rxcall,
-						     msg, to - offset);
-			if (ret < 0)
-				break;
-		} while (++loop < count);
-		first += count;
-
-		for (loop = 0; loop < count; loop++)
-			put_page(pages[loop]);
+		/* Have to change the state *before* sending the last
+		 * packet as RxRPC might give us the reply before it
+		 * returns from sending the request.
+		 */
+		if (first + nr - 1 >= last)
+			call->state = AFS_CALL_AWAIT_REPLY;
+		ret = rxrpc_kernel_send_data(afs_socket, call->rxcall,
+					     msg, bytes);
+		for (loop = 0; loop < nr; loop++)
+			put_page(bv[loop].bv_page);
 		if (ret < 0)
 			break;
+
+		first += nr;
 	} while (first <= last);
 
-	_leave(" = %d", ret);
 	return ret;
 }
 
@@ -333,6 +340,8 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	struct rxrpc_call *rxcall;
 	struct msghdr msg;
 	struct kvec iov[1];
+	size_t offset;
+	u32 abort_code;
 	int ret;
 
 	_enter("%x,{%d},", addr->s_addr, ntohs(call->port));
@@ -381,9 +390,11 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	msg.msg_controllen	= 0;
 	msg.msg_flags		= (call->send_pages ? MSG_MORE : 0);
 
-	/* have to change the state *before* sending the last packet as RxRPC
-	 * might give us the reply before it returns from sending the
-	 * request */
+	/* We have to change the state *before* sending the last packet as
+	 * rxrpc might give us the reply before it returns from sending the
+	 * request.  Further, if the send fails, we may already have been given
+	 * a notification and may have collected it.
+	 */
 	if (!call->send_pages)
 		call->state = AFS_CALL_AWAIT_REPLY;
 	ret = rxrpc_kernel_send_data(afs_socket, rxcall,
@@ -405,7 +416,17 @@ int afs_make_call(struct in_addr *addr, struct afs_call *call, gfp_t gfp,
 	return afs_wait_for_call_to_complete(call);
 
 error_do_abort:
-	rxrpc_kernel_abort_call(afs_socket, rxcall, RX_USER_ABORT, -ret, "KSD");
+	call->state = AFS_CALL_COMPLETE;
+	if (ret != -ECONNABORTED) {
+		rxrpc_kernel_abort_call(afs_socket, rxcall, RX_USER_ABORT,
+					-ret, "KSD");
+	} else {
+		abort_code = 0;
+		offset = 0;
+		rxrpc_kernel_recv_data(afs_socket, rxcall, NULL, 0, &offset,
+				       false, &abort_code);
+		ret = call->type->abort_to_error(abort_code);
+	}
 error_kill_call:
 	afs_put_call(call);
 	_leave(" = %d", ret);
@@ -452,16 +473,18 @@ static void afs_deliver_to_call(struct afs_call *call)
 		case -EINPROGRESS:
 		case -EAGAIN:
 			goto out;
+		case -ECONNABORTED:
+			goto call_complete;
 		case -ENOTCONN:
 			abort_code = RX_CALL_DEAD;
 			rxrpc_kernel_abort_call(afs_socket, call->rxcall,
 						abort_code, -ret, "KNC");
-			goto do_abort;
+			goto save_error;
 		case -ENOTSUPP:
-			abort_code = RX_INVALID_OPERATION;
+			abort_code = RXGEN_OPCODE;
 			rxrpc_kernel_abort_call(afs_socket, call->rxcall,
 						abort_code, -ret, "KIV");
-			goto do_abort;
+			goto save_error;
 		case -ENODATA:
 		case -EBADMSG:
 		case -EMSGSIZE:
@@ -471,7 +494,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 				abort_code = RXGEN_SS_UNMARSHAL;
 			rxrpc_kernel_abort_call(afs_socket, call->rxcall,
 						abort_code, EBADMSG, "KUM");
-			goto do_abort;
+			goto save_error;
 		}
 	}
 
@@ -482,8 +505,9 @@ out:
 	_leave("");
 	return;
 
-do_abort:
+save_error:
 	call->error = ret;
+call_complete:
 	call->state = AFS_CALL_COMPLETE;
 	goto done;
 }
@@ -493,7 +517,6 @@ do_abort:
  */
 static int afs_wait_for_call_to_complete(struct afs_call *call)
 {
-	const char *abort_why;
 	int ret;
 
 	DECLARE_WAITQUEUE(myself, current);
@@ -512,13 +535,8 @@ static int afs_wait_for_call_to_complete(struct afs_call *call)
 			continue;
 		}
 
-		abort_why = "KWC";
-		ret = call->error;
-		if (call->state == AFS_CALL_COMPLETE)
-			break;
-		abort_why = "KWI";
-		ret = -EINTR;
-		if (signal_pending(current))
+		if (call->state == AFS_CALL_COMPLETE ||
+		    signal_pending(current))
 			break;
 		schedule();
 	}
@@ -526,13 +544,14 @@ static int afs_wait_for_call_to_complete(struct afs_call *call)
 	remove_wait_queue(&call->waitq, &myself);
 	__set_current_state(TASK_RUNNING);
 
-	/* kill the call */
+	/* Kill off the call if it's still live. */
 	if (call->state < AFS_CALL_COMPLETE) {
-		_debug("call incomplete");
+		_debug("call interrupted");
 		rxrpc_kernel_abort_call(afs_socket, call->rxcall,
-					RX_CALL_DEAD, -ret, abort_why);
+					RX_USER_ABORT, -EINTR, "KWI");
 	}
 
+	ret = call->error;
 	_debug("call complete");
 	afs_put_call(call);
 	_leave(" = %d", ret);
