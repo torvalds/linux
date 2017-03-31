@@ -579,6 +579,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 	for_each_connector_in_state(old_state, connector, old_conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
+		const struct drm_connector_helper_funcs *conn_funcs;
 		struct drm_encoder *encoder;
 		struct drm_crtc_state *old_crtc_state;
 
@@ -606,6 +607,21 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		DRM_DEBUG_ATOMIC("disabling [ENCODER:%d:%s]\n",
 				 encoder->base.id, encoder->name);
 
+		conn_funcs = connector->helper_private;
+		if (connector->loader_protect) {
+			drm_bridge_pre_enable(encoder->bridge);
+
+			if (funcs->enable)
+				funcs->enable(encoder);
+			else
+				funcs->commit(encoder);
+
+			drm_bridge_enable(encoder->bridge);
+
+			if (conn_funcs->loader_protect)
+				conn_funcs->loader_protect(connector, false);
+			connector->loader_protect = false;
+		}
 		/*
 		 * Each encoder has at most one connector (since we always steal
 		 * it away), so we won't call disable hooks twice.

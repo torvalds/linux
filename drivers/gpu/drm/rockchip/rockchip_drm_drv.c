@@ -329,6 +329,7 @@ int setup_initial_state(struct drm_device *drm_dev,
 	conn_state->best_encoder = funcs->best_encoder(connector);
 	if (funcs->loader_protect)
 		funcs->loader_protect(connector, true);
+	connector->loader_protect = true;
 	num_modes = connector->funcs->fill_modes(connector, 4096, 4096);
 	if (!num_modes) {
 		dev_err(drm_dev->dev, "connector[%s] can't found any modes\n",
@@ -437,6 +438,7 @@ int setup_initial_state(struct drm_device *drm_dev,
 error:
 	if (funcs->loader_protect)
 		funcs->loader_protect(connector, false);
+	connector->loader_protect = false;
 	return ret;
 }
 

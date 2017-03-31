@@ -965,18 +965,10 @@ static int analogix_dp_loader_protect(struct drm_connector *connector, bool on)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
 
-	if (on == connector->loader_protect)
-		return 0;
-
-	if (on) {
+	if (on)
 		pm_runtime_get_sync(dp->dev);
-
-		connector->loader_protect = true;
-	} else {
+	else
 		pm_runtime_put(dp->dev);
-
-		connector->loader_protect = false;
-	}
 
 	return 0;
 }
@@ -1113,10 +1105,6 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 		dp->plat_data->power_off(dp->plat_data);
 
 	pm_runtime_put_sync(dp->dev);
-	if (dp->connector.loader_protect) {
-		pm_runtime_put_sync(dp->dev);
-		dp->connector.loader_protect = false;
-	}
 
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 }
