@@ -187,6 +187,7 @@ void dce_crtc_switch_to_clk_src(struct dce_hwseq *hws,
 			REG_UPDATE(PHYPLL_PIXEL_RATE_CNTL[tg_inst],
 					PIXEL_RATE_PLL_SOURCE, 1);
 	} else {
-		DC_ERR("unknown clock source");
+		DC_ERR("Unknown clock source. clk_src id: %d, TG_inst: %d",
+		       clk_src->id, tg_inst);
 	}
 }
