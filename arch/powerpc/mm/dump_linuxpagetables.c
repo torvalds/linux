@@ -154,11 +154,24 @@ static const struct flag_info flag_array[] = {
 		.clear	= "             ",
 	}, {
 #endif
+#ifndef CONFIG_PPC_BOOK3S_64
 		.mask	= _PAGE_NO_CACHE,
 		.val	= _PAGE_NO_CACHE,
 		.set	= "no cache",
 		.clear	= "        ",
 	}, {
+#else
+		.mask	= _PAGE_NON_IDEMPOTENT,
+		.val	= _PAGE_NON_IDEMPOTENT,
+		.set	= "non-idempotent",
+		.clear	= "              ",
+	}, {
+		.mask	= _PAGE_TOLERANT,
+		.val	= _PAGE_TOLERANT,
+		.set	= "tolerant",
+		.clear	= "        ",
+	}, {
+#endif
 #ifdef CONFIG_PPC_BOOK3S_64
 		.mask	= H_PAGE_BUSY,
 		.val	= H_PAGE_BUSY,
