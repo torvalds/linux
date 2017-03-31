@@ -411,13 +411,13 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 			    amdtp_stream_get_max_payload(s));
 }
 
-static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
+static int handle_out_packet(struct amdtp_stream *s,
+			     unsigned int payload_length, unsigned int cycle,
 			     unsigned int index)
 {
 	__be32 *buffer;
 	unsigned int syt;
 	unsigned int data_blocks;
-	unsigned int payload_length;
 	unsigned int pcm_frames;
 	struct snd_pcm_substream *pcm;
 
@@ -458,7 +458,7 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
 }
 
 static int handle_in_packet(struct amdtp_stream *s,
-			    unsigned int payload_quadlets, unsigned int cycle,
+			    unsigned int payload_length, unsigned int cycle,
 			    unsigned int index)
 {
 	__be32 *buffer;
@@ -474,7 +474,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 	cip_header[0] = be32_to_cpu(buffer[0]);
 	cip_header[1] = be32_to_cpu(buffer[1]);
 
-	trace_in_packet(s, cycle, cip_header, payload_quadlets, index);
+	trace_in_packet(s, cycle, cip_header, payload_length, index);
 
 	/*
 	 * This module supports 'Two-quadlet CIP header with SYT field'.
@@ -505,7 +505,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 
 	/* Calculate data blocks */
 	fdf = (cip_header[1] & CIP_FDF_MASK) >> CIP_FDF_SHIFT;
-	if (payload_quadlets < 3 ||
+	if (payload_length < 12 ||
 	    (fmt == CIP_FMT_AM && fdf == AMDTP_FDF_NO_DATA)) {
 		data_blocks = 0;
 	} else {
@@ -521,7 +521,8 @@ static int handle_in_packet(struct amdtp_stream *s,
 		if (s->flags & CIP_WRONG_DBS)
 			data_block_quadlets = s->data_block_quadlets;
 
-		data_blocks = (payload_quadlets - 2) / data_block_quadlets;
+		data_blocks = (payload_length / 4 - 2) /
+							data_block_quadlets;
 	}
 
 	/* Check data block counter continuity */
@@ -615,7 +616,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 	for (i = 0; i < packets; ++i) {
 		cycle = increment_cycle_count(cycle, 1);
-		if (handle_out_packet(s, cycle, i) < 0) {
+		if (handle_out_packet(s, 0, cycle, i) < 0) {
 			s->packet_index = -1;
 			amdtp_stream_pcm_abort(s);
 			return;
@@ -631,7 +632,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 {
 	struct amdtp_stream *s = private_data;
 	unsigned int i, packets;
-	unsigned int payload_quadlets, max_payload_quadlets;
+	unsigned int payload_length, max_payload_length;
 	__be32 *headers = header;
 	u32 cycle;
 
@@ -647,22 +648,22 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	cycle = decrement_cycle_count(cycle, packets);
 
 	/* For buffer-over-run prevention. */
-	max_payload_quadlets = amdtp_stream_get_max_payload(s) / 4;
+	max_payload_length = amdtp_stream_get_max_payload(s);
 
 	for (i = 0; i < packets; i++) {
 		cycle = increment_cycle_count(cycle, 1);
 
 		/* The number of quadlets in this packet */
-		payload_quadlets =
-			(be32_to_cpu(headers[i]) >> ISO_DATA_LENGTH_SHIFT) / 4;
-		if (payload_quadlets > max_payload_quadlets) {
+		payload_length =
+			(be32_to_cpu(headers[i]) >> ISO_DATA_LENGTH_SHIFT);
+		if (payload_length > max_payload_length) {
 			dev_err(&s->unit->device,
-				"Detect jumbo payload: %02x %02x\n",
-				payload_quadlets, max_payload_quadlets);
+				"Detect jumbo payload: %04x %04x\n",
+				payload_length, max_payload_length);
 			break;
 		}
 
-		if (handle_in_packet(s, payload_quadlets, cycle, i) < 0)
+		if (handle_in_packet(s, payload_length, cycle, i) < 0)
 			break;
 	}
 
