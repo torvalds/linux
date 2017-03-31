@@ -1286,6 +1286,17 @@ void dce110_se_hdmi_audio_disable(
 	dce110_se_enable_audio_clock(enc, false);
 }
 
+
+static void setup_stereo_sync(
+	struct stream_encoder *enc,
+	int tg_inst, bool enable)
+{
+	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
+	REG_UPDATE(DIG_FE_CNTL, DIG_STEREOSYNC_SELECT, tg_inst);
+	REG_UPDATE(DIG_FE_CNTL, DIG_STEREOSYNC_GATE_EN, !enable);
+}
+
+
 static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 	.dp_set_stream_attribute =
 		dce110_stream_encoder_dp_set_stream_attribute,
@@ -1316,6 +1327,7 @@ static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 
 	.hdmi_audio_setup = dce110_se_hdmi_audio_setup,
 	.hdmi_audio_disable = dce110_se_hdmi_audio_disable,
+	.setup_stereo_sync  = setup_stereo_sync,
 };
 
 bool dce110_stream_encoder_construct(

@@ -1056,6 +1056,13 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			stream->sink->link->link_enc,
 			pipe_ctx->stream->signal);
 
+	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
+		pipe_ctx->stream_enc->funcs->setup_stereo_sync(
+		pipe_ctx->stream_enc,
+		pipe_ctx->tg->inst,
+		stream->public.timing.timing_3d_format != TIMING_3D_FORMAT_NONE);
+
+
 /*vbios crtc_source_selection and encoder_setup will override fmt_C*/
 	pipe_ctx->opp->funcs->opp_program_fmt(
 			pipe_ctx->opp,

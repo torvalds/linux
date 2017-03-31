@@ -118,6 +118,11 @@ struct stream_encoder_funcs {
 
 	void (*hdmi_audio_disable) (
 			struct stream_encoder *enc);
+
+	void (*setup_stereo_sync) (
+			struct stream_encoder *enc,
+			int tg_inst,
+			bool enable);
 };
 
 #endif /* STREAM_ENCODER_H_ */

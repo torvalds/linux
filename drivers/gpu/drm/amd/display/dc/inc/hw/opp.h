@@ -316,6 +316,11 @@ struct opp_funcs {
 			struct hw_adjustment_range *range);
 
 	void (*opp_destroy)(struct output_pixel_processor **opp);
+
+	void (*opp_set_stereo_polarity)(
+			struct output_pixel_processor *opp,
+			bool enable,
+			bool rightEyePolarity);
 };
 
 #endif
