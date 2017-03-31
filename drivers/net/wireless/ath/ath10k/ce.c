@@ -261,8 +261,7 @@ static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
 }
 
 /*
- * Guts of ath10k_ce_send, used by both ath10k_ce_send and
- * ath10k_ce_sendlist_send.
+ * Guts of ath10k_ce_send.
  * The caller takes responsibility for any needed locking.
  */
 int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
