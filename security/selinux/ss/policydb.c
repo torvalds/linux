@@ -1832,7 +1832,7 @@ u32 string_to_av_perm(struct policydb *p, u16 tclass, const char *name)
 
 static int range_read(struct policydb *p, void *fp)
 {
-	struct range_trans *rt;
+	struct range_trans *rt = NULL;
 	struct mls_range *r = NULL;
 	int i, rc;
 	__le32 buf[2];
