@@ -2690,9 +2690,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		 */
 		r = kvm_x86_ops->cpu_has_high_real_mode_segbase();
 		break;
-	case KVM_CAP_COALESCED_MMIO:
-		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
-		break;
 	case KVM_CAP_VAPIC:
 		r = !kvm_x86_ops->cpu_has_accelerated_tpr();
 		break;

@@ -2918,6 +2918,10 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 	case KVM_CAP_IOEVENTFD_ANY_LENGTH:
 	case KVM_CAP_CHECK_EXTENSION_VM:
 		return 1;
+#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
+	case KVM_CAP_COALESCED_MMIO:
+		return KVM_COALESCED_MMIO_PAGE_OFFSET;
+#endif
 #ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 	case KVM_CAP_IRQ_ROUTING:
 		return KVM_MAX_IRQ_ROUTES;

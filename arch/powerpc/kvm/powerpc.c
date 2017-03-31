@@ -524,11 +524,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		/* We support this only for PR */
 		r = !hv_enabled;
 		break;
-#ifdef CONFIG_KVM_MMIO
-	case KVM_CAP_COALESCED_MMIO:
-		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
-		break;
-#endif
 #ifdef CONFIG_KVM_MPIC
 	case KVM_CAP_IRQ_MPIC:
 		r = 1;
