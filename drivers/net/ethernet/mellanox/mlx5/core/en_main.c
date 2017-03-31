@@ -2207,7 +2207,9 @@ static void mlx5e_redirect_rqts(struct mlx5e_priv *priv,
 	for (ix = 0; ix < priv->profile->max_nch(priv->mdev); ix++) {
 		struct mlx5e_redirect_rqt_param direct_rrp = {
 			.is_rss = false,
-			.rqn    = mlx5e_get_direct_rqn(priv, ix, rrp)
+			{
+				.rqn    = mlx5e_get_direct_rqn(priv, ix, rrp)
+			},
 		};
 
 		/* Direct RQ Tables */
@@ -2224,8 +2226,12 @@ static void mlx5e_redirect_rqts_to_channels(struct mlx5e_priv *priv,
 {
 	struct mlx5e_redirect_rqt_param rrp = {
 		.is_rss        = true,
-		.rss.channels  = chs,
-		.rss.hfunc     = chs->params.rss_hfunc
+		{
+			.rss = {
+				.channels  = chs,
+				.hfunc     = chs->params.rss_hfunc,
+			}
+		},
 	};
 
 	mlx5e_redirect_rqts(priv, rrp);
@@ -2235,7 +2241,9 @@ static void mlx5e_redirect_rqts_to_drop(struct mlx5e_priv *priv)
 {
 	struct mlx5e_redirect_rqt_param drop_rrp = {
 		.is_rss = false,
-		.rqn = priv->drop_rq.rqn
+		{
+			.rqn = priv->drop_rq.rqn,
+		},
 	};
 
 	mlx5e_redirect_rqts(priv, drop_rrp);
