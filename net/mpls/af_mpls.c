@@ -189,10 +189,15 @@ static u32 mpls_multipath_hash(struct mpls_route *rt, struct sk_buff *skb)
 	return hash;
 }
 
+/* number of alive nexthops (rt->rt_nhn_alive) and the flags for
+ * a next hop (nh->nh_flags) are modified by netdev event handlers.
+ * Since those fields can change at any moment, use READ_ONCE to
+ * access both.
+ */
 static struct mpls_nh *mpls_select_multipath(struct mpls_route *rt,
 					     struct sk_buff *skb)
 {
-	int alive = ACCESS_ONCE(rt->rt_nhn_alive);
+	unsigned int alive;
 	u32 hash = 0;
 	int nh_index = 0;
 	int n = 0;
@@ -203,7 +208,8 @@ static struct mpls_nh *mpls_select_multipath(struct mpls_route *rt,
 	if (rt->rt_nhn == 1)
 		goto out;
 
-	if (alive <= 0)
+	alive = READ_ONCE(rt->rt_nhn_alive);
+	if (alive == 0)
 		return NULL;
 
 	hash = mpls_multipath_hash(rt, skb);
@@ -211,7 +217,9 @@ static struct mpls_nh *mpls_select_multipath(struct mpls_route *rt,
 	if (alive == rt->rt_nhn)
 		goto out;
 	for_nexthops(rt) {
-		if (nh->nh_flags & (RTNH_F_DEAD | RTNH_F_LINKDOWN))
+		unsigned int nh_flags = READ_ONCE(nh->nh_flags);
+
+		if (nh_flags & (RTNH_F_DEAD | RTNH_F_LINKDOWN))
 			continue;
 		if (n == nh_index)
 			return nh;
@@ -1302,7 +1310,6 @@ static void mpls_ifdown(struct net_device *dev, int event)
 {
 	struct mpls_route __rcu **platform_label;
 	struct net *net = dev_net(dev);
-	unsigned int nh_flags = RTNH_F_DEAD | RTNH_F_LINKDOWN;
 	unsigned int alive, deleted;
 	unsigned index;
 
@@ -1316,22 +1323,27 @@ static void mpls_ifdown(struct net_device *dev, int event)
 		alive = 0;
 		deleted = 0;
 		change_nexthops(rt) {
+			unsigned int nh_flags = nh->nh_flags;
+
 			if (rtnl_dereference(nh->nh_dev) != dev)
 				goto next;
 
 			switch (event) {
 			case NETDEV_DOWN:
 			case NETDEV_UNREGISTER:
-				nh->nh_flags |= RTNH_F_DEAD;
+				nh_flags |= RTNH_F_DEAD;
 				/* fall through */
 			case NETDEV_CHANGE:
-				nh->nh_flags |= RTNH_F_LINKDOWN;
+				nh_flags |= RTNH_F_LINKDOWN;
 				break;
 			}
 			if (event == NETDEV_UNREGISTER)
 				RCU_INIT_POINTER(nh->nh_dev, NULL);
+
+			if (nh->nh_flags != nh_flags)
+				WRITE_ONCE(nh->nh_flags, nh_flags);
 next:
-			if (!(nh->nh_flags & nh_flags))
+			if (!(nh_flags & (RTNH_F_DEAD | RTNH_F_LINKDOWN)))
 				alive++;
 			if (!rtnl_dereference(nh->nh_dev))
 				deleted++;
@@ -1345,7 +1357,7 @@ next:
 	}
 }
 
-static void mpls_ifup(struct net_device *dev, unsigned int nh_flags)
+static void mpls_ifup(struct net_device *dev, unsigned int flags)
 {
 	struct mpls_route __rcu **platform_label;
 	struct net *net = dev_net(dev);
@@ -1361,20 +1373,22 @@ static void mpls_ifup(struct net_device *dev, unsigned int nh_flags)
 
 		alive = 0;
 		change_nexthops(rt) {
+			unsigned int nh_flags = nh->nh_flags;
 			struct net_device *nh_dev =
 				rtnl_dereference(nh->nh_dev);
 
-			if (!(nh->nh_flags & nh_flags)) {
+			if (!(nh_flags & flags)) {
 				alive++;
 				continue;
 			}
 			if (nh_dev != dev)
 				continue;
 			alive++;
-			nh->nh_flags &= ~nh_flags;
+			nh_flags &= ~flags;
+			WRITE_ONCE(nh->nh_flags, flags);
 		} endfor_nexthops(rt);
 
-		ACCESS_ONCE(rt->rt_nhn_alive) = alive;
+		WRITE_ONCE(rt->rt_nhn_alive, alive);
 	}
 }
 

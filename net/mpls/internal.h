@@ -83,6 +83,10 @@ enum mpls_payload_type {
 
 struct mpls_nh { /* next hop label forwarding entry */
 	struct net_device __rcu *nh_dev;
+
+	/* nh_flags is accessed under RCU in the packet path; it is
+	 * modified handling netdev events with rtnl lock held
+	 */
 	unsigned int		nh_flags;
 	u32			nh_label[MAX_NEW_LABELS];
 	u8			nh_labels;
@@ -124,6 +128,10 @@ struct mpls_route { /* next hop label forwarding entry */
 	u8			rt_max_alen;
 	u8			rt_ttl_propagate;
 	unsigned int		rt_nhn;
+
+	/* rt_nhn_alive is accessed under RCU in the packet path; it
+	 * is modified handling netdev events with rtnl lock held
+	 */
 	unsigned int		rt_nhn_alive;
 	struct mpls_nh		rt_nh[0];
 };
