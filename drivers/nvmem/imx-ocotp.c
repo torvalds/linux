@@ -25,12 +25,36 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#define IMX_OCOTP_OFFSET_B0W0		0x400 /* Offset from base address of the
+					       * OTP Bank0 Word0
+					       */
+#define IMX_OCOTP_OFFSET_PER_WORD	0x10  /* Offset between the start addr
+					       * of two consecutive OTP words.
+					       */
+#define IMX_OCOTP_ADDR_CTRL		0x0000
+#define IMX_OCOTP_ADDR_CTRL_CLR		0x0008
+
+#define IMX_OCOTP_BM_CTRL_ERROR		0x00000200
+
+#define IMX_OCOTP_READ_LOCKED_VAL	0xBADABADA
+
 struct ocotp_priv {
 	struct device *dev;
 	struct clk *clk;
 	void __iomem *base;
 	unsigned int nregs;
 };
+
+static void imx_ocotp_clr_err_if_set(void __iomem *base)
+{
+	u32 c;
+
+	c = readl(base + IMX_OCOTP_ADDR_CTRL);
+	if (!(c & IMX_OCOTP_BM_CTRL_ERROR))
+		return;
+
+	writel(IMX_OCOTP_BM_CTRL_ERROR, base + IMX_OCOTP_ADDR_CTRL_CLR);
+}
 
 static int imx_ocotp_read(void *context, unsigned int offset,
 			  void *val, size_t bytes)
@@ -52,11 +76,22 @@ static int imx_ocotp_read(void *context, unsigned int offset,
 		dev_err(priv->dev, "failed to prepare/enable ocotp clk\n");
 		return ret;
 	}
-	for (i = index; i < (index + count); i++)
-		*buf++ = readl(priv->base + 0x400 + i * 0x10);
+
+	for (i = index; i < (index + count); i++) {
+		*buf++ = readl(priv->base + IMX_OCOTP_OFFSET_B0W0 +
+			       i * IMX_OCOTP_OFFSET_PER_WORD);
+
+		/* 47.3.1.2
+		 * For "read locked" registers 0xBADABADA will be returned and
+		 * HW_OCOTP_CTRL[ERROR] will be set. It must be cleared by
+		 * software before any new write, read or reload access can be
+		 * issued
+		 */
+		if (*(buf - 1) == IMX_OCOTP_READ_LOCKED_VAL)
+			imx_ocotp_clr_err_if_set(priv->base);
+	}
 
 	clk_disable_unprepare(priv->clk);
-
 	return 0;
 }
 
