@@ -67,6 +67,7 @@ struct rockchip_drm_mode_set {
 	int ratio;
 };
 
+#ifndef MODULE
 static struct drm_crtc *find_crtc_by_node(struct drm_device *drm_dev,
 					  struct device_node *node)
 {
@@ -103,6 +104,34 @@ static struct drm_connector *find_connector_by_node(struct drm_device *drm_dev,
 	return NULL;
 }
 
+void rockchip_free_loader_memory(struct drm_device *drm)
+{
+	struct rockchip_drm_private *private = drm->dev_private;
+	struct rockchip_logo *logo;
+	void *start, *end;
+
+	if (!private || !private->logo || --private->logo->count)
+		return;
+
+	logo = private->logo;
+	start = phys_to_virt(logo->start);
+	end = phys_to_virt(logo->size);
+
+	if (private->domain) {
+		iommu_unmap(private->domain, logo->dma_addr,
+			    logo->iommu_map_size);
+		drm_mm_remove_node(&logo->mm);
+	} else {
+		dma_unmap_sg(drm->dev, logo->sgt->sgl,
+			     logo->sgt->nents, DMA_TO_DEVICE);
+	}
+	sg_free_table(logo->sgt);
+	memblock_free(logo->start, logo->size);
+	free_reserved_area(start, end, -1, "drm_logo");
+	kfree(logo);
+	private->logo = NULL;
+}
+
 static int init_loader_memory(struct drm_device *drm_dev)
 {
 	struct rockchip_drm_private *private = drm_dev->dev_private;
@@ -116,10 +145,6 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	struct resource res;
 	int i, ret;
 
-	logo = devm_kmalloc(drm_dev->dev, sizeof(*logo), GFP_KERNEL);
-	if (!logo)
-		return -ENOMEM;
-
 	node = of_parse_phandle(np, "memory-region", 0);
 	if (!node)
 		return -ENOMEM;
@@ -132,10 +157,14 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	if (!size)
 		return -ENOMEM;
 
+	logo = kmalloc(sizeof(*logo), GFP_KERNEL);
+	if (!logo)
+		return -ENOMEM;
+
 	nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	pages = kmalloc_array(nr_pages, sizeof(*pages),	GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		goto err_free_logo;
 	i = 0;
 	while (i < nr_pages) {
 		pages[i] = phys_to_page(start);
@@ -176,7 +205,7 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	logo->sgt = sgt;
 	logo->start = res.start;
 	logo->size = size;
-	logo->count = 0;
+	logo->count = 1;
 	private->logo = logo;
 
 	return 0;
@@ -185,6 +214,8 @@ err_remove_node:
 	drm_mm_remove_node(&logo->mm);
 err_free_pages:
 	kfree(pages);
+err_free_logo:
+	kfree(logo);
 
 	return ret;
 }
@@ -633,6 +664,8 @@ static void show_loader_logo(struct drm_device *drm_dev)
 	if (ret)
 		goto err_free_state;
 
+	rockchip_free_loader_memory(drm_dev);
+
 	drm_modeset_unlock_all(drm_dev);
 	return;
 
@@ -643,6 +676,7 @@ err_unlock:
 	if (ret)
 		dev_err(drm_dev->dev, "failed to show loader logo\n");
 }
+#endif
 
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
@@ -910,7 +944,9 @@ static int rockchip_drm_bind(struct device *dev)
 
 	drm_mode_config_reset(drm_dev);
 
+#ifndef MODULE
 	show_loader_logo(drm_dev);
+#endif
 
 	ret = rockchip_drm_fbdev_init(drm_dev);
 	if (ret)

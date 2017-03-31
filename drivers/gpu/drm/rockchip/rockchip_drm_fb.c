@@ -57,27 +57,8 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 	}
 
 #ifndef MODULE
-	if (rockchip_fb->logo) {
-		struct rockchip_drm_private *private = fb->dev->dev_private;
-		struct rockchip_logo *logo = rockchip_fb->logo;
-
-		if (!--logo->count) {
-			void *start = phys_to_virt(logo->start);
-			void *end = phys_to_virt(logo->size);
-
-			if (private && private->domain) {
-				iommu_unmap(private->domain, logo->dma_addr,
-					    logo->iommu_map_size);
-				drm_mm_remove_node(&logo->mm);
-			} else {
-				dma_unmap_sg(fb->dev->dev, logo->sgt->sgl,
-					     logo->sgt->nents, DMA_TO_DEVICE);
-			}
-			sg_free_table(logo->sgt);
-			memblock_free(logo->start, logo->size);
-			free_reserved_area(start, end, -1, "drm_logo");
-		}
-	}
+	if (rockchip_fb->logo)
+		rockchip_free_loader_memory(fb->dev);
 #else
 	WARN_ON(rockchip_fb->logo);
 #endif
