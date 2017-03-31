@@ -2708,7 +2708,9 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 	if (!sum)
 		return 0;
 
-	index = ((u32)(logical - sum->bytenr)) / sctx->fs_info->sectorsize;
+	index = div_u64(logical - sum->bytenr, sctx->fs_info->sectorsize);
+	ASSERT(index < UINT_MAX);
+
 	num_sectors = sum->len / sctx->fs_info->sectorsize;
 	memcpy(csum, sum->sums + index, sctx->csum_size);
 	if (index == num_sectors - 1) {
