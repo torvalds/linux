@@ -538,23 +538,31 @@ unsigned long __copy_user(void __user *pdst, const void *psrc,
 	if ((unsigned long) src & 1) {
 		__asm_copy_to_user_1(dst, src, retn);
 		n--;
+		if (retn)
+			return retn + n;
 	}
 	if ((unsigned long) dst & 1) {
 		/* Worst case - byte copy */
 		while (n > 0) {
 			__asm_copy_to_user_1(dst, src, retn);
 			n--;
+			if (retn)
+				return retn + n;
 		}
 	}
 	if (((unsigned long) src & 2) && n >= 2) {
 		__asm_copy_to_user_2(dst, src, retn);
 		n -= 2;
+		if (retn)
+			return retn + n;
 	}
 	if ((unsigned long) dst & 2) {
 		/* Second worst case - word copy */
 		while (n >= 2) {
 			__asm_copy_to_user_2(dst, src, retn);
 			n -= 2;
+			if (retn)
+				return retn + n;
 		}
 	}
 
@@ -569,6 +577,8 @@ unsigned long __copy_user(void __user *pdst, const void *psrc,
 		while (n >= 8) {
 			__asm_copy_to_user_8x64(dst, src, retn);
 			n -= 8;
+			if (retn)
+				return retn + n;
 		}
 	}
 	if (n >= RAPF_MIN_BUF_SIZE) {
@@ -581,6 +591,8 @@ unsigned long __copy_user(void __user *pdst, const void *psrc,
 		while (n >= 8) {
 			__asm_copy_to_user_8x64(dst, src, retn);
 			n -= 8;
+			if (retn)
+				return retn + n;
 		}
 	}
 #endif
@@ -588,11 +600,15 @@ unsigned long __copy_user(void __user *pdst, const void *psrc,
 	while (n >= 16) {
 		__asm_copy_to_user_16(dst, src, retn);
 		n -= 16;
+		if (retn)
+			return retn + n;
 	}
 
 	while (n >= 4) {
 		__asm_copy_to_user_4(dst, src, retn);
 		n -= 4;
+		if (retn)
+			return retn + n;
 	}
 
 	switch (n) {
@@ -609,6 +625,10 @@ unsigned long __copy_user(void __user *pdst, const void *psrc,
 		break;
 	}
 
+	/*
+	 * If we get here, retn correctly reflects the number of failing
+	 * bytes.
+	 */
 	return retn;
 }
 EXPORT_SYMBOL(__copy_user);
