@@ -186,68 +186,36 @@ void intel_huc_select_fw(struct intel_huc *huc)
  * earlier call to intel_huc_init(), so here we need only check that
  * is succeeded, and then transfer the image to the h/w.
  *
- * Return:	non-zero code on error
  */
-int intel_huc_init_hw(struct intel_huc *huc)
+void intel_huc_init_hw(struct intel_huc *huc)
 {
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 	int err;
 
-	if (huc->fw.fetch_status == INTEL_UC_FIRMWARE_NONE)
-		return 0;
-
 	DRM_DEBUG_DRIVER("%s fw status: fetch %s, load %s\n",
 		huc->fw.path,
 		intel_uc_fw_status_repr(huc->fw.fetch_status),
 		intel_uc_fw_status_repr(huc->fw.load_status));
 
-	if (huc->fw.fetch_status == INTEL_UC_FIRMWARE_SUCCESS &&
-	    huc->fw.load_status == INTEL_UC_FIRMWARE_FAIL)
-		return -ENOEXEC;
+	if (huc->fw.fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+		return;
 
 	huc->fw.load_status = INTEL_UC_FIRMWARE_PENDING;
 
-	switch (huc->fw.fetch_status) {
-	case INTEL_UC_FIRMWARE_FAIL:
-		/* something went wrong :( */
-		err = -EIO;
-		goto fail;
-
-	case INTEL_UC_FIRMWARE_NONE:
-	case INTEL_UC_FIRMWARE_PENDING:
-	default:
-		/* "can't happen" */
-		WARN_ONCE(1, "HuC fw %s invalid fetch_status %s [%d]\n",
-			huc->fw.path,
-			intel_uc_fw_status_repr(huc->fw.fetch_status),
-			huc->fw.fetch_status);
-		err = -ENXIO;
-		goto fail;
-
-	case INTEL_UC_FIRMWARE_SUCCESS:
-		break;
-	}
-
 	err = huc_ucode_xfer(dev_priv);
-	if (err)
-		goto fail;
 
-	huc->fw.load_status = INTEL_UC_FIRMWARE_SUCCESS;
+	huc->fw.load_status = err ?
+		INTEL_UC_FIRMWARE_FAIL : INTEL_UC_FIRMWARE_SUCCESS;
 
 	DRM_DEBUG_DRIVER("%s fw status: fetch %s, load %s\n",
 		huc->fw.path,
 		intel_uc_fw_status_repr(huc->fw.fetch_status),
 		intel_uc_fw_status_repr(huc->fw.load_status));
 
-	return 0;
+	if (huc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
+		DRM_ERROR("Failed to complete HuC uCode load with ret %d\n", err);
 
-fail:
-	if (huc->fw.load_status == INTEL_UC_FIRMWARE_PENDING)
-		huc->fw.load_status = INTEL_UC_FIRMWARE_FAIL;
-
-	DRM_ERROR("Failed to complete HuC uCode load with ret %d\n", err);
-
-	return err;
+	return;
 }
 
 /**
