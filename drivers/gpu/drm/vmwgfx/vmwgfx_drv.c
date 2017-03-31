@@ -898,6 +898,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		goto out_no_fifo;
 
 	DRM_INFO("DX: %s\n", dev_priv->has_dx ? "yes." : "no.");
+	DRM_INFO("Atomic: %s\n",
+		 (dev->driver->driver_features & DRIVER_ATOMIC) ? "yes" : "no");
 
 	snprintf(host_log, sizeof(host_log), "vmwgfx: %s-%s",
 		VMWGFX_REPO, VMWGFX_GIT_VERSION);
@@ -1510,7 +1512,7 @@ static const struct file_operations vmwgfx_driver_fops = {
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
-	DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER,
+	DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER | DRIVER_ATOMIC,
 	.load = vmw_driver_load,
 	.unload = vmw_driver_unload,
 	.lastclose = vmw_lastclose,

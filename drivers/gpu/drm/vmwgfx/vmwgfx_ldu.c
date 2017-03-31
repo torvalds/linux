@@ -390,7 +390,6 @@ static const struct drm_crtc_helper_funcs vmw_ldu_crtc_helper_funcs = {
 	.prepare = vmw_ldu_crtc_helper_prepare,
 	.commit = vmw_ldu_crtc_helper_commit,
 	.disable = vmw_ldu_crtc_helper_disable,
-	.mode_set = drm_helper_crtc_mode_set,
 	.mode_set_nofb = vmw_ldu_crtc_mode_set_nofb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
