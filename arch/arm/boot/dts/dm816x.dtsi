@@ -293,6 +293,13 @@
 			phy-handle = <&phy1>;
 		};
 
+		sata: sata@4a140000 {
+			compatible = "ti,dm816-ahci";
+			reg = <0x4a140000 0x10000>;
+			interrupts = <16>;
+			ti,hwmods = "sata";
+		};
+
 		mcspi1: spi@48030000 {
 			compatible = "ti,omap4-mcspi";
 			reg = <0x48030000 0x1000>;
