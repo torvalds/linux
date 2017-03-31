@@ -300,7 +300,7 @@ static int dwc3_mode_show(struct seq_file *s, void *unused)
 		seq_printf(s, "device\n");
 		break;
 	case DWC3_GCTL_PRTCAP_OTG:
-		seq_printf(s, "OTG\n");
+		seq_printf(s, "otg\n");
 		break;
 	default:
 		seq_printf(s, "UNKNOWN %08x\n", DWC3_GCTL_PRTCAP(reg));
