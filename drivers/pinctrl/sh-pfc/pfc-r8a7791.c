@@ -5711,7 +5711,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	},
 	{ PINMUX_CFG_REG_VAR("IPSR2", 0xE6060028, 32,
 			     2, 3, 2, 2, 2, 2, 3, 3, 3, 3, 2, 2, 3) {
-		/* IP2_31_20 [2] */
+		/* IP2_31_30 [2] */
 		0, 0, 0, 0,
 		/* IP2_29_27 [3] */
 		FN_EX_CS3_N, FN_ATADIR0_N, FN_MSIOF2_TXD,
@@ -5731,7 +5731,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		/* IP2_15_13 [3] */
 		FN_A24, FN_DREQ2, FN_IO3, FN_TX1, FN_SCIFA1_TXD,
 		0, 0, 0,
-		/* IP2_12_0 [3] */
+		/* IP2_12_10 [3] */
 		FN_A23, FN_IO2, FN_BPFCLK_B, FN_RX0, FN_SCIFA0_RXD,
 		0, 0, 0,
 		/* IP2_9_7 [3] */
@@ -6042,7 +6042,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		/* IP10_24_22 [3] */
 		FN_VI0_R1, FN_VI2_DATA2, FN_GLO_I1_B, FN_TS_SCK0_C, FN_ATAG1_N,
 		0, 0, 0,
-		/* IP10_21_29 [3] */
+		/* IP10_21_19 [3] */
 		FN_VI0_R0, FN_VI2_DATA1, FN_GLO_I0_B,
 		FN_TS_SDATA0_C, FN_ATACS11_N,
 		0, 0, 0,
