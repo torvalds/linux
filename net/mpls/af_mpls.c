@@ -197,10 +197,10 @@ static u32 mpls_multipath_hash(struct mpls_route *rt, struct sk_buff *skb)
 static struct mpls_nh *mpls_select_multipath(struct mpls_route *rt,
 					     struct sk_buff *skb)
 {
-	unsigned int alive;
 	u32 hash = 0;
 	int nh_index = 0;
 	int n = 0;
+	u8 alive;
 
 	/* No need to look further into packet if there's only
 	 * one path
@@ -466,7 +466,7 @@ struct mpls_route_config {
 	int			rc_mp_len;
 };
 
-static struct mpls_route *mpls_rt_alloc(int num_nh, u8 max_alen)
+static struct mpls_route *mpls_rt_alloc(u8 num_nh, u8 max_alen)
 {
 	u8 max_alen_aligned = ALIGN(max_alen, VIA_ALEN_ALIGN);
 	struct mpls_route *rt;
@@ -744,11 +744,11 @@ errout:
 	return err;
 }
 
-static int mpls_count_nexthops(struct rtnexthop *rtnh, int len,
-			       u8 cfg_via_alen, u8 *max_via_alen)
+static u8 mpls_count_nexthops(struct rtnexthop *rtnh, int len,
+			      u8 cfg_via_alen, u8 *max_via_alen)
 {
-	int nhs = 0;
 	int remaining = len;
+	u8 nhs = 0;
 
 	if (!rtnh) {
 		*max_via_alen = cfg_via_alen;
@@ -773,7 +773,13 @@ static int mpls_count_nexthops(struct rtnexthop *rtnh, int len,
 						      via_alen);
 		}
 
+		/* number of nexthops is tracked by a u8.
+		 * Check for overflow.
+		 */
+		if (nhs == 255)
+			return 0;
 		nhs++;
+
 		rtnh = rtnh_next(rtnh, &remaining);
 	}
 
@@ -787,8 +793,8 @@ static int mpls_nh_build_multi(struct mpls_route_config *cfg,
 	struct rtnexthop *rtnh = cfg->rc_mp;
 	struct nlattr *nla_via, *nla_newdst;
 	int remaining = cfg->rc_mp_len;
-	int nhs = 0;
 	int err = 0;
+	u8 nhs = 0;
 
 	change_nexthops(rt) {
 		int attrlen;
@@ -842,7 +848,7 @@ static int mpls_route_add(struct mpls_route_config *cfg)
 	int err = -EINVAL;
 	u8 max_via_alen;
 	unsigned index;
-	int nhs;
+	u8 nhs;
 
 	index = cfg->rc_label;
 
@@ -1310,7 +1316,7 @@ static void mpls_ifdown(struct net_device *dev, int event)
 {
 	struct mpls_route __rcu **platform_label;
 	struct net *net = dev_net(dev);
-	unsigned int alive, deleted;
+	u8 alive, deleted;
 	unsigned index;
 
 	platform_label = rtnl_dereference(net->mpls.platform_label);
@@ -1362,7 +1368,7 @@ static void mpls_ifup(struct net_device *dev, unsigned int flags)
 	struct mpls_route __rcu **platform_label;
 	struct net *net = dev_net(dev);
 	unsigned index;
-	int alive;
+	u8 alive;
 
 	platform_label = rtnl_dereference(net->mpls.platform_label);
 	for (index = 0; index < net->mpls.platform_labels; index++) {
@@ -1786,8 +1792,8 @@ static int mpls_dump_route(struct sk_buff *skb, u32 portid, u32 seq, int event,
 	} else {
 		struct rtnexthop *rtnh;
 		struct nlattr *mp;
-		int dead = 0;
-		int linkdown = 0;
+		u8 linkdown = 0;
+		u8 dead = 0;
 
 		mp = nla_nest_start(skb, RTA_MULTIPATH);
 		if (!mp)

@@ -127,12 +127,13 @@ struct mpls_route { /* next hop label forwarding entry */
 	u8			rt_payload_type;
 	u8			rt_max_alen;
 	u8			rt_ttl_propagate;
-	unsigned int		rt_nhn;
+	u8			rt_nhn;
 
 	/* rt_nhn_alive is accessed under RCU in the packet path; it
 	 * is modified handling netdev events with rtnl lock held
 	 */
-	unsigned int		rt_nhn_alive;
+	u8			rt_nhn_alive;
+	u16			rt_reserved1;
 	struct mpls_nh		rt_nh[0];
 };
 
