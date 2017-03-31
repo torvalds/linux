@@ -527,6 +527,7 @@ cp_statx(const struct kstat *stat, struct statx __user *buffer)
 	tmp.stx_ino = stat->ino;
 	tmp.stx_size = stat->size;
 	tmp.stx_blocks = stat->blocks;
+	tmp.stx_attributes_mask = stat->attributes_mask;
 	tmp.stx_atime.tv_sec = stat->atime.tv_sec;
 	tmp.stx_atime.tv_nsec = stat->atime.tv_nsec;
 	tmp.stx_btime.tv_sec = stat->btime.tv_sec;
