@@ -134,7 +134,7 @@ struct mtk_mipitx_data {
 struct mtk_mipi_tx {
 	struct device *dev;
 	void __iomem *regs;
-	unsigned int data_rate;
+	u32 data_rate;
 	const struct mtk_mipitx_data *driver_data;
 	struct clk_hw pll_hw;
 	struct clk *pll;
@@ -172,7 +172,7 @@ static void mtk_mipi_tx_update_bits(struct mtk_mipi_tx *mipi_tx, u32 offset,
 static int mtk_mipi_tx_pll_prepare(struct clk_hw *hw)
 {
 	struct mtk_mipi_tx *mipi_tx = mtk_mipi_tx_from_clk_hw(hw);
-	unsigned int txdiv, txdiv0, txdiv1;
+	u8 txdiv, txdiv0, txdiv1;
 	u64 pcw;
 
 	dev_dbg(mipi_tx->dev, "prepare: %u Hz\n", mipi_tx->data_rate);
@@ -326,7 +326,7 @@ static const struct clk_ops mtk_mipi_tx_pll_ops = {
 static int mtk_mipi_tx_power_on_signal(struct phy *phy)
 {
 	struct mtk_mipi_tx *mipi_tx = phy_get_drvdata(phy);
-	unsigned int reg;
+	u32 reg;
 
 	for (reg = MIPITX_DSI_CLOCK_LANE;
 	     reg <= MIPITX_DSI_DATA_LANE3; reg += 4)
@@ -357,7 +357,7 @@ static int mtk_mipi_tx_power_on(struct phy *phy)
 static void mtk_mipi_tx_power_off_signal(struct phy *phy)
 {
 	struct mtk_mipi_tx *mipi_tx = phy_get_drvdata(phy);
-	unsigned int reg;
+	u32 reg;
 
 	mtk_mipi_tx_set_bits(mipi_tx, MIPITX_DSI_TOP_CON,
 			     RG_DSI_PAD_TIE_LOW_EN);
