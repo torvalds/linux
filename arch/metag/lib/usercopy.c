@@ -717,6 +717,8 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 	if ((unsigned long) src & 1) {
 		__asm_copy_from_user_1(dst, src, retn);
 		n--;
+		if (retn)
+			goto copy_exception_bytes;
 	}
 	if ((unsigned long) dst & 1) {
 		/* Worst case - byte copy */
@@ -730,6 +732,8 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 	if (((unsigned long) src & 2) && n >= 2) {
 		__asm_copy_from_user_2(dst, src, retn);
 		n -= 2;
+		if (retn)
+			goto copy_exception_bytes;
 	}
 	if ((unsigned long) dst & 2) {
 		/* Second worst case - word copy */
@@ -740,12 +744,6 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 				goto copy_exception_bytes;
 		}
 	}
-
-	/* We only need one check after the unalignment-adjustments,
-	   because if both adjustments were done, either both or
-	   neither reference had an exception.  */
-	if (retn != 0)
-		goto copy_exception_bytes;
 
 #ifdef USE_RAPF
 	/* 64 bit copy loop */
