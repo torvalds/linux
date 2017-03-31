@@ -45,9 +45,6 @@
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
-#ifdef CONFIG_KVM_MMIO
-#define KVM_COALESCED_MMIO_PAGE_OFFSET 1
-#endif
 #define KVM_HALT_POLL_NS_DEFAULT 10000	/* 10 us */
 
 /* These values are internal and can be increased later */
