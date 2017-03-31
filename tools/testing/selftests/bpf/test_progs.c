@@ -28,10 +28,13 @@ typedef __u16 __sum16;
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include "test_iptunnel_common.h"
+#include "bpf_util.h"
 
 #define _htons __builtin_bswap16
 
 static int error_cnt, pass_cnt;
+
+#define MAGIC_BYTES 123
 
 /* ipv4 test vector */
 static struct {
@@ -42,6 +45,7 @@ static struct {
 	.eth.h_proto = _htons(ETH_P_IP),
 	.iph.ihl = 5,
 	.iph.protocol = 6,
+	.iph.tot_len = _htons(MAGIC_BYTES),
 	.tcp.urg_ptr = 123,
 };
 
@@ -53,6 +57,7 @@ static struct {
 } __packed pkt_v6 = {
 	.eth.h_proto = _htons(ETH_P_IPV6),
 	.iph.nexthdr = 6,
+	.iph.payload_len = _htons(MAGIC_BYTES),
 	.tcp.urg_ptr = 123,
 };
 
@@ -182,6 +187,88 @@ out:
 	bpf_object__close(obj);
 }
 
+#define MAGIC_VAL 0x1234
+#define NUM_ITER 100000
+#define VIP_NUM 5
+
+static void test_l4lb(void)
+{
+	unsigned int nr_cpus = bpf_num_possible_cpus();
+	const char *file = "./test_l4lb.o";
+	struct vip key = {.protocol = 6};
+	struct vip_meta {
+		__u32 flags;
+		__u32 vip_num;
+	} value = {.vip_num = VIP_NUM};
+	__u32 stats_key = VIP_NUM;
+	struct vip_stats {
+		__u64 bytes;
+		__u64 pkts;
+	} stats[nr_cpus];
+	struct real_definition {
+		union {
+			__be32 dst;
+			__be32 dstv6[4];
+		};
+		__u8 flags;
+	} real_def = {.dst = MAGIC_VAL};
+	__u32 ch_key = 11, real_num = 3;
+	__u32 duration, retval, size;
+	int err, i, prog_fd, map_fd;
+	__u64 bytes = 0, pkts = 0;
+	struct bpf_object *obj;
+	char buf[128];
+	u32 *magic = (u32 *)buf;
+
+	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
+	if (err)
+		return;
+
+	map_fd = bpf_find_map(__func__, obj, "vip_map");
+	if (map_fd < 0)
+		goto out;
+	bpf_map_update_elem(map_fd, &key, &value, 0);
+
+	map_fd = bpf_find_map(__func__, obj, "ch_rings");
+	if (map_fd < 0)
+		goto out;
+	bpf_map_update_elem(map_fd, &ch_key, &real_num, 0);
+
+	map_fd = bpf_find_map(__func__, obj, "reals");
+	if (map_fd < 0)
+		goto out;
+	bpf_map_update_elem(map_fd, &real_num, &real_def, 0);
+
+	err = bpf_prog_test_run(prog_fd, NUM_ITER, &pkt_v4, sizeof(pkt_v4),
+				buf, &size, &retval, &duration);
+	CHECK(err || errno || retval != 7/*TC_ACT_REDIRECT*/ || size != 54 ||
+	      *magic != MAGIC_VAL, "ipv4",
+	      "err %d errno %d retval %d size %d magic %x\n",
+	      err, errno, retval, size, *magic);
+
+	err = bpf_prog_test_run(prog_fd, NUM_ITER, &pkt_v6, sizeof(pkt_v6),
+				buf, &size, &retval, &duration);
+	CHECK(err || errno || retval != 7/*TC_ACT_REDIRECT*/ || size != 74 ||
+	      *magic != MAGIC_VAL, "ipv6",
+	      "err %d errno %d retval %d size %d magic %x\n",
+	      err, errno, retval, size, *magic);
+
+	map_fd = bpf_find_map(__func__, obj, "stats");
+	if (map_fd < 0)
+		goto out;
+	bpf_map_lookup_elem(map_fd, &stats_key, stats);
+	for (i = 0; i < nr_cpus; i++) {
+		bytes += stats[i].bytes;
+		pkts += stats[i].pkts;
+	}
+	if (bytes != MAGIC_BYTES * NUM_ITER * 2 || pkts != NUM_ITER * 2) {
+		error_cnt++;
+		printf("test_l4lb:FAIL:stats %lld %lld\n", bytes, pkts);
+	}
+out:
+	bpf_object__close(obj);
+}
+
 int main(void)
 {
 	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
@@ -190,6 +277,7 @@ int main(void)
 
 	test_pkt_access();
 	test_xdp();
+	test_l4lb();
 
 	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
 	return 0;
