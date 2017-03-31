@@ -2117,9 +2117,8 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 		for (tries = 3; !ops->tx_empty(uport) && tries; tries--)
 			msleep(10);
 		if (!tries)
-			dev_err(uport->dev, "%s%d: Unable to drain transmitter\n",
-				drv->dev_name,
-				drv->tty_driver->name_base + uport->line);
+			dev_err(uport->dev, "%s: Unable to drain transmitter\n",
+				uport->name);
 
 		ops->shutdown(uport);
 	}
@@ -2248,11 +2247,10 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 		break;
 	}
 
-	printk(KERN_INFO "%s%s%s%d at %s (irq = %d, base_baud = %d) is a %s\n",
+	pr_info("%s%s%s at %s (irq = %d, base_baud = %d) is a %s\n",
 	       port->dev ? dev_name(port->dev) : "",
 	       port->dev ? ": " : "",
-	       drv->dev_name,
-	       drv->tty_driver->name_base + port->line,
+	       port->name,
 	       address, port->irq, port->uartclk / 16, uart_type(port));
 }
 
