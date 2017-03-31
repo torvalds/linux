@@ -114,10 +114,8 @@ const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
 		return "PENDING";
 	case INTEL_UC_FIRMWARE_SUCCESS:
 		return "SUCCESS";
-	default:
-		MISSING_CASE(status);
-		return "<invalid>";
 	}
+	return "<invalid>";
 }
 
 enum intel_uc_fw_type {
@@ -133,10 +131,8 @@ static inline const char *intel_uc_fw_type_repr(enum intel_uc_fw_type type)
 		return "GuC";
 	case INTEL_UC_FW_TYPE_HUC:
 		return "HuC";
-	default:
-		MISSING_CASE(type);
-		return "<invalid>";
 	}
+	return "uC";
 }
 
 /*
