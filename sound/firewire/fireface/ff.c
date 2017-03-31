@@ -61,6 +61,8 @@ static void do_registration(struct work_struct *work)
 
 	name_card(ff);
 
+	snd_ff_proc_init(ff);
+
 	err = snd_ff_create_midi_devices(ff);
 	if (err < 0)
 		goto error;

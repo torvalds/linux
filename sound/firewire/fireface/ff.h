@@ -99,6 +99,8 @@ int snd_ff_transaction_register(struct snd_ff *ff);
 int snd_ff_transaction_reregister(struct snd_ff *ff);
 void snd_ff_transaction_unregister(struct snd_ff *ff);
 
+void snd_ff_proc_init(struct snd_ff *ff);
+
 int snd_ff_create_midi_devices(struct snd_ff *ff);
 
 #endif
