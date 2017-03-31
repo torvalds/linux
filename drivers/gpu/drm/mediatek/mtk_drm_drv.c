@@ -128,7 +128,7 @@ static const struct drm_mode_config_funcs mtk_drm_mode_config_funcs = {
 	.atomic_commit = mtk_atomic_commit,
 };
 
-static const enum mtk_ddp_comp_id mtk_ddp_main[] = {
+static const enum mtk_ddp_comp_id mt8173_mtk_ddp_main[] = {
 	DDP_COMPONENT_OVL0,
 	DDP_COMPONENT_COLOR0,
 	DDP_COMPONENT_AAL,
@@ -139,12 +139,19 @@ static const enum mtk_ddp_comp_id mtk_ddp_main[] = {
 	DDP_COMPONENT_PWM0,
 };
 
-static const enum mtk_ddp_comp_id mtk_ddp_ext[] = {
+static const enum mtk_ddp_comp_id mt8173_mtk_ddp_ext[] = {
 	DDP_COMPONENT_OVL1,
 	DDP_COMPONENT_COLOR1,
 	DDP_COMPONENT_GAMMA,
 	DDP_COMPONENT_RDMA1,
 	DDP_COMPONENT_DPI0,
+};
+
+static const struct mtk_mmsys_driver_data mt8173_mmsys_driver_data = {
+	.main_path = mt8173_mtk_ddp_main,
+	.main_len = ARRAY_SIZE(mt8173_mtk_ddp_main),
+	.ext_path = mt8173_mtk_ddp_ext,
+	.ext_len = ARRAY_SIZE(mt8173_mtk_ddp_ext),
 };
 
 static int mtk_drm_kms_init(struct drm_device *drm)
@@ -189,17 +196,19 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 	 * and each statically assigned to a crtc:
 	 * OVL0 -> COLOR0 -> AAL -> OD -> RDMA0 -> UFOE -> DSI0 ...
 	 */
-	ret = mtk_drm_crtc_create(drm, mtk_ddp_main, ARRAY_SIZE(mtk_ddp_main));
+	ret = mtk_drm_crtc_create(drm, private->data->main_path,
+				  private->data->main_len);
 	if (ret < 0)
 		goto err_component_unbind;
 	/* ... and OVL1 -> COLOR1 -> GAMMA -> RDMA1 -> DPI0. */
-	ret = mtk_drm_crtc_create(drm, mtk_ddp_ext, ARRAY_SIZE(mtk_ddp_ext));
+	ret = mtk_drm_crtc_create(drm, private->data->ext_path,
+				  private->data->ext_len);
 	if (ret < 0)
 		goto err_component_unbind;
 
 	/* Use OVL device for all DMA memory allocations */
-	np = private->comp_node[mtk_ddp_main[0]] ?:
-	     private->comp_node[mtk_ddp_ext[0]];
+	np = private->comp_node[private->data->main_path[0]] ?:
+	     private->comp_node[private->data->ext_path[0]];
 	pdev = of_find_device_by_node(np);
 	if (!pdev) {
 		ret = -ENODEV;
@@ -359,6 +368,7 @@ static int mtk_drm_probe(struct platform_device *pdev)
 
 	mutex_init(&private->commit.lock);
 	INIT_WORK(&private->commit.work, mtk_atomic_work);
+	private->data = of_device_get_match_data(dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	private->config_regs = devm_ioremap_resource(dev, mem);
@@ -510,7 +520,8 @@ static SIMPLE_DEV_PM_OPS(mtk_drm_pm_ops, mtk_drm_sys_suspend,
 			 mtk_drm_sys_resume);
 
 static const struct of_device_id mtk_drm_of_ids[] = {
-	{ .compatible = "mediatek,mt8173-mmsys", },
+	{ .compatible = "mediatek,mt8173-mmsys",
+	  .data = &mt8173_mmsys_driver_data},
 	{ }
 };
 
