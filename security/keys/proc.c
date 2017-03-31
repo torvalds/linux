@@ -340,7 +340,7 @@ static int proc_key_users_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "%5u: %5d %d/%d %d/%d %d/%d\n",
 		   from_kuid_munged(seq_user_ns(m), user->uid),
-		   atomic_read(&user->usage),
+		   refcount_read(&user->usage),
 		   atomic_read(&user->nkeys),
 		   atomic_read(&user->nikeys),
 		   user->qnkeys,

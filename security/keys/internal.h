@@ -17,6 +17,7 @@
 #include <linux/key-type.h>
 #include <linux/task_work.h>
 #include <linux/keyctl.h>
+#include <linux/refcount.h>
 
 struct iovec;
 
@@ -53,7 +54,7 @@ struct key_user {
 	struct rb_node		node;
 	struct mutex		cons_lock;	/* construction initiation lock */
 	spinlock_t		lock;
-	atomic_t		usage;		/* for accessing qnkeys & qnbytes */
+	refcount_t		usage;		/* for accessing qnkeys & qnbytes */
 	atomic_t		nkeys;		/* number of keys */
 	atomic_t		nikeys;		/* number of instantiated keys */
 	kuid_t			uid;

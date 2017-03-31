@@ -93,7 +93,7 @@ try_again:
 
 	/* if we get here, then the user record still hadn't appeared on the
 	 * second pass - so we use the candidate record */
-	atomic_set(&candidate->usage, 1);
+	refcount_set(&candidate->usage, 1);
 	atomic_set(&candidate->nkeys, 0);
 	atomic_set(&candidate->nikeys, 0);
 	candidate->uid = uid;
@@ -110,7 +110,7 @@ try_again:
 
 	/* okay - we found a user record for this UID */
 found:
-	atomic_inc(&user->usage);
+	refcount_inc(&user->usage);
 	spin_unlock(&key_user_lock);
 	kfree(candidate);
 out:
@@ -122,7 +122,7 @@ out:
  */
 void key_user_put(struct key_user *user)
 {
-	if (atomic_dec_and_lock(&user->usage, &key_user_lock)) {
+	if (refcount_dec_and_lock(&user->usage, &key_user_lock)) {
 		rb_erase(&user->node, &key_user_tree);
 		spin_unlock(&key_user_lock);
 
