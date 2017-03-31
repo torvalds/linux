@@ -24,6 +24,8 @@
 #include <net/nexthop.h>
 #include "internal.h"
 
+#define MAX_NEW_LABELS 2
+
 /* Maximum number of labels to look ahead at when selecting a path of
  * a multipath route
  */
@@ -60,10 +62,7 @@ EXPORT_SYMBOL_GPL(mpls_output_possible);
 
 static u8 *__mpls_nh_via(struct mpls_route *rt, struct mpls_nh *nh)
 {
-	u8 *nh0_via = PTR_ALIGN((u8 *)&rt->rt_nh[rt->rt_nhn], VIA_ALEN_ALIGN);
-	int nh_index = nh - rt->rt_nh;
-
-	return nh0_via + rt->rt_max_alen * nh_index;
+	return (u8 *)nh + rt->rt_via_offset;
 }
 
 static const u8 *mpls_nh_via(const struct mpls_route *rt,
@@ -189,6 +188,11 @@ static u32 mpls_multipath_hash(struct mpls_route *rt, struct sk_buff *skb)
 	return hash;
 }
 
+static struct mpls_nh *mpls_get_nexthop(struct mpls_route *rt, u8 index)
+{
+	return (struct mpls_nh *)((u8 *)rt->rt_nh + index * rt->rt_nh_size);
+}
+
 /* number of alive nexthops (rt->rt_nhn_alive) and the flags for
  * a next hop (nh->nh_flags) are modified by netdev event handlers.
  * Since those fields can change at any moment, use READ_ONCE to
@@ -206,7 +210,7 @@ static struct mpls_nh *mpls_select_multipath(struct mpls_route *rt,
 	 * one path
 	 */
 	if (rt->rt_nhn == 1)
-		goto out;
+		return rt->rt_nh;
 
 	alive = READ_ONCE(rt->rt_nhn_alive);
 	if (alive == 0)
@@ -227,7 +231,7 @@ static struct mpls_nh *mpls_select_multipath(struct mpls_route *rt,
 	} endfor_nexthops(rt);
 
 out:
-	return &rt->rt_nh[nh_index];
+	return mpls_get_nexthop(rt, nh_index);
 }
 
 static bool mpls_egress(struct net *net, struct mpls_route *rt,
@@ -466,19 +470,20 @@ struct mpls_route_config {
 	int			rc_mp_len;
 };
 
-static struct mpls_route *mpls_rt_alloc(u8 num_nh, u8 max_alen)
+/* all nexthops within a route have the same size based on max
+ * number of labels and max via length for a hop
+ */
+static struct mpls_route *mpls_rt_alloc(u8 num_nh, u8 max_alen, u8 max_labels)
 {
-	u8 max_alen_aligned = ALIGN(max_alen, VIA_ALEN_ALIGN);
+	u8 nh_size = MPLS_NH_SIZE(max_labels, max_alen);
 	struct mpls_route *rt;
 
-	rt = kzalloc(ALIGN(sizeof(*rt) + num_nh * sizeof(*rt->rt_nh),
-			   VIA_ALEN_ALIGN) +
-		     num_nh * max_alen_aligned,
-		     GFP_KERNEL);
+	rt = kzalloc(sizeof(*rt) + num_nh * nh_size, GFP_KERNEL);
 	if (rt) {
 		rt->rt_nhn = num_nh;
 		rt->rt_nhn_alive = num_nh;
-		rt->rt_max_alen = max_alen_aligned;
+		rt->rt_nh_size = nh_size;
+		rt->rt_via_offset = MPLS_NH_VIA_OFF(max_labels);
 	}
 
 	return rt;
@@ -892,7 +897,7 @@ static int mpls_route_add(struct mpls_route_config *cfg)
 		goto errout;
 
 	err = -ENOMEM;
-	rt = mpls_rt_alloc(nhs, max_via_alen);
+	rt = mpls_rt_alloc(nhs, max_via_alen, MAX_NEW_LABELS);
 	if (!rt)
 		goto errout;
 
@@ -1964,7 +1969,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 	/* In case the predefined labels need to be populated */
 	if (limit > MPLS_LABEL_IPV4NULL) {
 		struct net_device *lo = net->loopback_dev;
-		rt0 = mpls_rt_alloc(1, lo->addr_len);
+		rt0 = mpls_rt_alloc(1, lo->addr_len, MAX_NEW_LABELS);
 		if (!rt0)
 			goto nort0;
 		RCU_INIT_POINTER(rt0->rt_nh->nh_dev, lo);
@@ -1978,7 +1983,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 	}
 	if (limit > MPLS_LABEL_IPV6NULL) {
 		struct net_device *lo = net->loopback_dev;
-		rt2 = mpls_rt_alloc(1, lo->addr_len);
+		rt2 = mpls_rt_alloc(1, lo->addr_len, MAX_NEW_LABELS);
 		if (!rt2)
 			goto nort2;
 		RCU_INIT_POINTER(rt2->rt_nh->nh_dev, lo);
