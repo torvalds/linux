@@ -13,19 +13,23 @@ struct clk_hw;
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
 struct clk *__of_clk_get_from_provider(struct of_phandle_args *clkspec,
-				       const char *dev_id, const char *con_id);
+				       const char *dev_id, const char *con_id,
+				       bool with_orphans);
+struct clk *
+of_clk_get_from_provider_with_orphans(struct of_phandle_args *clkspec);
 #endif
 
 #ifdef CONFIG_COMMON_CLK
 struct clk *__clk_create_clk(struct clk_hw *hw, const char *dev_id,
-			     const char *con_id);
+			     const char *con_id, bool with_orphans);
 void __clk_free_clk(struct clk *clk);
 int __clk_get(struct clk *clk);
 void __clk_put(struct clk *clk);
 #else
 /* All these casts to avoid ifdefs in clkdev... */
 static inline struct clk *
-__clk_create_clk(struct clk_hw *hw, const char *dev_id, const char *con_id)
+__clk_create_clk(struct clk_hw *hw, const char *dev_id, const char *con_id,
+		 bool with_orphans)
 {
 	return (struct clk *)hw;
 }
