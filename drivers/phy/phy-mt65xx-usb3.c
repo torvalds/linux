@@ -46,6 +46,7 @@
 
 #define U3P_USBPHYACR0		0x000
 #define PA0_RG_U2PLL_FORCE_ON		BIT(15)
+#define PA0_RG_USB20_INTR_EN		BIT(5)
 
 #define U3P_USBPHYACR2		0x008
 #define PA2_RG_SIF_U2PLL_FORCE_EN	BIT(18)
@@ -339,6 +340,15 @@ static void phy_instance_init(struct mt65xx_u3phy *u3phy,
 	tmp &= ~P2C_RG_UART_EN;
 	writel(tmp, com + U3P_U2PHYDTM1);
 
+	tmp = readl(com + U3P_USBPHYACR0);
+	tmp |= PA0_RG_USB20_INTR_EN;
+	writel(tmp, com + U3P_USBPHYACR0);
+
+	/* disable switch 100uA current to SSUSB */
+	tmp = readl(com + U3P_USBPHYACR5);
+	tmp &= ~PA5_RG_U2_HS_100U_U3_EN;
+	writel(tmp, com + U3P_USBPHYACR5);
+
 	if (!index) {
 		tmp = readl(com + U3P_U2PHYACR4);
 		tmp &= ~P2C_U2_GPIO_CTR_MSK;
@@ -393,13 +403,6 @@ static void phy_instance_power_on(struct mt65xx_u3phy *u3phy,
 	tmp |= PA6_RG_U2_OTG_VBUSCMP_EN;
 	writel(tmp, com + U3P_USBPHYACR6);
 
-	if (!index) {
-		/* switch 100uA current to SSUSB */
-		tmp = readl(com + U3P_USBPHYACR5);
-		tmp |= PA5_RG_U2_HS_100U_U3_EN;
-		writel(tmp, com + U3P_USBPHYACR5);
-	}
-
 	tmp = readl(com + U3P_U2PHYDTM1);
 	tmp |= P2C_RG_VBUSVALID | P2C_RG_AVALID;
 	tmp &= ~P2C_RG_SESSEND;
@@ -434,13 +437,6 @@ static void phy_instance_power_off(struct mt65xx_u3phy *u3phy,
 	tmp = readl(com + U3P_USBPHYACR6);
 	tmp &= ~PA6_RG_U2_OTG_VBUSCMP_EN;
 	writel(tmp, com + U3P_USBPHYACR6);
-
-	if (!index) {
-		/* switch 100uA current back to USB2.0 */
-		tmp = readl(com + U3P_USBPHYACR5);
-		tmp &= ~PA5_RG_U2_HS_100U_U3_EN;
-		writel(tmp, com + U3P_USBPHYACR5);
-	}
 
 	/* let suspendm=0, set utmi into analog power down */
 	tmp = readl(com + U3P_U2PHYDTM0);
