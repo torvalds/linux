@@ -260,9 +260,9 @@
  */
 #ifndef RO_AFTER_INIT_DATA
 #define RO_AFTER_INIT_DATA						\
-	__start_data_ro_after_init = .;					\
+	__start_ro_after_init = .;					\
 	*(.data..ro_after_init)						\
-	__end_data_ro_after_init = .;
+	__end_ro_after_init = .;
 #endif
 
 /*
