@@ -301,7 +301,9 @@ static int end_live_test(struct live_test *t)
 {
 	struct drm_i915_private *i915 = t->i915;
 
-	if (wait_for(intel_engines_are_idle(i915), 1)) {
+	i915_gem_retire_requests(i915);
+
+	if (wait_for(intel_engines_are_idle(i915), 10)) {
 		pr_err("%s(%s): GPU not idle\n", t->func, t->name);
 		return -EIO;
 	}
