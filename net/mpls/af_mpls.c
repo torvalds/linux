@@ -24,11 +24,6 @@
 #include <net/nexthop.h>
 #include "internal.h"
 
-/* put a reasonable limit on the number of labels
- * we will accept from userspace
- */
-#define MAX_NEW_LABELS	30
-
 /* max memory we will use for mpls_route */
 #define MAX_MPLS_ROUTE_MEM	4096
 

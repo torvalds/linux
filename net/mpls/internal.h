@@ -2,6 +2,11 @@
 #define MPLS_INTERNAL_H
 #include <net/mpls.h>
 
+/* put a reasonable limit on the number of labels
+ * we will accept from userspace
+ */
+#define MAX_NEW_LABELS 30
+
 struct mpls_entry_decoded {
 	u32 label;
 	u8 ttl;
