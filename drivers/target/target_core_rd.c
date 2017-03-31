@@ -410,7 +410,7 @@ static sense_reason_t rd_do_prot_rw(struct se_cmd *cmd, bool is_read)
 	u32 prot_offset, prot_page;
 	u32 prot_npages __maybe_unused;
 	u64 tmp;
-	sense_reason_t rc = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	sense_reason_t rc = 0;
 
 	tmp = cmd->t_task_lba * se_dev->prot_length;
 	prot_offset = do_div(tmp, PAGE_SIZE);
@@ -423,13 +423,14 @@ static sense_reason_t rd_do_prot_rw(struct se_cmd *cmd, bool is_read)
 	prot_sg = &prot_table->sg_table[prot_page -
 					prot_table->page_start_offset];
 
-	if (is_read)
-		rc = sbc_dif_verify(cmd, cmd->t_task_lba, sectors, 0,
-				    prot_sg, prot_offset);
-	else
-		rc = sbc_dif_verify(cmd, cmd->t_task_lba, sectors, 0,
-				    cmd->t_prot_sg, 0);
-
+	if (se_dev->dev_attrib.pi_prot_verify) {
+		if (is_read)
+			rc = sbc_dif_verify(cmd, cmd->t_task_lba, sectors, 0,
+					    prot_sg, prot_offset);
+		else
+			rc = sbc_dif_verify(cmd, cmd->t_task_lba, sectors, 0,
+					    cmd->t_prot_sg, 0);
+	}
 	if (!rc)
 		sbc_dif_copy_prot(cmd, sectors, is_read, prot_sg, prot_offset);
 

@@ -533,6 +533,7 @@ DEF_CONFIGFS_ATTRIB_SHOW(emulate_3pc);
 DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_type);
 DEF_CONFIGFS_ATTRIB_SHOW(hw_pi_prot_type);
 DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_format);
+DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_verify);
 DEF_CONFIGFS_ATTRIB_SHOW(enforce_pr_isids);
 DEF_CONFIGFS_ATTRIB_SHOW(is_nonrot);
 DEF_CONFIGFS_ATTRIB_SHOW(emulate_rest_reord);
@@ -823,6 +824,7 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 		ret = dev->transport->init_prot(dev);
 		if (ret) {
 			da->pi_prot_type = old_prot;
+			da->pi_prot_verify = (bool) da->pi_prot_type;
 			return ret;
 		}
 
@@ -830,6 +832,7 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 		dev->transport->free_prot(dev);
 	}
 
+	da->pi_prot_verify = (bool) da->pi_prot_type;
 	pr_debug("dev[%p]: SE Device Protection Type: %d\n", dev, flag);
 	return count;
 }
@@ -869,6 +872,35 @@ static ssize_t pi_prot_format_store(struct config_item *item,
 		return ret;
 
 	pr_debug("dev[%p]: SE Device Protection Format complete\n", dev);
+	return count;
+}
+
+static ssize_t pi_prot_verify_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	bool flag;
+	int ret;
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (!flag) {
+		da->pi_prot_verify = flag;
+		return count;
+	}
+	if (da->hw_pi_prot_type) {
+		pr_warn("DIF protection enabled on underlying hardware,"
+			" ignoring\n");
+		return count;
+	}
+	if (!da->pi_prot_type) {
+		pr_warn("DIF protection not supported by backend, ignoring\n");
+		return count;
+	}
+	da->pi_prot_verify = flag;
+
 	return count;
 }
 
@@ -1067,6 +1099,7 @@ CONFIGFS_ATTR(, emulate_3pc);
 CONFIGFS_ATTR(, pi_prot_type);
 CONFIGFS_ATTR_RO(, hw_pi_prot_type);
 CONFIGFS_ATTR(, pi_prot_format);
+CONFIGFS_ATTR(, pi_prot_verify);
 CONFIGFS_ATTR(, enforce_pr_isids);
 CONFIGFS_ATTR(, is_nonrot);
 CONFIGFS_ATTR(, emulate_rest_reord);
@@ -1104,6 +1137,7 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_pi_prot_type,
 	&attr_hw_pi_prot_type,
 	&attr_pi_prot_format,
+	&attr_pi_prot_verify,
 	&attr_enforce_pr_isids,
 	&attr_is_nonrot,
 	&attr_emulate_rest_reord,

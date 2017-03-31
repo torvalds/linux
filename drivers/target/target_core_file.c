@@ -554,7 +554,8 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		ret = fd_do_rw(cmd, file, dev->dev_attrib.block_size,
 			       sgl, sgl_nents, cmd->data_length, 0);
 
-		if (ret > 0 && cmd->prot_type && dev->dev_attrib.pi_prot_type) {
+		if (ret > 0 && cmd->prot_type && dev->dev_attrib.pi_prot_type &&
+		    dev->dev_attrib.pi_prot_verify) {
 			u32 sectors = cmd->data_length >>
 					ilog2(dev->dev_attrib.block_size);
 
@@ -564,7 +565,8 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 				return rc;
 		}
 	} else {
-		if (cmd->prot_type && dev->dev_attrib.pi_prot_type) {
+		if (cmd->prot_type && dev->dev_attrib.pi_prot_type &&
+		    dev->dev_attrib.pi_prot_verify) {
 			u32 sectors = cmd->data_length >>
 					ilog2(dev->dev_attrib.block_size);
 

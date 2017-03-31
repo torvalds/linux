@@ -664,6 +664,7 @@ struct se_dev_attrib {
 	int		pi_prot_format;
 	enum target_prot_type pi_prot_type;
 	enum target_prot_type hw_pi_prot_type;
+	int		pi_prot_verify;
 	int		enforce_pr_isids;
 	int		force_pr_aptpl;
 	int		is_nonrot;
