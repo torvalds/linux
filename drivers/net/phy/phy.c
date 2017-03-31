@@ -1332,17 +1332,22 @@ EXPORT_SYMBOL(phy_ethtool_get_eee);
  */
 int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 {
-	int val = ethtool_adv_to_mmd_eee_adv_t(data->advertised);
+	int cap, adv;
 
 	if (!phydev->drv)
 		return -EIO;
 
+	/* Get Supported EEE */
+	cap = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE);
+	if (cap < 0)
+		return cap;
+
+	adv = ethtool_adv_to_mmd_eee_adv_t(data->advertised) & cap;
+
 	/* Mask prohibited EEE modes */
-	val &= ~phydev->eee_broken_modes;
+	adv &= ~phydev->eee_broken_modes;
 
-	phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, val);
-
-	return 0;
+	return phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, adv);
 }
 EXPORT_SYMBOL(phy_ethtool_set_eee);
 
