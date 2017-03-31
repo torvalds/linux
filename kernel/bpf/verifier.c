@@ -1925,6 +1925,7 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 		 * register as unknown.
 		 */
 		if (env->allow_ptr_leaks &&
+		    BPF_CLASS(insn->code) == BPF_ALU64 && opcode == BPF_ADD &&
 		    (dst_reg->type == PTR_TO_MAP_VALUE ||
 		     dst_reg->type == PTR_TO_MAP_VALUE_ADJ))
 			dst_reg->type = PTR_TO_MAP_VALUE_ADJ;
