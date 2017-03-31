@@ -68,11 +68,9 @@
 		compatible = "gpio-leds";
 
 		work {
-			gpios = <&gpio7 RK_PA4 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio7 RK_PA2 GPIO_ACTIVE_HIGH>;
 			label = "miqi:green:user";
-			linux,default-trigger = "default-on";
-			pinctrl-names = "default";
-			pinctrl-0 = <&led_ctl>;
+			linux,default-trigger = "timer";
 		};
 	};
 
@@ -360,12 +358,6 @@
 
 		phy_rst: phy-rst {
 			rockchip,pins = <4 8 RK_FUNC_GPIO &pcfg_output_high>;
-		};
-	};
-
-	leds {
-		led_ctl: led-ctl {
-			rockchip,pins = <7 4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
