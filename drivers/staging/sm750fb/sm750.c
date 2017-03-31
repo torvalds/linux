@@ -837,15 +837,15 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 
 	/* some member of info->var had been set by fb_find_mode */
 
-	pr_info("Member of info->var is :\n\
-		xres=%d\n\
-		yres=%d\n\
-		xres_virtual=%d\n\
-		yres_virtual=%d\n\
-		xoffset=%d\n\
-		yoffset=%d\n\
-		bits_per_pixel=%d\n \
-		...\n",
+	pr_info("Member of info->var is :\n"
+		"xres=%d\n"
+		"yres=%d\n"
+		"xres_virtual=%d\n"
+		"yres_virtual=%d\n"
+		"xoffset=%d\n"
+		"yoffset=%d\n"
+		"bits_per_pixel=%d\n"
+		" ...\n",
 		var->xres,
 		var->yres,
 		var->xres_virtual,
