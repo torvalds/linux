@@ -17,13 +17,12 @@ MODULE_LICENSE("GPL v2");
 static void name_card(struct snd_ff *ff)
 {
 	struct fw_device *fw_dev = fw_parent_device(ff->unit);
-	const char *const model = "Fireface Skeleton";
 
 	strcpy(ff->card->driver, "Fireface");
-	strcpy(ff->card->shortname, model);
-	strcpy(ff->card->mixername, model);
+	strcpy(ff->card->shortname, ff->spec->name);
+	strcpy(ff->card->mixername, ff->spec->name);
 	snprintf(ff->card->longname, sizeof(ff->card->longname),
-		 "RME %s, GUID %08x%08x at %s, S%d", model,
+		 "RME %s, GUID %08x%08x at %s, S%d", ff->spec->name,
 		 fw_dev->config_rom[3], fw_dev->config_rom[4],
 		 dev_name(&ff->unit->device), 100 << fw_dev->max_speed);
 }
@@ -85,6 +84,8 @@ static int snd_ff_probe(struct fw_unit *unit,
 	dev_set_drvdata(&unit->device, ff);
 
 	mutex_init(&ff->mutex);
+
+	ff->spec = (const struct snd_ff_spec *)entry->driver_data;
 
 	/* Register this sound card later. */
 	INIT_DEFERRABLE_WORK(&ff->dwork, do_registration);

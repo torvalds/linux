@@ -22,6 +22,18 @@
 
 #include "../lib.h"
 
+#define SND_FF_STREAM_MODES		3
+
+struct snd_ff_spec {
+	const char *const name;
+
+	const unsigned int pcm_capture_channels[SND_FF_STREAM_MODES];
+	const unsigned int pcm_playback_channels[SND_FF_STREAM_MODES];
+
+	unsigned int midi_in_ports;
+	unsigned int midi_out_ports;
+};
+
 struct snd_ff {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -29,5 +41,7 @@ struct snd_ff {
 
 	bool registered;
 	struct delayed_work dwork;
+
+	const struct snd_ff_spec *spec;
 };
 #endif
