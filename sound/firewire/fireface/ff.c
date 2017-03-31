@@ -157,7 +157,28 @@ static void snd_ff_remove(struct fw_unit *unit)
 	}
 }
 
+static struct snd_ff_spec spec_ff400 = {
+	.name = "Fireface400",
+	.pcm_capture_channels = {18, 14, 10},
+	.pcm_playback_channels = {18, 14, 10},
+	.midi_in_ports = 2,
+	.midi_out_ports = 2,
+	.protocol = &snd_ff_protocol_ff400,
+};
+
 static const struct ieee1394_device_id snd_ff_id_table[] = {
+	/* Fireface 400 */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID |
+				  IEEE1394_MATCH_VERSION |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_RME,
+		.specifier_id	= 0x000a35,
+		.version	= 0x000002,
+		.model_id	= 0x101800,
+		.driver_data	= (kernel_ulong_t)&spec_ff400,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(ieee1394, snd_ff_id_table);

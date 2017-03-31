@@ -112,6 +112,8 @@ struct snd_ff_protocol {
 	u64 midi_rx_port_1_reg;
 };
 
+extern struct snd_ff_protocol snd_ff_protocol_ff400;
+
 int snd_ff_transaction_register(struct snd_ff *ff);
 int snd_ff_transaction_reregister(struct snd_ff *ff);
 void snd_ff_transaction_unregister(struct snd_ff *ff);

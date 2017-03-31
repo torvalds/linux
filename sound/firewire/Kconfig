@@ -158,5 +158,6 @@ config SND_FIREFACE
 	select SND_HWDEP
 	help
 	 Say Y here to include support for RME fireface series.
+	  * Fireface 400
 
 endif # SND_FIREWIRE
