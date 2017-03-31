@@ -117,6 +117,6 @@ int amdgpu_dm_irq_suspend(struct amdgpu_device *adev);
  *
  */
 int amdgpu_dm_irq_resume_early(struct amdgpu_device *adev);
-int amdgpu_dm_irq_resume(struct amdgpu_device *adev);
+int amdgpu_dm_irq_resume_late(struct amdgpu_device *adev);
 
 #endif /* __AMDGPU_DM_IRQ_H__ */
