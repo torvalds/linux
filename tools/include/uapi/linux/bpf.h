@@ -81,6 +81,7 @@ enum bpf_cmd {
 	BPF_OBJ_GET,
 	BPF_PROG_ATTACH,
 	BPF_PROG_DETACH,
+	BPF_PROG_TEST_RUN,
 };
 
 enum bpf_map_type {
@@ -189,6 +190,17 @@ union bpf_attr {
 		__u32		attach_type;
 		__u32		attach_flags;
 	};
+
+	struct { /* anonymous struct used by BPF_PROG_TEST_RUN command */
+		__u32		prog_fd;
+		__u32		retval;
+		__u32		data_size_in;
+		__u32		data_size_out;
+		__aligned_u64	data_in;
+		__aligned_u64	data_out;
+		__u32		repeat;
+		__u32		duration;
+	} test;
 } __attribute__((aligned(8)));
 
 /* BPF helper function descriptions:
@@ -459,6 +471,18 @@ union bpf_attr {
  *     Return:
  *       > 0 length of the string including the trailing NUL on success
  *       < 0 error
+ *
+ * u64 bpf_bpf_get_socket_cookie(skb)
+ *     Get the cookie for the socket stored inside sk_buff.
+ *     @skb: pointer to skb
+ *     Return: 8 Bytes non-decreasing number on success or 0 if the socket
+ *     field is missing inside sk_buff
+ *
+ * u32 bpf_get_socket_uid(skb)
+ *     Get the owner uid of the socket stored inside sk_buff.
+ *     @skb: pointer to skb
+ *     Return: uid of the socket owner on success or 0 if the socket pointer
+ *     inside sk_buff is NULL
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
