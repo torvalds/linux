@@ -109,6 +109,7 @@
 
 		sata {
 			label = "cobra:white:sata";
+			linux,default-trigger = "disk-activity";
 		};
 	};
 };

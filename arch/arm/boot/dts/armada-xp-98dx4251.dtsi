@@ -49,7 +49,7 @@
 
 / {
 	model = "Marvell 98DX4251 SoC";
-	compatible = "marvell,armadaxp-98dx4251", "marvell,armadaxp-98dx3236", "marvell,armadaxp", "marvell,armada-370-xp";
+	compatible = "marvell,armadaxp-98dx4251", "marvell,armadaxp-98dx3236", "marvell,armada-370-xp";
 
 	cpus {
 		cpu@1 {
