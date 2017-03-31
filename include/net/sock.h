@@ -2250,7 +2250,7 @@ static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 
 	if (sk->sk_flags & FLAGS_TS_OR_DROPS || sk->sk_tsflags & TSFLAGS_ANY)
 		__sock_recv_ts_and_drops(msg, sk, skb);
-	else if (unlikely(sk->sk_flags & SOCK_TIMESTAMP))
+	else if (unlikely(sock_flag(sk, SOCK_TIMESTAMP)))
 		sk->sk_stamp = skb->tstamp;
 	else if (unlikely(sk->sk_stamp == SK_DEFAULT_STAMP))
 		sk->sk_stamp = 0;
