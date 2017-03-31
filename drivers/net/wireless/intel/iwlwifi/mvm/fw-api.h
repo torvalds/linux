@@ -215,7 +215,9 @@ enum iwl_legacy_cmds {
 	/* paging get item */
 	FW_GET_ITEM_CMD = 0x1a,
 
-	/* TX */
+	/**
+	 * @TX_CMD: uses &struct iwl_tx_cmd or &struct iwl_tx_cmd_gen2
+	 */
 	TX_CMD = 0x1c,
 
 	/**
