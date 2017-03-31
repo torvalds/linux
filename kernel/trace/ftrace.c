@@ -3644,7 +3644,7 @@ ftrace_match_record(struct dyn_ftrace *rec, struct ftrace_glob *func_g,
 				return 0;
 		}
 
-		if (mod_matches && exclude_mod)
+		if (exclude_mod)
 			return 0;
 
 func_match:
