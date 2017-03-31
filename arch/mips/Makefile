@@ -544,3 +544,7 @@ sead3_defconfig:
 .PHONY: sead3micro_defconfig
 sead3micro_defconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile micro32r2el_defconfig BOARDS=sead-3
+
+.PHONY: xilfpga_defconfig
+xilfpga_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile 32r2el_defconfig BOARDS=xilfpga
