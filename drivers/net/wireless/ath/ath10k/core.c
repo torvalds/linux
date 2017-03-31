@@ -1627,6 +1627,13 @@ static void ath10k_core_restart(struct work_struct *work)
 	wake_up(&ar->wmi.tx_credits_wq);
 	wake_up(&ar->peer_mapping_wq);
 
+	/* TODO: We can have one instance of cancelling coverage_class_work by
+	 * moving it to ath10k_halt(), so that both stop() and restart() would
+	 * call that but it takes conf_mutex() and if we call cancel_work_sync()
+	 * with conf_mutex it will deadlock.
+	 */
+	cancel_work_sync(&ar->set_coverage_class_work);
+
 	mutex_lock(&ar->conf_mutex);
 
 	switch (ar->state) {
