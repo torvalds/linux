@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/nvmem-provider.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/random.h>
@@ -30,6 +31,10 @@ static struct nvmem_config econfig = {
 	.stride = 4,
 	.word_size = 1,
 	.owner = THIS_MODULE,
+};
+
+struct sunxi_sid_cfg {
+	u32	size;
 };
 
 struct sunxi_sid {
@@ -72,18 +77,24 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 	struct sunxi_sid *sid;
 	int ret, i, size;
 	char *randomness;
+	const struct sunxi_sid_cfg *cfg;
 
 	sid = devm_kzalloc(dev, sizeof(*sid), GFP_KERNEL);
 	if (!sid)
 		return -ENOMEM;
+
+	cfg = of_device_get_match_data(dev);
+	if (!cfg)
+		return -EINVAL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sid->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(sid->base))
 		return PTR_ERR(sid->base);
 
-	size = resource_size(res) - 1;
-	econfig.size = resource_size(res);
+	size = cfg->size;
+
+	econfig.size = size;
 	econfig.dev = dev;
 	econfig.reg_read = sunxi_sid_read;
 	econfig.priv = sid;
@@ -119,9 +130,17 @@ static int sunxi_sid_remove(struct platform_device *pdev)
 	return nvmem_unregister(nvmem);
 }
 
+static const struct sunxi_sid_cfg sun4i_a10_cfg = {
+	.size = 0x10,
+};
+
+static const struct sunxi_sid_cfg sun7i_a20_cfg = {
+	.size = 0x200,
+};
+
 static const struct of_device_id sunxi_sid_of_match[] = {
-	{ .compatible = "allwinner,sun4i-a10-sid" },
-	{ .compatible = "allwinner,sun7i-a20-sid" },
+	{ .compatible = "allwinner,sun4i-a10-sid", .data = &sun4i_a10_cfg },
+	{ .compatible = "allwinner,sun7i-a20-sid", .data = &sun7i_a20_cfg },
 	{/* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, sunxi_sid_of_match);
