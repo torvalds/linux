@@ -242,6 +242,7 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
+	caps2-mmc-hs200;
 	supports-emmc;
 	disable-wp;
 	non-removable;

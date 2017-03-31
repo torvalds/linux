@@ -155,6 +155,7 @@
 	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
+	caps2-mmc-hs200;
 	disable-wp;
 	mmc-pwrseq = <&emmc_pwrseq>;
 	non-removable;
