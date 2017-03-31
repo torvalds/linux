@@ -1166,7 +1166,7 @@ static void queue_writeback(struct smq_policy *mq)
 	struct policy_work work;
 	struct entry *e;
 
-	e = q_peek(&mq->dirty, mq->dirty.nr_levels, false);
+	e = q_peek(&mq->dirty, mq->dirty.nr_levels, !mq->migrations_allowed);
 	if (e) {
 		mark_pending(mq, e);
 		q_del(&mq->dirty, e);
