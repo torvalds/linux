@@ -362,6 +362,9 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 	bio_set_op_attrs(bio, fio->op, fio->op_flags);
 
 	__submit_bio(fio->sbi, bio, fio->type);
+
+	if (!is_read_io(fio->op))
+		inc_page_count(fio->sbi, WB_DATA_TYPE(fio->page));
 	return 0;
 }
 
@@ -1354,7 +1357,7 @@ retry_encrypt:
 			!is_cold_data(page) &&
 			!IS_ATOMIC_WRITTEN_PAGE(page) &&
 			need_inplace_update(inode))) {
-		rewrite_data_page(fio);
+		err = rewrite_data_page(fio);
 		set_inode_flag(inode, FI_UPDATE_WRITE);
 		trace_f2fs_do_write_data_page(page, IPU);
 	} else {

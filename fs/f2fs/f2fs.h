@@ -2206,7 +2206,7 @@ void update_meta_page(struct f2fs_sb_info *sbi, void *src, block_t blk_addr);
 void write_meta_page(struct f2fs_sb_info *sbi, struct page *page);
 void write_node_page(unsigned int nid, struct f2fs_io_info *fio);
 void write_data_page(struct dnode_of_data *dn, struct f2fs_io_info *fio);
-void rewrite_data_page(struct f2fs_io_info *fio);
+int rewrite_data_page(struct f2fs_io_info *fio);
 void __f2fs_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 			block_t old_blkaddr, block_t new_blkaddr,
 			bool recover_curseg, bool recover_newaddr);
