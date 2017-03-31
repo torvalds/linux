@@ -1069,7 +1069,8 @@ void rockchip_drm_lastclose(struct drm_device *dev)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 
-	drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev_helper);
+	if (!priv->logo)
+		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev_helper);
 }
 
 static const struct drm_ioctl_desc rockchip_ioctls[] = {
