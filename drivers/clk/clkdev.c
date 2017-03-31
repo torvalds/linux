@@ -43,7 +43,7 @@ static struct clk *__of_clk_get(struct device_node *np, int index,
 	if (rc)
 		return ERR_PTR(rc);
 
-	clk = __of_clk_get_from_provider(&clkspec, dev_id, con_id);
+	clk = __of_clk_get_from_provider(&clkspec, dev_id, con_id, true);
 	of_node_put(clkspec.np);
 
 	return clk;
@@ -177,7 +177,7 @@ struct clk *clk_get_sys(const char *dev_id, const char *con_id)
 	if (!cl)
 		goto out;
 
-	clk = __clk_create_clk(cl->clk_hw, dev_id, con_id);
+	clk = __clk_create_clk(cl->clk_hw, dev_id, con_id, false);
 	if (IS_ERR(clk))
 		goto out;
 
