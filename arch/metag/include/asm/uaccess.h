@@ -138,7 +138,8 @@ extern long __get_user_bad(void);
 
 #define __get_user_nocheck(x, ptr, size)			\
 ({                                                              \
-	long __gu_err, __gu_val;                                \
+	long __gu_err;						\
+	long long __gu_val;					\
 	__get_user_size(__gu_val, (ptr), (size), __gu_err);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;             \
 	__gu_err;                                               \
@@ -146,7 +147,8 @@ extern long __get_user_bad(void);
 
 #define __get_user_check(x, ptr, size)					\
 ({                                                                      \
-	long __gu_err = -EFAULT, __gu_val = 0;                          \
+	long __gu_err = -EFAULT;					\
+	long long __gu_val = 0;						\
 	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
 	if (access_ok(VERIFY_READ, __gu_addr, size))			\
 		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
@@ -157,6 +159,7 @@ extern long __get_user_bad(void);
 extern unsigned char __get_user_asm_b(const void __user *addr, long *err);
 extern unsigned short __get_user_asm_w(const void __user *addr, long *err);
 extern unsigned int __get_user_asm_d(const void __user *addr, long *err);
+extern unsigned long long __get_user_asm_l(const void __user *addr, long *err);
 
 #define __get_user_size(x, ptr, size, retval)			\
 do {                                                            \
@@ -168,6 +171,8 @@ do {                                                            \
 		x = __get_user_asm_w(ptr, &retval); break;	\
 	case 4:							\
 		x = __get_user_asm_d(ptr, &retval); break;	\
+	case 8:							\
+		x = __get_user_asm_l(ptr, &retval); break;	\
 	default:						\
 		(x) = __get_user_bad();				\
 	}                                                       \

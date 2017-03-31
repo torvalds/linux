@@ -1044,6 +1044,30 @@ unsigned int __get_user_asm_d(const void __user *addr, long *err)
 }
 EXPORT_SYMBOL(__get_user_asm_d);
 
+unsigned long long __get_user_asm_l(const void __user *addr, long *err)
+{
+	register unsigned long long x asm ("D0Re0") = 0;
+	asm volatile (
+		"	GETL %0,%t0,[%2]\n"
+		"1:\n"
+		"	GETL %0,%t0,[%2]\n"
+		"2:\n"
+		"	.section .fixup,\"ax\"\n"
+		"3:	MOV     D0FrT,%3\n"
+		"	SETD    [%1],D0FrT\n"
+		"	MOVT    D0FrT,#HI(2b)\n"
+		"	JUMP    D0FrT,#LO(2b)\n"
+		"	.previous\n"
+		"	.section __ex_table,\"a\"\n"
+		"	.long 1b,3b\n"
+		"	.previous\n"
+		: "=r" (x)
+		: "r" (err), "r" (addr), "P" (-EFAULT)
+		: "D0FrT");
+	return x;
+}
+EXPORT_SYMBOL(__get_user_asm_l);
+
 long __put_user_asm_b(unsigned int x, void __user *addr)
 {
 	register unsigned int err asm ("D0Re0") = 0;
