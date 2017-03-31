@@ -4015,14 +4015,8 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	int max_active = fs_info->thread_pool_size;
 
 	if (fs_info->scrub_workers_refcnt == 0) {
-		if (is_dev_replace)
-			fs_info->scrub_workers =
-				btrfs_alloc_workqueue(fs_info, "scrub", flags,
-						      1, 4);
-		else
-			fs_info->scrub_workers =
-				btrfs_alloc_workqueue(fs_info, "scrub", flags,
-						      max_active, 4);
+		fs_info->scrub_workers = btrfs_alloc_workqueue(fs_info, "scrub",
+				flags, is_dev_replace ? 1 : max_active, 4);
 		if (!fs_info->scrub_workers)
 			goto fail_scrub_workers;
 
