@@ -21,6 +21,8 @@
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/rawmidi.h>
+#include <sound/pcm.h>
+#include <sound/pcm_params.h>
 
 #include "../lib.h"
 #include "../amdtp-stream.h"
@@ -123,5 +125,7 @@ void snd_ff_stream_update_duplex(struct snd_ff *ff);
 void snd_ff_proc_init(struct snd_ff *ff);
 
 int snd_ff_create_midi_devices(struct snd_ff *ff);
+
+int snd_ff_create_pcm_devices(struct snd_ff *ff);
 
 #endif
