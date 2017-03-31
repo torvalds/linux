@@ -17,6 +17,7 @@
 #define CLKID_I2C		22
 #define CLKID_SAR_ADC		23
 #define CLKID_RNG0		25
+#define CLKID_UART0		26
 #define CLKID_SPI		34
 #define CLKID_ETH		36
 #define CLKID_AIU_GLUE		38
@@ -24,12 +25,14 @@
 #define CLKID_I2S_OUT		40
 #define CLKID_MIXER_IFACE	44
 #define CLKID_AIU		47
+#define CLKID_UART1		48
 #define CLKID_USB0		50
 #define CLKID_USB1		51
 #define CLKID_USB		55
 #define CLKID_HDMI_PCLK		63
 #define CLKID_USB1_DDR_BRIDGE	64
 #define CLKID_USB0_DDR_BRIDGE	65
+#define CLKID_UART2		68
 #define CLKID_SANA		69
 #define CLKID_GCLK_VENCI_INT0	77
 #define CLKID_AOCLK_GATE	80

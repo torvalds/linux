@@ -196,7 +196,7 @@
 /* #define CLKID_SAR_ADC */
 #define CLKID_SMART_CARD	  24
 /* CLKID_RNG0 */
-#define CLKID_UART0		  26
+/* CLKID_UART0 */
 #define CLKID_SDHC		  27
 #define CLKID_STREAM		  28
 #define CLKID_ASYNC_FIFO	  29
@@ -218,7 +218,7 @@
 #define CLKID_ADC		  45
 #define CLKID_BLKMV		  46
 /* CLKID_AIU */
-#define CLKID_UART1		  48
+/* CLKID_UART1 */
 #define CLKID_G2D		  49
 /* CLKID_USB0 */
 /* CLKID_USB1 */
@@ -238,7 +238,7 @@
 /* CLKID_USB0_DDR_BRIDGE */
 #define CLKID_MMC_PCLK		  66
 #define CLKID_DVIN		  67
-#define CLKID_UART2		  68
+/* CLKID_UART2 */
 /* #define CLKID_SANA */
 #define CLKID_VPU_INTR		  70
 #define CLKID_SEC_AHB_AHB3_BRIDGE 71
