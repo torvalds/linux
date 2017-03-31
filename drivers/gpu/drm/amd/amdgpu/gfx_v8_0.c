@@ -4983,18 +4983,7 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 
 	gfx_v8_0_kiq_setting(ring);
 
-	if (!adev->gfx.in_reset && !adev->gfx.in_suspend) {
-		memset((void *)mqd, 0, sizeof(*mqd));
-		mutex_lock(&adev->srbm_mutex);
-		vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
-		gfx_v8_0_mqd_init(ring);
-		gfx_v8_0_kiq_init_register(ring);
-		vi_srbm_select(adev, 0, 0, 0, 0);
-		mutex_unlock(&adev->srbm_mutex);
-
-		if (adev->gfx.mec.mqd_backup[mqd_idx])
-			memcpy(adev->gfx.mec.mqd_backup[mqd_idx], mqd, sizeof(*mqd));
-	} else { /* for GPU_RESET case */
+	if (adev->gfx.in_reset) { /* for GPU_RESET case */
 		/* reset MQD to a clean status */
 		if (adev->gfx.mec.mqd_backup[mqd_idx])
 			memcpy(mqd, adev->gfx.mec.mqd_backup[mqd_idx], sizeof(*mqd));
@@ -5008,6 +4997,17 @@ static int gfx_v8_0_kiq_init_queue(struct amdgpu_ring *ring)
 		gfx_v8_0_kiq_init_register(ring);
 		vi_srbm_select(adev, 0, 0, 0, 0);
 		mutex_unlock(&adev->srbm_mutex);
+	} else {
+		memset((void *)mqd, 0, sizeof(*mqd));
+		mutex_lock(&adev->srbm_mutex);
+		vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
+		gfx_v8_0_mqd_init(ring);
+		gfx_v8_0_kiq_init_register(ring);
+		vi_srbm_select(adev, 0, 0, 0, 0);
+		mutex_unlock(&adev->srbm_mutex);
+
+		if (adev->gfx.mec.mqd_backup[mqd_idx])
+			memcpy(adev->gfx.mec.mqd_backup[mqd_idx], mqd, sizeof(*mqd));
 	}
 
 	return 0;
@@ -5029,7 +5029,7 @@ static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
 
 		if (adev->gfx.mec.mqd_backup[mqd_idx])
 			memcpy(adev->gfx.mec.mqd_backup[mqd_idx], mqd, sizeof(*mqd));
-	} else { /* for GPU_RESET case */
+	} else if (adev->gfx.in_reset) { /* for GPU_RESET case */
 		/* reset MQD to a clean status */
 		if (adev->gfx.mec.mqd_backup[mqd_idx])
 			memcpy(mqd, adev->gfx.mec.mqd_backup[mqd_idx], sizeof(*mqd));
