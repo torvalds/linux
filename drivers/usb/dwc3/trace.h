@@ -273,36 +273,7 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__entry->ctrl & DWC3_TRB_CTRL_CSP ? 'S' : 's',
 		__entry->ctrl & DWC3_TRB_CTRL_ISP_IMI ? 'S' : 's',
 		__entry->ctrl & DWC3_TRB_CTRL_IOC ? 'C' : 'c',
-		({char *s;
-		switch (__entry->ctrl & 0x3f0) {
-		case DWC3_TRBCTL_NORMAL:
-			s = "normal";
-			break;
-		case DWC3_TRBCTL_CONTROL_SETUP:
-			s = "setup";
-			break;
-		case DWC3_TRBCTL_CONTROL_STATUS2:
-			s = "status2";
-			break;
-		case DWC3_TRBCTL_CONTROL_STATUS3:
-			s = "status3";
-			break;
-		case DWC3_TRBCTL_CONTROL_DATA:
-			s = "data";
-			break;
-		case DWC3_TRBCTL_ISOCHRONOUS_FIRST:
-			s = "isoc-first";
-			break;
-		case DWC3_TRBCTL_ISOCHRONOUS:
-			s = "isoc";
-			break;
-		case DWC3_TRBCTL_LINK_TRB:
-			s = "link";
-			break;
-		default:
-			s = "UNKNOWN";
-			break;
-		} s; })
+		  dwc3_trb_type_string(DWC3_TRBCTL_TYPE(__entry->ctrl))
 	)
 );
 

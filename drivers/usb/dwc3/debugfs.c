@@ -644,30 +644,6 @@ out:
 	return 0;
 }
 
-static inline const char *dwc3_trb_type_string(struct dwc3_trb *trb)
-{
-	switch (DWC3_TRBCTL_TYPE(trb->ctrl)) {
-	case DWC3_TRBCTL_NORMAL:
-		return "normal";
-	case DWC3_TRBCTL_CONTROL_SETUP:
-		return "setup";
-	case DWC3_TRBCTL_CONTROL_STATUS2:
-		return "status2";
-	case DWC3_TRBCTL_CONTROL_STATUS3:
-		return "status3";
-	case DWC3_TRBCTL_CONTROL_DATA:
-		return "data";
-	case DWC3_TRBCTL_ISOCHRONOUS_FIRST:
-		return "isoc-first";
-	case DWC3_TRBCTL_ISOCHRONOUS:
-		return "isoc";
-	case DWC3_TRBCTL_LINK_TRB:
-		return "link";
-	default:
-		return "UNKNOWN";
-	}
-}
-
 static int dwc3_ep_trb_ring_show(struct seq_file *s, void *unused)
 {
 	struct dwc3_ep		*dep = s->private;
@@ -688,10 +664,11 @@ static int dwc3_ep_trb_ring_show(struct seq_file *s, void *unused)
 
 	for (i = 0; i < DWC3_TRB_NUM; i++) {
 		struct dwc3_trb *trb = &dep->trb_pool[i];
+		unsigned int type = DWC3_TRBCTL_TYPE(trb->ctrl);
 
 		seq_printf(s, "%08x%08x,%d,%s,%d,%d,%d,%d,%d,%d\n",
 				trb->bph, trb->bpl, trb->size,
-				dwc3_trb_type_string(trb),
+				dwc3_trb_type_string(type),
 				!!(trb->ctrl & DWC3_TRB_CTRL_IOC),
 				!!(trb->ctrl & DWC3_TRB_CTRL_ISP_IMI),
 				!!(trb->ctrl & DWC3_TRB_CTRL_CSP),
