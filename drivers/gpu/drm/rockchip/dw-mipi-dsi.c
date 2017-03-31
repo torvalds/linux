@@ -1046,7 +1046,20 @@ static struct drm_encoder *dw_mipi_dsi_connector_best_encoder(
 	return &dsi->encoder;
 }
 
+static int dw_mipi_loader_protect(struct drm_connector *connector, bool on)
+{
+	struct dw_mipi_dsi *dsi = con_to_dsi(connector);
+
+	if (on)
+		pm_runtime_get_sync(dsi->dev);
+	else
+		pm_runtime_put(dsi->dev);
+
+	return 0;
+}
+
 static struct drm_connector_helper_funcs dw_mipi_dsi_connector_helper_funcs = {
+	.loader_protect = dw_mipi_loader_protect,
 	.get_modes = dw_mipi_dsi_connector_get_modes,
 	.mode_valid = dw_mipi_dsi_mode_valid,
 	.best_encoder = dw_mipi_dsi_connector_best_encoder,
