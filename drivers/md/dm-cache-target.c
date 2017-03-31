@@ -2960,6 +2960,12 @@ static int load_mapping(void *context, dm_oblock_t oblock, dm_cblock_t cblock,
 	int r;
 	struct cache *cache = context;
 
+	if (dirty) {
+		set_bit(from_cblock(cblock), cache->dirty_bitset);
+		atomic_inc(&cache->nr_dirty);
+	} else
+		clear_bit(from_cblock(cblock), cache->dirty_bitset);
+
 	r = policy_load_mapping(cache->policy, oblock, cblock, dirty, hint, hint_valid);
 	if (r)
 		return r;
