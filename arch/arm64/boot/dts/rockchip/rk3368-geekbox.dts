@@ -114,7 +114,7 @@
 	status = "okay";
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	caps2-mmc-hs200;
+	mmc-hs200-1_8v;
 	clock-frequency = <150000000>;
 	disable-wp;
 	keep-power-in-suspend;
