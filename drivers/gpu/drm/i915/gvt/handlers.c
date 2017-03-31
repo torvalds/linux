@@ -970,6 +970,14 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
+static int mbctl_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	*(u32 *)p_data &= (~GEN6_MBCTL_ENABLE_BOOT_FETCH);
+	write_vreg(vgpu, offset, p_data, bytes);
+	return 0;
+}
+
 static int vga_control_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
@@ -2238,7 +2246,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(0x7180, D_ALL);
 	MMIO_D(0x7408, D_ALL);
 	MMIO_D(0x7c00, D_ALL);
-	MMIO_D(GEN6_MBCTL, D_ALL);
+	MMIO_DH(GEN6_MBCTL, D_ALL, NULL, mbctl_write);
 	MMIO_D(0x911c, D_ALL);
 	MMIO_D(0x9120, D_ALL);
 	MMIO_DFH(GEN7_UCGCTL4, D_ALL, F_CMD_ACCESS, NULL, NULL);
