@@ -57,55 +57,55 @@
 };
 
 &enet {
-	status = "ok";
+	status = "okay";
 };
 
 &pci_phy0 {
-	status = "ok";
+	status = "okay";
 };
 
 &pci_phy1 {
-	status = "ok";
+	status = "okay";
 };
 
 &pcie0 {
-	status = "ok";
+	status = "okay";
 };
 
 &pcie4 {
-	status = "ok";
+	status = "okay";
 };
 
 &pcie8 {
-	status = "ok";
+	status = "okay";
 };
 
 &i2c0 {
-	status = "ok";
+	status = "okay";
 };
 
 &i2c1 {
-	status = "ok";
+	status = "okay";
 };
 
 &uart0 {
-	status = "ok";
+	status = "okay";
 };
 
 &uart1 {
-	status = "ok";
+	status = "okay";
 };
 
 &uart2 {
-	status = "ok";
+	status = "okay";
 };
 
 &uart3 {
-	status = "ok";
+	status = "okay";
 };
 
 &ssp0 {
-	status = "ok";
+	status = "okay";
 
 	slic@0 {
 		compatible = "silabs,si3226x";
@@ -126,7 +126,7 @@
 };
 
 &ssp1 {
-	status = "ok";
+	status = "okay";
 
 	at25@0 {
 		compatible = "atmel,at25";
@@ -150,23 +150,23 @@
 };
 
 &sata_phy0 {
-	status = "ok";
+	status = "okay";
 };
 
 &sata_phy1 {
-	status = "ok";
+	status = "okay";
 };
 
 &sata {
-	status = "ok";
+	status = "okay";
 };
 
 &sdio0 {
-	status = "ok";
+	status = "okay";
 };
 
 &sdio1 {
-	status = "ok";
+	status = "okay";
 };
 
 &nand {
