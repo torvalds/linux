@@ -3007,19 +3007,19 @@ static int dce_v11_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
-		r = amdgpu_irq_add_id(adev, i + 1, &adev->crtc_irq);
+		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i + 1, &adev->crtc_irq);
 		if (r)
 			return r;
 	}
 
 	for (i = 8; i < 20; i += 2) {
-		r = amdgpu_irq_add_id(adev, i, &adev->pageflip_irq);
+		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, i, &adev->pageflip_irq);
 		if (r)
 			return r;
 	}
 
 	/* HPD hotplug */
-	r = amdgpu_irq_add_id(adev, 42, &adev->hpd_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 42, &adev->hpd_irq);
 	if (r)
 		return r;
 
@@ -3462,7 +3462,7 @@ static int dce_v11_0_crtc_irq(struct amdgpu_device *adev,
 	uint32_t disp_int = RREG32(interrupt_status_offsets[crtc].reg);
 	unsigned irq_type = amdgpu_crtc_idx_to_irq_type(adev, crtc);
 
-	switch (entry->src_data) {
+	switch (entry->src_data[0]) {
 	case 0: /* vblank */
 		if (disp_int & interrupt_status_offsets[crtc].vblank)
 			dce_v11_0_crtc_vblank_int_ack(adev, crtc);
@@ -3485,7 +3485,7 @@ static int dce_v11_0_crtc_irq(struct amdgpu_device *adev,
 
 		break;
 	default:
-		DRM_DEBUG("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data);
+		DRM_DEBUG("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data[0]);
 		break;
 	}
 
@@ -3499,12 +3499,12 @@ static int dce_v11_0_hpd_irq(struct amdgpu_device *adev,
 	uint32_t disp_int, mask;
 	unsigned hpd;
 
-	if (entry->src_data >= adev->mode_info.num_hpd) {
-		DRM_DEBUG("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data);
+	if (entry->src_data[0] >= adev->mode_info.num_hpd) {
+		DRM_DEBUG("Unhandled interrupt: %d %d\n", entry->src_id, entry->src_data[0]);
 		return 0;
 	}
 
-	hpd = entry->src_data;
+	hpd = entry->src_data[0];
 	disp_int = RREG32(interrupt_status_offsets[hpd].reg);
 	mask = interrupt_status_offsets[hpd].hpd;
 
