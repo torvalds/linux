@@ -190,31 +190,22 @@ static const unsigned int r8a7745_crit_mod_clks[] __initconst = {
  *    MD	EXTAL		PLL0	PLL1	PLL3
  * 14 13 19	(MHz)		*1	*2
  *---------------------------------------------------
- * 0  0  0	15		x200/3	x208/2	x106
  * 0  0  1	15		x200/3	x208/2	x88
- * 0  1  0	20		x150/3	x156/2	x80
  * 0  1  1	20		x150/3	x156/2	x66
- * 1  0  0	26 / 2		x230/3	x240/2	x122
  * 1  0  1	26 / 2		x230/3	x240/2	x102
- * 1  1  0	30 / 2		x200/3	x208/2	x106
  * 1  1  1	30 / 2		x200/3	x208/2	x88
  *
  * *1 :	Table 7.5b indicates VCO output (PLL0 = VCO/3)
  * *2 :	Table 7.5b indicates VCO output (PLL1 = VCO/2)
  */
-#define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 12) | \
-					 (((md) & BIT(13)) >> 12) | \
-					 (((md) & BIT(19)) >> 19))
+#define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 13) | \
+					 (((md) & BIT(13)) >> 13))
 
 static const struct rcar_gen2_cpg_pll_config cpg_pll_configs[8] __initconst = {
 	/* EXTAL div	PLL1 mult	PLL3 mult	PLL0 mult */
-	{ 1,		208,		106,		200	},
 	{ 1,		208,		88,		200	},
-	{ 1,		156,		80,		150	},
 	{ 1,		156,		66,		150	},
-	{ 2,		240,		122,		230	},
 	{ 2,		240,		102,		230	},
-	{ 2,		208,		106,		200	},
 	{ 2,		208,		88,		200	},
 };
 
