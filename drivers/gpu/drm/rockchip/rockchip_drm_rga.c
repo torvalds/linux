@@ -166,19 +166,22 @@ static int rga_alloc_dma_buf_for_cmdlist(struct rga_runqueue_node *runqueue)
 
 		if (cmdlist->src_mmu_pages) {
 			reg = RGA_MMU_SRC_BASE - RGA_MODE_BASE_REG;
-			dest[reg >> 2] = virt_to_phys(cmdlist->src_mmu_pages) >> 4;
+			dest[reg >> 2] =
+			    virt_to_phys(cmdlist->src_mmu_pages) >> 4;
 			mmu_ctrl |= 0x7;
 		}
 
 		if (cmdlist->dst_mmu_pages) {
 			reg = RGA_MMU_DST_BASE - RGA_MODE_BASE_REG;
-			dest[reg >> 2] = virt_to_phys(cmdlist->dst_mmu_pages) >> 4;
+			dest[reg >> 2] =
+			    virt_to_phys(cmdlist->dst_mmu_pages) >> 4;
 			mmu_ctrl |= 0x7 << 8;
 		}
 
 		if (cmdlist->src1_mmu_pages) {
 			reg = RGA_MMU_SRC1_BASE - RGA_MODE_BASE_REG;
-			dest[reg >> 2] = virt_to_phys(cmdlist->src1_mmu_pages) >> 4;
+			dest[reg >> 2] =
+			    virt_to_phys(cmdlist->src1_mmu_pages) >> 4;
 			mmu_ctrl |= 0x7 << 4;
 		}
 
@@ -210,17 +213,11 @@ static int rga_check_reg_offset(struct device *dev,
 		index = cmdlist->last - 2 * (i + 1);
 		reg = cmdlist->data[index];
 
-		switch (reg) {
-		case RGA_BUF_TYPE_GEMFD | RGA_DST_Y_RGB_BASE_ADDR:
-		case RGA_BUF_TYPE_GEMFD | RGA_SRC_Y_RGB_BASE_ADDR:
-		case RGA_BUF_TYPE_GEMFD | RGA_SRC1_RGB_BASE_ADDR:
+		switch (reg & 0xffff) {
+		case RGA_DST_Y_RGB_BASE_ADDR:
+		case RGA_SRC_Y_RGB_BASE_ADDR:
+		case RGA_SRC1_RGB_BASE_ADDR:
 			break;
-
-		case RGA_BUF_TYPE_USERPTR | RGA_DST_Y_RGB_BASE_ADDR:
-		case RGA_BUF_TYPE_USERPTR | RGA_SRC_Y_RGB_BASE_ADDR:
-		case RGA_BUF_TYPE_USERPTR | RGA_SRC1_RGB_BASE_ADDR:
-			goto err;
-
 		default:
 			if (reg < RGA_MODE_BASE_REG || reg > RGA_MODE_MAX_REG)
 				goto err;
@@ -237,8 +234,9 @@ err:
 	return -EINVAL;
 }
 
-static struct dma_buf_attachment *
-rga_gem_buf_to_pages(struct rockchip_rga *rga, void **mmu_pages, int fd)
+static struct dma_buf_attachment *rga_gem_buf_to_pages(struct rockchip_rga *rga,
+						       void **mmu_pages, int fd,
+						       int flush)
 {
 	struct dma_buf_attachment *attach;
 	struct dma_buf *dmabuf;
@@ -283,12 +281,15 @@ rga_gem_buf_to_pages(struct rockchip_rga *rga, void **mmu_pages, int fd)
 
 		for (p = 0; p < len; p++) {
 			dma_addr_t phys = address + (p << PAGE_SHIFT);
-
 			pages[mapped_size + p] = phys;
 		}
 
 		mapped_size += len;
 	}
+
+	if (flush)
+		dma_sync_sg_for_device(rga->drm_dev->dev, sgt->sgl, sgt->nents,
+				       DMA_TO_DEVICE);
 
 	dma_sync_single_for_device(rga->drm_dev->dev, virt_to_phys(pages),
 				   8 * PAGE_SIZE, DMA_TO_DEVICE);
@@ -320,36 +321,47 @@ static int rga_map_cmdlist_gem(struct rockchip_rga *rga,
 
 	for (i = 0; i < cmdlist->last / 2; i++) {
 		int index = cmdlist->last - 2 * (i + 1);
+		int flush = cmdlist->data[index] & RGA_BUF_TYPE_FLUSH;
 
-		switch (cmdlist->data[index]) {
-		case RGA_SRC1_RGB_BASE_ADDR | RGA_BUF_TYPE_GEMFD:
-			fd = cmdlist->data[index + 1];
-			attach = rga_gem_buf_to_pages(rga, &mmu_pages, fd);
-			if (IS_ERR(attach))
-				return PTR_ERR(attach);
+		switch (cmdlist->data[index] & 0xffff) {
+		case RGA_SRC1_RGB_BASE_ADDR:
+			if (cmdlist->data[index] & RGA_BUF_TYPE_GEMFD) {
+				fd = cmdlist->data[index + 1];
+				attach =
+				    rga_gem_buf_to_pages(rga, &mmu_pages, fd,
+							 flush);
+				if (IS_ERR(attach))
+					return PTR_ERR(attach);
 
-			cmdlist->src1_attach = attach;
-			cmdlist->src1_mmu_pages = mmu_pages;
+				cmdlist->src1_attach = attach;
+				cmdlist->src1_mmu_pages = mmu_pages;
+			}
 			break;
+		case RGA_SRC_Y_RGB_BASE_ADDR:
+			if (cmdlist->data[index] & RGA_BUF_TYPE_GEMFD) {
+				fd = cmdlist->data[index + 1];
+				attach =
+				    rga_gem_buf_to_pages(rga, &mmu_pages, fd,
+							 flush);
+				if (IS_ERR(attach))
+					return PTR_ERR(attach);
 
-		case RGA_SRC_Y_RGB_BASE_ADDR | RGA_BUF_TYPE_GEMFD:
-			fd = cmdlist->data[index + 1];
-			attach = rga_gem_buf_to_pages(rga, &mmu_pages, fd);
-			if (IS_ERR(attach))
-				return PTR_ERR(attach);
-
-			cmdlist->src_attach = attach;
-			cmdlist->src_mmu_pages = mmu_pages;
+				cmdlist->src_attach = attach;
+				cmdlist->src_mmu_pages = mmu_pages;
+			}
 			break;
+		case RGA_DST_Y_RGB_BASE_ADDR:
+			if (cmdlist->data[index] & RGA_BUF_TYPE_GEMFD) {
+				fd = cmdlist->data[index + 1];
+				attach =
+				    rga_gem_buf_to_pages(rga, &mmu_pages, fd,
+							 flush);
+				if (IS_ERR(attach))
+					return PTR_ERR(attach);
 
-		case RGA_DST_Y_RGB_BASE_ADDR | RGA_BUF_TYPE_GEMFD:
-			fd = cmdlist->data[index + 1];
-			attach = rga_gem_buf_to_pages(rga, &mmu_pages, fd);
-			if (IS_ERR(attach))
-				return PTR_ERR(attach);
-
-			cmdlist->dst_attach = attach;
-			cmdlist->dst_mmu_pages = mmu_pages;
+				cmdlist->dst_attach = attach;
+				cmdlist->dst_mmu_pages = mmu_pages;
+			}
 			break;
 		}
 	}

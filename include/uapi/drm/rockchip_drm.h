@@ -100,6 +100,7 @@ struct drm_rockchip_rga_cmd {
 enum drm_rockchip_rga_buf_type {
 	RGA_BUF_TYPE_USERPTR = 1 << 31,
 	RGA_BUF_TYPE_GEMFD   = 1 << 30,
+	RGA_BUF_TYPE_FLUSH   = 1 << 29,
 };
 
 struct drm_rockchip_rga_set_cmdlist {
