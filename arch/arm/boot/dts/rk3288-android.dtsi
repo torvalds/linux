@@ -1,0 +1,212 @@
+/*
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff690000";
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			  0   1   2   3   4   5   6   7
+			  8   9  10  11  12  13  14  15
+			 16  17  18  19  20  21  22  23
+			 24  25  26  27  28  29  30  31
+			 32  33  34  35  36  37  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255>;
+		default-brightness-level = <128>;
+		enable-gpios = <&gpio7 2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bl_en>;
+		pwms = <&pwm0 0 1000000 PWM_POLARITY_INVERTED>;
+	};
+
+	rk_key: rockchip-key {
+		compatible = "rockchip,key";
+		status = "okay";
+
+		io-channels = <&saradc 1>;
+
+		vol-up-key {
+			linux,code = <115>;
+			label = "volume up";
+			rockchip,adc_value = <1>;
+		};
+
+		vol-down-key {
+			linux,code = <114>;
+			label = "volume down";
+			rockchip,adc_value = <170>;
+		};
+
+		power-key {
+			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+			linux,code = <116>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pwrbtn>;
+			label = "power";
+			gpio-key,wakeup;
+		};
+
+		menu-key {
+			linux,code = <59>;
+			label = "menu";
+			rockchip,adc_value = <355>;
+		};
+
+		home-key {
+			linux,code = <102>;
+			label = "home";
+			rockchip,adc_value = <746>;
+		};
+
+		back-key {
+			linux,code = <158>;
+			label = "back";
+			rockchip,adc_value = <560>;
+		};
+
+		camera-key {
+			linux,code = <212>;
+			label = "camera";
+			rockchip,adc_value = <450>;
+		};
+	};
+
+	dwc_control_usb: dwc-control-usb@ff770284 {
+		compatible = "rockchip,rk3288-dwc-control-usb";
+		status = "okay";
+		reg = <0xff770284 0x04>, <0xff770288 0x04>,
+		      <0xff7702cc 0x04>, <0xff7702d4 0x04>,
+		      <0xff770320 0x14>, <0xff770334 0x14>,
+		      <0xff770348 0x10>, <0xff770358 0x08>,
+		      <0xff770360 0x08>;
+		reg-names = "GRF_SOC_STATUS1" ,"GRF_SOC_STATUS2",
+			    "GRF_SOC_STATUS19", "GRF_SOC_STATUS21",
+			    "GRF_UOC0_BASE", "GRF_UOC1_BASE",
+			    "GRF_UOC2_BASE", "GRF_UOC3_BASE",
+			    "GRF_UOC4_BASE";
+		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "otg_id", "otg_bvalid",
+				  "otg_linestate", "host0_linestate",
+				  "host1_linestate";
+		clocks = <&cru HCLK_USB_PERI>;
+		clock-names = "hclk_usb_peri";
+
+		otg_drv_gpio = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+		rockchip,remote_wakeup;
+		rockchip,usb_irq_wakeup;
+
+		usb_bc {
+			compatible = "synopsys,phy";
+			rk_usb,bvalid     = <0x288 14 1>;
+			rk_usb,iddig      = <0x288 17 1>;
+			rk_usb,dcdenb     = <0x328 14 1>;
+			rk_usb,vdatsrcenb = <0x328  7 1>;
+			rk_usb,vdatdetenb = <0x328  6 1>;
+			rk_usb,chrgsel    = <0x328  5 1>;
+			rk_usb,chgdet     = <0x2cc 23 1>;
+			rk_usb,fsvminus   = <0x2cc 25 1>;
+			rk_usb,fsvplus    = <0x2cc 24 1>;
+		};
+	};
+};
+
+&usb_otg {
+	compatible = "rockchip,rk3288_usb20_otg";
+	clocks = <&usbphy0>, <&cru HCLK_OTG0>;
+	clock-names = "clk_usbphy0", "hclk_usb0";
+	resets = <&cru SRST_USBOTG_AHB>,
+		 <&cru SRST_USBOTG_PHY>,
+		 <&cru SRST_USBOTG_CON>;
+	reset-names = "otg_ahb", "otg_phy", "otg_controller";
+	/*0 - Normal, 1 - Force Host, 2 - Force Device*/
+	rockchip,usb-mode = <0>;
+};
+
+&pinctrl {
+
+	backlight {
+		bl_en: bl-en {
+			rockchip,pins = <7 2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	buttons {
+		pwrbtn: pwrbtn {
+			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
