@@ -29,6 +29,7 @@
 #define CURRENT_FILE_PC VISOR_BUS_PC_visorbus_main_c
 #define POLLJIFFIES_NORMALCHANNEL 10
 
+static bool initialized; /* stores whether bus_registration was successful */
 static struct dentry *visorbus_debugfs_dir;
 
 /*
@@ -959,6 +960,9 @@ visordriver_probe_device(struct device *xdev)
  */
 int visorbus_register_visor_driver(struct visor_driver *drv)
 {
+	if (!initialized)
+		return -ENODEV; /* can't register on a nonexistent bus */
+
 	drv->driver.name = drv->name;
 	drv->driver.bus = &visorbus_type;
 	drv->driver.probe = visordriver_probe_device;
@@ -1297,6 +1301,7 @@ visorbus_init(void)
 		POSTCODE_LINUX(BUS_CREATE_ENTRY_PC, 0, 0, DIAG_SEVERITY_ERR);
 		goto error;
 	}
+	initialized = true;
 
 	bus_device_info_init(&chipset_driverinfo, "chipset", "visorchipset");
 
@@ -1322,5 +1327,6 @@ visorbus_exit(void)
 	}
 
 	bus_unregister(&visorbus_type);
+	initialized = false;
 	debugfs_remove_recursive(visorbus_debugfs_dir);
 }
