@@ -61,6 +61,10 @@ static void do_registration(struct work_struct *work)
 
 	name_card(ff);
 
+	err = snd_ff_create_midi_devices(ff);
+	if (err < 0)
+		goto error;
+
 	err = snd_card_register(ff->card);
 	if (err < 0)
 		goto error;
@@ -91,6 +95,7 @@ static int snd_ff_probe(struct fw_unit *unit,
 	dev_set_drvdata(&unit->device, ff);
 
 	mutex_init(&ff->mutex);
+	spin_lock_init(&ff->lock);
 
 	ff->spec = (const struct snd_ff_spec *)entry->driver_data;
 
