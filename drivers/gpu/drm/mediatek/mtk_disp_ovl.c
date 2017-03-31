@@ -57,6 +57,11 @@ struct mtk_disp_ovl {
 	struct drm_crtc			*crtc;
 };
 
+static inline struct mtk_disp_ovl *comp_to_ovl(struct mtk_ddp_comp *comp)
+{
+	return container_of(comp, struct mtk_disp_ovl, ddp_comp);
+}
+
 static irqreturn_t mtk_disp_ovl_irq_handler(int irq, void *dev_id)
 {
 	struct mtk_disp_ovl *priv = dev_id;
@@ -76,20 +81,18 @@ static irqreturn_t mtk_disp_ovl_irq_handler(int irq, void *dev_id)
 static void mtk_ovl_enable_vblank(struct mtk_ddp_comp *comp,
 				  struct drm_crtc *crtc)
 {
-	struct mtk_disp_ovl *priv = container_of(comp, struct mtk_disp_ovl,
-						 ddp_comp);
+	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
 
-	priv->crtc = crtc;
+	ovl->crtc = crtc;
 	writel(0x0, comp->regs + DISP_REG_OVL_INTSTA);
 	writel_relaxed(OVL_FME_CPL_INT, comp->regs + DISP_REG_OVL_INTEN);
 }
 
 static void mtk_ovl_disable_vblank(struct mtk_ddp_comp *comp)
 {
-	struct mtk_disp_ovl *priv = container_of(comp, struct mtk_disp_ovl,
-						 ddp_comp);
+	struct mtk_disp_ovl *ovl = comp_to_ovl(comp);
 
-	priv->crtc = NULL;
+	ovl->crtc = NULL;
 	writel_relaxed(0x0, comp->regs + DISP_REG_OVL_INTEN);
 }
 

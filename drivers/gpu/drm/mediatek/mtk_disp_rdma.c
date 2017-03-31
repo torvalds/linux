@@ -49,6 +49,11 @@ struct mtk_disp_rdma {
 	struct drm_crtc			*crtc;
 };
 
+static inline struct mtk_disp_rdma *comp_to_rdma(struct mtk_ddp_comp *comp)
+{
+	return container_of(comp, struct mtk_disp_rdma, ddp_comp);
+}
+
 static irqreturn_t mtk_disp_rdma_irq_handler(int irq, void *dev_id)
 {
 	struct mtk_disp_rdma *priv = dev_id;
@@ -77,20 +82,18 @@ static void rdma_update_bits(struct mtk_ddp_comp *comp, unsigned int reg,
 static void mtk_rdma_enable_vblank(struct mtk_ddp_comp *comp,
 				   struct drm_crtc *crtc)
 {
-	struct mtk_disp_rdma *priv = container_of(comp, struct mtk_disp_rdma,
-						  ddp_comp);
+	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
 
-	priv->crtc = crtc;
+	rdma->crtc = crtc;
 	rdma_update_bits(comp, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT,
 			 RDMA_FRAME_END_INT);
 }
 
 static void mtk_rdma_disable_vblank(struct mtk_ddp_comp *comp)
 {
-	struct mtk_disp_rdma *priv = container_of(comp, struct mtk_disp_rdma,
-						  ddp_comp);
+	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
 
-	priv->crtc = NULL;
+	rdma->crtc = NULL;
 	rdma_update_bits(comp, DISP_REG_RDMA_INT_ENABLE, RDMA_FRAME_END_INT, 0);
 }
 
