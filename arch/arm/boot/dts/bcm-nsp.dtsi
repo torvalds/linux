@@ -245,6 +245,15 @@
 			status = "disabled";
 		};
 
+		mailbox: mailbox@25000 {
+			compatible = "brcm,iproc-fa2-mbox";
+			reg = <0x25000 0x445>;
+			interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <1>;
+			brcm,rx-status-len = <32>;
+			brcm,use-bcm-hdr;
+		};
+
 		nand: nand@26000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x026000 0x600>,
@@ -288,6 +297,12 @@
 			#size-cells = <0>;
 		};
 
+		crypto@2f000 {
+			compatible = "brcm,spum-nsp-crypto";
+			reg = <0x2f000 0x900>;
+			mboxes = <&mailbox 0>;
+		};
+
 		gpiob: gpio@30000 {
 			compatible = "brcm,iproc-nsp-gpio", "brcm,iproc-gpio";
 			reg = <0x30000 0x50>;
@@ -303,6 +318,20 @@
 			reg = <0x31000 0x28>;
 			clocks = <&osc>;
 			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		ehci0: usb@2a000 {
+			compatible = "generic-ehci";
+			reg = <0x2a000 0x100>;
+			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		ohci0: usb@2b000 {
+			compatible = "generic-ohci";
+			reg = <0x2b000 0x100>;
+			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
@@ -347,6 +376,7 @@
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 89 IRQ_TYPE_NONE>;
 			clock-frequency = <100000>;
+			status = "disabled";
 		};
 
 		watchdog@39000 {
@@ -450,7 +480,7 @@
 		status = "disabled";
 
 		msi-parent = <&msi0>;
-		msi0: msi@18012000 {
+		msi0: msi-controller {
 			compatible = "brcm,iproc-msi";
 			msi-controller;
 			interrupt-parent = <&gic>;
@@ -486,7 +516,7 @@
 		status = "disabled";
 
 		msi-parent = <&msi1>;
-		msi1: msi@18013000 {
+		msi1: msi-controller {
 			compatible = "brcm,iproc-msi";
 			msi-controller;
 			interrupt-parent = <&gic>;
@@ -522,7 +552,7 @@
 		status = "disabled";
 
 		msi-parent = <&msi2>;
-		msi2: msi@18014000 {
+		msi2: msi-controller {
 			compatible = "brcm,iproc-msi";
 			msi-controller;
 			interrupt-parent = <&gic>;

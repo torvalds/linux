@@ -1,7 +1,7 @@
 /*
- *  BSD LICENSE
+ *  SPDX-License-Identifier: BSD-3-Clause
  *
- *  Copyright(c) 2015 Broadcom Corporation.  All rights reserved.
+ *  Copyright(c) 2017 Broadcom
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -13,9 +13,9 @@
  *      notice, this list of conditions and the following disclaimer in
  *      the documentation and/or other materials provided with the
  *      distribution.
- *    * Neither the name of Broadcom Corporation nor the names of its
- *      contributors may be used to endorse or promote products derived
- *      from this software without specific prior written permission.
+ *    * Neither the name of Broadcom nor the names of its contributors
+ *      may be used to endorse or promote products derived from this
+ *      software without specific prior written permission.
  *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -33,12 +33,65 @@
 /dts-v1/;
 
 #include "bcm4708.dtsi"
+#include "bcm5301x-nand-cs0-bch4.dtsi"
 
 / {
-	model = "NorthStar SVK (BCM94708)";
-	compatible = "brcm,bcm94708", "brcm,bcm4708";
+	model = "NorthStar HR (BCM953012HR)";
+	compatible = "brcm,bcm953012hr", "brcm,brcm53012", "brcm,bcm4708";
 
-	memory {
-		reg = <0x00000000 0x08000000>;
+	aliases {
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
+		ethernet2 = &gmac2;
+	};
+
+	memory@80000000 {
+		reg = <0x80000000 0x10000000>;
+	};
+};
+
+&nandcs {
+	partition@0 {
+		label = "nboot";
+		reg = <0x00000000 0x00200000>;
+		read-only;
+	};
+	partition@200000 {
+		label = "nenv";
+		reg = <0x00200000 0x00400000>;
+	};
+	partition@600000 {
+		label = "nsystem";
+		reg = <0x00600000 0x00a00000>;
+	};
+	partition@1000000 {
+		label = "nrootfs";
+		reg = <0x01000000 0x07000000>;
+	};
+};
+
+&spi_nor {
+	status = "okay";
+	spi-max-frequency = <62500000>;
+	m25p,default-addr-width = <3>;
+
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	partition@0 {
+		label = "boot";
+		reg = <0x00000000 0x000d0000>;
+	};
+	partition@d000 {
+		label = "env";
+		reg = <0x000d0000 0x00030000>;
+	};
+	partition@100000 {
+		label = "system";
+		reg = <0x00100000 0x00600000>;
+	};
+	partition@700000 {
+		label = "rootfs";
+		reg = <0x00700000 0x00900000>;
 	};
 };

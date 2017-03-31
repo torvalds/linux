@@ -65,6 +65,10 @@
 	status = "okay";
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &nand {
 	nandcs@0 {
 		compatible = "brcm,nandcs";
@@ -101,6 +105,10 @@
 			reg = <0x04000000 0x3c000000>;
 		};
 	};
+};
+
+&ohci0 {
+	status = "okay";
 };
 
 &pcie0 {
