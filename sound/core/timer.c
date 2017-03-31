@@ -1430,18 +1430,13 @@ static int snd_timer_user_next_device(struct snd_timer_id __user *_tid)
 			if (id.card < 0) {
 				id.card = 0;
 			} else {
-				if (id.card < 0) {
-					id.card = 0;
+				if (id.device < 0) {
+					id.device = 0;
 				} else {
-					if (id.device < 0) {
-						id.device = 0;
-					} else {
-						if (id.subdevice < 0) {
-							id.subdevice = 0;
-						} else {
-							id.subdevice++;
-						}
-					}
+					if (id.subdevice < 0)
+						id.subdevice = 0;
+					else
+						id.subdevice++;
 				}
 			}
 			list_for_each(p, &snd_timer_list) {
