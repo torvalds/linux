@@ -1072,7 +1072,8 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 		return ret;
 
 	seq_puts(s, "\nDma-buf Objects:\n");
-	seq_puts(s, "size\tflags\tmode\tcount\texp_name\n");
+	seq_printf(s, "%-8s\t%-8s\t%-8s\t%-8s\texp_name\n",
+		   "size", "flags", "mode", "count");
 
 	list_for_each_entry(buf_obj, &db_list.head, list_node) {
 		ret = mutex_lock_interruptible(&buf_obj->lock);
