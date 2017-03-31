@@ -76,6 +76,10 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
+	err = snd_ff_create_hwdep_devices(ff);
+	if (err < 0)
+		goto error;
+
 	err = snd_card_register(ff->card);
 	if (err < 0)
 		goto error;
@@ -108,6 +112,7 @@ static int snd_ff_probe(struct fw_unit *unit,
 
 	mutex_init(&ff->mutex);
 	spin_lock_init(&ff->lock);
+	init_waitqueue_head(&ff->hwdep_wait);
 
 	ff->spec = (const struct snd_ff_spec *)entry->driver_data;
 

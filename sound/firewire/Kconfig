@@ -155,6 +155,7 @@ config SND_FIREWIRE_MOTU
 config SND_FIREFACE
 	tristate "RME Fireface series support"
 	select SND_FIREWIRE_LIB
+	select SND_HWDEP
 	help
 	 Say Y here to include support for RME fireface series.
 

@@ -154,13 +154,21 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	enum snd_ff_clock_src src;
 	int i, err;
 
-	err = pcm_init_hw_params(ff, substream);
+	err = snd_ff_stream_lock_try(ff);
 	if (err < 0)
 		return err;
 
-	err = ff->spec->protocol->get_clock(ff, &rate, &src);
-	if (err < 0)
+	err = pcm_init_hw_params(ff, substream);
+	if (err < 0) {
+		snd_ff_stream_lock_release(ff);
 		return err;
+	}
+
+	err = ff->spec->protocol->get_clock(ff, &rate, &src);
+	if (err < 0) {
+		snd_ff_stream_lock_release(ff);
+		return err;
+	}
 
 	if (src != SND_FF_CLOCK_SRC_INTERNAL) {
 		for (i = 0; i < CIP_SFC_COUNT; ++i) {
@@ -171,8 +179,10 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		 * The unit is configured at sampling frequency which packet
 		 * streaming engine can't support.
 		 */
-		if (i >= CIP_SFC_COUNT)
+		if (i >= CIP_SFC_COUNT) {
+			snd_ff_stream_lock_release(ff);
 			return -EIO;
+		}
 
 		substream->runtime->hw.rate_min = rate;
 		substream->runtime->hw.rate_max = rate;
@@ -192,6 +202,10 @@ static int pcm_open(struct snd_pcm_substream *substream)
 
 static int pcm_close(struct snd_pcm_substream *substream)
 {
+	struct snd_ff *ff = substream->private_data;
+
+	snd_ff_stream_lock_release(ff);
+
 	return 0;
 }
 
