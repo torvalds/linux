@@ -1064,8 +1064,12 @@ static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 			u32 rqtn = priv->indir_rqt.rqtn;
 			struct mlx5e_redirect_rqt_param rrp = {
 				.is_rss = true,
-				.rss.hfunc = priv->channels.params.rss_hfunc,
-				.rss.channels  = &priv->channels
+				{
+					.rss = {
+						.hfunc = priv->channels.params.rss_hfunc,
+						.channels  = &priv->channels,
+					},
+				},
 			};
 
 			mlx5e_redirect_rqt(priv, rqtn, MLX5E_INDIR_RQT_SIZE, rrp);
