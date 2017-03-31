@@ -453,4 +453,12 @@ config ZX2967_THERMAL
 	  the primitive temperature sensor embedded in zx2967 SoCs.
 	  This sensor generates the real time die temperature.
 
+config BCM2835_THERMAL
+	tristate "Thermal sensors on bcm2835 SoC"
+	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on THERMAL_OF
+	help
+	  Support for thermal sensors on Broadcom bcm2835 SoCs.
+
 endif
