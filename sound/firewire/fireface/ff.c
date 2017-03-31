@@ -29,6 +29,7 @@ static void name_card(struct snd_ff *ff)
 
 static void ff_free(struct snd_ff *ff)
 {
+	snd_ff_stream_destroy_duplex(ff);
 	snd_ff_transaction_unregister(ff);
 
 	fw_unit_put(ff->unit);
@@ -61,6 +62,10 @@ static void do_registration(struct work_struct *work)
 
 	name_card(ff);
 
+	err = snd_ff_stream_init_duplex(ff);
+	if (err < 0)
+		goto error;
+
 	snd_ff_proc_init(ff);
 
 	err = snd_ff_create_midi_devices(ff);
@@ -78,6 +83,7 @@ static void do_registration(struct work_struct *work)
 	return;
 error:
 	snd_ff_transaction_unregister(ff);
+	snd_ff_stream_destroy_duplex(ff);
 	snd_card_free(ff->card);
 	dev_info(&ff->unit->device,
 		 "Sound card registration failed: %d\n", err);
@@ -117,6 +123,9 @@ static void snd_ff_update(struct fw_unit *unit)
 		snd_fw_schedule_registration(unit, &ff->dwork);
 
 	snd_ff_transaction_reregister(ff);
+
+	if (ff->registered)
+		snd_ff_stream_update_duplex(ff);
 }
 
 static void snd_ff_remove(struct fw_unit *unit)

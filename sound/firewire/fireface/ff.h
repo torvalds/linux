@@ -24,6 +24,7 @@
 
 #include "../lib.h"
 #include "../amdtp-stream.h"
+#include "../iso-resources.h"
 
 #define SND_FF_STREAM_MODES		3
 
@@ -68,6 +69,12 @@ struct snd_ff {
 	ktime_t next_ktime[SND_FF_OUT_MIDI_PORTS];
 	bool rx_midi_error[SND_FF_OUT_MIDI_PORTS];
 	unsigned int rx_bytes[SND_FF_OUT_MIDI_PORTS];
+
+	unsigned int substreams_counter;
+	struct amdtp_stream tx_stream;
+	struct amdtp_stream rx_stream;
+	struct fw_iso_resources tx_resources;
+	struct fw_iso_resources rx_resources;
 };
 
 enum snd_ff_clock_src {
@@ -106,6 +113,12 @@ int amdtp_ff_add_pcm_hw_constraints(struct amdtp_stream *s,
 				    struct snd_pcm_runtime *runtime);
 int amdtp_ff_init(struct amdtp_stream *s, struct fw_unit *unit,
 		  enum amdtp_stream_direction dir);
+
+int snd_ff_stream_init_duplex(struct snd_ff *ff);
+void snd_ff_stream_destroy_duplex(struct snd_ff *ff);
+int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate);
+void snd_ff_stream_stop_duplex(struct snd_ff *ff);
+void snd_ff_stream_update_duplex(struct snd_ff *ff);
 
 void snd_ff_proc_init(struct snd_ff *ff);
 
