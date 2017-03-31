@@ -260,7 +260,7 @@ static const struct chip_tsadc_table tsadc_table_3368 = {
 	.mode = ADC_INCREMENT,
 };
 
-static int rk3368_get_ajust_code(struct device_node *np, u8 *ajust_code)
+static int rk3368_get_ajust_code(struct device_node *np, int *ajust_code)
 {
 	struct nvmem_cell *cell;
 	unsigned char *buf;
@@ -282,7 +282,11 @@ static int rk3368_get_ajust_code(struct device_node *np, u8 *ajust_code)
 	if (buf[0] == INVALID_EFUSE_VALUE)
 		return -EINVAL;
 
-	*ajust_code = buf[0];
+	if (buf[0] & 0x80)
+		*ajust_code = -(buf[0] & 0x7f);
+	else
+		*ajust_code = buf[0];
+
 	kfree(buf);
 
 	return 0;
@@ -847,7 +851,7 @@ static int rk3368_thermal_probe(struct platform_device *pdev)
 	int i, j;
 	int error;
 	int uv;
-	u8 ajust_code = 0;
+	int ajust_code = 0;
 
 	match = of_match_node(of_rk3368_thermal_match, np);
 	if (!match)
