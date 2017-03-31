@@ -611,8 +611,6 @@ static const struct vop_win_data rk3328_vop_win_data[] = {
 	{ .base = 0x1d0, .phy = &rk3288_win01_data,
 	  .type = DRM_PLANE_TYPE_OVERLAY },
 	{ .base = 0x2d0, .phy = &rk3288_win01_data,
-	  .type = DRM_PLANE_TYPE_OVERLAY },
-	{ .base = 0x3d0, .phy = &rk3288_win01_data,
 	  .type = DRM_PLANE_TYPE_CURSOR },
 };
 
