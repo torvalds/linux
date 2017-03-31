@@ -1047,8 +1047,13 @@ M:	Chen-Yu Tsai <wens@csie.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 N:	sun[x456789]i
-F:	arch/arm/boot/dts/ntc-gr8*
+N:	sun50i
+F:	arch/arm/mach-sunxi/
 F:	arch/arm64/boot/dts/allwinner/
+F:	drivers/clk/sunxi-ng/
+F:	drivers/pinctrl/sunxi/
+F:	drivers/soc/sunxi/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux.git
 
 ARM/Allwinner SoC Clock Support
 M:	Emilio López <emilio@elopez.com.ar>
