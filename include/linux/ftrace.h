@@ -326,14 +326,6 @@ static inline void stack_tracer_disable(void) { }
 static inline void stack_tracer_enable(void) { }
 #endif
 
-struct ftrace_func_command {
-	struct list_head	list;
-	char			*name;
-	int			(*func)(struct ftrace_hash *hash,
-					char *func, char *cmd,
-					char *params, int enable);
-};
-
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 int ftrace_arch_code_modify_prepare(void);
@@ -420,9 +412,6 @@ void ftrace_set_global_filter(unsigned char *buf, int len, int reset);
 void ftrace_set_global_notrace(unsigned char *buf, int len, int reset);
 void ftrace_free_filter(struct ftrace_ops *ops);
 void ftrace_ops_set_global_filter(struct ftrace_ops *ops);
-
-int register_ftrace_command(struct ftrace_func_command *cmd);
-int unregister_ftrace_command(struct ftrace_func_command *cmd);
 
 enum {
 	FTRACE_UPDATE_CALLS		= (1 << 0),
@@ -639,14 +628,6 @@ static inline void ftrace_enable_daemon(void) { }
 static inline void ftrace_module_init(struct module *mod) { }
 static inline void ftrace_module_enable(struct module *mod) { }
 static inline void ftrace_release_mod(struct module *mod) { }
-static inline __init int register_ftrace_command(struct ftrace_func_command *cmd)
-{
-	return -EINVAL;
-}
-static inline __init int unregister_ftrace_command(char *cmd_name)
-{
-	return -EINVAL;
-}
 static inline int ftrace_text_reserved(const void *start, const void *end)
 {
 	return 0;

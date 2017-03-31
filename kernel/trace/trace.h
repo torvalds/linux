@@ -880,6 +880,13 @@ print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 extern struct list_head ftrace_pids;
 
 #ifdef CONFIG_FUNCTION_TRACER
+struct ftrace_func_command {
+	struct list_head	list;
+	char			*name;
+	int			(*func)(struct ftrace_hash *hash,
+					char *func, char *cmd,
+					char *params, int enable);
+};
 extern bool ftrace_filter_param __initdata;
 static inline int ftrace_trace_task(struct trace_array *tr)
 {
@@ -948,10 +955,23 @@ extern void
 unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
 extern void unregister_ftrace_function_probe_all(char *glob);
 
+int register_ftrace_command(struct ftrace_func_command *cmd);
+int unregister_ftrace_command(struct ftrace_func_command *cmd);
+
 void ftrace_create_filter_files(struct ftrace_ops *ops,
 				struct dentry *parent);
 void ftrace_destroy_filter_files(struct ftrace_ops *ops);
 #else
+struct ftrace_func_command;
+
+static inline __init int register_ftrace_command(struct ftrace_func_command *cmd)
+{
+	return -EINVAL;
+}
+static inline __init int unregister_ftrace_command(char *cmd_name)
+{
+	return -EINVAL;
+}
 /*
  * The ops parameter passed in is usually undefined.
  * This must be a macro.
