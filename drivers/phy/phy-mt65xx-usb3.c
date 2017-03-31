@@ -112,6 +112,14 @@
 #define P3D_RG_CDR_BIR_LTD0		GENMASK(12, 8)
 #define P3D_RG_CDR_BIR_LTD0_VAL(x)	((0x1f & (x)) << 8)
 
+#define U3P_U3_PHYD_RXDET1		(SSUSB_SIFSLV_U3PHYD_BASE + 0x128)
+#define P3D_RG_RXDET_STB2_SET		GENMASK(17, 9)
+#define P3D_RG_RXDET_STB2_SET_VAL(x)	((0x1ff & (x)) << 9)
+
+#define U3P_U3_PHYD_RXDET2		(SSUSB_SIFSLV_U3PHYD_BASE + 0x12c)
+#define P3D_RG_RXDET_STB2_SET_P3	GENMASK(8, 0)
+#define P3D_RG_RXDET_STB2_SET_P3_VAL(x)	(0x1ff & (x))
+
 #define U3P_XTALCTL3		(SSUSB_SIFSLV_SPLLC + 0x0018)
 #define XC3_RG_U3_XTAL_RX_PWD		BIT(9)
 #define XC3_RG_U3_FRC_XTAL_RX_PWD	BIT(8)
@@ -294,6 +302,16 @@ static void phy_instance_init(struct mt65xx_u3phy *u3phy,
 	tmp &= ~(P3D_RG_CDR_BIR_LTD0 | P3D_RG_CDR_BIR_LTD1);
 	tmp |= P3D_RG_CDR_BIR_LTD0_VAL(0xc) | P3D_RG_CDR_BIR_LTD1_VAL(0x3);
 	writel(tmp, port_base + U3P_PHYD_CDR1);
+
+	tmp = readl(port_base + U3P_U3_PHYD_RXDET1);
+	tmp &= ~P3D_RG_RXDET_STB2_SET;
+	tmp |= P3D_RG_RXDET_STB2_SET_VAL(0x10);
+	writel(tmp, port_base + U3P_U3_PHYD_RXDET1);
+
+	tmp = readl(port_base + U3P_U3_PHYD_RXDET2);
+	tmp &= ~P3D_RG_RXDET_STB2_SET_P3;
+	tmp |= P3D_RG_RXDET_STB2_SET_P3_VAL(0x10);
+	writel(tmp, port_base + U3P_U3_PHYD_RXDET2);
 
 	dev_dbg(u3phy->dev, "%s(%d)\n", __func__, index);
 }
