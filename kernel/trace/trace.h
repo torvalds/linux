@@ -923,6 +923,31 @@ static inline void ftrace_pid_follow_fork(struct trace_array *tr, bool enable) {
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #if defined(CONFIG_FUNCTION_TRACER) && defined(CONFIG_DYNAMIC_FTRACE)
+
+struct ftrace_probe_ops {
+	void			(*func)(unsigned long ip,
+					unsigned long parent_ip,
+					void **data);
+	int			(*init)(struct ftrace_probe_ops *ops,
+					unsigned long ip, void **data);
+	void			(*free)(struct ftrace_probe_ops *ops,
+					unsigned long ip, void **data);
+	int			(*print)(struct seq_file *m,
+					 unsigned long ip,
+					 struct ftrace_probe_ops *ops,
+					 void *data);
+};
+
+extern int
+register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
+			      void *data);
+extern void
+unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
+				void *data);
+extern void
+unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
+extern void unregister_ftrace_function_probe_all(char *glob);
+
 void ftrace_create_filter_files(struct ftrace_ops *ops,
 				struct dentry *parent);
 void ftrace_destroy_filter_files(struct ftrace_ops *ops);

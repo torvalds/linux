@@ -360,30 +360,6 @@ void ftrace_bug(int err, struct dyn_ftrace *rec);
 
 struct seq_file;
 
-struct ftrace_probe_ops {
-	void			(*func)(unsigned long ip,
-					unsigned long parent_ip,
-					void **data);
-	int			(*init)(struct ftrace_probe_ops *ops,
-					unsigned long ip, void **data);
-	void			(*free)(struct ftrace_probe_ops *ops,
-					unsigned long ip, void **data);
-	int			(*print)(struct seq_file *m,
-					 unsigned long ip,
-					 struct ftrace_probe_ops *ops,
-					 void *data);
-};
-
-extern int
-register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
-			      void *data);
-extern void
-unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
-				void *data);
-extern void
-unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
-extern void unregister_ftrace_function_probe_all(char *glob);
-
 extern int ftrace_text_reserved(const void *start, const void *end);
 
 extern int ftrace_nr_registered_ops(void);
