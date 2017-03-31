@@ -152,4 +152,10 @@ config SND_FIREWIRE_MOTU
 	 To compile this driver as a module, choose M here: the module
 	 will be called snd-firewire-motu.
 
+config SND_FIREFACE
+	tristate "RME Fireface series support"
+	select SND_FIREWIRE_LIB
+	help
+	 Say Y here to include support for RME fireface series.
+
 endif # SND_FIREWIRE
