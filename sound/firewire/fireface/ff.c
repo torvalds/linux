@@ -29,6 +29,8 @@ static void name_card(struct snd_ff *ff)
 
 static void ff_free(struct snd_ff *ff)
 {
+	snd_ff_transaction_unregister(ff);
+
 	fw_unit_put(ff->unit);
 
 	mutex_destroy(&ff->mutex);
@@ -53,6 +55,10 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		return;
 
+	err = snd_ff_transaction_register(ff);
+	if (err < 0)
+		goto error;
+
 	name_card(ff);
 
 	err = snd_card_register(ff->card);
@@ -65,6 +71,7 @@ static void do_registration(struct work_struct *work)
 
 	return;
 error:
+	snd_ff_transaction_unregister(ff);
 	snd_card_free(ff->card);
 	dev_info(&ff->unit->device,
 		 "Sound card registration failed: %d\n", err);
@@ -101,6 +108,8 @@ static void snd_ff_update(struct fw_unit *unit)
 	/* Postpone a workqueue for deferred registration. */
 	if (!ff->registered)
 		snd_fw_schedule_registration(unit, &ff->dwork);
+
+	snd_ff_transaction_reregister(ff);
 }
 
 static void snd_ff_remove(struct fw_unit *unit)

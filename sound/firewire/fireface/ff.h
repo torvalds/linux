@@ -20,10 +20,15 @@
 
 #include <sound/core.h>
 #include <sound/info.h>
+#include <sound/rawmidi.h>
 
 #include "../lib.h"
 
 #define SND_FF_STREAM_MODES		3
+
+#define SND_FF_MAXIMIM_MIDI_QUADS	9
+#define SND_FF_IN_MIDI_PORTS		2
+#define SND_FF_OUT_MIDI_PORTS		2
 
 struct snd_ff_protocol;
 struct snd_ff_spec {
@@ -47,6 +52,20 @@ struct snd_ff {
 	struct delayed_work dwork;
 
 	const struct snd_ff_spec *spec;
+
+	/* To handle MIDI tx. */
+	struct snd_rawmidi_substream *tx_midi_substreams[SND_FF_IN_MIDI_PORTS];
+	struct fw_address_handler async_handler;
+
+	/* TO handle MIDI rx. */
+	struct snd_rawmidi_substream *rx_midi_substreams[SND_FF_OUT_MIDI_PORTS];
+	u8 running_status[SND_FF_OUT_MIDI_PORTS];
+	__le32 msg_buf[SND_FF_OUT_MIDI_PORTS][SND_FF_MAXIMIM_MIDI_QUADS];
+	struct work_struct rx_midi_work[SND_FF_OUT_MIDI_PORTS];
+	struct fw_transaction transactions[SND_FF_OUT_MIDI_PORTS];
+	ktime_t next_ktime[SND_FF_OUT_MIDI_PORTS];
+	bool rx_midi_error[SND_FF_OUT_MIDI_PORTS];
+	unsigned int rx_bytes[SND_FF_OUT_MIDI_PORTS];
 };
 
 enum snd_ff_clock_src {
@@ -74,5 +93,9 @@ struct snd_ff_protocol {
 	u64 midi_rx_port_0_reg;
 	u64 midi_rx_port_1_reg;
 };
+
+int snd_ff_transaction_register(struct snd_ff *ff);
+int snd_ff_transaction_reregister(struct snd_ff *ff);
+void snd_ff_transaction_unregister(struct snd_ff *ff);
 
 #endif
