@@ -246,6 +246,16 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 
 			/*
 			 * Adjust bInterval for quirked devices.
+			 */
+			/*
+			 * This quirk fixes bIntervals reported in ms.
+			 */
+			if (to_usb_device(ddev)->quirks &
+				USB_QUIRK_LINEAR_FRAME_INTR_BINTERVAL) {
+				n = clamp(fls(d->bInterval) + 3, i, j);
+				i = j = n;
+			}
+			/*
 			 * This quirk fixes bIntervals reported in
 			 * linear microframes.
 			 */
