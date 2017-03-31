@@ -29,7 +29,6 @@
 		COPY						 \
 		"1:\n"						 \
 		"	.section .fixup,\"ax\"\n"		 \
-		"	MOV D1Ar1,#0\n"				 \
 		FIXUP						 \
 		"	MOVT    D1Ar1,#HI(1b)\n"		 \
 		"	JUMP    D1Ar1,#LO(1b)\n"		 \
@@ -637,16 +636,14 @@ EXPORT_SYMBOL(__copy_user);
 	__asm_copy_user_cont(to, from, ret,	\
 		"	GETB D1Ar1,[%1++]\n"	\
 		"2:	SETB [%0++],D1Ar1\n",	\
-		"3:	ADD  %2,%2,#1\n"	\
-		"	SETB [%0++],D1Ar1\n",	\
+		"3:	ADD  %2,%2,#1\n",	\
 		"	.long 2b,3b\n")
 
 #define __asm_copy_from_user_2x_cont(to, from, ret, COPY, FIXUP, TENTRY) \
 	__asm_copy_user_cont(to, from, ret,		\
 		"	GETW D1Ar1,[%1++]\n"		\
 		"2:	SETW [%0++],D1Ar1\n" COPY,	\
-		"3:	ADD  %2,%2,#2\n"		\
-		"	SETW [%0++],D1Ar1\n" FIXUP,	\
+		"3:	ADD  %2,%2,#2\n" FIXUP,		\
 		"	.long 2b,3b\n" TENTRY)
 
 #define __asm_copy_from_user_2(to, from, ret) \
@@ -656,21 +653,18 @@ EXPORT_SYMBOL(__copy_user);
 	__asm_copy_from_user_2x_cont(to, from, ret,	\
 		"	GETB D1Ar1,[%1++]\n"		\
 		"4:	SETB [%0++],D1Ar1\n",		\
-		"5:	ADD  %2,%2,#1\n"		\
-		"	SETB [%0++],D1Ar1\n",		\
+		"5:	ADD  %2,%2,#1\n",		\
 		"	.long 4b,5b\n")
 
 #define __asm_copy_from_user_4x_cont(to, from, ret, COPY, FIXUP, TENTRY) \
 	__asm_copy_user_cont(to, from, ret,		\
 		"	GETD D1Ar1,[%1++]\n"		\
 		"2:	SETD [%0++],D1Ar1\n" COPY,	\
-		"3:	ADD  %2,%2,#4\n"		\
-		"	SETD [%0++],D1Ar1\n" FIXUP,	\
+		"3:	ADD  %2,%2,#4\n" FIXUP,		\
 		"	.long 2b,3b\n" TENTRY)
 
 #define __asm_copy_from_user_4(to, from, ret) \
 	__asm_copy_from_user_4x_cont(to, from, ret, "", "", "")
-
 
 #define __asm_copy_from_user_8x64(to, from, ret) \
 	asm volatile (				\
@@ -678,10 +672,7 @@ EXPORT_SYMBOL(__copy_user);
 		"2:	SETL [%0++],D0Ar2,D1Ar1\n"	\
 		"1:\n"					\
 		"	.section .fixup,\"ax\"\n"	\
-		"	MOV D1Ar1,#0\n"			\
-		"	MOV D0Ar2,#0\n"			\
 		"3:	ADD  %2,%2,#8\n"		\
-		"	SETL [%0++],D0Ar2,D1Ar1\n"	\
 		"	MOVT    D0Ar2,#HI(1b)\n"	\
 		"	JUMP    D0Ar2,#LO(1b)\n"	\
 		"	.previous\n"			\
@@ -721,11 +712,12 @@ EXPORT_SYMBOL(__copy_user);
 		"SUB	%1, %1, #4\n")
 
 
-/* Copy from user to kernel, zeroing the bytes that were inaccessible in
-   userland.  The return-value is the number of bytes that were
-   inaccessible.  */
-unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
-				  unsigned long n)
+/*
+ * Copy from user to kernel. The return-value is the number of bytes that were
+ * inaccessible.
+ */
+unsigned long raw_copy_from_user(void *pdst, const void __user *psrc,
+				 unsigned long n)
 {
 	register char *dst asm ("A0.2") = pdst;
 	register const char __user *src asm ("A1.2") = psrc;
@@ -738,7 +730,7 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 		__asm_copy_from_user_1(dst, src, retn);
 		n--;
 		if (retn)
-			goto copy_exception_bytes;
+			return retn + n;
 	}
 	if ((unsigned long) dst & 1) {
 		/* Worst case - byte copy */
@@ -746,14 +738,14 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 			__asm_copy_from_user_1(dst, src, retn);
 			n--;
 			if (retn)
-				goto copy_exception_bytes;
+				return retn + n;
 		}
 	}
 	if (((unsigned long) src & 2) && n >= 2) {
 		__asm_copy_from_user_2(dst, src, retn);
 		n -= 2;
 		if (retn)
-			goto copy_exception_bytes;
+			return retn + n;
 	}
 	if ((unsigned long) dst & 2) {
 		/* Second worst case - word copy */
@@ -761,7 +753,7 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 			__asm_copy_from_user_2(dst, src, retn);
 			n -= 2;
 			if (retn)
-				goto copy_exception_bytes;
+				return retn + n;
 		}
 	}
 
@@ -777,7 +769,7 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 			__asm_copy_from_user_8x64(dst, src, retn);
 			n -= 8;
 			if (retn)
-				goto copy_exception_bytes;
+				return retn + n;
 		}
 	}
 
@@ -793,7 +785,7 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 			__asm_copy_from_user_8x64(dst, src, retn);
 			n -= 8;
 			if (retn)
-				goto copy_exception_bytes;
+				return retn + n;
 		}
 	}
 #endif
@@ -803,7 +795,7 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 		n -= 4;
 
 		if (retn)
-			goto copy_exception_bytes;
+			return retn + n;
 	}
 
 	/* If we get here, there were no memory read faults.  */
@@ -829,21 +821,8 @@ unsigned long __copy_user_zeroing(void *pdst, const void __user *psrc,
 	/* If we get here, retn correctly reflects the number of failing
 	   bytes.  */
 	return retn;
-
- copy_exception_bytes:
-	/* We already have "retn" bytes cleared, and need to clear the
-	   remaining "n" bytes.  A non-optimized simple byte-for-byte in-line
-	   memset is preferred here, since this isn't speed-critical code and
-	   we'd rather have this a leaf-function than calling memset.  */
-	{
-		char *endp;
-		for (endp = dst + n; dst < endp; dst++)
-			*dst = 0;
-	}
-
-	return retn + n;
 }
-EXPORT_SYMBOL(__copy_user_zeroing);
+EXPORT_SYMBOL(raw_copy_from_user);
 
 #define __asm_clear_8x64(to, ret) \
 	asm volatile (					\
