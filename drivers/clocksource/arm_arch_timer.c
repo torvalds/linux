@@ -1386,10 +1386,79 @@ CLOCKSOURCE_OF_DECLARE(armv7_arch_timer_mem, "arm,armv7-timer-mem",
 		       arch_timer_mem_of_init);
 
 #ifdef CONFIG_ACPI_GTDT
-/* Initialize per-processor generic timer */
+static int __init
+arch_timer_mem_verify_cntfrq(struct arch_timer_mem *timer_mem)
+{
+	struct arch_timer_mem_frame *frame;
+	u32 rate;
+	int i;
+
+	for (i = 0; i < ARCH_TIMER_MEM_MAX_FRAMES; i++) {
+		frame = &timer_mem->frame[i];
+
+		if (!frame->valid)
+			continue;
+
+		rate = arch_timer_mem_frame_get_cntfrq(frame);
+		if (rate == arch_timer_rate)
+			continue;
+
+		pr_err(FW_BUG "CNTFRQ mismatch: frame @ %pa: (0x%08lx), CPU: (0x%08lx)\n",
+			&frame->cntbase,
+			(unsigned long)rate, (unsigned long)arch_timer_rate);
+
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int __init arch_timer_mem_acpi_init(int platform_timer_count)
+{
+	struct arch_timer_mem *timers, *timer;
+	struct arch_timer_mem_frame *frame;
+	int timer_count, i, ret = 0;
+
+	timers = kcalloc(platform_timer_count, sizeof(*timers),
+			    GFP_KERNEL);
+	if (!timers)
+		return -ENOMEM;
+
+	ret = acpi_arch_timer_mem_init(timers, &timer_count);
+	if (ret || !timer_count)
+		goto out;
+
+	for (i = 0; i < timer_count; i++) {
+		ret = arch_timer_mem_verify_cntfrq(&timers[i]);
+		if (ret) {
+			pr_err("Disabling MMIO timers due to CNTFRQ mismatch\n");
+			goto out;
+		}
+	}
+
+	/*
+	 * While unlikely, it's theoretically possible that none of the frames
+	 * in a timer expose the combination of feature we want.
+	 */
+	for (i = i; i < timer_count; i++) {
+		timer = &timers[i];
+
+		frame = arch_timer_mem_find_best_frame(timer);
+		if (frame)
+			break;
+	}
+
+	if (frame)
+		ret = arch_timer_mem_frame_register(frame);
+out:
+	kfree(timers);
+	return ret;
+}
+
+/* Initialize per-processor generic timer and memory-mapped timer(if present) */
 static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 {
-	int ret;
+	int ret, platform_timer_count;
 
 	if (arch_timers_present & ARCH_TIMER_TYPE_CP15) {
 		pr_warn("already initialized, skipping\n");
@@ -1398,7 +1467,7 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 
 	arch_timers_present |= ARCH_TIMER_TYPE_CP15;
 
-	ret = acpi_gtdt_init(table, NULL);
+	ret = acpi_gtdt_init(table, &platform_timer_count);
 	if (ret) {
 		pr_err("Failed to init GTDT table.\n");
 		return ret;
@@ -1440,6 +1509,10 @@ static int __init arch_timer_acpi_init(struct acpi_table_header *table)
 	ret = arch_timer_register();
 	if (ret)
 		return ret;
+
+	if (platform_timer_count &&
+	    arch_timer_mem_acpi_init(platform_timer_count))
+		pr_err("Failed to initialize memory-mapped timer.\n");
 
 	return arch_timer_common_init();
 }
