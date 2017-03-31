@@ -446,52 +446,7 @@ static int dwc3_link_state_show(struct seq_file *s, void *unused)
 	state = DWC3_DSTS_USBLNKST(reg);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
-	switch (state) {
-	case DWC3_LINK_STATE_U0:
-		seq_printf(s, "U0\n");
-		break;
-	case DWC3_LINK_STATE_U1:
-		seq_printf(s, "U1\n");
-		break;
-	case DWC3_LINK_STATE_U2:
-		seq_printf(s, "U2\n");
-		break;
-	case DWC3_LINK_STATE_U3:
-		seq_printf(s, "U3\n");
-		break;
-	case DWC3_LINK_STATE_SS_DIS:
-		seq_printf(s, "SS.Disabled\n");
-		break;
-	case DWC3_LINK_STATE_RX_DET:
-		seq_printf(s, "Rx.Detect\n");
-		break;
-	case DWC3_LINK_STATE_SS_INACT:
-		seq_printf(s, "SS.Inactive\n");
-		break;
-	case DWC3_LINK_STATE_POLL:
-		seq_printf(s, "Poll\n");
-		break;
-	case DWC3_LINK_STATE_RECOV:
-		seq_printf(s, "Recovery\n");
-		break;
-	case DWC3_LINK_STATE_HRESET:
-		seq_printf(s, "HRESET\n");
-		break;
-	case DWC3_LINK_STATE_CMPLY:
-		seq_printf(s, "Compliance\n");
-		break;
-	case DWC3_LINK_STATE_LPBK:
-		seq_printf(s, "Loopback\n");
-		break;
-	case DWC3_LINK_STATE_RESET:
-		seq_printf(s, "Reset\n");
-		break;
-	case DWC3_LINK_STATE_RESUME:
-		seq_printf(s, "Resume\n");
-		break;
-	default:
-		seq_printf(s, "UNKNOWN %d\n", state);
-	}
+	seq_printf(s, "%s\n", dwc3_gadget_link_string(state));
 
 	return 0;
 }
