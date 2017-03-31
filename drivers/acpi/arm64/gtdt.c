@@ -13,6 +13,7 @@
 
 #include <linux/acpi.h>
 #include <linux/init.h>
+#include <linux/irqdomain.h>
 #include <linux/kernel.h>
 
 #include <clocksource/arm_arch_timer.h>
@@ -36,6 +37,28 @@ struct acpi_gtdt_descriptor {
 };
 
 static struct acpi_gtdt_descriptor acpi_gtdt_desc __initdata;
+
+static inline void *next_platform_timer(void *platform_timer)
+{
+	struct acpi_gtdt_header *gh = platform_timer;
+
+	platform_timer += gh->length;
+	if (platform_timer < acpi_gtdt_desc.gtdt_end)
+		return platform_timer;
+
+	return NULL;
+}
+
+#define for_each_platform_timer(_g)				\
+	for (_g = acpi_gtdt_desc.platform_timer; _g;	\
+	     _g = next_platform_timer(_g))
+
+static inline bool is_timer_block(void *platform_timer)
+{
+	struct acpi_gtdt_header *gh = platform_timer;
+
+	return gh->type == ACPI_GTDT_TYPE_TIMER_BLOCK;
+}
 
 static int __init map_gt_gsi(u32 interrupt, u32 flags)
 {
@@ -152,6 +175,140 @@ int __init acpi_gtdt_init(struct acpi_table_header *table,
 	acpi_gtdt_desc.platform_timer = platform_timer;
 	if (platform_timer_count)
 		*platform_timer_count = gtdt->platform_timer_count;
+
+	return 0;
+}
+
+static int __init gtdt_parse_timer_block(struct acpi_gtdt_timer_block *block,
+					 struct arch_timer_mem *timer_mem)
+{
+	int i;
+	struct arch_timer_mem_frame *frame;
+	struct acpi_gtdt_timer_entry *gtdt_frame;
+
+	if (!block->timer_count) {
+		pr_err(FW_BUG "GT block present, but frame count is zero.");
+		return -ENODEV;
+	}
+
+	if (block->timer_count > ARCH_TIMER_MEM_MAX_FRAMES) {
+		pr_err(FW_BUG "GT block lists %d frames, ACPI spec only allows 8\n",
+		       block->timer_count);
+		return -EINVAL;
+	}
+
+	timer_mem->cntctlbase = (phys_addr_t)block->block_address;
+	/*
+	 * The CNTCTLBase frame is 4KB (register offsets 0x000 - 0xFFC).
+	 * See ARM DDI 0487A.k_iss10775, page I1-5129, Table I1-3
+	 * "CNTCTLBase memory map".
+	 */
+	timer_mem->size = SZ_4K;
+
+	gtdt_frame = (void *)block + block->timer_offset;
+	if (gtdt_frame + block->timer_count != (void *)block + block->header.length)
+		return -EINVAL;
+
+	/*
+	 * Get the GT timer Frame data for every GT Block Timer
+	 */
+	for (i = 0; i < block->timer_count; i++, gtdt_frame++) {
+		if (gtdt_frame->common_flags & ACPI_GTDT_GT_IS_SECURE_TIMER)
+			continue;
+		if (gtdt_frame->frame_number >= ARCH_TIMER_MEM_MAX_FRAMES ||
+		    !gtdt_frame->base_address || !gtdt_frame->timer_interrupt)
+			goto error;
+
+		frame = &timer_mem->frame[gtdt_frame->frame_number];
+
+		/* duplicate frame */
+		if (frame->valid)
+			goto error;
+
+		frame->phys_irq = map_gt_gsi(gtdt_frame->timer_interrupt,
+					     gtdt_frame->timer_flags);
+		if (frame->phys_irq <= 0) {
+			pr_warn("failed to map physical timer irq in frame %d.\n",
+				gtdt_frame->frame_number);
+			goto error;
+		}
+
+		if (gtdt_frame->virtual_timer_interrupt) {
+			frame->virt_irq =
+				map_gt_gsi(gtdt_frame->virtual_timer_interrupt,
+					   gtdt_frame->virtual_timer_flags);
+			if (frame->virt_irq <= 0) {
+				pr_warn("failed to map virtual timer irq in frame %d.\n",
+					gtdt_frame->frame_number);
+				goto error;
+			}
+		} else {
+			pr_debug("virtual timer in frame %d not implemented.\n",
+				 gtdt_frame->frame_number);
+		}
+
+		frame->cntbase = gtdt_frame->base_address;
+		/*
+		 * The CNTBaseN frame is 4KB (register offsets 0x000 - 0xFFC).
+		 * See ARM DDI 0487A.k_iss10775, page I1-5130, Table I1-4
+		 * "CNTBaseN memory map".
+		 */
+		frame->size = SZ_4K;
+		frame->valid = true;
+	}
+
+	return 0;
+
+error:
+	do {
+		if (gtdt_frame->common_flags & ACPI_GTDT_GT_IS_SECURE_TIMER ||
+		    gtdt_frame->frame_number >= ARCH_TIMER_MEM_MAX_FRAMES)
+			continue;
+
+		frame = &timer_mem->frame[gtdt_frame->frame_number];
+
+		if (frame->phys_irq > 0)
+			acpi_unregister_gsi(gtdt_frame->timer_interrupt);
+		frame->phys_irq = 0;
+
+		if (frame->virt_irq > 0)
+			acpi_unregister_gsi(gtdt_frame->virtual_timer_interrupt);
+		frame->virt_irq = 0;
+	} while (i-- >= 0 && gtdt_frame--);
+
+	return -EINVAL;
+}
+
+/**
+ * acpi_arch_timer_mem_init() - Get the info of all GT blocks in GTDT table.
+ * @timer_mem:	The pointer to the array of struct arch_timer_mem for returning
+ *		the result of parsing. The element number of this array should
+ *		be platform_timer_count(the total number of platform timers).
+ * @timer_count: It points to a integer variable which is used for storing the
+ *		number of GT blocks we have parsed.
+ *
+ * Return: 0 if success, -EINVAL/-ENODEV if error.
+ */
+int __init acpi_arch_timer_mem_init(struct arch_timer_mem *timer_mem,
+				    int *timer_count)
+{
+	int ret;
+	void *platform_timer;
+
+	*timer_count = 0;
+	for_each_platform_timer(platform_timer) {
+		if (is_timer_block(platform_timer)) {
+			ret = gtdt_parse_timer_block(platform_timer, timer_mem);
+			if (ret)
+				return ret;
+			timer_mem++;
+			(*timer_count)++;
+		}
+	}
+
+	if (*timer_count)
+		pr_info("found %d memory-mapped timer block(s).\n",
+			*timer_count);
 
 	return 0;
 }
