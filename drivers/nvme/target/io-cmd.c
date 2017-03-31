@@ -230,7 +230,7 @@ int nvmet_parse_io_cmd(struct nvmet_req *req)
 		return 0;
 	case nvme_cmd_dsm:
 		req->execute = nvmet_execute_dsm;
-		req->data_len = le32_to_cpu(cmd->dsm.nr + 1) *
+		req->data_len = (le32_to_cpu(cmd->dsm.nr) + 1) *
 			sizeof(struct nvme_dsm_range);
 		return 0;
 	case nvme_cmd_write_zeroes:
