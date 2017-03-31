@@ -151,7 +151,7 @@ PNAME(mux_pll_src_dmyvpll_cpll_gpll_p)		= { "dummy_vpll", "cpll", "gpll" };
 PNAME(mux_aclk_cci_p)				= { "dummy_cpll",
 						    "gpll_aclk_cci_src",
 						    "npll_aclk_cci_src",
-						    "vpll_aclk_cci_src" };
+						    "dummy_vpll" };
 PNAME(mux_cci_trace_p)				= { "dummy_cpll",
 						    "gpll_cci_trace" };
 PNAME(mux_cs_p)					= { "dummy_cpll", "gpll_cs",
@@ -205,7 +205,7 @@ PNAME(mux_aclk_gmac_p)			= { "dummy_cpll",
 PNAME(mux_aclk_cci_p)				= { "cpll_aclk_cci_src",
 						    "gpll_aclk_cci_src",
 						    "npll_aclk_cci_src",
-						    "vpll_aclk_cci_src" };
+						    "dummy_vpll" };
 PNAME(mux_cci_trace_p)				= { "cpll_cci_trace",
 						    "gpll_cci_trace" };
 PNAME(mux_cs_p)					= { "cpll_cs", "gpll_cs",
