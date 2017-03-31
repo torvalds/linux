@@ -40,7 +40,7 @@ struct adis16060_state {
 
 static struct iio_dev *adis16060_iio_dev;
 
-static int adis16060_spi_write_than_read(struct iio_dev *indio_dev,
+static int adis16060_spi_write_then_read(struct iio_dev *indio_dev,
 					 u8 conf, u16 *val)
 {
 	int ret;
@@ -81,7 +81,7 @@ static int adis16060_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = adis16060_spi_write_than_read(indio_dev,
+		ret = adis16060_spi_write_then_read(indio_dev,
 						    chan->address, &tval);
 		if (ret < 0)
 			return ret;
