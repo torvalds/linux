@@ -465,11 +465,17 @@ static int mtk_mipi_tx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct mtk_mipitx_data mt2701_mipitx_data = {
+	.mppll_preserve = (3 << 8)
+};
+
 static const struct mtk_mipitx_data mt8173_mipitx_data = {
 	.mppll_preserve = (0 << 8)
 };
 
 static const struct of_device_id mtk_mipi_tx_match[] = {
+	{ .compatible = "mediatek,mt2701-mipi-tx",
+	  .data = &mt2701_mipitx_data },
 	{ .compatible = "mediatek,mt8173-mipi-tx",
 	  .data = &mt8173_mipitx_data },
 	{},
