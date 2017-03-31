@@ -1644,13 +1644,15 @@ out_unlock:
 
 static int arm_smmu_of_xlate(struct device *dev, struct of_phandle_args *args)
 {
-	u32 fwid = 0;
+	u32 mask, fwid = 0;
 
 	if (args->args_count > 0)
 		fwid |= (u16)args->args[0];
 
 	if (args->args_count > 1)
 		fwid |= (u16)args->args[1] << SMR_MASK_SHIFT;
+	else if (!of_property_read_u32(args->np, "stream-match-mask", &mask))
+		fwid |= (u16)mask << SMR_MASK_SHIFT;
 
 	return iommu_fwspec_add_ids(dev, &fwid, 1);
 }
