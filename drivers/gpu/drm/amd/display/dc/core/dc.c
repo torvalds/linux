@@ -1046,10 +1046,10 @@ static enum surface_update_type get_plane_info_update_type(
 	temp_plane_info.rotation = u->surface->rotation;
 	temp_plane_info.stereo_format = u->surface->stereo_format;
 	temp_plane_info.tiling_info = u->surface->tiling_info;
-	temp_plane_info.visible = u->surface->visible;
 
 	/* Special Validation parameters */
 	temp_plane_info.format = u->plane_info->format;
+	temp_plane_info.visible = u->plane_info->visible;
 
 	if (memcmp(u->plane_info, &temp_plane_info,
 			sizeof(struct dc_plane_info)) != 0)
