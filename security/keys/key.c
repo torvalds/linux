@@ -285,7 +285,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	if (!key->index_key.description)
 		goto no_memory_3;
 
-	atomic_set(&key->usage, 1);
+	refcount_set(&key->usage, 1);
 	init_rwsem(&key->sem);
 	lockdep_set_class(&key->sem, &type->lock_class);
 	key->index_key.type = type;
@@ -621,7 +621,7 @@ void key_put(struct key *key)
 	if (key) {
 		key_check(key);
 
-		if (atomic_dec_and_test(&key->usage))
+		if (refcount_dec_and_test(&key->usage))
 			schedule_work(&key_gc_work);
 	}
 }
@@ -656,7 +656,7 @@ not_found:
 
 found:
 	/* pretend it doesn't exist if it is awaiting deletion */
-	if (atomic_read(&key->usage) == 0)
+	if (refcount_read(&key->usage) == 0)
 		goto not_found;
 
 	/* this races with key_put(), but that doesn't matter since key_put()

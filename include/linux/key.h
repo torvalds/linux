@@ -23,6 +23,7 @@
 #include <linux/rwsem.h>
 #include <linux/atomic.h>
 #include <linux/assoc_array.h>
+#include <linux/refcount.h>
 
 #ifdef __KERNEL__
 #include <linux/uidgid.h>
@@ -135,7 +136,7 @@ static inline bool is_key_possessed(const key_ref_t key_ref)
  *   - Kerberos TGTs and tickets
  */
 struct key {
-	atomic_t		usage;		/* number of references */
+	refcount_t		usage;		/* number of references */
 	key_serial_t		serial;		/* key serial number */
 	union {
 		struct list_head graveyard_link;
@@ -242,7 +243,7 @@ extern void key_put(struct key *key);
 
 static inline struct key *__key_get(struct key *key)
 {
-	atomic_inc(&key->usage);
+	refcount_inc(&key->usage);
 	return key;
 }
 

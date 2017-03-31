@@ -1033,7 +1033,7 @@ struct key *find_keyring_by_name(const char *name, bool skip_perm_check)
 			/* we've got a match but we might end up racing with
 			 * key_cleanup() if the keyring is currently 'dead'
 			 * (ie. it has a zero usage count) */
-			if (!atomic_inc_not_zero(&keyring->usage))
+			if (!refcount_inc_not_zero(&keyring->usage))
 				continue;
 			keyring->last_used_at = current_kernel_time().tv_sec;
 			goto out;
@@ -1250,14 +1250,14 @@ int key_link(struct key *keyring, struct key *key)
 	struct assoc_array_edit *edit;
 	int ret;
 
-	kenter("{%d,%d}", keyring->serial, atomic_read(&keyring->usage));
+	kenter("{%d,%d}", keyring->serial, refcount_read(&keyring->usage));
 
 	key_check(keyring);
 	key_check(key);
 
 	ret = __key_link_begin(keyring, &key->index_key, &edit);
 	if (ret == 0) {
-		kdebug("begun {%d,%d}", keyring->serial, atomic_read(&keyring->usage));
+		kdebug("begun {%d,%d}", keyring->serial, refcount_read(&keyring->usage));
 		ret = __key_link_check_restriction(keyring, key);
 		if (ret == 0)
 			ret = __key_link_check_live_key(keyring, key);
@@ -1266,7 +1266,7 @@ int key_link(struct key *keyring, struct key *key)
 		__key_link_end(keyring, &key->index_key, edit);
 	}
 
-	kleave(" = %d {%d,%d}", ret, keyring->serial, atomic_read(&keyring->usage));
+	kleave(" = %d {%d,%d}", ret, keyring->serial, refcount_read(&keyring->usage));
 	return ret;
 }
 EXPORT_SYMBOL(key_link);
