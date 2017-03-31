@@ -149,7 +149,7 @@ static void gdp_dbg_ctl(struct seq_file *s, int val)
 	seq_puts(s, "\tColor:");
 	for (i = 0; i < ARRAY_SIZE(gdp_format_to_str); i++) {
 		if (gdp_format_to_str[i].format == (val & 0x1F)) {
-			seq_printf(s, gdp_format_to_str[i].name);
+			seq_puts(s, gdp_format_to_str[i].name);
 			break;
 		}
 	}
