@@ -158,10 +158,15 @@ static int rga_alloc_dma_buf_for_cmdlist(struct rga_runqueue_node *runqueue)
 		dest = cmdlist_pool_virt + RGA_CMDLIST_SIZE * 4 * count++;
 
 		for (i = 0; i < cmdlist->last / 2; i++) {
+			int val_index = 2 * i + 1;
+
 			reg = (node->cmdlist.data[2 * i] - RGA_MODE_BASE_REG);
-			if (reg > RGA_MODE_BASE_REG)
+
+			if (reg > RGA_MODE_BASE_REG || val_index >=
+			    (RGA_CMDLIST_SIZE + RGA_CMDBUF_SIZE) * 2)
 				continue;
-			dest[reg >> 2] = cmdlist->data[2 * i + 1];
+
+			dest[reg >> 2] = cmdlist->data[val_index];
 		}
 
 		if (cmdlist->src_mmu_pages) {
