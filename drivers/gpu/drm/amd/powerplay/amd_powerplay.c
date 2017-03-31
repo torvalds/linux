@@ -894,7 +894,7 @@ static int pp_dpm_set_sclk_od(void *handle, uint32_t value)
 
 	mutex_lock(&pp_handle->pp_lock);
 	ret = hwmgr->hwmgr_func->set_sclk_od(hwmgr, value);
-	mutex_lock(&pp_handle->pp_lock);
+	mutex_unlock(&pp_handle->pp_lock);
 	return ret;
 }
 
