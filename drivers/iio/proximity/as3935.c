@@ -155,7 +155,7 @@ static struct attribute *as3935_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group as3935_attribute_group = {
+static const struct attribute_group as3935_attribute_group = {
 	.attrs = as3935_attributes,
 };
 
