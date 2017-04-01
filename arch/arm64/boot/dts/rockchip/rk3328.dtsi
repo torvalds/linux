@@ -1548,8 +1548,8 @@
 
 			sdmmc1_bus4: sdmmc1-bus4 {
 				rockchip,pins =
-					<1 RK_PB4 RK_FUNC_1 &pcfg_pull_up_8ma>,
-					<1 RK_PB5 RK_FUNC_1 &pcfg_pull_up_8ma>,
+					<1 RK_PB6 RK_FUNC_1 &pcfg_pull_up_8ma>,
+					<1 RK_PB7 RK_FUNC_1 &pcfg_pull_up_8ma>,
 					<1 RK_PC0 RK_FUNC_1 &pcfg_pull_up_8ma>,
 					<1 RK_PC1 RK_FUNC_1 &pcfg_pull_up_8ma>;
 			};
