@@ -190,6 +190,10 @@
 	clock-names = "aclk_rga", "hclk_rga", "clk_rga";
 };
 
+&timer {
+	status = "disabled";
+};
+
 &usb_otg {
 	compatible = "rockchip,rk3288_usb20_otg";
 	clocks = <&usbphy0>, <&cru HCLK_OTG0>;
