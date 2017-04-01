@@ -1315,6 +1315,8 @@ struct sctp_inithdr_host {
 struct sctp_stream_out {
 	__u16	ssn;
 	__u8	state;
+	__u64	abandoned_unsent[SCTP_PR_INDEX(MAX) + 1];
+	__u64	abandoned_sent[SCTP_PR_INDEX(MAX) + 1];
 };
 
 struct sctp_stream_in {
