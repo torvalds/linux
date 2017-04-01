@@ -148,6 +148,17 @@ static void hns_gmac_config_max_frame_length(void *mac_drv, u16 newval)
 			   GMAC_MAX_FRM_SIZE_S, newval);
 }
 
+static void hns_gmac_config_pad_and_crc(void *mac_drv, u8 newval)
+{
+	u32 tx_ctrl;
+	struct mac_driver *drv = (struct mac_driver *)mac_drv;
+
+	tx_ctrl = dsaf_read_dev(drv, GMAC_TRANSMIT_CONTROL_REG);
+	dsaf_set_bit(tx_ctrl, GMAC_TX_PAD_EN_B, !!newval);
+	dsaf_set_bit(tx_ctrl, GMAC_TX_CRC_ADD_B, !!newval);
+	dsaf_write_dev(drv, GMAC_TRANSMIT_CONTROL_REG, tx_ctrl);
+}
+
 static void hns_gmac_config_an_mode(void *mac_drv, u8 newval)
 {
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
@@ -250,7 +261,6 @@ static void hns_gmac_get_pausefrm_cfg(void *mac_drv, u32 *rx_pause_en,
 static int hns_gmac_adjust_link(void *mac_drv, enum mac_speed speed,
 				u32 full_duplex)
 {
-	u32 tx_ctrl;
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
 
 	dsaf_set_dev_bit(drv, GMAC_DUPLEX_TYPE_REG,
@@ -278,14 +288,6 @@ static int hns_gmac_adjust_link(void *mac_drv, enum mac_speed speed,
 			speed, drv->mac_id);
 		return -EINVAL;
 	}
-
-	tx_ctrl = dsaf_read_dev(drv, GMAC_TRANSMIT_CONTROL_REG);
-	dsaf_set_bit(tx_ctrl, GMAC_TX_PAD_EN_B, 1);
-	dsaf_set_bit(tx_ctrl, GMAC_TX_CRC_ADD_B, 1);
-	dsaf_write_dev(drv, GMAC_TRANSMIT_CONTROL_REG, tx_ctrl);
-
-	dsaf_set_dev_bit(drv, GMAC_MODE_CHANGE_EN_REG,
-			 GMAC_MODE_CHANGE_EB_B, 1);
 
 	return 0;
 }
@@ -325,6 +327,11 @@ static void hns_gmac_init(void *mac_drv)
 	hns_gmac_tx_loop_pkt_dis(mac_drv);
 	if (drv->mac_cb->mac_type == HNAE_PORT_DEBUG)
 		hns_gmac_set_uc_match(mac_drv, 0);
+
+	hns_gmac_config_pad_and_crc(mac_drv, 1);
+
+	dsaf_set_dev_bit(drv, GMAC_MODE_CHANGE_EN_REG,
+			 GMAC_MODE_CHANGE_EB_B, 1);
 
 	/* reduce gmac tx water line to avoid gmac hang-up
 	 * in speed 100M and duplex half.
@@ -457,17 +464,6 @@ static int hns_gmac_config_loopback(void *mac_drv, enum hnae_loop loop_mode,
 	}
 
 	return 0;
-}
-
-static void hns_gmac_config_pad_and_crc(void *mac_drv, u8 newval)
-{
-	u32 tx_ctrl;
-	struct mac_driver *drv = (struct mac_driver *)mac_drv;
-
-	tx_ctrl = dsaf_read_dev(drv, GMAC_TRANSMIT_CONTROL_REG);
-	dsaf_set_bit(tx_ctrl, GMAC_TX_PAD_EN_B, !!newval);
-	dsaf_set_bit(tx_ctrl, GMAC_TX_CRC_ADD_B, !!newval);
-	dsaf_write_dev(drv, GMAC_TRANSMIT_CONTROL_REG, tx_ctrl);
 }
 
 static void hns_gmac_get_id(void *mac_drv, u8 *mac_id)
