@@ -67,8 +67,6 @@
 static int batadv_get_settings(struct net_device *dev, struct ethtool_cmd *cmd);
 static void batadv_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info);
-static u32 batadv_get_msglevel(struct net_device *dev);
-static void batadv_set_msglevel(struct net_device *dev, u32 value);
 static void batadv_get_strings(struct net_device *dev, u32 stringset, u8 *data);
 static void batadv_get_ethtool_stats(struct net_device *dev,
 				     struct ethtool_stats *stats, u64 *data);
@@ -77,8 +75,6 @@ static int batadv_get_sset_count(struct net_device *dev, int stringset);
 static const struct ethtool_ops batadv_ethtool_ops = {
 	.get_settings = batadv_get_settings,
 	.get_drvinfo = batadv_get_drvinfo,
-	.get_msglevel = batadv_get_msglevel,
-	.set_msglevel = batadv_set_msglevel,
 	.get_link = ethtool_op_get_link,
 	.get_strings = batadv_get_strings,
 	.get_ethtool_stats = batadv_get_ethtool_stats,
@@ -1107,15 +1103,6 @@ static void batadv_get_drvinfo(struct net_device *dev,
 	strlcpy(info->version, BATADV_SOURCE_VERSION, sizeof(info->version));
 	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 	strlcpy(info->bus_info, "batman", sizeof(info->bus_info));
-}
-
-static u32 batadv_get_msglevel(struct net_device *dev)
-{
-	return -EOPNOTSUPP;
-}
-
-static void batadv_set_msglevel(struct net_device *dev, u32 value)
-{
 }
 
 /* Inspired by drivers/net/ethernet/dlink/sundance.c:1702
