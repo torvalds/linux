@@ -235,6 +235,7 @@ struct vop_win_phy {
 	struct vop_reg yrgb_vir;
 	struct vop_reg uv_vir;
 
+	struct vop_reg channel;
 	struct vop_reg dst_alpha_ctl;
 	struct vop_reg src_alpha_ctl;
 	struct vop_reg alpha_mode;

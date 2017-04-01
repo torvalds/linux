@@ -825,7 +825,9 @@ static void vop_initial(struct drm_crtc *crtc)
 	 */
 	for (i = 0; i < vop->num_wins; i++) {
 		struct vop_win *win = &vop->win[i];
+		int channel = i * 2 + 1;
 
+		VOP_WIN_SET(vop, win, channel, (channel + 1) << 4 | channel);
 		if (win->phy->scl && win->phy->scl->ext) {
 			VOP_SCL_SET_EXT(vop, win, yrgb_hor_scl_mode, SCALE_NONE);
 			VOP_SCL_SET_EXT(vop, win, yrgb_ver_scl_mode, SCALE_NONE);
