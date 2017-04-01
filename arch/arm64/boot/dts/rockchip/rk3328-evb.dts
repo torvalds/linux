@@ -100,6 +100,15 @@
 		compatible = "linux,spdif-dit";
 		#sound-dai-cells = <0>;
 	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6354";
+		sdio_vref = <1800>;
+		WIFI,host_wake_irq = <&gpio1 19 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
 };
 
 &i2s1 {
