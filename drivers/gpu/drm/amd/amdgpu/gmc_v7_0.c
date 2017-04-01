@@ -37,6 +37,8 @@
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
 
+#include "amdgpu_atombios.h"
+
 static void gmc_v7_0_set_gart_funcs(struct amdgpu_device *adev);
 static void gmc_v7_0_set_irq_funcs(struct amdgpu_device *adev);
 static int gmc_v7_0_wait_for_idle(void *handle);
@@ -325,48 +327,51 @@ static void gmc_v7_0_mc_program(struct amdgpu_device *adev)
  */
 static int gmc_v7_0_mc_init(struct amdgpu_device *adev)
 {
-	u32 tmp;
-	int chansize, numchan;
+	adev->mc.vram_width = amdgpu_atombios_get_vram_width(adev);
+	if (!adev->mc.vram_width) {
+		u32 tmp;
+		int chansize, numchan;
 
-	/* Get VRAM informations */
-	tmp = RREG32(mmMC_ARB_RAMCFG);
-	if (REG_GET_FIELD(tmp, MC_ARB_RAMCFG, CHANSIZE)) {
-		chansize = 64;
-	} else {
-		chansize = 32;
+		/* Get VRAM informations */
+		tmp = RREG32(mmMC_ARB_RAMCFG);
+		if (REG_GET_FIELD(tmp, MC_ARB_RAMCFG, CHANSIZE)) {
+			chansize = 64;
+		} else {
+			chansize = 32;
+		}
+		tmp = RREG32(mmMC_SHARED_CHMAP);
+		switch (REG_GET_FIELD(tmp, MC_SHARED_CHMAP, NOOFCHAN)) {
+		case 0:
+		default:
+			numchan = 1;
+			break;
+		case 1:
+			numchan = 2;
+			break;
+		case 2:
+			numchan = 4;
+			break;
+		case 3:
+			numchan = 8;
+			break;
+		case 4:
+			numchan = 3;
+			break;
+		case 5:
+			numchan = 6;
+			break;
+		case 6:
+			numchan = 10;
+			break;
+		case 7:
+			numchan = 12;
+			break;
+		case 8:
+			numchan = 16;
+			break;
+		}
+		adev->mc.vram_width = numchan * chansize;
 	}
-	tmp = RREG32(mmMC_SHARED_CHMAP);
-	switch (REG_GET_FIELD(tmp, MC_SHARED_CHMAP, NOOFCHAN)) {
-	case 0:
-	default:
-		numchan = 1;
-		break;
-	case 1:
-		numchan = 2;
-		break;
-	case 2:
-		numchan = 4;
-		break;
-	case 3:
-		numchan = 8;
-		break;
-	case 4:
-		numchan = 3;
-		break;
-	case 5:
-		numchan = 6;
-		break;
-	case 6:
-		numchan = 10;
-		break;
-	case 7:
-		numchan = 12;
-		break;
-	case 8:
-		numchan = 16;
-		break;
-	}
-	adev->mc.vram_width = numchan * chansize;
 	/* Could aper size report 0 ? */
 	adev->mc.aper_base = pci_resource_start(adev->pdev, 0);
 	adev->mc.aper_size = pci_resource_len(adev->pdev, 0);

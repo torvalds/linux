@@ -148,6 +148,8 @@ int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev);
 
 int amdgpu_atombios_get_gfx_info(struct amdgpu_device *adev);
 
+int amdgpu_atombios_get_vram_width(struct amdgpu_device *adev);
+
 bool amdgpu_atombios_get_asic_ss_info(struct amdgpu_device *adev,
 				      struct amdgpu_atom_ss *ss,
 				      int id, u32 clock);
