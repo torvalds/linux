@@ -254,18 +254,22 @@ static bool ht16k33_keypad_scan(struct ht16k33_keypad *keypad)
 {
 	const unsigned short *keycodes = keypad->dev->keycode;
 	u16 new_state[HT16K33_MATRIX_KEYPAD_MAX_COLS];
-	u8 data[HT16K33_MATRIX_KEYPAD_MAX_COLS * 2];
+	__le16 data[HT16K33_MATRIX_KEYPAD_MAX_COLS];
 	unsigned long bits_changed;
 	int row, col, code;
+	int rc;
 	bool pressed = false;
 
-	if (i2c_smbus_read_i2c_block_data(keypad->client, 0x40, 6, data) != 6) {
-		dev_err(&keypad->client->dev, "Failed to read key data\n");
+	rc = i2c_smbus_read_i2c_block_data(keypad->client, 0x40,
+					   sizeof(data), (u8 *)data);
+	if (rc != sizeof(data)) {
+		dev_err(&keypad->client->dev,
+			"Failed to read key data, rc=%d\n", rc);
 		return false;
 	}
 
 	for (col = 0; col < keypad->cols; col++) {
-		new_state[col] = (data[col * 2 + 1] << 8) | data[col * 2];
+		new_state[col] = le16_to_cpu(data[col]);
 		if (new_state[col])
 			pressed = true;
 		bits_changed = keypad->last_key_state[col] ^ new_state[col];
