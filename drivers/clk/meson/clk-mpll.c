@@ -65,18 +65,21 @@
 #include "clkc.h"
 
 #define SDM_DEN 16384
-#define SDM_MIN 1
-#define SDM_MAX 16383
 #define N2_MIN	4
 #define N2_MAX	511
 
 #define to_meson_clk_mpll(_hw) container_of(_hw, struct meson_clk_mpll, hw)
 
-static unsigned long rate_from_params(unsigned long parent_rate,
+static long rate_from_params(unsigned long parent_rate,
 				      unsigned long sdm,
 				      unsigned long n2)
 {
-	return (parent_rate * SDM_DEN) / ((SDM_DEN * n2) + sdm);
+	unsigned long divisor = (SDM_DEN * n2) + sdm;
+
+	if (n2 < N2_MIN)
+		return -EINVAL;
+
+	return (parent_rate * SDM_DEN) / divisor;
 }
 
 static void params_from_rate(unsigned long requested_rate,
@@ -89,17 +92,13 @@ static void params_from_rate(unsigned long requested_rate,
 
 	if (div < N2_MIN) {
 		*n2 = N2_MIN;
-		*sdm = SDM_MIN;
+		*sdm = 0;
 	} else if (div > N2_MAX) {
 		*n2 = N2_MAX;
-		*sdm = SDM_MAX;
+		*sdm = SDM_DEN - 1;
 	} else {
 		*n2 = div;
 		*sdm = DIV_ROUND_UP(rem * SDM_DEN, requested_rate);
-		if (*sdm < SDM_MIN)
-			*sdm = SDM_MIN;
-		else if (*sdm > SDM_MAX)
-			*sdm = SDM_MAX;
 	}
 }
 
@@ -109,6 +108,7 @@ static unsigned long mpll_recalc_rate(struct clk_hw *hw,
 	struct meson_clk_mpll *mpll = to_meson_clk_mpll(hw);
 	struct parm *p;
 	unsigned long reg, sdm, n2;
+	long rate;
 
 	p = &mpll->sdm;
 	reg = readl(mpll->base + p->reg_off);
@@ -118,7 +118,11 @@ static unsigned long mpll_recalc_rate(struct clk_hw *hw,
 	reg = readl(mpll->base + p->reg_off);
 	n2 = PARM_GET(p->width, p->shift, reg);
 
-	return rate_from_params(parent_rate, sdm, n2);
+	rate = rate_from_params(parent_rate, sdm, n2);
+	if (rate < 0)
+		return 0;
+
+	return rate;
 }
 
 static long mpll_round_rate(struct clk_hw *hw,
