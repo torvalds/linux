@@ -887,13 +887,13 @@
 		| RKPM_SLP_DDR_RET
 		| RKPM_SLP_PLLPD
 		| RKPM_SLP_CENTER_PD
+		| RKPM_SLP_OSC_DIS
 		| RKPM_SLP_AP_PWROFF
 		)
 	>;
 	rockchip,wakeup-config = <
 		(0
 		| RKPM_GPIO_WKUP_EN
-		| RKPM_PWM_WKUP_EN
 		)
 	>;
 	rockchip,pwm-regulator-config = <
