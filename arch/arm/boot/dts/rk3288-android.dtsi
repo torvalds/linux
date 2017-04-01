@@ -184,6 +184,11 @@
 	};
 };
 
+&dmac_bus_s {
+	/* change to non-secure dmac */
+	reg = <0xff600000 0x4000>;
+};
+
 &rga {
 	compatible = "rockchip,rga2";
 	clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
