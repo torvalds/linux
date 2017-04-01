@@ -637,7 +637,6 @@
 			"aclk_mac", "pclk_mac";
 		resets = <&cru SRST_MAC>;
 		reset-names = "stmmaceth";
-		max-speed = <100>;
 		status = "disabled";
 	};
 
