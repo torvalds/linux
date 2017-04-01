@@ -435,15 +435,6 @@ int hns_dsaf_del_mac_entry(struct dsaf_device *dsaf_dev, u16 vlan_id,
 			   u8 in_port_num, u8 *addr);
 int hns_dsaf_del_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     struct dsaf_drv_mac_single_dest_entry *mac_entry);
-int hns_dsaf_get_mac_uc_entry(struct dsaf_device *dsaf_dev,
-			      struct dsaf_drv_mac_single_dest_entry *mac_entry);
-int hns_dsaf_get_mac_mc_entry(struct dsaf_device *dsaf_dev,
-			      struct dsaf_drv_mac_multi_dest_entry *mac_entry);
-int hns_dsaf_get_mac_entry_by_index(
-	struct dsaf_device *dsaf_dev,
-	u16 entry_index,
-	struct dsaf_drv_mac_multi_dest_entry *mac_entry);
-
 void hns_dsaf_fix_mac_mode(struct hns_mac_cb *mac_cb);
 
 int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev);
@@ -472,6 +463,5 @@ int hns_dsaf_rm_mac_addr(
 
 int hns_dsaf_clr_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     u8 mac_id, u8 port_num);
-
 
 #endif /* __HNS_DSAF_MAIN_H__ */
