@@ -1196,54 +1196,31 @@ static void hns_nic_ring_close(struct net_device *netdev, int idx)
 	napi_disable(&priv->ring_data[idx].napi);
 }
 
-static void hns_set_irq_affinity(struct hns_nic_priv *priv)
+static int hns_nic_init_affinity_mask(int q_num, int ring_idx,
+				      struct hnae_ring *ring, cpumask_t *mask)
 {
-	struct hnae_handle *h = priv->ae_handle;
-	struct hns_nic_ring_data *rd;
-	int i;
 	int cpu;
-	cpumask_var_t mask;
 
-	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
-		return;
-
-	/*diffrent irq banlance for 16core and 32core*/
-	if (h->q_num == num_possible_cpus()) {
-		for (i = 0; i < h->q_num * 2; i++) {
-			rd = &priv->ring_data[i];
-			if (cpu_online(rd->queue_index)) {
-				cpumask_clear(mask);
-				cpu = rd->queue_index;
-				cpumask_set_cpu(cpu, mask);
-				(void)irq_set_affinity_hint(rd->ring->irq,
-							    mask);
-			}
-		}
+	/* Diffrent irq banlance between 16core and 32core.
+	 * The cpu mask set by ring index according to the ring flag
+	 * which indicate the ring is tx or rx.
+	 */
+	if (q_num == num_possible_cpus()) {
+		if (is_tx_ring(ring))
+			cpu = ring_idx;
+		else
+			cpu = ring_idx - q_num;
 	} else {
-		for (i = 0; i < h->q_num; i++) {
-			rd = &priv->ring_data[i];
-			if (cpu_online(rd->queue_index * 2)) {
-				cpumask_clear(mask);
-				cpu = rd->queue_index * 2;
-				cpumask_set_cpu(cpu, mask);
-				(void)irq_set_affinity_hint(rd->ring->irq,
-							    mask);
-			}
-		}
-
-		for (i = h->q_num; i < h->q_num * 2; i++) {
-			rd = &priv->ring_data[i];
-			if (cpu_online(rd->queue_index * 2 + 1)) {
-				cpumask_clear(mask);
-				cpu = rd->queue_index * 2 + 1;
-				cpumask_set_cpu(cpu, mask);
-				(void)irq_set_affinity_hint(rd->ring->irq,
-							    mask);
-			}
-		}
+		if (is_tx_ring(ring))
+			cpu = ring_idx * 2;
+		else
+			cpu = (ring_idx - q_num) * 2 + 1;
 	}
 
-	free_cpumask_var(mask);
+	cpumask_clear(mask);
+	cpumask_set_cpu(cpu, mask);
+
+	return cpu;
 }
 
 static int hns_nic_init_irq(struct hns_nic_priv *priv)
@@ -1252,6 +1229,7 @@ static int hns_nic_init_irq(struct hns_nic_priv *priv)
 	struct hns_nic_ring_data *rd;
 	int i;
 	int ret;
+	int cpu;
 
 	for (i = 0; i < h->q_num * 2; i++) {
 		rd = &priv->ring_data[i];
@@ -1261,7 +1239,7 @@ static int hns_nic_init_irq(struct hns_nic_priv *priv)
 
 		snprintf(rd->ring->ring_name, RCB_RING_NAME_LEN,
 			 "%s-%s%d", priv->netdev->name,
-			 (i < h->q_num ? "tx" : "rx"), rd->queue_index);
+			 (is_tx_ring(rd->ring) ? "tx" : "rx"), rd->queue_index);
 
 		rd->ring->ring_name[RCB_RING_NAME_LEN - 1] = '\0';
 
@@ -1273,11 +1251,16 @@ static int hns_nic_init_irq(struct hns_nic_priv *priv)
 			return ret;
 		}
 		disable_irq(rd->ring->irq);
+
+		cpu = hns_nic_init_affinity_mask(h->q_num, i,
+						 rd->ring, &rd->mask);
+
+		if (cpu_online(cpu))
+			irq_set_affinity_hint(rd->ring->irq,
+					      &rd->mask);
+
 		rd->ring->irq_init_flag = RCB_IRQ_INITED;
 	}
-
-	/*set cpu affinity*/
-	hns_set_irq_affinity(priv);
 
 	return 0;
 }
