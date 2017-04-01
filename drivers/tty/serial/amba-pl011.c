@@ -1327,14 +1327,15 @@ static void pl011_stop_tx(struct uart_port *port)
 	pl011_dma_tx_stop(uap);
 }
 
-static void pl011_tx_chars(struct uart_amba_port *uap, bool from_irq);
+static bool pl011_tx_chars(struct uart_amba_port *uap, bool from_irq);
 
 /* Start TX with programmed I/O only (no DMA) */
 static void pl011_start_tx_pio(struct uart_amba_port *uap)
 {
-	uap->im |= UART011_TXIM;
-	pl011_write(uap->im, uap, REG_IMSC);
-	pl011_tx_chars(uap, false);
+	if (pl011_tx_chars(uap, false)) {
+		uap->im |= UART011_TXIM;
+		pl011_write(uap->im, uap, REG_IMSC);
+	}
 }
 
 static void pl011_start_tx(struct uart_port *port)
@@ -1414,25 +1415,26 @@ static bool pl011_tx_char(struct uart_amba_port *uap, unsigned char c,
 	return true;
 }
 
-static void pl011_tx_chars(struct uart_amba_port *uap, bool from_irq)
+/* Returns true if tx interrupts have to be (kept) enabled  */
+static bool pl011_tx_chars(struct uart_amba_port *uap, bool from_irq)
 {
 	struct circ_buf *xmit = &uap->port.state->xmit;
 	int count = uap->fifosize >> 1;
 
 	if (uap->port.x_char) {
 		if (!pl011_tx_char(uap, uap->port.x_char, from_irq))
-			return;
+			return true;
 		uap->port.x_char = 0;
 		--count;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&uap->port)) {
 		pl011_stop_tx(&uap->port);
-		return;
+		return false;
 	}
 
 	/* If we are using DMA mode, try to send some characters. */
 	if (pl011_dma_tx_irq(uap))
-		return;
+		return true;
 
 	do {
 		if (likely(from_irq) && count-- == 0)
@@ -1447,8 +1449,11 @@ static void pl011_tx_chars(struct uart_amba_port *uap, bool from_irq)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&uap->port);
 
-	if (uart_circ_empty(xmit))
+	if (uart_circ_empty(xmit)) {
 		pl011_stop_tx(&uap->port);
+		return false;
+	}
+	return true;
 }
 
 static void pl011_modem_status(struct uart_amba_port *uap)
