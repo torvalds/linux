@@ -456,6 +456,14 @@ struct dsa_switch_ops {
 				   bool ingress);
 	void	(*port_mirror_del)(struct dsa_switch *ds, int port,
 				   struct dsa_mall_mirror_tc_entry *mirror);
+
+	/*
+	 * Cross-chip operations
+	 */
+	int	(*crosschip_bridge_join)(struct dsa_switch *ds, int sw_index,
+					 int port, struct net_device *br);
+	void	(*crosschip_bridge_leave)(struct dsa_switch *ds, int sw_index,
+					  int port, struct net_device *br);
 };
 
 struct dsa_switch_driver {
