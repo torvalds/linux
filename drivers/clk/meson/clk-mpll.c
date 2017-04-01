@@ -79,7 +79,7 @@ static long rate_from_params(unsigned long parent_rate,
 	if (n2 < N2_MIN)
 		return -EINVAL;
 
-	return (parent_rate * SDM_DEN) / divisor;
+	return DIV_ROUND_UP_ULL((u64)parent_rate * SDM_DEN, divisor);
 }
 
 static void params_from_rate(unsigned long requested_rate,
