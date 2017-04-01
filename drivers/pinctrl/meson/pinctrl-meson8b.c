@@ -739,8 +739,8 @@ static const char * const sdxc_c_groups[] = {
 static const char * const nand_groups[] = {
 	"nand_io", "nand_io_ce0", "nand_io_ce1",
 	"nand_io_rb0", "nand_ale", "nand_cle",
-	"nand_wen_clk", "nand_ren_clk", "nand_dqs0",
-	"nand_dqs1"
+	"nand_wen_clk", "nand_ren_clk", "nand_dqs_0",
+	"nand_dqs_1"
 };
 
 static const char * const nor_groups[] = {
