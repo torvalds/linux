@@ -267,8 +267,32 @@ static int hns_ae_clr_multicast(struct hnae_handle *handle)
 static int hns_ae_set_mtu(struct hnae_handle *handle, int new_mtu)
 {
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+	struct hnae_queue *q;
+	u32 rx_buf_size;
+	int i, ret;
 
-	return hns_mac_set_mtu(mac_cb, new_mtu);
+	/* when buf_size is 2048, max mtu is 6K for rx ring max bd num is 3. */
+	if (!AE_IS_VER1(mac_cb->dsaf_dev->dsaf_ver)) {
+		if (new_mtu <= BD_SIZE_2048_MAX_MTU)
+			rx_buf_size = 2048;
+		else
+			rx_buf_size = 4096;
+	} else {
+		rx_buf_size = mac_cb->dsaf_dev->buf_size;
+	}
+
+	ret = hns_mac_set_mtu(mac_cb, new_mtu, rx_buf_size);
+
+	if (!ret) {
+		/* reinit ring buf_size */
+		for (i = 0; i < handle->q_num; i++) {
+			q = handle->qs[i];
+			q->rx_ring.buf_size = rx_buf_size;
+			hns_rcb_set_rx_ring_bs(q, rx_buf_size);
+		}
+	}
+
+	return ret;
 }
 
 static void hns_ae_set_tso_stats(struct hnae_handle *handle, int enable)

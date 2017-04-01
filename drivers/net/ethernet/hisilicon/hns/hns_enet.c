@@ -1480,32 +1480,259 @@ static netdev_tx_t hns_nic_net_xmit(struct sk_buff *skb,
 	return (netdev_tx_t)ret;
 }
 
+static void hns_nic_drop_rx_fetch(struct hns_nic_ring_data *ring_data,
+				  struct sk_buff *skb)
+{
+	dev_kfree_skb_any(skb);
+}
+
+#define HNS_LB_TX_RING	0
+static struct sk_buff *hns_assemble_skb(struct net_device *ndev)
+{
+	struct sk_buff *skb;
+	struct ethhdr *ethhdr;
+	int frame_len;
+
+	/* allocate test skb */
+	skb = alloc_skb(64, GFP_KERNEL);
+	if (!skb)
+		return NULL;
+
+	skb_put(skb, 64);
+	skb->dev = ndev;
+	memset(skb->data, 0xFF, skb->len);
+
+	/* must be tcp/ip package */
+	ethhdr = (struct ethhdr *)skb->data;
+	ethhdr->h_proto = htons(ETH_P_IP);
+
+	frame_len = skb->len & (~1ul);
+	memset(&skb->data[frame_len / 2], 0xAA,
+	       frame_len / 2 - 1);
+
+	skb->queue_mapping = HNS_LB_TX_RING;
+
+	return skb;
+}
+
+static int hns_enable_serdes_lb(struct net_device *ndev)
+{
+	struct hns_nic_priv *priv = netdev_priv(ndev);
+	struct hnae_handle *h = priv->ae_handle;
+	struct hnae_ae_ops *ops = h->dev->ops;
+	int speed, duplex;
+	int ret;
+
+	ret = ops->set_loopback(h, MAC_INTERNALLOOP_SERDES, 1);
+	if (ret)
+		return ret;
+
+	ret = ops->start ? ops->start(h) : 0;
+	if (ret)
+		return ret;
+
+	/* link adjust duplex*/
+	if (h->phy_if != PHY_INTERFACE_MODE_XGMII)
+		speed = 1000;
+	else
+		speed = 10000;
+	duplex = 1;
+
+	ops->adjust_link(h, speed, duplex);
+
+	/* wait h/w ready */
+	mdelay(300);
+
+	return 0;
+}
+
+static void hns_disable_serdes_lb(struct net_device *ndev)
+{
+	struct hns_nic_priv *priv = netdev_priv(ndev);
+	struct hnae_handle *h = priv->ae_handle;
+	struct hnae_ae_ops *ops = h->dev->ops;
+
+	ops->stop(h);
+	ops->set_loopback(h, MAC_INTERNALLOOP_SERDES, 0);
+}
+
+/**
+ *hns_nic_clear_all_rx_fetch - clear the chip fetched descriptions. The
+ *function as follows:
+ *    1. if one rx ring has found the page_offset is not equal 0 between head
+ *       and tail, it means that the chip fetched the wrong descs for the ring
+ *       which buffer size is 4096.
+ *    2. we set the chip serdes loopback and set rss indirection to the ring.
+ *    3. construct 64-bytes ip broadcast packages, wait the associated rx ring
+ *       recieving all packages and it will fetch new descriptions.
+ *    4. recover to the original state.
+ *
+ *@ndev: net device
+ */
+static int hns_nic_clear_all_rx_fetch(struct net_device *ndev)
+{
+	struct hns_nic_priv *priv = netdev_priv(ndev);
+	struct hnae_handle *h = priv->ae_handle;
+	struct hnae_ae_ops *ops = h->dev->ops;
+	struct hns_nic_ring_data *rd;
+	struct hnae_ring *ring;
+	struct sk_buff *skb;
+	u32 *org_indir;
+	u32 *cur_indir;
+	int indir_size;
+	int head, tail;
+	int fetch_num;
+	int i, j;
+	bool found;
+	int retry_times;
+	int ret = 0;
+
+	/* alloc indir memory */
+	indir_size = ops->get_rss_indir_size(h) * sizeof(*org_indir);
+	org_indir = kzalloc(indir_size, GFP_KERNEL);
+	if (!org_indir)
+		return -ENOMEM;
+
+	/* store the orginal indirection */
+	ops->get_rss(h, org_indir, NULL, NULL);
+
+	cur_indir = kzalloc(indir_size, GFP_KERNEL);
+	if (!cur_indir) {
+		ret = -ENOMEM;
+		goto cur_indir_alloc_err;
+	}
+
+	/* set loopback */
+	if (hns_enable_serdes_lb(ndev)) {
+		ret = -EINVAL;
+		goto enable_serdes_lb_err;
+	}
+
+	/* foreach every rx ring to clear fetch desc */
+	for (i = 0; i < h->q_num; i++) {
+		ring = &h->qs[i]->rx_ring;
+		head = readl_relaxed(ring->io_base + RCB_REG_HEAD);
+		tail = readl_relaxed(ring->io_base + RCB_REG_TAIL);
+		found = false;
+		fetch_num = ring_dist(ring, head, tail);
+
+		while (head != tail) {
+			if (ring->desc_cb[head].page_offset != 0) {
+				found = true;
+				break;
+			}
+
+			head++;
+			if (head == ring->desc_num)
+				head = 0;
+		}
+
+		if (found) {
+			for (j = 0; j < indir_size / sizeof(*org_indir); j++)
+				cur_indir[j] = i;
+			ops->set_rss(h, cur_indir, NULL, 0);
+
+			for (j = 0; j < fetch_num; j++) {
+				/* alloc one skb and init */
+				skb = hns_assemble_skb(ndev);
+				if (!skb)
+					goto out;
+				rd = &tx_ring_data(priv, skb->queue_mapping);
+				hns_nic_net_xmit_hw(ndev, skb, rd);
+
+				retry_times = 0;
+				while (retry_times++ < 10) {
+					mdelay(10);
+					/* clean rx */
+					rd = &rx_ring_data(priv, i);
+					if (rd->poll_one(rd, fetch_num,
+							 hns_nic_drop_rx_fetch))
+						break;
+				}
+
+				retry_times = 0;
+				while (retry_times++ < 10) {
+					mdelay(10);
+					/* clean tx ring 0 send package */
+					rd = &tx_ring_data(priv,
+							   HNS_LB_TX_RING);
+					if (rd->poll_one(rd, fetch_num, NULL))
+						break;
+				}
+			}
+		}
+	}
+
+out:
+	/* restore everything */
+	ops->set_rss(h, org_indir, NULL, 0);
+	hns_disable_serdes_lb(ndev);
+enable_serdes_lb_err:
+	kfree(cur_indir);
+cur_indir_alloc_err:
+	kfree(org_indir);
+
+	return ret;
+}
+
 static int hns_nic_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct hnae_handle *h = priv->ae_handle;
+	bool if_running = netif_running(ndev);
 	int ret;
+
+	/* MTU < 68 is an error and causes problems on some kernels */
+	if (new_mtu < 68)
+		return -EINVAL;
+
+	/* MTU no change */
+	if (new_mtu == ndev->mtu)
+		return 0;
 
 	if (!h->dev->ops->set_mtu)
 		return -ENOTSUPP;
 
-	if (netif_running(ndev)) {
+	if (if_running) {
 		(void)hns_nic_net_stop(ndev);
 		msleep(100);
-
-		ret = h->dev->ops->set_mtu(h, new_mtu);
-		if (ret)
-			netdev_err(ndev, "set mtu fail, return value %d\n",
-				   ret);
-
-		if (hns_nic_net_open(ndev))
-			netdev_err(ndev, "hns net open fail\n");
-	} else {
-		ret = h->dev->ops->set_mtu(h, new_mtu);
 	}
 
-	if (!ret)
-		ndev->mtu = new_mtu;
+	if (priv->enet_ver != AE_VERSION_1 &&
+	    ndev->mtu <= BD_SIZE_2048_MAX_MTU &&
+	    new_mtu > BD_SIZE_2048_MAX_MTU) {
+		/* update desc */
+		hnae_reinit_all_ring_desc(h);
+
+		/* clear the package which the chip has fetched */
+		ret = hns_nic_clear_all_rx_fetch(ndev);
+
+		/* the page offset must be consist with desc */
+		hnae_reinit_all_ring_page_off(h);
+
+		if (ret) {
+			netdev_err(ndev, "clear the fetched desc fail\n");
+			goto out;
+		}
+	}
+
+	ret = h->dev->ops->set_mtu(h, new_mtu);
+	if (ret) {
+		netdev_err(ndev, "set mtu fail, return value %d\n",
+			   ret);
+		goto out;
+	}
+
+	/* finally, set new mtu to netdevice */
+	ndev->mtu = new_mtu;
+
+out:
+	if (if_running) {
+		if (hns_nic_net_open(ndev)) {
+			netdev_err(ndev, "hns net open fail\n");
+			ret = -EINVAL;
+		}
+	}
 
 	return ret;
 }

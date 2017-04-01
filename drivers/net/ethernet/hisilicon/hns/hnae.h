@@ -67,6 +67,8 @@ do { \
 #define AE_IS_VER1(ver) ((ver) == AE_VERSION_1)
 #define AE_NAME_SIZE 16
 
+#define BD_SIZE_2048_MAX_MTU   6000
+
 /* some said the RX and TX RCB format should not be the same in the future. But
  * it is the same now...
  */
@@ -644,6 +646,41 @@ static inline void hnae_reuse_buffer(struct hnae_ring *ring, int i)
 	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma
 		+ ring->desc_cb[i].page_offset);
 	ring->desc[i].rx.ipoff_bnum_pid_flag = 0;
+}
+
+/* when reinit buffer size, we should reinit buffer description */
+static inline void hnae_reinit_all_ring_desc(struct hnae_handle *h)
+{
+	int i, j;
+	struct hnae_ring *ring;
+
+	for (i = 0; i < h->q_num; i++) {
+		ring = &h->qs[i]->rx_ring;
+		for (j = 0; j < ring->desc_num; j++)
+			ring->desc[j].addr = cpu_to_le64(ring->desc_cb[j].dma);
+	}
+
+	wmb();	/* commit all data before submit */
+}
+
+/* when reinit buffer size, we should reinit page offset */
+static inline void hnae_reinit_all_ring_page_off(struct hnae_handle *h)
+{
+	int i, j;
+	struct hnae_ring *ring;
+
+	for (i = 0; i < h->q_num; i++) {
+		ring = &h->qs[i]->rx_ring;
+		for (j = 0; j < ring->desc_num; j++) {
+			ring->desc_cb[j].page_offset = 0;
+			if (ring->desc[j].addr !=
+			    cpu_to_le64(ring->desc_cb[j].dma))
+				ring->desc[j].addr =
+					cpu_to_le64(ring->desc_cb[j].dma);
+		}
+	}
+
+	wmb();	/* commit all data before submit */
 }
 
 #define hnae_set_field(origin, mask, shift, val) \

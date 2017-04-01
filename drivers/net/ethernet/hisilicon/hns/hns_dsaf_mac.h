@@ -444,7 +444,7 @@ void hns_mac_get_autoneg(struct hns_mac_cb *mac_cb, u32 *auto_neg);
 void hns_mac_get_pauseparam(struct hns_mac_cb *mac_cb, u32 *rx_en, u32 *tx_en);
 int hns_mac_set_autoneg(struct hns_mac_cb *mac_cb, u8 enable);
 int hns_mac_set_pauseparam(struct hns_mac_cb *mac_cb, u32 rx_en, u32 tx_en);
-int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu);
+int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu, u32 buf_size);
 int hns_mac_get_port_info(struct hns_mac_cb *mac_cb,
 			  u8 *auto_neg, u16 *speed, u8 *duplex);
 int hns_mac_config_mac_loopback(struct hns_mac_cb *mac_cb,

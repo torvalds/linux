@@ -32,6 +32,9 @@
 #define RCB_RESET_WAIT_TIMES 30
 #define RCB_RESET_TRY_TIMES 10
 
+/* Because default mtu is 1500, rcb buffer size is set to 2048 enough */
+#define RCB_DEFAULT_BUFFER_SIZE 2048
+
 /**
  *hns_rcb_wait_fbd_clean - clean fbd
  *@qs: ring struct pointer array
@@ -192,6 +195,30 @@ void hns_rcb_common_init_commit_hw(struct rcb_common_cb *rcb_common)
 	wmb();	/* Sync point after breakpoint */
 }
 
+/* hns_rcb_set_tx_ring_bs - init rcb ring buf size regester
+ *@q: hnae_queue
+ *@buf_size: buffer size set to hw
+ */
+void hns_rcb_set_tx_ring_bs(struct hnae_queue *q, u32 buf_size)
+{
+	u32 bd_size_type = hns_rcb_buf_size2type(buf_size);
+
+	dsaf_write_dev(q, RCB_RING_TX_RING_BD_LEN_REG,
+		       bd_size_type);
+}
+
+/* hns_rcb_set_rx_ring_bs - init rcb ring buf size regester
+ *@q: hnae_queue
+ *@buf_size: buffer size set to hw
+ */
+void hns_rcb_set_rx_ring_bs(struct hnae_queue *q, u32 buf_size)
+{
+	u32 bd_size_type = hns_rcb_buf_size2type(buf_size);
+
+	dsaf_write_dev(q, RCB_RING_RX_RING_BD_LEN_REG,
+		       bd_size_type);
+}
+
 /**
  *hns_rcb_ring_init - init rcb ring
  *@ring_pair: ring pair control block
@@ -200,8 +227,6 @@ void hns_rcb_common_init_commit_hw(struct rcb_common_cb *rcb_common)
 static void hns_rcb_ring_init(struct ring_pair_cb *ring_pair, int ring_type)
 {
 	struct hnae_queue *q = &ring_pair->q;
-	struct rcb_common_cb *rcb_common = ring_pair->rcb_common;
-	u32 bd_size_type = rcb_common->dsaf_dev->buf_size_type;
 	struct hnae_ring *ring =
 		(ring_type == RX_RING) ? &q->rx_ring : &q->tx_ring;
 	dma_addr_t dma = ring->desc_dma_addr;
@@ -212,8 +237,8 @@ static void hns_rcb_ring_init(struct ring_pair_cb *ring_pair, int ring_type)
 		dsaf_write_dev(q, RCB_RING_RX_RING_BASEADDR_H_REG,
 			       (u32)((dma >> 31) >> 1));
 
-		dsaf_write_dev(q, RCB_RING_RX_RING_BD_LEN_REG,
-			       bd_size_type);
+		hns_rcb_set_rx_ring_bs(q, ring->buf_size);
+
 		dsaf_write_dev(q, RCB_RING_RX_RING_BD_NUM_REG,
 			       ring_pair->port_id_in_comm);
 		dsaf_write_dev(q, RCB_RING_RX_RING_PKTLINE_REG,
@@ -224,8 +249,8 @@ static void hns_rcb_ring_init(struct ring_pair_cb *ring_pair, int ring_type)
 		dsaf_write_dev(q, RCB_RING_TX_RING_BASEADDR_H_REG,
 			       (u32)((dma >> 31) >> 1));
 
-		dsaf_write_dev(q, RCB_RING_TX_RING_BD_LEN_REG,
-			       bd_size_type);
+		hns_rcb_set_tx_ring_bs(q, ring->buf_size);
+
 		dsaf_write_dev(q, RCB_RING_TX_RING_BD_NUM_REG,
 			       ring_pair->port_id_in_comm);
 		dsaf_write_dev(q, RCB_RING_TX_RING_PKTLINE_REG,
@@ -380,7 +405,6 @@ static void hns_rcb_ring_get_cfg(struct hnae_queue *q, int ring_type)
 	struct hnae_ring *ring;
 	struct rcb_common_cb *rcb_common;
 	struct ring_pair_cb *ring_pair_cb;
-	u32 buf_size;
 	u16 desc_num, mdnum_ppkt;
 	bool irq_idx, is_ver1;
 
@@ -401,7 +425,6 @@ static void hns_rcb_ring_get_cfg(struct hnae_queue *q, int ring_type)
 	}
 
 	rcb_common = ring_pair_cb->rcb_common;
-	buf_size = rcb_common->dsaf_dev->buf_size;
 	desc_num = rcb_common->dsaf_dev->desc_num;
 
 	ring->desc = NULL;
@@ -410,7 +433,7 @@ static void hns_rcb_ring_get_cfg(struct hnae_queue *q, int ring_type)
 	ring->irq = ring_pair_cb->virq[irq_idx];
 	ring->desc_dma_addr = 0;
 
-	ring->buf_size = buf_size;
+	ring->buf_size = RCB_DEFAULT_BUFFER_SIZE;
 	ring->desc_num = desc_num;
 	ring->max_desc_num_per_pkt = mdnum_ppkt;
 	ring->max_raw_data_sz_per_desc = HNS_RCB_MAX_PKT_SIZE;
