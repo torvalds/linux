@@ -64,7 +64,6 @@
 #include "sysfs.h"
 #include "translation-table.h"
 
-static int batadv_get_settings(struct net_device *dev, struct ethtool_cmd *cmd);
 static void batadv_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info);
 static void batadv_get_strings(struct net_device *dev, u32 stringset, u8 *data);
@@ -73,7 +72,6 @@ static void batadv_get_ethtool_stats(struct net_device *dev,
 static int batadv_get_sset_count(struct net_device *dev, int stringset);
 
 static const struct ethtool_ops batadv_ethtool_ops = {
-	.get_settings = batadv_get_settings,
 	.get_drvinfo = batadv_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_strings = batadv_get_strings,
@@ -1078,23 +1076,6 @@ struct rtnl_link_ops batadv_link_ops __read_mostly = {
 	.setup		= batadv_softif_init_early,
 	.dellink	= batadv_softif_destroy_netlink,
 };
-
-/* ethtool */
-static int batadv_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	cmd->supported = 0;
-	cmd->advertising = 0;
-	ethtool_cmd_speed_set(cmd, SPEED_10);
-	cmd->duplex = DUPLEX_FULL;
-	cmd->port = PORT_TP;
-	cmd->phy_address = 0;
-	cmd->transceiver = XCVR_INTERNAL;
-	cmd->autoneg = AUTONEG_DISABLE;
-	cmd->maxtxpkt = 0;
-	cmd->maxrxpkt = 0;
-
-	return 0;
-}
 
 static void batadv_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
