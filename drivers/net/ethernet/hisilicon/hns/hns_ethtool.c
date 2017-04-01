@@ -764,14 +764,14 @@ static int hns_get_coalesce(struct net_device *net_dev,
 	ec->use_adaptive_tx_coalesce = 1;
 
 	if ((!ops->get_coalesce_usecs) ||
-	    (!ops->get_rx_max_coalesced_frames))
+	    (!ops->get_max_coalesced_frames))
 		return -ESRCH;
 
 	ops->get_coalesce_usecs(priv->ae_handle,
 					&ec->tx_coalesce_usecs,
 					&ec->rx_coalesce_usecs);
 
-	ops->get_rx_max_coalesced_frames(
+	ops->get_max_coalesced_frames(
 		priv->ae_handle,
 		&ec->tx_max_coalesced_frames,
 		&ec->rx_max_coalesced_frames);
@@ -801,30 +801,28 @@ static int hns_set_coalesce(struct net_device *net_dev,
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
-	int ret;
+	int rc1, rc2;
 
 	ops = priv->ae_handle->dev->ops;
 
 	if (ec->tx_coalesce_usecs != ec->rx_coalesce_usecs)
 		return -EINVAL;
 
-	if (ec->rx_max_coalesced_frames != ec->tx_max_coalesced_frames)
-		return -EINVAL;
-
 	if ((!ops->set_coalesce_usecs) ||
 	    (!ops->set_coalesce_frames))
 		return -ESRCH;
 
-	ret = ops->set_coalesce_usecs(priv->ae_handle,
+	rc1 = ops->set_coalesce_usecs(priv->ae_handle,
 				      ec->rx_coalesce_usecs);
-	if (ret)
-		return ret;
 
-	ret = ops->set_coalesce_frames(
-		priv->ae_handle,
-		ec->rx_max_coalesced_frames);
+	rc2 = ops->set_coalesce_frames(priv->ae_handle,
+				       ec->tx_max_coalesced_frames,
+				       ec->rx_max_coalesced_frames);
 
-	return ret;
+	if (rc1 || rc2)
+		return -EINVAL;
+
+	return 0;
 }
 
 /**

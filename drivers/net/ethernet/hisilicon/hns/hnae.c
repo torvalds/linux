@@ -57,10 +57,15 @@ static int hnae_alloc_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
 
 static void hnae_free_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
 {
+	if (unlikely(!cb->priv))
+		return;
+
 	if (cb->type == DESC_TYPE_SKB)
 		dev_kfree_skb_any((struct sk_buff *)cb->priv);
 	else if (unlikely(is_rx_ring(ring)))
 		put_page((struct page *)cb->priv);
+
+	cb->priv = NULL;
 }
 
 static int hnae_map_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)

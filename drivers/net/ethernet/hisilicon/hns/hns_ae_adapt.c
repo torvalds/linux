@@ -487,15 +487,21 @@ static void hns_ae_get_coalesce_usecs(struct hnae_handle *handle,
 					       ring_pair->port_id_in_comm);
 }
 
-static void hns_ae_get_rx_max_coalesced_frames(struct hnae_handle *handle,
-					       u32 *tx_frames, u32 *rx_frames)
+static void hns_ae_get_max_coalesced_frames(struct hnae_handle *handle,
+					    u32 *tx_frames, u32 *rx_frames)
 {
 	struct ring_pair_cb *ring_pair =
 		container_of(handle->qs[0], struct ring_pair_cb, q);
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
-	*tx_frames = hns_rcb_get_coalesced_frames(ring_pair->rcb_common,
-						  ring_pair->port_id_in_comm);
-	*rx_frames = hns_rcb_get_coalesced_frames(ring_pair->rcb_common,
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    handle->port_type == HNAE_PORT_DEBUG)
+		*tx_frames = hns_rcb_get_rx_coalesced_frames(
+			ring_pair->rcb_common, ring_pair->port_id_in_comm);
+	else
+		*tx_frames = hns_rcb_get_tx_coalesced_frames(
+			ring_pair->rcb_common, ring_pair->port_id_in_comm);
+	*rx_frames = hns_rcb_get_rx_coalesced_frames(ring_pair->rcb_common,
 						  ring_pair->port_id_in_comm);
 }
 
@@ -509,15 +515,34 @@ static int hns_ae_set_coalesce_usecs(struct hnae_handle *handle,
 		ring_pair->rcb_common, ring_pair->port_id_in_comm, timeout);
 }
 
-static int  hns_ae_set_coalesce_frames(struct hnae_handle *handle,
-				       u32 coalesce_frames)
+static int hns_ae_set_coalesce_frames(struct hnae_handle *handle,
+				      u32 tx_frames, u32 rx_frames)
 {
+	int ret;
 	struct ring_pair_cb *ring_pair =
 		container_of(handle->qs[0], struct ring_pair_cb, q);
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
-	return hns_rcb_set_coalesced_frames(
-		ring_pair->rcb_common,
-		ring_pair->port_id_in_comm, coalesce_frames);
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    handle->port_type == HNAE_PORT_DEBUG) {
+		if (tx_frames != rx_frames)
+			return -EINVAL;
+		return hns_rcb_set_rx_coalesced_frames(
+			ring_pair->rcb_common,
+			ring_pair->port_id_in_comm, rx_frames);
+	} else {
+		if (tx_frames != 1)
+			return -EINVAL;
+		ret = hns_rcb_set_tx_coalesced_frames(
+			ring_pair->rcb_common,
+			ring_pair->port_id_in_comm, tx_frames);
+		if (ret)
+			return ret;
+
+		return hns_rcb_set_rx_coalesced_frames(
+			ring_pair->rcb_common,
+			ring_pair->port_id_in_comm, rx_frames);
+	}
 }
 
 static void hns_ae_get_coalesce_range(struct hnae_handle *handle,
@@ -528,20 +553,27 @@ static void hns_ae_get_coalesce_range(struct hnae_handle *handle,
 {
 	struct dsaf_device *dsaf_dev;
 
+	assert(handle);
+
 	dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
-	*tx_frames_low  = HNS_RCB_MIN_COALESCED_FRAMES;
-	*rx_frames_low  = HNS_RCB_MIN_COALESCED_FRAMES;
-	*tx_frames_high =
-		(dsaf_dev->desc_num - 1 > HNS_RCB_MAX_COALESCED_FRAMES) ?
-		HNS_RCB_MAX_COALESCED_FRAMES : dsaf_dev->desc_num - 1;
-	*rx_frames_high =
-		(dsaf_dev->desc_num - 1 > HNS_RCB_MAX_COALESCED_FRAMES) ?
-		 HNS_RCB_MAX_COALESCED_FRAMES : dsaf_dev->desc_num - 1;
-	*tx_usecs_low   = 0;
-	*rx_usecs_low   = 0;
-	*tx_usecs_high  = HNS_RCB_MAX_COALESCED_USECS;
-	*rx_usecs_high  = HNS_RCB_MAX_COALESCED_USECS;
+	*tx_frames_low  = HNS_RCB_TX_FRAMES_LOW;
+	*rx_frames_low  = HNS_RCB_RX_FRAMES_LOW;
+
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    handle->port_type == HNAE_PORT_DEBUG)
+		*tx_frames_high =
+			(dsaf_dev->desc_num - 1 > HNS_RCB_TX_FRAMES_HIGH) ?
+			HNS_RCB_TX_FRAMES_HIGH : dsaf_dev->desc_num - 1;
+	else
+		*tx_frames_high = 1;
+
+	*rx_frames_high = (dsaf_dev->desc_num - 1 > HNS_RCB_RX_FRAMES_HIGH) ?
+		HNS_RCB_RX_FRAMES_HIGH : dsaf_dev->desc_num - 1;
+	*tx_usecs_low   = HNS_RCB_TX_USECS_LOW;
+	*rx_usecs_low   = HNS_RCB_RX_USECS_LOW;
+	*tx_usecs_high  = HNS_RCB_TX_USECS_HIGH;
+	*rx_usecs_high  = HNS_RCB_RX_USECS_HIGH;
 }
 
 void hns_ae_update_stats(struct hnae_handle *handle,
@@ -875,7 +907,7 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_autoneg = hns_ae_get_autoneg,
 	.set_pauseparam = hns_ae_set_pauseparam,
 	.get_coalesce_usecs = hns_ae_get_coalesce_usecs,
-	.get_rx_max_coalesced_frames = hns_ae_get_rx_max_coalesced_frames,
+	.get_max_coalesced_frames = hns_ae_get_max_coalesced_frames,
 	.set_coalesce_usecs = hns_ae_set_coalesce_usecs,
 	.set_coalesce_frames = hns_ae_set_coalesce_frames,
 	.get_coalesce_range = hns_ae_get_coalesce_range,
