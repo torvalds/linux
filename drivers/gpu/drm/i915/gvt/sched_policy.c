@@ -150,9 +150,6 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 		}
 	}
 
-	gvt_dbg_sched("switch to next vgpu %d\n",
-			scheduler->next_vgpu->id);
-
 	cur_time = ktime_get();
 	if (scheduler->current_vgpu) {
 		vgpu_data = scheduler->current_vgpu->sched_data;
@@ -224,17 +221,12 @@ static void tbs_sched_func(struct gvt_sched_data *sched_data)
 		list_del_init(&vgpu_data->lru_list);
 		list_add_tail(&vgpu_data->lru_list,
 				&sched_data->lru_runq_head);
-
-		gvt_dbg_sched("pick next vgpu %d\n", vgpu->id);
 	} else {
 		scheduler->next_vgpu = gvt->idle_vgpu;
 	}
 out:
-	if (scheduler->next_vgpu) {
-		gvt_dbg_sched("try to schedule next vgpu %d\n",
-				scheduler->next_vgpu->id);
+	if (scheduler->next_vgpu)
 		try_to_schedule_next_vgpu(gvt);
-	}
 }
 
 void intel_gvt_schedule(struct intel_gvt *gvt)
