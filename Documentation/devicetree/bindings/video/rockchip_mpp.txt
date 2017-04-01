@@ -1,0 +1,9 @@
+Device-Tree bindings for Rockchip MPP Service.
+
+Required properties:
+- compatible: the value must be "rockchip,mpp_service"
+
+Example:
+	venc_srv: venc_srv {
+		compatible = "rockchip,mpp_service";
+	};

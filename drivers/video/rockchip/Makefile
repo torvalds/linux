@@ -8,4 +8,4 @@ obj-$(CONFIG_IEP) += iep/
 obj-$(CONFIG_RK_TVENCODER) += tve/
 obj-$(CONFIG_RK_VCODEC) += vcodec/
 obj-$(CONFIG_ROCKCHIP_DP) += dp/
-
+obj-$(CONFIG_ROCKCHIP_MPP_SERVICE) += vpu/

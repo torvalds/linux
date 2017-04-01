@@ -1,0 +1,28 @@
+Device-Tree bindings for Rockchip Encoder.
+
+Required properties:
+- compatible: There are several encoder IP inside rockchip chips. The value
+	should be one of "rockchip,rkvenc", "rockchip,vepu", "rockchip,h265e"
+
+Example:
+
+DT entry:
+	vepu: vepu@ff340000 {
+		compatible = "rockchip,rk3328-vepu", "rockchip,vepu";
+		rockchip,grf = <&grf>;
+		iommu_enabled = <1>;
+		iommus = <&vepu_mmu>;
+		reg = <0x0 0xff340000 0x0 0x400>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_RKVENC_H264_H>,
+			<&cru SRST_RKVENC_H264_A>;
+		reset-names = "video_h", "video_a";
+		rockchip,srv = <&venc_srv>;
+		mode_bit = <11>;
+		mode_ctrl = <0x40c>;
+		name = "vepu";
+		allocator = <1>;
+		status = "disabled";
+	};

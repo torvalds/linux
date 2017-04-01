@@ -1,0 +1,17 @@
+menu "ROCKCHIP_MPP"
+	depends on ARCH_ROCKCHIP
+
+config ROCKCHIP_MPP_SERVICE
+	tristate "ROCKCHIP MPP SERVICE driver"
+	default n
+	help
+	  rockchip mpp service.
+
+config ROCKCHIP_MPP_DEVICE
+	tristate "ROCKCHIP MPP DEVICE driver"
+	depends on ROCKCHIP_MPP_SERVICE
+	default n
+	help
+	  rockchip mpp module.
+
+endmenu
