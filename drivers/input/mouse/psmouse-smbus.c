@@ -61,23 +61,28 @@ static void psmouse_smbus_check_adapter(struct i2c_adapter *adapter)
 
 static void psmouse_smbus_detach_i2c_client(struct i2c_client *client)
 {
-	struct psmouse_smbus_dev *smbdev;
+	struct psmouse_smbus_dev *smbdev, *tmp;
 
 	mutex_lock(&psmouse_smbus_mutex);
 
-	list_for_each_entry(smbdev, &psmouse_smbus_list, node) {
-		if (smbdev->client == client) {
+	list_for_each_entry_safe(smbdev, tmp, &psmouse_smbus_list, node) {
+		if (smbdev->client != client)
+			continue;
+
+		kfree(client->dev.platform_data);
+		client->dev.platform_data = NULL;
+
+		if (!smbdev->dead) {
 			psmouse_dbg(smbdev->psmouse,
 				    "Marking SMBus companion %s as gone\n",
 				    dev_name(&smbdev->client->dev));
-			smbdev->client = NULL;
 			smbdev->dead = true;
 			serio_rescan(smbdev->psmouse->ps2dev.serio);
+		} else {
+			list_del(&smbdev->node);
+			kfree(smbdev);
 		}
 	}
-
-	kfree(client->dev.platform_data);
-	client->dev.platform_data = NULL;
 
 	mutex_unlock(&psmouse_smbus_mutex);
 }
@@ -162,17 +167,20 @@ static void psmouse_smbus_disconnect(struct psmouse *psmouse)
 	struct psmouse_smbus_dev *smbdev = psmouse->private;
 
 	mutex_lock(&psmouse_smbus_mutex);
-	list_del(&smbdev->node);
-	mutex_unlock(&psmouse_smbus_mutex);
 
-	if (smbdev->client) {
+	if (smbdev->dead) {
+		list_del(&smbdev->node);
+		kfree(smbdev);
+	} else {
+		smbdev->dead = true;
 		psmouse_dbg(smbdev->psmouse,
 			    "posting removal request for SMBus companion %s\n",
 			    dev_name(&smbdev->client->dev));
 		psmouse_smbus_schedule_remove(smbdev->client);
 	}
 
-	kfree(smbdev);
+	mutex_unlock(&psmouse_smbus_mutex);
+
 	psmouse->private = NULL;
 }
 
