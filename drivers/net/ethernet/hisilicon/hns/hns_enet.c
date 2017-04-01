@@ -512,7 +512,8 @@ static void hns_nic_reuse_page(struct sk_buff *skb, int i,
 	int last_offset;
 	bool twobufs;
 
-	twobufs = ((PAGE_SIZE < 8192) && hnae_buf_size(ring) == HNS_BUFFER_SIZE_2048);
+	twobufs = ((PAGE_SIZE < 8192) &&
+		hnae_buf_size(ring) == HNS_BUFFER_SIZE_2048);
 
 	desc = &ring->desc[ring->next_to_clean];
 	size = le16_to_cpu(desc->rx.size);
@@ -922,8 +923,8 @@ static int is_valid_clean_head(struct hnae_ring *ring, int h)
 
 /* netif_tx_lock will turn down the performance, set only when necessary */
 #ifdef CONFIG_NET_POLL_CONTROLLER
-#define NETIF_TX_LOCK(ring) spin_lock(&ring->lock)
-#define NETIF_TX_UNLOCK(ring) spin_unlock(&ring->lock)
+#define NETIF_TX_LOCK(ring) spin_lock(&(ring)->lock)
+#define NETIF_TX_UNLOCK(ring) spin_unlock(&(ring)->lock)
 #else
 #define NETIF_TX_LOCK(ring)
 #define NETIF_TX_UNLOCK(ring)
@@ -2012,7 +2013,7 @@ static void hns_nic_reset_subtask(struct hns_nic_priv *priv)
 static void hns_nic_service_event_complete(struct hns_nic_priv *priv)
 {
 	WARN_ON(!test_bit(NIC_STATE_SERVICE_SCHED, &priv->state));
-
+	/* make sure to commit the things */
 	smp_mb__before_atomic();
 	clear_bit(NIC_STATE_SERVICE_SCHED, &priv->state);
 }

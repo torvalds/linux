@@ -86,12 +86,11 @@ static void hns_gmac_disable(void *mac_drv, enum mac_commom_mode mode)
 		dsaf_set_dev_bit(drv, GMAC_PORT_EN_REG, GMAC_PORT_RX_EN_B, 0);
 }
 
-/**
-*hns_gmac_get_en - get port enable
-*@mac_drv:mac device
-*@rx:rx enable
-*@tx:tx enable
-*/
+/* hns_gmac_get_en - get port enable
+ * @mac_drv:mac device
+ * @rx:rx enable
+ * @tx:tx enable
+ */
 static void hns_gmac_get_en(void *mac_drv, u32 *rx, u32 *tx)
 {
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
