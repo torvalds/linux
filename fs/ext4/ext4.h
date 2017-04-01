@@ -2330,23 +2330,11 @@ static inline void ext4_fname_free_filename(struct ext4_filename *fname) { }
 /* crypto_key.c */
 void ext4_free_crypt_info(struct ext4_crypt_info *ci);
 void ext4_free_encryption_info(struct inode *inode, struct ext4_crypt_info *ci);
-int _ext4_get_encryption_info(struct inode *inode);
 
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 int ext4_has_encryption_key(struct inode *inode);
 
-static inline int ext4_get_encryption_info(struct inode *inode)
-{
-	struct ext4_crypt_info *ci = EXT4_I(inode)->i_crypt_info;
-
-	if (!ci ||
-	    (ci->ci_keyring_key &&
-	     (ci->ci_keyring_key->flags & ((1 << KEY_FLAG_INVALIDATED) |
-					   (1 << KEY_FLAG_REVOKED) |
-					   (1 << KEY_FLAG_DEAD)))))
-		return _ext4_get_encryption_info(inode);
-	return 0;
-}
+int ext4_get_encryption_info(struct inode *inode);
 
 static inline struct ext4_crypt_info *ext4_encryption_info(struct inode *inode)
 {
