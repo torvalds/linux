@@ -1164,7 +1164,6 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	/* write nat bits */
 	if (enabled_nat_bits(sbi, cpc)) {
 		__u64 cp_ver = cur_cp_version(ckpt);
-		unsigned int i;
 		block_t blk;
 
 		cp_ver |= ((__u64)crc32 << 32);
