@@ -1488,11 +1488,16 @@ static int ctnetlink_change_helper(struct nf_conn *ct,
 		 * treat the second attempt as a no-op instead of returning
 		 * an error.
 		 */
-		if (help && help->helper &&
-		    !strcmp(help->helper->name, helpname))
-			return 0;
-		else
-			return -EBUSY;
+		err = -EBUSY;
+		if (help) {
+			rcu_read_lock();
+			helper = rcu_dereference(help->helper);
+			if (helper && !strcmp(helper->name, helpname))
+				err = 0;
+			rcu_read_unlock();
+		}
+
+		return err;
 	}
 
 	if (!strcmp(helpname, "")) {
