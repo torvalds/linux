@@ -130,7 +130,7 @@
 	pinctrl-0 = <&rgmiim1_pins>;
 	tx_delay = <0x26>;
 	rx_delay = <0x11>;
-	status = "okay";
+	status = "disabled";
 };
 
 &io_domains {
