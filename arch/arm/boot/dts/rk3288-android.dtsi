@@ -184,6 +184,12 @@
 	};
 };
 
+&rga {
+	compatible = "rockchip,rga2";
+	clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
+	clock-names = "aclk_rga", "hclk_rga", "clk_rga";
+};
+
 &usb_otg {
 	compatible = "rockchip,rk3288_usb20_otg";
 	clocks = <&usbphy0>, <&cru HCLK_OTG0>;
