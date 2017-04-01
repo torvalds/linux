@@ -69,7 +69,6 @@ static void batadv_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info);
 static u32 batadv_get_msglevel(struct net_device *dev);
 static void batadv_set_msglevel(struct net_device *dev, u32 value);
-static u32 batadv_get_link(struct net_device *dev);
 static void batadv_get_strings(struct net_device *dev, u32 stringset, u8 *data);
 static void batadv_get_ethtool_stats(struct net_device *dev,
 				     struct ethtool_stats *stats, u64 *data);
@@ -80,7 +79,7 @@ static const struct ethtool_ops batadv_ethtool_ops = {
 	.get_drvinfo = batadv_get_drvinfo,
 	.get_msglevel = batadv_get_msglevel,
 	.set_msglevel = batadv_set_msglevel,
-	.get_link = batadv_get_link,
+	.get_link = ethtool_op_get_link,
 	.get_strings = batadv_get_strings,
 	.get_ethtool_stats = batadv_get_ethtool_stats,
 	.get_sset_count = batadv_get_sset_count,
@@ -1117,11 +1116,6 @@ static u32 batadv_get_msglevel(struct net_device *dev)
 
 static void batadv_set_msglevel(struct net_device *dev, u32 value)
 {
-}
-
-static u32 batadv_get_link(struct net_device *dev)
-{
-	return 1;
 }
 
 /* Inspired by drivers/net/ethernet/dlink/sundance.c:1702
