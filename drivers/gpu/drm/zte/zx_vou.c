@@ -40,6 +40,7 @@ struct zx_crtc_regs {
 	u32 fir_active;
 	u32 fir_htiming;
 	u32 fir_vtiming;
+	u32 sec_vtiming;
 	u32 timing_shift;
 	u32 timing_pi_shift;
 };
@@ -48,6 +49,7 @@ static const struct zx_crtc_regs main_crtc_regs = {
 	.fir_active = FIR_MAIN_ACTIVE,
 	.fir_htiming = FIR_MAIN_H_TIMING,
 	.fir_vtiming = FIR_MAIN_V_TIMING,
+	.sec_vtiming = SEC_MAIN_V_TIMING,
 	.timing_shift = TIMING_MAIN_SHIFT,
 	.timing_pi_shift = TIMING_MAIN_PI_SHIFT,
 };
@@ -56,6 +58,7 @@ static const struct zx_crtc_regs aux_crtc_regs = {
 	.fir_active = FIR_AUX_ACTIVE,
 	.fir_htiming = FIR_AUX_H_TIMING,
 	.fir_vtiming = FIR_AUX_V_TIMING,
+	.sec_vtiming = SEC_AUX_V_TIMING,
 	.timing_shift = TIMING_AUX_SHIFT,
 	.timing_pi_shift = TIMING_AUX_PI_SHIFT,
 };
@@ -65,7 +68,17 @@ struct zx_crtc_bits {
 	u32 polarity_shift;
 	u32 int_frame_mask;
 	u32 tc_enable;
-	u32 gl_enable;
+	u32 sec_vactive_shift;
+	u32 sec_vactive_mask;
+	u32 interlace_select;
+	u32 pi_enable;
+	u32 div_vga_shift;
+	u32 div_pic_shift;
+	u32 div_tvenc_shift;
+	u32 div_hdmi_pnx_shift;
+	u32 div_hdmi_shift;
+	u32 div_inf_shift;
+	u32 div_layer_shift;
 };
 
 static const struct zx_crtc_bits main_crtc_bits = {
@@ -73,7 +86,17 @@ static const struct zx_crtc_bits main_crtc_bits = {
 	.polarity_shift = MAIN_POL_SHIFT,
 	.int_frame_mask = TIMING_INT_MAIN_FRAME,
 	.tc_enable = MAIN_TC_EN,
-	.gl_enable = OSD_CTRL0_GL0_EN,
+	.sec_vactive_shift = SEC_VACT_MAIN_SHIFT,
+	.sec_vactive_mask = SEC_VACT_MAIN_MASK,
+	.interlace_select = MAIN_INTERLACE_SEL,
+	.pi_enable = MAIN_PI_EN,
+	.div_vga_shift = VGA_MAIN_DIV_SHIFT,
+	.div_pic_shift = PIC_MAIN_DIV_SHIFT,
+	.div_tvenc_shift = TVENC_MAIN_DIV_SHIFT,
+	.div_hdmi_pnx_shift = HDMI_MAIN_PNX_DIV_SHIFT,
+	.div_hdmi_shift = HDMI_MAIN_DIV_SHIFT,
+	.div_inf_shift = INF_MAIN_DIV_SHIFT,
+	.div_layer_shift = LAYER_MAIN_DIV_SHIFT,
 };
 
 static const struct zx_crtc_bits aux_crtc_bits = {
@@ -81,7 +104,17 @@ static const struct zx_crtc_bits aux_crtc_bits = {
 	.polarity_shift = AUX_POL_SHIFT,
 	.int_frame_mask = TIMING_INT_AUX_FRAME,
 	.tc_enable = AUX_TC_EN,
-	.gl_enable = OSD_CTRL0_GL1_EN,
+	.sec_vactive_shift = SEC_VACT_AUX_SHIFT,
+	.sec_vactive_mask = SEC_VACT_AUX_MASK,
+	.interlace_select = AUX_INTERLACE_SEL,
+	.pi_enable = AUX_PI_EN,
+	.div_vga_shift = VGA_AUX_DIV_SHIFT,
+	.div_pic_shift = PIC_AUX_DIV_SHIFT,
+	.div_tvenc_shift = TVENC_AUX_DIV_SHIFT,
+	.div_hdmi_pnx_shift = HDMI_AUX_PNX_DIV_SHIFT,
+	.div_hdmi_shift = HDMI_AUX_DIV_SHIFT,
+	.div_inf_shift = INF_AUX_DIV_SHIFT,
+	.div_layer_shift = LAYER_AUX_DIV_SHIFT,
 };
 
 struct zx_crtc {
@@ -96,6 +129,40 @@ struct zx_crtc {
 };
 
 #define to_zx_crtc(x) container_of(x, struct zx_crtc, crtc)
+
+struct vou_layer_bits {
+	u32 enable;
+	u32 chnsel;
+	u32 clksel;
+};
+
+static const struct vou_layer_bits zx_gl_bits[GL_NUM] = {
+	{
+		.enable = OSD_CTRL0_GL0_EN,
+		.chnsel = OSD_CTRL0_GL0_SEL,
+		.clksel = VOU_CLK_GL0_SEL,
+	}, {
+		.enable = OSD_CTRL0_GL1_EN,
+		.chnsel = OSD_CTRL0_GL1_SEL,
+		.clksel = VOU_CLK_GL1_SEL,
+	},
+};
+
+static const struct vou_layer_bits zx_vl_bits[VL_NUM] = {
+	{
+		.enable = OSD_CTRL0_VL0_EN,
+		.chnsel = OSD_CTRL0_VL0_SEL,
+		.clksel = VOU_CLK_VL0_SEL,
+	}, {
+		.enable = OSD_CTRL0_VL1_EN,
+		.chnsel = OSD_CTRL0_VL1_SEL,
+		.clksel = VOU_CLK_VL1_SEL,
+	}, {
+		.enable = OSD_CTRL0_VL2_EN,
+		.chnsel = OSD_CTRL0_VL2_SEL,
+		.clksel = VOU_CLK_VL2_SEL,
+	},
+};
 
 struct zx_vou_hw {
 	struct device *dev;
@@ -112,6 +179,33 @@ struct zx_vou_hw {
 	struct zx_crtc *aux_crtc;
 };
 
+enum vou_inf_data_sel {
+	VOU_YUV444	= 0,
+	VOU_RGB_101010	= 1,
+	VOU_RGB_888	= 2,
+	VOU_RGB_666	= 3,
+};
+
+struct vou_inf {
+	enum vou_inf_id id;
+	enum vou_inf_data_sel data_sel;
+	u32 clocks_en_bits;
+	u32 clocks_sel_bits;
+};
+
+static struct vou_inf vou_infs[] = {
+	[VOU_HDMI] = {
+		.data_sel = VOU_YUV444,
+		.clocks_en_bits = BIT(24) | BIT(18) | BIT(6),
+		.clocks_sel_bits = BIT(13) | BIT(2),
+	},
+	[VOU_TV_ENC] = {
+		.data_sel = VOU_YUV444,
+		.clocks_en_bits = BIT(15),
+		.clocks_sel_bits = BIT(11) | BIT(0),
+	},
+};
+
 static inline struct zx_vou_hw *crtc_to_vou(struct drm_crtc *crtc)
 {
 	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
@@ -119,20 +213,30 @@ static inline struct zx_vou_hw *crtc_to_vou(struct drm_crtc *crtc)
 	return zcrtc->vou;
 }
 
-void vou_inf_enable(const struct vou_inf *inf, struct drm_crtc *crtc)
+void vou_inf_hdmi_audio_sel(struct drm_crtc *crtc,
+			    enum vou_inf_hdmi_audio aud)
 {
 	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
 	struct zx_vou_hw *vou = zcrtc->vou;
+
+	zx_writel_mask(vou->vouctl + VOU_INF_HDMI_CTRL, VOU_HDMI_AUD_MASK, aud);
+}
+
+void vou_inf_enable(enum vou_inf_id id, struct drm_crtc *crtc)
+{
+	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
+	struct zx_vou_hw *vou = zcrtc->vou;
+	struct vou_inf *inf = &vou_infs[id];
 	bool is_main = zcrtc->chn_type == VOU_CHN_MAIN;
-	u32 data_sel_shift = inf->id << 1;
+	u32 data_sel_shift = id << 1;
 
 	/* Select data format */
 	zx_writel_mask(vou->vouctl + VOU_INF_DATA_SEL, 0x3 << data_sel_shift,
 		       inf->data_sel << data_sel_shift);
 
 	/* Select channel */
-	zx_writel_mask(vou->vouctl + VOU_INF_CH_SEL, 0x1 << inf->id,
-		       zcrtc->chn_type << inf->id);
+	zx_writel_mask(vou->vouctl + VOU_INF_CH_SEL, 0x1 << id,
+		       zcrtc->chn_type << id);
 
 	/* Select interface clocks */
 	zx_writel_mask(vou->vouctl + VOU_CLK_SEL, inf->clocks_sel_bits,
@@ -143,18 +247,77 @@ void vou_inf_enable(const struct vou_inf *inf, struct drm_crtc *crtc)
 		       inf->clocks_en_bits);
 
 	/* Enable the device */
-	zx_writel_mask(vou->vouctl + VOU_INF_EN, 1 << inf->id, 1 << inf->id);
+	zx_writel_mask(vou->vouctl + VOU_INF_EN, 1 << id, 1 << id);
 }
 
-void vou_inf_disable(const struct vou_inf *inf, struct drm_crtc *crtc)
+void vou_inf_disable(enum vou_inf_id id, struct drm_crtc *crtc)
 {
 	struct zx_vou_hw *vou = crtc_to_vou(crtc);
+	struct vou_inf *inf = &vou_infs[id];
 
 	/* Disable the device */
-	zx_writel_mask(vou->vouctl + VOU_INF_EN, 1 << inf->id, 0);
+	zx_writel_mask(vou->vouctl + VOU_INF_EN, 1 << id, 0);
 
 	/* Disable interface clocks */
 	zx_writel_mask(vou->vouctl + VOU_CLK_EN, inf->clocks_en_bits, 0);
+}
+
+void zx_vou_config_dividers(struct drm_crtc *crtc,
+			    struct vou_div_config *configs, int num)
+{
+	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
+	struct zx_vou_hw *vou = zcrtc->vou;
+	const struct zx_crtc_bits *bits = zcrtc->bits;
+	int i;
+
+	/* Clear update flag bit */
+	zx_writel_mask(vou->vouctl + VOU_DIV_PARA, DIV_PARA_UPDATE, 0);
+
+	for (i = 0; i < num; i++) {
+		struct vou_div_config *cfg = configs + i;
+		u32 reg, shift;
+
+		switch (cfg->id) {
+		case VOU_DIV_VGA:
+			reg = VOU_CLK_SEL;
+			shift = bits->div_vga_shift;
+			break;
+		case VOU_DIV_PIC:
+			reg = VOU_CLK_SEL;
+			shift = bits->div_pic_shift;
+			break;
+		case VOU_DIV_TVENC:
+			reg = VOU_DIV_PARA;
+			shift = bits->div_tvenc_shift;
+			break;
+		case VOU_DIV_HDMI_PNX:
+			reg = VOU_DIV_PARA;
+			shift = bits->div_hdmi_pnx_shift;
+			break;
+		case VOU_DIV_HDMI:
+			reg = VOU_DIV_PARA;
+			shift = bits->div_hdmi_shift;
+			break;
+		case VOU_DIV_INF:
+			reg = VOU_DIV_PARA;
+			shift = bits->div_inf_shift;
+			break;
+		case VOU_DIV_LAYER:
+			reg = VOU_DIV_PARA;
+			shift = bits->div_layer_shift;
+			break;
+		default:
+			continue;
+		}
+
+		/* Each divider occupies 3 bits */
+		zx_writel_mask(vou->vouctl + reg, 0x7 << shift,
+			       cfg->val << shift);
+	}
+
+	/* Set update flag bit to get dividers effected */
+	zx_writel_mask(vou->vouctl + VOU_DIV_PARA, DIV_PARA_UPDATE,
+		       DIV_PARA_UPDATE);
 }
 
 static inline void vou_chn_set_update(struct zx_crtc *zcrtc)
@@ -165,11 +328,13 @@ static inline void vou_chn_set_update(struct zx_crtc *zcrtc)
 static void zx_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
 	struct zx_crtc *zcrtc = to_zx_crtc(crtc);
 	struct zx_vou_hw *vou = zcrtc->vou;
 	const struct zx_crtc_regs *regs = zcrtc->regs;
 	const struct zx_crtc_bits *bits = zcrtc->bits;
 	struct videomode vm;
+	u32 scan_mask;
 	u32 pol = 0;
 	u32 val;
 	int ret;
@@ -177,7 +342,7 @@ static void zx_crtc_enable(struct drm_crtc *crtc)
 	drm_display_mode_to_videomode(mode, &vm);
 
 	/* Set up timing parameters */
-	val = V_ACTIVE(vm.vactive - 1);
+	val = V_ACTIVE((interlaced ? vm.vactive / 2 : vm.vactive) - 1);
 	val |= H_ACTIVE(vm.hactive - 1);
 	zx_writel(vou->timing + regs->fir_active, val);
 
@@ -191,6 +356,25 @@ static void zx_crtc_enable(struct drm_crtc *crtc)
 	val |= FRONT_PORCH(vm.vfront_porch - 1);
 	zx_writel(vou->timing + regs->fir_vtiming, val);
 
+	if (interlaced) {
+		u32 shift = bits->sec_vactive_shift;
+		u32 mask = bits->sec_vactive_mask;
+
+		val = zx_readl(vou->timing + SEC_V_ACTIVE);
+		val &= ~mask;
+		val |= ((vm.vactive / 2 - 1) << shift) & mask;
+		zx_writel(vou->timing + SEC_V_ACTIVE, val);
+
+		val = SYNC_WIDE(vm.vsync_len - 1);
+		/*
+		 * The vback_porch for the second field needs to shift one on
+		 * the value for the first field.
+		 */
+		val |= BACK_PORCH(vm.vback_porch);
+		val |= FRONT_PORCH(vm.vfront_porch - 1);
+		zx_writel(vou->timing + regs->sec_vtiming, val);
+	}
+
 	/* Set up polarities */
 	if (vm.flags & DISPLAY_FLAGS_VSYNC_LOW)
 		pol |= 1 << POL_VSYNC_SHIFT;
@@ -201,8 +385,16 @@ static void zx_crtc_enable(struct drm_crtc *crtc)
 		       pol << bits->polarity_shift);
 
 	/* Setup SHIFT register by following what ZTE BSP does */
-	zx_writel(vou->timing + regs->timing_shift, H_SHIFT_VAL);
+	val = H_SHIFT_VAL;
+	if (interlaced)
+		val |= V_SHIFT_VAL << 16;
+	zx_writel(vou->timing + regs->timing_shift, val);
 	zx_writel(vou->timing + regs->timing_pi_shift, H_PI_SHIFT_VAL);
+
+	/* Progressive or interlace scan select */
+	scan_mask = bits->interlace_select | bits->pi_enable;
+	zx_writel_mask(vou->timing + SCAN_CTRL, scan_mask,
+		       interlaced ? scan_mask : 0);
 
 	/* Enable TIMING_CTRL */
 	zx_writel_mask(vou->timing + TIMING_TC_ENABLE, bits->tc_enable,
@@ -214,15 +406,15 @@ static void zx_crtc_enable(struct drm_crtc *crtc)
 	zx_writel_mask(zcrtc->chnreg + CHN_CTRL1, CHN_SCREEN_H_MASK,
 		       vm.vactive << CHN_SCREEN_H_SHIFT);
 
+	/* Configure channel interlace buffer control */
+	zx_writel_mask(zcrtc->chnreg + CHN_INTERLACE_BUF_CTRL, CHN_INTERLACE_EN,
+		       interlaced ? CHN_INTERLACE_EN : 0);
+
 	/* Update channel */
 	vou_chn_set_update(zcrtc);
 
 	/* Enable channel */
 	zx_writel_mask(zcrtc->chnreg + CHN_CTRL0, CHN_ENABLE, CHN_ENABLE);
-
-	/* Enable Graphic Layer */
-	zx_writel_mask(vou->osd + OSD_CTRL0, bits->gl_enable,
-		       bits->gl_enable);
 
 	drm_crtc_vblank_on(crtc);
 
@@ -246,9 +438,6 @@ static void zx_crtc_disable(struct drm_crtc *crtc)
 	clk_disable_unprepare(zcrtc->pixclk);
 
 	drm_crtc_vblank_off(crtc);
-
-	/* Disable Graphic Layer */
-	zx_writel_mask(vou->osd + OSD_CTRL0, bits->gl_enable, 0);
 
 	/* Disable channel */
 	zx_writel_mask(zcrtc->chnreg + CHN_CTRL0, CHN_ENABLE, 0);
@@ -294,7 +483,7 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 			enum vou_chn_type chn_type)
 {
 	struct device *dev = vou->dev;
-	struct zx_layer_data data;
+	struct zx_plane *zplane;
 	struct zx_crtc *zcrtc;
 	int ret;
 
@@ -305,19 +494,27 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 	zcrtc->vou = vou;
 	zcrtc->chn_type = chn_type;
 
+	zplane = devm_kzalloc(dev, sizeof(*zplane), GFP_KERNEL);
+	if (!zplane)
+		return -ENOMEM;
+
+	zplane->dev = dev;
+
 	if (chn_type == VOU_CHN_MAIN) {
-		data.layer = vou->osd + MAIN_GL_OFFSET;
-		data.csc = vou->osd + MAIN_CSC_OFFSET;
-		data.hbsc = vou->osd + MAIN_HBSC_OFFSET;
-		data.rsz = vou->otfppu + MAIN_RSZ_OFFSET;
+		zplane->layer = vou->osd + MAIN_GL_OFFSET;
+		zplane->csc = vou->osd + MAIN_CSC_OFFSET;
+		zplane->hbsc = vou->osd + MAIN_HBSC_OFFSET;
+		zplane->rsz = vou->otfppu + MAIN_RSZ_OFFSET;
+		zplane->bits = &zx_gl_bits[0];
 		zcrtc->chnreg = vou->osd + OSD_MAIN_CHN;
 		zcrtc->regs = &main_crtc_regs;
 		zcrtc->bits = &main_crtc_bits;
 	} else {
-		data.layer = vou->osd + AUX_GL_OFFSET;
-		data.csc = vou->osd + AUX_CSC_OFFSET;
-		data.hbsc = vou->osd + AUX_HBSC_OFFSET;
-		data.rsz = vou->otfppu + AUX_RSZ_OFFSET;
+		zplane->layer = vou->osd + AUX_GL_OFFSET;
+		zplane->csc = vou->osd + AUX_CSC_OFFSET;
+		zplane->hbsc = vou->osd + AUX_HBSC_OFFSET;
+		zplane->rsz = vou->otfppu + AUX_RSZ_OFFSET;
+		zplane->bits = &zx_gl_bits[1];
 		zcrtc->chnreg = vou->osd + OSD_AUX_CHN;
 		zcrtc->regs = &aux_crtc_regs;
 		zcrtc->bits = &aux_crtc_bits;
@@ -331,12 +528,13 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 		return ret;
 	}
 
-	zcrtc->primary = zx_plane_init(drm, dev, &data, DRM_PLANE_TYPE_PRIMARY);
-	if (IS_ERR(zcrtc->primary)) {
-		ret = PTR_ERR(zcrtc->primary);
+	ret = zx_plane_init(drm, zplane, DRM_PLANE_TYPE_PRIMARY);
+	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to init primary plane: %d\n", ret);
 		return ret;
 	}
+
+	zcrtc->primary = &zplane->plane;
 
 	ret = drm_crtc_init_with_planes(drm, &zcrtc->crtc, zcrtc->primary, NULL,
 					&zx_crtc_funcs, NULL);
@@ -355,17 +553,6 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 	return 0;
 }
 
-static inline struct drm_crtc *zx_find_crtc(struct drm_device *drm, int pipe)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &drm->mode_config.crtc_list, head)
-		if (crtc->index == pipe)
-			return crtc;
-
-	return NULL;
-}
-
 int zx_vou_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
@@ -373,7 +560,7 @@ int zx_vou_enable_vblank(struct drm_device *drm, unsigned int pipe)
 	struct zx_vou_hw *vou;
 	u32 int_frame_mask;
 
-	crtc = zx_find_crtc(drm, pipe);
+	crtc = drm_crtc_from_index(drm, pipe);
 	if (!crtc)
 		return 0;
 
@@ -393,7 +580,7 @@ void zx_vou_disable_vblank(struct drm_device *drm, unsigned int pipe)
 	struct zx_crtc *zcrtc;
 	struct zx_vou_hw *vou;
 
-	crtc = zx_find_crtc(drm, pipe);
+	crtc = drm_crtc_from_index(drm, pipe);
 	if (!crtc)
 		return;
 
@@ -402,6 +589,78 @@ void zx_vou_disable_vblank(struct drm_device *drm, unsigned int pipe)
 
 	zx_writel_mask(vou->timing + TIMING_INT_CTRL,
 		       zcrtc->bits->int_frame_mask, 0);
+}
+
+void zx_vou_layer_enable(struct drm_plane *plane)
+{
+	struct zx_crtc *zcrtc = to_zx_crtc(plane->state->crtc);
+	struct zx_vou_hw *vou = zcrtc->vou;
+	struct zx_plane *zplane = to_zx_plane(plane);
+	const struct vou_layer_bits *bits = zplane->bits;
+
+	if (zcrtc->chn_type == VOU_CHN_MAIN) {
+		zx_writel_mask(vou->osd + OSD_CTRL0, bits->chnsel, 0);
+		zx_writel_mask(vou->vouctl + VOU_CLK_SEL, bits->clksel, 0);
+	} else {
+		zx_writel_mask(vou->osd + OSD_CTRL0, bits->chnsel,
+			       bits->chnsel);
+		zx_writel_mask(vou->vouctl + VOU_CLK_SEL, bits->clksel,
+			       bits->clksel);
+	}
+
+	zx_writel_mask(vou->osd + OSD_CTRL0, bits->enable, bits->enable);
+}
+
+void zx_vou_layer_disable(struct drm_plane *plane)
+{
+	struct zx_crtc *zcrtc = to_zx_crtc(plane->crtc);
+	struct zx_vou_hw *vou = zcrtc->vou;
+	struct zx_plane *zplane = to_zx_plane(plane);
+	const struct vou_layer_bits *bits = zplane->bits;
+
+	zx_writel_mask(vou->osd + OSD_CTRL0, bits->enable, 0);
+}
+
+static void zx_overlay_init(struct drm_device *drm, struct zx_vou_hw *vou)
+{
+	struct device *dev = vou->dev;
+	struct zx_plane *zplane;
+	int i;
+	int ret;
+
+	/*
+	 * VL0 has some quirks on scaling support which need special handling.
+	 * Let's leave it out for now.
+	 */
+	for (i = 1; i < VL_NUM; i++) {
+		zplane = devm_kzalloc(dev, sizeof(*zplane), GFP_KERNEL);
+		if (!zplane) {
+			DRM_DEV_ERROR(dev, "failed to allocate zplane %d\n", i);
+			return;
+		}
+
+		zplane->layer = vou->osd + OSD_VL_OFFSET(i);
+		zplane->hbsc = vou->osd + HBSC_VL_OFFSET(i);
+		zplane->rsz = vou->otfppu + RSZ_VL_OFFSET(i);
+		zplane->bits = &zx_vl_bits[i];
+
+		ret = zx_plane_init(drm, zplane, DRM_PLANE_TYPE_OVERLAY);
+		if (ret) {
+			DRM_DEV_ERROR(dev, "failed to init overlay %d\n", i);
+			continue;
+		}
+	}
+}
+
+static inline void zx_osd_int_update(struct zx_crtc *zcrtc)
+{
+	struct drm_crtc *crtc = &zcrtc->crtc;
+	struct drm_plane *plane;
+
+	vou_chn_set_update(zcrtc);
+
+	drm_for_each_plane_mask(plane, crtc->dev, crtc->state->plane_mask)
+		zx_plane_set_update(plane);
 }
 
 static irqreturn_t vou_irq_handler(int irq, void *dev_id)
@@ -423,15 +682,11 @@ static irqreturn_t vou_irq_handler(int irq, void *dev_id)
 	state = zx_readl(vou->osd + OSD_INT_STA);
 	zx_writel(vou->osd + OSD_INT_CLRSTA, state);
 
-	if (state & OSD_INT_MAIN_UPT) {
-		vou_chn_set_update(vou->main_crtc);
-		zx_plane_set_update(vou->main_crtc->primary);
-	}
+	if (state & OSD_INT_MAIN_UPT)
+		zx_osd_int_update(vou->main_crtc);
 
-	if (state & OSD_INT_AUX_UPT) {
-		vou_chn_set_update(vou->aux_crtc);
-		zx_plane_set_update(vou->aux_crtc->primary);
-	}
+	if (state & OSD_INT_AUX_UPT)
+		zx_osd_int_update(vou->aux_crtc);
 
 	if (state & OSD_INT_ERROR)
 		DRM_DEV_ERROR(vou->dev, "OSD ERROR: 0x%08x!\n", state);
@@ -462,18 +717,8 @@ static void vou_dtrc_init(struct zx_vou_hw *vou)
 
 static void vou_hw_init(struct zx_vou_hw *vou)
 {
-	/* Set GL0 to main channel and GL1 to aux channel */
-	zx_writel_mask(vou->osd + OSD_CTRL0, OSD_CTRL0_GL0_SEL, 0);
-	zx_writel_mask(vou->osd + OSD_CTRL0, OSD_CTRL0_GL1_SEL,
-		       OSD_CTRL0_GL1_SEL);
-
 	/* Release reset for all VOU modules */
 	zx_writel(vou->vouctl + VOU_SOFT_RST, ~0);
-
-	/* Select main clock for GL0 and aux clock for GL1 module */
-	zx_writel_mask(vou->vouctl + VOU_CLK_SEL, VOU_CLK_GL0_SEL, 0);
-	zx_writel_mask(vou->vouctl + VOU_CLK_SEL, VOU_CLK_GL1_SEL,
-		       VOU_CLK_GL1_SEL);
 
 	/* Enable clock auto-gating for all VOU modules */
 	zx_writel(vou->vouctl + VOU_CLK_REQEN, ~0);
@@ -610,6 +855,8 @@ static int zx_crtc_bind(struct device *dev, struct device *master, void *data)
 			      ret);
 		goto disable_ppu_clk;
 	}
+
+	zx_overlay_init(drm, vou);
 
 	return 0;
 

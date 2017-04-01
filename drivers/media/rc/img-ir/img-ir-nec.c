@@ -11,6 +11,7 @@
 
 #include "img-ir-hw.h"
 #include <linux/bitrev.h>
+#include <linux/log2.h>
 
 /* Convert NEC data to a scancode */
 static int img_ir_nec_scancode(int len, u64 raw, u64 enabled_protocols,
@@ -62,7 +63,23 @@ static int img_ir_nec_filter(const struct rc_scancode_filter *in,
 	data       = in->data & 0xff;
 	data_m     = in->mask & 0xff;
 
-	if ((in->data | in->mask) & 0xff000000) {
+	protocols &= RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32;
+
+	/*
+	 * If only one bit is set, we were requested to do an exact
+	 * protocol. This should be the case for wakeup filters; for
+	 * normal filters, guess the protocol from the scancode.
+	 */
+	if (!is_power_of_2(protocols)) {
+		if ((in->data | in->mask) & 0xff000000)
+			protocols = RC_BIT_NEC32;
+		else if ((in->data | in->mask) & 0x00ff0000)
+			protocols = RC_BIT_NECX;
+		else
+			protocols = RC_BIT_NEC;
+	}
+
+	if (protocols == RC_BIT_NEC32) {
 		/* 32-bit NEC (used by Apple and TiVo remotes) */
 		/* scan encoding: as transmitted, MSBit = first received bit */
 		addr       = bitrev8(in->data >> 24);
@@ -73,7 +90,7 @@ static int img_ir_nec_filter(const struct rc_scancode_filter *in,
 		data_m     = bitrev8(in->mask >>  8);
 		data_inv   = bitrev8(in->data >>  0);
 		data_inv_m = bitrev8(in->mask >>  0);
-	} else if ((in->data | in->mask) & 0x00ff0000) {
+	} else if (protocols == RC_BIT_NECX) {
 		/* Extended NEC */
 		/* scan encoding AAaaDD */
 		addr       = (in->data >> 16) & 0xff;

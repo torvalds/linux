@@ -97,18 +97,6 @@ static void ath_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	dev_kfree_skb(skb);
 }
 
-void ath_txq_lock(struct ath_softc *sc, struct ath_txq *txq)
-	__acquires(&txq->axq_lock)
-{
-	spin_lock_bh(&txq->axq_lock);
-}
-
-void ath_txq_unlock(struct ath_softc *sc, struct ath_txq *txq)
-	__releases(&txq->axq_lock)
-{
-	spin_unlock_bh(&txq->axq_lock);
-}
-
 void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq)
 	__releases(&txq->axq_lock)
 {
@@ -124,20 +112,43 @@ void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq)
 		ath_tx_status(hw, skb);
 }
 
-static void ath_tx_queue_tid(struct ath_softc *sc, struct ath_txq *txq,
-			     struct ath_atx_tid *tid)
+void __ath_tx_queue_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 {
-	struct list_head *list;
 	struct ath_vif *avp = (struct ath_vif *) tid->an->vif->drv_priv;
 	struct ath_chanctx *ctx = avp->chanctx;
+	struct ath_acq *acq;
+	struct list_head *tid_list;
+	u8 acno = TID_TO_WME_AC(tid->tidno);
 
-	if (!ctx)
+	if (!ctx || !list_empty(&tid->list))
 		return;
 
-	list = &ctx->acq[TID_TO_WME_AC(tid->tidno)];
-	if (list_empty(&tid->list))
-		list_add_tail(&tid->list, list);
+
+	acq = &ctx->acq[acno];
+	if ((sc->airtime_flags & AIRTIME_USE_NEW_QUEUES) &&
+	    tid->an->airtime_deficit[acno] > 0)
+		tid_list = &acq->acq_new;
+	else
+		tid_list = &acq->acq_old;
+
+	list_add_tail(&tid->list, tid_list);
 }
+
+void ath_tx_queue_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
+{
+	struct ath_vif *avp = (struct ath_vif *) tid->an->vif->drv_priv;
+	struct ath_chanctx *ctx = avp->chanctx;
+	struct ath_acq *acq;
+
+	if (!ctx || !list_empty(&tid->list))
+		return;
+
+	acq = &ctx->acq[TID_TO_WME_AC(tid->tidno)];
+	spin_lock_bh(&acq->lock);
+	__ath_tx_queue_tid(sc, tid);
+	spin_unlock_bh(&acq->lock);
+}
+
 
 void ath9k_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *queue)
 {
@@ -153,7 +164,7 @@ void ath9k_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *queue)
 	ath_txq_lock(sc, txq);
 
 	tid->has_queued = true;
-	ath_tx_queue_tid(sc, txq, tid);
+	ath_tx_queue_tid(sc, tid);
 	ath_txq_schedule(sc, txq);
 
 	ath_txq_unlock(sc, txq);
@@ -660,7 +671,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 		skb_queue_splice_tail(&bf_pending, &tid->retry_q);
 		if (!an->sleeping) {
-			ath_tx_queue_tid(sc, txq, tid);
+			ath_tx_queue_tid(sc, tid);
 
 			if (ts->ts_status & (ATH9K_TXERR_FILT | ATH9K_TXERR_XRETRY))
 				tid->clear_ps_filter = true;
@@ -686,6 +697,33 @@ static bool bf_is_ampdu_not_probing(struct ath_buf *bf)
 {
     struct ieee80211_tx_info *info = IEEE80211_SKB_CB(bf->bf_mpdu);
     return bf_isampdu(bf) && !(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
+}
+
+static void ath_tx_count_airtime(struct ath_softc *sc, struct ath_node *an,
+				 struct ath_atx_tid *tid, struct ath_buf *bf,
+				 struct ath_tx_status *ts)
+{
+	struct ath_txq *txq = tid->txq;
+	u32 airtime = 0;
+	int i;
+
+	airtime += ts->duration * (ts->ts_longretry + 1);
+	for(i = 0; i < ts->ts_rateindex; i++) {
+		int rate_dur = ath9k_hw_get_duration(sc->sc_ah, bf->bf_desc, i);
+		airtime += rate_dur * bf->rates[i].count;
+	}
+
+	if (sc->airtime_flags & AIRTIME_USE_TX) {
+		int q = txq->mac80211_qnum;
+		struct ath_acq *acq = &sc->cur_chan->acq[q];
+
+		spin_lock_bh(&acq->lock);
+		an->airtime_deficit[q] -= airtime;
+		if (an->airtime_deficit[q] <= 0)
+			__ath_tx_queue_tid(sc, tid);
+		spin_unlock_bh(&acq->lock);
+	}
+	ath_debug_airtime(sc, an, 0, airtime);
 }
 
 static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
@@ -715,6 +753,7 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 	if (sta) {
 		struct ath_node *an = (struct ath_node *)sta->drv_priv;
 		tid = ath_get_skb_tid(sc, an, bf->bf_mpdu);
+		ath_tx_count_airtime(sc, an, tid, bf, ts);
 		if (ts->ts_status & (ATH9K_TXERR_FILT | ATH9K_TXERR_XRETRY))
 			tid->clear_ps_filter = true;
 	}
@@ -1068,8 +1107,8 @@ finish:
  * width  - 0 for 20 MHz, 1 for 40 MHz
  * half_gi - to use 4us v/s 3.6 us for symbol time
  */
-static u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, int pktlen,
-			    int width, int half_gi, bool shortPreamble)
+u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, int pktlen,
+		     int width, int half_gi, bool shortPreamble)
 {
 	u32 nbits, nsymbits, duration, nsymbols;
 	int streams;
@@ -1151,8 +1190,9 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 		if (is_40) {
 			u8 power_ht40delta;
 			struct ar5416_eeprom_def *eep = &ah->eeprom.def;
+			u16 eeprom_rev = ah->eep_ops->get_eeprom_rev(ah);
 
-			if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_2) {
+			if (eeprom_rev >= AR5416_EEP_MINOR_VER_2) {
 				bool is_2ghz;
 				struct modal_eep_header *pmodal;
 
@@ -1467,7 +1507,7 @@ ath_tx_form_burst(struct ath_softc *sc, struct ath_txq *txq,
 }
 
 static bool ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
-			      struct ath_atx_tid *tid, bool *stop)
+			      struct ath_atx_tid *tid)
 {
 	struct ath_buf *bf;
 	struct ieee80211_tx_info *tx_info;
@@ -1489,7 +1529,6 @@ static bool ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	if ((aggr && txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH) ||
 	    (!aggr && txq->axq_depth >= ATH_NON_AGGR_MIN_QDEPTH)) {
 		__skb_queue_tail(&tid->retry_q, bf->bf_mpdu);
-		*stop = true;
 		return false;
 	}
 
@@ -1613,7 +1652,7 @@ void ath_tx_aggr_wakeup(struct ath_softc *sc, struct ath_node *an)
 		ath_txq_lock(sc, txq);
 		tid->clear_ps_filter = true;
 		if (ath_tid_has_buffered(tid)) {
-			ath_tx_queue_tid(sc, txq, tid);
+			ath_tx_queue_tid(sc, tid);
 			ath_txq_schedule(sc, txq);
 		}
 		ath_txq_unlock_complete(sc, txq);
@@ -1912,9 +1951,10 @@ void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq)
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_atx_tid *tid, *last_tid;
+	struct ath_atx_tid *tid;
 	struct list_head *tid_list;
-	bool sent = false;
+	struct ath_acq *acq;
+	bool active = AIRTIME_ACTIVE(sc->airtime_flags);
 
 	if (txq->mac80211_qnum < 0)
 		return;
@@ -1923,48 +1963,55 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 		return;
 
 	spin_lock_bh(&sc->chan_lock);
-	tid_list = &sc->cur_chan->acq[txq->mac80211_qnum];
-
-	if (list_empty(tid_list)) {
-		spin_unlock_bh(&sc->chan_lock);
-		return;
-	}
-
 	rcu_read_lock();
+	acq = &sc->cur_chan->acq[txq->mac80211_qnum];
 
-	last_tid = list_entry(tid_list->prev, struct ath_atx_tid, list);
-	while (!list_empty(tid_list)) {
-		bool stop = false;
+	if (sc->cur_chan->stopped)
+		goto out;
 
-		if (sc->cur_chan->stopped)
-			break;
+begin:
+	tid_list = &acq->acq_new;
+	if (list_empty(tid_list)) {
+		tid_list = &acq->acq_old;
+		if (list_empty(tid_list))
+			goto out;
+	}
+	tid = list_first_entry(tid_list, struct ath_atx_tid, list);
 
-		tid = list_first_entry(tid_list, struct ath_atx_tid, list);
-		list_del_init(&tid->list);
-
-		if (ath_tx_sched_aggr(sc, txq, tid, &stop))
-			sent = true;
-
-		/*
-		 * add tid to round-robin queue if more frames
-		 * are pending for the tid
-		 */
-		if (ath_tid_has_buffered(tid))
-			ath_tx_queue_tid(sc, txq, tid);
-
-		if (stop)
-			break;
-
-		if (tid == last_tid) {
-			if (!sent)
-				break;
-
-			sent = false;
-			last_tid = list_entry(tid_list->prev,
-					      struct ath_atx_tid, list);
-		}
+	if (active && tid->an->airtime_deficit[txq->mac80211_qnum] <= 0) {
+		spin_lock_bh(&acq->lock);
+		tid->an->airtime_deficit[txq->mac80211_qnum] += ATH_AIRTIME_QUANTUM;
+		list_move_tail(&tid->list, &acq->acq_old);
+		spin_unlock_bh(&acq->lock);
+		goto begin;
 	}
 
+	if (!ath_tid_has_buffered(tid)) {
+		spin_lock_bh(&acq->lock);
+		if ((tid_list == &acq->acq_new) && !list_empty(&acq->acq_old))
+			list_move_tail(&tid->list, &acq->acq_old);
+		else {
+			list_del_init(&tid->list);
+		}
+		spin_unlock_bh(&acq->lock);
+		goto begin;
+	}
+
+
+	/*
+	 * If we succeed in scheduling something, immediately restart to make
+	 * sure we keep the HW busy.
+	 */
+	if(ath_tx_sched_aggr(sc, txq, tid)) {
+		if (!active) {
+			spin_lock_bh(&acq->lock);
+			list_move_tail(&tid->list, &acq->acq_old);
+			spin_unlock_bh(&acq->lock);
+		}
+		goto begin;
+	}
+
+out:
 	rcu_read_unlock();
 	spin_unlock_bh(&sc->chan_lock);
 }
@@ -2805,8 +2852,6 @@ int ath_tx_init(struct ath_softc *sc, int nbufs)
 		return error;
 	}
 
-	INIT_DELAYED_WORK(&sc->tx_complete_work, ath_tx_complete_poll_work);
-
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		error = ath_tx_edma_init(sc);
 
@@ -2817,6 +2862,9 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 {
 	struct ath_atx_tid *tid;
 	int tidno, acno;
+
+	for (acno = 0; acno < IEEE80211_NUM_ACS; acno++)
+		an->airtime_deficit[acno] = ATH_AIRTIME_QUANTUM;
 
 	for (tidno = 0; tidno < IEEE80211_NUM_TIDS; tidno++) {
 		tid = ath_node_to_tid(an, tidno);

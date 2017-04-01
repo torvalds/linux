@@ -3974,7 +3974,7 @@ static void ipw_send_disassociate(struct ipw_priv *priv, int quiet)
 		return;
 	}
 
-	IPW_DEBUG_ASSOC("Disassocation attempt from %pM "
+	IPW_DEBUG_ASSOC("Disassociation attempt from %pM "
 			"on channel %d.\n",
 			priv->assoc_request.bssid,
 			priv->assoc_request.channel);
@@ -5196,7 +5196,7 @@ static void ipw_rx_queue_restock(struct ipw_priv *priv)
  * Move all used packet from rx_used to rx_free, allocating a new SKB for each.
  * Also restock the Rx queue via ipw_rx_queue_restock.
  *
- * This is called as a scheduled work item (except for during intialization)
+ * This is called as a scheduled work item (except for during initialization)
  */
 static void ipw_rx_queue_replenish(void *data)
 {

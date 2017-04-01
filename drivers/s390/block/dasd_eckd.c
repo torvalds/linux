@@ -2543,8 +2543,8 @@ dasd_eckd_build_format(struct dasd_device *base,
 						DASD_ECKD_CCW_WRITE_CKD_MT;
 				ccw->flags = CCW_FLAG_SLI;
 				ccw->count = 8;
-					ccw->cda = (__u32)(addr_t) ect;
-					ccw++;
+				ccw->cda = (__u32)(addr_t) ect;
+				ccw++;
 			}
 		}
 	}
@@ -4864,7 +4864,7 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 			break;
 		case 3: /* tsa_intrg */
 			len += sprintf(page + len, PRINTK_HEADER
-				      " tsb->tsa.intrg.: not supportet yet\n");
+				      " tsb->tsa.intrg.: not supported yet\n");
 			break;
 		}
 

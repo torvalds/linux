@@ -71,6 +71,12 @@ extern struct list_head slab_caches;
 /* The slab cache that manages slab cache information */
 extern struct kmem_cache *kmem_cache;
 
+/* A table of kmalloc cache names and sizes */
+extern const struct kmalloc_info_struct {
+	const char *name;
+	unsigned long size;
+} kmalloc_info[];
+
 unsigned long calculate_alignment(unsigned long flags,
 		unsigned long align, unsigned long size);
 
@@ -162,6 +168,7 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
 int __kmem_cache_shutdown(struct kmem_cache *);
 void __kmem_cache_release(struct kmem_cache *);
 int __kmem_cache_shrink(struct kmem_cache *);
+void __kmemcg_cache_deactivate(struct kmem_cache *s);
 void slab_kmem_cache_release(struct kmem_cache *);
 
 struct seq_file;
@@ -195,17 +202,22 @@ void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
 int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
 
 #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+
+/* List of all root caches. */
+extern struct list_head		slab_root_caches;
+#define root_caches_node	memcg_params.__root_caches_node
+
 /*
  * Iterate over all memcg caches of the given root cache. The caller must hold
  * slab_mutex.
  */
 #define for_each_memcg_cache(iter, root) \
-	list_for_each_entry(iter, &(root)->memcg_params.list, \
-			    memcg_params.list)
+	list_for_each_entry(iter, &(root)->memcg_params.children, \
+			    memcg_params.children_node)
 
 static inline bool is_root_cache(struct kmem_cache *s)
 {
-	return s->memcg_params.is_root_cache;
+	return !s->memcg_params.root_cache;
 }
 
 static inline bool slab_equal_or_root(struct kmem_cache *s,
@@ -294,8 +306,15 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 }
 
 extern void slab_init_memcg_params(struct kmem_cache *);
+extern void memcg_link_cache(struct kmem_cache *s);
+extern void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
+				void (*deact_fn)(struct kmem_cache *));
 
 #else /* CONFIG_MEMCG && !CONFIG_SLOB */
+
+/* If !memcg, all caches are root. */
+#define slab_root_caches	slab_caches
+#define root_caches_node	list
 
 #define for_each_memcg_cache(iter, root) \
 	for ((void)(iter), (void)(root); 0; )
@@ -341,6 +360,11 @@ static inline void memcg_uncharge_slab(struct page *page, int order,
 static inline void slab_init_memcg_params(struct kmem_cache *s)
 {
 }
+
+static inline void memcg_link_cache(struct kmem_cache *s)
+{
+}
+
 #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
 
 static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
@@ -488,6 +512,9 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 void *slab_start(struct seq_file *m, loff_t *pos);
 void *slab_next(struct seq_file *m, void *p, loff_t *pos);
 void slab_stop(struct seq_file *m, void *p);
+void *memcg_slab_start(struct seq_file *m, loff_t *pos);
+void *memcg_slab_next(struct seq_file *m, void *p, loff_t *pos);
+void memcg_slab_stop(struct seq_file *m, void *p);
 int memcg_slab_show(struct seq_file *m, void *p);
 
 void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);

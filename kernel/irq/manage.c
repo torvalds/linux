@@ -17,6 +17,8 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/sched/rt.h>
+#include <linux/sched/task.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/task_work.h>
 
 #include "internals.h"
@@ -353,7 +355,7 @@ static int setup_affinity(struct irq_desc *desc, struct cpumask *mask)
 		return 0;
 
 	/*
-	 * Preserve the managed affinity setting and an userspace affinity
+	 * Preserve the managed affinity setting and a userspace affinity
 	 * setup, but make sure that one of the targets is online.
 	 */
 	if (irqd_affinity_is_managed(&desc->irq_data) ||

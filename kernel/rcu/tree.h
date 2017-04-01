@@ -24,6 +24,7 @@
 
 #include <linux/cache.h>
 #include <linux/spinlock.h>
+#include <linux/rtmutex.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
@@ -521,7 +522,6 @@ struct rcu_state {
 	struct mutex exp_mutex;			/* Serialize expedited GP. */
 	struct mutex exp_wake_mutex;		/* Serialize wakeup. */
 	unsigned long expedited_sequence;	/* Take a ticket. */
-	atomic_long_t expedited_normal;		/* # fallbacks to normal. */
 	atomic_t expedited_need_qs;		/* # CPUs left to check in. */
 	struct swait_queue_head expedited_wq;	/* Wait for check-ins. */
 	int ncpus_snap;				/* # CPUs seen last time. */
@@ -594,6 +594,8 @@ extern struct rcu_state rcu_bh_state;
 #ifdef CONFIG_PREEMPT_RCU
 extern struct rcu_state rcu_preempt_state;
 #endif /* #ifdef CONFIG_PREEMPT_RCU */
+
+int rcu_dynticks_snap(struct rcu_dynticks *rdtp);
 
 #ifdef CONFIG_RCU_BOOST
 DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
@@ -686,18 +688,6 @@ static inline void rcu_nocb_q_lengths(struct rcu_data *rdp, long *ql, long *qll)
 #endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
 }
 #endif /* #ifdef CONFIG_RCU_TRACE */
-
-/*
- * Place this after a lock-acquisition primitive to guarantee that
- * an UNLOCK+LOCK pair act as a full barrier.  This guarantee applies
- * if the UNLOCK and LOCK are executed by the same CPU or if the
- * UNLOCK and LOCK operate on the same lock variable.
- */
-#ifdef CONFIG_PPC
-#define smp_mb__after_unlock_lock()	smp_mb()  /* Full ordering for lock. */
-#else /* #ifdef CONFIG_PPC */
-#define smp_mb__after_unlock_lock()	do { } while (0)
-#endif /* #else #ifdef CONFIG_PPC */
 
 /*
  * Wrappers for the rcu_node::lock acquire and release.

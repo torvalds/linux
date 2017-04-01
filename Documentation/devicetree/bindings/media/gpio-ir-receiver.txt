@@ -5,7 +5,8 @@ Required properties:
 	- gpios: specifies GPIO used for IR signal reception.
 
 Optional properties:
-	- linux,rc-map-name: Linux specific remote control map name.
+	- linux,rc-map-name: see rc.txt file in the same
+	  directory.
 
 Example node:
 

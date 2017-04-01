@@ -1811,21 +1811,23 @@ static void hamachi_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *
 	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
-static int hamachi_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+static int hamachi_get_link_ksettings(struct net_device *dev,
+				      struct ethtool_link_ksettings *cmd)
 {
 	struct hamachi_private *np = netdev_priv(dev);
 	spin_lock_irq(&np->lock);
-	mii_ethtool_gset(&np->mii_if, ecmd);
+	mii_ethtool_get_link_ksettings(&np->mii_if, cmd);
 	spin_unlock_irq(&np->lock);
 	return 0;
 }
 
-static int hamachi_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+static int hamachi_set_link_ksettings(struct net_device *dev,
+				      const struct ethtool_link_ksettings *cmd)
 {
 	struct hamachi_private *np = netdev_priv(dev);
 	int res;
 	spin_lock_irq(&np->lock);
-	res = mii_ethtool_sset(&np->mii_if, ecmd);
+	res = mii_ethtool_set_link_ksettings(&np->mii_if, cmd);
 	spin_unlock_irq(&np->lock);
 	return res;
 }
@@ -1845,10 +1847,10 @@ static u32 hamachi_get_link(struct net_device *dev)
 static const struct ethtool_ops ethtool_ops = {
 	.begin = check_if_running,
 	.get_drvinfo = hamachi_get_drvinfo,
-	.get_settings = hamachi_get_settings,
-	.set_settings = hamachi_set_settings,
 	.nway_reset = hamachi_nway_reset,
 	.get_link = hamachi_get_link,
+	.get_link_ksettings = hamachi_get_link_ksettings,
+	.set_link_ksettings = hamachi_set_link_ksettings,
 };
 
 static const struct ethtool_ops ethtool_ops_no_mii = {

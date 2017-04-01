@@ -312,9 +312,11 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 		if (arche_pdata->wake_detect_state == WD_STATE_IDLE) {
 			arche_pdata->wake_detect_start = jiffies;
 			/*
-			 * In the begining, when wake/detect goes low (first time), we assume
-			 * it is meant for coldboot and set the flag. If wake/detect line stays low
-			 * beyond 30msec, then it is coldboot else fallback to standby boot.
+			 * In the begining, when wake/detect goes low
+			 * (first time), we assume it is meant for coldboot
+			 * and set the flag. If wake/detect line stays low
+			 * beyond 30msec, then it is coldboot else fallback
+			 * to standby boot.
 			 */
 			arche_platform_set_wake_detect_state(arche_pdata,
 							     WD_STATE_BOOT_INIT);
@@ -330,7 +332,8 @@ exit:
 /*
  * Requires arche_pdata->platform_state_mutex to be held
  */
-static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdata)
+static int
+arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdata)
 {
 	int ret;
 
@@ -364,7 +367,8 @@ static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdat
 /*
  * Requires arche_pdata->platform_state_mutex to be held
  */
-static int arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_pdata)
+static int
+arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_pdata)
 {
 	int ret;
 
@@ -398,7 +402,8 @@ static int arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_p
 /*
  * Requires arche_pdata->platform_state_mutex to be held
  */
-static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pdata)
+static void
+arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pdata)
 {
 	unsigned long flags;
 
@@ -561,14 +566,17 @@ static int arche_platform_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	arche_pdata = devm_kzalloc(&pdev->dev, sizeof(*arche_pdata), GFP_KERNEL);
+	arche_pdata = devm_kzalloc(&pdev->dev, sizeof(*arche_pdata),
+				   GFP_KERNEL);
 	if (!arche_pdata)
 		return -ENOMEM;
 
 	/* setup svc reset gpio */
 	arche_pdata->is_reset_act_hi = of_property_read_bool(np,
 					"svc,reset-active-high");
-	arche_pdata->svc_reset_gpio = of_get_named_gpio(np, "svc,reset-gpio", 0);
+	arche_pdata->svc_reset_gpio = of_get_named_gpio(np,
+							"svc,reset-gpio",
+							0);
 	if (arche_pdata->svc_reset_gpio < 0) {
 		dev_err(dev, "failed to get reset-gpio\n");
 		return arche_pdata->svc_reset_gpio;
@@ -610,7 +618,8 @@ static int arche_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get svc clock-req gpio\n");
 		return arche_pdata->svc_refclk_req;
 	}
-	ret = devm_gpio_request(dev, arche_pdata->svc_refclk_req, "svc-clk-req");
+	ret = devm_gpio_request(dev, arche_pdata->svc_refclk_req,
+				"svc-clk-req");
 	if (ret) {
 		dev_err(dev, "failed to request svc-clk-req gpio: %d\n", ret);
 		return ret;
@@ -634,13 +643,16 @@ static int arche_platform_probe(struct platform_device *pdev)
 	arche_pdata->num_apbs = of_get_child_count(np);
 	dev_dbg(dev, "Number of APB's available - %d\n", arche_pdata->num_apbs);
 
-	arche_pdata->wake_detect_gpio = of_get_named_gpio(np, "svc,wake-detect-gpio", 0);
+	arche_pdata->wake_detect_gpio = of_get_named_gpio(np,
+							  "svc,wake-detect-gpio",
+							  0);
 	if (arche_pdata->wake_detect_gpio < 0) {
 		dev_err(dev, "failed to get wake detect gpio\n");
 		return arche_pdata->wake_detect_gpio;
 	}
 
-	ret = devm_gpio_request(dev, arche_pdata->wake_detect_gpio, "wake detect");
+	ret = devm_gpio_request(dev, arche_pdata->wake_detect_gpio,
+				"wake detect");
 	if (ret) {
 		dev_err(dev, "Failed requesting wake_detect gpio %d\n",
 				arche_pdata->wake_detect_gpio);
@@ -658,10 +670,11 @@ static int arche_platform_probe(struct platform_device *pdev)
 		gpio_to_irq(arche_pdata->wake_detect_gpio);
 
 	ret = devm_request_threaded_irq(dev, arche_pdata->wake_detect_irq,
-			arche_platform_wd_irq,
-			arche_platform_wd_irq_thread,
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-			dev_name(dev), arche_pdata);
+					arche_platform_wd_irq,
+					arche_platform_wd_irq_thread,
+					IRQF_TRIGGER_FALLING |
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					dev_name(dev), arche_pdata);
 	if (ret) {
 		dev_err(dev, "failed to request wake detect IRQ %d\n", ret);
 		return ret;

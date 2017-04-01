@@ -1136,7 +1136,7 @@ static struct mlx5_flow_group *create_autogroup(struct mlx5_flow_table *ft,
 						u32 *match_criteria)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
-	struct list_head *prev = ft->node.children.prev;
+	struct list_head *prev = &ft->node.children;
 	unsigned int candidate_index = 0;
 	struct mlx5_flow_group *fg;
 	void *match_criteria_addr;
@@ -1232,9 +1232,17 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	fs_for_each_fte(fte, fg) {
 		nested_lock_ref_node(&fte->node, FS_MUTEX_CHILD);
 		if (compare_match_value(&fg->mask, match_value, &fte->val) &&
-		    (flow_act->action & fte->action) &&
-		    flow_act->flow_tag == fte->flow_tag) {
+		    (flow_act->action & fte->action)) {
 			int old_action = fte->action;
+
+			if (fte->flow_tag != flow_act->flow_tag) {
+				mlx5_core_warn(get_dev(&fte->node),
+					       "FTE flow tag %u already exists with different flow tag %u\n",
+					       fte->flow_tag,
+					       flow_act->flow_tag);
+				handle = ERR_PTR(-EEXIST);
+				goto unlock_fte;
+			}
 
 			fte->action |= flow_act->action;
 			handle = add_rule_fte(fte, fg, dest, dest_num,
@@ -1665,7 +1673,7 @@ static int create_leaf_prios(struct mlx5_flow_namespace *ns, int prio,
 
 #define FLOW_TABLE_BIT_SZ 1
 #define GET_FLOW_TABLE_CAP(dev, offset) \
-	((be32_to_cpu(*((__be32 *)(dev->hca_caps_cur[MLX5_CAP_FLOW_TABLE]) +	\
+	((be32_to_cpu(*((__be32 *)(dev->caps.hca_cur[MLX5_CAP_FLOW_TABLE]) +	\
 			offset / 32)) >>					\
 	  (32 - FLOW_TABLE_BIT_SZ - (offset & 0x1f))) & FLOW_TABLE_BIT_SZ)
 static bool has_required_caps(struct mlx5_core_dev *dev, struct node_caps *caps)

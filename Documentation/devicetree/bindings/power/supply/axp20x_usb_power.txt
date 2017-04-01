@@ -3,6 +3,11 @@ AXP20x USB power supply
 Required Properties:
 -compatible: One of: "x-powers,axp202-usb-power-supply"
                      "x-powers,axp221-usb-power-supply"
+                     "x-powers,axp223-usb-power-supply"
+
+The AXP223 PMIC shares most of its behaviour with the AXP221 but has slight
+variations such as the former being able to set the VBUS power supply max
+current to 100mA, unlike the latter.
 
 This node is a subnode of the axp20x PMIC.
 

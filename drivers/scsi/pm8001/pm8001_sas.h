@@ -521,8 +521,6 @@ struct pm8001_hba_info {
 	struct pm8001_device	*devices;
 	struct pm8001_ccb_info	*ccb_info;
 #ifdef PM8001_USE_MSIX
-	struct msix_entry	msix_entries[PM8001_MAX_MSIX_VEC];
-					/*for msi-x interrupt*/
 	int			number_of_intr;/*will be used in remove()*/
 #endif
 #ifdef PM8001_USE_TASKLET

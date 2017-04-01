@@ -54,6 +54,9 @@ extern const struct file_operations cxlflash_cxl_fops;
 /* RRQ for master issued cmds */
 #define NUM_RRQ_ENTRY                   CXLFLASH_MAX_CMDS
 
+/* SQ for master issued cmds */
+#define NUM_SQ_ENTRY			CXLFLASH_MAX_CMDS
+
 
 static inline void check_sizes(void)
 {
@@ -155,8 +158,8 @@ static inline struct afu_cmd *sc_to_afucz(struct scsi_cmnd *sc)
 
 struct afu {
 	/* Stuff requiring alignment go first. */
-
-	u64 rrq_entry[NUM_RRQ_ENTRY];	/* 2K RRQ */
+	struct sisl_ioarcb sq[NUM_SQ_ENTRY];		/* 16K SQ */
+	u64 rrq_entry[NUM_RRQ_ENTRY];			/* 2K RRQ */
 
 	/* Beware of alignment till here. Preferably introduce new
 	 * fields after this point
@@ -171,9 +174,13 @@ struct afu {
 	struct sisl_host_map __iomem *host_map;		/* MC host map */
 	struct sisl_ctrl_map __iomem *ctrl_map;		/* MC control map */
 
-	struct kref mapcount;
-
 	ctx_hndl_t ctx_hndl;	/* master's context handle */
+
+	atomic_t hsq_credits;
+	spinlock_t hsq_slock;
+	struct sisl_ioarcb *hsq_start;
+	struct sisl_ioarcb *hsq_end;
+	struct sisl_ioarcb *hsq_curr;
 	u64 *hrrq_start;
 	u64 *hrrq_end;
 	u64 *hrrq_curr;
@@ -190,6 +197,23 @@ struct afu {
 	struct cxlflash_cfg *parent; /* Pointer back to parent cxlflash_cfg */
 
 };
+
+static inline bool afu_is_cmd_mode(struct afu *afu, u64 cmd_mode)
+{
+	u64 afu_cap = afu->interface_version >> SISL_INTVER_CAP_SHIFT;
+
+	return afu_cap & cmd_mode;
+}
+
+static inline bool afu_is_sq_cmd_mode(struct afu *afu)
+{
+	return afu_is_cmd_mode(afu, SISL_INTVER_CAP_SQ_CMD_MODE);
+}
+
+static inline bool afu_is_ioarrin_cmd_mode(struct afu *afu)
+{
+	return afu_is_cmd_mode(afu, SISL_INTVER_CAP_IOARRIN_CMD_MODE);
+}
 
 static inline u64 lun_to_lunid(u64 lun)
 {

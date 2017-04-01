@@ -163,16 +163,15 @@ static int hwdep_compat_ioctl(struct snd_hwdep *hwdep, struct file *file,
 #define hwdep_compat_ioctl NULL
 #endif
 
-static const struct snd_hwdep_ops hwdep_ops = {
-	.read		= hwdep_read,
-	.release	= hwdep_release,
-	.poll		= hwdep_poll,
-	.ioctl		= hwdep_ioctl,
-	.ioctl_compat	= hwdep_compat_ioctl,
-};
-
 int snd_tscm_create_hwdep_device(struct snd_tscm *tscm)
 {
+	static const struct snd_hwdep_ops ops = {
+		.read		= hwdep_read,
+		.release	= hwdep_release,
+		.poll		= hwdep_poll,
+		.ioctl		= hwdep_ioctl,
+		.ioctl_compat	= hwdep_compat_ioctl,
+	};
 	struct snd_hwdep *hwdep;
 	int err;
 
@@ -182,7 +181,7 @@ int snd_tscm_create_hwdep_device(struct snd_tscm *tscm)
 
 	strcpy(hwdep->name, "Tascam");
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_TASCAM;
-	hwdep->ops = hwdep_ops;
+	hwdep->ops = ops;
 	hwdep->private_data = tscm;
 	hwdep->exclusive = true;
 

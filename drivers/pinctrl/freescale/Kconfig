@@ -1,6 +1,7 @@
 config PINCTRL_IMX
 	bool
-	select PINMUX
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
 	select PINCONF
 	select REGMAP
 

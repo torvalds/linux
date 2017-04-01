@@ -335,7 +335,7 @@ static void hci_ibs_tx_idle_timeout(unsigned long arg)
 		/* Fall through */
 
 	default:
-		BT_ERR("Spurrious timeout tx state %d", qca->tx_ibs_state);
+		BT_ERR("Spurious timeout tx state %d", qca->tx_ibs_state);
 		break;
 	}
 
@@ -373,7 +373,7 @@ static void hci_ibs_wake_retrans_timeout(unsigned long arg)
 		/* Fall through */
 
 	default:
-		BT_ERR("Spurrious timeout tx state %d", qca->tx_ibs_state);
+		BT_ERR("Spurious timeout tx state %d", qca->tx_ibs_state);
 		break;
 	}
 

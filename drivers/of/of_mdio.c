@@ -147,6 +147,7 @@ EXPORT_SYMBOL(of_mdio_parse_addr);
  */
 static const struct of_device_id whitelist_phys[] = {
 	{ .compatible = "brcm,40nm-ephy" },
+	{ .compatible = "broadcom,bcm5241" },
 	{ .compatible = "marvell,88E1111", },
 	{ .compatible = "marvell,88e1116", },
 	{ .compatible = "marvell,88e1118", },

@@ -443,10 +443,10 @@ void blk_integrity_revalidate(struct gendisk *disk)
 		return;
 
 	if (bi->profile)
-		disk->queue->backing_dev_info.capabilities |=
+		disk->queue->backing_dev_info->capabilities |=
 			BDI_CAP_STABLE_WRITES;
 	else
-		disk->queue->backing_dev_info.capabilities &=
+		disk->queue->backing_dev_info->capabilities &=
 			~BDI_CAP_STABLE_WRITES;
 }
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -323,7 +323,7 @@ acpi_ns_check_reference(struct acpi_evaluate_info *info,
 
 	/*
 	 * Check the reference object for the correct reference type (opcode).
-	 * The only type of reference that can be converted to an union acpi_object is
+	 * The only type of reference that can be converted to a union acpi_object is
 	 * a reference to a named object (reference class: NAME)
 	 */
 	if (return_object->reference.class == ACPI_REFCLASS_NAME) {

@@ -330,7 +330,7 @@ static int hisi_femac_poll(struct napi_struct *napi, int budget)
 	} while (ints & DEF_INT_MASK);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		hisi_femac_irq_enable(priv, DEF_INT_MASK &
 					(~IRQ_INT_TX_PER_PACKET));
 	}

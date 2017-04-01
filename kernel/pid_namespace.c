@@ -12,12 +12,15 @@
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
 #include <linux/syscalls.h>
+#include <linux/cred.h>
 #include <linux/err.h>
 #include <linux/acct.h>
 #include <linux/slab.h>
 #include <linux/proc_ns.h>
 #include <linux/reboot.h>
 #include <linux/export.h>
+#include <linux/sched/task.h>
+#include <linux/sched/signal.h>
 
 struct pid_cache {
 	int nr_ids;

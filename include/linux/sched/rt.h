@@ -1,7 +1,9 @@
-#ifndef _SCHED_RT_H
-#define _SCHED_RT_H
+#ifndef _LINUX_SCHED_RT_H
+#define _LINUX_SCHED_RT_H
 
-#include <linux/sched/prio.h>
+#include <linux/sched.h>
+
+struct task_struct;
 
 static inline int rt_prio(int prio)
 {
@@ -57,4 +59,4 @@ extern void normalize_rt_tasks(void);
  */
 #define RR_TIMESLICE		(100 * HZ / 1000)
 
-#endif /* _SCHED_RT_H */
+#endif /* _LINUX_SCHED_RT_H */

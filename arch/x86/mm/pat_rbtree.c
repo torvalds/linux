@@ -47,7 +47,7 @@ static u64 get_subtree_max_end(struct rb_node *node)
 {
 	u64 ret = 0;
 	if (node) {
-		struct memtype *data = container_of(node, struct memtype, rb);
+		struct memtype *data = rb_entry(node, struct memtype, rb);
 		ret = data->subtree_max_end;
 	}
 	return ret;
@@ -79,7 +79,7 @@ static struct memtype *memtype_rb_lowest_match(struct rb_root *root,
 	struct memtype *last_lower = NULL;
 
 	while (node) {
-		struct memtype *data = container_of(node, struct memtype, rb);
+		struct memtype *data = rb_entry(node, struct memtype, rb);
 
 		if (get_subtree_max_end(node->rb_left) > start) {
 			/* Lowest overlap if any must be on left side */
@@ -121,7 +121,7 @@ static struct memtype *memtype_rb_match(struct rb_root *root,
 
 		node = rb_next(&match->rb);
 		if (node)
-			match = container_of(node, struct memtype, rb);
+			match = rb_entry(node, struct memtype, rb);
 		else
 			match = NULL;
 	}
@@ -150,7 +150,7 @@ static int memtype_rb_check_conflict(struct rb_root *root,
 
 	node = rb_next(&match->rb);
 	while (node) {
-		match = container_of(node, struct memtype, rb);
+		match = rb_entry(node, struct memtype, rb);
 
 		if (match->start >= end) /* Checked all possible matches */
 			goto success;
@@ -181,7 +181,7 @@ static void memtype_rb_insert(struct rb_root *root, struct memtype *newdata)
 	struct rb_node *parent = NULL;
 
 	while (*node) {
-		struct memtype *data = container_of(*node, struct memtype, rb);
+		struct memtype *data = rb_entry(*node, struct memtype, rb);
 
 		parent = *node;
 		if (data->subtree_max_end < newdata->end)
@@ -270,7 +270,7 @@ int rbt_memtype_copy_nth_element(struct memtype *out, loff_t pos)
 	}
 
 	if (node) { /* pos == i */
-		struct memtype *this = container_of(node, struct memtype, rb);
+		struct memtype *this = rb_entry(node, struct memtype, rb);
 		*out = *this;
 		return 0;
 	} else {

@@ -808,9 +808,7 @@ void bfa_fcs_vf_get_ports(bfa_fcs_vf_t *vf, wwn_t vpwwn[], int *nports);
 /*
  * fabric protected interface functions
  */
-void bfa_fcs_fabric_attach(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_modinit(struct bfa_fcs_s *fcs);
-void bfa_fcs_fabric_modexit(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_link_up(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_fabric_link_down(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_fabric_addvport(struct bfa_fcs_fabric_s *fabric,
@@ -827,8 +825,6 @@ void	bfa_fcs_fabric_nsymb_init(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
 	       wwn_t fabric_name);
 u16 bfa_fcs_fabric_get_switch_oui(struct bfa_fcs_fabric_s *fabric);
-void bfa_fcs_uf_attach(struct bfa_fcs_s *fcs);
-void bfa_fcs_port_attach(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_modstop(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_sm_online(struct bfa_fcs_fabric_s *fabric,
 			enum bfa_fcs_fabric_event event);

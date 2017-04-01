@@ -39,7 +39,7 @@
 
 #include "selftest.h"
 
-lst_sid_t LST_INVALID_SID = {LNET_NID_ANY, -1};
+struct lst_sid LST_INVALID_SID = {LNET_NID_ANY, -1};
 
 static int session_timeout = 100;
 module_param(session_timeout, int, 0444);
@@ -254,7 +254,7 @@ sfw_session_expired(void *data)
 }
 
 static inline void
-sfw_init_session(struct sfw_session *sn, lst_sid_t sid,
+sfw_init_session(struct sfw_session *sn, struct lst_sid sid,
 		 unsigned int features, const char *name)
 {
 	struct stt_timer *timer = &sn->sn_timer;
@@ -316,7 +316,7 @@ sfw_client_rpc_fini(struct srpc_client_rpc *rpc)
 }
 
 static struct sfw_batch *
-sfw_find_batch(lst_bid_t bid)
+sfw_find_batch(struct lst_bid bid)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 	struct sfw_batch *bat;
@@ -332,7 +332,7 @@ sfw_find_batch(lst_bid_t bid)
 }
 
 static struct sfw_batch *
-sfw_bid2batch(lst_bid_t bid)
+sfw_bid2batch(struct lst_bid bid)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
 	struct sfw_batch *bat;
@@ -361,7 +361,7 @@ static int
 sfw_get_stats(struct srpc_stat_reqst *request, struct srpc_stat_reply *reply)
 {
 	struct sfw_session *sn = sfw_data.fw_session;
-	sfw_counters_t *cnt = &reply->str_fw;
+	struct sfw_counters *cnt = &reply->str_fw;
 	struct sfw_batch *bat;
 
 	reply->str_sid = !sn ? LST_INVALID_SID : sn->sn_id;
@@ -777,14 +777,14 @@ sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 	LASSERT(bk);
 	LASSERT(bk->bk_niov * SFW_ID_PER_PAGE >= (unsigned int)ndest);
 	LASSERT((unsigned int)bk->bk_len >=
-		sizeof(lnet_process_id_packed_t) * ndest);
+		sizeof(struct lnet_process_id_packed) * ndest);
 
 	sfw_unpack_addtest_req(msg);
 	memcpy(&tsi->tsi_u, &req->tsr_u, sizeof(tsi->tsi_u));
 
 	for (i = 0; i < ndest; i++) {
-		lnet_process_id_packed_t *dests;
-		lnet_process_id_packed_t id;
+		struct lnet_process_id_packed *dests;
+		struct lnet_process_id_packed id;
 		int j;
 
 		dests = page_address(bk->bk_iovs[i / SFW_ID_PER_PAGE].bv_page);
@@ -1164,7 +1164,7 @@ sfw_add_test(struct srpc_server_rpc *rpc)
 			len = npg * PAGE_SIZE;
 
 		} else {
-			len = sizeof(lnet_process_id_packed_t) *
+			len = sizeof(struct lnet_process_id_packed) *
 			      request->tsr_ndest;
 		}
 

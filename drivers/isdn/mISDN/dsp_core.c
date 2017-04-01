@@ -115,7 +115,7 @@
  *
  * The CMX has special functions for conferences with one, two and more
  * members. It will allow different types of data flow. Receive and transmit
- * data to/form upper layer may be swithed on/off individually without losing
+ * data to/form upper layer may be switched on/off individually without losing
  * features of CMX, Tones and DTMF.
  *
  * Echo Cancellation: Sometimes we like to cancel echo from the interface.

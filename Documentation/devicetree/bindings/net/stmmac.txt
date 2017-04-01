@@ -49,6 +49,8 @@ Optional properties:
 - snps,force_sf_dma_mode	Force DMA to use the Store and Forward
 				mode for both tx and rx. This flag is
 				ignored if force_thresh_dma_mode is set.
+- snps,en-tx-lpi-clockgating	Enable gating of the MAC TX clock during
+				TX low-power mode
 - snps,multicast-filter-bins:	Number of multicast filter hash bins
 				supported by this device instance
 - snps,perfect-filter-entries:	Number of perfect filter entries supported
@@ -65,7 +67,6 @@ Optional properties:
 	- snps,wr_osr_lmt: max write outstanding req. limit
 	- snps,rd_osr_lmt: max read outstanding req. limit
 	- snps,kbbe: do not cross 1KiB boundary.
-	- snps,axi_all: align address
 	- snps,blen: this is a vector of supported burst length.
 	- snps,fb: fixed-burst
 	- snps,mb: mixed-burst

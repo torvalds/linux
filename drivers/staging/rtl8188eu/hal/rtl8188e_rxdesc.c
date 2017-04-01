@@ -150,7 +150,7 @@ void update_recvframe_phyinfo_88e(struct recv_frame *precvframe,
 	pkt_info.bPacketToSelf = false;
 	pkt_info.bPacketBeacon = false;
 
-	wlanhdr = precvframe->rx_data;
+	wlanhdr = precvframe->pkt->data;
 
 	pkt_info.bPacketMatchBSSID = ((!IsFrameTypeCtrl(wlanhdr)) &&
 		!pattrib->icv_err && !pattrib->crc_err &&

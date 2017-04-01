@@ -519,7 +519,7 @@ static int ip_vs_lblcr_init_svc(struct ip_vs_service *svc)
 		return -ENOMEM;
 
 	svc->sched_data = tbl;
-	IP_VS_DBG(6, "LBLCR hash table (memory=%Zdbytes) allocated for "
+	IP_VS_DBG(6, "LBLCR hash table (memory=%zdbytes) allocated for "
 		  "current service\n", sizeof(*tbl));
 
 	/*
@@ -556,7 +556,7 @@ static void ip_vs_lblcr_done_svc(struct ip_vs_service *svc)
 
 	/* release the table itself */
 	kfree_rcu(tbl, rcu_head);
-	IP_VS_DBG(6, "LBLCR hash table (memory=%Zdbytes) released\n",
+	IP_VS_DBG(6, "LBLCR hash table (memory=%zdbytes) released\n",
 		  sizeof(*tbl));
 }
 

@@ -178,7 +178,7 @@ static int rxe_init_ports(struct rxe_dev *rxe)
 		return -ENOMEM;
 
 	port->pkey_tbl[0] = 0xffff;
-	port->port_guid = rxe->ifc_ops->port_guid(rxe);
+	port->port_guid = rxe_port_guid(rxe);
 
 	spin_lock_init(&port->port_lock);
 

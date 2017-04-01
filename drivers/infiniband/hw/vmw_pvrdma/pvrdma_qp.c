@@ -151,7 +151,7 @@ static int pvrdma_set_rq_size(struct pvrdma_dev *dev,
 }
 
 static int pvrdma_set_sq_size(struct pvrdma_dev *dev, struct ib_qp_cap *req_cap,
-			      enum ib_qp_type type, struct pvrdma_qp *qp)
+			      struct pvrdma_qp *qp)
 {
 	if (req_cap->max_send_wr > dev->dsr->caps.max_qp_wr ||
 	    req_cap->max_send_sge > dev->dsr->caps.max_sge) {
@@ -170,8 +170,9 @@ static int pvrdma_set_sq_size(struct pvrdma_dev *dev, struct ib_qp_cap *req_cap,
 					     sizeof(struct pvrdma_sge) *
 					     qp->sq.max_sg);
 	/* Note: one extra page for the header. */
-	qp->npages_send = 1 + (qp->sq.wqe_cnt * qp->sq.wqe_size +
-			       PAGE_SIZE - 1) / PAGE_SIZE;
+	qp->npages_send = PVRDMA_QP_NUM_HEADER_PAGES +
+			  (qp->sq.wqe_cnt * qp->sq.wqe_size + PAGE_SIZE - 1) /
+								PAGE_SIZE;
 
 	return 0;
 }
@@ -276,8 +277,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			qp->is_kernel = true;
 
 			ret = pvrdma_set_sq_size(to_vdev(pd->device),
-						 &init_attr->cap,
-						 init_attr->qp_type, qp);
+						 &init_attr->cap, qp);
 			if (ret)
 				goto err_qp;
 
@@ -289,7 +289,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			qp->npages = qp->npages_send + qp->npages_recv;
 
 			/* Skip header page. */
-			qp->sq.offset = PAGE_SIZE;
+			qp->sq.offset = PVRDMA_QP_NUM_HEADER_PAGES * PAGE_SIZE;
 
 			/* Recv queue pages are after send pages. */
 			qp->rq.offset = qp->npages_send * PAGE_SIZE;
@@ -342,7 +342,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	cmd->qp_type = ib_qp_type_to_pvrdma(init_attr->qp_type);
 	cmd->access_flags = IB_ACCESS_LOCAL_WRITE;
 	cmd->total_chunks = qp->npages;
-	cmd->send_chunks = qp->npages_send - 1;
+	cmd->send_chunks = qp->npages_send - PVRDMA_QP_NUM_HEADER_PAGES;
 	cmd->pdir_dma = qp->pdir.dir_dma;
 
 	dev_dbg(&dev->pdev->dev, "create queuepair with %d, %d, %d, %d\n",
@@ -555,13 +555,13 @@ out:
 	return ret;
 }
 
-static inline void *get_sq_wqe(struct pvrdma_qp *qp, int n)
+static inline void *get_sq_wqe(struct pvrdma_qp *qp, unsigned int n)
 {
 	return pvrdma_page_dir_get_ptr(&qp->pdir,
 				       qp->sq.offset + n * qp->sq.wqe_size);
 }
 
-static inline void *get_rq_wqe(struct pvrdma_qp *qp, int n)
+static inline void *get_rq_wqe(struct pvrdma_qp *qp, unsigned int n)
 {
 	return pvrdma_page_dir_get_ptr(&qp->pdir,
 				       qp->rq.offset + n * qp->rq.wqe_size);
@@ -599,9 +599,7 @@ int pvrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	unsigned long flags;
 	struct pvrdma_sq_wqe_hdr *wqe_hdr;
 	struct pvrdma_sge *sge;
-	int i, index;
-	int nreq;
-	int ret;
+	int i, ret;
 
 	/*
 	 * In states lower than RTS, we can fail immediately. In other states,
@@ -614,9 +612,8 @@ int pvrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 	spin_lock_irqsave(&qp->sq.lock, flags);
 
-	index = pvrdma_idx(&qp->sq.ring->prod_tail, qp->sq.wqe_cnt);
-	for (nreq = 0; wr; nreq++, wr = wr->next) {
-		unsigned int tail;
+	while (wr) {
+		unsigned int tail = 0;
 
 		if (unlikely(!pvrdma_idx_ring_has_space(
 				qp->sq.ring, qp->sq.wqe_cnt, &tail))) {
@@ -681,7 +678,7 @@ int pvrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			}
 		}
 
-		wqe_hdr = (struct pvrdma_sq_wqe_hdr *)get_sq_wqe(qp, index);
+		wqe_hdr = (struct pvrdma_sq_wqe_hdr *)get_sq_wqe(qp, tail);
 		memset(wqe_hdr, 0, sizeof(*wqe_hdr));
 		wqe_hdr->wr_id = wr->wr_id;
 		wqe_hdr->num_sge = wr->num_sge;
@@ -772,12 +769,11 @@ int pvrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		/* Make sure wqe is written before index update */
 		smp_wmb();
 
-		index++;
-		if (unlikely(index >= qp->sq.wqe_cnt))
-			index = 0;
 		/* Update shared sq ring */
 		pvrdma_idx_ring_inc(&qp->sq.ring->prod_tail,
 				    qp->sq.wqe_cnt);
+
+		wr = wr->next;
 	}
 
 	ret = 0;
@@ -807,7 +803,6 @@ int pvrdma_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	struct pvrdma_qp *qp = to_vqp(ibqp);
 	struct pvrdma_rq_wqe_hdr *wqe_hdr;
 	struct pvrdma_sge *sge;
-	int index, nreq;
 	int ret = 0;
 	int i;
 
@@ -822,9 +817,8 @@ int pvrdma_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 	spin_lock_irqsave(&qp->rq.lock, flags);
 
-	index = pvrdma_idx(&qp->rq.ring->prod_tail, qp->rq.wqe_cnt);
-	for (nreq = 0; wr; nreq++, wr = wr->next) {
-		unsigned int tail;
+	while (wr) {
+		unsigned int tail = 0;
 
 		if (unlikely(wr->num_sge > qp->rq.max_sg ||
 			     wr->num_sge < 0)) {
@@ -844,7 +838,7 @@ int pvrdma_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			goto out;
 		}
 
-		wqe_hdr = (struct pvrdma_rq_wqe_hdr *)get_rq_wqe(qp, index);
+		wqe_hdr = (struct pvrdma_rq_wqe_hdr *)get_rq_wqe(qp, tail);
 		wqe_hdr->wr_id = wr->wr_id;
 		wqe_hdr->num_sge = wr->num_sge;
 		wqe_hdr->total_len = 0;
@@ -860,12 +854,11 @@ int pvrdma_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		/* Make sure wqe is written before index update */
 		smp_wmb();
 
-		index++;
-		if (unlikely(index >= qp->rq.wqe_cnt))
-			index = 0;
 		/* Update shared rq ring */
 		pvrdma_idx_ring_inc(&qp->rq.ring->prod_tail,
 				    qp->rq.wqe_cnt);
+
+		wr = wr->next;
 	}
 
 	spin_unlock_irqrestore(&qp->rq.lock, flags);

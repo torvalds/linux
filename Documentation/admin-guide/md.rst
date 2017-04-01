@@ -725,3 +725,8 @@ These currently include:
       to 1.  Setting this to 0 disables bypass accounting and
       requires preread stripes to wait until all full-width stripe-
       writes are complete.  Valid values are 0 to stripe_cache_size.
+
+  journal_mode (currently raid5 only)
+      The cache mode for raid5. raid5 could include an extra disk for
+      caching. The mode can be "write-throuth" and "write-back". The
+      default is "write-through".

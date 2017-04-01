@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/string.h>
+#include <linux/sched/signal.h>
 
 #include "dmxdev.h"
 #include "dvbdev.h"

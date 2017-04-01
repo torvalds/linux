@@ -1482,6 +1482,9 @@ static int dspio_scp(struct hda_codec *codec,
 		} else if (ret_size != reply_data_size) {
 			codec_dbg(codec, "RetLen and HdrLen .NE.\n");
 			return -EINVAL;
+		} else if (!reply) {
+			codec_dbg(codec, "NULL reply\n");
+			return -EINVAL;
 		} else {
 			*reply_len = ret_size*sizeof(unsigned int);
 			memcpy(reply, scp_reply.data, *reply_len);
@@ -2863,7 +2866,7 @@ static unsigned int ca0132_capture_pcm_delay(struct hda_pcm_stream *info,
 #define CA0132_CODEC_MUTE(xname, nid, dir) \
 	CA0132_CODEC_MUTE_MONO(xname, nid, 3, dir)
 
-/* The followings are for tuning of products */
+/* The following are for tuning of products */
 #ifdef ENABLE_TUNING_CONTROLS
 
 static unsigned int voice_focus_vals_lookup[] = {

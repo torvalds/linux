@@ -80,9 +80,9 @@ static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb, struct net_device *dev
 			((skb->priority << BRCM_IG_TC_SHIFT) & BRCM_IG_TC_MASK);
 	brcm_tag[1] = 0;
 	brcm_tag[2] = 0;
-	if (p->port == 8)
+	if (p->dp->index == 8)
 		brcm_tag[2] = BRCM_IG_DSTMAP2_MASK;
-	brcm_tag[3] = (1 << p->port) & BRCM_IG_DSTMAP1_MASK;
+	brcm_tag[3] = (1 << p->dp->index) & BRCM_IG_DSTMAP1_MASK;
 
 	return skb;
 
@@ -102,7 +102,7 @@ static int brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (unlikely(dst == NULL))
 		goto out_drop;
 
-	ds = dst->ds[0];
+	ds = dst->cpu_switch;
 
 	skb = skb_unshare(skb, GFP_ATOMIC);
 	if (skb == NULL)
@@ -121,13 +121,14 @@ static int brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	/* We should never see a reserved reason code without knowing how to
 	 * handle it
 	 */
-	WARN_ON(brcm_tag[2] & BRCM_EG_RC_RSVD);
+	if (unlikely(brcm_tag[2] & BRCM_EG_RC_RSVD))
+		goto out_drop;
 
 	/* Locate which port this is coming from */
 	source_port = brcm_tag[3] & BRCM_EG_PID_MASK;
 
 	/* Validate port against switch setup, either the port is totally */
-	if (source_port >= DSA_MAX_PORTS || !ds->ports[source_port].netdev)
+	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
 		goto out_drop;
 
 	/* Remove Broadcom tag and update checksum */

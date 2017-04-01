@@ -682,7 +682,7 @@ static int sd_tuning_rx_cmd(struct rtsx_usb_sdmmc *host,
 		u8 opcode, u8 sample_point)
 {
 	int err;
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
 
 	err = sd_change_phase(host, sample_point, 0);
 	if (err)

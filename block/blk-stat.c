@@ -30,10 +30,10 @@ static void blk_stat_flush_batch(struct blk_rq_stat *stat)
 
 static void blk_stat_sum(struct blk_rq_stat *dst, struct blk_rq_stat *src)
 {
+	blk_stat_flush_batch(src);
+
 	if (!src->nr_samples)
 		return;
-
-	blk_stat_flush_batch(src);
 
 	dst->min = min(dst->min, src->min);
 	dst->max = max(dst->max, src->max);

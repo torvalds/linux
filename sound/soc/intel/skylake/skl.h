@@ -118,7 +118,8 @@ int skl_platform_register(struct device *dev);
 struct nhlt_acpi_table *skl_nhlt_init(struct device *dev);
 void skl_nhlt_free(struct nhlt_acpi_table *addr);
 struct nhlt_specific_cfg *skl_get_ep_blob(struct skl *skl, u32 instance,
-			u8 link_type, u8 s_fmt, u8 no_ch, u32 s_rate, u8 dirn);
+					u8 link_type, u8 s_fmt, u8 no_ch,
+					u32 s_rate, u8 dirn, u8 dev_type);
 
 int skl_get_dmic_geo(struct skl *skl);
 int skl_nhlt_update_topology_bin(struct skl *skl);
@@ -130,5 +131,7 @@ int skl_resume_dsp(struct skl *skl);
 void skl_cleanup_resources(struct skl *skl);
 const struct skl_dsp_ops *skl_get_dsp_ops(int pci_id);
 void skl_update_d0i3c(struct device *dev, bool enable);
+int skl_nhlt_create_sysfs(struct skl *skl);
+void skl_nhlt_remove_sysfs(struct skl *skl);
 
 #endif /* __SOUND_SOC_SKL_H */

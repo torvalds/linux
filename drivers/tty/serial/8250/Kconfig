@@ -117,7 +117,7 @@ config SERIAL_8250_DMA
 	  compatible UART controllers that support DMA signaling.
 
 config SERIAL_8250_PCI
-	tristate "8250/16550 PCI device support" if EXPERT
+	tristate "8250/16550 PCI device support"
 	depends on SERIAL_8250 && PCI
 	default SERIAL_8250
 	help
@@ -126,6 +126,11 @@ config SERIAL_8250_PCI
 	  Saves about 9K.
 	  Note that serial ports on NetMos 9835 Multi-I/O cards are handled
 	  by the parport_serial driver, enabled with CONFIG_PARPORT_SERIAL.
+
+config SERIAL_8250_EXAR
+        tristate "8250/16550 PCI device support"
+        depends on SERIAL_8250_PCI
+	default SERIAL_8250
 
 config SERIAL_8250_HP300
 	tristate
@@ -402,7 +407,7 @@ config SERIAL_8250_INGENIC
 	  its UARTs, say Y to this option. If unsure, say N.
 
 config SERIAL_8250_LPSS
-	tristate "Support for serial ports on Intel LPSS platforms" if EXPERT
+	tristate "Support for serial ports on Intel LPSS platforms"
 	default SERIAL_8250
 	depends on SERIAL_8250 && PCI
 	depends on X86 || COMPILE_TEST
@@ -417,7 +422,7 @@ config SERIAL_8250_LPSS
 	    - Intel Quark X1000 SoC
 
 config SERIAL_8250_MID
-	tristate "Support for serial ports on Intel MID platforms" if EXPERT
+	tristate "Support for serial ports on Intel MID platforms"
 	default SERIAL_8250
 	depends on SERIAL_8250 && PCI
 	depends on X86 || COMPILE_TEST

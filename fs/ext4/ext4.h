@@ -28,11 +28,16 @@
 #include <linux/timer.h>
 #include <linux/version.h>
 #include <linux/wait.h>
+#include <linux/sched/signal.h>
 #include <linux/blockgroup_lock.h>
 #include <linux/percpu_counter.h>
 #include <linux/ratelimit.h>
 #include <crypto/hash.h>
-#include <linux/fscrypto.h>
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+#include <linux/fscrypt_supp.h>
+#else
+#include <linux/fscrypt_notsupp.h>
+#endif
 #include <linux/falloc.h>
 #include <linux/percpu-rwsem.h>
 #ifdef __KERNEL__
@@ -678,6 +683,16 @@ struct fsxattr {
 
 #define EXT4_IOC_FSGETXATTR		FS_IOC_FSGETXATTR
 #define EXT4_IOC_FSSETXATTR		FS_IOC_FSSETXATTR
+
+#define EXT4_IOC_SHUTDOWN _IOR ('X', 125, __u32)
+
+/*
+ * Flags for going down operation
+ */
+#define EXT4_GOING_FLAGS_DEFAULT		0x0	/* going down */
+#define EXT4_GOING_FLAGS_LOGFLUSH		0x1	/* flush log but not data */
+#define EXT4_GOING_FLAGS_NOLOGFLUSH		0x2	/* don't flush log nor data */
+
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /*
@@ -1343,11 +1358,6 @@ struct ext4_super_block {
 /* Number of quota types we support */
 #define EXT4_MAXQUOTAS 3
 
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
-#define EXT4_KEY_DESC_PREFIX "ext4:"
-#define EXT4_KEY_DESC_PREFIX_SIZE 5
-#endif
-
 /*
  * fourth extended-fs super-block data in memory
  */
@@ -1404,8 +1414,7 @@ struct ext4_sb_info {
 	struct journal_s *s_journal;
 	struct list_head s_orphan;
 	struct mutex s_orphan_lock;
-	unsigned long s_resize_flags;		/* Flags indicating if there
-						   is a resizer */
+	unsigned long s_ext4_flags;		/* Ext4 superblock flags */
 	unsigned long s_commit_interval;
 	u32 s_max_batch_time;
 	u32 s_min_batch_time;
@@ -1517,12 +1526,6 @@ struct ext4_sb_info {
 
 	/* Barrier between changing inodes' journal flags and writepages ops. */
 	struct percpu_rw_semaphore s_journal_flag_rwsem;
-
-	/* Encryption support */
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
-	u8 key_prefix[EXT4_KEY_DESC_PREFIX_SIZE];
-	u8 key_prefix_size;
-#endif
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
@@ -1843,6 +1846,18 @@ static inline bool ext4_has_incompat_features(struct super_block *sb)
 {
 	return (EXT4_SB(sb)->s_es->s_feature_incompat != 0);
 }
+
+/*
+ * Superblock flags
+ */
+#define EXT4_FLAGS_RESIZING	0
+#define EXT4_FLAGS_SHUTDOWN	1
+
+static inline int ext4_forced_shutdown(struct ext4_sb_info *sbi)
+{
+	return test_bit(EXT4_FLAGS_SHUTDOWN, &sbi->s_ext4_flags);
+}
+
 
 /*
  * Default values for user and/or group using reserved blocks
@@ -2320,28 +2335,6 @@ static inline int ext4_fname_setup_filename(struct inode *dir,
 }
 static inline void ext4_fname_free_filename(struct ext4_filename *fname) { }
 
-#define fscrypt_set_d_op(i)
-#define fscrypt_get_ctx			fscrypt_notsupp_get_ctx
-#define fscrypt_release_ctx		fscrypt_notsupp_release_ctx
-#define fscrypt_encrypt_page		fscrypt_notsupp_encrypt_page
-#define fscrypt_decrypt_page		fscrypt_notsupp_decrypt_page
-#define fscrypt_decrypt_bio_pages	fscrypt_notsupp_decrypt_bio_pages
-#define fscrypt_pullback_bio_page	fscrypt_notsupp_pullback_bio_page
-#define fscrypt_restore_control_page	fscrypt_notsupp_restore_control_page
-#define fscrypt_zeroout_range		fscrypt_notsupp_zeroout_range
-#define fscrypt_ioctl_set_policy	fscrypt_notsupp_ioctl_set_policy
-#define fscrypt_ioctl_get_policy	fscrypt_notsupp_ioctl_get_policy
-#define fscrypt_has_permitted_context	fscrypt_notsupp_has_permitted_context
-#define fscrypt_inherit_context		fscrypt_notsupp_inherit_context
-#define fscrypt_get_encryption_info	fscrypt_notsupp_get_encryption_info
-#define fscrypt_put_encryption_info	fscrypt_notsupp_put_encryption_info
-#define fscrypt_setup_filename		fscrypt_notsupp_setup_filename
-#define fscrypt_free_filename		fscrypt_notsupp_free_filename
-#define fscrypt_fname_encrypted_size	fscrypt_notsupp_fname_encrypted_size
-#define fscrypt_fname_alloc_buffer	fscrypt_notsupp_fname_alloc_buffer
-#define fscrypt_fname_free_buffer	fscrypt_notsupp_fname_free_buffer
-#define fscrypt_fname_disk_to_usr	fscrypt_notsupp_fname_disk_to_usr
-#define fscrypt_fname_usr_to_disk	fscrypt_notsupp_fname_usr_to_disk
 #endif
 
 /* dir.c */
@@ -2470,8 +2463,7 @@ extern struct inode *ext4_iget(struct super_block *, unsigned long);
 extern struct inode *ext4_iget_normal(struct super_block *, unsigned long);
 extern int  ext4_write_inode(struct inode *, struct writeback_control *);
 extern int  ext4_setattr(struct dentry *, struct iattr *);
-extern int  ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
-				struct kstat *stat);
+extern int  ext4_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern void ext4_evict_inode(struct inode *);
 extern void ext4_clear_inode(struct inode *);
 extern int  ext4_sync_inode(handle_t *, struct inode *);
@@ -2491,8 +2483,8 @@ extern int ext4_writepage_trans_blocks(struct inode *);
 extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
 extern int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
 			     loff_t lstart, loff_t lend);
-extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
-extern int ext4_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
+extern int ext4_page_mkwrite(struct vm_fault *vmf);
+extern int ext4_filemap_fault(struct vm_fault *vmf);
 extern qsize_t *ext4_get_reserved_space(struct inode *inode);
 extern int ext4_get_projid(struct inode *inode, kprojid_t *projid);
 extern void ext4_da_update_reserve_space(struct inode *inode,
@@ -3034,7 +3026,7 @@ extern int ext4_inline_data_fiemap(struct inode *inode,
 extern int ext4_try_to_evict_inline_data(handle_t *handle,
 					 struct inode *inode,
 					 int needed);
-extern void ext4_inline_data_truncate(struct inode *inode, int *has_inline);
+extern int ext4_inline_data_truncate(struct inode *inode, int *has_inline);
 
 extern int ext4_convert_inline_data(struct inode *inode);
 
@@ -3228,7 +3220,6 @@ static inline void ext4_inode_resume_unlocked_dio(struct inode *inode)
 					    EXT4_WQ_HASH_SZ])
 extern wait_queue_head_t ext4__ioend_wq[EXT4_WQ_HASH_SZ];
 
-#define EXT4_RESIZING	0
 extern int ext4_resize_begin(struct super_block *sb);
 extern void ext4_resize_end(struct super_block *sb);
 
@@ -3253,7 +3244,7 @@ static inline void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
 	}
 }
 
-extern struct iomap_ops ext4_iomap_ops;
+extern const struct iomap_ops ext4_iomap_ops;
 
 #endif	/* __KERNEL__ */
 

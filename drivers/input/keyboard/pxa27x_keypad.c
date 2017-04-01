@@ -126,7 +126,7 @@ static int pxa27x_keypad_matrix_key_parse_dt(struct pxa27x_keypad *keypad,
 	u32 rows, cols;
 	int error;
 
-	error = matrix_keypad_parse_of_params(dev, &rows, &cols);
+	error = matrix_keypad_parse_properties(dev, &rows, &cols);
 	if (error)
 		return error;
 

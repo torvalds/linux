@@ -3409,7 +3409,6 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 			&usbin->rxfrm.desc.frame_control, hdrlen);
 
 		skb->dev = wlandev->netdev;
-		skb->dev->last_rx = jiffies;
 
 		/* And set the frame length properly */
 		skb_trim(skb, data_len + hdrlen);

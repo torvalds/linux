@@ -665,6 +665,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 {
 	s32 s32Error = 0;
 	u32 i;
+	u32 sel_bssi_idx = UINT_MAX;
 	u8 u8security = NO_ENCRYPT;
 	enum AUTHTYPE tenuAuth_type = ANY;
 
@@ -688,18 +689,24 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		    memcmp(last_scanned_shadow[i].ssid,
 			   sme->ssid,
 			   sme->ssid_len) == 0) {
-			if (!sme->bssid)
-				break;
-			else
+			if (!sme->bssid) {
+				if (sel_bssi_idx == UINT_MAX ||
+				    last_scanned_shadow[i].rssi >
+				    last_scanned_shadow[sel_bssi_idx].rssi)
+					sel_bssi_idx = i;
+			} else {
 				if (memcmp(last_scanned_shadow[i].bssid,
 					   sme->bssid,
-					   ETH_ALEN) == 0)
+					   ETH_ALEN) == 0) {
+					sel_bssi_idx = i;
 					break;
+				}
+			}
 		}
 	}
 
-	if (i < last_scanned_cnt) {
-		pstrNetworkInfo = &last_scanned_shadow[i];
+	if (sel_bssi_idx < last_scanned_cnt) {
+		pstrNetworkInfo = &last_scanned_shadow[sel_bssi_idx];
 	} else {
 		s32Error = -ENOENT;
 		wilc_connecting = 0;
@@ -2285,8 +2292,11 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net, struct device *de
 	wdev->wiphy->mgmt_stypes = wilc_wfi_cfg80211_mgmt_types;
 
 	wdev->wiphy->max_remain_on_channel_duration = 500;
-	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_AP) | BIT(NL80211_IFTYPE_MONITOR) | BIT(NL80211_IFTYPE_P2P_GO) |
-		BIT(NL80211_IFTYPE_P2P_CLIENT);
+	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+					BIT(NL80211_IFTYPE_AP) |
+					BIT(NL80211_IFTYPE_MONITOR) |
+					BIT(NL80211_IFTYPE_P2P_GO) |
+					BIT(NL80211_IFTYPE_P2P_CLIENT);
 	wdev->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 	wdev->iftype = NL80211_IFTYPE_STATION;
 
@@ -2347,7 +2357,7 @@ int wilc_deinit_host_int(struct net_device *net)
 		del_timer_sync(&wilc_during_ip_timer);
 
 	if (s32Error)
-		netdev_err(net, "Error while deintializing host interface\n");
+		netdev_err(net, "Error while deinitializing host interface\n");
 
 	return s32Error;
 }

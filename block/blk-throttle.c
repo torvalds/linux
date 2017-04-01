@@ -185,7 +185,7 @@ static struct throtl_grp *sq_to_tg(struct throtl_service_queue *sq)
  * sq_to_td - return throtl_data the specified service queue belongs to
  * @sq: the throtl_service_queue of interest
  *
- * A service_queue can be embeded in either a throtl_grp or throtl_data.
+ * A service_queue can be embedded in either a throtl_grp or throtl_data.
  * Determine the associated throtl_data accordingly and return it.
  */
 static struct throtl_data *sq_to_td(struct throtl_service_queue *sq)
@@ -866,10 +866,12 @@ static void tg_update_disptime(struct throtl_grp *tg)
 	unsigned long read_wait = -1, write_wait = -1, min_wait = -1, disptime;
 	struct bio *bio;
 
-	if ((bio = throtl_peek_queued(&sq->queued[READ])))
+	bio = throtl_peek_queued(&sq->queued[READ]);
+	if (bio)
 		tg_may_dispatch(tg, bio, &read_wait);
 
-	if ((bio = throtl_peek_queued(&sq->queued[WRITE])))
+	bio = throtl_peek_queued(&sq->queued[WRITE]);
+	if (bio)
 		tg_may_dispatch(tg, bio, &write_wait);
 
 	min_wait = min(read_wait, write_wait);

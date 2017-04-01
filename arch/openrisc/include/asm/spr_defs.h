@@ -152,8 +152,8 @@
 #define SPR_UPR_MP	   0x00000020  /* MAC present */
 #define SPR_UPR_DUP	   0x00000040  /* Debug unit present */
 #define SPR_UPR_PCUP	   0x00000080  /* Performance counters unit present */
-#define SPR_UPR_PMP	   0x00000100  /* Power management present */
-#define SPR_UPR_PICP	   0x00000200  /* PIC present */
+#define SPR_UPR_PICP	   0x00000100  /* PIC present */
+#define SPR_UPR_PMP	   0x00000200  /* Power management present */
 #define SPR_UPR_TTP	   0x00000400  /* Tick timer present */
 #define SPR_UPR_RES	   0x00fe0000  /* Reserved */
 #define SPR_UPR_CUP	   0xff000000  /* Context units present */

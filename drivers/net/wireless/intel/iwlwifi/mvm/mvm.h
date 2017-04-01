@@ -739,8 +739,9 @@ struct iwl_mvm {
 
 	enum iwl_ucode_type cur_ucode;
 	bool ucode_loaded;
+	bool hw_registered;
 	bool calibrating;
-	u32 error_event_table;
+	u32 error_event_table[2];
 	u32 log_event_table;
 	u32 umac_error_event_table;
 	bool support_umac_log;
@@ -1217,6 +1218,19 @@ static inline bool iwl_mvm_has_new_tx_api(struct iwl_mvm *mvm)
 	return mvm->trans->cfg->use_tfh;
 }
 
+static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
+{
+	/*
+	 * TODO:
+	 * The issue of how to determine CDB support is still not well defined.
+	 * It may be that it will be for all next HW devices and it may be per
+	 * FW compilation and it may also differ between different devices.
+	 * For now take a ride on the new TX API and get back to it when
+	 * it is well defined.
+	 */
+	return iwl_mvm_has_new_tx_api(mvm);
+}
+
 static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)
 {
 #ifdef CONFIG_THERMAL
@@ -1257,6 +1271,7 @@ int __iwl_mvm_mac_start(struct iwl_mvm *mvm);
  ******************/
 /* uCode */
 int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm);
+int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm);
 
 /* Utils */
 int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
@@ -1657,8 +1672,8 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
  * Disable a TXQ.
  * Note that in non-DQA mode the %mac80211_queue and %tid params are ignored.
  */
-void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
-			 u8 tid, u8 flags);
+int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+			u8 tid, u8 flags);
 int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id, u8 minq, u8 maxq);
 
 /* Return a bitmask with all the hw supported queues, except for the
@@ -1686,6 +1701,7 @@ void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 
 static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 {
+	iwl_free_fw_paging(mvm);
 	mvm->ucode_loaded = false;
 	iwl_trans_stop_device(mvm->trans);
 }

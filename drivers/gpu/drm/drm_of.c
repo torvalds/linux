@@ -4,6 +4,7 @@
 #include <linux/of_graph.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_of.h>
 
 static void drm_release_of(struct device *dev, void *data)

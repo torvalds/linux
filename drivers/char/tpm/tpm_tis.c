@@ -159,7 +159,7 @@ static int tpm_tis_init(struct device *dev, struct tpm_info *tpm_info,
 		irq = tpm_info->irq;
 
 	if (itpm)
-		phy->priv.flags |= TPM_TIS_ITPM_POSSIBLE;
+		phy->priv.flags |= TPM_TIS_ITPM_WORKAROUND;
 
 	return tpm_tis_core_init(dev, &phy->priv, irq, &tpm_tcg,
 				 acpi_dev_handle);
@@ -432,7 +432,7 @@ err_pnp:
 	acpi_bus_unregister_driver(&tis_acpi_driver);
 err_acpi:
 #endif
-	platform_device_unregister(force_pdev);
+	platform_driver_unregister(&tis_drv);
 err_platform:
 	if (force_pdev)
 		platform_device_unregister(force_pdev);

@@ -201,6 +201,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	priv->common.base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->common.base))
 		return PTR_ERR(priv->common.base);
+	priv->common.phys_base = res->start;
 
 	priv->vref = devm_regulator_get(&pdev->dev, "vref");
 	if (IS_ERR(priv->vref)) {

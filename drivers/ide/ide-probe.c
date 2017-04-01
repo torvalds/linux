@@ -741,6 +741,14 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	}
 }
 
+static int ide_init_rq(struct request_queue *q, struct request *rq, gfp_t gfp)
+{
+	struct ide_request *req = blk_mq_rq_to_pdu(rq);
+
+	req->sreq.sense = req->sense;
+	return 0;
+}
+
 /*
  * init request queue
  */
@@ -758,10 +766,17 @@ static int ide_init_queue(ide_drive_t *drive)
 	 *	limits and LBA48 we could raise it but as yet
 	 *	do not.
 	 */
-
-	q = blk_init_queue_node(do_ide_request, NULL, hwif_to_node(hwif));
+	q = blk_alloc_queue_node(GFP_KERNEL, hwif_to_node(hwif));
 	if (!q)
 		return 1;
+
+	q->request_fn = do_ide_request;
+	q->init_rq_fn = ide_init_rq;
+	q->cmd_size = sizeof(struct ide_request);
+	if (blk_init_allocated_queue(q) < 0) {
+		blk_cleanup_queue(q);
+		return 1;
+	}
 
 	q->queuedata = drive;
 	blk_queue_segment_boundary(q, 0xffff);
@@ -1131,10 +1146,12 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 	ide_port_for_each_dev(i, drive, hwif) {
 		u8 j = (hwif->index * MAX_DRIVES) + i;
 		u16 *saved_id = drive->id;
+		struct request *saved_sense_rq = drive->sense_rq;
 
 		memset(drive, 0, sizeof(*drive));
 		memset(saved_id, 0, SECTOR_SIZE);
 		drive->id = saved_id;
+		drive->sense_rq = saved_sense_rq;
 
 		drive->media			= ide_disk;
 		drive->select			= (i << 4) | ATA_DEVICE_OBS;
@@ -1241,6 +1258,7 @@ static void ide_port_free_devices(ide_hwif_t *hwif)
 	int i;
 
 	ide_port_for_each_dev(i, drive, hwif) {
+		kfree(drive->sense_rq);
 		kfree(drive->id);
 		kfree(drive);
 	}
@@ -1248,11 +1266,10 @@ static void ide_port_free_devices(ide_hwif_t *hwif)
 
 static int ide_port_alloc_devices(ide_hwif_t *hwif, int node)
 {
+	ide_drive_t *drive;
 	int i;
 
 	for (i = 0; i < MAX_DRIVES; i++) {
-		ide_drive_t *drive;
-
 		drive = kzalloc_node(sizeof(*drive), GFP_KERNEL, node);
 		if (drive == NULL)
 			goto out_nomem;
@@ -1267,12 +1284,21 @@ static int ide_port_alloc_devices(ide_hwif_t *hwif, int node)
 		 */
 		drive->id = kzalloc_node(SECTOR_SIZE, GFP_KERNEL, node);
 		if (drive->id == NULL)
-			goto out_nomem;
+			goto out_free_drive;
+
+		drive->sense_rq = kmalloc(sizeof(struct request) +
+				sizeof(struct ide_request), GFP_KERNEL);
+		if (!drive->sense_rq)
+			goto out_free_id;
 
 		hwif->devices[i] = drive;
 	}
 	return 0;
 
+out_free_id:
+	kfree(drive->id);
+out_free_drive:
+	kfree(drive);
 out_nomem:
 	ide_port_free_devices(hwif);
 	return -ENOMEM;

@@ -632,7 +632,7 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct xilinx_pcie_port *port;
-	struct pci_bus *bus;
+	struct pci_bus *bus, *child;
 	int err;
 	resource_size_t iobase = 0;
 	LIST_HEAD(res);
@@ -686,6 +686,8 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 #ifndef CONFIG_MICROBLAZE
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
 #endif
+	list_for_each_entry(child, &bus->children, node)
+		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
 	return 0;
 

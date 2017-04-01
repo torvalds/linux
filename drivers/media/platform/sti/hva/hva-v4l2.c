@@ -15,8 +15,6 @@
 #include "hva.h"
 #include "hva-hw.h"
 
-#define HVA_NAME "st-hva"
-
 #define MIN_FRAMES	1
 #define MIN_STREAMS	1
 
@@ -224,6 +222,28 @@ static int hva_open_encoder(struct hva_ctx *ctx, u32 streamformat,
 	*penc = enc;
 
 	return ret;
+}
+
+static void hva_dbg_summary(struct hva_ctx *ctx)
+{
+	struct device *dev = ctx_to_dev(ctx);
+	struct hva_streaminfo *stream = &ctx->streaminfo;
+	struct hva_frameinfo *frame = &ctx->frameinfo;
+
+	if (!(ctx->flags & HVA_FLAG_STREAMINFO))
+		return;
+
+	dev_dbg(dev, "%s %4.4s %dx%d > %4.4s %dx%d %s %s: %d frames encoded, %d system errors, %d encoding errors, %d frame errors\n",
+		ctx->name,
+		(char *)&frame->pixelformat,
+		frame->aligned_width, frame->aligned_height,
+		(char *)&stream->streamformat,
+		stream->width, stream->height,
+		stream->profile, stream->level,
+		ctx->encoded_frames,
+		ctx->sys_errors,
+		ctx->encode_errors,
+		ctx->frame_errors);
 }
 
 /*
@@ -614,19 +634,17 @@ static int hva_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
 		ctx->ctrls.profile = ctrl->val;
-		if (ctx->flags & HVA_FLAG_STREAMINFO)
-			snprintf(ctx->streaminfo.profile,
-				 sizeof(ctx->streaminfo.profile),
-				 "%s profile",
-				 v4l2_ctrl_get_menu(ctrl->id)[ctrl->val]);
+		snprintf(ctx->streaminfo.profile,
+			 sizeof(ctx->streaminfo.profile),
+			 "%s profile",
+			 v4l2_ctrl_get_menu(ctrl->id)[ctrl->val]);
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
 		ctx->ctrls.level = ctrl->val;
-		if (ctx->flags & HVA_FLAG_STREAMINFO)
-			snprintf(ctx->streaminfo.level,
-				 sizeof(ctx->streaminfo.level),
-				 "level %s",
-				 v4l2_ctrl_get_menu(ctrl->id)[ctrl->val]);
+		snprintf(ctx->streaminfo.level,
+			 sizeof(ctx->streaminfo.level),
+			 "level %s",
+			 v4l2_ctrl_get_menu(ctrl->id)[ctrl->val]);
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE:
 		ctx->ctrls.entropy_mode = ctrl->val;
@@ -793,6 +811,10 @@ static void hva_run_work(struct work_struct *work)
 	/* protect instance against reentrancy */
 	mutex_lock(&ctx->lock);
 
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+	hva_dbg_perf_begin(ctx);
+#endif
+
 	src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 
@@ -811,6 +833,12 @@ static void hva_run_work(struct work_struct *work)
 		dst_buf->vb2_buf.timestamp = src_buf->vb2_buf.timestamp;
 		dst_buf->field = V4L2_FIELD_NONE;
 		dst_buf->sequence = ctx->stream_num - 1;
+
+		ctx->encoded_frames++;
+
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+		hva_dbg_perf_end(ctx, stream);
+#endif
 
 		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 		v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
@@ -1026,6 +1054,8 @@ err:
 			v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_QUEUED);
 	}
 
+	ctx->sys_errors++;
+
 	return ret;
 }
 
@@ -1150,6 +1180,7 @@ static int hva_open(struct file *file)
 	if (ret) {
 		dev_err(dev, "%s [x:x] failed to setup controls\n",
 			HVA_PREFIX);
+		ctx->sys_errors++;
 		goto err_fh;
 	}
 	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
@@ -1162,6 +1193,7 @@ static int hva_open(struct file *file)
 		ret = PTR_ERR(ctx->fh.m2m_ctx);
 		dev_err(dev, "%s failed to initialize m2m context (%d)\n",
 			HVA_PREFIX, ret);
+		ctx->sys_errors++;
 		goto err_ctrls;
 	}
 
@@ -1174,6 +1206,10 @@ static int hva_open(struct file *file)
 
 	/* default parameters for frame and stream */
 	set_default_params(ctx);
+
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+	hva_dbg_ctx_create(ctx);
+#endif
 
 	dev_info(dev, "%s encoder instance created\n", ctx->name);
 
@@ -1206,12 +1242,19 @@ static int hva_release(struct file *file)
 		hva->nb_of_instances--;
 	}
 
+	/* trace a summary of instance before closing (debug purpose) */
+	hva_dbg_summary(ctx);
+
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
+
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+	hva_dbg_ctx_remove(ctx);
+#endif
 
 	dev_info(dev, "%s encoder instance released\n", ctx->name);
 
@@ -1337,6 +1380,10 @@ static int hva_probe(struct platform_device *pdev)
 		goto err_hw;
 	}
 
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+	hva_debugfs_create(hva);
+#endif
+
 	hva->work_queue = create_workqueue(HVA_NAME);
 	if (!hva->work_queue) {
 		dev_err(dev, "%s %s failed to allocate work queue\n",
@@ -1358,6 +1405,9 @@ static int hva_probe(struct platform_device *pdev)
 err_work_queue:
 	destroy_workqueue(hva->work_queue);
 err_v4l2:
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+	hva_debugfs_remove(hva);
+#endif
 	v4l2_device_unregister(&hva->v4l2_dev);
 err_hw:
 	hva_hw_remove(hva);
@@ -1375,6 +1425,10 @@ static int hva_remove(struct platform_device *pdev)
 	destroy_workqueue(hva->work_queue);
 
 	hva_hw_remove(hva);
+
+#ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
+	hva_debugfs_remove(hva);
+#endif
 
 	v4l2_device_unregister(&hva->v4l2_dev);
 

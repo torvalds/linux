@@ -607,6 +607,23 @@ error:
 	return false;
 }
 
+bool tipc_msg_pskb_copy(u32 dst, struct sk_buff_head *msg,
+			struct sk_buff_head *cpy)
+{
+	struct sk_buff *skb, *_skb;
+
+	skb_queue_walk(msg, skb) {
+		_skb = pskb_copy(skb, GFP_ATOMIC);
+		if (!_skb) {
+			__skb_queue_purge(cpy);
+			return false;
+		}
+		msg_set_destnode(buf_msg(_skb), dst);
+		__skb_queue_tail(cpy, _skb);
+	}
+	return true;
+}
+
 /* tipc_skb_queue_sorted(); sort pkt into list according to sequence number
  * @list: list to be appended to
  * @seqno: sequence number of buffer to add

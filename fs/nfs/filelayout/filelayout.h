@@ -55,15 +55,16 @@ struct nfs4_file_layout_dsaddr {
 };
 
 struct nfs4_filelayout_segment {
-	struct pnfs_layout_segment generic_hdr;
-	u32 stripe_type;
-	u32 commit_through_mds;
-	u32 stripe_unit;
-	u32 first_stripe_index;
-	u64 pattern_offset;
-	struct nfs4_file_layout_dsaddr *dsaddr; /* Point to GETDEVINFO data */
-	unsigned int num_fh;
-	struct nfs_fh **fh_array;
+	struct pnfs_layout_segment	generic_hdr;
+	u32				stripe_type;
+	u32				commit_through_mds;
+	u32				stripe_unit;
+	u32				first_stripe_index;
+	u64				pattern_offset;
+	struct nfs4_deviceid		deviceid;
+	struct nfs4_file_layout_dsaddr	*dsaddr; /* Point to GETDEVINFO data */
+	unsigned int			num_fh;
+	struct nfs_fh			**fh_array;
 };
 
 struct nfs4_filelayout {

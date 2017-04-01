@@ -128,7 +128,7 @@ static int bdl_pos_adj[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int probe_mask[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int probe_only[SNDRV_CARDS];
 static int jackpoll_ms[SNDRV_CARDS];
-static bool single_cmd;
+static int single_cmd = -1;
 static int enable_msi = -1;
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 static char *patch[SNDRV_CARDS];
@@ -157,7 +157,7 @@ module_param_array(probe_only, int, NULL, 0444);
 MODULE_PARM_DESC(probe_only, "Only probing and no codec initialization.");
 module_param_array(jackpoll_ms, int, NULL, 0444);
 MODULE_PARM_DESC(jackpoll_ms, "Ms between polling for jack events (default = 0, using unsol events only)");
-module_param(single_cmd, bool, 0444);
+module_param(single_cmd, bint, 0444);
 MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
 		 "(for debugging only).");
 module_param(enable_msi, bint, 0444);
@@ -1596,7 +1596,11 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	check_probe_mask(chip, dev);
 
-	chip->single_cmd = single_cmd;
+	if (single_cmd < 0) /* allow fallback to single_cmd at errors */
+		chip->fallback_to_single_cmd = 1;
+	else /* explicitly set to single_cmd or not */
+		chip->single_cmd = single_cmd;
+
 	azx_check_snoop_available(chip);
 
 	if (bdl_pos_adj[dev] < 0)
@@ -1773,6 +1777,14 @@ static int azx_first_init(struct azx *chip)
 	chip->capture_index_offset = 0;
 	chip->playback_index_offset = chip->capture_streams;
 	chip->num_streams = chip->playback_streams + chip->capture_streams;
+
+	/* sanity check for the SDxCTL.STRM field overflow */
+	if (chip->num_streams > 15 &&
+	    (chip->driver_caps & AZX_DCAPS_SEPARATE_STREAM_TAG) == 0) {
+		dev_warn(chip->card->dev, "number of I/O streams is %d, "
+			 "forcing separate stream tags", chip->num_streams);
+		chip->driver_caps |= AZX_DCAPS_SEPARATE_STREAM_TAG;
+	}
 
 	/* initialize streams */
 	err = azx_init_streams(chip);
@@ -2155,7 +2167,20 @@ static void azx_remove(struct pci_dev *pci)
 		/* cancel the pending probing work */
 		chip = card->private_data;
 		hda = container_of(chip, struct hda_intel, chip);
+		/* FIXME: below is an ugly workaround.
+		 * Both device_release_driver() and driver_probe_device()
+		 * take *both* the device's and its parent's lock before
+		 * calling the remove() and probe() callbacks.  The codec
+		 * probe takes the locks of both the codec itself and its
+		 * parent, i.e. the PCI controller dev.  Meanwhile, when
+		 * the PCI controller is unbound, it takes its lock, too
+		 * ==> ouch, a deadlock!
+		 * As a workaround, we unlock temporarily here the controller
+		 * device during cancel_work_sync() call.
+		 */
+		device_unlock(&pci->dev);
 		cancel_work_sync(&hda->probe_work);
+		device_lock(&pci->dev);
 
 		snd_card_free(card);
 	}
@@ -2197,9 +2222,9 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
 	/* Lewisburg */
 	{ PCI_DEVICE(0x8086, 0xa1f0),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
 	{ PCI_DEVICE(0x8086, 0xa270),
-	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Lynx Point-LP */
 	{ PCI_DEVICE(0x8086, 0x9c20),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH },
@@ -2229,6 +2254,9 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },
 	/* Broxton-T */
 	{ PCI_DEVICE(0x8086, 0x1a98),
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },
+	/* Gemini-Lake */
+	{ PCI_DEVICE(0x8086, 0x3198),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },
 	/* Haswell */
 	{ PCI_DEVICE(0x8086, 0x0a0c),

@@ -353,7 +353,7 @@
 #define REG_TTXNUMB				0x0116
 #define MSK_TTXNUMB_TTX_AFFCTRL_3_0		0xf0
 #define BIT_TTXNUMB_TTX_COM1_AT_SYNC_WAIT	BIT(3)
-#define MSK_TTXNUMB_TTX_NUMBPS_2_0		0x07
+#define MSK_TTXNUMB_TTX_NUMBPS			0x07
 
 /* TDM TX NUMSPISYM, default value: 0x04 */
 #define REG_TTXSPINUMS				0x0117
@@ -403,12 +403,16 @@
 
 /* TDM RX Status 2nd, default value: 0x00 */
 #define REG_TRXSTA2				0x015c
+#define MSK_TDM_SYNCHRONIZED			0xc0
+#define VAL_TDM_SYNCHRONIZED			0x80
 
 /* TDM RX INT Low, default value: 0x00 */
 #define REG_TRXINTL				0x0163
 
 /* TDM RX INT High, default value: 0x00 */
 #define REG_TRXINTH				0x0164
+#define BIT_TDM_INTR_SYNC_DATA			BIT(0)
+#define BIT_TDM_INTR_SYNC_WAIT			BIT(1)
 
 /* TDM RX INTMASK High, default value: 0x00 */
 #define REG_TRXINTMH				0x0166
@@ -429,12 +433,14 @@
 
 /* HSIC Keeper, default value: 0x00 */
 #define REG_KEEPER				0x0181
-#define MSK_KEEPER_KEEPER_MODE_1_0		0x03
+#define MSK_KEEPER_MODE				0x03
+#define VAL_KEEPER_MODE_HOST			0
+#define VAL_KEEPER_MODE_DEVICE			2
 
 /* HSIC Flow Control General, default value: 0x02 */
 #define REG_FCGC				0x0183
-#define BIT_FCGC_HSIC_FC_HOSTMODE		BIT(1)
-#define BIT_FCGC_HSIC_FC_ENABLE			BIT(0)
+#define BIT_FCGC_HSIC_HOSTMODE			BIT(1)
+#define BIT_FCGC_HSIC_ENABLE			BIT(0)
 
 /* HSIC Flow Control CTR13, default value: 0xfc */
 #define REG_FCCTR13				0x0191
@@ -841,6 +847,8 @@
 #define MSK_MHL_DP_CTL7_DT_DRV_VBIAS_CASCTL	0xf0
 #define MSK_MHL_DP_CTL7_DT_DRV_IREF_CTL		0x0f
 
+#define REG_MHL_DP_CTL8				0x0352
+
 /* Tx Zone Ctl1, default value: 0x00 */
 #define REG_TX_ZONE_CTL1			0x0361
 #define VAL_TX_ZONE_CTL1_TX_ZONE_CTRL_MODE	0x08
@@ -1078,16 +1086,26 @@
 
 /* TPI Info Frame Select, default value: 0x00 */
 #define REG_TPI_INFO_FSEL			0x06bf
-#define BIT_TPI_INFO_FSEL_TPI_INFO_EN		BIT(7)
-#define BIT_TPI_INFO_FSEL_TPI_INFO_RPT		BIT(6)
-#define BIT_TPI_INFO_FSEL_TPI_INFO_READ_FLAG	BIT(5)
-#define MSK_TPI_INFO_FSEL_TPI_INFO_SEL		0x07
+#define BIT_TPI_INFO_FSEL_EN			BIT(7)
+#define BIT_TPI_INFO_FSEL_RPT			BIT(6)
+#define BIT_TPI_INFO_FSEL_READ_FLAG		BIT(5)
+#define MSK_TPI_INFO_FSEL_PKT			0x07
+#define VAL_TPI_INFO_FSEL_AVI			0x00
+#define VAL_TPI_INFO_FSEL_SPD			0x01
+#define VAL_TPI_INFO_FSEL_AUD			0x02
+#define VAL_TPI_INFO_FSEL_MPG			0x03
+#define VAL_TPI_INFO_FSEL_GEN			0x04
+#define VAL_TPI_INFO_FSEL_GEN2			0x05
+#define VAL_TPI_INFO_FSEL_VSI			0x06
 
 /* TPI Info Byte #0, default value: 0x00 */
 #define REG_TPI_INFO_B0				0x06c0
 
 /* CoC Status, default value: 0x00 */
 #define REG_COC_STAT_0				0x0700
+#define BIT_COC_STAT_0_PLL_LOCKED		BIT(7)
+#define MSK_COC_STAT_0_FSM_STATE		0x0f
+
 #define REG_COC_STAT_1				0x0701
 #define REG_COC_STAT_2				0x0702
 #define REG_COC_STAT_3				0x0703
@@ -1282,14 +1300,14 @@
 
 /* MDT Transmit Control, default value: 0x70 */
 #define REG_MDT_XMIT_CTRL			0x0588
-#define BIT_MDT_XMIT_CTRL_MDT_XMIT_EN		BIT(7)
-#define BIT_MDT_XMIT_CTRL_MDT_XMIT_CMD_MERGE_EN	BIT(6)
-#define BIT_MDT_XMIT_CTRL_MDT_XMIT_FIXED_BURST_LEN BIT(5)
-#define BIT_MDT_XMIT_CTRL_MDT_XMIT_FIXED_AID	BIT(4)
-#define BIT_MDT_XMIT_CTRL_MDT_XMIT_SINGLE_RUN_EN BIT(3)
-#define BIT_MDT_XMIT_CTRL_MDT_CLR_ABORT_WAIT	BIT(2)
-#define BIT_MDT_XMIT_CTRL_MDT_XFIFO_CLR_ALL	BIT(1)
-#define BIT_MDT_XMIT_CTRL_MDT_XFIFO_CLR_CUR	BIT(0)
+#define BIT_MDT_XMIT_CTRL_EN			BIT(7)
+#define BIT_MDT_XMIT_CTRL_CMD_MERGE_EN		BIT(6)
+#define BIT_MDT_XMIT_CTRL_FIXED_BURST_LEN	BIT(5)
+#define BIT_MDT_XMIT_CTRL_FIXED_AID		BIT(4)
+#define BIT_MDT_XMIT_CTRL_SINGLE_RUN_EN		BIT(3)
+#define BIT_MDT_XMIT_CTRL_CLR_ABORT_WAIT	BIT(2)
+#define BIT_MDT_XMIT_CTRL_XFIFO_CLR_ALL		BIT(1)
+#define BIT_MDT_XMIT_CTRL_XFIFO_CLR_CUR		BIT(0)
 
 /* MDT Receive WRITE Port, default value: 0x00 */
 #define REG_MDT_XMIT_WRITE_PORT			0x0589

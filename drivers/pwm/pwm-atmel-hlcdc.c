@@ -270,7 +270,6 @@ static int atmel_hlcdc_pwm_probe(struct platform_device *pdev)
 	chip->chip.npwm = 1;
 	chip->chip.of_xlate = of_pwm_xlate_with_flags;
 	chip->chip.of_pwm_n_cells = 3;
-	chip->chip.can_sleep = 1;
 
 	ret = pwmchip_add_with_polarity(&chip->chip, PWM_POLARITY_INVERSED);
 	if (ret) {

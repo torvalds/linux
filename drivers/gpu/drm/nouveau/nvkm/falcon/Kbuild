@@ -1,0 +1,2 @@
+nvkm-y += nvkm/falcon/base.o
+nvkm-y += nvkm/falcon/v1.o

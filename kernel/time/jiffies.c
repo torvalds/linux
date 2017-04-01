@@ -27,19 +27,8 @@
 
 #include "timekeeping.h"
 
-/* The Jiffies based clocksource is the lowest common
- * denominator clock source which should function on
- * all systems. It has the same coarse resolution as
- * the timer interrupt frequency HZ and it suffers
- * inaccuracies caused by missed or lost timer
- * interrupts and the inability for the timer
- * interrupt hardware to accuratly tick at the
- * requested HZ value. It is also not recommended
- * for "tick-less" systems.
- */
-#define NSEC_PER_JIFFY	((NSEC_PER_SEC+HZ/2)/HZ)
 
-/* Since jiffies uses a simple NSEC_PER_JIFFY multiplier
+/* Since jiffies uses a simple TICK_NSEC multiplier
  * conversion, the .shift value could be zero. However
  * this would make NTP adjustments impossible as they are
  * in units of 1/2^.shift. Thus we use JIFFIES_SHIFT to
@@ -47,8 +36,8 @@
  * amount, and give ntp adjustments in units of 1/2^8
  *
  * The value 8 is somewhat carefully chosen, as anything
- * larger can result in overflows. NSEC_PER_JIFFY grows as
- * HZ shrinks, so values greater than 8 overflow 32bits when
+ * larger can result in overflows. TICK_NSEC grows as HZ
+ * shrinks, so values greater than 8 overflow 32bits when
  * HZ=100.
  */
 #if HZ < 34
@@ -64,12 +53,23 @@ static u64 jiffies_read(struct clocksource *cs)
 	return (u64) jiffies;
 }
 
+/*
+ * The Jiffies based clocksource is the lowest common
+ * denominator clock source which should function on
+ * all systems. It has the same coarse resolution as
+ * the timer interrupt frequency HZ and it suffers
+ * inaccuracies caused by missed or lost timer
+ * interrupts and the inability for the timer
+ * interrupt hardware to accuratly tick at the
+ * requested HZ value. It is also not recommended
+ * for "tick-less" systems.
+ */
 static struct clocksource clocksource_jiffies = {
 	.name		= "jiffies",
 	.rating		= 1, /* lowest valid rating*/
 	.read		= jiffies_read,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.mult		= NSEC_PER_JIFFY << JIFFIES_SHIFT, /* details above */
+	.mult		= TICK_NSEC << JIFFIES_SHIFT, /* details above */
 	.shift		= JIFFIES_SHIFT,
 	.max_cycles	= 10,
 };

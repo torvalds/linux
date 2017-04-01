@@ -1649,6 +1649,22 @@ void efx_farch_rx_push_indir_table(struct efx_nic *efx)
 	}
 }
 
+void efx_farch_rx_pull_indir_table(struct efx_nic *efx)
+{
+	size_t i = 0;
+	efx_dword_t dword;
+
+	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
+		     FR_BZ_RX_INDIRECTION_TBL_ROWS);
+
+	for (i = 0; i < FR_BZ_RX_INDIRECTION_TBL_ROWS; i++) {
+		efx_readd(efx, &dword,
+			   FR_BZ_RX_INDIRECTION_TBL +
+			   FR_BZ_RX_INDIRECTION_TBL_STEP * i);
+		efx->rx_indir_table[i] = EFX_DWORD_FIELD(dword, FRF_BZ_IT_QUEUE);
+	}
+}
+
 /* Looks at available SRAM resources and works out how many queues we
  * can support, and where things like descriptor caches should live.
  *

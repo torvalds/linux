@@ -145,7 +145,7 @@ static int lpc32xx_parse_dt(struct device *dev,
 	u32 rows = 0, columns = 0;
 	int err;
 
-	err = matrix_keypad_parse_of_params(dev, &rows, &columns);
+	err = matrix_keypad_parse_properties(dev, &rows, &columns);
 	if (err)
 		return err;
 	if (rows != columns) {

@@ -74,6 +74,8 @@ static unsigned long dmar_seq_ids[BITS_TO_LONGS(DMAR_UNITS_SUPPORTED)];
 static int alloc_iommu(struct dmar_drhd_unit *drhd);
 static void free_iommu(struct intel_iommu *iommu);
 
+extern const struct iommu_ops intel_iommu_ops;
+
 static void dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
 {
 	/*
@@ -1078,14 +1080,17 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	raw_spin_lock_init(&iommu->register_lock);
 
 	if (intel_iommu_enabled) {
-		iommu->iommu_dev = iommu_device_create(NULL, iommu,
-						       intel_iommu_groups,
-						       "%s", iommu->name);
-
-		if (IS_ERR(iommu->iommu_dev)) {
-			err = PTR_ERR(iommu->iommu_dev);
+		err = iommu_device_sysfs_add(&iommu->iommu, NULL,
+					     intel_iommu_groups,
+					     "%s", iommu->name);
+		if (err)
 			goto err_unmap;
-		}
+
+		iommu_device_set_ops(&iommu->iommu, &intel_iommu_ops);
+
+		err = iommu_device_register(&iommu->iommu);
+		if (err)
+			goto err_unmap;
 	}
 
 	drhd->iommu = iommu;
@@ -1103,7 +1108,10 @@ error:
 
 static void free_iommu(struct intel_iommu *iommu)
 {
-	iommu_device_destroy(iommu->iommu_dev);
+	if (intel_iommu_enabled) {
+		iommu_device_unregister(&iommu->iommu);
+		iommu_device_sysfs_remove(&iommu->iommu);
+	}
 
 	if (iommu->irq) {
 		if (iommu->pr_irq) {

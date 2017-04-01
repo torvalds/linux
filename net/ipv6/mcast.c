@@ -779,6 +779,7 @@ static void mld_del_delrec(struct inet6_dev *idev, struct ifmcaddr6 *im)
 				psf->sf_crcount = im->mca_crcount;
 		}
 		in6_dev_put(pmc->idev);
+		kfree(pmc);
 	}
 	spin_unlock_bh(&im->mca_lock);
 }

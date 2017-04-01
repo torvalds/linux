@@ -91,7 +91,6 @@ extern int amdgpu_vm_fault_stop;
 extern int amdgpu_vm_debug;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
-extern int amdgpu_powerplay;
 extern int amdgpu_no_evict;
 extern int amdgpu_direct_gma_size;
 extern unsigned amdgpu_pcie_gen_cap;
@@ -184,12 +183,18 @@ enum amdgpu_thermal_irq {
 	AMDGPU_THERMAL_IRQ_LAST
 };
 
+enum amdgpu_kiq_irq {
+	AMDGPU_CP_KIQ_IRQ_DRIVER0 = 0,
+	AMDGPU_CP_KIQ_IRQ_LAST
+};
+
 int amdgpu_set_clockgating_state(struct amdgpu_device *adev,
 				  enum amd_ip_block_type block_type,
 				  enum amd_clockgating_state state);
 int amdgpu_set_powergating_state(struct amdgpu_device *adev,
 				  enum amd_ip_block_type block_type,
 				  enum amd_powergating_state state);
+void amdgpu_get_clockgating_state(struct amdgpu_device *adev, u32 *flags);
 int amdgpu_wait_for_idle(struct amdgpu_device *adev,
 			 enum amd_ip_block_type block_type);
 bool amdgpu_is_idle(struct amdgpu_device *adev,
@@ -352,7 +357,7 @@ struct amdgpu_bo_va_mapping {
 	struct list_head		list;
 	struct interval_tree_node	it;
 	uint64_t			offset;
-	uint32_t			flags;
+	uint64_t			flags;
 };
 
 /* bo virtual addresses in a specific vm */
@@ -776,14 +781,20 @@ struct amdgpu_mec {
 	u32 num_queue;
 };
 
+struct amdgpu_kiq {
+	u64			eop_gpu_addr;
+	struct amdgpu_bo	*eop_obj;
+	struct amdgpu_ring	ring;
+	struct amdgpu_irq_src	irq;
+};
+
 /*
  * GPU scratch registers structures, functions & helpers
  */
 struct amdgpu_scratch {
 	unsigned		num_reg;
 	uint32_t                reg_base;
-	bool			free[32];
-	uint32_t		reg[32];
+	uint32_t		free_mask;
 };
 
 /*
@@ -851,6 +862,7 @@ struct amdgpu_gfx {
 	struct amdgpu_gca_config	config;
 	struct amdgpu_rlc		rlc;
 	struct amdgpu_mec		mec;
+	struct amdgpu_kiq		kiq;
 	struct amdgpu_scratch		scratch;
 	const struct firmware		*me_fw;	/* ME firmware */
 	uint32_t			me_fw_version;
@@ -894,8 +906,8 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
 		    struct dma_fence *f);
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
-		       struct amdgpu_ib *ib, struct dma_fence *last_vm_update,
-		       struct amdgpu_job *job, struct dma_fence **f);
+		       struct amdgpu_ib *ibs, struct amdgpu_job *job,
+		       struct dma_fence **f);
 int amdgpu_ib_pool_init(struct amdgpu_device *adev);
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
 int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
@@ -938,6 +950,7 @@ struct amdgpu_cs_parser {
 #define AMDGPU_PREAMBLE_IB_PRESENT          (1 << 0) /* bit set means command submit involves a preamble IB */
 #define AMDGPU_PREAMBLE_IB_PRESENT_FIRST    (1 << 1) /* bit set means preamble IB is first presented in belonging context */
 #define AMDGPU_HAVE_CTX_SWITCH              (1 << 2) /* bit set means context switch occured */
+#define AMDGPU_VM_DOMAIN                    (1 << 3) /* bit set means in virtual memory context */
 
 struct amdgpu_job {
 	struct amd_sched_job    base;
@@ -1133,7 +1146,6 @@ int amdgpu_debugfs_fence_init(struct amdgpu_device *adev);
 
 #if defined(CONFIG_DEBUG_FS)
 int amdgpu_debugfs_init(struct drm_minor *minor);
-void amdgpu_debugfs_cleanup(struct drm_minor *minor);
 #endif
 
 int amdgpu_debugfs_firmware_init(struct amdgpu_device *adev);
@@ -1178,7 +1190,6 @@ struct amdgpu_asic_funcs {
 	bool (*read_disabled_bios)(struct amdgpu_device *adev);
 	bool (*read_bios_from_rom)(struct amdgpu_device *adev,
 				   u8 *bios, u32 length_bytes);
-	void (*detect_hw_virtualization) (struct amdgpu_device *adev);
 	int (*read_register)(struct amdgpu_device *adev, u32 se_num,
 			     u32 sh_num, u32 reg_offset, u32 *value);
 	void (*set_vga_state)(struct amdgpu_device *adev, bool state);
@@ -1333,7 +1344,6 @@ struct amdgpu_device {
 	/* BIOS */
 	uint8_t				*bios;
 	uint32_t			bios_size;
-	bool				is_atom_bios;
 	struct amdgpu_bo		*stollen_vga_memory;
 	uint32_t			bios_scratch[AMDGPU_BIOS_NUM_SCRATCH];
 
@@ -1463,7 +1473,7 @@ struct amdgpu_device {
 	/* amdkfd interface */
 	struct kfd_dev          *kfd;
 
-	struct amdgpu_virtualization virtualization;
+	struct amdgpu_virt	virt;
 
 	/* link all shadow bo */
 	struct list_head                shadow_list;
@@ -1471,6 +1481,9 @@ struct amdgpu_device {
 	/* link all gtt */
 	spinlock_t			gtt_list_lock;
 	struct list_head                gtt_list;
+
+	/* record hw reset is performed */
+	bool has_hw_reset;
 
 };
 
@@ -1576,6 +1589,37 @@ static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 	ring->count_dw--;
 }
 
+static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring, void *src, int count_dw)
+{
+	unsigned occupied, chunk1, chunk2;
+	void *dst;
+
+	if (ring->count_dw < count_dw) {
+		DRM_ERROR("amdgpu: writing more dwords to the ring than expected!\n");
+	} else {
+		occupied = ring->wptr & ring->ptr_mask;
+		dst = (void *)&ring->ring[occupied];
+		chunk1 = ring->ptr_mask + 1 - occupied;
+		chunk1 = (chunk1 >= count_dw) ? count_dw: chunk1;
+		chunk2 = count_dw - chunk1;
+		chunk1 <<= 2;
+		chunk2 <<= 2;
+
+		if (chunk1)
+			memcpy(dst, src, chunk1);
+
+		if (chunk2) {
+			src += chunk1;
+			dst = (void *)ring->ring;
+			memcpy(dst, src, chunk2);
+		}
+
+		ring->wptr += count_dw;
+		ring->wptr &= ring->ptr_mask;
+		ring->count_dw -= count_dw;
+	}
+}
+
 static inline struct amdgpu_sdma_instance *
 amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 {
@@ -1605,7 +1649,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_asic_get_gpu_clock_counter(adev) (adev)->asic_funcs->get_gpu_clock_counter((adev))
 #define amdgpu_asic_read_disabled_bios(adev) (adev)->asic_funcs->read_disabled_bios((adev))
 #define amdgpu_asic_read_bios_from_rom(adev, b, l) (adev)->asic_funcs->read_bios_from_rom((adev), (b), (l))
-#define amdgpu_asic_detect_hw_virtualization(adev) (adev)->asic_funcs->detect_hw_virtualization((adev))
 #define amdgpu_asic_read_register(adev, se, sh, offset, v)((adev)->asic_funcs->read_register((adev), (se), (sh), (offset), (v)))
 #define amdgpu_gart_flush_gpu_tlb(adev, vmid) (adev)->gart.gart_funcs->flush_gpu_tlb((adev), (vmid))
 #define amdgpu_gart_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gart.gart_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
@@ -1627,6 +1670,8 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_ring_emit_hdp_invalidate(r) (r)->funcs->emit_hdp_invalidate((r))
 #define amdgpu_ring_emit_switch_buffer(r) (r)->funcs->emit_switch_buffer((r))
 #define amdgpu_ring_emit_cntxcntl(r, d) (r)->funcs->emit_cntxcntl((r), (d))
+#define amdgpu_ring_emit_rreg(r, d) (r)->funcs->emit_rreg((r), (d))
+#define amdgpu_ring_emit_wreg(r, d, v) (r)->funcs->emit_wreg((r), (d), (v))
 #define amdgpu_ring_pad_ib(r, ib) ((r)->funcs->pad_ib((r), (ib)))
 #define amdgpu_ring_init_cond_exec(r) (r)->funcs->init_cond_exec((r))
 #define amdgpu_ring_patch_cond_exec(r,o) (r)->funcs->patch_cond_exec((r),(o))
@@ -1658,13 +1703,14 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 int amdgpu_gpu_reset(struct amdgpu_device *adev);
 bool amdgpu_need_backup(struct amdgpu_device *adev);
 void amdgpu_pci_config_reset(struct amdgpu_device *adev);
-bool amdgpu_card_posted(struct amdgpu_device *adev);
+bool amdgpu_need_post(struct amdgpu_device *adev);
 void amdgpu_update_display_priority(struct amdgpu_device *adev);
 
 int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data);
 int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 		       u32 ip_instance, u32 ring,
 		       struct amdgpu_ring **out_ring);
+void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev, u64 num_bytes);
 void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *abo, u32 domain);
 bool amdgpu_ttm_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
 int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages);
@@ -1711,7 +1757,7 @@ extern const struct drm_ioctl_desc amdgpu_ioctls_kms[];
 extern const int amdgpu_max_kms_ioctl;
 
 int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags);
-int amdgpu_driver_unload_kms(struct drm_device *dev);
+void amdgpu_driver_unload_kms(struct drm_device *dev);
 void amdgpu_driver_lastclose_kms(struct drm_device *dev);
 int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv);
 void amdgpu_driver_postclose_kms(struct drm_device *dev,

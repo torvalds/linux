@@ -505,7 +505,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define MTMSRD(r)	mtmsrd	r
 #define MTMSR_EERI(reg)	mtmsrd	reg,1
 #else
-#define FIX_SRR1(ra, rb)
 #ifndef CONFIG_40x
 #define	RFI		rfi
 #else

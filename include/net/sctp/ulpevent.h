@@ -128,6 +128,10 @@ struct sctp_ulpevent *sctp_ulpevent_make_authkey(
 struct sctp_ulpevent *sctp_ulpevent_make_sender_dry_event(
 	const struct sctp_association *asoc, gfp_t gfp);
 
+struct sctp_ulpevent *sctp_ulpevent_make_stream_reset_event(
+	const struct sctp_association *asoc, __u16 flags,
+	__u16 stream_num, __u16 *stream_list, gfp_t gfp);
+
 void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 				   struct msghdr *);
 void sctp_ulpevent_read_rcvinfo(const struct sctp_ulpevent *event,

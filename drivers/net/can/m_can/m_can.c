@@ -730,7 +730,7 @@ static int m_can_poll(struct napi_struct *napi, int quota)
 		work_done += m_can_do_rx_poll(dev, (quota - work_done));
 
 	if (work_done < quota) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		m_can_enable_all_interrupts(priv);
 	}
 

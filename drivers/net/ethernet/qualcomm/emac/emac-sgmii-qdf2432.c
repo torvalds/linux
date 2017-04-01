@@ -167,7 +167,7 @@ static const struct emac_reg_write physical_coding_sublayer_programming[] = {
 
 int emac_sgmii_init_qdf2432(struct emac_adapter *adpt)
 {
-	struct emac_phy *phy = &adpt->phy;
+	struct emac_sgmii *phy = &adpt->phy;
 	void __iomem *phy_regs = phy->base;
 	void __iomem *laned = phy->digital;
 	unsigned int i;

@@ -54,7 +54,7 @@ static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Set the version field, and set destination port information */
 	hdr = QCA_HDR_VERSION << QCA_HDR_XMIT_VERSION_S |
 		QCA_HDR_XMIT_FROM_CPU |
-		BIT(p->port);
+		BIT(p->dp->index);
 
 	*phdr = htons(hdr);
 
@@ -104,7 +104,7 @@ static int qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	/* This protocol doesn't support cascading multiple switches so it's
 	 * safe to assume the switch is first in the tree
 	 */
-	ds = dst->ds[0];
+	ds = dst->cpu_switch;
 	if (!ds)
 		goto out_drop;
 

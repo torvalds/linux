@@ -108,9 +108,11 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 #define ATH_AGGR_MIN_QDEPTH        2
 /* minimum h/w qdepth for non-aggregated traffic */
 #define ATH_NON_AGGR_MIN_QDEPTH    8
-#define ATH_TX_COMPLETE_POLL_INT   1000
+#define ATH_HW_CHECK_POLL_INT      1000
 #define ATH_TXFIFO_DEPTH           8
 #define ATH_TX_ERROR               0x01
+
+#define ATH_AIRTIME_QUANTUM        300 /* usec */
 
 /* Stop tx traffic 1ms before the GO goes away */
 #define ATH_P2P_PS_STOP_TIME       1000
@@ -247,6 +249,9 @@ struct ath_atx_tid {
 	bool has_queued;
 };
 
+void __ath_tx_queue_tid(struct ath_softc *sc, struct ath_atx_tid *tid);
+void ath_tx_queue_tid(struct ath_softc *sc, struct ath_atx_tid *tid);
+
 struct ath_node {
 	struct ath_softc *sc;
 	struct ieee80211_sta *sta; /* station struct we're part of */
@@ -258,9 +263,12 @@ struct ath_node {
 
 	bool sleeping;
 	bool no_ps_filter;
+	s64 airtime_deficit[IEEE80211_NUM_ACS];
+	u32 airtime_rx_start;
 
 #ifdef CONFIG_ATH9K_STATION_STATISTICS
 	struct ath_rx_rate_stats rx_rate_stats;
+	struct ath_airtime_stats airtime_stats;
 #endif
 	u8 key_idx[4];
 
@@ -317,10 +325,16 @@ struct ath_rx {
 /* Channel Context */
 /*******************/
 
+struct ath_acq {
+	struct list_head acq_new;
+	struct list_head acq_old;
+	spinlock_t lock;
+};
+
 struct ath_chanctx {
 	struct cfg80211_chan_def chandef;
 	struct list_head vifs;
-	struct list_head acq[IEEE80211_NUM_ACS];
+	struct ath_acq acq[IEEE80211_NUM_ACS];
 	int hw_queue_base;
 
 	/* do not dereference, use for comparison only */
@@ -555,6 +569,15 @@ static inline void ath_chanctx_check_active(struct ath_softc *sc,
 
 #endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
 
+static inline void ath_txq_lock(struct ath_softc *sc, struct ath_txq *txq)
+{
+	spin_lock_bh(&txq->axq_lock);
+}
+static inline void ath_txq_unlock(struct ath_softc *sc, struct ath_txq *txq)
+{
+	spin_unlock_bh(&txq->axq_lock);
+}
+
 void ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
@@ -562,8 +585,6 @@ int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp);
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype);
-void ath_txq_lock(struct ath_softc *sc, struct ath_txq *txq);
-void ath_txq_unlock(struct ath_softc *sc, struct ath_txq *txq);
 void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq);
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq);
 bool ath_drain_all_txq(struct ath_softc *sc);
@@ -575,6 +596,8 @@ void ath_txq_schedule_all(struct ath_softc *sc);
 int ath_tx_init(struct ath_softc *sc, int nbufs);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);
+u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, int pktlen,
+		     int width, int half_gi, bool shortPreamble);
 void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop);
 void ath_assign_seq(struct ath_common *common, struct sk_buff *skb);
 int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -722,7 +745,7 @@ void ath9k_csa_update(struct ath_softc *sc);
 #define ATH_PAPRD_TIMEOUT         100 /* msecs */
 #define ATH_PLL_WORK_INTERVAL     100
 
-void ath_tx_complete_poll_work(struct work_struct *work);
+void ath_hw_check_work(struct work_struct *work);
 void ath_reset_work(struct work_struct *work);
 bool ath_hw_check(struct ath_softc *sc);
 void ath_hw_pll_work(struct work_struct *work);
@@ -963,6 +986,11 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
 
 #define ATH9K_NUM_CHANCTX  2 /* supports 2 operating channels */
 
+#define AIRTIME_USE_TX		BIT(0)
+#define AIRTIME_USE_RX		BIT(1)
+#define AIRTIME_USE_NEW_QUEUES	BIT(2)
+#define AIRTIME_ACTIVE(flags) (!!(flags & (AIRTIME_USE_TX|AIRTIME_USE_RX)))
+
 struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -970,6 +998,7 @@ struct ath_softc {
 	struct survey_info *cur_survey;
 	struct survey_info survey[ATH9K_NUM_CHANNELS];
 
+	spinlock_t intr_lock;
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct bcon_tasklet;
 	struct ath_hw *sc_ah;
@@ -1005,6 +1034,8 @@ struct ath_softc {
 	short nbcnvifs;
 	unsigned long ps_usecount;
 
+	u16 airtime_flags; /* AIRTIME_* */
+
 	struct ath_rx rx;
 	struct ath_tx tx;
 	struct ath_beacon beacon;
@@ -1023,7 +1054,7 @@ struct ath_softc {
 #ifdef CONFIG_ATH9K_DEBUGFS
 	struct ath9k_debug debug;
 #endif
-	struct delayed_work tx_complete_work;
+	struct delayed_work hw_check_work;
 	struct delayed_work hw_pll_work;
 	struct timer_list sleep_timer;
 

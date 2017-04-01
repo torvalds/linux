@@ -2509,7 +2509,7 @@ static void mxt_debug_init(struct mxt_data *data)
 		dbg->t37_pages = MXT1386_COLUMNS * MXT1386_PAGES_PER_COLUMN;
 	else
 		dbg->t37_pages = DIV_ROUND_UP(data->xsize *
-					      data->info.matrix_ysize *
+					      info->matrix_ysize *
 					      sizeof(u16),
 					      sizeof(dbg->t37_buf->data));
 

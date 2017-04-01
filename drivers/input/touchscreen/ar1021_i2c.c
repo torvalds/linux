@@ -127,7 +127,6 @@ static int ar1021_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	i2c_set_clientdata(client, ar1021);
 	return 0;
 }
 

@@ -137,6 +137,9 @@ struct rpc_xprt_ops {
 	void		(*release_request)(struct rpc_task *task);
 	void		(*close)(struct rpc_xprt *xprt);
 	void		(*destroy)(struct rpc_xprt *xprt);
+	void		(*set_connect_timeout)(struct rpc_xprt *xprt,
+					unsigned long connect_timeout,
+					unsigned long reconnect_timeout);
 	void		(*print_stats)(struct rpc_xprt *xprt, struct seq_file *seq);
 	int		(*enable_swap)(struct rpc_xprt *xprt);
 	void		(*disable_swap)(struct rpc_xprt *xprt);
@@ -221,6 +224,7 @@ struct rpc_xprt {
 	struct timer_list	timer;
 	unsigned long		last_used,
 				idle_timeout,
+				connect_timeout,
 				max_reconnect_timeout;
 
 	/*

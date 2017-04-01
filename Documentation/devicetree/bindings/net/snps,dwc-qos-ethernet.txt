@@ -1,5 +1,8 @@
 * Synopsys DWC Ethernet QoS IP version 4.10 driver (GMAC)
 
+This binding is deprecated, but it continues to be supported, but new
+features should be preferably added to the stmmac binding document.
+
 This binding supports the Synopsys Designware Ethernet QoS (Quality Of Service)
 IP block. The IP supports multiple options for bus type, clocking and reset
 structure, and feature list. Consequently, a number of properties and list

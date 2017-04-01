@@ -277,6 +277,7 @@
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10044000 0x20>;
 			#power-domain-cells = <0>;
+			label = "GSC";
 			clocks = <&clock CLK_FIN_PLL>,
 				 <&clock CLK_MOUT_USER_ACLK300_GSCL>,
 				 <&clock CLK_GSCL0>, <&clock CLK_GSCL1>;
@@ -287,6 +288,7 @@
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10044020 0x20>;
 			#power-domain-cells = <0>;
+			label = "ISP";
 		};
 
 		mfc_pd: power-domain@10044060 {
@@ -297,18 +299,21 @@
 				 <&clock CLK_ACLK333>;
 			clock-names = "oscclk", "clk0","asb0";
 			#power-domain-cells = <0>;
+			label = "MFC";
 		};
 
 		msc_pd: power-domain@10044120 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10044120 0x20>;
 			#power-domain-cells = <0>;
+			label = "MSC";
 		};
 
 		disp_pd: power-domain@100440C0 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x100440C0 0x20>;
 			#power-domain-cells = <0>;
+			label = "DISP";
 			clocks = <&clock CLK_FIN_PLL>,
 				 <&clock CLK_MOUT_USER_ACLK200_DISP1>,
 				 <&clock CLK_MOUT_USER_ACLK300_DISP1>,
@@ -1406,21 +1411,29 @@
 &serial_0 {
 	clocks = <&clock CLK_UART0>, <&clock CLK_SCLK_UART0>;
 	clock-names = "uart", "clk_uart_baud0";
+	dmas = <&pdma0 13>, <&pdma0 14>;
+	dma-names = "rx", "tx";
 };
 
 &serial_1 {
 	clocks = <&clock CLK_UART1>, <&clock CLK_SCLK_UART1>;
 	clock-names = "uart", "clk_uart_baud0";
+	dmas = <&pdma1 15>, <&pdma1 16>;
+	dma-names = "rx", "tx";
 };
 
 &serial_2 {
 	clocks = <&clock CLK_UART2>, <&clock CLK_SCLK_UART2>;
 	clock-names = "uart", "clk_uart_baud0";
+	dmas = <&pdma0 15>, <&pdma0 16>;
+	dma-names = "rx", "tx";
 };
 
 &serial_3 {
 	clocks = <&clock CLK_UART3>, <&clock CLK_SCLK_UART3>;
 	clock-names = "uart", "clk_uart_baud0";
+	dmas = <&pdma1 17>, <&pdma1 18>;
+	dma-names = "rx", "tx";
 };
 
 &sss {

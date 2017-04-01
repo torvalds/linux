@@ -1007,7 +1007,8 @@ static int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 }
 
 static struct notifier_block skx_mce_dec = {
-	.notifier_call = skx_mce_check_error,
+	.notifier_call	= skx_mce_check_error,
+	.priority	= MCE_PRIO_EDAC,
 };
 
 static void skx_remove(void)

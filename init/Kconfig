@@ -529,7 +529,6 @@ config SRCU
 config TASKS_RCU
 	bool
 	default n
-	depends on !UML
 	select SRCU
 	help
 	  This option enables a task-based RCU implementation that uses
@@ -781,19 +780,6 @@ config RCU_NOCB_CPU_ALL
 
 endchoice
 
-config RCU_EXPEDITE_BOOT
-	bool
-	default n
-	help
-	  This option enables expedited grace periods at boot time,
-	  as if rcu_expedite_gp() had been invoked early in boot.
-	  The corresponding rcu_unexpedite_gp() is invoked from
-	  rcu_end_inkernel_boot(), which is intended to be invoked
-	  at the end of the kernel-only boot sequence, just before
-	  init is exec'ed.
-
-	  Accept the default if unsure.
-
 endmenu # "RCU Subsystem"
 
 config BUILD_BIN2C
@@ -875,17 +861,19 @@ config LOG_CPU_MAX_BUF_SHIFT
 		     13 =>   8 KB for each CPU
 		     12 =>   4 KB for each CPU
 
-config NMI_LOG_BUF_SHIFT
-	int "Temporary per-CPU NMI log buffer size (12 => 4KB, 13 => 8KB)"
+config PRINTK_SAFE_LOG_BUF_SHIFT
+	int "Temporary per-CPU printk log buffer size (12 => 4KB, 13 => 8KB)"
 	range 10 21
 	default 13
-	depends on PRINTK_NMI
+	depends on PRINTK
 	help
-	  Select the size of a per-CPU buffer where NMI messages are temporary
-	  stored. They are copied to the main log buffer in a safe context
-	  to avoid a deadlock. The value defines the size as a power of 2.
+	  Select the size of an alternate printk per-CPU buffer where messages
+	  printed from usafe contexts are temporary stored. One example would
+	  be NMI messages, another one - printk recursion. The messages are
+	  copied to the main log buffer in a safe context to avoid a deadlock.
+	  The value defines the size as a power of 2.
 
-	  NMI messages are rare and limited. The largest one is when
+	  Those messages are rare and limited. The largest one is when
 	  a backtrace is printed. It usually fits into 4KB. Select
 	  8KB if you want to be on the safe side.
 
@@ -1089,6 +1077,16 @@ config CGROUP_PIDS
 	  to a cgroup hierarchy will *not* be blocked by the PIDs controller),
 	  since the PIDs limit only affects a process's ability to fork, not to
 	  attach to a cgroup.
+
+config CGROUP_RDMA
+	bool "RDMA controller"
+	help
+	  Provides enforcement of RDMA resources defined by IB stack.
+	  It is fairly easy for consumers to exhaust RDMA resources, which
+	  can result into resource unavailability to other consumers.
+	  RDMA controller is designed to stop this from happening.
+	  Attaching processes with active RDMA resources to the cgroup
+	  hierarchy is allowed even if can cross the hierarchy's limit.
 
 config CGROUP_FREEZER
 	bool "Freezer controller"
@@ -1720,6 +1718,13 @@ config PERF_USE_VMALLOC
 	help
 	  See tools/perf/design.txt for details
 
+config PC104
+	bool "PC/104 support"
+	help
+	  Expose PC/104 form factor device drivers and options available for
+	  selection and configuration. Enable this option if your target
+	  machine has a PC/104 bus.
+
 menu "Kernel Performance Events And Counters"
 
 config PERF_EVENTS
@@ -1785,6 +1790,20 @@ config SLUB_DEBUG
 	  result in significant savings in code size. This also disables
 	  SLUB sysfs support. /sys/slab will not exist and there will be
 	  no support for cache validation etc.
+
+config SLUB_MEMCG_SYSFS_ON
+	default n
+	bool "Enable memcg SLUB sysfs support by default" if EXPERT
+	depends on SLUB && SYSFS && MEMCG
+	help
+	  SLUB creates a directory under /sys/kernel/slab for each
+	  allocation cache to host info and debug files. If memory
+	  cgroup is enabled, each cache can have per memory cgroup
+	  caches. SLUB can create the same sysfs directories for these
+	  caches under /sys/kernel/slab/CACHE/cgroup but it can lead
+	  to a very high number of debug files being created. This is
+	  controlled by slub_memcg_sysfs boot parameter and this
+	  config option determines the parameter's default value.
 
 config COMPAT_BRK
 	bool "Disable heap randomization"

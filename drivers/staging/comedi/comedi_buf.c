@@ -188,7 +188,7 @@ bool comedi_buf_is_mmapped(struct comedi_subdevice *s)
 {
 	struct comedi_buf_map *bm = s->async->buf_map;
 
-	return bm && (atomic_read(&bm->refcount.refcount) > 1);
+	return bm && (kref_read(&bm->refcount) > 1);
 }
 
 int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,

@@ -48,6 +48,8 @@ struct virtio_vsock_pkt {
 	struct virtio_vsock_hdr	hdr;
 	struct work_struct work;
 	struct list_head list;
+	/* socket refcnt not held, only use for cancellation */
+	struct vsock_sock *vsk;
 	void *buf;
 	u32 len;
 	u32 off;
@@ -56,6 +58,7 @@ struct virtio_vsock_pkt {
 
 struct virtio_vsock_pkt_info {
 	u32 remote_cid, remote_port;
+	struct vsock_sock *vsk;
 	struct msghdr *msg;
 	u32 pkt_len;
 	u16 type;

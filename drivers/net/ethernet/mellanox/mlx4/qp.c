@@ -447,7 +447,7 @@ int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
 		      & MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB)) {
 			mlx4_warn(dev,
 				  "Trying to set src check LB, but it isn't supported\n");
-			err = -ENOTSUPP;
+			err = -EOPNOTSUPP;
 			goto out;
 		}
 		pri_addr_path_mask |=

@@ -213,11 +213,10 @@ __bpf_lru_list_shrink_inactive(struct bpf_lru *lru,
 			       enum bpf_lru_list_type tgt_free_type)
 {
 	struct list_head *inactive = &l->lists[BPF_LRU_LIST_T_INACTIVE];
-	struct bpf_lru_node *node, *tmp_node, *first_node;
+	struct bpf_lru_node *node, *tmp_node;
 	unsigned int nshrinked = 0;
 	unsigned int i = 0;
 
-	first_node = list_first_entry(inactive, struct bpf_lru_node, list);
 	list_for_each_entry_safe_reverse(node, tmp_node, inactive, list) {
 		if (bpf_lru_node_is_ref(node)) {
 			__bpf_lru_node_move(l, node, BPF_LRU_LIST_T_ACTIVE);
@@ -361,7 +360,8 @@ static void __local_list_add_pending(struct bpf_lru *lru,
 	list_add(&node->list, local_pending_list(loc_l));
 }
 
-struct bpf_lru_node *__local_list_pop_free(struct bpf_lru_locallist *loc_l)
+static struct bpf_lru_node *
+__local_list_pop_free(struct bpf_lru_locallist *loc_l)
 {
 	struct bpf_lru_node *node;
 
@@ -374,8 +374,8 @@ struct bpf_lru_node *__local_list_pop_free(struct bpf_lru_locallist *loc_l)
 	return node;
 }
 
-struct bpf_lru_node *__local_list_pop_pending(struct bpf_lru *lru,
-					      struct bpf_lru_locallist *loc_l)
+static struct bpf_lru_node *
+__local_list_pop_pending(struct bpf_lru *lru, struct bpf_lru_locallist *loc_l)
 {
 	struct bpf_lru_node *node;
 	bool force = false;
@@ -558,8 +558,9 @@ void bpf_lru_push_free(struct bpf_lru *lru, struct bpf_lru_node *node)
 		bpf_common_lru_push_free(lru, node);
 }
 
-void bpf_common_lru_populate(struct bpf_lru *lru, void *buf, u32 node_offset,
-			     u32 elem_size, u32 nr_elems)
+static void bpf_common_lru_populate(struct bpf_lru *lru, void *buf,
+				    u32 node_offset, u32 elem_size,
+				    u32 nr_elems)
 {
 	struct bpf_lru_list *l = &lru->common_lru.lru_list;
 	u32 i;
@@ -575,8 +576,9 @@ void bpf_common_lru_populate(struct bpf_lru *lru, void *buf, u32 node_offset,
 	}
 }
 
-void bpf_percpu_lru_populate(struct bpf_lru *lru, void *buf, u32 node_offset,
-			     u32 elem_size, u32 nr_elems)
+static void bpf_percpu_lru_populate(struct bpf_lru *lru, void *buf,
+				    u32 node_offset, u32 elem_size,
+				    u32 nr_elems)
 {
 	u32 i, pcpu_entries;
 	int cpu;

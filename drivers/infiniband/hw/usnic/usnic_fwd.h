@@ -36,6 +36,7 @@
 
 #include <linux/if.h>
 #include <linux/netdevice.h>
+#include <linux/if_ether.h>
 #include <linux/pci.h>
 #include <linux/in.h>
 
@@ -97,7 +98,7 @@ static inline void usnic_fwd_init_usnic_filter(struct filter *filter,
 						uint32_t usnic_id)
 {
 	filter->type = FILTER_USNIC_ID;
-	filter->u.usnic.ethtype = USNIC_ROCE_ETHERTYPE;
+	filter->u.usnic.ethtype = ETH_P_IBOE;
 	filter->u.usnic.flags = FILTER_FIELD_USNIC_ETHTYPE |
 				FILTER_FIELD_USNIC_ID |
 				FILTER_FIELD_USNIC_PROTO;

@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 	}
 
 	ret = bpf_prog_attach(prog_fd[filter_id], cg_fd,
-			      BPF_CGROUP_INET_SOCK_CREATE);
+			      BPF_CGROUP_INET_SOCK_CREATE, 0);
 	if (ret < 0) {
 		printf("Failed to attach prog to cgroup: '%s'\n",
 		       strerror(errno));

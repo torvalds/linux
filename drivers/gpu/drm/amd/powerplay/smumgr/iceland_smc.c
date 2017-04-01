@@ -21,13 +21,13 @@
  *
  */
 
+#include "pp_debug.h"
 #include "iceland_smc.h"
 #include "smu7_dyn_defaults.h"
 
 #include "smu7_hwmgr.h"
 #include "hardwaremanager.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
 #include "cgs_common.h"
 #include "atombios.h"
 #include "pppcielanes.h"
@@ -1545,7 +1545,7 @@ static int iceland_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.GraphicsBootLevel = 0;
-		printk(KERN_ERR "[ powerplay ] VBIOS did not find boot engine clock value \
+		pr_err("VBIOS did not find boot engine clock value \
 			in dependency table. Using Graphics DPM level 0!");
 		result = 0;
 	}
@@ -1556,7 +1556,7 @@ static int iceland_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 
 	if (0 != result) {
 		smu_data->smc_state_table.MemoryBootLevel = 0;
-		printk(KERN_ERR "[ powerplay ] VBIOS did not find boot engine clock value \
+		pr_err("VBIOS did not find boot engine clock value \
 			in dependency table. Using Memory DPM level 0!");
 		result = 0;
 	}
@@ -2146,7 +2146,7 @@ uint32_t iceland_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU71_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	printk(KERN_WARNING "can't get the offset of type %x member %x\n", type, member);
+	pr_warning("can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2169,7 +2169,7 @@ uint32_t iceland_get_mac_definition(uint32_t value)
 		return SMU71_MAX_LEVELS_MVDD;
 	}
 
-	printk(KERN_WARNING "can't get the mac of %x\n", value);
+	pr_warning("can't get the mac of %x\n", value);
 	return 0;
 }
 

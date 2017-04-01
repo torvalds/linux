@@ -10,6 +10,7 @@
 #include <linux/netdevice.h>
 #include <linux/ip.h>
 #include <linux/etherdevice.h>
+#include <linux/iommu.h>
 #include <net/ip.h>
 #include <net/tso.h>
 
@@ -17,6 +18,16 @@
 #include "nic.h"
 #include "q_struct.h"
 #include "nicvf_queues.h"
+
+#define NICVF_PAGE_ORDER ((PAGE_SIZE <= 4096) ?  PAGE_ALLOC_COSTLY_ORDER : 0)
+
+static inline u64 nicvf_iova_to_phys(struct nicvf *nic, dma_addr_t dma_addr)
+{
+	/* Translation is installed only when IOMMU is present */
+	if (nic->iommu_domain)
+		return iommu_iova_to_phys(nic->iommu_domain, dma_addr);
+	return dma_addr;
+}
 
 static void nicvf_get_page(struct nicvf *nic)
 {
@@ -87,7 +98,7 @@ static void nicvf_free_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem)
 static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
 					 u32 buf_len, u64 **rbuf)
 {
-	int order = (PAGE_SIZE <= 4096) ?  PAGE_ALLOC_COSTLY_ORDER : 0;
+	int order = NICVF_PAGE_ORDER;
 
 	/* Check if request can be accomodated in previous allocated page */
 	if (nic->rb_page &&
@@ -97,22 +108,27 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, gfp_t gfp,
 	}
 
 	nicvf_get_page(nic);
-	nic->rb_page = NULL;
 
 	/* Allocate a new page */
+	nic->rb_page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN,
+				   order);
 	if (!nic->rb_page) {
-		nic->rb_page = alloc_pages(gfp | __GFP_COMP | __GFP_NOWARN,
-					   order);
-		if (!nic->rb_page) {
-			this_cpu_inc(nic->pnicvf->drv_stats->
-				     rcv_buffer_alloc_failures);
-			return -ENOMEM;
-		}
-		nic->rb_page_offset = 0;
+		this_cpu_inc(nic->pnicvf->drv_stats->rcv_buffer_alloc_failures);
+		return -ENOMEM;
 	}
-
+	nic->rb_page_offset = 0;
 ret:
-	*rbuf = (u64 *)((u64)page_address(nic->rb_page) + nic->rb_page_offset);
+	/* HW will ensure data coherency, CPU sync not required */
+	*rbuf = (u64 *)((u64)dma_map_page_attrs(&nic->pdev->dev, nic->rb_page,
+						nic->rb_page_offset, buf_len,
+						DMA_FROM_DEVICE,
+						DMA_ATTR_SKIP_CPU_SYNC));
+	if (dma_mapping_error(&nic->pdev->dev, (dma_addr_t)*rbuf)) {
+		if (!nic->rb_page_offset)
+			__free_pages(nic->rb_page, order);
+		nic->rb_page = NULL;
+		return -ENOMEM;
+	}
 	nic->rb_page_offset += buf_len;
 
 	return 0;
@@ -158,16 +174,21 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
 	rbdr->dma_size = buf_size;
 	rbdr->enable = true;
 	rbdr->thresh = RBDR_THRESH;
+	rbdr->head = 0;
+	rbdr->tail = 0;
 
 	nic->rb_page = NULL;
 	for (idx = 0; idx < ring_len; idx++) {
 		err = nicvf_alloc_rcv_buffer(nic, GFP_KERNEL, RCV_FRAG_LEN,
 					     &rbuf);
-		if (err)
+		if (err) {
+			/* To free already allocated and mapped ones */
+			rbdr->tail = idx - 1;
 			return err;
+		}
 
 		desc = GET_RBDR_DESC(rbdr, idx);
-		desc->buf_addr = virt_to_phys(rbuf) >> NICVF_RCV_BUF_ALIGN;
+		desc->buf_addr = (u64)rbuf >> NICVF_RCV_BUF_ALIGN;
 	}
 
 	nicvf_get_page(nic);
@@ -179,7 +200,7 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
 static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 {
 	int head, tail;
-	u64 buf_addr;
+	u64 buf_addr, phys_addr;
 	struct rbdr_entry_t *desc;
 
 	if (!rbdr)
@@ -192,18 +213,26 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 	head = rbdr->head;
 	tail = rbdr->tail;
 
-	/* Free SKBs */
+	/* Release page references */
 	while (head != tail) {
 		desc = GET_RBDR_DESC(rbdr, head);
-		buf_addr = desc->buf_addr << NICVF_RCV_BUF_ALIGN;
-		put_page(virt_to_page(phys_to_virt(buf_addr)));
+		buf_addr = ((u64)desc->buf_addr) << NICVF_RCV_BUF_ALIGN;
+		phys_addr = nicvf_iova_to_phys(nic, buf_addr);
+		dma_unmap_page_attrs(&nic->pdev->dev, buf_addr, RCV_FRAG_LEN,
+				     DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+		if (phys_addr)
+			put_page(virt_to_page(phys_to_virt(phys_addr)));
 		head++;
 		head &= (rbdr->dmem.q_len - 1);
 	}
-	/* Free SKB of tail desc */
+	/* Release buffer of tail desc */
 	desc = GET_RBDR_DESC(rbdr, tail);
-	buf_addr = desc->buf_addr << NICVF_RCV_BUF_ALIGN;
-	put_page(virt_to_page(phys_to_virt(buf_addr)));
+	buf_addr = ((u64)desc->buf_addr) << NICVF_RCV_BUF_ALIGN;
+	phys_addr = nicvf_iova_to_phys(nic, buf_addr);
+	dma_unmap_page_attrs(&nic->pdev->dev, buf_addr, RCV_FRAG_LEN,
+			     DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+	if (phys_addr)
+		put_page(virt_to_page(phys_to_virt(phys_addr)));
 
 	/* Free RBDR ring */
 	nicvf_free_q_desc_mem(nic, &rbdr->dmem);
@@ -250,7 +279,7 @@ refill:
 			break;
 
 		desc = GET_RBDR_DESC(rbdr, tail);
-		desc->buf_addr = virt_to_phys(rbuf) >> NICVF_RCV_BUF_ALIGN;
+		desc->buf_addr = (u64)rbuf >> NICVF_RCV_BUF_ALIGN;
 		refill_rb_cnt--;
 		new_rb++;
 	}
@@ -361,9 +390,29 @@ static int nicvf_init_snd_queue(struct nicvf *nic,
 	return 0;
 }
 
+void nicvf_unmap_sndq_buffers(struct nicvf *nic, struct snd_queue *sq,
+			      int hdr_sqe, u8 subdesc_cnt)
+{
+	u8 idx;
+	struct sq_gather_subdesc *gather;
+
+	/* Unmap DMA mapped skb data buffers */
+	for (idx = 0; idx < subdesc_cnt; idx++) {
+		hdr_sqe++;
+		hdr_sqe &= (sq->dmem.q_len - 1);
+		gather = (struct sq_gather_subdesc *)GET_SQ_DESC(sq, hdr_sqe);
+		/* HW will ensure data coherency, CPU sync not required */
+		dma_unmap_page_attrs(&nic->pdev->dev, gather->addr,
+				     gather->size, DMA_TO_DEVICE,
+				     DMA_ATTR_SKIP_CPU_SYNC);
+	}
+}
+
 static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 {
 	struct sk_buff *skb;
+	struct sq_hdr_subdesc *hdr;
+	struct sq_hdr_subdesc *tso_sqe;
 
 	if (!sq)
 		return;
@@ -379,8 +428,22 @@ static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 	smp_rmb();
 	while (sq->head != sq->tail) {
 		skb = (struct sk_buff *)sq->skbuff[sq->head];
-		if (skb)
-			dev_kfree_skb_any(skb);
+		if (!skb)
+			goto next;
+		hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, sq->head);
+		/* Check for dummy descriptor used for HW TSO offload on 88xx */
+		if (hdr->dont_send) {
+			/* Get actual TSO descriptors and unmap them */
+			tso_sqe =
+			 (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, hdr->rsvd2);
+			nicvf_unmap_sndq_buffers(nic, sq, hdr->rsvd2,
+						 tso_sqe->subdesc_cnt);
+		} else {
+			nicvf_unmap_sndq_buffers(nic, sq, sq->head,
+						 hdr->subdesc_cnt);
+		}
+		dev_kfree_skb_any(skb);
+next:
 		sq->head++;
 		sq->head &= (sq->dmem.q_len - 1);
 	}
@@ -559,9 +622,11 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	nicvf_send_msg_to_pf(nic, &mbx);
 
 	if (!nic->sqs_mode && (qidx == 0)) {
-		/* Enable checking L3/L4 length and TCP/UDP checksums */
+		/* Enable checking L3/L4 length and TCP/UDP checksums
+		 * Also allow IPv6 pkts with zero UDP checksum.
+		 */
 		nicvf_queue_reg_write(nic, NIC_QSET_RQ_GEN_CFG, 0,
-				      (BIT(24) | BIT(23) | BIT(21)));
+				      (BIT(24) | BIT(23) | BIT(21) | BIT(20)));
 		nicvf_config_vlan_stripping(nic, nic->netdev->features);
 	}
 
@@ -603,7 +668,7 @@ void nicvf_cmp_queue_config(struct nicvf *nic, struct queue_set *qs,
 	cq_cfg.ena = 1;
 	cq_cfg.reset = 0;
 	cq_cfg.caching = 0;
-	cq_cfg.qsize = CMP_QSIZE;
+	cq_cfg.qsize = ilog2(qs->cq_len >> 10);
 	cq_cfg.avg_con = 0;
 	nicvf_queue_reg_write(nic, NIC_QSET_CQ_0_7_CFG, qidx, *(u64 *)&cq_cfg);
 
@@ -652,9 +717,12 @@ static void nicvf_snd_queue_config(struct nicvf *nic, struct queue_set *qs,
 	sq_cfg.ena = 1;
 	sq_cfg.reset = 0;
 	sq_cfg.ldwb = 0;
-	sq_cfg.qsize = SND_QSIZE;
+	sq_cfg.qsize = ilog2(qs->sq_len >> 10);
 	sq_cfg.tstmp_bgx_intf = 0;
-	sq_cfg.cq_limit = 0;
+	/* CQ's level at which HW will stop processing SQEs to avoid
+	 * transmitting a pkt with no space in CQ to post CQE_TX.
+	 */
+	sq_cfg.cq_limit = (CMP_QUEUE_PIPELINE_RSVD * 256) / qs->cq_len;
 	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_CFG, qidx, *(u64 *)&sq_cfg);
 
 	/* Set threshold value for interrupt generation */
@@ -816,10 +884,20 @@ int nicvf_config_data_transfer(struct nicvf *nic, bool enable)
 {
 	bool disable = false;
 	struct queue_set *qs = nic->qs;
+	struct queue_set *pqs = nic->pnicvf->qs;
 	int qidx;
 
 	if (!qs)
 		return 0;
+
+	/* Take primary VF's queue lengths.
+	 * This is needed to take queue lengths set from ethtool
+	 * into consideration.
+	 */
+	if (nic->sqs_mode && pqs) {
+		qs->cq_len = pqs->cq_len;
+		qs->sq_len = pqs->sq_len;
+	}
 
 	if (enable) {
 		if (nicvf_alloc_resources(nic))
@@ -867,6 +945,14 @@ static inline int nicvf_get_sq_desc(struct snd_queue *sq, int desc_cnt)
 	sq->tail &= (sq->dmem.q_len - 1);
 
 	return qentry;
+}
+
+/* Rollback to previous tail pointer when descriptors not used */
+static inline void nicvf_rollback_sq_desc(struct snd_queue *sq,
+					  int qentry, int desc_cnt)
+{
+	sq->tail = qentry;
+	atomic_add(desc_cnt, &sq->free_cnt);
 }
 
 /* Free descriptor back to SQ for future use */
@@ -1194,8 +1280,9 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 			struct sk_buff *skb, u8 sq_num)
 {
 	int i, size;
-	int subdesc_cnt, tso_sqe = 0;
+	int subdesc_cnt, hdr_sqe = 0;
 	int qentry;
+	u64 dma_addr;
 
 	subdesc_cnt = nicvf_sq_subdesc_required(nic, skb);
 	if (subdesc_cnt > atomic_read(&sq->free_cnt))
@@ -1210,12 +1297,21 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 	/* Add SQ header subdesc */
 	nicvf_sq_add_hdr_subdesc(nic, sq, qentry, subdesc_cnt - 1,
 				 skb, skb->len);
-	tso_sqe = qentry;
+	hdr_sqe = qentry;
 
 	/* Add SQ gather subdescs */
 	qentry = nicvf_get_nxt_sqentry(sq, qentry);
 	size = skb_is_nonlinear(skb) ? skb_headlen(skb) : skb->len;
-	nicvf_sq_add_gather_subdesc(sq, qentry, size, virt_to_phys(skb->data));
+	/* HW will ensure data coherency, CPU sync not required */
+	dma_addr = dma_map_page_attrs(&nic->pdev->dev, virt_to_page(skb->data),
+				      offset_in_page(skb->data), size,
+				      DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+	if (dma_mapping_error(&nic->pdev->dev, dma_addr)) {
+		nicvf_rollback_sq_desc(sq, qentry, subdesc_cnt);
+		return 0;
+	}
+
+	nicvf_sq_add_gather_subdesc(sq, qentry, size, dma_addr);
 
 	/* Check for scattered buffer */
 	if (!skb_is_nonlinear(skb))
@@ -1228,15 +1324,26 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 
 		qentry = nicvf_get_nxt_sqentry(sq, qentry);
 		size = skb_frag_size(frag);
-		nicvf_sq_add_gather_subdesc(sq, qentry, size,
-					    virt_to_phys(
-					    skb_frag_address(frag)));
+		dma_addr = dma_map_page_attrs(&nic->pdev->dev,
+					      skb_frag_page(frag),
+					      frag->page_offset, size,
+					      DMA_TO_DEVICE,
+					      DMA_ATTR_SKIP_CPU_SYNC);
+		if (dma_mapping_error(&nic->pdev->dev, dma_addr)) {
+			/* Free entire chain of mapped buffers
+			 * here 'i' = frags mapped + above mapped skb->data
+			 */
+			nicvf_unmap_sndq_buffers(nic, sq, hdr_sqe, i);
+			nicvf_rollback_sq_desc(sq, qentry, subdesc_cnt);
+			return 0;
+		}
+		nicvf_sq_add_gather_subdesc(sq, qentry, size, dma_addr);
 	}
 
 doorbell:
 	if (nic->t88 && skb_shinfo(skb)->gso_size) {
 		qentry = nicvf_get_nxt_sqentry(sq, qentry);
-		nicvf_sq_add_cqe_subdesc(sq, qentry, tso_sqe, skb);
+		nicvf_sq_add_cqe_subdesc(sq, qentry, hdr_sqe, skb);
 	}
 
 	nicvf_sq_doorbell(nic, skb, sq_num, subdesc_cnt);
@@ -1269,6 +1376,7 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 	int offset;
 	u16 *rb_lens = NULL;
 	u64 *rb_ptrs = NULL;
+	u64 phys_addr;
 
 	rb_lens = (void *)cqe_rx + (3 * sizeof(u64));
 	/* Except 88xx pass1 on all other chips CQE_RX2_S is added to
@@ -1283,15 +1391,23 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 	else
 		rb_ptrs = (void *)cqe_rx + (7 * sizeof(u64));
 
-	netdev_dbg(nic->netdev, "%s rb_cnt %d rb0_ptr %llx rb0_sz %d\n",
-		   __func__, cqe_rx->rb_cnt, cqe_rx->rb0_ptr, cqe_rx->rb0_sz);
-
 	for (frag = 0; frag < cqe_rx->rb_cnt; frag++) {
 		payload_len = rb_lens[frag_num(frag)];
+		phys_addr = nicvf_iova_to_phys(nic, *rb_ptrs);
+		if (!phys_addr) {
+			if (skb)
+				dev_kfree_skb_any(skb);
+			return NULL;
+		}
+
 		if (!frag) {
 			/* First fragment */
+			dma_unmap_page_attrs(&nic->pdev->dev,
+					     *rb_ptrs - cqe_rx->align_pad,
+					     RCV_FRAG_LEN, DMA_FROM_DEVICE,
+					     DMA_ATTR_SKIP_CPU_SYNC);
 			skb = nicvf_rb_ptr_to_skb(nic,
-						  *rb_ptrs - cqe_rx->align_pad,
+						  phys_addr - cqe_rx->align_pad,
 						  payload_len);
 			if (!skb)
 				return NULL;
@@ -1299,8 +1415,11 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 			skb_put(skb, payload_len);
 		} else {
 			/* Add fragments */
-			page = virt_to_page(phys_to_virt(*rb_ptrs));
-			offset = phys_to_virt(*rb_ptrs) - page_address(page);
+			dma_unmap_page_attrs(&nic->pdev->dev, *rb_ptrs,
+					     RCV_FRAG_LEN, DMA_FROM_DEVICE,
+					     DMA_ATTR_SKIP_CPU_SYNC);
+			page = virt_to_page(phys_to_virt(phys_addr));
+			offset = phys_to_virt(phys_addr) - page_address(page);
 			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
 					offset, payload_len, RCV_FRAG_LEN);
 		}

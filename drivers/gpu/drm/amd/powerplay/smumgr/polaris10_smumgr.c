@@ -21,6 +21,7 @@
  *
  */
 
+#include "pp_debug.h"
 #include "smumgr.h"
 #include "smu74.h"
 #include "smu_ucode_xfer_vi.h"
@@ -36,7 +37,6 @@
 #include "bif/bif_5_0_sh_mask.h"
 #include "polaris10_pwrvirus.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
 #include "cgs_common.h"
 #include "polaris10_smc.h"
 #include "smu7_ppsmc.h"
@@ -84,7 +84,7 @@ static int polaris10_setup_pwr_virus(struct pp_smumgr *smumgr)
 			break;
 
 		default:
-			printk("Table Exit with Invalid Command!");
+			pr_info("Table Exit with Invalid Command!");
 			smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
 			result = -1;
 			break;
@@ -102,7 +102,7 @@ static int polaris10_perform_btc(struct pp_smumgr *smumgr)
 
 	if (0 != smu_data->avfs.avfs_btc_param) {
 		if (0 != smu7_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_PerformBtc, smu_data->avfs.avfs_btc_param)) {
-			printk("[AVFS][SmuPolaris10_PerformBtc] PerformBTC SMU msg failed");
+			pr_info("[AVFS][SmuPolaris10_PerformBtc] PerformBTC SMU msg failed");
 			result = -1;
 		}
 	}
@@ -189,7 +189,7 @@ polaris10_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
 		return -1);
 
 		if (smu_data->avfs.avfs_btc_param > 1) {
-			printk("[AVFS][Polaris10_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
+			pr_info("[AVFS][Polaris10_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
 			smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
 			PP_ASSERT_WITH_CODE(-1 == polaris10_setup_pwr_virus(smumgr),
 			"[AVFS][Polaris10_AVFSEventMgr] Could not setup Pwr Virus for AVFS ",
@@ -208,7 +208,7 @@ polaris10_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
 		break;
 
 	default:
-		printk("[AVFS] Something is broken. See log!");
+		pr_info("[AVFS] Something is broken. See log!");
 		break;
 	}
 
@@ -328,6 +328,7 @@ static int polaris10_start_smu(struct pp_smumgr *smumgr)
 			/* If failed, try with different security Key. */
 			if (result != 0) {
 				smu_data->smu7_data.security_hard_key ^= 1;
+				cgs_rel_firmware(smumgr->device, CGS_UCODE_ID_SMU);
 				result = polaris10_start_smu_in_protection_mode(smumgr);
 			}
 		}
@@ -363,8 +364,14 @@ static bool polaris10_is_hw_avfs_present(struct pp_smumgr *smumgr)
 
 static int polaris10_smu_init(struct pp_smumgr *smumgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
+	struct polaris10_smumgr *smu_data;
 	int i;
+
+	smu_data = kzalloc(sizeof(struct polaris10_smumgr), GFP_KERNEL);
+	if (smu_data == NULL)
+		return -ENOMEM;
+
+	smumgr->backend = smu_data;
 
 	if (smu7_init(smumgr))
 		return -EINVAL;
@@ -380,7 +387,7 @@ static int polaris10_smu_init(struct pp_smumgr *smumgr)
 	return 0;
 }
 
-static const struct pp_smumgr_func polaris10_smu_funcs = {
+const struct pp_smumgr_func polaris10_smu_funcs = {
 	.smu_init = polaris10_smu_init,
 	.smu_fini = smu7_smu_fini,
 	.start_smu = polaris10_start_smu,
@@ -403,18 +410,3 @@ static const struct pp_smumgr_func polaris10_smu_funcs = {
 	.get_mac_definition = polaris10_get_mac_definition,
 	.is_dpm_running = polaris10_is_dpm_running,
 };
-
-int polaris10_smum_init(struct pp_smumgr *smumgr)
-{
-	struct polaris10_smumgr *polaris10_smu = NULL;
-
-	polaris10_smu = kzalloc(sizeof(struct polaris10_smumgr), GFP_KERNEL);
-
-	if (polaris10_smu == NULL)
-		return -EINVAL;
-
-	smumgr->backend = polaris10_smu;
-	smumgr->smumgr_funcs = &polaris10_smu_funcs;
-
-	return 0;
-}

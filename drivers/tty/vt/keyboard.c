@@ -26,7 +26,9 @@
 
 #include <linux/consolemap.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/debug.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/mm.h>
@@ -572,7 +574,7 @@ static void fn_scroll_back(struct vc_data *vc)
 
 static void fn_show_mem(struct vc_data *vc)
 {
-	show_mem(0);
+	show_mem(0, NULL);
 }
 
 static void fn_show_state(struct vc_data *vc)

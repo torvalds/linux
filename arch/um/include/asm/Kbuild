@@ -1,7 +1,6 @@
 generic-y += barrier.h
 generic-y += bug.h
 generic-y += clkdev.h
-generic-y += cputime.h
 generic-y += current.h
 generic-y += delay.h
 generic-y += device.h
@@ -26,3 +25,4 @@ generic-y += topology.h
 generic-y += trace_clock.h
 generic-y += word-at-a-time.h
 generic-y += xor.h
+generic-y += kprobes.h

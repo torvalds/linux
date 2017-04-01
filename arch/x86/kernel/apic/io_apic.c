@@ -1107,12 +1107,12 @@ int mp_map_gsi_to_irq(u32 gsi, unsigned int flags, struct irq_alloc_info *info)
 
 	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0)
-		return -1;
+		return -ENODEV;
 
 	pin = mp_find_ioapic_pin(ioapic, gsi);
 	idx = find_irq_entry(ioapic, pin, mp_INT);
 	if ((flags & IOAPIC_MAP_CHECK) && idx < 0)
-		return -1;
+		return -ENODEV;
 
 	return mp_map_pin_to_irq(gsi, idx, ioapic, pin, flags, info);
 }
@@ -1875,6 +1875,7 @@ static struct irq_chip ioapic_chip __read_mostly = {
 	.irq_ack		= irq_chip_ack_parent,
 	.irq_eoi		= ioapic_ack_level,
 	.irq_set_affinity	= ioapic_set_affinity,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -1886,6 +1887,7 @@ static struct irq_chip ioapic_ir_chip __read_mostly = {
 	.irq_ack		= irq_chip_ack_parent,
 	.irq_eoi		= ioapic_ir_ack_level,
 	.irq_set_affinity	= ioapic_set_affinity,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 

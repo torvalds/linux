@@ -1704,7 +1704,6 @@ void __init xen_init_IRQ(void)
 		pirq_eoi_map = (void *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
 		eoi_gmfn.gmfn = virt_to_gfn(pirq_eoi_map);
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_pirq_eoi_gmfn_v2, &eoi_gmfn);
-		/* TODO: No PVH support for PIRQ EOI */
 		if (rc != 0) {
 			free_page((unsigned long) pirq_eoi_map);
 			pirq_eoi_map = NULL;

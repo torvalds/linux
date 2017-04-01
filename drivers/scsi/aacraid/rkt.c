@@ -6,7 +6,8 @@
  * Adaptec aacraid device driver for Linux.
  *
  * Copyright (c) 2000-2010 Adaptec, Inc.
- *               2010 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
+ *               2010-2015 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
+ *		 2016-2017 Microsemi Corp. (aacraid@microsemi.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,7 +61,7 @@ static int aac_rkt_select_comm(struct aac_dev *dev, int comm)
 		 * case warrants this half baked, but convenient, check here.
 		 */
 		if (dev->scsi_host_ptr->can_queue > AAC_NUM_IO_FIB_RKT) {
-			dev->init->MaxIoCommands =
+			dev->init->r7.max_io_commands =
 				cpu_to_le32(AAC_NUM_IO_FIB_RKT + AAC_NUM_MGT_FIB);
 			dev->scsi_host_ptr->can_queue = AAC_NUM_IO_FIB_RKT;
 		}

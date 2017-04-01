@@ -406,7 +406,7 @@ TRACE_EVENT(i915_gem_evict,
 			    ),
 
 	    TP_fast_assign(
-			   __entry->dev = vm->dev->primary->index;
+			   __entry->dev = vm->i915->drm.primary->index;
 			   __entry->vm = vm;
 			   __entry->size = size;
 			   __entry->align = align;
@@ -443,11 +443,39 @@ TRACE_EVENT(i915_gem_evict_vm,
 			    ),
 
 	    TP_fast_assign(
-			   __entry->dev = vm->dev->primary->index;
+			   __entry->dev = vm->i915->drm.primary->index;
 			   __entry->vm = vm;
 			  ),
 
 	    TP_printk("dev=%d, vm=%p", __entry->dev, __entry->vm)
+);
+
+TRACE_EVENT(i915_gem_evict_node,
+	    TP_PROTO(struct i915_address_space *vm, struct drm_mm_node *node, unsigned int flags),
+	    TP_ARGS(vm, node, flags),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(struct i915_address_space *, vm)
+			     __field(u64, start)
+			     __field(u64, size)
+			     __field(unsigned long, color)
+			     __field(unsigned int, flags)
+			    ),
+
+	    TP_fast_assign(
+			   __entry->dev = vm->i915->drm.primary->index;
+			   __entry->vm = vm;
+			   __entry->start = node->start;
+			   __entry->size = node->size;
+			   __entry->color = node->color;
+			   __entry->flags = flags;
+			  ),
+
+	    TP_printk("dev=%d, vm=%p, start=%llx size=%llx, color=%lx, flags=%x",
+		      __entry->dev, __entry->vm,
+		      __entry->start, __entry->size,
+		      __entry->color, __entry->flags)
 );
 
 TRACE_EVENT(i915_gem_ring_sync_to,
@@ -711,7 +739,7 @@ DECLARE_EVENT_CLASS(i915_ppgtt,
 
 	TP_fast_assign(
 			__entry->vm = vm;
-			__entry->dev = vm->dev->primary->index;
+			__entry->dev = vm->i915->drm.primary->index;
 	),
 
 	TP_printk("dev=%u, vm=%p", __entry->dev, __entry->vm)

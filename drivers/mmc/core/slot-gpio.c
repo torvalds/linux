@@ -235,9 +235,6 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 	struct gpio_desc *desc;
 	int ret;
 
-	if (!con_id)
-		con_id = ctx->cd_label;
-
 	desc = devm_gpiod_get_index(host->parent, con_id, idx, GPIOD_IN);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
@@ -288,9 +285,6 @@ int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 	struct gpio_desc *desc;
 	int ret;
-
-	if (!con_id)
-		con_id = ctx->ro_label;
 
 	desc = devm_gpiod_get_index(host->parent, con_id, idx, GPIOD_IN);
 	if (IS_ERR(desc))

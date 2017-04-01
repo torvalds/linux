@@ -1004,8 +1004,8 @@ static const struct acpi_device_id bxt_pinctrl_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, bxt_pinctrl_acpi_match);
 
 static const struct platform_device_id bxt_pinctrl_platform_ids[] = {
-	{ "apl-pinctrl", (kernel_ulong_t)&apl_pinctrl_soc_data },
-	{ "broxton-pinctrl", (kernel_ulong_t)&bxt_pinctrl_soc_data },
+	{ "apollolake-pinctrl", (kernel_ulong_t)apl_pinctrl_soc_data },
+	{ "broxton-pinctrl", (kernel_ulong_t)bxt_pinctrl_soc_data },
 	{ },
 };
 
@@ -1058,7 +1058,6 @@ static const struct dev_pm_ops bxt_pinctrl_pm_ops = {
 
 static struct platform_driver bxt_pinctrl_driver = {
 	.probe = bxt_pinctrl_probe,
-	.remove = intel_pinctrl_remove,
 	.driver = {
 		.name = "broxton-pinctrl",
 		.acpi_match_table = bxt_pinctrl_acpi_match,

@@ -989,7 +989,7 @@ gk104_pll_calc_hiclk(int target_khz, int crystal,
 		int *N1, int *fN1, int *M1, int *P1,
 		int *N2, int *M2, int *P2)
 {
-	int best_clk = 0, best_err = target_khz, p_ref, n_ref;
+	int best_err = target_khz, p_ref, n_ref;
 	bool upper = false;
 
 	*M1 = 1;
@@ -1010,7 +1010,6 @@ gk104_pll_calc_hiclk(int target_khz, int crystal,
 			/* we found a better combination */
 			if (cur_err < best_err) {
 				best_err = cur_err;
-				best_clk = cur_clk;
 				*N2 = cur_N;
 				*N1 = n_ref;
 				*P1 = p_ref;
@@ -1022,7 +1021,6 @@ gk104_pll_calc_hiclk(int target_khz, int crystal,
 				- target_khz;
 			if (cur_err < best_err) {
 				best_err = cur_err;
-				best_clk = cur_clk;
 				*N2 = cur_N;
 				*N1 = n_ref;
 				*P1 = p_ref;

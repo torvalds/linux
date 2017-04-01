@@ -21,12 +21,9 @@
  * IN THE SOFTWARE.
  *
  */
-#include <linux/firmware.h>
 #include <linux/circ_buf.h>
-#include <linux/debugfs.h>
-#include <linux/relay.h>
 #include "i915_drv.h"
-#include "intel_guc.h"
+#include "intel_uc.h"
 
 /**
  * DOC: GuC-based command submission
@@ -49,7 +46,7 @@
  * Firmware writes a success/fail code back to the action register after
  * processes the request. The kernel driver polls waiting for this update and
  * then proceeds.
- * See host2guc_action()
+ * See intel_guc_send()
  *
  * Doorbells:
  * Doorbells are interrupts to uKernel. A doorbell is a single cache line (QW)
@@ -66,141 +63,29 @@
  */
 
 /*
- * Read GuC command/status register (SOFT_SCRATCH_0)
- * Return true if it contains a response rather than a command
- */
-static inline bool host2guc_action_response(struct drm_i915_private *dev_priv,
-					    u32 *status)
-{
-	u32 val = I915_READ(SOFT_SCRATCH(0));
-	*status = val;
-	return GUC2HOST_IS_RESPONSE(val);
-}
-
-static int host2guc_action(struct intel_guc *guc, u32 *data, u32 len)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	u32 status;
-	int i;
-	int ret;
-
-	if (WARN_ON(len < 1 || len > 15))
-		return -EINVAL;
-
-	mutex_lock(&guc->action_lock);
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-
-	dev_priv->guc.action_count += 1;
-	dev_priv->guc.action_cmd = data[0];
-
-	for (i = 0; i < len; i++)
-		I915_WRITE(SOFT_SCRATCH(i), data[i]);
-
-	POSTING_READ(SOFT_SCRATCH(i - 1));
-
-	I915_WRITE(HOST2GUC_INTERRUPT, HOST2GUC_TRIGGER);
-
-	/*
-	 * Fast commands should complete in less than 10us, so sample quickly
-	 * up to that length of time, then switch to a slower sleep-wait loop.
-	 * No HOST2GUC command should ever take longer than 10ms.
-	 */
-	ret = wait_for_us(host2guc_action_response(dev_priv, &status), 10);
-	if (ret)
-		ret = wait_for(host2guc_action_response(dev_priv, &status), 10);
-	if (status != GUC2HOST_STATUS_SUCCESS) {
-		/*
-		 * Either the GuC explicitly returned an error (which
-		 * we convert to -EIO here) or no response at all was
-		 * received within the timeout limit (-ETIMEDOUT)
-		 */
-		if (ret != -ETIMEDOUT)
-			ret = -EIO;
-
-		DRM_WARN("Action 0x%X failed; ret=%d status=0x%08X response=0x%08X\n",
-			 data[0], ret, status, I915_READ(SOFT_SCRATCH(15)));
-
-		dev_priv->guc.action_fail += 1;
-		dev_priv->guc.action_err = ret;
-	}
-	dev_priv->guc.action_status = status;
-
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	mutex_unlock(&guc->action_lock);
-
-	return ret;
-}
-
-/*
  * Tell the GuC to allocate or deallocate a specific doorbell
  */
 
-static int host2guc_allocate_doorbell(struct intel_guc *guc,
-				      struct i915_guc_client *client)
+static int guc_allocate_doorbell(struct intel_guc *guc,
+				 struct i915_guc_client *client)
 {
-	u32 data[2];
+	u32 action[] = {
+		INTEL_GUC_ACTION_ALLOCATE_DOORBELL,
+		client->ctx_index
+	};
 
-	data[0] = HOST2GUC_ACTION_ALLOCATE_DOORBELL;
-	data[1] = client->ctx_index;
-
-	return host2guc_action(guc, data, 2);
+	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-static int host2guc_release_doorbell(struct intel_guc *guc,
-				     struct i915_guc_client *client)
+static int guc_release_doorbell(struct intel_guc *guc,
+				struct i915_guc_client *client)
 {
-	u32 data[2];
+	u32 action[] = {
+		INTEL_GUC_ACTION_DEALLOCATE_DOORBELL,
+		client->ctx_index
+	};
 
-	data[0] = HOST2GUC_ACTION_DEALLOCATE_DOORBELL;
-	data[1] = client->ctx_index;
-
-	return host2guc_action(guc, data, 2);
-}
-
-static int host2guc_sample_forcewake(struct intel_guc *guc,
-				     struct i915_guc_client *client)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	u32 data[2];
-
-	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
-	/* WaRsDisableCoarsePowerGating:skl,bxt */
-	if (!intel_enable_rc6() || NEEDS_WaRsDisableCoarsePowerGating(dev_priv))
-		data[1] = 0;
-	else
-		/* bit 0 and 1 are for Render and Media domain separately */
-		data[1] = GUC_FORCEWAKE_RENDER | GUC_FORCEWAKE_MEDIA;
-
-	return host2guc_action(guc, data, ARRAY_SIZE(data));
-}
-
-static int host2guc_logbuffer_flush_complete(struct intel_guc *guc)
-{
-	u32 data[1];
-
-	data[0] = HOST2GUC_ACTION_LOG_BUFFER_FILE_FLUSH_COMPLETE;
-
-	return host2guc_action(guc, data, 1);
-}
-
-static int host2guc_force_logbuffer_flush(struct intel_guc *guc)
-{
-	u32 data[2];
-
-	data[0] = HOST2GUC_ACTION_FORCE_LOG_BUFFER_FLUSH;
-	data[1] = 0;
-
-	return host2guc_action(guc, data, 2);
-}
-
-static int host2guc_logging_control(struct intel_guc *guc, u32 control_val)
-{
-	u32 data[2];
-
-	data[0] = HOST2GUC_ACTION_UK_LOG_ENABLE_LOGGING;
-	data[1] = control_val;
-
-	return host2guc_action(guc, data, 2);
+	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
 /*
@@ -226,7 +111,7 @@ static int guc_update_doorbell_id(struct intel_guc *guc,
 	    test_bit(client->doorbell_id, doorbell_bitmap)) {
 		/* Deactivate the old doorbell */
 		doorbell->db_status = GUC_DOORBELL_DISABLED;
-		(void)host2guc_release_doorbell(guc, client);
+		(void)guc_release_doorbell(guc, client);
 		__clear_bit(client->doorbell_id, doorbell_bitmap);
 	}
 
@@ -247,16 +132,9 @@ static int guc_update_doorbell_id(struct intel_guc *guc,
 
 	/* Activate the new doorbell */
 	__set_bit(new_id, doorbell_bitmap);
-	doorbell->cookie = 0;
 	doorbell->db_status = GUC_DOORBELL_ENABLED;
-	return host2guc_allocate_doorbell(guc, client);
-}
-
-static int guc_init_doorbell(struct intel_guc *guc,
-			      struct i915_guc_client *client,
-			      uint16_t db_id)
-{
-	return guc_update_doorbell_id(guc, client, db_id);
+	doorbell->cookie = client->doorbell_cookie;
+	return guc_allocate_doorbell(guc, client);
 }
 
 static void guc_disable_doorbell(struct intel_guc *guc,
@@ -298,7 +176,7 @@ select_doorbell_register(struct intel_guc *guc, uint32_t priority)
  * Select, assign and relase doorbell cachelines
  *
  * These functions track which doorbell cachelines are in use.
- * The data they manipulate is protected by the host2guc lock.
+ * The data they manipulate is protected by the intel_guc_send lock.
  */
 
 static uint32_t select_doorbell_cacheline(struct intel_guc *guc)
@@ -390,11 +268,11 @@ static void guc_ctx_desc_init(struct intel_guc *guc,
 
 		/* The state page is after PPHWSP */
 		lrc->ring_lcra =
-			i915_ggtt_offset(ce->state) + LRC_STATE_PN * PAGE_SIZE;
+			guc_ggtt_offset(ce->state) + LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
 				(guc_engine_id << GUC_ELC_ENGINE_OFFSET);
 
-		lrc->ring_begin = i915_ggtt_offset(ce->ring->vma);
+		lrc->ring_begin = guc_ggtt_offset(ce->ring->vma);
 		lrc->ring_end = lrc->ring_begin + ce->ring->size - 1;
 		lrc->ring_next_free_location = lrc->ring_begin;
 		lrc->ring_current_tail_pointer_value = 0;
@@ -410,7 +288,7 @@ static void guc_ctx_desc_init(struct intel_guc *guc,
 	 * The doorbell, process descriptor, and workqueue are all parts
 	 * of the client object, which the GuC will reference via the GGTT
 	 */
-	gfx_addr = i915_ggtt_offset(client->vma);
+	gfx_addr = guc_ggtt_offset(client->vma);
 	desc.db_trigger_phy = sg_dma_address(client->vma->pages->sgl) +
 				client->doorbell_offset;
 	desc.db_trigger_cpu =
@@ -464,22 +342,23 @@ static void guc_ctx_desc_fini(struct intel_guc *guc,
 int i915_guc_wq_reserve(struct drm_i915_gem_request *request)
 {
 	const size_t wqi_size = sizeof(struct guc_wq_item);
-	struct i915_guc_client *gc = request->i915->guc.execbuf_client;
-	struct guc_process_desc *desc = gc->vaddr + gc->proc_desc_offset;
+	struct i915_guc_client *client = request->i915->guc.execbuf_client;
+	struct guc_process_desc *desc = client->vaddr +
+					client->proc_desc_offset;
 	u32 freespace;
 	int ret;
 
-	spin_lock(&gc->wq_lock);
-	freespace = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
-	freespace -= gc->wq_rsvd;
+	spin_lock(&client->wq_lock);
+	freespace = CIRC_SPACE(client->wq_tail, desc->head, client->wq_size);
+	freespace -= client->wq_rsvd;
 	if (likely(freespace >= wqi_size)) {
-		gc->wq_rsvd += wqi_size;
+		client->wq_rsvd += wqi_size;
 		ret = 0;
 	} else {
-		gc->no_wq_space++;
+		client->no_wq_space++;
 		ret = -EAGAIN;
 	}
-	spin_unlock(&gc->wq_lock);
+	spin_unlock(&client->wq_lock);
 
 	return ret;
 }
@@ -487,17 +366,17 @@ int i915_guc_wq_reserve(struct drm_i915_gem_request *request)
 void i915_guc_wq_unreserve(struct drm_i915_gem_request *request)
 {
 	const size_t wqi_size = sizeof(struct guc_wq_item);
-	struct i915_guc_client *gc = request->i915->guc.execbuf_client;
+	struct i915_guc_client *client = request->i915->guc.execbuf_client;
 
-	GEM_BUG_ON(READ_ONCE(gc->wq_rsvd) < wqi_size);
+	GEM_BUG_ON(READ_ONCE(client->wq_rsvd) < wqi_size);
 
-	spin_lock(&gc->wq_lock);
-	gc->wq_rsvd -= wqi_size;
-	spin_unlock(&gc->wq_lock);
+	spin_lock(&client->wq_lock);
+	client->wq_rsvd -= wqi_size;
+	spin_unlock(&client->wq_lock);
 }
 
 /* Construct a Work Item and append it to the GuC's Work Queue */
-static void guc_wq_item_append(struct i915_guc_client *gc,
+static void guc_wq_item_append(struct i915_guc_client *client,
 			       struct drm_i915_gem_request *rq)
 {
 	/* wqi_len is in DWords, and does not include the one-word header */
@@ -508,10 +387,10 @@ static void guc_wq_item_append(struct i915_guc_client *gc,
 	struct guc_wq_item *wqi;
 	u32 freespace, tail, wq_off;
 
-	desc = gc->vaddr + gc->proc_desc_offset;
+	desc = client->vaddr + client->proc_desc_offset;
 
 	/* Free space is guaranteed, see i915_guc_wq_reserve() above */
-	freespace = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
+	freespace = CIRC_SPACE(client->wq_tail, desc->head, client->wq_size);
 	GEM_BUG_ON(freespace < wqi_size);
 
 	/* The GuC firmware wants the tail index in QWords, not bytes */
@@ -528,17 +407,17 @@ static void guc_wq_item_append(struct i915_guc_client *gc,
 	 * workqueue buffer dw by dw.
 	 */
 	BUILD_BUG_ON(wqi_size != 16);
-	GEM_BUG_ON(gc->wq_rsvd < wqi_size);
+	GEM_BUG_ON(client->wq_rsvd < wqi_size);
 
 	/* postincrement WQ tail for next time */
-	wq_off = gc->wq_tail;
+	wq_off = client->wq_tail;
 	GEM_BUG_ON(wq_off & (wqi_size - 1));
-	gc->wq_tail += wqi_size;
-	gc->wq_tail &= gc->wq_size - 1;
-	gc->wq_rsvd -= wqi_size;
+	client->wq_tail += wqi_size;
+	client->wq_tail &= client->wq_size - 1;
+	client->wq_rsvd -= wqi_size;
 
 	/* WQ starts from the page after doorbell / process_desc */
-	wqi = gc->vaddr + wq_off + GUC_DB_SIZE;
+	wqi = client->vaddr + wq_off + GUC_DB_SIZE;
 
 	/* Now fill in the 4-word work queue item */
 	wqi->header = WQ_TYPE_INORDER |
@@ -553,30 +432,30 @@ static void guc_wq_item_append(struct i915_guc_client *gc,
 	wqi->fence_id = rq->global_seqno;
 }
 
-static int guc_ring_doorbell(struct i915_guc_client *gc)
+static int guc_ring_doorbell(struct i915_guc_client *client)
 {
 	struct guc_process_desc *desc;
 	union guc_doorbell_qw db_cmp, db_exc, db_ret;
 	union guc_doorbell_qw *db;
 	int attempt = 2, ret = -EAGAIN;
 
-	desc = gc->vaddr + gc->proc_desc_offset;
+	desc = client->vaddr + client->proc_desc_offset;
 
 	/* Update the tail so it is visible to GuC */
-	desc->tail = gc->wq_tail;
+	desc->tail = client->wq_tail;
 
 	/* current cookie */
 	db_cmp.db_status = GUC_DOORBELL_ENABLED;
-	db_cmp.cookie = gc->cookie;
+	db_cmp.cookie = client->doorbell_cookie;
 
 	/* cookie to be updated */
 	db_exc.db_status = GUC_DOORBELL_ENABLED;
-	db_exc.cookie = gc->cookie + 1;
+	db_exc.cookie = client->doorbell_cookie + 1;
 	if (db_exc.cookie == 0)
 		db_exc.cookie = 1;
 
 	/* pointer of current doorbell cacheline */
-	db = gc->vaddr + gc->doorbell_offset;
+	db = client->vaddr + client->doorbell_offset;
 
 	while (attempt--) {
 		/* lets ring the doorbell */
@@ -586,7 +465,7 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 		/* if the exchange was successfully executed */
 		if (db_ret.value_qw == db_cmp.value_qw) {
 			/* db was successfully rung */
-			gc->cookie = db_exc.cookie;
+			client->doorbell_cookie = db_exc.cookie;
 			ret = 0;
 			break;
 		}
@@ -609,11 +488,8 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 }
 
 /**
- * i915_guc_submit() - Submit commands through GuC
+ * __i915_guc_submit() - Submit commands through GuC
  * @rq:		request associated with the commands
- *
- * Return:	0 on success, otherwise an errno.
- * 		(Note: nonzero really shouldn't happen!)
  *
  * The caller must have already called i915_guc_wq_reserve() above with
  * a result of 0 (success), guaranteeing that there is space in the work
@@ -626,7 +502,7 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
  * The only error here arises if the doorbell hardware isn't functioning
  * as expected, which really shouln't happen.
  */
-static void i915_guc_submit(struct drm_i915_gem_request *rq)
+static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 {
 	struct drm_i915_private *dev_priv = rq->i915;
 	struct intel_engine_cs *engine = rq->engine;
@@ -634,17 +510,6 @@ static void i915_guc_submit(struct drm_i915_gem_request *rq)
 	struct intel_guc *guc = &rq->i915->guc;
 	struct i915_guc_client *client = guc->execbuf_client;
 	int b_ret;
-
-	/* We keep the previous context alive until we retire the following
-	 * request. This ensures that any the context object is still pinned
-	 * for any residual writes the HW makes into it on the context switch
-	 * into the next object following the breadcrumb. Otherwise, we may
-	 * retire the context too early.
-	 */
-	rq->previous_context = engine->last_context;
-	engine->last_context = rq->ctx;
-
-	i915_gem_request_submit(rq);
 
 	spin_lock(&client->wq_lock);
 	guc_wq_item_append(client, rq);
@@ -665,6 +530,12 @@ static void i915_guc_submit(struct drm_i915_gem_request *rq)
 	spin_unlock(&client->wq_lock);
 }
 
+static void i915_guc_submit(struct drm_i915_gem_request *rq)
+{
+	i915_gem_request_submit(rq);
+	__i915_guc_submit(rq);
+}
+
 /*
  * Everything below here is concerned with setup & teardown, and is
  * therefore not part of the somewhat time-critical batch-submission
@@ -672,7 +543,7 @@ static void i915_guc_submit(struct drm_i915_gem_request *rq)
  */
 
 /**
- * guc_allocate_vma() - Allocate a GGTT VMA for GuC usage
+ * intel_guc_allocate_vma() - Allocate a GGTT VMA for GuC usage
  * @guc:	the guc
  * @size:	size of area to allocate (both virtual space and memory)
  *
@@ -684,18 +555,18 @@ static void i915_guc_submit(struct drm_i915_gem_request *rq)
  *
  * Return:	A i915_vma if successful, otherwise an ERR_PTR.
  */
-static struct i915_vma *guc_allocate_vma(struct intel_guc *guc, u32 size)
+struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	int ret;
 
-	obj = i915_gem_object_create(&dev_priv->drm, size);
+	obj = i915_gem_object_create(dev_priv, size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	vma = i915_vma_create(obj, &dev_priv->ggtt.base, NULL);
+	vma = i915_vma_instance(obj, &dev_priv->ggtt.base, NULL);
 	if (IS_ERR(vma))
 		goto err;
 
@@ -705,9 +576,6 @@ static struct i915_vma *guc_allocate_vma(struct intel_guc *guc, u32 size)
 		vma = ERR_PTR(ret);
 		goto err;
 	}
-
-	/* Invalidate GuC TLB to let GuC take the latest updates to GTT. */
-	I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
 
 	return vma;
 
@@ -779,8 +647,7 @@ static void guc_init_doorbell_hw(struct intel_guc *guc)
 	uint16_t db_id;
 	int i, err;
 
-	/* Save client's original doorbell selection */
-	db_id = client->doorbell_id;
+	guc_disable_doorbell(guc, client);
 
 	for (i = 0; i < GUC_MAX_DOORBELLS; ++i) {
 		/* Skip if doorbell is OK */
@@ -793,7 +660,9 @@ static void guc_init_doorbell_hw(struct intel_guc *guc)
 					i, err);
 	}
 
-	/* Restore to original value */
+	db_id = select_doorbell_register(guc, client->priority);
+	WARN_ON(db_id == GUC_INVALID_DOORBELL_ID);
+
 	err = guc_update_doorbell_id(guc, client, db_id);
 	if (err)
 		DRM_WARN("Failed to restore doorbell to %d, err %d\n",
@@ -847,7 +716,7 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	}
 
 	/* The first page is doorbell/proc_desc. Two followed pages are wq. */
-	vma = guc_allocate_vma(guc, GUC_DB_SIZE + GUC_WQ_SIZE);
+	vma = intel_guc_allocate_vma(guc, GUC_DB_SIZE + GUC_WQ_SIZE);
 	if (IS_ERR(vma))
 		goto err;
 
@@ -883,8 +752,13 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 
 	guc_proc_desc_init(guc, client);
 	guc_ctx_desc_init(guc, client);
-	if (guc_init_doorbell(guc, client, db_id))
-		goto err;
+
+	/* For runtime client allocation we need to enable the doorbell. Not
+	 * required yet for the static execbuf_client as this special kernel
+	 * client is enabled from i915_guc_submission_enable().
+	 *
+	 * guc_update_doorbell_id(guc, client, db_id);
+	 */
 
 	DRM_DEBUG_DRIVER("new priority %u client %p for engine(s) 0x%x: ctx_index %u\n",
 		priority, client, client->engines, client->ctx_index);
@@ -898,488 +772,7 @@ err:
 	return NULL;
 }
 
-/*
- * Sub buffer switch callback. Called whenever relay has to switch to a new
- * sub buffer, relay stays on the same sub buffer if 0 is returned.
- */
-static int subbuf_start_callback(struct rchan_buf *buf,
-				 void *subbuf,
-				 void *prev_subbuf,
-				 size_t prev_padding)
-{
-	/* Use no-overwrite mode by default, where relay will stop accepting
-	 * new data if there are no empty sub buffers left.
-	 * There is no strict synchronization enforced by relay between Consumer
-	 * and Producer. In overwrite mode, there is a possibility of getting
-	 * inconsistent/garbled data, the producer could be writing on to the
-	 * same sub buffer from which Consumer is reading. This can't be avoided
-	 * unless Consumer is fast enough and can always run in tandem with
-	 * Producer.
-	 */
-	if (relay_buf_full(buf))
-		return 0;
 
-	return 1;
-}
-
-/*
- * file_create() callback. Creates relay file in debugfs.
- */
-static struct dentry *create_buf_file_callback(const char *filename,
-					       struct dentry *parent,
-					       umode_t mode,
-					       struct rchan_buf *buf,
-					       int *is_global)
-{
-	struct dentry *buf_file;
-
-	/* This to enable the use of a single buffer for the relay channel and
-	 * correspondingly have a single file exposed to User, through which
-	 * it can collect the logs in order without any post-processing.
-	 * Need to set 'is_global' even if parent is NULL for early logging.
-	 */
-	*is_global = 1;
-
-	if (!parent)
-		return NULL;
-
-	/* Not using the channel filename passed as an argument, since for each
-	 * channel relay appends the corresponding CPU number to the filename
-	 * passed in relay_open(). This should be fine as relay just needs a
-	 * dentry of the file associated with the channel buffer and that file's
-	 * name need not be same as the filename passed as an argument.
-	 */
-	buf_file = debugfs_create_file("guc_log", mode,
-				       parent, buf, &relay_file_operations);
-	return buf_file;
-}
-
-/*
- * file_remove() default callback. Removes relay file in debugfs.
- */
-static int remove_buf_file_callback(struct dentry *dentry)
-{
-	debugfs_remove(dentry);
-	return 0;
-}
-
-/* relay channel callbacks */
-static struct rchan_callbacks relay_callbacks = {
-	.subbuf_start = subbuf_start_callback,
-	.create_buf_file = create_buf_file_callback,
-	.remove_buf_file = remove_buf_file_callback,
-};
-
-static void guc_log_remove_relay_file(struct intel_guc *guc)
-{
-	relay_close(guc->log.relay_chan);
-}
-
-static int guc_log_create_relay_channel(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct rchan *guc_log_relay_chan;
-	size_t n_subbufs, subbuf_size;
-
-	/* Keep the size of sub buffers same as shared log buffer */
-	subbuf_size = guc->log.vma->obj->base.size;
-
-	/* Store up to 8 snapshots, which is large enough to buffer sufficient
-	 * boot time logs and provides enough leeway to User, in terms of
-	 * latency, for consuming the logs from relay. Also doesn't take
-	 * up too much memory.
-	 */
-	n_subbufs = 8;
-
-	guc_log_relay_chan = relay_open(NULL, NULL, subbuf_size,
-					n_subbufs, &relay_callbacks, dev_priv);
-	if (!guc_log_relay_chan) {
-		DRM_ERROR("Couldn't create relay chan for GuC logging\n");
-		return -ENOMEM;
-	}
-
-	GEM_BUG_ON(guc_log_relay_chan->subbuf_size < subbuf_size);
-	guc->log.relay_chan = guc_log_relay_chan;
-	return 0;
-}
-
-static int guc_log_create_relay_file(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct dentry *log_dir;
-	int ret;
-
-	/* For now create the log file in /sys/kernel/debug/dri/0 dir */
-	log_dir = dev_priv->drm.primary->debugfs_root;
-
-	/* If /sys/kernel/debug/dri/0 location do not exist, then debugfs is
-	 * not mounted and so can't create the relay file.
-	 * The relay API seems to fit well with debugfs only, for availing relay
-	 * there are 3 requirements which can be met for debugfs file only in a
-	 * straightforward/clean manner :-
-	 * i)   Need the associated dentry pointer of the file, while opening the
-	 *      relay channel.
-	 * ii)  Should be able to use 'relay_file_operations' fops for the file.
-	 * iii) Set the 'i_private' field of file's inode to the pointer of
-	 *	relay channel buffer.
-	 */
-	if (!log_dir) {
-		DRM_ERROR("Debugfs dir not available yet for GuC log file\n");
-		return -ENODEV;
-	}
-
-	ret = relay_late_setup_files(guc->log.relay_chan, "guc_log", log_dir);
-	if (ret) {
-		DRM_ERROR("Couldn't associate relay chan with file %d\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void guc_move_to_next_buf(struct intel_guc *guc)
-{
-	/* Make sure the updates made in the sub buffer are visible when
-	 * Consumer sees the following update to offset inside the sub buffer.
-	 */
-	smp_wmb();
-
-	/* All data has been written, so now move the offset of sub buffer. */
-	relay_reserve(guc->log.relay_chan, guc->log.vma->obj->base.size);
-
-	/* Switch to the next sub buffer */
-	relay_flush(guc->log.relay_chan);
-}
-
-static void *guc_get_write_buffer(struct intel_guc *guc)
-{
-	if (!guc->log.relay_chan)
-		return NULL;
-
-	/* Just get the base address of a new sub buffer and copy data into it
-	 * ourselves. NULL will be returned in no-overwrite mode, if all sub
-	 * buffers are full. Could have used the relay_write() to indirectly
-	 * copy the data, but that would have been bit convoluted, as we need to
-	 * write to only certain locations inside a sub buffer which cannot be
-	 * done without using relay_reserve() along with relay_write(). So its
-	 * better to use relay_reserve() alone.
-	 */
-	return relay_reserve(guc->log.relay_chan, 0);
-}
-
-static bool
-guc_check_log_buf_overflow(struct intel_guc *guc,
-			   enum guc_log_buffer_type type, unsigned int full_cnt)
-{
-	unsigned int prev_full_cnt = guc->log.prev_overflow_count[type];
-	bool overflow = false;
-
-	if (full_cnt != prev_full_cnt) {
-		overflow = true;
-
-		guc->log.prev_overflow_count[type] = full_cnt;
-		guc->log.total_overflow_count[type] += full_cnt - prev_full_cnt;
-
-		if (full_cnt < prev_full_cnt) {
-			/* buffer_full_cnt is a 4 bit counter */
-			guc->log.total_overflow_count[type] += 16;
-		}
-		DRM_ERROR_RATELIMITED("GuC log buffer overflow\n");
-	}
-
-	return overflow;
-}
-
-static unsigned int guc_get_log_buffer_size(enum guc_log_buffer_type type)
-{
-	switch (type) {
-	case GUC_ISR_LOG_BUFFER:
-		return (GUC_LOG_ISR_PAGES + 1) * PAGE_SIZE;
-	case GUC_DPC_LOG_BUFFER:
-		return (GUC_LOG_DPC_PAGES + 1) * PAGE_SIZE;
-	case GUC_CRASH_DUMP_LOG_BUFFER:
-		return (GUC_LOG_CRASH_PAGES + 1) * PAGE_SIZE;
-	default:
-		MISSING_CASE(type);
-	}
-
-	return 0;
-}
-
-static void guc_read_update_log_buffer(struct intel_guc *guc)
-{
-	unsigned int buffer_size, read_offset, write_offset, bytes_to_copy, full_cnt;
-	struct guc_log_buffer_state *log_buf_state, *log_buf_snapshot_state;
-	struct guc_log_buffer_state log_buf_state_local;
-	enum guc_log_buffer_type type;
-	void *src_data, *dst_data;
-	bool new_overflow;
-
-	if (WARN_ON(!guc->log.buf_addr))
-		return;
-
-	/* Get the pointer to shared GuC log buffer */
-	log_buf_state = src_data = guc->log.buf_addr;
-
-	/* Get the pointer to local buffer to store the logs */
-	log_buf_snapshot_state = dst_data = guc_get_write_buffer(guc);
-
-	/* Actual logs are present from the 2nd page */
-	src_data += PAGE_SIZE;
-	dst_data += PAGE_SIZE;
-
-	for (type = GUC_ISR_LOG_BUFFER; type < GUC_MAX_LOG_BUFFER; type++) {
-		/* Make a copy of the state structure, inside GuC log buffer
-		 * (which is uncached mapped), on the stack to avoid reading
-		 * from it multiple times.
-		 */
-		memcpy(&log_buf_state_local, log_buf_state,
-		       sizeof(struct guc_log_buffer_state));
-		buffer_size = guc_get_log_buffer_size(type);
-		read_offset = log_buf_state_local.read_ptr;
-		write_offset = log_buf_state_local.sampled_write_ptr;
-		full_cnt = log_buf_state_local.buffer_full_cnt;
-
-		/* Bookkeeping stuff */
-		guc->log.flush_count[type] += log_buf_state_local.flush_to_file;
-		new_overflow = guc_check_log_buf_overflow(guc, type, full_cnt);
-
-		/* Update the state of shared log buffer */
-		log_buf_state->read_ptr = write_offset;
-		log_buf_state->flush_to_file = 0;
-		log_buf_state++;
-
-		if (unlikely(!log_buf_snapshot_state))
-			continue;
-
-		/* First copy the state structure in snapshot buffer */
-		memcpy(log_buf_snapshot_state, &log_buf_state_local,
-		       sizeof(struct guc_log_buffer_state));
-
-		/* The write pointer could have been updated by GuC firmware,
-		 * after sending the flush interrupt to Host, for consistency
-		 * set write pointer value to same value of sampled_write_ptr
-		 * in the snapshot buffer.
-		 */
-		log_buf_snapshot_state->write_ptr = write_offset;
-		log_buf_snapshot_state++;
-
-		/* Now copy the actual logs. */
-		if (unlikely(new_overflow)) {
-			/* copy the whole buffer in case of overflow */
-			read_offset = 0;
-			write_offset = buffer_size;
-		} else if (unlikely((read_offset > buffer_size) ||
-				    (write_offset > buffer_size))) {
-			DRM_ERROR("invalid log buffer state\n");
-			/* copy whole buffer as offsets are unreliable */
-			read_offset = 0;
-			write_offset = buffer_size;
-		}
-
-		/* Just copy the newly written data */
-		if (read_offset > write_offset) {
-			i915_memcpy_from_wc(dst_data, src_data, write_offset);
-			bytes_to_copy = buffer_size - read_offset;
-		} else {
-			bytes_to_copy = write_offset - read_offset;
-		}
-		i915_memcpy_from_wc(dst_data + read_offset,
-				    src_data + read_offset, bytes_to_copy);
-
-		src_data += buffer_size;
-		dst_data += buffer_size;
-	}
-
-	if (log_buf_snapshot_state)
-		guc_move_to_next_buf(guc);
-	else {
-		/* Used rate limited to avoid deluge of messages, logs might be
-		 * getting consumed by User at a slow rate.
-		 */
-		DRM_ERROR_RATELIMITED("no sub-buffer to capture logs\n");
-		guc->log.capture_miss_count++;
-	}
-}
-
-static void guc_capture_logs_work(struct work_struct *work)
-{
-	struct drm_i915_private *dev_priv =
-		container_of(work, struct drm_i915_private, guc.log.flush_work);
-
-	i915_guc_capture_logs(dev_priv);
-}
-
-static void guc_log_cleanup(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	/* First disable the flush interrupt */
-	gen9_disable_guc_interrupts(dev_priv);
-
-	if (guc->log.flush_wq)
-		destroy_workqueue(guc->log.flush_wq);
-
-	guc->log.flush_wq = NULL;
-
-	if (guc->log.relay_chan)
-		guc_log_remove_relay_file(guc);
-
-	guc->log.relay_chan = NULL;
-
-	if (guc->log.buf_addr)
-		i915_gem_object_unpin_map(guc->log.vma->obj);
-
-	guc->log.buf_addr = NULL;
-}
-
-static int guc_log_create_extras(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	void *vaddr;
-	int ret;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	/* Nothing to do */
-	if (i915.guc_log_level < 0)
-		return 0;
-
-	if (!guc->log.buf_addr) {
-		/* Create a WC (Uncached for read) vmalloc mapping of log
-		 * buffer pages, so that we can directly get the data
-		 * (up-to-date) from memory.
-		 */
-		vaddr = i915_gem_object_pin_map(guc->log.vma->obj, I915_MAP_WC);
-		if (IS_ERR(vaddr)) {
-			ret = PTR_ERR(vaddr);
-			DRM_ERROR("Couldn't map log buffer pages %d\n", ret);
-			return ret;
-		}
-
-		guc->log.buf_addr = vaddr;
-	}
-
-	if (!guc->log.relay_chan) {
-		/* Create a relay channel, so that we have buffers for storing
-		 * the GuC firmware logs, the channel will be linked with a file
-		 * later on when debugfs is registered.
-		 */
-		ret = guc_log_create_relay_channel(guc);
-		if (ret)
-			return ret;
-	}
-
-	if (!guc->log.flush_wq) {
-		INIT_WORK(&guc->log.flush_work, guc_capture_logs_work);
-
-		 /*
-		 * GuC log buffer flush work item has to do register access to
-		 * send the ack to GuC and this work item, if not synced before
-		 * suspend, can potentially get executed after the GFX device is
-		 * suspended.
-		 * By marking the WQ as freezable, we don't have to bother about
-		 * flushing of this work item from the suspend hooks, the pending
-		 * work item if any will be either executed before the suspend
-		 * or scheduled later on resume. This way the handling of work
-		 * item can be kept same between system suspend & rpm suspend.
-		 */
-		guc->log.flush_wq = alloc_ordered_workqueue("i915-guc_log",
-							    WQ_HIGHPRI | WQ_FREEZABLE);
-		if (guc->log.flush_wq == NULL) {
-			DRM_ERROR("Couldn't allocate the wq for GuC logging\n");
-			return -ENOMEM;
-		}
-	}
-
-	return 0;
-}
-
-static void guc_log_create(struct intel_guc *guc)
-{
-	struct i915_vma *vma;
-	unsigned long offset;
-	uint32_t size, flags;
-
-	if (i915.guc_log_level > GUC_LOG_VERBOSITY_MAX)
-		i915.guc_log_level = GUC_LOG_VERBOSITY_MAX;
-
-	/* The first page is to save log buffer state. Allocate one
-	 * extra page for others in case for overlap */
-	size = (1 + GUC_LOG_DPC_PAGES + 1 +
-		GUC_LOG_ISR_PAGES + 1 +
-		GUC_LOG_CRASH_PAGES + 1) << PAGE_SHIFT;
-
-	vma = guc->log.vma;
-	if (!vma) {
-		/* We require SSE 4.1 for fast reads from the GuC log buffer and
-		 * it should be present on the chipsets supporting GuC based
-		 * submisssions.
-		 */
-		if (WARN_ON(!i915_memcpy_from_wc(NULL, NULL, 0))) {
-			/* logging will not be enabled */
-			i915.guc_log_level = -1;
-			return;
-		}
-
-		vma = guc_allocate_vma(guc, size);
-		if (IS_ERR(vma)) {
-			/* logging will be off */
-			i915.guc_log_level = -1;
-			return;
-		}
-
-		guc->log.vma = vma;
-
-		if (guc_log_create_extras(guc)) {
-			guc_log_cleanup(guc);
-			i915_vma_unpin_and_release(&guc->log.vma);
-			i915.guc_log_level = -1;
-			return;
-		}
-	}
-
-	/* each allocated unit is a page */
-	flags = GUC_LOG_VALID | GUC_LOG_NOTIFY_ON_HALF_FULL |
-		(GUC_LOG_DPC_PAGES << GUC_LOG_DPC_SHIFT) |
-		(GUC_LOG_ISR_PAGES << GUC_LOG_ISR_SHIFT) |
-		(GUC_LOG_CRASH_PAGES << GUC_LOG_CRASH_SHIFT);
-
-	offset = i915_ggtt_offset(vma) >> PAGE_SHIFT; /* in pages */
-	guc->log.flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
-}
-
-static int guc_log_late_setup(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	int ret;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	if (i915.guc_log_level < 0)
-		return -EINVAL;
-
-	/* If log_level was set as -1 at boot time, then setup needed to
-	 * handle log buffer flush interrupts would not have been done yet,
-	 * so do that now.
-	 */
-	ret = guc_log_create_extras(guc);
-	if (ret)
-		goto err;
-
-	ret = guc_log_create_relay_file(guc);
-	if (ret)
-		goto err;
-
-	return 0;
-err:
-	guc_log_cleanup(guc);
-	/* logging will remain off */
-	i915.guc_log_level = -1;
-	return ret;
-}
 
 static void guc_policies_init(struct guc_policies *policies)
 {
@@ -1422,7 +815,7 @@ static void guc_addon_create(struct intel_guc *guc)
 
 	vma = guc->ads_vma;
 	if (!vma) {
-		vma = guc_allocate_vma(guc, PAGE_ALIGN(size));
+		vma = intel_guc_allocate_vma(guc, PAGE_ALIGN(size));
 		if (IS_ERR(vma))
 			return;
 
@@ -1450,7 +843,7 @@ static void guc_addon_create(struct intel_guc *guc)
 	guc_policies_init(policies);
 
 	ads->scheduler_policies =
-		i915_ggtt_offset(vma) + sizeof(struct guc_ads);
+		guc_ggtt_offset(vma) + sizeof(struct guc_ads);
 
 	/* MMIO reg state */
 	reg_state = (void *)policies + sizeof(struct guc_policies);
@@ -1484,6 +877,9 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_vma *vma;
 
+	if (!HAS_GUC_SCHED(dev_priv))
+		return 0;
+
 	/* Wipe bitmap & delete client in case of reinitialisation */
 	bitmap_clear(guc->doorbell_bitmap, 0, GUC_MAX_DOORBELLS);
 	i915_guc_submission_disable(dev_priv);
@@ -1494,52 +890,68 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 	if (guc->ctx_pool_vma)
 		return 0; /* already allocated */
 
-	vma = guc_allocate_vma(guc, gemsize);
+	vma = intel_guc_allocate_vma(guc, gemsize);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
 	guc->ctx_pool_vma = vma;
 	ida_init(&guc->ctx_ids);
-	mutex_init(&guc->action_lock);
-	guc_log_create(guc);
+	intel_guc_log_create(guc);
 	guc_addon_create(guc);
 
+	guc->execbuf_client = guc_client_alloc(dev_priv,
+					       INTEL_INFO(dev_priv)->ring_mask,
+					       GUC_CTX_PRIORITY_KMD_NORMAL,
+					       dev_priv->kernel_context);
+	if (!guc->execbuf_client) {
+		DRM_ERROR("Failed to create GuC client for execbuf!\n");
+		goto err;
+	}
+
 	return 0;
+
+err:
+	i915_guc_submission_fini(dev_priv);
+	return -ENOMEM;
+}
+
+static void guc_reset_wq(struct i915_guc_client *client)
+{
+	struct guc_process_desc *desc = client->vaddr +
+					client->proc_desc_offset;
+
+	desc->head = 0;
+	desc->tail = 0;
+
+	client->wq_tail = 0;
 }
 
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
-	struct drm_i915_gem_request *request;
-	struct i915_guc_client *client;
+	struct i915_guc_client *client = guc->execbuf_client;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	/* client for execbuf submission */
-	client = guc_client_alloc(dev_priv,
-				  INTEL_INFO(dev_priv)->ring_mask,
-				  GUC_CTX_PRIORITY_KMD_NORMAL,
-				  dev_priv->kernel_context);
-	if (!client) {
-		DRM_ERROR("Failed to create normal GuC client!\n");
-		return -ENOMEM;
-	}
+	if (!client)
+		return -ENODEV;
 
-	guc->execbuf_client = client;
-	host2guc_sample_forcewake(guc, client);
+	intel_guc_sample_forcewake(guc);
+
+	guc_reset_wq(client);
 	guc_init_doorbell_hw(guc);
 
 	/* Take over from manual control of ELSP (execlists) */
 	for_each_engine(engine, dev_priv, id) {
+		struct drm_i915_gem_request *rq;
+
 		engine->submit_request = i915_guc_submit;
 		engine->schedule = NULL;
 
 		/* Replay the current set of previously submitted requests */
-		list_for_each_entry(request,
-				    &engine->timeline->requests, link) {
+		list_for_each_entry(rq, &engine->timeline->requests, link) {
 			client->wq_rsvd += sizeof(struct guc_wq_item);
-			if (i915_sw_fence_done(&request->submit))
-				i915_guc_submit(request);
+			__i915_guc_submit(rq);
 		}
 	}
 
@@ -1555,14 +967,18 @@ void i915_guc_submission_disable(struct drm_i915_private *dev_priv)
 
 	/* Revert back to manual ELSP submission */
 	intel_execlists_enable_submission(dev_priv);
-
-	guc_client_free(dev_priv, guc->execbuf_client);
-	guc->execbuf_client = NULL;
 }
 
 void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
+	struct i915_guc_client *client;
+
+	client = fetch_and_zero(&guc->execbuf_client);
+	if (!client)
+		return;
+
+	guc_client_free(dev_priv, client);
 
 	i915_vma_unpin_and_release(&guc->ads_vma);
 	i915_vma_unpin_and_release(&guc->log.vma);
@@ -1574,44 +990,42 @@ void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
 
 /**
  * intel_guc_suspend() - notify GuC entering suspend state
- * @dev:	drm device
+ * @dev_priv:	i915 device private
  */
-int intel_guc_suspend(struct drm_device *dev)
+int intel_guc_suspend(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_gem_context *ctx;
 	u32 data[3];
 
-	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)
+	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
 		return 0;
 
 	gen9_disable_guc_interrupts(dev_priv);
 
 	ctx = dev_priv->kernel_context;
 
-	data[0] = HOST2GUC_ACTION_ENTER_S_STATE;
+	data[0] = INTEL_GUC_ACTION_ENTER_S_STATE;
 	/* any value greater than GUC_POWER_D0 */
 	data[1] = GUC_POWER_D1;
 	/* first page is shared data with GuC */
-	data[2] = i915_ggtt_offset(ctx->engine[RCS].state);
+	data[2] = guc_ggtt_offset(ctx->engine[RCS].state);
 
-	return host2guc_action(guc, data, ARRAY_SIZE(data));
+	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }
 
 
 /**
  * intel_guc_resume() - notify GuC resuming from suspend state
- * @dev:	drm device
+ * @dev_priv:	i915 device private
  */
-int intel_guc_resume(struct drm_device *dev)
+int intel_guc_resume(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_gem_context *ctx;
 	u32 data[3];
 
-	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)
+	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
 		return 0;
 
 	if (i915.guc_log_level >= 0)
@@ -1619,111 +1033,12 @@ int intel_guc_resume(struct drm_device *dev)
 
 	ctx = dev_priv->kernel_context;
 
-	data[0] = HOST2GUC_ACTION_EXIT_S_STATE;
+	data[0] = INTEL_GUC_ACTION_EXIT_S_STATE;
 	data[1] = GUC_POWER_D0;
 	/* first page is shared data with GuC */
-	data[2] = i915_ggtt_offset(ctx->engine[RCS].state);
+	data[2] = guc_ggtt_offset(ctx->engine[RCS].state);
 
-	return host2guc_action(guc, data, ARRAY_SIZE(data));
+	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }
 
-void i915_guc_capture_logs(struct drm_i915_private *dev_priv)
-{
-	guc_read_update_log_buffer(&dev_priv->guc);
 
-	/* Generally device is expected to be active only at this
-	 * time, so get/put should be really quick.
-	 */
-	intel_runtime_pm_get(dev_priv);
-	host2guc_logbuffer_flush_complete(&dev_priv->guc);
-	intel_runtime_pm_put(dev_priv);
-}
-
-void i915_guc_flush_logs(struct drm_i915_private *dev_priv)
-{
-	if (!i915.enable_guc_submission || (i915.guc_log_level < 0))
-		return;
-
-	/* First disable the interrupts, will be renabled afterwards */
-	gen9_disable_guc_interrupts(dev_priv);
-
-	/* Before initiating the forceful flush, wait for any pending/ongoing
-	 * flush to complete otherwise forceful flush may not actually happen.
-	 */
-	flush_work(&dev_priv->guc.log.flush_work);
-
-	/* Ask GuC to update the log buffer state */
-	host2guc_force_logbuffer_flush(&dev_priv->guc);
-
-	/* GuC would have updated log buffer by now, so capture it */
-	i915_guc_capture_logs(dev_priv);
-}
-
-void i915_guc_unregister(struct drm_i915_private *dev_priv)
-{
-	if (!i915.enable_guc_submission)
-		return;
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	guc_log_cleanup(&dev_priv->guc);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-}
-
-void i915_guc_register(struct drm_i915_private *dev_priv)
-{
-	if (!i915.enable_guc_submission)
-		return;
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	guc_log_late_setup(&dev_priv->guc);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-}
-
-int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
-{
-	union guc_log_control log_param;
-	int ret;
-
-	log_param.value = control_val;
-
-	if (log_param.verbosity < GUC_LOG_VERBOSITY_MIN ||
-	    log_param.verbosity > GUC_LOG_VERBOSITY_MAX)
-		return -EINVAL;
-
-	/* This combination doesn't make sense & won't have any effect */
-	if (!log_param.logging_enabled && (i915.guc_log_level < 0))
-		return 0;
-
-	ret = host2guc_logging_control(&dev_priv->guc, log_param.value);
-	if (ret < 0) {
-		DRM_DEBUG_DRIVER("host2guc action failed %d\n", ret);
-		return ret;
-	}
-
-	i915.guc_log_level = log_param.verbosity;
-
-	/* If log_level was set as -1 at boot time, then the relay channel file
-	 * wouldn't have been created by now and interrupts also would not have
-	 * been enabled.
-	 */
-	if (!dev_priv->guc.log.relay_chan) {
-		ret = guc_log_late_setup(&dev_priv->guc);
-		if (!ret)
-			gen9_enable_guc_interrupts(dev_priv);
-	} else if (!log_param.logging_enabled) {
-		/* Once logging is disabled, GuC won't generate logs & send an
-		 * interrupt. But there could be some data in the log buffer
-		 * which is yet to be captured. So request GuC to update the log
-		 * buffer state and then collect the left over logs.
-		 */
-		i915_guc_flush_logs(dev_priv);
-
-		/* As logging is disabled, update log level to reflect that */
-		i915.guc_log_level = -1;
-	} else {
-		/* In case interrupts were disabled, enable them now */
-		gen9_enable_guc_interrupts(dev_priv);
-	}
-
-	return ret;
-}

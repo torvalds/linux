@@ -311,9 +311,15 @@ int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
 }
 EXPORT_SYMBOL_GPL(snd_hda_get_conn_index);
 
-
-/* return DEVLIST_LEN parameter of the given widget */
-static unsigned int get_num_devices(struct hda_codec *codec, hda_nid_t nid)
+/**
+ * snd_hda_get_num_devices - get DEVLIST_LEN parameter of the given widget
+ *  @codec: the HDA codec
+ *  @nid: NID of the pin to parse
+ *
+ * Get the device entry number on the given widget. This is a feature of
+ * DP MST audio. Each pin can have several device entries in it.
+ */
+unsigned int snd_hda_get_num_devices(struct hda_codec *codec, hda_nid_t nid)
 {
 	unsigned int wcaps = get_wcaps(codec, nid);
 	unsigned int parm;
@@ -327,6 +333,7 @@ static unsigned int get_num_devices(struct hda_codec *codec, hda_nid_t nid)
 		parm = 0;
 	return parm & AC_DEV_LIST_LEN_MASK;
 }
+EXPORT_SYMBOL_GPL(snd_hda_get_num_devices);
 
 /**
  * snd_hda_get_devices - copy device list without cache
@@ -344,7 +351,7 @@ int snd_hda_get_devices(struct hda_codec *codec, hda_nid_t nid,
 	unsigned int parm;
 	int i, dev_len, devices;
 
-	parm = get_num_devices(codec, nid);
+	parm = snd_hda_get_num_devices(codec, nid);
 	if (!parm)	/* not multi-stream capable */
 		return 0;
 
@@ -367,6 +374,63 @@ int snd_hda_get_devices(struct hda_codec *codec, hda_nid_t nid,
 	}
 	return devices;
 }
+
+/**
+ * snd_hda_get_dev_select - get device entry select on the pin
+ * @codec: the HDA codec
+ * @nid: NID of the pin to get device entry select
+ *
+ * Get the devcie entry select on the pin. Return the device entry
+ * id selected on the pin. Return 0 means the first device entry
+ * is selected or MST is not supported.
+ */
+int snd_hda_get_dev_select(struct hda_codec *codec, hda_nid_t nid)
+{
+	/* not support dp_mst will always return 0, using first dev_entry */
+	if (!codec->dp_mst)
+		return 0;
+
+	return snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_DEVICE_SEL, 0);
+}
+EXPORT_SYMBOL_GPL(snd_hda_get_dev_select);
+
+/**
+ * snd_hda_set_dev_select - set device entry select on the pin
+ * @codec: the HDA codec
+ * @nid: NID of the pin to set device entry select
+ * @dev_id: device entry id to be set
+ *
+ * Set the device entry select on the pin nid.
+ */
+int snd_hda_set_dev_select(struct hda_codec *codec, hda_nid_t nid, int dev_id)
+{
+	int ret, num_devices;
+
+	/* not support dp_mst will always return 0, using first dev_entry */
+	if (!codec->dp_mst)
+		return 0;
+
+	/* AC_PAR_DEVLIST_LEN is 0 based. */
+	num_devices = snd_hda_get_num_devices(codec, nid) + 1;
+	/* If Device List Length is 0 (num_device = 1),
+	 * the pin is not multi stream capable.
+	 * Do nothing in this case.
+	 */
+	if (num_devices == 1)
+		return 0;
+
+	/* Behavior of setting index being equal to or greater than
+	 * Device List Length is not predictable
+	 */
+	if (num_devices <= dev_id)
+		return -EINVAL;
+
+	ret = snd_hda_codec_write(codec, nid, 0,
+			AC_VERB_SET_DEVICE_SEL, dev_id);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_hda_set_dev_select);
 
 /*
  * read widget caps for each widget and store in cache
@@ -403,6 +467,10 @@ static int read_pin_defaults(struct hda_codec *codec)
 		pin->nid = nid;
 		pin->cfg = snd_hda_codec_read(codec, nid, 0,
 					      AC_VERB_GET_CONFIG_DEFAULT, 0);
+		/*
+		 * all device entries are the same widget control so far
+		 * fixme: if any codec is different, need fix here
+		 */
 		pin->ctrl = snd_hda_codec_read(codec, nid, 0,
 					       AC_VERB_GET_PIN_WIDGET_CONTROL,
 					       0);

@@ -50,7 +50,8 @@ _TIF_WORK	= (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		   _TIF_UPROBE)
 _TIF_TRACE	= (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 		   _TIF_SYSCALL_TRACEPOINT)
-_CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE | _CIF_FPU)
+_CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE_PRIMARY | \
+		   _CIF_ASCE_SECONDARY | _CIF_FPU)
 _PIF_WORK	= (_PIF_PER_TRAP)
 
 #define BASED(name) name-cleanup_critical(%r13)
@@ -103,8 +104,7 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 	CHECK_STACK 1<<STACK_SHIFT,\savearea
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	3f
-1:	LAST_BREAK %r14
-	UPDATE_VTIME %r14,%r15,\timer
+1:	UPDATE_VTIME %r14,%r15,\timer
 2:	lg	%r15,__LC_ASYNC_STACK	# load async stack
 3:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	.endm
@@ -119,18 +119,6 @@ _PIF_WORK	= (_PIF_PER_TRAP)
 	stg	\w1,__LC_USER_TIMER
 	stg	\w2,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),\enter_timer
-	.endm
-
-	.macro	LAST_BREAK scratch
-	srag	\scratch,%r10,23
-#ifdef CONFIG_HAVE_MARCH_Z990_FEATURES
-	jz	.+10
-	stg	%r10,__TASK_thread+__THREAD_last_break(%r12)
-#else
-	jz	.+14
-	lghi	\scratch,__TASK_thread
-	stg	%r10,__THREAD_last_break(\scratch,%r12)
-#endif
 	.endm
 
 	.macro REENABLE_IRQS
@@ -278,15 +266,14 @@ ENTRY(system_call)
 	stpt	__LC_SYNC_ENTER_TIMER
 .Lsysc_stmg:
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
-	lg	%r10,__LC_LAST_BREAK
 	lg	%r12,__LC_CURRENT
+	lghi	%r13,__TASK_thread
 	lghi	%r14,_PIF_SYSCALL
 .Lsysc_per:
 	lg	%r15,__LC_KERNEL_STACK
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
-	LAST_BREAK %r13
 .Lsysc_vtime:
-	UPDATE_VTIME %r10,%r13,__LC_SYNC_ENTER_TIMER
+	UPDATE_VTIME %r8,%r9,__LC_SYNC_ENTER_TIMER
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	mvc	__PT_PSW(16,%r11),__LC_SVC_OLD_PSW
@@ -294,12 +281,7 @@ ENTRY(system_call)
 	stg	%r14,__PT_FLAGS(%r11)
 .Lsysc_do_svc:
 	# load address of system call table
-#ifdef CONFIG_HAVE_MARCH_Z990_FEATURES
-	lg	%r10,__TASK_thread+__THREAD_sysc_table(%r12)
-#else
-	lghi	%r13,__TASK_thread
 	lg	%r10,__THREAD_sysc_table(%r13,%r12)
-#endif
 	llgh	%r8,__PT_INT_CODE+2(%r11)
 	slag	%r8,%r8,2			# shift and test for svc 0
 	jnz	.Lsysc_nr_ok
@@ -358,8 +340,8 @@ ENTRY(system_call)
 	jo	.Lsysc_notify_resume
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lsysc_vxrs
-	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE
-	jo	.Lsysc_uaccess
+	TSTMSK	__LC_CPU_FLAGS,(_CIF_ASCE_PRIMARY|_CIF_ASCE_SECONDARY)
+	jnz	.Lsysc_asce
 	j	.Lsysc_return		# beware of critical section cleanup
 
 #
@@ -377,12 +359,15 @@ ENTRY(system_call)
 	jg	s390_handle_mcck	# TIF bit will be cleared by handler
 
 #
-# _CIF_ASCE is set, load user space asce
+# _CIF_ASCE_PRIMARY and/or CIF_ASCE_SECONDARY set, load user space asce
 #
-.Lsysc_uaccess:
-	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE
+.Lsysc_asce:
+	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_PRIMARY
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
-	j	.Lsysc_return
+	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_SECONDARY
+	jz	.Lsysc_return
+	larl	%r14,.Lsysc_return
+	jg	set_fs_fixup
 
 #
 # CIF_FPU is set, restore floating-point controls and floating-point registers.
@@ -399,13 +384,11 @@ ENTRY(system_call)
 	brasl	%r14,do_signal
 	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL
 	jno	.Lsysc_return
+.Lsysc_do_syscall:
+	lghi	%r13,__TASK_thread
 	lmg	%r2,%r7,__PT_R2(%r11)	# load svc arguments
-	lghi	%r8,0			# svc 0 returns -ENOSYS
-	llgh	%r1,__PT_INT_CODE+2(%r11)	# load new svc number
-	cghi	%r1,NR_syscalls
-	jnl	.Lsysc_nr_ok		# invalid svc number -> do svc 0
-	slag	%r8,%r1,2
-	j	.Lsysc_nr_ok		# restart svc
+	lghi	%r1,0			# svc 0 returns -ENOSYS
+	j	.Lsysc_do_svc
 
 #
 # _TIF_NOTIFY_RESUME is set, call do_notify_resume
@@ -507,9 +490,8 @@ ENTRY(pgm_check_handler)
 	jnz	.Lpgm_svcper		# -> single stepped svc
 1:	CHECK_STACK STACK_SIZE,__LC_SAVE_AREA_SYNC
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	j	3f
-2:	LAST_BREAK %r14
-	UPDATE_VTIME %r14,%r15,__LC_SYNC_ENTER_TIMER
+	j	4f
+2:	UPDATE_VTIME %r14,%r15,__LC_SYNC_ENTER_TIMER
 	lg	%r15,__LC_KERNEL_STACK
 	lgr	%r14,%r12
 	aghi	%r14,__TASK_thread	# pointer to thread_struct
@@ -517,7 +499,8 @@ ENTRY(pgm_check_handler)
 	tm	__LC_PGM_ILC+2,0x02	# check for transaction abort
 	jz	3f
 	mvc	__THREAD_trap_tdb(256,%r14),0(%r13)
-3:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
+3:	stg	%r10,__THREAD_last_break(%r14)
+4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
@@ -526,14 +509,14 @@ ENTRY(pgm_check_handler)
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	stg	%r10,__PT_ARGS(%r11)
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
-	jz	4f
+	jz	5f
 	tmhh	%r8,0x0001		# kernel per event ?
 	jz	.Lpgm_kprobe
 	oi	__PT_FLAGS+7(%r11),_PIF_PER_TRAP
 	mvc	__THREAD_per_address(8,%r14),__LC_PER_ADDRESS
 	mvc	__THREAD_per_cause(2,%r14),__LC_PER_CODE
 	mvc	__THREAD_per_paid(1,%r14),__LC_PER_ACCESS_ID
-4:	REENABLE_IRQS
+5:	REENABLE_IRQS
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	larl	%r1,pgm_check_table
 	llgh	%r10,__PT_INT_CODE+2(%r11)
@@ -547,6 +530,8 @@ ENTRY(pgm_check_handler)
 	LOCKDEP_SYS_EXIT
 	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
 	jno	.Lsysc_restore
+	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL
+	jo	.Lsysc_do_syscall
 	j	.Lsysc_tif
 
 #
@@ -564,6 +549,7 @@ ENTRY(pgm_check_handler)
 #
 .Lpgm_svcper:
 	mvc	__LC_RETURN_PSW(8),__LC_SVC_NEW_PSW
+	lghi	%r13,__TASK_thread
 	larl	%r14,.Lsysc_per
 	stg	%r14,__LC_RETURN_PSW+8
 	lghi	%r14,_PIF_SYSCALL | _PIF_PER_TRAP
@@ -576,7 +562,6 @@ ENTRY(io_int_handler)
 	STCK	__LC_INT_CLOCK
 	stpt	__LC_ASYNC_ENTER_TIMER
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
-	lg	%r10,__LC_LAST_BREAK
 	lg	%r12,__LC_CURRENT
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_IO_OLD_PSW
@@ -680,8 +665,8 @@ ENTRY(io_int_handler)
 	jo	.Lio_notify_resume
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lio_vxrs
-	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE
-	jo	.Lio_uaccess
+	TSTMSK	__LC_CPU_FLAGS,(_CIF_ASCE_PRIMARY|_CIF_ASCE_SECONDARY)
+	jnz	.Lio_asce
 	j	.Lio_return		# beware of critical section cleanup
 
 #
@@ -694,12 +679,15 @@ ENTRY(io_int_handler)
 	j	.Lio_return
 
 #
-# _CIF_ASCE is set, load user space asce
+# _CIF_ASCE_PRIMARY and/or CIF_ASCE_SECONDARY set, load user space asce
 #
-.Lio_uaccess:
-	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE
+.Lio_asce:
+	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_PRIMARY
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
-	j	.Lio_return
+	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_SECONDARY
+	jz	.Lio_return
+	larl	%r14,.Lio_return
+	jg	set_fs_fixup
 
 #
 # CIF_FPU is set, restore floating-point controls and floating-point registers.
@@ -750,7 +738,6 @@ ENTRY(ext_int_handler)
 	STCK	__LC_INT_CLOCK
 	stpt	__LC_ASYNC_ENTER_TIMER
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
-	lg	%r10,__LC_LAST_BREAK
 	lg	%r12,__LC_CURRENT
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_EXT_OLD_PSW
@@ -893,7 +880,6 @@ ENTRY(mcck_int_handler)
 	la	%r1,4095		# revalidate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# revalidate cpu timer
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# revalidate gprs
-	lg	%r10,__LC_LAST_BREAK
 	lg	%r12,__LC_CURRENT
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_MCK_OLD_PSW
@@ -1088,9 +1074,10 @@ cleanup_critical:
 0:	# check if base register setup + TIF bit load has been done
 	clg	%r9,BASED(.Lcleanup_system_call_insn+16)
 	jhe	0f
-	# set up saved registers r10 and r12
-	stg	%r10,16(%r11)		# r10 last break
-	stg	%r12,32(%r11)		# r12 task struct pointer
+	# set up saved register r12 task struct pointer
+	stg	%r12,32(%r11)
+	# set up saved register r13 __TASK_thread offset
+	mvc	40(8,%r11),BASED(.Lcleanup_system_call_const)
 0:	# check if the user time update has been done
 	clg	%r9,BASED(.Lcleanup_system_call_insn+24)
 	jh	0f
@@ -1107,14 +1094,7 @@ cleanup_critical:
 	stg	%r15,__LC_SYSTEM_TIMER
 0:	# update accounting time stamp
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
-	# do LAST_BREAK
-	lg	%r9,16(%r11)
-	srag	%r9,%r9,23
-	jz	0f
-	lgr	%r9,%r12
-	aghi	%r9,__TASK_thread
-	mvc	__THREAD_last_break(8,%r9),16(%r11)
-0:	# set up saved register r11
+	# set up saved register r11
 	lg	%r15,__LC_KERNEL_STACK
 	la	%r9,STACK_FRAME_OVERHEAD(%r15)
 	stg	%r9,24(%r11)		# r11 pt_regs pointer
@@ -1136,6 +1116,8 @@ cleanup_critical:
 	.quad	.Lsysc_per
 	.quad	.Lsysc_vtime+36
 	.quad	.Lsysc_vtime+42
+.Lcleanup_system_call_const:
+	.quad	__TASK_thread
 
 .Lcleanup_sysc_tif:
 	larl	%r9,.Lsysc_tif

@@ -12,7 +12,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/bitmap.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/poll.h>
 #include <linux/pid.h>
 #include <linux/fs.h>

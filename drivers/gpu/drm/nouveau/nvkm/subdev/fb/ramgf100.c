@@ -445,7 +445,7 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 {
 	struct nvkm_ltc *ltc = ram->fb->subdev.device->ltc;
 	struct nvkm_mm *mm = &ram->vram;
-	struct nvkm_mm_node *r;
+	struct nvkm_mm_node **node, *r;
 	struct nvkm_mem *mem;
 	int type = (memtype & 0x0ff);
 	int back = (memtype & 0x800);
@@ -462,7 +462,6 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	if (!mem)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&mem->regions);
 	mem->size = size;
 
 	mutex_lock(&ram->fb->subdev.mutex);
@@ -478,6 +477,7 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	}
 	mem->memtype = type;
 
+	node = &mem->mem;
 	do {
 		if (back)
 			ret = nvkm_mm_tail(mm, 0, 1, size, ncmin, align, &r);
@@ -489,13 +489,13 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 			return ret;
 		}
 
-		list_add_tail(&r->rl_entry, &mem->regions);
+		*node = r;
+		node = &r->next;
 		size -= r->length;
 	} while (size);
 	mutex_unlock(&ram->fb->subdev.mutex);
 
-	r = list_first_entry(&mem->regions, struct nvkm_mm_node, rl_entry);
-	mem->offset = (u64)r->offset << NVKM_RAM_MM_SHIFT;
+	mem->offset = (u64)mem->mem->offset << NVKM_RAM_MM_SHIFT;
 	*pmem = mem;
 	return 0;
 }

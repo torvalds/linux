@@ -306,6 +306,69 @@ static const struct file_operations fops_delba = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_dbg_sta_read_peer_debug_trigger(struct file *file,
+						      char __user *user_buf,
+						      size_t count,
+						      loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k *ar = arsta->arvif->ar;
+	char buf[8];
+	int len = 0;
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf) - len,
+			"Write 1 to once trigger the debug logs\n");
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t
+ath10k_dbg_sta_write_peer_debug_trigger(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k *ar = arsta->arvif->ar;
+	u8 peer_debug_trigger;
+	int ret;
+
+	if (kstrtou8_from_user(user_buf, count, 0, &peer_debug_trigger))
+		return -EINVAL;
+
+	if (peer_debug_trigger != 1)
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON) {
+		ret = -ENETDOWN;
+		goto out;
+	}
+
+	ret = ath10k_wmi_peer_set_param(ar, arsta->arvif->vdev_id, sta->addr,
+					WMI_PEER_DEBUG, peer_debug_trigger);
+	if (ret) {
+		ath10k_warn(ar, "failed to set param to trigger peer tid logs for station ret: %d\n",
+			    ret);
+		goto out;
+	}
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return count;
+}
+
+static const struct file_operations fops_peer_debug_trigger = {
+	.open = simple_open,
+	.read = ath10k_dbg_sta_read_peer_debug_trigger,
+	.write = ath10k_dbg_sta_write_peer_debug_trigger,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir)
 {
@@ -314,4 +377,6 @@ void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	debugfs_create_file("addba", S_IWUSR, dir, sta, &fops_addba);
 	debugfs_create_file("addba_resp", S_IWUSR, dir, sta, &fops_addba_resp);
 	debugfs_create_file("delba", S_IWUSR, dir, sta, &fops_delba);
+	debugfs_create_file("peer_debug_trigger", 0600, dir, sta,
+			    &fops_peer_debug_trigger);
 }

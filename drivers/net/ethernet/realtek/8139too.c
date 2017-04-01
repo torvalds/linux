@@ -653,9 +653,8 @@ static int rtl8139_poll(struct napi_struct *napi, int budget);
 static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance);
 static int rtl8139_close (struct net_device *dev);
 static int netdev_ioctl (struct net_device *dev, struct ifreq *rq, int cmd);
-static struct rtnl_link_stats64 *rtl8139_get_stats64(struct net_device *dev,
-						    struct rtnl_link_stats64
-						    *stats);
+static void rtl8139_get_stats64(struct net_device *dev,
+				struct rtnl_link_stats64 *stats);
 static void rtl8139_set_rx_mode (struct net_device *dev);
 static void __set_rx_mode (struct net_device *dev);
 static void rtl8139_hw_start (struct net_device *dev);
@@ -2136,14 +2135,10 @@ static int rtl8139_poll(struct napi_struct *napi, int budget)
 	if (likely(RTL_R16(IntrStatus) & RxAckBits))
 		work_done += rtl8139_rx(dev, tp, budget);
 
-	if (work_done < budget) {
+	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		unsigned long flags;
-		/*
-		 * Order is important since data can get interrupted
-		 * again when we think we are done.
-		 */
+
 		spin_lock_irqsave(&tp->lock, flags);
-		__napi_complete(napi);
 		RTL_W16_F(IntrMask, rtl8139_intr_mask);
 		spin_unlock_irqrestore(&tp->lock, flags);
 	}
@@ -2516,7 +2511,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 }
 
 
-static struct rtnl_link_stats64 *
+static void
 rtl8139_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct rtl8139_private *tp = netdev_priv(dev);
@@ -2544,8 +2539,6 @@ rtl8139_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_packets = tp->tx_stats.packets;
 		stats->tx_bytes = tp->tx_stats.bytes;
 	} while (u64_stats_fetch_retry_irq(&tp->tx_stats.syncp, start));
-
-	return stats;
 }
 
 /* Set or clear the multicast filter for this adaptor.

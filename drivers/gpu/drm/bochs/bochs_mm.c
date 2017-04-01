@@ -205,8 +205,6 @@ struct ttm_bo_driver bochs_bo_driver = {
 	.verify_access = bochs_bo_verify_access,
 	.io_mem_reserve = &bochs_ttm_io_mem_reserve,
 	.io_mem_free = &bochs_ttm_io_mem_free,
-	.lru_tail = &ttm_bo_default_lru_tail,
-	.swap_lru_tail = &ttm_bo_default_swap_lru_tail,
 };
 
 int bochs_mm_init(struct bochs_device *bochs)
@@ -484,7 +482,7 @@ int bochs_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 
-	drm_helper_mode_fill_fb_struct(&gfb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &gfb->base, mode_cmd);
 	gfb->obj = obj;
 	ret = drm_framebuffer_init(dev, &gfb->base, &bochs_fb_funcs);
 	if (ret) {

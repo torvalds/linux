@@ -1087,8 +1087,6 @@ static int raydium_i2c_probe(struct i2c_client *client,
 	ts->input->name = "Raydium Touchscreen";
 	ts->input->id.bustype = BUS_I2C;
 
-	input_set_drvdata(ts->input, ts);
-
 	input_set_abs_params(ts->input, ABS_MT_POSITION_X,
 			     0, le16_to_cpu(ts->info.x_max), 0, 0);
 	input_set_abs_params(ts->input, ABS_MT_POSITION_Y,

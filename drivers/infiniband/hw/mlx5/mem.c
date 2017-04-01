@@ -159,7 +159,7 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 	unsigned long umem_page_shift = ilog2(umem->page_size);
 	int shift = page_shift - umem_page_shift;
 	int mask = (1 << shift) - 1;
-	int i, k;
+	int i, k, idx;
 	u64 cur = 0;
 	u64 base;
 	int len;
@@ -185,18 +185,36 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
 		len = sg_dma_len(sg) >> umem_page_shift;
 		base = sg_dma_address(sg);
-		for (k = 0; k < len; k++) {
+
+		/* Skip elements below offset */
+		if (i + len < offset << shift) {
+			i += len;
+			continue;
+		}
+
+		/* Skip pages below offset */
+		if (i < offset << shift) {
+			k = (offset << shift) - i;
+			i = offset << shift;
+		} else {
+			k = 0;
+		}
+
+		for (; k < len; k++) {
 			if (!(i & mask)) {
 				cur = base + (k << umem_page_shift);
 				cur |= access_flags;
+				idx = (i >> shift) - offset;
 
-				pas[i >> shift] = cpu_to_be64(cur);
+				pas[idx] = cpu_to_be64(cur);
 				mlx5_ib_dbg(dev, "pas[%d] 0x%llx\n",
-					    i >> shift, be64_to_cpu(pas[i >> shift]));
-			}  else
-				mlx5_ib_dbg(dev, "=====> 0x%llx\n",
-					    base + (k << umem_page_shift));
+					    i >> shift, be64_to_cpu(pas[idx]));
+			}
 			i++;
+
+			/* Stop after num_pages reached */
+			if (i >> shift >= offset + num_pages)
+				return;
 		}
 	}
 }

@@ -438,13 +438,6 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pmic8xxx_pwrkey_remove(struct platform_device *pdev)
-{
-	device_init_wakeup(&pdev->dev, 0);
-
-	return 0;
-}
-
 static const struct of_device_id pm8xxx_pwr_key_id_table[] = {
 	{ .compatible = "qcom,pm8058-pwrkey", .data = &pm8058_pwrkey_shutdown },
 	{ .compatible = "qcom,pm8921-pwrkey", .data = &pm8921_pwrkey_shutdown },
@@ -454,7 +447,6 @@ MODULE_DEVICE_TABLE(of, pm8xxx_pwr_key_id_table);
 
 static struct platform_driver pmic8xxx_pwrkey_driver = {
 	.probe		= pmic8xxx_pwrkey_probe,
-	.remove		= pmic8xxx_pwrkey_remove,
 	.shutdown	= pmic8xxx_pwrkey_shutdown,
 	.driver		= {
 		.name	= "pm8xxx-pwrkey",

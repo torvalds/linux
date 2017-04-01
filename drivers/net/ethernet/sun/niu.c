@@ -3786,7 +3786,7 @@ static int niu_poll(struct napi_struct *napi, int budget)
 	work_done = niu_poll_core(np, lp, budget);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		niu_ldg_rearm(np, lp, 1);
 	}
 	return work_done;
@@ -6294,8 +6294,8 @@ no_rings:
 	stats->tx_errors = errors;
 }
 
-static struct rtnl_link_stats64 *niu_get_stats(struct net_device *dev,
-					       struct rtnl_link_stats64 *stats)
+static void niu_get_stats(struct net_device *dev,
+			  struct rtnl_link_stats64 *stats)
 {
 	struct niu *np = netdev_priv(dev);
 
@@ -6303,8 +6303,6 @@ static struct rtnl_link_stats64 *niu_get_stats(struct net_device *dev,
 		niu_get_rx_stats(np, stats);
 		niu_get_tx_stats(np, stats);
 	}
-
-	return stats;
 }
 
 static void niu_load_hash_xmac(struct niu *np, u16 *hash)

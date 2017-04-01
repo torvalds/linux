@@ -86,6 +86,102 @@
  * general bitmasking mechanism.
  */
 
+/*
+ * A command that requires special handling by the command parser.
+ */
+struct drm_i915_cmd_descriptor {
+	/*
+	 * Flags describing how the command parser processes the command.
+	 *
+	 * CMD_DESC_FIXED: The command has a fixed length if this is set,
+	 *                 a length mask if not set
+	 * CMD_DESC_SKIP: The command is allowed but does not follow the
+	 *                standard length encoding for the opcode range in
+	 *                which it falls
+	 * CMD_DESC_REJECT: The command is never allowed
+	 * CMD_DESC_REGISTER: The command should be checked against the
+	 *                    register whitelist for the appropriate ring
+	 * CMD_DESC_MASTER: The command is allowed if the submitting process
+	 *                  is the DRM master
+	 */
+	u32 flags;
+#define CMD_DESC_FIXED    (1<<0)
+#define CMD_DESC_SKIP     (1<<1)
+#define CMD_DESC_REJECT   (1<<2)
+#define CMD_DESC_REGISTER (1<<3)
+#define CMD_DESC_BITMASK  (1<<4)
+#define CMD_DESC_MASTER   (1<<5)
+
+	/*
+	 * The command's unique identification bits and the bitmask to get them.
+	 * This isn't strictly the opcode field as defined in the spec and may
+	 * also include type, subtype, and/or subop fields.
+	 */
+	struct {
+		u32 value;
+		u32 mask;
+	} cmd;
+
+	/*
+	 * The command's length. The command is either fixed length (i.e. does
+	 * not include a length field) or has a length field mask. The flag
+	 * CMD_DESC_FIXED indicates a fixed length. Otherwise, the command has
+	 * a length mask. All command entries in a command table must include
+	 * length information.
+	 */
+	union {
+		u32 fixed;
+		u32 mask;
+	} length;
+
+	/*
+	 * Describes where to find a register address in the command to check
+	 * against the ring's register whitelist. Only valid if flags has the
+	 * CMD_DESC_REGISTER bit set.
+	 *
+	 * A non-zero step value implies that the command may access multiple
+	 * registers in sequence (e.g. LRI), in that case step gives the
+	 * distance in dwords between individual offset fields.
+	 */
+	struct {
+		u32 offset;
+		u32 mask;
+		u32 step;
+	} reg;
+
+#define MAX_CMD_DESC_BITMASKS 3
+	/*
+	 * Describes command checks where a particular dword is masked and
+	 * compared against an expected value. If the command does not match
+	 * the expected value, the parser rejects it. Only valid if flags has
+	 * the CMD_DESC_BITMASK bit set. Only entries where mask is non-zero
+	 * are valid.
+	 *
+	 * If the check specifies a non-zero condition_mask then the parser
+	 * only performs the check when the bits specified by condition_mask
+	 * are non-zero.
+	 */
+	struct {
+		u32 offset;
+		u32 mask;
+		u32 expected;
+		u32 condition_offset;
+		u32 condition_mask;
+	} bits[MAX_CMD_DESC_BITMASKS];
+};
+
+/*
+ * A table of commands requiring special handling by the command parser.
+ *
+ * Each engine has an array of tables. Each table consists of an array of
+ * command descriptors, which must be sorted with command opcodes in
+ * ascending order.
+ */
+struct drm_i915_cmd_table {
+	const struct drm_i915_cmd_descriptor *table;
+	int count;
+};
+
 #define STD_MI_OPCODE_SHIFT  (32 - 9)
 #define STD_3D_OPCODE_SHIFT  (32 - 16)
 #define STD_2D_OPCODE_SHIFT  (32 - 10)
@@ -450,7 +546,6 @@ static const struct drm_i915_reg_descriptor gen7_render_regs[] = {
 	REG64(PS_INVOCATION_COUNT),
 	REG64(PS_DEPTH_COUNT),
 	REG64_IDX(RING_TIMESTAMP, RENDER_RING_BASE),
-	REG32(OACONTROL), /* Only allowed for LRI and SRM. See below. */
 	REG64(MI_PREDICATE_SRC0),
 	REG64(MI_PREDICATE_SRC1),
 	REG32(GEN7_3DPRIM_END_OFFSET),
@@ -559,7 +654,7 @@ static const struct drm_i915_reg_table hsw_blt_reg_tables[] = {
 
 static u32 gen7_render_get_cmd_length_mask(u32 cmd_header)
 {
-	u32 client = (cmd_header & INSTR_CLIENT_MASK) >> INSTR_CLIENT_SHIFT;
+	u32 client = cmd_header >> INSTR_CLIENT_SHIFT;
 	u32 subclient =
 		(cmd_header & INSTR_SUBCLIENT_MASK) >> INSTR_SUBCLIENT_SHIFT;
 
@@ -578,7 +673,7 @@ static u32 gen7_render_get_cmd_length_mask(u32 cmd_header)
 
 static u32 gen7_bsd_get_cmd_length_mask(u32 cmd_header)
 {
-	u32 client = (cmd_header & INSTR_CLIENT_MASK) >> INSTR_CLIENT_SHIFT;
+	u32 client = cmd_header >> INSTR_CLIENT_SHIFT;
 	u32 subclient =
 		(cmd_header & INSTR_SUBCLIENT_MASK) >> INSTR_SUBCLIENT_SHIFT;
 	u32 op = (cmd_header & INSTR_26_TO_24_MASK) >> INSTR_26_TO_24_SHIFT;
@@ -601,7 +696,7 @@ static u32 gen7_bsd_get_cmd_length_mask(u32 cmd_header)
 
 static u32 gen7_blt_get_cmd_length_mask(u32 cmd_header)
 {
-	u32 client = (cmd_header & INSTR_CLIENT_MASK) >> INSTR_CLIENT_SHIFT;
+	u32 client = cmd_header >> INSTR_CLIENT_SHIFT;
 
 	if (client == INSTR_MI_CLIENT)
 		return 0x3F;
@@ -984,7 +1079,7 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 
 	src = ERR_PTR(-ENODEV);
 	if (src_needs_clflush &&
-	    i915_memcpy_from_wc((void *)(uintptr_t)batch_start_offset, NULL, 0)) {
+	    i915_can_memcpy_from_wc(NULL, batch_start_offset, 0)) {
 		src = i915_gem_object_pin_map(src_obj, I915_MAP_WC);
 		if (!IS_ERR(src)) {
 			i915_memcpy_from_wc(dst,
@@ -1036,32 +1131,10 @@ unpin_src:
 	return dst;
 }
 
-/**
- * intel_engine_needs_cmd_parser() - should a given engine use software
- *                                   command parsing?
- * @engine: the engine in question
- *
- * Only certain platforms require software batch buffer command parsing, and
- * only when enabled via module parameter.
- *
- * Return: true if the engine requires software command parsing
- */
-bool intel_engine_needs_cmd_parser(struct intel_engine_cs *engine)
-{
-	if (!engine->needs_cmd_parser)
-		return false;
-
-	if (!USES_PPGTT(engine->i915))
-		return false;
-
-	return (i915.enable_cmd_parser == 1);
-}
-
 static bool check_cmd(const struct intel_engine_cs *engine,
 		      const struct drm_i915_cmd_descriptor *desc,
 		      const u32 *cmd, u32 length,
-		      const bool is_master,
-		      bool *oacontrol_set)
+		      const bool is_master)
 {
 	if (desc->flags & CMD_DESC_SKIP)
 		return true;
@@ -1096,31 +1169,6 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 				DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (exec_id=%d)\n",
 						 reg_addr, *cmd, engine->exec_id);
 				return false;
-			}
-
-			/*
-			 * OACONTROL requires some special handling for
-			 * writes. We want to make sure that any batch which
-			 * enables OA also disables it before the end of the
-			 * batch. The goal is to prevent one process from
-			 * snooping on the perf data from another process. To do
-			 * that, we need to check the value that will be written
-			 * to the register. Hence, limit OACONTROL writes to
-			 * only MI_LOAD_REGISTER_IMM commands.
-			 */
-			if (reg_addr == i915_mmio_reg_offset(OACONTROL)) {
-				if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
-					DRM_DEBUG_DRIVER("CMD: Rejected LRM to OACONTROL\n");
-					return false;
-				}
-
-				if (desc->cmd.value == MI_LOAD_REGISTER_REG) {
-					DRM_DEBUG_DRIVER("CMD: Rejected LRR to OACONTROL\n");
-					return false;
-				}
-
-				if (desc->cmd.value == MI_LOAD_REGISTER_IMM(1))
-					*oacontrol_set = (cmd[offset + 1] != 0);
 			}
 
 			/*
@@ -1214,7 +1262,6 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 	u32 *cmd, *batch_end;
 	struct drm_i915_cmd_descriptor default_desc = noop_desc;
 	const struct drm_i915_cmd_descriptor *desc = &default_desc;
-	bool oacontrol_set = false; /* OACONTROL tracking. See check_cmd() */
 	bool needs_clflush_after = false;
 	int ret = 0;
 
@@ -1270,18 +1317,12 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			break;
 		}
 
-		if (!check_cmd(engine, desc, cmd, length, is_master,
-			       &oacontrol_set)) {
-			ret = -EINVAL;
+		if (!check_cmd(engine, desc, cmd, length, is_master)) {
+			ret = -EACCES;
 			break;
 		}
 
 		cmd += length;
-	}
-
-	if (oacontrol_set) {
-		DRM_DEBUG_DRIVER("CMD: batch set OACONTROL but did not clear it\n");
-		ret = -EINVAL;
 	}
 
 	if (cmd >= batch_end) {
@@ -1313,7 +1354,7 @@ int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 
 	/* If the command parser is not enabled, report 0 - unsupported */
 	for_each_engine(engine, dev_priv, id) {
-		if (intel_engine_needs_cmd_parser(engine)) {
+		if (engine->needs_cmd_parser) {
 			active = true;
 			break;
 		}
@@ -1333,6 +1374,11 @@ int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 	 * 5. GPGPU dispatch compute indirect registers.
 	 * 6. TIMESTAMP register and Haswell CS GPR registers
 	 * 7. Allow MI_LOAD_REGISTER_REG between whitelisted registers.
+	 * 8. Don't report cmd_check() failures as EINVAL errors to userspace;
+	 *    rely on the HW to NOOP disallowed commands as it would without
+	 *    the parser enabled.
+	 * 9. Don't whitelist or handle oacontrol specially, as ownership
+	 *    for oacontrol state is moving to i915-perf.
 	 */
-	return 7;
+	return 9;
 }

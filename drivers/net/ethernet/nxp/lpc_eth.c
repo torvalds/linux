@@ -999,7 +999,7 @@ static int lpc_eth_poll(struct napi_struct *napi, int budget)
 	rx_done = __lpc_handle_recv(ndev, budget);
 
 	if (rx_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rx_done);
 		lpc_eth_enable_int(pldat->net_base);
 	}
 

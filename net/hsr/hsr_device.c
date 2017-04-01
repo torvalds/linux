@@ -395,7 +395,7 @@ static struct device_type hsr_type = {
 
 void hsr_dev_setup(struct net_device *dev)
 {
-	random_ether_addr(dev->dev_addr);
+	eth_hw_addr_random(dev);
 
 	ether_setup(dev);
 	dev->min_mtu = 0;

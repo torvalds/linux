@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef _MEDIA_DEVICE_H
@@ -125,6 +121,8 @@ struct media_device_ops {
  *    bridge driver finds the media_device during probe.
  *    Bridge driver sets source_priv with information
  *    necessary to run @enable_source and @disable_source handlers.
+ *    Callers should hold graph_mutex to access and call @enable_source
+ *    and @disable_source handlers.
  */
 struct media_device {
 	/* dev->driver_data points to this struct. */
@@ -154,7 +152,7 @@ struct media_device {
 
 	/* Serializes graph operations. */
 	struct mutex graph_mutex;
-	struct media_entity_graph pm_count_walk;
+	struct media_graph pm_count_walk;
 
 	void *source_priv;
 	int (*enable_source)(struct media_entity *entity,

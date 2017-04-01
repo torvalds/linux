@@ -2537,7 +2537,7 @@ static int sbmac_poll(struct napi_struct *napi, int budget)
 	sbdma_tx_process(sc, &(sc->sbm_txdma), 1);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 #ifdef CONFIG_SBMAC_COALESCE
 		__raw_writeq(((M_MAC_INT_EOP_COUNT | M_MAC_INT_EOP_TIMER) << S_MAC_TX_CH0) |
@@ -2617,7 +2617,7 @@ out_out:
 	return err;
 }
 
-static int __exit sbmac_remove(struct platform_device *pldev)
+static int sbmac_remove(struct platform_device *pldev)
 {
 	struct net_device *dev = platform_get_drvdata(pldev);
 	struct sbmac_softc *sc = netdev_priv(dev);
@@ -2634,7 +2634,7 @@ static int __exit sbmac_remove(struct platform_device *pldev)
 
 static struct platform_driver sbmac_driver = {
 	.probe = sbmac_probe,
-	.remove = __exit_p(sbmac_remove),
+	.remove = sbmac_remove,
 	.driver = {
 		.name = sbmac_string,
 	},

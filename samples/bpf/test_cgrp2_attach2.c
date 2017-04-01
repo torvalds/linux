@@ -79,11 +79,12 @@ int main(int argc, char **argv)
 	if (join_cgroup(FOO))
 		goto err;
 
-	if (bpf_prog_attach(drop_prog, foo, BPF_CGROUP_INET_EGRESS)) {
+	if (bpf_prog_attach(drop_prog, foo, BPF_CGROUP_INET_EGRESS, 1)) {
 		log_err("Attaching prog to /foo");
 		goto err;
 	}
 
+	printf("Attached DROP prog. This ping in cgroup /foo should fail...\n");
 	assert(system(PING_CMD) != 0);
 
 	/* Create cgroup /foo/bar, get fd, and join it */
@@ -94,24 +95,27 @@ int main(int argc, char **argv)
 	if (join_cgroup(BAR))
 		goto err;
 
+	printf("Attached DROP prog. This ping in cgroup /foo/bar should fail...\n");
 	assert(system(PING_CMD) != 0);
 
-	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS)) {
+	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 1)) {
 		log_err("Attaching prog to /foo/bar");
 		goto err;
 	}
 
+	printf("Attached PASS prog. This ping in cgroup /foo/bar should pass...\n");
 	assert(system(PING_CMD) == 0);
-
 
 	if (bpf_prog_detach(bar, BPF_CGROUP_INET_EGRESS)) {
 		log_err("Detaching program from /foo/bar");
 		goto err;
 	}
 
+	printf("Detached PASS from /foo/bar while DROP is attached to /foo.\n"
+	       "This ping in cgroup /foo/bar should fail...\n");
 	assert(system(PING_CMD) != 0);
 
-	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS)) {
+	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 1)) {
 		log_err("Attaching prog to /foo/bar");
 		goto err;
 	}
@@ -121,7 +125,59 @@ int main(int argc, char **argv)
 		goto err;
 	}
 
+	printf("Attached PASS from /foo/bar and detached DROP from /foo.\n"
+	       "This ping in cgroup /foo/bar should pass...\n");
 	assert(system(PING_CMD) == 0);
+
+	if (bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 1)) {
+		log_err("Attaching prog to /foo/bar");
+		goto err;
+	}
+
+	if (!bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 0)) {
+		errno = 0;
+		log_err("Unexpected success attaching prog to /foo/bar");
+		goto err;
+	}
+
+	if (bpf_prog_detach(bar, BPF_CGROUP_INET_EGRESS)) {
+		log_err("Detaching program from /foo/bar");
+		goto err;
+	}
+
+	if (!bpf_prog_detach(foo, BPF_CGROUP_INET_EGRESS)) {
+		errno = 0;
+		log_err("Unexpected success in double detach from /foo");
+		goto err;
+	}
+
+	if (bpf_prog_attach(allow_prog, foo, BPF_CGROUP_INET_EGRESS, 0)) {
+		log_err("Attaching non-overridable prog to /foo");
+		goto err;
+	}
+
+	if (!bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 0)) {
+		errno = 0;
+		log_err("Unexpected success attaching non-overridable prog to /foo/bar");
+		goto err;
+	}
+
+	if (!bpf_prog_attach(allow_prog, bar, BPF_CGROUP_INET_EGRESS, 1)) {
+		errno = 0;
+		log_err("Unexpected success attaching overridable prog to /foo/bar");
+		goto err;
+	}
+
+	if (!bpf_prog_attach(allow_prog, foo, BPF_CGROUP_INET_EGRESS, 1)) {
+		errno = 0;
+		log_err("Unexpected success attaching overridable prog to /foo");
+		goto err;
+	}
+
+	if (bpf_prog_attach(drop_prog, foo, BPF_CGROUP_INET_EGRESS, 0)) {
+		log_err("Attaching different non-overridable prog to /foo");
+		goto err;
+	}
 
 	goto out;
 
@@ -132,5 +188,9 @@ out:
 	close(foo);
 	close(bar);
 	cleanup_cgroup_environment();
+	if (!rc)
+		printf("PASS\n");
+	else
+		printf("FAIL\n");
 	return rc;
 }

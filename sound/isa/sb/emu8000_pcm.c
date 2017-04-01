@@ -19,6 +19,8 @@
  */
 
 #include "emu8000_local.h"
+
+#include <linux/sched/signal.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <sound/initval.h>

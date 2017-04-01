@@ -488,34 +488,6 @@ DEFINE_HD_EVENT(gb_hd_in);
 
 #undef DEFINE_HD_EVENT
 
-/*
- * Occurs on a TimeSync synchronization event or a TimeSync ping event.
- */
-TRACE_EVENT(gb_timesync_irq,
-
-	TP_PROTO(u8 ping, u8 strobe, u8 count, u64 frame_time),
-
-	TP_ARGS(ping, strobe, count, frame_time),
-
-	TP_STRUCT__entry(
-		__field(u8, ping)
-		__field(u8, strobe)
-		__field(u8, count)
-		__field(u64, frame_time)
-	),
-
-	TP_fast_assign(
-		__entry->ping = ping;
-		__entry->strobe = strobe;
-		__entry->count = count;
-		__entry->frame_time = frame_time;
-	),
-
-	TP_printk("%s %d/%d frame-time %llu\n",
-		  __entry->ping ? "ping" : "strobe", __entry->strobe,
-		  __entry->count, __entry->frame_time)
-);
-
 #endif /* _TRACE_GREYBUS_H */
 
 /* This part must be outside protection */

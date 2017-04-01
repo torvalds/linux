@@ -909,6 +909,7 @@ static struct spi_driver acx565akm_driver = {
 
 module_spi_driver(acx565akm_driver);
 
+MODULE_ALIAS("spi:sony,acx565akm");
 MODULE_AUTHOR("Nokia Corporation");
 MODULE_DESCRIPTION("acx565akm LCD Driver");
 MODULE_LICENSE("GPL");

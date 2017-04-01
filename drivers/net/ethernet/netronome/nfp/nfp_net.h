@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Netronome Systems, Inc.
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -43,6 +43,7 @@
 #define _NFP_NET_H_
 
 #include <linux/interrupt.h>
+#include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
@@ -83,6 +84,7 @@
 #define NFP_NET_NON_Q_VECTORS		2
 #define NFP_NET_IRQ_LSC_IDX		0
 #define NFP_NET_IRQ_EXN_IDX		1
+#define NFP_NET_MIN_PORT_IRQS		(NFP_NET_NON_Q_VECTORS + 1)
 
 /* Queue/Ring definitions */
 #define NFP_NET_MAX_TX_RINGS	64	/* Max. # of Tx rings per device */
@@ -109,6 +111,7 @@
 				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 /* Forward declarations */
+struct nfp_cpp;
 struct nfp_net;
 struct nfp_net_r_vector;
 
@@ -345,7 +348,7 @@ struct nfp_net_rx_ring {
  * @tx_ring:        Pointer to TX ring
  * @rx_ring:        Pointer to RX ring
  * @xdp_ring:	    Pointer to an extra TX ring for XDP
- * @irq_idx:        Index into MSI-X table
+ * @irq_entry:      MSI-X table entry (use for talking to the device)
  * @rx_sync:	    Seqlock for atomic updates of RX stats
  * @rx_pkts:        Number of received packets
  * @rx_bytes:	    Number of received bytes
@@ -362,6 +365,7 @@ struct nfp_net_rx_ring {
  * @tx_lso:	    Counter of LSO packets sent
  * @tx_errors:	    How many TX errors were encountered
  * @tx_busy:        How often was TX busy (no space)?
+ * @irq_vector:     Interrupt vector number (use for talking to the OS)
  * @handler:        Interrupt handler for this ring vector
  * @name:           Name of the interrupt vector
  * @affinity_mask:  SMP affinity mask for this vector
@@ -378,7 +382,7 @@ struct nfp_net_r_vector {
 	struct nfp_net_tx_ring *tx_ring;
 	struct nfp_net_rx_ring *rx_ring;
 
-	int irq_idx;
+	u16 irq_entry;
 
 	struct u64_stats_sync rx_sync;
 	u64 rx_pkts;
@@ -400,6 +404,7 @@ struct nfp_net_r_vector {
 	u64 tx_errors;
 	u64 tx_busy;
 
+	u32 irq_vector;
 	irq_handler_t handler;
 	char name[IFNAMSIZ + 8];
 	cpumask_t affinity_mask;
@@ -431,20 +436,13 @@ struct nfp_stat_pair {
  * struct nfp_net - NFP network device structure
  * @pdev:               Backpointer to PCI device
  * @netdev:             Backpointer to net_device structure
- * @nfp_fallback:       Is the driver used in fallback mode?
  * @is_vf:              Is the driver attached to a VF?
- * @fw_loaded:          Is the firmware loaded?
  * @bpf_offload_skip_sw:  Offloaded BPF program will not be rerun by cls_bpf
  * @bpf_offload_xdp:	Offloaded BPF program is XDP
  * @ctrl:               Local copy of the control register/word.
  * @fl_bufsz:           Currently configured size of the freelist buffers
  * @rx_offset:		Offset in the RX buffers where packet data starts
  * @xdp_prog:		Installed XDP program
- * @cpp:                Pointer to the CPP handle
- * @nfp_dev_cpp:        Pointer to the NFP Device handle
- * @ctrl_area:          Pointer to the CPP area for the control BAR
- * @tx_area:            Pointer to the CPP area for the TX queues
- * @rx_area:            Pointer to the CPP area for the FL/RX queues
  * @fw_ver:             Firmware version
  * @cap:                Capabilities advertised by the Firmware
  * @max_mtu:            Maximum support MTU advertised by the Firmware
@@ -494,14 +492,15 @@ struct nfp_stat_pair {
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @debugfs_dir:	Device directory in debugfs
+ * @ethtool_dump_flag:	Ethtool dump flag
+ * @port_list:		Entry on device port list
+ * @cpp:		CPP device handle if available
  */
 struct nfp_net {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
 
-	unsigned nfp_fallback:1;
 	unsigned is_vf:1;
-	unsigned fw_loaded:1;
 	unsigned bpf_offload_skip_sw:1;
 	unsigned bpf_offload_xdp:1;
 
@@ -514,18 +513,6 @@ struct nfp_net {
 
 	struct nfp_net_tx_ring *tx_rings;
 	struct nfp_net_rx_ring *rx_rings;
-
-#ifdef CONFIG_PCI_IOV
-	unsigned int num_vfs;
-	struct vf_data_storage *vfinfo;
-	int vf_rate_link_speed;
-#endif
-
-	struct nfp_cpp *cpp;
-	struct platform_device *nfp_dev_cpp;
-	struct nfp_cpp_area *ctrl_area;
-	struct nfp_cpp_area *tx_area;
-	struct nfp_cpp_area *rx_area;
 
 	struct nfp_net_fw_version fw_ver;
 	u32 cap;
@@ -589,11 +576,15 @@ struct nfp_net {
 	u8 __iomem *qcp_cfg;
 
 	u8 __iomem *ctrl_bar;
-	u8 __iomem *q_bar;
 	u8 __iomem *tx_bar;
 	u8 __iomem *rx_bar;
 
 	struct dentry *debugfs_dir;
+	u32 ethtool_dump_flag;
+
+	struct list_head port_list;
+
+	struct nfp_cpp *cpp;
 };
 
 struct nfp_net_ring_set {
@@ -770,8 +761,7 @@ static inline u32 nfp_qcp_wr_ptr_read(u8 __iomem *q)
 }
 
 /* Globals */
-extern const char nfp_net_driver_name[];
-extern const char nfp_net_driver_version[];
+extern const char nfp_driver_version[];
 
 /* Prototypes */
 void nfp_net_get_fw_version(struct nfp_net_fw_version *fw_ver,
@@ -789,17 +779,24 @@ int nfp_net_reconfig(struct nfp_net *nn, u32 update);
 void nfp_net_rss_write_itbl(struct nfp_net *nn);
 void nfp_net_rss_write_key(struct nfp_net *nn);
 void nfp_net_coalesce_write_cfg(struct nfp_net *nn);
-int nfp_net_irqs_alloc(struct nfp_net *nn);
-void nfp_net_irqs_disable(struct nfp_net *nn);
+
+unsigned int
+nfp_net_irqs_alloc(struct pci_dev *pdev, struct msix_entry *irq_entries,
+		   unsigned int min_irqs, unsigned int want_irqs);
+void nfp_net_irqs_disable(struct pci_dev *pdev);
+void
+nfp_net_irqs_assign(struct nfp_net *nn, struct msix_entry *irq_entries,
+		    unsigned int n);
 int
 nfp_net_ring_reconfig(struct nfp_net *nn, struct bpf_prog **xdp_prog,
 		      struct nfp_net_ring_set *rx, struct nfp_net_ring_set *tx);
 
-#ifdef CONFIG_NFP_NET_DEBUG
+#ifdef CONFIG_NFP_DEBUG
 void nfp_net_debugfs_create(void);
 void nfp_net_debugfs_destroy(void);
-void nfp_net_debugfs_adapter_add(struct nfp_net *nn);
-void nfp_net_debugfs_adapter_del(struct nfp_net *nn);
+struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev);
+void nfp_net_debugfs_port_add(struct nfp_net *nn, struct dentry *ddir, int id);
+void nfp_net_debugfs_dir_clean(struct dentry **dir);
 #else
 static inline void nfp_net_debugfs_create(void)
 {
@@ -809,14 +806,20 @@ static inline void nfp_net_debugfs_destroy(void)
 {
 }
 
-static inline void nfp_net_debugfs_adapter_add(struct nfp_net *nn)
+static inline struct dentry *nfp_net_debugfs_device_add(struct pci_dev *pdev)
+{
+	return NULL;
+}
+
+static inline void
+nfp_net_debugfs_port_add(struct nfp_net *nn, struct dentry *ddir, int id)
 {
 }
 
-static inline void nfp_net_debugfs_adapter_del(struct nfp_net *nn)
+static inline void nfp_net_debugfs_dir_clean(struct dentry **dir)
 {
 }
-#endif /* CONFIG_NFP_NET_DEBUG */
+#endif /* CONFIG_NFP_DEBUG */
 
 void nfp_net_filter_stats_timer(unsigned long data);
 int nfp_net_bpf_offload(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf);

@@ -434,7 +434,9 @@ static int bnx2x_vf_mac_vlan_config(struct bnx2x *bp,
 
 	/* Add/Remove the filter */
 	rc = bnx2x_config_vlan_mac(bp, &ramrod);
-	if (rc && rc != -EEXIST) {
+	if (rc == -EEXIST)
+		return 0;
+	if (rc) {
 		BNX2X_ERR("Failed to %s %s\n",
 			  filter->add ? "add" : "delete",
 			  (filter->type == BNX2X_VF_FILTER_VLAN_MAC) ?
@@ -443,6 +445,8 @@ static int bnx2x_vf_mac_vlan_config(struct bnx2x *bp,
 				"MAC" : "VLAN");
 		return rc;
 	}
+
+	filter->applied = true;
 
 	return 0;
 }
@@ -469,8 +473,10 @@ int bnx2x_vf_mac_vlan_config_list(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	/* Rollback if needed */
 	if (i != filters->count) {
 		BNX2X_ERR("Managed only %d/%d filters - rolling back\n",
-			  i, filters->count + 1);
+			  i, filters->count);
 		while (--i >= 0) {
+			if (!filters->filters[i].applied)
+				continue;
 			filters->filters[i].add = !filters->filters[i].add;
 			bnx2x_vf_mac_vlan_config(bp, vf, qid,
 						 &filters->filters[i],
@@ -1899,7 +1905,8 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 			continue;
 		}
 
-		DP(BNX2X_MSG_IOV, "add addresses for vf %d\n", vf->abs_vfid);
+		DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
+		       "add addresses for vf %d\n", vf->abs_vfid);
 		for_each_vfq(vf, j) {
 			struct bnx2x_vf_queue *rxq = vfq_get(vf, j);
 
@@ -1920,11 +1927,12 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 				cpu_to_le32(U64_HI(q_stats_addr));
 			cur_query_entry->address.lo =
 				cpu_to_le32(U64_LO(q_stats_addr));
-			DP(BNX2X_MSG_IOV,
-			   "added address %x %x for vf %d queue %d client %d\n",
-			   cur_query_entry->address.hi,
-			   cur_query_entry->address.lo, cur_query_entry->funcID,
-			   j, cur_query_entry->index);
+			DP_AND((BNX2X_MSG_IOV | BNX2X_MSG_STATS),
+			       "added address %x %x for vf %d queue %d client %d\n",
+			       cur_query_entry->address.hi,
+			       cur_query_entry->address.lo,
+			       cur_query_entry->funcID,
+			       j, cur_query_entry->index);
 			cur_query_entry++;
 			cur_data_offset += sizeof(struct per_queue_stats);
 			stats_count++;

@@ -17,6 +17,7 @@
 #include <linux/file.h>
 #include <linux/fdtable.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/compat.h>
 #include <linux/syscalls.h>
 #include <linux/magic.h>
@@ -37,8 +38,6 @@
  * mounts (used for autofs lazy mount/umount of nested mount trees),
  * which have been left busy at at service shutdown.
  */
-
-#define AUTOFS_DEV_IOCTL_SIZE	sizeof(struct autofs_dev_ioctl)
 
 typedef int (*ioctl_fn)(struct file *, struct autofs_sb_info *,
 			struct autofs_dev_ioctl *);

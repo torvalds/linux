@@ -259,6 +259,8 @@ int vgic_init(struct kvm *kvm)
 	if (ret)
 		goto out;
 
+	vgic_debug_init(kvm);
+
 	dist->initialized = true;
 out:
 	return ret;
@@ -287,6 +289,8 @@ static void __kvm_vgic_destroy(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
 	int i;
+
+	vgic_debug_destroy(kvm);
 
 	kvm_vgic_dist_destroy(kvm);
 

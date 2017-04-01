@@ -100,6 +100,11 @@ MODULE_VERSION(HFI1_DRIVER_VERSION);
  * MAX_PKT_RCV is the max # if packets processed per receive interrupt.
  */
 #define MAX_PKT_RECV 64
+/*
+ * MAX_PKT_THREAD_RCV is the max # of packets processed before
+ * the qp_wait_list queue is flushed.
+ */
+#define MAX_PKT_RECV_THREAD (MAX_PKT_RECV * 4)
 #define EGR_HEAD_UPDATE_THRESHOLD 16
 
 struct hfi1_ib_stats hfi1_stats;
@@ -259,7 +264,7 @@ static inline void *get_egrbuf(const struct hfi1_ctxtdata *rcd, u64 rhf,
  * allowed size ranges for the respective type and, optionally,
  * return the proper encoding.
  */
-inline int hfi1_rcvbuf_validate(u32 size, u8 type, u16 *encoded)
+int hfi1_rcvbuf_validate(u32 size, u8 type, u16 *encoded)
 {
 	if (unlikely(!PAGE_ALIGNED(size)))
 		return 0;
@@ -279,7 +284,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 	struct ib_header *rhdr = packet->hdr;
 	u32 rte = rhf_rcv_type_err(packet->rhf);
 	int lnh = be16_to_cpu(rhdr->lrh[0]) & 3;
-	struct hfi1_ibport *ibp = &ppd->ibport_data;
+	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct hfi1_devdata *dd = ppd->dd;
 	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 
@@ -594,7 +599,7 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 
 	while (1) {
 		struct hfi1_devdata *dd = rcd->dd;
-		struct hfi1_ibport *ibp = &rcd->ppd->ibport_data;
+		struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 		__le32 *rhf_addr = (__le32 *)rcd->rcvhdrq + mdata.ps_head +
 					 dd->rhf_offset;
 		struct rvt_qp *qp;
@@ -654,9 +659,60 @@ next:
 	}
 }
 
-static inline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
+static void process_rcv_qp_work(struct hfi1_ctxtdata *rcd)
+{
+	struct rvt_qp *qp, *nqp;
+
+	/*
+	 * Iterate over all QPs waiting to respond.
+	 * The list won't change since the IRQ is only run on one CPU.
+	 */
+	list_for_each_entry_safe(qp, nqp, &rcd->qp_wait_list, rspwait) {
+		list_del_init(&qp->rspwait);
+		if (qp->r_flags & RVT_R_RSP_NAK) {
+			qp->r_flags &= ~RVT_R_RSP_NAK;
+			hfi1_send_rc_ack(rcd, qp, 0);
+		}
+		if (qp->r_flags & RVT_R_RSP_SEND) {
+			unsigned long flags;
+
+			qp->r_flags &= ~RVT_R_RSP_SEND;
+			spin_lock_irqsave(&qp->s_lock, flags);
+			if (ib_rvt_state_ops[qp->state] &
+					RVT_PROCESS_OR_FLUSH_SEND)
+				hfi1_schedule_send(qp);
+			spin_unlock_irqrestore(&qp->s_lock, flags);
+		}
+		rvt_put_qp(qp);
+	}
+}
+
+static noinline int max_packet_exceeded(struct hfi1_packet *packet, int thread)
+{
+	if (thread) {
+		if ((packet->numpkt & (MAX_PKT_RECV_THREAD - 1)) == 0)
+			/* allow defered processing */
+			process_rcv_qp_work(packet->rcd);
+		cond_resched();
+		return RCV_PKT_OK;
+	} else {
+		this_cpu_inc(*packet->rcd->dd->rcv_limit);
+		return RCV_PKT_LIMIT;
+	}
+}
+
+static inline int check_max_packet(struct hfi1_packet *packet, int thread)
 {
 	int ret = RCV_PKT_OK;
+
+	if (unlikely((packet->numpkt & (MAX_PKT_RECV - 1)) == 0))
+		ret = max_packet_exceeded(packet, thread);
+	return ret;
+}
+
+static noinline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
+{
+	int ret;
 
 	/* Set up for the next packet */
 	packet->rhqoff += packet->rsize;
@@ -664,14 +720,7 @@ static inline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 		packet->rhqoff = 0;
 
 	packet->numpkt++;
-	if (unlikely((packet->numpkt & (MAX_PKT_RECV - 1)) == 0)) {
-		if (thread) {
-			cond_resched();
-		} else {
-			ret = RCV_PKT_LIMIT;
-			this_cpu_inc(*packet->rcd->dd->rcv_limit);
-		}
-	}
+	ret = check_max_packet(packet, thread);
 
 	packet->rhf_addr = (__le32 *)packet->rcd->rcvhdrq + packet->rhqoff +
 				     packet->rcd->dd->rhf_offset;
@@ -682,7 +731,7 @@ static inline int skip_rcv_packet(struct hfi1_packet *packet, int thread)
 
 static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 {
-	int ret = RCV_PKT_OK;
+	int ret;
 
 	packet->hdr = hfi1_get_msgheader(packet->rcd->dd,
 					 packet->rhf_addr);
@@ -723,14 +772,7 @@ static inline int process_rcv_packet(struct hfi1_packet *packet, int thread)
 	if (packet->rhqoff >= packet->maxcnt)
 		packet->rhqoff = 0;
 
-	if (unlikely((packet->numpkt & (MAX_PKT_RECV - 1)) == 0)) {
-		if (thread) {
-			cond_resched();
-		} else {
-			ret = RCV_PKT_LIMIT;
-			this_cpu_inc(*packet->rcd->dd->rcv_limit);
-		}
-	}
+	ret = check_max_packet(packet, thread);
 
 	packet->rhf_addr = (__le32 *)packet->rcd->rcvhdrq + packet->rhqoff +
 				      packet->rcd->dd->rhf_offset;
@@ -767,38 +809,6 @@ static inline void finish_packet(struct hfi1_packet *packet)
 		       packet->etail, rcv_intr_dynamic, packet->numpkt);
 }
 
-static inline void process_rcv_qp_work(struct hfi1_packet *packet)
-{
-	struct hfi1_ctxtdata *rcd;
-	struct rvt_qp *qp, *nqp;
-
-	rcd = packet->rcd;
-	rcd->head = packet->rhqoff;
-
-	/*
-	 * Iterate over all QPs waiting to respond.
-	 * The list won't change since the IRQ is only run on one CPU.
-	 */
-	list_for_each_entry_safe(qp, nqp, &rcd->qp_wait_list, rspwait) {
-		list_del_init(&qp->rspwait);
-		if (qp->r_flags & RVT_R_RSP_NAK) {
-			qp->r_flags &= ~RVT_R_RSP_NAK;
-			hfi1_send_rc_ack(rcd, qp, 0);
-		}
-		if (qp->r_flags & RVT_R_RSP_SEND) {
-			unsigned long flags;
-
-			qp->r_flags &= ~RVT_R_RSP_SEND;
-			spin_lock_irqsave(&qp->s_lock, flags);
-			if (ib_rvt_state_ops[qp->state] &
-					RVT_PROCESS_OR_FLUSH_SEND)
-				hfi1_schedule_send(qp);
-			spin_unlock_irqrestore(&qp->s_lock, flags);
-		}
-		rvt_put_qp(qp);
-	}
-}
-
 /*
  * Handle receive interrupts when using the no dma rtail option.
  */
@@ -826,7 +836,8 @@ int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 			last = RCV_PKT_DONE;
 		process_rcv_update(last, &packet);
 	}
-	process_rcv_qp_work(&packet);
+	process_rcv_qp_work(rcd);
+	rcd->head = packet.rhqoff;
 bail:
 	finish_packet(&packet);
 	return last;
@@ -854,7 +865,8 @@ int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread)
 			last = RCV_PKT_DONE;
 		process_rcv_update(last, &packet);
 	}
-	process_rcv_qp_work(&packet);
+	process_rcv_qp_work(rcd);
+	rcd->head = packet.rhqoff;
 bail:
 	finish_packet(&packet);
 	return last;
@@ -1024,7 +1036,8 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 		process_rcv_update(last, &packet);
 	}
 
-	process_rcv_qp_work(&packet);
+	process_rcv_qp_work(rcd);
+	rcd->head = packet.rhqoff;
 
 bail:
 	/*

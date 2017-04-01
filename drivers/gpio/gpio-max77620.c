@@ -152,11 +152,10 @@ static int max77620_gpio_dir_output(struct gpio_chip *gc, unsigned int offset,
 	return ret;
 }
 
-static int max77620_gpio_set_debounce(struct gpio_chip *gc,
+static int max77620_gpio_set_debounce(struct max77620_gpio *mgpio,
 				      unsigned int offset,
 				      unsigned int debounce)
 {
-	struct max77620_gpio *mgpio = gpiochip_get_data(gc);
 	u8 val;
 	int ret;
 
@@ -202,21 +201,23 @@ static void max77620_gpio_set(struct gpio_chip *gc, unsigned int offset,
 		dev_err(mgpio->dev, "CNFG_GPIO_OUT update failed: %d\n", ret);
 }
 
-static int max77620_gpio_set_single_ended(struct gpio_chip *gc,
-					  unsigned int offset,
-					  enum single_ended_mode mode)
+static int max77620_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
+				    unsigned long config)
 {
 	struct max77620_gpio *mgpio = gpiochip_get_data(gc);
 
-	switch (mode) {
-	case LINE_MODE_OPEN_DRAIN:
+	switch (pinconf_to_config_param(config)) {
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		return regmap_update_bits(mgpio->rmap, GPIO_REG_ADDR(offset),
 					  MAX77620_CNFG_GPIO_DRV_MASK,
 					  MAX77620_CNFG_GPIO_DRV_OPENDRAIN);
-	case LINE_MODE_PUSH_PULL:
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		return regmap_update_bits(mgpio->rmap, GPIO_REG_ADDR(offset),
 					  MAX77620_CNFG_GPIO_DRV_MASK,
 					  MAX77620_CNFG_GPIO_DRV_PUSHPULL);
+	case PIN_CONFIG_INPUT_DEBOUNCE:
+		return max77620_gpio_set_debounce(mgpio, offset,
+			pinconf_to_config_argument(config));
 	default:
 		break;
 	}
@@ -257,9 +258,8 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	mgpio->gpio_chip.direction_input = max77620_gpio_dir_input;
 	mgpio->gpio_chip.get = max77620_gpio_get;
 	mgpio->gpio_chip.direction_output = max77620_gpio_dir_output;
-	mgpio->gpio_chip.set_debounce = max77620_gpio_set_debounce;
 	mgpio->gpio_chip.set = max77620_gpio_set;
-	mgpio->gpio_chip.set_single_ended = max77620_gpio_set_single_ended;
+	mgpio->gpio_chip.set_config = max77620_gpio_set_config;
 	mgpio->gpio_chip.to_irq = max77620_gpio_to_irq;
 	mgpio->gpio_chip.ngpio = MAX77620_GPIO_NR;
 	mgpio->gpio_chip.can_sleep = 1;

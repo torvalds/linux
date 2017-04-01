@@ -452,11 +452,9 @@ static const struct versatile_panel versatile_panels[] = {
 	},
 };
 
-static void versatile_panel_probe(struct device *dev,
-				  struct device_node *endpoint)
+static void versatile_panel_probe(struct device *dev, struct device_node *panel)
 {
 	struct versatile_panel const *vpanel = NULL;
-	struct device_node *panel = NULL;
 	u32 val;
 	int ret;
 	int i;
@@ -488,11 +486,6 @@ static void versatile_panel_probe(struct device *dev,
 		return;
 	}
 
-	panel = of_graph_get_remote_port_parent(endpoint);
-	if (!panel) {
-		dev_err(dev, "could not locate panel in DT\n");
-		return;
-	}
 	if (!of_device_is_compatible(panel, vpanel->compatible))
 		dev_err(dev, "panel in DT is not compatible with the "
 			"auto-detected panel, continuing anyway\n");
@@ -514,8 +507,7 @@ static void versatile_panel_probe(struct device *dev,
 	}
 }
 
-int versatile_clcd_init_panel(struct clcd_fb *fb,
-			      struct device_node *endpoint)
+int versatile_clcd_init_panel(struct clcd_fb *fb, struct device_node *panel)
 {
 	const struct of_device_id *clcd_id;
 	enum versatile_clcd versatile_clcd_type;
@@ -551,7 +543,7 @@ int versatile_clcd_init_panel(struct clcd_fb *fb,
 		fb->board->enable = versatile_clcd_enable;
 		fb->board->disable = versatile_clcd_disable;
 		fb->board->decode = versatile_clcd_decode;
-		versatile_panel_probe(dev, endpoint);
+		versatile_panel_probe(dev, panel);
 		dev_info(dev, "set up callbacks for Versatile\n");
 		break;
 	case REALVIEW_CLCD_EB:

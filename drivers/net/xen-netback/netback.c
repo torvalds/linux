@@ -67,6 +67,7 @@ module_param(rx_drain_timeout_msecs, uint, 0444);
 unsigned int rx_stall_timeout_msecs = 60000;
 module_param(rx_stall_timeout_msecs, uint, 0444);
 
+#define MAX_QUEUES_DEFAULT 8
 unsigned int xenvif_max_queues;
 module_param_named(max_queues, xenvif_max_queues, uint, 0644);
 MODULE_PARM_DESC(max_queues,
@@ -213,7 +214,7 @@ static void xenvif_fatal_tx_err(struct xenvif *vif)
 	netdev_err(vif->dev, "fatal error; disabling device\n");
 	vif->disabled = true;
 	/* Disable the vif from queue 0's kthread */
-	if (vif->queues)
+	if (vif->num_queues)
 		xenvif_kick_thread(&vif->queues[0]);
 }
 
@@ -1622,11 +1623,12 @@ static int __init netback_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	/* Allow as many queues as there are CPUs if user has not
+	/* Allow as many queues as there are CPUs but max. 8 if user has not
 	 * specified a value.
 	 */
 	if (xenvif_max_queues == 0)
-		xenvif_max_queues = num_online_cpus();
+		xenvif_max_queues = min_t(unsigned int, MAX_QUEUES_DEFAULT,
+					  num_online_cpus());
 
 	if (fatal_skb_slots < XEN_NETBK_LEGACY_SLOTS_MAX) {
 		pr_info("fatal_skb_slots too small (%d), bump it to XEN_NETBK_LEGACY_SLOTS_MAX (%d)\n",

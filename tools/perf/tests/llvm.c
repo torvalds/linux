@@ -13,7 +13,7 @@ static int test__bpf_parsing(void *obj_buf, size_t obj_buf_sz)
 	struct bpf_object *obj;
 
 	obj = bpf_object__open_buffer(obj_buf, obj_buf_sz, NULL);
-	if (IS_ERR(obj))
+	if (libbpf_get_error(obj))
 		return TEST_FAIL;
 	bpf_object__close(obj);
 	return TEST_OK;
@@ -76,7 +76,7 @@ test_llvm__fetch_bpf_obj(void **p_obj_buf,
 	 * Skip this test if user's .perfconfig doesn't set [llvm] section
 	 * and clang is not found in $PATH, and this is not perf test -v
 	 */
-	if (!force && (verbose == 0 &&
+	if (!force && (verbose <= 0 &&
 		       !llvm_param.user_set_param &&
 		       llvm__search_clang())) {
 		pr_debug("No clang and no verbosive, skip this test\n");

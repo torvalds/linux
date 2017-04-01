@@ -16,10 +16,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -205,18 +201,14 @@ static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
 	writel(csr6, ioaddr + DMA_CONTROL);
 }
 
-static void dwmac1000_dump_dma_regs(void __iomem *ioaddr)
+static void dwmac1000_dump_dma_regs(void __iomem *ioaddr, u32 *reg_space)
 {
 	int i;
-	pr_info(" DMA registers\n");
-	for (i = 0; i < 22; i++) {
-		if ((i < 9) || (i > 17)) {
-			int offset = i * 4;
-			pr_err("\t Reg No. %d (offset 0x%x): 0x%08x\n", i,
-			       (DMA_BUS_MODE + offset),
-			       readl(ioaddr + DMA_BUS_MODE + offset));
-		}
-	}
+
+	for (i = 0; i < 22; i++)
+		if ((i < 9) || (i > 17))
+			reg_space[DMA_BUS_MODE / 4 + i] =
+				readl(ioaddr + DMA_BUS_MODE + i * 4);
 }
 
 static void dwmac1000_get_hw_feature(void __iomem *ioaddr,

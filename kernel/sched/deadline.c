@@ -134,7 +134,7 @@ static void inc_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 {
 	struct task_struct *p = dl_task_of(dl_se);
 
-	if (tsk_nr_cpus_allowed(p) > 1)
+	if (p->nr_cpus_allowed > 1)
 		dl_rq->dl_nr_migratory++;
 
 	update_dl_migration(dl_rq);
@@ -144,7 +144,7 @@ static void dec_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 {
 	struct task_struct *p = dl_task_of(dl_se);
 
-	if (tsk_nr_cpus_allowed(p) > 1)
+	if (p->nr_cpus_allowed > 1)
 		dl_rq->dl_nr_migratory--;
 
 	update_dl_migration(dl_rq);
@@ -252,7 +252,7 @@ static struct rq *dl_task_offline_migration(struct rq *rq, struct task_struct *p
 		 * If we cannot preempt any rq, fall back to pick any
 		 * online cpu.
 		 */
-		cpu = cpumask_any_and(cpu_active_mask, tsk_cpus_allowed(p));
+		cpu = cpumask_any_and(cpu_active_mask, &p->cpus_allowed);
 		if (cpu >= nr_cpu_ids) {
 			/*
 			 * Fail to find any suitable cpu.
@@ -445,13 +445,13 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se,
  *
  * This function returns true if:
  *
- *   runtime / (deadline - t) > dl_runtime / dl_period ,
+ *   runtime / (deadline - t) > dl_runtime / dl_deadline ,
  *
  * IOW we can't recycle current parameters.
  *
- * Notice that the bandwidth check is done against the period. For
+ * Notice that the bandwidth check is done against the deadline. For
  * task with deadline equal to period this is the same of using
- * dl_deadline instead of dl_period in the equation above.
+ * dl_period instead of dl_deadline in the equation above.
  */
 static bool dl_entity_overflow(struct sched_dl_entity *dl_se,
 			       struct sched_dl_entity *pi_se, u64 t)
@@ -476,7 +476,7 @@ static bool dl_entity_overflow(struct sched_dl_entity *dl_se,
 	 * of anything below microseconds resolution is actually fiction
 	 * (but still we want to give the user that illusion >;).
 	 */
-	left = (pi_se->dl_period >> DL_SCALE) * (dl_se->runtime >> DL_SCALE);
+	left = (pi_se->dl_deadline >> DL_SCALE) * (dl_se->runtime >> DL_SCALE);
 	right = ((dl_se->deadline - t) >> DL_SCALE) *
 		(pi_se->dl_runtime >> DL_SCALE);
 
@@ -505,10 +505,15 @@ static void update_dl_entity(struct sched_dl_entity *dl_se,
 	}
 }
 
+static inline u64 dl_next_period(struct sched_dl_entity *dl_se)
+{
+	return dl_se->deadline - dl_se->dl_deadline + dl_se->dl_period;
+}
+
 /*
  * If the entity depleted all its runtime, and if we want it to sleep
  * while waiting for some new execution time to become available, we
- * set the bandwidth enforcement timer to the replenishment instant
+ * set the bandwidth replenishment timer to the replenishment instant
  * and try to activate it.
  *
  * Notice that it is important for the caller to know if the timer
@@ -530,7 +535,7 @@ static int start_dl_timer(struct task_struct *p)
 	 * that it is actually coming from rq->clock and not from
 	 * hrtimer's time base reading.
 	 */
-	act = ns_to_ktime(dl_se->deadline);
+	act = ns_to_ktime(dl_next_period(dl_se));
 	now = hrtimer_cb_get_time(timer);
 	delta = ktime_to_ns(now) - rq_clock(rq);
 	act = ktime_add_ns(act, delta);
@@ -638,6 +643,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 		lockdep_unpin_lock(&rq->lock, rf.cookie);
 		rq = dl_task_offline_migration(rq, p);
 		rf.cookie = lockdep_pin_lock(&rq->lock);
+		update_rq_clock(rq);
 
 		/*
 		 * Now that the task has been migrated to the new RQ and we
@@ -663,9 +669,9 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 		 * Nothing relies on rq->lock after this, so its safe to drop
 		 * rq->lock.
 		 */
-		lockdep_unpin_lock(&rq->lock, rf.cookie);
+		rq_unpin_lock(rq, &rf);
 		push_dl_task(rq);
-		lockdep_repin_lock(&rq->lock, rf.cookie);
+		rq_repin_lock(rq, &rf);
 	}
 #endif
 
@@ -687,6 +693,37 @@ void init_dl_task_timer(struct sched_dl_entity *dl_se)
 
 	hrtimer_init(timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	timer->function = dl_task_timer;
+}
+
+/*
+ * During the activation, CBS checks if it can reuse the current task's
+ * runtime and period. If the deadline of the task is in the past, CBS
+ * cannot use the runtime, and so it replenishes the task. This rule
+ * works fine for implicit deadline tasks (deadline == period), and the
+ * CBS was designed for implicit deadline tasks. However, a task with
+ * constrained deadline (deadine < period) might be awakened after the
+ * deadline, but before the next period. In this case, replenishing the
+ * task would allow it to run for runtime / deadline. As in this case
+ * deadline < period, CBS enables a task to run for more than the
+ * runtime / period. In a very loaded system, this can cause a domino
+ * effect, making other tasks miss their deadlines.
+ *
+ * To avoid this problem, in the activation of a constrained deadline
+ * task after the deadline but before the next period, throttle the
+ * task and set the replenishing timer to the begin of the next period,
+ * unless it is boosted.
+ */
+static inline void dl_check_constrained_dl(struct sched_dl_entity *dl_se)
+{
+	struct task_struct *p = dl_task_of(dl_se);
+	struct rq *rq = rq_of_dl_rq(dl_rq_of_se(dl_se));
+
+	if (dl_time_before(dl_se->deadline, rq_clock(rq)) &&
+	    dl_time_before(rq_clock(rq), dl_next_period(dl_se))) {
+		if (unlikely(dl_se->dl_boosted || !start_dl_timer(p)))
+			return;
+		dl_se->dl_throttled = 1;
+	}
 }
 
 static
@@ -922,6 +959,11 @@ static void dequeue_dl_entity(struct sched_dl_entity *dl_se)
 	__dequeue_dl_entity(dl_se);
 }
 
+static inline bool dl_is_constrained(struct sched_dl_entity *dl_se)
+{
+	return dl_se->dl_deadline < dl_se->dl_period;
+}
+
 static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct task_struct *pi_task = rt_mutex_get_top_task(p);
@@ -948,6 +990,15 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 	}
 
 	/*
+	 * Check if a constrained deadline task was activated
+	 * after the deadline but before the next period.
+	 * If that is the case, the task will be throttled and
+	 * the replenishment timer will be set to the next period.
+	 */
+	if (!p->dl.dl_throttled && dl_is_constrained(&p->dl))
+		dl_check_constrained_dl(&p->dl);
+
+	/*
 	 * If p is throttled, we do nothing. In fact, if it exhausted
 	 * its budget it needs a replenishment and, since it now is on
 	 * its rq, the bandwidth timer callback (which clearly has not
@@ -958,7 +1009,7 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 
 	enqueue_dl_entity(&p->dl, pi_se, flags);
 
-	if (!task_current(rq, p) && tsk_nr_cpus_allowed(p) > 1)
+	if (!task_current(rq, p) && p->nr_cpus_allowed > 1)
 		enqueue_pushable_dl_task(rq, p);
 }
 
@@ -1032,9 +1083,9 @@ select_task_rq_dl(struct task_struct *p, int cpu, int sd_flag, int flags)
 	 * try to make it stay here, it might be important.
 	 */
 	if (unlikely(dl_task(curr)) &&
-	    (tsk_nr_cpus_allowed(curr) < 2 ||
+	    (curr->nr_cpus_allowed < 2 ||
 	     !dl_entity_preempt(&p->dl, &curr->dl)) &&
-	    (tsk_nr_cpus_allowed(p) > 1)) {
+	    (p->nr_cpus_allowed > 1)) {
 		int target = find_later_rq(p);
 
 		if (target != -1 &&
@@ -1055,7 +1106,7 @@ static void check_preempt_equal_dl(struct rq *rq, struct task_struct *p)
 	 * Current can't be migrated, useless to reschedule,
 	 * let's hope p can move out.
 	 */
-	if (tsk_nr_cpus_allowed(rq->curr) == 1 ||
+	if (rq->curr->nr_cpus_allowed == 1 ||
 	    cpudl_find(&rq->rd->cpudl, rq->curr, NULL) == -1)
 		return;
 
@@ -1063,7 +1114,7 @@ static void check_preempt_equal_dl(struct rq *rq, struct task_struct *p)
 	 * p is migratable, so let's not schedule it and
 	 * see if it is pushed or pulled somewhere else.
 	 */
-	if (tsk_nr_cpus_allowed(p) != 1 &&
+	if (p->nr_cpus_allowed != 1 &&
 	    cpudl_find(&rq->rd->cpudl, p, NULL) != -1)
 		return;
 
@@ -1118,7 +1169,7 @@ static struct sched_dl_entity *pick_next_dl_entity(struct rq *rq,
 }
 
 struct task_struct *
-pick_next_task_dl(struct rq *rq, struct task_struct *prev, struct pin_cookie cookie)
+pick_next_task_dl(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
 	struct sched_dl_entity *dl_se;
 	struct task_struct *p;
@@ -1133,9 +1184,9 @@ pick_next_task_dl(struct rq *rq, struct task_struct *prev, struct pin_cookie coo
 		 * disabled avoiding further scheduler activity on it and we're
 		 * being very careful to re-start the picking loop.
 		 */
-		lockdep_unpin_lock(&rq->lock, cookie);
+		rq_unpin_lock(rq, rf);
 		pull_dl_task(rq);
-		lockdep_repin_lock(&rq->lock, cookie);
+		rq_repin_lock(rq, rf);
 		/*
 		 * pull_dl_task() can drop (and re-acquire) rq->lock; this
 		 * means a stop task can slip in, in which case we need to
@@ -1178,7 +1229,7 @@ static void put_prev_task_dl(struct rq *rq, struct task_struct *p)
 {
 	update_curr_dl(rq);
 
-	if (on_dl_rq(&p->dl) && tsk_nr_cpus_allowed(p) > 1)
+	if (on_dl_rq(&p->dl) && p->nr_cpus_allowed > 1)
 		enqueue_pushable_dl_task(rq, p);
 }
 
@@ -1235,7 +1286,7 @@ static void set_curr_task_dl(struct rq *rq)
 static int pick_dl_task(struct rq *rq, struct task_struct *p, int cpu)
 {
 	if (!task_running(rq, p) &&
-	    cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
+	    cpumask_test_cpu(cpu, &p->cpus_allowed))
 		return 1;
 	return 0;
 }
@@ -1279,7 +1330,7 @@ static int find_later_rq(struct task_struct *task)
 	if (unlikely(!later_mask))
 		return -1;
 
-	if (tsk_nr_cpus_allowed(task) == 1)
+	if (task->nr_cpus_allowed == 1)
 		return -1;
 
 	/*
@@ -1384,8 +1435,7 @@ static struct rq *find_lock_later_rq(struct task_struct *task, struct rq *rq)
 		/* Retry if something changed. */
 		if (double_lock_balance(rq, later_rq)) {
 			if (unlikely(task_rq(task) != rq ||
-				     !cpumask_test_cpu(later_rq->cpu,
-						       tsk_cpus_allowed(task)) ||
+				     !cpumask_test_cpu(later_rq->cpu, &task->cpus_allowed) ||
 				     task_running(rq, task) ||
 				     !dl_task(task) ||
 				     !task_on_rq_queued(task))) {
@@ -1425,7 +1475,7 @@ static struct task_struct *pick_next_pushable_dl_task(struct rq *rq)
 
 	BUG_ON(rq->cpu != task_cpu(p));
 	BUG_ON(task_current(rq, p));
-	BUG_ON(tsk_nr_cpus_allowed(p) <= 1);
+	BUG_ON(p->nr_cpus_allowed <= 1);
 
 	BUG_ON(!task_on_rq_queued(p));
 	BUG_ON(!dl_task(p));
@@ -1464,7 +1514,7 @@ retry:
 	 */
 	if (dl_task(rq->curr) &&
 	    dl_time_before(next_task->dl.deadline, rq->curr->dl.deadline) &&
-	    tsk_nr_cpus_allowed(rq->curr) > 1) {
+	    rq->curr->nr_cpus_allowed > 1) {
 		resched_curr(rq);
 		return 0;
 	}
@@ -1611,9 +1661,9 @@ static void task_woken_dl(struct rq *rq, struct task_struct *p)
 {
 	if (!task_running(rq, p) &&
 	    !test_tsk_need_resched(rq->curr) &&
-	    tsk_nr_cpus_allowed(p) > 1 &&
+	    p->nr_cpus_allowed > 1 &&
 	    dl_task(rq->curr) &&
-	    (tsk_nr_cpus_allowed(rq->curr) < 2 ||
+	    (rq->curr->nr_cpus_allowed < 2 ||
 	     !dl_entity_preempt(&p->dl, &rq->curr->dl))) {
 		push_dl_tasks(rq);
 	}
@@ -1727,14 +1777,13 @@ static void switched_to_dl(struct rq *rq, struct task_struct *p)
 
 	if (rq->curr != p) {
 #ifdef CONFIG_SMP
-		if (tsk_nr_cpus_allowed(p) > 1 && rq->dl.overloaded)
+		if (p->nr_cpus_allowed > 1 && rq->dl.overloaded)
 			queue_push_tasks(rq);
-#else
+#endif
 		if (dl_task(rq->curr))
 			check_preempt_curr_dl(rq, p, 0);
 		else
 			resched_curr(rq);
-#endif
 	}
 }
 

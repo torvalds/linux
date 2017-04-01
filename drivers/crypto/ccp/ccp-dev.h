@@ -179,6 +179,10 @@
 
 /* ------------------------ General CCP Defines ------------------------ */
 
+#define	CCP_DMA_DFLT			0x0
+#define	CCP_DMA_PRIV			0x1
+#define	CCP_DMA_PUB			0x2
+
 #define CCP_DMAPOOL_MAX_SIZE		64
 #define CCP_DMAPOOL_ALIGN		BIT(5)
 
@@ -467,6 +471,7 @@ struct ccp_aes_op {
 	enum ccp_aes_type type;
 	enum ccp_aes_mode mode;
 	enum ccp_aes_action action;
+	unsigned int size;
 };
 
 struct ccp_xts_aes_op {
@@ -635,6 +640,7 @@ struct ccp_actions {
 /* Structure to hold CCP version-specific values */
 struct ccp_vdata {
 	const unsigned int version;
+	const unsigned int dma_chan_attr;
 	void (*setup)(struct ccp_device *);
 	const struct ccp_actions *perform;
 	const unsigned int bar;

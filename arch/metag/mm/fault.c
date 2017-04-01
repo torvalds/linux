@@ -8,6 +8,7 @@
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
+#include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
 

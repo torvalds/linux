@@ -62,6 +62,8 @@ struct module;
  * @archdata:		arch-specific data
  * @suspend:		suspend function for the clocksource, if necessary
  * @resume:		resume function for the clocksource, if necessary
+ * @mark_unstable:	Optional function to inform the clocksource driver that
+ *			the watchdog marked the clocksource unstable
  * @owner:		module reference, must be set by clocksource in modules
  *
  * Note: This struct is not used in hotpathes of the timekeeping code
@@ -93,6 +95,7 @@ struct clocksource {
 	unsigned long flags;
 	void (*suspend)(struct clocksource *cs);
 	void (*resume)(struct clocksource *cs);
+	void (*mark_unstable)(struct clocksource *cs);
 
 	/* private: */
 #ifdef CONFIG_CLOCKSOURCE_WATCHDOG

@@ -110,8 +110,8 @@ static void m68k_dma_sync_single_for_device(struct device *dev,
 		cache_clear(handle, size);
 		break;
 	default:
-		if (printk_ratelimit())
-			printk("dma_sync_single_for_device: unsupported dir %u\n", dir);
+		pr_err_ratelimited("dma_sync_single_for_device: unsupported dir %u\n",
+				   dir);
 		break;
 	}
 }
@@ -158,7 +158,7 @@ static int m68k_dma_map_sg(struct device *dev, struct scatterlist *sglist,
 	return nents;
 }
 
-struct dma_map_ops m68k_dma_ops = {
+const struct dma_map_ops m68k_dma_ops = {
 	.alloc			= m68k_dma_alloc,
 	.free			= m68k_dma_free,
 	.map_page		= m68k_dma_map_page,

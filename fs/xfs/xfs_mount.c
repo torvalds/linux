@@ -45,6 +45,7 @@
 #include "xfs_rmap_btree.h"
 #include "xfs_refcount_btree.h"
 #include "xfs_reflink.h"
+#include "xfs_extent_busy.h"
 
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
@@ -187,7 +188,7 @@ xfs_initialize_perag(
 	xfs_agnumber_t	*maxagi)
 {
 	xfs_agnumber_t	index;
-	xfs_agnumber_t	first_initialised = 0;
+	xfs_agnumber_t	first_initialised = NULLAGNUMBER;
 	xfs_perag_t	*pag;
 	int		error = -ENOMEM;
 
@@ -202,22 +203,21 @@ xfs_initialize_perag(
 			xfs_perag_put(pag);
 			continue;
 		}
-		if (!first_initialised)
-			first_initialised = index;
 
 		pag = kmem_zalloc(sizeof(*pag), KM_MAYFAIL);
 		if (!pag)
-			goto out_unwind;
+			goto out_unwind_new_pags;
 		pag->pag_agno = index;
 		pag->pag_mount = mp;
 		spin_lock_init(&pag->pag_ici_lock);
 		mutex_init(&pag->pag_ici_reclaim_lock);
 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
 		if (xfs_buf_hash_init(pag))
-			goto out_unwind;
+			goto out_free_pag;
+		init_waitqueue_head(&pag->pagb_wait);
 
 		if (radix_tree_preload(GFP_NOFS))
-			goto out_unwind;
+			goto out_hash_destroy;
 
 		spin_lock(&mp->m_perag_lock);
 		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
@@ -225,10 +225,13 @@ xfs_initialize_perag(
 			spin_unlock(&mp->m_perag_lock);
 			radix_tree_preload_end();
 			error = -EEXIST;
-			goto out_unwind;
+			goto out_hash_destroy;
 		}
 		spin_unlock(&mp->m_perag_lock);
 		radix_tree_preload_end();
+		/* first new pag is fully initialized */
+		if (first_initialised == NULLAGNUMBER)
+			first_initialised = index;
 	}
 
 	index = xfs_set_inode_alloc(mp, agcount);
@@ -239,11 +242,16 @@ xfs_initialize_perag(
 	mp->m_ag_prealloc_blocks = xfs_prealloc_blocks(mp);
 	return 0;
 
-out_unwind:
+out_hash_destroy:
 	xfs_buf_hash_destroy(pag);
+out_free_pag:
 	kmem_free(pag);
-	for (; index > first_initialised; index--) {
+out_unwind_new_pags:
+	/* unwind any prior newly initialized pags */
+	for (index = first_initialised; index < agcount; index++) {
 		pag = radix_tree_delete(&mp->m_perag_tree, index);
+		if (!pag)
+			break;
 		xfs_buf_hash_destroy(pag);
 		kmem_free(pag);
 	}
@@ -505,8 +513,7 @@ STATIC void
 xfs_set_inoalignment(xfs_mount_t *mp)
 {
 	if (xfs_sb_version_hasalign(&mp->m_sb) &&
-	    mp->m_sb.sb_inoalignmt >=
-	    XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size))
+		mp->m_sb.sb_inoalignmt >= xfs_icluster_size_fsb(mp))
 		mp->m_inoalign_mask = mp->m_sb.sb_inoalignmt - 1;
 	else
 		mp->m_inoalign_mask = 0;
@@ -1071,6 +1078,13 @@ xfs_unmountfs(
 	 * need to force the log first.
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
+
+	/*
+	 * Wait for all busy extents to be freed, including completion of
+	 * any discard operation.
+	 */
+	xfs_extent_busy_wait_all(mp);
+	flush_workqueue(xfs_discard_wq);
 
 	/*
 	 * We now need to tell the world we are unmounting. This will allow

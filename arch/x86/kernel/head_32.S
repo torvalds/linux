@@ -24,6 +24,7 @@
 #include <asm/nops.h>
 #include <asm/bootparam.h>
 #include <asm/export.h>
+#include <asm/pgtable_32.h>
 
 /* Physical address */
 #define pa(X) ((X) - __PAGE_OFFSET)
@@ -41,42 +42,8 @@
 #define X86_CAPABILITY	new_cpu_data+CPUINFO_x86_capability
 #define X86_VENDOR_ID	new_cpu_data+CPUINFO_x86_vendor_id
 
-/*
- * This is how much memory in addition to the memory covered up to
- * and including _end we need mapped initially.
- * We need:
- *     (KERNEL_IMAGE_SIZE/4096) / 1024 pages (worst case, non PAE)
- *     (KERNEL_IMAGE_SIZE/4096) / 512 + 4 pages (worst case for PAE)
- *
- * Modulo rounding, each megabyte assigned here requires a kilobyte of
- * memory, which is currently unreclaimed.
- *
- * This should be a multiple of a page.
- *
- * KERNEL_IMAGE_SIZE should be greater than pa(_end)
- * and small than max_low_pfn, otherwise will waste some page table entries
- */
-
-#if PTRS_PER_PMD > 1
-#define PAGE_TABLE_SIZE(pages) (((pages) / PTRS_PER_PMD) + PTRS_PER_PGD)
-#else
-#define PAGE_TABLE_SIZE(pages) ((pages) / PTRS_PER_PGD)
-#endif
 
 #define SIZEOF_PTREGS 17*4
-
-/*
- * Number of possible pages in the lowmem region.
- *
- * We shift 2 by 31 instead of 1 by 32 to the left in order to avoid a
- * gas warning about overflowing shift count when gas has been compiled
- * with only a host target support using a 32-bit type for internal
- * representation.
- */
-LOWMEM_PAGES = (((2<<31) - __PAGE_OFFSET) >> PAGE_SHIFT)
-
-/* Enough space to fit pagetables for the low memory linear map */
-MAPPING_BEYOND_END = PAGE_TABLE_SIZE(LOWMEM_PAGES) << PAGE_SHIFT
 
 /*
  * Worst-case size of the kernel mapping we need to make:
@@ -160,90 +127,15 @@ ENTRY(startup_32)
 	call load_ucode_bsp
 #endif
 
-/*
- * Initialize page tables.  This creates a PDE and a set of page
- * tables, which are located immediately beyond __brk_base.  The variable
- * _brk_end is set up to point to the first "safe" location.
- * Mappings are created both at virtual address 0 (identity mapping)
- * and PAGE_OFFSET for up to _end.
- */
-#ifdef CONFIG_X86_PAE
+	/* Create early pagetables. */
+	call  mk_early_pgtbl_32
 
-	/*
-	 * In PAE mode initial_page_table is statically defined to contain
-	 * enough entries to cover the VMSPLIT option (that is the top 1, 2 or 3
-	 * entries). The identity mapping is handled by pointing two PGD entries
-	 * to the first kernel PMD.
-	 *
-	 * Note the upper half of each PMD or PTE are always zero at this stage.
-	 */
-
+	/* Do early initialization of the fixmap area */
+	movl $pa(initial_pg_fixmap)+PDE_IDENT_ATTR,%eax
+#ifdef  CONFIG_X86_PAE
 #define KPMDS (((-__PAGE_OFFSET) >> 30) & 3) /* Number of kernel PMDs */
-
-	xorl %ebx,%ebx				/* %ebx is kept at zero */
-
-	movl $pa(__brk_base), %edi
-	movl $pa(initial_pg_pmd), %edx
-	movl $PTE_IDENT_ATTR, %eax
-10:
-	leal PDE_IDENT_ATTR(%edi),%ecx		/* Create PMD entry */
-	movl %ecx,(%edx)			/* Store PMD entry */
-						/* Upper half already zero */
-	addl $8,%edx
-	movl $512,%ecx
-11:
-	stosl
-	xchgl %eax,%ebx
-	stosl
-	xchgl %eax,%ebx
-	addl $0x1000,%eax
-	loop 11b
-
-	/*
-	 * End condition: we must map up to the end + MAPPING_BEYOND_END.
-	 */
-	movl $pa(_end) + MAPPING_BEYOND_END + PTE_IDENT_ATTR, %ebp
-	cmpl %ebp,%eax
-	jb 10b
-1:
-	addl $__PAGE_OFFSET, %edi
-	movl %edi, pa(_brk_end)
-	shrl $12, %eax
-	movl %eax, pa(max_pfn_mapped)
-
-	/* Do early initialization of the fixmap area */
-	movl $pa(initial_pg_fixmap)+PDE_IDENT_ATTR,%eax
 	movl %eax,pa(initial_pg_pmd+0x1000*KPMDS-8)
-#else	/* Not PAE */
-
-page_pde_offset = (__PAGE_OFFSET >> 20);
-
-	movl $pa(__brk_base), %edi
-	movl $pa(initial_page_table), %edx
-	movl $PTE_IDENT_ATTR, %eax
-10:
-	leal PDE_IDENT_ATTR(%edi),%ecx		/* Create PDE entry */
-	movl %ecx,(%edx)			/* Store identity PDE entry */
-	movl %ecx,page_pde_offset(%edx)		/* Store kernel PDE entry */
-	addl $4,%edx
-	movl $1024, %ecx
-11:
-	stosl
-	addl $0x1000,%eax
-	loop 11b
-	/*
-	 * End condition: we must map up to the end + MAPPING_BEYOND_END.
-	 */
-	movl $pa(_end) + MAPPING_BEYOND_END + PTE_IDENT_ATTR, %ebp
-	cmpl %ebp,%eax
-	jb 10b
-	addl $__PAGE_OFFSET, %edi
-	movl %edi, pa(_brk_end)
-	shrl $12, %eax
-	movl %eax, pa(max_pfn_mapped)
-
-	/* Do early initialization of the fixmap area */
-	movl $pa(initial_pg_fixmap)+PDE_IDENT_ATTR,%eax
+#else
 	movl %eax,pa(initial_page_table+0xffc)
 #endif
 
@@ -666,6 +558,7 @@ ENTRY(setup_once_ref)
 __PAGE_ALIGNED_BSS
 	.align PAGE_SIZE
 #ifdef CONFIG_X86_PAE
+.globl initial_pg_pmd
 initial_pg_pmd:
 	.fill 1024*KPMDS,4,0
 #else

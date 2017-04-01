@@ -169,8 +169,7 @@ void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
 	int x, int y)
 {
 	u32 addr = drm_fb_obj(fb)->dev_addr;
-	u32 pixel_format = fb->pixel_format;
-	int num_planes = drm_format_num_planes(pixel_format);
+	int num_planes = fb->format->num_planes;
 	int i;
 
 	if (num_planes > 3)
@@ -178,7 +177,7 @@ void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
 
 	for (i = 0; i < num_planes; i++)
 		addrs[i] = addr + fb->offsets[i] + y * fb->pitches[i] +
-			     x * drm_format_plane_cpp(pixel_format, i);
+			     x * fb->format->cpp[i];
 	for (; i < 3; i++)
 		addrs[i] = 0;
 }
@@ -191,7 +190,7 @@ static unsigned armada_drm_crtc_calc_fb(struct drm_framebuffer *fb,
 	unsigned i = 0;
 
 	DRM_DEBUG_DRIVER("pitch %u x %d y %d bpp %d\n",
-		pitch, x, y, fb->bits_per_pixel);
+		pitch, x, y, fb->format->cpp[0] * 8);
 
 	armada_drm_plane_calc_addrs(addrs, fb, x, y);
 
@@ -1036,7 +1035,7 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	int ret;
 
 	/* We don't support changing the pixel format */
-	if (fb->pixel_format != crtc->primary->fb->pixel_format)
+	if (fb->format != crtc->primary->fb->format)
 		return -EINVAL;
 
 	work = kmalloc(sizeof(*work), GFP_KERNEL);

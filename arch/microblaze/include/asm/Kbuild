@@ -1,7 +1,6 @@
 
 generic-y += barrier.h
 generic-y += clkdev.h
-generic-y += cputime.h
 generic-y += device.h
 generic-y += exec.h
 generic-y += irq_work.h
@@ -11,3 +10,4 @@ generic-y += preempt.h
 generic-y += syscalls.h
 generic-y += trace_clock.h
 generic-y += word-at-a-time.h
+generic-y += kprobes.h

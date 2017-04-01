@@ -1448,8 +1448,8 @@ static bool ignore_missing_thread(struct perf_evsel *evsel,
 	return true;
 }
 
-static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-			      struct thread_map *threads)
+int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
+		     struct thread_map *threads)
 {
 	int cpu, thread, nthreads;
 	unsigned long flags = PERF_FLAG_FD_CLOEXEC;
@@ -1458,6 +1458,30 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 
 	if (perf_missing_features.write_backward && evsel->attr.write_backward)
 		return -EINVAL;
+
+	if (cpus == NULL) {
+		static struct cpu_map *empty_cpu_map;
+
+		if (empty_cpu_map == NULL) {
+			empty_cpu_map = cpu_map__dummy_new();
+			if (empty_cpu_map == NULL)
+				return -ENOMEM;
+		}
+
+		cpus = empty_cpu_map;
+	}
+
+	if (threads == NULL) {
+		static struct thread_map *empty_thread_map;
+
+		if (empty_thread_map == NULL) {
+			empty_thread_map = thread_map__new_by_tid(-1);
+			if (empty_thread_map == NULL)
+				return -ENOMEM;
+		}
+
+		threads = empty_thread_map;
+	}
 
 	if (evsel->system_wide)
 		nthreads = 1;
@@ -1655,46 +1679,16 @@ void perf_evsel__close(struct perf_evsel *evsel, int ncpus, int nthreads)
 	perf_evsel__free_fd(evsel);
 }
 
-static struct {
-	struct cpu_map map;
-	int cpus[1];
-} empty_cpu_map = {
-	.map.nr	= 1,
-	.cpus	= { -1, },
-};
-
-static struct {
-	struct thread_map map;
-	int threads[1];
-} empty_thread_map = {
-	.map.nr	 = 1,
-	.threads = { -1, },
-};
-
-int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-		     struct thread_map *threads)
-{
-	if (cpus == NULL) {
-		/* Work around old compiler warnings about strict aliasing */
-		cpus = &empty_cpu_map.map;
-	}
-
-	if (threads == NULL)
-		threads = &empty_thread_map.map;
-
-	return __perf_evsel__open(evsel, cpus, threads);
-}
-
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
 			     struct cpu_map *cpus)
 {
-	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map);
+	return perf_evsel__open(evsel, cpus, NULL);
 }
 
 int perf_evsel__open_per_thread(struct perf_evsel *evsel,
 				struct thread_map *threads)
 {
-	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads);
+	return perf_evsel__open(evsel, NULL, threads);
 }
 
 static int perf_evsel__parse_id_sample(const struct perf_evsel *evsel,
@@ -2469,7 +2463,9 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 		 "  -1: Allow use of (almost) all events by all users\n"
 		 ">= 0: Disallow raw tracepoint access by users without CAP_IOC_LOCK\n"
 		 ">= 1: Disallow CPU event access by users without CAP_SYS_ADMIN\n"
-		 ">= 2: Disallow kernel profiling by users without CAP_SYS_ADMIN",
+		 ">= 2: Disallow kernel profiling by users without CAP_SYS_ADMIN\n\n"
+		 "To make this setting permanent, edit /etc/sysctl.conf too, e.g.:\n\n"
+		 "	kernel.perf_event_paranoid = -1\n" ,
 				 target->system_wide ? "system-wide " : "",
 				 perf_event_paranoid());
 	case ENOENT:

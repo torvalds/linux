@@ -25,7 +25,7 @@
 
 #include <linux/cdev.h>
 #include <linux/poll.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/hid-roccat.h>
 #include <linux/module.h>
 

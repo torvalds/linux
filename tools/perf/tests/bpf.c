@@ -5,11 +5,13 @@
 #include <util/evlist.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
+#include <api/fs/fs.h>
 #include <bpf/bpf.h>
 #include "tests.h"
 #include "llvm.h"
 #include "debug.h"
 #define NR_ITERS       111
+#define PERF_TEST_BPF_PATH "/sys/fs/bpf/perf_test"
 
 #ifdef HAVE_LIBBPF_SUPPORT
 
@@ -54,6 +56,7 @@ static struct {
 	const char *msg_load_fail;
 	int (*target_func)(void);
 	int expect_result;
+	bool	pin;
 } bpf_testcase_table[] = {
 	{
 		LLVM_TESTCASE_BASE,
@@ -63,6 +66,17 @@ static struct {
 		"load bpf object failed",
 		&epoll_wait_loop,
 		(NR_ITERS + 1) / 2,
+		false,
+	},
+	{
+		LLVM_TESTCASE_BASE,
+		"BPF pinning",
+		"[bpf_pinning]",
+		"fix kbuild first",
+		"check your vmlinux setting?",
+		&epoll_wait_loop,
+		(NR_ITERS + 1) / 2,
+		true,
 	},
 #ifdef HAVE_BPF_PROLOGUE
 	{
@@ -73,6 +87,7 @@ static struct {
 		"check your vmlinux setting?",
 		&llseek_loop,
 		(NR_ITERS + 1) / 4,
+		false,
 	},
 #endif
 	{
@@ -83,6 +98,7 @@ static struct {
 		"libbpf error when dealing with relocation",
 		NULL,
 		0,
+		false,
 	},
 };
 
@@ -226,10 +242,34 @@ static int __test__bpf(int idx)
 		goto out;
 	}
 
-	if (obj)
+	if (obj) {
 		ret = do_test(obj,
 			      bpf_testcase_table[idx].target_func,
 			      bpf_testcase_table[idx].expect_result);
+		if (ret != TEST_OK)
+			goto out;
+		if (bpf_testcase_table[idx].pin) {
+			int err;
+
+			if (!bpf_fs__mount()) {
+				pr_debug("BPF filesystem not mounted\n");
+				ret = TEST_FAIL;
+				goto out;
+			}
+			err = mkdir(PERF_TEST_BPF_PATH, 0777);
+			if (err && errno != EEXIST) {
+				pr_debug("Failed to make perf_test dir: %s\n",
+					 strerror(errno));
+				ret = TEST_FAIL;
+				goto out;
+			}
+			if (bpf_object__pin(obj, PERF_TEST_BPF_PATH))
+				ret = TEST_FAIL;
+			if (rm_rf(PERF_TEST_BPF_PATH))
+				ret = TEST_FAIL;
+		}
+	}
+
 out:
 	bpf__clear();
 	return ret;

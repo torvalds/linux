@@ -1471,8 +1471,8 @@ drop_skb:
 	return NETDEV_TX_OK;
 }
 
-static struct rtnl_link_stats64 *slic_get_stats(struct net_device *dev,
-						struct rtnl_link_stats64 *lst)
+static void slic_get_stats(struct net_device *dev,
+			   struct rtnl_link_stats64 *lst)
 {
 	struct slic_device *sdev = netdev_priv(dev);
 	struct slic_stats *stats = &sdev->stats;
@@ -1489,8 +1489,6 @@ static struct rtnl_link_stats64 *slic_get_stats(struct net_device *dev,
 	SLIC_GET_STATS_COUNTER(lst->rx_crc_errors, stats, rx_crc);
 	SLIC_GET_STATS_COUNTER(lst->rx_fifo_errors, stats, rx_oflow802);
 	SLIC_GET_STATS_COUNTER(lst->tx_carrier_errors, stats, tx_carrier);
-
-	return lst;
 }
 
 static int slic_get_sset_count(struct net_device *dev, int sset)

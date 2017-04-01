@@ -1625,10 +1625,25 @@ static int vme_bus_probe(struct device *dev)
 	return retval;
 }
 
+static int vme_bus_remove(struct device *dev)
+{
+	int retval = -ENODEV;
+	struct vme_driver *driver;
+	struct vme_dev *vdev = dev_to_vme_dev(dev);
+
+	driver = dev->platform_data;
+
+	if (driver->remove != NULL)
+		retval = driver->remove(vdev);
+
+	return retval;
+}
+
 struct bus_type vme_bus_type = {
 	.name = "vme",
 	.match = vme_bus_match,
 	.probe = vme_bus_probe,
+	.remove = vme_bus_remove,
 };
 EXPORT_SYMBOL(vme_bus_type);
 

@@ -17,6 +17,7 @@
 #include <linux/extable.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>

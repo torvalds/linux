@@ -5,7 +5,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/debugfs.h>
@@ -19,6 +18,8 @@
 
 static inline void memblock_physmem_add(phys_addr_t start, phys_addr_t size)
 {
+	memblock_dbg("memblock_physmem_add: [%#016llx-%#016llx]\n",
+		     start, start + size - 1);
 	memblock_add_range(&memblock.memory, start, size, 0, 0);
 	memblock_add_range(&memblock.physmem, start, size, 0, 0);
 }
@@ -39,7 +40,8 @@ void __init detect_memory_memblock(void)
 	memblock_set_bottom_up(true);
 	do {
 		size = 0;
-		type = tprot(addr);
+		/* assume lowcore is writable */
+		type = addr ? tprot(addr) : CHUNK_READ_WRITE;
 		do {
 			size += rzm;
 			if (max_physmem_end && addr + size >= max_physmem_end)
@@ -55,4 +57,5 @@ void __init detect_memory_memblock(void)
 	memblock_set_bottom_up(false);
 	if (!max_physmem_end)
 		max_physmem_end = memblock_end_of_DRAM();
+	memblock_dump_all();
 }

@@ -45,6 +45,9 @@ Device registration
    :functions: wiphy_new
 
 .. kernel-doc:: include/net/cfg80211.h
+   :functions: wiphy_read_of_freq_limits
+
+.. kernel-doc:: include/net/cfg80211.h
    :functions: wiphy_register
 
 .. kernel-doc:: include/net/cfg80211.h

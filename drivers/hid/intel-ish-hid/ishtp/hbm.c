@@ -19,7 +19,6 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/spinlock.h>
-#include <linux/miscdevice.h>
 #include "ishtp-dev.h"
 #include "hbm.h"
 #include "client.h"

@@ -8,8 +8,8 @@
  *               Martin Peschke <peschke@fh-brandenburg.de>
  */
 
-#include <linux/module.h>
-#include <asm/types.h>
+#include <linux/types.h>
+#include <linux/export.h>
 #include <asm/ebcdic.h>
 
 /*

@@ -226,7 +226,7 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_nowayout(wdd, nowayout);
 
-	ret = watchdog_register_device(wdd);
+	ret = devm_watchdog_register_device(&pdev->dev, wdd);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"failed to register watchdog device\n");
@@ -247,8 +247,6 @@ static int tegra_wdt_remove(struct platform_device *pdev)
 	struct tegra_wdt *wdt = platform_get_drvdata(pdev);
 
 	tegra_wdt_stop(&wdt->wdd);
-
-	watchdog_unregister_device(&wdt->wdd);
 
 	dev_info(&pdev->dev, "removed wdt\n");
 

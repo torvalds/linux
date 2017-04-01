@@ -55,7 +55,7 @@ static void rmi_release_device(struct device *dev)
 	kfree(rmi_dev);
 }
 
-static struct device_type rmi_device_type = {
+static const struct device_type rmi_device_type = {
 	.name		= "rmi4_sensor",
 	.release	= rmi_release_device,
 };
@@ -134,7 +134,7 @@ static void rmi_release_function(struct device *dev)
 	kfree(fn);
 }
 
-static struct device_type rmi_function_type = {
+static const struct device_type rmi_function_type = {
 	.name		= "rmi4_function",
 	.release	= rmi_release_function,
 };
@@ -261,10 +261,10 @@ int __rmi_register_function_handler(struct rmi_function_handler *handler,
 	driver->probe = rmi_function_probe;
 	driver->remove = rmi_function_remove;
 
-	error = driver_register(&handler->driver);
+	error = driver_register(driver);
 	if (error) {
 		pr_err("driver_register() failed for %s, error: %d\n",
-			handler->driver.name, error);
+			driver->name, error);
 		return error;
 	}
 

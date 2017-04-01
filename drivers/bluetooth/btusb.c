@@ -24,6 +24,8 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
+#include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -130,6 +132,10 @@ static const struct usb_device_id btusb_table[] = {
 	/* Broadcom BCM43142A0 (Foxconn/Lenovo) */
 	{ USB_DEVICE(0x105b, 0xe065), .driver_info = BTUSB_BCM_PATCHRAM },
 
+	/* Broadcom BCM920703 (HTC Vive) */
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x0bb4, 0xff, 0x01, 0x01),
+	  .driver_info = BTUSB_BCM_PATCHRAM },
+
 	/* Foxconn - Hon Hai */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x0489, 0xff, 0x01, 0x01),
 	  .driver_info = BTUSB_BCM_PATCHRAM },
@@ -152,6 +158,10 @@ static const struct usb_device_id btusb_table[] = {
 
 	/* IMC Networks - Broadcom based */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x13d3, 0xff, 0x01, 0x01),
+	  .driver_info = BTUSB_BCM_PATCHRAM },
+
+	/* Dell Computer - Broadcom based  */
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x413c, 0xff, 0x01, 0x01),
 	  .driver_info = BTUSB_BCM_PATCHRAM },
 
 	/* Toshiba Corp - Broadcom based */
@@ -209,6 +219,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x04ca, 0x300f), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x3010), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x04ca, 0x3014), .driver_info = BTUSB_ATH3012 },
+	{ USB_DEVICE(0x04ca, 0x3018), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0930, 0x0219), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0930, 0x021c), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0930, 0x0220), .driver_info = BTUSB_ATH3012 },
@@ -369,6 +380,7 @@ static const struct usb_device_id blacklist_table[] = {
 #define BTUSB_BOOTING		9
 #define BTUSB_RESET_RESUME	10
 #define BTUSB_DIAG_RUNNING	11
+#define BTUSB_OOB_WAKE_ENABLED	12
 
 struct btusb_data {
 	struct hci_dev       *hdev;
@@ -416,6 +428,8 @@ struct btusb_data {
 	int (*recv_bulk)(struct btusb_data *data, void *buffer, int count);
 
 	int (*setup_on_usb)(struct hci_dev *hdev);
+
+	int oob_wake_irq;   /* irq for out-of-band wake-on-bt */
 };
 
 static inline void btusb_free_frags(struct btusb_data *data)
@@ -2338,6 +2352,50 @@ static int btusb_shutdown_intel(struct hci_dev *hdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+/* Configure an out-of-band gpio as wake-up pin, if specified in device tree */
+static int marvell_config_oob_wake(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+	struct btusb_data *data = hci_get_drvdata(hdev);
+	struct device *dev = &data->udev->dev;
+	u16 pin, gap, opcode;
+	int ret;
+	u8 cmd[5];
+
+	/* Move on if no wakeup pin specified */
+	if (of_property_read_u16(dev->of_node, "marvell,wakeup-pin", &pin) ||
+	    of_property_read_u16(dev->of_node, "marvell,wakeup-gap-ms", &gap))
+		return 0;
+
+	/* Vendor specific command to configure a GPIO as wake-up pin */
+	opcode = hci_opcode_pack(0x3F, 0x59);
+	cmd[0] = opcode & 0xFF;
+	cmd[1] = opcode >> 8;
+	cmd[2] = 2; /* length of parameters that follow */
+	cmd[3] = pin;
+	cmd[4] = gap; /* time in ms, for which wakeup pin should be asserted */
+
+	skb = bt_skb_alloc(sizeof(cmd), GFP_KERNEL);
+	if (!skb) {
+		bt_dev_err(hdev, "%s: No memory\n", __func__);
+		return -ENOMEM;
+	}
+
+	memcpy(skb_put(skb, sizeof(cmd)), cmd, sizeof(cmd));
+	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
+
+	ret = btusb_send_frame(hdev, skb);
+	if (ret) {
+		bt_dev_err(hdev, "%s: configuration failed\n", __func__);
+		kfree_skb(skb);
+		return ret;
+	}
+
+	return 0;
+}
+#endif
+
 static int btusb_set_bdaddr_marvell(struct hci_dev *hdev,
 				    const bdaddr_t *bdaddr)
 {
@@ -2728,6 +2786,66 @@ static int btusb_bcm_set_diag(struct hci_dev *hdev, bool enable)
 }
 #endif
 
+#ifdef CONFIG_PM
+static irqreturn_t btusb_oob_wake_handler(int irq, void *priv)
+{
+	struct btusb_data *data = priv;
+
+	pm_wakeup_event(&data->udev->dev, 0);
+
+	/* Disable only if not already disabled (keep it balanced) */
+	if (test_and_clear_bit(BTUSB_OOB_WAKE_ENABLED, &data->flags)) {
+		disable_irq_nosync(irq);
+		disable_irq_wake(irq);
+	}
+	return IRQ_HANDLED;
+}
+
+static const struct of_device_id btusb_match_table[] = {
+	{ .compatible = "usb1286,204e" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, btusb_match_table);
+
+/* Use an oob wakeup pin? */
+static int btusb_config_oob_wake(struct hci_dev *hdev)
+{
+	struct btusb_data *data = hci_get_drvdata(hdev);
+	struct device *dev = &data->udev->dev;
+	int irq, ret;
+
+	clear_bit(BTUSB_OOB_WAKE_ENABLED, &data->flags);
+
+	if (!of_match_device(btusb_match_table, dev))
+		return 0;
+
+	/* Move on if no IRQ specified */
+	irq = of_irq_get_byname(dev->of_node, "wakeup");
+	if (irq <= 0) {
+		bt_dev_dbg(hdev, "%s: no OOB Wakeup IRQ in DT", __func__);
+		return 0;
+	}
+
+	ret = devm_request_irq(&hdev->dev, irq, btusb_oob_wake_handler,
+			       0, "OOB Wake-on-BT", data);
+	if (ret) {
+		bt_dev_err(hdev, "%s: IRQ request failed", __func__);
+		return ret;
+	}
+
+	ret = device_init_wakeup(dev, true);
+	if (ret) {
+		bt_dev_err(hdev, "%s: failed to init_wakeup", __func__);
+		return ret;
+	}
+
+	data->oob_wake_irq = irq;
+	disable_irq(irq);
+	bt_dev_info(hdev, "OOB Wake-on-BT configured at IRQ %u", irq);
+	return 0;
+}
+#endif
+
 static int btusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
@@ -2849,6 +2967,18 @@ static int btusb_probe(struct usb_interface *intf,
 	hdev->send   = btusb_send_frame;
 	hdev->notify = btusb_notify;
 
+#ifdef CONFIG_PM
+	err = btusb_config_oob_wake(hdev);
+	if (err)
+		goto out_free_dev;
+
+	/* Marvell devices may need a specific chip configuration */
+	if (id->driver_info & BTUSB_MARVELL && data->oob_wake_irq) {
+		err = marvell_config_oob_wake(hdev);
+		if (err)
+			goto out_free_dev;
+	}
+#endif
 	if (id->driver_info & BTUSB_CW6622)
 		set_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY, &hdev->quirks);
 
@@ -2991,18 +3121,15 @@ static int btusb_probe(struct usb_interface *intf,
 		err = usb_set_interface(data->udev, 0, 0);
 		if (err < 0) {
 			BT_ERR("failed to set interface 0, alt 0 %d", err);
-			hci_free_dev(hdev);
-			return err;
+			goto out_free_dev;
 		}
 	}
 
 	if (data->isoc) {
 		err = usb_driver_claim_interface(&btusb_driver,
 						 data->isoc, data);
-		if (err < 0) {
-			hci_free_dev(hdev);
-			return err;
-		}
+		if (err < 0)
+			goto out_free_dev;
 	}
 
 #ifdef CONFIG_BT_HCIBTUSB_BCM
@@ -3016,14 +3143,16 @@ static int btusb_probe(struct usb_interface *intf,
 #endif
 
 	err = hci_register_dev(hdev);
-	if (err < 0) {
-		hci_free_dev(hdev);
-		return err;
-	}
+	if (err < 0)
+		goto out_free_dev;
 
 	usb_set_intfdata(intf, data);
 
 	return 0;
+
+out_free_dev:
+	hci_free_dev(hdev);
+	return err;
 }
 
 static void btusb_disconnect(struct usb_interface *intf)
@@ -3062,6 +3191,9 @@ static void btusb_disconnect(struct usb_interface *intf)
 			usb_driver_release_interface(&btusb_driver, data->isoc);
 	}
 
+	if (data->oob_wake_irq)
+		device_init_wakeup(&data->udev->dev, false);
+
 	hci_free_dev(hdev);
 }
 
@@ -3089,6 +3221,12 @@ static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
 
 	btusb_stop_traffic(data);
 	usb_kill_anchored_urbs(&data->tx_anchor);
+
+	if (data->oob_wake_irq && device_may_wakeup(&data->udev->dev)) {
+		set_bit(BTUSB_OOB_WAKE_ENABLED, &data->flags);
+		enable_irq_wake(data->oob_wake_irq);
+		enable_irq(data->oob_wake_irq);
+	}
 
 	/* Optionally request a device reset on resume, but only when
 	 * wakeups are disabled. If wakeups are enabled we assume the
@@ -3126,6 +3264,12 @@ static int btusb_resume(struct usb_interface *intf)
 
 	if (--data->suspend_count)
 		return 0;
+
+	/* Disable only if not already disabled (keep it balanced) */
+	if (test_and_clear_bit(BTUSB_OOB_WAKE_ENABLED, &data->flags)) {
+		disable_irq(data->oob_wake_irq);
+		disable_irq_wake(data->oob_wake_irq);
+	}
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		goto done;

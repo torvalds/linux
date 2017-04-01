@@ -149,7 +149,7 @@ static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		b.hello_timer_value = br_timer_value(&br->hello_timer);
 		b.tcn_timer_value = br_timer_value(&br->tcn_timer);
 		b.topology_change_timer_value = br_timer_value(&br->topology_change_timer);
-		b.gc_timer_value = br_timer_value(&br->gc_timer);
+		b.gc_timer_value = br_timer_value(&br->gc_work.timer);
 		rcu_read_unlock();
 
 		if (copy_to_user((void __user *)args[1], &b, sizeof(b)))

@@ -374,13 +374,12 @@ int mlx5e_get_offload_stats(int attr_id, const struct net_device *dev,
 	return -EINVAL;
 }
 
-static struct rtnl_link_stats64 *
+static void
 mlx5e_rep_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
 	memcpy(stats, &priv->stats.vf_vport, sizeof(*stats));
-	return stats;
 }
 
 static const struct switchdev_ops mlx5e_rep_switchdev_ops = {
@@ -394,8 +393,6 @@ static const struct net_device_ops mlx5e_netdev_ops_rep = {
 	.ndo_get_phys_port_name  = mlx5e_rep_get_phys_port_name,
 	.ndo_setup_tc            = mlx5e_rep_ndo_setup_tc,
 	.ndo_get_stats64         = mlx5e_rep_get_stats,
-	.ndo_udp_tunnel_add      = mlx5e_add_vxlan_port,
-	.ndo_udp_tunnel_del      = mlx5e_del_vxlan_port,
 	.ndo_has_offload_stats	 = mlx5e_has_offload_stats,
 	.ndo_get_offload_stats	 = mlx5e_get_offload_stats,
 };

@@ -162,6 +162,9 @@ config VIDEO_CODA
 	   Coda is a range of video codec IPs that supports
 	   H.264, MPEG-4, and other video formats.
 
+config VIDEO_IMX_VDOA
+	def_tristate VIDEO_CODA if SOC_IMX6Q || COMPILE_TEST
+
 config VIDEO_MEDIATEK_VPU
 	tristate "Mediatek Video Processor Unit"
 	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
@@ -297,6 +300,56 @@ config VIDEO_STI_HVA
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called st-hva.
+
+config VIDEO_STI_HVA_DEBUGFS
+	bool "Export STMicroelectronics HVA internals in debugfs"
+	depends on VIDEO_STI_HVA
+	depends on DEBUG_FS
+	help
+	  Select this to see information about the internal state and the last
+          operation of STMicroelectronics HVA multi-format video encoder in
+          debugfs.
+
+          Choose N unless you know you need this.
+
+config VIDEO_STI_DELTA
+	tristate "STMicroelectronics DELTA multi-format video decoder V4L2 driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on ARCH_STI || COMPILE_TEST
+	depends on HAS_DMA
+	help
+		This V4L2 driver enables DELTA multi-format video decoder
+		of STMicroelectronics STiH4xx SoC series allowing hardware
+		decoding of various compressed video bitstream format in
+		raw uncompressed format.
+
+		Use this option to see the decoders available for such
+		hardware.
+
+		Please notice that the driver will only be built if
+		at least one of the DELTA decoder below is selected.
+
+if VIDEO_STI_DELTA
+
+config VIDEO_STI_DELTA_MJPEG
+	bool "STMicroelectronics DELTA MJPEG support"
+	default y
+	help
+		Enables DELTA MJPEG hardware support.
+
+		To compile this driver as a module, choose M here:
+		the module will be called st-delta.
+
+config VIDEO_STI_DELTA_DRIVER
+	tristate
+	depends on VIDEO_STI_DELTA
+	depends on VIDEO_STI_DELTA_MJPEG
+	default VIDEO_STI_DELTA_MJPEG
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	select RPMSG
+
+endif # VIDEO_STI_DELTA
 
 config VIDEO_SH_VEU
 	tristate "SuperH VEU mem2mem video processing driver"

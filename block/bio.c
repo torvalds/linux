@@ -376,10 +376,14 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
 	bio_list_init(&punt);
 	bio_list_init(&nopunt);
 
-	while ((bio = bio_list_pop(current->bio_list)))
+	while ((bio = bio_list_pop(&current->bio_list[0])))
 		bio_list_add(bio->bi_pool == bs ? &punt : &nopunt, bio);
+	current->bio_list[0] = nopunt;
 
-	*current->bio_list = nopunt;
+	bio_list_init(&nopunt);
+	while ((bio = bio_list_pop(&current->bio_list[1])))
+		bio_list_add(bio->bi_pool == bs ? &punt : &nopunt, bio);
+	current->bio_list[1] = nopunt;
 
 	spin_lock(&bs->rescue_lock);
 	bio_list_merge(&bs->rescue_list, &punt);
@@ -466,7 +470,9 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 		 * we retry with the original gfp_flags.
 		 */
 
-		if (current->bio_list && !bio_list_empty(current->bio_list))
+		if (current->bio_list &&
+		    (!bio_list_empty(&current->bio_list[0]) ||
+		     !bio_list_empty(&current->bio_list[1])))
 			gfp_mask &= ~__GFP_DIRECT_RECLAIM;
 
 		p = mempool_alloc(bs->bio_pool, gfp_mask);
@@ -625,21 +631,20 @@ struct bio *bio_clone_fast(struct bio *bio, gfp_t gfp_mask, struct bio_set *bs)
 }
 EXPORT_SYMBOL(bio_clone_fast);
 
-/**
- * 	bio_clone_bioset - clone a bio
- * 	@bio_src: bio to clone
- *	@gfp_mask: allocation priority
- *	@bs: bio_set to allocate from
- *
- *	Clone bio. Caller will own the returned bio, but not the actual data it
- *	points to. Reference count of returned bio will be one.
- */
-struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
-			     struct bio_set *bs)
+static struct bio *__bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
+				      struct bio_set *bs, int offset,
+				      int size)
 {
 	struct bvec_iter iter;
 	struct bio_vec bv;
 	struct bio *bio;
+	struct bvec_iter iter_src = bio_src->bi_iter;
+
+	/* for supporting partial clone */
+	if (offset || size != bio_src->bi_iter.bi_size) {
+		bio_advance_iter(bio_src, &iter_src, offset);
+		iter_src.bi_size = size;
+	}
 
 	/*
 	 * Pre immutable biovecs, __bio_clone() used to just do a memcpy from
@@ -663,7 +668,8 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 	 *    __bio_clone_fast() anyways.
 	 */
 
-	bio = bio_alloc_bioset(gfp_mask, bio_segments(bio_src), bs);
+	bio = bio_alloc_bioset(gfp_mask, __bio_segments(bio_src,
+			       &iter_src), bs);
 	if (!bio)
 		return NULL;
 	bio->bi_bdev		= bio_src->bi_bdev;
@@ -680,7 +686,7 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 		bio->bi_io_vec[bio->bi_vcnt++] = bio_src->bi_io_vec[0];
 		break;
 	default:
-		bio_for_each_segment(bv, bio_src, iter)
+		__bio_for_each_segment(bv, bio_src, iter, iter_src)
 			bio->bi_io_vec[bio->bi_vcnt++] = bv;
 		break;
 	}
@@ -699,7 +705,42 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 
 	return bio;
 }
+
+/**
+ * 	bio_clone_bioset - clone a bio
+ * 	@bio_src: bio to clone
+ *	@gfp_mask: allocation priority
+ *	@bs: bio_set to allocate from
+ *
+ *	Clone bio. Caller will own the returned bio, but not the actual data it
+ *	points to. Reference count of returned bio will be one.
+ */
+struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
+			     struct bio_set *bs)
+{
+	return __bio_clone_bioset(bio_src, gfp_mask, bs, 0,
+				  bio_src->bi_iter.bi_size);
+}
 EXPORT_SYMBOL(bio_clone_bioset);
+
+/**
+ * 	bio_clone_bioset_partial - clone a partial bio
+ * 	@bio_src: bio to clone
+ *	@gfp_mask: allocation priority
+ *	@bs: bio_set to allocate from
+ *	@offset: cloned starting from the offset
+ *	@size: size for the cloned bio
+ *
+ *	Clone bio. Caller will own the returned bio, but not the actual data it
+ *	points to. Reference count of returned bio will be one.
+ */
+struct bio *bio_clone_bioset_partial(struct bio *bio_src, gfp_t gfp_mask,
+				     struct bio_set *bs, int offset,
+				     int size)
+{
+	return __bio_clone_bioset(bio_src, gfp_mask, bs, offset, size);
+}
+EXPORT_SYMBOL(bio_clone_bioset_partial);
 
 /**
  *	bio_add_pc_page	-	attempt to add page to bio
@@ -1227,9 +1268,6 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	if (!bio)
 		goto out_bmd;
 
-	if (iter->type & WRITE)
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-
 	ret = 0;
 
 	if (map_data) {
@@ -1394,16 +1432,10 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 
 	kfree(pages);
 
-	/*
-	 * set data direction, and check if mapped pages need bouncing
-	 */
-	if (iter->type & WRITE)
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-
 	bio_set_flag(bio, BIO_USER_MAPPED);
 
 	/*
-	 * subtle -- if __bio_map_user() ended up bouncing a bio,
+	 * subtle -- if bio_map_user_iov() ended up bouncing a bio,
 	 * it would normally disappear when its bi_end_io is run.
 	 * however, we need it for the unmap, so grab an extra
 	 * reference to it
@@ -1445,8 +1477,8 @@ static void __bio_unmap_user(struct bio *bio)
  *	bio_unmap_user	-	unmap a bio
  *	@bio:		the bio being unmapped
  *
- *	Unmap a bio previously mapped by bio_map_user(). Must be called with
- *	a process context.
+ *	Unmap a bio previously mapped by bio_map_user_iov(). Must be called from
+ *	process context.
  *
  *	bio_unmap_user() may sleep.
  */
@@ -1590,7 +1622,6 @@ struct bio *bio_copy_kern(struct request_queue *q, void *data, unsigned int len,
 		bio->bi_private = data;
 	} else {
 		bio->bi_end_io = bio_copy_kern_endio;
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 	}
 
 	return bio;

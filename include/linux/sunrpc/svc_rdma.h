@@ -70,7 +70,7 @@ extern atomic_t rdma_stat_sq_prod;
  * completes.
  */
 struct svc_rdma_op_ctxt {
-	struct list_head free;
+	struct list_head list;
 	struct svc_rdma_op_ctxt *read_hdr;
 	struct svc_rdma_fastreg_mr *frmr;
 	int hdr_count;
@@ -78,7 +78,6 @@ struct svc_rdma_op_ctxt {
 	struct ib_cqe cqe;
 	struct ib_cqe reg_cqe;
 	struct ib_cqe inv_cqe;
-	struct list_head dto_q;
 	u32 byte_len;
 	u32 position;
 	struct svcxprt_rdma *xprt;
@@ -141,7 +140,8 @@ struct svcxprt_rdma {
 	atomic_t             sc_sq_avail;	/* SQEs ready to be consumed */
 	unsigned int	     sc_sq_depth;	/* Depth of SQ */
 	unsigned int	     sc_rq_depth;	/* Depth of RQ */
-	u32		     sc_max_requests;	/* Forward credits */
+	__be32		     sc_fc_credits;	/* Forward credits */
+	u32		     sc_max_requests;	/* Max requests */
 	u32		     sc_max_bc_requests;/* Backward credits */
 	int                  sc_max_req_size;	/* Size of each RQ WR buf */
 
@@ -171,7 +171,6 @@ struct svcxprt_rdma {
 
 	wait_queue_head_t    sc_send_wait;	/* SQ exhaustion waitlist */
 	unsigned long	     sc_flags;
-	struct list_head     sc_dto_q;		/* DTO tasklet I/O pending Q */
 	struct list_head     sc_read_complete_q;
 	struct work_struct   sc_work;
 };
@@ -214,11 +213,7 @@ extern void svc_rdma_xdr_encode_write_list(struct rpcrdma_msg *, int);
 extern void svc_rdma_xdr_encode_reply_array(struct rpcrdma_write_array *, int);
 extern void svc_rdma_xdr_encode_array_chunk(struct rpcrdma_write_array *, int,
 					    __be32, __be64, u32);
-extern void svc_rdma_xdr_encode_reply_header(struct svcxprt_rdma *,
-					     struct rpcrdma_msg *,
-					     struct rpcrdma_msg *,
-					     enum rpcrdma_proc);
-extern int svc_rdma_xdr_get_reply_hdr_len(struct rpcrdma_msg *);
+extern unsigned int svc_rdma_xdr_get_reply_hdr_len(__be32 *rdma_resp);
 
 /* svc_rdma_recvfrom.c */
 extern int svc_rdma_recvfrom(struct svc_rqst *);

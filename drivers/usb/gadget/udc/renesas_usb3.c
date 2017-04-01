@@ -1791,7 +1791,7 @@ static int renesas_usb3_init_ep(struct renesas_usb3 *usb3, struct device *dev,
 
 	dev_dbg(dev, "%s: num_usb3_eps = %d\n", __func__, usb3->num_usb3_eps);
 	/*
-	 * This driver prepares pipes as the followings:
+	 * This driver prepares pipes as follows:
 	 *  - odd pipes = IN pipe
 	 *  - even pipes = OUT pipe (except pipe 0)
 	 */
@@ -1841,7 +1841,7 @@ static void renesas_usb3_init_ram(struct renesas_usb3 *usb3, struct device *dev,
 	memset(basead, 0, sizeof(basead));
 
 	/*
-	 * This driver prepares pipes as the followings:
+	 * This driver prepares pipes as follows:
 	 *  - all pipes = the same size as "ramsize_per_pipe"
 	 * Please refer to the "Method of Specifying RAM Mapping"
 	 */

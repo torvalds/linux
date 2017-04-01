@@ -10,7 +10,7 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>

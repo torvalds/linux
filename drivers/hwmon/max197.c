@@ -207,8 +207,8 @@ unlock:
 	return ret;
 }
 
-static ssize_t max197_show_name(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	return sprintf(buf, "%s\n", pdev->name);
@@ -231,7 +231,7 @@ static ssize_t max197_show_name(struct device *dev,
 	&sensor_dev_attr_in##chan##_max.dev_attr.attr,			\
 	&sensor_dev_attr_in##chan##_min.dev_attr.attr
 
-static DEVICE_ATTR(name, S_IRUGO, max197_show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 MAX197_SENSOR_DEVICE_ATTR_CH(0);
 MAX197_SENSOR_DEVICE_ATTR_CH(1);

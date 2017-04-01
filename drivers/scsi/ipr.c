@@ -9330,7 +9330,7 @@ static pci_ers_result_t ipr_pci_error_detected(struct pci_dev *pdev,
  * ipr_probe_ioa_part2 - Initializes IOAs found in ipr_probe_ioa(..)
  * @ioa_cfg:	ioa cfg struct
  *
- * Description: This is the second phase of adapter intialization
+ * Description: This is the second phase of adapter initialization
  * This function takes care of initilizing the adapter to the point
  * where it can accept new commands.
 

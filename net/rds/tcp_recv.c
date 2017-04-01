@@ -180,6 +180,9 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 			rdsdebug("alloced tinc %p\n", tinc);
 			rds_inc_path_init(&tinc->ti_inc, cp,
 					  cp->cp_conn->c_faddr);
+			tinc->ti_inc.i_rx_lat_trace[RDS_MSG_RX_HDR] =
+					local_clock();
+
 			/*
 			 * XXX * we might be able to use the __ variants when
 			 * we've already serialized at a higher level.
@@ -204,6 +207,8 @@ static int rds_tcp_data_recv(read_descriptor_t *desc, struct sk_buff *skb,
 				/* could be 0 for a 0 len message */
 				tc->t_tinc_data_rem =
 					be32_to_cpu(tinc->ti_inc.i_hdr.h_len);
+				tinc->ti_inc.i_rx_lat_trace[RDS_MSG_RX_START] =
+					local_clock();
 			}
 		}
 

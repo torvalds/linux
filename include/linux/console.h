@@ -73,6 +73,10 @@ struct consw {
 	u16    *(*con_screen_pos)(struct vc_data *, int);
 	unsigned long (*con_getxy)(struct vc_data *, unsigned long, int *, int *);
 	/*
+	 * Flush the video console driver's scrollback buffer
+	 */
+	void	(*con_flush_scrollback)(struct vc_data *);
+	/*
 	 * Prepare the console for the debugger.  This includes, but is not
 	 * limited to, unblanking the console, loading an appropriate
 	 * palette, and allowing debugger generated output.

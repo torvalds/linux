@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
 #include <linux/reboot.h>
@@ -212,6 +212,10 @@ Commands:\n\
   "\
   C	checksum\n\
   d	dump bytes\n\
+  d1	dump 1 byte values\n\
+  d2	dump 2 byte values\n\
+  d4	dump 4 byte values\n\
+  d8	dump 8 byte values\n\
   di	dump instructions\n\
   df	dump float values\n\
   dd	dump double values\n\
@@ -916,7 +920,7 @@ cmds(struct pt_regs *excp)
 				memzcan();
 				break;
 			case 'i':
-				show_mem(0);
+				show_mem(0, NULL);
 				break;
 			default:
 				termch = cmd;
@@ -1403,7 +1407,7 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 	struct pt_regs regs;
 
 	while (max_to_print--) {
-		if (sp < PAGE_OFFSET) {
+		if (!is_kernel_addr(sp)) {
 			if (sp != 0)
 				printf("SP (%lx) is in userspace\n", sp);
 			break;
@@ -1431,12 +1435,12 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 				mread(newsp + LRSAVE_OFFSET, &nextip,
 				      sizeof(unsigned long));
 			if (lr == ip) {
-				if (lr < PAGE_OFFSET
+				if (!is_kernel_addr(lr)
 				    || (fnstart <= lr && lr < fnend))
 					printip = 0;
 			} else if (lr == nextip) {
 				printip = 0;
-			} else if (lr >= PAGE_OFFSET
+			} else if (is_kernel_addr(lr)
 				   && !(fnstart <= lr && lr < fnend)) {
 				printf("[link register   ] ");
 				xmon_print_symbol(lr, " ", "\n");
@@ -1496,7 +1500,7 @@ static void print_bug_trap(struct pt_regs *regs)
 	if (regs->msr & MSR_PR)
 		return;		/* not in kernel */
 	addr = regs->nip;	/* address of trap instruction */
-	if (addr < PAGE_OFFSET)
+	if (!is_kernel_addr(addr))
 		return;
 	bug = find_bug(regs->nip);
 	if (bug == NULL)
@@ -2287,14 +2291,14 @@ static void dump_one_paca(int cpu)
 	DUMP(p, subcore_sibling_mask, "x");
 #endif
 
-	DUMP(p, accounting.user_time, "llx");
-	DUMP(p, accounting.system_time, "llx");
-	DUMP(p, accounting.user_time_scaled, "llx");
+	DUMP(p, accounting.utime, "llx");
+	DUMP(p, accounting.stime, "llx");
+	DUMP(p, accounting.utime_scaled, "llx");
 	DUMP(p, accounting.starttime, "llx");
 	DUMP(p, accounting.starttime_user, "llx");
 	DUMP(p, accounting.startspurr, "llx");
 	DUMP(p, accounting.utime_sspurr, "llx");
-	DUMP(p, stolen_time, "llx");
+	DUMP(p, accounting.steal_time, "llx");
 #undef DUMP
 
 	catch_memory_errors = 0;
@@ -2334,9 +2338,42 @@ static void dump_pacas(void)
 }
 #endif
 
+static void dump_by_size(unsigned long addr, long count, int size)
+{
+	unsigned char temp[16];
+	int i, j;
+	u64 val;
+
+	count = ALIGN(count, 16);
+
+	for (i = 0; i < count; i += 16, addr += 16) {
+		printf(REG, addr);
+
+		if (mread(addr, temp, 16) != 16) {
+			printf("\nFaulted reading %d bytes from 0x"REG"\n", 16, addr);
+			return;
+		}
+
+		for (j = 0; j < 16; j += size) {
+			putchar(' ');
+			switch (size) {
+			case 1: val = temp[j]; break;
+			case 2: val = *(u16 *)&temp[j]; break;
+			case 4: val = *(u32 *)&temp[j]; break;
+			case 8: val = *(u64 *)&temp[j]; break;
+			default: val = 0;
+			}
+
+			printf("%0*lx", size * 2, val);
+		}
+		printf("\n");
+	}
+}
+
 static void
 dump(void)
 {
+	static char last[] = { "d?\n" };
 	int c;
 
 	c = inchar();
@@ -2350,8 +2387,9 @@ dump(void)
 	}
 #endif
 
-	if ((isxdigit(c) && c != 'f' && c != 'd') || c == '\n')
+	if (c == '\n')
 		termch = c;
+
 	scanhex((void *)&adrs);
 	if (termch != '\n')
 		termch = 0;
@@ -2383,9 +2421,23 @@ dump(void)
 			ndump = 64;
 		else if (ndump > MAX_DUMP)
 			ndump = MAX_DUMP;
-		prdump(adrs, ndump);
+
+		switch (c) {
+		case '8':
+		case '4':
+		case '2':
+		case '1':
+			ndump = ALIGN(ndump, 16);
+			dump_by_size(adrs, ndump, c - '0');
+			last[1] = c;
+			last_cmd = last;
+			break;
+		default:
+			prdump(adrs, ndump);
+			last_cmd = "d\n";
+		}
+
 		adrs += ndump;
-		last_cmd = "d\n";
 	}
 }
 

@@ -199,6 +199,7 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
 			      sctp_scope_t scope, gfp_t gfp, int copy_flags)
 {
 	struct sctp_sockaddr_entry *addr;
+	union sctp_addr laddr;
 	int error = 0;
 
 	rcu_read_lock();
@@ -220,7 +221,10 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
 		     !(copy_flags & SCTP_ADDR6_PEERSUPP)))
 			continue;
 
-		if (sctp_bind_addr_state(bp, &addr->a) != -1)
+		laddr = addr->a;
+		/* also works for setting ipv6 address port */
+		laddr.v4.sin_port = htons(bp->port);
+		if (sctp_bind_addr_state(bp, &laddr) != -1)
 			continue;
 
 		error = sctp_add_bind_addr(bp, &addr->a, sizeof(addr->a),
@@ -237,23 +241,19 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
 static void sctp_v4_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 			     int is_saddr)
 {
-	void *from;
-	__be16 *port;
-	struct sctphdr *sh;
+	/* Always called on head skb, so this is safe */
+	struct sctphdr *sh = sctp_hdr(skb);
+	struct sockaddr_in *sa = &addr->v4;
 
-	port = &addr->v4.sin_port;
 	addr->v4.sin_family = AF_INET;
 
-	/* Always called on head skb, so this is safe */
-	sh = sctp_hdr(skb);
 	if (is_saddr) {
-		*port  = sh->source;
-		from = &ip_hdr(skb)->saddr;
+		sa->sin_port = sh->source;
+		sa->sin_addr.s_addr = ip_hdr(skb)->saddr;
 	} else {
-		*port = sh->dest;
-		from = &ip_hdr(skb)->daddr;
+		sa->sin_port = sh->dest;
+		sa->sin_addr.s_addr = ip_hdr(skb)->daddr;
 	}
-	memcpy(&addr->v4.sin_addr.s_addr, from, sizeof(struct in_addr));
 }
 
 /* Initialize an sctp_addr from a socket. */
@@ -575,10 +575,11 @@ static int sctp_v4_is_ce(const struct sk_buff *skb)
 
 /* Create and initialize a new sk for the socket returned by accept(). */
 static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
-					     struct sctp_association *asoc)
+					     struct sctp_association *asoc,
+					     bool kern)
 {
 	struct sock *newsk = sk_alloc(sock_net(sk), PF_INET, GFP_KERNEL,
-			sk->sk_prot, 0);
+			sk->sk_prot, kern);
 	struct inet_sock *newinet;
 
 	if (!newsk)
@@ -1261,6 +1262,9 @@ static int __net_init sctp_defaults_init(struct net *net)
 
 	/* Enable PR-SCTP by default. */
 	net->sctp.prsctp_enable = 1;
+
+	/* Disable RECONF by default. */
+	net->sctp.reconf_enable = 0;
 
 	/* Disable AUTH by default. */
 	net->sctp.auth_enable = 0;

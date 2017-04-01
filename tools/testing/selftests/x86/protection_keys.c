@@ -192,7 +192,7 @@ void lots_o_noops_around_write(int *write_to_me)
 #define SYS_pkey_alloc	 381
 #define SYS_pkey_free	 382
 #define REG_IP_IDX REG_EIP
-#define si_pkey_offset 0x18
+#define si_pkey_offset 0x14
 #else
 #define SYS_mprotect_key 329
 #define SYS_pkey_alloc	 330
@@ -462,7 +462,7 @@ void pkey_disable_set(int pkey, int flags)
 	unsigned long syscall_flags = 0;
 	int ret;
 	int pkey_rights;
-	u32 orig_pkru;
+	u32 orig_pkru = rdpkru();
 
 	dprintf1("START->%s(%d, 0x%x)\n", __func__,
 		pkey, flags);
@@ -812,8 +812,6 @@ void setup_hugetlbfs(void)
 {
 	int err;
 	int fd;
-	int validated_nr_pages;
-	int i;
 	char buf[] = "123";
 
 	if (geteuid() != 0) {
@@ -1116,11 +1114,6 @@ void test_pkey_syscalls_on_non_allocated_pkey(int *ptr, u16 pkey)
 		err = sys_pkey_free(i);
 		pkey_assert(err);
 
-		/* not enforced when pkey_get() is not a syscall
-		err = pkey_get(i, 0);
-		pkey_assert(err < 0);
-		*/
-
 		err = sys_pkey_free(i);
 		pkey_assert(err);
 
@@ -1133,13 +1126,7 @@ void test_pkey_syscalls_on_non_allocated_pkey(int *ptr, u16 pkey)
 void test_pkey_syscalls_bad_args(int *ptr, u16 pkey)
 {
 	int err;
-	int bad_flag = (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE) + 1;
 	int bad_pkey = NR_PKEYS+99;
-
-	/* not enforced when pkey_get() is not a syscall
-	err = pkey_get(bad_pkey, bad_flag);
-	pkey_assert(err < 0);
-	*/
 
 	/* pass a known-invalid pkey in: */
 	err = sys_mprotect_pkey(ptr, PAGE_SIZE, PROT_READ, bad_pkey);
@@ -1149,8 +1136,6 @@ void test_pkey_syscalls_bad_args(int *ptr, u16 pkey)
 /* Assumes that all pkeys other than 'pkey' are unallocated */
 void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
 {
-	unsigned long flags;
-	unsigned long init_val;
 	int err;
 	int allocated_pkeys[NR_PKEYS] = {0};
 	int nr_allocated_pkeys = 0;

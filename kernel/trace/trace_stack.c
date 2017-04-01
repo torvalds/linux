@@ -2,6 +2,7 @@
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
  *
  */
+#include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
@@ -64,7 +65,7 @@ void stack_trace_print(void)
 }
 
 /*
- * When arch-specific code overides this function, the following
+ * When arch-specific code overrides this function, the following
  * data should be filled up, assuming stack_trace_max_lock is held to
  * prevent concurrent updates.
  *     stack_trace_index[]

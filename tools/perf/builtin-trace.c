@@ -40,6 +40,7 @@
 
 #include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
 #include <stdlib.h>
+#include <string.h>
 #include <linux/err.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
@@ -1398,7 +1399,7 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 	return &trace->syscalls.table[id];
 
 out_cant_read:
-	if (verbose) {
+	if (verbose > 0) {
 		fprintf(trace->output, "Problems reading syscall %d", id);
 		if (id <= trace->syscalls.max && trace->syscalls.table[id].name != NULL)
 			fprintf(trace->output, "(%s)", trace->syscalls.table[id].name);
@@ -1800,10 +1801,10 @@ static void print_location(FILE *f, struct perf_sample *sample,
 			   bool print_dso, bool print_sym)
 {
 
-	if ((verbose || print_dso) && al->map)
+	if ((verbose > 0 || print_dso) && al->map)
 		fprintf(f, "%s@", al->map->dso->long_name);
 
-	if ((verbose || print_sym) && al->sym)
+	if ((verbose > 0 || print_sym) && al->sym)
 		fprintf(f, "%s+0x%" PRIx64, al->sym->name,
 			al->addr - al->sym->start);
 	else if (al->map)
@@ -2699,6 +2700,91 @@ static void evlist__set_evsel_handler(struct perf_evlist *evlist, void *handler)
 		evsel->handler = handler;
 }
 
+/*
+ * XXX: Hackish, just splitting the combined -e+--event (syscalls
+ * (raw_syscalls:{sys_{enter,exit}} + events (tracepoints, HW, SW, etc) to use
+ * existing facilities unchanged (trace->ev_qualifier + parse_options()).
+ *
+ * It'd be better to introduce a parse_options() variant that would return a
+ * list with the terms it didn't match to an event...
+ */
+static int trace__parse_events_option(const struct option *opt, const char *str,
+				      int unset __maybe_unused)
+{
+	struct trace *trace = (struct trace *)opt->value;
+	const char *s = str;
+	char *sep = NULL, *lists[2] = { NULL, NULL, };
+	int len = strlen(str), err = -1, list;
+	char *strace_groups_dir = system_path(STRACE_GROUPS_DIR);
+	char group_name[PATH_MAX];
+
+	if (strace_groups_dir == NULL)
+		return -1;
+
+	if (*s == '!') {
+		++s;
+		trace->not_ev_qualifier = true;
+	}
+
+	while (1) {
+		if ((sep = strchr(s, ',')) != NULL)
+			*sep = '\0';
+
+		list = 0;
+		if (syscalltbl__id(trace->sctbl, s) >= 0) {
+			list = 1;
+		} else {
+			path__join(group_name, sizeof(group_name), strace_groups_dir, s);
+			if (access(group_name, R_OK) == 0)
+				list = 1;
+		}
+
+		if (lists[list]) {
+			sprintf(lists[list] + strlen(lists[list]), ",%s", s);
+		} else {
+			lists[list] = malloc(len);
+			if (lists[list] == NULL)
+				goto out;
+			strcpy(lists[list], s);
+		}
+
+		if (!sep)
+			break;
+
+		*sep = ',';
+		s = sep + 1;
+	}
+
+	if (lists[1] != NULL) {
+		struct strlist_config slist_config = {
+			.dirname = strace_groups_dir,
+		};
+
+		trace->ev_qualifier = strlist__new(lists[1], &slist_config);
+		if (trace->ev_qualifier == NULL) {
+			fputs("Not enough memory to parse event qualifier", trace->output);
+			goto out;
+		}
+
+		if (trace__validate_ev_qualifier(trace))
+			goto out;
+	}
+
+	err = 0;
+
+	if (lists[0]) {
+		struct option o = OPT_CALLBACK('e', "event", &trace->evlist, "event",
+					       "event selector. use 'perf list' to list available events",
+					       parse_events_option);
+		err = parse_events_option(&o, lists[0], 0);
+	}
+out:
+	if (sep)
+		*sep = ',';
+
+	return err;
+}
+
 int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char *trace_usage[] = {
@@ -2730,15 +2816,15 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		.max_stack = UINT_MAX,
 	};
 	const char *output_name = NULL;
-	const char *ev_qualifier_str = NULL;
 	const struct option trace_options[] = {
-	OPT_CALLBACK(0, "event", &trace.evlist, "event",
-		     "event selector. use 'perf list' to list available events",
-		     parse_events_option),
+	OPT_CALLBACK('e', "event", &trace, "event",
+		     "event/syscall selector. use 'perf list' to list available events",
+		     trace__parse_events_option),
 	OPT_BOOLEAN(0, "comm", &trace.show_comm,
 		    "show the thread COMM next to its id"),
 	OPT_BOOLEAN(0, "tool_stats", &trace.show_tool_stats, "show tool stats"),
-	OPT_STRING('e', "expr", &ev_qualifier_str, "expr", "list of syscalls to trace"),
+	OPT_CALLBACK(0, "expr", &trace, "expr", "list of syscalls/events to trace",
+		     trace__parse_events_option),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
 	OPT_STRING('i', "input", &input_name, "file", "Analyze events in file"),
 	OPT_STRING('p', "pid", &trace.opts.target.pid, "pid",
@@ -2863,7 +2949,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		return -1;
 	}
 
-	if (!trace.trace_syscalls && ev_qualifier_str) {
+	if (!trace.trace_syscalls && trace.ev_qualifier) {
 		pr_err("The -e option can't be used with --no-syscalls.\n");
 		goto out;
 	}
@@ -2877,28 +2963,6 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	trace.open_id = syscalltbl__id(trace.sctbl, "open");
-
-	if (ev_qualifier_str != NULL) {
-		const char *s = ev_qualifier_str;
-		struct strlist_config slist_config = {
-			.dirname = system_path(STRACE_GROUPS_DIR),
-		};
-
-		trace.not_ev_qualifier = *s == '!';
-		if (trace.not_ev_qualifier)
-			++s;
-		trace.ev_qualifier = strlist__new(s, &slist_config);
-		if (trace.ev_qualifier == NULL) {
-			fputs("Not enough memory to parse event qualifier",
-			      trace.output);
-			err = -ENOMEM;
-			goto out_close;
-		}
-
-		err = trace__validate_ev_qualifier(&trace);
-		if (err)
-			goto out_close;
-	}
 
 	err = target__validate(&trace.opts.target);
 	if (err) {

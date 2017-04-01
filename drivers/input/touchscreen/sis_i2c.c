@@ -316,7 +316,6 @@ static int sis_ts_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	ts->client = client;
-	i2c_set_clientdata(client, ts);
 
 	ts->attn_gpio = devm_gpiod_get_optional(&client->dev,
 						"attn", GPIOD_IN);
