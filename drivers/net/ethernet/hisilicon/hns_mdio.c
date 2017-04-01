@@ -175,18 +175,20 @@ static int mdio_sc_cfg_reg_write(struct hns_mdio_device *mdio_dev,
 static int hns_mdio_wait_ready(struct mii_bus *bus)
 {
 	struct hns_mdio_device *mdio_dev = bus->priv;
+	u32 cmd_reg_value;
 	int i;
-	u32 cmd_reg_value = 1;
 
 	/* waitting for MDIO_COMMAND_REG 's mdio_start==0 */
 	/* after that can do read or write*/
-	for (i = 0; cmd_reg_value; i++) {
+	for (i = 0; i < MDIO_TIMEOUT; i++) {
 		cmd_reg_value = MDIO_GET_REG_BIT(mdio_dev,
 						 MDIO_COMMAND_REG,
 						 MDIO_CMD_START_B);
-		if (i == MDIO_TIMEOUT)
-			return -ETIMEDOUT;
+		if (!cmd_reg_value)
+			break;
 	}
+	if ((i == MDIO_TIMEOUT) && cmd_reg_value)
+		return -ETIMEDOUT;
 
 	return 0;
 }
