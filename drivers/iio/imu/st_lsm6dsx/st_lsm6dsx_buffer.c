@@ -364,7 +364,7 @@ static int st_lsm6dsx_update_fifo(struct iio_dev *iio_dev, bool enable)
 
 static irqreturn_t st_lsm6dsx_handler_irq(int irq, void *private)
 {
-	struct st_lsm6dsx_hw *hw = (struct st_lsm6dsx_hw *)private;
+	struct st_lsm6dsx_hw *hw = private;
 	struct st_lsm6dsx_sensor *sensor;
 	int i;
 
@@ -388,7 +388,7 @@ static irqreturn_t st_lsm6dsx_handler_irq(int irq, void *private)
 
 static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 {
-	struct st_lsm6dsx_hw *hw = (struct st_lsm6dsx_hw *)private;
+	struct st_lsm6dsx_hw *hw = private;
 	int count;
 
 	mutex_lock(&hw->fifo_lock);
