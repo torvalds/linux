@@ -605,7 +605,7 @@ static void unregister_mad_snoop(struct ib_mad_snoop_private *mad_snoop_priv)
 /*
  * ib_unregister_mad_agent - Unregisters a client from using MAD services
  */
-int ib_unregister_mad_agent(struct ib_mad_agent *mad_agent)
+void ib_unregister_mad_agent(struct ib_mad_agent *mad_agent)
 {
 	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_mad_snoop_private *mad_snoop_priv;
@@ -622,7 +622,6 @@ int ib_unregister_mad_agent(struct ib_mad_agent *mad_agent)
 					      agent);
 		unregister_mad_snoop(mad_snoop_priv);
 	}
-	return 0;
 }
 EXPORT_SYMBOL(ib_unregister_mad_agent);
 

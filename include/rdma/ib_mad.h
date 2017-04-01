@@ -673,7 +673,7 @@ struct ib_mad_agent *ib_register_mad_snoop(struct ib_device *device,
  * After invoking this routine, MAD services are no longer usable by the
  * client on the associated QP.
  */
-int ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
+void ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
 
 /**
  * ib_post_send_mad - Posts MAD(s) to the send queue of the QP associated
