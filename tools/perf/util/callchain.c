@@ -1105,63 +1105,100 @@ int callchain_branch_counts(struct callchain_root *root,
 						  cycles_count);
 }
 
+static int counts_str_build(char *bf, int bfsize,
+			     u64 branch_count, u64 predicted_count,
+			     u64 abort_count, u64 cycles_count,
+			     u64 iter_count, u64 samples_count)
+{
+	double predicted_percent = 0.0;
+	const char *null_str = "";
+	char iter_str[32];
+	char cycle_str[32];
+	char *istr, *cstr;
+	u64 cycles;
+
+	if (branch_count == 0)
+		return scnprintf(bf, bfsize, " (calltrace)");
+
+	cycles = cycles_count / branch_count;
+
+	if (iter_count && samples_count) {
+		if (cycles > 0)
+			scnprintf(iter_str, sizeof(iter_str),
+				 " iterations:%" PRId64 "",
+				 iter_count / samples_count);
+		else
+			scnprintf(iter_str, sizeof(iter_str),
+				 "iterations:%" PRId64 "",
+				 iter_count / samples_count);
+		istr = iter_str;
+	} else
+		istr = (char *)null_str;
+
+	if (cycles > 0) {
+		scnprintf(cycle_str, sizeof(cycle_str),
+			  "cycles:%" PRId64 "", cycles);
+		cstr = cycle_str;
+	} else
+		cstr = (char *)null_str;
+
+	predicted_percent = predicted_count * 100.0 / branch_count;
+
+	if ((predicted_count == branch_count) && (abort_count == 0)) {
+		if ((cycles > 0) || (istr != (char *)null_str))
+			return scnprintf(bf, bfsize, " (%s%s)", cstr, istr);
+		else
+			return scnprintf(bf, bfsize, "%s", (char *)null_str);
+	}
+
+	if ((predicted_count < branch_count) && (abort_count == 0)) {
+		if ((cycles > 0) || (istr != (char *)null_str))
+			return scnprintf(bf, bfsize,
+				" (predicted:%.1f%% %s%s)",
+				predicted_percent, cstr, istr);
+		else {
+			return scnprintf(bf, bfsize,
+				" (predicted:%.1f%%)",
+				predicted_percent);
+		}
+	}
+
+	if ((predicted_count == branch_count) && (abort_count > 0)) {
+		if ((cycles > 0) || (istr != (char *)null_str))
+			return scnprintf(bf, bfsize,
+				" (abort:%" PRId64 " %s%s)",
+				abort_count, cstr, istr);
+		else
+			return scnprintf(bf, bfsize,
+				" (abort:%" PRId64 ")",
+				abort_count);
+	}
+
+	if ((cycles > 0) || (istr != (char *)null_str))
+		return scnprintf(bf, bfsize,
+			" (predicted:%.1f%% abort:%" PRId64 " %s%s)",
+			predicted_percent, abort_count, cstr, istr);
+
+	return scnprintf(bf, bfsize,
+			" (predicted:%.1f%% abort:%" PRId64 ")",
+			predicted_percent, abort_count);
+}
+
 static int callchain_counts_printf(FILE *fp, char *bf, int bfsize,
 				   u64 branch_count, u64 predicted_count,
 				   u64 abort_count, u64 cycles_count,
 				   u64 iter_count, u64 samples_count)
 {
-	double predicted_percent = 0.0;
-	const char *null_str = "";
-	char iter_str[32];
-	char *str;
-	u64 cycles = 0;
+	char str[128];
 
-	if (branch_count == 0) {
-		if (fp)
-			return fprintf(fp, " (calltrace)");
-
-		return scnprintf(bf, bfsize, " (calltrace)");
-	}
-
-	if (iter_count && samples_count) {
-		scnprintf(iter_str, sizeof(iter_str),
-			 ", iterations:%" PRId64 "",
-			 iter_count / samples_count);
-		str = iter_str;
-	} else
-		str = (char *)null_str;
-
-	predicted_percent = predicted_count * 100.0 / branch_count;
-	cycles = cycles_count / branch_count;
-
-	if ((predicted_percent >= 100.0) && (abort_count == 0)) {
-		if (fp)
-			return fprintf(fp, " (cycles:%" PRId64 "%s)",
-				       cycles, str);
-
-		return scnprintf(bf, bfsize, " (cycles:%" PRId64 "%s)",
-				 cycles, str);
-	}
-
-	if ((predicted_percent < 100.0) && (abort_count == 0)) {
-		if (fp)
-			return fprintf(fp,
-				" (predicted:%.1f%%, cycles:%" PRId64 "%s)",
-				predicted_percent, cycles, str);
-
-		return scnprintf(bf, bfsize,
-			" (predicted:%.1f%%, cycles:%" PRId64 "%s)",
-			predicted_percent, cycles, str);
-	}
+	counts_str_build(str, sizeof(str), branch_count,
+			 predicted_count, abort_count, cycles_count,
+			 iter_count, samples_count);
 
 	if (fp)
-		return fprintf(fp,
-		" (predicted:%.1f%%, abort:%" PRId64 ", cycles:%" PRId64 "%s)",
-			predicted_percent, abort_count, cycles, str);
+		return fprintf(fp, "%s", str);
 
-	return scnprintf(bf, bfsize,
-		" (predicted:%.1f%%, abort:%" PRId64 ", cycles:%" PRId64 "%s)",
-		predicted_percent, abort_count, cycles, str);
+	return scnprintf(bf, bfsize, "%s", str);
 }
 
 int callchain_list_counts__printf_value(struct callchain_node *node,

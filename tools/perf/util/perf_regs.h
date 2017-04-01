@@ -15,11 +15,12 @@ struct sample_reg {
 
 extern const struct sample_reg sample_reg_masks[];
 
-/*
- * The table sdt_reg_renamings is used for adjusting gcc/gas-generated
- * registers before filling the uprobe tracer interface.
- */
-int sdt_rename_register(char **pdesc, char *old_name);
+enum {
+	SDT_ARG_VALID = 0,
+	SDT_ARG_SKIP,
+};
+
+int arch_sdt_arg_parse_op(char *old_op, char **new_op);
 
 #ifdef HAVE_PERF_REGS_SUPPORT
 #include <perf_regs.h>
