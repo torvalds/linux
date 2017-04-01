@@ -1929,9 +1929,9 @@ static int ctnetlink_new_conntrack(struct net *net, struct sock *ctnl,
 
 			err = 0;
 			if (test_bit(IPS_EXPECTED_BIT, &ct->status))
-				events = IPCT_RELATED;
+				events = 1 << IPCT_RELATED;
 			else
-				events = IPCT_NEW;
+				events = 1 << IPCT_NEW;
 
 			if (cda[CTA_LABELS] &&
 			    ctnetlink_attach_labels(ct, cda) == 0)
