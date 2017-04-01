@@ -429,8 +429,6 @@ static inline struct hnae_vf_cb *hns_ae_get_vf_cb(
 
 int hns_dsaf_set_mac_uc_entry(struct dsaf_device *dsaf_dev,
 			      struct dsaf_drv_mac_single_dest_entry *mac_entry);
-int hns_dsaf_set_mac_mc_entry(struct dsaf_device *dsaf_dev,
-			      struct dsaf_drv_mac_multi_dest_entry *mac_entry);
 int hns_dsaf_add_mac_mc_port(struct dsaf_device *dsaf_dev,
 			     struct dsaf_drv_mac_single_dest_entry *mac_entry);
 int hns_dsaf_del_mac_entry(struct dsaf_device *dsaf_dev, u16 vlan_id,

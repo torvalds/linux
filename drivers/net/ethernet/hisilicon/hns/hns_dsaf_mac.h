@@ -436,7 +436,6 @@ int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vm, bool enable);
 void hns_mac_start(struct hns_mac_cb *mac_cb);
 void hns_mac_stop(struct hns_mac_cb *mac_cb);
-int hns_mac_del_mac(struct hns_mac_cb *mac_cb, u32 vfn, char *mac);
 void hns_mac_uninit(struct dsaf_device *dsaf_dev);
 void hns_mac_adjust_link(struct hns_mac_cb *mac_cb, int speed, int duplex);
 void hns_mac_reset(struct hns_mac_cb *mac_cb);
