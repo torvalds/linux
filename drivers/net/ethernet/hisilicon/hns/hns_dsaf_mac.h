@@ -373,8 +373,6 @@ struct mac_driver {
 	void (*set_rx_ignore_pause_frames)(void *mac_drv, u32 enable);
 	/* config rx mode for promiscuous*/
 	void (*set_promiscuous)(void *mac_drv, u8 enable);
-	/* get mac id */
-	void (*mac_get_id)(void *mac_drv, u8 *mac_id);
 	void (*mac_pausefrm_cfg)(void *mac_drv, u32 rx_en, u32 tx_en);
 
 	void (*autoneg_stat)(void *mac_drv, u32 *enable);

@@ -466,13 +466,6 @@ static int hns_gmac_config_loopback(void *mac_drv, enum hnae_loop loop_mode,
 	return 0;
 }
 
-static void hns_gmac_get_id(void *mac_drv, u8 *mac_id)
-{
-	struct mac_driver *drv = (struct mac_driver *)mac_drv;
-
-	*mac_id = drv->mac_id;
-}
-
 static void hns_gmac_get_info(void *mac_drv, struct mac_info *mac_info)
 {
 	enum hns_gmac_duplex_mdoe duplex;
@@ -714,7 +707,6 @@ void *hns_gmac_config(struct hns_mac_cb *mac_cb, struct mac_params *mac_param)
 	mac_drv->config_pad_and_crc = hns_gmac_config_pad_and_crc;
 	mac_drv->config_half_duplex = hns_gmac_set_duplex_type;
 	mac_drv->set_rx_ignore_pause_frames = hns_gmac_set_rx_auto_pause_frames;
-	mac_drv->mac_get_id = hns_gmac_get_id;
 	mac_drv->get_info = hns_gmac_get_info;
 	mac_drv->autoneg_stat = hns_gmac_autoneg_stat;
 	mac_drv->get_pause_enable = hns_gmac_get_pausefrm_cfg;
