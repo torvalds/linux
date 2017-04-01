@@ -325,6 +325,12 @@ static void hns_gmac_init(void *mac_drv)
 	hns_gmac_tx_loop_pkt_dis(mac_drv);
 	if (drv->mac_cb->mac_type == HNAE_PORT_DEBUG)
 		hns_gmac_set_uc_match(mac_drv, 0);
+
+	/* reduce gmac tx water line to avoid gmac hang-up
+	 * in speed 100M and duplex half.
+	 */
+	dsaf_set_dev_field(drv, GMAC_TX_WATER_LINE_REG, GMAC_TX_WATER_LINE_MASK,
+			   GMAC_TX_WATER_LINE_SHIFT, 8);
 }
 
 void hns_gmac_update_stats(void *mac_drv)
