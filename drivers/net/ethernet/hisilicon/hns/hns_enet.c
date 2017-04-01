@@ -859,7 +859,7 @@ out:
 	return recv_pkts;
 }
 
-static void hns_nic_rx_fini_pro(struct hns_nic_ring_data *ring_data)
+static bool hns_nic_rx_fini_pro(struct hns_nic_ring_data *ring_data)
 {
 	struct hnae_ring *ring = ring_data->ring;
 	int num = 0;
@@ -873,22 +873,23 @@ static void hns_nic_rx_fini_pro(struct hns_nic_ring_data *ring_data)
 		ring_data->ring->q->handle->dev->ops->toggle_ring_irq(
 			ring_data->ring, 1);
 
-		napi_schedule(&ring_data->napi);
+		return false;
+	} else {
+		return true;
 	}
 }
 
-static void hns_nic_rx_fini_pro_v2(struct hns_nic_ring_data *ring_data)
+static bool hns_nic_rx_fini_pro_v2(struct hns_nic_ring_data *ring_data)
 {
 	struct hnae_ring *ring = ring_data->ring;
-	int num = 0;
+	int num;
 
 	num = readl_relaxed(ring->io_base + RCB_REG_FBDNUM);
 
-	if (num == 0)
-		ring_data->ring->q->handle->dev->ops->toggle_ring_irq(
-			ring, 0);
+	if (!num)
+		return true;
 	else
-		napi_schedule(&ring_data->napi);
+		return false;
 }
 
 static inline void hns_nic_reclaim_one_desc(struct hnae_ring *ring,
@@ -989,7 +990,7 @@ static int hns_nic_tx_poll_one(struct hns_nic_ring_data *ring_data,
 	return 0;
 }
 
-static void hns_nic_tx_fini_pro(struct hns_nic_ring_data *ring_data)
+static bool hns_nic_tx_fini_pro(struct hns_nic_ring_data *ring_data)
 {
 	struct hnae_ring *ring = ring_data->ring;
 	int head;
@@ -1002,20 +1003,21 @@ static void hns_nic_tx_fini_pro(struct hns_nic_ring_data *ring_data)
 		ring_data->ring->q->handle->dev->ops->toggle_ring_irq(
 			ring_data->ring, 1);
 
-		napi_schedule(&ring_data->napi);
+		return false;
+	} else {
+		return true;
 	}
 }
 
-static void hns_nic_tx_fini_pro_v2(struct hns_nic_ring_data *ring_data)
+static bool hns_nic_tx_fini_pro_v2(struct hns_nic_ring_data *ring_data)
 {
 	struct hnae_ring *ring = ring_data->ring;
 	int head = readl_relaxed(ring->io_base + RCB_REG_HEAD);
 
 	if (head == ring->next_to_clean)
-		ring_data->ring->q->handle->dev->ops->toggle_ring_irq(
-			ring, 0);
+		return true;
 	else
-		napi_schedule(&ring_data->napi);
+		return false;
 }
 
 static void hns_nic_tx_clr_all_bufs(struct hns_nic_ring_data *ring_data)
@@ -1042,15 +1044,23 @@ static void hns_nic_tx_clr_all_bufs(struct hns_nic_ring_data *ring_data)
 
 static int hns_nic_common_poll(struct napi_struct *napi, int budget)
 {
+	int clean_complete = 0;
 	struct hns_nic_ring_data *ring_data =
 		container_of(napi, struct hns_nic_ring_data, napi);
-	int clean_complete = ring_data->poll_one(
-				ring_data, budget, ring_data->ex_process);
+	struct hnae_ring *ring = ring_data->ring;
 
-	if (clean_complete >= 0 && clean_complete < budget) {
-		napi_complete(napi);
-		ring_data->fini_process(ring_data);
-		return 0;
+try_again:
+	clean_complete += ring_data->poll_one(
+				ring_data, budget - clean_complete,
+				ring_data->ex_process);
+
+	if (clean_complete < budget) {
+		if (ring_data->fini_process(ring_data)) {
+			napi_complete(napi);
+			ring->q->handle->dev->ops->toggle_ring_irq(ring, 0);
+		} else {
+			goto try_again;
+		}
 	}
 
 	return clean_complete;
