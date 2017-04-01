@@ -146,7 +146,7 @@ static int hns_nic_get_link_ksettings(struct net_device *net_dev,
 
 	/* When there is no phy, autoneg is off. */
 	cmd->base.autoneg = false;
-	cmd->base.cmd = speed;
+	cmd->base.speed = speed;
 	cmd->base.duplex = duplex;
 
 	if (net_dev->phydev)
