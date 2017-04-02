@@ -388,7 +388,6 @@ static u8 rtw_init_default_value(struct adapter *padapter)
 
 	/* security_priv */
 	psecuritypriv->binstallGrpkey = _FAIL;
-	psecuritypriv->sw_encrypt = 0;
 	psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 	psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
 	psecuritypriv->dot11PrivacyKeyIndex = 0;
