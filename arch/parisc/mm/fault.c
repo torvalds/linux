@@ -29,8 +29,6 @@
 #define BITSSET		0x1c0	/* for identifying LDCW */
 
 
-DEFINE_PER_CPU(struct exception_data, exception_data);
-
 int show_unhandled_signals = 1;
 
 /*
@@ -143,13 +141,6 @@ int fixup_exception(struct pt_regs *regs)
 
 	fix = search_exception_tables(regs->iaoq[0]);
 	if (fix) {
-		struct exception_data *d;
-		d = this_cpu_ptr(&exception_data);
-		d->fault_ip = regs->iaoq[0];
-		d->fault_gp = regs->gr[27];
-		d->fault_space = regs->isr;
-		d->fault_addr = regs->ior;
-
 		/*
 		 * Fix up get_user() and put_user().
 		 * ASM_EXCEPTIONTABLE_ENTRY_EFAULT() sets the least-significant
