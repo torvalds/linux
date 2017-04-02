@@ -161,7 +161,7 @@ static void flow_new_hash_rnd(struct flow_cache *fc,
 static u32 flow_hash_code(struct flow_cache *fc,
 			  struct flow_cache_percpu *fcp,
 			  const struct flowi *key,
-			  size_t keysize)
+			  unsigned int keysize)
 {
 	const u32 *k = (const u32 *) key;
 	const u32 length = keysize * sizeof(flow_compare_t) / sizeof(u32);
@@ -174,7 +174,7 @@ static u32 flow_hash_code(struct flow_cache *fc,
  * important assumptions that we can here, such as alignment.
  */
 static int flow_key_compare(const struct flowi *key1, const struct flowi *key2,
-			    size_t keysize)
+			    unsigned int keysize)
 {
 	const flow_compare_t *k1, *k1_lim, *k2;
 
@@ -199,7 +199,7 @@ flow_cache_lookup(struct net *net, const struct flowi *key, u16 family, u8 dir,
 	struct flow_cache_percpu *fcp;
 	struct flow_cache_entry *fle, *tfle;
 	struct flow_cache_object *flo;
-	size_t keysize;
+	unsigned int keysize;
 	unsigned int hash;
 
 	local_bh_disable();
