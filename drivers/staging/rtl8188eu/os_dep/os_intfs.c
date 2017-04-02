@@ -49,8 +49,6 @@ MODULE_PARM_DESC(rtw_ips_mode, "The default IPS mode");
 
 static int rtw_debug = 1;
 
-static int rtw_software_encrypt;
-
 static int rtw_acm_method;/*  0:By SW 1:By HW. */
 
 static int rtw_wmm_enable = 1;/*  default is set to enable the wmm. */
@@ -165,7 +163,7 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	registry_par->power_mgnt = (u8)rtw_power_mgnt;
 	registry_par->ips_mode = (u8)rtw_ips_mode;
 	registry_par->mp_mode = 0;
-	registry_par->software_encrypt = (u8)rtw_software_encrypt;
+	registry_par->software_encrypt = 0;
 	registry_par->acm_method = (u8)rtw_acm_method;
 
 	 /* UAPSD */
