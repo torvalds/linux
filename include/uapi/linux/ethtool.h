@@ -1487,6 +1487,7 @@ enum ethtool_link_mode_bit_indices {
  */
 
 /* The forced speed, in units of 1Mb. All values 0 to INT_MAX are legal. */
+/* Update drivers/net/phy/phy.c:phy_speed_to_str() when adding new values */
 #define SPEED_10		10
 #define SPEED_100		100
 #define SPEED_1000		1000

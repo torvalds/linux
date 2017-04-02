@@ -50,8 +50,22 @@ static const char *phy_speed_to_str(int speed)
 		return "1Gbps";
 	case SPEED_2500:
 		return "2.5Gbps";
+	case SPEED_5000:
+		return "5Gbps";
 	case SPEED_10000:
 		return "10Gbps";
+	case SPEED_20000:
+		return "20Gbps";
+	case SPEED_25000:
+		return "25Gbps";
+	case SPEED_40000:
+		return "40Gbps";
+	case SPEED_50000:
+		return "50Gbps";
+	case SPEED_56000:
+		return "56Gbps";
+	case SPEED_100000:
+		return "100Gbps";
 	case SPEED_UNKNOWN:
 		return "Unknown";
 	default:
