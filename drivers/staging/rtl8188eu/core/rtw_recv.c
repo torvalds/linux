@@ -392,7 +392,7 @@ static struct recv_frame *decryptor(struct adapter *padapter,
 		}
 	}
 
-	if ((prxattrib->encrypt > 0) && ((prxattrib->bdecrypted == 0) || (psecuritypriv->sw_decrypt))) {
+	if ((prxattrib->encrypt > 0) && (prxattrib->bdecrypted == 0)) {
 		psecuritypriv->hw_decrypted = false;
 
 		switch (prxattrib->encrypt) {
@@ -1979,7 +1979,7 @@ static int recv_func(struct adapter *padapter, struct recv_frame *rframe)
 		/* check if need to enqueue into uc_swdec_pending_queue*/
 		if (check_fwstate(mlmepriv, WIFI_STATION_STATE) &&
 		    !IS_MCAST(prxattrib->ra) && prxattrib->encrypt > 0 &&
-		    (prxattrib->bdecrypted == 0 || psecuritypriv->sw_decrypt) &&
+		    prxattrib->bdecrypted == 0 &&
 		    !is_wep_enc(psecuritypriv->dot11PrivacyAlgrthm) &&
 		    !psecuritypriv->busetkipkey) {
 			rtw_enqueue_recvframe(rframe, &padapter->recvpriv.uc_swdec_pending_queue);
