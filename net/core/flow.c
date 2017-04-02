@@ -99,7 +99,8 @@ static void flow_cache_gc_task(struct work_struct *work)
 }
 
 static void flow_cache_queue_garbage(struct flow_cache_percpu *fcp,
-				     int deleted, struct list_head *gc_list,
+				     unsigned int deleted,
+				     struct list_head *gc_list,
 				     struct netns_xfrm *xfrm)
 {
 	if (deleted) {
@@ -114,18 +115,18 @@ static void flow_cache_queue_garbage(struct flow_cache_percpu *fcp,
 
 static void __flow_cache_shrink(struct flow_cache *fc,
 				struct flow_cache_percpu *fcp,
-				int shrink_to)
+				unsigned int shrink_to)
 {
 	struct flow_cache_entry *fle;
 	struct hlist_node *tmp;
 	LIST_HEAD(gc_list);
-	int deleted = 0;
+	unsigned int deleted = 0;
 	struct netns_xfrm *xfrm = container_of(fc, struct netns_xfrm,
 						flow_cache_global);
 	unsigned int i;
 
 	for (i = 0; i < flow_cache_hash_size(fc); i++) {
-		int saved = 0;
+		unsigned int saved = 0;
 
 		hlist_for_each_entry_safe(fle, tmp,
 					  &fcp->hash_table[i], u.hlist) {
@@ -146,7 +147,7 @@ static void __flow_cache_shrink(struct flow_cache *fc,
 static void flow_cache_shrink(struct flow_cache *fc,
 			      struct flow_cache_percpu *fcp)
 {
-	int shrink_to = fc->low_watermark / flow_cache_hash_size(fc);
+	unsigned int shrink_to = fc->low_watermark / flow_cache_hash_size(fc);
 
 	__flow_cache_shrink(fc, fcp, shrink_to);
 }
@@ -296,7 +297,7 @@ static void flow_cache_flush_tasklet(unsigned long data)
 	struct flow_cache_entry *fle;
 	struct hlist_node *tmp;
 	LIST_HEAD(gc_list);
-	int deleted = 0;
+	unsigned int deleted = 0;
 	struct netns_xfrm *xfrm = container_of(fc, struct netns_xfrm,
 						flow_cache_global);
 	unsigned int i;
