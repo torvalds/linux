@@ -2794,6 +2794,12 @@ static int ctnetlink_dump_exp_ct(struct net *net, struct sock *ctnl,
 		return -ENOENT;
 
 	ct = nf_ct_tuplehash_to_ctrack(h);
+	/* No expectation linked to this connection tracking. */
+	if (!nfct_help(ct)) {
+		nf_ct_put(ct);
+		return 0;
+	}
+
 	c.data = ct;
 
 	err = netlink_dump_start(ctnl, skb, nlh, &c);
