@@ -803,7 +803,7 @@ static int nfulnl_recv_unsupp(struct net *net, struct sock *ctnl,
 static struct nf_logger nfulnl_logger __read_mostly = {
 	.name	= "nfnetlink_log",
 	.type	= NF_LOG_TYPE_ULOG,
-	.logfn	= &nfulnl_log_packet,
+	.logfn	= nfulnl_log_packet,
 	.me	= THIS_MODULE,
 };
 

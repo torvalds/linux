@@ -1213,8 +1213,8 @@ static const struct nla_policy nfqa_cfg_policy[NFQA_CFG_MAX+1] = {
 };
 
 static const struct nf_queue_handler nfqh = {
-	.outfn		= &nfqnl_enqueue_packet,
-	.nf_hook_drop	= &nfqnl_nf_hook_drop,
+	.outfn		= nfqnl_enqueue_packet,
+	.nf_hook_drop	= nfqnl_nf_hook_drop,
 };
 
 static int nfqnl_recv_config(struct net *net, struct sock *ctnl,

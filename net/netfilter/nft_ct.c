@@ -702,7 +702,7 @@ nft_ct_select_ops(const struct nft_ctx *ctx,
 
 static struct nft_expr_type nft_ct_type __read_mostly = {
 	.name		= "ct",
-	.select_ops	= &nft_ct_select_ops,
+	.select_ops	= nft_ct_select_ops,
 	.policy		= nft_ct_policy,
 	.maxattr	= NFTA_CT_MAX,
 	.owner		= THIS_MODULE,

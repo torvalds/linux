@@ -246,7 +246,7 @@ nft_fib6_select_ops(const struct nft_ctx *ctx,
 
 static struct nft_expr_type nft_fib6_type __read_mostly = {
 	.name		= "fib",
-	.select_ops	= &nft_fib6_select_ops,
+	.select_ops	= nft_fib6_select_ops,
 	.policy		= nft_fib_policy,
 	.maxattr	= NFTA_FIB_MAX,
 	.family		= NFPROTO_IPV6,

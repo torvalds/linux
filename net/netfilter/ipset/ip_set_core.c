@@ -2013,7 +2013,7 @@ static struct nf_sockopt_ops so_set __read_mostly = {
 	.pf		= PF_INET,
 	.get_optmin	= SO_IP_SET,
 	.get_optmax	= SO_IP_SET + 1,
-	.get		= &ip_set_sockfn_get,
+	.get		= ip_set_sockfn_get,
 	.owner		= THIS_MODULE,
 };
 

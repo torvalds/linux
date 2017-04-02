@@ -1774,13 +1774,13 @@ static struct ctl_table vs_vars[] = {
 		.procname	= "sync_version",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_do_sync_mode,
+		.proc_handler	= proc_do_sync_mode,
 	},
 	{
 		.procname	= "sync_ports",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_do_sync_ports,
+		.proc_handler	= proc_do_sync_ports,
 	},
 	{
 		.procname	= "sync_persist_mode",
