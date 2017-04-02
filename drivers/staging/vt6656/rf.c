@@ -771,7 +771,7 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 			ret &= vnt_rf_write_embedded(priv, 0x015C0800);
 		} else {
 			dev_dbg(&priv->usb->dev,
-				"@@@@ vnt_rf_set_txpower> 11G mode\n");
+				"@@@@ %s> 11G mode\n", __func__);
 
 			power_setting = ((0x3f - power) << 20) | (0x7 << 8);
 
