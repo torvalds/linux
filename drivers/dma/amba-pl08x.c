@@ -106,6 +106,7 @@ struct pl08x_driver_data;
 
 /**
  * struct vendor_data - vendor-specific config parameters for PL08x derivatives
+ * @config_offset: offset to the configuration register
  * @channels: the number of channels available in this variant
  * @signals: the number of request signals available from the hardware
  * @dualmaster: whether this version supports dual AHB masters or not.
@@ -145,6 +146,8 @@ struct pl08x_bus_data {
 /**
  * struct pl08x_phy_chan - holder for the physical channels
  * @id: physical index to this channel
+ * @base: memory base address for this physical channel
+ * @reg_config: configuration address for this physical channel
  * @lock: a lock to use when altering an instance of this struct
  * @serving: the virtual channel currently being served by this physical
  * channel
@@ -226,7 +229,7 @@ enum pl08x_dma_chan_state {
  * @phychan: the physical channel utilized by this channel, if there is one
  * @name: name of channel
  * @cd: channel platform data
- * @runtime_addr: address for RX/TX according to the runtime config
+ * @cfg: slave configuration
  * @at: active transaction on this channel
  * @lock: a lock for this channel data
  * @host: a pointer to the host (internal use)
@@ -262,7 +265,7 @@ struct pl08x_dma_chan {
  * @lli_buses: bitmask to or in to LLI pointer selecting AHB port for LLI
  * fetches
  * @mem_buses: set to indicate memory transfers on AHB2.
- * @lock: a spinlock for this struct
+ * @lli_words: how many words are used in each LLI item for this variant
  */
 struct pl08x_driver_data {
 	struct dma_device slave;
