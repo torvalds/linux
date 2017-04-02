@@ -130,42 +130,11 @@ static const u16 gf128mul_table_le[256] = gf128mul_dat(xda_le);
 static const u16 gf128mul_table_be[256] = gf128mul_dat(xda_be);
 
 /*
- * The following functions multiply a field element by x or by x^8 in
+ * The following functions multiply a field element by x^8 in
  * the polynomial field representation.  They use 64-bit word operations
  * to gain speed but compensate for machine endianness and hence work
  * correctly on both styles of machine.
  */
-
-static void gf128mul_x_lle(be128 *r, const be128 *x)
-{
-	u64 a = be64_to_cpu(x->a);
-	u64 b = be64_to_cpu(x->b);
-	u64 _tt = gf128mul_table_le[(b << 7) & 0xff];
-
-	r->b = cpu_to_be64((b >> 1) | (a << 63));
-	r->a = cpu_to_be64((a >> 1) ^ (_tt << 48));
-}
-
-static void gf128mul_x_bbe(be128 *r, const be128 *x)
-{
-	u64 a = be64_to_cpu(x->a);
-	u64 b = be64_to_cpu(x->b);
-	u64 _tt = gf128mul_table_be[a >> 63];
-
-	r->a = cpu_to_be64((a << 1) | (b >> 63));
-	r->b = cpu_to_be64((b << 1) ^ _tt);
-}
-
-void gf128mul_x_ble(be128 *r, const be128 *x)
-{
-	u64 a = le64_to_cpu(x->a);
-	u64 b = le64_to_cpu(x->b);
-	u64 _tt = gf128mul_table_be[b >> 63];
-
-	r->a = cpu_to_le64((a << 1) ^ _tt);
-	r->b = cpu_to_le64((b << 1) | (a >> 63));
-}
-EXPORT_SYMBOL(gf128mul_x_ble);
 
 static void gf128mul_x8_lle(be128 *x)
 {

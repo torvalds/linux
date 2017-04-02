@@ -49,6 +49,7 @@
 #ifndef _CRYPTO_GF128MUL_H
 #define _CRYPTO_GF128MUL_H
 
+#include <asm/byteorder.h>
 #include <crypto/b128ops.h>
 #include <linux/slab.h>
 
@@ -163,8 +164,58 @@ void gf128mul_lle(be128 *a, const be128 *b);
 
 void gf128mul_bbe(be128 *a, const be128 *b);
 
-/* multiply by x in ble format, needed by XTS */
-void gf128mul_x_ble(be128 *a, const be128 *b);
+/*
+ * The following functions multiply a field element by x in
+ * the polynomial field representation.  They use 64-bit word operations
+ * to gain speed but compensate for machine endianness and hence work
+ * correctly on both styles of machine.
+ *
+ * They are defined here for performance.
+ */
+
+static inline u64 gf128mul_mask_from_bit(u64 x, int which)
+{
+	/* a constant-time version of 'x & ((u64)1 << which) ? (u64)-1 : 0' */
+	return ((s64)(x << (63 - which)) >> 63);
+}
+
+static inline void gf128mul_x_lle(be128 *r, const be128 *x)
+{
+	u64 a = be64_to_cpu(x->a);
+	u64 b = be64_to_cpu(x->b);
+
+	/* equivalent to gf128mul_table_le[(b << 7) & 0xff] << 48
+	 * (see crypto/gf128mul.c): */
+	u64 _tt = gf128mul_mask_from_bit(b, 0) & ((u64)0xe1 << 56);
+
+	r->b = cpu_to_be64((b >> 1) | (a << 63));
+	r->a = cpu_to_be64((a >> 1) ^ _tt);
+}
+
+static inline void gf128mul_x_bbe(be128 *r, const be128 *x)
+{
+	u64 a = be64_to_cpu(x->a);
+	u64 b = be64_to_cpu(x->b);
+
+	/* equivalent to gf128mul_table_be[a >> 63] (see crypto/gf128mul.c): */
+	u64 _tt = gf128mul_mask_from_bit(a, 63) & 0x87;
+
+	r->a = cpu_to_be64((a << 1) | (b >> 63));
+	r->b = cpu_to_be64((b << 1) ^ _tt);
+}
+
+/* needed by XTS */
+static inline void gf128mul_x_ble(be128 *r, const be128 *x)
+{
+	u64 a = le64_to_cpu(x->a);
+	u64 b = le64_to_cpu(x->b);
+
+	/* equivalent to gf128mul_table_be[b >> 63] (see crypto/gf128mul.c): */
+	u64 _tt = gf128mul_mask_from_bit(b, 63) & 0x87;
+
+	r->a = cpu_to_le64((a << 1) ^ _tt);
+	r->b = cpu_to_le64((b << 1) | (a >> 63));
+}
 
 /* 4k table optimization */
 
