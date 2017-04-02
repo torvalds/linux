@@ -123,14 +123,44 @@ static int bgx_poll_reg(struct bgx *bgx, u8 lmac, u64 reg, u64 mask, bool zero)
 	return 1;
 }
 
+static int max_bgx_per_node;
+static void set_max_bgx_per_node(struct pci_dev *pdev)
+{
+	u16 sdevid;
+
+	if (max_bgx_per_node)
+		return;
+
+	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &sdevid);
+	switch (sdevid) {
+	case PCI_SUBSYS_DEVID_81XX_BGX:
+		max_bgx_per_node = MAX_BGX_PER_CN81XX;
+		break;
+	case PCI_SUBSYS_DEVID_83XX_BGX:
+		max_bgx_per_node = MAX_BGX_PER_CN83XX;
+		break;
+	case PCI_SUBSYS_DEVID_88XX_BGX:
+	default:
+		max_bgx_per_node = MAX_BGX_PER_CN88XX;
+		break;
+	}
+}
+
+static struct bgx *get_bgx(int node, int bgx_idx)
+{
+	int idx = (node * max_bgx_per_node) + bgx_idx;
+
+	return bgx_vnic[idx];
+}
+
 /* Return number of BGX present in HW */
 unsigned bgx_get_map(int node)
 {
 	int i;
 	unsigned map = 0;
 
-	for (i = 0; i < MAX_BGX_PER_NODE; i++) {
-		if (bgx_vnic[(node * MAX_BGX_PER_NODE) + i])
+	for (i = 0; i < max_bgx_per_node; i++) {
+		if (bgx_vnic[(node * max_bgx_per_node) + i])
 			map |= (1 << i);
 	}
 
@@ -143,7 +173,7 @@ int bgx_get_lmac_count(int node, int bgx_idx)
 {
 	struct bgx *bgx;
 
-	bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
+	bgx = get_bgx(node, bgx_idx);
 	if (bgx)
 		return bgx->lmac_count;
 
@@ -158,7 +188,7 @@ void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status)
 	struct bgx *bgx;
 	struct lmac *lmac;
 
-	bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
+	bgx = get_bgx(node, bgx_idx);
 	if (!bgx)
 		return;
 
@@ -172,7 +202,7 @@ EXPORT_SYMBOL(bgx_get_lmac_link_state);
 
 const u8 *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid)
 {
-	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
+	struct bgx *bgx = get_bgx(node, bgx_idx);
 
 	if (bgx)
 		return bgx->lmac[lmacid].mac;
@@ -183,7 +213,7 @@ EXPORT_SYMBOL(bgx_get_lmac_mac);
 
 void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac)
 {
-	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
+	struct bgx *bgx = get_bgx(node, bgx_idx);
 
 	if (!bgx)
 		return;
@@ -194,7 +224,7 @@ EXPORT_SYMBOL(bgx_set_lmac_mac);
 
 void bgx_lmac_rx_tx_enable(int node, int bgx_idx, int lmacid, bool enable)
 {
-	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
+	struct bgx *bgx = get_bgx(node, bgx_idx);
 	struct lmac *lmac;
 	u64 cfg;
 
@@ -217,7 +247,7 @@ EXPORT_SYMBOL(bgx_lmac_rx_tx_enable);
 void bgx_lmac_get_pfc(int node, int bgx_idx, int lmacid, void *pause)
 {
 	struct pfc *pfc = (struct pfc *)pause;
-	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	struct bgx *bgx = get_bgx(node, bgx_idx);
 	struct lmac *lmac;
 	u64 cfg;
 
@@ -237,7 +267,7 @@ EXPORT_SYMBOL(bgx_lmac_get_pfc);
 void bgx_lmac_set_pfc(int node, int bgx_idx, int lmacid, void *pause)
 {
 	struct pfc *pfc = (struct pfc *)pause;
-	struct bgx *bgx = bgx_vnic[(node * MAX_BGX_PER_CN88XX) + bgx_idx];
+	struct bgx *bgx = get_bgx(node, bgx_idx);
 	struct lmac *lmac;
 	u64 cfg;
 
@@ -369,7 +399,7 @@ u64 bgx_get_rx_stats(int node, int bgx_idx, int lmac, int idx)
 {
 	struct bgx *bgx;
 
-	bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
+	bgx = get_bgx(node, bgx_idx);
 	if (!bgx)
 		return 0;
 
@@ -383,7 +413,7 @@ u64 bgx_get_tx_stats(int node, int bgx_idx, int lmac, int idx)
 {
 	struct bgx *bgx;
 
-	bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
+	bgx = get_bgx(node, bgx_idx);
 	if (!bgx)
 		return 0;
 
@@ -411,7 +441,7 @@ void bgx_lmac_internal_loopback(int node, int bgx_idx,
 	struct lmac *lmac;
 	u64    cfg;
 
-	bgx = bgx_vnic[(node * MAX_BGX_PER_NODE) + bgx_idx];
+	bgx = get_bgx(node, bgx_idx);
 	if (!bgx)
 		return;
 
@@ -1011,12 +1041,6 @@ static void bgx_print_qlm_mode(struct bgx *bgx, u8 lmacid)
 			dev_info(dev, "%s: 40G_KR4\n", (char *)str);
 		break;
 	case BGX_MODE_QSGMII:
-		if ((lmacid == 0) &&
-		    (bgx_get_lane2sds_cfg(bgx, lmac) != lmacid))
-			return;
-		if ((lmacid == 2) &&
-		    (bgx_get_lane2sds_cfg(bgx, lmac) == lmacid))
-			return;
 		dev_info(dev, "%s: QSGMII\n", (char *)str);
 		break;
 	case BGX_MODE_RGMII:
@@ -1334,11 +1358,13 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_release_regions;
 	}
 
+	set_max_bgx_per_node(pdev);
+
 	pci_read_config_word(pdev, PCI_DEVICE_ID, &sdevid);
 	if (sdevid != PCI_DEVICE_ID_THUNDER_RGX) {
 		bgx->bgx_id = (pci_resource_start(pdev,
 			PCI_CFG_REG_BAR_NUM) >> 24) & BGX_ID_MASK;
-		bgx->bgx_id += nic_get_node_id(pdev) * MAX_BGX_PER_NODE;
+		bgx->bgx_id += nic_get_node_id(pdev) * max_bgx_per_node;
 		bgx->max_lmac = MAX_LMAC_PER_BGX;
 		bgx_vnic[bgx->bgx_id] = bgx;
 	} else {

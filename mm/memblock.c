@@ -1118,7 +1118,10 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn,
 		}
 	} while (left < right);
 
-	return min(PHYS_PFN(type->regions[right].base), max_pfn);
+	if (right == type->cnt)
+		return max_pfn;
+	else
+		return min(PHYS_PFN(type->regions[right].base), max_pfn);
 }
 
 /**

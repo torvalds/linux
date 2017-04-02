@@ -72,6 +72,7 @@ static const char * const iommu_group_resv_type_string[] = {
 	[IOMMU_RESV_DIRECT]	= "direct",
 	[IOMMU_RESV_RESERVED]	= "reserved",
 	[IOMMU_RESV_MSI]	= "msi",
+	[IOMMU_RESV_SW_MSI]	= "msi",
 };
 
 #define IOMMU_GROUP_ATTR(_name, _mode, _show, _store)		\
@@ -1743,8 +1744,8 @@ void iommu_put_resv_regions(struct device *dev, struct list_head *list)
 }
 
 struct iommu_resv_region *iommu_alloc_resv_region(phys_addr_t start,
-						  size_t length,
-						  int prot, int type)
+						  size_t length, int prot,
+						  enum iommu_resv_type type)
 {
 	struct iommu_resv_region *region;
 

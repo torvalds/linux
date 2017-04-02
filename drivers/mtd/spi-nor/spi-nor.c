@@ -186,7 +186,7 @@ static inline int write_enable(struct spi_nor *nor)
 }
 
 /*
- * Send write disble instruction to the chip.
+ * Send write disable instruction to the chip.
  */
 static inline int write_disable(struct spi_nor *nor)
 {

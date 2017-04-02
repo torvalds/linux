@@ -43,7 +43,7 @@
 #include "target_core_ua.h"
 
 static sense_reason_t core_alua_check_transition(int state, int valid,
-						 int *primary);
+						 int *primary, int explicit);
 static int core_alua_set_tg_pt_secondary_state(
 		struct se_lun *lun, int explicit, int offline);
 
@@ -335,8 +335,8 @@ target_emulate_set_target_port_groups(struct se_cmd *cmd)
 		 * the state is a primary or secondary target port asymmetric
 		 * access state.
 		 */
-		rc = core_alua_check_transition(alua_access_state,
-						valid_states, &primary);
+		rc = core_alua_check_transition(alua_access_state, valid_states,
+						&primary, 1);
 		if (rc) {
 			/*
 			 * If the SET TARGET PORT GROUPS attempts to establish
@@ -691,7 +691,7 @@ target_alua_state_check(struct se_cmd *cmd)
 
 	if (dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)
 		return 0;
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA)
 		return 0;
 
 	/*
@@ -762,7 +762,7 @@ target_alua_state_check(struct se_cmd *cmd)
  * Check implicit and explicit ALUA state change request.
  */
 static sense_reason_t
-core_alua_check_transition(int state, int valid, int *primary)
+core_alua_check_transition(int state, int valid, int *primary, int explicit)
 {
 	/*
 	 * OPTIMIZED, NON-OPTIMIZED, STANDBY and UNAVAILABLE are
@@ -804,11 +804,14 @@ core_alua_check_transition(int state, int valid, int *primary)
 		*primary = 0;
 		break;
 	case ALUA_ACCESS_STATE_TRANSITION:
-		/*
-		 * Transitioning is set internally, and
-		 * cannot be selected manually.
-		 */
-		goto not_supported;
+		if (!(valid & ALUA_T_SUP) || explicit)
+			/*
+			 * Transitioning is set internally and by tcmu daemon,
+			 * and cannot be selected through a STPG.
+			 */
+			goto not_supported;
+		*primary = 0;
+		break;
 	default:
 		pr_err("Unknown ALUA access state: 0x%02x\n", state);
 		return TCM_INVALID_PARAMETER_LIST;
@@ -1013,7 +1016,7 @@ static void core_alua_queue_state_change_ua(struct t10_alua_tg_pt_gp *tg_pt_gp)
 static void core_alua_do_transition_tg_pt_work(struct work_struct *work)
 {
 	struct t10_alua_tg_pt_gp *tg_pt_gp = container_of(work,
-		struct t10_alua_tg_pt_gp, tg_pt_gp_transition_work.work);
+		struct t10_alua_tg_pt_gp, tg_pt_gp_transition_work);
 	struct se_device *dev = tg_pt_gp->tg_pt_gp_dev;
 	bool explicit = (tg_pt_gp->tg_pt_gp_alua_access_status ==
 			 ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG);
@@ -1070,32 +1073,19 @@ static int core_alua_do_transition_tg_pt(
 	if (atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state) == new_state)
 		return 0;
 
-	if (new_state == ALUA_ACCESS_STATE_TRANSITION)
+	if (explicit && new_state == ALUA_ACCESS_STATE_TRANSITION)
 		return -EAGAIN;
 
 	/*
 	 * Flush any pending transitions
 	 */
-	if (!explicit && tg_pt_gp->tg_pt_gp_implicit_trans_secs &&
-	    atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state) ==
-	    ALUA_ACCESS_STATE_TRANSITION) {
-		/* Just in case */
-		tg_pt_gp->tg_pt_gp_alua_pending_state = new_state;
-		tg_pt_gp->tg_pt_gp_transition_complete = &wait;
-		flush_delayed_work(&tg_pt_gp->tg_pt_gp_transition_work);
-		wait_for_completion(&wait);
-		tg_pt_gp->tg_pt_gp_transition_complete = NULL;
-		return 0;
-	}
+	if (!explicit)
+		flush_work(&tg_pt_gp->tg_pt_gp_transition_work);
 
 	/*
 	 * Save the old primary ALUA access state, and set the current state
 	 * to ALUA_ACCESS_STATE_TRANSITION.
 	 */
-	tg_pt_gp->tg_pt_gp_alua_previous_state =
-		atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state);
-	tg_pt_gp->tg_pt_gp_alua_pending_state = new_state;
-
 	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state,
 			ALUA_ACCESS_STATE_TRANSITION);
 	tg_pt_gp->tg_pt_gp_alua_access_status = (explicit) ?
@@ -1103,6 +1093,13 @@ static int core_alua_do_transition_tg_pt(
 				ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA;
 
 	core_alua_queue_state_change_ua(tg_pt_gp);
+
+	if (new_state == ALUA_ACCESS_STATE_TRANSITION)
+		return 0;
+
+	tg_pt_gp->tg_pt_gp_alua_previous_state =
+		atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state);
+	tg_pt_gp->tg_pt_gp_alua_pending_state = new_state;
 
 	/*
 	 * Check for the optional ALUA primary state transition delay
@@ -1117,17 +1114,9 @@ static int core_alua_do_transition_tg_pt(
 	atomic_inc(&tg_pt_gp->tg_pt_gp_ref_cnt);
 	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 
-	if (!explicit && tg_pt_gp->tg_pt_gp_implicit_trans_secs) {
-		unsigned long transition_tmo;
-
-		transition_tmo = tg_pt_gp->tg_pt_gp_implicit_trans_secs * HZ;
-		queue_delayed_work(tg_pt_gp->tg_pt_gp_dev->tmr_wq,
-				   &tg_pt_gp->tg_pt_gp_transition_work,
-				   transition_tmo);
-	} else {
+	schedule_work(&tg_pt_gp->tg_pt_gp_transition_work);
+	if (explicit) {
 		tg_pt_gp->tg_pt_gp_transition_complete = &wait;
-		queue_delayed_work(tg_pt_gp->tg_pt_gp_dev->tmr_wq,
-				   &tg_pt_gp->tg_pt_gp_transition_work, 0);
 		wait_for_completion(&wait);
 		tg_pt_gp->tg_pt_gp_transition_complete = NULL;
 	}
@@ -1149,8 +1138,12 @@ int core_alua_do_port_transition(
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	int primary, valid_states, rc = 0;
 
+	if (l_dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA)
+		return -ENODEV;
+
 	valid_states = l_tg_pt_gp->tg_pt_gp_alua_supported_states;
-	if (core_alua_check_transition(new_state, valid_states, &primary) != 0)
+	if (core_alua_check_transition(new_state, valid_states, &primary,
+				       explicit) != 0)
 		return -EINVAL;
 
 	local_lu_gp_mem = l_dev->dev_alua_lu_gp_mem;
@@ -1695,8 +1688,8 @@ struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(struct se_device *dev,
 	mutex_init(&tg_pt_gp->tg_pt_gp_md_mutex);
 	spin_lock_init(&tg_pt_gp->tg_pt_gp_lock);
 	atomic_set(&tg_pt_gp->tg_pt_gp_ref_cnt, 0);
-	INIT_DELAYED_WORK(&tg_pt_gp->tg_pt_gp_transition_work,
-			  core_alua_do_transition_tg_pt_work);
+	INIT_WORK(&tg_pt_gp->tg_pt_gp_transition_work,
+		  core_alua_do_transition_tg_pt_work);
 	tg_pt_gp->tg_pt_gp_dev = dev;
 	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state,
 		ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED);
@@ -1804,7 +1797,7 @@ void core_alua_free_tg_pt_gp(
 	dev->t10_alua.alua_tg_pt_gps_counter--;
 	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 
-	flush_delayed_work(&tg_pt_gp->tg_pt_gp_transition_work);
+	flush_work(&tg_pt_gp->tg_pt_gp_transition_work);
 
 	/*
 	 * Allow a struct t10_alua_tg_pt_gp_member * referenced by
@@ -1973,7 +1966,7 @@ ssize_t core_alua_store_tg_pt_gp_info(
 	unsigned char buf[TG_PT_GROUP_NAME_BUF];
 	int move = 0;
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH ||
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA ||
 	    (dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		return -ENODEV;
 
@@ -2230,7 +2223,7 @@ ssize_t core_alua_store_offline_bit(
 	unsigned long tmp;
 	int ret;
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH ||
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA ||
 	    (dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		return -ENODEV;
 
@@ -2316,7 +2309,8 @@ ssize_t core_alua_store_secondary_write_metadata(
 
 int core_setup_alua(struct se_device *dev)
 {
-	if (!(dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH) &&
+	if (!(dev->transport->transport_flags &
+	     TRANSPORT_FLAG_PASSTHROUGH_ALUA) &&
 	    !(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)) {
 		struct t10_alua_lu_gp_member *lu_gp_mem;
 

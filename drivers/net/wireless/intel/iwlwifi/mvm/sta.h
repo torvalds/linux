@@ -547,7 +547,7 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 				       struct ieee80211_sta *sta,
 				       enum ieee80211_frame_release_type reason,
 				       u16 cnt, u16 tids, bool more_data,
-				       bool agg);
+				       bool single_sta_queue);
 int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 		      bool drain);
 void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,

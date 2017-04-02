@@ -846,7 +846,8 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = file_inode(iocb->ki_filp);
 	size_t count = iov_iter_count(iter);
-	loff_t pos = iocb->ki_pos, end = iocb->ki_pos + count - 1, ret = 0;
+	loff_t pos = iocb->ki_pos, start = pos;
+	loff_t end = iocb->ki_pos + count - 1, ret = 0;
 	unsigned int flags = IOMAP_DIRECT;
 	struct blk_plug plug;
 	struct iomap_dio *dio;
@@ -887,12 +888,12 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	}
 
 	if (mapping->nrpages) {
-		ret = filemap_write_and_wait_range(mapping, iocb->ki_pos, end);
+		ret = filemap_write_and_wait_range(mapping, start, end);
 		if (ret)
 			goto out_free_dio;
 
 		ret = invalidate_inode_pages2_range(mapping,
-				iocb->ki_pos >> PAGE_SHIFT, end >> PAGE_SHIFT);
+				start >> PAGE_SHIFT, end >> PAGE_SHIFT);
 		WARN_ON_ONCE(ret);
 		ret = 0;
 	}
@@ -941,6 +942,8 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		__set_current_state(TASK_RUNNING);
 	}
 
+	ret = iomap_dio_complete(dio);
+
 	/*
 	 * Try again to invalidate clean pages which might have been cached by
 	 * non-direct readahead, or faulted in by get_user_pages() if the source
@@ -949,12 +952,12 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	 * this invalidation fails, tough, the write still worked...
 	 */
 	if (iov_iter_rw(iter) == WRITE && mapping->nrpages) {
-		ret = invalidate_inode_pages2_range(mapping,
-				iocb->ki_pos >> PAGE_SHIFT, end >> PAGE_SHIFT);
-		WARN_ON_ONCE(ret);
+		int err = invalidate_inode_pages2_range(mapping,
+				start >> PAGE_SHIFT, end >> PAGE_SHIFT);
+		WARN_ON_ONCE(err);
 	}
 
-	return iomap_dio_complete(dio);
+	return ret;
 
 out_free_dio:
 	kfree(dio);

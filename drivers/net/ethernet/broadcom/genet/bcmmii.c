@@ -220,20 +220,6 @@ void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 	udelay(60);
 }
 
-static void bcmgenet_internal_phy_setup(struct net_device *dev)
-{
-	struct bcmgenet_priv *priv = netdev_priv(dev);
-	u32 reg;
-
-	/* Power up PHY */
-	bcmgenet_phy_power_set(dev, true);
-	/* enable APD */
-	reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
-	reg |= EXT_PWR_DN_EN_LD;
-	bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
-	bcmgenet_mii_reset(dev);
-}
-
 static void bcmgenet_moca_phy_setup(struct bcmgenet_priv *priv)
 {
 	u32 reg;
@@ -281,7 +267,6 @@ int bcmgenet_mii_config(struct net_device *dev)
 
 		if (priv->internal_phy) {
 			phy_name = "internal PHY";
-			bcmgenet_internal_phy_setup(dev);
 		} else if (priv->phy_interface == PHY_INTERFACE_MODE_MOCA) {
 			phy_name = "MoCA";
 			bcmgenet_moca_phy_setup(priv);

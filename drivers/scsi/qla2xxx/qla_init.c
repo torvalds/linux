@@ -629,7 +629,6 @@ void qla24xx_async_gpdb_sp_done(void *s, int res)
 	struct srb *sp = s;
 	struct scsi_qla_host *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
-	uint64_t zero = 0;
 	struct port_database_24xx *pd;
 	fc_port_t *fcport = sp->fcport;
 	u16 *mb = sp->u.iocb_cmd.u.mbx.in_mb;
@@ -649,48 +648,7 @@ void qla24xx_async_gpdb_sp_done(void *s, int res)
 
 	pd = (struct port_database_24xx *)sp->u.iocb_cmd.u.mbx.in;
 
-	/* Check for logged in state. */
-	if (pd->current_login_state != PDS_PRLI_COMPLETE &&
-	    pd->last_login_state != PDS_PRLI_COMPLETE) {
-		ql_dbg(ql_dbg_mbx, vha, 0xffff,
-		    "Unable to verify login-state (%x/%x) for "
-		    "loop_id %x.\n", pd->current_login_state,
-		    pd->last_login_state, fcport->loop_id);
-		rval = QLA_FUNCTION_FAILED;
-		goto gpd_error_out;
-	}
-
-	if (fcport->loop_id == FC_NO_LOOP_ID ||
-	    (memcmp(fcport->port_name, (uint8_t *)&zero, 8) &&
-		memcmp(fcport->port_name, pd->port_name, 8))) {
-		/* We lost the device mid way. */
-		rval = QLA_NOT_LOGGED_IN;
-		goto gpd_error_out;
-	}
-
-	/* Names are little-endian. */
-	memcpy(fcport->node_name, pd->node_name, WWN_SIZE);
-
-	/* Get port_id of device. */
-	fcport->d_id.b.domain = pd->port_id[0];
-	fcport->d_id.b.area = pd->port_id[1];
-	fcport->d_id.b.al_pa = pd->port_id[2];
-	fcport->d_id.b.rsvd_1 = 0;
-
-	/* If not target must be initiator or unknown type. */
-	if ((pd->prli_svc_param_word_3[0] & BIT_4) == 0)
-		fcport->port_type = FCT_INITIATOR;
-	else
-		fcport->port_type = FCT_TARGET;
-
-	/* Passback COS information. */
-	fcport->supported_classes = (pd->flags & PDF_CLASS_2) ?
-		FC_COS_CLASS2 : FC_COS_CLASS3;
-
-	if (pd->prli_svc_param_word_3[0] & BIT_7) {
-		fcport->flags |= FCF_CONF_COMP_SUPPORTED;
-		fcport->conf_compl_supported = 1;
-	}
+	rval = __qla24xx_parse_gpdb(vha, fcport, pd);
 
 gpd_error_out:
 	memset(&ea, 0, sizeof(ea));
@@ -876,9 +834,13 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 	fcport->login_retry--;
 
 	if ((fcport->fw_login_state == DSC_LS_PLOGI_PEND) ||
-	    (fcport->fw_login_state == DSC_LS_PLOGI_COMP) ||
 	    (fcport->fw_login_state == DSC_LS_PRLI_PEND))
 		return 0;
+
+	if (fcport->fw_login_state == DSC_LS_PLOGI_COMP) {
+		if (time_before_eq(jiffies, fcport->plogi_nack_done_deadline))
+			return 0;
+	}
 
 	/* for pure Target Mode. Login will not be initiated */
 	if (vha->host->active_mode == MODE_TARGET)
@@ -1041,9 +1003,13 @@ void qla24xx_handle_relogin_event(scsi_qla_host_t *vha,
 		fcport->flags);
 
 	if ((fcport->fw_login_state == DSC_LS_PLOGI_PEND) ||
-	    (fcport->fw_login_state == DSC_LS_PLOGI_COMP) ||
 	    (fcport->fw_login_state == DSC_LS_PRLI_PEND))
 		return;
+
+	if (fcport->fw_login_state == DSC_LS_PLOGI_COMP) {
+		if (time_before_eq(jiffies, fcport->plogi_nack_done_deadline))
+			return;
+	}
 
 	if (fcport->flags & FCF_ASYNC_SENT) {
 		fcport->login_retry++;
@@ -1258,7 +1224,7 @@ qla24xx_abort_sp_done(void *ptr, int res)
 	complete(&abt->u.abt.comp);
 }
 
-static int
+int
 qla24xx_async_abort_cmd(srb_t *cmd_sp)
 {
 	scsi_qla_host_t *vha = cmd_sp->vha;
@@ -3212,6 +3178,7 @@ next_check:
 	} else {
 		ql_dbg(ql_dbg_init, vha, 0x00d3,
 		    "Init Firmware -- success.\n");
+		ha->flags.fw_started = 1;
 	}
 
 	return (rval);
@@ -3374,8 +3341,8 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 	uint8_t       domain;
 	char		connect_type[22];
 	struct qla_hw_data *ha = vha->hw;
-	unsigned long flags;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+	port_id_t id;
 
 	/* Get host addresses. */
 	rval = qla2x00_get_adapter_id(vha,
@@ -3453,13 +3420,11 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 
 	/* Save Host port and loop ID. */
 	/* byte order - Big Endian */
-	vha->d_id.b.domain = domain;
-	vha->d_id.b.area = area;
-	vha->d_id.b.al_pa = al_pa;
-
-	spin_lock_irqsave(&ha->vport_slock, flags);
-	qlt_update_vp_map(vha, SET_AL_PA);
-	spin_unlock_irqrestore(&ha->vport_slock, flags);
+	id.b.domain = domain;
+	id.b.area = area;
+	id.b.al_pa = al_pa;
+	id.b.rsvd_1 = 0;
+	qlt_update_host_map(vha, id);
 
 	if (!vha->flags.init_done)
 		ql_log(ql_log_info, vha, 0x2010,
@@ -4036,6 +4001,7 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 			atomic_set(&vha->loop_state, LOOP_READY);
 			ql_dbg(ql_dbg_disc, vha, 0x2069,
 			    "LOOP READY.\n");
+			ha->flags.fw_init_done = 1;
 
 			/*
 			 * Process any ATIO queue entries that came in
@@ -5148,6 +5114,7 @@ qla2x00_update_fcports(scsi_qla_host_t *base_vha)
 			}
 		}
 		atomic_dec(&vha->vref_count);
+		wake_up(&vha->vref_waitq);
 	}
 	spin_unlock_irqrestore(&ha->vport_slock, flags);
 }
@@ -5526,6 +5493,11 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	if (!(IS_P3P_TYPE(ha)))
 		ha->isp_ops->reset_chip(vha);
 
+	ha->flags.n2n_ae = 0;
+	ha->flags.lip_ae = 0;
+	ha->current_topology = 0;
+	ha->flags.fw_started = 0;
+	ha->flags.fw_init_done = 0;
 	ha->chip_reset++;
 
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
@@ -6802,6 +6774,8 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *vha)
 		return;
 	if (!ha->fw_major_version)
 		return;
+	if (!ha->flags.fw_started)
+		return;
 
 	ret = qla2x00_stop_firmware(vha);
 	for (retries = 5; ret != QLA_SUCCESS && ret != QLA_FUNCTION_TIMEOUT &&
@@ -6815,6 +6789,9 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *vha)
 		    "Attempting retry of stop-firmware command.\n");
 		ret = qla2x00_stop_firmware(vha);
 	}
+
+	ha->flags.fw_started = 0;
+	ha->flags.fw_init_done = 0;
 }
 
 int

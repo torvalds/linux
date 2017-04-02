@@ -1560,14 +1560,24 @@ static inline pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr,
 	return ptep;
 }
 
-#ifdef __PAGETABLE_PUD_FOLDED
-static inline int __pud_alloc(struct mm_struct *mm, pgd_t *pgd,
+#ifdef __PAGETABLE_P4D_FOLDED
+static inline int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd,
 						unsigned long address)
 {
 	return 0;
 }
 #else
-int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
+int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
+#endif
+
+#ifdef __PAGETABLE_PUD_FOLDED
+static inline int __pud_alloc(struct mm_struct *mm, p4d_t *p4d,
+						unsigned long address)
+{
+	return 0;
+}
+#else
+int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address);
 #endif
 
 #if defined(__PAGETABLE_PMD_FOLDED) || !defined(CONFIG_MMU)
@@ -1619,11 +1629,22 @@ int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
  * Remove it when 4level-fixup.h has been removed.
  */
 #if defined(CONFIG_MMU) && !defined(__ARCH_HAS_4LEVEL_HACK)
-static inline pud_t *pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
+
+#ifndef __ARCH_HAS_5LEVEL_HACK
+static inline p4d_t *p4d_alloc(struct mm_struct *mm, pgd_t *pgd,
+		unsigned long address)
 {
-	return (unlikely(pgd_none(*pgd)) && __pud_alloc(mm, pgd, address))?
-		NULL: pud_offset(pgd, address);
+	return (unlikely(pgd_none(*pgd)) && __p4d_alloc(mm, pgd, address)) ?
+		NULL : p4d_offset(pgd, address);
 }
+
+static inline pud_t *pud_alloc(struct mm_struct *mm, p4d_t *p4d,
+		unsigned long address)
+{
+	return (unlikely(p4d_none(*p4d)) && __pud_alloc(mm, p4d, address)) ?
+		NULL : pud_offset(p4d, address);
+}
+#endif /* !__ARCH_HAS_5LEVEL_HACK */
 
 static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 {
@@ -2385,7 +2406,8 @@ void sparse_mem_maps_populate_node(struct page **map_map,
 
 struct page *sparse_mem_map_populate(unsigned long pnum, int nid);
 pgd_t *vmemmap_pgd_populate(unsigned long addr, int node);
-pud_t *vmemmap_pud_populate(pgd_t *pgd, unsigned long addr, int node);
+p4d_t *vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node);
+pud_t *vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node);
 pmd_t *vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node);
 pte_t *vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node);
 void *vmemmap_alloc_block(unsigned long size, int node);

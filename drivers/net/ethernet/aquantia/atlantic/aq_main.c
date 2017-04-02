@@ -98,6 +98,7 @@ static int aq_ndev_change_mtu(struct net_device *ndev, int new_mtu)
 
 	if (err < 0)
 		goto err_exit;
+	ndev->mtu = new_mtu;
 
 	if (netif_running(ndev)) {
 		aq_ndev_close(ndev);
