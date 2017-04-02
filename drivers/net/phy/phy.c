@@ -1208,15 +1208,8 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 		return -EIO;
 
 	/* According to 802.3az,the EEE is supported only in full duplex-mode.
-	 * Also EEE feature is active when core is operating with MII, GMII
-	 * or RGMII (all kinds). Internal PHYs are also allowed to proceed and
-	 * should return an error if they do not support EEE.
 	 */
-	if ((phydev->duplex == DUPLEX_FULL) &&
-	    ((phydev->interface == PHY_INTERFACE_MODE_MII) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_GMII) ||
-	     phy_interface_is_rgmii(phydev) ||
-	     phy_is_internal(phydev))) {
+	if (phydev->duplex == DUPLEX_FULL) {
 		int eee_lp, eee_cap, eee_adv;
 		u32 lp, cap, adv;
 		int status;
@@ -1332,15 +1325,37 @@ EXPORT_SYMBOL(phy_ethtool_get_eee);
  */
 int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 {
-	int val = ethtool_adv_to_mmd_eee_adv_t(data->advertised);
+	int cap, old_adv, adv, ret;
 
 	if (!phydev->drv)
 		return -EIO;
 
-	/* Mask prohibited EEE modes */
-	val &= ~phydev->eee_broken_modes;
+	/* Get Supported EEE */
+	cap = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE);
+	if (cap < 0)
+		return cap;
 
-	phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, val);
+	old_adv = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV);
+	if (old_adv < 0)
+		return old_adv;
+
+	adv = ethtool_adv_to_mmd_eee_adv_t(data->advertised) & cap;
+
+	/* Mask prohibited EEE modes */
+	adv &= ~phydev->eee_broken_modes;
+
+	if (old_adv != adv) {
+		ret = phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, adv);
+		if (ret < 0)
+			return ret;
+
+		/* Restart autonegotiation so the new modes get sent to the
+		 * link partner.
+		 */
+		ret = genphy_restart_aneg(phydev);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
