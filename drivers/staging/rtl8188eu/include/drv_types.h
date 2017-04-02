@@ -66,7 +66,6 @@ struct registry_priv {
 	u8	smart_ps;
 	u8	mp_mode;
 	u8	software_encrypt;
-	u8	software_decrypt;
 	u8	acm_method;
 	  /* UAPSD */
 	u8	wmm_enable;

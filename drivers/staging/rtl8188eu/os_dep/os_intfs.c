@@ -166,7 +166,6 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	registry_par->ips_mode = (u8)rtw_ips_mode;
 	registry_par->mp_mode = 0;
 	registry_par->software_encrypt = (u8)rtw_software_encrypt;
-	registry_par->software_decrypt = 0;
 	registry_par->acm_method = (u8)rtw_acm_method;
 
 	 /* UAPSD */
@@ -393,7 +392,7 @@ static u8 rtw_init_default_value(struct adapter *padapter)
 	/* security_priv */
 	psecuritypriv->binstallGrpkey = _FAIL;
 	psecuritypriv->sw_encrypt = pregistrypriv->software_encrypt;
-	psecuritypriv->sw_decrypt = pregistrypriv->software_decrypt;
+	psecuritypriv->sw_decrypt = 0;
 	psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 	psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
 	psecuritypriv->dot11PrivacyKeyIndex = 0;
