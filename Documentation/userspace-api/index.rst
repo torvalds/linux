@@ -16,6 +16,8 @@ place where this information is gathered.
 .. toctree::
    :maxdepth: 2
 
+   unshare
+
 .. only::  subproject and html
 
    Indices
