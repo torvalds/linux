@@ -46,16 +46,8 @@
 
 /* Per channel configuration registers */
 
-#define PL080_Cx_STRIDE				(0x20)
+/* Per channel configuration registers */
 #define PL080_Cx_BASE(x)			((0x100 + (x * 0x20)))
-#define PL080_Cx_SRC_ADDR(x)			((0x100 + (x * 0x20)))
-#define PL080_Cx_DST_ADDR(x)			((0x104 + (x * 0x20)))
-#define PL080_Cx_LLI(x)				((0x108 + (x * 0x20)))
-#define PL080_Cx_CONTROL(x)			((0x10C + (x * 0x20)))
-#define PL080_Cx_CONFIG(x)			((0x110 + (x * 0x20)))
-#define PL080S_Cx_CONTROL2(x)			((0x110 + (x * 0x20)))
-#define PL080S_Cx_CONFIG(x)			((0x114 + (x * 0x20)))
-
 #define PL080_CH_SRC_ADDR			(0x00)
 #define PL080_CH_DST_ADDR			(0x04)
 #define PL080_CH_LLI				(0x08)
