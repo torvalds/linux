@@ -2680,8 +2680,8 @@ ctnetlink_exp_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	last = (struct nf_conntrack_expect *)cb->args[1];
 	for (; cb->args[0] < nf_ct_expect_hsize; cb->args[0]++) {
 restart:
-		hlist_for_each_entry(exp, &nf_ct_expect_hash[cb->args[0]],
-				     hnode) {
+		hlist_for_each_entry_rcu(exp, &nf_ct_expect_hash[cb->args[0]],
+					 hnode) {
 			if (l3proto && exp->tuple.src.l3num != l3proto)
 				continue;
 
@@ -2732,7 +2732,7 @@ ctnetlink_exp_ct_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	rcu_read_lock();
 	last = (struct nf_conntrack_expect *)cb->args[1];
 restart:
-	hlist_for_each_entry(exp, &help->expectations, lnode) {
+	hlist_for_each_entry_rcu(exp, &help->expectations, lnode) {
 		if (l3proto && exp->tuple.src.l3num != l3proto)
 			continue;
 		if (cb->args[1]) {
