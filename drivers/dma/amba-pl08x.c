@@ -420,7 +420,7 @@ static void pl08x_start_next_txd(struct pl08x_dma_chan *plchan)
 
 	/* Enable the DMA channel */
 	/* Do not access config register until channel shows as disabled */
-	while (readl(pl08x->base + PL080_EN_CHAN) & (1 << phychan->id))
+	while (readl(pl08x->base + PL080_EN_CHAN) & BIT(phychan->id))
 		cpu_relax();
 
 	/* Do not access config register until channel shows as inactive */
@@ -487,8 +487,8 @@ static void pl08x_terminate_phy_chan(struct pl08x_driver_data *pl08x,
 
 	writel(val, ch->reg_config);
 
-	writel(1 << ch->id, pl08x->base + PL080_ERR_CLEAR);
-	writel(1 << ch->id, pl08x->base + PL080_TC_CLEAR);
+	writel(BIT(ch->id), pl08x->base + PL080_ERR_CLEAR);
+	writel(BIT(ch->id), pl08x->base + PL080_TC_CLEAR);
 }
 
 static inline u32 get_bytes_in_cctl(u32 cctl)
@@ -1837,7 +1837,7 @@ static irqreturn_t pl08x_irq(int irq, void *dev)
 		return IRQ_NONE;
 
 	for (i = 0; i < pl08x->vd->channels; i++) {
-		if (((1 << i) & err) || ((1 << i) & tc)) {
+		if ((BIT(i) & err) || (BIT(i) & tc)) {
 			/* Locate physical channel */
 			struct pl08x_phy_chan *phychan = &pl08x->phy_chans[i];
 			struct pl08x_dma_chan *plchan = phychan->serving;
@@ -1875,7 +1875,7 @@ static irqreturn_t pl08x_irq(int irq, void *dev)
 			}
 			spin_unlock(&plchan->vc.lock);
 
-			mask |= (1 << i);
+			mask |= BIT(i);
 		}
 	}
 
