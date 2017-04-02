@@ -937,7 +937,8 @@ void vnt_rf_table_download(struct vnt_private *priv)
 			memcpy(array, addr2, length);
 
 			vnt_control_out(priv, MESSAGE_TYPE_WRITE,
-					value, MESSAGE_REQUEST_RF_CH2, length, array);
+					value, MESSAGE_REQUEST_RF_CH2,
+					length, array);
 
 			length2 -= length;
 			value += length;
