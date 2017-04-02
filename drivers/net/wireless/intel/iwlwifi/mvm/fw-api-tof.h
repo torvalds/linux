@@ -63,8 +63,6 @@
 #ifndef __fw_api_tof_h__
 #define __fw_api_tof_h__
 
-#include "fw-api.h"
-
 /* ToF sub-group command IDs */
 enum iwl_mvm_tof_sub_grp_ids {
 	TOF_RANGE_REQ_CMD = 0x1,

@@ -68,8 +68,6 @@
 #ifndef __fw_api_scan_h__
 #define __fw_api_scan_h__
 
-#include "fw-api.h"
-
 /* Scan Commands, Responses, Notifications */
 
 /* Max number of IEs for direct SSID scans in a command */
