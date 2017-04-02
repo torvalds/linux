@@ -136,127 +136,27 @@ static void dm_set_cursor(
 	}
 }
 
-static int dm_crtc_unpin_cursor_bo_old(
-	struct amdgpu_crtc *amdgpu_crtc)
-{
-	struct amdgpu_bo *robj;
-	int ret = 0;
-
-	if (NULL != amdgpu_crtc && NULL != amdgpu_crtc->cursor_bo) {
-		robj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
-
-		ret = amdgpu_bo_reserve(robj, false);
-
-		if (likely(ret == 0)) {
-			ret = amdgpu_bo_unpin(robj);
-
-			if (unlikely(ret != 0)) {
-				DRM_ERROR(
-					"%s: unpin failed (ret=%d), bo %p\n",
-					__func__,
-					ret,
-					amdgpu_crtc->cursor_bo);
-			}
-
-			amdgpu_bo_unreserve(robj);
-		} else {
-			DRM_ERROR(
-				"%s: reserve failed (ret=%d), bo %p\n",
-				__func__,
-				ret,
-				amdgpu_crtc->cursor_bo);
-		}
-
-		drm_gem_object_unreference_unlocked(amdgpu_crtc->cursor_bo);
-		amdgpu_crtc->cursor_bo = NULL;
-	}
-
-	return ret;
-}
-
-static int dm_crtc_pin_cursor_bo_new(
-	struct drm_crtc *crtc,
-	struct drm_file *file_priv,
-	uint32_t handle,
-	struct amdgpu_bo **ret_obj)
-{
-	struct amdgpu_crtc *amdgpu_crtc;
-	struct amdgpu_bo *robj;
-	struct drm_gem_object *obj;
-	int ret = -EINVAL;
-
-	if (NULL != crtc) {
-		struct drm_device *dev = crtc->dev;
-		struct amdgpu_device *adev = dev->dev_private;
-		uint64_t gpu_addr;
-
-		amdgpu_crtc = to_amdgpu_crtc(crtc);
-
-		obj = drm_gem_object_lookup(file_priv, handle);
-
-		if (!obj) {
-			DRM_ERROR(
-				"Cannot find cursor object %x for crtc %d\n",
-				handle,
-				amdgpu_crtc->crtc_id);
-			goto release;
-		}
-		robj = gem_to_amdgpu_bo(obj);
-
-		ret  = amdgpu_bo_reserve(robj, false);
-
-		if (unlikely(ret != 0)) {
-			drm_gem_object_unreference_unlocked(obj);
-		DRM_ERROR("dm_crtc_pin_cursor_bo_new ret %x, handle %x\n",
-				 ret, handle);
-			goto release;
-		}
-
-		ret = amdgpu_bo_pin_restricted(robj, AMDGPU_GEM_DOMAIN_VRAM, 0,
-						adev->mc.visible_vram_size,
-						&gpu_addr);
-
-		if (ret == 0) {
-			amdgpu_crtc->cursor_addr = gpu_addr;
-			*ret_obj  = robj;
-		}
-		amdgpu_bo_unreserve(robj);
-		if (ret)
-			drm_gem_object_unreference_unlocked(obj);
-
-	}
-release:
-
-	return ret;
-}
-
 static int dm_crtc_cursor_set(
 	struct drm_crtc *crtc,
-	struct drm_file *file_priv,
-	uint32_t handle,
+	uint64_t address,
 	uint32_t width,
 	uint32_t height)
 {
-	struct amdgpu_bo *new_cursor_bo;
 	struct dc_cursor_position position;
 
 	int ret;
 
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-
 	ret		= EINVAL;
-	new_cursor_bo	= NULL;
 
 	DRM_DEBUG_KMS(
-	"%s: crtc_id=%d with handle %d and size %d to %d, bo_object %p\n",
+		"%s: crtc_id=%d with size %d to %d \n",
 		__func__,
 		amdgpu_crtc->crtc_id,
-		handle,
 		width,
-		height,
-		amdgpu_crtc->cursor_bo);
+		height);
 
-	if (!handle) {
+	if (!address) {
 		/* turn off cursor */
 		position.enable = false;
 		position.x = 0;
@@ -268,8 +168,6 @@ static int dm_crtc_cursor_set(
 				amdgpu_crtc->stream,
 				&position);
 		}
-		/*unpin old cursor buffer and update cache*/
-		ret = dm_crtc_unpin_cursor_bo_old(amdgpu_crtc);
 		goto release;
 
 	}
@@ -283,21 +181,9 @@ static int dm_crtc_cursor_set(
 			height);
 		goto release;
 	}
-	/*try to pin new cursor bo*/
-	ret = dm_crtc_pin_cursor_bo_new(crtc, file_priv, handle, &new_cursor_bo);
-	/*if map not successful then return an error*/
-	if (ret)
-		goto release;
 
 	/*program new cursor bo to hardware*/
-	dm_set_cursor(amdgpu_crtc, amdgpu_crtc->cursor_addr, width, height);
-
-	/*un map old, not used anymore cursor bo ,
-	 * return memory and mapping back */
-	dm_crtc_unpin_cursor_bo_old(amdgpu_crtc);
-
-	/*assign new cursor bo to our internal cache*/
-	amdgpu_crtc->cursor_bo = &new_cursor_bo->gem_base;
+	dm_set_cursor(amdgpu_crtc, address, width, height);
 
 release:
 	return ret;
@@ -359,23 +245,6 @@ static int dm_crtc_cursor_move(struct drm_crtc *crtc,
 	return 0;
 }
 
-static void dm_crtc_cursor_reset(struct drm_crtc *crtc)
-{
-	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-
-	DRM_DEBUG_KMS(
-		"%s: with cursor_bo %p\n",
-		__func__,
-		amdgpu_crtc->cursor_bo);
-
-	if (amdgpu_crtc->cursor_bo && amdgpu_crtc->stream) {
-		dm_set_cursor(
-		amdgpu_crtc,
-		amdgpu_crtc->cursor_addr,
-		amdgpu_crtc->cursor_width,
-		amdgpu_crtc->cursor_height);
-	}
-}
 static bool fill_rects_from_plane_state(
 	const struct drm_plane_state *state,
 	struct dc_surface *surface)
@@ -1094,8 +963,6 @@ void amdgpu_dm_crtc_destroy(struct drm_crtc *crtc)
 /* Implemented only the options currently availible for the driver */
 static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
-	.cursor_set = dm_crtc_cursor_set,
-	.cursor_move = dm_crtc_cursor_move,
 	.destroy = amdgpu_dm_crtc_destroy,
 	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 	.set_config = drm_atomic_helper_set_config,
@@ -1571,6 +1438,18 @@ static int dm_plane_helper_prepare_fb(
 	}
 
 	amdgpu_bo_ref(rbo);
+
+	/* It's a hack for s3 since in 4.9 kernel filter out cursor buffer
+	 * prepare and cleanup in drm_atomic_helper_prepare_planes
+	 * and drm_atomic_helper_cleanup_planes because fb doens't in s3.
+	 * IN 4.10 kernel this code should be removed and amdgpu_device_suspend
+	 * code touching fram buffers should be avoided for DC.
+	 */
+	if (plane->type == DRM_PLANE_TYPE_CURSOR) {
+		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(new_state->crtc);
+
+		acrtc->cursor_bo = obj;
+	}
 	return 0;
 }
 
@@ -1668,6 +1547,10 @@ static uint32_t yuv_formats[] = {
 	DRM_FORMAT_NV21,
 };
 
+static const u32 cursor_formats[] = {
+	DRM_FORMAT_ARGB8888
+};
+
 int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 			struct amdgpu_plane *aplane,
 			unsigned long possible_crtcs)
@@ -1698,7 +1581,14 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 				NULL, aplane->plane_type, NULL);
 		break;
 	case DRM_PLANE_TYPE_CURSOR:
-		DRM_ERROR("KMS: Cursor plane not implemented.");
+		res = drm_universal_plane_init(
+				dm->adev->ddev,
+				&aplane->base,
+				possible_crtcs,
+				&dm_plane_funcs,
+				cursor_formats,
+				ARRAY_SIZE(cursor_formats),
+				NULL, aplane->plane_type, NULL);
 		break;
 	}
 
@@ -1711,8 +1601,17 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 			struct drm_plane *plane,
 			uint32_t crtc_index)
 {
-	struct amdgpu_crtc *acrtc;
+	struct amdgpu_crtc *acrtc = NULL;
+	struct amdgpu_plane *cursor_plane;
+
 	int res = -ENOMEM;
+
+	cursor_plane = kzalloc(sizeof(*cursor_plane), GFP_KERNEL);
+	if (!cursor_plane)
+		goto fail;
+
+	cursor_plane->base.type = DRM_PLANE_TYPE_CURSOR;
+	res = amdgpu_dm_plane_init(dm, cursor_plane, 0);
 
 	acrtc = kzalloc(sizeof(struct amdgpu_crtc), GFP_KERNEL);
 	if (!acrtc)
@@ -1722,7 +1621,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 			dm->ddev,
 			&acrtc->base,
 			plane,
-			NULL,
+			&cursor_plane->base,
 			&amdgpu_dm_crtc_funcs, NULL);
 
 	if (res)
@@ -1740,11 +1639,16 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 	drm_mode_crtc_set_gamma_size(&acrtc->base, 256);
 
 	return 0;
+
 fail:
-	kfree(acrtc);
+	if (acrtc)
+		kfree(acrtc);
+	if (cursor_plane)
+		kfree(cursor_plane);
 	acrtc->crtc_id = -1;
 	return res;
 }
+
 
 static int to_drm_connector_type(enum signal_type st)
 {
@@ -2252,6 +2156,34 @@ static void remove_stream(struct amdgpu_device *adev, struct amdgpu_crtc *acrtc)
 	acrtc->enabled = false;
 }
 
+static void handle_cursor_update(
+		struct drm_plane *plane,
+		struct drm_plane_state *old_plane_state)
+{
+	if (!plane->state->fb && !old_plane_state->fb)
+		return;
+
+	/* Check if it's a cursor on/off update or just cursor move*/
+	if (plane->state->fb == old_plane_state->fb)
+		dm_crtc_cursor_move(
+				plane->state->crtc,
+				plane->state->crtc_x,
+				plane->state->crtc_y);
+	else {
+		struct amdgpu_framebuffer *afb =
+				to_amdgpu_framebuffer(plane->state->fb);
+		dm_crtc_cursor_set(
+				(!!plane->state->fb) ?
+						plane->state->crtc :
+						old_plane_state->crtc,
+				(!!plane->state->fb) ?
+						afb->address :
+						0,
+				plane->state->crtc_w,
+				plane->state->crtc_h);
+	}
+}
+
 
 /*
  * Executes flip
@@ -2342,6 +2274,11 @@ static void amdgpu_dm_commit_surfaces(struct drm_atomic_state *state,
 		struct drm_connector *connector;
 		struct dm_connector_state *con_state = NULL;
 		bool pflip_needed;
+
+		if (plane->type == DRM_PLANE_TYPE_CURSOR) {
+			handle_cursor_update(plane, old_plane_state);
+			continue;
+		}
 
 		if (!fb || !crtc || !crtc->state->active)
 			continue;
@@ -2627,7 +2564,6 @@ void amdgpu_dm_atomic_commit_tail(
 				adev->dm.freesync_module, &acrtc->stream, 1);
 
 		manage_dm_interrupts(adev, acrtc, true);
-		dm_crtc_cursor_reset(&acrtc->base);
 	}
 
 
@@ -3007,18 +2943,19 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			}
 		}
 
+
 		/*
-		 * TODO revisit when removing commit action
-		 * and looking at atomic flags directly
+		 * Hack: Commit needs planes right now, specifically for gamma
+		 * TODO rework commit to check CRTC for gamma change
 		 */
+		if (crtc_state->color_mgmt_changed) {
 
-		/* commit needs planes right now (for gamma, eg.) */
-		/* TODO rework commit to chack crtc for gamma change */
-		ret = drm_atomic_add_affected_planes(state, crtc);
-		if (ret)
-			return ret;
+			ret = drm_atomic_add_affected_planes(state, crtc);
+			if (ret)
+				return ret;
 
-		ret = -EINVAL;
+			ret = -EINVAL;
+		}
 	}
 
 	/* Check scaling and undersacn changes*/
@@ -3073,6 +3010,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			struct drm_crtc_state *crtc_state;
 			bool pflip_needed;
 
+			/*TODO Implement atomic check for cursor plane */
+			if (plane->type == DRM_PLANE_TYPE_CURSOR)
+				continue;
 
 			if (!fb || !crtc || crtc_set[i] != crtc ||
 				!crtc->state->planes_changed || !crtc->state->active)
