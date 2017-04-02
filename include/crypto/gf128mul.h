@@ -205,16 +205,16 @@ static inline void gf128mul_x_bbe(be128 *r, const be128 *x)
 }
 
 /* needed by XTS */
-static inline void gf128mul_x_ble(be128 *r, const be128 *x)
+static inline void gf128mul_x_ble(le128 *r, const le128 *x)
 {
 	u64 a = le64_to_cpu(x->a);
 	u64 b = le64_to_cpu(x->b);
 
 	/* equivalent to gf128mul_table_be[b >> 63] (see crypto/gf128mul.c): */
-	u64 _tt = gf128mul_mask_from_bit(b, 63) & 0x87;
+	u64 _tt = gf128mul_mask_from_bit(a, 63) & 0x87;
 
-	r->a = cpu_to_le64((a << 1) ^ _tt);
-	r->b = cpu_to_le64((b << 1) | (a >> 63));
+	r->a = cpu_to_le64((a << 1) | (b >> 63));
+	r->b = cpu_to_le64((b << 1) ^ _tt);
 }
 
 /* 4k table optimization */
