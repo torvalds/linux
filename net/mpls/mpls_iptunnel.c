@@ -164,6 +164,7 @@ static int mpls_build_state(struct nlattr *nla,
 	struct mpls_iptunnel_encap *tun_encap_info;
 	struct nlattr *tb[MPLS_IPTUNNEL_MAX + 1];
 	struct lwtunnel_state *newts;
+	u8 n_labels;
 	int ret;
 
 	ret = nla_parse_nested(tb, MPLS_IPTUNNEL_MAX, nla,
@@ -175,12 +176,18 @@ static int mpls_build_state(struct nlattr *nla,
 		return -EINVAL;
 
 
-	newts = lwtunnel_state_alloc(sizeof(*tun_encap_info));
+	/* determine number of labels */
+	if (nla_get_labels(tb[MPLS_IPTUNNEL_DST],
+			   MAX_NEW_LABELS, &n_labels, NULL))
+		return -EINVAL;
+
+	newts = lwtunnel_state_alloc(sizeof(*tun_encap_info) +
+				     n_labels * sizeof(u32));
 	if (!newts)
 		return -ENOMEM;
 
 	tun_encap_info = mpls_lwtunnel_encap(newts);
-	ret = nla_get_labels(tb[MPLS_IPTUNNEL_DST], MAX_NEW_LABELS,
+	ret = nla_get_labels(tb[MPLS_IPTUNNEL_DST], n_labels,
 			     &tun_encap_info->labels, tun_encap_info->label);
 	if (ret)
 		goto errout;
@@ -257,7 +264,7 @@ static int mpls_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
 	    a_hdr->default_ttl != b_hdr->default_ttl)
 		return 1;
 
-	for (l = 0; l < MAX_NEW_LABELS; l++)
+	for (l = 0; l < a_hdr->labels; l++)
 		if (a_hdr->label[l] != b_hdr->label[l])
 			return 1;
 	return 0;
