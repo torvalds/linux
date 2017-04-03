@@ -186,195 +186,569 @@ void qed_resc_free(struct qed_dev *cdev)
 	}
 }
 
-static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
+/******************** QM initialization *******************/
+#define ACTIVE_TCS_BMAP 0x9f
+#define ACTIVE_TCS_BMAP_4PORT_K2 0xf
+
+/* determines the physical queue flags for a given PF. */
+static u32 qed_get_pq_flags(struct qed_hwfn *p_hwfn)
 {
-	u8 num_vports, vf_offset = 0, i, vport_id, num_ports, curr_queue = 0;
-	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
-	struct init_qm_port_params *p_qm_port;
-	bool init_rdma_offload_pq = false;
-	bool init_pure_ack_pq = false;
-	bool init_ooo_pq = false;
-	u16 num_pqs, multi_cos_tcs = 1;
-	u8 pf_wfq = qm_info->pf_wfq;
-	u32 pf_rl = qm_info->pf_rl;
-	u16 num_pf_rls = 0;
-	u16 num_vfs = 0;
+	u32 flags;
 
-#ifdef CONFIG_QED_SRIOV
-	if (p_hwfn->cdev->p_iov_info)
-		num_vfs = p_hwfn->cdev->p_iov_info->total_vfs;
-#endif
-	memset(qm_info, 0, sizeof(*qm_info));
+	/* common flags */
+	flags = PQ_FLAGS_LB;
 
-	num_pqs = multi_cos_tcs + num_vfs + 1;	/* The '1' is for pure-LB */
-	num_vports = (u8)RESC_NUM(p_hwfn, QED_VPORT);
+	/* feature flags */
+	if (IS_QED_SRIOV(p_hwfn->cdev))
+		flags |= PQ_FLAGS_VFS;
 
-	if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
-		num_pqs++;	/* for RoCE queue */
-		init_rdma_offload_pq = true;
-		/* we subtract num_vfs because each require a rate limiter,
-		 * and one default rate limiter
-		 */
-		if (p_hwfn->pf_params.rdma_pf_params.enable_dcqcn)
-			num_pf_rls = RESC_NUM(p_hwfn, QED_RL) - num_vfs - 1;
-
-		num_pqs += num_pf_rls;
-		qm_info->num_pf_rls = (u8) num_pf_rls;
-	}
-
-	if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
-		num_pqs += 2;	/* for iSCSI pure-ACK / OOO queue */
-		init_pure_ack_pq = true;
-		init_ooo_pq = true;
-	}
-
-	/* Sanity checking that setup requires legal number of resources */
-	if (num_pqs > RESC_NUM(p_hwfn, QED_PQ)) {
+	/* protocol flags */
+	switch (p_hwfn->hw_info.personality) {
+	case QED_PCI_ETH:
+		flags |= PQ_FLAGS_MCOS;
+		break;
+	case QED_PCI_FCOE:
+		flags |= PQ_FLAGS_OFLD;
+		break;
+	case QED_PCI_ISCSI:
+		flags |= PQ_FLAGS_ACK | PQ_FLAGS_OOO | PQ_FLAGS_OFLD;
+		break;
+	case QED_PCI_ETH_ROCE:
+		flags |= PQ_FLAGS_MCOS | PQ_FLAGS_OFLD | PQ_FLAGS_LLT;
+		break;
+	default:
 		DP_ERR(p_hwfn,
-		       "Need too many Physical queues - 0x%04x when only %04x are available\n",
-		       num_pqs, RESC_NUM(p_hwfn, QED_PQ));
-		return -EINVAL;
+		       "unknown personality %d\n", p_hwfn->hw_info.personality);
+		return 0;
 	}
 
-	/* PQs will be arranged as follows: First per-TC PQ then pure-LB quete.
+	return flags;
+}
+
+/* Getters for resource amounts necessary for qm initialization */
+u8 qed_init_qm_get_num_tcs(struct qed_hwfn *p_hwfn)
+{
+	return p_hwfn->hw_info.num_hw_tc;
+}
+
+u16 qed_init_qm_get_num_vfs(struct qed_hwfn *p_hwfn)
+{
+	return IS_QED_SRIOV(p_hwfn->cdev) ?
+	       p_hwfn->cdev->p_iov_info->total_vfs : 0;
+}
+
+#define NUM_DEFAULT_RLS 1
+
+u16 qed_init_qm_get_num_pf_rls(struct qed_hwfn *p_hwfn)
+{
+	u16 num_pf_rls, num_vfs = qed_init_qm_get_num_vfs(p_hwfn);
+
+	/* num RLs can't exceed resource amount of rls or vports */
+	num_pf_rls = (u16) min_t(u32, RESC_NUM(p_hwfn, QED_RL),
+				 RESC_NUM(p_hwfn, QED_VPORT));
+
+	/* Make sure after we reserve there's something left */
+	if (num_pf_rls < num_vfs + NUM_DEFAULT_RLS)
+		return 0;
+
+	/* subtract rls necessary for VFs and one default one for the PF */
+	num_pf_rls -= num_vfs + NUM_DEFAULT_RLS;
+
+	return num_pf_rls;
+}
+
+u16 qed_init_qm_get_num_vports(struct qed_hwfn *p_hwfn)
+{
+	u32 pq_flags = qed_get_pq_flags(p_hwfn);
+
+	/* all pqs share the same vport, except for vfs and pf_rl pqs */
+	return (!!(PQ_FLAGS_RLS & pq_flags)) *
+	       qed_init_qm_get_num_pf_rls(p_hwfn) +
+	       (!!(PQ_FLAGS_VFS & pq_flags)) *
+	       qed_init_qm_get_num_vfs(p_hwfn) + 1;
+}
+
+/* calc amount of PQs according to the requested flags */
+u16 qed_init_qm_get_num_pqs(struct qed_hwfn *p_hwfn)
+{
+	u32 pq_flags = qed_get_pq_flags(p_hwfn);
+
+	return (!!(PQ_FLAGS_RLS & pq_flags)) *
+	       qed_init_qm_get_num_pf_rls(p_hwfn) +
+	       (!!(PQ_FLAGS_MCOS & pq_flags)) *
+	       qed_init_qm_get_num_tcs(p_hwfn) +
+	       (!!(PQ_FLAGS_LB & pq_flags)) + (!!(PQ_FLAGS_OOO & pq_flags)) +
+	       (!!(PQ_FLAGS_ACK & pq_flags)) + (!!(PQ_FLAGS_OFLD & pq_flags)) +
+	       (!!(PQ_FLAGS_LLT & pq_flags)) +
+	       (!!(PQ_FLAGS_VFS & pq_flags)) * qed_init_qm_get_num_vfs(p_hwfn);
+}
+
+/* initialize the top level QM params */
+static void qed_init_qm_params(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+	bool four_port;
+
+	/* pq and vport bases for this PF */
+	qm_info->start_pq = (u16) RESC_START(p_hwfn, QED_PQ);
+	qm_info->start_vport = (u8) RESC_START(p_hwfn, QED_VPORT);
+
+	/* rate limiting and weighted fair queueing are always enabled */
+	qm_info->vport_rl_en = 1;
+	qm_info->vport_wfq_en = 1;
+
+	/* TC config is different for AH 4 port */
+	four_port = p_hwfn->cdev->num_ports_in_engines == MAX_NUM_PORTS_K2;
+
+	/* in AH 4 port we have fewer TCs per port */
+	qm_info->max_phys_tcs_per_port = four_port ? NUM_PHYS_TCS_4PORT_K2 :
+						     NUM_OF_PHYS_TCS;
+
+	/* unless MFW indicated otherwise, ooo_tc == 3 for
+	 * AH 4-port and 4 otherwise.
 	 */
-	qm_info->qm_pq_params = kcalloc(num_pqs,
-					sizeof(struct init_qm_pq_params),
-					b_sleepable ? GFP_KERNEL : GFP_ATOMIC);
-	if (!qm_info->qm_pq_params)
-		goto alloc_err;
+	if (!qm_info->ooo_tc)
+		qm_info->ooo_tc = four_port ? DCBX_TCP_OOO_K2_4PORT_TC :
+					      DCBX_TCP_OOO_TC;
+}
 
-	qm_info->qm_vport_params = kcalloc(num_vports,
-					   sizeof(struct init_qm_vport_params),
-					   b_sleepable ? GFP_KERNEL
-						       : GFP_ATOMIC);
-	if (!qm_info->qm_vport_params)
-		goto alloc_err;
+/* initialize qm vport params */
+static void qed_init_qm_vport_params(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+	u8 i;
 
-	qm_info->qm_port_params = kcalloc(MAX_NUM_PORTS,
-					  sizeof(struct init_qm_port_params),
-					  b_sleepable ? GFP_KERNEL
-						      : GFP_ATOMIC);
-	if (!qm_info->qm_port_params)
-		goto alloc_err;
+	/* all vports participate in weighted fair queueing */
+	for (i = 0; i < qed_init_qm_get_num_vports(p_hwfn); i++)
+		qm_info->qm_vport_params[i].vport_wfq = 1;
+}
 
-	qm_info->wfq_data = kcalloc(num_vports, sizeof(struct qed_wfq_data),
-				    b_sleepable ? GFP_KERNEL : GFP_ATOMIC);
-	if (!qm_info->wfq_data)
-		goto alloc_err;
-
-	vport_id = (u8)RESC_START(p_hwfn, QED_VPORT);
-
-	/* First init rate limited queues */
-	for (curr_queue = 0; curr_queue < num_pf_rls; curr_queue++) {
-		qm_info->qm_pq_params[curr_queue].vport_id = vport_id++;
-		qm_info->qm_pq_params[curr_queue].tc_id =
-		    p_hwfn->hw_info.non_offload_tc;
-		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
-		qm_info->qm_pq_params[curr_queue].rl_valid = 1;
-	}
-
-	/* First init per-TC PQs */
-	for (i = 0; i < multi_cos_tcs; i++) {
-		struct init_qm_pq_params *params =
-		    &qm_info->qm_pq_params[curr_queue++];
-
-		if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE ||
-		    p_hwfn->hw_info.personality == QED_PCI_ETH) {
-			params->vport_id = vport_id;
-			params->tc_id = p_hwfn->hw_info.non_offload_tc;
-			params->wrr_group = 1;
-		} else {
-			params->vport_id = vport_id;
-			params->tc_id = p_hwfn->hw_info.offload_tc;
-			params->wrr_group = 1;
-		}
-	}
-
-	/* Then init pure-LB PQ */
-	qm_info->pure_lb_pq = curr_queue;
-	qm_info->qm_pq_params[curr_queue].vport_id =
-	    (u8) RESC_START(p_hwfn, QED_VPORT);
-	qm_info->qm_pq_params[curr_queue].tc_id = PURE_LB_TC;
-	qm_info->qm_pq_params[curr_queue].wrr_group = 1;
-	curr_queue++;
-
-	qm_info->offload_pq = 0;
-	if (init_rdma_offload_pq) {
-		qm_info->offload_pq = curr_queue;
-		qm_info->qm_pq_params[curr_queue].vport_id = vport_id;
-		qm_info->qm_pq_params[curr_queue].tc_id =
-		    p_hwfn->hw_info.offload_tc;
-		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
-		curr_queue++;
-	}
-
-	if (init_pure_ack_pq) {
-		qm_info->pure_ack_pq = curr_queue;
-		qm_info->qm_pq_params[curr_queue].vport_id = vport_id;
-		qm_info->qm_pq_params[curr_queue].tc_id =
-		    p_hwfn->hw_info.offload_tc;
-		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
-		curr_queue++;
-	}
-
-	if (init_ooo_pq) {
-		qm_info->ooo_pq = curr_queue;
-		qm_info->qm_pq_params[curr_queue].vport_id = vport_id;
-		qm_info->qm_pq_params[curr_queue].tc_id = DCBX_ISCSI_OOO_TC;
-		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
-		curr_queue++;
-	}
-
-	/* Then init per-VF PQs */
-	vf_offset = curr_queue;
-	for (i = 0; i < num_vfs; i++) {
-		/* First vport is used by the PF */
-		qm_info->qm_pq_params[curr_queue].vport_id = vport_id + i + 1;
-		qm_info->qm_pq_params[curr_queue].tc_id =
-		    p_hwfn->hw_info.non_offload_tc;
-		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
-		qm_info->qm_pq_params[curr_queue].rl_valid = 1;
-		curr_queue++;
-	}
-
-	qm_info->vf_queues_offset = vf_offset;
-	qm_info->num_pqs = num_pqs;
-	qm_info->num_vports = num_vports;
-
+/* initialize qm port params */
+static void qed_init_qm_port_params(struct qed_hwfn *p_hwfn)
+{
 	/* Initialize qm port parameters */
-	num_ports = p_hwfn->cdev->num_ports_in_engines;
+	u8 i, active_phys_tcs, num_ports = p_hwfn->cdev->num_ports_in_engines;
+
+	/* indicate how ooo and high pri traffic is dealt with */
+	active_phys_tcs = num_ports == MAX_NUM_PORTS_K2 ?
+			  ACTIVE_TCS_BMAP_4PORT_K2 :
+			  ACTIVE_TCS_BMAP;
+
 	for (i = 0; i < num_ports; i++) {
-		p_qm_port = &qm_info->qm_port_params[i];
+		struct init_qm_port_params *p_qm_port =
+		    &p_hwfn->qm_info.qm_port_params[i];
+
 		p_qm_port->active = 1;
-		if (num_ports == 4)
-			p_qm_port->active_phys_tcs = 0x7;
-		else
-			p_qm_port->active_phys_tcs = 0x9f;
+		p_qm_port->active_phys_tcs = active_phys_tcs;
 		p_qm_port->num_pbf_cmd_lines = PBF_MAX_CMD_LINES / num_ports;
 		p_qm_port->num_btb_blocks = BTB_MAX_BLOCKS / num_ports;
 	}
+}
 
-	qm_info->max_phys_tcs_per_port = NUM_OF_PHYS_TCS;
+/* Reset the params which must be reset for qm init. QM init may be called as
+ * a result of flows other than driver load (e.g. dcbx renegotiation). Other
+ * params may be affected by the init but would simply recalculate to the same
+ * values. The allocations made for QM init, ports, vports, pqs and vfqs are not
+ * affected as these amounts stay the same.
+ */
+static void qed_init_qm_reset_params(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 
-	qm_info->start_pq = (u16)RESC_START(p_hwfn, QED_PQ);
+	qm_info->num_pqs = 0;
+	qm_info->num_vports = 0;
+	qm_info->num_pf_rls = 0;
+	qm_info->num_vf_pqs = 0;
+	qm_info->first_vf_pq = 0;
+	qm_info->first_mcos_pq = 0;
+	qm_info->first_rl_pq = 0;
+}
 
+static void qed_init_qm_advance_vport(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+
+	qm_info->num_vports++;
+
+	if (qm_info->num_vports > qed_init_qm_get_num_vports(p_hwfn))
+		DP_ERR(p_hwfn,
+		       "vport overflow! qm_info->num_vports %d, qm_init_get_num_vports() %d\n",
+		       qm_info->num_vports, qed_init_qm_get_num_vports(p_hwfn));
+}
+
+/* initialize a single pq and manage qm_info resources accounting.
+ * The pq_init_flags param determines whether the PQ is rate limited
+ * (for VF or PF) and whether a new vport is allocated to the pq or not
+ * (i.e. vport will be shared).
+ */
+
+/* flags for pq init */
+#define PQ_INIT_SHARE_VPORT     (1 << 0)
+#define PQ_INIT_PF_RL           (1 << 1)
+#define PQ_INIT_VF_RL           (1 << 2)
+
+/* defines for pq init */
+#define PQ_INIT_DEFAULT_WRR_GROUP       1
+#define PQ_INIT_DEFAULT_TC              0
+#define PQ_INIT_OFLD_TC                 (p_hwfn->hw_info.offload_tc)
+
+static void qed_init_qm_pq(struct qed_hwfn *p_hwfn,
+			   struct qed_qm_info *qm_info,
+			   u8 tc, u32 pq_init_flags)
+{
+	u16 pq_idx = qm_info->num_pqs, max_pq = qed_init_qm_get_num_pqs(p_hwfn);
+
+	if (pq_idx > max_pq)
+		DP_ERR(p_hwfn,
+		       "pq overflow! pq %d, max pq %d\n", pq_idx, max_pq);
+
+	/* init pq params */
+	qm_info->qm_pq_params[pq_idx].vport_id = qm_info->start_vport +
+	    qm_info->num_vports;
+	qm_info->qm_pq_params[pq_idx].tc_id = tc;
+	qm_info->qm_pq_params[pq_idx].wrr_group = PQ_INIT_DEFAULT_WRR_GROUP;
+	qm_info->qm_pq_params[pq_idx].rl_valid =
+	    (pq_init_flags & PQ_INIT_PF_RL || pq_init_flags & PQ_INIT_VF_RL);
+
+	/* qm params accounting */
+	qm_info->num_pqs++;
+	if (!(pq_init_flags & PQ_INIT_SHARE_VPORT))
+		qm_info->num_vports++;
+
+	if (pq_init_flags & PQ_INIT_PF_RL)
+		qm_info->num_pf_rls++;
+
+	if (qm_info->num_vports > qed_init_qm_get_num_vports(p_hwfn))
+		DP_ERR(p_hwfn,
+		       "vport overflow! qm_info->num_vports %d, qm_init_get_num_vports() %d\n",
+		       qm_info->num_vports, qed_init_qm_get_num_vports(p_hwfn));
+
+	if (qm_info->num_pf_rls > qed_init_qm_get_num_pf_rls(p_hwfn))
+		DP_ERR(p_hwfn,
+		       "rl overflow! qm_info->num_pf_rls %d, qm_init_get_num_pf_rls() %d\n",
+		       qm_info->num_pf_rls, qed_init_qm_get_num_pf_rls(p_hwfn));
+}
+
+/* get pq index according to PQ_FLAGS */
+static u16 *qed_init_qm_get_idx_from_flags(struct qed_hwfn *p_hwfn,
+					   u32 pq_flags)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+
+	/* Can't have multiple flags set here */
+	if (bitmap_weight((unsigned long *)&pq_flags, sizeof(pq_flags)) > 1)
+		goto err;
+
+	switch (pq_flags) {
+	case PQ_FLAGS_RLS:
+		return &qm_info->first_rl_pq;
+	case PQ_FLAGS_MCOS:
+		return &qm_info->first_mcos_pq;
+	case PQ_FLAGS_LB:
+		return &qm_info->pure_lb_pq;
+	case PQ_FLAGS_OOO:
+		return &qm_info->ooo_pq;
+	case PQ_FLAGS_ACK:
+		return &qm_info->pure_ack_pq;
+	case PQ_FLAGS_OFLD:
+		return &qm_info->offload_pq;
+	case PQ_FLAGS_LLT:
+		return &qm_info->low_latency_pq;
+	case PQ_FLAGS_VFS:
+		return &qm_info->first_vf_pq;
+	default:
+		goto err;
+	}
+
+err:
+	DP_ERR(p_hwfn, "BAD pq flags %d\n", pq_flags);
+	return NULL;
+}
+
+/* save pq index in qm info */
+static void qed_init_qm_set_idx(struct qed_hwfn *p_hwfn,
+				u32 pq_flags, u16 pq_val)
+{
+	u16 *base_pq_idx = qed_init_qm_get_idx_from_flags(p_hwfn, pq_flags);
+
+	*base_pq_idx = p_hwfn->qm_info.start_pq + pq_val;
+}
+
+/* get tx pq index, with the PQ TX base already set (ready for context init) */
+u16 qed_get_cm_pq_idx(struct qed_hwfn *p_hwfn, u32 pq_flags)
+{
+	u16 *base_pq_idx = qed_init_qm_get_idx_from_flags(p_hwfn, pq_flags);
+
+	return *base_pq_idx + CM_TX_PQ_BASE;
+}
+
+u16 qed_get_cm_pq_idx_mcos(struct qed_hwfn *p_hwfn, u8 tc)
+{
+	u8 max_tc = qed_init_qm_get_num_tcs(p_hwfn);
+
+	if (tc > max_tc)
+		DP_ERR(p_hwfn, "tc %d must be smaller than %d\n", tc, max_tc);
+
+	return qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_MCOS) + tc;
+}
+
+u16 qed_get_cm_pq_idx_vf(struct qed_hwfn *p_hwfn, u16 vf)
+{
+	u16 max_vf = qed_init_qm_get_num_vfs(p_hwfn);
+
+	if (vf > max_vf)
+		DP_ERR(p_hwfn, "vf %d must be smaller than %d\n", vf, max_vf);
+
+	return qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_VFS) + vf;
+}
+
+u16 qed_get_cm_pq_idx_rl(struct qed_hwfn *p_hwfn, u8 rl)
+{
+	u16 max_rl = qed_init_qm_get_num_pf_rls(p_hwfn);
+
+	if (rl > max_rl)
+		DP_ERR(p_hwfn, "rl %d must be smaller than %d\n", rl, max_rl);
+
+	return qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_RLS) + rl;
+}
+
+/* Functions for creating specific types of pqs */
+static void qed_init_qm_lb_pq(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+
+	if (!(qed_get_pq_flags(p_hwfn) & PQ_FLAGS_LB))
+		return;
+
+	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_LB, qm_info->num_pqs);
+	qed_init_qm_pq(p_hwfn, qm_info, PURE_LB_TC, PQ_INIT_SHARE_VPORT);
+}
+
+static void qed_init_qm_ooo_pq(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+
+	if (!(qed_get_pq_flags(p_hwfn) & PQ_FLAGS_OOO))
+		return;
+
+	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_OOO, qm_info->num_pqs);
+	qed_init_qm_pq(p_hwfn, qm_info, qm_info->ooo_tc, PQ_INIT_SHARE_VPORT);
+}
+
+static void qed_init_qm_pure_ack_pq(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+
+	if (!(qed_get_pq_flags(p_hwfn) & PQ_FLAGS_ACK))
+		return;
+
+	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_ACK, qm_info->num_pqs);
+	qed_init_qm_pq(p_hwfn, qm_info, PQ_INIT_OFLD_TC, PQ_INIT_SHARE_VPORT);
+}
+
+static void qed_init_qm_offload_pq(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+
+	if (!(qed_get_pq_flags(p_hwfn) & PQ_FLAGS_OFLD))
+		return;
+
+	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_OFLD, qm_info->num_pqs);
+	qed_init_qm_pq(p_hwfn, qm_info, PQ_INIT_OFLD_TC, PQ_INIT_SHARE_VPORT);
+}
+
+static void qed_init_qm_low_latency_pq(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+
+	if (!(qed_get_pq_flags(p_hwfn) & PQ_FLAGS_LLT))
+		return;
+
+	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_LLT, qm_info->num_pqs);
+	qed_init_qm_pq(p_hwfn, qm_info, PQ_INIT_OFLD_TC, PQ_INIT_SHARE_VPORT);
+}
+
+static void qed_init_qm_mcos_pqs(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+	u8 tc_idx;
+
+	if (!(qed_get_pq_flags(p_hwfn) & PQ_FLAGS_MCOS))
+		return;
+
+	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_MCOS, qm_info->num_pqs);
+	for (tc_idx = 0; tc_idx < qed_init_qm_get_num_tcs(p_hwfn); tc_idx++)
+		qed_init_qm_pq(p_hwfn, qm_info, tc_idx, PQ_INIT_SHARE_VPORT);
+}
+
+static void qed_init_qm_vf_pqs(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+	u16 vf_idx, num_vfs = qed_init_qm_get_num_vfs(p_hwfn);
+
+	if (!(qed_get_pq_flags(p_hwfn) & PQ_FLAGS_VFS))
+		return;
+
+	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_VFS, qm_info->num_pqs);
 	qm_info->num_vf_pqs = num_vfs;
-	qm_info->start_vport = (u8) RESC_START(p_hwfn, QED_VPORT);
+	for (vf_idx = 0; vf_idx < num_vfs; vf_idx++)
+		qed_init_qm_pq(p_hwfn,
+			       qm_info, PQ_INIT_DEFAULT_TC, PQ_INIT_VF_RL);
+}
 
-	for (i = 0; i < qm_info->num_vports; i++)
-		qm_info->qm_vport_params[i].vport_wfq = 1;
+static void qed_init_qm_rl_pqs(struct qed_hwfn *p_hwfn)
+{
+	u16 pf_rls_idx, num_pf_rls = qed_init_qm_get_num_pf_rls(p_hwfn);
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 
-	qm_info->vport_rl_en = 1;
-	qm_info->vport_wfq_en = 1;
-	qm_info->pf_rl = pf_rl;
-	qm_info->pf_wfq = pf_wfq;
+	if (!(qed_get_pq_flags(p_hwfn) & PQ_FLAGS_RLS))
+		return;
+
+	qed_init_qm_set_idx(p_hwfn, PQ_FLAGS_RLS, qm_info->num_pqs);
+	for (pf_rls_idx = 0; pf_rls_idx < num_pf_rls; pf_rls_idx++)
+		qed_init_qm_pq(p_hwfn, qm_info, PQ_INIT_OFLD_TC, PQ_INIT_PF_RL);
+}
+
+static void qed_init_qm_pq_params(struct qed_hwfn *p_hwfn)
+{
+	/* rate limited pqs, must come first (FW assumption) */
+	qed_init_qm_rl_pqs(p_hwfn);
+
+	/* pqs for multi cos */
+	qed_init_qm_mcos_pqs(p_hwfn);
+
+	/* pure loopback pq */
+	qed_init_qm_lb_pq(p_hwfn);
+
+	/* out of order pq */
+	qed_init_qm_ooo_pq(p_hwfn);
+
+	/* pure ack pq */
+	qed_init_qm_pure_ack_pq(p_hwfn);
+
+	/* pq for offloaded protocol */
+	qed_init_qm_offload_pq(p_hwfn);
+
+	/* low latency pq */
+	qed_init_qm_low_latency_pq(p_hwfn);
+
+	/* done sharing vports */
+	qed_init_qm_advance_vport(p_hwfn);
+
+	/* pqs for vfs */
+	qed_init_qm_vf_pqs(p_hwfn);
+}
+
+/* compare values of getters against resources amounts */
+static int qed_init_qm_sanity(struct qed_hwfn *p_hwfn)
+{
+	if (qed_init_qm_get_num_vports(p_hwfn) > RESC_NUM(p_hwfn, QED_VPORT)) {
+		DP_ERR(p_hwfn, "requested amount of vports exceeds resource\n");
+		return -EINVAL;
+	}
+
+	if (qed_init_qm_get_num_pqs(p_hwfn) > RESC_NUM(p_hwfn, QED_PQ)) {
+		DP_ERR(p_hwfn, "requested amount of pqs exceeds resource\n");
+		return -EINVAL;
+	}
 
 	return 0;
+}
 
-alloc_err:
-	qed_qm_info_free(p_hwfn);
-	return -ENOMEM;
+static void qed_dp_init_qm_params(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+	struct init_qm_vport_params *vport;
+	struct init_qm_port_params *port;
+	struct init_qm_pq_params *pq;
+	int i, tc;
+
+	/* top level params */
+	DP_VERBOSE(p_hwfn,
+		   NETIF_MSG_HW,
+		   "qm init top level params: start_pq %d, start_vport %d, pure_lb_pq %d, offload_pq %d, pure_ack_pq %d\n",
+		   qm_info->start_pq,
+		   qm_info->start_vport,
+		   qm_info->pure_lb_pq,
+		   qm_info->offload_pq, qm_info->pure_ack_pq);
+	DP_VERBOSE(p_hwfn,
+		   NETIF_MSG_HW,
+		   "ooo_pq %d, first_vf_pq %d, num_pqs %d, num_vf_pqs %d, num_vports %d, max_phys_tcs_per_port %d\n",
+		   qm_info->ooo_pq,
+		   qm_info->first_vf_pq,
+		   qm_info->num_pqs,
+		   qm_info->num_vf_pqs,
+		   qm_info->num_vports, qm_info->max_phys_tcs_per_port);
+	DP_VERBOSE(p_hwfn,
+		   NETIF_MSG_HW,
+		   "pf_rl_en %d, pf_wfq_en %d, vport_rl_en %d, vport_wfq_en %d, pf_wfq %d, pf_rl %d, num_pf_rls %d, pq_flags %x\n",
+		   qm_info->pf_rl_en,
+		   qm_info->pf_wfq_en,
+		   qm_info->vport_rl_en,
+		   qm_info->vport_wfq_en,
+		   qm_info->pf_wfq,
+		   qm_info->pf_rl,
+		   qm_info->num_pf_rls, qed_get_pq_flags(p_hwfn));
+
+	/* port table */
+	for (i = 0; i < p_hwfn->cdev->num_ports_in_engines; i++) {
+		port = &(qm_info->qm_port_params[i]);
+		DP_VERBOSE(p_hwfn,
+			   NETIF_MSG_HW,
+			   "port idx %d, active %d, active_phys_tcs %d, num_pbf_cmd_lines %d, num_btb_blocks %d, reserved %d\n",
+			   i,
+			   port->active,
+			   port->active_phys_tcs,
+			   port->num_pbf_cmd_lines,
+			   port->num_btb_blocks, port->reserved);
+	}
+
+	/* vport table */
+	for (i = 0; i < qm_info->num_vports; i++) {
+		vport = &(qm_info->qm_vport_params[i]);
+		DP_VERBOSE(p_hwfn,
+			   NETIF_MSG_HW,
+			   "vport idx %d, vport_rl %d, wfq %d, first_tx_pq_id [ ",
+			   qm_info->start_vport + i,
+			   vport->vport_rl, vport->vport_wfq);
+		for (tc = 0; tc < NUM_OF_TCS; tc++)
+			DP_VERBOSE(p_hwfn,
+				   NETIF_MSG_HW,
+				   "%d ", vport->first_tx_pq_id[tc]);
+		DP_VERBOSE(p_hwfn, NETIF_MSG_HW, "]\n");
+	}
+
+	/* pq table */
+	for (i = 0; i < qm_info->num_pqs; i++) {
+		pq = &(qm_info->qm_pq_params[i]);
+		DP_VERBOSE(p_hwfn,
+			   NETIF_MSG_HW,
+			   "pq idx %d, vport_id %d, tc %d, wrr_grp %d, rl_valid %d\n",
+			   qm_info->start_pq + i,
+			   pq->vport_id,
+			   pq->tc_id, pq->wrr_group, pq->rl_valid);
+	}
+}
+
+static void qed_init_qm_info(struct qed_hwfn *p_hwfn)
+{
+	/* reset params required for init run */
+	qed_init_qm_reset_params(p_hwfn);
+
+	/* init QM top level params */
+	qed_init_qm_params(p_hwfn);
+
+	/* init QM port params */
+	qed_init_qm_port_params(p_hwfn);
+
+	/* init QM vport params */
+	qed_init_qm_vport_params(p_hwfn);
+
+	/* init QM physical queue params */
+	qed_init_qm_pq_params(p_hwfn);
+
+	/* display all that init */
+	qed_dp_init_qm_params(p_hwfn);
 }
 
 /* This function reconfigures the QM pf on the fly.
@@ -391,17 +765,8 @@ int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	bool b_rc;
 	int rc;
 
-	/* qm_info is allocated in qed_init_qm_info() which is already called
-	 * from qed_resc_alloc() or previous call of qed_qm_reconf().
-	 * The allocated size may change each init, so we free it before next
-	 * allocation.
-	 */
-	qed_qm_info_free(p_hwfn);
-
 	/* initialize qed's qm data structure */
-	rc = qed_init_qm_info(p_hwfn, false);
-	if (rc)
-		return rc;
+	qed_init_qm_info(p_hwfn);
 
 	/* stop PF's qm queues */
 	spin_lock_bh(&qm_lock);
@@ -432,6 +797,47 @@ int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		return -EINVAL;
 
 	return 0;
+}
+
+static int qed_alloc_qm_data(struct qed_hwfn *p_hwfn)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+	int rc;
+
+	rc = qed_init_qm_sanity(p_hwfn);
+	if (rc)
+		goto alloc_err;
+
+	qm_info->qm_pq_params = kzalloc(sizeof(*qm_info->qm_pq_params) *
+					qed_init_qm_get_num_pqs(p_hwfn),
+					GFP_KERNEL);
+	if (!qm_info->qm_pq_params)
+		goto alloc_err;
+
+	qm_info->qm_vport_params = kzalloc(sizeof(*qm_info->qm_vport_params) *
+					   qed_init_qm_get_num_vports(p_hwfn),
+					   GFP_KERNEL);
+	if (!qm_info->qm_vport_params)
+		goto alloc_err;
+
+	qm_info->qm_port_params = kzalloc(sizeof(qm_info->qm_port_params) *
+					  p_hwfn->cdev->num_ports_in_engines,
+					  GFP_KERNEL);
+	if (!qm_info->qm_port_params)
+		goto alloc_err;
+
+	qm_info->wfq_data = kzalloc(sizeof(*qm_info->wfq_data) *
+				    qed_init_qm_get_num_vports(p_hwfn),
+				    GFP_KERNEL);
+	if (!qm_info->wfq_data)
+		goto alloc_err;
+
+	return 0;
+
+alloc_err:
+	DP_NOTICE(p_hwfn, "Failed to allocate memory for QM params\n");
+	qed_qm_info_free(p_hwfn);
+	return -ENOMEM;
 }
 
 int qed_resc_alloc(struct qed_dev *cdev)
@@ -469,10 +875,12 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (rc)
 			goto alloc_err;
 
-		/* Prepare and process QM requirements */
-		rc = qed_init_qm_info(p_hwfn, true);
+		rc = qed_alloc_qm_data(p_hwfn);
 		if (rc)
 			goto alloc_err;
+
+		/* init qm info */
+		qed_init_qm_info(p_hwfn);
 
 		/* Compute the ILT client partition */
 		rc = qed_cxt_cfg_ilt_compute(p_hwfn);
@@ -2252,6 +2660,9 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 		protocol = p_hwfn->mcp_info->func_info.protocol;
 		p_hwfn->hw_info.personality = protocol;
 	}
+
+	p_hwfn->hw_info.num_hw_tc = NUM_PHYS_TCS_4PORT_K2;
+	p_hwfn->hw_info.num_active_tc = 1;
 
 	qed_get_num_funcs(p_hwfn, p_ptt);
 

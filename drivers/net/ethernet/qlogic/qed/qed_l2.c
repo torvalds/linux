@@ -938,15 +938,12 @@ qed_eth_pf_tx_queue_start(struct qed_hwfn *p_hwfn,
 			  dma_addr_t pbl_addr,
 			  u16 pbl_size, void __iomem **pp_doorbell)
 {
-	union qed_qm_pq_params pq_params;
 	int rc;
 
-	memset(&pq_params, 0, sizeof(pq_params));
 
 	rc = qed_eth_txq_start_ramrod(p_hwfn, p_cid,
 				      pbl_addr, pbl_size,
-				      qed_get_qm_pq(p_hwfn, PROTOCOLID_ETH,
-						    &pq_params));
+				      qed_get_cm_pq_idx_mcos(p_hwfn, tc));
 	if (rc)
 		return rc;
 

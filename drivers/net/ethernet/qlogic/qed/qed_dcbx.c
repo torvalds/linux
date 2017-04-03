@@ -183,7 +183,7 @@ qed_dcbx_dp_protocol(struct qed_hwfn *p_hwfn, struct qed_dcbx_results *p_data)
 			   "%s info: update %d, enable %d, prio %d, tc %d, num_tc %d\n",
 			   qed_dcbx_app_update[i].name, p_data->arr[id].update,
 			   p_data->arr[id].enable, p_data->arr[id].priority,
-			   p_data->arr[id].tc, p_hwfn->hw_info.num_tc);
+			   p_data->arr[id].tc, p_hwfn->hw_info.num_active_tc);
 	}
 }
 
@@ -204,12 +204,8 @@ qed_dcbx_set_params(struct qed_dcbx_results *p_data,
 	p_data->arr[type].tc = tc;
 
 	/* QM reconf data */
-	if (p_info->personality == personality) {
-		if (personality == QED_PCI_ETH)
-			p_info->non_offload_tc = tc;
-		else
-			p_info->offload_tc = tc;
-	}
+	if (p_info->personality == personality)
+		p_info->offload_tc = tc;
 }
 
 /* Update app protocol data and hw_info fields with the TLV info */
@@ -376,7 +372,9 @@ static int qed_dcbx_process_mib_info(struct qed_hwfn *p_hwfn)
 	if (rc)
 		return rc;
 
-	p_info->num_tc = QED_MFW_GET_FIELD(p_ets->flags, DCBX_ETS_MAX_TCS);
+	p_info->num_active_tc = QED_MFW_GET_FIELD(p_ets->flags,
+						  DCBX_ETS_MAX_TCS);
+	p_hwfn->qm_info.ooo_tc = QED_MFW_GET_FIELD(p_ets->flags, DCBX_OOO_TC);
 	data.pf_id = p_hwfn->rel_pf_id;
 	data.dcbx_enabled = !!dcbx_version;
 

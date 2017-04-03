@@ -2066,16 +2066,10 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	struct qed_queue_start_common_params params;
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
 	u8 status = PFVF_STATUS_NO_RESOURCE;
-	union qed_qm_pq_params pq_params;
 	struct vfpf_start_txq_tlv *req;
 	struct qed_vf_q_info *p_queue;
 	int rc;
 	u16 pq;
-
-	/* Prepare the parameters which would choose the right PQ */
-	memset(&pq_params, 0, sizeof(pq_params));
-	pq_params.eth.is_vf = 1;
-	pq_params.eth.vf_id = vf->relative_vf_id;
 
 	memset(&params, 0, sizeof(params));
 	req = &mbx->req_virt->start_txq;
@@ -2101,7 +2095,7 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	if (!p_queue->p_tx_cid)
 		goto out;
 
-	pq = qed_get_qm_pq(p_hwfn, PROTOCOLID_ETH, &pq_params);
+	pq = qed_get_cm_pq_idx_vf(p_hwfn, vf->relative_vf_id);
 	rc = qed_eth_txq_start_ramrod(p_hwfn, p_queue->p_tx_cid,
 				      req->pbl_addr, req->pbl_size, pq);
 	if (rc) {

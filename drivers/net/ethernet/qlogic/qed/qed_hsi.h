@@ -9578,12 +9578,12 @@ struct dcbx_ets_feature {
 #define DCBX_ETS_CBS_SHIFT	3
 #define DCBX_ETS_MAX_TCS_MASK	0x000000f0
 #define DCBX_ETS_MAX_TCS_SHIFT	4
-#define DCBX_ISCSI_OOO_TC_MASK	0x00000f00
-#define DCBX_ISCSI_OOO_TC_SHIFT	8
+#define DCBX_OOO_TC_MASK	0x00000f00
+#define DCBX_OOO_TC_SHIFT	8
 	u32 pri_tc_tbl[1];
-#define DCBX_ISCSI_OOO_TC	(4)
+#define DCBX_TCP_OOO_TC		(4)
 
-#define NIG_ETS_ISCSI_OOO_CLIENT_OFFSET	(DCBX_ISCSI_OOO_TC + 1)
+#define NIG_ETS_ISCSI_OOO_CLIENT_OFFSET	(DCBX_TCP_OOO_TC + 1)
 #define DCBX_CEE_STRICT_PRIORITY	0xf
 	u32 tc_bw_tbl[2];
 	u32 tc_tsa_tbl[2];
@@ -9591,6 +9591,9 @@ struct dcbx_ets_feature {
 #define DCBX_ETS_TSA_CBS	1
 #define DCBX_ETS_TSA_ETS	2
 };
+
+#define DCBX_TCP_OOO_TC			(4)
+#define DCBX_TCP_OOO_K2_4PORT_TC	(3)
 
 struct dcbx_app_priority_entry {
 	u32 entry;

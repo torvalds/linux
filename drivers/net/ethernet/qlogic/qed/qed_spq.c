@@ -205,11 +205,10 @@ static int qed_spq_fill_entry(struct qed_hwfn *p_hwfn,
 static void qed_spq_hw_initialize(struct qed_hwfn *p_hwfn,
 				  struct qed_spq *p_spq)
 {
-	u16				pq;
-	struct qed_cxt_info		cxt_info;
-	struct core_conn_context	*p_cxt;
-	union qed_qm_pq_params		pq_params;
-	int				rc;
+	struct core_conn_context *p_cxt;
+	struct qed_cxt_info cxt_info;
+	u16 physical_q;
+	int rc;
 
 	cxt_info.iid = p_spq->cid;
 
@@ -231,10 +230,8 @@ static void qed_spq_hw_initialize(struct qed_hwfn *p_hwfn,
 		  XSTORM_CORE_CONN_AG_CTX_CONSOLID_PROD_CF_EN, 1);
 
 	/* QM physical queue */
-	memset(&pq_params, 0, sizeof(pq_params));
-	pq_params.core.tc = LB_TC;
-	pq = qed_get_qm_pq(p_hwfn, PROTOCOLID_CORE, &pq_params);
-	p_cxt->xstorm_ag_context.physical_q0 = cpu_to_le16(pq);
+	physical_q = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_LB);
+	p_cxt->xstorm_ag_context.physical_q0 = cpu_to_le16(physical_q);
 
 	p_cxt->xstorm_st_context.spq_base_lo =
 		DMA_LO_LE(p_spq->chain.p_phys_addr);

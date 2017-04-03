@@ -1396,18 +1396,11 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn)
 }
 
 /* CM PF */
-static int qed_cm_init_pf(struct qed_hwfn *p_hwfn)
+void qed_cm_init_pf(struct qed_hwfn *p_hwfn)
 {
-	union qed_qm_pq_params pq_params;
-	u16 pq;
-
 	/* XCM pure-LB queue */
-	memset(&pq_params, 0, sizeof(pq_params));
-	pq_params.core.tc = LB_TC;
-	pq = qed_get_qm_pq(p_hwfn, PROTOCOLID_CORE, &pq_params);
-	STORE_RT_REG(p_hwfn, XCM_REG_CON_PHY_Q3_RT_OFFSET, pq);
-
-	return 0;
+	STORE_RT_REG(p_hwfn, XCM_REG_CON_PHY_Q3_RT_OFFSET,
+		     qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_LB));
 }
 
 /* DQ PF */

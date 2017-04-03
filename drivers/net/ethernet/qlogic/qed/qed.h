@@ -271,9 +271,14 @@ struct qed_hw_info {
 				 RESC_NUM(_p_hwfn, resc))
 #define FEAT_NUM(_p_hwfn, resc) ((_p_hwfn)->hw_info.feat_num[resc])
 
-	u8				num_tc;
+	/* Amount of traffic classes HW supports */
+	u8 num_hw_tc;
+
+	/* Amount of TCs which should be active according to DCBx or upper
+	 * layer driver configuration.
+	 */
+	u8 num_active_tc;
 	u8				offload_tc;
-	u8				non_offload_tc;
 
 	u32				concrete_fid;
 	u16				opaque_fid;
@@ -336,15 +341,19 @@ struct qed_qm_info {
 	struct init_qm_port_params	*qm_port_params;
 	u16				start_pq;
 	u8				start_vport;
-	u8				pure_lb_pq;
-	u8				offload_pq;
-	u8				pure_ack_pq;
-	u8 ooo_pq;
-	u8				vf_queues_offset;
+	u16				 pure_lb_pq;
+	u16				offload_pq;
+	u16				low_latency_pq;
+	u16				pure_ack_pq;
+	u16				ooo_pq;
+	u16				first_vf_pq;
+	u16				first_mcos_pq;
+	u16				first_rl_pq;
 	u16				num_pqs;
 	u16				num_vf_pqs;
 	u8				num_vports;
 	u8				max_phys_tcs_per_port;
+	u8				ooo_tc;
 	bool				pf_rl_en;
 	bool				pf_wfq_en;
 	bool				vport_rl_en;
@@ -729,8 +738,26 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
 					 u32 min_pf_rate);
 
 void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
-#define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
 int qed_device_num_engines(struct qed_dev *cdev);
+
+#define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
+
+/* Flags for indication of required queues */
+#define PQ_FLAGS_RLS    (BIT(0))
+#define PQ_FLAGS_MCOS   (BIT(1))
+#define PQ_FLAGS_LB     (BIT(2))
+#define PQ_FLAGS_OOO    (BIT(3))
+#define PQ_FLAGS_ACK    (BIT(4))
+#define PQ_FLAGS_OFLD   (BIT(5))
+#define PQ_FLAGS_VFS    (BIT(6))
+#define PQ_FLAGS_LLT    (BIT(7))
+
+/* physical queue index for cm context intialization */
+u16 qed_get_cm_pq_idx(struct qed_hwfn *p_hwfn, u32 pq_flags);
+u16 qed_get_cm_pq_idx_mcos(struct qed_hwfn *p_hwfn, u8 tc);
+u16 qed_get_cm_pq_idx_vf(struct qed_hwfn *p_hwfn, u16 vf);
+
+#define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
 
 /* Other Linux specific common definitions */
 #define DP_NAME(cdev) ((cdev)->name)
