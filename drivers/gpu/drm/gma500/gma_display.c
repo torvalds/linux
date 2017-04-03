@@ -177,7 +177,8 @@ void gma_crtc_load_lut(struct drm_crtc *crtc)
 }
 
 int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green, u16 *blue,
-		       u32 size)
+		       u32 size,
+		       struct drm_modeset_acquire_ctx *ctx)
 {
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int i;

@@ -2651,7 +2651,8 @@ static void dce_v11_0_cursor_reset(struct drm_crtc *crtc)
 }
 
 static int dce_v11_0_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				    u16 *blue, uint32_t size)
+				    u16 *blue, uint32_t size,
+				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	int i;

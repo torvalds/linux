@@ -788,7 +788,8 @@ nv_crtc_disable(struct drm_crtc *crtc)
 
 static int
 nv_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		  uint32_t size)
+		  uint32_t size,
+		  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	int i;

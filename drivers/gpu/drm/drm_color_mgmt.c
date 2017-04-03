@@ -261,7 +261,8 @@ retry:
 		goto out;
 	}
 
-	ret = crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, crtc->gamma_size);
+	ret = crtc->funcs->gamma_set(crtc, r_base, g_base, b_base,
+				     crtc->gamma_size, &ctx);
 
 out:
 	if (ret == -EDEADLK) {

@@ -165,7 +165,8 @@ static void dce_virtual_bandwidth_update(struct amdgpu_device *adev)
 }
 
 static int dce_virtual_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
-				      u16 *green, u16 *blue, uint32_t size)
+				      u16 *green, u16 *blue, uint32_t size,
+				      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	int i;

@@ -1393,7 +1393,8 @@ static void mga_crtc_commit(struct drm_crtc *crtc)
  * but it's a requirement that we provide the function
  */
 static int mga_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-			      u16 *blue, uint32_t size)
+			      u16 *blue, uint32_t size,
+			      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct mga_crtc *mga_crtc = to_mga_crtc(crtc);
 	int i;
