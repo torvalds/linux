@@ -2831,6 +2831,11 @@ void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev)
 }
 EXPORT_SYMBOL_GPL(acpi_nfit_desc_init);
 
+static void acpi_nfit_put_table(void *table)
+{
+	acpi_put_table(table);
+}
+
 static int acpi_nfit_add(struct acpi_device *adev)
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -2847,6 +2852,10 @@ static int acpi_nfit_add(struct acpi_device *adev)
 		dev_dbg(dev, "failed to find NFIT at startup\n");
 		return 0;
 	}
+
+	rc = devm_add_action_or_reset(dev, acpi_nfit_put_table, tbl);
+	if (rc)
+		return rc;
 	sz = tbl->length;
 
 	acpi_desc = devm_kzalloc(dev, sizeof(*acpi_desc), GFP_KERNEL);
