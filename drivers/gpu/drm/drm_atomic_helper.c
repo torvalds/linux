@@ -3519,8 +3519,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 		blob_data[i].blue = blue[i];
 	}
 
-	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
-retry:
+	state->acquire_ctx = ctx;
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(crtc_state)) {
 		ret = PTR_ERR(crtc_state);
@@ -3544,18 +3543,10 @@ retry:
 		goto fail;
 
 	ret = drm_atomic_commit(state);
-fail:
-	if (ret == -EDEADLK)
-		goto backoff;
 
+fail:
 	drm_atomic_state_put(state);
 	drm_property_blob_put(blob);
 	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_legacy_gamma_set);

@@ -236,7 +236,6 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 		return -EINVAL;
 
 	drm_modeset_acquire_init(&ctx, 0);
-	dev->mode_config.acquire_ctx = &ctx;
 retry:
 	ret = drm_modeset_lock_all_ctx(dev, &ctx);
 	if (ret)
