@@ -667,7 +667,7 @@ void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
 		srcdev = dev_replace->srcdev;
-		args->status.progress_1000 = div_u64(dev_replace->cursor_left,
+		args->status.progress_1000 = div64_u64(dev_replace->cursor_left,
 			div_u64(btrfs_device_get_total_bytes(srcdev), 1000));
 		break;
 	}

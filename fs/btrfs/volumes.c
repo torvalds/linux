@@ -4816,7 +4816,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	stripe_size = div_u64(stripe_size, dev_stripes);
 
 	/* align to BTRFS_STRIPE_LEN */
-	stripe_size = div_u64(stripe_size, raid_stripe_len);
+	stripe_size = div64_u64(stripe_size, raid_stripe_len);
 	stripe_size *= raid_stripe_len;
 
 	map = kmalloc(map_lookup_size(num_stripes), GFP_NOFS);
@@ -5361,7 +5361,7 @@ static int __btrfs_map_block_for_discard(struct btrfs_fs_info *fs_info,
 	stripe_offset = offset - stripe_nr * stripe_len;
 
 	stripe_nr_end = round_up(offset + length, map->stripe_len);
-	stripe_nr_end = div_u64(stripe_nr_end, map->stripe_len);
+	stripe_nr_end = div64_u64(stripe_nr_end, map->stripe_len);
 	stripe_cnt = stripe_nr_end - stripe_nr;
 	stripe_end_offset = stripe_nr_end * map->stripe_len -
 			    (offset + length);
@@ -5801,7 +5801,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		    (op == BTRFS_MAP_WRITE || op == BTRFS_MAP_GET_READ_MIRRORS ||
 		     mirror_num > 1)) {
 			/* push stripe_nr back to the start of the full stripe */
-			stripe_nr = div_u64(raid56_full_stripe_start,
+			stripe_nr = div64_u64(raid56_full_stripe_start,
 					stripe_len * nr_data_stripes(map));
 
 			/* RAID[56] write or recovery. Return all stripes */
@@ -5998,7 +5998,7 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info,
 			continue;
 
 		stripe_nr = physical - map->stripes[i].physical;
-		stripe_nr = div_u64(stripe_nr, map->stripe_len);
+		stripe_nr = div64_u64(stripe_nr, map->stripe_len);
 
 		if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
 			stripe_nr = stripe_nr * map->num_stripes + i;

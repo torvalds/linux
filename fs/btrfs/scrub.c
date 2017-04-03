@@ -2705,7 +2705,7 @@ static int get_raid56_logic_offset(u64 physical, int num,
 	for (i = 0; i < nr_data_stripes(map); i++) {
 		*offset = last_offset + i * map->stripe_len;
 
-		stripe_nr = div_u64(*offset, map->stripe_len);
+		stripe_nr = div64_u64(*offset, map->stripe_len);
 		stripe_nr = div_u64(stripe_nr, nr_data_stripes(map));
 
 		/* Work out the disk rotation on this stripe-set */
@@ -3108,7 +3108,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 
 	physical = map->stripes[num].physical;
 	offset = 0;
-	nstripes = div_u64(length, map->stripe_len);
+	nstripes = div64_u64(length, map->stripe_len);
 	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
 		offset = map->stripe_len * num;
 		increment = map->stripe_len * map->num_stripes;
