@@ -155,8 +155,10 @@ reset:
 	b	exit
 
 1:	ldr	r0, =HVC_STUB_ERR
+	eret
 
 exit:
+	mov	r0, #0
 	eret
 ENDPROC(__kvm_handle_stub_hvc)
 

@@ -215,8 +215,10 @@ __hyp_stub_do_trap:
 	beq	__hyp_stub_exit
 
 	ldr	r0, =HVC_STUB_ERR
+	__ERET
 
 __hyp_stub_exit:
+	mov	r0, #0
 	__ERET
 ENDPROC(__hyp_stub_do_trap)
 
