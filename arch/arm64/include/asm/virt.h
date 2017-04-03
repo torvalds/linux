@@ -19,9 +19,14 @@
 #define __ASM__VIRT_H
 
 /*
- * The arm64 hcall implementation uses x0 to specify the hcall type. A value
- * less than 0xfff indicates a special hcall, such as get/set vector.
- * Any other value is used as a pointer to the function to call.
+ * The arm64 hcall implementation uses x0 to specify the hcall
+ * number. A value less than HVC_STUB_HCALL_NR indicates a special
+ * hcall, such as set vector. Any other value is handled in a
+ * hypervisor specific way.
+ *
+ * The hypercall is allowed to clobber any of the caller-saved
+ * registers (x0-x18), so it is advisable to use it through the
+ * indirection of a function call (as implemented in hyp-stub.S).
  */
 
 /* HVC_GET_VECTORS - Return the value of the vbar_el2 register. */
