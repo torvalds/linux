@@ -33,7 +33,7 @@
 #define ARM_EXCEPTION_IRQ	  5
 #define ARM_EXCEPTION_FIQ	  6
 #define ARM_EXCEPTION_HVC	  7
-
+#define ARM_EXCEPTION_HYP_GONE	  HVC_STUB_ERR
 /*
  * The rr_lo_hi macro swaps a pair of registers depending on
  * current endianness. It is used in conjunction with ldrd and strd
