@@ -77,6 +77,7 @@ enum {
 	POS_FIX_POSBUF,
 	POS_FIX_VIACOMBO,
 	POS_FIX_COMBO,
+	POS_FIX_SKL,
 };
 
 /* Defines for ATI HD Audio support in SB450 south bridge */
@@ -148,7 +149,7 @@ module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 module_param_array(position_fix, int, NULL, 0444);
 MODULE_PARM_DESC(position_fix, "DMA pointer read method."
-		 "(-1 = system default, 0 = auto, 1 = LPIB, 2 = POSBUF, 3 = VIACOMBO, 4 = COMBO).");
+		 "(-1 = system default, 0 = auto, 1 = LPIB, 2 = POSBUF, 3 = VIACOMBO, 4 = COMBO, 5 = SKL+).");
 module_param_array(bdl_pos_adj, int, NULL, 0644);
 MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset.");
 module_param_array(probe_mask, int, NULL, 0444);
@@ -534,9 +535,9 @@ static void bxt_reduce_dma_latency(struct azx *chip)
 {
 	u32 val;
 
-	val = azx_readl(chip, SKL_EM4L);
+	val = azx_readl(chip, VS_EM4L);
 	val &= (0x3 << 20);
-	azx_writel(chip, SKL_EM4L, val);
+	azx_writel(chip, VS_EM4L, val);
 }
 
 static void hda_intel_init_chip(struct azx *chip, bool full_reset)
@@ -813,6 +814,31 @@ static unsigned int azx_via_get_position(struct azx *chip,
 
 	/* Calculate real DMA position we want */
 	return bound_pos + mod_dma_pos;
+}
+
+static unsigned int azx_skl_get_dpib_pos(struct azx *chip,
+					 struct azx_dev *azx_dev)
+{
+	return _snd_hdac_chip_readl(azx_bus(chip),
+				    AZX_REG_VS_SDXDPIB_XBASE +
+				    (AZX_REG_VS_SDXDPIB_XINTERVAL *
+				     azx_dev->core.index));
+}
+
+/* get the current DMA position with correction on SKL+ chips */
+static unsigned int azx_get_pos_skl(struct azx *chip, struct azx_dev *azx_dev)
+{
+	/* DPIB register gives a more accurate position for playback */
+	if (azx_dev->core.substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return azx_skl_get_dpib_pos(chip, azx_dev);
+
+	/* For capture, we need to read posbuf, but it requires a delay
+	 * for the possible boundary overlap; the read of DPIB fetches the
+	 * actual posbuf
+	 */
+	udelay(20);
+	azx_skl_get_dpib_pos(chip, azx_dev);
+	return azx_get_pos_posbuf(chip, azx_dev);
 }
 
 #ifdef CONFIG_PM
@@ -1351,6 +1377,7 @@ static int check_position_fix(struct azx *chip, int fix)
 	case POS_FIX_POSBUF:
 	case POS_FIX_VIACOMBO:
 	case POS_FIX_COMBO:
+	case POS_FIX_SKL:
 		return fix;
 	}
 
@@ -1371,6 +1398,10 @@ static int check_position_fix(struct azx *chip, int fix)
 		dev_dbg(chip->card->dev, "Using LPIB position fix\n");
 		return POS_FIX_LPIB;
 	}
+	if (IS_SKL_PLUS(chip->pci)) {
+		dev_dbg(chip->card->dev, "Using SKL position fix\n");
+		return POS_FIX_SKL;
+	}
 	return POS_FIX_AUTO;
 }
 
@@ -1382,6 +1413,7 @@ static void assign_position_fix(struct azx *chip, int fix)
 		[POS_FIX_POSBUF] = azx_get_pos_posbuf,
 		[POS_FIX_VIACOMBO] = azx_via_get_position,
 		[POS_FIX_COMBO] = azx_get_pos_lpib,
+		[POS_FIX_SKL] = azx_get_pos_skl,
 	};
 
 	chip->get_position[0] = chip->get_position[1] = callbacks[fix];
@@ -1390,7 +1422,7 @@ static void assign_position_fix(struct azx *chip, int fix)
 	if (fix == POS_FIX_COMBO)
 		chip->get_position[1] = NULL;
 
-	if (fix == POS_FIX_POSBUF &&
+	if ((fix == POS_FIX_POSBUF || fix == POS_FIX_SKL) &&
 	    (chip->driver_caps & AZX_DCAPS_COUNT_LPIB_DELAY)) {
 		chip->get_delay[0] = chip->get_delay[1] =
 			azx_get_delay_from_lpib;
