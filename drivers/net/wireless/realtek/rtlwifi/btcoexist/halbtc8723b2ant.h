@@ -75,8 +75,8 @@ enum BT_8723B_2ANT_COEX_ALGO {
 
 struct coex_dm_8723b_2ant {
 	/* fw mechanism */
-	bool pre_dec_bt_pwr;
-	bool cur_dec_bt_pwr;
+	bool pre_dec_bt_pwr_lvl;
+	bool cur_dec_bt_pwr_lvl;
 	u8 pre_fw_dac_swing_lvl;
 	u8 cur_fw_dac_swing_lvl;
 	bool cur_ignore_wlan_act;
