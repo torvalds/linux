@@ -332,44 +332,6 @@ int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 	return 0;
 }
 
-/**
- *hns_mac_del_mac - delete mac address into dsaf table,can't delete the same
- *                  address twice
- *@net_dev: net device
- *@vfn :   vf lan
- *@mac : mac address
- *return status
- */
-int hns_mac_del_mac(struct hns_mac_cb *mac_cb, u32 vfn, char *mac)
-{
-	struct mac_entry_idx *old_mac;
-	struct dsaf_device *dsaf_dev;
-	u32 ret;
-
-	dsaf_dev = mac_cb->dsaf_dev;
-
-	if (vfn < DSAF_MAX_VM_NUM) {
-		old_mac = &mac_cb->addr_entry_idx[vfn];
-	} else {
-		dev_err(mac_cb->dev,
-			"vf queue is too large, %s mac%d queue = %#x!\n",
-			mac_cb->dsaf_dev->ae_dev.name, mac_cb->mac_id, vfn);
-		return -EINVAL;
-	}
-
-	if (dsaf_dev) {
-		ret = hns_dsaf_del_mac_entry(dsaf_dev, old_mac->vlan_id,
-					     mac_cb->mac_id, old_mac->addr);
-		if (ret)
-			return ret;
-
-		if (memcmp(old_mac->addr, mac, sizeof(old_mac->addr)) == 0)
-			old_mac->valid = 0;
-	}
-
-	return 0;
-}
-
 int hns_mac_clr_multicast(struct hns_mac_cb *mac_cb, int vfn)
 {
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
@@ -491,10 +453,9 @@ void hns_mac_reset(struct hns_mac_cb *mac_cb)
 	}
 }
 
-int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu)
+int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu, u32 buf_size)
 {
 	struct mac_driver *drv = hns_mac_get_drv(mac_cb);
-	u32 buf_size = mac_cb->dsaf_dev->buf_size;
 	u32 new_frm = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	u32 max_frm = AE_IS_VER1(mac_cb->dsaf_dev->dsaf_ver) ?
 			MAC_MAX_MTU : MAC_MAX_MTU_V2;
