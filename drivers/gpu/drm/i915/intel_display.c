@@ -3439,17 +3439,6 @@ static void skylake_disable_primary_plane(struct drm_plane *primary,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-/* Assume fb object is pinned & idle & fenced and just update base pointers */
-static int
-intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			   int x, int y, enum mode_set_atomic state)
-{
-	/* Support for kgdboc is disabled, this needs a major rework. */
-	DRM_ERROR("legacy panic handler not supported any more.\n");
-
-	return -ENODEV;
-}
-
 static void intel_complete_page_flips(struct drm_i915_private *dev_priv)
 {
 	struct intel_crtc *crtc;
@@ -11005,7 +10994,6 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs intel_helper_funcs = {
-	.mode_set_base_atomic = intel_pipe_set_base_atomic,
 	.atomic_begin = intel_begin_crtc_commit,
 	.atomic_flush = intel_finish_crtc_commit,
 	.atomic_check = intel_crtc_atomic_check,

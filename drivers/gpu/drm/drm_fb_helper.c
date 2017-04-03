@@ -281,6 +281,9 @@ int drm_fb_helper_debug_enter(struct fb_info *info)
 			if (funcs->mode_set_base_atomic == NULL)
 				continue;
 
+			if (drm_drv_uses_atomic_modeset(mode_set->crtc->dev))
+				continue;
+
 			drm_fb_helper_save_lut_atomic(mode_set->crtc, helper);
 			funcs->mode_set_base_atomic(mode_set->crtc,
 						    mode_set->fb,
@@ -336,6 +339,9 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 		}
 
 		if (funcs->mode_set_base_atomic == NULL)
+			continue;
+
+		if (drm_drv_uses_atomic_modeset(crtc->dev))
 			continue;
 
 		drm_fb_helper_restore_lut_atomic(mode_set->crtc);

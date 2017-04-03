@@ -2210,18 +2210,8 @@ nv50_head_lut_load(struct drm_crtc *crtc)
 	}
 }
 
-static int
-nv50_head_mode_set_base_atomic(struct drm_crtc *crtc,
-			       struct drm_framebuffer *fb, int x, int y,
-			       enum mode_set_atomic state)
-{
-	WARN_ON(1);
-	return 0;
-}
-
 static const struct drm_crtc_helper_funcs
 nv50_head_help = {
-	.mode_set_base_atomic = nv50_head_mode_set_base_atomic,
 	.load_lut = nv50_head_lut_load,
 	.atomic_check = nv50_head_atomic_check,
 };
