@@ -2689,6 +2689,13 @@ static int kern_spec_to_ib_spec_action(struct ib_uverbs_flow_spec *kern_spec,
 		ib_spec->flow_tag.size = sizeof(struct ib_flow_spec_action_tag);
 		ib_spec->flow_tag.tag_id = kern_spec->flow_tag.tag_id;
 		break;
+	case IB_FLOW_SPEC_ACTION_DROP:
+		if (kern_spec->drop.size !=
+		    sizeof(struct ib_uverbs_flow_spec_action_drop))
+			return -EINVAL;
+
+		ib_spec->drop.size = sizeof(struct ib_flow_spec_action_drop);
+		break;
 	default:
 		return -EINVAL;
 	}
