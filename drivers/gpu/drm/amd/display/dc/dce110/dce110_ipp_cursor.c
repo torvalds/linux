@@ -86,11 +86,10 @@ void dce110_ipp_cursor_set_position(
 
 	program_position(ipp110, position->x, position->y);
 
-	if (position->hot_spot_enable)
-		program_hotspot(
-				ipp110,
-				position->x_hotspot,
-				position->y_hotspot);
+	program_hotspot(
+			ipp110,
+			position->x_hotspot,
+			position->y_hotspot);
 
 	/* unlock cursor registers */
 	lock(ipp110, false);
@@ -111,8 +110,6 @@ bool dce110_ipp_cursor_set_attributes(
 		attributes->attribute_flags.bits.ENABLE_MAGNIFICATION,
 		attributes->attribute_flags.bits.INVERSE_TRANSPARENT_CLAMPING);
 
-	/* Program hot spot coordinates */
-	program_hotspot(ipp110, attributes->x_hot, attributes->y_hot);
 
 	/*
 	 * Program cursor size -- NOTE: HW spec specifies that HW register

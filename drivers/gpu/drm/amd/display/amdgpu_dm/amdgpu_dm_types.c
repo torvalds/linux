@@ -90,8 +90,6 @@ static void dm_set_cursor(
 	attributes.address.low_part  = lower_32_bits(gpu_addr);
 	attributes.width             = width;
 	attributes.height            = height;
-	attributes.x_hot             = 0;
-	attributes.y_hot             = 0;
 	attributes.color_format      = CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA;
 	attributes.rotation_angle    = 0;
 	attributes.attribute_flags.value = 0;
@@ -118,7 +116,6 @@ static void dm_set_cursor(
 	position.x = x;
 	position.y = y;
 
-	position.hot_spot_enable = true;
 	position.x_hotspot = xorigin;
 	position.y_hotspot = yorigin;
 
@@ -260,7 +257,6 @@ static int dm_crtc_cursor_set(
 		position.enable = false;
 		position.x = 0;
 		position.y = 0;
-		position.hot_spot_enable = false;
 
 		if (amdgpu_crtc->stream) {
 			/*set cursor visible false*/
@@ -344,7 +340,6 @@ static int dm_crtc_cursor_move(struct drm_crtc *crtc,
 	position.x = x;
 	position.y = y;
 
-	position.hot_spot_enable = true;
 	position.x_hotspot = xorigin;
 	position.y_hotspot = yorigin;
 

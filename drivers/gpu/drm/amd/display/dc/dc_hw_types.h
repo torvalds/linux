@@ -395,11 +395,6 @@ struct dc_cursor_position {
 	 */
 	bool enable;
 
-	/*
-	 * This parameter indicates whether cursor hot spot should be
-	 * programmed
-	 */
-	bool hot_spot_enable;
 };
 
 struct dc_cursor_mi_param {
@@ -464,8 +459,6 @@ struct dc_cursor_attributes {
 	/* Width and height should correspond to cursor surface width x heigh */
 	uint32_t width;
 	uint32_t height;
-	uint32_t x_hot;
-	uint32_t y_hot;
 
 	enum dc_cursor_color_format color_format;
 
