@@ -442,8 +442,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	struct drm_property *property;
 	int enum_count = 0;
 	int value_count = 0;
-	int ret = 0, i;
-	int copied;
+	int i, copied;
 	struct drm_property_enum *prop_enum;
 	struct drm_mode_property_enum __user *enum_ptr;
 	uint64_t __user *values_ptr;
@@ -451,55 +450,43 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
 	property = drm_property_find(dev, out_resp->prop_id);
-	if (!property) {
-		ret = -ENOENT;
-		goto done;
-	}
-
-	if (drm_property_type_is(property, DRM_MODE_PROP_ENUM) ||
-			drm_property_type_is(property, DRM_MODE_PROP_BITMASK)) {
-		list_for_each_entry(prop_enum, &property->enum_list, head)
-			enum_count++;
-	}
-
-	value_count = property->num_values;
+	if (!property)
+		return -ENOENT;
 
 	strncpy(out_resp->name, property->name, DRM_PROP_NAME_LEN);
 	out_resp->name[DRM_PROP_NAME_LEN-1] = 0;
 	out_resp->flags = property->flags;
 
-	if ((out_resp->count_values >= value_count) && value_count) {
-		values_ptr = (uint64_t __user *)(unsigned long)out_resp->values_ptr;
-		for (i = 0; i < value_count; i++) {
-			if (copy_to_user(values_ptr + i, &property->values[i], sizeof(uint64_t))) {
-				ret = -EFAULT;
-				goto done;
-			}
+	value_count = property->num_values;
+	values_ptr = u64_to_user_ptr(out_resp->values_ptr);
+
+	for (i = 0; i < value_count; i++) {
+		if (i < out_resp->count_values &&
+		    put_user(property->values[i], values_ptr + i)) {
+			return -EFAULT;
 		}
 	}
 	out_resp->count_values = value_count;
 
+	copied = 0;
+	enum_ptr = u64_to_user_ptr(out_resp->enum_blob_ptr);
+
 	if (drm_property_type_is(property, DRM_MODE_PROP_ENUM) ||
-			drm_property_type_is(property, DRM_MODE_PROP_BITMASK)) {
-		if ((out_resp->count_enum_blobs >= enum_count) && enum_count) {
-			copied = 0;
-			enum_ptr = (struct drm_mode_property_enum __user *)(unsigned long)out_resp->enum_blob_ptr;
-			list_for_each_entry(prop_enum, &property->enum_list, head) {
+	    drm_property_type_is(property, DRM_MODE_PROP_BITMASK)) {
+		list_for_each_entry(prop_enum, &property->enum_list, head) {
+			enum_count++;
+			if (out_resp->count_enum_blobs <= enum_count)
+				continue;
 
-				if (copy_to_user(&enum_ptr[copied].value, &prop_enum->value, sizeof(uint64_t))) {
-					ret = -EFAULT;
-					goto done;
-				}
+			if (copy_to_user(&enum_ptr[copied].value,
+					 &prop_enum->value, sizeof(uint64_t)))
+				return -EFAULT;
 
-				if (copy_to_user(&enum_ptr[copied].name,
-						 &prop_enum->name, DRM_PROP_NAME_LEN)) {
-					ret = -EFAULT;
-					goto done;
-				}
-				copied++;
-			}
+			if (copy_to_user(&enum_ptr[copied].name,
+					 &prop_enum->name, DRM_PROP_NAME_LEN))
+				return -EFAULT;
+			copied++;
 		}
 		out_resp->count_enum_blobs = enum_count;
 	}
@@ -514,9 +501,8 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	 */
 	if (drm_property_type_is(property, DRM_MODE_PROP_BLOB))
 		out_resp->count_enum_blobs = 0;
-done:
-	drm_modeset_unlock_all(dev);
-	return ret;
+
+	return 0;
 }
 
 static void drm_property_free_blob(struct kref *kref)
