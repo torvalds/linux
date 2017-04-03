@@ -480,130 +480,121 @@
 			#gpio-cells = <3>;
 
 			gmac_pins_gmii_a: gmac_gmii@0 {
-				allwinner,pins = "PA0", "PA1", "PA2", "PA3",
+				pins = "PA0", "PA1", "PA2", "PA3",
 						"PA4", "PA5", "PA6", "PA7",
 						"PA8", "PA9", "PA10", "PA11",
 						"PA12", "PA13", "PA14",	"PA15",
 						"PA16", "PA17", "PA18", "PA19",
 						"PA20", "PA21", "PA22", "PA23",
 						"PA24", "PA25", "PA26", "PA27";
-				allwinner,function = "gmac";
+				function = "gmac";
 				/*
 				 * data lines in GMII mode run at 125MHz and
 				 * might need a higher signal drive strength
 				 */
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				drive-strength = <30>;
 			};
 
 			gmac_pins_mii_a: gmac_mii@0 {
-				allwinner,pins = "PA0", "PA1", "PA2", "PA3",
+				pins = "PA0", "PA1", "PA2", "PA3",
 						"PA8", "PA9", "PA11",
 						"PA12", "PA13", "PA14", "PA19",
 						"PA20", "PA21", "PA22", "PA23",
 						"PA24", "PA26", "PA27";
-				allwinner,function = "gmac";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				function = "gmac";
 			};
 
 			gmac_pins_rgmii_a: gmac_rgmii@0 {
-				allwinner,pins = "PA0", "PA1", "PA2", "PA3",
+				pins = "PA0", "PA1", "PA2", "PA3",
 						"PA9", "PA10", "PA11",
 						"PA12", "PA13", "PA14", "PA19",
 						"PA20", "PA25", "PA26", "PA27";
-				allwinner,function = "gmac";
+				function = "gmac";
 				/*
 				 * data lines in RGMII mode use DDR mode
 				 * and need a higher signal drive strength
 				 */
-				allwinner,drive = <SUN4I_PINCTRL_40_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				drive-strength = <40>;
 			};
 
 			i2c0_pins_a: i2c0@0 {
-				allwinner,pins = "PH14", "PH15";
-				allwinner,function = "i2c0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PH14", "PH15";
+				function = "i2c0";
 			};
 
 			i2c1_pins_a: i2c1@0 {
-				allwinner,pins = "PH16", "PH17";
-				allwinner,function = "i2c1";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PH16", "PH17";
+				function = "i2c1";
 			};
 
 			i2c2_pins_a: i2c2@0 {
-				allwinner,pins = "PH18", "PH19";
-				allwinner,function = "i2c2";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PH18", "PH19";
+				function = "i2c2";
 			};
 
 			lcd0_rgb888_pins: lcd0_rgb888 {
-				allwinner,pins = "PD0", "PD1", "PD2", "PD3",
+				pins = "PD0", "PD1", "PD2", "PD3",
 						 "PD4", "PD5", "PD6", "PD7",
 						 "PD8", "PD9", "PD10", "PD11",
 						 "PD12", "PD13", "PD14", "PD15",
 						 "PD16", "PD17", "PD18", "PD19",
 						 "PD20", "PD21", "PD22", "PD23",
 						 "PD24", "PD25", "PD26", "PD27";
-				allwinner,function = "lcd0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				function = "lcd0";
 			};
 
 			mmc0_pins_a: mmc0@0 {
-				allwinner,pins = "PF0", "PF1", "PF2",
+				pins = "PF0", "PF1", "PF2",
 						 "PF3", "PF4", "PF5";
-				allwinner,function = "mmc0";
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				function = "mmc0";
+				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc1_pins_a: mmc1@0 {
-				allwinner,pins = "PG0", "PG1", "PG2", "PG3",
+				pins = "PG0", "PG1", "PG2", "PG3",
 						 "PG4", "PG5";
-				allwinner,function = "mmc1";
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				function = "mmc1";
+				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc2_pins_a: mmc2@0 {
-				allwinner,pins = "PC6", "PC7", "PC8", "PC9",
+				pins = "PC6", "PC7", "PC8", "PC9",
 						 "PC10", "PC11";
-				allwinner,function = "mmc2";
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+				function = "mmc2";
+				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc2_8bit_emmc_pins: mmc2@1 {
-				allwinner,pins = "PC6", "PC7", "PC8", "PC9",
+				pins = "PC6", "PC7", "PC8", "PC9",
 						 "PC10", "PC11", "PC12",
 						 "PC13", "PC14", "PC15",
 						 "PC24";
-				allwinner,function = "mmc2";
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				function = "mmc2";
+				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			mmc3_8bit_emmc_pins: mmc3@1 {
-				allwinner,pins = "PC6", "PC7", "PC8", "PC9",
+				pins = "PC6", "PC7", "PC8", "PC9",
 						 "PC10", "PC11", "PC12",
 						 "PC13", "PC14", "PC15",
 						 "PC24";
-				allwinner,function = "mmc3";
-				allwinner,drive = <SUN4I_PINCTRL_40_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				function = "mmc3";
+				drive-strength = <40>;
+				bias-pull-up;
+			};
+
+			spdif_pins_a: spdif@0 {
+				pins = "PH28";
+				function = "spdif";
 			};
 
 			uart0_pins_a: uart0@0 {
-				allwinner,pins = "PH20", "PH21";
-				allwinner,function = "uart0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PH20", "PH21";
+				function = "uart0";
 			};
 		};
 
@@ -621,6 +612,19 @@
 		wdt1: watchdog@01c20ca0 {
 			compatible = "allwinner,sun6i-a31-wdt";
 			reg = <0x01c20ca0 0x20>;
+		};
+
+		spdif: spdif@01c21000 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun6i-a31-spdif";
+			reg = <0x01c21000 0x400>;
+			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_APB1_SPDIF>, <&ccu CLK_SPDIF>;
+			resets = <&ccu RST_APB1_SPDIF>;
+			clock-names = "apb", "spdif";
+			dmas = <&dma 2>, <&dma 2>;
+			dma-names = "rx", "tx";
+			status = "disabled";
 		};
 
 		lradc: lradc@01c22800 {
@@ -862,7 +866,7 @@
 		gic: interrupt-controller@01c81000 {
 			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c81000 0x1000>,
-			      <0x01c82000 0x1000>,
+			      <0x01c82000 0x2000>,
 			      <0x01c84000 0x2000>,
 			      <0x01c86000 0x2000>;
 			interrupt-controller;
@@ -1076,17 +1080,13 @@
 			#gpio-cells = <3>;
 
 			ir_pins_a: ir@0 {
-				allwinner,pins = "PL4";
-				allwinner,function = "s_ir";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PL4";
+				function = "s_ir";
 			};
 
 			p2wi_pins: p2wi {
-				allwinner,pins = "PL0", "PL1";
-				allwinner,function = "s_p2wi";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PL0", "PL1";
+				function = "s_p2wi";
 			};
 		};
 

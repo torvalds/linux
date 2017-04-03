@@ -227,8 +227,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 				return status;
 			}
 		} else {
-			dev_err(hcd->self.controller, "can't find phy\n");
-			return -ENODEV;
+			return -EPROBE_DEFER;
 		}
 		ohci->start_hnp = start_hnp;
 	}

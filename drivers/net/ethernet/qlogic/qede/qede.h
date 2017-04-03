@@ -1,11 +1,34 @@
 /* QLogic qede NIC Driver
-* Copyright (c) 2015 QLogic Corporation
-*
-* This software is available under the terms of the GNU General Public License
-* (GPL) Version 2, available from the file COPYING in the main directory of
-* this source tree.
-*/
-
+ * Copyright (c) 2015-2017  QLogic Corporation
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 #ifndef _QEDE_H_
 #define _QEDE_H_
 #include <linux/compiler.h>
@@ -26,7 +49,7 @@
 
 #define QEDE_MAJOR_VERSION		8
 #define QEDE_MINOR_VERSION		10
-#define QEDE_REVISION_VERSION		9
+#define QEDE_REVISION_VERSION		10
 #define QEDE_ENGINEERING_VERSION	20
 #define DRV_MODULE_VERSION __stringify(QEDE_MAJOR_VERSION) "."	\
 		__stringify(QEDE_MINOR_VERSION) "."		\
@@ -114,6 +137,8 @@ struct qede_rdma_dev {
 	struct workqueue_struct *roce_wq;
 };
 
+struct qede_ptp;
+
 struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
@@ -125,8 +150,10 @@ struct qede_dev {
 	u32 flags;
 #define QEDE_FLAG_IS_VF	BIT(0)
 #define IS_VF(edev)	(!!((edev)->flags & QEDE_FLAG_IS_VF))
+#define QEDE_TX_TIMESTAMPING_EN		BIT(1)
 
 	const struct qed_eth_ops	*ops;
+	struct qede_ptp			*ptp;
 
 	struct qed_dev_eth_info dev_info;
 #define QEDE_MAX_RSS_CNT(edev)	((edev)->dev_info.num_queues)
@@ -141,6 +168,7 @@ struct qede_dev {
 	u16				num_queues;
 #define QEDE_QUEUE_CNT(edev)	((edev)->num_queues)
 #define QEDE_RSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_tx)
+#define QEDE_RX_QUEUE_IDX(edev, i)	(i)
 #define QEDE_TSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_rx)
 
 	struct qed_int_info		int_info;
@@ -171,7 +199,10 @@ struct qede_dev {
 #define QEDE_RSS_KEY_INITED	BIT(1)
 #define QEDE_RSS_CAPS_INITED	BIT(2)
 	u32 rss_params_inited; /* bit-field to track initialized rss params */
-	struct qed_update_vport_rss_params	rss_params;
+	u16 rss_ind_table[128];
+	u32 rss_key[10];
+	u8 rss_caps;
+
 	u16			q_num_rx_buffers; /* Must be a power of two */
 	u16			q_num_tx_buffers; /* Must be a power of two */
 
@@ -257,7 +288,7 @@ struct qede_rx_queue {
 	u16 sw_rx_cons;
 	u16 sw_rx_prod;
 
-	u16 num_rx_buffers; /* Slowpath */
+	u16 filled_buffers;
 	u8 data_direction;
 	u8 rxq_id;
 
@@ -269,6 +300,9 @@ struct qede_rx_queue {
 	struct sw_rx_data *sw_rx_ring;
 	struct qed_chain rx_bd_ring;
 	struct qed_chain rx_comp_ring ____cacheline_aligned;
+
+	/* Used once per each NAPI run */
+	u16 num_rx_buffers;
 
 	/* GRO */
 	struct qede_agg_info tpa_info[ETH_TPA_MAX_AGGS_NUM];
@@ -385,9 +419,42 @@ struct qede_reload_args {
 	} u;
 };
 
+/* Datapath functions definition */
+netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev);
+netdev_features_t qede_features_check(struct sk_buff *skb,
+				      struct net_device *dev,
+				      netdev_features_t features);
+void qede_tx_log_print(struct qede_dev *edev, struct qede_fastpath *fp);
+int qede_alloc_rx_buffer(struct qede_rx_queue *rxq, bool allow_lazy);
+int qede_free_tx_pkt(struct qede_dev *edev,
+		     struct qede_tx_queue *txq, int *len);
+int qede_poll(struct napi_struct *napi, int budget);
+irqreturn_t qede_msix_fp_int(int irq, void *fp_cookie);
+
+/* Filtering function definitions */
+void qede_force_mac(void *dev, u8 *mac, bool forced);
+int qede_set_mac_addr(struct net_device *ndev, void *p);
+
+int qede_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid);
+int qede_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid);
+void qede_vlan_mark_nonconfigured(struct qede_dev *edev);
+int qede_configure_vlan_filters(struct qede_dev *edev);
+
+int qede_set_features(struct net_device *dev, netdev_features_t features);
+void qede_set_rx_mode(struct net_device *ndev);
+void qede_config_rx_mode(struct net_device *ndev);
+void qede_fill_rss_params(struct qede_dev *edev,
+			  struct qed_update_vport_rss_params *rss, u8 *update);
+
+void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti);
+void qede_udp_tunnel_del(struct net_device *dev, struct udp_tunnel_info *ti);
+
+int qede_xdp(struct net_device *dev, struct netdev_xdp *xdp);
+
 #ifdef CONFIG_DCB
 void qede_set_dcbnl_ops(struct net_device *ndev);
 #endif
+
 void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level);
 void qede_set_ethtool_ops(struct net_device *netdev);
 void qede_reload(struct qede_dev *edev,

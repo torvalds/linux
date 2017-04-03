@@ -437,7 +437,8 @@ Lrounds_16_xx:
 
 	ret
 ENDPROC(sha256_x8_avx2)
-.data
+
+.section	.rodata.K256_8, "a", @progbits
 .align 64
 K256_8:
 	.octa	0x428a2f98428a2f98428a2f98428a2f98
@@ -568,10 +569,14 @@ K256_8:
 	.octa	0xbef9a3f7bef9a3f7bef9a3f7bef9a3f7
 	.octa	0xc67178f2c67178f2c67178f2c67178f2
 	.octa	0xc67178f2c67178f2c67178f2c67178f2
+
+.section	.rodata.cst32.PSHUFFLE_BYTE_FLIP_MASK, "aM", @progbits, 32
+.align 32
 PSHUFFLE_BYTE_FLIP_MASK:
 .octa 0x0c0d0e0f08090a0b0405060700010203
 .octa 0x0c0d0e0f08090a0b0405060700010203
 
+.section	.rodata.cst256.K256, "aM", @progbits, 256
 .align 64
 .global K256
 K256:

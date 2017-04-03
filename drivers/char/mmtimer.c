@@ -463,9 +463,9 @@ static int mmtimer_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 static struct miscdevice mmtimer_miscdev = {
-	SGI_MMTIMER,
-	MMTIMER_NAME,
-	&mmtimer_fops
+	.minor = SGI_MMTIMER,
+	.name = MMTIMER_NAME,
+	.fops = &mmtimer_fops
 };
 
 static struct timespec sgi_clock_offset;

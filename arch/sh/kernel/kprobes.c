@@ -9,7 +9,7 @@
  * for more details.
  */
 #include <linux/kprobes.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/ptrace.h>
 #include <linux/preempt.h>
 #include <linux/kdebug.h>

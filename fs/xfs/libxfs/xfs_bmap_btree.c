@@ -71,15 +71,9 @@ xfs_bmdr_to_bmbt(
 	xfs_bmbt_key_t		*tkp;
 	__be64			*tpp;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb))
-		xfs_btree_init_block_int(mp, rblock, XFS_BUF_DADDR_NULL,
-				 XFS_BMAP_CRC_MAGIC, 0, 0, ip->i_ino,
-				 XFS_BTREE_LONG_PTRS | XFS_BTREE_CRC_BLOCKS);
-	else
-		xfs_btree_init_block_int(mp, rblock, XFS_BUF_DADDR_NULL,
-				 XFS_BMAP_MAGIC, 0, 0, ip->i_ino,
+	xfs_btree_init_block_int(mp, rblock, XFS_BUF_DADDR_NULL,
+				 XFS_BTNUM_BMAP, 0, 0, ip->i_ino,
 				 XFS_BTREE_LONG_PTRS);
-
 	rblock->bb_level = dblock->bb_level;
 	ASSERT(be16_to_cpu(rblock->bb_level) > 0);
 	rblock->bb_numrecs = dblock->bb_numrecs;
@@ -453,8 +447,8 @@ xfs_bmbt_alloc_block(
 
 	if (args.fsbno == NULLFSBLOCK) {
 		args.fsbno = be64_to_cpu(start->l);
-try_another_ag:
 		args.type = XFS_ALLOCTYPE_START_BNO;
+try_another_ag:
 		/*
 		 * Make sure there is sufficient room left in the AG to
 		 * complete a full tree split for an extent insert.  If
@@ -494,8 +488,8 @@ try_another_ag:
 	if (xfs_sb_version_hasreflink(&cur->bc_mp->m_sb) &&
 	    args.fsbno == NULLFSBLOCK &&
 	    args.type == XFS_ALLOCTYPE_NEAR_BNO) {
-		cur->bc_private.b.dfops->dop_low = true;
 		args.fsbno = cur->bc_private.b.firstblock;
+		args.type = XFS_ALLOCTYPE_FIRST_AG;
 		goto try_another_ag;
 	}
 
@@ -512,7 +506,7 @@ try_another_ag:
 			goto error0;
 		cur->bc_private.b.dfops->dop_low = true;
 	}
-	if (args.fsbno == NULLFSBLOCK) {
+	if (WARN_ON_ONCE(args.fsbno == NULLFSBLOCK)) {
 		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		*stat = 0;
 		return 0;

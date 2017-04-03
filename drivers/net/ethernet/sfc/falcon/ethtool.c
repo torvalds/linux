@@ -115,44 +115,47 @@ static int ef4_ethtool_phys_id(struct net_device *net_dev,
 }
 
 /* This must be called with rtnl_lock held. */
-static int ef4_ethtool_get_settings(struct net_device *net_dev,
-				    struct ethtool_cmd *ecmd)
+static int
+ef4_ethtool_get_link_ksettings(struct net_device *net_dev,
+			       struct ethtool_link_ksettings *cmd)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 	struct ef4_link_state *link_state = &efx->link_state;
 
 	mutex_lock(&efx->mac_lock);
-	efx->phy_op->get_settings(efx, ecmd);
+	efx->phy_op->get_link_ksettings(efx, cmd);
 	mutex_unlock(&efx->mac_lock);
 
 	/* Both MACs support pause frames (bidirectional and respond-only) */
-	ecmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	ethtool_link_ksettings_add_link_mode(cmd, supported, Pause);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, Asym_Pause);
 
 	if (LOOPBACK_INTERNAL(efx)) {
-		ethtool_cmd_speed_set(ecmd, link_state->speed);
-		ecmd->duplex = link_state->fd ? DUPLEX_FULL : DUPLEX_HALF;
+		cmd->base.speed = link_state->speed;
+		cmd->base.duplex = link_state->fd ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 
 	return 0;
 }
 
 /* This must be called with rtnl_lock held. */
-static int ef4_ethtool_set_settings(struct net_device *net_dev,
-				    struct ethtool_cmd *ecmd)
+static int
+ef4_ethtool_set_link_ksettings(struct net_device *net_dev,
+			       const struct ethtool_link_ksettings *cmd)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
 	int rc;
 
 	/* GMAC does not support 1000Mbps HD */
-	if ((ethtool_cmd_speed(ecmd) == SPEED_1000) &&
-	    (ecmd->duplex != DUPLEX_FULL)) {
+	if ((cmd->base.speed == SPEED_1000) &&
+	    (cmd->base.duplex != DUPLEX_FULL)) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "rejecting unsupported 1000Mbps HD setting\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&efx->mac_lock);
-	rc = efx->phy_op->set_settings(efx, ecmd);
+	rc = efx->phy_op->set_link_ksettings(efx, cmd);
 	mutex_unlock(&efx->mac_lock);
 	return rc;
 }
@@ -1310,8 +1313,6 @@ static int ef4_ethtool_get_module_info(struct net_device *net_dev,
 }
 
 const struct ethtool_ops ef4_ethtool_ops = {
-	.get_settings		= ef4_ethtool_get_settings,
-	.set_settings		= ef4_ethtool_set_settings,
 	.get_drvinfo		= ef4_ethtool_get_drvinfo,
 	.get_regs_len		= ef4_ethtool_get_regs_len,
 	.get_regs		= ef4_ethtool_get_regs,
@@ -1340,4 +1341,6 @@ const struct ethtool_ops ef4_ethtool_ops = {
 	.set_rxfh		= ef4_ethtool_set_rxfh,
 	.get_module_info	= ef4_ethtool_get_module_info,
 	.get_module_eeprom	= ef4_ethtool_get_module_eeprom,
+	.get_link_ksettings	= ef4_ethtool_get_link_ksettings,
+	.set_link_ksettings	= ef4_ethtool_set_link_ksettings,
 };

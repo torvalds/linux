@@ -69,7 +69,7 @@ static void s5pv210_pm_prepare(void)
 	__raw_writel(s5pv210_irqwake_intmask, S5P_WAKEUP_MASK);
 
 	/* ensure at least INFORM0 has the resume address */
-	__raw_writel(virt_to_phys(s5pv210_cpu_resume), S5P_INFORM0);
+	__raw_writel(__pa_symbol(s5pv210_cpu_resume), S5P_INFORM0);
 
 	tmp = __raw_readl(S5P_SLEEP_CFG);
 	tmp &= ~(S5P_SLEEP_CFG_OSC_EN | S5P_SLEEP_CFG_USBOSC_EN);
@@ -155,13 +155,6 @@ static const struct platform_suspend_ops s5pv210_suspend_ops = {
  */
 static void s5pv210_pm_resume(void)
 {
-	u32 tmp;
-
-	tmp = __raw_readl(S5P_OTHERS);
-	tmp |= (S5P_OTHERS_RET_IO | S5P_OTHERS_RET_CF |\
-		S5P_OTHERS_RET_MMC | S5P_OTHERS_RET_UART);
-	__raw_writel(tmp , S5P_OTHERS);
-
 	s3c_pm_do_restore_core(s5pv210_core_save, ARRAY_SIZE(s5pv210_core_save));
 }
 

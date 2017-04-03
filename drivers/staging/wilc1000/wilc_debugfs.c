@@ -17,7 +17,6 @@
 
 #include "wilc_wlan_if.h"
 
-
 static struct dentry *wilc_dir;
 
 /*
@@ -36,7 +35,6 @@ EXPORT_SYMBOL_GPL(WILC_DEBUG_LEVEL);
  * --------------------------------------------------------------------------------
  */
 
-
 static ssize_t wilc_debug_level_read(struct file *file, char __user *userbuf, size_t count, loff_t *ppos)
 {
 	char buf[128];
@@ -52,7 +50,7 @@ static ssize_t wilc_debug_level_read(struct file *file, char __user *userbuf, si
 }
 
 static ssize_t wilc_debug_level_write(struct file *filp, const char __user *buf,
-					size_t count, loff_t *ppos)
+				      size_t count, loff_t *ppos)
 {
 	int flag = 0;
 	int ret;

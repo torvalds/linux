@@ -22,7 +22,7 @@
 #include <sound/core.h>
 #include <linux/major.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/wait.h>
@@ -1749,7 +1749,7 @@ static int snd_rawmidi_dev_disconnect(struct snd_device *device)
  * Sets the rawmidi operators for the given stream direction.
  */
 void snd_rawmidi_set_ops(struct snd_rawmidi *rmidi, int stream,
-			 struct snd_rawmidi_ops *ops)
+			 const struct snd_rawmidi_ops *ops)
 {
 	struct snd_rawmidi_substream *substream;
 	

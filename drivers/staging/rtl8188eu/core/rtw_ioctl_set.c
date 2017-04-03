@@ -573,11 +573,6 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 	u8	bw_40MHz = 0, short_GI_20 = 0, short_GI_40 = 0;
 	u32	ht_ielen = 0;
 
-	if (adapter->registrypriv.mp_mode == 1) {
-		if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
-			return 0;
-	}
-
 	if ((!check_fwstate(pmlmepriv, _FW_LINKED)) &&
 	    (!check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)))
 		return 0;

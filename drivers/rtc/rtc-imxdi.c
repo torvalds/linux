@@ -108,7 +108,6 @@
  * @pdev: pionter to platform dev
  * @rtc: pointer to rtc struct
  * @ioaddr: IO registers pointer
- * @irq: dryice normal interrupt
  * @clk: input reference clock
  * @dsr: copy of the DSR register
  * @irq_lock: interrupt enable register (DIER) lock
@@ -120,7 +119,6 @@ struct imxdi_dev {
 	struct platform_device *pdev;
 	struct rtc_device *rtc;
 	void __iomem *ioaddr;
-	int irq;
 	struct clk *clk;
 	u32 dsr;
 	spinlock_t irq_lock;
@@ -668,7 +666,7 @@ static int dryice_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	return 0;
 }
 
-static struct rtc_class_ops dryice_rtc_ops = {
+static const struct rtc_class_ops dryice_rtc_ops = {
 	.read_time		= dryice_rtc_read_time,
 	.set_mmss		= dryice_rtc_set_mmss,
 	.alarm_irq_enable	= dryice_rtc_alarm_irq_enable,
@@ -677,9 +675,9 @@ static struct rtc_class_ops dryice_rtc_ops = {
 };
 
 /*
- * dryice "normal" interrupt handler
+ * interrupt handler for dryice "normal" and security violation interrupt
  */
-static irqreturn_t dryice_norm_irq(int irq, void *dev_id)
+static irqreturn_t dryice_irq(int irq, void *dev_id)
 {
 	struct imxdi_dev *imxdi = dev_id;
 	u32 dsr, dier;
@@ -765,6 +763,7 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct imxdi_dev *imxdi;
+	int norm_irq, sec_irq;
 	int rc;
 
 	imxdi = devm_kzalloc(&pdev->dev, sizeof(*imxdi), GFP_KERNEL);
@@ -780,9 +779,16 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&imxdi->irq_lock);
 
-	imxdi->irq = platform_get_irq(pdev, 0);
-	if (imxdi->irq < 0)
-		return imxdi->irq;
+	norm_irq = platform_get_irq(pdev, 0);
+	if (norm_irq < 0)
+		return norm_irq;
+
+	/* the 2nd irq is the security violation irq
+	 * make this optional, don't break the device tree ABI
+	 */
+	sec_irq = platform_get_irq(pdev, 1);
+	if (sec_irq <= 0)
+		sec_irq = IRQ_NOTCONNECTED;
 
 	init_waitqueue_head(&imxdi->write_wait);
 
@@ -808,11 +814,18 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 	if (rc != 0)
 		goto err;
 
-	rc = devm_request_irq(&pdev->dev, imxdi->irq, dryice_norm_irq,
-			IRQF_SHARED, pdev->name, imxdi);
+	rc = devm_request_irq(&pdev->dev, norm_irq, dryice_irq,
+			      IRQF_SHARED, pdev->name, imxdi);
 	if (rc) {
 		dev_warn(&pdev->dev, "interrupt not available.\n");
 		goto err;
+	}
+
+	rc = devm_request_irq(&pdev->dev, sec_irq, dryice_irq,
+			      IRQF_SHARED, pdev->name, imxdi);
+	if (rc) {
+		dev_warn(&pdev->dev, "security violation interrupt not available.\n");
+		/* this is not an error, see above */
 	}
 
 	platform_set_drvdata(pdev, imxdi);

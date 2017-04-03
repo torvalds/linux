@@ -6,7 +6,7 @@
  * Copyright (C) 1995, 1996, 1997 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/freezer.h>
 #include <linux/module.h>
 #include <linux/fs_struct.h>
@@ -153,16 +153,31 @@ int nfsd_vers(int vers, enum vers_op change)
 	return 0;
 }
 
+static void
+nfsd_adjust_nfsd_versions4(void)
+{
+	unsigned i;
+
+	for (i = 0; i <= NFSD_SUPPORTED_MINOR_VERSION; i++) {
+		if (nfsd_supported_minorversions[i])
+			return;
+	}
+	nfsd_vers(4, NFSD_CLEAR);
+}
+
 int nfsd_minorversion(u32 minorversion, enum vers_op change)
 {
-	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION)
+	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION &&
+	    change != NFSD_AVAIL)
 		return -1;
 	switch(change) {
 	case NFSD_SET:
 		nfsd_supported_minorversions[minorversion] = true;
+		nfsd_vers(4, NFSD_SET);
 		break;
 	case NFSD_CLEAR:
 		nfsd_supported_minorversions[minorversion] = false;
+		nfsd_adjust_nfsd_versions4();
 		break;
 	case NFSD_TEST:
 		return nfsd_supported_minorversions[minorversion];
@@ -354,6 +369,8 @@ static int nfsd_inet6addr_event(struct notifier_block *this,
 		dprintk("nfsd_inet6addr_event: removed %pI6\n", &ifa->addr);
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_addr = ifa->addr;
+		if (ipv6_addr_type(&sin6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
+			sin6.sin6_scope_id = ifa->idev->dev->ifindex;
 		svc_age_temp_xprts_now(nn->nfsd_serv, (struct sockaddr *)&sin6);
 	}
 
@@ -399,23 +416,20 @@ static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 
 void nfsd_reset_versions(void)
 {
-	int found_one = 0;
 	int i;
 
-	for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++) {
-		if (nfsd_program.pg_vers[i])
-			found_one = 1;
-	}
+	for (i = 0; i < NFSD_NRVERS; i++)
+		if (nfsd_vers(i, NFSD_TEST))
+			return;
 
-	if (!found_one) {
-		for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++)
-			nfsd_program.pg_vers[i] = nfsd_version[i];
-#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
-		for (i = NFSD_ACL_MINVERS; i < NFSD_ACL_NRVERS; i++)
-			nfsd_acl_program.pg_vers[i] =
-				nfsd_acl_version[i];
-#endif
-	}
+	for (i = 0; i < NFSD_NRVERS; i++)
+		if (i != 4)
+			nfsd_vers(i, NFSD_SET);
+		else {
+			int minor = 0;
+			while (nfsd_minorversion(minor, NFSD_SET) >= 0)
+				minor++;
+		}
 }
 
 /*

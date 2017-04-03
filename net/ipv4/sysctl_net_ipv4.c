@@ -35,6 +35,8 @@ static int ip_local_port_range_min[] = { 1, 1 };
 static int ip_local_port_range_max[] = { 65535, 65535 };
 static int tcp_adv_win_scale_min = -31;
 static int tcp_adv_win_scale_max = 31;
+static int ip_privileged_port_min;
+static int ip_privileged_port_max = 65535;
 static int ip_ttl_min = 1;
 static int ip_ttl_max = 255;
 static int tcp_syn_retries_min = 1;
@@ -79,7 +81,12 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
-		if (range[1] < range[0])
+		/* Ensure that the upper limit is not smaller than the lower,
+		 * and that the lower does not encroach upon the privileged
+		 * port limit.
+		 */
+		if ((range[1] < range[0]) ||
+		    (range[0] < net->ipv4.sysctl_ip_prot_sock))
 			ret = -EINVAL;
 		else
 			set_local_port_range(net, range);
@@ -88,6 +95,40 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 	return ret;
 }
 
+/* Validate changes from /proc interface. */
+static int ipv4_privileged_ports(struct ctl_table *table, int write,
+				void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = container_of(table->data, struct net,
+	    ipv4.sysctl_ip_prot_sock);
+	int ret;
+	int pports;
+	int range[2];
+	struct ctl_table tmp = {
+		.data = &pports,
+		.maxlen = sizeof(pports),
+		.mode = table->mode,
+		.extra1 = &ip_privileged_port_min,
+		.extra2 = &ip_privileged_port_max,
+	};
+
+	pports = net->ipv4.sysctl_ip_prot_sock;
+
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+
+	if (write && ret == 0) {
+		inet_get_local_port_range(net, &range[0], &range[1]);
+		/* Ensure that the local port range doesn't overlap with the
+		 * privileged port range.
+		 */
+		if (range[0] < pports)
+			ret = -EINVAL;
+		else
+			net->ipv4.sysctl_ip_prot_sock = pports;
+	}
+
+	return ret;
+}
 
 static void inet_get_ping_group_range_table(struct ctl_table *table, kgid_t *low, kgid_t *high)
 {
@@ -290,13 +331,6 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "tcp_max_tw_buckets",
-		.data		= &tcp_death_row.sysctl_max_tw_buckets,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
 		.procname	= "tcp_fastopen",
 		.data		= &sysctl_tcp_fastopen,
 		.maxlen		= sizeof(int),
@@ -308,13 +342,6 @@ static struct ctl_table ipv4_table[] = {
 		.mode		= 0600,
 		.maxlen		= ((TCP_FASTOPEN_KEY_LENGTH * 2) + 10),
 		.proc_handler	= proc_tcp_fastopen_key,
-	},
-	{
-		.procname	= "tcp_tw_recycle",
-		.data		= &tcp_death_row.sysctl_tw_recycle,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
 	},
 	{
 		.procname	= "tcp_abort_on_overflow",
@@ -333,13 +360,6 @@ static struct ctl_table ipv4_table[] = {
 	{
 		.procname	= "tcp_rfc1337",
 		.data		= &sysctl_tcp_rfc1337,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
-		.procname	= "tcp_max_syn_backlog",
-		.data		= &sysctl_max_syn_backlog,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
@@ -553,13 +573,6 @@ static struct ctl_table ipv4_table[] = {
 	{
 		.procname       = "tcp_thin_linear_timeouts",
 		.data           = &sysctl_tcp_thin_linear_timeouts,
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec
-	},
-	{
-		.procname       = "tcp_thin_dupack",
-		.data           = &sysctl_tcp_thin_dupack,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec
@@ -960,10 +973,49 @@ static struct ctl_table ipv4_net_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
+	{
+		.procname	= "tcp_max_tw_buckets",
+		.data		= &init_net.ipv4.tcp_death_row.sysctl_max_tw_buckets,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "tcp_tw_recycle",
+		.data		= &init_net.ipv4.tcp_death_row.sysctl_tw_recycle,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "tcp_max_syn_backlog",
+		.data		= &init_net.ipv4.sysctl_max_syn_backlog,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	{
 		.procname	= "fib_multipath_use_neigh",
 		.data		= &init_net.ipv4.sysctl_fib_multipath_use_neigh,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+#endif
+	{
+		.procname	= "ip_unprivileged_port_start",
+		.maxlen		= sizeof(int),
+		.data		= &init_net.ipv4.sysctl_ip_prot_sock,
+		.mode		= 0644,
+		.proc_handler	= ipv4_privileged_ports,
+	},
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	{
+		.procname	= "udp_l3mdev_accept",
+		.data		= &init_net.ipv4.sysctl_udp_l3mdev_accept,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,

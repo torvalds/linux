@@ -30,6 +30,7 @@
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <net/ip6_checksum.h>
+#include <net/sctp/checksum.h>
 
 #include <net/act_api.h>
 
@@ -322,6 +323,25 @@ ignore_obscure_skb:
 	return 1;
 }
 
+static int tcf_csum_sctp(struct sk_buff *skb, unsigned int ihl,
+			 unsigned int ipl)
+{
+	struct sctphdr *sctph;
+
+	if (skb_is_gso(skb) && skb_shinfo(skb)->gso_type & SKB_GSO_SCTP)
+		return 1;
+
+	sctph = tcf_csum_skb_nextlayer(skb, ihl, ipl, sizeof(*sctph));
+	if (!sctph)
+		return 0;
+
+	sctph->checksum = sctp_compute_cksum(skb,
+					     skb_network_offset(skb) + ihl);
+	skb->ip_summed = CHECKSUM_NONE;
+
+	return 1;
+}
+
 static int tcf_csum_ipv4(struct sk_buff *skb, u32 update_flags)
 {
 	const struct iphdr *iph;
@@ -364,6 +384,11 @@ static int tcf_csum_ipv4(struct sk_buff *skb, u32 update_flags)
 			if (!tcf_csum_ipv4_udp(skb, iph->ihl * 4,
 					       ntohs(iph->tot_len), 1))
 				goto fail;
+		break;
+	case IPPROTO_SCTP:
+		if ((update_flags & TCA_CSUM_UPDATE_FLAG_SCTP) &&
+		    !tcf_csum_sctp(skb, iph->ihl * 4, ntohs(iph->tot_len)))
+			goto fail;
 		break;
 	}
 
@@ -480,6 +505,11 @@ static int tcf_csum_ipv6(struct sk_buff *skb, u32 update_flags)
 				if (!tcf_csum_ipv6_udp(skb, hl,
 						       pl + sizeof(*ip6h), 1))
 					goto fail;
+			goto done;
+		case IPPROTO_SCTP:
+			if ((update_flags & TCA_CSUM_UPDATE_FLAG_SCTP) &&
+			    !tcf_csum_sctp(skb, hl, pl + sizeof(*ip6h)))
+				goto fail;
 			goto done;
 		default:
 			goto ignore_skb;

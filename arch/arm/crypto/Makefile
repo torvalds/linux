@@ -8,13 +8,24 @@ obj-$(CONFIG_CRYPTO_SHA1_ARM) += sha1-arm.o
 obj-$(CONFIG_CRYPTO_SHA1_ARM_NEON) += sha1-arm-neon.o
 obj-$(CONFIG_CRYPTO_SHA256_ARM) += sha256-arm.o
 obj-$(CONFIG_CRYPTO_SHA512_ARM) += sha512-arm.o
+obj-$(CONFIG_CRYPTO_CHACHA20_NEON) += chacha20-neon.o
 
 ce-obj-$(CONFIG_CRYPTO_AES_ARM_CE) += aes-arm-ce.o
 ce-obj-$(CONFIG_CRYPTO_SHA1_ARM_CE) += sha1-arm-ce.o
 ce-obj-$(CONFIG_CRYPTO_SHA2_ARM_CE) += sha2-arm-ce.o
 ce-obj-$(CONFIG_CRYPTO_GHASH_ARM_CE) += ghash-arm-ce.o
 ce-obj-$(CONFIG_CRYPTO_CRCT10DIF_ARM_CE) += crct10dif-arm-ce.o
-ce-obj-$(CONFIG_CRYPTO_CRC32_ARM_CE) += crc32-arm-ce.o
+crc-obj-$(CONFIG_CRYPTO_CRC32_ARM_CE) += crc32-arm-ce.o
+
+ifneq ($(crc-obj-y)$(crc-obj-m),)
+ifeq ($(call as-instr,.arch armv8-a\n.arch_extension crc,y,n),y)
+ce-obj-y += $(crc-obj-y)
+ce-obj-m += $(crc-obj-m)
+else
+$(warning These CRC Extensions modules need binutils 2.23 or higher)
+$(warning $(crc-obj-y) $(crc-obj-m))
+endif
+endif
 
 ifneq ($(ce-obj-y)$(ce-obj-m),)
 ifeq ($(call as-instr,.fpu crypto-neon-fp-armv8,y,n),y)
@@ -26,8 +37,8 @@ $(warning $(ce-obj-y) $(ce-obj-m))
 endif
 endif
 
-aes-arm-y	:= aes-armv4.o aes_glue.o
-aes-arm-bs-y	:= aesbs-core.o aesbs-glue.o
+aes-arm-y	:= aes-cipher-core.o aes-cipher-glue.o
+aes-arm-bs-y	:= aes-neonbs-core.o aes-neonbs-glue.o
 sha1-arm-y	:= sha1-armv4-large.o sha1_glue.o
 sha1-arm-neon-y	:= sha1-armv7-neon.o sha1_neon_glue.o
 sha256-arm-neon-$(CONFIG_KERNEL_MODE_NEON) := sha256_neon_glue.o
@@ -40,12 +51,10 @@ aes-arm-ce-y	:= aes-ce-core.o aes-ce-glue.o
 ghash-arm-ce-y	:= ghash-ce-core.o ghash-ce-glue.o
 crct10dif-arm-ce-y	:= crct10dif-ce-core.o crct10dif-ce-glue.o
 crc32-arm-ce-y:= crc32-ce-core.o crc32-ce-glue.o
+chacha20-neon-y := chacha20-neon-core.o chacha20-neon-glue.o
 
 quiet_cmd_perl = PERL    $@
       cmd_perl = $(PERL) $(<) > $(@)
-
-$(src)/aesbs-core.S_shipped: $(src)/bsaes-armv7.pl
-	$(call cmd,perl)
 
 $(src)/sha256-core.S_shipped: $(src)/sha256-armv4.pl
 	$(call cmd,perl)
@@ -53,4 +62,4 @@ $(src)/sha256-core.S_shipped: $(src)/sha256-armv4.pl
 $(src)/sha512-core.S_shipped: $(src)/sha512-armv4.pl
 	$(call cmd,perl)
 
-.PRECIOUS: $(obj)/aesbs-core.S $(obj)/sha256-core.S $(obj)/sha512-core.S
+.PRECIOUS: $(obj)/sha256-core.S $(obj)/sha512-core.S

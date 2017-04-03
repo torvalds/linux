@@ -52,6 +52,7 @@
 #define SMK_SENDING	2
 
 #ifdef SMACK_IPV6_PORT_LABELING
+DEFINE_MUTEX(smack_ipv6_lock);
 static LIST_HEAD(smk_ipv6_port_list);
 #endif
 static struct kmem_cache *smack_inode_cache;
@@ -347,8 +348,6 @@ static int smk_copy_rules(struct list_head *nhead, struct list_head *ohead,
 	struct smack_rule *orp;
 	int rc = 0;
 
-	INIT_LIST_HEAD(nhead);
-
 	list_for_each_entry_rcu(orp, ohead, list) {
 		nrp = kzalloc(sizeof(struct smack_rule), gfp);
 		if (nrp == NULL) {
@@ -374,8 +373,6 @@ static int smk_copy_relabel(struct list_head *nhead, struct list_head *ohead,
 {
 	struct smack_known_list_elem *nklep;
 	struct smack_known_list_elem *oklep;
-
-	INIT_LIST_HEAD(nhead);
 
 	list_for_each_entry(oklep, ohead, list) {
 		nklep = kzalloc(sizeof(struct smack_known_list_elem), gfp);
@@ -934,7 +931,7 @@ static int smack_bprm_set_creds(struct linux_binprm *bprm)
 	    isp->smk_task != sbsp->smk_root)
 		return 0;
 
-	if (bprm->unsafe & (LSM_UNSAFE_PTRACE | LSM_UNSAFE_PTRACE_CAP)) {
+	if (bprm->unsafe & LSM_UNSAFE_PTRACE) {
 		struct task_struct *tracer;
 		rc = 0;
 
@@ -1009,15 +1006,39 @@ static int smack_inode_alloc_security(struct inode *inode)
 }
 
 /**
- * smack_inode_free_security - free an inode blob
+ * smack_inode_free_rcu - Free inode_smack blob from cache
+ * @head: the rcu_head for getting inode_smack pointer
+ *
+ *  Call back function called from call_rcu() to free
+ *  the i_security blob pointer in inode
+ */
+static void smack_inode_free_rcu(struct rcu_head *head)
+{
+	struct inode_smack *issp;
+
+	issp = container_of(head, struct inode_smack, smk_rcu);
+	kmem_cache_free(smack_inode_cache, issp);
+}
+
+/**
+ * smack_inode_free_security - free an inode blob using call_rcu()
  * @inode: the inode with a blob
  *
- * Clears the blob pointer in inode
+ * Clears the blob pointer in inode using RCU
  */
 static void smack_inode_free_security(struct inode *inode)
 {
-	kmem_cache_free(smack_inode_cache, inode->i_security);
-	inode->i_security = NULL;
+	struct inode_smack *issp = inode->i_security;
+
+	/*
+	 * The inode may still be referenced in a path walk and
+	 * a call to smack_inode_permission() can be made
+	 * after smack_inode_free_security() is called.
+	 * To avoid race condition free the i_security via RCU
+	 * and leave the current inode->i_security pointer intact.
+	 * The inode will be freed after the RCU grace period too.
+	 */
+	call_rcu(&issp->smk_rcu, smack_inode_free_rcu);
 }
 
 /**
@@ -1626,6 +1647,9 @@ static int smack_file_ioctl(struct file *file, unsigned int cmd,
 	struct smk_audit_info ad;
 	struct inode *inode = file_inode(file);
 
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
+
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 
@@ -1655,6 +1679,9 @@ static int smack_file_lock(struct file *file, unsigned int cmd)
 	int rc;
 	struct inode *inode = file_inode(file);
 
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
+
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 	rc = smk_curacc(smk_of_inode(inode), MAY_LOCK, &ad);
@@ -1680,6 +1707,9 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
 	struct smk_audit_info ad;
 	int rc = 0;
 	struct inode *inode = file_inode(file);
+
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
 
 	switch (cmd) {
 	case F_GETLK:
@@ -1732,6 +1762,9 @@ static int smack_mmap_file(struct file *file,
 	int rc;
 
 	if (file == NULL)
+		return 0;
+
+	if (unlikely(IS_PRIVATE(file_inode(file))))
 		return 0;
 
 	isp = file_inode(file)->i_security;
@@ -1934,12 +1967,9 @@ static int smack_file_open(struct file *file, const struct cred *cred)
 	struct smk_audit_info ad;
 	int rc;
 
-	if (smack_privileged(CAP_MAC_OVERRIDE))
-		return 0;
-
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
-	rc = smk_access(tsp->smk_task, smk_of_inode(inode), MAY_READ, &ad);
+	rc = smk_tskacc(tsp, smk_of_inode(inode), MAY_READ, &ad);
 	rc = smk_bu_credfile(cred, file, MAY_READ, rc);
 
 	return rc;
@@ -2272,25 +2302,6 @@ static int smack_task_kill(struct task_struct *p, struct siginfo *info,
 }
 
 /**
- * smack_task_wait - Smack access check for waiting
- * @p: task to wait for
- *
- * Returns 0
- */
-static int smack_task_wait(struct task_struct *p)
-{
-	/*
-	 * Allow the operation to succeed.
-	 * Zombies are bad.
-	 * In userless environments (e.g. phones) programs
-	 * get marked with SMACK64EXEC and even if the parent
-	 * and child shouldn't be talking the parent still
-	 * may expect to know when the child exits.
-	 */
-	return 0;
-}
-
-/**
  * smack_task_to_inode - copy task smack into the inode blob
  * @p: task to copy from
  * @inode: inode to copy to
@@ -2353,6 +2364,20 @@ static int smack_sk_alloc_security(struct sock *sk, int family, gfp_t gfp_flags)
  */
 static void smack_sk_free_security(struct sock *sk)
 {
+#ifdef SMACK_IPV6_PORT_LABELING
+	struct smk_port_label *spp;
+
+	if (sk->sk_family == PF_INET6) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(spp, &smk_ipv6_port_list, list) {
+			if (spp->smk_sock != sk)
+				continue;
+			spp->smk_can_reuse = 1;
+			break;
+		}
+		rcu_read_unlock();
+	}
+#endif
 	kfree(sk->sk_security);
 }
 
@@ -2603,17 +2628,20 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 		 * on the bound socket. Take the changes to the port
 		 * as well.
 		 */
-		list_for_each_entry(spp, &smk_ipv6_port_list, list) {
+		rcu_read_lock();
+		list_for_each_entry_rcu(spp, &smk_ipv6_port_list, list) {
 			if (sk != spp->smk_sock)
 				continue;
 			spp->smk_in = ssp->smk_in;
 			spp->smk_out = ssp->smk_out;
+			rcu_read_unlock();
 			return;
 		}
 		/*
 		 * A NULL address is only used for updating existing
 		 * bound entries. If there isn't one, it's OK.
 		 */
+		rcu_read_unlock();
 		return;
 	}
 
@@ -2629,16 +2657,23 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 	 * Look for an existing port list entry.
 	 * This is an indication that a port is getting reused.
 	 */
-	list_for_each_entry(spp, &smk_ipv6_port_list, list) {
-		if (spp->smk_port != port)
+	rcu_read_lock();
+	list_for_each_entry_rcu(spp, &smk_ipv6_port_list, list) {
+		if (spp->smk_port != port || spp->smk_sock_type != sock->type)
 			continue;
+		if (spp->smk_can_reuse != 1) {
+			rcu_read_unlock();
+			return;
+		}
 		spp->smk_port = port;
 		spp->smk_sock = sk;
 		spp->smk_in = ssp->smk_in;
 		spp->smk_out = ssp->smk_out;
+		spp->smk_can_reuse = 0;
+		rcu_read_unlock();
 		return;
 	}
-
+	rcu_read_unlock();
 	/*
 	 * A new port entry is required.
 	 */
@@ -2650,8 +2685,12 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 	spp->smk_sock = sk;
 	spp->smk_in = ssp->smk_in;
 	spp->smk_out = ssp->smk_out;
+	spp->smk_sock_type = sock->type;
+	spp->smk_can_reuse = 0;
 
-	list_add(&spp->list, &smk_ipv6_port_list);
+	mutex_lock(&smack_ipv6_lock);
+	list_add_rcu(&spp->list, &smk_ipv6_port_list);
+	mutex_unlock(&smack_ipv6_lock);
 	return;
 }
 
@@ -2702,14 +2741,16 @@ static int smk_ipv6_port_check(struct sock *sk, struct sockaddr_in6 *address,
 		return 0;
 
 	port = ntohs(address->sin6_port);
-	list_for_each_entry(spp, &smk_ipv6_port_list, list) {
-		if (spp->smk_port != port)
+	rcu_read_lock();
+	list_for_each_entry_rcu(spp, &smk_ipv6_port_list, list) {
+		if (spp->smk_port != port || spp->smk_sock_type != sk->sk_type)
 			continue;
 		object = spp->smk_in;
 		if (act == SMK_CONNECTING)
 			ssp->smk_packet = spp->smk_out;
 		break;
 	}
+	rcu_read_unlock();
 
 	return smk_ipv6_check(skp, object, address, act);
 }
@@ -3438,6 +3479,13 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		case PIPEFS_MAGIC:
 			isp->smk_inode = smk_of_current();
 			break;
+		case SOCKFS_MAGIC:
+			/*
+			 * Socket access is controlled by the socket
+			 * structures associated with the task involved.
+			 */
+			isp->smk_inode = &smack_known_star;
+			break;
 		default:
 			isp->smk_inode = sbsp->smk_root;
 			break;
@@ -3454,18 +3502,11 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	 */
 	switch (sbp->s_magic) {
 	case SMACK_MAGIC:
-	case PIPEFS_MAGIC:
-	case SOCKFS_MAGIC:
 	case CGROUP_SUPER_MAGIC:
 		/*
 		 * Casey says that it's a little embarrassing
 		 * that the smack file system doesn't do
 		 * extended attributes.
-		 *
-		 * Casey says pipes are easy (?)
-		 *
-		 * Socket access is controlled by the socket
-		 * structures associated with the task involved.
 		 *
 		 * Cgroupfs is special
 		 */
@@ -3620,7 +3661,6 @@ static int smack_getprocattr(struct task_struct *p, char *name, char **value)
 
 /**
  * smack_setprocattr - Smack process attribute setting
- * @p: the object task
  * @name: the name of the attribute in /proc/.../attr
  * @value: the value to set
  * @size: the size of the value
@@ -3630,21 +3670,13 @@ static int smack_getprocattr(struct task_struct *p, char *name, char **value)
  *
  * Returns the length of the smack label or an error code
  */
-static int smack_setprocattr(struct task_struct *p, char *name,
-			     void *value, size_t size)
+static int smack_setprocattr(const char *name, void *value, size_t size)
 {
 	struct task_smack *tsp = current_security();
 	struct cred *new;
 	struct smack_known *skp;
 	struct smack_known_list_elem *sklep;
 	int rc;
-
-	/*
-	 * Changing another process' Smack value is too dangerous
-	 * and supports no sane use case.
-	 */
-	if (p != current)
-		return -EPERM;
 
 	if (!smack_privileged(CAP_MAC_ADMIN) && list_empty(&tsp->smk_relabel))
 		return -EPERM;
@@ -3849,7 +3881,7 @@ static struct smack_known *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 		 * ambient value.
 		 */
 		rcu_read_lock();
-		list_for_each_entry(skp, &smack_known_list, list) {
+		list_for_each_entry_rcu(skp, &smack_known_list, list) {
 			if (sap->attr.mls.lvl != skp->smk_netlabel.attr.mls.lvl)
 				continue;
 			/*
@@ -4667,7 +4699,6 @@ static struct security_hook_list smack_hooks[] = {
 	LSM_HOOK_INIT(task_getscheduler, smack_task_getscheduler),
 	LSM_HOOK_INIT(task_movememory, smack_task_movememory),
 	LSM_HOOK_INIT(task_kill, smack_task_kill),
-	LSM_HOOK_INIT(task_wait, smack_task_wait),
 	LSM_HOOK_INIT(task_to_inode, smack_task_to_inode),
 
 	LSM_HOOK_INIT(ipc_permission, smack_ipc_permission),
@@ -4819,7 +4850,7 @@ static __init int smack_init(void)
 	/*
 	 * Register with LSM
 	 */
-	security_add_hooks(smack_hooks, ARRAY_SIZE(smack_hooks));
+	security_add_hooks(smack_hooks, ARRAY_SIZE(smack_hooks), "smack");
 
 	return 0;
 }

@@ -357,8 +357,8 @@ static int imx_drm_bind(struct device *dev)
 	 * this value would be used to check framebuffer size limitation
 	 * at drm_mode_addfb().
 	 */
-	drm->mode_config.min_width = 64;
-	drm->mode_config.min_height = 64;
+	drm->mode_config.min_width = 1;
+	drm->mode_config.min_height = 1;
 	drm->mode_config.max_width = 4096;
 	drm->mode_config.max_height = 4096;
 	drm->mode_config.funcs = &imx_drm_mode_config_funcs;
@@ -389,8 +389,7 @@ static int imx_drm_bind(struct device *dev)
 		dev_warn(dev, "Invalid legacyfb_depth.  Defaulting to 16bpp\n");
 		legacyfb_depth = 16;
 	}
-	imxdrm->fbhelper = drm_fbdev_cma_init(drm, legacyfb_depth,
-				drm->mode_config.num_crtc, MAX_CRTC);
+	imxdrm->fbhelper = drm_fbdev_cma_init(drm, legacyfb_depth, MAX_CRTC);
 	if (IS_ERR(imxdrm->fbhelper)) {
 		ret = PTR_ERR(imxdrm->fbhelper);
 		imxdrm->fbhelper = NULL;

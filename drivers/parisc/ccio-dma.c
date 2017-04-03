@@ -1011,7 +1011,7 @@ ccio_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	DBG_RUN_SG("%s() DONE (nents %d)\n", __func__, nents);
 }
 
-static struct dma_map_ops ccio_ops = {
+static const struct dma_map_ops ccio_ops = {
 	.dma_supported =	ccio_dma_supported,
 	.alloc =		ccio_alloc,
 	.free =			ccio_free,
@@ -1539,7 +1539,7 @@ static int __init ccio_probe(struct parisc_device *dev)
 	ioc = kzalloc(sizeof(struct ioc), GFP_KERNEL);
 	if (ioc == NULL) {
 		printk(KERN_ERR MODULE_NAME ": memory allocation failure\n");
-		return 1;
+		return -ENOMEM;
 	}
 
 	ioc->name = dev->id.hversion == U2_IOA_RUNWAY ? "U2" : "UTurn";
@@ -1554,6 +1554,10 @@ static int __init ccio_probe(struct parisc_device *dev)
 
 	ioc->hw_path = dev->hw_path;
 	ioc->ioc_regs = ioremap_nocache(dev->hpa.start, 4096);
+	if (!ioc->ioc_regs) {
+		kfree(ioc);
+		return -ENOMEM;
+	}
 	ccio_ioc_init(ioc);
 	ccio_init_resources(ioc);
 	hppa_dma_ops = &ccio_ops;

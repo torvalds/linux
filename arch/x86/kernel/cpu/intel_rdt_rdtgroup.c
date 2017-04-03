@@ -25,9 +25,9 @@
 #include <linux/sysfs.h>
 #include <linux/kernfs.h>
 #include <linux/seq_file.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task.h>
 #include <linux/slab.h>
-#include <linux/cpu.h>
 #include <linux/task_work.h>
 
 #include <uapi/linux/magic.h>
@@ -727,7 +727,7 @@ void rdtgroup_kn_unlock(struct kernfs_node *kn)
 	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
 	    (rdtgrp->flags & RDT_DELETED)) {
 		kernfs_unbreak_active_protection(kn);
-		kernfs_put(kn);
+		kernfs_put(rdtgrp->kn);
 		kfree(rdtgrp);
 	} else {
 		kernfs_unbreak_active_protection(kn);

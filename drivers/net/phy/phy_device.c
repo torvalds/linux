@@ -1094,7 +1094,7 @@ int phy_suspend(struct phy_device *phydev)
 	if (wol.wolopts)
 		return -EBUSY;
 
-	if (phydrv->suspend)
+	if (phydev->drv && phydrv->suspend)
 		ret = phydrv->suspend(phydev);
 
 	if (ret)
@@ -1111,7 +1111,7 @@ int phy_resume(struct phy_device *phydev)
 	struct phy_driver *phydrv = to_phy_driver(phydev->mdio.dev.driver);
 	int ret = 0;
 
-	if (phydrv->resume)
+	if (phydev->drv && phydrv->resume)
 		ret = phydrv->resume(phydev);
 
 	if (ret)
@@ -1784,11 +1784,13 @@ static int phy_remove(struct device *dev)
 {
 	struct phy_device *phydev = to_phy_device(dev);
 
+	cancel_delayed_work_sync(&phydev->state_queue);
+
 	mutex_lock(&phydev->lock);
 	phydev->state = PHY_DOWN;
 	mutex_unlock(&phydev->lock);
 
-	if (phydev->drv->remove)
+	if (phydev->drv && phydev->drv->remove)
 		phydev->drv->remove(phydev);
 	phydev->drv = NULL;
 
@@ -1862,7 +1864,7 @@ static struct phy_driver genphy_driver[] = {
 	.phy_id		= 0xffffffff,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Generic PHY",
-	.soft_reset	= genphy_soft_reset,
+	.soft_reset	= genphy_no_soft_reset,
 	.config_init	= genphy_config_init,
 	.features	= PHY_GBIT_FEATURES | SUPPORTED_MII |
 			  SUPPORTED_AUI | SUPPORTED_FIBRE |

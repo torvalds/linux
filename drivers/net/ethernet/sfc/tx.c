@@ -28,7 +28,6 @@
 
 #ifdef EFX_USE_PIO
 
-#define EFX_PIOBUF_SIZE_MAX ER_DZ_TX_PIOBUF_SIZE
 #define EFX_PIOBUF_SIZE_DEF ALIGN(256, L1_CACHE_BYTES)
 unsigned int efx_piobuf_size __read_mostly = EFX_PIOBUF_SIZE_DEF;
 
@@ -817,6 +816,7 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 
 	tx_queue->insert_count = 0;
 	tx_queue->write_count = 0;
+	tx_queue->packet_write_count = 0;
 	tx_queue->old_write_count = 0;
 	tx_queue->read_count = 0;
 	tx_queue->old_read_count = 0;

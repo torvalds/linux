@@ -25,6 +25,7 @@
 #include <linux/printk.h>
 #include <linux/shrinker.h>
 #include <linux/slab.h>
+#include <linux/srcu.h>
 #include <linux/string.h>
 #include <linux/types.h>
 
@@ -103,6 +104,7 @@ static int quarantine_tail;
 /* Total size of all objects in global_quarantine across all batches. */
 static unsigned long quarantine_size;
 static DEFINE_SPINLOCK(quarantine_lock);
+DEFINE_STATIC_SRCU(remove_cache_srcu);
 
 /* Maximum size of the global queue. */
 static unsigned long quarantine_max_size;
@@ -173,17 +175,22 @@ void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache)
 	struct qlist_head *q;
 	struct qlist_head temp = QLIST_INIT;
 
+	/*
+	 * Note: irq must be disabled until after we move the batch to the
+	 * global quarantine. Otherwise quarantine_remove_cache() can miss
+	 * some objects belonging to the cache if they are in our local temp
+	 * list. quarantine_remove_cache() executes on_each_cpu() at the
+	 * beginning which ensures that it either sees the objects in per-cpu
+	 * lists or in the global quarantine.
+	 */
 	local_irq_save(flags);
 
 	q = this_cpu_ptr(&cpu_quarantine);
 	qlist_put(q, &info->quarantine_link, cache->size);
-	if (unlikely(q->bytes > QUARANTINE_PERCPU_SIZE))
+	if (unlikely(q->bytes > QUARANTINE_PERCPU_SIZE)) {
 		qlist_move_all(q, &temp);
 
-	local_irq_restore(flags);
-
-	if (unlikely(!qlist_empty(&temp))) {
-		spin_lock_irqsave(&quarantine_lock, flags);
+		spin_lock(&quarantine_lock);
 		WRITE_ONCE(quarantine_size, quarantine_size + temp.bytes);
 		qlist_move_all(&temp, &global_quarantine[quarantine_tail]);
 		if (global_quarantine[quarantine_tail].bytes >=
@@ -196,20 +203,33 @@ void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache)
 			if (new_tail != quarantine_head)
 				quarantine_tail = new_tail;
 		}
-		spin_unlock_irqrestore(&quarantine_lock, flags);
+		spin_unlock(&quarantine_lock);
 	}
+
+	local_irq_restore(flags);
 }
 
 void quarantine_reduce(void)
 {
 	size_t total_size, new_quarantine_size, percpu_quarantines;
 	unsigned long flags;
+	int srcu_idx;
 	struct qlist_head to_free = QLIST_INIT;
 
 	if (likely(READ_ONCE(quarantine_size) <=
 		   READ_ONCE(quarantine_max_size)))
 		return;
 
+	/*
+	 * srcu critical section ensures that quarantine_remove_cache()
+	 * will not miss objects belonging to the cache while they are in our
+	 * local to_free list. srcu is chosen because (1) it gives us private
+	 * grace period domain that does not interfere with anything else,
+	 * and (2) it allows synchronize_srcu() to return without waiting
+	 * if there are no pending read critical sections (which is the
+	 * expected case).
+	 */
+	srcu_idx = srcu_read_lock(&remove_cache_srcu);
 	spin_lock_irqsave(&quarantine_lock, flags);
 
 	/*
@@ -237,6 +257,7 @@ void quarantine_reduce(void)
 	spin_unlock_irqrestore(&quarantine_lock, flags);
 
 	qlist_free_all(&to_free, NULL);
+	srcu_read_unlock(&remove_cache_srcu, srcu_idx);
 }
 
 static void qlist_move_cache(struct qlist_head *from,
@@ -274,17 +295,34 @@ static void per_cpu_remove_cache(void *arg)
 	qlist_free_all(&to_free, cache);
 }
 
+/* Free all quarantined objects belonging to cache. */
 void quarantine_remove_cache(struct kmem_cache *cache)
 {
 	unsigned long flags, i;
 	struct qlist_head to_free = QLIST_INIT;
 
+	/*
+	 * Must be careful to not miss any objects that are being moved from
+	 * per-cpu list to the global quarantine in quarantine_put(),
+	 * nor objects being freed in quarantine_reduce(). on_each_cpu()
+	 * achieves the first goal, while synchronize_srcu() achieves the
+	 * second.
+	 */
 	on_each_cpu(per_cpu_remove_cache, cache, 1);
 
 	spin_lock_irqsave(&quarantine_lock, flags);
-	for (i = 0; i < QUARANTINE_BATCHES; i++)
+	for (i = 0; i < QUARANTINE_BATCHES; i++) {
+		if (qlist_empty(&global_quarantine[i]))
+			continue;
 		qlist_move_cache(&global_quarantine[i], &to_free, cache);
+		/* Scanning whole quarantine can take a while. */
+		spin_unlock_irqrestore(&quarantine_lock, flags);
+		cond_resched();
+		spin_lock_irqsave(&quarantine_lock, flags);
+	}
 	spin_unlock_irqrestore(&quarantine_lock, flags);
 
 	qlist_free_all(&to_free, cache);
+
+	synchronize_srcu(&remove_cache_srcu);
 }

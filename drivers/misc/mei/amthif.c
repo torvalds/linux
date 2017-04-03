@@ -132,8 +132,7 @@ int mei_amthif_run_next_cmd(struct mei_device *dev)
 
 	dev_dbg(dev->dev, "complete amthif cmd_list cb.\n");
 
-	cb = list_first_entry_or_null(&dev->amthif_cmd_list.list,
-					typeof(*cb), list);
+	cb = list_first_entry_or_null(&dev->amthif_cmd_list, typeof(*cb), list);
 	if (!cb) {
 		dev->iamthif_state = MEI_IAMTHIF_IDLE;
 		cl->fp = NULL;
@@ -167,7 +166,7 @@ int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	struct mei_device *dev = cl->dev;
 
-	list_add_tail(&cb->list, &dev->amthif_cmd_list.list);
+	list_add_tail(&cb->list, &dev->amthif_cmd_list);
 
 	/*
 	 * The previous request is still in processing, queue this one.
@@ -211,7 +210,7 @@ unsigned int mei_amthif_poll(struct file *file, poll_table *wait)
  * Return: 0, OK; otherwise, error.
  */
 int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
-			 struct mei_cl_cb *cmpl_list)
+			 struct list_head *cmpl_list)
 {
 	int ret;
 
@@ -237,7 +236,7 @@ int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
  */
 int mei_amthif_irq_read_msg(struct mei_cl *cl,
 			    struct mei_msg_hdr *mei_hdr,
-			    struct mei_cl_cb *cmpl_list)
+			    struct list_head *cmpl_list)
 {
 	struct mei_device *dev;
 	int ret;
@@ -312,50 +311,30 @@ void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 }
 
 /**
- * mei_clear_list - removes all callbacks associated with file
- *		from mei_cb_list
- *
- * @file: file structure
- * @mei_cb_list: callbacks list
- *
- * mei_clear_list is called to clear resources associated with file
- * when application calls close function or Ctrl-C was pressed
- */
-static void mei_clear_list(const struct file *file,
-			   struct list_head *mei_cb_list)
-{
-	struct mei_cl_cb *cb, *next;
-
-	list_for_each_entry_safe(cb, next, mei_cb_list, list)
-		if (file == cb->fp)
-			mei_io_cb_free(cb);
-}
-
-/**
 * mei_amthif_release - the release function
 *
 *  @dev: device structure
-*  @file: pointer to file structure
+*  @fp: pointer to file structure
 *
 *  Return: 0 on success, <0 on error
 */
-int mei_amthif_release(struct mei_device *dev, struct file *file)
+int mei_amthif_release(struct mei_device *dev, struct file *fp)
 {
-	struct mei_cl *cl = file->private_data;
+	struct mei_cl *cl = fp->private_data;
 
 	if (dev->iamthif_open_count > 0)
 		dev->iamthif_open_count--;
 
-	if (cl->fp == file && dev->iamthif_state != MEI_IAMTHIF_IDLE) {
+	if (cl->fp == fp && dev->iamthif_state != MEI_IAMTHIF_IDLE) {
 
 		dev_dbg(dev->dev, "amthif canceled iamthif state %d\n",
-		    dev->iamthif_state);
+			dev->iamthif_state);
 		dev->iamthif_canceled = true;
 	}
 
-	mei_clear_list(file, &dev->amthif_cmd_list.list);
-	mei_clear_list(file, &cl->rd_completed);
-	mei_clear_list(file, &dev->ctrl_rd_list.list);
+	/* Don't clean ctrl_rd_list here, the reads has to be completed */
+	mei_io_list_free_fp(&dev->amthif_cmd_list, fp);
+	mei_io_list_free_fp(&cl->rd_completed, fp);
 
 	return 0;
 }

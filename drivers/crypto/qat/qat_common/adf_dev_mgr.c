@@ -152,7 +152,7 @@ void adf_devmgr_update_class_index(struct adf_hw_device_data *hw_data)
 			ptr->hw_device->instance_id = i++;
 
 		if (i == class->instances)
-				break;
+			break;
 	}
 }
 EXPORT_SYMBOL_GPL(adf_devmgr_update_class_index);

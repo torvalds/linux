@@ -285,7 +285,6 @@
 &ecspi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <
 		&gpio1 29 GPIO_ACTIVE_HIGH
 		&gpio1 10 GPIO_ACTIVE_HIGH

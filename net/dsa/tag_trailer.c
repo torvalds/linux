@@ -50,7 +50,7 @@ static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	trailer = skb_put(nskb, 4);
 	trailer[0] = 0x80;
-	trailer[1] = 1 << p->port;
+	trailer[1] = 1 << p->dp->index;
 	trailer[2] = 0x10;
 	trailer[3] = 0x00;
 
@@ -67,7 +67,7 @@ static int trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	if (unlikely(dst == NULL))
 		goto out_drop;
-	ds = dst->ds[0];
+	ds = dst->cpu_switch;
 
 	skb = skb_unshare(skb, GFP_ATOMIC);
 	if (skb == NULL)
@@ -82,7 +82,7 @@ static int trailer_rcv(struct sk_buff *skb, struct net_device *dev,
 		goto out_drop;
 
 	source_port = trailer[1] & 7;
-	if (source_port >= DSA_MAX_PORTS || !ds->ports[source_port].netdev)
+	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
 		goto out_drop;
 
 	pskb_trim_rcsum(skb, skb->len - 4);

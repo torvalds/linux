@@ -19,9 +19,12 @@ config DRM_I915_DEBUG
         bool "Enable additional driver debugging"
         depends on DRM_I915
         select PREEMPT_COUNT
+        select I2C_CHARDEV
+        select DRM_DP_AUX_CHARDEV
         select X86_MSR # used by igt/pm_rpm
         select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
         select DRM_DEBUG_MM if DRM=y
+	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
         default n
         help
           Choose this option to turn on extra driver debugging that may affect
@@ -43,3 +46,15 @@ config DRM_I915_DEBUG_GEM
 
           If in doubt, say "N".
 
+config DRM_I915_SW_FENCE_DEBUG_OBJECTS
+        bool "Enable additional driver debugging for fence objects"
+        depends on DRM_I915
+        select DEBUG_OBJECTS
+        default n
+        help
+          Choose this option to turn on extra driver debugging that may affect
+          performance but will catch some internal issues.
+
+          Recommended for driver developers only.
+
+          If in doubt, say "N".

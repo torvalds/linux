@@ -1,55 +1,31 @@
 /*
-        Added support for the AMD Geode LX RNG
-	(c) Copyright 2004-2005 Advanced Micro Devices, Inc.
-
-	derived from
-
- 	Hardware driver for the Intel/AMD/VIA Random Number Generators (RNG)
-	(c) Copyright 2003 Red Hat Inc <jgarzik@redhat.com>
-
- 	derived from
-
-        Hardware driver for the AMD 768 Random Number Generator (RNG)
-        (c) Copyright 2001 Red Hat Inc <alan@redhat.com>
-
- 	derived from
-
-	Hardware driver for Intel i810 Random Number Generator (RNG)
-	Copyright 2000,2001 Jeff Garzik <jgarzik@pobox.com>
-	Copyright 2000,2001 Philipp Rumpf <prumpf@mandrakesoft.com>
-
-	Added generic RNG API
-	Copyright 2006 Michael Buesch <m@bues.ch>
-	Copyright 2005 (c) MontaVista Software, Inc.
-
-	Please read Documentation/hw_random.txt for details on use.
-
-	----------------------------------------------------------
-	This software may be used and distributed according to the terms
-        of the GNU General Public License, incorporated herein by reference.
-
+ * hw_random/core.c: HWRNG core API
+ *
+ * Copyright 2006 Michael Buesch <m@bues.ch>
+ * Copyright 2005 (c) MontaVista Software, Inc.
+ *
+ * Please read Documentation/hw_random.txt for details on use.
+ *
+ * This software may be used and distributed according to the terms
+ * of the GNU General Public License, incorporated herein by reference.
  */
 
-
-#include <linux/device.h>
-#include <linux/hw_random.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/sched.h>
-#include <linux/miscdevice.h>
-#include <linux/kthread.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/random.h>
+#include <linux/device.h>
 #include <linux/err.h>
+#include <linux/fs.h>
+#include <linux/hw_random.h>
+#include <linux/kernel.h>
+#include <linux/kthread.h>
+#include <linux/sched/signal.h>
+#include <linux/miscdevice.h>
+#include <linux/module.h>
+#include <linux/random.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 
-
 #define RNG_MODULE_NAME		"hw_random"
-#define PFX			RNG_MODULE_NAME ": "
-#define RNG_MISCDEV_MINOR	183 /* official */
-
 
 static struct hwrng *current_rng;
 static struct task_struct *hwrng_fill;
@@ -296,7 +272,6 @@ out_put:
 	goto out;
 }
 
-
 static const struct file_operations rng_chrdev_ops = {
 	.owner		= THIS_MODULE,
 	.open		= rng_dev_open,
@@ -307,13 +282,12 @@ static const struct file_operations rng_chrdev_ops = {
 static const struct attribute_group *rng_dev_groups[];
 
 static struct miscdevice rng_miscdev = {
-	.minor		= RNG_MISCDEV_MINOR,
+	.minor		= HWRNG_MINOR,
 	.name		= RNG_MODULE_NAME,
 	.nodename	= "hwrng",
 	.fops		= &rng_chrdev_ops,
 	.groups		= rng_dev_groups,
 };
-
 
 static ssize_t hwrng_attr_current_store(struct device *dev,
 					struct device_attribute *attr,
@@ -444,8 +418,7 @@ int hwrng_register(struct hwrng *rng)
 	int err = -EINVAL;
 	struct hwrng *old_rng, *tmp;
 
-	if (rng->name == NULL ||
-	    (rng->data_read == NULL && rng->read == NULL))
+	if (!rng->name || (!rng->data_read && !rng->read))
 		goto out;
 
 	mutex_lock(&rng_mutex);

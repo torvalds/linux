@@ -143,6 +143,8 @@ OPTIONS for 'perf sched timehist'
 	stop time is not given (i.e, time string is 'x.y,') then analysis goes
 	to end of file.
 
+--state::
+	Show task state when it switched out.
 
 SEE ALSO
 --------

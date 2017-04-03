@@ -29,7 +29,7 @@ struct pcie_port {
 	u8			root_bus_nr;
 	void __iomem		*base;
 	spinlock_t		conf_lock;
-	char			mem_space_name[16];
+	char			mem_space_name[20];
 	struct resource		res;
 };
 

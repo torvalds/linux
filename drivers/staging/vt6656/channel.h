@@ -28,6 +28,6 @@
 
 #include "device.h"
 
-void vnt_init_bands(struct vnt_private *);
+void vnt_init_bands(struct vnt_private *priv);
 
 #endif  /* _CHANNEL_H_ */

@@ -339,6 +339,7 @@
 #define GCC_PCIE_PHY_COM_NOCSR_BCR				102
 #define GCC_USB3_PHY_BCR					103
 #define GCC_USB3PHY_PHY_BCR					104
+#define GCC_MSS_RESTART						105
 
 
 /* Indexes for GDSCs */

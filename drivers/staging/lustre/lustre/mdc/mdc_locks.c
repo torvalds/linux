@@ -49,7 +49,6 @@
 struct mdc_getattr_args {
 	struct obd_export	   *ga_exp;
 	struct md_enqueue_info      *ga_minfo;
-	struct ldlm_enqueue_info    *ga_einfo;
 };
 
 int it_open_error(int phase, struct lookup_intent *it)
@@ -722,7 +721,7 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		LASSERT(!policy);
 
 		saved_flags |= LDLM_FL_HAS_INTENT;
-		if (it->it_op & (IT_OPEN | IT_UNLINK | IT_GETATTR | IT_READDIR))
+		if (it->it_op & (IT_UNLINK | IT_GETATTR | IT_READDIR))
 			policy = &update_policy;
 		else if (it->it_op & IT_LAYOUT)
 			policy = &layout_policy;
@@ -1111,7 +1110,7 @@ static int mdc_intent_getattr_async_interpret(const struct lu_env *env,
 	struct mdc_getattr_args  *ga = args;
 	struct obd_export	*exp = ga->ga_exp;
 	struct md_enqueue_info   *minfo = ga->ga_minfo;
-	struct ldlm_enqueue_info *einfo = ga->ga_einfo;
+	struct ldlm_enqueue_info *einfo = &minfo->mi_einfo;
 	struct lookup_intent     *it;
 	struct lustre_handle     *lockh;
 	struct obd_device	*obddev;
@@ -1147,14 +1146,12 @@ static int mdc_intent_getattr_async_interpret(const struct lu_env *env,
 	rc = mdc_finish_intent_lock(exp, req, &minfo->mi_data, it, lockh);
 
 out:
-	kfree(einfo);
 	minfo->mi_cb(req, minfo, rc);
 	return 0;
 }
 
 int mdc_intent_getattr_async(struct obd_export *exp,
-			     struct md_enqueue_info *minfo,
-			     struct ldlm_enqueue_info *einfo)
+			     struct md_enqueue_info *minfo)
 {
 	struct md_op_data       *op_data = &minfo->mi_data;
 	struct lookup_intent    *it = &minfo->mi_it;
@@ -1162,10 +1159,6 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 	struct mdc_getattr_args *ga;
 	struct obd_device       *obddev = class_exp2obd(exp);
 	struct ldlm_res_id       res_id;
-	/*XXX: Both MDS_INODELOCK_LOOKUP and MDS_INODELOCK_UPDATE are needed
-	 *     for statahead currently. Consider CMD in future, such two bits
-	 *     maybe managed by different MDS, should be adjusted then.
-	 */
 	union ldlm_policy_data policy = {
 		.l_inodebits = { MDS_INODELOCK_LOOKUP | MDS_INODELOCK_UPDATE }
 	};
@@ -1188,19 +1181,18 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 		return rc;
 	}
 
-	rc = ldlm_cli_enqueue(exp, &req, einfo, &res_id, &policy, &flags, NULL,
-			      0, LVB_T_NONE, &minfo->mi_lockh, 1);
+	rc = ldlm_cli_enqueue(exp, &req, &minfo->mi_einfo, &res_id, &policy,
+			      &flags, NULL, 0, LVB_T_NONE, &minfo->mi_lockh, 1);
 	if (rc < 0) {
 		obd_put_request_slot(&obddev->u.cli);
 		ptlrpc_req_finished(req);
 		return rc;
 	}
 
-	CLASSERT(sizeof(*ga) <= sizeof(req->rq_async_args));
+	BUILD_BUG_ON(sizeof(*ga) > sizeof(req->rq_async_args));
 	ga = ptlrpc_req_async_args(req);
 	ga->ga_exp = exp;
 	ga->ga_minfo = minfo;
-	ga->ga_einfo = einfo;
 
 	req->rq_interpret_reply = mdc_intent_getattr_async_interpret;
 	ptlrpcd_add_req(req);

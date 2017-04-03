@@ -154,7 +154,7 @@ vchiq_check_resume(VCHIQ_STATE_T *state);
 
 extern void
 vchiq_check_suspend(VCHIQ_STATE_T *state);
- VCHIQ_STATUS_T
+VCHIQ_STATUS_T
 vchiq_use_service(VCHIQ_SERVICE_HANDLE_T handle);
 
 extern VCHIQ_STATUS_T

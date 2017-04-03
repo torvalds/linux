@@ -92,7 +92,7 @@ struct fbtft_ops {
 	void (*unregister_backlight)(struct fbtft_par *par);
 
 	int (*set_var)(struct fbtft_par *par);
-	int (*set_gamma)(struct fbtft_par *par, unsigned long *curves);
+	int (*set_gamma)(struct fbtft_par *par, u32 *curves);
 };
 
 /**
@@ -209,7 +209,6 @@ struct fbtft_par {
 	u32 pseudo_palette[16];
 	struct {
 		void *buf;
-		dma_addr_t dma;
 		size_t len;
 	} txbuf;
 	u8 *buf;
@@ -232,7 +231,7 @@ struct fbtft_par {
 	s16 *init_sequence;
 	struct {
 		struct mutex lock;
-		unsigned long *curves;
+		u32 *curves;
 		int num_values;
 		int num_curves;
 	} gamma;

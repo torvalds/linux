@@ -270,6 +270,8 @@ static int broadwell_audio_probe(struct platform_device *pdev)
 {
 	broadwell_rt286.dev = &pdev->dev;
 
+	snd_soc_set_dmi_name(&broadwell_rt286, NULL);
+
 	return devm_snd_soc_register_card(&pdev->dev, &broadwell_rt286);
 }
 

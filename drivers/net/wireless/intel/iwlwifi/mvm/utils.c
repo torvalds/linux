@@ -497,13 +497,11 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | isr status reg\n", table.nic_isr_pref);
 }
 
-void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
+static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 {
 	struct iwl_trans *trans = mvm->trans;
 	struct iwl_error_event_table table;
-	u32 base;
 
-	base = mvm->error_event_table;
 	if (mvm->cur_ucode == IWL_UCODE_INIT) {
 		if (!base)
 			base = mvm->fw->init_errlog_ptr;
@@ -574,6 +572,14 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | lmpm_pmg_sel\n", table.lmpm_pmg_sel);
 	IWL_ERR(mvm, "0x%08X | timestamp\n", table.u_timestamp);
 	IWL_ERR(mvm, "0x%08X | flow_handler\n", table.flow_handler);
+}
+
+void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
+{
+	iwl_mvm_dump_lmac_error_log(mvm, mvm->error_event_table[0]);
+
+	if (mvm->error_event_table[1])
+		iwl_mvm_dump_lmac_error_log(mvm, mvm->error_event_table[1]);
 
 	if (mvm->support_umac_log)
 		iwl_mvm_dump_umac_error_log(mvm);
@@ -649,8 +655,8 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	/* Make sure this TID isn't already enabled */
 	if (mvm->queue_info[queue].tid_bitmap & BIT(cfg->tid)) {
 		spin_unlock_bh(&mvm->queue_info_lock);
-		IWL_ERR(mvm, "Trying to enable TXQ with existing TID %d\n",
-			cfg->tid);
+		IWL_ERR(mvm, "Trying to enable TXQ %d with existing TID %d\n",
+			queue, cfg->tid);
 		return;
 	}
 
@@ -693,10 +699,6 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 			.tid = cfg->tid,
 		};
 
-		/* Set sta_id in the command, if it exists */
-		if (iwl_mvm_is_dqa_supported(mvm))
-			cmd.sta_id = cfg->sta_id;
-
 		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL,
 					 wdg_timeout);
 		WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd),
@@ -706,8 +708,8 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	}
 }
 
-void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
-			 u8 tid, u8 flags)
+int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
+			u8 tid, u8 flags)
 {
 	struct iwl_scd_txq_cfg_cmd cmd = {
 		.scd_queue = queue,
@@ -720,7 +722,7 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 
 	if (WARN_ON(mvm->queue_info[queue].hw_queue_refcount == 0)) {
 		spin_unlock_bh(&mvm->queue_info_lock);
-		return;
+		return 0;
 	}
 
 	mvm->queue_info[queue].tid_bitmap &= ~BIT(tid);
@@ -760,7 +762,7 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	/* If the queue is still enabled - nothing left to do in this func */
 	if (cmd.action == SCD_CFG_ENABLE_QUEUE) {
 		spin_unlock_bh(&mvm->queue_info_lock);
-		return;
+		return 0;
 	}
 
 	cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
@@ -791,6 +793,8 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	if (ret)
 		IWL_ERR(mvm, "Failed to disable queue %d (ret=%d)\n",
 			queue, ret);
+
+	return ret;
 }
 
 /**

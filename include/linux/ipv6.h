@@ -69,6 +69,7 @@ struct ipv6_devconf {
 	__s32		seg6_require_hmac;
 #endif
 	__u32		enhanced_dad;
+	__u32		addr_gen_mode;
 
 	struct ctl_table_header *sysctl_header;
 };

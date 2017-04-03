@@ -150,6 +150,7 @@ struct azx {
 	int bdl_pos_adj;
 	int poll_count;
 	unsigned int running:1;
+	unsigned int fallback_to_single_cmd:1;
 	unsigned int single_cmd:1;
 	unsigned int polling_mode:1;
 	unsigned int msi:1;

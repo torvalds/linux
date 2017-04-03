@@ -23,6 +23,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/hotplug.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>

@@ -38,6 +38,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_atomic.h>
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 #if defined(CONFIG_DEBUG_FS)
 
@@ -80,7 +81,8 @@ static const struct file_operations drm_debugfs_fops = {
  * \return Zero on success, non-zero on failure
  *
  * Create a given set of debugfs files represented by an array of
- * gdm_debugfs_lists in the given root directory.
+ * &drm_info_list in the given root directory. These files will be removed
+ * automatically on drm_debugfs_cleanup().
  */
 int drm_debugfs_create_files(const struct drm_info_list *files, int count,
 			     struct dentry *root, struct drm_minor *minor)
@@ -217,6 +219,19 @@ int drm_debugfs_remove_files(const struct drm_info_list *files, int count,
 }
 EXPORT_SYMBOL(drm_debugfs_remove_files);
 
+static void drm_debugfs_remove_all_files(struct drm_minor *minor)
+{
+	struct drm_info_node *node, *tmp;
+
+	mutex_lock(&minor->debugfs_lock);
+	list_for_each_entry_safe(node, tmp, &minor->debugfs_list, list) {
+		debugfs_remove(node->dent);
+		list_del(&node->list);
+		kfree(node);
+	}
+	mutex_unlock(&minor->debugfs_lock);
+}
+
 /**
  * Cleanup the debugfs filesystem resources.
  *
@@ -228,7 +243,6 @@ EXPORT_SYMBOL(drm_debugfs_remove_files);
 int drm_debugfs_cleanup(struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
-	int ret;
 
 	if (!minor->debugfs_root)
 		return 0;
@@ -236,17 +250,9 @@ int drm_debugfs_cleanup(struct drm_minor *minor)
 	if (dev->driver->debugfs_cleanup)
 		dev->driver->debugfs_cleanup(minor);
 
-	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
-		ret = drm_atomic_debugfs_cleanup(minor);
-		if (ret) {
-			DRM_ERROR("DRM: Failed to remove atomic debugfs entries\n");
-			return ret;
-		}
-	}
+	drm_debugfs_remove_all_files(minor);
 
-	drm_debugfs_remove_files(drm_debugfs_list, DRM_DEBUGFS_ENTRIES, minor);
-
-	debugfs_remove(minor->debugfs_root);
+	debugfs_remove_recursive(minor->debugfs_root);
 	minor->debugfs_root = NULL;
 
 	return 0;

@@ -30,6 +30,7 @@
 #define __DRM_MODESET_HELPER_VTABLES_H__
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_encoder.h>
 
 /**
  * DOC: overview
@@ -110,9 +111,9 @@ struct drm_crtc_helper_funcs {
 	 * This callback is used to validate a mode. The parameter mode is the
 	 * display mode that userspace requested, adjusted_mode is the mode the
 	 * encoders need to be fed with. Note that this is the inverse semantics
-	 * of the meaning for the &drm_encoder and &drm_bridge
-	 * ->mode_fixup() functions. If the CRTC cannot support the requested
-	 * conversion from mode to adjusted_mode it should reject the modeset.
+	 * of the meaning for the &drm_encoder and &drm_bridge_funcs.mode_fixup
+	 * vfunc. If the CRTC cannot support the requested conversion from mode
+	 * to adjusted_mode it should reject the modeset.
 	 *
 	 * This function is used by both legacy CRTC helpers and atomic helpers.
 	 * With atomic helpers it is optional.
@@ -133,17 +134,18 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * Also beware that neither core nor helpers filter modes before
 	 * passing them to the driver: While the list of modes that is
-	 * advertised to userspace is filtered using the connector's
-	 * ->mode_valid() callback, neither the core nor the helpers do any
-	 * filtering on modes passed in from userspace when setting a mode. It
-	 * is therefore possible for userspace to pass in a mode that was
-	 * previously filtered out using ->mode_valid() or add a custom mode
-	 * that wasn't probed from EDID or similar to begin with.  Even though
-	 * this is an advanced feature and rarely used nowadays, some users rely
-	 * on being able to specify modes manually so drivers must be prepared
-	 * to deal with it. Specifically this means that all drivers need not
-	 * only validate modes in ->mode_valid() but also in ->mode_fixup() to
-	 * make sure invalid modes passed in from userspace are rejected.
+	 * advertised to userspace is filtered using the
+	 * &drm_connector.mode_valid callback, neither the core nor the helpers
+	 * do any filtering on modes passed in from userspace when setting a
+	 * mode. It is therefore possible for userspace to pass in a mode that
+	 * was previously filtered out using &drm_connector.mode_valid or add a
+	 * custom mode that wasn't probed from EDID or similar to begin with.
+	 * Even though this is an advanced feature and rarely used nowadays,
+	 * some users rely on being able to specify modes manually so drivers
+	 * must be prepared to deal with it. Specifically this means that all
+	 * drivers need not only validate modes in &drm_connector.mode_valid but
+	 * also in this or in the &drm_encoder_helper_funcs.mode_fixup callback
+	 * to make sure invalid modes passed in from userspace are rejected.
 	 *
 	 * RETURNS:
 	 *
@@ -204,7 +206,7 @@ struct drm_crtc_helper_funcs {
 	 * optimized fast-path instead of a full mode set operation with all the
 	 * resulting flickering. If it is not present
 	 * drm_crtc_helper_set_config() will fall back to a full modeset, using
-	 * the ->mode_set() callback. Since it can't update other planes it's
+	 * the @mode_set callback. Since it can't update other planes it's
 	 * incompatible with atomic modeset support.
 	 *
 	 * This callback is only used by the CRTC helpers and deprecated.
@@ -237,8 +239,7 @@ struct drm_crtc_helper_funcs {
 	/**
 	 * @load_lut:
 	 *
-	 * Load a LUT prepared with the @gamma_set functions from
-	 * &drm_fb_helper_funcs.
+	 * Load a LUT prepared with the &drm_fb_helper_funcs.gamma_set vfunc.
 	 *
 	 * This callback is optional and is only used by the fbdev emulation
 	 * helpers.
@@ -256,10 +257,11 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * This callback should be used to disable the CRTC. With the atomic
 	 * drivers it is called after all encoders connected to this CRTC have
-	 * been shut off already using their own ->disable hook. If that
-	 * sequence is too simple drivers can just add their own hooks and call
-	 * it from this CRTC callback here by looping over all encoders
-	 * connected to it using for_each_encoder_on_crtc().
+	 * been shut off already using their own
+	 * &drm_encoder_helper_funcs.disable hook. If that sequence is too
+	 * simple drivers can just add their own hooks and call it from this
+	 * CRTC callback here by looping over all encoders connected to it using
+	 * for_each_encoder_on_crtc().
 	 *
 	 * This hook is used both by legacy CRTC helpers and atomic helpers.
 	 * Atomic drivers don't need to implement it if there's no need to
@@ -288,10 +290,10 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * This callback should be used to enable the CRTC. With the atomic
 	 * drivers it is called before all encoders connected to this CRTC are
-	 * enabled through the encoder's own ->enable hook.  If that sequence is
-	 * too simple drivers can just add their own hooks and call it from this
-	 * CRTC callback here by looping over all encoders connected to it using
-	 * for_each_encoder_on_crtc().
+	 * enabled through the encoder's own &drm_encoder_helper_funcs.enable
+	 * hook.  If that sequence is too simple drivers can just add their own
+	 * hooks and call it from this CRTC callback here by looping over all
+	 * encoders connected to it using for_each_encoder_on_crtc().
 	 *
 	 * This hook is used only by atomic helpers, for symmetry with @disable.
 	 * Atomic drivers don't need to implement it if there's no need to
@@ -315,16 +317,16 @@ struct drm_crtc_helper_funcs {
 	 * beforehand. This is calling order used by the default helper
 	 * implementation in drm_atomic_helper_check().
 	 *
-	 * When using drm_atomic_helper_check_planes() CRTCs' ->atomic_check()
-	 * hooks are called after the ones for planes, which allows drivers to
-	 * assign shared resources requested by planes in the CRTC callback
-	 * here. For more complicated dependencies the driver can call the provided
-	 * check helpers multiple times until the computed state has a final
-	 * configuration and everything has been checked.
+	 * When using drm_atomic_helper_check_planes() this hook is called
+	 * after the &drm_plane_helper_funcs.atomc_check hook for planes, which
+	 * allows drivers to assign shared resources requested by planes in this
+	 * callback here. For more complicated dependencies the driver can call
+	 * the provided check helpers multiple times until the computed state
+	 * has a final configuration and everything has been checked.
 	 *
 	 * This function is also allowed to inspect any other object's state and
 	 * can add more state objects to the atomic commit if needed. Care must
-	 * be taken though to ensure that state check&compute functions for
+	 * be taken though to ensure that state check and compute functions for
 	 * these added states are all called, and derived state in other objects
 	 * all updated. Again the recommendation is to just call check helpers
 	 * until a maximal configuration is reached.
@@ -399,10 +401,11 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * This callback should be used to disable the CRTC. With the atomic
 	 * drivers it is called after all encoders connected to this CRTC have
-	 * been shut off already using their own ->disable hook. If that
-	 * sequence is too simple drivers can just add their own hooks and call
-	 * it from this CRTC callback here by looping over all encoders
-	 * connected to it using for_each_encoder_on_crtc().
+	 * been shut off already using their own
+	 * &drm_encoder_helper_funcs.disable hook. If that sequence is too
+	 * simple drivers can just add their own hooks and call it from this
+	 * CRTC callback here by looping over all encoders connected to it using
+	 * for_each_encoder_on_crtc().
 	 *
 	 * This hook is used only by atomic helpers. Atomic drivers don't
 	 * need to implement it if there's no need to disable anything at the
@@ -482,16 +485,18 @@ struct drm_encoder_helper_funcs {
 	 * Also beware that neither core nor helpers filter modes before
 	 * passing them to the driver: While the list of modes that is
 	 * advertised to userspace is filtered using the connector's
-	 * ->mode_valid() callback, neither the core nor the helpers do any
-	 * filtering on modes passed in from userspace when setting a mode. It
-	 * is therefore possible for userspace to pass in a mode that was
-	 * previously filtered out using ->mode_valid() or add a custom mode
-	 * that wasn't probed from EDID or similar to begin with.  Even though
-	 * this is an advanced feature and rarely used nowadays, some users rely
-	 * on being able to specify modes manually so drivers must be prepared
-	 * to deal with it. Specifically this means that all drivers need not
-	 * only validate modes in ->mode_valid() but also in ->mode_fixup() to
-	 * make sure invalid modes passed in from userspace are rejected.
+	 * &drm_connector_helper_funcs.mode_valid callback, neither the core nor
+	 * the helpers do any filtering on modes passed in from userspace when
+	 * setting a mode. It is therefore possible for userspace to pass in a
+	 * mode that was previously filtered out using
+	 * &drm_connector_helper_funcs.mode_valid or add a custom mode that
+	 * wasn't probed from EDID or similar to begin with.  Even though this
+	 * is an advanced feature and rarely used nowadays, some users rely on
+	 * being able to specify modes manually so drivers must be prepared to
+	 * deal with it. Specifically this means that all drivers need not only
+	 * validate modes in &drm_connector.mode_valid but also in this or in
+	 * the &drm_crtc_helper_funcs.mode_fixup callback to make sure
+	 * invalid modes passed in from userspace are rejected.
 	 *
 	 * RETURNS:
 	 *
@@ -543,7 +548,7 @@ struct drm_encoder_helper_funcs {
 	 * use this hook, because the helper library calls it only once and not
 	 * every time the display pipeline is suspend using either DPMS or the
 	 * new "ACTIVE" property. Such drivers should instead move all their
-	 * encoder setup into the ->enable() callback.
+	 * encoder setup into the @enable callback.
 	 *
 	 * This callback is used both by the legacy CRTC helpers and the atomic
 	 * modeset helpers. It is optional in the atomic helpers.
@@ -569,7 +574,7 @@ struct drm_encoder_helper_funcs {
 	 * use this hook, because the helper library calls it only once and not
 	 * every time the display pipeline is suspended using either DPMS or the
 	 * new "ACTIVE" property. Such drivers should instead move all their
-	 * encoder setup into the ->enable() callback.
+	 * encoder setup into the @enable callback.
 	 *
 	 * This callback is used by the atomic modeset helpers in place of the
 	 * @mode_set callback, if set by the driver. It is optional and should
@@ -620,10 +625,10 @@ struct drm_encoder_helper_funcs {
 	 *
 	 * This callback should be used to disable the encoder. With the atomic
 	 * drivers it is called before this encoder's CRTC has been shut off
-	 * using the CRTC's own ->disable hook.  If that sequence is too simple
-	 * drivers can just add their own driver private encoder hooks and call
-	 * them from CRTC's callback by looping over all encoders connected to
-	 * it using for_each_encoder_on_crtc().
+	 * using their own &drm_crtc_helper_funcs.disable hook.  If that
+	 * sequence is too simple drivers can just add their own driver private
+	 * encoder hooks and call them from CRTC's callback by looping over all
+	 * encoders connected to it using for_each_encoder_on_crtc().
 	 *
 	 * This hook is used both by legacy CRTC helpers and atomic helpers.
 	 * Atomic drivers don't need to implement it if there's no need to
@@ -650,10 +655,10 @@ struct drm_encoder_helper_funcs {
 	 *
 	 * This callback should be used to enable the encoder. With the atomic
 	 * drivers it is called after this encoder's CRTC has been enabled using
-	 * the CRTC's own ->enable hook.  If that sequence is too simple drivers
-	 * can just add their own driver private encoder hooks and call them
-	 * from CRTC's callback by looping over all encoders connected to it
-	 * using for_each_encoder_on_crtc().
+	 * their own &drm_crtc_helper_funcs.enable hook.  If that sequence is
+	 * too simple drivers can just add their own driver private encoder
+	 * hooks and call them from CRTC's callback by looping over all encoders
+	 * connected to it using for_each_encoder_on_crtc().
 	 *
 	 * This hook is used only by atomic helpers, for symmetry with @disable.
 	 * Atomic drivers don't need to implement it if there's no need to
@@ -715,7 +720,7 @@ struct drm_connector_helper_funcs {
 	 * @get_modes:
 	 *
 	 * This function should fill in all modes currently valid for the sink
-	 * into the connector->probed_modes list. It should also update the
+	 * into the &drm_connector.probed_modes list. It should also update the
 	 * EDID property by calling drm_mode_connector_update_edid_property().
 	 *
 	 * The usual way to implement this is to cache the EDID retrieved in the
@@ -724,8 +729,9 @@ struct drm_connector_helper_funcs {
 	 * them by calling drm_add_edid_modes(). But connectors that driver a
 	 * fixed panel can also manually add specific modes using
 	 * drm_mode_probed_add(). Drivers which manually add modes should also
-	 * make sure that the @display_info, @width_mm and @height_mm fields of the
-	 * struct &drm_connector are filled in.
+	 * make sure that the &drm_connector.display_info,
+	 * &drm_connector.width_mm and &drm_connector.height_mm fields are
+	 * filled in.
 	 *
 	 * Virtual drivers that just want some standard VESA mode with a given
 	 * resolution can call drm_add_modes_noedid(), and mark the preferred
@@ -734,7 +740,7 @@ struct drm_connector_helper_funcs {
 	 * Finally drivers that support audio probably want to update the ELD
 	 * data, too, using drm_edid_to_eld().
 	 *
-	 * This function is only called after the ->detect() hook has indicated
+	 * This function is only called after the @detect hook has indicated
 	 * that a sink is connected and when the EDID isn't overridden through
 	 * sysfs or the kernel commandline.
 	 *
@@ -767,8 +773,8 @@ struct drm_connector_helper_funcs {
 	 *
 	 * RETURNS:
 	 *
-	 * Either MODE_OK or one of the failure reasons in enum
-	 * &drm_mode_status.
+	 * Either &drm_mode_status.MODE_OK or one of the failure reasons in &enum
+	 * drm_mode_status.
 	 */
 	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
 					   struct drm_display_mode *mode);
@@ -874,7 +880,7 @@ struct drm_plane_helper_funcs {
 	 * RETURNS:
 	 *
 	 * 0 on success or one of the following negative error codes allowed by
-	 * the atomic_commit hook in &drm_mode_config_funcs. When using helpers
+	 * the &drm_mode_config_funcs.atomic_commit vfunc. When using helpers
 	 * this callback is the only one which can fail an atomic commit,
 	 * everything else must complete successfully.
 	 */
@@ -897,7 +903,7 @@ struct drm_plane_helper_funcs {
 	 *
 	 * Drivers should check plane specific constraints in this hook.
 	 *
-	 * When using drm_atomic_helper_check_planes() plane's ->atomic_check()
+	 * When using drm_atomic_helper_check_planes() plane's @atomic_check
 	 * hooks are called before the ones for CRTCs, which allows drivers to
 	 * request shared resources that the CRTC controls here. For more
 	 * complicated dependencies the driver can call the provided check helpers
@@ -906,7 +912,7 @@ struct drm_plane_helper_funcs {
 	 *
 	 * This function is also allowed to inspect any other object's state and
 	 * can add more state objects to the atomic commit if needed. Care must
-	 * be taken though to ensure that state check&compute functions for
+	 * be taken though to ensure that state check and compute functions for
 	 * these added states are all called, and derived state in other objects
 	 * all updated. Again the recommendation is to just call check helpers
 	 * until a maximal configuration is reached.
@@ -935,8 +941,8 @@ struct drm_plane_helper_funcs {
 	 * @atomic_update:
 	 *
 	 * Drivers should use this function to update the plane state.  This
-	 * hook is called in-between the ->atomic_begin() and
-	 * ->atomic_flush() of &drm_crtc_helper_funcs.
+	 * hook is called in-between the &drm_crtc_helper_funcs.atomic_begin and
+	 * drm_crtc_helper_funcs.atomic_flush callbacks.
 	 *
 	 * Note that the power state of the display pipe when this function is
 	 * called depends upon the exact helpers and calling sequence the driver
@@ -952,14 +958,15 @@ struct drm_plane_helper_funcs {
 	 * @atomic_disable:
 	 *
 	 * Drivers should use this function to unconditionally disable a plane.
-	 * This hook is called in-between the ->atomic_begin() and
-	 * ->atomic_flush() of &drm_crtc_helper_funcs. It is an alternative to
+	 * This hook is called in-between the
+	 * &drm_crtc_helper_funcs.atomic_begin and
+	 * drm_crtc_helper_funcs.atomic_flush callbacks. It is an alternative to
 	 * @atomic_update, which will be called for disabling planes, too, if
 	 * the @atomic_disable hook isn't implemented.
 	 *
 	 * This hook is also useful to disable planes in preparation of a modeset,
 	 * by calling drm_atomic_helper_disable_planes_on_crtc() from the
-	 * ->disable() hook in &drm_crtc_helper_funcs.
+	 * &drm_crtc_helper_funcs.disable hook.
 	 *
 	 * Note that the power state of the display pipe when this function is
 	 * called depends upon the exact helpers and calling sequence the driver

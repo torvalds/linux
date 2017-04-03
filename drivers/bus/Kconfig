@@ -112,6 +112,7 @@ config QCOM_EBI2
 	bool "Qualcomm External Bus Interface 2 (EBI2)"
 	depends on HAS_IOMEM
 	depends on ARCH_QCOM || COMPILE_TEST
+	default ARCH_QCOM
 	help
 	  Say y here to enable support for the Qualcomm External Bus
 	  Interface 2, which can be used to connect things like NAND Flash,

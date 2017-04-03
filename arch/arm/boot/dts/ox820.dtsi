@@ -8,6 +8,8 @@
 
 /include/ "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/oxsemi,ox820.h>
+#include <dt-bindings/reset/oxsemi,ox820.h>
 
 / {
 	compatible = "oxsemi,ox820";
@@ -83,8 +85,8 @@
 		nandc: nand-controller@41000000 {
 			compatible = "oxsemi,ox820-nand";
 			reg = <0x41000000 0x100000>;
-			clocks = <&stdclk 11>;
-			resets = <&reset 15>;
+			clocks = <&stdclk CLK_820_NAND>;
+			resets = <&reset RESET_NAND>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -99,9 +101,9 @@
 			mac-address = [000000000000]; /* Filled in by U-Boot */
 			phy-mode = "rgmii";
 
-			clocks = <&stdclk 9>, <&gmacclk>;
+			clocks = <&stdclk CLK_820_ETHA>, <&gmacclk>;
 			clock-names = "gmac", "stmmaceth";
-			resets = <&reset 6>;
+			resets = <&reset RESET_MAC>;
 
 			/* Regmap for sys registers */
 			oxsemi,sys-ctrl = <&sys>;
@@ -208,7 +210,7 @@
 			       no-loopback-test;
 			       status = "disabled";
 			       clocks = <&sysclk>;
-			       resets = <&reset 17>;
+			       resets = <&reset RESET_UART1>;
 			};
 
 			uart1: serial@300000 {
@@ -222,7 +224,7 @@
 			       no-loopback-test;
 			       status = "disabled";
 			       clocks = <&sysclk>;
-			       resets = <&reset 18>;
+			       resets = <&reset RESET_UART2>;
 			};
 
 			rps@400000 {

@@ -210,6 +210,7 @@ int ocrdma_query_port(struct ib_device *ibdev,
 	struct ocrdma_dev *dev;
 	struct net_device *netdev;
 
+	/* props being zeroed by the caller, avoid zeroing it here */
 	dev = get_ocrdma_dev(ibdev);
 	if (port > 1) {
 		pr_err("%s(%d) invalid_port=0x%x\n", __func__,
@@ -371,7 +372,7 @@ static int _ocrdma_pd_mgr_put_bitmap(struct ocrdma_dev *dev, u16 pd_id,
 	return 0;
 }
 
-static u8 ocrdma_put_pd_num(struct ocrdma_dev *dev, u16 pd_id,
+static int ocrdma_put_pd_num(struct ocrdma_dev *dev, u16 pd_id,
 				   bool dpp_pool)
 {
 	int status;
@@ -1170,8 +1171,7 @@ int ocrdma_destroy_cq(struct ib_cq *ibcq)
 
 	dev->cq_tbl[cq->id] = NULL;
 	indx = ocrdma_get_eq_table_index(dev, cq->eqn);
-	if (indx == -EINVAL)
-		BUG();
+	BUG_ON(indx == -EINVAL);
 
 	eq = &dev->eq_tbl[indx];
 	irq = ocrdma_get_irq(dev, eq);
@@ -1741,8 +1741,7 @@ static void ocrdma_discard_cqes(struct ocrdma_qp *qp, struct ocrdma_cq *cq)
 				wqe_idx = (le32_to_cpu(cqe->rq.buftag_qpn) >>
 					OCRDMA_CQE_BUFTAG_SHIFT) &
 					qp->srq->rq.max_wqe_idx;
-				if (wqe_idx < 1)
-					BUG();
+				BUG_ON(wqe_idx < 1);
 				spin_lock_irqsave(&qp->srq->q_lock, flags);
 				ocrdma_hwq_inc_tail(&qp->srq->rq);
 				ocrdma_srq_toggle_bit(qp->srq, wqe_idx - 1);
@@ -2388,15 +2387,13 @@ static int ocrdma_srq_get_idx(struct ocrdma_srq *srq)
 		if (srq->idx_bit_fields[row]) {
 			indx = ffs(srq->idx_bit_fields[row]);
 			indx = (row * 32) + (indx - 1);
-			if (indx >= srq->rq.max_cnt)
-				BUG();
+			BUG_ON(indx >= srq->rq.max_cnt);
 			ocrdma_srq_toggle_bit(srq, indx);
 			break;
 		}
 	}
 
-	if (row == srq->bit_fields_len)
-		BUG();
+	BUG_ON(row == srq->bit_fields_len);
 	return indx + 1; /* Use from index 1 */
 }
 
@@ -2754,8 +2751,7 @@ static void ocrdma_update_free_srq_cqe(struct ib_wc *ibwc,
 	srq = get_ocrdma_srq(qp->ibqp.srq);
 	wqe_idx = (le32_to_cpu(cqe->rq.buftag_qpn) >>
 		OCRDMA_CQE_BUFTAG_SHIFT) & srq->rq.max_wqe_idx;
-	if (wqe_idx < 1)
-		BUG();
+	BUG_ON(wqe_idx < 1);
 
 	ibwc->wr_id = srq->rqe_wr_id_tbl[wqe_idx];
 	spin_lock_irqsave(&srq->q_lock, flags);

@@ -2053,7 +2053,7 @@ static void qib_7322_clear_freeze(struct qib_devdata *dd)
 			qib_write_kreg_port(dd->pport + pidx, krp_errmask,
 					    0ULL);
 
-	/* also disable interrupts; errormask is sometimes overwriten */
+	/* also disable interrupts; errormask is sometimes overwritten */
 	qib_7322_set_intr_state(dd, 0);
 
 	/* clear the freeze, and be sure chip saw it */
@@ -2893,7 +2893,6 @@ static void qib_setup_7322_cleanup(struct qib_devdata *dd)
 			dd->cspec->gpio_mask &= ~mask;
 			qib_write_kreg(dd, kr_gpio_mask, dd->cspec->gpio_mask);
 			spin_unlock_irqrestore(&dd->cspec->gpio_lock, flags);
-			qib_qsfp_deinit(&dd->pport[i].cpspec->qsfp_data);
 		}
 	}
 }
@@ -7069,7 +7068,7 @@ static void qib_7322_txchk_change(struct qib_devdata *dd, u32 start,
 	unsigned long flags;
 
 	while (wait) {
-		unsigned long shadow;
+		unsigned long shadow = 0;
 		int cstart, previ = -1;
 
 		/*

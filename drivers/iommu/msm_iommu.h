@@ -19,6 +19,7 @@
 #define MSM_IOMMU_H
 
 #include <linux/interrupt.h>
+#include <linux/iommu.h>
 #include <linux/clk.h>
 
 /* Sharability attributes of MSM IOMMU mappings */
@@ -68,6 +69,8 @@ struct msm_iommu_dev {
 	struct list_head dom_node;
 	struct list_head ctx_list;
 	DECLARE_BITMAP(context_map, IOMMU_MAX_CBS);
+
+	struct iommu_device iommu;
 };
 
 /**

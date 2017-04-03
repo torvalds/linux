@@ -11,6 +11,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/phy.h>
 #include "mv88e6xxx.h"
 #include "port.h"
 
@@ -193,7 +194,7 @@ static int mv88e6xxx_port_set_speed(struct mv88e6xxx_chip *chip, int port,
 		ctrl = PORT_PCS_CTRL_SPEED_1000;
 		break;
 	case 2500:
-		ctrl = PORT_PCS_CTRL_SPEED_1000 | PORT_PCS_CTRL_ALTSPEED;
+		ctrl = PORT_PCS_CTRL_SPEED_10000 | PORT_PCS_CTRL_ALTSPEED;
 		break;
 	case 10000:
 		/* all bits set, fall through... */
@@ -302,6 +303,69 @@ int mv88e6390x_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed)
 		return -EOPNOTSUPP;
 
 	return mv88e6xxx_port_set_speed(chip, port, speed, true, true);
+}
+
+int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
+			      phy_interface_t mode)
+{
+	u16 reg;
+	u16 cmode;
+	int err;
+
+	if (mode == PHY_INTERFACE_MODE_NA)
+		return 0;
+
+	if (port != 9 && port != 10)
+		return -EOPNOTSUPP;
+
+	switch (mode) {
+	case PHY_INTERFACE_MODE_1000BASEX:
+		cmode = PORT_STATUS_CMODE_1000BASE_X;
+		break;
+	case PHY_INTERFACE_MODE_SGMII:
+		cmode = PORT_STATUS_CMODE_SGMII;
+		break;
+	case PHY_INTERFACE_MODE_2500BASEX:
+		cmode = PORT_STATUS_CMODE_2500BASEX;
+		break;
+	case PHY_INTERFACE_MODE_XGMII:
+		cmode = PORT_STATUS_CMODE_XAUI;
+		break;
+	case PHY_INTERFACE_MODE_RXAUI:
+		cmode = PORT_STATUS_CMODE_RXAUI;
+		break;
+	default:
+		cmode = 0;
+	}
+
+	if (cmode) {
+		err = mv88e6xxx_port_read(chip, port, PORT_STATUS, &reg);
+		if (err)
+			return err;
+
+		reg &= ~PORT_STATUS_CMODE_MASK;
+		reg |= cmode;
+
+		err = mv88e6xxx_port_write(chip, port, PORT_STATUS, reg);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+int mv88e6xxx_port_get_cmode(struct mv88e6xxx_chip *chip, int port, u8 *cmode)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_STATUS, &reg);
+	if (err)
+		return err;
+
+	*cmode = reg & PORT_STATUS_CMODE_MASK;
+
+	return 0;
 }
 
 /* Offset 0x02: Pause Control
@@ -608,6 +672,40 @@ static const char * const mv88e6xxx_port_8021q_mode_names[] = {
 	[PORT_CONTROL_2_8021Q_SECURE] = "Secure",
 };
 
+int mv88e6095_port_set_egress_unknowns(struct mv88e6xxx_chip *chip, int port,
+				       bool on)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	if (err)
+		return err;
+
+	if (on)
+		reg |= PORT_CONTROL_2_FORWARD_UNKNOWN;
+	else
+		reg &= ~PORT_CONTROL_2_FORWARD_UNKNOWN;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+}
+
+int mv88e6095_port_set_upstream_port(struct mv88e6xxx_chip *chip, int port,
+				     int upstream_port)
+{
+	int err;
+	u16 reg;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	if (err)
+		return err;
+
+	reg &= ~PORT_CONTROL_2_UPSTREAM_MASK;
+	reg |= upstream_port;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
+}
+
 int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 				  u16 mode)
 {
@@ -629,6 +727,20 @@ int mv88e6xxx_port_set_8021q_mode(struct mv88e6xxx_chip *chip, int port,
 		   mv88e6xxx_port_8021q_mode_names[mode]);
 
 	return 0;
+}
+
+int mv88e6xxx_port_set_map_da(struct mv88e6xxx_chip *chip, int port)
+{
+	u16 reg;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, PORT_CONTROL_2, &reg);
+	if (err)
+		return err;
+
+	reg |= PORT_CONTROL_2_MAP_DA;
+
+	return mv88e6xxx_port_write(chip, port, PORT_CONTROL_2, reg);
 }
 
 int mv88e6165_port_jumbo_config(struct mv88e6xxx_chip *chip, int port)

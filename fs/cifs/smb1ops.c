@@ -36,11 +36,11 @@
  * SMB_COM_NT_CANCEL request and then sends it.
  */
 static int
-send_nt_cancel(struct TCP_Server_Info *server, void *buf,
+send_nt_cancel(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 	       struct mid_q_entry *mid)
 {
 	int rc = 0;
-	struct smb_hdr *in_buf = (struct smb_hdr *)buf;
+	struct smb_hdr *in_buf = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
 
 	/* -4 for RFC1001 length and +2 for BCC field */
 	in_buf->smb_buf_length = cpu_to_be32(sizeof(struct smb_hdr) - 4  + 2);
@@ -1087,6 +1087,7 @@ struct smb_version_operations smb1_operations = {
 	.is_read_op = cifs_is_read_op,
 	.wp_retry_size = cifs_wp_retry_size,
 	.dir_needs_close = cifs_dir_needs_close,
+	.select_sectype = cifs_select_sectype,
 #ifdef CONFIG_CIFS_XATTR
 	.query_all_EAs = CIFSSMBQAllEAs,
 	.set_EA = CIFSSMBSetEA,

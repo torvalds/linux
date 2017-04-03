@@ -290,7 +290,7 @@ static const struct v4l2_ctrl_ops ml86v7667_ctrl_ops = {
 	.s_ctrl = ml86v7667_s_ctrl,
 };
 
-static struct v4l2_subdev_video_ops ml86v7667_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops ml86v7667_subdev_video_ops = {
 	.g_std = ml86v7667_g_std,
 	.s_std = ml86v7667_s_std,
 	.querystd = ml86v7667_querystd,
@@ -304,14 +304,14 @@ static const struct v4l2_subdev_pad_ops ml86v7667_subdev_pad_ops = {
 	.set_fmt = ml86v7667_fill_fmt,
 };
 
-static struct v4l2_subdev_core_ops ml86v7667_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops ml86v7667_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = ml86v7667_g_register,
 	.s_register = ml86v7667_s_register,
 #endif
 };
 
-static struct v4l2_subdev_ops ml86v7667_subdev_ops = {
+static const struct v4l2_subdev_ops ml86v7667_subdev_ops = {
 	.core = &ml86v7667_subdev_core_ops,
 	.video = &ml86v7667_subdev_video_ops,
 	.pad = &ml86v7667_subdev_pad_ops,

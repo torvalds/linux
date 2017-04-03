@@ -282,9 +282,7 @@ static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
 			       u64 *extent_physical,
 			       struct btrfs_device **extent_dev,
 			       int *extent_mirror_num);
-static int scrub_setup_wr_ctx(struct scrub_ctx *sctx,
-			      struct scrub_wr_ctx *wr_ctx,
-			      struct btrfs_fs_info *fs_info,
+static int scrub_setup_wr_ctx(struct scrub_wr_ctx *wr_ctx,
 			      struct btrfs_device *dev,
 			      int is_dev_replace);
 static void scrub_free_wr_ctx(struct scrub_wr_ctx *wr_ctx);
@@ -501,7 +499,7 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 	spin_lock_init(&sctx->stat_lock);
 	init_waitqueue_head(&sctx->list_wait);
 
-	ret = scrub_setup_wr_ctx(sctx, &sctx->wr_ctx, fs_info,
+	ret = scrub_setup_wr_ctx(&sctx->wr_ctx,
 				 fs_info->dev_replace.tgtdev, is_dev_replace);
 	if (ret) {
 		scrub_free_ctx(sctx);
@@ -733,7 +731,7 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *fixup_ctx)
 			ret = -EIO;
 			goto out;
 		}
-		ret = repair_io_failure(inode, offset, PAGE_SIZE,
+		ret = repair_io_failure(BTRFS_I(inode), offset, PAGE_SIZE,
 					fixup->logical, page,
 					offset - page_offset(page),
 					fixup->mirror_num);
@@ -3584,7 +3582,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 * -> btrfs_scrub_pause()
 		 */
 		scrub_pause_on(fs_info);
-		ret = btrfs_inc_block_group_ro(root, cache);
+		ret = btrfs_inc_block_group_ro(fs_info, cache);
 		if (!ret && is_dev_replace) {
 			/*
 			 * If we are doing a device replace wait for any tasks
@@ -4084,9 +4082,7 @@ static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
 	btrfs_put_bbio(bbio);
 }
 
-static int scrub_setup_wr_ctx(struct scrub_ctx *sctx,
-			      struct scrub_wr_ctx *wr_ctx,
-			      struct btrfs_fs_info *fs_info,
+static int scrub_setup_wr_ctx(struct scrub_wr_ctx *wr_ctx,
 			      struct btrfs_device *dev,
 			      int is_dev_replace)
 {
@@ -4240,7 +4236,7 @@ out:
 	scrub_pending_trans_workers_dec(sctx);
 }
 
-static int check_extent_to_block(struct inode *inode, u64 start, u64 len,
+static int check_extent_to_block(struct btrfs_inode *inode, u64 start, u64 len,
 				 u64 logical)
 {
 	struct extent_state *cached_state = NULL;
@@ -4250,7 +4246,7 @@ static int check_extent_to_block(struct inode *inode, u64 start, u64 len,
 	u64 lockstart = start, lockend = start + len - 1;
 	int ret = 0;
 
-	io_tree = &BTRFS_I(inode)->io_tree;
+	io_tree = &inode->io_tree;
 
 	lock_extent_bits(io_tree, lockstart, lockend, &cached_state);
 	ordered = btrfs_lookup_ordered_range(inode, lockstart, len);
@@ -4329,7 +4325,8 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root,
 	io_tree = &BTRFS_I(inode)->io_tree;
 	nocow_ctx_logical = nocow_ctx->logical;
 
-	ret = check_extent_to_block(inode, offset, len, nocow_ctx_logical);
+	ret = check_extent_to_block(BTRFS_I(inode), offset, len,
+			nocow_ctx_logical);
 	if (ret) {
 		ret = ret > 0 ? 0 : ret;
 		goto out;
@@ -4376,7 +4373,7 @@ again:
 			}
 		}
 
-		ret = check_extent_to_block(inode, offset, len,
+		ret = check_extent_to_block(BTRFS_I(inode), offset, len,
 					    nocow_ctx_logical);
 		if (ret) {
 			ret = ret > 0 ? 0 : ret;

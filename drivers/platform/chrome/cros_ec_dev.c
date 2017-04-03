@@ -328,6 +328,9 @@ static void cros_ec_sensors_register(struct cros_ec_dev *ec)
 		case MOTIONSENSE_TYPE_ACCEL:
 			sensor_cells[id].name = "cros-ec-accel";
 			break;
+		case MOTIONSENSE_TYPE_BARO:
+			sensor_cells[id].name = "cros-ec-baro";
+			break;
 		case MOTIONSENSE_TYPE_GYRO:
 			sensor_cells[id].name = "cros-ec-gyro";
 			break;

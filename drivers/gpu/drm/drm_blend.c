@@ -40,9 +40,8 @@
  * sub-pixel accuracy, which is scaled up to a pixel-aligned destination
  * rectangle in the visible area of a &drm_crtc. The visible area of a CRTC is
  * defined by the horizontal and vertical visible pixels (stored in @hdisplay
- * and @vdisplay) of the requested mode (stored in @mode in the
- * &drm_crtc_state). These two rectangles are both stored in the
- * &drm_plane_state.
+ * and @vdisplay) of the requested mode (stored in &drm_crtc_state.mode). These
+ * two rectangles are both stored in the &drm_plane_state.
  *
  * For the atomic ioctl the following standard (atomic) properties on the plane object
  * encode the basic plane composition model:
@@ -215,7 +214,7 @@ EXPORT_SYMBOL(drm_rotation_simplify);
  * for it in drm core. Drivers can then attach this property to planes to enable
  * support for configurable planes arrangement during blending operation.
  * Once mutable zpos property has been enabled, the DRM core will automatically
- * calculate drm_plane_state->normalized_zpos values. Usually min should be set
+ * calculate &drm_plane_state.normalized_zpos values. Usually min should be set
  * to 0 and max to maximal number of planes for given crtc - 1.
  *
  * If zpos of some planes cannot be changed (like fixed background or
@@ -367,8 +366,8 @@ done:
  * For every CRTC this function checks new states of all planes assigned to
  * it and calculates normalized zpos value for these planes. Planes are compared
  * first by their zpos values, then by plane id (if zpos is equal). The plane
- * with lowest zpos value is at the bottom. The plane_state->normalized_zpos is
- * then filled with unique values from 0 to number of active planes in crtc
+ * with lowest zpos value is at the bottom. The &drm_plane_state.normalized_zpos
+ * is then filled with unique values from 0 to number of active planes in crtc
  * minus one.
  *
  * RETURNS

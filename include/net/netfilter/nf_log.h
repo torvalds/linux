@@ -51,6 +51,9 @@ struct nf_logger {
 	struct module		*me;
 };
 
+/* sysctl_nf_log_all_netns - allow LOG target in all network namespaces */
+extern int sysctl_nf_log_all_netns;
+
 /* Function to register/unregister log function. */
 int nf_log_register(u_int8_t pf, struct nf_logger *logger);
 void nf_log_unregister(struct nf_logger *logger);

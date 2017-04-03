@@ -43,6 +43,7 @@
 #include <asm/unaligned.h>
 #include <scsi/sg.h>
 #include <scsi/scsi.h>
+#include <scsi/scsi_request.h>
 
 #include "nvme.h"
 
@@ -2347,12 +2348,14 @@ static int nvme_trans_unmap(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 
 static int nvme_scsi_translate(struct nvme_ns *ns, struct sg_io_hdr *hdr)
 {
-	u8 cmd[BLK_MAX_CDB];
+	u8 cmd[16];
 	int retcode;
 	unsigned int opcode;
 
 	if (hdr->cmdp == NULL)
 		return -EMSGSIZE;
+	if (hdr->cmd_len > sizeof(cmd))
+		return -EINVAL;
 	if (copy_from_user(cmd, hdr->cmdp, hdr->cmd_len))
 		return -EFAULT;
 
@@ -2450,8 +2453,6 @@ int nvme_sg_io(struct nvme_ns *ns, struct sg_io_hdr __user *u_hdr)
 	if (copy_from_user(&hdr, u_hdr, sizeof(hdr)))
 		return -EFAULT;
 	if (hdr.interface_id != 'S')
-		return -EINVAL;
-	if (hdr.cmd_len > BLK_MAX_CDB)
 		return -EINVAL;
 
 	/*

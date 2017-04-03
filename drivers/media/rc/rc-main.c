@@ -724,6 +724,72 @@ void rc_keydown_notimeout(struct rc_dev *dev, enum rc_type protocol,
 }
 EXPORT_SYMBOL_GPL(rc_keydown_notimeout);
 
+/**
+ * rc_validate_filter() - checks that the scancode and mask are valid and
+ *			  provides sensible defaults
+ * @dev:	the struct rc_dev descriptor of the device
+ * @filter:	the scancode and mask
+ * @return:	0 or -EINVAL if the filter is not valid
+ */
+static int rc_validate_filter(struct rc_dev *dev,
+			      struct rc_scancode_filter *filter)
+{
+	static u32 masks[] = {
+		[RC_TYPE_RC5] = 0x1f7f,
+		[RC_TYPE_RC5X_20] = 0x1f7f3f,
+		[RC_TYPE_RC5_SZ] = 0x2fff,
+		[RC_TYPE_SONY12] = 0x1f007f,
+		[RC_TYPE_SONY15] = 0xff007f,
+		[RC_TYPE_SONY20] = 0x1fff7f,
+		[RC_TYPE_JVC] = 0xffff,
+		[RC_TYPE_NEC] = 0xffff,
+		[RC_TYPE_NECX] = 0xffffff,
+		[RC_TYPE_NEC32] = 0xffffffff,
+		[RC_TYPE_SANYO] = 0x1fffff,
+		[RC_TYPE_RC6_0] = 0xffff,
+		[RC_TYPE_RC6_6A_20] = 0xfffff,
+		[RC_TYPE_RC6_6A_24] = 0xffffff,
+		[RC_TYPE_RC6_6A_32] = 0xffffffff,
+		[RC_TYPE_RC6_MCE] = 0xffff7fff,
+		[RC_TYPE_SHARP] = 0x1fff,
+	};
+	u32 s = filter->data;
+	enum rc_type protocol = dev->wakeup_protocol;
+
+	switch (protocol) {
+	case RC_TYPE_NECX:
+		if ((((s >> 16) ^ ~(s >> 8)) & 0xff) == 0)
+			return -EINVAL;
+		break;
+	case RC_TYPE_NEC32:
+		if ((((s >> 24) ^ ~(s >> 16)) & 0xff) == 0)
+			return -EINVAL;
+		break;
+	case RC_TYPE_RC6_MCE:
+		if ((s & 0xffff0000) != 0x800f0000)
+			return -EINVAL;
+		break;
+	case RC_TYPE_RC6_6A_32:
+		if ((s & 0xffff0000) == 0x800f0000)
+			return -EINVAL;
+		break;
+	default:
+		break;
+	}
+
+	filter->data &= masks[protocol];
+	filter->mask &= masks[protocol];
+
+	/*
+	 * If we have to raw encode the IR for wakeup, we cannot have a mask
+	 */
+	if (dev->encode_wakeup &&
+	    filter->mask != 0 && filter->mask != masks[protocol])
+		return -EINVAL;
+
+	return 0;
+}
+
 int rc_open(struct rc_dev *rdev)
 {
 	int rval = 0;
@@ -796,7 +862,7 @@ static const struct {
 	{ RC_BIT_OTHER,		"other",	NULL			},
 	{ RC_BIT_UNKNOWN,	"unknown",	NULL			},
 	{ RC_BIT_RC5 |
-	  RC_BIT_RC5X,		"rc-5",		"ir-rc5-decoder"	},
+	  RC_BIT_RC5X_20,	"rc-5",		"ir-rc5-decoder"	},
 	{ RC_BIT_NEC |
 	  RC_BIT_NECX |
 	  RC_BIT_NEC32,		"nec",		"ir-nec-decoder"	},
@@ -830,11 +896,6 @@ struct rc_filter_attribute {
 };
 #define to_rc_filter_attr(a) container_of(a, struct rc_filter_attribute, attr)
 
-#define RC_PROTO_ATTR(_name, _mode, _show, _store, _type)		\
-	struct rc_filter_attribute dev_attr_##_name = {			\
-		.attr = __ATTR(_name, _mode, _show, _store),		\
-		.type = (_type),					\
-	}
 #define RC_FILTER_ATTR(_name, _mode, _show, _store, _type, _mask)	\
 	struct rc_filter_attribute dev_attr_##_name = {			\
 		.attr = __ATTR(_name, _mode, _show, _store),		\
@@ -860,13 +921,13 @@ static bool lirc_is_present(void)
 }
 
 /**
- * show_protocols() - shows the current/wakeup IR protocol(s)
+ * show_protocols() - shows the current IR protocol(s)
  * @device:	the device descriptor
  * @mattr:	the device attribute struct
  * @buf:	a pointer to the output buffer
  *
  * This routine is a callback routine for input read the IR protocol type(s).
- * it is trigged by reading /sys/class/rc/rc?/[wakeup_]protocols.
+ * it is trigged by reading /sys/class/rc/rc?/protocols.
  * It returns the protocol names of supported protocols.
  * Enabled protocols are printed in brackets.
  *
@@ -877,7 +938,6 @@ static ssize_t show_protocols(struct device *device,
 			      struct device_attribute *mattr, char *buf)
 {
 	struct rc_dev *dev = to_rc_dev(device);
-	struct rc_filter_attribute *fattr = to_rc_filter_attr(mattr);
 	u64 allowed, enabled;
 	char *tmp = buf;
 	int i;
@@ -891,15 +951,10 @@ static ssize_t show_protocols(struct device *device,
 
 	mutex_lock(&dev->lock);
 
-	if (fattr->type == RC_FILTER_NORMAL) {
-		enabled = dev->enabled_protocols;
-		allowed = dev->allowed_protocols;
-		if (dev->raw && !allowed)
-			allowed = ir_raw_get_allowed_protocols();
-	} else {
-		enabled = dev->enabled_wakeup_protocols;
-		allowed = dev->allowed_wakeup_protocols;
-	}
+	enabled = dev->enabled_protocols;
+	allowed = dev->allowed_protocols;
+	if (dev->raw && !allowed)
+		allowed = ir_raw_get_allowed_protocols();
 
 	mutex_unlock(&dev->lock);
 
@@ -997,7 +1052,6 @@ static int parse_protocol_change(u64 *protocols, const char *buf)
 }
 
 static void ir_raw_load_modules(u64 *protocols)
-
 {
 	u64 available;
 	int i, ret;
@@ -1030,8 +1084,7 @@ static void ir_raw_load_modules(u64 *protocols)
 		if (!(*protocols & proto_names[i].type & ~available))
 			continue;
 
-		pr_err("Loaded IR protocol module %s, \
-		       but protocol %s still not available\n",
+		pr_err("Loaded IR protocol module %s, but protocol %s still not available\n",
 		       proto_names[i].module_name,
 		       proto_names[i].name);
 		*protocols &= ~proto_names[i].type;
@@ -1058,11 +1111,8 @@ static ssize_t store_protocols(struct device *device,
 			       const char *buf, size_t len)
 {
 	struct rc_dev *dev = to_rc_dev(device);
-	struct rc_filter_attribute *fattr = to_rc_filter_attr(mattr);
 	u64 *current_protocols;
-	int (*change_protocol)(struct rc_dev *dev, u64 *rc_type);
 	struct rc_scancode_filter *filter;
-	int (*set_filter)(struct rc_dev *dev, struct rc_scancode_filter *filter);
 	u64 old_protocols, new_protocols;
 	ssize_t rc;
 
@@ -1073,21 +1123,11 @@ static ssize_t store_protocols(struct device *device,
 	if (!atomic_read(&dev->initialized))
 		return -ERESTARTSYS;
 
-	if (fattr->type == RC_FILTER_NORMAL) {
-		IR_dprintk(1, "Normal protocol change requested\n");
-		current_protocols = &dev->enabled_protocols;
-		change_protocol = dev->change_protocol;
-		filter = &dev->scancode_filter;
-		set_filter = dev->s_filter;
-	} else {
-		IR_dprintk(1, "Wakeup protocol change requested\n");
-		current_protocols = &dev->enabled_wakeup_protocols;
-		change_protocol = dev->change_wakeup_protocol;
-		filter = &dev->scancode_wakeup_filter;
-		set_filter = dev->s_wakeup_filter;
-	}
+	IR_dprintk(1, "Normal protocol change requested\n");
+	current_protocols = &dev->enabled_protocols;
+	filter = &dev->scancode_filter;
 
-	if (!change_protocol) {
+	if (!dev->change_protocol) {
 		IR_dprintk(1, "Protocol switching not supported\n");
 		return -EINVAL;
 	}
@@ -1100,7 +1140,7 @@ static ssize_t store_protocols(struct device *device,
 	if (rc < 0)
 		goto out;
 
-	rc = change_protocol(dev, &new_protocols);
+	rc = dev->change_protocol(dev, &new_protocols);
 	if (rc < 0) {
 		IR_dprintk(1, "Error setting protocols to 0x%llx\n",
 			   (long long)new_protocols);
@@ -1123,16 +1163,16 @@ static ssize_t store_protocols(struct device *device,
 	 * Try setting the same filter with the new protocol (if any).
 	 * Fall back to clearing the filter.
 	 */
-	if (set_filter && filter->mask) {
+	if (dev->s_filter && filter->mask) {
 		if (new_protocols)
-			rc = set_filter(dev, filter);
+			rc = dev->s_filter(dev, filter);
 		else
 			rc = -1;
 
 		if (rc < 0) {
 			filter->data = 0;
 			filter->mask = 0;
-			set_filter(dev, filter);
+			dev->s_filter(dev, filter);
 		}
 	}
 
@@ -1221,7 +1261,6 @@ static ssize_t store_filter(struct device *device,
 	int ret;
 	unsigned long val;
 	int (*set_filter)(struct rc_dev *dev, struct rc_scancode_filter *filter);
-	u64 *enabled_protocols;
 
 	/* Device is being removed */
 	if (!dev)
@@ -1236,11 +1275,9 @@ static ssize_t store_filter(struct device *device,
 
 	if (fattr->type == RC_FILTER_NORMAL) {
 		set_filter = dev->s_filter;
-		enabled_protocols = &dev->enabled_protocols;
 		filter = &dev->scancode_filter;
 	} else {
 		set_filter = dev->s_wakeup_filter;
-		enabled_protocols = &dev->enabled_wakeup_protocols;
 		filter = &dev->scancode_wakeup_filter;
 	}
 
@@ -1255,7 +1292,22 @@ static ssize_t store_filter(struct device *device,
 	else
 		new_filter.data = val;
 
-	if (!*enabled_protocols && val) {
+	if (fattr->type == RC_FILTER_WAKEUP) {
+		/*
+		 * Refuse to set a filter unless a protocol is enabled
+		 * and the filter is valid for that protocol
+		 */
+		if (dev->wakeup_protocol != RC_TYPE_UNKNOWN)
+			ret = rc_validate_filter(dev, &new_filter);
+		else
+			ret = -EINVAL;
+
+		if (ret != 0)
+			goto unlock;
+	}
+
+	if (fattr->type == RC_FILTER_NORMAL && !dev->enabled_protocols &&
+	    val) {
 		/* refuse to set a filter unless a protocol is enabled */
 		ret = -EINVAL;
 		goto unlock;
@@ -1270,6 +1322,182 @@ static ssize_t store_filter(struct device *device,
 unlock:
 	mutex_unlock(&dev->lock);
 	return (ret < 0) ? ret : len;
+}
+
+/*
+ * This is the list of all variants of all protocols, which is used by
+ * the wakeup_protocols sysfs entry. In the protocols sysfs entry some
+ * some protocols are grouped together (e.g. nec = nec + necx + nec32).
+ *
+ * For wakeup we need to know the exact protocol variant so the hardware
+ * can be programmed exactly what to expect.
+ */
+static const char * const proto_variant_names[] = {
+	[RC_TYPE_UNKNOWN] = "unknown",
+	[RC_TYPE_OTHER] = "other",
+	[RC_TYPE_RC5] = "rc-5",
+	[RC_TYPE_RC5X_20] = "rc-5x-20",
+	[RC_TYPE_RC5_SZ] = "rc-5-sz",
+	[RC_TYPE_JVC] = "jvc",
+	[RC_TYPE_SONY12] = "sony-12",
+	[RC_TYPE_SONY15] = "sony-15",
+	[RC_TYPE_SONY20] = "sony-20",
+	[RC_TYPE_NEC] = "nec",
+	[RC_TYPE_NECX] = "nec-x",
+	[RC_TYPE_NEC32] = "nec-32",
+	[RC_TYPE_SANYO] = "sanyo",
+	[RC_TYPE_MCE_KBD] = "mce_kbd",
+	[RC_TYPE_RC6_0] = "rc-6-0",
+	[RC_TYPE_RC6_6A_20] = "rc-6-6a-20",
+	[RC_TYPE_RC6_6A_24] = "rc-6-6a-24",
+	[RC_TYPE_RC6_6A_32] = "rc-6-6a-32",
+	[RC_TYPE_RC6_MCE] = "rc-6-mce",
+	[RC_TYPE_SHARP] = "sharp",
+	[RC_TYPE_XMP] = "xmp",
+	[RC_TYPE_CEC] = "cec",
+};
+
+/**
+ * show_wakeup_protocols() - shows the wakeup IR protocol
+ * @device:	the device descriptor
+ * @mattr:	the device attribute struct
+ * @buf:	a pointer to the output buffer
+ *
+ * This routine is a callback routine for input read the IR protocol type(s).
+ * it is trigged by reading /sys/class/rc/rc?/wakeup_protocols.
+ * It returns the protocol names of supported protocols.
+ * The enabled protocols are printed in brackets.
+ *
+ * dev->lock is taken to guard against races between device
+ * registration, store_protocols and show_protocols.
+ */
+static ssize_t show_wakeup_protocols(struct device *device,
+				     struct device_attribute *mattr,
+				     char *buf)
+{
+	struct rc_dev *dev = to_rc_dev(device);
+	u64 allowed;
+	enum rc_type enabled;
+	char *tmp = buf;
+	int i;
+
+	/* Device is being removed */
+	if (!dev)
+		return -EINVAL;
+
+	if (!atomic_read(&dev->initialized))
+		return -ERESTARTSYS;
+
+	mutex_lock(&dev->lock);
+
+	allowed = dev->allowed_wakeup_protocols;
+	enabled = dev->wakeup_protocol;
+
+	mutex_unlock(&dev->lock);
+
+	IR_dprintk(1, "%s: allowed - 0x%llx, enabled - %d\n",
+		   __func__, (long long)allowed, enabled);
+
+	for (i = 0; i < ARRAY_SIZE(proto_variant_names); i++) {
+		if (allowed & (1ULL << i)) {
+			if (i == enabled)
+				tmp += sprintf(tmp, "[%s] ",
+						proto_variant_names[i]);
+			else
+				tmp += sprintf(tmp, "%s ",
+						proto_variant_names[i]);
+		}
+	}
+
+	if (tmp != buf)
+		tmp--;
+	*tmp = '\n';
+
+	return tmp + 1 - buf;
+}
+
+/**
+ * store_wakeup_protocols() - changes the wakeup IR protocol(s)
+ * @device:	the device descriptor
+ * @mattr:	the device attribute struct
+ * @buf:	a pointer to the input buffer
+ * @len:	length of the input buffer
+ *
+ * This routine is for changing the IR protocol type.
+ * It is trigged by writing to /sys/class/rc/rc?/wakeup_protocols.
+ * Returns @len on success or a negative error code.
+ *
+ * dev->lock is taken to guard against races between device
+ * registration, store_protocols and show_protocols.
+ */
+static ssize_t store_wakeup_protocols(struct device *device,
+				      struct device_attribute *mattr,
+				      const char *buf, size_t len)
+{
+	struct rc_dev *dev = to_rc_dev(device);
+	enum rc_type protocol;
+	ssize_t rc;
+	u64 allowed;
+	int i;
+
+	/* Device is being removed */
+	if (!dev)
+		return -EINVAL;
+
+	if (!atomic_read(&dev->initialized))
+		return -ERESTARTSYS;
+
+	mutex_lock(&dev->lock);
+
+	allowed = dev->allowed_wakeup_protocols;
+
+	if (sysfs_streq(buf, "none")) {
+		protocol = RC_TYPE_UNKNOWN;
+	} else {
+		for (i = 0; i < ARRAY_SIZE(proto_variant_names); i++) {
+			if ((allowed & (1ULL << i)) &&
+			    sysfs_streq(buf, proto_variant_names[i])) {
+				protocol = i;
+				break;
+			}
+		}
+
+		if (i == ARRAY_SIZE(proto_variant_names)) {
+			rc = -EINVAL;
+			goto out;
+		}
+
+		if (dev->encode_wakeup) {
+			u64 mask = 1ULL << protocol;
+
+			ir_raw_load_modules(&mask);
+			if (!mask) {
+				rc = -EINVAL;
+				goto out;
+			}
+		}
+	}
+
+	if (dev->wakeup_protocol != protocol) {
+		dev->wakeup_protocol = protocol;
+		IR_dprintk(1, "Wakeup protocol changed to %d\n", protocol);
+
+		if (protocol == RC_TYPE_RC6_MCE)
+			dev->scancode_wakeup_filter.data = 0x800f0000;
+		else
+			dev->scancode_wakeup_filter.data = 0;
+		dev->scancode_wakeup_filter.mask = 0;
+
+		rc = dev->s_wakeup_filter(dev, &dev->scancode_wakeup_filter);
+		if (rc == 0)
+			rc = len;
+	} else {
+		rc = len;
+	}
+
+out:
+	mutex_unlock(&dev->lock);
+	return rc;
 }
 
 static void rc_dev_release(struct device *device)
@@ -1301,10 +1529,9 @@ static int rc_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 /*
  * Static device attribute struct with the sysfs attributes for IR's
  */
-static RC_PROTO_ATTR(protocols, S_IRUGO | S_IWUSR,
-		     show_protocols, store_protocols, RC_FILTER_NORMAL);
-static RC_PROTO_ATTR(wakeup_protocols, S_IRUGO | S_IWUSR,
-		     show_protocols, store_protocols, RC_FILTER_WAKEUP);
+static DEVICE_ATTR(protocols, 0644, show_protocols, store_protocols);
+static DEVICE_ATTR(wakeup_protocols, 0644, show_wakeup_protocols,
+		   store_wakeup_protocols);
 static RC_FILTER_ATTR(filter, S_IRUGO|S_IWUSR,
 		      show_filter, store_filter, RC_FILTER_NORMAL, false);
 static RC_FILTER_ATTR(filter_mask, S_IRUGO|S_IWUSR,
@@ -1315,21 +1542,12 @@ static RC_FILTER_ATTR(wakeup_filter_mask, S_IRUGO|S_IWUSR,
 		      show_filter, store_filter, RC_FILTER_WAKEUP, true);
 
 static struct attribute *rc_dev_protocol_attrs[] = {
-	&dev_attr_protocols.attr.attr,
+	&dev_attr_protocols.attr,
 	NULL,
 };
 
 static struct attribute_group rc_dev_protocol_attr_grp = {
 	.attrs	= rc_dev_protocol_attrs,
-};
-
-static struct attribute *rc_dev_wakeup_protocol_attrs[] = {
-	&dev_attr_wakeup_protocols.attr.attr,
-	NULL,
-};
-
-static struct attribute_group rc_dev_wakeup_protocol_attr_grp = {
-	.attrs	= rc_dev_wakeup_protocol_attrs,
 };
 
 static struct attribute *rc_dev_filter_attrs[] = {
@@ -1345,6 +1563,7 @@ static struct attribute_group rc_dev_filter_attr_grp = {
 static struct attribute *rc_dev_wakeup_filter_attrs[] = {
 	&dev_attr_wakeup_filter.attr.attr,
 	&dev_attr_wakeup_filter_mask.attr.attr,
+	&dev_attr_wakeup_protocols.attr,
 	NULL,
 };
 
@@ -1357,7 +1576,7 @@ static struct device_type rc_dev_type = {
 	.uevent		= rc_dev_uevent,
 };
 
-struct rc_dev *rc_allocate_device(void)
+struct rc_dev *rc_allocate_device(enum rc_driver_type type)
 {
 	struct rc_dev *dev;
 
@@ -1365,24 +1584,30 @@ struct rc_dev *rc_allocate_device(void)
 	if (!dev)
 		return NULL;
 
-	dev->input_dev = input_allocate_device();
-	if (!dev->input_dev) {
-		kfree(dev);
-		return NULL;
+	if (type != RC_DRIVER_IR_RAW_TX) {
+		dev->input_dev = input_allocate_device();
+		if (!dev->input_dev) {
+			kfree(dev);
+			return NULL;
+		}
+
+		dev->input_dev->getkeycode = ir_getkeycode;
+		dev->input_dev->setkeycode = ir_setkeycode;
+		input_set_drvdata(dev->input_dev, dev);
+
+		setup_timer(&dev->timer_keyup, ir_timer_keyup,
+			    (unsigned long)dev);
+
+		spin_lock_init(&dev->rc_map.lock);
+		spin_lock_init(&dev->keylock);
 	}
-
-	dev->input_dev->getkeycode = ir_getkeycode;
-	dev->input_dev->setkeycode = ir_setkeycode;
-	input_set_drvdata(dev->input_dev, dev);
-
-	spin_lock_init(&dev->rc_map.lock);
-	spin_lock_init(&dev->keylock);
 	mutex_init(&dev->lock);
-	setup_timer(&dev->timer_keyup, ir_timer_keyup, (unsigned long)dev);
 
 	dev->dev.type = &rc_dev_type;
 	dev->dev.class = &rc_class;
 	device_initialize(&dev->dev);
+
+	dev->driver_type = type;
 
 	__module_get(THIS_MODULE);
 	return dev;
@@ -1410,7 +1635,8 @@ static void devm_rc_alloc_release(struct device *dev, void *res)
 	rc_free_device(*(struct rc_dev **)res);
 }
 
-struct rc_dev *devm_rc_allocate_device(struct device *dev)
+struct rc_dev *devm_rc_allocate_device(struct device *dev,
+				       enum rc_driver_type type)
 {
 	struct rc_dev **dr, *rc;
 
@@ -1418,7 +1644,7 @@ struct rc_dev *devm_rc_allocate_device(struct device *dev)
 	if (!dr)
 		return NULL;
 
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(type);
 	if (!rc) {
 		devres_free(dr);
 		return NULL;
@@ -1433,16 +1659,13 @@ struct rc_dev *devm_rc_allocate_device(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(devm_rc_allocate_device);
 
-int rc_register_device(struct rc_dev *dev)
+static int rc_setup_rx_device(struct rc_dev *dev)
 {
-	static bool raw_init = false; /* raw decoders loaded? */
-	struct rc_map *rc_map;
-	const char *path;
-	int attr = 0;
-	int minor;
 	int rc;
+	struct rc_map *rc_map;
+	u64 rc_type;
 
-	if (!dev || !dev->map_name)
+	if (!dev->map_name)
 		return -EINVAL;
 
 	rc_map = rc_map_get(dev->map_name);
@@ -1450,6 +1673,22 @@ int rc_register_device(struct rc_dev *dev)
 		rc_map = rc_map_get(RC_MAP_EMPTY);
 	if (!rc_map || !rc_map->scan || rc_map->size == 0)
 		return -EINVAL;
+
+	rc = ir_setkeytable(dev, rc_map);
+	if (rc)
+		return rc;
+
+	rc_type = BIT_ULL(rc_map->rc_type);
+
+	if (dev->change_protocol) {
+		rc = dev->change_protocol(dev, &rc_type);
+		if (rc < 0)
+			goto out_table;
+		dev->enabled_protocols = rc_type;
+	}
+
+	if (dev->driver_type == RC_DRIVER_IR_RAW)
+		ir_raw_load_modules(&rc_type);
 
 	set_bit(EV_KEY, dev->input_dev->evbit);
 	set_bit(EV_REP, dev->input_dev->evbit);
@@ -1459,42 +1698,6 @@ int rc_register_device(struct rc_dev *dev)
 		dev->input_dev->open = ir_open;
 	if (dev->close)
 		dev->input_dev->close = ir_close;
-
-	minor = ida_simple_get(&rc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
-	if (minor < 0)
-		return minor;
-
-	dev->minor = minor;
-	dev_set_name(&dev->dev, "rc%u", dev->minor);
-	dev_set_drvdata(&dev->dev, dev);
-	atomic_set(&dev->initialized, 0);
-
-	dev->dev.groups = dev->sysfs_groups;
-	dev->sysfs_groups[attr++] = &rc_dev_protocol_attr_grp;
-	if (dev->s_filter)
-		dev->sysfs_groups[attr++] = &rc_dev_filter_attr_grp;
-	if (dev->s_wakeup_filter)
-		dev->sysfs_groups[attr++] = &rc_dev_wakeup_filter_attr_grp;
-	if (dev->change_wakeup_protocol)
-		dev->sysfs_groups[attr++] = &rc_dev_wakeup_protocol_attr_grp;
-	dev->sysfs_groups[attr++] = NULL;
-
-	rc = device_add(&dev->dev);
-	if (rc)
-		goto out_unlock;
-
-	rc = ir_setkeytable(dev, rc_map);
-	if (rc)
-		goto out_dev;
-
-	dev->input_dev->dev.parent = &dev->dev;
-	memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
-	dev->input_dev->phys = dev->input_phys;
-	dev->input_dev->name = dev->input_name;
-
-	rc = input_register_device(dev->input_dev);
-	if (rc)
-		goto out_table;
 
 	/*
 	 * Default delay of 250ms is too short for some protocols, especially
@@ -1511,48 +1714,101 @@ int rc_register_device(struct rc_dev *dev)
 	 */
 	dev->input_dev->rep[REP_PERIOD] = 125;
 
+	dev->input_dev->dev.parent = &dev->dev;
+	memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
+	dev->input_dev->phys = dev->input_phys;
+	dev->input_dev->name = dev->input_name;
+
+	/* rc_open will be called here */
+	rc = input_register_device(dev->input_dev);
+	if (rc)
+		goto out_table;
+
+	return 0;
+
+out_table:
+	ir_free_table(&dev->rc_map);
+
+	return rc;
+}
+
+static void rc_free_rx_device(struct rc_dev *dev)
+{
+	if (!dev || dev->driver_type == RC_DRIVER_IR_RAW_TX)
+		return;
+
+	ir_free_table(&dev->rc_map);
+
+	input_unregister_device(dev->input_dev);
+	dev->input_dev = NULL;
+}
+
+int rc_register_device(struct rc_dev *dev)
+{
+	static bool raw_init; /* 'false' default value, raw decoders loaded? */
+	const char *path;
+	int attr = 0;
+	int minor;
+	int rc;
+
+	if (!dev)
+		return -EINVAL;
+
+	minor = ida_simple_get(&rc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
+	if (minor < 0)
+		return minor;
+
+	dev->minor = minor;
+	dev_set_name(&dev->dev, "rc%u", dev->minor);
+	dev_set_drvdata(&dev->dev, dev);
+	atomic_set(&dev->initialized, 0);
+
+	dev->dev.groups = dev->sysfs_groups;
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
+		dev->sysfs_groups[attr++] = &rc_dev_protocol_attr_grp;
+	if (dev->s_filter)
+		dev->sysfs_groups[attr++] = &rc_dev_filter_attr_grp;
+	if (dev->s_wakeup_filter)
+		dev->sysfs_groups[attr++] = &rc_dev_wakeup_filter_attr_grp;
+	dev->sysfs_groups[attr++] = NULL;
+
+	rc = device_add(&dev->dev);
+	if (rc)
+		goto out_unlock;
+
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	dev_info(&dev->dev, "%s as %s\n",
 		dev->input_name ?: "Unspecified device", path ?: "N/A");
 	kfree(path);
 
-	if (dev->driver_type == RC_DRIVER_IR_RAW) {
+	if (dev->driver_type == RC_DRIVER_IR_RAW ||
+	    dev->driver_type == RC_DRIVER_IR_RAW_TX) {
 		if (!raw_init) {
 			request_module_nowait("ir-lirc-codec");
 			raw_init = true;
 		}
 		rc = ir_raw_event_register(dev);
 		if (rc < 0)
-			goto out_input;
+			goto out_dev;
 	}
 
-	if (dev->change_protocol) {
-		u64 rc_type = (1ll << rc_map->rc_type);
-		rc = dev->change_protocol(dev, &rc_type);
-		if (rc < 0)
+	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
+		rc = rc_setup_rx_device(dev);
+		if (rc)
 			goto out_raw;
-		dev->enabled_protocols = rc_type;
 	}
 
 	/* Allow the RC sysfs nodes to be accessible */
 	atomic_set(&dev->initialized, 1);
 
-	IR_dprintk(1, "Registered rc%u (driver: %s, remote: %s, mode %s)\n",
+	IR_dprintk(1, "Registered rc%u (driver: %s)\n",
 		   dev->minor,
-		   dev->driver_name ? dev->driver_name : "unknown",
-		   rc_map->name ? rc_map->name : "unknown",
-		   dev->driver_type == RC_DRIVER_IR_RAW ? "raw" : "cooked");
+		   dev->driver_name ? dev->driver_name : "unknown");
 
 	return 0;
 
 out_raw:
-	if (dev->driver_type == RC_DRIVER_IR_RAW)
-		ir_raw_event_unregister(dev);
-out_input:
-	input_unregister_device(dev->input_dev);
-	dev->input_dev = NULL;
-out_table:
-	ir_free_table(&dev->rc_map);
+	ir_raw_event_unregister(dev);
 out_dev:
 	device_del(&dev->dev);
 out_unlock:
@@ -1598,12 +1854,7 @@ void rc_unregister_device(struct rc_dev *dev)
 	if (dev->driver_type == RC_DRIVER_IR_RAW)
 		ir_raw_event_unregister(dev);
 
-	/* Freeing the table should also call the stop callback */
-	ir_free_table(&dev->rc_map);
-	IR_dprintk(1, "Freed keycode table\n");
-
-	input_unregister_device(dev->input_dev);
-	dev->input_dev = NULL;
+	rc_free_rx_device(dev);
 
 	device_del(&dev->dev);
 

@@ -82,7 +82,7 @@ static unsigned int us3_freq_get(unsigned int cpu)
 	unsigned long reg;
 	unsigned int ret;
 
-	cpumask_copy(&cpus_allowed, tsk_cpus_allowed(current));
+	cpumask_copy(&cpus_allowed, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
 	reg = read_safari_cfg();
@@ -99,7 +99,7 @@ static int us3_freq_target(struct cpufreq_policy *policy, unsigned int index)
 	unsigned long new_bits, new_freq, reg;
 	cpumask_t cpus_allowed;
 
-	cpumask_copy(&cpus_allowed, tsk_cpus_allowed(current));
+	cpumask_copy(&cpus_allowed, &current->cpus_allowed);
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
 	new_freq = sparc64_get_clock_tick(cpu) / 1000;

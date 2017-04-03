@@ -160,6 +160,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
  * of_parse_own_gpio() - Get a GPIO hog descriptor, names and flags for GPIO API
  * @np:		device node to get GPIO from
  * @chip:	GPIO chip whose hog is parsed
+ * @idx:	Index of the GPIO to parse
  * @name:	GPIO line name
  * @lflags:	gpio_lookup_flags - returned from of_find_gpio() or
  *		of_parse_own_gpio()
@@ -170,7 +171,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
  */
 static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 					   struct gpio_chip *chip,
-					   const char **name,
+					   unsigned int idx, const char **name,
 					   enum gpio_lookup_flags *lflags,
 					   enum gpiod_flags *dflags)
 {
@@ -178,6 +179,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	enum of_gpio_flags xlate_flags;
 	struct of_phandle_args gpiospec;
 	struct gpio_desc *desc;
+	unsigned int i;
 	u32 tmp;
 	int ret;
 
@@ -196,9 +198,12 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	gpiospec.np = chip_np;
 	gpiospec.args_count = tmp;
 
-	ret = of_property_read_u32_array(np, "gpios", gpiospec.args, tmp);
-	if (ret)
-		return ERR_PTR(ret);
+	for (i = 0; i < tmp; i++) {
+		ret = of_property_read_u32_index(np, "gpios", idx * tmp + i,
+						 &gpiospec.args[i]);
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	desc = of_xlate_and_get_gpiod_flags(chip, &gpiospec, &xlate_flags);
 	if (IS_ERR(desc))
@@ -240,20 +245,24 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 	const char *name;
 	enum gpio_lookup_flags lflags;
 	enum gpiod_flags dflags;
+	unsigned int i;
 	int ret;
 
 	for_each_available_child_of_node(chip->of_node, np) {
 		if (!of_property_read_bool(np, "gpio-hog"))
 			continue;
 
-		desc = of_parse_own_gpio(np, chip, &name, &lflags, &dflags);
-		if (IS_ERR(desc))
-			continue;
+		for (i = 0;; i++) {
+			desc = of_parse_own_gpio(np, chip, i, &name, &lflags,
+						 &dflags);
+			if (IS_ERR(desc))
+				break;
 
-		ret = gpiod_hog(desc, name, lflags, dflags);
-		if (ret < 0) {
-			of_node_put(np);
-			return ret;
+			ret = gpiod_hog(desc, name, lflags, dflags);
+			if (ret < 0) {
+				of_node_put(np);
+				return ret;
+			}
 		}
 	}
 

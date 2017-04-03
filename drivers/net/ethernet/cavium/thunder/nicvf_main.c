@@ -16,6 +16,7 @@
 #include <linux/log2.h>
 #include <linux/prefetch.h>
 #include <linux/irq.h>
+#include <linux/iommu.h>
 
 #include "nic_reg.h"
 #include "nic.h"
@@ -525,7 +526,12 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 			/* Get actual TSO descriptors and free them */
 			tso_sqe =
 			 (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, hdr->rsvd2);
+			nicvf_unmap_sndq_buffers(nic, sq, hdr->rsvd2,
+						 tso_sqe->subdesc_cnt);
 			nicvf_put_sq_desc(sq, tso_sqe->subdesc_cnt + 1);
+		} else {
+			nicvf_unmap_sndq_buffers(nic, sq, cqe_tx->sqe_ptr,
+						 hdr->subdesc_cnt);
 		}
 		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 		prefetch(skb);
@@ -576,6 +582,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 {
 	struct sk_buff *skb;
 	struct nicvf *nic = netdev_priv(netdev);
+	struct nicvf *snic = nic;
 	int err = 0;
 	int rq_idx;
 
@@ -592,7 +599,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 	if (err && !cqe_rx->rb_cnt)
 		return;
 
-	skb = nicvf_get_rcv_skb(nic, cqe_rx);
+	skb = nicvf_get_rcv_skb(snic, cqe_rx);
 	if (!skb) {
 		netdev_dbg(nic->netdev, "Packet not received\n");
 		return;
@@ -749,7 +756,7 @@ static int nicvf_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		/* Slow packet rate, exit polling */
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		/* Re-enable interrupts */
 		cq_head = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_HEAD,
 					       cq->cq_idx);
@@ -1274,7 +1281,8 @@ int nicvf_open(struct net_device *netdev)
 	/* Configure receive side scaling and MTU */
 	if (!nic->sqs_mode) {
 		nicvf_rss_init(nic);
-		if (nicvf_update_hw_max_frs(nic, netdev->mtu))
+		err = nicvf_update_hw_max_frs(nic, netdev->mtu);
+		if (err)
 			goto cleanup;
 
 		/* Clear percpu stats */
@@ -1461,8 +1469,8 @@ void nicvf_update_stats(struct nicvf *nic)
 		nicvf_update_sq_stats(nic, qidx);
 }
 
-static struct rtnl_link_stats64 *nicvf_get_stats64(struct net_device *netdev,
-					    struct rtnl_link_stats64 *stats)
+static void nicvf_get_stats64(struct net_device *netdev,
+			      struct rtnl_link_stats64 *stats)
 {
 	struct nicvf *nic = netdev_priv(netdev);
 	struct nicvf_hw_stats *hw_stats = &nic->hw_stats;
@@ -1478,7 +1486,6 @@ static struct rtnl_link_stats64 *nicvf_get_stats64(struct net_device *netdev,
 	stats->tx_packets = hw_stats->tx_frames;
 	stats->tx_dropped = hw_stats->tx_drops;
 
-	return stats;
 }
 
 static void nicvf_tx_timeout(struct net_device *dev)
@@ -1642,6 +1649,9 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (!pass1_silicon(nic->pdev))
 		nic->hw_tso = true;
+
+	/* Get iommu domain for iova to physical addr conversion */
+	nic->iommu_domain = iommu_get_domain_for_dev(dev);
 
 	pci_read_config_word(nic->pdev, PCI_SUBSYSTEM_ID, &sdevid);
 	if (sdevid == 0xA134)

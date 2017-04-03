@@ -687,7 +687,7 @@ DEFINE_INODE_EVENT(xfs_inode_clear_cowblocks_tag);
 DEFINE_INODE_EVENT(xfs_inode_free_cowblocks_invalid);
 
 DEFINE_INODE_EVENT(xfs_filemap_fault);
-DEFINE_INODE_EVENT(xfs_filemap_pmd_fault);
+DEFINE_INODE_EVENT(xfs_filemap_huge_fault);
 DEFINE_INODE_EVENT(xfs_filemap_page_mkwrite);
 DEFINE_INODE_EVENT(xfs_filemap_pfn_mkwrite);
 
@@ -2245,7 +2245,6 @@ DEFINE_BTREE_CUR_EVENT(xfs_btree_overlapped_query_range);
 
 /* deferred ops */
 struct xfs_defer_pending;
-struct xfs_defer_intake;
 struct xfs_defer_ops;
 
 DECLARE_EVENT_CLASS(xfs_defer_class,
@@ -3089,6 +3088,7 @@ DECLARE_EVENT_CLASS(xfs_inode_irec_class,
 		__field(xfs_fileoff_t, lblk)
 		__field(xfs_extlen_t, len)
 		__field(xfs_fsblock_t, pblk)
+		__field(int, state)
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
@@ -3096,13 +3096,15 @@ DECLARE_EVENT_CLASS(xfs_inode_irec_class,
 		__entry->lblk = irec->br_startoff;
 		__entry->len = irec->br_blockcount;
 		__entry->pblk = irec->br_startblock;
+		__entry->state = irec->br_state;
 	),
-	TP_printk("dev %d:%d ino 0x%llx lblk 0x%llx len 0x%x pblk %llu",
+	TP_printk("dev %d:%d ino 0x%llx lblk 0x%llx len 0x%x pblk %llu st %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->lblk,
 		  __entry->len,
-		  __entry->pblk)
+		  __entry->pblk,
+		  __entry->state)
 );
 #define DEFINE_INODE_IREC_EVENT(name) \
 DEFINE_EVENT(xfs_inode_irec_class, name, \
@@ -3242,11 +3244,11 @@ DEFINE_INODE_IREC_EVENT(xfs_reflink_trim_around_shared);
 DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_alloc);
 DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_found);
 DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_enospc);
+DEFINE_INODE_IREC_EVENT(xfs_reflink_convert_cow);
 
 DEFINE_RW_EVENT(xfs_reflink_reserve_cow);
-DEFINE_RW_EVENT(xfs_reflink_allocate_cow_range);
 
-DEFINE_INODE_IREC_EVENT(xfs_reflink_bounce_dio_write);
+DEFINE_SIMPLE_IO_EVENT(xfs_reflink_bounce_dio_write);
 DEFINE_IOMAP_EVENT(xfs_reflink_find_cow_mapping);
 DEFINE_INODE_IREC_EVENT(xfs_reflink_trim_irec);
 
@@ -3254,7 +3256,6 @@ DEFINE_SIMPLE_IO_EVENT(xfs_reflink_cancel_cow_range);
 DEFINE_SIMPLE_IO_EVENT(xfs_reflink_end_cow);
 DEFINE_INODE_IREC_EVENT(xfs_reflink_cow_remap);
 
-DEFINE_INODE_ERROR_EVENT(xfs_reflink_allocate_cow_range_error);
 DEFINE_INODE_ERROR_EVENT(xfs_reflink_cancel_cow_range_error);
 DEFINE_INODE_ERROR_EVENT(xfs_reflink_end_cow_error);
 

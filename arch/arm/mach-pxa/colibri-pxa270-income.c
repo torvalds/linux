@@ -17,6 +17,7 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>

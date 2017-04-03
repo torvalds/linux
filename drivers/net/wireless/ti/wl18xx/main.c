@@ -178,7 +178,7 @@ static struct wlcore_conf wl18xx_conf = {
 	.sg = {
 		.params = {
 			[WL18XX_CONF_SG_PARAM_0] = 0,
-			/* Configuartion Parameters */
+			/* Configuration Parameters */
 			[WL18XX_CONF_SG_ANTENNA_CONFIGURATION] = 0,
 			[WL18XX_CONF_SG_ZIGBEE_COEX] = 0,
 			[WL18XX_CONF_SG_TIME_SYNC] = 0,

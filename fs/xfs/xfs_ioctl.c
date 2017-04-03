@@ -43,6 +43,7 @@
 #include "xfs_acl.h"
 
 #include <linux/capability.h>
+#include <linux/cred.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -1524,7 +1525,7 @@ out_drop_write:
 }
 
 STATIC int
-xfs_getbmap_format(void **ap, struct getbmapx *bmv, int *full)
+xfs_getbmap_format(void **ap, struct getbmapx *bmv)
 {
 	struct getbmap __user	*base = (struct getbmap __user *)*ap;
 
@@ -1567,7 +1568,7 @@ xfs_ioc_getbmap(
 }
 
 STATIC int
-xfs_getbmapx_format(void **ap, struct getbmapx *bmv, int *full)
+xfs_getbmapx_format(void **ap, struct getbmapx *bmv)
 {
 	struct getbmapx __user	*base = (struct getbmapx __user *)*ap;
 

@@ -184,7 +184,7 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
 
 TRACE_EVENT_CONDITION(btrfs_get_extent,
 
-	TP_PROTO(struct btrfs_root *root, struct inode *inode,
+	TP_PROTO(struct btrfs_root *root, struct btrfs_inode *inode,
 		 struct extent_map *map),
 
 	TP_ARGS(root, inode, map),

@@ -73,11 +73,13 @@
 #define USB_VID_GIGABYTE			0x1044
 #define USB_VID_YUAN				0x1164
 #define USB_VID_XTENSIONS			0x1ae7
+#define USB_VID_ZYDAS				0x0ace
 #define USB_VID_HUMAX_COEX			0x10b9
 #define USB_VID_774				0x7a69
 #define USB_VID_EVOLUTEPC			0x1e59
 #define USB_VID_AZUREWAVE			0x13d3
 #define USB_VID_TECHNISAT			0x14f7
+#define USB_VID_HAMA				0x147f
 
 /* Product IDs */
 #define USB_PID_ADSTECH_USB2_COLD			0xa333
@@ -412,5 +414,6 @@
 #define USB_PID_SVEON_STV27                             0xd3af
 #define USB_PID_TURBOX_DTT_2000                         0xd3a4
 #define USB_PID_WINTV_SOLOHD                            0x0264
-#define USB_PID_EVOLVEO_XTRATV_STICK                   0xa115
+#define USB_PID_EVOLVEO_XTRATV_STICK			0xa115
+#define USB_PID_HAMA_DVBT_HYBRID			0x2758
 #endif

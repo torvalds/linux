@@ -61,7 +61,7 @@
 
 		blue {
 			label = "mk808:blue:power";
-			gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio0 RK_PA3 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			linux,default-trigger = "default-on";
 		};
@@ -77,7 +77,7 @@
 	vcc_host: usb-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
 		pinctrl-0 = <&host_drv>;
 		pinctrl-names = "default";
 		regulator-always-on;
@@ -91,7 +91,7 @@
 	vcc_otg: usb-otg-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 		pinctrl-0 = <&otg_drv>;
 		pinctrl-names = "default";
 		regulator-always-on;
@@ -104,7 +104,7 @@
 
 	vcc_sd: sdmmc-regulator {
 		compatible = "regulator-fixed";
-		gpio = <&gpio3 7 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;
 		pinctrl-0 = <&sdmmc_pwr>;
 		pinctrl-names = "default";
 		regulator-name = "vcc_sd";
@@ -117,7 +117,7 @@
 	vcc_wifi: sdio-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio3 24 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
 		pinctrl-0 = <&wifi_pwr>;
 		pinctrl-names = "default";
 		regulator-name = "vcc_wifi";

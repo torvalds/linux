@@ -499,6 +499,7 @@ static int set_guid_rec(struct ib_device *ibdev,
 	struct list_head *head =
 		&dev->sriov.alias_guid.ports_guid[port - 1].cb_list;
 
+	memset(&attr, 0, sizeof(attr));
 	err = __mlx4_ib_query_port(ibdev, port, &attr, 1);
 	if (err) {
 		pr_debug("mlx4_ib_query_port failed (err: %d), port: %d\n",

@@ -41,6 +41,7 @@ struct tc_action {
 	struct rcu_head			tcfa_rcu;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
 	struct gnet_stats_queue __percpu *cpu_qstats;
+	struct tc_cookie	*act_cookie;
 };
 #define tcf_head	common.tcfa_head
 #define tcf_index	common.tcfa_index

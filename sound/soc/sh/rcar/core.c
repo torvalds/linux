@@ -363,8 +363,6 @@ struct rsnd_mod *rsnd_mod_next(int *iterator,
 		if (!mod)
 			continue;
 
-		(*iterator)++;
-
 		return mod;
 	}
 

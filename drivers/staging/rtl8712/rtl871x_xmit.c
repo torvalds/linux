@@ -347,7 +347,8 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 	 * some settings above.
 	 */
 	if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
-		pattrib->priority = (txdesc.txdw1 >> QSEL_SHT) & 0x1f;
+		pattrib->priority =
+		    (le32_to_cpu(txdesc.txdw1) >> QSEL_SHT) & 0x1f;
 	return _SUCCESS;
 }
 
@@ -488,7 +489,7 @@ static sint make_wlanhdr(struct _adapter *padapter, u8 *hdr,
 	struct ieee80211_hdr *pwlanhdr = (struct ieee80211_hdr *)hdr;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct qos_priv *pqospriv = &pmlmepriv->qospriv;
-	u16 *fctrl = &pwlanhdr->frame_ctl;
+	__le16 *fctrl = &pwlanhdr->frame_ctl;
 
 	memset(hdr, 0, WLANHDR_OFFSET);
 	SetFrameSubType(fctrl, pattrib->subtype);
@@ -577,7 +578,7 @@ static sint r8712_put_snap(u8 *data, u16 h_proto)
 	snap->oui[0] = oui[0];
 	snap->oui[1] = oui[1];
 	snap->oui[2] = oui[2];
-	*(u16 *)(data + SNAP_SIZE) = htons(h_proto);
+	*(__be16 *)(data + SNAP_SIZE) = htons(h_proto);
 	return SNAP_SIZE + sizeof(u16);
 }
 

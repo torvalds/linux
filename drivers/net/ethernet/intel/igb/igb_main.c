@@ -137,8 +137,8 @@ static void igb_update_phy_info(unsigned long);
 static void igb_watchdog(unsigned long);
 static void igb_watchdog_task(struct work_struct *);
 static netdev_tx_t igb_xmit_frame(struct sk_buff *skb, struct net_device *);
-static struct rtnl_link_stats64 *igb_get_stats64(struct net_device *dev,
-					  struct rtnl_link_stats64 *stats);
+static void igb_get_stats64(struct net_device *dev,
+			    struct rtnl_link_stats64 *stats);
 static int igb_change_mtu(struct net_device *, int);
 static int igb_set_mac(struct net_device *, void *);
 static void igb_set_uta(struct igb_adapter *adapter, bool set);
@@ -383,9 +383,9 @@ static void igb_dump(struct igb_adapter *adapter)
 	/* Print netdevice Info */
 	if (netdev) {
 		dev_info(&adapter->pdev->dev, "Net device Info\n");
-		pr_info("Device Name     state            trans_start      last_rx\n");
-		pr_info("%-15s %016lX %016lX %016lX\n", netdev->name,
-			netdev->state, dev_trans_start(netdev), netdev->last_rx);
+		pr_info("Device Name     state            trans_start\n");
+		pr_info("%-15s %016lX %016lX\n", netdev->name,
+			netdev->state, dev_trans_start(netdev));
 	}
 
 	/* Print Registers */
@@ -3275,7 +3275,9 @@ static int __igb_close(struct net_device *netdev, bool suspending)
 
 int igb_close(struct net_device *netdev)
 {
-	return __igb_close(netdev, false);
+	if (netif_device_present(netdev))
+		return __igb_close(netdev, false);
+	return 0;
 }
 
 /**
@@ -3394,7 +3396,7 @@ void igb_configure_tx_ring(struct igb_adapter *adapter,
 	     tdba & 0x00000000ffffffffULL);
 	wr32(E1000_TDBAH(reg_idx), tdba >> 32);
 
-	ring->tail = hw->hw_addr + E1000_TDT(reg_idx);
+	ring->tail = adapter->io_addr + E1000_TDT(reg_idx);
 	wr32(E1000_TDH(reg_idx), 0);
 	writel(0, ring->tail);
 
@@ -3733,7 +3735,7 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	     ring->count * sizeof(union e1000_adv_rx_desc));
 
 	/* initialize head and tail */
-	ring->tail = hw->hw_addr + E1000_RDT(reg_idx);
+	ring->tail = adapter->io_addr + E1000_RDT(reg_idx);
 	wr32(E1000_RDH(reg_idx), 0);
 	writel(0, ring->tail);
 
@@ -5402,8 +5404,8 @@ static void igb_reset_task(struct work_struct *work)
  *  @netdev: network interface device structure
  *  @stats: rtnl_link_stats64 pointer
  **/
-static struct rtnl_link_stats64 *igb_get_stats64(struct net_device *netdev,
-						struct rtnl_link_stats64 *stats)
+static void igb_get_stats64(struct net_device *netdev,
+			    struct rtnl_link_stats64 *stats)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
@@ -5411,8 +5413,6 @@ static struct rtnl_link_stats64 *igb_get_stats64(struct net_device *netdev,
 	igb_update_stats(adapter, &adapter->stats64);
 	memcpy(stats, &adapter->stats64, sizeof(*stats));
 	spin_unlock(&adapter->stats64_lock);
-
-	return stats;
 }
 
 /**
@@ -7564,6 +7564,7 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 	int retval = 0;
 #endif
 
+	rtnl_lock();
 	netif_device_detach(netdev);
 
 	if (netif_running(netdev))
@@ -7572,6 +7573,7 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 	igb_ptp_suspend(adapter);
 
 	igb_clear_interrupt_scheme(adapter);
+	rtnl_unlock();
 
 #ifdef CONFIG_PM
 	retval = pci_save_state(pdev);
@@ -7690,16 +7692,15 @@ static int igb_resume(struct device *dev)
 
 	wr32(E1000_WUS, ~0);
 
-	if (netdev->flags & IFF_UP) {
-		rtnl_lock();
+	rtnl_lock();
+	if (!err && netif_running(netdev))
 		err = __igb_open(netdev, true);
-		rtnl_unlock();
-		if (err)
-			return err;
-	}
 
-	netif_device_attach(netdev);
-	return 0;
+	if (!err)
+		netif_device_attach(netdev);
+	rtnl_unlock();
+
+	return err;
 }
 
 static int igb_runtime_idle(struct device *dev)
@@ -7897,6 +7898,11 @@ static pci_ers_result_t igb_io_slot_reset(struct pci_dev *pdev)
 
 		pci_enable_wake(pdev, PCI_D3hot, 0);
 		pci_enable_wake(pdev, PCI_D3cold, 0);
+
+		/* In case of PCI error, adapter lose its HW address
+		 * so we should re-assign it here.
+		 */
+		hw->hw_addr = adapter->io_addr;
 
 		igb_reset(adapter);
 		wr32(E1000_WUS, ~0);

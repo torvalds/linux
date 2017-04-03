@@ -11,6 +11,7 @@
  */
 #include "misc.h"
 #include "error.h"
+#include "../boot.h"
 
 #include <generated/compile.h>
 #include <linux/module.h>
@@ -52,15 +53,22 @@ static unsigned long get_boot_seed(void)
 #include "../../lib/kaslr.c"
 
 struct mem_vector {
-	unsigned long start;
-	unsigned long size;
+	unsigned long long start;
+	unsigned long long size;
 };
+
+/* Only supporting at most 4 unusable memmap regions with kaslr */
+#define MAX_MEMMAP_REGIONS	4
+
+static bool memmap_too_large;
 
 enum mem_avoid_index {
 	MEM_AVOID_ZO_RANGE = 0,
 	MEM_AVOID_INITRD,
 	MEM_AVOID_CMDLINE,
 	MEM_AVOID_BOOTPARAMS,
+	MEM_AVOID_MEMMAP_BEGIN,
+	MEM_AVOID_MEMMAP_END = MEM_AVOID_MEMMAP_BEGIN + MAX_MEMMAP_REGIONS - 1,
 	MEM_AVOID_MAX,
 };
 
@@ -75,6 +83,123 @@ static bool mem_overlaps(struct mem_vector *one, struct mem_vector *two)
 	if (one->start >= two->start + two->size)
 		return false;
 	return true;
+}
+
+/**
+ *	_memparse - Parse a string with mem suffixes into a number
+ *	@ptr: Where parse begins
+ *	@retptr: (output) Optional pointer to next char after parse completes
+ *
+ *	Parses a string into a number.  The number stored at @ptr is
+ *	potentially suffixed with K, M, G, T, P, E.
+ */
+static unsigned long long _memparse(const char *ptr, char **retptr)
+{
+	char *endptr;	/* Local pointer to end of parsed string */
+
+	unsigned long long ret = simple_strtoull(ptr, &endptr, 0);
+
+	switch (*endptr) {
+	case 'E':
+	case 'e':
+		ret <<= 10;
+	case 'P':
+	case 'p':
+		ret <<= 10;
+	case 'T':
+	case 't':
+		ret <<= 10;
+	case 'G':
+	case 'g':
+		ret <<= 10;
+	case 'M':
+	case 'm':
+		ret <<= 10;
+	case 'K':
+	case 'k':
+		ret <<= 10;
+		endptr++;
+	default:
+		break;
+	}
+
+	if (retptr)
+		*retptr = endptr;
+
+	return ret;
+}
+
+static int
+parse_memmap(char *p, unsigned long long *start, unsigned long long *size)
+{
+	char *oldp;
+
+	if (!p)
+		return -EINVAL;
+
+	/* We don't care about this option here */
+	if (!strncmp(p, "exactmap", 8))
+		return -EINVAL;
+
+	oldp = p;
+	*size = _memparse(p, &p);
+	if (p == oldp)
+		return -EINVAL;
+
+	switch (*p) {
+	case '@':
+		/* Skip this region, usable */
+		*start = 0;
+		*size = 0;
+		return 0;
+	case '#':
+	case '$':
+	case '!':
+		*start = _memparse(p + 1, &p);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static void mem_avoid_memmap(void)
+{
+	char arg[128];
+	int rc;
+	int i;
+	char *str;
+
+	/* See if we have any memmap areas */
+	rc = cmdline_find_option("memmap", arg, sizeof(arg));
+	if (rc <= 0)
+		return;
+
+	i = 0;
+	str = arg;
+	while (str && (i < MAX_MEMMAP_REGIONS)) {
+		int rc;
+		unsigned long long start, size;
+		char *k = strchr(str, ',');
+
+		if (k)
+			*k++ = 0;
+
+		rc = parse_memmap(str, &start, &size);
+		if (rc < 0)
+			break;
+		str = k;
+		/* A usable region that should not be skipped */
+		if (size == 0)
+			continue;
+
+		mem_avoid[MEM_AVOID_MEMMAP_BEGIN + i].start = start;
+		mem_avoid[MEM_AVOID_MEMMAP_BEGIN + i].size = size;
+		i++;
+	}
+
+	/* More than 4 memmaps, fail kaslr */
+	if ((i >= MAX_MEMMAP_REGIONS) && str)
+		memmap_too_large = true;
 }
 
 /*
@@ -196,6 +321,9 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 			 mem_avoid[MEM_AVOID_BOOTPARAMS].size);
 
 	/* We don't need to set a mapping for setup_data. */
+
+	/* Mark the memmap regions we need to avoid */
+	mem_avoid_memmap();
 
 #ifdef CONFIG_X86_VERBOSE_BOOTUP
 	/* Make sure video RAM can be used. */
@@ -379,6 +507,12 @@ static unsigned long find_random_phys_addr(unsigned long minimum,
 	int i;
 	unsigned long addr;
 
+	/* Check if we had too many memmaps. */
+	if (memmap_too_large) {
+		debug_putstr("Aborted e820 scan (more than 4 memmap= args)!\n");
+		return 0;
+	}
+
 	/* Make sure minimum is aligned. */
 	minimum = ALIGN(minimum, CONFIG_PHYSICAL_ALIGN);
 
@@ -456,7 +590,7 @@ void choose_random_location(unsigned long input,
 	/* Walk e820 and find a random address. */
 	random_addr = find_random_phys_addr(min_addr, output_size);
 	if (!random_addr) {
-		warn("KASLR disabled: could not find suitable E820 region!");
+		warn("Physical KASLR disabled: no suitable memory region!");
 	} else {
 		/* Update the new physical address location. */
 		if (*output != random_addr) {

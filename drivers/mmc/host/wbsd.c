@@ -1437,11 +1437,14 @@ err:
 
 static void wbsd_release_dma(struct wbsd_host *host)
 {
-	if (!dma_mapping_error(mmc_dev(host->mmc), host->dma_addr)) {
+	/*
+	 * host->dma_addr is valid here iff host->dma_buffer is not NULL.
+	 */
+	if (host->dma_buffer) {
 		dma_unmap_single(mmc_dev(host->mmc), host->dma_addr,
 			WBSD_DMA_SIZE, DMA_BIDIRECTIONAL);
+		kfree(host->dma_buffer);
 	}
-	kfree(host->dma_buffer);
 	if (host->dma >= 0)
 		free_dma(host->dma);
 

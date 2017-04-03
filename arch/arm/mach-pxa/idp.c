@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/fb.h>
 

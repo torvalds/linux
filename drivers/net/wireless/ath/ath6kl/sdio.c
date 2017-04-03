@@ -713,7 +713,7 @@ static void ath6kl_sdio_cleanup_scatter(struct ath6kl *ar)
 		 * that the packet is properly freed?
 		 */
 		if (s_req->busrequest) {
-			s_req->busrequest->scat_req = 0;
+			s_req->busrequest->scat_req = NULL;
 			ath6kl_sdio_free_bus_req(ar_sdio, s_req->busrequest);
 		}
 		kfree(s_req->virt_dma_buf);

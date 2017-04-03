@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -624,14 +624,14 @@ static int get_serial_info(struct gb_tty *gb_tty,
 	struct serial_struct tmp;
 
 	memset(&tmp, 0, sizeof(tmp));
-	tmp.flags = ASYNC_LOW_LATENCY | ASYNC_SKIP_TEST;
 	tmp.type = PORT_16550A;
 	tmp.line = gb_tty->minor;
 	tmp.xmit_fifo_size = 16;
 	tmp.baud_base = 9600;
 	tmp.close_delay = gb_tty->port.close_delay / 10;
-	tmp.closing_wait = gb_tty->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
-				ASYNC_CLOSING_WAIT_NONE : gb_tty->port.closing_wait / 10;
+	tmp.closing_wait =
+		gb_tty->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
+		ASYNC_CLOSING_WAIT_NONE : gb_tty->port.closing_wait / 10;
 
 	if (copy_to_user(info, &tmp, sizeof(tmp)))
 		return -EFAULT;
@@ -1000,7 +1000,8 @@ static int gb_tty_init(void)
 	gb_tty_driver->subtype = SERIAL_TYPE_NORMAL;
 	gb_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	gb_tty_driver->init_termios = tty_std_termios;
-	gb_tty_driver->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	gb_tty_driver->init_termios.c_cflag = B9600 | CS8 |
+		CREAD | HUPCL | CLOCAL;
 	tty_set_operations(gb_tty_driver, &gb_ops);
 
 	retval = tty_register_driver(gb_tty_driver);

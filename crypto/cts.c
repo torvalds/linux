@@ -49,6 +49,7 @@
 #include <linux/scatterlist.h>
 #include <crypto/scatterwalk.h>
 #include <linux/slab.h>
+#include <linux/compiler.h>
 
 struct crypto_cts_ctx {
 	struct crypto_skcipher *child;
@@ -103,7 +104,7 @@ static int cts_cbc_encrypt(struct skcipher_request *req)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct skcipher_request *subreq = &rctx->subreq;
 	int bsize = crypto_skcipher_blocksize(tfm);
-	u8 d[bsize * 2] __attribute__ ((aligned(__alignof__(u32))));
+	u8 d[bsize * 2] __aligned(__alignof__(u32));
 	struct scatterlist *sg;
 	unsigned int offset;
 	int lastn;
@@ -183,7 +184,7 @@ static int cts_cbc_decrypt(struct skcipher_request *req)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct skcipher_request *subreq = &rctx->subreq;
 	int bsize = crypto_skcipher_blocksize(tfm);
-	u8 d[bsize * 2] __attribute__ ((aligned(__alignof__(u32))));
+	u8 d[bsize * 2] __aligned(__alignof__(u32));
 	struct scatterlist *sg;
 	unsigned int offset;
 	u8 *space;
@@ -372,9 +373,6 @@ static int crypto_cts_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = alg->base.cra_blocksize;
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask;
-
-	/* We access the data as u32s when xoring. */
-	inst->alg.base.cra_alignmask |= __alignof__(u32) - 1;
 
 	inst->alg.ivsize = alg->base.cra_blocksize;
 	inst->alg.chunksize = crypto_skcipher_alg_chunksize(alg);

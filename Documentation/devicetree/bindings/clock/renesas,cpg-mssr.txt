@@ -42,6 +42,10 @@ Required Properties:
 	Domain bindings in
 	Documentation/devicetree/bindings/power/power_domain.txt.
 
+  - #reset-cells: Must be 1
+      - The single reset specifier cell must be the module number, as defined
+	in the datasheet.
+
 
 Examples
 --------
@@ -55,6 +59,7 @@ Examples
 		clock-names = "extal", "extalr";
 		#clock-cells = <2>;
 		#power-domain-cells = <0>;
+		#reset-cells = <1>;
 	};
 
 
@@ -69,5 +74,6 @@ Examples
 		dmas = <&dmac1 0x13>, <&dmac1 0x12>;
 		dma-names = "tx", "rx";
 		power-domains = <&cpg>;
+		resets = <&cpg 310>;
 		status = "disabled";
 	};

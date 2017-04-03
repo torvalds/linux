@@ -5,6 +5,7 @@
  *   Copyright (C) 2000 Philipp Rumpf */
 
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <asm/io.h>

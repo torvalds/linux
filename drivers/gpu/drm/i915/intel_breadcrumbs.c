@@ -23,6 +23,7 @@
  */
 
 #include <linux/kthread.h>
+#include <uapi/linux/sched/types.h>
 
 #include "i915_drv.h"
 
@@ -154,7 +155,7 @@ static void __intel_breadcrumbs_disable_irq(struct intel_breadcrumbs *b)
 
 static inline struct intel_wait *to_wait(struct rb_node *node)
 {
-	return container_of(node, struct intel_wait, node);
+	return rb_entry(node, struct intel_wait, node);
 }
 
 static inline void __intel_breadcrumbs_finish(struct intel_breadcrumbs *b,
@@ -427,7 +428,7 @@ static bool signal_complete(struct drm_i915_gem_request *request)
 
 static struct drm_i915_gem_request *to_signaler(struct rb_node *rb)
 {
-	return container_of(rb, struct drm_i915_gem_request, signaling.node);
+	return rb_entry(rb, struct drm_i915_gem_request, signaling.node);
 }
 
 static void signaler_set_rtpriority(void)
@@ -622,6 +623,12 @@ void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+
+	/* The engines should be idle and all requests accounted for! */
+	WARN_ON(READ_ONCE(b->first_wait));
+	WARN_ON(!RB_EMPTY_ROOT(&b->waiters));
+	WARN_ON(READ_ONCE(b->first_signal));
+	WARN_ON(!RB_EMPTY_ROOT(&b->signals));
 
 	if (!IS_ERR_OR_NULL(b->signaler))
 		kthread_stop(b->signaler);

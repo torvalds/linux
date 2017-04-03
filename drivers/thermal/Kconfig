@@ -245,6 +245,15 @@ config RCAR_THERMAL
 	  Enable this to plug the R-Car thermal sensor driver into the Linux
 	  thermal framework.
 
+config RCAR_GEN3_THERMAL
+	tristate "Renesas R-Car Gen3 thermal driver"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on OF
+	help
+	  Enable this to plug the R-Car Gen3 thermal sensor driver into the Linux
+	  thermal framework.
+
 config KIRKWOOD_THERMAL
 	tristate "Temperature sensor on Marvell Kirkwood SoCs"
 	depends on MACH_KIRKWOOD || COMPILE_TEST
@@ -435,5 +444,13 @@ menu "Qualcomm thermal drivers"
 depends on (ARCH_QCOM && OF) || COMPILE_TEST
 source "drivers/thermal/qcom/Kconfig"
 endmenu
+
+config ZX2967_THERMAL
+	tristate "Thermal sensors on zx2967 SoC"
+	depends on ARCH_ZX || COMPILE_TEST
+	help
+	  Enable the zx2967 thermal sensors driver, which supports
+	  the primitive temperature sensor embedded in zx2967 SoCs.
+	  This sensor generates the real time die temperature.
 
 endif

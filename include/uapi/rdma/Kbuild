@@ -1,5 +1,6 @@
 # UAPI Header export list
 header-y += ib_user_cm.h
+header-y += rdma_user_ioctl.h
 header-y += ib_user_mad.h
 header-y += ib_user_sa.h
 header-y += ib_user_verbs.h

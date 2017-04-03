@@ -16,18 +16,13 @@
 #include <linux/slab.h>
 #include <linux/mmzone.h>
 #include <linux/edac.h>
+#include <asm/cpu_device_id.h>
 #include <asm/msr.h>
 #include "edac_module.h"
 #include "mce_amd.h"
 
-#define amd64_debug(fmt, arg...) \
-	edac_printk(KERN_DEBUG, "amd64", fmt, ##arg)
-
 #define amd64_info(fmt, arg...) \
 	edac_printk(KERN_INFO, "amd64", fmt, ##arg)
-
-#define amd64_notice(fmt, arg...) \
-	edac_printk(KERN_NOTICE, "amd64", fmt, ##arg)
 
 #define amd64_warn(fmt, arg...) \
 	edac_printk(KERN_WARNING, "amd64", "Warning: " fmt, ##arg)
@@ -90,7 +85,7 @@
  *         sections 3.5.4 and 3.5.5 for more information.
  */
 
-#define EDAC_AMD64_VERSION		"3.4.0"
+#define EDAC_AMD64_VERSION		"3.5.0"
 #define EDAC_MOD_STR			"amd64_edac"
 
 /* Extended Model from CPUID, for CPU Revision numbers */

@@ -601,7 +601,7 @@ static struct drxj_data drxj_data_g = {
 	0,			/* hi_cfg_wake_up_key    */
 	0,			/* hi_cfg_ctrl         */
 	0,			/* HICfgTimeout      */
-	/* UIO configuartion */
+	/* UIO configuration */
 	DRX_UIO_MODE_DISABLE,	/* uio_sma_rx_mode      */
 	DRX_UIO_MODE_DISABLE,	/* uio_sma_tx_mode      */
 	DRX_UIO_MODE_DISABLE,	/* uioASELMode       */
@@ -619,7 +619,7 @@ static struct drxj_data drxj_data_g = {
 /*   false,                  * flagHDevSet       */
 /*   (u16) 0xFFF,          * rdsLastCount      */
 
-	/* ATV configuartion */
+	/* ATV configuration */
 	0UL,			/* flags cfg changes */
 	/* shadow of ATV_TOP_EQU0__A */
 	{-5,
@@ -3352,7 +3352,7 @@ rw_error:
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
-/* miscellaneous configuartions - begin                           */
+/* miscellaneous configurations - begin                           */
 /*----------------------------------------------------------------------------*/
 
 /**
@@ -3515,7 +3515,7 @@ rw_error:
 }
 
 /*----------------------------------------------------------------------------*/
-/* miscellaneous configuartions - end                             */
+/* miscellaneous configurations - end                             */
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -10952,7 +10952,7 @@ rw_error:
 
 static void drxj_reset_mode(struct drxj_data *ext_attr)
 {
-	/* Initialize default AFE configuartion for QAM */
+	/* Initialize default AFE configuration for QAM */
 	if (ext_attr->has_lna) {
 		/* IF AGC off, PGA active */
 #ifndef DRXJ_VSB_ONLY
@@ -10996,7 +10996,7 @@ static void drxj_reset_mode(struct drxj_data *ext_attr)
 	ext_attr->qam_pre_saw_cfg.reference = 0x07;
 	ext_attr->qam_pre_saw_cfg.use_pre_saw = true;
 #endif
-	/* Initialize default AFE configuartion for VSB */
+	/* Initialize default AFE configuration for VSB */
 	ext_attr->vsb_rf_agc_cfg.standard = DRX_STANDARD_8VSB;
 	ext_attr->vsb_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
 	ext_attr->vsb_rf_agc_cfg.min_output_level = 0;
@@ -11072,9 +11072,9 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 	}
 
 	if ((*mode == DRX_POWER_UP)) {
-		/* Restore analog & pin configuartion */
+		/* Restore analog & pin configuration */
 
-		/* Initialize default AFE configuartion for VSB */
+		/* Initialize default AFE configuration for VSB */
 		drxj_reset_mode(ext_attr);
 	} else {
 		/* Power down to requested mode */

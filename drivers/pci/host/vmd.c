@@ -282,7 +282,7 @@ static struct device *to_vmd_dev(struct device *dev)
 	return &vmd->dev->dev;
 }
 
-static struct dma_map_ops *vmd_dma_ops(struct device *dev)
+static const struct dma_map_ops *vmd_dma_ops(struct device *dev)
 {
 	return get_dma_ops(to_vmd_dev(dev));
 }

@@ -464,7 +464,7 @@ static int korina_poll(struct napi_struct *napi, int budget)
 
 	work_done = korina_rx(dev, budget);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		writel(readl(&lp->rx_dma_regs->dmasm) &
 			~(DMA_STAT_DONE | DMA_STAT_HALT | DMA_STAT_ERR),
@@ -695,25 +695,27 @@ static void netdev_get_drvinfo(struct net_device *dev,
 	strlcpy(info->bus_info, lp->dev->name, sizeof(info->bus_info));
 }
 
-static int netdev_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int netdev_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct korina_private *lp = netdev_priv(dev);
 	int rc;
 
 	spin_lock_irq(&lp->lock);
-	rc = mii_ethtool_gset(&lp->mii_if, cmd);
+	rc = mii_ethtool_get_link_ksettings(&lp->mii_if, cmd);
 	spin_unlock_irq(&lp->lock);
 
 	return rc;
 }
 
-static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int netdev_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct korina_private *lp = netdev_priv(dev);
 	int rc;
 
 	spin_lock_irq(&lp->lock);
-	rc = mii_ethtool_sset(&lp->mii_if, cmd);
+	rc = mii_ethtool_set_link_ksettings(&lp->mii_if, cmd);
 	spin_unlock_irq(&lp->lock);
 	korina_set_carrier(&lp->mii_if);
 
@@ -729,9 +731,9 @@ static u32 netdev_get_link(struct net_device *dev)
 
 static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo            = netdev_get_drvinfo,
-	.get_settings           = netdev_get_settings,
-	.set_settings           = netdev_set_settings,
 	.get_link               = netdev_get_link,
+	.get_link_ksettings     = netdev_get_link_ksettings,
+	.set_link_ksettings     = netdev_set_link_ksettings,
 };
 
 static int korina_alloc_ring(struct net_device *dev)

@@ -48,7 +48,7 @@ enum sti_plane_status {
 	STI_PLANE_DISABLED,
 };
 
-#define FPS_LENGTH 64
+#define FPS_LENGTH 128
 struct sti_fps_info {
 	bool output;
 	unsigned int curr_frame_counter;

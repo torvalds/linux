@@ -661,8 +661,9 @@ static ssize_t adt7316_store_da_high_resolution(struct device *dev,
 			chip->dac_bits = 12;
 		else if (chip->id == ID_ADT7317 || chip->id == ID_ADT7517)
 			chip->dac_bits = 10;
-	} else
+	} else {
 		config3 = chip->config3 & (~ADT7316_DA_HIGH_RESOLUTION);
+	}
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG3, config3);
 	if (ret)

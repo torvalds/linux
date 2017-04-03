@@ -440,7 +440,6 @@ void qdisc_put_rtab(struct qdisc_rate_table *tab)
 EXPORT_SYMBOL(qdisc_put_rtab);
 
 static LIST_HEAD(qdisc_stab_list);
-static DEFINE_SPINLOCK(qdisc_stab_lock);
 
 static const struct nla_policy stab_policy[TCA_STAB_MAX + 1] = {
 	[TCA_STAB_BASE]	= { .len = sizeof(struct tc_sizespec) },
@@ -474,19 +473,14 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 	if (tsize != s->tsize || (!tab && tsize > 0))
 		return ERR_PTR(-EINVAL);
 
-	spin_lock(&qdisc_stab_lock);
-
 	list_for_each_entry(stab, &qdisc_stab_list, list) {
 		if (memcmp(&stab->szopts, s, sizeof(*s)))
 			continue;
 		if (tsize > 0 && memcmp(stab->data, tab, tsize * sizeof(u16)))
 			continue;
 		stab->refcnt++;
-		spin_unlock(&qdisc_stab_lock);
 		return stab;
 	}
-
-	spin_unlock(&qdisc_stab_lock);
 
 	stab = kmalloc(sizeof(*stab) + tsize * sizeof(u16), GFP_KERNEL);
 	if (!stab)
@@ -497,9 +491,7 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 	if (tsize > 0)
 		memcpy(stab->data, tab, tsize * sizeof(u16));
 
-	spin_lock(&qdisc_stab_lock);
 	list_add_tail(&stab->list, &qdisc_stab_list);
-	spin_unlock(&qdisc_stab_lock);
 
 	return stab;
 }
@@ -514,14 +506,10 @@ void qdisc_put_stab(struct qdisc_size_table *tab)
 	if (!tab)
 		return;
 
-	spin_lock(&qdisc_stab_lock);
-
 	if (--tab->refcnt == 0) {
 		list_del(&tab->list);
 		call_rcu_bh(&tab->rcu, stab_kfree_rcu);
 	}
-
-	spin_unlock(&qdisc_stab_lock);
 }
 EXPORT_SYMBOL(qdisc_put_stab);
 
@@ -1019,6 +1007,8 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 
 		return sch;
 	}
+	/* ops->init() failed, we call ->destroy() like qdisc_create_dflt() */
+	ops->destroy(sch);
 err_out3:
 	dev_put(dev);
 	kfree((char *) sch - sch->padded);
@@ -1861,6 +1851,7 @@ int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 {
 	__be16 protocol = tc_skb_protocol(skb);
 #ifdef CONFIG_NET_CLS_ACT
+	const int max_reclassify_loop = 4;
 	const struct tcf_proto *old_tp = tp;
 	int limit = 0;
 
@@ -1885,7 +1876,7 @@ reclassify:
 	return TC_ACT_UNSPEC; /* signal: continue lookup */
 #ifdef CONFIG_NET_CLS_ACT
 reset:
-	if (unlikely(limit++ >= MAX_REC_LOOP)) {
+	if (unlikely(limit++ >= max_reclassify_loop)) {
 		net_notice_ratelimited("%s: reclassify loop, rule prio %u, protocol %02x\n",
 				       tp->q->ops->id, tp->prio & 0xffff,
 				       ntohs(tp->protocol));
@@ -1898,28 +1889,6 @@ reset:
 #endif
 }
 EXPORT_SYMBOL(tc_classify);
-
-bool tcf_destroy(struct tcf_proto *tp, bool force)
-{
-	if (tp->ops->destroy(tp, force)) {
-		module_put(tp->ops->owner);
-		kfree_rcu(tp, rcu);
-		return true;
-	}
-
-	return false;
-}
-
-void tcf_destroy_chain(struct tcf_proto __rcu **fl)
-{
-	struct tcf_proto *tp;
-
-	while ((tp = rtnl_dereference(*fl)) != NULL) {
-		RCU_INIT_POINTER(*fl, tp->next);
-		tcf_destroy(tp, true);
-	}
-}
-EXPORT_SYMBOL(tcf_destroy_chain);
 
 #ifdef CONFIG_PROC_FS
 static int psched_show(struct seq_file *seq, void *v)

@@ -55,7 +55,6 @@
 #define KVM_REQ_TRIPLE_FAULT      10
 #define KVM_REQ_MMU_SYNC          11
 #define KVM_REQ_CLOCK_UPDATE      12
-#define KVM_REQ_DEACTIVATE_FPU    13
 #define KVM_REQ_EVENT             14
 #define KVM_REQ_APF_HALT          15
 #define KVM_REQ_STEAL_UPDATE      16
@@ -115,7 +114,7 @@ static inline gfn_t gfn_to_index(gfn_t gfn, gfn_t base_gfn, int level)
 
 #define KVM_PERMILLE_MMU_PAGES 20
 #define KVM_MIN_ALLOC_MMU_PAGES 64
-#define KVM_MMU_HASH_SHIFT 10
+#define KVM_MMU_HASH_SHIFT 12
 #define KVM_NUM_MMU_PAGES (1 << KVM_MMU_HASH_SHIFT)
 #define KVM_MIN_FREE_MMU_PAGES 5
 #define KVM_REFILL_PAGES 25
@@ -207,6 +206,13 @@ enum {
 				 PFERR_USER_MASK |		\
 				 PFERR_WRITE_MASK |		\
 				 PFERR_PRESENT_MASK)
+
+/*
+ * The mask used to denote special SPTEs, which can be either MMIO SPTEs or
+ * Access Tracking SPTEs. We use bit 62 instead of bit 63 to avoid conflicting
+ * with the SVE bit in EPT PTEs.
+ */
+#define SPTE_SPECIAL_MASK (1ULL << 62)
 
 /* apic attention bits */
 #define KVM_APIC_CHECK_VAPIC	0
@@ -668,6 +674,9 @@ struct kvm_vcpu_arch {
 
 	int pending_ioapic_eoi;
 	int pending_external_vector;
+
+	/* GPA available (AMD only) */
+	bool gpa_available;
 };
 
 struct kvm_lpage_info {
@@ -714,6 +723,12 @@ struct kvm_hv {
 	u64 hv_crash_ctl;
 
 	HV_REFERENCE_TSC_PAGE tsc_ref;
+};
+
+enum kvm_irqchip_mode {
+	KVM_IRQCHIP_NONE,
+	KVM_IRQCHIP_KERNEL,       /* created with KVM_CREATE_IRQCHIP */
+	KVM_IRQCHIP_SPLIT,        /* created with KVM_CAP_SPLIT_IRQCHIP */
 };
 
 struct kvm_arch {
@@ -788,7 +803,7 @@ struct kvm_arch {
 
 	u64 disabled_quirks;
 
-	bool irqchip_split;
+	enum kvm_irqchip_mode irqchip_mode;
 	u8 nr_reserved_ioapic_pins;
 
 	bool disabled_lapic_found;
@@ -815,6 +830,7 @@ struct kvm_vm_stat {
 	ulong mmu_unsync;
 	ulong remote_tlb_flush;
 	ulong lpages;
+	ulong max_mmu_page_hash_collisions;
 };
 
 struct kvm_vcpu_stat {
@@ -844,6 +860,7 @@ struct kvm_vcpu_stat {
 	u64 hypercalls;
 	u64 irq_injections;
 	u64 nmi_injections;
+	u64 req_event;
 };
 
 struct x86_instruction_info;
@@ -918,8 +935,6 @@ struct kvm_x86_ops {
 	unsigned long (*get_rflags)(struct kvm_vcpu *vcpu);
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
 	u32 (*get_pkru)(struct kvm_vcpu *vcpu);
-	void (*fpu_activate)(struct kvm_vcpu *vcpu);
-	void (*fpu_deactivate)(struct kvm_vcpu *vcpu);
 
 	void (*tlb_flush)(struct kvm_vcpu *vcpu);
 
@@ -951,7 +966,7 @@ struct kvm_x86_ops {
 	void (*set_virtual_x2apic_mode)(struct kvm_vcpu *vcpu, bool set);
 	void (*set_apic_access_page_addr)(struct kvm_vcpu *vcpu, hpa_t hpa);
 	void (*deliver_posted_interrupt)(struct kvm_vcpu *vcpu, int vector);
-	void (*sync_pir_to_irr)(struct kvm_vcpu *vcpu);
+	int (*sync_pir_to_irr)(struct kvm_vcpu *vcpu);
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
 	int (*get_tdp_level)(void);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
@@ -1050,7 +1065,8 @@ void kvm_mmu_setup(struct kvm_vcpu *vcpu);
 void kvm_mmu_init_vm(struct kvm *kvm);
 void kvm_mmu_uninit_vm(struct kvm *kvm);
 void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
-		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask);
+		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask,
+		u64 acc_track_mask);
 
 void kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm,

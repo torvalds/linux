@@ -136,7 +136,7 @@ ssize_t lov_lsm_pack(const struct lov_stripe_md *lsm, void *buf,
 	lmmv1->lmm_layout_gen = cpu_to_le16(lsm->lsm_layout_gen);
 
 	if (lsm->lsm_magic == LOV_MAGIC_V3) {
-		CLASSERT(sizeof(lsm->lsm_pool_name) ==
+		BUILD_BUG_ON(sizeof(lsm->lsm_pool_name) !=
 			 sizeof(lmmv3->lmm_pool_name));
 		strlcpy(lmmv3->lmm_pool_name, lsm->lsm_pool_name,
 			sizeof(lmmv3->lmm_pool_name));
@@ -198,7 +198,8 @@ static int lov_verify_lmm(void *lmm, int lmm_bytes, __u16 *stripe_count)
 	return rc;
 }
 
-struct lov_stripe_md *lov_lsm_alloc(u16 stripe_count, u32 pattern, u32 magic)
+static struct lov_stripe_md *lov_lsm_alloc(u16 stripe_count, u32 pattern,
+					   u32 magic)
 {
 	struct lov_stripe_md *lsm;
 	unsigned int i;
@@ -356,8 +357,8 @@ int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
 
 	/* FIXME: Bug 1185 - copy fields properly when structs change */
 	/* struct lov_user_md_v3 and struct lov_mds_md_v3 must be the same */
-	CLASSERT(sizeof(lum) == sizeof(struct lov_mds_md_v3));
-	CLASSERT(sizeof(lum.lmm_objects[0]) == sizeof(lmmk->lmm_objects[0]));
+	BUILD_BUG_ON(sizeof(lum) != sizeof(struct lov_mds_md_v3));
+	BUILD_BUG_ON(sizeof(lum.lmm_objects[0]) != sizeof(lmmk->lmm_objects[0]));
 
 	if (cpu_to_le32(LOV_MAGIC) != LOV_MAGIC &&
 	    (lmmk->lmm_magic == cpu_to_le32(LOV_MAGIC_V1) ||

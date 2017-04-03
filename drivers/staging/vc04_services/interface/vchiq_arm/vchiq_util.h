@@ -47,7 +47,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/random.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/ctype.h>
 #include <linux/uaccess.h>
 #include <linux/time.h>  /* for time_t */

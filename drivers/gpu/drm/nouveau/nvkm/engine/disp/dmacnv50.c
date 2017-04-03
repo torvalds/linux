@@ -137,7 +137,6 @@ nv50_disp_dmac_new_(const struct nv50_disp_dmac_func *func,
 		    const struct nvkm_oclass *oclass,
 		    struct nvkm_object **pobject)
 {
-	struct nvkm_device *device = root->disp->base.engine.subdev.device;
 	struct nvkm_client *client = oclass->client;
 	struct nvkm_dmaobj *dmaobj;
 	struct nv50_disp_dmac *chan;
@@ -153,9 +152,9 @@ nv50_disp_dmac_new_(const struct nv50_disp_dmac_func *func,
 	if (ret)
 		return ret;
 
-	dmaobj = nvkm_dma_search(device->dma, client, push);
-	if (!dmaobj)
-		return -ENOENT;
+	dmaobj = nvkm_dmaobj_search(client, push);
+	if (IS_ERR(dmaobj))
+		return PTR_ERR(dmaobj);
 
 	if (dmaobj->limit - dmaobj->start != 0xfff)
 		return -EINVAL;

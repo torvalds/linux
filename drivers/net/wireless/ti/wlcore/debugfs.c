@@ -281,7 +281,7 @@ static ssize_t dynamic_ps_timeout_write(struct file *file,
 	}
 
 	if (value < 1 || value > 65535) {
-		wl1271_warning("dyanmic_ps_timeout is not in valid range");
+		wl1271_warning("dynamic_ps_timeout is not in valid range");
 		return -ERANGE;
 	}
 

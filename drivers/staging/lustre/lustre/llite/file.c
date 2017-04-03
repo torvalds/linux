@@ -122,26 +122,25 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 				     enum mds_op_bias bias,
 				     void *data)
 {
-	struct obd_export *exp = ll_i2mdexp(inode);
+	const struct ll_inode_info *lli = ll_i2info(inode);
 	struct md_op_data *op_data;
 	struct ptlrpc_request *req = NULL;
-	struct obd_device *obd = class_exp2obd(exp);
 	int rc;
 
-	if (!obd) {
-		/*
-		 * XXX: in case of LMV, is this correct to access
-		 * ->exp_handle?
-		 */
-		CERROR("Invalid MDC connection handle %#llx\n",
-		       ll_i2mdexp(inode)->exp_handle.h_cookie);
+	if (!class_exp2obd(md_exp)) {
+		CERROR("%s: invalid MDC connection handle closing " DFID "\n",
+		       ll_get_fsname(inode->i_sb, NULL, 0),
+		       PFID(&lli->lli_fid));
 		rc = 0;
 		goto out;
 	}
 
 	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+	/*
+	 * We leak openhandle and request here on error, but not much to be
+	 * done in OOM case since app won't retry close on error either.
+	 */
 	if (!op_data) {
-		/* XXX We leak openhandle and request here. */
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -170,10 +169,9 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 	}
 
 	rc = md_close(md_exp, op_data, och->och_mod, &req);
-	if (rc) {
-		CERROR("%s: inode "DFID" mdc close failed: rc = %d\n",
-		       ll_i2mdexp(inode)->exp_obd->obd_name,
-		       PFID(ll_inode2fid(inode)), rc);
+	if (rc && rc != -EINTR) {
+		CERROR("%s: inode " DFID " mdc close failed: rc = %d\n",
+		       md_exp->exp_obd->obd_name, PFID(&lli->lli_fid), rc);
 	}
 
 	if (op_data->op_bias & (MDS_HSM_RELEASE | MDS_CLOSE_LAYOUT_SWAP) &&
@@ -192,8 +190,7 @@ out:
 	och->och_fh.cookie = DEAD_HANDLE_MAGIC;
 	kfree(och);
 
-	if (req) /* This is close request */
-		ptlrpc_req_finished(req);
+	ptlrpc_req_finished(req);
 	return rc;
 }
 
@@ -419,6 +416,17 @@ static int ll_intent_file_open(struct dentry *de, void *lmm, int lmmsize,
 out:
 	ptlrpc_req_finished(req);
 	ll_intent_drop_lock(itp);
+
+	/*
+	 * We did open by fid, but by the time we got to the server,
+	 * the object disappeared. If this is a create, we cannot really
+	 * tell the userspace that the file it was trying to create
+	 * does not exist. Instead let's return -ESTALE, and the VFS will
+	 * retry the create with LOOKUP_REVAL that we are going to catch
+	 * in ll_revalidate_dentry() and use lookup then.
+	 */
+	if (rc == -ENOENT && itp->it_op & IT_CREAT)
+		rc = -ESTALE;
 
 	return rc;
 }
@@ -1016,7 +1024,7 @@ static bool file_is_noatime(const struct file *file)
 	return false;
 }
 
-void ll_io_init(struct cl_io *io, const struct file *file, int write)
+static void ll_io_init(struct cl_io *io, const struct file *file, int write)
 {
 	struct inode *inode = file_inode(file);
 
@@ -1821,7 +1829,7 @@ free:
 	return rc;
 }
 
-static int ll_hsm_state_set(struct inode *inode, struct hsm_state_set *hss)
+int ll_hsm_state_set(struct inode *inode, struct hsm_state_set *hss)
 {
 	struct md_op_data	*op_data;
 	int			 rc;
@@ -1883,7 +1891,7 @@ static int ll_hsm_import(struct inode *inode, struct file *file,
 		goto free_hss;
 	}
 
-	attr->ia_mode = hui->hui_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+	attr->ia_mode = hui->hui_mode & 0777;
 	attr->ia_mode |= S_IFREG;
 	attr->ia_uid = make_kuid(&init_user_ns, hui->hui_uid);
 	attr->ia_gid = make_kgid(&init_user_ns, hui->hui_gid);
@@ -2618,18 +2626,18 @@ int ll_migrate(struct inode *parent, struct file *file, int mdtidx,
 		       ll_get_fsname(parent->i_sb, NULL, 0), name,
 		       PFID(&op_data->op_fid3));
 		rc = -EINVAL;
-		goto out_free;
+		goto out_unlock;
 	}
 
 	rc = ll_get_mdt_idx_by_fid(ll_i2sbi(parent), &op_data->op_fid3);
 	if (rc < 0)
-		goto out_free;
+		goto out_unlock;
 
 	if (rc == mdtidx) {
 		CDEBUG(D_INFO, "%s:"DFID" is already on MDT%d.\n", name,
 		       PFID(&op_data->op_fid3), mdtidx);
 		rc = 0;
-		goto out_free;
+		goto out_unlock;
 	}
 again:
 	if (S_ISREG(child_inode->i_mode)) {
@@ -2637,13 +2645,13 @@ again:
 		if (IS_ERR(och)) {
 			rc = PTR_ERR(och);
 			och = NULL;
-			goto out_free;
+			goto out_unlock;
 		}
 
 		rc = ll_data_version(child_inode, &data_version,
 				     LL_DV_WR_FLUSH);
 		if (rc)
-			goto out_free;
+			goto out_close;
 
 		op_data->op_handle = och->och_fh;
 		op_data->op_data = och->och_mod;
@@ -2656,40 +2664,45 @@ again:
 	op_data->op_cli_flags = CLI_MIGRATE;
 	rc = md_rename(ll_i2sbi(parent)->ll_md_exp, op_data, name,
 		       namelen, name, namelen, &request);
-	if (!rc)
+	if (!rc) {
+		LASSERT(request);
 		ll_update_times(request, parent);
 
-	body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
-	if (!body) {
-		rc = -EPROTO;
-		goto out_free;
+		body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
+		LASSERT(body);
+
+		/*
+		 * If the server does release layout lock, then we cleanup
+		 * the client och here, otherwise release it in out_close:
+		 */
+		if (och && body->mbo_valid & OBD_MD_CLOSE_INTENT_EXECED) {
+			obd_mod_put(och->och_mod);
+			md_clear_open_replay_data(ll_i2sbi(parent)->ll_md_exp,
+						  och);
+			och->och_fh.cookie = DEAD_HANDLE_MAGIC;
+			kfree(och);
+			och = NULL;
+		}
 	}
 
-	/*
-	 * If the server does release layout lock, then we cleanup
-	 * the client och here, otherwise release it in out_free:
-	 */
-	if (och && body->mbo_valid & OBD_MD_CLOSE_INTENT_EXECED) {
-		obd_mod_put(och->och_mod);
-		md_clear_open_replay_data(ll_i2sbi(parent)->ll_md_exp, och);
-		och->och_fh.cookie = DEAD_HANDLE_MAGIC;
-		kfree(och);
-		och = NULL;
+	if (request) {
+		ptlrpc_req_finished(request);
+		request = NULL;
 	}
 
-	ptlrpc_req_finished(request);
 	/* Try again if the file layout has changed. */
 	if (rc == -EAGAIN && S_ISREG(child_inode->i_mode))
 		goto again;
-out_free:
-	if (child_inode) {
-		if (och) /* close the file */
-			ll_lease_close(och, child_inode, NULL);
-		clear_nlink(child_inode);
-		inode_unlock(child_inode);
-		iput(child_inode);
-	}
 
+out_close:
+	if (och) /* close the file */
+		ll_lease_close(och, child_inode, NULL);
+	if (!rc)
+		clear_nlink(child_inode);
+out_unlock:
+	inode_unlock(child_inode);
+	iput(child_inode);
+out_free:
 	ll_finish_md_op_data(op_data);
 	return rc;
 }
@@ -2939,15 +2952,16 @@ static int ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 	return rc;
 }
 
-int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat)
+int ll_getattr(const struct path *path, struct kstat *stat,
+	       u32 request_mask, unsigned int flags)
 {
-	struct inode *inode = d_inode(de);
+	struct inode *inode = d_inode(path->dentry);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct ll_inode_info *lli = ll_i2info(inode);
 	int res;
 
-	res = ll_inode_revalidate(de, MDS_INODELOCK_UPDATE |
-				      MDS_INODELOCK_LOOKUP);
+	res = ll_inode_revalidate(path->dentry,
+				  MDS_INODELOCK_UPDATE | MDS_INODELOCK_LOOKUP);
 	ll_stats_ops_tally(sbi, LPROC_LL_GETATTR, 1);
 
 	if (res)

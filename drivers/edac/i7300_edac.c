@@ -304,7 +304,6 @@ static const char *ferr_global_lo_name[] = {
 #define REDMEMA		0xdc
 
 #define REDMEMB		0x7c
-  #define IS_SECOND_CH(v)	((v) * (1 << 17))
 
 #define RECMEMA		0xe0
   #define RECMEMA_BANK(v)	(((v) >> 12) & 7)
@@ -483,8 +482,9 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
 				     REDMEMB, &value);
 		channel = (branch << 1);
-		if (IS_SECOND_CH(value))
-			channel++;
+
+		/* Second channel ? */
+		channel += !!(value & BIT(17));
 
 		/* Clear the error bit */
 		pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map,

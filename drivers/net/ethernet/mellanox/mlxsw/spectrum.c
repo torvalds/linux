@@ -1,7 +1,7 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/spectrum.c
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2015 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2015-2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2017 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2015 Ido Schimmel <idosch@mellanox.com>
  * Copyright (c) 2015 Elad Raz <eladr@mellanox.com>
  *
@@ -57,6 +57,7 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_mirred.h>
 #include <net/netevent.h>
+#include <net/tc_act/tc_sample.h>
 
 #include "spectrum.h"
 #include "pci.h"
@@ -136,8 +137,6 @@ MLXSW_ITEM32(tx, hdr, fid, 0x08, 0, 16);
  * 6 - Control packets
  */
 MLXSW_ITEM32(tx, hdr, type, 0x0C, 0, 4);
-
-static bool mlxsw_sp_port_dev_check(const struct net_device *dev);
 
 static void mlxsw_sp_txhdr_construct(struct sk_buff *skb,
 				     const struct mlxsw_tx_info *tx_info)
@@ -467,6 +466,16 @@ static void mlxsw_sp_span_mirror_remove(struct mlxsw_sp_port *from,
 	netdev_dbg(from->dev, "removing inspected port from SPAN entry %d\n",
 		   span_entry->id);
 	mlxsw_sp_span_inspected_port_unbind(from, span_entry, type);
+}
+
+static int mlxsw_sp_port_sample_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				    bool enable, u32 rate)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char mpsc_pl[MLXSW_REG_MPSC_LEN];
+
+	mlxsw_reg_mpsc_pack(mpsc_pl, mlxsw_sp_port->local_port, enable, rate);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpsc), mpsc_pl);
 }
 
 static int mlxsw_sp_port_admin_status_set(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -948,15 +957,13 @@ out:
 /* Return the stats from a cache that is updated periodically,
  * as this function might get called in an atomic context.
  */
-static struct rtnl_link_stats64 *
+static void
 mlxsw_sp_port_get_stats64(struct net_device *dev,
 			  struct rtnl_link_stats64 *stats)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 
 	memcpy(stats, mlxsw_sp_port->hw_stats.cache, sizeof(*stats));
-
-	return stats;
 }
 
 int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
@@ -1164,8 +1171,8 @@ static int mlxsw_sp_port_get_phys_port_name(struct net_device *dev, char *name,
 }
 
 static struct mlxsw_sp_port_mall_tc_entry *
-mlxsw_sp_port_mirror_entry_find(struct mlxsw_sp_port *port,
-				unsigned long cookie) {
+mlxsw_sp_port_mall_tc_entry_find(struct mlxsw_sp_port *port,
+				 unsigned long cookie) {
 	struct mlxsw_sp_port_mall_tc_entry *mall_tc_entry;
 
 	list_for_each_entry(mall_tc_entry, &port->mall_tc_list, list)
@@ -1177,17 +1184,15 @@ mlxsw_sp_port_mirror_entry_find(struct mlxsw_sp_port *port,
 
 static int
 mlxsw_sp_port_add_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
-				      struct tc_cls_matchall_offload *cls,
+				      struct mlxsw_sp_port_mall_mirror_tc_entry *mirror,
 				      const struct tc_action *a,
 				      bool ingress)
 {
-	struct mlxsw_sp_port_mall_tc_entry *mall_tc_entry;
 	struct net *net = dev_net(mlxsw_sp_port->dev);
 	enum mlxsw_sp_span_type span_type;
 	struct mlxsw_sp_port *to_port;
 	struct net_device *to_dev;
 	int ifindex;
-	int err;
 
 	ifindex = tcf_mirred_ifindex(a);
 	to_dev = __dev_get_by_index(net, ifindex);
@@ -1198,30 +1203,73 @@ mlxsw_sp_port_add_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (!mlxsw_sp_port_dev_check(to_dev)) {
 		netdev_err(mlxsw_sp_port->dev, "Cannot mirror to a non-spectrum port");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 	to_port = netdev_priv(to_dev);
 
-	mall_tc_entry = kzalloc(sizeof(*mall_tc_entry), GFP_KERNEL);
-	if (!mall_tc_entry)
-		return -ENOMEM;
-
-	mall_tc_entry->cookie = cls->cookie;
-	mall_tc_entry->type = MLXSW_SP_PORT_MALL_MIRROR;
-	mall_tc_entry->mirror.to_local_port = to_port->local_port;
-	mall_tc_entry->mirror.ingress = ingress;
-	list_add_tail(&mall_tc_entry->list, &mlxsw_sp_port->mall_tc_list);
-
+	mirror->to_local_port = to_port->local_port;
+	mirror->ingress = ingress;
 	span_type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	err = mlxsw_sp_span_mirror_add(mlxsw_sp_port, to_port, span_type);
+	return mlxsw_sp_span_mirror_add(mlxsw_sp_port, to_port, span_type);
+}
+
+static void
+mlxsw_sp_port_del_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
+				      struct mlxsw_sp_port_mall_mirror_tc_entry *mirror)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	enum mlxsw_sp_span_type span_type;
+	struct mlxsw_sp_port *to_port;
+
+	to_port = mlxsw_sp->ports[mirror->to_local_port];
+	span_type = mirror->ingress ?
+			MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
+	mlxsw_sp_span_mirror_remove(mlxsw_sp_port, to_port, span_type);
+}
+
+static int
+mlxsw_sp_port_add_cls_matchall_sample(struct mlxsw_sp_port *mlxsw_sp_port,
+				      struct tc_cls_matchall_offload *cls,
+				      const struct tc_action *a,
+				      bool ingress)
+{
+	int err;
+
+	if (!mlxsw_sp_port->sample)
+		return -EOPNOTSUPP;
+	if (rtnl_dereference(mlxsw_sp_port->sample->psample_group)) {
+		netdev_err(mlxsw_sp_port->dev, "sample already active\n");
+		return -EEXIST;
+	}
+	if (tcf_sample_rate(a) > MLXSW_REG_MPSC_RATE_MAX) {
+		netdev_err(mlxsw_sp_port->dev, "sample rate not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	rcu_assign_pointer(mlxsw_sp_port->sample->psample_group,
+			   tcf_sample_psample_group(a));
+	mlxsw_sp_port->sample->truncate = tcf_sample_truncate(a);
+	mlxsw_sp_port->sample->trunc_size = tcf_sample_trunc_size(a);
+	mlxsw_sp_port->sample->rate = tcf_sample_rate(a);
+
+	err = mlxsw_sp_port_sample_set(mlxsw_sp_port, true, tcf_sample_rate(a));
 	if (err)
-		goto err_mirror_add;
+		goto err_port_sample_set;
 	return 0;
 
-err_mirror_add:
-	list_del(&mall_tc_entry->list);
-	kfree(mall_tc_entry);
+err_port_sample_set:
+	RCU_INIT_POINTER(mlxsw_sp_port->sample->psample_group, NULL);
 	return err;
+}
+
+static void
+mlxsw_sp_port_del_cls_matchall_sample(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	if (!mlxsw_sp_port->sample)
+		return;
+
+	mlxsw_sp_port_sample_set(mlxsw_sp_port, false, 1);
+	RCU_INIT_POINTER(mlxsw_sp_port->sample->psample_group, NULL);
 }
 
 static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -1229,59 +1277,75 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 					  struct tc_cls_matchall_offload *cls,
 					  bool ingress)
 {
+	struct mlxsw_sp_port_mall_tc_entry *mall_tc_entry;
 	const struct tc_action *a;
 	LIST_HEAD(actions);
 	int err;
 
 	if (!tc_single_action(cls->exts)) {
 		netdev_err(mlxsw_sp_port->dev, "only singular actions are supported\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
+
+	mall_tc_entry = kzalloc(sizeof(*mall_tc_entry), GFP_KERNEL);
+	if (!mall_tc_entry)
+		return -ENOMEM;
+	mall_tc_entry->cookie = cls->cookie;
 
 	tcf_exts_to_list(cls->exts, &actions);
-	list_for_each_entry(a, &actions, list) {
-		if (!is_tcf_mirred_egress_mirror(a) ||
-		    protocol != htons(ETH_P_ALL)) {
-			return -ENOTSUPP;
-		}
+	a = list_first_entry(&actions, struct tc_action, list);
 
-		err = mlxsw_sp_port_add_cls_matchall_mirror(mlxsw_sp_port, cls,
+	if (is_tcf_mirred_egress_mirror(a) && protocol == htons(ETH_P_ALL)) {
+		struct mlxsw_sp_port_mall_mirror_tc_entry *mirror;
+
+		mall_tc_entry->type = MLXSW_SP_PORT_MALL_MIRROR;
+		mirror = &mall_tc_entry->mirror;
+		err = mlxsw_sp_port_add_cls_matchall_mirror(mlxsw_sp_port,
+							    mirror, a, ingress);
+	} else if (is_tcf_sample(a) && protocol == htons(ETH_P_ALL)) {
+		mall_tc_entry->type = MLXSW_SP_PORT_MALL_SAMPLE;
+		err = mlxsw_sp_port_add_cls_matchall_sample(mlxsw_sp_port, cls,
 							    a, ingress);
-		if (err)
-			return err;
+	} else {
+		err = -EOPNOTSUPP;
 	}
 
+	if (err)
+		goto err_add_action;
+
+	list_add_tail(&mall_tc_entry->list, &mlxsw_sp_port->mall_tc_list);
 	return 0;
+
+err_add_action:
+	kfree(mall_tc_entry);
+	return err;
 }
 
 static void mlxsw_sp_port_del_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 					   struct tc_cls_matchall_offload *cls)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_port_mall_tc_entry *mall_tc_entry;
-	enum mlxsw_sp_span_type span_type;
-	struct mlxsw_sp_port *to_port;
 
-	mall_tc_entry = mlxsw_sp_port_mirror_entry_find(mlxsw_sp_port,
-							cls->cookie);
+	mall_tc_entry = mlxsw_sp_port_mall_tc_entry_find(mlxsw_sp_port,
+							 cls->cookie);
 	if (!mall_tc_entry) {
 		netdev_dbg(mlxsw_sp_port->dev, "tc entry not found on port\n");
 		return;
 	}
+	list_del(&mall_tc_entry->list);
 
 	switch (mall_tc_entry->type) {
 	case MLXSW_SP_PORT_MALL_MIRROR:
-		to_port = mlxsw_sp->ports[mall_tc_entry->mirror.to_local_port];
-		span_type = mall_tc_entry->mirror.ingress ?
-				MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-
-		mlxsw_sp_span_mirror_remove(mlxsw_sp_port, to_port, span_type);
+		mlxsw_sp_port_del_cls_matchall_mirror(mlxsw_sp_port,
+						      &mall_tc_entry->mirror);
+		break;
+	case MLXSW_SP_PORT_MALL_SAMPLE:
+		mlxsw_sp_port_del_cls_matchall_sample(mlxsw_sp_port);
 		break;
 	default:
 		WARN_ON(1);
 	}
 
-	list_del(&mall_tc_entry->list);
 	kfree(mall_tc_entry);
 }
 
@@ -1291,7 +1355,8 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	bool ingress = TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS);
 
-	if (tc->type == TC_SETUP_MATCHALL) {
+	switch (tc->type) {
+	case TC_SETUP_MATCHALL:
 		switch (tc->cls_mall->command) {
 		case TC_CLSMATCHALL_REPLACE:
 			return mlxsw_sp_port_add_cls_matchall(mlxsw_sp_port,
@@ -1305,9 +1370,21 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
 		default:
 			return -EINVAL;
 		}
+	case TC_SETUP_CLSFLOWER:
+		switch (tc->cls_flower->command) {
+		case TC_CLSFLOWER_REPLACE:
+			return mlxsw_sp_flower_replace(mlxsw_sp_port, ingress,
+						       proto, tc->cls_flower);
+		case TC_CLSFLOWER_DESTROY:
+			mlxsw_sp_flower_destroy(mlxsw_sp_port, ingress,
+						tc->cls_flower);
+			return 0;
+		default:
+			return -EOPNOTSUPP;
+		}
 	}
 
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
@@ -1323,8 +1400,6 @@ static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
 	.ndo_get_offload_stats	= mlxsw_sp_port_get_offload_stats,
 	.ndo_vlan_rx_add_vid	= mlxsw_sp_port_add_vid,
 	.ndo_vlan_rx_kill_vid	= mlxsw_sp_port_kill_vid,
-	.ndo_neigh_construct	= mlxsw_sp_router_neigh_construct,
-	.ndo_neigh_destroy	= mlxsw_sp_router_neigh_destroy,
 	.ndo_fdb_add		= switchdev_port_fdb_add,
 	.ndo_fdb_del		= switchdev_port_fdb_del,
 	.ndo_fdb_dump		= switchdev_port_fdb_dump,
@@ -1650,7 +1725,7 @@ mlxsw_sp_get_hw_stats_by_group(struct mlxsw_sp_port_hw_stats **p_hw_stats,
 		break;
 	default:
 		WARN_ON(1);
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 	return 0;
 }
@@ -2256,6 +2331,13 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_alloc_stats;
 	}
 
+	mlxsw_sp_port->sample = kzalloc(sizeof(*mlxsw_sp_port->sample),
+					GFP_KERNEL);
+	if (!mlxsw_sp_port->sample) {
+		err = -ENOMEM;
+		goto err_alloc_sample;
+	}
+
 	mlxsw_sp_port->hw_stats.cache =
 		kzalloc(sizeof(*mlxsw_sp_port->hw_stats.cache), GFP_KERNEL);
 
@@ -2384,6 +2466,8 @@ err_dev_addr_init:
 err_port_swid_set:
 	kfree(mlxsw_sp_port->hw_stats.cache);
 err_alloc_hw_stats:
+	kfree(mlxsw_sp_port->sample);
+err_alloc_sample:
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 err_alloc_stats:
 	kfree(mlxsw_sp_port->untagged_vlans);
@@ -2429,8 +2513,9 @@ static void __mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port_dcb_fini(mlxsw_sp_port);
 	mlxsw_sp_port_swid_set(mlxsw_sp_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	mlxsw_sp_port_module_unmap(mlxsw_sp, mlxsw_sp_port->local_port);
-	free_percpu(mlxsw_sp_port->pcpu_stats);
 	kfree(mlxsw_sp_port->hw_stats.cache);
+	kfree(mlxsw_sp_port->sample);
+	free_percpu(mlxsw_sp_port->pcpu_stats);
 	kfree(mlxsw_sp_port->untagged_vlans);
 	kfree(mlxsw_sp_port->active_vlans);
 	WARN_ON_ONCE(!list_empty(&mlxsw_sp_port->vports_list));
@@ -2731,6 +2816,41 @@ static void mlxsw_sp_rx_listener_mark_func(struct sk_buff *skb, u8 local_port,
 	return mlxsw_sp_rx_listener_no_mark_func(skb, local_port, priv);
 }
 
+static void mlxsw_sp_rx_listener_sample_func(struct sk_buff *skb, u8 local_port,
+					     void *priv)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
+	struct psample_group *psample_group;
+	u32 size;
+
+	if (unlikely(!mlxsw_sp_port)) {
+		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: sample skb received for non-existent port\n",
+				     local_port);
+		goto out;
+	}
+	if (unlikely(!mlxsw_sp_port->sample)) {
+		dev_warn_ratelimited(mlxsw_sp->bus_info->dev, "Port %d: sample skb received on unsupported port\n",
+				     local_port);
+		goto out;
+	}
+
+	size = mlxsw_sp_port->sample->truncate ?
+		  mlxsw_sp_port->sample->trunc_size : skb->len;
+
+	rcu_read_lock();
+	psample_group = rcu_dereference(mlxsw_sp_port->sample->psample_group);
+	if (!psample_group)
+		goto out_unlock;
+	psample_sample_packet(psample_group, skb, size,
+			      mlxsw_sp_port->dev->ifindex, 0,
+			      mlxsw_sp_port->sample->rate);
+out_unlock:
+	rcu_read_unlock();
+out:
+	consume_skb(skb);
+}
+
 #define MLXSW_SP_RXL_NO_MARK(_trap_id, _action, _trap_group, _is_ctrl)	\
 	MLXSW_RXL(mlxsw_sp_rx_listener_no_mark_func, _trap_id, _action,	\
 		  _is_ctrl, SP_##_trap_group, DISCARD)
@@ -2766,6 +2886,9 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	MLXSW_SP_RXL_NO_MARK(RTR_INGRESS0, TRAP_TO_CPU, REMOTE_ROUTE, false),
 	MLXSW_SP_RXL_NO_MARK(HOST_MISS_IPV4, TRAP_TO_CPU, ARP_MISS, false),
 	MLXSW_SP_RXL_NO_MARK(BGP_IPV4, TRAP_TO_CPU, BGP_IPV4, false),
+	/* PKT Sample trap */
+	MLXSW_RXL(mlxsw_sp_rx_listener_sample_func, PKT_SAMPLE, MIRROR_TO_CPU,
+		  false, SP_IP2ME, DISCARD)
 };
 
 static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
@@ -2950,10 +3073,16 @@ static int __mlxsw_sp_flood_init(struct mlxsw_core *mlxsw_core,
 	else
 		table_type = MLXSW_REG_SFGC_TABLE_TYPE_FID_OFFEST;
 
-	if (type == MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST)
+	switch (type) {
+	case MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST:
 		flood_table = MLXSW_SP_FLOOD_TABLE_UC;
-	else
-		flood_table = MLXSW_SP_FLOOD_TABLE_BM;
+		break;
+	case MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV4:
+		flood_table = MLXSW_SP_FLOOD_TABLE_MC;
+		break;
+	default:
+		flood_table = MLXSW_SP_FLOOD_TABLE_BC;
+	}
 
 	mlxsw_reg_sfgc_pack(sfgc_pl, type, bridge_type, table_type,
 			    flood_table);
@@ -3089,6 +3218,12 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_span_init;
 	}
 
+	err = mlxsw_sp_acl_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize ACL\n");
+		goto err_acl_init;
+	}
+
 	err = mlxsw_sp_ports_create(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to create ports\n");
@@ -3098,6 +3233,8 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	return 0;
 
 err_ports_create:
+	mlxsw_sp_acl_fini(mlxsw_sp);
+err_acl_init:
 	mlxsw_sp_span_fini(mlxsw_sp);
 err_span_init:
 	mlxsw_sp_router_fini(mlxsw_sp);
@@ -3118,6 +3255,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_sp_ports_remove(mlxsw_sp);
+	mlxsw_sp_acl_fini(mlxsw_sp);
 	mlxsw_sp_span_fini(mlxsw_sp);
 	mlxsw_sp_router_fini(mlxsw_sp);
 	mlxsw_sp_switchdev_fini(mlxsw_sp);
@@ -3138,9 +3276,9 @@ static struct mlxsw_config_profile mlxsw_sp_config_profile = {
 	.used_flood_tables		= 1,
 	.used_flood_mode		= 1,
 	.flood_mode			= 3,
-	.max_fid_offset_flood_tables	= 2,
+	.max_fid_offset_flood_tables	= 3,
 	.fid_offset_flood_table_size	= VLAN_N_VID - 1,
-	.max_fid_flood_tables		= 2,
+	.max_fid_flood_tables		= 3,
 	.fid_flood_table_size		= MLXSW_SP_VFID_MAX,
 	.used_max_ib_mc			= 1,
 	.max_ib_mc			= 0,
@@ -3183,7 +3321,7 @@ static struct mlxsw_driver mlxsw_sp_driver = {
 	.profile			= &mlxsw_sp_config_profile,
 };
 
-static bool mlxsw_sp_port_dev_check(const struct net_device *dev)
+bool mlxsw_sp_port_dev_check(const struct net_device *dev)
 {
 	return dev->netdev_ops == &mlxsw_sp_port_netdev_ops;
 }
@@ -3341,6 +3479,8 @@ mlxsw_sp_rif_alloc(u16 rif, struct net_device *l3_dev, struct mlxsw_sp_fid *f)
 	if (!r)
 		return NULL;
 
+	INIT_LIST_HEAD(&r->nexthop_list);
+	INIT_LIST_HEAD(&r->neigh_list);
 	ether_addr_copy(r->addr, l3_dev->dev_addr);
 	r->mtu = l3_dev->mtu;
 	r->ref_count = 1;
@@ -3408,6 +3548,8 @@ static void mlxsw_sp_vport_rif_sp_destroy(struct mlxsw_sp_port *mlxsw_sp_vport,
 	struct mlxsw_sp_fid *f = r->f;
 	u16 fid = f->fid;
 	u16 rif = r->rif;
+
+	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, r);
 
 	mlxsw_sp->rifs[rif] = NULL;
 	f->r = NULL;
@@ -3553,7 +3695,7 @@ static int mlxsw_sp_router_port_flood_set(struct mlxsw_sp *mlxsw_sp, u16 fid,
 
 	table_type = mlxsw_sp_flood_table_type_get(fid);
 	index = mlxsw_sp_flood_table_index_get(fid);
-	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BM, index, table_type,
+	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BC, index, table_type,
 			    1, MLXSW_PORT_ROUTER_PORT, set);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
 
@@ -3637,6 +3779,8 @@ void mlxsw_sp_rif_bridge_destroy(struct mlxsw_sp *mlxsw_sp,
 	struct net_device *l3_dev = r->dev;
 	struct mlxsw_sp_fid *f = r->f;
 	u16 rif = r->rif;
+
+	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, r);
 
 	mlxsw_sp->rifs[rif] = NULL;
 	f->r = NULL;
@@ -3927,6 +4071,9 @@ static int mlxsw_sp_port_bridge_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_port->learning = 1;
 	mlxsw_sp_port->learning_sync = 1;
 	mlxsw_sp_port->uc_flood = 1;
+	mlxsw_sp_port->mc_flood = 1;
+	mlxsw_sp_port->mc_router = 0;
+	mlxsw_sp_port->mc_disabled = 1;
 	mlxsw_sp_port->bridged = 1;
 
 	return 0;
@@ -3943,6 +4090,8 @@ static void mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp_port->learning = 0;
 	mlxsw_sp_port->learning_sync = 0;
 	mlxsw_sp_port->uc_flood = 0;
+	mlxsw_sp_port->mc_flood = 0;
+	mlxsw_sp_port->mc_router = 0;
 	mlxsw_sp_port->bridged = 0;
 
 	/* Add implicit VLAN interface in the device, so that untagged
@@ -4605,6 +4754,9 @@ static int mlxsw_sp_vport_bridge_join(struct mlxsw_sp_port *mlxsw_sp_vport,
 	mlxsw_sp_vport->learning = 1;
 	mlxsw_sp_vport->learning_sync = 1;
 	mlxsw_sp_vport->uc_flood = 1;
+	mlxsw_sp_vport->mc_flood = 1;
+	mlxsw_sp_vport->mc_router = 0;
+	mlxsw_sp_vport->mc_disabled = 1;
 	mlxsw_sp_vport->bridged = 1;
 
 	return 0;
@@ -4625,6 +4777,8 @@ static void mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport)
 	mlxsw_sp_vport->learning = 0;
 	mlxsw_sp_vport->learning_sync = 0;
 	mlxsw_sp_vport->uc_flood = 0;
+	mlxsw_sp_vport->mc_flood = 0;
+	mlxsw_sp_vport->mc_router = 0;
 	mlxsw_sp_vport->bridged = 0;
 }
 

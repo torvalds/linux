@@ -9,6 +9,7 @@
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -16,6 +17,7 @@
 #include <linux/of_gpio.h>
 #include <linux/pwm.h>
 #include <linux/uaccess.h>
+#include <linux/regulator/consumer.h>
 
 #define SSD1307FB_DATA			0x40
 #define SSD1307FB_COMMAND		0x80
@@ -73,7 +75,8 @@ struct ssd1307fb_par {
 	u32 prechargep2;
 	struct pwm_device *pwm;
 	u32 pwm_period;
-	int reset;
+	struct gpio_desc *reset;
+	struct regulator *vbat_reg;
 	u32 seg_remap;
 	u32 vcomh;
 	u32 width;
@@ -439,6 +442,9 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
+	/* Clear the screen */
+	ssd1307fb_update_display(par);
+
 	/* Turn on the display */
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_ON);
 	if (ret < 0)
@@ -561,10 +567,20 @@ static int ssd1307fb_probe(struct i2c_client *client,
 
 	par->device_info = of_device_get_match_data(&client->dev);
 
-	par->reset = of_get_named_gpio(client->dev.of_node,
-					 "reset-gpios", 0);
-	if (!gpio_is_valid(par->reset)) {
-		ret = -EINVAL;
+	par->reset = devm_gpiod_get_optional(&client->dev, "reset",
+					     GPIOD_OUT_LOW);
+	if (IS_ERR(par->reset)) {
+		dev_err(&client->dev, "failed to get reset gpio: %ld\n",
+			PTR_ERR(par->reset));
+		ret = PTR_ERR(par->reset);
+		goto fb_alloc_error;
+	}
+
+	par->vbat_reg = devm_regulator_get_optional(&client->dev, "vbat");
+	if (IS_ERR(par->vbat_reg)) {
+		dev_err(&client->dev, "failed to get VBAT regulator: %ld\n",
+			PTR_ERR(par->vbat_reg));
+		ret = PTR_ERR(par->vbat_reg);
 		goto fb_alloc_error;
 	}
 
@@ -642,27 +658,25 @@ static int ssd1307fb_probe(struct i2c_client *client,
 
 	fb_deferred_io_init(info);
 
-	ret = devm_gpio_request_one(&client->dev, par->reset,
-				    GPIOF_OUT_INIT_HIGH,
-				    "oled-reset");
+	i2c_set_clientdata(client, info);
+
+	if (par->reset) {
+		/* Reset the screen */
+		gpiod_set_value(par->reset, 0);
+		udelay(4);
+		gpiod_set_value(par->reset, 1);
+		udelay(4);
+	}
+
+	ret = regulator_enable(par->vbat_reg);
 	if (ret) {
-		dev_err(&client->dev,
-			"failed to request gpio %d: %d\n",
-			par->reset, ret);
+		dev_err(&client->dev, "failed to enable VBAT: %d\n", ret);
 		goto reset_oled_error;
 	}
 
-	i2c_set_clientdata(client, info);
-
-	/* Reset the screen */
-	gpio_set_value(par->reset, 0);
-	udelay(4);
-	gpio_set_value(par->reset, 1);
-	udelay(4);
-
 	ret = ssd1307fb_init(par);
 	if (ret)
-		goto reset_oled_error;
+		goto regulator_enable_error;
 
 	ret = register_framebuffer(info);
 	if (ret) {
@@ -695,6 +709,8 @@ panel_init_error:
 		pwm_disable(par->pwm);
 		pwm_put(par->pwm);
 	};
+regulator_enable_error:
+	regulator_disable(par->vbat_reg);
 reset_oled_error:
 	fb_deferred_io_cleanup(info);
 fb_alloc_error:

@@ -23,14 +23,19 @@
  * 2005-Apr     Rusty Lynch <rusty.lynch@intel.com> and Anil S Keshavamurthy
  *              <anil.s.keshavamurthy@intel.com> adapted from i386
  */
+#include <asm-generic/kprobes.h>
+#include <asm/break.h>
+
+#define BREAK_INST	(long)(__IA64_BREAK_KPROBE << 6)
+
+#ifdef CONFIG_KPROBES
+
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
-#include <asm/break.h>
 
 #define __ARCH_WANT_KPROBES_INSN_SLOT
 #define MAX_INSN_SIZE   2	/* last half is for kprobe-booster */
-#define BREAK_INST	(long)(__IA64_BREAK_KPROBE << 6)
 #define NOP_M_INST	(long)(1<<27)
 #define BRL_INST(i1, i2) ((long)((0xcL << 37) |	/* brl */ \
 				(0x1L << 12) |	/* many */ \
@@ -124,4 +129,5 @@ extern void invalidate_stacked_regs(void);
 extern void flush_register_stack(void);
 extern void arch_remove_kprobe(struct kprobe *p);
 
-#endif				/* _ASM_KPROBES_H */
+#endif /* CONFIG_KPROBES */
+#endif /* _ASM_KPROBES_H */

@@ -1,0 +1,41 @@
+/*
+ * Samsung's Exynos4412 Prime SoC device tree source
+ *
+ * Copyright (c) 2016 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * Exynos4412 Prime SoC revision supports higher CPU frequencies than
+ * non-Prime version.  Therefore we need to update OPPs table and
+ * thermal maps accordingly.
+ */
+
+&cpu0_opp_1500 {
+	/delete-property/turbo-mode;
+};
+
+&cpu0_opp_table {
+	opp@1600000000 {
+		opp-hz = /bits/ 64 <1600000000>;
+		opp-microvolt = <1350000>;
+		clock-latency-ns = <200000>;
+	};
+	opp@1704000000 {
+		opp-hz = /bits/ 64 <1704000000>;
+		opp-microvolt = <1350000>;
+		clock-latency-ns = <200000>;
+	};
+};
+
+&cooling_map0 {
+	cooling-device = <&cpu0 9 9>;
+};
+
+&cooling_map1 {
+	cooling-device = <&cpu0 15 15>;
+};

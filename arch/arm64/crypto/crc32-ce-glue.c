@@ -72,6 +72,24 @@ static int crc32_pmull_init(struct shash_desc *desc)
 	return 0;
 }
 
+static int crc32_update(struct shash_desc *desc, const u8 *data,
+			unsigned int length)
+{
+	u32 *crc = shash_desc_ctx(desc);
+
+	*crc = crc32_armv8_le(*crc, data, length);
+	return 0;
+}
+
+static int crc32c_update(struct shash_desc *desc, const u8 *data,
+			 unsigned int length)
+{
+	u32 *crc = shash_desc_ctx(desc);
+
+	*crc = crc32c_armv8_le(*crc, data, length);
+	return 0;
+}
+
 static int crc32_pmull_update(struct shash_desc *desc, const u8 *data,
 			 unsigned int length)
 {
@@ -156,7 +174,7 @@ static int crc32c_pmull_final(struct shash_desc *desc, u8 *out)
 static struct shash_alg crc32_pmull_algs[] = { {
 	.setkey			= crc32_pmull_setkey,
 	.init			= crc32_pmull_init,
-	.update			= crc32_pmull_update,
+	.update			= crc32_update,
 	.final			= crc32_pmull_final,
 	.descsize		= sizeof(u32),
 	.digestsize		= sizeof(u32),
@@ -171,7 +189,7 @@ static struct shash_alg crc32_pmull_algs[] = { {
 }, {
 	.setkey			= crc32_pmull_setkey,
 	.init			= crc32_pmull_init,
-	.update			= crc32c_pmull_update,
+	.update			= crc32c_update,
 	.final			= crc32c_pmull_final,
 	.descsize		= sizeof(u32),
 	.digestsize		= sizeof(u32),
@@ -187,14 +205,20 @@ static struct shash_alg crc32_pmull_algs[] = { {
 
 static int __init crc32_pmull_mod_init(void)
 {
-	if (elf_hwcap & HWCAP_CRC32) {
-		fallback_crc32 = crc32_armv8_le;
-		fallback_crc32c = crc32c_armv8_le;
-	} else {
-		fallback_crc32 = crc32_le;
-		fallback_crc32c = __crc32c_le;
-	}
+	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) && (elf_hwcap & HWCAP_PMULL)) {
+		crc32_pmull_algs[0].update = crc32_pmull_update;
+		crc32_pmull_algs[1].update = crc32c_pmull_update;
 
+		if (elf_hwcap & HWCAP_CRC32) {
+			fallback_crc32 = crc32_armv8_le;
+			fallback_crc32c = crc32c_armv8_le;
+		} else {
+			fallback_crc32 = crc32_le;
+			fallback_crc32c = __crc32c_le;
+		}
+	} else if (!(elf_hwcap & HWCAP_CRC32)) {
+		return -ENODEV;
+	}
 	return crypto_register_shashes(crc32_pmull_algs,
 				       ARRAY_SIZE(crc32_pmull_algs));
 }
@@ -205,7 +229,12 @@ static void __exit crc32_pmull_mod_exit(void)
 				  ARRAY_SIZE(crc32_pmull_algs));
 }
 
-module_cpu_feature_match(PMULL, crc32_pmull_mod_init);
+static const struct cpu_feature crc32_cpu_feature[] = {
+	{ cpu_feature(CRC32) }, { cpu_feature(PMULL) }, { }
+};
+MODULE_DEVICE_TABLE(cpu, crc32_cpu_feature);
+
+module_init(crc32_pmull_mod_init);
 module_exit(crc32_pmull_mod_exit);
 
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");

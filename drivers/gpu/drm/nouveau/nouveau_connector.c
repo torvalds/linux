@@ -33,6 +33,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic.h>
 
 #include "nouveau_reg.h"
 #include "nouveau_drv.h"
@@ -418,7 +419,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_gpio *gpio = nvxx_gpio(&drm->device);
+	struct nvkm_gpio *gpio = nvxx_gpio(&drm->client.device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int i, panel = -ENODEV;
@@ -520,7 +521,7 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		return;
 	nv_connector->detected_encoder = nv_encoder;
 
-	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		connector->interlace_allowed = true;
 		connector->doublescan_allowed = true;
 	} else
@@ -530,8 +531,8 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		connector->interlace_allowed = false;
 	} else {
 		connector->doublescan_allowed = true;
-		if (drm->device.info.family == NV_DEVICE_INFO_V0_KELVIN ||
-		    (drm->device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
+		if (drm->client.device.info.family == NV_DEVICE_INFO_V0_KELVIN ||
+		    (drm->client.device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
 		     (dev->pdev->device & 0x0ff0) != 0x0100 &&
 		     (dev->pdev->device & 0x0ff0) != 0x0150))
 			/* HW is broken */
@@ -769,7 +770,7 @@ nouveau_connector_set_property(struct drm_connector *connector,
 	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	int ret;
 
-	if (connector->dev->mode_config.funcs->atomic_commit)
+	if (drm_drv_uses_atomic_modeset(connector->dev))
 		return drm_atomic_helper_connector_set_property(connector, property, value);
 
 	ret = connector->funcs->atomic_set_property(&nv_connector->base,
@@ -983,17 +984,17 @@ get_tmds_link_bandwidth(struct drm_connector *connector, bool hdmi)
 		/* Note: these limits are conservative, some Fermi's
 		 * can do 297 MHz. Unclear how this can be determined.
 		 */
-		if (drm->device.info.family >= NV_DEVICE_INFO_V0_KEPLER)
+		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_KEPLER)
 			return 297000;
-		if (drm->device.info.family >= NV_DEVICE_INFO_V0_FERMI)
+		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_FERMI)
 			return 225000;
 	}
 	if (dcb->location != DCB_LOC_ON_CHIP ||
-	    drm->device.info.chipset >= 0x46)
+	    drm->client.device.info.chipset >= 0x46)
 		return 165000;
-	else if (drm->device.info.chipset >= 0x40)
+	else if (drm->client.device.info.chipset >= 0x40)
 		return 155000;
-	else if (drm->device.info.chipset >= 0x18)
+	else if (drm->client.device.info.chipset >= 0x18)
 		return 135000;
 	else
 		return 112000;
@@ -1040,7 +1041,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		clock = clock * (connector->display_info.bpc * 3) / 10;
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 		return MODE_BAD;
 	}
 
@@ -1074,7 +1075,7 @@ nouveau_connector_helper_funcs = {
 static int
 nouveau_connector_dpms(struct drm_connector *connector, int mode)
 {
-	if (connector->dev->mode_config.funcs->atomic_commit)
+	if (drm_drv_uses_atomic_modeset(connector->dev))
 		return drm_atomic_helper_connector_dpms(connector, mode);
 	return drm_helper_connector_dpms(connector, mode);
 }

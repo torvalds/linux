@@ -59,13 +59,13 @@ static const struct ani_ofdm_level_entry ofdm_level_table[] = {
 /*
  * MRC (Maximal Ratio Combining) has always been used with multi-antenna ofdm.
  * With OFDM for single stream you just add up all antenna inputs, you're
- * only interested in what you get after FFT. Signal aligment is also not
+ * only interested in what you get after FFT. Signal alignment is also not
  * required for OFDM because any phase difference adds up in the frequency
  * domain.
  *
  * MRC requires extra work for use with CCK. You need to align the antenna
  * signals from the different antenna before you can add the signals together.
- * You need aligment of signals as CCK is in time domain, so addition can cancel
+ * You need alignment of signals as CCK is in time domain, so addition can cancel
  * your signal completely if phase is 180 degrees (think of adding sine waves).
  * You also need to remove noise before the addition and this is where ANI
  * MRC CCK comes into play. One of the antenna inputs may be stronger but

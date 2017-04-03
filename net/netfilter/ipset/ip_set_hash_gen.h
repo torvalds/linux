@@ -897,7 +897,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 					continue;
 				data = ahash_data(n, j, dsize);
 				memcpy(tmp->value + k * dsize, data, dsize);
-				set_bit(j, tmp->used);
+				set_bit(k, tmp->used);
 				k++;
 			}
 			tmp->pos = k;

@@ -10,16 +10,12 @@
 #ifndef LINUX_MMC_HOST_H
 #define LINUX_MMC_HOST_H
 
-#include <linux/leds.h>
-#include <linux/mutex.h>
-#include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/device.h>
 #include <linux/fault-inject.h>
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
-#include <linux/mmc/mmc.h>
 #include <linux/mmc/pm.h>
 
 struct mmc_ios {
@@ -81,6 +77,8 @@ struct mmc_ios {
 
 	bool enhanced_strobe;			/* hs400es selection */
 };
+
+struct mmc_host;
 
 struct mmc_host_ops {
 	/*
@@ -161,9 +159,6 @@ struct mmc_host_ops {
 	int	(*multi_io_quirk)(struct mmc_card *card,
 				  unsigned int direction, int blk_size);
 };
-
-struct mmc_card;
-struct device;
 
 struct mmc_async_req {
 	/* active mmc request */
@@ -264,17 +259,16 @@ struct mmc_host {
 #define MMC_CAP_NONREMOVABLE	(1 << 8)	/* Nonremovable e.g. eMMC */
 #define MMC_CAP_WAIT_WHILE_BUSY	(1 << 9)	/* Waits while card is busy */
 #define MMC_CAP_ERASE		(1 << 10)	/* Allow erase/trim commands */
-#define MMC_CAP_1_8V_DDR	(1 << 11)	/* can support */
-						/* DDR mode at 1.8V */
-#define MMC_CAP_1_2V_DDR	(1 << 12)	/* can support */
-						/* DDR mode at 1.2V */
-#define MMC_CAP_POWER_OFF_CARD	(1 << 13)	/* Can power off after boot */
-#define MMC_CAP_BUS_WIDTH_TEST	(1 << 14)	/* CMD14/CMD19 bus width ok */
-#define MMC_CAP_UHS_SDR12	(1 << 15)	/* Host supports UHS SDR12 mode */
-#define MMC_CAP_UHS_SDR25	(1 << 16)	/* Host supports UHS SDR25 mode */
-#define MMC_CAP_UHS_SDR50	(1 << 17)	/* Host supports UHS SDR50 mode */
-#define MMC_CAP_UHS_SDR104	(1 << 18)	/* Host supports UHS SDR104 mode */
-#define MMC_CAP_UHS_DDR50	(1 << 19)	/* Host supports UHS DDR50 mode */
+#define MMC_CAP_3_3V_DDR	(1 << 11)	/* Host supports eMMC DDR 3.3V */
+#define MMC_CAP_1_8V_DDR	(1 << 12)	/* Host supports eMMC DDR 1.8V */
+#define MMC_CAP_1_2V_DDR	(1 << 13)	/* Host supports eMMC DDR 1.2V */
+#define MMC_CAP_POWER_OFF_CARD	(1 << 14)	/* Can power off after boot */
+#define MMC_CAP_BUS_WIDTH_TEST	(1 << 15)	/* CMD14/CMD19 bus width ok */
+#define MMC_CAP_UHS_SDR12	(1 << 16)	/* Host supports UHS SDR12 mode */
+#define MMC_CAP_UHS_SDR25	(1 << 17)	/* Host supports UHS SDR25 mode */
+#define MMC_CAP_UHS_SDR50	(1 << 18)	/* Host supports UHS SDR50 mode */
+#define MMC_CAP_UHS_SDR104	(1 << 19)	/* Host supports UHS SDR104 mode */
+#define MMC_CAP_UHS_DDR50	(1 << 20)	/* Host supports UHS DDR50 mode */
 #define MMC_CAP_DRIVER_TYPE_A	(1 << 23)	/* Host supports Driver Type A */
 #define MMC_CAP_DRIVER_TYPE_C	(1 << 24)	/* Host supports Driver Type C */
 #define MMC_CAP_DRIVER_TYPE_D	(1 << 25)	/* Host supports Driver Type D */
@@ -397,11 +391,14 @@ struct mmc_host {
 	unsigned long		private[0] ____cacheline_aligned;
 };
 
+struct device_node;
+
 struct mmc_host *mmc_alloc_host(int extra, struct device *);
 int mmc_add_host(struct mmc_host *);
 void mmc_remove_host(struct mmc_host *);
 void mmc_free_host(struct mmc_host *);
 int mmc_of_parse(struct mmc_host *host);
+int mmc_of_parse_voltage(struct device_node *np, u32 *mask);
 
 static inline void *mmc_priv(struct mmc_host *host)
 {
@@ -457,6 +454,7 @@ static inline int mmc_regulator_set_vqmmc(struct mmc_host *mmc,
 }
 #endif
 
+u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max);
 int mmc_regulator_get_supply(struct mmc_host *mmc);
 
 static inline int mmc_card_is_removable(struct mmc_host *host)
@@ -474,54 +472,18 @@ static inline int mmc_card_wake_sdio_irq(struct mmc_host *host)
 	return host->pm_flags & MMC_PM_WAKE_SDIO_IRQ;
 }
 
-static inline int mmc_host_cmd23(struct mmc_host *host)
-{
-	return host->caps & MMC_CAP_CMD23;
-}
-
-static inline int mmc_boot_partition_access(struct mmc_host *host)
-{
-	return !(host->caps2 & MMC_CAP2_BOOTPART_NOACC);
-}
-
-static inline int mmc_host_uhs(struct mmc_host *host)
-{
-	return host->caps &
-		(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
-		 MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 |
-		 MMC_CAP_UHS_DDR50);
-}
-
+/* TODO: Move to private header */
 static inline int mmc_card_hs(struct mmc_card *card)
 {
 	return card->host->ios.timing == MMC_TIMING_SD_HS ||
 		card->host->ios.timing == MMC_TIMING_MMC_HS;
 }
 
+/* TODO: Move to private header */
 static inline int mmc_card_uhs(struct mmc_card *card)
 {
 	return card->host->ios.timing >= MMC_TIMING_UHS_SDR12 &&
 		card->host->ios.timing <= MMC_TIMING_UHS_DDR50;
-}
-
-static inline bool mmc_card_hs200(struct mmc_card *card)
-{
-	return card->host->ios.timing == MMC_TIMING_MMC_HS200;
-}
-
-static inline bool mmc_card_ddr52(struct mmc_card *card)
-{
-	return card->host->ios.timing == MMC_TIMING_MMC_DDR52;
-}
-
-static inline bool mmc_card_hs400(struct mmc_card *card)
-{
-	return card->host->ios.timing == MMC_TIMING_MMC_HS400;
-}
-
-static inline bool mmc_card_hs400es(struct mmc_card *card)
-{
-	return card->host->ios.enhanced_strobe;
 }
 
 void mmc_retune_timer_stop(struct mmc_host *host);
@@ -532,18 +494,12 @@ static inline void mmc_retune_needed(struct mmc_host *host)
 		host->need_retune = 1;
 }
 
-static inline void mmc_retune_recheck(struct mmc_host *host)
-{
-	if (host->hold_retune <= 1)
-		host->retune_now = 1;
-}
-
 static inline bool mmc_can_retune(struct mmc_host *host)
 {
 	return host->can_retune == 1;
 }
 
-void mmc_retune_pause(struct mmc_host *host);
-void mmc_retune_unpause(struct mmc_host *host);
+int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error);
+int mmc_abort_tuning(struct mmc_host *host, u32 opcode);
 
 #endif /* LINUX_MMC_HOST_H */

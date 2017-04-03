@@ -226,7 +226,7 @@ int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	return uprobe_write_opcode(mm, vaddr, UPROBE_SWBP_INSN);
 }
 
-void __weak arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
+void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
 				  void *src, unsigned long len)
 {
 	unsigned long kaddr, kstart;

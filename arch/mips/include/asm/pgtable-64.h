@@ -17,6 +17,7 @@
 #include <asm/cachectl.h>
 #include <asm/fixmap.h>
 
+#define __ARCH_USE_5LEVEL_HACK
 #if defined(CONFIG_PAGE_SIZE_64KB) && !defined(CONFIG_MIPS_VA_BITS_48)
 #include <asm-generic/pgtable-nopmd.h>
 #else

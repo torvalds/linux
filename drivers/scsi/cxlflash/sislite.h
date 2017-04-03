@@ -72,7 +72,10 @@ struct sisl_ioarcb {
 	u16 timeout;		/* in units specified by req_flags */
 	u32 rsvd1;
 	u8 cdb[16];		/* must be in big endian */
-	u64 reserved;		/* Reserved area */
+	union {
+		u64 reserved;			/* Reserved for IOARRIN mode */
+		struct sisl_ioasa *ioasa;	/* IOASA EA for SQ Mode */
+	};
 } __packed;
 
 struct sisl_rc {
@@ -260,6 +263,11 @@ struct sisl_host_map {
 	__be64 cmd_room;
 	__be64 ctx_ctrl;	/* least significant byte or b56:63 is LISN# */
 	__be64 mbox_w;		/* restricted use */
+	__be64 sq_start;	/* Submission Queue (R/W): write sequence and */
+	__be64 sq_end;		/* inclusion semantics are the same as RRQ    */
+	__be64 sq_head;		/* Submission Queue Head (R): for debugging   */
+	__be64 sq_tail;		/* Submission Queue TAIL (R/W): next IOARCB   */
+	__be64 sq_ctx_reset;	/* Submission Queue Context Reset (R/W)	      */
 };
 
 /* per context provisioning & control MMIO */
@@ -348,6 +356,15 @@ struct sisl_global_regs {
 	__be64 rsvd[0xf8];
 	__le64 afu_version;
 	__be64 interface_version;
+#define SISL_INTVER_CAP_SHIFT			16
+#define SISL_INTVER_MAJ_SHIFT			8
+#define SISL_INTVER_CAP_MASK			0xFFFFFFFF00000000ULL
+#define SISL_INTVER_MAJ_MASK			0x00000000FFFF0000ULL
+#define SISL_INTVER_MIN_MASK			0x000000000000FFFFULL
+#define SISL_INTVER_CAP_IOARRIN_CMD_MODE	0x800000000000ULL
+#define SISL_INTVER_CAP_SQ_CMD_MODE		0x400000000000ULL
+#define SISL_INTVER_CAP_RESERVED_CMD_MODE_A	0x200000000000ULL
+#define SISL_INTVER_CAP_RESERVED_CMD_MODE_B	0x100000000000ULL
 };
 
 #define CXLFLASH_NUM_FC_PORTS   2

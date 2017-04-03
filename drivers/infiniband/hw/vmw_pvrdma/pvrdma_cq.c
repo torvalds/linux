@@ -373,7 +373,7 @@ retry:
 	wc->sl = cqe->sl;
 	wc->dlid_path_bits = cqe->dlid_path_bits;
 	wc->port_num = cqe->port_num;
-	wc->vendor_err = 0;
+	wc->vendor_err = cqe->vendor_err;
 
 	/* Update shared ring state */
 	pvrdma_idx_ring_inc(&cq->ring_state->rx.cons_head, cq->ibcq.cqe);

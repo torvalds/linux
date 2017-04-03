@@ -344,7 +344,8 @@ config BT_WILINK
 
 config BT_QCOMSMD
 	tristate "Qualcomm SMD based HCI support"
-	depends on QCOM_SMD && QCOM_WCNSS_CTRL
+	depends on QCOM_SMD || (COMPILE_TEST && QCOM_SMD=n)
+	depends on QCOM_WCNSS_CTRL || (COMPILE_TEST && QCOM_WCNSS_CTRL=n)
 	select BT_QCA
 	help
 	  Qualcomm SMD based HCI driver.

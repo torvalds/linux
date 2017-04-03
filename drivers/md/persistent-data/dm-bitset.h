@@ -93,6 +93,22 @@ void dm_disk_bitset_init(struct dm_transaction_manager *tm,
 int dm_bitset_empty(struct dm_disk_bitset *info, dm_block_t *new_root);
 
 /*
+ * Creates a new bitset populated with values provided by a callback
+ * function.  This is more efficient than creating an empty bitset,
+ * resizing, and then setting values since that process incurs a lot of
+ * copying.
+ *
+ * info - describes the array
+ * root - the root block of the array on disk
+ * size - the number of entries in the array
+ * fn - the callback
+ * context - passed to the callback
+ */
+typedef int (*bit_value_fn)(uint32_t index, bool *value, void *context);
+int dm_bitset_new(struct dm_disk_bitset *info, dm_block_t *root,
+		  uint32_t size, bit_value_fn fn, void *context);
+
+/*
  * Resize the bitset.
  *
  * info - describes the bitset
@@ -160,6 +176,29 @@ int dm_bitset_test_bit(struct dm_disk_bitset *info, dm_block_t root,
  */
 int dm_bitset_flush(struct dm_disk_bitset *info, dm_block_t root,
 		    dm_block_t *new_root);
+
+struct dm_bitset_cursor {
+	struct dm_disk_bitset *info;
+	struct dm_array_cursor cursor;
+
+	uint32_t entries_remaining;
+	uint32_t array_index;
+	uint32_t bit_index;
+	uint64_t current_bits;
+};
+
+/*
+ * Make sure you've flush any dm_disk_bitset and updated the root before
+ * using this.
+ */
+int dm_bitset_cursor_begin(struct dm_disk_bitset *info,
+			   dm_block_t root, uint32_t nr_entries,
+			   struct dm_bitset_cursor *c);
+void dm_bitset_cursor_end(struct dm_bitset_cursor *c);
+
+int dm_bitset_cursor_next(struct dm_bitset_cursor *c);
+int dm_bitset_cursor_skip(struct dm_bitset_cursor *c, uint32_t count);
+bool dm_bitset_cursor_get_value(struct dm_bitset_cursor *c);
 
 /*----------------------------------------------------------------*/
 

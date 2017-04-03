@@ -149,8 +149,17 @@ static void iwl_mvm_create_skb(struct sk_buff *skb, struct ieee80211_hdr *hdr,
 	unsigned int headlen, fraglen, pad_len = 0;
 	unsigned int hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
-	if (desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD)
+	if (desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD) {
 		pad_len = 2;
+
+		/*
+		 * If the device inserted padding it means that (it thought)
+		 * the 802.11 header wasn't a multiple of 4 bytes long. In
+		 * this case, reserve two bytes at the start of the SKB to
+		 * align the payload properly in case we end up copying it.
+		 */
+		skb_reserve(skb, pad_len);
+	}
 	len -= pad_len;
 
 	/* If frame is small enough to fit in skb->head, pull it completely.
@@ -409,7 +418,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 
 	/* ignore nssn smaller than head sn - this can happen due to timeout */
 	if (iwl_mvm_is_sn_less(nssn, ssn, reorder_buf->buf_size))
-		return;
+		goto set_timer;
 
 	while (iwl_mvm_is_sn_less(ssn, nssn, reorder_buf->buf_size)) {
 		int index = ssn % reorder_buf->buf_size;
@@ -432,6 +441,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 	}
 	reorder_buf->head_sn = nssn;
 
+set_timer:
 	if (reorder_buf->num_stored && !reorder_buf->removed) {
 		u16 index = reorder_buf->head_sn % reorder_buf->buf_size;
 

@@ -274,7 +274,7 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 error_ret:
 	mutex_unlock(&chip->state_lock);
 
-	return 0;
+	return ret;
 }
 
 static int ad7150_read_event_value(struct iio_dev *indio_dev,
@@ -414,7 +414,7 @@ error_ret:
 
 #define AD7150_TIMEOUT(chan, type, dir, ev_type, ev_dir)		\
 	IIO_DEVICE_ATTR(in_capacitance##chan##_##type##_##dir##_timeout, \
-		S_IRUGO | S_IWUSR,					\
+		0644,							\
 		&ad7150_show_timeout,					\
 		&ad7150_store_timeout,					\
 		IIO_UNMOD_EVENT_CODE(IIO_CAPACITANCE,			\
@@ -610,27 +610,27 @@ static int ad7150_probe(struct i2c_client *client,
 
 	if (client->irq) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
-					   NULL,
-					   &ad7150_event_handler,
-					   IRQF_TRIGGER_RISING |
-					   IRQF_TRIGGER_FALLING |
-					   IRQF_ONESHOT,
-					   "ad7150_irq1",
-					   indio_dev);
+						NULL,
+						&ad7150_event_handler,
+						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
+						"ad7150_irq1",
+						indio_dev);
 		if (ret)
 			return ret;
 	}
 
 	if (client->dev.platform_data) {
 		ret = devm_request_threaded_irq(&client->dev, *(unsigned int *)
-					   client->dev.platform_data,
-					   NULL,
-					   &ad7150_event_handler,
-					   IRQF_TRIGGER_RISING |
-					   IRQF_TRIGGER_FALLING |
-					   IRQF_ONESHOT,
-					   "ad7150_irq2",
-					   indio_dev);
+						client->dev.platform_data,
+						NULL,
+						&ad7150_event_handler,
+						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT,
+						"ad7150_irq2",
+						indio_dev);
 		if (ret)
 			return ret;
 	}

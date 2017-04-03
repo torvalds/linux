@@ -44,6 +44,7 @@
 #include <linux/pci.h>
 #include <linux/aer.h>
 #include <linux/nmi.h>
+#include <linux/sched/clock.h>
 
 #include <acpi/ghes.h>
 #include <acpi/apei.h>
@@ -1072,6 +1073,7 @@ static int ghes_remove(struct platform_device *ghes_dev)
 		if (list_empty(&ghes_sci))
 			unregister_acpi_hed_notifier(&ghes_notifier_sci);
 		mutex_unlock(&ghes_list_mutex);
+		synchronize_rcu();
 		break;
 	case ACPI_HEST_NOTIFY_NMI:
 		ghes_nmi_remove(ghes);

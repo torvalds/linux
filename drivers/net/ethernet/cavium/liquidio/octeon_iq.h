@@ -369,5 +369,5 @@ int octeon_setup_iq(struct octeon_device *oct, int ifidx,
 		    void *app_ctx);
 int
 octeon_flush_iq(struct octeon_device *oct, struct octeon_instr_queue *iq,
-		u32 pending_thresh, u32 napi_budget);
+		u32 napi_budget);
 #endif				/* __OCTEON_IQ_H__ */

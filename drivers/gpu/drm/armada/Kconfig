@@ -1,6 +1,6 @@
 config DRM_ARMADA
 	tristate "DRM support for Marvell Armada SoCs"
-	depends on DRM && HAVE_CLK && ARM
+	depends on DRM && HAVE_CLK && ARM && MMU
 	select DRM_KMS_HELPER
 	help
 	  Support the "LCD" controllers found on the Marvell Armada 510

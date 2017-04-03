@@ -59,13 +59,13 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 	 * list of parent device. Because in this case, *freq is temporary
 	 * value which is decided by ondemand governor.
 	 */
-	rcu_read_lock();
 	opp = devfreq_recommended_opp(parent_devfreq->dev.parent, freq, 0);
-	rcu_read_unlock();
 	if (IS_ERR(opp)) {
 		ret = PTR_ERR(opp);
 		goto out;
 	}
+
+	dev_pm_opp_put(opp);
 
 	/*
 	 * Get the OPP table's index of decided freqeuncy by governor
@@ -111,6 +111,11 @@ static int update_devfreq_passive(struct devfreq *devfreq, unsigned long freq)
 	ret = devfreq->profile->target(devfreq->dev.parent, &freq, 0);
 	if (ret < 0)
 		goto out;
+
+	if (devfreq->profile->freq_table
+		&& (devfreq_update_status(devfreq, freq)))
+		dev_err(&devfreq->dev,
+			"Couldn't update frequency transition information.\n");
 
 	devfreq->previous_freq = freq;
 
@@ -179,6 +184,7 @@ static int devfreq_passive_event_handler(struct devfreq *devfreq,
 
 static struct devfreq_governor devfreq_passive = {
 	.name = "passive",
+	.immutable = 1,
 	.get_target_freq = devfreq_passive_get_target_freq,
 	.event_handler = devfreq_passive_event_handler,
 };

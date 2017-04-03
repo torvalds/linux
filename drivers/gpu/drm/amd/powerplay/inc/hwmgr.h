@@ -38,8 +38,6 @@ struct pp_hwmgr;
 struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
 
-extern unsigned amdgpu_pp_feature_mask;
-
 #define VOLTAGE_SCALE 4
 
 uint8_t convert_to_vid(uint16_t vddc);
@@ -358,6 +356,8 @@ struct pp_hwmgr_func {
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, int32_t *value);
+	int (*request_firmware)(struct pp_hwmgr *hwmgr);
+	int (*release_firmware)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
@@ -612,6 +612,7 @@ struct pp_hwmgr {
 	uint32_t num_vce_state_tables;
 
 	enum amd_dpm_forced_level dpm_level;
+	enum amd_dpm_forced_level saved_dpm_level;
 	bool block_hw_access;
 	struct phm_gfx_arbiter gfx_arbiter;
 	struct phm_acp_arbiter acp_arbiter;
@@ -651,18 +652,11 @@ struct pp_hwmgr {
 	uint32_t feature_mask;
 };
 
-
-extern int hwmgr_init(struct amd_pp_init *pp_init,
-		      struct pp_instance *handle);
-
-extern int hwmgr_fini(struct pp_hwmgr *hwmgr);
-
-extern int hw_init_power_state_table(struct pp_hwmgr *hwmgr);
-
+extern int hwmgr_early_init(struct pp_instance *handle);
+extern int hwmgr_hw_init(struct pp_instance *handle);
+extern int hwmgr_hw_fini(struct pp_instance *handle);
 extern int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 				uint32_t value, uint32_t mask);
-
-
 
 extern void phm_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 				uint32_t indirect_port,
@@ -692,11 +686,10 @@ extern int phm_find_boot_level(void *table, uint32_t value, uint32_t *boot_level
 extern int phm_get_sclk_for_voltage_evv(struct pp_hwmgr *hwmgr, phm_ppt_v1_voltage_lookup_table *lookup_table,
 								uint16_t virtual_voltage_id, int32_t *sclk);
 extern int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
-extern int phm_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask);
 extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 
-extern int smu7_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 				uint32_t sclk, uint16_t id, uint16_t *voltage);
 

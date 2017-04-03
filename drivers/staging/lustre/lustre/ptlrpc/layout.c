@@ -42,8 +42,6 @@
  * of the format that the request conforms to.
  */
 
-#if !defined(__REQ_LAYOUT_USER__)
-
 #define DEBUG_SUBSYSTEM S_RPC
 
 #include <linux/module.h>
@@ -57,8 +55,6 @@
 #include "../include/obd.h"
 #include "../include/obd_support.h"
 
-/* __REQ_LAYOUT_USER__ */
-#endif
 /* struct ptlrpc_request, lustre_msg* */
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_acl.h"
@@ -1181,6 +1177,23 @@ struct req_format RQF_FLD_QUERY =
 	DEFINE_REQ_FMT0("FLD_QUERY", fld_query_client, fld_query_server);
 EXPORT_SYMBOL(RQF_FLD_QUERY);
 
+/*
+ * The 'fld_read_server' uses 'RMF_GENERIC_DATA' to hold the 'FLD_QUERY'
+ * RPC reply that is composed of 'struct lu_seq_range_array'. But there
+ * is not registered swabber function for 'RMF_GENERIC_DATA'. So the RPC
+ * peers need to handle the RPC reply with fixed little-endian format.
+ *
+ * In theory, we can define new structure with some swabber registered to
+ * handle the 'FLD_QUERY' RPC reply result automatically. But from the
+ * implementation view, it is not easy to be done within current "struct
+ * req_msg_field" framework. Because the sequence range array in the RPC
+ * reply is not fixed length, instead, its length depends on 'lu_seq_range'
+ * count, that is unknown when prepare the RPC buffer. Generally, for such
+ * flexible length RPC usage, there will be a field in the RPC layout to
+ * indicate the data length. But for the 'FLD_READ' RPC, we have no way to
+ * do that unless we add new length filed that will broken the on-wire RPC
+ * protocol and cause interoperability trouble with old peer.
+ */
 struct req_format RQF_FLD_READ =
 	DEFINE_REQ_FMT0("FLD_READ", fld_read_client, fld_read_server);
 EXPORT_SYMBOL(RQF_FLD_READ);
@@ -1540,8 +1553,6 @@ struct req_format RQF_OST_GET_INFO_FIEMAP =
 	DEFINE_REQ_FMT0("OST_GET_INFO_FIEMAP", ost_get_fiemap_client,
 			ost_get_fiemap_server);
 EXPORT_SYMBOL(RQF_OST_GET_INFO_FIEMAP);
-
-#if !defined(__REQ_LAYOUT_USER__)
 
 /* Convenience macro */
 #define FMT_FIELD(fmt, i, j) (fmt)->rf_fields[(i)].d[(j)]
@@ -2221,6 +2232,3 @@ void req_capsule_shrink(struct req_capsule *pill,
 							    1);
 }
 EXPORT_SYMBOL(req_capsule_shrink);
-
-/* __REQ_LAYOUT_USER__ */
-#endif

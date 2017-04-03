@@ -1360,6 +1360,21 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 		if (fp->altsetting == 3)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
+
+	/* Amanero Combo384 USB interface with native DSD support */
+	case USB_ID(0x16d0, 0x071a):
+		if (fp->altsetting == 2) {
+			switch (chip->dev->descriptor.bcdDevice) {
+			case 0x199:
+				return SNDRV_PCM_FMTBIT_DSD_U32_LE;
+			case 0x19b:
+				return SNDRV_PCM_FMTBIT_DSD_U32_BE;
+			default:
+				break;
+			}
+		}
+		break;
+
 	default:
 		break;
 	}

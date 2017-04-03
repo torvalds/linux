@@ -23,6 +23,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/soc/ti/knav_dma.h>
+#include <linux/u64_stats_sync.h>
 
 /* Maximum Ethernet frame size supported by Keystone switch */
 #define NETCP_MAX_FRAME_SIZE		9504
@@ -68,6 +69,20 @@ struct netcp_addr {
 	struct list_head	node;
 };
 
+struct netcp_stats {
+	struct u64_stats_sync   syncp_rx ____cacheline_aligned_in_smp;
+	u64                     rx_packets;
+	u64                     rx_bytes;
+	u32                     rx_errors;
+	u32                     rx_dropped;
+
+	struct u64_stats_sync   syncp_tx ____cacheline_aligned_in_smp;
+	u64                     tx_packets;
+	u64                     tx_bytes;
+	u32                     tx_errors;
+	u32                     tx_dropped;
+};
+
 struct netcp_intf {
 	struct device		*dev;
 	struct device		*ndev_dev;
@@ -87,6 +102,11 @@ struct netcp_intf {
 	void			*rx_fdq[KNAV_DMA_FDQ_PER_CHAN];
 	struct napi_struct	rx_napi;
 	struct napi_struct	tx_napi;
+#define ETH_SW_CAN_REMOVE_ETH_FCS	BIT(0)
+	u32			hw_cap;
+
+	/* 64-bit netcp stats */
+	struct netcp_stats	stats;
 
 	void			*rx_channel;
 	const char		*dma_chan_name;
@@ -115,6 +135,7 @@ struct netcp_packet {
 	struct sk_buff		*skb;
 	__le32			*epib;
 	u32			*psdata;
+	u32			eflags;
 	unsigned int		psdata_len;
 	struct netcp_intf	*netcp;
 	struct netcp_tx_pipe	*tx_pipe;

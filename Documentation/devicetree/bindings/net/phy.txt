@@ -39,6 +39,10 @@ Optional Properties:
 - enet-phy-lane-swap: If set, indicates the PHY will swap the TX/RX lanes to
   compensate for the board being designed with the lanes swapped.
 
+- enet-phy-lane-no-swap: If set, indicates that PHY will disable swap of the
+  TX/RX lanes. This property allows the PHY to work correcly after e.g. wrong
+  bootstrap configuration caused by issues in PCB layout design.
+
 - eee-broken-100tx:
 - eee-broken-1000t:
 - eee-broken-10gt:

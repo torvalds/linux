@@ -619,7 +619,7 @@ static int iproc_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 {
 	struct iproc_gpio *chip = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 	unsigned i, gpio = iproc_pin_to_gpio(pin);
 	int ret = -ENOTSUPP;
 

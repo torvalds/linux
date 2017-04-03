@@ -32,8 +32,27 @@
  *	[11-8]  : CRm
  *	[7-5]   : Op2
  */
+#define Op0_shift	19
+#define Op0_mask	0x3
+#define Op1_shift	16
+#define Op1_mask	0x7
+#define CRn_shift	12
+#define CRn_mask	0xf
+#define CRm_shift	8
+#define CRm_mask	0xf
+#define Op2_shift	5
+#define Op2_mask	0x7
+
 #define sys_reg(op0, op1, crn, crm, op2) \
-	((((op0)&3)<<19)|((op1)<<16)|((crn)<<12)|((crm)<<8)|((op2)<<5))
+	(((op0) << Op0_shift) | ((op1) << Op1_shift) | \
+	 ((crn) << CRn_shift) | ((crm) << CRm_shift) | \
+	 ((op2) << Op2_shift))
+
+#define sys_reg_Op0(id)	(((id) >> Op0_shift) & Op0_mask)
+#define sys_reg_Op1(id)	(((id) >> Op1_shift) & Op1_mask)
+#define sys_reg_CRn(id)	(((id) >> CRn_shift) & CRn_mask)
+#define sys_reg_CRm(id)	(((id) >> CRm_shift) & CRm_mask)
+#define sys_reg_Op2(id)	(((id) >> Op2_shift) & Op2_mask)
 
 #ifndef CONFIG_BROKEN_GAS_INST
 
@@ -190,6 +209,7 @@
 #define ID_AA64MMFR2_CNP_SHIFT		0
 
 /* id_aa64dfr0 */
+#define ID_AA64DFR0_PMSVER_SHIFT	32
 #define ID_AA64DFR0_CTX_CMPS_SHIFT	28
 #define ID_AA64DFR0_WRPS_SHIFT		20
 #define ID_AA64DFR0_BRPS_SHIFT		12
@@ -244,6 +264,10 @@
 #define ID_AA64MMFR0_TGRAN_SHIFT	ID_AA64MMFR0_TGRAN64_SHIFT
 #define ID_AA64MMFR0_TGRAN_SUPPORTED	ID_AA64MMFR0_TGRAN64_SUPPORTED
 #endif
+
+
+/* Safe value for MPIDR_EL1: Bit31:RES1, Bit30:U:0, Bit24:MT:0 */
+#define SYS_MPIDR_SAFE_VAL		(1UL << 31)
 
 #ifdef __ASSEMBLY__
 

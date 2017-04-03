@@ -1196,7 +1196,7 @@ skip:
 		bgt	loop1
 finished:
 		ldmfd	sp!, {r0-r7, r9-r11}
-		mov	r10, #0			@ swith back to cache level 0
+		mov	r10, #0			@ switch back to cache level 0
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
 iflush:
 		mcr	p15, 0, r10, c7, c10, 4	@ DSB

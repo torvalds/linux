@@ -1,5 +1,8 @@
 #ifndef _ASM_POWERPC_KPROBES_H
 #define _ASM_POWERPC_KPROBES_H
+
+#include <asm-generic/kprobes.h>
+
 #ifdef __KERNEL__
 /*
  *  Kernel Probes (KProbes)
@@ -29,6 +32,7 @@
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
+#include <linux/module.h>
 #include <asm/probes.h>
 #include <asm/code-patching.h>
 
@@ -39,7 +43,23 @@ struct pt_regs;
 struct kprobe;
 
 typedef ppc_opcode_t kprobe_opcode_t;
-#define MAX_INSN_SIZE 1
+
+extern kprobe_opcode_t optinsn_slot;
+
+/* Optinsn template address */
+extern kprobe_opcode_t optprobe_template_entry[];
+extern kprobe_opcode_t optprobe_template_op_address[];
+extern kprobe_opcode_t optprobe_template_call_handler[];
+extern kprobe_opcode_t optprobe_template_insn[];
+extern kprobe_opcode_t optprobe_template_call_emulate[];
+extern kprobe_opcode_t optprobe_template_ret[];
+extern kprobe_opcode_t optprobe_template_end[];
+
+/* Fixed instruction size for powerpc */
+#define MAX_INSN_SIZE		1
+#define MAX_OPTIMIZED_LENGTH	sizeof(kprobe_opcode_t)	/* 4 bytes */
+#define MAX_OPTINSN_SIZE	(optprobe_template_end - optprobe_template_entry)
+#define RELATIVEJUMP_SIZE	sizeof(kprobe_opcode_t)	/* 4 bytes */
 
 #ifdef PPC64_ELF_ABI_v2
 /* PPC64 ABIv2 needs local entry point */
@@ -61,7 +81,7 @@ typedef ppc_opcode_t kprobe_opcode_t;
 #define kprobe_lookup_name(name, addr)					\
 {									\
 	char dot_name[MODULE_NAME_LEN + 1 + KSYM_NAME_LEN];		\
-	char *modsym;							\
+	const char *modsym;							\
 	bool dot_appended = false;					\
 	if ((modsym = strchr(name, ':')) != NULL) {			\
 		modsym++;						\
@@ -123,6 +143,12 @@ struct kprobe_ctlblk {
 	unsigned long kprobe_saved_msr;
 	struct pt_regs jprobe_saved_regs;
 	struct prev_kprobe prev_kprobe;
+};
+
+struct arch_optimized_insn {
+	kprobe_opcode_t copied_insn[1];
+	/* detour buffer */
+	kprobe_opcode_t *insn;
 };
 
 extern int kprobe_exceptions_notify(struct notifier_block *self,

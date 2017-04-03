@@ -44,109 +44,17 @@ int dpmcp_open(struct fsl_mc_io *mc_io,
 	       int dpmcp_id,
 	       u16 *token);
 
-/* Get portal ID from pool */
-#define DPMCP_GET_PORTAL_ID_FROM_POOL (-1)
-
 int dpmcp_close(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
 
-/**
- * struct dpmcp_cfg - Structure representing DPMCP configuration
- * @portal_id:	Portal ID; 'DPMCP_GET_PORTAL_ID_FROM_POOL' to get the portal ID
- *		from pool
- */
-struct dpmcp_cfg {
-	int portal_id;
-};
-
-int dpmcp_create(struct fsl_mc_io *mc_io,
-		 u16 dprc_token,
-		 u32 cmd_flags,
-		 const struct dpmcp_cfg *cfg,
-		 u32 *obj_id);
-
-int dpmcp_destroy(struct fsl_mc_io *mc_io,
-		  u16 dprc_token,
-		  u32 cmd_flags,
-		  u32 obj_id);
+int dpmcp_get_api_version(struct fsl_mc_io *mc_io,
+			  u32 cmd_flags,
+			  u16 *major_ver,
+			  u16 *minor_ver);
 
 int dpmcp_reset(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
-
-/* IRQ */
-/* IRQ Index */
-#define DPMCP_IRQ_INDEX                             0
-/* irq event - Indicates that the link state changed */
-#define DPMCP_IRQ_EVENT_CMD_DONE                    0x00000001
-
-/**
- * struct dpmcp_irq_cfg - IRQ configuration
- * @paddr:	Address that must be written to signal a message-based interrupt
- * @val:	Value to write into irq_addr address
- * @irq_num: A user defined number associated with this IRQ
- */
-struct dpmcp_irq_cfg {
-	     u64 paddr;
-	     u32 val;
-	     int irq_num;
-};
-
-int dpmcp_set_irq(struct fsl_mc_io *mc_io,
-		  u32 cmd_flags,
-		  u16 token,
-		  u8 irq_index,
-		  struct dpmcp_irq_cfg *irq_cfg);
-
-int dpmcp_get_irq(struct fsl_mc_io *mc_io,
-		  u32 cmd_flags,
-		  u16 token,
-		  u8 irq_index,
-		  int *type,
-		  struct dpmcp_irq_cfg *irq_cfg);
-
-int dpmcp_set_irq_enable(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 token,
-			 u8 irq_index,
-			 u8 en);
-
-int dpmcp_get_irq_enable(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 token,
-			 u8 irq_index,
-			 u8 *en);
-
-int dpmcp_set_irq_mask(struct fsl_mc_io *mc_io,
-		       u32 cmd_flags,
-		       u16 token,
-		       u8 irq_index,
-		       u32 mask);
-
-int dpmcp_get_irq_mask(struct fsl_mc_io *mc_io,
-		       u32 cmd_flags,
-		       u16 token,
-		       u8 irq_index,
-		       u32 *mask);
-
-int dpmcp_get_irq_status(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 token,
-			 u8 irq_index,
-			 u32 *status);
-
-/**
- * struct dpmcp_attr - Structure representing DPMCP attributes
- * @id:		DPMCP object ID
- */
-struct dpmcp_attr {
-	int id;
-};
-
-int dpmcp_get_attributes(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 token,
-			 struct dpmcp_attr *attr);
 
 #endif /* __FSL_DPMCP_H */

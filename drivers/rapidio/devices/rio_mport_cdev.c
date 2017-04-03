@@ -889,17 +889,16 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
 			goto err_req;
 		}
 
-		down_read(&current->mm->mmap_sem);
-		pinned = get_user_pages(
+		pinned = get_user_pages_unlocked(
 				(unsigned long)xfer->loc_addr & PAGE_MASK,
 				nr_pages,
-				dir == DMA_FROM_DEVICE ? FOLL_WRITE : 0,
-				page_list, NULL);
-		up_read(&current->mm->mmap_sem);
+				page_list,
+				dir == DMA_FROM_DEVICE ? FOLL_WRITE : 0);
 
 		if (pinned != nr_pages) {
 			if (pinned < 0) {
-				rmcd_error("get_user_pages err=%ld", pinned);
+				rmcd_error("get_user_pages_unlocked err=%ld",
+					   pinned);
 				nr_pages = 0;
 			} else
 				rmcd_error("pinned %ld out of %ld pages",

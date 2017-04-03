@@ -116,7 +116,7 @@ struct gk20a_instmem {
 static enum nvkm_memory_target
 gk20a_instobj_target(struct nvkm_memory *memory)
 {
-	return NVKM_MEM_TARGET_HOST;
+	return NVKM_MEM_TARGET_NCOH;
 }
 
 static u64
@@ -305,11 +305,11 @@ gk20a_instobj_dtor_iommu(struct nvkm_memory *memory)
 	struct gk20a_instobj_iommu *node = gk20a_instobj_iommu(memory);
 	struct gk20a_instmem *imem = node->base.imem;
 	struct device *dev = imem->base.subdev.device->dev;
-	struct nvkm_mm_node *r;
+	struct nvkm_mm_node *r = node->base.mem.mem;
 	unsigned long flags;
 	int i;
 
-	if (unlikely(list_empty(&node->base.mem.regions)))
+	if (unlikely(!r))
 		goto out;
 
 	spin_lock_irqsave(&imem->lock, flags);
@@ -319,9 +319,6 @@ gk20a_instobj_dtor_iommu(struct nvkm_memory *memory)
 		gk20a_instobj_iommu_recycle_vaddr(node);
 
 	spin_unlock_irqrestore(&imem->lock, flags);
-
-	r = list_first_entry(&node->base.mem.regions, struct nvkm_mm_node,
-			     rl_entry);
 
 	/* clear IOMMU bit to unmap pages */
 	r->offset &= ~BIT(imem->iommu_bit - imem->iommu_pgshift);
@@ -404,10 +401,7 @@ gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 	node->r.length = (npages << PAGE_SHIFT) >> 12;
 
 	node->base.mem.offset = node->handle;
-
-	INIT_LIST_HEAD(&node->base.mem.regions);
-	list_add_tail(&node->r.rl_entry, &node->base.mem.regions);
-
+	node->base.mem.mem = &node->r;
 	return 0;
 }
 
@@ -484,10 +478,7 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 	r->offset |= BIT(imem->iommu_bit - imem->iommu_pgshift);
 
 	node->base.mem.offset = ((u64)r->offset) << imem->iommu_pgshift;
-
-	INIT_LIST_HEAD(&node->base.mem.regions);
-	list_add_tail(&r->rl_entry, &node->base.mem.regions);
-
+	node->base.mem.mem = r;
 	return 0;
 
 release_area:

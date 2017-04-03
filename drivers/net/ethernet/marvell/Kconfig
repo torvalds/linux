@@ -83,9 +83,8 @@ config MVNETA_BM
 
 config MVPP2
 	tristate "Marvell Armada 375 network interface support"
-	depends on MACH_ARMADA_375 || COMPILE_TEST
+	depends on ARCH_MVEBU || COMPILE_TEST
 	depends on HAS_DMA
-	depends on !64BIT
 	select MVMDIO
 	---help---
 	  This driver supports the network interface units in the

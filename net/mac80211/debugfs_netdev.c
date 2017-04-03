@@ -519,6 +519,8 @@ static ssize_t ieee80211_if_fmt_aqm(
 }
 IEEE80211_IF_FILE_R(aqm);
 
+IEEE80211_IF_FILE(multicast_to_unicast, u.ap.multicast_to_unicast, HEX);
+
 /* IBSS attributes */
 static ssize_t ieee80211_if_fmt_tsf(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -683,6 +685,7 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(dtim_count);
 	DEBUGFS_ADD(num_buffered_multicast);
 	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
+	DEBUGFS_ADD_MODE(multicast_to_unicast, 0600);
 }
 
 static void add_vlan_files(struct ieee80211_sub_if_data *sdata)

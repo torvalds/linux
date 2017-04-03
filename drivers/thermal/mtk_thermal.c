@@ -183,37 +183,37 @@ struct mtk_thermal {
 };
 
 /* MT8173 thermal sensor data */
-const int mt8173_bank_data[MT8173_NUM_ZONES][3] = {
+static const int mt8173_bank_data[MT8173_NUM_ZONES][3] = {
 	{ MT8173_TS2, MT8173_TS3 },
 	{ MT8173_TS2, MT8173_TS4 },
 	{ MT8173_TS1, MT8173_TS2, MT8173_TSABB },
 	{ MT8173_TS2 },
 };
 
-const int mt8173_msr[MT8173_NUM_SENSORS_PER_ZONE] = {
+static const int mt8173_msr[MT8173_NUM_SENSORS_PER_ZONE] = {
 	TEMP_MSR0, TEMP_MSR1, TEMP_MSR2, TEMP_MSR2
 };
 
-const int mt8173_adcpnp[MT8173_NUM_SENSORS_PER_ZONE] = {
+static const int mt8173_adcpnp[MT8173_NUM_SENSORS_PER_ZONE] = {
 	TEMP_ADCPNP0, TEMP_ADCPNP1, TEMP_ADCPNP2, TEMP_ADCPNP3
 };
 
-const int mt8173_mux_values[MT8173_NUM_SENSORS] = { 0, 1, 2, 3, 16 };
+static const int mt8173_mux_values[MT8173_NUM_SENSORS] = { 0, 1, 2, 3, 16 };
 
 /* MT2701 thermal sensor data */
-const int mt2701_bank_data[MT2701_NUM_SENSORS] = {
+static const int mt2701_bank_data[MT2701_NUM_SENSORS] = {
 	MT2701_TS1, MT2701_TS2, MT2701_TSABB
 };
 
-const int mt2701_msr[MT2701_NUM_SENSORS_PER_ZONE] = {
+static const int mt2701_msr[MT2701_NUM_SENSORS_PER_ZONE] = {
 	TEMP_MSR0, TEMP_MSR1, TEMP_MSR2
 };
 
-const int mt2701_adcpnp[MT2701_NUM_SENSORS_PER_ZONE] = {
+static const int mt2701_adcpnp[MT2701_NUM_SENSORS_PER_ZONE] = {
 	TEMP_ADCPNP0, TEMP_ADCPNP1, TEMP_ADCPNP2
 };
 
-const int mt2701_mux_values[MT2701_NUM_SENSORS] = { 0, 1, 16 };
+static const int mt2701_mux_values[MT2701_NUM_SENSORS] = { 0, 1, 16 };
 
 /**
  * The MT8173 thermal controller has four banks. Each bank can read up to

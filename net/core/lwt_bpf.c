@@ -237,7 +237,7 @@ static const struct nla_policy bpf_nl_policy[LWT_BPF_MAX + 1] = {
 	[LWT_BPF_XMIT_HEADROOM]	= { .type = NLA_U32 },
 };
 
-static int bpf_build_state(struct net_device *dev, struct nlattr *nla,
+static int bpf_build_state(struct nlattr *nla,
 			   unsigned int family, const void *cfg,
 			   struct lwtunnel_state **ts)
 {
@@ -352,7 +352,7 @@ static int bpf_encap_nlsize(struct lwtunnel_state *lwtstate)
 	       0;
 }
 
-int bpf_lwt_prog_cmp(struct bpf_lwt_prog *a, struct bpf_lwt_prog *b)
+static int bpf_lwt_prog_cmp(struct bpf_lwt_prog *a, struct bpf_lwt_prog *b)
 {
 	/* FIXME:
 	 * The LWT state is currently rebuilt for delete requests which

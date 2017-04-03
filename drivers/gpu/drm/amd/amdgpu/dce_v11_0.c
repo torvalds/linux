@@ -2056,7 +2056,7 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 
 	pipe_config = AMDGPU_TILING_GET(tiling_flags, PIPE_CONFIG);
 
-	switch (target_fb->pixel_format) {
+	switch (target_fb->format->format) {
 	case DRM_FORMAT_C8:
 		fb_format = REG_SET_FIELD(0, GRPH_CONTROL, GRPH_DEPTH, 0);
 		fb_format = REG_SET_FIELD(fb_format, GRPH_CONTROL, GRPH_FORMAT, 0);
@@ -2129,7 +2129,7 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
-		          drm_get_format_name(target_fb->pixel_format, &format_name));
+		          drm_get_format_name(target_fb->format->format, &format_name));
 		return -EINVAL;
 	}
 
@@ -2204,7 +2204,7 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(mmGRPH_X_END + amdgpu_crtc->crtc_offset, target_fb->width);
 	WREG32(mmGRPH_Y_END + amdgpu_crtc->crtc_offset, target_fb->height);
 
-	fb_pitch_pixels = target_fb->pitches[0] / (target_fb->bits_per_pixel / 8);
+	fb_pitch_pixels = target_fb->pitches[0] / target_fb->format->cpp[0];
 	WREG32(mmGRPH_PITCH + amdgpu_crtc->crtc_offset, fb_pitch_pixels);
 
 	dce_v11_0_grph_enable(crtc, true);
@@ -3737,8 +3737,14 @@ static void dce_v11_0_encoder_add(struct amdgpu_device *adev,
 	default:
 		encoder->possible_crtcs = 0x3;
 		break;
+	case 3:
+		encoder->possible_crtcs = 0x7;
+		break;
 	case 4:
 		encoder->possible_crtcs = 0xf;
+		break;
+	case 5:
+		encoder->possible_crtcs = 0x1f;
 		break;
 	case 6:
 		encoder->possible_crtcs = 0x3f;

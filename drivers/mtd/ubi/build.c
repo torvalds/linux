@@ -1159,7 +1159,7 @@ static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
 	if (err)
 		return ERR_PTR(err);
 
-	err = vfs_getattr(&path, &stat);
+	err = vfs_getattr(&path, &stat, STATX_TYPE, AT_STATX_SYNC_AS_STAT);
 	path_put(&path);
 	if (err)
 		return ERR_PTR(err);

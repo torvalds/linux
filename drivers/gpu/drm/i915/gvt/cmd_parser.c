@@ -668,7 +668,7 @@ static inline void print_opcode(u32 cmd, int ring_id)
 	if (d_info == NULL)
 		return;
 
-	gvt_err("opcode=0x%x %s sub_ops:",
+	gvt_dbg_cmd("opcode=0x%x %s sub_ops:",
 			cmd >> (32 - d_info->op_len), d_info->name);
 
 	for (i = 0; i < d_info->nr_sub_op; i++)
@@ -693,23 +693,23 @@ static void parser_exec_state_dump(struct parser_exec_state *s)
 	int cnt = 0;
 	int i;
 
-	gvt_err("  vgpu%d RING%d: ring_start(%08lx) ring_end(%08lx)"
+	gvt_dbg_cmd("  vgpu%d RING%d: ring_start(%08lx) ring_end(%08lx)"
 			" ring_head(%08lx) ring_tail(%08lx)\n", s->vgpu->id,
 			s->ring_id, s->ring_start, s->ring_start + s->ring_size,
 			s->ring_head, s->ring_tail);
 
-	gvt_err("  %s %s ip_gma(%08lx) ",
+	gvt_dbg_cmd("  %s %s ip_gma(%08lx) ",
 			s->buf_type == RING_BUFFER_INSTRUCTION ?
 			"RING_BUFFER" : "BATCH_BUFFER",
 			s->buf_addr_type == GTT_BUFFER ?
 			"GTT" : "PPGTT", s->ip_gma);
 
 	if (s->ip_va == NULL) {
-		gvt_err(" ip_va(NULL)");
+		gvt_dbg_cmd(" ip_va(NULL)");
 		return;
 	}
 
-	gvt_err("  ip_va=%p: %08x %08x %08x %08x\n",
+	gvt_dbg_cmd("  ip_va=%p: %08x %08x %08x %08x\n",
 			s->ip_va, cmd_val(s, 0), cmd_val(s, 1),
 			cmd_val(s, 2), cmd_val(s, 3));
 
@@ -817,6 +817,25 @@ static bool is_shadowed_mmio(unsigned int offset)
 	return ret;
 }
 
+static inline bool is_force_nonpriv_mmio(unsigned int offset)
+{
+	return (offset >= 0x24d0 && offset < 0x2500);
+}
+
+static int force_nonpriv_reg_handler(struct parser_exec_state *s,
+				     unsigned int offset, unsigned int index)
+{
+	struct intel_gvt *gvt = s->vgpu->gvt;
+	unsigned int data = cmd_val(s, index + 1);
+
+	if (!intel_gvt_in_force_nonpriv_whitelist(gvt, data)) {
+		gvt_err("Unexpected forcenonpriv 0x%x LRI write, value=0x%x\n",
+			offset, data);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int cmd_reg_handler(struct parser_exec_state *s,
 	unsigned int offset, unsigned int index, char *cmd)
 {
@@ -824,22 +843,25 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	struct intel_gvt *gvt = vgpu->gvt;
 
 	if (offset + 4 > gvt->device_info.mmio_size) {
-		gvt_err("%s access to (%x) outside of MMIO range\n",
+		gvt_vgpu_err("%s access to (%x) outside of MMIO range\n",
 				cmd, offset);
 		return -EINVAL;
 	}
 
 	if (!intel_gvt_mmio_is_cmd_access(gvt, offset)) {
-		gvt_err("vgpu%d: %s access to non-render register (%x)\n",
-				s->vgpu->id, cmd, offset);
+		gvt_vgpu_err("%s access to non-render register (%x)\n",
+				cmd, offset);
 		return 0;
 	}
 
 	if (is_shadowed_mmio(offset)) {
-		gvt_err("vgpu%d: found access of shadowed MMIO %x\n",
-				s->vgpu->id, offset);
+		gvt_vgpu_err("found access of shadowed MMIO %x\n", offset);
 		return 0;
 	}
+
+	if (is_force_nonpriv_mmio(offset) &&
+	    force_nonpriv_reg_handler(s, offset, index))
+		return -EINVAL;
 
 	if (offset == i915_mmio_reg_offset(DERRMR) ||
 		offset == i915_mmio_reg_offset(FORCEWAKE_MT)) {
@@ -1008,7 +1030,7 @@ static int cmd_handler_pipe_control(struct parser_exec_state *s)
 			ret = cmd_reg_handler(s, 0x2358, 1, "pipe_ctrl");
 		else if (post_sync == 1) {
 			/* check ggtt*/
-			if ((cmd_val(s, 2) & (1 << 2))) {
+			if ((cmd_val(s, 1) & PIPE_CONTROL_GLOBAL_GTT_IVB)) {
 				gma = cmd_val(s, 2) & GENMASK(31, 3);
 				if (gmadr_bytes == 8)
 					gma |= (cmd_gma_hi(s, 3)) << 32;
@@ -1129,10 +1151,13 @@ static int skl_decode_mi_display_flip(struct parser_exec_state *s,
 		struct mi_display_flip_command_info *info)
 {
 	struct drm_i915_private *dev_priv = s->vgpu->gvt->dev_priv;
+	struct intel_vgpu *vgpu = s->vgpu;
 	u32 dword0 = cmd_val(s, 0);
 	u32 dword1 = cmd_val(s, 1);
 	u32 dword2 = cmd_val(s, 2);
 	u32 plane = (dword0 & GENMASK(12, 8)) >> 8;
+
+	info->plane = PRIMARY_PLANE;
 
 	switch (plane) {
 	case MI_DISPLAY_FLIP_SKL_PLANE_1_A:
@@ -1147,12 +1172,28 @@ static int skl_decode_mi_display_flip(struct parser_exec_state *s,
 		info->pipe = PIPE_C;
 		info->event = PRIMARY_C_FLIP_DONE;
 		break;
+
+	case MI_DISPLAY_FLIP_SKL_PLANE_2_A:
+		info->pipe = PIPE_A;
+		info->event = SPRITE_A_FLIP_DONE;
+		info->plane = SPRITE_PLANE;
+		break;
+	case MI_DISPLAY_FLIP_SKL_PLANE_2_B:
+		info->pipe = PIPE_B;
+		info->event = SPRITE_B_FLIP_DONE;
+		info->plane = SPRITE_PLANE;
+		break;
+	case MI_DISPLAY_FLIP_SKL_PLANE_2_C:
+		info->pipe = PIPE_C;
+		info->event = SPRITE_C_FLIP_DONE;
+		info->plane = SPRITE_PLANE;
+		break;
+
 	default:
-		gvt_err("unknown plane code %d\n", plane);
+		gvt_vgpu_err("unknown plane code %d\n", plane);
 		return -EINVAL;
 	}
 
-	info->pipe = PRIMARY_PLANE;
 	info->stride_val = (dword1 & GENMASK(15, 6)) >> 6;
 	info->tile_val = (dword1 & GENMASK(2, 0));
 	info->surf_val = (dword2 & GENMASK(31, 12)) >> 12;
@@ -1256,25 +1297,26 @@ static int update_plane_mmio_from_mi_display_flip(
 static int cmd_handler_mi_display_flip(struct parser_exec_state *s)
 {
 	struct mi_display_flip_command_info info;
+	struct intel_vgpu *vgpu = s->vgpu;
 	int ret;
 	int i;
 	int len = cmd_length(s);
 
 	ret = decode_mi_display_flip(s, &info);
 	if (ret) {
-		gvt_err("fail to decode MI display flip command\n");
+		gvt_vgpu_err("fail to decode MI display flip command\n");
 		return ret;
 	}
 
 	ret = check_mi_display_flip(s, &info);
 	if (ret) {
-		gvt_err("invalid MI display flip command\n");
+		gvt_vgpu_err("invalid MI display flip command\n");
 		return ret;
 	}
 
 	ret = update_plane_mmio_from_mi_display_flip(s, &info);
 	if (ret) {
-		gvt_err("fail to update plane mmio\n");
+		gvt_vgpu_err("fail to update plane mmio\n");
 		return ret;
 	}
 
@@ -1332,7 +1374,8 @@ static inline int cmd_address_audit(struct parser_exec_state *s,
 	int ret;
 
 	if (op_size > max_surface_size) {
-		gvt_err("command address audit fail name %s\n", s->info->name);
+		gvt_vgpu_err("command address audit fail name %s\n",
+			s->info->name);
 		return -EINVAL;
 	}
 
@@ -1349,7 +1392,7 @@ static inline int cmd_address_audit(struct parser_exec_state *s,
 	}
 	return 0;
 err:
-	gvt_err("cmd_parser: Malicious %s detected, addr=0x%lx, len=%d!\n",
+	gvt_vgpu_err("cmd_parser: Malicious %s detected, addr=0x%lx, len=%d!\n",
 			s->info->name, guest_gma, op_size);
 
 	pr_err("cmd dump: ");
@@ -1394,8 +1437,10 @@ static int cmd_handler_mi_store_data_imm(struct parser_exec_state *s)
 
 static inline int unexpected_cmd(struct parser_exec_state *s)
 {
-	gvt_err("vgpu%d: Unexpected %s in command buffer!\n",
-			s->vgpu->id, s->info->name);
+	struct intel_vgpu *vgpu = s->vgpu;
+
+	gvt_vgpu_err("Unexpected %s in command buffer!\n", s->info->name);
+
 	return -EINVAL;
 }
 
@@ -1498,7 +1543,7 @@ static int copy_gma_to_hva(struct intel_vgpu *vgpu, struct intel_vgpu_mm *mm,
 	while (gma != end_gma) {
 		gpa = intel_vgpu_gma_to_gpa(mm, gma);
 		if (gpa == INTEL_GVT_INVALID_ADDR) {
-			gvt_err("invalid gma address: %lx\n", gma);
+			gvt_vgpu_err("invalid gma address: %lx\n", gma);
 			return -EFAULT;
 		}
 
@@ -1539,6 +1584,7 @@ static uint32_t find_bb_size(struct parser_exec_state *s)
 	uint32_t bb_size = 0;
 	uint32_t cmd_len = 0;
 	bool met_bb_end = false;
+	struct intel_vgpu *vgpu = s->vgpu;
 	u32 cmd;
 
 	/* get the start gm address of the batch buffer */
@@ -1547,7 +1593,7 @@ static uint32_t find_bb_size(struct parser_exec_state *s)
 
 	info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 	if (info == NULL) {
-		gvt_err("unknown cmd 0x%x, opcode=0x%x\n",
+		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x\n",
 				cmd, get_opcode(cmd, s->ring_id));
 		return -EINVAL;
 	}
@@ -1556,7 +1602,7 @@ static uint32_t find_bb_size(struct parser_exec_state *s)
 				gma, gma + 4, &cmd);
 		info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 		if (info == NULL) {
-			gvt_err("unknown cmd 0x%x, opcode=0x%x\n",
+			gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x\n",
 				cmd, get_opcode(cmd, s->ring_id));
 			return -EINVAL;
 		}
@@ -1581,6 +1627,7 @@ static uint32_t find_bb_size(struct parser_exec_state *s)
 static int perform_bb_shadow(struct parser_exec_state *s)
 {
 	struct intel_shadow_bb_entry *entry_obj;
+	struct intel_vgpu *vgpu = s->vgpu;
 	unsigned long gma = 0;
 	uint32_t bb_size;
 	void *dst = NULL;
@@ -1598,7 +1645,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 		return -ENOMEM;
 
 	entry_obj->obj =
-		i915_gem_object_create(&(s->vgpu->gvt->dev_priv->drm),
+		i915_gem_object_create(s->vgpu->gvt->dev_priv,
 				       roundup(bb_size, PAGE_SIZE));
 	if (IS_ERR(entry_obj->obj)) {
 		ret = PTR_ERR(entry_obj->obj);
@@ -1615,7 +1662,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 
 	ret = i915_gem_object_set_to_cpu_domain(entry_obj->obj, false);
 	if (ret) {
-		gvt_err("failed to set shadow batch to CPU\n");
+		gvt_vgpu_err("failed to set shadow batch to CPU\n");
 		goto unmap_src;
 	}
 
@@ -1627,7 +1674,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 			      gma, gma + bb_size,
 			      dst);
 	if (ret) {
-		gvt_err("fail to copy guest ring buffer\n");
+		gvt_vgpu_err("fail to copy guest ring buffer\n");
 		goto unmap_src;
 	}
 
@@ -1658,15 +1705,16 @@ static int cmd_handler_mi_batch_buffer_start(struct parser_exec_state *s)
 {
 	bool second_level;
 	int ret = 0;
+	struct intel_vgpu *vgpu = s->vgpu;
 
 	if (s->buf_type == BATCH_BUFFER_2ND_LEVEL) {
-		gvt_err("Found MI_BATCH_BUFFER_START in 2nd level BB\n");
+		gvt_vgpu_err("Found MI_BATCH_BUFFER_START in 2nd level BB\n");
 		return -EINVAL;
 	}
 
 	second_level = BATCH_BUFFER_2ND_LEVEL_BIT(cmd_val(s, 0)) == 1;
 	if (second_level && (s->buf_type != BATCH_BUFFER_INSTRUCTION)) {
-		gvt_err("Jumping to 2nd level BB from RB is not allowed\n");
+		gvt_vgpu_err("Jumping to 2nd level BB from RB is not allowed\n");
 		return -EINVAL;
 	}
 
@@ -1684,7 +1732,7 @@ static int cmd_handler_mi_batch_buffer_start(struct parser_exec_state *s)
 	if (batch_buffer_needs_scan(s)) {
 		ret = perform_bb_shadow(s);
 		if (ret < 0)
-			gvt_err("invalid shadow batch buffer\n");
+			gvt_vgpu_err("invalid shadow batch buffer\n");
 	} else {
 		/* emulate a batch buffer end to do return right */
 		ret = cmd_handler_mi_batch_buffer_end(s);
@@ -2411,6 +2459,7 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 	int ret = 0;
 	cycles_t t0, t1, t2;
 	struct parser_exec_state s_before_advance_custom;
+	struct intel_vgpu *vgpu = s->vgpu;
 
 	t0 = get_cycles();
 
@@ -2418,7 +2467,7 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 
 	info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
 	if (info == NULL) {
-		gvt_err("unknown cmd 0x%x, opcode=0x%x\n",
+		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x\n",
 				cmd, get_opcode(cmd, s->ring_id));
 		return -EINVAL;
 	}
@@ -2434,7 +2483,7 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 	if (info->handler) {
 		ret = info->handler(s);
 		if (ret < 0) {
-			gvt_err("%s handler error\n", info->name);
+			gvt_vgpu_err("%s handler error\n", info->name);
 			return ret;
 		}
 	}
@@ -2445,7 +2494,7 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 	if (!(info->flag & F_IP_ADVANCE_CUSTOM)) {
 		ret = cmd_advance_default(s);
 		if (ret) {
-			gvt_err("%s IP advance error\n", info->name);
+			gvt_vgpu_err("%s IP advance error\n", info->name);
 			return ret;
 		}
 	}
@@ -2468,6 +2517,7 @@ static int command_scan(struct parser_exec_state *s,
 
 	unsigned long gma_head, gma_tail, gma_bottom;
 	int ret = 0;
+	struct intel_vgpu *vgpu = s->vgpu;
 
 	gma_head = rb_start + rb_head;
 	gma_tail = rb_start + rb_tail;
@@ -2479,7 +2529,7 @@ static int command_scan(struct parser_exec_state *s,
 		if (s->buf_type == RING_BUFFER_INSTRUCTION) {
 			if (!(s->ip_gma >= rb_start) ||
 				!(s->ip_gma < gma_bottom)) {
-				gvt_err("ip_gma %lx out of ring scope."
+				gvt_vgpu_err("ip_gma %lx out of ring scope."
 					"(base:0x%lx, bottom: 0x%lx)\n",
 					s->ip_gma, rb_start,
 					gma_bottom);
@@ -2487,7 +2537,7 @@ static int command_scan(struct parser_exec_state *s,
 				return -EINVAL;
 			}
 			if (gma_out_of_range(s->ip_gma, gma_head, gma_tail)) {
-				gvt_err("ip_gma %lx out of range."
+				gvt_vgpu_err("ip_gma %lx out of range."
 					"base 0x%lx head 0x%lx tail 0x%lx\n",
 					s->ip_gma, rb_start,
 					rb_head, rb_tail);
@@ -2497,7 +2547,7 @@ static int command_scan(struct parser_exec_state *s,
 		}
 		ret = cmd_parser_exec(s);
 		if (ret) {
-			gvt_err("cmd parser error\n");
+			gvt_vgpu_err("cmd parser error\n");
 			parser_exec_state_dump(s);
 			break;
 		}
@@ -2621,7 +2671,7 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 				gma_head, gma_top,
 				workload->shadow_ring_buffer_va);
 		if (ret) {
-			gvt_err("fail to copy guest ring buffer\n");
+			gvt_vgpu_err("fail to copy guest ring buffer\n");
 			return ret;
 		}
 		copy_len = gma_top - gma_head;
@@ -2633,7 +2683,7 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 			gma_head, gma_tail,
 			workload->shadow_ring_buffer_va + copy_len);
 	if (ret) {
-		gvt_err("fail to copy guest ring buffer\n");
+		gvt_vgpu_err("fail to copy guest ring buffer\n");
 		return ret;
 	}
 	ring->tail += workload->rb_len;
@@ -2644,16 +2694,17 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 {
 	int ret;
+	struct intel_vgpu *vgpu = workload->vgpu;
 
 	ret = shadow_workload_ring_buffer(workload);
 	if (ret) {
-		gvt_err("fail to shadow workload ring_buffer\n");
+		gvt_vgpu_err("fail to shadow workload ring_buffer\n");
 		return ret;
 	}
 
 	ret = scan_workload(workload);
 	if (ret) {
-		gvt_err("scan workload error\n");
+		gvt_vgpu_err("scan workload error\n");
 		return ret;
 	}
 	return 0;
@@ -2661,14 +2712,14 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 
 static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
-	struct drm_device *dev = &wa_ctx->workload->vgpu->gvt->dev_priv->drm;
 	int ctx_size = wa_ctx->indirect_ctx.size;
 	unsigned long guest_gma = wa_ctx->indirect_ctx.guest_gma;
+	struct intel_vgpu *vgpu = wa_ctx->workload->vgpu;
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
 	void *map;
 
-	obj = i915_gem_object_create(dev,
+	obj = i915_gem_object_create(wa_ctx->workload->vgpu->gvt->dev_priv,
 				     roundup(ctx_size + CACHELINE_BYTES,
 					     PAGE_SIZE));
 	if (IS_ERR(obj))
@@ -2677,14 +2728,14 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	/* get the va of the shadow batch buffer */
 	map = i915_gem_object_pin_map(obj, I915_MAP_WB);
 	if (IS_ERR(map)) {
-		gvt_err("failed to vmap shadow indirect ctx\n");
+		gvt_vgpu_err("failed to vmap shadow indirect ctx\n");
 		ret = PTR_ERR(map);
 		goto put_obj;
 	}
 
 	ret = i915_gem_object_set_to_cpu_domain(obj, false);
 	if (ret) {
-		gvt_err("failed to set shadow indirect ctx to CPU\n");
+		gvt_vgpu_err("failed to set shadow indirect ctx to CPU\n");
 		goto unmap_src;
 	}
 
@@ -2693,7 +2744,7 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 				guest_gma, guest_gma + ctx_size,
 				map);
 	if (ret) {
-		gvt_err("fail to copy guest indirect ctx\n");
+		gvt_vgpu_err("fail to copy guest indirect ctx\n");
 		goto unmap_src;
 	}
 
@@ -2727,13 +2778,14 @@ static int combine_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 int intel_gvt_scan_and_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
 	int ret;
+	struct intel_vgpu *vgpu = wa_ctx->workload->vgpu;
 
 	if (wa_ctx->indirect_ctx.size == 0)
 		return 0;
 
 	ret = shadow_indirect_ctx(wa_ctx);
 	if (ret) {
-		gvt_err("fail to shadow indirect ctx\n");
+		gvt_vgpu_err("fail to shadow indirect ctx\n");
 		return ret;
 	}
 
@@ -2741,7 +2793,7 @@ int intel_gvt_scan_and_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 
 	ret = scan_wa_ctx(wa_ctx);
 	if (ret) {
-		gvt_err("scan wa ctx error\n");
+		gvt_vgpu_err("scan wa ctx error\n");
 		return ret;
 	}
 

@@ -352,7 +352,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	adreno_gpu->gmem = adreno_gpu->info->gmem;
 	adreno_gpu->revn = adreno_gpu->info->revn;
 	adreno_gpu->rev = config->rev;
-	adreno_gpu->quirks = config->quirks;
 
 	gpu->fast_rate = config->fast_rate;
 	gpu->slow_rate = config->slow_rate;

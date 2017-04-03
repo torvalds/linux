@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/crc32.h>
@@ -814,6 +838,7 @@ int qed_vf_pf_vport_update(struct qed_hwfn *p_hwfn,
 	if (p_params->rss_params) {
 		struct qed_rss_params *rss_params = p_params->rss_params;
 		struct vfpf_vport_update_rss_tlv *p_rss_tlv;
+		int i, table_size;
 
 		size = sizeof(struct vfpf_vport_update_rss_tlv);
 		p_rss_tlv = qed_add_tlv(p_hwfn,
@@ -836,8 +861,15 @@ int qed_vf_pf_vport_update(struct qed_hwfn *p_hwfn,
 		p_rss_tlv->rss_enable = rss_params->rss_enable;
 		p_rss_tlv->rss_caps = rss_params->rss_caps;
 		p_rss_tlv->rss_table_size_log = rss_params->rss_table_size_log;
-		memcpy(p_rss_tlv->rss_ind_table, rss_params->rss_ind_table,
-		       sizeof(rss_params->rss_ind_table));
+
+		table_size = min_t(int, T_ETH_INDIRECTION_TABLE_SIZE,
+				   1 << p_rss_tlv->rss_table_size_log);
+		for (i = 0; i < table_size; i++) {
+			struct qed_queue_cid *p_queue;
+
+			p_queue = rss_params->rss_ind_table[i];
+			p_rss_tlv->rss_ind_table[i] = p_queue->rel.queue_id;
+		}
 		memcpy(p_rss_tlv->rss_key, rss_params->rss_key,
 		       sizeof(rss_params->rss_key));
 	}
@@ -1253,6 +1285,9 @@ void qed_iov_vf_task(struct work_struct *work)
 
 	/* Handle bulletin board changes */
 	qed_vf_read_bulletin(hwfn, &change);
+	if (test_and_clear_bit(QED_IOV_WQ_VF_FORCE_LINK_QUERY_FLAG,
+			       &hwfn->iov_task_flags))
+		change = 1;
 	if (change)
 		qed_handle_bulletin_change(hwfn);
 

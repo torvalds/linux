@@ -216,6 +216,10 @@
 	};
 };
 
+&sata {
+	status = "okay";
+};
+
 &scif2 {
 	pinctrl-0 = <&scif2_pins>;
 	pinctrl-names = "default";

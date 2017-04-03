@@ -98,6 +98,8 @@
 /* TVE_TST_MODE_REG */
 #define TVE_TVDAC_TEST_MODE_MASK	(0x7 << 0)
 
+#define IMX_TVE_DAC_VOLTAGE	2750000
+
 enum {
 	TVE_MODE_TVOUT,
 	TVE_MODE_VGA,
@@ -150,13 +152,11 @@ __releases(&tve->lock)
 
 static void tve_enable(struct imx_tve *tve)
 {
-	int ret;
-
 	if (!tve->enabled) {
 		tve->enabled = true;
 		clk_prepare_enable(tve->clk);
-		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
-					 TVE_EN, TVE_EN);
+		regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
+				   TVE_EN, TVE_EN);
 	}
 
 	/* clear interrupt status register */
@@ -174,12 +174,9 @@ static void tve_enable(struct imx_tve *tve)
 
 static void tve_disable(struct imx_tve *tve)
 {
-	int ret;
-
 	if (tve->enabled) {
 		tve->enabled = false;
-		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
-					 TVE_EN, 0);
+		regmap_update_bits(tve->regmap, TVE_COM_CONF_REG, TVE_EN, 0);
 		clk_disable_unprepare(tve->clk);
 	}
 }
@@ -621,9 +618,8 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 
 	tve->dac_reg = devm_regulator_get(dev, "dac");
 	if (!IS_ERR(tve->dac_reg)) {
-		ret = regulator_set_voltage(tve->dac_reg, 2750000, 2750000);
-		if (ret)
-			return ret;
+		if (regulator_get_voltage(tve->dac_reg) != IMX_TVE_DAC_VOLTAGE)
+			dev_warn(dev, "dac voltage is not %d uV\n", IMX_TVE_DAC_VOLTAGE);
 		ret = regulator_enable(tve->dac_reg);
 		if (ret)
 			return ret;

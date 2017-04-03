@@ -805,13 +805,19 @@ static int dib7000p_set_agc_config(struct dib7000p_state *state, u8 band)
 	return 0;
 }
 
-static void dib7000p_set_dds(struct dib7000p_state *state, s32 offset_khz)
+static int dib7000p_set_dds(struct dib7000p_state *state, s32 offset_khz)
 {
 	u32 internal = dib7000p_get_internal_freq(state);
-	s32 unit_khz_dds_val = 67108864 / (internal);	/* 2**26 / Fsampling is the unit 1KHz offset */
+	s32 unit_khz_dds_val;
 	u32 abs_offset_khz = ABS(offset_khz);
 	u32 dds = state->cfg.bw->ifreq & 0x1ffffff;
 	u8 invert = !!(state->cfg.bw->ifreq & (1 << 25));
+	if (internal == 0) {
+		pr_warn("DIB7000P: dib7000p_get_internal_freq returned 0\n");
+		return -1;
+	}
+	/* 2**26 / Fsampling is the unit 1KHz offset */
+	unit_khz_dds_val = 67108864 / (internal);
 
 	dprintk("setting a frequency offset of %dkHz internal freq = %d invert = %d\n", offset_khz, internal, invert);
 
@@ -828,6 +834,7 @@ static void dib7000p_set_dds(struct dib7000p_state *state, s32 offset_khz)
 		dib7000p_write_word(state, 21, (u16) (((dds >> 16) & 0x1ff) | (0 << 10) | (invert << 9)));
 		dib7000p_write_word(state, 22, (u16) (dds & 0xffff));
 	}
+	return 0;
 }
 
 static int dib7000p_agc_startup(struct dvb_frontend *demod)
@@ -867,7 +874,9 @@ static int dib7000p_agc_startup(struct dvb_frontend *demod)
 			frequency_offset = (s32)frequency_tuner / 1000 - ch->frequency / 1000;
 		}
 
-		dib7000p_set_dds(state, frequency_offset);
+		if (dib7000p_set_dds(state, frequency_offset) < 0)
+			return -1;
+
 		ret = 7;
 		(*agc_state)++;
 		break;

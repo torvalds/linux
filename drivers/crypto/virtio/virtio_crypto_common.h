@@ -25,6 +25,7 @@
 #include <crypto/aead.h>
 #include <crypto/aes.h>
 #include <crypto/authenc.h>
+#include <crypto/engine.h>
 
 
 /* Internal representation of a data virtqueue */
@@ -37,6 +38,8 @@ struct data_queue {
 
 	/* Name of the tx queue: dataq.$index */
 	char name[32];
+
+	struct crypto_engine *engine;
 };
 
 struct virtio_crypto {
@@ -97,6 +100,9 @@ struct virtio_crypto_request {
 	struct virtio_crypto_op_data_req *req_data;
 	struct scatterlist **sgs;
 	uint8_t *iv;
+	/* Encryption? */
+	bool encrypt;
+	struct data_queue *dataq;
 };
 
 int virtcrypto_devmgr_add_dev(struct virtio_crypto *vcrypto_dev);
@@ -110,6 +116,16 @@ int virtcrypto_dev_started(struct virtio_crypto *vcrypto_dev);
 struct virtio_crypto *virtcrypto_get_dev_node(int node);
 int virtcrypto_dev_start(struct virtio_crypto *vcrypto);
 void virtcrypto_dev_stop(struct virtio_crypto *vcrypto);
+int virtio_crypto_ablkcipher_crypt_req(
+	struct crypto_engine *engine,
+	struct ablkcipher_request *req);
+void virtio_crypto_ablkcipher_finalize_req(
+	struct virtio_crypto_request *vc_req,
+	struct ablkcipher_request *req,
+	int err);
+
+void
+virtcrypto_clear_request(struct virtio_crypto_request *vc_req);
 
 static inline int virtio_crypto_get_current_node(void)
 {

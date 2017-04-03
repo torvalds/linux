@@ -191,7 +191,7 @@ static void avr32_dma_sync_sg_for_device(struct device *dev,
 		dma_cache_sync(dev, sg_virt(sg), sg->length, direction);
 }
 
-struct dma_map_ops avr32_dma_ops = {
+const struct dma_map_ops avr32_dma_ops = {
 	.alloc			= avr32_dma_alloc,
 	.free			= avr32_dma_free,
 	.map_page		= avr32_dma_map_page,

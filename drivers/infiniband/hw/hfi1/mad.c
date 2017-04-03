@@ -4406,7 +4406,7 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 	switch (in_mad->base_version) {
 	case OPA_MGMT_BASE_VERSION:
 		if (unlikely(in_mad_size != sizeof(struct opa_mad))) {
-			dev_err(ibdev->dma_device, "invalid in_mad_size\n");
+			dev_err(ibdev->dev.parent, "invalid in_mad_size\n");
 			return IB_MAD_RESULT_FAILURE;
 		}
 		return hfi1_process_opa_mad(ibdev, mad_flags, port,

@@ -1,7 +1,7 @@
 /*
  *  BSD LICENSE
  *
- *  Copyright (c) 2016 Broadcom.  All rights reserved.
+ *  Copyright(c) 2016 Broadcom.  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -55,8 +55,21 @@
 	gpio-restart {
 		compatible = "gpio-restart";
 		gpios = <&gpioa 15 GPIO_ACTIVE_LOW>;
+		open-source;
 		priority = <200>;
 	};
+};
+
+&amac0 {
+	status = "okay";
+};
+
+&amac1 {
+	status = "okay";
+};
+
+&amac2 {
+	status = "okay";
 };
 
 &nand {
@@ -97,10 +110,6 @@
 	};
 };
 
-&uart0 {
-	status = "okay";
-};
-
 &pcie0 {
 	status = "okay";
 };
@@ -118,7 +127,49 @@
 	};
 };
 
-&amac0 {
+&qspi {
+	bspi-sel = <0>;
+	flash: m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "m25p80";
+		reg = <0x0>;
+		spi-max-frequency = <12500000>;
+		m25p,fast-read;
+		spi-cpol;
+		spi-cpha;
+
+		partition@0 {
+			label = "boot";
+			reg = <0x00000000 0x000a0000>;
+		};
+
+		partition@a0000 {
+			label = "env";
+			reg = <0x000a0000 0x00060000>;
+		};
+
+		partition@100000 {
+			label = "system";
+			reg = <0x00100000 0x00600000>;
+		};
+
+		partition@700000 {
+			label = "rootfs";
+			reg = <0x00700000 0x01900000>;
+		};
+	};
+};
+
+&sata_phy0 {
+	status = "okay";
+};
+
+&sata_phy1 {
+	status = "okay";
+};
+
+&sata {
 	status = "okay";
 };
 
@@ -167,14 +218,6 @@
 	};
 };
 
-&sata_phy0 {
-	status = "okay";
-};
-
-&sata_phy1 {
-	status = "okay";
-};
-
-&sata {
+&uart0 {
 	status = "okay";
 };

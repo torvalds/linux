@@ -621,10 +621,10 @@ lnet_get_route(int idx, __u32 *net, __u32 *hops,
 }
 
 void
-lnet_swap_pinginfo(lnet_ping_info_t *info)
+lnet_swap_pinginfo(struct lnet_ping_info *info)
 {
 	int i;
-	lnet_ni_status_t *stat;
+	struct lnet_ni_status *stat;
 
 	__swab32s(&info->pi_magic);
 	__swab32s(&info->pi_features);
@@ -644,7 +644,7 @@ lnet_swap_pinginfo(lnet_ping_info_t *info)
 static void
 lnet_parse_rc_info(lnet_rc_data_t *rcd)
 {
-	lnet_ping_info_t *info = rcd->rcd_pinginfo;
+	struct lnet_ping_info *info = rcd->rcd_pinginfo;
 	struct lnet_peer *gw = rcd->rcd_gateway;
 	lnet_route_t *rte;
 
@@ -683,7 +683,7 @@ lnet_parse_rc_info(lnet_rc_data_t *rcd)
 		}
 
 		for (i = 0; i < info->pi_nnis && i < LNET_MAX_RTR_NIS; i++) {
-			lnet_ni_status_t *stat = &info->pi_ni[i];
+			struct lnet_ni_status *stat = &info->pi_ni[i];
 			lnet_nid_t nid = stat->ns_nid;
 
 			if (nid == LNET_NID_ANY) {
@@ -902,7 +902,7 @@ static lnet_rc_data_t *
 lnet_create_rc_data_locked(lnet_peer_t *gateway)
 {
 	lnet_rc_data_t *rcd = NULL;
-	lnet_ping_info_t *pi;
+	struct lnet_ping_info *pi;
 	lnet_md_t md;
 	int rc;
 	int i;

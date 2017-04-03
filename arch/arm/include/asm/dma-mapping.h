@@ -13,28 +13,22 @@
 #include <asm/xen/hypervisor.h>
 
 #define DMA_ERROR_CODE	(~(dma_addr_t)0x0)
-extern struct dma_map_ops arm_dma_ops;
-extern struct dma_map_ops arm_coherent_dma_ops;
+extern const struct dma_map_ops arm_dma_ops;
+extern const struct dma_map_ops arm_coherent_dma_ops;
 
-static inline struct dma_map_ops *__generic_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *__generic_dma_ops(struct device *dev)
 {
-	if (dev && dev->archdata.dma_ops)
-		return dev->archdata.dma_ops;
+	if (dev && dev->dma_ops)
+		return dev->dma_ops;
 	return &arm_dma_ops;
 }
 
-static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
 	if (xen_initial_domain())
 		return xen_dma_ops;
 	else
-		return __generic_dma_ops(dev);
-}
-
-static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
-{
-	BUG_ON(!dev);
-	dev->archdata.dma_ops = ops;
+		return __generic_dma_ops(NULL);
 }
 
 #define HAVE_ARCH_DMA_SUPPORTED 1

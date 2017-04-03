@@ -1,28 +1,30 @@
 #ifndef _SKEIN_H_
 #define _SKEIN_H_     1
-/**************************************************************************
-**
-** Interface declarations and internal definitions for Skein hashing.
-**
-** Source code author: Doug Whiting, 2008.
-**
-** This algorithm and source code is released to the public domain.
-**
-***************************************************************************
-**
-** The following compile-time switches may be defined to control some
-** tradeoffs between speed, code size, error checking, and security.
-**
-** The "default" note explains what happens when the switch is not defined.
-**
-**  SKEIN_ERR_CHECK        -- how error checking is handled inside Skein
-**                            code. If not defined, most error checking
-**                            is disabled (for performance). Otherwise,
-**                            the switch value is interpreted as:
-**                                0: use assert()      to flag errors
-**                                1: return SKEIN_FAIL to flag errors
-**
-***************************************************************************/
+/*
+ **************************************************************************
+ *
+ * Interface declarations and internal definitions for Skein hashing.
+ *
+ * Source code author: Doug Whiting, 2008.
+ *
+ * This algorithm and source code is released to the public domain.
+ *
+ **************************************************************************
+ *
+ * The following compile-time switches may be defined to control some
+ * tradeoffs between speed, code size, error checking, and security.
+ *
+ * The "default" note explains what happens when the switch is not defined.
+ *
+ *  SKEIN_ERR_CHECK        -- how error checking is handled inside Skein
+ *                            code. If not defined, most error checking
+ *                            is disabled (for performance). Otherwise,
+ *                            the switch value is interpreted as:
+ *                                0: use assert()      to flag errors
+ *                                1: return SKEIN_FAIL to flag errors
+ *
+ **************************************************************************
+ */
 
 /*Skein digest sizes for crypto api*/
 #define SKEIN256_DIGEST_BIT_SIZE 256
@@ -101,19 +103,19 @@ int skein_512_final(struct skein_512_ctx *ctx, u8 *hash_val);
 int skein_1024_final(struct skein_1024_ctx *ctx, u8 *hash_val);
 
 /*
-**   Skein APIs for "extended" initialization: MAC keys, tree hashing.
-**   After an init_ext() call, just use update/final calls as with init().
-**
-**   Notes: Same parameters as _init() calls, plus tree_info/key/key_bytes.
-**          When key_bytes == 0 and tree_info == SKEIN_SEQUENTIAL,
-**              the results of init_ext() are identical to calling init().
-**          The function init() may be called once to "precompute" the IV for
-**              a given hash_bit_len value, then by saving a copy of the context
-**              the IV computation may be avoided in later calls.
-**          Similarly, the function init_ext() may be called once per MAC key
-**              to precompute the MAC IV, then a copy of the context saved and
-**              reused for each new MAC computation.
-**/
+ *   Skein APIs for "extended" initialization: MAC keys, tree hashing.
+ *   After an init_ext() call, just use update/final calls as with init().
+ *
+ *   Notes: Same parameters as _init() calls, plus tree_info/key/key_bytes.
+ *          When key_bytes == 0 and tree_info == SKEIN_SEQUENTIAL,
+ *              the results of init_ext() are identical to calling init().
+ *          The function init() may be called once to "precompute" the IV for
+ *              a given hash_bit_len value, then by saving a copy of the context
+ *              the IV computation may be avoided in later calls.
+ *          Similarly, the function init_ext() may be called once per MAC key
+ *              to precompute the MAC IV, then a copy of the context saved and
+ *              reused for each new MAC computation.
+ */
 int skein_256_init_ext(struct skein_256_ctx *ctx, size_t hash_bit_len,
 		       u64 tree_info, const u8 *key, size_t key_bytes);
 int skein_512_init_ext(struct skein_512_ctx *ctx, size_t hash_bit_len,
@@ -122,10 +124,10 @@ int skein_1024_init_ext(struct skein_1024_ctx *ctx, size_t hash_bit_len,
 			u64 tree_info, const u8 *key, size_t key_bytes);
 
 /*
-**   Skein APIs for MAC and tree hash:
-**      final_pad:  pad, do final block, but no OUTPUT type
-**      output:     do just the output stage
-*/
+ *   Skein APIs for MAC and tree hash:
+ *      final_pad:  pad, do final block, but no OUTPUT type
+ *      output:     do just the output stage
+ */
 int skein_256_final_pad(struct skein_256_ctx *ctx, u8 *hash_val);
 int skein_512_final_pad(struct skein_512_ctx *ctx, u8 *hash_val);
 int skein_1024_final_pad(struct skein_1024_ctx *ctx, u8 *hash_val);
@@ -139,13 +141,15 @@ int skein_512_output(struct skein_512_ctx *ctx, u8 *hash_val);
 int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #endif
 
-/*****************************************************************
-** "Internal" Skein definitions
-**    -- not needed for sequential hashing API, but will be
-**           helpful for other uses of Skein (e.g., tree hash mode).
-**    -- included here so that they can be shared between
-**           reference and optimized code.
-******************************************************************/
+/*
+ *****************************************************************
+ * "Internal" Skein definitions
+ *    -- not needed for sequential hashing API, but will be
+ *           helpful for other uses of Skein (e.g., tree hash mode).
+ *    -- included here so that they can be shared between
+ *           reference and optimized code.
+ *****************************************************************
+ */
 
 /* tweak word tweak[1]: bit field starting positions */
 #define SKEIN_T1_BIT(BIT)       ((BIT) - 64)      /* second word  */
@@ -226,9 +230,9 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #define SKEIN_CFG_TREE_INFO_SEQUENTIAL SKEIN_CFG_TREE_INFO(0, 0, 0)
 
 /*
-**   Skein macros for getting/setting tweak words, etc.
-**   These are useful for partial input bytes, hash tree init/update, etc.
-**/
+ *   Skein macros for getting/setting tweak words, etc.
+ *   These are useful for partial input bytes, hash tree init/update, etc.
+ */
 #define skein_get_tweak(ctx_ptr, TWK_NUM)          ((ctx_ptr)->h.tweak[TWK_NUM])
 #define skein_set_tweak(ctx_ptr, TWK_NUM, t_val) { \
 		(ctx_ptr)->h.tweak[TWK_NUM] = (t_val); \
@@ -274,9 +278,11 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #define skein_assert_ret(x, ret_code)
 #define skein_assert(x)
 
-/*****************************************************************
-** Skein block function constants (shared across Ref and Opt code)
-******************************************************************/
+/*
+ *****************************************************************
+ * Skein block function constants (shared across Ref and Opt code)
+ *****************************************************************
+ */
 enum {
 	    /* SKEIN_256 round rotation constants */
 	R_256_0_0 = 14, R_256_0_1 = 16,

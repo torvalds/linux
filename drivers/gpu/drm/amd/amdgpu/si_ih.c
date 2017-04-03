@@ -23,7 +23,7 @@
 #include "drmP.h"
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
-#include "si/sid.h"
+#include "sid.h"
 #include "si_ih.h"
 
 static void si_ih_set_interrupt_funcs(struct amdgpu_device *adev);

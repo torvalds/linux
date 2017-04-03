@@ -14,10 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef _MEDIA_ENTITY_H
@@ -86,7 +82,7 @@ struct media_entity_enum {
 };
 
 /**
- * struct media_entity_graph - Media graph traversal state
+ * struct media_graph - Media graph traversal state
  *
  * @stack:		Graph traversal stack; the stack contains information
  *			on the path the media entities to be walked and the
@@ -94,7 +90,7 @@ struct media_entity_enum {
  * @ent_enum:		Visited entities
  * @top:		The top of the stack
  */
-struct media_entity_graph {
+struct media_graph {
 	struct {
 		struct media_entity *entity;
 		struct list_head *link;
@@ -112,7 +108,7 @@ struct media_entity_graph {
  */
 struct media_pipeline {
 	int streaming_count;
-	struct media_entity_graph graph;
+	struct media_graph graph;
 };
 
 /**
@@ -179,7 +175,7 @@ struct media_pad {
  *			return an error, in which case link setup will be
  *			cancelled. Optional.
  * @link_validate:	Return whether a link is valid from the entity point of
- *			view. The media_entity_pipeline_start() function
+ *			view. The media_pipeline_start() function
  *			validates all links by calling this operation. Optional.
  *
  * .. note::
@@ -820,20 +816,20 @@ struct media_pad *media_entity_remote_pad(struct media_pad *pad);
 struct media_entity *media_entity_get(struct media_entity *entity);
 
 /**
- * media_entity_graph_walk_init - Allocate resources used by graph walk.
+ * media_graph_walk_init - Allocate resources used by graph walk.
  *
  * @graph: Media graph structure that will be used to walk the graph
  * @mdev: Pointer to the &media_device that contains the object
  */
-__must_check int media_entity_graph_walk_init(
-	struct media_entity_graph *graph, struct media_device *mdev);
+__must_check int media_graph_walk_init(
+	struct media_graph *graph, struct media_device *mdev);
 
 /**
- * media_entity_graph_walk_cleanup - Release resources used by graph walk.
+ * media_graph_walk_cleanup - Release resources used by graph walk.
  *
  * @graph: Media graph structure that will be used to walk the graph
  */
-void media_entity_graph_walk_cleanup(struct media_entity_graph *graph);
+void media_graph_walk_cleanup(struct media_graph *graph);
 
 /**
  * media_entity_put - Release the reference to the parent module
@@ -847,40 +843,39 @@ void media_entity_graph_walk_cleanup(struct media_entity_graph *graph);
 void media_entity_put(struct media_entity *entity);
 
 /**
- * media_entity_graph_walk_start - Start walking the media graph at a
+ * media_graph_walk_start - Start walking the media graph at a
  *	given entity
  *
  * @graph: Media graph structure that will be used to walk the graph
  * @entity: Starting entity
  *
- * Before using this function, media_entity_graph_walk_init() must be
+ * Before using this function, media_graph_walk_init() must be
  * used to allocate resources used for walking the graph. This
  * function initializes the graph traversal structure to walk the
  * entities graph starting at the given entity. The traversal
  * structure must not be modified by the caller during graph
  * traversal. After the graph walk, the resources must be released
- * using media_entity_graph_walk_cleanup().
+ * using media_graph_walk_cleanup().
  */
-void media_entity_graph_walk_start(struct media_entity_graph *graph,
-				   struct media_entity *entity);
+void media_graph_walk_start(struct media_graph *graph,
+			    struct media_entity *entity);
 
 /**
- * media_entity_graph_walk_next - Get the next entity in the graph
+ * media_graph_walk_next - Get the next entity in the graph
  * @graph: Media graph structure
  *
  * Perform a depth-first traversal of the given media entities graph.
  *
  * The graph structure must have been previously initialized with a call to
- * media_entity_graph_walk_start().
+ * media_graph_walk_start().
  *
  * Return: returns the next entity in the graph or %NULL if the whole graph
  * have been traversed.
  */
-struct media_entity *
-media_entity_graph_walk_next(struct media_entity_graph *graph);
+struct media_entity *media_graph_walk_next(struct media_graph *graph);
 
 /**
- * media_entity_pipeline_start - Mark a pipeline as streaming
+ * media_pipeline_start - Mark a pipeline as streaming
  * @entity: Starting entity
  * @pipe: Media pipeline to be assigned to all entities in the pipeline.
  *
@@ -889,45 +884,45 @@ media_entity_graph_walk_next(struct media_entity_graph *graph);
  * to every entity in the pipeline and stored in the media_entity pipe field.
  *
  * Calls to this function can be nested, in which case the same number of
- * media_entity_pipeline_stop() calls will be required to stop streaming. The
+ * media_pipeline_stop() calls will be required to stop streaming. The
  * pipeline pointer must be identical for all nested calls to
- * media_entity_pipeline_start().
+ * media_pipeline_start().
  */
-__must_check int media_entity_pipeline_start(struct media_entity *entity,
-					     struct media_pipeline *pipe);
+__must_check int media_pipeline_start(struct media_entity *entity,
+				      struct media_pipeline *pipe);
 /**
- * __media_entity_pipeline_start - Mark a pipeline as streaming
+ * __media_pipeline_start - Mark a pipeline as streaming
  *
  * @entity: Starting entity
  * @pipe: Media pipeline to be assigned to all entities in the pipeline.
  *
- * ..note:: This is the non-locking version of media_entity_pipeline_start()
+ * ..note:: This is the non-locking version of media_pipeline_start()
  */
-__must_check int __media_entity_pipeline_start(struct media_entity *entity,
-					       struct media_pipeline *pipe);
+__must_check int __media_pipeline_start(struct media_entity *entity,
+					struct media_pipeline *pipe);
 
 /**
- * media_entity_pipeline_stop - Mark a pipeline as not streaming
+ * media_pipeline_stop - Mark a pipeline as not streaming
  * @entity: Starting entity
  *
  * Mark all entities connected to a given entity through enabled links, either
  * directly or indirectly, as not streaming. The media_entity pipe field is
  * reset to %NULL.
  *
- * If multiple calls to media_entity_pipeline_start() have been made, the same
+ * If multiple calls to media_pipeline_start() have been made, the same
  * number of calls to this function are required to mark the pipeline as not
  * streaming.
  */
-void media_entity_pipeline_stop(struct media_entity *entity);
+void media_pipeline_stop(struct media_entity *entity);
 
 /**
- * __media_entity_pipeline_stop - Mark a pipeline as not streaming
+ * __media_pipeline_stop - Mark a pipeline as not streaming
  *
  * @entity: Starting entity
  *
- * .. note:: This is the non-locking version of media_entity_pipeline_stop()
+ * .. note:: This is the non-locking version of media_pipeline_stop()
  */
-void __media_entity_pipeline_stop(struct media_entity *entity);
+void __media_pipeline_stop(struct media_entity *entity);
 
 /**
  * media_devnode_create() - creates and initializes a device node interface

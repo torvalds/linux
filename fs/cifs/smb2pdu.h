@@ -101,10 +101,7 @@
 
 #define SMB2_HEADER_STRUCTURE_SIZE cpu_to_le16(64)
 
-struct smb2_hdr {
-	__be32 smb2_buf_length;	/* big endian on wire */
-				/* length is only two or three bytes - with
-				 one or two byte type preceding it that MBZ */
+struct smb2_sync_hdr {
 	__le32 ProtocolId;	/* 0xFE 'S' 'M' 'B' */
 	__le16 StructureSize;	/* 64 */
 	__le16 CreditCharge;	/* MBZ */
@@ -120,16 +117,31 @@ struct smb2_hdr {
 	__u8   Signature[16];
 } __packed;
 
+struct smb2_sync_pdu {
+	struct smb2_sync_hdr sync_hdr;
+	__le16 StructureSize2; /* size of wct area (varies, request specific) */
+} __packed;
+
+struct smb2_hdr {
+	__be32 smb2_buf_length;	/* big endian on wire */
+				/* length is only two or three bytes - with */
+				/* one or two byte type preceding it that MBZ */
+	struct smb2_sync_hdr sync_hdr;
+} __packed;
+
 struct smb2_pdu {
 	struct smb2_hdr hdr;
 	__le16 StructureSize2; /* size of wct area (varies, request specific) */
 } __packed;
 
+#define SMB3_AES128CMM_NONCE 11
+#define SMB3_AES128GCM_NONCE 12
+
 struct smb2_transform_hdr {
 	__be32 smb2_buf_length;	/* big endian on wire */
 				/* length is only two or three bytes - with
 				 one or two byte type preceding it that MBZ */
-	__u8   ProtocolId[4];	/* 0xFD 'S' 'M' 'B' */
+	__le32 ProtocolId;	/* 0xFD 'S' 'M' 'B' */
 	__u8   Signature[16];
 	__u8   Nonce[16];
 	__le32 OriginalMessageSize;
@@ -683,6 +695,14 @@ struct fsctl_get_integrity_information_rsp {
 /* Integrity flags for above */
 #define FSCTL_INTEGRITY_FLAG_CHECKSUM_ENFORCEMENT_OFF	0x00000001
 
+/* See MS-DFSC 2.2.2 */
+struct fsctl_get_dfs_referral_req {
+	__le16 MaxReferralLevel;
+	__u8 RequestFileName[];
+} __packed;
+
+/* DFS response is struct get_dfs_refer_rsp */
+
 /* See MS-SMB2 2.2.31.3 */
 struct network_resiliency_req {
 	__le32 Timeout;
@@ -814,8 +834,9 @@ struct smb2_flush_rsp {
 #define SMB2_CHANNEL_RDMA_V1		0x00000001 /* SMB3 or later */
 #define SMB2_CHANNEL_RDMA_V1_INVALIDATE 0x00000001 /* SMB3.02 or later */
 
-struct smb2_read_req {
-	struct smb2_hdr hdr;
+/* SMB2 read request without RFC1001 length at the beginning */
+struct smb2_read_plain_req {
+	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize; /* Must be 49 */
 	__u8   Padding; /* offset from start of SMB2 header to place read */
 	__u8   Flags; /* MBZ unless SMB3.02 or later */

@@ -17,6 +17,7 @@
 #include <linux/kprobes.h>
 #include <linux/nmi.h>
 #include <linux/cpu.h>
+#include <linux/sched/debug.h>
 
 #ifdef arch_trigger_cpumask_backtrace
 /* For reliability, we're prepared to waste bits here. */
@@ -77,7 +78,7 @@ void nmi_trigger_cpumask_backtrace(const cpumask_t *mask,
 	 * Force flush any remote buffers that might be stuck in IRQ context
 	 * and therefore could not run their irq_work.
 	 */
-	printk_nmi_flush();
+	printk_safe_flush();
 
 	clear_bit_unlock(0, &backtrace_flag);
 	put_cpu();

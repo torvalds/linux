@@ -1472,7 +1472,7 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 					   prrs->vtag);
 				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 			}
-			netif_receive_skb(skb);
+			napi_gro_receive(&adapter->napi, skb);
 
 skip_pkt:
 	/* skip current packet whether it's ok or not. */
@@ -1526,7 +1526,7 @@ static int atl1e_clean(struct napi_struct *napi, int budget)
 	/* If no Tx and not enough Rx work done, exit the polling mode */
 	if (work_done < budget) {
 quit_polling:
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		imr_data = AT_READ_REG(&adapter->hw, REG_IMR);
 		AT_WRITE_REG(&adapter->hw, REG_IMR, imr_data | ISR_RX_EVENT);
 		/* test debug */

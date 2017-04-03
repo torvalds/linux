@@ -105,20 +105,27 @@ struct dw_i2s_dev {
 	struct i2s_clk_config_data config;
 	int (*i2s_clk_cfg)(struct i2s_clk_config_data *config);
 
-	/* data related to PIO transfers (TX) */
+	/* data related to PIO transfers */
 	bool use_pio;
 	struct snd_pcm_substream __rcu *tx_substream;
+	struct snd_pcm_substream __rcu *rx_substream;
 	unsigned int (*tx_fn)(struct dw_i2s_dev *dev,
 			struct snd_pcm_runtime *runtime, unsigned int tx_ptr,
 			bool *period_elapsed);
+	unsigned int (*rx_fn)(struct dw_i2s_dev *dev,
+			struct snd_pcm_runtime *runtime, unsigned int rx_ptr,
+			bool *period_elapsed);
 	unsigned int tx_ptr;
+	unsigned int rx_ptr;
 };
 
 #if IS_ENABLED(CONFIG_SND_DESIGNWARE_PCM)
 void dw_pcm_push_tx(struct dw_i2s_dev *dev);
+void dw_pcm_pop_rx(struct dw_i2s_dev *dev);
 int dw_pcm_register(struct platform_device *pdev);
 #else
 void dw_pcm_push_tx(struct dw_i2s_dev *dev) { }
+void dw_pcm_pop_rx(struct dw_i2s_dev *dev) { }
 int dw_pcm_register(struct platform_device *pdev)
 {
 	return -EINVAL;

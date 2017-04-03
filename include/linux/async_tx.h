@@ -87,7 +87,7 @@ struct async_submit_ctl {
 	void *scribble;
 };
 
-#ifdef CONFIG_DMA_ENGINE
+#if defined(CONFIG_DMA_ENGINE) && !defined(CONFIG_ASYNC_TX_CHANNEL_SWITCH)
 #define async_tx_issue_pending_all dma_issue_pending_all
 
 /**

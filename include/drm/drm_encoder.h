@@ -25,7 +25,11 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_mode.h>
 #include <drm/drm_mode_object.h>
+
+struct drm_encoder;
 
 /**
  * struct drm_encoder_funcs - encoder controls
@@ -71,7 +75,7 @@ struct drm_encoder_funcs {
 	 *
 	 * This optional hook should be used to unregister the additional
 	 * userspace interfaces attached to the encoder from
-	 * late_unregister(). It is called from drm_dev_unregister(),
+	 * @late_register. It is called from drm_dev_unregister(),
 	 * early in the driver unload sequence to disable userspace access
 	 * before data structures are torndown.
 	 */
@@ -187,9 +191,6 @@ static inline unsigned int drm_encoder_index(struct drm_encoder *encoder)
 {
 	return encoder->index;
 }
-
-/* FIXME: We have an include file mess still, drm_crtc.h needs untangling. */
-static inline uint32_t drm_crtc_mask(const struct drm_crtc *crtc);
 
 /**
  * drm_encoder_crtc_ok - can a given crtc drive a given encoder?

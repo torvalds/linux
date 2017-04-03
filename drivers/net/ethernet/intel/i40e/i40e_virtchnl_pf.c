@@ -689,17 +689,15 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 
 		spin_lock_bh(&vsi->mac_filter_hash_lock);
 		if (is_valid_ether_addr(vf->default_lan_addr.addr)) {
-			f = i40e_add_filter(vsi, vf->default_lan_addr.addr,
-				       vf->port_vlan_id ?
-				       vf->port_vlan_id : -1);
+			f = i40e_add_mac_filter(vsi,
+						vf->default_lan_addr.addr);
 			if (!f)
 				dev_info(&pf->pdev->dev,
 					 "Could not add MAC filter %pM for VF %d\n",
 					vf->default_lan_addr.addr, vf->vf_id);
 		}
 		eth_broadcast_addr(broadcast);
-		f = i40e_add_filter(vsi, broadcast,
-				    vf->port_vlan_id ? vf->port_vlan_id : -1);
+		f = i40e_add_mac_filter(vsi, broadcast);
 		if (!f)
 			dev_info(&pf->pdev->dev,
 				 "Could not allocate VF broadcast filter\n");
@@ -849,9 +847,7 @@ static void i40e_free_vf_res(struct i40e_vf *vf)
 		wr32(hw, reg_idx, reg);
 		i40e_flush(hw);
 	}
-	/* reset some of the state varibles keeping
-	 * track of the resources
-	 */
+	/* reset some of the state variables keeping track of the resources */
 	vf->num_queue_pairs = 0;
 	vf->vf_states = 0;
 	clear_bit(I40E_VF_STAT_INIT, &vf->vf_states);
@@ -1942,12 +1938,8 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		struct i40e_mac_filter *f;
 
 		f = i40e_find_mac(vsi, al->list[i].addr);
-		if (!f) {
-			if (i40e_is_vsi_in_vlan(vsi))
-				f = i40e_put_mac_in_vlan(vsi, al->list[i].addr);
-			else
-				f = i40e_add_filter(vsi, al->list[i].addr, -1);
-		}
+		if (!f)
+			f = i40e_add_mac_filter(vsi, al->list[i].addr);
 
 		if (!f) {
 			dev_err(&pf->pdev->dev,
@@ -2012,7 +2004,7 @@ static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
 	/* delete addresses from the list */
 	for (i = 0; i < al->num_elements; i++)
-		if (i40e_del_mac_all_vlan(vsi, al->list[i].addr)) {
+		if (i40e_del_mac_filter(vsi, al->list[i].addr)) {
 			ret = I40E_ERR_INVALID_MAC_ADDR;
 			spin_unlock_bh(&vsi->mac_filter_hash_lock);
 			goto error_param;
@@ -2722,14 +2714,13 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 
 	/* delete the temporary mac address */
 	if (!is_zero_ether_addr(vf->default_lan_addr.addr))
-		i40e_del_filter(vsi, vf->default_lan_addr.addr,
-				vf->port_vlan_id ? vf->port_vlan_id : -1);
+		i40e_del_mac_filter(vsi, vf->default_lan_addr.addr);
 
 	/* Delete all the filters for this VSI - we're going to kill it
 	 * anyway.
 	 */
 	hash_for_each(vsi->mac_filter_hash, bkt, f, hlist)
-		i40e_del_filter(vsi, f->macaddr, f->vlan);
+		__i40e_del_filter(vsi, f);
 
 	spin_unlock_bh(&vsi->mac_filter_hash_lock);
 

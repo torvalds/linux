@@ -108,6 +108,8 @@
 #define PCLK_TSADC		349
 #define PCLK_CPU		350
 #define PCLK_PERI		351
+#define PCLK_DDRUPCTL		352
+#define PCLK_PUBL		353
 
 /* hclk gates */
 #define HCLK_SDMMC		448

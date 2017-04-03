@@ -356,8 +356,7 @@ config FAIL_IOMMU
 
 config PPC_PTDUMP
         bool "Export kernel pagetable layout to userspace via debugfs"
-        depends on DEBUG_KERNEL
-        select DEBUG_FS
+        depends on DEBUG_KERNEL && DEBUG_FS
         help
 	  This option exports the state of the kernel pagetables to a
 	  debugfs file. This is only useful for kernel developers who are

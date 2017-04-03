@@ -22,10 +22,6 @@ int fbtft_write_spi(struct fbtft_par *par, void *buf, size_t len)
 	}
 
 	spi_message_init(&m);
-	if (par->txbuf.dma && buf == par->txbuf.buf) {
-		t.tx_dma = par->txbuf.dma;
-		m.is_dma_mapped = 1;
-	}
 	spi_message_add_tail(&t, &m);
 	return spi_sync(par->spi, &m);
 }

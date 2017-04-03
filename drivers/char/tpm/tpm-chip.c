@@ -141,7 +141,7 @@ static void tpm_dev_release(struct device *dev)
  * Allocates a new struct tpm_chip instance and assigns a free
  * device number for it. Must be paired with put_device(&chip->dev).
  */
-struct tpm_chip *tpm_chip_alloc(struct device *dev,
+struct tpm_chip *tpm_chip_alloc(struct device *pdev,
 				const struct tpm_class_ops *ops)
 {
 	struct tpm_chip *chip;
@@ -160,7 +160,7 @@ struct tpm_chip *tpm_chip_alloc(struct device *dev,
 	rc = idr_alloc(&dev_nums_idr, NULL, 0, TPM_NUM_DEVICES, GFP_KERNEL);
 	mutex_unlock(&idr_lock);
 	if (rc < 0) {
-		dev_err(dev, "No available tpm device numbers\n");
+		dev_err(pdev, "No available tpm device numbers\n");
 		kfree(chip);
 		return ERR_PTR(rc);
 	}
@@ -170,7 +170,7 @@ struct tpm_chip *tpm_chip_alloc(struct device *dev,
 
 	chip->dev.class = tpm_class;
 	chip->dev.release = tpm_dev_release;
-	chip->dev.parent = dev;
+	chip->dev.parent = pdev;
 	chip->dev.groups = chip->groups;
 
 	if (chip->dev_num == 0)
@@ -182,7 +182,7 @@ struct tpm_chip *tpm_chip_alloc(struct device *dev,
 	if (rc)
 		goto out;
 
-	if (!dev)
+	if (!pdev)
 		chip->flags |= TPM_CHIP_FLAG_VIRTUAL;
 
 	cdev_init(&chip->cdev, &tpm_fops);

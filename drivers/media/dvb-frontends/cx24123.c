@@ -16,10 +16,6 @@
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *   General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/slab.h>
@@ -653,7 +649,7 @@ static int cx24123_pll_tune(struct dvb_frontend *fe)
 	dprintk("frequency=%i\n", p->frequency);
 
 	if (cx24123_pll_calculate(fe) != 0) {
-		err("%s: cx24123_pll_calcutate failed\n", __func__);
+		err("%s: cx24123_pll_calculate failed\n", __func__);
 		return -EINVAL;
 	}
 

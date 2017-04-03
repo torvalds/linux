@@ -243,8 +243,6 @@ struct ttm_bo_driver hibmc_bo_driver = {
 	.verify_access		= hibmc_bo_verify_access,
 	.io_mem_reserve		= &hibmc_ttm_io_mem_reserve,
 	.io_mem_free		= NULL,
-	.lru_tail		= &ttm_bo_default_lru_tail,
-	.swap_lru_tail		= &ttm_bo_default_swap_lru_tail,
 };
 
 int hibmc_mm_init(struct hibmc_drm_private *hibmc)
@@ -512,7 +510,7 @@ hibmc_framebuffer_init(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	drm_helper_mode_fill_fb_struct(&hibmc_fb->fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &hibmc_fb->fb, mode_cmd);
 	hibmc_fb->obj = obj;
 	ret = drm_framebuffer_init(dev, &hibmc_fb->fb, &hibmc_fb_funcs);
 	if (ret) {

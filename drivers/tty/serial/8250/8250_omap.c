@@ -790,6 +790,7 @@ static void omap_8250_rx_dma_flush(struct uart_8250_port *p)
 {
 	struct omap8250_priv	*priv = p->port.private_data;
 	struct uart_8250_dma	*dma = p->dma;
+	struct dma_tx_state     state;
 	unsigned long		flags;
 	int ret;
 
@@ -800,10 +801,12 @@ static void omap_8250_rx_dma_flush(struct uart_8250_port *p)
 		return;
 	}
 
-	ret = dmaengine_pause(dma->rxchan);
-	if (WARN_ON_ONCE(ret))
-		priv->rx_dma_broken = true;
-
+	ret = dmaengine_tx_status(dma->rxchan, dma->rx_cookie, &state);
+	if (ret == DMA_IN_PROGRESS) {
+		ret = dmaengine_pause(dma->rxchan);
+		if (WARN_ON_ONCE(ret))
+			priv->rx_dma_broken = true;
+	}
 	spin_unlock_irqrestore(&priv->rx_dma_lock, flags);
 
 	__dma_rx_do_complete(p);
@@ -1075,15 +1078,15 @@ static int omap8250_no_handle_irq(struct uart_port *port)
 }
 
 static const u8 am3352_habit = OMAP_DMA_TX_KICK | UART_ERRATA_CLOCK_DISABLE;
-static const u8 am4372_habit = UART_ERRATA_CLOCK_DISABLE;
+static const u8 dra742_habit = UART_ERRATA_CLOCK_DISABLE;
 
 static const struct of_device_id omap8250_dt_ids[] = {
 	{ .compatible = "ti,omap2-uart" },
 	{ .compatible = "ti,omap3-uart" },
 	{ .compatible = "ti,omap4-uart" },
 	{ .compatible = "ti,am3352-uart", .data = &am3352_habit, },
-	{ .compatible = "ti,am4372-uart", .data = &am4372_habit, },
-	{ .compatible = "ti,dra742-uart", .data = &am4372_habit, },
+	{ .compatible = "ti,am4372-uart", .data = &am3352_habit, },
+	{ .compatible = "ti,dra742-uart", .data = &dra742_habit, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap8250_dt_ids);
@@ -1218,14 +1221,6 @@ static int omap8250_probe(struct platform_device *pdev)
 			priv->omap8250_dma.rx_size = RX_TRIGGER;
 			priv->omap8250_dma.rxconf.src_maxburst = RX_TRIGGER;
 			priv->omap8250_dma.txconf.dst_maxburst = TX_TRIGGER;
-
-			if (of_machine_is_compatible("ti,am33xx"))
-				priv->habit |= OMAP_DMA_TX_KICK;
-			/*
-			 * pause is currently not supported atleast on omap-sdma
-			 * and edma on most earlier kernels.
-			 */
-			priv->rx_dma_broken = true;
 		}
 	}
 #endif
@@ -1240,7 +1235,8 @@ static int omap8250_probe(struct platform_device *pdev)
 	pm_runtime_put_autosuspend(&pdev->dev);
 	return 0;
 err:
-	pm_runtime_put(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return ret;
 }
@@ -1249,6 +1245,7 @@ static int omap8250_remove(struct platform_device *pdev)
 {
 	struct omap8250_priv *priv = platform_get_drvdata(pdev);
 
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	serial8250_unregister_port(priv->line);
@@ -1347,6 +1344,10 @@ static int omap8250_runtime_suspend(struct device *dev)
 {
 	struct omap8250_priv *priv = dev_get_drvdata(dev);
 	struct uart_8250_port *up;
+
+	/* In case runtime-pm tries this before we are setup */
+	if (!priv)
+		return 0;
 
 	up = serial8250_get_port(priv->line);
 	/*

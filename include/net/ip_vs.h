@@ -1421,7 +1421,7 @@ static inline void ip_vs_dest_put(struct ip_vs_dest *dest)
 
 static inline void ip_vs_dest_put_and_free(struct ip_vs_dest *dest)
 {
-	if (atomic_dec_return(&dest->refcnt) < 0)
+	if (atomic_dec_and_test(&dest->refcnt))
 		kfree(dest);
 }
 
@@ -1554,10 +1554,12 @@ static inline void ip_vs_notrack(struct sk_buff *skb)
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
 	if (!ct || !nf_ct_is_untracked(ct)) {
-		nf_conntrack_put(skb->nfct);
-		skb->nfct = &nf_ct_untracked_get()->ct_general;
-		skb->nfctinfo = IP_CT_NEW;
-		nf_conntrack_get(skb->nfct);
+		struct nf_conn *untracked;
+
+		nf_conntrack_put(&ct->ct_general);
+		untracked = nf_ct_untracked_get();
+		nf_conntrack_get(&untracked->ct_general);
+		nf_ct_set(skb, untracked, IP_CT_NEW);
 	}
 #endif
 }

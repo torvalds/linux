@@ -139,7 +139,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 	int ver;
 	int off;
 
-	CLASSERT(sizeof(loff_t) >= 4);
+	BUILD_BUG_ON(sizeof(loff_t) < 4);
 
 	off = LNET_PROC_HOFF_GET(*ppos);
 	ver = LNET_PROC_VER_GET(*ppos);
@@ -404,7 +404,7 @@ static int proc_lnet_peers(struct ctl_table *table, int write,
 	int rc = 0;
 	int len;
 
-	CLASSERT(LNET_PROC_HASH_BITS >= LNET_PEER_HASH_BITS);
+	BUILD_BUG_ON(LNET_PROC_HASH_BITS < LNET_PEER_HASH_BITS);
 	LASSERT(!write);
 
 	if (!*lenp)

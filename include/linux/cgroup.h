@@ -266,7 +266,7 @@ void css_task_iter_end(struct css_task_iter *it);
  * cgroup_taskset_for_each_leader - iterate group leaders in a cgroup_taskset
  * @leader: the loop cursor
  * @dst_css: the destination css
- * @tset: takset to iterate
+ * @tset: taskset to iterate
  *
  * Iterate threadgroup leaders of @tset.  For single-task migrations, @tset
  * may not contain any.

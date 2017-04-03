@@ -350,6 +350,8 @@ enum wcn36xx_hal_host_msg_type {
 
 	WCN36XX_HAL_AVOID_FREQ_RANGE_IND = 233,
 
+	WCN36XX_HAL_PRINT_REG_INFO_IND = 259,
+
 	WCN36XX_HAL_MSG_MAX = WCN36XX_HAL_MSG_TYPE_MAX_ENUM_SIZE
 };
 
@@ -4702,5 +4704,19 @@ struct stats_class_b_ind {
 	u32 rx_packets_rcvd;
 	u32 rx_time_total;
 };
+
+/* WCN36XX_HAL_PRINT_REG_INFO_IND */
+struct wcn36xx_hal_print_reg_info_ind {
+	struct wcn36xx_hal_msg_header header;
+
+	u32 count;
+	u32 scenario;
+	u32 reason;
+
+	struct {
+		u32 addr;
+		u32 value;
+	} regs[];
+} __packed;
 
 #endif /* _HAL_H_ */

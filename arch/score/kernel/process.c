@@ -28,6 +28,8 @@
 #include <linux/elfcore.h>
 #include <linux/pm.h>
 #include <linux/rcupdate.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);

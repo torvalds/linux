@@ -1,0 +1,19 @@
+* ZTE zx2967 family Power Domains
+
+zx2967 family includes support for multiple power domains which are used
+to gate power to one or more peripherals on the processor.
+
+Required Properties:
+  - compatible: should be one of the following.
+      * zte,zx296718-pcu - for zx296718 power domain.
+  - reg: physical base address of the controller and length of memory mapped
+      region.
+  - #power-domain-cells: Must be 1.
+
+Example:
+
+	pcu_domain: pcu@117000 {
+		compatible = "zte,zx296718-pcu";
+		reg = <0x00117000 0x1000>;
+		#power-domain-cells = <1>;
+	};

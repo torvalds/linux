@@ -195,6 +195,7 @@ static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 	unsigned int i, pcm_chs, midi_ports;
 	struct amdtp_stream *streams;
 	struct fw_iso_resources *resources;
+	struct fw_device *fw_dev = fw_parent_device(dice->unit);
 	int err = 0;
 
 	if (dir == AMDTP_IN_STREAM) {
@@ -237,8 +238,17 @@ static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 		if (err < 0)
 			return err;
 
+		if (dir == AMDTP_IN_STREAM) {
+			reg[0] = cpu_to_be32(fw_dev->max_speed);
+			err = snd_dice_transaction_write_tx(dice,
+					params->size * i + TX_SPEED,
+					reg, sizeof(reg[0]));
+			if (err < 0)
+				return err;
+		}
+
 		err = amdtp_stream_start(&streams[i], resources[i].channel,
-				fw_parent_device(dice->unit)->max_speed);
+					 fw_dev->max_speed);
 		if (err < 0)
 			return err;
 	}

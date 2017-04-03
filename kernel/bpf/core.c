@@ -28,6 +28,9 @@
 #include <linux/moduleloader.h>
 #include <linux/bpf.h>
 #include <linux/frame.h>
+#include <linux/rbtree_latch.h>
+#include <linux/kallsyms.h>
+#include <linux/rcupdate.h>
 
 #include <asm/unaligned.h>
 
@@ -94,6 +97,8 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 	fp->pages = size / PAGE_SIZE;
 	fp->aux = aux;
 	fp->aux->prog = fp;
+
+	INIT_LIST_HEAD_RCU(&fp->aux->ksym_lnode);
 
 	return fp;
 }
@@ -290,6 +295,206 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 }
 
 #ifdef CONFIG_BPF_JIT
+static __always_inline void
+bpf_get_prog_addr_region(const struct bpf_prog *prog,
+			 unsigned long *symbol_start,
+			 unsigned long *symbol_end)
+{
+	const struct bpf_binary_header *hdr = bpf_jit_binary_hdr(prog);
+	unsigned long addr = (unsigned long)hdr;
+
+	WARN_ON_ONCE(!bpf_prog_ebpf_jited(prog));
+
+	*symbol_start = addr;
+	*symbol_end   = addr + hdr->pages * PAGE_SIZE;
+}
+
+static void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
+{
+	BUILD_BUG_ON(sizeof("bpf_prog_") +
+		     sizeof(prog->tag) * 2 + 1 > KSYM_NAME_LEN);
+
+	sym += snprintf(sym, KSYM_NAME_LEN, "bpf_prog_");
+	sym  = bin2hex(sym, prog->tag, sizeof(prog->tag));
+	*sym = 0;
+}
+
+static __always_inline unsigned long
+bpf_get_prog_addr_start(struct latch_tree_node *n)
+{
+	unsigned long symbol_start, symbol_end;
+	const struct bpf_prog_aux *aux;
+
+	aux = container_of(n, struct bpf_prog_aux, ksym_tnode);
+	bpf_get_prog_addr_region(aux->prog, &symbol_start, &symbol_end);
+
+	return symbol_start;
+}
+
+static __always_inline bool bpf_tree_less(struct latch_tree_node *a,
+					  struct latch_tree_node *b)
+{
+	return bpf_get_prog_addr_start(a) < bpf_get_prog_addr_start(b);
+}
+
+static __always_inline int bpf_tree_comp(void *key, struct latch_tree_node *n)
+{
+	unsigned long val = (unsigned long)key;
+	unsigned long symbol_start, symbol_end;
+	const struct bpf_prog_aux *aux;
+
+	aux = container_of(n, struct bpf_prog_aux, ksym_tnode);
+	bpf_get_prog_addr_region(aux->prog, &symbol_start, &symbol_end);
+
+	if (val < symbol_start)
+		return -1;
+	if (val >= symbol_end)
+		return  1;
+
+	return 0;
+}
+
+static const struct latch_tree_ops bpf_tree_ops = {
+	.less	= bpf_tree_less,
+	.comp	= bpf_tree_comp,
+};
+
+static DEFINE_SPINLOCK(bpf_lock);
+static LIST_HEAD(bpf_kallsyms);
+static struct latch_tree_root bpf_tree __cacheline_aligned;
+
+int bpf_jit_kallsyms __read_mostly;
+
+static void bpf_prog_ksym_node_add(struct bpf_prog_aux *aux)
+{
+	WARN_ON_ONCE(!list_empty(&aux->ksym_lnode));
+	list_add_tail_rcu(&aux->ksym_lnode, &bpf_kallsyms);
+	latch_tree_insert(&aux->ksym_tnode, &bpf_tree, &bpf_tree_ops);
+}
+
+static void bpf_prog_ksym_node_del(struct bpf_prog_aux *aux)
+{
+	if (list_empty(&aux->ksym_lnode))
+		return;
+
+	latch_tree_erase(&aux->ksym_tnode, &bpf_tree, &bpf_tree_ops);
+	list_del_rcu(&aux->ksym_lnode);
+}
+
+static bool bpf_prog_kallsyms_candidate(const struct bpf_prog *fp)
+{
+	return fp->jited && !bpf_prog_was_classic(fp);
+}
+
+static bool bpf_prog_kallsyms_verify_off(const struct bpf_prog *fp)
+{
+	return list_empty(&fp->aux->ksym_lnode) ||
+	       fp->aux->ksym_lnode.prev == LIST_POISON2;
+}
+
+void bpf_prog_kallsyms_add(struct bpf_prog *fp)
+{
+	unsigned long flags;
+
+	if (!bpf_prog_kallsyms_candidate(fp) ||
+	    !capable(CAP_SYS_ADMIN))
+		return;
+
+	spin_lock_irqsave(&bpf_lock, flags);
+	bpf_prog_ksym_node_add(fp->aux);
+	spin_unlock_irqrestore(&bpf_lock, flags);
+}
+
+void bpf_prog_kallsyms_del(struct bpf_prog *fp)
+{
+	unsigned long flags;
+
+	if (!bpf_prog_kallsyms_candidate(fp))
+		return;
+
+	spin_lock_irqsave(&bpf_lock, flags);
+	bpf_prog_ksym_node_del(fp->aux);
+	spin_unlock_irqrestore(&bpf_lock, flags);
+}
+
+static struct bpf_prog *bpf_prog_kallsyms_find(unsigned long addr)
+{
+	struct latch_tree_node *n;
+
+	if (!bpf_jit_kallsyms_enabled())
+		return NULL;
+
+	n = latch_tree_find((void *)addr, &bpf_tree, &bpf_tree_ops);
+	return n ?
+	       container_of(n, struct bpf_prog_aux, ksym_tnode)->prog :
+	       NULL;
+}
+
+const char *__bpf_address_lookup(unsigned long addr, unsigned long *size,
+				 unsigned long *off, char *sym)
+{
+	unsigned long symbol_start, symbol_end;
+	struct bpf_prog *prog;
+	char *ret = NULL;
+
+	rcu_read_lock();
+	prog = bpf_prog_kallsyms_find(addr);
+	if (prog) {
+		bpf_get_prog_addr_region(prog, &symbol_start, &symbol_end);
+		bpf_get_prog_name(prog, sym);
+
+		ret = sym;
+		if (size)
+			*size = symbol_end - symbol_start;
+		if (off)
+			*off  = addr - symbol_start;
+	}
+	rcu_read_unlock();
+
+	return ret;
+}
+
+bool is_bpf_text_address(unsigned long addr)
+{
+	bool ret;
+
+	rcu_read_lock();
+	ret = bpf_prog_kallsyms_find(addr) != NULL;
+	rcu_read_unlock();
+
+	return ret;
+}
+
+int bpf_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
+		    char *sym)
+{
+	unsigned long symbol_start, symbol_end;
+	struct bpf_prog_aux *aux;
+	unsigned int it = 0;
+	int ret = -ERANGE;
+
+	if (!bpf_jit_kallsyms_enabled())
+		return ret;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(aux, &bpf_kallsyms, ksym_lnode) {
+		if (it++ != symnum)
+			continue;
+
+		bpf_get_prog_addr_region(aux->prog, &symbol_start, &symbol_end);
+		bpf_get_prog_name(aux->prog, sym);
+
+		*value = symbol_start;
+		*type  = BPF_SYM_ELF_TYPE;
+
+		ret = 0;
+		break;
+	}
+	rcu_read_unlock();
+
+	return ret;
+}
+
 struct bpf_binary_header *
 bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 		     unsigned int alignment,
@@ -324,6 +529,24 @@ bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 void bpf_jit_binary_free(struct bpf_binary_header *hdr)
 {
 	module_memfree(hdr);
+}
+
+/* This symbol is only overridden by archs that have different
+ * requirements than the usual eBPF JITs, f.e. when they only
+ * implement cBPF JIT, do not set images read-only, etc.
+ */
+void __weak bpf_jit_free(struct bpf_prog *fp)
+{
+	if (fp->jited) {
+		struct bpf_binary_header *hdr = bpf_jit_binary_hdr(fp);
+
+		bpf_jit_binary_unlock_ro(hdr);
+		bpf_jit_binary_free(hdr);
+
+		WARN_ON_ONCE(!bpf_prog_kallsyms_verify_off(fp));
+	}
+
+	bpf_prog_unlock_free(fp);
 }
 
 int bpf_jit_harden __read_mostly;
@@ -1154,10 +1377,20 @@ const struct bpf_func_proto bpf_tail_call_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-/* For classic BPF JITs that don't implement bpf_int_jit_compile(). */
+/* Stub for JITs that only support cBPF. eBPF programs are interpreted.
+ * It is encouraged to implement bpf_int_jit_compile() instead, so that
+ * eBPF and implicitly also cBPF can get JITed!
+ */
 struct bpf_prog * __weak bpf_int_jit_compile(struct bpf_prog *prog)
 {
 	return prog;
+}
+
+/* Stub for JITs that support eBPF. All cBPF code gets transformed into
+ * eBPF by the kernel and is later compiled by bpf_int_jit_compile().
+ */
+void __weak bpf_jit_compile(struct bpf_prog *prog)
+{
 }
 
 bool __weak bpf_helper_changes_pkt_data(void *func)
@@ -1173,3 +1406,12 @@ int __weak skb_copy_bits(const struct sk_buff *skb, int offset, void *to,
 {
 	return -EFAULT;
 }
+
+/* All definitions of tracepoints related to BPF. */
+#define CREATE_TRACE_POINTS
+#include <linux/bpf_trace.h>
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(xdp_exception);
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(bpf_prog_get_type);
+EXPORT_TRACEPOINT_SYMBOL_GPL(bpf_prog_put_rcu);

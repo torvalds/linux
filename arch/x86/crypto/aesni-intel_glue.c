@@ -740,9 +740,11 @@ static int helper_rfc4106_encrypt(struct aead_request *req)
 	*((__be32 *)(iv+12)) = counter;
 
 	if (sg_is_last(req->src) &&
-	    req->src->offset + req->src->length <= PAGE_SIZE &&
+	    (!PageHighMem(sg_page(req->src)) ||
+	    req->src->offset + req->src->length <= PAGE_SIZE) &&
 	    sg_is_last(req->dst) &&
-	    req->dst->offset + req->dst->length <= PAGE_SIZE) {
+	    (!PageHighMem(sg_page(req->dst)) ||
+	    req->dst->offset + req->dst->length <= PAGE_SIZE)) {
 		one_entry_in_sg = 1;
 		scatterwalk_start(&src_sg_walk, req->src);
 		assoc = scatterwalk_map(&src_sg_walk);
@@ -822,9 +824,11 @@ static int helper_rfc4106_decrypt(struct aead_request *req)
 	*((__be32 *)(iv+12)) = counter;
 
 	if (sg_is_last(req->src) &&
-	    req->src->offset + req->src->length <= PAGE_SIZE &&
+	    (!PageHighMem(sg_page(req->src)) ||
+	    req->src->offset + req->src->length <= PAGE_SIZE) &&
 	    sg_is_last(req->dst) &&
-	    req->dst->offset + req->dst->length <= PAGE_SIZE) {
+	    (!PageHighMem(sg_page(req->dst)) ||
+	    req->dst->offset + req->dst->length <= PAGE_SIZE)) {
 		one_entry_in_sg = 1;
 		scatterwalk_start(&src_sg_walk, req->src);
 		assoc = scatterwalk_map(&src_sg_walk);

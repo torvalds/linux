@@ -162,7 +162,8 @@ config SPI_BCM63XX_HSSPI
 
 config SPI_BCM_QSPI
 	tristate "Broadcom BSPI and MSPI controller support"
-	depends on ARCH_BRCMSTB || ARCH_BCM || ARCH_BCM_IPROC || COMPILE_TEST
+	depends on ARCH_BRCMSTB || ARCH_BCM || ARCH_BCM_IPROC || \
+			BMIPS_GENERIC || COMPILE_TEST
 	default ARCH_BCM_IPROC
 	help
 	  Enables support for the Broadcom SPI flash and MSPI controller.
@@ -263,7 +264,7 @@ config SPI_EP93XX
 	  mode.
 
 config SPI_FALCON
-	tristate "Falcon SPI controller support"
+	bool "Falcon SPI controller support"
 	depends on SOC_FALCON
 	help
 	  The external bus unit (EBU) found on the FALC-ON SoC has SPI
@@ -415,6 +416,14 @@ config SPI_NUC900
 	select SPI_BITBANG
 	help
 	  SPI driver for Nuvoton NUC900 series ARM SoCs
+
+config SPI_LANTIQ_SSC
+	tristate "Lantiq SSC SPI controller"
+	depends on LANTIQ || COMPILE_TEST
+	help
+	  This driver supports the Lantiq SSC SPI controller in master
+	  mode. This controller is found on Intel (former Lantiq) SoCs like
+	  the Danube, Falcon, xRX200, xRX300.
 
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
