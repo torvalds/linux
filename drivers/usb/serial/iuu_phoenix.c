@@ -588,9 +588,8 @@ static void read_buf_callback(struct urb *urb)
 	}
 
 	dev_dbg(&port->dev, "%s - %i chars to write\n", __func__, urb->actual_length);
-	if (data == NULL)
-		dev_dbg(&port->dev, "%s - data is NULL !!!\n", __func__);
-	if (urb->actual_length && data) {
+
+	if (urb->actual_length) {
 		tty_insert_flip_string(&port->port, data, urb->actual_length);
 		tty_flip_buffer_push(&port->port);
 	}
@@ -655,10 +654,8 @@ static void iuu_uart_read_callback(struct urb *urb)
 		/* error stop all */
 		return;
 	}
-	if (data == NULL)
-		dev_dbg(&port->dev, "%s - data is NULL !!!\n", __func__);
 
-	if (urb->actual_length == 1  && data != NULL)
+	if (urb->actual_length == 1)
 		len = (int) data[0];
 
 	if (urb->actual_length > 1) {
