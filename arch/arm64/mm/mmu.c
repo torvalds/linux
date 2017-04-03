@@ -22,6 +22,8 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/ioport.h>
+#include <linux/kexec.h>
 #include <linux/libfdt.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
@@ -393,56 +395,11 @@ static void update_mapping_prot(phys_addr_t phys, unsigned long virt,
 	flush_tlb_kernel_range(virt, virt + size);
 }
 
-static void __init __map_memblock(pgd_t *pgd, phys_addr_t start, phys_addr_t end)
+static void __init __map_memblock(pgd_t *pgd, phys_addr_t start,
+				  phys_addr_t end, pgprot_t prot, int flags)
 {
-	phys_addr_t kernel_start = __pa_symbol(_text);
-	phys_addr_t kernel_end = __pa_symbol(__init_begin);
-	int flags = 0;
-
-	if (debug_pagealloc_enabled())
-		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
-
-	/*
-	 * Take care not to create a writable alias for the
-	 * read-only text and rodata sections of the kernel image.
-	 */
-
-	/* No overlap with the kernel text/rodata */
-	if (end < kernel_start || start >= kernel_end) {
-		__create_pgd_mapping(pgd, start, __phys_to_virt(start),
-				     end - start, PAGE_KERNEL,
-				     early_pgtable_alloc, flags);
-		return;
-	}
-
-	/*
-	 * This block overlaps the kernel text/rodata mappings.
-	 * Map the portion(s) which don't overlap.
-	 */
-	if (start < kernel_start)
-		__create_pgd_mapping(pgd, start,
-				     __phys_to_virt(start),
-				     kernel_start - start, PAGE_KERNEL,
-				     early_pgtable_alloc, flags);
-	if (kernel_end < end)
-		__create_pgd_mapping(pgd, kernel_end,
-				     __phys_to_virt(kernel_end),
-				     end - kernel_end, PAGE_KERNEL,
-				     early_pgtable_alloc, flags);
-
-	/*
-	 * Map the linear alias of the [_text, __init_begin) interval
-	 * as non-executable now, and remove the write permission in
-	 * mark_linear_text_alias_ro() below (which will be called after
-	 * alternative patching has completed). This makes the contents
-	 * of the region accessible to subsystems such as hibernate,
-	 * but protects it from inadvertent modification or execution.
-	 * Note that contiguous mappings cannot be remapped in this way,
-	 * so we should avoid them here.
-	 */
-	__create_pgd_mapping(pgd, kernel_start, __phys_to_virt(kernel_start),
-			     kernel_end - kernel_start, PAGE_KERNEL,
-			     early_pgtable_alloc, NO_CONT_MAPPINGS);
+	__create_pgd_mapping(pgd, start, __phys_to_virt(start), end - start,
+			     prot, early_pgtable_alloc, flags);
 }
 
 void __init mark_linear_text_alias_ro(void)
@@ -457,7 +414,26 @@ void __init mark_linear_text_alias_ro(void)
 
 static void __init map_mem(pgd_t *pgd)
 {
+	phys_addr_t kernel_start = __pa_symbol(_text);
+	phys_addr_t kernel_end = __pa_symbol(__init_begin);
 	struct memblock_region *reg;
+	int flags = 0;
+
+	if (debug_pagealloc_enabled())
+		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
+
+	/*
+	 * Take care not to create a writable alias for the
+	 * read-only text and rodata sections of the kernel image.
+	 * So temporarily mark them as NOMAP to skip mappings in
+	 * the following for-loop
+	 */
+	memblock_mark_nomap(kernel_start, kernel_end - kernel_start);
+#ifdef CONFIG_KEXEC_CORE
+	if (crashk_res.end)
+		memblock_mark_nomap(crashk_res.start,
+				    resource_size(&crashk_res));
+#endif
 
 	/* map all the memory banks */
 	for_each_memblock(memory, reg) {
@@ -469,8 +445,37 @@ static void __init map_mem(pgd_t *pgd)
 		if (memblock_is_nomap(reg))
 			continue;
 
-		__map_memblock(pgd, start, end);
+		__map_memblock(pgd, start, end, PAGE_KERNEL, flags);
 	}
+
+	/*
+	 * Map the linear alias of the [_text, __init_begin) interval
+	 * as non-executable now, and remove the write permission in
+	 * mark_linear_text_alias_ro() below (which will be called after
+	 * alternative patching has completed). This makes the contents
+	 * of the region accessible to subsystems such as hibernate,
+	 * but protects it from inadvertent modification or execution.
+	 * Note that contiguous mappings cannot be remapped in this way,
+	 * so we should avoid them here.
+	 */
+	__map_memblock(pgd, kernel_start, kernel_end,
+		       PAGE_KERNEL, NO_CONT_MAPPINGS);
+	memblock_clear_nomap(kernel_start, kernel_end - kernel_start);
+
+#ifdef CONFIG_KEXEC_CORE
+	/*
+	 * Use page-level mappings here so that we can shrink the region
+	 * in page granularity and put back unused memory to buddy system
+	 * through /sys/kernel/kexec_crash_size interface.
+	 */
+	if (crashk_res.end) {
+		__map_memblock(pgd, crashk_res.start, crashk_res.end + 1,
+			       PAGE_KERNEL,
+			       NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS);
+		memblock_clear_nomap(crashk_res.start,
+				     resource_size(&crashk_res));
+	}
+#endif
 }
 
 void mark_rodata_ro(void)
