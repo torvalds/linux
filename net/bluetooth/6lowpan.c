@@ -337,6 +337,7 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 
 		ret = iphc_decompress(local_skb, dev, peer);
 		if (ret < 0) {
+			BT_DBG("iphc_decompress failed: %d", ret);
 			kfree_skb(local_skb);
 			goto drop;
 		}
@@ -356,6 +357,7 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 		consume_skb(local_skb);
 		consume_skb(skb);
 	} else {
+		BT_DBG("unknown packet type");
 		goto drop;
 	}
 
