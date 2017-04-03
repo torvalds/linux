@@ -24,6 +24,7 @@
 
 #define HVC_GET_VECTORS 0
 #define HVC_SET_VECTORS 1
+#define HVC_SOFT_RESTART 2
 
 #ifndef ZIMAGE
 /*
@@ -215,6 +216,10 @@ __hyp_stub_do_trap:
 	mcr	p15, 4, r1, c12, c0, 0	@ set HVBAR
 	b	__hyp_stub_exit
 
+1:	teq	r0, #HVC_SOFT_RESTART
+	bne	1f
+	bx	r3
+
 1:	mov	r0, #-1
 
 __hyp_stub_exit:
@@ -255,6 +260,14 @@ ENTRY(__hyp_set_vectors)
 	__HVC(0)
 	ret	lr
 ENDPROC(__hyp_set_vectors)
+
+ENTRY(__hyp_soft_restart)
+	mov	r3, r0
+	mov	r0, #HVC_SOFT_RESTART
+	__HVC(0)
+	mov	r0, r3
+	ret	lr
+ENDPROC(__hyp_soft_restart)
 
 #ifndef ZIMAGE
 .align 2

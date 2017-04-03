@@ -12,10 +12,11 @@
 
 #include <asm/cacheflush.h>
 #include <asm/idmap.h>
+#include <asm/virt.h>
 
 #include "reboot.h"
 
-typedef void (*phys_reset_t)(unsigned long);
+typedef void (*phys_reset_t)(unsigned long, bool);
 
 /*
  * Function pointers to optional machine specific functions
@@ -51,7 +52,9 @@ static void __soft_restart(void *addr)
 
 	/* Switch to the identity mapping. */
 	phys_reset = (phys_reset_t)virt_to_idmap(cpu_reset);
-	phys_reset((unsigned long)addr);
+
+	/* original stub should be restored by kvm */
+	phys_reset((unsigned long)addr, is_hyp_mode_available());
 
 	/* Should never get here. */
 	BUG();
