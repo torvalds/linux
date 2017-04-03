@@ -131,17 +131,6 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = data.fd.fd;
 		break;
 	}
-	case ION_IOC_IMPORT:
-	{
-		struct ion_handle *handle;
-
-		handle = ion_import_dma_buf_fd(client, data.fd.fd);
-		if (IS_ERR(handle))
-			ret = PTR_ERR(handle);
-		else
-			data.handle.handle = handle->id;
-		break;
-	}
 	case ION_IOC_HEAP_QUERY:
 		ret = ion_query_heaps(client, &data.query);
 		break;

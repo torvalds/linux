@@ -274,24 +274,6 @@ int ion_handle_put(struct ion_handle *handle)
 	return ret;
 }
 
-static struct ion_handle *ion_handle_lookup(struct ion_client *client,
-					    struct ion_buffer *buffer)
-{
-	struct rb_node *n = client->handles.rb_node;
-
-	while (n) {
-		struct ion_handle *entry = rb_entry(n, struct ion_handle, node);
-
-		if (buffer < entry->buffer)
-			n = n->rb_left;
-		else if (buffer > entry->buffer)
-			n = n->rb_right;
-		else
-			return entry;
-	}
-	return ERR_PTR(-EINVAL);
-}
-
 struct ion_handle *ion_handle_get_by_id_nolock(struct ion_client *client,
 					       int id)
 {
@@ -1022,64 +1004,6 @@ int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle)
 	return fd;
 }
 EXPORT_SYMBOL(ion_share_dma_buf_fd);
-
-struct ion_handle *ion_import_dma_buf(struct ion_client *client,
-				      struct dma_buf *dmabuf)
-{
-	struct ion_buffer *buffer;
-	struct ion_handle *handle;
-	int ret;
-
-	/* if this memory came from ion */
-
-	if (dmabuf->ops != &dma_buf_ops) {
-		pr_err("%s: can not import dmabuf from another exporter\n",
-		       __func__);
-		return ERR_PTR(-EINVAL);
-	}
-	buffer = dmabuf->priv;
-
-	mutex_lock(&client->lock);
-	/* if a handle exists for this buffer just take a reference to it */
-	handle = ion_handle_lookup(client, buffer);
-	if (!IS_ERR(handle)) {
-		ion_handle_get(handle);
-		mutex_unlock(&client->lock);
-		goto end;
-	}
-
-	handle = ion_handle_create(client, buffer);
-	if (IS_ERR(handle)) {
-		mutex_unlock(&client->lock);
-		goto end;
-	}
-
-	ret = ion_handle_add(client, handle);
-	mutex_unlock(&client->lock);
-	if (ret) {
-		ion_handle_put(handle);
-		handle = ERR_PTR(ret);
-	}
-
-end:
-	return handle;
-}
-EXPORT_SYMBOL(ion_import_dma_buf);
-
-struct ion_handle *ion_import_dma_buf_fd(struct ion_client *client, int fd)
-{
-	struct dma_buf *dmabuf;
-	struct ion_handle *handle;
-
-	dmabuf = dma_buf_get(fd);
-	if (IS_ERR(dmabuf))
-		return ERR_CAST(dmabuf);
-
-	handle = ion_import_dma_buf(client, dmabuf);
-	dma_buf_put(dmabuf);
-	return handle;
-}
-EXPORT_SYMBOL(ion_import_dma_buf_fd);
 
 int ion_query_heaps(struct ion_client *client, struct ion_heap_query *query)
 {
