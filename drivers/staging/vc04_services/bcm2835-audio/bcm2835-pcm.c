@@ -65,7 +65,6 @@ void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream)
 	unsigned int consumed = 0;
 	int new_period = 0;
 
-	audio_info(" .. IN\n");
 
 	audio_info("alsa_stream=%p substream=%p\n", alsa_stream,
 		alsa_stream ? alsa_stream->substream : 0);
@@ -100,7 +99,6 @@ void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream)
 	} else {
 		audio_warning(" unexpected NULL substream\n");
 	}
-	audio_info(" .. OUT\n");
 }
 
 /* open callback */
@@ -113,7 +111,6 @@ static int snd_bcm2835_playback_open_generic(
 	int idx;
 	int err;
 
-	audio_info(" .. IN (%d)\n", substream->number);
 
 	if (mutex_lock_interruptible(&chip->audio_mutex)) {
 		audio_error("Interrupted whilst waiting for lock\n");
@@ -187,7 +184,6 @@ static int snd_bcm2835_playback_open_generic(
 out:
 	mutex_unlock(&chip->audio_mutex);
 
-	audio_info(" .. OUT =%d\n", err);
 
 	return err;
 }
@@ -211,7 +207,6 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime;
 	struct bcm2835_alsa_stream *alsa_stream;
 
-	audio_info(" .. IN\n");
 
 	chip = snd_pcm_substream_chip(substream);
 	if (mutex_lock_interruptible(&chip->audio_mutex)) {
@@ -252,7 +247,6 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 	chip->opened &= ~(1 << substream->number);
 
 	mutex_unlock(&chip->audio_mutex);
-	audio_info(" .. OUT\n");
 
 	return 0;
 }
@@ -265,7 +259,6 @@ static int snd_bcm2835_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
 	int err;
 
-	audio_info(" .. IN\n");
 
 	err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 	if (err < 0) {
@@ -277,7 +270,6 @@ static int snd_bcm2835_pcm_hw_params(struct snd_pcm_substream *substream,
 	alsa_stream->channels = params_channels(params);
 	alsa_stream->params_rate = params_rate(params);
 	alsa_stream->pcm_format_width = snd_pcm_format_width(params_format(params));
-	audio_info(" .. OUT\n");
 
 	return err;
 }
@@ -285,7 +277,6 @@ static int snd_bcm2835_pcm_hw_params(struct snd_pcm_substream *substream,
 /* hw_free callback */
 static int snd_bcm2835_pcm_hw_free(struct snd_pcm_substream *substream)
 {
-	audio_info(" .. IN\n");
 	return snd_pcm_lib_free_pages(substream);
 }
 
@@ -298,7 +289,6 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 	int channels;
 	int err;
 
-	audio_info(" .. IN\n");
 
 	if (mutex_lock_interruptible(&chip->audio_mutex))
 		return -EINTR;
@@ -339,7 +329,6 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 		alsa_stream->pos, runtime->frame_bits);
 
 	mutex_unlock(&chip->audio_mutex);
-	audio_info(" .. OUT\n");
 	return 0;
 }
 
@@ -376,7 +365,6 @@ static int snd_bcm2835_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
 	int err = 0;
 
-	audio_info(" .. IN\n");
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -419,7 +407,6 @@ static int snd_bcm2835_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		err = -EINVAL;
 	}
 
-	audio_info(" .. OUT\n");
 	return err;
 }
 
@@ -430,14 +417,12 @@ snd_bcm2835_pcm_pointer(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
 
-	audio_info(" .. IN\n");
 
 	audio_debug("pcm_pointer... (%d) hwptr=%d appl=%d pos=%d\n", 0,
 		frames_to_bytes(runtime, runtime->status->hw_ptr),
 		frames_to_bytes(runtime, runtime->control->appl_ptr),
 		alsa_stream->pos);
 
-	audio_info(" .. OUT\n");
 	return snd_pcm_indirect_playback_pointer(substream,
 		&alsa_stream->pcm_indirect,
 		alsa_stream->pos);
@@ -484,7 +469,6 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels)
 	struct snd_pcm *pcm;
 	int err;
 
-	audio_info(" .. IN\n");
 	mutex_init(&chip->audio_mutex);
 	if (mutex_lock_interruptible(&chip->audio_mutex)) {
 		audio_error("Interrupted whilst waiting for lock\n");
@@ -513,7 +497,6 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels)
 
 out:
 	mutex_unlock(&chip->audio_mutex);
-	audio_info(" .. OUT\n");
 
 	return 0;
 }
@@ -523,7 +506,6 @@ int snd_bcm2835_new_spdif_pcm(struct bcm2835_chip *chip)
 	struct snd_pcm *pcm;
 	int err;
 
-	audio_info(" .. IN\n");
 	if (mutex_lock_interruptible(&chip->audio_mutex)) {
 		audio_error("Interrupted whilst waiting for lock\n");
 		return -EINTR;
@@ -545,7 +527,6 @@ int snd_bcm2835_new_spdif_pcm(struct bcm2835_chip *chip)
 		snd_bcm2835_playback_spdif_hw.buffer_bytes_max, snd_bcm2835_playback_spdif_hw.buffer_bytes_max);
 out:
 	mutex_unlock(&chip->audio_mutex);
-	audio_info(" .. OUT\n");
 
 	return 0;
 }

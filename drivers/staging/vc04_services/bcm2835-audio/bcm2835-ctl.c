@@ -41,7 +41,6 @@
 static int snd_bcm2835_ctl_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
 {
-	audio_info(" ... IN\n");
 	if (kcontrol->private_value == PCM_PLAYBACK_VOLUME) {
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 		uinfo->count = 1;
@@ -58,7 +57,6 @@ static int snd_bcm2835_ctl_info(struct snd_kcontrol *kcontrol,
 		uinfo->value.integer.min = 0;
 		uinfo->value.integer.max = AUDIO_DEST_MAX - 1;
 	}
-	audio_info(" ... OUT\n");
 	return 0;
 }
 

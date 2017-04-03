@@ -109,7 +109,6 @@ static void my_wq_function(struct work_struct *work)
 		container_of(work, struct bcm2835_audio_work, my_work);
 	int ret = -9;
 
-	LOG_DBG(" .. IN %p:%d\n", w->alsa_stream, w->cmd);
 	switch (w->cmd) {
 	case BCM2835_AUDIO_START:
 		ret = bcm2835_audio_start_worker(w->alsa_stream);
@@ -126,12 +125,10 @@ static void my_wq_function(struct work_struct *work)
 		break;
 	}
 	kfree((void *)work);
-	LOG_DBG(" .. OUT %d\n", ret);
 }
 
 int bcm2835_audio_start(struct bcm2835_alsa_stream *alsa_stream)
 {
-	LOG_DBG(" .. IN\n");
 	if (alsa_stream->my_wq) {
 		struct bcm2835_audio_work *work;
 
@@ -149,13 +146,11 @@ int bcm2835_audio_start(struct bcm2835_alsa_stream *alsa_stream)
 			return -EBUSY;
 		}
 	}
-	LOG_DBG(" .. OUT\n");
 	return 0;
 }
 
 int bcm2835_audio_stop(struct bcm2835_alsa_stream *alsa_stream)
 {
-	LOG_DBG(" .. IN\n");
 	if (alsa_stream->my_wq) {
 		struct bcm2835_audio_work *work;
 
@@ -173,14 +168,12 @@ int bcm2835_audio_stop(struct bcm2835_alsa_stream *alsa_stream)
 			return -EBUSY;
 		}
 	}
-	LOG_DBG(" .. OUT\n");
 	return 0;
 }
 
 int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 			unsigned int count, void *src)
 {
-	LOG_DBG(" .. IN\n");
 	if (alsa_stream->my_wq) {
 		struct bcm2835_audio_work *work;
 
@@ -200,7 +193,6 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 			return -EBUSY;
 		}
 	}
-	LOG_DBG(" .. OUT\n");
 	return 0;
 }
 
@@ -226,9 +218,6 @@ static void audio_vchi_callback(void *param,
 	int status;
 	int msg_len;
 	struct vc_audio_msg m;
-
-	LOG_DBG(" .. IN instance=%p, handle=%p, alsa=%p, reason=%d, handle=%p\n",
-		instance, instance ? instance->vchi_handle[0] : NULL, instance ? instance->alsa_stream : NULL, reason, msg_handle);
 
 	if (reason != VCHI_CALLBACK_MSG_AVAILABLE)
 		return;
@@ -269,7 +258,6 @@ static void audio_vchi_callback(void *param,
 	} else {
 		LOG_ERR(" .. unexpected m.type=%d\n", m.type);
 	}
-	LOG_DBG(" .. OUT\n");
 }
 
 static struct bcm2835_audio_instance *
@@ -349,7 +337,6 @@ static int vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 {
 	unsigned int i;
 
-	LOG_DBG(" .. IN\n");
 
 	if (!instance) {
 		LOG_ERR("%s: invalid handle %p\n", __func__, instance);
@@ -382,7 +369,6 @@ static int vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 
 	kfree(instance);
 
-	LOG_DBG(" .. OUT\n");
 
 	return 0;
 }
@@ -396,7 +382,6 @@ static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream
 		(struct bcm2835_audio_instance *)alsa_stream->instance;
 	int ret;
 
-	LOG_DBG(" .. IN\n");
 
 	LOG_INFO("%s: start\n", __func__);
 	BUG_ON(instance);
@@ -447,7 +432,6 @@ static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream
 	ret = 0;
 err_free_mem:
 	kfree(vchi_instance);
-	LOG_DBG(" .. OUT\n");
 
 	return ret;
 }
@@ -459,7 +443,6 @@ int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 	int status;
 	int ret;
 
-	LOG_DBG(" .. IN\n");
 
 	my_workqueue_init(alsa_stream);
 
@@ -497,7 +480,6 @@ unlock:
 	vchi_service_release(instance->vchi_handle[0]);
 	mutex_unlock(&instance->vchi_mutex);
 exit:
-	LOG_DBG(" .. OUT\n");
 	return ret;
 }
 
@@ -509,7 +491,6 @@ static int bcm2835_audio_set_ctls_chan(struct bcm2835_alsa_stream *alsa_stream,
 	int status;
 	int ret;
 
-	LOG_DBG(" .. IN\n");
 
 	LOG_INFO(" Setting ALSA dest(%d), volume(%d)\n",
 		 chip->dest, chip->volume);
@@ -558,7 +539,6 @@ unlock:
 	vchi_service_release(instance->vchi_handle[0]);
 	mutex_unlock(&instance->vchi_mutex);
 
-	LOG_DBG(" .. OUT\n");
 	return ret;
 }
 
@@ -567,7 +547,6 @@ int bcm2835_audio_set_ctls(struct bcm2835_chip *chip)
 	int i;
 	int ret = 0;
 
-	LOG_DBG(" .. IN\n");
 	LOG_DBG(" Setting ALSA dest(%d), volume(%d)\n", chip->dest, chip->volume);
 
 	/* change ctls for all substreams */
@@ -584,7 +563,6 @@ int bcm2835_audio_set_ctls(struct bcm2835_chip *chip)
 			}
 		}
 	}
-	LOG_DBG(" .. OUT ret=%d\n", ret);
 	return ret;
 }
 
@@ -597,7 +575,6 @@ int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 	int status;
 	int ret;
 
-	LOG_DBG(" .. IN\n");
 
 	LOG_INFO(" Setting ALSA channels(%d), samplerate(%d), bits-per-sample(%d)\n",
 		 channels, samplerate, bps);
@@ -653,15 +630,12 @@ unlock:
 	vchi_service_release(instance->vchi_handle[0]);
 	mutex_unlock(&instance->vchi_mutex);
 
-	LOG_DBG(" .. OUT\n");
 	return ret;
 }
 
 int bcm2835_audio_setup(struct bcm2835_alsa_stream *alsa_stream)
 {
-	LOG_DBG(" .. IN\n");
 
-	LOG_DBG(" .. OUT\n");
 
 	return 0;
 }
@@ -673,7 +647,6 @@ static int bcm2835_audio_start_worker(struct bcm2835_alsa_stream *alsa_stream)
 	int status;
 	int ret;
 
-	LOG_DBG(" .. IN\n");
 
 	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
 		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n",
@@ -701,7 +674,6 @@ static int bcm2835_audio_start_worker(struct bcm2835_alsa_stream *alsa_stream)
 unlock:
 	vchi_service_release(instance->vchi_handle[0]);
 	mutex_unlock(&instance->vchi_mutex);
-	LOG_DBG(" .. OUT\n");
 	return ret;
 }
 
@@ -712,7 +684,6 @@ static int bcm2835_audio_stop_worker(struct bcm2835_alsa_stream *alsa_stream)
 	int status;
 	int ret;
 
-	LOG_DBG(" .. IN\n");
 
 	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
 		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n",
@@ -741,7 +712,6 @@ static int bcm2835_audio_stop_worker(struct bcm2835_alsa_stream *alsa_stream)
 unlock:
 	vchi_service_release(instance->vchi_handle[0]);
 	mutex_unlock(&instance->vchi_mutex);
-	LOG_DBG(" .. OUT\n");
 	return ret;
 }
 
@@ -752,7 +722,6 @@ int bcm2835_audio_close(struct bcm2835_alsa_stream *alsa_stream)
 	int status;
 	int ret;
 
-	LOG_DBG(" .. IN\n");
 
 	my_workqueue_quit(alsa_stream);
 
@@ -800,7 +769,6 @@ unlock:
 	vc_vchi_audio_deinit(instance);
 	alsa_stream->instance = NULL;
 
-	LOG_DBG(" .. OUT\n");
 	return ret;
 }
 
@@ -812,7 +780,6 @@ static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
 	int status;
 	int ret;
 
-	LOG_DBG(" .. IN\n");
 
 	LOG_INFO(" Writing %d bytes from %p\n", count, src);
 
@@ -878,7 +845,6 @@ static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
 unlock:
 	vchi_service_release(instance->vchi_handle[0]);
 	mutex_unlock(&instance->vchi_mutex);
-	LOG_DBG(" .. OUT\n");
 	return ret;
 }
 
@@ -887,8 +853,6 @@ unlock:
  */
 void bcm2835_audio_flush_buffers(struct bcm2835_alsa_stream *alsa_stream)
 {
-	LOG_DBG(" .. IN\n");
-	LOG_DBG(" .. OUT\n");
 }
 
 /**
@@ -897,8 +861,6 @@ void bcm2835_audio_flush_buffers(struct bcm2835_alsa_stream *alsa_stream)
  */
 void bcm2835_audio_flush_playback_buffers(struct bcm2835_alsa_stream *alsa_stream)
 {
-	LOG_DBG(" .. IN\n");
-	LOG_DBG(" .. OUT\n");
 }
 
 unsigned int bcm2835_audio_retrieve_buffers(struct bcm2835_alsa_stream *alsa_stream)
