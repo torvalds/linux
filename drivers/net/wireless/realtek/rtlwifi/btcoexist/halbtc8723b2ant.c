@@ -1065,8 +1065,14 @@ static void btc8723b2ant_set_ant_path(struct btc_coexist *btcoexist,
 		btcoexist->btc_write_1byte(btcoexist, 0x930, 0x77);
 		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x67, 0x20, 0x1);
 
-		/* Force GNT_BT to low */
-		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x765, 0x18, 0x0);
+		if (fw_ver >= 0x180000) {
+			/* Use H2C to set GNT_BT to High to avoid A2DP click */
+			h2c_parameter[0] = 1;
+			btcoexist->btc_fill_h2c(btcoexist, 0x6E, 1,
+						h2c_parameter);
+		} else {
+			btcoexist->btc_write_1byte(btcoexist, 0x765, 0x18);
+		}
 
 		if (board_info->btdm_ant_pos == BTC_ANTENNA_AT_MAIN_PORT) {
 			/* tell firmware "no antenna inverse" */
@@ -1078,8 +1084,12 @@ static void btc8723b2ant_set_ant_path(struct btc_coexist *btcoexist,
 		} else {
 			/* tell firmware "antenna inverse" */
 			h2c_parameter[0] = 1;
-			h2c_parameter[1] = 1;  /* ext switch type */
-			btcoexist->btc_fill_h2c(btcoexist, 0x65, 2,
+		}
+	} else {
+		if (fw_ver >= 0x180000) {
+			/* Use H2C to set GNT_BT to "Control by PTA"*/
+			h2c_parameter[0] = 0;
+			btcoexist->btc_fill_h2c(btcoexist, 0x6E, 1,
 						h2c_parameter);
 			btcoexist->btc_write_2byte(btcoexist, 0x948, 0x280);
 		}
@@ -2370,12 +2380,23 @@ static void btc8723b2ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 
 static void btc8723b2ant_wifioff_hwcfg(struct btc_coexist *btcoexist)
 {
+	u8 h2c_parameter[2] = {0};
+	u32 fw_ver = 0;
+
 	/* set wlan_act to low */
 	btcoexist->btc_write_1byte(btcoexist, 0x76e, 0x4);
-	/* Force GNT_BT to High */
-	btcoexist->btc_write_1byte_bitmask(btcoexist, 0x765, 0x18, 0x3);
-	/* BT select s0/s1 is controlled by BT */
-	btcoexist->btc_write_1byte_bitmask(btcoexist, 0x67, 0x20, 0x0);
+
+	/* WiFi standby while GNT_BT 0 -> 1 */
+	btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x1, 0xfffff, 0x780);
+
+	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_FW_VER, &fw_ver);
+	if (fw_ver >= 0x180000) {
+		/* Use H2C to set GNT_BT to HIGH */
+		h2c_parameter[0] = 1;
+		btcoexist->btc_fill_h2c(btcoexist, 0x6E, 1, h2c_parameter);
+	} else {
+		btcoexist->btc_write_1byte(btcoexist, 0x765, 0x18);
+	}
 }
 
 /*********************************************************************
