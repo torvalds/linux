@@ -1522,7 +1522,7 @@ static bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gpiochip,
  */
 static void gpiochip_set_cascaded_irqchip(struct gpio_chip *gpiochip,
 					  struct irq_chip *irqchip,
-					  int parent_irq,
+					  unsigned int parent_irq,
 					  irq_flow_handler_t parent_handler)
 {
 	unsigned int offset;
@@ -1571,7 +1571,7 @@ static void gpiochip_set_cascaded_irqchip(struct gpio_chip *gpiochip,
  */
 void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 				  struct irq_chip *irqchip,
-				  int parent_irq,
+				  unsigned int parent_irq,
 				  irq_flow_handler_t parent_handler)
 {
 	gpiochip_set_cascaded_irqchip(gpiochip, irqchip, parent_irq,
@@ -1588,7 +1588,7 @@ EXPORT_SYMBOL_GPL(gpiochip_set_chained_irqchip);
  */
 void gpiochip_set_nested_irqchip(struct gpio_chip *gpiochip,
 				 struct irq_chip *irqchip,
-				 int parent_irq)
+				 unsigned int parent_irq)
 {
 	if (!gpiochip->irq_nested) {
 		chip_err(gpiochip, "tried to nest a chained gpiochip\n");
