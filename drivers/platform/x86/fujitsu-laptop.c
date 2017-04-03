@@ -217,13 +217,13 @@ static u32 dbg_level = 0x03;
 
 /* Fujitsu ACPI interface function */
 
-static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
+static int call_fext_func(int func, int op, int feature, int state)
 {
 	union acpi_object params[4] = {
-		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = cmd },
-		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = arg0 },
-		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = arg1 },
-		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = arg2 }
+		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = func },
+		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = op },
+		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = feature },
+		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = state }
 	};
 	struct acpi_object_list arg_list = { 4, params };
 	unsigned long long value;
@@ -236,9 +236,8 @@ static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 		return -ENODEV;
 	}
 
-	vdbg_printk(FUJLAPTOP_DBG_TRACE,
-		"FUNC 0x%x (args 0x%x, 0x%x, 0x%x) returned 0x%x\n",
-			cmd, arg0, arg1, arg2, (int)value);
+	vdbg_printk(FUJLAPTOP_DBG_TRACE, "FUNC 0x%x (args 0x%x, 0x%x, 0x%x) returned 0x%x\n",
+		    func, op, feature, state, (int)value);
 	return value;
 }
 
