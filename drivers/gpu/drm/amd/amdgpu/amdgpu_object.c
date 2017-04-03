@@ -650,6 +650,10 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 	if (WARN_ON_ONCE(min_offset > max_offset))
 		return -EINVAL;
 
+	/* A shared bo cannot be migrated to VRAM */
+	if (bo->prime_shared_count && (domain == AMDGPU_GEM_DOMAIN_VRAM))
+		return -EINVAL;
+
 	if (bo->pin_count) {
 		uint32_t mem_type = bo->tbo.mem.mem_type;
 

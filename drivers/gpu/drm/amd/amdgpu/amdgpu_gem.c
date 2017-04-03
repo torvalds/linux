@@ -729,6 +729,11 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 	case AMDGPU_GEM_OP_SET_PLACEMENT:
+		if (robj->prime_shared_count && (args->value & AMDGPU_GEM_DOMAIN_VRAM)) {
+			r = -EINVAL;
+			amdgpu_bo_unreserve(robj);
+			break;
+		}
 		if (amdgpu_ttm_tt_get_usermm(robj->tbo.ttm)) {
 			r = -EPERM;
 			amdgpu_bo_unreserve(robj);
