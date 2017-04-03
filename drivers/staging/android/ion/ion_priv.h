@@ -440,20 +440,7 @@ void ion_page_pool_free(struct ion_page_pool *pool, struct page *page);
 int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 			  int nr_to_scan);
 
-/**
- * ion_pages_sync_for_device - cache flush pages for use with the specified
- *                             device
- * @dev:		the device the pages will be used with
- * @page:		the first page to be flushed
- * @size:		size in bytes of region to be flushed
- * @dir:		direction of dma transfer
- */
-void ion_pages_sync_for_device(struct device *dev, struct page *page,
-		size_t size, enum dma_data_direction dir);
-
 long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
-
-int ion_sync_for_device(struct ion_client *client, int fd);
 
 struct ion_handle *ion_handle_get_by_id_nolock(struct ion_client *client,
 						int id);
