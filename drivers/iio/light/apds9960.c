@@ -343,7 +343,7 @@ static struct attribute *apds9960_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group apds9960_attribute_group = {
+static const struct attribute_group apds9960_attribute_group = {
 	.attrs = apds9960_attributes,
 };
 

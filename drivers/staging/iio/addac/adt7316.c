@@ -244,7 +244,6 @@ static ssize_t _adt7316_store_enabled(struct adt7316_chip_info *chip,
 	chip->config1 = config1;
 
 	return ret;
-
 }
 
 static ssize_t adt7316_store_enabled(struct device *dev,
@@ -433,7 +432,6 @@ static ssize_t adt7316_store_ad_channel(struct device *dev,
 
 		config2 = chip->config2 & (~ADT7316_AD_SINGLE_CH_MASK);
 	}
-
 
 	config2 |= data;
 
@@ -725,7 +723,6 @@ static IIO_DEVICE_ATTR(AIN_internal_Vref, 0644,
 		adt7316_store_AIN_internal_Vref,
 		0);
 
-
 static ssize_t adt7316_show_enable_prop_DACA(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
@@ -924,7 +921,6 @@ static ssize_t adt7316_show_all_DAC_update_modes(struct device *dev,
 
 static IIO_DEVICE_ATTR(all_DAC_update_modes, 0444,
 		adt7316_show_all_DAC_update_modes, NULL, 0);
-
 
 static ssize_t adt7316_store_update_DAC(struct device *dev,
 		struct device_attribute *attr,
@@ -1867,6 +1863,7 @@ static ssize_t adt7316_set_int_mask(struct device *dev,
 
 	return len;
 }
+
 static inline ssize_t adt7316_show_ad_bound(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)

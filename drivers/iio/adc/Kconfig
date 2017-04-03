@@ -130,6 +130,17 @@ config AD799X
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad799x.
 
+config ASPEED_ADC
+	tristate "Aspeed ADC"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on COMMON_CLK
+	help
+	  If you say yes here you get support for the ADC included in Aspeed
+	  BMC SoCs.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called aspeed_adc.
+
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91
@@ -194,6 +205,17 @@ config CC10001_ADC
 
 	  This driver can also be built as a module. If so, the module will be
 	  called cc10001_adc.
+
+config CPCAP_ADC
+	tristate "Motorola CPCAP PMIC ADC driver"
+	depends on MFD_CPCAP
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Motorola CPCAP PMIC ADC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cpcap-adc.
 
 config DA9150_GPADC
 	tristate "Dialog DA9150 GPADC driver support"
@@ -325,6 +347,16 @@ config LTC2485
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ltc2485.
+
+config LTC2497
+	tristate "Linear Technology LTC2497 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Linear Technology LTC2497
+	  16-Bit 8-/16-Channel Delta Sigma ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ltc2497.
 
 config MAX1027
 	tristate "Maxim max1027 ADC driver"
@@ -563,6 +595,7 @@ config SUN4I_GPADC
 	tristate "Support for the Allwinner SoCs GPADC"
 	depends on IIO
 	depends on MFD_SUN4I_GPADC
+	depends on THERMAL || !THERMAL_OF
 	help
 	  Say yes here to build support for Allwinner (A10, A13 and A31) SoCs
 	  GPADC. This ADC provides 4 channels which can be used as an ADC or as

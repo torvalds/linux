@@ -244,6 +244,7 @@ static int ad7152_write_raw_samp_freq(struct device *dev, int val)
 
 	return ret;
 }
+
 static int ad7152_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int val,

@@ -364,7 +364,7 @@ static int max1027_set_trigger_state(struct iio_trigger *trig, bool state)
 
 static irqreturn_t max1027_trigger_handler(int irq, void *private)
 {
-	struct iio_poll_func *pf = (struct iio_poll_func *)private;
+	struct iio_poll_func *pf = private;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct max1027_state *st = iio_priv(indio_dev);
 

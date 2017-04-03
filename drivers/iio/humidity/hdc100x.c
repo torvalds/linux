@@ -79,7 +79,7 @@ static struct attribute *hdc100x_attributes[] = {
 	NULL
 };
 
-static struct attribute_group hdc100x_attribute_group = {
+static const struct attribute_group hdc100x_attribute_group = {
 	.attrs = hdc100x_attributes,
 };
 
