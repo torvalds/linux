@@ -295,19 +295,15 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
 	crtc = drm_crtc_find(dev, crtc_lut->crtc_id);
-	if (!crtc) {
-		ret = -ENOENT;
-		goto out;
-	}
+	if (!crtc)
+		return -ENOENT;
 
 	/* memcpy into gamma store */
-	if (crtc_lut->gamma_size != crtc->gamma_size) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (crtc_lut->gamma_size != crtc->gamma_size)
+		return -EINVAL;
 
+	drm_modeset_lock(&crtc->mutex, NULL);
 	size = crtc_lut->gamma_size * (sizeof(uint16_t));
 	r_base = crtc->gamma_store;
 	if (copy_to_user((void __user *)(unsigned long)crtc_lut->red, r_base, size)) {
@@ -327,6 +323,6 @@ int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 		goto out;
 	}
 out:
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock(&crtc->mutex);
 	return ret;
 }
