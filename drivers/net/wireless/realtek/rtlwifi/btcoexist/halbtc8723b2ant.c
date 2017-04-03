@@ -399,11 +399,9 @@ static bool btc8723b2ant_is_wifi_status_changed(struct btc_coexist *btcoexist)
 
 static void btc8723b2ant_update_bt_link_info(struct btc_coexist *btcoexist)
 {
-	/*struct btc_stack_info *stack_info = &btcoexist->stack_info;*/
 	struct btc_bt_link_info *bt_link_info = &btcoexist->bt_link_info;
 	bool bt_hs_on = false;
 
-#if (BT_AUTO_REPORT_ONLY_8723B_2ANT == 1) /* profile from bt patch */
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_HS_OPERATION, &bt_hs_on);
 
 	bt_link_info->bt_link_exist = coex_sta->bt_link_exist;
@@ -417,21 +415,7 @@ static void btc8723b2ant_update_bt_link_info(struct btc_coexist *btcoexist)
 		bt_link_info->pan_exist = true;
 		bt_link_info->bt_link_exist = true;
 	}
-#else	/* profile from bt stack */
-	bt_link_info->bt_link_exist = stack_info->bt_link_exist;
-	bt_link_info->sco_exist = stack_info->sco_exist;
-	bt_link_info->a2dp_exist = stack_info->a2dp_exist;
-	bt_link_info->pan_exist = stack_info->pan_exist;
-	bt_link_info->hid_exist = stack_info->hid_exist;
 
-	/*for win-8 stack HID report error*/
-	if (!stack_info->hid_exist)
-		stack_info->hid_exist = coex_sta->hid_exist;
-	/*sync  BTInfo with BT firmware and stack*/
-	/* when stack HID report error, here we use the info from bt fw.*/
-	if (!stack_info->bt_link_exist)
-		stack_info->bt_link_exist = coex_sta->bt_link_exist;
-#endif
 	/* check if Sco only */
 	if (bt_link_info->sco_exist && !bt_link_info->a2dp_exist &&
 	    !bt_link_info->pan_exist && !bt_link_info->hid_exist)
