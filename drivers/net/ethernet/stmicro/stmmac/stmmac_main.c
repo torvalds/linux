@@ -2001,7 +2001,7 @@ static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 		stmmac_configure_cbs(priv);
 
 	/* Map RX MTL to DMA channels */
-	if (rx_queues_count > 1 && priv->hw->mac->map_mtl_to_dma)
+	if (priv->hw->mac->map_mtl_to_dma)
 		stmmac_rx_queue_dma_chan_map(priv);
 
 	/* Enable MAC RX Queues */
