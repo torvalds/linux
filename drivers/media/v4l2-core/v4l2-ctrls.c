@@ -459,8 +459,8 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 	};
 	static const char * const dv_rgb_range[] = {
 		"Automatic",
-		"RGB limited range (16-235)",
-		"RGB full range (0-255)",
+		"RGB Limited Range (16-235)",
+		"RGB Full Range (0-255)",
 		NULL,
 	};
 	static const char * const dv_it_content_type[] = {
