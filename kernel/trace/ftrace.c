@@ -3739,7 +3739,7 @@ static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 	preempt_disable_notrace();
 	hlist_for_each_entry_rcu_notrace(entry, hhd, node) {
 		if (entry->ip == ip)
-			entry->ops->func(ip, parent_ip, &entry->data);
+			entry->ops->func(ip, parent_ip, entry->ops, &entry->data);
 	}
 	preempt_enable_notrace();
 }

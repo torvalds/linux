@@ -2461,7 +2461,8 @@ struct event_probe_data {
 };
 
 static void
-event_enable_probe(unsigned long ip, unsigned long parent_ip, void **_data)
+event_enable_probe(unsigned long ip, unsigned long parent_ip,
+		   struct ftrace_probe_ops *ops, void **_data)
 {
 	struct event_probe_data **pdata = (struct event_probe_data **)_data;
 	struct event_probe_data *data = *pdata;
@@ -2476,7 +2477,8 @@ event_enable_probe(unsigned long ip, unsigned long parent_ip, void **_data)
 }
 
 static void
-event_enable_count_probe(unsigned long ip, unsigned long parent_ip, void **_data)
+event_enable_count_probe(unsigned long ip, unsigned long parent_ip,
+			 struct ftrace_probe_ops *ops, void **_data)
 {
 	struct event_probe_data **pdata = (struct event_probe_data **)_data;
 	struct event_probe_data *data = *pdata;
@@ -2494,7 +2496,7 @@ event_enable_count_probe(unsigned long ip, unsigned long parent_ip, void **_data
 	if (data->count != -1)
 		(data->count)--;
 
-	event_enable_probe(ip, parent_ip, _data);
+	event_enable_probe(ip, parent_ip, ops, _data);
 }
 
 static int

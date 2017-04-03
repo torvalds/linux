@@ -326,19 +326,22 @@ static void update_traceon_count(void **data, bool on)
 }
 
 static void
-ftrace_traceon_count(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_traceon_count(unsigned long ip, unsigned long parent_ip,
+		     struct ftrace_probe_ops *ops, void **data)
 {
 	update_traceon_count(data, 1);
 }
 
 static void
-ftrace_traceoff_count(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_traceoff_count(unsigned long ip, unsigned long parent_ip,
+		      struct ftrace_probe_ops *ops, void **data)
 {
 	update_traceon_count(data, 0);
 }
 
 static void
-ftrace_traceon(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_traceon(unsigned long ip, unsigned long parent_ip,
+	       struct ftrace_probe_ops *ops, void **data)
 {
 	if (tracing_is_on())
 		return;
@@ -347,7 +350,8 @@ ftrace_traceon(unsigned long ip, unsigned long parent_ip, void **data)
 }
 
 static void
-ftrace_traceoff(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_traceoff(unsigned long ip, unsigned long parent_ip,
+		struct ftrace_probe_ops *ops, void **data)
 {
 	if (!tracing_is_on())
 		return;
@@ -365,13 +369,15 @@ ftrace_traceoff(unsigned long ip, unsigned long parent_ip, void **data)
 #define STACK_SKIP 4
 
 static void
-ftrace_stacktrace(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_stacktrace(unsigned long ip, unsigned long parent_ip,
+		  struct ftrace_probe_ops *ops, void **data)
 {
 	trace_dump_stack(STACK_SKIP);
 }
 
 static void
-ftrace_stacktrace_count(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_stacktrace_count(unsigned long ip, unsigned long parent_ip,
+			struct ftrace_probe_ops *ops, void **data)
 {
 	long *count = (long *)data;
 	long old_count;
@@ -419,7 +425,8 @@ static int update_count(void **data)
 }
 
 static void
-ftrace_dump_probe(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_dump_probe(unsigned long ip, unsigned long parent_ip,
+	struct ftrace_probe_ops *ops, void **data)
 {
 	if (update_count(data))
 		ftrace_dump(DUMP_ALL);
@@ -427,7 +434,8 @@ ftrace_dump_probe(unsigned long ip, unsigned long parent_ip, void **data)
 
 /* Only dump the current CPU buffer. */
 static void
-ftrace_cpudump_probe(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_cpudump_probe(unsigned long ip, unsigned long parent_ip,
+	struct ftrace_probe_ops *ops, void **data)
 {
 	if (update_count(data))
 		ftrace_dump(DUMP_ORIG);

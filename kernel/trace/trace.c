@@ -6735,13 +6735,15 @@ static const struct file_operations tracing_dyn_info_fops = {
 
 #if defined(CONFIG_TRACER_SNAPSHOT) && defined(CONFIG_DYNAMIC_FTRACE)
 static void
-ftrace_snapshot(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_snapshot(unsigned long ip, unsigned long parent_ip,
+		struct ftrace_probe_ops *ops, void **data)
 {
 	tracing_snapshot();
 }
 
 static void
-ftrace_count_snapshot(unsigned long ip, unsigned long parent_ip, void **data)
+ftrace_count_snapshot(unsigned long ip, unsigned long parent_ip,
+		      struct ftrace_probe_ops *ops, void **data)
 {
 	unsigned long *count = (long *)data;
 
