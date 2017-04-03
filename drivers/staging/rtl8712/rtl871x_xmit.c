@@ -213,8 +213,9 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 		if (padapter->pwrctrlpriv.pwr_mode !=
 		    padapter->registrypriv.power_mgnt) {
 			del_timer_sync(&pmlmepriv->dhcp_timer);
-			r8712_set_ps_mode(padapter, padapter->registrypriv.
-				power_mgnt, padapter->registrypriv.smart_ps);
+			r8712_set_ps_mode(padapter,
+					  padapter->registrypriv.power_mgnt,
+					  padapter->registrypriv.smart_ps);
 		}
 	}
 }
@@ -416,15 +417,13 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 							   &pframe[10], 6);
 			}
 			if (pqospriv->qos_option == 1)
-					priority[0] = (u8)pxmitframe->
-						      attrib.priority;
+				priority[0] = (u8)pxmitframe->attrib.priority;
 			r8712_secmicappend(&micdata, &priority[0], 4);
 			payload = pframe;
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags;
 			     curfragnum++) {
 				payload = (u8 *)RND4((addr_t)(payload));
-				payload = payload + pattrib->
-					  hdrlen + pattrib->iv_len;
+				payload += pattrib->hdrlen + pattrib->iv_len;
 				if ((curfragnum + 1) == pattrib->nr_frags) {
 					length = pattrib->last_txcmdsz -
 						  pattrib->hdrlen -
