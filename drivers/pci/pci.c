@@ -3781,6 +3781,9 @@ static int pcie_flr(struct pci_dev *dev, int probe)
 	if (!(cap & PCI_EXP_DEVCAP_FLR))
 		return -ENOTTY;
 
+	if (dev->dev_flags & PCI_DEV_FLAGS_NO_FLR_RESET)
+		return -ENOTTY;
+
 	if (probe)
 		return 0;
 
@@ -3799,6 +3802,9 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_AF);
 	if (!pos)
+		return -ENOTTY;
+
+	if (dev->dev_flags & PCI_DEV_FLAGS_NO_FLR_RESET)
 		return -ENOTTY;
 
 	pci_read_config_byte(dev, pos + PCI_AF_CAP, &cap);
