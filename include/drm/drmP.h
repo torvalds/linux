@@ -78,6 +78,8 @@
 #include <drm/drm_prime.h>
 #include <drm/drm_pci.h>
 #include <drm/drm_file.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_ioctl.h>
 
 struct module;
 
@@ -316,80 +318,15 @@ struct pci_controller;
 
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
 
-/**
- * Ioctl function type.
- *
- * \param inode device inode.
- * \param file_priv DRM file private pointer.
- * \param cmd command.
- * \param arg argument.
- */
-typedef int drm_ioctl_t(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-
-typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
-			       unsigned long arg);
-
-#define DRM_IOCTL_NR(n)                _IOC_NR(n)
-#define DRM_MAJOR       226
-
-#define DRM_AUTH	0x1
-#define	DRM_MASTER	0x2
-#define DRM_ROOT_ONLY	0x4
-#define DRM_CONTROL_ALLOW 0x8
-#define DRM_UNLOCKED	0x10
-#define DRM_RENDER_ALLOW 0x20
-
-struct drm_ioctl_desc {
-	unsigned int cmd;
-	int flags;
-	drm_ioctl_t *func;
-	const char *name;
-};
-
-/**
- * Creates a driver or general drm_ioctl_desc array entry for the given
- * ioctl, for use by drm_ioctl().
- */
-
-#define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)				\
-	[DRM_IOCTL_NR(DRM_IOCTL_##ioctl) - DRM_COMMAND_BASE] = {	\
-		.cmd = DRM_IOCTL_##ioctl,				\
-		.func = _func,						\
-		.flags = _flags,					\
-		.name = #ioctl						\
-	 }
 
 /* Flags and return codes for get_vblank_timestamp() driver function. */
 #define DRM_CALLED_FROM_VBLIRQ 1
 #define DRM_VBLANKTIME_SCANOUTPOS_METHOD (1 << 0)
-#define DRM_VBLANKTIME_IN_VBLANK         (1 << 1)
 
 /* get_scanout_position() return flags */
 #define DRM_SCANOUTPOS_VALID        (1 << 0)
 #define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
 #define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
-
-/**
- * Info file list entry. This structure represents a debugfs or proc file to
- * be created by the drm core
- */
-struct drm_info_list {
-	const char *name; /** file name */
-	int (*show)(struct seq_file*, void*); /** show callback */
-	u32 driver_features; /**< Required driver features for this entry */
-	void *data;
-};
-
-/**
- * debugfs node structure. This structure represents a debugfs file.
- */
-struct drm_info_node {
-	struct list_head list;
-	struct drm_minor *minor;
-	const struct drm_info_list *info_ent;
-	struct dentry *dent;
-};
 
 /**
  * DRM device structure. This structure represent a complete card that
@@ -569,50 +506,11 @@ static inline int drm_device_is_unplugged(struct drm_device *dev)
 /*@{*/
 
 				/* Driver support (drm_drv.h) */
-extern int drm_ioctl_permit(u32 flags, struct drm_file *file_priv);
-extern long drm_ioctl(struct file *filp,
-		      unsigned int cmd, unsigned long arg);
-#ifdef CONFIG_COMPAT
-extern long drm_compat_ioctl(struct file *filp,
-			     unsigned int cmd, unsigned long arg);
-#else
-/* Let drm_compat_ioctl be assigned to .compat_ioctl unconditionally */
-#define drm_compat_ioctl NULL
-#endif
-extern bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
-
-/* Misc. IOCTL support (drm_ioctl.c) */
-int drm_noop(struct drm_device *dev, void *data,
-	     struct drm_file *file_priv);
-int drm_invalid_op(struct drm_device *dev, void *data,
-		   struct drm_file *file_priv);
 
 /*
  * These are exported to drivers so that they can implement fencing using
  * DMA quiscent + idle. DMA quiescent usually requires the hardware lock.
  */
-
-				/* Debugfs support */
-#if defined(CONFIG_DEBUG_FS)
-extern int drm_debugfs_create_files(const struct drm_info_list *files,
-				    int count, struct dentry *root,
-				    struct drm_minor *minor);
-extern int drm_debugfs_remove_files(const struct drm_info_list *files,
-				    int count, struct drm_minor *minor);
-#else
-static inline int drm_debugfs_create_files(const struct drm_info_list *files,
-					   int count, struct dentry *root,
-					   struct drm_minor *minor)
-{
-	return 0;
-}
-
-static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
-					   int count, struct drm_minor *minor)
-{
-	return 0;
-}
-#endif
 
 			       /* sysfs support (drm_sysfs.c) */
 extern void drm_sysfs_hotplug_event(struct drm_device *dev);

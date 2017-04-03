@@ -310,7 +310,8 @@ static void vmw_sou_crtc_helper_disable(struct drm_crtc *crtc)
 static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 				  struct drm_framebuffer *new_fb,
 				  struct drm_pending_vblank_event *event,
-				  uint32_t flags)
+				  uint32_t flags,
+				  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
@@ -323,7 +324,7 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 		return -EINVAL;
 
 	flags &= ~DRM_MODE_PAGE_FLIP_ASYNC;
-	ret = drm_atomic_helper_page_flip(crtc, new_fb, NULL, flags);
+	ret = drm_atomic_helper_page_flip(crtc, new_fb, NULL, flags, ctx);
 	if (ret) {
 		DRM_ERROR("Page flip error %d.\n", ret);
 		return ret;

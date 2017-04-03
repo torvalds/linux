@@ -1244,7 +1244,7 @@ static const struct dev_pm_ops cdn_dp_pm_ops = {
 				cdn_dp_resume)
 };
 
-static struct platform_driver cdn_dp_driver = {
+struct platform_driver cdn_dp_driver = {
 	.probe = cdn_dp_probe,
 	.remove = cdn_dp_remove,
 	.shutdown = cdn_dp_shutdown,
@@ -1255,9 +1255,3 @@ static struct platform_driver cdn_dp_driver = {
 		   .pm = &cdn_dp_pm_ops,
 	},
 };
-
-module_platform_driver(cdn_dp_driver);
-
-MODULE_AUTHOR("Chris Zhong <zyw@rock-chips.com>");
-MODULE_DESCRIPTION("cdn DP Driver");
-MODULE_LICENSE("GPL v2");

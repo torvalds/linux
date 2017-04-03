@@ -132,9 +132,12 @@ static const struct drm_display_mode mi0283qt_mode = {
 	TINYDRM_MODE(320, 240, 58, 43),
 };
 
+DEFINE_DRM_GEM_CMA_FOPS(mi0283qt_fops);
+
 static struct drm_driver mi0283qt_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 				  DRIVER_ATOMIC,
+	.fops			= &mi0283qt_fops,
 	TINYDRM_GEM_DRIVER_OPS,
 	.lastclose		= tinydrm_lastclose,
 	.debugfs_init		= mipi_dbi_debugfs_init,

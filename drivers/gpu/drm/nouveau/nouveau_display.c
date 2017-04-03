@@ -436,8 +436,12 @@ nouveau_display_fini(struct drm_device *dev, bool suspend)
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 
-	if (!suspend)
-		drm_crtc_force_disable_all(dev);
+	if (!suspend) {
+		if (drm_drv_uses_atomic_modeset(dev))
+			drm_atomic_helper_shutdown(dev);
+		else
+			drm_crtc_force_disable_all(dev);
+	}
 
 	/* Make sure that drm and hw vblank irqs get properly disabled. */
 	drm_for_each_crtc(crtc, dev)
@@ -788,7 +792,8 @@ fail:
 
 int
 nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		       struct drm_pending_vblank_event *event, u32 flags)
+		       struct drm_pending_vblank_event *event, u32 flags,
+		       struct drm_modeset_acquire_ctx *ctx)
 {
 	const int swap_interval = (flags & DRM_MODE_PAGE_FLIP_ASYNC) ? 0 : 1;
 	struct drm_device *dev = crtc->dev;

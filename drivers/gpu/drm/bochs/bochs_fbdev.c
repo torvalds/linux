@@ -192,6 +192,8 @@ void bochs_fbdev_fini(struct bochs_device *bochs)
 	if (bochs->fb.initialized)
 		bochs_fbdev_destroy(bochs);
 
-	drm_fb_helper_fini(&bochs->fb.helper);
+	if (bochs->fb.helper.fbdev)
+		drm_fb_helper_fini(&bochs->fb.helper);
+
 	bochs->fb.initialized = false;
 }

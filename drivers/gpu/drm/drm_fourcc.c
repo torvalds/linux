@@ -207,6 +207,31 @@ const struct drm_format_info *drm_format_info(u32 format)
 EXPORT_SYMBOL(drm_format_info);
 
 /**
+ * drm_get_format_info - query information for a given framebuffer configuration
+ * @dev: DRM device
+ * @mode_cmd: metadata from the userspace fb creation request
+ *
+ * Returns:
+ * The instance of struct drm_format_info that describes the pixel format, or
+ * NULL if the format is unsupported.
+ */
+const struct drm_format_info *
+drm_get_format_info(struct drm_device *dev,
+		    const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	const struct drm_format_info *info = NULL;
+
+	if (dev->mode_config.funcs->get_format_info)
+		info = dev->mode_config.funcs->get_format_info(mode_cmd);
+
+	if (!info)
+		info = drm_format_info(mode_cmd->pixel_format);
+
+	return info;
+}
+EXPORT_SYMBOL(drm_get_format_info);
+
+/**
  * drm_format_num_planes - get the number of planes for format
  * @format: pixel format (DRM_FORMAT_*)
  *

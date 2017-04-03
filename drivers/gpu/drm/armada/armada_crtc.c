@@ -1027,7 +1027,8 @@ static void armada_drm_crtc_destroy(struct drm_crtc *crtc)
  * and a mode_set.
  */
 static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
-	struct drm_framebuffer *fb, struct drm_pending_vblank_event *event, uint32_t page_flip_flags)
+	struct drm_framebuffer *fb, struct drm_pending_vblank_event *event, uint32_t page_flip_flags,
+	struct drm_modeset_acquire_ctx *ctx)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct armada_frame_work *work;

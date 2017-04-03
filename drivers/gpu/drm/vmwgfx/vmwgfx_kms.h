@@ -453,6 +453,7 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 		     bool to_surface,
 		     bool interruptible);
 
-int vmw_kms_set_config(struct drm_mode_set *set);
+int vmw_kms_set_config(struct drm_mode_set *set,
+		       struct drm_modeset_acquire_ctx *ctx);
 
 #endif

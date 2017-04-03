@@ -1468,7 +1468,9 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	if (rdev->flags & RADEON_IS_PX)
 		runtime = true;
-	vga_switcheroo_register_client(rdev->pdev, &radeon_switcheroo_ops, runtime);
+	if (!pci_is_thunderbolt_attached(rdev->pdev))
+		vga_switcheroo_register_client(rdev->pdev,
+					       &radeon_switcheroo_ops, runtime);
 	if (runtime)
 		vga_switcheroo_init_domain_pm_ops(rdev->dev, &rdev->vga_pm_domain);
 
@@ -1561,7 +1563,8 @@ void radeon_device_fini(struct radeon_device *rdev)
 	/* evict vram memory */
 	radeon_bo_evict_vram(rdev);
 	radeon_fini(rdev);
-	vga_switcheroo_unregister_client(rdev->pdev);
+	if (!pci_is_thunderbolt_attached(rdev->pdev))
+		vga_switcheroo_unregister_client(rdev->pdev);
 	if (rdev->flags & RADEON_IS_PX)
 		vga_switcheroo_fini_domain_pm_ops(rdev->dev);
 	vga_client_register(rdev->pdev, NULL, NULL, NULL);

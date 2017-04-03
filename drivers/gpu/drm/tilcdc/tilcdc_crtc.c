@@ -579,7 +579,7 @@ static void tilcdc_crtc_recover_work(struct work_struct *work)
 
 	dev_info(crtc->dev->dev, "%s: Reset CRTC", __func__);
 
-	drm_modeset_lock_crtc(crtc, NULL);
+	drm_modeset_lock(&crtc->mutex, NULL);
 
 	if (!tilcdc_crtc_is_on(crtc))
 		goto out;
@@ -587,7 +587,7 @@ static void tilcdc_crtc_recover_work(struct work_struct *work)
 	tilcdc_crtc_disable(crtc);
 	tilcdc_crtc_enable(crtc);
 out:
-	drm_modeset_unlock_crtc(crtc);
+	drm_modeset_unlock(&crtc->mutex);
 }
 
 static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
@@ -595,9 +595,9 @@ static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct tilcdc_drm_private *priv = crtc->dev->dev_private;
 
-	drm_modeset_lock_crtc(crtc, NULL);
+	drm_modeset_lock(&crtc->mutex, NULL);
 	tilcdc_crtc_disable(crtc);
-	drm_modeset_unlock_crtc(crtc);
+	drm_modeset_unlock(&crtc->mutex);
 
 	flush_workqueue(priv->wq);
 
@@ -856,7 +856,7 @@ void tilcdc_crtc_update_clk(struct drm_crtc *crtc)
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 
-	drm_modeset_lock_crtc(crtc, NULL);
+	drm_modeset_lock(&crtc->mutex, NULL);
 	if (tilcdc_crtc->lcd_fck_rate != clk_get_rate(priv->clk)) {
 		if (tilcdc_crtc_is_on(crtc)) {
 			pm_runtime_get_sync(dev->dev);
@@ -868,7 +868,7 @@ void tilcdc_crtc_update_clk(struct drm_crtc *crtc)
 			pm_runtime_put_sync(dev->dev);
 		}
 	}
-	drm_modeset_unlock_crtc(crtc);
+	drm_modeset_unlock(&crtc->mutex);
 }
 
 #define SYNC_LOST_COUNT_LIMIT 50

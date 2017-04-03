@@ -507,7 +507,7 @@ static const struct of_device_id rockchip_dp_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_dp_dt_ids);
 
-static struct platform_driver rockchip_dp_driver = {
+struct platform_driver rockchip_dp_driver = {
 	.probe = rockchip_dp_probe,
 	.remove = rockchip_dp_remove,
 	.driver = {
@@ -516,10 +516,3 @@ static struct platform_driver rockchip_dp_driver = {
 		   .of_match_table = of_match_ptr(rockchip_dp_dt_ids),
 	},
 };
-
-module_platform_driver(rockchip_dp_driver);
-
-MODULE_AUTHOR("Yakir Yang <ykk@rock-chips.com>");
-MODULE_AUTHOR("Jeff chen <jeff.chen@rock-chips.com>");
-MODULE_DESCRIPTION("Rockchip Specific Analogix-DP Driver Extension");
-MODULE_LICENSE("GPL v2");

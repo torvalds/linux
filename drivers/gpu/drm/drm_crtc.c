@@ -94,6 +94,8 @@ EXPORT_SYMBOL(drm_crtc_from_index);
  * drm_crtc_force_disable - Forcibly turn off a CRTC
  * @crtc: CRTC to turn off
  *
+ * Note: This should only be used by non-atomic legacy drivers.
+ *
  * Returns:
  * Zero on success, error code on failure.
  */
@@ -102,6 +104,8 @@ int drm_crtc_force_disable(struct drm_crtc *crtc)
 	struct drm_mode_set set = {
 		.crtc = crtc,
 	};
+
+	WARN_ON(drm_drv_uses_atomic_modeset(crtc->dev));
 
 	return drm_mode_set_config_internal(&set);
 }
@@ -113,6 +117,9 @@ EXPORT_SYMBOL(drm_crtc_force_disable);
  *
  * Drivers may want to call this on unload to ensure that all displays are
  * unlit and the GPU is in a consistent, low power state. Takes modeset locks.
+ *
+ * Note: This should only be used by non-atomic legacy drivers. For an atomic
+ * version look at drm_atomic_helper_shutdown().
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -399,9 +406,9 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	if (!crtc)
 		return -ENOENT;
 
-	drm_modeset_lock_crtc(crtc, crtc->primary);
 	crtc_resp->gamma_size = crtc->gamma_size;
 
+	drm_modeset_lock(&crtc->primary->mutex, NULL);
 	if (crtc->primary->state && crtc->primary->state->fb)
 		crtc_resp->fb_id = crtc->primary->state->fb->base.id;
 	else if (!crtc->primary->state && crtc->primary->fb)
@@ -409,9 +416,14 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	else
 		crtc_resp->fb_id = 0;
 
-	if (crtc->state) {
+	if (crtc->primary->state) {
 		crtc_resp->x = crtc->primary->state->src_x >> 16;
 		crtc_resp->y = crtc->primary->state->src_y >> 16;
+	}
+	drm_modeset_unlock(&crtc->primary->mutex);
+
+	drm_modeset_lock(&crtc->mutex, NULL);
+	if (crtc->state) {
 		if (crtc->state->enable) {
 			drm_mode_convert_to_umode(&crtc_resp->mode, &crtc->state->mode);
 			crtc_resp->mode_valid = 1;
@@ -430,23 +442,13 @@ int drm_mode_getcrtc(struct drm_device *dev,
 			crtc_resp->mode_valid = 0;
 		}
 	}
-	drm_modeset_unlock_crtc(crtc);
+	drm_modeset_unlock(&crtc->mutex);
 
 	return 0;
 }
 
-/**
- * drm_mode_set_config_internal - helper to call &drm_mode_config_funcs.set_config
- * @set: modeset config to set
- *
- * This is a little helper to wrap internal calls to the
- * &drm_mode_config_funcs.set_config driver interface. The only thing it adds is
- * correct refcounting dance.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
-int drm_mode_set_config_internal(struct drm_mode_set *set)
+static int __drm_mode_set_config_internal(struct drm_mode_set *set,
+					  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_crtc *crtc = set->crtc;
 	struct drm_framebuffer *fb;
@@ -463,7 +465,7 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 
 	fb = set->fb;
 
-	ret = crtc->funcs->set_config(set);
+	ret = crtc->funcs->set_config(set, ctx);
 	if (ret == 0) {
 		crtc->primary->crtc = crtc;
 		crtc->primary->fb = fb;
@@ -478,6 +480,25 @@ int drm_mode_set_config_internal(struct drm_mode_set *set)
 	}
 
 	return ret;
+}
+/**
+ * drm_mode_set_config_internal - helper to call &drm_mode_config_funcs.set_config
+ * @set: modeset config to set
+ *
+ * This is a little helper to wrap internal calls to the
+ * &drm_mode_config_funcs.set_config driver interface. The only thing it adds is
+ * correct refcounting dance.
+ *
+ * This should only be used by non-atomic legacy drivers.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_mode_set_config_internal(struct drm_mode_set *set)
+{
+	WARN_ON(drm_drv_uses_atomic_modeset(set->crtc->dev));
+
+	return __drm_mode_set_config_internal(set, NULL);
 }
 EXPORT_SYMBOL(drm_mode_set_config_internal);
 
@@ -534,6 +555,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	struct drm_display_mode *mode = NULL;
 	struct drm_mode_set set;
 	uint32_t __user *set_connectors_ptr;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 	int i;
 
@@ -547,15 +569,18 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	if (crtc_req->x & 0xffff0000 || crtc_req->y & 0xffff0000)
 		return -ERANGE;
 
-	drm_modeset_lock_all(dev);
 	crtc = drm_crtc_find(dev, crtc_req->crtc_id);
 	if (!crtc) {
 		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", crtc_req->crtc_id);
-		ret = -ENOENT;
-		goto out;
+		return -ENOENT;
 	}
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	ret = drm_modeset_lock_all_ctx(crtc->dev, &ctx);
+	if (ret)
+		goto out;
 	if (crtc_req->mode_valid) {
 		/* If we have a mode we need a framebuffer. */
 		/* If we pass -1, set the mode with the currently bound fb */
@@ -676,7 +701,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	set.connectors = connector_set;
 	set.num_connectors = crtc_req->count_connectors;
 	set.fb = fb;
-	ret = drm_mode_set_config_internal(&set);
+	ret = __drm_mode_set_config_internal(&set, &ctx);
 
 out:
 	if (fb)
@@ -690,7 +715,13 @@ out:
 	}
 	kfree(connector_set);
 	drm_mode_destroy(dev, mode);
-	drm_modeset_unlock_all(dev);
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
 	return ret;
 }
 

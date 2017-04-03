@@ -126,11 +126,31 @@ int drm_mode_addfb(struct drm_device *dev,
 	return 0;
 }
 
-static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
+static int fb_plane_width(int width,
+			  const struct drm_format_info *format, int plane)
+{
+	if (plane == 0)
+		return width;
+
+	return DIV_ROUND_UP(width, format->hsub);
+}
+
+static int fb_plane_height(int height,
+			   const struct drm_format_info *format, int plane)
+{
+	if (plane == 0)
+		return height;
+
+	return DIV_ROUND_UP(height, format->vsub);
+}
+
+static int framebuffer_check(struct drm_device *dev,
+			     const struct drm_mode_fb_cmd2 *r)
 {
 	const struct drm_format_info *info;
 	int i;
 
+	/* check if the format is supported at all */
 	info = __drm_format_info(r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN);
 	if (!info) {
 		struct drm_format_name_buf format_name;
@@ -140,19 +160,22 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 		return -EINVAL;
 	}
 
-	if (r->width == 0 || r->width % info->hsub) {
+	/* now let the driver pick its own format info */
+	info = drm_get_format_info(dev, r);
+
+	if (r->width == 0) {
 		DRM_DEBUG_KMS("bad framebuffer width %u\n", r->width);
 		return -EINVAL;
 	}
 
-	if (r->height == 0 || r->height % info->vsub) {
+	if (r->height == 0) {
 		DRM_DEBUG_KMS("bad framebuffer height %u\n", r->height);
 		return -EINVAL;
 	}
 
 	for (i = 0; i < info->num_planes; i++) {
-		unsigned int width = r->width / (i != 0 ? info->hsub : 1);
-		unsigned int height = r->height / (i != 0 ? info->vsub : 1);
+		unsigned int width = fb_plane_width(r->width, info, i);
+		unsigned int height = fb_plane_height(r->height, info, i);
 		unsigned int cpp = info->cpp[i];
 
 		if (!r->handles[i]) {
@@ -263,7 +286,7 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	ret = framebuffer_check(r);
+	ret = framebuffer_check(dev, r);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -816,10 +839,7 @@ int drm_framebuffer_plane_width(int width,
 	if (plane >= fb->format->num_planes)
 		return 0;
 
-	if (plane == 0)
-		return width;
-
-	return width / fb->format->hsub;
+	return fb_plane_width(width, fb->format, plane);
 }
 EXPORT_SYMBOL(drm_framebuffer_plane_width);
 
@@ -838,9 +858,6 @@ int drm_framebuffer_plane_height(int height,
 	if (plane >= fb->format->num_planes)
 		return 0;
 
-	if (plane == 0)
-		return height;
-
-	return height / fb->format->vsub;
+	return fb_plane_height(height, fb->format, plane);
 }
 EXPORT_SYMBOL(drm_framebuffer_plane_height);

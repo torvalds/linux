@@ -177,7 +177,7 @@ struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 	int ret;
 	int i;
 
-	info = drm_format_info(mode_cmd->pixel_format);
+	info = drm_get_format_info(dev, mode_cmd);
 	if (!info)
 		return ERR_PTR(-EINVAL);
 

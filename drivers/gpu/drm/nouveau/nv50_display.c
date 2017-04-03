@@ -2895,7 +2895,8 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	if (WARN_ON(!mstc))
 		return;
 
-	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, mstc->pbn, &slots);
+	slots = drm_dp_find_vcpi_slots(&mstm->mgr, mstc->pbn);
+	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, mstc->pbn, slots);
 	WARN_ON(!r);
 
 	if (mstm->outp->dcb->sorconf.link & 1)

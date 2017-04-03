@@ -4145,6 +4145,7 @@ F:	Documentation/devicetree/bindings/video/
 F:	Documentation/gpu/
 F:	include/drm/
 F:	include/uapi/drm/
+F:	include/linux/vga*
 
 DRM DRIVERS AND MISC GPU PATCHES
 M:	Daniel Vetter <daniel.vetter@intel.com>
@@ -4158,6 +4159,7 @@ F:	drivers/gpu/vga/
 F:	drivers/gpu/drm/*
 F:	include/drm/drm*
 F:	include/uapi/drm/drm*
+F:	include/linux/vga*
 
 DRM DRIVER FOR AST SERVER GRAPHICS CHIPS
 M:	Dave Airlie <airlied@redhat.com>
@@ -13256,6 +13258,14 @@ M:	Baptiste Reynal <b.reynal@virtualopensystems.com>
 L:	kvm@vger.kernel.org
 S:	Maintained
 F:	drivers/vfio/platform/
+
+VGA_SWITCHEROO
+R:	Lukas Wunner <lukas@wunner.de>
+S:	Maintained
+F:	Documentation/gpu/vga-switcheroo.rst
+F:	drivers/gpu/vga/vga_switcheroo.c
+F:	include/linux/vga_switcheroo.h
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 VIDEOBUF2 FRAMEWORK
 M:	Pawel Osciak <pawel@osciak.com>

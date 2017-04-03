@@ -36,7 +36,7 @@
  * DOC: CRC ABI
  *
  * DRM device drivers can provide to userspace CRC information of each frame as
- * it reached a given hardware component (a "source").
+ * it reached a given hardware component (a CRC sampling "source").
  *
  * Userspace can control generation of CRCs in a given CRTC by writing to the
  * file dri/0/crtc-N/crc/control in debugfs, with N being the index of the CRTC.
@@ -57,6 +57,11 @@
  * rely on being able to generate matching CRC values for the frame contents that
  * it submits. In this general case, the maximum userspace can do is to compare
  * the reported CRCs of frames that should have the same contents.
+ *
+ * On the driver side the implementation effort is minimal, drivers only need to
+ * implement &drm_crtc_funcs.set_crc_source. The debugfs files are automatically
+ * set up if that vfunc is set. CRC samples need to be captured in the driver by
+ * calling drm_crtc_add_crc_entry().
  */
 
 static int crc_control_show(struct seq_file *m, void *data)
@@ -280,16 +285,6 @@ static const struct file_operations drm_crtc_crc_data_fops = {
 	.release = crtc_crc_release,
 };
 
-/**
- * drm_debugfs_crtc_crc_add - Add files to debugfs for capture of frame CRCs
- * @crtc: CRTC to whom the frames will belong
- *
- * Adds files to debugfs directory that allows userspace to control the
- * generation of frame CRCs and to read them.
- *
- * Returns:
- * Zero on success, error code on failure.
- */
 int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
 {
 	struct dentry *crc_ent, *ent;

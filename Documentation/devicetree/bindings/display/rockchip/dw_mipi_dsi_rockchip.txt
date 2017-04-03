@@ -10,7 +10,7 @@ Required properties:
 - interrupts: Represent the controller's interrupt to the CPU(s).
 - clocks, clock-names: Phandles to the controller's pll reference
   clock(ref) and APB clock(pclk). For RK3399, a phy config clock
-  (phy_cfg) is additional required. As described in [1].
+  (phy_cfg) and a grf clock(grf) are required. As described in [1].
 - rockchip,grf: this soc should set GRF regs to mux vopl/vopb.
 - ports: contain a port node with endpoint definitions as defined in [2].
   For vopb,set the reg = <0> and set the reg = <1> for vopl.

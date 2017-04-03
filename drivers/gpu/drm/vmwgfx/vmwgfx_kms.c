@@ -2947,10 +2947,11 @@ vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv,
  * the vmwgfx modesetting. So explicitly clear that member before calling
  * into drm_atomic_helper_set_config.
  */
-int vmw_kms_set_config(struct drm_mode_set *set)
+int vmw_kms_set_config(struct drm_mode_set *set,
+		       struct drm_modeset_acquire_ctx *ctx)
 {
 	if (set && set->mode)
 		set->mode->type = 0;
 
-	return drm_atomic_helper_set_config(set);
+	return drm_atomic_helper_set_config(set, ctx);
 }

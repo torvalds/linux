@@ -103,7 +103,8 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	    amdgpu_has_atpx() &&
 	    (amdgpu_is_atpx_hybrid() ||
 	     amdgpu_has_atpx_dgpu_power_cntl()) &&
-	    ((flags & AMD_IS_APU) == 0))
+	    ((flags & AMD_IS_APU) == 0) &&
+	    !pci_is_thunderbolt_attached(dev->pdev))
 		flags |= AMD_IS_PX;
 
 	/* amdgpu_device_init should report only fatal error

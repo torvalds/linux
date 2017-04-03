@@ -347,7 +347,8 @@ struct drm_crtc_funcs {
 	 *
 	 * 0 on success or a negative error code on failure.
 	 */
-	int (*set_config)(struct drm_mode_set *set);
+	int (*set_config)(struct drm_mode_set *set,
+			  struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @page_flip:
@@ -405,7 +406,8 @@ struct drm_crtc_funcs {
 	int (*page_flip)(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,
 			 struct drm_pending_vblank_event *event,
-			 uint32_t flags);
+			 uint32_t flags,
+			 struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @page_flip_target:
@@ -423,7 +425,8 @@ struct drm_crtc_funcs {
 	int (*page_flip_target)(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				struct drm_pending_vblank_event *event,
-				uint32_t flags, uint32_t target);
+				uint32_t flags, uint32_t target,
+				struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @set_property:
@@ -590,8 +593,11 @@ struct drm_crtc_funcs {
 	 * When CRC generation is enabled, the driver should call
 	 * drm_crtc_add_crc_entry() at each frame, providing any information
 	 * that characterizes the frame contents in the crcN arguments, as
-	 * provided from the configured source. Drivers must accept a "auto"
+	 * provided from the configured source. Drivers must accept an "auto"
 	 * source name that will select a default source for this CRTC.
+	 *
+	 * Note that "auto" can depend upon the current modeset configuration,
+	 * e.g. it could pick an encoder or output specific CRC sampling point.
 	 *
 	 * This callback is optional if the driver does not support any CRC
 	 * generation functionality.
@@ -696,10 +702,12 @@ struct drm_crtc {
 	/**
 	 * @mutex:
 	 *
-	 * This provides a read lock for the overall crtc state (mode, dpms
+	 * This provides a read lock for the overall CRTC state (mode, dpms
 	 * state, ...) and a write lock for everything which can be update
-	 * without a full modeset (fb, cursor data, crtc properties ...). A full
+	 * without a full modeset (fb, cursor data, CRTC properties ...). A full
 	 * modeset also need to grab &drm_mode_config.connection_mutex.
+	 *
+	 * For atomic drivers specifically this protects @state.
 	 */
 	struct drm_modeset_lock mutex;
 
@@ -745,6 +753,14 @@ struct drm_crtc {
 	 * @state:
 	 *
 	 * Current atomic state for this CRTC.
+	 *
+	 * This is protected by @mutex. Note that nonblocking atomic commits
+	 * access the current CRTC state without taking locks. Either by going
+	 * through the &struct drm_atomic_state pointers, see
+	 * for_each_crtc_in_state(), for_each_oldnew_crtc_in_state(),
+	 * for_each_old_crtc_in_state() and for_each_new_crtc_in_state(). Or
+	 * through careful ordering of atomic commit operations as implemented
+	 * in the atomic helpers, see &struct drm_crtc_commit.
 	 */
 	struct drm_crtc_state *state;
 
