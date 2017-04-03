@@ -687,29 +687,49 @@ EXPORT_SYMBOL(__copy_user);
  *
  *	Rationale:
  *		A fault occurs while reading from user buffer, which is the
- *		source. Since the fault is at a single address, we only
- *		need to rewind by 8 bytes.
+ *		source.
  *		Since we don't write to kernel buffer until we read first,
  *		the kernel buffer is at the right state and needn't be
- *		corrected.
+ *		corrected, but the source must be rewound to the beginning of
+ *		the block, which is LSM_STEP*8 bytes.
+ *		LSM_STEP is bits 10:8 in TXSTATUS which is already read
+ *		and stored in D0Ar2
+ *
+ *		NOTE: If a fault occurs at the last operation in M{G,S}ETL
+ *			LSM_STEP will be 0. ie: we do 4 writes in our case, if
+ *			a fault happens at the 4th write, LSM_STEP will be 0
+ *			instead of 4. The code copes with that.
  */
 #define __asm_copy_from_user_64bit_rapf_loop(to, from, ret, n, id)	\
 	__asm_copy_user_64bit_rapf_loop(to, from, ret, n, id,		\
-		"SUB	%1, %1, #8\n")
+		"LSR	D0Ar2, D0Ar2, #5\n"				\
+		"ANDS	D0Ar2, D0Ar2, #0x38\n"				\
+		"ADDZ	D0Ar2, D0Ar2, #32\n"				\
+		"SUB	%1, %1, D0Ar2\n")
 
 /*	rewind 'from' pointer when a fault occurs
  *
  *	Rationale:
  *		A fault occurs while reading from user buffer, which is the
- *		source. Since the fault is at a single address, we only
- *		need to rewind by 4 bytes.
+ *		source.
  *		Since we don't write to kernel buffer until we read first,
  *		the kernel buffer is at the right state and needn't be
- *		corrected.
+ *		corrected, but the source must be rewound to the beginning of
+ *		the block, which is LSM_STEP*4 bytes.
+ *		LSM_STEP is bits 10:8 in TXSTATUS which is already read
+ *		and stored in D0Ar2
+ *
+ *		NOTE: If a fault occurs at the last operation in M{G,S}ETL
+ *			LSM_STEP will be 0. ie: we do 4 writes in our case, if
+ *			a fault happens at the 4th write, LSM_STEP will be 0
+ *			instead of 4. The code copes with that.
  */
 #define __asm_copy_from_user_32bit_rapf_loop(to, from, ret, n, id)	\
 	__asm_copy_user_32bit_rapf_loop(to, from, ret, n, id,		\
-		"SUB	%1, %1, #4\n")
+		"LSR	D0Ar2, D0Ar2, #6\n"				\
+		"ANDS	D0Ar2, D0Ar2, #0x1c\n"				\
+		"ADDZ	D0Ar2, D0Ar2, #16\n"				\
+		"SUB	%1, %1, D0Ar2\n")
 
 
 /*
