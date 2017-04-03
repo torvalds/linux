@@ -1676,6 +1676,44 @@ static void drm_atomic_print_state(const struct drm_atomic_state *state)
 		drm_atomic_connector_print_state(&p, connector_state);
 }
 
+static void __drm_state_dump(struct drm_device *dev, struct drm_printer *p,
+			     bool take_locks)
+{
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+
+	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
+		return;
+
+	list_for_each_entry(plane, &config->plane_list, head) {
+		if (take_locks)
+			drm_modeset_lock(&plane->mutex, NULL);
+		drm_atomic_plane_print_state(p, plane->state);
+		if (take_locks)
+			drm_modeset_unlock(&plane->mutex);
+	}
+
+	list_for_each_entry(crtc, &config->crtc_list, head) {
+		if (take_locks)
+			drm_modeset_lock(&crtc->mutex, NULL);
+		drm_atomic_crtc_print_state(p, crtc->state);
+		if (take_locks)
+			drm_modeset_unlock(&crtc->mutex);
+	}
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	if (take_locks)
+		drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	drm_for_each_connector_iter(connector, &conn_iter)
+		drm_atomic_connector_print_state(p, connector->state);
+	if (take_locks)
+		drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	drm_connector_list_iter_end(&conn_iter);
+}
+
 /**
  * drm_state_dump - dump entire device atomic state
  * @dev: the drm device
@@ -1693,25 +1731,7 @@ static void drm_atomic_print_state(const struct drm_atomic_state *state)
  */
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p)
 {
-	struct drm_mode_config *config = &dev->mode_config;
-	struct drm_plane *plane;
-	struct drm_crtc *crtc;
-	struct drm_connector *connector;
-	struct drm_connector_list_iter conn_iter;
-
-	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
-		return;
-
-	list_for_each_entry(plane, &config->plane_list, head)
-		drm_atomic_plane_print_state(p, plane->state);
-
-	list_for_each_entry(crtc, &config->crtc_list, head)
-		drm_atomic_crtc_print_state(p, crtc->state);
-
-	drm_connector_list_iter_begin(dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter)
-		drm_atomic_connector_print_state(p, connector->state);
-	drm_connector_list_iter_end(&conn_iter);
+	__drm_state_dump(dev, p, false);
 }
 EXPORT_SYMBOL(drm_state_dump);
 
@@ -1722,9 +1742,7 @@ static int drm_state_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	drm_modeset_lock_all(dev);
-	drm_state_dump(dev, &p);
-	drm_modeset_unlock_all(dev);
+	__drm_state_dump(dev, &p, true);
 
 	return 0;
 }
