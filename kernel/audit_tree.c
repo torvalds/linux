@@ -190,7 +190,7 @@ static void insert_hash(struct audit_chunk *chunk)
 	unsigned long key = chunk_to_key(chunk);
 	struct list_head *list;
 
-	if (!key)
+	if (!(chunk->mark.flags & FSNOTIFY_MARK_FLAG_ATTACHED))
 		return;
 	list = chunk_hash(key);
 	list_add_rcu(&chunk->hash, list);
@@ -248,7 +248,7 @@ static void untag_chunk(struct node *p)
 
 	mutex_lock(&entry->group->mark_mutex);
 	spin_lock(&entry->lock);
-	if (chunk->dead || !entry->inode) {
+	if (chunk->dead || !(entry->flags & FSNOTIFY_MARK_FLAG_ATTACHED)) {
 		spin_unlock(&entry->lock);
 		mutex_unlock(&entry->group->mark_mutex);
 		if (new)
@@ -408,7 +408,7 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 
 	mutex_lock(&old_entry->group->mark_mutex);
 	spin_lock(&old_entry->lock);
-	if (!old_entry->inode) {
+	if (!(old_entry->flags & FSNOTIFY_MARK_FLAG_ATTACHED)) {
 		/* old_entry is being shot, lets just lie */
 		spin_unlock(&old_entry->lock);
 		mutex_unlock(&old_entry->group->mark_mutex);
