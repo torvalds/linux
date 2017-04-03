@@ -1736,8 +1736,11 @@ static void set_tos(void *outer_c, void *outer_v, u8 mask, u8 val)
 		   offsetof(typeof(filter), field) -\
 		   sizeof(filter.field))
 
-static int parse_flow_attr(u32 *match_c, u32 *match_v,
-			   const union ib_flow_spec *ib_spec, u32 *tag_id)
+#define IPV4_VERSION 4
+#define IPV6_VERSION 6
+static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
+			   u32 *match_v, const union ib_flow_spec *ib_spec,
+			   u32 *tag_id)
 {
 	void *misc_params_c = MLX5_ADDR_OF(fte_match_param, match_c,
 					   misc_parameters);
@@ -1745,17 +1748,22 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 					   misc_parameters);
 	void *headers_c;
 	void *headers_v;
+	int match_ipv;
 
 	if (ib_spec->type & IB_FLOW_SPEC_INNER) {
 		headers_c = MLX5_ADDR_OF(fte_match_param, match_c,
 					 inner_headers);
 		headers_v = MLX5_ADDR_OF(fte_match_param, match_v,
 					 inner_headers);
+		match_ipv = MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
+					ft_field_support.inner_ip_version);
 	} else {
 		headers_c = MLX5_ADDR_OF(fte_match_param, match_c,
 					 outer_headers);
 		headers_v = MLX5_ADDR_OF(fte_match_param, match_v,
 					 outer_headers);
+		match_ipv = MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
+					ft_field_support.outer_ip_version);
 	}
 
 	switch (ib_spec->type & ~IB_FLOW_SPEC_INNER) {
@@ -1811,10 +1819,17 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 		if (FIELDS_NOT_SUPPORTED(ib_spec->ipv4.mask, LAST_IPV4_FIELD))
 			return -EOPNOTSUPP;
 
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-			 ethertype, 0xffff);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-			 ethertype, ETH_P_IP);
+		if (match_ipv) {
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
+				 ip_version, 0xf);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
+				 ip_version, IPV4_VERSION);
+		} else {
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
+				 ethertype, 0xffff);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
+				 ethertype, ETH_P_IP);
+		}
 
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    src_ipv4_src_ipv6.ipv4_layout.ipv4),
@@ -1843,10 +1858,17 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 		if (FIELDS_NOT_SUPPORTED(ib_spec->ipv6.mask, LAST_IPV6_FIELD))
 			return -EOPNOTSUPP;
 
-		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
-			 ethertype, 0xffff);
-		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-			 ethertype, ETH_P_IPV6);
+		if (match_ipv) {
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
+				 ip_version, 0xf);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
+				 ip_version, IPV6_VERSION);
+		} else {
+			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
+				 ethertype, 0xffff);
+			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
+				 ethertype, ETH_P_IPV6);
+		}
 
 		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
 				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
@@ -1968,10 +1990,16 @@ static bool flow_is_multicast_only(struct ib_flow_attr *ib_attr)
 	       is_multicast_ether_addr(eth_spec->val.dst_mac);
 }
 
-static bool is_valid_ethertype(const struct ib_flow_attr *flow_attr,
+static bool is_valid_ethertype(struct mlx5_core_dev *mdev,
+			       const struct ib_flow_attr *flow_attr,
 			       bool check_inner)
 {
 	union ib_flow_spec *ib_spec = (union ib_flow_spec *)(flow_attr + 1);
+	int match_ipv = check_inner ?
+			MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
+					ft_field_support.inner_ip_version) :
+			MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
+					ft_field_support.outer_ip_version);
 	int inner_bit = check_inner ? IB_FLOW_SPEC_INNER : 0;
 	bool ipv4_spec_valid, ipv6_spec_valid;
 	unsigned int ip_spec_type = 0;
@@ -2002,16 +2030,20 @@ static bool is_valid_ethertype(const struct ib_flow_attr *flow_attr,
 			(ip_spec_type == (IB_FLOW_SPEC_IPV4 | inner_bit));
 		ipv6_spec_valid = (eth_type == ETH_P_IPV6) &&
 			(ip_spec_type == (IB_FLOW_SPEC_IPV6 | inner_bit));
-		type_valid = ipv4_spec_valid || ipv6_spec_valid;
+
+		type_valid = (ipv4_spec_valid) || (ipv6_spec_valid) ||
+			     (((eth_type == ETH_P_MPLS_UC) ||
+			       (eth_type == ETH_P_MPLS_MC)) && match_ipv);
 	}
 
 	return type_valid;
 }
 
-static bool is_valid_attr(const struct ib_flow_attr *flow_attr)
+static bool is_valid_attr(struct mlx5_core_dev *mdev,
+			  const struct ib_flow_attr *flow_attr)
 {
-	return is_valid_ethertype(flow_attr, false) &&
-	       is_valid_ethertype(flow_attr, true);
+	return is_valid_ethertype(mdev, flow_attr, false) &&
+	       is_valid_ethertype(mdev, flow_attr, true);
 }
 
 static void put_flow_table(struct mlx5_ib_dev *dev,
@@ -2154,7 +2186,7 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	u32 flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
 	int err = 0;
 
-	if (!is_valid_attr(flow_attr))
+	if (!is_valid_attr(dev->mdev, flow_attr))
 		return ERR_PTR(-EINVAL);
 
 	spec = mlx5_vzalloc(sizeof(*spec));
@@ -2167,7 +2199,7 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	INIT_LIST_HEAD(&handler->list);
 
 	for (spec_index = 0; spec_index < flow_attr->num_of_specs; spec_index++) {
-		err = parse_flow_attr(spec->match_criteria,
+		err = parse_flow_attr(dev->mdev, spec->match_criteria,
 				      spec->match_value, ib_flow, &flow_tag);
 		if (err < 0)
 			goto free;

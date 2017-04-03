@@ -236,7 +236,7 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 	u8         outer_dmac[0x1];
 	u8         outer_smac[0x1];
 	u8         outer_ether_type[0x1];
-	u8         reserved_at_3[0x1];
+	u8         outer_ip_version[0x1];
 	u8         outer_first_prio[0x1];
 	u8         outer_first_cfi[0x1];
 	u8         outer_first_vid[0x1];
@@ -265,7 +265,7 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 	u8         inner_dmac[0x1];
 	u8         inner_smac[0x1];
 	u8         inner_ether_type[0x1];
-	u8         reserved_at_23[0x1];
+	u8         inner_ip_version[0x1];
 	u8         inner_first_prio[0x1];
 	u8         inner_first_cfi[0x1];
 	u8         inner_first_vid[0x1];
@@ -371,7 +371,7 @@ struct mlx5_ifc_fte_match_set_lyr_2_4_bits {
 	u8         cvlan_tag[0x1];
 	u8         svlan_tag[0x1];
 	u8         frag[0x1];
-	u8         reserved_at_93[0x4];
+	u8         ip_version[0x4];
 	u8         tcp_flags[0x9];
 
 	u8         tcp_sport[0x10];
