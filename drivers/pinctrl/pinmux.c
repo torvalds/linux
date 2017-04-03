@@ -763,7 +763,7 @@ struct function_desc *pinmux_generic_get_function(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinmux_generic_get_function);
 
 /**
- * pinmux_generic_get_function_groups() - gets the function groups
+ * pinmux_generic_add_function() - adds a function group
  * @pctldev: pin controller device
  * @name: name of the function
  * @groups: array of pin groups
