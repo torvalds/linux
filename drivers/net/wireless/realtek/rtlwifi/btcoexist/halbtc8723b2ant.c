@@ -1622,6 +1622,9 @@ static void btc8723b2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 				dn = 0;
 
 			if (up >= n) {
+				/* if retry count during continuous n*2
+				 * seconds is 0, enlarge WiFi duration
+				 */
 				wait_count = 0;
 				n = 3;
 				up = 0;
@@ -1638,12 +1641,20 @@ static void btc8723b2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 				up = 0;
 
 			if (dn == 2) {
+				/* if continuous 2 retry count(every 2
+				 * seconds) >0 and < 3, reduce WiFi duration
+				 */
 				if (wait_count <= 2)
+					/* avoid loop between the two levels */
 					m++;
 				else
 					m = 1;
 
 				if (m >= 20)
+					/* maximum of m = 20 ' will recheck if
+					 * need to adjust wifi duration in
+					 * maximum time interval 120 seconds
+					 */
 					m = 20;
 
 				n = 3 * m;
@@ -1655,12 +1666,20 @@ static void btc8723b2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 					 "[BTCoex], Decrease wifi duration for retry_counter<3!!\n");
 			}
 		} else {
+			/* retry count > 3, once retry count > 3, to reduce
+			 *  WiFi duration
+			 */
 			if (wait_count == 1)
+				/* to avoid loop between the two levels */
 				m++;
 			else
 				m = 1;
 
 			if (m >= 20)
+				/* maximum of m = 20 ' will recheck if need to
+				 * adjust wifi duration in maximum time interval
+				 * 120 seconds
+				 */
 				m = 20;
 
 			n = 3 * m;
