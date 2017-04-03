@@ -1359,7 +1359,7 @@ static int octnet_get_intrmod_cfg(struct lio *lio,
 	memset(resp, 0, sizeof(struct oct_intrmod_resp));
 
 	ctx = (struct oct_intrmod_context *)sc->ctxptr;
-	memset(resp, 0, sizeof(struct oct_intrmod_context));
+	memset(ctx, 0, sizeof(struct oct_intrmod_context));
 	WRITE_ONCE(ctx->cond, 0);
 	ctx->octeon_id = lio_get_device_id(oct_dev);
 	init_waitqueue_head(&ctx->wc);
