@@ -53,7 +53,6 @@ static inline void sync_boot_mode(void)
 }
 
 void __hyp_set_vectors(unsigned long phys_vector_base);
-unsigned long __hyp_get_vectors(void);
 void __hyp_reset_vectors(void);
 #else
 #define __boot_cpu_mode	(SVC_MODE)
@@ -99,12 +98,11 @@ extern char __hyp_text_end[];
 
 /* Only assembly code should need those */
 
-#define HVC_GET_VECTORS 0
-#define HVC_SET_VECTORS 1
-#define HVC_SOFT_RESTART 2
-#define HVC_RESET_VECTORS 3
+#define HVC_SET_VECTORS 0
+#define HVC_SOFT_RESTART 1
+#define HVC_RESET_VECTORS 2
 
-#define HVC_STUB_HCALL_NR 4
+#define HVC_STUB_HCALL_NR 3
 
 #endif /* __ASSEMBLY__ */
 
