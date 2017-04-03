@@ -269,19 +269,12 @@ static int give_skb_to_upper(struct sk_buff *skb, struct net_device *dev)
 }
 
 static int iphc_decompress(struct sk_buff *skb, struct net_device *netdev,
-			   struct l2cap_chan *chan)
+			   struct lowpan_peer *peer)
 {
 	const u8 *saddr;
 	struct lowpan_btle_dev *dev;
-	struct lowpan_peer *peer;
 
 	dev = lowpan_btle_dev(netdev);
-
-	rcu_read_lock();
-	peer = __peer_lookup_chan(dev, chan);
-	rcu_read_unlock();
-	if (!peer)
-		return -EINVAL;
 
 	saddr = peer->lladdr;
 
@@ -289,7 +282,7 @@ static int iphc_decompress(struct sk_buff *skb, struct net_device *netdev,
 }
 
 static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
-		    struct l2cap_chan *chan)
+		    struct lowpan_peer *peer)
 {
 	struct sk_buff *local_skb;
 	int ret;
@@ -342,7 +335,7 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 
 		local_skb->dev = dev;
 
-		ret = iphc_decompress(local_skb, dev, chan);
+		ret = iphc_decompress(local_skb, dev, peer);
 		if (ret < 0) {
 			kfree_skb(local_skb);
 			goto drop;
@@ -388,7 +381,7 @@ static int chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 	if (!dev || !dev->netdev)
 		return -ENOENT;
 
-	err = recv_pkt(skb, dev->netdev, chan);
+	err = recv_pkt(skb, dev->netdev, peer);
 	if (err) {
 		BT_DBG("recv pkt %d", err);
 		err = -EAGAIN;
