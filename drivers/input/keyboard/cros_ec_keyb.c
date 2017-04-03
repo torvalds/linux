@@ -30,6 +30,7 @@
 #include <linux/notifier.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/sysrq.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/mfd/cros_ec.h>
 #include <linux/mfd/cros_ec_commands.h>
@@ -258,6 +259,12 @@ static int cros_ec_keyb_work(struct notifier_block *nb,
 		cros_ec_keyb_process(ckdev,
 				     ckdev->ec->event_data.data.key_matrix,
 				     ckdev->ec->event_size);
+		break;
+
+	case EC_MKBP_EVENT_SYSRQ:
+		val = get_unaligned_le32(&ckdev->ec->event_data.data.sysrq);
+		dev_dbg(ckdev->dev, "sysrq code from EC: %#x\n", val);
+		handle_sysrq(val);
 		break;
 
 	case EC_MKBP_EVENT_BUTTON:
