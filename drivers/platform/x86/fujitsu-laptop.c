@@ -228,20 +228,11 @@ static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 	struct acpi_object_list arg_list = { 4, params };
 	unsigned long long value;
 	acpi_status status;
-	acpi_handle handle;
 
-	status = acpi_get_handle(fujitsu_laptop->acpi_handle, "FUNC", &handle);
+	status = acpi_evaluate_integer(fujitsu_laptop->acpi_handle, "FUNC",
+				       &arg_list, &value);
 	if (ACPI_FAILURE(status)) {
-		vdbg_printk(FUJLAPTOP_DBG_ERROR,
-				"FUNC interface is not present\n");
-		return -ENODEV;
-	}
-
-	status = acpi_evaluate_integer(handle, NULL, &arg_list, &value);
-	if (ACPI_FAILURE(status)) {
-		vdbg_printk(FUJLAPTOP_DBG_WARN,
-			"FUNC 0x%x (args 0x%x, 0x%x, 0x%x) call failed\n",
-				cmd, arg0, arg1, arg2);
+		vdbg_printk(FUJLAPTOP_DBG_ERROR, "FUNC interface is not present\n");
 		return -ENODEV;
 	}
 
