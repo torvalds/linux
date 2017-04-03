@@ -216,7 +216,7 @@ __hyp_stub_do_trap:
 	bne	1f
 	bx	r1
 
-1:	mov	r0, #-1
+1:	ldr	r0, =HVC_STUB_ERR
 
 __hyp_stub_exit:
 	__ERET
