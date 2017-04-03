@@ -670,51 +670,6 @@ static u8 halbtc8821a1ant_action_algorithm(struct btc_coexist *btcoexist)
 	return algorithm;
 }
 
-static void halbtc8821a1ant_set_bt_auto_report(struct btc_coexist *btcoexist,
-					       bool enable_auto_report)
-{
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	u8 h2c_parameter[1] = {0};
-
-	h2c_parameter[0] = 0;
-
-	if (enable_auto_report)
-		h2c_parameter[0] |= BIT0;
-
-	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		 "[BTCoex], BT FW auto report : %s, FW write 0x68 = 0x%x\n",
-		 (enable_auto_report ? "Enabled!!" : "Disabled!!"),
-		 h2c_parameter[0]);
-
-	btcoexist->btc_fill_h2c(btcoexist, 0x68, 1, h2c_parameter);
-}
-
-static void halbtc8821a1ant_bt_auto_report(struct btc_coexist *btcoexist,
-					   bool force_exec,
-					   bool enable_auto_report)
-{
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-
-	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		 "[BTCoex], %s BT Auto report = %s\n",
-		 (force_exec ? "force to" : ""), ((enable_auto_report) ?
-						     "Enabled" : "Disabled"));
-	coex_dm->cur_bt_auto_report = enable_auto_report;
-
-	if (!force_exec) {
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[BTCoex], pre_bt_auto_report = %d, cur_bt_auto_report = %d\n",
-			    coex_dm->pre_bt_auto_report,
-			    coex_dm->cur_bt_auto_report);
-
-		if (coex_dm->pre_bt_auto_report == coex_dm->cur_bt_auto_report)
-			return;
-	}
-	halbtc8821a1ant_set_bt_auto_report(btcoexist, coex_dm->cur_bt_auto_report);
-
-	coex_dm->pre_bt_auto_report = coex_dm->cur_bt_auto_report;
-}
-
 static void btc8821a1ant_set_sw_pen_tx_rate(struct btc_coexist *btcoexist,
 					    bool low_penalty_ra)
 {
@@ -1333,196 +1288,6 @@ static bool halbtc8821a1ant_is_common_action(struct btc_coexist *btcoexist)
 	return common;
 }
 
-static void btc8821a1ant_tdma_dur_adj(struct btc_coexist *btcoexist,
-				      u8 wifi_status)
-{
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	static long		up, dn, m, n, wait_count;
-	/*0: no change, +1: increase WiFi duration, -1: decrease WiFi duration*/
-	long			result;
-	u8			retry_count = 0, bt_info_ext;
-
-	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		 "[BTCoex], TdmaDurationAdjustForAcl()\n");
-
-	if ((BT_8821A_1ANT_WIFI_STATUS_NON_CONNECTED_ASSO_AUTH_SCAN ==
-	     wifi_status) ||
-	    (BT_8821A_1ANT_WIFI_STATUS_CONNECTED_SCAN ==
-	     wifi_status) ||
-	    (BT_8821A_1ANT_WIFI_STATUS_CONNECTED_SPECIAL_PKT ==
-	     wifi_status)) {
-		if (coex_dm->cur_ps_tdma != 1 &&
-		    coex_dm->cur_ps_tdma != 2 &&
-		    coex_dm->cur_ps_tdma != 3 &&
-		    coex_dm->cur_ps_tdma != 9) {
-			halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-						true, 9);
-			coex_dm->tdma_adj_type = 9;
-
-			up = 0;
-			dn = 0;
-			m = 1;
-			n = 3;
-			result = 0;
-			wait_count = 0;
-		}
-		return;
-	}
-
-	if (!coex_dm->auto_tdma_adjust) {
-		coex_dm->auto_tdma_adjust = true;
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[BTCoex], first run TdmaDurationAdjust()!!\n");
-
-		halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 2);
-		coex_dm->tdma_adj_type = 2;
-		/*============*/
-		up = 0;
-		dn = 0;
-		m = 1;
-		n = 3;
-		result = 0;
-		wait_count = 0;
-	} else {
-		/*accquire the BT TRx retry count from BT_Info byte2*/
-		retry_count = coex_sta->bt_retry_cnt;
-		bt_info_ext = coex_sta->bt_info_ext;
-		result = 0;
-		wait_count++;
-
-		if (retry_count == 0) {
-			/* no retry in the last 2-second duration*/
-			up++;
-			dn--;
-
-			if (dn <= 0)
-				dn = 0;
-
-			if (up >= n) {
-				/* if (retry count == 0) for 2*n seconds ,
-				 * make WiFi duration wider
-				 */
-				wait_count = 0;
-				n = 3;
-				up = 0;
-				dn = 0;
-				result = 1;
-				RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-					 "[BTCoex], Increase wifi duration!!\n");
-			}
-		} else if (retry_count <= 3) {
-			/* <=3 retry in the last 2-second duration*/
-			up--;
-			dn++;
-
-			if (up <= 0)
-				up = 0;
-
-			if (dn == 2) {
-				/* if retry count< 3 for 2*2 seconds,
-				 * shrink wifi duration
-				 */
-				if (wait_count <= 2)
-					m++; /* avoid bounce in two levels */
-				else
-					m = 1;
-
-				if (m >= 20) {
-					/* m max value is 20, max time is 120 s,
-					 *	recheck if adjust WiFi duration.
-					 */
-					m = 20;
-				}
-				n = 3*m;
-				up = 0;
-				dn = 0;
-				wait_count = 0;
-				result = -1;
-				RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-					 "[BTCoex], Decrease wifi duration for retryCounter<3!!\n");
-			}
-		} else {
-			/* retry count > 3, if retry count > 3 happens once,
-			 *	shrink WiFi duration
-			 */
-			if (wait_count == 1)
-				m++; /* avoid bounce in two levels */
-			else
-				m = 1;
-		/* m max value is 20, max time is 120 second,
-		 *	recheck if adjust WiFi duration.
-		*/
-			if (m >= 20)
-				m = 20;
-
-			n = 3*m;
-			up = 0;
-			dn = 0;
-			wait_count = 0;
-			result = -1;
-			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-				 "[BTCoex], Decrease wifi duration for retryCounter>3!!\n");
-		}
-
-		if (result == -1) {
-			if ((BT_INFO_8821A_1ANT_A2DP_BASIC_RATE(bt_info_ext)) &&
-			    ((coex_dm->cur_ps_tdma == 1) ||
-			     (coex_dm->cur_ps_tdma == 2))) {
-				halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-							true, 9);
-				coex_dm->tdma_adj_type = 9;
-			} else if (coex_dm->cur_ps_tdma == 1) {
-				halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-							true, 2);
-				coex_dm->tdma_adj_type = 2;
-			} else if (coex_dm->cur_ps_tdma == 2) {
-				halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-							true, 9);
-				coex_dm->tdma_adj_type = 9;
-			} else if (coex_dm->cur_ps_tdma == 9) {
-				halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-							true, 11);
-				coex_dm->tdma_adj_type = 11;
-			}
-		} else if (result == 1) {
-			if ((BT_INFO_8821A_1ANT_A2DP_BASIC_RATE(bt_info_ext)) &&
-			    ((coex_dm->cur_ps_tdma == 1) ||
-			     (coex_dm->cur_ps_tdma == 2))) {
-				halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-							true, 9);
-				coex_dm->tdma_adj_type = 9;
-			} else if (coex_dm->cur_ps_tdma == 11) {
-				halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-							true, 9);
-				coex_dm->tdma_adj_type = 9;
-			} else if (coex_dm->cur_ps_tdma == 9) {
-				halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-							true, 2);
-				coex_dm->tdma_adj_type = 2;
-			} else if (coex_dm->cur_ps_tdma == 2) {
-				halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
-							true, 1);
-				coex_dm->tdma_adj_type = 1;
-			}
-		} else {
-			/*no change*/
-			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-				 "[BTCoex], ********** TDMA(on, %d) **********\n",
-				 coex_dm->cur_ps_tdma);
-		}
-
-		if (coex_dm->cur_ps_tdma != 1 &&
-		    coex_dm->cur_ps_tdma != 2 &&
-		    coex_dm->cur_ps_tdma != 9 &&
-		    coex_dm->cur_ps_tdma != 11) {
-			/* recover to previous adjust type*/
-			halbtc8821a1ant_ps_tdma(btcoexist,
-						NORMAL_EXEC, true,
-						coex_dm->tdma_adj_type);
-		}
-	}
-}
-
 static void btc8821a1ant_ps_tdma_check_for_pwr_save(struct btc_coexist *btcoex,
 						    bool new_ps_state)
 {
@@ -1599,74 +1364,11 @@ static void halbtc8821a1ant_coex_under_5g(struct btc_coexist *btcoexist)
 	halbtc8821a1ant_limited_rx(btcoexist, NORMAL_EXEC, false, false, 5);
 }
 
-static void halbtc8821a1ant_action_wifi_only(struct btc_coexist *btcoexist)
-{
-	halbtc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 0);
-	halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 9);
-}
-
-static void btc8821a1ant_mon_bt_en_dis(struct btc_coexist *btcoexist)
-{
-	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	static bool	pre_bt_disabled;
-	static u32	bt_disable_cnt;
-	bool		bt_active = true, bt_disabled = false;
-
-	/* This function check if bt is disabled*/
-
-	if (coex_sta->high_priority_tx == 0 &&
-	    coex_sta->high_priority_rx == 0 &&
-	    coex_sta->low_priority_tx == 0 &&
-	    coex_sta->low_priority_rx == 0) {
-		bt_active = false;
-	}
-	if (coex_sta->high_priority_tx == 0xffff &&
-	    coex_sta->high_priority_rx == 0xffff &&
-	    coex_sta->low_priority_tx == 0xffff &&
-	    coex_sta->low_priority_rx == 0xffff) {
-		bt_active = false;
-	}
-	if (bt_active) {
-		bt_disable_cnt = 0;
-		bt_disabled = false;
-		btcoexist->btc_set(btcoexist, BTC_SET_BL_BT_DISABLE,
-				   &bt_disabled);
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[BTCoex], BT is enabled !!\n");
-	} else {
-		bt_disable_cnt++;
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[BTCoex], bt all counters = 0, %d times!!\n",
-			 bt_disable_cnt);
-		if (bt_disable_cnt >= 2) {
-			bt_disabled = true;
-			btcoexist->btc_set(btcoexist, BTC_SET_BL_BT_DISABLE,
-					   &bt_disabled);
-			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-				 "[BTCoex], BT is disabled !!\n");
-			halbtc8821a1ant_action_wifi_only(btcoexist);
-		}
-	}
-	if (pre_bt_disabled != bt_disabled) {
-		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[BTCoex], BT is from %s to %s!!\n",
-			    (pre_bt_disabled ? "disabled" : "enabled"),
-			    (bt_disabled ? "disabled" : "enabled"));
-		pre_bt_disabled = bt_disabled;
-		if (bt_disabled) {
-			btcoexist->btc_set(btcoexist, BTC_SET_ACT_LEAVE_LPS,
-					   NULL);
-			btcoexist->btc_set(btcoexist, BTC_SET_ACT_NORMAL_LPS,
-					   NULL);
-		}
-	}
-}
-
-/*=============================================*/
-/**/
-/*	Software Coex Mechanism start*/
-/**/
-/*=============================================*/
+/***********************************************
+ *
+ *	Software Coex Mechanism start
+ *
+ ***********************************************/
 
 /* SCO only or SCO+PAN(HS)*/
 static void halbtc8821a1ant_action_sco(struct btc_coexist *btcoexist)
@@ -1788,10 +1490,8 @@ static void btc8821a1ant_act_wifi_con_bt_acl_busy(struct btc_coexist *btcoexist,
 		return;
 	} else if (bt_link_info->a2dp_only) {
 		/*A2DP*/
-		if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
-		    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-			btc8821a1ant_tdma_dur_adj(btcoexist, wifi_status);
-		} else {
+		if ((bt_rssi_state != BTC_RSSI_STATE_HIGH) &&
+		    (bt_rssi_state != BTC_RSSI_STATE_STAY_HIGH)) {
 			/*for low BT RSSI*/
 			halbtc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC,
 						true, 11);
@@ -2814,14 +2514,6 @@ void ex_halbtc8821a1ant_bt_info_notify(struct btc_coexist *btcoexist,
 								false);
 			}
 		}
-#if (BT_AUTO_REPORT_ONLY_8821A_1ANT == 0)
-		if (!(coex_sta->bt_info_ext & BIT4)) {
-			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-				 "[BTCoex], BT ext info bit4 check, set BT to enable Auto Report!!\n");
-			halbtc8821a1ant_bt_auto_report(btcoexist,
-						       FORCE_EXEC, true);
-		}
-#endif
 	}
 
 	/* check BIT2 first ==> check if bt is under inquiry or page scan*/
@@ -2984,14 +2676,7 @@ void ex_halbtc8821a1ant_periodical(struct btc_coexist *btcoexist)
 #if (BT_AUTO_REPORT_ONLY_8821A_1ANT == 0)
 	halbtc8821a1ant_query_bt_info(btcoexist);
 	halbtc8821a1ant_monitor_bt_ctr(btcoexist);
-	btc8821a1ant_mon_bt_en_dis(btcoexist);
 #else
-	if (halbtc8821a1ant_Is_wifi_status_changed(btcoexist) ||
-	    coex_dm->auto_tdma_adjust) {
-		if (coex_sta->special_pkt_period_cnt > 2)
-			halbtc8821a1ant_run_coexist_mechanism(btcoexist);
-	}
-
 	coex_sta->special_pkt_period_cnt++;
 #endif
 }
