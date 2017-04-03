@@ -23,6 +23,7 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_mmu.h>
+#include <asm/virt.h>
 
 /********************************************************************
  * Hypervisor initialization
@@ -39,6 +40,10 @@
  * - Setup the page tables
  * - Enable the MMU
  * - Profit! (or eret, if you only care about the code).
+ *
+ * Another possibility is to get a HYP stub hypercall.
+ * We discriminate between the two by checking if r0 contains a value
+ * that is less than HVC_STUB_HCALL_NR.
  */
 
 	.text
@@ -58,6 +63,10 @@ __kvm_hyp_init:
 	W(b)	.
 
 __do_hyp_init:
+	@ Check for a stub hypercall
+	cmp	r0, #HVC_STUB_HCALL_NR
+	blo	__kvm_handle_stub_hvc
+
 	@ Set stack pointer
 	mov	sp, r0
 
@@ -112,19 +121,31 @@ __do_hyp_init:
 
 	eret
 
-	@ r0 : stub vectors address
+ENTRY(__kvm_handle_stub_hvc)
+	cmp	r0, #HVC_RESET_VECTORS
+	bne	1f
 ENTRY(__kvm_hyp_reset)
 	/* We're now in idmap, disable MMU */
 	mrc	p15, 4, r1, c1, c0, 0	@ HSCTLR
-	ldr	r2, =(HSCTLR_M | HSCTLR_A | HSCTLR_C | HSCTLR_I)
-	bic	r1, r1, r2
+	ldr	r0, =(HSCTLR_M | HSCTLR_A | HSCTLR_C | HSCTLR_I)
+	bic	r1, r1, r0
 	mcr	p15, 4, r1, c1, c0, 0	@ HSCTLR
 
-	/* Install stub vectors */
-	mcr	p15, 4, r0, c12, c0, 0	@ HVBAR
-	isb
+	/*
+	 * Install stub vectors, using ardb's VA->PA trick.
+	 */
+0:	adr	r0, 0b					@ PA(0)
+	movw	r1, #:lower16:__hyp_stub_vectors - 0b   @ VA(stub) - VA(0)
+	movt	r1, #:upper16:__hyp_stub_vectors - 0b
+	add	r1, r1, r0				@ PA(stub)
+	mcr	p15, 4, r1, c12, c0, 0	@ HVBAR
+	b	exit
 
+1:	ldr	r0, =HVC_STUB_ERR
+
+exit:
 	eret
+ENDPROC(__kvm_handle_stub_hvc)
 ENDPROC(__kvm_hyp_reset)
 
 	.ltorg

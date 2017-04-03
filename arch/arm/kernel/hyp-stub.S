@@ -280,7 +280,7 @@ ENDPROC(__hyp_reset_vectors)
 #endif
 
 .align 5
-__hyp_stub_vectors:
+ENTRY(__hyp_stub_vectors)
 __hyp_stub_reset:	W(b)	.
 __hyp_stub_und:		W(b)	.
 __hyp_stub_svc:		W(b)	.
