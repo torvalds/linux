@@ -375,11 +375,19 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 	return amdgpu_vm_alloc_levels(adev, vm, &vm->root, saddr, eaddr, 0);
 }
 
-static bool amdgpu_vm_is_gpu_reset(struct amdgpu_device *adev,
-			      struct amdgpu_vm_id *id)
+/**
+ * amdgpu_vm_had_gpu_reset - check if reset occured since last use
+ *
+ * @adev: amdgpu_device pointer
+ * @id: VMID structure
+ *
+ * Check if GPU reset occured since last use of the VMID.
+ */
+static bool amdgpu_vm_had_gpu_reset(struct amdgpu_device *adev,
+				    struct amdgpu_vm_id *id)
 {
 	return id->current_gpu_reset_count !=
-		atomic_read(&adev->gpu_reset_counter) ? true : false;
+		atomic_read(&adev->gpu_reset_counter);
 }
 
 /**
@@ -465,7 +473,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		/* Check all the prerequisites to using this VMID */
 		if (!id)
 			continue;
-		if (amdgpu_vm_is_gpu_reset(adev, id))
+		if (amdgpu_vm_had_gpu_reset(adev, id))
 			continue;
 
 		if (atomic64_read(&id->owner) != vm->client_id)
@@ -493,7 +501,6 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (r)
 			goto error;
 
-		id->current_gpu_reset_count = atomic_read(&adev->gpu_reset_counter);
 		list_move_tail(&id->list, &adev->vm_manager.ids_lru);
 		vm->ids[ring->idx] = id;
 
@@ -593,7 +600,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
 	int r;
 
 	if (job->vm_needs_flush || gds_switch_needed ||
-		amdgpu_vm_is_gpu_reset(adev, id) ||
+		amdgpu_vm_had_gpu_reset(adev, id) ||
 		amdgpu_vm_ring_has_compute_vm_bug(ring)) {
 		unsigned patch_offset = 0;
 
@@ -606,7 +613,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
 			amdgpu_ring_emit_pipeline_sync(ring);
 
 		if (ring->funcs->emit_vm_flush && (job->vm_needs_flush ||
-			amdgpu_vm_is_gpu_reset(adev, id))) {
+			amdgpu_vm_had_gpu_reset(adev, id))) {
 			struct dma_fence *fence;
 			u64 pd_addr = amdgpu_vm_adjust_mc_addr(adev, job->vm_pd_addr);
 
