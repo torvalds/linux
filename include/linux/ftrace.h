@@ -147,9 +147,9 @@ struct ftrace_ops_hash {
 	struct mutex			regex_lock;
 };
 
-void ftrace_free_mem(void *start, void *end);
+void ftrace_free_init_mem(void);
 #else
-static inline void ftrace_free_mem(void *start, void *end) { }
+static inline void ftrace_free_init_mem(void) { }
 #endif
 
 /*
@@ -266,7 +266,7 @@ static inline int ftrace_nr_registered_ops(void)
 }
 static inline void clear_ftrace_function(void) { }
 static inline void ftrace_kill(void) { }
-static inline void ftrace_free_mem(void *start, void *end) { }
+static inline void ftrace_free_init_mem(void) { }
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_STACK_TRACER

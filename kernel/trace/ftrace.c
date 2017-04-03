@@ -36,6 +36,7 @@
 
 #include <trace/events/sched.h>
 
+#include <asm/sections.h>
 #include <asm/setup.h>
 
 #include "trace_output.h"
@@ -5279,10 +5280,10 @@ void ftrace_module_init(struct module *mod)
 }
 #endif /* CONFIG_MODULES */
 
-void ftrace_free_mem(void *start_ptr, void *end_ptr)
+void __init ftrace_free_init_mem(void)
 {
-	unsigned long start = (unsigned long)start_ptr;
-	unsigned long end = (unsigned long)end_ptr;
+	unsigned long start = (unsigned long)(&__init_begin);
+	unsigned long end = (unsigned long)(&__init_end);
 	struct ftrace_page **last_pg = &ftrace_pages_start;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
