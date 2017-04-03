@@ -431,6 +431,41 @@ mwifiex_add_wmm_info_ie(struct mwifiex_private *priv, struct sk_buff *skb,
 	*buf++ = qosinfo; /* U-APSD no in use */
 }
 
+static void mwifiex_tdls_add_bss_co_2040(struct sk_buff *skb)
+{
+	struct ieee_types_bss_co_2040 *bssco;
+
+	bssco = (void *)skb_put(skb, sizeof(struct ieee_types_bss_co_2040));
+	bssco->ieee_hdr.element_id = WLAN_EID_BSS_COEX_2040;
+	bssco->ieee_hdr.len = sizeof(struct ieee_types_bss_co_2040) -
+			      sizeof(struct ieee_types_header);
+	bssco->bss_2040co = 0x01;
+}
+
+static void mwifiex_tdls_add_supported_chan(struct sk_buff *skb)
+{
+	struct ieee_types_generic *supp_chan;
+	u8 chan_supp[] = {1, 11};
+
+	supp_chan = (void *)skb_put(skb, (sizeof(struct ieee_types_header) +
+					  sizeof(chan_supp)));
+	supp_chan->ieee_hdr.element_id = WLAN_EID_SUPPORTED_CHANNELS;
+	supp_chan->ieee_hdr.len = sizeof(chan_supp);
+	memcpy(supp_chan->data, chan_supp, sizeof(chan_supp));
+}
+
+static void mwifiex_tdls_add_oper_class(struct sk_buff *skb)
+{
+	struct ieee_types_generic *reg_class;
+	u8 rc_list[] = {1,
+		1, 2, 3, 4, 12, 22, 23, 24, 25, 27, 28, 29, 30, 32, 33};
+	reg_class = (void *)skb_put(skb, (sizeof(struct ieee_types_header) +
+					  sizeof(rc_list)));
+	reg_class->ieee_hdr.element_id = WLAN_EID_SUPPORTED_REGULATORY_CLASSES;
+	reg_class->ieee_hdr.len = sizeof(rc_list);
+	memcpy(reg_class->data, rc_list, sizeof(rc_list));
+}
+
 static int mwifiex_prep_tdls_encap_data(struct mwifiex_private *priv,
 					const u8 *peer, u8 action_code,
 					u8 dialog_token,
@@ -484,7 +519,9 @@ static int mwifiex_prep_tdls_encap_data(struct mwifiex_private *priv,
 		}
 
 		mwifiex_tdls_add_ext_capab(priv, skb);
-		mwifiex_tdls_add_qos_capab(skb);
+		mwifiex_tdls_add_bss_co_2040(skb);
+		mwifiex_tdls_add_supported_chan(skb);
+		mwifiex_tdls_add_oper_class(skb);
 		mwifiex_add_wmm_info_ie(priv, skb, 0);
 		break;
 
@@ -522,7 +559,9 @@ static int mwifiex_prep_tdls_encap_data(struct mwifiex_private *priv,
 		}
 
 		mwifiex_tdls_add_ext_capab(priv, skb);
-		mwifiex_tdls_add_qos_capab(skb);
+		mwifiex_tdls_add_bss_co_2040(skb);
+		mwifiex_tdls_add_supported_chan(skb);
+		mwifiex_tdls_add_oper_class(skb);
 		mwifiex_add_wmm_info_ie(priv, skb, 0);
 		break;
 
@@ -612,6 +651,9 @@ int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv, const u8 *peer,
 		  sizeof(struct ieee_types_bss_co_2040) +
 		  sizeof(struct ieee80211_ht_operation) +
 		  sizeof(struct ieee80211_tdls_lnkie) +
+		  (2 * (sizeof(struct ieee_types_header))) +
+		   MWIFIEX_SUPPORTED_CHANNELS +
+		   MWIFIEX_OPERATING_CLASSES +
 		  sizeof(struct ieee80211_wmm_param_ie) +
 		  extra_ies_len;
 
@@ -760,7 +802,10 @@ mwifiex_construct_tdls_action_frame(struct mwifiex_private *priv,
 		}
 
 		mwifiex_tdls_add_ext_capab(priv, skb);
+		mwifiex_tdls_add_bss_co_2040(skb);
+		mwifiex_tdls_add_supported_chan(skb);
 		mwifiex_tdls_add_qos_capab(skb);
+		mwifiex_tdls_add_oper_class(skb);
 		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR, "Unknown TDLS action frame type\n");
