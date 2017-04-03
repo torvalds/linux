@@ -403,6 +403,7 @@ static void vfio_group_release(struct kref *kref)
 	struct iommu_group *iommu_group = group->iommu_group;
 
 	WARN_ON(!list_empty(&group->device_list));
+	WARN_ON(group->notifier.head);
 
 	list_for_each_entry_safe(unbound, tmp,
 				 &group->unbound_list, unbound_next) {
@@ -1573,6 +1574,10 @@ static int vfio_group_fops_open(struct inode *inode, struct file *filep)
 		return -EBUSY;
 	}
 
+	/* Warn if previous user didn't cleanup and re-init to drop them */
+	if (WARN_ON(group->notifier.head))
+		BLOCKING_INIT_NOTIFIER_HEAD(&group->notifier);
+
 	filep->private_data = group;
 
 	return 0;
@@ -1583,9 +1588,6 @@ static int vfio_group_fops_release(struct inode *inode, struct file *filep)
 	struct vfio_group *group = filep->private_data;
 
 	filep->private_data = NULL;
-
-	/* Any user didn't unregister? */
-	WARN_ON(group->notifier.head);
 
 	vfio_group_try_dissolve_container(group);
 

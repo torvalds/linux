@@ -49,8 +49,8 @@ bool intel_gvt_ggtt_validate_range(struct intel_vgpu *vgpu, u64 addr, u32 size)
 {
 	if ((!vgpu_gmadr_is_valid(vgpu, addr)) || (size
 			&& !vgpu_gmadr_is_valid(vgpu, addr + size - 1))) {
-		gvt_err("vgpu%d: invalid range gmadr 0x%llx size 0x%x\n",
-				vgpu->id, addr, size);
+		gvt_vgpu_err("invalid range gmadr 0x%llx size 0x%x\n",
+				addr, size);
 		return false;
 	}
 	return true;
@@ -430,7 +430,7 @@ static int gtt_entry_p2m(struct intel_vgpu *vgpu, struct intel_gvt_gtt_entry *p,
 
 	mfn = intel_gvt_hypervisor_gfn_to_mfn(vgpu, gfn);
 	if (mfn == INTEL_GVT_INVALID_ADDR) {
-		gvt_err("fail to translate gfn: 0x%lx\n", gfn);
+		gvt_vgpu_err("fail to translate gfn: 0x%lx\n", gfn);
 		return -ENXIO;
 	}
 
@@ -611,7 +611,7 @@ static inline int init_shadow_page(struct intel_vgpu *vgpu,
 
 	daddr = dma_map_page(kdev, p->page, 0, 4096, PCI_DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(kdev, daddr)) {
-		gvt_err("fail to map dma addr\n");
+		gvt_vgpu_err("fail to map dma addr\n");
 		return -EINVAL;
 	}
 
@@ -735,7 +735,7 @@ retry:
 		if (reclaim_one_mm(vgpu->gvt))
 			goto retry;
 
-		gvt_err("fail to allocate ppgtt shadow page\n");
+		gvt_vgpu_err("fail to allocate ppgtt shadow page\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -750,14 +750,14 @@ retry:
 	 */
 	ret = init_shadow_page(vgpu, &spt->shadow_page, type);
 	if (ret) {
-		gvt_err("fail to initialize shadow page for spt\n");
+		gvt_vgpu_err("fail to initialize shadow page for spt\n");
 		goto err;
 	}
 
 	ret = intel_vgpu_init_guest_page(vgpu, &spt->guest_page,
 			gfn, ppgtt_write_protection_handler, NULL);
 	if (ret) {
-		gvt_err("fail to initialize guest page for spt\n");
+		gvt_vgpu_err("fail to initialize guest page for spt\n");
 		goto err;
 	}
 
@@ -776,8 +776,7 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_find_shadow_page(
 	if (p)
 		return shadow_page_to_ppgtt_spt(p);
 
-	gvt_err("vgpu%d: fail to find ppgtt shadow page: 0x%lx\n",
-			vgpu->id, mfn);
+	gvt_vgpu_err("fail to find ppgtt shadow page: 0x%lx\n", mfn);
 	return NULL;
 }
 
@@ -827,8 +826,8 @@ static int ppgtt_invalidate_shadow_page_by_shadow_entry(struct intel_vgpu *vgpu,
 	}
 	s = ppgtt_find_shadow_page(vgpu, ops->get_pfn(e));
 	if (!s) {
-		gvt_err("vgpu%d: fail to find shadow page: mfn: 0x%lx\n",
-				vgpu->id, ops->get_pfn(e));
+		gvt_vgpu_err("fail to find shadow page: mfn: 0x%lx\n",
+				ops->get_pfn(e));
 		return -ENXIO;
 	}
 	return ppgtt_invalidate_shadow_page(s);
@@ -836,6 +835,7 @@ static int ppgtt_invalidate_shadow_page_by_shadow_entry(struct intel_vgpu *vgpu,
 
 static int ppgtt_invalidate_shadow_page(struct intel_vgpu_ppgtt_spt *spt)
 {
+	struct intel_vgpu *vgpu = spt->vgpu;
 	struct intel_gvt_gtt_entry e;
 	unsigned long index;
 	int ret;
@@ -854,7 +854,7 @@ static int ppgtt_invalidate_shadow_page(struct intel_vgpu_ppgtt_spt *spt)
 
 	for_each_present_shadow_entry(spt, &e, index) {
 		if (!gtt_type_is_pt(get_next_pt_type(e.type))) {
-			gvt_err("GVT doesn't support pse bit for now\n");
+			gvt_vgpu_err("GVT doesn't support pse bit for now\n");
 			return -EINVAL;
 		}
 		ret = ppgtt_invalidate_shadow_page_by_shadow_entry(
@@ -868,8 +868,8 @@ release:
 	ppgtt_free_shadow_page(spt);
 	return 0;
 fail:
-	gvt_err("vgpu%d: fail: shadow page %p shadow entry 0x%llx type %d\n",
-			spt->vgpu->id, spt, e.val64, e.type);
+	gvt_vgpu_err("fail: shadow page %p shadow entry 0x%llx type %d\n",
+			spt, e.val64, e.type);
 	return ret;
 }
 
@@ -914,8 +914,8 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_shadow_page_by_guest_entry(
 	}
 	return s;
 fail:
-	gvt_err("vgpu%d: fail: shadow page %p guest entry 0x%llx type %d\n",
-			vgpu->id, s, we->val64, we->type);
+	gvt_vgpu_err("fail: shadow page %p guest entry 0x%llx type %d\n",
+			s, we->val64, we->type);
 	return ERR_PTR(ret);
 }
 
@@ -953,7 +953,7 @@ static int ppgtt_populate_shadow_page(struct intel_vgpu_ppgtt_spt *spt)
 
 	for_each_present_guest_entry(spt, &ge, i) {
 		if (!gtt_type_is_pt(get_next_pt_type(ge.type))) {
-			gvt_err("GVT doesn't support pse bit now\n");
+			gvt_vgpu_err("GVT doesn't support pse bit now\n");
 			ret = -EINVAL;
 			goto fail;
 		}
@@ -969,8 +969,8 @@ static int ppgtt_populate_shadow_page(struct intel_vgpu_ppgtt_spt *spt)
 	}
 	return 0;
 fail:
-	gvt_err("vgpu%d: fail: shadow page %p guest entry 0x%llx type %d\n",
-			vgpu->id, spt, ge.val64, ge.type);
+	gvt_vgpu_err("fail: shadow page %p guest entry 0x%llx type %d\n",
+			spt, ge.val64, ge.type);
 	return ret;
 }
 
@@ -999,7 +999,7 @@ static int ppgtt_handle_guest_entry_removal(struct intel_vgpu_guest_page *gpt,
 		struct intel_vgpu_ppgtt_spt *s =
 			ppgtt_find_shadow_page(vgpu, ops->get_pfn(&e));
 		if (!s) {
-			gvt_err("fail to find guest page\n");
+			gvt_vgpu_err("fail to find guest page\n");
 			ret = -ENXIO;
 			goto fail;
 		}
@@ -1011,8 +1011,8 @@ static int ppgtt_handle_guest_entry_removal(struct intel_vgpu_guest_page *gpt,
 	ppgtt_set_shadow_entry(spt, &e, index);
 	return 0;
 fail:
-	gvt_err("vgpu%d: fail: shadow page %p guest entry 0x%llx type %d\n",
-			vgpu->id, spt, e.val64, e.type);
+	gvt_vgpu_err("fail: shadow page %p guest entry 0x%llx type %d\n",
+			spt, e.val64, e.type);
 	return ret;
 }
 
@@ -1046,8 +1046,8 @@ static int ppgtt_handle_guest_entry_add(struct intel_vgpu_guest_page *gpt,
 	}
 	return 0;
 fail:
-	gvt_err("vgpu%d: fail: spt %p guest entry 0x%llx type %d\n", vgpu->id,
-			spt, we->val64, we->type);
+	gvt_vgpu_err("fail: spt %p guest entry 0x%llx type %d\n",
+		spt, we->val64, we->type);
 	return ret;
 }
 
@@ -1250,8 +1250,8 @@ static int ppgtt_handle_guest_write_page_table(
 	}
 	return 0;
 fail:
-	gvt_err("vgpu%d: fail: shadow page %p guest entry 0x%llx type %d.\n",
-			vgpu->id, spt, we->val64, we->type);
+	gvt_vgpu_err("fail: shadow page %p guest entry 0x%llx type %d.\n",
+			spt, we->val64, we->type);
 	return ret;
 }
 
@@ -1493,7 +1493,7 @@ static int shadow_mm(struct intel_vgpu_mm *mm)
 
 		spt = ppgtt_populate_shadow_page_by_guest_entry(vgpu, &ge);
 		if (IS_ERR(spt)) {
-			gvt_err("fail to populate guest root pointer\n");
+			gvt_vgpu_err("fail to populate guest root pointer\n");
 			ret = PTR_ERR(spt);
 			goto fail;
 		}
@@ -1566,7 +1566,7 @@ struct intel_vgpu_mm *intel_vgpu_create_mm(struct intel_vgpu *vgpu,
 
 	ret = gtt->mm_alloc_page_table(mm);
 	if (ret) {
-		gvt_err("fail to allocate page table for mm\n");
+		gvt_vgpu_err("fail to allocate page table for mm\n");
 		goto fail;
 	}
 
@@ -1584,7 +1584,7 @@ struct intel_vgpu_mm *intel_vgpu_create_mm(struct intel_vgpu *vgpu,
 	}
 	return mm;
 fail:
-	gvt_err("fail to create mm\n");
+	gvt_vgpu_err("fail to create mm\n");
 	if (mm)
 		intel_gvt_mm_unreference(mm);
 	return ERR_PTR(ret);
@@ -1760,7 +1760,7 @@ unsigned long intel_vgpu_gma_to_gpa(struct intel_vgpu_mm *mm, unsigned long gma)
 			mm->page_table_level, gma, gpa);
 	return gpa;
 err:
-	gvt_err("invalid mm type: %d gma %lx\n", mm->type, gma);
+	gvt_vgpu_err("invalid mm type: %d gma %lx\n", mm->type, gma);
 	return INTEL_GVT_INVALID_ADDR;
 }
 
@@ -1836,13 +1836,16 @@ static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	if (ops->test_present(&e)) {
 		ret = gtt_entry_p2m(vgpu, &e, &m);
 		if (ret) {
-			gvt_err("vgpu%d: fail to translate guest gtt entry\n",
-					vgpu->id);
-			return ret;
+			gvt_vgpu_err("fail to translate guest gtt entry\n");
+			/* guest driver may read/write the entry when partial
+			 * update the entry in this situation p2m will fail
+			 * settting the shadow entry to point to a scratch page
+			 */
+			ops->set_pfn(&m, gvt->gtt.scratch_ggtt_mfn);
 		}
 	} else {
 		m = e;
-		m.val64 = 0;
+		ops->set_pfn(&m, gvt->gtt.scratch_ggtt_mfn);
 	}
 
 	ggtt_set_shadow_entry(ggtt_mm, &m, g_gtt_index);
@@ -1893,14 +1896,14 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 
 	scratch_pt = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!scratch_pt) {
-		gvt_err("fail to allocate scratch page\n");
+		gvt_vgpu_err("fail to allocate scratch page\n");
 		return -ENOMEM;
 	}
 
 	daddr = dma_map_page(dev, virt_to_page(scratch_pt), 0,
 			4096, PCI_DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, daddr)) {
-		gvt_err("fail to dmamap scratch_pt\n");
+		gvt_vgpu_err("fail to dmamap scratch_pt\n");
 		__free_page(virt_to_page(scratch_pt));
 		return -ENOMEM;
 	}
@@ -2003,7 +2006,7 @@ int intel_vgpu_init_gtt(struct intel_vgpu *vgpu)
 	ggtt_mm = intel_vgpu_create_mm(vgpu, INTEL_GVT_MM_GGTT,
 			NULL, 1, 0);
 	if (IS_ERR(ggtt_mm)) {
-		gvt_err("fail to create mm for ggtt.\n");
+		gvt_vgpu_err("fail to create mm for ggtt.\n");
 		return PTR_ERR(ggtt_mm);
 	}
 
@@ -2076,7 +2079,6 @@ static int setup_spt_oos(struct intel_gvt *gvt)
 	for (i = 0; i < preallocated_oos_pages; i++) {
 		oos_page = kzalloc(sizeof(*oos_page), GFP_KERNEL);
 		if (!oos_page) {
-			gvt_err("fail to pre-allocate oos page\n");
 			ret = -ENOMEM;
 			goto fail;
 		}
@@ -2166,7 +2168,7 @@ int intel_vgpu_g2v_create_ppgtt_mm(struct intel_vgpu *vgpu,
 		mm = intel_vgpu_create_mm(vgpu, INTEL_GVT_MM_PPGTT,
 				pdp, page_table_level, 0);
 		if (IS_ERR(mm)) {
-			gvt_err("fail to create mm\n");
+			gvt_vgpu_err("fail to create mm\n");
 			return PTR_ERR(mm);
 		}
 	}
@@ -2196,7 +2198,7 @@ int intel_vgpu_g2v_destroy_ppgtt_mm(struct intel_vgpu *vgpu,
 
 	mm = intel_vgpu_find_ppgtt_mm(vgpu, page_table_level, pdp);
 	if (!mm) {
-		gvt_err("fail to find ppgtt instance.\n");
+		gvt_vgpu_err("fail to find ppgtt instance.\n");
 		return -EINVAL;
 	}
 	intel_gvt_mm_unreference(mm);

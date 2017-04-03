@@ -1959,8 +1959,10 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 		input_set_capability(input, EV_KEY, BTN_TOOL_BRUSH);
 		input_set_capability(input, EV_KEY, BTN_TOOL_PENCIL);
 		input_set_capability(input, EV_KEY, BTN_TOOL_AIRBRUSH);
-		input_set_capability(input, EV_KEY, BTN_TOOL_MOUSE);
-		input_set_capability(input, EV_KEY, BTN_TOOL_LENS);
+		if (!(features->device_type & WACOM_DEVICETYPE_DIRECT)) {
+			input_set_capability(input, EV_KEY, BTN_TOOL_MOUSE);
+			input_set_capability(input, EV_KEY, BTN_TOOL_LENS);
+		}
 		break;
 	case WACOM_HID_WD_FINGERWHEEL:
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
@@ -4197,10 +4199,10 @@ static const struct wacom_features wacom_features_0x343 =
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x360 =
 	{ "Wacom Intuos Pro M", 44800, 29600, 8191, 63,
-	  INTUOSP2_BT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 9, .touch_max = 10 };
+	  INTUOSP2_BT, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
 static const struct wacom_features wacom_features_0x361 =
 	{ "Wacom Intuos Pro L", 62200, 43200, 8191, 63,
-	  INTUOSP2_BT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 9, .touch_max = 10 };
+	  INTUOSP2_BT, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =
 	{ "Wacom HID", .type = HID_GENERIC, .oVid = HID_ANY_ID, .oPid = HID_ANY_ID };

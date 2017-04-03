@@ -5400,7 +5400,7 @@ int ext4_getattr(const struct path *path, struct kstat *stat,
 	 * If there is inline data in the inode, the inode will normally not
 	 * have data blocks allocated (it may have an external xattr block).
 	 * Report at least one sector for such files, so tools like tar, rsync,
-	 * others doen't incorrectly think the file is completely sparse.
+	 * others don't incorrectly think the file is completely sparse.
 	 */
 	if (unlikely(ext4_has_inline_data(inode)))
 		stat->blocks += (stat->size + 511) >> 9;

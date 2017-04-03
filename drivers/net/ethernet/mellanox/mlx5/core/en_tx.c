@@ -274,15 +274,18 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 			sq->stats.tso_bytes += skb->len - ihs;
 		}
 
+		sq->stats.packets += skb_shinfo(skb)->gso_segs;
 		num_bytes = skb->len + (skb_shinfo(skb)->gso_segs - 1) * ihs;
 	} else {
 		bf = sq->bf_budget &&
 		     !skb->xmit_more &&
 		     !skb_shinfo(skb)->nr_frags;
 		ihs = mlx5e_get_inline_hdr_size(sq, skb, bf);
+		sq->stats.packets++;
 		num_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
 	}
 
+	sq->stats.bytes += num_bytes;
 	wi->num_bytes = num_bytes;
 
 	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
@@ -381,8 +384,6 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 	if (bf)
 		sq->bf_budget--;
 
-	sq->stats.packets++;
-	sq->stats.bytes += num_bytes;
 	return NETDEV_TX_OK;
 
 dma_unmap_wqe_err:
