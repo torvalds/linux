@@ -43,6 +43,7 @@
 			compatible = "arm,cortex-a7";
 			reg = <0>;
 			clock-frequency = <1000000000>;
+			clocks = <&z2_clk>;
 			power-domains = <&sysc R8A7794_PD_CA7_CPU0>;
 			next-level-cache = <&L2_CA7>;
 		};
@@ -1062,6 +1063,13 @@
 			clocks = <&cpg_clocks R8A7794_CLK_PLL1>;
 			#clock-cells = <0>;
 			clock-div = <2>;
+			clock-mult = <1>;
+		};
+		z2_clk: z2 {
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R8A7794_CLK_PLL0>;
+			#clock-cells = <0>;
+			clock-div = <1>;
 			clock-mult = <1>;
 		};
 		zg_clk: zg {
