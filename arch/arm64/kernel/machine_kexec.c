@@ -10,6 +10,7 @@
  */
 
 #include <linux/kexec.h>
+#include <linux/page-flags.h>
 #include <linux/smp.h>
 
 #include <asm/cacheflush.h>
@@ -230,3 +231,73 @@ void arch_kexec_unprotect_crashkres(void)
 			__phys_to_virt(kexec_crash_image->segment[i].mem),
 			kexec_crash_image->segment[i].memsz >> PAGE_SHIFT, 1);
 }
+
+#ifdef CONFIG_HIBERNATION
+/*
+ * To preserve the crash dump kernel image, the relevant memory segments
+ * should be mapped again around the hibernation.
+ */
+void crash_prepare_suspend(void)
+{
+	if (kexec_crash_image)
+		arch_kexec_unprotect_crashkres();
+}
+
+void crash_post_resume(void)
+{
+	if (kexec_crash_image)
+		arch_kexec_protect_crashkres();
+}
+
+/*
+ * crash_is_nosave
+ *
+ * Return true only if a page is part of reserved memory for crash dump kernel,
+ * but does not hold any data of loaded kernel image.
+ *
+ * Note that all the pages in crash dump kernel memory have been initially
+ * marked as Reserved in kexec_reserve_crashkres_pages().
+ *
+ * In hibernation, the pages which are Reserved and yet "nosave" are excluded
+ * from the hibernation iamge. crash_is_nosave() does thich check for crash
+ * dump kernel and will reduce the total size of hibernation image.
+ */
+
+bool crash_is_nosave(unsigned long pfn)
+{
+	int i;
+	phys_addr_t addr;
+
+	if (!crashk_res.end)
+		return false;
+
+	/* in reserved memory? */
+	addr = __pfn_to_phys(pfn);
+	if ((addr < crashk_res.start) || (crashk_res.end < addr))
+		return false;
+
+	if (!kexec_crash_image)
+		return true;
+
+	/* not part of loaded kernel image? */
+	for (i = 0; i < kexec_crash_image->nr_segments; i++)
+		if (addr >= kexec_crash_image->segment[i].mem &&
+				addr < (kexec_crash_image->segment[i].mem +
+					kexec_crash_image->segment[i].memsz))
+			return false;
+
+	return true;
+}
+
+void crash_free_reserved_phys_range(unsigned long begin, unsigned long end)
+{
+	unsigned long addr;
+	struct page *page;
+
+	for (addr = begin; addr < end; addr += PAGE_SIZE) {
+		page = phys_to_page(addr);
+		ClearPageReserved(page);
+		free_reserved_page(page);
+	}
+}
+#endif /* CONFIG_HIBERNATION */
