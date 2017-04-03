@@ -226,11 +226,11 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	err = detect_quirks(oxfw);
+	err = snd_oxfw_stream_discover(oxfw);
 	if (err < 0)
 		goto error;
 
-	err = snd_oxfw_stream_discover(oxfw);
+	err = detect_quirks(oxfw);
 	if (err < 0)
 		goto error;
 
