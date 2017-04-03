@@ -140,7 +140,7 @@ struct scrub_parity {
 
 	int			nsectors;
 
-	int			stripe_len;
+	u64			stripe_len;
 
 	refcount_t		refs;
 
@@ -2396,7 +2396,7 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 				       unsigned long *bitmap,
 				       u64 start, u64 len)
 {
-	u32 offset;
+	u64 offset;
 	int nsectors;
 	int sectorsize = sparity->sctx->fs_info->sectorsize;
 
@@ -2406,8 +2406,8 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 	}
 
 	start -= sparity->logic_start;
-	start = div_u64_rem(start, sparity->stripe_len, &offset);
-	offset /= sectorsize;
+	start = div64_u64_rem(start, sparity->stripe_len, &offset);
+	offset = div_u64(offset, sectorsize);
 	nsectors = (int)len / sectorsize;
 
 	if (offset + nsectors <= sparity->nsectors) {
