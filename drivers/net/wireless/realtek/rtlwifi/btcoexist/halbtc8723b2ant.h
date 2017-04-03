@@ -148,6 +148,7 @@ struct coex_sta_8723b_2ant {
 	bool c2h_bt_inquiry_page;
 	u8 bt_retry_cnt;
 	u8 bt_info_ext;
+	u32 pop_event_cnt;
 };
 
 /*********************************************************************
