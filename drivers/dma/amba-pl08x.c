@@ -231,7 +231,6 @@ enum pl08x_dma_chan_state {
  * @cd: channel platform data
  * @cfg: slave configuration
  * @at: active transaction on this channel
- * @lock: a lock for this channel data
  * @host: a pointer to the host (internal use)
  * @state: whether the channel is idle, paused, running etc
  * @slave: whether this channel is a device (slave) or for memcpy
