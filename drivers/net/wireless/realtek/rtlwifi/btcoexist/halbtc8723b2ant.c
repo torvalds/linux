@@ -754,9 +754,9 @@ static void btc8723b_set_penalty_txrate(struct btc_coexist *btcoexist,
 		h2c_parameter[1] |= BIT0;
 		/* normal rate except MCS7/6/5, OFDM54/48/36 */
 		h2c_parameter[2] = 0x00;
-		h2c_parameter[3] = 0xf7; /* MCS7 or OFDM54 */
-		h2c_parameter[4] = 0xf8; /* MCS6 or OFDM48 */
-		h2c_parameter[5] = 0xf9; /* MCS5 or OFDM36 */
+		h2c_parameter[3] = 0xf4; /* MCS7 or OFDM54 */
+		h2c_parameter[4] = 0xf5; /* MCS6 or OFDM48 */
+		h2c_parameter[5] = 0xf6; /* MCS5 or OFDM36 */
 	}
 
 	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
