@@ -121,7 +121,6 @@ struct drm_plane;
 
 void drm_modeset_lock_all(struct drm_device *dev);
 void drm_modeset_unlock_all(struct drm_device *dev);
-void drm_modeset_unlock_crtc(struct drm_crtc *crtc);
 void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
 struct drm_modeset_acquire_ctx *
 drm_modeset_legacy_acquire_ctx(struct drm_crtc *crtc);

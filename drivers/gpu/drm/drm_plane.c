@@ -620,7 +620,8 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 
 static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 				     struct drm_mode_cursor2 *req,
-				     struct drm_file *file_priv)
+				     struct drm_file *file_priv,
+				     struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_framebuffer *fb = NULL;
@@ -634,20 +635,10 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 	int32_t crtc_x, crtc_y;
 	uint32_t crtc_w = 0, crtc_h = 0;
 	uint32_t src_w = 0, src_h = 0;
-	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
 	BUG_ON(!crtc->cursor);
 	WARN_ON(crtc->cursor->crtc != crtc && crtc->cursor->crtc != NULL);
-
-	drm_modeset_acquire_init(&ctx, 0);
-retry:
-	ret = drm_modeset_lock(&crtc->mutex, &ctx);
-	if (ret)
-		goto fail;
-	ret = drm_modeset_lock(&crtc->cursor->mutex, &ctx);
-	if (ret)
-		goto fail;
 
 	/*
 	 * Obtain fb we'll be using (either new or existing) and take an extra
@@ -693,22 +684,13 @@ retry:
 	 */
 	ret = __setplane_internal(crtc->cursor, crtc, fb,
 				crtc_x, crtc_y, crtc_w, crtc_h,
-				0, 0, src_w, src_h, &ctx);
+				0, 0, src_w, src_h, ctx);
 
 	/* Update successful; save new cursor position, if necessary */
 	if (ret == 0 && req->flags & DRM_MODE_CURSOR_MOVE) {
 		crtc->cursor_x = req->x;
 		crtc->cursor_y = req->y;
 	}
-
-fail:
-	if (ret == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
-	}
-
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
 
 	return ret;
 }
@@ -718,6 +700,7 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 				  struct drm_file *file_priv)
 {
 	struct drm_crtc *crtc;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
@@ -732,14 +715,24 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 		return -ENOENT;
 	}
 
+	drm_modeset_acquire_init(&ctx, 0);
+retry:
+	ret = drm_modeset_lock(&crtc->mutex, &ctx);
+	if (ret)
+		goto out;
+	ret = drm_modeset_lock(&crtc->cursor->mutex, &ctx);
+	if (ret)
+		goto out;
+
 	/*
 	 * If this crtc has a universal cursor plane, call that plane's update
 	 * handler rather than using legacy cursor handlers.
 	 */
-	if (crtc->cursor)
-		return drm_mode_cursor_universal(crtc, req, file_priv);
+	if (crtc->cursor) {
+		ret = drm_mode_cursor_universal(crtc, req, file_priv, &ctx);
+		goto out;
+	}
 
-	drm_modeset_lock_crtc(crtc, crtc->cursor);
 	if (req->flags & DRM_MODE_CURSOR_BO) {
 		if (!crtc->funcs->cursor_set && !crtc->funcs->cursor_set2) {
 			ret = -ENXIO;
@@ -763,7 +756,13 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 		}
 	}
 out:
-	drm_modeset_unlock_crtc(crtc);
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
 	return ret;
 

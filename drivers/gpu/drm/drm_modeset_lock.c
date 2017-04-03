@@ -148,51 +148,6 @@ void drm_modeset_unlock_all(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_modeset_unlock_all);
 
-void drm_modeset_lock_crtc(struct drm_crtc *crtc,
-			   struct drm_plane *plane)
-{
-	struct drm_modeset_acquire_ctx *ctx;
-	int ret;
-
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (WARN_ON(!ctx))
-		return;
-
-	drm_modeset_acquire_init(ctx, 0);
-
-retry:
-	ret = drm_modeset_lock(&crtc->mutex, ctx);
-	if (ret)
-		goto fail;
-
-	if (plane) {
-		ret = drm_modeset_lock(&plane->mutex, ctx);
-		if (ret)
-			goto fail;
-
-		if (plane->crtc) {
-			ret = drm_modeset_lock(&plane->crtc->mutex, ctx);
-			if (ret)
-				goto fail;
-		}
-	}
-
-	WARN_ON(crtc->acquire_ctx);
-
-	/* now we hold the locks, so now that it is safe, stash the
-	 * ctx for drm_modeset_unlock_crtc():
-	 */
-	crtc->acquire_ctx = ctx;
-
-	return;
-
-fail:
-	if (ret == -EDEADLK) {
-		drm_modeset_backoff(ctx);
-		goto retry;
-	}
-}
-
 /**
  * drm_modeset_legacy_acquire_ctx - find acquire ctx for legacy ioctls
  * @crtc: drm crtc
@@ -213,28 +168,6 @@ drm_modeset_legacy_acquire_ctx(struct drm_crtc *crtc)
 	return crtc->dev->mode_config.acquire_ctx;
 }
 EXPORT_SYMBOL(drm_modeset_legacy_acquire_ctx);
-
-/**
- * drm_modeset_unlock_crtc - drop crtc lock
- * @crtc: drm crtc
- *
- * This drops the crtc lock acquire with drm_modeset_lock_crtc() and all other
- * locks acquired through the hidden context.
- */
-void drm_modeset_unlock_crtc(struct drm_crtc *crtc)
-{
-	struct drm_modeset_acquire_ctx *ctx = crtc->acquire_ctx;
-
-	if (WARN_ON(!ctx))
-		return;
-
-	crtc->acquire_ctx = NULL;
-	drm_modeset_drop_locks(ctx);
-	drm_modeset_acquire_fini(ctx);
-
-	kfree(ctx);
-}
-EXPORT_SYMBOL(drm_modeset_unlock_crtc);
 
 /**
  * drm_warn_on_modeset_not_all_locked - check that all modeset locks are locked
