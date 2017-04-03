@@ -118,7 +118,6 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case ION_IOC_SHARE:
-	case ION_IOC_MAP:
 	{
 		struct ion_handle *handle;
 

@@ -164,16 +164,6 @@ struct ion_heap_query {
 #define ION_IOC_FREE		_IOWR(ION_IOC_MAGIC, 1, struct ion_handle_data)
 
 /**
- * DOC: ION_IOC_MAP - get a file descriptor to mmap
- *
- * Takes an ion_fd_data struct with the handle field populated with a valid
- * opaque handle.  Returns the struct with the fd field set to a file
- * descriptor open in the current address space.  This file descriptor
- * can then be used as an argument to mmap.
- */
-#define ION_IOC_MAP		_IOWR(ION_IOC_MAGIC, 2, struct ion_fd_data)
-
-/**
  * DOC: ION_IOC_SHARE - creates a file descriptor to use to share an allocation
  *
  * Takes an ion_fd_data struct with the handle field populated with a valid
