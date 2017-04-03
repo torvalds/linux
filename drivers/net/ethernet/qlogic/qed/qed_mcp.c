@@ -455,8 +455,10 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 	qed_mcp_reread_offsets(p_hwfn, p_ptt);
 	seq_num = ++p_hwfn->mcp_info->drv_mb_seq;
 	p_cmd_elem = qed_mcp_cmd_add_elem(p_hwfn, p_mb_params, seq_num);
-	if (!p_cmd_elem)
+	if (!p_cmd_elem) {
+		rc = -ENOMEM;
 		goto err;
+	}
 
 	__qed_mcp_cmd_and_union(p_hwfn, p_ptt, p_mb_params, seq_num);
 	spin_unlock_bh(&p_hwfn->mcp_info->cmd_lock);
