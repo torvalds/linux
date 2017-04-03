@@ -81,8 +81,11 @@ static void early_console_write(struct console *con, const char *s, unsigned n)
 }
 
 #else
-# error Neither SERIAL_ALTERA_JTAGUART_CONSOLE nor SERIAL_ALTERA_UART_CONSOLE \
-selected
+
+static void early_console_write(struct console *con, const char *s, unsigned n)
+{
+}
+
 #endif
 
 static struct console early_console_prom = {
