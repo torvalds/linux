@@ -106,6 +106,8 @@ static u32 soc15_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 
 	if (adev->asic_type == CHIP_VEGA10)
 		nbio_pcie_id = &nbio_v6_1_pcie_index_data;
+	else
+		BUG();
 
 	address = nbio_pcie_id->index_offset;
 	data = nbio_pcie_id->data_offset;
@@ -125,6 +127,8 @@ static void soc15_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 
 	if (adev->asic_type == CHIP_VEGA10)
 		nbio_pcie_id = &nbio_v6_1_pcie_index_data;
+	else
+		BUG();
 
 	address = nbio_pcie_id->index_offset;
 	data = nbio_pcie_id->data_offset;
