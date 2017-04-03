@@ -434,13 +434,8 @@ static int pca954x_probe(struct i2c_client *client,
 				   idle_disconnect_dt) << num;
 
 		ret = i2c_mux_add_adapter(muxc, force, num, class);
-
-		if (ret) {
-			dev_err(&client->dev,
-				"failed to register multiplexed adapter"
-				" %d as bus %d\n", num, force);
+		if (ret)
 			goto fail_del_adapters;
-		}
 	}
 
 	dev_info(&client->dev,
