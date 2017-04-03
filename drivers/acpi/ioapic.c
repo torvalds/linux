@@ -45,6 +45,12 @@ static acpi_status setup_res(struct acpi_resource *acpi_res, void *data)
 	struct resource *res = data;
 	struct resource_win win;
 
+	/*
+	 * We might assign this to 'res' later, make sure all pointers are
+	 * cleared before the resource is added to the global list
+	 */
+	memset(&win, 0, sizeof(win));
+
 	res->flags = 0;
 	if (acpi_dev_filter_resource_type(acpi_res, IORESOURCE_MEM))
 		return AE_OK;

@@ -13,7 +13,7 @@ config SND_SOC_MT2701
 
 config SND_SOC_MT2701_CS42448
 	tristate "ASoc Audio driver for MT2701 with CS42448 codec"
-	depends on SND_SOC_MT2701
+	depends on SND_SOC_MT2701 && I2C
 	select SND_SOC_CS42XX8_I2C
 	select SND_SOC_BT_SCO
 	help
