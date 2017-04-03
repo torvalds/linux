@@ -73,8 +73,10 @@ el1_sync:
 
 	/* Someone called kvm_call_hyp() against the hyp-stub... */
 	ldr	x0, =HVC_STUB_ERR
+	eret
 
-9:	eret
+9:	mov	x0, xzr
+	eret
 ENDPROC(el1_sync)
 
 .macro invalid_vector	label
