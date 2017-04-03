@@ -139,8 +139,6 @@ struct intel_ring {
 	struct i915_vma *vma;
 	void *vaddr;
 
-	struct intel_engine_cs *engine;
-
 	struct list_head request_list;
 
 	u32 head;
@@ -487,7 +485,9 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 
 struct intel_ring *
 intel_engine_create_ring(struct intel_engine_cs *engine, int size);
-int intel_ring_pin(struct intel_ring *ring, unsigned int offset_bias);
+int intel_ring_pin(struct intel_ring *ring,
+		   struct drm_i915_private *i915,
+		   unsigned int offset_bias);
 void intel_ring_unpin(struct intel_ring *ring);
 void intel_ring_free(struct intel_ring *ring);
 

@@ -1270,17 +1270,18 @@ static int init_phys_status_page(struct intel_engine_cs *engine)
 	return 0;
 }
 
-int intel_ring_pin(struct intel_ring *ring, unsigned int offset_bias)
+int intel_ring_pin(struct intel_ring *ring,
+		   struct drm_i915_private *i915,
+		   unsigned int offset_bias)
 {
-	unsigned int flags;
-	enum i915_map_type map;
+	enum i915_map_type map = HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC;
 	struct i915_vma *vma = ring->vma;
+	unsigned int flags;
 	void *addr;
 	int ret;
 
 	GEM_BUG_ON(ring->vaddr);
 
-	map = HAS_LLC(ring->engine->i915) ? I915_MAP_WB : I915_MAP_WC;
 
 	flags = PIN_GLOBAL;
 	if (offset_bias)
@@ -1368,8 +1369,6 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
 		return ERR_PTR(-ENOMEM);
-
-	ring->engine = engine;
 
 	INIT_LIST_HEAD(&ring->request_list);
 
@@ -1481,7 +1480,6 @@ static void intel_ring_context_unpin(struct intel_engine_cs *engine,
 
 static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	struct intel_ring *ring;
 	int ret;
 
@@ -1493,13 +1491,7 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	if (ret)
 		goto error;
 
-	ring = intel_engine_create_ring(engine, 32 * PAGE_SIZE);
-	if (IS_ERR(ring)) {
-		ret = PTR_ERR(ring);
-		goto error;
-	}
-
-	if (HWS_NEEDS_PHYSICAL(dev_priv)) {
+	if (HWS_NEEDS_PHYSICAL(engine->i915)) {
 		WARN_ON(engine->id != RCS);
 		ret = init_phys_status_page(engine);
 		if (ret)
@@ -1510,8 +1502,14 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 			goto error;
 	}
 
+	ring = intel_engine_create_ring(engine, 32 * PAGE_SIZE);
+	if (IS_ERR(ring)) {
+		ret = PTR_ERR(ring);
+		goto error;
+	}
+
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
-	ret = intel_ring_pin(ring, I915_GTT_PAGE_SIZE);
+	ret = intel_ring_pin(ring, engine->i915, I915_GTT_PAGE_SIZE);
 	if (ret) {
 		intel_ring_free(ring);
 		goto error;
