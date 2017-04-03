@@ -316,6 +316,7 @@ static void __usbnet_status_stop_force(struct usbnet *dev)
  */
 void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 {
+	struct pcpu_sw_netstats *stats64 = this_cpu_ptr(dev->stats64);
 	int	status;
 
 	if (test_bit(EVENT_RX_PAUSED, &dev->flags)) {
@@ -327,8 +328,10 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 	if (skb->protocol == 0)
 		skb->protocol = eth_type_trans (skb, dev->net);
 
-	dev->net->stats.rx_packets++;
-	dev->net->stats.rx_bytes += skb->len;
+	u64_stats_update_begin(&stats64->syncp);
+	stats64->rx_packets++;
+	stats64->rx_bytes += skb->len;
+	u64_stats_update_end(&stats64->syncp);
 
 	netif_dbg(dev, rx_status, dev->net, "< rx, len %zu, type 0x%x\n",
 		  skb->len + sizeof (struct ethhdr), skb->protocol);
@@ -981,6 +984,37 @@ int usbnet_set_link_ksettings(struct net_device *net,
 }
 EXPORT_SYMBOL_GPL(usbnet_set_link_ksettings);
 
+void usbnet_get_stats64(struct net_device *net, struct rtnl_link_stats64 *stats)
+{
+	struct usbnet *dev = netdev_priv(net);
+	unsigned int start;
+	int cpu;
+
+	netdev_stats_to_stats64(stats, &net->stats);
+
+	for_each_possible_cpu(cpu) {
+		struct pcpu_sw_netstats *stats64;
+		u64 rx_packets, rx_bytes;
+		u64 tx_packets, tx_bytes;
+
+		stats64 = per_cpu_ptr(dev->stats64, cpu);
+
+		do {
+			start = u64_stats_fetch_begin_irq(&stats64->syncp);
+			rx_packets = stats64->rx_packets;
+			rx_bytes = stats64->rx_bytes;
+			tx_packets = stats64->tx_packets;
+			tx_bytes = stats64->tx_bytes;
+		} while (u64_stats_fetch_retry_irq(&stats64->syncp, start));
+
+		stats->rx_packets += rx_packets;
+		stats->rx_bytes += rx_bytes;
+		stats->tx_packets += tx_packets;
+		stats->tx_bytes += tx_bytes;
+	}
+}
+EXPORT_SYMBOL_GPL(usbnet_get_stats64);
+
 u32 usbnet_get_link (struct net_device *net)
 {
 	struct usbnet *dev = netdev_priv(net);
@@ -1212,8 +1246,12 @@ static void tx_complete (struct urb *urb)
 	struct usbnet		*dev = entry->dev;
 
 	if (urb->status == 0) {
-		dev->net->stats.tx_packets += entry->packets;
-		dev->net->stats.tx_bytes += entry->length;
+		struct pcpu_sw_netstats *stats64 = this_cpu_ptr(dev->stats64);
+
+		u64_stats_update_begin(&stats64->syncp);
+		stats64->tx_packets += entry->packets;
+		stats64->tx_bytes += entry->length;
+		u64_stats_update_end(&stats64->syncp);
 	} else {
 		dev->net->stats.tx_errors++;
 
@@ -1570,6 +1608,7 @@ void usbnet_disconnect (struct usb_interface *intf)
 	usb_free_urb(dev->interrupt);
 	kfree(dev->padding_pkt);
 
+	free_percpu(dev->stats64);
 	free_netdev(net);
 }
 EXPORT_SYMBOL_GPL(usbnet_disconnect);
@@ -1581,6 +1620,7 @@ static const struct net_device_ops usbnet_netdev_ops = {
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_set_rx_mode	= usbnet_set_rx_mode,
 	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -1642,6 +1682,11 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	dev->intf = udev;
 	dev->driver_info = info;
 	dev->driver_name = name;
+
+	dev->stats64 = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+	if (!dev->stats64)
+		goto out0;
+
 	dev->msg_enable = netif_msg_init (msg_level, NETIF_MSG_DRV
 				| NETIF_MSG_PROBE | NETIF_MSG_LINK);
 	init_waitqueue_head(&dev->wait);
@@ -1781,6 +1826,8 @@ out1:
 	 */
 	cancel_work_sync(&dev->kevent);
 	del_timer_sync(&dev->delay);
+	free_percpu(dev->stats64);
+out0:
 	free_netdev(net);
 out:
 	return status;

@@ -3392,6 +3392,7 @@ static const struct net_device_ops rndis_wlan_netdev_ops = {
 	.ndo_stop		= usbnet_stop,
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= rndis_wlan_set_multicast_list,
