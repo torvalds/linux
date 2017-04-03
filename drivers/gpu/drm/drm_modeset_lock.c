@@ -148,19 +148,6 @@ void drm_modeset_unlock_all(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_modeset_unlock_all);
 
-/**
- * drm_modeset_lock_crtc - lock crtc with hidden acquire ctx for a plane update
- * @crtc: DRM CRTC
- * @plane: DRM plane to be updated on @crtc
- *
- * This function locks the given crtc and plane (which should be either the
- * primary or cursor plane) using a hidden acquire context. This is necessary so
- * that drivers internally using the atomic interfaces can grab further locks
- * with the lock acquire context.
- *
- * Note that @plane can be NULL, e.g. when the cursor support hasn't yet been
- * converted to universal planes yet.
- */
 void drm_modeset_lock_crtc(struct drm_crtc *crtc,
 			   struct drm_plane *plane)
 {
@@ -205,7 +192,6 @@ fail:
 		goto retry;
 	}
 }
-EXPORT_SYMBOL(drm_modeset_lock_crtc);
 
 /**
  * drm_modeset_legacy_acquire_ctx - find acquire ctx for legacy ioctls

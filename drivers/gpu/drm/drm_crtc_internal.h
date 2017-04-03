@@ -61,6 +61,9 @@ int drm_mode_getresources(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
 
 
+/* drm_modeset_lock.c */
+void drm_modeset_lock_crtc(struct drm_crtc *crtc,
+			   struct drm_plane *plane);
 /* drm_dumb_buffers.c */
 /* IOCTLs */
 int drm_mode_create_dumb_ioctl(struct drm_device *dev,
