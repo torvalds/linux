@@ -1101,7 +1101,6 @@ static struct hlist_head ftrace_func_hash[FTRACE_FUNC_HASHSIZE] __read_mostly;
 struct ftrace_func_probe {
 	struct hlist_node	node;
 	struct ftrace_probe_ops	*ops;
-	unsigned long		flags;
 	unsigned long		ip;
 	void			*data;
 	struct list_head	free_list;
