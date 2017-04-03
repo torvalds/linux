@@ -267,6 +267,20 @@ static int s35390a_read_alarm(struct i2c_client *client, struct rtc_wkalrm *alm)
 	char buf[3], sts;
 	int i, err;
 
+	/*
+	 * initialize all members to -1 to signal the core that they are not
+	 * defined by the hardware.
+	 */
+	alm->time.tm_sec = -1;
+	alm->time.tm_min = -1;
+	alm->time.tm_hour = -1;
+	alm->time.tm_mday = -1;
+	alm->time.tm_mon = -1;
+	alm->time.tm_year = -1;
+	alm->time.tm_wday = -1;
+	alm->time.tm_yday = -1;
+	alm->time.tm_isdst = -1;
+
 	err = s35390a_get_reg(s35390a, S35390A_CMD_STATUS2, &sts, sizeof(sts));
 	if (err < 0)
 		return err;
