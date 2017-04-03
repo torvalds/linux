@@ -783,8 +783,8 @@ int qed_cxt_cfg_ilt_compute(struct qed_hwfn *p_hwfn)
 
 		qed_ilt_cli_adv_line(p_hwfn, p_cli, p_blk, &curr_line,
 				     ILT_CLI_TM);
-		p_cli->pf_total_lines = curr_line - p_blk->start_line;
 
+		p_cli->vf_total_lines = curr_line - p_blk->start_line;
 		for (i = 1; i < p_mngr->vf_count; i++)
 			qed_ilt_cli_adv_line(p_hwfn, p_cli, p_blk, &curr_line,
 					     ILT_CLI_TM);
