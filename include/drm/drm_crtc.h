@@ -782,15 +782,6 @@ struct drm_crtc {
 	 */
 	spinlock_t commit_lock;
 
-	/**
-	 * @acquire_ctx:
-	 *
-	 * Per-CRTC implicit acquire context used by atomic drivers for legacy
-	 * IOCTLs, so that atomic drivers can get at the locking acquire
-	 * context.
-	 */
-	struct drm_modeset_acquire_ctx *acquire_ctx;
-
 #ifdef CONFIG_DEBUG_FS
 	/**
 	 * @debugfs_entry:

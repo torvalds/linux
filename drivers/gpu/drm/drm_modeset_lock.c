@@ -149,27 +149,6 @@ void drm_modeset_unlock_all(struct drm_device *dev)
 EXPORT_SYMBOL(drm_modeset_unlock_all);
 
 /**
- * drm_modeset_legacy_acquire_ctx - find acquire ctx for legacy ioctls
- * @crtc: drm crtc
- *
- * Legacy ioctl operations like cursor updates or page flips only have per-crtc
- * locking, and store the acquire ctx in the corresponding crtc. All other
- * legacy operations take all locks and use a global acquire context. This
- * function grabs the right one.
- */
-struct drm_modeset_acquire_ctx *
-drm_modeset_legacy_acquire_ctx(struct drm_crtc *crtc)
-{
-	if (crtc->acquire_ctx)
-		return crtc->acquire_ctx;
-
-	WARN_ON(!crtc->dev->mode_config.acquire_ctx);
-
-	return crtc->dev->mode_config.acquire_ctx;
-}
-EXPORT_SYMBOL(drm_modeset_legacy_acquire_ctx);
-
-/**
  * drm_warn_on_modeset_not_all_locked - check that all modeset locks are locked
  * @dev: device
  *

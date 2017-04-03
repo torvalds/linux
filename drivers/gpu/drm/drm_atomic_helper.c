@@ -2975,7 +2975,7 @@ int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
 	if (!state)
 		return -ENOMEM;
 
-	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
 retry:
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(crtc_state)) {

@@ -522,7 +522,7 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
 		goto unlock;
 	}
 
-	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(&crtc->base);
+	state->acquire_ctx = crtc->base.dev->mode_config.acquire_ctx;
 	pipe_config = intel_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(pipe_config)) {
 		ret = PTR_ERR(pipe_config);

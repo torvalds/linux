@@ -10715,7 +10715,7 @@ out_hang:
 		state = drm_atomic_state_alloc(dev);
 		if (!state)
 			return -ENOMEM;
-		state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+		state->acquire_ctx = dev->mode_config.acquire_ctx;
 
 retry:
 		plane_state = drm_atomic_get_plane_state(state, primary);
@@ -13075,7 +13075,7 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 		return;
 	}
 
-	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
 
 retry:
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
