@@ -597,26 +597,26 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
 		id->gws_size != job->gws_size ||
 		id->oa_base != job->oa_base ||
 		id->oa_size != job->oa_size);
+	bool vm_flush_needed = job->vm_needs_flush ||
+		amdgpu_vm_ring_has_compute_vm_bug(ring);
 	unsigned patch_offset = 0;
 	int r;
 
-	if (!job->vm_needs_flush && !gds_switch_needed &&
-	    !amdgpu_vm_had_gpu_reset(adev, id) &&
-	    !amdgpu_vm_ring_has_compute_vm_bug(ring))
-		return 0;
+	if (amdgpu_vm_had_gpu_reset(adev, id)) {
+		gds_switch_needed = true;
+		vm_flush_needed = true;
+	}
 
+	if (!vm_flush_needed && !gds_switch_needed)
+		return 0;
 
 	if (ring->funcs->init_cond_exec)
 		patch_offset = amdgpu_ring_init_cond_exec(ring);
 
-	if (ring->funcs->emit_pipeline_sync &&
-	    (job->vm_needs_flush || gds_switch_needed ||
-	     amdgpu_vm_ring_has_compute_vm_bug(ring)))
+	if (ring->funcs->emit_pipeline_sync)
 		amdgpu_ring_emit_pipeline_sync(ring);
 
-	if (ring->funcs->emit_vm_flush &&
-	    (job->vm_needs_flush || amdgpu_vm_had_gpu_reset(adev, id))) {
-
+	if (ring->funcs->emit_vm_flush && vm_flush_needed) {
 		u64 pd_addr = amdgpu_vm_adjust_mc_addr(adev, job->vm_pd_addr);
 		struct dma_fence *fence;
 
