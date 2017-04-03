@@ -642,7 +642,8 @@ static int st_lsm6dsx_init_device(struct st_lsm6dsx_hw *hw)
 }
 
 static struct iio_dev *st_lsm6dsx_alloc_iiodev(struct st_lsm6dsx_hw *hw,
-					       enum st_lsm6dsx_sensor_id id)
+					       enum st_lsm6dsx_sensor_id id,
+					       const char *name)
 {
 	struct st_lsm6dsx_sensor *sensor;
 	struct iio_dev *iio_dev;
@@ -666,27 +667,30 @@ static struct iio_dev *st_lsm6dsx_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 	case ST_LSM6DSX_ID_ACC:
 		iio_dev->channels = st_lsm6dsx_acc_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsx_acc_channels);
-		iio_dev->name = "lsm6dsx_accel";
 		iio_dev->info = &st_lsm6dsx_acc_info;
 
 		sensor->decimator_mask = ST_LSM6DSX_REG_ACC_DEC_MASK;
+		scnprintf(sensor->name, sizeof(sensor->name), "%s_accel",
+			  name);
 		break;
 	case ST_LSM6DSX_ID_GYRO:
 		iio_dev->channels = st_lsm6dsx_gyro_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsx_gyro_channels);
-		iio_dev->name = "lsm6dsx_gyro";
 		iio_dev->info = &st_lsm6dsx_gyro_info;
 
 		sensor->decimator_mask = ST_LSM6DSX_REG_GYRO_DEC_MASK;
+		scnprintf(sensor->name, sizeof(sensor->name), "%s_gyro",
+			  name);
 		break;
 	default:
 		return NULL;
 	}
+	iio_dev->name = sensor->name;
 
 	return iio_dev;
 }
 
-int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
+int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
 		     const struct st_lsm6dsx_transfer_function *tf_ops)
 {
 	struct st_lsm6dsx_hw *hw;
@@ -710,7 +714,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 		return err;
 
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
-		hw->iio_devs[i] = st_lsm6dsx_alloc_iiodev(hw, i);
+		hw->iio_devs[i] = st_lsm6dsx_alloc_iiodev(hw, i, name);
 		if (!hw->iio_devs[i])
 			return -ENOMEM;
 	}

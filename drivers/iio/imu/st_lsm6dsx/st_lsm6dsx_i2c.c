@@ -61,7 +61,7 @@ static int st_lsm6dsx_i2c_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	return st_lsm6dsx_probe(&client->dev, client->irq,
-				(int)id->driver_data,
+				(int)id->driver_data, id->name,
 				&st_lsm6dsx_transfer_fn);
 }
 

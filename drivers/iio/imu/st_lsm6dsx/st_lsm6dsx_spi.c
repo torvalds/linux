@@ -78,7 +78,7 @@ static int st_lsm6dsx_spi_probe(struct spi_device *spi)
 	const struct spi_device_id *id = spi_get_device_id(spi);
 
 	return st_lsm6dsx_probe(&spi->dev, spi->irq,
-				(int)id->driver_data,
+				(int)id->driver_data, id->name,
 				&st_lsm6dsx_transfer_fn);
 }
 
