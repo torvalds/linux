@@ -1436,7 +1436,7 @@ void usb_hcd_unmap_urb_setup_for_dma(struct usb_hcd *hcd, struct urb *urb)
 {
 	if (IS_ENABLED(CONFIG_HAS_DMA) &&
 	    (urb->transfer_flags & URB_SETUP_MAP_SINGLE))
-		dma_unmap_single(hcd->self.controller,
+		dma_unmap_single(hcd->self.sysdev,
 				urb->setup_dma,
 				sizeof(struct usb_ctrlrequest),
 				DMA_TO_DEVICE);
