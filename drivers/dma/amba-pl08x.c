@@ -206,7 +206,7 @@ struct pl08x_txd {
 };
 
 /**
- * struct pl08x_dma_chan_state - holds the PL08x specific virtual channel
+ * enum pl08x_dma_chan_state - holds the PL08x specific virtual channel
  * states
  * @PL08X_CHAN_IDLE: the channel is idle
  * @PL08X_CHAN_RUNNING: the channel has allocated a physical transport
