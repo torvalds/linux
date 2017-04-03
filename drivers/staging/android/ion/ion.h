@@ -45,7 +45,6 @@ struct ion_buffer;
  * @name:	used for debug purposes
  * @base:	base address of heap in physical memory if applicable
  * @size:	size of the heap in bytes if applicable
- * @align:	required alignment in physical memory if applicable
  * @priv:	private info passed from the board file
  *
  * Provided by the board file.
@@ -93,8 +92,6 @@ void ion_client_destroy(struct ion_client *client);
  * ion_alloc - allocate ion memory
  * @client:		the client
  * @len:		size of the allocation
- * @align:		requested allocation alignment, lots of hardware blocks
- *			have alignment requirements of some kind
  * @heap_id_mask:	mask of heaps to allocate from, if multiple bits are set
  *			heaps will be tried in order from highest to lowest
  *			id
@@ -106,7 +103,7 @@ void ion_client_destroy(struct ion_client *client);
  * an opaque handle to it.
  */
 struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
-			     size_t align, unsigned int heap_id_mask,
+			     unsigned int heap_id_mask,
 			     unsigned int flags);
 
 /**

@@ -34,8 +34,7 @@ struct ion_carveout_heap {
 };
 
 static ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
-					     unsigned long size,
-					     unsigned long align)
+					     unsigned long size)
 {
 	struct ion_carveout_heap *carveout_heap =
 		container_of(heap, struct ion_carveout_heap, heap);
@@ -60,15 +59,12 @@ static void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 
 static int ion_carveout_heap_allocate(struct ion_heap *heap,
 				      struct ion_buffer *buffer,
-				      unsigned long size, unsigned long align,
+				      unsigned long size,
 				      unsigned long flags)
 {
 	struct sg_table *table;
 	ion_phys_addr_t paddr;
 	int ret;
-
-	if (align > PAGE_SIZE)
-		return -EINVAL;
 
 	table = kmalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
@@ -77,7 +73,7 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 	if (ret)
 		goto err_free;
 
-	paddr = ion_carveout_allocate(heap, size, align);
+	paddr = ion_carveout_allocate(heap, size);
 	if (paddr == ION_CARVEOUT_ALLOCATE_FAIL) {
 		ret = -ENOMEM;
 		goto err_free_table;
