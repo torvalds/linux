@@ -1071,15 +1071,15 @@ int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 {
 	struct amdgpu_display_manager *dm = &adev->dm;
 	uint32_t i;
-	struct amdgpu_connector *aconnector;
-	struct amdgpu_encoder *aencoder;
+	struct amdgpu_connector *aconnector = NULL;
+	struct amdgpu_encoder *aencoder = NULL;
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	uint32_t link_cnt;
 
 	link_cnt = dm->dc->caps.max_links;
 	if (amdgpu_dm_mode_config_init(dm->adev)) {
 		DRM_ERROR("DM: Failed to initialize mode config\n");
-		goto fail;
+		return -1;
 	}
 
 	for (i = 0; i < dm->dc->caps.max_surfaces; i++) {
@@ -1116,7 +1116,7 @@ int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 		aconnector = kzalloc(sizeof(*aconnector), GFP_KERNEL);
 		if (!aconnector)
-			goto fail;
+			goto fail_free_planes;
 
 		aencoder = kzalloc(sizeof(*aencoder), GFP_KERNEL);
 		if (!aencoder) {
@@ -1130,7 +1130,7 @@ int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 		if (amdgpu_dm_connector_init(dm, aconnector, i, aencoder)) {
 			DRM_ERROR("KMS: Failed to initialize connector\n");
-			goto fail_free_connector;
+			goto fail_free_encoder;
 		}
 
 		if (dc_link_detect(dc_get_link_at_index(dm->dc, i), true))
@@ -1169,7 +1169,6 @@ fail_free_connector:
 fail_free_planes:
 	for (i = 0; i < dm->dc->caps.max_surfaces; i++)
 		kfree(mode_info->planes[i]);
-fail:
 	return -1;
 }
 
