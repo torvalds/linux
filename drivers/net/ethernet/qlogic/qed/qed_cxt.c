@@ -241,8 +241,7 @@ struct qed_cxt_mngr {
 static bool src_proto(enum protocol_type type)
 {
 	return type == PROTOCOLID_ISCSI ||
-	       type == PROTOCOLID_FCOE ||
-	       type == PROTOCOLID_ROCE;
+	       type == PROTOCOLID_FCOE;
 }
 
 static bool tm_cid_proto(enum protocol_type type)
