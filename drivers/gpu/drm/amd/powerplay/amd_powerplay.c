@@ -493,8 +493,10 @@ static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id,
 	{
 		enum amd_pm_state_type  ps;
 
-		if (input == NULL)
-			return -EINVAL;
+		if (input == NULL) {
+			ret = -EINVAL;
+			break;
+		}
 		ps = *(unsigned long *)input;
 
 		data.requested_ui_label = power_state_convert(ps);
