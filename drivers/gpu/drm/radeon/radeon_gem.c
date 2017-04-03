@@ -120,6 +120,10 @@ static int radeon_gem_set_domain(struct drm_gem_object *gobj,
 			return r;
 		}
 	}
+	if (domain == RADEON_GEM_DOMAIN_VRAM && robj->prime_shared_count) {
+		/* A BO that is associated with a dma-buf cannot be sensibly migrated to VRAM */
+		return -EINVAL;
+	}
 	return 0;
 }
 
