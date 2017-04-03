@@ -927,11 +927,6 @@ static void __init htab_initialize(void)
 	}
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
-	/* On U3 based machines, we need to reserve the DART area and
-	 * _NOT_ map it to avoid cache paradoxes as it's remapped non
-	 * cacheable later on
-	 */
-
 	/* create bolted the linear mapping in the hash table */
 	for_each_memblock(memory, reg) {
 		base = (unsigned long)__va(reg->base);
