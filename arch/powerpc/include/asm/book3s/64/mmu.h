@@ -75,9 +75,15 @@ extern struct patb_entry *partition_tb;
 typedef unsigned long mm_context_id_t;
 struct spinlock;
 
+/* Maximum possible number of NPUs in a system. */
+#define NV_MAX_NPUS 8
+
 typedef struct {
 	mm_context_id_t id;
 	u16 user_psize;		/* page size index */
+
+	/* NPU NMMU context */
+	struct npu_context *npu_context;
 
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 low_slices_psize;	/* SLB page size encodings */
