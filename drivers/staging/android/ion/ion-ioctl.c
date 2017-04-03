@@ -26,7 +26,6 @@ union ion_ioctl_arg {
 	struct ion_fd_data fd;
 	struct ion_allocation_data allocation;
 	struct ion_handle_data handle;
-	struct ion_custom_data custom;
 	struct ion_heap_query query;
 };
 
@@ -52,7 +51,6 @@ static unsigned int ion_ioctl_dir(unsigned int cmd)
 {
 	switch (cmd) {
 	case ION_IOC_FREE:
-	case ION_IOC_CUSTOM:
 		return _IOC_WRITE;
 	default:
 		return _IOC_DIR(cmd);
@@ -62,7 +60,6 @@ static unsigned int ion_ioctl_dir(unsigned int cmd)
 long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct ion_client *client = filp->private_data;
-	struct ion_device *dev = client->dev;
 	struct ion_handle *cleanup_handle = NULL;
 	int ret = 0;
 	unsigned int dir;
@@ -143,14 +140,6 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = PTR_ERR(handle);
 		else
 			data.handle.handle = handle->id;
-		break;
-	}
-	case ION_IOC_CUSTOM:
-	{
-		if (!dev->custom_ioctl)
-			return -ENOTTY;
-		ret = dev->custom_ioctl(client, data.custom.cmd,
-						data.custom.arg);
 		break;
 	}
 	case ION_IOC_HEAP_QUERY:

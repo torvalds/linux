@@ -1347,10 +1347,7 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 }
 EXPORT_SYMBOL(ion_device_add_heap);
 
-struct ion_device *ion_device_create(long (*custom_ioctl)
-				     (struct ion_client *client,
-				      unsigned int cmd,
-				      unsigned long arg))
+struct ion_device *ion_device_create(void)
 {
 	struct ion_device *idev;
 	int ret;
@@ -1387,7 +1384,6 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 
 debugfs_done:
 
-	idev->custom_ioctl = custom_ioctl;
 	idev->buffers = RB_ROOT;
 	mutex_init(&idev->buffer_lock);
 	init_rwsem(&idev->lock);

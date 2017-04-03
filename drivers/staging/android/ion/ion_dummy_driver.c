@@ -67,7 +67,7 @@ static int __init ion_dummy_init(void)
 {
 	int i, err;
 
-	idev = ion_device_create(NULL);
+	idev = ion_device_create();
 	if (IS_ERR(idev))
 		return PTR_ERR(idev);
 	heaps = kcalloc(dummy_ion_pdata.nr, sizeof(struct ion_heap *),

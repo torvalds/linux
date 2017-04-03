@@ -115,19 +115,6 @@ struct ion_handle_data {
 	ion_user_handle_t handle;
 };
 
-/**
- * struct ion_custom_data - metadata passed to/from userspace for a custom ioctl
- * @cmd:	the custom ioctl function to call
- * @arg:	additional data to pass to the custom ioctl, typically a user
- *		pointer to a predefined structure
- *
- * This works just like the regular cmd and arg fields of an ioctl.
- */
-struct ion_custom_data {
-	unsigned int cmd;
-	unsigned long arg;
-};
-
 #define MAX_HEAP_NAME			32
 
 /**
@@ -205,14 +192,6 @@ struct ion_heap_query {
  * filed set to the corresponding opaque handle.
  */
 #define ION_IOC_IMPORT		_IOWR(ION_IOC_MAGIC, 5, struct ion_fd_data)
-
-/**
- * DOC: ION_IOC_CUSTOM - call architecture specific ion ioctl
- *
- * Takes the argument of the architecture specific ioctl to call and
- * passes appropriate userdata for that ioctl
- */
-#define ION_IOC_CUSTOM		_IOWR(ION_IOC_MAGIC, 6, struct ion_custom_data)
 
 /**
  * DOC: ION_IOC_HEAP_QUERY - information about available heaps
