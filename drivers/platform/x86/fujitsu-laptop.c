@@ -219,16 +219,16 @@ static u32 dbg_level = 0x03;
 
 static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 {
-	acpi_status status = AE_OK;
 	union acpi_object params[4] = {
-	{ .type = ACPI_TYPE_INTEGER },
-	{ .type = ACPI_TYPE_INTEGER },
-	{ .type = ACPI_TYPE_INTEGER },
-	{ .type = ACPI_TYPE_INTEGER }
+		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = cmd },
+		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = arg0 },
+		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = arg1 },
+		{ .integer.type = ACPI_TYPE_INTEGER, .integer.value = arg2 }
 	};
-	struct acpi_object_list arg_list = { 4, &params[0] };
+	struct acpi_object_list arg_list = { 4, params };
 	unsigned long long value;
-	acpi_handle handle = NULL;
+	acpi_status status;
+	acpi_handle handle;
 
 	status = acpi_get_handle(fujitsu_laptop->acpi_handle, "FUNC", &handle);
 	if (ACPI_FAILURE(status)) {
@@ -236,11 +236,6 @@ static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 				"FUNC interface is not present\n");
 		return -ENODEV;
 	}
-
-	params[0].integer.value = cmd;
-	params[1].integer.value = arg0;
-	params[2].integer.value = arg1;
-	params[3].integer.value = arg2;
 
 	status = acpi_evaluate_integer(handle, NULL, &arg_list, &value);
 	if (ACPI_FAILURE(status)) {
