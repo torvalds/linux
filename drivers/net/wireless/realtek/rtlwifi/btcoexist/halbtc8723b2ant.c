@@ -1134,6 +1134,7 @@ static void btc8723b2ant_ps_tdma(struct btc_coexist *btcoexist, bool force_exec,
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	struct btc_bt_link_info *bt_link_info = &btcoexist->bt_link_info;
+	s8 wifi_duration_adjust = 0x0;
 	u8 tdma_byte4_modify = 0x0;
 
 	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
@@ -1154,6 +1155,36 @@ static void btc8723b2ant_ps_tdma(struct btc_coexist *btcoexist, bool force_exec,
 		if ((coex_dm->pre_ps_tdma_on == coex_dm->cur_ps_tdma_on) &&
 		    (coex_dm->pre_ps_tdma == coex_dm->cur_ps_tdma))
 			return;
+	}
+
+	if (coex_sta->scan_ap_num <= 5) {
+		if (coex_sta->a2dp_bit_pool >= 45)
+			wifi_duration_adjust = -15;
+		else if (coex_sta->a2dp_bit_pool >= 35)
+			wifi_duration_adjust = -10;
+		else
+			wifi_duration_adjust = 5;
+	} else if (coex_sta->scan_ap_num <= 20) {
+		if (coex_sta->a2dp_bit_pool >= 45)
+			wifi_duration_adjust = -15;
+		else if (coex_sta->a2dp_bit_pool >= 35)
+			wifi_duration_adjust = -10;
+		else
+			wifi_duration_adjust = 0;
+	} else if (coex_sta->scan_ap_num <= 40) {
+		if (coex_sta->a2dp_bit_pool >= 45)
+			wifi_duration_adjust = -15;
+		else if (coex_sta->a2dp_bit_pool >= 35)
+			wifi_duration_adjust = -10;
+		else
+			wifi_duration_adjust = -5;
+	} else {
+		if (coex_sta->a2dp_bit_pool >= 45)
+			wifi_duration_adjust = -15;
+		else if (coex_sta->a2dp_bit_pool >= 35)
+			wifi_duration_adjust = -10;
+		else
+			wifi_duration_adjust = -10;
 	}
 
 	if ((bt_link_info->slave_role) && (bt_link_info->a2dp_exist))
@@ -1204,8 +1235,9 @@ static void btc8723b2ant_ps_tdma(struct btc_coexist *btcoexist, bool force_exec,
 						    0x90 | tdma_byte4_modify);
 			break;
 		case 9:
-			btc8723b2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x1a,
-						    0x1a, 0xe1, 0x90);
+			btc8723b2ant_set_fw_ps_tdma(
+				btcoexist, 0xe3, 0x3c + wifi_duration_adjust,
+				0x03, 0xf1, 0x90 | tdma_byte4_modify);
 			break;
 		case 10:
 			btc8723b2ant_set_fw_ps_tdma(
@@ -1247,8 +1279,8 @@ static void btc8723b2ant_ps_tdma(struct btc_coexist *btcoexist, bool force_exec,
 						    0x2f, 0x60, 0x90);
 			break;
 		case 18:
-			btc8723b2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x5,
-						    0x5, 0xe1, 0x90);
+			btc8723b2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x5, 0x5,
+						    0xe1, 0x90);
 			break;
 		case 19:
 			btc8723b2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x25,
@@ -1263,8 +1295,25 @@ static void btc8723b2ant_ps_tdma(struct btc_coexist *btcoexist, bool force_exec,
 						    0x03, 0x70, 0x90);
 			break;
 		case 71:
-			btc8723b2ant_set_fw_ps_tdma(btcoexist, 0xe3, 0x1a,
-						    0x1a, 0xe1, 0x90);
+			btc8723b2ant_set_fw_ps_tdma(
+				btcoexist, 0xe3, 0x3c + wifi_duration_adjust,
+				0x03, 0xf1, 0x90);
+			break;
+		case 101:
+		case 105:
+		case 113:
+		case 171:
+			btc8723b2ant_set_fw_ps_tdma(
+				btcoexist, 0xd3, 0x3a + wifi_duration_adjust,
+				0x03, 0x70, 0x50 | tdma_byte4_modify);
+			break;
+		case 102:
+		case 106:
+		case 110:
+		case 114:
+			btc8723b2ant_set_fw_ps_tdma(
+				btcoexist, 0xd3, 0x2d + wifi_duration_adjust,
+				0x03, 0x70, 0x50 | tdma_byte4_modify);
 			break;
 		}
 	} else {
@@ -1732,7 +1781,6 @@ static void btc8723b2ant_action_hid(struct btc_coexist *btcoexist)
 	else
 		/* for HID quality & wifi performance balance at 11n mode */
 		btc8723b2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 9);
-
 
 	if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
 	    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH))
@@ -2448,7 +2496,6 @@ void ex_btc8723b2ant_display_coex_info(struct btc_coexist *btcoexist)
 		 ((wifi_traffic_dir == BTC_WIFI_TRAFFIC_TX) ?
 		  "uplink" : "downlink")));
 
-
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "\r\n %-35s = %d / %d / %d / %d",
 		 "SCO/HID/PAN/A2DP",
 		 bt_link_info->sco_exist, bt_link_info->hid_exist,
@@ -2636,6 +2683,8 @@ void ex_btc8723b2ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
 	else if (BTC_SCAN_FINISH == type)
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], SCAN FINISH notify\n");
+	btcoexist->btc_get(btcoexist, BTC_GET_U1_AP_NUM,
+			   &coex_sta->scan_ap_num);
 }
 
 void ex_btc8723b2ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
@@ -2746,8 +2795,11 @@ void ex_btc8723b2ant_bt_info_notify(struct btc_coexist *btcoexist,
 		coex_sta->bt_rssi =
 			coex_sta->bt_info_c2h[rsp_source][3] * 2 + 10;
 
-		coex_sta->bt_info_ext =
-			coex_sta->bt_info_c2h[rsp_source][4];
+		if (coex_sta->bt_info_c2h[rsp_source][1] == 0x49)
+			coex_sta->a2dp_bit_pool =
+				coex_sta->bt_info_c2h[rsp_source][6];
+		else
+			coex_sta->a2dp_bit_pool = 0;
 
 		/* Here we need to resend some wifi info to BT
 		 * because BT is reset and loss of the info.
