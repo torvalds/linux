@@ -459,6 +459,7 @@ struct btc_bt_link_info {
 	bool hid_only;
 	bool pan_exist;
 	bool pan_only;
+	bool slave_role;
 };
 
 enum btc_antenna_pos {
