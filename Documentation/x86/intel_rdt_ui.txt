@@ -129,6 +129,20 @@ schemata format is always:
 
 	L2:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
 
+Reading/writing the schemata file
+---------------------------------
+Reading the schemata file will show the state of all resources
+on all domains. When writing you only need to specify those values
+which you wish to change.  E.g.
+
+# cat schemata
+L3DATA:0=fffff;1=fffff;2=fffff;3=fffff
+L3CODE:0=fffff;1=fffff;2=fffff;3=fffff
+# echo "L3DATA:2=3c0;" > schemata
+# cat schemata
+L3DATA:0=fffff;1=fffff;2=3c0;3=fffff
+L3CODE:0=fffff;1=fffff;2=fffff;3=fffff
+
 Example 1
 ---------
 On a two socket machine (one L3 cache per socket) with just four bits

@@ -56,17 +56,21 @@ static bool cbm_validate(unsigned long var, struct rdt_resource *r)
  * Read one cache bit mask (hex). Check that it is valid for the current
  * resource type.
  */
-static int parse_cbm(char *buf, struct rdt_resource *r)
+static int parse_cbm(char *buf, struct rdt_resource *r, struct rdt_domain *d)
 {
 	unsigned long data;
 	int ret;
+
+	if (d->have_new_cbm)
+		return -EINVAL;
 
 	ret = kstrtoul(buf, 16, &data);
 	if (ret)
 		return ret;
 	if (!cbm_validate(data, r))
 		return -EINVAL;
-	r->tmp_cbms[r->num_tmp_cbms++] = data;
+	d->new_cbm = data;
+	d->have_new_cbm = true;
 
 	return 0;
 }
@@ -74,8 +78,8 @@ static int parse_cbm(char *buf, struct rdt_resource *r)
 /*
  * For each domain in this resource we expect to find a series of:
  *	id=mask
- * separated by ";". The "id" is in decimal, and must appear in the
- * right order.
+ * separated by ";". The "id" is in decimal, and must match one of
+ * the "id"s for this resource.
  */
 static int parse_line(char *line, struct rdt_resource *r)
 {
@@ -83,21 +87,21 @@ static int parse_line(char *line, struct rdt_resource *r)
 	struct rdt_domain *d;
 	unsigned long dom_id;
 
-	list_for_each_entry(d, &r->domains, list) {
-		dom = strsep(&line, ";");
-		if (!dom)
-			return -EINVAL;
-		id = strsep(&dom, "=");
-		if (kstrtoul(id, 10, &dom_id) || dom_id != d->id)
-			return -EINVAL;
-		if (parse_cbm(dom, r))
-			return -EINVAL;
-	}
-
-	/* Any garbage at the end of the line? */
-	if (line && line[0])
+next:
+	if (!line || line[0] == '\0')
+		return 0;
+	dom = strsep(&line, ";");
+	id = strsep(&dom, "=");
+	if (!dom || kstrtoul(id, 10, &dom_id))
 		return -EINVAL;
-	return 0;
+	list_for_each_entry(d, &r->domains, list) {
+		if (d->id == dom_id) {
+			if (parse_cbm(dom, r, d))
+				return -EINVAL;
+			goto next;
+		}
+	}
+	return -EINVAL;
 }
 
 static int update_domains(struct rdt_resource *r, int closid)
@@ -105,7 +109,7 @@ static int update_domains(struct rdt_resource *r, int closid)
 	struct msr_param msr_param;
 	cpumask_var_t cpu_mask;
 	struct rdt_domain *d;
-	int cpu, idx = 0;
+	int cpu;
 
 	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL))
 		return -ENOMEM;
@@ -115,9 +119,13 @@ static int update_domains(struct rdt_resource *r, int closid)
 	msr_param.res = r;
 
 	list_for_each_entry(d, &r->domains, list) {
-		cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
-		d->cbm[msr_param.low] = r->tmp_cbms[idx++];
+		if (d->have_new_cbm && d->new_cbm != d->cbm[closid]) {
+			cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
+			d->cbm[closid] = d->new_cbm;
+		}
 	}
+	if (cpumask_empty(cpu_mask))
+		goto done;
 	cpu = get_cpu();
 	/* Update CBM on this cpu if it's in cpu_mask. */
 	if (cpumask_test_cpu(cpu, cpu_mask))
@@ -126,6 +134,7 @@ static int update_domains(struct rdt_resource *r, int closid)
 	smp_call_function_many(cpu_mask, rdt_cbm_update, &msr_param, 1);
 	put_cpu();
 
+done:
 	free_cpumask_var(cpu_mask);
 
 	return 0;
@@ -135,10 +144,10 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 				char *buf, size_t nbytes, loff_t off)
 {
 	struct rdtgroup *rdtgrp;
+	struct rdt_domain *dom;
 	struct rdt_resource *r;
 	char *tok, *resname;
 	int closid, ret = 0;
-	u32 *l3_cbms = NULL;
 
 	/* Valid input requires a trailing newline */
 	if (nbytes == 0 || buf[nbytes - 1] != '\n')
@@ -153,16 +162,9 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 
 	closid = rdtgrp->closid;
 
-	/* get scratch space to save all the masks while we validate input */
-	for_each_enabled_rdt_resource(r) {
-		r->tmp_cbms = kcalloc(r->num_domains, sizeof(*l3_cbms),
-				      GFP_KERNEL);
-		if (!r->tmp_cbms) {
-			ret = -ENOMEM;
-			goto out;
-		}
-		r->num_tmp_cbms = 0;
-	}
+	for_each_enabled_rdt_resource(r)
+		list_for_each_entry(dom, &r->domains, list)
+			dom->have_new_cbm = false;
 
 	while ((tok = strsep(&buf, "\n")) != NULL) {
 		resname = strsep(&tok, ":");
@@ -185,14 +187,6 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 		}
 	}
 
-	/* Did the parser find all the masks we need? */
-	for_each_enabled_rdt_resource(r) {
-		if (r->num_tmp_cbms != r->num_domains) {
-			ret = -EINVAL;
-			goto out;
-		}
-	}
-
 	for_each_enabled_rdt_resource(r) {
 		ret = update_domains(r, closid);
 		if (ret)
@@ -201,10 +195,6 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 
 out:
 	rdtgroup_kn_unlock(of->kn);
-	for_each_enabled_rdt_resource(r) {
-		kfree(r->tmp_cbms);
-		r->tmp_cbms = NULL;
-	}
 	return ret ?: nbytes;
 }
 
