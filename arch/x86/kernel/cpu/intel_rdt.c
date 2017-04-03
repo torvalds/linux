@@ -39,6 +39,12 @@ DEFINE_PER_CPU_READ_MOSTLY(int, cpu_closid);
 
 #define domain_init(id) LIST_HEAD_INIT(rdt_resources_all[id].domains)
 
+/*
+ * Used to store the max resource name width and max resource data width
+ * to display the schemata in a tabular format
+ */
+int max_name_width, max_data_width;
+
 struct rdt_resource rdt_resources_all[] = {
 	{
 		.name		= "L3",
@@ -140,6 +146,7 @@ static void rdt_get_config(int idx, struct rdt_resource *r)
 	r->num_closid = edx.split.cos_max + 1;
 	r->cbm_len = eax.split.cbm_len + 1;
 	r->max_cbm = BIT_MASK(eax.split.cbm_len + 1) - 1;
+	r->data_width = (r->cbm_len + 3) / 4;
 	r->capable = true;
 	r->enabled = true;
 }
@@ -152,12 +159,33 @@ static void rdt_get_cdp_l3_config(int type)
 	r->num_closid = r_l3->num_closid / 2;
 	r->cbm_len = r_l3->cbm_len;
 	r->max_cbm = r_l3->max_cbm;
+	r->data_width = (r->cbm_len + 3) / 4;
 	r->capable = true;
 	/*
 	 * By default, CDP is disabled. CDP can be enabled by mount parameter
 	 * "cdp" during resctrl file system mount time.
 	 */
 	r->enabled = false;
+}
+
+/**
+ * Choose a width for the resource name
+ * and resource data based on the resource that has
+ * widest name and cbm.
+ */
+static void rdt_init_padding(void)
+{
+	struct rdt_resource *r;
+	int cl;
+
+	for_each_enabled_rdt_resource(r) {
+		cl = strlen(r->name);
+		if (cl > max_name_width)
+			max_name_width = cl;
+
+		if (r->data_width > max_data_width)
+			max_data_width = r->data_width;
+	}
 }
 
 static inline bool get_rdt_resources(void)
@@ -183,6 +211,8 @@ static inline bool get_rdt_resources(void)
 		rdt_get_config(2, &rdt_resources_all[RDT_RESOURCE_L2]);
 		ret = true;
 	}
+
+	rdt_init_padding();
 
 	return ret;
 }

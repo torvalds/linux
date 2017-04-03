@@ -40,6 +40,8 @@ struct rdtgroup {
 /* List of all resource groups */
 extern struct list_head rdt_all_groups;
 
+extern int max_name_width, max_data_width;
+
 int __init rdtgroup_init(void);
 
 /**
@@ -73,6 +75,7 @@ struct rftype {
  * @name:			Name to use in "schemata" file
  * @num_closid:			Number of CLOSIDs available
  * @max_cbm:			Largest Cache Bit Mask allowed
+ * @data_width:		Character width of data when displaying
  * @min_cbm_bits:		Minimum number of consecutive bits to be set
  *				in a cache bit mask
  * @domains:			All domains for this resource
@@ -90,6 +93,7 @@ struct rdt_resource {
 	int			cbm_len;
 	int			min_cbm_bits;
 	u32			max_cbm;
+	int			data_width;
 	struct list_head	domains;
 	int			msr_base;
 	int			cache_level;

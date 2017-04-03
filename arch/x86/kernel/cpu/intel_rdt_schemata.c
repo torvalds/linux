@@ -203,11 +203,12 @@ static void show_doms(struct seq_file *s, struct rdt_resource *r, int closid)
 	struct rdt_domain *dom;
 	bool sep = false;
 
-	seq_printf(s, "%s:", r->name);
+	seq_printf(s, "%*s:", max_name_width, r->name);
 	list_for_each_entry(dom, &r->domains, list) {
 		if (sep)
 			seq_puts(s, ";");
-		seq_printf(s, "%d=%x", dom->id, dom->cbm[closid]);
+		seq_printf(s, "%d=%0*x", dom->id, max_data_width,
+			   dom->cbm[closid]);
 		sep = true;
 	}
 	seq_puts(s, "\n");
