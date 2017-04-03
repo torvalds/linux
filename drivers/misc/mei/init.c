@@ -124,8 +124,6 @@ int mei_reset(struct mei_device *dev)
 
 	mei_clear_interrupts(dev);
 
-	mei_synchronize_irq(dev);
-
 	/* we're already in reset, cancel the init timer
 	 * if the reset was called due the hbm protocol error
 	 * we need to call it before hw start
@@ -304,6 +302,9 @@ static void mei_reset_work(struct work_struct *work)
 		container_of(work, struct mei_device,  reset_work);
 	int ret;
 
+	mei_clear_interrupts(dev);
+	mei_synchronize_irq(dev);
+
 	mutex_lock(&dev->device_lock);
 
 	ret = mei_reset(dev);
@@ -327,6 +328,9 @@ void mei_stop(struct mei_device *dev)
 	mei_cl_bus_remove_devices(dev);
 
 	mei_cancel_work(dev);
+
+	mei_clear_interrupts(dev);
+	mei_synchronize_irq(dev);
 
 	mutex_lock(&dev->device_lock);
 

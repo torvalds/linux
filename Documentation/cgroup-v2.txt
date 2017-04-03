@@ -1142,16 +1142,17 @@ used by the kernel.
 
   pids.max
 
- A read-write single value file which exists on non-root cgroups.  The
- default is "max".
+	A read-write single value file which exists on non-root
+	cgroups.  The default is "max".
 
- Hard limit of number of processes.
+	Hard limit of number of processes.
 
   pids.current
 
- A read-only single value file which exists on all cgroups.
+	A read-only single value file which exists on all cgroups.
 
- The number of processes currently in the cgroup and its descendants.
+	The number of processes currently in the cgroup and its
+	descendants.
 
 Organisational operations are not blocked by cgroup policies, so it is
 possible to have pids.current > pids.max.  This can be done by either

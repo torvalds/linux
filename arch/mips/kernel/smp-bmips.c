@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/sched/hotplug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/smp.h>

@@ -53,6 +53,14 @@ static struct render_mmio gen8_render_mmio_list[] = {
 	{RCS, _MMIO(0x24d4), 0, false},
 	{RCS, _MMIO(0x24d8), 0, false},
 	{RCS, _MMIO(0x24dc), 0, false},
+	{RCS, _MMIO(0x24e0), 0, false},
+	{RCS, _MMIO(0x24e4), 0, false},
+	{RCS, _MMIO(0x24e8), 0, false},
+	{RCS, _MMIO(0x24ec), 0, false},
+	{RCS, _MMIO(0x24f0), 0, false},
+	{RCS, _MMIO(0x24f4), 0, false},
+	{RCS, _MMIO(0x24f8), 0, false},
+	{RCS, _MMIO(0x24fc), 0, false},
 	{RCS, _MMIO(0x7004), 0xffff, true},
 	{RCS, _MMIO(0x7008), 0xffff, true},
 	{RCS, _MMIO(0x7000), 0xffff, true},
@@ -76,6 +84,14 @@ static struct render_mmio gen9_render_mmio_list[] = {
 	{RCS, _MMIO(0x24d4), 0, false},
 	{RCS, _MMIO(0x24d8), 0, false},
 	{RCS, _MMIO(0x24dc), 0, false},
+	{RCS, _MMIO(0x24e0), 0, false},
+	{RCS, _MMIO(0x24e4), 0, false},
+	{RCS, _MMIO(0x24e8), 0, false},
+	{RCS, _MMIO(0x24ec), 0, false},
+	{RCS, _MMIO(0x24f0), 0, false},
+	{RCS, _MMIO(0x24f4), 0, false},
+	{RCS, _MMIO(0x24f8), 0, false},
+	{RCS, _MMIO(0x24fc), 0, false},
 	{RCS, _MMIO(0x7004), 0xffff, true},
 	{RCS, _MMIO(0x7008), 0xffff, true},
 	{RCS, _MMIO(0x7000), 0xffff, true},
@@ -151,7 +167,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	I915_WRITE_FW(reg, 0x1);
 
 	if (wait_for_atomic((I915_READ_FW(reg) == 0), 50))
-		gvt_err("timeout in invalidate ring (%d) tlb\n", ring_id);
+		gvt_vgpu_err("timeout in invalidate ring (%d) tlb\n", ring_id);
 	else
 		vgpu_vreg(vgpu, regs[ring_id]) = 0;
 
@@ -191,7 +207,7 @@ static void load_mocs(struct intel_vgpu *vgpu, int ring_id)
 		l3_offset.reg = 0xb020;
 		for (i = 0; i < 32; i++) {
 			gen9_render_mocs_L3[i] = I915_READ(l3_offset);
-			I915_WRITE(l3_offset, vgpu_vreg(vgpu, offset));
+			I915_WRITE(l3_offset, vgpu_vreg(vgpu, l3_offset));
 			POSTING_READ(l3_offset);
 			l3_offset.reg += 4;
 		}

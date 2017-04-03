@@ -783,8 +783,10 @@ static int ctrl_dumpfamily(struct sk_buff *skb, struct netlink_callback *cb)
 
 		if (ctrl_fill_info(rt, NETLINK_CB(cb->skb).portid,
 				   cb->nlh->nlmsg_seq, NLM_F_MULTI,
-				   skb, CTRL_CMD_NEWFAMILY) < 0)
+				   skb, CTRL_CMD_NEWFAMILY) < 0) {
+			n--;
 			break;
+		}
 	}
 
 	cb->args[0] = n;

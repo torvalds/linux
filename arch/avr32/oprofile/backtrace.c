@@ -14,7 +14,7 @@
  */
 
 #include <linux/oprofile.h>
-#include <linux/sched.h>
+#include <linux/ptrace.h>
 #include <linux/uaccess.h>
 
 /* The first two words of each frame on the stack look like this if we have

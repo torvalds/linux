@@ -1714,7 +1714,8 @@ static int __process_pages_contig(struct address_space *mapping,
 			 * can we find nothing at @index.
 			 */
 			ASSERT(page_ops & PAGE_LOCK);
-			return ret;
+			err = -EAGAIN;
+			goto out;
 		}
 
 		for (i = 0; i < ret; i++) {
@@ -2583,26 +2584,36 @@ static void end_bio_extent_readpage(struct bio *bio)
 
 		if (tree->ops) {
 			ret = tree->ops->readpage_io_failed_hook(page, mirror);
-			if (!ret && !bio->bi_error)
-				uptodate = 1;
-		} else {
-			/*
-			 * The generic bio_readpage_error handles errors the
-			 * following way: If possible, new read requests are
-			 * created and submitted and will end up in
-			 * end_bio_extent_readpage as well (if we're lucky, not
-			 * in the !uptodate case). In that case it returns 0 and
-			 * we just go on with the next page in our bio. If it
-			 * can't handle the error it will return -EIO and we
-			 * remain responsible for that page.
-			 */
-			ret = bio_readpage_error(bio, offset, page, start, end,
-						 mirror);
-			if (ret == 0) {
-				uptodate = !bio->bi_error;
-				offset += len;
-				continue;
+			if (ret == -EAGAIN) {
+				/*
+				 * Data inode's readpage_io_failed_hook() always
+				 * returns -EAGAIN.
+				 *
+				 * The generic bio_readpage_error handles errors
+				 * the following way: If possible, new read
+				 * requests are created and submitted and will
+				 * end up in end_bio_extent_readpage as well (if
+				 * we're lucky, not in the !uptodate case). In
+				 * that case it returns 0 and we just go on with
+				 * the next page in our bio. If it can't handle
+				 * the error it will return -EIO and we remain
+				 * responsible for that page.
+				 */
+				ret = bio_readpage_error(bio, offset, page,
+							 start, end, mirror);
+				if (ret == 0) {
+					uptodate = !bio->bi_error;
+					offset += len;
+					continue;
+				}
 			}
+
+			/*
+			 * metadata's readpage_io_failed_hook() always returns
+			 * -EIO and fixes nothing.  -EIO is also returned if
+			 * data inode error could not be fixed.
+			 */
+			ASSERT(ret == -EIO);
 		}
 readpage_ok:
 		if (likely(uptodate)) {

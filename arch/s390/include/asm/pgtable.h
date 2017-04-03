@@ -24,6 +24,7 @@
  * the S390 page table tree.
  */
 #ifndef __ASSEMBLY__
+#include <asm-generic/5level-fixup.h>
 #include <linux/sched.h>
 #include <linux/mm_types.h>
 #include <linux/page-flags.h>

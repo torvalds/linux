@@ -809,7 +809,8 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
 		if (kn->flags & KERNFS_HAS_MMAP)
 			unmap_mapping_range(inode->i_mapping, 0, 0, 1);
 
-		kernfs_release_file(kn, of);
+		if (kn->flags & KERNFS_HAS_RELEASE)
+			kernfs_release_file(kn, of);
 	}
 
 	mutex_unlock(&kernfs_open_file_mutex);

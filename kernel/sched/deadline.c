@@ -445,13 +445,13 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se,
  *
  * This function returns true if:
  *
- *   runtime / (deadline - t) > dl_runtime / dl_period ,
+ *   runtime / (deadline - t) > dl_runtime / dl_deadline ,
  *
  * IOW we can't recycle current parameters.
  *
- * Notice that the bandwidth check is done against the period. For
+ * Notice that the bandwidth check is done against the deadline. For
  * task with deadline equal to period this is the same of using
- * dl_deadline instead of dl_period in the equation above.
+ * dl_period instead of dl_deadline in the equation above.
  */
 static bool dl_entity_overflow(struct sched_dl_entity *dl_se,
 			       struct sched_dl_entity *pi_se, u64 t)
@@ -476,7 +476,7 @@ static bool dl_entity_overflow(struct sched_dl_entity *dl_se,
 	 * of anything below microseconds resolution is actually fiction
 	 * (but still we want to give the user that illusion >;).
 	 */
-	left = (pi_se->dl_period >> DL_SCALE) * (dl_se->runtime >> DL_SCALE);
+	left = (pi_se->dl_deadline >> DL_SCALE) * (dl_se->runtime >> DL_SCALE);
 	right = ((dl_se->deadline - t) >> DL_SCALE) *
 		(pi_se->dl_runtime >> DL_SCALE);
 
@@ -505,10 +505,15 @@ static void update_dl_entity(struct sched_dl_entity *dl_se,
 	}
 }
 
+static inline u64 dl_next_period(struct sched_dl_entity *dl_se)
+{
+	return dl_se->deadline - dl_se->dl_deadline + dl_se->dl_period;
+}
+
 /*
  * If the entity depleted all its runtime, and if we want it to sleep
  * while waiting for some new execution time to become available, we
- * set the bandwidth enforcement timer to the replenishment instant
+ * set the bandwidth replenishment timer to the replenishment instant
  * and try to activate it.
  *
  * Notice that it is important for the caller to know if the timer
@@ -530,7 +535,7 @@ static int start_dl_timer(struct task_struct *p)
 	 * that it is actually coming from rq->clock and not from
 	 * hrtimer's time base reading.
 	 */
-	act = ns_to_ktime(dl_se->deadline);
+	act = ns_to_ktime(dl_next_period(dl_se));
 	now = hrtimer_cb_get_time(timer);
 	delta = ktime_to_ns(now) - rq_clock(rq);
 	act = ktime_add_ns(act, delta);
@@ -638,6 +643,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 		lockdep_unpin_lock(&rq->lock, rf.cookie);
 		rq = dl_task_offline_migration(rq, p);
 		rf.cookie = lockdep_pin_lock(&rq->lock);
+		update_rq_clock(rq);
 
 		/*
 		 * Now that the task has been migrated to the new RQ and we
@@ -687,6 +693,37 @@ void init_dl_task_timer(struct sched_dl_entity *dl_se)
 
 	hrtimer_init(timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	timer->function = dl_task_timer;
+}
+
+/*
+ * During the activation, CBS checks if it can reuse the current task's
+ * runtime and period. If the deadline of the task is in the past, CBS
+ * cannot use the runtime, and so it replenishes the task. This rule
+ * works fine for implicit deadline tasks (deadline == period), and the
+ * CBS was designed for implicit deadline tasks. However, a task with
+ * constrained deadline (deadine < period) might be awakened after the
+ * deadline, but before the next period. In this case, replenishing the
+ * task would allow it to run for runtime / deadline. As in this case
+ * deadline < period, CBS enables a task to run for more than the
+ * runtime / period. In a very loaded system, this can cause a domino
+ * effect, making other tasks miss their deadlines.
+ *
+ * To avoid this problem, in the activation of a constrained deadline
+ * task after the deadline but before the next period, throttle the
+ * task and set the replenishing timer to the begin of the next period,
+ * unless it is boosted.
+ */
+static inline void dl_check_constrained_dl(struct sched_dl_entity *dl_se)
+{
+	struct task_struct *p = dl_task_of(dl_se);
+	struct rq *rq = rq_of_dl_rq(dl_rq_of_se(dl_se));
+
+	if (dl_time_before(dl_se->deadline, rq_clock(rq)) &&
+	    dl_time_before(rq_clock(rq), dl_next_period(dl_se))) {
+		if (unlikely(dl_se->dl_boosted || !start_dl_timer(p)))
+			return;
+		dl_se->dl_throttled = 1;
+	}
 }
 
 static
@@ -922,6 +959,11 @@ static void dequeue_dl_entity(struct sched_dl_entity *dl_se)
 	__dequeue_dl_entity(dl_se);
 }
 
+static inline bool dl_is_constrained(struct sched_dl_entity *dl_se)
+{
+	return dl_se->dl_deadline < dl_se->dl_period;
+}
+
 static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct task_struct *pi_task = rt_mutex_get_top_task(p);
@@ -946,6 +988,15 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 		BUG_ON(!p->dl.dl_boosted || flags != ENQUEUE_REPLENISH);
 		return;
 	}
+
+	/*
+	 * Check if a constrained deadline task was activated
+	 * after the deadline but before the next period.
+	 * If that is the case, the task will be throttled and
+	 * the replenishment timer will be set to the next period.
+	 */
+	if (!p->dl.dl_throttled && dl_is_constrained(&p->dl))
+		dl_check_constrained_dl(&p->dl);
 
 	/*
 	 * If p is throttled, we do nothing. In fact, if it exhausted

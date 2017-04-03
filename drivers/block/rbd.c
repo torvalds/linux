@@ -120,10 +120,11 @@ static int atomic_dec_return_safe(atomic_t *v)
 
 /* Feature bits */
 
-#define RBD_FEATURE_LAYERING	(1<<0)
-#define RBD_FEATURE_STRIPINGV2	(1<<1)
-#define RBD_FEATURE_EXCLUSIVE_LOCK (1<<2)
-#define RBD_FEATURE_DATA_POOL (1<<7)
+#define RBD_FEATURE_LAYERING		(1ULL<<0)
+#define RBD_FEATURE_STRIPINGV2		(1ULL<<1)
+#define RBD_FEATURE_EXCLUSIVE_LOCK	(1ULL<<2)
+#define RBD_FEATURE_DATA_POOL		(1ULL<<7)
+
 #define RBD_FEATURES_ALL	(RBD_FEATURE_LAYERING |		\
 				 RBD_FEATURE_STRIPINGV2 |	\
 				 RBD_FEATURE_EXCLUSIVE_LOCK |	\
@@ -499,16 +500,23 @@ static bool rbd_is_lock_owner(struct rbd_device *rbd_dev)
 	return is_lock_owner;
 }
 
+static ssize_t rbd_supported_features_show(struct bus_type *bus, char *buf)
+{
+	return sprintf(buf, "0x%llx\n", RBD_FEATURES_SUPPORTED);
+}
+
 static BUS_ATTR(add, S_IWUSR, NULL, rbd_add);
 static BUS_ATTR(remove, S_IWUSR, NULL, rbd_remove);
 static BUS_ATTR(add_single_major, S_IWUSR, NULL, rbd_add_single_major);
 static BUS_ATTR(remove_single_major, S_IWUSR, NULL, rbd_remove_single_major);
+static BUS_ATTR(supported_features, S_IRUGO, rbd_supported_features_show, NULL);
 
 static struct attribute *rbd_bus_attrs[] = {
 	&bus_attr_add.attr,
 	&bus_attr_remove.attr,
 	&bus_attr_add_single_major.attr,
 	&bus_attr_remove_single_major.attr,
+	&bus_attr_supported_features.attr,
 	NULL,
 };
 

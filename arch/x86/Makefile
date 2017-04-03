@@ -120,10 +120,6 @@ else
         # -funit-at-a-time shrinks the kernel .text considerably
         # unfortunately it makes reading oopses harder.
         KBUILD_CFLAGS += $(call cc-option,-funit-at-a-time)
-
-        # this works around some issues with generating unwind tables in older gccs
-        # newer gccs do it by default
-        KBUILD_CFLAGS += $(call cc-option,-maccumulate-outgoing-args)
 endif
 
 ifdef CONFIG_X86_X32
@@ -145,6 +141,37 @@ export CONFIG_X86_X32_ABI
 # Don't unroll struct assignments with kmemcheck enabled
 ifeq ($(CONFIG_KMEMCHECK),y)
 	KBUILD_CFLAGS += $(call cc-option,-fno-builtin-memcpy)
+endif
+
+#
+# If the function graph tracer is used with mcount instead of fentry,
+# '-maccumulate-outgoing-args' is needed to prevent a GCC bug
+# (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=42109)
+#
+ifdef CONFIG_FUNCTION_GRAPH_TRACER
+  ifndef CONFIG_HAVE_FENTRY
+	ACCUMULATE_OUTGOING_ARGS := 1
+  else
+    ifeq ($(call cc-option-yn, -mfentry), n)
+	ACCUMULATE_OUTGOING_ARGS := 1
+    endif
+  endif
+endif
+
+#
+# Jump labels need '-maccumulate-outgoing-args' for gcc < 4.5.2 to prevent a
+# GCC bug (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=46226).  There's no way
+# to test for this bug at compile-time because the test case needs to execute,
+# which is a no-go for cross compilers.  So check the GCC version instead.
+#
+ifdef CONFIG_JUMP_LABEL
+  ifneq ($(ACCUMULATE_OUTGOING_ARGS), 1)
+	ACCUMULATE_OUTGOING_ARGS = $(call cc-if-fullversion, -lt, 040502, 1)
+  endif
+endif
+
+ifeq ($(ACCUMULATE_OUTGOING_ARGS), 1)
+	KBUILD_CFLAGS += -maccumulate-outgoing-args
 endif
 
 # Stackpointer is addressed different for 32 bit and 64 bit x86

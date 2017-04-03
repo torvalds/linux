@@ -1601,6 +1601,14 @@ static void __maybe_unused its_enable_quirk_cavium_23144(void *data)
 	its->flags |= ITS_FLAGS_WORKAROUND_CAVIUM_23144;
 }
 
+static void __maybe_unused its_enable_quirk_qdf2400_e0065(void *data)
+{
+	struct its_node *its = data;
+
+	/* On QDF2400, the size of the ITE is 16Bytes */
+	its->ite_size = 16;
+}
+
 static const struct gic_quirk its_quirks[] = {
 #ifdef CONFIG_CAVIUM_ERRATUM_22375
 	{
@@ -1616,6 +1624,14 @@ static const struct gic_quirk its_quirks[] = {
 		.iidr	= 0xa100034c,	/* ThunderX pass 1.x */
 		.mask	= 0xffff0fff,
 		.init	= its_enable_quirk_cavium_23144,
+	},
+#endif
+#ifdef CONFIG_QCOM_QDF2400_ERRATUM_0065
+	{
+		.desc	= "ITS: QDF2400 erratum 0065",
+		.iidr	= 0x00001070, /* QDF2400 ITS rev 1.x */
+		.mask	= 0xffffffff,
+		.init	= its_enable_quirk_qdf2400_e0065,
 	},
 #endif
 	{
