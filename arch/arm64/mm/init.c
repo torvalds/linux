@@ -134,8 +134,33 @@ static void __init reserve_crashkernel(void)
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
 }
+
+static void __init kexec_reserve_crashkres_pages(void)
+{
+#ifdef CONFIG_HIBERNATION
+	phys_addr_t addr;
+	struct page *page;
+
+	if (!crashk_res.end)
+		return;
+
+	/*
+	 * To reduce the size of hibernation image, all the pages are
+	 * marked as Reserved initially.
+	 */
+	for (addr = crashk_res.start; addr < (crashk_res.end + 1);
+			addr += PAGE_SIZE) {
+		page = phys_to_page(addr);
+		SetPageReserved(page);
+	}
+#endif
+}
 #else
 static void __init reserve_crashkernel(void)
+{
+}
+
+static void __init kexec_reserve_crashkres_pages(void)
 {
 }
 #endif /* CONFIG_KEXEC_CORE */
@@ -516,6 +541,8 @@ void __init mem_init(void)
 #endif
 	/* this will put all unused low memory onto the freelists */
 	free_all_bootmem();
+
+	kexec_reserve_crashkres_pages();
 
 	mem_init_print_info(NULL);
 
