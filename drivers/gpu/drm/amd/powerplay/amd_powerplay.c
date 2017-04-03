@@ -539,15 +539,19 @@ static enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 	switch (state->classification.ui_label) {
 	case PP_StateUILabel_Battery:
 		pm_type = POWER_STATE_TYPE_BATTERY;
+		break;
 	case PP_StateUILabel_Balanced:
 		pm_type = POWER_STATE_TYPE_BALANCED;
+		break;
 	case PP_StateUILabel_Performance:
 		pm_type = POWER_STATE_TYPE_PERFORMANCE;
+		break;
 	default:
 		if (state->classification.flags & PP_StateClassificationFlag_Boot)
 			pm_type = POWER_STATE_TYPE_INTERNAL_BOOT;
 		else
 			pm_type = POWER_STATE_TYPE_DEFAULT;
+		break;
 	}
 	mutex_unlock(&pp_handle->pp_lock);
 
