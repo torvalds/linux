@@ -848,8 +848,10 @@ int qed_resc_alloc(struct qed_dev *cdev)
 #ifdef CONFIG_QED_LL2
 	struct qed_ll2_info *p_ll2_info;
 #endif
+	u32 rdma_tasks, excess_tasks;
 	struct qed_consq *p_consq;
 	struct qed_eq *p_eq;
+	u32 line_count;
 	int i, rc = 0;
 
 	if (IS_VF(cdev))
@@ -871,7 +873,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		/* Set the HW cid/tid numbers (in the contest manager)
 		 * Must be done prior to any further computations.
 		 */
-		rc = qed_cxt_set_pf_params(p_hwfn);
+		rc = qed_cxt_set_pf_params(p_hwfn, RDMA_MAX_TIDS);
 		if (rc)
 			goto alloc_err;
 
@@ -883,9 +885,32 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		qed_init_qm_info(p_hwfn);
 
 		/* Compute the ILT client partition */
-		rc = qed_cxt_cfg_ilt_compute(p_hwfn);
-		if (rc)
-			goto alloc_err;
+		rc = qed_cxt_cfg_ilt_compute(p_hwfn, &line_count);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "too many ILT lines; re-computing with less lines\n");
+			/* In case there are not enough ILT lines we reduce the
+			 * number of RDMA tasks and re-compute.
+			 */
+			excess_tasks =
+			    qed_cxt_cfg_ilt_compute_excess(p_hwfn, line_count);
+			if (!excess_tasks)
+				goto alloc_err;
+
+			rdma_tasks = RDMA_MAX_TIDS - excess_tasks;
+			rc = qed_cxt_set_pf_params(p_hwfn, rdma_tasks);
+			if (rc)
+				goto alloc_err;
+
+			rc = qed_cxt_cfg_ilt_compute(p_hwfn, &line_count);
+			if (rc) {
+				DP_ERR(p_hwfn,
+				       "failed ILT compute. Requested too many lines: %u\n",
+				       line_count);
+
+				goto alloc_err;
+			}
+		}
 
 		/* CID map / ILT shadow table / T2
 		 * The talbes sizes are determined by the computations above

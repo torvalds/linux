@@ -263,7 +263,6 @@ struct qed_rdma_pf_params {
 	 * the doorbell BAR).
 	 */
 	u32 min_dpis;		/* number of requested DPIs */
-	u32 num_mrs;		/* number of requested memory regions */
 	u32 num_qps;		/* number of requested Queue Pairs */
 	u32 num_srqs;		/* number of requested SRQ */
 	u8 roce_edpm_mode;	/* see QED_ROCE_EDPM_MODE_ENABLE */
