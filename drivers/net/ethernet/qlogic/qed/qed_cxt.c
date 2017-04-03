@@ -303,16 +303,34 @@ struct qed_tm_iids {
 	u32 per_vf_tids;
 };
 
-static void qed_cxt_tm_iids(struct qed_cxt_mngr *p_mngr,
+static void qed_cxt_tm_iids(struct qed_hwfn *p_hwfn,
+			    struct qed_cxt_mngr *p_mngr,
 			    struct qed_tm_iids *iids)
 {
-	u32 i, j;
+	bool tm_vf_required = false;
+	bool tm_required = false;
+	int i, j;
 
-	for (i = 0; i < MAX_CONN_TYPES; i++) {
+	/* Timers is a special case -> we don't count how many cids require
+	 * timers but what's the max cid that will be used by the timer block.
+	 * therefore we traverse in reverse order, and once we hit a protocol
+	 * that requires the timers memory, we'll sum all the protocols up
+	 * to that one.
+	 */
+	for (i = MAX_CONN_TYPES - 1; i >= 0; i--) {
 		struct qed_conn_type_cfg *p_cfg = &p_mngr->conn_cfg[i];
 
-		if (tm_cid_proto(i)) {
+		if (tm_cid_proto(i) || tm_required) {
+			if (p_cfg->cid_count)
+				tm_required = true;
+
 			iids->pf_cids += p_cfg->cid_count;
+		}
+
+		if (tm_cid_proto(i) || tm_vf_required) {
+			if (p_cfg->cids_per_vf)
+				tm_vf_required = true;
+
 			iids->per_vf_cids += p_cfg->cids_per_vf;
 		}
 
@@ -744,7 +762,7 @@ int qed_cxt_cfg_ilt_compute(struct qed_hwfn *p_hwfn)
 
 	/* TM PF */
 	p_cli = &p_mngr->clients[ILT_CLI_TM];
-	qed_cxt_tm_iids(p_mngr, &tm_iids);
+	qed_cxt_tm_iids(p_hwfn, p_mngr, &tm_iids);
 	total = tm_iids.pf_cids + tm_iids.pf_tids_total;
 	if (total) {
 		p_blk = &p_cli->pf_blks[0];
@@ -1632,7 +1650,7 @@ static void qed_tm_init_pf(struct qed_hwfn *p_hwfn)
 	u8 i;
 
 	memset(&tm_iids, 0, sizeof(tm_iids));
-	qed_cxt_tm_iids(p_mngr, &tm_iids);
+	qed_cxt_tm_iids(p_hwfn, p_mngr, &tm_iids);
 
 	/* @@@TBD No pre-scan for now */
 
