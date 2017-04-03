@@ -36,7 +36,7 @@
  * passed in x0.
  *
  * A function pointer with a value less than 0xfff has a special meaning,
- * and is used to implement __hyp_get_vectors in the same way as in
+ * and is used to implement hyp stubs in the same way as in
  * arch/arm64/kernel/hyp_stub.S.
  */
 ENTRY(__kvm_call_hyp)

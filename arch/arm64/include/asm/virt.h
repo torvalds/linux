@@ -29,28 +29,25 @@
  * indirection of a function call (as implemented in hyp-stub.S).
  */
 
-/* HVC_GET_VECTORS - Return the value of the vbar_el2 register. */
-#define HVC_GET_VECTORS 0
-
 /*
  * HVC_SET_VECTORS - Set the value of the vbar_el2 register.
  *
  * @x1: Physical address of the new vector table.
  */
-#define HVC_SET_VECTORS 1
+#define HVC_SET_VECTORS 0
 
 /*
  * HVC_SOFT_RESTART - CPU soft reset, used by the cpu_soft_restart routine.
  */
-#define HVC_SOFT_RESTART 2
+#define HVC_SOFT_RESTART 1
 
 /*
  * HVC_RESET_VECTORS - Restore the vectors to the original HYP stubs
  */
-#define HVC_RESET_VECTORS 3
+#define HVC_RESET_VECTORS 2
 
 /* Max number of HYP stub hypercalls */
-#define HVC_STUB_HCALL_NR 4
+#define HVC_STUB_HCALL_NR 3
 
 /* Error returned when an invalid stub number is passed into x0 */
 #define HVC_STUB_ERR	0xbadca11
@@ -77,7 +74,6 @@
 extern u32 __boot_cpu_mode[2];
 
 void __hyp_set_vectors(phys_addr_t phys_vector_base);
-phys_addr_t __hyp_get_vectors(void);
 void __hyp_reset_vectors(void);
 
 /* Reports the availability of HYP mode */
