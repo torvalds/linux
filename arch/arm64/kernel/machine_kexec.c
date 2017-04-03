@@ -9,6 +9,9 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
 #include <linux/kexec.h>
 #include <linux/page-flags.h>
 #include <linux/smp.h>
@@ -143,11 +146,15 @@ void machine_kexec(struct kimage *kimage)
 {
 	phys_addr_t reboot_code_buffer_phys;
 	void *reboot_code_buffer;
+	bool in_kexec_crash = (kimage == kexec_crash_image);
+	bool stuck_cpus = cpus_are_stuck_in_kernel();
 
 	/*
 	 * New cpus may have become stuck_in_kernel after we loaded the image.
 	 */
-	BUG_ON(cpus_are_stuck_in_kernel() || (num_online_cpus() > 1));
+	BUG_ON(!in_kexec_crash && (stuck_cpus || (num_online_cpus() > 1)));
+	WARN(in_kexec_crash && (stuck_cpus || smp_crash_stop_failed()),
+		"Some CPUs may be stale, kdump will be unreliable.\n");
 
 	reboot_code_buffer_phys = page_to_phys(kimage->control_code_page);
 	reboot_code_buffer = phys_to_virt(reboot_code_buffer_phys);
@@ -199,15 +206,58 @@ void machine_kexec(struct kimage *kimage)
 	 * relocation is complete.
 	 */
 
-	cpu_soft_restart(1, reboot_code_buffer_phys, kimage->head,
-		kimage->start, 0);
+	cpu_soft_restart(kimage != kexec_crash_image,
+		reboot_code_buffer_phys, kimage->head, kimage->start, 0);
 
 	BUG(); /* Should never get here. */
 }
 
+static void machine_kexec_mask_interrupts(void)
+{
+	unsigned int i;
+	struct irq_desc *desc;
+
+	for_each_irq_desc(i, desc) {
+		struct irq_chip *chip;
+		int ret;
+
+		chip = irq_desc_get_chip(desc);
+		if (!chip)
+			continue;
+
+		/*
+		 * First try to remove the active state. If this
+		 * fails, try to EOI the interrupt.
+		 */
+		ret = irq_set_irqchip_state(i, IRQCHIP_STATE_ACTIVE, false);
+
+		if (ret && irqd_irq_inprogress(&desc->irq_data) &&
+		    chip->irq_eoi)
+			chip->irq_eoi(&desc->irq_data);
+
+		if (chip->irq_mask)
+			chip->irq_mask(&desc->irq_data);
+
+		if (chip->irq_disable && !irqd_irq_disabled(&desc->irq_data))
+			chip->irq_disable(&desc->irq_data);
+	}
+}
+
+/**
+ * machine_crash_shutdown - shutdown non-crashing cpus and save registers
+ */
 void machine_crash_shutdown(struct pt_regs *regs)
 {
-	/* Empty routine needed to avoid build errors. */
+	local_irq_disable();
+
+	/* shutdown non-crashing cpus */
+	smp_send_crash_stop();
+
+	/* for crashing cpu */
+	crash_save_cpu(regs, smp_processor_id());
+	machine_kexec_mask_interrupts();
+
+	pr_info("Starting crashdump kernel...\n");
 }
 
 void arch_kexec_protect_crashkres(void)
