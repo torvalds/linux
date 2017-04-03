@@ -3076,6 +3076,11 @@ static void snd_soc_component_cleanup(struct snd_soc_component *component)
 
 static void snd_soc_component_del_unlocked(struct snd_soc_component *component)
 {
+	struct snd_soc_card *card = component->card;
+
+	if (card)
+		snd_soc_unregister_card(card);
+
 	list_del(&component->list);
 }
 
