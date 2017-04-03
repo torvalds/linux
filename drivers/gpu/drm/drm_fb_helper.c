@@ -418,16 +418,11 @@ backoff:
 	goto retry;
 }
 
-static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
+static int restore_fbdev_mode_legacy(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_plane *plane;
 	int i;
-
-	drm_warn_on_modeset_not_all_locked(dev);
-
-	if (drm_drv_uses_atomic_modeset(dev))
-		return restore_fbdev_mode_atomic(fb_helper);
 
 	drm_for_each_plane(plane, dev) {
 		if (plane->type != DRM_PLANE_TYPE_PRIMARY)
@@ -460,6 +455,18 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 	}
 
 	return 0;
+}
+
+static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
+{
+	struct drm_device *dev = fb_helper->dev;
+
+	drm_warn_on_modeset_not_all_locked(dev);
+
+	if (drm_drv_uses_atomic_modeset(dev))
+		return restore_fbdev_mode_atomic(fb_helper);
+	else
+		return restore_fbdev_mode_legacy(fb_helper);
 }
 
 /**
@@ -1513,33 +1520,13 @@ backoff:
 	goto retry;
 }
 
-/**
- * drm_fb_helper_pan_display - implementation for &fb_ops.fb_pan_display
- * @var: updated screen information
- * @info: fbdev registered by the helper
- */
-int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
+static int pan_display_legacy(struct fb_var_screeninfo *var,
 			      struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_device *dev = fb_helper->dev;
 	struct drm_mode_set *modeset;
 	int ret = 0;
 	int i;
-
-	if (oops_in_progress)
-		return -EBUSY;
-
-	drm_modeset_lock_all(dev);
-	if (!drm_fb_helper_is_bound(fb_helper)) {
-		drm_modeset_unlock_all(dev);
-		return -EBUSY;
-	}
-
-	if (drm_drv_uses_atomic_modeset(dev)) {
-		ret = pan_display_atomic(var, info);
-		goto unlock;
-	}
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		modeset = &fb_helper->crtc_info[i].mode_set;
@@ -1555,8 +1542,37 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 			}
 		}
 	}
-unlock:
+
+	return ret;
+}
+
+/**
+ * drm_fb_helper_pan_display - implementation for &fb_ops.fb_pan_display
+ * @var: updated screen information
+ * @info: fbdev registered by the helper
+ */
+int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
+			      struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct drm_device *dev = fb_helper->dev;
+	int ret;
+
+	if (oops_in_progress)
+		return -EBUSY;
+
+	drm_modeset_lock_all(dev);
+	if (!drm_fb_helper_is_bound(fb_helper)) {
+		drm_modeset_unlock_all(dev);
+		return -EBUSY;
+	}
+
+	if (drm_drv_uses_atomic_modeset(dev))
+		ret = pan_display_atomic(var, info);
+	else
+		ret = pan_display_legacy(var, info);
 	drm_modeset_unlock_all(dev);
+
 	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
