@@ -149,6 +149,16 @@ struct coex_sta_8723b_2ant {
 	u8 bt_retry_cnt;
 	u8 bt_info_ext;
 	u32 pop_event_cnt;
+
+	u32 crc_ok_cck;
+	u32 crc_ok_11g;
+	u32 crc_ok_11n;
+	u32 crc_ok_11n_agg;
+
+	u32 crc_err_cck;
+	u32 crc_err_11g;
+	u32 crc_err_11n;
+	u32 crc_err_11n_agg;
 };
 
 /*********************************************************************
