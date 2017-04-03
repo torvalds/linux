@@ -435,7 +435,7 @@ int opal_machine_check(struct pt_regs *regs)
 		       evt.version);
 		return 0;
 	}
-	machine_check_print_event_info(&evt);
+	machine_check_print_event_info(&evt, user_mode(regs));
 
 	if (opal_recover_mce(regs, &evt))
 		return 1;
