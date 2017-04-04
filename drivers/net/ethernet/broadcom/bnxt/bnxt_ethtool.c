@@ -210,6 +210,10 @@ static int bnxt_get_sset_count(struct net_device *dev, int sset)
 
 		return num_stats;
 	}
+	case ETH_SS_TEST:
+		if (!bp->num_tests)
+			return -EOPNOTSUPP;
+		return bp->num_tests;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -306,6 +310,11 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 				buf += ETH_GSTRING_LEN;
 			}
 		}
+		break;
+	case ETH_SS_TEST:
+		if (bp->num_tests)
+			memcpy(buf, bp->test_info->string,
+			       bp->num_tests * ETH_GSTRING_LEN);
 		break;
 	default:
 		netdev_err(bp->dev, "bnxt_get_strings invalid request %x\n",
@@ -825,7 +834,7 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 			sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
 	info->n_stats = BNXT_NUM_STATS * bp->cp_nr_rings;
-	info->testinfo_len = BNXT_NUM_TESTS(bp);
+	info->testinfo_len = bp->num_tests;
 	/* TODO CHIMP_FW: eeprom dump details */
 	info->eedump_len = 0;
 	/* TODO CHIMP FW: reg dump details */
@@ -2168,6 +2177,130 @@ static int bnxt_set_phys_id(struct net_device *dev,
 	return rc;
 }
 
+static int bnxt_run_fw_tests(struct bnxt *bp, u8 test_mask, u8 *test_results)
+{
+	struct hwrm_selftest_exec_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_selftest_exec_input req = {0};
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_SELFTEST_EXEC, -1, -1);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	resp->test_success = 0;
+	req.flags = test_mask;
+	rc = _hwrm_send_message(bp, &req, sizeof(req), bp->test_info->timeout);
+	*test_results = resp->test_success;
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+#define BNXT_DRV_TESTS			0
+
+static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
+			   u64 *buf)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	bool offline = false;
+	u8 test_results = 0;
+	u8 test_mask = 0;
+	int rc, i;
+
+	if (!bp->num_tests || !BNXT_SINGLE_PF(bp))
+		return;
+	memset(buf, 0, sizeof(u64) * bp->num_tests);
+	if (!netif_running(dev)) {
+		etest->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
+
+	if (etest->flags & ETH_TEST_FL_OFFLINE) {
+		if (bp->pf.active_vfs) {
+			etest->flags |= ETH_TEST_FL_FAILED;
+			netdev_warn(dev, "Offline tests cannot be run with active VFs\n");
+			return;
+		}
+		offline = true;
+	}
+
+	for (i = 0; i < bp->num_tests - BNXT_DRV_TESTS; i++) {
+		u8 bit_val = 1 << i;
+
+		if (!(bp->test_info->offline_mask & bit_val))
+			test_mask |= bit_val;
+		else if (offline)
+			test_mask |= bit_val;
+	}
+	if (!offline) {
+		bnxt_run_fw_tests(bp, test_mask, &test_results);
+	} else {
+		rc = bnxt_close_nic(bp, false, false);
+		if (rc)
+			return;
+		bnxt_run_fw_tests(bp, test_mask, &test_results);
+		bnxt_open_nic(bp, false, true);
+	}
+	for (i = 0; i < bp->num_tests - BNXT_DRV_TESTS; i++) {
+		u8 bit_val = 1 << i;
+
+		if ((test_mask & bit_val) && !(test_results & bit_val)) {
+			buf[i] = 1;
+			etest->flags |= ETH_TEST_FL_FAILED;
+		}
+	}
+}
+
+void bnxt_ethtool_init(struct bnxt *bp)
+{
+	struct hwrm_selftest_qlist_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_selftest_qlist_input req = {0};
+	struct bnxt_test_info *test_info;
+	int i, rc;
+
+	if (bp->hwrm_spec_code < 0x10704 || !BNXT_SINGLE_PF(bp))
+		return;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_SELFTEST_QLIST, -1, -1);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		goto ethtool_init_exit;
+
+	test_info = kzalloc(sizeof(*bp->test_info), GFP_KERNEL);
+	if (!test_info)
+		goto ethtool_init_exit;
+
+	bp->test_info = test_info;
+	bp->num_tests = resp->num_tests + BNXT_DRV_TESTS;
+	if (bp->num_tests > BNXT_MAX_TEST)
+		bp->num_tests = BNXT_MAX_TEST;
+
+	test_info->offline_mask = resp->offline_tests;
+	test_info->timeout = le16_to_cpu(resp->test_timeout);
+	if (!test_info->timeout)
+		test_info->timeout = HWRM_CMD_TIMEOUT;
+	for (i = 0; i < bp->num_tests; i++) {
+		char *str = test_info->string[i];
+		char *fw_str = resp->test0_name + i * 32;
+
+		strlcpy(str, fw_str, ETH_GSTRING_LEN);
+		strncat(str, " test", ETH_GSTRING_LEN - strlen(str));
+		if (test_info->offline_mask & (1 << i))
+			strncat(str, " (offline)",
+				ETH_GSTRING_LEN - strlen(str));
+		else
+			strncat(str, " (online)",
+				ETH_GSTRING_LEN - strlen(str));
+	}
+
+ethtool_init_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+}
+
+void bnxt_ethtool_free(struct bnxt *bp)
+{
+	kfree(bp->test_info);
+	bp->test_info = NULL;
+}
+
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_link_ksettings	= bnxt_get_link_ksettings,
 	.set_link_ksettings	= bnxt_set_link_ksettings,
@@ -2203,4 +2336,5 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_module_eeprom	= bnxt_get_module_eeprom,
 	.nway_reset		= bnxt_nway_reset,
 	.set_phys_id		= bnxt_set_phys_id,
+	.self_test		= bnxt_self_test,
 };
