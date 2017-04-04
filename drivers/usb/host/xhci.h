@@ -1657,6 +1657,9 @@ struct xhci_hcd {
 #define XHCI_SSIC_PORT_UNUSED	(1 << 22)
 #define XHCI_NO_64BIT_SUPPORT	(1 << 23)
 #define XHCI_MISSING_CAS	(1 << 24)
+/* For controller with a broken Port Disable implementation */
+#define XHCI_BROKEN_PORT_PED	(1 << 25)
+
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */
