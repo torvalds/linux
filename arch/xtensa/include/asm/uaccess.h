@@ -245,7 +245,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 static inline unsigned long
 raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	prefetchw(from);
+	prefetch(from);
 	return __xtensa_copy_user((__force void *)to, from, n);
 }
 #define INLINE_COPY_FROM_USER
