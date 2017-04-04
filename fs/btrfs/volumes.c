@@ -1013,13 +1013,12 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		q = bdev_get_queue(bdev);
 		if (blk_queue_discard(q))
 			device->can_discard = 1;
+		if (!blk_queue_nonrot(q))
+			fs_devices->rotating = 1;
 
 		device->bdev = bdev;
 		device->in_fs_metadata = 0;
 		device->mode = flags;
-
-		if (!blk_queue_nonrot(bdev_get_queue(bdev)))
-			fs_devices->rotating = 1;
 
 		fs_devices->open_devices++;
 		if (device->writeable &&
@@ -2422,7 +2421,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	fs_info->free_chunk_space += device->total_bytes;
 	spin_unlock(&fs_info->free_chunk_lock);
 
-	if (!blk_queue_nonrot(bdev_get_queue(bdev)))
+	if (!blk_queue_nonrot(q))
 		fs_info->fs_devices->rotating = 1;
 
 	tmp = btrfs_super_total_bytes(fs_info->super_copy);
