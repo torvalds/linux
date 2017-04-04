@@ -41,6 +41,13 @@ static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
 #define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
 #endif
 
+static int __section(.data) __nokaslr;
+
+int __pure nokaslr(void)
+{
+	return __nokaslr;
+}
+
 struct file_info {
 	efi_file_handle_t *handle;
 	u64 size;
@@ -313,9 +320,13 @@ void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
  * environments, first in the early boot environment of the EFI boot
  * stub, and subsequently during the kernel boot.
  */
-efi_status_t efi_parse_options(char *cmdline)
+efi_status_t efi_parse_options(char const *cmdline)
 {
 	char *str;
+
+	str = strstr(cmdline, "nokaslr");
+	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
+		__nokaslr = 1;
 
 	/*
 	 * If no EFI parameters were specified on the cmdline we've got
