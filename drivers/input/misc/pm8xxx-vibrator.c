@@ -14,6 +14,7 @@
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -26,6 +27,9 @@
 #define MAX_FF_SPEED		0xff
 
 struct pm8xxx_regs {
+	unsigned int enable_addr;
+	unsigned int enable_mask;
+
 	unsigned int drv_addr;
 	unsigned int drv_mask;
 	unsigned int drv_shift;
@@ -82,7 +86,12 @@ static int pm8xxx_vib_set(struct pm8xxx_vib *vib, bool on)
 		return rc;
 
 	vib->reg_vib_drv = val;
-	return 0;
+
+	if (regs->enable_mask)
+		rc = regmap_update_bits(vib->regmap, regs->enable_addr,
+					on ? regs->enable_mask : 0, val);
+
+	return rc;
 }
 
 /**
