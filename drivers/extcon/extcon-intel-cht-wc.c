@@ -64,6 +64,9 @@
 #define CHT_WC_PWRSRC_ID_GND		BIT(3)
 #define CHT_WC_PWRSRC_ID_FLOAT		BIT(4)
 
+#define CHT_WC_VBUS_GPIO_CTLO		0x6e2d
+#define CHT_WC_VBUS_GPIO_CTLO_OUTPUT	BIT(0)
+
 enum cht_wc_usb_id {
 	USB_ID_OTG,
 	USB_ID_GND,
@@ -168,6 +171,23 @@ static void cht_wc_extcon_set_phymux(struct cht_wc_extcon_data *ext, u8 state)
 	ret = regmap_write(ext->regmap, CHT_WC_PHYCTRL, state);
 	if (ret)
 		dev_err(ext->dev, "Error writing phyctrl: %d\n", ret);
+}
+
+static void cht_wc_extcon_set_5v_boost(struct cht_wc_extcon_data *ext,
+				       bool enable)
+{
+	int ret, val;
+
+	val = enable ? CHT_WC_VBUS_GPIO_CTLO_OUTPUT : 0;
+
+	/*
+	 * The 5V boost converter is enabled through a gpio on the PMIC, since
+	 * there currently is no gpio driver we access the gpio reg directly.
+	 */
+	ret = regmap_update_bits(ext->regmap, CHT_WC_VBUS_GPIO_CTLO,
+				 CHT_WC_VBUS_GPIO_CTLO_OUTPUT, val);
+	if (ret)
+		dev_err(ext->dev, "Error writing Vbus GPIO CTLO: %d\n", ret);
 }
 
 /* Small helper to sync EXTCON_CHG_USB_SDP and EXTCON_USB state */
@@ -279,6 +299,21 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 	ext->edev = devm_extcon_dev_allocate(ext->dev, cht_wc_extcon_cables);
 	if (IS_ERR(ext->edev))
 		return PTR_ERR(ext->edev);
+
+	/*
+	 * When a host-cable is detected the BIOS enables an external 5v boost
+	 * converter to power connected devices there are 2 problems with this:
+	 * 1) This gets seen by the external battery charger as a valid Vbus
+	 *    supply and it then tries to feed Vsys from this creating a
+	 *    feedback loop which causes aprox. 300 mA extra battery drain
+	 *    (and unless we drive the external-charger-disable pin high it
+	 *    also tries to charge the battery causing even more feedback).
+	 * 2) This gets seen by the pwrsrc block as a SDP USB Vbus supply
+	 * Since the external battery charger has its own 5v boost converter
+	 * which does not have these issues, we simply turn the separate
+	 * external 5v boost converter off and leave it off entirely.
+	 */
+	cht_wc_extcon_set_5v_boost(ext, false);
 
 	/* Enable sw control */
 	ret = cht_wc_extcon_sw_control(ext, true);
