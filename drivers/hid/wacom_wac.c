@@ -2896,6 +2896,9 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 {
 	struct wacom_features *features = &wacom_wac->features;
 
+	if ((features->type == HID_GENERIC) && features->numbered_buttons > 0)
+		features->device_type |= WACOM_DEVICETYPE_PAD;
+
 	if (!(features->device_type & WACOM_DEVICETYPE_PAD))
 		return -ENODEV;
 
