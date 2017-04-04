@@ -22,7 +22,7 @@
 #define DRV_NAME "cs5535-clockevt"
 
 static int timer_irq;
-module_param_named(irq, timer_irq, int, 0644);
+module_param_hw_named(irq, timer_irq, int, irq, 0644);
 MODULE_PARM_DESC(irq, "Which IRQ to use for the clock source MFGPT ticks.");
 
 /*
