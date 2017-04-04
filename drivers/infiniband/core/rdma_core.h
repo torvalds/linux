@@ -52,4 +52,19 @@
 void uverbs_cleanup_ucontext(struct ib_ucontext *ucontext, bool device_removed);
 void uverbs_initialize_ucontext(struct ib_ucontext *ucontext);
 
+/*
+ * uverbs_uobject_get is called in order to increase the reference count on
+ * an uobject. This is useful when a handler wants to keep the uobject's memory
+ * alive, regardless if this uobject is still alive in the context's objects
+ * repository. Objects are put via uverbs_uobject_put.
+ */
+void uverbs_uobject_get(struct ib_uobject *uobject);
+
+/*
+ * In order to indicate we no longer needs this uobject, uverbs_uobject_put
+ * is called. When the reference count is decreased, the uobject is freed.
+ * For example, this is used when attaching a completion channel to a CQ.
+ */
+void uverbs_uobject_put(struct ib_uobject *uobject);
+
 #endif /* RDMA_CORE_H */

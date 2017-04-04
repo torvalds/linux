@@ -52,6 +52,7 @@
 
 #include "uverbs.h"
 #include "core_priv.h"
+#include "rdma_core.h"
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand userspace verbs access");
@@ -214,140 +215,11 @@ void ib_uverbs_detach_umcast(struct ib_qp *qp,
 }
 
 static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
-				      struct ib_ucontext *context)
+				      struct ib_ucontext *context,
+				      bool device_removed)
 {
-	struct ib_uobject *uobj, *tmp;
-
 	context->closing = 1;
-
-	list_for_each_entry_safe(uobj, tmp, &context->ah_list, list) {
-		struct ib_ah *ah = uobj->object;
-
-		idr_remove_uobj(uobj);
-		ib_destroy_ah(ah);
-		ib_rdmacg_uncharge(&uobj->cg_obj, context->device,
-				   RDMACG_RESOURCE_HCA_OBJECT);
-		kfree(uobj);
-	}
-
-	/* Remove MWs before QPs, in order to support type 2A MWs. */
-	list_for_each_entry_safe(uobj, tmp, &context->mw_list, list) {
-		struct ib_mw *mw = uobj->object;
-
-		idr_remove_uobj(uobj);
-		uverbs_dealloc_mw(mw);
-		ib_rdmacg_uncharge(&uobj->cg_obj, context->device,
-				   RDMACG_RESOURCE_HCA_OBJECT);
-		kfree(uobj);
-	}
-
-	list_for_each_entry_safe(uobj, tmp, &context->rule_list, list) {
-		struct ib_flow *flow_id = uobj->object;
-
-		idr_remove_uobj(uobj);
-		ib_destroy_flow(flow_id);
-		ib_rdmacg_uncharge(&uobj->cg_obj, context->device,
-				   RDMACG_RESOURCE_HCA_OBJECT);
-		kfree(uobj);
-	}
-
-	list_for_each_entry_safe(uobj, tmp, &context->qp_list, list) {
-		struct ib_qp *qp = uobj->object;
-		struct ib_uqp_object *uqp =
-			container_of(uobj, struct ib_uqp_object, uevent.uobject);
-
-		idr_remove_uobj(uobj);
-		if (qp == qp->real_qp)
-			ib_uverbs_detach_umcast(qp, uqp);
-		ib_destroy_qp(qp);
-		ib_rdmacg_uncharge(&uobj->cg_obj, context->device,
-				   RDMACG_RESOURCE_HCA_OBJECT);
-		ib_uverbs_release_uevent(file, &uqp->uevent);
-		kfree(uqp);
-	}
-
-	list_for_each_entry_safe(uobj, tmp, &context->rwq_ind_tbl_list, list) {
-		struct ib_rwq_ind_table *rwq_ind_tbl = uobj->object;
-		struct ib_wq **ind_tbl = rwq_ind_tbl->ind_tbl;
-
-		idr_remove_uobj(uobj);
-		ib_destroy_rwq_ind_table(rwq_ind_tbl);
-		kfree(ind_tbl);
-		kfree(uobj);
-	}
-
-	list_for_each_entry_safe(uobj, tmp, &context->wq_list, list) {
-		struct ib_wq *wq = uobj->object;
-		struct ib_uwq_object *uwq =
-			container_of(uobj, struct ib_uwq_object, uevent.uobject);
-
-		idr_remove_uobj(uobj);
-		ib_destroy_wq(wq);
-		ib_uverbs_release_uevent(file, &uwq->uevent);
-		kfree(uwq);
-	}
-
-	list_for_each_entry_safe(uobj, tmp, &context->srq_list, list) {
-		struct ib_srq *srq = uobj->object;
-		struct ib_uevent_object *uevent =
-			container_of(uobj, struct ib_uevent_object, uobject);
-
-		idr_remove_uobj(uobj);
-		ib_destroy_srq(srq);
-		ib_rdmacg_uncharge(&uobj->cg_obj, context->device,
-				   RDMACG_RESOURCE_HCA_OBJECT);
-		ib_uverbs_release_uevent(file, uevent);
-		kfree(uevent);
-	}
-
-	list_for_each_entry_safe(uobj, tmp, &context->cq_list, list) {
-		struct ib_cq *cq = uobj->object;
-		struct ib_uverbs_event_file *ev_file = cq->cq_context;
-		struct ib_ucq_object *ucq =
-			container_of(uobj, struct ib_ucq_object, uobject);
-
-		idr_remove_uobj(uobj);
-		ib_destroy_cq(cq);
-		ib_rdmacg_uncharge(&uobj->cg_obj, context->device,
-				   RDMACG_RESOURCE_HCA_OBJECT);
-		ib_uverbs_release_ucq(file, ev_file, ucq);
-		kfree(ucq);
-	}
-
-	list_for_each_entry_safe(uobj, tmp, &context->mr_list, list) {
-		struct ib_mr *mr = uobj->object;
-
-		idr_remove_uobj(uobj);
-		ib_dereg_mr(mr);
-		ib_rdmacg_uncharge(&uobj->cg_obj, context->device,
-				   RDMACG_RESOURCE_HCA_OBJECT);
-		kfree(uobj);
-	}
-
-	mutex_lock(&file->device->xrcd_tree_mutex);
-	list_for_each_entry_safe(uobj, tmp, &context->xrcd_list, list) {
-		struct ib_xrcd *xrcd = uobj->object;
-		struct ib_uxrcd_object *uxrcd =
-			container_of(uobj, struct ib_uxrcd_object, uobject);
-
-		idr_remove_uobj(uobj);
-		ib_uverbs_dealloc_xrcd(file->device, xrcd,
-				       file->ucontext ? RDMA_REMOVE_CLOSE :
-				       RDMA_REMOVE_DRIVER_REMOVE);
-		kfree(uxrcd);
-	}
-	mutex_unlock(&file->device->xrcd_tree_mutex);
-
-	list_for_each_entry_safe(uobj, tmp, &context->pd_list, list) {
-		struct ib_pd *pd = uobj->object;
-
-		idr_remove_uobj(uobj);
-		ib_dealloc_pd(pd);
-		ib_rdmacg_uncharge(&uobj->cg_obj, context->device,
-				   RDMACG_RESOURCE_HCA_OBJECT);
-		kfree(uobj);
-	}
-
+	uverbs_cleanup_ucontext(context, device_removed);
 	put_pid(context->tgid);
 
 	ib_rdmacg_uncharge(&context->cg_obj, context->device,
@@ -592,7 +464,7 @@ void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr)
 	struct ib_uevent_object *uobj;
 
 	/* for XRC target qp's, check that qp is live */
-	if (!event->element.qp->uobject || !event->element.qp->uobject->live)
+	if (!event->element.qp->uobject)
 		return;
 
 	uobj = container_of(event->element.qp->uobject,
@@ -1010,7 +882,7 @@ static int ib_uverbs_close(struct inode *inode, struct file *filp)
 
 	mutex_lock(&file->cleanup_mutex);
 	if (file->ucontext) {
-		ib_uverbs_cleanup_ucontext(file, file->ucontext);
+		ib_uverbs_cleanup_ucontext(file, file->ucontext, false);
 		file->ucontext = NULL;
 	}
 	mutex_unlock(&file->cleanup_mutex);
@@ -1260,7 +1132,7 @@ static void ib_uverbs_free_hw_resources(struct ib_uverbs_device *uverbs_dev,
 			 * (e.g mmput).
 			 */
 			ib_dev->disassociate_ucontext(ucontext);
-			ib_uverbs_cleanup_ucontext(file, ucontext);
+			ib_uverbs_cleanup_ucontext(file, ucontext, true);
 		}
 
 		mutex_lock(&uverbs_dev->lists_mutex);
