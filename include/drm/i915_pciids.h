@@ -226,21 +226,18 @@
 	INTEL_VGA_DEVICE(0x162A, info), /* Server */ \
 	INTEL_VGA_DEVICE(0x162D, info)  /* Workstation */
 
-#define INTEL_BDW_RSVDM_IDS(info) \
+#define INTEL_BDW_RSVD_IDS(info) \
 	INTEL_VGA_DEVICE(0x1632, info), /* ULT */ \
 	INTEL_VGA_DEVICE(0x1636, info), /* ULT */ \
 	INTEL_VGA_DEVICE(0x163B, info), /* Iris */ \
-	INTEL_VGA_DEVICE(0x163E, info)  /* ULX */
-
-#define INTEL_BDW_RSVDD_IDS(info) \
+	INTEL_VGA_DEVICE(0x163E, info), /* ULX */ \
 	INTEL_VGA_DEVICE(0x163A, info), /* Server */ \
 	INTEL_VGA_DEVICE(0x163D, info)  /* Workstation */
 
 #define INTEL_BDW_IDS(info) \
 	INTEL_BDW_GT12_IDS(info), \
 	INTEL_BDW_GT3_IDS(info), \
-	INTEL_BDW_RSVDM_IDS(info), \
-	INTEL_BDW_RSVDD_IDS(info)
+	INTEL_BDW_RSVD_IDS(info)
 
 #define INTEL_CHV_IDS(info) \
 	INTEL_VGA_DEVICE(0x22b0, info), \
