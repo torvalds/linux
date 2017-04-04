@@ -119,7 +119,13 @@ nfs4_ff_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 		if (ds_versions[i].wsize > NFS_MAX_FILE_IO_SIZE)
 			ds_versions[i].wsize = NFS_MAX_FILE_IO_SIZE;
 
-		if (ds_versions[i].version != 3 || ds_versions[i].minor_version != 0) {
+		/*
+		 * check for valid major/minor combination.
+		 * currently we support dataserver which talk:
+		 *   v3, v4.0, v4.1, v4.2
+		 */
+		if (!((ds_versions[i].version == 3 && ds_versions[i].minor_version == 0) ||
+			(ds_versions[i].version == 4 && ds_versions[i].minor_version < 3))) {
 			dprintk("%s: [%d] unsupported ds version %d-%d\n", __func__,
 				i, ds_versions[i].version,
 				ds_versions[i].minor_version);
