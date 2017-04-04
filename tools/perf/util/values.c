@@ -1,4 +1,7 @@
+#include <inttypes.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "util.h"
 #include "values.h"
@@ -196,8 +199,10 @@ static void perf_read_values__display_pretty(FILE *fp,
 	int *counterwidth;
 
 	counterwidth = malloc(values->counters * sizeof(*counterwidth));
-	if (!counterwidth)
-		die("failed to allocate counterwidth array");
+	if (!counterwidth) {
+		fprintf(fp, "INTERNAL ERROR: Failed to allocate counterwidth array\n");
+		return;
+	}
 	tidwidth = 3;
 	pidwidth = 3;
 	for (j = 0; j < values->counters; j++)
