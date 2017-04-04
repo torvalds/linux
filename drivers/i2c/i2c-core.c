@@ -421,6 +421,55 @@ static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
 static struct notifier_block i2c_acpi_notifier = {
 	.notifier_call = i2c_acpi_notify,
 };
+
+/**
+ * i2c_acpi_new_device - Create i2c-client for the Nth I2cSerialBus resource
+ * @dev:     Device owning the ACPI resources to get the client from
+ * @index:   Index of ACPI resource to get
+ * @info:    describes the I2C device; note this is modified (addr gets set)
+ * Context: can sleep
+ *
+ * By default the i2c subsys creates an i2c-client for the first I2cSerialBus
+ * resource of an acpi_device, but some acpi_devices have multiple I2cSerialBus
+ * resources, in that case this function can be used to create an i2c-client
+ * for other I2cSerialBus resources in the Current Resource Settings table.
+ *
+ * Also see i2c_new_device, which this function calls to create the i2c-client.
+ *
+ * Returns a pointer to the new i2c-client, or NULL if the adapter is not found.
+ */
+struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
+				       struct i2c_board_info *info)
+{
+	struct i2c_acpi_lookup lookup;
+	struct i2c_adapter *adapter;
+	struct acpi_device *adev;
+	LIST_HEAD(resource_list);
+	int ret;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		return NULL;
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.info = info;
+	lookup.device_handle = acpi_device_handle(adev);
+	lookup.index = index;
+
+	ret = acpi_dev_get_resources(adev, &resource_list,
+				     i2c_acpi_fill_info, &lookup);
+	acpi_dev_free_resource_list(&resource_list);
+
+	if (ret < 0 || !info->addr)
+		return NULL;
+
+	adapter = i2c_acpi_find_adapter_by_handle(lookup.adapter_handle);
+	if (!adapter)
+		return NULL;
+
+	return i2c_new_device(adapter, info);
+}
+EXPORT_SYMBOL_GPL(i2c_acpi_new_device);
 #else /* CONFIG_ACPI */
 static inline void i2c_acpi_register_devices(struct i2c_adapter *adap) { }
 extern struct notifier_block i2c_acpi_notifier;
