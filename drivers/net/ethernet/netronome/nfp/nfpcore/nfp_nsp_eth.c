@@ -63,6 +63,7 @@
 #define NSP_ETH_STATE_RX_ENABLED	BIT_ULL(3)
 #define NSP_ETH_STATE_RATE		GENMASK_ULL(11, 8)
 #define NSP_ETH_STATE_OVRD_CHNG		BIT_ULL(22)
+#define NSP_ETH_STATE_ANEG		GENMASK_ULL(25, 23)
 
 #define NSP_ETH_CTRL_ENABLED		BIT_ULL(1)
 #define NSP_ETH_CTRL_TX_ENABLED		BIT_ULL(2)
@@ -142,6 +143,7 @@ nfp_eth_port_translate(struct nfp_nsp *nsp, const struct eth_table_entry *src,
 		return;
 
 	dst->override_changed = FIELD_GET(NSP_ETH_STATE_OVRD_CHNG, state);
+	dst->aneg = FIELD_GET(NSP_ETH_STATE_ANEG, state);
 }
 
 static void

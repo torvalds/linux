@@ -203,6 +203,10 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 	cmd->base.speed = SPEED_UNKNOWN;
 	cmd->base.duplex = DUPLEX_UNKNOWN;
 
+	if (nn->eth_port)
+		cmd->base.autoneg = nn->eth_port->aneg != NFP_ANEG_DISABLED ?
+			AUTONEG_ENABLE : AUTONEG_DISABLE;
+
 	if (!netif_carrier_ok(netdev))
 		return 0;
 

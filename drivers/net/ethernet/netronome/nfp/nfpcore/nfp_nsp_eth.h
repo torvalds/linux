@@ -37,6 +37,14 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
+enum nfp_eth_aneg {
+	NFP_ANEG_AUTO = 0,
+	NFP_ANEG_SEARCH,
+	NFP_ANEG_25G_CONSORTIUM,
+	NFP_ANEG_25G_IEEE,
+	NFP_ANEG_DISABLED,
+};
+
 /**
  * struct nfp_eth_table - ETH table information
  * @count:	number of table entries
@@ -48,6 +56,7 @@
  * @base:	first channel index (within NBI)
  * @lanes:	number of channels
  * @speed:	interface speed (in Mbps)
+ * @aneg:	auto negotiation mode
  * @mac_addr:	interface MAC address
  * @label_port:	port id
  * @label_subport:  id of interface within port (for split ports)
@@ -67,6 +76,8 @@ struct nfp_eth_table {
 		unsigned int base;
 		unsigned int lanes;
 		unsigned int speed;
+
+		enum nfp_eth_aneg aneg;
 
 		u8 mac_addr[ETH_ALEN];
 
