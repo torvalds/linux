@@ -1523,7 +1523,6 @@ static void pch_udc_free_dma_chain(struct pch_udc_dev *dev,
 		td = phys_to_virt(addr);
 		addr2 = (dma_addr_t)td->next;
 		pci_pool_free(dev->data_requests, td, addr);
-		td->next = 0x00;
 		addr = addr2;
 	}
 	req->chain_len = 1;

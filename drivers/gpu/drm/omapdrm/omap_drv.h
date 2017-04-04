@@ -59,6 +59,8 @@ int omap_irq_wait(struct drm_device *dev, struct omap_irq_wait *wait,
 struct omap_drm_private {
 	uint32_t omaprev;
 
+	const struct dispc_ops *dispc_ops;
+
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[8];
 
@@ -135,13 +137,13 @@ enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
 void omap_crtc_pre_init(void);
 void omap_crtc_pre_uninit(void);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
-		struct drm_plane *plane, enum omap_channel channel, int id);
+		struct drm_plane *plane, struct omap_dss_device *dssdev);
 int omap_crtc_wait_pending(struct drm_crtc *crtc);
 void omap_crtc_error_irq(struct drm_crtc *crtc, uint32_t irqstatus);
 void omap_crtc_vblank_irq(struct drm_crtc *crtc);
 
 struct drm_plane *omap_plane_init(struct drm_device *dev,
-		int id, enum drm_plane_type type,
+		int idx, enum drm_plane_type type,
 		u32 possible_crtcs);
 void omap_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);

@@ -1104,6 +1104,7 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 		u32 render, media;
 
 		time = ktime_us_delta(now.ktime, prev->ktime);
+
 		time *= dev_priv->czclk_freq;
 
 		/* Workload can be split between render + media,

@@ -246,13 +246,13 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 			      void *ptr);
 
 MODULE_PARM_DESC(enable_fbdev, "Enable vmwgfx fbdev");
-module_param_named(enable_fbdev, enable_fbdev, int, S_IRUSR | S_IWUSR);
+module_param_named(enable_fbdev, enable_fbdev, int, 0600);
 MODULE_PARM_DESC(force_dma_api, "Force using the DMA API for TTM pages");
-module_param_named(force_dma_api, vmw_force_iommu, int, S_IRUSR | S_IWUSR);
+module_param_named(force_dma_api, vmw_force_iommu, int, 0600);
 MODULE_PARM_DESC(restrict_iommu, "Try to limit IOMMU usage for TTM pages");
-module_param_named(restrict_iommu, vmw_restrict_iommu, int, S_IRUSR | S_IWUSR);
+module_param_named(restrict_iommu, vmw_restrict_iommu, int, 0600);
 MODULE_PARM_DESC(force_coherent, "Force coherent TTM pages");
-module_param_named(force_coherent, vmw_force_coherent, int, S_IRUSR | S_IWUSR);
+module_param_named(force_coherent, vmw_force_coherent, int, 0600);
 MODULE_PARM_DESC(restrict_dma_mask, "Restrict DMA mask to 44 bits with IOMMU");
 module_param_named(restrict_dma_mask, vmw_restrict_dma_mask, int, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(assume_16bpp, "Assume 16-bpp when filtering modes");
@@ -650,6 +650,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	spin_lock_init(&dev_priv->waiter_lock);
 	spin_lock_init(&dev_priv->cap_lock);
 	spin_lock_init(&dev_priv->svga_lock);
+	spin_lock_init(&dev_priv->cursor_lock);
 
 	for (i = vmw_res_context; i < vmw_res_max; ++i) {
 		idr_init(&dev_priv->res_idr[i]);
@@ -897,6 +898,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		goto out_no_fifo;
 
 	DRM_INFO("DX: %s\n", dev_priv->has_dx ? "yes." : "no.");
+	DRM_INFO("Atomic: %s\n",
+		 (dev->driver->driver_features & DRIVER_ATOMIC) ? "yes" : "no");
 
 	snprintf(host_log, sizeof(host_log), "vmwgfx: %s-%s",
 		VMWGFX_REPO, VMWGFX_GIT_VERSION);
@@ -1509,7 +1512,7 @@ static const struct file_operations vmwgfx_driver_fops = {
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
-	DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER,
+	DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER | DRIVER_ATOMIC,
 	.load = vmw_driver_load,
 	.unload = vmw_driver_unload,
 	.lastclose = vmw_lastclose,

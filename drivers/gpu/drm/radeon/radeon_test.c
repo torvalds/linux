@@ -246,7 +246,7 @@ out_unref:
 out_cleanup:
 	kfree(gtt_obj);
 	if (r) {
-		printk(KERN_WARNING "Error while testing BO move.\n");
+		pr_warn("Error while testing BO move\n");
 	}
 }
 
@@ -394,7 +394,7 @@ out_cleanup:
 		radeon_fence_unref(&fence2);
 
 	if (r)
-		printk(KERN_WARNING "Error while testing ring sync (%d).\n", r);
+		pr_warn("Error while testing ring sync (%d)\n", r);
 }
 
 static void radeon_test_ring_sync2(struct radeon_device *rdev,
@@ -504,7 +504,7 @@ out_cleanup:
 		radeon_fence_unref(&fenceB);
 
 	if (r)
-		printk(KERN_WARNING "Error while testing ring sync (%d).\n", r);
+		pr_warn("Error while testing ring sync (%d)\n", r);
 }
 
 static bool radeon_test_sync_possible(struct radeon_ring *ringA,

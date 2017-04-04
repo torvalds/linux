@@ -40,8 +40,8 @@ static void omap_irq_update(struct drm_device *dev)
 
 	DBG("irqmask=%08x", irqmask);
 
-	dispc_write_irqenable(irqmask);
-	dispc_read_irqenable();        /* flush posted write */
+	priv->dispc_ops->write_irqenable(irqmask);
+	priv->dispc_ops->read_irqenable();        /* flush posted write */
 }
 
 static void omap_irq_wait_handler(struct omap_irq_wait *wait)
@@ -111,7 +111,7 @@ int omap_irq_enable_vblank(struct drm_crtc *crtc)
 	DBG("dev=%p, crtc=%u", dev, channel);
 
 	spin_lock_irqsave(&priv->wait_lock, flags);
-	priv->irq_mask |= dispc_mgr_get_vsync_irq(channel);
+	priv->irq_mask |= priv->dispc_ops->mgr_get_vsync_irq(channel);
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&priv->wait_lock, flags);
 
@@ -137,7 +137,7 @@ void omap_irq_disable_vblank(struct drm_crtc *crtc)
 	DBG("dev=%p, crtc=%u", dev, channel);
 
 	spin_lock_irqsave(&priv->wait_lock, flags);
-	priv->irq_mask &= ~dispc_mgr_get_vsync_irq(channel);
+	priv->irq_mask &= ~priv->dispc_ops->mgr_get_vsync_irq(channel);
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&priv->wait_lock, flags);
 }
@@ -200,9 +200,9 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 	unsigned int id;
 	u32 irqstatus;
 
-	irqstatus = dispc_read_irqstatus();
-	dispc_clear_irqstatus(irqstatus);
-	dispc_read_irqstatus();        /* flush posted write */
+	irqstatus = priv->dispc_ops->read_irqstatus();
+	priv->dispc_ops->clear_irqstatus(irqstatus);
+	priv->dispc_ops->read_irqstatus();        /* flush posted write */
 
 	VERB("irqs: %08x", irqstatus);
 
@@ -210,12 +210,12 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 		struct drm_crtc *crtc = priv->crtcs[id];
 		enum omap_channel channel = omap_crtc_channel(crtc);
 
-		if (irqstatus & dispc_mgr_get_vsync_irq(channel)) {
+		if (irqstatus & priv->dispc_ops->mgr_get_vsync_irq(channel)) {
 			drm_handle_vblank(dev, id);
 			omap_crtc_vblank_irq(crtc);
 		}
 
-		if (irqstatus & dispc_mgr_get_sync_lost_irq(channel))
+		if (irqstatus & priv->dispc_ops->mgr_get_sync_lost_irq(channel))
 			omap_crtc_error_irq(crtc, irqstatus);
 	}
 
@@ -249,7 +249,7 @@ static const u32 omap_underflow_irqs[] = {
 int omap_drm_irq_install(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	unsigned int num_mgrs = dss_feat_get_num_mgrs();
+	unsigned int num_mgrs = priv->dispc_ops->get_num_mgrs();
 	unsigned int max_planes;
 	unsigned int i;
 	int ret;
@@ -267,13 +267,13 @@ int omap_drm_irq_install(struct drm_device *dev)
 	}
 
 	for (i = 0; i < num_mgrs; ++i)
-		priv->irq_mask |= dispc_mgr_get_sync_lost_irq(i);
+		priv->irq_mask |= priv->dispc_ops->mgr_get_sync_lost_irq(i);
 
-	dispc_runtime_get();
-	dispc_clear_irqstatus(0xffffffff);
-	dispc_runtime_put();
+	priv->dispc_ops->runtime_get();
+	priv->dispc_ops->clear_irqstatus(0xffffffff);
+	priv->dispc_ops->runtime_put();
 
-	ret = dispc_request_irq(omap_irq_handler, dev);
+	ret = priv->dispc_ops->request_irq(omap_irq_handler, dev);
 	if (ret < 0)
 		return ret;
 
@@ -284,25 +284,12 @@ int omap_drm_irq_install(struct drm_device *dev)
 
 void omap_drm_irq_uninstall(struct drm_device *dev)
 {
-	unsigned long irqflags;
-	int i;
+	struct omap_drm_private *priv = dev->dev_private;
 
 	if (!dev->irq_enabled)
 		return;
 
 	dev->irq_enabled = false;
 
-	/* Wake up any waiters so they don't hang. */
-	if (dev->num_crtcs) {
-		spin_lock_irqsave(&dev->vbl_lock, irqflags);
-		for (i = 0; i < dev->num_crtcs; i++) {
-			wake_up(&dev->vblank[i].queue);
-			dev->vblank[i].enabled = false;
-			dev->vblank[i].last =
-				dev->driver->get_vblank_counter(dev, i);
-		}
-		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
-	}
-
-	dispc_free_irq(dev);
+	priv->dispc_ops->free_irq(dev);
 }

@@ -527,7 +527,7 @@ static inline int wait_for_bit_change(struct platform_device *dsidev,
 	return !value;
 }
 
-u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
+static u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
 {
 	switch (fmt) {
 	case OMAP_DSS_DSI_FMT_RGB888:

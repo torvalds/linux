@@ -82,6 +82,15 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 			return -EINVAL;
 		}
 		break;
+	case AMDGPU_HW_IP_UVD_ENC:
+		if (ring < adev->uvd.num_enc_rings){
+			*out_ring = &adev->uvd.ring_enc[ring];
+		} else {
+			DRM_ERROR("only %d UVD ENC rings are supported\n",
+				adev->uvd.num_enc_rings);
+			return -EINVAL;
+		}
+		break;
 	}
 
 	if (!(*out_ring && (*out_ring)->adev)) {
@@ -759,23 +768,33 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 	amdgpu_bo_unref(&parser->uf_entry.robj);
 }
 
-static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
-				   struct amdgpu_vm *vm)
+static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 {
 	struct amdgpu_device *adev = p->adev;
+	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
+	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_va *bo_va;
 	struct amdgpu_bo *bo;
 	int i, r;
 
-	r = amdgpu_vm_update_page_directory(adev, vm);
+	r = amdgpu_vm_update_directories(adev, vm);
 	if (r)
 		return r;
 
-	r = amdgpu_sync_fence(adev, &p->job->sync, vm->page_directory_fence);
+	r = amdgpu_sync_fence(adev, &p->job->sync, vm->last_dir_update);
 	if (r)
 		return r;
 
-	r = amdgpu_vm_clear_freed(adev, vm);
+	r = amdgpu_vm_clear_freed(adev, vm, NULL);
+	if (r)
+		return r;
+
+	r = amdgpu_vm_bo_update(adev, fpriv->prt_va, false);
+	if (r)
+		return r;
+
+	r = amdgpu_sync_fence(adev, &p->job->sync,
+			      fpriv->prt_va->last_pt_update);
 	if (r)
 		return r;
 
@@ -853,9 +872,9 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 	}
 
 	if (p->job->vm) {
-		p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
+		p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->root.bo);
 
-		r = amdgpu_bo_vm_update_pte(p, vm);
+		r = amdgpu_bo_vm_update_pte(p);
 		if (r)
 			return r;
 	}
@@ -869,7 +888,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 	int i, j;
-	int r;
+	int r, ce_preempt = 0, de_preempt = 0;
 
 	for (i = 0, j = 0; i < parser->nchunks && j < parser->job->num_ibs; i++) {
 		struct amdgpu_cs_chunk *chunk;
@@ -884,13 +903,26 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		if (chunk->chunk_id != AMDGPU_CHUNK_ID_IB)
 			continue;
 
+		if (chunk_ib->ip_type == AMDGPU_HW_IP_GFX && amdgpu_sriov_vf(adev)) {
+			if (chunk_ib->flags & AMDGPU_IB_FLAG_PREEMPT) {
+				if (chunk_ib->flags & AMDGPU_IB_FLAG_CE)
+					ce_preempt++;
+				else
+					de_preempt++;
+			}
+
+			/* each GFX command submit allows 0 or 1 IB preemptible for CE & DE */
+			if (ce_preempt > 1 || de_preempt > 1)
+				return -EINVAL;
+		}
+
 		r = amdgpu_cs_get_ring(adev, chunk_ib->ip_type,
 				       chunk_ib->ip_instance, chunk_ib->ring,
 				       &ring);
 		if (r)
 			return r;
 
-		if (ib->flags & AMDGPU_IB_FLAG_PREAMBLE) {
+		if (chunk_ib->flags & AMDGPU_IB_FLAG_PREAMBLE) {
 			parser->job->preamble_status |= AMDGPU_PREAMBLE_IB_PRESENT;
 			if (!parser->ctx->preamble_presented) {
 				parser->job->preamble_status |= AMDGPU_PREAMBLE_IB_PRESENT_FIRST;

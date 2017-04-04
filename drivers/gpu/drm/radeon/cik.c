@@ -35,6 +35,9 @@
 #include "clearstate_ci.h"
 #include "radeon_kfd.h"
 
+#define SH_MEM_CONFIG_GFX_DEFAULT \
+	ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED)
+
 MODULE_FIRMWARE("radeon/BONAIRE_pfp.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_me.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_ce.bin");
@@ -2069,8 +2072,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		if (err)
 			goto out;
 		if (rdev->pfp_fw->size != pfp_req_size) {
-			printk(KERN_ERR
-			       "cik_cp: Bogus length %zu in firmware \"%s\"\n",
+			pr_err("cik_cp: Bogus length %zu in firmware \"%s\"\n",
 			       rdev->pfp_fw->size, fw_name);
 			err = -EINVAL;
 			goto out;
@@ -2078,8 +2080,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	} else {
 		err = radeon_ucode_validate(rdev->pfp_fw);
 		if (err) {
-			printk(KERN_ERR
-			       "cik_fw: validation failed for firmware \"%s\"\n",
+			pr_err("cik_fw: validation failed for firmware \"%s\"\n",
 			       fw_name);
 			goto out;
 		} else {
@@ -2095,16 +2096,14 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		if (err)
 			goto out;
 		if (rdev->me_fw->size != me_req_size) {
-			printk(KERN_ERR
-			       "cik_cp: Bogus length %zu in firmware \"%s\"\n",
+			pr_err("cik_cp: Bogus length %zu in firmware \"%s\"\n",
 			       rdev->me_fw->size, fw_name);
 			err = -EINVAL;
 		}
 	} else {
 		err = radeon_ucode_validate(rdev->me_fw);
 		if (err) {
-			printk(KERN_ERR
-			       "cik_fw: validation failed for firmware \"%s\"\n",
+			pr_err("cik_fw: validation failed for firmware \"%s\"\n",
 			       fw_name);
 			goto out;
 		} else {
@@ -2120,16 +2119,14 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		if (err)
 			goto out;
 		if (rdev->ce_fw->size != ce_req_size) {
-			printk(KERN_ERR
-			       "cik_cp: Bogus length %zu in firmware \"%s\"\n",
+			pr_err("cik_cp: Bogus length %zu in firmware \"%s\"\n",
 			       rdev->ce_fw->size, fw_name);
 			err = -EINVAL;
 		}
 	} else {
 		err = radeon_ucode_validate(rdev->ce_fw);
 		if (err) {
-			printk(KERN_ERR
-			       "cik_fw: validation failed for firmware \"%s\"\n",
+			pr_err("cik_fw: validation failed for firmware \"%s\"\n",
 			       fw_name);
 			goto out;
 		} else {
@@ -2145,16 +2142,14 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		if (err)
 			goto out;
 		if (rdev->mec_fw->size != mec_req_size) {
-			printk(KERN_ERR
-			       "cik_cp: Bogus length %zu in firmware \"%s\"\n",
+			pr_err("cik_cp: Bogus length %zu in firmware \"%s\"\n",
 			       rdev->mec_fw->size, fw_name);
 			err = -EINVAL;
 		}
 	} else {
 		err = radeon_ucode_validate(rdev->mec_fw);
 		if (err) {
-			printk(KERN_ERR
-			       "cik_fw: validation failed for firmware \"%s\"\n",
+			pr_err("cik_fw: validation failed for firmware \"%s\"\n",
 			       fw_name);
 			goto out;
 		} else {
@@ -2185,16 +2180,14 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		if (err)
 			goto out;
 		if (rdev->rlc_fw->size != rlc_req_size) {
-			printk(KERN_ERR
-			       "cik_rlc: Bogus length %zu in firmware \"%s\"\n",
+			pr_err("cik_rlc: Bogus length %zu in firmware \"%s\"\n",
 			       rdev->rlc_fw->size, fw_name);
 			err = -EINVAL;
 		}
 	} else {
 		err = radeon_ucode_validate(rdev->rlc_fw);
 		if (err) {
-			printk(KERN_ERR
-			       "cik_fw: validation failed for firmware \"%s\"\n",
+			pr_err("cik_fw: validation failed for firmware \"%s\"\n",
 			       fw_name);
 			goto out;
 		} else {
@@ -2210,16 +2203,14 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		if (err)
 			goto out;
 		if (rdev->sdma_fw->size != sdma_req_size) {
-			printk(KERN_ERR
-			       "cik_sdma: Bogus length %zu in firmware \"%s\"\n",
+			pr_err("cik_sdma: Bogus length %zu in firmware \"%s\"\n",
 			       rdev->sdma_fw->size, fw_name);
 			err = -EINVAL;
 		}
 	} else {
 		err = radeon_ucode_validate(rdev->sdma_fw);
 		if (err) {
-			printk(KERN_ERR
-			       "cik_fw: validation failed for firmware \"%s\"\n",
+			pr_err("cik_fw: validation failed for firmware \"%s\"\n",
 			       fw_name);
 			goto out;
 		} else {
@@ -2242,8 +2233,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 			}
 			if ((rdev->mc_fw->size != mc_req_size) &&
 			    (rdev->mc_fw->size != mc2_req_size)){
-				printk(KERN_ERR
-				       "cik_mc: Bogus length %zu in firmware \"%s\"\n",
+				pr_err("cik_mc: Bogus length %zu in firmware \"%s\"\n",
 				       rdev->mc_fw->size, fw_name);
 				err = -EINVAL;
 			}
@@ -2251,8 +2241,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		} else {
 			err = radeon_ucode_validate(rdev->mc_fw);
 			if (err) {
-				printk(KERN_ERR
-				       "cik_fw: validation failed for firmware \"%s\"\n",
+				pr_err("cik_fw: validation failed for firmware \"%s\"\n",
 				       fw_name);
 				goto out;
 			} else {
@@ -2269,23 +2258,20 @@ static int cik_init_microcode(struct radeon_device *rdev)
 			snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
 			err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
 			if (err) {
-				printk(KERN_ERR
-				       "smc: error loading firmware \"%s\"\n",
+				pr_err("smc: error loading firmware \"%s\"\n",
 				       fw_name);
 				release_firmware(rdev->smc_fw);
 				rdev->smc_fw = NULL;
 				err = 0;
 			} else if (rdev->smc_fw->size != smc_req_size) {
-				printk(KERN_ERR
-				       "cik_smc: Bogus length %zu in firmware \"%s\"\n",
+				pr_err("cik_smc: Bogus length %zu in firmware \"%s\"\n",
 				       rdev->smc_fw->size, fw_name);
 				err = -EINVAL;
 			}
 		} else {
 			err = radeon_ucode_validate(rdev->smc_fw);
 			if (err) {
-				printk(KERN_ERR
-				       "cik_fw: validation failed for firmware \"%s\"\n",
+				pr_err("cik_fw: validation failed for firmware \"%s\"\n",
 				       fw_name);
 				goto out;
 			} else {
@@ -2297,7 +2283,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	if (new_fw == 0) {
 		rdev->new_fw = false;
 	} else if (new_fw < num_fw) {
-		printk(KERN_ERR "ci_fw: mixing new and old firmware!\n");
+		pr_err("ci_fw: mixing new and old firmware!\n");
 		err = -EINVAL;
 	} else {
 		rdev->new_fw = true;
@@ -2306,8 +2292,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 out:
 	if (err) {
 		if (err != -EINVAL)
-			printk(KERN_ERR
-			       "cik_cp: Failed to load firmware \"%s\"\n",
+			pr_err("cik_cp: Failed to load firmware \"%s\"\n",
 			       fw_name);
 		release_firmware(rdev->pfp_fw);
 		rdev->pfp_fw = NULL;
@@ -5587,7 +5572,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 	for (i = 0; i < 16; i++) {
 		cik_srbm_select(rdev, 0, 0, 0, i);
 		/* CP and shaders */
-		WREG32(SH_MEM_CONFIG, 0);
+		WREG32(SH_MEM_CONFIG, SH_MEM_CONFIG_GFX_DEFAULT);
 		WREG32(SH_MEM_APE1_BASE, 1);
 		WREG32(SH_MEM_APE1_LIMIT, 0);
 		WREG32(SH_MEM_BASES, 0);
@@ -5794,7 +5779,7 @@ void cik_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
 	radeon_ring_write(ring, 0);
 
 	radeon_ring_write(ring, 0); /* SH_MEM_BASES */
-	radeon_ring_write(ring, 0); /* SH_MEM_CONFIG */
+	radeon_ring_write(ring, SH_MEM_CONFIG_GFX_DEFAULT); /* SH_MEM_CONFIG */
 	radeon_ring_write(ring, 1); /* SH_MEM_APE1_BASE */
 	radeon_ring_write(ring, 0); /* SH_MEM_APE1_LIMIT */
 

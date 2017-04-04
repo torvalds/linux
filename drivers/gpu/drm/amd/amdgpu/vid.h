@@ -195,6 +195,7 @@
 		 * 1 - Stream
 		 * 2 - Bypass
 		 */
+#define     INDIRECT_BUFFER_PRE_ENB(x)		 ((x) << 21)
 #define	PACKET3_COPY_DATA				0x40
 #define	PACKET3_PFP_SYNC_ME				0x42
 #define	PACKET3_SURFACE_SYNC				0x43

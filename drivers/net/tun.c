@@ -1931,6 +1931,8 @@ static int set_offload(struct tun_struct *tun, unsigned long arg)
 		return -EINVAL;
 
 	tun->set_features = features;
+	tun->dev->wanted_features &= ~TUN_USER_FEATURES;
+	tun->dev->wanted_features |= features;
 	netdev_update_features(tun->dev);
 
 	return 0;

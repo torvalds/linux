@@ -1093,18 +1093,18 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_validate);
 
-int ttm_bo_init(struct ttm_bo_device *bdev,
-		struct ttm_buffer_object *bo,
-		unsigned long size,
-		enum ttm_bo_type type,
-		struct ttm_placement *placement,
-		uint32_t page_alignment,
-		bool interruptible,
-		struct file *persistent_swap_storage,
-		size_t acc_size,
-		struct sg_table *sg,
-		struct reservation_object *resv,
-		void (*destroy) (struct ttm_buffer_object *))
+int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
+			 struct ttm_buffer_object *bo,
+			 unsigned long size,
+			 enum ttm_bo_type type,
+			 struct ttm_placement *placement,
+			 uint32_t page_alignment,
+			 bool interruptible,
+			 struct file *persistent_swap_storage,
+			 size_t acc_size,
+			 struct sg_table *sg,
+			 struct reservation_object *resv,
+			 void (*destroy) (struct ttm_buffer_object *))
 {
 	int ret = 0;
 	unsigned long num_pages;
@@ -1188,19 +1188,50 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	if (likely(!ret))
 		ret = ttm_bo_validate(bo, placement, interruptible, false);
 
-	if (!resv) {
-		ttm_bo_unreserve(bo);
+	if (unlikely(ret)) {
+		if (!resv)
+			ttm_bo_unreserve(bo);
 
-	} else if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
+		ttm_bo_unref(&bo);
+		return ret;
+	}
+
+	if (resv && !(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
 		spin_lock(&bo->glob->lru_lock);
 		ttm_bo_add_to_lru(bo);
 		spin_unlock(&bo->glob->lru_lock);
 	}
 
-	if (unlikely(ret))
-		ttm_bo_unref(&bo);
-
 	return ret;
+}
+EXPORT_SYMBOL(ttm_bo_init_reserved);
+
+int ttm_bo_init(struct ttm_bo_device *bdev,
+		struct ttm_buffer_object *bo,
+		unsigned long size,
+		enum ttm_bo_type type,
+		struct ttm_placement *placement,
+		uint32_t page_alignment,
+		bool interruptible,
+		struct file *persistent_swap_storage,
+		size_t acc_size,
+		struct sg_table *sg,
+		struct reservation_object *resv,
+		void (*destroy) (struct ttm_buffer_object *))
+{
+	int ret;
+
+	ret = ttm_bo_init_reserved(bdev, bo, size, type, placement,
+				   page_alignment, interruptible,
+				   persistent_swap_storage, acc_size,
+				   sg, resv, destroy);
+	if (ret)
+		return ret;
+
+	if (!resv)
+		ttm_bo_unreserve(bo);
+
+	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_init);
 

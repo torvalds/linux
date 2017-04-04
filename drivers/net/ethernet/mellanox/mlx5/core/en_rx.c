@@ -601,6 +601,10 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	if (lro_num_seg > 1) {
 		mlx5e_lro_update_hdr(skb, cqe, cqe_bcnt);
 		skb_shinfo(skb)->gso_size = DIV_ROUND_UP(cqe_bcnt, lro_num_seg);
+		/* Subtract one since we already counted this as one
+		 * "regular" packet in mlx5e_complete_rx_cqe()
+		 */
+		rq->stats.packets += lro_num_seg - 1;
 		rq->stats.lro_packets++;
 		rq->stats.lro_bytes += cqe_bcnt;
 	}
