@@ -349,6 +349,31 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	return ret;
 }
 
+static void meson_mmc_set_tuning_params(struct mmc_host *mmc)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 regval;
+
+	/* stop clock */
+	regval = readl(host->regs + SD_EMMC_CFG);
+	regval |= CFG_STOP_CLOCK;
+	writel(regval, host->regs + SD_EMMC_CFG);
+
+	regval = readl(host->regs + SD_EMMC_CLOCK);
+	regval &= ~CLK_CORE_PHASE_MASK;
+	regval |= FIELD_PREP(CLK_CORE_PHASE_MASK, host->tp.core_phase);
+	regval &= ~CLK_TX_PHASE_MASK;
+	regval |= FIELD_PREP(CLK_TX_PHASE_MASK, host->tp.tx_phase);
+	regval &= ~CLK_RX_PHASE_MASK;
+	regval |= FIELD_PREP(CLK_RX_PHASE_MASK, host->tp.rx_phase);
+	writel(regval, host->regs + SD_EMMC_CLOCK);
+
+	/* start clock */
+	regval = readl(host->regs + SD_EMMC_CFG);
+	regval &= ~CFG_STOP_CLOCK;
+	writel(regval, host->regs + SD_EMMC_CFG);
+}
+
 static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -682,6 +707,29 @@ static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	struct meson_tuning_params tp_old = host->tp;
+	int ret = -EINVAL, i, cmd_error;
+
+	dev_info(mmc_dev(mmc), "(re)tuning...\n");
+
+	for (i = CLK_PHASE_0; i <= CLK_PHASE_270; i++) {
+		host->tp.rx_phase = i;
+		/* exclude the active parameter set if retuning */
+		if (!memcmp(&tp_old, &host->tp, sizeof(tp_old)) &&
+		    mmc->doing_retune)
+			continue;
+		meson_mmc_set_tuning_params(mmc);
+		ret = mmc_send_tuning(mmc, opcode, &cmd_error);
+		if (!ret)
+			break;
+	}
+
+	return ret;
+}
+
 /*
  * NOTE: we only need this until the GPIO/pinctrl driver can handle
  * interrupts.  For now, the MMC core will use this for polling.
@@ -712,6 +760,7 @@ static const struct mmc_host_ops meson_mmc_ops = {
 	.request	= meson_mmc_request,
 	.set_ios	= meson_mmc_set_ios,
 	.get_cd         = meson_mmc_get_cd,
+	.execute_tuning = meson_mmc_execute_tuning,
 };
 
 static int meson_mmc_probe(struct platform_device *pdev)
