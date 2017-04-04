@@ -1106,14 +1106,19 @@ static void btc8723b2ant_set_ant_path(struct btc_coexist *btcoexist,
 		if (board_info->btdm_ant_pos == BTC_ANTENNA_AT_MAIN_PORT) {
 			/* tell firmware "no antenna inverse" */
 			h2c_parameter[0] = 0;
-			h2c_parameter[1] = 1;  /* ext switch type */
-			btcoexist->btc_fill_h2c(btcoexist, 0x65, 2,
-						h2c_parameter);
-			btcoexist->btc_write_2byte(btcoexist, 0x948, 0x0);
 		} else {
 			/* tell firmware "antenna inverse" */
 			h2c_parameter[0] = 1;
 		}
+
+		if (use_ext_switch) {
+			/* ext switch type */
+			h2c_parameter[1] = 1;
+		} else {
+			/* int switch type */
+			h2c_parameter[1] = 0;
+		}
+		btcoexist->btc_fill_h2c(btcoexist, 0x65, 2, h2c_parameter);
 	} else {
 		if (fw_ver >= 0x180000) {
 			/* Use H2C to set GNT_BT to "Control by PTA"*/
