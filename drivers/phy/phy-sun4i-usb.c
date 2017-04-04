@@ -858,6 +858,7 @@ static const struct sun4i_usb_phy_cfg sun50i_a64_cfg = {
 	.phyctl_offset = REG_PHYCTL_A33,
 	.dedicated_clocks = true,
 	.enable_pmu_unk1 = true,
+	.phy0_dual_route = true,
 };
 
 static const struct of_device_id sun4i_usb_phy_of_match[] = {
