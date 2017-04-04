@@ -34,7 +34,7 @@
 #include "cifs_ioctl.h"
 #include <linux/btrfs.h>
 
-static int cifs_file_clone_range(unsigned int xid, struct file *src_file,
+static int cifs_file_copychunk_range(unsigned int xid, struct file *src_file,
 			  struct file *dst_file)
 {
 	struct inode *src_inode = file_inode(src_file);
@@ -45,7 +45,7 @@ static int cifs_file_clone_range(unsigned int xid, struct file *src_file,
 	struct cifs_tcon *target_tcon;
 	int rc;
 
-	cifs_dbg(FYI, "ioctl clone range\n");
+	cifs_dbg(FYI, "ioctl copychunk range\n");
 
 	if (!src_file->private_data || !dst_file->private_data) {
 		rc = -EBADF;
@@ -75,8 +75,8 @@ static int cifs_file_clone_range(unsigned int xid, struct file *src_file,
 	/* should we flush first and last page first */
 	truncate_inode_pages(&target_inode->i_data, 0);
 
-	if (target_tcon->ses->server->ops->clone_range)
-		rc = target_tcon->ses->server->ops->clone_range(xid,
+	if (target_tcon->ses->server->ops->copychunk_range)
+		rc = target_tcon->ses->server->ops->copychunk_range(xid,
 			smb_file_src, smb_file_target, 0, src_inode->i_size, 0);
 	else
 		rc = -EOPNOTSUPP;
@@ -91,14 +91,14 @@ out:
 	return rc;
 }
 
-static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
+static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 			unsigned long srcfd)
 {
 	int rc;
 	struct fd src_file;
 	struct inode *src_inode;
 
-	cifs_dbg(FYI, "ioctl clone range\n");
+	cifs_dbg(FYI, "ioctl copychunk range\n");
 	/* the destination must be opened for writing */
 	if (!(dst_file->f_mode & FMODE_WRITE)) {
 		cifs_dbg(FYI, "file target not open for write\n");
@@ -129,7 +129,7 @@ static long cifs_ioctl_clone(unsigned int xid, struct file *dst_file,
 	if (S_ISDIR(src_inode->i_mode))
 		goto out_fput;
 
-	rc = cifs_file_clone_range(xid, src_file.file, dst_file);
+	rc = cifs_file_copychunk_range(xid, src_file.file, dst_file);
 
 out_fput:
 	fdput(src_file);
@@ -251,7 +251,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			}
 			break;
 		case CIFS_IOC_COPYCHUNK_FILE:
-			rc = cifs_ioctl_clone(xid, filep, arg);
+			rc = cifs_ioctl_copychunk(xid, filep, arg);
 			break;
 		case CIFS_IOC_SET_INTEGRITY:
 			if (pSMBFile == NULL)

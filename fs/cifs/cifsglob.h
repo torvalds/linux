@@ -408,7 +408,8 @@ struct smb_version_operations {
 	char * (*create_lease_buf)(u8 *, u8);
 	/* parse lease context buffer and return oplock/epoch info */
 	__u8 (*parse_lease_buf)(void *, unsigned int *);
-	int (*clone_range)(const unsigned int, struct cifsFileInfo *src_file,
+	int (*copychunk_range)(const unsigned int,
+			struct cifsFileInfo *src_file,
 			struct cifsFileInfo *target_file, u64 src_off, u64 len,
 			u64 dest_off);
 	int (*duplicate_extents)(const unsigned int, struct cifsFileInfo *src,
