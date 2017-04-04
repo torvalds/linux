@@ -53,6 +53,7 @@ struct drm_mode_create_dumb;
 #define DRIVER_RENDER			0x8000
 #define DRIVER_ATOMIC			0x10000
 #define DRIVER_KMS_LEGACY_CONTEXT	0x20000
+#define DRIVER_SYNCOBJ                  0x40000
 
 /**
  * struct drm_driver - DRM driver structure
