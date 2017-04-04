@@ -270,8 +270,7 @@
 		"29:	SUB	%3, %3, #32\n"				\
 		"30:	MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
 		"31:	MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
-		"32:	SUB	%0, %0, #8\n"				\
-		"33:	SETL	[%0++], D0.7, D1.7\n"			\
+		"32:	SETL	[%0+#-8], D0.7, D1.7\n"			\
 		"	SUB	%3, %3, #32\n"				\
 		"1:	DCACHE	[%1+#-64], D0Ar6\n"			\
 		"	GETL	D0Ar6, D1Ar5, [A0StP+#-40]\n"		\
@@ -281,7 +280,6 @@
 		"	GETL	D0.7, D1.7, [A0StP+#-8]\n"		\
 		"	SUB	A0StP, A0StP, #40\n"			\
 		"	.section .fixup,\"ax\"\n"			\
-		"4:	ADD	%0, %0, #8\n"				\
 		"3:	MOV	D0Ar2, TXSTATUS\n"			\
 		"	MOV	D1Ar1, TXSTATUS\n"			\
 		"	AND	D1Ar1, D1Ar1, #0xFFFFF8FF\n"		\
@@ -303,7 +301,6 @@
 		"	.long 30b,3b\n"					\
 		"	.long 31b,3b\n"					\
 		"	.long 32b,3b\n"					\
-		"	.long 33b,4b\n"					\
 		"	.previous\n"					\
 		: "=r" (to), "=r" (from), "=r" (ret), "=d" (n)		\
 		: "0" (to), "1" (from), "2" (ret), "3" (n)		\
@@ -417,8 +414,7 @@
 		"41:	SUB	%3, %3, #16\n"				\
 		"42:	MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
 		"43:	MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
-		"44:	SUB	%0, %0, #4\n"				\
-		"45:	SETD	[%0++], D0.7\n"				\
+		"44:	SETD	[%0+#-4], D0.7\n"			\
 		"	SUB	%3, %3, #16\n"				\
 		"1:	DCACHE	[%1+#-64], D0Ar6\n"			\
 		"	GETL	D0Ar6, D1Ar5, [A0StP+#-40]\n"		\
@@ -428,7 +424,6 @@
 		"	GETL	D0.7, D1.7, [A0StP+#-8]\n"		\
 		"	SUB A0StP, A0StP, #40\n"			\
 		"	.section .fixup,\"ax\"\n"			\
-		"4:	ADD	%0, %0, #4\n"				\
 		"3:	MOV	D0Ar2, TXSTATUS\n"			\
 		"	MOV	D1Ar1, TXSTATUS\n"			\
 		"	AND	D1Ar1, D1Ar1, #0xFFFFF8FF\n"		\
@@ -462,7 +457,6 @@
 		"	.long 42b,3b\n"					\
 		"	.long 43b,3b\n"					\
 		"	.long 44b,3b\n"					\
-		"	.long 45b,4b\n"					\
 		"	.previous\n"					\
 		: "=r" (to), "=r" (from), "=r" (ret), "=d" (n)		\
 		: "0" (to), "1" (from), "2" (ret), "3" (n)		\
