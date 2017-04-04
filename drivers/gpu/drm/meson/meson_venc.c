@@ -26,26 +26,33 @@
 #include "meson_vclk.h"
 #include "meson_registers.h"
 
-/*
+/**
+ * DOC: Video Encoder
+ *
  * VENC Handle the pixels encoding to the output formats.
  * We handle the following encodings :
+ *
  * - CVBS Encoding via the ENCI encoder and VDAC digital to analog converter
  * - TMDS/HDMI Encoding via ENCI_DIV and ENCP
  * - Setup of more clock rates for HDMI modes
  *
  * What is missing :
+ *
  * - LCD Panel encoding via ENCL
  * - TV Panel encoding via ENCT
  *
  * VENC paths :
- *        _____   _____   ____________________
- * vd1---|     |-|     | | VENC     /---------|----VDAC
- * vd2---| VIU |-| VPP |-|-----ENCI/-ENCI_DVI-|\
- * osd1--|     |-|     | | \                  | X--HDMI-TX
- * osd2--|_____|-|_____| |  |\-ENCP--ENCP_DVI-|/
- *                       |  |                 |
- *                       |  \--ENCL-----------|----LVDS
- *                       |____________________|
+ *
+ * .. code::
+ *
+ *          _____   _____   ____________________
+ *   vd1---|     |-|     | | VENC     /---------|----VDAC
+ *   vd2---| VIU |-| VPP |-|-----ENCI/-ENCI_DVI-|-|
+ *   osd1--|     |-|     | | \                  | X--HDMI-TX
+ *   osd2--|_____|-|_____| |  |\-ENCP--ENCP_DVI-|-|
+ *                         |  |                 |
+ *                         |  \--ENCL-----------|----LVDS
+ *                         |____________________|
  *
  * The ENCI is designed for PAl or NTSC encoding and can go through the VDAC
  * directly for CVBS encoding or through the ENCI_DVI encoder for HDMI.

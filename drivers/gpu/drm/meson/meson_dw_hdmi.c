@@ -42,18 +42,25 @@
 #define DRIVER_NAME "meson-dw-hdmi"
 #define DRIVER_DESC "Amlogic Meson HDMI-TX DRM driver"
 
-/*
+/**
+ * DOC: HDMI Output
+ *
  * HDMI Output is composed of :
+ *
  * - A Synopsys DesignWare HDMI Controller IP
  * - A TOP control block controlling the Clocks and PHY
  * - A custom HDMI PHY in order convert video to TMDS signal
- *  ___________________________________
- * |            HDMI TOP               |<= HPD
- * |___________________________________|
- * |                  |                |
- * |  Synopsys HDMI   |   HDMI PHY     |=> TMDS
- * |    Controller    |________________|
- * |___________________________________|<=> DDC
+ *
+ * .. code::
+ *
+ *    ___________________________________
+ *   |            HDMI TOP               |<= HPD
+ *   |___________________________________|
+ *   |                  |                |
+ *   |  Synopsys HDMI   |   HDMI PHY     |=> TMDS
+ *   |    Controller    |________________|
+ *   |___________________________________|<=> DDC
+ *
  *
  * The HDMI TOP block only supports HPD sensing.
  * The Synopsys HDMI Controller interrupt is routed
@@ -78,6 +85,7 @@
  * audio source interfaces.
  *
  * We handle the following features :
+ *
  * - HPD Rise & Fall interrupt
  * - HDMI Controller Interrupt
  * - HDMI PHY Init for 480i to 1080p60
@@ -85,6 +93,7 @@
  * - VENC Mode setup for 480i to 1080p60
  *
  * What is missing :
+ *
  * - PHY, Clock and Mode setup for 2k && 4k modes
  * - SDDC Scrambling mode for HDMI 2.0a
  * - HDCP Setup

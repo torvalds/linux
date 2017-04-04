@@ -23,21 +23,29 @@
 #include "meson_drv.h"
 #include "meson_vclk.h"
 
-/*
+/**
+ * DOC: Video Clocks
+ *
  * VCLK is the "Pixel Clock" frequency generator from a dedicated PLL.
  * We handle the following encodings :
+ *
  * - CVBS 27MHz generator via the VCLK2 to the VENCI and VDAC blocks
  * - HDMI Pixel Clocks generation
+ *
  * What is missing :
+ *
  * - Genenate Pixel clocks for 2K/4K 10bit formats
  *
  * Clock generator scheme :
- *  __________   _________            _____
- * |          | |         |          |     |--ENCI
- * | HDMI PLL |-| PLL_DIV |--- VCLK--|     |--ENCL
- * |__________| |_________| \        | MUX |--ENCP
- *                           --VCLK2-|     |--VDAC
- *                                   |_____|--HDMI-TX
+ *
+ * .. code::
+ *
+ *    __________   _________            _____
+ *   |          | |         |          |     |--ENCI
+ *   | HDMI PLL |-| PLL_DIV |--- VCLK--|     |--ENCL
+ *   |__________| |_________| \        | MUX |--ENCP
+ *                             --VCLK2-|     |--VDAC
+ *                                     |_____|--HDMI-TX
  *
  * Final clocks can take input for either VCLK or VCLK2, but
  * VCLK is the preferred path for HDMI clocking and VCLK2 is the
