@@ -989,6 +989,7 @@ struct bnxt {
 	#define BNXT_FLAG_UDP_RSS_CAP	0x800
 	#define BNXT_FLAG_EEE_CAP	0x1000
 	#define BNXT_FLAG_NEW_RSS_CAP	0x2000
+	#define BNXT_FLAG_WOL_CAP	0x4000
 	#define BNXT_FLAG_ROCEV1_CAP	0x8000
 	#define BNXT_FLAG_ROCEV2_CAP	0x10000
 	#define BNXT_FLAG_ROCE_CAP	(BNXT_FLAG_ROCEV1_CAP |	\
@@ -1179,6 +1180,9 @@ struct bnxt {
 	struct ethtool_eee	eee;
 	u32			lpi_tmr_lo;
 	u32			lpi_tmr_hi;
+
+	u8			wol_filter_id;
+	u8			wol;
 
 	u8			num_leds;
 	struct bnxt_led_info	leds[BNXT_MAX_LED];

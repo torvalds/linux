@@ -4532,6 +4532,9 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		pf->max_tx_wm_flows = le32_to_cpu(resp->max_tx_wm_flows);
 		pf->max_rx_em_flows = le32_to_cpu(resp->max_rx_em_flows);
 		pf->max_rx_wm_flows = le32_to_cpu(resp->max_rx_wm_flows);
+		if (resp->flags &
+		    cpu_to_le32(FUNC_QCAPS_RESP_FLAGS_WOL_MAGICPKT_SUPPORTED))
+			bp->flags |= BNXT_FLAG_WOL_CAP;
 	} else {
 #ifdef CONFIG_BNXT_SRIOV
 		struct bnxt_vf_info *vf = &bp->vf;
@@ -5837,6 +5840,44 @@ static int bnxt_hwrm_port_led_qcaps(struct bnxt *bp)
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return 0;
+}
+
+static u16 bnxt_hwrm_get_wol_fltrs(struct bnxt *bp, u16 handle)
+{
+	struct hwrm_wol_filter_qcfg_input req = {0};
+	struct hwrm_wol_filter_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
+	u16 next_handle = 0;
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_WOL_FILTER_QCFG, -1, -1);
+	req.port_id = cpu_to_le16(bp->pf.port_id);
+	req.handle = cpu_to_le16(handle);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		next_handle = le16_to_cpu(resp->next_handle);
+		if (next_handle != 0) {
+			if (resp->wol_type ==
+			    WOL_FILTER_ALLOC_REQ_WOL_TYPE_MAGICPKT) {
+				bp->wol = 1;
+				bp->wol_filter_id = resp->wol_filter_id;
+			}
+		}
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return next_handle;
+}
+
+static void bnxt_get_wol_settings(struct bnxt *bp)
+{
+	u16 handle = 0;
+
+	if (!BNXT_PF(bp) || !(bp->flags & BNXT_FLAG_WOL_CAP))
+		return;
+
+	do {
+		handle = bnxt_hwrm_get_wol_fltrs(bp, handle);
+	} while (handle && handle != 0xffff);
 }
 
 static bool bnxt_eee_config_ok(struct bnxt *bp)
@@ -7574,6 +7615,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_init_int_mode(bp);
 	if (rc)
 		goto init_err_pci_clean;
+
+	bnxt_get_wol_settings(bp);
 
 	rc = register_netdev(dev);
 	if (rc)
