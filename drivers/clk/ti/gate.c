@@ -35,7 +35,7 @@ static const struct clk_ops omap_gate_clkdm_clk_ops = {
 	.disable	= &omap2_clkops_disable_clkdm,
 };
 
-static const struct clk_ops omap_gate_clk_ops = {
+const struct clk_ops omap_gate_clk_ops = {
 	.init		= &omap2_init_clk_clkdm,
 	.enable		= &omap2_dflt_clk_enable,
 	.disable	= &omap2_dflt_clk_disable,
@@ -62,7 +62,7 @@ static const struct clk_ops omap_gate_clk_hsdiv_restore_ops = {
  */
 static int omap36xx_gate_clk_enable_with_hsdiv_restore(struct clk_hw *hw)
 {
-	struct clk_divider *parent;
+	struct clk_omap_divider *parent;
 	struct clk_hw *parent_hw;
 	u32 dummy_v, orig_v;
 	int ret;
@@ -72,19 +72,19 @@ static int omap36xx_gate_clk_enable_with_hsdiv_restore(struct clk_hw *hw)
 
 	/* Parent is the x2 node, get parent of parent for the m2 div */
 	parent_hw = clk_hw_get_parent(clk_hw_get_parent(hw));
-	parent = to_clk_divider(parent_hw);
+	parent = to_clk_omap_divider(parent_hw);
 
 	/* Restore the dividers */
 	if (!ret) {
-		orig_v = ti_clk_ll_ops->clk_readl(parent->reg);
+		orig_v = ti_clk_ll_ops->clk_readl(&parent->reg);
 		dummy_v = orig_v;
 
 		/* Write any other value different from the Read value */
 		dummy_v ^= (1 << parent->shift);
-		ti_clk_ll_ops->clk_writel(dummy_v, parent->reg);
+		ti_clk_ll_ops->clk_writel(dummy_v, &parent->reg);
 
 		/* Write the original divider */
-		ti_clk_ll_ops->clk_writel(orig_v, parent->reg);
+		ti_clk_ll_ops->clk_writel(orig_v, &parent->reg);
 	}
 
 	return ret;
@@ -92,7 +92,7 @@ static int omap36xx_gate_clk_enable_with_hsdiv_restore(struct clk_hw *hw)
 
 static struct clk *_register_gate(struct device *dev, const char *name,
 				  const char *parent_name, unsigned long flags,
-				  void __iomem *reg, u8 bit_idx,
+				  struct clk_omap_reg *reg, u8 bit_idx,
 				  u8 clk_gate_flags, const struct clk_ops *ops,
 				  const struct clk_hw_omap_ops *hw_ops)
 {
@@ -109,18 +109,18 @@ static struct clk *_register_gate(struct device *dev, const char *name,
 	init.name = name;
 	init.ops = ops;
 
-	clk_hw->enable_reg = reg;
+	memcpy(&clk_hw->enable_reg, reg, sizeof(*reg));
 	clk_hw->enable_bit = bit_idx;
 	clk_hw->ops = hw_ops;
 
-	clk_hw->flags = MEMMAP_ADDRESSING | clk_gate_flags;
+	clk_hw->flags = clk_gate_flags;
 
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
 	init.flags = flags;
 
-	clk = clk_register(NULL, &clk_hw->hw);
+	clk = ti_clk_register(NULL, &clk_hw->hw, name);
 
 	if (IS_ERR(clk))
 		kfree(clk_hw);
@@ -133,8 +133,7 @@ struct clk *ti_clk_register_gate(struct ti_clk *setup)
 {
 	const struct clk_ops *ops = &omap_gate_clk_ops;
 	const struct clk_hw_omap_ops *hw_ops = NULL;
-	u32 reg;
-	struct clk_omap_reg *reg_setup;
+	struct clk_omap_reg reg;
 	u32 flags = 0;
 	u8 clk_gate_flags = 0;
 	struct ti_clk_gate *gate;
@@ -143,8 +142,6 @@ struct clk *ti_clk_register_gate(struct ti_clk *setup)
 
 	if (gate->flags & CLKF_INTERFACE)
 		return ti_clk_register_interface(setup);
-
-	reg_setup = (struct clk_omap_reg *)&reg;
 
 	if (gate->flags & CLKF_SET_RATE_PARENT)
 		flags |= CLK_SET_RATE_PARENT;
@@ -169,11 +166,12 @@ struct clk *ti_clk_register_gate(struct ti_clk *setup)
 	if (gate->flags & CLKF_AM35XX)
 		hw_ops = &clkhwops_am35xx_ipss_module_wait;
 
-	reg_setup->index = gate->module;
-	reg_setup->offset = gate->reg;
+	reg.index = gate->module;
+	reg.offset = gate->reg;
+	reg.ptr = NULL;
 
 	return _register_gate(NULL, setup->name, gate->parent, flags,
-			      (void __iomem *)reg, gate->bit_shift,
+			      &reg, gate->bit_shift,
 			      clk_gate_flags, ops, hw_ops);
 }
 
@@ -203,7 +201,6 @@ struct clk_hw *ti_clk_build_component_gate(struct ti_clk_gate *setup)
 		ops = &clkhwops_iclk_wait;
 
 	gate->ops = ops;
-	gate->flags = MEMMAP_ADDRESSING;
 
 	return &gate->hw;
 }
@@ -215,15 +212,14 @@ static void __init _of_ti_gate_clk_setup(struct device_node *node,
 {
 	struct clk *clk;
 	const char *parent_name;
-	void __iomem *reg = NULL;
+	struct clk_omap_reg reg;
 	u8 enable_bit = 0;
 	u32 val;
 	u32 flags = 0;
 	u8 clk_gate_flags = 0;
 
 	if (ops != &omap_gate_clkdm_clk_ops) {
-		reg = ti_clk_get_reg_addr(node, 0);
-		if (IS_ERR(reg))
+		if (ti_clk_get_reg_addr(node, 0, &reg))
 			return;
 
 		if (!of_property_read_u32(node, "ti,bit-shift", &val))
@@ -243,7 +239,7 @@ static void __init _of_ti_gate_clk_setup(struct device_node *node,
 	if (of_property_read_bool(node, "ti,set-bit-to-disable"))
 		clk_gate_flags |= INVERT_ENABLE;
 
-	clk = _register_gate(NULL, node->name, parent_name, flags, reg,
+	clk = _register_gate(NULL, node->name, parent_name, flags, &reg,
 			     enable_bit, clk_gate_flags, ops, hw_ops);
 
 	if (!IS_ERR(clk))
@@ -261,15 +257,13 @@ _of_ti_composite_gate_clk_setup(struct device_node *node,
 	if (!gate)
 		return;
 
-	gate->enable_reg = ti_clk_get_reg_addr(node, 0);
-	if (IS_ERR(gate->enable_reg))
+	if (ti_clk_get_reg_addr(node, 0, &gate->enable_reg))
 		goto cleanup;
 
 	of_property_read_u32(node, "ti,bit-shift", &val);
 
 	gate->enable_bit = val;
 	gate->ops = hw_ops;
-	gate->flags = MEMMAP_ADDRESSING;
 
 	if (!ti_clk_add_component(node, &gate->hw, CLK_COMPONENT_TYPE_GATE))
 		return;

@@ -16,6 +16,28 @@
 #ifndef __DRIVERS_CLK_TI_CLOCK__
 #define __DRIVERS_CLK_TI_CLOCK__
 
+struct clk_omap_divider {
+	struct clk_hw		hw;
+	struct clk_omap_reg	reg;
+	u8			shift;
+	u8			width;
+	u8			flags;
+	const struct clk_div_table	*table;
+};
+
+#define to_clk_omap_divider(_hw) container_of(_hw, struct clk_omap_divider, hw)
+
+struct clk_omap_mux {
+	struct clk_hw		hw;
+	struct clk_omap_reg	reg;
+	u32			*table;
+	u32			mask;
+	u8			shift;
+	u8			flags;
+};
+
+#define to_clk_omap_mux(_hw) container_of(_hw, struct clk_omap_mux, hw)
+
 enum {
 	TI_CLK_FIXED,
 	TI_CLK_MUX,
@@ -86,7 +108,7 @@ struct ti_clk_mux {
 	int num_parents;
 	u16 reg;
 	u8 module;
-	const char **parents;
+	const char * const *parents;
 	u16 flags;
 };
 
@@ -189,16 +211,25 @@ struct clk *ti_clk_register_mux(struct ti_clk *setup);
 struct clk *ti_clk_register_divider(struct ti_clk *setup);
 struct clk *ti_clk_register_composite(struct ti_clk *setup);
 struct clk *ti_clk_register_dpll(struct ti_clk *setup);
+struct clk *ti_clk_register(struct device *dev, struct clk_hw *hw,
+			    const char *con);
+int ti_clk_add_alias(struct device *dev, struct clk *clk, const char *con);
+void ti_clk_add_aliases(void);
 
 struct clk_hw *ti_clk_build_component_div(struct ti_clk_divider *setup);
 struct clk_hw *ti_clk_build_component_gate(struct ti_clk_gate *setup);
 struct clk_hw *ti_clk_build_component_mux(struct ti_clk_mux *setup);
 
+int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
+			      u8 flags, u8 *width,
+			      const struct clk_div_table **table);
+
 void ti_clk_patch_legacy_clks(struct ti_clk **patch);
 struct clk *ti_clk_register_clk(struct ti_clk *setup);
 int ti_clk_register_legacy_clks(struct ti_clk_alias *clks);
 
-void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index);
+int ti_clk_get_reg_addr(struct device_node *node, int index,
+			struct clk_omap_reg *reg);
 void ti_dt_clocks_register(struct ti_dt_clk *oclks);
 int ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
 		      ti_of_clk_init_cb_t func);
@@ -223,7 +254,9 @@ extern const struct clk_hw_omap_ops clkhwops_am35xx_ipss_wait;
 
 extern const struct clk_ops ti_clk_divider_ops;
 extern const struct clk_ops ti_clk_mux_ops;
+extern const struct clk_ops omap_gate_clk_ops;
 
+void omap2_init_clk_clkdm(struct clk_hw *hw);
 int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 void omap2_clkops_disable_clkdm(struct clk_hw *hw);
 
@@ -231,10 +264,10 @@ int omap2_dflt_clk_enable(struct clk_hw *hw);
 void omap2_dflt_clk_disable(struct clk_hw *hw);
 int omap2_dflt_clk_is_enabled(struct clk_hw *hw);
 void omap2_clk_dflt_find_companion(struct clk_hw_omap *clk,
-				   void __iomem **other_reg,
+				   struct clk_omap_reg *other_reg,
 				   u8 *other_bit);
 void omap2_clk_dflt_find_idlest(struct clk_hw_omap *clk,
-				void __iomem **idlest_reg,
+				struct clk_omap_reg *idlest_reg,
 				u8 *idlest_bit, u8 *idlest_val);
 
 void omap2_clkt_iclk_allow_idle(struct clk_hw_omap *clk);

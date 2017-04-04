@@ -42,17 +42,17 @@ static void omap4_dpllmx_allow_gatectrl(struct clk_hw_omap *clk)
 	u32 v;
 	u32 mask;
 
-	if (!clk || !clk->clksel_reg)
+	if (!clk)
 		return;
 
 	mask = clk->flags & CLOCK_CLKOUTX2 ?
 			OMAP4430_DPLL_CLKOUTX2_GATE_CTRL_MASK :
 			OMAP4430_DPLL_CLKOUT_GATE_CTRL_MASK;
 
-	v = ti_clk_ll_ops->clk_readl(clk->clksel_reg);
+	v = ti_clk_ll_ops->clk_readl(&clk->clksel_reg);
 	/* Clear the bit to allow gatectrl */
 	v &= ~mask;
-	ti_clk_ll_ops->clk_writel(v, clk->clksel_reg);
+	ti_clk_ll_ops->clk_writel(v, &clk->clksel_reg);
 }
 
 static void omap4_dpllmx_deny_gatectrl(struct clk_hw_omap *clk)
@@ -60,17 +60,17 @@ static void omap4_dpllmx_deny_gatectrl(struct clk_hw_omap *clk)
 	u32 v;
 	u32 mask;
 
-	if (!clk || !clk->clksel_reg)
+	if (!clk)
 		return;
 
 	mask = clk->flags & CLOCK_CLKOUTX2 ?
 			OMAP4430_DPLL_CLKOUTX2_GATE_CTRL_MASK :
 			OMAP4430_DPLL_CLKOUT_GATE_CTRL_MASK;
 
-	v = ti_clk_ll_ops->clk_readl(clk->clksel_reg);
+	v = ti_clk_ll_ops->clk_readl(&clk->clksel_reg);
 	/* Set the bit to deny gatectrl */
 	v |= mask;
-	ti_clk_ll_ops->clk_writel(v, clk->clksel_reg);
+	ti_clk_ll_ops->clk_writel(v, &clk->clksel_reg);
 }
 
 const struct clk_hw_omap_ops clkhwops_omap4_dpllmx = {
@@ -128,7 +128,7 @@ unsigned long omap4_dpll_regm4xen_recalc(struct clk_hw *hw,
 	rate = omap2_get_dpll_rate(clk);
 
 	/* regm4xen adds a multiplier of 4 to DPLL calculations */
-	v = ti_clk_ll_ops->clk_readl(dd->control_reg);
+	v = ti_clk_ll_ops->clk_readl(&dd->control_reg);
 	if (v & OMAP4430_DPLL_REGM4XEN_MASK)
 		rate *= OMAP4430_REGM4XEN_MULT;
 
