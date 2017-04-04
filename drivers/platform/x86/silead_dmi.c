@@ -96,9 +96,9 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 	{ },
 };
 
-static void silead_ts_dmi_add_props(struct device *dev)
+static void silead_ts_dmi_add_props(struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(dev);
+	struct device *dev = &client->dev;
 	const struct dmi_system_id *dmi_id;
 	const struct silead_ts_dmi_data *ts_data;
 	int error;
@@ -120,10 +120,13 @@ static int silead_ts_dmi_notifier_call(struct notifier_block *nb,
 				       unsigned long action, void *data)
 {
 	struct device *dev = data;
+	struct i2c_client *client;
 
 	switch (action) {
 	case BUS_NOTIFY_ADD_DEVICE:
-		silead_ts_dmi_add_props(dev);
+		client = i2c_verify_client(dev);
+		if (client)
+			silead_ts_dmi_add_props(client);
 		break;
 
 	default:
