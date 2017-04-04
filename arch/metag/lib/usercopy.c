@@ -246,65 +246,49 @@
 #define __asm_copy_user_64bit_rapf_loop(				\
 		to, from, ret, n, id, FIXUP)				\
 	asm volatile (							\
-		".balign 8\n"						\
-		"MOV	RAPF, %1\n"					\
-		"MSETL	[A0StP++], D0Ar6, D0FrT, D0.5, D0.6, D0.7\n"	\
-		"MOV	D0Ar6, #0\n"					\
-		"LSR	D1Ar5, %3, #6\n"				\
-		"SUB	TXRPT, D1Ar5, #2\n"				\
-		"MOV	RAPF, %1\n"					\
+			".balign 8\n"					\
+		"	MOV	RAPF, %1\n"				\
+		"	MSETL	[A0StP++], D0Ar6, D0FrT, D0.5, D0.6, D0.7\n" \
+		"	MOV	D0Ar6, #0\n"				\
+		"	LSR	D1Ar5, %3, #6\n"			\
+		"	SUB	TXRPT, D1Ar5, #2\n"			\
+		"	MOV	RAPF, %1\n"				\
 		"$Lloop"id":\n"						\
-		"ADD	RAPF, %1, #64\n"				\
-		"21:\n"							\
-		"MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"22:\n"							\
-		"MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"23:\n"							\
-		"SUB	%3, %3, #32\n"					\
-		"24:\n"							\
-		"MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"25:\n"							\
-		"MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"26:\n"							\
-		"SUB	%3, %3, #32\n"					\
-		"DCACHE	[%1+#-64], D0Ar6\n"				\
-		"BR	$Lloop"id"\n"					\
+		"	ADD	RAPF, %1, #64\n"			\
+		"21:	MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"22:	MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"23:	SUB	%3, %3, #32\n"				\
+		"24:	MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"25:	MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"26:	SUB	%3, %3, #32\n"				\
+		"	DCACHE	[%1+#-64], D0Ar6\n"			\
+		"	BR	$Lloop"id"\n"				\
 									\
-		"MOV	RAPF, %1\n"					\
-		"27:\n"							\
-		"MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"28:\n"							\
-		"MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"29:\n"							\
-		"SUB	%3, %3, #32\n"					\
-		"30:\n"							\
-		"MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"31:\n"							\
-		"MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"32:\n"							\
-		"SUB	%0, %0, #8\n"					\
-		"33:\n"							\
-		"SETL	[%0++], D0.7, D1.7\n"				\
-		"SUB	%3, %3, #32\n"					\
-		"1:"							\
-		"DCACHE	[%1+#-64], D0Ar6\n"				\
-		"GETL    D0Ar6, D1Ar5, [A0StP+#-40]\n"			\
-		"GETL    D0FrT, D1RtP, [A0StP+#-32]\n"			\
-		"GETL    D0.5, D1.5, [A0StP+#-24]\n"			\
-		"GETL    D0.6, D1.6, [A0StP+#-16]\n"			\
-		"GETL    D0.7, D1.7, [A0StP+#-8]\n"			\
-		"SUB A0StP, A0StP, #40\n"				\
+		"	MOV	RAPF, %1\n"				\
+		"27:	MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"28:	MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"29:	SUB	%3, %3, #32\n"				\
+		"30:	MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"31:	MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"32:	SUB	%0, %0, #8\n"				\
+		"33:	SETL	[%0++], D0.7, D1.7\n"			\
+		"	SUB	%3, %3, #32\n"				\
+		"1:	DCACHE	[%1+#-64], D0Ar6\n"			\
+		"	GETL	D0Ar6, D1Ar5, [A0StP+#-40]\n"		\
+		"	GETL	D0FrT, D1RtP, [A0StP+#-32]\n"		\
+		"	GETL	D0.5, D1.5, [A0StP+#-24]\n"		\
+		"	GETL	D0.6, D1.6, [A0StP+#-16]\n"		\
+		"	GETL	D0.7, D1.7, [A0StP+#-8]\n"		\
+		"	SUB	A0StP, A0StP, #40\n"			\
 		"	.section .fixup,\"ax\"\n"			\
-		"4:\n"							\
-		"	ADD	%0, %0, #8\n"				\
-		"3:\n"							\
-		"	MOV	D0Ar2, TXSTATUS\n"			\
+		"4:	ADD	%0, %0, #8\n"				\
+		"3:	MOV	D0Ar2, TXSTATUS\n"			\
 		"	MOV	D1Ar1, TXSTATUS\n"			\
 		"	AND	D1Ar1, D1Ar1, #0xFFFFF8FF\n"		\
 		"	MOV	TXSTATUS, D1Ar1\n"			\
 			FIXUP						\
-		"	MOVT    D0Ar2,#HI(1b)\n"			\
-		"	JUMP    D0Ar2,#LO(1b)\n"			\
+		"	MOVT	D0Ar2, #HI(1b)\n"			\
+		"	JUMP	D0Ar2, #LO(1b)\n"			\
 		"	.previous\n"					\
 		"	.section __ex_table,\"a\"\n"			\
 		"	.long 21b,3b\n"					\
@@ -397,89 +381,61 @@
 #define __asm_copy_user_32bit_rapf_loop(				\
 			to,	from, ret, n, id, FIXUP)		\
 	asm volatile (							\
-		".balign 8\n"						\
-		"MOV	RAPF, %1\n"					\
-		"MSETL	[A0StP++], D0Ar6, D0FrT, D0.5, D0.6, D0.7\n"	\
-		"MOV	D0Ar6, #0\n"					\
-		"LSR	D1Ar5, %3, #6\n"				\
-		"SUB	TXRPT, D1Ar5, #2\n"				\
-		"MOV	RAPF, %1\n"					\
-	"$Lloop"id":\n"							\
-		"ADD	RAPF, %1, #64\n"				\
-		"21:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"22:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"23:\n"							\
-		"SUB	%3, %3, #16\n"					\
-		"24:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"25:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"26:\n"							\
-		"SUB	%3, %3, #16\n"					\
-		"27:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"28:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"29:\n"							\
-		"SUB	%3, %3, #16\n"					\
-		"30:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"31:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"32:\n"							\
-		"SUB	%3, %3, #16\n"					\
-		"DCACHE	[%1+#-64], D0Ar6\n"				\
-		"BR	$Lloop"id"\n"					\
+			".balign 8\n"					\
+		"	MOV	RAPF, %1\n"				\
+		"	MSETL	[A0StP++], D0Ar6, D0FrT, D0.5, D0.6, D0.7\n" \
+		"	MOV	D0Ar6, #0\n"				\
+		"	LSR	D1Ar5, %3, #6\n"			\
+		"	SUB	TXRPT, D1Ar5, #2\n"			\
+		"	MOV	RAPF, %1\n"				\
+		"$Lloop"id":\n"						\
+		"	ADD	RAPF, %1, #64\n"			\
+		"21:	MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"22:	MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"23:	SUB	%3, %3, #16\n"				\
+		"24:	MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"25:	MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"26:	SUB	%3, %3, #16\n"				\
+		"27:	MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"28:	MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"29:	SUB	%3, %3, #16\n"				\
+		"30:	MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"31:	MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"32:	SUB	%3, %3, #16\n"				\
+		"	DCACHE	[%1+#-64], D0Ar6\n"			\
+		"	BR	$Lloop"id"\n"				\
 									\
-		"MOV	RAPF, %1\n"					\
-		"33:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"34:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"35:\n"							\
-		"SUB	%3, %3, #16\n"					\
-		"36:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"37:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"38:\n"							\
-		"SUB	%3, %3, #16\n"					\
-		"39:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"40:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"41:\n"							\
-		"SUB	%3, %3, #16\n"					\
-		"42:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"43:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"44:\n"							\
-		"SUB	%0, %0, #4\n"					\
-		"45:\n"							\
-		"SETD	[%0++], D0.7\n"					\
-		"SUB	%3, %3, #16\n"					\
-		"1:"							\
-		"DCACHE	[%1+#-64], D0Ar6\n"				\
-		"GETL    D0Ar6, D1Ar5, [A0StP+#-40]\n"			\
-		"GETL    D0FrT, D1RtP, [A0StP+#-32]\n"			\
-		"GETL    D0.5, D1.5, [A0StP+#-24]\n"			\
-		"GETL    D0.6, D1.6, [A0StP+#-16]\n"			\
-		"GETL    D0.7, D1.7, [A0StP+#-8]\n"			\
-		"SUB A0StP, A0StP, #40\n"				\
+		"	MOV	RAPF, %1\n"				\
+		"33:	MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"34:	MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"35:	SUB	%3, %3, #16\n"				\
+		"36:	MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"37:	MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"38:	SUB	%3, %3, #16\n"				\
+		"39:	MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"40:	MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"41:	SUB	%3, %3, #16\n"				\
+		"42:	MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"	\
+		"43:	MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"	\
+		"44:	SUB	%0, %0, #4\n"				\
+		"45:	SETD	[%0++], D0.7\n"				\
+		"	SUB	%3, %3, #16\n"				\
+		"1:	DCACHE	[%1+#-64], D0Ar6\n"			\
+		"	GETL	D0Ar6, D1Ar5, [A0StP+#-40]\n"		\
+		"	GETL	D0FrT, D1RtP, [A0StP+#-32]\n"		\
+		"	GETL	D0.5, D1.5, [A0StP+#-24]\n"		\
+		"	GETL	D0.6, D1.6, [A0StP+#-16]\n"		\
+		"	GETL	D0.7, D1.7, [A0StP+#-8]\n"		\
+		"	SUB A0StP, A0StP, #40\n"			\
 		"	.section .fixup,\"ax\"\n"			\
-		"4:\n"							\
-		"	ADD		%0, %0, #4\n"			\
-		"3:\n"							\
-		"	MOV	D0Ar2, TXSTATUS\n"			\
+		"4:	ADD	%0, %0, #4\n"				\
+		"3:	MOV	D0Ar2, TXSTATUS\n"			\
 		"	MOV	D1Ar1, TXSTATUS\n"			\
 		"	AND	D1Ar1, D1Ar1, #0xFFFFF8FF\n"		\
 		"	MOV	TXSTATUS, D1Ar1\n"			\
 			FIXUP						\
-		"	MOVT    D0Ar2,#HI(1b)\n"			\
-		"	JUMP    D0Ar2,#LO(1b)\n"			\
+		"	MOVT	D0Ar2, #HI(1b)\n"			\
+		"	JUMP	D0Ar2, #LO(1b)\n"			\
 		"	.previous\n"					\
 		"	.section __ex_table,\"a\"\n"			\
 		"	.long 21b,3b\n"					\
