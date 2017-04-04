@@ -67,4 +67,12 @@ void uverbs_uobject_get(struct ib_uobject *uobject);
  */
 void uverbs_uobject_put(struct ib_uobject *uobject);
 
+/* Indicate this fd is no longer used by this consumer, but its memory isn't
+ * necessarily released yet. When the last reference is put, we release the
+ * memory. After this call is executed, calling uverbs_uobject_get isn't
+ * allowed.
+ * This must be called from the release file_operations of the file!
+ */
+void uverbs_close_fd(struct file *f);
+
 #endif /* RDMA_CORE_H */

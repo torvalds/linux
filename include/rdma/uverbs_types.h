@@ -129,6 +129,22 @@ void rdma_alloc_abort_uobject(struct ib_uobject *uobj);
 int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj);
 int rdma_alloc_commit_uobject(struct ib_uobject *uobj);
 
+struct uverbs_obj_fd_type {
+	/*
+	 * In fd based objects, uverbs_obj_type_ops points to generic
+	 * fd operations. In order to specialize the underlying types (e.g.
+	 * completion_channel), we use fops, name and flags for fd creation.
+	 * context_closed is called when the context is closed either when
+	 * the driver is removed or the process terminated.
+	 */
+	struct uverbs_obj_type  type;
+	int (*context_closed)(struct ib_uobject_file *uobj_file,
+			      enum rdma_remove_reason why);
+	const struct file_operations	*fops;
+	const char			*name;
+	int				flags;
+};
+
 extern const struct uverbs_obj_type_class uverbs_idr_class;
 
 #define UVERBS_BUILD_BUG_ON(cond) (sizeof(char[1 - 2 * !!(cond)]) -	\

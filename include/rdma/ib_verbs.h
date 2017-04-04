@@ -1421,6 +1421,12 @@ struct ib_uobject {
 	const struct uverbs_obj_type *type;
 };
 
+struct ib_uobject_file {
+	struct ib_uobject	uobj;
+	/* ufile contains the lock between context release and file close */
+	struct ib_uverbs_file	*ufile;
+};
+
 struct ib_udata {
 	const void __user *inbuf;
 	void __user *outbuf;
