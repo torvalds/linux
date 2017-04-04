@@ -49,7 +49,7 @@
 
 static unsigned int base[max_num_isa_dev(STX104_EXTENT)];
 static unsigned int num_stx104;
-module_param_array(base, uint, &num_stx104, 0);
+module_param_hw_array(base, uint, ioport, &num_stx104, 0);
 MODULE_PARM_DESC(base, "Apex Embedded Systems STX104 base addresses");
 
 /**
