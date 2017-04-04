@@ -167,6 +167,8 @@ struct coex_sta_8723b_2ant {
 	u32 crc_err_11n_agg;
 	bool force_lps_on;
 
+	u8 dis_ver_info_cnt;
+
 	u8 a2dp_bit_pool;
 };
 
