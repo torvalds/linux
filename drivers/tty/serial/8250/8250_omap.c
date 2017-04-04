@@ -1075,15 +1075,15 @@ static int omap8250_no_handle_irq(struct uart_port *port)
 }
 
 static const u8 am3352_habit = OMAP_DMA_TX_KICK | UART_ERRATA_CLOCK_DISABLE;
-static const u8 am4372_habit = UART_ERRATA_CLOCK_DISABLE;
+static const u8 dra742_habit = UART_ERRATA_CLOCK_DISABLE;
 
 static const struct of_device_id omap8250_dt_ids[] = {
 	{ .compatible = "ti,omap2-uart" },
 	{ .compatible = "ti,omap3-uart" },
 	{ .compatible = "ti,omap4-uart" },
 	{ .compatible = "ti,am3352-uart", .data = &am3352_habit, },
-	{ .compatible = "ti,am4372-uart", .data = &am4372_habit, },
-	{ .compatible = "ti,dra742-uart", .data = &am4372_habit, },
+	{ .compatible = "ti,am4372-uart", .data = &am3352_habit, },
+	{ .compatible = "ti,dra742-uart", .data = &dra742_habit, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap8250_dt_ids);
@@ -1218,9 +1218,6 @@ static int omap8250_probe(struct platform_device *pdev)
 			priv->omap8250_dma.rx_size = RX_TRIGGER;
 			priv->omap8250_dma.rxconf.src_maxburst = RX_TRIGGER;
 			priv->omap8250_dma.txconf.dst_maxburst = TX_TRIGGER;
-
-			if (of_machine_is_compatible("ti,am33xx"))
-				priv->habit |= OMAP_DMA_TX_KICK;
 			/*
 			 * pause is currently not supported atleast on omap-sdma
 			 * and edma on most earlier kernels.
