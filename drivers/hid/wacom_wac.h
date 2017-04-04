@@ -301,6 +301,7 @@ struct hid_data {
 	int bat_charging;
 	int bat_connected;
 	int ps_connected;
+	bool pad_input_event_flag;
 };
 
 struct wacom_remote_data {

@@ -1881,6 +1881,8 @@ static void wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field
 		 /* fall through*/
 	default:
 		input_event(input, usage->type, usage->code, value);
+		if (value)
+			wacom_wac->hid_data.pad_input_event_flag = true;
 		break;
 	}
 }
@@ -1921,9 +1923,12 @@ static void wacom_wac_pad_report(struct hid_device *hdev,
 	bool active = wacom_wac->hid_data.inrange_state != 0;
 
 	/* report prox for expresskey events */
-	if (wacom_equivalent_usage(report->field[0]->physical) == HID_DG_TABLETFUNCTIONKEY) {
+	if ((wacom_equivalent_usage(report->field[0]->physical) == HID_DG_TABLETFUNCTIONKEY) &&
+	    wacom_wac->hid_data.pad_input_event_flag) {
 		input_event(input, EV_ABS, ABS_MISC, active ? PAD_DEVICE_ID : 0);
 		input_sync(input);
+		if (!active)
+			wacom_wac->hid_data.pad_input_event_flag = false;
 	}
 
 }
