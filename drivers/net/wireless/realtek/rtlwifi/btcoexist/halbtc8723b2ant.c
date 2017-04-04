@@ -2831,6 +2831,7 @@ void ex_btc8723b2ant_media_status_notify(struct btc_coexist *btcoexist,
 	u8 h2c_parameter[3] = {0};
 	u32 wifi_bw;
 	u8 wifi_central_chnl;
+	u8 ap_num = 0;
 
 	if (BTC_MEDIA_CONNECT == type)
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
@@ -2848,10 +2849,16 @@ void ex_btc8723b2ant_media_status_notify(struct btc_coexist *btcoexist,
 		h2c_parameter[1] = wifi_central_chnl;
 		btcoexist->btc_get(btcoexist,
 			BTC_GET_U4_WIFI_BW, &wifi_bw);
-		if (BTC_WIFI_BW_HT40 == wifi_bw)
+		if (wifi_bw == BTC_WIFI_BW_HT40) {
 			h2c_parameter[2] = 0x30;
-		else
-			h2c_parameter[2] = 0x20;
+		} else {
+			btcoexist->btc_get(btcoexist, BTC_GET_U1_AP_NUM,
+					   &ap_num);
+			if (ap_num < 10)
+				h2c_parameter[2] = 0x30;
+			else
+				h2c_parameter[2] = 0x20;
+		}
 	}
 
 	coex_dm->wifi_chnl_info[0] = h2c_parameter[0];
