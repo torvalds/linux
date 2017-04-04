@@ -33,10 +33,15 @@
 static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
 
 static int __section(.data) __nokaslr;
+static int __section(.data) __quiet;
 
 int __pure nokaslr(void)
 {
 	return __nokaslr;
+}
+int __pure is_quiet(void)
+{
+	return __quiet;
 }
 
 #define EFI_MMAP_NR_SLACK_SLOTS	8
@@ -423,6 +428,10 @@ efi_status_t efi_parse_options(char const *cmdline)
 	str = strstr(cmdline, "nokaslr");
 	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
 		__nokaslr = 1;
+
+	str = strstr(cmdline, "quiet");
+	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
+		__quiet = 1;
 
 	/*
 	 * If no EFI parameters were specified on the cmdline we've got

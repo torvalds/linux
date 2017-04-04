@@ -9,6 +9,8 @@
 #include <linux/efi.h>
 #include <asm/efi.h>
 
+#include "efistub.h"
+
 efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
 {
 	int block;
