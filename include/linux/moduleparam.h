@@ -60,9 +60,11 @@ struct kernel_param_ops {
  * Flags available for kernel_param
  *
  * UNSAFE - the parameter is dangerous and setting it will taint the kernel
+ * HWPARAM - Hardware param not permitted in lockdown mode
  */
 enum {
-	KERNEL_PARAM_FL_UNSAFE = (1 << 0)
+	KERNEL_PARAM_FL_UNSAFE	= (1 << 0),
+	KERNEL_PARAM_FL_HWPARAM	= (1 << 1),
 };
 
 struct kernel_param {
@@ -450,6 +452,67 @@ extern int param_set_bint(const char *val, const struct kernel_param *kp);
 			    .arr = &__param_arr_##name,			\
 			    perm, -1, 0);				\
 	__MODULE_PARM_TYPE(name, "array of " #type)
+
+enum hwparam_type {
+	hwparam_ioport,		/* Module parameter configures an I/O port */
+	hwparam_iomem,		/* Module parameter configures an I/O mem address */
+	hwparam_ioport_or_iomem, /* Module parameter could be either, depending on other option */
+	hwparam_irq,		/* Module parameter configures an I/O port */
+	hwparam_dma,		/* Module parameter configures a DMA channel */
+	hwparam_dma_addr,	/* Module parameter configures a DMA buffer address */
+	hwparam_other,		/* Module parameter configures some other value */
+};
+
+/**
+ * module_param_hw_named - A parameter representing a hw parameters
+ * @name: a valid C identifier which is the parameter name.
+ * @value: the actual lvalue to alter.
+ * @type: the type of the parameter
+ * @hwtype: what the value represents (enum hwparam_type)
+ * @perm: visibility in sysfs.
+ *
+ * Usually it's a good idea to have variable names and user-exposed names the
+ * same, but that's harder if the variable must be non-static or is inside a
+ * structure.  This allows exposure under a different name.
+ */
+#define module_param_hw_named(name, value, type, hwtype, perm)		\
+	param_check_##type(name, &(value));				\
+	__module_param_call(MODULE_PARAM_PREFIX, name,			\
+			    &param_ops_##type, &value,			\
+			    perm, -1,					\
+			    KERNEL_PARAM_FL_HWPARAM | (hwparam_##hwtype & 0));	\
+	__MODULE_PARM_TYPE(name, #type)
+
+#define module_param_hw(name, type, hwtype, perm)		\
+	module_param_hw_named(name, name, type, hwtype, perm)
+
+/**
+ * module_param_hw_array - A parameter representing an array of hw parameters
+ * @name: the name of the array variable
+ * @type: the type, as per module_param()
+ * @hwtype: what the value represents (enum hwparam_type)
+ * @nump: optional pointer filled in with the number written
+ * @perm: visibility in sysfs
+ *
+ * Input and output are as comma-separated values.  Commas inside values
+ * don't work properly (eg. an array of charp).
+ *
+ * ARRAY_SIZE(@name) is used to determine the number of elements in the
+ * array, so the definition must be visible.
+ */
+#define module_param_hw_array(name, type, hwtype, nump, perm)		\
+	param_check_##type(name, &(name)[0]);				\
+	static const struct kparam_array __param_arr_##name		\
+	= { .max = ARRAY_SIZE(name), .num = nump,			\
+	    .ops = &param_ops_##type,					\
+	    .elemsize = sizeof(name[0]), .elem = name };		\
+	__module_param_call(MODULE_PARAM_PREFIX, name,			\
+			    &param_array_ops,				\
+			    .arr = &__param_arr_##name,			\
+			    perm, -1,					\
+			    KERNEL_PARAM_FL_HWPARAM | (hwparam_##hwtype & 0));	\
+	__MODULE_PARM_TYPE(name, "array of " #type)
+
 
 extern const struct kernel_param_ops param_array_ops;
 
