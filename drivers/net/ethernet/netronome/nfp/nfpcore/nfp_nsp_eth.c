@@ -49,7 +49,7 @@
 #define NSP_ETH_NBI_PORT_COUNT		24
 #define NSP_ETH_MAX_COUNT		(2 * NSP_ETH_NBI_PORT_COUNT)
 #define NSP_ETH_TABLE_SIZE		(NSP_ETH_MAX_COUNT *		\
-					 sizeof(struct eth_table_entry))
+					 sizeof(union eth_table_entry))
 
 #define NSP_ETH_PORT_LANES		GENMASK_ULL(3, 0)
 #define NSP_ETH_PORT_INDEX		GENMASK_ULL(15, 8)
@@ -71,6 +71,15 @@
 #define NSP_ETH_CTRL_TX_ENABLED		BIT_ULL(2)
 #define NSP_ETH_CTRL_RX_ENABLED		BIT_ULL(3)
 
+enum nfp_eth_raw {
+	NSP_ETH_RAW_PORT = 0,
+	NSP_ETH_RAW_STATE,
+	NSP_ETH_RAW_MAC,
+	NSP_ETH_RAW_CONTROL,
+
+	NSP_ETH_NUM_RAW
+};
+
 enum nfp_eth_rate {
 	RATE_INVALID = 0,
 	RATE_10M,
@@ -80,12 +89,15 @@ enum nfp_eth_rate {
 	RATE_25G,
 };
 
-struct eth_table_entry {
-	__le64 port;
-	__le64 state;
-	u8 mac_addr[6];
-	u8 resv[2];
-	__le64 control;
+union eth_table_entry {
+	struct {
+		__le64 port;
+		__le64 state;
+		u8 mac_addr[6];
+		u8 resv[2];
+		__le64 control;
+	};
+	__le64 raw[NSP_ETH_NUM_RAW];
 };
 
 static unsigned int nfp_eth_rate(enum nfp_eth_rate rate)
@@ -114,7 +126,7 @@ static void nfp_eth_copy_mac_reverse(u8 *dst, const u8 *src)
 }
 
 static void
-nfp_eth_port_translate(struct nfp_nsp *nsp, const struct eth_table_entry *src,
+nfp_eth_port_translate(struct nfp_nsp *nsp, const union eth_table_entry *src,
 		       unsigned int index, struct nfp_eth_table_port *dst)
 {
 	unsigned int rate;
@@ -216,7 +228,7 @@ struct nfp_eth_table *nfp_eth_read_ports(struct nfp_cpp *cpp)
 struct nfp_eth_table *
 __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 {
-	struct eth_table_entry *entries;
+	union eth_table_entry *entries;
 	struct nfp_eth_table *table;
 	int i, j, ret, cnt = 0;
 
@@ -270,7 +282,7 @@ err:
 
 struct nfp_nsp *nfp_eth_config_start(struct nfp_cpp *cpp, unsigned int idx)
 {
-	struct eth_table_entry *entries;
+	union eth_table_entry *entries;
 	struct nfp_nsp *nsp;
 	int ret;
 
@@ -307,7 +319,7 @@ err:
 
 void nfp_eth_config_cleanup_end(struct nfp_nsp *nsp)
 {
-	struct eth_table_entry *entries = nfp_nsp_config_entries(nsp);
+	union eth_table_entry *entries = nfp_nsp_config_entries(nsp);
 
 	nfp_nsp_config_set_modified(nsp, false);
 	nfp_nsp_config_clear_state(nsp);
@@ -331,7 +343,7 @@ void nfp_eth_config_cleanup_end(struct nfp_nsp *nsp)
  */
 int nfp_eth_config_commit_end(struct nfp_nsp *nsp)
 {
-	struct eth_table_entry *entries = nfp_nsp_config_entries(nsp);
+	union eth_table_entry *entries = nfp_nsp_config_entries(nsp);
 	int ret = 1;
 
 	if (nfp_nsp_config_modified(nsp)) {
@@ -357,7 +369,7 @@ int nfp_eth_config_commit_end(struct nfp_nsp *nsp)
  */
 int nfp_eth_set_mod_enable(struct nfp_cpp *cpp, unsigned int idx, bool enable)
 {
-	struct eth_table_entry *entries;
+	union eth_table_entry *entries;
 	struct nfp_nsp *nsp;
 	u64 reg;
 
