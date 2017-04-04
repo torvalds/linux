@@ -10,13 +10,13 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/platform_device.h>
 #include <linux/input.h>
-#include <linux/slab.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/slab.h>
 
 #define VIB_DRV			0x4A
 
