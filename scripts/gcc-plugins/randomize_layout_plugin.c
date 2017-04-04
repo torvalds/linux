@@ -46,6 +46,8 @@ struct whitelist_entry {
 };
 
 static const struct whitelist_entry whitelist[] = {
+	/* walk struct security_hook_heads as an array of struct list_head */
+	{ "security/security.c", "list_head", "security_hook_heads" },
 	{ }
 };
 
