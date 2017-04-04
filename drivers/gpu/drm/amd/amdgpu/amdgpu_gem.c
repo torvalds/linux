@@ -202,6 +202,27 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	bool kernel = false;
 	int r;
 
+	/* reject invalid gem flags */
+	if (args->in.domain_flags & ~(AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+				      AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
+				      AMDGPU_GEM_CREATE_CPU_GTT_USWC |
+				      AMDGPU_GEM_CREATE_VRAM_CLEARED|
+				      AMDGPU_GEM_CREATE_SHADOW |
+				      AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)) {
+		r = -EINVAL;
+		goto error_unlock;
+	}
+	/* reject invalid gem domains */
+	if (args->in.domains & ~(AMDGPU_GEM_DOMAIN_CPU |
+				 AMDGPU_GEM_DOMAIN_GTT |
+				 AMDGPU_GEM_DOMAIN_VRAM |
+				 AMDGPU_GEM_DOMAIN_GDS |
+				 AMDGPU_GEM_DOMAIN_GWS |
+				 AMDGPU_GEM_DOMAIN_OA)) {
+		r = -EINVAL;
+		goto error_unlock;
+	}
+
 	/* create a gem object to contain this object in */
 	if (args->in.domains & (AMDGPU_GEM_DOMAIN_GDS |
 	    AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA)) {

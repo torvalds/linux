@@ -372,6 +372,8 @@ disassocation||disassociation
 disapear||disappear
 disapeared||disappeared
 disappared||disappeared
+disble||disable
+disbled||disabled
 disconnet||disconnect
 discontinous||discontinuous
 dispertion||dispersion
@@ -732,6 +734,7 @@ oustanding||outstanding
 overaall||overall
 overhread||overhead
 overlaping||overlapping
+overide||override
 overrided||overridden
 overriden||overridden
 overun||overrun

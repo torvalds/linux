@@ -2373,7 +2373,7 @@ static int __init pl011_console_match(struct console *co, char *name, int idx,
 	if (strcmp(name, "qdf2400_e44") == 0) {
 		pr_info_once("UART: Working around QDF2400 SoC erratum 44");
 		qdf2400_e44_present = true;
-	} else if (strcmp(name, "pl011") != 0 || strcmp(name, "ttyAMA") != 0) {
+	} else if (strcmp(name, "pl011") != 0) {
 		return -ENODEV;
 	}
 
@@ -2452,18 +2452,37 @@ static void pl011_early_write(struct console *con, const char *s, unsigned n)
 	uart_console_write(&dev->port, s, n, pl011_putc);
 }
 
+/*
+ * On non-ACPI systems, earlycon is enabled by specifying
+ * "earlycon=pl011,<address>" on the kernel command line.
+ *
+ * On ACPI ARM64 systems, an "early" console is enabled via the SPCR table,
+ * by specifying only "earlycon" on the command line.  Because it requires
+ * SPCR, the console starts after ACPI is parsed, which is later than a
+ * traditional early console.
+ *
+ * To get the traditional early console that starts before ACPI is parsed,
+ * specify the full "earlycon=pl011,<address>" option.
+ */
 static int __init pl011_early_console_setup(struct earlycon_device *device,
 					    const char *opt)
 {
 	if (!device->port.membase)
 		return -ENODEV;
 
-	device->con->write = qdf2400_e44_present ?
-				qdf2400_e44_early_write : pl011_early_write;
+	/* On QDF2400 SOCs affected by Erratum 44, the "qdf2400_e44" must
+	 * also be specified, e.g. "earlycon=pl011,<address>,qdf2400_e44".
+	 */
+	if (!strcmp(device->options, "qdf2400_e44"))
+		device->con->write = qdf2400_e44_early_write;
+	else
+		device->con->write = pl011_early_write;
+
 	return 0;
 }
 OF_EARLYCON_DECLARE(pl011, "arm,pl011", pl011_early_console_setup);
 OF_EARLYCON_DECLARE(pl011, "arm,sbsa-uart", pl011_early_console_setup);
+EARLYCON_DECLARE(qdf2400_e44, pl011_early_console_setup);
 
 #else
 #define AMBA_CONSOLE	NULL

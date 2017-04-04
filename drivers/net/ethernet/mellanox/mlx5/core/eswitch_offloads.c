@@ -93,8 +93,25 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				   spec, &flow_act, dest, i);
 	if (IS_ERR(rule))
 		mlx5_fc_destroy(esw->dev, counter);
+	else
+		esw->offloads.num_flows++;
 
 	return rule;
+}
+
+void
+mlx5_eswitch_del_offloaded_rule(struct mlx5_eswitch *esw,
+				struct mlx5_flow_handle *rule,
+				struct mlx5_esw_flow_attr *attr)
+{
+	struct mlx5_fc *counter = NULL;
+
+	if (!IS_ERR(rule)) {
+		counter = mlx5_flow_rule_counter(rule);
+		mlx5_del_flow_rules(rule);
+		mlx5_fc_destroy(esw->dev, counter);
+		esw->offloads.num_flows--;
+	}
 }
 
 static int esw_set_global_vlan_pop(struct mlx5_eswitch *esw, u8 val)
@@ -907,6 +924,11 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode)
 	if (MLX5_CAP_ETH(dev, wqe_inline_mode) !=
 	    MLX5_CAP_INLINE_MODE_VPORT_CONTEXT)
 		return -EOPNOTSUPP;
+
+	if (esw->offloads.num_flows > 0) {
+		esw_warn(dev, "Can't set inline mode when flows are configured\n");
+		return -EOPNOTSUPP;
+	}
 
 	err = esw_inline_mode_from_devlink(mode, &mlx5_mode);
 	if (err)

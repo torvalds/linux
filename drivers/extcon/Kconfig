@@ -44,7 +44,7 @@ config EXTCON_GPIO
 
 config EXTCON_INTEL_INT3496
 	tristate "Intel INT3496 ACPI device extcon driver"
-	depends on GPIOLIB && ACPI
+	depends on GPIOLIB && ACPI && (X86 || COMPILE_TEST)
 	help
 	  Say Y here to enable extcon support for USB OTG ports controlled by
 	  an Intel INT3496 ACPI device.

@@ -101,7 +101,7 @@ struct tbs_sched_data {
 	struct list_head runq_head;
 };
 
-#define GVT_DEFAULT_TIME_SLICE (1 * HZ / 1000)
+#define GVT_DEFAULT_TIME_SLICE (msecs_to_jiffies(1))
 
 static void tbs_sched_func(struct work_struct *work)
 {
@@ -223,7 +223,7 @@ static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)
 		return;
 
 	list_add_tail(&vgpu_data->list, &sched_data->runq_head);
-	schedule_delayed_work(&sched_data->work, sched_data->period);
+	schedule_delayed_work(&sched_data->work, 0);
 }
 
 static void tbs_sched_stop_schedule(struct intel_vgpu *vgpu)

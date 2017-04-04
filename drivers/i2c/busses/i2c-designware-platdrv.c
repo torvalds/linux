@@ -38,6 +38,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/io.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/platform_data/i2c-designware.h>
@@ -199,6 +200,14 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	dev->irq = irq;
 	platform_set_drvdata(pdev, dev);
 
+	dev->rst = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(dev->rst)) {
+		if (PTR_ERR(dev->rst) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+	} else {
+		reset_control_deassert(dev->rst);
+	}
+
 	if (pdata) {
 		dev->clk_freq = pdata->i2c_scl_freq;
 	} else {
@@ -235,12 +244,13 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	    && dev->clk_freq != 1000000 && dev->clk_freq != 3400000) {
 		dev_err(&pdev->dev,
 			"Only 100kHz, 400kHz, 1MHz and 3.4MHz supported");
-		return -EINVAL;
+		r = -EINVAL;
+		goto exit_reset;
 	}
 
 	r = i2c_dw_eval_lock_support(dev);
 	if (r)
-		return r;
+		goto exit_reset;
 
 	dev->functionality = I2C_FUNC_10BIT_ADDR | DW_IC_DEFAULT_FUNCTIONALITY;
 
@@ -286,9 +296,17 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	}
 
 	r = i2c_dw_probe(dev);
-	if (r && !dev->pm_runtime_disabled)
-		pm_runtime_disable(&pdev->dev);
+	if (r)
+		goto exit_probe;
 
+	return r;
+
+exit_probe:
+	if (!dev->pm_runtime_disabled)
+		pm_runtime_disable(&pdev->dev);
+exit_reset:
+	if (!IS_ERR_OR_NULL(dev->rst))
+		reset_control_assert(dev->rst);
 	return r;
 }
 
@@ -306,6 +324,8 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	if (!dev->pm_runtime_disabled)
 		pm_runtime_disable(&pdev->dev);
+	if (!IS_ERR_OR_NULL(dev->rst))
+		reset_control_assert(dev->rst);
 
 	return 0;
 }

@@ -1027,7 +1027,7 @@ static int get_unqueued_pending(struct r1conf *conf)
 static void freeze_array(struct r1conf *conf, int extra)
 {
 	/* Stop sync I/O and normal I/O and wait for everything to
-	 * go quite.
+	 * go quiet.
 	 * This is called in two situations:
 	 * 1) management command handlers (reshape, remove disk, quiesce).
 	 * 2) one normal I/O request failed.
@@ -1587,9 +1587,30 @@ static void raid1_make_request(struct mddev *mddev, struct bio *bio)
 			split = bio;
 		}
 
-		if (bio_data_dir(split) == READ)
+		if (bio_data_dir(split) == READ) {
 			raid1_read_request(mddev, split);
-		else
+
+			/*
+			 * If a bio is splitted, the first part of bio will
+			 * pass barrier but the bio is queued in
+			 * current->bio_list (see generic_make_request). If
+			 * there is a raise_barrier() called here, the second
+			 * part of bio can't pass barrier. But since the first
+			 * part bio isn't dispatched to underlaying disks yet,
+			 * the barrier is never released, hence raise_barrier
+			 * will alays wait. We have a deadlock.
+			 * Note, this only happens in read path. For write
+			 * path, the first part of bio is dispatched in a
+			 * schedule() call (because of blk plug) or offloaded
+			 * to raid10d.
+			 * Quitting from the function immediately can change
+			 * the bio order queued in bio_list and avoid the deadlock.
+			 */
+			if (split != bio) {
+				generic_make_request(bio);
+				break;
+			}
+		} else
 			raid1_write_request(mddev, split);
 	} while (split != bio);
 }
@@ -3246,8 +3267,6 @@ static int raid1_resize(struct mddev *mddev, sector_t sectors)
 			return ret;
 	}
 	md_set_array_sectors(mddev, newsize);
-	set_capacity(mddev->gendisk, mddev->array_sectors);
-	revalidate_disk(mddev->gendisk);
 	if (sectors > mddev->dev_sectors &&
 	    mddev->recovery_cp > mddev->dev_sectors) {
 		mddev->recovery_cp = mddev->dev_sectors;
