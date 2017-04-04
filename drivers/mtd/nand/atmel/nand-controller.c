@@ -1685,7 +1685,7 @@ static int atmel_nand_controller_init(struct atmel_nand_controller *nc,
 	nc->smc = syscon_node_to_regmap(np);
 	of_node_put(np);
 	if (IS_ERR(nc->smc)) {
-		ret = IS_ERR(nc->smc);
+		ret = PTR_ERR(nc->smc);
 		dev_err(dev, "Could not get SMC regmap (err = %d)\n", ret);
 		return ret;
 	}
@@ -1718,7 +1718,7 @@ atmel_smc_nand_controller_init(struct atmel_smc_nand_controller *nc)
 	nc->matrix = syscon_node_to_regmap(np);
 	of_node_put(np);
 	if (IS_ERR(nc->matrix)) {
-		ret = IS_ERR(nc->matrix);
+		ret = PTR_ERR(nc->matrix);
 		dev_err(dev, "Could not get Matrix regmap (err = %d)\n", ret);
 		return ret;
 	}
