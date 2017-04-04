@@ -387,6 +387,8 @@
 			cdns,phy-input-delay-legacy = <4>;
 			cdns,phy-input-delay-mmc-highspeed = <2>;
 			cdns,phy-input-delay-mmc-ddr = <3>;
+			cdns,phy-dll-delay-sdclk = <21>;
+			cdns,phy-dll-delay-sdclk-hsmmc = <21>;
 		};
 
 		soc-glue@5f800000 {
