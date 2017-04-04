@@ -93,11 +93,12 @@ static inline void log_exit(struct r5conf *conf)
 		ppl_exit_log(conf);
 }
 
-static inline int log_init(struct r5conf *conf, struct md_rdev *journal_dev)
+static inline int log_init(struct r5conf *conf, struct md_rdev *journal_dev,
+			   bool ppl)
 {
 	if (journal_dev)
 		return r5l_init_log(conf, journal_dev);
-	else if (raid5_has_ppl(conf))
+	else if (ppl)
 		return ppl_init_log(conf);
 
 	return 0;

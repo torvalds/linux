@@ -328,7 +328,7 @@ int ppl_write_stripe(struct r5conf *conf, struct stripe_head *sh)
 	struct ppl_io_unit *io = sh->ppl_io;
 	struct ppl_log *log;
 
-	if (io || test_bit(STRIPE_SYNCING, &sh->state) ||
+	if (io || test_bit(STRIPE_SYNCING, &sh->state) || !sh->ppl_page ||
 	    !test_bit(R5_Wantwrite, &sh->dev[sh->pd_idx].flags) ||
 	    !test_bit(R5_Insync, &sh->dev[sh->pd_idx].flags)) {
 		clear_bit(STRIPE_LOG_TRAPPED, &sh->state);
@@ -1204,6 +1204,7 @@ int ppl_init_log(struct r5conf *conf)
 	}
 
 	conf->log_private = ppl_conf;
+	set_bit(MD_HAS_PPL, &ppl_conf->mddev->flags);
 
 	return 0;
 err:

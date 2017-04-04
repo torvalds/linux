@@ -471,11 +471,6 @@ static void shrink_buffers(struct stripe_head *sh)
 		sh->dev[i].page = NULL;
 		put_page(p);
 	}
-
-	if (sh->ppl_page) {
-		put_page(sh->ppl_page);
-		sh->ppl_page = NULL;
-	}
 }
 
 static int grow_buffers(struct stripe_head *sh, gfp_t gfp)
@@ -491,12 +486,6 @@ static int grow_buffers(struct stripe_head *sh, gfp_t gfp)
 		}
 		sh->dev[i].page = page;
 		sh->dev[i].orig_page = page;
-	}
-
-	if (raid5_has_ppl(sh->raid_conf)) {
-		sh->ppl_page = alloc_page(gfp);
-		if (!sh->ppl_page)
-			return 1;
 	}
 
 	return 0;
@@ -2132,8 +2121,15 @@ static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 	put_cpu();
 }
 
+static void free_stripe(struct kmem_cache *sc, struct stripe_head *sh)
+{
+	if (sh->ppl_page)
+		__free_page(sh->ppl_page);
+	kmem_cache_free(sc, sh);
+}
+
 static struct stripe_head *alloc_stripe(struct kmem_cache *sc, gfp_t gfp,
-	int disks)
+	int disks, struct r5conf *conf)
 {
 	struct stripe_head *sh;
 	int i;
@@ -2147,12 +2143,21 @@ static struct stripe_head *alloc_stripe(struct kmem_cache *sc, gfp_t gfp,
 		INIT_LIST_HEAD(&sh->r5c);
 		INIT_LIST_HEAD(&sh->log_list);
 		atomic_set(&sh->count, 1);
+		sh->raid_conf = conf;
 		sh->log_start = MaxSector;
 		for (i = 0; i < disks; i++) {
 			struct r5dev *dev = &sh->dev[i];
 
 			bio_init(&dev->req, &dev->vec, 1);
 			bio_init(&dev->rreq, &dev->rvec, 1);
+		}
+
+		if (raid5_has_ppl(conf)) {
+			sh->ppl_page = alloc_page(gfp);
+			if (!sh->ppl_page) {
+				free_stripe(sc, sh);
+				sh = NULL;
+			}
 		}
 	}
 	return sh;
@@ -2161,15 +2166,13 @@ static int grow_one_stripe(struct r5conf *conf, gfp_t gfp)
 {
 	struct stripe_head *sh;
 
-	sh = alloc_stripe(conf->slab_cache, gfp, conf->pool_size);
+	sh = alloc_stripe(conf->slab_cache, gfp, conf->pool_size, conf);
 	if (!sh)
 		return 0;
 
-	sh->raid_conf = conf;
-
 	if (grow_buffers(sh, gfp)) {
 		shrink_buffers(sh);
-		kmem_cache_free(conf->slab_cache, sh);
+		free_stripe(conf->slab_cache, sh);
 		return 0;
 	}
 	sh->hash_lock_index =
@@ -2314,9 +2317,6 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	int i;
 	int hash, cnt;
 
-	if (newsize <= conf->pool_size)
-		return 0; /* never bother to shrink */
-
 	err = md_allow_write(conf->mddev);
 	if (err)
 		return err;
@@ -2332,11 +2332,10 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	mutex_lock(&conf->cache_size_mutex);
 
 	for (i = conf->max_nr_stripes; i; i--) {
-		nsh = alloc_stripe(sc, GFP_KERNEL, newsize);
+		nsh = alloc_stripe(sc, GFP_KERNEL, newsize, conf);
 		if (!nsh)
 			break;
 
-		nsh->raid_conf = conf;
 		list_add(&nsh->lru, &newstripes);
 	}
 	if (i) {
@@ -2344,7 +2343,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 		while (!list_empty(&newstripes)) {
 			nsh = list_entry(newstripes.next, struct stripe_head, lru);
 			list_del(&nsh->lru);
-			kmem_cache_free(sc, nsh);
+			free_stripe(sc, nsh);
 		}
 		kmem_cache_destroy(sc);
 		mutex_unlock(&conf->cache_size_mutex);
@@ -2370,7 +2369,7 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 			nsh->dev[i].orig_page = osh->dev[i].page;
 		}
 		nsh->hash_lock_index = hash;
-		kmem_cache_free(conf->slab_cache, osh);
+		free_stripe(conf->slab_cache, osh);
 		cnt++;
 		if (cnt >= conf->max_nr_stripes / NR_STRIPE_HASH_LOCKS +
 		    !!((conf->max_nr_stripes % NR_STRIPE_HASH_LOCKS) > hash)) {
@@ -2447,7 +2446,7 @@ static int drop_one_stripe(struct r5conf *conf)
 		return 0;
 	BUG_ON(atomic_read(&sh->count));
 	shrink_buffers(sh);
-	kmem_cache_free(conf->slab_cache, sh);
+	free_stripe(conf->slab_cache, sh);
 	atomic_dec(&conf->active_stripes);
 	conf->max_nr_stripes--;
 	return 1;
@@ -3170,7 +3169,7 @@ schedule_reconstruction(struct stripe_head *sh, struct stripe_head_state *s,
 		s->locked++;
 	}
 
-	if (raid5_has_ppl(sh->raid_conf) &&
+	if (raid5_has_ppl(sh->raid_conf) && sh->ppl_page &&
 	    test_bit(STRIPE_OP_BIODRAIN, &s->ops_request) &&
 	    !test_bit(STRIPE_FULL_WRITE, &sh->state) &&
 	    test_bit(R5_Insync, &sh->dev[pd_idx].flags))
@@ -7427,7 +7426,7 @@ static int raid5_run(struct mddev *mddev)
 		blk_queue_max_hw_sectors(mddev->queue, UINT_MAX);
 	}
 
-	if (log_init(conf, journal_dev))
+	if (log_init(conf, journal_dev, raid5_has_ppl(conf)))
 		goto abort;
 
 	return 0;
@@ -7636,7 +7635,7 @@ static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		 * The array is in readonly mode if journal is missing, so no
 		 * write requests running. We should be safe
 		 */
-		log_init(conf, rdev);
+		log_init(conf, rdev, false);
 		return 0;
 	}
 	if (mddev->recovery_disabled == conf->recovery_disabled)
@@ -7786,6 +7785,9 @@ static int check_reshape(struct mddev *mddev)
 				      mddev->chunk_sectors)
 			    ) < 0)
 			return -ENOMEM;
+
+	if (conf->previous_raid_disks + mddev->delta_disks <= conf->pool_size)
+		return 0; /* never bother to shrink */
 	return resize_stripes(conf, (conf->previous_raid_disks
 				     + mddev->delta_disks));
 }
@@ -8276,20 +8278,6 @@ static void *raid6_takeover(struct mddev *mddev)
 	return setup_conf(mddev);
 }
 
-static void raid5_reset_stripe_cache(struct mddev *mddev)
-{
-	struct r5conf *conf = mddev->private;
-
-	mutex_lock(&conf->cache_size_mutex);
-	while (conf->max_nr_stripes &&
-	       drop_one_stripe(conf))
-		;
-	while (conf->min_nr_stripes > conf->max_nr_stripes &&
-	       grow_one_stripe(conf, GFP_KERNEL))
-		;
-	mutex_unlock(&conf->cache_size_mutex);
-}
-
 static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
 {
 	struct r5conf *conf;
@@ -8304,23 +8292,23 @@ static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
 		return -ENODEV;
 	}
 
-	if (strncmp(buf, "ppl", 3) == 0 && !raid5_has_ppl(conf)) {
+	if (strncmp(buf, "ppl", 3) == 0) {
 		/* ppl only works with RAID 5 */
-		if (conf->level == 5) {
-			mddev_suspend(mddev);
-			set_bit(MD_HAS_PPL, &mddev->flags);
-			err = log_init(conf, NULL);
-			if (!err)
-				raid5_reset_stripe_cache(mddev);
-			mddev_resume(mddev);
+		if (!raid5_has_ppl(conf) && conf->level == 5) {
+			err = log_init(conf, NULL, true);
+			if (!err) {
+				err = resize_stripes(conf, conf->pool_size);
+				if (err)
+					log_exit(conf);
+			}
 		} else
 			err = -EINVAL;
 	} else if (strncmp(buf, "resync", 6) == 0) {
 		if (raid5_has_ppl(conf)) {
 			mddev_suspend(mddev);
 			log_exit(conf);
-			raid5_reset_stripe_cache(mddev);
 			mddev_resume(mddev);
+			err = resize_stripes(conf, conf->pool_size);
 		} else if (test_bit(MD_HAS_JOURNAL, &conf->mddev->flags) &&
 			   r5l_log_disk_error(conf)) {
 			bool journal_dev_exists = false;
