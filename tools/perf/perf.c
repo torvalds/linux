@@ -378,7 +378,8 @@ static void execv_dashed_external(const char **argv)
 	if (status != -ERR_RUN_COMMAND_EXEC) {
 		if (IS_RUN_COMMAND_ERR(status)) {
 do_die:
-			die("unable to run '%s'", argv[0]);
+			pr_err("FATAL: unable to run '%s'", argv[0]);
+			status = -128;
 		}
 		exit(-status);
 	}
