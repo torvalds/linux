@@ -978,6 +978,33 @@ static void btc8723b2ant_set_fw_ignore_wlan_act(struct btc_coexist *btcoexist,
 	btcoexist->btc_fill_h2c(btcoexist, 0x63, 1, h2c_parameter);
 }
 
+static void btc8723b2ant_set_lps_rpwm(struct btc_coexist *btcoexist,
+				      u8 lps_val, u8 rpwm_val)
+{
+	u8 lps = lps_val;
+	u8 rpwm = rpwm_val;
+
+	btcoexist->btc_set(btcoexist, BTC_SET_U1_LPS_VAL, &lps);
+	btcoexist->btc_set(btcoexist, BTC_SET_U1_RPWM_VAL, &rpwm);
+}
+
+static void btc8723b2ant_lps_rpwm(struct btc_coexist *btcoexist,
+				  bool force_exec, u8 lps_val, u8 rpwm_val)
+{
+	coex_dm->cur_lps = lps_val;
+	coex_dm->cur_rpwm = rpwm_val;
+
+	if (!force_exec) {
+		if ((coex_dm->pre_lps == coex_dm->cur_lps) &&
+		    (coex_dm->pre_rpwm == coex_dm->cur_rpwm))
+			return;
+	}
+	btc8723b2ant_set_lps_rpwm(btcoexist, lps_val, rpwm_val);
+
+	coex_dm->pre_lps = coex_dm->cur_lps;
+	coex_dm->pre_rpwm = coex_dm->cur_rpwm;
+}
+
 static void btc8723b2ant_ignore_wlan_act(struct btc_coexist *btcoexist,
 					 bool force_exec, bool enable)
 {
@@ -1341,9 +1368,74 @@ static void btc8723b2ant_ps_tdma(struct btc_coexist *btcoexist, bool force_exec,
 	coex_dm->pre_ps_tdma = coex_dm->cur_ps_tdma;
 }
 
+static void btc8723b2ant_ps_tdma_check_for_power_save_state(
+		struct btc_coexist *btcoexist, bool new_ps_state)
+{
+	u8 lps_mode = 0x0;
+
+	btcoexist->btc_get(btcoexist, BTC_GET_U1_LPS_MODE, &lps_mode);
+
+	if (lps_mode) {
+		/* already under LPS state */
+		if (new_ps_state) {
+			/* keep state under LPS, do nothing. */
+		} else {
+			/* will leave LPS state, turn off psTdma first */
+			btc8723b2ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 1);
+		}
+	} else {
+		/* NO PS state */
+		if (new_ps_state) {
+			/* will enter LPS state, turn off psTdma first */
+			btc8723b2ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 1);
+		} else {
+			/* keep state under NO PS state, do nothing. */
+		}
+	}
+}
+
+static void btc8723b2ant_power_save_state(struct btc_coexist *btcoexist,
+					  u8 ps_type, u8 lps_val, u8 rpwm_val)
+{
+	bool low_pwr_disable = false;
+
+	switch (ps_type) {
+	case BTC_PS_WIFI_NATIVE:
+		/* recover to original 32k low power setting */
+		low_pwr_disable = false;
+		btcoexist->btc_set(btcoexist, BTC_SET_ACT_DISABLE_LOW_POWER,
+				   &low_pwr_disable);
+		btcoexist->btc_set(btcoexist, BTC_SET_ACT_NORMAL_LPS, NULL);
+		coex_sta->force_lps_on = false;
+		break;
+	case BTC_PS_LPS_ON:
+		btc8723b2ant_ps_tdma_check_for_power_save_state(btcoexist,
+								true);
+		btc8723b2ant_lps_rpwm(btcoexist, NORMAL_EXEC, lps_val,
+				      rpwm_val);
+		/* when coex force to enter LPS, do not enter 32k low power */
+		low_pwr_disable = true;
+		btcoexist->btc_set(btcoexist, BTC_SET_ACT_DISABLE_LOW_POWER,
+				   &low_pwr_disable);
+		/* power save must executed before psTdma */
+		btcoexist->btc_set(btcoexist, BTC_SET_ACT_ENTER_LPS, NULL);
+		coex_sta->force_lps_on = true;
+		break;
+	case BTC_PS_LPS_OFF:
+		btc8723b2ant_ps_tdma_check_for_power_save_state(btcoexist,
+								false);
+		btcoexist->btc_set(btcoexist, BTC_SET_ACT_LEAVE_LPS, NULL);
+		coex_sta->force_lps_on = false;
+		break;
+	default:
+		break;
+	}
+}
+
 static void btc8723b2ant_coex_alloff(struct btc_coexist *btcoexist)
 {
 	/* fw all off */
+	btc8723b2ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE, 0x0, 0x0);
 	btc8723b2ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 1);
 	btc8723b2ant_fw_dac_swing_lvl(btcoexist, NORMAL_EXEC, 6);
 	btc8723b2ant_dec_bt_pwr(btcoexist, NORMAL_EXEC, 0);
@@ -1359,6 +1451,7 @@ static void btc8723b2ant_coex_alloff(struct btc_coexist *btcoexist)
 static void btc8723b2ant_init_coex_dm(struct btc_coexist *btcoexist)
 {
 	/* force to reset coex mechanism*/
+	btc8723b2ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE, 0x0, 0x0);
 
 	btc8723b2ant_ps_tdma(btcoexist, FORCE_EXEC, false, 1);
 	btc8723b2ant_fw_dac_swing_lvl(btcoexist, FORCE_EXEC, 6);
@@ -1800,6 +1893,8 @@ static void btc8723b2ant_action_hid(struct btc_coexist *btcoexist)
 	else
 		/* for HID quality & wifi performance balance at 11n mode */
 		btc8723b2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 9);
+
+	btc8723b2ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE, 0x0, 0x0);
 
 	if ((bt_rssi_state == BTC_RSSI_STATE_HIGH) ||
 	    (bt_rssi_state == BTC_RSSI_STATE_STAY_HIGH))

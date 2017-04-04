@@ -122,6 +122,11 @@ struct coex_dm_8723b_2ant {
 	u8 bt_status;
 	u8 wifi_chnl_info[3];
 
+	u8 pre_lps;
+	u8 cur_lps;
+	u8 pre_rpwm;
+	u8 cur_rpwm;
+
 	bool need_recover_0x948;
 	u16 backup_0x948;
 };
@@ -160,6 +165,7 @@ struct coex_sta_8723b_2ant {
 	u32 crc_err_11g;
 	u32 crc_err_11n;
 	u32 crc_err_11n_agg;
+	bool force_lps_on;
 
 	u8 a2dp_bit_pool;
 };
