@@ -1035,6 +1035,8 @@ static void btc8723b2ant_set_fw_ps_tdma(struct btc_coexist *btcoexist, u8 byte1,
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	u8 h2c_parameter[5];
+	if ((coex_sta->a2dp_exist) && (coex_sta->hid_exist))
+		byte5 = byte5 | 0x1;
 
 	h2c_parameter[0] = byte1;
 	h2c_parameter[1] = byte2;
