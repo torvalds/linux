@@ -43,6 +43,15 @@ static const struct pm8xxx_regs pm8058_regs = {
 	.drv_en_manual_mask = 0xfc,
 };
 
+static struct pm8xxx_regs pm8916_regs = {
+	.enable_addr = 0xc046,
+	.enable_mask = BIT(7),
+	.drv_addr = 0xc041,
+	.drv_mask = 0x1F,
+	.drv_shift = 0,
+	.drv_en_manual_mask = 0,
+};
+
 /**
  * struct pm8xxx_vib - structure to hold vibrator data
  * @vib_input_dev: input device supporting force feedback
@@ -240,6 +249,7 @@ static SIMPLE_DEV_PM_OPS(pm8xxx_vib_pm_ops, pm8xxx_vib_suspend, NULL);
 static const struct of_device_id pm8xxx_vib_id_table[] = {
 	{ .compatible = "qcom,pm8058-vib", .data = &pm8058_regs },
 	{ .compatible = "qcom,pm8921-vib", .data = &pm8058_regs },
+	{ .compatible = "qcom,pm8916-vib", .data = &pm8916_regs },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pm8xxx_vib_id_table);
