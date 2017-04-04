@@ -153,7 +153,7 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 		       struct dma_async_tx_descriptor *tx)
 {
 	int disks = sh->disks;
-	struct page **xor_srcs = flex_array_get(percpu->scribble, 0);
+	struct page **srcs = flex_array_get(percpu->scribble, 0);
 	int count = 0, pd_idx = sh->pd_idx, i;
 	struct async_submit_ctl submit;
 
@@ -166,18 +166,18 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 	 * differently.
 	 */
 	if (sh->reconstruct_state == reconstruct_state_prexor_drain_run) {
-		/* rmw: xor old data and parity from updated disks */
-		for (i = disks; i--;) {
-			struct r5dev *dev = &sh->dev[i];
-			if (test_bit(R5_Wantdrain, &dev->flags) || i == pd_idx)
-				xor_srcs[count++] = dev->page;
-		}
+		/*
+		 * rmw: xor old data and parity from updated disks
+		 * This is calculated earlier by ops_run_prexor5() so just copy
+		 * the parity dev page.
+		 */
+		srcs[count++] = sh->dev[pd_idx].page;
 	} else if (sh->reconstruct_state == reconstruct_state_drain_run) {
 		/* rcw: xor data from all not updated disks */
 		for (i = disks; i--;) {
 			struct r5dev *dev = &sh->dev[i];
 			if (test_bit(R5_UPTODATE, &dev->flags))
-				xor_srcs[count++] = dev->page;
+				srcs[count++] = dev->page;
 		}
 	} else {
 		return tx;
@@ -188,10 +188,10 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 			  + sizeof(struct page *) * (sh->disks + 2));
 
 	if (count == 1)
-		tx = async_memcpy(sh->ppl_page, xor_srcs[0], 0, 0, PAGE_SIZE,
+		tx = async_memcpy(sh->ppl_page, srcs[0], 0, 0, PAGE_SIZE,
 				  &submit);
 	else
-		tx = async_xor(sh->ppl_page, xor_srcs, 0, count, PAGE_SIZE,
+		tx = async_xor(sh->ppl_page, srcs, 0, count, PAGE_SIZE,
 			       &submit);
 
 	return tx;

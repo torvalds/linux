@@ -2079,15 +2079,15 @@ static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 			async_tx_ack(tx);
 	}
 
-	if (test_bit(STRIPE_OP_PARTIAL_PARITY, &ops_request))
-		tx = ops_run_partial_parity(sh, percpu, tx);
-
 	if (test_bit(STRIPE_OP_PREXOR, &ops_request)) {
 		if (level < 6)
 			tx = ops_run_prexor5(sh, percpu, tx);
 		else
 			tx = ops_run_prexor6(sh, percpu, tx);
 	}
+
+	if (test_bit(STRIPE_OP_PARTIAL_PARITY, &ops_request))
+		tx = ops_run_partial_parity(sh, percpu, tx);
 
 	if (test_bit(STRIPE_OP_BIODRAIN, &ops_request)) {
 		tx = ops_run_biodrain(sh, tx);
