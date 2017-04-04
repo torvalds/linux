@@ -154,7 +154,7 @@ static int cpcap_init_irq_chip(struct cpcap_ddata *cpcap, int irq_chip,
 
 	ret = devm_regmap_add_irq_chip(&cpcap->spi->dev, cpcap->regmap,
 				       cpcap->spi->irq,
-				       IRQF_TRIGGER_RISING |
+				       irq_get_trigger_type(cpcap->spi->irq) |
 				       IRQF_SHARED, -1,
 				       chip, &cpcap->irqdata[irq_chip]);
 	if (ret) {
