@@ -5474,11 +5474,7 @@ static void gfx_v8_0_inactive_hqd(struct amdgpu_device *adev,
 
 	vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
 	if (RREG32(mmCP_HQD_ACTIVE) & CP_HQD_ACTIVE__ACTIVE_MASK) {
-		u32 tmp;
-		tmp = RREG32(mmCP_HQD_DEQUEUE_REQUEST);
-		tmp = REG_SET_FIELD(tmp, CP_HQD_DEQUEUE_REQUEST,
-				    DEQUEUE_REQ, 2);
-		WREG32(mmCP_HQD_DEQUEUE_REQUEST, tmp);
+		WREG32_FIELD(CP_HQD_DEQUEUE_REQUEST, DEQUEUE_REQ, 2);
 		for (i = 0; i < adev->usec_timeout; i++) {
 			if (!(RREG32(mmCP_HQD_ACTIVE) & CP_HQD_ACTIVE__ACTIVE_MASK))
 				break;
