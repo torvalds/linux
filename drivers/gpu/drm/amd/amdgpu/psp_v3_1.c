@@ -508,14 +508,10 @@ bool psp_v3_1_compare_sram_data(struct psp_context *psp,
 bool psp_v3_1_smu_reload_quirk(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
-	uint32_t reg, reg_val;
+	uint32_t reg;
 
-	reg_val = (smnMP1_FIRMWARE_FLAGS & 0xffffffff) | 0x03b00000;
-	WREG32(SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX2), reg_val);
+	reg = smnMP1_FIRMWARE_FLAGS | 0x03b00000;
+	WREG32(SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX2), reg);
 	reg = RREG32(SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA2));
-	if ((reg & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) >>
-	     MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED__SHIFT)
-		return true;
-
-	return false;
+	return (reg & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) ? true : false;
 }
