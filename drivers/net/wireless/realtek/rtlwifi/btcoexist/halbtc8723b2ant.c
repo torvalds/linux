@@ -1632,34 +1632,34 @@ static void btc8723b2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 13);
-					coex_dm->tdma_adj_type = 13;
+					coex_dm->ps_tdma_du_adj_type = 13;
 				} else if (max_interval == 2) {
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 14);
-					coex_dm->tdma_adj_type = 14;
+					coex_dm->ps_tdma_du_adj_type = 14;
 				} else {
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 15);
-					coex_dm->tdma_adj_type = 15;
+					coex_dm->ps_tdma_du_adj_type = 15;
 				}
 			} else {
 				if (max_interval == 1) {
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 9);
-					coex_dm->tdma_adj_type = 9;
+					coex_dm->ps_tdma_du_adj_type = 9;
 				} else if (max_interval == 2) {
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 10);
-					coex_dm->tdma_adj_type = 10;
+					coex_dm->ps_tdma_du_adj_type = 10;
 				} else {
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 11);
-					coex_dm->tdma_adj_type = 11;
+					coex_dm->ps_tdma_du_adj_type = 11;
 				}
 			}
 		} else {
@@ -1668,34 +1668,34 @@ static void btc8723b2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 5);
-					coex_dm->tdma_adj_type = 5;
+					coex_dm->ps_tdma_du_adj_type = 5;
 				} else if (max_interval == 2) {
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 6);
-					coex_dm->tdma_adj_type = 6;
+					coex_dm->ps_tdma_du_adj_type = 6;
 				} else {
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 7);
-					coex_dm->tdma_adj_type = 7;
+					coex_dm->ps_tdma_du_adj_type = 7;
 				}
 			} else {
 				if (max_interval == 1) {
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 1);
-					coex_dm->tdma_adj_type = 1;
+					coex_dm->ps_tdma_du_adj_type = 1;
 				} else if (max_interval == 2) {
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 2);
-					coex_dm->tdma_adj_type = 2;
+					coex_dm->ps_tdma_du_adj_type = 2;
 				} else {
 					btc8723b2ant_ps_tdma(btcoexist,
 							     NORMAL_EXEC,
 							     true, 3);
-					coex_dm->tdma_adj_type = 3;
+					coex_dm->ps_tdma_du_adj_type = 3;
 				}
 			}
 		}
@@ -1804,11 +1804,11 @@ static void btc8723b2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 	/* if current PsTdma not match with the recorded one (scan, dhcp, ...),
 	 * then we have to adjust it back to the previous recorded one.
 	 */
-	if (coex_dm->cur_ps_tdma != coex_dm->tdma_adj_type) {
+	if (coex_dm->cur_ps_tdma != coex_dm->ps_tdma_du_adj_type) {
 		bool scan = false, link = false, roam = false;
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], PsTdma type dismatch!!!, curPsTdma=%d, recordPsTdma=%d\n",
-			 coex_dm->cur_ps_tdma, coex_dm->tdma_adj_type);
+			 coex_dm->cur_ps_tdma, coex_dm->ps_tdma_du_adj_type);
 
 		btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_SCAN, &scan);
 		btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_LINK, &link);
@@ -1816,7 +1816,7 @@ static void btc8723b2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 
 		if (!scan && !link && !roam)
 			btc8723b2ant_ps_tdma(btcoexist, NORMAL_EXEC, true,
-					     coex_dm->tdma_adj_type);
+					     coex_dm->ps_tdma_du_adj_type);
 		else
 			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 				 "[BTCoex], roaming/link/scan is under progress, will adjust next time!!!\n");
