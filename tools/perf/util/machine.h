@@ -6,6 +6,7 @@
 #include "map.h"
 #include "dso.h"
 #include "event.h"
+#include "rwsem.h"
 
 struct addr_location;
 struct branch_stack;
@@ -28,7 +29,7 @@ struct vdso_info;
 
 struct threads {
 	struct rb_root	  entries;
-	pthread_rwlock_t  lock;
+	struct rw_semaphore lock;
 	unsigned int	  nr;
 	struct list_head  dead;
 	struct thread	  *last_match;

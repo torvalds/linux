@@ -34,7 +34,6 @@
 #include <termios.h>
 #include <semaphore.h>
 #include <signal.h>
-#include <pthread.h>
 #include <math.h>
 
 static const char *get_filename_for_perf_kvm(void)

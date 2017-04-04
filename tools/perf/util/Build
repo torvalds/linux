@@ -79,6 +79,7 @@ libperf-y += data.o
 libperf-y += tsc.o
 libperf-y += cloexec.o
 libperf-y += call-path.o
+libperf-y += rwsem.o
 libperf-y += thread-stack.o
 libperf-$(CONFIG_AUXTRACE) += auxtrace.o
 libperf-$(CONFIG_AUXTRACE) += intel-pt-decoder/

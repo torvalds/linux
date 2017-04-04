@@ -23,6 +23,19 @@
 /*
  * XXX We need to find a better place for these things...
  */
+
+bool perf_singlethreaded = true;
+
+void perf_set_singlethreaded(void)
+{
+	perf_singlethreaded = true;
+}
+
+void perf_set_multithreaded(void)
+{
+	perf_singlethreaded = false;
+}
+
 unsigned int page_size;
 int cacheline_size;
 

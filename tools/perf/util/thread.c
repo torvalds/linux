@@ -264,7 +264,7 @@ static int __thread__prepare_access(struct thread *thread)
 		struct maps *maps = &thread->mg->maps[i];
 		struct map *map;
 
-		pthread_rwlock_rdlock(&maps->lock);
+		down_read(&maps->lock);
 
 		for (map = maps__first(maps); map; map = map__next(map)) {
 			err = unwind__prepare_access(thread, map, &initialized);
@@ -272,7 +272,7 @@ static int __thread__prepare_access(struct thread *thread)
 				break;
 		}
 
-		pthread_rwlock_unlock(&maps->lock);
+		up_read(&maps->lock);
 	}
 
 	return err;

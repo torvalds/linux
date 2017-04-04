@@ -2829,6 +2829,8 @@ int cmd_script(int argc, const char **argv)
 		NULL
 	};
 
+	perf_set_singlethreaded();
+
 	setup_scripting();
 
 	argc = parse_options_subcommand(argc, argv, options, script_subcommands, script_usage,

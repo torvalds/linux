@@ -62,4 +62,9 @@ int sched_getcpu(void);
 int setns(int fd, int nstype);
 #endif
 
+extern bool perf_singlethreaded;
+
+void perf_set_singlethreaded(void);
+void perf_set_multithreaded(void);
+
 #endif /* GIT_COMPAT_UTIL_H */
