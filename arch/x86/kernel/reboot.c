@@ -228,7 +228,7 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 		.ident = "ASUS EeeBook X205TA",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "X205TAW"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X205TA"),
 		},
 	},
 	{	/* Handle problems with rebooting on ASUS EeeBook X205TAW */
