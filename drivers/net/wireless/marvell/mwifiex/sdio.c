@@ -1380,7 +1380,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 		}
 
 		if (card->mpa_rx.pkt_cnt == 1)
-			mport = adapter->ioport + port;
+			mport = adapter->ioport + card->mpa_rx.start_port;
 
 		if (mwifiex_read_data_sync(adapter, card->mpa_rx.buf,
 					   card->mpa_rx.buf_len, mport, 1))
@@ -1813,7 +1813,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 		}
 
 		if (card->mpa_tx.pkt_cnt == 1)
-			mport = adapter->ioport + port;
+			mport = adapter->ioport + card->mpa_tx.start_port;
 
 		ret = mwifiex_write_data_to_card(adapter, card->mpa_tx.buf,
 						 card->mpa_tx.buf_len, mport);
