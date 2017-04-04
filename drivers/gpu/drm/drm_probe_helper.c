@@ -44,7 +44,7 @@
  *
  * This library provides some helper code for output probing. It provides an
  * implementation of the core &drm_connector_funcs.fill_modes interface with
- * drm_helper_probe_single_connector_modes.
+ * drm_helper_probe_single_connector_modes().
  *
  * It also provides support for polling connectors with a work item and for
  * generic hotplug interrupt handling where the driver doesn't or cannot keep
