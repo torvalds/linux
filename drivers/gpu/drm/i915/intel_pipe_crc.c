@@ -513,16 +513,20 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
 	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_A);
 	struct intel_crtc_state *pipe_config;
 	struct drm_atomic_state *state;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_acquire_init(&ctx, 0);
+
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
 		ret = -ENOMEM;
 		goto unlock;
 	}
 
-	state->acquire_ctx = crtc->base.dev->mode_config.acquire_ctx;
+	state->acquire_ctx = &ctx;
+
+retry:
 	pipe_config = intel_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(pipe_config)) {
 		ret = PTR_ERR(pipe_config);
@@ -537,10 +541,17 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
 	ret = drm_atomic_commit(state);
 
 put_state:
+	if (ret == -EDEADLK) {
+		drm_atomic_state_clear(state);
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+
 	drm_atomic_state_put(state);
 unlock:
 	WARN(ret, "Toggling workaround to %i returns %i\n", enable, ret);
-	drm_modeset_unlock_all(dev);
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 }
 
 static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
