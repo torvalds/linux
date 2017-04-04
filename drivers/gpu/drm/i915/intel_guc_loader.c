@@ -86,11 +86,11 @@ static u32 get_core_family(struct drm_i915_private *dev_priv)
 
 	switch (gen) {
 	case 9:
-		return GFXCORE_FAMILY_GEN9;
+		return GUC_CORE_FAMILY_GEN9;
 
 	default:
-		WARN(1, "GEN%d does not support GuC operation!\n", gen);
-		return GFXCORE_FAMILY_UNKNOWN;
+		MISSING_CASE(gen);
+		return GUC_CORE_FAMILY_UNKNOWN;
 	}
 }
 
