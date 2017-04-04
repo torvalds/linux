@@ -3808,6 +3808,147 @@ static void ftrace_free_entry(struct ftrace_func_probe *entry)
 	kfree(entry);
 }
 
+struct ftrace_func_map {
+	struct ftrace_func_entry	entry;
+	void				*data;
+};
+
+struct ftrace_func_mapper {
+	struct ftrace_hash		hash;
+};
+
+/**
+ * allocate_ftrace_func_mapper - allocate a new ftrace_func_mapper
+ *
+ * Returns a ftrace_func_mapper descriptor that can be used to map ips to data.
+ */
+struct ftrace_func_mapper *allocate_ftrace_func_mapper(void)
+{
+	struct ftrace_hash *hash;
+
+	/*
+	 * The mapper is simply a ftrace_hash, but since the entries
+	 * in the hash are not ftrace_func_entry type, we define it
+	 * as a separate structure.
+	 */
+	hash = alloc_ftrace_hash(FTRACE_HASH_DEFAULT_BITS);
+	return (struct ftrace_func_mapper *)hash;
+}
+
+/**
+ * ftrace_func_mapper_find_ip - Find some data mapped to an ip
+ * @mapper: The mapper that has the ip maps
+ * @ip: the instruction pointer to find the data for
+ *
+ * Returns the data mapped to @ip if found otherwise NULL. The return
+ * is actually the address of the mapper data pointer. The address is
+ * returned for use cases where the data is no bigger than a long, and
+ * the user can use the data pointer as its data instead of having to
+ * allocate more memory for the reference.
+ */
+void **ftrace_func_mapper_find_ip(struct ftrace_func_mapper *mapper,
+				  unsigned long ip)
+{
+	struct ftrace_func_entry *entry;
+	struct ftrace_func_map *map;
+
+	entry = ftrace_lookup_ip(&mapper->hash, ip);
+	if (!entry)
+		return NULL;
+
+	map = (struct ftrace_func_map *)entry;
+	return &map->data;
+}
+
+/**
+ * ftrace_func_mapper_add_ip - Map some data to an ip
+ * @mapper: The mapper that has the ip maps
+ * @ip: The instruction pointer address to map @data to
+ * @data: The data to map to @ip
+ *
+ * Returns 0 on succes otherwise an error.
+ */
+int ftrace_func_mapper_add_ip(struct ftrace_func_mapper *mapper,
+			      unsigned long ip, void *data)
+{
+	struct ftrace_func_entry *entry;
+	struct ftrace_func_map *map;
+
+	entry = ftrace_lookup_ip(&mapper->hash, ip);
+	if (entry)
+		return -EBUSY;
+
+	map = kmalloc(sizeof(*map), GFP_KERNEL);
+	if (!map)
+		return -ENOMEM;
+
+	map->entry.ip = ip;
+	map->data = data;
+
+	__add_hash_entry(&mapper->hash, &map->entry);
+
+	return 0;
+}
+
+/**
+ * ftrace_func_mapper_remove_ip - Remove an ip from the mapping
+ * @mapper: The mapper that has the ip maps
+ * @ip: The instruction pointer address to remove the data from
+ *
+ * Returns the data if it is found, otherwise NULL.
+ * Note, if the data pointer is used as the data itself, (see 
+ * ftrace_func_mapper_find_ip(), then the return value may be meaningless,
+ * if the data pointer was set to zero.
+ */
+void *ftrace_func_mapper_remove_ip(struct ftrace_func_mapper *mapper,
+				   unsigned long ip)
+{
+	struct ftrace_func_entry *entry;
+	struct ftrace_func_map *map;
+	void *data;
+
+	entry = ftrace_lookup_ip(&mapper->hash, ip);
+	if (!entry)
+		return NULL;
+
+	map = (struct ftrace_func_map *)entry;
+	data = map->data;
+
+	remove_hash_entry(&mapper->hash, entry);
+	kfree(entry);
+
+	return data;
+}
+
+/**
+ * free_ftrace_func_mapper - free a mapping of ips and data
+ * @mapper: The mapper that has the ip maps
+ * @free_func: A function to be called on each data item.
+ *
+ * This is used to free the function mapper. The @free_func is optional
+ * and can be used if the data needs to be freed as well.
+ */
+void free_ftrace_func_mapper(struct ftrace_func_mapper *mapper,
+			     ftrace_mapper_func free_func)
+{
+	struct ftrace_func_entry *entry;
+	struct ftrace_func_map *map;
+	struct hlist_head *hhd;
+	int size = 1 << mapper->hash.size_bits;
+	int i;
+
+	if (free_func && mapper->hash.count) {
+		for (i = 0; i < size; i++) {
+			hhd = &mapper->hash.buckets[i];
+			hlist_for_each_entry(entry, hhd, hlist) {
+				map = (struct ftrace_func_map *)entry;
+				free_func(map);
+			}
+		}
+	}
+	free_ftrace_hash(&mapper->hash);
+}
+
 int
 register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			      void *data)

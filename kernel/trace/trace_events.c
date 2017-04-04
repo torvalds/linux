@@ -2460,16 +2460,8 @@ struct event_probe_data {
 	bool				enable;
 };
 
-static void
-event_enable_probe(unsigned long ip, unsigned long parent_ip,
-		   struct ftrace_probe_ops *ops, void **_data)
+static void update_event_probe(struct event_probe_data *data)
 {
-	struct event_probe_data **pdata = (struct event_probe_data **)_data;
-	struct event_probe_data *data = *pdata;
-
-	if (!data)
-		return;
-
 	if (data->enable)
 		clear_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &data->file->flags);
 	else
@@ -2477,14 +2469,34 @@ event_enable_probe(unsigned long ip, unsigned long parent_ip,
 }
 
 static void
+event_enable_probe(unsigned long ip, unsigned long parent_ip,
+		   struct ftrace_probe_ops *ops, void **_data)
+{
+	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct event_probe_data *data;
+	void **pdata;
+
+	pdata = ftrace_func_mapper_find_ip(mapper, ip);
+	if (!pdata || !*pdata)
+		return;
+
+	data = *pdata;
+	update_event_probe(data);
+}
+
+static void
 event_enable_count_probe(unsigned long ip, unsigned long parent_ip,
 			 struct ftrace_probe_ops *ops, void **_data)
 {
-	struct event_probe_data **pdata = (struct event_probe_data **)_data;
-	struct event_probe_data *data = *pdata;
+	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct event_probe_data *data;
+	void **pdata;
 
-	if (!data)
+	pdata = ftrace_func_mapper_find_ip(mapper, ip);
+	if (!pdata || !*pdata)
 		return;
+
+	data = *pdata;
 
 	if (!data->count)
 		return;
@@ -2496,14 +2508,23 @@ event_enable_count_probe(unsigned long ip, unsigned long parent_ip,
 	if (data->count != -1)
 		(data->count)--;
 
-	event_enable_probe(ip, parent_ip, ops, _data);
+	update_event_probe(data);
 }
 
 static int
 event_enable_print(struct seq_file *m, unsigned long ip,
 		      struct ftrace_probe_ops *ops, void *_data)
 {
-	struct event_probe_data *data = _data;
+	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct event_probe_data *data;
+	void **pdata;
+
+	pdata = ftrace_func_mapper_find_ip(mapper, ip);
+
+	if (WARN_ON_ONCE(!pdata || !*pdata))
+		return 0;
+
+	data = *pdata;
 
 	seq_printf(m, "%ps:", (void *)ip);
 
@@ -2524,10 +2545,17 @@ static int
 event_enable_init(struct ftrace_probe_ops *ops, unsigned long ip,
 		  void **_data)
 {
+	struct ftrace_func_mapper *mapper = ops->private_data;
 	struct event_probe_data **pdata = (struct event_probe_data **)_data;
 	struct event_probe_data *data = *pdata;
+	int ret;
+
+	ret = ftrace_func_mapper_add_ip(mapper, ip, data);
+	if (ret < 0)
+		return ret;
 
 	data->ref++;
+
 	return 0;
 }
 
@@ -2535,8 +2563,13 @@ static void
 event_enable_free(struct ftrace_probe_ops *ops, unsigned long ip,
 		  void **_data)
 {
-	struct event_probe_data **pdata = (struct event_probe_data **)_data;
-	struct event_probe_data *data = *pdata;
+	struct ftrace_func_mapper *mapper = ops->private_data;
+	struct event_probe_data *data;
+
+	data = ftrace_func_mapper_remove_ip(mapper, ip);
+
+	if (WARN_ON_ONCE(!data))
+		return;
 
 	if (WARN_ON_ONCE(data->ref <= 0))
 		return;
@@ -2548,7 +2581,6 @@ event_enable_free(struct ftrace_probe_ops *ops, unsigned long ip,
 		module_put(data->file->event_call->mod);
 		kfree(data);
 	}
-	*pdata = NULL;
 }
 
 static struct ftrace_probe_ops event_enable_probe_ops = {
@@ -2627,6 +2659,13 @@ event_enable_func(struct ftrace_hash *hash,
 	}
 
 	ret = -ENOMEM;
+
+	if (!ops->private_data) {
+		ops->private_data = allocate_ftrace_func_mapper();
+		if (!ops->private_data)
+			goto out;
+	}
+
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		goto out;
@@ -2663,6 +2702,7 @@ event_enable_func(struct ftrace_hash *hash,
 	ret = __ftrace_event_enable_disable(file, 1, 1);
 	if (ret < 0)
 		goto out_put;
+
 	ret = register_ftrace_function_probe(glob, ops, data);
 	/*
 	 * The above returns on success the # of functions enabled,

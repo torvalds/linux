@@ -944,7 +944,21 @@ struct ftrace_probe_ops {
 					 unsigned long ip,
 					 struct ftrace_probe_ops *ops,
 					 void *data);
+	void			*private_data;
 };
+
+struct ftrace_func_mapper;
+typedef int (*ftrace_mapper_func)(void *data);
+
+struct ftrace_func_mapper *allocate_ftrace_func_mapper(void);
+void **ftrace_func_mapper_find_ip(struct ftrace_func_mapper *mapper,
+					   unsigned long ip);
+int ftrace_func_mapper_add_ip(struct ftrace_func_mapper *mapper,
+			       unsigned long ip, void *data);
+void *ftrace_func_mapper_remove_ip(struct ftrace_func_mapper *mapper,
+				   unsigned long ip);
+void free_ftrace_func_mapper(struct ftrace_func_mapper *mapper,
+			     ftrace_mapper_func free_func);
 
 extern int
 register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
