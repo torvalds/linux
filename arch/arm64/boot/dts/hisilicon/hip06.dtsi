@@ -590,7 +590,7 @@
 			reg = <0 0xa2000000 0 0x10000>;
 			sas-addr = [50 01 88 20 16 00 00 00];
 			hisilicon,sas-syscon = <&pcie_subctl>;
-			am-max-trans;
+			hip06-sas-v2-quirk-amt;
 			ctrl-reset-reg = <0xa18>;
 			ctrl-reset-sts-reg = <0x5a0c>;
 			ctrl-clock-ena-reg = <0x318>;
