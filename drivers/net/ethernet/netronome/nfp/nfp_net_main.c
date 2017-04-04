@@ -47,6 +47,7 @@
 #include <linux/pci_regs.h>
 #include <linux/msi.h>
 #include <linux/random.h>
+#include <linux/rtnetlink.h>
 
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_cpp.h"
@@ -468,6 +469,82 @@ err_nn_free:
 	return err;
 }
 
+static void nfp_net_pci_remove_finish(struct nfp_pf *pf)
+{
+	nfp_net_debugfs_dir_clean(&pf->ddir);
+
+	nfp_net_irqs_disable(pf->pdev);
+	kfree(pf->irq_entries);
+
+	nfp_cpp_area_release_free(pf->rx_area);
+	nfp_cpp_area_release_free(pf->tx_area);
+	nfp_cpp_area_release_free(pf->ctrl_area);
+}
+
+static void nfp_net_refresh_netdevs(struct work_struct *work)
+{
+	struct nfp_pf *pf = container_of(work, struct nfp_pf,
+					 port_refresh_work);
+	struct nfp_net *nn, *next;
+
+	mutex_lock(&pf->port_lock);
+
+	/* Check for nfp_net_pci_remove() racing against us */
+	if (list_empty(&pf->ports))
+		goto out;
+
+	list_for_each_entry_safe(nn, next, &pf->ports, port_list) {
+		if (!nn->eth_port) {
+			nfp_warn(pf->cpp, "Warning: port %d not present after reconfig\n",
+				 nn->eth_port->eth_index);
+			continue;
+		}
+		if (!nn->eth_port->override_changed)
+			continue;
+
+		nn_warn(nn, "Port config changed, unregistering. Reboot required before port will be operational again.\n");
+
+		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
+		nfp_net_netdev_clean(nn->dp.netdev);
+
+		list_del(&nn->port_list);
+		pf->num_netdevs--;
+		nfp_net_netdev_free(nn);
+	}
+
+	if (list_empty(&pf->ports))
+		nfp_net_pci_remove_finish(pf);
+out:
+	mutex_unlock(&pf->port_lock);
+}
+
+void nfp_net_refresh_port_config(struct nfp_net *nn)
+{
+	struct nfp_pf *pf = pci_get_drvdata(nn->pdev);
+	struct nfp_eth_table *old_table;
+
+	ASSERT_RTNL();
+
+	old_table = pf->eth_tbl;
+
+	list_for_each_entry(nn, &pf->ports, port_list)
+		nfp_net_link_changed_read_clear(nn);
+
+	pf->eth_tbl = nfp_eth_read_ports(pf->cpp);
+	if (!pf->eth_tbl) {
+		pf->eth_tbl = old_table;
+		nfp_err(pf->cpp, "Error refreshing port config!\n");
+		return;
+	}
+
+	list_for_each_entry(nn, &pf->ports, port_list)
+		nn->eth_port = nfp_net_find_port(pf, nn->eth_port->eth_index);
+
+	kfree(old_table);
+
+	schedule_work(&pf->port_refresh_work);
+}
+
 /*
  * PCI device functions
  */
@@ -481,6 +558,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	int stride;
 	int err;
 
+	INIT_WORK(&pf->port_refresh_work, nfp_net_refresh_netdevs);
 	mutex_init(&pf->port_lock);
 
 	/* Verify that the board has completed initialization */
@@ -602,14 +680,9 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 
 	nfp_net_pf_free_netdevs(pf);
 
-	nfp_net_debugfs_dir_clean(&pf->ddir);
-
-	nfp_net_irqs_disable(pf->pdev);
-	kfree(pf->irq_entries);
-
-	nfp_cpp_area_release_free(pf->rx_area);
-	nfp_cpp_area_release_free(pf->tx_area);
-	nfp_cpp_area_release_free(pf->ctrl_area);
+	nfp_net_pci_remove_finish(pf);
 out:
 	mutex_unlock(&pf->port_lock);
+
+	cancel_work_sync(&pf->port_refresh_work);
 }
