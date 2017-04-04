@@ -385,8 +385,7 @@ static void nfp_pci_remove(struct pci_dev *pdev)
 {
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
 
-	if (!list_empty(&pf->ports))
-		nfp_net_pci_remove(pf);
+	nfp_net_pci_remove(pf);
 
 	nfp_pcie_sriov_disable(pdev);
 

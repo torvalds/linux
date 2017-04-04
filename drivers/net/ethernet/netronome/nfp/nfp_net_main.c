@@ -481,17 +481,22 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	int stride;
 	int err;
 
+	mutex_init(&pf->port_lock);
+
 	/* Verify that the board has completed initialization */
 	if (!nfp_is_ready(pf->cpp)) {
 		nfp_err(pf->cpp, "NFP is not ready for NIC operation.\n");
 		return -EINVAL;
 	}
 
+	mutex_lock(&pf->port_lock);
 	pf->num_ports = nfp_net_pf_get_num_ports(pf);
 
 	ctrl_bar = nfp_net_pf_map_ctrl_bar(pf);
-	if (!ctrl_bar)
-		return pf->fw_loaded ? -EINVAL : -EPROBE_DEFER;
+	if (!ctrl_bar) {
+		err = pf->fw_loaded ? -EINVAL : -EPROBE_DEFER;
+		goto err_unlock;
+	}
 
 	nfp_net_get_fw_version(&fw_ver, ctrl_bar);
 	if (fw_ver.resv || fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
@@ -565,6 +570,8 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_clean_ddir;
 
+	mutex_unlock(&pf->port_lock);
+
 	return 0;
 
 err_clean_ddir:
@@ -574,12 +581,18 @@ err_unmap_tx:
 	nfp_cpp_area_release_free(pf->tx_area);
 err_ctrl_unmap:
 	nfp_cpp_area_release_free(pf->ctrl_area);
+err_unlock:
+	mutex_unlock(&pf->port_lock);
 	return err;
 }
 
 void nfp_net_pci_remove(struct nfp_pf *pf)
 {
 	struct nfp_net *nn;
+
+	mutex_lock(&pf->port_lock);
+	if (list_empty(&pf->ports))
+		goto out;
 
 	list_for_each_entry(nn, &pf->ports, port_list) {
 		nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
@@ -597,4 +610,6 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 	nfp_cpp_area_release_free(pf->rx_area);
 	nfp_cpp_area_release_free(pf->tx_area);
 	nfp_cpp_area_release_free(pf->ctrl_area);
+out:
+	mutex_unlock(&pf->port_lock);
 }
