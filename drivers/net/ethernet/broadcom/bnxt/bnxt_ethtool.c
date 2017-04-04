@@ -2178,6 +2178,29 @@ static int bnxt_set_phys_id(struct net_device *dev,
 	return rc;
 }
 
+static int bnxt_hwrm_selftest_irq(struct bnxt *bp, u16 cmpl_ring)
+{
+	struct hwrm_selftest_irq_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_SELFTEST_IRQ, cmpl_ring, -1);
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+static int bnxt_test_irq(struct bnxt *bp)
+{
+	int i;
+
+	for (i = 0; i < bp->cp_nr_rings; i++) {
+		u16 cmpl_ring = bp->grp_info[i].cp_fw_ring_id;
+		int rc;
+
+		rc = bnxt_hwrm_selftest_irq(bp, cmpl_ring);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
+
 static int bnxt_hwrm_mac_loopback(struct bnxt *bp, bool enable)
 {
 	struct hwrm_port_mac_cfg_input req = {0};
@@ -2366,9 +2389,10 @@ static int bnxt_run_fw_tests(struct bnxt *bp, u8 test_mask, u8 *test_results)
 	return rc;
 }
 
-#define BNXT_DRV_TESTS			2
+#define BNXT_DRV_TESTS			3
 #define BNXT_MACLPBK_TEST_IDX		(bp->num_tests - BNXT_DRV_TESTS)
 #define BNXT_PHYLPBK_TEST_IDX		(BNXT_MACLPBK_TEST_IDX + 1)
+#define BNXT_IRQ_TEST_IDX		(BNXT_MACLPBK_TEST_IDX + 2)
 
 static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
 			   u64 *buf)
@@ -2437,6 +2461,10 @@ static void bnxt_self_test(struct net_device *dev, struct ethtool_test *etest,
 		bnxt_half_close_nic(bp);
 		bnxt_open_nic(bp, false, true);
 	}
+	if (bnxt_test_irq(bp)) {
+		buf[BNXT_IRQ_TEST_IDX] = 1;
+		etest->flags |= ETH_TEST_FL_FAILED;
+	}
 	for (i = 0; i < bp->num_tests - BNXT_DRV_TESTS; i++) {
 		u8 bit_val = 1 << i;
 
@@ -2484,6 +2512,8 @@ void bnxt_ethtool_init(struct bnxt *bp)
 			strcpy(str, "Mac loopback test (offline)");
 		} else if (i == BNXT_PHYLPBK_TEST_IDX) {
 			strcpy(str, "Phy loopback test (offline)");
+		} else if (i == BNXT_IRQ_TEST_IDX) {
+			strcpy(str, "Interrupt_test (offline)");
 		} else {
 			strlcpy(str, fw_str, ETH_GSTRING_LEN);
 			strncat(str, " test", ETH_GSTRING_LEN - strlen(str));
