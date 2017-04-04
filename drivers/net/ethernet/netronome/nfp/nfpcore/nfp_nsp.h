@@ -136,4 +136,8 @@ struct nfp_eth_table *
 __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp);
 int nfp_eth_set_mod_enable(struct nfp_cpp *cpp, unsigned int idx, bool enable);
 
+struct nfp_nsp *nfp_eth_config_start(struct nfp_cpp *cpp, unsigned int idx);
+int nfp_eth_config_commit_end(struct nfp_nsp *nsp);
+void nfp_eth_config_cleanup_end(struct nfp_nsp *nsp);
+
 #endif

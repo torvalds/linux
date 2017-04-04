@@ -268,6 +268,82 @@ err:
 	return NULL;
 }
 
+struct nfp_nsp *nfp_eth_config_start(struct nfp_cpp *cpp, unsigned int idx)
+{
+	struct eth_table_entry *entries;
+	struct nfp_nsp *nsp;
+	int ret;
+
+	entries = kzalloc(NSP_ETH_TABLE_SIZE, GFP_KERNEL);
+	if (!entries)
+		return ERR_PTR(-ENOMEM);
+
+	nsp = nfp_nsp_open(cpp);
+	if (IS_ERR(nsp)) {
+		kfree(entries);
+		return nsp;
+	}
+
+	ret = nfp_nsp_read_eth_table(nsp, entries, NSP_ETH_TABLE_SIZE);
+	if (ret < 0) {
+		nfp_err(cpp, "reading port table failed %d\n", ret);
+		goto err;
+	}
+
+	if (!(entries[idx].port & NSP_ETH_PORT_LANES_MASK)) {
+		nfp_warn(cpp, "trying to set port state on disabled port %d\n",
+			 idx);
+		goto err;
+	}
+
+	nfp_nsp_config_set_state(nsp, entries, idx);
+	return nsp;
+
+err:
+	nfp_nsp_close(nsp);
+	kfree(entries);
+	return ERR_PTR(-EIO);
+}
+
+void nfp_eth_config_cleanup_end(struct nfp_nsp *nsp)
+{
+	struct eth_table_entry *entries = nfp_nsp_config_entries(nsp);
+
+	nfp_nsp_config_set_modified(nsp, false);
+	nfp_nsp_config_clear_state(nsp);
+	nfp_nsp_close(nsp);
+	kfree(entries);
+}
+
+/**
+ * nfp_eth_config_commit_end() - perform recorded configuration changes
+ * @nsp:	NFP NSP handle returned from nfp_eth_config_start()
+ *
+ * Perform the configuration which was requested with __nfp_eth_set_*()
+ * helpers and recorded in @nsp state.  If device was already configured
+ * as requested or no __nfp_eth_set_*() operations were made no NSP command
+ * will be performed.
+ *
+ * Return:
+ * 0 - configuration successful;
+ * 1 - no changes were needed;
+ * -ERRNO - configuration failed.
+ */
+int nfp_eth_config_commit_end(struct nfp_nsp *nsp)
+{
+	struct eth_table_entry *entries = nfp_nsp_config_entries(nsp);
+	int ret = 1;
+
+	if (nfp_nsp_config_modified(nsp)) {
+		ret = nfp_nsp_write_eth_table(nsp, entries, NSP_ETH_TABLE_SIZE);
+		ret = ret < 0 ? ret : 0;
+	}
+
+	nfp_eth_config_cleanup_end(nsp);
+
+	return ret;
+}
+
 /**
  * nfp_eth_set_mod_enable() - set PHY module enable control bit
  * @cpp:	NFP CPP handle
@@ -284,47 +360,23 @@ int nfp_eth_set_mod_enable(struct nfp_cpp *cpp, unsigned int idx, bool enable)
 	struct eth_table_entry *entries;
 	struct nfp_nsp *nsp;
 	u64 reg;
-	int ret;
 
-	entries = kzalloc(NSP_ETH_TABLE_SIZE, GFP_KERNEL);
-	if (!entries)
-		return -ENOMEM;
-
-	nsp = nfp_nsp_open(cpp);
-	if (IS_ERR(nsp)) {
-		kfree(entries);
+	nsp = nfp_eth_config_start(cpp, idx);
+	if (IS_ERR(nsp))
 		return PTR_ERR(nsp);
-	}
 
-	ret = nfp_nsp_read_eth_table(nsp, entries, NSP_ETH_TABLE_SIZE);
-	if (ret < 0) {
-		nfp_err(cpp, "reading port table failed %d\n", ret);
-		goto exit_close_nsp;
-	}
-
-	if (!(entries[idx].port & NSP_ETH_PORT_LANES_MASK)) {
-		nfp_warn(cpp, "trying to set port state on disabled port %d\n",
-			 idx);
-		ret = -EINVAL;
-		goto exit_close_nsp;
-	}
+	entries = nfp_nsp_config_entries(nsp);
 
 	/* Check if we are already in requested state */
 	reg = le64_to_cpu(entries[idx].state);
-	if (enable == FIELD_GET(NSP_ETH_CTRL_ENABLED, reg)) {
-		ret = 0;
-		goto exit_close_nsp;
+	if (enable != FIELD_GET(NSP_ETH_CTRL_ENABLED, reg)) {
+		reg = le64_to_cpu(entries[idx].control);
+		reg &= ~NSP_ETH_CTRL_ENABLED;
+		reg |= FIELD_PREP(NSP_ETH_CTRL_ENABLED, enable);
+		entries[idx].control = cpu_to_le64(reg);
+
+		nfp_nsp_config_set_modified(nsp, true);
 	}
 
-	reg = le64_to_cpu(entries[idx].control);
-	reg &= ~NSP_ETH_CTRL_ENABLED;
-	reg |= FIELD_PREP(NSP_ETH_CTRL_ENABLED, enable);
-	entries[idx].control = cpu_to_le64(reg);
-
-	ret = nfp_nsp_write_eth_table(nsp, entries, NSP_ETH_TABLE_SIZE);
-exit_close_nsp:
-	nfp_nsp_close(nsp);
-	kfree(entries);
-
-	return ret < 0 ? ret : 0;
+	return nfp_eth_config_commit_end(nsp);
 }

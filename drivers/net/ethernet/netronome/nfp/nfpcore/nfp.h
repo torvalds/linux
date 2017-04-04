@@ -52,6 +52,14 @@ const char *nfp_hwinfo_lookup(struct nfp_cpp *cpp, const char *lookup);
 
 struct nfp_nsp;
 
+struct nfp_cpp *nfp_nsp_cpp(struct nfp_nsp *state);
+bool nfp_nsp_config_modified(struct nfp_nsp *state);
+void nfp_nsp_config_set_modified(struct nfp_nsp *state, bool modified);
+void *nfp_nsp_config_entries(struct nfp_nsp *state);
+unsigned int nfp_nsp_config_idx(struct nfp_nsp *state);
+void nfp_nsp_config_set_state(struct nfp_nsp *state, void *entries,
+			      unsigned int idx);
+void nfp_nsp_config_clear_state(struct nfp_nsp *state);
 int nfp_nsp_read_eth_table(struct nfp_nsp *state, void *buf, unsigned int size);
 int nfp_nsp_write_eth_table(struct nfp_nsp *state,
 			    const void *buf, unsigned int size);
