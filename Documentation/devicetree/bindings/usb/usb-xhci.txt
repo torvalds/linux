@@ -26,6 +26,7 @@ Required properties:
 Optional properties:
   - clocks: reference to a clock
   - usb3-lpm-capable: determines if platform is USB3 LPM capable
+  - quirk-broken-port-ped: set if the controller has broken port disable mechanism
 
 Example:
 	usb@f0931000 {
