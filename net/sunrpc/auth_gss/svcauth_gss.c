@@ -1548,7 +1548,7 @@ complete:
 	ret = SVC_COMPLETE;
 	goto out;
 drop:
-	ret = SVC_DROP;
+	ret = SVC_CLOSE;
 out:
 	if (rsci)
 		cache_put(&rsci->h, sn->rsc_cache);
