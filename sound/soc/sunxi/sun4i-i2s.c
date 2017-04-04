@@ -14,9 +14,11 @@
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm_params.h>
@@ -92,6 +94,7 @@ struct sun4i_i2s {
 	struct clk	*bus_clk;
 	struct clk	*mod_clk;
 	struct regmap	*regmap;
+	struct reset_control *rst;
 
 	struct snd_dmaengine_dai_dma_data	playback_dma_data;
 };
@@ -585,9 +588,22 @@ static int sun4i_i2s_runtime_suspend(struct device *dev)
 	return 0;
 }
 
+struct sun4i_i2s_quirks {
+	bool has_reset;
+};
+
+static const struct sun4i_i2s_quirks sun4i_a10_i2s_quirks = {
+	.has_reset	= false,
+};
+
+static const struct sun4i_i2s_quirks sun6i_a31_i2s_quirks = {
+	.has_reset	= true,
+};
+
 static int sun4i_i2s_probe(struct platform_device *pdev)
 {
 	struct sun4i_i2s *i2s;
+	const struct sun4i_i2s_quirks *quirks;
 	struct resource *res;
 	void __iomem *regs;
 	int irq, ret;
@@ -608,6 +624,12 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 		return irq;
 	}
 
+	quirks = of_device_get_match_data(&pdev->dev);
+	if (!quirks) {
+		dev_err(&pdev->dev, "Failed to determine the quirks to use\n");
+		return -ENODEV;
+	}
+
 	i2s->bus_clk = devm_clk_get(&pdev->dev, "apb");
 	if (IS_ERR(i2s->bus_clk)) {
 		dev_err(&pdev->dev, "Can't get our bus clock\n");
@@ -626,7 +648,24 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't get our mod clock\n");
 		return PTR_ERR(i2s->mod_clk);
 	}
-	
+
+	if (quirks->has_reset) {
+		i2s->rst = devm_reset_control_get(&pdev->dev, NULL);
+		if (IS_ERR(i2s->rst)) {
+			dev_err(&pdev->dev, "Failed to get reset control\n");
+			return PTR_ERR(i2s->rst);
+		}
+	}
+
+	if (!IS_ERR(i2s->rst)) {
+		ret = reset_control_deassert(i2s->rst);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Failed to deassert the reset control\n");
+			return -EINVAL;
+		}
+	}
+
 	i2s->playback_dma_data.addr = res->start + SUN4I_I2S_FIFO_TX_REG;
 	i2s->playback_dma_data.maxburst = 4;
 
@@ -658,23 +697,37 @@ err_suspend:
 		sun4i_i2s_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
+	if (!IS_ERR(i2s->rst))
+		reset_control_assert(i2s->rst);
 
 	return ret;
 }
 
 static int sun4i_i2s_remove(struct platform_device *pdev)
 {
+	struct sun4i_i2s *i2s = dev_get_drvdata(&pdev->dev);
+
 	snd_dmaengine_pcm_unregister(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		sun4i_i2s_runtime_suspend(&pdev->dev);
 
+	if (!IS_ERR(i2s->rst))
+		reset_control_assert(i2s->rst);
+
 	return 0;
 }
 
 static const struct of_device_id sun4i_i2s_match[] = {
-	{ .compatible = "allwinner,sun4i-a10-i2s", },
+	{
+		.compatible = "allwinner,sun4i-a10-i2s",
+		.data = &sun4i_a10_i2s_quirks,
+	},
+	{
+		.compatible = "allwinner,sun6i-a31-i2s",
+		.data = &sun6i_a31_i2s_quirks,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, sun4i_i2s_match);
