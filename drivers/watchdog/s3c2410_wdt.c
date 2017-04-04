@@ -46,6 +46,7 @@
 #define S3C2410_WTCON		0x00
 #define S3C2410_WTDAT		0x04
 #define S3C2410_WTCNT		0x08
+#define S3C2410_WTCLRINT	0x0c
 
 #define S3C2410_WTCNT_MAXCNT	0xffff
 
@@ -72,6 +73,7 @@
 #define EXYNOS5_WDT_MASK_RESET_REG_OFFSET	0x040c
 #define QUIRK_HAS_PMU_CONFIG			(1 << 0)
 #define QUIRK_HAS_RST_STAT			(1 << 1)
+#define QUIRK_HAS_WTCLRINT_REG			(1 << 2)
 
 /* These quirks require that we have a PMU register map */
 #define QUIRKS_HAVE_PMUREG			(QUIRK_HAS_PMU_CONFIG | \
@@ -143,13 +145,18 @@ static const struct s3c2410_wdt_variant drv_data_s3c2410 = {
 };
 
 #ifdef CONFIG_OF
+static const struct s3c2410_wdt_variant drv_data_s3c6410 = {
+	.quirks = QUIRK_HAS_WTCLRINT_REG,
+};
+
 static const struct s3c2410_wdt_variant drv_data_exynos5250  = {
 	.disable_reg = EXYNOS5_WDT_DISABLE_REG_OFFSET,
 	.mask_reset_reg = EXYNOS5_WDT_MASK_RESET_REG_OFFSET,
 	.mask_bit = 20,
 	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
 	.rst_stat_bit = 20,
-	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT,
+	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT \
+		  | QUIRK_HAS_WTCLRINT_REG,
 };
 
 static const struct s3c2410_wdt_variant drv_data_exynos5420 = {
@@ -158,7 +165,8 @@ static const struct s3c2410_wdt_variant drv_data_exynos5420 = {
 	.mask_bit = 0,
 	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
 	.rst_stat_bit = 9,
-	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT,
+	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT \
+		  | QUIRK_HAS_WTCLRINT_REG,
 };
 
 static const struct s3c2410_wdt_variant drv_data_exynos7 = {
@@ -167,12 +175,15 @@ static const struct s3c2410_wdt_variant drv_data_exynos7 = {
 	.mask_bit = 23,
 	.rst_stat_reg = EXYNOS5_RST_STAT_REG_OFFSET,
 	.rst_stat_bit = 23,	/* A57 WDTRESET */
-	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT,
+	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT \
+		  | QUIRK_HAS_WTCLRINT_REG,
 };
 
 static const struct of_device_id s3c2410_wdt_match[] = {
 	{ .compatible = "samsung,s3c2410-wdt",
 	  .data = &drv_data_s3c2410 },
+	{ .compatible = "samsung,s3c6410-wdt",
+	  .data = &drv_data_s3c6410 },
 	{ .compatible = "samsung,exynos5250-wdt",
 	  .data = &drv_data_exynos5250 },
 	{ .compatible = "samsung,exynos5420-wdt",
@@ -418,6 +429,10 @@ static irqreturn_t s3c2410wdt_irq(int irqno, void *param)
 	dev_info(wdt->dev, "watchdog timer expired (irq)\n");
 
 	s3c2410wdt_keepalive(&wdt->wdt_device);
+
+	if (wdt->drv_data->quirks & QUIRK_HAS_WTCLRINT_REG)
+		writel(0x1, wdt->reg_base + S3C2410_WTCLRINT);
+
 	return IRQ_HANDLED;
 }
 
