@@ -7703,6 +7703,62 @@ shutdown_exit:
 	rtnl_unlock();
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int bnxt_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct bnxt *bp = netdev_priv(dev);
+	int rc = 0;
+
+	rtnl_lock();
+	if (netif_running(dev)) {
+		netif_device_detach(dev);
+		rc = bnxt_close(dev);
+	}
+	bnxt_hwrm_func_drv_unrgtr(bp);
+	rtnl_unlock();
+	return rc;
+}
+
+static int bnxt_resume(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct bnxt *bp = netdev_priv(dev);
+	int rc = 0;
+
+	rtnl_lock();
+	if (bnxt_hwrm_ver_get(bp) || bnxt_hwrm_func_drv_rgtr(bp)) {
+		rc = -ENODEV;
+		goto resume_exit;
+	}
+	rc = bnxt_hwrm_func_reset(bp);
+	if (rc) {
+		rc = -EBUSY;
+		goto resume_exit;
+	}
+	bnxt_get_wol_settings(bp);
+	if (netif_running(dev)) {
+		rc = bnxt_open(dev);
+		if (!rc)
+			netif_device_attach(dev);
+	}
+
+resume_exit:
+	rtnl_unlock();
+	return rc;
+}
+
+static SIMPLE_DEV_PM_OPS(bnxt_pm_ops, bnxt_suspend, bnxt_resume);
+#define BNXT_PM_OPS (&bnxt_pm_ops)
+
+#else
+
+#define BNXT_PM_OPS NULL
+
+#endif /* CONFIG_PM_SLEEP */
+
 /**
  * bnxt_io_error_detected - called when PCI error is detected
  * @pdev: Pointer to PCI device
@@ -7820,6 +7876,7 @@ static struct pci_driver bnxt_pci_driver = {
 	.probe		= bnxt_init_one,
 	.remove		= bnxt_remove_one,
 	.shutdown	= bnxt_shutdown,
+	.driver.pm	= BNXT_PM_OPS,
 	.err_handler	= &bnxt_err_handler,
 #if defined(CONFIG_BNXT_SRIOV)
 	.sriov_configure = bnxt_sriov_configure,
