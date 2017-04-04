@@ -154,6 +154,16 @@ config AT91_SAMA5D2_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called at91-sama5d2_adc.
 
+config AXP20X_ADC
+	tristate "X-Powers AXP20X and AXP22X ADC driver"
+	depends on MFD_AXP20X
+	help
+	  Say yes here to have support for X-Powers power management IC (PMIC)
+	  AXP20X and AXP22X ADC devices.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called axp20x_adc.
+
 config AXP288_ADC
 	tristate "X-Powers AXP288 ADC driver"
 	depends on MFD_AXP20X
