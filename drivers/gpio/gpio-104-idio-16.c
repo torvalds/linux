@@ -33,11 +33,11 @@
 
 static unsigned int base[MAX_NUM_IDIO_16];
 static unsigned int num_idio_16;
-module_param_array(base, uint, &num_idio_16, 0);
+module_param_hw_array(base, uint, ioport, &num_idio_16, 0);
 MODULE_PARM_DESC(base, "ACCES 104-IDIO-16 base addresses");
 
 static unsigned int irq[MAX_NUM_IDIO_16];
-module_param_array(irq, uint, NULL, 0);
+module_param_hw_array(irq, uint, irq, NULL, 0);
 MODULE_PARM_DESC(irq, "ACCES 104-IDIO-16 interrupt line numbers");
 
 /**

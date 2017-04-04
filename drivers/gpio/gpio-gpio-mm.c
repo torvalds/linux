@@ -31,7 +31,7 @@
 
 static unsigned int base[MAX_NUM_GPIOMM];
 static unsigned int num_gpiomm;
-module_param_array(base, uint, &num_gpiomm, 0);
+module_param_hw_array(base, uint, ioport, &num_gpiomm, 0);
 MODULE_PARM_DESC(base, "Diamond Systems GPIO-MM base addresses");
 
 /**
