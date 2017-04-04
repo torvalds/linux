@@ -35,6 +35,7 @@
 
 #include <rdma/uverbs_types.h>
 
+extern const struct uverbs_obj_fd_type uverbs_type_attrs_comp_channel;
 extern const struct uverbs_obj_idr_type uverbs_type_attrs_cq;
 extern const struct uverbs_obj_idr_type uverbs_type_attrs_qp;
 extern const struct uverbs_obj_idr_type uverbs_type_attrs_rwq_ind_table;
