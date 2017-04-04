@@ -785,7 +785,7 @@ static int adapter_alloc_sq(struct nvme_dev *dev, u16 qid,
 						struct nvme_queue *nvmeq)
 {
 	struct nvme_command c;
-	int flags = NVME_QUEUE_PHYS_CONTIG | NVME_SQ_PRIO_MEDIUM;
+	int flags = NVME_QUEUE_PHYS_CONTIG;
 
 	/*
 	 * Note: we (ab)use the fact the the prp fields survive if no data
