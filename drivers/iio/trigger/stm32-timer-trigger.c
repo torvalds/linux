@@ -353,6 +353,74 @@ static const struct iio_info stm32_trigger_info = {
 	.write_raw = stm32_counter_write_raw
 };
 
+static const char *const stm32_enable_modes[] = {
+	"always",
+	"gated",
+	"triggered",
+};
+
+static int stm32_enable_mode2sms(int mode)
+{
+	switch (mode) {
+	case 0:
+		return 0;
+	case 1:
+		return 5;
+	case 2:
+		return 6;
+	}
+
+	return -EINVAL;
+}
+
+static int stm32_set_enable_mode(struct iio_dev *indio_dev,
+				 const struct iio_chan_spec *chan,
+				 unsigned int mode)
+{
+	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
+	int sms = stm32_enable_mode2sms(mode);
+
+	if (sms < 0)
+		return sms;
+
+	regmap_update_bits(priv->regmap, TIM_SMCR, TIM_SMCR_SMS, sms);
+
+	return 0;
+}
+
+static int stm32_sms2enable_mode(int mode)
+{
+	switch (mode) {
+	case 0:
+		return 0;
+	case 5:
+		return 1;
+	case 6:
+		return 2;
+	}
+
+	return -EINVAL;
+}
+
+static int stm32_get_enable_mode(struct iio_dev *indio_dev,
+				 const struct iio_chan_spec *chan)
+{
+	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
+	u32 smcr;
+
+	regmap_read(priv->regmap, TIM_SMCR, &smcr);
+	smcr &= TIM_SMCR_SMS;
+
+	return stm32_sms2enable_mode(smcr);
+}
+
+static const struct iio_enum stm32_enable_mode_enum = {
+	.items = stm32_enable_modes,
+	.num_items = ARRAY_SIZE(stm32_enable_modes),
+	.set = stm32_set_enable_mode,
+	.get = stm32_get_enable_mode
+};
+
 static const char *const stm32_quadrature_modes[] = {
 	"channel_A",
 	"channel_B",
@@ -466,6 +534,8 @@ static const struct iio_chan_spec_ext_info stm32_trigger_count_info[] = {
 	IIO_ENUM_AVAILABLE("count_direction", &stm32_count_direction_enum),
 	IIO_ENUM("quadrature_mode", IIO_SEPARATE, &stm32_quadrature_mode_enum),
 	IIO_ENUM_AVAILABLE("quadrature_mode", &stm32_quadrature_mode_enum),
+	IIO_ENUM("enable_mode", IIO_SEPARATE, &stm32_enable_mode_enum),
+	IIO_ENUM_AVAILABLE("enable_mode", &stm32_enable_mode_enum),
 	{}
 };
 

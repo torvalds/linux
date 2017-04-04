@@ -65,3 +65,28 @@ Description:
 		quadrature:
 			Encoder A and B inputs are mixed to get direction
 			and count with a scale of 0.25.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count_enable_mode_available
+KernelVersion:	4.12
+Contact:	benjamin.gaignard@st.com
+Description:
+		Reading returns the list possible enable modes.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_count0_enable_mode
+KernelVersion:	4.12
+Contact:	benjamin.gaignard@st.com
+Description:
+		Configure the device counter enable modes, in all case
+		counting direction is set by in_count0_count_direction
+		attribute and the counter is clocked by the internal clock.
+		always:
+			Counter is always ON.
+
+		gated:
+			Counting is enabled when connected trigger signal
+			level is high else counting is disabled.
+
+		triggered:
+			Counting is enabled on rising edge of the connected
+			trigger, and remains enabled for the duration of this
+			selected mode.
