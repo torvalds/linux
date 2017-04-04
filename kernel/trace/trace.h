@@ -964,9 +964,6 @@ extern int
 register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			      void *data);
 extern void
-unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
-				void *data);
-extern void
 unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
 extern void unregister_ftrace_function_probe_all(char *glob);
 

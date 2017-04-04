@@ -4061,12 +4061,11 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 
 enum {
 	PROBE_TEST_FUNC		= 1,
-	PROBE_TEST_DATA		= 2
 };
 
 static void
 __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
-				  void *data, int flags)
+				   int flags)
 {
 	struct ftrace_ops_hash old_hash_ops;
 	struct ftrace_func_entry *rec_entry;
@@ -4119,9 +4118,6 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			if ((flags & PROBE_TEST_FUNC) && entry->ops != ops)
 				continue;
 
-			if ((flags & PROBE_TEST_DATA) && entry->data != data)
-				continue;
-
 			/* do this last, since it is the most expensive */
 			if (func_g.search) {
 				kallsyms_lookup(entry->ip, NULL, NULL,
@@ -4167,22 +4163,14 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 }
 
 void
-unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
-				void *data)
-{
-	__unregister_ftrace_function_probe(glob, ops, data,
-					  PROBE_TEST_FUNC | PROBE_TEST_DATA);
-}
-
-void
 unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 {
-	__unregister_ftrace_function_probe(glob, ops, NULL, PROBE_TEST_FUNC);
+	__unregister_ftrace_function_probe(glob, ops, PROBE_TEST_FUNC);
 }
 
 void unregister_ftrace_function_probe_all(char *glob)
 {
-	__unregister_ftrace_function_probe(glob, NULL, NULL, 0);
+	__unregister_ftrace_function_probe(glob, NULL, 0);
 }
 
 static LIST_HEAD(ftrace_commands);
