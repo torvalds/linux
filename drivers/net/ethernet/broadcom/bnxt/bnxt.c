@@ -7617,6 +7617,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_err_pci_clean;
 
 	bnxt_get_wol_settings(bp);
+	if (bp->flags & BNXT_FLAG_WOL_CAP)
+		device_set_wakeup_enable(&pdev->dev, bp->wol);
+	else
+		device_set_wakeup_capable(&pdev->dev, false);
 
 	rc = register_netdev(dev);
 	if (rc)
@@ -7639,6 +7643,32 @@ init_err_pci_clean:
 init_err_free:
 	free_netdev(dev);
 	return rc;
+}
+
+static void bnxt_shutdown(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct bnxt *bp;
+
+	if (!dev)
+		return;
+
+	rtnl_lock();
+	bp = netdev_priv(dev);
+	if (!bp)
+		goto shutdown_exit;
+
+	if (netif_running(dev))
+		dev_close(dev);
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		bnxt_clear_int_mode(bp);
+		pci_wake_from_d3(pdev, bp->wol);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+
+shutdown_exit:
+	rtnl_unlock();
 }
 
 /**
@@ -7757,6 +7787,7 @@ static struct pci_driver bnxt_pci_driver = {
 	.id_table	= bnxt_pci_tbl,
 	.probe		= bnxt_init_one,
 	.remove		= bnxt_remove_one,
+	.shutdown	= bnxt_shutdown,
 	.err_handler	= &bnxt_err_handler,
 #if defined(CONFIG_BNXT_SRIOV)
 	.sriov_configure = bnxt_sriov_configure,
