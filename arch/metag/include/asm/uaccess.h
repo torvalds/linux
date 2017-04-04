@@ -174,35 +174,8 @@ extern long __must_check strnlen_user(const char __user *src, long count);
 
 extern unsigned long raw_copy_from_user(void *to, const void __user *from,
 					unsigned long n);
-
-static inline unsigned long
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	unsigned long res = n;
-	if (likely(access_ok(VERIFY_READ, from, n)))
-		res = raw_copy_from_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
-}
-
-#define __copy_from_user(to, from, n) raw_copy_from_user(to, from, n)
-#define __copy_from_user_inatomic __copy_from_user
-
-extern unsigned long __must_check __copy_user(void __user *to,
-					      const void *from,
-					      unsigned long n);
-
-static inline unsigned long copy_to_user(void __user *to, const void *from,
-					 unsigned long n)
-{
-	if (access_ok(VERIFY_WRITE, to, n))
-		return __copy_user(to, from, n);
-	return n;
-}
-
-#define __copy_to_user(to, from, n) __copy_user(to, from, n)
-#define __copy_to_user_inatomic __copy_to_user
+extern unsigned long raw_copy_to_user(void __user *to, const void *from,
+				      unsigned long n);
 
 /*
  * Zero Userspace

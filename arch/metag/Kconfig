@@ -1,5 +1,6 @@
 config METAG
 	def_bool y
+	select ARCH_HAS_RAW_COPY_USER
 	select EMBEDDED
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
