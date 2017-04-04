@@ -19,8 +19,8 @@
 #include "bnxt.h"
 #include "bnxt_xdp.h"
 
-static void bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
-			  dma_addr_t mapping, u32 len, u16 rx_prod)
+void bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
+		   dma_addr_t mapping, u32 len, u16 rx_prod)
 {
 	struct bnxt_sw_tx_bd *tx_buf;
 	struct tx_bd_ext *txbd1;
