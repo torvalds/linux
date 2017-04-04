@@ -499,6 +499,17 @@ config PALMAS_GPADC
 config QCOM_VADC_COMMON
 	tristate
 
+config QCOM_PM8XXX_XOADC
+	tristate "Qualcomm SSBI PM8xxx PMIC XOADCs"
+	depends on MFD_PM8XXX
+	select QCOM_VADC_COMMON
+	help
+	  ADC driver for the XOADC portions of the Qualcomm PM8xxx PMICs
+	  using SSBI transport: PM8018, PM8038, PM8058, PM8921.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called qcom-pm8xxx-xoadc.
+
 config QCOM_SPMI_IADC
 	tristate "Qualcomm SPMI PMIC current ADC"
 	depends on SPMI
