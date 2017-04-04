@@ -259,27 +259,31 @@
 		"MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
 		"22:\n"							\
 		"MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"SUB	%3, %3, #32\n"					\
 		"23:\n"							\
-		"MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
+		"SUB	%3, %3, #32\n"					\
 		"24:\n"							\
+		"MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
+		"25:\n"							\
 		"MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
+		"26:\n"							\
 		"SUB	%3, %3, #32\n"					\
 		"DCACHE	[%1+#-64], D0Ar6\n"				\
 		"BR	$Lloop"id"\n"					\
 									\
 		"MOV	RAPF, %1\n"					\
-		"25:\n"							\
-		"MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"26:\n"							\
-		"MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"SUB	%3, %3, #32\n"					\
 		"27:\n"							\
 		"MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
 		"28:\n"							\
 		"MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"SUB	%0, %0, #8\n"					\
 		"29:\n"							\
+		"SUB	%3, %3, #32\n"					\
+		"30:\n"							\
+		"MGETL	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
+		"31:\n"							\
+		"MSETL	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
+		"32:\n"							\
+		"SUB	%0, %0, #8\n"					\
+		"33:\n"							\
 		"SETL	[%0++], D0.7, D1.7\n"				\
 		"SUB	%3, %3, #32\n"					\
 		"1:"							\
@@ -311,7 +315,11 @@
 		"	.long 26b,3b\n"					\
 		"	.long 27b,3b\n"					\
 		"	.long 28b,3b\n"					\
-		"	.long 29b,4b\n"					\
+		"	.long 29b,3b\n"					\
+		"	.long 30b,3b\n"					\
+		"	.long 31b,3b\n"					\
+		"	.long 32b,3b\n"					\
+		"	.long 33b,4b\n"					\
 		"	.previous\n"					\
 		: "=r" (to), "=r" (from), "=r" (ret), "=d" (n)		\
 		: "0" (to), "1" (from), "2" (ret), "3" (n)		\
@@ -402,47 +410,55 @@
 		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
 		"22:\n"							\
 		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"SUB	%3, %3, #16\n"					\
 		"23:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"24:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
 		"SUB	%3, %3, #16\n"					\
-		"25:\n"							\
+		"24:\n"							\
 		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"26:\n"							\
+		"25:\n"							\
 		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
+		"26:\n"							\
 		"SUB	%3, %3, #16\n"					\
 		"27:\n"							\
 		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
 		"28:\n"							\
 		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
+		"29:\n"							\
+		"SUB	%3, %3, #16\n"					\
+		"30:\n"							\
+		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
+		"31:\n"							\
+		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
+		"32:\n"							\
 		"SUB	%3, %3, #16\n"					\
 		"DCACHE	[%1+#-64], D0Ar6\n"				\
 		"BR	$Lloop"id"\n"					\
 									\
 		"MOV	RAPF, %1\n"					\
-		"29:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"30:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"SUB	%3, %3, #16\n"					\
-		"31:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
-		"32:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"SUB	%3, %3, #16\n"					\
 		"33:\n"							\
 		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
 		"34:\n"							\
 		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"SUB	%3, %3, #16\n"					\
 		"35:\n"							\
-		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
+		"SUB	%3, %3, #16\n"					\
 		"36:\n"							\
-		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
-		"SUB	%0, %0, #4\n"					\
+		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
 		"37:\n"							\
+		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
+		"38:\n"							\
+		"SUB	%3, %3, #16\n"					\
+		"39:\n"							\
+		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
+		"40:\n"							\
+		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
+		"41:\n"							\
+		"SUB	%3, %3, #16\n"					\
+		"42:\n"							\
+		"MGETD	D0FrT, D0.5, D0.6, D0.7, [%1++]\n"		\
+		"43:\n"							\
+		"MSETD	[%0++], D0FrT, D0.5, D0.6, D0.7\n"		\
+		"44:\n"							\
+		"SUB	%0, %0, #4\n"					\
+		"45:\n"							\
 		"SETD	[%0++], D0.7\n"					\
 		"SUB	%3, %3, #16\n"					\
 		"1:"							\
@@ -482,7 +498,15 @@
 		"	.long 34b,3b\n"					\
 		"	.long 35b,3b\n"					\
 		"	.long 36b,3b\n"					\
-		"	.long 37b,4b\n"					\
+		"	.long 37b,3b\n"					\
+		"	.long 38b,3b\n"					\
+		"	.long 39b,3b\n"					\
+		"	.long 40b,3b\n"					\
+		"	.long 41b,3b\n"					\
+		"	.long 42b,3b\n"					\
+		"	.long 43b,3b\n"					\
+		"	.long 44b,3b\n"					\
+		"	.long 45b,4b\n"					\
 		"	.previous\n"					\
 		: "=r" (to), "=r" (from), "=r" (ret), "=d" (n)		\
 		: "0" (to), "1" (from), "2" (ret), "3" (n)		\
