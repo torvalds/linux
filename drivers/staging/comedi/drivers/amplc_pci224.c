@@ -217,8 +217,7 @@
 #define GAT_EXT		2	/* reserved (external gate input) */
 #define GAT_NOUTNM2	3	/* inverted output of channel-2 modulo total */
 
-static inline unsigned int pci224_gat_config(unsigned int chan,
-					     unsigned int src)
+static unsigned int pci224_gat_config(unsigned int chan, unsigned int src)
 {
 	return ((chan & 3) << 3) | (src & 7);
 }
