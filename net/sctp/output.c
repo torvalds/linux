@@ -105,10 +105,10 @@ void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
 	if (!sctp_transport_dst_check(tp)) {
 		sctp_transport_route(tp, NULL, sctp_sk(sk));
 		if (asoc->param_flags & SPP_PMTUD_ENABLE)
-			sctp_assoc_sync_pmtu(sk, asoc);
+			sctp_assoc_sync_pmtu(asoc);
 	} else if (!sctp_transport_pmtu_check(tp)) {
 		if (asoc->param_flags & SPP_PMTUD_ENABLE)
-			sctp_assoc_sync_pmtu(sk, asoc);
+			sctp_assoc_sync_pmtu(asoc);
 	}
 
 	/* If there a is a prepend chunk stick it on the list before

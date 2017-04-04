@@ -1412,7 +1412,7 @@ sctp_assoc_choose_alter_transport(struct sctp_association *asoc,
 /* Update the association's pmtu and frag_point by going through all the
  * transports. This routine is called when a transport's PMTU has changed.
  */
-void sctp_assoc_sync_pmtu(struct sock *sk, struct sctp_association *asoc)
+void sctp_assoc_sync_pmtu(struct sctp_association *asoc)
 {
 	struct sctp_transport *t;
 	__u32 pmtu = 0;
@@ -1424,8 +1424,8 @@ void sctp_assoc_sync_pmtu(struct sock *sk, struct sctp_association *asoc)
 	list_for_each_entry(t, &asoc->peer.transport_addr_list,
 				transports) {
 		if (t->pmtu_pending && t->dst) {
-			sctp_transport_update_pmtu(sk, t,
-						   SCTP_TRUNC4(dst_mtu(t->dst)));
+			sctp_transport_update_pmtu(
+					t, SCTP_TRUNC4(dst_mtu(t->dst)));
 			t->pmtu_pending = 0;
 		}
 		if (!pmtu || (t->pathmtu < pmtu))
