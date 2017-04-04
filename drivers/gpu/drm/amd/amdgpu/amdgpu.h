@@ -306,6 +306,7 @@ struct amdgpu_gart_funcs {
 				     uint32_t flags);
 	/* adjust mc addr in fb for APU case */
 	u64 (*adjust_mc_addr)(struct amdgpu_device *adev, u64 addr);
+	uint32_t (*get_invalidate_req)(unsigned int vm_id);
 };
 
 /* provided by the ih block */
@@ -570,7 +571,6 @@ struct amdgpu_vmhub {
 	uint32_t	vm_context0_cntl;
 	uint32_t	vm_l2_pro_fault_status;
 	uint32_t	vm_l2_pro_fault_cntl;
-	uint32_t	(*get_invalidate_req)(unsigned int vm_id);
 };
 
 /*

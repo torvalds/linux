@@ -317,25 +317,6 @@ void mmhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev, bool value)
 	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmVM_L2_PROTECTION_FAULT_CNTL), tmp);
 }
 
-static uint32_t mmhub_v1_0_get_invalidate_req(unsigned int vm_id)
-{
-	u32 req = 0;
-
-	/* invalidate using legacy mode on vm_id*/
-	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ,
-			    PER_VMID_INVALIDATE_REQ, 1 << vm_id);
-	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, FLUSH_TYPE, 0);
-	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PTES, 1);
-	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE0, 1);
-	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE1, 1);
-	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE2, 1);
-	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L1_PTES, 1);
-	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ,
-			    CLEAR_PROTECTION_FAULT_STATUS_ADDR,	0);
-
-	return req;
-}
-
 static int mmhub_v1_0_early_init(void *handle)
 {
 	return 0;
@@ -367,8 +348,6 @@ static int mmhub_v1_0_sw_init(void *handle)
 		SOC15_REG_OFFSET(MMHUB, 0, mmVM_L2_PROTECTION_FAULT_STATUS);
 	hub->vm_l2_pro_fault_cntl =
 		SOC15_REG_OFFSET(MMHUB, 0, mmVM_L2_PROTECTION_FAULT_CNTL);
-
-	hub->get_invalidate_req = mmhub_v1_0_get_invalidate_req;
 
 	return 0;
 }

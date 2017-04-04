@@ -3148,6 +3148,7 @@ static void gfx_v9_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
 	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
+	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
 	unsigned eng = ring->idx;
 	unsigned i;
 
@@ -3157,7 +3158,6 @@ static void gfx_v9_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
 		struct amdgpu_vmhub *hub = &ring->adev->vmhub[i];
-		uint32_t req = hub->get_invalidate_req(vm_id);
 
 		gfx_v9_0_write_data_to_reg(ring, usepfp, true,
 					   hub->ctx0_ptb_addr_lo32

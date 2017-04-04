@@ -173,6 +173,25 @@ static void gmc_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->mc.vm_fault.funcs = &gmc_v9_0_irq_funcs;
 }
 
+static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vm_id)
+{
+	u32 req = 0;
+
+	/* invalidate using legacy mode on vm_id*/
+	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ,
+			    PER_VMID_INVALIDATE_REQ, 1 << vm_id);
+	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, FLUSH_TYPE, 0);
+	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PTES, 1);
+	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE0, 1);
+	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE1, 1);
+	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L2_PDE2, 1);
+	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ, INVALIDATE_L1_PTES, 1);
+	req = REG_SET_FIELD(req, VM_INVALIDATE_ENG0_REQ,
+			    CLEAR_PROTECTION_FAULT_STATUS_ADDR,	0);
+
+	return req;
+}
+
 /*
  * GART
  * VMID 0 is the physical GPU addresses as used by the kernel.
@@ -202,7 +221,7 @@ static void gmc_v9_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
 
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
 		struct amdgpu_vmhub *hub = &adev->vmhub[i];
-		u32 tmp = hub->get_invalidate_req(vmid);
+		u32 tmp = gmc_v9_0_get_invalidate_req(vmid);
 
 		WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
 
@@ -345,6 +364,7 @@ static const struct amdgpu_gart_funcs gmc_v9_0_gart_funcs = {
 	.set_pte_pde = gmc_v9_0_gart_set_pte_pde,
 	.get_vm_pte_flags = gmc_v9_0_get_vm_pte_flags,
 	.adjust_mc_addr = gmc_v9_0_adjust_mc_addr,
+	.get_invalidate_req = gmc_v9_0_get_invalidate_req,
 };
 
 static void gmc_v9_0_set_gart_funcs(struct amdgpu_device *adev)

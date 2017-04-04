@@ -1034,6 +1034,7 @@ static void uvd_v7_0_vm_reg_wait(struct amdgpu_ring *ring,
 static void uvd_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
+	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
 	uint32_t data0, data1, mask;
 	unsigned eng = ring->idx;
 	unsigned i;
@@ -1044,7 +1045,6 @@ static void uvd_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
 		struct amdgpu_vmhub *hub = &ring->adev->vmhub[i];
-		uint32_t req = hub->get_invalidate_req(vm_id);
 
 		data0 = (hub->ctx0_ptb_addr_hi32 + vm_id * 2) << 2;
 		data1 = upper_32_bits(pd_addr);
@@ -1080,6 +1080,7 @@ static void uvd_v7_0_enc_ring_insert_end(struct amdgpu_ring *ring)
 static void uvd_v7_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
 			 unsigned int vm_id, uint64_t pd_addr)
 {
+	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
 	unsigned eng = ring->idx;
 	unsigned i;
 
@@ -1089,7 +1090,6 @@ static void uvd_v7_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
 		struct amdgpu_vmhub *hub = &ring->adev->vmhub[i];
-		uint32_t req = hub->get_invalidate_req(vm_id);
 
 		amdgpu_ring_write(ring, HEVC_ENC_CMD_REG_WRITE);
 		amdgpu_ring_write(ring,

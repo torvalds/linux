@@ -973,6 +973,7 @@ static void vce_v4_0_ring_insert_end(struct amdgpu_ring *ring)
 static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
 			 unsigned int vm_id, uint64_t pd_addr)
 {
+	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
 	unsigned eng = ring->idx;
 	unsigned i;
 
@@ -982,7 +983,6 @@ static void vce_v4_0_emit_vm_flush(struct amdgpu_ring *ring,
 
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
 		struct amdgpu_vmhub *hub = &ring->adev->vmhub[i];
-		uint32_t req = hub->get_invalidate_req(vm_id);
 
 		amdgpu_ring_write(ring, VCE_CMD_REG_WRITE);
 		amdgpu_ring_write(ring,
