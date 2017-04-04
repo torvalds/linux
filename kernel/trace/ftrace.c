@@ -4059,13 +4059,8 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	return count;
 }
 
-enum {
-	PROBE_TEST_FUNC		= 1,
-};
-
-static void
-__unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
-				   int flags)
+void
+unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 {
 	struct ftrace_ops_hash old_hash_ops;
 	struct ftrace_func_entry *rec_entry;
@@ -4115,7 +4110,7 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 		hlist_for_each_entry_safe(entry, tmp, hhd, node) {
 
 			/* break up if statements for readability */
-			if ((flags & PROBE_TEST_FUNC) && entry->ops != ops)
+			if (entry->ops != ops)
 				continue;
 
 			/* do this last, since it is the most expensive */
@@ -4160,17 +4155,6 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
  out_unlock:
 	mutex_unlock(&trace_probe_ops.func_hash->regex_lock);
 	free_ftrace_hash(hash);
-}
-
-void
-unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
-{
-	__unregister_ftrace_function_probe(glob, ops, PROBE_TEST_FUNC);
-}
-
-void unregister_ftrace_function_probe_all(char *glob)
-{
-	__unregister_ftrace_function_probe(glob, NULL, 0);
 }
 
 static LIST_HEAD(ftrace_commands);
