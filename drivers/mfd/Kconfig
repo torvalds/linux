@@ -447,15 +447,26 @@ config LPC_SCH
 	  System Management Bus and General Purpose I/O.
 
 config INTEL_SOC_PMIC
-	bool "Support for Intel Atom SoC PMIC"
+	bool "Support for Crystal Cove PMIC"
 	depends on GPIOLIB
 	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	help
-	  Select this option to enable support for the PMIC device
+	  Select this option to enable support for Crystal Cove PMIC
 	  on some Intel SoC systems. The PMIC provides ADC, GPIO,
+	  thermal, charger and related power management functions
+	  on these systems.
+
+config INTEL_SOC_PMIC_BXTWC
+	tristate "Support for Intel Broxton Whiskey Cove PMIC"
+	depends on INTEL_PMC_IPC
+	select MFD_CORE
+	select REGMAP_IRQ
+	help
+	  Select this option to enable support for Whiskey Cove PMIC
+	  on Intel Broxton systems. The PMIC provides ADC, GPIO,
 	  thermal, charger and related power management functions
 	  on these systems.
 
