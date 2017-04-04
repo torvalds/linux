@@ -878,22 +878,11 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
 				  const int ts)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	if (metric > tp->reordering) {
-		int mib_idx;
+	int mib_idx;
 
+	if (metric > tp->reordering) {
 		tp->reordering = min(sysctl_tcp_max_reordering, metric);
 
-		/* This exciting event is worth to be remembered. 8) */
-		if (ts)
-			mib_idx = LINUX_MIB_TCPTSREORDER;
-		else if (tcp_is_reno(tp))
-			mib_idx = LINUX_MIB_TCPRENOREORDER;
-		else if (tcp_is_fack(tp))
-			mib_idx = LINUX_MIB_TCPFACKREORDER;
-		else
-			mib_idx = LINUX_MIB_TCPSACKREORDER;
-
-		NET_INC_STATS(sock_net(sk), mib_idx);
 #if FASTRETRANS_DEBUG > 1
 		pr_debug("Disorder%d %d %u f%u s%u rr%d\n",
 			 tp->rx_opt.sack_ok, inet_csk(sk)->icsk_ca_state,
@@ -906,6 +895,18 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
 	}
 
 	tp->rack.reord = 1;
+
+	/* This exciting event is worth to be remembered. 8) */
+	if (ts)
+		mib_idx = LINUX_MIB_TCPTSREORDER;
+	else if (tcp_is_reno(tp))
+		mib_idx = LINUX_MIB_TCPRENOREORDER;
+	else if (tcp_is_fack(tp))
+		mib_idx = LINUX_MIB_TCPFACKREORDER;
+	else
+		mib_idx = LINUX_MIB_TCPSACKREORDER;
+
+	NET_INC_STATS(sock_net(sk), mib_idx);
 }
 
 /* This must be called before lost_out is incremented */
