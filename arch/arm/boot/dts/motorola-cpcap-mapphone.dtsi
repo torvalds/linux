@@ -11,7 +11,7 @@
 		compatible = "motorola,cpcap", "st,6556002";
 		reg = <0>;	/* cs0 */
 		interrupt-parent = <&gpio1>;
-		interrupts = <7 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		#address-cells = <1>;
