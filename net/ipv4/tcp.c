@@ -2393,7 +2393,7 @@ static int tcp_repair_options_est(struct tcp_sock *tp,
 				u16 snd_wscale = opt.opt_val & 0xFFFF;
 				u16 rcv_wscale = opt.opt_val >> 16;
 
-				if (snd_wscale > 14 || rcv_wscale > 14)
+				if (snd_wscale > TCP_MAX_WSCALE || rcv_wscale > TCP_MAX_WSCALE)
 					return -EFBIG;
 
 				tp->rx_opt.snd_wscale = snd_wscale;

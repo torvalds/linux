@@ -78,6 +78,9 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 /* Maximal number of ACKs sent quickly to accelerate slow-start. */
 #define TCP_MAX_QUICKACKS	16U
 
+/* Maximal number of window scale according to RFC1323 */
+#define TCP_MAX_WSCALE		14U
+
 /* urg_data states */
 #define TCP_URG_VALID	0x0100
 #define TCP_URG_NOTYET	0x0200
