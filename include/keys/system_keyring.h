@@ -18,7 +18,8 @@
 
 extern int restrict_link_by_builtin_trusted(struct key *keyring,
 					    const struct key_type *type,
-					    const union key_payload *payload);
+					    const union key_payload *payload,
+					    struct key *restriction_key);
 
 #else
 #define restrict_link_by_builtin_trusted restrict_link_reject
@@ -28,7 +29,8 @@ extern int restrict_link_by_builtin_trusted(struct key *keyring,
 extern int restrict_link_by_builtin_and_secondary_trusted(
 	struct key *keyring,
 	const struct key_type *type,
-	const union key_payload *payload);
+	const union key_payload *payload,
+	struct key *restriction_key);
 #else
 #define restrict_link_by_builtin_and_secondary_trusted restrict_link_by_builtin_trusted
 #endif
