@@ -1503,9 +1503,10 @@ static void encode_request(struct ceph_osd_request *req, struct ceph_msg *msg)
 	ceph_encode_32(&p, req->r_flags);
 	ceph_encode_timespec(p, &req->r_mtime);
 	p += sizeof(struct ceph_timespec);
-	/* aka reassert_version */
-	memcpy(p, &req->r_replay_version, sizeof(req->r_replay_version));
-	p += sizeof(req->r_replay_version);
+
+	/* reassert_version */
+	memset(p, 0, sizeof(struct ceph_eversion));
+	p += sizeof(struct ceph_eversion);
 
 	/* oloc */
 	ceph_start_encoding(&p, 5, 4,
