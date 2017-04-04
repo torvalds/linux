@@ -189,10 +189,6 @@ ENTRY(__switch_to)
 	stg	%r3,__LC_CURRENT		# store task struct of next
 	stg	%r15,__LC_KERNEL_STACK		# store end of kernel stack
 	lg	%r15,__THREAD_ksp(%r1)		# load kernel stack of next
-	/* c4 is used in guest detection: arch/s390/kernel/perf_cpum_sf.c */
-	xc	__SF_EMPTY(8,%r15),__SF_EMPTY(%r15)
-	mvc	__SF_EMPTY+4(4,%r15),__TASK_pid(%r3)
-	lctlg	%c4,%c4,__SF_EMPTY(%r15)	# load pid to control reg. 4
 	mvc	__LC_CURRENT_PID(4,%r0),__TASK_pid(%r3) # store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP

@@ -52,7 +52,7 @@ ENTRY(startup_continue)
 	.quad	0			# cr1: primary space segment table
 	.quad	.Lduct			# cr2: dispatchable unit control table
 	.quad	0			# cr3: instruction authorization
-	.quad	0			# cr4: instruction authorization
+	.quad	0xffff			# cr4: instruction authorization
 	.quad	.Lduct			# cr5: primary-aste origin
 	.quad	0			# cr6:	I/O interrupts
 	.quad	0			# cr7:	secondary space segment table
