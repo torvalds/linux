@@ -2401,7 +2401,7 @@ void iwl_mvm_sta_pm_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		return;
 
 	rcu_read_lock();
-	sta = mvm->fw_id_to_mac_id[notif->sta_id];
+	sta = rcu_dereference(mvm->fw_id_to_mac_id[notif->sta_id]);
 	if (WARN_ON(IS_ERR_OR_NULL(sta))) {
 		rcu_read_unlock();
 		return;
