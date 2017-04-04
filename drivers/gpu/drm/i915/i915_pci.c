@@ -417,6 +417,7 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_VLV_IDS(&intel_valleyview_info),
 	INTEL_BDW_GT12_IDS(&intel_broadwell_info),
 	INTEL_BDW_GT3_IDS(&intel_broadwell_gt3_info),
+	INTEL_BDW_RSVD_IDS(&intel_broadwell_info),
 	INTEL_CHV_IDS(&intel_cherryview_info),
 	INTEL_SKL_GT1_IDS(&intel_skylake_info),
 	INTEL_SKL_GT2_IDS(&intel_skylake_info),
