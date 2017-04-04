@@ -3674,6 +3674,56 @@ ftrace_match_records(struct ftrace_hash *hash, char *buff, int len)
 	return match_records(hash, buff, len, NULL);
 }
 
+static void ftrace_ops_update_code(struct ftrace_ops *ops,
+				   struct ftrace_ops_hash *old_hash)
+{
+	struct ftrace_ops *op;
+
+	if (!ftrace_enabled)
+		return;
+
+	if (ops->flags & FTRACE_OPS_FL_ENABLED) {
+		ftrace_run_modify_code(ops, FTRACE_UPDATE_CALLS, old_hash);
+		return;
+	}
+
+	/*
+	 * If this is the shared global_ops filter, then we need to
+	 * check if there is another ops that shares it, is enabled.
+	 * If so, we still need to run the modify code.
+	 */
+	if (ops->func_hash != &global_ops.local_hash)
+		return;
+
+	do_for_each_ftrace_op(op, ftrace_ops_list) {
+		if (op->func_hash == &global_ops.local_hash &&
+		    op->flags & FTRACE_OPS_FL_ENABLED) {
+			ftrace_run_modify_code(op, FTRACE_UPDATE_CALLS, old_hash);
+			/* Only need to do this once */
+			return;
+		}
+	} while_for_each_ftrace_op(op);
+}
+
+static int ftrace_hash_move_and_update_ops(struct ftrace_ops *ops,
+					   struct ftrace_hash **orig_hash,
+					   struct ftrace_hash *hash,
+					   int enable)
+{
+	struct ftrace_ops_hash old_hash_ops;
+	struct ftrace_hash *old_hash;
+	int ret;
+
+	old_hash = *orig_hash;
+	old_hash_ops.filter_hash = ops->func_hash->filter_hash;
+	old_hash_ops.notrace_hash = ops->func_hash->notrace_hash;
+	ret = ftrace_hash_move(ops, enable, orig_hash, hash);
+	if (!ret) {
+		ftrace_ops_update_code(ops, &old_hash_ops);
+		free_ftrace_hash_rcu(old_hash);
+	}
+	return ret;
+}
 
 /*
  * We register the module command as a template to show others how
@@ -4306,44 +4356,11 @@ ftrace_match_addr(struct ftrace_hash *hash, unsigned long ip, int remove)
 	return add_hash_entry(hash, ip);
 }
 
-static void ftrace_ops_update_code(struct ftrace_ops *ops,
-				   struct ftrace_ops_hash *old_hash)
-{
-	struct ftrace_ops *op;
-
-	if (!ftrace_enabled)
-		return;
-
-	if (ops->flags & FTRACE_OPS_FL_ENABLED) {
-		ftrace_run_modify_code(ops, FTRACE_UPDATE_CALLS, old_hash);
-		return;
-	}
-
-	/*
-	 * If this is the shared global_ops filter, then we need to
-	 * check if there is another ops that shares it, is enabled.
-	 * If so, we still need to run the modify code.
-	 */
-	if (ops->func_hash != &global_ops.local_hash)
-		return;
-
-	do_for_each_ftrace_op(op, ftrace_ops_list) {
-		if (op->func_hash == &global_ops.local_hash &&
-		    op->flags & FTRACE_OPS_FL_ENABLED) {
-			ftrace_run_modify_code(op, FTRACE_UPDATE_CALLS, old_hash);
-			/* Only need to do this once */
-			return;
-		}
-	} while_for_each_ftrace_op(op);
-}
-
 static int
 ftrace_set_hash(struct ftrace_ops *ops, unsigned char *buf, int len,
 		unsigned long ip, int remove, int reset, int enable)
 {
 	struct ftrace_hash **orig_hash;
-	struct ftrace_ops_hash old_hash_ops;
-	struct ftrace_hash *old_hash;
 	struct ftrace_hash *hash;
 	int ret;
 
@@ -4378,14 +4395,7 @@ ftrace_set_hash(struct ftrace_ops *ops, unsigned char *buf, int len,
 	}
 
 	mutex_lock(&ftrace_lock);
-	old_hash = *orig_hash;
-	old_hash_ops.filter_hash = ops->func_hash->filter_hash;
-	old_hash_ops.notrace_hash = ops->func_hash->notrace_hash;
-	ret = ftrace_hash_move(ops, enable, orig_hash, hash);
-	if (!ret) {
-		ftrace_ops_update_code(ops, &old_hash_ops);
-		free_ftrace_hash_rcu(old_hash);
-	}
+	ret = ftrace_hash_move_and_update_ops(ops, orig_hash, hash, enable);
 	mutex_unlock(&ftrace_lock);
 
  out_regex_unlock:
@@ -4624,10 +4634,8 @@ static void __init set_ftrace_early_filters(void)
 int ftrace_regex_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct ftrace_ops_hash old_hash_ops;
 	struct ftrace_iterator *iter;
 	struct ftrace_hash **orig_hash;
-	struct ftrace_hash *old_hash;
 	struct trace_parser *parser;
 	int filter_hash;
 	int ret;
@@ -4657,15 +4665,8 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 			orig_hash = &iter->ops->func_hash->notrace_hash;
 
 		mutex_lock(&ftrace_lock);
-		old_hash = *orig_hash;
-		old_hash_ops.filter_hash = iter->ops->func_hash->filter_hash;
-		old_hash_ops.notrace_hash = iter->ops->func_hash->notrace_hash;
-		ret = ftrace_hash_move(iter->ops, filter_hash,
-				       orig_hash, iter->hash);
-		if (!ret) {
-			ftrace_ops_update_code(iter->ops, &old_hash_ops);
-			free_ftrace_hash_rcu(old_hash);
-		}
+		ret = ftrace_hash_move_and_update_ops(iter->ops, orig_hash,
+						      iter->hash, filter_hash);
 		mutex_unlock(&ftrace_lock);
 	} else {
 		/* For read only, the hash is the ops hash */
