@@ -2036,6 +2036,7 @@ nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	u32 vbackp  = (mode->vtotal - mode->vsync_end) * vscan / ilace;
 	u32 hfrontp =  mode->hsync_start - mode->hdisplay;
 	u32 vfrontp = (mode->vsync_start - mode->vdisplay) * vscan / ilace;
+	u32 blankus;
 	struct nv50_head_mode *m = &asyh->mode;
 
 	m->h.active = mode->htotal;
@@ -2049,9 +2050,10 @@ nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	m->v.blanks = m->v.active - vfrontp - 1;
 
 	/*XXX: Safe underestimate, even "0" works */
-	m->v.blankus = (m->v.active - mode->vdisplay - 2) * m->h.active;
-	m->v.blankus *= 1000;
-	m->v.blankus /= mode->clock;
+	blankus = (m->v.active - mode->vdisplay - 2) * m->h.active;
+	blankus *= 1000;
+	blankus /= mode->clock;
+	m->v.blankus = blankus;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		m->v.blank2e =  m->v.active + m->v.synce + vbackp;
