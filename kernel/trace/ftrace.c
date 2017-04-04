@@ -1102,7 +1102,6 @@ struct ftrace_func_probe {
 	struct hlist_node	node;
 	struct ftrace_probe_ops	*ops;
 	unsigned long		ip;
-	void			*data;
 	struct list_head	free_list;
 };
 
@@ -3152,7 +3151,7 @@ t_hash_show(struct seq_file *m, struct ftrace_iterator *iter)
 		return -EIO;
 
 	if (rec->ops->print)
-		return rec->ops->print(m, rec->ip, rec->ops, rec->data);
+		return rec->ops->print(m, rec->ip, rec->ops, NULL);
 
 	seq_printf(m, "%ps:%ps\n", (void *)rec->ip, (void *)rec->ops->func);
 
@@ -3735,7 +3734,7 @@ static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 	preempt_disable_notrace();
 	hlist_for_each_entry_rcu_notrace(entry, hhd, node) {
 		if (entry->ip == ip)
-			entry->ops->func(ip, parent_ip, entry->ops, &entry->data);
+			entry->ops->func(ip, parent_ip, entry->ops, NULL);
 	}
 	preempt_enable_notrace();
 }
@@ -3800,7 +3799,7 @@ static bool __disable_ftrace_function_probe(void)
 static void ftrace_free_entry(struct ftrace_func_probe *entry)
 {
 	if (entry->ops->free)
-		entry->ops->free(entry->ops, entry->ip, &entry->data);
+		entry->ops->free(entry->ops, entry->ip, NULL);
 	kfree(entry);
 }
 
@@ -4007,15 +4006,13 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 
 		count++;
 
-		entry->data = data;
-
 		/*
 		 * The caller might want to do something special
 		 * for each function we find. We call the callback
 		 * to give the caller an opportunity to do so.
 		 */
 		if (ops->init) {
-			if (ops->init(ops, rec->ip, &entry->data) < 0) {
+			if (ops->init(ops, rec->ip, data) < 0) {
 				/* caller does not like this func */
 				kfree(entry);
 				continue;

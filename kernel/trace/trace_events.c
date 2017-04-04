@@ -2543,11 +2543,10 @@ event_enable_print(struct seq_file *m, unsigned long ip,
 
 static int
 event_enable_init(struct ftrace_probe_ops *ops, unsigned long ip,
-		  void **_data)
+		  void *_data)
 {
 	struct ftrace_func_mapper *mapper = ops->private_data;
-	struct event_probe_data **pdata = (struct event_probe_data **)_data;
-	struct event_probe_data *data = *pdata;
+	struct event_probe_data *data = _data;
 	int ret;
 
 	ret = ftrace_func_mapper_add_ip(mapper, ip, data);

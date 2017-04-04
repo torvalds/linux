@@ -509,11 +509,11 @@ ftrace_cpudump_print(struct seq_file *m, unsigned long ip,
 
 static int
 ftrace_count_init(struct ftrace_probe_ops *ops, unsigned long ip,
-		     void **data)
+		     void *data)
 {
 	struct ftrace_func_mapper *mapper = ops->private_data;
 
-	return ftrace_func_mapper_add_ip(mapper, ip, *data);
+	return ftrace_func_mapper_add_ip(mapper, ip, data);
 }
 
 static void
