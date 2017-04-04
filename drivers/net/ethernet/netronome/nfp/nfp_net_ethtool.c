@@ -49,6 +49,7 @@
 #include <linux/ethtool.h>
 
 #include "nfpcore/nfp.h"
+#include "nfpcore/nfp_nsp_eth.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 
@@ -204,6 +205,16 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 
 	if (!netif_carrier_ok(netdev))
 		return 0;
+
+	/* Use link speed from ETH table if available, otherwise try the BAR */
+	if (nn->eth_port && nfp_net_link_changed_read_clear(nn))
+		nfp_net_refresh_port_config(nn);
+	/* Separate if - on FW error the port could've disappeared from table */
+	if (nn->eth_port) {
+		cmd->base.speed = nn->eth_port->speed;
+		cmd->base.duplex = DUPLEX_FULL;
+		return 0;
+	}
 
 	sts = nn_readl(nn, NFP_NET_CFG_STS);
 
