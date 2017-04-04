@@ -127,6 +127,11 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	return 0;
 }
 
+static inline bool is_gvt_request(struct drm_i915_gem_request *req)
+{
+	return i915_gem_context_force_single_submission(req->ctx);
+}
+
 static int shadow_context_status_change(struct notifier_block *nb,
 		unsigned long action, void *data)
 {
@@ -137,7 +142,7 @@ static int shadow_context_status_change(struct notifier_block *nb,
 	struct intel_vgpu_workload *workload =
 		scheduler->current_workload[req->engine->id];
 
-	if (unlikely(!workload))
+	if (!is_gvt_request(req) || unlikely(!workload))
 		return NOTIFY_OK;
 
 	switch (action) {

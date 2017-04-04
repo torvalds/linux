@@ -1451,6 +1451,8 @@ static int intel_ring_context_pin(struct intel_engine_cs *engine,
 		ret = context_pin(ctx);
 		if (ret)
 			goto error;
+
+		ce->state->obj->mm.dirty = true;
 	}
 
 	/* The kernel context is only used as a placeholder for flushing the
