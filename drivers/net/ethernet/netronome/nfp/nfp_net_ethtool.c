@@ -215,6 +215,7 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 		nfp_net_refresh_port_config(nn);
 	/* Separate if - on FW error the port could've disappeared from table */
 	if (nn->eth_port) {
+		cmd->base.port = nn->eth_port->port_type;
 		cmd->base.speed = nn->eth_port->speed;
 		cmd->base.duplex = DUPLEX_FULL;
 		return 0;

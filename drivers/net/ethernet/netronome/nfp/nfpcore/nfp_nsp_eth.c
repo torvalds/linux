@@ -62,6 +62,8 @@
 #define NSP_ETH_STATE_TX_ENABLED	BIT_ULL(2)
 #define NSP_ETH_STATE_RX_ENABLED	BIT_ULL(3)
 #define NSP_ETH_STATE_RATE		GENMASK_ULL(11, 8)
+#define NSP_ETH_STATE_INTERFACE		GENMASK_ULL(19, 12)
+#define NSP_ETH_STATE_MEDIA		GENMASK_ULL(21, 20)
 #define NSP_ETH_STATE_OVRD_CHNG		BIT_ULL(22)
 #define NSP_ETH_STATE_ANEG		GENMASK_ULL(25, 23)
 
@@ -134,6 +136,9 @@ nfp_eth_port_translate(struct nfp_nsp *nsp, const struct eth_table_entry *src,
 	rate = nfp_eth_rate(FIELD_GET(NSP_ETH_STATE_RATE, state));
 	dst->speed = dst->lanes * rate;
 
+	dst->interface = FIELD_GET(NSP_ETH_STATE_INTERFACE, state);
+	dst->media = FIELD_GET(NSP_ETH_STATE_MEDIA, state);
+
 	nfp_eth_copy_mac_reverse(dst->mac_addr, src->mac_addr);
 
 	dst->label_port = FIELD_GET(NSP_ETH_PORT_PHYLABEL, port);
@@ -168,6 +173,20 @@ nfp_eth_mark_split_ports(struct nfp_cpp *cpp, struct nfp_eth_table *table)
 			table->ports[i].is_split = true;
 			break;
 		}
+}
+
+static void
+nfp_eth_calc_port_type(struct nfp_cpp *cpp, struct nfp_eth_table_port *entry)
+{
+	if (entry->interface == NFP_INTERFACE_NONE) {
+		entry->port_type = PORT_NONE;
+		return;
+	}
+
+	if (entry->media == NFP_MEDIA_FIBRE)
+		entry->port_type = PORT_FIBRE;
+	else
+		entry->port_type = PORT_DA;
 }
 
 /**
@@ -237,6 +256,8 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 					       &table->ports[j++]);
 
 	nfp_eth_mark_split_ports(cpp, table);
+	for (i = 0; i < table->count; i++)
+		nfp_eth_calc_port_type(cpp, &table->ports[i]);
 
 	kfree(entries);
 

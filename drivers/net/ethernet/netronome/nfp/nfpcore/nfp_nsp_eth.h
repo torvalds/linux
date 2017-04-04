@@ -37,6 +37,22 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
+enum nfp_eth_interface {
+	NFP_INTERFACE_NONE	= 0,
+	NFP_INTERFACE_SFP	= 1,
+	NFP_INTERFACE_SFPP	= 10,
+	NFP_INTERFACE_SFP28	= 28,
+	NFP_INTERFACE_QSFP	= 40,
+	NFP_INTERFACE_CXP	= 100,
+	NFP_INTERFACE_QSFP28	= 112,
+};
+
+enum nfp_eth_media {
+	NFP_MEDIA_DAC_PASSIVE = 0,
+	NFP_MEDIA_DAC_ACTIVE,
+	NFP_MEDIA_FIBRE,
+};
+
 enum nfp_eth_aneg {
 	NFP_ANEG_AUTO = 0,
 	NFP_ANEG_SEARCH,
@@ -56,6 +72,8 @@ enum nfp_eth_aneg {
  * @base:	first channel index (within NBI)
  * @lanes:	number of channels
  * @speed:	interface speed (in Mbps)
+ * @interface:	interface (module) plugged in
+ * @media:	media type of the @interface
  * @aneg:	auto negotiation mode
  * @mac_addr:	interface MAC address
  * @label_port:	port id
@@ -65,6 +83,7 @@ enum nfp_eth_aneg {
  * @rx_enabled:	is RX enabled?
  * @override_changed: is media reconfig pending?
  *
+ * @port_type:	one of %PORT_* defines for ethtool
  * @is_split:	is interface part of a split port
  */
 struct nfp_eth_table {
@@ -76,6 +95,9 @@ struct nfp_eth_table {
 		unsigned int base;
 		unsigned int lanes;
 		unsigned int speed;
+
+		unsigned int interface;
+		enum nfp_eth_media media;
 
 		enum nfp_eth_aneg aneg;
 
@@ -91,6 +113,8 @@ struct nfp_eth_table {
 		bool override_changed;
 
 		/* Computed fields */
+		u8 port_type;
+
 		bool is_split;
 	} ports[0];
 };
