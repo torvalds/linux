@@ -35,6 +35,56 @@
 
 #include "../../codecs/rt274.h"
 
+#define CNL_FREQ_OUT		19200000
+#define CNL_BE_FIXUP_RATE	48000
+#define RT274_CODEC_DAI		"rt274-aif1"
+
+static struct snd_soc_dai *cnl_get_codec_dai(struct snd_soc_card *card,
+						     const char *dai_name)
+{
+	struct snd_soc_pcm_runtime *rtd;
+
+	list_for_each_entry(rtd, &card->rtd_list, list) {
+		if (!strcmp(rtd->codec_dai->name, dai_name))
+			return rtd->codec_dai;
+	}
+
+	return NULL;
+}
+
+static int cnl_rt274_clock_control(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *k, int  event)
+{
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct snd_soc_card *card = dapm->card;
+	int ret = 0, ratio = 100;
+	struct snd_soc_dai *codec_dai = cnl_get_codec_dai(card,
+							  RT274_CODEC_DAI);
+
+	/* Codec needs clock for Jack detection and button press */
+	ret = snd_soc_dai_set_sysclk(codec_dai, RT274_SCLK_S_PLL2,
+				     CNL_FREQ_OUT, SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		dev_err(codec_dai->dev, "set codec sysclk failed: %d\n", ret);
+		return ret;
+	}
+
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		snd_soc_dai_set_bclk_ratio(codec_dai, ratio);
+
+		ret = snd_soc_dai_set_pll(codec_dai, 0, RT274_PLL2_S_BCLK,
+					  CNL_BE_FIXUP_RATE * ratio,
+					  CNL_FREQ_OUT);
+		if (ret) {
+			dev_err(codec_dai->dev,
+				"failed to enable PLL2: %d\n", ret);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 static struct snd_soc_jack cnl_headset;
 
 /* Headset jack detection DAPM pins */
@@ -58,6 +108,9 @@ static const struct snd_soc_dapm_widget cnl_rt274_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
+	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
+			cnl_rt274_clock_control, SND_SOC_DAPM_PRE_PMU |
+			SND_SOC_DAPM_POST_PMD),
 };
 
 static int cnl_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -94,6 +147,9 @@ static const struct snd_soc_dapm_route cnl_map[] = {
 
 	{"ssp0 Rx", NULL, "AIF1 Capture"},
 	{"codec0_in", NULL, "ssp0 Rx"},
+
+	{"Headphone Jack", NULL, "Platform Clock"},
+	{"MIC", NULL, "Platform Clock"},
 };
 
 static int cnl_rt274_init(struct snd_soc_pcm_runtime *runtime)
@@ -132,7 +188,7 @@ static int cnl_be_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_interval *channels = hw_param_interval(params,
 						SNDRV_PCM_HW_PARAM_CHANNELS);
 
-	rate->min = rate->max = 48000;
+	rate->min = rate->max = CNL_BE_FIXUP_RATE;
 	channels->min = channels->max = 2;
 	snd_mask_none(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT));
 	snd_mask_set(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT),
@@ -140,36 +196,6 @@ static int cnl_be_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	return 0;
 }
-
-#define CNL_FREQ_OUT 19200000
-
-static int rt274_hw_params(struct snd_pcm_substream *substream,
-				   struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	int ret, ratio = 100;
-
-	snd_soc_dai_set_bclk_ratio(codec_dai, ratio);
-
-	ret = snd_soc_dai_set_pll(codec_dai, 0, RT274_PLL2_S_BCLK,
-				  ratio * params_rate(params), CNL_FREQ_OUT);
-	if (ret != 0) {
-		dev_err(rtd->dev, "Failed to enable PLL2 with Ref Clock Loop: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dai_set_sysclk(codec_dai, RT274_SCLK_S_PLL2, CNL_FREQ_OUT,
-				     SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		dev_err(rtd->dev, "set codec sysclk failed: %d\n", ret);
-
-	return ret;
-}
-
-static struct snd_soc_ops rt274_ops = {
-	.hw_params = rt274_hw_params,
-};
 
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_CNL_FPGA)
 static const char pname[] = "0000:02:18.0";
@@ -260,7 +286,6 @@ static struct snd_soc_dai_link cnl_rt274_msic_dailink[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.init = cnl_rt274_init,
-		.ops = &rt274_ops,
 	},
 	{
 		.name = "SSP1-Codec",
