@@ -219,6 +219,16 @@ Debugfs Support
 .. kernel-doc:: drivers/gpu/drm/drm_debugfs.c
    :export:
 
+Sysfs Support
+=============
+
+.. kernel-doc:: drivers/gpu/drm/drm_sysfs.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_sysfs.c
+   :export:
+
+
 VBlank event handling
 =====================
 
