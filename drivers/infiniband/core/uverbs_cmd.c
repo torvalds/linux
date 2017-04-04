@@ -1352,6 +1352,7 @@ static int create_qp(struct ib_uverbs_file *file,
 		return PTR_ERR(obj);
 	obj->uxrcd = NULL;
 	obj->uevent.uobject.user_handle = cmd->user_handle;
+	mutex_init(&obj->mcast_lock);
 
 	if (cmd_sz >= offsetof(typeof(*cmd), rwq_ind_tbl_handle) +
 		      sizeof(cmd->rwq_ind_tbl_handle) &&
@@ -2589,6 +2590,7 @@ ssize_t ib_uverbs_attach_mcast(struct ib_uverbs_file *file,
 
 	obj = container_of(qp->uobject, struct ib_uqp_object, uevent.uobject);
 
+	mutex_lock(&obj->mcast_lock);
 	list_for_each_entry(mcast, &obj->mcast_list, list)
 		if (cmd.mlid == mcast->lid &&
 		    !memcmp(cmd.gid, mcast->gid.raw, sizeof mcast->gid.raw)) {
@@ -2612,6 +2614,7 @@ ssize_t ib_uverbs_attach_mcast(struct ib_uverbs_file *file,
 		kfree(mcast);
 
 out_put:
+	mutex_unlock(&obj->mcast_lock);
 	uobj_put_obj_read(qp);
 
 	return ret ? ret : in_len;
@@ -2636,6 +2639,7 @@ ssize_t ib_uverbs_detach_mcast(struct ib_uverbs_file *file,
 		return -EINVAL;
 
 	obj = container_of(qp->uobject, struct ib_uqp_object, uevent.uobject);
+	mutex_lock(&obj->mcast_lock);
 
 	ret = ib_detach_mcast(qp, (union ib_gid *) cmd.gid, cmd.mlid);
 	if (ret)
@@ -2650,6 +2654,7 @@ ssize_t ib_uverbs_detach_mcast(struct ib_uverbs_file *file,
 		}
 
 out_put:
+	mutex_unlock(&obj->mcast_lock);
 	uobj_put_obj_read(qp);
 	return ret ? ret : in_len;
 }
