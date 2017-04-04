@@ -387,8 +387,7 @@
 #define GAT_EXT		2	/* external gate input (PPCn on PCI230) */
 #define GAT_NOUTNM2	3	/* inverted output of channel-2 modulo total */
 
-static inline unsigned int pci230_gat_config(unsigned int chan,
-					     unsigned int src)
+static unsigned int pci230_gat_config(unsigned int chan, unsigned int src)
 {
 	return ((chan & 3) << 3) | (src & 7);
 }
