@@ -166,7 +166,7 @@ struct slave {
 	u32    link_failure_count;
 	u32    speed;
 	u16    queue_id;
-	u8     perm_hwaddr[ETH_ALEN];
+	u8     perm_hwaddr[MAX_ADDR_LEN];
 	struct ad_slave_info *ad_info;
 	struct tlb_slave_info tlb_info;
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -400,6 +400,16 @@ static inline bool bond_slave_can_tx(struct slave *slave)
 {
 	return bond_slave_is_up(slave) && slave->link == BOND_LINK_UP &&
 	       bond_is_active_slave(slave);
+}
+
+static inline void bond_hw_addr_copy(u8 *dst, const u8 *src, unsigned int len)
+{
+	if (len == ETH_ALEN) {
+		ether_addr_copy(dst, src);
+		return;
+	}
+
+	memcpy(dst, src, len);
 }
 
 #define BOND_PRI_RESELECT_ALWAYS	0

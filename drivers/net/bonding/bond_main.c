@@ -645,8 +645,8 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 				  struct slave *new_active,
 				  struct slave *old_active)
 {
-	u8 tmp_mac[ETH_ALEN];
-	struct sockaddr saddr;
+	u8 tmp_mac[MAX_ADDR_LEN];
+	struct sockaddr_storage ss;
 	int rv;
 
 	switch (bond->params.fail_over_mac) {
@@ -666,16 +666,20 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 			old_active = bond_get_old_active(bond, new_active);
 
 		if (old_active) {
-			ether_addr_copy(tmp_mac, new_active->dev->dev_addr);
-			ether_addr_copy(saddr.sa_data,
-					old_active->dev->dev_addr);
-			saddr.sa_family = new_active->dev->type;
+			bond_hw_addr_copy(tmp_mac, new_active->dev->dev_addr,
+					  new_active->dev->addr_len);
+			bond_hw_addr_copy(ss.__data,
+					  old_active->dev->dev_addr,
+					  old_active->dev->addr_len);
+			ss.ss_family = new_active->dev->type;
 		} else {
-			ether_addr_copy(saddr.sa_data, bond->dev->dev_addr);
-			saddr.sa_family = bond->dev->type;
+			bond_hw_addr_copy(ss.__data, bond->dev->dev_addr,
+					  bond->dev->addr_len);
+			ss.ss_family = bond->dev->type;
 		}
 
-		rv = dev_set_mac_address(new_active->dev, &saddr);
+		rv = dev_set_mac_address(new_active->dev,
+					 (struct sockaddr *)&ss);
 		if (rv) {
 			netdev_err(bond->dev, "Error %d setting MAC of slave %s\n",
 				   -rv, new_active->dev->name);
@@ -685,10 +689,12 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 		if (!old_active)
 			goto out;
 
-		ether_addr_copy(saddr.sa_data, tmp_mac);
-		saddr.sa_family = old_active->dev->type;
+		bond_hw_addr_copy(ss.__data, tmp_mac,
+				  new_active->dev->addr_len);
+		ss.ss_family = old_active->dev->type;
 
-		rv = dev_set_mac_address(old_active->dev, &saddr);
+		rv = dev_set_mac_address(old_active->dev,
+					 (struct sockaddr *)&ss);
 		if (rv)
 			netdev_err(bond->dev, "Error %d setting MAC of slave %s\n",
 				   -rv, new_active->dev->name);
@@ -1184,7 +1190,8 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 			kfree_skb(skb);
 			return RX_HANDLER_CONSUMED;
 		}
-		ether_addr_copy(eth_hdr(skb)->h_dest, bond->dev->dev_addr);
+		bond_hw_addr_copy(eth_hdr(skb)->h_dest, bond->dev->dev_addr,
+				  bond->dev->addr_len);
 	}
 
 	return ret;
@@ -1323,7 +1330,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 	struct slave *new_slave = NULL, *prev_slave;
-	struct sockaddr addr;
+	struct sockaddr_storage ss;
 	int link_reporting;
 	int res = 0, i;
 
@@ -1474,16 +1481,17 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	 * that need it, and for restoring it upon release, and then
 	 * set it to the master's address
 	 */
-	ether_addr_copy(new_slave->perm_hwaddr, slave_dev->dev_addr);
+	bond_hw_addr_copy(new_slave->perm_hwaddr, slave_dev->dev_addr,
+			  slave_dev->addr_len);
 
 	if (!bond->params.fail_over_mac ||
 	    BOND_MODE(bond) != BOND_MODE_ACTIVEBACKUP) {
 		/* Set slave to master's mac address.  The application already
 		 * set the master's mac address to that of the first slave
 		 */
-		memcpy(addr.sa_data, bond_dev->dev_addr, bond_dev->addr_len);
-		addr.sa_family = slave_dev->type;
-		res = dev_set_mac_address(slave_dev, &addr);
+		memcpy(ss.__data, bond_dev->dev_addr, bond_dev->addr_len);
+		ss.ss_family = slave_dev->type;
+		res = dev_set_mac_address(slave_dev, (struct sockaddr *)&ss);
 		if (res) {
 			netdev_dbg(bond_dev, "Error %d calling set_mac_address\n", res);
 			goto err_restore_mtu;
@@ -1767,9 +1775,10 @@ err_restore_mac:
 		 * MAC if this slave's MAC is in use by the bond, or at
 		 * least print a warning.
 		 */
-		ether_addr_copy(addr.sa_data, new_slave->perm_hwaddr);
-		addr.sa_family = slave_dev->type;
-		dev_set_mac_address(slave_dev, &addr);
+		bond_hw_addr_copy(ss.__data, new_slave->perm_hwaddr,
+				  new_slave->dev->addr_len);
+		ss.ss_family = slave_dev->type;
+		dev_set_mac_address(slave_dev, (struct sockaddr *)&ss);
 	}
 
 err_restore_mtu:
@@ -1812,7 +1821,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *oldcurrent;
-	struct sockaddr addr;
+	struct sockaddr_storage ss;
 	int old_flags = bond_dev->flags;
 	netdev_features_t old_features = bond_dev->features;
 
@@ -1947,9 +1956,10 @@ static int __bond_release_one(struct net_device *bond_dev,
 	if (bond->params.fail_over_mac != BOND_FOM_ACTIVE ||
 	    BOND_MODE(bond) != BOND_MODE_ACTIVEBACKUP) {
 		/* restore original ("permanent") mac address */
-		ether_addr_copy(addr.sa_data, slave->perm_hwaddr);
-		addr.sa_family = slave_dev->type;
-		dev_set_mac_address(slave_dev, &addr);
+		bond_hw_addr_copy(ss.__data, slave->perm_hwaddr,
+				  slave->dev->addr_len);
+		ss.ss_family = slave_dev->type;
+		dev_set_mac_address(slave_dev, (struct sockaddr *)&ss);
 	}
 
 	dev_set_mtu(slave_dev, slave->original_mtu);
@@ -3626,7 +3636,7 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *rollback_slave;
-	struct sockaddr *sa = addr, tmp_sa;
+	struct sockaddr_storage *ss = addr, tmp_ss;
 	struct list_head *iter;
 	int res = 0;
 
@@ -3643,7 +3653,7 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 	    BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP)
 		return 0;
 
-	if (!is_valid_ether_addr(sa->sa_data))
+	if (!is_valid_ether_addr(ss->__data))
 		return -EADDRNOTAVAIL;
 
 	bond_for_each_slave(bond, slave, iter) {
@@ -3662,12 +3672,12 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 	}
 
 	/* success */
-	memcpy(bond_dev->dev_addr, sa->sa_data, bond_dev->addr_len);
+	memcpy(bond_dev->dev_addr, ss->__data, bond_dev->addr_len);
 	return 0;
 
 unwind:
-	memcpy(tmp_sa.sa_data, bond_dev->dev_addr, bond_dev->addr_len);
-	tmp_sa.sa_family = bond_dev->type;
+	memcpy(tmp_ss.__data, bond_dev->dev_addr, bond_dev->addr_len);
+	tmp_ss.ss_family = bond_dev->type;
 
 	/* unwind from head to the slave that failed */
 	bond_for_each_slave(bond, rollback_slave, iter) {
@@ -3676,7 +3686,8 @@ unwind:
 		if (rollback_slave == slave)
 			break;
 
-		tmp_res = dev_set_mac_address(rollback_slave->dev, &tmp_sa);
+		tmp_res = dev_set_mac_address(rollback_slave->dev,
+					      (struct sockaddr *)&tmp_ss);
 		if (tmp_res) {
 			netdev_dbg(bond_dev, "unwind err %d dev %s\n",
 				   tmp_res, rollback_slave->dev->name);
