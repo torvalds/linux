@@ -395,26 +395,24 @@ struct f2fs_dentry_ptr {
 	int max;
 };
 
-static inline void make_dentry_ptr(struct inode *inode,
-		struct f2fs_dentry_ptr *d, void *src, int type)
+static inline void make_dentry_ptr_block(struct inode *inode,
+		struct f2fs_dentry_ptr *d, struct f2fs_dentry_block *t)
 {
 	d->inode = inode;
+	d->max = NR_DENTRY_IN_BLOCK;
+	d->bitmap = &t->dentry_bitmap;
+	d->dentry = t->dentry;
+	d->filename = t->filename;
+}
 
-	if (type == 1) {
-		struct f2fs_dentry_block *t = (struct f2fs_dentry_block *)src;
-
-		d->max = NR_DENTRY_IN_BLOCK;
-		d->bitmap = &t->dentry_bitmap;
-		d->dentry = t->dentry;
-		d->filename = t->filename;
-	} else {
-		struct f2fs_inline_dentry *t = (struct f2fs_inline_dentry *)src;
-
-		d->max = NR_INLINE_DENTRY;
-		d->bitmap = &t->dentry_bitmap;
-		d->dentry = t->dentry;
-		d->filename = t->filename;
-	}
+static inline void make_dentry_ptr_inline(struct inode *inode,
+		struct f2fs_dentry_ptr *d, struct f2fs_inline_dentry *t)
+{
+	d->inode = inode;
+	d->max = NR_INLINE_DENTRY;
+	d->bitmap = &t->dentry_bitmap;
+	d->dentry = t->dentry;
+	d->filename = t->filename;
 }
 
 /*
