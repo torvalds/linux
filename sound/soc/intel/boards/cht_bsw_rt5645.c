@@ -358,22 +358,32 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	struct sst_acpi_mach *mach;
 	const char *i2c_name = NULL;
 	int dai_index = 0;
+	bool found = false;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_ATOMIC);
 	if (!drv)
 		return -ENOMEM;
 
+	mach = (&pdev->dev)->platform_data;
+
 	for (i = 0; i < ARRAY_SIZE(snd_soc_cards); i++) {
-		if (acpi_dev_found(snd_soc_cards[i].codec_id)) {
+		if (acpi_dev_found(snd_soc_cards[i].codec_id) &&
+			(!strncmp(snd_soc_cards[i].codec_id, mach->id, 8))) {
 			dev_dbg(&pdev->dev,
 				"found codec %s\n", snd_soc_cards[i].codec_id);
 			card = snd_soc_cards[i].soc_card;
 			drv->acpi_card = &snd_soc_cards[i];
+			found = true;
 			break;
 		}
 	}
+
+	if (!found) {
+		dev_err(&pdev->dev, "No matching HID found in supported list\n");
+		return -ENODEV;
+	}
+
 	card->dev = &pdev->dev;
-	mach = card->dev->platform_data;
 	sprintf(drv->codec_name, "i2c-%s:00", drv->acpi_card->codec_id);
 
 	/* set correct codec name */
