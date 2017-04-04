@@ -847,6 +847,31 @@ static void bnxt_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	}
 }
 
+static int bnxt_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	if (wol->wolopts & ~WAKE_MAGIC)
+		return -EINVAL;
+
+	if (wol->wolopts & WAKE_MAGIC) {
+		if (!(bp->flags & BNXT_FLAG_WOL_CAP))
+			return -EINVAL;
+		if (!bp->wol) {
+			if (bnxt_hwrm_alloc_wol_fltr(bp))
+				return -EBUSY;
+			bp->wol = 1;
+		}
+	} else {
+		if (bp->wol) {
+			if (bnxt_hwrm_free_wol_fltr(bp))
+				return -EBUSY;
+			bp->wol = 0;
+		}
+	}
+	return 0;
+}
+
 u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 {
 	u32 speed_mask = 0;
@@ -2150,6 +2175,7 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.set_pauseparam		= bnxt_set_pauseparam,
 	.get_drvinfo		= bnxt_get_drvinfo,
 	.get_wol		= bnxt_get_wol,
+	.set_wol		= bnxt_set_wol,
 	.get_coalesce		= bnxt_get_coalesce,
 	.set_coalesce		= bnxt_set_coalesce,
 	.get_msglevel		= bnxt_get_msglevel,

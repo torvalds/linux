@@ -5842,6 +5842,38 @@ static int bnxt_hwrm_port_led_qcaps(struct bnxt *bp)
 	return 0;
 }
 
+int bnxt_hwrm_alloc_wol_fltr(struct bnxt *bp)
+{
+	struct hwrm_wol_filter_alloc_input req = {0};
+	struct hwrm_wol_filter_alloc_output *resp = bp->hwrm_cmd_resp_addr;
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_WOL_FILTER_ALLOC, -1, -1);
+	req.port_id = cpu_to_le16(bp->pf.port_id);
+	req.wol_type = WOL_FILTER_ALLOC_REQ_WOL_TYPE_MAGICPKT;
+	req.enables = cpu_to_le32(WOL_FILTER_ALLOC_REQ_ENABLES_MAC_ADDRESS);
+	memcpy(req.mac_address, bp->dev->dev_addr, ETH_ALEN);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc)
+		bp->wol_filter_id = resp->wol_filter_id;
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+int bnxt_hwrm_free_wol_fltr(struct bnxt *bp)
+{
+	struct hwrm_wol_filter_free_input req = {0};
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_WOL_FILTER_FREE, -1, -1);
+	req.port_id = cpu_to_le16(bp->pf.port_id);
+	req.enables = cpu_to_le32(WOL_FILTER_FREE_REQ_ENABLES_WOL_FILTER_ID);
+	req.wol_filter_id = bp->wol_filter_id;
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	return rc;
+}
+
 static u16 bnxt_hwrm_get_wol_fltrs(struct bnxt *bp, u16 handle)
 {
 	struct hwrm_wol_filter_qcfg_input req = {0};
