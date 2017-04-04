@@ -1149,7 +1149,6 @@ static struct request *__get_request(struct request_list *rl, unsigned int op,
 
 	blk_rq_init(q, rq);
 	blk_rq_set_rl(rq, rl);
-	blk_rq_set_prio(rq, ioc);
 	rq->cmd_flags = op;
 	rq->rq_flags = rq_flags;
 
@@ -1636,6 +1635,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 
 	req->errors = 0;
 	req->__sector = bio->bi_iter.bi_sector;
+	blk_rq_set_prio(req, rq_ioc(bio));
 	if (ioprio_valid(bio_prio(bio)))
 		req->ioprio = bio_prio(bio);
 	blk_rq_bio_prep(req->q, req, bio);
