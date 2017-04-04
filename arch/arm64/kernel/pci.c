@@ -121,6 +121,7 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 static struct pci_config_window *
 pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 {
+	struct device *dev = &root->device->dev;
 	struct resource *bus_res = &root->secondary;
 	u16 seg = root->segment;
 	struct pci_config_window *cfg;
@@ -132,8 +133,7 @@ pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 		root->mcfg_addr = pci_mcfg_lookup(seg, bus_res);
 
 	if (!root->mcfg_addr) {
-		dev_err(&root->device->dev, "%04x:%pR ECAM region not found\n",
-			seg, bus_res);
+		dev_err(dev, "%04x:%pR ECAM region not found\n", seg, bus_res);
 		return NULL;
 	}
 
@@ -141,11 +141,10 @@ pci_acpi_setup_ecam_mapping(struct acpi_pci_root *root)
 	cfgres.start = root->mcfg_addr + bus_res->start * bsz;
 	cfgres.end = cfgres.start + resource_size(bus_res) * bsz - 1;
 	cfgres.flags = IORESOURCE_MEM;
-	cfg = pci_ecam_create(&root->device->dev, &cfgres, bus_res,
-			      &pci_generic_ecam_ops);
+	cfg = pci_ecam_create(dev, &cfgres, bus_res, &pci_generic_ecam_ops);
 	if (IS_ERR(cfg)) {
-		dev_err(&root->device->dev, "%04x:%pR error %ld mapping ECAM\n",
-			seg, bus_res, PTR_ERR(cfg));
+		dev_err(dev, "%04x:%pR error %ld mapping ECAM\n", seg, bus_res,
+			PTR_ERR(cfg));
 		return NULL;
 	}
 
