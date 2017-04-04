@@ -78,7 +78,7 @@ MODULE_LICENSE("GPL");
 #define INPORT_IRQ		5
 
 static int inport_irq = INPORT_IRQ;
-module_param_named(irq, inport_irq, uint, 0);
+module_param_hw_named(irq, inport_irq, uint, irq, 0);
 MODULE_PARM_DESC(irq, "IRQ number (5=default)");
 
 static struct input_dev *inport_dev;
