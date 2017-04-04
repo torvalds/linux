@@ -75,6 +75,8 @@
 
 #define DP83867_IO_MUX_CFG_IO_IMPEDANCE_MAX	0x0
 #define DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN	0x1f
+#define DP83867_IO_MUX_CFG_CLK_O_SEL_MASK	(0x1f << 8)
+#define DP83867_IO_MUX_CFG_CLK_O_SEL_SHIFT	8
 
 /* CFG4 bits */
 #define DP83867_CFG4_PORT_MIRROR_EN              BIT(0)
@@ -91,6 +93,7 @@ struct dp83867_private {
 	int fifo_depth;
 	int io_impedance;
 	int port_mirroring;
+	int clk_output_sel;
 };
 
 static int dp83867_ack_interrupt(struct phy_device *phydev)
@@ -159,6 +162,11 @@ static int dp83867_of_init(struct phy_device *phydev)
 	dp83867->io_impedance = -EINVAL;
 
 	/* Optional configuration */
+	if (of_property_read_u32(of_node, "ti,clk-output-sel",
+				 &dp83867->clk_output_sel))
+		/* Keep the default value if ti,clk-output-sel is not set */
+		dp83867->clk_output_sel = DP83867_CLK_O_SEL_REF_CLK;
+
 	if (of_property_read_bool(of_node, "ti,max-output-impedance"))
 		dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MAX;
 	else if (of_property_read_bool(of_node, "ti,min-output-impedance"))
@@ -282,6 +290,14 @@ static int dp83867_config_init(struct phy_device *phydev)
 
 	if (dp83867->port_mirroring != DP83867_PORT_MIRROING_KEEP)
 		dp83867_config_port_mirroring(phydev);
+
+	/* Clock output selection */
+	val = phy_read_mmd_indirect(phydev, DP83867_IO_MUX_CFG,
+				    DP83867_DEVADDR);
+	val &= ~DP83867_IO_MUX_CFG_CLK_O_SEL_MASK;
+	val |= (dp83867->clk_output_sel << DP83867_IO_MUX_CFG_CLK_O_SEL_SHIFT);
+	phy_write_mmd_indirect(phydev, DP83867_IO_MUX_CFG,
+			       DP83867_DEVADDR, val);
 
 	return 0;
 }
