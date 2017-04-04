@@ -1392,7 +1392,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	}
 
 	if (!pipe_config->bw_constrained) {
-		DRM_DEBUG_KMS("forcing pipe bpc to %i for HDMI\n", desired_bpp);
+		DRM_DEBUG_KMS("forcing pipe bpp to %i for HDMI\n", desired_bpp);
 		pipe_config->pipe_bpp = desired_bpp;
 	}
 
