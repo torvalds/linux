@@ -491,7 +491,7 @@ bool psp_v3_1_compare_sram_data(struct psp_context *psp,
 
 	ucode_size = ucode->ucode_size;
 	ucode_mem = (uint32_t *)ucode->kaddr;
-	while (!ucode_size) {
+	while (ucode_size) {
 		fw_sram_reg_val = RREG32(fw_sram_data_reg_offset);
 
 		if (*ucode_mem != fw_sram_reg_val)
