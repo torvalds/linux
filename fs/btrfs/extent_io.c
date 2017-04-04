@@ -2694,7 +2694,7 @@ struct bio *btrfs_bio_clone(struct bio *bio, gfp_t gfp_mask)
 	struct btrfs_io_bio *btrfs_bio;
 	struct bio *new;
 
-	new = bio_clone_bioset(bio, gfp_mask, btrfs_bioset);
+	new = bio_clone_fast(bio, gfp_mask, btrfs_bioset);
 	if (new) {
 		btrfs_bio = btrfs_io_bio(new);
 		btrfs_bio->csum = NULL;
