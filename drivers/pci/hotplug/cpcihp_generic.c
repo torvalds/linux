@@ -220,7 +220,7 @@ module_param(first_slot, byte, 0);
 MODULE_PARM_DESC(first_slot, "Hotswap bus first slot number");
 module_param(last_slot, byte, 0);
 MODULE_PARM_DESC(last_slot, "Hotswap bus last slot number");
-module_param(port, ushort, 0);
+module_param_hw(port, ushort, ioport, 0);
 MODULE_PARM_DESC(port, "#ENUM signal I/O port");
 module_param(enum_bit, uint, 0);
 MODULE_PARM_DESC(enum_bit, "#ENUM signal bit (0-7)");
