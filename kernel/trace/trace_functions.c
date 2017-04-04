@@ -586,10 +586,8 @@ ftrace_trace_probe_callback(struct ftrace_probe_ops *ops,
 	if (!enable)
 		return -EINVAL;
 
-	if (glob[0] == '!') {
-		unregister_ftrace_function_probe_func(glob+1, ops);
-		return 0;
-	}
+	if (glob[0] == '!')
+		return unregister_ftrace_function_probe_func(glob+1, ops);
 
 	if (!param)
 		goto out_reg;

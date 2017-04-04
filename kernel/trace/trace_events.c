@@ -2652,8 +2652,7 @@ event_enable_func(struct ftrace_hash *hash,
 		ops = param ? &event_disable_count_probe_ops : &event_disable_probe_ops;
 
 	if (glob[0] == '!') {
-		unregister_ftrace_function_probe_func(glob+1, ops);
-		ret = 0;
+		ret = unregister_ftrace_function_probe_func(glob+1, ops);
 		goto out;
 	}
 

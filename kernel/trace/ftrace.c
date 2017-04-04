@@ -4102,7 +4102,7 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	return count;
 }
 
-void
+int
 unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 {
 	struct ftrace_ops_hash old_hash_ops;
@@ -4131,7 +4131,7 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 
 		/* we do not support '!' for function probes */
 		if (WARN_ON(not))
-			return;
+			return -EINVAL;
 	}
 
 	mutex_lock(&trace_probe_ops.func_hash->regex_lock);
@@ -4140,9 +4140,9 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 	/* Probes only have filters */
 	old_hash_ops.notrace_hash = NULL;
 
+	ret = -ENOMEM;
 	hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS, *orig_hash);
 	if (!hash)
-		/* Hmm, should report this somehow */
 		goto out_unlock;
 
 	INIT_LIST_HEAD(&free_list);
@@ -4173,6 +4173,13 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 			list_add(&entry->free_list, &free_list);
 		}
 	}
+
+	/* Nothing found? */
+	if (list_empty(&free_list)) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
 	mutex_lock(&ftrace_lock);
 	disabled = __disable_ftrace_function_probe();
 	/*
@@ -4198,6 +4205,7 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
  out_unlock:
 	mutex_unlock(&trace_probe_ops.func_hash->regex_lock);
 	free_ftrace_hash(hash);
+	return ret;
 }
 
 static LIST_HEAD(ftrace_commands);

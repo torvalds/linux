@@ -963,7 +963,7 @@ void free_ftrace_func_mapper(struct ftrace_func_mapper *mapper,
 extern int
 register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			      void *data);
-extern void
+extern int
 unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
 
 int register_ftrace_command(struct ftrace_func_command *cmd);
