@@ -3381,7 +3381,7 @@ EXPORT_SYMBOL(tty_unregister_device);
 /**
  * __tty_alloc_driver -- allocate tty driver
  * @lines: count of lines this driver can handle at most
- * @owner: module which is repsonsible for this driver
+ * @owner: module which is responsible for this driver
  * @flags: some of TTY_DRIVER_* flags, will be set in driver->flags
  *
  * This should not be called directly, some of the provided macros should be
