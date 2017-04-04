@@ -129,4 +129,18 @@ void rdma_alloc_abort_uobject(struct ib_uobject *uobj);
 int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj);
 int rdma_alloc_commit_uobject(struct ib_uobject *uobj);
 
+extern const struct uverbs_obj_type_class uverbs_idr_class;
+
+#define UVERBS_BUILD_BUG_ON(cond) (sizeof(char[1 - 2 * !!(cond)]) -	\
+				   sizeof(char))
+#define UVERBS_TYPE_ALLOC_IDR_SZ(_size, _order)				\
+	{								\
+		.destroy_order = _order,				\
+		.type_class = &uverbs_idr_class,			\
+		.obj_size = (_size) +					\
+			  UVERBS_BUILD_BUG_ON((_size) <			\
+					      sizeof(struct ib_uobject)), \
+	}
+#define UVERBS_TYPE_ALLOC_IDR(_order)					\
+	 UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uobject), _order)
 #endif

@@ -201,8 +201,8 @@ void ib_uverbs_release_uevent(struct ib_uverbs_file *file,
 	spin_unlock_irq(&file->async_file->lock);
 }
 
-static void ib_uverbs_detach_umcast(struct ib_qp *qp,
-				    struct ib_uqp_object *uobj)
+void ib_uverbs_detach_umcast(struct ib_qp *qp,
+			     struct ib_uqp_object *uobj)
 {
 	struct ib_uverbs_mcast_entry *mcast, *tmp;
 
@@ -331,7 +331,9 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 			container_of(uobj, struct ib_uxrcd_object, uobject);
 
 		idr_remove_uobj(uobj);
-		ib_uverbs_dealloc_xrcd(file->device, xrcd);
+		ib_uverbs_dealloc_xrcd(file->device, xrcd,
+				       file->ucontext ? RDMA_REMOVE_CLOSE :
+				       RDMA_REMOVE_DRIVER_REMOVE);
 		kfree(uxrcd);
 	}
 	mutex_unlock(&file->device->xrcd_tree_mutex);

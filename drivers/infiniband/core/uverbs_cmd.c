@@ -958,19 +958,25 @@ out:
 	return ret;
 }
 
-void ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev,
-			    struct ib_xrcd *xrcd)
+int ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev,
+			   struct ib_xrcd *xrcd,
+			   enum rdma_remove_reason why)
 {
 	struct inode *inode;
+	int ret;
 
 	inode = xrcd->inode;
 	if (inode && !atomic_dec_and_test(&xrcd->usecnt))
-		return;
+		return 0;
 
-	ib_dealloc_xrcd(xrcd);
+	ret = ib_dealloc_xrcd(xrcd);
 
-	if (inode)
+	if (why == RDMA_REMOVE_DESTROY && ret)
+		atomic_inc(&xrcd->usecnt);
+	else if (inode)
 		xrcd_table_delete(dev, inode);
+
+	return ret;
 }
 
 ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
