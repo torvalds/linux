@@ -96,6 +96,7 @@ struct cht_wc_extcon_data {
 	struct regmap *regmap;
 	struct extcon_dev *edev;
 	unsigned int previous_cable;
+	bool usb_host;
 };
 
 static int cht_wc_extcon_get_id(struct cht_wc_extcon_data *ext, int pwrsrc_sts)
@@ -112,7 +113,8 @@ static int cht_wc_extcon_get_id(struct cht_wc_extcon_data *ext, int pwrsrc_sts)
 	return USB_ID_FLOAT;
 }
 
-static int cht_wc_extcon_get_charger(struct cht_wc_extcon_data *ext)
+static int cht_wc_extcon_get_charger(struct cht_wc_extcon_data *ext,
+				     bool ignore_errors)
 {
 	int ret, usbsrc, status;
 	unsigned long timeout;
@@ -135,6 +137,9 @@ static int cht_wc_extcon_get_charger(struct cht_wc_extcon_data *ext)
 	} while (time_before(jiffies, timeout));
 
 	if (status != CHT_WC_USBSRC_STS_SUCCESS) {
+		if (ignore_errors)
+			return EXTCON_CHG_USB_SDP; /* Save fallback */
+
 		if (status == CHT_WC_USBSRC_STS_FAIL)
 			dev_warn(ext->dev, "Could not detect charger type\n");
 		else
@@ -203,6 +208,8 @@ static void cht_wc_extcon_pwrsrc_event(struct cht_wc_extcon_data *ext)
 {
 	int ret, pwrsrc_sts, id;
 	unsigned int cable = EXTCON_NONE;
+	/* Ignore errors in host mode, as the 5v boost converter is on then */
+	bool ignore_get_charger_errors = ext->usb_host;
 
 	ret = regmap_read(ext->regmap, CHT_WC_PWRSRC_STS, &pwrsrc_sts);
 	if (ret) {
@@ -223,7 +230,7 @@ static void cht_wc_extcon_pwrsrc_event(struct cht_wc_extcon_data *ext)
 		goto set_state;
 	}
 
-	ret = cht_wc_extcon_get_charger(ext);
+	ret = cht_wc_extcon_get_charger(ext, ignore_get_charger_errors);
 	if (ret >= 0)
 		cable = ret;
 
@@ -238,8 +245,8 @@ set_state:
 		ext->previous_cable = cable;
 	}
 
-	extcon_set_state_sync(ext->edev, EXTCON_USB_HOST,
-			      id == USB_ID_GND || id == USB_RID_A);
+	ext->usb_host = ((id == USB_ID_GND) || (id == USB_RID_A));
+	extcon_set_state_sync(ext->edev, EXTCON_USB_HOST, ext->usb_host);
 }
 
 static irqreturn_t cht_wc_extcon_isr(int irq, void *data)
