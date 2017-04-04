@@ -49,6 +49,7 @@
 
 #include "nfp.h"
 #include "nfp_cpp.h"
+#include "nfp_nsp.h"
 
 /* Offsets relative to the CSR base */
 #define NSP_STATUS		0x00

@@ -67,7 +67,7 @@
 #include <net/pkt_cls.h>
 #include <net/vxlan.h>
 
-#include "nfpcore/nfp_nsp_eth.h"
+#include "nfpcore/nfp_nsp.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 

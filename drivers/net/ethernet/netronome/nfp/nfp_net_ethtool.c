@@ -49,7 +49,7 @@
 #include <linux/ethtool.h>
 
 #include "nfpcore/nfp.h"
-#include "nfpcore/nfp_nsp_eth.h"
+#include "nfpcore/nfp_nsp.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 

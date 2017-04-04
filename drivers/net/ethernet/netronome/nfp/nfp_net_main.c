@@ -52,7 +52,7 @@
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_cpp.h"
 #include "nfpcore/nfp_nffw.h"
-#include "nfpcore/nfp_nsp_eth.h"
+#include "nfpcore/nfp_nsp.h"
 #include "nfpcore/nfp6000_pcie.h"
 
 #include "nfp_net_ctrl.h"

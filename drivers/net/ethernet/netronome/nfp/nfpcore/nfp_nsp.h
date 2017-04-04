@@ -31,11 +31,23 @@
  * SOFTWARE.
  */
 
-#ifndef NSP_NSP_ETH_H
-#define NSP_NSP_ETH_H 1
+#ifndef NSP_NSP_H
+#define NSP_NSP_H 1
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
+
+struct firmware;
+struct nfp_cpp;
+struct nfp_nsp;
+
+struct nfp_nsp *nfp_nsp_open(struct nfp_cpp *cpp);
+void nfp_nsp_close(struct nfp_nsp *state);
+u16 nfp_nsp_get_abi_ver_major(struct nfp_nsp *state);
+u16 nfp_nsp_get_abi_ver_minor(struct nfp_nsp *state);
+int nfp_nsp_wait(struct nfp_nsp *state);
+int nfp_nsp_device_soft_reset(struct nfp_nsp *state);
+int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw);
 
 enum nfp_eth_interface {
 	NFP_INTERFACE_NONE	= 0,
@@ -118,9 +130,6 @@ struct nfp_eth_table {
 		bool is_split;
 	} ports[0];
 };
-
-struct nfp_cpp;
-struct nfp_nsp;
 
 struct nfp_eth_table *nfp_eth_read_ports(struct nfp_cpp *cpp);
 struct nfp_eth_table *

@@ -43,7 +43,7 @@
 #include <linux/module.h>
 
 #include "nfp.h"
-#include "nfp_nsp_eth.h"
+#include "nfp_nsp.h"
 #include "nfp6000/nfp6000.h"
 
 #define NSP_ETH_NBI_PORT_COUNT		24
