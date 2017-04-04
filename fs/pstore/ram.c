@@ -58,7 +58,7 @@ module_param_named(pmsg_size, ramoops_pmsg_size, ulong, 0400);
 MODULE_PARM_DESC(pmsg_size, "size of user space message log");
 
 static unsigned long long mem_address;
-module_param(mem_address, ullong, 0400);
+module_param_hw(mem_address, ullong, other, 0400);
 MODULE_PARM_DESC(mem_address,
 		"start of reserved RAM used to store oops/panic logs");
 
