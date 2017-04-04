@@ -4817,13 +4817,10 @@ static int gfx_v8_0_kiq_init_register(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct vi_mqd *mqd = ring->mqd_ptr;
-	uint32_t tmp;
 	int j;
 
 	/* disable wptr polling */
-	tmp = RREG32(mmCP_PQ_WPTR_POLL_CNTL);
-	tmp = REG_SET_FIELD(tmp, CP_PQ_WPTR_POLL_CNTL, EN, 0);
-	WREG32(mmCP_PQ_WPTR_POLL_CNTL, tmp);
+	WREG32_FIELD(CP_PQ_WPTR_POLL_CNTL, EN, 0);
 
 	WREG32(mmCP_HQD_EOP_BASE_ADDR, mqd->cp_hqd_eop_base_addr_lo);
 	WREG32(mmCP_HQD_EOP_BASE_ADDR_HI, mqd->cp_hqd_eop_base_addr_hi);
@@ -4895,11 +4892,8 @@ static int gfx_v8_0_kiq_init_register(struct amdgpu_ring *ring)
 	/* activate the queue */
 	WREG32(mmCP_HQD_ACTIVE, mqd->cp_hqd_active);
 
-	if (ring->use_doorbell) {
-		tmp = RREG32(mmCP_PQ_STATUS);
-		tmp = REG_SET_FIELD(tmp, CP_PQ_STATUS, DOORBELL_ENABLE, 1);
-		WREG32(mmCP_PQ_STATUS, tmp);
-	}
+	if (ring->use_doorbell)
+		WREG32_FIELD(CP_PQ_STATUS, DOORBELL_ENABLE, 1);
 
 	return 0;
 }
