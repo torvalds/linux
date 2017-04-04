@@ -17,10 +17,11 @@
 #include <asm/barrier.h>
 #include <asm/smp.h>
 
+#define ATOMIC_INIT(i)	{ (i) }
+
 #ifndef CONFIG_ARC_PLAT_EZNPS
 
 #define atomic_read(v)  READ_ONCE((v)->counter)
-#define ATOMIC_INIT(i)	{ (i) }
 
 #ifdef CONFIG_ARC_HAS_LLSC
 
