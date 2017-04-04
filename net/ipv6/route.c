@@ -3299,7 +3299,6 @@ static size_t rt6_nlmsg_size(struct rt6_info *rt)
 		nexthop_len = nla_total_size(0)	 /* RTA_MULTIPATH */
 			    + NLA_ALIGN(sizeof(struct rtnexthop))
 			    + nla_total_size(16) /* RTA_GATEWAY */
-			    + nla_total_size(4)  /* RTA_OIF */
 			    + lwtunnel_get_encap_size(rt->dst.lwtstate);
 
 		nexthop_len *= rt->rt6i_nsiblings;
@@ -3323,7 +3322,7 @@ static size_t rt6_nlmsg_size(struct rt6_info *rt)
 }
 
 static int rt6_nexthop_info(struct sk_buff *skb, struct rt6_info *rt,
-			    unsigned int *flags)
+			    unsigned int *flags, bool skip_oif)
 {
 	if (!netif_running(rt->dst.dev) || !netif_carrier_ok(rt->dst.dev)) {
 		*flags |= RTNH_F_LINKDOWN;
@@ -3336,7 +3335,8 @@ static int rt6_nexthop_info(struct sk_buff *skb, struct rt6_info *rt,
 			goto nla_put_failure;
 	}
 
-	if (rt->dst.dev &&
+	/* not needed for multipath encoding b/c it has a rtnexthop struct */
+	if (!skip_oif && rt->dst.dev &&
 	    nla_put_u32(skb, RTA_OIF, rt->dst.dev->ifindex))
 		goto nla_put_failure;
 
@@ -3350,6 +3350,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+/* add multipath next hop */
 static int rt6_add_nexthop(struct sk_buff *skb, struct rt6_info *rt)
 {
 	struct rtnexthop *rtnh;
@@ -3362,7 +3363,7 @@ static int rt6_add_nexthop(struct sk_buff *skb, struct rt6_info *rt)
 	rtnh->rtnh_hops = 0;
 	rtnh->rtnh_ifindex = rt->dst.dev ? rt->dst.dev->ifindex : 0;
 
-	if (rt6_nexthop_info(skb, rt, &flags) < 0)
+	if (rt6_nexthop_info(skb, rt, &flags, true) < 0)
 		goto nla_put_failure;
 
 	rtnh->rtnh_flags = flags;
@@ -3515,7 +3516,7 @@ static int rt6_fill_node(struct net *net,
 
 		nla_nest_end(skb, mp);
 	} else {
-		if (rt6_nexthop_info(skb, rt, &rtm->rtm_flags) < 0)
+		if (rt6_nexthop_info(skb, rt, &rtm->rtm_flags, false) < 0)
 			goto nla_put_failure;
 	}
 

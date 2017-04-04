@@ -472,6 +472,10 @@ static inline int scsi_device_created(struct scsi_device *sdev)
 		sdev->sdev_state == SDEV_CREATED_BLOCK;
 }
 
+int scsi_internal_device_block(struct scsi_device *sdev, bool wait);
+int scsi_internal_device_unblock(struct scsi_device *sdev,
+				 enum scsi_device_state new_state);
+
 /* accessor functions for the SCSI parameters */
 static inline int scsi_device_sync(struct scsi_device *sdev)
 {
