@@ -411,6 +411,7 @@ enum surface_update_type {
 struct dc_stream {
 	const struct dc_sink *sink;
 	struct dc_crtc_timing timing;
+	enum signal_type output_signal;
 
 	enum dc_color_space output_color_space;
 
