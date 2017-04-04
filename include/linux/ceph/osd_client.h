@@ -187,6 +187,7 @@ struct ceph_osd_request {
 	struct timespec r_mtime;              /* ditto */
 	u64 r_data_offset;                    /* ditto */
 	bool r_linger;                        /* don't resend on failure */
+	bool r_abort_on_full;		      /* return ENOSPC when full */
 
 	/* internal */
 	unsigned long r_stamp;                /* jiffies, send or check time */
