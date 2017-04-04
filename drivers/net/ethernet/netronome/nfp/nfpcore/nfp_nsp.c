@@ -97,6 +97,13 @@ enum nfp_nsp_cmd {
 	__MAX_SPCODE,
 };
 
+static const struct {
+	int code;
+	const char *msg;
+} nsp_errors[] = {
+	{ 0, "success" } /* placeholder to avoid warnings */
+};
+
 struct nfp_nsp {
 	struct nfp_cpp *cpp;
 	struct nfp_resource *res;
@@ -147,6 +154,18 @@ void nfp_nsp_config_clear_state(struct nfp_nsp *state)
 {
 	state->entries = NULL;
 	state->idx = 0;
+}
+
+static void nfp_nsp_print_extended_error(struct nfp_nsp *state, u32 ret_val)
+{
+	int i;
+
+	if (!ret_val)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(nsp_errors); i++)
+		if (ret_val == nsp_errors[i].code)
+			nfp_err(state->cpp, "err msg: %s\n", nsp_errors[i].msg);
 }
 
 static int nfp_nsp_check(struct nfp_nsp *state)
@@ -282,7 +301,7 @@ nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg,
 static int nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option,
 			   u32 buff_cpp, u64 buff_addr)
 {
-	u64 reg, nsp_base, nsp_buffer, nsp_status, nsp_command;
+	u64 reg, ret_val, nsp_base, nsp_buffer, nsp_status, nsp_command;
 	struct nfp_cpp *cpp = state->cpp;
 	u32 nsp_cpp;
 	int err;
@@ -335,18 +354,20 @@ static int nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option,
 		return err;
 	}
 
+	err = nfp_cpp_readq(cpp, nsp_cpp, nsp_command, &ret_val);
+	if (err < 0)
+		return err;
+	ret_val = FIELD_GET(NSP_COMMAND_OPTION, ret_val);
+
 	err = FIELD_GET(NSP_STATUS_RESULT, reg);
 	if (err) {
-		nfp_warn(cpp, "Result (error) code set: %d command: %d\n",
-			 -err, code);
+		nfp_warn(cpp, "Result (error) code set: %d (%d) command: %d\n",
+			 -err, (int)ret_val, code);
+		nfp_nsp_print_extended_error(state, ret_val);
 		return -err;
 	}
 
-	err = nfp_cpp_readq(cpp, nsp_cpp, nsp_command, &reg);
-	if (err < 0)
-		return err;
-
-	return FIELD_GET(NSP_COMMAND_OPTION, reg);
+	return ret_val;
 }
 
 static int nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
