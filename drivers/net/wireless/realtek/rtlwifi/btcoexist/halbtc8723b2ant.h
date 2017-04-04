@@ -41,6 +41,11 @@
 
 #define BTC_RSSI_COEX_THRESH_TOL_8723B_2ANT		2
 
+/* WiFi RSSI Threshold for 2-Ant TDMA/1-Ant PS-TDMA translation */
+#define BT_8723B_2ANT_WIFI_RSSI_COEXSWITCH_THRES	42
+/* BT RSSI Threshold for 2-Ant TDMA/1-Ant PS-TDMA translation */
+#define BT_8723B_2ANT_BT_RSSI_COEXSWITCH_THRES		46
+
 enum BT_INFO_SRC_8723B_2ANT {
 	BT_INFO_SRC_8723B_2ANT_WIFI_FW			= 0x0,
 	BT_INFO_SRC_8723B_2ANT_BT_RSP			= 0x1,
@@ -127,6 +132,8 @@ struct coex_dm_8723b_2ant {
 	u8 pre_rpwm;
 	u8 cur_rpwm;
 
+	bool is_switch_to_1dot5_ant;
+	u8 switch_thres_offset;
 	bool need_recover_0x948;
 	u16 backup_0x948;
 };
