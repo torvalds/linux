@@ -703,9 +703,6 @@ static void writepages_finish(struct ceph_osd_request *req)
 				clear_bdi_congested(&fsc->backing_dev_info,
 						    BLK_RW_ASYNC);
 
-			if (rc < 0)
-				SetPageError(page);
-
 			ceph_put_snap_context(page_snap_context(page));
 			page->private = 0;
 			ClearPagePrivate(page);
