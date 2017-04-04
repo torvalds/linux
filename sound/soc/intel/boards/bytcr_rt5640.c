@@ -57,9 +57,7 @@ struct byt_rt5640_private {
 	struct clk *mclk;
 };
 
-static unsigned long byt_rt5640_quirk = BYT_RT5640_DMIC1_MAP |
-					BYT_RT5640_DMIC_EN |
-					BYT_RT5640_MCLK_EN;
+static unsigned long byt_rt5640_quirk = BYT_RT5640_MCLK_EN;
 
 static void log_quirks(struct device *dev)
 {
@@ -738,6 +736,13 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 		if (res_info->acpi_ipc_irq_index == 0) {
 			byt_rt5640_quirk |= BYT_RT5640_SSP0_AIF2;
 		}
+
+		/* change defaults for Baytrail-CR capture */
+		byt_rt5640_quirk |= BYT_RT5640_IN1_MAP;
+		byt_rt5640_quirk |= BYT_RT5640_DIFF_MIC;
+	} else {
+		byt_rt5640_quirk |= (BYT_RT5640_DMIC1_MAP |
+				BYT_RT5640_DMIC_EN);
 	}
 
 	/* check quirks before creating card */
