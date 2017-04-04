@@ -101,7 +101,11 @@ static const struct {
 	int code;
 	const char *msg;
 } nsp_errors[] = {
-	{ 0, "success" } /* placeholder to avoid warnings */
+	{ 6010, "could not map to phy for port" },
+	{ 6011, "not an allowed rate/lanes for port" },
+	{ 6012, "not an allowed rate/lanes for port" },
+	{ 6013, "high/low error, change other port first" },
+	{ 6014, "config not found in flash" },
 };
 
 struct nfp_nsp {
