@@ -62,6 +62,7 @@
 #define NSP_ETH_STATE_TX_ENABLED	BIT_ULL(2)
 #define NSP_ETH_STATE_RX_ENABLED	BIT_ULL(3)
 #define NSP_ETH_STATE_RATE		GENMASK_ULL(11, 8)
+#define NSP_ETH_STATE_OVRD_CHNG		BIT_ULL(22)
 
 #define NSP_ETH_CTRL_ENABLED		BIT_ULL(1)
 #define NSP_ETH_CTRL_TX_ENABLED		BIT_ULL(2)
@@ -110,8 +111,8 @@ static void nfp_eth_copy_mac_reverse(u8 *dst, const u8 *src)
 }
 
 static void
-nfp_eth_port_translate(const struct eth_table_entry *src, unsigned int index,
-		       struct nfp_eth_table_port *dst)
+nfp_eth_port_translate(struct nfp_nsp *nsp, const struct eth_table_entry *src,
+		       unsigned int index, struct nfp_eth_table_port *dst)
 {
 	unsigned int rate;
 	u64 port, state;
@@ -136,6 +137,11 @@ nfp_eth_port_translate(const struct eth_table_entry *src, unsigned int index,
 
 	dst->label_port = FIELD_GET(NSP_ETH_PORT_PHYLABEL, port);
 	dst->label_subport = FIELD_GET(NSP_ETH_PORT_LABEL, port);
+
+	if (nfp_nsp_get_abi_ver_minor(nsp) < 17)
+		return;
+
+	dst->override_changed = FIELD_GET(NSP_ETH_STATE_OVRD_CHNG, state);
 }
 
 static void
@@ -225,7 +231,7 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 	table->count = cnt;
 	for (i = 0, j = 0; i < NSP_ETH_MAX_COUNT; i++)
 		if (entries[i].port & NSP_ETH_PORT_LANES_MASK)
-			nfp_eth_port_translate(&entries[i], i,
+			nfp_eth_port_translate(nsp, &entries[i], i,
 					       &table->ports[j++]);
 
 	nfp_eth_mark_split_ports(cpp, table);

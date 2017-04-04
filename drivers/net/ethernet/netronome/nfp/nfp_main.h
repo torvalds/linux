@@ -64,7 +64,8 @@ struct nfp_eth_table;
  * @fw_loaded:		Is the firmware loaded?
  * @eth_tbl:		NSP ETH table
  * @ddir:		Per-device debugfs directory
- * @num_ports:		Number of adapter ports
+ * @num_ports:		Number of adapter ports app firmware supports
+ * @num_netdevs:	Number of netdevs spawned
  * @ports:		Linked list of port structures (struct nfp_net)
  */
 struct nfp_pf {
@@ -88,6 +89,8 @@ struct nfp_pf {
 	struct dentry *ddir;
 
 	unsigned int num_ports;
+	unsigned int num_netdevs;
+
 	struct list_head ports;
 };
 

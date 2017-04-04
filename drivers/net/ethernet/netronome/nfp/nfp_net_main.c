@@ -129,13 +129,28 @@ err_area:
 	return (u8 __iomem *)ERR_PTR(err);
 }
 
+/**
+ * nfp_net_get_mac_addr() - Get the MAC address.
+ * @nn:       NFP Network structure
+ * @cpp:      NFP CPP handle
+ * @id:	      NFP port id
+ *
+ * First try to get the MAC address from NSP ETH table. If that
+ * fails try HWInfo.  As a last resort generate a random address.
+ */
 static void
-nfp_net_get_mac_addr_hwinfo(struct nfp_net_dp *dp, struct nfp_cpp *cpp,
-			    unsigned int id)
+nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_cpp *cpp, unsigned int id)
 {
+	struct nfp_net_dp *dp = &nn->dp;
 	u8 mac_addr[ETH_ALEN];
 	const char *mac_str;
 	char name[32];
+
+	if (nn->eth_port) {
+		ether_addr_copy(dp->netdev->dev_addr, nn->eth_port->mac_addr);
+		ether_addr_copy(dp->netdev->perm_addr, nn->eth_port->mac_addr);
+		return;
+	}
 
 	snprintf(name, sizeof(name), "eth%d.mac", id);
 
@@ -159,32 +174,16 @@ nfp_net_get_mac_addr_hwinfo(struct nfp_net_dp *dp, struct nfp_cpp *cpp,
 	ether_addr_copy(dp->netdev->perm_addr, mac_addr);
 }
 
-/**
- * nfp_net_get_mac_addr() - Get the MAC address.
- * @nn:       NFP Network structure
- * @pf:	      NFP PF device structure
- * @id:	      NFP port id
- *
- * First try to get the MAC address from NSP ETH table. If that
- * fails try HWInfo.  As a last resort generate a random address.
- */
-static void
-nfp_net_get_mac_addr(struct nfp_net *nn, struct nfp_pf *pf, unsigned int id)
+static struct nfp_eth_table_port *
+nfp_net_find_port(struct nfp_pf *pf, unsigned int id)
 {
 	int i;
 
 	for (i = 0; pf->eth_tbl && i < pf->eth_tbl->count; i++)
-		if (pf->eth_tbl->ports[i].eth_index == id) {
-			const u8 *mac_addr = pf->eth_tbl->ports[i].mac_addr;
+		if (pf->eth_tbl->ports[i].eth_index == id)
+			return &pf->eth_tbl->ports[i];
 
-			nn->eth_port = &pf->eth_tbl->ports[i];
-
-			ether_addr_copy(nn->dp.netdev->dev_addr, mac_addr);
-			ether_addr_copy(nn->dp.netdev->perm_addr, mac_addr);
-			return;
-		}
-
-	nfp_net_get_mac_addr_hwinfo(&nn->dp, pf->cpp, id);
+	return NULL;
 }
 
 static unsigned int nfp_net_pf_get_num_ports(struct nfp_pf *pf)
@@ -283,6 +282,7 @@ static void nfp_net_pf_free_netdevs(struct nfp_pf *pf)
 	while (!list_empty(&pf->ports)) {
 		nn = list_first_entry(&pf->ports, struct nfp_net, port_list);
 		list_del(&nn->port_list);
+		pf->num_netdevs--;
 
 		nfp_net_netdev_free(nn);
 	}
@@ -291,7 +291,8 @@ static void nfp_net_pf_free_netdevs(struct nfp_pf *pf)
 static struct nfp_net *
 nfp_net_pf_alloc_port_netdev(struct nfp_pf *pf, void __iomem *ctrl_bar,
 			     void __iomem *tx_bar, void __iomem *rx_bar,
-			     int stride, struct nfp_net_fw_version *fw_ver)
+			     int stride, struct nfp_net_fw_version *fw_ver,
+			     struct nfp_eth_table_port *eth_port)
 {
 	u32 n_tx_rings, n_rx_rings;
 	struct nfp_net *nn;
@@ -312,6 +313,7 @@ nfp_net_pf_alloc_port_netdev(struct nfp_pf *pf, void __iomem *ctrl_bar,
 	nn->dp.is_vf = 0;
 	nn->stride_rx = stride;
 	nn->stride_tx = stride;
+	nn->eth_port = eth_port;
 
 	return nn;
 }
@@ -323,7 +325,7 @@ nfp_net_pf_init_port_netdev(struct nfp_pf *pf, struct nfp_net *nn,
 	int err;
 
 	/* Get MAC address */
-	nfp_net_get_mac_addr(nn, pf, id);
+	nfp_net_get_mac_addr(nn, pf->cpp, id);
 
 	/* Get ME clock frequency from ctrl BAR
 	 * XXX for now frequency is hardcoded until we figure out how
@@ -348,6 +350,7 @@ nfp_net_pf_alloc_netdevs(struct nfp_pf *pf, void __iomem *ctrl_bar,
 			 int stride, struct nfp_net_fw_version *fw_ver)
 {
 	u32 prev_tx_base, prev_rx_base, tgt_tx_base, tgt_rx_base;
+	struct nfp_eth_table_port *eth_port;
 	struct nfp_net *nn;
 	unsigned int i;
 	int err;
@@ -363,16 +366,26 @@ nfp_net_pf_alloc_netdevs(struct nfp_pf *pf, void __iomem *ctrl_bar,
 		prev_tx_base = tgt_tx_base;
 		prev_rx_base = tgt_rx_base;
 
-		nn = nfp_net_pf_alloc_port_netdev(pf, ctrl_bar, tx_bar, rx_bar,
-						  stride, fw_ver);
-		if (IS_ERR(nn)) {
-			err = PTR_ERR(nn);
-			goto err_free_prev;
+		eth_port = nfp_net_find_port(pf, i);
+		if (eth_port && eth_port->override_changed) {
+			nfp_warn(pf->cpp, "Config changed for port #%d, reboot required before port will be operational\n", i);
+		} else {
+			nn = nfp_net_pf_alloc_port_netdev(pf, ctrl_bar, tx_bar,
+							  rx_bar, stride,
+							  fw_ver, eth_port);
+			if (IS_ERR(nn)) {
+				err = PTR_ERR(nn);
+				goto err_free_prev;
+			}
+			list_add_tail(&nn->port_list, &pf->ports);
+			pf->num_netdevs++;
 		}
-		list_add_tail(&nn->port_list, &pf->ports);
 
 		ctrl_bar += NFP_PF_CSR_SLICE_SIZE;
 	}
+
+	if (list_empty(&pf->ports))
+		return -ENODEV;
 
 	return 0;
 
@@ -409,7 +422,7 @@ nfp_net_pf_spawn_netdevs(struct nfp_pf *pf,
 	}
 
 	num_irqs = nfp_net_irqs_alloc(pf->pdev, pf->irq_entries,
-				      NFP_NET_MIN_PORT_IRQS * pf->num_ports,
+				      NFP_NET_MIN_PORT_IRQS * pf->num_netdevs,
 				      wanted_irqs);
 	if (!num_irqs) {
 		nn_warn(nn, "Unable to allocate MSI-X Vectors. Exiting\n");
@@ -419,7 +432,7 @@ nfp_net_pf_spawn_netdevs(struct nfp_pf *pf,
 
 	/* Distribute IRQs to ports */
 	irqs_left = num_irqs;
-	ports_left = pf->num_ports;
+	ports_left = pf->num_netdevs;
 	list_for_each_entry(nn, &pf->ports, port_list) {
 		unsigned int n;
 

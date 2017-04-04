@@ -54,6 +54,7 @@
  * @enabled:	is enabled?
  * @tx_enabled:	is TX enabled?
  * @rx_enabled:	is RX enabled?
+ * @override_changed: is media reconfig pending?
  *
  * @is_split:	is interface part of a split port
  */
@@ -75,6 +76,8 @@ struct nfp_eth_table {
 		bool enabled;
 		bool tx_enabled;
 		bool rx_enabled;
+
+		bool override_changed;
 
 		/* Computed fields */
 		bool is_split;
