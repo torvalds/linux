@@ -160,6 +160,20 @@ other hand, a driver requires shared state between clients which is
 visible to user-space and accessible beyond open-file boundaries, they
 cannot support render nodes.
 
+IOCTL Support on Device Nodes
+=============================
+
+.. kernel-doc:: drivers/gpu/drm/drm_ioctl.c
+   :doc: driver specific ioctls
+
+.. kernel-doc:: include/drm/drm_ioctl.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_ioctl.c
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/drm_ioc32.c
+   :export:
 
 Testing and validation
 ======================

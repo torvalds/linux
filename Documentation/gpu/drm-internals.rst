@@ -255,56 +255,6 @@ File Operations
 .. kernel-doc:: drivers/gpu/drm/drm_file.c
    :export:
 
-IOCTLs
-------
-
-struct drm_ioctl_desc \*ioctls; int num_ioctls;
-    Driver-specific ioctls descriptors table.
-
-Driver-specific ioctls numbers start at DRM_COMMAND_BASE. The ioctls
-descriptors table is indexed by the ioctl number offset from the base
-value. Drivers can use the DRM_IOCTL_DEF_DRV() macro to initialize
-the table entries.
-
-::
-
-    DRM_IOCTL_DEF_DRV(ioctl, func, flags)
-
-``ioctl`` is the ioctl name. Drivers must define the DRM_##ioctl and
-DRM_IOCTL_##ioctl macros to the ioctl number offset from
-DRM_COMMAND_BASE and the ioctl number respectively. The first macro is
-private to the device while the second must be exposed to userspace in a
-public header.
-
-``func`` is a pointer to the ioctl handler function compatible with the
-``drm_ioctl_t`` type.
-
-::
-
-    typedef int drm_ioctl_t(struct drm_device *dev, void *data,
-            struct drm_file *file_priv);
-
-``flags`` is a bitmask combination of the following values. It restricts
-how the ioctl is allowed to be called.
-
--  DRM_AUTH - Only authenticated callers allowed
-
--  DRM_MASTER - The ioctl can only be called on the master file handle
-
--  DRM_ROOT_ONLY - Only callers with the SYSADMIN capability allowed
-
--  DRM_CONTROL_ALLOW - The ioctl can only be called on a control
-   device
-
--  DRM_UNLOCKED - The ioctl handler will be called without locking the
-   DRM global mutex. This is the enforced default for kms drivers (i.e.
-   using the DRIVER_MODESET flag) and hence shouldn't be used any more
-   for new drivers.
-
-.. kernel-doc:: drivers/gpu/drm/drm_ioctl.c
-   :export:
-
-
 Misc Utilities
 ==============
 
