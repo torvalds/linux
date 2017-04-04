@@ -1592,6 +1592,27 @@ static void btc8723b2ant_action_bt_inquiry(struct btc_coexist *btcoexist)
 	btc8723b2ant_sw_mechanism(btcoexist, false, false, false, false);
 }
 
+static void btc8723b2ant_action_wifi_link_process(struct btc_coexist
+						     *btcoexist)
+{
+	struct rtl_priv *rtlpriv = btcoexist->adapter;
+	u32 u32tmp;
+	u8 u8tmpa, u8tmpb;
+
+	btc8723b2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 15);
+	btc8723b2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 22);
+
+	btc8723b2ant_sw_mechanism(btcoexist, false, false, false, false);
+
+	u32tmp = btcoexist->btc_read_4byte(btcoexist, 0x948);
+	u8tmpa = btcoexist->btc_read_1byte(btcoexist, 0x765);
+	u8tmpb = btcoexist->btc_read_1byte(btcoexist, 0x76e);
+
+	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+		 "[BTCoex], 0x948 = 0x%x, 0x765 = 0x%x, 0x76e = 0x%x\n",
+		 u32tmp, u8tmpa, u8tmpb);
+}
+
 static bool btc8723b2ant_is_common_action(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -3409,6 +3430,7 @@ static void btc8723b2ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 	u32 wifi_link_status = 0;
 	struct btc_bt_link_info *bt_link_info = &btcoexist->bt_link_info;
 	bool miracast_plus_bt = false;
+	bool scan = false, link = false, roam = false;
 
 	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 		 "[BTCoex], RunCoexistMechanism()===>\n");
@@ -3438,6 +3460,17 @@ static void btc8723b2ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 			btcoexist->btc_write_2byte(btcoexist, 0x948,
 						   coex_dm->backup_0x948);
 		}
+	}
+
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_SCAN, &scan);
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_LINK, &link);
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_ROAM, &roam);
+
+	if (scan || link || roam) {
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], WiFi is under Link Process !!\n");
+		btc8723b2ant_action_wifi_link_process(btcoexist);
+		return;
 	}
 
 	/* for P2P */
