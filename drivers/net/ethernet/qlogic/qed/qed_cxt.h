@@ -105,19 +105,28 @@ u32 qed_cxt_get_proto_cid_count(struct qed_hwfn *p_hwfn,
  * @brief qed_cxt_set_pf_params - Set the PF params for cxt init
  *
  * @param p_hwfn
- *
+ * @param rdma_tasks - requested maximum
  * @return int
  */
-int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn);
+int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks);
 
 /**
  * @brief qed_cxt_cfg_ilt_compute - compute ILT init parameters
  *
  * @param p_hwfn
+ * @param last_line
  *
  * @return int
  */
-int qed_cxt_cfg_ilt_compute(struct qed_hwfn *p_hwfn);
+int qed_cxt_cfg_ilt_compute(struct qed_hwfn *p_hwfn, u32 *last_line);
+
+/**
+ * @brief qed_cxt_cfg_ilt_compute_excess - how many lines can be decreased
+ *
+ * @param p_hwfn
+ * @param used_lines
+ */
+u32 qed_cxt_cfg_ilt_compute_excess(struct qed_hwfn *p_hwfn, u32 used_lines);
 
 /**
  * @brief qed_cxt_mngr_alloc - Allocate and init the context manager struct

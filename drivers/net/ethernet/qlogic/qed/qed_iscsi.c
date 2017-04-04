@@ -270,11 +270,10 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 	struct tcp_offload_params *p_tcp = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	union qed_qm_pq_params pq_params;
-	u16 pq0_id = 0, pq1_id = 0;
 	dma_addr_t r2tq_pbl_addr;
 	dma_addr_t xhq_pbl_addr;
 	dma_addr_t uhq_pbl_addr;
+	u16 physical_q;
 	int rc = 0;
 	u32 dval;
 	u16 wval;
@@ -297,16 +296,14 @@ static int qed_sp_iscsi_conn_offload(struct qed_hwfn *p_hwfn,
 	p_ramrod = &p_ent->ramrod.iscsi_conn_offload;
 
 	/* Transmission PQ is the first of the PF */
-	memset(&pq_params, 0, sizeof(pq_params));
-	pq0_id = qed_get_qm_pq(p_hwfn, PROTOCOLID_ISCSI, &pq_params);
-	p_conn->physical_q0 = cpu_to_le16(pq0_id);
-	p_ramrod->iscsi.physical_q0 = cpu_to_le16(pq0_id);
+	physical_q = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OFLD);
+	p_conn->physical_q0 = cpu_to_le16(physical_q);
+	p_ramrod->iscsi.physical_q0 = cpu_to_le16(physical_q);
 
 	/* iSCSI Pure-ACK PQ */
-	pq_params.iscsi.q_idx = 1;
-	pq1_id = qed_get_qm_pq(p_hwfn, PROTOCOLID_ISCSI, &pq_params);
-	p_conn->physical_q1 = cpu_to_le16(pq1_id);
-	p_ramrod->iscsi.physical_q1 = cpu_to_le16(pq1_id);
+	physical_q = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_ACK);
+	p_conn->physical_q1 = cpu_to_le16(physical_q);
+	p_ramrod->iscsi.physical_q1 = cpu_to_le16(physical_q);
 
 	p_ramrod->hdr.op_code = ISCSI_RAMROD_CMD_ID_OFFLOAD_CONN;
 	SET_FIELD(p_ramrod->hdr.flags, ISCSI_SLOW_PATH_HDR_LAYER_CODE,

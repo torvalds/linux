@@ -877,7 +877,6 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 		params->rdma_pf_params.num_qps = QED_ROCE_QPS;
 		params->rdma_pf_params.min_dpis = QED_ROCE_DPIS;
 		/* divide by 3 the MRs to avoid MF ILT overflow */
-		params->rdma_pf_params.num_mrs = RDMA_MAX_TIDS;
 		params->rdma_pf_params.gl_pi = QED_ROCE_PROTOCOL_INDEX;
 	}
 

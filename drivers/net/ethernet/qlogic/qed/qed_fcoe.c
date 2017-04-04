@@ -241,7 +241,7 @@ qed_sp_fcoe_conn_offload(struct qed_hwfn *p_hwfn,
 	struct fcoe_conn_offload_ramrod_data *p_data;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	u16 pq_id = 0, tmp;
+	u16 physical_q0, tmp;
 	int rc;
 
 	/* Get SPQ entry */
@@ -261,9 +261,9 @@ qed_sp_fcoe_conn_offload(struct qed_hwfn *p_hwfn,
 	p_data = &p_ramrod->offload_ramrod_data;
 
 	/* Transmission PQ is the first of the PF */
-	pq_id = qed_get_qm_pq(p_hwfn, PROTOCOLID_FCOE, NULL);
-	p_conn->physical_q0 = cpu_to_le16(pq_id);
-	p_data->physical_q0 = cpu_to_le16(pq_id);
+	physical_q0 = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OFLD);
+	p_conn->physical_q0 = cpu_to_le16(physical_q0);
+	p_data->physical_q0 = cpu_to_le16(physical_q0);
 
 	p_data->conn_id = cpu_to_le16(p_conn->conn_id);
 	DMA_REGPAIR_LE(p_data->sq_pbl_addr, p_conn->sq_pbl_addr);

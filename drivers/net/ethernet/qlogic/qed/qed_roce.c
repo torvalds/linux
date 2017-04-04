@@ -1224,7 +1224,6 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 {
 	struct roce_create_qp_resp_ramrod_data *p_ramrod;
 	struct qed_sp_init_data init_data;
-	union qed_qm_pq_params qm_params;
 	enum roce_flavor roce_flavor;
 	struct qed_spq_entry *p_ent;
 	u16 regular_latency_queue;
@@ -1313,10 +1312,7 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 	p_ramrod->cq_cid = cpu_to_le32((p_hwfn->hw_info.opaque_fid << 16) |
 				       qp->rq_cq_id);
 
-	memset(&qm_params, 0, sizeof(qm_params));
-	qm_params.roce.qpid = qp->icid >> 1;
-	regular_latency_queue = qed_get_qm_pq(p_hwfn, PROTOCOLID_ROCE,
-					      &qm_params);
+	regular_latency_queue = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OFLD);
 
 	p_ramrod->regular_latency_phy_queue =
 	    cpu_to_le16(regular_latency_queue);
@@ -1368,7 +1364,6 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 {
 	struct roce_create_qp_req_ramrod_data *p_ramrod;
 	struct qed_sp_init_data init_data;
-	union qed_qm_pq_params qm_params;
 	enum roce_flavor roce_flavor;
 	struct qed_spq_entry *p_ent;
 	u16 regular_latency_queue;
@@ -1446,10 +1441,7 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 	p_ramrod->cq_cid =
 	    cpu_to_le32((p_hwfn->hw_info.opaque_fid << 16) | qp->sq_cq_id);
 
-	memset(&qm_params, 0, sizeof(qm_params));
-	qm_params.roce.qpid = qp->icid >> 1;
-	regular_latency_queue = qed_get_qm_pq(p_hwfn, PROTOCOLID_ROCE,
-					      &qm_params);
+	regular_latency_queue = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OFLD);
 
 	p_ramrod->regular_latency_phy_queue =
 	    cpu_to_le16(regular_latency_queue);

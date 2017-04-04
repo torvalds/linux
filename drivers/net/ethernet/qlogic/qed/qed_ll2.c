@@ -1090,7 +1090,6 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 	struct core_tx_start_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	union qed_qm_pq_params pq_params;
 	u16 pq_id = 0, pbl_size;
 	int rc = -EINVAL;
 
@@ -1127,9 +1126,17 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 	pbl_size = qed_chain_get_page_cnt(&p_tx->txq_chain);
 	p_ramrod->pbl_size = cpu_to_le16(pbl_size);
 
-	memset(&pq_params, 0, sizeof(pq_params));
-	pq_params.core.tc = p_ll2_conn->conn.tx_tc;
-	pq_id = qed_get_qm_pq(p_hwfn, PROTOCOLID_CORE, &pq_params);
+	switch (p_ll2_conn->conn.tx_tc) {
+	case LB_TC:
+		pq_id = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_LB);
+		break;
+	case OOO_LB_TC:
+		pq_id = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OOO);
+	default:
+		pq_id = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OFLD);
+		break;
+	}
+
 	p_ramrod->qm_pq_id = cpu_to_le16(pq_id);
 
 	switch (conn_type) {
