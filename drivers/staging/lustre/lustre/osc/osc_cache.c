@@ -898,6 +898,7 @@ int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 		int offset = last_off & ~PAGE_MASK;
 		int count = last_count + (offset & (blocksize - 1));
 		int end = (offset + last_count) & (blocksize - 1);
+
 		if (end)
 			count += blocksize - end;
 
