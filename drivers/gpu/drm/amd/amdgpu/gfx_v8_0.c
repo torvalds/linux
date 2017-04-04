@@ -6987,40 +6987,24 @@ static int gfx_v8_0_kiq_set_interrupt_state(struct amdgpu_device *adev,
 					    unsigned int type,
 					    enum amdgpu_interrupt_state state)
 {
-	uint32_t tmp, target;
 	struct amdgpu_ring *ring = &(adev->gfx.kiq.ring);
 
 	BUG_ON(ring->funcs->type != AMDGPU_RING_TYPE_KIQ);
 
-	if (ring->me == 1)
-		target = mmCP_ME1_PIPE0_INT_CNTL;
-	else
-		target = mmCP_ME2_PIPE0_INT_CNTL;
-	target += ring->pipe;
-
 	switch (type) {
 	case AMDGPU_CP_KIQ_IRQ_DRIVER0:
-		if (state == AMDGPU_IRQ_STATE_DISABLE) {
-			tmp = RREG32(mmCPC_INT_CNTL);
-			tmp = REG_SET_FIELD(tmp, CPC_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 0);
-			WREG32(mmCPC_INT_CNTL, tmp);
-
-			tmp = RREG32(target);
-			tmp = REG_SET_FIELD(tmp, CP_ME2_PIPE0_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 0);
-			WREG32(target, tmp);
-		} else {
-			tmp = RREG32(mmCPC_INT_CNTL);
-			tmp = REG_SET_FIELD(tmp, CPC_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 1);
-			WREG32(mmCPC_INT_CNTL, tmp);
-
-			tmp = RREG32(target);
-			tmp = REG_SET_FIELD(tmp, CP_ME2_PIPE0_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 1);
-			WREG32(target, tmp);
-		}
+		WREG32_FIELD(CPC_INT_CNTL, GENERIC2_INT_ENABLE,
+			     state == AMDGPU_IRQ_STATE_DISABLE ? 0 : 1);
+		if (ring->me == 1)
+			WREG32_FIELD_OFFSET(CP_ME1_PIPE0_INT_CNTL,
+				     ring->pipe,
+				     GENERIC2_INT_ENABLE,
+				     state == AMDGPU_IRQ_STATE_DISABLE ? 0 : 1);
+		else
+			WREG32_FIELD_OFFSET(CP_ME2_PIPE0_INT_CNTL,
+				     ring->pipe,
+				     GENERIC2_INT_ENABLE,
+				     state == AMDGPU_IRQ_STATE_DISABLE ? 0 : 1);
 		break;
 	default:
 		BUG(); /* kiq only support GENERIC2_INT now */
