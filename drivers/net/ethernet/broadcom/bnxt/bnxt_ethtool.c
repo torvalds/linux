@@ -1,6 +1,7 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
+ * Copyright (c) 2016-2017 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -830,6 +831,20 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 	/* TODO CHIMP FW: reg dump details */
 	info->regdump_len = 0;
 	kfree(pkglog);
+}
+
+static void bnxt_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	wol->supported = 0;
+	wol->wolopts = 0;
+	memset(&wol->sopass, 0, sizeof(wol->sopass));
+	if (bp->flags & BNXT_FLAG_WOL_CAP) {
+		wol->supported = WAKE_MAGIC;
+		if (bp->wol)
+			wol->wolopts = WAKE_MAGIC;
+	}
 }
 
 u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
@@ -2134,6 +2149,7 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_pauseparam		= bnxt_get_pauseparam,
 	.set_pauseparam		= bnxt_set_pauseparam,
 	.get_drvinfo		= bnxt_get_drvinfo,
+	.get_wol		= bnxt_get_wol,
 	.get_coalesce		= bnxt_get_coalesce,
 	.set_coalesce		= bnxt_set_coalesce,
 	.get_msglevel		= bnxt_get_msglevel,
