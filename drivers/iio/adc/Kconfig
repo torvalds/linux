@@ -496,6 +496,9 @@ config PALMAS_GPADC
 	  is used in smartphones and tablets and supports a 16 channel
 	  general purpose ADC.
 
+config QCOM_VADC_COMMON
+	tristate
+
 config QCOM_SPMI_IADC
 	tristate "Qualcomm SPMI PMIC current ADC"
 	depends on SPMI
@@ -514,6 +517,7 @@ config QCOM_SPMI_VADC
 	tristate "Qualcomm SPMI PMIC voltage ADC"
 	depends on SPMI
 	select REGMAP_SPMI
+	select QCOM_VADC_COMMON
 	help
 	  This is the IIO Voltage ADC driver for Qualcomm QPNP VADC Chip.
 
