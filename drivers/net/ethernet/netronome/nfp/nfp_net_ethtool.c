@@ -237,6 +237,51 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 	return 0;
 }
 
+static int
+nfp_net_set_link_ksettings(struct net_device *netdev,
+			   const struct ethtool_link_ksettings *cmd)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	struct nfp_nsp *nsp;
+	int err;
+
+	if (!nn->eth_port)
+		return -EOPNOTSUPP;
+
+	if (netif_running(netdev)) {
+		nn_warn(nn, "Changing settings not allowed on an active interface. It may cause the port to be disabled until reboot.\n");
+		return -EBUSY;
+	}
+
+	nsp = nfp_eth_config_start(nn->cpp, nn->eth_port->index);
+	if (IS_ERR(nsp))
+		return PTR_ERR(nsp);
+
+	err = __nfp_eth_set_aneg(nsp, cmd->base.autoneg == AUTONEG_ENABLE ?
+				 NFP_ANEG_AUTO : NFP_ANEG_DISABLED);
+	if (err)
+		goto err_bad_set;
+	if (cmd->base.speed != SPEED_UNKNOWN) {
+		u32 speed = cmd->base.speed / nn->eth_port->lanes;
+
+		err = __nfp_eth_set_speed(nsp, speed);
+		if (err)
+			goto err_bad_set;
+	}
+
+	err = nfp_eth_config_commit_end(nsp);
+	if (err > 0)
+		return 0; /* no change */
+
+	nfp_net_refresh_port_config(nn);
+
+	return err;
+
+err_bad_set:
+	nfp_eth_config_cleanup_end(nsp);
+	return err;
+}
+
 static void nfp_net_get_ringparam(struct net_device *netdev,
 				  struct ethtool_ringparam *ring)
 {
@@ -879,6 +924,7 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.get_channels		= nfp_net_get_channels,
 	.set_channels		= nfp_net_set_channels,
 	.get_link_ksettings	= nfp_net_get_link_ksettings,
+	.set_link_ksettings	= nfp_net_set_link_ksettings,
 };
 
 void nfp_net_set_ethtool_ops(struct net_device *netdev)
