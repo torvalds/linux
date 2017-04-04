@@ -839,14 +839,14 @@ static int arch_timer_dying_cpu(unsigned int cpu)
 }
 
 #ifdef CONFIG_CPU_PM
-static unsigned int saved_cntkctl;
+static DEFINE_PER_CPU(unsigned long, saved_cntkctl);
 static int arch_timer_cpu_pm_notify(struct notifier_block *self,
 				    unsigned long action, void *hcpu)
 {
 	if (action == CPU_PM_ENTER)
-		saved_cntkctl = arch_timer_get_cntkctl();
+		__this_cpu_write(saved_cntkctl, arch_timer_get_cntkctl());
 	else if (action == CPU_PM_ENTER_FAILED || action == CPU_PM_EXIT)
-		arch_timer_set_cntkctl(saved_cntkctl);
+		arch_timer_set_cntkctl(__this_cpu_read(saved_cntkctl));
 	return NOTIFY_OK;
 }
 
