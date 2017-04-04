@@ -429,8 +429,8 @@ static struct address_info cfg_mpu;
 static int io = -1;
 static int irq = -1;
 
-module_param(io, int, 0444);
-module_param(irq, int, 0444);
+module_param_hw(io, int, ioport, 0444);
+module_param_hw(irq, int, irq, 0444);
 
 
 static int __init init_uart401(void)
