@@ -16,7 +16,7 @@ De-midlayer drivers
 With the recent ``drm_bus`` cleanup patches for 3.17 it is no longer required
 to have a ``drm_bus`` structure set up. Drivers can directly set up the
 ``drm_device`` structure instead of relying on bus methods in ``drm_usb.c``
-and ``drm_platform.c``. The goal is to get rid of the driver's ``->load`` /
+and ``drm_pci.c``. The goal is to get rid of the driver's ``->load`` /
 ``->unload`` callbacks and open-code the load/unload sequence properly, using
 the new two-stage ``drm_device`` setup/teardown.
 
@@ -175,7 +175,7 @@ fine-grained per-buffer object and per-context lockings scheme. Currently the
 following drivers still use ``struct_mutex``: ``msm``, ``omapdrm`` and
 ``udl``.
 
-Contact: Daniel Vetter
+Contact: Daniel Vetter, respective driver maintainers
 
 Switch to drm_connector_list_iter for any connector_list walking
 ----------------------------------------------------------------
@@ -217,6 +217,8 @@ plan is to switch to per-file driver API headers, which will also structure
 the kerneldoc better. This should also allow more fine-grained ``#include``
 directives.
 
+In the end no .c file should need to include ``drmP.h`` anymore.
+
 Contact: Daniel Vetter
 
 Add missing kerneldoc for exported functions
@@ -244,13 +246,8 @@ be hidden so that driver writers don't accidentally end up using it. And to
 prevent security issues in those legacy IOCTLs from being exploited on modern
 drivers. This has multiple possible subtasks:
 
-* Make sure legacy IOCTLs can't be used on modern drivers.
 * Extract support code for legacy features into a ``drm-legacy.ko`` kernel
   module and compile it only when one of the legacy drivers is enabled.
-* Extract legacy functions into their own headers and remove it that from the
-  monolithic ``drmP.h`` header.
-* Remove any lingering cruft from the OS abstraction layer from modern
-  drivers.
 
 This is mostly done, the only thing left is to split up ``drm_irq.c`` into
 legacy cruft and the parts needed by modern KMS drivers.
@@ -408,23 +405,3 @@ Contact: Noralf Trønnes, Daniel Vetter
 
 Outside DRM
 ===========
-
-Better kerneldoc
-----------------
-
-This is pretty much done, but there's some advanced topics:
-
-Come up with a way to hyperlink to struct members. Currently you can hyperlink
-to the struct using ``#struct_name``, but not to a member within. Would need
-buy-in from kerneldoc maintainers, and the big question is how to make it work
-without totally unsightly
-``drm_foo_bar_really_long_structure->even_longer_memeber`` all over the text
-which breaks text flow.
-
-Figure out how to integrate the asciidoc support for ascii-diagrams. We have a
-few of those (e.g. to describe mode timings), and asciidoc supports converting
-some ascii-art dialect into pngs. Would be really pretty to make that work.
-
-Contact: Daniel Vetter, Jani Nikula
-
-Jani is working on this already, hopefully lands in 4.8.
