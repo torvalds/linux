@@ -137,6 +137,7 @@ struct coex_sta_8723b_2ant {
 	bool a2dp_exist;
 	bool hid_exist;
 	bool pan_exist;
+	bool bt_abnormal_scan;
 
 	bool under_lps;
 	bool under_ips;

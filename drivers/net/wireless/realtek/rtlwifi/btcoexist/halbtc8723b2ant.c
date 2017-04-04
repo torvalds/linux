@@ -1464,17 +1464,35 @@ static void btc8723b2ant_init_coex_dm(struct btc_coexist *btcoexist)
 
 static void btc8723b2ant_action_bt_inquiry(struct btc_coexist *btcoexist)
 {
+	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	bool wifi_connected = false;
 	bool low_pwr_disable = true;
+	bool scan = false, link = false, roam = false;
 
 	btcoexist->btc_set(btcoexist, BTC_SET_ACT_DISABLE_LOW_POWER,
 			   &low_pwr_disable);
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_CONNECTED,
 			   &wifi_connected);
 
-	if (wifi_connected) {
-		btc8723b2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 7);
-		btc8723b2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 3);
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_SCAN, &scan);
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_LINK, &link);
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_ROAM, &roam);
+
+	btc8723b2ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE, 0x0, 0x0);
+
+	if (coex_sta->bt_abnormal_scan) {
+		btc8723b2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 23);
+		btc8723b2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 3);
+	} else if (scan || link || roam) {
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], Wifi link process + BT Inq/Page!!\n");
+		btc8723b2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 15);
+		btc8723b2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 22);
+	} else if (wifi_connected) {
+		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+			 "[BTCoex], Wifi connected + BT Inq/Page!!\n");
+		btc8723b2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 15);
+		btc8723b2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 22);
 	} else {
 		btc8723b2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 0);
 		btc8723b2ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 1);
