@@ -55,16 +55,6 @@
 #include "imx-pcm.h"
 
 /**
- * FSLSSI_I2S_RATES: sample rates supported by the I2S
- *
- * This driver currently only supports the SSI running in I2S slave mode,
- * which means the codec determines the sample rate.  Therefore, we tell
- * ALSA that we support all rates and let the codec driver decide what rates
- * are really supported.
- */
-#define FSLSSI_I2S_RATES SNDRV_PCM_RATE_CONTINUOUS
-
-/**
  * FSLSSI_I2S_FORMATS: audio formats supported by the SSI
  *
  * The SSI has a limitation in that the samples must be in the same byte
@@ -1217,14 +1207,14 @@ static struct snd_soc_dai_driver fsl_ssi_dai_template = {
 		.stream_name = "CPU-Playback",
 		.channels_min = 1,
 		.channels_max = 32,
-		.rates = FSLSSI_I2S_RATES,
+		.rates = SNDRV_PCM_RATE_CONTINUOUS,
 		.formats = FSLSSI_I2S_FORMATS,
 	},
 	.capture = {
 		.stream_name = "CPU-Capture",
 		.channels_min = 1,
 		.channels_max = 32,
-		.rates = FSLSSI_I2S_RATES,
+		.rates = SNDRV_PCM_RATE_CONTINUOUS,
 		.formats = FSLSSI_I2S_FORMATS,
 	},
 	.ops = &fsl_ssi_dai_ops,
