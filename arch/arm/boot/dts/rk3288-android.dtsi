@@ -52,6 +52,8 @@
 		method = "smc";
 	};
 
+	/delete-node/ timer@ff810000;
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		brightness-levels = <
@@ -218,10 +220,6 @@
 	compatible = "rockchip,rga2";
 	clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
 	clock-names = "aclk_rga", "hclk_rga", "clk_rga";
-};
-
-&timer {
-	status = "disabled";
 };
 
 &usb_otg {
