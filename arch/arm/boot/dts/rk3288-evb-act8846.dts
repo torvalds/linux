@@ -240,6 +240,28 @@
 	};
 };
 
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	mpu6050@68 {
+		compatible = "invensense,mpu6050";
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mpu6050_irq_gpio>;
+		reg = <0x68>;
+		irq-gpio = <&gpio8 0 IRQ_TYPE_EDGE_RISING>;
+		mpu-int_config = <0x10>;
+		mpu-level_shifter = <0>;
+		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
+		orientation-x= <0>;
+		orientation-y= <1>;
+		orientation-z= <0>;
+		support-hw-poweroff = <1>;
+		mpu-debug = <1>;
+	};
+};
+
 &lvds_panel {
 	power-supply = <&vcc_lcd>;
 };
@@ -258,6 +280,12 @@
 	wifi {
 		wifi_pwr: wifi-pwr {
 			rockchip,pins = <7 9 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	mpu6050 {
+		mpu6050_irq_gpio: mpu6050-irq-gpio {
+			rockchip,pins = <8 0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
