@@ -82,8 +82,6 @@
 // randomly generated ethernet address
 static u8	node_id [ETH_ALEN];
 
-static const char driver_name [] = "usbnet";
-
 /* use ethtool to change the level for any given device */
 static int msg_level = -1;
 module_param (msg_level, int, 0);
