@@ -1288,9 +1288,7 @@ static void gfx_v9_0_gpu_init(struct amdgpu_device *adev)
 	u32 tmp;
 	int i;
 
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_CNTL));
-	tmp = REG_SET_FIELD(tmp, GRBM_CNTL, READ_TIMEOUT, 0xff);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_CNTL), tmp);
+	WREG32_FIELD15(GC, 0, GRBM_CNTL, READ_TIMEOUT, 0xff);
 
 	gfx_v9_0_tiling_mode_table_init(adev);
 
