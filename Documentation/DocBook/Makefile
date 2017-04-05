@@ -8,12 +8,11 @@
 
 DOCBOOKS := z8530book.xml  \
 	    kernel-hacking.xml kernel-locking.xml \
-	    writing_usb_driver.xml networking.xml \
+	    networking.xml \
 	    filesystems.xml lsm.xml kgdb.xml \
-	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
+	    libata.xml mtdnand.xml librs.xml rapidio.xml \
 	    s390-drivers.xml scsi.xml \
-	    sh.xml w1.xml \
-	    writing_musb_glue_layer.xml
+	    sh.xml w1.xml
 
 ifeq ($(DOCBOOKS),)
 
