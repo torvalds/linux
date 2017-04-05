@@ -1045,8 +1045,9 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 	for (pages_mapped = 0;
 	     pages_mapped < pages_to_map && !err;
 	     pages_mapped += pages_iter, idx += pages_iter) {
+		npages = min_t(int, pages_iter, pages_to_map - pages_mapped);
 		dma_sync_single_for_cpu(ddev, dma, size, DMA_TO_DEVICE);
-		npages = populate_xlt(mr, idx, pages_iter, xlt,
+		npages = populate_xlt(mr, idx, npages, xlt,
 				      page_shift, size, flags);
 
 		dma_sync_single_for_device(ddev, dma, size, DMA_TO_DEVICE);
