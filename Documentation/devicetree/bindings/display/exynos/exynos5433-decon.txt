@@ -10,7 +10,8 @@ Required properties:
 - reg: physical base address and length of the DECON registers set.
 - interrupt-names: should contain the interrupt names depending on mode of work:
 		video mode: "vsync",
-		command mode: "lcd_sys".
+		command mode: "lcd_sys",
+		command mode with software trigger: "lcd_sys", "te".
 - interrupts or interrupts-extended: list of interrupt specifiers corresponding
 		to names privided in interrupt-names, as described in
 		interrupt-controller/interrupts.txt
