@@ -36,14 +36,26 @@
 
 /* DEVICE_CTRL */
 #define PLL_UNLOCK	(1 << 7)
+#define AUXOUTDIS	(1 << 1)
+#define CLKOUTDIS	(1 << 0)
 
 /* DEVICE_CFG1 */
 #define RSEL(x)		(((x) & 0x3) << 3)
 #define RSEL_MASK	RSEL(0x3)
 #define ENDEV1		(0x1)
 
+/* DEVICE_CFG2 */
+#define AUTORMOD	(1 << 3)
+#define LOCKCLK(x)	(((x) & 0x3) << 1)
+#define LOCKCLK_MASK	LOCKCLK(0x3)
+#define FRACNSRC	(1 << 0)
+
 /* GLOBAL_CFG */
 #define ENDEV2		(0x1)
+
+/* FUNC_CFG1 */
+#define REFCLKDIV(x)	(((x) & 0x3) << 3)
+#define REFCLKDIV_MASK	REFCLKDIV(0x3)
 
 #define CH_SIZE_ERR(ch)		((ch < 0) || (ch >= CH_MAX))
 #define hw_to_priv(_hw)		container_of(_hw, struct cs2000_priv, hw)
@@ -127,7 +139,9 @@ static int cs2000_clk_in_bound_rate(struct cs2000_priv *priv,
 	else
 		return -EINVAL;
 
-	return cs2000_bset(priv, FUNC_CFG1, 0x3 << 3, val << 3);
+	return cs2000_bset(priv, FUNC_CFG1,
+			   REFCLKDIV_MASK,
+			   REFCLKDIV(val));
 }
 
 static int cs2000_wait_pll_lock(struct cs2000_priv *priv)
@@ -153,7 +167,10 @@ static int cs2000_wait_pll_lock(struct cs2000_priv *priv)
 static int cs2000_clk_out_enable(struct cs2000_priv *priv, bool enable)
 {
 	/* enable both AUX_OUT, CLK_OUT */
-	return cs2000_write(priv, DEVICE_CTRL, enable ? 0 : 0x3);
+	return cs2000_bset(priv, DEVICE_CTRL,
+			   (AUXOUTDIS | CLKOUTDIS),
+			   enable ? 0 :
+			   (AUXOUTDIS | CLKOUTDIS));
 }
 
 static u32 cs2000_rate_to_ratio(u32 rate_in, u32 rate_out)
@@ -243,7 +260,9 @@ static int cs2000_ratio_select(struct cs2000_priv *priv, int ch)
 	if (ret < 0)
 		return ret;
 
-	ret = cs2000_write(priv, DEVICE_CFG2, 0x0);
+	ret = cs2000_bset(priv, DEVICE_CFG2,
+			  (AUTORMOD | LOCKCLK_MASK | FRACNSRC),
+			  0);
 	if (ret < 0)
 		return ret;
 
