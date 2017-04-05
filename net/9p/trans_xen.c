@@ -85,22 +85,105 @@ struct xen_9pfs_front_priv {
 static LIST_HEAD(xen_9pfs_devs);
 static DEFINE_RWLOCK(xen_9pfs_lock);
 
+/* We don't currently allow canceling of requests */
 static int p9_xen_cancel(struct p9_client *client, struct p9_req_t *req)
 {
-	return 0;
+	return 1;
 }
 
 static int p9_xen_create(struct p9_client *client, const char *addr, char *args)
 {
-	return 0;
+	struct xen_9pfs_front_priv *priv;
+
+	read_lock(&xen_9pfs_lock);
+	list_for_each_entry(priv, &xen_9pfs_devs, list) {
+		if (!strcmp(priv->tag, addr)) {
+			priv->client = client;
+			read_unlock(&xen_9pfs_lock);
+			return 0;
+		}
+	}
+	read_unlock(&xen_9pfs_lock);
+	return -EINVAL;
 }
 
 static void p9_xen_close(struct p9_client *client)
 {
+	struct xen_9pfs_front_priv *priv;
+
+	read_lock(&xen_9pfs_lock);
+	list_for_each_entry(priv, &xen_9pfs_devs, list) {
+		if (priv->client == client) {
+			priv->client = NULL;
+			read_unlock(&xen_9pfs_lock);
+			return;
+		}
+	}
+	read_unlock(&xen_9pfs_lock);
+}
+
+static bool p9_xen_write_todo(struct xen_9pfs_dataring *ring, RING_IDX size)
+{
+	RING_IDX cons, prod;
+
+	cons = ring->intf->out_cons;
+	prod = ring->intf->out_prod;
+	virt_mb();
+
+	return XEN_9PFS_RING_SIZE -
+		xen_9pfs_queued(prod, cons, XEN_9PFS_RING_SIZE) >= size;
 }
 
 static int p9_xen_request(struct p9_client *client, struct p9_req_t *p9_req)
 {
+	struct xen_9pfs_front_priv *priv = NULL;
+	RING_IDX cons, prod, masked_cons, masked_prod;
+	unsigned long flags;
+	u32 size = p9_req->tc->size;
+	struct xen_9pfs_dataring *ring;
+	int num;
+
+	read_lock(&xen_9pfs_lock);
+	list_for_each_entry(priv, &xen_9pfs_devs, list) {
+		if (priv->client == client)
+			break;
+	}
+	read_unlock(&xen_9pfs_lock);
+	if (!priv || priv->client != client)
+		return -EINVAL;
+
+	num = p9_req->tc->tag % priv->num_rings;
+	ring = &priv->rings[num];
+
+again:
+	while (wait_event_interruptible(ring->wq,
+					p9_xen_write_todo(ring, size)) != 0)
+		;
+
+	spin_lock_irqsave(&ring->lock, flags);
+	cons = ring->intf->out_cons;
+	prod = ring->intf->out_prod;
+	virt_mb();
+
+	if (XEN_9PFS_RING_SIZE - xen_9pfs_queued(prod, cons,
+						 XEN_9PFS_RING_SIZE) < size) {
+		spin_unlock_irqrestore(&ring->lock, flags);
+		goto again;
+	}
+
+	masked_prod = xen_9pfs_mask(prod, XEN_9PFS_RING_SIZE);
+	masked_cons = xen_9pfs_mask(cons, XEN_9PFS_RING_SIZE);
+
+	xen_9pfs_write_packet(ring->data.out, p9_req->tc->sdata, size,
+			      &masked_prod, masked_cons, XEN_9PFS_RING_SIZE);
+
+	p9_req->status = REQ_STATUS_SENT;
+	virt_wmb();			/* write ring before updating pointer */
+	prod += size;
+	ring->intf->out_prod = prod;
+	spin_unlock_irqrestore(&ring->lock, flags);
+	notify_remote_via_irq(ring->irq);
+
 	return 0;
 }
 
