@@ -574,7 +574,8 @@ static struct ftrace_probe_ops stacktrace_probe_ops = {
 };
 
 static int
-ftrace_trace_probe_callback(struct ftrace_probe_ops *ops,
+ftrace_trace_probe_callback(struct trace_array *tr,
+			    struct ftrace_probe_ops *ops,
 			    struct ftrace_hash *hash, char *glob,
 			    char *cmd, char *param, int enable)
 {
@@ -612,13 +613,13 @@ ftrace_trace_probe_callback(struct ftrace_probe_ops *ops,
 		return ret;
 
  out_reg:
-	ret = register_ftrace_function_probe(glob, ops, count);
+	ret = register_ftrace_function_probe(glob, tr, ops, count);
 
 	return ret < 0 ? ret : 0;
 }
 
 static int
-ftrace_trace_onoff_callback(struct ftrace_hash *hash,
+ftrace_trace_onoff_callback(struct trace_array *tr, struct ftrace_hash *hash,
 			    char *glob, char *cmd, char *param, int enable)
 {
 	struct ftrace_probe_ops *ops;
@@ -629,24 +630,24 @@ ftrace_trace_onoff_callback(struct ftrace_hash *hash,
 	else
 		ops = param ? &traceoff_count_probe_ops : &traceoff_probe_ops;
 
-	return ftrace_trace_probe_callback(ops, hash, glob, cmd,
+	return ftrace_trace_probe_callback(tr, ops, hash, glob, cmd,
 					   param, enable);
 }
 
 static int
-ftrace_stacktrace_callback(struct ftrace_hash *hash,
+ftrace_stacktrace_callback(struct trace_array *tr, struct ftrace_hash *hash,
 			   char *glob, char *cmd, char *param, int enable)
 {
 	struct ftrace_probe_ops *ops;
 
 	ops = param ? &stacktrace_count_probe_ops : &stacktrace_probe_ops;
 
-	return ftrace_trace_probe_callback(ops, hash, glob, cmd,
+	return ftrace_trace_probe_callback(tr, ops, hash, glob, cmd,
 					   param, enable);
 }
 
 static int
-ftrace_dump_callback(struct ftrace_hash *hash,
+ftrace_dump_callback(struct trace_array *tr, struct ftrace_hash *hash,
 			   char *glob, char *cmd, char *param, int enable)
 {
 	struct ftrace_probe_ops *ops;
@@ -654,12 +655,12 @@ ftrace_dump_callback(struct ftrace_hash *hash,
 	ops = &dump_probe_ops;
 
 	/* Only dump once. */
-	return ftrace_trace_probe_callback(ops, hash, glob, cmd,
+	return ftrace_trace_probe_callback(tr, ops, hash, glob, cmd,
 					   "1", enable);
 }
 
 static int
-ftrace_cpudump_callback(struct ftrace_hash *hash,
+ftrace_cpudump_callback(struct trace_array *tr, struct ftrace_hash *hash,
 			   char *glob, char *cmd, char *param, int enable)
 {
 	struct ftrace_probe_ops *ops;
@@ -667,7 +668,7 @@ ftrace_cpudump_callback(struct ftrace_hash *hash,
 	ops = &cpudump_probe_ops;
 
 	/* Only dump once. */
-	return ftrace_trace_probe_callback(ops, hash, glob, cmd,
+	return ftrace_trace_probe_callback(tr, ops, hash, glob, cmd,
 					   "1", enable);
 }
 

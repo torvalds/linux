@@ -1096,8 +1096,6 @@ static bool update_all_ops;
 # error Dynamic ftrace depends on MCOUNT_RECORD
 #endif
 
-static LIST_HEAD(ftrace_func_probes);
-
 struct ftrace_func_entry {
 	struct hlist_node hlist;
 	unsigned long ip;
@@ -3070,6 +3068,8 @@ static void *
 t_probe_next(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
+	struct trace_array *tr = global_ops.private;
+	struct list_head *func_probes;
 	struct ftrace_hash *hash;
 	struct list_head *next;
 	struct hlist_node *hnd = NULL;
@@ -3079,11 +3079,15 @@ t_probe_next(struct seq_file *m, loff_t *pos)
 	(*pos)++;
 	iter->pos = *pos;
 
-	if (list_empty(&ftrace_func_probes))
+	if (!tr)
+		return NULL;
+
+	func_probes = &tr->func_probes;
+	if (list_empty(func_probes))
 		return NULL;
 
 	if (!iter->probe) {
-		next = ftrace_func_probes.next;
+		next = func_probes->next;
 		iter->probe = list_entry(next, struct ftrace_probe_ops, list);
 	}
 
@@ -3095,7 +3099,7 @@ t_probe_next(struct seq_file *m, loff_t *pos)
 
  retry:
 	if (iter->pidx >= size) {
-		if (iter->probe->list.next == &ftrace_func_probes)
+		if (iter->probe->list.next == func_probes)
 			return NULL;
 		next = iter->probe->list.next;
 		iter->probe = list_entry(next, struct ftrace_probe_ops, list);
@@ -3752,7 +3756,7 @@ static int ftrace_hash_move_and_update_ops(struct ftrace_ops *ops,
  */
 
 static int
-ftrace_mod_callback(struct ftrace_hash *hash,
+ftrace_mod_callback(struct trace_array *tr, struct ftrace_hash *hash,
 		    char *func, char *cmd, char *module, int enable)
 {
 	int ret;
@@ -3942,8 +3946,8 @@ void free_ftrace_func_mapper(struct ftrace_func_mapper *mapper,
 }
 
 int
-register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
-			       void *data)
+register_ftrace_function_probe(char *glob, struct trace_array *tr,
+			       struct ftrace_probe_ops *ops, void *data)
 {
 	struct ftrace_func_entry *entry;
 	struct ftrace_hash **orig_hash;
@@ -3953,6 +3957,9 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	int size;
 	int ret;
 	int i;
+
+	if (WARN_ON(!tr))
+		return -EINVAL;
 
 	/* We do not support '!' for function probes */
 	if (WARN_ON(glob[0] == '!'))
@@ -4006,7 +4013,7 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 		goto err_unlock;
 
 	if (list_empty(&ops->list))
-		list_add(&ops->list, &ftrace_func_probes);
+		list_add(&ops->list, &tr->func_probes);
 
 	if (!(ops->ops.flags & FTRACE_OPS_FL_ENABLED))
 		ret = ftrace_startup(&ops->ops, 0);
@@ -4192,9 +4199,11 @@ __init int unregister_ftrace_command(struct ftrace_func_command *cmd)
 	return ret;
 }
 
-static int ftrace_process_regex(struct ftrace_hash *hash,
+static int ftrace_process_regex(struct ftrace_iterator *iter,
 				char *buff, int len, int enable)
 {
+	struct ftrace_hash *hash = iter->hash;
+	struct trace_array *tr = global_ops.private;
 	char *func, *command, *next = buff;
 	struct ftrace_func_command *p;
 	int ret = -EINVAL;
@@ -4214,10 +4223,13 @@ static int ftrace_process_regex(struct ftrace_hash *hash,
 
 	command = strsep(&next, ":");
 
+	if (WARN_ON_ONCE(!tr))
+		return -EINVAL;
+
 	mutex_lock(&ftrace_cmd_mutex);
 	list_for_each_entry(p, &ftrace_commands, list) {
 		if (strcmp(p->name, command) == 0) {
-			ret = p->func(hash, func, command, next, enable);
+			ret = p->func(tr, hash, func, command, next, enable);
 			goto out_unlock;
 		}
 	}
@@ -4254,7 +4266,7 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 
 	if (read >= 0 && trace_parser_loaded(parser) &&
 	    !trace_parser_cont(parser)) {
-		ret = ftrace_process_regex(iter->hash, parser->buffer,
+		ret = ftrace_process_regex(iter, parser->buffer,
 					   parser->idx, enable);
 		trace_parser_clear(parser);
 		if (ret < 0)
@@ -5441,6 +5453,10 @@ static void ftrace_update_trampoline(struct ftrace_ops *ops)
 	arch_ftrace_update_trampoline(ops);
 }
 
+void ftrace_init_trace_array(struct trace_array *tr)
+{
+	INIT_LIST_HEAD(&tr->func_probes);
+}
 #else
 
 static struct ftrace_ops global_ops = {
@@ -5495,6 +5511,7 @@ __init void ftrace_init_global_array_ops(struct trace_array *tr)
 {
 	tr->ops = &global_ops;
 	tr->ops->private = tr;
+	ftrace_init_trace_array(tr);
 }
 
 void ftrace_init_array_ops(struct trace_array *tr, ftrace_func_t func)

@@ -262,6 +262,9 @@ struct trace_array {
 #ifdef CONFIG_FUNCTION_TRACER
 	struct ftrace_ops	*ops;
 	struct trace_pid_list	__rcu *function_pids;
+#ifdef CONFIG_DYNAMIC_FTRACE
+	struct list_head	func_probes;
+#endif
 	/* function tracing enabled */
 	int			function_enabled;
 #endif
@@ -696,6 +699,9 @@ extern void trace_event_follow_fork(struct trace_array *tr, bool enable);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 extern unsigned long ftrace_update_tot_cnt;
+void ftrace_init_trace_array(struct trace_array *tr);
+#else
+static inline void ftrace_init_trace_array(struct trace_array *tr) { }
 #endif
 #define DYN_FTRACE_TEST_NAME trace_selftest_dynamic_test_func
 extern int DYN_FTRACE_TEST_NAME(void);
@@ -883,7 +889,8 @@ extern struct list_head ftrace_pids;
 struct ftrace_func_command {
 	struct list_head	list;
 	char			*name;
-	int			(*func)(struct ftrace_hash *hash,
+	int			(*func)(struct trace_array *tr,
+					struct ftrace_hash *hash,
 					char *func, char *cmd,
 					char *params, int enable);
 };
@@ -963,8 +970,8 @@ void free_ftrace_func_mapper(struct ftrace_func_mapper *mapper,
 			     ftrace_mapper_func free_func);
 
 extern int
-register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
-			      void *data);
+register_ftrace_function_probe(char *glob, struct trace_array *tr,
+			       struct ftrace_probe_ops *ops, void *data);
 extern int
 unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
 

@@ -6815,7 +6815,7 @@ static struct ftrace_probe_ops snapshot_count_probe_ops = {
 };
 
 static int
-ftrace_trace_snapshot_callback(struct ftrace_hash *hash,
+ftrace_trace_snapshot_callback(struct trace_array *tr, struct ftrace_hash *hash,
 			       char *glob, char *cmd, char *param, int enable)
 {
 	struct ftrace_probe_ops *ops;
@@ -6855,7 +6855,7 @@ ftrace_trace_snapshot_callback(struct ftrace_hash *hash,
 		return ret;
 
  out_reg:
-	ret = register_ftrace_function_probe(glob, ops, count);
+	ret = register_ftrace_function_probe(glob, tr, ops, count);
 
 	if (ret >= 0)
 		alloc_snapshot(&global_trace);
@@ -7467,6 +7467,8 @@ static int instance_mkdir(const char *name)
 		tracefs_remove_recursive(tr->dir);
 		goto out_free_tr;
 	}
+
+	ftrace_init_trace_array(tr);
 
 	init_tracer_tracefs(tr, tr->dir);
 	init_trace_flags_index(tr);
