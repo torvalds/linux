@@ -18,7 +18,7 @@
 #include <linux/module.h>
 
 #define ASM_EXPORT(sym, val) \
-	asm(".globl " #sym "; .set " #sym ", %0" :: "I"(val));
+	asm(".globl " #sym "; .set " #sym ", %c0" :: "i"(val));
 
 MODULE_DESCRIPTION("SHA1 secure hash using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
