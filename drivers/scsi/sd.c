@@ -418,6 +418,46 @@ provisioning_mode_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(provisioning_mode);
 
+static const char *zeroing_mode[] = {
+	[SD_ZERO_WRITE]		= "write",
+	[SD_ZERO_WS]		= "writesame",
+	[SD_ZERO_WS16_UNMAP]	= "writesame_16_unmap",
+	[SD_ZERO_WS10_UNMAP]	= "writesame_10_unmap",
+};
+
+static ssize_t
+zeroing_mode_show(struct device *dev, struct device_attribute *attr,
+		  char *buf)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+
+	return snprintf(buf, 20, "%s\n", zeroing_mode[sdkp->zeroing_mode]);
+}
+
+static ssize_t
+zeroing_mode_store(struct device *dev, struct device_attribute *attr,
+		   const char *buf, size_t count)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	if (!strncmp(buf, zeroing_mode[SD_ZERO_WRITE], 20))
+		sdkp->zeroing_mode = SD_ZERO_WRITE;
+	else if (!strncmp(buf, zeroing_mode[SD_ZERO_WS], 20))
+		sdkp->zeroing_mode = SD_ZERO_WS;
+	else if (!strncmp(buf, zeroing_mode[SD_ZERO_WS16_UNMAP], 20))
+		sdkp->zeroing_mode = SD_ZERO_WS16_UNMAP;
+	else if (!strncmp(buf, zeroing_mode[SD_ZERO_WS10_UNMAP], 20))
+		sdkp->zeroing_mode = SD_ZERO_WS10_UNMAP;
+	else
+		return -EINVAL;
+
+	return count;
+}
+static DEVICE_ATTR_RW(zeroing_mode);
+
 static ssize_t
 max_medium_access_timeouts_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -496,6 +536,7 @@ static struct attribute *sd_disk_attrs[] = {
 	&dev_attr_app_tag_own.attr,
 	&dev_attr_thin_provisioning.attr,
 	&dev_attr_provisioning_mode.attr,
+	&dev_attr_zeroing_mode.attr,
 	&dev_attr_max_write_same_blocks.attr,
 	&dev_attr_max_medium_access_timeouts.attr,
 	NULL,
@@ -799,10 +840,10 @@ static int sd_setup_write_zeroes_cmnd(struct scsi_cmnd *cmd)
 	u32 nr_sectors = blk_rq_sectors(rq) >> (ilog2(sdp->sector_size) - 9);
 
 	if (!(rq->cmd_flags & REQ_NOUNMAP)) {
-		switch (sdkp->provisioning_mode) {
-		case SD_LBP_WS16:
+		switch (sdkp->zeroing_mode) {
+		case SD_ZERO_WS16_UNMAP:
 			return sd_setup_write_same16_cmnd(cmd, true);
-		case SD_LBP_WS10:
+		case SD_ZERO_WS10_UNMAP:
 			return sd_setup_write_same10_cmnd(cmd, true);
 		}
 	}
@@ -839,6 +880,15 @@ static void sd_config_write_same(struct scsi_disk *sdkp)
 		sdkp->device->no_write_same = 1;
 		sdkp->max_ws_blocks = 0;
 	}
+
+	if (sdkp->lbprz && sdkp->lbpws)
+		sdkp->zeroing_mode = SD_ZERO_WS16_UNMAP;
+	else if (sdkp->lbprz && sdkp->lbpws10)
+		sdkp->zeroing_mode = SD_ZERO_WS10_UNMAP;
+	else if (sdkp->max_ws_blocks)
+		sdkp->zeroing_mode = SD_ZERO_WS;
+	else
+		sdkp->zeroing_mode = SD_ZERO_WRITE;
 
 out:
 	blk_queue_max_write_same_sectors(q, sdkp->max_ws_blocks *
