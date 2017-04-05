@@ -19,6 +19,7 @@ properties:
       - rockchip,rk3188-efuse
       - rockchip,rk3228-efuse
       - rockchip,rk3288-efuse
+      - rockchip,rk3288-secure-efuse
       - rockchip,rk3328-efuse
       - rockchip,rk3368-efuse
       - rockchip,rk3399-efuse
