@@ -24,25 +24,75 @@
 #ifndef _LINUX_SRCU_TREE_H
 #define _LINUX_SRCU_TREE_H
 
-struct srcu_array {
-	unsigned long lock_count[2];
-	unsigned long unlock_count[2];
+#include <linux/rcu_node_tree.h>
+#include <linux/completion.h>
+
+struct srcu_node;
+struct srcu_struct;
+
+/*
+ * Per-CPU structure feeding into leaf srcu_node, similar in function
+ * to rcu_node.
+ */
+struct srcu_data {
+	/* Read-side state. */
+	unsigned long srcu_lock_count[2];	/* Locks per CPU. */
+	unsigned long srcu_unlock_count[2];	/* Unlocks per CPU. */
+
+	/* Update-side state. */
+	spinlock_t lock ____cacheline_internodealigned_in_smp;
+	struct rcu_segcblist srcu_cblist;	/* List of callbacks.*/
+	unsigned long srcu_gp_seq_needed;	/* Furthest future GP needed. */
+	bool srcu_cblist_invoking;		/* Invoking these CBs? */
+	struct delayed_work work;		/* Context for CB invoking. */
+	struct rcu_head srcu_barrier_head;	/* For srcu_barrier() use. */
+	struct srcu_node *mynode;		/* Leaf srcu_node. */
+	int cpu;
+	struct srcu_struct *sp;
 };
 
+/*
+ * Node in SRCU combining tree, similar in function to rcu_data.
+ */
+struct srcu_node {
+	spinlock_t lock;
+	unsigned long srcu_have_cbs[4];		/* GP seq for children */
+						/*  having CBs, but only */
+						/*  is > ->srcu_gq_seq. */
+	struct srcu_node *srcu_parent;		/* Next up in tree. */
+	int grplo;				/* Least CPU for node. */
+	int grphi;				/* Biggest CPU for node. */
+};
+
+/*
+ * Per-SRCU-domain structure, similar in function to rcu_state.
+ */
 struct srcu_struct {
-	unsigned long completed;
-	unsigned long srcu_gp_seq;
-	atomic_t srcu_exp_cnt;
-	struct srcu_array __percpu *per_cpu_ref;
-	spinlock_t queue_lock; /* protect ->srcu_cblist */
-	struct rcu_segcblist srcu_cblist;
+	struct srcu_node node[NUM_RCU_NODES];	/* Combining tree. */
+	struct srcu_node *level[RCU_NUM_LVLS + 1];
+						/* First node at each level. */
+	struct mutex srcu_cb_mutex;		/* Serialize CB preparation. */
+	spinlock_t gp_lock;			/* protect ->srcu_cblist */
+	struct mutex srcu_gp_mutex;		/* Serialize GP work. */
+	unsigned int srcu_idx;			/* Current rdr array element. */
+	unsigned long srcu_gp_seq;		/* Grace-period seq #. */
+	unsigned long srcu_gp_seq_needed;	/* Latest gp_seq needed. */
+	atomic_t srcu_exp_cnt;			/* # ongoing expedited GPs. */
+	struct srcu_data __percpu *sda;		/* Per-CPU srcu_data array. */
+	unsigned long srcu_barrier_seq;		/* srcu_barrier seq #. */
+	struct mutex srcu_barrier_mutex;	/* Serialize barrier ops. */
+	struct completion srcu_barrier_completion;
+						/* Awaken barrier rq at end. */
+	atomic_t srcu_barrier_cpu_cnt;		/* # CPUs not yet posting a */
+						/*  callback for the barrier */
+						/*  operation. */
 	struct delayed_work work;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map dep_map;
 #endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 };
 
-/* Values for -> state variable. */
+/* Values for state variable (bottom bits of ->srcu_gp_seq). */
 #define SRCU_STATE_IDLE		0
 #define SRCU_STATE_SCAN1	1
 #define SRCU_STATE_SCAN2	2
@@ -51,11 +101,9 @@ void process_srcu(struct work_struct *work);
 
 #define __SRCU_STRUCT_INIT(name)					\
 	{								\
-		.completed = -300,					\
-		.per_cpu_ref = &name##_srcu_array,			\
-		.queue_lock = __SPIN_LOCK_UNLOCKED(name.queue_lock),	\
-		.srcu_cblist = RCU_SEGCBLIST_INITIALIZER(name.srcu_cblist),\
-		.work = __DELAYED_WORK_INITIALIZER(name.work, process_srcu, 0),\
+		.sda = &name##_srcu_data,				\
+		.gp_lock = __SPIN_LOCK_UNLOCKED(name.gp_lock),		\
+		.srcu_gp_seq_needed = 0 - 1,				\
 		__SRCU_DEP_MAP_INIT(name)				\
 	}
 
@@ -79,7 +127,7 @@ void process_srcu(struct work_struct *work);
  * See include/linux/percpu-defs.h for the rules on per-CPU variables.
  */
 #define __DEFINE_SRCU(name, is_static)					\
-	static DEFINE_PER_CPU(struct srcu_array, name##_srcu_array);\
+	static DEFINE_PER_CPU(struct srcu_data, name##_srcu_data);\
 	is_static struct srcu_struct name = __SRCU_STRUCT_INIT(name)
 #define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* not static */)
 #define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, static)
