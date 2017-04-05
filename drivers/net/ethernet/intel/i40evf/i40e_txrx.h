@@ -106,6 +106,7 @@ enum i40e_dyn_idx_t {
 #define I40E_RXBUFFER_256   256
 #define I40E_RXBUFFER_1536  1536  /* 128B aligned standard Ethernet frame */
 #define I40E_RXBUFFER_2048  2048
+#define I40E_RXBUFFER_3072  3072  /* Used for large frames w/ padding */
 #define I40E_MAX_RXBUFFER   9728  /* largest size for single descriptor */
 
 /* NOTE: netdev_alloc_skb reserves up to 64 bytes, NET_IP_ALIGN means we
@@ -375,6 +376,17 @@ struct i40e_ring_container {
 /* iterator for handling rings in ring container */
 #define i40e_for_each_ring(pos, head) \
 	for (pos = (head).ring; pos != NULL; pos = pos->next)
+
+static inline unsigned int i40e_rx_pg_order(struct i40e_ring *ring)
+{
+#if (PAGE_SIZE < 8192)
+	if (ring->rx_buf_len > (PAGE_SIZE / 2))
+		return 1;
+#endif
+	return 0;
+}
+
+#define i40e_rx_pg_size(_ring) (PAGE_SIZE << i40e_rx_pg_order(_ring))
 
 bool i40evf_alloc_rx_buffers(struct i40e_ring *rxr, u16 cleaned_count);
 netdev_tx_t i40evf_xmit_frame(struct sk_buff *skb, struct net_device *netdev);

@@ -3085,7 +3085,8 @@ static int i40e_vsi_configure_rx(struct i40e_vsi *vsi)
 #endif
 	} else {
 		vsi->max_frame = I40E_MAX_RXBUFFER;
-		vsi->rx_buf_len = I40E_RXBUFFER_2048;
+		vsi->rx_buf_len = (PAGE_SIZE < 8192) ? I40E_RXBUFFER_3072 :
+						       I40E_RXBUFFER_2048;
 	}
 
 	/* set up individual rings */

@@ -1138,14 +1138,15 @@ void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 		dma_sync_single_range_for_cpu(rx_ring->dev,
 					      rx_bi->dma,
 					      rx_bi->page_offset,
-					      I40E_RXBUFFER_2048,
+					      rx_ring->rx_buf_len,
 					      DMA_FROM_DEVICE);
 
 		/* free resources associated with mapping */
 		dma_unmap_page_attrs(rx_ring->dev, rx_bi->dma,
-				     PAGE_SIZE,
+				     i40e_rx_pg_size(rx_ring),
 				     DMA_FROM_DEVICE,
 				     I40E_RX_DMA_ATTR);
+
 		__page_frag_cache_drain(rx_bi->page, rx_bi->pagecnt_bias);
 
 		rx_bi->page = NULL;
@@ -1267,7 +1268,7 @@ static bool i40e_alloc_mapped_page(struct i40e_ring *rx_ring,
 	}
 
 	/* alloc new page for storage */
-	page = dev_alloc_page();
+	page = dev_alloc_pages(i40e_rx_pg_order(rx_ring));
 	if (unlikely(!page)) {
 		rx_ring->rx_stats.alloc_page_failed++;
 		return false;
@@ -1275,7 +1276,7 @@ static bool i40e_alloc_mapped_page(struct i40e_ring *rx_ring,
 
 	/* map page for use */
 	dma = dma_map_page_attrs(rx_ring->dev, page, 0,
-				 PAGE_SIZE,
+				 i40e_rx_pg_size(rx_ring),
 				 DMA_FROM_DEVICE,
 				 I40E_RX_DMA_ATTR);
 
@@ -1283,7 +1284,7 @@ static bool i40e_alloc_mapped_page(struct i40e_ring *rx_ring,
 	 * there isn't much point in holding memory we can't use
 	 */
 	if (dma_mapping_error(rx_ring->dev, dma)) {
-		__free_pages(page, 0);
+		__free_pages(page, i40e_rx_pg_order(rx_ring));
 		rx_ring->rx_stats.alloc_page_failed++;
 		return false;
 	}
@@ -1343,7 +1344,7 @@ bool i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 		/* sync the buffer for use by the device */
 		dma_sync_single_range_for_device(rx_ring->dev, bi->dma,
 						 bi->page_offset,
-						 I40E_RXBUFFER_2048,
+						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
 
 		/* Refresh the desc even if buffer_addrs didn't change
@@ -1645,9 +1646,6 @@ static inline bool i40e_page_is_reusable(struct page *page)
  **/
 static bool i40e_can_reuse_rx_page(struct i40e_rx_buffer *rx_buffer)
 {
-#if (PAGE_SIZE >= 8192)
-	unsigned int last_offset = PAGE_SIZE - I40E_RXBUFFER_2048;
-#endif
 	unsigned int pagecnt_bias = rx_buffer->pagecnt_bias;
 	struct page *page = rx_buffer->page;
 
@@ -1660,7 +1658,9 @@ static bool i40e_can_reuse_rx_page(struct i40e_rx_buffer *rx_buffer)
 	if (unlikely((page_count(page) - pagecnt_bias) > 1))
 		return false;
 #else
-	if (rx_buffer->page_offset > last_offset)
+#define I40E_LAST_OFFSET \
+	(SKB_WITH_OVERHEAD(PAGE_SIZE) - I40E_RXBUFFER_2048)
+	if (rx_buffer->page_offset > I40E_LAST_OFFSET)
 		return false;
 #endif
 
@@ -1694,7 +1694,7 @@ static void i40e_add_rx_frag(struct i40e_ring *rx_ring,
 			     unsigned int size)
 {
 #if (PAGE_SIZE < 8192)
-	unsigned int truesize = I40E_RXBUFFER_2048;
+	unsigned int truesize = i40e_rx_pg_size(rx_ring) / 2;
 #else
 	unsigned int truesize = SKB_DATA_ALIGN(size);
 #endif
@@ -1755,7 +1755,7 @@ static struct sk_buff *i40e_construct_skb(struct i40e_ring *rx_ring,
 {
 	void *va = page_address(rx_buffer->page) + rx_buffer->page_offset;
 #if (PAGE_SIZE < 8192)
-	unsigned int truesize = I40E_RXBUFFER_2048;
+	unsigned int truesize = i40e_rx_pg_size(rx_ring) / 2;
 #else
 	unsigned int truesize = SKB_DATA_ALIGN(size);
 #endif
@@ -1821,7 +1821,8 @@ static void i40e_put_rx_buffer(struct i40e_ring *rx_ring,
 		rx_ring->rx_stats.page_reuse_count++;
 	} else {
 		/* we are not reusing the buffer so unmap it */
-		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma, PAGE_SIZE,
+		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma,
+				     i40e_rx_pg_size(rx_ring),
 				     DMA_FROM_DEVICE, I40E_RX_DMA_ATTR);
 		__page_frag_cache_drain(rx_buffer->page,
 					rx_buffer->pagecnt_bias);

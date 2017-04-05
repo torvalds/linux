@@ -694,6 +694,12 @@ static void i40evf_configure_rx(struct i40evf_adapter *adapter)
 	/* Legacy Rx will always default to a 2048 buffer size. */
 #if (PAGE_SIZE < 8192)
 	if (!(adapter->flags & I40EVF_FLAG_LEGACY_RX)) {
+		/* For jumbo frames on systems with 4K pages we have to use
+		 * an order 1 page, so we might as well increase the size
+		 * of our Rx buffer to make better use of the available space
+		 */
+		rx_buf_len = I40E_RXBUFFER_3072;
+
 		/* We use a 1536 buffer size for configurations with
 		 * standard Ethernet mtu.  On x86 this gives us enough room
 		 * for shared info and 192 bytes of padding.
