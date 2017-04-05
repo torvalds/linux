@@ -135,13 +135,10 @@
 /* Device controlling the backlight and associated keys */
 struct fujitsu_bl {
 	acpi_handle acpi_handle;
-	struct acpi_device *dev;
 	struct input_dev *input;
 	char phys[32];
 	struct backlight_device *bl_device;
-
 	unsigned int max_brightness;
-	unsigned int brightness_changed;
 	unsigned int brightness_level;
 };
 
@@ -394,11 +391,6 @@ static int get_lcd_level(void)
 
 	fujitsu_bl->brightness_level = state & 0x0fffffff;
 
-	if (state & 0x80000000)
-		fujitsu_bl->brightness_changed = 1;
-	else
-		fujitsu_bl->brightness_changed = 0;
-
 	return fujitsu_bl->brightness_level;
 }
 
@@ -577,8 +569,6 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	       acpi_device_name(device), acpi_device_bid(device),
 	       !device->power.state ? "on" : "off");
 
-	fujitsu_bl->dev = device;
-
 	if (acpi_has_method(device->handle, METHOD_NAME__INI)) {
 		vdbg_printk(FUJLAPTOP_DBG_INFO, "Invoking _INI\n");
 		if (ACPI_FAILURE
@@ -618,9 +608,8 @@ static void acpi_fujitsu_bl_notify(struct acpi_device *device, u32 event)
 	get_lcd_level();
 	newb = fujitsu_bl->brightness_level;
 
-	vdbg_printk(FUJLAPTOP_DBG_TRACE,
-		    "brightness button event [%i -> %i (%i)]\n",
-		    oldb, newb, fujitsu_bl->brightness_changed);
+	vdbg_printk(FUJLAPTOP_DBG_TRACE, "brightness button event [%i -> %i]\n",
+		    oldb, newb);
 
 	if (oldb == newb)
 		return;
