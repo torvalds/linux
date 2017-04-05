@@ -49,7 +49,6 @@ static const char * const decon_clks_name[] = {
 
 enum decon_flag_bits {
 	BIT_CLKS_ENABLED,
-	BIT_IRQS_ENABLED,
 	BIT_WIN_UPDATED,
 	BIT_SUSPENDED
 };
@@ -112,8 +111,6 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 	if (!(ctx->out_type & I80_HW_TRG))
 		enable_irq(ctx->te_irq);
 
-	set_bit(BIT_IRQS_ENABLED, &ctx->flags);
-
 	return 0;
 }
 
@@ -121,7 +118,6 @@ static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
-	clear_bit(BIT_IRQS_ENABLED, &ctx->flags);
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
@@ -536,9 +532,7 @@ static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
 	    (ctx->out_type & I80_HW_TRG))
 		return IRQ_HANDLED;
 
-	if (test_and_clear_bit(BIT_WIN_UPDATED, &ctx->flags) ||
-	    test_bit(BIT_IRQS_ENABLED, &ctx->flags))
-		decon_set_bits(ctx, DECON_TRIGCON, TRIGCON_SWTRIGCMD, ~0);
+	decon_set_bits(ctx, DECON_TRIGCON, TRIGCON_SWTRIGCMD, ~0);
 
 	return IRQ_HANDLED;
 }
