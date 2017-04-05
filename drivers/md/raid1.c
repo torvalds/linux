@@ -1091,9 +1091,9 @@ static void unfreeze_array(struct r1conf *conf)
 }
 
 static struct bio *alloc_behind_master_bio(struct r1bio *r1_bio,
-					   struct bio *bio,
-					   int offset, int size)
+					   struct bio *bio)
 {
+	int size = bio->bi_iter.bi_size;
 	unsigned vcnt = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	int i = 0;
 	struct bio *behind_bio = NULL;
@@ -1120,8 +1120,7 @@ static struct bio *alloc_behind_master_bio(struct r1bio *r1_bio,
 		i++;
 	}
 
-	bio_copy_data_partial(behind_bio, bio, offset,
-			      behind_bio->bi_iter.bi_size);
+	bio_copy_data(behind_bio, bio);
 skip_copy:
 	r1_bio->behind_master_bio = behind_bio;;
 	set_bit(R1BIO_BehindIO, &r1_bio->state);
@@ -1462,9 +1461,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			    (atomic_read(&bitmap->behind_writes)
 			     < mddev->bitmap_info.max_write_behind) &&
 			    !waitqueue_active(&bitmap->behind_wait)) {
-				mbio = alloc_behind_master_bio(r1_bio, bio,
-							       0,
-							       max_sectors << 9);
+				mbio = alloc_behind_master_bio(r1_bio, bio);
 			}
 
 			bitmap_startwrite(bitmap, r1_bio->sector,
