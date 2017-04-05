@@ -542,6 +542,8 @@ struct octeon_device {
 	u32 rx_coalesce_usecs;
 	u32 rx_max_coalesced_frames;
 	u32 tx_max_coalesced_frames;
+
+	bool cores_crashed;
 };
 
 #define  OCT_DRV_ONLINE 1
