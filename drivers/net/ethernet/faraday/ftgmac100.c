@@ -1160,6 +1160,9 @@ static int ftgmac100_open(struct net_device *netdev)
 	if (err)
 		goto err_hw;
 
+	/* Initialize NAPI */
+	netif_napi_add(netdev, &priv->napi, ftgmac100_poll, 64);
+
 	ftgmac100_init_hw(priv);
 	ftgmac100_start_hw(priv);
 
@@ -1190,6 +1193,7 @@ static int ftgmac100_open(struct net_device *netdev)
 err_ncsi:
 	napi_disable(&priv->napi);
 	netif_stop_queue(netdev);
+	netif_napi_del(&priv->napi);
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 err_hw:
 	free_irq(netdev->irq, netdev);
@@ -1209,6 +1213,7 @@ static int ftgmac100_stop(struct net_device *netdev)
 
 	netif_stop_queue(netdev);
 	napi_disable(&priv->napi);
+	netif_napi_del(&priv->napi);
 	if (netdev->phydev)
 		phy_stop(netdev->phydev);
 	else if (priv->use_ncsi)
@@ -1380,9 +1385,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 
 	spin_lock_init(&priv->tx_lock);
-
-	/* initialize NAPI */
-	netif_napi_add(netdev, &priv->napi, ftgmac100_poll, 64);
 
 	/* map io memory */
 	priv->res = request_mem_region(res->start, resource_size(res),
