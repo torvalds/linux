@@ -13,9 +13,6 @@
 #include <net/act_api.h>
 #include <linux/tc_act/tc_vlan.h>
 
-#define VLAN_F_POP		0x1
-#define VLAN_F_PUSH		0x2
-
 struct tcf_vlan {
 	struct tc_action	common;
 	int			tcfv_action;
