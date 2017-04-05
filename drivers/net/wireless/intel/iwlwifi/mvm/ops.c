@@ -1323,7 +1323,7 @@ static bool iwl_mvm_disallow_offloading(struct iwl_mvm *mvm,
 		 * for offloading in order to prevent reuse of the same
 		 * qos seq counters.
 		 */
-		if (iwl_mvm_tid_queued(tid_data))
+		if (iwl_mvm_tid_queued(mvm, tid_data))
 			continue;
 
 		if (tid_data->state != IWL_AGG_OFF)

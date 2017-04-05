@@ -2395,7 +2395,7 @@ static void __iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 
 		__set_bit(tid_data->txq_id, &txqs);
 
-		if (iwl_mvm_tid_queued(tid_data) == 0)
+		if (iwl_mvm_tid_queued(mvm, tid_data) == 0)
 			continue;
 
 		__set_bit(tid, &tids);

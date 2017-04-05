@@ -2529,6 +2529,7 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data;
+	u16 normalized_ssn;
 	int txq_id;
 	int ret;
 
@@ -2616,7 +2617,15 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    mvmsta->sta_id, tid, txq_id, tid_data->ssn,
 			    tid_data->next_reclaimed);
 
-	if (tid_data->ssn == tid_data->next_reclaimed) {
+	/*
+	 * In A000 HW, the next_reclaimed index is only 8 bit, so we'll need
+	 * to align the wrap around of ssn so we compare relevant values.
+	 */
+	normalized_ssn = tid_data->ssn;
+	if (mvm->trans->cfg->gen2)
+		normalized_ssn &= 0xff;
+
+	if (normalized_ssn == tid_data->next_reclaimed) {
 		tid_data->state = IWL_AGG_STARTING;
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 	} else {
@@ -3540,7 +3549,7 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 				return;
 			}
 
-			n_queued = iwl_mvm_tid_queued(tid_data);
+			n_queued = iwl_mvm_tid_queued(mvm, tid_data);
 			if (n_queued > remaining) {
 				more_data = true;
 				remaining = 0;
@@ -3721,4 +3730,18 @@ void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, true);
 
 	rcu_read_unlock();
+}
+
+u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data)
+{
+	u16 sn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
+
+	/*
+	 * In A000 HW, the next_reclaimed index is only 8 bit, so we'll need
+	 * to align the wrap around of ssn so we compare relevant values.
+	 */
+	if (mvm->trans->cfg->gen2)
+		sn &= 0xff;
+
+	return ieee80211_sn_sub(sn, tid_data->next_reclaimed);
 }

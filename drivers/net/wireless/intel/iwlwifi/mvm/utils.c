@@ -1181,7 +1181,7 @@ static void iwl_mvm_remove_inactive_tids(struct iwl_mvm *mvm,
 	/* Go over all non-active TIDs, incl. IWL_MAX_TID_COUNT (for mgmt) */
 	for_each_set_bit(tid, &tid_bitmap, IWL_MAX_TID_COUNT + 1) {
 		/* If some TFDs are still queued - don't mark TID as inactive */
-		if (iwl_mvm_tid_queued(&mvmsta->tid_data[tid]))
+		if (iwl_mvm_tid_queued(mvm, &mvmsta->tid_data[tid]))
 			tid_bitmap &= ~BIT(tid);
 	}
 
