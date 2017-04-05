@@ -61,13 +61,12 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 	int entry;
 	unsigned long page_shift = umem->page_shift;
 
-	/* With ODP we must always match OS page size. */
 	if (umem->odp_data) {
-		*count = ib_umem_page_count(umem);
-		*shift = PAGE_SHIFT;
-		*ncont = *count;
+		*ncont = ib_umem_page_count(umem);
+		*count = *ncont << (page_shift - PAGE_SHIFT);
+		*shift = page_shift;
 		if (order)
-			*order = ilog2(roundup_pow_of_two(*count));
+			*order = ilog2(roundup_pow_of_two(*ncont));
 
 		return;
 	}
