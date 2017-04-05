@@ -1581,13 +1581,13 @@ bool __sched __rt_mutex_futex_unlock(struct rt_mutex *lock,
 		return false; /* done */
 	}
 
-	mark_wakeup_next_waiter(wake_q, lock);
 	/*
-	 * We've already deboosted, retain preempt_disabled when dropping
-	 * the wait_lock to avoid inversion until the wakeup. Matched
-	 * by rt_mutex_postunlock();
+	 * We've already deboosted, mark_wakeup_next_waiter() will
+	 * retain preempt_disabled when we drop the wait_lock, to
+	 * avoid inversion prior to the wakeup.  preempt_disable()
+	 * therein pairs with rt_mutex_postunlock().
 	 */
-	preempt_disable();
+	mark_wakeup_next_waiter(wake_q, lock);
 
 	return true; /* call postunlock() */
 }
