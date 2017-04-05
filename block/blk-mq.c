@@ -1462,7 +1462,7 @@ static void __blk_mq_try_issue_directly(struct request *rq, blk_qc_t *cookie,
 	struct request_queue *q = rq->q;
 	struct blk_mq_queue_data bd = {
 		.rq = rq,
-		.last = 1
+		.last = true,
 	};
 	struct blk_mq_hw_ctx *hctx;
 	blk_qc_t new_cookie;
