@@ -141,14 +141,6 @@ void wil_memcpy_fromio_32(void *dst, const volatile void __iomem *src,
 	}
 }
 
-void wil_memcpy_fromio_halp_vote(struct wil6210_priv *wil, void *dst,
-				 const volatile void __iomem *src, size_t count)
-{
-	wil_halp_vote(wil);
-	wil_memcpy_fromio_32(dst, src, count);
-	wil_halp_unvote(wil);
-}
-
 void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 			size_t count)
 {
@@ -165,15 +157,6 @@ void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 		memcpy(&tmp, s, count);
 		__raw_writel(tmp, d);
 	}
-}
-
-void wil_memcpy_toio_halp_vote(struct wil6210_priv *wil,
-			       volatile void __iomem *dst,
-			       const void *src, size_t count)
-{
-	wil_halp_vote(wil);
-	wil_memcpy_toio_32(dst, src, count);
-	wil_halp_unvote(wil);
 }
 
 static void wil_disconnect_cid(struct wil6210_priv *wil, int cid,
