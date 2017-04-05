@@ -133,7 +133,7 @@ static int xgpu_ai_poll_ack(struct amdgpu_device *adev)
 	return r;
 }
 
-static int xgpu_vi_poll_msg(struct amdgpu_device *adev, enum idh_event event)
+static int xgpu_ai_poll_msg(struct amdgpu_device *adev, enum idh_event event)
 {
 	int r = 0, timeout = AI_MAILBOX_TIMEDOUT;
 
@@ -172,7 +172,7 @@ static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
 	if (req == IDH_REQ_GPU_INIT_ACCESS ||
 		req == IDH_REQ_GPU_FINI_ACCESS ||
 		req == IDH_REQ_GPU_RESET_ACCESS) {
-		r = xgpu_vi_poll_msg(adev, IDH_READY_TO_ACCESS_GPU);
+		r = xgpu_ai_poll_msg(adev, IDH_READY_TO_ACCESS_GPU);
 		if (r)
 			return r;
 	}
