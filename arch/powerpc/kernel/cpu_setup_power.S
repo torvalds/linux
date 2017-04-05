@@ -29,6 +29,7 @@ _GLOBAL(__setup_cpu_power7)
 	li	r0,0
 	mtspr	SPRN_LPID,r0
 	mfspr	r3,SPRN_LPCR
+	li	r4,(LPCR_LPES1 >> LPCR_LPES_SH)
 	bl	__init_LPCR
 	bl	__init_tlb_power7
 	mtlr	r11
@@ -42,6 +43,7 @@ _GLOBAL(__restore_cpu_power7)
 	li	r0,0
 	mtspr	SPRN_LPID,r0
 	mfspr	r3,SPRN_LPCR
+	li	r4,(LPCR_LPES1 >> LPCR_LPES_SH)
 	bl	__init_LPCR
 	bl	__init_tlb_power7
 	mtlr	r11
@@ -59,6 +61,7 @@ _GLOBAL(__setup_cpu_power8)
 	mtspr	SPRN_LPID,r0
 	mfspr	r3,SPRN_LPCR
 	ori	r3, r3, LPCR_PECEDH
+	li	r4,0 /* LPES = 0 */
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_tlb_power8
@@ -80,6 +83,7 @@ _GLOBAL(__restore_cpu_power8)
 	mtspr	SPRN_LPID,r0
 	mfspr   r3,SPRN_LPCR
 	ori	r3, r3, LPCR_PECEDH
+	li	r4,0 /* LPES = 0 */
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_tlb_power8
@@ -99,10 +103,11 @@ _GLOBAL(__setup_cpu_power9)
 	mtspr	SPRN_PSSCR,r0
 	mtspr	SPRN_LPID,r0
 	mfspr	r3,SPRN_LPCR
-	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE)
+	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE  | LPCR_HEIC)
 	or	r3, r3, r4
 	LOAD_REG_IMMEDIATE(r4, LPCR_UPRT | LPCR_HR)
 	andc	r3, r3, r4
+	li	r4,(LPCR_LPES0 >> LPCR_LPES_SH)
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_tlb_power9
@@ -122,10 +127,11 @@ _GLOBAL(__restore_cpu_power9)
 	mtspr	SPRN_PSSCR,r0
 	mtspr	SPRN_LPID,r0
 	mfspr   r3,SPRN_LPCR
-	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE)
+	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE | LPCR_HEIC)
 	or	r3, r3, r4
 	LOAD_REG_IMMEDIATE(r4, LPCR_UPRT | LPCR_HR)
 	andc	r3, r3, r4
+	li	r4,(LPCR_LPES0 >> LPCR_LPES_SH)
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_tlb_power9
@@ -146,7 +152,7 @@ __init_hvmode_206:
 
 __init_LPCR:
 	/* Setup a sane LPCR:
-	 *   Called with initial LPCR in R3
+	 *   Called with initial LPCR in R3 and desired LPES 2-bit value in R4
 	 *
 	 *   LPES = 0b01 (HSRR0/1 used for 0x500)
 	 *   PECE = 0b111
@@ -157,8 +163,7 @@ __init_LPCR:
 	 *
 	 * Other bits untouched for now
 	 */
-	li	r5,1
-	rldimi	r3,r5, LPCR_LPES_SH, 64-LPCR_LPES_SH-2
+	rldimi	r3,r4, LPCR_LPES_SH, 64-LPCR_LPES_SH-2
 	ori	r3,r3,(LPCR_PECE0|LPCR_PECE1|LPCR_PECE2)
 	li	r5,4
 	rldimi	r3,r5, LPCR_DPFD_SH, 64-LPCR_DPFD_SH-3
