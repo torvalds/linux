@@ -5,8 +5,8 @@ Force feedback for Linux
 :Author: Johann Deneux <johann.deneux@gmail.com> on 2001/04/22.
 :Updated: Anssi Hannula <anssi.hannula@gmail.com> on 2006/04/09.
 
-You may redistribute this file. Please remember to include shape.fig and
-interactive.fig as well.
+You may redistribute this file. Please remember to include shape.svg and
+interactive.svg as well.
 
 Introduction
 ~~~~~~~~~~~~
@@ -127,8 +127,15 @@ allocate a new effect.
 Effects are file descriptor specific.
 
 See <linux/input.h> for a description of the ff_effect struct. You should also
-find help in a few sketches, contained in files shape.fig and interactive.fig.
-You need xfig to visualize these files.
+find help in a few sketches, contained in files shape.svg and interactive.svg:
+
+.. figure:: shape.svg
+
+    Shape
+
+.. figure:: interactive.svg
+
+    Interactive
 
 
 Removing an effect from the device
