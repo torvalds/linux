@@ -513,6 +513,7 @@ struct mlx5_ib_mr {
 struct mlx5_ib_mw {
 	struct ib_mw		ibmw;
 	struct mlx5_core_mkey	mmkey;
+	int			ndescs;
 };
 
 struct mlx5_ib_umr_context {

@@ -288,24 +288,6 @@ void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 	return;
 }
 
-static struct mlx5_ib_mr *mlx5_ib_odp_find_mr_lkey(struct mlx5_ib_dev *dev,
-						   u32 key)
-{
-	u32 base_key = mlx5_base_mkey(key);
-	struct mlx5_core_mkey *mmkey = __mlx5_mr_lookup(dev->mdev, base_key);
-	struct mlx5_ib_mr *mr;
-
-	if (!mmkey || mmkey->key != key || mmkey->type != MLX5_MKEY_MR)
-		return NULL;
-
-	mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
-
-	if (!mr->live)
-		return NULL;
-
-	return container_of(mmkey, struct mlx5_ib_mr, mmkey);
-}
-
 static void mlx5_ib_page_fault_resume(struct mlx5_ib_dev *dev,
 				      struct mlx5_pagefault *pfault,
 				      int error)
@@ -625,6 +607,14 @@ out:
 	return ret;
 }
 
+struct pf_frame {
+	struct pf_frame *next;
+	u32 key;
+	u64 io_virt;
+	size_t bcnt;
+	int depth;
+};
+
 /*
  * Handle a single data segment in a page-fault WQE or RDMA region.
  *
@@ -641,43 +631,128 @@ static int pagefault_single_data_segment(struct mlx5_ib_dev *dev,
 					 u32 *bytes_committed,
 					 u32 *bytes_mapped)
 {
-	int npages = 0, srcu_key, ret;
+	int npages = 0, srcu_key, ret, i, outlen, cur_outlen = 0, depth = 0;
+	struct pf_frame *head = NULL, *frame;
+	struct mlx5_core_mkey *mmkey;
+	struct mlx5_ib_mw *mw;
 	struct mlx5_ib_mr *mr;
-	size_t size;
+	struct mlx5_klm *pklm;
+	u32 *out = NULL;
+	size_t offset;
 
 	srcu_key = srcu_read_lock(&dev->mr_srcu);
-	mr = mlx5_ib_odp_find_mr_lkey(dev, key);
-	/*
-	 * If we didn't find the MR, it means the MR was closed while we were
-	 * handling the ODP event. In this case we return -EFAULT so that the
-	 * QP will be closed.
-	 */
-	if (!mr || !mr->ibmr.pd) {
-		mlx5_ib_dbg(dev, "Failed to find relevant mr for lkey=0x%06x, probably the MR was destroyed\n",
-			    key);
-		ret = -EFAULT;
-		goto srcu_unlock;
-	}
-	if (!mr->umem->odp_data) {
-		mlx5_ib_dbg(dev, "skipping non ODP MR (lkey=0x%06x) in page fault handler.\n",
-			    key);
-		if (bytes_mapped)
-			*bytes_mapped +=
-				(bcnt - *bytes_committed);
-		goto srcu_unlock;
-	}
 
-	/*
-	 * Avoid branches - this code will perform correctly
-	 * in all iterations (in iteration 2 and above,
-	 * bytes_committed == 0).
-	 */
 	io_virt += *bytes_committed;
 	bcnt -= *bytes_committed;
 
-	npages = pagefault_mr(dev, mr, io_virt, size, bytes_mapped);
+next_mr:
+	mmkey = __mlx5_mr_lookup(dev->mdev, mlx5_base_mkey(key));
+	if (!mmkey || mmkey->key != key) {
+		mlx5_ib_dbg(dev, "failed to find mkey %x\n", key);
+		ret = -EFAULT;
+		goto srcu_unlock;
+	}
+
+	switch (mmkey->type) {
+	case MLX5_MKEY_MR:
+		mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
+		if (!mr->live || !mr->ibmr.pd) {
+			mlx5_ib_dbg(dev, "got dead MR\n");
+			ret = -EFAULT;
+			goto srcu_unlock;
+		}
+
+		ret = pagefault_mr(dev, mr, io_virt, bcnt, bytes_mapped);
+		if (ret < 0)
+			goto srcu_unlock;
+
+		npages += ret;
+		ret = 0;
+		break;
+
+	case MLX5_MKEY_MW:
+		mw = container_of(mmkey, struct mlx5_ib_mw, mmkey);
+
+		if (depth >= MLX5_CAP_GEN(dev->mdev, max_indirection)) {
+			mlx5_ib_dbg(dev, "indirection level exceeded\n");
+			ret = -EFAULT;
+			goto srcu_unlock;
+		}
+
+		outlen = MLX5_ST_SZ_BYTES(query_mkey_out) +
+			sizeof(*pklm) * (mw->ndescs - 2);
+
+		if (outlen > cur_outlen) {
+			kfree(out);
+			out = kzalloc(outlen, GFP_KERNEL);
+			if (!out) {
+				ret = -ENOMEM;
+				goto srcu_unlock;
+			}
+			cur_outlen = outlen;
+		}
+
+		pklm = (struct mlx5_klm *)MLX5_ADDR_OF(query_mkey_out, out,
+						       bsf0_klm0_pas_mtt0_1);
+
+		ret = mlx5_core_query_mkey(dev->mdev, &mw->mmkey, out, outlen);
+		if (ret)
+			goto srcu_unlock;
+
+		offset = io_virt - MLX5_GET64(query_mkey_out, out,
+					      memory_key_mkey_entry.start_addr);
+
+		for (i = 0; bcnt && i < mw->ndescs; i++, pklm++) {
+			if (offset >= be32_to_cpu(pklm->bcount)) {
+				offset -= be32_to_cpu(pklm->bcount);
+				continue;
+			}
+
+			frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+			if (!frame) {
+				ret = -ENOMEM;
+				goto srcu_unlock;
+			}
+
+			frame->key = be32_to_cpu(pklm->key);
+			frame->io_virt = be64_to_cpu(pklm->va) + offset;
+			frame->bcnt = min_t(size_t, bcnt,
+					    be32_to_cpu(pklm->bcount) - offset);
+			frame->depth = depth + 1;
+			frame->next = head;
+			head = frame;
+
+			bcnt -= frame->bcnt;
+		}
+		break;
+
+	default:
+		mlx5_ib_dbg(dev, "wrong mkey type %d\n", mmkey->type);
+		ret = -EFAULT;
+		goto srcu_unlock;
+	}
+
+	if (head) {
+		frame = head;
+		head = frame->next;
+
+		key = frame->key;
+		io_virt = frame->io_virt;
+		bcnt = frame->bcnt;
+		depth = frame->depth;
+		kfree(frame);
+
+		goto next_mr;
+	}
 
 srcu_unlock:
+	while (head) {
+		frame = head;
+		head = frame->next;
+		kfree(frame);
+	}
+	kfree(out);
+
 	srcu_read_unlock(&dev->mr_srcu, srcu_key);
 	*bytes_committed = 0;
 	return ret ? ret : npages;
