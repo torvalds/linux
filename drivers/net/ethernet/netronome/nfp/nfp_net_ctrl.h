@@ -177,6 +177,19 @@
 #define   NFP_NET_CFG_VERSION_MINOR(x)    (((x) & 0xff) <<  0)
 #define NFP_NET_CFG_STS                 0x0034
 #define   NFP_NET_CFG_STS_LINK            (0x1 << 0) /* Link up or down */
+/* Link rate */
+#define   NFP_NET_CFG_STS_LINK_RATE_SHIFT 1
+#define   NFP_NET_CFG_STS_LINK_RATE_MASK  0xF
+#define   NFP_NET_CFG_STS_LINK_RATE       \
+	(NFP_NET_CFG_STS_LINK_RATE_MASK << NFP_NET_CFG_STS_LINK_RATE_SHIFT)
+#define   NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED   0
+#define   NFP_NET_CFG_STS_LINK_RATE_UNKNOWN       1
+#define   NFP_NET_CFG_STS_LINK_RATE_1G            2
+#define   NFP_NET_CFG_STS_LINK_RATE_10G           3
+#define   NFP_NET_CFG_STS_LINK_RATE_25G           4
+#define   NFP_NET_CFG_STS_LINK_RATE_40G           5
+#define   NFP_NET_CFG_STS_LINK_RATE_50G           6
+#define   NFP_NET_CFG_STS_LINK_RATE_100G          7
 #define NFP_NET_CFG_CAP                 0x0038
 #define NFP_NET_CFG_MAX_TXRINGS         0x003c
 #define NFP_NET_CFG_MAX_RXRINGS         0x0040

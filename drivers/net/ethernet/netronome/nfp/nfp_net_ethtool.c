@@ -49,6 +49,7 @@
 #include <linux/ethtool.h>
 
 #include "nfpcore/nfp.h"
+#include "nfpcore/nfp_nsp.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 
@@ -171,6 +172,114 @@ static void nfp_net_get_drvinfo(struct net_device *netdev,
 
 	drvinfo->n_stats = NN_ET_STATS_LEN;
 	drvinfo->regdump_len = NFP_NET_CFG_BAR_SZ;
+}
+
+/**
+ * nfp_net_get_link_ksettings - Get Link Speed settings
+ * @netdev:	network interface device structure
+ * @cmd:	ethtool command
+ *
+ * Reports speed settings based on info in the BAR provided by the fw.
+ */
+static int
+nfp_net_get_link_ksettings(struct net_device *netdev,
+			   struct ethtool_link_ksettings *cmd)
+{
+	static const u32 ls_to_ethtool[] = {
+		[NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED]	= 0,
+		[NFP_NET_CFG_STS_LINK_RATE_UNKNOWN]	= SPEED_UNKNOWN,
+		[NFP_NET_CFG_STS_LINK_RATE_1G]		= SPEED_1000,
+		[NFP_NET_CFG_STS_LINK_RATE_10G]		= SPEED_10000,
+		[NFP_NET_CFG_STS_LINK_RATE_25G]		= SPEED_25000,
+		[NFP_NET_CFG_STS_LINK_RATE_40G]		= SPEED_40000,
+		[NFP_NET_CFG_STS_LINK_RATE_50G]		= SPEED_50000,
+		[NFP_NET_CFG_STS_LINK_RATE_100G]	= SPEED_100000,
+	};
+	struct nfp_net *nn = netdev_priv(netdev);
+	u32 sts, ls;
+
+	ethtool_link_ksettings_add_link_mode(cmd, supported, FIBRE);
+	cmd->base.port = PORT_OTHER;
+	cmd->base.speed = SPEED_UNKNOWN;
+	cmd->base.duplex = DUPLEX_UNKNOWN;
+
+	if (nn->eth_port)
+		cmd->base.autoneg = nn->eth_port->aneg != NFP_ANEG_DISABLED ?
+			AUTONEG_ENABLE : AUTONEG_DISABLE;
+
+	if (!netif_carrier_ok(netdev))
+		return 0;
+
+	/* Use link speed from ETH table if available, otherwise try the BAR */
+	if (nn->eth_port && nfp_net_link_changed_read_clear(nn))
+		nfp_net_refresh_port_config(nn);
+	/* Separate if - on FW error the port could've disappeared from table */
+	if (nn->eth_port) {
+		cmd->base.port = nn->eth_port->port_type;
+		cmd->base.speed = nn->eth_port->speed;
+		cmd->base.duplex = DUPLEX_FULL;
+		return 0;
+	}
+
+	sts = nn_readl(nn, NFP_NET_CFG_STS);
+
+	ls = FIELD_GET(NFP_NET_CFG_STS_LINK_RATE, sts);
+	if (ls == NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED)
+		return -EOPNOTSUPP;
+
+	if (ls == NFP_NET_CFG_STS_LINK_RATE_UNKNOWN ||
+	    ls >= ARRAY_SIZE(ls_to_ethtool))
+		return 0;
+
+	cmd->base.speed = ls_to_ethtool[sts];
+	cmd->base.duplex = DUPLEX_FULL;
+
+	return 0;
+}
+
+static int
+nfp_net_set_link_ksettings(struct net_device *netdev,
+			   const struct ethtool_link_ksettings *cmd)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	struct nfp_nsp *nsp;
+	int err;
+
+	if (!nn->eth_port)
+		return -EOPNOTSUPP;
+
+	if (netif_running(netdev)) {
+		nn_warn(nn, "Changing settings not allowed on an active interface. It may cause the port to be disabled until reboot.\n");
+		return -EBUSY;
+	}
+
+	nsp = nfp_eth_config_start(nn->cpp, nn->eth_port->index);
+	if (IS_ERR(nsp))
+		return PTR_ERR(nsp);
+
+	err = __nfp_eth_set_aneg(nsp, cmd->base.autoneg == AUTONEG_ENABLE ?
+				 NFP_ANEG_AUTO : NFP_ANEG_DISABLED);
+	if (err)
+		goto err_bad_set;
+	if (cmd->base.speed != SPEED_UNKNOWN) {
+		u32 speed = cmd->base.speed / nn->eth_port->lanes;
+
+		err = __nfp_eth_set_speed(nsp, speed);
+		if (err)
+			goto err_bad_set;
+	}
+
+	err = nfp_eth_config_commit_end(nsp);
+	if (err > 0)
+		return 0; /* no change */
+
+	nfp_net_refresh_port_config(nn);
+
+	return err;
+
+err_bad_set:
+	nfp_eth_config_cleanup_end(nsp);
+	return err;
 }
 
 static void nfp_net_get_ringparam(struct net_device *netdev,
@@ -814,6 +923,8 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_coalesce           = nfp_net_set_coalesce,
 	.get_channels		= nfp_net_get_channels,
 	.set_channels		= nfp_net_set_channels,
+	.get_link_ksettings	= nfp_net_get_link_ksettings,
+	.set_link_ksettings	= nfp_net_set_link_ksettings,
 };
 
 void nfp_net_set_ethtool_ops(struct net_device *netdev)

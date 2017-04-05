@@ -31,11 +31,47 @@
  * SOFTWARE.
  */
 
-#ifndef NSP_NSP_ETH_H
-#define NSP_NSP_ETH_H 1
+#ifndef NSP_NSP_H
+#define NSP_NSP_H 1
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
+
+struct firmware;
+struct nfp_cpp;
+struct nfp_nsp;
+
+struct nfp_nsp *nfp_nsp_open(struct nfp_cpp *cpp);
+void nfp_nsp_close(struct nfp_nsp *state);
+u16 nfp_nsp_get_abi_ver_major(struct nfp_nsp *state);
+u16 nfp_nsp_get_abi_ver_minor(struct nfp_nsp *state);
+int nfp_nsp_wait(struct nfp_nsp *state);
+int nfp_nsp_device_soft_reset(struct nfp_nsp *state);
+int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw);
+
+enum nfp_eth_interface {
+	NFP_INTERFACE_NONE	= 0,
+	NFP_INTERFACE_SFP	= 1,
+	NFP_INTERFACE_SFPP	= 10,
+	NFP_INTERFACE_SFP28	= 28,
+	NFP_INTERFACE_QSFP	= 40,
+	NFP_INTERFACE_CXP	= 100,
+	NFP_INTERFACE_QSFP28	= 112,
+};
+
+enum nfp_eth_media {
+	NFP_MEDIA_DAC_PASSIVE = 0,
+	NFP_MEDIA_DAC_ACTIVE,
+	NFP_MEDIA_FIBRE,
+};
+
+enum nfp_eth_aneg {
+	NFP_ANEG_AUTO = 0,
+	NFP_ANEG_SEARCH,
+	NFP_ANEG_25G_CONSORTIUM,
+	NFP_ANEG_25G_IEEE,
+	NFP_ANEG_DISABLED,
+};
 
 /**
  * struct nfp_eth_table - ETH table information
@@ -48,13 +84,18 @@
  * @base:	first channel index (within NBI)
  * @lanes:	number of channels
  * @speed:	interface speed (in Mbps)
+ * @interface:	interface (module) plugged in
+ * @media:	media type of the @interface
+ * @aneg:	auto negotiation mode
  * @mac_addr:	interface MAC address
  * @label_port:	port id
  * @label_subport:  id of interface within port (for split ports)
  * @enabled:	is enabled?
  * @tx_enabled:	is TX enabled?
  * @rx_enabled:	is RX enabled?
+ * @override_changed: is media reconfig pending?
  *
+ * @port_type:	one of %PORT_* defines for ethtool
  * @is_split:	is interface part of a split port
  */
 struct nfp_eth_table {
@@ -67,6 +108,11 @@ struct nfp_eth_table {
 		unsigned int lanes;
 		unsigned int speed;
 
+		unsigned int interface;
+		enum nfp_eth_media media;
+
+		enum nfp_eth_aneg aneg;
+
 		u8 mac_addr[ETH_ALEN];
 
 		u8 label_port;
@@ -76,17 +122,29 @@ struct nfp_eth_table {
 		bool tx_enabled;
 		bool rx_enabled;
 
+		bool override_changed;
+
 		/* Computed fields */
+		u8 port_type;
+
 		bool is_split;
 	} ports[0];
 };
 
-struct nfp_cpp;
-struct nfp_nsp;
-
 struct nfp_eth_table *nfp_eth_read_ports(struct nfp_cpp *cpp);
 struct nfp_eth_table *
 __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp);
+
 int nfp_eth_set_mod_enable(struct nfp_cpp *cpp, unsigned int idx, bool enable);
+int nfp_eth_set_configured(struct nfp_cpp *cpp, unsigned int idx,
+			   bool configed);
+
+struct nfp_nsp *nfp_eth_config_start(struct nfp_cpp *cpp, unsigned int idx);
+int nfp_eth_config_commit_end(struct nfp_nsp *nsp);
+void nfp_eth_config_cleanup_end(struct nfp_nsp *nsp);
+
+int __nfp_eth_set_aneg(struct nfp_nsp *nsp, enum nfp_eth_aneg mode);
+int __nfp_eth_set_speed(struct nfp_nsp *nsp, unsigned int speed);
+int __nfp_eth_set_split(struct nfp_nsp *nsp, unsigned int lanes);
 
 #endif
