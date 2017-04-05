@@ -282,14 +282,18 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
  * @nr_sects:	number of sectors to write
  * @gfp_mask:	memory allocation flags (for bio_alloc)
  * @biop:	pointer to anchor bio
- * @discard:	discard flag
+ * @flags:	controls detailed behavior
  *
  * Description:
- *  Generate and issue number of bios with zerofiled pages.
+ *  Zero-fill a block range, either using hardware offload or by explicitly
+ *  writing zeroes to the device.
+ *
+ *  If a device is using logical block provisioning, the underlying space will
+ *  not be released if %flags contains BLKDEV_ZERO_NOUNMAP.
  */
 int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
-		bool discard)
+		unsigned flags)
 {
 	int ret;
 	int bi_size = 0;
@@ -337,28 +341,21 @@ EXPORT_SYMBOL(__blkdev_issue_zeroout);
  * @sector:	start sector
  * @nr_sects:	number of sectors to write
  * @gfp_mask:	memory allocation flags (for bio_alloc)
- * @discard:	whether to discard the block range
+ * @flags:	controls detailed behavior
  *
  * Description:
- *  Zero-fill a block range.  If the discard flag is set and the block
- *  device guarantees that subsequent READ operations to the block range
- *  in question will return zeroes, the blocks will be discarded. Should
- *  the discard request fail, if the discard flag is not set, or if
- *  discard_zeroes_data is not supported, this function will resort to
- *  zeroing the blocks manually, thus provisioning (allocating,
- *  anchoring) them. If the block device supports WRITE ZEROES or WRITE SAME
- *  command(s), blkdev_issue_zeroout() will use it to optimize the process of
- *  clearing the block range. Otherwise the zeroing will be performed
- *  using regular WRITE calls.
+ *  Zero-fill a block range, either using hardware offload or by explicitly
+ *  writing zeroes to the device.  See __blkdev_issue_zeroout() for the
+ *  valid values for %flags.
  */
 int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
-			 sector_t nr_sects, gfp_t gfp_mask, bool discard)
+		sector_t nr_sects, gfp_t gfp_mask, unsigned flags)
 {
 	int ret;
 	struct bio *bio = NULL;
 	struct blk_plug plug;
 
-	if (discard) {
+	if (!(flags & BLKDEV_ZERO_NOUNMAP)) {
 		if (!blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask,
 				BLKDEV_DISCARD_ZERO))
 			return 0;
@@ -366,7 +363,7 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 
 	blk_start_plug(&plug);
 	ret = __blkdev_issue_zeroout(bdev, sector, nr_sects, gfp_mask,
-			&bio, discard);
+			&bio, flags);
 	if (ret == 0 && bio) {
 		ret = submit_bio_wait(bio);
 		bio_put(bio);

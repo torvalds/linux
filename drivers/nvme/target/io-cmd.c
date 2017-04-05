@@ -184,7 +184,7 @@ static void nvmet_execute_write_zeroes(struct nvmet_req *req)
 		(req->ns->blksize_shift - 9)) + 1;
 
 	if (__blkdev_issue_zeroout(req->ns->bdev, sector, nr_sector,
-				GFP_KERNEL, &bio, true))
+				GFP_KERNEL, &bio, 0))
 		status = NVME_SC_INTERNAL | NVME_SC_DNR;
 
 	if (bio) {

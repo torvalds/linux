@@ -1499,19 +1499,22 @@ int drbd_issue_discard_or_zero_out(struct drbd_device *device, sector_t start, u
 		tmp = start + granularity - sector_div(tmp, granularity);
 
 		nr = tmp - start;
-		err |= blkdev_issue_zeroout(bdev, start, nr, GFP_NOIO, 0);
+		err |= blkdev_issue_zeroout(bdev, start, nr, GFP_NOIO,
+				BLKDEV_ZERO_NOUNMAP);
 		nr_sectors -= nr;
 		start = tmp;
 	}
 	while (nr_sectors >= granularity) {
 		nr = min_t(sector_t, nr_sectors, max_discard_sectors);
-		err |= blkdev_issue_discard(bdev, start, nr, GFP_NOIO, 0);
+		err |= blkdev_issue_discard(bdev, start, nr, GFP_NOIO,
+				BLKDEV_ZERO_NOUNMAP);
 		nr_sectors -= nr;
 		start += nr;
 	}
  zero_out:
 	if (nr_sectors) {
-		err |= blkdev_issue_zeroout(bdev, start, nr_sectors, GFP_NOIO, 0);
+		err |= blkdev_issue_zeroout(bdev, start, nr_sectors, GFP_NOIO,
+				BLKDEV_ZERO_NOUNMAP);
 	}
 	return err != 0;
 }

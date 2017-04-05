@@ -1336,23 +1336,27 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 	return bqt->tag_index[tag];
 }
 
+extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *);
+extern int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp_mask, struct page *page);
 
 #define BLKDEV_DISCARD_SECURE	(1 << 0)	/* issue a secure erase */
 #define BLKDEV_DISCARD_ZERO	(1 << 1)	/* must reliably zero data */
 
-extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *);
 extern int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags);
 extern int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, int flags,
 		struct bio **biop);
-extern int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, struct page *page);
+
+#define BLKDEV_ZERO_NOUNMAP	(1 << 0)  /* do not free blocks */
+
 extern int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
-		bool discard);
+		unsigned flags);
 extern int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, bool discard);
+		sector_t nr_sects, gfp_t gfp_mask, unsigned flags);
+
 static inline int sb_issue_discard(struct super_block *sb, sector_t block,
 		sector_t nr_blocks, gfp_t gfp_mask, unsigned long flags)
 {
@@ -1366,7 +1370,7 @@ static inline int sb_issue_zeroout(struct super_block *sb, sector_t block,
 	return blkdev_issue_zeroout(sb->s_bdev,
 				    block << (sb->s_blocksize_bits - 9),
 				    nr_blocks << (sb->s_blocksize_bits - 9),
-				    gfp_mask, true);
+				    gfp_mask, 0);
 }
 
 extern int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm);

@@ -255,7 +255,7 @@ static int blk_ioctl_zeroout(struct block_device *bdev, fmode_t mode,
 	truncate_inode_pages_range(mapping, start, end);
 
 	return blkdev_issue_zeroout(bdev, start >> 9, len >> 9, GFP_KERNEL,
-				    false);
+			BLKDEV_ZERO_NOUNMAP);
 }
 
 static int put_ushort(unsigned long arg, unsigned short val)
