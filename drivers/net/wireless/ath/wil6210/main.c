@@ -948,14 +948,14 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	/* Disable device led before reset*/
 	wmi_led_cfg(wil, false);
 
+	mutex_lock(&wil->p2p_wdev_mutex);
+	wil_abort_scan(wil, false);
+	mutex_unlock(&wil->p2p_wdev_mutex);
+
 	/* prevent NAPI from being scheduled and prevent wmi commands */
 	mutex_lock(&wil->wmi_mutex);
 	bitmap_zero(wil->status, wil_status_last);
 	mutex_unlock(&wil->wmi_mutex);
-
-	mutex_lock(&wil->p2p_wdev_mutex);
-	wil_abort_scan(wil, false);
-	mutex_unlock(&wil->p2p_wdev_mutex);
 
 	wil_mask_irq(wil);
 
