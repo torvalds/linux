@@ -1203,7 +1203,7 @@ int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			DRM_ERROR("KMS: Failed to allocate surface\n");
 			goto fail_free_planes;
 		}
-		mode_info->planes[i]->plane_type = mode_info->plane_type[i];
+		mode_info->planes[i]->base.type = mode_info->plane_type[i];
 		if (amdgpu_dm_plane_init(dm, mode_info->planes[i], 0xff)) {
 			DRM_ERROR("KMS: Failed to initialize plane\n");
 			goto fail_free_planes;
