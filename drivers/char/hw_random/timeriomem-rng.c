@@ -20,18 +20,16 @@
  * TODO: add support for reading sizes other than 32bits and masking
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
-#include <linux/of.h>
+#include <linux/completion.h>
 #include <linux/hw_random.h>
 #include <linux/io.h>
+#include <linux/jiffies.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/timeriomem-rng.h>
-#include <linux/jiffies.h>
-#include <linux/sched.h>
 #include <linux/timer.h>
-#include <linux/completion.h>
 
 struct timeriomem_rng_private_data {
 	void __iomem		*io_base;
@@ -45,32 +43,36 @@ struct timeriomem_rng_private_data {
 	struct hwrng		timeriomem_rng_ops;
 };
 
-#define to_rng_priv(rng) \
-		((struct timeriomem_rng_private_data *)rng->priv)
-
-/*
- * have data return 1, however return 0 if we have nothing
- */
-static int timeriomem_rng_data_present(struct hwrng *rng, int wait)
+static int timeriomem_rng_read(struct hwrng *hwrng, void *data,
+				size_t max, bool wait)
 {
-	struct timeriomem_rng_private_data *priv = to_rng_priv(rng);
-
-	if (!wait || priv->present)
-		return priv->present;
-
-	wait_for_completion(&priv->completion);
-
-	return 1;
-}
-
-static int timeriomem_rng_data_read(struct hwrng *rng, u32 *data)
-{
-	struct timeriomem_rng_private_data *priv = to_rng_priv(rng);
+	struct timeriomem_rng_private_data *priv =
+		container_of(hwrng, struct timeriomem_rng_private_data,
+				timeriomem_rng_ops);
 	unsigned long cur;
 	s32 delay;
 
-	*data = readl(priv->io_base);
+	/* The RNG provides 32-bit per read.  Ensure there is enough space. */
+	if (max < sizeof(u32))
+		return 0;
 
+	/*
+	 * There may not have been enough time for new data to be generated
+	 * since the last request.  If the caller doesn't want to wait, let them
+	 * bail out.  Otherwise, wait for the completion.  If the new data has
+	 * already been generated, the completion should already be available.
+	 */
+	if (!wait && !priv->present)
+		return 0;
+
+	wait_for_completion(&priv->completion);
+
+	*(u32 *)data = readl(priv->io_base);
+
+	/*
+	 * Block any new callers until the RNG has had time to generate new
+	 * data.
+	 */
 	cur = jiffies;
 
 	delay = cur - priv->expires;
@@ -154,9 +156,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	setup_timer(&priv->timer, timeriomem_rng_trigger, (unsigned long)priv);
 
 	priv->timeriomem_rng_ops.name		= dev_name(&pdev->dev);
-	priv->timeriomem_rng_ops.data_present	= timeriomem_rng_data_present;
-	priv->timeriomem_rng_ops.data_read	= timeriomem_rng_data_read;
-	priv->timeriomem_rng_ops.priv		= (unsigned long)priv;
+	priv->timeriomem_rng_ops.read		= timeriomem_rng_read;
 
 	priv->io_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->io_base)) {
