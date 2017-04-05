@@ -423,7 +423,7 @@ static int get_max_brightness(void)
 
 static int bl_get_brightness(struct backlight_device *b)
 {
-	return get_lcd_level();
+	return b->props.power == FB_BLANK_POWERDOWN ? 0 : get_lcd_level();
 }
 
 static int bl_update_status(struct backlight_device *b)
