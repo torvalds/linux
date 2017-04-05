@@ -2123,7 +2123,7 @@ static void thunderx_l2c_remove(struct pci_dev *pdev)
 		writeq(L2C_CBC_INT_ENA_ALL, l2c->regs + L2C_CBC_INT_ENA_W1C);
 		break;
 	case PCI_DEVICE_ID_THUNDER_L2C_MCI:
-		writeq(L2C_CBC_INT_ENA_ALL, l2c->regs + L2C_MCI_INT_ENA_W1C);
+		writeq(L2C_MCI_INT_ENA_ALL, l2c->regs + L2C_MCI_INT_ENA_W1C);
 		break;
 	}
 
