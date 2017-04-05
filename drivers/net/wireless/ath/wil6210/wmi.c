@@ -518,15 +518,15 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 		assoc_resp_ielen = 0;
 	}
 
-	mutex_lock(&wil->mutex);
 	if (test_bit(wil_status_resetting, wil->status) ||
 	    !test_bit(wil_status_fwready, wil->status)) {
 		wil_err(wil, "status_resetting, cancel connect event, CID %d\n",
 			evt->cid);
-		mutex_unlock(&wil->mutex);
 		/* no need for cleanup, wil_reset will do that */
 		return;
 	}
+
+	mutex_lock(&wil->mutex);
 
 	if ((wdev->iftype == NL80211_IFTYPE_STATION) ||
 	    (wdev->iftype == NL80211_IFTYPE_P2P_CLIENT)) {
@@ -630,6 +630,13 @@ static void wmi_evt_disconnect(struct wil6210_priv *wil, int id,
 		 evt->bssid, reason_code, evt->disconnect_reason);
 
 	wil->sinfo_gen++;
+
+	if (test_bit(wil_status_resetting, wil->status) ||
+	    !test_bit(wil_status_fwready, wil->status)) {
+		wil_err(wil, "status_resetting, cancel disconnect event\n");
+		/* no need for cleanup, wil_reset will do that */
+		return;
+	}
 
 	mutex_lock(&wil->mutex);
 	wil6210_disconnect(wil, evt->bssid, reason_code, true);
