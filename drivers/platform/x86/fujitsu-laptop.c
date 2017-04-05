@@ -347,6 +347,12 @@ static int set_lcd_level(int level)
 	char *method;
 
 	switch (use_alt_lcd_levels) {
+	case -1:
+		if (acpi_has_method(fujitsu_bl->acpi_handle, "SBL2"))
+			method = "SBL2";
+		else
+			method = "SBLL";
+		break;
 	case 1:
 		method = "SBL2";
 		break;
@@ -591,21 +597,10 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 			pr_err("_INI Method failed\n");
 	}
 
-	if (use_alt_lcd_levels == -1) {
-		if (acpi_has_method(NULL, "\\_SB.PCI0.LPCB.FJEX.SBL2"))
-			use_alt_lcd_levels = 1;
-		else
-			use_alt_lcd_levels = 0;
-		vdbg_printk(FUJLAPTOP_DBG_TRACE, "auto-detected usealt as %i\n",
-			    use_alt_lcd_levels);
-	}
-
 	/* do config (detect defaults) */
-	use_alt_lcd_levels = use_alt_lcd_levels == 1 ? 1 : 0;
 	disable_brightness_adjust = disable_brightness_adjust == 1 ? 1 : 0;
-	vdbg_printk(FUJLAPTOP_DBG_INFO,
-		    "config: [alt interface: %d], [adjust disable: %d]\n",
-		    use_alt_lcd_levels, disable_brightness_adjust);
+	vdbg_printk(FUJLAPTOP_DBG_INFO, "config: [adjust disable: %d]\n",
+		    disable_brightness_adjust);
 
 	if (get_max_brightness() <= 0)
 		fujitsu_bl->max_brightness = FUJITSU_LCD_N_LEVELS;
@@ -1138,9 +1133,8 @@ static void __exit fujitsu_cleanup(void)
 module_init(fujitsu_init);
 module_exit(fujitsu_cleanup);
 
-module_param(use_alt_lcd_levels, uint, 0644);
-MODULE_PARM_DESC(use_alt_lcd_levels,
-		 "Use alternative interface for lcd_levels (needed for Lifebook s6410).");
+module_param(use_alt_lcd_levels, int, 0644);
+MODULE_PARM_DESC(use_alt_lcd_levels, "Interface used for setting LCD brightness level (-1 = auto, 0 = force SBLL, 1 = force SBL2)");
 module_param(disable_brightness_adjust, uint, 0644);
 MODULE_PARM_DESC(disable_brightness_adjust, "Disable brightness adjustment .");
 #ifdef CONFIG_FUJITSU_LAPTOP_DEBUG
