@@ -2285,7 +2285,7 @@ static unsigned long wire_flags_to_bio_flags(u32 dpf)
 static unsigned long wire_flags_to_bio_op(u32 dpf)
 {
 	if (dpf & DP_DISCARD)
-		return REQ_OP_DISCARD;
+		return REQ_OP_WRITE_ZEROES;
 	else
 		return REQ_OP_WRITE;
 }
@@ -2476,7 +2476,7 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 	op_flags = wire_flags_to_bio_flags(dp_flags);
 	if (pi->cmd == P_TRIM) {
 		D_ASSERT(peer_device, peer_req->i.size > 0);
-		D_ASSERT(peer_device, op == REQ_OP_DISCARD);
+		D_ASSERT(peer_device, op == REQ_OP_WRITE_ZEROES);
 		D_ASSERT(peer_device, peer_req->pages == NULL);
 	} else if (peer_req->pages == NULL) {
 		D_ASSERT(device, peer_req->i.size == 0);
@@ -4789,7 +4789,7 @@ static int receive_rs_deallocated(struct drbd_connection *connection, struct pac
 
 	if (get_ldev(device)) {
 		struct drbd_peer_request *peer_req;
-		const int op = REQ_OP_DISCARD;
+		const int op = REQ_OP_WRITE_ZEROES;
 
 		peer_req = drbd_alloc_peer_req(peer_device, ID_SYNCER, sector,
 					       size, 0, GFP_NOIO);
