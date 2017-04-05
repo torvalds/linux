@@ -206,6 +206,23 @@ int acpi_ioapic_add(acpi_handle root_handle)
 	return ACPI_SUCCESS(status) && ACPI_SUCCESS(retval) ? 0 : -ENODEV;
 }
 
+void pci_ioapic_remove(struct acpi_pci_root *root)
+{
+	struct acpi_pci_ioapic *ioapic, *tmp;
+
+	mutex_lock(&ioapic_list_lock);
+	list_for_each_entry_safe(ioapic, tmp, &ioapic_list, list) {
+		if (root->device->handle != ioapic->root_handle)
+			continue;
+		if (ioapic->pdev) {
+			pci_release_region(ioapic->pdev, 0);
+			pci_disable_device(ioapic->pdev);
+			pci_dev_put(ioapic->pdev);
+		}
+	}
+	mutex_unlock(&ioapic_list_lock);
+}
+
 int acpi_ioapic_remove(struct acpi_pci_root *root)
 {
 	int retval = 0;
@@ -215,15 +232,8 @@ int acpi_ioapic_remove(struct acpi_pci_root *root)
 	list_for_each_entry_safe(ioapic, tmp, &ioapic_list, list) {
 		if (root->device->handle != ioapic->root_handle)
 			continue;
-
 		if (acpi_unregister_ioapic(ioapic->handle, ioapic->gsi_base))
 			retval = -EBUSY;
-
-		if (ioapic->pdev) {
-			pci_release_region(ioapic->pdev, 0);
-			pci_disable_device(ioapic->pdev);
-			pci_dev_put(ioapic->pdev);
-		}
 		if (ioapic->res.flags && ioapic->res.parent)
 			release_resource(&ioapic->res);
 		list_del(&ioapic->list);

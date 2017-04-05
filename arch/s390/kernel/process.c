@@ -124,7 +124,10 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
 	clear_tsk_thread_flag(p, TIF_SINGLE_STEP);
 	/* Initialize per thread user and system timer values */
 	p->thread.user_timer = 0;
+	p->thread.guest_timer = 0;
 	p->thread.system_timer = 0;
+	p->thread.hardirq_timer = 0;
+	p->thread.softirq_timer = 0;
 
 	frame->sf.back_chain = 0;
 	/* new return point is ret_from_fork */

@@ -24,6 +24,7 @@
  */
 
 #include <linux/extable.h>
+#include <linux/ptrace.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>

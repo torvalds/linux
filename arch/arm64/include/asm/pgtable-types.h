@@ -55,9 +55,13 @@ typedef struct { pteval_t pgprot; } pgprot_t;
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
 #if CONFIG_PGTABLE_LEVELS == 2
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 #elif CONFIG_PGTABLE_LEVELS == 3
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopud.h>
+#elif CONFIG_PGTABLE_LEVELS == 4
+#include <asm-generic/5level-fixup.h>
 #endif
 
 #endif	/* __ASM_PGTABLE_TYPES_H */

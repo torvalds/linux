@@ -614,13 +614,13 @@ static int kexec_calculate_store_digests(struct kimage *image)
 		ret = crypto_shash_final(desc, digest);
 		if (ret)
 			goto out_free_digest;
-		ret = kexec_purgatory_get_set_symbol(image, "sha_regions",
-						sha_regions, sha_region_sz, 0);
+		ret = kexec_purgatory_get_set_symbol(image, "purgatory_sha_regions",
+						     sha_regions, sha_region_sz, 0);
 		if (ret)
 			goto out_free_digest;
 
-		ret = kexec_purgatory_get_set_symbol(image, "sha256_digest",
-						digest, SHA256_DIGEST_SIZE, 0);
+		ret = kexec_purgatory_get_set_symbol(image, "purgatory_sha256_digest",
+						     digest, SHA256_DIGEST_SIZE, 0);
 		if (ret)
 			goto out_free_digest;
 	}

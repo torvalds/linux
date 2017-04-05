@@ -377,6 +377,7 @@ static void intel_pstate_set_performance_limits(struct perf_limits *limits)
 	intel_pstate_init_limits(limits);
 	limits->min_perf_pct = 100;
 	limits->min_perf = int_ext_tofp(1);
+	limits->min_sysfs_pct = 100;
 }
 
 static DEFINE_MUTEX(intel_pstate_driver_lock);
@@ -968,11 +969,20 @@ static int intel_pstate_resume(struct cpufreq_policy *policy)
 }
 
 static void intel_pstate_update_policies(void)
+	__releases(&intel_pstate_limits_lock)
+	__acquires(&intel_pstate_limits_lock)
 {
+	struct perf_limits *saved_limits = limits;
 	int cpu;
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	for_each_possible_cpu(cpu)
 		cpufreq_update_policy(cpu);
+
+	mutex_lock(&intel_pstate_limits_lock);
+
+	limits = saved_limits;
 }
 
 /************************** debugfs begin ************************/
@@ -1180,9 +1190,9 @@ static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 
 	limits->no_turbo = clamp_t(int, input, 0, 1);
 
-	mutex_unlock(&intel_pstate_limits_lock);
-
 	intel_pstate_update_policies();
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -1217,9 +1227,9 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct attribute *b,
 				   limits->max_perf_pct);
 	limits->max_perf = div_ext_fp(limits->max_perf_pct, 100);
 
-	mutex_unlock(&intel_pstate_limits_lock);
-
 	intel_pstate_update_policies();
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -1254,9 +1264,9 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct attribute *b,
 				   limits->min_perf_pct);
 	limits->min_perf = div_ext_fp(limits->min_perf_pct, 100);
 
-	mutex_unlock(&intel_pstate_limits_lock);
-
 	intel_pstate_update_policies();
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -1874,13 +1884,11 @@ static int intel_pstate_prepare_request(struct cpudata *cpu, int pstate)
 
 	intel_pstate_get_min_max(cpu, &min_perf, &max_perf);
 	pstate = clamp_t(int, pstate, min_perf, max_perf);
-	trace_cpu_frequency(pstate * cpu->pstate.scaling, cpu->cpu);
 	return pstate;
 }
 
 static void intel_pstate_update_pstate(struct cpudata *cpu, int pstate)
 {
-	pstate = intel_pstate_prepare_request(cpu, pstate);
 	if (pstate == cpu->pstate.current_pstate)
 		return;
 
@@ -1900,6 +1908,8 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 
 	update_turbo_state();
 
+	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
+	trace_cpu_frequency(target_pstate * cpu->pstate.scaling, cpu->cpu);
 	intel_pstate_update_pstate(cpu, target_pstate);
 
 	sample = &cpu->sample;
@@ -2132,15 +2142,10 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	mutex_lock(&intel_pstate_limits_lock);
 
 	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
+		pr_debug("set performance\n");
 		if (!perf_limits) {
 			limits = &performance_limits;
 			perf_limits = limits;
-		}
-		if (policy->max >= policy->cpuinfo.max_freq &&
-		    !limits->no_turbo) {
-			pr_debug("set performance\n");
-			intel_pstate_set_performance_limits(perf_limits);
-			goto out;
 		}
 	} else {
 		pr_debug("set powersave\n");
@@ -2152,7 +2157,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	}
 
 	intel_pstate_update_perf_limits(policy, perf_limits);
- out:
+
 	if (cpu->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		/*
 		 * NOHZ_FULL CPUs need this as the governor callback may not
@@ -2198,9 +2203,9 @@ static int intel_pstate_verify_policy(struct cpufreq_policy *policy)
 		unsigned int max_freq, min_freq;
 
 		max_freq = policy->cpuinfo.max_freq *
-						limits->max_sysfs_pct / 100;
+					perf_limits->max_sysfs_pct / 100;
 		min_freq = policy->cpuinfo.max_freq *
-						limits->min_sysfs_pct / 100;
+					perf_limits->min_sysfs_pct / 100;
 		cpufreq_verify_within_limits(policy, min_freq, max_freq);
 	}
 
@@ -2243,13 +2248,8 @@ static int __intel_pstate_cpu_init(struct cpufreq_policy *policy)
 
 	cpu = all_cpu_data[policy->cpu];
 
-	/*
-	 * We need sane value in the cpu->perf_limits, so inherit from global
-	 * perf_limits limits, which are seeded with values based on the
-	 * CONFIG_CPU_FREQ_DEFAULT_GOV_*, during boot up.
-	 */
 	if (per_cpu_limits)
-		memcpy(cpu->perf_limits, limits, sizeof(struct perf_limits));
+		intel_pstate_init_limits(cpu->perf_limits);
 
 	policy->min = cpu->pstate.min_pstate * cpu->pstate.scaling;
 	policy->max = cpu->pstate.turbo_pstate * cpu->pstate.scaling;
@@ -2301,22 +2301,12 @@ static struct cpufreq_driver intel_pstate = {
 static int intel_cpufreq_verify_policy(struct cpufreq_policy *policy)
 {
 	struct cpudata *cpu = all_cpu_data[policy->cpu];
-	struct perf_limits *perf_limits = limits;
 
 	update_turbo_state();
 	policy->cpuinfo.max_freq = limits->turbo_disabled ?
 			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
 
 	cpufreq_verify_within_cpu_limits(policy);
-
-	if (per_cpu_limits)
-		perf_limits = cpu->perf_limits;
-
-	mutex_lock(&intel_pstate_limits_lock);
-
-	intel_pstate_update_perf_limits(policy, perf_limits);
-
-	mutex_unlock(&intel_pstate_limits_lock);
 
 	return 0;
 }
@@ -2370,6 +2360,7 @@ static int intel_cpufreq_target(struct cpufreq_policy *policy,
 		wrmsrl_on_cpu(policy->cpu, MSR_IA32_PERF_CTL,
 			      pstate_funcs.get_val(cpu, target_pstate));
 	}
+	freqs.new = target_pstate * cpu->pstate.scaling;
 	cpufreq_freq_transition_end(policy, &freqs, false);
 
 	return 0;
@@ -2383,8 +2374,9 @@ static unsigned int intel_cpufreq_fast_switch(struct cpufreq_policy *policy,
 
 	target_freq = intel_cpufreq_turbo_update(cpu, policy, target_freq);
 	target_pstate = DIV_ROUND_UP(target_freq, cpu->pstate.scaling);
+	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
 	intel_pstate_update_pstate(cpu, target_pstate);
-	return target_freq;
+	return target_pstate * cpu->pstate.scaling;
 }
 
 static int intel_cpufreq_cpu_init(struct cpufreq_policy *policy)
@@ -2437,8 +2429,11 @@ static int intel_pstate_register_driver(void)
 
 	intel_pstate_init_limits(&powersave_limits);
 	intel_pstate_set_performance_limits(&performance_limits);
-	limits = IS_ENABLED(CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE) ?
-			&performance_limits : &powersave_limits;
+	if (IS_ENABLED(CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE) &&
+	    intel_pstate_driver == &intel_pstate)
+		limits = &performance_limits;
+	else
+		limits = &powersave_limits;
 
 	ret = cpufreq_register_driver(intel_pstate_driver);
 	if (ret) {
