@@ -72,12 +72,12 @@ static inline unsigned long ib_umem_start(struct ib_umem *umem)
 /* Returns the address of the page after the last one of an ODP umem. */
 static inline unsigned long ib_umem_end(struct ib_umem *umem)
 {
-	return PAGE_ALIGN(umem->address + umem->length);
+	return ALIGN(umem->address + umem->length, BIT(umem->page_shift));
 }
 
 static inline size_t ib_umem_num_pages(struct ib_umem *umem)
 {
-	return (ib_umem_end(umem) - ib_umem_start(umem)) >> PAGE_SHIFT;
+	return (ib_umem_end(umem) - ib_umem_start(umem)) >> umem->page_shift;
 }
 
 #ifdef CONFIG_INFINIBAND_USER_MEM
