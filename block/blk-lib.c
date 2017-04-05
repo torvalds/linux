@@ -226,20 +226,9 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 }
 EXPORT_SYMBOL(blkdev_issue_write_same);
 
-/**
- * __blkdev_issue_write_zeroes - generate number of bios with WRITE ZEROES
- * @bdev:	blockdev to issue
- * @sector:	start sector
- * @nr_sects:	number of sectors to write
- * @gfp_mask:	memory allocation flags (for bio_alloc)
- * @biop:	pointer to anchor bio
- *
- * Description:
- *  Generate and issue number of bios(REQ_OP_WRITE_ZEROES) with zerofiled pages.
- */
 static int __blkdev_issue_write_zeroes(struct block_device *bdev,
 		sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
-		struct bio **biop)
+		struct bio **biop, unsigned flags)
 {
 	struct bio *bio = *biop;
 	unsigned int max_write_zeroes_sectors;
@@ -258,7 +247,9 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
 		bio = next_bio(bio, 0, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio->bi_bdev = bdev;
-		bio_set_op_attrs(bio, REQ_OP_WRITE_ZEROES, 0);
+		bio->bi_opf = REQ_OP_WRITE_ZEROES;
+		if (flags & BLKDEV_ZERO_NOUNMAP)
+			bio->bi_opf |= REQ_NOUNMAP;
 
 		if (nr_sects > max_write_zeroes_sectors) {
 			bio->bi_iter.bi_size = max_write_zeroes_sectors << 9;
@@ -306,7 +297,7 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		return -EINVAL;
 
 	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
-			biop);
+			biop, flags);
 	if (ret == 0 || (ret && ret != -EOPNOTSUPP))
 		goto out;
 
