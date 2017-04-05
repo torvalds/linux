@@ -978,8 +978,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		ring->tso_packets++;
 
-		i = ((skb->len - lso_header_size) / shinfo->gso_size) +
-			!!((skb->len - lso_header_size) % shinfo->gso_size);
+		i = shinfo->gso_segs;
 		tx_info->nr_bytes = skb->len + (i - 1) * lso_header_size;
 		ring->packets += i;
 	} else {
