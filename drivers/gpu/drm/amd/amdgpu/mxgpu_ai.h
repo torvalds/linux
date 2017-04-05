@@ -44,4 +44,9 @@ enum idh_event {
 
 extern const struct amdgpu_virt_ops xgpu_ai_virt_ops;
 
+void xgpu_ai_mailbox_set_irq_funcs(struct amdgpu_device *adev);
+int xgpu_ai_mailbox_add_irq_id(struct amdgpu_device *adev);
+int xgpu_ai_mailbox_get_irq(struct amdgpu_device *adev);
+void xgpu_ai_mailbox_put_irq(struct amdgpu_device *adev);
+
 #endif

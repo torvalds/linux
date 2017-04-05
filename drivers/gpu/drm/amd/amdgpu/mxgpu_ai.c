@@ -28,6 +28,7 @@
 #include "vega10/GC/gc_9_0_offset.h"
 #include "vega10/GC/gc_9_0_sh_mask.h"
 #include "soc15.h"
+#include "vega10_ih.h"
 #include "soc15_common.h"
 #include "mxgpu_ai.h"
 
@@ -180,6 +181,11 @@ static int xgpu_ai_send_access_requests(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int xgpu_ai_request_reset(struct amdgpu_device *adev)
+{
+	return xgpu_ai_send_access_requests(adev, IDH_REQ_GPU_RESET_ACCESS);
+}
+
 static int xgpu_ai_request_full_gpu_access(struct amdgpu_device *adev,
 					   bool init)
 {
@@ -201,7 +207,134 @@ static int xgpu_ai_release_full_gpu_access(struct amdgpu_device *adev,
 	return r;
 }
 
+static int xgpu_ai_mailbox_ack_irq(struct amdgpu_device *adev,
+					struct amdgpu_irq_src *source,
+					struct amdgpu_iv_entry *entry)
+{
+	DRM_DEBUG("get ack intr and do nothing.\n");
+	return 0;
+}
+
+static int xgpu_ai_set_mailbox_ack_irq(struct amdgpu_device *adev,
+					struct amdgpu_irq_src *source,
+					unsigned type,
+					enum amdgpu_interrupt_state state)
+{
+	u32 tmp = RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_MAILBOX_INT_CNTL));
+
+	tmp = REG_SET_FIELD(tmp, BIF_BX_PF0_MAILBOX_INT_CNTL, ACK_INT_EN,
+				(state == AMDGPU_IRQ_STATE_ENABLE) ? 1 : 0);
+	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_MAILBOX_INT_CNTL), tmp);
+
+	return 0;
+}
+
+static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
+{
+	struct amdgpu_virt *virt = container_of(work, struct amdgpu_virt, flr_work);
+	struct amdgpu_device *adev = container_of(virt, struct amdgpu_device, virt);
+
+	/* wait until RCV_MSG become 3 */
+	if (xgpu_ai_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL)) {
+		pr_err("failed to recieve FLR_CMPL\n");
+		return;
+	}
+
+	/* Trigger recovery due to world switch failure */
+	amdgpu_sriov_gpu_reset(adev, false);
+}
+
+static int xgpu_ai_set_mailbox_rcv_irq(struct amdgpu_device *adev,
+				       struct amdgpu_irq_src *src,
+				       unsigned type,
+				       enum amdgpu_interrupt_state state)
+{
+	u32 tmp = RREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_MAILBOX_INT_CNTL));
+
+	tmp = REG_SET_FIELD(tmp, BIF_BX_PF0_MAILBOX_INT_CNTL, VALID_INT_EN,
+			    (state == AMDGPU_IRQ_STATE_ENABLE) ? 1 : 0);
+	WREG32_NO_KIQ(SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_MAILBOX_INT_CNTL), tmp);
+
+	return 0;
+}
+
+static int xgpu_ai_mailbox_rcv_irq(struct amdgpu_device *adev,
+				   struct amdgpu_irq_src *source,
+				   struct amdgpu_iv_entry *entry)
+{
+	int r;
+
+	/* see what event we get */
+	r = xgpu_ai_mailbox_rcv_msg(adev, IDH_FLR_NOTIFICATION);
+
+	/* only handle FLR_NOTIFY now */
+	if (!r)
+		schedule_work(&adev->virt.flr_work);
+
+	return 0;
+}
+
+static const struct amdgpu_irq_src_funcs xgpu_ai_mailbox_ack_irq_funcs = {
+	.set = xgpu_ai_set_mailbox_ack_irq,
+	.process = xgpu_ai_mailbox_ack_irq,
+};
+
+static const struct amdgpu_irq_src_funcs xgpu_ai_mailbox_rcv_irq_funcs = {
+	.set = xgpu_ai_set_mailbox_rcv_irq,
+	.process = xgpu_ai_mailbox_rcv_irq,
+};
+
+void xgpu_ai_mailbox_set_irq_funcs(struct amdgpu_device *adev)
+{
+	adev->virt.ack_irq.num_types = 1;
+	adev->virt.ack_irq.funcs = &xgpu_ai_mailbox_ack_irq_funcs;
+	adev->virt.rcv_irq.num_types = 1;
+	adev->virt.rcv_irq.funcs = &xgpu_ai_mailbox_rcv_irq_funcs;
+}
+
+int xgpu_ai_mailbox_add_irq_id(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 135, &adev->virt.rcv_irq);
+	if (r)
+		return r;
+
+	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 138, &adev->virt.ack_irq);
+	if (r) {
+		amdgpu_irq_put(adev, &adev->virt.rcv_irq, 0);
+		return r;
+	}
+
+	return 0;
+}
+
+int xgpu_ai_mailbox_get_irq(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = amdgpu_irq_get(adev, &adev->virt.rcv_irq, 0);
+	if (r)
+		return r;
+	r = amdgpu_irq_get(adev, &adev->virt.ack_irq, 0);
+	if (r) {
+		amdgpu_irq_put(adev, &adev->virt.rcv_irq, 0);
+		return r;
+	}
+
+	INIT_WORK(&adev->virt.flr_work, xgpu_ai_mailbox_flr_work);
+
+	return 0;
+}
+
+void xgpu_ai_mailbox_put_irq(struct amdgpu_device *adev)
+{
+	amdgpu_irq_put(adev, &adev->virt.ack_irq, 0);
+	amdgpu_irq_put(adev, &adev->virt.rcv_irq, 0);
+}
+
 const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.req_full_gpu	= xgpu_ai_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_ai_release_full_gpu_access,
+	.reset_gpu = xgpu_ai_request_reset,
 };
