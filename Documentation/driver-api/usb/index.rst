@@ -9,6 +9,7 @@ Linux USB API
    anchors
    bulk-streams
    callbacks
+   dma
    power-management
    writing_usb_driver
    writing_musb_glue_layer
