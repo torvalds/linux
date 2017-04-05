@@ -46,9 +46,6 @@
 #define MAX_PKT_SIZE		1518
 #define RX_BUF_SIZE		PAGE_SIZE	/* must be smaller than 0x3fff */
 
-/******************************************************************************
- * private data
- *****************************************************************************/
 struct ftgmac100_descs {
 	struct ftgmac100_rxdes rxdes[RX_QUEUE_ENTRIES];
 	struct ftgmac100_txdes txdes[TX_QUEUE_ENTRIES];
@@ -88,9 +85,6 @@ struct ftgmac100 {
 static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
 				   struct ftgmac100_rxdes *rxdes, gfp_t gfp);
 
-/******************************************************************************
- * internal functions (hardware register access)
- *****************************************************************************/
 static void ftgmac100_set_rx_ring_base(struct ftgmac100 *priv, dma_addr_t addr)
 {
 	iowrite32(addr, priv->base + FTGMAC100_OFFSET_RXR_BADR);
@@ -245,9 +239,6 @@ static void ftgmac100_stop_hw(struct ftgmac100 *priv)
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_MACCR);
 }
 
-/******************************************************************************
- * internal functions (receive descriptor)
- *****************************************************************************/
 static bool ftgmac100_rxdes_first_segment(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_FRS);
@@ -372,9 +363,6 @@ static struct page *ftgmac100_rxdes_get_page(struct ftgmac100 *priv,
 	return *ftgmac100_rxdes_page_slot(priv, rxdes);
 }
 
-/******************************************************************************
- * internal functions (receive)
- *****************************************************************************/
 static int ftgmac100_next_rx_pointer(int pointer)
 {
 	return (pointer + 1) & (RX_QUEUE_ENTRIES - 1);
@@ -559,9 +547,6 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	return true;
 }
 
-/******************************************************************************
- * internal functions (transmit descriptor)
- *****************************************************************************/
 static void ftgmac100_txdes_reset(const struct ftgmac100 *priv,
 				  struct ftgmac100_txdes *txdes)
 {
@@ -655,9 +640,6 @@ static struct sk_buff *ftgmac100_txdes_get_skb(struct ftgmac100_txdes *txdes)
 	return (struct sk_buff *)txdes->txdes2;
 }
 
-/******************************************************************************
- * internal functions (transmit)
- *****************************************************************************/
 static int ftgmac100_next_tx_pointer(int pointer)
 {
 	return (pointer + 1) & (TX_QUEUE_ENTRIES - 1);
@@ -773,9 +755,6 @@ static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-/******************************************************************************
- * internal functions (buffer)
- *****************************************************************************/
 static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
 				   struct ftgmac100_rxdes *rxdes, gfp_t gfp)
 {
@@ -867,9 +846,6 @@ err:
 	return -ENOMEM;
 }
 
-/******************************************************************************
- * internal functions (mdio)
- *****************************************************************************/
 static void ftgmac100_adjust_link(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
@@ -919,9 +895,6 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv)
 	return 0;
 }
 
-/******************************************************************************
- * struct mii_bus functions
- *****************************************************************************/
 static int ftgmac100_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 {
 	struct net_device *netdev = bus->priv;
@@ -993,9 +966,6 @@ static int ftgmac100_mdiobus_write(struct mii_bus *bus, int phy_addr,
 	return -EIO;
 }
 
-/******************************************************************************
- * struct ethtool_ops functions
- *****************************************************************************/
 static void ftgmac100_get_drvinfo(struct net_device *netdev,
 				  struct ethtool_drvinfo *info)
 {
@@ -1011,9 +981,6 @@ static const struct ethtool_ops ftgmac100_ethtool_ops = {
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
-/******************************************************************************
- * interrupt handler
- *****************************************************************************/
 static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 {
 	struct net_device *netdev = dev_id;
@@ -1031,9 +998,6 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/******************************************************************************
- * struct napi_struct functions
- *****************************************************************************/
 static int ftgmac100_poll(struct napi_struct *napi, int budget)
 {
 	struct ftgmac100 *priv = container_of(napi, struct ftgmac100, napi);
@@ -1105,9 +1069,6 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 	return rx;
 }
 
-/******************************************************************************
- * struct net_device_ops functions
- *****************************************************************************/
 static int ftgmac100_open(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
@@ -1320,9 +1281,6 @@ static void ftgmac100_ncsi_handler(struct ncsi_dev *nd)
 		    nd->link_up ? "up" : "down");
 }
 
-/******************************************************************************
- * struct platform_driver functions
- *****************************************************************************/
 static int ftgmac100_probe(struct platform_device *pdev)
 {
 	struct resource *res;
