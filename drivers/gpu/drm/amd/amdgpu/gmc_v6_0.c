@@ -849,12 +849,8 @@ static int gmc_v6_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	adev->vm_manager.vm_size = amdgpu_vm_size;
-	adev->vm_manager.block_size = amdgpu_vm_block_size;
+	amdgpu_vm_adjust_size(adev, 64);
 	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
-
-	DRM_INFO("vm size is %llu GB, block size is %d-bit\n",
-		adev->vm_manager.vm_size, adev->vm_manager.block_size);
 
 	adev->mc.mc_mask = 0xffffffffffULL;
 

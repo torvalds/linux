@@ -520,7 +520,12 @@ static int gmc_v9_0_vm_init(struct amdgpu_device *adev)
 	 * amdkfd will use VMIDs 8-15
 	 */
 	adev->vm_manager.num_ids = AMDGPU_NUM_OF_VMIDS;
-	adev->vm_manager.num_level = 3;
+
+	/* TODO: fix num_level for APU when updating vm size and block size */
+	if (adev->flags & AMD_IS_APU)
+		adev->vm_manager.num_level = 1;
+	else
+		adev->vm_manager.num_level = 3;
 	amdgpu_vm_manager_init(adev);
 
 	/* base offset of vram pages */
@@ -552,8 +557,7 @@ static int gmc_v9_0_sw_init(void *handle)
 
 	if (adev->flags & AMD_IS_APU) {
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
-		adev->vm_manager.vm_size = amdgpu_vm_size;
-		adev->vm_manager.block_size = amdgpu_vm_block_size;
+		amdgpu_vm_adjust_size(adev, 64);
 	} else {
 		/* XXX Don't know how to get VRAM type yet. */
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_HBM;
@@ -564,10 +568,10 @@ static int gmc_v9_0_sw_init(void *handle)
 		 */
 		adev->vm_manager.vm_size = 1U << 18;
 		adev->vm_manager.block_size = 9;
+		DRM_INFO("vm size is %llu GB, block size is %u-bit\n",
+				adev->vm_manager.vm_size,
+				adev->vm_manager.block_size);
 	}
-
-	DRM_INFO("vm size is %llu GB, block size is %d-bit\n",
-		adev->vm_manager.vm_size, adev->vm_manager.block_size);
 
 	/* This interrupt is VMC page fault.*/
 	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_VMC, 0,

@@ -234,5 +234,6 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 				uint64_t saddr, uint64_t size);
 void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 		      struct amdgpu_bo_va *bo_va);
+void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint64_t vm_size);
 
 #endif
