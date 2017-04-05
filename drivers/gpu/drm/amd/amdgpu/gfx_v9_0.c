@@ -3376,21 +3376,12 @@ static void gfx_v9_0_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg,
 static void gfx_v9_0_set_gfx_eop_interrupt_state(struct amdgpu_device *adev,
 						 enum amdgpu_interrupt_state state)
 {
-	u32 cp_int_cntl;
-
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		cp_int_cntl = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0));
-		cp_int_cntl = REG_SET_FIELD(cp_int_cntl, CP_INT_CNTL_RING0,
-					    TIME_STAMP_INT_ENABLE, 0);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0), cp_int_cntl);
-		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		cp_int_cntl = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0));
-		cp_int_cntl =
-			REG_SET_FIELD(cp_int_cntl, CP_INT_CNTL_RING0,
-				      TIME_STAMP_INT_ENABLE, 1);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0), cp_int_cntl);
+		WREG32_FIELD15(GC, 0, CP_INT_CNTL_RING0,
+			       TIME_STAMP_INT_ENABLE,
+			       state == AMDGPU_IRQ_STATE_ENABLE ? 1 : 0);
 		break;
 	default:
 		break;
