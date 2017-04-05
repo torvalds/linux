@@ -281,6 +281,9 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
  *
  *  If a device is using logical block provisioning, the underlying space will
  *  not be released if %flags contains BLKDEV_ZERO_NOUNMAP.
+ *
+ *  If %flags contains BLKDEV_ZERO_NOFALLBACK, the function will return
+ *  -EOPNOTSUPP if no explicit hardware offload for zeroing is provided.
  */
 int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
@@ -298,7 +301,7 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 
 	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
 			biop, flags);
-	if (ret == 0 || (ret && ret != -EOPNOTSUPP))
+	if (ret != -EOPNOTSUPP || (flags & BLKDEV_ZERO_NOFALLBACK))
 		goto out;
 
 	ret = 0;
