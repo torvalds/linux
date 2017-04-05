@@ -40,6 +40,7 @@ struct wm_adsp_compr_buf;
 
 struct wm_adsp {
 	const char *part;
+	int rev;
 	int num;
 	int type;
 	struct device *dev;
