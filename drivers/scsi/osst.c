@@ -414,7 +414,7 @@ static int osst_execute(struct osst_request *SRpnt, const unsigned char *cmd,
 	memset(rq->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
 	memcpy(rq->cmd, cmd, rq->cmd_len);
 	req->timeout = timeout;
-	req->retries = retries;
+	rq->retries = retries;
 	req->end_io_data = SRpnt;
 
 	blk_execute_rq_nowait(req->q, NULL, req, 1, osst_end_async);

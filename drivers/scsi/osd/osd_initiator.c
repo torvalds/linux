@@ -1602,7 +1602,7 @@ static int _init_blk_request(struct osd_request *or,
 	req->rq_flags |= RQF_QUIET;
 
 	req->timeout = or->timeout;
-	req->retries = or->retries;
+	scsi_req(req)->retries = or->retries;
 
 	if (has_out) {
 		or->out.req = req;

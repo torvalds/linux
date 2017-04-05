@@ -579,7 +579,7 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 	memset(rq->cmd, 0, BLK_MAX_CDB);
 	memcpy(rq->cmd, cmd, rq->cmd_len);
 	req->timeout = timeout;
-	req->retries = retries;
+	rq->retries = retries;
 	req->end_io_data = SRpnt;
 
 	blk_execute_rq_nowait(req->q, NULL, req, 1, st_scsi_execute_end);

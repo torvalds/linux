@@ -1988,7 +1988,7 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 
 	req->rq_flags |= RQF_QUIET;
 	req->timeout = 10 * HZ;
-	req->retries = 5;
+	rq->retries = 5;
 
 	blk_execute_rq_nowait(req->q, NULL, req, 1, eh_lock_door_done);
 }

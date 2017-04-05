@@ -11,6 +11,7 @@ struct scsi_request {
 	unsigned short	cmd_len;
 	unsigned int	sense_len;
 	unsigned int	resid_len;	/* residual count */
+	int		retries;
 	void		*sense;
 };
 

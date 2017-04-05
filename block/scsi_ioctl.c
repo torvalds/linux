@@ -362,7 +362,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 		goto out_free_cdb;
 
 	bio = rq->bio;
-	rq->retries = 0;
+	req->retries = 0;
 
 	start_time = jiffies;
 
@@ -476,13 +476,13 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 		goto error;
 
 	/* default.  possible overriden later */
-	rq->retries = 5;
+	req->retries = 5;
 
 	switch (opcode) {
 	case SEND_DIAGNOSTIC:
 	case FORMAT_UNIT:
 		rq->timeout = FORMAT_UNIT_TIMEOUT;
-		rq->retries = 1;
+		req->retries = 1;
 		break;
 	case START_STOP:
 		rq->timeout = START_STOP_TIMEOUT;
@@ -495,7 +495,7 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 		break;
 	case READ_DEFECT_DATA:
 		rq->timeout = READ_DEFECT_DATA_TIMEOUT;
-		rq->retries = 1;
+		req->retries = 1;
 		break;
 	default:
 		rq->timeout = BLK_DEFAULT_SG_TIMEOUT;

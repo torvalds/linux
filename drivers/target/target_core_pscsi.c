@@ -1008,7 +1008,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		req->timeout = PS_TIMEOUT_DISK;
 	else
 		req->timeout = PS_TIMEOUT_OTHER;
-	req->retries = PS_RETRY;
+	scsi_req(req)->retries = PS_RETRY;
 
 	blk_execute_rq_nowait(pdv->pdv_sd->request_queue, NULL, req,
 			(cmd->sam_task_attr == TCM_HEAD_TAG),

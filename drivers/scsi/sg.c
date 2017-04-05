@@ -1716,7 +1716,7 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 
 	srp->rq = rq;
 	rq->end_io_data = srp;
-	rq->retries = SG_DEFAULT_RETRIES;
+	req->retries = SG_DEFAULT_RETRIES;
 
 	if ((dxfer_len <= 0) || (dxfer_dir == SG_DXFER_NONE))
 		return 0;
