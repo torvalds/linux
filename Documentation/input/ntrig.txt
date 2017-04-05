@@ -1,7 +1,11 @@
+.. include:: <isonum.txt>
+
+=========================
 N-Trig touchscreen Driver
--------------------------
-	Copyright (c) 2008-2010 Rafi Rubin <rafi@seas.upenn.edu>
-	Copyright (c) 2009-2010 Stephane Chatty
+=========================
+
+:Copyright: |copy| 2008-2010 Rafi Rubin <rafi@seas.upenn.edu>
+:Copyright: |copy| 2009-2010 Stephane Chatty
 
 This driver provides support for N-Trig pen and multi-touch sensors.  Single
 and multi-touch events are translated to the appropriate protocols for
@@ -22,16 +26,18 @@ but only for that one device.
 
 The following parameters are used to configure filters to reduce noise:
 
-activate_slack		number of fingers to ignore before processing events
-
-activation_height	size threshold to activate immediately
-activation_width
-
-min_height		size threshold bellow which fingers are ignored
-min_width		both to decide activation and during activity
-
-deactivate_slack	the number of "no contact" frames to ignore before
-			propagating the end of activity events
++-----------------------+-----------------------------------------------------+
+|activate_slack		|number of fingers to ignore before processing events |
++-----------------------+-----------------------------------------------------+
+|activation_height,	|size threshold to activate immediately		      |
+|activation_width	|						      |
++-----------------------+-----------------------------------------------------+
+|min_height,		|size threshold bellow which fingers are ignored      |
+|min_width		|both to decide activation and during activity	      |
++-----------------------+-----------------------------------------------------+
+|deactivate_slack	|the number of "no contact" frames to ignore before   |
+|			|propagating the end of activity events		      |
++-----------------------+-----------------------------------------------------+
 
 When the last finger is removed from the device, it sends a number of empty
 frames.  By holding off on deactivation for a few frames we can tolerate false
@@ -44,15 +50,20 @@ Additional sysfs items
 ----------------------
 
 These nodes just provide easy access to the ranges reported by the device.
-sensor_logical_height	the range for positions reported during activity
-sensor_logical_width
 
-sensor_physical_height	internal ranges not used for normal events but
-sensor_physical_width	useful for tuning
++-----------------------+-----------------------------------------------------+
+|sensor_logical_height, | the range for positions reported during activity    |
+|sensor_logical_width   |                                                     |
++-----------------------+-----------------------------------------------------+
+|sensor_physical_height,| internal ranges not used for normal events but      |
+|sensor_physical_width  | useful for tuning                                   |
++-----------------------+-----------------------------------------------------+
 
 All N-Trig devices with product id of 1 report events in the ranges of
-X: 0-9600
-Y: 0-7200
+
+* X: 0-9600
+* Y: 0-7200
+
 However not all of these devices have the same physical dimensions.  Most
 seem to be 12" sensors (Dell Latitude XT and XT2 and the HP TX2), and
 at least one model (Dell Studio 17) has a 17" sensor.  The ratio of physical
