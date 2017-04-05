@@ -492,6 +492,7 @@
 			clocks = <&ccu CLK_BUS_GPU>, <&ccu CLK_GPU>;
 			clock-names = "bus", "core";
 			resets = <&ccu RST_BUS_GPU>;
+			#cooling-cells = <2>;
 
 			assigned-clocks = <&ccu CLK_GPU>;
 			assigned-clock-rates = <408000000>;
