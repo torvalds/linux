@@ -796,7 +796,8 @@ void ext2_error(struct super_block *, const char *, const char *, ...);
 extern __printf(3, 4)
 void ext2_msg(struct super_block *, const char *, const char *, ...);
 extern void ext2_update_dynamic_rev (struct super_block *sb);
-extern void ext2_write_super (struct super_block *);
+extern void ext2_sync_super(struct super_block *sb, struct ext2_super_block *es,
+			    int wait);
 
 /*
  * Inodes and files operations

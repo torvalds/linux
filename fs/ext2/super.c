@@ -36,8 +36,7 @@
 #include "xattr.h"
 #include "acl.h"
 
-static void ext2_sync_super(struct super_block *sb,
-			    struct ext2_super_block *es, int wait);
+static void ext2_write_super(struct super_block *sb);
 static int ext2_remount (struct super_block * sb, int * flags, char * data);
 static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf);
 static int ext2_sync_fs(struct super_block *sb, int wait);
@@ -1194,8 +1193,8 @@ static void ext2_clear_super_error(struct super_block *sb)
 	}
 }
 
-static void ext2_sync_super(struct super_block *sb, struct ext2_super_block *es,
-			    int wait)
+void ext2_sync_super(struct super_block *sb, struct ext2_super_block *es,
+		     int wait)
 {
 	ext2_clear_super_error(sb);
 	spin_lock(&EXT2_SB(sb)->s_lock);
@@ -1270,7 +1269,7 @@ static int ext2_unfreeze(struct super_block *sb)
 	return 0;
 }
 
-void ext2_write_super(struct super_block *sb)
+static void ext2_write_super(struct super_block *sb)
 {
 	if (!(sb->s_flags & MS_RDONLY))
 		ext2_sync_fs(sb, 1);

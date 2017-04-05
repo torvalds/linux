@@ -1615,7 +1615,7 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
 				EXT2_SET_RO_COMPAT_FEATURE(sb,
 					EXT2_FEATURE_RO_COMPAT_LARGE_FILE);
 				spin_unlock(&EXT2_SB(sb)->s_lock);
-				ext2_write_super(sb);
+				ext2_sync_super(sb, EXT2_SB(sb)->s_es, 1);
 			}
 		}
 	}
