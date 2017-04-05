@@ -147,7 +147,7 @@ struct fujitsu_bl {
 
 static struct fujitsu_bl *fujitsu_bl;
 static int use_alt_lcd_levels = -1;
-static int disable_brightness_adjust = -1;
+static bool disable_brightness_adjust;
 
 /* Device used to access hotkeys and other features on the laptop */
 struct fujitsu_laptop {
@@ -597,11 +597,6 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 			pr_err("_INI Method failed\n");
 	}
 
-	/* do config (detect defaults) */
-	disable_brightness_adjust = disable_brightness_adjust == 1 ? 1 : 0;
-	vdbg_printk(FUJLAPTOP_DBG_INFO, "config: [adjust disable: %d]\n",
-		    disable_brightness_adjust);
-
 	if (get_max_brightness() <= 0)
 		fujitsu_bl->max_brightness = FUJITSU_LCD_N_LEVELS;
 	get_lcd_level();
@@ -640,7 +635,7 @@ static void acpi_fujitsu_bl_notify(struct acpi_device *device, u32 event)
 	if (oldb == newb)
 		return;
 
-	if (disable_brightness_adjust != 1)
+	if (!disable_brightness_adjust)
 		set_lcd_level(newb);
 
 	sparse_keymap_report_event(input, oldb < newb, 1, true);
@@ -1135,8 +1130,8 @@ module_exit(fujitsu_cleanup);
 
 module_param(use_alt_lcd_levels, int, 0644);
 MODULE_PARM_DESC(use_alt_lcd_levels, "Interface used for setting LCD brightness level (-1 = auto, 0 = force SBLL, 1 = force SBL2)");
-module_param(disable_brightness_adjust, uint, 0644);
-MODULE_PARM_DESC(disable_brightness_adjust, "Disable brightness adjustment .");
+module_param(disable_brightness_adjust, bool, 0644);
+MODULE_PARM_DESC(disable_brightness_adjust, "Disable LCD brightness adjustment");
 #ifdef CONFIG_FUJITSU_LAPTOP_DEBUG
 module_param_named(debug, dbg_level, uint, 0644);
 MODULE_PARM_DESC(debug, "Sets debug level bit-mask");
