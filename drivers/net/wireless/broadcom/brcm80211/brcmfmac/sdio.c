@@ -540,7 +540,11 @@ static int qcount[NUMPRIO];
 /* Limit on rounding up frames */
 static const uint max_roundup = 512;
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+#define ALIGNMENT  8
+#else
 #define ALIGNMENT  4
+#endif
 
 enum brcmf_sdio_frmtype {
 	BRCMF_SDIO_FT_NORMAL,
