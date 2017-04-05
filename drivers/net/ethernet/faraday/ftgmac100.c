@@ -1131,12 +1131,6 @@ static int ftgmac100_open(struct net_device *netdev)
 	if (ftgmac100_alloc_rx_buffers(priv))
 		goto err_alloc;
 
-	err = request_irq(netdev->irq, ftgmac100_interrupt, 0, netdev->name, netdev);
-	if (err) {
-		netdev_err(netdev, "failed to request irq %d\n", netdev->irq);
-		goto err_irq;
-	}
-
 	/* When using NC-SI we force the speed to 100Mbit/s full duplex,
 	 *
 	 * Otherwise we leave it set to 0 (no link), the link
@@ -1162,6 +1156,13 @@ static int ftgmac100_open(struct net_device *netdev)
 
 	/* Initialize NAPI */
 	netif_napi_add(netdev, &priv->napi, ftgmac100_poll, 64);
+
+	/* Grab our interrupt */
+	err = request_irq(netdev->irq, ftgmac100_interrupt, 0, netdev->name, netdev);
+	if (err) {
+		netdev_err(netdev, "failed to request irq %d\n", netdev->irq);
+		goto err_irq;
+	}
 
 	ftgmac100_init_hw(priv);
 	ftgmac100_start_hw(priv);
@@ -1193,12 +1194,12 @@ static int ftgmac100_open(struct net_device *netdev)
 err_ncsi:
 	napi_disable(&priv->napi);
 	netif_stop_queue(netdev);
-	netif_napi_del(&priv->napi);
-	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
-err_hw:
 	free_irq(netdev->irq, netdev);
 err_irq:
+	netif_napi_del(&priv->napi);
+err_hw:
 err_alloc:
+	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 	ftgmac100_free_buffers(priv);
 	ftgmac100_free_rings(priv);
 	return err;
