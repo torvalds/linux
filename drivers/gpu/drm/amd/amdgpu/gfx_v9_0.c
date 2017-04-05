@@ -1410,10 +1410,8 @@ static void gfx_v9_0_rlc_start(struct amdgpu_device *adev)
 #ifdef AMDGPU_RLC_DEBUG_RETRY
 	u32 rlc_ucode_ver;
 #endif
-	u32 tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CNTL));
 
-	tmp = REG_SET_FIELD(tmp, RLC_CNTL, RLC_ENABLE_F32, 1);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CNTL), tmp);
+	WREG32_FIELD15(GC, 0, RLC_CNTL, RLC_ENABLE_F32, 1);
 
 	/* carrizo do enable cp interrupt after cp inited */
 	if (!(adev->flags & AMD_IS_APU))
