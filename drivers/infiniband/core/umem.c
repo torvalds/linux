@@ -133,7 +133,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 
 	if (access & IB_ACCESS_ON_DEMAND) {
 		put_pid(umem->pid);
-		ret = ib_umem_odp_get(context, umem);
+		ret = ib_umem_odp_get(context, umem, access);
 		if (ret) {
 			kfree(umem);
 			return ERR_PTR(ret);
