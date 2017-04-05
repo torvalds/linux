@@ -350,6 +350,11 @@ int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 {
 	int ret = BLK_MQ_RQ_QUEUE_OK;
 
+	if (!(req->rq_flags & RQF_DONTPREP)) {
+		req->retries = 0;
+		req->rq_flags |= RQF_DONTPREP;
+	}
+
 	switch (req_op(req)) {
 	case REQ_OP_DRV_IN:
 	case REQ_OP_DRV_OUT:
