@@ -159,13 +159,17 @@ static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_de_clk, "pll-de",
 					BIT(28),	/* lock */
 					CLK_SET_RATE_UNGATE);
 
-/* TODO: Fix N */
-static SUNXI_CCU_N_WITH_GATE_LOCK(pll_ddr1_clk, "pll-ddr1",
-				  "osc24M", 0x04c,
-				  8, 6,			/* N */
-				  BIT(31),		/* gate */
-				  BIT(28),		/* lock */
-				  CLK_SET_RATE_UNGATE);
+static struct ccu_mult pll_ddr1_clk = {
+	.enable	= BIT(31),
+	.lock	= BIT(28),
+	.mult	= _SUNXI_CCU_MULT_OFFSET_MIN_MAX(8, 6, 0, 12, 0),
+	.common	= {
+		.reg		= 0x04c,
+		.hw.init	= CLK_HW_INIT("pll-ddr1", "osc24M",
+					      &ccu_mult_ops,
+					      CLK_SET_RATE_UNGATE),
+	},
+};
 
 static const char * const cpux_parents[] = { "osc32k", "osc24M",
 					     "pll-cpux" , "pll-cpux" };
