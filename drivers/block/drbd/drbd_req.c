@@ -1148,10 +1148,10 @@ static int drbd_process_write_request(struct drbd_request *req)
 
 static void drbd_process_discard_req(struct drbd_request *req)
 {
-	int err = drbd_issue_discard_or_zero_out(req->device,
-				req->i.sector, req->i.size >> 9, true);
+	struct block_device *bdev = req->device->ldev->backing_bdev;
 
-	if (err)
+	if (blkdev_issue_zeroout(bdev, req->i.sector, req->i.size >> 9,
+			GFP_NOIO, 0))
 		req->private_bio->bi_error = -EIO;
 	bio_endio(req->private_bio);
 }
