@@ -154,6 +154,11 @@
 		status = "disabled";
 	};
 
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&ths>;
+	};
+
 	mali_opp_table: gpu-opp-table {
 		compatible = "operating-points-v2";
 
@@ -264,6 +269,13 @@
 			clocks = <&ccu CLK_BUS_CODEC>, <&ccu CLK_AC_DIG>;
 			clock-names = "bus", "mod";
 			status = "disabled";
+		};
+
+		ths: ths@01c25000 {
+			compatible = "allwinner,sun8i-a33-ths";
+			reg = <0x01c25000 0x100>;
+			#thermal-sensor-cells = <0>;
+			#io-channel-cells = <0>;
 		};
 
 		fe0: display-frontend@01e00000 {
