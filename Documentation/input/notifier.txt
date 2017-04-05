@@ -1,4 +1,6 @@
+=================
 Keyboard notifier
+=================
 
 One can use register_keyboard_notifier to get called back on keyboard
 events (see kbd_keycode() function for details).  The passed structure is
@@ -23,9 +25,9 @@ For each kind of event but the last, the callback may return NOTIFY_STOP in
 order to "eat" the event: the notify loop is stopped and the keyboard event is
 dropped.
 
-In a rough C snippet, we have:
+In a rough C snippet, we have::
 
-kbd_keycode(keycode) {
+    kbd_keycode(keycode) {
 	...
 	params.value = keycode;
 	if (notifier_call_chain(KBD_KEYCODE,&params) == NOTIFY_STOP)
@@ -47,6 +49,6 @@ kbd_keycode(keycode) {
 		return;
 	apply keysym;
 	notifier_call_chain(KBD_POST_KEYSYM,&params);
-}
+    }
 
-NOTE: This notifier is usually called from interrupt context.
+.. note:: This notifier is usually called from interrupt context.
