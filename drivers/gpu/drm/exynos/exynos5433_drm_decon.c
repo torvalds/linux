@@ -482,9 +482,6 @@ static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
 {
 	struct decon_context *ctx = dev_id;
 
-	if (ctx->out_type & I80_HW_TRG)
-		return IRQ_HANDLED;
-
 	decon_set_bits(ctx, DECON_TRIGCON, TRIGCON_SWTRIGCMD, ~0);
 
 	return IRQ_HANDLED;
