@@ -31,7 +31,7 @@
 #include <linux/timeriomem-rng.h>
 #include <linux/timer.h>
 
-struct timeriomem_rng_private_data {
+struct timeriomem_rng_private {
 	void __iomem		*io_base;
 	unsigned int		expires;
 	unsigned int		period;
@@ -40,15 +40,14 @@ struct timeriomem_rng_private_data {
 	struct timer_list	timer;
 	struct completion	completion;
 
-	struct hwrng		timeriomem_rng_ops;
+	struct hwrng		rng_ops;
 };
 
 static int timeriomem_rng_read(struct hwrng *hwrng, void *data,
 				size_t max, bool wait)
 {
-	struct timeriomem_rng_private_data *priv =
-		container_of(hwrng, struct timeriomem_rng_private_data,
-				timeriomem_rng_ops);
+	struct timeriomem_rng_private *priv =
+		container_of(hwrng, struct timeriomem_rng_private, rng_ops);
 	unsigned long cur;
 	s32 delay;
 
@@ -89,8 +88,8 @@ static int timeriomem_rng_read(struct hwrng *hwrng, void *data,
 
 static void timeriomem_rng_trigger(unsigned long data)
 {
-	struct timeriomem_rng_private_data *priv
-			= (struct timeriomem_rng_private_data *)data;
+	struct timeriomem_rng_private *priv
+			= (struct timeriomem_rng_private *)data;
 
 	priv->present = 1;
 	complete(&priv->completion);
@@ -99,7 +98,7 @@ static void timeriomem_rng_trigger(unsigned long data)
 static int timeriomem_rng_probe(struct platform_device *pdev)
 {
 	struct timeriomem_rng_data *pdata = pdev->dev.platform_data;
-	struct timeriomem_rng_private_data *priv;
+	struct timeriomem_rng_private *priv;
 	struct resource *res;
 	int err = 0;
 	int period;
@@ -121,7 +120,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 
 	/* Allocate memory for the device structure (and zero it) */
 	priv = devm_kzalloc(&pdev->dev,
-			sizeof(struct timeriomem_rng_private_data), GFP_KERNEL);
+			sizeof(struct timeriomem_rng_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -155,8 +154,8 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 
 	setup_timer(&priv->timer, timeriomem_rng_trigger, (unsigned long)priv);
 
-	priv->timeriomem_rng_ops.name		= dev_name(&pdev->dev);
-	priv->timeriomem_rng_ops.read		= timeriomem_rng_read;
+	priv->rng_ops.name = dev_name(&pdev->dev);
+	priv->rng_ops.read = timeriomem_rng_read;
 
 	priv->io_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->io_base)) {
@@ -164,7 +163,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 		goto out_timer;
 	}
 
-	err = hwrng_register(&priv->timeriomem_rng_ops);
+	err = hwrng_register(&priv->rng_ops);
 	if (err) {
 		dev_err(&pdev->dev, "problem registering\n");
 		goto out_timer;
@@ -182,9 +181,9 @@ out_timer:
 
 static int timeriomem_rng_remove(struct platform_device *pdev)
 {
-	struct timeriomem_rng_private_data *priv = platform_get_drvdata(pdev);
+	struct timeriomem_rng_private *priv = platform_get_drvdata(pdev);
 
-	hwrng_unregister(&priv->timeriomem_rng_ops);
+	hwrng_unregister(&priv->rng_ops);
 
 	del_timer_sync(&priv->timer);
 
