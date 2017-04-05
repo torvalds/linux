@@ -235,6 +235,10 @@ static struct platform_driver imx_pgc_power_domain_driver = {
 };
 builtin_platform_driver(imx_pgc_power_domain_driver)
 
+#define GPC_PGC_DOMAIN_ARM	0
+#define GPC_PGC_DOMAIN_PU	1
+#define GPC_PGC_DOMAIN_DISPLAY	2
+
 static struct genpd_power_state imx6_pm_domain_pu_state = {
 	.power_off_latency_ns = 25000,
 	.power_on_latency_ns = 2000000,
@@ -340,7 +344,7 @@ static int imx_gpc_old_dt_init(struct device *dev, struct regmap *regmap,
 genpd_err:
 	for (i = 0; i < num_domains; i++)
 		pm_genpd_remove(&imx_gpc_domains[i].base);
-	imx_pgc_put_clocks(&imx_gpc_domains[1]);
+	imx_pgc_put_clocks(&imx_gpc_domains[GPC_PGC_DOMAIN_PU]);
 clk_err:
 	return ret;
 }
@@ -441,12 +445,12 @@ static int imx_gpc_remove(struct platform_device *pdev)
 	if (!of_get_child_by_name(pdev->dev.of_node, "pgc")) {
 		of_genpd_del_provider(pdev->dev.of_node);
 
-		ret = pm_genpd_remove(&imx_gpc_domains[1].base);
+		ret = pm_genpd_remove(&imx_gpc_domains[GPC_PGC_DOMAIN_PU].base);
 		if (ret)
 			return ret;
-		imx_pgc_put_clocks(&imx_gpc_domains[1]);
+		imx_pgc_put_clocks(&imx_gpc_domains[GPC_PGC_DOMAIN_PU]);
 
-		ret = pm_genpd_remove(&imx_gpc_domains[0].base);
+		ret = pm_genpd_remove(&imx_gpc_domains[GPC_PGC_DOMAIN_ARM].base);
 		if (ret)
 			return ret;
 	}
