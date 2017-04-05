@@ -533,14 +533,15 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 			break;
 		default:
 			/* We cannot support masking based on protocol */
-			goto unsupported_flow;
+			dev_info(&pf->pdev->dev, "Unsupported IPv4 protocol 0x%02x\n",
+				 input->ip4_proto);
+			return -EINVAL;
 		}
 		break;
 	default:
-unsupported_flow:
-		dev_info(&pf->pdev->dev, "Could not specify spec type %d\n",
+		dev_info(&pf->pdev->dev, "Unsupported flow type 0x%02x\n",
 			 input->flow_type);
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
 	/* The buffer allocated here will be normally be freed by
