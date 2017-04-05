@@ -5,7 +5,10 @@ The i.MX6 General Power Control (GPC) block contains DVFS load tracking
 counters and Power Gating Control (PGC).
 
 Required properties:
-- compatible: Should be "fsl,imx6q-gpc" or "fsl,imx6sl-gpc"
+- compatible: Should be one of the following:
+  - fsl,imx6q-gpc
+  - fsl,imx6qp-gpc
+  - fsl,imx6sl-gpc
 - reg: should be register base and length as documented in the
   datasheet
 - interrupts: Should contain one interrupt specifier for the GPC interrupt
