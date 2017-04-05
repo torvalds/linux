@@ -514,18 +514,6 @@ config VIRTIO_BLK_SCSI
 	  virtio protocol and not enabled by default by any hypervisor.
 	  Your probably want to virtio-scsi instead.
 
-config BLK_DEV_HD
-	bool "Very old hard disk (MFM/RLL/IDE) driver"
-	depends on HAVE_IDE
-	depends on !ARM || ARCH_RPC || BROKEN
-	help
-	  This is a very old hard disk driver that lacks the enhanced
-	  functionality of the newer ones.
-
-	  It is required for systems with ancient MFM/RLL/ESDI drives.
-
-	  If unsure, say N.
-
 config BLK_DEV_RBD
 	tristate "Rados block device (RBD)"
 	depends on INET && BLOCK
