@@ -36,12 +36,6 @@
 #include <linux/pm_runtime.h>
 #include "amdgpu_amdkfd.h"
 
-#if defined(CONFIG_VGA_SWITCHEROO)
-bool amdgpu_has_atpx(void);
-#else
-static inline bool amdgpu_has_atpx(void) { return false; }
-#endif
-
 /**
  * amdgpu_driver_unload_kms - Main unload function for KMS.
  *
