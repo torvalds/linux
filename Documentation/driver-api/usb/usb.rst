@@ -615,8 +615,8 @@ USBDEVFS_CONTROL
     The first eight bytes of this structure are the contents of the
     SETUP packet to be sent to the device; see the USB 2.0 specification
     for details. The bRequestType value is composed by combining a
-    USB_TYPE_\* value, a USB_DIR_\* value, and a USB_RECIP_\*
-    value (from *<linux/usb.h>*). If wLength is nonzero, it describes
+    ``USB_TYPE_*`` value, a ``USB_DIR_*`` value, and a ``USB_RECIP_*``
+    value (from ``linux/usb.h``). If wLength is nonzero, it describes
     the length of the data buffer, which is either written to the device
     (USB_DIR_OUT) or read from the device (USB_DIR_IN).
 
@@ -678,7 +678,7 @@ the blocking is separate.
 
 These requests are packaged into a structure that resembles the URB used
 by kernel device drivers. (No POSIX Async I/O support here, sorry.) It
-identifies the endpoint type (USBDEVFS_URB_TYPE_\*), endpoint
+identifies the endpoint type (``USBDEVFS_URB_TYPE_*``), endpoint
 (number, masked with USB_DIR_IN as appropriate), buffer and length,
 and a user "context" value serving to uniquely identify each request.
 (It's usually a pointer to per-request data.) Flags can modify requests
