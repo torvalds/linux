@@ -63,6 +63,8 @@ struct decon_context {
 	void __iomem			*addr;
 	struct regmap			*sysreg;
 	struct clk			*clks[ARRAY_SIZE(decon_clks_name)];
+	unsigned int			irq;
+	unsigned int			te_irq;
 	unsigned long			flags;
 	unsigned long			out_type;
 	int				first_win;
@@ -105,6 +107,11 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 		val |= VIDINTCON0_INTFRMEN | VIDINTCON0_FRAMESEL_FP;
 
 	writel(val, ctx->addr + DECON_VIDINTCON0);
+
+	enable_irq(ctx->irq);
+	if (!(ctx->out_type & I80_HW_TRG))
+		enable_irq(ctx->te_irq);
+
 	set_bit(BIT_IRQS_ENABLED, &ctx->flags);
 
 	return 0;
@@ -117,6 +124,10 @@ static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
 	clear_bit(BIT_IRQS_ENABLED, &ctx->flags);
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
+
+	if (!(ctx->out_type & I80_HW_TRG))
+		disable_irq_nosync(ctx->te_irq);
+	disable_irq_nosync(ctx->irq);
 
 	writel(0, ctx->addr + DECON_VIDINTCON0);
 }
@@ -491,6 +502,10 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	struct decon_context *ctx = crtc->ctx;
 	int i;
 
+	if (!(ctx->out_type & I80_HW_TRG))
+		synchronize_irq(ctx->te_irq);
+	synchronize_irq(ctx->irq);
+
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return;
 
@@ -513,17 +528,19 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	set_bit(BIT_SUSPENDED, &ctx->flags);
 }
 
-static void decon_te_irq_handler(struct exynos_drm_crtc *crtc)
+static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
 {
-	struct decon_context *ctx = crtc->ctx;
+	struct decon_context *ctx = dev_id;
 
 	if (!test_bit(BIT_CLKS_ENABLED, &ctx->flags) ||
 	    (ctx->out_type & I80_HW_TRG))
-		return;
+		return IRQ_HANDLED;
 
 	if (test_and_clear_bit(BIT_WIN_UPDATED, &ctx->flags) ||
 	    test_bit(BIT_IRQS_ENABLED, &ctx->flags))
 		decon_set_bits(ctx, DECON_TRIGCON, TRIGCON_SWTRIGCMD, ~0);
+
+	return IRQ_HANDLED;
 }
 
 static void decon_clear_channels(struct exynos_drm_crtc *crtc)
@@ -564,7 +581,6 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.update_plane		= decon_update_plane,
 	.disable_plane		= decon_disable_plane,
 	.atomic_flush		= decon_atomic_flush,
-	.te_handler		= decon_te_irq_handler,
 };
 
 static int decon_bind(struct device *dev, struct device *master, void *data)
@@ -717,6 +733,31 @@ static const struct of_device_id exynos5433_decon_driver_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, exynos5433_decon_driver_dt_match);
 
+static int decon_conf_irq(struct decon_context *ctx, const char *name,
+		irq_handler_t handler, unsigned long int flags, bool required)
+{
+	struct platform_device *pdev = to_platform_device(ctx->dev);
+	int ret, irq = platform_get_irq_byname(pdev, name);
+
+	if (irq < 0) {
+		if (irq == -EPROBE_DEFER)
+			return irq;
+		if (required)
+			dev_err(ctx->dev, "cannot get %s IRQ\n", name);
+		else
+			irq = 0;
+		return irq;
+	}
+	irq_set_status_flags(irq, IRQ_NOAUTOEN);
+	ret = devm_request_irq(ctx->dev, irq, handler, flags, "drm_decon", ctx);
+	if (ret < 0) {
+		dev_err(ctx->dev, "IRQ %s request failed\n", name);
+		return ret;
+	}
+
+	return irq;
+}
+
 static int exynos5433_decon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -738,15 +779,6 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 		ctx->first_win = 1;
 	} else if (of_get_child_by_name(dev->of_node, "i80-if-timings")) {
 		ctx->out_type |= IFTYPE_I80;
-	}
-
-	if (ctx->out_type & I80_HW_TRG) {
-		ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
-							"samsung,disp-sysreg");
-		if (IS_ERR(ctx->sysreg)) {
-			dev_err(dev, "failed to get system register\n");
-			return PTR_ERR(ctx->sysreg);
-		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++) {
@@ -771,18 +803,34 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 		return PTR_ERR(ctx->addr);
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-			(ctx->out_type & IFTYPE_I80) ? "lcd_sys" : "vsync");
-	if (!res) {
-		dev_err(dev, "cannot find IRQ resource\n");
-		return -ENXIO;
+	if (ctx->out_type & IFTYPE_I80) {
+		ret = decon_conf_irq(ctx, "lcd_sys", decon_irq_handler, 0, true);
+		if (ret < 0)
+			return ret;
+		ctx->irq = ret;
+
+		ret = decon_conf_irq(ctx, "te", decon_te_irq_handler,
+				     IRQF_TRIGGER_RISING, false);
+		if (ret < 0)
+			return ret;
+		if (ret) {
+			ctx->te_irq = ret;
+			ctx->out_type &= ~I80_HW_TRG;
+		}
+	} else {
+		ret = decon_conf_irq(ctx, "vsync", decon_irq_handler, 0, true);
+		if (ret < 0)
+			return ret;
+		ctx->irq = ret;
 	}
 
-	ret = devm_request_irq(dev, res->start, decon_irq_handler, 0,
-			       "drm_decon", ctx);
-	if (ret < 0) {
-		dev_err(dev, "lcd_sys irq request failed\n");
-		return ret;
+	if (ctx->out_type & I80_HW_TRG) {
+		ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
+							"samsung,disp-sysreg");
+		if (IS_ERR(ctx->sysreg)) {
+			dev_err(dev, "failed to get system register\n");
+			return PTR_ERR(ctx->sysreg);
+		}
 	}
 
 	platform_set_drvdata(pdev, ctx);
