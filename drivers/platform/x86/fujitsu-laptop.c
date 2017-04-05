@@ -343,8 +343,7 @@ static enum led_brightness eco_led_get(struct led_classdev *cdev)
 
 static int set_lcd_level(int level)
 {
-	acpi_status status = AE_OK;
-	acpi_handle handle = NULL;
+	acpi_status status;
 	char *method;
 
 	switch (use_alt_lcd_levels) {
@@ -362,15 +361,13 @@ static int set_lcd_level(int level)
 	if (level < 0 || level >= fujitsu_bl->max_brightness)
 		return -EINVAL;
 
-	status = acpi_get_handle(fujitsu_bl->acpi_handle, method, &handle);
+	status = acpi_execute_simple_method(fujitsu_bl->acpi_handle, method,
+					    level);
 	if (ACPI_FAILURE(status)) {
-		vdbg_printk(FUJLAPTOP_DBG_ERROR, "%s not present\n", method);
+		vdbg_printk(FUJLAPTOP_DBG_ERROR, "Failed to evaluate %s\n",
+			    method);
 		return -ENODEV;
 	}
-
-	status = acpi_execute_simple_method(handle, NULL, level);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
 
 	return 0;
 }
