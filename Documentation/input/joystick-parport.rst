@@ -443,6 +443,43 @@ parallel port::
 The other pins (Up, Down, Right, Left, Power, Ground) are the same as for
 Multi joysticks using db9.c
 
+Amiga CD32
+----------
+
+Amiga CD32 joypad uses the following pinout::
+
+        +-----------> Button 3
+        | +---------> Right
+        | | +-------> Left
+        | | | +-----> Down
+        | | | | +---> Up
+        | | | | |
+      _____________
+    5 \ o o o o o / 1
+       \ o o o o /
+      9 `~~~~~~~' 6
+        | | | |
+        | | | +----> Button 1
+        | | +------> Power
+        | +--------> Ground
+        +----------> Button 2
+
+It can be connected to the parallel port and driven by db9.c driver. It needs the following wiring:
+
+	============    =============
+	CD32 pad        Parallel port
+	============    =============
+	1 (Up)           2 (D0)
+	2 (Down)         3 (D1)
+	3 (Left)         4 (D2)
+	4 (Right)        5 (D3)
+	5 (Button 3)    14 (AUTOFD)
+	6 (Button 1)    17 (SELIN)
+	7 (+5V)          1 (STROBE)
+	8 (Gnd)         18 (Gnd)
+	9 (Button 2)     7 (D5)
+	============    =============
+
 The drivers
 ===========
 

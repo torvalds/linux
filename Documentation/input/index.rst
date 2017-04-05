@@ -54,7 +54,6 @@ Input drivers
    appletouch
    atarikbd
    bcm5974
-   cd32
    cma3000_d0x
    cs461x
    edt-ft5x06
