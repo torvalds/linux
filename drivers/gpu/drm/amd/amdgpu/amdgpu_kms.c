@@ -237,7 +237,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_amdgpu_info *info = data;
 	struct amdgpu_mode_info *minfo = &adev->mode_info;
-	void __user *out = (void __user *)(long)info->return_pointer;
+	void __user *out = (void __user *)(uintptr_t)info->return_pointer;
 	uint32_t size = info->return_size;
 	struct drm_crtc *crtc;
 	uint32_t ui32 = 0;
