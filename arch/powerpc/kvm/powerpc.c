@@ -37,6 +37,8 @@
 #include <asm/cputhreads.h>
 #include <asm/irqflags.h>
 #include <asm/iommu.h>
+#include <asm/xive.h>
+
 #include "timing.h"
 #include "irq.h"
 #include "../mm/mmu_decl.h"
@@ -699,7 +701,10 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 		kvmppc_mpic_disconnect_vcpu(vcpu->arch.mpic, vcpu);
 		break;
 	case KVMPPC_IRQ_XICS:
-		kvmppc_xics_free_icp(vcpu);
+		if (xive_enabled())
+			kvmppc_xive_cleanup_vcpu(vcpu);
+		else
+			kvmppc_xics_free_icp(vcpu);
 		break;
 	}
 
@@ -1219,8 +1224,12 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 
 		r = -EPERM;
 		dev = kvm_device_from_filp(f.file);
-		if (dev)
-			r = kvmppc_xics_connect_vcpu(dev, vcpu, cap->args[1]);
+		if (dev) {
+			if (xive_enabled())
+				r = kvmppc_xive_connect_vcpu(dev, vcpu, cap->args[1]);
+			else
+				r = kvmppc_xics_connect_vcpu(dev, vcpu, cap->args[1]);
+		}
 
 		fdput(f);
 		break;
@@ -1244,7 +1253,7 @@ bool kvm_arch_intc_initialized(struct kvm *kvm)
 		return true;
 #endif
 #ifdef CONFIG_KVM_XICS
-	if (kvm->arch.xics)
+	if (kvm->arch.xics || kvm->arch.xive)
 		return true;
 #endif
 	return false;
