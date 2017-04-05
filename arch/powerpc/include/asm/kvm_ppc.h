@@ -478,7 +478,6 @@ extern void kvmppc_free_host_rm_ops(void);
 extern void kvmppc_free_pimap(struct kvm *kvm);
 extern int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall);
 extern void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu);
-extern int kvm_vm_ioctl_xics_irq(struct kvm *kvm, struct kvm_irq_level *args);
 extern int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd);
 extern u64 kvmppc_xics_get_icp(struct kvm_vcpu *vcpu);
 extern int kvmppc_xics_set_icp(struct kvm_vcpu *vcpu, u64 icpval);
@@ -506,9 +505,6 @@ static inline int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall)
 static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
 	{ return 0; }
 static inline void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu) { }
-static inline int kvm_vm_ioctl_xics_irq(struct kvm *kvm,
-					struct kvm_irq_level *args)
-	{ return -ENOTTY; }
 static inline int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
 	{ return 0; }
 #endif
