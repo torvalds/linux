@@ -616,13 +616,16 @@ int qbman_swp_pull(struct qbman_swp *s, struct qbman_pull_desc *d)
 		return -EBUSY;
 	}
 	s->vdq.storage = (void *)d->rsp_addr_virt;
-	d->tok = QMAN_DQ_TOKEN_VALID;
 	p = qbman_get_cmd(s, QBMAN_CENA_SWP_VDQCR);
-	*p = *d;
+	p->numf = d->numf;
+	p->tok = QMAN_DQ_TOKEN_VALID;
+	p->dq_src = d->dq_src;
+	p->rsp_addr = d->rsp_addr;
+	p->rsp_addr_virt = d->rsp_addr_virt;
 	dma_wmb();
 
 	/* Set the verb byte, have to substitute in the valid-bit */
-	p->verb |= s->vdq.valid_bit;
+	p->verb = d->verb | s->vdq.valid_bit;
 	s->vdq.valid_bit ^= QB_VALID_BIT;
 
 	return 0;
@@ -1004,7 +1007,6 @@ int qbman_swp_CDAN_set(struct qbman_swp *s, u16 channelid,
 		return -EBUSY;
 
 	/* Encode the caller-provided attributes */
-	p->verb = 0;
 	p->ch = cpu_to_le16(channelid);
 	p->we = we_mask;
 	if (cdan_en)
