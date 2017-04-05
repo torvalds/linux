@@ -511,6 +511,120 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 	wait_event(imr->q_leaf_free, !atomic_read(&imr->num_leaf_free));
 }
 
+static int pagefault_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
+			u64 io_virt, size_t bcnt, u32 *bytes_mapped)
+{
+	u64 access_mask = ODP_READ_ALLOWED_BIT;
+	int npages = 0, page_shift, np;
+	u64 start_idx, page_mask;
+	struct ib_umem_odp *odp;
+	int current_seq;
+	size_t size;
+	int ret;
+
+	if (!mr->umem->odp_data->page_list) {
+		odp = implicit_mr_get_data(mr, io_virt, bcnt);
+
+		if (IS_ERR(odp))
+			return PTR_ERR(odp);
+		mr = odp->private;
+
+	} else {
+		odp = mr->umem->odp_data;
+	}
+
+next_mr:
+	size = min_t(size_t, bcnt, ib_umem_end(odp->umem) - io_virt);
+
+	page_shift = mr->umem->page_shift;
+	page_mask = ~(BIT(page_shift) - 1);
+	start_idx = (io_virt - (mr->mmkey.iova & page_mask)) >> page_shift;
+
+	if (mr->umem->writable)
+		access_mask |= ODP_WRITE_ALLOWED_BIT;
+
+	current_seq = READ_ONCE(odp->notifiers_seq);
+	/*
+	 * Ensure the sequence number is valid for some time before we call
+	 * gup.
+	 */
+	smp_rmb();
+
+	ret = ib_umem_odp_map_dma_pages(mr->umem, io_virt, size,
+					access_mask, current_seq);
+
+	if (ret < 0)
+		goto out;
+
+	np = ret;
+
+	mutex_lock(&odp->umem_mutex);
+	if (!ib_umem_mmu_notifier_retry(mr->umem, current_seq)) {
+		/*
+		 * No need to check whether the MTTs really belong to
+		 * this MR, since ib_umem_odp_map_dma_pages already
+		 * checks this.
+		 */
+		ret = mlx5_ib_update_xlt(mr, start_idx, np,
+					 page_shift, MLX5_IB_UPD_XLT_ATOMIC);
+	} else {
+		ret = -EAGAIN;
+	}
+	mutex_unlock(&odp->umem_mutex);
+
+	if (ret < 0) {
+		if (ret != -EAGAIN)
+			mlx5_ib_err(dev, "Failed to update mkey page tables\n");
+		goto out;
+	}
+
+	if (bytes_mapped) {
+		u32 new_mappings = (np << page_shift) -
+			(io_virt - round_down(io_virt, 1 << page_shift));
+		*bytes_mapped += min_t(u32, new_mappings, size);
+	}
+
+	npages += np << (page_shift - PAGE_SHIFT);
+	bcnt -= size;
+
+	if (unlikely(bcnt)) {
+		struct ib_umem_odp *next;
+
+		io_virt += size;
+		next = odp_next(odp);
+		if (unlikely(!next || next->umem->address != io_virt)) {
+			mlx5_ib_dbg(dev, "next implicit leaf removed at 0x%llx. got %p\n",
+				    io_virt, next);
+			return -EAGAIN;
+		}
+		odp = next;
+		mr = odp->private;
+		goto next_mr;
+	}
+
+	return npages;
+
+out:
+	if (ret == -EAGAIN) {
+		if (mr->parent || !odp->dying) {
+			unsigned long timeout =
+				msecs_to_jiffies(MMU_NOTIFIER_TIMEOUT);
+
+			if (!wait_for_completion_timeout(
+					&odp->notifier_completion,
+					timeout)) {
+				mlx5_ib_warn(dev, "timeout waiting for mmu notifier. seq %d against %d\n",
+					     current_seq, odp->notifiers_seq);
+			}
+		} else {
+			/* The MR is being killed, kill the QP as well. */
+			ret = -EFAULT;
+		}
+	}
+
+	return ret;
+}
+
 /*
  * Handle a single data segment in a page-fault WQE or RDMA region.
  *
@@ -527,16 +641,9 @@ static int pagefault_single_data_segment(struct mlx5_ib_dev *dev,
 					 u32 *bytes_committed,
 					 u32 *bytes_mapped)
 {
-	int srcu_key;
-	unsigned int current_seq = 0;
-	u64 start_idx, page_mask;
-	int npages = 0, ret = 0;
+	int npages = 0, srcu_key, ret;
 	struct mlx5_ib_mr *mr;
-	u64 access_mask = ODP_READ_ALLOWED_BIT;
-	struct ib_umem_odp *odp;
-	int implicit = 0;
 	size_t size;
-	int page_shift;
 
 	srcu_key = srcu_read_lock(&dev->mr_srcu);
 	mr = mlx5_ib_odp_find_mr_lkey(dev, key);
@@ -568,111 +675,9 @@ static int pagefault_single_data_segment(struct mlx5_ib_dev *dev,
 	io_virt += *bytes_committed;
 	bcnt -= *bytes_committed;
 
-	if (!mr->umem->odp_data->page_list) {
-		odp = implicit_mr_get_data(mr, io_virt, bcnt);
-
-		if (IS_ERR(odp)) {
-			ret = PTR_ERR(odp);
-			goto srcu_unlock;
-		}
-		mr = odp->private;
-		implicit = 1;
-
-	} else {
-		odp = mr->umem->odp_data;
-	}
-
-	page_shift = mr->umem->page_shift;
-	page_mask = ~(BIT(page_shift) - 1);
-
-next_mr:
-	current_seq = READ_ONCE(odp->notifiers_seq);
-	/*
-	 * Ensure the sequence number is valid for some time before we call
-	 * gup.
-	 */
-	smp_rmb();
-
-	size = min_t(size_t, bcnt, ib_umem_end(odp->umem) - io_virt);
-	start_idx = (io_virt - (mr->mmkey.iova & page_mask)) >> page_shift;
-
-	if (mr->umem->writable)
-		access_mask |= ODP_WRITE_ALLOWED_BIT;
-
-	ret = ib_umem_odp_map_dma_pages(mr->umem, io_virt, size,
-					access_mask, current_seq);
-
-	if (ret < 0)
-		goto srcu_unlock;
-
-	if (ret > 0) {
-		int np = ret;
-
-		mutex_lock(&odp->umem_mutex);
-		if (!ib_umem_mmu_notifier_retry(mr->umem, current_seq)) {
-			/*
-			 * No need to check whether the MTTs really belong to
-			 * this MR, since ib_umem_odp_map_dma_pages already
-			 * checks this.
-			 */
-			ret = mlx5_ib_update_xlt(mr, start_idx, np,
-						 page_shift,
-						 MLX5_IB_UPD_XLT_ATOMIC);
-		} else {
-			ret = -EAGAIN;
-		}
-		mutex_unlock(&odp->umem_mutex);
-		if (ret < 0) {
-			if (ret != -EAGAIN)
-				mlx5_ib_err(dev, "Failed to update mkey page tables\n");
-			goto srcu_unlock;
-		}
-		if (bytes_mapped) {
-			u32 new_mappings = (np << page_shift) -
-				(io_virt - round_down(io_virt,
-						      1 << page_shift));
-			*bytes_mapped += min_t(u32, new_mappings, size);
-		}
-
-		npages += np << (page_shift - PAGE_SHIFT);
-	}
-
-	bcnt -= size;
-	if (unlikely(bcnt)) {
-		struct ib_umem_odp *next;
-
-		io_virt += size;
-		next = odp_next(odp);
-		if (unlikely(!next || next->umem->address != io_virt)) {
-			mlx5_ib_dbg(dev, "next implicit leaf removed at 0x%llx. got %p\n",
-				    io_virt, next);
-			ret = -EAGAIN;
-			goto srcu_unlock_no_wait;
-		}
-		odp = next;
-		mr = odp->private;
-		goto next_mr;
-	}
+	npages = pagefault_mr(dev, mr, io_virt, size, bytes_mapped);
 
 srcu_unlock:
-	if (ret == -EAGAIN) {
-		if (implicit || !odp->dying) {
-			unsigned long timeout =
-				msecs_to_jiffies(MMU_NOTIFIER_TIMEOUT);
-
-			if (!wait_for_completion_timeout(
-					&odp->notifier_completion,
-					timeout)) {
-				mlx5_ib_warn(dev, "timeout waiting for mmu notifier. seq %d against %d\n",
-					     current_seq, odp->notifiers_seq);
-			}
-		} else {
-			/* The MR is being killed, kill the QP as well. */
-			ret = -EFAULT;
-		}
-	}
-
-srcu_unlock_no_wait:
 	srcu_read_unlock(&dev->mr_srcu, srcu_key);
 	*bytes_committed = 0;
 	return ret ? ret : npages;
