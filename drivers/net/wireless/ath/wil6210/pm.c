@@ -80,12 +80,20 @@ int wil_suspend(struct wil6210_priv *wil, bool is_runtime)
 		}
 	}
 
-	if (wil->platform_ops.suspend)
+	/* Disable PCIe IRQ to prevent sporadic IRQs when PCIe is suspending */
+	wil_dbg_pm(wil, "Disabling PCIe IRQ before suspending\n");
+	wil_disable_irq(wil);
+
+	if (wil->platform_ops.suspend) {
 		rc = wil->platform_ops.suspend(wil->platform_handle);
+		if (rc)
+			wil_enable_irq(wil);
+	}
 
 out:
 	wil_dbg_pm(wil, "suspend: %s => %d\n",
 		   is_runtime ? "runtime" : "system", rc);
+
 	return rc;
 }
 
@@ -103,6 +111,9 @@ int wil_resume(struct wil6210_priv *wil, bool is_runtime)
 			goto out;
 		}
 	}
+
+	wil_dbg_pm(wil, "Enabling PCIe IRQ\n");
+	wil_enable_irq(wil);
 
 	/* if netif up, bring hardware up
 	 * During open(), IFF_UP set after actual device method
