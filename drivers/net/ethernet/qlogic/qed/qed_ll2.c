@@ -1132,6 +1132,7 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 		break;
 	case OOO_LB_TC:
 		pq_id = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OOO);
+		break;
 	default:
 		pq_id = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_OFLD);
 		break;
