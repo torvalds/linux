@@ -28,76 +28,76 @@ Example:
 --------
 
 Example configuration for a single TS1003 tilt switch that rotates around
-one axis in 4 steps and emits the current tilt via two GPIOs.
+one axis in 4 steps and emits the current tilt via two GPIOs::
 
-static int sg060_tilt_enable(struct device *dev) {
-	/* code to enable the sensors */
-};
+    static int sg060_tilt_enable(struct device *dev) {
+	    /* code to enable the sensors */
+    };
 
-static void sg060_tilt_disable(struct device *dev) {
-	/* code to disable the sensors */
-};
+    static void sg060_tilt_disable(struct device *dev) {
+	    /* code to disable the sensors */
+    };
 
-static struct gpio sg060_tilt_gpios[] = {
-	{ SG060_TILT_GPIO_SENSOR1, GPIOF_IN, "tilt_sensor1" },
-	{ SG060_TILT_GPIO_SENSOR2, GPIOF_IN, "tilt_sensor2" },
-};
+    static struct gpio sg060_tilt_gpios[] = {
+	    { SG060_TILT_GPIO_SENSOR1, GPIOF_IN, "tilt_sensor1" },
+	    { SG060_TILT_GPIO_SENSOR2, GPIOF_IN, "tilt_sensor2" },
+    };
 
-static struct gpio_tilt_state sg060_tilt_states[] = {
-	{
-		.gpios = (0 << 1) | (0 << 0),
-		.axes = (int[]) {
-			0,
-		},
-	}, {
-		.gpios = (0 << 1) | (1 << 0),
-		.axes = (int[]) {
-			1, /* 90 degrees */
-		},
-	}, {
-		.gpios = (1 << 1) | (1 << 0),
-		.axes = (int[]) {
-			2, /* 180 degrees */
-		},
-	}, {
-		.gpios = (1 << 1) | (0 << 0),
-		.axes = (int[]) {
-			3, /* 270 degrees */
-		},
-	},
-};
+    static struct gpio_tilt_state sg060_tilt_states[] = {
+	    {
+		    .gpios = (0 << 1) | (0 << 0),
+		    .axes = (int[]) {
+			    0,
+		    },
+	    }, {
+		    .gpios = (0 << 1) | (1 << 0),
+		    .axes = (int[]) {
+			    1, /* 90 degrees */
+		    },
+	    }, {
+		    .gpios = (1 << 1) | (1 << 0),
+		    .axes = (int[]) {
+			    2, /* 180 degrees */
+		    },
+	    }, {
+		    .gpios = (1 << 1) | (0 << 0),
+		    .axes = (int[]) {
+			    3, /* 270 degrees */
+		    },
+	    },
+    };
 
-static struct gpio_tilt_axis sg060_tilt_axes[] = {
-	{
-		.axis = ABS_RY,
-		.min = 0,
-		.max = 3,
-		.fuzz = 0,
-		.flat = 0,
-	},
-};
+    static struct gpio_tilt_axis sg060_tilt_axes[] = {
+	    {
+		    .axis = ABS_RY,
+		    .min = 0,
+		    .max = 3,
+		    .fuzz = 0,
+		    .flat = 0,
+	    },
+    };
 
-static struct gpio_tilt_platform_data sg060_tilt_pdata= {
-	.gpios = sg060_tilt_gpios,
-	.nr_gpios = ARRAY_SIZE(sg060_tilt_gpios),
+    static struct gpio_tilt_platform_data sg060_tilt_pdata= {
+	    .gpios = sg060_tilt_gpios,
+	    .nr_gpios = ARRAY_SIZE(sg060_tilt_gpios),
 
-	.axes = sg060_tilt_axes,
-	.nr_axes = ARRAY_SIZE(sg060_tilt_axes),
+	    .axes = sg060_tilt_axes,
+	    .nr_axes = ARRAY_SIZE(sg060_tilt_axes),
 
-	.states = sg060_tilt_states,
-	.nr_states = ARRAY_SIZE(sg060_tilt_states),
+	    .states = sg060_tilt_states,
+	    .nr_states = ARRAY_SIZE(sg060_tilt_states),
 
-	.debounce_interval = 100,
+	    .debounce_interval = 100,
 
-	.poll_interval = 1000,
-	.enable = sg060_tilt_enable,
-	.disable = sg060_tilt_disable,
-};
+	    .poll_interval = 1000,
+	    .enable = sg060_tilt_enable,
+	    .disable = sg060_tilt_disable,
+    };
 
-static struct platform_device sg060_device_tilt = {
-	.name = "gpio-tilt-polled",
-	.id = -1,
-	.dev = {
-		.platform_data = &sg060_tilt_pdata,
-	},
-};
+    static struct platform_device sg060_device_tilt = {
+	    .name = "gpio-tilt-polled",
+	    .id = -1,
+	    .dev = {
+		    .platform_data = &sg060_tilt_pdata,
+	    },
+    };
