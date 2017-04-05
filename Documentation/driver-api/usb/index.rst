@@ -11,6 +11,7 @@ Linux USB API
    callbacks
    dma
    power-management
+   error-codes
    writing_usb_driver
    writing_musb_glue_layer
 
