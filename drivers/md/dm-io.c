@@ -328,11 +328,17 @@ static void do_region(int op, int op_flags, unsigned region,
 		/*
 		 * Allocate a suitably sized-bio.
 		 */
-		if ((op == REQ_OP_DISCARD) || (op == REQ_OP_WRITE_SAME))
+		switch (op) {
+		case REQ_OP_DISCARD:
+			num_bvecs = 0;
+			break;
+		case REQ_OP_WRITE_SAME:
 			num_bvecs = 1;
-		else
+			break;
+		default:
 			num_bvecs = min_t(int, BIO_MAX_PAGES,
 					  dm_sector_div_up(remaining, (PAGE_SIZE >> SECTOR_SHIFT)));
+		}
 
 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, io->client->bios);
 		bio->bi_iter.bi_sector = where->sector + (where->count - remaining);
