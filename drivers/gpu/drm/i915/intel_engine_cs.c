@@ -223,6 +223,8 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
+	GEM_BUG_ON(!intel_engine_is_idle(engine));
+
 	/* Our semaphore implementation is strictly monotonic (i.e. we proceed
 	 * so long as the semaphore value in the register/page is greater
 	 * than the sync value), so whenever we reset the seqno,
@@ -260,6 +262,8 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 	 * there are any waiters for that seqno.
 	 */
 	intel_engine_wakeup(engine);
+
+	GEM_BUG_ON(intel_engine_get_seqno(engine) != seqno);
 }
 
 static void intel_engine_init_timeline(struct intel_engine_cs *engine)

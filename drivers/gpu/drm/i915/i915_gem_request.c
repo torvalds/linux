@@ -214,8 +214,8 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 		}
 
 		/* Finally reset hw state */
-		tl->seqno = seqno;
 		intel_engine_init_global_seqno(engine, seqno);
+		tl->seqno = seqno;
 
 		list_for_each_entry(timeline, &i915->gt.timelines, link)
 			memset(timeline->engine[id].sync_seqno, 0,
