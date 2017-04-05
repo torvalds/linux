@@ -609,22 +609,14 @@ static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 }
 
+#define SCU_DEVICE(id, pdata)	{PCI_VDEVICE(INTEL, id), (kernel_ulong_t)&pdata}
+
 static const struct pci_device_id pci_ids[] = {
-	{
-		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_LINCROFT),
-		(kernel_ulong_t)&intel_scu_ipc_lincroft_pdata,
-	}, {
-		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PENWELL),
-		(kernel_ulong_t)&intel_scu_ipc_penwell_pdata,
-	}, {
-		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_CLOVERVIEW),
-		(kernel_ulong_t)&intel_scu_ipc_penwell_pdata,
-	}, {
-		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_TANGIER),
-		(kernel_ulong_t)&intel_scu_ipc_tangier_pdata,
-	}, {
-		0,
-	}
+	SCU_DEVICE(PCI_DEVICE_ID_LINCROFT,	intel_scu_ipc_lincroft_pdata),
+	SCU_DEVICE(PCI_DEVICE_ID_PENWELL,	intel_scu_ipc_penwell_pdata),
+	SCU_DEVICE(PCI_DEVICE_ID_CLOVERVIEW,	intel_scu_ipc_penwell_pdata),
+	SCU_DEVICE(PCI_DEVICE_ID_TANGIER,	intel_scu_ipc_tangier_pdata),
+	{}
 };
 
 static struct pci_driver ipc_driver = {
