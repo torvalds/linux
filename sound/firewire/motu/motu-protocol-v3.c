@@ -14,7 +14,6 @@
 #define  V3_CLOCK_RATE_MASK		0x0000ff00
 #define  V3_CLOCK_RATE_SHIFT		8
 #define  V3_CLOCK_SOURCE_MASK		0x000000ff
-#define  V3_CLOCK_SOURCE_SHIFT		8
 
 #define V3_OPT_IFACE_MODE_OFFSET	0x0c94
 #define  V3_ENABLE_OPT_IN_IFACE_A	0x00000001
@@ -101,7 +100,7 @@ static int v3_get_clock_source(struct snd_motu *motu,
 		return err;
 	data = be32_to_cpu(reg);
 
-	val = (data & V3_CLOCK_SOURCE_MASK) >> V3_CLOCK_SOURCE_SHIFT;
+	val = data & V3_CLOCK_SOURCE_MASK;
 	if (val == 0x00) {
 		*src = SND_MOTU_CLOCK_SOURCE_INTERNAL;
 	} else if (val == 0x01) {

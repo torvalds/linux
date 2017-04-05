@@ -31,6 +31,7 @@
  *	allows 5 times as large as IEC 61883-6 defines.
  * @CIP_HEADER_WITHOUT_EOH: Only for in-stream. CIP Header doesn't include
  *	valid EOH.
+ * @CIP_NO_HEADERS: a lack of headers in packets
  */
 enum cip_flags {
 	CIP_NONBLOCKING		= 0x00,
@@ -42,6 +43,7 @@ enum cip_flags {
 	CIP_EMPTY_HAS_WRONG_DBC	= 0x20,
 	CIP_JUMBO_PAYLOAD	= 0x40,
 	CIP_HEADER_WITHOUT_EOH	= 0x80,
+	CIP_NO_HEADER		= 0x100,
 };
 
 /**
@@ -104,6 +106,10 @@ struct amdtp_stream {
 	struct fw_iso_context *context;
 	struct iso_packets_buffer buffer;
 	int packet_index;
+	int tag;
+	int (*handle_packet)(struct amdtp_stream *s,
+			unsigned int payload_quadlets, unsigned int cycle,
+			unsigned int index);
 
 	/* For CIP headers. */
 	unsigned int source_node_id_field;

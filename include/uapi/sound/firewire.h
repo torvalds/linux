@@ -73,7 +73,7 @@ union snd_firewire_event {
 #define SNDRV_FIREWIRE_TYPE_DIGI00X	5
 #define SNDRV_FIREWIRE_TYPE_TASCAM	6
 #define SNDRV_FIREWIRE_TYPE_MOTU	7
-/* RME... */
+#define SNDRV_FIREWIRE_TYPE_FIREFACE	8
 
 struct snd_firewire_get_info {
 	unsigned int type; /* SNDRV_FIREWIRE_TYPE_xxx */

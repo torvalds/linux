@@ -14,8 +14,8 @@
 #include <linux/tracepoint.h>
 
 TRACE_EVENT(in_packet,
-	TP_PROTO(const struct amdtp_stream *s, u32 cycles, u32 cip_header[2], unsigned int payload_quadlets, unsigned int index),
-	TP_ARGS(s, cycles, cip_header, payload_quadlets, index),
+	TP_PROTO(const struct amdtp_stream *s, u32 cycles, u32 cip_header[2], unsigned int payload_length, unsigned int index),
+	TP_ARGS(s, cycles, cip_header, payload_length, index),
 	TP_STRUCT__entry(
 		__field(unsigned int, second)
 		__field(unsigned int, cycle)
@@ -37,7 +37,7 @@ TRACE_EVENT(in_packet,
 		__entry->dest = fw_parent_device(s->unit)->card->node_id;
 		__entry->cip_header0 = cip_header[0];
 		__entry->cip_header1 = cip_header[1];
-		__entry->payload_quadlets = payload_quadlets;
+		__entry->payload_quadlets = payload_length / 4;
 		__entry->packet_index = s->packet_index;
 		__entry->irq = !!in_interrupt();
 		__entry->index = index;
