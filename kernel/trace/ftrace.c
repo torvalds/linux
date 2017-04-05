@@ -1096,14 +1096,7 @@ static bool update_all_ops;
 # error Dynamic ftrace depends on MCOUNT_RECORD
 #endif
 
-static struct hlist_head ftrace_func_hash[FTRACE_FUNC_HASHSIZE] __read_mostly;
-
-struct ftrace_func_probe {
-	struct hlist_node	node;
-	struct ftrace_probe_ops	*ops;
-	unsigned long		ip;
-	struct list_head	free_list;
-};
+static LIST_HEAD(ftrace_func_probes);
 
 struct ftrace_func_entry {
 	struct hlist_node hlist;
@@ -1270,7 +1263,7 @@ static void
 remove_hash_entry(struct ftrace_hash *hash,
 		  struct ftrace_func_entry *entry)
 {
-	hlist_del(&entry->hlist);
+	hlist_del_rcu(&entry->hlist);
 	hash->count--;
 }
 
@@ -3063,35 +3056,58 @@ struct ftrace_iterator {
 	loff_t				func_pos;
 	struct ftrace_page		*pg;
 	struct dyn_ftrace		*func;
-	struct ftrace_func_probe	*probe;
+	struct ftrace_probe_ops		*probe;
+	struct ftrace_func_entry	*probe_entry;
 	struct trace_parser		parser;
 	struct ftrace_hash		*hash;
 	struct ftrace_ops		*ops;
-	int				hidx;
+	int				pidx;
 	int				idx;
 	unsigned			flags;
 };
 
 static void *
-t_hash_next(struct seq_file *m, loff_t *pos)
+t_probe_next(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
+	struct ftrace_hash *hash;
+	struct list_head *next;
 	struct hlist_node *hnd = NULL;
 	struct hlist_head *hhd;
+	int size;
 
 	(*pos)++;
 	iter->pos = *pos;
 
-	if (iter->probe)
-		hnd = &iter->probe->node;
- retry:
-	if (iter->hidx >= FTRACE_FUNC_HASHSIZE)
+	if (list_empty(&ftrace_func_probes))
 		return NULL;
 
-	hhd = &ftrace_func_hash[iter->hidx];
+	if (!iter->probe) {
+		next = ftrace_func_probes.next;
+		iter->probe = list_entry(next, struct ftrace_probe_ops, list);
+	}
+
+	if (iter->probe_entry)
+		hnd = &iter->probe_entry->hlist;
+
+	hash = iter->probe->ops.func_hash->filter_hash;
+	size = 1 << hash->size_bits;
+
+ retry:
+	if (iter->pidx >= size) {
+		if (iter->probe->list.next == &ftrace_func_probes)
+			return NULL;
+		next = iter->probe->list.next;
+		iter->probe = list_entry(next, struct ftrace_probe_ops, list);
+		hash = iter->probe->ops.func_hash->filter_hash;
+		size = 1 << hash->size_bits;
+		iter->pidx = 0;
+	}
+
+	hhd = &hash->buckets[iter->pidx];
 
 	if (hlist_empty(hhd)) {
-		iter->hidx++;
+		iter->pidx++;
 		hnd = NULL;
 		goto retry;
 	}
@@ -3101,7 +3117,7 @@ t_hash_next(struct seq_file *m, loff_t *pos)
 	else {
 		hnd = hnd->next;
 		if (!hnd) {
-			iter->hidx++;
+			iter->pidx++;
 			goto retry;
 		}
 	}
@@ -3109,26 +3125,28 @@ t_hash_next(struct seq_file *m, loff_t *pos)
 	if (WARN_ON_ONCE(!hnd))
 		return NULL;
 
-	iter->probe = hlist_entry(hnd, struct ftrace_func_probe, node);
+	iter->probe_entry = hlist_entry(hnd, struct ftrace_func_entry, hlist);
 
 	return iter;
 }
 
-static void *t_hash_start(struct seq_file *m, loff_t *pos)
+static void *t_probe_start(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
 	void *p = NULL;
 	loff_t l;
 
-	if (!(iter->flags & FTRACE_ITER_DO_HASH))
+	if (!(iter->flags & FTRACE_ITER_DO_PROBES))
 		return NULL;
 
 	if (iter->func_pos > *pos)
 		return NULL;
 
-	iter->hidx = 0;
+	iter->probe = NULL;
+	iter->probe_entry = NULL;
+	iter->pidx = 0;
 	for (l = 0; l <= (*pos - iter->func_pos); ) {
-		p = t_hash_next(m, &l);
+		p = t_probe_next(m, &l);
 		if (!p)
 			break;
 	}
@@ -3136,24 +3154,27 @@ static void *t_hash_start(struct seq_file *m, loff_t *pos)
 		return NULL;
 
 	/* Only set this if we have an item */
-	iter->flags |= FTRACE_ITER_HASH;
+	iter->flags |= FTRACE_ITER_PROBE;
 
 	return iter;
 }
 
 static int
-t_hash_show(struct seq_file *m, struct ftrace_iterator *iter)
+t_probe_show(struct seq_file *m, struct ftrace_iterator *iter)
 {
-	struct ftrace_func_probe *rec;
+	struct ftrace_probe_ops *probe;
+	struct ftrace_func_entry *probe_entry;
 
-	rec = iter->probe;
-	if (WARN_ON_ONCE(!rec))
+	probe = iter->probe;
+	probe_entry = iter->probe_entry;
+
+	if (WARN_ON_ONCE(!probe || !probe_entry))
 		return -EIO;
 
-	if (rec->ops->print)
-		return rec->ops->print(m, rec->ip, rec->ops, NULL);
+	if (probe->print)
+		return probe->print(m, probe_entry->ip, probe, NULL);
 
-	seq_printf(m, "%ps:%ps\n", (void *)rec->ip, (void *)rec->ops->func);
+	seq_printf(m, "%ps:%ps\n", (void *)probe_entry->ip, (void *)probe->func);
 
 	return 0;
 }
@@ -3205,19 +3226,19 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 	if (unlikely(ftrace_disabled))
 		return NULL;
 
-	if (iter->flags & FTRACE_ITER_HASH)
-		return t_hash_next(m, pos);
+	if (iter->flags & FTRACE_ITER_PROBE)
+		return t_probe_next(m, pos);
 
 	if (iter->flags & FTRACE_ITER_PRINTALL) {
-		/* next must increment pos, and t_hash_start does not */
+		/* next must increment pos, and t_probe_start does not */
 		(*pos)++;
-		return t_hash_start(m, &l);
+		return t_probe_start(m, &l);
 	}
 
 	ret = t_func_next(m, pos);
 
 	if (!ret)
-		return t_hash_start(m, &l);
+		return t_probe_start(m, &l);
 
 	return ret;
 }
@@ -3226,7 +3247,7 @@ static void reset_iter_read(struct ftrace_iterator *iter)
 {
 	iter->pos = 0;
 	iter->func_pos = 0;
-	iter->flags &= ~(FTRACE_ITER_PRINTALL | FTRACE_ITER_HASH);
+	iter->flags &= ~(FTRACE_ITER_PRINTALL | FTRACE_ITER_PROBE);
 }
 
 static void *t_start(struct seq_file *m, loff_t *pos)
@@ -3255,15 +3276,15 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	    ftrace_hash_empty(iter->hash)) {
 		iter->func_pos = 1; /* Account for the message */
 		if (*pos > 0)
-			return t_hash_start(m, pos);
+			return t_probe_start(m, pos);
 		iter->flags |= FTRACE_ITER_PRINTALL;
 		/* reset in case of seek/pread */
-		iter->flags &= ~FTRACE_ITER_HASH;
+		iter->flags &= ~FTRACE_ITER_PROBE;
 		return iter;
 	}
 
-	if (iter->flags & FTRACE_ITER_HASH)
-		return t_hash_start(m, pos);
+	if (iter->flags & FTRACE_ITER_PROBE)
+		return t_probe_start(m, pos);
 
 	/*
 	 * Unfortunately, we need to restart at ftrace_pages_start
@@ -3279,7 +3300,7 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	}
 
 	if (!p)
-		return t_hash_start(m, pos);
+		return t_probe_start(m, pos);
 
 	return iter;
 }
@@ -3310,8 +3331,8 @@ static int t_show(struct seq_file *m, void *v)
 	struct ftrace_iterator *iter = m->private;
 	struct dyn_ftrace *rec;
 
-	if (iter->flags & FTRACE_ITER_HASH)
-		return t_hash_show(m, iter);
+	if (iter->flags & FTRACE_ITER_PROBE)
+		return t_probe_show(m, iter);
 
 	if (iter->flags & FTRACE_ITER_PRINTALL) {
 		if (iter->flags & FTRACE_ITER_NOTRACE)
@@ -3490,7 +3511,7 @@ ftrace_filter_open(struct inode *inode, struct file *file)
 	struct ftrace_ops *ops = inode->i_private;
 
 	return ftrace_regex_open(ops,
-			FTRACE_ITER_FILTER | FTRACE_ITER_DO_HASH,
+			FTRACE_ITER_FILTER | FTRACE_ITER_DO_PROBES,
 			inode, file);
 }
 
@@ -3765,16 +3786,9 @@ core_initcall(ftrace_mod_cmd_init);
 static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 				      struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
-	struct ftrace_func_probe *entry;
-	struct hlist_head *hhd;
-	unsigned long key;
+	struct ftrace_probe_ops *probe_ops;
 
-	key = hash_long(ip, FTRACE_HASH_BITS);
-
-	hhd = &ftrace_func_hash[key];
-
-	if (hlist_empty(hhd))
-		return;
+	probe_ops = container_of(op, struct ftrace_probe_ops, ops);
 
 	/*
 	 * Disable preemption for these calls to prevent a RCU grace
@@ -3782,18 +3796,8 @@ static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 	 * on the hash. rcu_read_lock is too dangerous here.
 	 */
 	preempt_disable_notrace();
-	hlist_for_each_entry_rcu_notrace(entry, hhd, node) {
-		if (entry->ip == ip)
-			entry->ops->func(ip, parent_ip, entry->ops, NULL);
-	}
+	probe_ops->func(ip, parent_ip, probe_ops, NULL);
 	preempt_enable_notrace();
-}
-
-static void ftrace_free_entry(struct ftrace_func_probe *entry)
-{
-	if (entry->ops->free)
-		entry->ops->free(entry->ops, entry->ip, NULL);
-	kfree(entry);
 }
 
 struct ftrace_func_map {
@@ -3942,13 +3946,9 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			       void *data)
 {
 	struct ftrace_func_entry *entry;
-	struct ftrace_func_probe *probe;
 	struct ftrace_hash **orig_hash;
 	struct ftrace_hash *old_hash;
 	struct ftrace_hash *hash;
-	struct hlist_head hl;
-	struct hlist_node *n;
-	unsigned long key;
 	int count = 0;
 	int size;
 	int ret;
@@ -3961,6 +3961,7 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	if (!(ops->ops.flags & FTRACE_OPS_FL_INITIALIZED)) {
 		ops->ops.func = function_trace_probe_call;
 		ftrace_ops_init(&ops->ops);
+		INIT_LIST_HEAD(&ops->list);
 	}
 
 	mutex_lock(&ops->ops.func_hash->regex_lock);
@@ -3978,31 +3979,21 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	if (ret < 0)
 		goto out;
 
-	INIT_HLIST_HEAD(&hl);
-
 	size = 1 << hash->size_bits;
 	for (i = 0; i < size; i++) {
 		hlist_for_each_entry(entry, &hash->buckets[i], hlist) {
 			if (ftrace_lookup_ip(old_hash, entry->ip))
 				continue;
-			probe = kmalloc(sizeof(*probe), GFP_KERNEL);
-			if (!probe) {
-				count = -ENOMEM;
-				goto err_free;
-			}
-			probe->ops = ops;
-			probe->ip = entry->ip;
 			/*
 			 * The caller might want to do something special
 			 * for each function we find. We call the callback
 			 * to give the caller an opportunity to do so.
 			 */
-			if (ops->init && ops->init(ops, entry->ip, data) < 0) {
-				kfree(probe);
-				goto err_free;
+			if (ops->init) {
+				ret = ops->init(ops, entry->ip, data);
+				if (ret < 0)
+					goto out;
 			}
-			hlist_add_head(&probe->node, &hl);
-
 			count++;
 		}
 	}
@@ -4012,17 +4003,15 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	ret = ftrace_hash_move_and_update_ops(&ops->ops, orig_hash,
 						      hash, 1);
 	if (ret < 0)
-		goto err_free_unlock;
+		goto out_unlock;
 
-	hlist_for_each_entry_safe(probe, n, &hl, node) {
-		hlist_del(&probe->node);
-		key = hash_long(probe->ip, FTRACE_HASH_BITS);
-		hlist_add_head_rcu(&probe->node, &ftrace_func_hash[key]);
-	}
+	if (list_empty(&ops->list))
+		list_add(&ops->list, &ftrace_func_probes);
 
 	if (!(ops->ops.flags & FTRACE_OPS_FL_ENABLED))
 		ret = ftrace_startup(&ops->ops, 0);
 
+ out_unlock:
 	mutex_unlock(&ftrace_lock);
 
 	if (!ret)
@@ -4032,34 +4021,22 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	free_ftrace_hash(hash);
 
 	return ret;
-
- err_free_unlock:
-	mutex_unlock(&ftrace_lock);
- err_free:
-	hlist_for_each_entry_safe(probe, n, &hl, node) {
-		hlist_del(&probe->node);
-		if (ops->free)
-			ops->free(ops, probe->ip, NULL);
-		kfree(probe);
-	}
-	goto out;
 }
 
 int
 unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 {
 	struct ftrace_ops_hash old_hash_ops;
-	struct ftrace_func_entry *rec_entry;
-	struct ftrace_func_probe *entry;
-	struct ftrace_func_probe *p;
+	struct ftrace_func_entry *entry;
 	struct ftrace_glob func_g;
 	struct ftrace_hash **orig_hash;
 	struct ftrace_hash *old_hash;
-	struct list_head free_list;
 	struct ftrace_hash *hash = NULL;
 	struct hlist_node *tmp;
+	struct hlist_head hhd;
 	char str[KSYM_SYMBOL_LEN];
 	int i, ret;
+	int size;
 
 	if (!(ops->ops.flags & FTRACE_OPS_FL_INITIALIZED))
 		return -EINVAL;
@@ -4097,18 +4074,12 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 	if (!hash)
 		goto out_unlock;
 
-	INIT_LIST_HEAD(&free_list);
+	INIT_HLIST_HEAD(&hhd);
 
-	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
-		struct hlist_head *hhd = &ftrace_func_hash[i];
+	size = 1 << hash->size_bits;
+	for (i = 0; i < size; i++) {
+		hlist_for_each_entry_safe(entry, tmp, &hash->buckets[i], hlist) {
 
-		hlist_for_each_entry_safe(entry, tmp, hhd, node) {
-
-			/* break up if statements for readability */
-			if (entry->ops != ops)
-				continue;
-
-			/* do this last, since it is the most expensive */
 			if (func_g.search) {
 				kallsyms_lookup(entry->ip, NULL, NULL,
 						NULL, str);
@@ -4116,26 +4087,24 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 					continue;
 			}
 
-			rec_entry = ftrace_lookup_ip(hash, entry->ip);
-			/* It is possible more than one entry had this ip */
-			if (rec_entry)
-				free_hash_entry(hash, rec_entry);
-
-			hlist_del_rcu(&entry->node);
-			list_add(&entry->free_list, &free_list);
+			remove_hash_entry(hash, entry);
+			hlist_add_head(&entry->hlist, &hhd);
 		}
 	}
 
 	/* Nothing found? */
-	if (list_empty(&free_list)) {
+	if (hlist_empty(&hhd)) {
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 
 	mutex_lock(&ftrace_lock);
 
-	if (ftrace_hash_empty(hash))
+	if (ftrace_hash_empty(hash)) {
 		ftrace_shutdown(&ops->ops, 0);
+		list_del_init(&ops->list);
+	}
+
 
 	ret = ftrace_hash_move_and_update_ops(&ops->ops, orig_hash,
 					      hash, 1);
@@ -4146,9 +4115,11 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 				       &old_hash_ops);
 	synchronize_sched();
 
-	list_for_each_entry_safe(entry, p, &free_list, free_list) {
-		list_del(&entry->free_list);
-		ftrace_free_entry(entry);
+	hlist_for_each_entry_safe(entry, tmp, &hhd, hlist) {
+		hlist_del(&entry->hlist);
+		if (ops->free)
+			ops->free(ops, entry->ip, NULL);
+		kfree(entry);
 	}
 	mutex_unlock(&ftrace_lock);
 
