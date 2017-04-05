@@ -89,6 +89,19 @@ static void flush_old_commits(struct work_struct *work)
 	sbi = container_of(work, struct reiserfs_sb_info, old_work.work);
 	s = sbi->s_journal->j_work_sb;
 
+	/*
+	 * We need s_umount for protecting quota writeback. We have to use
+	 * trylock as reiserfs_cancel_old_flush() may be waiting for this work
+	 * to complete with s_umount held.
+	 */
+	if (!down_read_trylock(&s->s_umount)) {
+		/* Requeue work if we are not cancelling it */
+		spin_lock(&sbi->old_work_lock);
+		if (sbi->work_queued == 1)
+			queue_delayed_work(system_long_wq, &sbi->old_work, HZ);
+		spin_unlock(&sbi->old_work_lock);
+		return;
+	}
 	spin_lock(&sbi->old_work_lock);
 	/* Avoid clobbering the cancel state... */
 	if (sbi->work_queued == 1)
@@ -96,6 +109,7 @@ static void flush_old_commits(struct work_struct *work)
 	spin_unlock(&sbi->old_work_lock);
 
 	reiserfs_sync_fs(s, 1);
+	up_read(&s->s_umount);
 }
 
 void reiserfs_schedule_old_flush(struct super_block *s)
