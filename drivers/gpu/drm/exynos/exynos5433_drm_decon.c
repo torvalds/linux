@@ -48,7 +48,6 @@ static const char * const decon_clks_name[] = {
 };
 
 enum decon_flag_bits {
-	BIT_WIN_UPDATED,
 	BIT_SUSPENDED
 };
 
@@ -427,9 +426,6 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 	decon_shadow_protect(ctx, false);
 
 	decon_set_bits(ctx, DECON_UPDATE, STANDALONE_UPDATE_F, ~0);
-
-	if (ctx->out_type & IFTYPE_I80)
-		set_bit(BIT_WIN_UPDATED, &ctx->flags);
 
 	ctx->frame_id = decon_get_frame_count(ctx, true);
 
