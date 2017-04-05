@@ -566,14 +566,9 @@ static irqreturn_t ioc(int irq, void *dev_id)
  */
 static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	int platform;		/* Platform type */
 	int err;
 	struct intel_scu_ipc_dev *scu = &ipcdev;
 	struct intel_scu_ipc_pdata_t *pdata;
-
-	platform = intel_mid_identify_cpu();
-	if (platform == 0)
-		return -ENODEV;
 
 	if (scu->dev)		/* We support only one SCU */
 		return -EBUSY;
