@@ -691,6 +691,8 @@ struct wil6210_priv {
 	/* High Access Latency Policy voting */
 	struct wil_halp halp;
 
+	enum wmi_ps_profile_type ps_profile;
+
 #ifdef CONFIG_PM
 #ifdef CONFIG_PM_SLEEP
 	struct notifier_block pm_notify;
@@ -812,6 +814,8 @@ int wil_if_add(struct wil6210_priv *wil);
 void wil_if_remove(struct wil6210_priv *wil);
 int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
+int wil_ps_update(struct wil6210_priv *wil,
+		  enum wmi_ps_profile_type ps_profile);
 int wil_reset(struct wil6210_priv *wil, bool no_fw);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_set_recovery_state(struct wil6210_priv *wil, int state);
