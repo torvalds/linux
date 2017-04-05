@@ -574,6 +574,9 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 	int state = 0;
 	int error;
 
+	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
+		return -ENODEV;
+
 	if (!device)
 		return -EINVAL;
 
@@ -626,11 +629,9 @@ static int acpi_fujitsu_bl_add(struct acpi_device *device)
 		fujitsu_bl->max_brightness = FUJITSU_LCD_N_LEVELS;
 	get_lcd_level();
 
-	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
-		error = fujitsu_backlight_register();
-		if (error)
-			return error;
-	}
+	error = fujitsu_backlight_register();
+	if (error)
+		return error;
 
 	return 0;
 }
