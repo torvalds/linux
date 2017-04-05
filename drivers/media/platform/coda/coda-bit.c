@@ -427,14 +427,16 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 
 	/* Register frame buffers in the parameter buffer */
 	for (i = 0; i < ctx->num_internal_frames; i++) {
-		u32 y, cb, cr;
+		u32 y, cb, cr, mvcol;
 
 		/* Start addresses of Y, Cb, Cr planes */
 		y = ctx->internal_frames[i].paddr;
 		cb = y + ysize;
 		cr = y + ysize + ysize/4;
+		mvcol = y + ysize + ysize/4 + ysize/4;
 		if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP) {
 			cb = round_up(cb, 4096);
+			mvcol = cb + ysize/2;
 			cr = 0;
 			/* Packed 20-bit MSB of base addresses */
 			/* YYYYYCCC, CCyyyyyc, cccc.... */
@@ -448,9 +450,7 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 		/* mvcol buffer for h.264 */
 		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 &&
 		    dev->devtype->product != CODA_DX6)
-			coda_parabuf_write(ctx, 96 + i,
-					   ctx->internal_frames[i].paddr +
-					   ysize + ysize/4 + ysize/4);
+			coda_parabuf_write(ctx, 96 + i, mvcol);
 	}
 
 	/* mvcol buffer for mpeg4 */
