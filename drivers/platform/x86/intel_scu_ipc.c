@@ -582,7 +582,6 @@ static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!pdata)
 		return -ENODEV;
 
-	scu->dev = &pdev->dev;
 	scu->irq_mode = pdata->irq_mode;
 
 	err = pcim_enable_device(pdev);
@@ -595,16 +594,19 @@ static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	init_completion(&scu->cmd_complete);
 
-	err = devm_request_irq(&pdev->dev, pdev->irq, ioc, 0, "intel_scu_ipc",
-			       scu);
-	if (err)
-		return err;
-
 	scu->ipc_base = pcim_iomap_table(pdev)[0];
 
 	scu->i2c_base = ioremap_nocache(pdata->i2c_base, pdata->i2c_len);
 	if (!scu->i2c_base)
 		return -ENOMEM;
+
+	err = devm_request_irq(&pdev->dev, pdev->irq, ioc, 0, "intel_scu_ipc",
+			       scu);
+	if (err)
+		return err;
+
+	/* Assign device at last */
+	scu->dev = &pdev->dev;
 
 	intel_scu_devices_create();
 
