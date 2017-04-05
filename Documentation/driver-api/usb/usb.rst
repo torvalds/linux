@@ -1,3 +1,5 @@
+.. _usb-hostside-api:
+
 ===========================
 The Linux-USB Host Side API
 ===========================

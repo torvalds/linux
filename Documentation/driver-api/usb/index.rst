@@ -10,6 +10,7 @@ Linux USB API
    bulk-streams
    callbacks
    dma
+   URB
    power-management
    hotplug
    persist
