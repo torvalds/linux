@@ -345,41 +345,26 @@ static int set_lcd_level(int level)
 {
 	acpi_status status = AE_OK;
 	acpi_handle handle = NULL;
+	char *method;
 
-	vdbg_printk(FUJLAPTOP_DBG_TRACE, "set lcd level via SBLL [%d]\n",
-		    level);
-
-	if (level < 0 || level >= fujitsu_bl->max_brightness)
-		return -EINVAL;
-
-	status = acpi_get_handle(fujitsu_bl->acpi_handle, "SBLL", &handle);
-	if (ACPI_FAILURE(status)) {
-		vdbg_printk(FUJLAPTOP_DBG_ERROR, "SBLL not present\n");
-		return -ENODEV;
+	switch (use_alt_lcd_levels) {
+	case 1:
+		method = "SBL2";
+		break;
+	default:
+		method = "SBLL";
+		break;
 	}
 
-
-	status = acpi_execute_simple_method(handle, NULL, level);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	return 0;
-}
-
-static int set_lcd_level_alt(int level)
-{
-	acpi_status status = AE_OK;
-	acpi_handle handle = NULL;
-
-	vdbg_printk(FUJLAPTOP_DBG_TRACE, "set lcd level via SBL2 [%d]\n",
-		    level);
+	vdbg_printk(FUJLAPTOP_DBG_TRACE, "set lcd level via %s [%d]\n",
+		    method, level);
 
 	if (level < 0 || level >= fujitsu_bl->max_brightness)
 		return -EINVAL;
 
-	status = acpi_get_handle(fujitsu_bl->acpi_handle, "SBL2", &handle);
+	status = acpi_get_handle(fujitsu_bl->acpi_handle, method, &handle);
 	if (ACPI_FAILURE(status)) {
-		vdbg_printk(FUJLAPTOP_DBG_ERROR, "SBL2 not present\n");
+		vdbg_printk(FUJLAPTOP_DBG_ERROR, "%s not present\n", method);
 		return -ENODEV;
 	}
 
@@ -448,10 +433,7 @@ static int bl_update_status(struct backlight_device *b)
 			"Unable to adjust backlight power, error code %i\n",
 			ret);
 
-	if (use_alt_lcd_levels)
-		ret = set_lcd_level_alt(b->props.brightness);
-	else
-		ret = set_lcd_level(b->props.brightness);
+	ret = set_lcd_level(b->props.brightness);
 	if (ret != 0)
 		vdbg_printk(FUJLAPTOP_DBG_ERROR,
 			"Unable to adjust LCD brightness, error code %i\n",
@@ -664,12 +646,8 @@ static void acpi_fujitsu_bl_notify(struct acpi_device *device, u32 event)
 	if (oldb == newb)
 		return;
 
-	if (disable_brightness_adjust != 1) {
-		if (use_alt_lcd_levels)
-			set_lcd_level_alt(newb);
-		else
-			set_lcd_level(newb);
-	}
+	if (disable_brightness_adjust != 1)
+		set_lcd_level(newb);
 
 	sparse_keymap_report_event(input, oldb < newb, 1, true);
 }
