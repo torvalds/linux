@@ -2340,7 +2340,7 @@ rebuild_st:
 			 * defer the oom here by reporting the ENOMEM back
 			 * to userspace.
 			 */
-			reclaim = mapping_gfp_constraint(mapping, 0);
+			reclaim = mapping_gfp_mask(mapping);
 			reclaim |= __GFP_NORETRY; /* reclaim, but no oom */
 
 			page = shmem_read_mapping_page_gfp(mapping, i, reclaim);
