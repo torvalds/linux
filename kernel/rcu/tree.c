@@ -57,6 +57,7 @@
 #include <linux/random.h>
 #include <linux/trace_events.h>
 #include <linux/suspend.h>
+#include <linux/ftrace.h>
 
 #include "tree.h"
 #include "rcu.h"
@@ -771,25 +772,24 @@ cpu_needs_another_gp(struct rcu_state *rsp, struct rcu_data *rdp)
 }
 
 /*
- * rcu_eqs_enter_common - current CPU is moving towards extended quiescent state
+ * rcu_eqs_enter_common - current CPU is entering an extended quiescent state
  *
- * If the new value of the ->dynticks_nesting counter now is zero,
- * we really have entered idle, and must do the appropriate accounting.
- * The caller must have disabled interrupts.
+ * Enter idle, doing appropriate accounting.  The caller must have
+ * disabled interrupts.
  */
-static void rcu_eqs_enter_common(long long oldval, bool user)
+static void rcu_eqs_enter_common(bool user)
 {
 	struct rcu_state *rsp;
 	struct rcu_data *rdp;
-	RCU_TRACE(struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);)
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
-	trace_rcu_dyntick(TPS("Start"), oldval, rdtp->dynticks_nesting);
+	trace_rcu_dyntick(TPS("Start"), rdtp->dynticks_nesting, 0);
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
 	    !user && !is_idle_task(current)) {
 		struct task_struct *idle __maybe_unused =
 			idle_task(smp_processor_id());
 
-		trace_rcu_dyntick(TPS("Error on entry: not idle task"), oldval, 0);
+		trace_rcu_dyntick(TPS("Error on entry: not idle task"), rdtp->dynticks_nesting, 0);
 		rcu_ftrace_dump(DUMP_ORIG);
 		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
 			  current->pid, current->comm,
@@ -800,7 +800,10 @@ static void rcu_eqs_enter_common(long long oldval, bool user)
 		do_nocb_deferred_wakeup(rdp);
 	}
 	rcu_prepare_for_idle();
-	rcu_dynticks_eqs_enter();
+	stack_tracer_disable();
+	rdtp->dynticks_nesting = 0; /* Breaks tracing momentarily. */
+	rcu_dynticks_eqs_enter(); /* After this, tracing works again. */
+	stack_tracer_enable();
 	rcu_dynticks_task_enter();
 
 	/*
@@ -821,19 +824,15 @@ static void rcu_eqs_enter_common(long long oldval, bool user)
  */
 static void rcu_eqs_enter(bool user)
 {
-	long long oldval;
 	struct rcu_dynticks *rdtp;
 
 	rdtp = this_cpu_ptr(&rcu_dynticks);
-	oldval = rdtp->dynticks_nesting;
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     (oldval & DYNTICK_TASK_NEST_MASK) == 0);
-	if ((oldval & DYNTICK_TASK_NEST_MASK) == DYNTICK_TASK_NEST_VALUE) {
-		rdtp->dynticks_nesting = 0;
-		rcu_eqs_enter_common(oldval, user);
-	} else {
+		     (rdtp->dynticks_nesting & DYNTICK_TASK_NEST_MASK) == 0);
+	if ((rdtp->dynticks_nesting & DYNTICK_TASK_NEST_MASK) == DYNTICK_TASK_NEST_VALUE)
+		rcu_eqs_enter_common(user);
+	else
 		rdtp->dynticks_nesting -= DYNTICK_TASK_NEST_VALUE;
-	}
 }
 
 /**
@@ -892,19 +891,18 @@ void rcu_user_enter(void)
  */
 void rcu_irq_exit(void)
 {
-	long long oldval;
 	struct rcu_dynticks *rdtp;
 
 	RCU_LOCKDEP_WARN(!irqs_disabled(), "rcu_irq_exit() invoked with irqs enabled!!!");
 	rdtp = this_cpu_ptr(&rcu_dynticks);
-	oldval = rdtp->dynticks_nesting;
-	rdtp->dynticks_nesting--;
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     rdtp->dynticks_nesting < 0);
-	if (rdtp->dynticks_nesting)
-		trace_rcu_dyntick(TPS("--="), oldval, rdtp->dynticks_nesting);
-	else
-		rcu_eqs_enter_common(oldval, true);
+		     rdtp->dynticks_nesting < 1);
+	if (rdtp->dynticks_nesting <= 1) {
+		rcu_eqs_enter_common(true);
+	} else {
+		trace_rcu_dyntick(TPS("--="), rdtp->dynticks_nesting, rdtp->dynticks_nesting - 1);
+		rdtp->dynticks_nesting--;
+	}
 	rcu_sysidle_enter(1);
 }
 
