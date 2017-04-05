@@ -12,12 +12,10 @@
 
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_ARCH_HAS_RAW_COPY_USER
 /*
  * Architectures should provide two primitives (raw_copy_{to,from}_user())
- * select ARCH_HAS_RAW_COPY_FROM_USER and get rid of their private instances
- * of copy_{to,from}_user() and __copy_{to,from}_user{,_inatomic}().  Once
- * all of them switch, this part of linux/uaccess.h will become unconditional.
+ * and get rid of their private instances of copy_{to,from}_user() and
+ * __copy_{to,from}_user{,_inatomic}().
  *
  * raw_copy_{to,from}_user(to, from, size) should copy up to size bytes and
  * return the amount left to copy.  They should assume that access_ok() has
@@ -195,7 +193,6 @@ copy_in_user(void __user *to, const void *from, unsigned long n)
 		n = raw_copy_in_user(to, from, n);
 	return n;
 }
-#endif
 #endif
 
 static __always_inline void pagefault_disabled_inc(void)

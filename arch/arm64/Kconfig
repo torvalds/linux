@@ -115,7 +115,6 @@ config ARM64
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
-	select ARCH_HAS_RAW_COPY_USER
 	help
 	  ARM 64-bit (AArch64) Linux support.
 

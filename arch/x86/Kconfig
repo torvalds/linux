@@ -175,7 +175,6 @@ config X86
 	select USER_STACKTRACE_SUPPORT
 	select VIRT_TO_BUS
 	select X86_FEATURE_NAMES		if PROC_FS
-	select ARCH_HAS_RAW_COPY_USER
 
 config INSTRUCTION_DECODER
 	def_bool y

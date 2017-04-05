@@ -847,7 +847,4 @@ config STRICT_MODULE_RWX
 config ARCH_WANT_RELAX_ORDER
 	bool
 
-config ARCH_HAS_RAW_COPY_USER
-	bool
-
 source "kernel/gcov/Kconfig"
