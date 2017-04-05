@@ -293,6 +293,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 						      split, disk_devt(mddev->gendisk),
 						      bio_sector);
 			mddev_check_writesame(mddev, split);
+			mddev_check_write_zeroes(mddev, split);
 			generic_make_request(split);
 		}
 	} while (split != bio);
