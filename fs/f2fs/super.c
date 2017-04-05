@@ -795,7 +795,7 @@ static void f2fs_put_super(struct super_block *sb)
 	}
 
 	/* be sure to wait for any on-going discard commands */
-	f2fs_wait_discard_bio(sbi, NULL_ADDR);
+	f2fs_wait_discard_bios(sbi);
 
 	/* write_checkpoint can update stat informaion */
 	f2fs_destroy_stats(sbi);
