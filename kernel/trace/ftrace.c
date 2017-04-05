@@ -4003,7 +4003,7 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	ret = ftrace_hash_move_and_update_ops(&ops->ops, orig_hash,
 						      hash, 1);
 	if (ret < 0)
-		goto out_unlock;
+		goto err_unlock;
 
 	if (list_empty(&ops->list))
 		list_add(&ops->list, &ftrace_func_probes);
@@ -4021,6 +4021,20 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	free_ftrace_hash(hash);
 
 	return ret;
+
+ err_unlock:
+	if (!ops->free)
+		goto out_unlock;
+
+	/* Failed to do the move, need to call the free functions */
+	for (i = 0; i < size; i++) {
+		hlist_for_each_entry(entry, &hash->buckets[i], hlist) {
+			if (ftrace_lookup_ip(old_hash, entry->ip))
+				continue;
+			ops->free(ops, entry->ip, NULL);
+		}
+	}
+	goto out_unlock;
 }
 
 int
