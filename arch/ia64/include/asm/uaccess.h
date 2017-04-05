@@ -235,46 +235,19 @@ extern unsigned long __must_check __copy_user (void __user *to, const void __use
 					       unsigned long count);
 
 static inline unsigned long
-__copy_to_user (void __user *to, const void *from, unsigned long count)
+raw_copy_to_user(void __user *to, const void *from, unsigned long count)
 {
-	check_object_size(from, count, true);
-
 	return __copy_user(to, (__force void __user *) from, count);
 }
 
 static inline unsigned long
-__copy_from_user (void *to, const void __user *from, unsigned long count)
+raw_copy_from_user(void *to, const void __user *from, unsigned long count)
 {
-	check_object_size(to, count, false);
-
 	return __copy_user((__force void __user *) to, from, count);
 }
 
-#define __copy_to_user_inatomic		__copy_to_user
-#define __copy_from_user_inatomic	__copy_from_user
-#define copy_to_user(to, from, n)							\
-({											\
-	void __user *__cu_to = (to);							\
-	const void *__cu_from = (from);							\
-	long __cu_len = (n);								\
-											\
-	if (__access_ok(__cu_to, __cu_len)) {						\
-		check_object_size(__cu_from, __cu_len, true);			\
-		__cu_len = __copy_user(__cu_to, (__force void __user *)  __cu_from, __cu_len);	\
-	}										\
-	__cu_len;									\
-})
-
-static inline unsigned long
-copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	check_object_size(to, n, false);
-	if (likely(__access_ok(from, n)))
-		n = __copy_user((__force void __user *) to, from, n);
-	else
-		memset(to, 0, n);
-	return n;
-}
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 extern unsigned long __do_clear_user (void __user *, unsigned long);
 
