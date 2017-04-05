@@ -99,6 +99,52 @@ static int rockchip_rk3288_efuse_read(void *context, unsigned int offset,
 	return 0;
 }
 
+static int rockchip_rk3288_efuse_secure_read(void *context,
+					     unsigned int offset,
+					     void *val, size_t bytes)
+{
+	struct rockchip_efuse_chip *efuse = context;
+	u8 *buf = val;
+	u32 wr_val;
+	int ret;
+
+	ret = clk_prepare_enable(efuse->clk);
+	if (ret < 0) {
+		dev_err(efuse->dev, "failed to prepare/enable efuse clk\n");
+		return ret;
+	}
+
+	sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL,
+				 RK3288_LOAD | RK3288_PGENB);
+	udelay(1);
+	while (bytes--) {
+		wr_val = sip_smc_secure_reg_read(efuse->phys + REG_EFUSE_CTRL) &
+			 (~(RK3288_A_MASK << RK3288_A_SHIFT));
+		sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL, wr_val);
+		wr_val = sip_smc_secure_reg_read(efuse->phys + REG_EFUSE_CTRL) |
+			 ((offset++ & RK3288_A_MASK) << RK3288_A_SHIFT);
+		sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL, wr_val);
+		udelay(1);
+		wr_val = sip_smc_secure_reg_read(efuse->phys + REG_EFUSE_CTRL) |
+			 RK3288_STROBE;
+		sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL, wr_val);
+		udelay(1);
+		*buf++ = sip_smc_secure_reg_read(efuse->phys + REG_EFUSE_DOUT);
+		wr_val = sip_smc_secure_reg_read(efuse->phys + REG_EFUSE_CTRL) &
+			 (~RK3288_STROBE);
+		sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL, wr_val);
+		udelay(1);
+	}
+
+	/* Switch to standby mode */
+	sip_smc_secure_reg_write(efuse->phys + REG_EFUSE_CTRL,
+				 RK3288_PGENB | RK3288_CSB);
+
+	clk_disable_unprepare(efuse->clk);
+
+	return 0;
+}
+
 static int rockchip_rk3366_efuse_read(void *context, unsigned int offset,
 				      void *val, size_t bytes)
 {
@@ -264,6 +310,10 @@ static const struct of_device_id rockchip_efuse_match[] = {
 	{
 		.compatible = "rockchip,rk3288-efuse",
 		.data = (void *)&rockchip_rk3288_efuse_read,
+	},
+	{
+		.compatible = "rockchip,rk3288-secure-efuse",
+		.data = (void *)&rockchip_rk3288_efuse_secure_read,
 	},
 	{
 		.compatible = "rockchip,rk3366-efuse",
