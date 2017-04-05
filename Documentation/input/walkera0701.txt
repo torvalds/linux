@@ -1,3 +1,6 @@
+===========================
+Walkera WK-0701 transmitter
+===========================
 
 Walkera WK-0701 transmitter is supplied with a ready to fly Walkera
 helicopters such as HM36, HM37, HM60. The walkera0701 module enables to use
@@ -10,7 +13,8 @@ or use cogito:
 cg-clone http://zub.fei.tuke.sk/GIT/walkera0701-joystick
 
 
-Connecting to PC:
+Connecting to PC
+================
 
 At back side of transmitter S-video connector can be found. Modulation
 pulses from processor to HF part can be found at pin 2 of this connector,
@@ -19,7 +23,8 @@ modulation pulses to PC, signal pulses must be amplified.
 
 Cable: (walkera TX to parport)
 
-Walkera WK-0701 TX S-VIDEO connector:
+Walkera WK-0701 TX S-VIDEO connector::
+
  (back side of TX)
      __   __              S-video:                                  canon25
     /  |_|  \             pin 2 (signal)              NPN           parport
@@ -30,10 +35,10 @@ Walkera WK-0701 TX S-VIDEO connector:
      -------        3 __________________________________|________________ 25 GND
                                                           E
 
-
 I use green LED and BC109 NPN transistor.
 
-Software:
+Software
+========
 
 Build kernel with walkera0701 module. Module walkera0701 need exclusive
 access to parport, modules like lp must be unloaded before loading
@@ -44,7 +49,8 @@ be changed by TX "joystick", check output from /proc/interrupts. Value for
 
 
 
-Technical details:
+Technical details
+=================
 
 Driver use interrupt from parport ACK input bit to measure pulse length
 using hrtimers.
@@ -53,17 +59,29 @@ Frame format:
 Based on walkera WK-0701 PCM Format description by Shaul Eizikovich.
 (downloaded from http://www.smartpropoplus.com/Docs/Walkera_Wk-0701_PCM.pdf)
 
-Signal pulses:
-                   (ANALOG)
-    SYNC      BIN   OCT
-  +---------+      +------+
-  |         |      |      |
---+         +------+      +---
+Signal pulses
+-------------
 
-Frame:
+::
+
+                     (ANALOG)
+      SYNC      BIN   OCT
+    +---------+      +------+
+    |         |      |      |
+  --+         +------+      +---
+
+Frame
+-----
+
+::
+
  SYNC , BIN1, OCT1, BIN2, OCT2 ... BIN24, OCT24, BIN25, next frame SYNC ..
 
-pulse length:
+pulse length
+------------
+
+::
+
    Binary values:		Analog octal values:
 
    288 uS Binary 0		318 uS       000
@@ -80,7 +98,8 @@ pulse length:
 (Warning, pulses on ACK are inverted by transistor, irq is raised up on sync
 to bin change or octal value to bin change).
 
-Binary data representations:
+Binary data representations
+---------------------------
 
 One binary and octal value can be grouped to nibble. 24 nibbles + one binary
 values can be sampled between sync pulses.
@@ -100,10 +119,10 @@ binary value can be sampled. This bit and magic number is not used in
 software driver. Some details about this magic numbers can be found in
 Walkera_Wk-0701_PCM.pdf.
 
-Checksum calculation:
+Checksum calculation
+--------------------
 
 Summary of octal values in nibbles must be same as octal value in checksum
 nibble (only first 3 bits are used). Binary value for checksum nibble is
 calculated by sum of binary values in checked nibbles + sum of octal values
 in checked nibbles divided by 8. Only bit 0 of this sum is used.
-
