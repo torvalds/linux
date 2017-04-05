@@ -242,17 +242,12 @@ int elevator_init(struct request_queue *q, char *name)
 		}
 	}
 
-	if (e->uses_mq) {
-		err = blk_mq_sched_setup(q);
-		if (!err)
-			err = e->ops.mq.init_sched(q, e);
-	} else
+	if (e->uses_mq)
+		err = blk_mq_init_sched(q, e);
+	else
 		err = e->ops.sq.elevator_init_fn(q, e);
-	if (err) {
-		if (e->uses_mq)
-			blk_mq_sched_teardown(q);
+	if (err)
 		elevator_put(e);
-	}
 	return err;
 }
 EXPORT_SYMBOL(elevator_init);
@@ -987,21 +982,18 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	}
 
 	/* allocate, init and register new elevator */
-	if (new_e) {
-		if (new_e->uses_mq) {
-			err = blk_mq_sched_setup(q);
-			if (!err)
-				err = new_e->ops.mq.init_sched(q, new_e);
-		} else
-			err = new_e->ops.sq.elevator_init_fn(q, new_e);
-		if (err)
-			goto fail_init;
+	if (q->mq_ops)
+		err = blk_mq_init_sched(q, new_e);
+	else
+		err = new_e->ops.sq.elevator_init_fn(q, new_e);
+	if (err)
+		goto fail_init;
 
+	if (new_e) {
 		err = elv_register_queue(q);
 		if (err)
 			goto fail_register;
-	} else
-		q->elevator = NULL;
+	}
 
 	/* done, kill the old one and finish */
 	if (old) {

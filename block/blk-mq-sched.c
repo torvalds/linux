@@ -432,51 +432,23 @@ static void blk_mq_sched_free_tags(struct blk_mq_tag_set *set,
 	}
 }
 
-int blk_mq_sched_setup(struct request_queue *q)
+static int blk_mq_sched_alloc_tags(struct request_queue *q,
+				   struct blk_mq_hw_ctx *hctx,
+				   unsigned int hctx_idx)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
-	struct blk_mq_hw_ctx *hctx;
-	int ret, i;
+	int ret;
 
-	/*
-	 * Default to 256, since we don't split into sync/async like the
-	 * old code did. Additionally, this is a per-hw queue depth.
-	 */
-	q->nr_requests = 2 * BLKDEV_MAX_RQ;
+	hctx->sched_tags = blk_mq_alloc_rq_map(set, hctx_idx, q->nr_requests,
+					       set->reserved_tags);
+	if (!hctx->sched_tags)
+		return -ENOMEM;
 
-	/*
-	 * We're switching to using an IO scheduler, so setup the hctx
-	 * scheduler tags and switch the request map from the regular
-	 * tags to scheduler tags. First allocate what we need, so we
-	 * can safely fail and fallback, if needed.
-	 */
-	ret = 0;
-	queue_for_each_hw_ctx(q, hctx, i) {
-		hctx->sched_tags = blk_mq_alloc_rq_map(set, i,
-				q->nr_requests, set->reserved_tags);
-		if (!hctx->sched_tags) {
-			ret = -ENOMEM;
-			break;
-		}
-		ret = blk_mq_alloc_rqs(set, hctx->sched_tags, i, q->nr_requests);
-		if (ret)
-			break;
-	}
+	ret = blk_mq_alloc_rqs(set, hctx->sched_tags, hctx_idx, q->nr_requests);
+	if (ret)
+		blk_mq_sched_free_tags(set, hctx, hctx_idx);
 
-	/*
-	 * If we failed, free what we did allocate
-	 */
-	if (ret) {
-		queue_for_each_hw_ctx(q, hctx, i) {
-			if (!hctx->sched_tags)
-				continue;
-			blk_mq_sched_free_tags(set, hctx, i);
-		}
-
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 void blk_mq_sched_teardown(struct request_queue *q)
@@ -487,6 +459,40 @@ void blk_mq_sched_teardown(struct request_queue *q)
 
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_sched_free_tags(set, hctx, i);
+}
+
+int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
+{
+	struct blk_mq_hw_ctx *hctx;
+	unsigned int i;
+	int ret;
+
+	if (!e) {
+		q->elevator = NULL;
+		return 0;
+	}
+
+	/*
+	 * Default to 256, since we don't split into sync/async like the
+	 * old code did. Additionally, this is a per-hw queue depth.
+	 */
+	q->nr_requests = 2 * BLKDEV_MAX_RQ;
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		ret = blk_mq_sched_alloc_tags(q, hctx, i);
+		if (ret)
+			goto err;
+	}
+
+	ret = e->ops.mq.init_sched(q, e);
+	if (ret)
+		goto err;
+
+	return 0;
+
+err:
+	blk_mq_sched_teardown(q);
+	return ret;
 }
 
 int blk_mq_sched_init(struct request_queue *q)

@@ -32,7 +32,7 @@ void blk_mq_sched_move_to_dispatch(struct blk_mq_hw_ctx *hctx,
 			struct list_head *rq_list,
 			struct request *(*get_rq)(struct blk_mq_hw_ctx *));
 
-int blk_mq_sched_setup(struct request_queue *q);
+int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e);
 void blk_mq_sched_teardown(struct request_queue *q);
 
 int blk_mq_sched_init(struct request_queue *q);
