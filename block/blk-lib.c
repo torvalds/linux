@@ -37,16 +37,11 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		return -ENXIO;
 
 	if (flags & BLKDEV_DISCARD_SECURE) {
-		if (flags & BLKDEV_DISCARD_ZERO)
-			return -EOPNOTSUPP;
 		if (!blk_queue_secure_erase(q))
 			return -EOPNOTSUPP;
 		op = REQ_OP_SECURE_ERASE;
 	} else {
 		if (!blk_queue_discard(q))
-			return -EOPNOTSUPP;
-		if ((flags & BLKDEV_DISCARD_ZERO) &&
-		    !q->limits.discard_zeroes_data)
 			return -EOPNOTSUPP;
 		op = REQ_OP_DISCARD;
 	}
@@ -126,7 +121,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 			&bio);
 	if (!ret && bio) {
 		ret = submit_bio_wait(bio);
-		if (ret == -EOPNOTSUPP && !(flags & BLKDEV_DISCARD_ZERO))
+		if (ret == -EOPNOTSUPP)
 			ret = 0;
 		bio_put(bio);
 	}

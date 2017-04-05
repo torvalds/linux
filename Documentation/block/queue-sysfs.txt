@@ -43,11 +43,6 @@ large discards are issued, setting this value lower will make Linux issue
 smaller discards and potentially help reduce latencies induced by large
 discard operations.
 
-discard_zeroes_data (RO)
-------------------------
-When read, this file will show if the discarded block are zeroed by the
-device or not. If its value is '1' the blocks are zeroed otherwise not.
-
 hw_sector_size (RO)
 -------------------
 This is the hardware sector size of the device, in bytes.
