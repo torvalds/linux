@@ -572,8 +572,7 @@ static int crb_acpi_add(struct acpi_device *device)
 				ACPI_TPM2_COMMAND_BUFFER_WITH_SMC);
 			return -EINVAL;
 		}
-		crb_smc = ACPI_ADD_PTR(struct tpm2_crb_smc, buf,
-				       ACPI_TPM2_START_METHOD_PARAMETER_OFFSET);
+		crb_smc = ACPI_ADD_PTR(struct tpm2_crb_smc, buf, sizeof(*buf));
 		priv->smc_func_id = crb_smc->smc_func_id;
 		priv->flags |= CRB_FL_CRB_SMC_START;
 	}
