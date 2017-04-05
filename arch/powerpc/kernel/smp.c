@@ -521,6 +521,16 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 	cpu_idle_thread_init(cpu, tidle);
 
+	/*
+	 * The platform might need to allocate resources prior to bringing
+	 * up the CPU
+	 */
+	if (smp_ops->prepare_cpu) {
+		rc = smp_ops->prepare_cpu(cpu);
+		if (rc)
+			return rc;
+	}
+
 	/* Make sure callin-map entry is 0 (can be leftover a CPU
 	 * hotplug
 	 */

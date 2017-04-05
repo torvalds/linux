@@ -44,6 +44,7 @@ struct smp_ops_t {
 #endif
 	void  (*probe)(void);
 	int   (*kick_cpu)(int nr);
+	int   (*prepare_cpu)(int nr);
 	void  (*setup_cpu)(int nr);
 	void  (*bringup_done)(void);
 	void  (*take_timebase)(void);
