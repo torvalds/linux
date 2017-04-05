@@ -47,10 +47,6 @@ static const char * const decon_clks_name[] = {
 	"sclk_decon_eclk",
 };
 
-enum decon_flag_bits {
-	BIT_SUSPENDED
-};
-
 struct decon_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
@@ -62,7 +58,6 @@ struct decon_context {
 	struct clk			*clks[ARRAY_SIZE(decon_clks_name)];
 	unsigned int			irq;
 	unsigned int			te_irq;
-	unsigned long			flags;
 	unsigned long			out_type;
 	int				first_win;
 	spinlock_t			vblank_lock;
@@ -94,9 +89,6 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 	struct decon_context *ctx = crtc->ctx;
 	u32 val;
 
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return -EPERM;
-
 	val = VIDINTCON0_INTEN;
 	if (ctx->out_type & IFTYPE_I80)
 		val |= VIDINTCON0_FRAMEDONE;
@@ -115,9 +107,6 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
-
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
 
 	if (!(ctx->out_type & I80_HW_TRG))
 		disable_irq_nosync(ctx->te_irq);
@@ -172,9 +161,6 @@ static u32 decon_get_vblank_counter(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return 0;
-
 	return decon_get_frame_count(ctx, false);
 }
 
@@ -204,9 +190,6 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 	struct drm_display_mode *m = &crtc->base.mode;
 	bool interlaced = false;
 	u32 val;
-
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
 
 	if (ctx->out_type & IFTYPE_HDMI) {
 		m->crtc_hsync_start = m->crtc_hdisplay + 10;
@@ -331,9 +314,6 @@ static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
-
 	decon_shadow_protect(ctx, true);
 }
 
@@ -353,9 +333,6 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	unsigned int pitch = fb->pitches[0];
 	dma_addr_t dma_addr = exynos_drm_fb_dma_addr(fb, 0);
 	u32 val;
-
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
 
 	if (crtc->base.mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		val = COORDINATE_X(state->crtc.x) |
@@ -407,9 +384,6 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	struct decon_context *ctx = crtc->ctx;
 	unsigned int win = plane->index;
 
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
-
 	decon_set_bits(ctx, DECON_WINCONx(win), WINCONx_ENWIN_F, 0);
 }
 
@@ -417,9 +391,6 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	unsigned long flags;
-
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
 
 	spin_lock_irqsave(&ctx->vblank_lock, flags);
 
@@ -474,9 +445,6 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
-	if (!test_and_clear_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
-
 	pm_runtime_get_sync(ctx->dev);
 
 	exynos_drm_pipe_clk_enable(crtc, true);
@@ -495,9 +463,6 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 		synchronize_irq(ctx->te_irq);
 	synchronize_irq(ctx->irq);
 
-	if (test_bit(BIT_SUSPENDED, &ctx->flags))
-		return;
-
 	/*
 	 * We need to make sure that all windows are disabled before we
 	 * suspend that connector. Otherwise we might try to scan from
@@ -511,8 +476,6 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	exynos_drm_pipe_clk_enable(crtc, false);
 
 	pm_runtime_put_sync(ctx->dev);
-
-	set_bit(BIT_SUSPENDED, &ctx->flags);
 }
 
 static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
@@ -750,7 +713,6 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	__set_bit(BIT_SUSPENDED, &ctx->flags);
 	ctx->dev = dev;
 	ctx->out_type = (unsigned long)of_device_get_match_data(dev);
 	spin_lock_init(&ctx->vblank_lock);
