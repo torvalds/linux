@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (c) 2017, Fuzhou Rockchip Electronics Co., Ltd
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,8 +22,8 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 
-#include <linux/rockchip/rk3368-mailbox.h>
-#include <linux/rockchip/scpi.h>
+#include <soc/rockchip/rk3368-mailbox.h>
+#include <soc/rockchip/scpi.h>
 
 #define MAILBOX_VERSION			"V1.00"
 

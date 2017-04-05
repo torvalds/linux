@@ -1,8 +1,5 @@
 /*
- * SCPI Message Protocol driver header
- *
- * Copyright (C) 2014 ARM Ltd.
- * Copyright (C) 2014, Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (C) 2017, Fuzhou Rockchip Electronics Co., Ltd
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,11 +9,11 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-#include <linux/types.h>
+
+#ifndef __SOC_ROCKCHIP_SCPI_H
+#define __SOC_ROCKCHIP_SCPI_H
+
 #include <linux/rockchip/common.h>
 
 #ifdef CONFIG_RK3368_SCPI_PROTOCOL
@@ -150,4 +147,5 @@ static inline int scpi_thermal_set_clk_cycle(u32 cycle)
 {
 	return -EPERM;
 }
+#endif
 #endif
