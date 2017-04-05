@@ -23,6 +23,7 @@
 #include <asm/kvm_book3s.h>
 #include <asm/archrandom.h>
 #include <asm/xics.h>
+#include <asm/xive.h>
 #include <asm/dbell.h>
 #include <asm/cputhreads.h>
 #include <asm/io.h>
@@ -224,6 +225,10 @@ void kvmhv_rm_send_ipi(int cpu)
 		return;
 	}
 
+	/* We should never reach this */
+	if (WARN_ON_ONCE(xive_enabled()))
+	    return;
+
 	/* Else poke the target with an IPI */
 	xics_phys = paca[cpu].kvm_hstate.xics_phys;
 	if (xics_phys)
@@ -385,6 +390,9 @@ long kvmppc_read_intr(void)
 	long ret = 0;
 	long rc;
 	bool again;
+
+	if (xive_enabled())
+		return 1;
 
 	do {
 		again = false;
