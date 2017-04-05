@@ -617,7 +617,6 @@ struct i40e_vsi {
 	u32 tx_busy;
 	u64 tx_linearize;
 	u64 tx_force_wb;
-	u64 tx_lost_interrupt;
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
 
@@ -702,9 +701,6 @@ struct i40e_q_vector {
 	struct i40e_ring_container tx;
 
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
-
-#define I40E_Q_VECTOR_HUNG_DETECT 0 /* Bit Index for hung detection logic */
-	unsigned long hung_detected; /* Set/Reset for hung_detection logic */
 
 	cpumask_t affinity_mask;
 	struct irq_affinity_notify affinity_notify;
