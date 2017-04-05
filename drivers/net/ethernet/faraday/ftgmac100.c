@@ -1049,14 +1049,9 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 	struct net_device *netdev = dev_id;
 	struct ftgmac100 *priv = netdev_priv(netdev);
 
-	/* When running in NCSI mode, the interface should be ready for
-	 * receiving or transmitting NCSI packets before it's opened.
-	 */
-	if (likely(priv->use_ncsi || netif_running(netdev))) {
-		/* Disable interrupts for polling */
-		iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
-		napi_schedule(&priv->napi);
-	}
+	/* Disable interrupts for polling */
+	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+	napi_schedule(&priv->napi);
 
 	return IRQ_HANDLED;
 }
