@@ -24,7 +24,7 @@
 #include "rk_nand_blk.h"
 #include "rk_ftl_api.h"
 
-#define RKNAND_VERSION_AND_DATE  "rknandbase v1.1 2016-01-08"
+#define RKNAND_VERSION_AND_DATE  "rknandbase v1.1 2016-11-08"
 
 struct rk_nandc_info {
 	int	id;
@@ -33,6 +33,7 @@ struct rk_nandc_info {
 	int	clk_rate;
 	struct clk	*clk;	/* flash clk*/
 	struct clk	*hclk;	/* nandc clk*/
+	struct clk	*gclk;  /* flash clk gate*/
 };
 
 static struct rk_nandc_info g_nandc_info[2];
@@ -51,6 +52,16 @@ static int nandc0_ready_completed_flag;
 static int nandc1_xfer_completed_flag;
 static int nandc1_ready_completed_flag;
 static int rk_timer_add;
+
+void *ftl_malloc(int size)
+{
+	return kmalloc(size, GFP_KERNEL | GFP_DMA);
+}
+
+void ftl_free(void *buf)
+{
+	kfree(buf);
+}
 
 char rknand_get_sn(char *pbuf)
 {
@@ -271,7 +282,7 @@ int rk_nandc_irq_init(void)
 	rk_timer_add = 0;
 	nandc0_ready_completed_flag = 0;
 	nandc0_xfer_completed_flag = 0;
-	rk_nandc_irq_config(0, 1, rk_nandc_interrupt);
+	ret = rk_nandc_irq_config(0, 1, rk_nandc_interrupt);
 
 	if (g_nandc_info[1].reg_base != 0) {
 		nandc1_ready_completed_flag = 0;
@@ -332,6 +343,7 @@ static int rknand_probe(struct platform_device *pdev)
 
 	g_nandc_info[id].hclk = devm_clk_get(&pdev->dev, "hclk_nandc");
 	g_nandc_info[id].clk = devm_clk_get(&pdev->dev, "clk_nandc");
+	g_nandc_info[id].gclk = devm_clk_get(&pdev->dev, "g_clk_nandc");
 
 	if (unlikely(IS_ERR(g_nandc_info[id].clk)) ||
 	    unlikely(IS_ERR(g_nandc_info[id].hclk))) {
@@ -343,6 +355,8 @@ static int rknand_probe(struct platform_device *pdev)
 	g_nandc_info[id].clk_rate = clk_get_rate(g_nandc_info[id].clk);
 	clk_prepare_enable(g_nandc_info[id].clk);
 	clk_prepare_enable(g_nandc_info[id].hclk);
+	if (!(IS_ERR(g_nandc_info[id].gclk)))
+		clk_prepare_enable(g_nandc_info[id].gclk);
 
 	dev_info(&pdev->dev,
 		 "rknand_probe clk rate = %d\n",

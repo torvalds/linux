@@ -2,6 +2,7 @@ if ARCH_ROCKCHIP
 config RK_NAND
 	tristate "RK NAND Device Support"
 	default n
+	depends on BLOCK_RKNAND != y
 	help
 	  RK NAND Device Support.
 
