@@ -704,7 +704,8 @@ static void i40evf_configure_rx(struct i40evf_adapter *adapter)
 		 * standard Ethernet mtu.  On x86 this gives us enough room
 		 * for shared info and 192 bytes of padding.
 		 */
-		if (netdev->mtu <= ETH_DATA_LEN)
+		if (!I40E_2K_TOO_SMALL_WITH_PADDING &&
+		    (netdev->mtu <= ETH_DATA_LEN))
 			rx_buf_len = I40E_RXBUFFER_1536 - NET_IP_ALIGN;
 	}
 #endif
@@ -712,6 +713,11 @@ static void i40evf_configure_rx(struct i40evf_adapter *adapter)
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		adapter->rx_rings[i].tail = hw->hw_addr + I40E_QRX_TAIL1(i);
 		adapter->rx_rings[i].rx_buf_len = rx_buf_len;
+
+		if (adapter->flags & I40EVF_FLAG_LEGACY_RX)
+			clear_ring_build_skb_enabled(&adapter->rx_rings[i]);
+		else
+			set_ring_build_skb_enabled(&adapter->rx_rings[i]);
 	}
 }
 

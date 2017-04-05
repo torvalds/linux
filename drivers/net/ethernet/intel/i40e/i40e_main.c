@@ -3038,6 +3038,12 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 		return -ENOMEM;
 	}
 
+	/* configure Rx buffer alignment */
+	if (!vsi->netdev || (vsi->back->flags & I40E_FLAG_LEGACY_RX))
+		clear_ring_build_skb_enabled(ring);
+	else
+		set_ring_build_skb_enabled(ring);
+
 	/* cache tail for quicker writes, and clear the reg before use */
 	ring->tail = hw->hw_addr + I40E_QRX_TAIL(pf_q);
 	writel(0, ring->tail);
@@ -3079,7 +3085,8 @@ static int i40e_vsi_configure_rx(struct i40e_vsi *vsi)
 		vsi->max_frame = I40E_MAX_RXBUFFER;
 		vsi->rx_buf_len = I40E_RXBUFFER_2048;
 #if (PAGE_SIZE < 8192)
-	} else if (vsi->netdev->mtu <= ETH_DATA_LEN) {
+	} else if (!I40E_2K_TOO_SMALL_WITH_PADDING &&
+		   (vsi->netdev->mtu <= ETH_DATA_LEN)) {
 		vsi->max_frame = I40E_RXBUFFER_1536 - NET_IP_ALIGN;
 		vsi->rx_buf_len = I40E_RXBUFFER_1536 - NET_IP_ALIGN;
 #endif
