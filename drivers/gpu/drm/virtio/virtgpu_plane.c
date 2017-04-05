@@ -39,7 +39,11 @@ static const uint32_t virtio_gpu_formats[] = {
 };
 
 static const uint32_t virtio_gpu_cursor_formats[] = {
+#ifdef __BIG_ENDIAN
+	DRM_FORMAT_BGRA8888,
+#else
 	DRM_FORMAT_ARGB8888,
+#endif
 };
 
 uint32_t virtio_gpu_translate_format(uint32_t drm_fourcc)
