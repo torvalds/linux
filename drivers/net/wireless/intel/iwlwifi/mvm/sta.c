@@ -2814,8 +2814,13 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				    "ssn = %d, next_recl = %d\n",
 				    tid_data->ssn, tid_data->next_reclaimed);
 
-		/* There are still packets for this RA / TID in the HW */
-		if (tid_data->ssn != tid_data->next_reclaimed) {
+		/*
+		 * There are still packets for this RA / TID in the HW.
+		 * Not relevant for DQA mode, since there is no need to disable
+		 * the queue.
+		 */
+		if (!iwl_mvm_is_dqa_supported(mvm) &&
+		    tid_data->ssn != tid_data->next_reclaimed) {
 			tid_data->state = IWL_EMPTYING_HW_QUEUE_DELBA;
 			err = 0;
 			break;
