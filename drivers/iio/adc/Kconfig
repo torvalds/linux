@@ -604,7 +604,7 @@ config STX104
 config SUN4I_GPADC
 	tristate "Support for the Allwinner SoCs GPADC"
 	depends on IIO
-	depends on MFD_SUN4I_GPADC
+	depends on MFD_SUN4I_GPADC || MACH_SUN8I
 	depends on THERMAL || !THERMAL_OF
 	help
 	  Say yes here to build support for Allwinner (A10, A13 and A31) SoCs
