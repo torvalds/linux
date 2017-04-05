@@ -123,33 +123,15 @@ static int refresh_imported_device_list(void)
 
 static int get_nports(void)
 {
-	char *c;
-	int nports = 0;
-	const char *attr_status;
+	const char *attr_nports;
 
-	attr_status = udev_device_get_sysattr_value(vhci_driver->hc_device,
-					       "status");
-	if (!attr_status) {
-		err("udev_device_get_sysattr_value failed");
+	attr_nports = udev_device_get_sysattr_value(vhci_driver->hc_device, "nports");
+	if (!attr_nports) {
+		err("udev_device_get_sysattr_value nports failed");
 		return -1;
 	}
 
-	/* skip a header line */
-	c = strchr(attr_status, '\n');
-	if (!c)
-		return 0;
-	c++;
-
-	while (*c != '\0') {
-		/* go to the next line */
-		c = strchr(c, '\n');
-		if (!c)
-			return nports;
-		c++;
-		nports += 1;
-	}
-
-	return nports;
+	return (int)strtoul(attr_nports, NULL, 10);
 }
 
 /*
