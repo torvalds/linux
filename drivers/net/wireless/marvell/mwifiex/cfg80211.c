@@ -2512,9 +2512,11 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 			priv->random_mac[i] |= get_random_int() &
 					       ~(request->mac_addr_mask[i]);
 		}
+		ether_addr_copy(user_scan_cfg->random_mac, priv->random_mac);
+	} else {
+		eth_zero_addr(priv->random_mac);
 	}
 
-	ether_addr_copy(user_scan_cfg->random_mac, priv->random_mac);
 	user_scan_cfg->num_ssids = request->n_ssids;
 	user_scan_cfg->ssid_list = request->ssids;
 
