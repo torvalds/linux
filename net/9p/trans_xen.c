@@ -189,6 +189,62 @@ again:
 
 static void p9_xen_response(struct work_struct *work)
 {
+	struct xen_9pfs_front_priv *priv;
+	struct xen_9pfs_dataring *ring;
+	RING_IDX cons, prod, masked_cons, masked_prod;
+	struct xen_9pfs_header h;
+	struct p9_req_t *req;
+	int status;
+
+	ring = container_of(work, struct xen_9pfs_dataring, work);
+	priv = ring->priv;
+
+	while (1) {
+		cons = ring->intf->in_cons;
+		prod = ring->intf->in_prod;
+		virt_rmb();
+
+		if (xen_9pfs_queued(prod, cons, XEN_9PFS_RING_SIZE) <
+		    sizeof(h)) {
+			notify_remote_via_irq(ring->irq);
+			return;
+		}
+
+		masked_prod = xen_9pfs_mask(prod, XEN_9PFS_RING_SIZE);
+		masked_cons = xen_9pfs_mask(cons, XEN_9PFS_RING_SIZE);
+
+		/* First, read just the header */
+		xen_9pfs_read_packet(&h, ring->data.in, sizeof(h),
+				     masked_prod, &masked_cons,
+				     XEN_9PFS_RING_SIZE);
+
+		req = p9_tag_lookup(priv->client, h.tag);
+		if (!req || req->status != REQ_STATUS_SENT) {
+			dev_warn(&priv->dev->dev, "Wrong req tag=%x\n", h.tag);
+			cons += h.size;
+			virt_mb();
+			ring->intf->in_cons = cons;
+			continue;
+		}
+
+		memcpy(req->rc, &h, sizeof(h));
+		req->rc->offset = 0;
+
+		masked_cons = xen_9pfs_mask(cons, XEN_9PFS_RING_SIZE);
+		/* Then, read the whole packet (including the header) */
+		xen_9pfs_read_packet(req->rc->sdata, ring->data.in, h.size,
+				     masked_prod, &masked_cons,
+				     XEN_9PFS_RING_SIZE);
+
+		virt_mb();
+		cons += h.size;
+		ring->intf->in_cons = cons;
+
+		status = (req->status != REQ_STATUS_ERROR) ?
+			REQ_STATUS_RCVD : REQ_STATUS_ERROR;
+
+		p9_client_cb(priv->client, req, status);
+	}
 }
 
 static irqreturn_t xen_9pfs_front_event_handler(int irq, void *r)
