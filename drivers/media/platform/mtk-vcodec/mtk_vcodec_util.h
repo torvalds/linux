@@ -31,7 +31,6 @@ struct mtk_vcodec_dev;
 extern int mtk_v4l2_dbg_level;
 extern bool mtk_vcodec_dbg;
 
-#define DEBUG	1
 
 #if defined(DEBUG)
 
