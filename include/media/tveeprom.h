@@ -94,7 +94,6 @@ struct tveeprom {
  *			       of the eeprom previously filled at
  *			       @eeprom_data field.
  *
- * @c:			I2C client struct
  * @tvee:		Struct to where the eeprom parsed data will be filled;
  * @eeprom_data:	Array with the contents of the eeprom_data. It should
  *			contain 256 bytes filled with the contents of the
