@@ -8,6 +8,7 @@ Linux USB API
    gadget
    anchors
    bulk-streams
+   callbacks
    writing_usb_driver
    writing_musb_glue_layer
 
