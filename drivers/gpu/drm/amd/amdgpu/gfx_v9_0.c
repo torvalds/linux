@@ -3975,9 +3975,7 @@ static int gfx_v9_0_init_queue(struct amdgpu_ring *ring)
 			       ring->pipe,
 			       ring->queue, 0);
 	/* disable wptr polling */
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_WPTR_POLL_CNTL));
-	tmp = REG_SET_FIELD(tmp, CP_PQ_WPTR_POLL_CNTL, EN, 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_WPTR_POLL_CNTL), tmp);
+	WREG32_FIELD15(GC, 0, CP_PQ_WPTR_POLL_CNTL, EN, 0);
 
 	/* write the EOP addr */
 	BUG_ON(ring->me != 1 || ring->pipe != 0); /* can't handle other cases eop address */
@@ -4121,11 +4119,8 @@ static int gfx_v9_0_init_queue(struct amdgpu_ring *ring)
 	amdgpu_bo_kunmap(ring->mqd_obj);
 	amdgpu_bo_unreserve(ring->mqd_obj);
 
-	if (use_doorbell) {
-		tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_STATUS));
-		tmp = REG_SET_FIELD(tmp, CP_PQ_STATUS, DOORBELL_ENABLE, 1);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PQ_STATUS), tmp);
-	}
+	if (use_doorbell)
+		WREG32_FIELD15(GC, 0, CP_PQ_STATUS, DOORBELL_ENABLE, 1);
 
 	return 0;
 }
