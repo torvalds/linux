@@ -84,7 +84,6 @@ struct ftgmac100 {
 
 	/* Misc */
 	int int_mask_all;
-	bool enabled;
 };
 
 static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
@@ -1126,8 +1125,6 @@ static int ftgmac100_open(struct net_device *netdev)
 			goto err_ncsi;
 	}
 
-	priv->enabled = true;
-
 	return 0;
 
 err_ncsi:
@@ -1146,11 +1143,7 @@ static int ftgmac100_stop(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
 
-	if (!priv->enabled)
-		return 0;
-
 	/* disable all interrupts */
-	priv->enabled = false;
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 
 	netif_stop_queue(netdev);
