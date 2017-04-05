@@ -461,6 +461,28 @@ void blk_mq_sched_teardown(struct request_queue *q)
 		blk_mq_sched_free_tags(set, hctx, i);
 }
 
+int blk_mq_sched_init_hctx(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
+			   unsigned int hctx_idx)
+{
+	struct elevator_queue *e = q->elevator;
+
+	if (!e)
+		return 0;
+
+	return blk_mq_sched_alloc_tags(q, hctx, hctx_idx);
+}
+
+void blk_mq_sched_exit_hctx(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
+			    unsigned int hctx_idx)
+{
+	struct elevator_queue *e = q->elevator;
+
+	if (!e)
+		return;
+
+	blk_mq_sched_free_tags(q->tag_set, hctx, hctx_idx);
+}
+
 int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 {
 	struct blk_mq_hw_ctx *hctx;
