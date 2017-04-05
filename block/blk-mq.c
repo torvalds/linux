@@ -1003,17 +1003,16 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
 			 * The initial allocation attempt failed, so we need to
 			 * rerun the hardware queue when a tag is freed.
 			 */
-			if (blk_mq_dispatch_wait_add(hctx)) {
-				/*
-				 * It's possible that a tag was freed in the
-				 * window between the allocation failure and
-				 * adding the hardware queue to the wait queue.
-				 */
-				if (!blk_mq_get_driver_tag(rq, &hctx, false))
-					break;
-			} else {
+			if (!blk_mq_dispatch_wait_add(hctx))
 				break;
-			}
+
+			/*
+			 * It's possible that a tag was freed in the window
+			 * between the allocation failure and adding the
+			 * hardware queue to the wait queue.
+			 */
+			if (!blk_mq_get_driver_tag(rq, &hctx, false))
+				break;
 		}
 
 		list_del_init(&rq->queuelist);
