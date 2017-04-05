@@ -189,6 +189,7 @@ static int parse_reply_info_dir(void **p, void *end,
 		info->dir_end = !!(flags & CEPH_READDIR_FRAG_END);
 		info->dir_complete = !!(flags & CEPH_READDIR_FRAG_COMPLETE);
 		info->hash_order = !!(flags & CEPH_READDIR_HASH_ORDER);
+		info->offset_hash = !!(flags & CEPH_READDIR_OFFSET_HASH);
 	}
 	if (num == 0)
 		goto done;

@@ -1482,10 +1482,17 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	if (test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags))
 		return readdir_prepopulate_inodes_only(req, session);
 
-	if (rinfo->hash_order && req->r_path2) {
-		last_hash = ceph_str_hash(ci->i_dir_layout.dl_dir_hash,
-					  req->r_path2, strlen(req->r_path2));
-		last_hash = ceph_frag_value(last_hash);
+	if (rinfo->hash_order) {
+		if (req->r_path2) {
+			last_hash = ceph_str_hash(ci->i_dir_layout.dl_dir_hash,
+						  req->r_path2,
+						  strlen(req->r_path2));
+			last_hash = ceph_frag_value(last_hash);
+		} else if (rinfo->offset_hash) {
+			/* mds understands offset_hash */
+			WARN_ON_ONCE(req->r_readdir_offset != 2);
+			last_hash = le32_to_cpu(rhead->args.readdir.offset_hash);
+		}
 	}
 
 	if (rinfo->dir_dir &&
@@ -1510,7 +1517,7 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	}
 
 	if (ceph_frag_is_leftmost(frag) && req->r_readdir_offset == 2 &&
-	    !(rinfo->hash_order && req->r_path2)) {
+	    !(rinfo->hash_order && last_hash)) {
 		/* note dir version at start of readdir so we can tell
 		 * if any dentries get dropped */
 		req->r_dir_release_cnt = atomic64_read(&ci->i_release_count);

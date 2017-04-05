@@ -378,7 +378,11 @@ more:
 				ceph_mdsc_put_request(req);
 				return -ENOMEM;
 			}
+		} else if (is_hash_order(ctx->pos)) {
+			req->r_args.readdir.offset_hash =
+				cpu_to_le32(fpos_hash(ctx->pos));
 		}
+
 		req->r_dir_release_cnt = fi->dir_release_count;
 		req->r_dir_ordered_cnt = fi->dir_ordered_count;
 		req->r_readdir_cache_idx = fi->readdir_cache_idx;
