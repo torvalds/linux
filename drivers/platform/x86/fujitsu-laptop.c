@@ -428,18 +428,12 @@ static int bl_get_brightness(struct backlight_device *b)
 
 static int bl_update_status(struct backlight_device *b)
 {
-	int ret;
 	if (b->props.power == FB_BLANK_POWERDOWN)
 		call_fext_func(FUNC_BACKLIGHT, 0x1, 0x4, 0x3);
 	else
 		call_fext_func(FUNC_BACKLIGHT, 0x1, 0x4, 0x0);
 
-	ret = set_lcd_level(b->props.brightness);
-	if (ret != 0)
-		vdbg_printk(FUJLAPTOP_DBG_ERROR,
-			"Unable to adjust LCD brightness, error code %i\n",
-			ret);
-	return ret;
+	return set_lcd_level(b->props.brightness);
 }
 
 static const struct backlight_ops fujitsu_bl_ops = {
