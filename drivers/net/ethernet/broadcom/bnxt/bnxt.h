@@ -426,8 +426,6 @@ struct rx_tpa_end_cmp_ext {
 
 #define BNXT_MIN_PKT_SIZE	52
 
-#define BNXT_NUM_TESTS(bp)	0
-
 #define BNXT_DEFAULT_RX_RING_SIZE	511
 #define BNXT_DEFAULT_TX_RING_SIZE	511
 
@@ -911,6 +909,14 @@ struct bnxt_led_info {
 	__le16	led_color_caps;
 };
 
+#define BNXT_MAX_TEST	8
+
+struct bnxt_test_info {
+	u8 offline_mask;
+	u16 timeout;
+	char string[BNXT_MAX_TEST][ETH_GSTRING_LEN];
+};
+
 #define BNXT_GRCPF_REG_WINDOW_BASE_OUT	0x400
 #define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
 #define BNXT_CAG_REG_BASE		0x300000
@@ -989,6 +995,7 @@ struct bnxt {
 	#define BNXT_FLAG_UDP_RSS_CAP	0x800
 	#define BNXT_FLAG_EEE_CAP	0x1000
 	#define BNXT_FLAG_NEW_RSS_CAP	0x2000
+	#define BNXT_FLAG_WOL_CAP	0x4000
 	#define BNXT_FLAG_ROCEV1_CAP	0x8000
 	#define BNXT_FLAG_ROCEV2_CAP	0x10000
 	#define BNXT_FLAG_ROCE_CAP	(BNXT_FLAG_ROCEV1_CAP |	\
@@ -1180,6 +1187,12 @@ struct bnxt {
 	u32			lpi_tmr_lo;
 	u32			lpi_tmr_hi;
 
+	u8			num_tests;
+	struct bnxt_test_info	*test_info;
+
+	u8			wol_filter_id;
+	u8			wol;
+
 	u8			num_leds;
 	struct bnxt_led_info	leds[BNXT_MAX_LED];
 
@@ -1238,8 +1251,12 @@ void bnxt_tx_disable(struct bnxt *bp);
 void bnxt_tx_enable(struct bnxt *bp);
 int bnxt_hwrm_set_pause(struct bnxt *);
 int bnxt_hwrm_set_link_setting(struct bnxt *, bool, bool);
+int bnxt_hwrm_alloc_wol_fltr(struct bnxt *bp);
+int bnxt_hwrm_free_wol_fltr(struct bnxt *bp);
 int bnxt_hwrm_fw_set_time(struct bnxt *);
 int bnxt_open_nic(struct bnxt *, bool, bool);
+int bnxt_half_open_nic(struct bnxt *bp);
+void bnxt_half_close_nic(struct bnxt *bp);
 int bnxt_close_nic(struct bnxt *, bool, bool);
 int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, int tcs, int tx_xdp);
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);
