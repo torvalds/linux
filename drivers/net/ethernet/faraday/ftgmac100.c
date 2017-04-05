@@ -76,6 +76,7 @@ struct ftgmac100 {
 	struct device *dev;
 	struct ncsi_dev *ndev;
 	struct napi_struct napi;
+	struct work_struct reset_task;
 	struct mii_bus *mii_bus;
 
 	/* Link management */
@@ -874,7 +875,6 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 	struct ftgmac100 *priv = netdev_priv(netdev);
 	struct phy_device *phydev = netdev->phydev;
 	int new_speed;
-	int ier;
 
 	/* We store "no link" as speed 0 */
 	if (!phydev->link)
@@ -899,20 +899,11 @@ static void ftgmac100_adjust_link(struct net_device *netdev)
 	if (!new_speed)
 		return;
 
-	ier = ioread32(priv->base + FTGMAC100_OFFSET_IER);
-
-	/* disable all interrupts */
+	/* Disable all interrupts */
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 
-	netif_stop_queue(netdev);
-	ftgmac100_stop_hw(priv);
-
-	netif_start_queue(netdev);
-	ftgmac100_init_hw(priv);
-	ftgmac100_start_hw(priv);
-
-	/* re-enable interrupts */
-	iowrite32(ier, priv->base + FTGMAC100_OFFSET_IER);
+	/* Reset the adapter asynchronously */
+	schedule_work(&priv->reset_task);
 }
 
 static int ftgmac100_mii_probe(struct ftgmac100 *priv)
@@ -1137,6 +1128,61 @@ static int ftgmac100_init_all(struct ftgmac100 *priv, bool ignore_alloc_err)
 	return err;
 }
 
+static void ftgmac100_reset_task(struct work_struct *work)
+{
+	struct ftgmac100 *priv = container_of(work, struct ftgmac100,
+					      reset_task);
+	struct net_device *netdev = priv->netdev;
+	int err;
+
+	netdev_dbg(netdev, "Resetting NIC...\n");
+
+	/* Lock the world */
+	rtnl_lock();
+	if (netdev->phydev)
+		mutex_lock(&netdev->phydev->lock);
+	if (priv->mii_bus)
+		mutex_lock(&priv->mii_bus->mdio_lock);
+
+
+	/* Check if the interface is still up */
+	if (!netif_running(netdev))
+		goto bail;
+
+	/* Stop the network stack */
+	netif_trans_update(netdev);
+	napi_disable(&priv->napi);
+	netif_tx_disable(netdev);
+
+	/* Stop and reset the MAC */
+	ftgmac100_stop_hw(priv);
+	err = ftgmac100_reset_hw(priv);
+	if (err) {
+		/* Not much we can do ... it might come back... */
+		netdev_err(netdev, "attempting to continue...\n");
+	}
+
+	/* Free all rx and tx buffers */
+	ftgmac100_free_buffers(priv);
+
+	/* The ring pointers have been reset in HW, reflect this here */
+	priv->rx_pointer = 0;
+	priv->tx_clean_pointer = 0;
+	priv->tx_pointer = 0;
+	priv->tx_pending = 0;
+
+	/* Setup everything again and restart chip */
+	ftgmac100_init_all(priv, true);
+
+	netdev_dbg(netdev, "Reset done !\n");
+ bail:
+	if (priv->mii_bus)
+		mutex_unlock(&priv->mii_bus->mdio_lock);
+	if (netdev->phydev)
+		mutex_unlock(&netdev->phydev->lock);
+	rtnl_unlock();
+}
+
 static int ftgmac100_open(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
@@ -1221,6 +1267,14 @@ static int ftgmac100_open(struct net_device *netdev)
 static int ftgmac100_stop(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
+
+	/* Note about the reset task: We are called with the rtnl lock
+	 * held, so we are synchronized against the core of the reset
+	 * task. We must not try to synchronously cancel it otherwise
+	 * we can deadlock. But since it will test for netif_running()
+	 * which has already been cleared by the net core, we don't
+	 * anything special to do.
+	 */
 
 	/* disable all interrupts */
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
@@ -1397,6 +1451,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv = netdev_priv(netdev);
 	priv->netdev = netdev;
 	priv->dev = &pdev->dev;
+	INIT_WORK(&priv->reset_task, ftgmac100_reset_task);
 
 	spin_lock_init(&priv->tx_lock);
 
@@ -1500,6 +1555,12 @@ static int ftgmac100_remove(struct platform_device *pdev)
 	priv = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
+
+	/* There's a small chance the reset task will have been re-queued,
+	 * during stop, make sure it's gone before we free the structure.
+	 */
+	cancel_work_sync(&priv->reset_task);
+
 	ftgmac100_destroy_mdio(netdev);
 
 	iounmap(priv->base);
