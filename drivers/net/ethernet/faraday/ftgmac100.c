@@ -52,34 +52,39 @@ struct ftgmac100_descs {
 };
 
 struct ftgmac100 {
+	/* Registers */
 	struct resource *res;
 	void __iomem *base;
 
 	struct ftgmac100_descs *descs;
 	dma_addr_t descs_dma_addr;
 
+	/* Rx ring */
 	struct page *rx_pages[RX_QUEUE_ENTRIES];
-
 	unsigned int rx_pointer;
+	u32 rxdes0_edorr_mask;
+
+	/* Tx ring */
 	unsigned int tx_clean_pointer;
 	unsigned int tx_pointer;
 	unsigned int tx_pending;
-
+	u32 txdes0_edotr_mask;
 	spinlock_t tx_lock;
 
+	/* Component structures */
 	struct net_device *netdev;
 	struct device *dev;
 	struct ncsi_dev *ndev;
 	struct napi_struct napi;
-
 	struct mii_bus *mii_bus;
-	int old_speed;
-	int int_mask_all;
-	bool use_ncsi;
-	bool enabled;
 
-	u32 rxdes0_edorr_mask;
-	u32 txdes0_edotr_mask;
+	/* Link management */
+	int old_speed;
+	bool use_ncsi;
+
+	/* Misc */
+	int int_mask_all;
+	bool enabled;
 };
 
 static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
