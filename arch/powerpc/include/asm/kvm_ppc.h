@@ -409,7 +409,7 @@ struct openpic;
 extern void kvm_cma_reserve(void) __init;
 static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 {
-	paca[cpu].kvm_hstate.xics_phys = addr;
+	paca[cpu].kvm_hstate.xics_phys = (void __iomem *)addr;
 }
 
 static inline u32 kvmppc_get_xics_latch(void)
