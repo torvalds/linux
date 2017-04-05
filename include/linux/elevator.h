@@ -93,6 +93,8 @@ struct blk_mq_hw_ctx;
 struct elevator_mq_ops {
 	int (*init_sched)(struct request_queue *, struct elevator_type *);
 	void (*exit_sched)(struct elevator_queue *);
+	int (*init_hctx)(struct blk_mq_hw_ctx *, unsigned int);
+	void (*exit_hctx)(struct blk_mq_hw_ctx *, unsigned int);
 
 	bool (*allow_merge)(struct request_queue *, struct request *, struct bio *);
 	bool (*bio_merge)(struct blk_mq_hw_ctx *, struct bio *);
