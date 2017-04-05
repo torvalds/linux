@@ -2366,177 +2366,6 @@ static int gfx_v9_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static void gfx_v9_0_print_status(void *handle)
-{
-	int i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "GFX 9.x registers\n");
-	dev_info(adev->dev, "  GRBM_STATUS=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS)));
-	dev_info(adev->dev, "  GRBM_STATUS2=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS2)));
-	dev_info(adev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE0)));
-	dev_info(adev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE1)));
-	dev_info(adev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE2)));
-	dev_info(adev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE3)));
-	dev_info(adev->dev, "  CP_STAT = 0x%08x\n", RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_STAT)));
-	dev_info(adev->dev, "  CP_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_STALLED_STAT1)));
-	dev_info(adev->dev, "  CP_STALLED_STAT2 = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_STALLED_STAT2)));
-	dev_info(adev->dev, "  CP_STALLED_STAT3 = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_STALLED_STAT3)));
-	dev_info(adev->dev, "  CP_CPF_BUSY_STAT = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPF_BUSY_STAT)));
-	dev_info(adev->dev, "  CP_CPF_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPF_STALLED_STAT1)));
-	dev_info(adev->dev, "  CP_CPF_STATUS = 0x%08x\n", RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPF_STATUS)));
-	dev_info(adev->dev, "  CP_CPC_BUSY_STAT = 0x%08x\n", RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPC_BUSY_STAT)));
-	dev_info(adev->dev, "  CP_CPC_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPC_STALLED_STAT1)));
-	dev_info(adev->dev, "  CP_CPC_STATUS = 0x%08x\n", RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_CPC_STATUS)));
-
-	for (i = 0; i < 32; i++) {
-		dev_info(adev->dev, "  GB_TILE_MODE%d=0x%08X\n",
-			 i, RREG32(SOC15_REG_OFFSET(GC, 0, mmGB_TILE_MODE0 ) + i*4));
-	}
-	for (i = 0; i < 16; i++) {
-		dev_info(adev->dev, "  GB_MACROTILE_MODE%d=0x%08X\n",
-			 i, RREG32(SOC15_REG_OFFSET(GC, 0, mmGB_MACROTILE_MODE0) + i*4));
-	}
-	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
-		dev_info(adev->dev, "  se: %d\n", i);
-		gfx_v9_0_select_se_sh(adev, i, 0xffffffff, 0xffffffff);
-		dev_info(adev->dev, "  PA_SC_RASTER_CONFIG=0x%08X\n",
-			 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_RASTER_CONFIG)));
-		dev_info(adev->dev, "  PA_SC_RASTER_CONFIG_1=0x%08X\n",
-			 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_RASTER_CONFIG_1)));
-	}
-	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-
-	dev_info(adev->dev, "  GB_ADDR_CONFIG=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmGB_ADDR_CONFIG)));
-
-	dev_info(adev->dev, "  CP_MEQ_THRESHOLDS=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_MEQ_THRESHOLDS)));
-	dev_info(adev->dev, "  SX_DEBUG_1=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSX_DEBUG_1)));
-	dev_info(adev->dev, "  TA_CNTL_AUX=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmTA_CNTL_AUX)));
-	dev_info(adev->dev, "  SPI_CONFIG_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSPI_CONFIG_CNTL)));
-	dev_info(adev->dev, "  SQ_CONFIG=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSQ_CONFIG)));
-	dev_info(adev->dev, "  DB_DEBUG=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmDB_DEBUG)));
-	dev_info(adev->dev, "  DB_DEBUG2=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmDB_DEBUG2)));
-	dev_info(adev->dev, "  DB_DEBUG3=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmDB_DEBUG3)));
-	dev_info(adev->dev, "  CB_HW_CONTROL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCB_HW_CONTROL)));
-	dev_info(adev->dev, "  SPI_CONFIG_CNTL_1=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSPI_CONFIG_CNTL_1)));
-	dev_info(adev->dev, "  PA_SC_FIFO_SIZE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_FIFO_SIZE)));
-	dev_info(adev->dev, "  VGT_NUM_INSTANCES=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmVGT_NUM_INSTANCES)));
-	dev_info(adev->dev, "  CP_PERFMON_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_PERFMON_CNTL)));
-	dev_info(adev->dev, "  PA_SC_FORCE_EOV_MAX_CNTS=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_FORCE_EOV_MAX_CNTS)));
-	dev_info(adev->dev, "  VGT_CACHE_INVALIDATION=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmVGT_CACHE_INVALIDATION)));
-	dev_info(adev->dev, "  VGT_GS_VERTEX_REUSE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmVGT_GS_VERTEX_REUSE)));
-	dev_info(adev->dev, "  PA_SC_LINE_STIPPLE_STATE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_LINE_STIPPLE_STATE)));
-	dev_info(adev->dev, "  PA_CL_ENHANCE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_CL_ENHANCE)));
-	dev_info(adev->dev, "  PA_SC_ENHANCE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmPA_SC_ENHANCE)));
-
-	dev_info(adev->dev, "  CP_ME_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_ME_CNTL)));
-	dev_info(adev->dev, "  CP_MAX_CONTEXT=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_MAX_CONTEXT)));
-	dev_info(adev->dev, "  CP_DEVICE_ID=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_DEVICE_ID)));
-
-	dev_info(adev->dev, "  CP_SEM_WAIT_TIMER=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_SEM_WAIT_TIMER)));
-
-	dev_info(adev->dev, "  CP_RB_WPTR_DELAY=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB_WPTR_DELAY)));
-	dev_info(adev->dev, "  CP_RB_VMID=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB_VMID)));
-	dev_info(adev->dev, "  CP_RB0_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_CNTL)));
-	dev_info(adev->dev, "  CP_RB0_WPTR=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_WPTR)));
-	dev_info(adev->dev, "  CP_RB0_RPTR_ADDR=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_RPTR_ADDR)));
-	dev_info(adev->dev, "  CP_RB0_RPTR_ADDR_HI=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_RPTR_ADDR_HI)));
-	dev_info(adev->dev, "  CP_RB0_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_CNTL)));
-	dev_info(adev->dev, "  CP_RB0_BASE=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_BASE)));
-	dev_info(adev->dev, "  CP_RB0_BASE_HI=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_RB0_BASE_HI)));
-	dev_info(adev->dev, "  CP_MEC_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_MEC_CNTL)));
-
-	dev_info(adev->dev, "  SCRATCH_ADDR=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSCRATCH_ADDR)));
-	dev_info(adev->dev, "  SCRATCH_UMSK=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmSCRATCH_UMSK)));
-
-	dev_info(adev->dev, "  CP_INT_CNTL_RING0=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_INT_CNTL_RING0)));
-	dev_info(adev->dev, "  RLC_LB_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_CNTL)));
-	dev_info(adev->dev, "  RLC_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CNTL)));
-	dev_info(adev->dev, "  RLC_CGCG_CGLS_CTRL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_CGCG_CGLS_CTRL)));
-	dev_info(adev->dev, "  RLC_LB_CNTR_INIT=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_CNTR_INIT)));
-	dev_info(adev->dev, "  RLC_LB_CNTR_MAX=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_CNTR_MAX)));
-	dev_info(adev->dev, "  RLC_LB_INIT_CU_MASK=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_INIT_CU_MASK)));
-	dev_info(adev->dev, "  RLC_LB_PARAMS=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_PARAMS)));
-	dev_info(adev->dev, "  RLC_LB_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_LB_CNTL)));
-	dev_info(adev->dev, "  RLC_UCODE_CNTL=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_UCODE_CNTL)));
-
-	dev_info(adev->dev, "  RLC_GPM_GENERAL_6=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_GENERAL_6)));
-	dev_info(adev->dev, "  RLC_GPM_GENERAL_12=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_GENERAL_12)));
-	dev_info(adev->dev, "  RLC_GPM_TIMER_INT_3=0x%08X\n",
-		 RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_TIMER_INT_3)));
-	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < 16; i++) {
-		soc15_grbm_select(adev, 0, 0, 0, i);
-		dev_info(adev->dev, "  VM %d:\n", i);
-		dev_info(adev->dev, "  SH_MEM_CONFIG=0x%08X\n",
-			 RREG32(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_CONFIG)));
-		dev_info(adev->dev, "  SH_MEM_BASES=0x%08X\n",
-			 RREG32(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_BASES)));
-	}
-	soc15_grbm_select(adev, 0, 0, 0, 0);
-	mutex_unlock(&adev->srbm_mutex);
-}
-
 static int gfx_v9_0_soft_reset(void *handle)
 {
 	u32 grbm_soft_reset = 0;
@@ -2569,8 +2398,7 @@ static int gfx_v9_0_soft_reset(void *handle)
 						GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
 
 
-	if (grbm_soft_reset ) {
-		gfx_v9_0_print_status((void *)adev);
+	if (grbm_soft_reset) {
 		/* stop the rlc */
 		gfx_v9_0_rlc_stop(adev);
 
@@ -2596,7 +2424,6 @@ static int gfx_v9_0_soft_reset(void *handle)
 
 		/* Wait a little for things to settle down */
 		udelay(50);
-		gfx_v9_0_print_status((void *)adev);
 	}
 	return 0;
 }
