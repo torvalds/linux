@@ -12,6 +12,7 @@ Linux USB API
    dma
    power-management
    hotplug
+   persist
    error-codes
    writing_usb_driver
    writing_musb_glue_layer
