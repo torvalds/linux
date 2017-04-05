@@ -5246,24 +5246,20 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 static struct bio *chunk_aligned_read(struct mddev *mddev, struct bio *raid_bio)
 {
 	struct bio *split;
+	sector_t sector = raid_bio->bi_iter.bi_sector;
+	unsigned chunk_sects = mddev->chunk_sectors;
+	unsigned sectors = chunk_sects - (sector & (chunk_sects-1));
 
-	do {
-		sector_t sector = raid_bio->bi_iter.bi_sector;
-		unsigned chunk_sects = mddev->chunk_sectors;
-		unsigned sectors = chunk_sects - (sector & (chunk_sects-1));
+	if (sectors < bio_sectors(raid_bio)) {
+		struct r5conf *conf = mddev->private;
+		split = bio_split(raid_bio, sectors, GFP_NOIO, conf->bio_split);
+		bio_chain(split, raid_bio);
+		generic_make_request(raid_bio);
+		raid_bio = split;
+	}
 
-		if (sectors < bio_sectors(raid_bio)) {
-			split = bio_split(raid_bio, sectors, GFP_NOIO, fs_bio_set);
-			bio_chain(split, raid_bio);
-		} else
-			split = raid_bio;
-
-		if (!raid5_read_one_chunk(mddev, split)) {
-			if (split != raid_bio)
-				generic_make_request(raid_bio);
-			return split;
-		}
-	} while (split != raid_bio);
+	if (!raid5_read_one_chunk(mddev, raid_bio))
+		return raid_bio;
 
 	return NULL;
 }
@@ -6747,6 +6743,8 @@ static void free_conf(struct r5conf *conf)
 		if (conf->disks[i].extra_page)
 			put_page(conf->disks[i].extra_page);
 	kfree(conf->disks);
+	if (conf->bio_split)
+		bioset_free(conf->bio_split);
 	kfree(conf->stripe_hashtbl);
 	kfree(conf->pending_data);
 	kfree(conf);
@@ -6922,6 +6920,9 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 			goto abort;
 	}
 
+	conf->bio_split = bioset_create(BIO_POOL_SIZE, 0);
+	if (!conf->bio_split)
+		goto abort;
 	conf->mddev = mddev;
 
 	if ((conf->stripe_hashtbl = kzalloc(PAGE_SIZE, GFP_KERNEL)) == NULL)
