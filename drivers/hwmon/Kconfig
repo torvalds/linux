@@ -341,6 +341,15 @@ config SENSORS_ASB100
 	  This driver can also be built as a module.  If so, the module
 	  will be called asb100.
 
+config SENSORS_ASPEED
+	tristate "ASPEED AST2400/AST2500 PWM and Fan tach driver"
+	help
+	  This driver provides support for ASPEED AST2400/AST2500 PWM
+	  and Fan Tacho controllers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called aspeed_pwm_tacho.
+
 config SENSORS_ATXP1
 	tristate "Attansic ATXP1 VID controller"
 	depends on I2C
