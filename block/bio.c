@@ -990,8 +990,19 @@ int bio_alloc_pages(struct bio *bio, gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(bio_alloc_pages);
 
-static void __bio_copy_data(struct bio *dst, struct bio *src,
-			    int offset, int size)
+/**
+ * bio_copy_data - copy contents of data buffers from one chain of bios to
+ * another
+ * @src: source bio list
+ * @dst: destination bio list
+ *
+ * If @src and @dst are single bios, bi_next must be NULL - otherwise, treats
+ * @src and @dst as linked lists of bios.
+ *
+ * Stops when it reaches the end of either @src or @dst - that is, copies
+ * min(src->bi_size, dst->bi_size) bytes (or the equivalent for lists of bios).
+ */
+void bio_copy_data(struct bio *dst, struct bio *src)
 {
 	struct bvec_iter src_iter, dst_iter;
 	struct bio_vec src_bv, dst_bv;
@@ -1000,12 +1011,6 @@ static void __bio_copy_data(struct bio *dst, struct bio *src,
 
 	src_iter = src->bi_iter;
 	dst_iter = dst->bi_iter;
-
-	/* for supporting partial copy */
-	if (offset || size != src->bi_iter.bi_size) {
-		bio_advance_iter(src, &src_iter, offset);
-		src_iter.bi_size = size;
-	}
 
 	while (1) {
 		if (!src_iter.bi_size) {
@@ -1043,46 +1048,7 @@ static void __bio_copy_data(struct bio *dst, struct bio *src,
 		bio_advance_iter(dst, &dst_iter, bytes);
 	}
 }
-
-/**
- * bio_copy_data - copy contents of data buffers from one chain of bios to
- * another
- * @src: source bio list
- * @dst: destination bio list
- *
- * If @src and @dst are single bios, bi_next must be NULL - otherwise, treats
- * @src and @dst as linked lists of bios.
- *
- * Stops when it reaches the end of either @src or @dst - that is, copies
- * min(src->bi_size, dst->bi_size) bytes (or the equivalent for lists of bios).
- */
-void bio_copy_data(struct bio *dst, struct bio *src)
-{
-	__bio_copy_data(dst, src, 0, src->bi_iter.bi_size);
-}
 EXPORT_SYMBOL(bio_copy_data);
-
-/**
- * bio_copy_data_partial - copy partial contents of data buffers from one
- * chain of bios to another
- * @dst: destination bio list
- * @src: source bio list
- * @offset: starting copy from the offset
- * @size: how many bytes to copy
- *
- * If @src and @dst are single bios, bi_next must be NULL - otherwise, treats
- * @src and @dst as linked lists of bios.
- *
- * Stops when it reaches the end of either @src or @dst - that is, copies
- * min(src->bi_size, dst->bi_size) bytes (or the equivalent for lists of bios).
- */
-void bio_copy_data_partial(struct bio *dst, struct bio *src,
-			   int offset, int size)
-{
-	__bio_copy_data(dst, src, offset, size);
-
-}
-EXPORT_SYMBOL(bio_copy_data_partial);
 
 struct bio_map_data {
 	int is_our_pages;
