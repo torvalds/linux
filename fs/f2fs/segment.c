@@ -876,12 +876,8 @@ void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 	struct list_head *pend_list = &(dcc->discard_pend_list);
 	struct list_head *wait_list = &(dcc->discard_wait_list);
 	struct discard_cmd *dc, *tmp;
-	struct blk_plug plug;
 
 	mutex_lock(&dcc->cmd_lock);
-
-	if (blkaddr == NULL_ADDR)
-		goto release_discard;
 
 	list_for_each_entry_safe(dc, tmp, pend_list, list) {
 		if (dc->lstart <= blkaddr && blkaddr < dc->lstart + dc->len)
@@ -896,19 +892,30 @@ void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 		}
 	}
 
-release_discard:
-	/* this comes from f2fs_put_super */
-	if (blkaddr == NULL_ADDR) {
-		blk_start_plug(&plug);
-		list_for_each_entry_safe(dc, tmp, pend_list, list)
-			__submit_discard_cmd(sbi, dc);
-		blk_finish_plug(&plug);
+	mutex_unlock(&dcc->cmd_lock);
+}
 
-		list_for_each_entry_safe(dc, tmp, wait_list, list) {
-			wait_for_completion_io(&dc->wait);
-			__remove_discard_cmd(sbi, dc);
-		}
+/* This comes from f2fs_put_super */
+void f2fs_wait_discard_bios(struct f2fs_sb_info *sbi)
+{
+	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
+	struct list_head *pend_list = &(dcc->discard_pend_list);
+	struct list_head *wait_list = &(dcc->discard_wait_list);
+	struct discard_cmd *dc, *tmp;
+	struct blk_plug plug;
+
+	mutex_lock(&dcc->cmd_lock);
+
+	blk_start_plug(&plug);
+	list_for_each_entry_safe(dc, tmp, pend_list, list)
+		__submit_discard_cmd(sbi, dc);
+	blk_finish_plug(&plug);
+
+	list_for_each_entry_safe(dc, tmp, wait_list, list) {
+		wait_for_completion_io(&dc->wait);
+		__remove_discard_cmd(sbi, dc);
 	}
+
 	mutex_unlock(&dcc->cmd_lock);
 }
 
