@@ -1395,13 +1395,9 @@ void gfx_v9_0_rlc_stop(struct amdgpu_device *adev)
 
 static void gfx_v9_0_rlc_reset(struct amdgpu_device *adev)
 {
-	u32 tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_SOFT_RESET));
-
-	tmp = REG_SET_FIELD(tmp, GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_SOFT_RESET), tmp);
+	WREG32_FIELD15(GC, 0, GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
 	udelay(50);
-	tmp = REG_SET_FIELD(tmp, GRBM_SOFT_RESET, SOFT_RESET_RLC, 0);
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_SOFT_RESET), tmp);
+	WREG32_FIELD15(GC, 0, GRBM_SOFT_RESET, SOFT_RESET_RLC, 0);
 	udelay(50);
 }
 
