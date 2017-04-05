@@ -67,11 +67,17 @@ static DEFINE_SPINLOCK(dev_list_lock);
 
 static struct class *nvme_class;
 
-static inline bool nvme_req_needs_retry(struct request *req, u16 status)
+static inline bool nvme_req_needs_retry(struct request *req)
 {
-	return !(status & NVME_SC_DNR || blk_noretry_request(req)) &&
-		(jiffies - req->start_time) < req->timeout &&
-		req->retries < nvme_max_retries;
+	if (blk_noretry_request(req))
+		return false;
+	if (req->errors & NVME_SC_DNR)
+		return false;
+	if (jiffies - req->start_time >= req->timeout)
+		return false;
+	if (req->retries >= nvme_max_retries)
+		return false;
+	return true;
 }
 
 void nvme_complete_rq(struct request *req)
@@ -79,7 +85,7 @@ void nvme_complete_rq(struct request *req)
 	int error = 0;
 
 	if (unlikely(req->errors)) {
-		if (nvme_req_needs_retry(req, req->errors)) {
+		if (nvme_req_needs_retry(req)) {
 			req->retries++;
 			blk_mq_requeue_request(req,
 					!blk_mq_queue_stopped(req->q));
