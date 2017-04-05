@@ -1398,7 +1398,8 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
 	struct wmi_cfg_rx_chain_cmd cmd = {
 		.action = WMI_RX_CHAIN_ADD,
 		.rx_sw_ring = {
-			.max_mpdu_size = cpu_to_le16(wil_mtu2macbuf(mtu_max)),
+			.max_mpdu_size = cpu_to_le16(
+				wil_mtu2macbuf(wil->rx_buf_len)),
 			.ring_mem_base = cpu_to_le64(vring->pa),
 			.ring_size = cpu_to_le16(vring->size),
 		},
