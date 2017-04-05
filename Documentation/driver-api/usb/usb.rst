@@ -424,8 +424,8 @@ header.
 Unless noted otherwise, the ioctl requests described here will update
 the modification time on the usbfs file to which they are applied
 (unless they fail). A return of zero indicates success; otherwise, a
-standard USB error code is returned. (These are documented in
-``Documentation/usb/error-codes.txt`` in your kernel sources.)
+standard USB error code is returned (These are documented in
+:ref:`usb-error-codes`).
 
 Each of these files multiplexes access to several I/O streams, one per
 endpoint. Each device has one control endpoint (endpoint zero) which

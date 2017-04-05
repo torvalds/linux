@@ -1,3 +1,5 @@
+.. _usb-error-codes:
+
 USB Error codes
 ~~~~~~~~~~~~~~~
 

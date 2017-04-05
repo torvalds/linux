@@ -8,7 +8,7 @@ Usbcore will call into a driver through callbacks defined in the driver
 structure and through the completion handler of URBs a driver submits.
 Only the former are in the scope of this document. These two kinds of
 callbacks are completely independent of each other. Information on the
-completion callback can be found in Documentation/usb/URB.txt.
+completion callback can be found in :ref:`usb-urb`.
 
 The callbacks defined in the driver structure are:
 
@@ -53,7 +53,7 @@ The callbacks defined in the driver structure are:
 
 The ioctl interface (2) should be used only if you have a very good
 reason. Sysfs is preferred these days. The PM callbacks are covered
-separately in Documentation/usb/power-management.txt.
+separately in :ref:`usb-power-management`.
 
 Calling conventions
 ===================

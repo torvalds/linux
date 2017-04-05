@@ -1,3 +1,5 @@
+.. _usb-persist:
+
 USB device persistence during system suspend
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

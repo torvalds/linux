@@ -406,7 +406,7 @@ Firewire, CompactFlash, MMC, external SATA, or even IDE hotplug bays)
 before suspending; then remount them after resuming.
 
 There is a work-around for this problem.  For more information, see
-Documentation/usb/persist.txt.
+Documentation/driver-api/usb/persist.rst.
 
 Q: Can I suspend-to-disk using a swap partition under LVM?
 

@@ -328,7 +328,7 @@ possible to work around the hibernation-forces-disconnect problem by
 using the USB Persist facility.)
 
 The ``reset_resume`` method is used by the USB Persist facility (see
-``Documentation/usb/persist.txt``) and it can also be used under certain
+:ref:`usb-persist`) and it can also be used under certain
 circumstances when ``CONFIG_USB_PERSIST`` is not enabled.  Currently, if a
 device is reset during a resume and the driver does not have a
 ``reset_resume`` method, the driver won't receive any notification about

@@ -1,3 +1,5 @@
+.. _usb-urb:
+
 USB Request Block (URB)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
