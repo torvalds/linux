@@ -195,6 +195,7 @@ static struct map {
 	{ "CBO", "uncore_cbox" },
 	{ "QPI LL", "uncore_qpi" },
 	{ "SBO", "uncore_sbox" },
+	{ "iMPH-U", "uncore_arb" },
 	{}
 };
 
@@ -468,6 +469,7 @@ int json_events(const char *fn,
 				}
 				addfield(map, &desc, ". ", "Unit: ", NULL);
 				addfield(map, &desc, "", pmu, NULL);
+				addfield(map, &desc, "", " ", NULL);
 			} else if (json_streq(map, field, "Filter")) {
 				addfield(map, &filter, "", "", val);
 			} else if (json_streq(map, field, "ScaleUnit")) {
