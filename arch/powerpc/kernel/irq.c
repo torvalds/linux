@@ -442,46 +442,6 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	return sum;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-void migrate_irqs(void)
-{
-	struct irq_desc *desc;
-	unsigned int irq;
-	static int warned;
-	cpumask_var_t mask;
-	const struct cpumask *map = cpu_online_mask;
-
-	alloc_cpumask_var(&mask, GFP_KERNEL);
-
-	for_each_irq_desc(irq, desc) {
-		struct irq_data *data;
-		struct irq_chip *chip;
-
-		data = irq_desc_get_irq_data(desc);
-		if (irqd_is_per_cpu(data))
-			continue;
-
-		chip = irq_data_get_irq_chip(data);
-
-		cpumask_and(mask, irq_data_get_affinity_mask(data), map);
-		if (cpumask_any(mask) >= nr_cpu_ids) {
-			pr_warn("Breaking affinity for irq %i\n", irq);
-			cpumask_copy(mask, map);
-		}
-		if (chip->irq_set_affinity)
-			chip->irq_set_affinity(data, mask, true);
-		else if (desc->action && !(warned++))
-			pr_err("Cannot set affinity for irq %i\n", irq);
-	}
-
-	free_cpumask_var(mask);
-
-	local_irq_enable();
-	mdelay(1);
-	local_irq_disable();
-}
-#endif
-
 static inline void check_stack_overflow(void)
 {
 #ifdef CONFIG_DEBUG_STACKOVERFLOW

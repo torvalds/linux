@@ -439,7 +439,14 @@ int generic_cpu_disable(void)
 #ifdef CONFIG_PPC64
 	vdso_data->processorCount--;
 #endif
-	migrate_irqs();
+	/* Update affinity of all IRQs previously aimed at this CPU */
+	irq_migrate_all_off_this_cpu();
+
+	/* Give the CPU time to drain in-flight ones */
+	local_irq_enable();
+	mdelay(1);
+	local_irq_disable();
+
 	return 0;
 }
 
