@@ -1816,6 +1816,51 @@ static struct sk_buff *i40e_construct_skb(struct i40e_ring *rx_ring,
 }
 
 /**
+ * i40e_build_skb - Build skb around an existing buffer
+ * @rx_ring: Rx descriptor ring to transact packets on
+ * @rx_buffer: Rx buffer to pull data from
+ * @size: size of buffer to add to skb
+ *
+ * This function builds an skb around an existing Rx buffer, taking care
+ * to set up the skb correctly and avoid any memcpy overhead.
+ */
+static struct sk_buff *i40e_build_skb(struct i40e_ring *rx_ring,
+				      struct i40e_rx_buffer *rx_buffer,
+				      unsigned int size)
+{
+	void *va = page_address(rx_buffer->page) + rx_buffer->page_offset;
+#if (PAGE_SIZE < 8192)
+	unsigned int truesize = i40e_rx_pg_size(rx_ring) / 2;
+#else
+	unsigned int truesize = SKB_DATA_ALIGN(size);
+#endif
+	struct sk_buff *skb;
+
+	/* prefetch first cache line of first page */
+	prefetch(va);
+#if L1_CACHE_BYTES < 128
+	prefetch(va + L1_CACHE_BYTES);
+#endif
+	/* build an skb around the page buffer */
+	skb = build_skb(va - I40E_SKB_PAD, truesize);
+	if (unlikely(!skb))
+		return NULL;
+
+	/* update pointers within the skb to store the data */
+	skb_reserve(skb, I40E_SKB_PAD);
+	__skb_put(skb, size);
+
+	/* buffer is used by skb, update page_offset */
+#if (PAGE_SIZE < 8192)
+	rx_buffer->page_offset ^= truesize;
+#else
+	rx_buffer->page_offset += truesize;
+#endif
+
+	return skb;
+}
+
+/**
  * i40e_put_rx_buffer - Clean up used buffer and either recycle or free
  * @rx_ring: rx descriptor ring to transact packets on
  * @rx_buffer: rx buffer to pull data from
@@ -1939,6 +1984,8 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		/* retrieve a buffer from the ring */
 		if (skb)
 			i40e_add_rx_frag(rx_ring, rx_buffer, skb, size);
+		else if (ring_uses_build_skb(rx_ring))
+			skb = i40e_build_skb(rx_ring, rx_buffer, size);
 		else
 			skb = i40e_construct_skb(rx_ring, rx_buffer, size);
 
