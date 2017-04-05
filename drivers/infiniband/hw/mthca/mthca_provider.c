@@ -937,7 +937,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		goto err;
 	}
 
-	shift = ffs(mr->umem->page_size) - 1;
+	shift = mr->umem->page_shift;
 	n = mr->umem->nmap;
 
 	mr->mtt = mthca_alloc_mtt(dev, n);
@@ -959,8 +959,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
 		len = sg_dma_len(sg) >> shift;
 		for (k = 0; k < len; ++k) {
-			pages[i++] = sg_dma_address(sg) +
-				mr->umem->page_size * k;
+			pages[i++] = sg_dma_address(sg) + (k << shift);
 			/*
 			 * Be friendly to write_mtt and pass it chunks
 			 * of appropriate size.

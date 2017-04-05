@@ -206,7 +206,7 @@ void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 	 * but they will write 0s as well, so no difference in the end result.
 	 */
 
-	for (addr = start; addr < end; addr += (u64)umem->page_size) {
+	for (addr = start; addr < end; addr += BIT(umem->page_shift)) {
 		idx = (addr - ib_umem_start(umem)) / PAGE_SIZE;
 		/*
 		 * Strive to write the MTTs in chunks, but avoid overwriting

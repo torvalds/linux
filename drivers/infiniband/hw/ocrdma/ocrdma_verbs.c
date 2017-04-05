@@ -914,21 +914,18 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 	pbe = (struct ocrdma_pbe *)pbl_tbl->va;
 	pbe_cnt = 0;
 
-	shift = ilog2(umem->page_size);
+	shift = umem->page_shift;
 
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
 		pages = sg_dma_len(sg) >> shift;
 		for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
 			/* store the page address in pbe */
 			pbe->pa_lo =
-			    cpu_to_le32(sg_dma_address
-					(sg) +
-					(umem->page_size * pg_cnt));
+			    cpu_to_le32(sg_dma_address(sg) +
+					(pg_cnt << shift));
 			pbe->pa_hi =
-			    cpu_to_le32(upper_32_bits
-					((sg_dma_address
-					  (sg) +
-					  umem->page_size * pg_cnt)));
+			    cpu_to_le32(upper_32_bits(sg_dma_address(sg) +
+					 (pg_cnt << shift)));
 			pbe_cnt += 1;
 			total_num_pbes += 1;
 			pbe++;
@@ -978,7 +975,7 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	if (status)
 		goto umem_err;
 
-	mr->hwmr.pbe_size = mr->umem->page_size;
+	mr->hwmr.pbe_size = BIT(mr->umem->page_shift);
 	mr->hwmr.fbo = ib_umem_offset(mr->umem);
 	mr->hwmr.va = usr_addr;
 	mr->hwmr.len = len;

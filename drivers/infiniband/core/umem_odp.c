@@ -254,11 +254,11 @@ struct ib_umem *ib_alloc_odp_umem(struct ib_ucontext *context,
 	if (!umem)
 		return ERR_PTR(-ENOMEM);
 
-	umem->context   = context;
-	umem->length    = size;
-	umem->address   = addr;
-	umem->page_size = PAGE_SIZE;
-	umem->writable  = 1;
+	umem->context    = context;
+	umem->length     = size;
+	umem->address    = addr;
+	umem->page_shift = PAGE_SHIFT;
+	umem->writable   = 1;
 
 	odp_data = kzalloc(sizeof(*odp_data), GFP_KERNEL);
 	if (!odp_data) {
@@ -707,7 +707,7 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 virt,
 	 * invalidations, so we must make sure we free each page only
 	 * once. */
 	mutex_lock(&umem->odp_data->umem_mutex);
-	for (addr = virt; addr < bound; addr += (u64)umem->page_size) {
+	for (addr = virt; addr < bound; addr += BIT(umem->page_shift)) {
 		idx = (addr - ib_umem_start(umem)) / PAGE_SIZE;
 		if (umem->odp_data->page_list[idx]) {
 			struct page *page = umem->odp_data->page_list[idx];

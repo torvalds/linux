@@ -194,7 +194,7 @@ int pvrdma_page_dir_insert_umem(struct pvrdma_page_dir *pdir,
 		len = sg_dma_len(sg) >> PAGE_SHIFT;
 		for (j = 0; j < len; j++) {
 			dma_addr_t addr = sg_dma_address(sg) +
-					  umem->page_size * j;
+					  (j << umem->page_shift);
 
 			ret = pvrdma_page_dir_insert_dma(pdir, i, addr);
 			if (ret)

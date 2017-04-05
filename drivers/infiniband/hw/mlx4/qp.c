@@ -745,7 +745,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		}
 
 		err = mlx4_mtt_init(dev->dev, ib_umem_page_count(qp->umem),
-				    ilog2(qp->umem->page_size), &qp->mtt);
+				    qp->umem->page_shift, &qp->mtt);
 		if (err)
 			goto err_buf;
 

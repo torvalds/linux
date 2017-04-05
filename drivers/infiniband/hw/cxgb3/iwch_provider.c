@@ -581,7 +581,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		return ERR_PTR(err);
 	}
 
-	shift = ffs(mhp->umem->page_size) - 1;
+	shift = mhp->umem->page_shift;
 
 	n = mhp->umem->nmap;
 
@@ -601,7 +601,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			len = sg_dma_len(sg) >> shift;
 			for (k = 0; k < len; ++k) {
 				pages[i++] = cpu_to_be64(sg_dma_address(sg) +
-					mhp->umem->page_size * k);
+							 (k << shift));
 				if (i == PAGE_SIZE / sizeof *pages) {
 					err = iwch_write_pbl(mhp, pages, i, n);
 					if (err)

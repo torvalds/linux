@@ -408,8 +408,7 @@ struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mr->mr.access_flags = mr_access_flags;
 	mr->umem = umem;
 
-	if (is_power_of_2(umem->page_size))
-		mr->mr.page_shift = ilog2(umem->page_size);
+	mr->mr.page_shift = umem->page_shift;
 	m = 0;
 	n = 0;
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
@@ -421,8 +420,9 @@ struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			goto bail_inval;
 		}
 		mr->mr.map[m]->segs[n].vaddr = vaddr;
-		mr->mr.map[m]->segs[n].length = umem->page_size;
-		trace_rvt_mr_user_seg(&mr->mr, m, n, vaddr, umem->page_size);
+		mr->mr.map[m]->segs[n].length = BIT(umem->page_shift);
+		trace_rvt_mr_user_seg(&mr->mr, m, n, vaddr,
+				      BIT(umem->page_shift));
 		n++;
 		if (n == RVT_SEGSZ) {
 			m++;

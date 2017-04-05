@@ -44,7 +44,7 @@ struct ib_umem {
 	struct ib_ucontext     *context;
 	size_t			length;
 	unsigned long		address;
-	int			page_size;
+	int			page_shift;
 	int                     writable;
 	int                     hugetlb;
 	struct work_struct	work;
@@ -60,7 +60,7 @@ struct ib_umem {
 /* Returns the offset of the umem start relative to the first page. */
 static inline int ib_umem_offset(struct ib_umem *umem)
 {
-	return umem->address & ((unsigned long)umem->page_size - 1);
+	return umem->address & (BIT(umem->page_shift) - 1);
 }
 
 /* Returns the first page of an ODP umem. */
