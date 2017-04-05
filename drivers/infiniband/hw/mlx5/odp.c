@@ -988,9 +988,6 @@ static void mlx5_ib_mr_wqe_pfault_handler(struct mlx5_ib_dev *dev,
 		resume_with_error = 0;
 		goto resolve_page_fault;
 	} else if (ret < 0 || total_wqe_bytes > bytes_mapped) {
-		if (ret != -ENOENT)
-			mlx5_ib_err(dev, "PAGE FAULT error: %d. QP 0x%x. type: 0x%x\n",
-				    ret, pfault->wqe.wq_num, pfault->type);
 		goto resolve_page_fault;
 	}
 
@@ -1050,8 +1047,8 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 	} else if (ret < 0 || pages_in_range(address, length) > ret) {
 		mlx5_ib_page_fault_resume(dev, pfault, 1);
 		if (ret != -ENOENT)
-			mlx5_ib_warn(dev, "PAGE FAULT error %d. QP 0x%x, type: 0x%x\n",
-				     ret, pfault->token, pfault->type);
+			mlx5_ib_dbg(dev, "PAGE FAULT error %d. QP 0x%x, type: 0x%x\n",
+				    ret, pfault->token, pfault->type);
 		return;
 	}
 
@@ -1072,8 +1069,8 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 						    prefetch_len,
 						    &bytes_committed, NULL);
 		if (ret < 0 && ret != -EAGAIN) {
-			mlx5_ib_warn(dev, "Prefetch failed. ret: %d, QP 0x%x, address: 0x%.16llx, length = 0x%.16x\n",
-				     ret, pfault->token, address, prefetch_len);
+			mlx5_ib_dbg(dev, "Prefetch failed. ret: %d, QP 0x%x, address: 0x%.16llx, length = 0x%.16x\n",
+				    ret, pfault->token, address, prefetch_len);
 		}
 	}
 }
