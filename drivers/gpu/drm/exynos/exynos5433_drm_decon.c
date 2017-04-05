@@ -48,7 +48,6 @@ static const char * const decon_clks_name[] = {
 };
 
 enum decon_flag_bits {
-	BIT_CLKS_ENABLED,
 	BIT_WIN_UPDATED,
 	BIT_SUSPENDED
 };
@@ -486,8 +485,6 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	exynos_drm_pipe_clk_enable(crtc, true);
 
-	set_bit(BIT_CLKS_ENABLED, &ctx->flags);
-
 	decon_swreset(ctx);
 
 	decon_commit(ctx->crtc);
@@ -515,8 +512,6 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 
 	decon_swreset(ctx);
 
-	clear_bit(BIT_CLKS_ENABLED, &ctx->flags);
-
 	exynos_drm_pipe_clk_enable(crtc, false);
 
 	pm_runtime_put_sync(ctx->dev);
@@ -528,8 +523,7 @@ static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
 {
 	struct decon_context *ctx = dev_id;
 
-	if (!test_bit(BIT_CLKS_ENABLED, &ctx->flags) ||
-	    (ctx->out_type & I80_HW_TRG))
+	if (ctx->out_type & I80_HW_TRG)
 		return IRQ_HANDLED;
 
 	decon_set_bits(ctx, DECON_TRIGCON, TRIGCON_SWTRIGCMD, ~0);
@@ -654,9 +648,6 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 	struct decon_context *ctx = dev_id;
 	u32 val;
 
-	if (!test_bit(BIT_CLKS_ENABLED, &ctx->flags))
-		goto out;
-
 	val = readl(ctx->addr + DECON_VIDINTCON1);
 	val &= VIDINTCON1_INTFRMDONEPEND | VIDINTCON1_INTFRMPEND;
 
@@ -672,7 +663,6 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 		decon_handle_vblank(ctx);
 	}
 
-out:
 	return IRQ_HANDLED;
 }
 
