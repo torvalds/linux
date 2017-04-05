@@ -246,7 +246,7 @@ struct vfsmount *nfs_do_submount(struct dentry *dentry, struct nfs_fh *fh,
 
 	devname = nfs_devname(dentry, page, PAGE_SIZE);
 	if (IS_ERR(devname))
-		mnt = (struct vfsmount *)devname;
+		mnt = ERR_CAST(devname);
 	else
 		mnt = nfs_do_clone_mount(NFS_SB(dentry->d_sb), devname, &mountdata);
 
