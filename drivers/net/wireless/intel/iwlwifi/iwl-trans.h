@@ -908,13 +908,7 @@ iwl_trans_dump_data(struct iwl_trans *trans,
 static inline struct iwl_device_cmd *
 iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
 {
-	struct iwl_device_cmd *dev_cmd_ptr =
-		kmem_cache_alloc(trans->dev_cmd_pool, GFP_ATOMIC);
-
-	if (unlikely(dev_cmd_ptr == NULL))
-		return NULL;
-
-	return dev_cmd_ptr;
+	return kmem_cache_alloc(trans->dev_cmd_pool, GFP_ATOMIC);
 }
 
 int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
