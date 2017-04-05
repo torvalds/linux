@@ -1002,7 +1002,6 @@ nv50_wndw_atomic_destroy_state(struct drm_plane *plane,
 {
 	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
 	__drm_atomic_helper_plane_destroy_state(&asyw->state);
-	dma_fence_put(asyw->state.fence);
 	kfree(asyw);
 }
 
@@ -1014,7 +1013,6 @@ nv50_wndw_atomic_duplicate_state(struct drm_plane *plane)
 	if (!(asyw = kmalloc(sizeof(*asyw), GFP_KERNEL)))
 		return NULL;
 	__drm_atomic_helper_plane_duplicate_state(plane, &asyw->state);
-	asyw->state.fence = NULL;
 	asyw->interval = 1;
 	asyw->sema = armw->sema;
 	asyw->ntfy = armw->ntfy;
