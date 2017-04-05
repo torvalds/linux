@@ -1111,10 +1111,35 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 	return rx;
 }
 
+static int ftgmac100_init_all(struct ftgmac100 *priv, bool ignore_alloc_err)
+{
+	int err = 0;
+
+	/* Re-init descriptors (adjust queue sizes) */
+	ftgmac100_init_rings(priv);
+
+	/* Realloc rx descriptors */
+	err = ftgmac100_alloc_rx_buffers(priv);
+	if (err && !ignore_alloc_err)
+		return err;
+
+	/* Reinit and restart HW */
+	ftgmac100_init_hw(priv);
+	ftgmac100_start_hw(priv);
+
+	/* Re-enable the device */
+	napi_enable(&priv->napi);
+	netif_start_queue(priv->netdev);
+
+	/* Enable all interrupts */
+	iowrite32(priv->int_mask_all, priv->base + FTGMAC100_OFFSET_IER);
+
+	return err;
+}
+
 static int ftgmac100_open(struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
-	unsigned int status;
 	int err;
 
 	/* Allocate ring buffers  */
@@ -1123,13 +1148,6 @@ static int ftgmac100_open(struct net_device *netdev)
 		netdev_err(netdev, "Failed to allocate descriptors\n");
 		return err;
 	}
-
-	/* Initialize the rings */
-	ftgmac100_init_rings(priv);
-
-	/* Allocate receive buffers */
-	if (ftgmac100_alloc_rx_buffers(priv))
-		goto err_alloc;
 
 	/* When using NC-SI we force the speed to 100Mbit/s full duplex,
 	 *
@@ -1164,26 +1182,21 @@ static int ftgmac100_open(struct net_device *netdev)
 		goto err_irq;
 	}
 
-	ftgmac100_init_hw(priv);
-	ftgmac100_start_hw(priv);
+	/* Start things up */
+	err = ftgmac100_init_all(priv, false);
+	if (err) {
+		netdev_err(netdev, "Failed to allocate packet buffers\n");
+		goto err_alloc;
+	}
 
-	/* Clear stale interrupts */
-	status = ioread32(priv->base + FTGMAC100_OFFSET_ISR);
-	iowrite32(status, priv->base + FTGMAC100_OFFSET_ISR);
-
-	if (netdev->phydev)
+	if (netdev->phydev) {
+		/* If we have a PHY, start polling */
 		phy_start(netdev->phydev);
-	else if (priv->use_ncsi)
+	} else if (priv->use_ncsi) {
+		/* If using NC-SI, set our carrier on and start the stack */
 		netif_carrier_on(netdev);
 
-	napi_enable(&priv->napi);
-	netif_start_queue(netdev);
-
-	/* enable all interrupts */
-	iowrite32(priv->int_mask_all, priv->base + FTGMAC100_OFFSET_IER);
-
-	/* Start the NCSI device */
-	if (priv->use_ncsi) {
+		/* Start the NCSI device */
 		err = ncsi_start_dev(priv->ndev);
 		if (err)
 			goto err_ncsi;
@@ -1191,16 +1204,16 @@ static int ftgmac100_open(struct net_device *netdev)
 
 	return 0;
 
-err_ncsi:
+ err_ncsi:
 	napi_disable(&priv->napi);
 	netif_stop_queue(netdev);
-	free_irq(netdev->irq, netdev);
-err_irq:
-	netif_napi_del(&priv->napi);
-err_hw:
-err_alloc:
-	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+ err_alloc:
 	ftgmac100_free_buffers(priv);
+	free_irq(netdev->irq, netdev);
+ err_irq:
+	netif_napi_del(&priv->napi);
+ err_hw:
+	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
 	ftgmac100_free_rings(priv);
 	return err;
 }
