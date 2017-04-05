@@ -81,7 +81,6 @@ struct blk_mq_tag_set {
 
 struct blk_mq_queue_data {
 	struct request *rq;
-	struct list_head *list;
 	bool last;
 };
 
