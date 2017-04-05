@@ -118,7 +118,7 @@ static u64 batadv_sum_counter(struct batadv_priv *bat_priv,  size_t idx)
 static struct net_device_stats *batadv_interface_stats(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
-	struct net_device_stats *stats = &bat_priv->stats;
+	struct net_device_stats *stats = &dev->stats;
 
 	stats->tx_packets = batadv_sum_counter(bat_priv, BATADV_CNT_TX);
 	stats->tx_bytes = batadv_sum_counter(bat_priv, BATADV_CNT_TX_BYTES);

@@ -1000,7 +1000,6 @@ struct batadv_priv_bat_v {
  * struct batadv_priv - per mesh interface data
  * @mesh_state: current status of the mesh (inactive/active/deactivating)
  * @soft_iface: net device which holds this struct as private data
- * @stats: structure holding the data for the ndo_get_stats() call
  * @bat_counters: mesh internal traffic statistic counters (see batadv_counters)
  * @aggregated_ogms: bool indicating whether OGM aggregation is enabled
  * @bonding: bool indicating whether traffic bonding is enabled
@@ -1055,7 +1054,6 @@ struct batadv_priv_bat_v {
 struct batadv_priv {
 	atomic_t mesh_state;
 	struct net_device *soft_iface;
-	struct net_device_stats stats;
 	u64 __percpu *bat_counters; /* Per cpu counters */
 	atomic_t aggregated_ogms;
 	atomic_t bonding;
