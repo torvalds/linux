@@ -2198,12 +2198,32 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	ctx->display_idx = display_idx;
 }
 
+static void coda_error_decode(struct coda_ctx *ctx)
+{
+	struct vb2_v4l2_buffer *dst_buf;
+
+	/*
+	 * For now this only handles the case where we would deadlock with
+	 * userspace, i.e. userspace issued DEC_CMD_STOP and waits for EOS,
+	 * but after a failed decode run we would hold the context and wait for
+	 * userspace to queue more buffers.
+	 */
+	if (!(ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG))
+		return;
+
+	dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
+	dst_buf->sequence = ctx->qsequence - 1;
+
+	coda_m2m_buf_done(ctx, dst_buf, VB2_BUF_STATE_ERROR);
+}
+
 const struct coda_context_ops coda_bit_decode_ops = {
 	.queue_init = coda_decoder_queue_init,
 	.reqbufs = coda_decoder_reqbufs,
 	.start_streaming = coda_start_decoding,
 	.prepare_run = coda_prepare_decode,
 	.finish_run = coda_finish_decode,
+	.error_run = coda_error_decode,
 	.seq_end_work = coda_seq_end_work,
 	.release = coda_bit_release,
 };
