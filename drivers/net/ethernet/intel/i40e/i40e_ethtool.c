@@ -1852,7 +1852,7 @@ static void i40e_diag_test(struct net_device *netdev,
 			 * link then the following link test would have
 			 * to be moved to before the reset
 			 */
-			i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED));
+			i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED), true);
 
 		if (i40e_link_test(netdev, &data[I40E_ETH_TEST_LINK]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -1868,7 +1868,7 @@ static void i40e_diag_test(struct net_device *netdev,
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		clear_bit(__I40E_TESTING, &pf->state);
-		i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED));
+		i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED), true);
 
 		if (if_running)
 			i40e_open(netdev);
@@ -4099,7 +4099,7 @@ flags_complete:
 	 */
 	if ((changed_flags & I40E_FLAG_VEB_STATS_ENABLED) ||
 	    ((changed_flags & I40E_FLAG_LEGACY_RX) && netif_running(dev)))
-		i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED));
+		i40e_do_reset(pf, BIT(__I40E_PF_RESET_REQUESTED), true);
 
 	return 0;
 }
