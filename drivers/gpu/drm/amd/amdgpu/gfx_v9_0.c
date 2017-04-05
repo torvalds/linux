@@ -1497,14 +1497,10 @@ static void gfx_v9_0_cp_gfx_enable(struct amdgpu_device *adev, bool enable)
 	int i;
 	u32 tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_ME_CNTL));
 
-	if (enable) {
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, ME_HALT, 0);
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, PFP_HALT, 0);
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, CE_HALT, 0);
-	} else {
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, ME_HALT, 1);
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, PFP_HALT, 1);
-		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, CE_HALT, 1);
+	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, ME_HALT, enable ? 0 : 1);
+	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, PFP_HALT, enable ? 0 : 1);
+	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, CE_HALT, enable ? 0 : 1);
+	if (!enable) {
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 			adev->gfx.gfx_ring[i].ready = false;
 	}
