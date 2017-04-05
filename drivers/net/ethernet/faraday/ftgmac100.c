@@ -794,6 +794,7 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 {
 	int i;
 
+	/* Free all RX buffers */
 	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
 		struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[i];
 		struct page *page = ftgmac100_rxdes_get_page(priv, rxdes);
@@ -806,6 +807,7 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 		__free_page(page);
 	}
 
+	/* Free all TX buffers */
 	for (i = 0; i < TX_QUEUE_ENTRIES; i++) {
 		struct ftgmac100_txdes *txdes = &priv->descs->txdes[i];
 		struct sk_buff *skb = ftgmac100_txdes_get_skb(txdes);
@@ -817,40 +819,54 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 		dma_unmap_single(priv->dev, map, skb_headlen(skb), DMA_TO_DEVICE);
 		kfree_skb(skb);
 	}
-
-	dma_free_coherent(priv->dev, sizeof(struct ftgmac100_descs),
-			  priv->descs, priv->descs_dma_addr);
 }
 
-static int ftgmac100_alloc_buffers(struct ftgmac100 *priv)
+static void ftgmac100_free_rings(struct ftgmac100 *priv)
 {
-	int i;
+	/* Free descriptors */
+	if (priv->descs)
+		dma_free_coherent(priv->dev, sizeof(struct ftgmac100_descs),
+				  priv->descs, priv->descs_dma_addr);
+}
 
+static int ftgmac100_alloc_rings(struct ftgmac100 *priv)
+{
+	/* Allocate descriptors */
 	priv->descs = dma_zalloc_coherent(priv->dev,
 					  sizeof(struct ftgmac100_descs),
 					  &priv->descs_dma_addr, GFP_KERNEL);
 	if (!priv->descs)
 		return -ENOMEM;
 
-	/* initialize RX ring */
-	ftgmac100_rxdes_set_end_of_ring(priv,
-					&priv->descs->rxdes[RX_QUEUE_ENTRIES - 1]);
+	return 0;
+}
+
+static void ftgmac100_init_rings(struct ftgmac100 *priv)
+{
+	int i;
+
+	/* Initialize RX ring */
+	for (i = 0; i < RX_QUEUE_ENTRIES; i++)
+		priv->descs->rxdes[i].rxdes0 = 0;
+	ftgmac100_rxdes_set_end_of_ring(priv, &priv->descs->rxdes[i - 1]);
+
+	/* Initialize TX ring */
+	for (i = 0; i < TX_QUEUE_ENTRIES; i++)
+		priv->descs->txdes[i].txdes0 = 0;
+	ftgmac100_txdes_set_end_of_ring(priv, &priv->descs->txdes[i -1]);
+}
+
+static int ftgmac100_alloc_rx_buffers(struct ftgmac100 *priv)
+{
+	int i;
 
 	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
 		struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[i];
 
 		if (ftgmac100_alloc_rx_page(priv, rxdes, GFP_KERNEL))
-			goto err;
+			return -ENOMEM;
 	}
-
-	/* initialize TX ring */
-	ftgmac100_txdes_set_end_of_ring(priv,
-					&priv->descs->txdes[TX_QUEUE_ENTRIES - 1]);
 	return 0;
-
-err:
-	ftgmac100_free_buffers(priv);
-	return -ENOMEM;
 }
 
 static void ftgmac100_adjust_link(struct net_device *netdev)
@@ -1101,11 +1117,19 @@ static int ftgmac100_open(struct net_device *netdev)
 	unsigned int status;
 	int err;
 
-	err = ftgmac100_alloc_buffers(priv);
+	/* Allocate ring buffers  */
+	err = ftgmac100_alloc_rings(priv);
 	if (err) {
-		netdev_err(netdev, "failed to allocate buffers\n");
-		goto err_alloc;
+		netdev_err(netdev, "Failed to allocate descriptors\n");
+		return err;
 	}
+
+	/* Initialize the rings */
+	ftgmac100_init_rings(priv);
+
+	/* Allocate receive buffers */
+	if (ftgmac100_alloc_rx_buffers(priv))
+		goto err_alloc;
 
 	err = request_irq(netdev->irq, ftgmac100_interrupt, 0, netdev->name, netdev);
 	if (err) {
@@ -1170,8 +1194,9 @@ err_ncsi:
 err_hw:
 	free_irq(netdev->irq, netdev);
 err_irq:
-	ftgmac100_free_buffers(priv);
 err_alloc:
+	ftgmac100_free_buffers(priv);
+	ftgmac100_free_rings(priv);
 	return err;
 }
 
@@ -1192,6 +1217,7 @@ static int ftgmac100_stop(struct net_device *netdev)
 	ftgmac100_stop_hw(priv);
 	free_irq(netdev->irq, netdev);
 	ftgmac100_free_buffers(priv);
+	ftgmac100_free_rings(priv);
 
 	return 0;
 }
