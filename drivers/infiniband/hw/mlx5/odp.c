@@ -57,7 +57,7 @@ static int check_parent(struct ib_umem_odp *odp,
 {
 	struct mlx5_ib_mr *mr = odp->private;
 
-	return mr && mr->parent == parent;
+	return mr && mr->parent == parent && !odp->dying;
 }
 
 static struct ib_umem_odp *odp_next(struct ib_umem_odp *odp)
@@ -157,13 +157,6 @@ static void mr_leaf_free_action(struct work_struct *work)
 
 	mr->parent = NULL;
 	synchronize_srcu(&mr->dev->mr_srcu);
-
-	if (!READ_ONCE(odp->dying)) {
-		mr->parent = imr;
-		if (atomic_dec_and_test(&imr->num_leaf_free))
-			wake_up(&imr->q_leaf_free);
-		return;
-	}
 
 	ib_umem_release(odp->umem);
 	if (imr->live)
@@ -435,8 +428,6 @@ next_mr:
 			start_idx = addr >> MLX5_IMR_MTT_SHIFT;
 		nentries++;
 	}
-
-	odp->dying = 0;
 
 	/* Return first odp if region not covered by single one */
 	if (likely(!result))
