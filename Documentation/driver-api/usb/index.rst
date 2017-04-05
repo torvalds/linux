@@ -6,6 +6,7 @@ Linux USB API
 
    usb
    gadget
+   anchors
    writing_usb_driver
    writing_musb_glue_layer
 
