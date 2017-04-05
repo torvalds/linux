@@ -579,6 +579,8 @@ static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -EBUSY;
 
 	pdata = (struct intel_scu_ipc_pdata_t *)id->driver_data;
+	if (!pdata)
+		return -ENODEV;
 
 	scu->dev = &pdev->dev;
 	scu->irq_mode = pdata->irq_mode;
