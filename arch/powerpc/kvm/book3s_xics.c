@@ -1084,7 +1084,7 @@ static struct kvmppc_ics *kvmppc_xics_create_ics(struct kvm *kvm,
 	return xics->ics[icsid];
 }
 
-int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server_num)
+static int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server_num)
 {
 	struct kvmppc_icp *icp;
 
