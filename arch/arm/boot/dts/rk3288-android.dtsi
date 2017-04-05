@@ -189,6 +189,10 @@
 	};
 };
 
+&panel {
+	backlight = <&backlight>;
+};
+
 &cpu0 {
 	enable-method = "psci";
 };

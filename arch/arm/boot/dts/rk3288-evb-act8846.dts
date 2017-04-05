@@ -40,6 +40,7 @@
 
 /dts-v1/;
 #include "rk3288-evb.dtsi"
+#include "rk3288-android.dtsi"
 
 / {
 	compatible = "rockchip,rk3288-evb-act8846", "rockchip,rk3288";
