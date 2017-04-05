@@ -6488,7 +6488,7 @@ INPUT MULTITOUCH (MT) PROTOCOL
 M:	Henrik Rydberg <rydberg@bitmath.org>
 L:	linux-input@vger.kernel.org
 S:	Odd fixes
-F:	Documentation/input/multi-touch-protocol.txt
+F:	Documentation/input/multi-touch-protocol.rst
 F:	drivers/input/input-mt.c
 K:	\b(ABS|SYN)_MT_
 
@@ -13812,7 +13812,7 @@ YEALINK PHONE DRIVER
 M:	Henk Vergonet <Henk.Vergonet@gmail.com>
 L:	usbb2k-api-dev@nongnu.org
 S:	Maintained
-F:	Documentation/input/yealink.txt
+F:	Documentation/input/yealink.rst
 F:	drivers/input/misc/yealink.*
 
 Z8530 DRIVER FOR AX.25
