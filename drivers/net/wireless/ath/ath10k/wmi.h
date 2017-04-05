@@ -3182,7 +3182,7 @@ struct wmi_10_4_phyerr_event {
 
 struct phyerr_radar_report {
 	__le32 reg0; /* RADAR_REPORT_REG0_* */
-	__le32 reg1; /* REDAR_REPORT_REG1_* */
+	__le32 reg1; /* RADAR_REPORT_REG1_* */
 } __packed;
 
 #define RADAR_REPORT_REG0_PULSE_IS_CHIRP_MASK		0x80000000
@@ -6335,6 +6335,8 @@ struct wmi_svc_rdy_ev_arg {
 	__le32 num_rf_chains;
 	__le32 eeprom_rd;
 	__le32 num_mem_reqs;
+	__le32 low_5ghz_chan;
+	__le32 high_5ghz_chan;
 	const __le32 *service_map;
 	size_t service_map_len;
 	const struct wlan_host_mem_req *mem_reqs[WMI_MAX_MEM_REQS];

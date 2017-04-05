@@ -390,22 +390,23 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	}
 	mutex_unlock(&wil->p2p_wdev_mutex);
 
-	/* social scan on P2P_DEVICE is handled as p2p search */
-	if (wdev->iftype == NL80211_IFTYPE_P2P_DEVICE &&
-	    wil_p2p_is_social_scan(request)) {
+	if (wdev->iftype == NL80211_IFTYPE_P2P_DEVICE) {
 		if (!wil->p2p.p2p_dev_started) {
 			wil_err(wil, "P2P search requested on stopped P2P device\n");
 			rc = -EIO;
 			goto out;
 		}
-		wil->scan_request = request;
-		wil->radio_wdev = wdev;
-		rc = wil_p2p_search(wil, request);
-		if (rc) {
-			wil->radio_wdev = wil_to_wdev(wil);
-			wil->scan_request = NULL;
+		/* social scan on P2P_DEVICE is handled as p2p search */
+		if (wil_p2p_is_social_scan(request)) {
+			wil->scan_request = request;
+			wil->radio_wdev = wdev;
+			rc = wil_p2p_search(wil, request);
+			if (rc) {
+				wil->radio_wdev = wil_to_wdev(wil);
+				wil->scan_request = NULL;
+			}
+			goto out;
 		}
-		goto out;
 	}
 
 	(void)wil_p2p_stop_discovery(wil);
@@ -415,9 +416,9 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 	for (i = 0; i < request->n_ssids; i++) {
 		wil_dbg_misc(wil, "SSID[%d]", i);
-		print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
-				     request->ssids[i].ssid,
-				     request->ssids[i].ssid_len);
+		wil_hex_dump_misc("SSID ", DUMP_PREFIX_OFFSET, 16, 1,
+				  request->ssids[i].ssid,
+				  request->ssids[i].ssid_len, true);
 	}
 
 	if (request->n_ssids)
@@ -454,8 +455,8 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	}
 
 	if (request->ie_len)
-		print_hex_dump_bytes("Scan IE ", DUMP_PREFIX_OFFSET,
-				     request->ie, request->ie_len);
+		wil_hex_dump_misc("Scan IE ", DUMP_PREFIX_OFFSET, 16, 1,
+				  request->ie, request->ie_len, true);
 	else
 		wil_dbg_misc(wil, "Scan has no IE's\n");
 
@@ -679,6 +680,8 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	rc = wmi_send(wil, WMI_CONNECT_CMDID, &conn, sizeof(conn));
 	if (rc == 0) {
 		netif_carrier_on(ndev);
+		wil6210_bus_request(wil, WIL_MAX_BUS_REQUEST_KBPS);
+		wil->bss = bss;
 		/* Connect can take lots of time */
 		mod_timer(&wil->connect_timer,
 			  jiffies + msecs_to_jiffies(2000));
@@ -707,6 +710,7 @@ static int wil_cfg80211_disconnect(struct wiphy *wiphy,
 		return 0;
 	}
 
+	wil->locally_generated_disc = true;
 	rc = wmi_call(wil, WMI_DISCONNECT_CMDID, NULL, 0,
 		      WMI_DISCONNECT_EVENTID, NULL, 0,
 		      WIL6210_DISCONNECT_TO_MS);
@@ -760,7 +764,8 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	 */
 
 	wil_dbg_misc(wil, "mgmt_tx\n");
-	print_hex_dump_bytes("mgmt tx frame ", DUMP_PREFIX_OFFSET, buf, len);
+	wil_hex_dump_misc("mgmt tx frame ", DUMP_PREFIX_OFFSET, 16, 1, buf,
+			  len, true);
 
 	cmd = kmalloc(sizeof(*cmd) + len, GFP_KERNEL);
 	if (!cmd) {
@@ -1093,18 +1098,18 @@ static int _wil_cfg80211_merge_extra_ies(const u8 *ies1, u16 ies1_len,
 
 static void wil_print_bcon_data(struct cfg80211_beacon_data *b)
 {
-	print_hex_dump_bytes("head     ", DUMP_PREFIX_OFFSET,
-			     b->head, b->head_len);
-	print_hex_dump_bytes("tail     ", DUMP_PREFIX_OFFSET,
-			     b->tail, b->tail_len);
-	print_hex_dump_bytes("BCON IE  ", DUMP_PREFIX_OFFSET,
-			     b->beacon_ies, b->beacon_ies_len);
-	print_hex_dump_bytes("PROBE    ", DUMP_PREFIX_OFFSET,
-			     b->probe_resp, b->probe_resp_len);
-	print_hex_dump_bytes("PROBE IE ", DUMP_PREFIX_OFFSET,
-			     b->proberesp_ies, b->proberesp_ies_len);
-	print_hex_dump_bytes("ASSOC IE ", DUMP_PREFIX_OFFSET,
-			     b->assocresp_ies, b->assocresp_ies_len);
+	wil_hex_dump_misc("head     ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->head, b->head_len, true);
+	wil_hex_dump_misc("tail     ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->tail, b->tail_len, true);
+	wil_hex_dump_misc("BCON IE  ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->beacon_ies, b->beacon_ies_len, true);
+	wil_hex_dump_misc("PROBE    ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->probe_resp, b->probe_resp_len, true);
+	wil_hex_dump_misc("PROBE IE ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->proberesp_ies, b->proberesp_ies_len, true);
+	wil_hex_dump_misc("ASSOC IE ", DUMP_PREFIX_OFFSET, 16, 1,
+			  b->assocresp_ies, b->assocresp_ies_len, true);
 }
 
 /* internal functions for device reset and starting AP */
@@ -1198,6 +1203,7 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 	wil->pbss = pbss;
 
 	netif_carrier_on(ndev);
+	wil6210_bus_request(wil, WIL_MAX_BUS_REQUEST_KBPS);
 
 	rc = wmi_pcp_start(wil, bi, wmi_nettype, chan, hidden_ssid, is_go);
 	if (rc)
@@ -1213,6 +1219,7 @@ err_bcast:
 	wmi_pcp_stop(wil);
 err_pcp_start:
 	netif_carrier_off(ndev);
+	wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 out:
 	mutex_unlock(&wil->mutex);
 	return rc;
@@ -1298,8 +1305,8 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "BI %d DTIM %d\n", info->beacon_interval,
 		     info->dtim_period);
 	wil_dbg_misc(wil, "PBSS %d\n", info->pbss);
-	print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
-			     info->ssid, info->ssid_len);
+	wil_hex_dump_misc("SSID ", DUMP_PREFIX_OFFSET, 16, 1,
+			  info->ssid, info->ssid_len, true);
 	wil_print_bcon_data(bcon);
 	wil_print_crypto(wil, crypto);
 
@@ -1319,6 +1326,7 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "stop_ap\n");
 
 	netif_carrier_off(ndev);
+	wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 	wil_set_recovery_state(wil, fw_recovery_idle);
 
 	mutex_lock(&wil->mutex);
