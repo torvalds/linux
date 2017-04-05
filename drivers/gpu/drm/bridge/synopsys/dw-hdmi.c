@@ -605,20 +605,6 @@ static bool hdmi_bus_fmt_is_yuv422(unsigned int bus_format)
 	}
 }
 
-static bool hdmi_bus_fmt_is_yuv420(unsigned int bus_format)
-{
-	switch (bus_format) {
-	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
-	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
-	case MEDIA_BUS_FMT_UYYVYY12_0_5X36:
-	case MEDIA_BUS_FMT_UYYVYY16_0_5X48:
-		return true;
-
-	default:
-		return false;
-	}
-}
-
 static int hdmi_bus_fmt_color_depth(unsigned int bus_format)
 {
 	switch (bus_format) {
