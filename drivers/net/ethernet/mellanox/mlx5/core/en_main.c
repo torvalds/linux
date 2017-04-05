@@ -2510,10 +2510,8 @@ static void mlx5e_activate_priv_channels(struct mlx5e_priv *priv)
 	struct net_device *netdev = priv->netdev;
 
 	mlx5e_netdev_set_tcs(netdev);
-	if (netdev->real_num_tx_queues != num_txqs)
-		netif_set_real_num_tx_queues(netdev, num_txqs);
-	if (netdev->real_num_rx_queues != priv->channels.num)
-		netif_set_real_num_rx_queues(netdev, priv->channels.num);
+	netif_set_real_num_tx_queues(netdev, num_txqs);
+	netif_set_real_num_rx_queues(netdev, priv->channels.num);
 
 	mlx5e_build_channels_tx_maps(priv);
 	mlx5e_activate_channels(&priv->channels);
