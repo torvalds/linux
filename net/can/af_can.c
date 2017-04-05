@@ -75,9 +75,7 @@ static int stats_timer __read_mostly = 1;
 module_param(stats_timer, int, S_IRUGO);
 MODULE_PARM_DESC(stats_timer, "enable timer for statistics (default:on)");
 
-/* receive filters subscribed for 'all' CAN devices */
-struct dev_rcv_lists can_rx_alldev_list;
-static DEFINE_SPINLOCK(can_rcvlists_lock);
+static int can_net_id;
 
 static struct kmem_cache *rcv_cache __read_mostly;
 
@@ -144,9 +142,6 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 
 	if (protocol < 0 || protocol >= CAN_NPROTO)
 		return -EINVAL;
-
-	if (!net_eq(net, &init_net))
-		return -EAFNOSUPPORT;
 
 	cp = can_get_proto(protocol);
 
@@ -331,10 +326,11 @@ EXPORT_SYMBOL(can_send);
  * af_can rx path
  */
 
-static struct dev_rcv_lists *find_dev_rcv_lists(struct net_device *dev)
+static struct dev_rcv_lists *find_dev_rcv_lists(struct net *net,
+						struct net_device *dev)
 {
 	if (!dev)
-		return &can_rx_alldev_list;
+		return net->can.can_rx_alldev_list;
 	else
 		return (struct dev_rcv_lists *)dev->ml_priv;
 }
@@ -467,9 +463,9 @@ static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
  *  -ENOMEM on missing cache mem to create subscription entry
  *  -ENODEV unknown device
  */
-int can_rx_register(struct net_device *dev, canid_t can_id, canid_t mask,
-		    void (*func)(struct sk_buff *, void *), void *data,
-		    char *ident, struct sock *sk)
+int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
+		    canid_t mask, void (*func)(struct sk_buff *, void *),
+		    void *data, char *ident, struct sock *sk)
 {
 	struct receiver *r;
 	struct hlist_head *rl;
@@ -481,13 +477,16 @@ int can_rx_register(struct net_device *dev, canid_t can_id, canid_t mask,
 	if (dev && dev->type != ARPHRD_CAN)
 		return -ENODEV;
 
+	if (dev && !net_eq(net, dev_net(dev)))
+		return -ENODEV;
+
 	r = kmem_cache_alloc(rcv_cache, GFP_KERNEL);
 	if (!r)
 		return -ENOMEM;
 
-	spin_lock(&can_rcvlists_lock);
+	spin_lock(&net->can.can_rcvlists_lock);
 
-	d = find_dev_rcv_lists(dev);
+	d = find_dev_rcv_lists(net, dev);
 	if (d) {
 		rl = find_rcv_list(&can_id, &mask, d);
 
@@ -510,7 +509,7 @@ int can_rx_register(struct net_device *dev, canid_t can_id, canid_t mask,
 		err = -ENODEV;
 	}
 
-	spin_unlock(&can_rcvlists_lock);
+	spin_unlock(&net->can.can_rcvlists_lock);
 
 	return err;
 }
@@ -540,8 +539,9 @@ static void can_rx_delete_receiver(struct rcu_head *rp)
  * Description:
  *  Removes subscription entry depending on given (subscription) values.
  */
-void can_rx_unregister(struct net_device *dev, canid_t can_id, canid_t mask,
-		       void (*func)(struct sk_buff *, void *), void *data)
+void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
+		       canid_t mask, void (*func)(struct sk_buff *, void *),
+		       void *data)
 {
 	struct receiver *r = NULL;
 	struct hlist_head *rl;
@@ -550,9 +550,12 @@ void can_rx_unregister(struct net_device *dev, canid_t can_id, canid_t mask,
 	if (dev && dev->type != ARPHRD_CAN)
 		return;
 
-	spin_lock(&can_rcvlists_lock);
+	if (dev && !net_eq(net, dev_net(dev)))
+		return;
 
-	d = find_dev_rcv_lists(dev);
+	spin_lock(&net->can.can_rcvlists_lock);
+
+	d = find_dev_rcv_lists(net, dev);
 	if (!d) {
 		pr_err("BUG: receive list not found for "
 		       "dev %s, id %03X, mask %03X\n",
@@ -598,7 +601,7 @@ void can_rx_unregister(struct net_device *dev, canid_t can_id, canid_t mask,
 	}
 
  out:
-	spin_unlock(&can_rcvlists_lock);
+	spin_unlock(&net->can.can_rcvlists_lock);
 
 	/* schedule the receiver item for deletion */
 	if (r) {
@@ -696,10 +699,10 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 	rcu_read_lock();
 
 	/* deliver the packet to sockets listening on all devices */
-	matches = can_rcv_filter(&can_rx_alldev_list, skb);
+	matches = can_rcv_filter(dev_net(dev)->can.can_rx_alldev_list, skb);
 
 	/* find receive list for this device */
-	d = find_dev_rcv_lists(dev);
+	d = find_dev_rcv_lists(dev_net(dev), dev);
 	if (d)
 		matches += can_rcv_filter(d, skb);
 
@@ -718,9 +721,6 @@ static int can_rcv(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
-
-	if (unlikely(!net_eq(dev_net(dev), &init_net)))
-		goto drop;
 
 	if (WARN_ONCE(dev->type != ARPHRD_CAN ||
 		      skb->len != CAN_MTU ||
@@ -742,9 +742,6 @@ static int canfd_rcv(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
-
-	if (unlikely(!net_eq(dev_net(dev), &init_net)))
-		goto drop;
 
 	if (WARN_ONCE(dev->type != ARPHRD_CAN ||
 		      skb->len != CANFD_MTU ||
@@ -835,9 +832,6 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct dev_rcv_lists *d;
 
-	if (!net_eq(dev_net(dev), &init_net))
-		return NOTIFY_DONE;
-
 	if (dev->type != ARPHRD_CAN)
 		return NOTIFY_DONE;
 
@@ -855,7 +849,7 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 		break;
 
 	case NETDEV_UNREGISTER:
-		spin_lock(&can_rcvlists_lock);
+		spin_lock(&dev_net(dev)->can.can_rcvlists_lock);
 
 		d = dev->ml_priv;
 		if (d) {
@@ -869,12 +863,46 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 			pr_err("can: notifier: receive list not found for dev "
 			       "%s\n", dev->name);
 
-		spin_unlock(&can_rcvlists_lock);
+		spin_unlock(&dev_net(dev)->can.can_rcvlists_lock);
 
 		break;
 	}
 
 	return NOTIFY_DONE;
+}
+
+static int can_pernet_init(struct net *net)
+{
+	net->can.can_rcvlists_lock =
+		__SPIN_LOCK_UNLOCKED(net->can.can_rcvlists_lock);
+	net->can.can_rx_alldev_list =
+		kzalloc(sizeof(struct dev_rcv_lists), GFP_KERNEL);
+
+	if (IS_ENABLED(CONFIG_PROC_FS))
+		can_init_proc(net);
+
+	return 0;
+}
+
+static void can_pernet_exit(struct net *net)
+{
+	struct net_device *dev;
+
+	if (IS_ENABLED(CONFIG_PROC_FS))
+		can_remove_proc(net);
+
+	/* remove created dev_rcv_lists from still registered CAN devices */
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
+		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
+			struct dev_rcv_lists *d = dev->ml_priv;
+
+			BUG_ON(d->entries);
+			kfree(d);
+			dev->ml_priv = NULL;
+		}
+	}
+	rcu_read_unlock();
 }
 
 /*
@@ -902,6 +930,13 @@ static struct notifier_block can_netdev_notifier __read_mostly = {
 	.notifier_call = can_notifier,
 };
 
+static struct pernet_operations can_pernet_ops __read_mostly = {
+	.init = can_pernet_init,
+	.exit = can_pernet_exit,
+	.id = &can_net_id,
+	.size = 0,
+};
+
 static __init int can_init(void)
 {
 	/* check for correct padding to be able to use the structs similarly */
@@ -911,8 +946,6 @@ static __init int can_init(void)
 		     offsetof(struct canfd_frame, data));
 
 	pr_info("can: controller area network core (" CAN_VERSION_STRING ")\n");
-
-	memset(&can_rx_alldev_list, 0, sizeof(can_rx_alldev_list));
 
 	rcv_cache = kmem_cache_create("can_receiver", sizeof(struct receiver),
 				      0, 0, NULL);
@@ -925,8 +958,9 @@ static __init int can_init(void)
 			setup_timer(&can_stattimer, can_stat_update, 0);
 			mod_timer(&can_stattimer, round_jiffies(jiffies + HZ));
 		}
-		can_init_proc();
 	}
+
+	register_pernet_subsys(&can_pernet_ops);
 
 	/* protocol register */
 	sock_register(&can_family_ops);
@@ -939,13 +973,9 @@ static __init int can_init(void)
 
 static __exit void can_exit(void)
 {
-	struct net_device *dev;
-
 	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		if (stats_timer)
 			del_timer_sync(&can_stattimer);
-
-		can_remove_proc();
 	}
 
 	/* protocol unregister */
@@ -954,19 +984,7 @@ static __exit void can_exit(void)
 	unregister_netdevice_notifier(&can_netdev_notifier);
 	sock_unregister(PF_CAN);
 
-	/* remove created dev_rcv_lists from still registered CAN devices */
-	rcu_read_lock();
-	for_each_netdev_rcu(&init_net, dev) {
-		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
-
-			struct dev_rcv_lists *d = dev->ml_priv;
-
-			BUG_ON(d->entries);
-			kfree(d);
-			dev->ml_priv = NULL;
-		}
-	}
-	rcu_read_unlock();
+	unregister_pernet_subsys(&can_pernet_ops);
 
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 
