@@ -576,6 +576,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	}
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
+	mutex_lock(&crtc->dev->mode_config.mutex);
 	drm_modeset_acquire_init(&ctx, 0);
 retry:
 	ret = drm_modeset_lock_all_ctx(crtc->dev, &ctx);
@@ -721,6 +722,7 @@ out:
 	}
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
+	mutex_unlock(&crtc->dev->mode_config.mutex);
 
 	return ret;
 }
