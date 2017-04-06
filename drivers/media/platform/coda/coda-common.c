@@ -390,6 +390,7 @@ static int coda_enum_fmt(struct file *file, void *priv,
 {
 	struct video_device *vdev = video_devdata(file);
 	const struct coda_video_device *cvd = to_coda_video_device(vdev);
+	struct coda_ctx *ctx = fh_to_ctx(priv);
 	const u32 *formats;
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
@@ -400,6 +401,11 @@ static int coda_enum_fmt(struct file *file, void *priv,
 		return -EINVAL;
 
 	if (f->index >= CODA_MAX_FORMATS || formats[f->index] == 0)
+		return -EINVAL;
+
+	/* Skip YUYV if the vdoa is not available */
+	if (!ctx->vdoa && f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    formats[f->index] == V4L2_PIX_FMT_YUYV)
 		return -EINVAL;
 
 	f->pixelformat = formats[f->index];
