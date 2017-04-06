@@ -105,6 +105,8 @@ static const struct clk_ops rockchip_ddrclk_sip_ops = {
 	.get_parent = rockchip_ddrclk_get_parent,
 };
 
+static u32 ddr_clk_cached;
+
 static int rockchip_ddrclk_scpi_set_rate(struct clk_hw *hw, unsigned long drate,
 					 unsigned long prate)
 {
@@ -112,6 +114,13 @@ static int rockchip_ddrclk_scpi_set_rate(struct clk_hw *hw, unsigned long drate,
 	u32 lcdc_type = 7;
 
 	ret = scpi_ddr_set_clk_rate(drate / MHZ, lcdc_type);
+	if (ret) {
+		ddr_clk_cached = ret;
+		ret = 0;
+	} else {
+		ddr_clk_cached = 0;
+		ret = -1;
+	}
 
 	return ret;
 }
@@ -119,7 +128,10 @@ static int rockchip_ddrclk_scpi_set_rate(struct clk_hw *hw, unsigned long drate,
 static unsigned long rockchip_ddrclk_scpi_recalc_rate(struct clk_hw *hw,
 						      unsigned long parent_rate)
 {
-	return (MHZ * scpi_ddr_get_clk_rate());
+	if (ddr_clk_cached)
+		return (MHZ * ddr_clk_cached);
+	else
+		return (MHZ * scpi_ddr_get_clk_rate());
 }
 
 static long rockchip_ddrclk_scpi_round_rate(struct clk_hw *hw,
