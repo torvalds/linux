@@ -271,6 +271,27 @@ void i915_gem_retire_noop(struct i915_gem_active *active,
 	/* Space left intentionally blank */
 }
 
+static void advance_ring(struct drm_i915_gem_request *request)
+{
+	unsigned int tail;
+
+	/* We know the GPU must have read the request to have
+	 * sent us the seqno + interrupt, so use the position
+	 * of tail of the request to update the last known position
+	 * of the GPU head.
+	 *
+	 * Note this requires that we are always called in request
+	 * completion order.
+	 */
+	if (list_is_last(&request->ring_link, &request->ring->request_list))
+		tail = request->ring->tail;
+	else
+		tail = request->postfix;
+	list_del(&request->ring_link);
+
+	request->ring->head = tail;
+}
+
 static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
@@ -287,16 +308,6 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	list_del_init(&request->link);
 	spin_unlock_irq(&engine->timeline->lock);
 
-	/* We know the GPU must have read the request to have
-	 * sent us the seqno + interrupt, so use the position
-	 * of tail of the request to update the last known position
-	 * of the GPU head.
-	 *
-	 * Note this requires that we are always called in request
-	 * completion order.
-	 */
-	list_del(&request->ring_link);
-	request->ring->head = request->postfix;
 	if (!--request->i915->gt.active_requests) {
 		GEM_BUG_ON(!request->i915->gt.awake);
 		mod_delayed_work(request->i915->wq,
@@ -304,6 +315,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 				 msecs_to_jiffies(100));
 	}
 	unreserve_seqno(request->engine);
+	advance_ring(request);
 
 	/* Walk through the active list, calling retire on each. This allows
 	 * objects to track their GPU activity and mark themselves as idle
