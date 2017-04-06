@@ -889,22 +889,39 @@ static int stmmac_init_phy(struct net_device *dev)
 	return 0;
 }
 
+static void stmmac_display_rx_rings(struct stmmac_priv *priv)
+{
+	void *head_rx;
+
+	if (priv->extend_desc)
+		head_rx = (void *)priv->dma_erx;
+	else
+		head_rx = (void *)priv->dma_rx;
+
+	/* Display RX ring */
+	priv->hw->desc->display_ring(head_rx, DMA_RX_SIZE, true);
+}
+
+static void stmmac_display_tx_rings(struct stmmac_priv *priv)
+{
+	void *head_tx;
+
+	if (priv->extend_desc)
+		head_tx = (void *)priv->dma_etx;
+	else
+		head_tx = (void *)priv->dma_tx;
+
+	/* Display TX ring */
+	priv->hw->desc->display_ring(head_tx, DMA_TX_SIZE, false);
+}
+
 static void stmmac_display_rings(struct stmmac_priv *priv)
 {
-	void *head_rx, *head_tx;
+	/* Display RX ring */
+	stmmac_display_rx_rings(priv);
 
-	if (priv->extend_desc) {
-		head_rx = (void *)priv->dma_erx;
-		head_tx = (void *)priv->dma_etx;
-	} else {
-		head_rx = (void *)priv->dma_rx;
-		head_tx = (void *)priv->dma_tx;
-	}
-
-	/* Display Rx ring */
-	priv->hw->desc->display_ring(head_rx, DMA_RX_SIZE, true);
-	/* Display Tx ring */
-	priv->hw->desc->display_ring(head_tx, DMA_TX_SIZE, false);
+	/* Display TX ring */
+	stmmac_display_tx_rings(priv);
 }
 
 static int stmmac_set_bfsize(int mtu, int bufsize)
@@ -924,16 +941,16 @@ static int stmmac_set_bfsize(int mtu, int bufsize)
 }
 
 /**
- * stmmac_clear_descriptors - clear descriptors
+ * stmmac_clear_rx_descriptors - clear RX descriptors
  * @priv: driver private structure
- * Description: this function is called to clear the tx and rx descriptors
+ * Description: this function is called to clear the RX descriptors
  * in case of both basic and extended descriptors are used.
  */
-static void stmmac_clear_descriptors(struct stmmac_priv *priv)
+static void stmmac_clear_rx_descriptors(struct stmmac_priv *priv)
 {
 	int i;
 
-	/* Clear the Rx/Tx descriptors */
+	/* Clear the RX descriptors */
 	for (i = 0; i < DMA_RX_SIZE; i++)
 		if (priv->extend_desc)
 			priv->hw->desc->init_rx_desc(&priv->dma_erx[i].basic,
@@ -943,6 +960,19 @@ static void stmmac_clear_descriptors(struct stmmac_priv *priv)
 			priv->hw->desc->init_rx_desc(&priv->dma_rx[i],
 						     priv->use_riwt, priv->mode,
 						     (i == DMA_RX_SIZE - 1));
+}
+
+/**
+ * stmmac_clear_tx_descriptors - clear tx descriptors
+ * @priv: driver private structure
+ * Description: this function is called to clear the TX descriptors
+ * in case of both basic and extended descriptors are used.
+ */
+static void stmmac_clear_tx_descriptors(struct stmmac_priv *priv)
+{
+	int i;
+
+	/* Clear the TX descriptors */
 	for (i = 0; i < DMA_TX_SIZE; i++)
 		if (priv->extend_desc)
 			priv->hw->desc->init_tx_desc(&priv->dma_etx[i].basic,
@@ -952,6 +982,21 @@ static void stmmac_clear_descriptors(struct stmmac_priv *priv)
 			priv->hw->desc->init_tx_desc(&priv->dma_tx[i],
 						     priv->mode,
 						     (i == DMA_TX_SIZE - 1));
+}
+
+/**
+ * stmmac_clear_descriptors - clear descriptors
+ * @priv: driver private structure
+ * Description: this function is called to clear the TX and RX descriptors
+ * in case of both basic and extended descriptors are used.
+ */
+static void stmmac_clear_descriptors(struct stmmac_priv *priv)
+{
+	/* Clear the RX descriptors */
+	stmmac_clear_rx_descriptors(priv);
+
+	/* Clear the TX descriptors */
+	stmmac_clear_tx_descriptors(priv);
 }
 
 /**
@@ -996,7 +1041,12 @@ static int stmmac_init_rx_buffers(struct stmmac_priv *priv, struct dma_desc *p,
 	return 0;
 }
 
-static void stmmac_free_rx_buffers(struct stmmac_priv *priv, int i)
+/**
+ * stmmac_free_rx_buffer - free RX dma buffers
+ * @priv: private structure
+ * @i: buffer index.
+ */
+static void stmmac_free_rx_buffer(struct stmmac_priv *priv, int i)
 {
 	if (priv->rx_skbuff[i]) {
 		dma_unmap_single(priv->device, priv->rx_skbuff_dma[i],
@@ -1007,14 +1057,42 @@ static void stmmac_free_rx_buffers(struct stmmac_priv *priv, int i)
 }
 
 /**
- * init_dma_desc_rings - init the RX/TX descriptor rings
+ * stmmac_free_tx_buffer - free RX dma buffers
+ * @priv: private structure
+ * @i: buffer index.
+ */
+static void stmmac_free_tx_buffer(struct stmmac_priv *priv, int i)
+{
+	if (priv->tx_skbuff_dma[i].buf) {
+		if (priv->tx_skbuff_dma[i].map_as_page)
+			dma_unmap_page(priv->device,
+				       priv->tx_skbuff_dma[i].buf,
+				       priv->tx_skbuff_dma[i].len,
+				       DMA_TO_DEVICE);
+		else
+			dma_unmap_single(priv->device,
+					 priv->tx_skbuff_dma[i].buf,
+					 priv->tx_skbuff_dma[i].len,
+					 DMA_TO_DEVICE);
+	}
+
+	if (priv->tx_skbuff[i]) {
+		dev_kfree_skb_any(priv->tx_skbuff[i]);
+		priv->tx_skbuff[i] = NULL;
+		priv->tx_skbuff_dma[i].buf = 0;
+		priv->tx_skbuff_dma[i].map_as_page = false;
+	}
+}
+
+/**
+ * init_dma_rx_desc_rings - init the RX descriptor rings
  * @dev: net device structure
  * @flags: gfp flag.
- * Description: this function initializes the DMA RX/TX descriptors
+ * Description: this function initializes the DMA RX descriptors
  * and allocates the socket buffers. It supports the chained and ring
  * modes.
  */
-static int init_dma_desc_rings(struct net_device *dev, gfp_t flags)
+static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 {
 	int i;
 	struct stmmac_priv *priv = netdev_priv(dev);
@@ -1030,10 +1108,8 @@ static int init_dma_desc_rings(struct net_device *dev, gfp_t flags)
 	priv->dma_buf_sz = bfsize;
 
 	netif_dbg(priv, probe, priv->dev,
-		  "(%s) dma_rx_phy=0x%08x dma_tx_phy=0x%08x\n",
-		  __func__, (u32)priv->dma_rx_phy, (u32)priv->dma_tx_phy);
+		  "(%s) dma_rx_phy=0x%08x\n", __func__, (u32)priv->dma_rx_phy);
 
-	/* RX INITIALIZATION */
 	netif_dbg(priv, probe, priv->dev,
 		  "SKB addresses:\nskb\t\tskb data\tdma data\n");
 
@@ -1058,20 +1134,46 @@ static int init_dma_desc_rings(struct net_device *dev, gfp_t flags)
 
 	/* Setup the chained descriptor addresses */
 	if (priv->mode == STMMAC_CHAIN_MODE) {
-		if (priv->extend_desc) {
+		if (priv->extend_desc)
 			priv->hw->mode->init(priv->dma_erx, priv->dma_rx_phy,
 					     DMA_RX_SIZE, 1);
-			priv->hw->mode->init(priv->dma_etx, priv->dma_tx_phy,
-					     DMA_TX_SIZE, 1);
-		} else {
+		else
 			priv->hw->mode->init(priv->dma_rx, priv->dma_rx_phy,
 					     DMA_RX_SIZE, 0);
-			priv->hw->mode->init(priv->dma_tx, priv->dma_tx_phy,
-					     DMA_TX_SIZE, 0);
-		}
 	}
 
-	/* TX INITIALIZATION */
+	return 0;
+err_init_rx_buffers:
+	while (--i >= 0)
+		stmmac_free_rx_buffer(priv, i);
+	return ret;
+}
+
+/**
+ * init_dma_tx_desc_rings - init the TX descriptor rings
+ * @dev: net device structure.
+ * Description: this function initializes the DMA TX descriptors
+ * and allocates the socket buffers. It supports the chained and ring
+ * modes.
+ */
+static int init_dma_tx_desc_rings(struct net_device *dev)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	int i;
+
+	netif_dbg(priv, probe, priv->dev,
+		  "(%s) dma_tx_phy=0x%08x\n", __func__, (u32)priv->dma_tx_phy);
+
+	/* Setup the chained descriptor addresses */
+	if (priv->mode == STMMAC_CHAIN_MODE) {
+		if (priv->extend_desc)
+			priv->hw->mode->init(priv->dma_etx, priv->dma_tx_phy,
+					     DMA_TX_SIZE, 1);
+		else
+			priv->hw->mode->init(priv->dma_tx, priv->dma_tx_phy,
+					     DMA_TX_SIZE, 0);
+	}
+
 	for (i = 0; i < DMA_TX_SIZE; i++) {
 		struct dma_desc *p;
 		if (priv->extend_desc)
@@ -1099,62 +1201,69 @@ static int init_dma_desc_rings(struct net_device *dev, gfp_t flags)
 	priv->cur_tx = 0;
 	netdev_reset_queue(priv->dev);
 
+	return 0;
+}
+
+/**
+ * init_dma_desc_rings - init the RX/TX descriptor rings
+ * @dev: net device structure
+ * @flags: gfp flag.
+ * Description: this function initializes the DMA RX/TX descriptors
+ * and allocates the socket buffers. It supports the chained and ring
+ * modes.
+ */
+static int init_dma_desc_rings(struct net_device *dev, gfp_t flags)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	int ret;
+
+	ret = init_dma_rx_desc_rings(dev, flags);
+	if (ret)
+		return ret;
+
+	ret = init_dma_tx_desc_rings(dev);
+
 	stmmac_clear_descriptors(priv);
 
 	if (netif_msg_hw(priv))
 		stmmac_display_rings(priv);
 
-	return 0;
-err_init_rx_buffers:
-	while (--i >= 0)
-		stmmac_free_rx_buffers(priv, i);
 	return ret;
 }
 
+/**
+ * dma_free_rx_skbufs - free RX dma buffers
+ * @priv: private structure
+ */
 static void dma_free_rx_skbufs(struct stmmac_priv *priv)
 {
 	int i;
 
 	for (i = 0; i < DMA_RX_SIZE; i++)
-		stmmac_free_rx_buffers(priv, i);
+		stmmac_free_rx_buffer(priv, i);
 }
 
+/**
+ * dma_free_tx_skbufs - free TX dma buffers
+ * @priv: private structure
+ */
 static void dma_free_tx_skbufs(struct stmmac_priv *priv)
 {
 	int i;
 
-	for (i = 0; i < DMA_TX_SIZE; i++) {
-		if (priv->tx_skbuff_dma[i].buf) {
-			if (priv->tx_skbuff_dma[i].map_as_page)
-				dma_unmap_page(priv->device,
-					       priv->tx_skbuff_dma[i].buf,
-					       priv->tx_skbuff_dma[i].len,
-					       DMA_TO_DEVICE);
-			else
-				dma_unmap_single(priv->device,
-						 priv->tx_skbuff_dma[i].buf,
-						 priv->tx_skbuff_dma[i].len,
-						 DMA_TO_DEVICE);
-		}
-
-		if (priv->tx_skbuff[i]) {
-			dev_kfree_skb_any(priv->tx_skbuff[i]);
-			priv->tx_skbuff[i] = NULL;
-			priv->tx_skbuff_dma[i].buf = 0;
-			priv->tx_skbuff_dma[i].map_as_page = false;
-		}
-	}
+	for (i = 0; i < DMA_TX_SIZE; i++)
+		stmmac_free_tx_buffer(priv, i);
 }
 
 /**
- * alloc_dma_desc_resources - alloc TX/RX resources.
+ * alloc_dma_rx_desc_resources - alloc RX resources.
  * @priv: private structure
  * Description: according to which descriptor can be used (extend or basic)
  * this function allocates the resources for TX and RX paths. In case of
  * reception, for example, it pre-allocated the RX socket buffer in order to
  * allow zero-copy mechanism.
  */
-static int alloc_dma_desc_resources(struct stmmac_priv *priv)
+static int alloc_dma_rx_desc_resources(struct stmmac_priv *priv)
 {
 	int ret = -ENOMEM;
 
@@ -1168,17 +1277,6 @@ static int alloc_dma_desc_resources(struct stmmac_priv *priv)
 	if (!priv->rx_skbuff)
 		goto err_rx_skbuff;
 
-	priv->tx_skbuff_dma = kmalloc_array(DMA_TX_SIZE,
-					    sizeof(*priv->tx_skbuff_dma),
-					    GFP_KERNEL);
-	if (!priv->tx_skbuff_dma)
-		goto err_tx_skbuff_dma;
-
-	priv->tx_skbuff = kmalloc_array(DMA_TX_SIZE, sizeof(struct sk_buff *),
-					GFP_KERNEL);
-	if (!priv->tx_skbuff)
-		goto err_tx_skbuff;
-
 	if (priv->extend_desc) {
 		priv->dma_erx = dma_zalloc_coherent(priv->device, DMA_RX_SIZE *
 						    sizeof(struct
@@ -1188,6 +1286,48 @@ static int alloc_dma_desc_resources(struct stmmac_priv *priv)
 		if (!priv->dma_erx)
 			goto err_dma;
 
+	} else {
+		priv->dma_rx = dma_zalloc_coherent(priv->device, DMA_RX_SIZE *
+						   sizeof(struct dma_desc),
+						   &priv->dma_rx_phy,
+						   GFP_KERNEL);
+		if (!priv->dma_rx)
+			goto err_dma;
+	}
+
+	return 0;
+
+err_dma:
+	kfree(priv->rx_skbuff);
+err_rx_skbuff:
+	kfree(priv->rx_skbuff_dma);
+	return ret;
+}
+
+/**
+ * alloc_dma_tx_desc_resources - alloc TX resources.
+ * @priv: private structure
+ * Description: according to which descriptor can be used (extend or basic)
+ * this function allocates the resources for TX and RX paths. In case of
+ * reception, for example, it pre-allocated the RX socket buffer in order to
+ * allow zero-copy mechanism.
+ */
+static int alloc_dma_tx_desc_resources(struct stmmac_priv *priv)
+{
+	int ret = -ENOMEM;
+
+	priv->tx_skbuff_dma = kmalloc_array(DMA_TX_SIZE,
+					    sizeof(*priv->tx_skbuff_dma),
+					    GFP_KERNEL);
+	if (!priv->tx_skbuff_dma)
+		return -ENOMEM;
+
+	priv->tx_skbuff = kmalloc_array(DMA_TX_SIZE, sizeof(struct sk_buff *),
+					GFP_KERNEL);
+	if (!priv->tx_skbuff)
+		goto err_tx_skbuff;
+
+	if (priv->extend_desc) {
 		priv->dma_etx = dma_zalloc_coherent(priv->device, DMA_TX_SIZE *
 						    sizeof(struct
 							   dma_extended_desc),
@@ -1200,13 +1340,6 @@ static int alloc_dma_desc_resources(struct stmmac_priv *priv)
 			goto err_dma;
 		}
 	} else {
-		priv->dma_rx = dma_zalloc_coherent(priv->device, DMA_RX_SIZE *
-						   sizeof(struct dma_desc),
-						   &priv->dma_rx_phy,
-						   GFP_KERNEL);
-		if (!priv->dma_rx)
-			goto err_dma;
-
 		priv->dma_tx = dma_zalloc_coherent(priv->device, DMA_TX_SIZE *
 						   sizeof(struct dma_desc),
 						   &priv->dma_tx_phy,
@@ -1225,39 +1358,86 @@ err_dma:
 	kfree(priv->tx_skbuff);
 err_tx_skbuff:
 	kfree(priv->tx_skbuff_dma);
-err_tx_skbuff_dma:
-	kfree(priv->rx_skbuff);
-err_rx_skbuff:
-	kfree(priv->rx_skbuff_dma);
 	return ret;
 }
 
-static void free_dma_desc_resources(struct stmmac_priv *priv)
+/**
+ * alloc_dma_desc_resources - alloc TX/RX resources.
+ * @priv: private structure
+ * Description: according to which descriptor can be used (extend or basic)
+ * this function allocates the resources for TX and RX paths. In case of
+ * reception, for example, it pre-allocated the RX socket buffer in order to
+ * allow zero-copy mechanism.
+ */
+static int alloc_dma_desc_resources(struct stmmac_priv *priv)
 {
-	/* Release the DMA TX/RX socket buffers */
+	int ret = alloc_dma_rx_desc_resources(priv);
+
+	if (ret)
+		return ret;
+
+	ret = alloc_dma_tx_desc_resources(priv);
+
+	return ret;
+}
+
+/**
+ * free_dma_rx_desc_resources - free RX dma desc resources
+ * @priv: private structure
+ */
+static void free_dma_rx_desc_resources(struct stmmac_priv *priv)
+{
+	/* Release the DMA RX socket buffers */
 	dma_free_rx_skbufs(priv);
-	dma_free_tx_skbufs(priv);
 
 	/* Free DMA regions of consistent memory previously allocated */
-	if (!priv->extend_desc) {
-		dma_free_coherent(priv->device,
-				  DMA_TX_SIZE * sizeof(struct dma_desc),
-				  priv->dma_tx, priv->dma_tx_phy);
+	if (!priv->extend_desc)
 		dma_free_coherent(priv->device,
 				  DMA_RX_SIZE * sizeof(struct dma_desc),
 				  priv->dma_rx, priv->dma_rx_phy);
-	} else {
-		dma_free_coherent(priv->device, DMA_TX_SIZE *
-				  sizeof(struct dma_extended_desc),
-				  priv->dma_etx, priv->dma_tx_phy);
+	else
 		dma_free_coherent(priv->device, DMA_RX_SIZE *
 				  sizeof(struct dma_extended_desc),
 				  priv->dma_erx, priv->dma_rx_phy);
-	}
+
 	kfree(priv->rx_skbuff_dma);
 	kfree(priv->rx_skbuff);
+}
+
+/**
+ * free_dma_tx_desc_resources - free TX dma desc resources
+ * @priv: private structure
+ */
+static void free_dma_tx_desc_resources(struct stmmac_priv *priv)
+{
+	/* Release the DMA TX socket buffers */
+	dma_free_tx_skbufs(priv);
+
+	/* Free DMA regions of consistent memory previously allocated */
+	if (!priv->extend_desc)
+		dma_free_coherent(priv->device,
+				  DMA_TX_SIZE * sizeof(struct dma_desc),
+				  priv->dma_tx, priv->dma_tx_phy);
+	else
+		dma_free_coherent(priv->device, DMA_TX_SIZE *
+				  sizeof(struct dma_extended_desc),
+				  priv->dma_etx, priv->dma_tx_phy);
+
 	kfree(priv->tx_skbuff_dma);
 	kfree(priv->tx_skbuff);
+}
+
+/**
+ * free_dma_desc_resources - free dma desc resources
+ * @priv: private structure
+ */
+static void free_dma_desc_resources(struct stmmac_priv *priv)
+{
+	/* Release the DMA RX socket buffers */
+	free_dma_rx_desc_resources(priv);
+
+	/* Release the DMA TX socket buffers */
+	free_dma_tx_desc_resources(priv);
 }
 
 /**
