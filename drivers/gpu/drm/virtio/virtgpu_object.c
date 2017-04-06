@@ -81,8 +81,10 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 		return -ENOMEM;
 	size = roundup(size, PAGE_SIZE);
 	ret = drm_gem_object_init(vgdev->ddev, &bo->gem_base, size);
-	if (ret != 0)
+	if (ret != 0) {
+		kfree(bo);
 		return ret;
+	}
 	bo->dumb = false;
 	virtio_gpu_init_ttm_placement(bo, pinned);
 
