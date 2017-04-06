@@ -350,7 +350,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	struct ftgmac100_rxdes *rxdes;
 	struct sk_buff *skb;
 	unsigned int pointer, size;
-	u32 status;
+	u32 status, csum_vlan;
 	dma_addr_t map;
 
 	/* Grab next RX descriptor */
@@ -372,10 +372,27 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 		     !(status & FTGMAC100_RXDES0_LRS)))
 		goto drop;
 
+	/* Grab received size and csum vlan field in the descriptor */
+	size = status & FTGMAC100_RXDES0_VDBC;
+	csum_vlan = le32_to_cpu(rxdes->rxdes1);
+
 	/* Any error (other than csum offload) flagged ? */
 	if (unlikely(status & RXDES0_ANY_ERROR)) {
-		ftgmac100_rx_packet_error(priv, status);
-		goto drop;
+		/* Correct for incorrect flagging of runt packets
+		 * with vlan tags... Just accept a runt packet that
+		 * has been flagged as vlan and whose size is at
+		 * least 60 bytes.
+		 */
+		if ((status & FTGMAC100_RXDES0_RUNT) &&
+		    (csum_vlan & FTGMAC100_RXDES1_VLANTAG_AVAIL) &&
+		    (size >= 60))
+			status &= ~FTGMAC100_RXDES0_RUNT;
+
+		/* Any error still in there ? */
+		if (status & RXDES0_ANY_ERROR) {
+			ftgmac100_rx_packet_error(priv, status);
+			goto drop;
+		}
 	}
 
 	/* If the packet had no skb (failed to allocate earlier)
@@ -397,19 +414,17 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	 * we accept the HW test results.
 	 */
 	if (netdev->features & NETIF_F_RXCSUM) {
-		__le32 csum_vlan = rxdes->rxdes1;
-		__le32 err_bits = cpu_to_le32(FTGMAC100_RXDES1_TCP_CHKSUM_ERR |
-					      FTGMAC100_RXDES1_UDP_CHKSUM_ERR |
-					      FTGMAC100_RXDES1_IP_CHKSUM_ERR);
+		u32 err_bits = FTGMAC100_RXDES1_TCP_CHKSUM_ERR |
+			FTGMAC100_RXDES1_UDP_CHKSUM_ERR |
+			FTGMAC100_RXDES1_IP_CHKSUM_ERR;
 		if ((csum_vlan & err_bits) ||
-		    !(csum_vlan & cpu_to_le32(FTGMAC100_RXDES1_PROT_MASK)))
+		    !(csum_vlan & FTGMAC100_RXDES1_PROT_MASK))
 			skb->ip_summed = CHECKSUM_NONE;
 		else
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
-	/* Grab received size annd transfer to skb */
-	size = status & FTGMAC100_RXDES0_VDBC;
+	/* Transfer received size to skb */
 	skb_put(skb, size);
 
 	/* Tear down DMA mapping, do necessary cache management */
