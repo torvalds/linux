@@ -1521,12 +1521,12 @@ static int cdns_uart_probe(struct platform_device *pdev)
 		return PTR_ERR(cdns_uart_data->uartclk);
 	}
 
-	rc = clk_prepare(cdns_uart_data->pclk);
+	rc = clk_prepare_enable(cdns_uart_data->pclk);
 	if (rc) {
 		dev_err(&pdev->dev, "Unable to enable pclk clock.\n");
 		return rc;
 	}
-	rc = clk_prepare(cdns_uart_data->uartclk);
+	rc = clk_prepare_enable(cdns_uart_data->uartclk);
 	if (rc) {
 		dev_err(&pdev->dev, "Unable to enable device clock.\n");
 		goto err_out_clk_dis_pclk;
@@ -1580,8 +1580,8 @@ static int cdns_uart_probe(struct platform_device *pdev)
 
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, UART_AUTOSUSPEND_TIMEOUT);
-	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
 
 	rc = uart_add_one_port(&cdns_uart_uart_driver, port);
 	if (rc) {
@@ -1601,9 +1601,9 @@ err_out_clk_disable:
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	clk_unprepare(cdns_uart_data->uartclk);
+	clk_disable_unprepare(cdns_uart_data->uartclk);
 err_out_clk_dis_pclk:
-	clk_unprepare(cdns_uart_data->pclk);
+	clk_disable_unprepare(cdns_uart_data->pclk);
 
 	return rc;
 }
@@ -1627,8 +1627,8 @@ static int cdns_uart_remove(struct platform_device *pdev)
 #endif
 	rc = uart_remove_one_port(&cdns_uart_uart_driver, port);
 	port->mapbase = 0;
-	clk_unprepare(cdns_uart_data->uartclk);
-	clk_unprepare(cdns_uart_data->pclk);
+	clk_disable_unprepare(cdns_uart_data->uartclk);
+	clk_disable_unprepare(cdns_uart_data->pclk);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
