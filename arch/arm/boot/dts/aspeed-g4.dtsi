@@ -18,15 +18,6 @@
 		};
 	};
 
-	clocks {
-		clk_clkin: clk_clkin {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <48000000>;
-		};
-
-	};
-
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -92,16 +83,48 @@
 			#size-cells = <1>;
 			ranges;
 
-			clk_hpll: clk_hpll@1e6e2070 {
-				#clock-cells = <0>;
-				compatible = "aspeed,g4-hpll-clock";
-				reg = <0x1e6e2070 0x4>;
-				clocks = <&clk_clkin>;
-			};
-
 			syscon: syscon@1e6e2000 {
 				compatible = "aspeed,g4-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1a8>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+                                clk_clkin: clk_clkin {
+                                        #clock-cells = <0>;
+                                        compatible = "fixed-clock";
+                                        clock-frequency = <48000000>;
+                                };
+
+                                clk_hpll: clk_hpll@70 {
+                                        #clock-cells = <0>;
+                                        compatible = "aspeed,g4-hpll-clock", "fixed-clock";
+                                        reg = <0x70>;
+                                        clocks = <&clk_clkin>;
+                                        clock-frequency = <384000000>;
+                                };
+
+                                clk_ahb: clk_ahb@70 {
+                                        #clock-cells = <0>;
+                                        compatible = "aspeed,g4-ahb-clock", "fixed-clock";
+                                        reg = <0x70>;
+                                        clocks = <&clk_hpll>;
+                                        clock-frequency = <192000000>;
+                                };
+
+                                clk_apb: clk_apb@08 {
+                                        #clock-cells = <0>;
+                                        compatible = "aspeed,g4-apb-clock", "fixed-clock";
+                                        reg = <0x08>;
+                                        clocks = <&clk_hpll>;
+                                        clock-frequency = <48000000>;
+                                };
+
+                                clk_uart: clk_uart@2c{
+                                        #clock-cells = <0>;
+                                        compatible = "aspeed,g4-uart-clock", "fixed-clock";
+                                        reg = <0x2c>;
+                                        clock-frequency = <24000000>;
+                                };
 
 				pinctrl: pinctrl {
 					compatible = "aspeed,g4-pinctrl";
@@ -847,19 +870,6 @@
 					};
 
 				};
-			};
-
-			clk_apb: clk_apb@1e6e2008 {
-				#clock-cells = <0>;
-				compatible = "aspeed,g4-apb-clock";
-				reg = <0x1e6e2008 0x4>;
-				clocks = <&clk_hpll>;
-			};
-
-			clk_uart: clk_uart@1e6e2008 {
-				#clock-cells = <0>;
-				compatible = "aspeed,uart-clock";
-				reg = <0x1e6e202c 0x4>;
 			};
 
 			sram@1e720000 {
