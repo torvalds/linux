@@ -161,20 +161,25 @@ static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 	intel_dp->num_sink_rates = num_rates;
 }
 
-static int intel_dp_max_sink_rate(struct intel_dp *intel_dp)
+/* Theoretical max between source and sink */
+static int intel_dp_max_common_rate(struct intel_dp *intel_dp)
 {
-	return intel_dp->sink_rates[intel_dp->num_sink_rates - 1];
+	return intel_dp->common_rates[intel_dp->num_common_rates - 1];
 }
 
-static u8 intel_dp_max_lane_count(struct intel_dp *intel_dp)
+/* Theoretical max between source and sink */
+static int intel_dp_max_common_lane_count(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	u8 source_max, sink_max;
-
-	source_max = intel_dig_port->max_lanes;
-	sink_max = intel_dp->max_link_lane_count;
+	int source_max = intel_dig_port->max_lanes;
+	int sink_max = drm_dp_max_lane_count(intel_dp->dpcd);
 
 	return min(source_max, sink_max);
+}
+
+static int intel_dp_max_lane_count(struct intel_dp *intel_dp)
+{
+	return intel_dp->max_link_lane_count;
 }
 
 int
@@ -329,7 +334,7 @@ int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 		intel_dp->max_link_rate = intel_dp->common_rates[index - 1];
 		intel_dp->max_link_lane_count = lane_count;
 	} else if (lane_count > 1) {
-		intel_dp->max_link_rate = intel_dp_max_sink_rate(intel_dp);
+		intel_dp->max_link_rate = intel_dp_max_common_rate(intel_dp);
 		intel_dp->max_link_lane_count = lane_count >> 1;
 	} else {
 		DRM_ERROR("Link Training Unsuccessful\n");
@@ -4636,11 +4641,11 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 		      yesno(drm_dp_tps3_supported(intel_dp->dpcd)));
 
 	if (intel_dp->reset_link_params) {
-		/* Set the max lane count for link */
-		intel_dp->max_link_lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
+		/* Initial max link lane count */
+		intel_dp->max_link_lane_count = intel_dp_max_common_lane_count(intel_dp);
 
-		/* Set the max link rate for link */
-		intel_dp->max_link_rate = intel_dp_max_sink_rate(intel_dp);
+		/* Initial max link rate */
+		intel_dp->max_link_rate = intel_dp_max_common_rate(intel_dp);
 
 		intel_dp->reset_link_params = false;
 	}
