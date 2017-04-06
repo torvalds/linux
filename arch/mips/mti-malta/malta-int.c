@@ -232,6 +232,17 @@ void __init arch_init_irq(void)
 {
 	int corehi_irq;
 
+	/*
+	 * Preallocate the i8259's expected virq's here. Since irqchip_init()
+	 * will probe the irqchips in hierarchial order, i8259 is probed last.
+	 * If anything allocates a virq before the i8259 is probed, it will
+	 * be given one of the i8259's expected range and consequently setup
+	 * of the i8259 will fail.
+	 */
+	WARN(irq_alloc_descs(I8259A_IRQ_BASE, I8259A_IRQ_BASE,
+			    16, numa_node_id()) < 0,
+		"Cannot reserve i8259 virqs at IRQ%d\n", I8259A_IRQ_BASE);
+
 	i8259_set_poll(mips_pcibios_iack);
 	irqchip_init();
 
