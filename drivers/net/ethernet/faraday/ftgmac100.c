@@ -444,6 +444,9 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	if (!ftgmac100_rxdes_packet_ready(rxdes))
 		return false;
 
+	/* Order subsequent reads with the test for the ready bit */
+	dma_rmb();
+
 	/* We don't cope with fragmented RX packets */
 	if (unlikely(!ftgmac100_rxdes_first_segment(rxdes) ||
 		     !ftgmac100_rxdes_last_segment(rxdes)))
