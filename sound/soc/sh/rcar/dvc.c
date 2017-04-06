@@ -285,18 +285,18 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 	ret = rsnd_kctrl_new_e(mod, io, rtd,
 			is_play ?
 			"DVC Out Ramp Up Rate" : "DVC In Ramp Up Rate",
-			&dvc->rup,
 			rsnd_dvc_volume_update,
-			dvc_ramp_rate, ARRAY_SIZE(dvc_ramp_rate));
+			&dvc->rup,
+			dvc_ramp_rate);
 	if (ret < 0)
 		return ret;
 
 	ret = rsnd_kctrl_new_e(mod, io, rtd,
 			is_play ?
 			"DVC Out Ramp Down Rate" : "DVC In Ramp Down Rate",
-			&dvc->rdown,
 			rsnd_dvc_volume_update,
-			dvc_ramp_rate, ARRAY_SIZE(dvc_ramp_rate));
+			&dvc->rdown,
+			dvc_ramp_rate);
 
 	if (ret < 0)
 		return ret;
