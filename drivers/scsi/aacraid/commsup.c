@@ -1873,7 +1873,8 @@ int aac_check_health(struct aac_dev * aac)
 	spin_unlock_irqrestore(&aac->fib_lock, flagv);
 
 	if (BlinkLED < 0) {
-		printk(KERN_ERR "%s: Host adapter dead %d\n", aac->name, BlinkLED);
+		printk(KERN_ERR "%s: Host adapter is dead (or got a PCI error) %d\n",
+				aac->name, BlinkLED);
 		goto out;
 	}
 
