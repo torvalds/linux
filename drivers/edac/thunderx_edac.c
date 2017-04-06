@@ -670,7 +670,7 @@ static inline int pci_dev_to_mc_idx(struct pci_dev *pdev)
 	int node = dev_to_node(&pdev->dev);
 	int ret = PCI_FUNC(pdev->devfn);
 
-	ret += max(node, 0) << 8;
+	ret += max(node, 0) << 3;
 
 	return ret;
 }
