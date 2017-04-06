@@ -495,6 +495,15 @@
 	cpu-supply = <&syr827>;
 };
 
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
+};
+
 &gpu {
 	logic-supply = <&vdd_logic>;
 };
