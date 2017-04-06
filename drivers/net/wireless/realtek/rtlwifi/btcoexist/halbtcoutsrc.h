@@ -369,6 +369,7 @@ typedef void (*bfp_btc_w2)(void *btc_context, u32 reg_addr, u16 data);
 
 typedef void (*bfp_btc_w4)(void *btc_context, u32 reg_addr, u32 data);
 
+typedef void (*bfp_btc_local_reg_w1)(void *btc_context, u32 reg_addr, u8 data);
 typedef void (*bfp_btc_wr_1byte_bit_mask)(void *btc_context, u32 reg_addr,
 					  u8 bit_mask, u8 data);
 
@@ -496,6 +497,7 @@ struct btc_coexist {
 	bfp_btc_w2 btc_write_2byte;
 	bfp_btc_r4 btc_read_4byte;
 	bfp_btc_w4 btc_write_4byte;
+	bfp_btc_local_reg_w1 btc_write_local_reg_1byte;
 
 	bfp_btc_set_bb_reg btc_set_bb_reg;
 	bfp_btc_get_bb_reg btc_get_bb_reg;
