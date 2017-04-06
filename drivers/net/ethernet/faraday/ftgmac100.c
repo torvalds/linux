@@ -300,6 +300,18 @@ static void ftgmac100_rxdes_set_dma_own(const struct ftgmac100 *priv,
 	rxdes->rxdes0 &= cpu_to_le32(priv->rxdes0_edorr_mask);
 }
 
+#define RXDES0_ANY_ERROR		( \
+	FTGMAC100_RXDES0_RX_ERR		| \
+	FTGMAC100_RXDES0_CRC_ERR	| \
+	FTGMAC100_RXDES0_FTL		| \
+	FTGMAC100_RXDES0_RUNT		| \
+	FTGMAC100_RXDES0_RX_ODD_NB)
+
+static inline bool ftgmac100_rxdes_any_error(struct ftgmac100_rxdes *rxdes)
+{
+	return rxdes->rxdes0 & cpu_to_le32(RXDES0_ANY_ERROR);
+}
+
 static bool ftgmac100_rxdes_rx_error(struct ftgmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_RX_ERR);
@@ -446,49 +458,22 @@ ftgmac100_rx_locate_first_segment(struct ftgmac100 *priv)
 	return NULL;
 }
 
-static bool ftgmac100_rx_packet_error(struct ftgmac100 *priv,
+
+static void ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 				      struct ftgmac100_rxdes *rxdes)
 {
 	struct net_device *netdev = priv->netdev;
-	bool error = false;
 
-	if (unlikely(ftgmac100_rxdes_rx_error(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx err\n");
-
+	if (ftgmac100_rxdes_rx_error(rxdes))
 		netdev->stats.rx_errors++;
-		error = true;
-	}
 
-	if (unlikely(ftgmac100_rxdes_crc_error(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx crc err\n");
-
+	if (ftgmac100_rxdes_crc_error(rxdes))
 		netdev->stats.rx_crc_errors++;
-		error = true;
-	}
 
-	if (unlikely(ftgmac100_rxdes_frame_too_long(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx frame too long\n");
-
+	if (ftgmac100_rxdes_frame_too_long(rxdes) ||
+	    ftgmac100_rxdes_runt(rxdes) ||
+	    ftgmac100_rxdes_odd_nibble(rxdes))
 		netdev->stats.rx_length_errors++;
-		error = true;
-	} else if (unlikely(ftgmac100_rxdes_runt(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx runt\n");
-
-		netdev->stats.rx_length_errors++;
-		error = true;
-	} else if (unlikely(ftgmac100_rxdes_odd_nibble(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx odd nibble\n");
-
-		netdev->stats.rx_length_errors++;
-		error = true;
-	}
-
-	return error;
 }
 
 static void ftgmac100_rx_drop_packet(struct ftgmac100 *priv)
@@ -528,8 +513,12 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	/* We don't support segmented rx frames, so drop these
 	 * along with packets with errors.
 	 */
-	if (unlikely(!ftgmac100_rxdes_last_segment(rxdes) ||
-		     ftgmac100_rx_packet_error(priv, rxdes))) {
+	if (unlikely(!ftgmac100_rxdes_last_segment(rxdes))) {
+		ftgmac100_rx_drop_packet(priv);
+		return true;
+	}
+	if (unlikely(ftgmac100_rxdes_any_error(rxdes))) {
+		ftgmac100_rx_packet_error(priv, rxdes);
 		ftgmac100_rx_drop_packet(priv);
 		return true;
 	}
