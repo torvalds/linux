@@ -1636,7 +1636,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	/* Conveniently, the link BW constants become indices with a shift...*/
 	int min_clock = 0;
 	int max_clock;
-	int link_rate_index;
 	int bpp, mode_rate;
 	int link_avail, link_clock;
 	int common_len;
@@ -1680,11 +1679,13 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	/* Use values requested by Compliance Test Request */
 	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
-		link_rate_index = intel_dp_rate_index(intel_dp->common_rates,
-						      intel_dp->num_common_rates,
-						      intel_dp->compliance.test_link_rate);
-		if (link_rate_index >= 0)
-			min_clock = max_clock = link_rate_index;
+		int index;
+
+		index = intel_dp_rate_index(intel_dp->common_rates,
+					    intel_dp->num_common_rates,
+					    intel_dp->compliance.test_link_rate);
+		if (index >= 0)
+			min_clock = max_clock = index;
 		min_lane_count = max_lane_count = intel_dp->compliance.test_lane_count;
 	}
 	DRM_DEBUG_KMS("DP link computation with max lane count %i "
