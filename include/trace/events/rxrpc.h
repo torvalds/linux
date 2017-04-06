@@ -1162,6 +1162,32 @@ TRACE_EVENT(rxrpc_rx_eproto,
 		      __entry->why)
 	    );
 
+TRACE_EVENT(rxrpc_connect_call,
+	    TP_PROTO(struct rxrpc_call *call),
+
+	    TP_ARGS(call),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(unsigned long,		user_call_ID	)
+		    __field(u32,			cid		)
+		    __field(u32,			call_id		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->user_call_ID = call->user_call_ID;
+		    __entry->cid = call->cid;
+		    __entry->call_id = call->call_id;
+			   ),
+
+	    TP_printk("c=%p u=%p %08x:%08x",
+		      __entry->call,
+		      (void *)__entry->user_call_ID,
+		      __entry->cid,
+		      __entry->call_id)
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */
