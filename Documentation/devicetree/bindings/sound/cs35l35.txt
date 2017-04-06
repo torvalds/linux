@@ -33,6 +33,10 @@ Optional properties:
   - cirrus,shared-boost : Boolean to enable ClassH tracking of Advisory Signal
   if 2 Devices share Boost BST_CTL
 
+  - cirrus,external-boost : Boolean to specify the device is using an external
+  boost supply, note that sharing a boost from another cs35l35 would constitute
+  using an external supply for the slave device
+
   - cirrus,sp-drv-strength : Value for setting the Serial Port drive strength
   Table 3-10 of the datasheet lists drive-strength specifications
   0 = 1x (Default)
