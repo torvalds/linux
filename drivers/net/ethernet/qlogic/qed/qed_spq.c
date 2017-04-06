@@ -119,6 +119,7 @@ static int qed_spq_block(struct qed_hwfn *p_hwfn,
 			 u8 *p_fw_ret, bool skip_quick_poll)
 {
 	struct qed_spq_comp_done *comp_done;
+	struct qed_ptt *p_ptt;
 	int rc;
 
 	/* A relatively short polling period w/o sleeping, to allow the FW to
@@ -135,8 +136,14 @@ static int qed_spq_block(struct qed_hwfn *p_hwfn,
 	if (!rc)
 		return 0;
 
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt) {
+		DP_NOTICE(p_hwfn, "ptt, failed to acquire\n");
+		return -EAGAIN;
+	}
+
 	DP_INFO(p_hwfn, "Ramrod is stuck, requesting MCP drain\n");
-	rc = qed_mcp_drain(p_hwfn, p_hwfn->p_main_ptt);
+	rc = qed_mcp_drain(p_hwfn, p_ptt);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "MCP drain failed\n");
 		goto err;
@@ -145,15 +152,18 @@ static int qed_spq_block(struct qed_hwfn *p_hwfn,
 	/* Retry after drain */
 	rc = __qed_spq_block(p_hwfn, p_ent, p_fw_ret, true);
 	if (!rc)
-		return 0;
+		goto out;
 
 	comp_done = (struct qed_spq_comp_done *)p_ent->comp_cb.cookie;
-	if (comp_done->done == 1) {
+	if (comp_done->done == 1)
 		if (p_fw_ret)
 			*p_fw_ret = comp_done->fw_return_code;
-		return 0;
-	}
+out:
+	qed_ptt_release(p_hwfn, p_ptt);
+	return 0;
+
 err:
+	qed_ptt_release(p_hwfn, p_ptt);
 	DP_NOTICE(p_hwfn,
 		  "Ramrod is stuck [CID %08x cmd %02x protocol %02x echo %04x]\n",
 		  le32_to_cpu(p_ent->elem.hdr.cid),

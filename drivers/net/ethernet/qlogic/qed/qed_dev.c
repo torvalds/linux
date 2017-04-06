@@ -75,7 +75,8 @@ enum BAR_ID {
 	BAR_ID_1        /* Used for doorbells */
 };
 
-static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn, enum BAR_ID bar_id)
+static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, enum BAR_ID bar_id)
 {
 	u32 bar_reg = (bar_id == BAR_ID_0 ?
 		       PGLUE_B_REG_PF_BAR0_SIZE : PGLUE_B_REG_PF_BAR1_SIZE);
@@ -84,7 +85,7 @@ static u32 qed_hw_bar_size(struct qed_hwfn *p_hwfn, enum BAR_ID bar_id)
 	if (IS_VF(p_hwfn->cdev))
 		return 1 << 17;
 
-	val = qed_rd(p_hwfn, p_hwfn->p_main_ptt, bar_reg);
+	val = qed_rd(p_hwfn, p_ptt, bar_reg);
 	if (val)
 		return 1 << (val + 15);
 
@@ -780,7 +781,7 @@ int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	qed_init_clear_rt_data(p_hwfn);
 
 	/* prepare QM portion of runtime array */
-	qed_qm_init_pf(p_hwfn);
+	qed_qm_init_pf(p_hwfn, p_ptt);
 
 	/* activate init tool on runtime array */
 	rc = qed_init_run(p_hwfn, p_ptt, PHASE_QM_PF, p_hwfn->rel_pf_id,
@@ -1320,7 +1321,7 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	int rc = 0;
 	u8 cond;
 
-	db_bar_size = qed_hw_bar_size(p_hwfn, BAR_ID_1);
+	db_bar_size = qed_hw_bar_size(p_hwfn, p_ptt, BAR_ID_1);
 	if (p_hwfn->cdev->num_hwfns > 1)
 		db_bar_size /= 2;
 
@@ -1431,7 +1432,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 		p_hwfn->qm_info.pf_rl = 100000;
 	}
 
-	qed_cxt_hw_init_pf(p_hwfn);
+	qed_cxt_hw_init_pf(p_hwfn, p_ptt);
 
 	qed_int_igu_init_rt(p_hwfn);
 
@@ -1852,18 +1853,21 @@ int qed_hw_stop(struct qed_dev *cdev)
 	return rc2;
 }
 
-void qed_hw_stop_fastpath(struct qed_dev *cdev)
+int qed_hw_stop_fastpath(struct qed_dev *cdev)
 {
 	int j;
 
 	for_each_hwfn(cdev, j) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[j];
-		struct qed_ptt *p_ptt = p_hwfn->p_main_ptt;
+		struct qed_ptt *p_ptt;
 
 		if (IS_VF(cdev)) {
 			qed_vf_pf_int_cleanup(p_hwfn);
 			continue;
 		}
+		p_ptt = qed_ptt_acquire(p_hwfn);
+		if (!p_ptt)
+			return -EAGAIN;
 
 		DP_VERBOSE(p_hwfn,
 			   NETIF_MSG_IFDOWN, "Shutting down the fastpath\n");
@@ -1881,17 +1885,28 @@ void qed_hw_stop_fastpath(struct qed_dev *cdev)
 
 		/* Need to wait 1ms to guarantee SBs are cleared */
 		usleep_range(1000, 2000);
+		qed_ptt_release(p_hwfn, p_ptt);
 	}
+
+	return 0;
 }
 
-void qed_hw_start_fastpath(struct qed_hwfn *p_hwfn)
+int qed_hw_start_fastpath(struct qed_hwfn *p_hwfn)
 {
+	struct qed_ptt *p_ptt;
+
 	if (IS_VF(p_hwfn->cdev))
-		return;
+		return 0;
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EAGAIN;
 
 	/* Re-open incoming traffic */
-	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
-	       NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x0);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x0);
+	qed_ptt_release(p_hwfn, p_ptt);
+
+	return 0;
 }
 
 /* Free hwfn memory and resources acquired in hw_hwfn_prepare */
@@ -2697,9 +2712,9 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 	return qed_hw_get_resc(p_hwfn, p_ptt);
 }
 
-static int qed_get_dev_info(struct qed_dev *cdev)
+static int qed_get_dev_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_dev *cdev = p_hwfn->cdev;
 	u16 device_id_mask;
 	u32 tmp;
 
@@ -2721,15 +2736,13 @@ static int qed_get_dev_info(struct qed_dev *cdev)
 		return -EBUSY;
 	}
 
-	cdev->chip_num = (u16)qed_rd(p_hwfn, p_hwfn->p_main_ptt,
-				     MISCS_REG_CHIP_NUM);
-	cdev->chip_rev = (u16)qed_rd(p_hwfn, p_hwfn->p_main_ptt,
-				     MISCS_REG_CHIP_REV);
+	cdev->chip_num = (u16)qed_rd(p_hwfn, p_ptt, MISCS_REG_CHIP_NUM);
+	cdev->chip_rev = (u16)qed_rd(p_hwfn, p_ptt, MISCS_REG_CHIP_REV);
+
 	MASK_FIELD(CHIP_REV, cdev->chip_rev);
 
 	/* Learn number of HW-functions */
-	tmp = qed_rd(p_hwfn, p_hwfn->p_main_ptt,
-		     MISCS_REG_CMT_ENABLED_FOR_PAIR);
+	tmp = qed_rd(p_hwfn, p_ptt, MISCS_REG_CMT_ENABLED_FOR_PAIR);
 
 	if (tmp & (1 << p_hwfn->rel_pf_id)) {
 		DP_NOTICE(cdev->hwfns, "device in CMT mode\n");
@@ -2738,11 +2751,10 @@ static int qed_get_dev_info(struct qed_dev *cdev)
 		cdev->num_hwfns = 1;
 	}
 
-	cdev->chip_bond_id = qed_rd(p_hwfn, p_hwfn->p_main_ptt,
+	cdev->chip_bond_id = qed_rd(p_hwfn, p_ptt,
 				    MISCS_REG_CHIP_TEST_REG) >> 4;
 	MASK_FIELD(CHIP_BOND_ID, cdev->chip_bond_id);
-	cdev->chip_metal = (u16)qed_rd(p_hwfn, p_hwfn->p_main_ptt,
-				       MISCS_REG_CHIP_METAL);
+	cdev->chip_metal = (u16)qed_rd(p_hwfn, p_ptt, MISCS_REG_CHIP_METAL);
 	MASK_FIELD(CHIP_METAL, cdev->chip_metal);
 
 	DP_INFO(cdev->hwfns,
@@ -2795,7 +2807,7 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 
 	/* First hwfn learns basic information, e.g., number of hwfns */
 	if (!p_hwfn->my_id) {
-		rc = qed_get_dev_info(p_hwfn->cdev);
+		rc = qed_get_dev_info(p_hwfn, p_hwfn->p_main_ptt);
 		if (rc)
 			goto err1;
 	}
@@ -2866,11 +2878,14 @@ int qed_hw_prepare(struct qed_dev *cdev,
 		u8 __iomem *addr;
 
 		/* adjust bar offset for second engine */
-		addr = cdev->regview + qed_hw_bar_size(p_hwfn, BAR_ID_0) / 2;
+		addr = cdev->regview +
+		       qed_hw_bar_size(p_hwfn, p_hwfn->p_main_ptt,
+				       BAR_ID_0) / 2;
 		p_regview = addr;
 
-		/* adjust doorbell bar offset for second engine */
-		addr = cdev->doorbells + qed_hw_bar_size(p_hwfn, BAR_ID_1) / 2;
+		addr = cdev->doorbells +
+		       qed_hw_bar_size(p_hwfn, p_hwfn->p_main_ptt,
+				       BAR_ID_1) / 2;
 		p_doorbell = addr;
 
 		/* prepare second hw function */

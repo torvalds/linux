@@ -1408,13 +1408,21 @@ int qed_ll2_establish_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 	struct qed_ll2_info *p_ll2_conn;
 	struct qed_ll2_rx_queue *p_rx;
 	struct qed_ll2_tx_queue *p_tx;
+	struct qed_ptt *p_ptt;
 	int rc = -EINVAL;
 	u32 i, capacity;
 	u8 qid;
 
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EAGAIN;
+
 	p_ll2_conn = qed_ll2_handle_sanity_lock(p_hwfn, connection_handle);
-	if (!p_ll2_conn)
-		return -EINVAL;
+	if (!p_ll2_conn) {
+		rc = -EINVAL;
+		goto out;
+	}
+
 	p_rx = &p_ll2_conn->rx_queue;
 	p_tx = &p_ll2_conn->tx_queue;
 
@@ -1447,7 +1455,9 @@ int qed_ll2_establish_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 	p_tx->cur_completing_frag_num = 0;
 	*p_tx->p_fw_cons = 0;
 
-	qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_CORE, &p_ll2_conn->cid);
+	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_CORE, &p_ll2_conn->cid);
+	if (rc)
+		goto out;
 
 	qid = p_hwfn->hw_info.resc_start[QED_LL2_QUEUE] + connection_handle;
 	p_ll2_conn->queue_id = qid;
@@ -1461,26 +1471,28 @@ int qed_ll2_establish_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 
 	rc = qed_ll2_establish_connection_rx(p_hwfn, p_ll2_conn);
 	if (rc)
-		return rc;
+		goto out;
 
 	rc = qed_sp_ll2_tx_queue_start(p_hwfn, p_ll2_conn);
 	if (rc)
-		return rc;
+		goto out;
 
 	if (p_hwfn->hw_info.personality != QED_PCI_ETH_ROCE)
-		qed_wr(p_hwfn, p_hwfn->p_main_ptt, PRS_REG_USE_LIGHT_L2, 1);
+		qed_wr(p_hwfn, p_ptt, PRS_REG_USE_LIGHT_L2, 1);
 
 	qed_ll2_establish_connection_ooo(p_hwfn, p_ll2_conn);
 
 	if (p_ll2_conn->conn.conn_type == QED_LL2_TYPE_FCOE) {
-		qed_llh_add_protocol_filter(p_hwfn, p_hwfn->p_main_ptt,
+		qed_llh_add_protocol_filter(p_hwfn, p_ptt,
 					    0x8906, 0,
 					    QED_LLH_FILTER_ETHERTYPE);
-		qed_llh_add_protocol_filter(p_hwfn, p_hwfn->p_main_ptt,
+		qed_llh_add_protocol_filter(p_hwfn, p_ptt,
 					    0x8914, 0,
 					    QED_LLH_FILTER_ETHERTYPE);
 	}
 
+out:
+	qed_ptt_release(p_hwfn, p_ptt);
 	return rc;
 }
 
@@ -1831,23 +1843,30 @@ int qed_ll2_terminate_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 {
 	struct qed_ll2_info *p_ll2_conn = NULL;
 	int rc = -EINVAL;
+	struct qed_ptt *p_ptt;
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EAGAIN;
 
 	p_ll2_conn = qed_ll2_handle_sanity_lock(p_hwfn, connection_handle);
-	if (!p_ll2_conn)
-		return -EINVAL;
+	if (!p_ll2_conn) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	/* Stop Tx & Rx of connection, if needed */
 	if (QED_LL2_TX_REGISTERED(p_ll2_conn)) {
 		rc = qed_sp_ll2_tx_queue_stop(p_hwfn, p_ll2_conn);
 		if (rc)
-			return rc;
+			goto out;
 		qed_ll2_txq_flush(p_hwfn, connection_handle);
 	}
 
 	if (QED_LL2_RX_REGISTERED(p_ll2_conn)) {
 		rc = qed_sp_ll2_rx_queue_stop(p_hwfn, p_ll2_conn);
 		if (rc)
-			return rc;
+			goto out;
 		qed_ll2_rxq_flush(p_hwfn, connection_handle);
 	}
 
@@ -1855,14 +1874,16 @@ int qed_ll2_terminate_connection(struct qed_hwfn *p_hwfn, u8 connection_handle)
 		qed_ooo_release_all_isles(p_hwfn, p_hwfn->p_ooo_info);
 
 	if (p_ll2_conn->conn.conn_type == QED_LL2_TYPE_FCOE) {
-		qed_llh_remove_protocol_filter(p_hwfn, p_hwfn->p_main_ptt,
+		qed_llh_remove_protocol_filter(p_hwfn, p_ptt,
 					       0x8906, 0,
 					       QED_LLH_FILTER_ETHERTYPE);
-		qed_llh_remove_protocol_filter(p_hwfn, p_hwfn->p_main_ptt,
+		qed_llh_remove_protocol_filter(p_hwfn, p_ptt,
 					       0x8914, 0,
 					       QED_LLH_FILTER_ETHERTYPE);
 	}
 
+out:
+	qed_ptt_release(p_hwfn, p_ptt);
 	return rc;
 }
 

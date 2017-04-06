@@ -165,17 +165,19 @@ int qed_hw_stop(struct qed_dev *cdev);
  *
  * @param cdev
  *
+ * @return int
  */
-void qed_hw_stop_fastpath(struct qed_dev *cdev);
+int qed_hw_stop_fastpath(struct qed_dev *cdev);
 
 /**
  * @brief qed_hw_start_fastpath -restart fastpath traffic,
  *		only if hw_stop_fastpath was called
  *
- * @param cdev
+ * @param p_hwfn
  *
+ * @return int
  */
-void qed_hw_start_fastpath(struct qed_hwfn *p_hwfn);
+int qed_hw_start_fastpath(struct qed_hwfn *p_hwfn);
 
 
 /**
