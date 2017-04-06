@@ -747,11 +747,43 @@ struct drm_connector_helper_funcs {
 	 * This callback is used by the probe helpers in e.g.
 	 * drm_helper_probe_single_connector_modes().
 	 *
+	 * To avoid races with concurrent connector state updates, the helper
+	 * libraries always call this with the &drm_mode_config.connection_mutex
+	 * held. Because of this it's safe to inspect &drm_connector->state.
+	 *
 	 * RETURNS:
 	 *
 	 * The number of modes added by calling drm_mode_probed_add().
 	 */
 	int (*get_modes)(struct drm_connector *connector);
+
+	/**
+	 * @detect_ctx:
+	 *
+	 * Check to see if anything is attached to the connector. The parameter
+	 * force is set to false whilst polling, true when checking the
+	 * connector due to a user request. force can be used by the driver to
+	 * avoid expensive, destructive operations during automated probing.
+	 *
+	 * This callback is optional, if not implemented the connector will be
+	 * considered as always being attached.
+	 *
+	 * This is the atomic version of &drm_connector_funcs.detect.
+	 *
+	 * To avoid races against concurrent connector state updates, the
+	 * helper libraries always call this with ctx set to a valid context,
+	 * and &drm_mode_config.connection_mutex will always be locked with
+	 * the ctx parameter set to this ctx. This allows taking additional
+	 * locks as required.
+	 *
+	 * RETURNS:
+	 *
+	 * &drm_connector_status indicating the connector's status,
+	 * or the error code returned by drm_modeset_lock(), -EDEADLK.
+	 */
+	int (*detect_ctx)(struct drm_connector *connector,
+			  struct drm_modeset_acquire_ctx *ctx,
+			  bool force);
 
 	/**
 	 * @mode_valid:
@@ -771,6 +803,10 @@ struct drm_connector_helper_funcs {
 	 * CRTC helpers will not call this function. Drivers therefore must
 	 * still fully validate any mode passed in in a modeset request.
 	 *
+	 * To avoid races with concurrent connector state updates, the helper
+	 * libraries always call this with the &drm_mode_config.connection_mutex
+	 * held. Because of this it's safe to inspect &drm_connector->state.
+         *
 	 * RETURNS:
 	 *
 	 * Either &drm_mode_status.MODE_OK or one of the failure reasons in &enum

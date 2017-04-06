@@ -669,15 +669,16 @@ static const struct dmi_system_id intel_spurious_crt_detect[] = {
 	{ }
 };
 
-static enum drm_connector_status
-intel_crt_detect(struct drm_connector *connector, bool force)
+static int
+intel_crt_detect(struct drm_connector *connector,
+		 struct drm_modeset_acquire_ctx *ctx,
+		 bool force)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(connector);
 	struct intel_encoder *intel_encoder = &crt->base;
-	enum drm_connector_status status;
+	int status, ret;
 	struct intel_load_detect_pipe tmp;
-	struct drm_modeset_acquire_ctx ctx;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
 		      connector->base.id, connector->name,
@@ -721,10 +722,9 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		goto out;
 	}
 
-	drm_modeset_acquire_init(&ctx, 0);
-
 	/* for pre-945g platforms use load detect */
-	if (intel_get_load_detect_pipe(connector, NULL, &tmp, &ctx)) {
+	ret = intel_get_load_detect_pipe(connector, NULL, &tmp, ctx);
+	if (ret > 0) {
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
 		else if (INTEL_GEN(dev_priv) < 4)
@@ -734,12 +734,11 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 			status = connector_status_disconnected;
 		else
 			status = connector_status_unknown;
-		intel_release_load_detect_pipe(connector, &tmp, &ctx);
-	} else
+		intel_release_load_detect_pipe(connector, &tmp, ctx);
+	} else if (ret == 0)
 		status = connector_status_unknown;
-
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
+	else if (ret < 0)
+		status = ret;
 
 out:
 	intel_display_power_put(dev_priv, intel_encoder->power_domain);
@@ -811,7 +810,6 @@ void intel_crt_reset(struct drm_encoder *encoder)
 
 static const struct drm_connector_funcs intel_crt_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
-	.detect = intel_crt_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
@@ -823,6 +821,7 @@ static const struct drm_connector_funcs intel_crt_connector_funcs = {
 };
 
 static const struct drm_connector_helper_funcs intel_crt_connector_helper_funcs = {
+	.detect_ctx = intel_crt_detect,
 	.mode_valid = intel_crt_mode_valid,
 	.get_modes = intel_crt_get_modes,
 };

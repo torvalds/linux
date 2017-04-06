@@ -243,7 +243,8 @@ static bool intel_hpd_irq_event(struct drm_device *dev,
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 	old_status = connector->status;
 
-	connector->status = connector->funcs->detect(connector, false);
+	connector->status = drm_helper_probe_detect(connector, NULL, false);
+
 	if (old_status == connector->status)
 		return false;
 
