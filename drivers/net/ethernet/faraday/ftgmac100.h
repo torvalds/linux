@@ -227,10 +227,10 @@ struct ftgmac100_txdes {
  * Receive descriptor, aligned to 16 bytes
  */
 struct ftgmac100_rxdes {
-	unsigned int	rxdes0;
-	unsigned int	rxdes1;
-	unsigned int	rxdes2;	/* not used by HW */
-	unsigned int	rxdes3;	/* RXBUF_BADR */
+	__le32	rxdes0; /* Control & status bits */
+	__le32	rxdes1;	/* Checksum and vlan status */
+	__le32	rxdes2; /* length/type on AST2500 */
+	__le32	rxdes3;	/* DMA buffer address */
 } __attribute__ ((aligned(16)));
 
 #define FTGMAC100_RXDES0_VDBC		0x3fff
@@ -247,6 +247,14 @@ struct ftgmac100_rxdes {
 #define FTGMAC100_RXDES0_LRS		(1 << 28)
 #define FTGMAC100_RXDES0_FRS		(1 << 29)
 #define FTGMAC100_RXDES0_RXPKT_RDY	(1 << 31)
+
+/* Errors we care about for dropping packets */
+#define RXDES0_ANY_ERROR		( \
+	FTGMAC100_RXDES0_RX_ERR		| \
+	FTGMAC100_RXDES0_CRC_ERR	| \
+	FTGMAC100_RXDES0_FTL		| \
+	FTGMAC100_RXDES0_RUNT		| \
+	FTGMAC100_RXDES0_RX_ODD_NB)
 
 #define FTGMAC100_RXDES1_VLANTAG_CI	0xffff
 #define FTGMAC100_RXDES1_PROT_MASK	(0x3 << 20)
