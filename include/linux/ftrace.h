@@ -286,6 +286,12 @@ int
 stack_trace_sysctl(struct ctl_table *table, int write,
 		   void __user *buffer, size_t *lenp,
 		   loff_t *ppos);
+
+void stack_tracer_disable(void);
+void stack_tracer_enable(void);
+#else
+static inline void stack_tracer_disable(void) { }
+static inline void stack_tracer_enable(void) { }
 #endif
 
 struct ftrace_func_command {

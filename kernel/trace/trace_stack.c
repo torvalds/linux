@@ -41,6 +41,38 @@ static DEFINE_MUTEX(stack_sysctl_mutex);
 int stack_tracer_enabled;
 static int last_stack_tracer_enabled;
 
+/**
+ * stack_tracer_disable - temporarily disable the stack tracer
+ *
+ * There's a few locations (namely in RCU) where stack tracing
+ * cannot be executed. This function is used to disable stack
+ * tracing during those critical sections.
+ *
+ * This function must be called with preemption or interrupts
+ * disabled and stack_tracer_enable() must be called shortly after
+ * while preemption or interrupts are still disabled.
+ */
+void stack_tracer_disable(void)
+{
+	/* Preemption or interupts must be disabled */
+	if (IS_ENABLED(CONFIG_PREEMPT_DEBUG))
+		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
+	this_cpu_inc(trace_active);
+}
+
+/**
+ * stack_tracer_enable - re-enable the stack tracer
+ *
+ * After stack_tracer_disable() is called, stack_tracer_enable()
+ * must be called shortly afterward.
+ */
+void stack_tracer_enable(void)
+{
+	if (IS_ENABLED(CONFIG_PREEMPT_DEBUG))
+		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
+	this_cpu_dec(trace_active);
+}
+
 void stack_trace_print(void)
 {
 	long i;
