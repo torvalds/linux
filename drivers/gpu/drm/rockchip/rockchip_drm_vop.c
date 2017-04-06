@@ -1465,20 +1465,23 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 
 static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
+				struct drm_display_mode *adj_mode)
 {
 	struct vop *vop = to_vop(crtc);
 	const struct vop_data *vop_data = vop->data;
-	int request_clock = mode->clock;
 
 	if (mode->hdisplay > vop_data->max_output.width ||
 	    mode->vdisplay > vop_data->max_output.height)
 		return false;
 
+	drm_mode_set_crtcinfo(adj_mode,
+			      CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
+
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
-		request_clock *= 2;
-	adjusted_mode->crtc_clock =
-		clk_round_rate(vop->dclk, request_clock * 1000) / 1000;
+		adj_mode->crtc_clock *= 2;
+
+	adj_mode->crtc_clock =
+		clk_round_rate(vop->dclk, adj_mode->crtc_clock * 1000) / 1000;
 
 	return true;
 }
