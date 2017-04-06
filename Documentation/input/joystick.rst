@@ -465,7 +465,7 @@ No more joystick types are supported now, but that should change in the
 future if I get an Amiga in the reach of my fingers.
 
 Game console and 8-bit pads and joysticks
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------------
 
 See :ref:`joystick-parport` for more info.
 
