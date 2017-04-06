@@ -526,15 +526,7 @@ int mpx_handle_bd_fault(void)
 	if (!kernel_managing_mpx_tables(current->mm))
 		return -EINVAL;
 
-	if (do_mpx_bt_fault()) {
-		force_sig(SIGSEGV, current);
-		/*
-		 * The force_sig() is essentially "handling" this
-		 * exception, so we do not pass up the error
-		 * from do_mpx_bt_fault().
-		 */
-	}
-	return 0;
+	return do_mpx_bt_fault();
 }
 
 /*
