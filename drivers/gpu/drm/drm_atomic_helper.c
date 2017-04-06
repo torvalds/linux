@@ -517,7 +517,7 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		}
 	}
 
-	ret = handle_conflicting_encoders(state, state->legacy_set_config);
+	ret = handle_conflicting_encoders(state, false);
 	if (ret)
 		return ret;
 
@@ -2289,11 +2289,14 @@ int drm_atomic_helper_set_config(struct drm_mode_set *set,
 	if (!state)
 		return -ENOMEM;
 
-	state->legacy_set_config = true;
 	state->acquire_ctx = ctx;
 	ret = __drm_atomic_helper_set_config(set, state);
 	if (ret != 0)
 		goto fail;
+
+	ret = handle_conflicting_encoders(state, true);
+	if (ret)
+		return ret;
 
 	ret = drm_atomic_commit(state);
 
