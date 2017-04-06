@@ -3669,6 +3669,37 @@ void ex_btc8723b2ant_init_hwconfig(struct btc_coexist *btcoexist)
 	btcoexist->btc_write_1byte_bitmask(btcoexist, 0x40, 0x20, 0x1);
 }
 
+void ex_btc8723b2ant_power_on_setting(struct btc_coexist *btcoexist)
+{
+	struct btc_board_info *board_info = &btcoexist->board_info;
+	u16 u16tmp = 0x0;
+	u32 value = 0;
+
+	btcoexist->btc_write_1byte(btcoexist, 0x67, 0x20);
+
+	/* enable BB, REG_SYS_FUNC_EN such that we can write 0x948 correctly */
+	u16tmp = btcoexist->btc_read_2byte(btcoexist, 0x2);
+	btcoexist->btc_write_2byte(btcoexist, 0x2, u16tmp | BIT0 | BIT1);
+
+	btcoexist->btc_write_4byte(btcoexist, 0x948, 0x0);
+
+	if (btcoexist->chip_interface == BTC_INTF_USB) {
+		/* fixed at S0 for USB interface */
+		board_info->btdm_ant_pos = BTC_ANTENNA_AT_AUX_PORT;
+	} else {
+		/* for PCIE and SDIO interface, we check efuse 0xc3[6] */
+		if (board_info->single_ant_path == 0) {
+			/* set to S1 */
+			board_info->btdm_ant_pos = BTC_ANTENNA_AT_MAIN_PORT;
+		} else if (board_info->single_ant_path == 1) {
+			/* set to S0 */
+			board_info->btdm_ant_pos = BTC_ANTENNA_AT_AUX_PORT;
+		}
+		btcoexist->btc_set(btcoexist, BTC_SET_ACT_ANTPOSREGRISTRY_CTRL,
+				   &value);
+	}
+}
+
 void ex_btc8723b2ant_init_coex_dm(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;

@@ -139,6 +139,7 @@ struct btc_board_info {
 	u8 pg_ant_num;	/* pg ant number */
 	u8 btdm_ant_num;	/* ant number for btdm */
 	u8 btdm_ant_pos;
+	u8 single_ant_path; /* current used for 8723b only, 1=>s0,  0=>s1 */
 	bool bt_exist;
 };
 
