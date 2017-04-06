@@ -317,25 +317,16 @@ static int intel_dp_common_len_rate_limit(struct intel_dp *intel_dp,
 	return 0;
 }
 
-static int intel_dp_link_rate_index(struct intel_dp *intel_dp, int link_rate)
-{
-	int common_len;
-
-	common_len = intel_dp_common_len_rate_limit(intel_dp,
-						    intel_dp->max_sink_link_rate);
-
-	return intel_dp_rate_index(intel_dp->common_rates, common_len, link_rate);
-}
-
 int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 					    int link_rate, uint8_t lane_count)
 {
-	const int *common_rates = intel_dp->common_rates;
-	int link_rate_index;
+	int index;
 
-	link_rate_index = intel_dp_link_rate_index(intel_dp, link_rate);
-	if (link_rate_index > 0) {
-		intel_dp->max_sink_link_rate = common_rates[link_rate_index - 1];
+	index = intel_dp_rate_index(intel_dp->common_rates,
+				    intel_dp->num_common_rates,
+				    link_rate);
+	if (index > 0) {
+		intel_dp->max_sink_link_rate = intel_dp->common_rates[index - 1];
 		intel_dp->max_sink_lane_count = lane_count;
 	} else if (lane_count > 1) {
 		intel_dp->max_sink_link_rate = intel_dp_max_sink_rate(intel_dp);
@@ -1685,8 +1676,9 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	/* Use values requested by Compliance Test Request */
 	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
-		link_rate_index = intel_dp_link_rate_index(intel_dp,
-							   intel_dp->compliance.test_link_rate);
+		link_rate_index = intel_dp_rate_index(intel_dp->common_rates,
+						      intel_dp->num_common_rates,
+						      intel_dp->compliance.test_link_rate);
 		if (link_rate_index >= 0)
 			min_clock = max_clock = link_rate_index;
 		min_lane_count = max_lane_count = intel_dp->compliance.test_lane_count;
@@ -3988,8 +3980,9 @@ static uint8_t intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 	}
 	/* Validate the requested link rate */
 	test_link_rate = drm_dp_bw_code_to_link_rate(test_link_bw);
-	link_rate_index = intel_dp_link_rate_index(intel_dp,
-						   test_link_rate);
+	link_rate_index = intel_dp_rate_index(intel_dp->common_rates,
+					      intel_dp->num_common_rates,
+					      test_link_rate);
 	if (link_rate_index < 0)
 		return DP_TEST_NAK;
 
