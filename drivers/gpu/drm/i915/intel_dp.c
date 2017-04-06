@@ -3661,9 +3661,9 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 		uint8_t frame_sync_cap;
 
 		dev_priv->psr.sink_support = true;
-		drm_dp_dpcd_read(&intel_dp->aux,
-				 DP_SINK_DEVICE_AUX_FRAME_SYNC_CAP,
-				 &frame_sync_cap, 1);
+		drm_dp_dpcd_readb(&intel_dp->aux,
+				  DP_SINK_DEVICE_AUX_FRAME_SYNC_CAP,
+				  &frame_sync_cap);
 		dev_priv->psr.aux_frame_sync = frame_sync_cap ? true : false;
 		/* PSR2 needs frame sync as well */
 		dev_priv->psr.psr2_support = dev_priv->psr.aux_frame_sync;
@@ -3737,8 +3737,8 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		intel_dp_set_common_rates(intel_dp);
 	}
 
-	if (drm_dp_dpcd_read(&intel_dp->aux, DP_SINK_COUNT,
-			     &intel_dp->sink_count, 1) < 0)
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_SINK_COUNT,
+			      &intel_dp->sink_count) <= 0)
 		return false;
 
 	/*
@@ -3775,7 +3775,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 static bool
 intel_dp_can_mst(struct intel_dp *intel_dp)
 {
-	u8 buf[1];
+	u8 mstm_cap;
 
 	if (!i915.enable_dp_mst)
 		return false;
@@ -3786,10 +3786,10 @@ intel_dp_can_mst(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] < 0x12)
 		return false;
 
-	if (drm_dp_dpcd_read(&intel_dp->aux, DP_MSTM_CAP, buf, 1) != 1)
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_MSTM_CAP, &mstm_cap) != 1)
 		return false;
 
-	return buf[0] & DP_MST_CAP;
+	return mstm_cap & DP_MST_CAP;
 }
 
 static void
@@ -3935,9 +3935,8 @@ stop:
 static bool
 intel_dp_get_sink_irq(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 {
-	return drm_dp_dpcd_read(&intel_dp->aux,
-				       DP_DEVICE_SERVICE_IRQ_VECTOR,
-				       sink_irq_vector, 1) == 1;
+	return drm_dp_dpcd_readb(&intel_dp->aux, DP_DEVICE_SERVICE_IRQ_VECTOR,
+				 sink_irq_vector) == 1;
 }
 
 static bool
@@ -4000,13 +3999,13 @@ static uint8_t intel_dp_autotest_link_training(struct intel_dp *intel_dp)
 static uint8_t intel_dp_autotest_video_pattern(struct intel_dp *intel_dp)
 {
 	uint8_t test_pattern;
-	uint16_t test_misc;
+	uint8_t test_misc;
 	__be16 h_width, v_height;
 	int status = 0;
 
 	/* Read the TEST_PATTERN (DP CTS 3.1.5) */
-	status = drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_PATTERN,
-				  &test_pattern, 1);
+	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_PATTERN,
+				   &test_pattern);
 	if (status <= 0) {
 		DRM_DEBUG_KMS("Test pattern read failed\n");
 		return DP_TEST_NAK;
@@ -4028,8 +4027,8 @@ static uint8_t intel_dp_autotest_video_pattern(struct intel_dp *intel_dp)
 		return DP_TEST_NAK;
 	}
 
-	status = drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_MISC0,
-				  &test_misc, 1);
+	status = drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_MISC0,
+				   &test_misc);
 	if (status <= 0) {
 		DRM_DEBUG_KMS("TEST MISC read failed\n");
 		return DP_TEST_NAK;
@@ -4088,10 +4087,8 @@ static uint8_t intel_dp_autotest_edid(struct intel_dp *intel_dp)
 		 */
 		block += intel_connector->detect_edid->extensions;
 
-		if (!drm_dp_dpcd_write(&intel_dp->aux,
-					DP_TEST_EDID_CHECKSUM,
-					&block->checksum,
-					1))
+		if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_EDID_CHECKSUM,
+				       block->checksum) <= 0)
 			DRM_DEBUG_KMS("Failed to write EDID checksum\n");
 
 		test_result = DP_TEST_ACK | DP_TEST_EDID_CHECKSUM_WRITE;
