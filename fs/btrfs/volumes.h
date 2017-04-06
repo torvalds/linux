@@ -123,7 +123,6 @@ struct btrfs_device {
 	struct list_head resized_list;
 
 	/* for sending down flush barriers */
-	int nobarriers;
 	struct bio *flush_bio;
 	struct completion flush_wait;
 

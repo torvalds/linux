@@ -3521,9 +3521,6 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 	struct bio *bio;
 	int ret = 0;
 
-	if (device->nobarriers)
-		return 0;
-
 	if (wait) {
 		bio = device->flush_bio;
 		if (!bio)
