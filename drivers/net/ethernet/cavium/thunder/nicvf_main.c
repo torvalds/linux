@@ -1665,8 +1665,9 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_unregister_interrupts;
 
-	netdev->hw_features = (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_SG |
-			       NETIF_F_TSO | NETIF_F_GRO |
+	netdev->hw_features = (NETIF_F_RXCSUM | NETIF_F_SG |
+			       NETIF_F_TSO | NETIF_F_GRO | NETIF_F_TSO6 |
+			       NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			       NETIF_F_HW_VLAN_CTAG_RX);
 
 	netdev->hw_features |= NETIF_F_RXHASH;
@@ -1674,7 +1675,8 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->features |= netdev->hw_features;
 	netdev->hw_features |= NETIF_F_LOOPBACK;
 
-	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
+	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+				NETIF_F_IPV6_CSUM | NETIF_F_TSO | NETIF_F_TSO6;
 
 	netdev->netdev_ops = &nicvf_netdev_ops;
 	netdev->watchdog_timeo = NICVF_TX_TIMEOUT;

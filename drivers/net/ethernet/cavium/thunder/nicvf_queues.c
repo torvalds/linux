@@ -1094,7 +1094,13 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 {
 	int proto;
 	struct sq_hdr_subdesc *hdr;
+	union {
+		struct iphdr *v4;
+		struct ipv6hdr *v6;
+		unsigned char *hdr;
+	} ip;
 
+	ip.hdr = skb_network_header(skb);
 	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, qentry);
 	memset(hdr, 0, SND_QUEUE_DESC_SIZE);
 	hdr->subdesc_type = SQ_DESC_TYPE_HEADER;
@@ -1119,7 +1125,9 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		hdr->l3_offset = skb_network_offset(skb);
 		hdr->l4_offset = skb_transport_offset(skb);
 
-		proto = ip_hdr(skb)->protocol;
+		proto = (ip.v4->version == 4) ? ip.v4->protocol :
+			ip.v6->nexthdr;
+
 		switch (proto) {
 		case IPPROTO_TCP:
 			hdr->csum_l4 = SEND_L4_CSUM_TCP;
