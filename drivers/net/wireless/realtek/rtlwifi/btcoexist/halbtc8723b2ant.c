@@ -3140,7 +3140,6 @@ static void btc8723b2ant_action_pan_edr_a2dp(struct btc_coexist *btcoexist)
 
 	btcoexist->btc_set_rf_reg(btcoexist, BTC_RF_A, 0x1, 0xfffff, 0x0);
 
-	btc8723b2ant_limited_rx(btcoexist, NORMAL_EXEC, false, false, 0x8);
 	btc8723b2ant_fw_dac_swing_lvl(btcoexist, NORMAL_EXEC, 6);
 
 	if (BTC_RSSI_HIGH(bt_rssi_state))
@@ -3167,7 +3166,7 @@ static void btc8723b2ant_action_pan_edr_a2dp(struct btc_coexist *btcoexist)
 							  false, 3);
 	} else {
 		btc8723b2ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 7);
-		btc8723b2ant_tdma_duration_adjust(btcoexist, false, true, 3);
+		btc8723b2ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 3);
 	}
 
 	/* sw mechanism	*/
