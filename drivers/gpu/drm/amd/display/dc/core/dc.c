@@ -906,13 +906,13 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	resource_validate_ctx_copy_construct(core_dc->current_context, context);
 
 	post_surface_trace(dc);
-
 	for (i = 0; i < context->res_ctx.pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].stream == NULL) {
 			context->res_ctx.pipe_ctx[i].pipe_idx = i;
 			core_dc->hwss.power_down_front_end(
 					core_dc, &context->res_ctx.pipe_ctx[i]);
 		}
+
 	if (!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
 		BREAK_TO_DEBUGGER();
 		return false;
@@ -920,11 +920,10 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 	core_dc->hwss.set_bandwidth(core_dc, context, true);
 
-	resource_validate_ctx_destruct(core_dc->current_context);
-	if (core_dc->current_context)
-		dm_free(core_dc->current_context);
+	resource_validate_ctx_copy_construct(context, core_dc->current_context);
 
-	core_dc->current_context = context;
+	resource_validate_ctx_destruct(context);
+	dm_free(context);
 
 	return true;
 }
