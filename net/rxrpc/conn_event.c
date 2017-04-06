@@ -168,7 +168,7 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
  * generate a connection-level abort
  */
 static int rxrpc_abort_connection(struct rxrpc_connection *conn,
-				  u32 error, u32 abort_code)
+				  int error, u32 abort_code)
 {
 	struct rxrpc_wire_header whdr;
 	struct msghdr msg;
@@ -288,7 +288,7 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 
 		conn->state = RXRPC_CONN_REMOTELY_ABORTED;
 		rxrpc_abort_calls(conn, RXRPC_CALL_REMOTELY_ABORTED,
-				  abort_code, ECONNABORTED);
+				  abort_code, -ECONNABORTED);
 		return -ECONNABORTED;
 
 	case RXRPC_PACKET_TYPE_CHALLENGE:
@@ -370,7 +370,7 @@ static void rxrpc_secure_connection(struct rxrpc_connection *conn)
 
 abort:
 	_debug("abort %d, %d", ret, abort_code);
-	rxrpc_abort_connection(conn, -ret, abort_code);
+	rxrpc_abort_connection(conn, ret, abort_code);
 	_leave(" [aborted]");
 }
 
@@ -419,7 +419,7 @@ requeue_and_leave:
 	goto out;
 
 protocol_error:
-	if (rxrpc_abort_connection(conn, -ret, abort_code) < 0)
+	if (rxrpc_abort_connection(conn, ret, abort_code) < 0)
 		goto requeue_and_leave;
 	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 	_leave(" [EPROTO]");

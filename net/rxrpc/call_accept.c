@@ -413,11 +413,11 @@ found_service:
 
 	case RXRPC_CONN_REMOTELY_ABORTED:
 		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
-					  conn->remote_abort, ECONNABORTED);
+					  conn->remote_abort, -ECONNABORTED);
 		break;
 	case RXRPC_CONN_LOCALLY_ABORTED:
 		rxrpc_abort_call("CON", call, sp->hdr.seq,
-				 conn->local_abort, ECONNABORTED);
+				 conn->local_abort, -ECONNABORTED);
 		break;
 	default:
 		BUG();
@@ -600,7 +600,7 @@ int rxrpc_reject_call(struct rxrpc_sock *rx)
 	write_lock_bh(&call->state_lock);
 	switch (call->state) {
 	case RXRPC_CALL_SERVER_ACCEPTING:
-		__rxrpc_abort_call("REJ", call, 1, RX_USER_ABORT, ECONNABORTED);
+		__rxrpc_abort_call("REJ", call, 1, RX_USER_ABORT, -ECONNABORTED);
 		abort = true;
 		/* fall through */
 	case RXRPC_CALL_COMPLETE:

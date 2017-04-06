@@ -83,11 +83,11 @@ static int rxrpc_recvmsg_term(struct rxrpc_call *call, struct msghdr *msg)
 		ret = put_cmsg(msg, SOL_RXRPC, RXRPC_ABORT, 4, &tmp);
 		break;
 	case RXRPC_CALL_NETWORK_ERROR:
-		tmp = call->error;
+		tmp = -call->error;
 		ret = put_cmsg(msg, SOL_RXRPC, RXRPC_NET_ERROR, 4, &tmp);
 		break;
 	case RXRPC_CALL_LOCAL_ERROR:
-		tmp = call->error;
+		tmp = -call->error;
 		ret = put_cmsg(msg, SOL_RXRPC, RXRPC_LOCAL_ERROR, 4, &tmp);
 		break;
 	default:
@@ -689,7 +689,7 @@ excess_data:
 	goto out;
 call_complete:
 	*_abort = call->abort_code;
-	ret = -call->error;
+	ret = call->error;
 	if (call->completion == RXRPC_CALL_SUCCEEDED) {
 		ret = 1;
 		if (size > 0)

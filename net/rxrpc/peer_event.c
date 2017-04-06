@@ -296,7 +296,7 @@ void rxrpc_peer_error_distributor(struct work_struct *work)
 		hlist_del_init(&call->error_link);
 		rxrpc_see_call(call);
 
-		if (rxrpc_set_call_completion(call, compl, 0, error))
+		if (rxrpc_set_call_completion(call, compl, 0, -error))
 			rxrpc_notify_socket(call);
 	}
 

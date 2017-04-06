@@ -330,7 +330,7 @@ static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
 	_enter("");
 
 	if (len < 8) {
-		rxrpc_abort_call("V1H", call, seq, RXKADSEALEDINCON, EPROTO);
+		rxrpc_abort_call("V1H", call, seq, RXKADSEALEDINCON, -EPROTO);
 		goto protocol_error;
 	}
 
@@ -355,7 +355,7 @@ static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
 
 	/* Extract the decrypted packet length */
 	if (skb_copy_bits(skb, offset, &sechdr, sizeof(sechdr)) < 0) {
-		rxrpc_abort_call("XV1", call, seq, RXKADDATALEN, EPROTO);
+		rxrpc_abort_call("XV1", call, seq, RXKADDATALEN, -EPROTO);
 		goto protocol_error;
 	}
 	offset += sizeof(sechdr);
@@ -368,12 +368,12 @@ static int rxkad_verify_packet_1(struct rxrpc_call *call, struct sk_buff *skb,
 	check ^= seq ^ call->call_id;
 	check &= 0xffff;
 	if (check != 0) {
-		rxrpc_abort_call("V1C", call, seq, RXKADSEALEDINCON, EPROTO);
+		rxrpc_abort_call("V1C", call, seq, RXKADSEALEDINCON, -EPROTO);
 		goto protocol_error;
 	}
 
 	if (data_size > len) {
-		rxrpc_abort_call("V1L", call, seq, RXKADDATALEN, EPROTO);
+		rxrpc_abort_call("V1L", call, seq, RXKADDATALEN, -EPROTO);
 		goto protocol_error;
 	}
 
@@ -410,7 +410,7 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 	_enter(",{%d}", skb->len);
 
 	if (len < 8) {
-		rxrpc_abort_call("V2H", call, seq, RXKADSEALEDINCON, EPROTO);
+		rxrpc_abort_call("V2H", call, seq, RXKADSEALEDINCON, -EPROTO);
 		goto protocol_error;
 	}
 
@@ -445,7 +445,7 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 
 	/* Extract the decrypted packet length */
 	if (skb_copy_bits(skb, offset, &sechdr, sizeof(sechdr)) < 0) {
-		rxrpc_abort_call("XV2", call, seq, RXKADDATALEN, EPROTO);
+		rxrpc_abort_call("XV2", call, seq, RXKADDATALEN, -EPROTO);
 		goto protocol_error;
 	}
 	offset += sizeof(sechdr);
@@ -458,12 +458,12 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 	check ^= seq ^ call->call_id;
 	check &= 0xffff;
 	if (check != 0) {
-		rxrpc_abort_call("V2C", call, seq, RXKADSEALEDINCON, EPROTO);
+		rxrpc_abort_call("V2C", call, seq, RXKADSEALEDINCON, -EPROTO);
 		goto protocol_error;
 	}
 
 	if (data_size > len) {
-		rxrpc_abort_call("V2L", call, seq, RXKADDATALEN, EPROTO);
+		rxrpc_abort_call("V2L", call, seq, RXKADDATALEN, -EPROTO);
 		goto protocol_error;
 	}
 
@@ -522,7 +522,7 @@ static int rxkad_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		cksum = 1; /* zero checksums are not permitted */
 
 	if (cksum != expected_cksum) {
-		rxrpc_abort_call("VCK", call, seq, RXKADSEALEDINCON, EPROTO);
+		rxrpc_abort_call("VCK", call, seq, RXKADSEALEDINCON, -EPROTO);
 		rxrpc_send_abort_packet(call);
 		_leave(" = -EPROTO [csum failed]");
 		return -EPROTO;

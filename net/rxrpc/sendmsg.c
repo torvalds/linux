@@ -556,7 +556,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		ret = -ESHUTDOWN;
 	} else if (cmd == RXRPC_CMD_SEND_ABORT) {
 		ret = 0;
-		if (rxrpc_abort_call("CMD", call, 0, abort_code, ECONNABORTED))
+		if (rxrpc_abort_call("CMD", call, 0, abort_code, -ECONNABORTED))
 			ret = rxrpc_send_abort_packet(call);
 	} else if (cmd != RXRPC_CMD_SEND_DATA) {
 		ret = -EINVAL;
