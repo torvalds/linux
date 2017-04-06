@@ -613,7 +613,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	rcu_read_unlock();
 
 	if (unlikely(len > (unsigned long)ctx)) {
-		pr_debug("%s: rx error: len %u exceeds truesize 0x%lu\n",
+		pr_debug("%s: rx error: len %u exceeds truesize %lu\n",
 			 dev->name, len, (unsigned long)ctx);
 		dev->stats.rx_length_errors++;
 		goto err_skb;
@@ -639,7 +639,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 
 		page = virt_to_head_page(buf);
 		if (unlikely(len > (unsigned long)ctx)) {
-			pr_debug("%s: rx error: len %u exceeds truesize 0x%lu\n",
+			pr_debug("%s: rx error: len %u exceeds truesize %lu\n",
 				 dev->name, len, (unsigned long)ctx);
 			dev->stats.rx_length_errors++;
 			goto err_skb;
