@@ -1304,6 +1304,7 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 			frame.colorimetry = HDMI_COLORIMETRY_ITU_601;
 		frame.extended_colorimetry =
 				HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+		break;
 	case V4L2_YCBCR_ENC_709:
 		if (hdmi->hdmi_data.enc_in_encoding == V4L2_YCBCR_ENC_XV709)
 			frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
