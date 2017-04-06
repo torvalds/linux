@@ -22,7 +22,7 @@
 #include <linux/vmalloc.h>
 #include <linux/bug.h>
 #include <asm/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/firmware.h>
 #include <linux/sort.h>
 #include <asm/setup.h>

@@ -11,7 +11,9 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
-#include <linux/module.h>
+#include <linux/sched/hotplug.h>
+#include <linux/init.h>
+#include <linux/export.h>
 
 #include <asm/mmu_context.h>
 #include <asm/time.h>
@@ -24,11 +26,16 @@
 volatile unsigned long octeon_processor_boot = 0xff;
 volatile unsigned long octeon_processor_sp;
 volatile unsigned long octeon_processor_gp;
+#ifdef CONFIG_RELOCATABLE
+volatile unsigned long octeon_processor_relocated_kernel_entry;
+#endif /* CONFIG_RELOCATABLE */
 
 #ifdef CONFIG_HOTPLUG_CPU
 uint64_t octeon_bootloader_entry_addr;
 EXPORT_SYMBOL(octeon_bootloader_entry_addr);
 #endif
+
+extern void kernel_entry(unsigned long arg1, ...);
 
 static void octeon_icache_flush(void)
 {
@@ -180,6 +187,19 @@ static void __init octeon_smp_setup(void)
 	octeon_smp_hotplug_setup();
 }
 
+
+#ifdef CONFIG_RELOCATABLE
+int plat_post_relocation(long offset)
+{
+	unsigned long entry = (unsigned long)kernel_entry;
+
+	/* Send secondaries into relocated kernel */
+	octeon_processor_relocated_kernel_entry = entry + offset;
+
+	return 0;
+}
+#endif /* CONFIG_RELOCATABLE */
+
 /**
  * Firmware CPU startup hook
  *
@@ -272,7 +292,6 @@ static int octeon_cpu_disable(void)
 
 	set_cpu_online(cpu, false);
 	calculate_cpu_foreign_map();
-	cpumask_clear_cpu(cpu, &cpu_callin_map);
 	octeon_fixup_irqs();
 
 	__flush_cache_all();
@@ -332,8 +351,6 @@ void play_dead(void)
 	while (1)	/* core will be reset here */
 		;
 }
-
-extern void kernel_entry(unsigned long arg1, ...);
 
 static void start_after_reset(void)
 {

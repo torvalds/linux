@@ -1,7 +1,7 @@
 /*
  * RTL8XXXU mac80211 USB driver - 8192e specific subdriver
  *
- * Copyright (c) 2014 - 2016 Jes Sorensen <Jes.Sorensen@redhat.com>
+ * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
  * Portions, notably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
@@ -1556,7 +1556,7 @@ exit:
 	return ret;
 }
 
-void rtl8192eu_power_off(struct rtl8xxxu_priv *priv)
+static void rtl8192eu_power_off(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
 	u16 val16;

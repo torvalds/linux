@@ -237,15 +237,21 @@ static DEVICE_ATTR(fastsleep_workaround_applyonce, 0600,
 			show_fastsleep_workaround_applyonce,
 			store_fastsleep_workaround_applyonce);
 
+/*
+ * The default stop state that will be used by ppc_md.power_save
+ * function on platforms that support stop instruction.
+ */
+u64 pnv_default_stop_val;
+u64 pnv_default_stop_mask;
 
 /*
  * Used for ppc_md.power_save which needs a function with no parameters
  */
 static void power9_idle(void)
 {
-	/* Requesting stop state 0 */
-	power9_idle_stop(0);
+	power9_idle_stop(pnv_default_stop_val, pnv_default_stop_mask);
 }
+
 /*
  * First deep stop state. Used to figure out when to save/restore
  * hypervisor context.
@@ -253,9 +259,11 @@ static void power9_idle(void)
 u64 pnv_first_deep_stop_state = MAX_STOP_STATE;
 
 /*
- * Deepest stop idle state. Used when a cpu is offlined
+ * psscr value and mask of the deepest stop idle state.
+ * Used when a cpu is offlined.
  */
-u64 pnv_deepest_stop_state;
+u64 pnv_deepest_stop_psscr_val;
+u64 pnv_deepest_stop_psscr_mask;
 
 /*
  * Power ISA 3.0 idle initialization.
@@ -292,53 +300,157 @@ u64 pnv_deepest_stop_state;
  *	Bits 60:63 - Requested Level
  *	Used to specify which power-saving level must be entered on executing
  *	stop instruction
+ */
+
+int validate_psscr_val_mask(u64 *psscr_val, u64 *psscr_mask, u32 flags)
+{
+	int err = 0;
+
+	/*
+	 * psscr_mask == 0xf indicates an older firmware.
+	 * Set remaining fields of psscr to the default values.
+	 * See NOTE above definition of PSSCR_HV_DEFAULT_VAL
+	 */
+	if (*psscr_mask == 0xf) {
+		*psscr_val = *psscr_val | PSSCR_HV_DEFAULT_VAL;
+		*psscr_mask = PSSCR_HV_DEFAULT_MASK;
+		return err;
+	}
+
+	/*
+	 * New firmware is expected to set the psscr_val bits correctly.
+	 * Validate that the following invariants are correctly maintained by
+	 * the new firmware.
+	 * - ESL bit value matches the EC bit value.
+	 * - ESL bit is set for all the deep stop states.
+	 */
+	if (GET_PSSCR_ESL(*psscr_val) != GET_PSSCR_EC(*psscr_val)) {
+		err = ERR_EC_ESL_MISMATCH;
+	} else if ((flags & OPAL_PM_LOSE_FULL_CONTEXT) &&
+		GET_PSSCR_ESL(*psscr_val) == 0) {
+		err = ERR_DEEP_STATE_ESL_MISMATCH;
+	}
+
+	return err;
+}
+
+/*
+ * pnv_arch300_idle_init: Initializes the default idle state, first
+ *                        deep idle state and deepest idle state on
+ *                        ISA 3.0 CPUs.
  *
  * @np: /ibm,opal/power-mgt device node
  * @flags: cpu-idle-state-flags array
  * @dt_idle_states: Number of idle state entries
  * Returns 0 on success
  */
-static int __init pnv_arch300_idle_init(struct device_node *np, u32 *flags,
+static int __init pnv_power9_idle_init(struct device_node *np, u32 *flags,
 					int dt_idle_states)
 {
 	u64 *psscr_val = NULL;
+	u64 *psscr_mask = NULL;
+	u32 *residency_ns = NULL;
+	u64 max_residency_ns = 0;
 	int rc = 0, i;
+	bool default_stop_found = false, deepest_stop_found = false;
 
-	psscr_val = kcalloc(dt_idle_states, sizeof(*psscr_val),
-				GFP_KERNEL);
-	if (!psscr_val) {
+	psscr_val = kcalloc(dt_idle_states, sizeof(*psscr_val), GFP_KERNEL);
+	psscr_mask = kcalloc(dt_idle_states, sizeof(*psscr_mask), GFP_KERNEL);
+	residency_ns = kcalloc(dt_idle_states, sizeof(*residency_ns),
+			       GFP_KERNEL);
+
+	if (!psscr_val || !psscr_mask || !residency_ns) {
 		rc = -1;
 		goto out;
 	}
+
 	if (of_property_read_u64_array(np,
 		"ibm,cpu-idle-state-psscr",
 		psscr_val, dt_idle_states)) {
-		pr_warn("cpuidle-powernv: missing ibm,cpu-idle-states-psscr in DT\n");
+		pr_warn("cpuidle-powernv: missing ibm,cpu-idle-state-psscr in DT\n");
+		rc = -1;
+		goto out;
+	}
+
+	if (of_property_read_u64_array(np,
+				       "ibm,cpu-idle-state-psscr-mask",
+				       psscr_mask, dt_idle_states)) {
+		pr_warn("cpuidle-powernv: missing ibm,cpu-idle-state-psscr-mask in DT\n");
+		rc = -1;
+		goto out;
+	}
+
+	if (of_property_read_u32_array(np,
+				       "ibm,cpu-idle-state-residency-ns",
+					residency_ns, dt_idle_states)) {
+		pr_warn("cpuidle-powernv: missing ibm,cpu-idle-state-residency-ns in DT\n");
 		rc = -1;
 		goto out;
 	}
 
 	/*
-	 * Set pnv_first_deep_stop_state and pnv_deepest_stop_state.
+	 * Set pnv_first_deep_stop_state, pnv_deepest_stop_psscr_{val,mask},
+	 * and the pnv_default_stop_{val,mask}.
+	 *
 	 * pnv_first_deep_stop_state should be set to the first stop
 	 * level to cause hypervisor state loss.
-	 * pnv_deepest_stop_state should be set to the deepest stop
-	 * stop state.
+	 *
+	 * pnv_deepest_stop_{val,mask} should be set to values corresponding to
+	 * the deepest stop state.
+	 *
+	 * pnv_default_stop_{val,mask} should be set to values corresponding to
+	 * the shallowest (OPAL_PM_STOP_INST_FAST) loss-less stop state.
 	 */
 	pnv_first_deep_stop_state = MAX_STOP_STATE;
 	for (i = 0; i < dt_idle_states; i++) {
+		int err;
 		u64 psscr_rl = psscr_val[i] & PSSCR_RL_MASK;
 
 		if ((flags[i] & OPAL_PM_LOSE_FULL_CONTEXT) &&
 		     (pnv_first_deep_stop_state > psscr_rl))
 			pnv_first_deep_stop_state = psscr_rl;
 
-		if (pnv_deepest_stop_state < psscr_rl)
-			pnv_deepest_stop_state = psscr_rl;
+		err = validate_psscr_val_mask(&psscr_val[i], &psscr_mask[i],
+					      flags[i]);
+		if (err) {
+			report_invalid_psscr_val(psscr_val[i], err);
+			continue;
+		}
+
+		if (max_residency_ns < residency_ns[i]) {
+			max_residency_ns = residency_ns[i];
+			pnv_deepest_stop_psscr_val = psscr_val[i];
+			pnv_deepest_stop_psscr_mask = psscr_mask[i];
+			deepest_stop_found = true;
+		}
+
+		if (!default_stop_found &&
+		    (flags[i] & OPAL_PM_STOP_INST_FAST)) {
+			pnv_default_stop_val = psscr_val[i];
+			pnv_default_stop_mask = psscr_mask[i];
+			default_stop_found = true;
+		}
+	}
+
+	if (!default_stop_found) {
+		pnv_default_stop_val = PSSCR_HV_DEFAULT_VAL;
+		pnv_default_stop_mask = PSSCR_HV_DEFAULT_MASK;
+		pr_warn("Setting default stop psscr val=0x%016llx,mask=0x%016llx\n",
+			pnv_default_stop_val, pnv_default_stop_mask);
+	}
+
+	if (!deepest_stop_found) {
+		pnv_deepest_stop_psscr_val = PSSCR_HV_DEFAULT_VAL;
+		pnv_deepest_stop_psscr_mask = PSSCR_HV_DEFAULT_MASK;
+		pr_warn("Setting default stop psscr val=0x%016llx,mask=0x%016llx\n",
+			pnv_deepest_stop_psscr_val,
+			pnv_deepest_stop_psscr_mask);
 	}
 
 out:
 	kfree(psscr_val);
+	kfree(psscr_mask);
+	kfree(residency_ns);
 	return rc;
 }
 
@@ -373,7 +485,7 @@ static void __init pnv_probe_idle_states(void)
 	}
 
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
-		if (pnv_arch300_idle_init(np, flags, dt_idle_states))
+		if (pnv_power9_idle_init(np, flags, dt_idle_states))
 			goto out;
 	}
 

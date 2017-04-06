@@ -231,7 +231,7 @@ static void gfs2_end_log_write(struct bio *bio)
  * gfs2_log_flush_bio - Submit any pending log bio
  * @sdp: The superblock
  * @op: REQ_OP
- * @op_flags: rq_flag_bits
+ * @op_flags: req_flag_bits
  *
  * Submit any pending part-built or full bio to the block device. If
  * there is no pending bio, then this is a no-op.

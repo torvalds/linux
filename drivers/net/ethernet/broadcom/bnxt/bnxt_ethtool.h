@@ -10,6 +10,29 @@
 #ifndef BNXT_ETHTOOL_H
 #define BNXT_ETHTOOL_H
 
+struct bnxt_led_cfg {
+	u8 led_id;
+	u8 led_state;
+	u8 led_color;
+	u8 unused;
+	__le16 led_blink_on;
+	__le16 led_blink_off;
+	u8 led_group_id;
+	u8 rsvd;
+};
+
+#define BNXT_LED_DFLT_ENA				\
+	(PORT_LED_CFG_REQ_ENABLES_LED0_ID |		\
+	 PORT_LED_CFG_REQ_ENABLES_LED0_STATE |		\
+	 PORT_LED_CFG_REQ_ENABLES_LED0_BLINK_ON |	\
+	 PORT_LED_CFG_REQ_ENABLES_LED0_BLINK_OFF |	\
+	 PORT_LED_CFG_REQ_ENABLES_LED0_GROUP_ID)
+
+#define BNXT_LED_DFLT_ENA_SHIFT	6
+
+#define BNXT_LED_DFLT_ENABLES(x)			\
+	cpu_to_le32(BNXT_LED_DFLT_ENA << (BNXT_LED_DFLT_ENA_SHIFT * (x)))
+
 extern const struct ethtool_ops bnxt_ethtool_ops;
 
 u32 _bnxt_fw_to_ethtool_adv_spds(u16, u8);

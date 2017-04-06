@@ -1,9 +1,9 @@
 #ifndef _ASM_METAG_DMA_MAPPING_H
 #define _ASM_METAG_DMA_MAPPING_H
 
-extern struct dma_map_ops metag_dma_ops;
+extern const struct dma_map_ops metag_dma_ops;
 
-static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
 	return &metag_dma_ops;
 }

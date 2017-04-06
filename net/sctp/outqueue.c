@@ -507,8 +507,6 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 				transport->rto_pending = 0;
 			}
 
-			chunk->resent = 1;
-
 			/* Move the chunk to the retransmit queue. The chunks
 			 * on the retransmit queue are always kept in order.
 			 */
@@ -917,22 +915,28 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 		case SCTP_CID_ECN_ECNE:
 		case SCTP_CID_ASCONF:
 		case SCTP_CID_FWD_TSN:
+		case SCTP_CID_RECONF:
 			status = sctp_packet_transmit_chunk(packet, chunk,
 							    one_packet, gfp);
 			if (status  != SCTP_XMIT_OK) {
 				/* put the chunk back */
 				list_add(&chunk->list, &q->control_chunk_list);
-			} else {
-				asoc->stats.octrlchunks++;
-				/* PR-SCTP C5) If a FORWARD TSN is sent, the
-				 * sender MUST assure that at least one T3-rtx
-				 * timer is running.
-				 */
-				if (chunk->chunk_hdr->type == SCTP_CID_FWD_TSN) {
-					sctp_transport_reset_t3_rtx(transport);
-					transport->last_time_sent = jiffies;
-				}
+				break;
 			}
+
+			asoc->stats.octrlchunks++;
+			/* PR-SCTP C5) If a FORWARD TSN is sent, the
+			 * sender MUST assure that at least one T3-rtx
+			 * timer is running.
+			 */
+			if (chunk->chunk_hdr->type == SCTP_CID_FWD_TSN) {
+				sctp_transport_reset_t3_rtx(transport);
+				transport->last_time_sent = jiffies;
+			}
+
+			if (chunk == asoc->strreset_chunk)
+				sctp_transport_reset_reconf_timer(transport);
+
 			break;
 
 		default:
@@ -1018,6 +1022,8 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 
 		/* Finally, transmit new packets.  */
 		while ((chunk = sctp_outq_dequeue_data(q)) != NULL) {
+			__u32 sid = ntohs(chunk->subh.data_hdr->stream);
+
 			/* RFC 2960 6.5 Every DATA chunk MUST carry a valid
 			 * stream identifier.
 			 */
@@ -1040,6 +1046,11 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 				continue;
 			}
 
+			if (asoc->stream->out[sid].state == SCTP_STREAM_CLOSED) {
+				sctp_outq_head_data(q, chunk);
+				goto sctp_flush_out;
+			}
+
 			/* If there is a specified transport, use it.
 			 * Otherwise, we want to use the active path.
 			 */
@@ -1050,7 +1061,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 			     (new_transport->state == SCTP_PF)))
 				new_transport = asoc->peer.active_path;
 			if (new_transport->state == SCTP_UNCONFIRMED) {
-				WARN_ONCE(1, "Atempt to send packet on unconfirmed path.");
+				WARN_ONCE(1, "Attempt to send packet on unconfirmed path.");
 				sctp_chunk_fail(chunk, 0);
 				sctp_chunk_free(chunk);
 				continue;
@@ -1439,7 +1450,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				 * instance).
 				 */
 				if (!tchunk->tsn_gap_acked &&
-				    !tchunk->resent &&
+				    !sctp_chunk_retransmitted(tchunk) &&
 				    tchunk->rtt_in_progress) {
 					tchunk->rtt_in_progress = 0;
 					rtt = jiffies - tchunk->sent_at;
@@ -1643,7 +1654,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 
 		if (forward_progress) {
 			if (transport->dst)
-				dst_confirm(transport->dst);
+				sctp_transport_dst_confirm(transport);
 		}
 	}
 

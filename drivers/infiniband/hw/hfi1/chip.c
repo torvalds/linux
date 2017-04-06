@@ -7827,7 +7827,8 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		}
 
 		/* just report this */
-		dd_dev_info(dd, "DCC Error: fmconfig error: %s\n", extra);
+		dd_dev_info_ratelimited(dd, "DCC Error: fmconfig error: %s\n",
+					extra);
 		reg &= ~DCC_ERR_FLG_FMCONFIG_ERR_SMASK;
 	}
 
@@ -7878,34 +7879,35 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		}
 
 		/* just report this */
-		dd_dev_info(dd, "DCC Error: PortRcv error: %s\n", extra);
-		dd_dev_info(dd, "           hdr0 0x%llx, hdr1 0x%llx\n",
-			    hdr0, hdr1);
+		dd_dev_info_ratelimited(dd, "DCC Error: PortRcv error: %s\n"
+					"               hdr0 0x%llx, hdr1 0x%llx\n",
+					extra, hdr0, hdr1);
 
 		reg &= ~DCC_ERR_FLG_RCVPORT_ERR_SMASK;
 	}
 
 	if (reg & DCC_ERR_FLG_EN_CSR_ACCESS_BLOCKED_UC_SMASK) {
 		/* informative only */
-		dd_dev_info(dd, "8051 access to LCB blocked\n");
+		dd_dev_info_ratelimited(dd, "8051 access to LCB blocked\n");
 		reg &= ~DCC_ERR_FLG_EN_CSR_ACCESS_BLOCKED_UC_SMASK;
 	}
 	if (reg & DCC_ERR_FLG_EN_CSR_ACCESS_BLOCKED_HOST_SMASK) {
 		/* informative only */
-		dd_dev_info(dd, "host access to LCB blocked\n");
+		dd_dev_info_ratelimited(dd, "host access to LCB blocked\n");
 		reg &= ~DCC_ERR_FLG_EN_CSR_ACCESS_BLOCKED_HOST_SMASK;
 	}
 
 	/* report any remaining errors */
 	if (reg)
-		dd_dev_info(dd, "DCC Error: %s\n",
-			    dcc_err_string(buf, sizeof(buf), reg));
+		dd_dev_info_ratelimited(dd, "DCC Error: %s\n",
+					dcc_err_string(buf, sizeof(buf), reg));
 
 	if (lcl_reason == 0)
 		lcl_reason = OPA_LINKDOWN_REASON_UNKNOWN;
 
 	if (do_bounce) {
-		dd_dev_info(dd, "%s: PortErrorAction bounce\n", __func__);
+		dd_dev_info_ratelimited(dd, "%s: PortErrorAction bounce\n",
+					__func__);
 		set_link_down_reason(ppd, lcl_reason, 0, lcl_reason);
 		queue_work(ppd->hfi1_wq, &ppd->link_bounce_work);
 	}
@@ -8477,7 +8479,10 @@ static int do_8051_command(
 	 */
 	if (type == HCMD_WRITE_LCB_CSR) {
 		in_data |= ((*out_data) & 0xffffffffffull) << 8;
-		reg = ((((*out_data) >> 40) & 0xff) <<
+		/* must preserve COMPLETED - it is tied to hardware */
+		reg = read_csr(dd, DC_DC8051_CFG_EXT_DEV_0);
+		reg &= DC_DC8051_CFG_EXT_DEV_0_COMPLETED_SMASK;
+		reg |= ((((*out_data) >> 40) & 0xff) <<
 				DC_DC8051_CFG_EXT_DEV_0_RETURN_CODE_SHIFT)
 		      | ((((*out_data) >> 48) & 0xffff) <<
 				DC_DC8051_CFG_EXT_DEV_0_RSP_DATA_SHIFT);
@@ -9556,11 +9561,11 @@ int bringup_serdes(struct hfi1_pportdata *ppd)
 	if (HFI1_CAP_IS_KSET(EXTENDED_PSN))
 		add_rcvctrl(dd, RCV_CTRL_RCV_EXTENDED_PSN_ENABLE_SMASK);
 
-	guid = ppd->guid;
+	guid = ppd->guids[HFI1_PORT_GUID_INDEX];
 	if (!guid) {
 		if (dd->base_guid)
 			guid = dd->base_guid + ppd->port - 1;
-		ppd->guid = guid;
+		ppd->guids[HFI1_PORT_GUID_INDEX] = guid;
 	}
 
 	/* Set linkinit_reason on power up per OPA spec */
@@ -10505,16 +10510,18 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			ppd->remote_link_down_reason = 0;
 		}
 
-		ret1 = set_physical_link_state(dd, PLS_DISABLED);
-		if (ret1 != HCMD_SUCCESS) {
-			dd_dev_err(dd,
-				   "Failed to transition to Disabled link state, return 0x%x\n",
-				   ret1);
-			ret = -EINVAL;
-			break;
+		if (!dd->dc_shutdown) {
+			ret1 = set_physical_link_state(dd, PLS_DISABLED);
+			if (ret1 != HCMD_SUCCESS) {
+				dd_dev_err(dd,
+					   "Failed to transition to Disabled link state, return 0x%x\n",
+					   ret1);
+				ret = -EINVAL;
+				break;
+			}
+			dc_shutdown(dd);
 		}
 		ppd->host_link_state = HLS_DN_DISABLE;
-		dc_shutdown(dd);
 		break;
 	case HLS_DN_OFFLINE:
 		if (ppd->host_link_state == HLS_DN_DISABLE)

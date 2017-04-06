@@ -18,6 +18,7 @@ config SCSI
 	depends on BLOCK
 	select SCSI_DMA if HAS_DMA
 	select SG_POOL
+	select BLK_SCSI_REQUEST
 	---help---
 	  If you want to use a SCSI hard disk, SCSI tape drive, SCSI CD-ROM or
 	  any other SCSI device under Linux, say Y and make sure that you know
@@ -263,6 +264,7 @@ config SCSI_SPI_ATTRS
 config SCSI_FC_ATTRS
 	tristate "FiberChannel Transport Attributes"
 	depends on SCSI && NET
+	select BLK_DEV_BSGLIB
 	select SCSI_NETLINK
 	help
 	  If you wish to export transport-specific information about
@@ -743,39 +745,17 @@ config SCSI_ISCI
 	  control unit found in the Intel(R) C600 series chipset.
 
 config SCSI_GENERIC_NCR5380
-	tristate "Generic NCR5380/53c400 SCSI PIO support"
-	depends on ISA && SCSI
+	tristate "Generic NCR5380/53c400 SCSI ISA card support"
+	depends on ISA && SCSI && HAS_IOPORT_MAP
 	select SCSI_SPI_ATTRS
 	---help---
-	  This is a driver for the old NCR 53c80 series of SCSI controllers
-	  on boards using PIO. Most boards such as the Trantor T130 fit this
-	  category, along with a large number of ISA 8bit controllers shipped
-	  for free with SCSI scanners. If you have a PAS16, T128 or DMX3191
-	  you should select the specific driver for that card rather than
-	  generic 5380 support.
-
-	  It is explained in section 3.8 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/g_NCR5380.h>.
+	  This is a driver for old ISA card SCSI controllers based on a
+	  NCR 5380, 53C80, 53C400, 53C400A, or DTC 436 device.
+	  Most boards such as the Trantor T130 fit this category, as do
+	  various 8-bit and 16-bit ISA cards bundled with SCSI scanners.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called g_NCR5380.
-
-config SCSI_GENERIC_NCR5380_MMIO
-	tristate "Generic NCR5380/53c400 SCSI MMIO support"
-	depends on ISA && SCSI
-	select SCSI_SPI_ATTRS
-	---help---
-	  This is a driver for the old NCR 53c80 series of SCSI controllers
-	  on boards using memory mapped I/O. 
-	  It is explained in section 3.8 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  If it doesn't work out
-	  of the box, you may have to change some settings in
-	  <file:drivers/scsi/g_NCR5380.h>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called g_NCR5380_mmio.
 
 config SCSI_IPS
 	tristate "IBM ServeRAID support"
@@ -1254,11 +1234,14 @@ config SCSI_QLOGICPTI
 
 source "drivers/scsi/qla2xxx/Kconfig"
 source "drivers/scsi/qla4xxx/Kconfig"
+source "drivers/scsi/qedi/Kconfig"
+source "drivers/scsi/qedf/Kconfig"
 
 config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
 	depends on PCI && SCSI
 	depends on SCSI_FC_ATTRS
+	depends on NVME_FC && NVME_TARGET_FC
 	select CRC_T10DIF
 	help
           This lpfc driver supports the Emulex LightPulse
@@ -1497,7 +1480,7 @@ config ATARI_SCSI
 
 config MAC_SCSI
 	tristate "Macintosh NCR5380 SCSI"
-	depends on MAC && SCSI=y
+	depends on MAC && SCSI
 	select SCSI_SPI_ATTRS
 	help
 	  This is the NCR 5380 SCSI controller included on most of the 68030

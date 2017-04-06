@@ -535,7 +535,7 @@ static int sh_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	return 0;
 }
 
-static struct rtc_class_ops sh_rtc_ops = {
+static const struct rtc_class_ops sh_rtc_ops = {
 	.read_time	= sh_rtc_read_time,
 	.set_time	= sh_rtc_set_time,
 	.read_alarm	= sh_rtc_read_alarm,

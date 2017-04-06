@@ -106,6 +106,21 @@ static inline void native_pud_clear(pud_t *pud)
 	native_set_pud(pud, native_make_pud(0));
 }
 
+static inline pud_t native_pudp_get_and_clear(pud_t *xp)
+{
+#ifdef CONFIG_SMP
+	return native_make_pud(xchg(&xp->pud, 0));
+#else
+	/* native_local_pudp_get_and_clear,
+	 * but duplicated because of cyclic dependency
+	 */
+	pud_t ret = *xp;
+
+	native_pud_clear(xp);
+	return ret;
+#endif
+}
+
 static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
 	*pgdp = pgd;
@@ -116,8 +131,7 @@ static inline void native_pgd_clear(pgd_t *pgd)
 	native_set_pgd(pgd, native_make_pgd(0));
 }
 
-extern void sync_global_pgds(unsigned long start, unsigned long end,
-			     int removed);
+extern void sync_global_pgds(unsigned long start, unsigned long end);
 
 /*
  * Conversion functions: convert a page and protection to a page entry,

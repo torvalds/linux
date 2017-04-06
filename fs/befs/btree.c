@@ -12,8 +12,8 @@
  *
  * Dominic Giampaolo, author of "Practical File System
  * Design with the Be File System", for such a helpful book.
- * 
- * Marcus J. Ranum, author of the b+tree package in 
+ *
+ * Marcus J. Ranum, author of the b+tree package in
  * comp.sources.misc volume 10. This code is not copied from that
  * work, but it is partially based on it.
  *
@@ -38,38 +38,38 @@
  */
 
 /* Befs B+tree structure:
- * 
+ *
  * The first thing in the tree is the tree superblock. It tells you
  * all kinds of useful things about the tree, like where the rootnode
  * is located, and the size of the nodes (always 1024 with current version
  * of BeOS).
  *
  * The rest of the tree consists of a series of nodes. Nodes contain a header
- * (struct befs_btree_nodehead), the packed key data, an array of shorts 
+ * (struct befs_btree_nodehead), the packed key data, an array of shorts
  * containing the ending offsets for each of the keys, and an array of
- * befs_off_t values. In interior nodes, the keys are the ending keys for 
- * the childnode they point to, and the values are offsets into the 
- * datastream containing the tree. 
+ * befs_off_t values. In interior nodes, the keys are the ending keys for
+ * the childnode they point to, and the values are offsets into the
+ * datastream containing the tree.
  */
 
 /* Note:
- * 
- * The book states 2 confusing things about befs b+trees. First, 
+ *
+ * The book states 2 confusing things about befs b+trees. First,
  * it states that the overflow field of node headers is used by internal nodes
  * to point to another node that "effectively continues this one". Here is what
  * I believe that means. Each key in internal nodes points to another node that
- * contains key values less than itself. Inspection reveals that the last key 
- * in the internal node is not the last key in the index. Keys that are 
- * greater than the last key in the internal node go into the overflow node. 
+ * contains key values less than itself. Inspection reveals that the last key
+ * in the internal node is not the last key in the index. Keys that are
+ * greater than the last key in the internal node go into the overflow node.
  * I imagine there is a performance reason for this.
  *
- * Second, it states that the header of a btree node is sufficient to 
- * distinguish internal nodes from leaf nodes. Without saying exactly how. 
+ * Second, it states that the header of a btree node is sufficient to
+ * distinguish internal nodes from leaf nodes. Without saying exactly how.
  * After figuring out the first, it becomes obvious that internal nodes have
  * overflow nodes and leafnodes do not.
  */
 
-/* 
+/*
  * Currently, this code is only good for directory B+trees.
  * In order to be used for other BFS indexes, it needs to be extended to handle
  * duplicate keys and non-string keytypes (int32, int64, float, double).
@@ -237,8 +237,8 @@ befs_bt_read_node(struct super_block *sb, const befs_data_stream *ds,
  * with @key (usually the disk block number of an inode).
  *
  * On failure, returns BEFS_ERR or BEFS_BT_NOT_FOUND.
- * 
- * Algorithm: 
+ *
+ * Algorithm:
  *   Read the superblock and rootnode of the b+tree.
  *   Drill down through the interior nodes using befs_find_key().
  *   Once at the correct leaf node, use befs_find_key() again to get the
@@ -402,12 +402,12 @@ befs_find_key(struct super_block *sb, struct befs_btree_node *node,
  *
  * Here's how it works: Key_no is the index of the key/value pair to
  * return in keybuf/value.
- * Bufsize is the size of keybuf (BEFS_NAME_LEN+1 is a good size). Keysize is 
+ * Bufsize is the size of keybuf (BEFS_NAME_LEN+1 is a good size). Keysize is
  * the number of characters in the key (just a convenience).
  *
  * Algorithm:
  *   Get the first leafnode of the tree. See if the requested key is in that
- *   node. If not, follow the node->right link to the next leafnode. Repeat 
+ *   node. If not, follow the node->right link to the next leafnode. Repeat
  *   until the (key_no)th key is found or the tree is out of keys.
  */
 int
@@ -536,7 +536,7 @@ befs_btree_read(struct super_block *sb, const befs_data_stream *ds,
  * @node_off: Pointer to offset of current node within datastream. Modified
  * 		by the function.
  *
- * Helper function for btree traverse. Moves the current position to the 
+ * Helper function for btree traverse. Moves the current position to the
  * start of the first leaf node.
  *
  * Also checks for an empty tree. If there are no keys, returns BEFS_BT_EMPTY.
@@ -592,10 +592,10 @@ befs_btree_seekleaf(struct super_block *sb, const befs_data_stream *ds,
 }
 
 /**
- * befs_leafnode - Determine if the btree node is a leaf node or an 
+ * befs_leafnode - Determine if the btree node is a leaf node or an
  * interior node
  * @node: Pointer to node structure to test
- * 
+ *
  * Return 1 if leaf, 0 if interior
  */
 static int
@@ -656,7 +656,7 @@ befs_bt_valarray(struct befs_btree_node *node)
  * @node: Pointer to the node structure to find the keydata array within
  *
  * Returns a pointer to the start of the keydata array
- * of the node pointed to by the node header 
+ * of the node pointed to by the node header
  */
 static char *
 befs_bt_keydata(struct befs_btree_node *node)
@@ -702,7 +702,7 @@ befs_bt_get_key(struct super_block *sb, struct befs_btree_node *node,
 
 /**
  * befs_compare_strings - compare two strings
- * @key1: pointer to the first key to be compared 
+ * @key1: pointer to the first key to be compared
  * @keylen1: length in bytes of key1
  * @key2: pointer to the second key to be compared
  * @keylen2: length in bytes of key2

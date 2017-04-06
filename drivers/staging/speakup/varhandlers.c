@@ -237,8 +237,7 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	if (!var_data->u.n.out_str)
 		l = sprintf(cp, var_data->u.n.synth_fmt, (int)val);
 	else
-		l = sprintf(cp,
-			var_data->u.n.synth_fmt, var_data->u.n.out_str[val]);
+		l = sprintf(cp,	var_data->u.n.synth_fmt, var_data->u.n.out_str[val]);
 	synth_printf("%s", cp);
 	return 0;
 }
@@ -266,7 +265,8 @@ int spk_set_string_var(const char *page, struct st_var_header *var, int len)
 	return 0;
 }
 
-/* spk_set_mask_bits sets or clears the punc/delim/repeat bits,
+/*
+ * spk_set_mask_bits sets or clears the punc/delim/repeat bits,
  * if input is null uses the defaults.
  * values for how: 0 clears bits of chars supplied,
  * 1 clears allk, 2 sets bits for chars

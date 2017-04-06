@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/regulator/consumer.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
@@ -23,6 +24,7 @@ struct dumb_vga {
 	struct drm_connector	connector;
 
 	struct i2c_adapter	*ddc;
+	struct regulator	*vdd;
 };
 
 static inline struct dumb_vga *
@@ -124,8 +126,30 @@ static int dumb_vga_attach(struct drm_bridge *bridge)
 	return 0;
 }
 
+static void dumb_vga_enable(struct drm_bridge *bridge)
+{
+	struct dumb_vga *vga = drm_bridge_to_dumb_vga(bridge);
+	int ret = 0;
+
+	if (vga->vdd)
+		ret = regulator_enable(vga->vdd);
+
+	if (ret)
+		DRM_ERROR("Failed to enable vdd regulator: %d\n", ret);
+}
+
+static void dumb_vga_disable(struct drm_bridge *bridge)
+{
+	struct dumb_vga *vga = drm_bridge_to_dumb_vga(bridge);
+
+	if (vga->vdd)
+		regulator_disable(vga->vdd);
+}
+
 static const struct drm_bridge_funcs dumb_vga_bridge_funcs = {
 	.attach		= dumb_vga_attach,
+	.enable		= dumb_vga_enable,
+	.disable	= dumb_vga_disable,
 };
 
 static struct i2c_adapter *dumb_vga_retrieve_ddc(struct device *dev)
@@ -169,6 +193,15 @@ static int dumb_vga_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, vga);
 
+	vga->vdd = devm_regulator_get_optional(&pdev->dev, "vdd");
+	if (IS_ERR(vga->vdd)) {
+		ret = PTR_ERR(vga->vdd);
+		if (ret == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		vga->vdd = NULL;
+		dev_dbg(&pdev->dev, "No vdd regulator found: %d\n", ret);
+	}
+
 	vga->ddc = dumb_vga_retrieve_ddc(&pdev->dev);
 	if (IS_ERR(vga->ddc)) {
 		if (PTR_ERR(vga->ddc) == -ENODEV) {
@@ -204,6 +237,7 @@ static int dumb_vga_remove(struct platform_device *pdev)
 
 static const struct of_device_id dumb_vga_match[] = {
 	{ .compatible = "dumb-vga-dac" },
+	{ .compatible = "ti,ths8135" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dumb_vga_match);

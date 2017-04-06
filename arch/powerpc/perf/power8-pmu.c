@@ -30,6 +30,9 @@ enum {
 #define	POWER8_MMCRA_IFM2		0x0000000080000000UL
 #define	POWER8_MMCRA_IFM3		0x00000000C0000000UL
 
+/* PowerISA v2.07 format attribute structure*/
+extern struct attribute_group isa207_pmu_format_group;
+
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int event_alternatives[][MAX_ALT] = {
 	{ PM_MRK_ST_CMPL,		PM_MRK_ST_CMPL_ALT },
@@ -45,43 +48,12 @@ static const unsigned int event_alternatives[][MAX_ALT] = {
 	{ PM_RUN_INST_CMPL_ALT,		PM_RUN_INST_CMPL },
 };
 
-/*
- * Scan the alternatives table for a match and return the
- * index into the alternatives table if found, else -1.
- */
-static int find_alternative(u64 event)
-{
-	int i, j;
-
-	for (i = 0; i < ARRAY_SIZE(event_alternatives); ++i) {
-		if (event < event_alternatives[i][0])
-			break;
-
-		for (j = 0; j < MAX_ALT && event_alternatives[i][j]; ++j)
-			if (event == event_alternatives[i][j])
-				return i;
-	}
-
-	return -1;
-}
-
 static int power8_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 {
 	int i, j, num_alt = 0;
-	u64 alt_event;
 
-	alt[num_alt++] = event;
-
-	i = find_alternative(event);
-	if (i >= 0) {
-		/* Filter out the original event, it's already in alt[0] */
-		for (j = 0; j < MAX_ALT; ++j) {
-			alt_event = event_alternatives[i][j];
-			if (alt_event && alt_event != event)
-				alt[num_alt++] = alt_event;
-		}
-	}
-
+	num_alt = isa207_get_alternatives(event, alt, event_alternatives,
+					(int)ARRAY_SIZE(event_alternatives));
 	if (flags & PPMU_ONLY_COUNT_RUN) {
 		/*
 		 * We're only counting in RUN state, so PM_CYC is equivalent to
@@ -175,42 +147,8 @@ static struct attribute_group power8_pmu_events_group = {
 	.attrs = power8_events_attr,
 };
 
-PMU_FORMAT_ATTR(event,		"config:0-49");
-PMU_FORMAT_ATTR(pmcxsel,	"config:0-7");
-PMU_FORMAT_ATTR(mark,		"config:8");
-PMU_FORMAT_ATTR(combine,	"config:11");
-PMU_FORMAT_ATTR(unit,		"config:12-15");
-PMU_FORMAT_ATTR(pmc,		"config:16-19");
-PMU_FORMAT_ATTR(cache_sel,	"config:20-23");
-PMU_FORMAT_ATTR(sample_mode,	"config:24-28");
-PMU_FORMAT_ATTR(thresh_sel,	"config:29-31");
-PMU_FORMAT_ATTR(thresh_stop,	"config:32-35");
-PMU_FORMAT_ATTR(thresh_start,	"config:36-39");
-PMU_FORMAT_ATTR(thresh_cmp,	"config:40-49");
-
-static struct attribute *power8_pmu_format_attr[] = {
-	&format_attr_event.attr,
-	&format_attr_pmcxsel.attr,
-	&format_attr_mark.attr,
-	&format_attr_combine.attr,
-	&format_attr_unit.attr,
-	&format_attr_pmc.attr,
-	&format_attr_cache_sel.attr,
-	&format_attr_sample_mode.attr,
-	&format_attr_thresh_sel.attr,
-	&format_attr_thresh_stop.attr,
-	&format_attr_thresh_start.attr,
-	&format_attr_thresh_cmp.attr,
-	NULL,
-};
-
-static struct attribute_group power8_pmu_format_group = {
-	.name = "format",
-	.attrs = power8_pmu_format_attr,
-};
-
 static const struct attribute_group *power8_pmu_attr_groups[] = {
-	&power8_pmu_format_group,
+	&isa207_pmu_format_group,
 	&power8_pmu_events_group,
 	NULL,
 };

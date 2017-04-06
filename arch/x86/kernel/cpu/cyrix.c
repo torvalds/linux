@@ -9,6 +9,8 @@
 #include <asm/pci-direct.h>
 #include <asm/tsc.h>
 #include <asm/cpufeature.h>
+#include <linux/sched.h>
+#include <linux/sched/clock.h>
 
 #include "cpu.h"
 
@@ -183,6 +185,7 @@ static void early_init_cyrix(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_CYRIX_ARR);
 		break;
 	}
+	clear_sched_clock_stable();
 }
 
 static void init_cyrix(struct cpuinfo_x86 *c)

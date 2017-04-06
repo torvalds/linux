@@ -29,7 +29,7 @@ struct nvkm_mem {
 	u8  page_shift;
 
 	struct nvkm_mm_node *tag;
-	struct list_head regions;
+	struct nvkm_mm_node *mem;
 	dma_addr_t *pages;
 	u32 memtype;
 	u64 offset;
@@ -93,8 +93,9 @@ int gk104_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gk20a_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gm107_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gm200_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gm20b_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gp100_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
-int gp104_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gp102_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 
 #include <subdev/bios.h>
 #include <subdev/bios/ramcfg.h>
@@ -156,4 +157,6 @@ struct nvkm_ram_func {
 	int (*prog)(struct nvkm_ram *);
 	void (*tidy)(struct nvkm_ram *);
 };
+
+extern const u8 gf100_pte_storage_type_map[256];
 #endif

@@ -44,7 +44,7 @@
 
 /*
  * Toradex Apalis TK1 Module Device Tree
- * Compatible for Revisions 2GB: V1.0A
+ * Compatible for Revisions 2GB: V1.0A, V1.0B, V1.1A
  */
 / {
 	model = "Toradex Apalis TK1";
@@ -257,7 +257,7 @@
 			};
 			dp_hpd_pff0 {
 				nvidia,pins = "dp_hpd_pff0";
-				nvidia,function = "rsvd2";
+				nvidia,function = "dp";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
@@ -416,18 +416,10 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
-			/*
-			 * Don't use MMC1_D6 aka SDMMC3_CLK_LB_IN for now as it
-			 * features some magic properties even though the
-			 * external loopback is disabled and the internal
-			 * loopback used as per SDMMC_VENDOR_MISC_CNTRL_0
-			 * register's SDMMC_SPARE1 bits being set to 0xfffd
-			 * according to the TRM!
-			 */
 			sdmmc3_clk_lb_in_pee5 { /* D6 GPIO */
 				nvidia,pins = "sdmmc3_clk_lb_in_pee5";
-				nvidia,function = "sdmmc3";
-				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,function = "rsvd2";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
@@ -522,20 +514,12 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
-			/*
-			 * Don't use SD1_CD# aka SDMMC3_CLK_LB_OUT for now as it
-			 * features some magic properties even though the
-			 * external loopback is disabled and the internal
-			 * loopback used as per SDMMC_VENDOR_MISC_CNTRL_0
-			 * register's SDMMC_SPARE1 bits being set to 0xfffd
-			 * according to the TRM!
-			 */
-			sdmmc3_clk_lb_out_pee4 { /* CD# GPIO */
-				nvidia,pins = "sdmmc3_clk_lb_out_pee4";
-				nvidia,function = "rsvd2";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+			sdmmc3_cd_n_pv2 { /* CD# GPIO */
+				nvidia,pins = "sdmmc3_cd_n_pv2";
+				nvidia,function = "rsvd3";
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
 
 			/* Apalis SPDIF */
@@ -1153,11 +1137,11 @@
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
 
-			/* GPIO_PI6 aka TEMP_ALERT_L */
+			/* GPIO_PI6 aka TMP451 ALERT#/THERM2# */
 			pi6 {
 				nvidia,pins = "pi6";
 				nvidia,function = "rsvd1";
-				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 			};
@@ -1514,13 +1498,6 @@
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
-			sdmmc3_cd_n_pv2 { /* NC */
-				nvidia,pins = "sdmmc3_cd_n_pv2";
-				nvidia,function = "rsvd3";
-				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
-				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
-			};
 			gpio_x1_aud_px1 { /* NC */
 				nvidia,pins = "gpio_x1_aud_px1";
 				nvidia,function = "rsvd2";
@@ -1570,6 +1547,22 @@
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 			};
+			/*
+			 * Leave SDMMC3_CLK_LB_OUT muxed as SDMMC3 with output
+			 * driver enabled aka not tristated and input driver
+			 * enabled as well as it features some magic properties
+			 * even though the external loopback is disabled and the
+			 * internal loopback used as per
+			 * SDMMC_VENDOR_MISC_CNTRL_0 register's SDMMC_SPARE1
+			 * bits being set to 0xfffd according to the TRM!
+			 */
+			sdmmc3_clk_lb_out_pee4 { /* NC */
+				nvidia,pins = "sdmmc3_clk_lb_out_pee4";
+				nvidia,function = "sdmmc3";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+			};
 		};
 	};
 
@@ -1595,7 +1588,7 @@
 		clock-frequency = <400000>;
 
 		/* SGTL5000 audio codec */
-		sgtl5000: codec@0a {
+		sgtl5000: codec@a {
 			compatible = "fsl,sgtl5000";
 			reg = <0x0a>;
 			VDDA-supply = <&reg_3v3>;

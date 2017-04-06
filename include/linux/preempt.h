@@ -55,6 +55,27 @@
 /* We use the MSB mostly because its available */
 #define PREEMPT_NEED_RESCHED	0x80000000
 
+#define PREEMPT_DISABLED	(PREEMPT_DISABLE_OFFSET + PREEMPT_ENABLED)
+
+/*
+ * Disable preemption until the scheduler is running -- use an unconditional
+ * value so that it also works on !PREEMPT_COUNT kernels.
+ *
+ * Reset by start_kernel()->sched_init()->init_idle()->init_idle_preempt_count().
+ */
+#define INIT_PREEMPT_COUNT	PREEMPT_OFFSET
+
+/*
+ * Initial preempt_count value; reflects the preempt_count schedule invariant
+ * which states that during context switches:
+ *
+ *    preempt_count() == 2*PREEMPT_DISABLE_OFFSET
+ *
+ * Note: PREEMPT_DISABLE_OFFSET is 0 for !PREEMPT_COUNT kernels.
+ * Note: See finish_task_switch().
+ */
+#define FORK_PREEMPT_COUNT	(2*PREEMPT_DISABLE_OFFSET + PREEMPT_ENABLED)
+
 /* preempt_count() and related functions, depends on PREEMPT_NEED_RESCHED */
 #include <asm/preempt.h>
 
@@ -65,19 +86,24 @@
 
 /*
  * Are we doing bottom half or hardware interrupt processing?
- * Are we in a softirq context? Interrupt context?
- * in_softirq - Are we currently processing softirq or have bh disabled?
- * in_serving_softirq - Are we currently processing softirq?
+ *
+ * in_irq()       - We're in (hard) IRQ context
+ * in_softirq()   - We have BH disabled, or are processing softirqs
+ * in_interrupt() - We're in NMI,IRQ,SoftIRQ context or have BH disabled
+ * in_serving_softirq() - We're in softirq context
+ * in_nmi()       - We're in NMI context
+ * in_task()	  - We're in task context
+ *
+ * Note: due to the BH disabled confusion: in_softirq(),in_interrupt() really
+ *       should not be used in new code.
  */
 #define in_irq()		(hardirq_count())
 #define in_softirq()		(softirq_count())
 #define in_interrupt()		(irq_count())
 #define in_serving_softirq()	(softirq_count() & SOFTIRQ_OFFSET)
-
-/*
- * Are we in NMI context?
- */
-#define in_nmi()	(preempt_count() & NMI_MASK)
+#define in_nmi()		(preempt_count() & NMI_MASK)
+#define in_task()		(!(preempt_count() & \
+				   (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET)))
 
 /*
  * The preempt_count offset after preempt_disable();

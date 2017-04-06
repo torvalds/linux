@@ -135,7 +135,7 @@ static int load_asic(struct echoaudio *chip)
 	err = load_asic_generic(chip, DSP_FNC_LOAD_LAYLA24_EXTERNAL_ASIC,
 				FW_LAYLA24_2S_ASIC);
 	if (err < 0)
-		return false;
+		return err;
 
 	/* Now give the external ASIC a little time to set up */
 	mdelay(10);

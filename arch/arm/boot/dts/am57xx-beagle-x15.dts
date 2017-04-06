@@ -22,3 +22,8 @@
 &mmc1 {
 	vmmc-supply = <&ldo1_reg>;
 };
+
+/* errata i880 "Ethernet RGMII2 Limited to 10/100 Mbps" */
+&phy1 {
+	max-speed = <100>;
+};

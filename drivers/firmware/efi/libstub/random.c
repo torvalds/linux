@@ -8,6 +8,7 @@
  */
 
 #include <linux/efi.h>
+#include <linux/log2.h>
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -41,21 +42,23 @@ efi_status_t efi_get_random_bytes(efi_system_table_t *sys_table_arg,
  */
 static unsigned long get_entry_num_slots(efi_memory_desc_t *md,
 					 unsigned long size,
-					 unsigned long align)
+					 unsigned long align_shift)
 {
-	u64 start, end;
+	unsigned long align = 1UL << align_shift;
+	u64 first_slot, last_slot, region_end;
 
 	if (md->type != EFI_CONVENTIONAL_MEMORY)
 		return 0;
 
-	start = round_up(md->phys_addr, align);
-	end = round_down(md->phys_addr + md->num_pages * EFI_PAGE_SIZE - size,
-			 align);
+	region_end = min((u64)ULONG_MAX, md->phys_addr + md->num_pages*EFI_PAGE_SIZE - 1);
 
-	if (start > end)
+	first_slot = round_up(md->phys_addr, align);
+	last_slot = round_down(region_end - size + 1, align);
+
+	if (first_slot > last_slot)
 		return 0;
 
-	return (end - start + 1) / align;
+	return ((unsigned long)(last_slot - first_slot) >> align_shift) + 1;
 }
 
 /*
@@ -98,7 +101,7 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 		efi_memory_desc_t *md = (void *)memory_map + map_offset;
 		unsigned long slots;
 
-		slots = get_entry_num_slots(md, size, align);
+		slots = get_entry_num_slots(md, size, ilog2(align));
 		MD_NUM_SLOTS(md) = slots;
 		total_slots += slots;
 	}
@@ -139,5 +142,53 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 
 	efi_call_early(free_pool, memory_map);
 
+	return status;
+}
+
+#define RANDOM_SEED_SIZE	32
+
+efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg)
+{
+	efi_guid_t rng_proto = EFI_RNG_PROTOCOL_GUID;
+	efi_guid_t rng_algo_raw = EFI_RNG_ALGORITHM_RAW;
+	efi_guid_t rng_table_guid = LINUX_EFI_RANDOM_SEED_TABLE_GUID;
+	struct efi_rng_protocol *rng;
+	struct linux_efi_random_seed *seed;
+	efi_status_t status;
+
+	status = efi_call_early(locate_protocol, &rng_proto, NULL,
+				(void **)&rng);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	status = efi_call_early(allocate_pool, EFI_RUNTIME_SERVICES_DATA,
+				sizeof(*seed) + RANDOM_SEED_SIZE,
+				(void **)&seed);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	status = rng->get_rng(rng, &rng_algo_raw, RANDOM_SEED_SIZE,
+			      seed->bits);
+	if (status == EFI_UNSUPPORTED)
+		/*
+		 * Use whatever algorithm we have available if the raw algorithm
+		 * is not implemented.
+		 */
+		status = rng->get_rng(rng, NULL, RANDOM_SEED_SIZE,
+				      seed->bits);
+
+	if (status != EFI_SUCCESS)
+		goto err_freepool;
+
+	seed->size = RANDOM_SEED_SIZE;
+	status = efi_call_early(install_configuration_table, &rng_table_guid,
+				seed);
+	if (status != EFI_SUCCESS)
+		goto err_freepool;
+
+	return EFI_SUCCESS;
+
+err_freepool:
+	efi_call_early(free_pool, seed);
 	return status;
 }

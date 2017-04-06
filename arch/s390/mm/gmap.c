@@ -359,8 +359,8 @@ static int __gmap_unlink_by_vmaddr(struct gmap *gmap, unsigned long vmaddr)
 	spin_lock(&gmap->guest_table_lock);
 	entry = radix_tree_delete(&gmap->host_to_guest, vmaddr >> PMD_SHIFT);
 	if (entry) {
-		flush = (*entry != _SEGMENT_ENTRY_INVALID);
-		*entry = _SEGMENT_ENTRY_INVALID;
+		flush = (*entry != _SEGMENT_ENTRY_EMPTY);
+		*entry = _SEGMENT_ENTRY_EMPTY;
 	}
 	spin_unlock(&gmap->guest_table_lock);
 	return flush;
@@ -589,7 +589,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 		return rc;
 	ptl = pmd_lock(mm, pmd);
 	spin_lock(&gmap->guest_table_lock);
-	if (*table == _SEGMENT_ENTRY_INVALID) {
+	if (*table == _SEGMENT_ENTRY_EMPTY) {
 		rc = radix_tree_insert(&gmap->host_to_guest,
 				       vmaddr >> PMD_SHIFT, table);
 		if (!rc)
@@ -687,7 +687,7 @@ void gmap_discard(struct gmap *gmap, unsigned long from, unsigned long to)
 		/* Find vma in the parent mm */
 		vma = find_vma(gmap->mm, vmaddr);
 		size = min(to - gaddr, PMD_SIZE - (gaddr & ~PMD_MASK));
-		zap_page_range(vma, vmaddr, size, NULL);
+		zap_page_range(vma, vmaddr, size);
 	}
 	up_read(&gmap->mm->mmap_sem);
 }
@@ -1015,7 +1015,7 @@ static inline void gmap_insert_rmap(struct gmap *sg, unsigned long vmaddr,
 	if (slot) {
 		rmap->next = radix_tree_deref_slot_protected(slot,
 							&sg->guest_table_lock);
-		radix_tree_replace_slot(slot, rmap);
+		radix_tree_replace_slot(&sg->host_to_rmap, slot, rmap);
 	} else {
 		rmap->next = NULL;
 		radix_tree_insert(&sg->host_to_rmap, vmaddr >> PAGE_SHIFT,

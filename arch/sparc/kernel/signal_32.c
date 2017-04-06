@@ -20,7 +20,7 @@
 #include <linux/bitops.h>
 #include <linux/tracehook.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>

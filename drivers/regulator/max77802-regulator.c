@@ -288,7 +288,7 @@ static int max77802_set_ramp_delay_4bit(struct regulator_dev *rdev,
 /*
  * LDOs 2, 4-19, 22-35
  */
-static struct regulator_ops max77802_ldo_ops_logic1 = {
+static const struct regulator_ops max77802_ldo_ops_logic1 = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -304,7 +304,7 @@ static struct regulator_ops max77802_ldo_ops_logic1 = {
 /*
  * LDOs 1, 20, 21, 3
  */
-static struct regulator_ops max77802_ldo_ops_logic2 = {
+static const struct regulator_ops max77802_ldo_ops_logic2 = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -319,7 +319,7 @@ static struct regulator_ops max77802_ldo_ops_logic2 = {
 };
 
 /* BUCKS 1, 6 */
-static struct regulator_ops max77802_buck_16_dvs_ops = {
+static const struct regulator_ops max77802_buck_16_dvs_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -333,7 +333,7 @@ static struct regulator_ops max77802_buck_16_dvs_ops = {
 };
 
 /* BUCKs 2-4 */
-static struct regulator_ops max77802_buck_234_ops = {
+static const struct regulator_ops max77802_buck_234_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -348,7 +348,7 @@ static struct regulator_ops max77802_buck_234_ops = {
 };
 
 /* BUCKs 5, 7-10 */
-static struct regulator_ops max77802_buck_dvs_ops = {
+static const struct regulator_ops max77802_buck_dvs_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,

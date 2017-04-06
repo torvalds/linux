@@ -10,7 +10,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static const struct {
 	const char *token;

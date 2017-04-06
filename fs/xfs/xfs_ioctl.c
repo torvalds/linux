@@ -43,6 +43,7 @@
 #include "xfs_acl.h"
 
 #include <linux/capability.h>
+#include <linux/cred.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -287,7 +288,7 @@ xfs_readlink_by_handle(
 		return PTR_ERR(dentry);
 
 	/* Restrict this handle operation to symlinks only. */
-	if (!d_inode(dentry)->i_op->readlink) {
+	if (!d_is_symlink(dentry)) {
 		error = -EINVAL;
 		goto out_dput;
 	}
@@ -297,7 +298,7 @@ xfs_readlink_by_handle(
 		goto out_dput;
 	}
 
-	error = d_inode(dentry)->i_op->readlink(dentry, hreq->ohandle, olen);
+	error = vfs_readlink(dentry, hreq->ohandle, olen);
 
  out_dput:
 	dput(dentry);
@@ -639,7 +640,7 @@ xfs_ioc_space(
 		return error;
 
 	xfs_ilock(ip, iolock);
-	error = xfs_break_layouts(inode, &iolock, false);
+	error = xfs_break_layouts(inode, &iolock);
 	if (error)
 		goto out_unlock;
 
@@ -910,16 +911,14 @@ xfs_ioc_fsgetxattr(
 	if (attr) {
 		if (ip->i_afp) {
 			if (ip->i_afp->if_flags & XFS_IFEXTENTS)
-				fa.fsx_nextents = ip->i_afp->if_bytes /
-							sizeof(xfs_bmbt_rec_t);
+				fa.fsx_nextents = xfs_iext_count(ip->i_afp);
 			else
 				fa.fsx_nextents = ip->i_d.di_anextents;
 		} else
 			fa.fsx_nextents = 0;
 	} else {
 		if (ip->i_df.if_flags & XFS_IFEXTENTS)
-			fa.fsx_nextents = ip->i_df.if_bytes /
-						sizeof(xfs_bmbt_rec_t);
+			fa.fsx_nextents = xfs_iext_count(&ip->i_df);
 		else
 			fa.fsx_nextents = ip->i_d.di_nextents;
 	}
@@ -1526,7 +1525,7 @@ out_drop_write:
 }
 
 STATIC int
-xfs_getbmap_format(void **ap, struct getbmapx *bmv, int *full)
+xfs_getbmap_format(void **ap, struct getbmapx *bmv)
 {
 	struct getbmap __user	*base = (struct getbmap __user *)*ap;
 
@@ -1569,7 +1568,7 @@ xfs_ioc_getbmap(
 }
 
 STATIC int
-xfs_getbmapx_format(void **ap, struct getbmapx *bmv, int *full)
+xfs_getbmapx_format(void **ap, struct getbmapx *bmv)
 {
 	struct getbmapx __user	*base = (struct getbmapx __user *)*ap;
 

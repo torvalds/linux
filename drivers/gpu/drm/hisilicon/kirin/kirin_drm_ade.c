@@ -304,8 +304,8 @@ static void ade_set_medianoc_qos(struct ade_crtc *acrtc)
 
 static int ade_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	struct kirin_drm_private *priv = dev->dev_private;
-	struct ade_crtc *acrtc = to_ade_crtc(priv->crtc[pipe]);
+	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
+	struct ade_crtc *acrtc = to_ade_crtc(crtc);
 	struct ade_hw_ctx *ctx = acrtc->ctx;
 	void __iomem *base = ctx->base;
 
@@ -320,8 +320,8 @@ static int ade_enable_vblank(struct drm_device *dev, unsigned int pipe)
 
 static void ade_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	struct kirin_drm_private *priv = dev->dev_private;
-	struct ade_crtc *acrtc = to_ade_crtc(priv->crtc[pipe]);
+	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
+	struct ade_crtc *acrtc = to_ade_crtc(crtc);
 	struct ade_hw_ctx *ctx = acrtc->ctx;
 	void __iomem *base = ctx->base;
 
@@ -575,7 +575,6 @@ static const struct drm_crtc_funcs ade_crtc_funcs = {
 static int ade_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 			 struct drm_plane *plane)
 {
-	struct kirin_drm_private *priv = dev->dev_private;
 	struct device_node *port;
 	int ret;
 
@@ -599,7 +598,6 @@ static int ade_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	}
 
 	drm_crtc_helper_add(crtc, &ade_crtc_helper_funcs);
-	priv->crtc[drm_crtc_index(crtc)] = crtc;
 
 	return 0;
 }
@@ -608,17 +606,16 @@ static void ade_rdma_set(void __iomem *base, struct drm_framebuffer *fb,
 			 u32 ch, u32 y, u32 in_h, u32 fmt)
 {
 	struct drm_gem_cma_object *obj = drm_fb_cma_get_gem_obj(fb, 0);
-	char *format_name;
+	struct drm_format_name_buf format_name;
 	u32 reg_ctrl, reg_addr, reg_size, reg_stride, reg_space, reg_en;
 	u32 stride = fb->pitches[0];
 	u32 addr = (u32)obj->paddr + y * stride;
 
 	DRM_DEBUG_DRIVER("rdma%d: (y=%d, height=%d), stride=%d, paddr=0x%x\n",
 			 ch + 1, y, in_h, stride, (u32)obj->paddr);
-	format_name = drm_get_format_name(fb->pixel_format);
 	DRM_DEBUG_DRIVER("addr=0x%x, fb:%dx%d, pixel_format=%d(%s)\n",
-			 addr, fb->width, fb->height, fmt, format_name);
-	kfree(format_name);
+			 addr, fb->width, fb->height, fmt,
+			 drm_get_format_name(fb->format->format, &format_name));
 
 	/* get reg offset */
 	reg_ctrl = RD_CH_CTRL(ch);
@@ -774,7 +771,7 @@ static void ade_update_channel(struct ade_plane *aplane,
 {
 	struct ade_hw_ctx *ctx = aplane->ctx;
 	void __iomem *base = ctx->base;
-	u32 fmt = ade_get_format(fb->pixel_format);
+	u32 fmt = ade_get_format(fb->format->format);
 	u32 ch = aplane->ch;
 	u32 in_w;
 	u32 in_h;
@@ -836,7 +833,7 @@ static int ade_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc || !fb)
 		return 0;
 
-	fmt = ade_get_format(fb->pixel_format);
+	fmt = ade_get_format(fb->format->format);
 	if (fmt == ADE_FORMAT_UNSUPPORT)
 		return -EINVAL;
 
@@ -974,9 +971,9 @@ static int ade_dts_parse(struct platform_device *pdev, struct ade_hw_ctx *ctx)
 	return 0;
 }
 
-static int ade_drm_init(struct drm_device *dev)
+static int ade_drm_init(struct platform_device *pdev)
 {
-	struct platform_device *pdev = dev->platformdev;
+	struct drm_device *dev = platform_get_drvdata(pdev);
 	struct ade_data *ade;
 	struct ade_hw_ctx *ctx;
 	struct ade_crtc *acrtc;
@@ -1035,13 +1032,8 @@ static int ade_drm_init(struct drm_device *dev)
 	return 0;
 }
 
-static void ade_drm_cleanup(struct drm_device *dev)
+static void ade_drm_cleanup(struct platform_device *pdev)
 {
-	struct platform_device *pdev = dev->platformdev;
-	struct ade_data *ade = platform_get_drvdata(pdev);
-	struct drm_crtc *crtc = &ade->acrtc.base;
-
-	drm_crtc_cleanup(crtc);
 }
 
 const struct kirin_dc_ops ade_dc_ops = {

@@ -1,7 +1,7 @@
 /*
  * Freescale Management Complex (MC) bus driver MSI support
  *
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  * Author: German Rivera <German.Rivera@freescale.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -17,6 +17,7 @@
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
 #include "../include/mc-bus.h"
+#include "fsl-mc-private.h"
 
 /*
  * Generate a unique ID identifying the interrupt (only used within the MSI

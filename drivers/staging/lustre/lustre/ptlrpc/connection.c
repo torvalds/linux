@@ -152,8 +152,8 @@ void ptlrpc_connection_fini(void)
 /*
  * Hash operations for net_peer<->connection
  */
-static unsigned
-conn_hashfn(struct cfs_hash *hs, const void *key, unsigned mask)
+static unsigned int
+conn_hashfn(struct cfs_hash *hs, const void *key, unsigned int mask)
 {
 	return cfs_hash_djb2_hash(key, sizeof(lnet_process_id_t), mask);
 }

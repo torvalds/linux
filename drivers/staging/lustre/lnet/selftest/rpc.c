@@ -55,7 +55,7 @@ static struct smoketest_rpc {
 	struct srpc_service	*rpc_services[SRPC_SERVICE_MAX_ID + 1];
 	lnet_handle_eq_t rpc_lnet_eq;	/* _the_ LNet event queue */
 	enum srpc_state	 rpc_state;
-	srpc_counters_t	 rpc_counters;
+	struct srpc_counters	 rpc_counters;
 	__u64		 rpc_matchbits;	/* matchbits counter */
 } srpc_data;
 
@@ -69,14 +69,14 @@ srpc_serv_portal(int svc_id)
 /* forward ref's */
 int srpc_handle_rpc(struct swi_workitem *wi);
 
-void srpc_get_counters(srpc_counters_t *cnt)
+void srpc_get_counters(struct srpc_counters *cnt)
 {
 	spin_lock(&srpc_data.rpc_glock);
 	*cnt = srpc_data.rpc_counters;
 	spin_unlock(&srpc_data.rpc_glock);
 }
 
-void srpc_set_counters(const srpc_counters_t *cnt)
+void srpc_set_counters(const struct srpc_counters *cnt)
 {
 	spin_lock(&srpc_data.rpc_glock);
 	srpc_data.rpc_counters = *cnt;
@@ -84,14 +84,13 @@ void srpc_set_counters(const srpc_counters_t *cnt)
 }
 
 static int
-srpc_add_bulk_page(struct srpc_bulk *bk, struct page *pg, int i, int nob)
+srpc_add_bulk_page(struct srpc_bulk *bk, struct page *pg, int i, int off,
+		   int nob)
 {
-	nob = min_t(int, nob, PAGE_SIZE);
+	LASSERT(off < PAGE_SIZE);
+	LASSERT(nob > 0 && nob <= PAGE_SIZE);
 
-	LASSERT(nob > 0);
-	LASSERT(i >= 0 && i < bk->bk_niov);
-
-	bk->bk_iovs[i].bv_offset = 0;
+	bk->bk_iovs[i].bv_offset = off;
 	bk->bk_iovs[i].bv_page = pg;
 	bk->bk_iovs[i].bv_len = nob;
 	return nob;
@@ -117,7 +116,8 @@ srpc_free_bulk(struct srpc_bulk *bk)
 }
 
 struct srpc_bulk *
-srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
+srpc_alloc_bulk(int cpt, unsigned int bulk_off, unsigned int bulk_npg,
+		unsigned int bulk_len, int sink)
 {
 	struct srpc_bulk *bk;
 	int i;
@@ -148,8 +148,11 @@ srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
 			return NULL;
 		}
 
-		nob = srpc_add_bulk_page(bk, pg, i, bulk_len);
+		nob = min_t(unsigned int, bulk_off + bulk_len, PAGE_SIZE) -
+		      bulk_off;
+		srpc_add_bulk_page(bk, pg, i, bulk_off, nob);
 		bulk_len -= nob;
+		bulk_off = 0;
 	}
 
 	return bk;
@@ -252,7 +255,7 @@ srpc_service_init(struct srpc_service *svc)
 	svc->sv_shuttingdown = 0;
 
 	svc->sv_cpt_data = cfs_percpt_alloc(lnet_cpt_table(),
-					    sizeof(*svc->sv_cpt_data));
+					    sizeof(**svc->sv_cpt_data));
 	if (!svc->sv_cpt_data)
 		return -ENOMEM;
 
@@ -693,7 +696,8 @@ srpc_finish_service(struct srpc_service *sv)
 
 /* called with sv->sv_lock held */
 static void
-srpc_service_recycle_buffer(struct srpc_service_cd *scd, struct srpc_buffer *buf)
+srpc_service_recycle_buffer(struct srpc_service_cd *scd,
+			    struct srpc_buffer *buf)
 __must_hold(&scd->scd_lock)
 {
 	if (!scd->scd_svc->sv_shuttingdown && scd->scd_buf_adjust >= 0) {

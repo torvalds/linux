@@ -51,10 +51,11 @@ DEFINE_MUTEX(drm_global_mutex);
  * Drivers must define the file operations structure that forms the DRM
  * userspace API entry point, even though most of those operations are
  * implemented in the DRM core. The mandatory functions are drm_open(),
- * drm_read(), drm_ioctl() and drm_compat_ioctl if CONFIG_COMPAT is enabled.
- * Drivers which implement private ioctls that require 32/64 bit compatibility
- * support must provided their onw .compat_ioctl() handler that processes
- * private ioctls and calls drm_compat_ioctl() for core ioctls.
+ * drm_read(), drm_ioctl() and drm_compat_ioctl() if CONFIG_COMPAT is enabled
+ * (note that drm_compat_ioctl will be NULL if CONFIG_COMPAT=n). Drivers which
+ * implement private ioctls that require 32/64 bit compatibility support must
+ * provide their own .compat_ioctl() handler that processes private ioctls and
+ * calls drm_compat_ioctl() for core ioctls.
  *
  * In addition drm_read() and drm_poll() provide support for DRM events. DRM
  * events are a generic and extensible means to send asynchronous events to
@@ -75,9 +76,7 @@ DEFINE_MUTEX(drm_global_mutex);
  *             .open = drm_open,
  *             .release = drm_release,
  *             .unlocked_ioctl = drm_ioctl,
- *     #ifdef CONFIG_COMPAT
- *             .compat_ioctl = drm_compat_ioctl,
- *     #endif
+ *             .compat_ioctl = drm_compat_ioctl, // NULL if CONFIG_COMPAT=n
  *             .poll = drm_poll,
  *             .read = drm_read,
  *             .llseek = no_llseek,
@@ -581,7 +580,7 @@ EXPORT_SYMBOL(drm_poll);
  * kmalloc and @p must be the first member element.
  *
  * This is the locked version of drm_event_reserve_init() for callers which
- * already hold dev->event_lock.
+ * already hold &drm_device.event_lock.
  *
  * RETURNS:
  *
@@ -622,8 +621,8 @@ EXPORT_SYMBOL(drm_event_reserve_init_locked);
  * If callers embedded @p into a larger structure it must be allocated with
  * kmalloc and @p must be the first member element.
  *
- * Callers which already hold dev->event_lock should use
- * drm_event_reserve_init() instead.
+ * Callers which already hold &drm_device.event_lock should use
+ * drm_event_reserve_init_locked() instead.
  *
  * RETURNS:
  *
@@ -663,6 +662,10 @@ void drm_event_cancel_free(struct drm_device *dev,
 		list_del(&p->pending_link);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	if (p->fence)
+		dma_fence_put(p->fence);
+
 	kfree(p);
 }
 EXPORT_SYMBOL(drm_event_cancel_free);
@@ -674,7 +677,7 @@ EXPORT_SYMBOL(drm_event_cancel_free);
  *
  * This function sends the event @e, initialized with drm_event_reserve_init(),
  * to its associated userspace DRM file. Callers must already hold
- * dev->event_lock, see drm_send_event() for the unlocked version.
+ * &drm_device.event_lock, see drm_send_event() for the unlocked version.
  *
  * Note that the core will take care of unlinking and disarming events when the
  * corresponding DRM file is closed. Drivers need not worry about whether the
@@ -686,14 +689,14 @@ void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e)
 	assert_spin_locked(&dev->event_lock);
 
 	if (e->completion) {
-		/* ->completion might disappear as soon as it signalled. */
 		complete_all(e->completion);
+		e->completion_release(e->completion);
 		e->completion = NULL;
 	}
 
 	if (e->fence) {
-		fence_signal(e->fence);
-		fence_put(e->fence);
+		dma_fence_signal(e->fence);
+		dma_fence_put(e->fence);
 	}
 
 	if (!e->file_priv) {
@@ -714,8 +717,9 @@ EXPORT_SYMBOL(drm_send_event_locked);
  * @e: DRM event to deliver
  *
  * This function sends the event @e, initialized with drm_event_reserve_init(),
- * to its associated userspace DRM file. This function acquires dev->event_lock,
- * see drm_send_event_locked() for callers which already hold this lock.
+ * to its associated userspace DRM file. This function acquires
+ * &drm_device.event_lock, see drm_send_event_locked() for callers which already
+ * hold this lock.
  *
  * Note that the core will take care of unlinking and disarming events when the
  * corresponding DRM file is closed. Drivers need not worry about whether the

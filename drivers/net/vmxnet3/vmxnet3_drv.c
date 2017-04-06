@@ -1851,7 +1851,7 @@ vmxnet3_poll(struct napi_struct *napi, int budget)
 	rxd_done = vmxnet3_do_poll(rx_queue->adapter, budget);
 
 	if (rxd_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rxd_done);
 		vmxnet3_enable_all_intrs(rx_queue->adapter);
 	}
 	return rxd_done;
@@ -1882,7 +1882,7 @@ vmxnet3_poll_rx_only(struct napi_struct *napi, int budget)
 	rxd_done = vmxnet3_rq_rx_complete(rq, adapter, budget);
 
 	if (rxd_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rxd_done);
 		vmxnet3_enable_intr(adapter, rq->comp_ring.intr_idx);
 	}
 	return rxd_done;
@@ -2972,9 +2972,6 @@ vmxnet3_change_mtu(struct net_device *netdev, int new_mtu)
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	int err = 0;
 
-	if (new_mtu < VMXNET3_MIN_MTU || new_mtu > VMXNET3_MAX_MTU)
-		return -EINVAL;
-
 	netdev->mtu = new_mtu;
 
 	/*
@@ -3430,6 +3427,10 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	netdev->netdev_ops = &vmxnet3_netdev_ops;
 	vmxnet3_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
+
+	/* MTU range: 60 - 9000 */
+	netdev->min_mtu = VMXNET3_MIN_MTU;
+	netdev->max_mtu = VMXNET3_MAX_MTU;
 
 	INIT_WORK(&adapter->work, vmxnet3_reset_work);
 	set_bit(VMXNET3_STATE_BIT_QUIESCED, &adapter->state);

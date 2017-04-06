@@ -231,12 +231,12 @@ struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
 	int ret;
 
 	if (flags & ~(EXYNOS_BO_MASK)) {
-		DRM_ERROR("invalid flags.\n");
+		DRM_ERROR("invalid GEM buffer flags: %u\n", flags);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (!size) {
-		DRM_ERROR("invalid size.\n");
+		DRM_ERROR("invalid GEM buffer size: %lu\n", size);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -447,16 +447,16 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 	return ret;
 }
 
-int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int exynos_drm_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
 	unsigned long pfn;
 	pgoff_t page_offset;
 	int ret;
 
-	page_offset = ((unsigned long)vmf->virtual_address -
-			vma->vm_start) >> PAGE_SHIFT;
+	page_offset = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
 	if (page_offset >= (exynos_gem->size >> PAGE_SHIFT)) {
 		DRM_ERROR("invalid page offset\n");
@@ -465,8 +465,7 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	pfn = page_to_pfn(exynos_gem->pages[page_offset]);
-	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
-			__pfn_to_pfn_t(pfn, PFN_DEV));
+	ret = vm_insert_mixed(vma, vmf->address, __pfn_to_pfn_t(pfn, PFN_DEV));
 
 out:
 	switch (ret) {

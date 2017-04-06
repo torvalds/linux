@@ -50,6 +50,9 @@ void rdsdebug(char *fmt, ...)
 #define RDS_FRAG_SHIFT	12
 #define RDS_FRAG_SIZE	((unsigned int)(1 << RDS_FRAG_SHIFT))
 
+/* Used to limit both RDMA and non-RDMA RDS message to 1MB */
+#define RDS_MAX_MSG_SIZE	((unsigned int)(1 << 20))
+
 #define RDS_CONG_MAP_BYTES	(65536 / 8)
 #define RDS_CONG_MAP_PAGES	(PAGE_ALIGN(RDS_CONG_MAP_BYTES) / PAGE_SIZE)
 #define RDS_CONG_MAP_PAGE_BITS	(PAGE_SIZE * 8)
@@ -151,6 +154,9 @@ struct rds_connection {
 
 	struct rds_conn_path	c_path[RDS_MPATH_WORKERS];
 	wait_queue_head_t	c_hs_waitq; /* handshake waitq */
+
+	u32			c_my_gen_num;
+	u32			c_peer_gen_num;
 };
 
 static inline
@@ -243,9 +249,15 @@ struct rds_ext_header_rdma_dest {
 /* Extension header announcing number of paths.
  * Implicit length = 2 bytes.
  */
-#define RDS_EXTHDR_NPATHS	4
+#define RDS_EXTHDR_NPATHS	5
+#define RDS_EXTHDR_GEN_NUM	6
 
 #define __RDS_EXTHDR_MAX	16 /* for now */
+#define RDS_RX_MAX_TRACES	(RDS_MSG_RX_DGRAM_TRACE_MAX + 1)
+#define	RDS_MSG_RX_HDR		0
+#define	RDS_MSG_RX_START	1
+#define	RDS_MSG_RX_END		2
+#define	RDS_MSG_RX_CMSG		3
 
 struct rds_incoming {
 	atomic_t		i_refcount;
@@ -258,6 +270,7 @@ struct rds_incoming {
 
 	rds_rdma_cookie_t	i_rdma_cookie;
 	struct timeval		i_rx_tstamp;
+	u64			i_rx_lat_trace[RDS_RX_MAX_TRACES];
 };
 
 struct rds_mr {
@@ -338,6 +351,7 @@ static inline u32 rds_rdma_cookie_offset(rds_rdma_cookie_t cookie)
 #define RDS_MSG_RETRANSMITTED	5
 #define RDS_MSG_MAPPED		6
 #define RDS_MSG_PAGEVEC		7
+#define RDS_MSG_FLUSH		8
 
 struct rds_message {
 	atomic_t		m_refcount;
@@ -414,6 +428,7 @@ struct rds_message {
 		} rdma;
 		struct rm_data_op {
 			unsigned int		op_active:1;
+			unsigned int		op_notify:1;
 			unsigned int		op_nents;
 			unsigned int		op_count;
 			unsigned int		op_dmasg;
@@ -566,6 +581,10 @@ struct rds_sock {
 	unsigned char		rs_recverr,
 				rs_cong_monitor;
 	u32			rs_hash_initval;
+
+	/* Socket receive path trace points*/
+	u8			rs_rx_traces;
+	u8			rs_rx_trace[RDS_MSG_RX_DGRAM_TRACE_MAX];
 };
 
 static inline struct rds_sock *rds_sk_to_rs(const struct sock *sk)
@@ -625,6 +644,9 @@ struct rds_statistics {
 	uint64_t	s_cong_update_received;
 	uint64_t	s_cong_send_error;
 	uint64_t	s_cong_send_blocked;
+	uint64_t	s_recv_bytes_added_to_socket;
+	uint64_t	s_recv_bytes_removed_from_socket;
+
 };
 
 /* af_rds.c */
@@ -664,6 +686,7 @@ void rds_cong_exit(void);
 struct rds_message *rds_cong_update_alloc(struct rds_connection *conn);
 
 /* conn.c */
+extern u32 rds_gen_num;
 int rds_conn_init(void);
 void rds_conn_exit(void);
 struct rds_connection *rds_conn_create(struct net *net,
@@ -683,10 +706,6 @@ void rds_for_each_conn_info(struct socket *sock, unsigned int len,
 			  struct rds_info_lengths *lens,
 			  int (*visitor)(struct rds_connection *, void *),
 			  size_t item_len);
-__printf(2, 3)
-void __rds_conn_error(struct rds_connection *conn, const char *, ...);
-#define rds_conn_error(conn, fmt...) \
-	__rds_conn_error(conn, KERN_WARNING "RDS: " fmt)
 
 __printf(2, 3)
 void __rds_conn_path_error(struct rds_conn_path *cp, const char *, ...);
@@ -779,13 +798,6 @@ static inline int rds_message_verify_checksum(const struct rds_header *hdr)
 /* page.c */
 int rds_page_remainder_alloc(struct scatterlist *scat, unsigned long bytes,
 			     gfp_t gfp);
-int rds_page_copy_user(struct page *page, unsigned long offset,
-		       void __user *ptr, unsigned long bytes,
-		       int to_user);
-#define rds_page_copy_to_user(page, offset, ptr, bytes) \
-	rds_page_copy_user(page, offset, ptr, bytes, 1)
-#define rds_page_copy_from_user(page, offset, ptr, bytes) \
-	rds_page_copy_user(page, offset, ptr, bytes, 0)
 void rds_page_exit(void);
 
 /* recv.c */
@@ -891,7 +903,7 @@ void rds_connect_path_complete(struct rds_conn_path *conn, int curr);
 void rds_connect_complete(struct rds_connection *conn);
 
 /* transport.c */
-int rds_trans_register(struct rds_transport *trans);
+void rds_trans_register(struct rds_transport *trans);
 void rds_trans_unregister(struct rds_transport *trans);
 struct rds_transport *rds_trans_get_preferred(struct net *net, __be32 addr);
 void rds_trans_put(struct rds_transport *trans);

@@ -17,7 +17,7 @@ struct flow_cache_percpu {
 struct flow_cache {
 	u32				hash_shift;
 	struct flow_cache_percpu __percpu *percpu;
-	struct notifier_block		hotcpu_notifier;
+	struct hlist_node		node;
 	int				low_watermark;
 	int				high_watermark;
 	struct timer_list		rnd_timer;

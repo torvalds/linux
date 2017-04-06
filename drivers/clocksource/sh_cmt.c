@@ -612,7 +612,7 @@ static struct sh_cmt_channel *cs_to_sh_cmt(struct clocksource *cs)
 	return container_of(cs, struct sh_cmt_channel, cs);
 }
 
-static cycle_t sh_cmt_clocksource_read(struct clocksource *cs)
+static u64 sh_cmt_clocksource_read(struct clocksource *cs)
 {
 	struct sh_cmt_channel *ch = cs_to_sh_cmt(cs);
 	unsigned long flags, raw;

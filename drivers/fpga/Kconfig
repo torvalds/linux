@@ -13,11 +13,25 @@ config FPGA
 
 if FPGA
 
+config FPGA_REGION
+	tristate "FPGA Region"
+	depends on OF && FPGA_BRIDGE
+	help
+	  FPGA Regions allow loading FPGA images under control of
+	  the Device Tree.
+
 config FPGA_MGR_SOCFPGA
 	tristate "Altera SOCFPGA FPGA Manager"
-	depends on ARCH_SOCFPGA
+	depends on ARCH_SOCFPGA || COMPILE_TEST
 	help
 	  FPGA manager driver support for Altera SOCFPGA.
+
+config FPGA_MGR_SOCFPGA_A10
+	tristate "Altera SoCFPGA Arria10"
+	depends on ARCH_SOCFPGA || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  FPGA manager driver support for Altera Arria10 SoCFPGA.
 
 config FPGA_MGR_ZYNQ_FPGA
 	tristate "Xilinx Zynq FPGA"
@@ -25,6 +39,29 @@ config FPGA_MGR_ZYNQ_FPGA
 	depends on HAS_DMA
 	help
 	  FPGA manager driver support for Xilinx Zynq FPGAs.
+
+config FPGA_BRIDGE
+	tristate "FPGA Bridge Framework"
+	depends on OF
+	help
+	  Say Y here if you want to support bridges connected between host
+	  processors and FPGAs or between FPGAs.
+
+config SOCFPGA_FPGA_BRIDGE
+	tristate "Altera SoCFPGA FPGA Bridges"
+	depends on ARCH_SOCFPGA && FPGA_BRIDGE
+	help
+	  Say Y to enable drivers for FPGA bridges for Altera SOCFPGA
+	  devices.
+
+config ALTERA_FREEZE_BRIDGE
+	tristate "Altera FPGA Freeze Bridge"
+	depends on ARCH_SOCFPGA && FPGA_BRIDGE
+	help
+	  Say Y to enable drivers for Altera FPGA Freeze bridges.  A
+	  freeze bridge is a bridge that exists in the FPGA fabric to
+	  isolate one region of the FPGA from the busses while that
+	  region is being reprogrammed.
 
 endif # FPGA
 

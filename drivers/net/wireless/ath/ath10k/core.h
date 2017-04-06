@@ -46,7 +46,7 @@
 #define WMI_READY_TIMEOUT (5 * HZ)
 #define ATH10K_FLUSH_TIMEOUT_HZ (5 * HZ)
 #define ATH10K_CONNECTION_LOSS_HZ (3 * HZ)
-#define ATH10K_NUM_CHANS 39
+#define ATH10K_NUM_CHANS 40
 
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
@@ -68,6 +68,23 @@
 /* NAPI poll budget */
 #define ATH10K_NAPI_BUDGET      64
 #define ATH10K_NAPI_QUOTA_LIMIT 60
+
+/* SMBIOS type containing Board Data File Name Extension */
+#define ATH10K_SMBIOS_BDF_EXT_TYPE 0xF8
+
+/* SMBIOS type structure length (excluding strings-set) */
+#define ATH10K_SMBIOS_BDF_EXT_LENGTH 0x9
+
+/* Offset pointing to Board Data File Name Extension */
+#define ATH10K_SMBIOS_BDF_EXT_OFFSET 0x8
+
+/* Board Data File Name Extension string length.
+ * String format: BDF_<Customer ID>_<Extension>\0
+ */
+#define ATH10K_SMBIOS_BDF_EXT_STR_LENGTH 0x20
+
+/* The magic used by QCA spec */
+#define ATH10K_SMBIOS_BDF_EXT_MAGIC "BDF_"
 
 struct ath10k;
 
@@ -314,6 +331,7 @@ struct ath10k_peer {
 	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
 
+	bool removed;
 	int vdev_id;
 	u8 addr[ETH_ALEN];
 	DECLARE_BITMAP(peer_ids, ATH10K_MAX_NUM_PEER_IDS);
@@ -337,6 +355,7 @@ struct ath10k_sta {
 	u32 nss;
 	u32 smps;
 	u16 peer_id;
+	struct rate_info txrate;
 
 	struct work_struct update_wk;
 
@@ -418,6 +437,21 @@ struct ath10k_vif_iter {
 	struct ath10k_vif *arvif;
 };
 
+/* Copy Engine register dump, protected by ce-lock */
+struct ath10k_ce_crash_data {
+	__le32 base_addr;
+	__le32 src_wr_idx;
+	__le32 src_r_idx;
+	__le32 dst_wr_idx;
+	__le32 dst_r_idx;
+};
+
+struct ath10k_ce_crash_hdr {
+	__le32 ce_count;
+	__le32 reserved[3]; /* for future use */
+	struct ath10k_ce_crash_data entries[];
+};
+
 /* used for crash-dump storage, protected by data-lock */
 struct ath10k_fw_crash_data {
 	bool crashed_since_read;
@@ -425,6 +459,7 @@ struct ath10k_fw_crash_data {
 	uuid_le uuid;
 	struct timespec timestamp;
 	__le32 registers[REG_DUMP_COUNT_QCA988X];
+	struct ath10k_ce_crash_data ce_crash_data[CE_COUNT_MAX];
 };
 
 struct ath10k_debug {
@@ -557,12 +592,17 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_BTCOEX_PARAM = 14,
 
-	/* Older firmware with HTT delivers incorrect tx status for null func
-	 * frames to driver, but this fixed in 10.2 and 10.4 firmware versions.
-	 * Also this workaround results in reporting of incorrect null func
-	 * status for 10.4. This flag is used to skip the workaround.
+	/* Unused flag and proven to be not working, enable this if you want
+	 * to experiment sending NULL func data frames in HTT TX
 	 */
 	ATH10K_FW_FEATURE_SKIP_NULL_FUNC_WAR = 15,
+
+	/* Firmware allow other BSS mesh broadcast/multicast frames without
+	 * creating monitor interface. Appropriate rxfilters are programmed for
+	 * mesh vdev by firmware itself. This feature flags will be used for
+	 * not creating monitor vdev while configuring mesh node.
+	 */
+	ATH10K_FW_FEATURE_ALLOWS_MESH_BCAST = 16,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
@@ -695,6 +735,21 @@ struct ath10k_fw_components {
 	struct ath10k_fw_file fw_file;
 };
 
+struct ath10k_per_peer_tx_stats {
+	u32	succ_bytes;
+	u32	retry_bytes;
+	u32	failed_bytes;
+	u8	ratecode;
+	u8	flags;
+	u16	peer_id;
+	u16	succ_pkts;
+	u16	retry_pkts;
+	u16	failed_pkts;
+	u16	duration;
+	u32	reserved1;
+	u32	reserved2;
+};
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
@@ -714,6 +769,7 @@ struct ath10k {
 	u32 phy_capability;
 	u32 hw_min_tx_power;
 	u32 hw_max_tx_power;
+	u32 hw_eeprom_rd;
 	u32 ht_cap_info;
 	u32 vht_cap_info;
 	u32 num_rf_chains;
@@ -759,6 +815,8 @@ struct ath10k {
 		bool bmi_ids_valid;
 		u8 bmi_board_id;
 		u8 bmi_chip_id;
+
+		char bdf_ext[ATH10K_SMBIOS_BDF_EXT_STR_LENGTH];
 	} id;
 
 	int fw_api;
@@ -907,10 +965,24 @@ struct ath10k {
 
 	struct ath10k_thermal thermal;
 	struct ath10k_wow wow;
+	struct ath10k_per_peer_tx_stats peer_tx_stats;
 
 	/* NAPI */
 	struct net_device napi_dev;
 	struct napi_struct napi;
+
+	struct work_struct set_coverage_class_work;
+	/* protected by conf_mutex */
+	struct {
+		/* writing also protected by data_lock */
+		s16 coverage_class;
+
+		u32 reg_phyclk;
+		u32 reg_slottime_conf;
+		u32 reg_slottime_orig;
+		u32 reg_ack_cts_timeout_conf;
+		u32 reg_ack_cts_timeout_orig;
+	} fw_coverage;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

@@ -60,6 +60,10 @@ static int __init serial_init_chip(struct parisc_device *dev)
 					7272727 : 1843200;
 	uart.port.mapbase	= address;
 	uart.port.membase	= ioremap_nocache(address, 16);
+	if (!uart.port.membase) {
+		dev_warn(&dev->dev, "Failed to map memory\n");
+		return -ENOMEM;
+	}
 	uart.port.irq	= dev->irq;
 	uart.port.flags	= UPF_BOOT_AUTOCONF;
 	uart.port.dev	= &dev->dev;

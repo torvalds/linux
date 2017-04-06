@@ -71,8 +71,7 @@ synproxy_send_tcp(struct net *net,
 	skb_dst_set(nskb, dst);
 
 	if (nfct) {
-		nskb->nfct = nfct;
-		nskb->nfctinfo = ctinfo;
+		nf_ct_set(nskb, (struct nf_conn *)nfct, ctinfo);
 		nf_conntrack_get(nfct);
 	}
 
@@ -121,8 +120,8 @@ synproxy_send_client_synack(struct net *net,
 
 	synproxy_build_options(nth, opts);
 
-	synproxy_send_tcp(net, skb, nskb, skb->nfct, IP_CT_ESTABLISHED_REPLY,
-			  niph, nth, tcp_hdr_size);
+	synproxy_send_tcp(net, skb, nskb, skb_nfct(skb),
+			  IP_CT_ESTABLISHED_REPLY, niph, nth, tcp_hdr_size);
 }
 
 static void
@@ -244,8 +243,8 @@ synproxy_send_client_ack(struct net *net,
 
 	synproxy_build_options(nth, opts);
 
-	synproxy_send_tcp(net, skb, nskb, skb->nfct, IP_CT_ESTABLISHED_REPLY,
-			  niph, nth, tcp_hdr_size);
+	synproxy_send_tcp(net, skb, nskb, skb_nfct(skb),
+			  IP_CT_ESTABLISHED_REPLY, niph, nth, tcp_hdr_size);
 }
 
 static bool
@@ -277,12 +276,12 @@ static unsigned int
 synproxy_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_synproxy_info *info = par->targinfo;
-	struct net *net = par->net;
+	struct net *net = xt_net(par);
 	struct synproxy_net *snet = synproxy_pernet(net);
 	struct synproxy_options opts = {};
 	struct tcphdr *th, _th;
 
-	if (nf_ip6_checksum(skb, par->hooknum, par->thoff, IPPROTO_TCP))
+	if (nf_ip6_checksum(skb, xt_hooknum(par), par->thoff, IPPROTO_TCP))
 		return NF_DROP;
 
 	th = skb_header_pointer(skb, par->thoff, sizeof(_th), &_th);
@@ -440,12 +439,12 @@ static int synproxy_tg6_check(const struct xt_tgchk_param *par)
 	    e->ipv6.invflags & XT_INV_PROTO)
 		return -EINVAL;
 
-	return nf_ct_l3proto_try_module_get(par->family);
+	return nf_ct_netns_get(par->net, par->family);
 }
 
 static void synproxy_tg6_destroy(const struct xt_tgdtor_param *par)
 {
-	nf_ct_l3proto_module_put(par->family);
+	nf_ct_netns_put(par->net, par->family);
 }
 
 static struct xt_target synproxy_tg6_reg __read_mostly = {

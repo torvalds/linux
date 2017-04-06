@@ -109,7 +109,7 @@ static int arizona_ldo1_hc_get_voltage_sel(struct regulator_dev *rdev)
 	return (val & ARIZONA_LDO1_VSEL_MASK) >> ARIZONA_LDO1_VSEL_SHIFT;
 }
 
-static struct regulator_ops arizona_ldo1_hc_ops = {
+static const struct regulator_ops arizona_ldo1_hc_ops = {
 	.list_voltage = arizona_ldo1_hc_list_voltage,
 	.map_voltage = arizona_ldo1_hc_map_voltage,
 	.get_voltage_sel = arizona_ldo1_hc_get_voltage_sel,
@@ -130,11 +130,12 @@ static const struct regulator_desc arizona_ldo1_hc = {
 	.uV_step = 50000,
 	.n_voltages = 8,
 	.enable_time = 1500,
+	.ramp_delay = 24000,
 
 	.owner = THIS_MODULE,
 };
 
-static struct regulator_ops arizona_ldo1_ops = {
+static const struct regulator_ops arizona_ldo1_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.map_voltage = regulator_map_voltage_linear,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
@@ -153,6 +154,7 @@ static const struct regulator_desc arizona_ldo1 = {
 	.uV_step = 25000,
 	.n_voltages = 13,
 	.enable_time = 500,
+	.ramp_delay = 24000,
 
 	.owner = THIS_MODULE,
 };

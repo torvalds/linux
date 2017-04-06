@@ -17,6 +17,7 @@
  * Copyright (C) 2006 Ingo Molnar <mingo@elte.hu>
  *
  */
+#include <linux/bvec.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/pagemap.h>
@@ -32,6 +33,8 @@
 #include <linux/gfp.h>
 #include <linux/socket.h>
 #include <linux/compat.h>
+#include <linux/sched/signal.h>
+
 #include "internal.h"
 
 /*
@@ -203,6 +206,7 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 		buf->len = spd->partial[page_nr].len;
 		buf->private = spd->partial[page_nr].private;
 		buf->ops = spd->ops;
+		buf->flags = 0;
 
 		pipe->nrbufs++;
 		page_nr++;
@@ -305,7 +309,7 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 	idx = to.idx;
 	init_sync_kiocb(&kiocb, in);
 	kiocb.ki_pos = *ppos;
-	ret = in->f_op->read_iter(&kiocb, &to);
+	ret = call_read_iter(in, &kiocb, &to);
 	if (ret > 0) {
 		*ppos = kiocb.ki_pos;
 		file_accessed(in);
@@ -1086,7 +1090,13 @@ EXPORT_SYMBOL(do_splice_direct);
 
 static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 {
-	while (pipe->nrbufs == pipe->buffers) {
+	for (;;) {
+		if (unlikely(!pipe->readers)) {
+			send_sig(SIGPIPE, current, 0);
+			return -EPIPE;
+		}
+		if (pipe->nrbufs != pipe->buffers)
+			return 0;
 		if (flags & SPLICE_F_NONBLOCK)
 			return -EAGAIN;
 		if (signal_pending(current))
@@ -1095,7 +1105,6 @@ static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 		pipe_wait(pipe);
 		pipe->waiting_writers--;
 	}
-	return 0;
 }
 
 static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,

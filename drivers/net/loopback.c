@@ -40,7 +40,7 @@
 #include <linux/fcntl.h>
 #include <linux/in.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #include <linux/inet.h>
@@ -97,8 +97,8 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static struct rtnl_link_stats64 *loopback_get_stats64(struct net_device *dev,
-						      struct rtnl_link_stats64 *stats)
+static void loopback_get_stats64(struct net_device *dev,
+				 struct rtnl_link_stats64 *stats)
 {
 	u64 bytes = 0;
 	u64 packets = 0;
@@ -122,7 +122,6 @@ static struct rtnl_link_stats64 *loopback_get_stats64(struct net_device *dev,
 	stats->tx_packets = packets;
 	stats->rx_bytes   = bytes;
 	stats->tx_bytes   = bytes;
-	return stats;
 }
 
 static u32 always_on(struct net_device *dev)
@@ -164,6 +163,7 @@ static void loopback_setup(struct net_device *dev)
 {
 	dev->mtu		= 64 * 1024;
 	dev->hard_header_len	= ETH_HLEN;	/* 14	*/
+	dev->min_header_len	= ETH_HLEN;	/* 14	*/
 	dev->addr_len		= ETH_ALEN;	/* 6	*/
 	dev->type		= ARPHRD_LOOPBACK;	/* 0x0001*/
 	dev->flags		= IFF_LOOPBACK;

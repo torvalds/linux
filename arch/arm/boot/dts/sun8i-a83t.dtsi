@@ -167,25 +167,21 @@
 			#gpio-cells = <3>;
 
 			mmc0_pins_a: mmc0@0 {
-				allwinner,pins = "PF0", "PF1", "PF2",
-						 "PF3", "PF4", "PF5";
-				allwinner,function = "mmc0";
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PF0", "PF1", "PF2",
+				       "PF3", "PF4", "PF5";
+				function = "mmc0";
+				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			uart0_pins_a: uart0@0 {
-				allwinner,pins = "PF2", "PF4";
-				allwinner,function = "uart0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PF2", "PF4";
+				function = "uart0";
 			};
 
 			uart0_pins_b: uart0@1 {
-				allwinner,pins = "PB9", "PB10";
-				allwinner,function = "uart0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PB9", "PB10";
+				function = "uart0";
 			};
 		};
 
@@ -217,7 +213,7 @@
 		gic: interrupt-controller@01c81000 {
 			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c81000 0x1000>,
-			      <0x01c82000 0x1000>,
+			      <0x01c82000 0x2000>,
 			      <0x01c84000 0x2000>,
 			      <0x01c86000 0x2000>;
 			interrupt-controller;

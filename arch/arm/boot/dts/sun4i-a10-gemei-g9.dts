@@ -156,10 +156,8 @@
 
 &pio {
 	codec_pa_pin: codec_pa_pin@0 {
-		allwinner,pins = "PH15";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH15";
+		function = "gpio_out";
 	};
 };
 

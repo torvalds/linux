@@ -27,7 +27,7 @@
 
 #include <asm/sigcontext.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>

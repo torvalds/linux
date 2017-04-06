@@ -1162,7 +1162,7 @@ static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status)
 	if (status & ERR_EN) {
 		omap_hsmmc_dbg_report_irq(host, status);
 
-		if (status & (CTO_EN | CCRC_EN))
+		if (status & (CTO_EN | CCRC_EN | CEB_EN))
 			end_cmd = 1;
 		if (host->data || host->response_busy) {
 			end_trans = !end_cmd;
@@ -1469,10 +1469,11 @@ static int omap_hsmmc_setup_dma_transfer(struct omap_hsmmc_host *host,
 }
 
 static void set_data_timeout(struct omap_hsmmc_host *host,
-			     unsigned int timeout_ns,
+			     unsigned long long timeout_ns,
 			     unsigned int timeout_clks)
 {
-	unsigned int timeout, cycle_ns;
+	unsigned long long timeout = timeout_ns;
+	unsigned int cycle_ns;
 	uint32_t reg, clkd, dto = 0;
 
 	reg = OMAP_HSMMC_READ(host->base, SYSCTL);
@@ -1481,7 +1482,7 @@ static void set_data_timeout(struct omap_hsmmc_host *host,
 		clkd = 1;
 
 	cycle_ns = 1000000000 / (host->clk_rate / clkd);
-	timeout = timeout_ns / cycle_ns;
+	do_div(timeout, cycle_ns);
 	timeout += timeout_clks;
 	if (timeout) {
 		while ((timeout & 0x80000000) == 0) {
@@ -1527,16 +1528,24 @@ static int
 omap_hsmmc_prepare_data(struct omap_hsmmc_host *host, struct mmc_request *req)
 {
 	int ret;
+	unsigned long long timeout;
+
 	host->data = req->data;
 
 	if (req->data == NULL) {
 		OMAP_HSMMC_WRITE(host->base, BLK, 0);
-		/*
-		 * Set an arbitrary 100ms data timeout for commands with
-		 * busy signal.
-		 */
-		if (req->cmd->flags & MMC_RSP_BUSY)
-			set_data_timeout(host, 100000000U, 0);
+		if (req->cmd->flags & MMC_RSP_BUSY) {
+			timeout = req->cmd->busy_timeout * NSEC_PER_MSEC;
+
+			/*
+			 * Set an arbitrary 100ms data timeout for commands with
+			 * busy signal and no indication of busy_timeout.
+			 */
+			if (!timeout)
+				timeout = 100000000U;
+
+			set_data_timeout(host, timeout, 0);
+		}
 		return 0;
 	}
 
@@ -1565,8 +1574,7 @@ static void omap_hsmmc_post_req(struct mmc_host *mmc, struct mmc_request *mrq,
 	}
 }
 
-static void omap_hsmmc_pre_req(struct mmc_host *mmc, struct mmc_request *mrq,
-			       bool is_first_req)
+static void omap_hsmmc_pre_req(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
 

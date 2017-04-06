@@ -140,9 +140,28 @@
 
 #define RSI_SUPP_FILTERS	(FIF_ALLMULTI | FIF_PROBE_REQ |\
 				 FIF_BCN_PRBRESP_PROMISC)
+
+#define ANTENNA_SEL_INT			0x02 /* RF_OUT_2 / Integerated */
+#define ANTENNA_SEL_UFL			0x03 /* RF_OUT_1 / U.FL */
+
+/* Rx filter word definitions */
+#define PROMISCOUS_MODE			BIT(0)
+#define ALLOW_DATA_ASSOC_PEER		BIT(1)
+#define ALLOW_MGMT_ASSOC_PEER		BIT(2)
+#define ALLOW_CTRL_ASSOC_PEER		BIT(3)
+#define DISALLOW_BEACONS		BIT(4)
+#define ALLOW_CONN_PEER_MGMT_WHILE_BUF_FULL BIT(5)
+#define DISALLOW_BROADCAST_DATA		BIT(6)
+
 enum opmode {
 	STA_OPMODE = 1,
 	AP_OPMODE = 2
+};
+
+enum vap_status {
+	VAP_ADD = 1,
+	VAP_DELETE = 2,
+	VAP_UPDATE = 3
 };
 
 extern struct ieee80211_rate rsi_rates[12];
@@ -184,7 +203,9 @@ enum cmd_frame_type {
 	BG_SCAN_PARAMS,
 	BG_SCAN_PROBE_REQ,
 	CW_MODE_REQ,
-	PER_CMD_PKT
+	PER_CMD_PKT,
+	ANT_SEL_FRAME = 0x20,
+	RADIO_PARAMS_UPDATE = 0x29
 };
 
 struct rsi_mac_frame {
@@ -287,12 +308,14 @@ static inline u8 rsi_get_channel(u8 *addr)
 }
 
 int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg);
-int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode);
+int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode,
+			     u8 vap_status);
 int rsi_send_aggregation_params_frame(struct rsi_common *common, u16 tid,
 				      u16 ssn, u8 buf_size, u8 event);
 int rsi_hal_load_key(struct rsi_common *common, u8 *data, u16 key_len,
 		     u8 key_type, u8 key_id, u32 cipher);
-int rsi_set_channel(struct rsi_common *common, u16 chno);
+int rsi_set_channel(struct rsi_common *common,
+		    struct ieee80211_channel *channel);
 int rsi_send_block_unblock_frame(struct rsi_common *common, bool event);
 void rsi_inform_bss_status(struct rsi_common *common, u8 status,
 			   const u8 *bssid, u8 qos_enable, u16 aid);
@@ -306,4 +329,7 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_mgmt_pkt(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb);
 int rsi_band_check(struct rsi_common *common);
+int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word);
+int rsi_send_radio_params_update(struct rsi_common *common);
+int rsi_set_antenna(struct rsi_common *common, u8 antenna);
 #endif

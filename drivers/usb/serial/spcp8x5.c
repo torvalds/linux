@@ -154,6 +154,19 @@ static int spcp8x5_probe(struct usb_serial *serial,
 	return 0;
 }
 
+static int spcp8x5_attach(struct usb_serial *serial)
+{
+	unsigned char num_ports = serial->num_ports;
+
+	if (serial->num_bulk_in < num_ports ||
+			serial->num_bulk_out < num_ports) {
+		dev_err(&serial->interface->dev, "missing endpoints\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int spcp8x5_port_probe(struct usb_serial_port *port)
 {
 	const struct usb_device_id *id = usb_get_serial_data(port->serial);
@@ -219,11 +232,17 @@ static int spcp8x5_get_msr(struct usb_serial_port *port, u8 *status)
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 			      GET_UART_STATUS, GET_UART_STATUS_TYPE,
 			      0, GET_UART_STATUS_MSR, buf, 1, 100);
-	if (ret < 0)
+	if (ret < 1) {
 		dev_err(&port->dev, "failed to get modem status: %d\n", ret);
+		if (ret >= 0)
+			ret = -EIO;
+		goto out;
+	}
 
 	dev_dbg(&port->dev, "0xc0:0x22:0:6  %d - 0x02%x\n", ret, *buf);
 	*status = *buf;
+	ret = 0;
+out:
 	kfree(buf);
 
 	return ret;
@@ -477,6 +496,7 @@ static struct usb_serial_driver spcp8x5_device = {
 	.tiocmget		= spcp8x5_tiocmget,
 	.tiocmset		= spcp8x5_tiocmset,
 	.probe			= spcp8x5_probe,
+	.attach			= spcp8x5_attach,
 	.port_probe		= spcp8x5_port_probe,
 	.port_remove		= spcp8x5_port_remove,
 };

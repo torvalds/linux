@@ -511,23 +511,6 @@ static inline void ldlm_callback_errmsg(struct ptlrpc_request *req,
 		CWARN("Send reply failed, maybe cause bug 21636.\n");
 }
 
-static int ldlm_handle_qc_callback(struct ptlrpc_request *req)
-{
-	struct obd_quotactl *oqctl;
-	struct client_obd *cli = &req->rq_export->exp_obd->u.cli;
-
-	oqctl = req_capsule_client_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
-	if (!oqctl) {
-		CERROR("Can't unpack obd_quotactl\n");
-		return -EPROTO;
-	}
-
-	oqctl->qc_stat = ptlrpc_status_ntoh(oqctl->qc_stat);
-
-	cli->cl_qchk_stat = oqctl->qc_stat;
-	return 0;
-}
-
 /* TODO: handle requests in a similar way as MDT: see mdt_handle_common() */
 static int ldlm_callback_handler(struct ptlrpc_request *req)
 {
@@ -575,13 +558,6 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		break;
 	case LDLM_SET_INFO:
 		rc = ldlm_handle_setinfo(req);
-		ldlm_callback_reply(req, rc);
-		return 0;
-	case OBD_QC_CALLBACK:
-		req_capsule_set(&req->rq_pill, &RQF_QC_CALLBACK);
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_QC_CALLBACK_NET))
-			return 0;
-		rc = ldlm_handle_qc_callback(req);
 		ldlm_callback_reply(req, rc);
 		return 0;
 	default:
@@ -858,7 +834,6 @@ int ldlm_get_ref(void)
 
 	return rc;
 }
-EXPORT_SYMBOL(ldlm_get_ref);
 
 void ldlm_put_ref(void)
 {
@@ -875,7 +850,6 @@ void ldlm_put_ref(void)
 	}
 	mutex_unlock(&ldlm_ref_mutex);
 }
-EXPORT_SYMBOL(ldlm_put_ref);
 
 static ssize_t cancel_unused_locks_before_replay_show(struct kobject *kobj,
 						      struct attribute *attr,

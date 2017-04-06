@@ -19,7 +19,7 @@
 
 #include "fpu_emu.h"
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "fpu_system.h"
 #include "exception.h"

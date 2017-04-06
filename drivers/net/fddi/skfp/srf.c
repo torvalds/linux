@@ -173,7 +173,6 @@ static struct s_srf_evc *smt_get_evc(struct s_smc *smc, int code, int index)
 #define THRESHOLD_2	(2*TICKS_PER_SECOND)
 #define THRESHOLD_32	(32*TICKS_PER_SECOND)
 
-#ifdef	DEBUG
 static const char * const srf_names[] = {
 	"None","MACPathChangeEvent",	"MACNeighborChangeEvent",
 	"PORTPathChangeEvent",		"PORTUndesiredConnectionAttemptEvent",
@@ -182,7 +181,6 @@ static const char * const srf_names[] = {
 	"MACNotCopiedCondition",	"PORTEBErrorCondition",
 	"PORTLerCondition"
 } ;
-#endif
 
 void smt_srf_event(struct s_smc *smc, int code, int index, int cond)
 {
@@ -198,10 +196,10 @@ void smt_srf_event(struct s_smc *smc, int code, int index, int cond)
 	}
 
 	if (code) {
-		DB_SMT("SRF: %s index %d\n",srf_names[code],index) ;
+		DB_SMT("SRF: %s index %d", srf_names[code], index);
 
 		if (!(evc = smt_get_evc(smc,code,index))) {
-			DB_SMT("SRF : smt_get_evc() failed\n",0,0) ;
+			DB_SMT("SRF : smt_get_evc() failed");
 			return ;
 		}
 		/*
@@ -217,7 +215,7 @@ void smt_srf_event(struct s_smc *smc, int code, int index, int cond)
 		 */
 		smt_set_timestamp(smc,smc->mib.fddiSMTTransitionTimeStamp) ;
 		if (SMT_IS_CONDITION(code)) {
-			DB_SMT("SRF: condition is %s\n",cond ? "ON":"OFF",0) ;
+			DB_SMT("SRF: condition is %s", cond ? "ON" : "OFF");
 			if (cond) {
 				*evc->evc_cond_state = TRUE ;
 				evc->evc_rep_required = TRUE ;
@@ -414,9 +412,9 @@ static void smt_send_srf(struct s_smc *smc)
 	smt->smt_len = SMT_MAX_INFO_LEN - pcon.pc_len ;
 	mb->sm_len = smt->smt_len + sizeof(struct smt_header) ;
 
-	DB_SMT("SRF: sending SRF at %p, len %d\n",smt,mb->sm_len) ;
-	DB_SMT("SRF: state SR%d Threshold %d\n",
-		smc->srf.sr_state,smc->srf.SRThreshold/TICKS_PER_SECOND) ;
+	DB_SMT("SRF: sending SRF at %p, len %d", smt, mb->sm_len);
+	DB_SMT("SRF: state SR%d Threshold %lu",
+	       smc->srf.sr_state, smc->srf.SRThreshold / TICKS_PER_SECOND);
 #ifdef	DEBUG
 	dump_smt(smc,smt,"SRF Send") ;
 #endif

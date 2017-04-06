@@ -23,6 +23,12 @@
 				#clock-cells = <0>;
 			};
 
+			mmcclk: mmcclk {
+				compatible = "fixed-clock";
+				clock-frequency = <50000000>;
+				#clock-cells = <0>;
+			};
+
 			pguclk: pguclk {
 				#clock-cells = <0>;
 				compatible = "fixed-clock";
@@ -93,6 +99,26 @@
 			reg = <0x17400 0x14>;
 			interrupts = <5>;
 			interrupt-names = "arc_ps2_irq";
+		};
+
+		mmc@0x15000 {
+			compatible = "snps,dw-mshc";
+			reg = <0x15000 0x400>;
+			num-slots = <1>;
+			fifo-depth = <1024>;
+			card-detect-delay = <200>;
+			clocks = <&apbclk>, <&mmcclk>;
+			clock-names = "biu", "ciu";
+			interrupts = <7>;
+			bus-width = <4>;
+		};
+
+		/* Embedded Vision subsystem UIO mappings; only relevant for EV VDK */
+		uio_ev: uio@0xD0000000 {
+			compatible = "generic-uio";
+			reg = <0xD0000000 0x2000 0xD1000000 0x2000 0x90000000 0x10000000 0xC0000000 0x10000000>;
+			reg-names = "ev_gsa", "ev_ctrl", "ev_shared_mem", "ev_code_mem";
+			interrupts = <23>;
 		};
 	};
 };

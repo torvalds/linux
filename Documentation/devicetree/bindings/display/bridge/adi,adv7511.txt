@@ -38,10 +38,22 @@ The following input format properties are required except in "rgb 1x" and
 - adi,input-justification: The input bit justification ("left", "evenly",
   "right").
 
+- avdd-supply: A 1.8V supply that powers up the AVDD pin on the chip.
+- dvdd-supply: A 1.8V supply that powers up the DVDD pin on the chip.
+- pvdd-supply: A 1.8V supply that powers up the PVDD pin on the chip.
+- dvdd-3v-supply: A 3.3V supply that powers up the pin called DVDD_3V
+  on the chip.
+- bgvdd-supply: A 1.8V supply that powers up the BGVDD pin. This is
+  needed only for ADV7511.
+
 The following properties are required for ADV7533:
 
 - adi,dsi-lanes: Number of DSI data lanes connected to the DSI host. It should
   be one of 1, 2, 3 or 4.
+- a2vdd-supply: 1.8V supply that powers up the A2VDD pin on the chip.
+- v3p3-supply: A 3.3V supply that powers up the V3P3 pin on the chip.
+- v1p2-supply: A supply that powers up the V1P2 pin on the chip. It can be
+  either 1.2V or 1.8V.
 
 Optional properties:
 

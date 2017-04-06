@@ -7,7 +7,7 @@
  */
 
 #include <asm/cop2.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/interrupt.h>
 
 #include "octeon-crypto.h"

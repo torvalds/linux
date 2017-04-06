@@ -62,29 +62,29 @@ void sync_file_debug_remove(struct sync_file *sync_file)
 
 static const char *sync_status_str(int status)
 {
-	if (status == 0)
-		return "signaled";
+	if (status < 0)
+		return "error";
 
 	if (status > 0)
-		return "active";
+		return "signaled";
 
-	return "error";
+	return "active";
 }
 
-static void sync_print_fence(struct seq_file *s, struct fence *fence, bool show)
+static void sync_print_fence(struct seq_file *s,
+			     struct dma_fence *fence, bool show)
 {
-	int status = 1;
-	struct sync_timeline *parent = fence_parent(fence);
+	struct sync_timeline *parent = dma_fence_parent(fence);
+	int status;
 
-	if (fence_is_signaled_locked(fence))
-		status = fence->status;
+	status = dma_fence_get_status_locked(fence);
 
 	seq_printf(s, "  %s%sfence %s",
 		   show ? parent->name : "",
 		   show ? "_" : "",
 		   sync_status_str(status));
 
-	if (status <= 0) {
+	if (status) {
 		struct timespec64 ts64 =
 			ktime_to_timespec64(fence->timestamp);
 
@@ -135,10 +135,10 @@ static void sync_print_sync_file(struct seq_file *s,
 	int i;
 
 	seq_printf(s, "[%p] %s: %s\n", sync_file, sync_file->name,
-		   sync_status_str(!fence_is_signaled(sync_file->fence)));
+		   sync_status_str(dma_fence_get_status(sync_file->fence)));
 
-	if (fence_is_array(sync_file->fence)) {
-		struct fence_array *array = to_fence_array(sync_file->fence);
+	if (dma_fence_is_array(sync_file->fence)) {
+		struct dma_fence_array *array = to_dma_fence_array(sync_file->fence);
 
 		for (i = 0; i < array->num_fences; ++i)
 			sync_print_fence(s, array->fences[i], true);

@@ -143,8 +143,8 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 /* This is the same as calling block_write_full_page, but it also
  * writes pages outside of i_size
  */
-int gfs2_write_full_page(struct page *page, get_block_t *get_block,
-			 struct writeback_control *wbc)
+static int gfs2_write_full_page(struct page *page, get_block_t *get_block,
+				struct writeback_control *wbc)
 {
 	struct inode * const inode = page->mapping->host;
 	loff_t i_size = i_size_read(inode);
@@ -839,12 +839,10 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	BUG_ON((pos + len) > (dibh->b_size - sizeof(struct gfs2_dinode)));
 	kaddr = kmap_atomic(page);
 	memcpy(buf + pos, kaddr + pos, copied);
-	memset(kaddr + pos + copied, 0, len - copied);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr);
 
-	if (!PageUptodate(page))
-		SetPageUptodate(page);
+	WARN_ON(!PageUptodate(page));
 	unlock_page(page);
 	put_page(page);
 

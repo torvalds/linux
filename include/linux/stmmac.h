@@ -88,6 +88,9 @@ struct stmmac_mdio_bus_data {
 
 struct stmmac_dma_cfg {
 	int pbl;
+	int txpbl;
+	int rxpbl;
+	bool pblx8;
 	int fixed_burst;
 	int mixed_burst;
 	bool aal;
@@ -100,7 +103,6 @@ struct stmmac_axi {
 	u32 axi_wr_osr_lmt;
 	u32 axi_rd_osr_lmt;
 	bool axi_kbbe;
-	bool axi_axi_all;
 	u32 axi_blen[AXI_BLEN];
 	bool axi_fb;
 	bool axi_mb;
@@ -132,15 +134,18 @@ struct plat_stmmacenet_data {
 	int tx_fifo_size;
 	int rx_fifo_size;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
-	void (*bus_setup)(void __iomem *ioaddr);
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
-	void (*suspend)(struct platform_device *pdev, void *priv);
-	void (*resume)(struct platform_device *pdev, void *priv);
 	void *bsp_priv;
+	struct clk *stmmac_clk;
+	struct clk *pclk;
+	struct clk *clk_ptp_ref;
+	unsigned int clk_ptp_rate;
+	struct reset_control *stmmac_rst;
 	struct stmmac_axi *axi;
 	int has_gmac4;
 	bool tso_en;
 	int mac_port_sel_speed;
+	bool en_tx_lpi_clockgating;
 };
 #endif

@@ -64,6 +64,11 @@
 	};
 };
 
+&adc {
+	vdd-supply = <&ldo10_reg>;
+	status = "okay";
+};
+
 /* VDDQ for MSHC (eMMC card) */
 &buck8_reg {
 	regulator-name = "BUCK8_VDDQ_MMC4_2.8V";
@@ -94,4 +99,17 @@
 
 &serial_3 {
 	status = "okay";
+};
+
+&sound {
+	simple-audio-card,name = "Odroid-X";
+	simple-audio-card,widgets =
+		"Headphone", "Headphone Jack",
+		"Microphone", "Mic Jack",
+		"Microphone", "DMIC";
+	simple-audio-card,routing =
+		"Headphone Jack", "HPL",
+		"Headphone Jack", "HPR",
+		"IN1", "Mic Jack",
+		"Mic Jack", "MICBIAS";
 };

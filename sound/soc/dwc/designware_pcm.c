@@ -41,10 +41,33 @@ static unsigned int dw_pcm_tx_##sample_bits(struct dw_i2s_dev *dev, \
 	return tx_ptr; \
 }
 
+#define dw_pcm_rx_fn(sample_bits) \
+static unsigned int dw_pcm_rx_##sample_bits(struct dw_i2s_dev *dev, \
+		struct snd_pcm_runtime *runtime, unsigned int rx_ptr, \
+		bool *period_elapsed) \
+{ \
+	u##sample_bits (*p)[2] = (void *)runtime->dma_area; \
+	unsigned int period_pos = rx_ptr % runtime->period_size; \
+	int i; \
+\
+	for (i = 0; i < dev->fifo_th; i++) { \
+		p[rx_ptr][0] = ioread32(dev->i2s_base + LRBR_LTHR(0)); \
+		p[rx_ptr][1] = ioread32(dev->i2s_base + RRBR_RTHR(0)); \
+		period_pos++; \
+		if (++rx_ptr >= runtime->buffer_size) \
+			rx_ptr = 0; \
+	} \
+	*period_elapsed = period_pos >= runtime->period_size; \
+	return rx_ptr; \
+}
+
 dw_pcm_tx_fn(16);
 dw_pcm_tx_fn(32);
+dw_pcm_rx_fn(16);
+dw_pcm_rx_fn(32);
 
 #undef dw_pcm_tx_fn
+#undef dw_pcm_rx_fn
 
 static const struct snd_pcm_hardware dw_pcm_hardware = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
@@ -57,6 +80,7 @@ static const struct snd_pcm_hardware dw_pcm_hardware = {
 	.rate_min = 32000,
 	.rate_max = 48000,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE |
+		SNDRV_PCM_FMTBIT_S24_LE |
 		SNDRV_PCM_FMTBIT_S32_LE,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -68,26 +92,50 @@ static const struct snd_pcm_hardware dw_pcm_hardware = {
 	.fifo_size = 16,
 };
 
-void dw_pcm_push_tx(struct dw_i2s_dev *dev)
+static void dw_pcm_transfer(struct dw_i2s_dev *dev, bool push)
 {
-	struct snd_pcm_substream *tx_substream;
-	bool tx_active, period_elapsed;
+	struct snd_pcm_substream *substream;
+	bool active, period_elapsed;
 
 	rcu_read_lock();
-	tx_substream = rcu_dereference(dev->tx_substream);
-	tx_active = tx_substream && snd_pcm_running(tx_substream);
-	if (tx_active) {
-		unsigned int tx_ptr = READ_ONCE(dev->tx_ptr);
-		unsigned int new_tx_ptr = dev->tx_fn(dev, tx_substream->runtime,
-				tx_ptr, &period_elapsed);
-		cmpxchg(&dev->tx_ptr, tx_ptr, new_tx_ptr);
+	if (push)
+		substream = rcu_dereference(dev->tx_substream);
+	else
+		substream = rcu_dereference(dev->rx_substream);
+	active = substream && snd_pcm_running(substream);
+	if (active) {
+		unsigned int ptr;
+		unsigned int new_ptr;
+
+		if (push) {
+			ptr = READ_ONCE(dev->tx_ptr);
+			new_ptr = dev->tx_fn(dev, substream->runtime, ptr,
+					&period_elapsed);
+			cmpxchg(&dev->tx_ptr, ptr, new_ptr);
+		} else {
+			ptr = READ_ONCE(dev->rx_ptr);
+			new_ptr = dev->rx_fn(dev, substream->runtime, ptr,
+					&period_elapsed);
+			cmpxchg(&dev->rx_ptr, ptr, new_ptr);
+		}
 
 		if (period_elapsed)
-			snd_pcm_period_elapsed(tx_substream);
+			snd_pcm_period_elapsed(substream);
 	}
 	rcu_read_unlock();
 }
+
+void dw_pcm_push_tx(struct dw_i2s_dev *dev)
+{
+	dw_pcm_transfer(dev, true);
+}
 EXPORT_SYMBOL_GPL(dw_pcm_push_tx);
+
+void dw_pcm_pop_rx(struct dw_i2s_dev *dev)
+{
+	dw_pcm_transfer(dev, false);
+}
+EXPORT_SYMBOL_GPL(dw_pcm_pop_rx);
 
 static int dw_pcm_open(struct snd_pcm_substream *substream)
 {
@@ -126,17 +174,15 @@ static int dw_pcm_hw_params(struct snd_pcm_substream *substream,
 	switch (params_format(hw_params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		dev->tx_fn = dw_pcm_tx_16;
+		dev->rx_fn = dw_pcm_rx_16;
 		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		dev->tx_fn = dw_pcm_tx_32;
+		dev->rx_fn = dw_pcm_rx_32;
 		break;
 	default:
 		dev_err(dev->dev, "invalid format\n");
-		return -EINVAL;
-	}
-
-	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK) {
-		dev_err(dev->dev, "only playback is available\n");
 		return -EINVAL;
 	}
 
@@ -163,13 +209,21 @@ static int dw_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		WRITE_ONCE(dev->tx_ptr, 0);
-		rcu_assign_pointer(dev->tx_substream, substream);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			WRITE_ONCE(dev->tx_ptr, 0);
+			rcu_assign_pointer(dev->tx_substream, substream);
+		} else {
+			WRITE_ONCE(dev->rx_ptr, 0);
+			rcu_assign_pointer(dev->rx_substream, substream);
+		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		rcu_assign_pointer(dev->tx_substream, NULL);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			rcu_assign_pointer(dev->tx_substream, NULL);
+		else
+			rcu_assign_pointer(dev->rx_substream, NULL);
 		break;
 	default:
 		ret = -EINVAL;
@@ -183,7 +237,12 @@ static snd_pcm_uframes_t dw_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct dw_i2s_dev *dev = runtime->private_data;
-	snd_pcm_uframes_t pos = READ_ONCE(dev->tx_ptr);
+	snd_pcm_uframes_t pos;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		pos = READ_ONCE(dev->tx_ptr);
+	else
+		pos = READ_ONCE(dev->rx_ptr);
 
 	return pos < runtime->buffer_size ? pos : 0;
 }

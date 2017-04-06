@@ -695,7 +695,7 @@ static int rcar_can_rx_poll(struct napi_struct *napi, int quota)
 	}
 	/* All packets processed */
 	if (num_pkts < quota) {
-		napi_complete(napi);
+		napi_complete_done(napi, num_pkts);
 		priv->ier |= RCAR_CAN_IER_RXFIE;
 		writeb(priv->ier, &priv->regs->ier);
 	}

@@ -11,7 +11,8 @@
 	compatible = "google,smaug-rev8", "google,smaug-rev7",
 		     "google,smaug-rev6", "google,smaug-rev5",
 		     "google,smaug-rev4", "google,smaug-rev3",
-		     "google,smaug-rev1", "google,smaug", "nvidia,tegra210";
+		     "google,smaug-rev2", "google,smaug-rev1",
+		     "google,smaug", "nvidia,tegra210";
 
 	aliases {
 		serial0 = &uarta;

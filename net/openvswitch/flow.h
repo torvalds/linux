@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2014 Nicira, Inc.
+ * Copyright (c) 2007-2017 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -37,6 +37,12 @@
 
 struct sk_buff;
 
+enum sw_flow_mac_proto {
+	MAC_PROTO_NONE = 0,
+	MAC_PROTO_ETHERNET,
+};
+#define SW_FLOW_KEY_INVALID	0x80
+
 /* Store options at the end of the array if they are less than the
  * maximum size. This allows us to get the benefits of variable length
  * matching for small options.
@@ -68,6 +74,7 @@ struct sw_flow_key {
 		u32	skb_mark;	/* SKB mark. */
 		u16	in_port;	/* Input switch port (or DP_MAX_PORTS). */
 	} __packed phy; /* Safe when right after 'tun_key'. */
+	u8 mac_proto;			/* MAC layer protocol (e.g. Ethernet). */
 	u8 tun_proto;			/* Protocol of encapsulating tunnel. */
 	u32 ovs_flow_hash;		/* Datapath computed hash value.  */
 	u32 recirc_id;			/* Recirculation ID.  */
@@ -78,6 +85,11 @@ struct sw_flow_key {
 		struct vlan_head cvlan;
 		__be16 type;		/* Ethernet frame type. */
 	} eth;
+	/* Filling a hole of two bytes. */
+	u8 ct_state;
+	u8 ct_orig_proto;		/* CT original direction tuple IP
+					 * protocol.
+					 */
 	union {
 		struct {
 			__be32 top_lse;	/* top label stack entry */
@@ -89,6 +101,7 @@ struct sw_flow_key {
 			u8     frag;	/* One of OVS_FRAG_TYPE_*. */
 		} ip;
 	};
+	u16 ct_zone;			/* Conntrack zone. */
 	struct {
 		__be16 src;		/* TCP/UDP/SCTP source port. */
 		__be16 dst;		/* TCP/UDP/SCTP destination port. */
@@ -100,10 +113,16 @@ struct sw_flow_key {
 				__be32 src;	/* IP source address. */
 				__be32 dst;	/* IP destination address. */
 			} addr;
-			struct {
-				u8 sha[ETH_ALEN];	/* ARP source hardware address. */
-				u8 tha[ETH_ALEN];	/* ARP target hardware address. */
-			} arp;
+			union {
+				struct {
+					__be32 src;
+					__be32 dst;
+				} ct_orig;	/* Conntrack original direction fields. */
+				struct {
+					u8 sha[ETH_ALEN];	/* ARP source hardware address. */
+					u8 tha[ETH_ALEN];	/* ARP target hardware address. */
+				} arp;
+			};
 		} ipv4;
 		struct {
 			struct {
@@ -111,22 +130,39 @@ struct sw_flow_key {
 				struct in6_addr dst;	/* IPv6 destination address. */
 			} addr;
 			__be32 label;			/* IPv6 flow label. */
-			struct {
-				struct in6_addr target;	/* ND target address. */
-				u8 sll[ETH_ALEN];	/* ND source link layer address. */
-				u8 tll[ETH_ALEN];	/* ND target link layer address. */
-			} nd;
+			union {
+				struct {
+					struct in6_addr src;
+					struct in6_addr dst;
+				} ct_orig;	/* Conntrack original direction fields. */
+				struct {
+					struct in6_addr target;	/* ND target address. */
+					u8 sll[ETH_ALEN];	/* ND source link layer address. */
+					u8 tll[ETH_ALEN];	/* ND target link layer address. */
+				} nd;
+			};
 		} ipv6;
 	};
 	struct {
-		/* Connection tracking fields. */
-		u16 zone;
+		/* Connection tracking fields not packed above. */
+		struct {
+			__be16 src;	/* CT orig tuple tp src port. */
+			__be16 dst;	/* CT orig tuple tp dst port. */
+		} orig_tp;
 		u32 mark;
-		u8 state;
 		struct ovs_key_ct_labels labels;
 	} ct;
 
 } __aligned(BITS_PER_LONG/8); /* Ensure that we can do comparisons as longs. */
+
+static inline bool sw_flow_key_is_nd(const struct sw_flow_key *key)
+{
+	return key->eth.type == htons(ETH_P_IPV6) &&
+		key->ip.proto == NEXTHDR_ICMP &&
+		key->tp.dst == 0 &&
+		(key->tp.src == htons(NDISC_NEIGHBOUR_SOLICITATION) ||
+		 key->tp.src == htons(NDISC_NEIGHBOUR_ADVERTISEMENT));
+}
 
 struct sw_flow_key_range {
 	unsigned short int start;
@@ -205,6 +241,21 @@ struct arp_eth_header {
 	unsigned char       ar_tha[ETH_ALEN];	/* target hardware address  */
 	unsigned char       ar_tip[4];		/* target IP address        */
 } __packed;
+
+static inline u8 ovs_key_mac_proto(const struct sw_flow_key *key)
+{
+	return key->mac_proto & ~SW_FLOW_KEY_INVALID;
+}
+
+static inline u16 __ovs_mac_header_len(u8 mac_proto)
+{
+	return mac_proto == MAC_PROTO_ETHERNET ? ETH_HLEN : 0;
+}
+
+static inline u16 ovs_mac_header_len(const struct sw_flow_key *key)
+{
+	return __ovs_mac_header_len(ovs_key_mac_proto(key));
+}
 
 static inline bool ovs_identifier_is_ufid(const struct sw_flow_id *sfid)
 {

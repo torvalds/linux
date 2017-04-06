@@ -33,7 +33,7 @@
 
 /*****************************************************************
  * Protocol
- * Version : MIP 4.0 Rev 4.6
+ * Version : MIP 4.0 Rev 5.4
  *****************************************************************/
 
 /* Address */
@@ -81,6 +81,9 @@
 #define MIP4_R1_INFO_IC_HW_CATEGORY		0x77
 #define MIP4_R1_INFO_CONTACT_THD_SCR		0x78
 #define MIP4_R1_INFO_CONTACT_THD_KEY		0x7A
+#define MIP4_R1_INFO_PID				0x7C
+#define MIP4_R1_INFO_VID				0x7E
+#define MIP4_R1_INFO_SLAVE_ADDR			0x80
 
 #define MIP4_R0_EVENT				0x02
 #define MIP4_R1_EVENT_SUPPORTED_FUNC		0x00
@@ -157,7 +160,9 @@ struct mip4_ts {
 
 	char phys[32];
 	char product_name[16];
+	u16 product_id;
 	char ic_name[4];
+	char fw_name[32];
 
 	unsigned int max_x;
 	unsigned int max_y;
@@ -263,6 +268,23 @@ static int mip4_query_device(struct mip4_ts *ts)
 	else
 		dev_dbg(&ts->client->dev, "product name: %.*s\n",
 			(int)sizeof(ts->product_name), ts->product_name);
+
+	/* Product ID */
+	cmd[0] = MIP4_R0_INFO;
+	cmd[1] = MIP4_R1_INFO_PID;
+	error = mip4_i2c_xfer(ts, cmd, sizeof(cmd), buf, 2);
+	if (error) {
+		dev_warn(&ts->client->dev,
+			 "Failed to retrieve product id: %d\n", error);
+	} else {
+		ts->product_id = get_unaligned_le16(&buf[0]);
+		dev_dbg(&ts->client->dev, "product id: %04X\n", ts->product_id);
+	}
+
+	/* Firmware name */
+	snprintf(ts->fw_name, sizeof(ts->fw_name),
+		"melfas_mip4_%04X.fw", ts->product_id);
+	dev_dbg(&ts->client->dev, "firmware name: %s\n", ts->fw_name);
 
 	/* IC name */
 	cmd[0] = MIP4_R0_INFO;
@@ -1269,11 +1291,11 @@ static ssize_t mip4_sysfs_fw_update(struct device *dev,
 	const struct firmware *fw;
 	int error;
 
-	error = request_firmware(&fw, MIP4_FW_NAME, dev);
+	error = request_firmware(&fw, ts->fw_name, dev);
 	if (error) {
 		dev_err(&ts->client->dev,
 			"Failed to retrieve firmware %s: %d\n",
-			MIP4_FW_NAME, error);
+			ts->fw_name, error);
 		return error;
 	}
 
@@ -1348,6 +1370,25 @@ static ssize_t mip4_sysfs_read_hw_version(struct device *dev,
 
 static DEVICE_ATTR(hw_version, S_IRUGO, mip4_sysfs_read_hw_version, NULL);
 
+static ssize_t mip4_sysfs_read_product_id(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct mip4_ts *ts = i2c_get_clientdata(client);
+	size_t count;
+
+	mutex_lock(&ts->input->mutex);
+
+	count = snprintf(buf, PAGE_SIZE, "%04X\n", ts->product_id);
+
+	mutex_unlock(&ts->input->mutex);
+
+	return count;
+}
+
+static DEVICE_ATTR(product_id, S_IRUGO, mip4_sysfs_read_product_id, NULL);
+
 static ssize_t mip4_sysfs_read_ic_name(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
@@ -1371,6 +1412,7 @@ static DEVICE_ATTR(ic_name, S_IRUGO, mip4_sysfs_read_ic_name, NULL);
 static struct attribute *mip4_attrs[] = {
 	&dev_attr_fw_version.attr,
 	&dev_attr_hw_version.attr,
+	&dev_attr_product_id.attr,
 	&dev_attr_ic_name.attr,
 	&dev_attr_update_fw.attr,
 	NULL,
@@ -1435,6 +1477,7 @@ static int mip4_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	input->id.bustype = BUS_I2C;
 	input->id.vendor = 0x13c5;
+	input->id.product = ts->product_id;
 
 	input->open = mip4_input_open;
 	input->close = mip4_input_close;
@@ -1572,6 +1615,6 @@ static struct i2c_driver mip4_driver = {
 module_i2c_driver(mip4_driver);
 
 MODULE_DESCRIPTION("MELFAS MIP4 Touchscreen");
-MODULE_VERSION("2016.09.28");
+MODULE_VERSION("2016.10.31");
 MODULE_AUTHOR("Sangwon Jee <jeesw@melfas.com>");
 MODULE_LICENSE("GPL");

@@ -16,11 +16,30 @@ available subsections can be seen below.
 
    basics
    infrastructure
+   pm/index
+   device-io
+   dma-buf
+   device_link
    message-based
    sound
    frame-buffer
+   regulator
+   iio/index
    input
+   usb
    spi
    i2c
    hsi
+   edac
    miscellaneous
+   vme
+   80211/index
+   uio-howto
+   firmware/index
+
+.. only::  subproject and html
+
+   Indices
+   =======
+
+   * :ref:`genindex`

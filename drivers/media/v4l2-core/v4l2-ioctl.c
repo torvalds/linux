@@ -174,8 +174,7 @@ static void v4l_print_querycap(const void *arg, bool write_only)
 {
 	const struct v4l2_capability *p = arg;
 
-	pr_cont("driver=%.*s, card=%.*s, bus=%.*s, version=0x%08x, "
-		"capabilities=0x%08x, device_caps=0x%08x\n",
+	pr_cont("driver=%.*s, card=%.*s, bus=%.*s, version=0x%08x, capabilities=0x%08x, device_caps=0x%08x\n",
 		(int)sizeof(p->driver), p->driver,
 		(int)sizeof(p->card), p->card,
 		(int)sizeof(p->bus_info), p->bus_info,
@@ -186,8 +185,7 @@ static void v4l_print_enuminput(const void *arg, bool write_only)
 {
 	const struct v4l2_input *p = arg;
 
-	pr_cont("index=%u, name=%.*s, type=%u, audioset=0x%x, tuner=%u, "
-		"std=0x%08Lx, status=0x%x, capabilities=0x%x\n",
+	pr_cont("index=%u, name=%.*s, type=%u, audioset=0x%x, tuner=%u, std=0x%08Lx, status=0x%x, capabilities=0x%x\n",
 		p->index, (int)sizeof(p->name), p->name, p->type, p->audioset,
 		p->tuner, (unsigned long long)p->std, p->status,
 		p->capabilities);
@@ -197,8 +195,7 @@ static void v4l_print_enumoutput(const void *arg, bool write_only)
 {
 	const struct v4l2_output *p = arg;
 
-	pr_cont("index=%u, name=%.*s, type=%u, audioset=0x%x, "
-		"modulator=%u, std=0x%08Lx, capabilities=0x%x\n",
+	pr_cont("index=%u, name=%.*s, type=%u, audioset=0x%x, modulator=%u, std=0x%08Lx, capabilities=0x%x\n",
 		p->index, (int)sizeof(p->name), p->name, p->type, p->audioset,
 		p->modulator, (unsigned long long)p->std, p->capabilities);
 }
@@ -256,11 +253,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 		pix = &p->fmt.pix;
-		pr_cont(", width=%u, height=%u, "
-			"pixelformat=%c%c%c%c, field=%s, "
-			"bytesperline=%u, sizeimage=%u, colorspace=%d, "
-			"flags=0x%x, ycbcr_enc=%u, quantization=%u, "
-			"xfer_func=%u\n",
+		pr_cont(", width=%u, height=%u, pixelformat=%c%c%c%c, field=%s, bytesperline=%u, sizeimage=%u, colorspace=%d, flags=0x%x, ycbcr_enc=%u, quantization=%u, xfer_func=%u\n",
 			pix->width, pix->height,
 			(pix->pixelformat & 0xff),
 			(pix->pixelformat >>  8) & 0xff,
@@ -274,10 +267,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		mp = &p->fmt.pix_mp;
-		pr_cont(", width=%u, height=%u, "
-			"format=%c%c%c%c, field=%s, "
-			"colorspace=%d, num_planes=%u, flags=0x%x, "
-			"ycbcr_enc=%u, quantization=%u, xfer_func=%u\n",
+		pr_cont(", width=%u, height=%u, format=%c%c%c%c, field=%s, colorspace=%d, num_planes=%u, flags=0x%x, ycbcr_enc=%u, quantization=%u, xfer_func=%u\n",
 			mp->width, mp->height,
 			(mp->pixelformat & 0xff),
 			(mp->pixelformat >>  8) & 0xff,
@@ -306,8 +296,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
 		vbi = &p->fmt.vbi;
-		pr_cont(", sampling_rate=%u, offset=%u, samples_per_line=%u, "
-			"sample_format=%c%c%c%c, start=%u,%u, count=%u,%u\n",
+		pr_cont(", sampling_rate=%u, offset=%u, samples_per_line=%u, sample_format=%c%c%c%c, start=%u,%u, count=%u,%u\n",
 			vbi->sampling_rate, vbi->offset,
 			vbi->samples_per_line,
 			(vbi->sample_format & 0xff),
@@ -343,9 +332,7 @@ static void v4l_print_framebuffer(const void *arg, bool write_only)
 {
 	const struct v4l2_framebuffer *p = arg;
 
-	pr_cont("capability=0x%x, flags=0x%x, base=0x%p, width=%u, "
-		"height=%u, pixelformat=%c%c%c%c, "
-		"bytesperline=%u, sizeimage=%u, colorspace=%d\n",
+	pr_cont("capability=0x%x, flags=0x%x, base=0x%p, width=%u, height=%u, pixelformat=%c%c%c%c, bytesperline=%u, sizeimage=%u, colorspace=%d\n",
 			p->capability, p->flags, p->base,
 			p->fmt.width, p->fmt.height,
 			(p->fmt.pixelformat & 0xff),
@@ -368,8 +355,7 @@ static void v4l_print_modulator(const void *arg, bool write_only)
 	if (write_only)
 		pr_cont("index=%u, txsubchans=0x%x\n", p->index, p->txsubchans);
 	else
-		pr_cont("index=%u, name=%.*s, capability=0x%x, "
-			"rangelow=%u, rangehigh=%u, txsubchans=0x%x\n",
+		pr_cont("index=%u, name=%.*s, capability=0x%x, rangelow=%u, rangehigh=%u, txsubchans=0x%x\n",
 			p->index, (int)sizeof(p->name), p->name, p->capability,
 			p->rangelow, p->rangehigh, p->txsubchans);
 }
@@ -381,9 +367,7 @@ static void v4l_print_tuner(const void *arg, bool write_only)
 	if (write_only)
 		pr_cont("index=%u, audmode=%u\n", p->index, p->audmode);
 	else
-		pr_cont("index=%u, name=%.*s, type=%u, capability=0x%x, "
-			"rangelow=%u, rangehigh=%u, signal=%u, afc=%d, "
-			"rxsubchans=0x%x, audmode=%u\n",
+		pr_cont("index=%u, name=%.*s, type=%u, capability=0x%x, rangelow=%u, rangehigh=%u, signal=%u, afc=%d, rxsubchans=0x%x, audmode=%u\n",
 			p->index, (int)sizeof(p->name), p->name, p->type,
 			p->capability, p->rangelow,
 			p->rangehigh, p->signal, p->afc,
@@ -402,8 +386,8 @@ static void v4l_print_standard(const void *arg, bool write_only)
 {
 	const struct v4l2_standard *p = arg;
 
-	pr_cont("index=%u, id=0x%Lx, name=%.*s, fps=%u/%u, "
-		"framelines=%u\n", p->index,
+	pr_cont("index=%u, id=0x%Lx, name=%.*s, fps=%u/%u, framelines=%u\n",
+		p->index,
 		(unsigned long long)p->id, (int)sizeof(p->name), p->name,
 		p->frameperiod.numerator,
 		p->frameperiod.denominator,
@@ -419,8 +403,7 @@ static void v4l_print_hw_freq_seek(const void *arg, bool write_only)
 {
 	const struct v4l2_hw_freq_seek *p = arg;
 
-	pr_cont("tuner=%u, type=%u, seek_upward=%u, wrap_around=%u, spacing=%u, "
-		"rangelow=%u, rangehigh=%u\n",
+	pr_cont("tuner=%u, type=%u, seek_upward=%u, wrap_around=%u, spacing=%u, rangelow=%u, rangehigh=%u\n",
 		p->tuner, p->type, p->seek_upward, p->wrap_around, p->spacing,
 		p->rangelow, p->rangehigh);
 }
@@ -442,8 +425,7 @@ static void v4l_print_buffer(const void *arg, bool write_only)
 	const struct v4l2_plane *plane;
 	int i;
 
-	pr_cont("%02ld:%02d:%02d.%08ld index=%d, type=%s, "
-		"flags=0x%08x, field=%s, sequence=%d, memory=%s",
+	pr_cont("%02ld:%02d:%02d.%08ld index=%d, type=%s, flags=0x%08x, field=%s, sequence=%d, memory=%s",
 			p->timestamp.tv_sec / 3600,
 			(int)(p->timestamp.tv_sec / 60) % 60,
 			(int)(p->timestamp.tv_sec % 60),
@@ -458,8 +440,7 @@ static void v4l_print_buffer(const void *arg, bool write_only)
 		for (i = 0; i < p->length; ++i) {
 			plane = &p->m.planes[i];
 			printk(KERN_DEBUG
-				"plane %d: bytesused=%d, data_offset=0x%08x, "
-				"offset/userptr=0x%lx, length=%d\n",
+				"plane %d: bytesused=%d, data_offset=0x%08x, offset/userptr=0x%lx, length=%d\n",
 				i, plane->bytesused, plane->data_offset,
 				plane->m.userptr, plane->length);
 		}
@@ -468,8 +449,7 @@ static void v4l_print_buffer(const void *arg, bool write_only)
 			p->bytesused, p->m.userptr, p->length);
 	}
 
-	printk(KERN_DEBUG "timecode=%02d:%02d:%02d type=%d, "
-		"flags=0x%08x, frames=%d, userbits=0x%08x\n",
+	printk(KERN_DEBUG "timecode=%02d:%02d:%02d type=%d, flags=0x%08x, frames=%d, userbits=0x%08x\n",
 			tc->hours, tc->minutes, tc->seconds,
 			tc->type, tc->flags, tc->frames, *(__u32 *)tc->userbits);
 }
@@ -503,8 +483,7 @@ static void v4l_print_streamparm(const void *arg, bool write_only)
 	    p->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		const struct v4l2_captureparm *c = &p->parm.capture;
 
-		pr_cont(", capability=0x%x, capturemode=0x%x, timeperframe=%d/%d, "
-			"extendedmode=%d, readbuffers=%d\n",
+		pr_cont(", capability=0x%x, capturemode=0x%x, timeperframe=%d/%d, extendedmode=%d, readbuffers=%d\n",
 			c->capability, c->capturemode,
 			c->timeperframe.numerator, c->timeperframe.denominator,
 			c->extendedmode, c->readbuffers);
@@ -512,8 +491,7 @@ static void v4l_print_streamparm(const void *arg, bool write_only)
 		   p->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		const struct v4l2_outputparm *c = &p->parm.output;
 
-		pr_cont(", capability=0x%x, outputmode=0x%x, timeperframe=%d/%d, "
-			"extendedmode=%d, writebuffers=%d\n",
+		pr_cont(", capability=0x%x, outputmode=0x%x, timeperframe=%d/%d, extendedmode=%d, writebuffers=%d\n",
 			c->capability, c->outputmode,
 			c->timeperframe.numerator, c->timeperframe.denominator,
 			c->extendedmode, c->writebuffers);
@@ -526,8 +504,7 @@ static void v4l_print_queryctrl(const void *arg, bool write_only)
 {
 	const struct v4l2_queryctrl *p = arg;
 
-	pr_cont("id=0x%x, type=%d, name=%.*s, min/max=%d/%d, "
-		"step=%d, default=%d, flags=0x%08x\n",
+	pr_cont("id=0x%x, type=%d, name=%.*s, min/max=%d/%d, step=%d, default=%d, flags=0x%08x\n",
 			p->id, p->type, (int)sizeof(p->name), p->name,
 			p->minimum, p->maximum,
 			p->step, p->default_value, p->flags);
@@ -537,9 +514,7 @@ static void v4l_print_query_ext_ctrl(const void *arg, bool write_only)
 {
 	const struct v4l2_query_ext_ctrl *p = arg;
 
-	pr_cont("id=0x%x, type=%d, name=%.*s, min/max=%lld/%lld, "
-		"step=%lld, default=%lld, flags=0x%08x, elem_size=%u, elems=%u, "
-		"nr_of_dims=%u, dims=%u,%u,%u,%u\n",
+	pr_cont("id=0x%x, type=%d, name=%.*s, min/max=%lld/%lld, step=%lld, default=%lld, flags=0x%08x, elem_size=%u, elems=%u, nr_of_dims=%u, dims=%u,%u,%u,%u\n",
 			p->id, p->type, (int)sizeof(p->name), p->name,
 			p->minimum, p->maximum,
 			p->step, p->default_value, p->flags,
@@ -583,9 +558,7 @@ static void v4l_print_cropcap(const void *arg, bool write_only)
 {
 	const struct v4l2_cropcap *p = arg;
 
-	pr_cont("type=%s, bounds wxh=%dx%d, x,y=%d,%d, "
-		"defrect wxh=%dx%d, x,y=%d,%d, "
-		"pixelaspect %d/%d\n",
+	pr_cont("type=%s, bounds wxh=%dx%d, x,y=%d,%d, defrect wxh=%dx%d, x,y=%d,%d, pixelaspect %d/%d\n",
 		prt_names(p->type, v4l2_type_names),
 		p->bounds.width, p->bounds.height,
 		p->bounds.left, p->bounds.top,
@@ -618,8 +591,7 @@ static void v4l_print_jpegcompression(const void *arg, bool write_only)
 {
 	const struct v4l2_jpegcompression *p = arg;
 
-	pr_cont("quality=%d, APPn=%d, APP_len=%d, "
-		"COM_len=%d, jpeg_markers=0x%x\n",
+	pr_cont("quality=%d, APPn=%d, APP_len=%d, COM_len=%d, jpeg_markers=0x%x\n",
 		p->quality, p->APPn, p->APP_len,
 		p->COM_len, p->jpeg_markers);
 }
@@ -686,14 +658,7 @@ static void v4l_print_dv_timings(const void *arg, bool write_only)
 
 	switch (p->type) {
 	case V4L2_DV_BT_656_1120:
-		pr_cont("type=bt-656/1120, interlaced=%u, "
-			"pixelclock=%llu, "
-			"width=%u, height=%u, polarities=0x%x, "
-			"hfrontporch=%u, hsync=%u, "
-			"hbackporch=%u, vfrontporch=%u, "
-			"vsync=%u, vbackporch=%u, "
-			"il_vfrontporch=%u, il_vsync=%u, "
-			"il_vbackporch=%u, standards=0x%x, flags=0x%x\n",
+		pr_cont("type=bt-656/1120, interlaced=%u, pixelclock=%llu, width=%u, height=%u, polarities=0x%x, hfrontporch=%u, hsync=%u, hbackporch=%u, vfrontporch=%u, vsync=%u, vbackporch=%u, il_vfrontporch=%u, il_vsync=%u, il_vbackporch=%u, standards=0x%x, flags=0x%x\n",
 				p->bt.interlaced, p->bt.pixelclock,
 				p->bt.width, p->bt.height,
 				p->bt.polarities, p->bt.hfrontporch,
@@ -723,8 +688,7 @@ static void v4l_print_dv_timings_cap(const void *arg, bool write_only)
 
 	switch (p->type) {
 	case V4L2_DV_BT_656_1120:
-		pr_cont("type=bt-656/1120, width=%u-%u, height=%u-%u, "
-			"pixelclock=%llu-%llu, standards=0x%x, capabilities=0x%x\n",
+		pr_cont("type=bt-656/1120, width=%u-%u, height=%u-%u, pixelclock=%llu-%llu, standards=0x%x, capabilities=0x%x\n",
 			p->bt.min_width, p->bt.max_width,
 			p->bt.min_height, p->bt.max_height,
 			p->bt.min_pixelclock, p->bt.max_pixelclock,
@@ -805,8 +769,7 @@ static void v4l_print_event(const void *arg, bool write_only)
 	const struct v4l2_event *p = arg;
 	const struct v4l2_event_ctrl *c;
 
-	pr_cont("type=0x%x, pending=%u, sequence=%u, id=%u, "
-		"timestamp=%lu.%9.9lu\n",
+	pr_cont("type=0x%x, pending=%u, sequence=%u, id=%u, timestamp=%lu.%9.9lu\n",
 			p->type, p->pending, p->sequence, p->id,
 			p->timestamp.tv_sec, p->timestamp.tv_nsec);
 	switch (p->type) {
@@ -822,8 +785,7 @@ static void v4l_print_event(const void *arg, bool write_only)
 			pr_cont("value64=%lld, ", c->value64);
 		else
 			pr_cont("value=%d, ", c->value);
-		pr_cont("flags=0x%x, minimum=%d, maximum=%d, step=%d, "
-			"default_value=%d\n",
+		pr_cont("flags=0x%x, minimum=%d, maximum=%d, step=%d, default_value=%d\n",
 			c->flags, c->minimum, c->maximum,
 			c->step, c->default_value);
 		break;
@@ -859,8 +821,7 @@ static void v4l_print_freq_band(const void *arg, bool write_only)
 {
 	const struct v4l2_frequency_band *p = arg;
 
-	pr_cont("tuner=%u, type=%u, index=%u, capability=0x%x, "
-		"rangelow=%u, rangehigh=%u, modulation=0x%x\n",
+	pr_cont("tuner=%u, type=%u, index=%u, capability=0x%x, rangelow=%u, rangehigh=%u, modulation=0x%x\n",
 			p->tuner, p->type, p->index,
 			p->capability, p->rangelow,
 			p->rangehigh, p->modulation);
@@ -1167,6 +1128,9 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_PIX_FMT_Y16:		descr = "16-bit Greyscale"; break;
 	case V4L2_PIX_FMT_Y16_BE:	descr = "16-bit Greyscale BE"; break;
 	case V4L2_PIX_FMT_Y10BPACK:	descr = "10-bit Greyscale (Packed)"; break;
+	case V4L2_PIX_FMT_Y8I:		descr = "Interleaved 8-bit Greyscale"; break;
+	case V4L2_PIX_FMT_Y12I:		descr = "Interleaved 12-bit Greyscale"; break;
+	case V4L2_PIX_FMT_Z16:		descr = "16-bit Depth"; break;
 	case V4L2_PIX_FMT_PAL8:		descr = "8-bit Palette"; break;
 	case V4L2_PIX_FMT_UV8:		descr = "8-bit Chrominance UV 4-4"; break;
 	case V4L2_PIX_FMT_YVU410:	descr = "Planar YVU 4:1:0"; break;
@@ -1230,7 +1194,10 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_PIX_FMT_SGBRG10DPCM8:	descr = "8-bit Bayer GBGB/RGRG (DPCM)"; break;
 	case V4L2_PIX_FMT_SGRBG10DPCM8:	descr = "8-bit Bayer GRGR/BGBG (DPCM)"; break;
 	case V4L2_PIX_FMT_SRGGB10DPCM8:	descr = "8-bit Bayer RGRG/GBGB (DPCM)"; break;
-	case V4L2_PIX_FMT_SBGGR16:	descr = "16-bit Bayer BGBG/GRGR (Exp.)"; break;
+	case V4L2_PIX_FMT_SBGGR16:	descr = "16-bit Bayer BGBG/GRGR"; break;
+	case V4L2_PIX_FMT_SGBRG16:	descr = "16-bit Bayer GBGB/RGRG"; break;
+	case V4L2_PIX_FMT_SGRBG16:	descr = "16-bit Bayer GRGR/BGBG"; break;
+	case V4L2_PIX_FMT_SRGGB16:	descr = "16-bit Bayer RGRG/GBGB"; break;
 	case V4L2_PIX_FMT_SN9C20X_I420:	descr = "GSPCA SN9C20X I420"; break;
 	case V4L2_PIX_FMT_SPCA501:	descr = "GSPCA SPCA501"; break;
 	case V4L2_PIX_FMT_SPCA505:	descr = "GSPCA SPCA505"; break;
@@ -1239,6 +1206,8 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_PIX_FMT_TM6000:	descr = "A/V + VBI Mux Packet"; break;
 	case V4L2_PIX_FMT_CIT_YYVYUY:	descr = "GSPCA CIT YYVYUY"; break;
 	case V4L2_PIX_FMT_KONICA420:	descr = "GSPCA KONICA420"; break;
+	case V4L2_PIX_FMT_HSV24:	descr = "24-bit HSV 8-8-8"; break;
+	case V4L2_PIX_FMT_HSV32:	descr = "32-bit XHSV 8-8-8-8"; break;
 	case V4L2_SDR_FMT_CU8:		descr = "Complex U8"; break;
 	case V4L2_SDR_FMT_CU16LE:	descr = "Complex U16LE"; break;
 	case V4L2_SDR_FMT_CS8:		descr = "Complex S8"; break;
@@ -1269,6 +1238,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		case V4L2_PIX_FMT_VC1_ANNEX_G:	descr = "VC-1 (SMPTE 412M Annex G)"; break;
 		case V4L2_PIX_FMT_VC1_ANNEX_L:	descr = "VC-1 (SMPTE 412M Annex L)"; break;
 		case V4L2_PIX_FMT_VP8:		descr = "VP8"; break;
+		case V4L2_PIX_FMT_VP9:		descr = "VP9"; break;
 		case V4L2_PIX_FMT_CPIA1:	descr = "GSPCA CPiA YUV"; break;
 		case V4L2_PIX_FMT_WNVA:		descr = "WNVA"; break;
 		case V4L2_PIX_FMT_SN9C10X:	descr = "GSPCA SN9C10X"; break;
@@ -1287,6 +1257,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		case V4L2_PIX_FMT_JPGL:		descr = "JPEG Lite"; break;
 		case V4L2_PIX_FMT_SE401:	descr = "GSPCA SE401"; break;
 		case V4L2_PIX_FMT_S5C_UYVY_JPG:	descr = "S5C73MX interleaved UYVY/JPEG"; break;
+		case V4L2_PIX_FMT_MT21C:	descr = "Mediatek Compressed Format"; break;
 		default:
 			WARN(1, "Unknown pixelformat 0x%08x\n", fmt->pixelformat);
 			if (fmt->description[0])

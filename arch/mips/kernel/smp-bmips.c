@@ -10,6 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/sched/hotplug.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
@@ -364,7 +365,7 @@ static int bmips_cpu_disable(void)
 
 	set_cpu_online(cpu, false);
 	calculate_cpu_foreign_map();
-	cpumask_clear_cpu(cpu, &cpu_callin_map);
+	irq_cpu_offline();
 	clear_c0_status(IE_IRQ5);
 
 	local_flush_tlb_all();

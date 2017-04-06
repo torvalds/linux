@@ -199,32 +199,40 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
 			      sctp_scope_t scope, gfp_t gfp, int copy_flags)
 {
 	struct sctp_sockaddr_entry *addr;
+	union sctp_addr laddr;
 	int error = 0;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(addr, &net->sctp.local_addr_list, list) {
 		if (!addr->valid)
 			continue;
-		if (sctp_in_scope(net, &addr->a, scope)) {
-			/* Now that the address is in scope, check to see if
-			 * the address type is really supported by the local
-			 * sock as well as the remote peer.
-			 */
-			if ((((AF_INET == addr->a.sa.sa_family) &&
-			      (copy_flags & SCTP_ADDR4_PEERSUPP))) ||
-			    (((AF_INET6 == addr->a.sa.sa_family) &&
-			      (copy_flags & SCTP_ADDR6_ALLOWED) &&
-			      (copy_flags & SCTP_ADDR6_PEERSUPP)))) {
-				error = sctp_add_bind_addr(bp, &addr->a,
-						    sizeof(addr->a),
-						    SCTP_ADDR_SRC, GFP_ATOMIC);
-				if (error)
-					goto end_copy;
-			}
-		}
+		if (!sctp_in_scope(net, &addr->a, scope))
+			continue;
+
+		/* Now that the address is in scope, check to see if
+		 * the address type is really supported by the local
+		 * sock as well as the remote peer.
+		 */
+		if (addr->a.sa.sa_family == AF_INET &&
+		    !(copy_flags & SCTP_ADDR4_PEERSUPP))
+			continue;
+		if (addr->a.sa.sa_family == AF_INET6 &&
+		    (!(copy_flags & SCTP_ADDR6_ALLOWED) ||
+		     !(copy_flags & SCTP_ADDR6_PEERSUPP)))
+			continue;
+
+		laddr = addr->a;
+		/* also works for setting ipv6 address port */
+		laddr.v4.sin_port = htons(bp->port);
+		if (sctp_bind_addr_state(bp, &laddr) != -1)
+			continue;
+
+		error = sctp_add_bind_addr(bp, &addr->a, sizeof(addr->a),
+					   SCTP_ADDR_SRC, GFP_ATOMIC);
+		if (error)
+			break;
 	}
 
-end_copy:
 	rcu_read_unlock();
 	return error;
 }
@@ -233,23 +241,19 @@ end_copy:
 static void sctp_v4_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 			     int is_saddr)
 {
-	void *from;
-	__be16 *port;
-	struct sctphdr *sh;
+	/* Always called on head skb, so this is safe */
+	struct sctphdr *sh = sctp_hdr(skb);
+	struct sockaddr_in *sa = &addr->v4;
 
-	port = &addr->v4.sin_port;
 	addr->v4.sin_family = AF_INET;
 
-	/* Always called on head skb, so this is safe */
-	sh = sctp_hdr(skb);
 	if (is_saddr) {
-		*port  = sh->source;
-		from = &ip_hdr(skb)->saddr;
+		sa->sin_port = sh->source;
+		sa->sin_addr.s_addr = ip_hdr(skb)->saddr;
 	} else {
-		*port = sh->dest;
-		from = &ip_hdr(skb)->daddr;
+		sa->sin_port = sh->dest;
+		sa->sin_addr.s_addr = ip_hdr(skb)->daddr;
 	}
-	memcpy(&addr->v4.sin_addr.s_addr, from, sizeof(struct in_addr));
 }
 
 /* Initialize an sctp_addr from a socket. */
@@ -1257,6 +1261,9 @@ static int __net_init sctp_defaults_init(struct net *net)
 
 	/* Enable PR-SCTP by default. */
 	net->sctp.prsctp_enable = 1;
+
+	/* Disable RECONF by default. */
+	net->sctp.reconf_enable = 0;
 
 	/* Disable AUTH by default. */
 	net->sctp.auth_enable = 0;

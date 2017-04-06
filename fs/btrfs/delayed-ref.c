@@ -189,6 +189,8 @@ static inline void drop_delayed_ref(struct btrfs_trans_handle *trans,
 	} else {
 		assert_spin_locked(&head->lock);
 		list_del(&ref->list);
+		if (!list_empty(&ref->add_list))
+			list_del(&ref->add_list);
 	}
 	ref->in_tree = 0;
 	btrfs_put_delayed_ref(ref);
@@ -431,6 +433,15 @@ add_delayed_ref_tail_merge(struct btrfs_trans_handle *trans,
 			exist->action = ref->action;
 			mod = -exist->ref_mod;
 			exist->ref_mod = ref->ref_mod;
+			if (ref->action == BTRFS_ADD_DELAYED_REF)
+				list_add_tail(&exist->add_list,
+					      &href->ref_add_list);
+			else if (ref->action == BTRFS_DROP_DELAYED_REF) {
+				ASSERT(!list_empty(&exist->add_list));
+				list_del(&exist->add_list);
+			} else {
+				ASSERT(0);
+			}
 		} else
 			mod = -ref->ref_mod;
 	}
@@ -444,6 +455,8 @@ add_delayed_ref_tail_merge(struct btrfs_trans_handle *trans,
 
 add_tail:
 	list_add_tail(&ref->list, &href->ref_list);
+	if (ref->action == BTRFS_ADD_DELAYED_REF)
+		list_add_tail(&ref->add_list, &href->ref_add_list);
 	atomic_inc(&root->num_entries);
 	trans->delayed_ref_updates++;
 	spin_unlock(&href->lock);
@@ -537,13 +550,14 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 		     struct btrfs_delayed_ref_node *ref,
 		     struct btrfs_qgroup_extent_record *qrecord,
 		     u64 bytenr, u64 num_bytes, u64 ref_root, u64 reserved,
-		     int action, int is_data)
+		     int action, int is_data, int *qrecord_inserted_ret)
 {
 	struct btrfs_delayed_ref_head *existing;
 	struct btrfs_delayed_ref_head *head_ref = NULL;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	int count_mod = 1;
 	int must_insert_reserved = 0;
+	int qrecord_inserted = 0;
 
 	/* If reserved is provided, it must be a data extent. */
 	BUG_ON(!is_data && reserved);
@@ -590,6 +604,7 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 	head_ref->must_insert_reserved = must_insert_reserved;
 	head_ref->is_data = is_data;
 	INIT_LIST_HEAD(&head_ref->ref_list);
+	INIT_LIST_HEAD(&head_ref->ref_add_list);
 	head_ref->processing = 0;
 	head_ref->total_ref_mod = count_mod;
 	head_ref->qgroup_reserved = 0;
@@ -606,9 +621,11 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 		qrecord->num_bytes = num_bytes;
 		qrecord->old_roots = NULL;
 
-		if(btrfs_qgroup_insert_dirty_extent_nolock(fs_info,
+		if(btrfs_qgroup_trace_extent_nolock(fs_info,
 					delayed_refs, qrecord))
 			kfree(qrecord);
+		else
+			qrecord_inserted = 1;
 	}
 
 	spin_lock_init(&head_ref->lock);
@@ -636,6 +653,8 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 		atomic_inc(&delayed_refs->num_entries);
 		trans->delayed_ref_updates++;
 	}
+	if (qrecord_inserted_ret)
+		*qrecord_inserted_ret = qrecord_inserted;
 	return head_ref;
 }
 
@@ -671,6 +690,8 @@ add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	ref->is_head = 0;
 	ref->in_tree = 1;
 	ref->seq = seq;
+	INIT_LIST_HEAD(&ref->list);
+	INIT_LIST_HEAD(&ref->add_list);
 
 	full_ref = btrfs_delayed_node_to_tree_ref(ref);
 	full_ref->parent = parent;
@@ -726,6 +747,8 @@ add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 	ref->is_head = 0;
 	ref->in_tree = 1;
 	ref->seq = seq;
+	INIT_LIST_HEAD(&ref->list);
+	INIT_LIST_HEAD(&ref->add_list);
 
 	full_ref = btrfs_delayed_node_to_data_ref(ref);
 	full_ref->parent = parent;
@@ -761,6 +784,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_qgroup_extent_record *record = NULL;
+	int qrecord_inserted;
 
 	BUG_ON(extent_op && extent_op->is_data);
 	ref = kmem_cache_alloc(btrfs_delayed_tree_ref_cachep, GFP_NOFS);
@@ -788,12 +812,15 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	 * the spin lock
 	 */
 	head_ref = add_delayed_ref_head(fs_info, trans, &head_ref->node, record,
-					bytenr, num_bytes, 0, 0, action, 0);
+					bytenr, num_bytes, 0, 0, action, 0,
+					&qrecord_inserted);
 
 	add_delayed_tree_ref(fs_info, trans, head_ref, &ref->node, bytenr,
 			     num_bytes, parent, ref_root, level, action);
 	spin_unlock(&delayed_refs->lock);
 
+	if (qrecord_inserted)
+		return btrfs_qgroup_trace_extent_post(fs_info, record);
 	return 0;
 
 free_head_ref:
@@ -811,15 +838,14 @@ int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 			       struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes,
 			       u64 parent, u64 ref_root,
-			       u64 owner, u64 offset, u64 reserved, int action,
-			       struct btrfs_delayed_extent_op *extent_op)
+			       u64 owner, u64 offset, u64 reserved, int action)
 {
 	struct btrfs_delayed_data_ref *ref;
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_qgroup_extent_record *record = NULL;
+	int qrecord_inserted;
 
-	BUG_ON(extent_op && !extent_op->is_data);
 	ref = kmem_cache_alloc(btrfs_delayed_data_ref_cachep, GFP_NOFS);
 	if (!ref)
 		return -ENOMEM;
@@ -841,7 +867,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 		}
 	}
 
-	head_ref->extent_op = extent_op;
+	head_ref->extent_op = NULL;
 
 	delayed_refs = &trans->transaction->delayed_refs;
 	spin_lock(&delayed_refs->lock);
@@ -852,13 +878,15 @@ int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 	 */
 	head_ref = add_delayed_ref_head(fs_info, trans, &head_ref->node, record,
 					bytenr, num_bytes, ref_root, reserved,
-					action, 1);
+					action, 1, &qrecord_inserted);
 
 	add_delayed_data_ref(fs_info, trans, head_ref, &ref->node, bytenr,
 				   num_bytes, parent, ref_root, owner, offset,
 				   action);
 	spin_unlock(&delayed_refs->lock);
 
+	if (qrecord_inserted)
+		return btrfs_qgroup_trace_extent_post(fs_info, record);
 	return 0;
 }
 
@@ -881,7 +909,7 @@ int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
 
 	add_delayed_ref_head(fs_info, trans, &head_ref->node, NULL, bytenr,
 			     num_bytes, 0, 0, BTRFS_UPDATE_DELAYED_HEAD,
-			     extent_op->is_data);
+			     extent_op->is_data, NULL);
 
 	spin_unlock(&delayed_refs->lock);
 	return 0;
@@ -893,11 +921,8 @@ int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
  * the head node if any where found, or NULL if not.
  */
 struct btrfs_delayed_ref_head *
-btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr)
+btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs, u64 bytenr)
 {
-	struct btrfs_delayed_ref_root *delayed_refs;
-
-	delayed_refs = &trans->transaction->delayed_refs;
 	return find_ref_head(&delayed_refs->href_root, bytenr, 0);
 }
 

@@ -212,7 +212,7 @@ static void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)
 	 */
 	smp_mb();
 	if (atomic_dec_if_positive(&ps->pending) > 0)
-		kthread_queue_work(&pit->worker, &pit->expired);
+		kthread_queue_work(pit->worker, &pit->expired);
 }
 
 void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
@@ -272,7 +272,7 @@ static enum hrtimer_restart pit_timer_fn(struct hrtimer *data)
 	if (atomic_read(&ps->reinject))
 		atomic_inc(&ps->pending);
 
-	kthread_queue_work(&pt->worker, &pt->expired);
+	kthread_queue_work(pt->worker, &pt->expired);
 
 	if (ps->is_periodic) {
 		hrtimer_add_expires_ns(&ps->timer, ps->period);
@@ -667,10 +667,8 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	pid_nr = pid_vnr(pid);
 	put_pid(pid);
 
-	kthread_init_worker(&pit->worker);
-	pit->worker_task = kthread_run(kthread_worker_fn, &pit->worker,
-				       "kvm-pit/%d", pid_nr);
-	if (IS_ERR(pit->worker_task))
+	pit->worker = kthread_create_worker(0, "kvm-pit/%d", pid_nr);
+	if (IS_ERR(pit->worker))
 		goto fail_kthread;
 
 	kthread_init_work(&pit->expired, pit_do_work);
@@ -713,7 +711,7 @@ fail_register_speaker:
 fail_register_pit:
 	mutex_unlock(&kvm->slots_lock);
 	kvm_pit_set_reinject(pit, false);
-	kthread_stop(pit->worker_task);
+	kthread_destroy_worker(pit->worker);
 fail_kthread:
 	kvm_free_irq_source_id(kvm, pit->irq_source_id);
 fail_request:
@@ -730,8 +728,7 @@ void kvm_free_pit(struct kvm *kvm)
 		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &pit->speaker_dev);
 		kvm_pit_set_reinject(pit, false);
 		hrtimer_cancel(&pit->pit_state.timer);
-		kthread_flush_work(&pit->expired);
-		kthread_stop(pit->worker_task);
+		kthread_destroy_worker(pit->worker);
 		kvm_free_irq_source_id(kvm, pit->irq_source_id);
 		kfree(pit);
 	}

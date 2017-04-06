@@ -14,7 +14,7 @@
 #include <linux/xattr.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/posix_acl_xattr.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "gfs2.h"
 #include "incore.h"

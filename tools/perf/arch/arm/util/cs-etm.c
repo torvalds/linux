@@ -575,8 +575,6 @@ static FILE *cs_device__open_file(const char *name)
 	snprintf(path, PATH_MAX,
 		 "%s" CS_BUS_DEVICE_PATH "%s", sysfs, name);
 
-	printf("path: %s\n", path);
-
 	if (stat(path, &st) < 0)
 		return NULL;
 

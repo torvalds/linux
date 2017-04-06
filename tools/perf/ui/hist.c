@@ -521,6 +521,12 @@ void perf_hpp_list__register_sort_field(struct perf_hpp_list *list,
 	list_add_tail(&format->sort_list, &list->sorts);
 }
 
+void perf_hpp_list__prepend_sort_field(struct perf_hpp_list *list,
+				       struct perf_hpp_fmt *format)
+{
+	list_add(&format->sort_list, &list->sorts);
+}
+
 void perf_hpp__column_unregister(struct perf_hpp_fmt *format)
 {
 	list_del(&format->list);
@@ -559,6 +565,10 @@ void perf_hpp__setup_output_field(struct perf_hpp_list *list)
 	/* append sort keys to output field */
 	perf_hpp_list__for_each_sort_list(list, fmt) {
 		struct perf_hpp_fmt *pos;
+
+		/* skip sort-only fields ("sort_compute" in perf diff) */
+		if (!fmt->entry && !fmt->color)
+			continue;
 
 		perf_hpp_list__for_each_format(list, pos) {
 			if (fmt_equal(fmt, pos))
@@ -638,7 +648,7 @@ unsigned int hists__sort_list_width(struct hists *hists)
 		ret += fmt->width(fmt, &dummy_hpp, hists);
 	}
 
-	if (verbose && hists__has(hists, sym)) /* Addr + origin */
+	if (verbose > 0 && hists__has(hists, sym)) /* Addr + origin */
 		ret += 3 + BITS_PER_LONG / 4;
 
 	return ret;

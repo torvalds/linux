@@ -13,9 +13,18 @@
 #include <dt-bindings/clock/imx6qdl-clock.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
+	 */
+	chosen {};
+	memory { device_type = "memory"; reg = <0 0>; };
+
 	aliases {
 		ethernet0 = &fec;
 		can0 = &can1;
@@ -204,9 +213,9 @@
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			interrupt-map = <0 0 0 1 &gpc GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
-			                <0 0 0 2 &gpc GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
-			                <0 0 0 3 &gpc GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
-			                <0 0 0 4 &gpc GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+					<0 0 0 2 &gpc GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &gpc GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &gpc GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clks IMX6QDL_CLK_PCIE_AXI>,
 				 <&clks IMX6QDL_CLK_LVDS1_GATE>,
 				 <&clks IMX6QDL_CLK_PCIE_REF_125M>;
@@ -625,8 +634,8 @@
 				regulator-1p1 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd1p1";
-					regulator-min-microvolt = <800000>;
-					regulator-max-microvolt = <1375000>;
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 					anatop-reg-offset = <0x110>;
 					anatop-vol-bit-shift = <8>;
@@ -653,15 +662,15 @@
 				regulator-2p5 {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd2p5";
-					regulator-min-microvolt = <2000000>;
+					regulator-min-microvolt = <2250000>;
 					regulator-max-microvolt = <2750000>;
 					regulator-always-on;
 					anatop-reg-offset = <0x130>;
 					anatop-vol-bit-shift = <8>;
 					anatop-vol-bit-width = <5>;
 					anatop-min-bit-val = <0>;
-					anatop-min-voltage = <2000000>;
-					anatop-max-voltage = <2750000>;
+					anatop-min-voltage = <2100000>;
+					anatop-max-voltage = <2875000>;
 				};
 
 				reg_arm: regulator-vddcore {
@@ -807,7 +816,7 @@
 				reg = <0x020e0000 0x4000>;
 			};
 
-			ldb: ldb@020e0008 {
+			ldb: ldb {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx6q-ldb", "fsl,imx53-ldb";
@@ -1092,10 +1101,14 @@
 			};
 
 			weim: weim@021b8000 {
+				#address-cells = <2>;
+				#size-cells = <1>;
 				compatible = "fsl,imx6q-weim";
 				reg = <0x021b8000 0x4000>;
 				interrupts = <0 14 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6QDL_CLK_EIM_SLOW>;
+				fsl,weim-cs-gpr = <&gpr>;
+				status = "disabled";
 			};
 
 			ocotp: ocotp@021bc000 {
@@ -1153,8 +1166,10 @@
 			};
 
 			vdoa@021e4000 {
+				compatible = "fsl,imx6q-vdoa";
 				reg = <0x021e4000 0x4000>;
 				interrupts = <0 18 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6QDL_CLK_VDOA>;
 			};
 
 			uart2: serial@021e8000 {

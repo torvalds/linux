@@ -786,8 +786,7 @@ static void amiga_get_hardware_list(struct seq_file *m)
 	if (AMIGAHW_PRESENT(name))			\
 		seq_printf (m, "\t%s\n", str)
 
-	seq_printf (m, "Detected hardware:\n");
-
+	seq_puts(m, "Detected hardware:\n");
 	AMIGAHW_ANNOUNCE(AMI_VIDEO, "Amiga Video");
 	AMIGAHW_ANNOUNCE(AMI_BLITTER, "Blitter");
 	AMIGAHW_ANNOUNCE(AMBER_FF, "Amber Flicker Fixer");

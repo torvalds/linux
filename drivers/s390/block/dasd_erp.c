@@ -15,7 +15,7 @@
 
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* This is ugly... */
 #define PRINTK_HEADER "dasd_erp:"
@@ -96,7 +96,7 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
                              "default ERP called (%i retries left)",
                              cqr->retries);
 		if (!test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags))
-			cqr->lpm = device->path_data.opm;
+			cqr->lpm = dasd_path_get_opm(device);
 		cqr->status = DASD_CQR_FILLED;
         } else {
 		pr_err("%s: default ERP has run out of retries and failed\n",

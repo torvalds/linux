@@ -71,15 +71,9 @@ xfs_bmdr_to_bmbt(
 	xfs_bmbt_key_t		*tkp;
 	__be64			*tpp;
 
-	if (xfs_sb_version_hascrc(&mp->m_sb))
-		xfs_btree_init_block_int(mp, rblock, XFS_BUF_DADDR_NULL,
-				 XFS_BMAP_CRC_MAGIC, 0, 0, ip->i_ino,
-				 XFS_BTREE_LONG_PTRS | XFS_BTREE_CRC_BLOCKS);
-	else
-		xfs_btree_init_block_int(mp, rblock, XFS_BUF_DADDR_NULL,
-				 XFS_BMAP_MAGIC, 0, 0, ip->i_ino,
+	xfs_btree_init_block_int(mp, rblock, XFS_BUF_DADDR_NULL,
+				 XFS_BTNUM_BMAP, 0, 0, ip->i_ino,
 				 XFS_BTREE_LONG_PTRS);
-
 	rblock->bb_level = dblock->bb_level;
 	ASSERT(be16_to_cpu(rblock->bb_level) > 0);
 	rblock->bb_numrecs = dblock->bb_numrecs;
@@ -502,12 +496,11 @@ try_another_ag:
 	if (args.fsbno == NULLFSBLOCK && args.minleft) {
 		/*
 		 * Could not find an AG with enough free space to satisfy
-		 * a full btree split.  Try again without minleft and if
+		 * a full btree split.  Try again and if
 		 * successful activate the lowspace algorithm.
 		 */
 		args.fsbno = 0;
 		args.type = XFS_ALLOCTYPE_FIRST_AG;
-		args.minleft = 0;
 		error = xfs_alloc_vextent(&args);
 		if (error)
 			goto error0;
@@ -796,13 +789,14 @@ xfs_bmbt_init_cursor(
 	struct xfs_btree_cur	*cur;
 	ASSERT(whichfork != XFS_COW_FORK);
 
-	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_SLEEP);
+	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_NOFS);
 
 	cur->bc_tp = tp;
 	cur->bc_mp = mp;
 	cur->bc_nlevels = be16_to_cpu(ifp->if_broot->bb_level) + 1;
 	cur->bc_btnum = XFS_BTNUM_BMAP;
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;
+	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_bmbt_2);
 
 	cur->bc_ops = &xfs_bmbt_ops;
 	cur->bc_flags = XFS_BTREE_LONG_PTRS | XFS_BTREE_ROOT_IN_INODE;

@@ -12,7 +12,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/bitmap.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/poll.h>
 #include <linux/pid.h>
 #include <linux/fs.h>
@@ -86,8 +86,11 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 		goto err_put_afu;
 	}
 
-	if ((rc = cxl_context_init(ctx, afu, master, inode->i_mapping)))
+	rc = cxl_context_init(ctx, afu, master);
+	if (rc)
 		goto err_put_afu;
+
+	cxl_context_set_mapping(ctx, inode->i_mapping);
 
 	pr_devel("afu_open pe: %i\n", ctx->pe);
 	file->private_data = ctx;

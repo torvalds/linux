@@ -33,8 +33,8 @@ Layout of macroblocks in memory is presented in the following figure.
 
 .. _nv12mt:
 
-.. figure::  pixfmt-nv12mt_files/nv12mt.*
-    :alt:    nv12mt.png
+.. figure::  nv12mt.*
+    :alt:    nv12mt.pdf / nv12mt.svg
     :align:  center
 
     V4L2_PIX_FMT_NV12MT macroblock Z shape memory layout
@@ -50,8 +50,8 @@ interleaved. Height of the buffer is aligned to 32.
 
 .. _nv12mt_ex:
 
-.. figure::  pixfmt-nv12mt_files/nv12mt_example.*
-    :alt:    nv12mt_example.png
+.. figure::  nv12mt_example.*
+    :alt:    nv12mt_example.pdf / nv12mt_example.svg
     :align:  center
 
     Example V4L2_PIX_FMT_NV12MT memory layout of macroblocks

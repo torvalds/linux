@@ -372,26 +372,6 @@ struct rxe_port {
 	u32			qp_gsi_index;
 };
 
-/* callbacks from rdma_rxe to network interface layer */
-struct rxe_ifc_ops {
-	void (*release)(struct rxe_dev *rxe);
-	__be64 (*node_guid)(struct rxe_dev *rxe);
-	__be64 (*port_guid)(struct rxe_dev *rxe);
-	struct device *(*dma_device)(struct rxe_dev *rxe);
-	int (*mcast_add)(struct rxe_dev *rxe, union ib_gid *mgid);
-	int (*mcast_delete)(struct rxe_dev *rxe, union ib_gid *mgid);
-	int (*prepare)(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
-		       struct sk_buff *skb, u32 *crc);
-	int (*send)(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
-		    struct sk_buff *skb);
-	int (*loopback)(struct sk_buff *skb);
-	struct sk_buff *(*init_packet)(struct rxe_dev *rxe, struct rxe_av *av,
-				       int paylen, struct rxe_pkt_info *pkt);
-	char *(*parent_name)(struct rxe_dev *rxe, unsigned int port_num);
-	enum rdma_link_layer (*link_layer)(struct rxe_dev *rxe,
-					   unsigned int port_num);
-};
-
 struct rxe_dev {
 	struct ib_device	ib_dev;
 	struct ib_device_attr	attr;
@@ -399,8 +379,6 @@ struct rxe_dev {
 	int			max_inline_data;
 	struct kref		ref_cnt;
 	struct mutex	usdev_lock;
-
-	struct rxe_ifc_ops	*ifc_ops;
 
 	struct net_device	*ndev;
 
@@ -475,6 +453,6 @@ static inline struct rxe_mem *to_rmw(struct ib_mw *mw)
 int rxe_register_device(struct rxe_dev *rxe);
 int rxe_unregister_device(struct rxe_dev *rxe);
 
-void rxe_mc_cleanup(void *arg);
+void rxe_mc_cleanup(struct rxe_pool_entry *arg);
 
 #endif /* RXE_VERBS_H */

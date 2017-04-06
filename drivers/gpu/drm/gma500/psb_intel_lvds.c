@@ -500,19 +500,6 @@ static void psb_intel_lvds_mode_set(struct drm_encoder *encoder,
 }
 
 /*
- * Detect the LVDS connection.
- *
- * This always returns CONNECTOR_STATUS_CONNECTED.
- * This connector should only have
- * been set up if the LVDS was actually connected anyway.
- */
-static enum drm_connector_status psb_intel_lvds_detect(struct drm_connector
-						   *connector, bool force)
-{
-	return connector_status_connected;
-}
-
-/*
  * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
  */
 static int psb_intel_lvds_get_modes(struct drm_connector *connector)
@@ -643,7 +630,6 @@ const struct drm_connector_helper_funcs
 
 const struct drm_connector_funcs psb_intel_lvds_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.detect = psb_intel_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = psb_intel_lvds_set_property,
 	.destroy = psb_intel_lvds_destroy,

@@ -90,7 +90,7 @@
 #include <linux/slab.h>
 #include <linux/xattr.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 #include <net/compat.h>
@@ -287,7 +287,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-static int init_inodecache(void)
+static void init_inodecache(void)
 {
 	sock_inode_cachep = kmem_cache_create("sock_inode_cache",
 					      sizeof(struct socket_alloc),
@@ -296,9 +296,7 @@ static int init_inodecache(void)
 					       SLAB_RECLAIM_ACCOUNT |
 					       SLAB_MEM_SPREAD | SLAB_ACCOUNT),
 					      init_once);
-	if (sock_inode_cachep == NULL)
-		return -ENOMEM;
-	return 0;
+	BUG_ON(sock_inode_cachep == NULL);
 }
 
 static const struct super_operations sockfs_ops = {
@@ -533,8 +531,22 @@ static ssize_t sockfs_listxattr(struct dentry *dentry, char *buffer,
 	return used;
 }
 
+static int sockfs_setattr(struct dentry *dentry, struct iattr *iattr)
+{
+	int err = simple_setattr(dentry, iattr);
+
+	if (!err && (iattr->ia_valid & ATTR_UID)) {
+		struct socket *sock = SOCKET_I(d_inode(dentry));
+
+		sock->sk->sk_uid = iattr->ia_uid;
+	}
+
+	return err;
+}
+
 static const struct inode_operations sockfs_inode_ops = {
 	.listxattr = sockfs_listxattr,
+	.setattr = sockfs_setattr,
 };
 
 /**
@@ -654,7 +666,7 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 
 	/* Race occurred between timestamp enabling and packet
 	   receiving.  Fill in the current time for now. */
-	if (need_software_tstamp && skb->tstamp.tv64 == 0)
+	if (need_software_tstamp && skb->tstamp == 0)
 		__net_timestamp(skb);
 
 	if (need_software_tstamp) {
@@ -679,9 +691,14 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 	    (sk->sk_tsflags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
 	    ktime_to_timespec_cond(shhwtstamps->hwtstamp, tss.ts + 2))
 		empty = 0;
-	if (!empty)
+	if (!empty) {
 		put_cmsg(msg, SOL_SOCKET,
 			 SCM_TIMESTAMPING, sizeof(tss), &tss);
+
+		if (skb->len && (sk->sk_tsflags & SOF_TIMESTAMPING_OPT_STATS))
+			put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMPING_OPT_STATS,
+				 skb->len, skb->data);
+	}
 }
 EXPORT_SYMBOL_GPL(__sock_recv_timestamp);
 
@@ -892,6 +909,11 @@ static long sock_do_ioctl(struct net *net, struct socket *sock,
  *	what to do with it - that's up to the protocol still.
  */
 
+static struct ns_common *get_net_ns(struct ns_common *ns)
+{
+	return &get_net(container_of(ns, struct net, ns))->ns;
+}
+
 static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	struct socket *sock;
@@ -959,6 +981,13 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			if (dlci_ioctl_hook)
 				err = dlci_ioctl_hook(cmd, argp);
 			mutex_unlock(&dlci_ioctl_mutex);
+			break;
+		case SIOCGSKNS:
+			err = -EPERM;
+			if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
+				break;
+
+			err = open_related_ns(&net->ns, get_net_ns);
 			break;
 		default:
 			err = sock_do_ioctl(net, sock, cmd, arg);
@@ -1887,7 +1916,7 @@ static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
 	struct sockaddr_storage address;
 	struct iovec iovstack[UIO_FASTIOV], *iov = iovstack;
 	unsigned char ctl[sizeof(struct cmsghdr) + 20]
-	    __attribute__ ((aligned(sizeof(__kernel_size_t))));
+				__aligned(sizeof(__kernel_size_t));
 	/* 20 is size of ipv6_pktinfo */
 	unsigned char *ctl_buf = ctl;
 	int ctl_len;
@@ -1917,6 +1946,8 @@ static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
 		ctl_buf = msg_sys->msg_control;
 		ctl_len = msg_sys->msg_controllen;
 	} else if (ctl_len) {
+		BUILD_BUG_ON(sizeof(struct cmsghdr) !=
+			     CMSG_ALIGN(sizeof(struct cmsghdr)));
 		if (ctl_len > sizeof(ctl)) {
 			ctl_buf = sock_kmalloc(sock->sk, ctl_len, GFP_KERNEL);
 			if (ctl_buf == NULL)
@@ -2197,8 +2228,10 @@ int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 		return err;
 
 	err = sock_error(sock->sk);
-	if (err)
+	if (err) {
+		datagrams = err;
 		goto out_put;
+	}
 
 	entry = mmsg;
 	compat_entry = (struct compat_mmsghdr __user *)mmsg;
@@ -3110,6 +3143,7 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCSIFVLAN:
 	case SIOCADDDLCI:
 	case SIOCDELDLCI:
+	case SIOCGSKNS:
 		return sock_ioctl(file, cmd, arg);
 
 	case SIOCGIFFLAGS:

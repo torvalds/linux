@@ -67,7 +67,7 @@ void arch_leave_lazy_mmu_mode(void)
 }
 
 static void tlb_batch_add_one(struct mm_struct *mm, unsigned long vaddr,
-			      bool exec, bool huge)
+			      bool exec, unsigned int hugepage_shift)
 {
 	struct tlb_batch *tb = &get_cpu_var(tlb_batch);
 	unsigned long nr;
@@ -84,19 +84,19 @@ static void tlb_batch_add_one(struct mm_struct *mm, unsigned long vaddr,
 	}
 
 	if (!tb->active) {
-		flush_tsb_user_page(mm, vaddr, huge);
+		flush_tsb_user_page(mm, vaddr, hugepage_shift);
 		global_flush_tlb_page(mm, vaddr);
 		goto out;
 	}
 
 	if (nr == 0) {
 		tb->mm = mm;
-		tb->huge = huge;
+		tb->hugepage_shift = hugepage_shift;
 	}
 
-	if (tb->huge != huge) {
+	if (tb->hugepage_shift != hugepage_shift) {
 		flush_tlb_pending();
-		tb->huge = huge;
+		tb->hugepage_shift = hugepage_shift;
 		nr = 0;
 	}
 
@@ -110,10 +110,9 @@ out:
 }
 
 void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
-		   pte_t *ptep, pte_t orig, int fullmm)
+		   pte_t *ptep, pte_t orig, int fullmm,
+		   unsigned int hugepage_shift)
 {
-	bool huge = is_hugetlb_pte(orig);
-
 	if (tlb_type != hypervisor &&
 	    pte_dirty(orig)) {
 		unsigned long paddr, pfn = pte_pfn(orig);
@@ -139,7 +138,7 @@ void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
 
 no_cache_flush:
 	if (!fullmm)
-		tlb_batch_add_one(mm, vaddr, pte_exec(orig), huge);
+		tlb_batch_add_one(mm, vaddr, pte_exec(orig), hugepage_shift);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

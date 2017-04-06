@@ -2,6 +2,8 @@
 #define _IP6_TUNNEL_H
 
 #include <linux/types.h>
+#include <linux/if.h>		/* For IFNAMSIZ. */
+#include <linux/in6.h>		/* For struct in6_addr. */
 
 #define IPV6_TLV_TNL_ENCAP_LIMIT 4
 #define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4

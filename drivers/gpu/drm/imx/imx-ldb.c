@@ -101,12 +101,6 @@ struct imx_ldb {
 	const struct bus_mux *lvds_mux;
 };
 
-static enum drm_connector_status imx_ldb_connector_detect(
-		struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static void imx_ldb_ch_set_bus_format(struct imx_ldb_channel *imx_ldb_ch,
 				      u32 bus_format)
 {
@@ -319,18 +313,6 @@ static void imx_ldb_encoder_disable(struct drm_encoder *encoder)
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int mux, ret;
 
-	/*
-	 * imx_ldb_encoder_disable is called by
-	 * drm_helper_disable_unused_functions without
-	 * the encoder being enabled before.
-	 */
-	if (imx_ldb_ch == &ldb->channel[0] &&
-	    (ldb->ldb_ctrl & LDB_CH0_MODE_EN_MASK) == 0)
-		return;
-	else if (imx_ldb_ch == &ldb->channel[1] &&
-		 (ldb->ldb_ctrl & LDB_CH1_MODE_EN_MASK) == 0)
-		return;
-
 	drm_panel_disable(imx_ldb_ch->panel);
 
 	if (imx_ldb_ch == &ldb->channel[0])
@@ -409,7 +391,6 @@ static int imx_ldb_encoder_atomic_check(struct drm_encoder *encoder,
 static const struct drm_connector_funcs imx_ldb_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = imx_ldb_connector_detect,
 	.destroy = imx_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -473,10 +454,8 @@ static int imx_ldb_register(struct drm_device *drm,
 			 DRM_MODE_ENCODER_LVDS, NULL);
 
 	if (imx_ldb_ch->bridge) {
-		imx_ldb_ch->bridge->encoder = encoder;
-
-		imx_ldb_ch->encoder.bridge = imx_ldb_ch->bridge;
-		ret = drm_bridge_attach(drm, imx_ldb_ch->bridge);
+		ret = drm_bridge_attach(&imx_ldb_ch->encoder,
+					imx_ldb_ch->bridge, NULL);
 		if (ret) {
 			DRM_ERROR("Failed to initialize bridge with drm\n");
 			return ret;
@@ -757,8 +736,6 @@ static void imx_ldb_unbind(struct device *dev, struct device *master,
 	for (i = 0; i < 2; i++) {
 		struct imx_ldb_channel *channel = &imx_ldb->channel[i];
 
-		if (channel->bridge)
-			drm_bridge_detach(channel->bridge);
 		if (channel->panel)
 			drm_panel_detach(channel->panel);
 

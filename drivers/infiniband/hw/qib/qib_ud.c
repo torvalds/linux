@@ -152,7 +152,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 
 		ret = qib_get_rwqe(qp, 0);
 		if (ret < 0) {
-			qib_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
+			rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
 			goto bail_unlock;
 		}
 		if (!ret) {
@@ -177,7 +177,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 			     sizeof(grh), 1);
 		wc.wc_flags |= IB_WC_GRH;
 	} else
-		qib_skip_sge(&qp->r_sge, sizeof(struct ib_grh), 1);
+		rvt_skip_sge(&qp->r_sge, sizeof(struct ib_grh), true);
 	ssge.sg_list = swqe->sg_list + 1;
 	ssge.sge = *swqe->sg_list;
 	ssge.num_sge = swqe->wr.num_sge;
@@ -548,7 +548,7 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 
 		ret = qib_get_rwqe(qp, 0);
 		if (ret < 0) {
-			qib_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
+			rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
 			return;
 		}
 		if (!ret) {
@@ -567,7 +567,7 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 			     sizeof(struct ib_grh), 1);
 		wc.wc_flags |= IB_WC_GRH;
 	} else
-		qib_skip_sge(&qp->r_sge, sizeof(struct ib_grh), 1);
+		rvt_skip_sge(&qp->r_sge, sizeof(struct ib_grh), true);
 	qib_copy_sge(&qp->r_sge, data, wc.byte_len - sizeof(struct ib_grh), 1);
 	rvt_put_ss(&qp->r_sge);
 	if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))

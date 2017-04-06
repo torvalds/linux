@@ -189,7 +189,7 @@ static int nilfs_sync_super(struct super_block *sb, int flag)
 	set_buffer_dirty(nilfs->ns_sbh[0]);
 	if (nilfs_test_opt(nilfs, BARRIER)) {
 		err = __sync_dirty_buffer(nilfs->ns_sbh[0],
-					  WRITE_SYNC | WRITE_FLUSH_FUA);
+					  REQ_SYNC | REQ_PREFLUSH | REQ_FUA);
 	} else {
 		err = sync_dirty_buffer(nilfs->ns_sbh[0]);
 	}
@@ -1068,7 +1068,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_gran = 1;
 	sb->s_max_links = NILFS_LINK_MAX;
 
-	sb->s_bdi = &bdev_get_queue(sb->s_bdev)->backing_dev_info;
+	sb->s_bdi = bdev_get_queue(sb->s_bdev)->backing_dev_info;
 
 	err = load_nilfs(nilfs, sb);
 	if (err)

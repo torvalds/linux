@@ -22,6 +22,14 @@
  *
  */
 
+#include <linux/i2c.h>
+
+#define DW_IC_DEFAULT_FUNCTIONALITY (I2C_FUNC_I2C |			\
+					I2C_FUNC_SMBUS_BYTE |		\
+					I2C_FUNC_SMBUS_BYTE_DATA |	\
+					I2C_FUNC_SMBUS_WORD_DATA |	\
+					I2C_FUNC_SMBUS_BLOCK_DATA |	\
+					I2C_FUNC_SMBUS_I2C_BLOCK)
 
 #define DW_IC_CON_MASTER		0x1
 #define DW_IC_CON_SPEED_STD		0x2
@@ -117,7 +125,6 @@ struct dw_i2c_dev {
 	int			(*acquire_lock)(struct dw_i2c_dev *dev);
 	void			(*release_lock)(struct dw_i2c_dev *dev);
 	bool			pm_runtime_disabled;
-	bool			dynamic_tar_update_enabled;
 };
 
 #define ACCESS_SWAP		0x00000001

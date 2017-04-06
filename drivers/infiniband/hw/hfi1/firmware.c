@@ -239,6 +239,16 @@ static const u8 all_fabric_serdes_broadcast = 0xe1;
 const u8 pcie_serdes_broadcast[2] = { 0xe2, 0xe3 };
 static const u8 all_pcie_serdes_broadcast = 0xe0;
 
+static const u32 platform_config_table_limits[PLATFORM_CONFIG_TABLE_MAX] = {
+	0,
+	SYSTEM_TABLE_MAX,
+	PORT_TABLE_MAX,
+	RX_PRESET_TABLE_MAX,
+	TX_PRESET_TABLE_MAX,
+	QSFP_ATTEN_TABLE_MAX,
+	VARIABLE_SETTINGS_TABLE_MAX
+};
+
 /* forwards */
 static void dispose_one_firmware(struct firmware_details *fdet);
 static int load_fabric_serdes_firmware(struct hfi1_devdata *dd,
@@ -263,11 +273,13 @@ static int __read_8051_data(struct hfi1_devdata *dd, u32 addr, u64 *result)
 	u64 reg;
 	int count;
 
-	/* start the read at the given address */
-	reg = ((addr & DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_MASK)
-			<< DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_SHIFT)
-		| DC_DC8051_CFG_RAM_ACCESS_CTRL_READ_ENA_SMASK;
+	/* step 1: set the address, clear enable */
+	reg = (addr & DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_MASK)
+			<< DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_SHIFT;
 	write_csr(dd, DC_DC8051_CFG_RAM_ACCESS_CTRL, reg);
+	/* step 2: enable */
+	write_csr(dd, DC_DC8051_CFG_RAM_ACCESS_CTRL,
+		  reg | DC_DC8051_CFG_RAM_ACCESS_CTRL_READ_ENA_SMASK);
 
 	/* wait until ACCESS_COMPLETED is set */
 	count = 0;
@@ -707,6 +719,9 @@ static int obtain_firmware(struct hfi1_devdata *dd)
 				       &dd->pcidev->dev);
 		if (err) {
 			platform_config = NULL;
+			dd_dev_err(dd,
+				   "%s: No default platform config file found\n",
+				   __func__);
 			goto done;
 		}
 		dd->platform_config.data = platform_config->data;
@@ -1761,8 +1776,17 @@ int parse_platform_config(struct hfi1_devdata *dd)
 	u32 record_idx = 0, table_type = 0, table_length_dwords = 0;
 	int ret = -EINVAL; /* assume failure */
 
+	/*
+	 * For integrated devices that did not fall back to the default file,
+	 * the SI tuning information for active channels is acquired from the
+	 * scratch register bitmap, thus there is no platform config to parse.
+	 * Skip parsing in these situations.
+	 */
+	if (is_integrated(dd) && !platform_config_load)
+		return 0;
+
 	if (!dd->platform_config.data) {
-		dd_dev_info(dd, "%s: Missing config file\n", __func__);
+		dd_dev_err(dd, "%s: Missing config file\n", __func__);
 		goto bail;
 	}
 	ptr = (u32 *)dd->platform_config.data;
@@ -1770,7 +1794,7 @@ int parse_platform_config(struct hfi1_devdata *dd)
 	magic_num = *ptr;
 	ptr++;
 	if (magic_num != PLATFORM_CONFIG_MAGIC_NUM) {
-		dd_dev_info(dd, "%s: Bad config file\n", __func__);
+		dd_dev_err(dd, "%s: Bad config file\n", __func__);
 		goto bail;
 	}
 
@@ -1797,9 +1821,9 @@ int parse_platform_config(struct hfi1_devdata *dd)
 		header1 = *ptr;
 		header2 = *(ptr + 1);
 		if (header1 != ~header2) {
-			dd_dev_info(dd, "%s: Failed validation at offset %ld\n",
-				    __func__, (ptr - (u32 *)
-					       dd->platform_config.data));
+			dd_dev_err(dd, "%s: Failed validation at offset %ld\n",
+				   __func__, (ptr - (u32 *)
+					      dd->platform_config.data));
 			goto bail;
 		}
 
@@ -1841,11 +1865,11 @@ int parse_platform_config(struct hfi1_devdata *dd)
 							table_length_dwords;
 				break;
 			default:
-				dd_dev_info(dd,
-					    "%s: Unknown data table %d, offset %ld\n",
-					    __func__, table_type,
-					    (ptr - (u32 *)
-					     dd->platform_config.data));
+				dd_dev_err(dd,
+					   "%s: Unknown data table %d, offset %ld\n",
+					   __func__, table_type,
+					   (ptr - (u32 *)
+					    dd->platform_config.data));
 				goto bail; /* We don't trust this file now */
 			}
 			pcfgcache->config_tables[table_type].table = ptr;
@@ -1865,11 +1889,11 @@ int parse_platform_config(struct hfi1_devdata *dd)
 			case PLATFORM_CONFIG_VARIABLE_SETTINGS_TABLE:
 				break;
 			default:
-				dd_dev_info(dd,
-					    "%s: Unknown meta table %d, offset %ld\n",
-					    __func__, table_type,
-					    (ptr -
-					     (u32 *)dd->platform_config.data));
+				dd_dev_err(dd,
+					   "%s: Unknown meta table %d, offset %ld\n",
+					   __func__, table_type,
+					   (ptr -
+					    (u32 *)dd->platform_config.data));
 				goto bail; /* We don't trust this file now */
 			}
 			pcfgcache->config_tables[table_type].table_metadata =
@@ -1884,10 +1908,9 @@ int parse_platform_config(struct hfi1_devdata *dd)
 		/* Jump the table */
 		ptr += table_length_dwords;
 		if (crc != *ptr) {
-			dd_dev_info(dd, "%s: Failed CRC check at offset %ld\n",
-				    __func__, (ptr -
-					       (u32 *)
-					       dd->platform_config.data));
+			dd_dev_err(dd, "%s: Failed CRC check at offset %ld\n",
+				   __func__, (ptr -
+				   (u32 *)dd->platform_config.data));
 			goto bail;
 		}
 		/* Jump the CRC DWORD */
@@ -1899,6 +1922,84 @@ int parse_platform_config(struct hfi1_devdata *dd)
 bail:
 	memset(pcfgcache, 0, sizeof(struct platform_config_cache));
 	return ret;
+}
+
+static void get_integrated_platform_config_field(
+		struct hfi1_devdata *dd,
+		enum platform_config_table_type_encoding table_type,
+		int field_index, u32 *data)
+{
+	struct hfi1_pportdata *ppd = dd->pport;
+	u8 *cache = ppd->qsfp_info.cache;
+	u32 tx_preset = 0;
+
+	switch (table_type) {
+	case PLATFORM_CONFIG_SYSTEM_TABLE:
+		if (field_index == SYSTEM_TABLE_QSFP_POWER_CLASS_MAX)
+			*data = ppd->max_power_class;
+		else if (field_index == SYSTEM_TABLE_QSFP_ATTENUATION_DEFAULT_25G)
+			*data = ppd->default_atten;
+		break;
+	case PLATFORM_CONFIG_PORT_TABLE:
+		if (field_index == PORT_TABLE_PORT_TYPE)
+			*data = ppd->port_type;
+		else if (field_index == PORT_TABLE_LOCAL_ATTEN_25G)
+			*data = ppd->local_atten;
+		else if (field_index == PORT_TABLE_REMOTE_ATTEN_25G)
+			*data = ppd->remote_atten;
+		break;
+	case PLATFORM_CONFIG_RX_PRESET_TABLE:
+		if (field_index == RX_PRESET_TABLE_QSFP_RX_CDR_APPLY)
+			*data = (ppd->rx_preset & QSFP_RX_CDR_APPLY_SMASK) >>
+				QSFP_RX_CDR_APPLY_SHIFT;
+		else if (field_index == RX_PRESET_TABLE_QSFP_RX_EMP_APPLY)
+			*data = (ppd->rx_preset & QSFP_RX_EMP_APPLY_SMASK) >>
+				QSFP_RX_EMP_APPLY_SHIFT;
+		else if (field_index == RX_PRESET_TABLE_QSFP_RX_AMP_APPLY)
+			*data = (ppd->rx_preset & QSFP_RX_AMP_APPLY_SMASK) >>
+				QSFP_RX_AMP_APPLY_SHIFT;
+		else if (field_index == RX_PRESET_TABLE_QSFP_RX_CDR)
+			*data = (ppd->rx_preset & QSFP_RX_CDR_SMASK) >>
+				QSFP_RX_CDR_SHIFT;
+		else if (field_index == RX_PRESET_TABLE_QSFP_RX_EMP)
+			*data = (ppd->rx_preset & QSFP_RX_EMP_SMASK) >>
+				QSFP_RX_EMP_SHIFT;
+		else if (field_index == RX_PRESET_TABLE_QSFP_RX_AMP)
+			*data = (ppd->rx_preset & QSFP_RX_AMP_SMASK) >>
+				QSFP_RX_AMP_SHIFT;
+		break;
+	case PLATFORM_CONFIG_TX_PRESET_TABLE:
+		if (cache[QSFP_EQ_INFO_OFFS] & 0x4)
+			tx_preset = ppd->tx_preset_eq;
+		else
+			tx_preset = ppd->tx_preset_noeq;
+		if (field_index == TX_PRESET_TABLE_PRECUR)
+			*data = (tx_preset & TX_PRECUR_SMASK) >>
+				TX_PRECUR_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_ATTN)
+			*data = (tx_preset & TX_ATTN_SMASK) >>
+				TX_ATTN_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_POSTCUR)
+			*data = (tx_preset & TX_POSTCUR_SMASK) >>
+				TX_POSTCUR_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_QSFP_TX_CDR_APPLY)
+			*data = (tx_preset & QSFP_TX_CDR_APPLY_SMASK) >>
+				QSFP_TX_CDR_APPLY_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_QSFP_TX_EQ_APPLY)
+			*data = (tx_preset & QSFP_TX_EQ_APPLY_SMASK) >>
+				QSFP_TX_EQ_APPLY_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_QSFP_TX_CDR)
+			*data = (tx_preset & QSFP_TX_CDR_SMASK) >>
+				QSFP_TX_CDR_SHIFT;
+		else if (field_index == TX_PRESET_TABLE_QSFP_TX_EQ)
+			*data = (tx_preset & QSFP_TX_EQ_SMASK) >>
+				QSFP_TX_EQ_SHIFT;
+		break;
+	case PLATFORM_CONFIG_QSFP_ATTEN_TABLE:
+	case PLATFORM_CONFIG_VARIABLE_SETTINGS_TABLE:
+	default:
+		break;
+	}
 }
 
 static int get_platform_fw_field_metadata(struct hfi1_devdata *dd, int table,
@@ -1975,6 +2076,15 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 		memset(data, 0, len);
 	else
 		return -EINVAL;
+
+	if (is_integrated(dd) && !platform_config_load) {
+		/*
+		 * Use saved configuration from ppd for integrated platforms
+		 */
+		get_integrated_platform_config_field(dd, table_type,
+						     field_index, data);
+		return 0;
+	}
 
 	ret = get_platform_fw_field_metadata(dd, table_type, field_index,
 					     &field_len_bits,

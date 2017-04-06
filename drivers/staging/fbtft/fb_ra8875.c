@@ -33,7 +33,7 @@ static int write_spi(struct fbtft_par *par, void *buf, size_t len)
 	struct spi_message m;
 
 	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
-		"%s(len=%d): ", __func__, len);
+			  "%s(len=%d): ", __func__, len);
 
 	if (!par->spi) {
 		dev_err(par->info->device,
@@ -42,10 +42,6 @@ static int write_spi(struct fbtft_par *par, void *buf, size_t len)
 	}
 
 	spi_message_init(&m);
-	if (par->txbuf.dma && buf == par->txbuf.buf) {
-		t.tx_dma = par->txbuf.dma;
-		m.is_dma_mapped = 1;
-	}
 	spi_message_add_tail(&t, &m);
 	return spi_sync(par->spi, &m);
 }
@@ -55,9 +51,9 @@ static int init_display(struct fbtft_par *par)
 	gpio_set_value(par->gpio.dc, 1);
 
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-		"%s()\n", __func__);
+		      "%s()\n", __func__);
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-		"display size %dx%d\n",
+		      "display size %dx%d\n",
 		par->info->var.xres,
 		par->info->var.yres);
 
@@ -215,7 +211,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 			buf[i] = (u8)va_arg(args, unsigned int);
 		va_end(args);
 		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device,
-			u8, buf, len, "%s: ", __func__);
+				  u8, buf, len, "%s: ", __func__);
 	}
 
 	va_start(args, len);
@@ -266,7 +262,7 @@ static int write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 	size_t startbyte_size = 0;
 
 	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
-		__func__, offset, len);
+		      __func__, offset, len);
 
 	remain = len / 2;
 	vmem16 = (u16 *)(par->info->screen_buffer + offset);

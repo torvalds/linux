@@ -740,10 +740,6 @@ static void cdc_ncm_free(struct cdc_ncm_ctx *ctx)
 int cdc_ncm_change_mtu(struct net_device *net, int new_mtu)
 {
 	struct usbnet *dev = netdev_priv(net);
-	int maxmtu = cdc_ncm_max_dgram_size(dev) - cdc_ncm_eth_hlen(dev);
-
-	if (new_mtu <= 0 || new_mtu > maxmtu)
-		return -EINVAL;
 
 	net->mtu = new_mtu;
 	cdc_ncm_set_dgram_size(dev, new_mtu + cdc_ncm_eth_hlen(dev));
@@ -913,6 +909,7 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 
 	/* must handle MTU changes */
 	dev->net->netdev_ops = &cdc_ncm_netdev_ops;
+	dev->net->max_mtu = cdc_ncm_max_dgram_size(dev) - cdc_ncm_eth_hlen(dev);
 
 	return 0;
 
@@ -1285,7 +1282,7 @@ static void cdc_ncm_tx_timeout_start(struct cdc_ncm_ctx *ctx)
 	/* start timer, if not already started */
 	if (!(hrtimer_active(&ctx->tx_timer) || atomic_read(&ctx->stop)))
 		hrtimer_start(&ctx->tx_timer,
-				ktime_set(0, ctx->timer_interval),
+				ctx->timer_interval,
 				HRTIMER_MODE_REL);
 }
 

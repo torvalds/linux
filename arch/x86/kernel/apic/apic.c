@@ -48,7 +48,6 @@
 #include <asm/io_apic.h>
 #include <asm/desc.h>
 #include <asm/hpet.h>
-#include <asm/idle.h>
 #include <asm/mtrr.h>
 #include <asm/time.h>
 #include <asm/smp.h>
@@ -530,18 +529,19 @@ static void lapic_timer_broadcast(const struct cpumask *mask)
  * The local apic timer can be used for any function which is CPU local.
  */
 static struct clock_event_device lapic_clockevent = {
-	.name			= "lapic",
-	.features		= CLOCK_EVT_FEAT_PERIODIC |
-				  CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_C3STOP
-				  | CLOCK_EVT_FEAT_DUMMY,
-	.shift			= 32,
-	.set_state_shutdown	= lapic_timer_shutdown,
-	.set_state_periodic	= lapic_timer_set_periodic,
-	.set_state_oneshot	= lapic_timer_set_oneshot,
-	.set_next_event		= lapic_next_event,
-	.broadcast		= lapic_timer_broadcast,
-	.rating			= 100,
-	.irq			= -1,
+	.name				= "lapic",
+	.features			= CLOCK_EVT_FEAT_PERIODIC |
+					  CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_C3STOP
+					  | CLOCK_EVT_FEAT_DUMMY,
+	.shift				= 32,
+	.set_state_shutdown		= lapic_timer_shutdown,
+	.set_state_periodic		= lapic_timer_set_periodic,
+	.set_state_oneshot		= lapic_timer_set_oneshot,
+	.set_state_oneshot_stopped	= lapic_timer_shutdown,
+	.set_next_event			= lapic_next_event,
+	.broadcast			= lapic_timer_broadcast,
+	.rating				= 100,
+	.irq				= -1,
 };
 static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
 
@@ -894,11 +894,13 @@ void __init setup_boot_APIC_clock(void)
 
 	/* Setup the lapic or request the broadcast */
 	setup_APIC_timer();
+	amd_e400_c1e_apic_setup();
 }
 
 void setup_secondary_APIC_clock(void)
 {
 	setup_APIC_timer();
+	amd_e400_c1e_apic_setup();
 }
 
 /*
@@ -1244,7 +1246,7 @@ static void lapic_setup_esr(void)
 /**
  * setup_local_APIC - setup the local APIC
  *
- * Used to setup local APIC while initializing BSP or bringin up APs.
+ * Used to setup local APIC while initializing BSP or bringing up APs.
  * Always called with preemption disabled.
  */
 void setup_local_APIC(void)
@@ -1863,14 +1865,14 @@ static void __smp_spurious_interrupt(u8 vector)
 		"should never happen.\n", vector, smp_processor_id());
 }
 
-__visible void smp_spurious_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_spurious_interrupt(~regs->orig_ax);
 	exiting_irq();
 }
 
-__visible void smp_trace_spurious_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_trace_spurious_interrupt(struct pt_regs *regs)
 {
 	u8 vector = ~regs->orig_ax;
 
@@ -1921,14 +1923,14 @@ static void __smp_error_interrupt(struct pt_regs *regs)
 
 }
 
-__visible void smp_error_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_error_interrupt(regs);
 	exiting_irq();
 }
 
-__visible void smp_trace_error_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_trace_error_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	trace_error_apic_entry(ERROR_APIC_VECTOR);
@@ -2027,8 +2029,8 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 /*
  * The number of allocated logical CPU IDs. Since logical CPU IDs are allocated
  * contiguously, it equals to current allocated max logical CPU ID plus 1.
- * All allocated CPU ID should be in [0, nr_logical_cpuidi), so the maximum of
- * nr_logical_cpuids is nr_cpu_ids.
+ * All allocated CPU IDs should be in the [0, nr_logical_cpuids) range,
+ * so the maximum of nr_logical_cpuids is nr_cpu_ids.
  *
  * NOTE: Reserve 0 for BSP.
  */
@@ -2093,7 +2095,7 @@ int __generic_processor_info(int apicid, int version, bool enabled)
 	 * Since fixing handling of boot_cpu_physical_apicid requires
 	 * another discussion and tests on each platform, we leave it
 	 * for now and here we use read_apic_id() directly in this
-	 * function, generic_processor_info().
+	 * function, __generic_processor_info().
 	 */
 	if (disabled_cpu_apicid != BAD_APICID &&
 	    disabled_cpu_apicid != read_apic_id() &&
@@ -2156,21 +2158,6 @@ int __generic_processor_info(int apicid, int version, bool enabled)
 			disabled_cpus++;
 			return -EINVAL;
 		}
-	}
-
-	/*
-	 * This can happen on physical hotplug. The sanity check at boot time
-	 * is done from native_smp_prepare_cpus() after num_possible_cpus() is
-	 * established.
-	 */
-	if (topology_update_package_map(apicid, cpu) < 0) {
-		int thiscpu = max + disabled_cpus;
-
-		pr_warning("APIC: Package limit reached. Processor %d/0x%x ignored.\n",
-			   thiscpu, apicid);
-
-		disabled_cpus++;
-		return -ENOSPC;
 	}
 
 	/*
@@ -2263,6 +2250,7 @@ void __init apic_set_eoi_write(void (*eoi_write)(u32 reg, u32 v))
 	for (drv = __apicdrivers; drv < __apicdrivers_end; drv++) {
 		/* Should happen once for each apic */
 		WARN_ON((*drv)->eoi_write == eoi_write);
+		(*drv)->native_eoi_write = (*drv)->eoi_write;
 		(*drv)->eoi_write = eoi_write;
 	}
 }

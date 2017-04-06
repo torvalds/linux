@@ -43,6 +43,7 @@
 #include "mixer.h"
 #include "mixer_quirks.h"
 #include "mixer_scarlett.h"
+#include "mixer_us16x08.h"
 #include "helper.h"
 
 extern struct snd_kcontrol_new *snd_usb_feature_unit_ctl;
@@ -1729,6 +1730,10 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		return err;
 
 	switch (mixer->chip->usb_id) {
+	/* Tascam US-16x08 */
+	case USB_ID(0x0644, 0x8047):
+		err = snd_us16x08_controls_create(mixer);
+		break;
 	case USB_ID(0x041e, 0x3020):
 	case USB_ID(0x041e, 0x3040):
 	case USB_ID(0x041e, 0x3042):

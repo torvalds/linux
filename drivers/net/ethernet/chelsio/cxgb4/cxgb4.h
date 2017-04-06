@@ -263,6 +263,11 @@ struct tp_params {
 	u32 vlan_pri_map;               /* cached TP_VLAN_PRI_MAP */
 	u32 ingress_config;             /* cached TP_INGRESS_CONFIG */
 
+	/* cached TP_OUT_CONFIG compressed error vector
+	 * and passing outer header info for encapsulated packets.
+	 */
+	int rx_pkt_encap;
+
 	/* TP_VLAN_PRI_MAP Compressed Filter Tuple field offsets.  This is a
 	 * subset of the set of fields which may be present in the Compressed
 	 * Filter Tuple portion of filters and TCP TCB connections.  The
@@ -581,22 +586,6 @@ struct sge_rspq {                   /* state for an SGE response queue */
 	rspq_handler_t handler;
 	rspq_flush_handler_t flush_handler;
 	struct t4_lro_mgr lro_mgr;
-#ifdef CONFIG_NET_RX_BUSY_POLL
-#define CXGB_POLL_STATE_IDLE		0
-#define CXGB_POLL_STATE_NAPI		BIT(0) /* NAPI owns this poll */
-#define CXGB_POLL_STATE_POLL		BIT(1) /* poll owns this poll */
-#define CXGB_POLL_STATE_NAPI_YIELD	BIT(2) /* NAPI yielded this poll */
-#define CXGB_POLL_STATE_POLL_YIELD	BIT(3) /* poll yielded this poll */
-#define CXGB_POLL_YIELD			(CXGB_POLL_STATE_NAPI_YIELD |   \
-					 CXGB_POLL_STATE_POLL_YIELD)
-#define CXGB_POLL_LOCKED		(CXGB_POLL_STATE_NAPI |         \
-					 CXGB_POLL_STATE_POLL)
-#define CXGB_POLL_USER_PEND		(CXGB_POLL_STATE_POLL |         \
-					 CXGB_POLL_STATE_POLL_YIELD)
-	unsigned int bpoll_state;
-	spinlock_t bpoll_lock;		/* lock for busy poll */
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 };
 
 struct sge_eth_stats {              /* Ethernet queue statistics */
@@ -635,6 +624,7 @@ struct tx_sw_desc;
 
 struct sge_txq {
 	unsigned int  in_use;       /* # of in-use Tx descriptors */
+	unsigned int  q_type;	    /* Q type Eth/Ctrl/Ofld */
 	unsigned int  size;         /* # of descriptors */
 	unsigned int  cidx;         /* SW consumer index */
 	unsigned int  pidx;         /* producer index */
@@ -665,7 +655,7 @@ struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
 	unsigned long mapping_err;  /* # of I/O MMU packet mapping errors */
 } ____cacheline_aligned_in_smp;
 
-struct sge_ofld_txq {               /* state for an SGE offload Tx queue */
+struct sge_uld_txq {               /* state for an SGE offload Tx queue */
 	struct sge_txq q;
 	struct adapter *adap;
 	struct sk_buff_head sendq;  /* list of backpressured packets */
@@ -693,14 +683,20 @@ struct sge_uld_rxq_info {
 	u8 uld;			/* uld type */
 };
 
+struct sge_uld_txq_info {
+	struct sge_uld_txq *uldtxq; /* Txq's for ULD */
+	atomic_t users;		/* num users */
+	u16 ntxq;		/* # of egress uld queues */
+};
+
 struct sge {
 	struct sge_eth_txq ethtxq[MAX_ETH_QSETS];
-	struct sge_ofld_txq ofldtxq[MAX_OFLD_QSETS];
 	struct sge_ctrl_txq ctrlq[MAX_CTRL_QUEUES];
 
 	struct sge_eth_rxq ethrxq[MAX_ETH_QSETS];
 	struct sge_rspq fw_evtq ____cacheline_aligned_in_smp;
 	struct sge_uld_rxq_info **uld_rxq_info;
+	struct sge_uld_txq_info **uld_txq_info;
 
 	struct sge_rspq intrq ____cacheline_aligned_in_smp;
 	spinlock_t intrq_lock;
@@ -775,6 +771,10 @@ struct vf_info {
 	bool pf_set_mac;
 };
 
+struct mbox_list {
+	struct list_head list;
+};
+
 struct adapter {
 	void __iomem *regs;
 	void __iomem *bar2;
@@ -836,6 +836,10 @@ struct adapter {
 	struct work_struct db_full_task;
 	struct work_struct db_drop_task;
 	bool tid_release_task_busy;
+
+	/* lock for mailbox cmd list */
+	spinlock_t mbox_lock;
+	struct mbox_list mlist;
 
 	/* support for mailbox command/reply logging */
 #define T4_OS_LOG_MBOX_CMDS 256
@@ -1153,102 +1157,6 @@ static inline struct adapter *netdev2adap(const struct net_device *dev)
 	return netdev2pinfo(dev)->adapter;
 }
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static inline void cxgb_busy_poll_init_lock(struct sge_rspq *q)
-{
-	spin_lock_init(&q->bpoll_lock);
-	q->bpoll_state = CXGB_POLL_STATE_IDLE;
-}
-
-static inline bool cxgb_poll_lock_napi(struct sge_rspq *q)
-{
-	bool rc = true;
-
-	spin_lock(&q->bpoll_lock);
-	if (q->bpoll_state & CXGB_POLL_LOCKED) {
-		q->bpoll_state |= CXGB_POLL_STATE_NAPI_YIELD;
-		rc = false;
-	} else {
-		q->bpoll_state = CXGB_POLL_STATE_NAPI;
-	}
-	spin_unlock(&q->bpoll_lock);
-	return rc;
-}
-
-static inline bool cxgb_poll_unlock_napi(struct sge_rspq *q)
-{
-	bool rc = false;
-
-	spin_lock(&q->bpoll_lock);
-	if (q->bpoll_state & CXGB_POLL_STATE_POLL_YIELD)
-		rc = true;
-	q->bpoll_state = CXGB_POLL_STATE_IDLE;
-	spin_unlock(&q->bpoll_lock);
-	return rc;
-}
-
-static inline bool cxgb_poll_lock_poll(struct sge_rspq *q)
-{
-	bool rc = true;
-
-	spin_lock_bh(&q->bpoll_lock);
-	if (q->bpoll_state & CXGB_POLL_LOCKED) {
-		q->bpoll_state |= CXGB_POLL_STATE_POLL_YIELD;
-		rc = false;
-	} else {
-		q->bpoll_state |= CXGB_POLL_STATE_POLL;
-	}
-	spin_unlock_bh(&q->bpoll_lock);
-	return rc;
-}
-
-static inline bool cxgb_poll_unlock_poll(struct sge_rspq *q)
-{
-	bool rc = false;
-
-	spin_lock_bh(&q->bpoll_lock);
-	if (q->bpoll_state & CXGB_POLL_STATE_POLL_YIELD)
-		rc = true;
-	q->bpoll_state = CXGB_POLL_STATE_IDLE;
-	spin_unlock_bh(&q->bpoll_lock);
-	return rc;
-}
-
-static inline bool cxgb_poll_busy_polling(struct sge_rspq *q)
-{
-	return q->bpoll_state & CXGB_POLL_USER_PEND;
-}
-#else
-static inline void cxgb_busy_poll_init_lock(struct sge_rspq *q)
-{
-}
-
-static inline bool cxgb_poll_lock_napi(struct sge_rspq *q)
-{
-	return true;
-}
-
-static inline bool cxgb_poll_unlock_napi(struct sge_rspq *q)
-{
-	return false;
-}
-
-static inline bool cxgb_poll_lock_poll(struct sge_rspq *q)
-{
-	return false;
-}
-
-static inline bool cxgb_poll_unlock_poll(struct sge_rspq *q)
-{
-	return false;
-}
-
-static inline bool cxgb_poll_busy_polling(struct sge_rspq *q)
-{
-	return false;
-}
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 /* Return a version number to identify the type of adapter.  The scheme is:
  * - bits 0..9: chip version
  * - bits 10..15: chip revision
@@ -1298,13 +1206,13 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 			  unsigned int cmplqid);
 int t4_sge_mod_ctrl_txq(struct adapter *adap, unsigned int eqid,
 			unsigned int cmplqid);
-int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
-			  struct net_device *dev, unsigned int iqid);
+int t4_sge_alloc_uld_txq(struct adapter *adap, struct sge_uld_txq *txq,
+			 struct net_device *dev, unsigned int iqid,
+			 unsigned int uld_type);
 irqreturn_t t4_sge_intr_msix(int irq, void *cookie);
 int t4_sge_init(struct adapter *adap);
 void t4_sge_start(struct adapter *adap);
 void t4_sge_stop(struct adapter *adap);
-int cxgb_busy_poll(struct napi_struct *napi);
 void cxgb4_set_ethtool_ops(struct net_device *netdev);
 int cxgb4_write_rss(const struct port_info *pi, const u16 *queues);
 extern int dbfifo_int_thresh;
@@ -1480,6 +1388,7 @@ int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
 	       const u8 *fw_data, unsigned int fw_size,
 	       struct fw_hdr *card_fw, enum dev_state state, int *reset);
 int t4_prep_adapter(struct adapter *adapter);
+int t4_shutdown_adapter(struct adapter *adapter);
 
 enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
 int t4_bar2_sge_qregs(struct adapter *adapter,
@@ -1661,4 +1570,7 @@ int t4_uld_mem_alloc(struct adapter *adap);
 void t4_uld_clean_up(struct adapter *adap);
 void t4_register_netevent_notifier(void);
 void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq, struct sge_fl *fl);
+void free_tx_desc(struct adapter *adap, struct sge_txq *q,
+		  unsigned int n, bool unmap);
+void free_txq(struct adapter *adap, struct sge_txq *q);
 #endif /* __CXGB4_H__ */

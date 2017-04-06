@@ -1,12 +1,7 @@
 CFLAGS += -I$(CURDIR)
 
-TEST_PROGS := load_unaligned_zeropad
-
-all: $(TEST_PROGS)
-
-$(TEST_PROGS): ../harness.c
+TEST_GEN_PROGS := load_unaligned_zeropad
 
 include ../../lib.mk
 
-clean:
-	rm -f $(TEST_PROGS) *.o
+$(TEST_GEN_PROGS): ../harness.c

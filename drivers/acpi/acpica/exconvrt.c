@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -592,7 +592,6 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 	 */
 	switch (GET_CURRENT_ARG_TYPE(walk_state->op_info->runtime_args)) {
 	case ARGI_SIMPLE_TARGET:
-	case ARGI_FIXED_TARGET:
 	case ARGI_INTEGER_REF:	/* Handles Increment, Decrement cases */
 
 		switch (destination_type) {

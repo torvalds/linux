@@ -436,13 +436,9 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				  struct sta_info *sta, u8 opmode,
 				  enum nl80211_band band)
 {
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband;
 	enum ieee80211_sta_rx_bandwidth new_bw;
 	u32 changed = 0;
 	u8 nss;
-
-	sband = local->hw.wiphy->bands[band];
 
 	/* ignore - no support for BF yet */
 	if (opmode & IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF)
@@ -527,8 +523,10 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 
 	u32 changed = __ieee80211_vht_handle_opmode(sdata, sta, opmode, band);
 
-	if (changed > 0)
+	if (changed > 0) {
+		ieee80211_recalc_min_chandef(sdata);
 		rate_control_rate_update(local, sband, sta, changed);
+	}
 }
 
 void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,

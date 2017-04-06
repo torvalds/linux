@@ -64,7 +64,7 @@ static inline struct tpu_priv *cs_to_priv(struct clocksource *cs)
 	return container_of(cs, struct tpu_priv, cs);
 }
 
-static cycle_t tpu_clocksource_read(struct clocksource *cs)
+static u64 tpu_clocksource_read(struct clocksource *cs)
 {
 	struct tpu_priv *p = cs_to_priv(cs);
 	unsigned long flags;

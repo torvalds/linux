@@ -971,13 +971,6 @@ static int bcmgenet_set_eee(struct net_device *dev, struct ethtool_eee *e)
 	return phy_ethtool_set_eee(priv->phydev, e);
 }
 
-static int bcmgenet_nway_reset(struct net_device *dev)
-{
-	struct bcmgenet_priv *priv = netdev_priv(dev);
-
-	return genphy_restart_aneg(priv->phydev);
-}
-
 /* standard ethtool support functions. */
 static const struct ethtool_ops bcmgenet_ethtool_ops = {
 	.get_strings		= bcmgenet_get_strings,
@@ -991,7 +984,7 @@ static const struct ethtool_ops bcmgenet_ethtool_ops = {
 	.set_wol		= bcmgenet_set_wol,
 	.get_eee		= bcmgenet_get_eee,
 	.set_eee		= bcmgenet_set_eee,
-	.nway_reset		= bcmgenet_nway_reset,
+	.nway_reset		= phy_ethtool_nway_reset,
 	.get_coalesce		= bcmgenet_get_coalesce,
 	.set_coalesce		= bcmgenet_set_coalesce,
 	.get_link_ksettings	= bcmgenet_get_link_ksettings,

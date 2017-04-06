@@ -40,8 +40,8 @@ struct mc13783_adc_priv {
 	char name[PLATFORM_NAME_SIZE];
 };
 
-static ssize_t mc13783_adc_show_name(struct device *dev, struct device_attribute
-			      *devattr, char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
 {
 	struct mc13783_adc_priv *priv = dev_get_drvdata(dev);
 
@@ -111,7 +111,7 @@ static ssize_t mc13783_adc_read_gp(struct device *dev,
 	return sprintf(buf, "%u\n", val);
 }
 
-static DEVICE_ATTR(name, S_IRUGO, mc13783_adc_show_name, NULL);
+static DEVICE_ATTR_RO(name);
 static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, mc13783_adc_read_bp, NULL, 2);
 static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, mc13783_adc_read_gp, NULL, 5);
 static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, mc13783_adc_read_gp, NULL, 6);

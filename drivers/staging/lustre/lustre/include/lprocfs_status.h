@@ -43,6 +43,8 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
+#include "../../include/linux/libcfs/libcfs.h"
+#include "lustre_cfg.h"
 #include "lustre/lustre_idl.h"
 
 struct lprocfs_vars {
@@ -540,7 +542,8 @@ lprocfs_alloc_stats(unsigned int num, enum lprocfs_stats_flags flags);
 void lprocfs_clear_stats(struct lprocfs_stats *stats);
 void lprocfs_free_stats(struct lprocfs_stats **stats);
 void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
-			  unsigned conf, const char *name, const char *units);
+			  unsigned int conf, const char *name,
+			  const char *units);
 struct obd_export;
 int lprocfs_exp_cleanup(struct obd_export *exp);
 struct dentry *ldebugfs_add_simple(struct dentry *root,
@@ -701,9 +704,9 @@ static struct lustre_attr lustre_attr_##name = __ATTR(name, mode, show, store)
 extern const struct sysfs_ops lustre_sysfs_ops;
 
 struct root_squash_info;
-int lprocfs_wr_root_squash(const char *buffer, unsigned long count,
+int lprocfs_wr_root_squash(const char __user *buffer, unsigned long count,
 			   struct root_squash_info *squash, char *name);
-int lprocfs_wr_nosquash_nids(const char *buffer, unsigned long count,
+int lprocfs_wr_nosquash_nids(const char __user *buffer, unsigned long count,
 			     struct root_squash_info *squash, char *name);
 
 /* all quota proc functions */

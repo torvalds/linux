@@ -8,7 +8,7 @@
  * Pieces used from memcpy, originally by Kenny Ranerup long time ago.
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Asm:s have been tweaked (within the domain of correctness) to give
    satisfactory results for "gcc version 3.2.1 Axis release R53/1.53-v32".

@@ -107,7 +107,8 @@ struct i40e_q_vector {
 	int v_idx;	/* vector index in list */
 	char name[IFNAMSIZ + 9];
 	bool arm_wb_state;
-	cpumask_var_t affinity_mask;
+	cpumask_t affinity_mask;
+	struct irq_affinity_notify affinity_notify;
 };
 
 /* Helper macros to switch between ints/sec and what the register uses.
@@ -194,6 +195,7 @@ struct i40evf_adapter {
 	u64 hw_csum_rx_error;
 	u32 rx_desc_count;
 	int num_msix_vectors;
+	u32 client_pending;
 	struct msix_entry *msix_entries;
 
 	u32 flags;

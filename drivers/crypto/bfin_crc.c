@@ -203,7 +203,7 @@ static void bfin_crypto_crc_config_dma(struct bfin_crypto_crc *crc)
 			crc->sg_cpu[i].x_count = 1;
 			crc->sg_cpu[i].x_modify = CHKSUM_DIGEST_SIZE;
 			dev_dbg(crc->dev, "%d: crc_dma: start_addr:0x%lx, "
-				"cfg:0x%lx, x_count:0x%lx, x_modify:0x%lx\n",
+				"cfg:0x%x, x_count:0x%x, x_modify:0x%x\n",
 				i, crc->sg_cpu[i].start_addr,
 				crc->sg_cpu[i].cfg, crc->sg_cpu[i].x_count,
 				crc->sg_cpu[i].x_modify);
@@ -233,7 +233,7 @@ static void bfin_crypto_crc_config_dma(struct bfin_crypto_crc *crc)
 		crc->sg_cpu[i].x_count = dma_count;
 		crc->sg_cpu[i].x_modify = dma_mod;
 		dev_dbg(crc->dev, "%d: crc_dma: start_addr:0x%lx, "
-			"cfg:0x%lx, x_count:0x%lx, x_modify:0x%lx\n",
+			"cfg:0x%x, x_count:0x%x, x_modify:0x%x\n",
 			i, crc->sg_cpu[i].start_addr,
 			crc->sg_cpu[i].cfg, crc->sg_cpu[i].x_count,
 			crc->sg_cpu[i].x_modify);
@@ -257,7 +257,7 @@ static void bfin_crypto_crc_config_dma(struct bfin_crypto_crc *crc)
 		crc->sg_cpu[i].x_count = 1;
 		crc->sg_cpu[i].x_modify = CHKSUM_DIGEST_SIZE;
 		dev_dbg(crc->dev, "%d: crc_dma: start_addr:0x%lx, "
-			"cfg:0x%lx, x_count:0x%lx, x_modify:0x%lx\n",
+			"cfg:0x%x, x_count:0x%x, x_modify:0x%x\n",
 			i, crc->sg_cpu[i].start_addr,
 			crc->sg_cpu[i].cfg, crc->sg_cpu[i].x_count,
 			crc->sg_cpu[i].x_modify);

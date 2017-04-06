@@ -29,10 +29,12 @@
 #define _LIBCFS_CRYPTO_H
 
 struct cfs_crypto_hash_type {
-	char		*cht_name;      /**< hash algorithm name, equal to
-					 * format name for crypto api */
-	unsigned int    cht_key;	/**< init key by default (valid for
-					 * 4 bytes context like crc32, adler */
+	char		*cht_name;      /*< hash algorithm name, equal to
+					 * format name for crypto api
+					 */
+	unsigned int    cht_key;	/*< init key by default (valid for
+					 * 4 bytes context like crc32, adler
+					 */
 	unsigned int    cht_size;       /**< hash digest size */
 };
 
@@ -51,16 +53,56 @@ enum cfs_crypto_hash_alg {
 };
 
 static struct cfs_crypto_hash_type hash_types[] = {
-	[CFS_HASH_ALG_NULL]    = { "null",     0,      0 },
-	[CFS_HASH_ALG_ADLER32] = { "adler32",  1,      4 },
-	[CFS_HASH_ALG_CRC32]   = { "crc32",   ~0,      4 },
-	[CFS_HASH_ALG_CRC32C]  = { "crc32c",  ~0,      4 },
-	[CFS_HASH_ALG_MD5]     = { "md5",      0,     16 },
-	[CFS_HASH_ALG_SHA1]    = { "sha1",     0,     20 },
-	[CFS_HASH_ALG_SHA256]  = { "sha256",   0,     32 },
-	[CFS_HASH_ALG_SHA384]  = { "sha384",   0,     48 },
-	[CFS_HASH_ALG_SHA512]  = { "sha512",   0,     64 },
-	[CFS_HASH_ALG_MAX]	= { NULL,	0,	64 },
+	[CFS_HASH_ALG_NULL] = {
+		.cht_name	= "null",
+		.cht_key	= 0,
+		.cht_size	= 0
+	},
+	[CFS_HASH_ALG_ADLER32] = {
+		.cht_name	= "adler32",
+		.cht_key	= 1,
+		.cht_size	= 4
+	},
+	[CFS_HASH_ALG_CRC32] = {
+		.cht_name	= "crc32",
+		.cht_key	= ~0,
+		.cht_size	= 4
+	},
+	[CFS_HASH_ALG_CRC32C] = {
+		.cht_name	= "crc32c",
+		.cht_key	= ~0,
+		.cht_size	= 4
+	},
+	[CFS_HASH_ALG_MD5] = {
+		.cht_name	= "md5",
+		.cht_key	= 0,
+		.cht_size	= 16
+	},
+	[CFS_HASH_ALG_SHA1] = {
+		.cht_name	= "sha1",
+		.cht_key	= 0,
+		.cht_size	= 20
+	},
+	[CFS_HASH_ALG_SHA256] = {
+		.cht_name	= "sha256",
+		.cht_key	= 0,
+		.cht_size	= 32
+	},
+	[CFS_HASH_ALG_SHA384] = {
+		.cht_name	= "sha384",
+		.cht_key	= 0,
+		.cht_size	= 48
+	},
+	[CFS_HASH_ALG_SHA512] = {
+		.cht_name	= "sha512",
+		.cht_key	= 0,
+		.cht_size	= 64
+	},
+	[CFS_HASH_ALG_MAX] = {
+		.cht_name	= NULL,
+		.cht_key	= 0,
+		.cht_size	= 64
+	},
 };
 
 /* Maximum size of hash_types[].cht_size */
@@ -135,7 +177,7 @@ static inline unsigned char cfs_crypto_hash_alg(const char *algname)
 	enum cfs_crypto_hash_alg hash_alg;
 
 	for (hash_alg = 0; hash_alg < CFS_HASH_ALG_MAX; hash_alg++)
-		if (strcmp(hash_types[hash_alg].cht_name, algname) == 0)
+		if (!strcmp(hash_types[hash_alg].cht_name, algname))
 			return hash_alg;
 
 	return CFS_HASH_ALG_UNKNOWN;

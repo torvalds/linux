@@ -39,6 +39,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+#include <linux/bpf-cgroup.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
 
@@ -118,7 +119,8 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&nd_tbl, nexthop, dst->dev, false);
 	if (!IS_ERR(neigh)) {
-		ret = dst_neigh_output(dst, neigh, skb);
+		sock_confirm_neigh(skb, neigh);
+		ret = neigh_output(neigh, skb);
 		rcu_read_unlock_bh();
 		return ret;
 	}
@@ -131,6 +133,14 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 
 static int ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	int ret;
+
+	ret = BPF_CGROUP_RUN_PROG_INET_EGRESS(sk, skb);
+	if (ret) {
+		kfree_skb(skb);
+		return ret;
+	}
+
 	if ((skb->len > ip6_skb_dst_mtu(skb) && !skb_is_gso(skb)) ||
 	    dst_allfrag(skb_dst(skb)) ||
 	    (IP6CB(skb)->frag_max_size && skb->len > IP6CB(skb)->frag_max_size))
@@ -163,7 +173,7 @@ int ip6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
  * which are using proper atomic operations or spinlocks.
  */
 int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
-	     struct ipv6_txoptions *opt, int tclass)
+	     __u32 mark, struct ipv6_txoptions *opt, int tclass)
 {
 	struct net *net = sock_net(sk);
 	const struct ipv6_pinfo *np = inet6_sk(sk);
@@ -203,7 +213,8 @@ int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 		if (opt->opt_flen)
 			ipv6_push_frag_opts(skb, opt, &proto);
 		if (opt->opt_nflen)
-			ipv6_push_nfrag_opts(skb, opt, &proto, &first_hop);
+			ipv6_push_nfrag_opts(skb, opt, &proto, &first_hop,
+					     &fl6->saddr);
 	}
 
 	skb_push(skb, sizeof(struct ipv6hdr));
@@ -230,7 +241,7 @@ int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->priority = sk->sk_priority;
-	skb->mark = sk->sk_mark;
+	skb->mark = mark;
 
 	mtu = dst_mtu(dst);
 	if ((skb->len <= mtu) || skb->ignore_df || skb_is_gso(skb)) {
@@ -624,7 +635,7 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 
 	hroom = LL_RESERVED_SPACE(rt->dst.dev);
 	if (skb_has_frag_list(skb)) {
-		int first_len = skb_pagelen(skb);
+		unsigned int first_len = skb_pagelen(skb);
 		struct sk_buff *frag2;
 
 		if (first_len - hlen > mtu ||
@@ -1011,6 +1022,11 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 		}
 	}
 #endif
+	if (ipv6_addr_v4mapped(&fl6->saddr) &&
+	    !(ipv6_addr_v4mapped(&fl6->daddr) || ipv6_addr_any(&fl6->daddr))) {
+		err = -EAFNOSUPPORT;
+		goto out_err_release;
+	}
 
 	return 0;
 
@@ -1133,6 +1149,9 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 
 		skb->protocol = htons(ETH_P_IPV6);
 		skb->csum = 0;
+
+		if (flags & MSG_CONFIRM)
+			skb_set_dst_pending_confirm(skb, 1);
 
 		__skb_queue_tail(queue, skb);
 	} else if (skb_is_gso(skb)) {
@@ -1334,7 +1353,7 @@ emsgsize:
 	 */
 	if (transhdrlen && sk->sk_protocol == IPPROTO_UDP &&
 	    headersize == sizeof(struct ipv6hdr) &&
-	    length < mtu - headersize &&
+	    length <= mtu - headersize &&
 	    !(flags & MSG_MORE) &&
 	    rt->dst.dev->features & (NETIF_F_IPV6_CSUM | NETIF_F_HW_CSUM))
 		csummode = CHECKSUM_PARTIAL;
@@ -1363,7 +1382,7 @@ emsgsize:
 	 */
 
 	cork->length += length;
-	if (((length > mtu) ||
+	if ((((length + fragheaderlen) > mtu) ||
 	     (skb && skb_is_gso(skb))) &&
 	    (sk->sk_protocol == IPPROTO_UDP) &&
 	    (rt->dst.dev->features & NETIF_F_UFO) && !rt->dst.header_len &&
@@ -1505,6 +1524,9 @@ alloc_new_skb:
 			transhdrlen = 0;
 			exthdrlen = 0;
 			dst_exthdrlen = 0;
+
+			if ((flags & MSG_CONFIRM) && !skb_prev)
+				skb_set_dst_pending_confirm(skb, 1);
 
 			/*
 			 * Put the packet on the pending queue
@@ -1672,7 +1694,7 @@ struct sk_buff *__ip6_make_skb(struct sock *sk,
 	if (opt && opt->opt_flen)
 		ipv6_push_frag_opts(skb, opt, &proto);
 	if (opt && opt->opt_nflen)
-		ipv6_push_nfrag_opts(skb, opt, &proto, &final_dst);
+		ipv6_push_nfrag_opts(skb, opt, &proto, &final_dst, &fl6->saddr);
 
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);

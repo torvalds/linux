@@ -63,7 +63,7 @@
 #include <net/addrconf.h>
 #include <net/bonding.h>
 #include <net/addrconf.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/crash_dump.h>
 
 #include "cxgb4.h"
@@ -134,24 +134,6 @@ MODULE_FIRMWARE(FW5_FNAME);
 MODULE_FIRMWARE(FW6_FNAME);
 
 /*
- * Normally we're willing to become the firmware's Master PF but will be happy
- * if another PF has already become the Master and initialized the adapter.
- * Setting "force_init" will cause this driver to forcibly establish itself as
- * the Master PF and initialize the adapter.
- */
-static uint force_init;
-
-module_param(force_init, uint, 0644);
-MODULE_PARM_DESC(force_init, "Forcibly become Master PF and initialize adapter,"
-		 "deprecated parameter");
-
-static int dflt_msg_enable = DFLT_MSG_ENABLE;
-
-module_param(dflt_msg_enable, int, 0644);
-MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T4 default message enable bitmap, "
-		 "deprecated parameter");
-
-/*
  * The driver uses the best interrupt scheme available on a platform in the
  * order MSI-X, MSI, legacy INTx interrupts.  This parameter determines which
  * of these schemes the driver may consider as follows:
@@ -178,16 +160,6 @@ MODULE_PARM_DESC(msi, "whether to use INTx (0), MSI (1) or MSI-X (2)");
  * PCI-E Bus transfers enough to measurably affect performance.
  */
 static int rx_dma_offset = 2;
-
-#ifdef CONFIG_PCI_IOV
-/* Configure the number of PCI-E Virtual Function which are to be instantiated
- * on SR-IOV Capable Physical Functions.
- */
-static unsigned int num_vf[NUM_OF_PF_WITH_SRIOV];
-
-module_param_array(num_vf, uint, NULL, 0644);
-MODULE_PARM_DESC(num_vf, "number of VFs for each of PFs 0-3, deprecated parameter - please use the pci sysfs interface.");
-#endif
 
 /* TX Queue select used to determine what algorithm to use for selecting TX
  * queue. Select between the kernel provided function (select_queue=0) or user
@@ -216,17 +188,23 @@ static void link_report(struct net_device *dev)
 		const struct port_info *p = netdev_priv(dev);
 
 		switch (p->link_cfg.speed) {
-		case 10000:
-			s = "10Gbps";
-			break;
-		case 1000:
-			s = "1000Mbps";
-			break;
 		case 100:
 			s = "100Mbps";
 			break;
+		case 1000:
+			s = "1Gbps";
+			break;
+		case 10000:
+			s = "10Gbps";
+			break;
+		case 25000:
+			s = "25Gbps";
+			break;
 		case 40000:
 			s = "40Gbps";
+			break;
+		case 100000:
+			s = "100Gbps";
 			break;
 		default:
 			pr_info("%s: unsupported speed: %d\n",
@@ -530,15 +508,15 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 
 		txq = q->adap->sge.egr_map[qid - q->adap->sge.egr_start];
 		txq->restarts++;
-		if ((u8 *)txq < (u8 *)q->adap->sge.ofldtxq) {
+		if (txq->q_type == CXGB4_TXQ_ETH) {
 			struct sge_eth_txq *eq;
 
 			eq = container_of(txq, struct sge_eth_txq, q);
 			netif_tx_wake_queue(eq->txq);
 		} else {
-			struct sge_ofld_txq *oq;
+			struct sge_uld_txq *oq;
 
-			oq = container_of(txq, struct sge_ofld_txq, q);
+			oq = container_of(txq, struct sge_uld_txq, q);
 			tasklet_schedule(&oq->qresume_tsk);
 		}
 	} else if (opcode == CPL_FW6_MSG || opcode == CPL_FW4_MSG) {
@@ -766,14 +744,8 @@ static void quiesce_rx(struct adapter *adap)
 	for (i = 0; i < adap->sge.ingr_sz; i++) {
 		struct sge_rspq *q = adap->sge.ingr_map[i];
 
-		if (q && q->handler) {
+		if (q && q->handler)
 			napi_disable(&q->napi);
-			local_bh_disable();
-			while (!cxgb_poll_lock_napi(q))
-				mdelay(1);
-			local_bh_enable();
-		}
-
 	}
 }
 
@@ -804,10 +776,9 @@ static void enable_rx(struct adapter *adap)
 
 		if (!q)
 			continue;
-		if (q->handler) {
-			cxgb_busy_poll_init_lock(q);
+		if (q->handler)
 			napi_enable(&q->napi);
-		}
+
 		/* 0-increment GTS to start the timer and enable interrupts */
 		t4_write_reg(adap, MYPF_REG(SGE_PF_GTS_A),
 			     SEINTARM_V(q->intr_params) |
@@ -883,15 +854,6 @@ static int setup_sge_queues(struct adapter *adap)
 			if (err)
 				goto freeout;
 		}
-	}
-
-	j = s->ofldqsets / adap->params.nports; /* iscsi queues per channel */
-	for_each_ofldtxq(s, i) {
-		err = t4_sge_alloc_ofld_txq(adap, &s->ofldtxq[i],
-					    adap->port[i / j],
-					    s->fw_evtq.cntxt_id);
-		if (err)
-			goto freeout;
 	}
 
 	for_each_port(adap, i) {
@@ -1843,7 +1805,7 @@ static void check_neigh_update(struct neighbour *neigh)
 	const struct device *parent;
 	const struct net_device *netdev = neigh->dev;
 
-	if (netdev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(netdev))
 		netdev = vlan_dev_real_dev(netdev);
 	parent = netdev->dev.parent;
 	if (parent && parent->driver == &cxgb4_driver.driver)
@@ -1922,8 +1884,18 @@ static void disable_dbs(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		disable_txq_db(&adap->sge.ethtxq[i].q);
-	for_each_ofldtxq(&adap->sge, i)
-		disable_txq_db(&adap->sge.ofldtxq[i].q);
+	if (is_offload(adap)) {
+		struct sge_uld_txq_info *txq_info =
+			adap->sge.uld_txq_info[CXGB4_TX_OFLD];
+
+		if (txq_info) {
+			for_each_ofldtxq(&adap->sge, i) {
+				struct sge_uld_txq *txq = &txq_info->uldtxq[i];
+
+				disable_txq_db(&txq->q);
+			}
+		}
+	}
 	for_each_port(adap, i)
 		disable_txq_db(&adap->sge.ctrlq[i].q);
 }
@@ -1934,8 +1906,18 @@ static void enable_dbs(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		enable_txq_db(adap, &adap->sge.ethtxq[i].q);
-	for_each_ofldtxq(&adap->sge, i)
-		enable_txq_db(adap, &adap->sge.ofldtxq[i].q);
+	if (is_offload(adap)) {
+		struct sge_uld_txq_info *txq_info =
+			adap->sge.uld_txq_info[CXGB4_TX_OFLD];
+
+		if (txq_info) {
+			for_each_ofldtxq(&adap->sge, i) {
+				struct sge_uld_txq *txq = &txq_info->uldtxq[i];
+
+				enable_txq_db(adap, &txq->q);
+			}
+		}
+	}
 	for_each_port(adap, i)
 		enable_txq_db(adap, &adap->sge.ctrlq[i].q);
 }
@@ -2006,8 +1988,17 @@ static void recover_all_queues(struct adapter *adap)
 
 	for_each_ethrxq(&adap->sge, i)
 		sync_txq_pidx(adap, &adap->sge.ethtxq[i].q);
-	for_each_ofldtxq(&adap->sge, i)
-		sync_txq_pidx(adap, &adap->sge.ofldtxq[i].q);
+	if (is_offload(adap)) {
+		struct sge_uld_txq_info *txq_info =
+			adap->sge.uld_txq_info[CXGB4_TX_OFLD];
+		if (txq_info) {
+			for_each_ofldtxq(&adap->sge, i) {
+				struct sge_uld_txq *txq = &txq_info->uldtxq[i];
+
+				sync_txq_pidx(adap, &txq->q);
+			}
+		}
+	}
 	for_each_port(adap, i)
 		sync_txq_pidx(adap, &adap->sge.ctrlq[i].q);
 }
@@ -2120,7 +2111,7 @@ static int cxgb4_inet6addr_handler(struct notifier_block *this,
 #if IS_ENABLED(CONFIG_BONDING)
 	struct adapter *adap;
 #endif
-	if (event_dev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(event_dev))
 		event_dev = vlan_dev_real_dev(event_dev);
 #if IS_ENABLED(CONFIG_BONDING)
 	if (event_dev->flags & IFF_MASTER) {
@@ -2377,8 +2368,8 @@ int cxgb4_remove_server_filter(const struct net_device *dev, unsigned int stid,
 }
 EXPORT_SYMBOL(cxgb4_remove_server_filter);
 
-static struct rtnl_link_stats64 *cxgb_get_stats(struct net_device *dev,
-						struct rtnl_link_stats64 *ns)
+static void cxgb_get_stats(struct net_device *dev,
+			   struct rtnl_link_stats64 *ns)
 {
 	struct port_stats stats;
 	struct port_info *p = netdev_priv(dev);
@@ -2391,7 +2382,7 @@ static struct rtnl_link_stats64 *cxgb_get_stats(struct net_device *dev,
 	spin_lock(&adapter->stats_lock);
 	if (!netif_device_present(dev)) {
 		spin_unlock(&adapter->stats_lock);
-		return ns;
+		return;
 	}
 	t4_get_port_stats_offset(adapter, p->tx_chan, &stats,
 				 &p->stats_base);
@@ -2409,7 +2400,7 @@ static struct rtnl_link_stats64 *cxgb_get_stats(struct net_device *dev,
 	ns->rx_over_errors   = 0;
 	ns->rx_crc_errors    = stats.rx_fcs_err;
 	ns->rx_frame_errors  = stats.rx_symbol_err;
-	ns->rx_fifo_errors   = stats.rx_ovflow0 + stats.rx_ovflow1 +
+	ns->rx_dropped	     = stats.rx_ovflow0 + stats.rx_ovflow1 +
 			       stats.rx_ovflow2 + stats.rx_ovflow3 +
 			       stats.rx_trunc0 + stats.rx_trunc1 +
 			       stats.rx_trunc2 + stats.rx_trunc3;
@@ -2425,7 +2416,6 @@ static struct rtnl_link_stats64 *cxgb_get_stats(struct net_device *dev,
 	ns->tx_errors = stats.tx_error_frames;
 	ns->rx_errors = stats.rx_symbol_err + stats.rx_fcs_err +
 		ns->rx_length_errors + stats.rx_len_err + ns->rx_fifo_errors;
-	return ns;
 }
 
 static int cxgb_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
@@ -2502,8 +2492,6 @@ static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 	int ret;
 	struct port_info *pi = netdev_priv(dev);
 
-	if (new_mtu < 81 || new_mtu > MAX_MTU)         /* accommodate SACK */
-		return -EINVAL;
 	ret = t4_set_rxmode(pi->adapter, pi->adapter->pf, pi->viid, new_mtu, -1,
 			    -1, -1, -1, true);
 	if (!ret)
@@ -2588,6 +2576,19 @@ static int cxgb_get_vf_config(struct net_device *dev,
 	ether_addr_copy(ivi->mac, adap->vfinfo[vf].vf_mac_addr);
 	return 0;
 }
+
+static int cxgb_get_phys_port_id(struct net_device *dev,
+				 struct netdev_phys_item_id *ppid)
+{
+	struct port_info *pi = netdev_priv(dev);
+	unsigned int phy_port_id;
+
+	phy_port_id = pi->adapter->adap_idx * 10 + pi->port_id;
+	ppid->id_len = sizeof(phy_port_id);
+	memcpy(ppid->id, &phy_port_id, ppid->id_len);
+	return 0;
+}
+
 #endif
 
 static int cxgb_set_mac_addr(struct net_device *dev, void *p)
@@ -2755,9 +2756,6 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 	.ndo_fcoe_enable      = cxgb_fcoe_enable,
 	.ndo_fcoe_disable     = cxgb_fcoe_disable,
 #endif /* CONFIG_CHELSIO_T4_FCOE */
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll        = cxgb_busy_poll,
-#endif
 	.ndo_set_tx_maxrate   = cxgb_set_tx_maxrate,
 	.ndo_setup_tc         = cxgb_setup_tc,
 };
@@ -2767,6 +2765,7 @@ static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
 	.ndo_open             = dummy_open,
 	.ndo_set_vf_mac       = cxgb_set_vf_mac,
 	.ndo_get_vf_config    = cxgb_get_vf_config,
+	.ndo_get_phys_port_id = cxgb_get_phys_port_id,
 };
 #endif
 
@@ -2787,8 +2786,24 @@ static const struct ethtool_ops cxgb4_mgmt_ethtool_ops = {
 
 void t4_fatal_err(struct adapter *adap)
 {
-	t4_set_reg_field(adap, SGE_CONTROL_A, GLOBALENABLE_F, 0);
-	t4_intr_disable(adap);
+	int port;
+
+	/* Disable the SGE since ULDs are going to free resources that
+	 * could be exposed to the adapter.  RDMA MWs for example...
+	 */
+	t4_shutdown_adapter(adap);
+	for_each_port(adap, port) {
+		struct net_device *dev = adap->port[port];
+
+		/* If we get here in very early initialization the network
+		 * devices may not have been set up yet.
+		 */
+		if (!dev)
+			continue;
+
+		netif_tx_stop_all_queues(dev);
+		netif_carrier_off(dev);
+	}
 	dev_alert(adap->pdev_dev, "encountered fatal error, adapter stopped\n");
 }
 
@@ -3993,7 +4008,7 @@ static inline bool is_x_10g_port(const struct link_config *lc)
 static void cfg_queues(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	int i, n10g = 0, qidx = 0;
+	int i = 0, n10g = 0, qidx = 0;
 #ifndef CONFIG_CHELSIO_T4_DCB
 	int q10g = 0;
 #endif
@@ -4008,8 +4023,7 @@ static void cfg_queues(struct adapter *adap)
 		adap->params.crypto = 0;
 	}
 
-	for_each_port(adap, i)
-		n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
+	n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
 #ifdef CONFIG_CHELSIO_T4_DCB
 	/* For Data Center Bridging support we need to be able to support up
 	 * to 8 Traffic Priorities; each of which will be assigned to its
@@ -4076,9 +4090,6 @@ static void cfg_queues(struct adapter *adap)
 
 	for (i = 0; i < ARRAY_SIZE(s->ctrlq); i++)
 		s->ctrlq[i].q.size = 512;
-
-	for (i = 0; i < ARRAY_SIZE(s->ofldtxq); i++)
-		s->ofldtxq[i].q.size = 1024;
 
 	init_rspq(adap, &s->fw_evtq, 0, 1, 1024, 64);
 	init_rspq(adap, &s->intrq, 0, 1, 512, 64);
@@ -4411,9 +4422,9 @@ static void print_port_info(const struct net_device *dev)
 		spd = " 8 GT/s";
 
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100M)
-		bufp += sprintf(bufp, "100/");
+		bufp += sprintf(bufp, "100M/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
-		bufp += sprintf(bufp, "1000/");
+		bufp += sprintf(bufp, "1G/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
 		bufp += sprintf(bufp, "10G/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G)
@@ -4525,12 +4536,14 @@ static int config_mgmt_dev(struct pci_dev *pdev)
 	int err;
 
 	snprintf(name, IFNAMSIZ, "mgmtpf%d%d", adap->adap_idx, adap->pf);
-	netdev = alloc_netdev(0, name, NET_NAME_UNKNOWN, dummy_setup);
+	netdev = alloc_netdev(sizeof(struct port_info), name, NET_NAME_UNKNOWN,
+			      dummy_setup);
 	if (!netdev)
 		return -ENOMEM;
 
 	pi = netdev_priv(netdev);
 	pi->adapter = adap;
+	pi->port_id = adap->pf % adap->params.nports;
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	adap->port[0] = netdev;
@@ -4620,6 +4633,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u32 whoami, pl_rev;
 	enum chip_type chip;
 	static int adap_idx = 1;
+#ifdef CONFIG_PCI_IOV
+	u32 v, port_vec;
+#endif
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
 
@@ -4715,12 +4731,15 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->name = pci_name(pdev);
 	adapter->mbox = func;
 	adapter->pf = func;
-	adapter->msg_enable = dflt_msg_enable;
+	adapter->msg_enable = DFLT_MSG_ENABLE;
 	memset(adapter->chan_map, 0xff, sizeof(adapter->chan_map));
 
 	spin_lock_init(&adapter->stats_lock);
 	spin_lock_init(&adapter->tid_release_lock);
 	spin_lock_init(&adapter->win0_lock);
+	spin_lock_init(&adapter->mbox_lock);
+
+	INIT_LIST_HEAD(&adapter->mlist.list);
 
 	INIT_WORK(&adapter->tid_release_task, process_tid_release_list);
 	INIT_WORK(&adapter->db_full_task, process_db_full);
@@ -4803,6 +4822,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 
+		/* MTU range: 81 - 9600 */
+		netdev->min_mtu = 81;
+		netdev->max_mtu = MAX_MTU;
+
 		netdev->netdev_ops = &cxgb4_netdev_ops;
 #ifdef CONFIG_CHELSIO_T4_DCB
 		netdev->dcbnl_ops = &cxgb4_dcb_ops;
@@ -4884,8 +4907,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 "continuing\n");
 		adapter->params.offload = 0;
 	} else {
-		adapter->tc_u32 = cxgb4_init_tc_u32(adapter,
-						    CXGB4_MAX_LINK_HANDLE);
+		adapter->tc_u32 = cxgb4_init_tc_u32(adapter);
 		if (!adapter->tc_u32)
 			dev_warn(&pdev->dev,
 				 "could not offload tc u32, continuing\n");
@@ -4971,17 +4993,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 sriov:
 #ifdef CONFIG_PCI_IOV
-	if (func < ARRAY_SIZE(num_vf) && num_vf[func] > 0) {
-		dev_warn(&pdev->dev,
-			 "Enabling SR-IOV VFs using the num_vf module "
-			 "parameter is deprecated - please use the pci sysfs "
-			 "interface instead.\n");
-		if (pci_enable_sriov(pdev, num_vf[func]) == 0)
-			dev_info(&pdev->dev,
-				 "instantiated %u virtual functions\n",
-				 num_vf[func]);
-	}
-
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		err = -ENOMEM;
@@ -5003,6 +5014,19 @@ sriov:
 		err = -ENOMEM;
 		goto free_adapter;
 	}
+	spin_lock_init(&adapter->mbox_lock);
+	INIT_LIST_HEAD(&adapter->mlist.list);
+
+	v = FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+	    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PORTVEC);
+	err = t4_query_params(adapter, adapter->mbox, adapter->pf, 0, 1,
+			      &v, &port_vec);
+	if (err < 0) {
+		dev_err(adapter->pdev_dev, "Could not fetch port params\n");
+		goto free_adapter;
+	}
+
+	adapter->params.nports = hweight32(port_vec);
 	pci_set_drvdata(pdev, adapter);
 	return 0;
 

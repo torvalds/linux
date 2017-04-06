@@ -38,7 +38,7 @@
 #include <linux/math64.h>
 #include <linux/ptrace.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 #include <generated/timeconst.h>
@@ -701,6 +701,16 @@ u64 nsec_to_clock_t(u64 x)
 	return div_u64(x * 9, (9ull * NSEC_PER_SEC + (USER_HZ / 2)) / USER_HZ);
 #endif
 }
+
+u64 jiffies64_to_nsecs(u64 j)
+{
+#if !(NSEC_PER_SEC % HZ)
+	return (NSEC_PER_SEC / HZ) * j;
+# else
+	return div_u64(j * HZ_TO_NSEC_NUM, HZ_TO_NSEC_DEN);
+#endif
+}
+EXPORT_SYMBOL(jiffies64_to_nsecs);
 
 /**
  * nsecs_to_jiffies64 - Convert nsecs in u64 to jiffies64

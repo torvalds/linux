@@ -21,7 +21,7 @@
  * clobbered. The issue is as follows: while the inline asm might
  * access any memory it wants, the compiler could have fit all of
  * @ptr into memory registers instead, and since @ptr never escaped
- * from that, it proofed that the inline asm wasn't touching any of
+ * from that, it proved that the inline asm wasn't touching any of
  * it. This version works well with both compilers, i.e. we're telling
  * the compiler that the inline asm absolutely may see the contents
  * of @ptr. See also: https://llvm.org/bugs/show_bug.cgi?id=15495
@@ -116,11 +116,13 @@
  */
 #define __pure			__attribute__((pure))
 #define __aligned(x)		__attribute__((aligned(x)))
+#define __aligned_largest	__attribute__((aligned))
 #define __printf(a, b)		__attribute__((format(printf, a, b)))
 #define __scanf(a, b)		__attribute__((format(scanf, a, b)))
 #define __attribute_const__	__attribute__((__const__))
 #define __maybe_unused		__attribute__((unused))
 #define __always_unused		__attribute__((unused))
+#define __mode(x)               __attribute__((mode(x)))
 
 /* gcc version specific checks */
 
@@ -195,6 +197,17 @@
 #endif
 #endif
 
+#ifdef CONFIG_STACK_VALIDATION
+#define annotate_unreachable() ({					\
+	asm("%c0:\t\n"							\
+	    ".pushsection .discard.unreachable\t\n"			\
+	    ".long %c0b - .\t\n"					\
+	    ".popsection\t\n" : : "i" (__LINE__));			\
+})
+#else
+#define annotate_unreachable()
+#endif
+
 /*
  * Mark a position in code as unreachable.  This can be used to
  * suppress control flow warnings after asm blocks that transfer
@@ -204,7 +217,8 @@
  * this in the preprocessor, but we can live with this because they're
  * unreleased.  Really, we need to have autoconf for the kernel.
  */
-#define unreachable() __builtin_unreachable()
+#define unreachable() \
+	do { annotate_unreachable(); __builtin_unreachable(); } while (0)
 
 /* Mark a function definition as prohibited from being cloned. */
 #define __noclone	__attribute__((__noclone__, __optimize__("no-tracer")))

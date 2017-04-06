@@ -279,6 +279,18 @@ static int dwapb_gpio_set_debounce(struct gpio_chip *gc,
 	return 0;
 }
 
+static int dwapb_gpio_set_config(struct gpio_chip *gc, unsigned offset,
+				 unsigned long config)
+{
+	u32 debounce;
+
+	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
+		return -ENOTSUPP;
+
+	debounce = pinconf_to_config_argument(config);
+	return dwapb_gpio_set_debounce(gc, offset, debounce);
+}
+
 static irqreturn_t dwapb_irq_handler_mfd(int irq, void *dev_id)
 {
 	u32 worked;
@@ -426,7 +438,7 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 
 	/* Only port A support debounce */
 	if (pp->idx == 0)
-		port->gc.set_debounce = dwapb_gpio_set_debounce;
+		port->gc.set_config = dwapb_gpio_set_config;
 
 	if (pp->irq)
 		dwapb_configure_irqs(gpio, port, pp);

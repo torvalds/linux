@@ -43,6 +43,8 @@ Required properties:
 - interrupt-map-mask and interrupt-map: standard PCI properties
 
 Optional Property:
+- aspm-no-l0s: RC won't support ASPM L0s. This property is needed if
+	using 24MHz OSC for RC's PHY.
 - ep-gpios: contain the entry for pre-reset gpio
 - num-lanes: number of lanes to use
 - vpcie3v3-supply: The phandle to the 3.3v regulator to use for PCIe.

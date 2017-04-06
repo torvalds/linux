@@ -75,27 +75,21 @@ amdgpufb_release(struct fb_info *info, int user)
 
 static struct fb_ops amdgpufb_ops = {
 	.owner = THIS_MODULE,
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_open = amdgpufb_open,
 	.fb_release = amdgpufb_release,
-	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par,
 	.fb_fillrect = drm_fb_helper_cfb_fillrect,
 	.fb_copyarea = drm_fb_helper_cfb_copyarea,
 	.fb_imageblit = drm_fb_helper_cfb_imageblit,
-	.fb_pan_display = drm_fb_helper_pan_display,
-	.fb_blank = drm_fb_helper_blank,
-	.fb_setcmap = drm_fb_helper_setcmap,
-	.fb_debug_enter = drm_fb_helper_debug_enter,
-	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 
-int amdgpu_align_pitch(struct amdgpu_device *adev, int width, int bpp, bool tiled)
+int amdgpu_align_pitch(struct amdgpu_device *adev, int width, int cpp, bool tiled)
 {
 	int aligned = width;
 	int pitch_mask = 0;
 
-	switch (bpp / 8) {
+	switch (cpp) {
 	case 1:
 		pitch_mask = 255;
 		break;
@@ -110,7 +104,7 @@ int amdgpu_align_pitch(struct amdgpu_device *adev, int width, int bpp, bool tile
 
 	aligned += pitch_mask;
 	aligned &= ~pitch_mask;
-	return aligned;
+	return aligned * cpp;
 }
 
 static void amdgpufb_destroy_pinned_object(struct drm_gem_object *gobj)
@@ -139,20 +133,21 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	int ret;
 	int aligned_size, size;
 	int height = mode_cmd->height;
-	u32 bpp, depth;
+	u32 cpp;
 
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+	cpp = drm_format_plane_cpp(mode_cmd->pixel_format, 0);
 
 	/* need to align pitch with crtc limits */
-	mode_cmd->pitches[0] = amdgpu_align_pitch(adev, mode_cmd->width, bpp,
-						  fb_tiled) * ((bpp + 1) / 8);
+	mode_cmd->pitches[0] = amdgpu_align_pitch(adev, mode_cmd->width, cpp,
+						  fb_tiled);
 
 	height = ALIGN(mode_cmd->height, 8);
 	size = mode_cmd->pitches[0] * height;
 	aligned_size = ALIGN(size, PAGE_SIZE);
 	ret = amdgpu_gem_object_create(adev, aligned_size, 0,
 				       AMDGPU_GEM_DOMAIN_VRAM,
-				       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+				       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+				       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
 				       true, &gobj);
 	if (ret) {
 		printk(KERN_ERR "failed to allocate framebuffer (%d)\n",
@@ -176,7 +171,7 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	}
 
 
-	ret = amdgpu_bo_pin_restricted(abo, AMDGPU_GEM_DOMAIN_VRAM, 0, 0, NULL);
+	ret = amdgpu_bo_pin(abo, AMDGPU_GEM_DOMAIN_VRAM, NULL);
 	if (ret) {
 		amdgpu_bo_unreserve(abo);
 		goto out_unref;
@@ -250,7 +245,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 
 	strcpy(info->fix.id, "amdgpudrmfb");
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 
 	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &amdgpufb_ops;
@@ -277,7 +272,7 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 	DRM_INFO("fb mappable at 0x%lX\n",  info->fix.smem_start);
 	DRM_INFO("vram apper at 0x%lX\n",  (unsigned long)adev->mc.aper_base);
 	DRM_INFO("size %lu\n", (unsigned long)amdgpu_bo_size(abo));
-	DRM_INFO("fb depth is %d\n", fb->depth);
+	DRM_INFO("fb depth is %d\n", fb->format->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
 	vga_switcheroo_client_fb_set(adev->ddev->pdev, info);
@@ -379,7 +374,6 @@ int amdgpu_fbdev_init(struct amdgpu_device *adev)
 			&amdgpu_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(adev->ddev, &rfbdev->helper,
-				 adev->mode_info.num_crtc,
 				 AMDGPUFB_CONN_LIMIT);
 	if (ret) {
 		kfree(rfbdev);

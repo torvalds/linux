@@ -165,7 +165,7 @@ static int acpi_processor_errata(void)
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 int __weak acpi_map_cpu(acpi_handle handle,
-		phys_cpuid_t physid, int *pcpu)
+		phys_cpuid_t physid, u32 acpi_id, int *pcpu)
 {
 	return -ENODEV;
 }
@@ -203,7 +203,7 @@ static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 	cpu_maps_update_begin();
 	cpu_hotplug_begin();
 
-	ret = acpi_map_cpu(pr->handle, pr->phys_id, &pr->id);
+	ret = acpi_map_cpu(pr->handle, pr->phys_id, pr->acpi_id, &pr->id);
 	if (ret)
 		goto out;
 

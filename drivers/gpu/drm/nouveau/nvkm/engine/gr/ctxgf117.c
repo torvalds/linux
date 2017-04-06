@@ -218,7 +218,7 @@ gf117_grctx_generate_attrib(struct gf100_grctx *info)
 	}
 }
 
-void
+static void
 gf117_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;

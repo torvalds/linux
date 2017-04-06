@@ -991,7 +991,6 @@ void odm_TXPowerTrackingThermalMeterInit(struct odm_dm_struct *pDM_Odm)
 {
 	pDM_Odm->RFCalibrateInfo.bTXPowerTracking = true;
 	pDM_Odm->RFCalibrateInfo.TXPowercount = 0;
-	pDM_Odm->RFCalibrateInfo.bTXPowerTrackingInit = false;
 	if (*(pDM_Odm->mp_mode) != 1)
 		pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = true;
 	MSG_88E("pDM_Odm TxPowerTrackControl = %d\n", pDM_Odm->RFCalibrateInfo.TxPowerTrackControl);

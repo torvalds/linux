@@ -94,6 +94,9 @@ enum mlx5e_link_mode {
 
 #define MLX5E_PROT_MASK(link_mode) (1 << link_mode)
 
+#define PORT_MODULE_EVENT_MODULE_STATUS_MASK 0xF
+#define PORT_MODULE_EVENT_ERROR_TYPE_MASK         0xF
+
 int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps);
 int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,
 			 int ptys_size, int proto_mask, u8 local_port);
@@ -138,8 +141,12 @@ int mlx5_query_port_pfc(struct mlx5_core_dev *dev, u8 *pfc_en_tx,
 int mlx5_max_tc(struct mlx5_core_dev *mdev);
 
 int mlx5_set_port_prio_tc(struct mlx5_core_dev *mdev, u8 *prio_tc);
+int mlx5_query_port_prio_tc(struct mlx5_core_dev *mdev,
+			    u8 prio, u8 *tc);
 int mlx5_set_port_tc_group(struct mlx5_core_dev *mdev, u8 *tc_group);
 int mlx5_set_port_tc_bw_alloc(struct mlx5_core_dev *mdev, u8 *tc_bw);
+int mlx5_query_port_tc_bw_alloc(struct mlx5_core_dev *mdev,
+				u8 tc, u8 *bw_pct);
 int mlx5_modify_port_ets_rate_limit(struct mlx5_core_dev *mdev,
 				    u8 *max_bw_value,
 				    u8 *max_bw_unit);
@@ -155,4 +162,6 @@ void mlx5_query_port_fcs(struct mlx5_core_dev *mdev, bool *supported,
 int mlx5_query_module_eeprom(struct mlx5_core_dev *dev,
 			     u16 offset, u16 size, u8 *data);
 
+int mlx5_query_port_dcbx_param(struct mlx5_core_dev *mdev, u32 *out);
+int mlx5_set_port_dcbx_param(struct mlx5_core_dev *mdev, u32 *in);
 #endif /* __MLX5_PORT_H__ */

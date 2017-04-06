@@ -51,7 +51,7 @@ struct instruction {
 	unsigned int len, state;
 	unsigned char type;
 	unsigned long immediate;
-	bool alt_group, visited;
+	bool alt_group, visited, dead_end;
 	struct symbol *call_dest;
 	struct instruction *jump_dest;
 	struct list_head alts;
@@ -324,6 +324,54 @@ static int decode_instructions(struct objtool_file *file)
 				if (!insn->func)
 					insn->func = func;
 		}
+	}
+
+	return 0;
+}
+
+/*
+ * Find all uses of the unreachable() macro, which are code path dead ends.
+ */
+static int add_dead_ends(struct objtool_file *file)
+{
+	struct section *sec;
+	struct rela *rela;
+	struct instruction *insn;
+	bool found;
+
+	sec = find_section_by_name(file->elf, ".rela.discard.unreachable");
+	if (!sec)
+		return 0;
+
+	list_for_each_entry(rela, &sec->rela_list, list) {
+		if (rela->sym->type != STT_SECTION) {
+			WARN("unexpected relocation symbol type in %s", sec->name);
+			return -1;
+		}
+		insn = find_insn(file, rela->sym->sec, rela->addend);
+		if (insn)
+			insn = list_prev_entry(insn, list);
+		else if (rela->addend == rela->sym->sec->len) {
+			found = false;
+			list_for_each_entry_reverse(insn, &file->insn_list, list) {
+				if (insn->sec == rela->sym->sec) {
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				WARN("can't find unreachable insn at %s+0x%x",
+				     rela->sym->sec->name, rela->addend);
+				return -1;
+			}
+		} else {
+			WARN("can't find unreachable insn at %s+0x%x",
+			     rela->sym->sec->name, rela->addend);
+			return -1;
+		}
+
+		insn->dead_end = true;
 	}
 
 	return 0;
@@ -843,6 +891,10 @@ static int decode_sections(struct objtool_file *file)
 	if (ret)
 		return ret;
 
+	ret = add_dead_ends(file);
+	if (ret)
+		return ret;
+
 	add_ignores(file);
 
 	ret = add_jump_destinations(file);
@@ -1037,12 +1089,12 @@ static int validate_branch(struct objtool_file *file,
 
 			return 0;
 
-		case INSN_BUG:
-			return 0;
-
 		default:
 			break;
 		}
+
+		if (insn->dead_end)
+			return 0;
 
 		insn = next_insn_same_sec(file, insn);
 		if (!insn) {
@@ -1220,7 +1272,7 @@ int cmd_check(int argc, const char **argv)
 
 	INIT_LIST_HEAD(&file.insn_list);
 	hash_init(file.insn_hash);
-	file.whitelist = find_section_by_name(file.elf, "__func_stack_frame_non_standard");
+	file.whitelist = find_section_by_name(file.elf, ".discard.func_stack_frame_non_standard");
 	file.rodata = find_section_by_name(file.elf, ".rodata");
 	file.ignore_unreachables = false;
 	file.c_file = find_section_by_name(file.elf, ".comment");

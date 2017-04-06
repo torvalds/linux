@@ -31,7 +31,7 @@
 #include <net/net_ratelimit.h>
 
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 DEFINE_RATELIMIT_STATE(net_ratelimit_state, 5 * HZ, 10);
 /*

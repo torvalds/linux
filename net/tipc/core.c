@@ -47,7 +47,7 @@
 #include <linux/module.h>
 
 /* configurable TIPC parameters */
-int tipc_net_id __read_mostly;
+unsigned int tipc_net_id __read_mostly;
 int sysctl_tipc_rmem[3] __read_mostly;	/* min/default/max */
 
 static int __net_init tipc_init_net(struct net *net)

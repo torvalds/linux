@@ -13,10 +13,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include "dvb_frontend.h"
@@ -205,7 +201,7 @@ static void ttusbdecfe_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops ttusbdecfe_dvbt_ops;
+static const struct dvb_frontend_ops ttusbdecfe_dvbt_ops;
 
 struct dvb_frontend* ttusbdecfe_dvbt_attach(const struct ttusbdecfe_config* config)
 {
@@ -225,7 +221,7 @@ struct dvb_frontend* ttusbdecfe_dvbt_attach(const struct ttusbdecfe_config* conf
 	return &state->frontend;
 }
 
-static struct dvb_frontend_ops ttusbdecfe_dvbs_ops;
+static const struct dvb_frontend_ops ttusbdecfe_dvbs_ops;
 
 struct dvb_frontend* ttusbdecfe_dvbs_attach(const struct ttusbdecfe_config* config)
 {
@@ -247,7 +243,7 @@ struct dvb_frontend* ttusbdecfe_dvbs_attach(const struct ttusbdecfe_config* conf
 	return &state->frontend;
 }
 
-static struct dvb_frontend_ops ttusbdecfe_dvbt_ops = {
+static const struct dvb_frontend_ops ttusbdecfe_dvbt_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "TechnoTrend/Hauppauge DEC2000-t Frontend",
@@ -270,7 +266,7 @@ static struct dvb_frontend_ops ttusbdecfe_dvbt_ops = {
 	.read_status = ttusbdecfe_dvbt_read_status,
 };
 
-static struct dvb_frontend_ops ttusbdecfe_dvbs_ops = {
+static const struct dvb_frontend_ops ttusbdecfe_dvbs_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "TechnoTrend/Hauppauge DEC3000-s Frontend",

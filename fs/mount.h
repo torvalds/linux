@@ -89,10 +89,15 @@ static inline int is_mounted(struct vfsmount *mnt)
 }
 
 extern struct mount *__lookup_mnt(struct vfsmount *, struct dentry *);
-extern struct mount *__lookup_mnt_last(struct vfsmount *, struct dentry *);
 
 extern int __legitimize_mnt(struct vfsmount *, unsigned);
 extern bool legitimize_mnt(struct vfsmount *, unsigned);
+
+static inline bool __path_is_mountpoint(const struct path *path)
+{
+	struct mount *m = __lookup_mnt(path->mnt, path->dentry);
+	return m && likely(!(m->mnt.mnt_flags & MNT_SYNC_UMOUNT));
+}
 
 extern void __detach_mounts(struct dentry *dentry);
 

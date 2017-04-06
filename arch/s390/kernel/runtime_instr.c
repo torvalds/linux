@@ -11,6 +11,8 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/kernel_stat.h>
+#include <linux/sched/task_stack.h>
+
 #include <asm/runtime_instr.h>
 #include <asm/cpu_mf.h>
 #include <asm/irq.h>

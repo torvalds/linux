@@ -8,7 +8,7 @@ static struct amd_decoder_ops *fam_ops;
 static u8 xec_mask	 = 0xf;
 
 static bool report_gart_errors;
-static void (*nb_bus_decoder)(int node_id, struct mce *m);
+static void (*decode_dram_ecc)(int node_id, struct mce *m);
 
 void amd_report_gart_errors(bool v)
 {
@@ -18,16 +18,16 @@ EXPORT_SYMBOL_GPL(amd_report_gart_errors);
 
 void amd_register_ecc_decoder(void (*f)(int, struct mce *))
 {
-	nb_bus_decoder = f;
+	decode_dram_ecc = f;
 }
 EXPORT_SYMBOL_GPL(amd_register_ecc_decoder);
 
 void amd_unregister_ecc_decoder(void (*f)(int, struct mce *))
 {
-	if (nb_bus_decoder) {
-		WARN_ON(nb_bus_decoder != f);
+	if (decode_dram_ecc) {
+		WARN_ON(decode_dram_ecc != f);
 
-		nb_bus_decoder = NULL;
+		decode_dram_ecc = NULL;
 	}
 }
 EXPORT_SYMBOL_GPL(amd_unregister_ecc_decoder);
@@ -763,8 +763,8 @@ static void decode_mc4_mce(struct mce *m)
 
 			pr_cont("%s.\n", mc4_mce_desc[xec]);
 
-			if (nb_bus_decoder)
-				nb_bus_decoder(node_id, m);
+			if (decode_dram_ecc)
+				decode_dram_ecc(node_id, m);
 			return;
 		}
 		break;
@@ -851,7 +851,7 @@ static void decode_mc6_mce(struct mce *m)
 /* Decode errors according to Scalable MCA specification */
 static void decode_smca_errors(struct mce *m)
 {
-	struct smca_hwid_mcatype *type;
+	struct smca_hwid *hwid;
 	unsigned int bank_type;
 	const char *ip_name;
 	u8 xec = XEC(m->status, xec_mask);
@@ -862,21 +862,28 @@ static void decode_smca_errors(struct mce *m)
 	if (boot_cpu_data.x86 >= 0x17 && m->bank == 4)
 		pr_emerg(HW_ERR "Bank 4 is reserved on Fam17h.\n");
 
-	type = smca_banks[m->bank].type;
-	if (!type)
+	hwid = smca_banks[m->bank].hwid;
+	if (!hwid)
 		return;
 
-	bank_type = type->bank_type;
-	ip_name = smca_bank_names[bank_type].long_name;
+	bank_type = hwid->bank_type;
+	ip_name = smca_get_long_name(bank_type);
 
 	pr_emerg(HW_ERR "%s Extended Error Code: %d\n", ip_name, xec);
 
 	/* Only print the decode of valid error codes */
 	if (xec < smca_mce_descs[bank_type].num_descs &&
-			(type->xec_bitmap & BIT_ULL(xec))) {
+			(hwid->xec_bitmap & BIT_ULL(xec))) {
 		pr_emerg(HW_ERR "%s Error: ", ip_name);
 		pr_cont("%s.\n", smca_mce_descs[bank_type].descs[xec]);
 	}
+
+	/*
+	 * amd_get_nb_id() returns the last level cache id.
+	 * The last level cache on Fam17h is 1 level below the node.
+	 */
+	if (bank_type == SMCA_UMC && xec == 0 && decode_dram_ecc)
+		decode_dram_ecc(amd_get_nb_id(m->extcpu) >> 1, m);
 }
 
 static inline void amd_decode_err_code(u16 ec)
@@ -930,12 +937,13 @@ static const char *decode_error_status(struct mce *m)
 	}
 
 	if (m->status & MCI_STATUS_DEFERRED)
-		return "Deferred error.";
+		return "Deferred error, no action required.";
 
 	return "Corrected error, no action required.";
 }
 
-int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
+static int
+amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 {
 	struct mce *m = (struct mce *)data;
 	struct cpuinfo_x86 *c = &cpu_data(m->extcpu);
@@ -957,10 +965,13 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"),
 		((m->status & MCI_STATUS_ADDRV)	? "AddrV" : "-"));
 
-	if (c->x86 >= 0x15)
-		pr_cont("|%s|%s",
-			((m->status & MCI_STATUS_DEFERRED) ? "Deferred" : "-"),
-			((m->status & MCI_STATUS_POISON)   ? "Poison"   : "-"));
+	if (c->x86 >= 0x15) {
+		pr_cont("|%s", (m->status & MCI_STATUS_DEFERRED ? "Deferred" : "-"));
+
+		/* F15h, bank4, bit 43 is part of McaStatSubCache. */
+		if (c->x86 != 0x15 || m->bank != 4)
+			pr_cont("|%s", (m->status & MCI_STATUS_POISON ? "Poison" : "-"));
+	}
 
 	if (boot_cpu_has(X86_FEATURE_SMCA)) {
 		u32 low, high;
@@ -981,20 +992,22 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	pr_cont("]: 0x%016llx\n", m->status);
 
 	if (m->status & MCI_STATUS_ADDRV)
-		pr_emerg(HW_ERR "Error Addr: 0x%016llx", m->addr);
+		pr_emerg(HW_ERR "Error Addr: 0x%016llx\n", m->addr);
 
 	if (boot_cpu_has(X86_FEATURE_SMCA)) {
+		pr_emerg(HW_ERR "IPID: 0x%016llx", m->ipid);
+
 		if (m->status & MCI_STATUS_SYNDV)
 			pr_cont(", Syndrome: 0x%016llx", m->synd);
-
-		pr_cont(", IPID: 0x%016llx", m->ipid);
 
 		pr_cont("\n");
 
 		decode_smca_errors(m);
 		goto err_code;
-	} else
-		pr_cont("\n");
+	}
+
+	if (m->tsc)
+		pr_emerg(HW_ERR "TSC: %llu\n", m->tsc);
 
 	if (!fam_ops)
 		goto err_code;
@@ -1037,10 +1050,10 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 
 	return NOTIFY_STOP;
 }
-EXPORT_SYMBOL_GPL(amd_decode_mce);
 
 static struct notifier_block amd_mce_dec_nb = {
 	.notifier_call	= amd_decode_mce,
+	.priority	= MCE_PRIO_EDAC,
 };
 
 static int __init mce_amd_init(void)

@@ -16,6 +16,7 @@
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 #include <net/inet_ecn.h>
 #include <net/red.h>
 #include <net/flow_dissector.h>

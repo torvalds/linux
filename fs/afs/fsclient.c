@@ -275,7 +275,7 @@ int afs_fs_fetch_file_status(struct afs_server *server,
 			     struct key *key,
 			     struct afs_vnode *vnode,
 			     struct afs_volsync *volsync,
-			     const struct afs_wait_mode *wait_mode)
+			     bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -300,7 +300,7 @@ int afs_fs_fetch_file_status(struct afs_server *server,
 	bp[2] = htonl(vnode->fid.vnode);
 	bp[3] = htonl(vnode->fid.unique);
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -309,15 +309,19 @@ int afs_fs_fetch_file_status(struct afs_server *server,
 static int afs_deliver_fs_fetch_data(struct afs_call *call)
 {
 	struct afs_vnode *vnode = call->reply;
+	struct afs_read *req = call->reply3;
 	const __be32 *bp;
-	struct page *page;
+	unsigned int size;
 	void *buffer;
 	int ret;
 
-	_enter("{%u}", call->unmarshall);
+	_enter("{%u,%zu/%u;%u/%llu}",
+	       call->unmarshall, call->offset, call->count,
+	       req->remain, req->actual_len);
 
 	switch (call->unmarshall) {
 	case 0:
+		req->actual_len = 0;
 		call->offset = 0;
 		call->unmarshall++;
 		if (call->operation_ID != FSFETCHDATA64) {
@@ -334,10 +338,8 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		if (ret < 0)
 			return ret;
 
-		call->count = ntohl(call->tmp);
-		_debug("DATA length MSW: %u", call->count);
-		if (call->count > 0)
-			return -EBADMSG;
+		req->actual_len = ntohl(call->tmp);
+		req->actual_len <<= 32;
 		call->offset = 0;
 		call->unmarshall++;
 
@@ -349,26 +351,52 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		if (ret < 0)
 			return ret;
 
-		call->count = ntohl(call->tmp);
-		_debug("DATA length: %u", call->count);
-		if (call->count > PAGE_SIZE)
+		req->actual_len |= ntohl(call->tmp);
+		_debug("DATA length: %llu", req->actual_len);
+		/* Check that the server didn't want to send us extra.  We
+		 * might want to just discard instead, but that requires
+		 * cooperation from AF_RXRPC.
+		 */
+		if (req->actual_len > req->len)
 			return -EBADMSG;
-		call->offset = 0;
+
+		req->remain = req->actual_len;
+		call->offset = req->pos & (PAGE_SIZE - 1);
+		req->index = 0;
+		if (req->actual_len == 0)
+			goto no_more_data;
 		call->unmarshall++;
+
+	begin_page:
+		if (req->remain > PAGE_SIZE - call->offset)
+			size = PAGE_SIZE - call->offset;
+		else
+			size = req->remain;
+		call->count = call->offset + size;
+		ASSERTCMP(call->count, <=, PAGE_SIZE);
+		req->remain -= size;
 
 		/* extract the returned data */
 	case 3:
-		_debug("extract data");
-		if (call->count > 0) {
-			page = call->reply3;
-			buffer = kmap(page);
-			ret = afs_extract_data(call, buffer,
-					       call->count, true);
-			kunmap(page);
-			if (ret < 0)
-				return ret;
+		_debug("extract data %u/%llu %zu/%u",
+		       req->remain, req->actual_len, call->offset, call->count);
+
+		buffer = kmap(req->pages[req->index]);
+		ret = afs_extract_data(call, buffer, call->count, true);
+		kunmap(req->pages[req->index]);
+		if (ret < 0)
+			return ret;
+		if (call->offset == PAGE_SIZE) {
+			if (req->page_done)
+				req->page_done(call, req);
+			if (req->remain > 0) {
+				req->index++;
+				call->offset = 0;
+				goto begin_page;
+			}
 		}
 
+	no_more_data:
 		call->offset = 0;
 		call->unmarshall++;
 
@@ -393,15 +421,23 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 	}
 
 	if (call->count < PAGE_SIZE) {
-		_debug("clear");
-		page = call->reply3;
-		buffer = kmap(page);
+		buffer = kmap(req->pages[req->index]);
 		memset(buffer + call->count, 0, PAGE_SIZE - call->count);
-		kunmap(page);
+		kunmap(req->pages[req->index]);
+		if (req->page_done)
+			req->page_done(call, req);
 	}
 
 	_leave(" = 0 [done]");
 	return 0;
+}
+
+static void afs_fetch_data_destructor(struct afs_call *call)
+{
+	struct afs_read *req = call->reply3;
+
+	afs_put_read(req);
+	afs_flat_call_destructor(call);
 }
 
 /*
@@ -411,14 +447,14 @@ static const struct afs_call_type afs_RXFSFetchData = {
 	.name		= "FS.FetchData",
 	.deliver	= afs_deliver_fs_fetch_data,
 	.abort_to_error	= afs_abort_to_error,
-	.destructor	= afs_flat_call_destructor,
+	.destructor	= afs_fetch_data_destructor,
 };
 
 static const struct afs_call_type afs_RXFSFetchData64 = {
 	.name		= "FS.FetchData64",
 	.deliver	= afs_deliver_fs_fetch_data,
 	.abort_to_error	= afs_abort_to_error,
-	.destructor	= afs_flat_call_destructor,
+	.destructor	= afs_fetch_data_destructor,
 };
 
 /*
@@ -427,16 +463,13 @@ static const struct afs_call_type afs_RXFSFetchData64 = {
 static int afs_fs_fetch_data64(struct afs_server *server,
 			       struct key *key,
 			       struct afs_vnode *vnode,
-			       off_t offset, size_t length,
-			       struct page *buffer,
-			       const struct afs_wait_mode *wait_mode)
+			       struct afs_read *req,
+			       bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
 
 	_enter("");
-
-	ASSERTCMP(length, <, ULONG_MAX);
 
 	call = afs_alloc_flat_call(&afs_RXFSFetchData64, 32, (21 + 3 + 6) * 4);
 	if (!call)
@@ -445,7 +478,7 @@ static int afs_fs_fetch_data64(struct afs_server *server,
 	call->key = key;
 	call->reply = vnode;
 	call->reply2 = NULL; /* volsync */
-	call->reply3 = buffer;
+	call->reply3 = req;
 	call->service_id = FS_SERVICE;
 	call->port = htons(AFS_FS_PORT);
 	call->operation_ID = FSFETCHDATA64;
@@ -456,12 +489,13 @@ static int afs_fs_fetch_data64(struct afs_server *server,
 	bp[1] = htonl(vnode->fid.vid);
 	bp[2] = htonl(vnode->fid.vnode);
 	bp[3] = htonl(vnode->fid.unique);
-	bp[4] = htonl(upper_32_bits(offset));
-	bp[5] = htonl((u32) offset);
+	bp[4] = htonl(upper_32_bits(req->pos));
+	bp[5] = htonl(lower_32_bits(req->pos));
 	bp[6] = 0;
-	bp[7] = htonl((u32) length);
+	bp[7] = htonl(lower_32_bits(req->len));
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	atomic_inc(&req->usage);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -470,16 +504,16 @@ static int afs_fs_fetch_data64(struct afs_server *server,
 int afs_fs_fetch_data(struct afs_server *server,
 		      struct key *key,
 		      struct afs_vnode *vnode,
-		      off_t offset, size_t length,
-		      struct page *buffer,
-		      const struct afs_wait_mode *wait_mode)
+		      struct afs_read *req,
+		      bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
 
-	if (upper_32_bits(offset) || upper_32_bits(offset + length))
-		return afs_fs_fetch_data64(server, key, vnode, offset, length,
-					   buffer, wait_mode);
+	if (upper_32_bits(req->pos) ||
+	    upper_32_bits(req->len) ||
+	    upper_32_bits(req->pos + req->len))
+		return afs_fs_fetch_data64(server, key, vnode, req, async);
 
 	_enter("");
 
@@ -490,7 +524,7 @@ int afs_fs_fetch_data(struct afs_server *server,
 	call->key = key;
 	call->reply = vnode;
 	call->reply2 = NULL; /* volsync */
-	call->reply3 = buffer;
+	call->reply3 = req;
 	call->service_id = FS_SERVICE;
 	call->port = htons(AFS_FS_PORT);
 	call->operation_ID = FSFETCHDATA;
@@ -501,10 +535,11 @@ int afs_fs_fetch_data(struct afs_server *server,
 	bp[1] = htonl(vnode->fid.vid);
 	bp[2] = htonl(vnode->fid.vnode);
 	bp[3] = htonl(vnode->fid.unique);
-	bp[4] = htonl(offset);
-	bp[5] = htonl(length);
+	bp[4] = htonl(lower_32_bits(req->pos));
+	bp[5] = htonl(lower_32_bits(req->len));
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	atomic_inc(&req->usage);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -533,7 +568,7 @@ static const struct afs_call_type afs_RXFSGiveUpCallBacks = {
  * - the callbacks are held in the server->cb_break ring
  */
 int afs_fs_give_up_callbacks(struct afs_server *server,
-			     const struct afs_wait_mode *wait_mode)
+			     bool async)
 {
 	struct afs_call *call;
 	size_t ncallbacks;
@@ -587,7 +622,7 @@ int afs_fs_give_up_callbacks(struct afs_server *server,
 	ASSERT(ncallbacks > 0);
 	wake_up_nr(&server->cb_break_waitq, ncallbacks);
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -638,7 +673,7 @@ int afs_fs_create(struct afs_server *server,
 		  struct afs_fid *newfid,
 		  struct afs_file_status *newstatus,
 		  struct afs_callback *newcb,
-		  const struct afs_wait_mode *wait_mode)
+		  bool async)
 {
 	struct afs_call *call;
 	size_t namesz, reqsz, padsz;
@@ -683,7 +718,7 @@ int afs_fs_create(struct afs_server *server,
 	*bp++ = htonl(mode & S_IALLUGO); /* unix mode */
 	*bp++ = 0; /* segment size */
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -728,7 +763,7 @@ int afs_fs_remove(struct afs_server *server,
 		  struct afs_vnode *vnode,
 		  const char *name,
 		  bool isdir,
-		  const struct afs_wait_mode *wait_mode)
+		  bool async)
 {
 	struct afs_call *call;
 	size_t namesz, reqsz, padsz;
@@ -763,7 +798,7 @@ int afs_fs_remove(struct afs_server *server,
 		bp = (void *) bp + padsz;
 	}
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -809,7 +844,7 @@ int afs_fs_link(struct afs_server *server,
 		struct afs_vnode *dvnode,
 		struct afs_vnode *vnode,
 		const char *name,
-		const struct afs_wait_mode *wait_mode)
+		bool async)
 {
 	struct afs_call *call;
 	size_t namesz, reqsz, padsz;
@@ -848,7 +883,7 @@ int afs_fs_link(struct afs_server *server,
 	*bp++ = htonl(vnode->fid.vnode);
 	*bp++ = htonl(vnode->fid.unique);
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -897,7 +932,7 @@ int afs_fs_symlink(struct afs_server *server,
 		   const char *contents,
 		   struct afs_fid *newfid,
 		   struct afs_file_status *newstatus,
-		   const struct afs_wait_mode *wait_mode)
+		   bool async)
 {
 	struct afs_call *call;
 	size_t namesz, reqsz, padsz, c_namesz, c_padsz;
@@ -952,7 +987,7 @@ int afs_fs_symlink(struct afs_server *server,
 	*bp++ = htonl(S_IRWXUGO); /* unix mode */
 	*bp++ = 0; /* segment size */
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -1001,7 +1036,7 @@ int afs_fs_rename(struct afs_server *server,
 		  const char *orig_name,
 		  struct afs_vnode *new_dvnode,
 		  const char *new_name,
-		  const struct afs_wait_mode *wait_mode)
+		  bool async)
 {
 	struct afs_call *call;
 	size_t reqsz, o_namesz, o_padsz, n_namesz, n_padsz;
@@ -1055,7 +1090,7 @@ int afs_fs_rename(struct afs_server *server,
 		bp = (void *) bp + n_padsz;
 	}
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -1110,7 +1145,7 @@ static int afs_fs_store_data64(struct afs_server *server,
 			       pgoff_t first, pgoff_t last,
 			       unsigned offset, unsigned to,
 			       loff_t size, loff_t pos, loff_t i_size,
-			       const struct afs_wait_mode *wait_mode)
+			       bool async)
 {
 	struct afs_vnode *vnode = wb->vnode;
 	struct afs_call *call;
@@ -1159,7 +1194,7 @@ static int afs_fs_store_data64(struct afs_server *server,
 	*bp++ = htonl(i_size >> 32);
 	*bp++ = htonl((u32) i_size);
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -1168,7 +1203,7 @@ static int afs_fs_store_data64(struct afs_server *server,
 int afs_fs_store_data(struct afs_server *server, struct afs_writeback *wb,
 		      pgoff_t first, pgoff_t last,
 		      unsigned offset, unsigned to,
-		      const struct afs_wait_mode *wait_mode)
+		      bool async)
 {
 	struct afs_vnode *vnode = wb->vnode;
 	struct afs_call *call;
@@ -1194,7 +1229,7 @@ int afs_fs_store_data(struct afs_server *server, struct afs_writeback *wb,
 
 	if (pos >> 32 || i_size >> 32 || size >> 32 || (pos + size) >> 32)
 		return afs_fs_store_data64(server, wb, first, last, offset, to,
-					   size, pos, i_size, wait_mode);
+					   size, pos, i_size, async);
 
 	call = afs_alloc_flat_call(&afs_RXFSStoreData,
 				   (4 + 6 + 3) * 4,
@@ -1233,7 +1268,7 @@ int afs_fs_store_data(struct afs_server *server, struct afs_writeback *wb,
 	*bp++ = htonl(size);
 	*bp++ = htonl(i_size);
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -1295,7 +1330,7 @@ static const struct afs_call_type afs_RXFSStoreData64_as_Status = {
  */
 static int afs_fs_setattr_size64(struct afs_server *server, struct key *key,
 				 struct afs_vnode *vnode, struct iattr *attr,
-				 const struct afs_wait_mode *wait_mode)
+				 bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -1334,7 +1369,7 @@ static int afs_fs_setattr_size64(struct afs_server *server, struct key *key,
 	*bp++ = htonl(attr->ia_size >> 32);	/* new file length */
 	*bp++ = htonl((u32) attr->ia_size);
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -1343,7 +1378,7 @@ static int afs_fs_setattr_size64(struct afs_server *server, struct key *key,
  */
 static int afs_fs_setattr_size(struct afs_server *server, struct key *key,
 			       struct afs_vnode *vnode, struct iattr *attr,
-			       const struct afs_wait_mode *wait_mode)
+			       bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -1354,7 +1389,7 @@ static int afs_fs_setattr_size(struct afs_server *server, struct key *key,
 	ASSERT(attr->ia_valid & ATTR_SIZE);
 	if (attr->ia_size >> 32)
 		return afs_fs_setattr_size64(server, key, vnode, attr,
-					     wait_mode);
+					     async);
 
 	call = afs_alloc_flat_call(&afs_RXFSStoreData_as_Status,
 				   (4 + 6 + 3) * 4,
@@ -1382,7 +1417,7 @@ static int afs_fs_setattr_size(struct afs_server *server, struct key *key,
 	*bp++ = 0;				/* size of write */
 	*bp++ = htonl(attr->ia_size);		/* new file length */
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -1391,14 +1426,14 @@ static int afs_fs_setattr_size(struct afs_server *server, struct key *key,
  */
 int afs_fs_setattr(struct afs_server *server, struct key *key,
 		   struct afs_vnode *vnode, struct iattr *attr,
-		   const struct afs_wait_mode *wait_mode)
+		   bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
 
 	if (attr->ia_valid & ATTR_SIZE)
 		return afs_fs_setattr_size(server, key, vnode, attr,
-					   wait_mode);
+					   async);
 
 	_enter(",%x,{%x:%u},,",
 	       key_serial(key), vnode->fid.vid, vnode->fid.vnode);
@@ -1424,7 +1459,7 @@ int afs_fs_setattr(struct afs_server *server, struct key *key,
 
 	xdr_encode_AFS_StoreStatus(&bp, attr);
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -1626,7 +1661,7 @@ int afs_fs_get_volume_status(struct afs_server *server,
 			     struct key *key,
 			     struct afs_vnode *vnode,
 			     struct afs_volume_status *vs,
-			     const struct afs_wait_mode *wait_mode)
+			     bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -1656,7 +1691,7 @@ int afs_fs_get_volume_status(struct afs_server *server,
 	bp[0] = htonl(FSGETVOLUMESTATUS);
 	bp[1] = htonl(vnode->fid.vid);
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -1718,7 +1753,7 @@ int afs_fs_set_lock(struct afs_server *server,
 		    struct key *key,
 		    struct afs_vnode *vnode,
 		    afs_lock_type_t type,
-		    const struct afs_wait_mode *wait_mode)
+		    bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -1742,7 +1777,7 @@ int afs_fs_set_lock(struct afs_server *server,
 	*bp++ = htonl(vnode->fid.unique);
 	*bp++ = htonl(type);
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -1751,7 +1786,7 @@ int afs_fs_set_lock(struct afs_server *server,
 int afs_fs_extend_lock(struct afs_server *server,
 		       struct key *key,
 		       struct afs_vnode *vnode,
-		       const struct afs_wait_mode *wait_mode)
+		       bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -1774,7 +1809,7 @@ int afs_fs_extend_lock(struct afs_server *server,
 	*bp++ = htonl(vnode->fid.vnode);
 	*bp++ = htonl(vnode->fid.unique);
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }
 
 /*
@@ -1783,7 +1818,7 @@ int afs_fs_extend_lock(struct afs_server *server,
 int afs_fs_release_lock(struct afs_server *server,
 			struct key *key,
 			struct afs_vnode *vnode,
-			const struct afs_wait_mode *wait_mode)
+			bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -1806,5 +1841,5 @@ int afs_fs_release_lock(struct afs_server *server,
 	*bp++ = htonl(vnode->fid.vnode);
 	*bp++ = htonl(vnode->fid.unique);
 
-	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
+	return afs_make_call(&server->addr, call, GFP_NOFS, async);
 }

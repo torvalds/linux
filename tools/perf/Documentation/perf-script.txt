@@ -36,7 +36,7 @@ There are several variants of perf script:
 
   'perf script report <script> [args]' to run and display the results
   of <script>.  <script> is the name displayed in the output of 'perf
-  trace --list' i.e. the actual script name minus any language
+  script --list' i.e. the actual script name minus any language
   extension.  The perf.data output from a previous run of 'perf script
   record <script>' is used and should be present for this command to
   succeed.  [args] refers to the (mainly optional) args expected by
@@ -76,7 +76,7 @@ OPTIONS
 	Any command you can specify in a shell.
 
 -D::
---dump-raw-script=::
+--dump-raw-trace=::
         Display verbose dump of the trace data.
 
 -L::
@@ -117,7 +117,7 @@ OPTIONS
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
         srcline, period, iregs, brstack, brstacksym, flags, bpf-output,
-        callindent. Field list can be prepended with the type, trace, sw or hw,
+        callindent, insn, insnlen. Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
 
@@ -181,6 +181,10 @@ OPTIONS
 	Instruction Trace decoding. For calls and returns, it will display the
 	name of the symbol indented with spaces to reflect the stack depth.
 
+	When doing instruction trace decoding insn and insnlen give the
+	instruction bytes and the instruction length of the current
+	instruction.
+
 	Finally, a user may not set fields to none for all event types.
 	i.e., -F "" is not allowed.
 
@@ -207,6 +211,9 @@ OPTIONS
 -G::
 --hide-call-graph::
         When printing symbols do not display call chain.
+
+--stop-bt::
+        Stop display of callgraph at these symbols
 
 -C::
 --cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
@@ -284,6 +291,13 @@ include::itrace.txt[]
 -f::
 --force::
 	Don't do ownership validation.
+
+--time::
+	Only analyze samples within given time window: <start>,<stop>. Times
+	have the format seconds.microseconds. If start is not given (i.e., time
+	string is ',x.y') then analysis starts at the beginning of the file. If
+	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	to end of file.
 
 SEE ALSO
 --------

@@ -364,36 +364,21 @@ static long vfio_platform_ioctl(void *device_data,
 		struct vfio_irq_set hdr;
 		u8 *data = NULL;
 		int ret = 0;
+		size_t data_size = 0;
 
 		minsz = offsetofend(struct vfio_irq_set, count);
 
 		if (copy_from_user(&hdr, (void __user *)arg, minsz))
 			return -EFAULT;
 
-		if (hdr.argsz < minsz)
-			return -EINVAL;
+		ret = vfio_set_irqs_validate_and_prepare(&hdr, vdev->num_irqs,
+						 vdev->num_irqs, &data_size);
+		if (ret)
+			return ret;
 
-		if (hdr.index >= vdev->num_irqs)
-			return -EINVAL;
-
-		if (hdr.flags & ~(VFIO_IRQ_SET_DATA_TYPE_MASK |
-				  VFIO_IRQ_SET_ACTION_TYPE_MASK))
-			return -EINVAL;
-
-		if (!(hdr.flags & VFIO_IRQ_SET_DATA_NONE)) {
-			size_t size;
-
-			if (hdr.flags & VFIO_IRQ_SET_DATA_BOOL)
-				size = sizeof(uint8_t);
-			else if (hdr.flags & VFIO_IRQ_SET_DATA_EVENTFD)
-				size = sizeof(int32_t);
-			else
-				return -EINVAL;
-
-			if (hdr.argsz - minsz < size)
-				return -EINVAL;
-
-			data = memdup_user((void __user *)(arg + minsz), size);
+		if (data_size) {
+			data = memdup_user((void __user *)(arg + minsz),
+					    data_size);
 			if (IS_ERR(data))
 				return PTR_ERR(data);
 		}

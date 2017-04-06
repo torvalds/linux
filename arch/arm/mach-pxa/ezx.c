@@ -17,13 +17,13 @@
 #include <linux/delay.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/leds-lp3944.h>
 #include <linux/i2c/pxa-i2c.h>
-
-#include <media/soc_camera.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -696,6 +696,37 @@ static struct pxa27x_keypad_platform_data e2_keypad_platform_data = {
 };
 #endif /* CONFIG_MACH_EZX_E2 */
 
+#if defined(CONFIG_MACH_EZX_A780) || defined(CONFIG_MACH_EZX_A910)
+/* camera */
+static struct regulator_consumer_supply camera_dummy_supplies[] = {
+	REGULATOR_SUPPLY("vdd", "0-005d"),
+};
+
+static struct regulator_init_data camera_dummy_initdata = {
+	.consumer_supplies = camera_dummy_supplies,
+	.num_consumer_supplies = ARRAY_SIZE(camera_dummy_supplies),
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+};
+
+static struct fixed_voltage_config camera_dummy_config = {
+	.supply_name		= "camera_vdd",
+	.microvolts		= 2800000,
+	.gpio			= GPIO50_nCAM_EN,
+	.enable_high		= 0,
+	.init_data		= &camera_dummy_initdata,
+};
+
+static struct platform_device camera_supply_dummy_device = {
+	.name	= "reg-fixed-voltage",
+	.id	= 1,
+	.dev	= {
+		.platform_data = &camera_dummy_config,
+	},
+};
+#endif
+
 #ifdef CONFIG_MACH_EZX_A780
 /* gpio_keys */
 static struct gpio_keys_button a780_buttons[] = {
@@ -723,43 +754,6 @@ static struct platform_device a780_gpio_keys = {
 };
 
 /* camera */
-static int a780_camera_init(void)
-{
-	int err;
-
-	/*
-	 * GPIO50_nCAM_EN is active low
-	 * GPIO19_GEN1_CAM_RST is active on rising edge
-	 */
-	err = gpio_request(GPIO50_nCAM_EN, "nCAM_EN");
-	if (err) {
-		pr_err("%s: Failed to request nCAM_EN\n", __func__);
-		goto fail;
-	}
-
-	err = gpio_request(GPIO19_GEN1_CAM_RST, "CAM_RST");
-	if (err) {
-		pr_err("%s: Failed to request CAM_RST\n", __func__);
-		goto fail_gpio_cam_rst;
-	}
-
-	gpio_direction_output(GPIO50_nCAM_EN, 1);
-	gpio_direction_output(GPIO19_GEN1_CAM_RST, 0);
-
-	return 0;
-
-fail_gpio_cam_rst:
-	gpio_free(GPIO50_nCAM_EN);
-fail:
-	return err;
-}
-
-static int a780_camera_power(struct device *dev, int on)
-{
-	gpio_set_value(GPIO50_nCAM_EN, !on);
-	return 0;
-}
-
 static int a780_camera_reset(struct device *dev)
 {
 	gpio_set_value(GPIO19_GEN1_CAM_RST, 0);
@@ -769,35 +763,44 @@ static int a780_camera_reset(struct device *dev)
 	return 0;
 }
 
+static int a780_camera_init(void)
+{
+	int err;
+
+	/*
+	 * GPIO50_nCAM_EN is active low
+	 * GPIO19_GEN1_CAM_RST is active on rising edge
+	 */
+	err = gpio_request(GPIO19_GEN1_CAM_RST, "CAM_RST");
+	if (err) {
+		pr_err("%s: Failed to request CAM_RST\n", __func__);
+		return err;
+	}
+
+	gpio_direction_output(GPIO19_GEN1_CAM_RST, 0);
+	a780_camera_reset(NULL);
+
+	return 0;
+}
+
 struct pxacamera_platform_data a780_pxacamera_platform_data = {
 	.flags  = PXA_CAMERA_MASTER | PXA_CAMERA_DATAWIDTH_8 |
-		PXA_CAMERA_PCLK_EN | PXA_CAMERA_MCLK_EN,
+		PXA_CAMERA_PCLK_EN | PXA_CAMERA_MCLK_EN |
+		PXA_CAMERA_PCP,
 	.mclk_10khz = 5000,
+	.sensor_i2c_adapter_id = 0,
+	.sensor_i2c_address = 0x5d,
 };
 
-static struct i2c_board_info a780_camera_i2c_board_info = {
-	I2C_BOARD_INFO("mt9m111", 0x5d),
-};
-
-static struct soc_camera_link a780_iclink = {
-	.bus_id         = 0,
-	.flags          = SOCAM_SENSOR_INVERT_PCLK,
-	.i2c_adapter_id = 0,
-	.board_info     = &a780_camera_i2c_board_info,
-	.power          = a780_camera_power,
-	.reset          = a780_camera_reset,
-};
-
-static struct platform_device a780_camera = {
-	.name   = "soc-camera-pdrv",
-	.id     = 0,
-	.dev    = {
-		.platform_data = &a780_iclink,
+static struct i2c_board_info a780_i2c_board_info[] = {
+	{
+		I2C_BOARD_INFO("mt9m111", 0x5d),
 	},
 };
 
 static struct platform_device *a780_devices[] __initdata = {
 	&a780_gpio_keys,
+	&camera_supply_dummy_device,
 };
 
 static void __init a780_init(void)
@@ -811,19 +814,19 @@ static void __init a780_init(void)
 	pxa_set_stuart_info(NULL);
 
 	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(a780_i2c_board_info));
 
 	pxa_set_fb_info(NULL, &ezx_fb_info_1);
 
 	pxa_set_keypad_info(&a780_keypad_platform_data);
 
-	if (a780_camera_init() == 0) {
+	if (a780_camera_init() == 0)
 		pxa_set_camera_info(&a780_pxacamera_platform_data);
-		platform_device_register(&a780_camera);
-	}
 
 	pwm_add_table(ezx_pwm_lookup, ARRAY_SIZE(ezx_pwm_lookup));
 	platform_add_devices(ARRAY_AND_SIZE(ezx_devices));
 	platform_add_devices(ARRAY_AND_SIZE(a780_devices));
+	regulator_has_full_constraints();
 }
 
 MACHINE_START(EZX_A780, "Motorola EZX A780")
@@ -1001,43 +1004,6 @@ static struct platform_device a910_gpio_keys = {
 };
 
 /* camera */
-static int a910_camera_init(void)
-{
-	int err;
-
-	/*
-	 * GPIO50_nCAM_EN is active low
-	 * GPIO28_GEN2_CAM_RST is active on rising edge
-	 */
-	err = gpio_request(GPIO50_nCAM_EN, "nCAM_EN");
-	if (err) {
-		pr_err("%s: Failed to request nCAM_EN\n", __func__);
-		goto fail;
-	}
-
-	err = gpio_request(GPIO28_GEN2_CAM_RST, "CAM_RST");
-	if (err) {
-		pr_err("%s: Failed to request CAM_RST\n", __func__);
-		goto fail_gpio_cam_rst;
-	}
-
-	gpio_direction_output(GPIO50_nCAM_EN, 1);
-	gpio_direction_output(GPIO28_GEN2_CAM_RST, 0);
-
-	return 0;
-
-fail_gpio_cam_rst:
-	gpio_free(GPIO50_nCAM_EN);
-fail:
-	return err;
-}
-
-static int a910_camera_power(struct device *dev, int on)
-{
-	gpio_set_value(GPIO50_nCAM_EN, !on);
-	return 0;
-}
-
 static int a910_camera_reset(struct device *dev)
 {
 	gpio_set_value(GPIO28_GEN2_CAM_RST, 0);
@@ -1047,30 +1013,33 @@ static int a910_camera_reset(struct device *dev)
 	return 0;
 }
 
+static int a910_camera_init(void)
+{
+	int err;
+
+	/*
+	 * GPIO50_nCAM_EN is active low
+	 * GPIO28_GEN2_CAM_RST is active on rising edge
+	 */
+	err = gpio_request(GPIO28_GEN2_CAM_RST, "CAM_RST");
+	if (err) {
+		pr_err("%s: Failed to request CAM_RST\n", __func__);
+		return err;
+	}
+
+	gpio_direction_output(GPIO28_GEN2_CAM_RST, 0);
+	a910_camera_reset(NULL);
+
+	return 0;
+}
+
 struct pxacamera_platform_data a910_pxacamera_platform_data = {
 	.flags  = PXA_CAMERA_MASTER | PXA_CAMERA_DATAWIDTH_8 |
-		PXA_CAMERA_PCLK_EN | PXA_CAMERA_MCLK_EN,
+		PXA_CAMERA_PCLK_EN | PXA_CAMERA_MCLK_EN |
+		PXA_CAMERA_PCP,
 	.mclk_10khz = 5000,
-};
-
-static struct i2c_board_info a910_camera_i2c_board_info = {
-	I2C_BOARD_INFO("mt9m111", 0x5d),
-};
-
-static struct soc_camera_link a910_iclink = {
-	.bus_id         = 0,
-	.i2c_adapter_id = 0,
-	.board_info     = &a910_camera_i2c_board_info,
-	.power          = a910_camera_power,
-	.reset          = a910_camera_reset,
-};
-
-static struct platform_device a910_camera = {
-	.name   = "soc-camera-pdrv",
-	.id     = 0,
-	.dev    = {
-		.platform_data = &a910_iclink,
-	},
+	.sensor_i2c_adapter_id = 0,
+	.sensor_i2c_address = 0x5d,
 };
 
 /* leds-lp3944 */
@@ -1122,10 +1091,14 @@ static struct i2c_board_info __initdata a910_i2c_board_info[] = {
 		I2C_BOARD_INFO("lp3944", 0x60),
 		.platform_data = &a910_lp3944_leds,
 	},
+	{
+		I2C_BOARD_INFO("mt9m111", 0x5d),
+	},
 };
 
 static struct platform_device *a910_devices[] __initdata = {
 	&a910_gpio_keys,
+	&camera_supply_dummy_device,
 };
 
 static void __init a910_init(void)
@@ -1145,14 +1118,13 @@ static void __init a910_init(void)
 
 	pxa_set_keypad_info(&a910_keypad_platform_data);
 
-	if (a910_camera_init() == 0) {
+	if (a910_camera_init() == 0)
 		pxa_set_camera_info(&a910_pxacamera_platform_data);
-		platform_device_register(&a910_camera);
-	}
 
 	pwm_add_table(ezx_pwm_lookup, ARRAY_SIZE(ezx_pwm_lookup));
 	platform_add_devices(ARRAY_AND_SIZE(ezx_devices));
 	platform_add_devices(ARRAY_AND_SIZE(a910_devices));
+	regulator_has_full_constraints();
 }
 
 MACHINE_START(EZX_A910, "Motorola EZX A910")

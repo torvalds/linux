@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.2.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,35 +46,36 @@ extern int yydebug;
   enum yytokentype
   {
     DT_V1 = 258,
-    DT_MEMRESERVE = 259,
-    DT_LSHIFT = 260,
-    DT_RSHIFT = 261,
-    DT_LE = 262,
-    DT_GE = 263,
-    DT_EQ = 264,
-    DT_NE = 265,
-    DT_AND = 266,
-    DT_OR = 267,
-    DT_BITS = 268,
-    DT_DEL_PROP = 269,
-    DT_DEL_NODE = 270,
-    DT_PROPNODENAME = 271,
-    DT_LITERAL = 272,
-    DT_CHAR_LITERAL = 273,
-    DT_BYTE = 274,
-    DT_STRING = 275,
-    DT_LABEL = 276,
-    DT_REF = 277,
-    DT_INCBIN = 278
+    DT_PLUGIN = 259,
+    DT_MEMRESERVE = 260,
+    DT_LSHIFT = 261,
+    DT_RSHIFT = 262,
+    DT_LE = 263,
+    DT_GE = 264,
+    DT_EQ = 265,
+    DT_NE = 266,
+    DT_AND = 267,
+    DT_OR = 268,
+    DT_BITS = 269,
+    DT_DEL_PROP = 270,
+    DT_DEL_NODE = 271,
+    DT_PROPNODENAME = 272,
+    DT_LITERAL = 273,
+    DT_CHAR_LITERAL = 274,
+    DT_BYTE = 275,
+    DT_STRING = 276,
+    DT_LABEL = 277,
+    DT_REF = 278,
+    DT_INCBIN = 279
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE YYSTYPE;
+
 union YYSTYPE
 {
-#line 38 "dtc-parser.y" /* yacc.c:1909  */
+#line 39 "dtc-parser.y" /* yacc.c:1909  */
 
 	char *propnodename;
 	char *labelref;
@@ -92,9 +93,12 @@ union YYSTYPE
 	struct node *nodelist;
 	struct reserve_info *re;
 	uint64_t integer;
+	unsigned int flags;
 
-#line 97 "dtc-parser.tab.h" /* yacc.c:1909  */
+#line 99 "dtc-parser.tab.h" /* yacc.c:1909  */
 };
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif

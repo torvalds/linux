@@ -38,10 +38,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -66,7 +62,7 @@
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/proc_fs.h>
 
 #include <linux/mutex.h>
@@ -975,6 +971,7 @@ static int zoran_open(struct file *file)
 	return 0;
 
 fail_fh:
+	v4l2_fh_exit(&fh->fh);
 	kfree(fh);
 fail_unlock:
 	mutex_unlock(&zr->lock);
@@ -1488,7 +1485,7 @@ zoran_set_input (struct zoran *zr,
 	if (input < 0 || input >= zr->card.inputs) {
 		dprintk(1,
 			KERN_ERR
-			"%s: %s - unnsupported input %d\n",
+			"%s: %s - unsupported input %d\n",
 			ZR_DEVNAME(zr), __func__, input);
 		return -EINVAL;
 	}

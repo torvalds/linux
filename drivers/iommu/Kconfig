@@ -352,9 +352,6 @@ config MTK_IOMMU_V1
 	select IOMMU_API
 	select MEMORY
 	select MTK_SMI
-	select COMMON_CLK_MT2701_MMSYS
-	select COMMON_CLK_MT2701_IMGSYS
-	select COMMON_CLK_MT2701_VDECSYS
 	help
 	  Support for the M4U on certain Mediatek SoCs. M4U generation 1 HW is
 	  Multimedia Memory Managememt Unit. This option enables remapping of

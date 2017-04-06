@@ -6,7 +6,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
 #include <linux/smp.h>
@@ -37,15 +37,6 @@ static inline void _raw_compare_and_delay(unsigned int *lock, unsigned int old)
 	asm(".insn rsy,0xeb0000000022,%0,0,%1" : : "d" (old), "Q" (*lock));
 }
 
-static inline int cpu_is_preempted(int cpu)
-{
-	if (test_cpu_flag_of(CIF_ENABLED_WAIT, cpu))
-		return 0;
-	if (smp_vcpu_scheduled(cpu))
-		return 0;
-	return 1;
-}
-
 void arch_spin_lock_wait(arch_spinlock_t *lp)
 {
 	unsigned int cpu = SPINLOCK_LOCKVAL;
@@ -62,7 +53,7 @@ void arch_spin_lock_wait(arch_spinlock_t *lp)
 			continue;
 		}
 		/* First iteration: check if the lock owner is running. */
-		if (first_diag && cpu_is_preempted(~owner)) {
+		if (first_diag && arch_vcpu_is_preempted(~owner)) {
 			smp_yield_cpu(~owner);
 			first_diag = 0;
 			continue;
@@ -81,7 +72,7 @@ void arch_spin_lock_wait(arch_spinlock_t *lp)
 		 * yield the CPU unconditionally. For LPAR rely on the
 		 * sense running status.
 		 */
-		if (!MACHINE_IS_LPAR || cpu_is_preempted(~owner)) {
+		if (!MACHINE_IS_LPAR || arch_vcpu_is_preempted(~owner)) {
 			smp_yield_cpu(~owner);
 			first_diag = 0;
 		}
@@ -108,7 +99,7 @@ void arch_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 			continue;
 		}
 		/* Check if the lock owner is running. */
-		if (first_diag && cpu_is_preempted(~owner)) {
+		if (first_diag && arch_vcpu_is_preempted(~owner)) {
 			smp_yield_cpu(~owner);
 			first_diag = 0;
 			continue;
@@ -127,7 +118,7 @@ void arch_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 		 * yield the CPU unconditionally. For LPAR rely on the
 		 * sense running status.
 		 */
-		if (!MACHINE_IS_LPAR || cpu_is_preempted(~owner)) {
+		if (!MACHINE_IS_LPAR || arch_vcpu_is_preempted(~owner)) {
 			smp_yield_cpu(~owner);
 			first_diag = 0;
 		}
@@ -142,7 +133,7 @@ int arch_spin_trylock_retry(arch_spinlock_t *lp)
 	int count;
 
 	for (count = spin_retry; count > 0; count--) {
-		owner = ACCESS_ONCE(lp->lock);
+		owner = READ_ONCE(lp->lock);
 		/* Try to get the lock if it is free. */
 		if (!owner) {
 			if (_raw_compare_and_swap(&lp->lock, 0, cpu))
@@ -165,7 +156,7 @@ void _raw_read_lock_wait(arch_rwlock_t *rw)
 	owner = 0;
 	while (1) {
 		if (count-- <= 0) {
-			if (owner && cpu_is_preempted(~owner))
+			if (owner && arch_vcpu_is_preempted(~owner))
 				smp_yield_cpu(~owner);
 			count = spin_retry;
 		}
@@ -211,7 +202,7 @@ void _raw_write_lock_wait(arch_rwlock_t *rw, unsigned int prev)
 	owner = 0;
 	while (1) {
 		if (count-- <= 0) {
-			if (owner && cpu_is_preempted(~owner))
+			if (owner && arch_vcpu_is_preempted(~owner))
 				smp_yield_cpu(~owner);
 			count = spin_retry;
 		}
@@ -241,7 +232,7 @@ void _raw_write_lock_wait(arch_rwlock_t *rw)
 	owner = 0;
 	while (1) {
 		if (count-- <= 0) {
-			if (owner && cpu_is_preempted(~owner))
+			if (owner && arch_vcpu_is_preempted(~owner))
 				smp_yield_cpu(~owner);
 			count = spin_retry;
 		}
@@ -285,7 +276,7 @@ void arch_lock_relax(unsigned int cpu)
 {
 	if (!cpu)
 		return;
-	if (MACHINE_IS_LPAR && !cpu_is_preempted(~cpu))
+	if (MACHINE_IS_LPAR && !arch_vcpu_is_preempted(~cpu))
 		return;
 	smp_yield_cpu(~cpu);
 }

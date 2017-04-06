@@ -313,7 +313,7 @@ void br_dev_delete(struct net_device *dev, struct list_head *head)
 
 	br_vlan_flush(br);
 	br_multicast_dev_del(br);
-	del_timer_sync(&br->gc_timer);
+	cancel_delayed_work_sync(&br->gc_work);
 
 	br_sysfs_delbr(br->dev);
 	unregister_netdevice_queue(br->dev, head);

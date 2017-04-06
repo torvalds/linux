@@ -85,3 +85,8 @@ Compressed Formats
       - ``V4L2_PIX_FMT_VP8``
       - 'VP80'
       - VP8 video elementary stream.
+    * .. _V4L2-PIX-FMT-VP9:
+
+      - ``V4L2_PIX_FMT_VP9``
+      - 'VP90'
+      - VP9 video elementary stream.

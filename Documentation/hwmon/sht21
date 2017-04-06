@@ -35,6 +35,7 @@ sysfs-Interface
 
 temp1_input - temperature input
 humidity1_input - humidity input
+eic - Electronic Identification Code
 
 Notes
 -----
@@ -45,5 +46,5 @@ humidity and 66 ms for temperature. To keep self heating below 0.1 degree
 Celsius, the device should not be active for more than 10% of the time,
 e.g. maximum two measurements per second at the given resolution.
 
-Different resolutions, the on-chip heater, using the CRC checksum and reading
-the serial number are not supported yet.
+Different resolutions, the on-chip heater, and using the CRC checksum
+are not supported yet.

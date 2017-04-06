@@ -167,6 +167,7 @@ static int rsnd_src_hw_params(struct rsnd_mod *mod,
 	 *	dpcm_fe_dai_hw_params()
 	 *	dpcm_be_dai_hw_params()
 	 */
+	src->convert_rate = 0;
 	if (fe->dai_link->dynamic) {
 		int stream = substream->stream;
 		struct snd_soc_dpcm *dpcm;
@@ -390,6 +391,9 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
+	/* reset sync convert_rate */
+	src->sync.val = 0;
+
 	rsnd_mod_power_on(mod);
 
 	rsnd_src_activation(mod);
@@ -397,9 +401,6 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 	rsnd_src_set_convert_rate(io, mod);
 
 	rsnd_src_status_clear(mod);
-
-	/* reset sync convert_rate */
-	src->sync.val = 0;
 
 	return 0;
 }
@@ -413,8 +414,6 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 	rsnd_src_halt(mod);
 
 	rsnd_mod_power_off(mod);
-
-	src->convert_rate = 0;
 
 	/* reset sync convert_rate */
 	src->sync.val = 0;

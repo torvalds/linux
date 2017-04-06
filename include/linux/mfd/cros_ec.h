@@ -103,6 +103,7 @@ struct cros_ec_command {
  * @din_size: size of din buffer to allocate (zero to use static din)
  * @dout_size: size of dout buffer to allocate (zero to use static dout)
  * @wake_enabled: true if this device can wake the system from sleep
+ * @suspended: true if this device had been suspended
  * @cmd_xfer: send command to EC and get response
  *     Returns the number of bytes received if the communication succeeded, but
  *     that doesn't mean the EC was happy with the command. The caller
@@ -136,6 +137,7 @@ struct cros_ec_device {
 	int din_size;
 	int dout_size;
 	bool wake_enabled;
+	bool suspended;
 	int (*cmd_xfer)(struct cros_ec_device *ec,
 			struct cros_ec_command *msg);
 	int (*pkt_xfer)(struct cros_ec_device *ec,
@@ -146,6 +148,15 @@ struct cros_ec_device {
 
 	struct ec_response_get_next_event event_data;
 	int event_size;
+};
+
+/**
+ * struct cros_ec_sensor_platform - ChromeOS EC sensor platform information
+ *
+ * @sensor_num: Id of the sensor, as reported by the EC.
+ */
+struct cros_ec_sensor_platform {
+	u8 sensor_num;
 };
 
 /* struct cros_ec_platform - ChromeOS EC platform information
@@ -175,6 +186,7 @@ struct cros_ec_dev {
 	struct cros_ec_device *ec_dev;
 	struct device *dev;
 	u16 cmd_offset;
+	u32 features[2];
 };
 
 /**

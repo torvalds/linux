@@ -59,7 +59,7 @@ struct obd_device;
 #define OBD_LDLM_DEVICENAME  "ldlm"
 
 #define LDLM_DEFAULT_LRU_SIZE (100 * num_online_cpus())
-#define LDLM_DEFAULT_MAX_ALIVE (cfs_time_seconds(36000))
+#define LDLM_DEFAULT_MAX_ALIVE (cfs_time_seconds(3900)) /* 65 min */
 #define LDLM_DEFAULT_PARALLEL_AST_LIMIT 1024
 
 /**
@@ -86,10 +86,10 @@ enum ldlm_error {
  * decisions about lack of conflicts or do any autonomous lock granting without
  * first speaking to a server.
  */
-typedef enum {
+enum ldlm_side {
 	LDLM_NAMESPACE_SERVER = 1 << 0,
 	LDLM_NAMESPACE_CLIENT = 1 << 1
-} ldlm_side_t;
+};
 
 /**
  * The blocking callback is overloaded to perform two functions.  These flags
@@ -359,7 +359,7 @@ struct ldlm_namespace {
 	struct obd_device	*ns_obd;
 
 	/** Flag indicating if namespace is on client instead of server */
-	ldlm_side_t		ns_client;
+	enum ldlm_side		ns_client;
 
 	/** Resource hash table for namespace. */
 	struct cfs_hash		*ns_rs_hash;
@@ -550,20 +550,18 @@ struct ldlm_flock {
 	__u64 owner;
 	__u64 blocking_owner;
 	struct obd_export *blocking_export;
-	/* Protected by the hash lock */
-	__u32 blocking_refs;
 	__u32 pid;
 };
 
-typedef union {
+union ldlm_policy_data {
 	struct ldlm_extent l_extent;
 	struct ldlm_flock l_flock;
 	struct ldlm_inodebits l_inodebits;
-} ldlm_policy_data_t;
+};
 
 void ldlm_convert_policy_to_local(struct obd_export *exp, enum ldlm_type type,
-				  const ldlm_wire_policy_data_t *wpolicy,
-				  ldlm_policy_data_t *lpolicy);
+				  const union ldlm_wire_policy_data *wpolicy,
+				  union ldlm_policy_data *lpolicy);
 
 enum lvb_type {
 	LVB_T_NONE	= 0,
@@ -692,7 +690,7 @@ struct ldlm_lock {
 	 * Representation of private data specific for a lock type.
 	 * Examples are: extent range for extent lock or bitmask for ibits locks
 	 */
-	ldlm_policy_data_t	l_policy_data;
+	union ldlm_policy_data	l_policy_data;
 
 	/**
 	 * Lock state flags. Protected by lr_lock.
@@ -967,8 +965,8 @@ struct ldlm_ast_work {
  * Common ldlm_enqueue parameters
  */
 struct ldlm_enqueue_info {
-	__u32 ei_type;   /** Type of the lock being enqueued. */
-	__u32 ei_mode;   /** Mode of the lock being enqueued. */
+	enum ldlm_type	ei_type;  /** Type of the lock being enqueued. */
+	enum ldlm_mode	ei_mode;  /** Mode of the lock being enqueued. */
 	void *ei_cb_bl;  /** blocking lock callback */
 	void *ei_cb_cp;  /** lock completion callback */
 	void *ei_cb_gl;  /** lock glimpse callback */
@@ -979,7 +977,7 @@ struct ldlm_enqueue_info {
 extern struct obd_ops ldlm_obd_ops;
 
 extern char *ldlm_lockname[];
-char *ldlm_it2str(int it);
+const char *ldlm_it2str(enum ldlm_intent_flags it);
 
 /**
  * Just a fancy CDEBUG call with log level preset to LDLM_DEBUG.
@@ -1168,16 +1166,18 @@ do {					    \
 struct ldlm_lock *ldlm_lock_get(struct ldlm_lock *lock);
 void ldlm_lock_put(struct ldlm_lock *lock);
 void ldlm_lock2desc(struct ldlm_lock *lock, struct ldlm_lock_desc *desc);
-void ldlm_lock_addref(const struct lustre_handle *lockh, __u32 mode);
-int  ldlm_lock_addref_try(const struct lustre_handle *lockh, __u32 mode);
-void ldlm_lock_decref(const struct lustre_handle *lockh, __u32 mode);
-void ldlm_lock_decref_and_cancel(const struct lustre_handle *lockh, __u32 mode);
+void ldlm_lock_addref(const struct lustre_handle *lockh, enum ldlm_mode mode);
+int  ldlm_lock_addref_try(const struct lustre_handle *lockh,
+			  enum ldlm_mode mode);
+void ldlm_lock_decref(const struct lustre_handle *lockh, enum ldlm_mode mode);
+void ldlm_lock_decref_and_cancel(const struct lustre_handle *lockh,
+				 enum ldlm_mode mode);
 void ldlm_lock_fail_match_locked(struct ldlm_lock *lock);
 void ldlm_lock_allow_match(struct ldlm_lock *lock);
 void ldlm_lock_allow_match_locked(struct ldlm_lock *lock);
 enum ldlm_mode ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 			       const struct ldlm_res_id *,
-			       enum ldlm_type type, ldlm_policy_data_t *,
+			       enum ldlm_type type, union ldlm_policy_data *,
 			       enum ldlm_mode mode, struct lustre_handle *,
 			       int unref);
 enum ldlm_mode ldlm_revalidate_lock_handle(const struct lustre_handle *lockh,
@@ -1189,7 +1189,7 @@ void ldlm_unlink_lock_skiplist(struct ldlm_lock *req);
 /* resource.c */
 struct ldlm_namespace *
 ldlm_namespace_new(struct obd_device *obd, char *name,
-		   ldlm_side_t client, enum ldlm_appetite apt,
+		   enum ldlm_side client, enum ldlm_appetite apt,
 		   enum ldlm_ns_type ns_type);
 int ldlm_namespace_cleanup(struct ldlm_namespace *ns, __u64 flags);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
@@ -1208,7 +1208,7 @@ void ldlm_resource_add_lock(struct ldlm_resource *res,
 			    struct ldlm_lock *lock);
 void ldlm_resource_unlink_lock(struct ldlm_lock *lock);
 void ldlm_res2desc(struct ldlm_resource *res, struct ldlm_resource_desc *desc);
-void ldlm_dump_all_namespaces(ldlm_side_t client, int level);
+void ldlm_dump_all_namespaces(enum ldlm_side client, int level);
 void ldlm_namespace_dump(int level, struct ldlm_namespace *);
 void ldlm_resource_dump(int level, struct ldlm_resource *);
 int ldlm_lock_change_resource(struct ldlm_namespace *, struct ldlm_lock *,
@@ -1241,7 +1241,7 @@ int ldlm_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data);
 int ldlm_cli_enqueue(struct obd_export *exp, struct ptlrpc_request **reqp,
 		     struct ldlm_enqueue_info *einfo,
 		     const struct ldlm_res_id *res_id,
-		     ldlm_policy_data_t const *policy, __u64 *flags,
+		     union ldlm_policy_data const *policy, __u64 *flags,
 		     void *lvb, __u32 lvb_len, enum lvb_type lvb_type,
 		     struct lustre_handle *lockh, int async);
 int ldlm_prep_enqueue_req(struct obd_export *exp,
@@ -1265,13 +1265,13 @@ int ldlm_cli_cancel_unused(struct ldlm_namespace *, const struct ldlm_res_id *,
 			   enum ldlm_cancel_flags flags, void *opaque);
 int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 				    const struct ldlm_res_id *res_id,
-				    ldlm_policy_data_t *policy,
+				    union ldlm_policy_data *policy,
 				    enum ldlm_mode mode,
 				    enum ldlm_cancel_flags flags,
 				    void *opaque);
 int ldlm_cancel_resource_local(struct ldlm_resource *res,
 			       struct list_head *cancels,
-			       ldlm_policy_data_t *policy,
+			       union ldlm_policy_data *policy,
 			       enum ldlm_mode mode, __u64 lock_flags,
 			       enum ldlm_cancel_flags cancel_flags,
 			       void *opaque);
@@ -1333,7 +1333,7 @@ int ldlm_pools_init(void);
 void ldlm_pools_fini(void);
 
 int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
-		   int idx, ldlm_side_t client);
+		   int idx, enum ldlm_side client);
 void ldlm_pool_fini(struct ldlm_pool *pl);
 void ldlm_pool_add(struct ldlm_pool *pl, struct ldlm_lock *lock);
 void ldlm_pool_del(struct ldlm_pool *pl, struct ldlm_lock *lock);

@@ -578,7 +578,7 @@ static int ifi_canfd_poll(struct napi_struct *napi, int quota)
 		work_done += ifi_canfd_do_rx_poll(ndev, quota - work_done);
 
 	if (work_done < quota) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		ifi_canfd_irq_enable(ndev, 1);
 	}
 

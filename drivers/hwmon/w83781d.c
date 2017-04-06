@@ -416,24 +416,24 @@ sysfs_temp_offsets(2);
 sysfs_temp_offsets(3);
 
 static ssize_t
-show_vid_reg(struct device *dev, struct device_attribute *attr, char *buf)
+cpu0_vid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w83781d_data *data = w83781d_update_device(dev);
 	return sprintf(buf, "%ld\n", (long) vid_from_reg(data->vid, data->vrm));
 }
 
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
+static DEVICE_ATTR_RO(cpu0_vid);
 
 static ssize_t
-show_vrm_reg(struct device *dev, struct device_attribute *attr, char *buf)
+vrm_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w83781d_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%ld\n", (long) data->vrm);
 }
 
 static ssize_t
-store_vrm_reg(struct device *dev, struct device_attribute *attr,
-	      const char *buf, size_t count)
+vrm_store(struct device *dev, struct device_attribute *attr, const char *buf,
+	  size_t count)
 {
 	struct w83781d_data *data = dev_get_drvdata(dev);
 	unsigned long val;
@@ -447,16 +447,16 @@ store_vrm_reg(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm_reg, store_vrm_reg);
+static DEVICE_ATTR_RW(vrm);
 
 static ssize_t
-show_alarms_reg(struct device *dev, struct device_attribute *attr, char *buf)
+alarms_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w83781d_data *data = w83781d_update_device(dev);
 	return sprintf(buf, "%u\n", data->alarms);
 }
 
-static DEVICE_ATTR(alarms, S_IRUGO, show_alarms_reg, NULL);
+static DEVICE_ATTR_RO(alarms);
 
 static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -491,7 +491,7 @@ static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 4);
 static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 5);
 static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_temp3_alarm, NULL, 0);
 
-static ssize_t show_beep_mask(struct device *dev,
+static ssize_t beep_mask_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	struct w83781d_data *data = w83781d_update_device(dev);
@@ -500,7 +500,7 @@ static ssize_t show_beep_mask(struct device *dev,
 }
 
 static ssize_t
-store_beep_mask(struct device *dev, struct device_attribute *attr,
+beep_mask_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct w83781d_data *data = dev_get_drvdata(dev);
@@ -527,8 +527,7 @@ store_beep_mask(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(beep_mask, S_IRUGO | S_IWUSR,
-		show_beep_mask, store_beep_mask);
+static DEVICE_ATTR_RW(beep_mask);
 
 static ssize_t show_beep(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -708,7 +707,7 @@ show_pwm(struct device *dev, struct device_attribute *da, char *buf)
 }
 
 static ssize_t
-show_pwm2_enable(struct device *dev, struct device_attribute *da, char *buf)
+pwm2_enable_show(struct device *dev, struct device_attribute *da, char *buf)
 {
 	struct w83781d_data *data = w83781d_update_device(dev);
 	return sprintf(buf, "%d\n", (int)data->pwm2_enable);
@@ -736,7 +735,7 @@ store_pwm(struct device *dev, struct device_attribute *da, const char *buf,
 }
 
 static ssize_t
-store_pwm2_enable(struct device *dev, struct device_attribute *da,
+pwm2_enable_store(struct device *dev, struct device_attribute *da,
 		const char *buf, size_t count)
 {
 	struct w83781d_data *data = dev_get_drvdata(dev);
@@ -778,8 +777,7 @@ static SENSOR_DEVICE_ATTR(pwm2, S_IRUGO | S_IWUSR, show_pwm, store_pwm, 1);
 static SENSOR_DEVICE_ATTR(pwm3, S_IRUGO | S_IWUSR, show_pwm, store_pwm, 2);
 static SENSOR_DEVICE_ATTR(pwm4, S_IRUGO | S_IWUSR, show_pwm, store_pwm, 3);
 /* only PWM2 can be enabled/disabled */
-static DEVICE_ATTR(pwm2_enable, S_IRUGO | S_IWUSR,
-		show_pwm2_enable, store_pwm2_enable);
+static DEVICE_ATTR_RW(pwm2_enable);
 
 static ssize_t
 show_sensor(struct device *dev, struct device_attribute *da, char *buf)
@@ -1616,12 +1614,12 @@ static unsigned short isa_address = 0x290;
  * we must create it by ourselves.
  */
 static ssize_t
-show_name(struct device *dev, struct device_attribute *devattr, char *buf)
+name_show(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct w83781d_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%s\n", data->name);
 }
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 static struct w83781d_data *w83781d_data_if_isa(void)
 {

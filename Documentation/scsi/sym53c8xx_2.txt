@@ -427,7 +427,7 @@ Synchronous transfers frequency       (default answer: 80)
 10.1 Syntax
 
 Setup commands can be passed to the driver either at boot time or as
-parameters to modprobe, as described in Documentation/kernel-parameters.txt
+parameters to modprobe, as described in Documentation/admin-guide/kernel-parameters.rst
 
 Example of boot setup command under lilo prompt:
 

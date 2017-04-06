@@ -26,7 +26,7 @@ parameters
    The MPEG controls actually support many more codecs than
    just MPEG. See :ref:`mpeg-controls`.
 
-Memory-to-memory devices can often be used as a shared resource: you can
+Memory-to-memory devices function as a shared resource: you can
 open the video node multiple times, each application setting up their
 own codec properties that are local to the file handle, and each can use
 it independently from the others. The driver will arbitrate access to

@@ -600,7 +600,6 @@ static int read_file_xmit(struct seq_file *file, void *data)
 	PR("MPDUs XRetried:  ", xretries);
 	PR("Aggregates:      ", a_aggr);
 	PR("AMPDUs Queued HW:", a_queued_hw);
-	PR("AMPDUs Queued SW:", a_queued_sw);
 	PR("AMPDUs Completed:", a_completed);
 	PR("AMPDUs Retried:  ", a_retries);
 	PR("AMPDUs XRetried: ", a_xretries);
@@ -629,8 +628,7 @@ static void print_queue(struct ath_softc *sc, struct ath_txq *txq,
 	seq_printf(file, "%s: %d ", "qnum", txq->axq_qnum);
 	seq_printf(file, "%s: %2d ", "qdepth", txq->axq_depth);
 	seq_printf(file, "%s: %2d ", "ampdu-depth", txq->axq_ampdu_depth);
-	seq_printf(file, "%s: %3d ", "pending", txq->pending_frames);
-	seq_printf(file, "%s: %d\n", "stopped", txq->stopped);
+	seq_printf(file, "%s: %3d\n", "pending", txq->pending_frames);
 
 	ath_txq_unlock(sc, txq);
 }
@@ -1208,7 +1206,6 @@ static const char ath9k_gstrings_stats[][ETH_GSTRING_LEN] = {
 	AMKSTR(d_tx_mpdu_xretries),
 	AMKSTR(d_tx_aggregates),
 	AMKSTR(d_tx_ampdus_queued_hw),
-	AMKSTR(d_tx_ampdus_queued_sw),
 	AMKSTR(d_tx_ampdus_completed),
 	AMKSTR(d_tx_ampdu_retries),
 	AMKSTR(d_tx_ampdu_xretries),
@@ -1288,7 +1285,6 @@ void ath9k_get_et_stats(struct ieee80211_hw *hw,
 	AWDATA(xretries);
 	AWDATA(a_aggr);
 	AWDATA(a_queued_hw);
-	AWDATA(a_queued_sw);
 	AWDATA(a_completed);
 	AWDATA(a_retries);
 	AWDATA(a_xretries);
@@ -1346,14 +1342,6 @@ int ath9k_init_debug(struct ath_hw *ah)
 				    read_file_xmit);
 	debugfs_create_devm_seqfile(sc->dev, "queues", sc->debug.debugfs_phy,
 				    read_file_queues);
-	debugfs_create_u32("qlen_bk", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[IEEE80211_AC_BK]);
-	debugfs_create_u32("qlen_be", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[IEEE80211_AC_BE]);
-	debugfs_create_u32("qlen_vi", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[IEEE80211_AC_VI]);
-	debugfs_create_u32("qlen_vo", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[IEEE80211_AC_VO]);
 	debugfs_create_devm_seqfile(sc->dev, "misc", sc->debug.debugfs_phy,
 				    read_file_misc);
 	debugfs_create_devm_seqfile(sc->dev, "reset", sc->debug.debugfs_phy,
@@ -1410,6 +1398,9 @@ int ath9k_init_debug(struct ath_hw *ah)
 #endif
 	debugfs_create_file("tpc", S_IRUSR | S_IWUSR,
 			    sc->debug.debugfs_phy, sc, &fops_tpc);
+
+	debugfs_create_u16("airtime_flags", S_IRUSR | S_IWUSR,
+			   sc->debug.debugfs_phy, &sc->airtime_flags);
 
 	return 0;
 }

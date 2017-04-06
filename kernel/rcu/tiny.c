@@ -25,7 +25,7 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
-#include <linux/rcupdate.h>
+#include <linux/rcupdate_wait.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/mutex.h>
@@ -41,13 +41,23 @@
 
 /* Forward declarations for tiny_plugin.h. */
 struct rcu_ctrlblk;
-static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp);
-static void rcu_process_callbacks(struct softirq_action *unused);
 static void __call_rcu(struct rcu_head *head,
 		       rcu_callback_t func,
 		       struct rcu_ctrlblk *rcp);
 
 #include "tiny_plugin.h"
+
+void rcu_barrier_bh(void)
+{
+	wait_rcu_gp(call_rcu_bh);
+}
+EXPORT_SYMBOL(rcu_barrier_bh);
+
+void rcu_barrier_sched(void)
+{
+	wait_rcu_gp(call_rcu_sched);
+}
+EXPORT_SYMBOL(rcu_barrier_sched);
 
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
 
@@ -185,9 +195,6 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
  * benefits of doing might_sleep() to reduce latency.)
  *
  * Cool, huh?  (Due to Josh Triplett.)
- *
- * But we want to make this a static inline later.  The cond_resched()
- * currently makes this problematic.
  */
 void synchronize_sched(void)
 {
@@ -195,7 +202,6 @@ void synchronize_sched(void)
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
 			 "Illegal synchronize_sched() in RCU read-side critical section");
-	cond_resched();
 }
 EXPORT_SYMBOL_GPL(synchronize_sched);
 

@@ -203,8 +203,25 @@ int perf_debug_option(const char *str)
 		v = (v < 0) || (v > 10) ? 0 : v;
 	}
 
+	if (quiet)
+		v = -1;
+
 	*var->ptr = v;
 	free(s);
+	return 0;
+}
+
+int perf_quiet_option(void)
+{
+	struct debug_variable *var = &debug_variables[0];
+
+	/* disable all debug messages */
+	while (var->name) {
+		*var->ptr = -1;
+		var++;
+	}
+
+	quiet = true;
 	return 0;
 }
 

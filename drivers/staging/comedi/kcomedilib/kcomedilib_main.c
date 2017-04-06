@@ -250,3 +250,15 @@ int comedi_get_n_channels(struct comedi_device *dev, unsigned int subdevice)
 	return n;
 }
 EXPORT_SYMBOL_GPL(comedi_get_n_channels);
+
+static int __init kcomedilib_module_init(void)
+{
+	return 0;
+}
+
+static void __exit kcomedilib_module_exit(void)
+{
+}
+
+module_init(kcomedilib_module_init);
+module_exit(kcomedilib_module_exit);

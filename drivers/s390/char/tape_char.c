@@ -18,7 +18,7 @@
 #include <linux/mtio.h>
 #include <linux/compat.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define TAPE_DBF_AREA	tape_core_dbf
 

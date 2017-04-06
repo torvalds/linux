@@ -33,7 +33,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"2.3.0.20"
+#define DRV_VERSION		"2.3.0.31"
 #define DRV_COPYRIGHT		"Copyright 2008-2013 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
@@ -135,6 +135,11 @@ struct enic_rfs_flw_tbl {
 	struct timer_list rfs_may_expire;
 };
 
+struct vxlan_offload {
+	u16 vxlan_udp_port_number;
+	u8 patch_level;
+};
+
 /* Per-instance private data structure */
 struct enic {
 	struct net_device *netdev;
@@ -175,6 +180,7 @@ struct enic {
 	/* receive queue cache line section */
 	____cacheline_aligned struct vnic_rq rq[ENIC_RQ_MAX];
 	unsigned int rq_count;
+	struct vxlan_offload vxlan;
 	u64 rq_truncated_pkts;
 	u64 rq_bad_fcs;
 	struct napi_struct napi[ENIC_RQ_MAX + ENIC_WQ_MAX];

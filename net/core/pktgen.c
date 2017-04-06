@@ -413,7 +413,7 @@ struct pktgen_hdr {
 };
 
 
-static int pg_net_id __read_mostly;
+static unsigned int pg_net_id __read_mostly;
 
 struct pktgen_net {
 	struct net		*net;
@@ -3439,9 +3439,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 			/* skb was 'freed' by stack, so clean few
 			 * bits and reuse it
 			 */
-#ifdef CONFIG_NET_CLS_ACT
-			skb->tc_verd = 0; /* reset reclass/redir ttl */
-#endif
+			skb_reset_tc(skb);
 		} while (--burst > 0);
 		goto out; /* Skips xmit_mode M_START_XMIT */
 	} else if (pkt_dev->xmit_mode == M_QUEUE_XMIT) {

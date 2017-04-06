@@ -87,7 +87,6 @@ void s5p_cec_mask_tx_interrupts(struct s5p_cec_dev *cec)
 	reg |= S5P_CEC_IRQ_TX_DONE;
 	reg |= S5P_CEC_IRQ_TX_ERROR;
 	writeb(reg, cec->reg + S5P_CEC_IRQ_MASK);
-
 }
 
 void s5p_cec_unmask_tx_interrupts(struct s5p_cec_dev *cec)
@@ -186,13 +185,13 @@ u32 s5p_cec_get_status(struct s5p_cec_dev *cec)
 void s5p_clr_pending_tx(struct s5p_cec_dev *cec)
 {
 	writeb(S5P_CEC_IRQ_TX_DONE | S5P_CEC_IRQ_TX_ERROR,
-					cec->reg + S5P_CEC_IRQ_CLEAR);
+	       cec->reg + S5P_CEC_IRQ_CLEAR);
 }
 
 void s5p_clr_pending_rx(struct s5p_cec_dev *cec)
 {
 	writeb(S5P_CEC_IRQ_RX_DONE | S5P_CEC_IRQ_RX_ERROR,
-					cec->reg + S5P_CEC_IRQ_CLEAR);
+	       cec->reg + S5P_CEC_IRQ_CLEAR);
 }
 
 void s5p_cec_get_rx_buf(struct s5p_cec_dev *cec, u32 size, u8 *buffer)

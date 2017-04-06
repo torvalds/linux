@@ -770,6 +770,7 @@ static const struct of_device_id vsp1_of_match[] = {
 	{ .compatible = "renesas,vsp2" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, vsp1_of_match);
 
 static struct platform_driver vsp1_platform_driver = {
 	.probe		= vsp1_probe,

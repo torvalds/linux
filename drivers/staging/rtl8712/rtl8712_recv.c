@@ -408,7 +408,7 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 			memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->dst,
 				ETH_ALEN);
 		} else {
-			u16 len;
+			__be16 len;
 			/* Leave Ethernet header part of hdr and full payload */
 			len = htons(sub_skb->len);
 			memcpy(skb_push(sub_skb, 2), &len, 2);
@@ -439,21 +439,21 @@ exit:
 
 void r8712_rxcmd_event_hdl(struct _adapter *padapter, void *prxcmdbuf)
 {
-	uint voffset;
+	__le32 voffset;
 	u8 *poffset;
 	u16 cmd_len, drvinfo_sz;
 	struct recv_stat *prxstat;
 
 	poffset = (u8 *)prxcmdbuf;
-	voffset = *(uint *)poffset;
+	voffset = *(__le32 *)poffset;
 	prxstat = (struct recv_stat *)prxcmdbuf;
 	drvinfo_sz = (le32_to_cpu(prxstat->rxdw0) & 0x000f0000) >> 16;
 	drvinfo_sz <<= 3;
 	poffset += RXDESC_SIZE + drvinfo_sz;
 	do {
-		voffset  = *(uint *)poffset;
+		voffset  = *(__le32 *)poffset;
 		cmd_len = (u16)(le32_to_cpu(voffset) & 0xffff);
-		r8712_event_handle(padapter, (uint *)poffset);
+		r8712_event_handle(padapter, (__le32 *)poffset);
 		poffset += (cmd_len + 8);/*8 bytes alignment*/
 	} while (le32_to_cpu(voffset) & BIT(31));
 
@@ -758,7 +758,7 @@ static void query_rx_phy_status(struct _adapter *padapter,
 		/* CCK Driver info Structure is not the same as OFDM packet.*/
 		pcck_buf = (struct phy_cck_rx_status *)pphy_stat;
 		/* (1)Hardware does not provide RSSI for CCK
-		 * (2)PWDB, Average PWDB cacluated by hardware
+		 * (2)PWDB, Average PWDB calculated by hardware
 		 * (for rate adaptive)
 		 */
 		if (!cck_highpwr) {
@@ -853,7 +853,7 @@ static void query_rx_phy_status(struct _adapter *padapter,
 			rssi = query_rx_pwr_percentage(rx_pwr[i]);
 			total_rssi += rssi;
 		}
-		/* (2)PWDB, Average PWDB cacluated by hardware (for
+		/* (2)PWDB, Average PWDB calculated by hardware (for
 		 * rate adaptive)
 		 */
 		rx_pwr_all = (((pphy_head[PHY_STAT_PWDB_ALL_SHT]) >> 1) & 0x7f)

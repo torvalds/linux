@@ -106,7 +106,7 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 	if (!(tmp & LVDS_PORT_EN))
 		goto out;
 
-	if (HAS_PCH_CPT(dev))
+	if (HAS_PCH_CPT(dev_priv))
 		*pipe = PORT_TO_PIPE_CPT(tmp);
 	else
 		*pipe = PORT_TO_PIPE(tmp);
@@ -122,8 +122,7 @@ out:
 static void intel_lvds_get_config(struct intel_encoder *encoder,
 				  struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	u32 tmp, flags = 0;
 
@@ -139,12 +138,12 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 
 	pipe_config->base.adjusted_mode.flags |= flags;
 
-	if (INTEL_INFO(dev)->gen < 5)
+	if (INTEL_GEN(dev_priv) < 5)
 		pipe_config->gmch_pfit.lvds_border_bits =
 			tmp & LVDS_BORDER_ENABLE;
 
 	/* gen2/3 store dither state in pfit control, needs to match */
-	if (INTEL_INFO(dev)->gen < 4) {
+	if (INTEL_GEN(dev_priv) < 4) {
 		tmp = I915_READ(PFIT_CONTROL);
 
 		pipe_config->gmch_pfit.control |= tmp & PANEL_8TO6_DITHER_ENABLE;
@@ -396,7 +395,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 				      struct intel_crtc_state *pipe_config,
 				      struct drm_connector_state *conn_state)
 {
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder =
 		to_lvds_encoder(&intel_encoder->base);
 	struct intel_connector *intel_connector =
@@ -406,7 +405,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	unsigned int lvds_bpp;
 
 	/* Should never happen!! */
-	if (INTEL_INFO(dev)->gen < 4 && intel_crtc->pipe == 0) {
+	if (INTEL_GEN(dev_priv) < 4 && intel_crtc->pipe == 0) {
 		DRM_ERROR("Can't support LVDS on pipe A\n");
 		return false;
 	}
@@ -431,7 +430,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
 			       adjusted_mode);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (HAS_PCH_SPLIT(dev_priv)) {
 		pipe_config->has_pch_encoder = true;
 
 		intel_pch_panel_fitting(intel_crtc, pipe_config,
@@ -461,13 +460,13 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 static enum drm_connector_status
 intel_lvds_detect(struct drm_connector *connector, bool force)
 {
-	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	enum drm_connector_status status;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 
-	status = intel_panel_detect(dev);
+	status = intel_panel_detect(dev_priv);
 	if (status != connector_status_unknown)
 		return status;
 
@@ -566,7 +565,7 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	 * and as part of the cleanup in the hw state restore we also redisable
 	 * the vga plane.
 	 */
-	if (!HAS_PCH_SPLIT(dev))
+	if (!HAS_PCH_SPLIT(dev_priv))
 		intel_display_resume(dev);
 
 	dev_priv->modeset_restore = MODESET_DONE;
@@ -949,16 +948,17 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
 }
 
-static bool intel_lvds_supported(struct drm_device *dev)
+static bool intel_lvds_supported(struct drm_i915_private *dev_priv)
 {
 	/* With the introduction of the PCH we gained a dedicated
 	 * LVDS presence pin, use it. */
-	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
 		return true;
 
 	/* Otherwise LVDS was only attached to mobile products,
 	 * except for the inglorious 830gm */
-	if (INTEL_INFO(dev)->gen <= 4 && IS_MOBILE(dev) && !IS_I830(dev))
+	if (INTEL_GEN(dev_priv) <= 4 &&
+	    IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
 		return true;
 
 	return false;
@@ -971,9 +971,9 @@ static bool intel_lvds_supported(struct drm_device *dev)
  * Create the connector, register the LVDS DDC bus, and try to figure out what
  * modes we can display on the LVDS panel (if present).
  */
-void intel_lvds_init(struct drm_device *dev)
+void intel_lvds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_device *dev = &dev_priv->drm;
 	struct intel_lvds_encoder *lvds_encoder;
 	struct intel_encoder *intel_encoder;
 	struct intel_lvds_connector *lvds_connector;
@@ -984,27 +984,27 @@ void intel_lvds_init(struct drm_device *dev)
 	struct drm_display_mode *fixed_mode = NULL;
 	struct drm_display_mode *downclock_mode = NULL;
 	struct edid *edid;
-	struct drm_crtc *crtc;
+	struct intel_crtc *crtc;
 	i915_reg_t lvds_reg;
 	u32 lvds;
 	int pipe;
 	u8 pin;
 
-	if (!intel_lvds_supported(dev))
+	if (!intel_lvds_supported(dev_priv))
 		return;
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds))
 		return;
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_SPLIT(dev_priv))
 		lvds_reg = PCH_LVDS;
 	else
 		lvds_reg = LVDS;
 
 	lvds = I915_READ(lvds_reg);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (HAS_PCH_SPLIT(dev_priv)) {
 		if ((lvds & LVDS_DETECTED) == 0)
 			return;
 		if (dev_priv->vbt.edp.support) {
@@ -1064,12 +1064,13 @@ void intel_lvds_init(struct drm_device *dev)
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
-	intel_encoder->type = INTEL_OUTPUT_LVDS;
 
+	intel_encoder->type = INTEL_OUTPUT_LVDS;
+	intel_encoder->port = PORT_NONE;
 	intel_encoder->cloneable = 0;
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_SPLIT(dev_priv))
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
-	else if (IS_GEN4(dev))
+	else if (IS_GEN4(dev_priv))
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	else
 		intel_encoder->crtc_mask = (1 << 1);
@@ -1157,14 +1158,14 @@ void intel_lvds_init(struct drm_device *dev)
 	 */
 
 	/* Ironlake: FIXME if still fail, not try pipe mode now */
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_SPLIT(dev_priv))
 		goto failed;
 
 	pipe = (lvds & LVDS_PIPEB_SELECT) ? 1 : 0;
-	crtc = intel_get_crtc_for_pipe(dev, pipe);
+	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 
 	if (crtc && (lvds & LVDS_PORT_EN)) {
-		fixed_mode = intel_crtc_mode_get(dev, crtc);
+		fixed_mode = intel_crtc_mode_get(dev, &crtc->base);
 		if (fixed_mode) {
 			DRM_DEBUG_KMS("using current (BIOS) mode: ");
 			drm_mode_debug_printmodeline(fixed_mode);

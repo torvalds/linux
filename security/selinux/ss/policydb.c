@@ -2266,7 +2266,7 @@ int policydb_read(struct policydb *p, void *fp)
 	len = le32_to_cpu(buf[1]);
 	if (len != strlen(POLICYDB_STRING)) {
 		printk(KERN_ERR "SELinux:  policydb string length %d does not "
-		       "match expected length %Zu\n",
+		       "match expected length %zu\n",
 		       len, strlen(POLICYDB_STRING));
 		goto bad;
 	}

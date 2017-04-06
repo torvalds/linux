@@ -212,32 +212,13 @@ static int a21_wdt_probe(struct platform_device *pdev)
 	drv->wdt = a21_wdt;
 	dev_set_drvdata(&pdev->dev, drv);
 
-	ret = watchdog_register_device(&a21_wdt);
+	ret = devm_watchdog_register_device(&pdev->dev, &a21_wdt);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot register watchdog device\n");
-		goto err_register_wd;
+		return ret;
 	}
 
 	dev_info(&pdev->dev, "MEN A21 watchdog timer driver enabled\n");
-
-	return 0;
-
-err_register_wd:
-	mutex_destroy(&drv->lock);
-
-	return ret;
-}
-
-static int a21_wdt_remove(struct platform_device *pdev)
-{
-	struct a21_wdt_drv *drv = dev_get_drvdata(&pdev->dev);
-
-	dev_warn(&pdev->dev,
-		"Unregistering A21 watchdog driver, board may reboot\n");
-
-	watchdog_unregister_device(&drv->wdt);
-
-	mutex_destroy(&drv->lock);
 
 	return 0;
 }
@@ -257,7 +238,6 @@ MODULE_DEVICE_TABLE(of, a21_wdt_ids);
 
 static struct platform_driver a21_wdt_driver = {
 	.probe = a21_wdt_probe,
-	.remove = a21_wdt_remove,
 	.shutdown = a21_wdt_shutdown,
 	.driver = {
 		.name = "a21-watchdog",

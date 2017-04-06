@@ -100,6 +100,9 @@ int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 		set_bit(RDS_MSG_HAS_ACK_SEQ, &rm->m_flags);
 		tc->t_last_expected_una = rm->m_ack_seq + 1;
 
+		if (test_bit(RDS_MSG_RETRANSMITTED, &rm->m_flags))
+			rm->m_inc.i_hdr.h_flags |= RDS_FLAG_RETRANSMITTED;
+
 		rdsdebug("rm %p tcp nxt %u ack_seq %llu\n",
 			 rm, rds_tcp_snd_nxt(tc),
 			 (unsigned long long)rm->m_ack_seq);

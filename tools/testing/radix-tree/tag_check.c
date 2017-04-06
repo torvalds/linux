@@ -23,7 +23,7 @@ __simple_checks(struct radix_tree_root *tree, unsigned long index, int tag)
 	item_tag_set(tree, index, tag);
 	ret = item_tag_get(tree, index, tag);
 	assert(ret != 0);
-	ret = radix_tree_range_tag_if_tagged(tree, &first, ~0UL, 10, tag, !tag);
+	ret = tag_tagged_items(tree, NULL, first, ~0UL, 10, tag, !tag);
 	assert(ret == 1);
 	ret = item_tag_get(tree, index, !tag);
 	assert(ret != 0);
@@ -49,9 +49,10 @@ void simple_checks(void)
 	}
 	verify_tag_consistency(&tree, 0);
 	verify_tag_consistency(&tree, 1);
-	printf("before item_kill_tree: %d allocated\n", nr_allocated);
+	printv(2, "before item_kill_tree: %d allocated\n", nr_allocated);
 	item_kill_tree(&tree);
-	printf("after item_kill_tree: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after item_kill_tree: %d allocated\n", nr_allocated);
 }
 
 /*
@@ -256,7 +257,7 @@ static void do_thrash(struct radix_tree_root *tree, char *thrash_state, int tag)
 
 		gang_check(tree, thrash_state, tag);
 
-		printf("%d(%d) %d(%d) %d(%d) %d(%d) / "
+		printv(2, "%d(%d) %d(%d) %d(%d) %d(%d) / "
 				"%d(%d) present, %d(%d) tagged\n",
 			insert_chunk, nr_inserted,
 			delete_chunk, nr_deleted,
@@ -295,13 +296,13 @@ static void __leak_check(void)
 {
 	RADIX_TREE(tree, GFP_KERNEL);
 
-	printf("%d: nr_allocated=%d\n", __LINE__, nr_allocated);
+	printv(2, "%d: nr_allocated=%d\n", __LINE__, nr_allocated);
 	item_insert(&tree, 1000000);
-	printf("%d: nr_allocated=%d\n", __LINE__, nr_allocated);
+	printv(2, "%d: nr_allocated=%d\n", __LINE__, nr_allocated);
 	item_delete(&tree, 1000000);
-	printf("%d: nr_allocated=%d\n", __LINE__, nr_allocated);
+	printv(2, "%d: nr_allocated=%d\n", __LINE__, nr_allocated);
 	item_kill_tree(&tree);
-	printf("%d: nr_allocated=%d\n", __LINE__, nr_allocated);
+	printv(2, "%d: nr_allocated=%d\n", __LINE__, nr_allocated);
 }
 
 static void single_check(void)
@@ -319,10 +320,13 @@ static void single_check(void)
 	assert(ret == 0);
 	verify_tag_consistency(&tree, 0);
 	verify_tag_consistency(&tree, 1);
-	ret = radix_tree_range_tag_if_tagged(&tree, &first, 10, 10, 0, 1);
+	ret = tag_tagged_items(&tree, NULL, first, 10, 10, 0, 1);
 	assert(ret == 1);
 	ret = radix_tree_gang_lookup_tag(&tree, (void **)items, 0, BATCH, 1);
 	assert(ret == 1);
+	item_tag_clear(&tree, 0, 0);
+	ret = radix_tree_gang_lookup_tag(&tree, (void **)items, 0, BATCH, 0);
+	assert(ret == 0);
 	item_kill_tree(&tree);
 }
 
@@ -331,12 +335,16 @@ void tag_check(void)
 	single_check();
 	extend_checks();
 	contract_checks();
-	printf("after extend_checks: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after extend_checks: %d allocated\n", nr_allocated);
 	__leak_check();
 	leak_check();
-	printf("after leak_check: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after leak_check: %d allocated\n", nr_allocated);
 	simple_checks();
-	printf("after simple_checks: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after simple_checks: %d allocated\n", nr_allocated);
 	thrash_tags();
-	printf("after thrash_tags: %d allocated\n", nr_allocated);
+	rcu_barrier();
+	printv(2, "after thrash_tags: %d allocated\n", nr_allocated);
 }

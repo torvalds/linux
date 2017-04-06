@@ -13,6 +13,7 @@
  *
  */
 
+#include <linux/ftrace.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/printk.h>
@@ -136,6 +137,8 @@ static void kasan_end_report(unsigned long *flags)
 	pr_err("==================================================================\n");
 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 	spin_unlock_irqrestore(&report_lock, *flags);
+	if (panic_on_warn)
+		panic("panic_on_warn set ...\n");
 	kasan_enable_current();
 }
 
@@ -297,6 +300,8 @@ void kasan_report(unsigned long addr, size_t size,
 
 	if (likely(!kasan_report_enabled()))
 		return;
+
+	disable_trace_on_warning();
 
 	info.access_addr = (void *)addr;
 	info.access_size = size;

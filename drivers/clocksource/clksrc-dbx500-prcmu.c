@@ -30,7 +30,7 @@
 
 static void __iomem *clksrc_dbx500_timer_base;
 
-static cycle_t notrace clksrc_dbx500_prcmu_read(struct clocksource *cs)
+static u64 notrace clksrc_dbx500_prcmu_read(struct clocksource *cs)
 {
 	void __iomem *base = clksrc_dbx500_timer_base;
 	u32 count, count2;

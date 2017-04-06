@@ -52,11 +52,9 @@ static inline void store_clock_comparator(__u64 *time)
 
 void clock_comparator_work(void);
 
-void __init ptff_init(void);
+void __init time_early_init(void);
 
 extern unsigned char ptff_function_mask[16];
-extern unsigned long lpar_offset;
-extern unsigned long initial_leap_seconds;
 
 /* Function codes for the ptff instruction. */
 #define PTFF_QAF	0x00	/* query available functions */
@@ -100,21 +98,28 @@ struct ptff_qui {
 	unsigned int pad_0x5c[41];
 } __packed;
 
-static inline int ptff(void *ptff_block, size_t len, unsigned int func)
-{
-	typedef struct { char _[len]; } addrtype;
-	register unsigned int reg0 asm("0") = func;
-	register unsigned long reg1 asm("1") = (unsigned long) ptff_block;
-	int rc;
-
-	asm volatile(
-		"	.word	0x0104\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (rc), "+m" (*(addrtype *) ptff_block)
-		: "d" (reg0), "d" (reg1) : "cc");
-	return rc;
-}
+/*
+ * ptff - Perform timing facility function
+ * @ptff_block: Pointer to ptff parameter block
+ * @len: Length of parameter block
+ * @func: Function code
+ * Returns: Condition code (0 on success)
+ */
+#define ptff(ptff_block, len, func)					\
+({									\
+	struct addrtype { char _[len]; };				\
+	register unsigned int reg0 asm("0") = func;			\
+	register unsigned long reg1 asm("1") = (unsigned long) (ptff_block);\
+	int rc;								\
+									\
+	asm volatile(							\
+		"	.word	0x0104\n"				\
+		"	ipm	%0\n"					\
+		"	srl	%0,28\n"				\
+		: "=d" (rc), "+m" (*(struct addrtype *) reg1)		\
+		: "d" (reg0), "d" (reg1) : "cc");			\
+	rc;								\
+})
 
 static inline unsigned long long local_tick_disable(void)
 {
@@ -172,14 +177,6 @@ static inline cycles_t get_cycles(void)
 int get_phys_clock(unsigned long long *clock);
 void init_cpu_timer(void);
 unsigned long long monotonic_clock(void);
-
-void tod_to_timeval(__u64 todval, struct timespec64 *xt);
-
-static inline
-void stck_to_timespec64(unsigned long long stck, struct timespec64 *ts)
-{
-	tod_to_timeval(stck - TOD_UNIX_EPOCH, ts);
-}
 
 extern u64 sched_clock_base_cc;
 

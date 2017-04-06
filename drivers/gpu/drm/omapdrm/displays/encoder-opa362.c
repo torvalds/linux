@@ -27,7 +27,7 @@ struct panel_drv_data {
 
 	struct gpio_desc *enable_gpio;
 
-	struct omap_video_timings timings;
+	struct videomode vm;
 };
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
@@ -90,7 +90,7 @@ static int opa362_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.atv->set_timings(in, &ddata->timings);
+	in->ops.atv->set_timings(in, &ddata->vm);
 
 	r = in->ops.atv->enable(in);
 	if (r)
@@ -123,38 +123,38 @@ static void opa362_disable(struct omap_dss_device *dssdev)
 }
 
 static void opa362_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+			       struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
 	dev_dbg(dssdev->dev, "set_timings\n");
 
-	ddata->timings = *timings;
-	dssdev->panel.timings = *timings;
+	ddata->vm = *vm;
+	dssdev->panel.vm = *vm;
 
-	in->ops.atv->set_timings(in, timings);
+	in->ops.atv->set_timings(in, vm);
 }
 
 static void opa362_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+			       struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
 	dev_dbg(dssdev->dev, "get_timings\n");
 
-	*timings = ddata->timings;
+	*vm = ddata->vm;
 }
 
 static int opa362_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+				struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
 	dev_dbg(dssdev->dev, "check_timings\n");
 
-	return in->ops.atv->check_timings(in, timings);
+	return in->ops.atv->check_timings(in, vm);
 }
 
 static void opa362_set_type(struct omap_dss_device *dssdev,

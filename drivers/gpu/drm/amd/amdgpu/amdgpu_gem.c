@@ -116,10 +116,11 @@ void amdgpu_gem_force_release(struct amdgpu_device *adev)
  * Call from drm_gem_handle_create which appear in both new and open ioctl
  * case.
  */
-int amdgpu_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_priv)
+int amdgpu_gem_object_open(struct drm_gem_object *obj,
+			   struct drm_file *file_priv)
 {
 	struct amdgpu_bo *abo = gem_to_amdgpu_bo(obj);
-	struct amdgpu_device *adev = abo->adev;
+	struct amdgpu_device *adev = amdgpu_ttm_adev(abo->tbo.bdev);
 	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_va *bo_va;
@@ -142,7 +143,7 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 			     struct drm_file *file_priv)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
-	struct amdgpu_device *adev = bo->adev;
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 
@@ -407,10 +408,8 @@ int amdgpu_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 	robj = gem_to_amdgpu_bo(gobj);
-	if (timeout == 0)
-		ret = reservation_object_test_signaled_rcu(robj->tbo.resv, true);
-	else
-		ret = reservation_object_wait_timeout_rcu(robj->tbo.resv, true, true, timeout);
+	ret = reservation_object_wait_timeout_rcu(robj->tbo.resv, true, true,
+						  timeout);
 
 	/* ret == 0 means not signaled,
 	 * ret > 0 means signaled
@@ -470,75 +469,65 @@ out:
 	return r;
 }
 
+static int amdgpu_gem_va_check(void *param, struct amdgpu_bo *bo)
+{
+	/* if anything is swapped out don't swap it in here,
+	   just abort and wait for the next CS */
+	if (!amdgpu_bo_gpu_accessible(bo))
+		return -ERESTARTSYS;
+
+	if (bo->shadow && !amdgpu_bo_gpu_accessible(bo->shadow))
+		return -ERESTARTSYS;
+
+	return 0;
+}
+
 /**
  * amdgpu_gem_va_update_vm -update the bo_va in its VM
  *
  * @adev: amdgpu_device pointer
  * @bo_va: bo_va to update
+ * @list: validation list
+ * @operation: map or unmap
  *
- * Update the bo_va directly after setting it's address. Errors are not
+ * Update the bo_va directly after setting its address. Errors are not
  * vital here, so they are not reported back to userspace.
  */
 static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
-				    struct amdgpu_bo_va *bo_va, uint32_t operation)
+				    struct amdgpu_bo_va *bo_va,
+				    struct list_head *list,
+				    uint32_t operation)
 {
-	struct ttm_validate_buffer tv, *entry;
-	struct amdgpu_bo_list_entry vm_pd;
-	struct ww_acquire_ctx ticket;
-	struct list_head list, duplicates;
-	unsigned domain;
-	int r;
+	struct ttm_validate_buffer *entry;
+	int r = -ERESTARTSYS;
 
-	INIT_LIST_HEAD(&list);
-	INIT_LIST_HEAD(&duplicates);
+	list_for_each_entry(entry, list, head) {
+		struct amdgpu_bo *bo =
+			container_of(entry->bo, struct amdgpu_bo, tbo);
+		if (amdgpu_gem_va_check(NULL, bo))
+			goto error;
+	}
 
-	tv.bo = &bo_va->bo->tbo;
-	tv.shared = true;
-	list_add(&tv.head, &list);
-
-	amdgpu_vm_get_pd_bo(bo_va->vm, &list, &vm_pd);
-
-	/* Provide duplicates to avoid -EALREADY */
-	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
+	r = amdgpu_vm_validate_pt_bos(adev, bo_va->vm, amdgpu_gem_va_check,
+				      NULL);
 	if (r)
-		goto error_print;
-
-	amdgpu_vm_get_pt_bos(adev, bo_va->vm, &duplicates);
-	list_for_each_entry(entry, &list, head) {
-		domain = amdgpu_mem_type_to_domain(entry->bo->mem.mem_type);
-		/* if anything is swapped out don't swap it in here,
-		   just abort and wait for the next CS */
-		if (domain == AMDGPU_GEM_DOMAIN_CPU)
-			goto error_unreserve;
-	}
-	list_for_each_entry(entry, &duplicates, head) {
-		domain = amdgpu_mem_type_to_domain(entry->bo->mem.mem_type);
-		/* if anything is swapped out don't swap it in here,
-		   just abort and wait for the next CS */
-		if (domain == AMDGPU_GEM_DOMAIN_CPU)
-			goto error_unreserve;
-	}
+		goto error;
 
 	r = amdgpu_vm_update_page_directory(adev, bo_va->vm);
 	if (r)
-		goto error_unreserve;
+		goto error;
 
 	r = amdgpu_vm_clear_freed(adev, bo_va->vm);
 	if (r)
-		goto error_unreserve;
+		goto error;
 
 	if (operation == AMDGPU_VA_OP_MAP)
 		r = amdgpu_vm_bo_update(adev, bo_va, false);
 
-error_unreserve:
-	ttm_eu_backoff_reservation(&ticket, &list);
-
-error_print:
+error:
 	if (r && r != -ERESTARTSYS)
 		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
 }
-
-
 
 int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp)
@@ -549,9 +538,10 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_bo *abo;
 	struct amdgpu_bo_va *bo_va;
-	struct ttm_validate_buffer tv, tv_pd;
+	struct amdgpu_bo_list_entry vm_pd;
+	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
-	struct list_head list, duplicates;
+	struct list_head list;
 	uint32_t invalid_flags, va_flags = 0;
 	int r = 0;
 
@@ -589,16 +579,13 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	abo = gem_to_amdgpu_bo(gobj);
 	INIT_LIST_HEAD(&list);
-	INIT_LIST_HEAD(&duplicates);
 	tv.bo = &abo->tbo;
-	tv.shared = true;
+	tv.shared = false;
 	list_add(&tv.head, &list);
 
-	tv_pd.bo = &fpriv->vm.page_directory->tbo;
-	tv_pd.shared = true;
-	list_add(&tv_pd.head, &list);
+	amdgpu_vm_get_pd_bo(&fpriv->vm, &list, &vm_pd);
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL);
 	if (r) {
 		drm_gem_object_unreference_unlocked(gobj);
 		return r;
@@ -629,10 +616,10 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	default:
 		break;
 	}
-	ttm_eu_backoff_reservation(&ticket, &list);
 	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) &&
 	    !amdgpu_vm_debug)
-		amdgpu_gem_va_update_vm(adev, bo_va, args->operation);
+		amdgpu_gem_va_update_vm(adev, bo_va, &list, args->operation);
+	ttm_eu_backoff_reservation(&ticket, &list);
 
 	drm_gem_object_unreference_unlocked(gobj);
 	return r;
@@ -704,7 +691,8 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	uint32_t handle;
 	int r;
 
-	args->pitch = amdgpu_align_pitch(adev, args->width, args->bpp, 0) * ((args->bpp + 1) / 8);
+	args->pitch = amdgpu_align_pitch(adev, args->width,
+					 DIV_ROUND_UP(args->bpp, 8), 0);
 	args->size = (u64)args->pitch * args->height;
 	args->size = ALIGN(args->size, PAGE_SIZE);
 

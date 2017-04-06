@@ -29,7 +29,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "i2c.h"
 
 #define D(x)

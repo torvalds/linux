@@ -15,6 +15,8 @@ int __node_distance(int from, int to);
 
 extern nodemask_t numa_nodes_parsed __initdata;
 
+extern bool numa_off;
+
 /* Mappings between node number and cpus on that node. */
 extern cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 void numa_clear_node(unsigned int cpu);

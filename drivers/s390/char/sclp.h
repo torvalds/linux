@@ -59,6 +59,7 @@
 
 typedef unsigned int sclp_cmdw_t;
 
+#define SCLP_CMDW_READ_CPU_INFO		0x00010001
 #define SCLP_CMDW_READ_EVENT_DATA	0x00770005
 #define SCLP_CMDW_WRITE_EVENT_DATA	0x00760005
 #define SCLP_CMDW_WRITE_EVENT_MASK	0x00780005
@@ -101,6 +102,28 @@ struct init_sccb {
 	sccb_mask_t sclp_receive_mask;
 	sccb_mask_t sclp_send_mask;
 } __attribute__((packed));
+
+struct read_cpu_info_sccb {
+	struct	sccb_header header;
+	u16	nr_configured;
+	u16	offset_configured;
+	u16	nr_standby;
+	u16	offset_standby;
+	u8	reserved[4096 - 16];
+} __attribute__((packed, aligned(PAGE_SIZE)));
+
+static inline void sclp_fill_core_info(struct sclp_core_info *info,
+				       struct read_cpu_info_sccb *sccb)
+{
+	char *page = (char *) sccb;
+
+	memset(info, 0, sizeof(*info));
+	info->configured = sccb->nr_configured;
+	info->standby = sccb->nr_standby;
+	info->combined = sccb->nr_configured + sccb->nr_standby;
+	memcpy(&info->core, page + sccb->offset_configured,
+	       info->combined * sizeof(struct sclp_core_entry));
+}
 
 #define SCLP_HAS_CHP_INFO	(sclp.facilities & 0x8000000000000000ULL)
 #define SCLP_HAS_CHP_RECONFIG	(sclp.facilities & 0x2000000000000000ULL)
@@ -181,18 +204,56 @@ void sclp_unregister(struct sclp_register *reg);
 int sclp_remove_processed(struct sccb_header *sccb);
 int sclp_deactivate(void);
 int sclp_reactivate(void);
-int sclp_service_call(sclp_cmdw_t command, void *sccb);
 int sclp_sync_request(sclp_cmdw_t command, void *sccb);
 int sclp_sync_request_timeout(sclp_cmdw_t command, void *sccb, int timeout);
 
 int sclp_sdias_init(void);
 void sclp_sdias_exit(void);
 
+enum {
+	sclp_init_state_uninitialized,
+	sclp_init_state_initializing,
+	sclp_init_state_initialized
+};
+
+extern int sclp_init_state;
 extern int sclp_console_pages;
 extern int sclp_console_drop;
 extern unsigned long sclp_console_full;
 
+extern char sclp_early_sccb[PAGE_SIZE];
+
+void sclp_early_wait_irq(void);
+int sclp_early_cmd(sclp_cmdw_t cmd, void *sccb);
+unsigned int sclp_early_con_check_linemode(struct init_sccb *sccb);
+int sclp_early_set_event_mask(struct init_sccb *sccb,
+			      unsigned long receive_mask,
+			      unsigned long send_mask);
+
 /* useful inlines */
+
+/* Perform service call. Return 0 on success, non-zero otherwise. */
+static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
+{
+	int cc = 4; /* Initialize for program check handling */
+
+	asm volatile(
+		"0:	.insn	rre,0xb2200000,%1,%2\n"	 /* servc %1,%2 */
+		"1:	ipm	%0\n"
+		"	srl	%0,28\n"
+		"2:\n"
+		EX_TABLE(0b, 2b)
+		EX_TABLE(1b, 2b)
+		: "+&d" (cc) : "d" (command), "a" ((unsigned long)sccb)
+		: "cc", "memory");
+	if (cc == 4)
+		return -EINVAL;
+	if (cc == 3)
+		return -EIO;
+	if (cc == 2)
+		return -EBUSY;
+	return 0;
+}
 
 /* VM uses EBCDIC 037, LPAR+native(SE+HMC) use EBCDIC 500 */
 /* translate single character from ASCII to EBCDIC */

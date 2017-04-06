@@ -16,7 +16,7 @@
 #include <linux/random.h>
 #include <linux/percpu.h>
 #include <asm/tlbflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "lg.h"
 
 /*M:008

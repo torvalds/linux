@@ -30,7 +30,7 @@
 #include <asm/elf.h>
 #include <asm/pgtable-bits.h>
 #include <asm/spram.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Hardware capabilities */
 unsigned int elf_hwcap __read_mostly;

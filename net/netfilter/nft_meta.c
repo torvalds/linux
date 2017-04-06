@@ -36,7 +36,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct sk_buff *skb = pkt->skb;
-	const struct net_device *in = pkt->in, *out = pkt->out;
+	const struct net_device *in = nft_in(pkt), *out = nft_out(pkt);
 	struct sock *sk;
 	u32 *dest = &regs->data[priv->dreg];
 
@@ -49,7 +49,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		*(__be16 *)dest = skb->protocol;
 		break;
 	case NFT_META_NFPROTO:
-		*dest = pkt->pf;
+		*dest = nft_pf(pkt);
 		break;
 	case NFT_META_L4PROTO:
 		if (!pkt->tprot_set)
@@ -146,7 +146,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 			break;
 		}
 
-		switch (pkt->pf) {
+		switch (nft_pf(pkt)) {
 		case NFPROTO_IPV4:
 			if (ipv4_is_multicast(ip_hdr(skb)->daddr))
 				*dest = PACKET_MULTICAST;
@@ -154,13 +154,36 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 				*dest = PACKET_BROADCAST;
 			break;
 		case NFPROTO_IPV6:
-			if (ipv6_hdr(skb)->daddr.s6_addr[0] == 0xFF)
+			*dest = PACKET_MULTICAST;
+			break;
+		case NFPROTO_NETDEV:
+			switch (skb->protocol) {
+			case htons(ETH_P_IP): {
+				int noff = skb_network_offset(skb);
+				struct iphdr *iph, _iph;
+
+				iph = skb_header_pointer(skb, noff,
+							 sizeof(_iph), &_iph);
+				if (!iph)
+					goto err;
+
+				if (ipv4_is_multicast(iph->daddr))
+					*dest = PACKET_MULTICAST;
+				else
+					*dest = PACKET_BROADCAST;
+
+				break;
+			}
+			case htons(ETH_P_IPV6):
 				*dest = PACKET_MULTICAST;
-			else
-				*dest = PACKET_BROADCAST;
+				break;
+			default:
+				WARN_ON_ONCE(1);
+				goto err;
+			}
 			break;
 		default:
-			WARN_ON(1);
+			WARN_ON_ONCE(1);
 			goto err;
 		}
 		break;
@@ -309,6 +332,11 @@ int nft_meta_set_validate(const struct nft_ctx *ctx,
 		break;
 	case NFPROTO_NETDEV:
 		hooks = 1 << NF_NETDEV_INGRESS;
+		break;
+	case NFPROTO_IPV4:
+	case NFPROTO_IPV6:
+	case NFPROTO_INET:
+		hooks = 1 << NF_INET_PRE_ROUTING;
 		break;
 	default:
 		return -EOPNOTSUPP;

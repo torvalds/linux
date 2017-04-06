@@ -47,6 +47,12 @@ struct mlx5_wq_ctrl {
 	struct mlx5_db		db;
 };
 
+struct mlx5_frag_wq_ctrl {
+	struct mlx5_core_dev	*mdev;
+	struct mlx5_frag_buf	frag_buf;
+	struct mlx5_db		db;
+};
+
 struct mlx5_wq_cyc {
 	void			*buf;
 	__be32			*db;
@@ -55,12 +61,14 @@ struct mlx5_wq_cyc {
 };
 
 struct mlx5_cqwq {
-	void			*buf;
+	struct mlx5_frag_buf	frag_buf;
 	__be32			*db;
 	u32			sz_m1;
+	u32			frag_sz_m1;
 	u32			cc; /* consumer counter */
 	u8			log_sz;
 	u8			log_stride;
+	u8			log_frag_strides;
 };
 
 struct mlx5_wq_ll {
@@ -81,7 +89,7 @@ u32 mlx5_wq_cyc_get_size(struct mlx5_wq_cyc *wq);
 
 int mlx5_cqwq_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		     void *cqc, struct mlx5_cqwq *wq,
-		     struct mlx5_wq_ctrl *wq_ctrl);
+		     struct mlx5_frag_wq_ctrl *wq_ctrl);
 u32 mlx5_cqwq_get_size(struct mlx5_cqwq *wq);
 
 int mlx5_wq_ll_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
@@ -90,6 +98,7 @@ int mlx5_wq_ll_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 u32 mlx5_wq_ll_get_size(struct mlx5_wq_ll *wq);
 
 void mlx5_wq_destroy(struct mlx5_wq_ctrl *wq_ctrl);
+void mlx5_cqwq_destroy(struct mlx5_frag_wq_ctrl *wq_ctrl);
 
 static inline u16 mlx5_wq_cyc_ctr2ix(struct mlx5_wq_cyc *wq, u16 ctr)
 {
@@ -116,7 +125,10 @@ static inline u32 mlx5_cqwq_get_ci(struct mlx5_cqwq *wq)
 
 static inline void *mlx5_cqwq_get_wqe(struct mlx5_cqwq *wq, u32 ix)
 {
-	return wq->buf + (ix << wq->log_stride);
+	unsigned int frag = (ix >> wq->log_frag_strides);
+
+	return wq->frag_buf.frags[frag].buf +
+		((wq->frag_sz_m1 & ix) << wq->log_stride);
 }
 
 static inline u32 mlx5_cqwq_get_wrap_cnt(struct mlx5_cqwq *wq)

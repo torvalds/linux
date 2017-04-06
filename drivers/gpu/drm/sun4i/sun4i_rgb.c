@@ -110,12 +110,6 @@ static struct drm_connector_helper_funcs sun4i_rgb_con_helper_funcs = {
 	.mode_valid	= sun4i_rgb_mode_valid,
 };
 
-static enum drm_connector_status
-sun4i_rgb_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static void
 sun4i_rgb_connector_destroy(struct drm_connector *connector)
 {
@@ -129,7 +123,6 @@ sun4i_rgb_connector_destroy(struct drm_connector *connector)
 
 static struct drm_connector_funcs sun4i_rgb_con_funcs = {
 	.dpms			= drm_atomic_helper_connector_dpms,
-	.detect			= sun4i_rgb_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.destroy		= sun4i_rgb_connector_destroy,
 	.reset			= drm_atomic_helper_connector_reset,
@@ -215,6 +208,7 @@ int sun4i_rgb_init(struct drm_device *drm)
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sun4i_tcon *tcon = drv->tcon;
 	struct drm_encoder *encoder;
+	struct drm_bridge *bridge;
 	struct sun4i_rgb *rgb;
 	int ret;
 
@@ -225,8 +219,8 @@ int sun4i_rgb_init(struct drm_device *drm)
 	encoder = &rgb->encoder;
 
 	tcon->panel = sun4i_tcon_find_panel(tcon->dev->of_node);
-	encoder->bridge = sun4i_tcon_find_bridge(tcon->dev->of_node);
-	if (IS_ERR(tcon->panel) && IS_ERR(encoder->bridge)) {
+	bridge = sun4i_tcon_find_bridge(tcon->dev->of_node);
+	if (IS_ERR(tcon->panel) && IS_ERR(bridge)) {
 		dev_info(drm->dev, "No panel or bridge found... RGB output disabled\n");
 		return 0;
 	}
@@ -267,16 +261,12 @@ int sun4i_rgb_init(struct drm_device *drm)
 		}
 	}
 
-	if (!IS_ERR(encoder->bridge)) {
-		encoder->bridge->encoder = &rgb->encoder;
-
-		ret = drm_bridge_attach(drm, encoder->bridge);
+	if (!IS_ERR(bridge)) {
+		ret = drm_bridge_attach(encoder, bridge, NULL);
 		if (ret) {
 			dev_err(drm->dev, "Couldn't attach our bridge\n");
 			goto err_cleanup_connector;
 		}
-	} else {
-		encoder->bridge = NULL;
 	}
 
 	return 0;

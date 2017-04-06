@@ -485,7 +485,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	bool crcb_mode = false;
 	u32 val;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_NV12:
 		crcb_mode = false;
 		break;
@@ -494,7 +494,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 		break;
 	default:
 		DRM_ERROR("pixel format for vp is wrong [%d].\n",
-				fb->pixel_format);
+				fb->format->format);
 		return;
 	}
 
@@ -597,7 +597,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	unsigned int fmt;
 	u32 val;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_XRGB4444:
 	case DRM_FORMAT_ARGB4444:
 		fmt = MXR_FORMAT_ARGB4444;
@@ -631,7 +631,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 
 	/* converting dma address base and source offset */
 	dma_addr = exynos_drm_fb_dma_addr(fb, 0)
-		+ (state->src.x * fb->bits_per_pixel >> 3)
+		+ (state->src.x * fb->format->cpp[0])
 		+ (state->src.y * fb->pitches[0]);
 	src_x_offset = 0;
 	src_y_offset = 0;
@@ -649,7 +649,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 
 	/* setup geometry */
 	mixer_reg_write(res, MXR_GRAPHIC_SPAN(win),
-			fb->pitches[0] / (fb->bits_per_pixel >> 3));
+			fb->pitches[0] / fb->format->cpp[0]);
 
 	/* setup display size */
 	if (ctx->mxr_ver == MXR_VER_128_0_0_184 &&
@@ -681,7 +681,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	mixer_cfg_scan(ctx, mode->vdisplay);
 	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
 	mixer_cfg_layer(ctx, win, priority, true);
-	mixer_cfg_gfx_blend(ctx, win, is_alpha_format(fb->pixel_format));
+	mixer_cfg_gfx_blend(ctx, win, is_alpha_format(fb->format->format));
 
 	/* layer update mandatory for mixer 16.0.33.0 */
 	if (ctx->mxr_ver == MXR_VER_16_0_33_0 ||
@@ -701,7 +701,7 @@ static void vp_win_reset(struct mixer_context *ctx)
 	unsigned int tries = 100;
 
 	vp_reg_write(res, VP_SRESET, VP_SRESET_PROCESSING);
-	while (tries--) {
+	while (--tries) {
 		/* waiting until VP_SRESET_PROCESSING is 0 */
 		if (~vp_reg_read(res, VP_SRESET) & VP_SRESET_PROCESSING)
 			break;

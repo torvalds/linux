@@ -202,7 +202,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 
 	/* try and do the mount */
 	_debug("--- attempting mount %s -o %s ---", devname, options);
-	mnt = vfs_kern_mount(&afs_fs_type, 0, devname, options);
+	mnt = vfs_submount(mntpt, &afs_fs_type, devname, options);
 	_debug("--- mount result %p ---", mnt);
 
 	free_page((unsigned long) devname);

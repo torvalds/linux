@@ -672,8 +672,7 @@ struct iwl_mac_beacon_cmd_v6 {
 } __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_6 */
 
 /**
- * struct iwl_mac_beacon_cmd - beacon template command with offloaded CSA
- * @tx: the tx commands associated with the beacon frame
+ * struct iwl_mac_beacon_cmd_data - data of beacon template with offloaded CSA
  * @template_id: currently equal to the mac context id of the coresponding
  *  mac.
  * @tim_idx: the offset of the tim IE in the beacon
@@ -682,15 +681,37 @@ struct iwl_mac_beacon_cmd_v6 {
  * @csa_offset: offset to the CSA IE if present
  * @frame: the template of the beacon frame
  */
-struct iwl_mac_beacon_cmd {
-	struct iwl_tx_cmd tx;
+struct iwl_mac_beacon_cmd_data {
 	__le32 template_id;
 	__le32 tim_idx;
 	__le32 tim_size;
 	__le32 ecsa_offset;
 	__le32 csa_offset;
 	struct ieee80211_hdr frame[0];
+};
+
+/**
+ * struct iwl_mac_beacon_cmd_v7 - beacon template command with offloaded CSA
+ * @tx: the tx commands associated with the beacon frame
+ * @data: see &iwl_mac_beacon_cmd_data
+ */
+struct iwl_mac_beacon_cmd_v7 {
+	struct iwl_tx_cmd tx;
+	struct iwl_mac_beacon_cmd_data data;
 } __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_7 */
+
+/**
+ * struct iwl_mac_beacon_cmd - beacon template command with offloaded CSA
+ * @byte_cnt: byte count of the beacon frame
+ * @flags: for future use
+ * @data: see &iwl_mac_beacon_cmd_data
+ */
+struct iwl_mac_beacon_cmd {
+	__le16 byte_cnt;
+	__le16 flags;
+	__le64 reserved;
+	struct iwl_mac_beacon_cmd_data data;
+} __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_8 */
 
 struct iwl_beacon_notif {
 	struct iwl_mvm_tx_resp beacon_notify_hdr;

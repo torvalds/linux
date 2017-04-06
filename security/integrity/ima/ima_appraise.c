@@ -130,6 +130,7 @@ enum hash_algo ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
 				 int xattr_len)
 {
 	struct signature_v2_hdr *sig;
+	enum hash_algo ret;
 
 	if (!xattr_value || xattr_len < 2)
 		/* return default hash algo */
@@ -143,7 +144,9 @@ enum hash_algo ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
 		return sig->hash_algo;
 		break;
 	case IMA_XATTR_DIGEST_NG:
-		return xattr_value->digest[0];
+		ret = xattr_value->digest[0];
+		if (ret < HASH_ALGO__LAST)
+			return ret;
 		break;
 	case IMA_XATTR_DIGEST:
 		/* this is for backward compatibility */
@@ -384,14 +387,10 @@ int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 	result = ima_protect_xattr(dentry, xattr_name, xattr_value,
 				   xattr_value_len);
 	if (result == 1) {
-		bool digsig;
-
 		if (!xattr_value_len || (xvalue->type >= IMA_XATTR_LAST))
 			return -EINVAL;
-		digsig = (xvalue->type == EVM_IMA_XATTR_DIGSIG);
-		if (!digsig && (ima_appraise & IMA_APPRAISE_ENFORCE))
-			return -EPERM;
-		ima_reset_appraise_flags(d_backing_inode(dentry), digsig);
+		ima_reset_appraise_flags(d_backing_inode(dentry),
+			 (xvalue->type == EVM_IMA_XATTR_DIGSIG) ? 1 : 0);
 		result = 0;
 	}
 	return result;

@@ -13,7 +13,22 @@ config PRINTK_TIME
 	  be included, not that the timestamp is recorded.
 
 	  The behavior is also controlled by the kernel command line
-	  parameter printk.time=1. See Documentation/kernel-parameters.txt
+	  parameter printk.time=1. See Documentation/admin-guide/kernel-parameters.rst
+
+config CONSOLE_LOGLEVEL_DEFAULT
+	int "Default console loglevel (1-15)"
+	range 1 15
+	default "7"
+	help
+	  Default loglevel to determine what will be printed on the console.
+
+	  Setting a default here is equivalent to passing in loglevel=<x> in
+	  the kernel bootargs. loglevel=<x> continues to override whatever
+	  value is specified here as well.
+
+	  Note: This does not affect the log level of un-prefixed printk()
+	  usage in the kernel. That is controlled by the MESSAGE_LOGLEVEL_DEFAULT
+	  option.
 
 config MESSAGE_LOGLEVEL_DEFAULT
 	int "Default message log level (1-7)"
@@ -25,6 +40,10 @@ config MESSAGE_LOGLEVEL_DEFAULT
 	  This was hard-coded to KERN_WARNING since at least 2.6.10 but folks
 	  that are auditing their logs closely may want to set it to a lower
 	  priority.
+
+	  Note: This does not affect what message level gets printed on the console
+	  by default. To change that, use loglevel=<x> in the kernel bootargs,
+	  or pick a different CONSOLE_LOGLEVEL_DEFAULT configuration value.
 
 config BOOT_PRINTK_DELAY
 	bool "Delay each boot printk message by N milliseconds"
@@ -145,7 +164,7 @@ config DEBUG_INFO_REDUCED
 
 config DEBUG_INFO_SPLIT
 	bool "Produce split debuginfo in .dwo files"
-	depends on DEBUG_INFO
+	depends on DEBUG_INFO && !FRV
 	help
 	  Generate debug info into separate .dwo files. This significantly
 	  reduces the build directory size for builds with DEBUG_INFO,
@@ -175,8 +194,8 @@ config GDB_SCRIPTS
 	  build directory. If you load vmlinux into gdb, the helper
 	  scripts will be automatically imported by gdb as well, and
 	  additional functions are available to analyze a Linux kernel
-	  instance. See Documentation/gdb-kernel-debugging.txt for further
-	  details.
+	  instance. See Documentation/dev-tools/gdb-kernel-debugging.rst
+	  for further details.
 
 config ENABLE_WARN_DEPRECATED
 	bool "Enable __deprecated logic"
@@ -397,6 +416,16 @@ config MAGIC_SYSRQ_DEFAULT_ENABLE
 	  This may be set to 1 or 0 to enable or disable them all, or
 	  to a bitmask as described in Documentation/sysrq.txt.
 
+config MAGIC_SYSRQ_SERIAL
+	bool "Enable magic SysRq key over serial"
+	depends on MAGIC_SYSRQ
+	default y
+	help
+	  Many embedded boards have a disconnected TTL level serial which can
+	  generate some garbage that can lead to spurious false sysrq detects.
+	  This option allows you to decide whether you want to enable the
+	  magic SysRq key.
+
 config DEBUG_KERNEL
 	bool "Kernel debugging"
 	help
@@ -523,7 +552,7 @@ config DEBUG_KMEMLEAK
 	  difference being that the orphan objects are not freed but
 	  only shown in /sys/kernel/debug/kmemleak. Enabling this
 	  feature will introduce an overhead to memory
-	  allocations. See Documentation/kmemleak.txt for more
+	  allocations. See Documentation/dev-tools/kmemleak.rst for more
 	  details.
 
 	  Enabling DEBUG_SLAB or SLUB_DEBUG may increase the chances
@@ -603,9 +632,12 @@ config DEBUG_VM_PGFLAGS
 
 	  If unsure, say N.
 
+config ARCH_HAS_DEBUG_VIRTUAL
+	bool
+
 config DEBUG_VIRTUAL
 	bool "Debug VM translations"
-	depends on DEBUG_KERNEL && X86
+	depends on DEBUG_KERNEL && ARCH_HAS_DEBUG_VIRTUAL
 	help
 	  Enable some costly sanity checks in virtual to page code. This can
 	  catch mistakes with virt_to_page() and friends.
@@ -720,7 +752,7 @@ config KCOV
 	  different machines and across reboots. If you need stable PC values,
 	  disable RANDOMIZE_BASE.
 
-	  For more details, see Documentation/kcov.txt.
+	  For more details, see Documentation/dev-tools/kcov.rst.
 
 config KCOV_INSTRUMENT_ALL
 	bool "Instrument all code by default"
@@ -961,20 +993,6 @@ config DEBUG_TIMEKEEPING
 
 	  If unsure, say N.
 
-config TIMER_STATS
-	bool "Collect kernel timers statistics"
-	depends on DEBUG_KERNEL && PROC_FS
-	help
-	  If you say Y here, additional code will be inserted into the
-	  timer routines to collect statistics about kernel timers being
-	  reprogrammed. The statistics can be read from /proc/timer_stats.
-	  The statistics collection is started by writing 1 to /proc/timer_stats,
-	  writing 0 stops it. This feature is useful to collect information
-	  about timer usage patterns in kernel and userspace. This feature
-	  is lightweight if enabled in the kernel config but not activated
-	  (it defaults to deactivated on bootup and will only be activated
-	  if some application like powertop activates it explicitly).
-
 config DEBUG_PREEMPT
 	bool "Debug preemptible kernel"
 	depends on DEBUG_KERNEL && PREEMPT && TRACE_IRQFLAGS_SUPPORT
@@ -1161,6 +1179,18 @@ config LOCK_TORTURE_TEST
 	  Say M if you want these torture tests to build as a module.
 	  Say N if you are unsure.
 
+config WW_MUTEX_SELFTEST
+	tristate "Wait/wound mutex selftests"
+	help
+	  This option provides a kernel module that runs tests on the
+	  on the struct ww_mutex locking API.
+
+	  It is recommended to enable DEBUG_WW_MUTEX_SLOWPATH in conjunction
+	  with this test harness.
+
+	  Say M if you want these self tests to build as a module.
+	  Say N if you are unsure.
+
 endmenu # lock debugging
 
 config TRACE_IRQFLAGS
@@ -1218,7 +1248,7 @@ config DEBUG_BUGVERBOSE
 
 config DEBUG_LIST
 	bool "Debug linked list manipulation"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL || BUG_ON_DATA_CORRUPTION
 	help
 	  Enable this to turn on extended checks in the linked-list
 	  walking routines.
@@ -1431,10 +1461,12 @@ config RCU_CPU_STALL_TIMEOUT
 config RCU_TRACE
 	bool "Enable tracing for RCU"
 	depends on DEBUG_KERNEL
+	default y if TREE_RCU
 	select TRACE_CLOCK
 	help
 	  This option provides tracing in RCU which presents stats
-	  in debugfs for debugging RCU implementation.
+	  in debugfs for debugging RCU implementation.  It also enables
+	  additional tracepoints for ftrace-style event tracing.
 
 	  Say Y here if you want to enable RCU tracing
 	  Say N if you are unsure.
@@ -1517,30 +1549,6 @@ config NOTIFIER_ERROR_INJECTION
 	  handling of notifier call chain failures.
 
 	  Say N if unsure.
-
-config CPU_NOTIFIER_ERROR_INJECT
-	tristate "CPU notifier error injection module"
-	depends on HOTPLUG_CPU && NOTIFIER_ERROR_INJECTION
-	help
-	  This option provides a kernel module that can be used to test
-	  the error handling of the cpu notifiers by injecting artificial
-	  errors to CPU notifier chain callbacks.  It is controlled through
-	  debugfs interface under /sys/kernel/debug/notifier-error-inject/cpu
-
-	  If the notifier call chain should be failed with some events
-	  notified, write the error code to "actions/<notifier event>/error".
-
-	  Example: Inject CPU offline error (-1 == -EPERM)
-
-	  # cd /sys/kernel/debug/notifier-error-inject/cpu
-	  # echo -1 > actions/CPU_DOWN_PREPARE/error
-	  # echo 0 > /sys/devices/system/cpu/cpu1/online
-	  bash: echo: write error: Operation not permitted
-
-	  To compile this code as a module, choose M here: the module will
-	  be called cpu-notifier-error-inject.
-
-	  If unsure, say N.
 
 config PM_NOTIFIER_ERROR_INJECT
 	tristate "PM notifier error injection module"
@@ -1718,6 +1726,14 @@ config TEST_LIST_SORT
 
 	  If unsure, say N.
 
+config TEST_SORT
+	bool "Array-based sort test"
+	depends on DEBUG_KERNEL
+	help
+	  This option enables the self-test function of 'sort()' at boot.
+
+	  If unsure, say N.
+
 config KPROBES_SANITY_TEST
 	bool "Kprobes sanity tests"
 	depends on DEBUG_KERNEL
@@ -1769,9 +1785,10 @@ config PERCPU_TEST
 	  If unsure, say N.
 
 config ATOMIC64_SELFTEST
-	bool "Perform an atomic64_t self-test at boot"
+	tristate "Perform an atomic64_t self-test"
 	help
-	  Enable this option to test the atomic64_t functions at boot.
+	  Enable this option to test the atomic64_t functions at boot or
+	  at module load time.
 
 	  If unsure, say N.
 
@@ -1823,12 +1840,22 @@ config TEST_HASH
 	tristate "Perform selftest on hash functions"
 	default n
 	help
-	  Enable this option to test the kernel's integer (<linux/hash,h>)
-	  and string (<linux/stringhash.h>) hash functions on boot
-	  (or module load).
+	  Enable this option to test the kernel's integer (<linux/hash.h>),
+	  string (<linux/stringhash.h>), and siphash (<linux/siphash.h>)
+	  hash functions on boot (or module load).
 
 	  This is intended to help people writing architecture-specific
 	  optimized versions.  If unsure, say N.
+
+config TEST_PARMAN
+	tristate "Perform selftest on priority array manager"
+	default n
+	depends on PARMAN
+	help
+	  Enable this option to test priority array manager on boot
+	  (or module load).
+
+	  If unsure, say N.
 
 endmenu # runtime tests
 
@@ -1964,6 +1991,16 @@ config TEST_STATIC_KEYS
 
 	  If unsure, say N.
 
+config BUG_ON_DATA_CORRUPTION
+	bool "Trigger a BUG when data corruption is detected"
+	select DEBUG_LIST
+	help
+	  Select this option if the kernel should BUG when it encounters
+	  data corruption in kernel memory structures when they get checked
+	  for validity.
+
+	  If unsure, say N.
+
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"
@@ -1975,7 +2012,7 @@ config ARCH_HAS_DEVMEM_IS_ALLOWED
 
 config STRICT_DEVMEM
 	bool "Filter access to /dev/mem"
-	depends on MMU
+	depends on MMU && DEVMEM
 	depends on ARCH_HAS_DEVMEM_IS_ALLOWED
 	default y if TILE || PPC
 	---help---

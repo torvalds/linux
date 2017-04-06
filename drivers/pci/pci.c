@@ -564,10 +564,6 @@ static void pci_restore_bars(struct pci_dev *dev)
 {
 	int i;
 
-	/* Per SR-IOV spec 3.4.1.11, VF BARs are RO zero */
-	if (dev->is_virtfn)
-		return;
-
 	for (i = 0; i < PCI_BRIDGE_RESOURCES; i++)
 		pci_update_resource(dev, i);
 }
@@ -2106,6 +2102,10 @@ bool pci_dev_run_wake(struct pci_dev *dev)
 	if (!dev->pme_support)
 		return false;
 
+	/* PME-capable in principle, but not from the intended sleep state */
+	if (!pci_pme_capable(dev, pci_target_state(dev)))
+		return false;
+
 	while (bus->parent) {
 		struct pci_dev *bridge = bus->self;
 
@@ -2226,7 +2226,7 @@ void pci_config_pm_runtime_put(struct pci_dev *pdev)
  * This function checks if it is possible to move the bridge to D3.
  * Currently we only allow D3 for recent enough PCIe ports.
  */
-static bool pci_bridge_d3_possible(struct pci_dev *bridge)
+bool pci_bridge_d3_possible(struct pci_dev *bridge)
 {
 	unsigned int year;
 
@@ -2239,6 +2239,17 @@ static bool pci_bridge_d3_possible(struct pci_dev *bridge)
 	case PCI_EXP_TYPE_DOWNSTREAM:
 		if (pci_bridge_d3_disable)
 			return false;
+
+		/*
+		 * Hotplug interrupts cannot be delivered if the link is down,
+		 * so parents of a hotplug port must stay awake. In addition,
+		 * hotplug ports handled by firmware in System Management Mode
+		 * may not be put into D3 by the OS (Thunderbolt on non-Macs).
+		 * For simplicity, disallow in general for now.
+		 */
+		if (bridge->is_hotplug_bridge)
+			return false;
+
 		if (pci_bridge_d3_force)
 			return true;
 
@@ -2259,32 +2270,33 @@ static bool pci_bridge_d3_possible(struct pci_dev *bridge)
 static int pci_dev_check_d3cold(struct pci_dev *dev, void *data)
 {
 	bool *d3cold_ok = data;
-	bool no_d3cold;
 
-	/*
-	 * The device needs to be allowed to go D3cold and if it is wake
-	 * capable to do so from D3cold.
-	 */
-	no_d3cold = dev->no_d3cold || !dev->d3cold_allowed ||
-		(device_may_wakeup(&dev->dev) && !pci_pme_capable(dev, PCI_D3cold)) ||
-		!pci_power_manageable(dev);
+	if (/* The device needs to be allowed to go D3cold ... */
+	    dev->no_d3cold || !dev->d3cold_allowed ||
 
-	*d3cold_ok = !no_d3cold;
+	    /* ... and if it is wakeup capable to do so from D3cold. */
+	    (device_may_wakeup(&dev->dev) &&
+	     !pci_pme_capable(dev, PCI_D3cold)) ||
 
-	return no_d3cold;
+	    /* If it is a bridge it must be allowed to go to D3. */
+	    !pci_power_manageable(dev))
+
+		*d3cold_ok = false;
+
+	return !*d3cold_ok;
 }
 
 /*
  * pci_bridge_d3_update - Update bridge D3 capabilities
  * @dev: PCI device which is changed
- * @remove: Is the device being removed
  *
  * Update upstream bridge PM capabilities accordingly depending on if the
  * device PM configuration was changed or the device is being removed.  The
  * change is also propagated upstream.
  */
-static void pci_bridge_d3_update(struct pci_dev *dev, bool remove)
+void pci_bridge_d3_update(struct pci_dev *dev)
 {
+	bool remove = !device_is_registered(&dev->dev);
 	struct pci_dev *bridge;
 	bool d3cold_ok = true;
 
@@ -2292,55 +2304,39 @@ static void pci_bridge_d3_update(struct pci_dev *dev, bool remove)
 	if (!bridge || !pci_bridge_d3_possible(bridge))
 		return;
 
-	pci_dev_get(bridge);
 	/*
-	 * If the device is removed we do not care about its D3cold
-	 * capabilities.
+	 * If D3 is currently allowed for the bridge, removing one of its
+	 * children won't change that.
+	 */
+	if (remove && bridge->bridge_d3)
+		return;
+
+	/*
+	 * If D3 is currently allowed for the bridge and a child is added or
+	 * changed, disallowance of D3 can only be caused by that child, so
+	 * we only need to check that single device, not any of its siblings.
+	 *
+	 * If D3 is currently not allowed for the bridge, checking the device
+	 * first may allow us to skip checking its siblings.
 	 */
 	if (!remove)
 		pci_dev_check_d3cold(dev, &d3cold_ok);
 
-	if (d3cold_ok) {
-		/*
-		 * We need to go through all children to find out if all of
-		 * them can still go to D3cold.
-		 */
+	/*
+	 * If D3 is currently not allowed for the bridge, this may be caused
+	 * either by the device being changed/removed or any of its siblings,
+	 * so we need to go through all children to find out if one of them
+	 * continues to block D3.
+	 */
+	if (d3cold_ok && !bridge->bridge_d3)
 		pci_walk_bus(bridge->subordinate, pci_dev_check_d3cold,
 			     &d3cold_ok);
-	}
 
 	if (bridge->bridge_d3 != d3cold_ok) {
 		bridge->bridge_d3 = d3cold_ok;
 		/* Propagate change to upstream bridges */
-		pci_bridge_d3_update(bridge, false);
+		pci_bridge_d3_update(bridge);
 	}
-
-	pci_dev_put(bridge);
-}
-
-/**
- * pci_bridge_d3_device_changed - Update bridge D3 capabilities on change
- * @dev: PCI device that was changed
- *
- * If a device is added or its PM configuration, such as is it allowed to
- * enter D3cold, is changed this function updates upstream bridge PM
- * capabilities accordingly.
- */
-void pci_bridge_d3_device_changed(struct pci_dev *dev)
-{
-	pci_bridge_d3_update(dev, false);
-}
-
-/**
- * pci_bridge_d3_device_removed - Update bridge D3 capabilities on remove
- * @dev: PCI device being removed
- *
- * Function updates upstream bridge PM capabilities based on other devices
- * still left on the bus.
- */
-void pci_bridge_d3_device_removed(struct pci_dev *dev)
-{
-	pci_bridge_d3_update(dev, true);
 }
 
 /**
@@ -2355,7 +2351,7 @@ void pci_d3cold_enable(struct pci_dev *dev)
 {
 	if (dev->no_d3cold) {
 		dev->no_d3cold = false;
-		pci_bridge_d3_device_changed(dev);
+		pci_bridge_d3_update(dev);
 	}
 }
 EXPORT_SYMBOL_GPL(pci_d3cold_enable);
@@ -2372,7 +2368,7 @@ void pci_d3cold_disable(struct pci_dev *dev)
 {
 	if (!dev->no_d3cold) {
 		dev->no_d3cold = true;
-		pci_bridge_d3_device_changed(dev);
+		pci_bridge_d3_update(dev);
 	}
 }
 EXPORT_SYMBOL_GPL(pci_d3cold_disable);
@@ -4830,36 +4826,6 @@ int pci_select_bars(struct pci_dev *dev, unsigned long flags)
 	return bars;
 }
 EXPORT_SYMBOL(pci_select_bars);
-
-/**
- * pci_resource_bar - get position of the BAR associated with a resource
- * @dev: the PCI device
- * @resno: the resource number
- * @type: the BAR type to be filled in
- *
- * Returns BAR position in config space, or 0 if the BAR is invalid.
- */
-int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type)
-{
-	int reg;
-
-	if (resno < PCI_ROM_RESOURCE) {
-		*type = pci_bar_unknown;
-		return PCI_BASE_ADDRESS_0 + 4 * resno;
-	} else if (resno == PCI_ROM_RESOURCE) {
-		*type = pci_bar_mem32;
-		return dev->rom_base_reg;
-	} else if (resno < PCI_BRIDGE_RESOURCES) {
-		/* device specific resource */
-		*type = pci_bar_unknown;
-		reg = pci_iov_resource_bar(dev, resno);
-		if (reg)
-			return reg;
-	}
-
-	dev_err(&dev->dev, "BAR %d: invalid resource\n", resno);
-	return 0;
-}
 
 /* Some architectures require additional programming to enable VGA */
 static arch_set_vga_state_t arch_set_vga_state;

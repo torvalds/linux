@@ -471,9 +471,4 @@ static struct platform_driver etraxfs_gpio_driver = {
 	.probe	= etraxfs_gpio_probe,
 };
 
-static int __init etraxfs_gpio_init(void)
-{
-	return platform_driver_register(&etraxfs_gpio_driver);
-}
-
-device_initcall(etraxfs_gpio_init);
+builtin_platform_driver(etraxfs_gpio_driver);

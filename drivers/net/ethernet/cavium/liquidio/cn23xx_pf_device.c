@@ -1,28 +1,23 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 #include <linux/pci.h>
-#include <linux/netdevice.h>
 #include <linux/vmalloc.h>
+#include <linux/etherdevice.h>
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
@@ -30,6 +25,7 @@
 #include "octeon_device.h"
 #include "cn23xx_pf_device.h"
 #include "octeon_main.h"
+#include "octeon_mailbox.h"
 
 #define RESET_NOTDONE 0
 #define RESET_DONE 1
@@ -39,11 +35,6 @@
  * MAX_GSO_SIZE we supplied to the kernel
  */
 #define CN23XX_INPUT_JABBER 64600
-
-#define LIOLUT_RING_DISTRIBUTION 9
-const int liolut_num_vfs_to_rings_per_vf[LIOLUT_RING_DISTRIBUTION] = {
-	0, 8, 4, 2, 2, 2, 1, 1, 1
-};
 
 void cn23xx_dump_pf_initialized_regs(struct octeon_device *oct)
 {
@@ -309,9 +300,10 @@ u32 cn23xx_pf_get_oq_ticks(struct octeon_device *oct, u32 time_intr_in_us)
 
 static void cn23xx_setup_global_mac_regs(struct octeon_device *oct)
 {
-	u64 reg_val;
 	u16 mac_no = oct->pcie_port;
 	u16 pf_num = oct->pf_num;
+	u64 reg_val;
+	u64 temp;
 
 	/* programming SRN and TRS for each MAC(0..3)  */
 
@@ -333,6 +325,14 @@ static void cn23xx_setup_global_mac_regs(struct octeon_device *oct)
 	/* setting TRS <23:16> */
 	reg_val = reg_val |
 		  (oct->sriov_info.trs << CN23XX_PKT_MAC_CTL_RINFO_TRS_BIT_POS);
+	/* setting RPVF <39:32> */
+	temp = oct->sriov_info.rings_per_vf & 0xff;
+	reg_val |= (temp << CN23XX_PKT_MAC_CTL_RINFO_RPVF_BIT_POS);
+
+	/* setting NVFS <55:48> */
+	temp = oct->sriov_info.max_vfs & 0xff;
+	reg_val |= (temp << CN23XX_PKT_MAC_CTL_RINFO_NVFS_BIT_POS);
+
 	/* write these settings to MAC register */
 	octeon_write_csr64(oct, CN23XX_SLI_PKT_MAC_RINFO64(mac_no, pf_num),
 			   reg_val);
@@ -399,11 +399,12 @@ static int cn23xx_reset_io_queues(struct octeon_device *oct)
 
 static int cn23xx_pf_setup_global_input_regs(struct octeon_device *oct)
 {
+	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
+	struct octeon_instr_queue *iq;
+	u64 intr_threshold, reg_val;
 	u32 q_no, ern, srn;
 	u64 pf_num;
-	u64 intr_threshold, reg_val;
-	struct octeon_instr_queue *iq;
-	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
+	u64 vf_num;
 
 	pf_num = oct->pf_num;
 
@@ -414,12 +415,22 @@ static int cn23xx_pf_setup_global_input_regs(struct octeon_device *oct)
 		return -1;
 
 	/** Set the MAC_NUM and PVF_NUM in IQ_PKT_CONTROL reg
-	* for all queues.Only PF can set these bits.
-	* bits 29:30 indicate the MAC num.
-	* bits 32:47 indicate the PVF num.
-	*/
+	 * for all queues.Only PF can set these bits.
+	 * bits 29:30 indicate the MAC num.
+	 * bits 32:47 indicate the PVF num.
+	 */
 	for (q_no = 0; q_no < ern; q_no++) {
 		reg_val = oct->pcie_port << CN23XX_PKT_INPUT_CTL_MAC_NUM_POS;
+
+		/* for VF assigned queues. */
+		if (q_no < oct->sriov_info.pf_srn) {
+			vf_num = q_no / oct->sriov_info.rings_per_vf;
+			vf_num += 1; /* VF1, VF2,........ */
+		} else {
+			vf_num = 0;
+		}
+
+		reg_val |= vf_num << CN23XX_PKT_INPUT_CTL_VF_NUM_POS;
 		reg_val |= pf_num << CN23XX_PKT_INPUT_CTL_PF_NUM_POS;
 
 		octeon_write_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
@@ -530,8 +541,8 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 	writeq(0x40, (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_OQ_WMARK);
 
 	/** Disabling setting OQs in reset when ring has no dorebells
-	  * enabling this will cause of head of line blocking
-	  */
+	 * enabling this will cause of head of line blocking
+	 */
 	/* Do it only for pass1.1. and pass1.2 */
 	if ((oct->rev_id == OCTEON_CN23XX_REV_1_0) ||
 	    (oct->rev_id == OCTEON_CN23XX_REV_1_1))
@@ -660,6 +671,118 @@ static void cn23xx_setup_oq_regs(struct octeon_device *oct, u32 oq_no)
 		    oct, CN23XX_SLI_OQ_PKT_INT_LEVELS(oq_no),
 		    ((time_threshold << 32 | cnt_threshold)));
 	}
+}
+
+static void cn23xx_pf_mbox_thread(struct work_struct *work)
+{
+	struct cavium_wk *wk = (struct cavium_wk *)work;
+	struct octeon_mbox *mbox = (struct octeon_mbox *)wk->ctxptr;
+	struct octeon_device *oct = mbox->oct_dev;
+	u64 mbox_int_val, val64;
+	u32 q_no, i;
+
+	if (oct->rev_id < OCTEON_CN23XX_REV_1_1) {
+		/*read and clear by writing 1*/
+		mbox_int_val = readq(mbox->mbox_int_reg);
+		writeq(mbox_int_val, mbox->mbox_int_reg);
+
+		for (i = 0; i < oct->sriov_info.num_vfs_alloced; i++) {
+			q_no = i * oct->sriov_info.rings_per_vf;
+
+			val64 = readq(oct->mbox[q_no]->mbox_write_reg);
+
+			if (val64 && (val64 != OCTEON_PFVFACK)) {
+				if (octeon_mbox_read(oct->mbox[q_no]))
+					octeon_mbox_process_message(
+					    oct->mbox[q_no]);
+			}
+		}
+
+		schedule_delayed_work(&wk->work, msecs_to_jiffies(10));
+	} else {
+		octeon_mbox_process_message(mbox);
+	}
+}
+
+static int cn23xx_setup_pf_mbox(struct octeon_device *oct)
+{
+	struct octeon_mbox *mbox = NULL;
+	u16 mac_no = oct->pcie_port;
+	u16 pf_num = oct->pf_num;
+	u32 q_no, i;
+
+	if (!oct->sriov_info.max_vfs)
+		return 0;
+
+	for (i = 0; i < oct->sriov_info.max_vfs; i++) {
+		q_no = i * oct->sriov_info.rings_per_vf;
+
+		mbox = vmalloc(sizeof(*mbox));
+		if (!mbox)
+			goto free_mbox;
+
+		memset(mbox, 0, sizeof(struct octeon_mbox));
+
+		spin_lock_init(&mbox->lock);
+
+		mbox->oct_dev = oct;
+
+		mbox->q_no = q_no;
+
+		mbox->state = OCTEON_MBOX_STATE_IDLE;
+
+		/* PF mbox interrupt reg */
+		mbox->mbox_int_reg = (u8 *)oct->mmio[0].hw_addr +
+				     CN23XX_SLI_MAC_PF_MBOX_INT(mac_no, pf_num);
+
+		/* PF writes into SIG0 reg */
+		mbox->mbox_write_reg = (u8 *)oct->mmio[0].hw_addr +
+				       CN23XX_SLI_PKT_PF_VF_MBOX_SIG(q_no, 0);
+
+		/* PF reads from SIG1 reg */
+		mbox->mbox_read_reg = (u8 *)oct->mmio[0].hw_addr +
+				      CN23XX_SLI_PKT_PF_VF_MBOX_SIG(q_no, 1);
+
+		/*Mail Box Thread creation*/
+		INIT_DELAYED_WORK(&mbox->mbox_poll_wk.work,
+				  cn23xx_pf_mbox_thread);
+		mbox->mbox_poll_wk.ctxptr = (void *)mbox;
+
+		oct->mbox[q_no] = mbox;
+
+		writeq(OCTEON_PFVFSIG, mbox->mbox_read_reg);
+	}
+
+	if (oct->rev_id < OCTEON_CN23XX_REV_1_1)
+		schedule_delayed_work(&oct->mbox[0]->mbox_poll_wk.work,
+				      msecs_to_jiffies(0));
+
+	return 0;
+
+free_mbox:
+	while (i) {
+		i--;
+		vfree(oct->mbox[i]);
+	}
+
+	return 1;
+}
+
+static int cn23xx_free_pf_mbox(struct octeon_device *oct)
+{
+	u32 q_no, i;
+
+	if (!oct->sriov_info.max_vfs)
+		return 0;
+
+	for (i = 0; i < oct->sriov_info.max_vfs; i++) {
+		q_no = i * oct->sriov_info.rings_per_vf;
+		cancel_delayed_work_sync(
+		    &oct->mbox[q_no]->mbox_poll_wk.work);
+		vfree(oct->mbox[q_no]);
+	}
+
+	return 0;
 }
 
 static int cn23xx_enable_io_queues(struct octeon_device *oct)
@@ -856,6 +979,29 @@ static u64 cn23xx_pf_msix_interrupt_handler(void *dev)
 	return ret;
 }
 
+static void cn23xx_handle_pf_mbox_intr(struct octeon_device *oct)
+{
+	struct delayed_work *work;
+	u64 mbox_int_val;
+	u32 i, q_no;
+
+	mbox_int_val = readq(oct->mbox[0]->mbox_int_reg);
+
+	for (i = 0; i < oct->sriov_info.num_vfs_alloced; i++) {
+		q_no = i * oct->sriov_info.rings_per_vf;
+
+		if (mbox_int_val & BIT_ULL(q_no)) {
+			writeq(BIT_ULL(q_no),
+			       oct->mbox[0]->mbox_int_reg);
+			if (octeon_mbox_read(oct->mbox[q_no])) {
+				work = &oct->mbox[q_no]->mbox_poll_wk.work;
+				schedule_delayed_work(work,
+						      msecs_to_jiffies(0));
+			}
+		}
+	}
+}
+
 static irqreturn_t cn23xx_interrupt_handler(void *dev)
 {
 	struct octeon_device *oct = (struct octeon_device *)dev;
@@ -870,6 +1016,10 @@ static irqreturn_t cn23xx_interrupt_handler(void *dev)
 	if (intr64 & CN23XX_INTR_ERR)
 		dev_err(&oct->pci_dev->dev, "OCTEON[%d]: Error Intr: 0x%016llx\n",
 			oct->octeon_id, CVM_CAST64(intr64));
+
+	/* When VFs write into MBOX_SIG2 reg,these intr is set in PF */
+	if (intr64 & CN23XX_INTR_VF_MBOX)
+		cn23xx_handle_pf_mbox_intr(oct);
 
 	if (oct->msix_on != LIO_FLAG_MSIX_ENABLED) {
 		if (intr64 & CN23XX_INTR_PKT_DATA)
@@ -961,6 +1111,13 @@ static void cn23xx_enable_pf_interrupt(struct octeon_device *oct, u8 intr_flag)
 		intr_val = readq(cn23xx->intr_enb_reg64);
 		intr_val |= CN23XX_INTR_PKT_DATA;
 		writeq(intr_val, cn23xx->intr_enb_reg64);
+	} else if ((intr_flag & OCTEON_MBOX_INTR) &&
+		   (oct->sriov_info.max_vfs > 0)) {
+		if (oct->rev_id >= OCTEON_CN23XX_REV_1_1) {
+			intr_val = readq(cn23xx->intr_enb_reg64);
+			intr_val |= CN23XX_INTR_VF_MBOX;
+			writeq(intr_val, cn23xx->intr_enb_reg64);
+		}
 	}
 }
 
@@ -976,6 +1133,13 @@ static void cn23xx_disable_pf_interrupt(struct octeon_device *oct, u8 intr_flag)
 		intr_val = readq(cn23xx->intr_enb_reg64);
 		intr_val &= ~CN23XX_INTR_PKT_DATA;
 		writeq(intr_val, cn23xx->intr_enb_reg64);
+	} else if ((intr_flag & OCTEON_MBOX_INTR) &&
+		   (oct->sriov_info.max_vfs > 0)) {
+		if (oct->rev_id >= OCTEON_CN23XX_REV_1_1) {
+			intr_val = readq(cn23xx->intr_enb_reg64);
+			intr_val &= ~CN23XX_INTR_VF_MBOX;
+			writeq(intr_val, cn23xx->intr_enb_reg64);
+		}
 	}
 }
 
@@ -1048,50 +1212,59 @@ static void cn23xx_setup_reg_address(struct octeon_device *oct)
 
 static int cn23xx_sriov_config(struct octeon_device *oct)
 {
-	u32 total_rings;
 	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
-	/* num_vfs is already filled for us */
+	u32 max_rings, total_rings, max_vfs, rings_per_vf;
 	u32 pf_srn, num_pf_rings;
+	u32 max_possible_vfs;
 
 	cn23xx->conf =
-	    (struct octeon_config *)oct_get_config_info(oct, LIO_23XX);
+		(struct octeon_config *)oct_get_config_info(oct, LIO_23XX);
 	switch (oct->rev_id) {
 	case OCTEON_CN23XX_REV_1_0:
-		total_rings = CN23XX_MAX_RINGS_PER_PF_PASS_1_0;
+		max_rings = CN23XX_MAX_RINGS_PER_PF_PASS_1_0;
+		max_possible_vfs = CN23XX_MAX_VFS_PER_PF_PASS_1_0;
 		break;
 	case OCTEON_CN23XX_REV_1_1:
-		total_rings = CN23XX_MAX_RINGS_PER_PF_PASS_1_1;
+		max_rings = CN23XX_MAX_RINGS_PER_PF_PASS_1_1;
+		max_possible_vfs = CN23XX_MAX_VFS_PER_PF_PASS_1_1;
 		break;
 	default:
-		total_rings = CN23XX_MAX_RINGS_PER_PF;
+		max_rings = CN23XX_MAX_RINGS_PER_PF;
+		max_possible_vfs = CN23XX_MAX_VFS_PER_PF;
 		break;
 	}
-	if (!oct->sriov_info.num_pf_rings) {
-		if (total_rings > num_present_cpus())
-			num_pf_rings = num_present_cpus();
-		else
-			num_pf_rings = total_rings;
-	} else {
-		num_pf_rings = oct->sriov_info.num_pf_rings;
 
-		if (num_pf_rings > total_rings) {
-			dev_warn(&oct->pci_dev->dev,
-				 "num_queues_per_pf requested %u is more than available rings. Reducing to %u\n",
-				 num_pf_rings, total_rings);
-			num_pf_rings = total_rings;
-		}
-	}
+	if (max_rings <= num_present_cpus())
+		num_pf_rings = 1;
+	else
+		num_pf_rings = num_present_cpus();
 
-	total_rings = num_pf_rings;
+#ifdef CONFIG_PCI_IOV
+	max_vfs = min_t(u32,
+			(max_rings - num_pf_rings), max_possible_vfs);
+	rings_per_vf = 1;
+#else
+	max_vfs = 0;
+	rings_per_vf = 0;
+#endif
+
+	total_rings = num_pf_rings + max_vfs;
+
 	/* the first ring of the pf */
 	pf_srn = total_rings - num_pf_rings;
 
 	oct->sriov_info.trs = total_rings;
+	oct->sriov_info.max_vfs = max_vfs;
+	oct->sriov_info.rings_per_vf = rings_per_vf;
 	oct->sriov_info.pf_srn = pf_srn;
 	oct->sriov_info.num_pf_rings = num_pf_rings;
-	dev_dbg(&oct->pci_dev->dev, "trs:%d pf_srn:%d num_pf_rings:%d\n",
-		oct->sriov_info.trs, oct->sriov_info.pf_srn,
-		oct->sriov_info.num_pf_rings);
+	dev_notice(&oct->pci_dev->dev, "trs:%d max_vfs:%d rings_per_vf:%d pf_srn:%d num_pf_rings:%d\n",
+		   oct->sriov_info.trs, oct->sriov_info.max_vfs,
+		   oct->sriov_info.rings_per_vf, oct->sriov_info.pf_srn,
+		   oct->sriov_info.num_pf_rings);
+
+	oct->sriov_info.sriov_enabled = 0;
+
 	return 0;
 }
 
@@ -1119,6 +1292,9 @@ int setup_cn23xx_octeon_pf_device(struct octeon_device *oct)
 
 	oct->fn_list.setup_iq_regs = cn23xx_setup_iq_regs;
 	oct->fn_list.setup_oq_regs = cn23xx_setup_oq_regs;
+	oct->fn_list.setup_mbox = cn23xx_setup_pf_mbox;
+	oct->fn_list.free_mbox = cn23xx_free_pf_mbox;
+
 	oct->fn_list.process_interrupt_regs = cn23xx_interrupt_handler;
 	oct->fn_list.msix_interrupt_handler = cn23xx_pf_msix_interrupt_handler;
 
@@ -1209,8 +1385,7 @@ void cn23xx_dump_iq_regs(struct octeon_device *oct)
 		dev_dbg(&oct->pci_dev->dev, "SLI_PKT[%d]_INPUT_CTL [0x%x]: 0x%016llx\n",
 			q_no, CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
 			CVM_CAST64(octeon_read_csr64
-				(oct,
-					CN23XX_SLI_IQ_PKT_CONTROL64(q_no))));
+				(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no))));
 	}
 
 	pci_read_config_dword(oct->pci_dev, CN23XX_CONFIG_PCIE_DEVCTL, &regval);
@@ -1234,4 +1409,25 @@ int cn23xx_fw_loaded(struct octeon_device *oct)
 
 	val = octeon_read_csr64(oct, CN23XX_SLI_SCRATCH1);
 	return (val >> 1) & 1ULL;
+}
+
+void cn23xx_tell_vf_its_macaddr_changed(struct octeon_device *oct, int vfidx,
+					u8 *mac)
+{
+	if (oct->sriov_info.vf_drv_loaded_mask & BIT_ULL(vfidx)) {
+		struct octeon_mbox_cmd mbox_cmd;
+
+		mbox_cmd.msg.u64 = 0;
+		mbox_cmd.msg.s.type = OCTEON_MBOX_REQUEST;
+		mbox_cmd.msg.s.resp_needed = 0;
+		mbox_cmd.msg.s.cmd = OCTEON_PF_CHANGED_VF_MACADDR;
+		mbox_cmd.msg.s.len = 1;
+		mbox_cmd.recv_len = 0;
+		mbox_cmd.recv_status = 0;
+		mbox_cmd.fn = NULL;
+		mbox_cmd.fn_arg = 0;
+		ether_addr_copy(mbox_cmd.msg.s.params, mac);
+		mbox_cmd.q_no = vfidx * oct->sriov_info.rings_per_vf;
+		octeon_mbox_write(oct, &mbox_cmd);
+	}
 }

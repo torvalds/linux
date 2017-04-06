@@ -335,6 +335,7 @@ static struct tcp_congestion_ops dctcp __read_mostly = {
 static struct tcp_congestion_ops dctcp_reno __read_mostly = {
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
+	.undo_cwnd	= tcp_reno_undo_cwnd,
 	.get_info	= dctcp_get_info,
 	.owner		= THIS_MODULE,
 	.name		= "dctcp-reno",

@@ -22,8 +22,9 @@
 #define __BPF_LIBBPF_H
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdbool.h>
-#include <linux/err.h>
+#include <sys/types.h>  // for size_t
 
 enum libbpf_errno {
 	__LIBBPF_ERRNO__START = 4000,
@@ -64,6 +65,7 @@ struct bpf_object *bpf_object__open(const char *path);
 struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 					   size_t obj_buf_sz,
 					   const char *name);
+int bpf_object__pin(struct bpf_object *object, const char *path);
 void bpf_object__close(struct bpf_object *object);
 
 /* Load/unload object into/from kernel */
@@ -78,6 +80,11 @@ struct bpf_object *bpf_object__next(struct bpf_object *prev);
 		(tmp) = bpf_object__next(pos);		\
 	     (pos) != NULL;				\
 	     (pos) = (tmp), (tmp) = bpf_object__next(tmp))
+
+typedef void (*bpf_object_clear_priv_t)(struct bpf_object *, void *);
+int bpf_object__set_priv(struct bpf_object *obj, void *priv,
+			 bpf_object_clear_priv_t clear_priv);
+void *bpf_object__priv(struct bpf_object *prog);
 
 /* Accessors of bpf_program. */
 struct bpf_program;
@@ -100,6 +107,9 @@ void *bpf_program__priv(struct bpf_program *prog);
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy);
 
 int bpf_program__fd(struct bpf_program *prog);
+int bpf_program__pin_instance(struct bpf_program *prog, const char *path,
+			      int instance);
+int bpf_program__pin(struct bpf_program *prog, const char *path);
 
 struct bpf_insn;
 
@@ -168,11 +178,21 @@ int bpf_program__nth_fd(struct bpf_program *prog, int n);
 /*
  * Adjust type of bpf program. Default is kprobe.
  */
+int bpf_program__set_socket_filter(struct bpf_program *prog);
 int bpf_program__set_tracepoint(struct bpf_program *prog);
 int bpf_program__set_kprobe(struct bpf_program *prog);
+int bpf_program__set_sched_cls(struct bpf_program *prog);
+int bpf_program__set_sched_act(struct bpf_program *prog);
+int bpf_program__set_xdp(struct bpf_program *prog);
+int bpf_program__set_perf_event(struct bpf_program *prog);
 
+bool bpf_program__is_socket_filter(struct bpf_program *prog);
 bool bpf_program__is_tracepoint(struct bpf_program *prog);
 bool bpf_program__is_kprobe(struct bpf_program *prog);
+bool bpf_program__is_sched_cls(struct bpf_program *prog);
+bool bpf_program__is_sched_act(struct bpf_program *prog);
+bool bpf_program__is_xdp(struct bpf_program *prog);
+bool bpf_program__is_perf_event(struct bpf_program *prog);
 
 /*
  * We don't need __attribute__((packed)) now since it is
@@ -195,6 +215,13 @@ struct bpf_map;
 struct bpf_map *
 bpf_object__find_map_by_name(struct bpf_object *obj, const char *name);
 
+/*
+ * Get bpf_map through the offset of corresponding struct bpf_map_def
+ * in the bpf object file.
+ */
+struct bpf_map *
+bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset);
+
 struct bpf_map *
 bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
 #define bpf_map__for_each(pos, obj)		\
@@ -210,5 +237,8 @@ typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
 int bpf_map__set_priv(struct bpf_map *map, void *priv,
 		      bpf_map_clear_priv_t clear_priv);
 void *bpf_map__priv(struct bpf_map *map);
+int bpf_map__pin(struct bpf_map *map, const char *path);
+
+long libbpf_get_error(const void *ptr);
 
 #endif

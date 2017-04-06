@@ -25,7 +25,8 @@
 #ifdef CONFIG_COMPAT
 
 struct file;
-long comedi_compat_ioctl(struct file *, unsigned int cmd, unsigned long arg);
+long comedi_compat_ioctl(struct file *file, unsigned int cmd,
+			 unsigned long arg);
 
 #else /* CONFIG_COMPAT */
 

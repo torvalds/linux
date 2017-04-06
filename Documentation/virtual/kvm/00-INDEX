@@ -6,6 +6,8 @@ cpuid.txt
 	- KVM-specific cpuid leaves (x86).
 devices/
 	- KVM_CAP_DEVICE_CTRL userspace API.
+halt-polling.txt
+	- notes on halt-polling
 hypercalls.txt
 	- KVM hypercalls.
 locking.txt

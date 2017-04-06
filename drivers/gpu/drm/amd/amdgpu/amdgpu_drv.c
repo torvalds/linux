@@ -58,9 +58,10 @@
  * - 3.6.0 - kmd involves use CONTEXT_CONTROL in ring buffer.
  * - 3.7.0 - Add support for VCE clock list packet
  * - 3.8.0 - Add support raster config init in the kernel
+ * - 3.9.0 - Add support for memory query info about VRAM and GTT.
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	8
+#define KMS_DRIVER_MINOR	9
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -85,12 +86,12 @@ int amdgpu_vm_size = 64;
 int amdgpu_vm_block_size = -1;
 int amdgpu_vm_fault_stop = 0;
 int amdgpu_vm_debug = 0;
+int amdgpu_vram_page_split = 1024;
 int amdgpu_exp_hw_support = 0;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
-int amdgpu_powerplay = -1;
-int amdgpu_powercontainment = 1;
-int amdgpu_sclk_deep_sleep_en = 1;
+int amdgpu_no_evict = 0;
+int amdgpu_direct_gma_size = 0;
 unsigned amdgpu_pcie_gen_cap = 0;
 unsigned amdgpu_pcie_lane_cap = 0;
 unsigned amdgpu_cg_mask = 0xffffffff;
@@ -165,6 +166,9 @@ module_param_named(vm_fault_stop, amdgpu_vm_fault_stop, int, 0444);
 MODULE_PARM_DESC(vm_debug, "Debug VM handling (0 = disabled (default), 1 = enabled)");
 module_param_named(vm_debug, amdgpu_vm_debug, int, 0644);
 
+MODULE_PARM_DESC(vram_page_split, "Number of pages after we split VRAM allocations (default 1024, -1 = disable)");
+module_param_named(vram_page_split, amdgpu_vram_page_split, int, 0444);
+
 MODULE_PARM_DESC(exp_hw_support, "experimental hw support (1 = enable, 0 = disable (default))");
 module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
 
@@ -174,17 +178,14 @@ module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
 MODULE_PARM_DESC(sched_hw_submission, "the max number of HW submissions (default 2)");
 module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
 
-MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = auto (default))");
-module_param_named(powerplay, amdgpu_powerplay, int, 0444);
-
-MODULE_PARM_DESC(powercontainment, "Power Containment (1 = enable (default), 0 = disable)");
-module_param_named(powercontainment, amdgpu_powercontainment, int, 0444);
-
 MODULE_PARM_DESC(ppfeaturemask, "all power features enabled (default))");
 module_param_named(ppfeaturemask, amdgpu_pp_feature_mask, int, 0444);
 
-MODULE_PARM_DESC(sclkdeepsleep, "SCLK Deep Sleep (1 = enable (default), 0 = disable)");
-module_param_named(sclkdeepsleep, amdgpu_sclk_deep_sleep_en, int, 0444);
+MODULE_PARM_DESC(no_evict, "Support pinning request from user space (1 = enable, 0 = disable (default))");
+module_param_named(no_evict, amdgpu_no_evict, int, 0444);
+
+MODULE_PARM_DESC(direct_gma_size, "Direct GMA size in megabytes (max 96MB)");
+module_param_named(direct_gma_size, amdgpu_direct_gma_size, int, 0444);
 
 MODULE_PARM_DESC(pcie_gen_cap, "PCIE Gen Caps (0: autodetect (default))");
 module_param_named(pcie_gen_cap, amdgpu_pcie_gen_cap, uint, 0444);
@@ -201,7 +202,8 @@ module_param_named(pg_mask, amdgpu_pg_mask, uint, 0444);
 MODULE_PARM_DESC(disable_cu, "Disable CUs (se.sh.cu,...)");
 module_param_named(disable_cu, amdgpu_disable_cu, charp, 0444);
 
-MODULE_PARM_DESC(virtual_display, "Enable virtual display feature (the virtual_display will be set like xxxx:xx:xx.x;xxxx:xx:xx.x)");
+MODULE_PARM_DESC(virtual_display,
+		 "Enable virtual display feature (the virtual_display will be set like xxxx:xx:xx.x,x;xxxx:xx:xx.x,x)");
 module_param_named(virtual_display, amdgpu_virtual_display, charp, 0444);
 
 static const struct pci_device_id pciidlist[] = {
@@ -381,6 +383,7 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x6939, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TONGA},
 	/* fiji */
 	{0x1002, 0x7300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_FIJI},
+	{0x1002, 0x730F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_FIJI},
 	/* carrizo */
 	{0x1002, 0x9870, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_CARRIZO|AMD_IS_APU},
 	{0x1002, 0x9874, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_CARRIZO|AMD_IS_APU},
@@ -411,6 +414,13 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x67CA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	{0x1002, 0x67CC, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	{0x1002, 0x67CF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	/* Polaris12 */
+	{0x1002, 0x6980, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
+	{0x1002, 0x6981, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
+	{0x1002, 0x6985, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
+	{0x1002, 0x6986, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
+	{0x1002, 0x6987, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
+	{0x1002, 0x699F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
 
 	{0, 0, 0}
 };
@@ -672,7 +682,6 @@ static struct drm_driver kms_driver = {
 	    DRIVER_USE_AGP |
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
 	    DRIVER_PRIME | DRIVER_RENDER | DRIVER_MODESET,
-	.dev_priv_size = 0,
 	.load = amdgpu_driver_load_kms,
 	.open = amdgpu_driver_open_kms,
 	.preclose = amdgpu_driver_preclose_kms,
@@ -687,7 +696,6 @@ static struct drm_driver kms_driver = {
 	.get_scanout_position = amdgpu_get_crtc_scanoutpos,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = amdgpu_debugfs_init,
-	.debugfs_cleanup = amdgpu_debugfs_cleanup,
 #endif
 	.irq_preinstall = amdgpu_irq_preinstall,
 	.irq_postinstall = amdgpu_irq_postinstall,

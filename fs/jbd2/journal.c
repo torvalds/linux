@@ -47,7 +47,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/jbd2.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 
 #ifdef CONFIG_JBD2_DEBUG
@@ -276,11 +276,11 @@ loop:
 	goto loop;
 
 end_loop:
-	write_unlock(&journal->j_state_lock);
 	del_timer_sync(&journal->j_commit_timer);
 	journal->j_task = NULL;
 	wake_up(&journal->j_wait_done_commit);
 	jbd_debug(1, "Journal thread exiting.\n");
+	write_unlock(&journal->j_state_lock);
 	return 0;
 }
 
@@ -913,7 +913,7 @@ int __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
 	 * space and if we lose sb update during power failure we'd replay
 	 * old transaction with possibly newly overwritten data.
 	 */
-	ret = jbd2_journal_update_sb_log_tail(journal, tid, block, WRITE_FUA);
+	ret = jbd2_journal_update_sb_log_tail(journal, tid, block, REQ_FUA);
 	if (ret)
 		goto out;
 
@@ -944,7 +944,7 @@ out:
  */
 void jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
 {
-	mutex_lock(&journal->j_checkpoint_mutex);
+	mutex_lock_io(&journal->j_checkpoint_mutex);
 	if (tid_gt(tid, journal->j_tail_sequence))
 		__jbd2_update_log_tail(journal, tid, block);
 	mutex_unlock(&journal->j_checkpoint_mutex);
@@ -1304,9 +1304,9 @@ static int journal_reset(journal_t *journal)
 		journal->j_flags |= JBD2_FLUSHED;
 	} else {
 		/* Lock here to make assertions happy... */
-		mutex_lock(&journal->j_checkpoint_mutex);
+		mutex_lock_io(&journal->j_checkpoint_mutex);
 		/*
-		 * Update log tail information. We use WRITE_FUA since new
+		 * Update log tail information. We use REQ_FUA since new
 		 * transaction will start reusing journal space and so we
 		 * must make sure information about current log tail is on
 		 * disk before that.
@@ -1314,7 +1314,7 @@ static int journal_reset(journal_t *journal)
 		jbd2_journal_update_sb_log_tail(journal,
 						journal->j_tail_sequence,
 						journal->j_tail,
-						WRITE_FUA);
+						REQ_FUA);
 		mutex_unlock(&journal->j_checkpoint_mutex);
 	}
 	return jbd2_journal_start_thread(journal);
@@ -1454,7 +1454,7 @@ void jbd2_journal_update_sb_errno(journal_t *journal)
 	sb->s_errno    = cpu_to_be32(journal->j_errno);
 	read_unlock(&journal->j_state_lock);
 
-	jbd2_write_superblock(journal, WRITE_FUA);
+	jbd2_write_superblock(journal, REQ_FUA);
 }
 EXPORT_SYMBOL(jbd2_journal_update_sb_errno);
 
@@ -1691,7 +1691,7 @@ int jbd2_journal_destroy(journal_t *journal)
 	spin_lock(&journal->j_list_lock);
 	while (journal->j_checkpoint_transactions != NULL) {
 		spin_unlock(&journal->j_list_lock);
-		mutex_lock(&journal->j_checkpoint_mutex);
+		mutex_lock_io(&journal->j_checkpoint_mutex);
 		err = jbd2_log_do_checkpoint(journal);
 		mutex_unlock(&journal->j_checkpoint_mutex);
 		/*
@@ -1713,14 +1713,15 @@ int jbd2_journal_destroy(journal_t *journal)
 
 	if (journal->j_sb_buffer) {
 		if (!is_journal_aborted(journal)) {
-			mutex_lock(&journal->j_checkpoint_mutex);
+			mutex_lock_io(&journal->j_checkpoint_mutex);
 
 			write_lock(&journal->j_state_lock);
 			journal->j_tail_sequence =
 				++journal->j_transaction_sequence;
 			write_unlock(&journal->j_state_lock);
 
-			jbd2_mark_journal_empty(journal, WRITE_FLUSH_FUA);
+			jbd2_mark_journal_empty(journal,
+					REQ_PREFLUSH | REQ_FUA);
 			mutex_unlock(&journal->j_checkpoint_mutex);
 		} else
 			err = -EIO;
@@ -1954,7 +1955,7 @@ int jbd2_journal_flush(journal_t *journal)
 	spin_lock(&journal->j_list_lock);
 	while (!err && journal->j_checkpoint_transactions != NULL) {
 		spin_unlock(&journal->j_list_lock);
-		mutex_lock(&journal->j_checkpoint_mutex);
+		mutex_lock_io(&journal->j_checkpoint_mutex);
 		err = jbd2_log_do_checkpoint(journal);
 		mutex_unlock(&journal->j_checkpoint_mutex);
 		spin_lock(&journal->j_list_lock);
@@ -1964,7 +1965,7 @@ int jbd2_journal_flush(journal_t *journal)
 	if (is_journal_aborted(journal))
 		return -EIO;
 
-	mutex_lock(&journal->j_checkpoint_mutex);
+	mutex_lock_io(&journal->j_checkpoint_mutex);
 	if (!err) {
 		err = jbd2_cleanup_journal_tail(journal);
 		if (err < 0) {
@@ -1979,7 +1980,7 @@ int jbd2_journal_flush(journal_t *journal)
 	 * the magic code for a fully-recovered superblock.  Any future
 	 * commits of data to the journal will restore the current
 	 * s_start value. */
-	jbd2_mark_journal_empty(journal, WRITE_FUA);
+	jbd2_mark_journal_empty(journal, REQ_FUA);
 	mutex_unlock(&journal->j_checkpoint_mutex);
 	write_lock(&journal->j_state_lock);
 	J_ASSERT(!journal->j_running_transaction);
@@ -2025,7 +2026,7 @@ int jbd2_journal_wipe(journal_t *journal, int write)
 	if (write) {
 		/* Lock to make assertions happy... */
 		mutex_lock(&journal->j_checkpoint_mutex);
-		jbd2_mark_journal_empty(journal, WRITE_FUA);
+		jbd2_mark_journal_empty(journal, REQ_FUA);
 		mutex_unlock(&journal->j_checkpoint_mutex);
 	}
 

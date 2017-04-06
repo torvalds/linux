@@ -48,7 +48,7 @@
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/perf.h>
 #include <asm/parisc-device.h>
 #include <asm/processor.h>
@@ -301,7 +301,6 @@ static ssize_t perf_read(struct file *file, char __user *buf, size_t cnt, loff_t
 static ssize_t perf_write(struct file *file, const char __user *buf, size_t count, 
 	loff_t *ppos)
 {
-	int err;
 	size_t image_size;
 	uint32_t image_type;
 	uint32_t interface_type;
@@ -320,8 +319,8 @@ static ssize_t perf_write(struct file *file, const char __user *buf, size_t coun
 	if (count != sizeof(uint32_t))
 		return -EIO;
 
-	if ((err = copy_from_user(&image_type, buf, sizeof(uint32_t))) != 0) 
-		return err;
+	if (copy_from_user(&image_type, buf, sizeof(uint32_t)))
+		return -EFAULT;
 
 	/* Get the interface type and test type */
    	interface_type = (image_type >> 16) & 0xffff;

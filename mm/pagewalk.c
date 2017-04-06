@@ -78,14 +78,32 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
 
 	pud = pud_offset(pgd, addr);
 	do {
+ again:
 		next = pud_addr_end(addr, end);
-		if (pud_none_or_clear_bad(pud)) {
+		if (pud_none(*pud) || !walk->vma) {
 			if (walk->pte_hole)
 				err = walk->pte_hole(addr, next, walk);
 			if (err)
 				break;
 			continue;
 		}
+
+		if (walk->pud_entry) {
+			spinlock_t *ptl = pud_trans_huge_lock(pud, walk->vma);
+
+			if (ptl) {
+				err = walk->pud_entry(pud, addr, next, walk);
+				spin_unlock(ptl);
+				if (err)
+					break;
+				continue;
+			}
+		}
+
+		split_huge_pud(walk->vma, pud, addr);
+		if (pud_none(*pud))
+			goto again;
+
 		if (walk->pmd_entry || walk->pte_entry)
 			err = walk_pmd_range(pud, addr, next, walk);
 		if (err)

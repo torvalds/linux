@@ -156,8 +156,6 @@ struct adapter {
 	u8	hw_init_completed;
 
 	void *cmdThread;
-	void (*intf_start)(struct adapter *adapter);
-	void (*intf_stop)(struct adapter *adapter);
 	struct  net_device *pnetdev;
 	struct  net_device *pmondev;
 
@@ -170,7 +168,6 @@ struct adapter {
 	u8 bFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
-	u8 bRxRSSIDisplay;
 
 	struct mutex hw_init_mutex;
 };

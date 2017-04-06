@@ -572,16 +572,20 @@ struct d_level D_LEVEL[] = {
 size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
 
 
-struct genl_family wimax_gnl_family = {
-	.id = GENL_ID_GENERATE,
+static const struct genl_multicast_group wimax_gnl_mcgrps[] = {
+	{ .name = "msg", },
+};
+
+struct genl_family wimax_gnl_family __ro_after_init = {
 	.name = "WiMAX",
 	.version = WIMAX_GNL_VERSION,
 	.hdrsize = 0,
 	.maxattr = WIMAX_GNL_ATTR_MAX,
-};
-
-static const struct genl_multicast_group wimax_gnl_mcgrps[] = {
-	{ .name = "msg", },
+	.module = THIS_MODULE,
+	.ops = wimax_gnl_ops,
+	.n_ops = ARRAY_SIZE(wimax_gnl_ops),
+	.mcgrps = wimax_gnl_mcgrps,
+	.n_mcgrps = ARRAY_SIZE(wimax_gnl_mcgrps),
 };
 
 
@@ -596,11 +600,7 @@ int __init wimax_subsys_init(void)
 	d_parse_params(D_LEVEL, D_LEVEL_SIZE, wimax_debug_params,
 		       "wimax.debug");
 
-	snprintf(wimax_gnl_family.name, sizeof(wimax_gnl_family.name),
-		 "WiMAX");
-	result = genl_register_family_with_ops_groups(&wimax_gnl_family,
-						      wimax_gnl_ops,
-						      wimax_gnl_mcgrps);
+	result = genl_register_family(&wimax_gnl_family);
 	if (unlikely(result < 0)) {
 		pr_err("cannot register generic netlink family: %d\n", result);
 		goto error_register_family;

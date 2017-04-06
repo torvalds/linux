@@ -34,7 +34,7 @@ int cirrus_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 
-	drm_helper_mode_fill_fb_struct(&gfb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &gfb->base, mode_cmd);
 	gfb->obj = obj;
 	ret = drm_framebuffer_init(dev, &gfb->base, &cirrus_fb_funcs);
 	if (ret) {
@@ -52,10 +52,10 @@ cirrus_user_framebuffer_create(struct drm_device *dev,
 	struct cirrus_device *cdev = dev->dev_private;
 	struct drm_gem_object *obj;
 	struct cirrus_framebuffer *cirrus_fb;
+	u32 bpp;
 	int ret;
-	u32 bpp, depth;
 
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+	bpp = drm_format_plane_cpp(mode_cmd->pixel_format, 0) * 8;
 
 	if (!cirrus_check_framebuffer(cdev, mode_cmd->width, mode_cmd->height,
 				      bpp, mode_cmd->pitches[0]))
@@ -208,18 +208,17 @@ out:
 	return r;
 }
 
-int cirrus_driver_unload(struct drm_device *dev)
+void cirrus_driver_unload(struct drm_device *dev)
 {
 	struct cirrus_device *cdev = dev->dev_private;
 
 	if (cdev == NULL)
-		return 0;
+		return;
 	cirrus_modeset_fini(cdev);
 	cirrus_mm_fini(cdev);
 	cirrus_device_fini(cdev);
 	kfree(cdev);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 int cirrus_gem_create(struct drm_device *dev,

@@ -306,6 +306,11 @@ IRQ
   devm_request_any_context_irq()
   devm_request_irq()
   devm_request_threaded_irq()
+  devm_irq_alloc_descs()
+  devm_irq_alloc_desc()
+  devm_irq_alloc_desc_at()
+  devm_irq_alloc_desc_from()
+  devm_irq_alloc_descs_from()
 
 LED
   devm_led_classdev_register()
@@ -331,6 +336,10 @@ MEM
 
 MFD
  devm_mfd_add_devices()
+
+PER-CPU MEM
+  devm_alloc_percpu()
+  devm_free_percpu()
 
 PCI
   pcim_enable_device()	: after success, all PCI ops become managed

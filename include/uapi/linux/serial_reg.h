@@ -327,6 +327,14 @@
 #define SERIAL_RSA_BAUD_BASE (921600)
 #define SERIAL_RSA_BAUD_BASE_LO (SERIAL_RSA_BAUD_BASE / 8)
 
+/* Extra registers for TI DA8xx/66AK2x */
+#define UART_DA830_PWREMU_MGMT	12
+
+/* PWREMU_MGMT register bits */
+#define UART_DA830_PWREMU_MGMT_FREE	(1 << 0)  /* Free-running mode */
+#define UART_DA830_PWREMU_MGMT_URRST	(1 << 13) /* Receiver reset/enable */
+#define UART_DA830_PWREMU_MGMT_UTRST	(1 << 14) /* Transmitter reset/enable */
+
 /*
  * Extra serial register definitions for the internal UARTs
  * in TI OMAP processors.
@@ -357,24 +365,6 @@
 #define UART_OMAP_MDR1_FIR_MODE		0x05	/* FIR mode */
 #define UART_OMAP_MDR1_CIR_MODE		0x06	/* CIR mode */
 #define UART_OMAP_MDR1_DISABLE		0x07	/* Disable (default state) */
-
-/*
- * These are definitions for the Exar XR17V35X and XR17(C|D)15X
- */
-#define UART_EXAR_8XMODE	0x88	/* 8X sampling rate select */
-#define UART_EXAR_SLEEP		0x8b	/* Sleep mode */
-#define UART_EXAR_DVID		0x8d	/* Device identification */
-
-#define UART_EXAR_FCTR		0x08	/* Feature Control Register */
-#define UART_FCTR_EXAR_IRDA	0x08	/* IrDa data encode select */
-#define UART_FCTR_EXAR_485	0x10	/* Auto 485 half duplex dir ctl */
-#define UART_FCTR_EXAR_TRGA	0x00	/* FIFO trigger table A */
-#define UART_FCTR_EXAR_TRGB	0x60	/* FIFO trigger table B */
-#define UART_FCTR_EXAR_TRGC	0x80	/* FIFO trigger table C */
-#define UART_FCTR_EXAR_TRGD	0xc0	/* FIFO trigger table D programmable */
-
-#define UART_EXAR_TXTRG		0x0a	/* Tx FIFO trigger level write-only */
-#define UART_EXAR_RXTRG		0x0b	/* Rx FIFO trigger level write-only */
 
 /*
  * These are definitions for the Altera ALTR_16550_F32/F64/F128

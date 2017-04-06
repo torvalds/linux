@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -290,6 +290,9 @@ char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 				      u8 no_trailing);
 
 char *acpi_ns_name_of_current_scope(struct acpi_walk_state *walk_state);
+
+acpi_status
+acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer);
 
 acpi_status
 acpi_ns_handle_to_pathname(acpi_handle target_handle,

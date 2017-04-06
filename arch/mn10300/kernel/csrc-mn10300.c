@@ -13,7 +13,7 @@
 #include <asm/timex.h>
 #include "internal.h"
 
-static cycle_t mn10300_read(struct clocksource *cs)
+static u64 mn10300_read(struct clocksource *cs)
 {
 	return read_timestamp_counter();
 }

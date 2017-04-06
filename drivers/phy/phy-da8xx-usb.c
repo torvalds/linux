@@ -23,6 +23,8 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
+#define PHY_INIT_BITS	(CFGCHIP2_SESENDEN | CFGCHIP2_VBDTCTEN)
+
 struct da8xx_usb_phy {
 	struct phy_provider	*phy_provider;
 	struct phy		*usb11_phy;
@@ -207,6 +209,9 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 		if (ret)
 			dev_warn(dev, "Failed to create usb20 phy lookup\n");
 	}
+
+	regmap_write_bits(d_phy->regmap, CFGCHIP(2),
+			  PHY_INIT_BITS, PHY_INIT_BITS);
 
 	return 0;
 }

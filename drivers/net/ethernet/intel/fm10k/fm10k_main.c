@@ -28,7 +28,7 @@
 
 #include "fm10k.h"
 
-#define DRV_VERSION	"0.21.2-k"
+#define DRV_VERSION	"0.21.7-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Switch Host Interface Driver"
 const char fm10k_driver_version[] = DRV_VERSION;
 char fm10k_driver_name[] = "fm10k";
@@ -251,6 +251,7 @@ static bool fm10k_can_reuse_rx_page(struct fm10k_rx_buffer *rx_buffer,
 /**
  * fm10k_add_rx_frag - Add contents of Rx buffer to sk_buff
  * @rx_buffer: buffer containing page to add
+ * @size: packet size from rx_desc
  * @rx_desc: descriptor containing length of buffer written by hardware
  * @skb: sk_buff to place the data into
  *
@@ -263,12 +264,12 @@ static bool fm10k_can_reuse_rx_page(struct fm10k_rx_buffer *rx_buffer,
  * true if the buffer can be reused by the interface.
  **/
 static bool fm10k_add_rx_frag(struct fm10k_rx_buffer *rx_buffer,
+			      unsigned int size,
 			      union fm10k_rx_desc *rx_desc,
 			      struct sk_buff *skb)
 {
 	struct page *page = rx_buffer->page;
 	unsigned char *va = page_address(page) + rx_buffer->page_offset;
-	unsigned int size = le16_to_cpu(rx_desc->w.length);
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = FM10K_RX_BUFSZ;
 #else
@@ -314,6 +315,7 @@ static struct sk_buff *fm10k_fetch_rx_buffer(struct fm10k_ring *rx_ring,
 					     union fm10k_rx_desc *rx_desc,
 					     struct sk_buff *skb)
 {
+	unsigned int size = le16_to_cpu(rx_desc->w.length);
 	struct fm10k_rx_buffer *rx_buffer;
 	struct page *page;
 
@@ -350,11 +352,11 @@ static struct sk_buff *fm10k_fetch_rx_buffer(struct fm10k_ring *rx_ring,
 	dma_sync_single_range_for_cpu(rx_ring->dev,
 				      rx_buffer->dma,
 				      rx_buffer->page_offset,
-				      FM10K_RX_BUFSZ,
+				      size,
 				      DMA_FROM_DEVICE);
 
 	/* pull page into skb */
-	if (fm10k_add_rx_frag(rx_buffer, rx_desc, skb)) {
+	if (fm10k_add_rx_frag(rx_buffer, size, rx_desc, skb)) {
 		/* hand second half of page back to the ring */
 		fm10k_reuse_rx_page(rx_ring, rx_buffer);
 	} else {
@@ -472,6 +474,8 @@ static unsigned int fm10k_process_skb_fields(struct fm10k_ring *rx_ring,
 	fm10k_rx_hash(rx_ring, rx_desc, skb);
 
 	fm10k_rx_checksum(rx_ring, rx_desc, skb);
+
+	FM10K_CB(skb)->tstamp = rx_desc->q.timestamp;
 
 	FM10K_CB(skb)->fi.w.vlan = rx_desc->w.vlan;
 

@@ -788,8 +788,7 @@ static int __add_missing_keys(struct btrfs_fs_info *fs_info,
 		if (ref->key_for_search.type)
 			continue;
 		BUG_ON(!ref->wanted_disk_byte);
-		eb = read_tree_block(fs_info->tree_root, ref->wanted_disk_byte,
-				     0);
+		eb = read_tree_block(fs_info, ref->wanted_disk_byte, 0);
 		if (IS_ERR(eb)) {
 			return PTR_ERR(eb);
 		} else if (!extent_buffer_uptodate(eb)) {
@@ -957,8 +956,7 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 /*
  * add all inline backrefs for bytenr to the list
  */
-static int __add_inline_refs(struct btrfs_fs_info *fs_info,
-			     struct btrfs_path *path, u64 bytenr,
+static int __add_inline_refs(struct btrfs_path *path, u64 bytenr,
 			     int *info_level, struct list_head *prefs,
 			     struct ref_root *ref_tree,
 			     u64 *total_refs, u64 inum)
@@ -1285,7 +1283,7 @@ again:
 		 */
 		delayed_refs = &trans->transaction->delayed_refs;
 		spin_lock(&delayed_refs->lock);
-		head = btrfs_find_delayed_ref_head(trans, bytenr);
+		head = btrfs_find_delayed_ref_head(delayed_refs, bytenr);
 		if (head) {
 			if (!mutex_trylock(&head->mutex)) {
 				atomic_inc(&head->node.refs);
@@ -1355,7 +1353,7 @@ again:
 		if (key.objectid == bytenr &&
 		    (key.type == BTRFS_EXTENT_ITEM_KEY ||
 		     key.type == BTRFS_METADATA_ITEM_KEY)) {
-			ret = __add_inline_refs(fs_info, path, bytenr,
+			ret = __add_inline_refs(path, bytenr,
 						&info_level, &prefs,
 						ref_tree, &total_refs,
 						inum);
@@ -1405,8 +1403,7 @@ again:
 			    ref->level == 0) {
 				struct extent_buffer *eb;
 
-				eb = read_tree_block(fs_info->extent_root,
-							   ref->parent, 0);
+				eb = read_tree_block(fs_info, ref->parent, 0);
 				if (IS_ERR(eb)) {
 					ret = PTR_ERR(eb);
 					goto out;
@@ -1829,7 +1826,7 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	}
 	btrfs_item_key_to_cpu(path->nodes[0], found_key, path->slots[0]);
 	if (found_key->type == BTRFS_METADATA_ITEM_KEY)
-		size = fs_info->extent_root->nodesize;
+		size = fs_info->nodesize;
 	else if (found_key->type == BTRFS_EXTENT_ITEM_KEY)
 		size = found_key->offset;
 
@@ -2058,7 +2055,7 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 out:
 	if (!search_commit_root) {
 		btrfs_put_tree_mod_seq(fs_info, &tree_mod_seq_elem);
-		btrfs_end_transaction(trans, fs_info->extent_root);
+		btrfs_end_transaction(trans);
 	} else {
 		up_read(&fs_info->commit_root_sem);
 	}

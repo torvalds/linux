@@ -16,7 +16,7 @@
 
 #include <linux/module.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/errno.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>

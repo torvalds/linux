@@ -526,7 +526,8 @@ static int cqspi_indirect_read_execute(struct spi_nor *nor,
 			bytes_to_read *= cqspi->fifo_width;
 			bytes_to_read = bytes_to_read > remaining ?
 					remaining : bytes_to_read;
-			readsl(ahb_base, rxbuf, DIV_ROUND_UP(bytes_to_read, 4));
+			ioread32_rep(ahb_base, rxbuf,
+				     DIV_ROUND_UP(bytes_to_read, 4));
 			rxbuf += bytes_to_read;
 			remaining -= bytes_to_read;
 			bytes_to_read = cqspi_get_rd_sram_level(cqspi);
@@ -610,7 +611,8 @@ static int cqspi_indirect_write_execute(struct spi_nor *nor,
 
 	while (remaining > 0) {
 		write_bytes = remaining > page_size ? page_size : remaining;
-		writesl(cqspi->ahb_base, txbuf, DIV_ROUND_UP(write_bytes, 4));
+		iowrite32_rep(cqspi->ahb_base, txbuf,
+			      DIV_ROUND_UP(write_bytes, 4));
 
 		ret = wait_for_completion_timeout(&cqspi->transfer_complete,
 						  msecs_to_jiffies
@@ -891,7 +893,7 @@ static ssize_t cqspi_write(struct spi_nor *nor, loff_t to,
 	if (ret)
 		return ret;
 
-	return (ret < 0) ? ret : len;
+	return len;
 }
 
 static ssize_t cqspi_read(struct spi_nor *nor, loff_t from,
@@ -911,7 +913,7 @@ static ssize_t cqspi_read(struct spi_nor *nor, loff_t from,
 	if (ret)
 		return ret;
 
-	return (ret < 0) ? ret : len;
+	return len;
 }
 
 static int cqspi_erase(struct spi_nor *nor, loff_t offs)
@@ -1077,12 +1079,14 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi, struct device_node *np)
 
 	/* Get flash device data */
 	for_each_available_child_of_node(dev->of_node, np) {
-		if (of_property_read_u32(np, "reg", &cs)) {
+		ret = of_property_read_u32(np, "reg", &cs);
+		if (ret) {
 			dev_err(dev, "Couldn't determine chip select.\n");
 			goto err;
 		}
 
-		if (cs > CQSPI_MAX_CHIPSELECT) {
+		if (cs >= CQSPI_MAX_CHIPSELECT) {
+			ret = -EINVAL;
 			dev_err(dev, "Chip select %d out of range.\n", cs);
 			goto err;
 		}

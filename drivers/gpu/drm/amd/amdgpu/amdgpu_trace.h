@@ -24,7 +24,7 @@ TRACE_EVENT(amdgpu_mm_rreg,
 			   __entry->reg = reg;
 			   __entry->value = value;
 			   ),
-	    TP_printk("0x%04lx, 0x%04lx, 0x%08lx",
+	    TP_printk("0x%04lx, 0x%08lx, 0x%08lx",
 		      (unsigned long)__entry->did,
 		      (unsigned long)__entry->reg,
 		      (unsigned long)__entry->value)
@@ -43,7 +43,7 @@ TRACE_EVENT(amdgpu_mm_wreg,
 			   __entry->reg = reg;
 			   __entry->value = value;
 			   ),
-	    TP_printk("0x%04lx, 0x%04lx, 0x%08lx",
+	    TP_printk("0x%04lx, 0x%08lx, 0x%08lx",
 		      (unsigned long)__entry->did,
 		      (unsigned long)__entry->reg,
 		      (unsigned long)__entry->value)
@@ -104,7 +104,7 @@ TRACE_EVENT(amdgpu_cs_ioctl,
 			     __field(struct amdgpu_device *, adev)
 			     __field(struct amd_sched_job *, sched_job)
 			     __field(struct amdgpu_ib *, ib)
-			     __field(struct fence *, fence)
+			     __field(struct dma_fence *, fence)
 			     __field(char *, ring_name)
 			     __field(u32, num_ibs)
 			     ),
@@ -129,7 +129,7 @@ TRACE_EVENT(amdgpu_sched_run_job,
 			     __field(struct amdgpu_device *, adev)
 			     __field(struct amd_sched_job *, sched_job)
 			     __field(struct amdgpu_ib *, ib)
-			     __field(struct fence *, fence)
+			     __field(struct dma_fence *, fence)
 			     __field(char *, ring_name)
 			     __field(u32, num_ibs)
 			     ),

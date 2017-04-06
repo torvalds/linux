@@ -3140,6 +3140,8 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	card->dev->ml_priv = card;
 	card->dev->watchdog_timeo = QETH_TX_TIMEOUT;
 	card->dev->mtu = card->info.initial_mtu;
+	card->dev->min_mtu = 64;
+	card->dev->max_mtu = ETH_MAX_MTU;
 	card->dev->ethtool_ops = &qeth_l3_ethtool_ops;
 	card->dev->features |=	NETIF_F_HW_VLAN_CTAG_TX |
 				NETIF_F_HW_VLAN_CTAG_RX |
@@ -3225,21 +3227,6 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	/* softsetup */
 	QETH_DBF_TEXT(SETUP, 2, "softsetp");
 
-	rc = qeth_send_startlan(card);
-	if (rc) {
-		QETH_DBF_TEXT_(SETUP, 2, "1err%d", rc);
-		if (rc == 0xe080) {
-			dev_warn(&card->gdev->dev,
-				"The LAN is offline\n");
-			card->lan_online = 0;
-			goto contin;
-		}
-		rc = -ENODEV;
-		goto out_remove;
-	} else
-		card->lan_online = 1;
-
-contin:
 	rc = qeth_l3_setadapter_parms(card);
 	if (rc)
 		QETH_DBF_TEXT_(SETUP, 2, "2err%04x", rc);

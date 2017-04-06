@@ -22,6 +22,8 @@
 #ifndef IVTV_DRIVER_H
 #define IVTV_DRIVER_H
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 /* Internal header for ivtv project:
  * Driver for the cx23415/6 chip.
  * Author: Kevin Thayer (nufan_wfk at yahoo.com)
@@ -39,7 +41,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -53,7 +55,7 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 #include <linux/dvb/video.h>

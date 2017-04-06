@@ -37,7 +37,7 @@
 
 #include <asm/processor.h>
 #include <asm/topology.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/sal.h>
 #include <asm/sn/io.h>
 #include <asm/sn/sn_sal.h>
@@ -525,7 +525,7 @@ static int sn_topology_show(struct seq_file *s, void *d)
 				/* both ends local to this partition */
 				seq_puts(s, " local");
 			else if (SN_HWPERF_FOREIGN(p))
-				/* both ends of the link in foreign partiton */
+				/* both ends of the link in foreign partition */
 				seq_puts(s, " foreign");
 			else
 				/* link straddles a partition */

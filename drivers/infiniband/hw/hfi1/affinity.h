@@ -70,14 +70,6 @@ struct cpu_mask_set {
 	uint gen;
 };
 
-struct hfi1_affinity {
-	struct cpu_mask_set def_intr;
-	struct cpu_mask_set rcv_intr;
-	struct cpumask real_cpu_mask;
-	/* spin lock to protect affinity struct */
-	spinlock_t lock;
-};
-
 struct hfi1_msix_entry;
 
 /* Initialize non-HT cpu cores mask */
@@ -115,6 +107,7 @@ struct hfi1_affinity_node_list {
 	struct cpumask real_cpu_mask;
 	struct cpu_mask_set proc;
 	int num_core_siblings;
+	int num_possible_nodes;
 	int num_online_nodes;
 	int num_online_cpus;
 	struct mutex lock; /* protects affinity nodes */

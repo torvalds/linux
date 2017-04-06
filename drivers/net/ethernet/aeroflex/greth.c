@@ -1008,7 +1008,7 @@ restart_txrx_poll:
 			spin_unlock_irqrestore(&greth->devlock, flags);
 			goto restart_txrx_poll;
 		} else {
-			__napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			spin_unlock_irqrestore(&greth->devlock, flags);
 		}
 	}
@@ -1288,15 +1288,6 @@ static int greth_mdio_probe(struct net_device *dev)
 	greth->duplex = -1;
 
 	return 0;
-}
-
-static inline int phy_aneg_done(struct phy_device *phydev)
-{
-	int retval;
-
-	retval = phy_read(phydev, MII_BMSR);
-
-	return (retval < 0) ? retval : (retval & BMSR_ANEGCOMPLETE);
 }
 
 static int greth_mdio_init(struct greth_private *greth)

@@ -669,6 +669,8 @@
 					vddulpivio18-supply = <&ab8500_ldo_intcore_reg>;
 					v-ape-supply = <&db8500_vape_reg>;
 					musb_1v8-supply = <&db8500_vsmps2_reg>;
+					clocks = <&prcmu_clk PRCMU_SYSCLK>;
+					clock-names = "sysclk";
 				};
 
 				ab8500-ponkey {

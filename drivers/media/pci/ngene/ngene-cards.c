@@ -19,12 +19,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -781,12 +777,6 @@ static pci_ers_result_t ngene_error_detected(struct pci_dev *dev,
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
-static pci_ers_result_t ngene_link_reset(struct pci_dev *dev)
-{
-	printk(KERN_INFO DEVICE_NAME ": link reset\n");
-	return 0;
-}
-
 static pci_ers_result_t ngene_slot_reset(struct pci_dev *dev)
 {
 	printk(KERN_INFO DEVICE_NAME ": slot reset\n");
@@ -800,7 +790,6 @@ static void ngene_resume(struct pci_dev *dev)
 
 static const struct pci_error_handlers ngene_errors = {
 	.error_detected = ngene_error_detected,
-	.link_reset = ngene_link_reset,
 	.slot_reset = ngene_slot_reset,
 	.resume = ngene_resume,
 };

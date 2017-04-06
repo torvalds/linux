@@ -137,24 +137,21 @@
 
 &pio {
 	mmc0_cd_pin_d709: mmc0_cd_pin@0 {
-		allwinner,pins = "PG0";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PG0";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
-		allwinner,pins = "PG1";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_DOWN>;
+		pins = "PG1";
+		function = "gpio_in";
+		bias-pull-down;
 	};
 
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PG2";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PG2";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 };
 
@@ -212,7 +209,7 @@
 };
 
 &usb0_vbus_pin_a {
-	allwinner,pins = "PG12";
+	pins = "PG12";
 };
 
 &usbphy {

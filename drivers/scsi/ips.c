@@ -2241,9 +2241,6 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 	uint8_t minor;
 	uint8_t subminor;
 	uint8_t *buffer;
-	char hexDigits[] =
-	    { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C',
-     'D', 'E', 'F' };
 
 	METHOD_TRACE("ips_get_bios_version", 1);
 
@@ -2374,13 +2371,13 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 		}
 	}
 
-	ha->bios_version[0] = hexDigits[(major & 0xF0) >> 4];
+	ha->bios_version[0] = hex_asc_upper_hi(major);
 	ha->bios_version[1] = '.';
-	ha->bios_version[2] = hexDigits[major & 0x0F];
-	ha->bios_version[3] = hexDigits[subminor];
+	ha->bios_version[2] = hex_asc_upper_lo(major);
+	ha->bios_version[3] = hex_asc_upper_lo(subminor);
 	ha->bios_version[4] = '.';
-	ha->bios_version[5] = hexDigits[(minor & 0xF0) >> 4];
-	ha->bios_version[6] = hexDigits[minor & 0x0F];
+	ha->bios_version[5] = hex_asc_upper_hi(minor);
+	ha->bios_version[6] = hex_asc_upper_lo(minor);
 	ha->bios_version[7] = 0;
 }
 

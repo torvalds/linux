@@ -69,10 +69,6 @@ void (*cvmx_override_ipd_port_setup) (int ipd_port);
 /* Port count per interface */
 static int interface_port_count[5];
 
-/* Port last configured link info index by IPD/PKO port */
-static cvmx_helper_link_info_t
-    port_link_info[CVMX_PIP_NUM_INPUT_PORTS];
-
 /**
  * Return the number of interfaces the chip has. Each interface
  * may have multiple ports. Most chips support two interfaces,
@@ -1136,41 +1132,6 @@ int cvmx_helper_initialize_packet_io_local(void)
 }
 
 /**
- * Auto configure an IPD/PKO port link state and speed. This
- * function basically does the equivalent of:
- * cvmx_helper_link_set(ipd_port, cvmx_helper_link_get(ipd_port));
- *
- * @ipd_port: IPD/PKO port to auto configure
- *
- * Returns Link state after configure
- */
-cvmx_helper_link_info_t cvmx_helper_link_autoconf(int ipd_port)
-{
-	cvmx_helper_link_info_t link_info;
-	int interface = cvmx_helper_get_interface_num(ipd_port);
-	int index = cvmx_helper_get_interface_index_num(ipd_port);
-
-	if (index >= cvmx_helper_ports_on_interface(interface)) {
-		link_info.u64 = 0;
-		return link_info;
-	}
-
-	link_info = cvmx_helper_link_get(ipd_port);
-	if (link_info.u64 == port_link_info[ipd_port].u64)
-		return link_info;
-
-	/* If we fail to set the link speed, port_link_info will not change */
-	cvmx_helper_link_set(ipd_port, link_info);
-
-	/*
-	 * port_link_info should be the current value, which will be
-	 * different than expect if cvmx_helper_link_set() failed.
-	 */
-	return port_link_info[ipd_port];
-}
-EXPORT_SYMBOL_GPL(cvmx_helper_link_autoconf);
-
-/**
  * Return the link state of an IPD/PKO port as returned by
  * auto negotiation. The result of this function may not match
  * Octeon's link config if auto negotiation has changed since
@@ -1233,8 +1194,7 @@ EXPORT_SYMBOL_GPL(cvmx_helper_link_get);
  * Configure an IPD/PKO port for the specified link state. This
  * function does not influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
- * by cvmx_helper_link_get(). It is normally best to use
- * cvmx_helper_link_autoconf() instead.
+ * by cvmx_helper_link_get().
  *
  * @ipd_port:  IPD/PKO port to configure
  * @link_info: The new link state
@@ -1276,11 +1236,6 @@ int cvmx_helper_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
 	case CVMX_HELPER_INTERFACE_MODE_LOOP:
 		break;
 	}
-	/* Set the port_link_info here so that the link status is updated
-	   no matter how cvmx_helper_link_set is called. We don't change
-	   the value if link_set failed */
-	if (result == 0)
-		port_link_info[ipd_port].u64 = link_info.u64;
 	return result;
 }
 EXPORT_SYMBOL_GPL(cvmx_helper_link_set);

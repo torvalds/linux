@@ -210,7 +210,6 @@
 &ecspi3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3_novena>;
-	fsl,spi-num-chipselects = <3>;
 	status = "okay";
 };
 
@@ -448,6 +447,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie_novena>;
 	reset-gpio = <&gpio3 29 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&pwm1 {
 	status = "okay";
 };
 

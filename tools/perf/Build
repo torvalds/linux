@@ -3,10 +3,12 @@ perf-y += builtin-annotate.o
 perf-y += builtin-config.o
 perf-y += builtin-diff.o
 perf-y += builtin-evlist.o
+perf-y += builtin-ftrace.o
 perf-y += builtin-help.o
 perf-y += builtin-sched.o
 perf-y += builtin-buildid-list.o
 perf-y += builtin-buildid-cache.o
+perf-y += builtin-kallsyms.o
 perf-y += builtin-list.o
 perf-y += builtin-record.o
 perf-y += builtin-report.o
@@ -21,6 +23,7 @@ perf-y += builtin-inject.o
 perf-y += builtin-mem.o
 perf-y += builtin-data.o
 perf-y += builtin-version.o
+perf-y += builtin-c2c.o
 
 perf-$(CONFIG_AUDIT) += builtin-trace.o
 perf-$(CONFIG_LIBELF) += builtin-probe.o
@@ -38,8 +41,7 @@ CFLAGS_builtin-help.o      += $(paths)
 CFLAGS_builtin-timechart.o += $(paths)
 CFLAGS_perf.o              += -DPERF_HTML_PATH="BUILD_STR($(htmldir_SQ))"	\
 			      -DPERF_EXEC_PATH="BUILD_STR($(perfexecdir_SQ))"	\
-			      -DPREFIX="BUILD_STR($(prefix_SQ))"		\
-			      -include $(OUTPUT)PERF-VERSION-FILE
+			      -DPREFIX="BUILD_STR($(prefix_SQ))"
 CFLAGS_builtin-trace.o	   += -DSTRACE_GROUPS_DIR="BUILD_STR($(STRACE_GROUPS_DIR_SQ))"
 CFLAGS_builtin-report.o	   += -DTIPDIR="BUILD_STR($(tipdir_SQ))"
 CFLAGS_builtin-report.o	   += -DDOCDIR="BUILD_STR($(srcdir_SQ)/Documentation)"

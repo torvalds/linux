@@ -15,7 +15,7 @@ iwlwifi-objs += $(iwlwifi-m)
 
 iwlwifi-$(CONFIG_IWLWIFI_DEVICE_TRACING) += iwl-devtrace.o
 
-ccflags-y += -D__CHECK_ENDIAN__ -I$(src)
+ccflags-y += -I$(src)
 
 obj-$(CONFIG_IWLDVM)	+= dvm/
 obj-$(CONFIG_IWLMVM)	+= mvm/

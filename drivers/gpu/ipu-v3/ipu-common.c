@@ -88,6 +88,8 @@ enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc)
 	case DRM_FORMAT_YVU420:
 	case DRM_FORMAT_YUV422:
 	case DRM_FORMAT_YVU422:
+	case DRM_FORMAT_YUV444:
+	case DRM_FORMAT_YVU444:
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV21:
 	case DRM_FORMAT_NV16:
@@ -1236,12 +1238,6 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 			platform_device_put(pdev);
 			goto err_register;
 		}
-
-		/*
-		 * Set of_node only after calling platform_device_add. Otherwise
-		 * the platform:imx-ipuv3-crtc modalias won't be used.
-		 */
-		pdev->dev.of_node = of_node;
 	}
 
 	return 0;
@@ -1284,8 +1280,11 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 		return ret;
 	}
 
-	for (i = 0; i < IPU_NUM_IRQS; i += 32)
+	/* Mask and clear all interrupts */
+	for (i = 0; i < IPU_NUM_IRQS; i += 32) {
 		ipu_cm_write(ipu, 0, IPU_INT_CTRL(i / 32));
+		ipu_cm_write(ipu, ~unused[i / 32], IPU_INT_STAT(i / 32));
+	}
 
 	for (i = 0; i < IPU_NUM_IRQS; i += 32) {
 		gc = irq_get_domain_generic_chip(ipu->domain, i);

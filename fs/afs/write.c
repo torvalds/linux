@@ -86,19 +86,30 @@ void afs_put_writeback(struct afs_writeback *wb)
 static int afs_fill_page(struct afs_vnode *vnode, struct key *key,
 			 loff_t pos, struct page *page)
 {
+	struct afs_read *req;
 	loff_t i_size;
 	int ret;
-	int len;
 
 	_enter(",,%llu", (unsigned long long)pos);
 
+	req = kzalloc(sizeof(struct afs_read) + sizeof(struct page *),
+		      GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	atomic_set(&req->usage, 1);
+	req->pos = pos;
+	req->nr_pages = 1;
+	req->pages[0] = page;
+
 	i_size = i_size_read(&vnode->vfs_inode);
 	if (pos + PAGE_SIZE > i_size)
-		len = i_size - pos;
+		req->len = i_size - pos;
 	else
-		len = PAGE_SIZE;
+		req->len = PAGE_SIZE;
 
-	ret = afs_vnode_fetch_data(vnode, key, pos, len, page);
+	ret = afs_vnode_fetch_data(vnode, key, req);
+	afs_put_read(req);
 	if (ret < 0) {
 		if (ret == -ENOENT) {
 			_debug("got NOENT from server"

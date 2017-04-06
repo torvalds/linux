@@ -181,7 +181,7 @@ static void net2272_dequeue_all(struct net2272_ep *);
 static int net2272_kick_dma(struct net2272_ep *, struct net2272_request *);
 static int net2272_fifo_status(struct usb_ep *);
 
-static struct usb_ep_ops net2272_ep_ops;
+static const struct usb_ep_ops net2272_ep_ops;
 
 /*---------------------------------------------------------------------------*/
 
@@ -202,10 +202,10 @@ net2272_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
 
-	max = usb_endpoint_maxp(desc) & 0x1fff;
+	max = usb_endpoint_maxp(desc);
 
 	spin_lock_irqsave(&dev->lock, flags);
-	_ep->maxpacket = max & 0x7fff;
+	_ep->maxpacket = max;
 	ep->desc = desc;
 
 	/* net2272_ep_reset() has already been called */
@@ -1067,7 +1067,7 @@ net2272_fifo_flush(struct usb_ep *_ep)
 	net2272_ep_write(ep, EP_STAT1, 1 << BUFFER_FLUSH);
 }
 
-static struct usb_ep_ops net2272_ep_ops = {
+static const struct usb_ep_ops net2272_ep_ops = {
 	.enable        = net2272_enable,
 	.disable       = net2272_disable,
 

@@ -323,7 +323,7 @@ static int prism2_scan(struct wiphy *wiphy,
 
 	priv->scan_request = request;
 
-	memset(&msg1, 0x00, sizeof(struct p80211msg_dot11req_scan));
+	memset(&msg1, 0x00, sizeof(msg1));
 	msg1.msgcode = DIDmsg_dot11req_scan;
 	msg1.bsstype.data = P80211ENUM_bsstype_any;
 
@@ -375,13 +375,13 @@ static int prism2_scan(struct wiphy *wiphy,
 		ie_buf[0] = WLAN_EID_SSID;
 		ie_buf[1] = msg2.ssid.data.len;
 		ie_len = ie_buf[1] + 2;
-		memcpy(&ie_buf[2], &(msg2.ssid.data.data), msg2.ssid.data.len);
+		memcpy(&ie_buf[2], &msg2.ssid.data.data, msg2.ssid.data.len);
 		freq = ieee80211_channel_to_frequency(msg2.dschannel.data,
 						      NL80211_BAND_2GHZ);
 		bss = cfg80211_inform_bss(wiphy,
 			ieee80211_get_channel(wiphy, freq),
 			CFG80211_BSS_FTYPE_UNKNOWN,
-			(const u8 *)&(msg2.bssid.data.data),
+			(const u8 *)&msg2.bssid.data.data,
 			msg2.timestamp.data, msg2.capinfo.data,
 			msg2.beaconperiod.data,
 			ie_buf,
@@ -483,8 +483,8 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 		msg_join.authtype.data = P80211ENUM_authalg_sharedkey;
 	else
 		netdev_warn(dev,
-			"Unhandled authorisation type for connect (%d)\n",
-			sme->auth_type);
+			    "Unhandled authorisation type for connect (%d)\n",
+			    sme->auth_type);
 
 	/* Set the encryption - we only support wep */
 	if (is_wep) {
@@ -667,7 +667,7 @@ void prism2_disconnected(struct wlandevice *wlandev)
 void prism2_roamed(struct wlandevice *wlandev)
 {
 	cfg80211_roamed(wlandev->netdev, NULL, wlandev->bssid,
-		NULL, 0, NULL, 0, GFP_KERNEL);
+			NULL, 0, NULL, 0, GFP_KERNEL);
 }
 
 /* Structures for declaring wiphy interface */

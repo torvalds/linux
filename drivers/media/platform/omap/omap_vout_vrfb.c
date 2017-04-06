@@ -139,8 +139,9 @@ int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 			(void *) &vout->vrfb_dma_tx, &vout->vrfb_dma_tx.dma_ch);
 	if (ret < 0) {
 		vout->vrfb_dma_tx.req_status = DMA_CHAN_NOT_ALLOTED;
-		dev_info(&pdev->dev, ": failed to allocate DMA Channel for"
-				" video%d\n", vfd->minor);
+		dev_info(&pdev->dev,
+			 ": failed to allocate DMA Channel for video%d\n",
+			 vfd->minor);
 	}
 	init_waitqueue_head(&vout->vrfb_dma_tx.wait);
 

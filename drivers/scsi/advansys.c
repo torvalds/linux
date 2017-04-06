@@ -11030,6 +11030,9 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
 		ASC_DBG(2, "AdvInitGetConfig()\n");
 
 		ret = AdvInitGetConfig(pdev, shost) ? -ENODEV : 0;
+#else
+		share_irq = 0;
+		ret = -ENODEV;
 #endif /* CONFIG_PCI */
 	}
 

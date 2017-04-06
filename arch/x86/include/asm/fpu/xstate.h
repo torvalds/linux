@@ -21,21 +21,16 @@
 /* Supervisor features */
 #define XFEATURE_MASK_SUPERVISOR (XFEATURE_MASK_PT)
 
-/* Supported features which support lazy state saving */
-#define XFEATURE_MASK_LAZY	(XFEATURE_MASK_FP | \
+/* All currently supported features */
+#define XCNTXT_MASK		(XFEATURE_MASK_FP | \
 				 XFEATURE_MASK_SSE | \
 				 XFEATURE_MASK_YMM | \
 				 XFEATURE_MASK_OPMASK | \
 				 XFEATURE_MASK_ZMM_Hi256 | \
-				 XFEATURE_MASK_Hi16_ZMM)
-
-/* Supported features which require eager state saving */
-#define XFEATURE_MASK_EAGER	(XFEATURE_MASK_BNDREGS | \
-				 XFEATURE_MASK_BNDCSR | \
-				 XFEATURE_MASK_PKRU)
-
-/* All currently supported features */
-#define XCNTXT_MASK	(XFEATURE_MASK_LAZY | XFEATURE_MASK_EAGER)
+				 XFEATURE_MASK_Hi16_ZMM	 | \
+				 XFEATURE_MASK_PKRU | \
+				 XFEATURE_MASK_BNDREGS | \
+				 XFEATURE_MASK_BNDCSR)
 
 #ifdef CONFIG_X86_64
 #define REX_PREFIX	"0x48, "

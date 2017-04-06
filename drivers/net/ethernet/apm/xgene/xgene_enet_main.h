@@ -41,11 +41,14 @@
 #include "../../../phy/mdio-xgene.h"
 
 #define XGENE_DRV_VERSION	"v1.0"
-#define XGENE_ENET_MAX_MTU	1536
-#define SKB_BUFFER_SIZE		(XGENE_ENET_MAX_MTU - NET_IP_ALIGN)
+#define XGENE_ENET_STD_MTU	1536
+#define XGENE_ENET_MAX_MTU	9600
+#define SKB_BUFFER_SIZE		(XGENE_ENET_STD_MTU - NET_IP_ALIGN)
+
 #define BUFLEN_16K	(16 * 1024)
-#define NUM_PKT_BUF	64
+#define NUM_PKT_BUF	1024
 #define NUM_BUFPOOL	32
+#define NUM_NXTBUFPOOL	8
 #define MAX_EXP_BUFFS	256
 #define NUM_MSS_REG	4
 #define XGENE_MIN_ENET_FRAME_SIZE	60
@@ -88,6 +91,12 @@ enum xgene_enet_id {
 	XGENE_ENET2
 };
 
+enum xgene_enet_buf_len {
+	SIZE_2K = 2048,
+	SIZE_4K = 4096,
+	SIZE_16K = 16384
+};
+
 /* software context of a descriptor ring */
 struct xgene_enet_desc_ring {
 	struct net_device *ndev;
@@ -107,14 +116,18 @@ struct xgene_enet_desc_ring {
 	dma_addr_t irq_mbox_dma;
 	void *irq_mbox_addr;
 	u16 dst_ring_num;
-	u8 nbufpool;
+	u16 nbufpool;
+	int npagepool;
 	u8 index;
+	u32 flags;
 	struct sk_buff *(*rx_skb);
 	struct sk_buff *(*cp_skb);
 	dma_addr_t *frag_dma_addr;
+	struct page *(*frag_page);
 	enum xgene_enet_ring_cfgsize cfgsize;
 	struct xgene_enet_desc_ring *cp_ring;
 	struct xgene_enet_desc_ring *buf_pool;
+	struct xgene_enet_desc_ring *page_pool;
 	struct napi_struct napi;
 	union {
 		void *desc_addr;
@@ -143,8 +156,12 @@ struct xgene_mac_ops {
 	void (*rx_disable)(struct xgene_enet_pdata *pdata);
 	void (*set_speed)(struct xgene_enet_pdata *pdata);
 	void (*set_mac_addr)(struct xgene_enet_pdata *pdata);
+	void (*set_framesize)(struct xgene_enet_pdata *pdata, int framesize);
 	void (*set_mss)(struct xgene_enet_pdata *pdata, u16 mss, u8 index);
 	void (*link_state)(struct work_struct *work);
+	void (*enable_tx_pause)(struct xgene_enet_pdata *pdata, bool enable);
+	void (*flowctl_rx)(struct xgene_enet_pdata *pdata, bool enable);
+	void (*flowctl_tx)(struct xgene_enet_pdata *pdata, bool enable);
 };
 
 struct xgene_port_ops {
@@ -152,7 +169,7 @@ struct xgene_port_ops {
 	void (*clear)(struct xgene_enet_pdata *pdata,
 		      struct xgene_enet_desc_ring *ring);
 	void (*cle_bypass)(struct xgene_enet_pdata *pdata,
-			   u32 dst_ring_num, u16 bufpool_id);
+			   u32 dst_ring_num, u16 bufpool_id, u16 nxtbufpool_id);
 	void (*shutdown)(struct xgene_enet_pdata *pdata);
 };
 
@@ -219,6 +236,10 @@ struct xgene_enet_pdata {
 	u8 rx_delay;
 	bool mdio_driver;
 	struct gpio_desc *sfp_rdy;
+	bool sfp_gpio_en;
+	u32 pause_autoneg;
+	bool tx_pause;
+	bool rx_pause;
 };
 
 struct xgene_indirect_ctl {

@@ -12,8 +12,10 @@
 #define DEBUG		/* Enable initcall_debug */
 
 #include <linux/types.h>
+#include <linux/extable.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
+#include <linux/binfmts.h>
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/stackprotector.h>
@@ -26,6 +28,7 @@
 #include <linux/bootmem.h>
 #include <linux/acpi.h>
 #include <linux/tty.h>
+#include <linux/nmi.h>
 #include <linux/percpu.h>
 #include <linux/kmod.h>
 #include <linux/vmalloc.h>
@@ -60,6 +63,7 @@
 #include <linux/device.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
+#include <linux/sched/init.h>
 #include <linux/signal.h>
 #include <linux/idr.h>
 #include <linux/kgdb.h>
@@ -70,17 +74,20 @@
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/perf_event.h>
-#include <linux/file.h>
 #include <linux/ptrace.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/sched_clock.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/context_tracking.h>
 #include <linux/random.h>
 #include <linux/list.h>
 #include <linux/integrity.h>
 #include <linux/proc_ns.h>
 #include <linux/io.h>
+#include <linux/cache.h>
+#include <linux/rodata_test.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -448,6 +455,8 @@ void __init parse_early_param(void)
 	done = 1;
 }
 
+void __init __weak arch_post_acpi_subsys_init(void) { }
+
 void __init __weak smp_setup_processor_id(void)
 {
 }
@@ -550,14 +559,21 @@ asmlinkage __visible void __init start_kernel(void)
 	if (WARN(!irqs_disabled(),
 		 "Interrupts were enabled *very* early, fixing it\n"))
 		local_irq_disable();
-	idr_init_cache();
+	radix_tree_init();
+
+	/*
+	 * Allow workqueue creation and work item queueing/cancelling
+	 * early.  Work item execution depends on kthreads and starts after
+	 * workqueue_init().
+	 */
+	workqueue_init_early();
+
 	rcu_init();
 
 	/* trace_printk() and trace points may be used after this */
 	trace_init();
 
 	context_tracking_init();
-	radix_tree_init();
 	/* init some links before init_ISA_irqs() */
 	early_irq_init();
 	init_IRQ();
@@ -569,7 +585,7 @@ asmlinkage __visible void __init start_kernel(void)
 	timekeeping_init();
 	time_init();
 	sched_clock_postinit();
-	printk_nmi_init();
+	printk_safe_init();
 	perf_event_init();
 	profile_init();
 	call_function_init();
@@ -614,7 +630,6 @@ asmlinkage __visible void __init start_kernel(void)
 	numa_policy_init();
 	if (late_time_init)
 		late_time_init();
-	sched_clock_init();
 	calibrate_delay();
 	pidmap_init();
 	anon_vma_init();
@@ -636,9 +651,8 @@ asmlinkage __visible void __init start_kernel(void)
 	security_init();
 	dbg_late_init();
 	vfs_caches_init();
+	pagecache_init();
 	signals_init();
-	/* rootfs populating might need page-writeback */
-	page_writeback_init();
 	proc_root_init();
 	nsfs_init();
 	cpuset_init();
@@ -649,10 +663,10 @@ asmlinkage __visible void __init start_kernel(void)
 	check_bugs();
 
 	acpi_subsystem_init();
+	arch_post_acpi_subsys_init();
 	sfi_init_late();
 
 	if (efi_enabled(EFI_RUNTIME_SERVICES)) {
-		efi_late_init();
 		efi_free_boot_services();
 	}
 
@@ -914,19 +928,22 @@ static int try_to_run_init_process(const char *init_filename)
 
 static noinline void __init kernel_init_freeable(void);
 
-#ifdef CONFIG_DEBUG_RODATA
-static bool rodata_enabled = true;
+#if defined(CONFIG_STRICT_KERNEL_RWX) || defined(CONFIG_STRICT_MODULE_RWX)
+bool rodata_enabled __ro_after_init = true;
 static int __init set_debug_rodata(char *str)
 {
 	return strtobool(str, &rodata_enabled);
 }
 __setup("rodata=", set_debug_rodata);
+#endif
 
+#ifdef CONFIG_STRICT_KERNEL_RWX
 static void mark_readonly(void)
 {
-	if (rodata_enabled)
+	if (rodata_enabled) {
 		mark_rodata_ro();
-	else
+		rodata_test();
+	} else
 		pr_info("Kernel memory protection disabled.\n");
 }
 #else
@@ -947,8 +964,6 @@ static int __ref kernel_init(void *unused)
 	mark_readonly();
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
-
-	flush_delayed_fput();
 
 	rcu_end_inkernel_boot();
 
@@ -980,7 +995,7 @@ static int __ref kernel_init(void *unused)
 		return 0;
 
 	panic("No working init found.  Try passing init= option to kernel. "
-	      "See Linux Documentation/init.txt for guidance.");
+	      "See Linux Documentation/admin-guide/init.rst for guidance.");
 }
 
 static noinline void __init kernel_init_freeable(void)
@@ -1005,6 +1020,8 @@ static noinline void __init kernel_init_freeable(void)
 	cad_pid = task_pid(current);
 
 	smp_prepare_cpus(setup_max_cpus);
+
+	workqueue_init();
 
 	do_pre_smp_initcalls();
 	lockup_detector_init();

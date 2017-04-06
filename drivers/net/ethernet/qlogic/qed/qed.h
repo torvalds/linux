@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_H
@@ -27,7 +51,7 @@
 #include "qed_hsi.h"
 
 extern const struct qed_common_ops qed_common_ops_pass;
-#define DRV_MODULE_VERSION "8.10.9.20"
+#define DRV_MODULE_VERSION "8.10.10.20"
 
 #define MAX_HWFNS_PER_DEVICE    (4)
 #define NAME_SIZE 16
@@ -35,6 +59,8 @@ extern const struct qed_common_ops qed_common_ops_pass;
 
 #define QED_WFQ_UNIT	100
 
+#define ISCSI_BDQ_ID(_port_id) (_port_id)
+#define FCOE_BDQ_ID(_port_id) ((_port_id) + 2)
 #define QED_WID_SIZE            (1024)
 #define QED_PF_DEMS_SIZE        (4)
 
@@ -142,6 +168,7 @@ struct qed_tunn_update_params {
  */
 enum qed_pci_personality {
 	QED_PCI_ETH,
+	QED_PCI_FCOE,
 	QED_PCI_ISCSI,
 	QED_PCI_ETH_ROCE,
 	QED_PCI_DEFAULT /* default in shmem */
@@ -154,7 +181,10 @@ struct qed_qm_iids {
 	u32 tids;
 };
 
-enum QED_RESOURCES {
+/* HW / FW resources, output of features supported below, most information
+ * is received from MFW.
+ */
+enum qed_resources {
 	QED_SB,
 	QED_L2_QUEUE,
 	QED_VPORT,
@@ -166,6 +196,7 @@ enum QED_RESOURCES {
 	QED_RDMA_CNQ_RAM,
 	QED_ILT,
 	QED_LL2_QUEUE,
+	QED_CMDQS_CQS,
 	QED_RDMA_STATS_QUEUE,
 	QED_MAX_RESC,
 };
@@ -174,6 +205,8 @@ enum QED_FEATURE {
 	QED_PF_L2_QUE,
 	QED_VF,
 	QED_RDMA_CNQ,
+	QED_VF_L2_QUE,
+	QED_FCOE_CQ,
 	QED_MAX_FEATURES,
 };
 
@@ -191,8 +224,14 @@ enum QED_PORT_MODE {
 
 enum qed_dev_cap {
 	QED_DEV_CAP_ETH,
+	QED_DEV_CAP_FCOE,
 	QED_DEV_CAP_ISCSI,
 	QED_DEV_CAP_ROCE,
+};
+
+enum qed_wol_support {
+	QED_WOL_SUPPORT_NONE,
+	QED_WOL_SUPPORT_PME,
 };
 
 struct qed_hw_info {
@@ -220,21 +259,19 @@ struct qed_hw_info {
 	u32				part_num[4];
 
 	unsigned char			hw_mac_addr[ETH_ALEN];
+	u64				node_wwn;
+	u64				port_wwn;
+
+	u16				num_fcoe_conns;
 
 	struct qed_igu_info		*p_igu_info;
 
 	u32				port_mode;
 	u32				hw_mode;
 	unsigned long		device_capabilities;
-};
+	u16				mtu;
 
-struct qed_hw_cid_data {
-	u32	cid;
-	bool	b_cid_allocated;
-
-	/* Additional identifiers */
-	u16	opaque_fid;
-	u8	vport_id;
+	enum qed_wol_support b_wol_support;
 };
 
 /* maximun size of read/write commands (HW limit) */
@@ -378,7 +415,10 @@ struct qed_hwfn {
 	/* Protocol related */
 	bool				using_ll2;
 	struct qed_ll2_info		*p_ll2_info;
+	struct qed_ooo_info		*p_ooo_info;
 	struct qed_rdma_info		*p_rdma_info;
+	struct qed_iscsi_info		*p_iscsi_info;
+	struct qed_fcoe_info		*p_fcoe_info;
 	struct qed_pf_params		pf_params;
 
 	bool b_rdma_enabled_in_prs;
@@ -403,9 +443,6 @@ struct qed_hwfn {
 
 	struct qed_dcbx_info		*p_dcbx_info;
 
-	struct qed_hw_cid_data		*p_tx_cids;
-	struct qed_hw_cid_data		*p_rx_cids;
-
 	struct qed_dmae_info		dmae_info;
 
 	/* QM init */
@@ -428,6 +465,8 @@ struct qed_hwfn {
 	u8 dcbx_no_edpm;
 	u8 db_bar_no_edpm;
 
+	/* p_ptp_ptt is valid for leading HWFN only */
+	struct qed_ptt *p_ptp_ptt;
 	struct qed_simd_fp_handler	simd_proto_handler[64];
 
 #ifdef CONFIG_QED_SRIOV
@@ -538,7 +577,9 @@ struct qed_dev {
 	u8				mcp_rev;
 	u8				boot_mode;
 
-	u8				wol;
+	/* WoL related configurations */
+	u8 wol_config;
+	u8 wol_mac[ETH_ALEN];
 
 	u32				int_mode;
 	enum qed_coalescing_mode	int_coalescing_mode;
@@ -578,6 +619,8 @@ struct qed_dev {
 	/* Linux specific here */
 	struct  qede_dev		*edev;
 	struct  pci_dev			*pdev;
+	u32 flags;
+#define QED_FLAG_STORAGE_STARTED	(BIT(0))
 	int				msg_enable;
 
 	struct pci_params		pci_params;
@@ -586,11 +629,14 @@ struct qed_dev {
 
 	u8				protocol;
 #define IS_QED_ETH_IF(cdev)     ((cdev)->protocol == QED_PROTOCOL_ETH)
+#define IS_QED_FCOE_IF(cdev)    ((cdev)->protocol == QED_PROTOCOL_FCOE)
 
 	/* Callbacks to protocol driver */
 	union {
 		struct qed_common_cb_ops	*common;
 		struct qed_eth_cb_ops		*eth;
+		struct qed_fcoe_cb_ops		*fcoe;
+		struct qed_iscsi_cb_ops		*iscsi;
 	} protocol_ops;
 	void				*ops_cookie;
 
@@ -600,7 +646,7 @@ struct qed_dev {
 	struct qed_cb_ll2_info		*ll2;
 	u8				ll2_mac_address[ETH_ALEN];
 #endif
-
+	DECLARE_HASHTABLE(connections, 10);
 	const struct firmware		*firmware;
 
 	u32 rdma_max_sge;
@@ -642,7 +688,9 @@ static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 #define OOO_LB_TC 9
 
 int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate);
-void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate);
+void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
+					 struct qed_ptt *p_ptt,
+					 u32 min_pf_rate);
 
 void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 #define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])

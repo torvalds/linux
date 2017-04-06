@@ -645,7 +645,7 @@ static int serial_lpc32xx_verify_port(struct uart_port *port,
 	return ret;
 }
 
-static struct uart_ops serial_lpc32xx_pops = {
+static const struct uart_ops serial_lpc32xx_pops = {
 	.tx_empty	= serial_lpc32xx_tx_empty,
 	.set_mctrl	= serial_lpc32xx_set_mctrl,
 	.get_mctrl	= serial_lpc32xx_get_mctrl,

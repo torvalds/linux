@@ -265,6 +265,8 @@ static ssize_t perf_copy(struct pthr_ctx *pctx, char __iomem *dst,
 	if (dma_submit_error(cookie))
 		goto err_set_unmap;
 
+	dmaengine_unmap_put(unmap);
+
 	atomic_inc(&pctx->dma_sync);
 	dma_async_issue_pending(chan);
 

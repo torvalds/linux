@@ -308,12 +308,6 @@ static void osdblk_rq_fn(struct request_queue *q)
 		if (!rq)
 			break;
 
-		/* filter out block requests we don't understand */
-		if (rq->cmd_type != REQ_TYPE_FS) {
-			blk_end_request_all(rq, 0);
-			continue;
-		}
-
 		/* deduce our operation (read, write, flush) */
 		/* I wish the block layer simplified cmd_type/cmd_flags/cmd[]
 		 * into a clearly defined set of RPC commands:

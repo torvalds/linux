@@ -89,16 +89,10 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 	struct mlx5e_resources *res = &mdev->mlx5e_res;
 	int err;
 
-	err = mlx5_alloc_map_uar(mdev, &res->cq_uar, false);
-	if (err) {
-		mlx5_core_err(mdev, "alloc_map uar failed, %d\n", err);
-		return err;
-	}
-
 	err = mlx5_core_alloc_pd(mdev, &res->pdn);
 	if (err) {
 		mlx5_core_err(mdev, "alloc pd failed, %d\n", err);
-		goto err_unmap_free_uar;
+		return err;
 	}
 
 	err = mlx5_core_alloc_transport_domain(mdev, &res->td.tdn);
@@ -121,9 +115,6 @@ err_dealloc_transport_domain:
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 err_dealloc_pd:
 	mlx5_core_dealloc_pd(mdev, res->pdn);
-err_unmap_free_uar:
-	mlx5_unmap_free_uar(mdev, &res->cq_uar);
-
 	return err;
 }
 
@@ -134,10 +125,10 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 	mlx5_core_destroy_mkey(mdev, &res->mkey);
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 	mlx5_core_dealloc_pd(mdev, res->pdn);
-	mlx5_unmap_free_uar(mdev, &res->cq_uar);
 }
 
-int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5_core_dev *mdev)
+int mlx5e_refresh_tirs_self_loopback(struct mlx5_core_dev *mdev,
+				     bool enable_uc_lb)
 {
 	struct mlx5e_tir *tir;
 	void *in;
@@ -148,6 +139,10 @@ int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5_core_dev *mdev)
 	in = mlx5_vzalloc(inlen);
 	if (!in)
 		return -ENOMEM;
+
+	if (enable_uc_lb)
+		MLX5_SET(modify_tir_in, in, ctx.self_lb_block,
+			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST_);
 
 	MLX5_SET(modify_tir_in, in, bitmask.self_lb_en, 1);
 

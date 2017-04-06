@@ -1747,10 +1747,9 @@ static int mxcnd_probe(struct platform_device *pdev)
 	}
 
 	/* first scan to find the device and get the page size */
-	if (nand_scan_ident(mtd, is_imx25_nfc(host) ? 4 : 1, NULL)) {
-		err = -ENXIO;
+	err = nand_scan_ident(mtd, is_imx25_nfc(host) ? 4 : 1, NULL);
+	if (err)
 		goto escan;
-	}
 
 	switch (this->ecc.mode) {
 	case NAND_ECC_HW:
@@ -1808,10 +1807,9 @@ static int mxcnd_probe(struct platform_device *pdev)
 	}
 
 	/* second phase scan */
-	if (nand_scan_tail(mtd)) {
-		err = -ENXIO;
+	err = nand_scan_tail(mtd);
+	if (err)
 		goto escan;
-	}
 
 	/* Register the partitions */
 	mtd_device_parse_register(mtd, part_probes,

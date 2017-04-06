@@ -10,10 +10,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -225,7 +221,7 @@ enum rx_tx_priority_ratio {
 
 #define DMA_BUS_MODE_FB		0x00010000	/* Fixed burst */
 #define DMA_BUS_MODE_MB		0x04000000	/* Mixed burst */
-#define DMA_BUS_MODE_RPBL_MASK	0x003e0000	/* Rx-Programmable Burst Len */
+#define DMA_BUS_MODE_RPBL_MASK	0x007e0000	/* Rx-Programmable Burst Len */
 #define DMA_BUS_MODE_RPBL_SHIFT	17
 #define DMA_BUS_MODE_USP	0x00800000
 #define DMA_BUS_MODE_MAXPBL	0x01000000

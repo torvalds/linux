@@ -1317,9 +1317,9 @@ struct drx_version_list {
 		DRX_MPEG_STR_WIDTH_8
 	};
 
-/* CTRL CFG MPEG ouput */
+/* CTRL CFG MPEG output */
 /**
-* \struct struct drx_cfg_mpeg_output * \brief Configuartion parameters for MPEG output control.
+* \struct struct drx_cfg_mpeg_output * \brief Configuration parameters for MPEG output control.
 *
 * Used by DRX_CFG_MPEG_OUTPUT, in combination with DRX_CTRL_SET_CFG and
 * DRX_CTRL_GET_CFG.

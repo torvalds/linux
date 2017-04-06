@@ -30,6 +30,7 @@
 #define MACHINE_FLAG_TLB_LC	_BITUL(12)
 #define MACHINE_FLAG_VX		_BITUL(13)
 #define MACHINE_FLAG_CAD	_BITUL(14)
+#define MACHINE_FLAG_NX		_BITUL(15)
 
 #define LPP_MAGIC		_BITUL(31)
 #define LPP_PFAULT_PID_MASK	_AC(0xffffffff, UL)
@@ -58,9 +59,6 @@ extern void detect_memory_memblock(void);
 
 #define MACHINE_HAS_DIAG9C	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG9C)
 #define MACHINE_HAS_ESOP	(S390_lowcore.machine_flags & MACHINE_FLAG_ESOP)
-#define MACHINE_HAS_PFMF	MACHINE_HAS_EDAT1
-#define MACHINE_HAS_HPAGE	MACHINE_HAS_EDAT1
-
 #define MACHINE_HAS_IDTE	(S390_lowcore.machine_flags & MACHINE_FLAG_IDTE)
 #define MACHINE_HAS_DIAG44	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG44)
 #define MACHINE_HAS_EDAT1	(S390_lowcore.machine_flags & MACHINE_FLAG_EDAT1)
@@ -71,6 +69,7 @@ extern void detect_memory_memblock(void);
 #define MACHINE_HAS_TLB_LC	(S390_lowcore.machine_flags & MACHINE_FLAG_TLB_LC)
 #define MACHINE_HAS_VX		(S390_lowcore.machine_flags & MACHINE_FLAG_VX)
 #define MACHINE_HAS_CAD		(S390_lowcore.machine_flags & MACHINE_FLAG_CAD)
+#define MACHINE_HAS_NX		(S390_lowcore.machine_flags & MACHINE_FLAG_NX)
 
 /*
  * Console mode. Override with conmode=

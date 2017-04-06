@@ -306,7 +306,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 	int ret;
 
 	memset(bitmap, 0, len);
-	memset_extent_buffer(eb, 0, 0, len);
+	memzero_extent_buffer(eb, 0, len);
 	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
 		test_msg("Bitmap was not zeroed\n");
 		return -EINVAL;
@@ -383,6 +383,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 
 static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 {
+	struct btrfs_fs_info *fs_info;
 	unsigned long len;
 	unsigned long *bitmap;
 	struct extent_buffer *eb;
@@ -397,13 +398,15 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 	len = (sectorsize < BTRFS_MAX_METADATA_BLOCKSIZE)
 		? sectorsize * 4 : sectorsize;
 
+	fs_info = btrfs_alloc_dummy_fs_info(len, len);
+
 	bitmap = kmalloc(len, GFP_KERNEL);
 	if (!bitmap) {
 		test_msg("Couldn't allocate test bitmap\n");
 		return -ENOMEM;
 	}
 
-	eb = __alloc_dummy_extent_buffer(NULL, 0, len);
+	eb = __alloc_dummy_extent_buffer(fs_info, 0, len);
 	if (!eb) {
 		test_msg("Couldn't allocate test extent buffer\n");
 		kfree(bitmap);

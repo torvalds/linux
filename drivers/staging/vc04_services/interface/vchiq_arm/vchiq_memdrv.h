@@ -42,13 +42,13 @@
 /* ---- Constants and Types ---------------------------------------------- */
 
 typedef struct {
-	 void                   *armSharedMemVirt;
-	 dma_addr_t              armSharedMemPhys;
-	 size_t                  armSharedMemSize;
+	 void                   *arm_shared_mem_virt;
+	 dma_addr_t              arm_shared_mem_phys;
+	 size_t                  arm_shared_mem_size;
 
-	 void                   *vcSharedMemVirt;
-	 dma_addr_t              vcSharedMemPhys;
-	 size_t                  vcSharedMemSize;
+	 void                   *vc_shared_mem_virt;
+	 dma_addr_t              vc_shared_mem_phys;
+	 size_t                  vc_shared_mem_size;
 } VCHIQ_SHARED_MEM_INFO_T;
 
 /* ---- Variable Externs ------------------------------------------------- */

@@ -62,6 +62,7 @@ struct wm_adsp {
 	int fw;
 	int fw_ver;
 
+	bool preloaded;
 	bool booted;
 	bool running;
 
@@ -86,7 +87,12 @@ struct wm_adsp {
 	SND_SOC_DAPM_PGA_E(wname, SND_SOC_NOPM, num, 0, NULL, 0, \
 		wm_adsp1_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD)
 
+#define WM_ADSP2_PRELOAD_SWITCH(wname, num) \
+	SOC_SINGLE_EXT(wname " Preload Switch", SND_SOC_NOPM, num, 1, 0, \
+		wm_adsp2_preloader_get, wm_adsp2_preloader_put)
+
 #define WM_ADSP2(wname, num, event_fn) \
+	SND_SOC_DAPM_SPK(wname " Preload", NULL), \
 {	.id = snd_soc_dapm_supply, .name = wname " Preloader", \
 	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
 	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD, \
@@ -109,6 +115,11 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 			 unsigned int freq);
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
+
+int wm_adsp2_preloader_get(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol);
+int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol);
 
 int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream);
 int wm_adsp_compr_free(struct snd_compr_stream *stream);

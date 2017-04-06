@@ -375,12 +375,10 @@ error_unlock:
 /*
  * read the attributes of an inode
  */
-int afs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		      struct kstat *stat)
+int afs_getattr(const struct path *path, struct kstat *stat,
+		u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode;
-
-	inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 
 	_enter("{ ino=%lu v=%u }", inode->i_ino, inode->i_generation);
 

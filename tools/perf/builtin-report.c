@@ -36,7 +36,7 @@
 #include "util/hist.h"
 #include "util/data.h"
 #include "arch/common.h"
-
+#include "util/time-utils.h"
 #include "util/auxtrace.h"
 
 #include <dlfcn.h>
@@ -59,6 +59,8 @@ struct report {
 	const char		*pretty_printing_style;
 	const char		*cpu_list;
 	const char		*symbol_filter_str;
+	const char		*time_str;
+	struct perf_time_interval ptime;
 	float			min_percent;
 	u64			nr_entries;
 	u64			queue_size;
@@ -158,6 +160,9 @@ static int process_sample_event(struct perf_tool *tool,
 	};
 	int ret = 0;
 
+	if (perf_time__skip_sample(&rep->ptime, sample->time))
+		return 0;
+
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
@@ -207,11 +212,14 @@ static int process_read_event(struct perf_tool *tool,
 
 	if (rep->show_threads) {
 		const char *name = evsel ? perf_evsel__name(evsel) : "unknown";
-		perf_read_values_add_value(&rep->show_threads_values,
+		int err = perf_read_values_add_value(&rep->show_threads_values,
 					   event->read.pid, event->read.tid,
 					   event->read.id,
 					   name,
 					   event->read.value);
+
+		if (err)
+			return err;
 	}
 
 	dump_printf(": %d %d %s %" PRIu64 "\n", event->read.pid, event->read.tid,
@@ -312,6 +320,9 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	size_t size = sizeof(buf);
 	int socked_id = hists->socket_filter;
 
+	if (quiet)
+		return 0;
+
 	if (symbol_conf.filter_relative) {
 		nr_samples = hists->stats.nr_non_filtered_samples;
 		nr_events = hists->stats.total_non_filtered_period;
@@ -364,7 +375,11 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 {
 	struct perf_evsel *pos;
 
-	fprintf(stdout, "#\n# Total Lost Samples: %" PRIu64 "\n#\n", evlist->stats.total_lost_samples);
+	if (!quiet) {
+		fprintf(stdout, "#\n# Total Lost Samples: %" PRIu64 "\n#\n",
+			evlist->stats.total_lost_samples);
+	}
+
 	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		const char *evname = perf_evsel__name(pos);
@@ -374,7 +389,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 			continue;
 
 		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
-		hists__fprintf(hists, true, 0, 0, rep->min_percent, stdout,
+		hists__fprintf(hists, !quiet, 0, 0, rep->min_percent, stdout,
 			       symbol_conf.use_callchain);
 		fprintf(stdout, "\n\n");
 	}
@@ -539,8 +554,11 @@ static int __cmd_report(struct report *rep)
 		}
 	}
 
-	if (rep->show_threads)
-		perf_read_values_init(&rep->show_threads_values);
+	if (rep->show_threads) {
+		ret = perf_read_values_init(&rep->show_threads_values);
+		if (ret)
+			return ret;
+	}
 
 	ret = report__setup_sample_type(rep);
 	if (ret) {
@@ -637,7 +655,7 @@ report_parse_ignore_callees_opt(const struct option *opt __maybe_unused,
 }
 
 static int
-parse_branch_mode(const struct option *opt __maybe_unused,
+parse_branch_mode(const struct option *opt,
 		  const char *str __maybe_unused, int unset)
 {
 	int *branch_mode = opt->value;
@@ -705,6 +723,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "input file name"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any message"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
@@ -824,6 +843,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK_DEFAULT(0, "stdio-color", NULL, "mode",
 			     "'always' (default), 'never' or 'auto' only applicable to --stdio mode",
 			     stdio__config_color, "always"),
+	OPT_STRING(0, "time", &report.time_str, "str",
+		   "Time span of interest (start,stop)"),
 	OPT_END()
 	};
 	struct perf_data_file file = {
@@ -834,7 +855,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (ret < 0)
 		return ret;
 
-	perf_config(report__config, &report);
+	ret = perf_config(report__config, &report);
+	if (ret)
+		return ret;
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 	if (argc) {
@@ -847,6 +870,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 
 		report.symbol_filter_str = argv[0];
 	}
+
+	if (quiet)
+		perf_quiet_option();
 
 	if (symbol_conf.vmlinux_name &&
 	    access(symbol_conf.vmlinux_name, R_OK)) {
@@ -904,6 +930,9 @@ repeat:
 
 	if (itrace_synth_opts.last_branch)
 		has_br_stack = true;
+
+	if (has_br_stack && branch_call_mode)
+		symbol_conf.show_branchflag_count = true;
 
 	/*
 	 * Branch mode is a tristate:
@@ -965,14 +994,14 @@ repeat:
 		goto error;
 	}
 
-	if (report.header || report.header_only) {
+	if ((report.header || report.header_only) && !quiet) {
 		perf_session__fprintf_info(session, stdout,
 					   report.show_full_info);
 		if (report.header_only) {
 			ret = 0;
 			goto error;
 		}
-	} else if (use_browser == 0) {
+	} else if (use_browser == 0 && !quiet) {
 		fputs("# To display the perf.data header info, please use --header/--header-only options.\n#\n",
 		      stdout);
 	}
@@ -991,7 +1020,7 @@ repeat:
  		 * providing it only in verbose mode not to bloat too
  		 * much struct symbol.
  		 */
-		if (verbose) {
+		if (verbose > 0) {
 			/*
 			 * XXX: Need to provide a less kludgy way to ask for
 			 * more space per symbol, the u32 is for the index on
@@ -1005,6 +1034,11 @@ repeat:
 
 	if (symbol__init(&session->header.env) < 0)
 		goto error;
+
+	if (perf_time__parse_str(&report.ptime, report.time_str) != 0) {
+		pr_err("Invalid time string\n");
+		return -EINVAL;
+	}
 
 	sort__setup_elide(stdout);
 

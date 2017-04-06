@@ -506,7 +506,7 @@ static int acp_init(void __iomem *acp_mmio)
 	return 0;
 }
 
-/* Deintialize ACP */
+/* Deinitialize ACP */
 static int acp_deinit(void __iomem *acp_mmio)
 {
 	u32 val;
@@ -670,12 +670,9 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 {
 	int status;
 	uint64_t size;
-	struct snd_dma_buffer *dma_buffer;
 	struct page *pg;
 	struct snd_pcm_runtime *runtime;
 	struct audio_substream_data *rtd;
-
-	dma_buffer = &substream->dma_buffer;
 
 	runtime = substream->runtime;
 	rtd = runtime->private_data;

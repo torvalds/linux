@@ -35,6 +35,7 @@
 
 #include <linux/fs_struct.h>
 #include <linux/namei.h>
+#include <linux/cred.h>
 
 #include "lustre_patchless_compat.h"
 
@@ -73,5 +74,7 @@
 # define ext2_find_first_zero_bit find_first_zero_bit_le
 # define ext2_find_next_zero_bit  find_next_zero_bit_le
 #endif
+
+#define TIMES_SET_FLAGS (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)
 
 #endif /* _LUSTRE_COMPAT_H */

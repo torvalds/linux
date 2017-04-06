@@ -220,7 +220,7 @@ void rds_tcp_set_callbacks(struct socket *sock, struct rds_conn_path *cp)
 	write_unlock_bh(&sock->sk->sk_callback_lock);
 }
 
-static void rds_tcp_tc_info(struct socket *sock, unsigned int len,
+static void rds_tcp_tc_info(struct socket *rds_sock, unsigned int len,
 			    struct rds_info_iterator *iter,
 			    struct rds_info_lengths *lens)
 {
@@ -229,6 +229,7 @@ static void rds_tcp_tc_info(struct socket *sock, unsigned int len,
 	unsigned long flags;
 	struct sockaddr_in sin;
 	int sinlen;
+	struct socket *sock;
 
 	spin_lock_irqsave(&rds_tcp_tc_list_lock, flags);
 
@@ -237,12 +238,17 @@ static void rds_tcp_tc_info(struct socket *sock, unsigned int len,
 
 	list_for_each_entry(tc, &rds_tcp_tc_list, t_list_item) {
 
-		sock->ops->getname(sock, (struct sockaddr *)&sin, &sinlen, 0);
-		tsinfo.local_addr = sin.sin_addr.s_addr;
-		tsinfo.local_port = sin.sin_port;
-		sock->ops->getname(sock, (struct sockaddr *)&sin, &sinlen, 1);
-		tsinfo.peer_addr = sin.sin_addr.s_addr;
-		tsinfo.peer_port = sin.sin_port;
+		sock = tc->t_sock;
+		if (sock) {
+			sock->ops->getname(sock, (struct sockaddr *)&sin,
+					   &sinlen, 0);
+			tsinfo.local_addr = sin.sin_addr.s_addr;
+			tsinfo.local_port = sin.sin_port;
+			sock->ops->getname(sock, (struct sockaddr *)&sin,
+					   &sinlen, 1);
+			tsinfo.peer_addr = sin.sin_addr.s_addr;
+			tsinfo.peer_port = sin.sin_port;
+		}
 
 		tsinfo.hdr_rem = tc->t_tinc_hdr_rem;
 		tsinfo.data_rem = tc->t_tinc_data_rem;
@@ -360,7 +366,7 @@ struct rds_transport rds_tcp_transport = {
 	.t_mp_capable		= 1,
 };
 
-static int rds_tcp_netid;
+static unsigned int rds_tcp_netid;
 
 /* per-network namespace private data for this module */
 struct rds_tcp_net {
@@ -635,32 +641,29 @@ static int rds_tcp_init(void)
 	ret = register_netdevice_notifier(&rds_tcp_dev_notifier);
 	if (ret) {
 		pr_warn("could not register rds_tcp_dev_notifier\n");
-		goto out;
+		goto out_slab;
 	}
 
 	ret = register_pernet_subsys(&rds_tcp_net_ops);
 	if (ret)
-		goto out_slab;
+		goto out_notifier;
 
 	ret = rds_tcp_recv_init();
 	if (ret)
 		goto out_pernet;
 
-	ret = rds_trans_register(&rds_tcp_transport);
-	if (ret)
-		goto out_recv;
+	rds_trans_register(&rds_tcp_transport);
 
 	rds_info_register_func(RDS_INFO_TCP_SOCKETS, rds_tcp_tc_info);
 
 	goto out;
 
-out_recv:
-	rds_tcp_recv_exit();
 out_pernet:
 	unregister_pernet_subsys(&rds_tcp_net_ops);
-out_slab:
+out_notifier:
 	if (unregister_netdevice_notifier(&rds_tcp_dev_notifier))
 		pr_warn("could not unregister rds_tcp_dev_notifier\n");
+out_slab:
 	kmem_cache_destroy(rds_tcp_conn_slab);
 out:
 	return ret;

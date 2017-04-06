@@ -41,9 +41,16 @@ extern "C" {
 /* 8 bpp Red */
 #define DRM_FORMAT_R8		fourcc_code('R', '8', ' ', ' ') /* [7:0] R */
 
+/* 16 bpp Red */
+#define DRM_FORMAT_R16		fourcc_code('R', '1', '6', ' ') /* [15:0] R little endian */
+
 /* 16 bpp RG */
 #define DRM_FORMAT_RG88		fourcc_code('R', 'G', '8', '8') /* [15:0] R:G 8:8 little endian */
 #define DRM_FORMAT_GR88		fourcc_code('G', 'R', '8', '8') /* [15:0] G:R 8:8 little endian */
+
+/* 32 bpp RG */
+#define DRM_FORMAT_RG1616	fourcc_code('R', 'G', '3', '2') /* [31:0] R:G 16:16 little endian */
+#define DRM_FORMAT_GR1616	fourcc_code('G', 'R', '3', '2') /* [31:0] G:R 16:16 little endian */
 
 /* 8 bpp RGB */
 #define DRM_FORMAT_RGB332	fourcc_code('R', 'G', 'B', '8') /* [7:0] R:G:B 3:3:2 */
@@ -154,11 +161,13 @@ extern "C" {
 
 /* Vendor Ids: */
 #define DRM_FORMAT_MOD_NONE           0
+#define DRM_FORMAT_MOD_VENDOR_NONE    0
 #define DRM_FORMAT_MOD_VENDOR_INTEL   0x01
 #define DRM_FORMAT_MOD_VENDOR_AMD     0x02
 #define DRM_FORMAT_MOD_VENDOR_NV      0x03
 #define DRM_FORMAT_MOD_VENDOR_SAMSUNG 0x04
 #define DRM_FORMAT_MOD_VENDOR_QCOM    0x05
+#define DRM_FORMAT_MOD_VENDOR_VIVANTE 0x06
 /* add more to the end as needed */
 
 #define fourcc_mod_code(vendor, val) \
@@ -171,6 +180,16 @@ extern "C" {
  * similar to the fourcc codes above. drm_fourcc.h is considered the
  * authoritative source for all of these.
  */
+
+/*
+ * Linear Layout
+ *
+ * Just plain linear layout. Note that this is different from no specifying any
+ * modifier (e.g. not setting DRM_MODE_FB_MODIFIERS in the DRM_ADDFB2 ioctl),
+ * which tells the driver to also take driver-internal information into account
+ * and so might actually result in a tiled framebuffer.
+ */
+#define DRM_FORMAT_MOD_LINEAR	fourcc_mod_code(NONE, 0)
 
 /* Intel framebuffer modifiers */
 
@@ -232,6 +251,46 @@ extern "C" {
  * For more information: see https://linuxtv.org/downloads/v4l-dvb-apis/re32.html
  */
 #define DRM_FORMAT_MOD_SAMSUNG_64_32_TILE	fourcc_mod_code(SAMSUNG, 1)
+
+/* Vivante framebuffer modifiers */
+
+/*
+ * Vivante 4x4 tiling layout
+ *
+ * This is a simple tiled layout using tiles of 4x4 pixels in a row-major
+ * layout.
+ */
+#define DRM_FORMAT_MOD_VIVANTE_TILED		fourcc_mod_code(VIVANTE, 1)
+
+/*
+ * Vivante 64x64 super-tiling layout
+ *
+ * This is a tiled layout using 64x64 pixel super-tiles, where each super-tile
+ * contains 8x4 groups of 2x4 tiles of 4x4 pixels (like above) each, all in row-
+ * major layout.
+ *
+ * For more information: see
+ * https://github.com/etnaviv/etna_viv/blob/master/doc/hardware.md#texture-tiling
+ */
+#define DRM_FORMAT_MOD_VIVANTE_SUPER_TILED	fourcc_mod_code(VIVANTE, 2)
+
+/*
+ * Vivante 4x4 tiling layout for dual-pipe
+ *
+ * Same as the 4x4 tiling layout, except every second 4x4 pixel tile starts at a
+ * different base address. Offsets from the base addresses are therefore halved
+ * compared to the non-split tiled layout.
+ */
+#define DRM_FORMAT_MOD_VIVANTE_SPLIT_TILED	fourcc_mod_code(VIVANTE, 3)
+
+/*
+ * Vivante 64x64 super-tiling layout for dual-pipe
+ *
+ * Same as the 64x64 super-tiling layout, except every second 4x4 pixel tile
+ * starts at a different base address. Offsets from the base addresses are
+ * therefore halved compared to the non-split super-tiled layout.
+ */
+#define DRM_FORMAT_MOD_VIVANTE_SPLIT_SUPER_TILED fourcc_mod_code(VIVANTE, 4)
 
 #if defined(__cplusplus)
 }

@@ -52,6 +52,7 @@
  * For Memory Regions. This stuff should probably be moved into rdmavt/mr.h once
  * drivers no longer need access to the MR directly.
  */
+#include <linux/percpu-refcount.h>
 
 /*
  * A segment is a linear region of low physical memory.
@@ -79,22 +80,26 @@ struct rvt_mregion {
 	int access_flags;
 	u32 max_segs;           /* number of rvt_segs in all the arrays */
 	u32 mapsz;              /* size of the map array */
+	atomic_t lkey_invalid;	/* true if current lkey is invalid */
 	u8  page_shift;         /* 0 - non unform/non powerof2 sizes */
 	u8  lkey_published;     /* in global table */
-	atomic_t lkey_invalid;	/* true if current lkey is invalid */
+	struct percpu_ref refcount;
 	struct completion comp; /* complete when refcount goes to zero */
-	atomic_t refcount;
 	struct rvt_segarray *map[0];    /* the segments */
 };
 
 #define RVT_MAX_LKEY_TABLE_BITS 23
 
 struct rvt_lkey_table {
-	spinlock_t lock; /* protect changes in this struct */
+	/* read mostly fields */
+	u32 max;                /* size of the table */
+	u32 shift;              /* lkey/rkey shift */
+	struct rvt_mregion __rcu **table;
+	/* writeable fields */
+	/* protect changes in this struct */
+	spinlock_t lock ____cacheline_aligned_in_smp;
 	u32 next;               /* next unused index (speeds search) */
 	u32 gen;                /* generation count */
-	u32 max;                /* size of the table */
-	struct rvt_mregion __rcu **table;
 };
 
 /*
@@ -119,13 +124,12 @@ struct rvt_sge_state {
 
 static inline void rvt_put_mr(struct rvt_mregion *mr)
 {
-	if (unlikely(atomic_dec_and_test(&mr->refcount)))
-		complete(&mr->comp);
+	percpu_ref_put(&mr->refcount);
 }
 
 static inline void rvt_get_mr(struct rvt_mregion *mr)
 {
-	atomic_inc(&mr->refcount);
+	percpu_ref_get(&mr->refcount);
 }
 
 static inline void rvt_put_ss(struct rvt_sge_state *ss)
@@ -134,6 +138,56 @@ static inline void rvt_put_ss(struct rvt_sge_state *ss)
 		rvt_put_mr(ss->sge.mr);
 		if (--ss->num_sge)
 			ss->sge = *ss->sg_list++;
+	}
+}
+
+static inline u32 rvt_get_sge_length(struct rvt_sge *sge, u32 length)
+{
+	u32 len = sge->length;
+
+	if (len > length)
+		len = length;
+	if (len > sge->sge_length)
+		len = sge->sge_length;
+
+	return len;
+}
+
+static inline void rvt_update_sge(struct rvt_sge_state *ss, u32 length,
+				  bool release)
+{
+	struct rvt_sge *sge = &ss->sge;
+
+	sge->vaddr += length;
+	sge->length -= length;
+	sge->sge_length -= length;
+	if (sge->sge_length == 0) {
+		if (release)
+			rvt_put_mr(sge->mr);
+		if (--ss->num_sge)
+			*sge = *ss->sg_list++;
+	} else if (sge->length == 0 && sge->mr->lkey) {
+		if (++sge->n >= RVT_SEGSZ) {
+			if (++sge->m >= sge->mr->mapsz)
+				return;
+			sge->n = 0;
+		}
+		sge->vaddr = sge->mr->map[sge->m]->segs[sge->n].vaddr;
+		sge->length = sge->mr->map[sge->m]->segs[sge->n].length;
+	}
+}
+
+static inline void rvt_skip_sge(struct rvt_sge_state *ss, u32 length,
+				bool release)
+{
+	struct rvt_sge *sge = &ss->sge;
+
+	while (length) {
+		u32 len = rvt_get_sge_length(sge, length);
+
+		WARN_ON_ONCE(len == 0);
+		rvt_update_sge(ss, len, release);
+		length -= len;
 	}
 }
 

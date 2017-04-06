@@ -408,7 +408,7 @@ static __init int tboot_late_init(void)
 	tboot_create_trampoline();
 
 	atomic_set(&ap_wfs_count, 0);
-	cpuhp_setup_state(CPUHP_AP_X86_TBOOT_DYING, "AP_X86_TBOOT_DYING", NULL,
+	cpuhp_setup_state(CPUHP_AP_X86_TBOOT_DYING, "x86/tboot:dying", NULL,
 			  tboot_dying_cpu);
 #ifdef CONFIG_DEBUG_FS
 	debugfs_create_file("tboot_log", S_IRUSR,

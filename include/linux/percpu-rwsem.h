@@ -4,15 +4,15 @@
 #include <linux/atomic.h>
 #include <linux/rwsem.h>
 #include <linux/percpu.h>
-#include <linux/wait.h>
+#include <linux/rcuwait.h>
 #include <linux/rcu_sync.h>
 #include <linux/lockdep.h>
 
 struct percpu_rw_semaphore {
 	struct rcu_sync		rss;
 	unsigned int __percpu	*read_count;
-	struct rw_semaphore	rw_sem;
-	wait_queue_head_t	writer;
+	struct rw_semaphore	rw_sem; /* slowpath */
+	struct rcuwait          writer; /* blocked writer */
 	int			readers_block;
 };
 
@@ -22,7 +22,7 @@ static struct percpu_rw_semaphore name = {				\
 	.rss = __RCU_SYNC_INITIALIZER(name.rss, RCU_SCHED_SYNC),	\
 	.read_count = &__percpu_rwsem_rc_##name,			\
 	.rw_sem = __RWSEM_INITIALIZER(name.rw_sem),			\
-	.writer = __WAIT_QUEUE_HEAD_INITIALIZER(name.writer),		\
+	.writer = __RCUWAIT_INITIALIZER(name.writer),			\
 }
 
 extern int __percpu_down_read(struct percpu_rw_semaphore *, int);

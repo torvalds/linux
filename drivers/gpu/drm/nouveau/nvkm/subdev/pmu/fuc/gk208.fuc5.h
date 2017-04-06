@@ -1,4 +1,4 @@
-uint32_t gk208_pmu_data[] = {
+static uint32_t gk208_pmu_data[] = {
 /* 0x0000: proc_kern */
 	0x52544e49,
 	0x00000000,
@@ -915,7 +915,7 @@ uint32_t gk208_pmu_data[] = {
 	0x00000000,
 };
 
-uint32_t gk208_pmu_code[] = {
+static uint32_t gk208_pmu_code[] = {
 	0x02f90ef5,
 /* 0x0004: rd32 */
 	0xf607a040,

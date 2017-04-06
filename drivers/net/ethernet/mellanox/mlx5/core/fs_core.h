@@ -94,6 +94,11 @@ struct mlx5_flow_rule {
 	u32					sw_action;
 };
 
+struct mlx5_flow_handle {
+	int num_rules;
+	struct mlx5_flow_rule *rule[];
+};
+
 /* Type of children is mlx5_flow_group */
 struct mlx5_flow_table {
 	struct fs_node			node;
@@ -112,6 +117,7 @@ struct mlx5_flow_table {
 	struct mutex			lock;
 	/* FWD rules that point on this flow table */
 	struct list_head		fwd_rules;
+	u32				flags;
 };
 
 struct mlx5_fc_cache {
@@ -145,6 +151,7 @@ struct fs_fte {
 	u32				flow_tag;
 	u32				index;
 	u32				action;
+	u32				encap_id;
 	enum fs_fte_status		status;
 	struct mlx5_fc			*counter;
 };

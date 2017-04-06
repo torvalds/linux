@@ -29,10 +29,9 @@ int btrfsic_submit_bio_wait(struct bio *bio);
 #define btrfsic_submit_bio_wait submit_bio_wait
 #endif
 
-int btrfsic_mount(struct btrfs_root *root,
+int btrfsic_mount(struct btrfs_fs_info *fs_info,
 		  struct btrfs_fs_devices *fs_devices,
 		  int including_extent_data, u32 print_mask);
-void btrfsic_unmount(struct btrfs_root *root,
-		     struct btrfs_fs_devices *fs_devices);
+void btrfsic_unmount(struct btrfs_fs_devices *fs_devices);
 
 #endif

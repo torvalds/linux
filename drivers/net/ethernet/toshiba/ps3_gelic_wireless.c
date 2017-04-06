@@ -2558,7 +2558,6 @@ static const struct net_device_ops gelic_wl_netdevice_ops = {
 	.ndo_stop = gelic_wl_stop,
 	.ndo_start_xmit = gelic_net_xmit,
 	.ndo_set_rx_mode = gelic_net_set_multi,
-	.ndo_change_mtu = gelic_net_change_mtu,
 	.ndo_tx_timeout = gelic_net_tx_timeout,
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,

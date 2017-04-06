@@ -11,7 +11,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ ******************************************************************************/
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 #include <linux/etherdevice.h>

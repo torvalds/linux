@@ -182,7 +182,7 @@ int bdc_config_ep(struct bdc *bdc, struct bdc_ep *ep)
 					usb_endpoint_xfer_int(desc)) {
 			param2 |= si;
 
-			mbs = (usb_endpoint_maxp(desc) & 0x1800) >> 11;
+			mbs = usb_endpoint_maxp_mult(desc);
 			param2 |= mbs << MB_SHIFT;
 		}
 		break;

@@ -101,7 +101,13 @@ struct zpci_report_error_header {
 	u8 data[0];	/* Subsequent Data passed verbatim to SCLP ET 24 */
 } __packed;
 
-int sclp_get_core_info(struct sclp_core_info *info);
+int sclp_early_get_core_info(struct sclp_core_info *info);
+void sclp_early_get_ipl_info(struct sclp_ipl_info *info);
+void sclp_early_detect(void);
+void sclp_early_printk(const char *s);
+void __sclp_early_printk(const char *s, unsigned int len);
+
+int _sclp_get_core_info(struct sclp_core_info *info);
 int sclp_core_configure(u8 core);
 int sclp_core_deconfigure(u8 core);
 int sclp_sdias_blk_count(void);
@@ -109,14 +115,18 @@ int sclp_sdias_copy(void *dest, int blk_num, int nr_blks);
 int sclp_chp_configure(struct chp_id chpid);
 int sclp_chp_deconfigure(struct chp_id chpid);
 int sclp_chp_read_info(struct sclp_chp_info *info);
-void sclp_get_ipl_info(struct sclp_ipl_info *info);
 int sclp_pci_configure(u32 fid);
 int sclp_pci_deconfigure(u32 fid);
 int sclp_pci_report(struct zpci_report_error_header *report, u32 fh, u32 fid);
 int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count);
 int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count);
-void sclp_early_detect(void);
-void _sclp_print_early(const char *);
 void sclp_ocf_cpc_name_copy(char *dst);
+
+static inline int sclp_get_core_info(struct sclp_core_info *info, int early)
+{
+	if (early)
+		return sclp_early_get_core_info(info);
+	return _sclp_get_core_info(info);
+}
 
 #endif /* _ASM_S390_SCLP_H */

@@ -53,6 +53,23 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 
 extern const struct vm_operations_struct drm_gem_cma_vm_ops;
 
+#ifndef CONFIG_MMU
+unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
+					    unsigned long addr,
+					    unsigned long len,
+					    unsigned long pgoff,
+					    unsigned long flags);
+#else
+static inline unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
+							  unsigned long addr,
+							  unsigned long len,
+							  unsigned long pgoff,
+							  unsigned long flags)
+{
+	return -EINVAL;
+}
+#endif
+
 #ifdef CONFIG_DEBUG_FS
 void drm_gem_cma_describe(struct drm_gem_cma_object *obj, struct seq_file *m);
 #endif

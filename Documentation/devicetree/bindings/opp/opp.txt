@@ -86,8 +86,14 @@ Optional properties:
   Single entry is for target voltage and three entries are for <target min max>
   voltages.
 
-  Entries for multiple regulators must be present in the same order as
-  regulators are specified in device's DT node.
+  Entries for multiple regulators shall be provided in the same field separated
+  by angular brackets <>. The OPP binding doesn't provide any provisions to
+  relate the values to their power supplies or the order in which the supplies
+  need to be configured and that is left for the implementation specific
+  binding.
+
+  Entries for all regulators shall be of the same size, i.e. either all use a
+  single value or triplets.
 
 - opp-microvolt-<name>: Named opp-microvolt property. This is exactly similar to
   the above opp-microvolt property, but allows multiple voltage ranges to be
@@ -104,10 +110,13 @@ Optional properties:
 
   Should only be set if opp-microvolt is set for the OPP.
 
-  Entries for multiple regulators must be present in the same order as
-  regulators are specified in device's DT node. If this property isn't required
-  for few regulators, then this should be marked as zero for them. If it isn't
-  required for any regulator, then this property need not be present.
+  Entries for multiple regulators shall be provided in the same field separated
+  by angular brackets <>. If current values aren't required for a regulator,
+  then it shall be filled with 0. If current values aren't required for any of
+  the regulators, then this field is not required. The OPP binding doesn't
+  provide any provisions to relate the values to their power supplies or the
+  order in which the supplies need to be configured and that is left for the
+  implementation specific binding.
 
 - opp-microamp-<name>: Named opp-microamp property. Similar to
   opp-microvolt-<name> property, but for microamp instead.
@@ -127,7 +136,7 @@ Optional properties:
   larger OPP table, based on what version of the hardware we are running on. We
   still can't have multiple nodes with the same opp-hz value in OPP table.
 
-  It's an user defined array containing a hierarchy of hardware version numbers,
+  It's a user defined array containing a hierarchy of hardware version numbers,
   supported by the OPP. For example: a platform with hierarchy of three levels
   of versions (A, B and C), this field should be like <X Y Z>, where X
   corresponds to Version hierarchy A, Y corresponds to version hierarchy B and Z
@@ -179,14 +188,14 @@ Example 1: Single cluster Dual-core ARM cortex A9, switch DVFS states together.
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <970000 975000 985000>;
+			opp-microvolt = <975000 970000 985000>;
 			opp-microamp = <70000>;
 			clock-latency-ns = <300000>;
 			opp-suspend;
 		};
 		opp@1100000000 {
 			opp-hz = /bits/ 64 <1100000000>;
-			opp-microvolt = <980000 1000000 1010000>;
+			opp-microvolt = <1000000 980000 1010000>;
 			opp-microamp = <80000>;
 			clock-latency-ns = <310000>;
 		};
@@ -258,14 +267,14 @@ independently.
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <970000 975000 985000>;
+			opp-microvolt = <975000 970000 985000>;
 			opp-microamp = <70000>;
 			clock-latency-ns = <300000>;
 			opp-suspend;
 		};
 		opp@1100000000 {
 			opp-hz = /bits/ 64 <1100000000>;
-			opp-microvolt = <980000 1000000 1010000>;
+			opp-microvolt = <1000000 980000 1010000>;
 			opp-microamp = <80000>;
 			clock-latency-ns = <310000>;
 		};
@@ -334,14 +343,14 @@ DVFS state together.
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <970000 975000 985000>;
+			opp-microvolt = <975000 970000 985000>;
 			opp-microamp = <70000>;
 			clock-latency-ns = <300000>;
 			opp-suspend;
 		};
 		opp@1100000000 {
 			opp-hz = /bits/ 64 <1100000000>;
-			opp-microvolt = <980000 1000000 1010000>;
+			opp-microvolt = <1000000 980000 1010000>;
 			opp-microamp = <80000>;
 			clock-latency-ns = <310000>;
 		};
@@ -360,7 +369,7 @@ DVFS state together.
 
 		opp@1300000000 {
 			opp-hz = /bits/ 64 <1300000000>;
-			opp-microvolt = <1045000 1050000 1055000>;
+			opp-microvolt = <1050000 1045000 1055000>;
 			opp-microamp = <95000>;
 			clock-latency-ns = <400000>;
 			opp-suspend;
@@ -373,7 +382,7 @@ DVFS state together.
 		};
 		opp@1500000000 {
 			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <1010000 1100000 1110000>;
+			opp-microvolt = <1100000 1010000 1110000>;
 			opp-microamp = <95000>;
 			clock-latency-ns = <400000>;
 			turbo-mode;
@@ -386,10 +395,12 @@ Example 4: Handling multiple regulators
 / {
 	cpus {
 		cpu@0 {
-			compatible = "arm,cortex-a7";
+			compatible = "vendor,cpu-type";
 			...
 
-			cpu-supply = <&cpu_supply0>, <&cpu_supply1>, <&cpu_supply2>;
+			vcc0-supply = <&cpu_supply0>;
+			vcc1-supply = <&cpu_supply1>;
+			vcc2-supply = <&cpu_supply2>;
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
 	};
@@ -413,9 +424,9 @@ Example 4: Handling multiple regulators
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <970000 975000 985000>, /* Supply 0 */
-					<960000 965000 975000>, /* Supply 1 */
-					<960000 965000 975000>; /* Supply 2 */
+			opp-microvolt = <975000 970000 985000>, /* Supply 0 */
+					<965000 960000 975000>, /* Supply 1 */
+					<965000 960000 975000>; /* Supply 2 */
 			opp-microamp =  <70000>,		/* Supply 0 */
 					<70000>,		/* Supply 1 */
 					<70000>;		/* Supply 2 */
@@ -426,9 +437,9 @@ Example 4: Handling multiple regulators
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <970000 975000 985000>, /* Supply 0 */
-					<960000 965000 975000>, /* Supply 1 */
-					<960000 965000 975000>; /* Supply 2 */
+			opp-microvolt = <975000 970000 985000>, /* Supply 0 */
+					<965000 960000 975000>, /* Supply 1 */
+					<965000 960000 975000>; /* Supply 2 */
 			opp-microamp =  <70000>,		/* Supply 0 */
 					<0>,			/* Supply 1 doesn't need this */
 					<70000>;		/* Supply 2 */
@@ -463,7 +474,7 @@ Example 5: opp-supported-hw
 			 */
 			opp-supported-hw = <0xF 0xFFFFFFFF 0xFFFFFFFF>
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <900000 915000 925000>;
+			opp-microvolt = <915000 900000 925000>;
 			...
 		};
 
@@ -476,7 +487,7 @@ Example 5: opp-supported-hw
 			 */
 			opp-supported-hw = <0x20 0xff0000ff 0x0000f4f0>
 			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <900000 915000 925000>;
+			opp-microvolt = <915000 900000 925000>;
 			...
 		};
 	};
@@ -501,18 +512,18 @@ Example 6: opp-microvolt-<name>, opp-microamp-<name>:
 
 		opp@1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt-slow = <900000 915000 925000>;
-			opp-microvolt-fast = <970000 975000 985000>;
+			opp-microvolt-slow = <915000 900000 925000>;
+			opp-microvolt-fast = <975000 970000 985000>;
 			opp-microamp-slow =  <70000>;
 			opp-microamp-fast =  <71000>;
 		};
 
 		opp@1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt-slow = <900000 915000 925000>, /* Supply vcc0 */
-					      <910000 925000 935000>; /* Supply vcc1 */
-			opp-microvolt-fast = <970000 975000 985000>, /* Supply vcc0 */
-					     <960000 965000 975000>; /* Supply vcc1 */
+			opp-microvolt-slow = <915000 900000 925000>, /* Supply vcc0 */
+					      <925000 910000 935000>; /* Supply vcc1 */
+			opp-microvolt-fast = <975000 970000 985000>, /* Supply vcc0 */
+					     <965000 960000 975000>; /* Supply vcc1 */
 			opp-microamp =  <70000>; /* Will be used for both slow/fast */
 		};
 	};

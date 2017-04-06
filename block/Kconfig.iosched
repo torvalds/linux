@@ -63,6 +63,12 @@ config DEFAULT_IOSCHED
 	default "cfq" if DEFAULT_CFQ
 	default "noop" if DEFAULT_NOOP
 
+config MQ_IOSCHED_DEADLINE
+	tristate "MQ deadline I/O scheduler"
+	default y
+	---help---
+	  MQ version of the deadline IO scheduler.
+
 endmenu
 
 endif

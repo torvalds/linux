@@ -245,3 +245,11 @@ cpuclk_out:
 
 CLK_OF_DECLARE(armada_xp_cpu_clock, "marvell,armada-xp-cpu-clock",
 					 of_cpu_clk_setup);
+
+static void __init of_mv98dx3236_cpu_clk_setup(struct device_node *node)
+{
+	of_clk_add_provider(node, of_clk_src_simple_get, NULL);
+}
+
+CLK_OF_DECLARE(mv98dx3236_cpu_clock, "marvell,mv98dx3236-cpu-clock",
+					 of_mv98dx3236_cpu_clk_setup);

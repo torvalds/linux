@@ -25,7 +25,7 @@
 #include <asm/cputable.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -239,6 +239,7 @@ void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu, ulong dar,
 	kvmppc_set_dsisr(vcpu, flags);
 	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE);
 }
+EXPORT_SYMBOL_GPL(kvmppc_core_queue_data_storage);	/* used by kvm_hv */
 
 void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu, ulong flags)
 {

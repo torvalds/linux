@@ -51,11 +51,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include "atmel_ssc_dai.h"
-
 struct tse850_priv {
-	int ssc_id;
-
 	struct gpio_desc *add;
 	struct gpio_desc *loop1;
 	struct gpio_desc *loop2;
@@ -329,23 +325,20 @@ static int tse850_dt_init(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *codec_np, *cpu_np;
-	struct snd_soc_card *card = &tse850_card;
 	struct snd_soc_dai_link *dailink = &tse850_dailink;
-	struct tse850_priv *tse850 = snd_soc_card_get_drvdata(card);
 
 	if (!np) {
 		dev_err(&pdev->dev, "only device tree supported\n");
 		return -EINVAL;
 	}
 
-	cpu_np = of_parse_phandle(np, "axentia,ssc-controller", 0);
+	cpu_np = of_parse_phandle(np, "axentia,cpu-dai", 0);
 	if (!cpu_np) {
-		dev_err(&pdev->dev, "failed to get dai and pcm info\n");
+		dev_err(&pdev->dev, "failed to get cpu dai\n");
 		return -EINVAL;
 	}
 	dailink->cpu_of_node = cpu_np;
 	dailink->platform_of_node = cpu_np;
-	tse850->ssc_id = of_alias_get_id(cpu_np, "ssc");
 	of_node_put(cpu_np);
 
 	codec_np = of_parse_phandle(np, "axentia,audio-codec", 0);
@@ -415,23 +408,14 @@ static int tse850_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = atmel_ssc_set_audio(tse850->ssc_id);
-	if (ret != 0) {
-		dev_err(dev,
-			"failed to set SSC %d for audio\n", tse850->ssc_id);
-		goto err_disable_ana;
-	}
-
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(dev, "snd_soc_register_card failed\n");
-		goto err_put_audio;
+		goto err_disable_ana;
 	}
 
 	return 0;
 
-err_put_audio:
-	atmel_ssc_put_audio(tse850->ssc_id);
 err_disable_ana:
 	regulator_disable(tse850->ana);
 	return ret;
@@ -443,7 +427,6 @@ static int tse850_remove(struct platform_device *pdev)
 	struct tse850_priv *tse850 = snd_soc_card_get_drvdata(card);
 
 	snd_soc_unregister_card(card);
-	atmel_ssc_put_audio(tse850->ssc_id);
 	regulator_disable(tse850->ana);
 
 	return 0;

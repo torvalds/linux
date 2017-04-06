@@ -615,4 +615,13 @@
 		interrupt-controller;
 		#interrupt-cells = <2>;
 	};
+
+	audi2s0_bus: audi2s0-bus {
+		samsung,pins = "gpz-0", "gpz-1", "gpz-2", "gpz-3",
+				"gpz-4";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+
 };

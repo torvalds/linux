@@ -23,10 +23,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/i2c.h>
@@ -894,7 +890,7 @@ static int tvp514x_enum_mbus_code(struct v4l2_subdev *sd,
 	if (index != 0)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_YUYV8_2X8;
+	code->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 	return 0;
 }
@@ -922,7 +918,7 @@ static int tvp514x_get_pad_format(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	format->format.code = MEDIA_BUS_FMT_YUYV8_2X8;
+	format->format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 	format->format.width = tvp514x_std_list[decoder->current_std].width;
 	format->format.height = tvp514x_std_list[decoder->current_std].height;
 	format->format.colorspace = V4L2_COLORSPACE_SMPTE170M;
@@ -946,7 +942,7 @@ static int tvp514x_set_pad_format(struct v4l2_subdev *sd,
 	struct tvp514x_decoder *decoder = to_decoder(sd);
 
 	if (fmt->format.field != V4L2_FIELD_INTERLACED ||
-	    fmt->format.code != MEDIA_BUS_FMT_YUYV8_2X8 ||
+	    fmt->format.code != MEDIA_BUS_FMT_UYVY8_2X8 ||
 	    fmt->format.colorspace != V4L2_COLORSPACE_SMPTE170M ||
 	    fmt->format.width != tvp514x_std_list[decoder->current_std].width ||
 	    fmt->format.height != tvp514x_std_list[decoder->current_std].height)

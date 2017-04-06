@@ -468,6 +468,16 @@ static inline int neigh_hh_output(const struct hh_cache *hh, struct sk_buff *skb
 	return dev_queue_xmit(skb);
 }
 
+static inline int neigh_output(struct neighbour *n, struct sk_buff *skb)
+{
+	const struct hh_cache *hh = &n->hh;
+
+	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)
+		return neigh_hh_output(hh, skb);
+	else
+		return n->output(n, skb);
+}
+
 static inline struct neighbour *
 __neigh_lookup(struct neigh_table *tbl, const void *pkey, struct net_device *dev, int creat)
 {

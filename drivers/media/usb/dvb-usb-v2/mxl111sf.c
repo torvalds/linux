@@ -29,8 +29,7 @@
 
 int dvb_usb_mxl111sf_debug;
 module_param_named(debug, dvb_usb_mxl111sf_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level "
-		 "(1=info, 2=xfer, 4=i2c, 8=reg, 16=adv (or-able)).");
+MODULE_PARM_DESC(debug, "set debugging level (1=info, 2=xfer, 4=i2c, 8=reg, 16=adv (or-able)).");
 
 static int dvb_usb_mxl111sf_isoc;
 module_param_named(isoc, dvb_usb_mxl111sf_isoc, int, 0644);
@@ -137,8 +136,8 @@ int mxl111sf_write_reg_mask(struct mxl111sf_state *state,
 #if 1
 		/* dont know why this usually errors out on the first try */
 		if (mxl_fail(ret))
-			pr_err("error writing addr: 0x%02x, mask: 0x%02x, "
-			    "data: 0x%02x, retrying...", addr, mask, data);
+			pr_err("error writing addr: 0x%02x, mask: 0x%02x, data: 0x%02x, retrying...",
+			       addr, mask, data);
 
 		ret = mxl111sf_read_reg(state, addr, &val);
 #endif
@@ -946,8 +945,7 @@ static int mxl111sf_init(struct dvb_usb_device *d)
 	case 138001:
 		break;
 	default:
-		printk(KERN_WARNING "%s: warning: "
-		       "unknown hauppauge model #%d\n",
+		printk(KERN_WARNING "%s: warning: unknown hauppauge model #%d\n",
 		       __func__, state->tv.model);
 	}
 #endif

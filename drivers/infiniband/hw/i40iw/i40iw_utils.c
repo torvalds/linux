@@ -153,6 +153,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	struct i40iw_device *iwdev;
 	struct i40iw_handler *hdl;
 	u32 local_ipaddr;
+	u32 action = I40IW_ARP_ADD;
 
 	hdl = i40iw_find_netdev(event_netdev);
 	if (!hdl)
@@ -164,44 +165,25 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	if (netdev != event_netdev)
 		return NOTIFY_DONE;
 
+	if (upper_dev)
+		local_ipaddr = ntohl(
+			((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
+	else
+		local_ipaddr = ntohl(ifa->ifa_address);
 	switch (event) {
 	case NETDEV_DOWN:
-		if (upper_dev)
-			local_ipaddr = ntohl(
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
-		else
-			local_ipaddr = ntohl(ifa->ifa_address);
-		i40iw_manage_arp_cache(iwdev,
-				       netdev->dev_addr,
-				       &local_ipaddr,
-				       true,
-				       I40IW_ARP_DELETE);
-		return NOTIFY_OK;
+		action = I40IW_ARP_DELETE;
+		/* Fall through */
 	case NETDEV_UP:
-		if (upper_dev)
-			local_ipaddr = ntohl(
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
-		else
-			local_ipaddr = ntohl(ifa->ifa_address);
-		i40iw_manage_arp_cache(iwdev,
-				       netdev->dev_addr,
-				       &local_ipaddr,
-				       true,
-				       I40IW_ARP_ADD);
-		break;
+		/* Fall through */
 	case NETDEV_CHANGEADDR:
-		/* Add the address to the IP table */
-		if (upper_dev)
-			local_ipaddr = ntohl(
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
-		else
-			local_ipaddr = ntohl(ifa->ifa_address);
-
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       &local_ipaddr,
 				       true,
-				       I40IW_ARP_ADD);
+				       action);
+		i40iw_if_notify(iwdev, netdev, &local_ipaddr, true,
+				(action == I40IW_ARP_ADD) ? true : false);
 		break;
 	default:
 		break;
@@ -225,6 +207,7 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 	struct i40iw_device *iwdev;
 	struct i40iw_handler *hdl;
 	u32 local_ipaddr6[4];
+	u32 action = I40IW_ARP_ADD;
 
 	hdl = i40iw_find_netdev(event_netdev);
 	if (!hdl)
@@ -235,24 +218,21 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 	if (netdev != event_netdev)
 		return NOTIFY_DONE;
 
+	i40iw_copy_ip_ntohl(local_ipaddr6, ifa->addr.in6_u.u6_addr32);
 	switch (event) {
 	case NETDEV_DOWN:
-		i40iw_copy_ip_ntohl(local_ipaddr6, ifa->addr.in6_u.u6_addr32);
-		i40iw_manage_arp_cache(iwdev,
-				       netdev->dev_addr,
-				       local_ipaddr6,
-				       false,
-				       I40IW_ARP_DELETE);
-		return NOTIFY_OK;
+		action = I40IW_ARP_DELETE;
+		/* Fall through */
 	case NETDEV_UP:
 		/* Fall through */
 	case NETDEV_CHANGEADDR:
-		i40iw_copy_ip_ntohl(local_ipaddr6, ifa->addr.in6_u.u6_addr32);
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       local_ipaddr6,
 				       false,
-				       I40IW_ARP_ADD);
+				       action);
+		i40iw_if_notify(iwdev, netdev, local_ipaddr6, false,
+				(action == I40IW_ARP_ADD) ? true : false);
 		break;
 	default:
 		break;
@@ -392,6 +372,7 @@ static void i40iw_free_qp(struct i40iw_cqp_request *cqp_request, u32 num)
 
 	i40iw_rem_pdusecount(iwqp->iwpd, iwdev);
 	i40iw_free_qp_resources(iwdev, iwqp, qp_num);
+	i40iw_rem_devusecount(iwdev);
 }
 
 /**
@@ -415,7 +396,10 @@ static int i40iw_wait_event(struct i40iw_device *iwdev,
 		i40iw_pr_err("error cqp command 0x%x timed out ret = %d\n",
 			     info->cqp_cmd, timeout_ret);
 		err_code = -ETIME;
-		i40iw_request_reset(iwdev);
+		if (!iwdev->reset) {
+			iwdev->reset = true;
+			i40iw_request_reset(iwdev);
+		}
 		goto done;
 	}
 	cqp_error = cqp_request->compl_info.error;
@@ -445,6 +429,11 @@ enum i40iw_status_code i40iw_handle_cqp_op(struct i40iw_device *iwdev,
 	struct cqp_commands_info *info = &cqp_request->info;
 	int err_code = 0;
 
+	if (iwdev->reset) {
+		i40iw_free_cqp_request(&iwdev->cqp, cqp_request);
+		return I40IW_ERR_CQP_COMPL_ERROR;
+	}
+
 	status = i40iw_process_cqp_cmd(dev, info);
 	if (status) {
 		i40iw_pr_err("error cqp command 0x%x failed\n", info->cqp_cmd);
@@ -456,6 +445,26 @@ enum i40iw_status_code i40iw_handle_cqp_op(struct i40iw_device *iwdev,
 	if (err_code)
 		status = I40IW_ERR_CQP_COMPL_ERROR;
 	return status;
+}
+
+/**
+ * i40iw_add_devusecount - add dev refcount
+ * @iwdev: dev for refcount
+ */
+void i40iw_add_devusecount(struct i40iw_device *iwdev)
+{
+	atomic64_inc(&iwdev->use_count);
+}
+
+/**
+ * i40iw_rem_devusecount - decrement refcount for dev
+ * @iwdev: device
+ */
+void i40iw_rem_devusecount(struct i40iw_device *iwdev)
+{
+	if (!atomic64_dec_and_test(&iwdev->use_count))
+		return;
+	wake_up(&iwdev->close_wq);
 }
 
 /**
@@ -712,6 +721,51 @@ enum i40iw_status_code i40iw_cqp_sds_cmd(struct i40iw_sc_dev *dev,
 }
 
 /**
+ * i40iw_qp_suspend_resume - cqp command for suspend/resume
+ * @dev: hardware control device structure
+ * @qp: hardware control qp
+ * @suspend: flag if suspend or resume
+ */
+void i40iw_qp_suspend_resume(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp, bool suspend)
+{
+	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
+	struct i40iw_cqp_request *cqp_request;
+	struct i40iw_sc_cqp *cqp = dev->cqp;
+	struct cqp_commands_info *cqp_info;
+	enum i40iw_status_code status;
+
+	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, false);
+	if (!cqp_request)
+		return;
+
+	cqp_info = &cqp_request->info;
+	cqp_info->cqp_cmd = (suspend) ? OP_SUSPEND : OP_RESUME;
+	cqp_info->in.u.suspend_resume.cqp = cqp;
+	cqp_info->in.u.suspend_resume.qp = qp;
+	cqp_info->in.u.suspend_resume.scratch = (uintptr_t)cqp_request;
+	status = i40iw_handle_cqp_op(iwdev, cqp_request);
+	if (status)
+		i40iw_pr_err("CQP-OP QP Suspend/Resume fail");
+}
+
+/**
+ * i40iw_qp_mss_modify - modify mss for qp
+ * @dev: hardware control device structure
+ * @qp: hardware control qp
+ */
+void i40iw_qp_mss_modify(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp)
+{
+	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
+	struct i40iw_qp *iwqp = (struct i40iw_qp *)qp->back_qp;
+	struct i40iw_modify_qp_info info;
+
+	memset(&info, 0, sizeof(info));
+	info.mss_change = true;
+	info.new_mss = qp->vsi->mss;
+	i40iw_hw_modify_qp(iwdev, iwqp, &info, false);
+}
+
+/**
  * i40iw_term_modify_qp - modify qp for term message
  * @qp: hardware control qp
  * @next_state: qp's next state
@@ -769,6 +823,7 @@ static void i40iw_terminate_timeout(unsigned long context)
 	struct i40iw_sc_qp *qp = (struct i40iw_sc_qp *)&iwqp->sc_qp;
 
 	i40iw_terminate_done(qp, 1);
+	i40iw_rem_ref(&iwqp->ibqp);
 }
 
 /**
@@ -780,6 +835,7 @@ void i40iw_terminate_start_timer(struct i40iw_sc_qp *qp)
 	struct i40iw_qp *iwqp;
 
 	iwqp = (struct i40iw_qp *)qp->back_qp;
+	i40iw_add_ref(&iwqp->ibqp);
 	init_timer(&iwqp->terminate_timer);
 	iwqp->terminate_timer.function = i40iw_terminate_timeout;
 	iwqp->terminate_timer.expires = jiffies + HZ;
@@ -796,7 +852,8 @@ void i40iw_terminate_del_timer(struct i40iw_sc_qp *qp)
 	struct i40iw_qp *iwqp;
 
 	iwqp = (struct i40iw_qp *)qp->back_qp;
-	del_timer(&iwqp->terminate_timer);
+	if (del_timer(&iwqp->terminate_timer))
+		i40iw_rem_ref(&iwqp->ibqp);
 }
 
 /**
@@ -1011,6 +1068,116 @@ enum i40iw_status_code i40iw_vf_wait_vchnl_resp(struct i40iw_sc_dev *dev)
 }
 
 /**
+ * i40iw_cqp_cq_create_cmd - create a cq for the cqp
+ * @dev: device pointer
+ * @cq: pointer to created cq
+ */
+enum i40iw_status_code i40iw_cqp_cq_create_cmd(struct i40iw_sc_dev *dev,
+					       struct i40iw_sc_cq *cq)
+{
+	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
+	struct i40iw_cqp *iwcqp = &iwdev->cqp;
+	struct i40iw_cqp_request *cqp_request;
+	struct cqp_commands_info *cqp_info;
+	enum i40iw_status_code status;
+
+	cqp_request = i40iw_get_cqp_request(iwcqp, true);
+	if (!cqp_request)
+		return I40IW_ERR_NO_MEMORY;
+
+	cqp_info = &cqp_request->info;
+	cqp_info->cqp_cmd = OP_CQ_CREATE;
+	cqp_info->post_sq = 1;
+	cqp_info->in.u.cq_create.cq = cq;
+	cqp_info->in.u.cq_create.scratch = (uintptr_t)cqp_request;
+	status = i40iw_handle_cqp_op(iwdev, cqp_request);
+	if (status)
+		i40iw_pr_err("CQP-OP Create QP fail");
+
+	return status;
+}
+
+/**
+ * i40iw_cqp_qp_create_cmd - create a qp for the cqp
+ * @dev: device pointer
+ * @qp: pointer to created qp
+ */
+enum i40iw_status_code i40iw_cqp_qp_create_cmd(struct i40iw_sc_dev *dev,
+					       struct i40iw_sc_qp *qp)
+{
+	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
+	struct i40iw_cqp *iwcqp = &iwdev->cqp;
+	struct i40iw_cqp_request *cqp_request;
+	struct cqp_commands_info *cqp_info;
+	struct i40iw_create_qp_info *qp_info;
+	enum i40iw_status_code status;
+
+	cqp_request = i40iw_get_cqp_request(iwcqp, true);
+	if (!cqp_request)
+		return I40IW_ERR_NO_MEMORY;
+
+	cqp_info = &cqp_request->info;
+	qp_info = &cqp_request->info.in.u.qp_create.info;
+
+	memset(qp_info, 0, sizeof(*qp_info));
+
+	qp_info->cq_num_valid = true;
+	qp_info->next_iwarp_state = I40IW_QP_STATE_RTS;
+
+	cqp_info->cqp_cmd = OP_QP_CREATE;
+	cqp_info->post_sq = 1;
+	cqp_info->in.u.qp_create.qp = qp;
+	cqp_info->in.u.qp_create.scratch = (uintptr_t)cqp_request;
+	status = i40iw_handle_cqp_op(iwdev, cqp_request);
+	if (status)
+		i40iw_pr_err("CQP-OP QP create fail");
+	return status;
+}
+
+/**
+ * i40iw_cqp_cq_destroy_cmd - destroy the cqp cq
+ * @dev: device pointer
+ * @cq: pointer to cq
+ */
+void i40iw_cqp_cq_destroy_cmd(struct i40iw_sc_dev *dev, struct i40iw_sc_cq *cq)
+{
+	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
+
+	i40iw_cq_wq_destroy(iwdev, cq);
+}
+
+/**
+ * i40iw_cqp_qp_destroy_cmd - destroy the cqp
+ * @dev: device pointer
+ * @qp: pointer to qp
+ */
+void i40iw_cqp_qp_destroy_cmd(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp)
+{
+	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
+	struct i40iw_cqp *iwcqp = &iwdev->cqp;
+	struct i40iw_cqp_request *cqp_request;
+	struct cqp_commands_info *cqp_info;
+	enum i40iw_status_code status;
+
+	cqp_request = i40iw_get_cqp_request(iwcqp, true);
+	if (!cqp_request)
+		return;
+
+	cqp_info = &cqp_request->info;
+	memset(cqp_info, 0, sizeof(*cqp_info));
+
+	cqp_info->cqp_cmd = OP_QP_DESTROY;
+	cqp_info->post_sq = 1;
+	cqp_info->in.u.qp_destroy.qp = qp;
+	cqp_info->in.u.qp_destroy.scratch = (uintptr_t)cqp_request;
+	cqp_info->in.u.qp_destroy.remove_hash_idx = true;
+	status = i40iw_handle_cqp_op(iwdev, cqp_request);
+	if (status)
+		i40iw_pr_err("CQP QP_DESTROY fail");
+}
+
+
+/**
  * i40iw_ieq_mpa_crc_ae - generate AE for crc error
  * @dev: hardware control device structure
  * @qp: hardware control qp
@@ -1208,7 +1375,7 @@ enum i40iw_status_code i40iw_puda_get_tcpip_info(struct i40iw_puda_completion_in
 
 	buf->totallen = pkt_len + buf->maclen;
 
-	if (info->payload_len < buf->totallen - 4) {
+	if (info->payload_len < buf->totallen) {
 		i40iw_pr_err("payload_len = 0x%x totallen expected0x%x\n",
 			     info->payload_len, buf->totallen);
 		return I40IW_ERR_INVALID_SIZE;
@@ -1224,27 +1391,29 @@ enum i40iw_status_code i40iw_puda_get_tcpip_info(struct i40iw_puda_completion_in
 
 /**
  * i40iw_hw_stats_timeout - Stats timer-handler which updates all HW stats
- * @dev: hardware control device structure
+ * @vsi: pointer to the vsi structure
  */
-static void i40iw_hw_stats_timeout(unsigned long dev)
+static void i40iw_hw_stats_timeout(unsigned long vsi)
 {
-	struct i40iw_sc_dev *pf_dev = (struct i40iw_sc_dev *)dev;
-	struct i40iw_dev_pestat *pf_devstat = &pf_dev->dev_pestat;
-	struct i40iw_dev_pestat *vf_devstat = NULL;
+	struct i40iw_sc_vsi *sc_vsi =  (struct i40iw_sc_vsi *)vsi;
+	struct i40iw_sc_dev *pf_dev = sc_vsi->dev;
+	struct i40iw_vsi_pestat *pf_devstat = sc_vsi->pestat;
+	struct i40iw_vsi_pestat *vf_devstat = NULL;
 	u16 iw_vf_idx;
 	unsigned long flags;
 
 	/*PF*/
-	pf_devstat->ops.iw_hw_stat_read_all(pf_devstat, &pf_devstat->hw_stats);
+	i40iw_hw_stats_read_all(pf_devstat, &pf_devstat->hw_stats);
+
 	for (iw_vf_idx = 0; iw_vf_idx < I40IW_MAX_PE_ENABLED_VF_COUNT; iw_vf_idx++) {
-		spin_lock_irqsave(&pf_devstat->stats_lock, flags);
+		spin_lock_irqsave(&pf_devstat->lock, flags);
 		if (pf_dev->vf_dev[iw_vf_idx]) {
 			if (pf_dev->vf_dev[iw_vf_idx]->stats_initialized) {
-				vf_devstat = &pf_dev->vf_dev[iw_vf_idx]->dev_pestat;
-				vf_devstat->ops.iw_hw_stat_read_all(vf_devstat, &vf_devstat->hw_stats);
+				vf_devstat = &pf_dev->vf_dev[iw_vf_idx]->pestat;
+				i40iw_hw_stats_read_all(vf_devstat, &vf_devstat->hw_stats);
 			}
 		}
-		spin_unlock_irqrestore(&pf_devstat->stats_lock, flags);
+		spin_unlock_irqrestore(&pf_devstat->lock, flags);
 	}
 
 	mod_timer(&pf_devstat->stats_timer,
@@ -1253,26 +1422,26 @@ static void i40iw_hw_stats_timeout(unsigned long dev)
 
 /**
  * i40iw_hw_stats_start_timer - Start periodic stats timer
- * @dev: hardware control device structure
+ * @vsi: pointer to the vsi structure
  */
-void i40iw_hw_stats_start_timer(struct i40iw_sc_dev *dev)
+void i40iw_hw_stats_start_timer(struct i40iw_sc_vsi *vsi)
 {
-	struct i40iw_dev_pestat *devstat = &dev->dev_pestat;
+	struct i40iw_vsi_pestat *devstat = vsi->pestat;
 
 	init_timer(&devstat->stats_timer);
 	devstat->stats_timer.function = i40iw_hw_stats_timeout;
-	devstat->stats_timer.data = (unsigned long)dev;
+	devstat->stats_timer.data = (unsigned long)vsi;
 	mod_timer(&devstat->stats_timer,
 		  jiffies + msecs_to_jiffies(STATS_TIMER_DELAY));
 }
 
 /**
- * i40iw_hw_stats_del_timer - Delete periodic stats timer
- * @dev: hardware control device structure
+ * i40iw_hw_stats_stop_timer - Delete periodic stats timer
+ * @vsi: pointer to the vsi structure
  */
-void i40iw_hw_stats_del_timer(struct i40iw_sc_dev *dev)
+void i40iw_hw_stats_stop_timer(struct i40iw_sc_vsi *vsi)
 {
-	struct i40iw_dev_pestat *devstat = &dev->dev_pestat;
+	struct i40iw_vsi_pestat *devstat = vsi->pestat;
 
 	del_timer_sync(&devstat->stats_timer);
 }

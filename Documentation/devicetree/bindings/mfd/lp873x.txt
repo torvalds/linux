@@ -7,6 +7,9 @@ Required properties:
   - #gpio-cells:	Should be two.  The first cell is the pin number and
 			the second cell is used to specify flags.
 			See ../gpio/gpio.txt for more information.
+  - xxx-in-supply:	Phandle to parent supply node of each regulator
+			populated under regulators node. xxx can be
+			buck0, buck1, ldo0 or ldo1.
   - regulators:	List of child nodes that specify the regulator
 			initialization data.
 Example:
@@ -16,6 +19,11 @@ pmic: lp8733@60 {
 	reg = <0x60>;
 	gpio-controller;
 	#gpio-cells = <2>;
+
+	buck0-in-supply = <&vsys_3v3>;
+	buck1-in-supply = <&vsys_3v3>;
+	ldo0-in-supply = <&vsys_3v3>;
+	ldo1-in-supply = <&vsys_3v3>;
 
 	regulators {
 		lp8733_buck0: buck0 {

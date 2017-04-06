@@ -665,7 +665,6 @@ static const struct net_device_ops lance_netdev_ops = {
 	.ndo_tx_timeout		= lance_tx_timeout,
 	.ndo_set_rx_mode	= lance_set_multicast,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 

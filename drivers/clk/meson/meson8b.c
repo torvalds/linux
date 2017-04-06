@@ -607,7 +607,6 @@ static int meson8b_clkc_probe(struct platform_device *pdev)
 	/* Populate the base address for the MPEG clks */
 	meson8b_mpeg_clk_sel.reg = clk_base + (u32)meson8b_mpeg_clk_sel.reg;
 	meson8b_mpeg_clk_div.reg = clk_base + (u32)meson8b_mpeg_clk_div.reg;
-	meson8b_clk81.reg = clk_base + (u32)meson8b_clk81.reg;
 
 	/* Populate base address for gates */
 	for (i = 0; i < ARRAY_SIZE(meson8b_clk_gates); i++)

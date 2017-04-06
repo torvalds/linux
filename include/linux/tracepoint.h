@@ -81,7 +81,7 @@ static inline void tracepoint_synchronize_unregister(void)
 }
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
-extern void syscall_regfunc(void);
+extern int syscall_regfunc(void);
 extern void syscall_unregfunc(void);
 #endif /* CONFIG_HAVE_SYSCALL_TRACEPOINTS */
 

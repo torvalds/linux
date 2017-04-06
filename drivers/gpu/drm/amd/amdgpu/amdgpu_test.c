@@ -78,7 +78,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		void *gtt_map, *vram_map;
 		void **gtt_start, **gtt_end;
 		void **vram_start, **vram_end;
-		struct fence *fence = NULL;
+		struct dma_fence *fence = NULL;
 
 		r = amdgpu_bo_create(adev, size, PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL,
@@ -118,13 +118,13 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 			goto out_lclean_unpin;
 		}
 
-		r = fence_wait(fence, false);
+		r = dma_fence_wait(fence, false);
 		if (r) {
 			DRM_ERROR("Failed to wait for GTT->VRAM fence %d\n", i);
 			goto out_lclean_unpin;
 		}
 
-		fence_put(fence);
+		dma_fence_put(fence);
 
 		r = amdgpu_bo_kmap(vram_obj, &vram_map);
 		if (r) {
@@ -163,13 +163,13 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 			goto out_lclean_unpin;
 		}
 
-		r = fence_wait(fence, false);
+		r = dma_fence_wait(fence, false);
 		if (r) {
 			DRM_ERROR("Failed to wait for VRAM->GTT fence %d\n", i);
 			goto out_lclean_unpin;
 		}
 
-		fence_put(fence);
+		dma_fence_put(fence);
 
 		r = amdgpu_bo_kmap(gtt_obj[i], &gtt_map);
 		if (r) {
@@ -216,7 +216,7 @@ out_lclean:
 			amdgpu_bo_unref(&gtt_obj[i]);
 		}
 		if (fence)
-			fence_put(fence);
+			dma_fence_put(fence);
 		break;
 	}
 

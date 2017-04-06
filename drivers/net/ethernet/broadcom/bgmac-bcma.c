@@ -80,6 +80,24 @@ static void bcma_bgmac_cmn_maskset32(struct bgmac *bgmac, u16 offset, u32 mask,
 	bcma_maskset32(bgmac->bcma.cmn, offset, mask, set);
 }
 
+static int bcma_phy_connect(struct bgmac *bgmac)
+{
+	struct phy_device *phy_dev;
+	char bus_id[MII_BUS_ID_SIZE + 3];
+
+	/* Connect to the PHY */
+	snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, bgmac->mii_bus->id,
+		 bgmac->phyaddr);
+	phy_dev = phy_connect(bgmac->net_dev, bus_id, bgmac_adjust_link,
+			      PHY_INTERFACE_MODE_MII);
+	if (IS_ERR(phy_dev)) {
+		dev_err(bgmac->dev, "PHY connection failed\n");
+		return PTR_ERR(phy_dev);
+	}
+
+	return 0;
+}
+
 static const struct bcma_device_id bgmac_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_4706_MAC_GBIT,
 		  BCMA_ANY_REV, BCMA_ANY_CLASS),
@@ -99,12 +117,11 @@ static int bgmac_probe(struct bcma_device *core)
 	u8 *mac;
 	int err;
 
-	bgmac = kzalloc(sizeof(*bgmac), GFP_KERNEL);
+	bgmac = bgmac_alloc(&core->dev);
 	if (!bgmac)
 		return -ENOMEM;
 
 	bgmac->bcma.core = core;
-	bgmac->dev = &core->dev;
 	bgmac->dma_dev = core->dma_dev;
 	bgmac->irq = core->irq;
 
@@ -127,7 +144,7 @@ static int bgmac_probe(struct bcma_device *core)
 		goto err;
 	}
 
-	ether_addr_copy(bgmac->mac_addr, mac);
+	ether_addr_copy(bgmac->net_dev->dev_addr, mac);
 
 	/* On BCM4706 we need common core to access PHY */
 	if (core->id.id == BCMA_CORE_4706_MAC_GBIT &&
@@ -160,7 +177,7 @@ static int bgmac_probe(struct bcma_device *core)
 
 	if (!bgmac_is_bcm4707_family(core) &&
 	    !(ci->id == BCMA_CHIP_ID_BCM53573 && core->core_unit == 1)) {
-		mii_bus = bcma_mdio_mii_register(core, bgmac->phyaddr);
+		mii_bus = bcma_mdio_mii_register(bgmac);
 		if (IS_ERR(mii_bus)) {
 			err = PTR_ERR(mii_bus);
 			goto err;
@@ -275,6 +292,10 @@ static int bgmac_probe(struct bcma_device *core)
 	bgmac->cco_ctl_maskset = bcma_bgmac_cco_ctl_maskset;
 	bgmac->get_bus_clock = bcma_bgmac_get_bus_clock;
 	bgmac->cmn_maskset32 = bcma_bgmac_cmn_maskset32;
+	if (bgmac->mii_bus)
+		bgmac->phy_connect = bcma_phy_connect;
+	else
+		bgmac->phy_connect = bgmac_phy_connect_direct;
 
 	err = bgmac_enet_probe(bgmac);
 	if (err)
@@ -285,7 +306,6 @@ static int bgmac_probe(struct bcma_device *core)
 err1:
 	bcma_mdio_mii_unregister(bgmac->mii_bus);
 err:
-	kfree(bgmac);
 	bcma_set_drvdata(core, NULL);
 
 	return err;

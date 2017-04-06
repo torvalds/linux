@@ -14,8 +14,10 @@
 #include <linux/utsname.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/user_namespace.h>
 #include <linux/proc_ns.h>
+#include <linux/sched/task.h>
 
 static struct ucounts *inc_uts_namespaces(struct user_namespace *ns)
 {

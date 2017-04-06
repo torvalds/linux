@@ -272,6 +272,22 @@ Description:	Parameters for the CPU cache attributes
 				     the modified cache line is written to main
 				     memory only when it is replaced
 
+
+What:		/sys/devices/system/cpu/cpu*/cache/index*/id
+Date:		September 2016
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Cache id
+
+		The id provides a unique number for a specific instance of
+		a cache of a particular type. E.g. there may be a level
+		3 unified cache on each socket in a server and we may
+		assign them ids 0, 1, 2, ...
+
+		Note that id value can be non-contiguous. E.g. level 1
+		caches typically exist per core, but there may not be a
+		power of two cores on a socket, so these caches may be
+		numbered 0, 1, 2, 3, 4, 5, 8, 9, 10, ...
+
 What:		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats
 		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/turbo_stat
 		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/sub_turbo_stat

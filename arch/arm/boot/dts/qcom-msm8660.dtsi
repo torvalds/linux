@@ -141,12 +141,29 @@
 			};
 		};
 
+		external-bus@1a100000 {
+			compatible = "qcom,msm8660-ebi2";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <0 0x0 0x1a800000 0x00800000>,
+				 <1 0x0 0x1b000000 0x00800000>,
+				 <2 0x0 0x1b800000 0x00800000>,
+				 <3 0x0 0x1d000000 0x08000000>,
+				 <4 0x0 0x1c800000 0x00800000>,
+				 <5 0x0 0x1c000000 0x00800000>;
+			reg = <0x1a100000 0x1000>, <0x1a110000 0x1000>;
+			reg-names = "ebi2", "xmem";
+			clocks = <&gcc EBI2_2X_CLK>, <&gcc EBI2_CLK>;
+			clock-names = "ebi2x", "ebi2";
+			status = "disabled";
+		};
+
 		qcom,ssbi@500000 {
 			compatible = "qcom,ssbi";
 			reg = <0x500000 0x1000>;
 			qcom,controller-type = "pmic-arbiter";
 
-			pmicintc: pmic@0 {
+			pm8058: pmic@0 {
 				compatible = "qcom,pm8058";
 				interrupt-parent = <&tlmm>;
 				interrupts = <88 8>;
@@ -159,7 +176,7 @@
 					compatible = "qcom,pm8058-gpio",
 						     "qcom,ssbi-gpio";
 					reg = <0x150>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <192 IRQ_TYPE_NONE>,
 						     <193 IRQ_TYPE_NONE>,
 						     <194 IRQ_TYPE_NONE>,
@@ -215,7 +232,7 @@
 					reg = <0x50>;
 					gpio-controller;
 					#gpio-cells = <2>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts =
 					<128 IRQ_TYPE_NONE>,
 					<129 IRQ_TYPE_NONE>,
@@ -234,7 +251,7 @@
 				pwrkey@1c {
 					compatible = "qcom,pm8058-pwrkey";
 					reg = <0x1c>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <50 1>, <51 1>;
 					debounce = <15625>;
 					pull-up;
@@ -243,7 +260,7 @@
 				keypad@148 {
 					compatible = "qcom,pm8058-keypad";
 					reg = <0x148>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <74 1>, <75 1>;
 					debounce = <15>;
 					scan-delay = <32>;
@@ -253,7 +270,7 @@
 				rtc@1e8 {
 					compatible = "qcom,pm8058-rtc";
 					reg = <0x1e8>;
-					interrupt-parent = <&pmicintc>;
+					interrupt-parent = <&pm8058>;
 					interrupts = <39 1>;
 					allow-set-time;
 				};

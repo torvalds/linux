@@ -1354,8 +1354,8 @@ static void deprecated_sysctl_warning(const int *name, int nlen)
 			"warning: process `%s' used the deprecated sysctl "
 			"system call with ", current->comm);
 		for (i = 0; i < nlen; i++)
-			printk("%d.", name[i]);
-		printk("\n");
+			printk(KERN_CONT "%d.", name[i]);
+		printk(KERN_CONT "\n");
 	}
 	return;
 }

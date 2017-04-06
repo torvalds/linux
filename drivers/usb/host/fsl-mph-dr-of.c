@@ -226,6 +226,8 @@ static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 		of_property_read_bool(np, "fsl,usb-erratum-a007792");
 	pdata->has_fsl_erratum_a005275 =
 		of_property_read_bool(np, "fsl,usb-erratum-a005275");
+	pdata->has_fsl_erratum_a005697 =
+		of_property_read_bool(np, "fsl,usb_erratum-a005697");
 
 	/*
 	 * Determine whether phy_clk_valid needs to be checked

@@ -36,6 +36,7 @@ extern void smp_yield_cpu(int cpu);
 extern void smp_cpu_set_polarization(int cpu, int val);
 extern int smp_cpu_get_polarization(int cpu);
 extern void smp_fill_possible_mask(void);
+extern void smp_detect_cpus(void);
 
 #else /* CONFIG_SMP */
 
@@ -56,6 +57,7 @@ static inline int smp_store_status(int cpu) { return 0; }
 static inline int smp_vcpu_scheduled(int cpu) { return 1; }
 static inline void smp_yield_cpu(int cpu) { }
 static inline void smp_fill_possible_mask(void) { }
+static inline void smp_detect_cpus(void) { }
 
 #endif /* CONFIG_SMP */
 
@@ -67,6 +69,12 @@ static inline void smp_stop_cpu(void)
 		__pcpu_sigp(pcpu, SIGP_STOP, 0, NULL);
 		cpu_relax();
 	}
+}
+
+/* Return thread 0 CPU number as base CPU */
+static inline int smp_get_base_cpu(int cpu)
+{
+	return cpu - (cpu % (smp_cpu_mtid + 1));
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

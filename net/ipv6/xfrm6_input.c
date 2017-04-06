@@ -33,6 +33,8 @@ EXPORT_SYMBOL(xfrm6_rcv_spi);
 
 int xfrm6_transport_finish(struct sk_buff *skb, int async)
 {
+	struct xfrm_offload *xo = xfrm_offload(skb);
+
 	skb_network_header(skb)[IP6CB(skb)->nhoff] =
 		XFRM_MODE_SKB_CB(skb)->protocol;
 
@@ -43,6 +45,11 @@ int xfrm6_transport_finish(struct sk_buff *skb, int async)
 
 	ipv6_hdr(skb)->payload_len = htons(skb->len);
 	__skb_push(skb, skb->data - skb_network_header(skb));
+
+	if (xo && (xo->flags & XFRM_GRO)) {
+		skb_mac_header_rebuild(skb);
+		return -1;
+	}
 
 	NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING,
 		dev_net(skb->dev), NULL, skb, skb->dev, NULL,
@@ -69,18 +76,9 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 	struct xfrm_state *x = NULL;
 	int i = 0;
 
-	/* Allocate new secpath or COW existing one. */
-	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
-		struct sec_path *sp;
-
-		sp = secpath_dup(skb->sp);
-		if (!sp) {
-			XFRM_INC_STATS(net, LINUX_MIB_XFRMINERROR);
-			goto drop;
-		}
-		if (skb->sp)
-			secpath_put(skb->sp);
-		skb->sp = sp;
+	if (secpath_set(skb)) {
+		XFRM_INC_STATS(net, LINUX_MIB_XFRMINERROR);
+		goto drop;
 	}
 
 	if (1 + skb->sp->len == XFRM_MAX_DEPTH) {

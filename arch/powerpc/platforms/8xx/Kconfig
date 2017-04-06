@@ -130,6 +130,7 @@ config 8xx_CPU6
 
 config 8xx_CPU15
 	bool "CPU15 Silicon Errata"
+	depends on !HUGETLB_PAGE
 	default y
 	help
 	  This enables a workaround for erratum CPU15 on MPC8xx chips.

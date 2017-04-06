@@ -55,7 +55,7 @@ struct tc_police_compat {
 
 /* Each policer is serialized by its individual spinlock */
 
-static int police_net_id;
+static unsigned int police_net_id;
 static struct tc_action_ops act_police_ops;
 
 static int tcf_act_police_walker(struct net *net, struct sk_buff *skb,
@@ -142,8 +142,7 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 			goto failure_unlock;
 	} else if (tb[TCA_POLICE_AVRATE] &&
 		   (ret == ACT_P_CREATED ||
-		    !gen_estimator_active(&police->tcf_bstats,
-					  &police->tcf_rate_est))) {
+		    !gen_estimator_active(&police->tcf_rate_est))) {
 		err = -EINVAL;
 		goto failure_unlock;
 	}
@@ -216,13 +215,17 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 	bstats_update(&police->tcf_bstats, skb);
 	tcf_lastuse_update(&police->tcf_tm);
 
-	if (police->tcfp_ewma_rate &&
-	    police->tcf_rate_est.bps >= police->tcfp_ewma_rate) {
-		police->tcf_qstats.overlimits++;
-		if (police->tcf_action == TC_ACT_SHOT)
-			police->tcf_qstats.drops++;
-		spin_unlock(&police->tcf_lock);
-		return police->tcf_action;
+	if (police->tcfp_ewma_rate) {
+		struct gnet_stats_rate_est64 sample;
+
+		if (!gen_estimator_read(&police->tcf_rate_est, &sample) ||
+		    sample.bps >= police->tcfp_ewma_rate) {
+			police->tcf_qstats.overlimits++;
+			if (police->tcf_action == TC_ACT_SHOT)
+				police->tcf_qstats.drops++;
+			spin_unlock(&police->tcf_lock);
+			return police->tcf_action;
+		}
 	}
 
 	if (qdisc_pkt_len(skb) <= police->tcfp_mtu) {

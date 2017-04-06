@@ -180,7 +180,7 @@ int zpci_fmb_enable_device(struct zpci_dev *zdev)
 {
 	struct mod_pci_args args = { 0, 0, 0, 0 };
 
-	if (zdev->fmb)
+	if (zdev->fmb || sizeof(*zdev->fmb) < zdev->fmb_length)
 		return -EINVAL;
 
 	zdev->fmb = kmem_cache_zalloc(zdev_fmb_cache, GFP_KERNEL);
@@ -224,8 +224,8 @@ static int zpci_cfg_load(struct zpci_dev *zdev, int offset, u32 *val, u8 len)
 
 	rc = zpci_load(&data, req, offset);
 	if (!rc) {
-		data = data << ((8 - len) * 8);
-		data = le64_to_cpu(data);
+		data = le64_to_cpu((__force __le64) data);
+		data >>= (8 - len) * 8;
 		*val = (u32) data;
 	} else
 		*val = 0xffffffff;
@@ -238,8 +238,8 @@ static int zpci_cfg_store(struct zpci_dev *zdev, int offset, u32 val, u8 len)
 	u64 data = val;
 	int rc;
 
-	data = cpu_to_le64(data);
-	data = data >> ((8 - len) * 8);
+	data <<= (8 - len) * 8;
+	data = (__force u64) cpu_to_le64(data);
 	rc = zpci_store(data, req, offset);
 	return rc;
 }
@@ -641,7 +641,7 @@ int pcibios_add_device(struct pci_dev *pdev)
 	int i;
 
 	pdev->dev.groups = zpci_attr_groups;
-	pdev->dev.archdata.dma_ops = &s390_pci_dma_ops;
+	pdev->dev.dma_ops = &s390_pci_dma_ops;
 	zpci_map_resources(pdev);
 
 	for (i = 0; i < PCI_BAR_COUNT; i++) {
@@ -722,6 +722,11 @@ struct dev_pm_ops pcibios_pm_ops = {
 
 static int zpci_alloc_domain(struct zpci_dev *zdev)
 {
+	if (zpci_unique_uid) {
+		zdev->domain = (u16) zdev->uid;
+		return 0;
+	}
+
 	spin_lock(&zpci_domain_lock);
 	zdev->domain = find_first_zero_bit(zpci_domain, ZPCI_NR_DEVICES);
 	if (zdev->domain == ZPCI_NR_DEVICES) {
@@ -735,6 +740,9 @@ static int zpci_alloc_domain(struct zpci_dev *zdev)
 
 static void zpci_free_domain(struct zpci_dev *zdev)
 {
+	if (zpci_unique_uid)
+		return;
+
 	spin_lock(&zpci_domain_lock);
 	clear_bit(zdev->domain, zpci_domain);
 	spin_unlock(&zpci_domain_lock);

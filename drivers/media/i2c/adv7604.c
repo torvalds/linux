@@ -1566,10 +1566,24 @@ static int adv76xx_query_dv_timings(struct v4l2_subdev *sd,
 		V4L2_DV_INTERLACED : V4L2_DV_PROGRESSIVE;
 
 	if (is_digital_input(sd)) {
+		bool hdmi_signal = hdmi_read(sd, 0x05) & 0x80;
+		u8 vic = 0;
+		u32 w, h;
+
+		w = hdmi_read16(sd, 0x07, info->linewidth_mask);
+		h = hdmi_read16(sd, 0x09, info->field0_height_mask);
+
+		if (hdmi_signal && (io_read(sd, 0x60) & 1))
+			vic = infoframe_read(sd, 0x04);
+
+		if (vic && v4l2_find_dv_timings_cea861_vic(timings, vic) &&
+		    bt->width == w && bt->height == h)
+			goto found;
+
 		timings->type = V4L2_DV_BT_656_1120;
 
-		bt->width = hdmi_read16(sd, 0x07, info->linewidth_mask);
-		bt->height = hdmi_read16(sd, 0x09, info->field0_height_mask);
+		bt->width = w;
+		bt->height = h;
 		bt->pixelclock = info->read_hdmi_pixelclock(sd);
 		bt->hfrontporch = hdmi_read16(sd, 0x20, info->hfrontporch_mask);
 		bt->hsync = hdmi_read16(sd, 0x22, info->hsync_mask);
@@ -2617,9 +2631,10 @@ static int adv76xx_subscribe_event(struct v4l2_subdev *sd,
 static int adv76xx_registered(struct v4l2_subdev *sd)
 {
 	struct adv76xx_state *state = to_state(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int err;
 
-	err = cec_register_adapter(state->cec_adap);
+	err = cec_register_adapter(state->cec_adap, &client->dev);
 	if (err)
 		cec_delete_adapter(state->cec_adap);
 	return err;
@@ -3074,12 +3089,12 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 		return ret;
 	}
 
-	if (!of_property_read_u32(endpoint, "default-input", &v))
+	of_node_put(endpoint);
+
+	if (!of_property_read_u32(np, "default-input", &v))
 		state->pdata.default_input = v;
 	else
 		state->pdata.default_input = -1;
-
-	of_node_put(endpoint);
 
 	flags = bus_cfg.bus.parallel.flags;
 
@@ -3118,6 +3133,9 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 	state->pdata.blank_data = 1;
 	state->pdata.op_format_mode_sel = ADV7604_OP_FORMAT_MODE0;
 	state->pdata.bus_order = ADV7604_BUS_ORDER_RGB;
+	state->pdata.dr_str_data = ADV76XX_DR_STR_MEDIUM_HIGH;
+	state->pdata.dr_str_clk = ADV76XX_DR_STR_MEDIUM_HIGH;
+	state->pdata.dr_str_sync = ADV76XX_DR_STR_MEDIUM_HIGH;
 
 	return 0;
 }
@@ -3497,8 +3515,7 @@ static int adv76xx_probe(struct i2c_client *client,
 	state->cec_adap = cec_allocate_adapter(&adv76xx_cec_adap_ops,
 		state, dev_name(&client->dev),
 		CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC, ADV76XX_MAX_ADDRS,
-		&client->dev);
+		CEC_CAP_PASSTHROUGH | CEC_CAP_RC, ADV76XX_MAX_ADDRS);
 	err = PTR_ERR_OR_ZERO(state->cec_adap);
 	if (err)
 		goto err_entity;

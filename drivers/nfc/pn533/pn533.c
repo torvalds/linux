@@ -487,7 +487,7 @@ static int pn533_send_cmd_async(struct pn533 *dev, u8 cmd_code,
 /*
  * pn533_send_cmd_direct_async
  *
- * The function sends a piority cmd directly to the chip omiting the cmd
+ * The function sends a piority cmd directly to the chip omitting the cmd
  * queue. It's intended to be used by chaining mechanism of received responses
  * where the host has to request every single chunk of data before scheduling
  * next cmd from the queue.

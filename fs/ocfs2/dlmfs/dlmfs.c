@@ -45,7 +45,7 @@
 #include <linux/backing-dev.h>
 #include <linux/poll.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "stackglue.h"
 #include "userdlm.h"

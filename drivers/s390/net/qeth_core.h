@@ -281,8 +281,6 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 #define QETH_HIGH_WATERMARK_PACK 5
 #define QETH_WATERMARK_PACK_FUZZ 1
 
-#define QETH_IP_HEADER_SIZE 40
-
 /* large receive scatter gather copy break */
 #define QETH_RX_SG_CB (PAGE_SIZE >> 1)
 #define QETH_RX_PULL_LEN 256
@@ -674,8 +672,6 @@ struct qeth_card_info {
 	int broadcast_capable;
 	int unique_id;
 	struct qeth_card_blkt blkt;
-	__u32 csum_mask;
-	__u32 tx_csum_mask;
 	enum qeth_ipa_promisc_modes promisc_mode;
 	__u32 diagass_support;
 	__u32 hwtrap;
@@ -917,7 +913,6 @@ void qeth_clear_thread_running_bit(struct qeth_card *, unsigned long);
 int qeth_core_hardsetup_card(struct qeth_card *);
 void qeth_print_status_message(struct qeth_card *);
 int qeth_init_qdio_queues(struct qeth_card *);
-int qeth_send_startlan(struct qeth_card *);
 int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,
 		  int (*reply_cb)
 		  (struct qeth_card *, struct qeth_reply *, unsigned long),

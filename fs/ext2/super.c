@@ -31,7 +31,7 @@
 #include <linux/mount.h>
 #include <linux/log2.h>
 #include <linux/quotaops.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "ext2.h"
 #include "xattr.h"
 #include "acl.h"

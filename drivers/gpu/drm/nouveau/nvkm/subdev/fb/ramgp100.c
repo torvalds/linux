@@ -92,13 +92,13 @@ gp100_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	enum nvkm_ram_type type = nvkm_fb_bios_memtype(device->bios);
 	const u32 rsvd_head = ( 256 * 1024); /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024); /* vbios etc */
-	u32 fbpa_num = nvkm_rd32(device, 0x022438), fbpa;
+	u32 fbpa_num = nvkm_rd32(device, 0x02243c), fbpa;
 	u32 fbio_opt = nvkm_rd32(device, 0x021c14);
 	u64 part, size = 0, comm = ~0ULL;
 	bool mixed = false;
 	int ret;
 
-	nvkm_debug(subdev, "022438: %08x\n", fbpa_num);
+	nvkm_debug(subdev, "02243c: %08x\n", fbpa_num);
 	nvkm_debug(subdev, "021c14: %08x\n", fbio_opt);
 	for (fbpa = 0; fbpa < fbpa_num; fbpa++) {
 		if (!(fbio_opt & (1 << fbpa))) {

@@ -13,6 +13,7 @@
 #include <linux/pagemap.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/magic.h>
 #include <linux/mount.h>
 #include <linux/pfn_t.h>
 #include <linux/hash.h>
@@ -73,6 +74,73 @@ struct dax_dev {
 	int id;
 	int num_resources;
 	struct resource res[0];
+};
+
+static ssize_t id_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dax_region *dax_region;
+	ssize_t rc = -ENXIO;
+
+	device_lock(dev);
+	dax_region = dev_get_drvdata(dev);
+	if (dax_region)
+		rc = sprintf(buf, "%d\n", dax_region->id);
+	device_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(id);
+
+static ssize_t region_size_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dax_region *dax_region;
+	ssize_t rc = -ENXIO;
+
+	device_lock(dev);
+	dax_region = dev_get_drvdata(dev);
+	if (dax_region)
+		rc = sprintf(buf, "%llu\n", (unsigned long long)
+				resource_size(&dax_region->res));
+	device_unlock(dev);
+
+	return rc;
+}
+static struct device_attribute dev_attr_region_size = __ATTR(size, 0444,
+		region_size_show, NULL);
+
+static ssize_t align_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dax_region *dax_region;
+	ssize_t rc = -ENXIO;
+
+	device_lock(dev);
+	dax_region = dev_get_drvdata(dev);
+	if (dax_region)
+		rc = sprintf(buf, "%u\n", dax_region->align);
+	device_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(align);
+
+static struct attribute *dax_region_attributes[] = {
+	&dev_attr_region_size.attr,
+	&dev_attr_align.attr,
+	&dev_attr_id.attr,
+	NULL,
+};
+
+static const struct attribute_group dax_region_attribute_group = {
+	.name = "dax_region",
+	.attrs = dax_region_attributes,
+};
+
+static const struct attribute_group *dax_region_attribute_groups[] = {
+	&dax_region_attribute_group,
+	NULL,
 };
 
 static struct inode *dax_alloc_inode(struct super_block *sb)
@@ -200,11 +268,30 @@ void dax_region_put(struct dax_region *dax_region)
 }
 EXPORT_SYMBOL_GPL(dax_region_put);
 
+static void dax_region_unregister(void *region)
+{
+	struct dax_region *dax_region = region;
+
+	sysfs_remove_groups(&dax_region->dev->kobj,
+			dax_region_attribute_groups);
+	dax_region_put(dax_region);
+}
+
 struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 		struct resource *res, unsigned int align, void *addr,
 		unsigned long pfn_flags)
 {
 	struct dax_region *dax_region;
+
+	/*
+	 * The DAX core assumes that it can store its private data in
+	 * parent->driver_data. This WARN is a reminder / safeguard for
+	 * developers of device-dax drivers.
+	 */
+	if (dev_get_drvdata(parent)) {
+		dev_WARN(parent, "dax core failed to setup private data\n");
+		return NULL;
+	}
 
 	if (!IS_ALIGNED(res->start, align)
 			|| !IS_ALIGNED(resource_size(res), align))
@@ -214,6 +301,7 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 	if (!dax_region)
 		return NULL;
 
+	dev_set_drvdata(parent, dax_region);
 	memcpy(&dax_region->res, res, sizeof(*res));
 	dax_region->pfn_flags = pfn_flags;
 	kref_init(&dax_region->kref);
@@ -222,7 +310,14 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 	dax_region->align = align;
 	dax_region->dev = parent;
 	dax_region->base = addr;
+	if (sysfs_create_groups(&parent->kobj, dax_region_attribute_groups)) {
+		kfree(dax_region);
+		return NULL;;
+	}
 
+	kref_get(&dax_region->kref);
+	if (devm_add_action_or_reset(parent, dax_region_unregister, dax_region))
+		return NULL;
 	return dax_region;
 }
 EXPORT_SYMBOL_GPL(alloc_dax_region);
@@ -325,17 +420,15 @@ static phys_addr_t pgoff_to_phys(struct dax_dev *dax_dev, pgoff_t pgoff,
 	return -1;
 }
 
-static int __dax_dev_fault(struct dax_dev *dax_dev, struct vm_area_struct *vma,
-		struct vm_fault *vmf)
+static int __dax_dev_pte_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
 {
-	unsigned long vaddr = (unsigned long) vmf->virtual_address;
 	struct device *dev = &dax_dev->dev;
 	struct dax_region *dax_region;
 	int rc = VM_FAULT_SIGBUS;
 	phys_addr_t phys;
 	pfn_t pfn;
 
-	if (check_vma(dax_dev, vma, __func__))
+	if (check_vma(dax_dev, vmf->vma, __func__))
 		return VM_FAULT_SIGBUS;
 
 	dax_region = dax_dev->region;
@@ -353,7 +446,7 @@ static int __dax_dev_fault(struct dax_dev *dax_dev, struct vm_area_struct *vma,
 
 	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
 
-	rc = vm_insert_mixed(vma, vaddr, pfn);
+	rc = vm_insert_mixed(vmf->vma, vmf->address, pfn);
 
 	if (rc == -ENOMEM)
 		return VM_FAULT_OOM;
@@ -363,34 +456,16 @@ static int __dax_dev_fault(struct dax_dev *dax_dev, struct vm_area_struct *vma,
 	return VM_FAULT_NOPAGE;
 }
 
-static int dax_dev_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static int __dax_dev_pmd_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
 {
-	int rc;
-	struct file *filp = vma->vm_file;
-	struct dax_dev *dax_dev = filp->private_data;
-
-	dev_dbg(&dax_dev->dev, "%s: %s: %s (%#lx - %#lx)\n", __func__,
-			current->comm, (vmf->flags & FAULT_FLAG_WRITE)
-			? "write" : "read", vma->vm_start, vma->vm_end);
-	rcu_read_lock();
-	rc = __dax_dev_fault(dax_dev, vma, vmf);
-	rcu_read_unlock();
-
-	return rc;
-}
-
-static int __dax_dev_pmd_fault(struct dax_dev *dax_dev,
-		struct vm_area_struct *vma, unsigned long addr, pmd_t *pmd,
-		unsigned int flags)
-{
-	unsigned long pmd_addr = addr & PMD_MASK;
+	unsigned long pmd_addr = vmf->address & PMD_MASK;
 	struct device *dev = &dax_dev->dev;
 	struct dax_region *dax_region;
 	phys_addr_t phys;
 	pgoff_t pgoff;
 	pfn_t pfn;
 
-	if (check_vma(dax_dev, vma, __func__))
+	if (check_vma(dax_dev, vmf->vma, __func__))
 		return VM_FAULT_SIGBUS;
 
 	dax_region = dax_dev->region;
@@ -405,7 +480,7 @@ static int __dax_dev_pmd_fault(struct dax_dev *dax_dev,
 		return VM_FAULT_SIGBUS;
 	}
 
-	pgoff = linear_page_index(vma, pmd_addr);
+	pgoff = linear_page_index(vmf->vma, pmd_addr);
 	phys = pgoff_to_phys(dax_dev, pgoff, PMD_SIZE);
 	if (phys == -1) {
 		dev_dbg(dev, "%s: phys_to_pgoff(%#lx) failed\n", __func__,
@@ -415,31 +490,94 @@ static int __dax_dev_pmd_fault(struct dax_dev *dax_dev,
 
 	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
 
-	return vmf_insert_pfn_pmd(vma, addr, pmd, pfn,
-			flags & FAULT_FLAG_WRITE);
+	return vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd, pfn,
+			vmf->flags & FAULT_FLAG_WRITE);
 }
 
-static int dax_dev_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
-		pmd_t *pmd, unsigned int flags)
+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
+static int __dax_dev_pud_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
+{
+	unsigned long pud_addr = vmf->address & PUD_MASK;
+	struct device *dev = &dax_dev->dev;
+	struct dax_region *dax_region;
+	phys_addr_t phys;
+	pgoff_t pgoff;
+	pfn_t pfn;
+
+	if (check_vma(dax_dev, vmf->vma, __func__))
+		return VM_FAULT_SIGBUS;
+
+	dax_region = dax_dev->region;
+	if (dax_region->align > PUD_SIZE) {
+		dev_dbg(dev, "%s: alignment > fault size\n", __func__);
+		return VM_FAULT_SIGBUS;
+	}
+
+	/* dax pud mappings require pfn_t_devmap() */
+	if ((dax_region->pfn_flags & (PFN_DEV|PFN_MAP)) != (PFN_DEV|PFN_MAP)) {
+		dev_dbg(dev, "%s: alignment > fault size\n", __func__);
+		return VM_FAULT_SIGBUS;
+	}
+
+	pgoff = linear_page_index(vmf->vma, pud_addr);
+	phys = pgoff_to_phys(dax_dev, pgoff, PUD_SIZE);
+	if (phys == -1) {
+		dev_dbg(dev, "%s: phys_to_pgoff(%#lx) failed\n", __func__,
+				pgoff);
+		return VM_FAULT_SIGBUS;
+	}
+
+	pfn = phys_to_pfn_t(phys, dax_region->pfn_flags);
+
+	return vmf_insert_pfn_pud(vmf->vma, vmf->address, vmf->pud, pfn,
+			vmf->flags & FAULT_FLAG_WRITE);
+}
+#else
+static int __dax_dev_pud_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
+{
+	return VM_FAULT_FALLBACK;
+}
+#endif /* !CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
+
+static int dax_dev_huge_fault(struct vm_fault *vmf,
+		enum page_entry_size pe_size)
 {
 	int rc;
-	struct file *filp = vma->vm_file;
+	struct file *filp = vmf->vma->vm_file;
 	struct dax_dev *dax_dev = filp->private_data;
 
 	dev_dbg(&dax_dev->dev, "%s: %s: %s (%#lx - %#lx)\n", __func__,
-			current->comm, (flags & FAULT_FLAG_WRITE)
-			? "write" : "read", vma->vm_start, vma->vm_end);
+			current->comm, (vmf->flags & FAULT_FLAG_WRITE)
+			? "write" : "read",
+			vmf->vma->vm_start, vmf->vma->vm_end);
 
 	rcu_read_lock();
-	rc = __dax_dev_pmd_fault(dax_dev, vma, addr, pmd, flags);
+	switch (pe_size) {
+	case PE_SIZE_PTE:
+		rc = __dax_dev_pte_fault(dax_dev, vmf);
+		break;
+	case PE_SIZE_PMD:
+		rc = __dax_dev_pmd_fault(dax_dev, vmf);
+		break;
+	case PE_SIZE_PUD:
+		rc = __dax_dev_pud_fault(dax_dev, vmf);
+		break;
+	default:
+		return VM_FAULT_FALLBACK;
+	}
 	rcu_read_unlock();
 
 	return rc;
 }
 
+static int dax_dev_fault(struct vm_fault *vmf)
+{
+	return dax_dev_huge_fault(vmf, PE_SIZE_PTE);
+}
+
 static const struct vm_operations_struct dax_dev_vm_ops = {
 	.fault = dax_dev_fault,
-	.pmd_fault = dax_dev_pmd_fault,
+	.huge_fault = dax_dev_huge_fault,
 };
 
 static int dax_mmap(struct file *filp, struct vm_area_struct *vma)

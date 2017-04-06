@@ -51,7 +51,7 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 			  drvr->bus_if->proto_type);
 		goto fail;
 	}
-	if ((proto->txdata == NULL) || (proto->hdrpull == NULL) ||
+	if (!proto->tx_queue_data || (proto->hdrpull == NULL) ||
 	    (proto->query_dcmd == NULL) || (proto->set_dcmd == NULL) ||
 	    (proto->configure_addr_mode == NULL) ||
 	    (proto->delete_peer == NULL) || (proto->add_tdls_peer == NULL)) {

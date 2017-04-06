@@ -314,9 +314,11 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 		netif_tx_unlock_bh(dev);
 
 		skb->dev = dev;
-		if (dev_queue_xmit(skb))
-			ipoib_warn(priv, "dev_queue_xmit failed to requeue packet\n");
 
+		ret = dev_queue_xmit(skb);
+		if (ret)
+			ipoib_warn(priv, "%s:dev_queue_xmit failed to re-queue packet, ret:%d\n",
+				   __func__, ret);
 		netif_tx_lock_bh(dev);
 	}
 	netif_tx_unlock_bh(dev);
@@ -575,8 +577,11 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
 		return;
 
-	if (ib_query_port(priv->ca, priv->port, &port_attr) ||
-	    port_attr.state != IB_PORT_ACTIVE) {
+	if (ib_query_port(priv->ca, priv->port, &port_attr)) {
+		ipoib_dbg(priv, "ib_query_port() failed\n");
+		return;
+	}
+	if (port_attr.state != IB_PORT_ACTIVE) {
 		ipoib_dbg(priv, "port state is not ACTIVE (state = %d) suspending join task\n",
 			  port_attr.state);
 		return;
@@ -671,7 +676,7 @@ out:
 	spin_unlock_irq(&priv->lock);
 }
 
-int ipoib_mcast_start_thread(struct net_device *dev)
+void ipoib_mcast_start_thread(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	unsigned long flags;
@@ -681,8 +686,6 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 	spin_lock_irqsave(&priv->lock, flags);
 	__ipoib_mcast_schedule_join_thread(priv, NULL, 0);
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return 0;
 }
 
 int ipoib_mcast_stop_thread(struct net_device *dev)

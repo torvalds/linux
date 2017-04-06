@@ -201,8 +201,6 @@ static int arizona_haptics_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, haptics);
-
 	return 0;
 }
 

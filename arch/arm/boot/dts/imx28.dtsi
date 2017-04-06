@@ -10,11 +10,21 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
-#include "skeleton.dtsi"
 #include "imx28-pinfunc.h"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	interrupt-parent = <&icoll>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
+	 */
+	chosen {};
+	memory { device_type = "memory"; reg = <0 0>; };
 
 	aliases {
 		ethernet0 = &mac0;
@@ -38,12 +48,13 @@
 	};
 
 	cpus {
-		#address-cells = <0>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu {
+		cpu@0 {
 			compatible = "arm,arm926ej-s";
 			device_type = "cpu";
+			reg = <0>;
 		};
 	};
 
@@ -1068,6 +1079,7 @@
 			};
 
 			saif0: saif@80042000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx28-saif";
 				reg = <0x80042000 0x2000>;
 				interrupts = <59>;
@@ -1084,6 +1096,7 @@
 			};
 
 			saif1: saif@80046000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx28-saif";
 				reg = <0x80046000 0x2000>;
 				interrupts = <58>;

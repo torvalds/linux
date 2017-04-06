@@ -6,6 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/errno.h>
@@ -24,7 +25,7 @@
 #include <linux/export.h>
 #include <linux/context_tracking.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/fpu/internal.h>
