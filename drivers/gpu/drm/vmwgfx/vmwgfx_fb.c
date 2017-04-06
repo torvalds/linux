@@ -418,6 +418,60 @@ static int vmw_fb_compute_depth(struct fb_var_screeninfo *var,
 	return 0;
 }
 
+static int vmwgfx_set_config_internal(struct drm_mode_set *set)
+{
+	struct drm_crtc *crtc = set->crtc;
+	struct drm_framebuffer *fb;
+	struct drm_crtc *tmp;
+	struct drm_modeset_acquire_ctx *ctx;
+	struct drm_device *dev = set->crtc->dev;
+	int ret;
+
+	ctx = dev->mode_config.acquire_ctx;
+
+restart:
+	/*
+	 * NOTE: ->set_config can also disable other crtcs (if we steal all
+	 * connectors from it), hence we need to refcount the fbs across all
+	 * crtcs. Atomic modeset will have saner semantics ...
+	 */
+	drm_for_each_crtc(tmp, dev)
+		tmp->primary->old_fb = tmp->primary->fb;
+
+	fb = set->fb;
+
+	ret = crtc->funcs->set_config(set, ctx);
+	if (ret == 0) {
+		crtc->primary->crtc = crtc;
+		crtc->primary->fb = fb;
+	}
+
+	drm_for_each_crtc(tmp, dev) {
+		if (tmp->primary->fb)
+			drm_framebuffer_get(tmp->primary->fb);
+		if (tmp->primary->old_fb)
+			drm_framebuffer_put(tmp->primary->old_fb);
+		tmp->primary->old_fb = NULL;
+	}
+
+	if (ret == -EDEADLK) {
+		dev->mode_config.acquire_ctx = NULL;
+
+retry_locking:
+		drm_modeset_backoff(ctx);
+
+		ret = drm_modeset_lock_all_ctx(dev, ctx);
+		if (ret)
+			goto retry_locking;
+
+		dev->mode_config.acquire_ctx = ctx;
+
+		goto restart;
+	}
+
+	return ret;
+}
+
 static int vmw_fb_kms_detach(struct vmw_fb_par *par,
 			     bool detach_bo,
 			     bool unref_bo)
@@ -436,7 +490,7 @@ static int vmw_fb_kms_detach(struct vmw_fb_par *par,
 		set.fb = NULL;
 		set.num_connectors = 0;
 		set.connectors = &par->con;
-		ret = drm_mode_set_config_internal(&set);
+		ret = vmwgfx_set_config_internal(&set);
 		if (ret) {
 			DRM_ERROR("Could not unset a mode.\n");
 			return ret;
@@ -578,7 +632,7 @@ static int vmw_fb_set_par(struct fb_info *info)
 	set.num_connectors = 1;
 	set.connectors = &par->con;
 
-	ret = drm_mode_set_config_internal(&set);
+	ret = vmwgfx_set_config_internal(&set);
 	if (ret)
 		goto out_unlock;
 
