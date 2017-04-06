@@ -872,6 +872,40 @@ struct drm_connector_helper_funcs {
 	 */
 	struct drm_encoder *(*atomic_best_encoder)(struct drm_connector *connector,
 						   struct drm_connector_state *connector_state);
+
+	/**
+	 * @atomic_check:
+	 *
+	 * This hook is used to validate connector state. This function is
+	 * called from &drm_atomic_helper_check_modeset, and is called when
+	 * a connector property is set, or a modeset on the crtc is forced.
+	 *
+	 * Because &drm_atomic_helper_check_modeset may be called multiple times,
+	 * this function should handle being called multiple times as well.
+	 *
+	 * This function is also allowed to inspect any other object's state and
+	 * can add more state objects to the atomic commit if needed. Care must
+	 * be taken though to ensure that state check and compute functions for
+	 * these added states are all called, and derived state in other objects
+	 * all updated. Again the recommendation is to just call check helpers
+	 * until a maximal configuration is reached.
+	 *
+	 * NOTE:
+	 *
+	 * This function is called in the check phase of an atomic update. The
+	 * driver is not allowed to change anything outside of the free-standing
+	 * state objects passed-in or assembled in the overall &drm_atomic_state
+	 * update tracking structure.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success, -EINVAL if the state or the transition can't be
+	 * supported, -ENOMEM on memory allocation failure and -EDEADLK if an
+	 * attempt to obtain another state object ran into a &drm_modeset_lock
+	 * deadlock.
+	 */
+	int (*atomic_check)(struct drm_connector *connector,
+			    struct drm_connector_state *state);
 };
 
 /**

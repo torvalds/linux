@@ -459,10 +459,20 @@ mode_fixup(struct drm_atomic_state *state)
  *
  * Check the state object to see if the requested state is physically possible.
  * This does all the crtc and connector related computations for an atomic
- * update and adds any additional connectors needed for full modesets and calls
- * down into &drm_crtc_helper_funcs.mode_fixup and
- * &drm_encoder_helper_funcs.mode_fixup or
- * &drm_encoder_helper_funcs.atomic_check functions of the driver backend.
+ * update and adds any additional connectors needed for full modesets. It calls
+ * the various per-object callbacks in the follow order:
+ *
+ * 1. &drm_connector_helper_funcs.atomic_best_encoder for determining the new encoder.
+ * 2. &drm_connector_helper_funcs.atomic_check to validate the connector state.
+ * 3. If it's determined a modeset is needed then all connectors on the affected crtc
+ *    crtc are added and &drm_connector_helper_funcs.atomic_check is run on them.
+ * 4. &drm_bridge_funcs.mode_fixup is called on all encoder bridges.
+ * 5. &drm_encoder_helper_funcs.atomic_check is called to validate any encoder state.
+ *    This function is only called when the encoder will be part of a configured crtc,
+ *    it must not be used for implementing connector property validation.
+ *    If this function is NULL, &drm_atomic_encoder_helper_funcs.mode_fixup is called
+ *    instead.
+ * 6. &drm_crtc_helper_funcs.mode_fixup is called last, to fix up the mode with crtc constraints.
  *
  * &drm_crtc_state.mode_changed is set when the input mode is changed.
  * &drm_crtc_state.connectors_changed is set when a connector is added or
@@ -492,6 +502,7 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 	struct drm_connector *connector;
 	struct drm_connector_state *old_connector_state, *new_connector_state;
 	int i, ret;
+	unsigned connectors_mask = 0;
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		bool has_connectors =
@@ -538,6 +549,8 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		return ret;
 
 	for_each_oldnew_connector_in_state(state, connector, old_connector_state, new_connector_state, i) {
+		const struct drm_connector_helper_funcs *funcs = connector->helper_private;
+
 		/*
 		 * This only sets crtc->connectors_changed for routing changes,
 		 * drivers must set crtc->connectors_changed themselves when
@@ -555,6 +568,13 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 			    new_connector_state->link_status)
 				new_crtc_state->connectors_changed = true;
 		}
+
+		if (funcs->atomic_check)
+			ret = funcs->atomic_check(connector, new_connector_state);
+		if (ret)
+			return ret;
+
+		connectors_mask += BIT(i);
 	}
 
 	/*
@@ -578,6 +598,22 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 		ret = drm_atomic_add_affected_planes(state, crtc);
 		if (ret != 0)
+			return ret;
+	}
+
+	/*
+	 * Iterate over all connectors again, to make sure atomic_check()
+	 * has been called on them when a modeset is forced.
+	 */
+	for_each_oldnew_connector_in_state(state, connector, old_connector_state, new_connector_state, i) {
+		const struct drm_connector_helper_funcs *funcs = connector->helper_private;
+
+		if (connectors_mask & BIT(i))
+			continue;
+
+		if (funcs->atomic_check)
+			ret = funcs->atomic_check(connector, new_connector_state);
+		if (ret)
 			return ret;
 	}
 
