@@ -534,13 +534,19 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	struct net_device *netdev = priv->netdev;
 	struct ftgmac100_rxdes *rxdes;
 	struct sk_buff *skb;
-	bool done = false;
+	struct page *page;
+	unsigned int size;
+	dma_addr_t map;
 
 	rxdes = ftgmac100_rx_locate_first_segment(priv);
 	if (!rxdes)
 		return false;
 
-	if (unlikely(ftgmac100_rx_packet_error(priv, rxdes))) {
+	/* We don't support segmented rx frames, so drop these
+	 * along with packets with errors.
+	 */
+	if (unlikely(!ftgmac100_rxdes_last_segment(rxdes) ||
+		     ftgmac100_rx_packet_error(priv, rxdes))) {
 		ftgmac100_rx_drop_packet(priv);
 		return true;
 	}
@@ -567,28 +573,21 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	    (ftgmac100_rxdes_is_udp(rxdes) && !ftgmac100_rxdes_udpcs_err(rxdes)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	do {
-		dma_addr_t map = ftgmac100_rxdes_get_dma_addr(rxdes);
-		struct page *page = ftgmac100_rxdes_get_page(priv, rxdes);
-		unsigned int size;
+	map = ftgmac100_rxdes_get_dma_addr(rxdes);
 
-		dma_unmap_page(priv->dev, map, RX_BUF_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_page(priv->dev, map, RX_BUF_SIZE, DMA_FROM_DEVICE);
 
-		size = ftgmac100_rxdes_data_length(rxdes);
-		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags, page, 0, size);
+	size = ftgmac100_rxdes_data_length(rxdes);
+	skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags, page, 0, size);
 
-		skb->len += size;
-		skb->data_len += size;
-		skb->truesize += PAGE_SIZE;
+	skb->len += size;
+	skb->data_len += size;
+	skb->truesize += PAGE_SIZE;
 
-		if (ftgmac100_rxdes_last_segment(rxdes))
-			done = true;
+	ftgmac100_alloc_rx_page(priv, rxdes, GFP_ATOMIC);
 
-		ftgmac100_alloc_rx_page(priv, rxdes, GFP_ATOMIC);
-
-		ftgmac100_rx_pointer_advance(priv);
-		rxdes = ftgmac100_current_rxdes(priv);
-	} while (!done);
+	ftgmac100_rx_pointer_advance(priv);
+	rxdes = ftgmac100_current_rxdes(priv);
 
 	/* Small frames are copied into linear part of skb to free one page */
 	if (skb->len <= 128) {
