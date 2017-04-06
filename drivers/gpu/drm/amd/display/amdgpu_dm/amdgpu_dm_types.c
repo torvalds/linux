@@ -2350,6 +2350,67 @@ static void amdgpu_dm_do_flip(
 						 acrtc->crtc_id);
 }
 
+void dc_commit_surfaces(struct drm_atomic_state *state,
+	struct drm_device *dev, struct amdgpu_display_manager *dm)
+{
+	uint32_t i;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state;
+
+	/* update planes when needed */
+	for_each_plane_in_state(state, plane, old_plane_state, i) {
+		struct drm_plane_state *plane_state = plane->state;
+		struct drm_crtc *crtc = plane_state->crtc;
+		struct drm_framebuffer *fb = plane_state->fb;
+		struct drm_connector *connector;
+		struct dm_connector_state *dm_state = NULL;
+		enum dm_commit_action action;
+		bool pflip_needed;
+
+		if (!fb || !crtc || !crtc->state->active)
+			continue;
+
+		action = get_dm_commit_action(crtc->state);
+
+		/* Surfaces are created under two scenarios:
+		 * 1. This commit is not a page flip.
+		 * 2. This commit is a page flip, and streams are created.
+		 */
+		pflip_needed = !state->allow_modeset;
+		if (!pflip_needed || action == DM_COMMIT_ACTION_DPMS_ON
+				|| action == DM_COMMIT_ACTION_SET) {
+			list_for_each_entry(connector,
+					    &dev->mode_config.connector_list,
+					    head) {
+				if (connector->state->crtc == crtc) {
+					dm_state = to_dm_connector_state(
+							connector->state);
+					break;
+				}
+			}
+
+			/*
+			 * This situation happens in the following case:
+			 * we are about to get set mode for connector who's only
+			 * possible crtc (in encoder crtc mask) is used by
+			 * another connector, that is why it will try to
+			 * re-assing crtcs in order to make configuration
+			 * supported. For our implementation we need to make all
+			 * encoders support all crtcs, then this issue will
+			 * never arise again. But to guard code from this issue
+			 * check is left.
+			 *
+			 * Also it should be needed when used with actual
+			 * drm_atomic_commit ioctl in future
+			 */
+			if (!dm_state)
+				continue;
+
+			dm_dc_surface_commit(dm->dc, crtc);
+		}
+	}
+}
+
 void amdgpu_dm_atomic_commit_tail(
 	struct drm_atomic_state *state)
 {
@@ -2521,57 +2582,7 @@ void amdgpu_dm_atomic_commit_tail(
 	}
 
 	/* update planes when needed */
-	for_each_plane_in_state(state, plane, old_plane_state, i) {
-		struct drm_plane_state *plane_state = plane->state;
-		struct drm_crtc *crtc = plane_state->crtc;
-		struct drm_framebuffer *fb = plane_state->fb;
-		struct drm_connector *connector;
-		struct dm_connector_state *dm_state = NULL;
-		enum dm_commit_action action;
-		bool pflip_needed;
-
-		if (!fb || !crtc || !crtc->state->active)
-			continue;
-
-		action = get_dm_commit_action(crtc->state);
-
-		/* Surfaces are created under two scenarios:
-		 * 1. This commit is not a page flip.
-		 * 2. This commit is a page flip, and streams are created.
-		 */
-		pflip_needed = !state->allow_modeset;
-		if (!pflip_needed ||
-		     action == DM_COMMIT_ACTION_DPMS_ON ||
-		     action == DM_COMMIT_ACTION_SET) {
-			list_for_each_entry(connector,
-				&dev->mode_config.connector_list, head)	{
-				if (connector->state->crtc == crtc) {
-					dm_state = to_dm_connector_state(
-						connector->state);
-					break;
-				}
-			}
-
-			/*
-			 * This situation happens in the following case:
-			 * we are about to get set mode for connector who's only
-			 * possible crtc (in encoder crtc mask) is used by
-			 * another connector, that is why it will try to
-			 * re-assing crtcs in order to make configuration
-			 * supported. For our implementation we need to make all
-			 * encoders support all crtcs, then this issue will
-			 * never arise again. But to guard code from this issue
-			 * check is left.
-			 *
-			 * Also it should be needed when used with actual
-			 * drm_atomic_commit ioctl in future
-			 */
-			if (!dm_state)
-				continue;
-
-			dm_dc_surface_commit(dm->dc, crtc);
-		}
-	}
+	dc_commit_surfaces(state, dev, dm);
 
 	for (i = 0; i < new_crtcs_count; i++) {
 		/*
