@@ -89,6 +89,7 @@
 #define SCLK_CRYPTO		125
 #define SCLK_MIPIDSI_24M	126
 #define SCLK_VIP_OUT		127
+#define SCLK_DDRCLK		128
 
 #define SCLK_MAC		151
 #define SCLK_MACREF_OUT		152
