@@ -164,7 +164,7 @@ static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;
 	struct dsa_loop_vlan *vl;
-	u16 vid, pvid;
+	u16 vid, pvid = ps->pvid;
 
 	dev_dbg(ds->dev, "%s\n", __func__);
 
@@ -194,7 +194,7 @@ static int dsa_loop_port_vlan_dump(struct dsa_switch *ds, int port,
 	struct mii_bus *bus = ps->bus;
 	struct dsa_loop_vlan *vl;
 	u16 vid, vid_start = 0;
-	int err;
+	int err = 0;
 
 	dev_dbg(ds->dev, "%s\n", __func__);
 
