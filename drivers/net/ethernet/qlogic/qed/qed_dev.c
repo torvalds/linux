@@ -1192,6 +1192,57 @@ static void qed_init_cau_rt_data(struct qed_dev *cdev)
 	}
 }
 
+static void qed_init_cache_line_size(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt)
+{
+	u32 val, wr_mbs, cache_line_size;
+
+	val = qed_rd(p_hwfn, p_ptt, PSWRQ2_REG_WR_MBS0);
+	switch (val) {
+	case 0:
+		wr_mbs = 128;
+		break;
+	case 1:
+		wr_mbs = 256;
+		break;
+	case 2:
+		wr_mbs = 512;
+		break;
+	default:
+		DP_INFO(p_hwfn,
+			"Unexpected value of PSWRQ2_REG_WR_MBS0 [0x%x]. Avoid configuring PGLUE_B_REG_CACHE_LINE_SIZE.\n",
+			val);
+		return;
+	}
+
+	cache_line_size = min_t(u32, L1_CACHE_BYTES, wr_mbs);
+	switch (cache_line_size) {
+	case 32:
+		val = 0;
+		break;
+	case 64:
+		val = 1;
+		break;
+	case 128:
+		val = 2;
+		break;
+	case 256:
+		val = 3;
+		break;
+	default:
+		DP_INFO(p_hwfn,
+			"Unexpected value of cache line size [0x%x]. Avoid configuring PGLUE_B_REG_CACHE_LINE_SIZE.\n",
+			cache_line_size);
+	}
+
+	if (L1_CACHE_BYTES > wr_mbs)
+		DP_INFO(p_hwfn,
+			"The cache line size for padding is suboptimal for performance [OS cache line size 0x%x, wr mbs 0x%x]\n",
+			L1_CACHE_BYTES, wr_mbs);
+
+	STORE_RT_REG(p_hwfn, PGLUE_REG_B_CACHE_LINE_SIZE_RT_OFFSET, val);
+}
+
 static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 			      struct qed_ptt *p_ptt, int hw_mode)
 {
@@ -1239,6 +1290,8 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, NIG_REG_RX_BRB_OUT_EN, 0);
 	qed_wr(p_hwfn, p_ptt, NIG_REG_STORM_OUT_EN, 0);
 	qed_port_unpretend(p_hwfn, p_ptt);
+
+	qed_init_cache_line_size(p_hwfn, p_ptt);
 
 	rc = qed_init_run(p_hwfn, p_ptt, PHASE_ENGINE, ANY_PHASE_ID, hw_mode);
 	if (rc)
