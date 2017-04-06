@@ -287,8 +287,40 @@ stack_trace_sysctl(struct ctl_table *table, int write,
 		   void __user *buffer, size_t *lenp,
 		   loff_t *ppos);
 
-void stack_tracer_disable(void);
-void stack_tracer_enable(void);
+/* DO NOT MODIFY THIS VARIABLE DIRECTLY! */
+DECLARE_PER_CPU(int, disable_stack_tracer);
+
+/**
+ * stack_tracer_disable - temporarily disable the stack tracer
+ *
+ * There's a few locations (namely in RCU) where stack tracing
+ * cannot be executed. This function is used to disable stack
+ * tracing during those critical sections.
+ *
+ * This function must be called with preemption or interrupts
+ * disabled and stack_tracer_enable() must be called shortly after
+ * while preemption or interrupts are still disabled.
+ */
+static inline void stack_tracer_disable(void)
+{
+	/* Preemption or interupts must be disabled */
+	if (IS_ENABLED(CONFIG_PREEMPT_DEBUG))
+		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
+	this_cpu_inc(disable_stack_tracer);
+}
+
+/**
+ * stack_tracer_enable - re-enable the stack tracer
+ *
+ * After stack_tracer_disable() is called, stack_tracer_enable()
+ * must be called shortly afterward.
+ */
+static inline void stack_tracer_enable(void)
+{
+	if (IS_ENABLED(CONFIG_PREEMPT_DEBUG))
+		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
+	this_cpu_dec(disable_stack_tracer);
+}
 #else
 static inline void stack_tracer_disable(void) { }
 static inline void stack_tracer_enable(void) { }

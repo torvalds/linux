@@ -35,43 +35,11 @@ unsigned long stack_trace_max_size;
 arch_spinlock_t stack_trace_max_lock =
 	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
-static DEFINE_PER_CPU(int, trace_active);
+DEFINE_PER_CPU(int, disable_stack_tracer);
 static DEFINE_MUTEX(stack_sysctl_mutex);
 
 int stack_tracer_enabled;
 static int last_stack_tracer_enabled;
-
-/**
- * stack_tracer_disable - temporarily disable the stack tracer
- *
- * There's a few locations (namely in RCU) where stack tracing
- * cannot be executed. This function is used to disable stack
- * tracing during those critical sections.
- *
- * This function must be called with preemption or interrupts
- * disabled and stack_tracer_enable() must be called shortly after
- * while preemption or interrupts are still disabled.
- */
-void stack_tracer_disable(void)
-{
-	/* Preemption or interupts must be disabled */
-	if (IS_ENABLED(CONFIG_PREEMPT_DEBUG))
-		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
-	this_cpu_inc(trace_active);
-}
-
-/**
- * stack_tracer_enable - re-enable the stack tracer
- *
- * After stack_tracer_disable() is called, stack_tracer_enable()
- * must be called shortly afterward.
- */
-void stack_tracer_enable(void)
-{
-	if (IS_ENABLED(CONFIG_PREEMPT_DEBUG))
-		WARN_ON_ONCE(!preempt_count() || !irqs_disabled());
-	this_cpu_dec(trace_active);
-}
 
 void stack_trace_print(void)
 {
@@ -243,8 +211,8 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	preempt_disable_notrace();
 
 	/* no atomic needed, we only modify this variable by this cpu */
-	__this_cpu_inc(trace_active);
-	if (__this_cpu_read(trace_active) != 1)
+	__this_cpu_inc(disable_stack_tracer);
+	if (__this_cpu_read(disable_stack_tracer) != 1)
 		goto out;
 
 	ip += MCOUNT_INSN_SIZE;
@@ -252,7 +220,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	check_stack(ip, &stack);
 
  out:
-	__this_cpu_dec(trace_active);
+	__this_cpu_dec(disable_stack_tracer);
 	/* prevent recursion in schedule */
 	preempt_enable_notrace();
 }
@@ -294,15 +262,15 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	/*
 	 * In case we trace inside arch_spin_lock() or after (NMI),
 	 * we will cause circular lock, so we also need to increase
-	 * the percpu trace_active here.
+	 * the percpu disable_stack_tracer here.
 	 */
-	__this_cpu_inc(trace_active);
+	__this_cpu_inc(disable_stack_tracer);
 
 	arch_spin_lock(&stack_trace_max_lock);
 	*ptr = val;
 	arch_spin_unlock(&stack_trace_max_lock);
 
-	__this_cpu_dec(trace_active);
+	__this_cpu_dec(disable_stack_tracer);
 	local_irq_restore(flags);
 
 	return count;
@@ -338,7 +306,7 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 {
 	local_irq_disable();
 
-	__this_cpu_inc(trace_active);
+	__this_cpu_inc(disable_stack_tracer);
 
 	arch_spin_lock(&stack_trace_max_lock);
 
@@ -352,7 +320,7 @@ static void t_stop(struct seq_file *m, void *p)
 {
 	arch_spin_unlock(&stack_trace_max_lock);
 
-	__this_cpu_dec(trace_active);
+	__this_cpu_dec(disable_stack_tracer);
 
 	local_irq_enable();
 }
