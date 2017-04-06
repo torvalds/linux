@@ -28,7 +28,6 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
 #include <linux/slab.h>
-#include <linux/cpu.h>
 #include <linux/task_work.h>
 
 #include <uapi/linux/magic.h>

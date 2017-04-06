@@ -58,7 +58,7 @@ struct setup_header {
 	__u32	header;
 	__u16	version;
 	__u32	realmode_swtch;
-	__u16	start_sys;
+	__u16	start_sys_seg;
 	__u16	kernel_version;
 	__u8	type_of_loader;
 	__u8	loadflags;

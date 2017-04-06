@@ -160,12 +160,18 @@ struct of_drconf_cell {
 #define OV5_PFO_HW_ENCR		0x1120	/* PFO Encryption Accelerator */
 #define OV5_SUB_PROCESSORS	0x1501	/* 1,2,or 4 Sub-Processors supported */
 #define OV5_XIVE_EXPLOIT	0x1701	/* XIVE exploitation supported */
-#define OV5_MMU_RADIX_300	0x1880	/* ISA v3.00 radix MMU supported */
-#define OV5_MMU_HASH_300	0x1840	/* ISA v3.00 hash MMU supported */
-#define OV5_MMU_SEGM_RADIX	0x1820	/* radix mode (no segmentation) */
-#define OV5_MMU_PROC_TBL	0x1810	/* hcall selects SLB or proc table */
-#define OV5_MMU_SLB		0x1800	/* always use SLB */
-#define OV5_MMU_GTSE		0x1808	/* Guest translation shootdown */
+/* MMU Base Architecture */
+#define OV5_MMU_SUPPORT		0x18C0	/* MMU Mode Support Mask */
+#define OV5_MMU_HASH		0x1800	/* Hash MMU Only */
+#define OV5_MMU_RADIX		0x1840	/* Radix MMU Only */
+#define OV5_MMU_EITHER		0x1880	/* Hash or Radix Supported */
+#define OV5_MMU_DYNAMIC		0x18C0	/* Hash or Radix Can Switch Later */
+#define OV5_NMMU		0x1820	/* Nest MMU Available */
+/* Hash Table Extensions */
+#define OV5_HASH_SEG_TBL	0x1980	/* In Memory Segment Tables Available */
+#define OV5_HASH_GTSE		0x1940	/* Guest Translation Shoot Down Avail */
+/* Radix Table Extensions */
+#define OV5_RADIX_GTSE		0x1A40	/* Guest Translation Shoot Down Avail */
 
 /* Option Vector 6: IBM PAPR hints */
 #define OV6_LINUX		0x02	/* Linux is our OS */

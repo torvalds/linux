@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/cred.h>
 #include <linux/xattr.h>
-#include <linux/sched/signal.h>
 #include "overlayfs.h"
 #include "ovl_entry.h"
 
