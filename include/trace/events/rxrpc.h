@@ -683,6 +683,30 @@ TRACE_EVENT(rxrpc_rx_ack,
 		      __entry->n_acks)
 	    );
 
+TRACE_EVENT(rxrpc_rx_abort,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_serial_t serial,
+		     u32 abort_code),
+
+	    TP_ARGS(call, serial, abort_code),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(u32,			abort_code	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->serial = serial;
+		    __entry->abort_code = abort_code;
+			   ),
+
+	    TP_printk("c=%p ABORT %08x ac=%d",
+		      __entry->call,
+		      __entry->serial,
+		      __entry->abort_code)
+	    );
+
 TRACE_EVENT(rxrpc_tx_data,
 	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq,
 		     rxrpc_serial_t serial, u8 flags, bool retrans, bool lose),

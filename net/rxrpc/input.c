@@ -877,7 +877,7 @@ static void rxrpc_input_ackall(struct rxrpc_call *call, struct sk_buff *skb)
 }
 
 /*
- * Process an ABORT packet.
+ * Process an ABORT packet directed at a call.
  */
 static void rxrpc_input_abort(struct rxrpc_call *call, struct sk_buff *skb)
 {
@@ -891,6 +891,8 @@ static void rxrpc_input_abort(struct rxrpc_call *call, struct sk_buff *skb)
 	    skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
 			  &wtmp, sizeof(wtmp)) >= 0)
 		abort_code = ntohl(wtmp);
+
+	trace_rxrpc_rx_abort(call, sp->hdr.serial, abort_code);
 
 	_proto("Rx ABORT %%%u { %x }", sp->hdr.serial, abort_code);
 
