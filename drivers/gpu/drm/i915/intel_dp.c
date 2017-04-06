@@ -161,23 +161,9 @@ static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 	intel_dp->num_sink_rates = num_rates;
 }
 
-static int
-intel_dp_max_link_bw(struct intel_dp  *intel_dp)
+static int intel_dp_max_sink_rate(struct intel_dp *intel_dp)
 {
-	int max_link_bw = intel_dp->dpcd[DP_MAX_LINK_RATE];
-
-	switch (max_link_bw) {
-	case DP_LINK_BW_1_62:
-	case DP_LINK_BW_2_7:
-	case DP_LINK_BW_5_4:
-		break;
-	default:
-		WARN(1, "invalid max DP link bw val %x, using 1.62Gbps\n",
-		     max_link_bw);
-		max_link_bw = DP_LINK_BW_1_62;
-		break;
-	}
-	return max_link_bw;
+	return intel_dp->sink_rates[intel_dp->num_sink_rates - 1];
 }
 
 static u8 intel_dp_max_lane_count(struct intel_dp *intel_dp)
@@ -301,7 +287,7 @@ static int intel_dp_rate_index(const int *rates, int len, int rate)
 static int intel_dp_common_rates(struct intel_dp *intel_dp,
 				 int *common_rates)
 {
-	int max_rate = drm_dp_bw_code_to_link_rate(intel_dp->max_sink_link_bw);
+	int max_rate = intel_dp->max_sink_link_rate;
 	int i, common_len;
 
 	common_len = intersect_rates(intel_dp->source_rates,
@@ -339,10 +325,10 @@ int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 						   common_rates,
 						   link_rate);
 	if (link_rate_index > 0) {
-		intel_dp->max_sink_link_bw = drm_dp_link_rate_to_bw_code(common_rates[link_rate_index - 1]);
+		intel_dp->max_sink_link_rate = common_rates[link_rate_index - 1];
 		intel_dp->max_sink_lane_count = lane_count;
 	} else if (lane_count > 1) {
-		intel_dp->max_sink_link_bw = intel_dp_max_link_bw(intel_dp);
+		intel_dp->max_sink_link_rate = intel_dp_max_sink_rate(intel_dp);
 		intel_dp->max_sink_lane_count = lane_count >> 1;
 	} else {
 		DRM_ERROR("Link Training Unsuccessful\n");
@@ -4652,8 +4638,8 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 		/* Set the max lane count for sink */
 		intel_dp->max_sink_lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
 
-		/* Set the max link BW for sink */
-		intel_dp->max_sink_link_bw = intel_dp_max_link_bw(intel_dp);
+		/* Set the max link rate for sink */
+		intel_dp->max_sink_link_rate = intel_dp_max_sink_rate(intel_dp);
 
 		intel_dp->reset_link_params = false;
 	}
