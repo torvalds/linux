@@ -960,17 +960,17 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 	case I40E_VIRTCHNL_OP_GET_STATS: {
 		struct i40e_eth_stats *stats =
 			(struct i40e_eth_stats *)msg;
-		adapter->net_stats.rx_packets = stats->rx_unicast +
-						 stats->rx_multicast +
-						 stats->rx_broadcast;
-		adapter->net_stats.tx_packets = stats->tx_unicast +
-						 stats->tx_multicast +
-						 stats->tx_broadcast;
-		adapter->net_stats.rx_bytes = stats->rx_bytes;
-		adapter->net_stats.tx_bytes = stats->tx_bytes;
-		adapter->net_stats.tx_errors = stats->tx_errors;
-		adapter->net_stats.rx_dropped = stats->rx_discards;
-		adapter->net_stats.tx_dropped = stats->tx_discards;
+		netdev->stats.rx_packets = stats->rx_unicast +
+					   stats->rx_multicast +
+					   stats->rx_broadcast;
+		netdev->stats.tx_packets = stats->tx_unicast +
+					   stats->tx_multicast +
+					   stats->tx_broadcast;
+		netdev->stats.rx_bytes = stats->rx_bytes;
+		netdev->stats.tx_bytes = stats->tx_bytes;
+		netdev->stats.tx_errors = stats->tx_errors;
+		netdev->stats.rx_dropped = stats->rx_discards;
+		netdev->stats.tx_dropped = stats->tx_discards;
 		adapter->current_stats = *stats;
 		}
 		break;
