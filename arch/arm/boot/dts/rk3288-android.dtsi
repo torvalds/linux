@@ -189,6 +189,16 @@
 			rk_usb,fsvplus    = <0x2cc 24 1>;
 		};
 	};
+
+	nandc0: nandc@ff400000 {
+		compatible = "rockchip,rk-nandc";
+		reg = <0x0 0xff400000 0x0 0x4000>;
+		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+		nandc_id = <0>;
+		clocks = <&cru SCLK_NANDC0>, <&cru HCLK_NANDC0>;
+		clock-names = "clk_nandc", "hclk_nandc";
+		status = "disabled";
+	};
 };
 
 &panel {
