@@ -4904,12 +4904,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	struct bpf_insn *prog = test->insns;
 	int prog_len = probe_filter_length(prog);
 	int prog_type = test->prog_type;
-<<<<<<< HEAD
 	int map_fds[MAX_NR_MAPS];
-	int fd_prog, expected_ret;
-=======
-	int fd_f1 = -1, fd_f2 = -1, fd_f3 = -1;
->>>>>>> ea6b1720ce25f92f7a17b2e0c2b653d20773d10a
 	const char *expected_err;
 	int i;
 
