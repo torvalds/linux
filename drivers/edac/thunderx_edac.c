@@ -864,8 +864,6 @@ static struct pci_driver thunderx_lmc_driver = {
 #define OCX_COM_WIN_REQ_TOUT		BIT(50)
 #define OCX_COM_RX_LANE			GENMASK(23, 0)
 
-#define OCX_COM_INT_UE			(0)
-
 #define OCX_COM_INT_CE			(OCX_COM_IO_BADID      | \
 					 OCX_COM_MEM_BADID     | \
 					 OCX_COM_COPR_BADID    | \
@@ -1175,9 +1173,7 @@ static irqreturn_t thunderx_ocx_com_threaded_isr(int irq, void *irq_id)
 				strncat(msg, other, OCX_MESSAGE_SIZE);
 			}
 
-		if (ctx->reg_com_int & OCX_COM_INT_UE)
-			edac_device_handle_ue(ocx->edac_dev, 0, 0, msg);
-		else if (ctx->reg_com_int & OCX_COM_INT_CE)
+		if (ctx->reg_com_int & OCX_COM_INT_CE)
 			edac_device_handle_ce(ocx->edac_dev, 0, 0, msg);
 
 		ocx->com_ring_tail++;
@@ -1645,14 +1641,12 @@ static const struct error_descr l2_tad_errors[] = {
 
 #define L2C_TAD_INT_RTG		(L2C_TAD_INT_RTGDBE)
 
-#define L2C_TAD_INT_NXM		(0)
-
 #define L2C_TAD_INT_DISLMC	(L2C_TAD_INT_WRDISLMC | L2C_TAD_INT_RDDISLMC)
 
 #define L2C_TAD_INT_DISOCI	(L2C_TAD_INT_WRDISOCI | L2C_TAD_INT_RDDISOCI)
 
 #define L2C_TAD_INT_ENA_ALL	(L2C_TAD_INT_ECC | L2C_TAD_INT_TAG | \
-				 L2C_TAD_INT_RTG | L2C_TAD_INT_NXM | \
+				 L2C_TAD_INT_RTG | \
 				 L2C_TAD_INT_DISLMC | L2C_TAD_INT_DISOCI | \
 				 L2C_TAD_INT_LFBTO)
 
@@ -1803,9 +1797,6 @@ static irqreturn_t thunderx_l2c_tad_isr(int irq, void *irq_id)
 	} else if (ctx->reg_int & L2C_TAD_INT_TAG) {
 		ctx->reg_ext_name = "TTG_ERR";
 		ctx->reg_ext = readq(tad->regs + L2C_TAD_TTG_ERR);
-	} else if (ctx->reg_int & L2C_TAD_INT_NXM) {
-		ctx->reg_ext_name = "ERR";
-		ctx->reg_ext = readq(tad->regs + L2C_TAD_ERR);
 	} else if (ctx->reg_int & L2C_TAD_INT_LFBTO) {
 		ctx->reg_ext_name = "TIMEOUT";
 		ctx->reg_ext = readq(tad->regs + L2C_TAD_TIMEOUT);
