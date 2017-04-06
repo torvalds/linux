@@ -88,9 +88,6 @@ struct ftgmac100 {
 	bool need_mac_restart;
 };
 
-static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
-				   struct ftgmac100_rxdes *rxdes, gfp_t gfp);
-
 static void ftgmac100_set_rx_ring_base(struct ftgmac100 *priv, dma_addr_t addr)
 {
 	iowrite32(addr, priv->base + FTGMAC100_OFFSET_RXR_BADR);
@@ -399,6 +396,34 @@ static struct page *ftgmac100_rxdes_get_page(struct ftgmac100 *priv,
 					     struct ftgmac100_rxdes *rxdes)
 {
 	return *ftgmac100_rxdes_page_slot(priv, rxdes);
+}
+
+static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
+				   struct ftgmac100_rxdes *rxdes, gfp_t gfp)
+{
+	struct net_device *netdev = priv->netdev;
+	struct page *page;
+	dma_addr_t map;
+
+	page = alloc_page(gfp);
+	if (!page) {
+		if (net_ratelimit())
+			netdev_err(netdev, "failed to allocate rx page\n");
+		return -ENOMEM;
+	}
+
+	map = dma_map_page(priv->dev, page, 0, RX_BUF_SIZE, DMA_FROM_DEVICE);
+	if (unlikely(dma_mapping_error(priv->dev, map))) {
+		if (net_ratelimit())
+			netdev_err(netdev, "failed to map rx page\n");
+		__free_page(page);
+		return -ENOMEM;
+	}
+
+	ftgmac100_rxdes_set_page(priv, rxdes, page);
+	ftgmac100_rxdes_set_dma_addr(rxdes, map);
+	ftgmac100_rxdes_set_dma_own(priv, rxdes);
+	return 0;
 }
 
 static int ftgmac100_next_rx_pointer(int pointer)
@@ -791,34 +816,6 @@ static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
 	ftgmac100_txdma_normal_prio_start_polling(priv);
 
 	return NETDEV_TX_OK;
-}
-
-static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
-				   struct ftgmac100_rxdes *rxdes, gfp_t gfp)
-{
-	struct net_device *netdev = priv->netdev;
-	struct page *page;
-	dma_addr_t map;
-
-	page = alloc_page(gfp);
-	if (!page) {
-		if (net_ratelimit())
-			netdev_err(netdev, "failed to allocate rx page\n");
-		return -ENOMEM;
-	}
-
-	map = dma_map_page(priv->dev, page, 0, RX_BUF_SIZE, DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(priv->dev, map))) {
-		if (net_ratelimit())
-			netdev_err(netdev, "failed to map rx page\n");
-		__free_page(page);
-		return -ENOMEM;
-	}
-
-	ftgmac100_rxdes_set_page(priv, rxdes, page);
-	ftgmac100_rxdes_set_dma_addr(rxdes, map);
-	ftgmac100_rxdes_set_dma_own(priv, rxdes);
-	return 0;
 }
 
 static void ftgmac100_free_buffers(struct ftgmac100 *priv)
