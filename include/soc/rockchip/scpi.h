@@ -39,6 +39,7 @@ int scpi_sys_set_jtagmux_on_off(u32 en);
 int scpi_sys_set_mcu_state_suspend(void);
 int scpi_sys_set_mcu_state_resume(void);
 
+int scpi_ddr_dclk_mode(u32 dclk_mode);
 int scpi_ddr_init(u32 dram_speed_bin, u32 freq, u32 lcdc_type,
 		  u32 addr_mcu_el3);
 int scpi_ddr_set_clk_rate(u32 rate, u32 lcdc_type);
@@ -97,6 +98,11 @@ static inline int scpi_sys_set_mcu_state_suspend(void)
 }
 
 static inline int scpi_sys_set_mcu_state_resume(void)
+{
+	return -EPERM;
+}
+
+static inline int scpi_ddr_dclk_mode(u32 dclk_mode)
 {
 	return -EPERM;
 }

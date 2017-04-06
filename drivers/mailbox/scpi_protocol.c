@@ -86,6 +86,7 @@ enum scpi_ddr_cmd {
 	SCPI_DDR_BANDWIDTH_GET,
 	SCPI_DDR_GET_FREQ,
 	SCPI_DDR_SEND_TIMING,
+	SCPI_DDR_DCLK_MODE,
 };
 
 enum scpi_sys_cmd {
@@ -620,6 +621,24 @@ int scpi_sys_set_jtagmux_on_off(u32 en)
 }
 EXPORT_SYMBOL_GPL(scpi_sys_set_jtagmux_on_off);
 
+int scpi_ddr_dclk_mode(u32 dclk_mode)
+{
+	struct scpi_data_buf sdata;
+	struct rk3368_mbox_msg mdata;
+	struct __packed1 {
+		u32 dclk_mode;
+	} tx_buf;
+	struct __packed2 {
+		u32 status;
+	} rx_buf;
+
+	tx_buf.dclk_mode = (u32)dclk_mode;
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_DDR,
+			SCPI_DDR_DCLK_MODE, tx_buf, rx_buf);
+	return scpi_execute_cmd(&sdata);
+}
+EXPORT_SYMBOL_GPL(scpi_ddr_dclk_mode);
+
 int scpi_ddr_init(u32 dram_speed_bin, u32 freq, u32 lcdc_type, u32 addr_mcu_el3)
 {
 	struct scpi_data_buf sdata;
@@ -646,6 +665,8 @@ EXPORT_SYMBOL_GPL(scpi_ddr_init);
 
 int scpi_ddr_set_clk_rate(u32 rate, u32 lcdc_type)
 {
+	int ret;
+
 	struct scpi_data_buf sdata;
 	struct rk3368_mbox_msg mdata;
 	struct __packed1 {
@@ -654,13 +675,21 @@ int scpi_ddr_set_clk_rate(u32 rate, u32 lcdc_type)
 	} tx_buf;
 	struct __packed2 {
 		u32 status;
+		u32 freq;
 	} rx_buf;
 
 	tx_buf.clk_rate = (u32)rate;
 	tx_buf.lcdc_type = (u32)lcdc_type;
 	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_DDR,
 			SCPI_DDR_SET_FREQ, tx_buf, rx_buf);
-	return scpi_execute_cmd(&sdata);
+	ret = scpi_execute_cmd(&sdata);
+
+	if ((!ret) && (!rx_buf.status))
+		ret = rx_buf.freq;
+	else
+		ret = 0;
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(scpi_ddr_set_clk_rate);
 
