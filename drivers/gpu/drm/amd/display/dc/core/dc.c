@@ -1024,7 +1024,8 @@ static unsigned int pixel_format_to_bpp(enum surface_pixel_format format)
 }
 
 static enum surface_update_type get_plane_info_update_type(
-		const struct dc_surface_update *u)
+		const struct dc_surface_update *u,
+		int surface_index)
 {
 	struct dc_plane_info temp_plane_info = { { { { 0 } } } };
 
@@ -1049,7 +1050,11 @@ static enum surface_update_type get_plane_info_update_type(
 
 	/* Special Validation parameters */
 	temp_plane_info.format = u->plane_info->format;
-	temp_plane_info.visible = u->plane_info->visible;
+
+	if (surface_index == 0)
+		temp_plane_info.visible = u->plane_info->visible;
+	else
+		temp_plane_info.visible = u->surface->visible;
 
 	if (memcmp(u->plane_info, &temp_plane_info,
 			sizeof(struct dc_plane_info)) != 0)
@@ -1111,7 +1116,8 @@ static enum surface_update_type  get_scaling_info_update_type(
 
 static enum surface_update_type det_surface_update(
 		const struct core_dc *dc,
-		const struct dc_surface_update *u)
+		const struct dc_surface_update *u,
+		int surface_index)
 {
 	const struct validate_context *context = dc->current_context;
 	enum surface_update_type type = UPDATE_TYPE_FAST;
@@ -1120,7 +1126,7 @@ static enum surface_update_type det_surface_update(
 	if (!is_surface_in_context(context, u->surface))
 		return UPDATE_TYPE_FULL;
 
-	type = get_plane_info_update_type(u);
+	type = get_plane_info_update_type(u, surface_index);
 	if (overall_type < type)
 		overall_type = type;
 
@@ -1157,7 +1163,7 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 
 	for (i = 0 ; i < surface_count; i++) {
 		enum surface_update_type type =
-				det_surface_update(core_dc, &updates[i]);
+				det_surface_update(core_dc, &updates[i], i);
 
 		if (type == UPDATE_TYPE_FULL)
 			return type;
