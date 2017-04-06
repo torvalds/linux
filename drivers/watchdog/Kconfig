@@ -752,6 +752,18 @@ config ZX2967_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called zx2967_wdt.
 
+config STM32_WATCHDOG
+	tristate "STM32 Independent WatchDoG (IWDG) support"
+	depends on ARCH_STM32
+	select WATCHDOG_CORE
+	default y
+	help
+	  Say Y here to include support for the watchdog timer
+	  in stm32 SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stm32_iwdg.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
