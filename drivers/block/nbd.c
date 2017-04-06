@@ -628,16 +628,21 @@ static int nbd_add_socket(struct nbd_device *nbd, struct block_device *bdev,
 	if (nbd->task_setup != current) {
 		dev_err(disk_to_dev(nbd->disk),
 			"Device being setup by another task");
+		sockfd_put(sock);
 		return -EINVAL;
 	}
 
 	socks = krealloc(nbd->socks, (nbd->num_connections + 1) *
 			 sizeof(struct nbd_sock *), GFP_KERNEL);
-	if (!socks)
+	if (!socks) {
+		sockfd_put(sock);
 		return -ENOMEM;
+	}
 	nsock = kzalloc(sizeof(struct nbd_sock), GFP_KERNEL);
-	if (!nsock)
+	if (!nsock) {
+		sockfd_put(sock);
 		return -ENOMEM;
+	}
 
 	nbd->socks = socks;
 
