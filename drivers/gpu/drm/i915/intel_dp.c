@@ -3728,6 +3728,8 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 static bool
 intel_dp_get_dpcd(struct intel_dp *intel_dp)
 {
+	u8 sink_count;
+
 	if (!intel_dp_read_dpcd(intel_dp))
 		return false;
 
@@ -3737,8 +3739,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		intel_dp_set_common_rates(intel_dp);
 	}
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_SINK_COUNT,
-			      &intel_dp->sink_count) <= 0)
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_SINK_COUNT, &sink_count) <= 0)
 		return false;
 
 	/*
@@ -3746,7 +3747,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	 * a member variable in intel_dp will track any changes
 	 * between short pulse interrupts.
 	 */
-	intel_dp->sink_count = DP_GET_SINK_COUNT(intel_dp->sink_count);
+	intel_dp->sink_count = DP_GET_SINK_COUNT(sink_count);
 
 	/*
 	 * SINK_COUNT == 0 and DOWNSTREAM_PORT_PRESENT == 1 implies that
