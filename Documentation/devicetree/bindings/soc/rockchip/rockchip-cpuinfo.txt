@@ -1,0 +1,16 @@
+Rockchip cpuinfo device tree bindings
+----------------------------------
+
+Required properties:
+- compatible: Should be one of the following.
+ - "rockchip,cpuinfo"
+- nvmem-cells: A phandle to the ID data provided by a nvmem device.
+- nvmem-cell-names: Should be "id"
+
+Example:
+
+cpuinfo {
+	compatible = "rockchip,cpuinfo";
+	nvmem-cells = <&efuse_id>;
+	nvmem-cell-names = "id";
+};
