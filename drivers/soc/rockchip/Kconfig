@@ -14,6 +14,17 @@ config ANDROID_VERSION
 	  The version of Android kernel supported.
 	  The value is 0xAABBCCRR, corresponding to Android A.B.C release R
 
+config ROCKCHIP_CPUINFO
+	bool "Rockchip cpuinfo support"
+	depends on (ROCKCHIP_EFUSE || ROCKCHIP_OTP) && (ARM64 || ARM)
+	default y
+	help
+	  Say y here to enable Rockchip cpuinfo support.
+	  Set system_serial_low/high from eFuse ID.
+	  Serial can read from /proc/cpuinfo.
+
+	  If unsure, say N.
+
 config ROCKCHIP_GRF
 	bool
 	default y
