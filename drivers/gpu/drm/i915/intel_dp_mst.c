@@ -56,7 +56,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	 * for MST we always configure max link bw - the spec doesn't
 	 * seem to suggest we should do otherwise.
 	 */
-	lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
+	lane_count = intel_dp_max_lane_count(intel_dp);
 
 	pipe_config->lane_count = lane_count;
 
@@ -343,7 +343,7 @@ intel_dp_mst_mode_valid(struct drm_connector *connector,
 	int max_rate, mode_rate, max_lanes, max_link_clock;
 
 	max_link_clock = intel_dp_max_link_rate(intel_dp);
-	max_lanes = drm_dp_max_lane_count(intel_dp->dpcd);
+	max_lanes = intel_dp_max_lane_count(intel_dp);
 
 	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
 	mode_rate = intel_dp_link_required(mode->clock, bpp);

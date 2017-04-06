@@ -177,7 +177,7 @@ static int intel_dp_max_common_lane_count(struct intel_dp *intel_dp)
 	return min(source_max, sink_max);
 }
 
-static int intel_dp_max_lane_count(struct intel_dp *intel_dp)
+int intel_dp_max_lane_count(struct intel_dp *intel_dp)
 {
 	return intel_dp->max_link_lane_count;
 }
