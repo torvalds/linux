@@ -136,15 +136,16 @@ static void stmmac_init_dma_chain(void *des, dma_addr_t phy_addr,
 
 static void stmmac_refill_desc3(void *priv_ptr, struct dma_desc *p)
 {
-	struct stmmac_priv *priv = (struct stmmac_priv *)priv_ptr;
+	struct stmmac_rx_queue *rx_q = (struct stmmac_rx_queue *)priv_ptr;
+	struct stmmac_priv *priv = rx_q->priv_data;
 
 	if (priv->hwts_rx_en && !priv->extend_desc)
 		/* NOTE: Device will overwrite des3 with timestamp value if
 		 * 1588-2002 time stamping is enabled, hence reinitialize it
 		 * to keep explicit chaining in the descriptor.
 		 */
-		p->des3 = cpu_to_le32((unsigned int)(priv->dma_rx_phy +
-				      (((priv->dirty_rx) + 1) %
+		p->des3 = cpu_to_le32((unsigned int)(rx_q->dma_rx_phy +
+				      (((rx_q->dirty_rx) + 1) %
 				       DMA_RX_SIZE) *
 				      sizeof(struct dma_desc)));
 }

@@ -46,6 +46,20 @@ struct stmmac_tx_info {
 	bool is_jumbo;
 };
 
+struct stmmac_rx_queue {
+	u32 queue_index;
+	struct stmmac_priv *priv_data;
+	struct dma_extended_desc *dma_erx;
+	struct dma_desc *dma_rx ____cacheline_aligned_in_smp;
+	struct sk_buff **rx_skbuff;
+	dma_addr_t *rx_skbuff_dma;
+	unsigned int cur_rx;
+	unsigned int dirty_rx;
+	u32 rx_zeroc_thresh;
+	dma_addr_t dma_rx_phy;
+	u32 rx_tail_addr;
+};
+
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
 	struct dma_extended_desc *dma_etx ____cacheline_aligned_in_smp;
@@ -64,18 +78,10 @@ struct stmmac_priv {
 	struct timer_list txtimer;
 	bool tso;
 
-	struct dma_desc *dma_rx	____cacheline_aligned_in_smp;
-	struct dma_extended_desc *dma_erx;
-	struct sk_buff **rx_skbuff;
-	unsigned int cur_rx;
-	unsigned int dirty_rx;
 	unsigned int dma_buf_sz;
 	unsigned int rx_copybreak;
-	unsigned int rx_zeroc_thresh;
 	u32 rx_riwt;
 	int hwts_rx_en;
-	dma_addr_t *rx_skbuff_dma;
-	dma_addr_t dma_rx_phy;
 
 	struct napi_struct napi ____cacheline_aligned_in_smp;
 
@@ -84,6 +90,9 @@ struct stmmac_priv {
 	struct device *device;
 	struct mac_device_info *hw;
 	spinlock_t lock;
+
+	/* RX Queue */
+	struct stmmac_rx_queue rx_queue[MTL_MAX_RX_QUEUES];
 
 	int oldlink;
 	int speed;
@@ -119,7 +128,6 @@ struct stmmac_priv {
 	spinlock_t ptp_lock;
 	void __iomem *mmcaddr;
 	void __iomem *ptpaddr;
-	u32 rx_tail_addr;
 	u32 tx_tail_addr;
 	u32 mss;
 
