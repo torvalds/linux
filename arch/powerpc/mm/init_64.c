@@ -110,8 +110,29 @@ static int __meminit vmemmap_populated(unsigned long start, int page_size)
 	return 0;
 }
 
+/*
+ * vmemmap virtual address space management does not have a traditonal page
+ * table to track which virtual struct pages are backed by physical mapping.
+ * The virtual to physical mappings are tracked in a simple linked list
+ * format. 'vmemmap_list' maintains the entire vmemmap physical mapping at
+ * all times where as the 'next' list maintains the available
+ * vmemmap_backing structures which have been deleted from the
+ * 'vmemmap_global' list during system runtime (memory hotplug remove
+ * operation). The freed 'vmemmap_backing' structures are reused later when
+ * new requests come in without allocating fresh memory. This pointer also
+ * tracks the allocated 'vmemmap_backing' structures as we allocate one
+ * full page memory at a time when we dont have any.
+ */
 struct vmemmap_backing *vmemmap_list;
 static struct vmemmap_backing *next;
+
+/*
+ * The same pointer 'next' tracks individual chunks inside the allocated
+ * full page during the boot time and again tracks the freeed nodes during
+ * runtime. It is racy but it does not happen as they are separated by the
+ * boot process. Will create problem if some how we have memory hotplug
+ * operation during boot !!
+ */
 static int num_left;
 static int num_freed;
 
