@@ -1689,6 +1689,10 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (pipe_ctx->stream == pipe_ctx_old->stream)
 			continue;
 
+		if (pipe_ctx->stream && pipe_ctx_old->stream
+				&& !pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
+			continue;
+
 		if (pipe_ctx->top_pipe)
 			continue;
 
