@@ -1178,22 +1178,25 @@ static int rockchip_drm_bind(struct device *dev)
 	atomic_set(&private->cpu_fence_seqno, 0);
 #endif
 
+	ret = rockchip_drm_init_iommu(drm_dev);
+	if (ret)
+		goto err_free;
+
 	drm_mode_config_init(drm_dev);
 
 	rockchip_drm_mode_config_init(drm_dev);
 	rockchip_drm_create_properties(drm_dev);
 
-	ret = rockchip_drm_init_iommu(drm_dev);
-	if (ret)
-		goto err_config_cleanup;
-
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(dev, drm_dev);
 	if (ret)
-		goto err_iommu_cleanup;
+		goto err_mode_config_cleanup;
 
-	/* init kms poll for handling hpd */
-	drm_kms_helper_poll_init(drm_dev);
+	ret = drm_vblank_init(drm_dev, drm_dev->mode_config.num_crtc);
+	if (ret)
+		goto err_unbind_all;
+
+	drm_mode_config_reset(drm_dev);
 
 	/*
 	 * enable drm irq mode.
@@ -1201,9 +1204,8 @@ static int rockchip_drm_bind(struct device *dev)
 	 */
 	drm_dev->irq_enabled = true;
 
-	ret = drm_vblank_init(drm_dev, ROCKCHIP_MAX_CRTC);
-	if (ret)
-		goto err_kms_helper_poll_fini;
+	/* init kms poll for handling hpd */
+	drm_kms_helper_poll_init(drm_dev);
 
 	/*
 	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
@@ -1212,8 +1214,6 @@ static int rockchip_drm_bind(struct device *dev)
 	 */
 	drm_dev->vblank_disable_allowed = true;
 
-	drm_mode_config_reset(drm_dev);
-
 	rockchip_gem_pool_init(drm_dev);
 #ifndef MODULE
 	show_loader_logo(drm_dev);
@@ -1221,7 +1221,7 @@ static int rockchip_drm_bind(struct device *dev)
 
 	ret = rockchip_drm_fbdev_init(drm_dev);
 	if (ret)
-		goto err_vblank_cleanup;
+		goto err_kms_helper_poll_fini;
 
 	drm_dev->mode_config.allow_fb_modifiers = true;
 
@@ -1232,18 +1232,18 @@ static int rockchip_drm_bind(struct device *dev)
 	return 0;
 err_fbdev_fini:
 	rockchip_drm_fbdev_fini(drm_dev);
-err_vblank_cleanup:
-	rockchip_gem_pool_destroy(drm_dev);
-	drm_vblank_cleanup(drm_dev);
 err_kms_helper_poll_fini:
+	rockchip_gem_pool_destroy(drm_dev);
 	drm_kms_helper_poll_fini(drm_dev);
+	drm_vblank_cleanup(drm_dev);
+err_unbind_all:
 	component_unbind_all(dev, drm_dev);
-err_iommu_cleanup:
-	rockchip_iommu_cleanup(drm_dev);
-err_config_cleanup:
+err_mode_config_cleanup:
 	drm_mode_config_cleanup(drm_dev);
-	drm_dev->dev_private = NULL;
+	rockchip_iommu_cleanup(drm_dev);
 err_free:
+	drm_dev->dev_private = NULL;
+	dev_set_drvdata(dev, NULL);
 	drm_dev_unref(drm_dev);
 	return ret;
 }
@@ -1252,17 +1252,20 @@ static void rockchip_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
+	drm_dev_unregister(drm_dev);
+
 	rockchip_drm_fbdev_fini(drm_dev);
 	rockchip_gem_pool_destroy(drm_dev);
-	drm_vblank_cleanup(drm_dev);
 	drm_kms_helper_poll_fini(drm_dev);
+
+	drm_vblank_cleanup(drm_dev);
 	component_unbind_all(dev, drm_dev);
-	rockchip_iommu_cleanup(drm_dev);
 	drm_mode_config_cleanup(drm_dev);
+	rockchip_iommu_cleanup(drm_dev);
+
 	drm_dev->dev_private = NULL;
-	drm_dev_unregister(drm_dev);
-	drm_dev_unref(drm_dev);
 	dev_set_drvdata(dev, NULL);
+	drm_dev_unref(drm_dev);
 }
 
 static void rockchip_drm_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
