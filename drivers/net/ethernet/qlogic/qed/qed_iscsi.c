@@ -864,6 +864,8 @@ static void _qed_iscsi_get_tstats(struct qed_hwfn *p_hwfn,
 	    HILO_64_REGPAIR(tstats.iscsi_rx_bytes_cnt);
 	p_stats->iscsi_rx_packet_cnt =
 	    HILO_64_REGPAIR(tstats.iscsi_rx_packet_cnt);
+	p_stats->iscsi_rx_new_ooo_isle_events_cnt =
+	    HILO_64_REGPAIR(tstats.iscsi_rx_new_ooo_isle_events_cnt);
 	p_stats->iscsi_cmdq_threshold_cnt =
 	    le32_to_cpu(tstats.iscsi_cmdq_threshold_cnt);
 	p_stats->iscsi_rq_threshold_cnt =
