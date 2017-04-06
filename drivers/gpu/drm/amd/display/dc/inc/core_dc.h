@@ -22,7 +22,6 @@ struct core_dc {
 	struct core_link *links[MAX_PIPES * 2];
 
 	struct validate_context *current_context;
-	struct validate_context *temp_flip_context;
 	struct resource_pool *res_pool;
 
 	/* Display Engine Clock levels */

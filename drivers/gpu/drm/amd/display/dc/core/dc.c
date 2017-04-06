@@ -409,8 +409,6 @@ static void destruct(struct core_dc *dc)
 
 	dm_free(dc->current_context);
 	dc->current_context = NULL;
-	dm_free(dc->temp_flip_context);
-	dc->temp_flip_context = NULL;
 
 	dm_free(dc->ctx);
 	dc->ctx = NULL;
@@ -429,9 +427,8 @@ static bool construct(struct core_dc *dc,
 	}
 
 	dc->current_context = dm_alloc(sizeof(*dc->current_context));
-	dc->temp_flip_context = dm_alloc(sizeof(*dc->temp_flip_context));
 
-	if (!dc->current_context || !dc->temp_flip_context) {
+	if (!dc->current_context) {
 		dm_error("%s: failed to create validate ctx\n", __func__);
 		goto val_ctx_fail;
 	}
@@ -874,13 +871,9 @@ bool dc_commit_streams(
 	}
 
 	resource_validate_ctx_destruct(core_dc->current_context);
+	dm_free(core_dc->current_context);
 
-	if (core_dc->temp_flip_context != core_dc->current_context) {
-		dm_free(core_dc->temp_flip_context);
-		core_dc->temp_flip_context = core_dc->current_context;
-	}
 	core_dc->current_context = context;
-	memset(core_dc->temp_flip_context, 0, sizeof(*core_dc->temp_flip_context));
 
 	return (result == DC_OK);
 
@@ -1212,7 +1205,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 			new_surfaces[i] = srf_updates[i].surface;
 
 		/* initialize scratch memory for building context */
-		context = core_dc->temp_flip_context;
+		context = dm_alloc(sizeof(*context));
 		resource_validate_ctx_copy_construct(
 				core_dc->current_context, context);
 
@@ -1220,7 +1213,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		if (!resource_attach_surfaces_to_context(
 				new_surfaces, surface_count, dc_stream, context)) {
 			BREAK_TO_DEBUGGER();
-			return;
+			goto fail;
 		}
 	} else {
 		context = core_dc->current_context;
@@ -1326,7 +1319,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	if (update_type == UPDATE_TYPE_FULL) {
 		if (!core_dc->res_pool->funcs->validate_bandwidth(core_dc, context)) {
 			BREAK_TO_DEBUGGER();
-			return;
+			goto fail;
 		} else
 			core_dc->hwss.set_bandwidth(core_dc, context, false);
 	}
@@ -1418,9 +1411,16 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	if (core_dc->current_context != context) {
 		resource_validate_ctx_destruct(core_dc->current_context);
-		core_dc->temp_flip_context = core_dc->current_context;
+		dm_free(core_dc->current_context);
 
 		core_dc->current_context = context;
+	}
+	return;
+
+fail:
+	if (core_dc->current_context != context) {
+		resource_validate_ctx_destruct(context);
+		dm_free(context);
 	}
 }
 
