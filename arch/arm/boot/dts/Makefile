@@ -692,6 +692,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3288-firefly.dtb \
 	rk3288-firefly-reload.dtb \
 	rk3288-miqi.dtb \
+	rk3288-phycore-rdk.dtb \
 	rk3288-popmetal.dtb \
 	rk3288-r89.dtb \
 	rk3288-rock2-square.dtb \
