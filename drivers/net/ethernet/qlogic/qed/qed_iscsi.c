@@ -181,6 +181,15 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 	p_params = &p_hwfn->pf_params.iscsi_pf_params;
 	p_queue = &p_init->q_params;
 
+	/* Sanity */
+	if (p_params->num_queues > p_hwfn->hw_info.feat_num[QED_ISCSI_CQ]) {
+		DP_ERR(p_hwfn,
+		       "Cannot satisfy CQ amount. Queues requested %d, CQs available %d. Aborting function start\n",
+		       p_params->num_queues,
+		       p_hwfn->hw_info.resc_num[QED_ISCSI_CQ]);
+		return -EINVAL;
+	}
+
 	SET_FIELD(p_init->hdr.flags,
 		  ISCSI_SLOW_PATH_HDR_LAYER_CODE, ISCSI_SLOW_PATH_LAYER_CODE);
 	p_init->hdr.op_code = ISCSI_RAMROD_CMD_ID_INIT_FUNC;
@@ -1011,6 +1020,8 @@ static int qed_fill_iscsi_dev_info(struct qed_dev *cdev,
 	    qed_iscsi_get_primary_bdq_prod(hwfn, BDQ_ID_RQ);
 	info->secondary_bdq_rq_addr =
 	    qed_iscsi_get_secondary_bdq_prod(hwfn, BDQ_ID_RQ);
+
+	info->num_cqs = FEAT_NUM(hwfn, QED_ISCSI_CQ);
 
 	return rc;
 }
