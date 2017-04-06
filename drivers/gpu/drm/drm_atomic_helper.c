@@ -515,6 +515,12 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 			new_crtc_state->mode_changed = true;
 			new_crtc_state->connectors_changed = true;
 		}
+
+		if (old_crtc_state->active != new_crtc_state->active) {
+			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] active changed\n",
+					 crtc->base.id, crtc->name);
+			new_crtc_state->active_changed = true;
+		}
 	}
 
 	ret = handle_conflicting_encoders(state, false);
@@ -550,17 +556,6 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		bool has_connectors =
 			!!new_crtc_state->connector_mask;
-
-		/*
-		 * We must set ->active_changed after walking connectors for
-		 * otherwise an update that only changes active would result in
-		 * a full modeset because update_connector_routing force that.
-		 */
-		if (old_crtc_state->active != new_crtc_state->active) {
-			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] active changed\n",
-					 crtc->base.id, crtc->name);
-			new_crtc_state->active_changed = true;
-		}
 
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
 			continue;
