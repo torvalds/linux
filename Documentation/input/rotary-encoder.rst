@@ -81,48 +81,51 @@ Board integration
 
 To use this driver in your system, register a platform_device with the
 name 'rotary-encoder' and associate the IRQs and some specific platform
-data with it.
-
-struct rotary_encoder_platform_data is declared in
-include/linux/rotary-encoder.h and needs to be filled with the number of
-steps the encoder has and can carry information about externally inverted
-signals (because of an inverting buffer or other reasons). The encoder
-can be set up to deliver input information as either an absolute or relative
-axes. For relative axes the input event returns +/-1 for each step. For
-absolute axes the position of the encoder can either roll over between zero
-and the number of steps or will clamp at the maximum and zero depending on
-the configuration.
-
-Because GPIO to IRQ mapping is platform specific, this information must
-be given in separately to the driver. See the example below.
+data with it. Because the driver uses generic device properties, this can
+be done either via device tree, ACPI, or using static board files, like in
+example below:
 
 ::
 
-    /* board support file example */
+	/* board support file example */
 
-    #include <linux/input.h>
-    #include <linux/rotary_encoder.h>
+	#include <linux/input.h>
+	#include <linux/gpio/machine.h>
+	#include <linux/property.h>
 
-    #define GPIO_ROTARY_A 1
-    #define GPIO_ROTARY_B 2
+	#define GPIO_ROTARY_A 1
+	#define GPIO_ROTARY_B 2
 
-    static struct rotary_encoder_platform_data my_rotary_encoder_info = {
-	    .steps		= 24,
-	    .axis		= ABS_X,
-	    .relative_axis	= false,
-	    .rollover	= false,
-	    .gpio_a		= GPIO_ROTARY_A,
-	    .gpio_b		= GPIO_ROTARY_B,
-	    .inverted_a	= 0,
-	    .inverted_b	= 0,
-	    .half_period	= false,
-	    .wakeup_source	= false,
-    };
+	static struct gpiod_lookup_table rotary_encoder_gpios = {
+		.dev_id = "rotary-encoder.0",
+		.table = {
+			GPIO_LOOKUP_IDX("gpio-0",
+					GPIO_ROTARY_A, NULL, 0, GPIO_ACTIVE_LOW),
+			GPIO_LOOKUP_IDX("gpio-0",
+					GPIO_ROTARY_B, NULL, 1, GPIO_ACTIVE_HIGH),
+			{ },
+		},
+	};
 
-    static struct platform_device rotary_encoder_device = {
-	    .name		= "rotary-encoder",
-	    .id		= 0,
-	    .dev		= {
-		    .platform_data = &my_rotary_encoder_info,
-	    }
-    };
+	static const struct property_entry rotary_encoder_properties[] __initconst = {
+		PROPERTY_ENTRY_INTEGER("rotary-encoder,steps-per-period", u32, 24),
+		PROPERTY_ENTRY_INTEGER("linux,axis",			  u32, ABS_X),
+		PROPERTY_ENTRY_INTEGER("rotary-encoder,relative_axis",	  u32, 0),
+		{ },
+	};
+
+	static struct platform_device rotary_encoder_device = {
+		.name		= "rotary-encoder",
+		.id		= 0,
+	};
+
+	...
+
+	gpiod_add_lookup_table(&rotary_encoder_gpios);
+	device_add_properties(&rotary_encoder_device, rotary_encoder_properties);
+	platform_device_register(&rotary_encoder_device);
+
+	...
+
+Please consult device tree binding documentation to see all properties
+supported by the driver.
