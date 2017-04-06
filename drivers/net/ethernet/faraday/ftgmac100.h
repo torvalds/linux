@@ -86,6 +86,20 @@
 #define FTGMAC100_INT_PHYSTS_CHG	(1 << 9)
 #define FTGMAC100_INT_NO_HPTXBUF	(1 << 10)
 
+/* Interrupts we care about in NAPI mode */
+#define FTGMAC100_INT_BAD  (FTGMAC100_INT_RPKT_LOST | \
+			    FTGMAC100_INT_XPKT_LOST | \
+			    FTGMAC100_INT_AHB_ERR   | \
+			    FTGMAC100_INT_NO_RXBUF)
+
+/* Normal RX/TX interrupts, enabled when NAPI off */
+#define FTGMAC100_INT_RXTX (FTGMAC100_INT_XPKT_ETH  | \
+			    FTGMAC100_INT_RPKT_BUF)
+
+/* All the interrupts we care about */
+#define FTGMAC100_INT_ALL (FTGMAC100_INT_RPKT_BUF  |  \
+			   FTGMAC100_INT_BAD)
+
 /*
  * Interrupt timer control register
  */
