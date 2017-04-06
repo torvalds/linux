@@ -1443,6 +1443,8 @@ void analogix_dp_unbind(struct device *dev, struct device *master,
 	if (dp->plat_data->panel) {
 		if (drm_panel_unprepare(dp->plat_data->panel))
 			DRM_ERROR("failed to turnoff the panel\n");
+		if (drm_panel_detach(dp->plat_data->panel))
+			DRM_ERROR("failed to detach the panel\n");
 	}
 
 	pm_runtime_disable(dev);
