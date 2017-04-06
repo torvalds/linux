@@ -431,34 +431,6 @@ static int ftgmac100_next_rx_pointer(int pointer)
 	return (pointer + 1) & (RX_QUEUE_ENTRIES - 1);
 }
 
-static void ftgmac100_rx_pointer_advance(struct ftgmac100 *priv)
-{
-	priv->rx_pointer = ftgmac100_next_rx_pointer(priv->rx_pointer);
-}
-
-static struct ftgmac100_rxdes *ftgmac100_current_rxdes(struct ftgmac100 *priv)
-{
-	return &priv->descs->rxdes[priv->rx_pointer];
-}
-
-static struct ftgmac100_rxdes *
-ftgmac100_rx_locate_first_segment(struct ftgmac100 *priv)
-{
-	struct ftgmac100_rxdes *rxdes = ftgmac100_current_rxdes(priv);
-
-	while (ftgmac100_rxdes_packet_ready(rxdes)) {
-		if (ftgmac100_rxdes_first_segment(rxdes))
-			return rxdes;
-
-		ftgmac100_rxdes_set_dma_own(priv, rxdes);
-		ftgmac100_rx_pointer_advance(priv);
-		rxdes = ftgmac100_current_rxdes(priv);
-	}
-
-	return NULL;
-}
-
-
 static void ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 				      struct ftgmac100_rxdes *rxdes)
 {
@@ -476,51 +448,32 @@ static void ftgmac100_rx_packet_error(struct ftgmac100 *priv,
 		netdev->stats.rx_length_errors++;
 }
 
-static void ftgmac100_rx_drop_packet(struct ftgmac100 *priv)
-{
-	struct net_device *netdev = priv->netdev;
-	struct ftgmac100_rxdes *rxdes = ftgmac100_current_rxdes(priv);
-	bool done = false;
-
-	if (net_ratelimit())
-		netdev_dbg(netdev, "drop packet %p\n", rxdes);
-
-	do {
-		if (ftgmac100_rxdes_last_segment(rxdes))
-			done = true;
-
-		ftgmac100_rxdes_set_dma_own(priv, rxdes);
-		ftgmac100_rx_pointer_advance(priv);
-		rxdes = ftgmac100_current_rxdes(priv);
-	} while (!done && ftgmac100_rxdes_packet_ready(rxdes));
-
-	netdev->stats.rx_dropped++;
-}
-
 static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 {
 	struct net_device *netdev = priv->netdev;
 	struct ftgmac100_rxdes *rxdes;
 	struct sk_buff *skb;
 	struct page *page;
-	unsigned int size;
+	unsigned int pointer, size;
 	dma_addr_t map;
 
-	rxdes = ftgmac100_rx_locate_first_segment(priv);
-	if (!rxdes)
+	/* Grab next RX descriptor */
+	pointer = priv->rx_pointer;
+	rxdes = &priv->descs->rxdes[pointer];
+
+	/* Do we have a packet ? */
+	if (!ftgmac100_rxdes_packet_ready(rxdes))
 		return false;
 
-	/* We don't support segmented rx frames, so drop these
-	 * along with packets with errors.
-	 */
-	if (unlikely(!ftgmac100_rxdes_last_segment(rxdes))) {
-		ftgmac100_rx_drop_packet(priv);
-		return true;
-	}
+	/* We don't cope with fragmented RX packets */
+	if (unlikely(!ftgmac100_rxdes_first_segment(rxdes) ||
+		     !ftgmac100_rxdes_last_segment(rxdes)))
+		goto drop;
+
+	/* Any error (other than csum offload) flagged ? */
 	if (unlikely(ftgmac100_rxdes_any_error(rxdes))) {
 		ftgmac100_rx_packet_error(priv, rxdes);
-		ftgmac100_rx_drop_packet(priv);
-		return true;
+		goto drop;
 	}
 
 	/* If the packet had no buffer (failed to allocate earlier)
@@ -529,8 +482,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	page = ftgmac100_rxdes_get_page(priv, rxdes);
 	if (!page) {
 		ftgmac100_alloc_rx_page(priv, rxdes, GFP_ATOMIC);
-		ftgmac100_rx_pointer_advance(priv);
-		return true;
+		goto drop;
 	}
 
 	/* start processing */
@@ -538,9 +490,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	if (unlikely(!skb)) {
 		if (net_ratelimit())
 			netdev_err(netdev, "rx skb alloc failed\n");
-
-		ftgmac100_rx_drop_packet(priv);
-		return true;
+		goto drop;
 	}
 
 	if (unlikely(ftgmac100_rxdes_multicast(rxdes)))
@@ -577,8 +527,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 
 	ftgmac100_alloc_rx_page(priv, rxdes, GFP_ATOMIC);
 
-	ftgmac100_rx_pointer_advance(priv);
-	rxdes = ftgmac100_current_rxdes(priv);
+	priv->rx_pointer = ftgmac100_next_rx_pointer(pointer);
 
 	/* Small frames are copied into linear part of skb to free one page */
 	if (skb->len <= 128) {
@@ -600,6 +549,13 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 		napi_gro_receive(&priv->napi, skb);
 
 	(*processed)++;
+	return true;
+
+ drop:
+	/* Clean rxdes0 (which resets own bit) */
+	rxdes->rxdes0 &= cpu_to_le32(priv->rxdes0_edorr_mask);
+	priv->rx_pointer = ftgmac100_next_rx_pointer(pointer);
+	netdev->stats.rx_dropped++;
 	return true;
 }
 
