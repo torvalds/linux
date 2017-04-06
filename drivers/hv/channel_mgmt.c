@@ -350,7 +350,8 @@ static struct vmbus_channel *alloc_channel(void)
 static void free_channel(struct vmbus_channel *channel)
 {
 	tasklet_kill(&channel->callback_event);
-	kfree(channel);
+
+	kfree_rcu(channel, rcu);
 }
 
 static void percpu_channel_enq(void *arg)
@@ -359,14 +360,14 @@ static void percpu_channel_enq(void *arg)
 	struct hv_per_cpu_context *hv_cpu
 		= this_cpu_ptr(hv_context.cpu_context);
 
-	list_add_tail(&channel->percpu_list, &hv_cpu->chan_list);
+	list_add_tail_rcu(&channel->percpu_list, &hv_cpu->chan_list);
 }
 
 static void percpu_channel_deq(void *arg)
 {
 	struct vmbus_channel *channel = arg;
 
-	list_del(&channel->percpu_list);
+	list_del_rcu(&channel->percpu_list);
 }
 
 
@@ -381,19 +382,6 @@ static void vmbus_release_relid(u32 relid)
 		       true);
 }
 
-void hv_event_tasklet_disable(struct vmbus_channel *channel)
-{
-	tasklet_disable(&channel->callback_event);
-}
-
-void hv_event_tasklet_enable(struct vmbus_channel *channel)
-{
-	tasklet_enable(&channel->callback_event);
-
-	/* In case there is any pending event */
-	tasklet_schedule(&channel->callback_event);
-}
-
 void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 {
 	unsigned long flags;
@@ -402,7 +390,6 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 	BUG_ON(!channel->rescind);
 	BUG_ON(!mutex_is_locked(&vmbus_connection.channel_mutex));
 
-	hv_event_tasklet_disable(channel);
 	if (channel->target_cpu != get_cpu()) {
 		put_cpu();
 		smp_call_function_single(channel->target_cpu,
@@ -411,7 +398,6 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 		percpu_channel_deq(channel);
 		put_cpu();
 	}
-	hv_event_tasklet_enable(channel);
 
 	if (channel->primary_channel == NULL) {
 		list_del(&channel->listentry);
@@ -505,7 +491,6 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 
 	init_vp_index(newchannel, dev_type);
 
-	hv_event_tasklet_disable(newchannel);
 	if (newchannel->target_cpu != get_cpu()) {
 		put_cpu();
 		smp_call_function_single(newchannel->target_cpu,
@@ -515,7 +500,6 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		percpu_channel_enq(newchannel);
 		put_cpu();
 	}
-	hv_event_tasklet_enable(newchannel);
 
 	/*
 	 * This state is used to indicate a successful open
@@ -565,7 +549,6 @@ err_deq_chan:
 	list_del(&newchannel->listentry);
 	mutex_unlock(&vmbus_connection.channel_mutex);
 
-	hv_event_tasklet_disable(newchannel);
 	if (newchannel->target_cpu != get_cpu()) {
 		put_cpu();
 		smp_call_function_single(newchannel->target_cpu,
@@ -574,7 +557,6 @@ err_deq_chan:
 		percpu_channel_deq(newchannel);
 		put_cpu();
 	}
-	hv_event_tasklet_enable(newchannel);
 
 	vmbus_release_relid(newchannel->offermsg.child_relid);
 
@@ -814,6 +796,7 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 	/* Allocate the channel object and save this offer. */
 	newchannel = alloc_channel();
 	if (!newchannel) {
+		vmbus_release_relid(offer->child_relid);
 		pr_err("Unable to allocate channel object\n");
 		return;
 	}

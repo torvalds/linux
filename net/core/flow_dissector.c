@@ -159,7 +159,7 @@ __skb_flow_dissect_arp(const struct sk_buff *skb,
 		unsigned char ar_tip[4];
 	} *arp_eth, _arp_eth;
 	const struct arphdr *arp;
-	struct arphdr *_arp;
+	struct arphdr _arp;
 
 	if (!dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_ARP))
 		return FLOW_DISSECT_RET_OUT_GOOD;

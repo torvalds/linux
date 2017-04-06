@@ -697,17 +697,8 @@ static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 {
 	struct blk_mq_timeout_data *data = priv;
 
-	if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags)) {
-		/*
-		 * If a request wasn't started before the queue was
-		 * marked dying, kill it here or it'll go unnoticed.
-		 */
-		if (unlikely(blk_queue_dying(rq->q))) {
-			rq->errors = -EIO;
-			blk_mq_end_request(rq, rq->errors);
-		}
+	if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
 		return;
-	}
 
 	if (time_after_eq(jiffies, rq->deadline)) {
 		if (!blk_mark_rq_complete(rq))
@@ -978,7 +969,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 	struct request *rq;
 	LIST_HEAD(driver_list);
 	struct list_head *dptr;
-	int queued, ret = BLK_MQ_RQ_QUEUE_OK;
+	int errors, queued, ret = BLK_MQ_RQ_QUEUE_OK;
 
 	/*
 	 * Start off with dptr being NULL, so we start the first request
@@ -989,7 +980,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 	/*
 	 * Now process all the entries, sending them to the driver.
 	 */
-	queued = 0;
+	errors = queued = 0;
 	while (!list_empty(list)) {
 		struct blk_mq_queue_data bd;
 
@@ -1046,6 +1037,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 		default:
 			pr_err("blk-mq: bad return on queue: %d\n", ret);
 		case BLK_MQ_RQ_QUEUE_ERROR:
+			errors++;
 			rq->errors = -EIO;
 			blk_mq_end_request(rq, rq->errors);
 			break;
@@ -1097,7 +1089,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
 			blk_mq_run_hw_queue(hctx, true);
 	}
 
-	return queued != 0;
+	return (queued + errors) != 0;
 }
 
 static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)

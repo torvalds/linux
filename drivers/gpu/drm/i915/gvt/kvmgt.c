@@ -426,7 +426,7 @@ static void kvmgt_protect_table_del(struct kvmgt_guest_info *info,
 
 static int intel_vgpu_create(struct kobject *kobj, struct mdev_device *mdev)
 {
-	struct intel_vgpu *vgpu;
+	struct intel_vgpu *vgpu = NULL;
 	struct intel_vgpu_type *type;
 	struct device *pdev;
 	void *gvt;
@@ -437,7 +437,7 @@ static int intel_vgpu_create(struct kobject *kobj, struct mdev_device *mdev)
 
 	type = intel_gvt_find_vgpu_type(gvt, kobject_name(kobj));
 	if (!type) {
-		gvt_err("failed to find type %s to create\n",
+		gvt_vgpu_err("failed to find type %s to create\n",
 						kobject_name(kobj));
 		ret = -EINVAL;
 		goto out;
@@ -446,7 +446,7 @@ static int intel_vgpu_create(struct kobject *kobj, struct mdev_device *mdev)
 	vgpu = intel_gvt_ops->vgpu_create(gvt, type);
 	if (IS_ERR_OR_NULL(vgpu)) {
 		ret = vgpu == NULL ? -EFAULT : PTR_ERR(vgpu);
-		gvt_err("failed to create intel vgpu: %d\n", ret);
+		gvt_vgpu_err("failed to create intel vgpu: %d\n", ret);
 		goto out;
 	}
 
@@ -526,7 +526,8 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 	ret = vfio_register_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY, &events,
 				&vgpu->vdev.iommu_notifier);
 	if (ret != 0) {
-		gvt_err("vfio_register_notifier for iommu failed: %d\n", ret);
+		gvt_vgpu_err("vfio_register_notifier for iommu failed: %d\n",
+			ret);
 		goto out;
 	}
 
@@ -534,7 +535,8 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 	ret = vfio_register_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY, &events,
 				&vgpu->vdev.group_notifier);
 	if (ret != 0) {
-		gvt_err("vfio_register_notifier for group failed: %d\n", ret);
+		gvt_vgpu_err("vfio_register_notifier for group failed: %d\n",
+			ret);
 		goto undo_iommu;
 	}
 
@@ -635,7 +637,7 @@ static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
 
 
 	if (index >= VFIO_PCI_NUM_REGIONS) {
-		gvt_err("invalid index: %u\n", index);
+		gvt_vgpu_err("invalid index: %u\n", index);
 		return -EINVAL;
 	}
 
@@ -669,7 +671,7 @@ static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
 	case VFIO_PCI_VGA_REGION_INDEX:
 	case VFIO_PCI_ROM_REGION_INDEX:
 	default:
-		gvt_err("unsupported region: %u\n", index);
+		gvt_vgpu_err("unsupported region: %u\n", index);
 	}
 
 	return ret == 0 ? count : ret;
@@ -861,7 +863,7 @@ static int intel_vgpu_set_msi_trigger(struct intel_vgpu *vgpu,
 
 		trigger = eventfd_ctx_fdget(fd);
 		if (IS_ERR(trigger)) {
-			gvt_err("eventfd_ctx_fdget failed\n");
+			gvt_vgpu_err("eventfd_ctx_fdget failed\n");
 			return PTR_ERR(trigger);
 		}
 		vgpu->vdev.msi_trigger = trigger;
@@ -1120,7 +1122,7 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 			ret = vfio_set_irqs_validate_and_prepare(&hdr, max,
 						VFIO_PCI_NUM_IRQS, &data_size);
 			if (ret) {
-				gvt_err("intel:vfio_set_irqs_validate_and_prepare failed\n");
+				gvt_vgpu_err("intel:vfio_set_irqs_validate_and_prepare failed\n");
 				return -EINVAL;
 			}
 			if (data_size) {
@@ -1310,7 +1312,7 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 
 	kvm = vgpu->vdev.kvm;
 	if (!kvm || kvm->mm != current->mm) {
-		gvt_err("KVM is required to use Intel vGPU\n");
+		gvt_vgpu_err("KVM is required to use Intel vGPU\n");
 		return -ESRCH;
 	}
 
@@ -1324,6 +1326,7 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 	vgpu->handle = (unsigned long)info;
 	info->vgpu = vgpu;
 	info->kvm = kvm;
+	kvm_get_kvm(info->kvm);
 
 	kvmgt_protect_table_init(info);
 	gvt_cache_init(vgpu);
@@ -1337,12 +1340,15 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 
 static bool kvmgt_guest_exit(struct kvmgt_guest_info *info)
 {
+	struct intel_vgpu *vgpu = info->vgpu;
+
 	if (!info) {
-		gvt_err("kvmgt_guest_info invalid\n");
+		gvt_vgpu_err("kvmgt_guest_info invalid\n");
 		return false;
 	}
 
 	kvm_page_track_unregister_notifier(info->kvm, &info->track_node);
+	kvm_put_kvm(info->kvm);
 	kvmgt_protect_table_destroy(info);
 	gvt_cache_destroy(info->vgpu);
 	vfree(info);
@@ -1383,12 +1389,14 @@ static unsigned long kvmgt_gfn_to_pfn(unsigned long handle, unsigned long gfn)
 	unsigned long iova, pfn;
 	struct kvmgt_guest_info *info;
 	struct device *dev;
+	struct intel_vgpu *vgpu;
 	int rc;
 
 	if (!handle_valid(handle))
 		return INTEL_GVT_INVALID_ADDR;
 
 	info = (struct kvmgt_guest_info *)handle;
+	vgpu = info->vgpu;
 	iova = gvt_cache_find(info->vgpu, gfn);
 	if (iova != INTEL_GVT_INVALID_ADDR)
 		return iova;
@@ -1397,13 +1405,14 @@ static unsigned long kvmgt_gfn_to_pfn(unsigned long handle, unsigned long gfn)
 	dev = mdev_dev(info->vgpu->vdev.mdev);
 	rc = vfio_pin_pages(dev, &gfn, 1, IOMMU_READ | IOMMU_WRITE, &pfn);
 	if (rc != 1) {
-		gvt_err("vfio_pin_pages failed for gfn 0x%lx: %d\n", gfn, rc);
+		gvt_vgpu_err("vfio_pin_pages failed for gfn 0x%lx: %d\n",
+			gfn, rc);
 		return INTEL_GVT_INVALID_ADDR;
 	}
 	/* transfer to host iova for GFX to use DMA */
 	rc = gvt_dma_map_iova(info->vgpu, pfn, &iova);
 	if (rc) {
-		gvt_err("gvt_dma_map_iova failed for gfn: 0x%lx\n", gfn);
+		gvt_vgpu_err("gvt_dma_map_iova failed for gfn: 0x%lx\n", gfn);
 		vfio_unpin_pages(dev, &gfn, 1);
 		return INTEL_GVT_INVALID_ADDR;
 	}
@@ -1417,7 +1426,7 @@ static int kvmgt_rw_gpa(unsigned long handle, unsigned long gpa,
 {
 	struct kvmgt_guest_info *info;
 	struct kvm *kvm;
-	int ret;
+	int idx, ret;
 	bool kthread = current->mm == NULL;
 
 	if (!handle_valid(handle))
@@ -1429,8 +1438,10 @@ static int kvmgt_rw_gpa(unsigned long handle, unsigned long gpa,
 	if (kthread)
 		use_mm(kvm->mm);
 
+	idx = srcu_read_lock(&kvm->srcu);
 	ret = write ? kvm_write_guest(kvm, gpa, buf, len) :
 		      kvm_read_guest(kvm, gpa, buf, len);
+	srcu_read_unlock(&kvm->srcu, idx);
 
 	if (kthread)
 		unuse_mm(kvm->mm);
