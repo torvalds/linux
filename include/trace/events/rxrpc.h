@@ -1087,6 +1087,30 @@ TRACE_EVENT(rxrpc_improper_term,
 		      __entry->abort_code)
 	    );
 
+TRACE_EVENT(rxrpc_rx_eproto,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_serial_t serial,
+		     const char *why),
+
+	    TP_ARGS(call, serial, why),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(const char *,		why		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->serial = serial;
+		    __entry->why = why;
+			   ),
+
+	    TP_printk("c=%p EPROTO %08x %s",
+		      __entry->call,
+		      __entry->serial,
+		      __entry->why)
+	    );
+
 #endif /* _TRACE_RXRPC_H */
 
 /* This part must be outside protection */

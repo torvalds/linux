@@ -281,8 +281,11 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 
 	case RXRPC_PACKET_TYPE_ABORT:
 		if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
-				  &wtmp, sizeof(wtmp)) < 0)
+				  &wtmp, sizeof(wtmp)) < 0) {
+			trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
+					      tracepoint_string("bad_abort"));
 			return -EPROTO;
+		}
 		abort_code = ntohl(wtmp);
 		_proto("Rx ABORT %%%u { ac=%d }", sp->hdr.serial, abort_code);
 
@@ -327,7 +330,8 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		return 0;
 
 	default:
-		_leave(" = -EPROTO [%u]", sp->hdr.type);
+		trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
+				      tracepoint_string("bad_conn_pkt"));
 		return -EPROTO;
 	}
 }
@@ -422,6 +426,5 @@ protocol_error:
 	if (rxrpc_abort_connection(conn, ret, abort_code) < 0)
 		goto requeue_and_leave;
 	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
-	_leave(" [EPROTO]");
 	goto out;
 }

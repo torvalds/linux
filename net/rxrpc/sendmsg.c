@@ -623,7 +623,8 @@ int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 		read_unlock_bh(&call->state_lock);
 		break;
 	default:
-		 /* Request phase complete for this client call */
+		/* Request phase complete for this client call */
+		trace_rxrpc_rx_eproto(call, 0, tracepoint_string("late_send"));
 		ret = -EPROTO;
 		break;
 	}

@@ -682,9 +682,11 @@ out:
 	return ret;
 
 short_data:
+	trace_rxrpc_rx_eproto(call, 0, tracepoint_string("short_data"));
 	ret = -EBADMSG;
 	goto out;
 excess_data:
+	trace_rxrpc_rx_eproto(call, 0, tracepoint_string("excess_data"));
 	ret = -EMSGSIZE;
 	goto out;
 call_complete:
