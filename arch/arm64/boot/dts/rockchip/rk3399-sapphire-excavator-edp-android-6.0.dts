@@ -223,6 +223,22 @@
 	};
 };
 
+&pinctrl {
+	status = "okay";
+
+	hdmiin {
+		hdmiin_gpios: hdmiin_gpios {
+			rockchip,pins =
+				<2 5 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 6 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 7 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 8 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 9 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 12 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
 &rk_screen {
 	#include <dt-bindings/display/screen-timing/lcd-F402.dtsi>
 };
