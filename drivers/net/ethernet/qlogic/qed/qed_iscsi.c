@@ -1324,6 +1324,26 @@ static int qed_iscsi_stats(struct qed_dev *cdev, struct qed_iscsi_stats *stats)
 	return qed_iscsi_get_stats(QED_LEADING_HWFN(cdev), stats);
 }
 
+void qed_get_protocol_stats_iscsi(struct qed_dev *cdev,
+				  struct qed_mcp_iscsi_stats *stats)
+{
+	struct qed_iscsi_stats proto_stats;
+
+	/* Retrieve FW statistics */
+	memset(&proto_stats, 0, sizeof(proto_stats));
+	if (qed_iscsi_stats(cdev, &proto_stats)) {
+		DP_VERBOSE(cdev, QED_MSG_STORAGE,
+			   "Failed to collect ISCSI statistics\n");
+		return;
+	}
+
+	/* Translate FW statistics into struct */
+	stats->rx_pdus = proto_stats.iscsi_rx_total_pdu_cnt;
+	stats->tx_pdus = proto_stats.iscsi_tx_total_pdu_cnt;
+	stats->rx_bytes = proto_stats.iscsi_rx_bytes_cnt;
+	stats->tx_bytes = proto_stats.iscsi_tx_bytes_cnt;
+}
+
 static const struct qed_iscsi_ops qed_iscsi_ops_pass = {
 	.common = &qed_common_ops_pass,
 	.ll2 = &qed_ll2_ops_pass,
