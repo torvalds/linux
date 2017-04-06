@@ -232,7 +232,7 @@ static int call_fext_func(int func, int op, int feature, int state)
 	status = acpi_evaluate_integer(fujitsu_laptop->acpi_handle, "FUNC",
 				       &arg_list, &value);
 	if (ACPI_FAILURE(status)) {
-		vdbg_printk(FUJLAPTOP_DBG_ERROR, "FUNC interface is not present\n");
+		vdbg_printk(FUJLAPTOP_DBG_ERROR, "Failed to evaluate FUNC\n");
 		return -ENODEV;
 	}
 
