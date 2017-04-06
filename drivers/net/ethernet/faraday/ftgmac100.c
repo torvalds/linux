@@ -71,6 +71,10 @@ struct ftgmac100 {
 	u32 txdes0_edotr_mask;
 	spinlock_t tx_lock;
 
+	/* Scratch page to use when rx skb alloc fails */
+	void *rx_scratch;
+	dma_addr_t rx_scratch_dma;
+
 	/* Component structures */
 	struct net_device *netdev;
 	struct device *dev;
@@ -404,12 +408,14 @@ static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
 	struct net_device *netdev = priv->netdev;
 	struct page *page;
 	dma_addr_t map;
+	int err;
 
 	page = alloc_page(gfp);
 	if (!page) {
 		if (net_ratelimit())
 			netdev_err(netdev, "failed to allocate rx page\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		map = priv->rx_scratch_dma;
 	}
 
 	map = dma_map_page(priv->dev, page, 0, RX_BUF_SIZE, DMA_FROM_DEVICE);
@@ -417,7 +423,9 @@ static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
 		if (net_ratelimit())
 			netdev_err(netdev, "failed to map rx page\n");
 		__free_page(page);
-		return -ENOMEM;
+		err = -ENOMEM;
+		map = priv->rx_scratch_dma;
+		page = NULL;
 	}
 
 	ftgmac100_rxdes_set_page(priv, rxdes, page);
@@ -548,6 +556,16 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	if (unlikely(!ftgmac100_rxdes_last_segment(rxdes) ||
 		     ftgmac100_rx_packet_error(priv, rxdes))) {
 		ftgmac100_rx_drop_packet(priv);
+		return true;
+	}
+
+	/* If the packet had no buffer (failed to allocate earlier)
+	 * then try to allocate one and skip
+	 */
+	page = ftgmac100_rxdes_get_page(priv, rxdes);
+	if (!page) {
+		ftgmac100_alloc_rx_page(priv, rxdes, GFP_ATOMIC);
+		ftgmac100_rx_pointer_advance(priv);
 		return true;
 	}
 
@@ -854,6 +872,11 @@ static void ftgmac100_free_rings(struct ftgmac100 *priv)
 	if (priv->descs)
 		dma_free_coherent(priv->dev, sizeof(struct ftgmac100_descs),
 				  priv->descs, priv->descs_dma_addr);
+
+	/* Free scratch packet buffer */
+	if (priv->rx_scratch)
+		dma_free_coherent(priv->dev, RX_BUF_SIZE,
+				  priv->rx_scratch, priv->rx_scratch_dma);
 }
 
 static int ftgmac100_alloc_rings(struct ftgmac100 *priv)
@@ -865,6 +888,14 @@ static int ftgmac100_alloc_rings(struct ftgmac100 *priv)
 	if (!priv->descs)
 		return -ENOMEM;
 
+	/* Allocate scratch packet buffer */
+	priv->rx_scratch = dma_alloc_coherent(priv->dev,
+					      RX_BUF_SIZE,
+					      &priv->rx_scratch_dma,
+					      GFP_KERNEL);
+	if (!priv->rx_scratch)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -873,8 +904,11 @@ static void ftgmac100_init_rings(struct ftgmac100 *priv)
 	int i;
 
 	/* Initialize RX ring */
-	for (i = 0; i < RX_QUEUE_ENTRIES; i++)
-		priv->descs->rxdes[i].rxdes0 = 0;
+	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
+		struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[i];
+		ftgmac100_rxdes_set_dma_addr(rxdes, priv->rx_scratch_dma);
+		rxdes->rxdes0 = 0;
+	}
 	ftgmac100_rxdes_set_end_of_ring(priv, &priv->descs->rxdes[i - 1]);
 
 	/* Initialize TX ring */
