@@ -204,9 +204,6 @@ static void load_mocs(struct intel_vgpu *vgpu, int ring_id)
 	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
 		return;
 
-	if (!(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)))
-		return;
-
 	offset.reg = regs[ring_id];
 	for (i = 0; i < 64; i++) {
 		gen9_render_mocs[ring_id][i] = I915_READ(offset);
@@ -240,9 +237,6 @@ static void restore_mocs(struct intel_vgpu *vgpu, int ring_id)
 	int i;
 
 	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
-		return;
-
-	if (!(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)))
 		return;
 
 	offset.reg = regs[ring_id];
