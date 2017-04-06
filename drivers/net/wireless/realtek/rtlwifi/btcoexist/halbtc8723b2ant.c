@@ -3606,6 +3606,7 @@ static void btc8723b2ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 
 static void btc8723b2ant_wifioff_hwcfg(struct btc_coexist *btcoexist)
 {
+	bool is_in_mp_mode = false;
 	u8 h2c_parameter[2] = {0};
 	u32 fw_ver = 0;
 
@@ -3623,6 +3624,15 @@ static void btc8723b2ant_wifioff_hwcfg(struct btc_coexist *btcoexist)
 	} else {
 		btcoexist->btc_write_1byte(btcoexist, 0x765, 0x18);
 	}
+
+	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_IS_IN_MP_MODE,
+			   &is_in_mp_mode);
+	if (!is_in_mp_mode)
+		/* BT select s0/s1 is controlled by BT */
+		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x67, 0x20, 0x0);
+	else
+		/* BT select s0/s1 is controlled by WiFi */
+		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x67, 0x20, 0x1);
 }
 
 /*********************************************************************
