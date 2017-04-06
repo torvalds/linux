@@ -196,19 +196,7 @@ scsi_abort_command(struct scsi_cmnd *scmd)
 		return FAILED;
 	}
 
-	/*
-	 * Do not try a command abort if
-	 * SCSI EH has already started.
-	 */
 	spin_lock_irqsave(shost->host_lock, flags);
-	if (scsi_host_in_recovery(shost)) {
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		SCSI_LOG_ERROR_RECOVERY(3,
-			scmd_printk(KERN_INFO, scmd,
-				    "not aborting, host in recovery\n"));
-		return FAILED;
-	}
-
 	if (shost->eh_deadline != -1 && !shost->last_reset)
 		shost->last_reset = jiffies;
 	spin_unlock_irqrestore(shost->host_lock, flags);
