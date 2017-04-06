@@ -114,9 +114,6 @@ struct amdgpu_vm {
 	struct dma_fence	*last_dir_update;
 	uint64_t		last_eviction_counter;
 
-	/* for id and flush management per ring */
-	struct amdgpu_vm_id	*ids[AMDGPU_MAX_RINGS];
-
 	/* protecting freed */
 	spinlock_t		freed_lock;
 

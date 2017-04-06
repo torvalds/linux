@@ -463,17 +463,10 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 	job->vm_needs_flush = true;
 	/* Check if we can use a VMID already assigned to this VM */
-	i = ring->idx;
-	do {
+	list_for_each_entry_reverse(id, &adev->vm_manager.ids_lru, list) {
 		struct dma_fence *flushed;
 
-		id = vm->ids[i++];
-		if (i == AMDGPU_MAX_RINGS)
-			i = 0;
-
 		/* Check all the prerequisites to using this VMID */
-		if (!id)
-			continue;
 		if (amdgpu_vm_had_gpu_reset(adev, id))
 			continue;
 
@@ -503,7 +496,6 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			goto error;
 
 		list_move_tail(&id->list, &adev->vm_manager.ids_lru);
-		vm->ids[ring->idx] = id;
 
 		job->vm_id = id - adev->vm_manager.ids;
 		job->vm_needs_flush = false;
@@ -512,7 +504,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		mutex_unlock(&adev->vm_manager.lock);
 		return 0;
 
-	} while (i != ring->idx);
+	};
 
 	/* Still no ID to use? Then use the idle one found earlier */
 	id = idle;
@@ -532,7 +524,6 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	id->current_gpu_reset_count = atomic_read(&adev->gpu_reset_counter);
 	list_move_tail(&id->list, &adev->vm_manager.ids_lru);
 	atomic64_set(&id->owner, vm->client_id);
-	vm->ids[ring->idx] = id;
 
 	job->vm_id = id - adev->vm_manager.ids;
 	trace_amdgpu_vm_grab_id(vm, ring->idx, job);
@@ -2117,10 +2108,8 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	unsigned ring_instance;
 	struct amdgpu_ring *ring;
 	struct amd_sched_rq *rq;
-	int i, r;
+	int r;
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		vm->ids[i] = NULL;
 	vm->va = RB_ROOT;
 	vm->client_id = atomic64_inc_return(&adev->vm_manager.client_counter);
 	spin_lock_init(&vm->status_lock);
