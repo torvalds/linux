@@ -107,6 +107,7 @@ struct ls_ucode_img_r367 {
 
 struct ls_ucode_img *
 acr_r367_ls_ucode_img_load(const struct acr_r352 *acr,
+			   const struct nvkm_secboot *sb,
 			   enum nvkm_secboot_falcon falcon_id)
 {
 	const struct nvkm_subdev *subdev = acr->base.subdev;
@@ -119,7 +120,7 @@ acr_r367_ls_ucode_img_load(const struct acr_r352 *acr,
 
 	img->base.falcon_id = falcon_id;
 
-	ret = acr->func->ls_func[falcon_id]->load(subdev, &img->base);
+	ret = acr->func->ls_func[falcon_id]->load(sb, &img->base);
 	if (ret) {
 		kfree(img->base.ucode_data);
 		kfree(img->base.sig);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,18 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#include "gk104.h"
+#include "changk104.h"
 
-#ifndef __NVKM_SECBOOT_ACR_R367_H__
-#define __NVKM_SECBOOT_ACR_R367_H__
+static const struct gk104_fifo_func
+gp10b_fifo = {
+	.fault.engine = gp100_fifo_fault_engine,
+	.fault.reason = gk104_fifo_fault_reason,
+	.fault.hubclient = gk104_fifo_fault_hubclient,
+	.fault.gpcclient = gk104_fifo_fault_gpcclient,
+	.chan = {
+		&gp100_fifo_gpfifo_oclass,
+		NULL
+	},
+};
 
-#include "acr_r352.h"
-
-void acr_r367_fixup_hs_desc(struct acr_r352 *, struct nvkm_secboot *, void *);
-
-struct ls_ucode_img *acr_r367_ls_ucode_img_load(const struct acr_r352 *,
-						const struct nvkm_secboot *,
-						enum nvkm_secboot_falcon);
-int acr_r367_ls_fill_headers(struct acr_r352 *, struct list_head *);
-int acr_r367_ls_write_wpr(struct acr_r352 *, struct list_head *,
-			  struct nvkm_gpuobj *, u64);
-#endif
+int
+gp10b_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+{
+	return gk104_fifo_new_(&gp10b_fifo, device, index, 512, pfifo);
+}

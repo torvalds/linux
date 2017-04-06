@@ -22,17 +22,14 @@
 
 #ifndef __NVKM_CORE_MSGQUEUE_H
 #define __NVKM_CORE_MSGQUEUE_H
-
-#include <core/os.h>
-
-struct nvkm_falcon;
+#include <subdev/secboot.h>
 struct nvkm_msgqueue;
-enum nvkm_secboot_falcon;
 
 /* Hopefully we will never have firmware arguments larger than that... */
 #define NVKM_MSGQUEUE_CMDLINE_SIZE 0x100
 
-int nvkm_msgqueue_new(u32, struct nvkm_falcon *, struct nvkm_msgqueue **);
+int nvkm_msgqueue_new(u32, struct nvkm_falcon *, const struct nvkm_secboot *,
+		      struct nvkm_msgqueue **);
 void nvkm_msgqueue_del(struct nvkm_msgqueue **);
 void nvkm_msgqueue_recv(struct nvkm_msgqueue *);
 int nvkm_msgqueue_reinit(struct nvkm_msgqueue *);
@@ -41,7 +38,6 @@ int nvkm_msgqueue_reinit(struct nvkm_msgqueue *);
 void nvkm_msgqueue_write_cmdline(struct nvkm_msgqueue *, void *);
 
 /* interface to ACR unit running on falcon (NVIDIA signed firmware) */
-int nvkm_msgqueue_acr_boot_falcon(struct nvkm_msgqueue *,
-				  enum nvkm_secboot_falcon);
+int nvkm_msgqueue_acr_boot_falcons(struct nvkm_msgqueue *, unsigned long);
 
 #endif

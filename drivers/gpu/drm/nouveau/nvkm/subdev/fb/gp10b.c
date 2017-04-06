@@ -19,18 +19,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#include "gf100.h"
 
-#ifndef __NVKM_SECBOOT_ACR_R367_H__
-#define __NVKM_SECBOOT_ACR_R367_H__
+static const struct nvkm_fb_func
+gp10b_fb = {
+	.dtor = gf100_fb_dtor,
+	.oneinit = gf100_fb_oneinit,
+	.init = gm200_fb_init,
+	.init_page = gm200_fb_init_page,
+	.intr = gf100_fb_intr,
+	.memtype_valid = gf100_fb_memtype_valid,
+};
 
-#include "acr_r352.h"
-
-void acr_r367_fixup_hs_desc(struct acr_r352 *, struct nvkm_secboot *, void *);
-
-struct ls_ucode_img *acr_r367_ls_ucode_img_load(const struct acr_r352 *,
-						const struct nvkm_secboot *,
-						enum nvkm_secboot_falcon);
-int acr_r367_ls_fill_headers(struct acr_r352 *, struct list_head *);
-int acr_r367_ls_write_wpr(struct acr_r352 *, struct list_head *,
-			  struct nvkm_gpuobj *, u64);
-#endif
+int
+gp10b_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+{
+	return gf100_fb_new_(&gp10b_fb, device, index, pfb);
+}

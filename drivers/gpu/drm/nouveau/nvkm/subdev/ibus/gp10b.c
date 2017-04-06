@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,18 +19,41 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#include <subdev/ibus.h>
 
-#ifndef __NVKM_SECBOOT_ACR_R367_H__
-#define __NVKM_SECBOOT_ACR_R367_H__
+#include "priv.h"
 
-#include "acr_r352.h"
+static int
+gp10b_ibus_init(struct nvkm_subdev *ibus)
+{
+	struct nvkm_device *device = ibus->device;
 
-void acr_r367_fixup_hs_desc(struct acr_r352 *, struct nvkm_secboot *, void *);
+	nvkm_wr32(device, 0x1200a8, 0x0);
 
-struct ls_ucode_img *acr_r367_ls_ucode_img_load(const struct acr_r352 *,
-						const struct nvkm_secboot *,
-						enum nvkm_secboot_falcon);
-int acr_r367_ls_fill_headers(struct acr_r352 *, struct list_head *);
-int acr_r367_ls_write_wpr(struct acr_r352 *, struct list_head *,
-			  struct nvkm_gpuobj *, u64);
-#endif
+	/* init ring */
+	nvkm_wr32(device, 0x12004c, 0x4);
+	nvkm_wr32(device, 0x122204, 0x2);
+	nvkm_rd32(device, 0x122204);
+
+	/* timeout configuration */
+	nvkm_wr32(device, 0x009080, 0x800186a0);
+
+	return 0;
+}
+
+static const struct nvkm_subdev_func
+gp10b_ibus = {
+	.init = gp10b_ibus_init,
+	.intr = gk104_ibus_intr,
+};
+
+int
+gp10b_ibus_new(struct nvkm_device *device, int index,
+	       struct nvkm_subdev **pibus)
+{
+	struct nvkm_subdev *ibus;
+	if (!(ibus = *pibus = kzalloc(sizeof(*ibus), GFP_KERNEL)))
+		return -ENOMEM;
+	nvkm_subdev_ctor(&gp10b_ibus, device, index, ibus);
+	return 0;
+}

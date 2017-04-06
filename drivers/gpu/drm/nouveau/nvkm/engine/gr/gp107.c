@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat Inc.
+ * Copyright 2017 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,22 +26,8 @@
 
 #include <nvif/class.h>
 
-void
-gp102_gr_init_swdx_pes_mask(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	u32 mask = 0, data, gpc;
-
-	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		data = nvkm_rd32(device, GPC_UNIT(gpc, 0x0c50)) & 0x0000000f;
-		mask |= data << (gpc * 4);
-	}
-
-	nvkm_wr32(device, 0x4181d0, mask);
-}
-
 static const struct gf100_gr_func
-gp102_gr = {
+gp107_gr = {
 	.init = gp100_gr_init,
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
 	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
@@ -49,8 +35,8 @@ gp102_gr = {
 	.init_swdx_pes_mask = gp102_gr_init_swdx_pes_mask,
 	.init_num_active_ltcs = gp100_gr_init_num_active_ltcs,
 	.rops = gm200_gr_rops,
-	.ppc_nr = 3,
-	.grctx = &gp102_grctx,
+	.ppc_nr = 1,
+	.grctx = &gp107_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
@@ -61,7 +47,7 @@ gp102_gr = {
 };
 
 int
-gp102_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+gp107_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	return gm200_gr_new_(&gp102_gr, device, index, pgr);
+	return gm200_gr_new_(&gp107_gr, device, index, pgr);
 }

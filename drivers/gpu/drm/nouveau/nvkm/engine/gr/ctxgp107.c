@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat Inc.
+ * Copyright 2017 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,47 +21,27 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "gf100.h"
 #include "ctxgf100.h"
 
-#include <nvif/class.h>
+#include <subdev/fb.h>
 
-void
-gp102_gr_init_swdx_pes_mask(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	u32 mask = 0, data, gpc;
+/*******************************************************************************
+ * PGRAPH context implementation
+ ******************************************************************************/
 
-	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		data = nvkm_rd32(device, GPC_UNIT(gpc, 0x0c50)) & 0x0000000f;
-		mask |= data << (gpc * 4);
-	}
-
-	nvkm_wr32(device, 0x4181d0, mask);
-}
-
-static const struct gf100_gr_func
-gp102_gr = {
-	.init = gp100_gr_init,
-	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
-	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
-	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
-	.init_swdx_pes_mask = gp102_gr_init_swdx_pes_mask,
-	.init_num_active_ltcs = gp100_gr_init_num_active_ltcs,
-	.rops = gm200_gr_rops,
-	.ppc_nr = 3,
-	.grctx = &gp102_grctx,
-	.sclass = {
-		{ -1, -1, FERMI_TWOD_A },
-		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
-		{ -1, -1, PASCAL_B, &gf100_fermi },
-		{ -1, -1, PASCAL_COMPUTE_B },
-		{}
-	}
+const struct gf100_grctx_func
+gp107_grctx = {
+	.main = gp100_grctx_generate_main,
+	.unkn = gk104_grctx_generate_unkn,
+	.bundle = gm107_grctx_generate_bundle,
+	.bundle_size = 0x3000,
+	.bundle_min_gpm_fifo_depth = 0x180,
+	.bundle_token_limit = 0x300,
+	.pagepool = gp100_grctx_generate_pagepool,
+	.pagepool_size = 0x20000,
+	.attrib = gp102_grctx_generate_attrib,
+	.attrib_nr_max = 0x15de,
+	.attrib_nr = 0x540,
+	.alpha_nr_max = 0xc00,
+	.alpha_nr = 0x800,
 };
-
-int
-gp102_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
-{
-	return gm200_gr_new_(&gp102_gr, device, index, pgr);
-}
