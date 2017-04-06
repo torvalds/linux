@@ -43,6 +43,7 @@ config EDAC_LEGACY_SYSFS
 
 config EDAC_DEBUG
 	bool "Debugging"
+	select DEBUG_FS
 	help
 	  This turns on debugging information for the entire EDAC subsystem.
 	  You do so by inserting edac_module with "edac_debug_level=x." Valid
@@ -258,6 +259,15 @@ config EDAC_SKX
 	help
 	  Support for error detection and correction the Intel
 	  Skylake server Integrated Memory Controllers.
+
+config EDAC_PND2
+	tristate "Intel Pondicherry2"
+	depends on EDAC_MM_EDAC && PCI && X86_64 && X86_MCE_INTEL
+	help
+	  Support for error detection and correction on the Intel
+	  Pondicherry2 Integrated Memory Controller. This SoC IP is
+	  first used on the Apollo Lake platform and Denverton
+	  micro-server but may appear on others in the future.
 
 config EDAC_MPC85XX
 	tristate "Freescale MPC83xx / MPC85xx"
