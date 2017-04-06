@@ -207,13 +207,12 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 		 struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
 	unsigned long stack;
-	int cpu;
 
 	preempt_disable_notrace();
 
-	cpu = raw_smp_processor_id();
 	/* no atomic needed, we only modify this variable by this cpu */
-	if (per_cpu(trace_active, cpu)++ != 0)
+	__this_cpu_inc(trace_active);
+	if (__this_cpu_read(trace_active) != 1)
 		goto out;
 
 	ip += MCOUNT_INSN_SIZE;
@@ -221,7 +220,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	check_stack(ip, &stack);
 
  out:
-	per_cpu(trace_active, cpu)--;
+	__this_cpu_dec(trace_active);
 	/* prevent recursion in schedule */
 	preempt_enable_notrace();
 }
@@ -253,7 +252,6 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	long *ptr = filp->private_data;
 	unsigned long val, flags;
 	int ret;
-	int cpu;
 
 	ret = kstrtoul_from_user(ubuf, count, 10, &val);
 	if (ret)
@@ -266,14 +264,13 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	 * we will cause circular lock, so we also need to increase
 	 * the percpu trace_active here.
 	 */
-	cpu = smp_processor_id();
-	per_cpu(trace_active, cpu)++;
+	__this_cpu_inc(trace_active);
 
 	arch_spin_lock(&stack_trace_max_lock);
 	*ptr = val;
 	arch_spin_unlock(&stack_trace_max_lock);
 
-	per_cpu(trace_active, cpu)--;
+	__this_cpu_dec(trace_active);
 	local_irq_restore(flags);
 
 	return count;
@@ -307,12 +304,9 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
-	int cpu;
-
 	local_irq_disable();
 
-	cpu = smp_processor_id();
-	per_cpu(trace_active, cpu)++;
+	__this_cpu_inc(trace_active);
 
 	arch_spin_lock(&stack_trace_max_lock);
 
@@ -324,12 +318,9 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 
 static void t_stop(struct seq_file *m, void *p)
 {
-	int cpu;
-
 	arch_spin_unlock(&stack_trace_max_lock);
 
-	cpu = smp_processor_id();
-	per_cpu(trace_active, cpu)--;
+	__this_cpu_dec(trace_active);
 
 	local_irq_enable();
 }
