@@ -1751,7 +1751,7 @@ static int sd_eh_action(struct scsi_cmnd *scmd, int eh_disp)
 			    "Medium access timeout failure. Offlining disk!\n");
 		scsi_device_set_state(scmd->device, SDEV_OFFLINE);
 
-		return FAILED;
+		return SUCCESS;
 	}
 
 	return eh_disp;
