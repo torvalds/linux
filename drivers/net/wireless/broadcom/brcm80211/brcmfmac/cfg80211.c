@@ -3344,12 +3344,6 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 
 	for (i = 0; i < result_count; i++) {
 		netinfo = &netinfo_start[i];
-		if (!netinfo) {
-			brcmf_err("Invalid netinfo ptr. index: %d\n",
-				  i);
-			err = -EINVAL;
-			goto out_err;
-		}
 
 		if (netinfo->SSID_len > IEEE80211_MAX_SSID_LEN)
 			netinfo->SSID_len = IEEE80211_MAX_SSID_LEN;
