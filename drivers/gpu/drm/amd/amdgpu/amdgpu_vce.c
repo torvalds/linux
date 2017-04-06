@@ -595,13 +595,13 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 	}
 
 	if ((addr + (uint64_t)size) >
-	    ((uint64_t)mapping->it.last + 1) * AMDGPU_GPU_PAGE_SIZE) {
+	    (mapping->last + 1) * AMDGPU_GPU_PAGE_SIZE) {
 		DRM_ERROR("BO to small for addr 0x%010Lx %d %d\n",
 			  addr, lo, hi);
 		return -EINVAL;
 	}
 
-	addr -= ((uint64_t)mapping->it.start) * AMDGPU_GPU_PAGE_SIZE;
+	addr -= mapping->start * AMDGPU_GPU_PAGE_SIZE;
 	addr += amdgpu_bo_gpu_offset(bo);
 	addr -= ((uint64_t)size) * ((uint64_t)index);
 

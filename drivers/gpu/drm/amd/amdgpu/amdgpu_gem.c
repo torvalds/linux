@@ -717,7 +717,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 	switch (args->op) {
 	case AMDGPU_GEM_OP_GET_GEM_CREATE_INFO: {
 		struct drm_amdgpu_gem_create_in info;
-		void __user *out = (void __user *)(long)args->value;
+		void __user *out = (void __user *)(uintptr_t)args->value;
 
 		info.bo_size = robj->gem_base.size;
 		info.alignment = robj->tbo.mem.page_alignment << PAGE_SHIFT;

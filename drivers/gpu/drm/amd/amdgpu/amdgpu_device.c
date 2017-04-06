@@ -1042,14 +1042,6 @@ static bool amdgpu_check_pot_argument(int arg)
 
 static void amdgpu_get_block_size(struct amdgpu_device *adev)
 {
-	/* from AI, asic starts to support multiple level VMPT */
-	if (adev->asic_type >= CHIP_VEGA10) {
-		if (amdgpu_vm_block_size != 9)
-			dev_warn(adev->dev,
-				 "Multi-VMPT limits block size to one page!\n");
-		amdgpu_vm_block_size = 9;
-		return;
-	}
 	/* defines number of bits in page table versus page directory,
 	 * a page is 4KB so we have 12 bits offset, minimum 9 bits in the
 	 * page table and the remaining bits are in the page directory */
@@ -1077,6 +1069,36 @@ static void amdgpu_get_block_size(struct amdgpu_device *adev)
 			 amdgpu_vm_block_size);
 		amdgpu_vm_block_size = 9;
 	}
+}
+
+static void amdgpu_check_vm_size(struct amdgpu_device *adev)
+{
+	if (!amdgpu_check_pot_argument(amdgpu_vm_size)) {
+		dev_warn(adev->dev, "VM size (%d) must be a power of 2\n",
+			 amdgpu_vm_size);
+		goto def_value;
+	}
+
+	if (amdgpu_vm_size < 1) {
+		dev_warn(adev->dev, "VM size (%d) too small, min is 1GB\n",
+			 amdgpu_vm_size);
+		goto def_value;
+	}
+
+	/*
+	 * Max GPUVM size for Cayman, SI, CI VI are 40 bits.
+	 */
+	if (amdgpu_vm_size > 1024) {
+		dev_warn(adev->dev, "VM size (%d) too large, max is 1TB\n",
+			 amdgpu_vm_size);
+		goto def_value;
+	}
+
+	return;
+
+def_value:
+	amdgpu_vm_size = 8;
+	dev_info(adev->dev, "set default VM size %dGB\n", amdgpu_vm_size);
 }
 
 /**
@@ -1108,26 +1130,7 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 		}
 	}
 
-	if (!amdgpu_check_pot_argument(amdgpu_vm_size)) {
-		dev_warn(adev->dev, "VM size (%d) must be a power of 2\n",
-			 amdgpu_vm_size);
-		amdgpu_vm_size = 8;
-	}
-
-	if (amdgpu_vm_size < 1) {
-		dev_warn(adev->dev, "VM size (%d) too small, min is 1GB\n",
-			 amdgpu_vm_size);
-		amdgpu_vm_size = 8;
-	}
-
-	/*
-	 * Max GPUVM size for Cayman, SI and CI are 40 bits.
-	 */
-	if (amdgpu_vm_size > 1024) {
-		dev_warn(adev->dev, "VM size (%d) too large, max is 1TB\n",
-			 amdgpu_vm_size);
-		amdgpu_vm_size = 8;
-	}
+	amdgpu_check_vm_size(adev);
 
 	amdgpu_get_block_size(adev);
 
@@ -2249,9 +2252,10 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	r = amdgpu_resume(adev);
-	if (r)
+	if (r) {
 		DRM_ERROR("amdgpu_resume failed (%d).\n", r);
-
+		return r;
+	}
 	amdgpu_fence_driver_resume(adev);
 
 	if (resume) {

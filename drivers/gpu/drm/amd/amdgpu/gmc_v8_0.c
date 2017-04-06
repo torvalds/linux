@@ -38,6 +38,8 @@
 #include "vid.h"
 #include "vi.h"
 
+#include "amdgpu_atombios.h"
+
 
 static void gmc_v8_0_set_gart_funcs(struct amdgpu_device *adev);
 static void gmc_v8_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -487,48 +489,51 @@ static void gmc_v8_0_mc_program(struct amdgpu_device *adev)
  */
 static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 {
-	u32 tmp;
-	int chansize, numchan;
+	adev->mc.vram_width = amdgpu_atombios_get_vram_width(adev);
+	if (!adev->mc.vram_width) {
+		u32 tmp;
+		int chansize, numchan;
 
-	/* Get VRAM informations */
-	tmp = RREG32(mmMC_ARB_RAMCFG);
-	if (REG_GET_FIELD(tmp, MC_ARB_RAMCFG, CHANSIZE)) {
-		chansize = 64;
-	} else {
-		chansize = 32;
+		/* Get VRAM informations */
+		tmp = RREG32(mmMC_ARB_RAMCFG);
+		if (REG_GET_FIELD(tmp, MC_ARB_RAMCFG, CHANSIZE)) {
+			chansize = 64;
+		} else {
+			chansize = 32;
+		}
+		tmp = RREG32(mmMC_SHARED_CHMAP);
+		switch (REG_GET_FIELD(tmp, MC_SHARED_CHMAP, NOOFCHAN)) {
+		case 0:
+		default:
+			numchan = 1;
+			break;
+		case 1:
+			numchan = 2;
+			break;
+		case 2:
+			numchan = 4;
+			break;
+		case 3:
+			numchan = 8;
+			break;
+		case 4:
+			numchan = 3;
+			break;
+		case 5:
+			numchan = 6;
+			break;
+		case 6:
+			numchan = 10;
+			break;
+		case 7:
+			numchan = 12;
+			break;
+		case 8:
+			numchan = 16;
+			break;
+		}
+		adev->mc.vram_width = numchan * chansize;
 	}
-	tmp = RREG32(mmMC_SHARED_CHMAP);
-	switch (REG_GET_FIELD(tmp, MC_SHARED_CHMAP, NOOFCHAN)) {
-	case 0:
-	default:
-		numchan = 1;
-		break;
-	case 1:
-		numchan = 2;
-		break;
-	case 2:
-		numchan = 4;
-		break;
-	case 3:
-		numchan = 8;
-		break;
-	case 4:
-		numchan = 3;
-		break;
-	case 5:
-		numchan = 6;
-		break;
-	case 6:
-		numchan = 10;
-		break;
-	case 7:
-		numchan = 12;
-		break;
-	case 8:
-		numchan = 16;
-		break;
-	}
-	adev->mc.vram_width = numchan * chansize;
 	/* Could aper size report 0 ? */
 	adev->mc.aper_base = pci_resource_start(adev->pdev, 0);
 	adev->mc.aper_size = pci_resource_len(adev->pdev, 0);
@@ -848,7 +853,7 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, WRITE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, PAGE_TABLE_BLOCK_SIZE,
-			    amdgpu_vm_block_size - 9);
+			    adev->vm_manager.block_size - 9);
 	WREG32(mmVM_CONTEXT1_CNTL, tmp);
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
 		gmc_v8_0_set_fault_enable_default(adev, false);
@@ -1082,7 +1087,12 @@ static int gmc_v8_0_sw_init(void *handle)
 	 * Currently set to 4GB ((1 << 20) 4k pages).
 	 * Max GPUVM size for cayman and SI is 40 bits.
 	 */
-	adev->vm_manager.max_pfn = amdgpu_vm_size << 18;
+	adev->vm_manager.vm_size = amdgpu_vm_size;
+	adev->vm_manager.block_size = amdgpu_vm_block_size;
+	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
+
+	DRM_INFO("vm size is %llu GB, block size is %d-bit\n",
+		adev->vm_manager.vm_size, adev->vm_manager.block_size);
 
 	/* Set the internal MC address mask
 	 * This is the max address of the GPU's

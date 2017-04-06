@@ -45,7 +45,7 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_VM_MAX_UPDATE_SIZE	0x3FFFF
 
 /* number of entries in page table */
-#define AMDGPU_VM_PTE_COUNT (1 << amdgpu_vm_block_size)
+#define AMDGPU_VM_PTE_COUNT(adev) (1 << (adev)->vm_manager.block_size)
 
 /* PTBs (Page Table Blocks) need to be aligned to 32K */
 #define AMDGPU_VM_PTB_ALIGN_SIZE   32768
@@ -75,6 +75,14 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_VM_FAULT_STOP_NEVER	0
 #define AMDGPU_VM_FAULT_STOP_FIRST	1
 #define AMDGPU_VM_FAULT_STOP_ALWAYS	2
+
+/* max number of VMHUB */
+#define AMDGPU_MAX_VMHUBS			2
+#define AMDGPU_GFXHUB				0
+#define AMDGPU_MMHUB				1
+
+/* hardcode that limit for now */
+#define AMDGPU_VA_RESERVED_SIZE			(8 << 20)
 
 struct amdgpu_vm_pt {
 	struct amdgpu_bo	*bo;
@@ -123,7 +131,6 @@ struct amdgpu_vm {
 
 struct amdgpu_vm_id {
 	struct list_head	list;
-	struct dma_fence		*first;
 	struct amdgpu_sync	active;
 	struct dma_fence		*last_flush;
 	atomic64_t		owner;
@@ -155,6 +162,8 @@ struct amdgpu_vm_manager {
 
 	uint64_t				max_pfn;
 	uint32_t				num_level;
+	uint64_t				vm_size;
+	uint32_t				block_size;
 	/* vram base address for page table entry  */
 	u64					vram_base_offset;
 	/* is vm enabled? */

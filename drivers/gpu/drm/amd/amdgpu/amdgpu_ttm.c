@@ -529,40 +529,12 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 	case TTM_PL_TT:
 		break;
 	case TTM_PL_VRAM:
-		if (mem->start == AMDGPU_BO_INVALID_OFFSET)
-			return -EINVAL;
-
 		mem->bus.offset = mem->start << PAGE_SHIFT;
 		/* check if it's visible */
 		if ((mem->bus.offset + mem->bus.size) > adev->mc.visible_vram_size)
 			return -EINVAL;
 		mem->bus.base = adev->mc.aper_base;
 		mem->bus.is_iomem = true;
-#ifdef __alpha__
-		/*
-		 * Alpha: use bus.addr to hold the ioremap() return,
-		 * so we can modify bus.base below.
-		 */
-		if (mem->placement & TTM_PL_FLAG_WC)
-			mem->bus.addr =
-				ioremap_wc(mem->bus.base + mem->bus.offset,
-					   mem->bus.size);
-		else
-			mem->bus.addr =
-				ioremap_nocache(mem->bus.base + mem->bus.offset,
-						mem->bus.size);
-		if (!mem->bus.addr)
-			return -ENOMEM;
-
-		/*
-		 * Alpha: Use just the bus offset plus
-		 * the hose/domain memory base for bus.base.
-		 * It then can be used to build PTEs for VRAM
-		 * access, as done in ttm_bo_vm_fault().
-		 */
-		mem->bus.base = (mem->bus.base & 0x0ffffffffUL) +
-			adev->ddev->hose->dense_mem_base;
-#endif
 		break;
 	default:
 		return -EINVAL;
@@ -572,6 +544,17 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 
 static void amdgpu_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
+}
+
+static unsigned long amdgpu_ttm_io_mem_pfn(struct ttm_buffer_object *bo,
+					   unsigned long page_offset)
+{
+	struct drm_mm_node *mm = bo->mem.mm_node;
+	uint64_t size = mm->size;
+	uint64_t offset = page_offset;
+
+	page_offset = do_div(offset, size);
+	return (bo->mem.bus.base >> PAGE_SHIFT) + mm->start + page_offset;
 }
 
 /*
@@ -1089,6 +1072,7 @@ static struct ttm_bo_driver amdgpu_bo_driver = {
 	.fault_reserve_notify = &amdgpu_bo_fault_reserve_notify,
 	.io_mem_reserve = &amdgpu_ttm_io_mem_reserve,
 	.io_mem_free = &amdgpu_ttm_io_mem_free,
+	.io_mem_pfn = amdgpu_ttm_io_mem_pfn,
 };
 
 int amdgpu_ttm_init(struct amdgpu_device *adev)
