@@ -31,6 +31,7 @@ extern int scsi_ioctl_reset(struct scsi_device *, int __user *);
 struct scsi_eh_save {
 	/* saved state */
 	int result;
+	int eh_eflags;
 	enum dma_data_direction data_direction;
 	unsigned underflow;
 	unsigned char cmd_len;

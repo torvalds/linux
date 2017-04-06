@@ -613,8 +613,6 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 		SAS_DPRINTK("trying to find task 0x%p\n", task);
 		res = sas_scsi_find_task(task);
 
-		cmd->eh_eflags = 0;
-
 		switch (res) {
 		case TASK_IS_DONE:
 			SAS_DPRINTK("%s: task 0x%p is done\n", __func__,

@@ -105,11 +105,14 @@ function
 
  2. If the host supports asynchronous completion (as indicated by the
     no_async_abort setting in the host template) scsi_abort_command()
-    is invoked to schedule an asynchrous abort. If that fails
-    Step #3 is taken.
+    is invoked to schedule an asynchrous abort.
+    Asynchronous abort are not invoked for commands which the
+    SCSI_EH_ABORT_SCHEDULED flag is set (this indicates that the command
+    already had been aborted once, and this is a retry which failed),
+    or when the EH deadline is expired. In these case Step #3 is taken.
 
- 2. scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD) is invoked for the
-    command.  See [1-3] for more information.
+ 3. scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD) is invoked for the
+    command.  See [1-4] for more information.
 
 [1-3] Asynchronous command aborts
 
@@ -263,7 +266,6 @@ scmd->allowed.
 
  3. scmd recovered
     ACTION: scsi_eh_finish_cmd() is invoked to EH-finish scmd
-	- clear scmd->eh_eflags
 	- scsi_setup_cmd_retry()
 	- move from local eh_work_q to local eh_done_q
     LOCKING: none
@@ -455,8 +457,6 @@ except for #1 must be implemented by eh_strategy_handler().
  The following conditions must be true on exit from the handler.
 
  - shost->host_failed is zero.
-
- - Each scmd's eh_eflags field is cleared.
 
  - Each scmd is in such a state that scsi_setup_cmd_retry() on the
    scmd doesn't make any difference.
