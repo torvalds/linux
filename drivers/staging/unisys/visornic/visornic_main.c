@@ -2146,11 +2146,11 @@ static int visornic_init(void)
 	if (!visornic_debugfs_dir)
 		return err;
 
-	ret = debugfs_create_file("info", S_IRUSR, visornic_debugfs_dir, NULL,
+	ret = debugfs_create_file("info", 0400, visornic_debugfs_dir, NULL,
 				  &debugfs_info_fops);
 	if (!ret)
 		goto cleanup_debugfs;
-	ret = debugfs_create_file("enable_ints", S_IWUSR, visornic_debugfs_dir,
+	ret = debugfs_create_file("enable_ints", 0200, visornic_debugfs_dir,
 				  NULL, &debugfs_enable_ints_fops);
 	if (!ret)
 		goto cleanup_debugfs;
