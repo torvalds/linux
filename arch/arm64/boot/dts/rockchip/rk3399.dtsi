@@ -1406,6 +1406,9 @@
 		clock-names = "pclk_efuse";
 
 		/* Data cells */
+		efuse_id: id {
+			reg = <0x07 0x10>;
+		};
 		cpul_leakage: cpul-leakage {
 			reg = <0x1a 0x1>;
 		};

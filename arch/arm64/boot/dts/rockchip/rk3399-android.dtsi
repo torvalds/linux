@@ -51,6 +51,12 @@
 		bootargs = "earlycon=uart8250,mmio32,0xff1a0000 swiotlb=1";
 	};
 
+	cpuinfo {
+		compatible = "rockchip,cpuinfo";
+		nvmem-cells = <&efuse_id>;
+		nvmem-cell-names = "id";
+	};
+
 	ramoops_mem: ramoops_mem {
 		reg = <0x0 0x110000 0x0 0xf0000>;
 		reg-names = "ramoops_mem";
