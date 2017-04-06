@@ -1279,18 +1279,6 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 
 	qed_cxt_hw_init_common(p_hwfn);
 
-	/* Close gate from NIG to BRB/Storm; By default they are open, but
-	 * we close them to prevent NIG from passing data to reset blocks.
-	 * Should have been done in the ENGINE phase, but init-tool lacks
-	 * proper port-pretend capabilities.
-	 */
-	qed_wr(p_hwfn, p_ptt, NIG_REG_RX_BRB_OUT_EN, 0);
-	qed_wr(p_hwfn, p_ptt, NIG_REG_STORM_OUT_EN, 0);
-	qed_port_pretend(p_hwfn, p_ptt, p_hwfn->port_id ^ 1);
-	qed_wr(p_hwfn, p_ptt, NIG_REG_RX_BRB_OUT_EN, 0);
-	qed_wr(p_hwfn, p_ptt, NIG_REG_STORM_OUT_EN, 0);
-	qed_port_unpretend(p_hwfn, p_ptt);
-
 	qed_init_cache_line_size(p_hwfn, p_ptt);
 
 	rc = qed_init_run(p_hwfn, p_ptt, PHASE_ENGINE, ANY_PHASE_ID, hw_mode);
