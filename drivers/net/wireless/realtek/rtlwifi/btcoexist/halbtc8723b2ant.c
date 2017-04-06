@@ -3486,12 +3486,6 @@ static void btc8723b2ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 			 "[BTCoex], BT is under inquiry/page scan !!\n");
 		btc8723b2ant_action_bt_inquiry(btcoexist);
 		return;
-	} else {
-		if (coex_dm->need_recover_0x948) {
-			coex_dm->need_recover_0x948 = false;
-			btcoexist->btc_write_2byte(btcoexist, 0x948,
-						   coex_dm->backup_0x948);
-		}
 	}
 
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_SCAN, &scan);

@@ -134,8 +134,6 @@ struct coex_dm_8723b_2ant {
 
 	bool is_switch_to_1dot5_ant;
 	u8 switch_thres_offset;
-	bool need_recover_0x948;
-	u16 backup_0x948;
 };
 
 struct coex_sta_8723b_2ant {
