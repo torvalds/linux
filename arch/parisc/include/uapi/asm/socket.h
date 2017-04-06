@@ -95,4 +95,6 @@
 
 #define SO_INCOMING_NAPI_ID	0x4031
 
+#define SO_COOKIE		0x4032
+
 #endif /* _UAPI_ASM_SOCKET_H */
