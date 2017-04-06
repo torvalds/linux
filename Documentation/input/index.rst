@@ -2,8 +2,7 @@
 The Linux Input Documentation
 =============================
 
-Core API
-========
+Contents:
 
 .. toctree::
    :maxdepth: 2
@@ -12,8 +11,7 @@ Core API
    input
    input-programming
    event-codes
-   joystick
-   joystick-api
+   joydev/index
    multi-touch-protocol
    gamepad
    gameport-programming

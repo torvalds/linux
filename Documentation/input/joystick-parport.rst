@@ -2,9 +2,9 @@
 
 .. _joystick-parport:
 
-===================================
-Linux Joystick parport drivers v2.0
-===================================
+==============================
+Parallel port Joystick Drivers
+==============================
 
 :Copyright: |copy| 1998-2000 Vojtech Pavlik <vojtech@ucw.cz>
 :Copyright: |copy| 1998 Andree Borrmann <a.borrmann@tu-bs.de>
@@ -20,8 +20,8 @@ it will be true. So, use it at your own risk. The possible damages that can
 happen include burning your parallel port, and/or the sticks and joystick
 and maybe even more. Like when a lightning kills you it is not our problem.
 
-Intro
-=====
+Introduction
+============
 
 The joystick parport drivers are used for joysticks and gamepads not
 originally designed for PCs and other computers Linux runs on. Because of
@@ -582,7 +582,7 @@ use turbografx.map2 and turbografx.map3 as additional command line parameters
 for two more interfaces.
 
 PC parallel port pinout
------------------------
+=======================
 
 ::
 

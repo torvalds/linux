@@ -1,56 +1,17 @@
 .. include:: <isonum.txt>
 
-============================
-Linux Joystick driver v2.0.0
-============================
-
-:Copyright: |copy| 1996-2000 Vojtech Pavlik <vojtech@ucw.cz> - Sponsored by SuSE
-
-
-Disclaimer
-==========
-
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the Free
-Software Foundation; either version 2 of the License, or (at your option)
-any later version.
-
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc., 59
-Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-Should you need to contact me, the author, you can do so either by e-mail
-- mail your message to <vojtech@ucw.cz>, or by paper mail: Vojtech Pavlik,
-Simunkova 1594, Prague 8, 182 00 Czech Republic
-
-For your convenience, the GNU General Public License version 2 is included
-in the package: See the file COPYING.
-
-Intro
-=====
+Introduction
+============
 
 The joystick driver for Linux provides support for a variety of joysticks
 and similar devices. It is based on a larger project aiming to support all
 input devices in Linux.
 
-Should you encounter any problems while using the driver, or joysticks
-this driver can't make complete use of, I'm very interested in hearing about
-them. Bug reports and success stories are also welcome.
+The mailing list for the project is:
 
-The input project website is at:
+	linux-input@vger.kernel.org
 
-	http://atrey.karlin.mff.cuni.cz/~vojtech/input/
-
-There is also a mailing list for the driver at:
-
-	listproc@atrey.karlin.mff.cuni.cz
-
-send "subscribe linux-joystick Your Name" to subscribe to it.
+send "subscribe linux-input" to majordomo@vger.kernel.org to subscribe to it.
 
 Usage
 =====
@@ -58,18 +19,22 @@ Usage
 For basic usage you just choose the right options in kernel config and
 you should be set.
 
-inpututils
-----------
+Utilities
+---------
 
-For testing and other purposes (for example serial devices), a set of
-utilities is available at the abovementioned website. I suggest you download
-and install it before going on.
+For testing and other purposes (for example serial devices), there is a set
+of utilities, such as ``jstest``, ``jscal``, and ``evtest``,
+usually packaged as ``joystick``, ``input-utils``, ``evtest``, and so on.
+
+``inputattach`` utility is required if your joystick is connected to a
+serial port.
 
 Device nodes
 ------------
 
-For applications to be able to use the joysticks,
-you'll have to manually create these nodes in /dev::
+For applications to be able to use the joysticks, device nodes should be
+created in /dev. Normally it is done automatically by the system, but
+it can also be done by hand::
 
     cd /dev
     rm js*
@@ -165,7 +130,6 @@ And add a line to your rc script executing that file::
 
 This way, after the next reboot your joystick will remain calibrated. You
 can also add the ``jscal -p`` line to your shutdown script.
-
 
 HW specific driver information
 ==============================
@@ -467,6 +431,10 @@ future if I get an Amiga in the reach of my fingers.
 Game console and 8-bit pads and joysticks
 -----------------------------------------
 
+These pads and joysticks are not designed for PCs and other computers
+Linux runs on, and usually require a special connector for attaching
+them through a parallel port.
+
 See :ref:`joystick-parport` for more info.
 
 SpaceTec/LabTec devices
@@ -613,19 +581,3 @@ FAQ
 :Q: My joystick doesn't work with Quake / Quake 2. What's the cause?
 :A: Quake / Quake 2 don't support joystick. Use joy2key to simulate keypresses
     for them.
-
-Programming Interface
-=====================
-
-The 1.0 driver uses a new, event based approach to the joystick driver.
-Instead of the user program polling for the joystick values, the joystick
-driver now reports only any changes of its state. See joystick-api.txt,
-joystick.h and jstest.c included in the joystick package for more
-information. The joystick device can be used in either blocking or
-nonblocking mode and supports select() calls.
-
-For backward compatibility the old (v0.x) interface is still included.
-Any call to the joystick driver using the old interface will return values
-that are compatible to the old interface.  This interface is still limited
-to 2 axes, and applications using it usually decode only 2 buttons, although
-the driver provides up to 32.

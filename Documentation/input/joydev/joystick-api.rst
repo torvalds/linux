@@ -1,8 +1,28 @@
-==========================
-Joystick API Documentation
-==========================
+=====================
+Programming Interface
+=====================
 
 :Author: Ragnar Hojland Espinosa <ragnar@macula.net> - 7 Aug 1998
+
+Introduction
+============
+
+.. important::
+   This document describes legacy ``js`` interface. Newer clients are
+   encouraged to switch to the generic event (``evdev``) interface.
+
+The 1.0 driver uses a new, event based approach to the joystick driver.
+Instead of the user program polling for the joystick values, the joystick
+driver now reports only any changes of its state. See joystick-api.txt,
+joystick.h and jstest.c included in the joystick package for more
+information. The joystick device can be used in either blocking or
+nonblocking mode, and supports select() calls.
+
+For backward compatibility the old (v0.x) interface is still included.
+Any call to the joystick driver using the old interface will return values
+that are compatible to the old interface. This interface is still limited
+to 2 axes, and applications using it usually decode only 2 buttons, although
+the driver provides up to 32.
 
 Initialization
 ==============
@@ -10,7 +30,7 @@ Initialization
 Open the joystick device following the usual semantics (that is, with open).
 Since the driver now reports events instead of polling for changes,
 immediately after the open it will issue a series of synthetic events
-(JS_EVENT_INIT) that you can read to check the initial state of the
+(JS_EVENT_INIT) that you can read to obtain the initial state of the
 joystick.
 
 By default, the device is opened in blocking mode::
@@ -182,7 +202,7 @@ the actual state of the joystick.
 
 .. note::
 
- As for version 1.2.8, the queue is circular and able to hold 64
+ As of version 1.2.8, the queue is circular and able to hold 64
  events. You can increment this size bumping up JS_BUFF_SIZE in
  joystick.h and recompiling the driver.
 
