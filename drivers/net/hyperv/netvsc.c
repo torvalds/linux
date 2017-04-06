@@ -1289,6 +1289,21 @@ int netvsc_device_add(struct hv_device *device,
 	 */
 	set_channel_read_mode(device->channel, HV_CALL_ISR);
 
+	/* If we're reopening the device we may have multiple queues, fill the
+	 * chn_table with the default channel to use it before subchannels are
+	 * opened.
+	 * Initialize the channel state before we open;
+	 * we can be interrupted as soon as we open the channel.
+	 */
+
+	for (i = 0; i < VRSS_CHANNEL_MAX; i++) {
+		struct netvsc_channel *nvchan = &net_device->chan_table[i];
+
+		nvchan->channel = device->channel;
+		netif_napi_add(ndev, &nvchan->napi,
+			       netvsc_poll, NAPI_POLL_WEIGHT);
+	}
+
 	/* Open the channel */
 	ret = vmbus_open(device->channel, ring_size * PAGE_SIZE,
 			 ring_size * PAGE_SIZE, NULL, 0,
@@ -1302,18 +1317,6 @@ int netvsc_device_add(struct hv_device *device,
 
 	/* Channel is opened */
 	netdev_dbg(ndev, "hv_netvsc channel opened successfully\n");
-
-	/* If we're reopening the device we may have multiple queues, fill the
-	 * chn_table with the default channel to use it before subchannels are
-	 * opened.
-	 */
-	for (i = 0; i < VRSS_CHANNEL_MAX; i++) {
-		struct netvsc_channel *nvchan = &net_device->chan_table[i];
-
-		nvchan->channel = device->channel;
-		netif_napi_add(ndev, &nvchan->napi,
-			       netvsc_poll, NAPI_POLL_WEIGHT);
-	}
 
 	/* Enable NAPI handler for init callbacks */
 	napi_enable(&net_device->chan_table[0].napi);
