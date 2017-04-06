@@ -2477,7 +2477,7 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 
 	t1 = get_cycles();
 
-	memcpy(&s_before_advance_custom, s, sizeof(struct parser_exec_state));
+	s_before_advance_custom = *s;
 
 	if (info->handler) {
 		ret = info->handler(s);
