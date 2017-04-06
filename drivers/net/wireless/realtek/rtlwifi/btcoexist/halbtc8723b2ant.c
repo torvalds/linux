@@ -4329,6 +4329,7 @@ void ex_btc8723b2ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state)
 void ex_btc8723b2ant_periodical(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
+	struct btc_bt_link_info *bt_link_info = &btcoexist->bt_link_info;
 
 	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 		 "[BTCoex], ==========================Periodical===========================\n");
@@ -4351,6 +4352,13 @@ void ex_btc8723b2ant_periodical(struct btc_coexist *btcoexist)
 #else
 	btc8723b2ant_monitor_bt_ctr(btcoexist);
 	btc8723b2ant_monitor_wifi_ctr(btcoexist);
+
+	/* for some BT speakers that High-Priority pkts appear before
+	 * playing, this will cause HID exist
+	 */
+	if ((coex_sta->high_priority_tx + coex_sta->high_priority_rx < 50) &&
+	    (bt_link_info->hid_exist))
+		bt_link_info->hid_exist = false;
 
 	if (btc8723b2ant_is_wifi_status_changed(btcoexist) ||
 	    coex_dm->auto_tdma_adjust)
