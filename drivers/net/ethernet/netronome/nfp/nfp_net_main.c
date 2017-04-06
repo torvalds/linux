@@ -495,8 +495,7 @@ static void nfp_net_refresh_netdevs(struct work_struct *work)
 
 	list_for_each_entry_safe(nn, next, &pf->ports, port_list) {
 		if (!nn->eth_port) {
-			nfp_warn(pf->cpp, "Warning: port %d not present after reconfig\n",
-				 nn->eth_port->eth_index);
+			nfp_warn(pf->cpp, "Warning: port not present after reconfig\n");
 			continue;
 		}
 		if (!nn->eth_port->override_changed)
