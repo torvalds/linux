@@ -162,7 +162,7 @@ scmd_eh_abort_handler(struct work_struct *work)
 		}
 	}
 
-	scsi_eh_scmd_add(scmd, 0);
+	scsi_eh_scmd_add(scmd);
 }
 
 /**
@@ -221,9 +221,8 @@ static void scsi_eh_reset(struct scsi_cmnd *scmd)
 /**
  * scsi_eh_scmd_add - add scsi cmd to error handling.
  * @scmd:	scmd to run eh on.
- * @eh_flag:	optional SCSI_EH flag.
  */
-void scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
+void scsi_eh_scmd_add(struct scsi_cmnd *scmd)
 {
 	struct Scsi_Host *shost = scmd->device->host;
 	unsigned long flags;
@@ -239,9 +238,6 @@ void scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
 	if (shost->eh_deadline != -1 && !shost->last_reset)
 		shost->last_reset = jiffies;
 
-	if (scmd->eh_eflags & SCSI_EH_ABORT_SCHEDULED)
-		eh_flag &= ~SCSI_EH_CANCEL_CMD;
-	scmd->eh_eflags |= eh_flag;
 	scsi_eh_reset(scmd);
 	list_add_tail(&scmd->eh_entry, &shost->eh_cmd_q);
 	shost->host_failed++;
@@ -275,10 +271,9 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 		rtn = host->hostt->eh_timed_out(scmd);
 
 	if (rtn == BLK_EH_NOT_HANDLED) {
-		if (host->hostt->no_async_abort ||
-		    scsi_abort_command(scmd) != SUCCESS) {
+		if (scsi_abort_command(scmd) != SUCCESS) {
 			set_host_byte(scmd, DID_TIME_OUT);
-			scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD);
+			scsi_eh_scmd_add(scmd);
 		}
 	}
 
@@ -331,7 +326,7 @@ static inline void scsi_eh_prt_fail_stats(struct Scsi_Host *shost,
 		list_for_each_entry(scmd, work_q, eh_entry) {
 			if (scmd->device == sdev) {
 				++total_failures;
-				if (scmd->eh_eflags & SCSI_EH_CANCEL_CMD)
+				if (scmd->eh_eflags & SCSI_EH_ABORT_SCHEDULED)
 					++cmd_cancel;
 				else
 					++cmd_failed;
@@ -1154,8 +1149,7 @@ int scsi_eh_get_sense(struct list_head *work_q,
 	 * should not get sense.
 	 */
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
-		if ((scmd->eh_eflags & SCSI_EH_CANCEL_CMD) ||
-		    (scmd->eh_eflags & SCSI_EH_ABORT_SCHEDULED) ||
+		if ((scmd->eh_eflags & SCSI_EH_ABORT_SCHEDULED) ||
 		    SCSI_SENSE_VALID(scmd))
 			continue;
 
@@ -1293,61 +1287,6 @@ static int scsi_eh_test_devices(struct list_head *cmd_list,
 			}
 	}
 	return list_empty(work_q);
-}
-
-
-/**
- * scsi_eh_abort_cmds - abort pending commands.
- * @work_q:	&list_head for pending commands.
- * @done_q:	&list_head for processed commands.
- *
- * Decription:
- *    Try and see whether or not it makes sense to try and abort the
- *    running command.  This only works out to be the case if we have one
- *    command that has timed out.  If the command simply failed, it makes
- *    no sense to try and abort the command, since as far as the shost
- *    adapter is concerned, it isn't running.
- */
-static int scsi_eh_abort_cmds(struct list_head *work_q,
-			      struct list_head *done_q)
-{
-	struct scsi_cmnd *scmd, *next;
-	LIST_HEAD(check_list);
-	int rtn;
-	struct Scsi_Host *shost;
-
-	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
-		if (!(scmd->eh_eflags & SCSI_EH_CANCEL_CMD))
-			continue;
-		shost = scmd->device->host;
-		if (scsi_host_eh_past_deadline(shost)) {
-			list_splice_init(&check_list, work_q);
-			SCSI_LOG_ERROR_RECOVERY(3,
-				scmd_printk(KERN_INFO, scmd,
-					    "%s: skip aborting cmd, past eh deadline\n",
-					    current->comm));
-			return list_empty(work_q);
-		}
-		SCSI_LOG_ERROR_RECOVERY(3,
-			scmd_printk(KERN_INFO, scmd,
-				     "%s: aborting cmd\n", current->comm));
-		rtn = scsi_try_to_abort_cmd(shost->hostt, scmd);
-		if (rtn == FAILED) {
-			SCSI_LOG_ERROR_RECOVERY(3,
-				scmd_printk(KERN_INFO, scmd,
-					    "%s: aborting cmd failed\n",
-					     current->comm));
-			list_splice_init(&check_list, work_q);
-			return list_empty(work_q);
-		}
-		scmd->eh_eflags &= ~SCSI_EH_CANCEL_CMD;
-		if (rtn == FAST_IO_FAIL)
-			scsi_eh_finish_cmd(scmd, done_q);
-		else
-			list_move_tail(&scmd->eh_entry, &check_list);
-	}
-
-	return scsi_eh_test_devices(&check_list, work_q, done_q, 0);
 }
 
 /**
@@ -1692,11 +1631,6 @@ static void scsi_eh_offline_sdevs(struct list_head *work_q,
 		sdev_printk(KERN_INFO, scmd->device, "Device offlined - "
 			    "not ready after error recovery\n");
 		scsi_device_set_state(scmd->device, SDEV_OFFLINE);
-		if (scmd->eh_eflags & SCSI_EH_CANCEL_CMD) {
-			/*
-			 * FIXME: Handle lost cmds.
-			 */
-		}
 		scsi_eh_finish_cmd(scmd, done_q);
 	}
 	return;
@@ -2140,8 +2074,7 @@ static void scsi_unjam_host(struct Scsi_Host *shost)
 	SCSI_LOG_ERROR_RECOVERY(1, scsi_eh_prt_fail_stats(shost, &eh_work_q));
 
 	if (!scsi_eh_get_sense(&eh_work_q, &eh_done_q))
-		if (!scsi_eh_abort_cmds(&eh_work_q, &eh_done_q))
-			scsi_eh_ready_devs(shost, &eh_work_q, &eh_done_q);
+		scsi_eh_ready_devs(shost, &eh_work_q, &eh_done_q);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (shost->eh_deadline != -1)
