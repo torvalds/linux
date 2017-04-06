@@ -116,20 +116,20 @@
 #define DWC3_VER_NUMBER		0xc1a0
 #define DWC3_VER_TYPE		0xc1a4
 
-#define DWC3_GUSB2PHYCFG(n)	(0xc200 + (n * 0x04))
-#define DWC3_GUSB2I2CCTL(n)	(0xc240 + (n * 0x04))
+#define DWC3_GUSB2PHYCFG(n)	(0xc200 + ((n) * 0x04))
+#define DWC3_GUSB2I2CCTL(n)	(0xc240 + ((n) * 0x04))
 
-#define DWC3_GUSB2PHYACC(n)	(0xc280 + (n * 0x04))
+#define DWC3_GUSB2PHYACC(n)	(0xc280 + ((n) * 0x04))
 
-#define DWC3_GUSB3PIPECTL(n)	(0xc2c0 + (n * 0x04))
+#define DWC3_GUSB3PIPECTL(n)	(0xc2c0 + ((n) * 0x04))
 
-#define DWC3_GTXFIFOSIZ(n)	(0xc300 + (n * 0x04))
-#define DWC3_GRXFIFOSIZ(n)	(0xc380 + (n * 0x04))
+#define DWC3_GTXFIFOSIZ(n)	(0xc300 + ((n) * 0x04))
+#define DWC3_GRXFIFOSIZ(n)	(0xc380 + ((n) * 0x04))
 
-#define DWC3_GEVNTADRLO(n)	(0xc400 + (n * 0x10))
-#define DWC3_GEVNTADRHI(n)	(0xc404 + (n * 0x10))
-#define DWC3_GEVNTSIZ(n)	(0xc408 + (n * 0x10))
-#define DWC3_GEVNTCOUNT(n)	(0xc40c + (n * 0x10))
+#define DWC3_GEVNTADRLO(n)	(0xc400 + ((n) * 0x10))
+#define DWC3_GEVNTADRHI(n)	(0xc404 + ((n) * 0x10))
+#define DWC3_GEVNTSIZ(n)	(0xc408 + ((n) * 0x10))
+#define DWC3_GEVNTCOUNT(n)	(0xc40c + ((n) * 0x10))
 
 #define DWC3_GHWPARAMS8		0xc600
 #define DWC3_GFLADJ		0xc630
@@ -143,13 +143,13 @@
 #define DWC3_DGCMD		0xc714
 #define DWC3_DALEPENA		0xc720
 
-#define DWC3_DEP_BASE(n)	(0xc800 + (n * 0x10))
+#define DWC3_DEP_BASE(n)	(0xc800 + ((n) * 0x10))
 #define DWC3_DEPCMDPAR2		0x00
 #define DWC3_DEPCMDPAR1		0x04
 #define DWC3_DEPCMDPAR0		0x08
 #define DWC3_DEPCMD		0x0c
 
-#define DWC3_DEV_IMOD(n)	(0xca00 + (n * 0x4))
+#define DWC3_DEV_IMOD(n)	(0xca00 + ((n) * 0x4))
 
 /* OTG Registers */
 #define DWC3_OCFG		0xcc00
@@ -459,7 +459,7 @@
 #define DWC3_DEPCMD_CMD(x)		((x) & 0xf)
 
 /* The EP number goes 0..31 so ep0 is always out and ep1 is always in */
-#define DWC3_DALEPENA_EP(n)		(1 << n)
+#define DWC3_DALEPENA_EP(n)		(1 << (n))
 
 #define DWC3_DEPCMD_TYPE_CONTROL	0
 #define DWC3_DEPCMD_TYPE_ISOC		1
