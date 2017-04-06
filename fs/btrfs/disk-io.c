@@ -3518,8 +3518,12 @@ static void btrfs_end_empty_barrier(struct bio *bio)
  */
 static int write_dev_flush(struct btrfs_device *device, int wait)
 {
+	struct request_queue *q = bdev_get_queue(device->bdev);
 	struct bio *bio;
 	int ret = 0;
+
+	if (!test_bit(QUEUE_FLAG_WC, &q->queue_flags))
+		return 0;
 
 	if (wait) {
 		bio = device->flush_bio;
