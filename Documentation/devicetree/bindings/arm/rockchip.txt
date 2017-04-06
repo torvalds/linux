@@ -106,6 +106,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "mqmaker,miqi", "rockchip,rk3288";
 
+- Phytec phyCORE-RK3288: Rapid Development Kit
+    Required root node properties:
+     - compatible = "phytec,rk3288-pcm-947", "phytec,rk3288-phycore-som", "rockchip,rk3288";
+
 - Rockchip PX3 Evaluation board:
     Required root node properties:
       - compatible = "rockchip,px3-evb", "rockchip,px3", "rockchip,rk3188";
