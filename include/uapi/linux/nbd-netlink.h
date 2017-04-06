@@ -18,8 +18,9 @@
 #ifndef _UAPILINUX_NBD_NETLINK_H
 #define _UAPILINUX_NBD_NETLINK_H
 
-#define NBD_GENL_FAMILY_NAME	"nbd"
-#define NBD_GENL_VERSION	0x1
+#define NBD_GENL_FAMILY_NAME		"nbd"
+#define NBD_GENL_VERSION		0x1
+#define NBD_GENL_MCAST_GROUP_NAME	"nbd_mc_group"
 
 /* Configuration policy attributes, used for CONNECT */
 enum {
@@ -63,6 +64,7 @@ enum {
 	NBD_CMD_CONNECT,
 	NBD_CMD_DISCONNECT,
 	NBD_CMD_RECONFIGURE,
+	NBD_CMD_LINK_DEAD,
 	__NBD_CMD_MAX,
 };
 #define NBD_CMD_MAX	(__NBD_CMD_MAX - 1)
