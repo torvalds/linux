@@ -22,6 +22,81 @@
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /*
+ * vmemmap is the starting address of the virtual address space where
+ * struct pages are allocated for all possible PFNs present on the system
+ * including holes and bad memory (hence sparse). These virtual struct
+ * pages are stored in sequence in this virtual address space irrespective
+ * of the fact whether the corresponding PFN is valid or not. This achieves
+ * constant relationship between address of struct page and its PFN.
+ *
+ * During boot or memory hotplug operation when a new memory section is
+ * added, physical memory allocation (including hash table bolting) will
+ * be performed for the set of struct pages which are part of the memory
+ * section. This saves memory by not allocating struct pages for PFNs
+ * which are not valid.
+ *
+ *		----------------------------------------------
+ *		| PHYSICAL ALLOCATION OF VIRTUAL STRUCT PAGES|
+ *		----------------------------------------------
+ *
+ *	   f000000000000000                  c000000000000000
+ * vmemmap +--------------+                  +--------------+
+ *  +      |  page struct | +--------------> |  page struct |
+ *  |      +--------------+                  +--------------+
+ *  |      |  page struct | +--------------> |  page struct |
+ *  |      +--------------+ |                +--------------+
+ *  |      |  page struct | +       +------> |  page struct |
+ *  |      +--------------+         |        +--------------+
+ *  |      |  page struct |         |   +--> |  page struct |
+ *  |      +--------------+         |   |    +--------------+
+ *  |      |  page struct |         |   |
+ *  |      +--------------+         |   |
+ *  |      |  page struct |         |   |
+ *  |      +--------------+         |   |
+ *  |      |  page struct |         |   |
+ *  |      +--------------+         |   |
+ *  |      |  page struct |         |   |
+ *  |      +--------------+         |   |
+ *  |      |  page struct | +-------+   |
+ *  |      +--------------+             |
+ *  |      |  page struct | +-----------+
+ *  |      +--------------+
+ *  |      |  page struct | No mapping
+ *  |      +--------------+
+ *  |      |  page struct | No mapping
+ *  v      +--------------+
+ *
+ *		-----------------------------------------
+ *		| RELATION BETWEEN STRUCT PAGES AND PFNS|
+ *		-----------------------------------------
+ *
+ * vmemmap +--------------+                 +---------------+
+ *  +      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |              |
+ *  |      +--------------+
+ *  |      |              |
+ *  |      +--------------+
+ *  |      |              |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |              |
+ *  |      +--------------+
+ *  |      |              |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  |      +--------------+                 +---------------+
+ *  |      |  page struct | +-------------> |      PFN      |
+ *  v      +--------------+                 +---------------+
+ */
+/*
  * On hash-based CPUs, the vmemmap is bolted in the hash table.
  *
  */
