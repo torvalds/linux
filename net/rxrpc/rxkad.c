@@ -759,16 +759,14 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 
 	_enter("{%d,%x}", conn->debug_id, key_serial(conn->params.key));
 
-	if (!conn->params.key) {
-		_leave(" = -EPROTO [no key]");
-		return -EPROTO;
-	}
+	abort_code = RX_PROTOCOL_ERROR;
+	if (!conn->params.key)
+		goto protocol_error;
 
+	abort_code = RXKADEXPIRED;
 	ret = key_validate(conn->params.key);
-	if (ret < 0) {
-		*_abort_code = RXKADEXPIRED;
-		return ret;
-	}
+	if (ret < 0)
+		goto other_error;
 
 	abort_code = RXKADPACKETSHORT;
 	if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
@@ -787,8 +785,9 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 		goto protocol_error;
 
 	abort_code = RXKADLEVELFAIL;
+	ret = -EACCES;
 	if (conn->params.security_level < min_level)
-		goto protocol_error;
+		goto other_error;
 
 	token = conn->params.key->payload.data[0];
 
@@ -815,9 +814,10 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 	return rxkad_send_response(conn, &sp->hdr, &resp, token->kad);
 
 protocol_error:
+	ret = -EPROTO;
+other_error:
 	*_abort_code = abort_code;
-	_leave(" = -EPROTO [%d]", abort_code);
-	return -EPROTO;
+	return ret;
 }
 
 /*
@@ -848,10 +848,10 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 		switch (ret) {
 		case -EKEYEXPIRED:
 			*_abort_code = RXKADEXPIRED;
-			goto error;
+			goto other_error;
 		default:
 			*_abort_code = RXKADNOAUTH;
-			goto error;
+			goto other_error;
 		}
 	}
 
@@ -860,13 +860,11 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 
 	memcpy(&iv, &conn->server_key->payload.data[2], sizeof(iv));
 
+	ret = -ENOMEM;
 	req = skcipher_request_alloc(conn->server_key->payload.data[0],
 				     GFP_NOFS);
-	if (!req) {
-		*_abort_code = RXKADNOAUTH;
-		ret = -ENOMEM;
-		goto error;
-	}
+	if (!req)
+		goto temporary_error;
 
 	sg_init_one(&sg[0], ticket, ticket_len);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
@@ -943,13 +941,13 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 	if (issue > now) {
 		*_abort_code = RXKADNOAUTH;
 		ret = -EKEYREJECTED;
-		goto error;
+		goto other_error;
 	}
 
 	if (issue < now - life) {
 		*_abort_code = RXKADEXPIRED;
 		ret = -EKEYEXPIRED;
-		goto error;
+		goto other_error;
 	}
 
 	*_expiry = issue + life;
@@ -961,16 +959,15 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 	/* get the service instance name */
 	name = Z(INST_SZ);
 	_debug("KIV SINST: %s", name);
-
-	ret = 0;
-error:
-	_leave(" = %d", ret);
-	return ret;
+	return 0;
 
 bad_ticket:
 	*_abort_code = RXKADBADTICKET;
-	ret = -EBADMSG;
-	goto error;
+	ret = -EPROTO;
+other_error:
+	return ret;
+temporary_error:
+	return ret;
 }
 
 /*
@@ -1054,9 +1051,10 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 		goto protocol_error;
 
 	/* extract the kerberos ticket and decrypt and decode it */
+	ret = -ENOMEM;
 	ticket = kmalloc(ticket_len, GFP_NOFS);
 	if (!ticket)
-		return -ENOMEM;
+		goto temporary_error;
 
 	abort_code = RXKADPACKETSHORT;
 	if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
@@ -1064,12 +1062,9 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 		goto protocol_error_free;
 
 	ret = rxkad_decrypt_ticket(conn, ticket, ticket_len, &session_key,
-				   &expiry, &abort_code);
-	if (ret < 0) {
-		*_abort_code = abort_code;
-		kfree(ticket);
-		return ret;
-	}
+				   &expiry, _abort_code);
+	if (ret < 0)
+		goto temporary_error_free;
 
 	/* use the session key from inside the ticket to decrypt the
 	 * response */
@@ -1123,10 +1118,8 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	 * this the connection security can be handled in exactly the same way
 	 * as for a client connection */
 	ret = rxrpc_get_server_data_key(conn, &session_key, expiry, kvno);
-	if (ret < 0) {
-		kfree(ticket);
-		return ret;
-	}
+	if (ret < 0)
+		goto temporary_error_free;
 
 	kfree(ticket);
 	_leave(" = 0");
@@ -1140,6 +1133,15 @@ protocol_error:
 	*_abort_code = abort_code;
 	_leave(" = -EPROTO [%d]", abort_code);
 	return -EPROTO;
+
+temporary_error_free:
+	kfree(ticket);
+temporary_error:
+	/* Ignore the response packet if we got a temporary error such as
+	 * ENOMEM.  We just want to send the challenge again.  Note that we
+	 * also come out this way if the ticket decryption fails.
+	 */
+	return ret;
 }
 
 /*
