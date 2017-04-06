@@ -187,6 +187,10 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
 					  CS35L35_PDN_ALL_MASK, 1);
 
+		/* Already muted, so disable volume ramp for faster shutdown */
+		regmap_update_bits(cs35l35->regmap, CS35L35_AMP_DIG_VOL_CTL,
+				   CS35L35_AMP_DIGSFT_MASK, 0);
+
 		reinit_completion(&cs35l35->pdn_done);
 
 		ret = wait_for_completion_timeout(&cs35l35->pdn_done,
@@ -199,6 +203,10 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL1,
 					CS35L35_MCLK_DIS_MASK,
 					1 << CS35L35_MCLK_DIS_SHIFT);
+
+		regmap_update_bits(cs35l35->regmap, CS35L35_AMP_DIG_VOL_CTL,
+				   CS35L35_AMP_DIGSFT_MASK,
+				   1 << CS35L35_AMP_DIGSFT_SHIFT);
 		break;
 	default:
 		dev_err(codec->dev, "Invalid event = 0x%x\n", event);
