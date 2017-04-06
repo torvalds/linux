@@ -398,6 +398,16 @@ config MAX1363
 	  To compile this driver as a module, choose M here: the module will be
 	  called max1363.
 
+config	MAX9611
+	tristate "Maxim max9611/max9612 ADC driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Maxim max9611/max9612 current sense
+	  amplifier with 12-bits ADC interface.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called max9611.
+
 config MCP320X
 	tristate "Microchip Technology MCP3x01/02/04/08"
 	depends on SPI
