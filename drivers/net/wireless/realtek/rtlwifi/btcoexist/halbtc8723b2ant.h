@@ -151,12 +151,14 @@ struct coex_sta_8723b_2ant {
 	u32 low_priority_tx;
 	u32 low_priority_rx;
 	u8 bt_rssi;
+	bool bt_tx_rx_mask;
 	u8 pre_bt_rssi_state;
 	u8 pre_wifi_rssi_state[4];
 	bool c2h_bt_info_req_sent;
 	u8 bt_info_c2h[BT_INFO_SRC_8723B_2ANT_MAX][10];
 	u32 bt_info_c2h_cnt[BT_INFO_SRC_8723B_2ANT_MAX];
 	bool c2h_bt_inquiry_page;
+	bool c2h_bt_remote_name_req;
 	u8 bt_retry_cnt;
 	u8 bt_info_ext;
 	u32 pop_event_cnt;

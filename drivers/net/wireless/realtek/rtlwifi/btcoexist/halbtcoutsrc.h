@@ -66,6 +66,15 @@
 #define		BTC_ANT_WIFI_AT_CPL_MAIN		0
 #define		BTC_ANT_WIFI_AT_CPL_AUX			1
 
+enum btc_bt_reg_type {
+	BTC_BT_REG_RF		= 0,
+	BTC_BT_REG_MODEM	= 1,
+	BTC_BT_REG_BLUEWIZE	= 2,
+	BTC_BT_REG_VENDOR	= 3,
+	BTC_BT_REG_LE		= 4,
+	BTC_BT_REG_MAX
+};
+
 enum btc_chip_interface {
 	BTC_INTF_UNKNOWN	= 0,
 	BTC_INTF_PCI		= 1,
@@ -251,6 +260,7 @@ enum btc_set_type {
 	BTC_SET_BL_TO_REJ_AP_AGG_PKT,
 	BTC_SET_BL_BT_CTRL_AGG_SIZE,
 	BTC_SET_BL_INC_SCAN_DEV_NUM,
+	BTC_SET_BL_BT_TX_RX_MASK,
 	BTC_SET_BL_MIRACAST_PLUS_BT,
 
 	/* type u1Byte */
@@ -392,6 +402,9 @@ typedef	bool (*bfp_btc_get)(void *btcoexist, u8 get_type, void *out_buf);
 
 typedef	bool (*bfp_btc_set)(void *btcoexist, u8 set_type, void *in_buf);
 
+typedef void (*bfp_btc_set_bt_reg)(void *btc_context, u8 reg_type, u32 offset,
+				   u32 value);
+
 typedef void (*bfp_btc_disp_dbg_msg)(void *btcoexist, u8 disp_type);
 
 struct btc_bt_info {
@@ -511,6 +524,8 @@ struct btc_coexist {
 
 	bfp_btc_get btc_get;
 	bfp_btc_set btc_set;
+
+	bfp_btc_set_bt_reg btc_set_bt_reg;
 };
 
 bool halbtc_is_wifi_uplink(struct rtl_priv *adapter);
