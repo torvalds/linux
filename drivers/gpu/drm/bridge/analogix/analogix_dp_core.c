@@ -1449,6 +1449,7 @@ void analogix_dp_unbind(struct device *dev, struct device *master,
 
 	drm_dp_aux_unregister(&dp->aux);
 	pm_runtime_disable(dev);
+	clk_disable_unprepare(dp->clock);
 }
 EXPORT_SYMBOL_GPL(analogix_dp_unbind);
 
