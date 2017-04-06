@@ -1803,8 +1803,8 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 		return NULL;
 }
 
-static inline bool amdgpu_is_mec_queue_enabled(struct amdgpu_device *adev,
-						int mec, int pipe, int queue)
+static inline int amdgpu_queue_to_bit(struct amdgpu_device *adev,
+				      int mec, int pipe, int queue)
 {
 	int bit = 0;
 
@@ -1813,7 +1813,24 @@ static inline bool amdgpu_is_mec_queue_enabled(struct amdgpu_device *adev,
 	bit += pipe * adev->gfx.mec.num_queue_per_pipe;
 	bit += queue;
 
-	return test_bit(bit, adev->gfx.mec.queue_bitmap);
+	return bit;
+}
+
+static inline void amdgpu_bit_to_queue(struct amdgpu_device *adev, int bit,
+				       int *mec, int *pipe, int *queue)
+{
+	*queue = bit % adev->gfx.mec.num_queue_per_pipe;
+	*pipe = (bit / adev->gfx.mec.num_queue_per_pipe)
+		% adev->gfx.mec.num_pipe_per_mec;
+	*mec = (bit / adev->gfx.mec.num_queue_per_pipe)
+	       / adev->gfx.mec.num_pipe_per_mec;
+
+}
+static inline bool amdgpu_is_mec_queue_enabled(struct amdgpu_device *adev,
+					       int mec, int pipe, int queue)
+{
+	return test_bit(amdgpu_queue_to_bit(adev, mec, pipe, queue),
+			adev->gfx.mec.queue_bitmap);
 }
 
 /*

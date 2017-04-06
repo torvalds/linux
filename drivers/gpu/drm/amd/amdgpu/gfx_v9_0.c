@@ -1031,6 +1031,37 @@ static int gfx_v9_0_kiq_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int gfx_v9_0_kiq_acquire(struct amdgpu_device *adev,
+				 struct amdgpu_ring *ring)
+{
+	int queue_bit;
+	int mec, pipe, queue;
+
+	queue_bit = adev->gfx.mec.num_mec
+		    * adev->gfx.mec.num_pipe_per_mec
+		    * adev->gfx.mec.num_queue_per_pipe;
+
+	while (queue_bit-- >= 0) {
+		if (test_bit(queue_bit, adev->gfx.mec.queue_bitmap))
+			continue;
+
+		amdgpu_bit_to_queue(adev, queue_bit, &mec, &pipe, &queue);
+
+		/* Using pipes 2/3 from MEC 2 seems cause problems */
+		if (mec == 1 && pipe > 1)
+			continue;
+
+		ring->me = mec + 1;
+		ring->pipe = pipe;
+		ring->queue = queue;
+
+		return 0;
+	}
+
+	dev_err(adev->dev, "Failed to find a queue for KIQ\n");
+	return -EINVAL;
+}
+
 static int gfx_v9_0_kiq_init_ring(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  struct amdgpu_irq_src *irq)
@@ -1048,13 +1079,10 @@ static int gfx_v9_0_kiq_init_ring(struct amdgpu_device *adev,
 	ring->ring_obj = NULL;
 	ring->use_doorbell = true;
 	ring->doorbell_index = AMDGPU_DOORBELL_KIQ;
-	if (adev->gfx.mec2_fw) {
-		ring->me = 2;
-		ring->pipe = 0;
-	} else {
-		ring->me = 1;
-		ring->pipe = 1;
-	}
+
+	r = gfx_v9_0_kiq_acquire(adev, ring);
+	if (r)
+		return r;
 
 	ring->queue = 0;
 	ring->eop_gpu_addr = kiq->eop_gpu_addr;
