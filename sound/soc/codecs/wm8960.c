@@ -724,7 +724,11 @@ int wm8960_configure_pll(struct snd_soc_codec *codec, int freq_in,
 					break;
 				}
 			}
+			if (k != ARRAY_SIZE(bclk_divs))
+				break;
 		}
+		if (j != ARRAY_SIZE(dac_divs))
+			break;
 	}
 
 	if (*bclk_idx != -1)
