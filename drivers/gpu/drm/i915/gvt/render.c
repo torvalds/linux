@@ -44,7 +44,7 @@ struct render_mmio {
 	u32 value;
 };
 
-static struct render_mmio gen8_render_mmio_list[] = {
+static struct render_mmio gen8_render_mmio_list[] __cacheline_aligned = {
 	{RCS, _MMIO(0x229c), 0xffff, false},
 	{RCS, _MMIO(0x2248), 0x0, false},
 	{RCS, _MMIO(0x2098), 0x0, false},
@@ -75,7 +75,7 @@ static struct render_mmio gen8_render_mmio_list[] = {
 	{BCS, _MMIO(0x22028), 0x0, false},
 };
 
-static struct render_mmio gen9_render_mmio_list[] = {
+static struct render_mmio gen9_render_mmio_list[] __cacheline_aligned = {
 	{RCS, _MMIO(0x229c), 0xffff, false},
 	{RCS, _MMIO(0x2248), 0x0, false},
 	{RCS, _MMIO(0x2098), 0x0, false},
