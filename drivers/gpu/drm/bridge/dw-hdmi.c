@@ -2027,7 +2027,7 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 			MEDIA_BUS_FMT_UYYVYY8_0_5X24;
 	} else {
 		/* TOFIX: Get input format from plat data or fallback to RGB888 */
-		if (hdmi->plat_data->input_bus_format >= 0)
+		if (hdmi->plat_data->input_bus_format)
 			hdmi->hdmi_data.enc_in_bus_format =
 				hdmi->plat_data->input_bus_format;
 		else
@@ -2037,7 +2037,7 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 		hdmi->hdmi_data.enc_out_bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	}
 	/* TOFIX: Get input encoding from plat data or fallback to none */
-	if (hdmi->plat_data->input_bus_encoding >= 0)
+	if (hdmi->plat_data->input_bus_encoding)
 		hdmi->hdmi_data.enc_in_encoding =
 			hdmi->plat_data->input_bus_encoding;
 	else
