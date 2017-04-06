@@ -705,9 +705,6 @@ static void vou_hw_init(struct zx_vou_hw *vou)
 	/* Release reset for all VOU modules */
 	zx_writel(vou->vouctl + VOU_SOFT_RST, ~0);
 
-	/* Enable clock auto-gating for all VOU modules */
-	zx_writel(vou->vouctl + VOU_CLK_REQEN, ~0);
-
 	/* Enable all VOU module clocks */
 	zx_writel(vou->vouctl + VOU_CLK_EN, ~0);
 
