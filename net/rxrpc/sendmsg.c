@@ -642,20 +642,24 @@ EXPORT_SYMBOL(rxrpc_kernel_send_data);
  * @error: Local error value
  * @why: 3-char string indicating why.
  *
- * Allow a kernel service to abort a call, if it's still in an abortable state.
+ * Allow a kernel service to abort a call, if it's still in an abortable state
+ * and return true if the call was aborted, false if it was already complete.
  */
-void rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
+bool rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
 			     u32 abort_code, int error, const char *why)
 {
+	bool aborted;
+
 	_enter("{%d},%d,%d,%s", call->debug_id, abort_code, error, why);
 
 	mutex_lock(&call->user_mutex);
 
-	if (rxrpc_abort_call(why, call, 0, abort_code, error))
+	aborted = rxrpc_abort_call(why, call, 0, abort_code, error);
+	if (aborted)
 		rxrpc_send_abort_packet(call);
 
 	mutex_unlock(&call->user_mutex);
-	_leave("");
+	return aborted;
 }
 
 EXPORT_SYMBOL(rxrpc_kernel_abort_call);
