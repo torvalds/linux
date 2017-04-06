@@ -1323,6 +1323,7 @@ void analogix_dp_unbind(struct device *dev, struct device *master,
 			DRM_ERROR("failed to detach the panel\n");
 	}
 
+	drm_dp_aux_unregister(&dp->aux);
 	pm_runtime_disable(dev);
 }
 EXPORT_SYMBOL_GPL(analogix_dp_unbind);
