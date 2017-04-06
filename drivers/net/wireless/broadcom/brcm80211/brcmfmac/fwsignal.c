@@ -2308,7 +2308,7 @@ static int brcmf_debugfs_fws_stats_read(struct seq_file *seq, void *data)
 }
 #endif
 
-int brcmf_fws_init(struct brcmf_pub *drvr)
+int brcmf_fws_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_fws_info *fws;
 	struct brcmf_if *ifp;
@@ -2408,11 +2408,11 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 	return 0;
 
 fail:
-	brcmf_fws_deinit(drvr);
+	brcmf_fws_detach(drvr);
 	return rc;
 }
 
-void brcmf_fws_deinit(struct brcmf_pub *drvr)
+void brcmf_fws_detach(struct brcmf_pub *drvr)
 {
 	struct brcmf_fws_info *fws = drvr->fws;
 

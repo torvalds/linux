@@ -420,7 +420,7 @@ brcmf_proto_bcdc_reset_if(struct brcmf_if *ifp)
 static int
 brcmf_proto_bcdc_init_done(struct brcmf_pub *drvr)
 {
-	return brcmf_fws_init(drvr);
+	return brcmf_fws_attach(drvr);
 }
 
 int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
@@ -464,7 +464,7 @@ fail:
 
 void brcmf_proto_bcdc_detach(struct brcmf_pub *drvr)
 {
-	brcmf_fws_deinit(drvr);
+	brcmf_fws_detach(drvr);
 	kfree(drvr->proto->pd);
 	drvr->proto->pd = NULL;
 }
