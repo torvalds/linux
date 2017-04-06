@@ -570,12 +570,28 @@ static void reiserfs_kill_sb(struct super_block *s)
 	kill_block_super(s);
 }
 
+#ifdef CONFIG_QUOTA
+static int reiserfs_quota_off(struct super_block *sb, int type);
+
+static void reiserfs_quota_off_umount(struct super_block *s)
+{
+	int type;
+
+	for (type = 0; type < REISERFS_MAXQUOTAS; type++)
+		reiserfs_quota_off(s, type);
+}
+#else
+static inline void reiserfs_quota_off_umount(struct super_block *s)
+{
+}
+#endif
+
 static void reiserfs_put_super(struct super_block *s)
 {
 	struct reiserfs_transaction_handle th;
 	th.t_trans_id = 0;
 
-	dquot_disable(s, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+	reiserfs_quota_off_umount(s);
 
 	reiserfs_write_lock(s);
 
@@ -840,7 +856,7 @@ static const struct dquot_operations reiserfs_quota_operations = {
 
 static const struct quotactl_ops reiserfs_qctl_operations = {
 	.quota_on = reiserfs_quota_on,
-	.quota_off = dquot_quota_off,
+	.quota_off = reiserfs_quota_off,
 	.quota_sync = dquot_quota_sync,
 	.get_state = dquot_get_state,
 	.set_info = dquot_set_dqinfo,
@@ -2428,10 +2444,45 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 			goto out;
 	}
 	reiserfs_write_unlock(sb);
-	return dquot_quota_on(sb, type, format_id, path);
+	err = dquot_quota_on(sb, type, format_id, path);
+	if (!err) {
+		inode_lock(inode);
+		REISERFS_I(inode)->i_attrs |= REISERFS_IMMUTABLE_FL |
+					      REISERFS_NOATIME_FL;
+		inode_set_flags(inode, S_IMMUTABLE | S_NOATIME,
+				S_IMMUTABLE | S_NOATIME);
+		inode_unlock(inode);
+		mark_inode_dirty(inode);
+	}
+	return err;
 out:
 	reiserfs_write_unlock(sb);
 	return err;
+}
+
+static int reiserfs_quota_off(struct super_block *sb, int type)
+{
+	int err;
+	struct inode *inode = sb_dqopt(sb)->files[type];
+
+	if (!inode || !igrab(inode))
+		goto out;
+
+	err = dquot_quota_off(sb, type);
+	if (err)
+		goto out_put;
+
+	inode_lock(inode);
+	REISERFS_I(inode)->i_attrs &= ~(REISERFS_IMMUTABLE_FL |
+					REISERFS_NOATIME_FL);
+	inode_set_flags(inode, 0, S_IMMUTABLE | S_NOATIME);
+	inode_unlock(inode);
+	mark_inode_dirty(inode);
+out_put:
+	iput(inode);
+	return err;
+out:
+	return dquot_quota_off(sb, type);
 }
 
 /*
