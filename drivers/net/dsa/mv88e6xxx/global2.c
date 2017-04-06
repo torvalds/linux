@@ -568,8 +568,9 @@ static int mv88e6xxx_g2_smi_phy_write_addr(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
 }
 
-int mv88e6xxx_g2_smi_phy_read_c45(struct mv88e6xxx_chip *chip, int addr,
-				  int reg_c45, u16 *val, bool external)
+static int mv88e6xxx_g2_smi_phy_read_c45(struct mv88e6xxx_chip *chip,
+					 int addr, int reg_c45, u16 *val,
+					 bool external)
 {
 	int device = (reg_c45 >> 16) & 0x1f;
 	int reg = reg_c45 & 0xffff;
@@ -599,8 +600,9 @@ int mv88e6xxx_g2_smi_phy_read_c45(struct mv88e6xxx_chip *chip, int addr,
 	return 0;
 }
 
-int mv88e6xxx_g2_smi_phy_read_c22(struct mv88e6xxx_chip *chip, int addr,
-				  int reg, u16 *val, bool external)
+static int mv88e6xxx_g2_smi_phy_read_c22(struct mv88e6xxx_chip *chip,
+					 int addr, int reg, u16 *val,
+					 bool external)
 {
 	u16 cmd = GLOBAL2_SMI_PHY_CMD_OP_22_READ_DATA | (addr << 5) | reg;
 	int err;
@@ -632,8 +634,9 @@ int mv88e6xxx_g2_smi_phy_read(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_g2_smi_phy_read_c22(chip, addr, reg, val, external);
 }
 
-int mv88e6xxx_g2_smi_phy_write_c45(struct mv88e6xxx_chip *chip, int addr,
-				   int reg_c45, u16 val, bool external)
+static int mv88e6xxx_g2_smi_phy_write_c45(struct mv88e6xxx_chip *chip,
+					  int addr, int reg_c45, u16 val,
+					  bool external)
 {
 	int device = (reg_c45 >> 16) & 0x1f;
 	int reg = reg_c45 & 0xffff;
@@ -661,8 +664,9 @@ int mv88e6xxx_g2_smi_phy_write_c45(struct mv88e6xxx_chip *chip, int addr,
 	return 0;
 }
 
-int mv88e6xxx_g2_smi_phy_write_c22(struct mv88e6xxx_chip *chip, int addr,
-				   int reg, u16 val, bool external)
+static int mv88e6xxx_g2_smi_phy_write_c22(struct mv88e6xxx_chip *chip,
+					  int addr, int reg, u16 val,
+					  bool external)
 {
 	u16 cmd = GLOBAL2_SMI_PHY_CMD_OP_22_WRITE_DATA | (addr << 5) | reg;
 	int err;
