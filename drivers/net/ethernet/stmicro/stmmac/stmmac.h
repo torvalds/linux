@@ -72,6 +72,7 @@ struct stmmac_rx_queue {
 	u32 rx_zeroc_thresh;
 	dma_addr_t dma_rx_phy;
 	u32 rx_tail_addr;
+	struct napi_struct napi ____cacheline_aligned_in_smp;
 };
 
 struct stmmac_priv {
@@ -90,8 +91,6 @@ struct stmmac_priv {
 	unsigned int rx_copybreak;
 	u32 rx_riwt;
 	int hwts_rx_en;
-
-	struct napi_struct napi ____cacheline_aligned_in_smp;
 
 	void __iomem *ioaddr;
 	struct net_device *dev;
