@@ -926,6 +926,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 					DRM_PLANE_HELPER_NO_SCALING;
 	unsigned long offset;
 	dma_addr_t dma_addr;
+	u16 vdisplay;
 
 	crtc = crtc ? crtc : plane->state->crtc;
 	/*
@@ -947,10 +948,14 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	dest->x2 = state->crtc_x + state->crtc_w;
 	dest->y2 = state->crtc_y + state->crtc_h;
 
+	vdisplay = crtc_state->adjusted_mode.crtc_vdisplay;
+	if (crtc_state->adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
+		vdisplay *= 2;
+
 	clip.x1 = 0;
 	clip.y1 = 0;
-	clip.x2 = crtc_state->mode.hdisplay;
-	clip.y2 = crtc_state->mode.vdisplay;
+	clip.x2 = crtc_state->adjusted_mode.crtc_hdisplay;
+	clip.y2 = vdisplay;
 
 	ret = drm_plane_helper_check_update(plane, crtc, state->fb,
 					    src, dest, &clip,
@@ -1574,7 +1579,6 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, hact_st_end, val);
 	VOP_CTRL_SET(vop, hpost_st_end, val);
 
-	VOP_CTRL_SET(vop, vtotal_pw, (adjusted_mode->vtotal << 16) | vsync_len);
 	val = vact_st << 16;
 	val |= vact_end;
 	VOP_CTRL_SET(vop, vact_st_end, val);
@@ -1591,10 +1595,12 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop, vs_st_end_f1, val);
 		VOP_CTRL_SET(vop, dsp_interlace, 1);
 		VOP_CTRL_SET(vop, p2i_en, 1);
+		vtotal = vtotal + 1;
 	} else {
 		VOP_CTRL_SET(vop, dsp_interlace, 0);
 		VOP_CTRL_SET(vop, p2i_en, 0);
 	}
+	VOP_CTRL_SET(vop, vtotal_pw, vtotal << 16 | vsync_len);
 
 	VOP_CTRL_SET(vop, core_dclk_div,
 		     !!(adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK));
