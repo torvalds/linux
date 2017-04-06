@@ -162,6 +162,27 @@ static bool cs35l35_precious_register(struct device *dev, unsigned int reg)
 	}
 }
 
+static int cs35l35_wait_for_pdn(struct cs35l35_private *cs35l35)
+{
+	int ret;
+
+	if (cs35l35->pdata.ext_bst) {
+		usleep_range(5000, 5500);
+		return 0;
+	}
+
+	reinit_completion(&cs35l35->pdn_done);
+
+	ret = wait_for_completion_timeout(&cs35l35->pdn_done,
+					  msecs_to_jiffies(100));
+	if (ret == 0) {
+		dev_err(cs35l35->dev, "PDN_DONE did not complete\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
@@ -191,14 +212,7 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(cs35l35->regmap, CS35L35_AMP_DIG_VOL_CTL,
 				   CS35L35_AMP_DIGSFT_MASK, 0);
 
-		reinit_completion(&cs35l35->pdn_done);
-
-		ret = wait_for_completion_timeout(&cs35l35->pdn_done,
-							msecs_to_jiffies(100));
-		if (ret == 0) {
-			dev_err(codec->dev, "TIMEOUT PDN_DONE did not complete in 100ms\n");
-			ret = -ETIMEDOUT;
-		}
+		ret = cs35l35_wait_for_pdn(cs35l35);
 
 		regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL1,
 					CS35L35_MCLK_DIS_MASK,
@@ -1197,6 +1211,8 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 		pdata->shared_bst = of_property_read_bool(np,
 						"cirrus,shared-boost");
 	}
+
+	pdata->ext_bst = of_property_read_bool(np, "cirrus,external-boost");
 
 	pdata->gain_zc = of_property_read_bool(np, "cirrus,amp-gain-zc");
 
