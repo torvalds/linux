@@ -1792,8 +1792,7 @@ static irqreturn_t e1000_intr_msi(int __always_unused irq, void *data)
 	}
 
 	/* Reset on uncorrectable ECC error */
-	if ((icr & E1000_ICR_ECCER) && ((hw->mac.type == e1000_pch_lpt) ||
-					(hw->mac.type == e1000_pch_spt))) {
+	if ((icr & E1000_ICR_ECCER) && (hw->mac.type >= e1000_pch_lpt)) {
 		u32 pbeccsts = er32(PBECCSTS);
 
 		adapter->corr_errors +=
@@ -1873,8 +1872,7 @@ static irqreturn_t e1000_intr(int __always_unused irq, void *data)
 	}
 
 	/* Reset on uncorrectable ECC error */
-	if ((icr & E1000_ICR_ECCER) && ((hw->mac.type == e1000_pch_lpt) ||
-					(hw->mac.type == e1000_pch_spt))) {
+	if ((icr & E1000_ICR_ECCER) && (hw->mac.type >= e1000_pch_lpt)) {
 		u32 pbeccsts = er32(PBECCSTS);
 
 		adapter->corr_errors +=
@@ -2242,8 +2240,7 @@ static void e1000_irq_enable(struct e1000_adapter *adapter)
 	if (adapter->msix_entries) {
 		ew32(EIAC_82574, adapter->eiac_mask & E1000_EIAC_MASK_82574);
 		ew32(IMS, adapter->eiac_mask | E1000_IMS_LSC);
-	} else if ((hw->mac.type == e1000_pch_lpt) ||
-		   (hw->mac.type == e1000_pch_spt)) {
+	} else if (hw->mac.type >= e1000_pch_lpt) {
 		ew32(IMS, IMS_ENABLE_MASK | E1000_IMS_ECCER);
 	} else {
 		ew32(IMS, IMS_ENABLE_MASK);
@@ -3001,8 +2998,8 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 
 	hw->mac.ops.config_collision_dist(hw);
 
-	/* SPT Si errata workaround to avoid data corruption */
-	if (hw->mac.type == e1000_pch_spt) {
+	/* SPT and CNP Si errata workaround to avoid data corruption */
+	if (hw->mac.type >= e1000_pch_spt) {
 		u32 reg_val;
 
 		reg_val = er32(IOSFPC);
@@ -3498,8 +3495,7 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca)
 	/* Make sure clock is enabled on I217/I218/I219  before checking
 	 * the frequency
 	 */
-	if (((hw->mac.type == e1000_pch_lpt) ||
-	     (hw->mac.type == e1000_pch_spt)) &&
+	if ((hw->mac.type >= e1000_pch_lpt) &&
 	    !(er32(TSYNCTXCTL) & E1000_TSYNCTXCTL_ENABLED) &&
 	    !(er32(TSYNCRXCTL) & E1000_TSYNCRXCTL_ENABLED)) {
 		u32 fextnvm7 = er32(FEXTNVM7);
@@ -4039,6 +4035,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
+	case e1000_pch_cnp:
 		fc->refresh_time = 0x0400;
 
 		if (adapter->netdev->mtu <= ETH_DATA_LEN) {
@@ -4083,7 +4080,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		}
 	}
 
-	if (hw->mac.type == e1000_pch_spt)
+	if (hw->mac.type >= e1000_pch_spt)
 		e1000_flush_desc_rings(adapter);
 	/* Allow time for pending master requests to run */
 	mac->ops.reset_hw(hw);
@@ -4158,7 +4155,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		phy_data &= ~IGP02E1000_PM_SPD;
 		e1e_wphy(hw, IGP02E1000_PHY_POWER_MGMT, phy_data);
 	}
-	if (hw->mac.type == e1000_pch_spt && adapter->int_mode == 0) {
+	if (hw->mac.type >= e1000_pch_spt && adapter->int_mode == 0) {
 		u32 reg;
 
 		/* Fextnvm7 @ 0xe4[2] = 1 */
@@ -4292,7 +4289,7 @@ void e1000e_down(struct e1000_adapter *adapter, bool reset)
 	if (!pci_channel_offline(adapter->pdev)) {
 		if (reset)
 			e1000e_reset(adapter);
-		else if (hw->mac.type == e1000_pch_spt)
+		else if (hw->mac.type >= e1000_pch_spt)
 			e1000_flush_desc_rings(adapter);
 	}
 	e1000_clean_tx_ring(adapter->tx_ring);
@@ -4980,8 +4977,7 @@ static void e1000e_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.mgpdc += er32(MGTPDC);
 
 	/* Correctable ECC Errors */
-	if ((hw->mac.type == e1000_pch_lpt) ||
-	    (hw->mac.type == e1000_pch_spt)) {
+	if (hw->mac.type >= e1000_pch_lpt) {
 		u32 pbeccsts = er32(PBECCSTS);
 
 		adapter->corr_errors +=
@@ -6355,8 +6351,7 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 
 	if (adapter->hw.phy.type == e1000_phy_igp_3) {
 		e1000e_igp3_phy_powerdown_workaround_ich8lan(&adapter->hw);
-	} else if ((hw->mac.type == e1000_pch_lpt) ||
-		   (hw->mac.type == e1000_pch_spt)) {
+	} else if (hw->mac.type >= e1000_pch_lpt) {
 		if (!(wufc & (E1000_WUFC_EX | E1000_WUFC_MC | E1000_WUFC_BC)))
 			/* ULP does not support wake from unicast, multicast
 			 * or broadcast.

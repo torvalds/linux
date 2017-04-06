@@ -911,19 +911,20 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	case e1000_pch2lan:
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
+		/* fall through */
+	case e1000_pch_cnp:
 		mask |= BIT(18);
 		break;
 	default:
 		break;
 	}
 
-	if ((mac->type == e1000_pch_lpt) || (mac->type == e1000_pch_spt))
+	if (mac->type >= e1000_pch_lpt)
 		wlock_mac = (er32(FWSM) & E1000_FWSM_WLOCK_MAC_MASK) >>
 		    E1000_FWSM_WLOCK_MAC_SHIFT;
 
 	for (i = 0; i < mac->rar_entry_count; i++) {
-		if ((mac->type == e1000_pch_lpt) ||
-		    (mac->type == e1000_pch_spt)) {
+		if (mac->type >= e1000_pch_lpt) {
 			/* Cannot test write-protected SHRAL[n] registers */
 			if ((wlock_mac == 1) || (wlock_mac && (i > wlock_mac)))
 				continue;
@@ -1532,7 +1533,7 @@ static int e1000_setup_loopback_test(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl, fext_nvm11, tarc0;
 
-	if (hw->mac.type == e1000_pch_spt) {
+	if (hw->mac.type >= e1000_pch_spt) {
 		fext_nvm11 = er32(FEXTNVM11);
 		fext_nvm11 |= E1000_FEXTNVM11_DISABLE_MULR_FIX;
 		ew32(FEXTNVM11, fext_nvm11);
@@ -1576,6 +1577,7 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 
 	switch (hw->mac.type) {
 	case e1000_pch_spt:
+	case e1000_pch_cnp:
 		fext_nvm11 = er32(FEXTNVM11);
 		fext_nvm11 &= ~E1000_FEXTNVM11_DISABLE_MULR_FIX;
 		ew32(FEXTNVM11, fext_nvm11);
