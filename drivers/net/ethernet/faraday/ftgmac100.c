@@ -43,8 +43,8 @@
 #define RX_QUEUE_ENTRIES	256	/* must be power of 2 */
 #define TX_QUEUE_ENTRIES	512	/* must be power of 2 */
 
-#define MAX_PKT_SIZE		1518
-#define RX_BUF_SIZE		PAGE_SIZE	/* must be smaller than 0x3fff */
+#define MAX_PKT_SIZE		1536
+#define RX_BUF_SIZE		MAX_PKT_SIZE	/* must be smaller than 0x3fff */
 
 struct ftgmac100_descs {
 	struct ftgmac100_rxdes rxdes[RX_QUEUE_ENTRIES];
@@ -60,7 +60,7 @@ struct ftgmac100 {
 	dma_addr_t descs_dma_addr;
 
 	/* Rx ring */
-	struct page *rx_pages[RX_QUEUE_ENTRIES];
+	struct sk_buff *rx_skbs[RX_QUEUE_ENTRIES];
 	unsigned int rx_pointer;
 	u32 rxdes0_edorr_mask;
 
@@ -70,6 +70,10 @@ struct ftgmac100 {
 	unsigned int tx_pending;
 	u32 txdes0_edotr_mask;
 	spinlock_t tx_lock;
+
+	/* Scratch page to use when rx skb alloc fails */
+	void *rx_scratch;
+	dma_addr_t rx_scratch_dma;
 
 	/* Component structures */
 	struct net_device *netdev;
@@ -87,9 +91,6 @@ struct ftgmac100 {
 	/* Misc */
 	bool need_mac_restart;
 };
-
-static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
-				   struct ftgmac100_rxdes *rxdes, gfp_t gfp);
 
 static void ftgmac100_set_rx_ring_base(struct ftgmac100 *priv, dma_addr_t addr)
 {
@@ -277,128 +278,49 @@ static void ftgmac100_stop_hw(struct ftgmac100 *priv)
 	iowrite32(0, priv->base + FTGMAC100_OFFSET_MACCR);
 }
 
-static bool ftgmac100_rxdes_first_segment(struct ftgmac100_rxdes *rxdes)
+static int ftgmac100_alloc_rx_buf(struct ftgmac100 *priv, unsigned int entry,
+				  struct ftgmac100_rxdes *rxdes, gfp_t gfp)
 {
-	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_FRS);
-}
+	struct net_device *netdev = priv->netdev;
+	struct sk_buff *skb;
+	dma_addr_t map;
+	int err;
 
-static bool ftgmac100_rxdes_last_segment(struct ftgmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_LRS);
-}
+	skb = netdev_alloc_skb_ip_align(netdev, RX_BUF_SIZE);
+	if (unlikely(!skb)) {
+		if (net_ratelimit())
+			netdev_warn(netdev, "failed to allocate rx skb\n");
+		err = -ENOMEM;
+		map = priv->rx_scratch_dma;
+	} else {
+		map = dma_map_single(priv->dev, skb->data, RX_BUF_SIZE,
+				     DMA_FROM_DEVICE);
+		if (unlikely(dma_mapping_error(priv->dev, map))) {
+			if (net_ratelimit())
+				netdev_err(netdev, "failed to map rx page\n");
+			dev_kfree_skb_any(skb);
+			map = priv->rx_scratch_dma;
+			skb = NULL;
+			err = -ENOMEM;
+		}
+	}
 
-static bool ftgmac100_rxdes_packet_ready(struct ftgmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_RXPKT_RDY);
-}
+	/* Store skb */
+	priv->rx_skbs[entry] = skb;
 
-static void ftgmac100_rxdes_set_dma_own(const struct ftgmac100 *priv,
-					struct ftgmac100_rxdes *rxdes)
-{
-	/* clear status bits */
-	rxdes->rxdes0 &= cpu_to_le32(priv->rxdes0_edorr_mask);
-}
+	/* Store DMA address into RX desc */
+	rxdes->rxdes3 = cpu_to_le32(map);
 
-static bool ftgmac100_rxdes_rx_error(struct ftgmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_RX_ERR);
-}
+	/* Ensure the above is ordered vs clearing the OWN bit */
+	dma_wmb();
 
-static bool ftgmac100_rxdes_crc_error(struct ftgmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_CRC_ERR);
-}
+	/* Clean status (which resets own bit) */
+	if (entry == (RX_QUEUE_ENTRIES - 1))
+		rxdes->rxdes0 = cpu_to_le32(priv->rxdes0_edorr_mask);
+	else
+		rxdes->rxdes0 = 0;
 
-static bool ftgmac100_rxdes_frame_too_long(struct ftgmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_FTL);
-}
-
-static bool ftgmac100_rxdes_runt(struct ftgmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_RUNT);
-}
-
-static bool ftgmac100_rxdes_odd_nibble(struct ftgmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_RX_ODD_NB);
-}
-
-static unsigned int ftgmac100_rxdes_data_length(struct ftgmac100_rxdes *rxdes)
-{
-	return le32_to_cpu(rxdes->rxdes0) & FTGMAC100_RXDES0_VDBC;
-}
-
-static bool ftgmac100_rxdes_multicast(struct ftgmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_MULTICAST);
-}
-
-static void ftgmac100_rxdes_set_end_of_ring(const struct ftgmac100 *priv,
-					    struct ftgmac100_rxdes *rxdes)
-{
-	rxdes->rxdes0 |= cpu_to_le32(priv->rxdes0_edorr_mask);
-}
-
-static void ftgmac100_rxdes_set_dma_addr(struct ftgmac100_rxdes *rxdes,
-					 dma_addr_t addr)
-{
-	rxdes->rxdes3 = cpu_to_le32(addr);
-}
-
-static dma_addr_t ftgmac100_rxdes_get_dma_addr(struct ftgmac100_rxdes *rxdes)
-{
-	return le32_to_cpu(rxdes->rxdes3);
-}
-
-static bool ftgmac100_rxdes_is_tcp(struct ftgmac100_rxdes *rxdes)
-{
-	return (rxdes->rxdes1 & cpu_to_le32(FTGMAC100_RXDES1_PROT_MASK)) ==
-	       cpu_to_le32(FTGMAC100_RXDES1_PROT_TCPIP);
-}
-
-static bool ftgmac100_rxdes_is_udp(struct ftgmac100_rxdes *rxdes)
-{
-	return (rxdes->rxdes1 & cpu_to_le32(FTGMAC100_RXDES1_PROT_MASK)) ==
-	       cpu_to_le32(FTGMAC100_RXDES1_PROT_UDPIP);
-}
-
-static bool ftgmac100_rxdes_tcpcs_err(struct ftgmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes1 & cpu_to_le32(FTGMAC100_RXDES1_TCP_CHKSUM_ERR);
-}
-
-static bool ftgmac100_rxdes_udpcs_err(struct ftgmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes1 & cpu_to_le32(FTGMAC100_RXDES1_UDP_CHKSUM_ERR);
-}
-
-static bool ftgmac100_rxdes_ipcs_err(struct ftgmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes1 & cpu_to_le32(FTGMAC100_RXDES1_IP_CHKSUM_ERR);
-}
-
-static inline struct page **ftgmac100_rxdes_page_slot(struct ftgmac100 *priv,
-						      struct ftgmac100_rxdes *rxdes)
-{
-	return &priv->rx_pages[rxdes - priv->descs->rxdes];
-}
-
-/*
- * rxdes2 is not used by hardware. We use it to keep track of page.
- * Since hardware does not touch it, we can skip cpu_to_le32()/le32_to_cpu().
- */
-static void ftgmac100_rxdes_set_page(struct ftgmac100 *priv,
-				     struct ftgmac100_rxdes *rxdes,
-				     struct page *page)
-{
-	*ftgmac100_rxdes_page_slot(priv, rxdes) = page;
-}
-
-static struct page *ftgmac100_rxdes_get_page(struct ftgmac100 *priv,
-					     struct ftgmac100_rxdes *rxdes)
-{
-	return *ftgmac100_rxdes_page_slot(priv, rxdes);
+	return 0;
 }
 
 static int ftgmac100_next_rx_pointer(int pointer)
@@ -406,102 +328,20 @@ static int ftgmac100_next_rx_pointer(int pointer)
 	return (pointer + 1) & (RX_QUEUE_ENTRIES - 1);
 }
 
-static void ftgmac100_rx_pointer_advance(struct ftgmac100 *priv)
-{
-	priv->rx_pointer = ftgmac100_next_rx_pointer(priv->rx_pointer);
-}
-
-static struct ftgmac100_rxdes *ftgmac100_current_rxdes(struct ftgmac100 *priv)
-{
-	return &priv->descs->rxdes[priv->rx_pointer];
-}
-
-static struct ftgmac100_rxdes *
-ftgmac100_rx_locate_first_segment(struct ftgmac100 *priv)
-{
-	struct ftgmac100_rxdes *rxdes = ftgmac100_current_rxdes(priv);
-
-	while (ftgmac100_rxdes_packet_ready(rxdes)) {
-		if (ftgmac100_rxdes_first_segment(rxdes))
-			return rxdes;
-
-		ftgmac100_rxdes_set_dma_own(priv, rxdes);
-		ftgmac100_rx_pointer_advance(priv);
-		rxdes = ftgmac100_current_rxdes(priv);
-	}
-
-	return NULL;
-}
-
-static bool ftgmac100_rx_packet_error(struct ftgmac100 *priv,
-				      struct ftgmac100_rxdes *rxdes)
+static void ftgmac100_rx_packet_error(struct ftgmac100 *priv, u32 status)
 {
 	struct net_device *netdev = priv->netdev;
-	bool error = false;
 
-	if (unlikely(ftgmac100_rxdes_rx_error(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx err\n");
-
+	if (status & FTGMAC100_RXDES0_RX_ERR)
 		netdev->stats.rx_errors++;
-		error = true;
-	}
 
-	if (unlikely(ftgmac100_rxdes_crc_error(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx crc err\n");
-
+	if (status & FTGMAC100_RXDES0_CRC_ERR)
 		netdev->stats.rx_crc_errors++;
-		error = true;
-	} else if (unlikely(ftgmac100_rxdes_ipcs_err(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx IP checksum err\n");
 
-		error = true;
-	}
-
-	if (unlikely(ftgmac100_rxdes_frame_too_long(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx frame too long\n");
-
+	if (status & (FTGMAC100_RXDES0_FTL |
+		      FTGMAC100_RXDES0_RUNT |
+		      FTGMAC100_RXDES0_RX_ODD_NB))
 		netdev->stats.rx_length_errors++;
-		error = true;
-	} else if (unlikely(ftgmac100_rxdes_runt(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx runt\n");
-
-		netdev->stats.rx_length_errors++;
-		error = true;
-	} else if (unlikely(ftgmac100_rxdes_odd_nibble(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx odd nibble\n");
-
-		netdev->stats.rx_length_errors++;
-		error = true;
-	}
-
-	return error;
-}
-
-static void ftgmac100_rx_drop_packet(struct ftgmac100 *priv)
-{
-	struct net_device *netdev = priv->netdev;
-	struct ftgmac100_rxdes *rxdes = ftgmac100_current_rxdes(priv);
-	bool done = false;
-
-	if (net_ratelimit())
-		netdev_dbg(netdev, "drop packet %p\n", rxdes);
-
-	do {
-		if (ftgmac100_rxdes_last_segment(rxdes))
-			done = true;
-
-		ftgmac100_rxdes_set_dma_own(priv, rxdes);
-		ftgmac100_rx_pointer_advance(priv);
-		rxdes = ftgmac100_current_rxdes(priv);
-	} while (!done && ftgmac100_rxdes_packet_ready(rxdes));
-
-	netdev->stats.rx_dropped++;
 }
 
 static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
@@ -509,79 +349,121 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	struct net_device *netdev = priv->netdev;
 	struct ftgmac100_rxdes *rxdes;
 	struct sk_buff *skb;
-	bool done = false;
+	unsigned int pointer, size;
+	u32 status, csum_vlan;
+	dma_addr_t map;
 
-	rxdes = ftgmac100_rx_locate_first_segment(priv);
-	if (!rxdes)
+	/* Grab next RX descriptor */
+	pointer = priv->rx_pointer;
+	rxdes = &priv->descs->rxdes[pointer];
+
+	/* Grab descriptor status */
+	status = le32_to_cpu(rxdes->rxdes0);
+
+	/* Do we have a packet ? */
+	if (!(status & FTGMAC100_RXDES0_RXPKT_RDY))
 		return false;
 
-	if (unlikely(ftgmac100_rx_packet_error(priv, rxdes))) {
-		ftgmac100_rx_drop_packet(priv);
-		return true;
+	/* Order subsequent reads with the test for the ready bit */
+	dma_rmb();
+
+	/* We don't cope with fragmented RX packets */
+	if (unlikely(!(status & FTGMAC100_RXDES0_FRS) ||
+		     !(status & FTGMAC100_RXDES0_LRS)))
+		goto drop;
+
+	/* Grab received size and csum vlan field in the descriptor */
+	size = status & FTGMAC100_RXDES0_VDBC;
+	csum_vlan = le32_to_cpu(rxdes->rxdes1);
+
+	/* Any error (other than csum offload) flagged ? */
+	if (unlikely(status & RXDES0_ANY_ERROR)) {
+		/* Correct for incorrect flagging of runt packets
+		 * with vlan tags... Just accept a runt packet that
+		 * has been flagged as vlan and whose size is at
+		 * least 60 bytes.
+		 */
+		if ((status & FTGMAC100_RXDES0_RUNT) &&
+		    (csum_vlan & FTGMAC100_RXDES1_VLANTAG_AVAIL) &&
+		    (size >= 60))
+			status &= ~FTGMAC100_RXDES0_RUNT;
+
+		/* Any error still in there ? */
+		if (status & RXDES0_ANY_ERROR) {
+			ftgmac100_rx_packet_error(priv, status);
+			goto drop;
+		}
 	}
 
-	/* start processing */
-	skb = netdev_alloc_skb_ip_align(netdev, 128);
-	if (unlikely(!skb)) {
-		if (net_ratelimit())
-			netdev_err(netdev, "rx skb alloc failed\n");
-
-		ftgmac100_rx_drop_packet(priv);
-		return true;
+	/* If the packet had no skb (failed to allocate earlier)
+	 * then try to allocate one and skip
+	 */
+	skb = priv->rx_skbs[pointer];
+	if (!unlikely(skb)) {
+		ftgmac100_alloc_rx_buf(priv, pointer, rxdes, GFP_ATOMIC);
+		goto drop;
 	}
 
-	if (unlikely(ftgmac100_rxdes_multicast(rxdes)))
+	if (unlikely(status & FTGMAC100_RXDES0_MULTICAST))
 		netdev->stats.multicast++;
 
-	/*
-	 * It seems that HW does checksum incorrectly with fragmented packets,
-	 * so we are conservative here - if HW checksum error, let software do
-	 * the checksum again.
+	/* If the HW found checksum errors, bounce it to software.
+	 *
+	 * If we didn't, we need to see if the packet was recognized
+	 * by HW as one of the supported checksummed protocols before
+	 * we accept the HW test results.
 	 */
-	if ((ftgmac100_rxdes_is_tcp(rxdes) && !ftgmac100_rxdes_tcpcs_err(rxdes)) ||
-	    (ftgmac100_rxdes_is_udp(rxdes) && !ftgmac100_rxdes_udpcs_err(rxdes)))
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-
-	do {
-		dma_addr_t map = ftgmac100_rxdes_get_dma_addr(rxdes);
-		struct page *page = ftgmac100_rxdes_get_page(priv, rxdes);
-		unsigned int size;
-
-		dma_unmap_page(priv->dev, map, RX_BUF_SIZE, DMA_FROM_DEVICE);
-
-		size = ftgmac100_rxdes_data_length(rxdes);
-		skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags, page, 0, size);
-
-		skb->len += size;
-		skb->data_len += size;
-		skb->truesize += PAGE_SIZE;
-
-		if (ftgmac100_rxdes_last_segment(rxdes))
-			done = true;
-
-		ftgmac100_alloc_rx_page(priv, rxdes, GFP_ATOMIC);
-
-		ftgmac100_rx_pointer_advance(priv);
-		rxdes = ftgmac100_current_rxdes(priv);
-	} while (!done);
-
-	/* Small frames are copied into linear part of skb to free one page */
-	if (skb->len <= 128) {
-		skb->truesize -= PAGE_SIZE;
-		__pskb_pull_tail(skb, skb->len);
-	} else {
-		/* We pull the minimum amount into linear part */
-		__pskb_pull_tail(skb, ETH_HLEN);
+	if (netdev->features & NETIF_F_RXCSUM) {
+		u32 err_bits = FTGMAC100_RXDES1_TCP_CHKSUM_ERR |
+			FTGMAC100_RXDES1_UDP_CHKSUM_ERR |
+			FTGMAC100_RXDES1_IP_CHKSUM_ERR;
+		if ((csum_vlan & err_bits) ||
+		    !(csum_vlan & FTGMAC100_RXDES1_PROT_MASK))
+			skb->ip_summed = CHECKSUM_NONE;
+		else
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
+
+	/* Transfer received size to skb */
+	skb_put(skb, size);
+
+	/* Tear down DMA mapping, do necessary cache management */
+	map = le32_to_cpu(rxdes->rxdes3);
+
+#if defined(CONFIG_ARM) && !defined(CONFIG_ARM_DMA_USE_IOMMU)
+	/* When we don't have an iommu, we can save cycles by not
+	 * invalidating the cache for the part of the packet that
+	 * wasn't received.
+	 */
+	dma_unmap_single(priv->dev, map, size, DMA_FROM_DEVICE);
+#else
+	dma_unmap_single(priv->dev, map, RX_BUF_SIZE, DMA_FROM_DEVICE);
+#endif
+
+
+	/* Resplenish rx ring */
+	ftgmac100_alloc_rx_buf(priv, pointer, rxdes, GFP_ATOMIC);
+	priv->rx_pointer = ftgmac100_next_rx_pointer(pointer);
+
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	netdev->stats.rx_packets++;
-	netdev->stats.rx_bytes += skb->len;
+	netdev->stats.rx_bytes += size;
 
 	/* push packet to protocol stack */
-	napi_gro_receive(&priv->napi, skb);
+	if (skb->ip_summed == CHECKSUM_NONE)
+		netif_receive_skb(skb);
+	else
+		napi_gro_receive(&priv->napi, skb);
 
 	(*processed)++;
+	return true;
+
+ drop:
+	/* Clean rxdes0 (which resets own bit) */
+	rxdes->rxdes0 = cpu_to_le32(status & priv->rxdes0_edorr_mask);
+	priv->rx_pointer = ftgmac100_next_rx_pointer(pointer);
+	netdev->stats.rx_dropped++;
 	return true;
 }
 
@@ -793,34 +675,6 @@ static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static int ftgmac100_alloc_rx_page(struct ftgmac100 *priv,
-				   struct ftgmac100_rxdes *rxdes, gfp_t gfp)
-{
-	struct net_device *netdev = priv->netdev;
-	struct page *page;
-	dma_addr_t map;
-
-	page = alloc_page(gfp);
-	if (!page) {
-		if (net_ratelimit())
-			netdev_err(netdev, "failed to allocate rx page\n");
-		return -ENOMEM;
-	}
-
-	map = dma_map_page(priv->dev, page, 0, RX_BUF_SIZE, DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(priv->dev, map))) {
-		if (net_ratelimit())
-			netdev_err(netdev, "failed to map rx page\n");
-		__free_page(page);
-		return -ENOMEM;
-	}
-
-	ftgmac100_rxdes_set_page(priv, rxdes, page);
-	ftgmac100_rxdes_set_dma_addr(rxdes, map);
-	ftgmac100_rxdes_set_dma_own(priv, rxdes);
-	return 0;
-}
-
 static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 {
 	int i;
@@ -828,14 +682,15 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 	/* Free all RX buffers */
 	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
 		struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[i];
-		struct page *page = ftgmac100_rxdes_get_page(priv, rxdes);
-		dma_addr_t map = ftgmac100_rxdes_get_dma_addr(rxdes);
+		struct sk_buff *skb = priv->rx_skbs[i];
+		dma_addr_t map = le32_to_cpu(rxdes->rxdes3);
 
-		if (!page)
+		if (!skb)
 			continue;
 
-		dma_unmap_page(priv->dev, map, RX_BUF_SIZE, DMA_FROM_DEVICE);
-		__free_page(page);
+		priv->rx_skbs[i] = NULL;
+		dma_unmap_single(priv->dev, map, RX_BUF_SIZE, DMA_FROM_DEVICE);
+		dev_kfree_skb_any(skb);
 	}
 
 	/* Free all TX buffers */
@@ -858,6 +713,11 @@ static void ftgmac100_free_rings(struct ftgmac100 *priv)
 	if (priv->descs)
 		dma_free_coherent(priv->dev, sizeof(struct ftgmac100_descs),
 				  priv->descs, priv->descs_dma_addr);
+
+	/* Free scratch packet buffer */
+	if (priv->rx_scratch)
+		dma_free_coherent(priv->dev, RX_BUF_SIZE,
+				  priv->rx_scratch, priv->rx_scratch_dma);
 }
 
 static int ftgmac100_alloc_rings(struct ftgmac100 *priv)
@@ -869,17 +729,30 @@ static int ftgmac100_alloc_rings(struct ftgmac100 *priv)
 	if (!priv->descs)
 		return -ENOMEM;
 
+	/* Allocate scratch packet buffer */
+	priv->rx_scratch = dma_alloc_coherent(priv->dev,
+					      RX_BUF_SIZE,
+					      &priv->rx_scratch_dma,
+					      GFP_KERNEL);
+	if (!priv->rx_scratch)
+		return -ENOMEM;
+
 	return 0;
 }
 
 static void ftgmac100_init_rings(struct ftgmac100 *priv)
 {
+	struct ftgmac100_rxdes *rxdes;
 	int i;
 
 	/* Initialize RX ring */
-	for (i = 0; i < RX_QUEUE_ENTRIES; i++)
-		priv->descs->rxdes[i].rxdes0 = 0;
-	ftgmac100_rxdes_set_end_of_ring(priv, &priv->descs->rxdes[i - 1]);
+	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
+		rxdes = &priv->descs->rxdes[i];
+		rxdes->rxdes0 = 0;
+		rxdes->rxdes3 = cpu_to_le32(priv->rx_scratch_dma);
+	}
+	/* Mark the end of the ring */
+	rxdes->rxdes0 |= cpu_to_le32(priv->rxdes0_edorr_mask);
 
 	/* Initialize TX ring */
 	for (i = 0; i < TX_QUEUE_ENTRIES; i++)
@@ -894,7 +767,7 @@ static int ftgmac100_alloc_rx_buffers(struct ftgmac100 *priv)
 	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
 		struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[i];
 
-		if (ftgmac100_alloc_rx_page(priv, rxdes, GFP_KERNEL))
+		if (ftgmac100_alloc_rx_buf(priv, i, rxdes, GFP_KERNEL))
 			return -ENOMEM;
 	}
 	return 0;
@@ -1095,6 +968,14 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static bool ftgmac100_check_rx(struct ftgmac100 *priv)
+{
+	struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[priv->rx_pointer];
+
+	/* Do we have a packet ? */
+	return !!(rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_RXPKT_RDY));
+}
+
 static int ftgmac100_poll(struct napi_struct *napi, int budget)
 {
 	struct ftgmac100 *priv = container_of(napi, struct ftgmac100, napi);
@@ -1134,8 +1015,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 		 */
 		iowrite32(FTGMAC100_INT_RXTX,
 			  priv->base + FTGMAC100_OFFSET_ISR);
-		if (ftgmac100_rxdes_packet_ready
-		    (ftgmac100_current_rxdes(priv)) || priv->tx_pending)
+		if (ftgmac100_check_rx(priv) || priv->tx_pending)
 			return budget;
 
 		/* deschedule NAPI */
@@ -1545,7 +1425,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	 * when NCSI is enabled on the interface. It doesn't work
 	 * in that case.
 	 */
-	netdev->features = NETIF_F_IP_CSUM | NETIF_F_GRO;
+	netdev->features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_GRO;
 	if (priv->use_ncsi &&
 	    of_get_property(pdev->dev.of_node, "no-hw-checksum", NULL))
 		netdev->features &= ~NETIF_F_IP_CSUM;
