@@ -3340,6 +3340,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	unsigned long lflags = 0;
 	bool active_low = false;
 	bool single_ended = false;
+	bool open_drain = false;
 	int ret;
 
 	if (!fwnode)
@@ -3353,6 +3354,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 		if (!IS_ERR(desc)) {
 			active_low = flags & OF_GPIO_ACTIVE_LOW;
 			single_ended = flags & OF_GPIO_SINGLE_ENDED;
+			open_drain = flags & OF_GPIO_OPEN_DRAIN;
 		}
 	} else if (is_acpi_node(fwnode)) {
 		struct acpi_gpio_info info;
@@ -3373,7 +3375,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 		lflags |= GPIO_ACTIVE_LOW;
 
 	if (single_ended) {
-		if (active_low)
+		if (open_drain)
 			lflags |= GPIO_OPEN_DRAIN;
 		else
 			lflags |= GPIO_OPEN_SOURCE;
