@@ -115,6 +115,7 @@ static void sd_rescan(struct device *);
 static int sd_init_command(struct scsi_cmnd *SCpnt);
 static void sd_uninit_command(struct scsi_cmnd *SCpnt);
 static int sd_done(struct scsi_cmnd *);
+static void sd_eh_reset(struct scsi_cmnd *);
 static int sd_eh_action(struct scsi_cmnd *, int);
 static void sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer);
 static void scsi_disk_release(struct device *cdev);
@@ -532,6 +533,7 @@ static struct scsi_driver sd_template = {
 	.uninit_command		= sd_uninit_command,
 	.done			= sd_done,
 	.eh_action		= sd_eh_action,
+	.eh_reset		= sd_eh_reset,
 };
 
 /*
@@ -1686,6 +1688,26 @@ static const struct block_device_operations sd_fops = {
 };
 
 /**
+ *	sd_eh_reset - reset error handling callback
+ *	@scmd:		sd-issued command that has failed
+ *
+ *	This function is called by the SCSI midlayer before starting
+ *	SCSI EH. When counting medium access failures we have to be
+ *	careful to register it only only once per device and SCSI EH run;
+ *	there might be several timed out commands which will cause the
+ *	'max_medium_access_timeouts' counter to trigger after the first
+ *	SCSI EH run already and set the device to offline.
+ *	So this function resets the internal counter before starting SCSI EH.
+ **/
+static void sd_eh_reset(struct scsi_cmnd *scmd)
+{
+	struct scsi_disk *sdkp = scsi_disk(scmd->request->rq_disk);
+
+	/* New SCSI EH run, reset gate variable */
+	sdkp->ignore_medium_access_errors = false;
+}
+
+/**
  *	sd_eh_action - error handling callback
  *	@scmd:		sd-issued command that has failed
  *	@eh_disp:	The recovery disposition suggested by the midlayer
@@ -1714,7 +1736,10 @@ static int sd_eh_action(struct scsi_cmnd *scmd, int eh_disp)
 	 * process of recovering or has it suffered an internal failure
 	 * that prevents access to the storage medium.
 	 */
-	sdkp->medium_access_timed_out++;
+	if (!sdkp->ignore_medium_access_errors) {
+		sdkp->medium_access_timed_out++;
+		sdkp->ignore_medium_access_errors = true;
+	}
 
 	/*
 	 * If the device keeps failing read/write commands but TEST UNIT
