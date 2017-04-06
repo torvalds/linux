@@ -7,6 +7,16 @@ source "drivers/soc/rockchip/Kconfig.cpu"
 # Rockchip Soc drivers
 #
 
+config ROCKCHIP_CPUINFO
+	tristate "Rockchip cpuinfo support"
+	depends on (ROCKCHIP_EFUSE || ROCKCHIP_OTP) && (ARM64 || ARM)
+	help
+	  Say y here to enable Rockchip cpuinfo support.
+	  Set system_serial_low/high from eFuse ID.
+	  Serial can read from /proc/cpuinfo.
+
+	  If unsure, say N.
+
 config ROCKCHIP_GRF
 	bool
 	default y
