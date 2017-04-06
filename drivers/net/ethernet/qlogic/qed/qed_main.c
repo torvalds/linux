@@ -55,6 +55,8 @@
 #include "qed_dev_api.h"
 #include "qed_ll2.h"
 #include "qed_fcoe.h"
+#include "qed_iscsi.h"
+
 #include "qed_mcp.h"
 #include "qed_hw.h"
 #include "qed_selftest.h"
@@ -1678,6 +1680,9 @@ void qed_get_protocol_stats(struct qed_dev *cdev,
 		break;
 	case QED_MCP_FCOE_STATS:
 		qed_get_protocol_stats_fcoe(cdev, &stats->fcoe_stats);
+		break;
+	case QED_MCP_ISCSI_STATS:
+		qed_get_protocol_stats_iscsi(cdev, &stats->iscsi_stats);
 		break;
 	default:
 		DP_ERR(cdev, "Invalid protocol type = %d\n", type);

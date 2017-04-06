@@ -340,10 +340,10 @@ qed_sp_fcoe_conn_destroy(struct qed_hwfn *p_hwfn,
 
 static int
 qed_sp_fcoe_func_stop(struct qed_hwfn *p_hwfn,
+		      struct qed_ptt *p_ptt,
 		      enum spq_mode comp_mode,
 		      struct qed_spq_comp_cb *p_comp_addr)
 {
-	struct qed_ptt *p_ptt = p_hwfn->p_main_ptt;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	u32 active_segs = 0;
@@ -765,6 +765,7 @@ static struct qed_hash_fcoe_con *qed_fcoe_get_hash(struct qed_dev *cdev,
 
 static int qed_fcoe_stop(struct qed_dev *cdev)
 {
+	struct qed_ptt *p_ptt;
 	int rc;
 
 	if (!(cdev->flags & QED_FLAG_STORAGE_STARTED)) {
@@ -778,10 +779,15 @@ static int qed_fcoe_stop(struct qed_dev *cdev)
 		return -EINVAL;
 	}
 
+	p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
+	if (!p_ptt)
+		return -EAGAIN;
+
 	/* Stop the fcoe */
-	rc = qed_sp_fcoe_func_stop(QED_LEADING_HWFN(cdev),
+	rc = qed_sp_fcoe_func_stop(QED_LEADING_HWFN(cdev), p_ptt,
 				   QED_SPQ_MODE_EBLOCK, NULL);
 	cdev->flags &= ~QED_FLAG_STORAGE_STARTED;
+	qed_ptt_release(QED_LEADING_HWFN(cdev), p_ptt);
 
 	return rc;
 }

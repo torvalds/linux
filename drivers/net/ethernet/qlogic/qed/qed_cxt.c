@@ -1438,7 +1438,7 @@ static void qed_cdu_init_pf(struct qed_hwfn *p_hwfn)
 	}
 }
 
-void qed_qm_init_pf(struct qed_hwfn *p_hwfn)
+void qed_qm_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_qm_pf_rt_init_params params;
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
@@ -1464,7 +1464,7 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn)
 	params.pq_params = qm_info->qm_pq_params;
 	params.vport_params = qm_info->qm_vport_params;
 
-	qed_qm_pf_rt_init(p_hwfn, p_hwfn->p_main_ptt, &params);
+	qed_qm_pf_rt_init(p_hwfn, p_ptt, &params);
 }
 
 /* CM PF */
@@ -1822,9 +1822,9 @@ void qed_cxt_hw_init_common(struct qed_hwfn *p_hwfn)
 	qed_prs_init_common(p_hwfn);
 }
 
-void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn)
+void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	qed_qm_init_pf(p_hwfn);
+	qed_qm_init_pf(p_hwfn, p_ptt);
 	qed_cm_init_pf(p_hwfn);
 	qed_dq_init_pf(p_hwfn);
 	qed_cdu_init_pf(p_hwfn);

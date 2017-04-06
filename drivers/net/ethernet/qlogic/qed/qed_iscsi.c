@@ -181,6 +181,15 @@ qed_sp_iscsi_func_start(struct qed_hwfn *p_hwfn,
 	p_params = &p_hwfn->pf_params.iscsi_pf_params;
 	p_queue = &p_init->q_params;
 
+	/* Sanity */
+	if (p_params->num_queues > p_hwfn->hw_info.feat_num[QED_ISCSI_CQ]) {
+		DP_ERR(p_hwfn,
+		       "Cannot satisfy CQ amount. Queues requested %d, CQs available %d. Aborting function start\n",
+		       p_params->num_queues,
+		       p_hwfn->hw_info.resc_num[QED_ISCSI_CQ]);
+		return -EINVAL;
+	}
+
 	SET_FIELD(p_init->hdr.flags,
 		  ISCSI_SLOW_PATH_HDR_LAYER_CODE, ISCSI_SLOW_PATH_LAYER_CODE);
 	p_init->hdr.op_code = ISCSI_RAMROD_CMD_ID_INIT_FUNC;
@@ -864,6 +873,8 @@ static void _qed_iscsi_get_tstats(struct qed_hwfn *p_hwfn,
 	    HILO_64_REGPAIR(tstats.iscsi_rx_bytes_cnt);
 	p_stats->iscsi_rx_packet_cnt =
 	    HILO_64_REGPAIR(tstats.iscsi_rx_packet_cnt);
+	p_stats->iscsi_rx_new_ooo_isle_events_cnt =
+	    HILO_64_REGPAIR(tstats.iscsi_rx_new_ooo_isle_events_cnt);
 	p_stats->iscsi_cmdq_threshold_cnt =
 	    le32_to_cpu(tstats.iscsi_cmdq_threshold_cnt);
 	p_stats->iscsi_rq_threshold_cnt =
@@ -1009,6 +1020,8 @@ static int qed_fill_iscsi_dev_info(struct qed_dev *cdev,
 	    qed_iscsi_get_primary_bdq_prod(hwfn, BDQ_ID_RQ);
 	info->secondary_bdq_rq_addr =
 	    qed_iscsi_get_secondary_bdq_prod(hwfn, BDQ_ID_RQ);
+
+	info->num_cqs = FEAT_NUM(hwfn, QED_ISCSI_CQ);
 
 	return rc;
 }
@@ -1309,6 +1322,26 @@ static int qed_iscsi_destroy_conn(struct qed_dev *cdev,
 static int qed_iscsi_stats(struct qed_dev *cdev, struct qed_iscsi_stats *stats)
 {
 	return qed_iscsi_get_stats(QED_LEADING_HWFN(cdev), stats);
+}
+
+void qed_get_protocol_stats_iscsi(struct qed_dev *cdev,
+				  struct qed_mcp_iscsi_stats *stats)
+{
+	struct qed_iscsi_stats proto_stats;
+
+	/* Retrieve FW statistics */
+	memset(&proto_stats, 0, sizeof(proto_stats));
+	if (qed_iscsi_stats(cdev, &proto_stats)) {
+		DP_VERBOSE(cdev, QED_MSG_STORAGE,
+			   "Failed to collect ISCSI statistics\n");
+		return;
+	}
+
+	/* Translate FW statistics into struct */
+	stats->rx_pdus = proto_stats.iscsi_rx_total_pdu_cnt;
+	stats->tx_pdus = proto_stats.iscsi_tx_total_pdu_cnt;
+	stats->rx_bytes = proto_stats.iscsi_rx_bytes_cnt;
+	stats->tx_bytes = proto_stats.iscsi_tx_bytes_cnt;
 }
 
 static const struct qed_iscsi_ops qed_iscsi_ops_pass = {

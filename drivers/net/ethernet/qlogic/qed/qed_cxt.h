@@ -172,19 +172,18 @@ void qed_cxt_hw_init_common(struct qed_hwfn *p_hwfn);
 /**
  * @brief qed_cxt_hw_init_pf - Initailze ILT and DQ, PF phase, per path.
  *
- *
- *
  * @param p_hwfn
+ * @param p_ptt
  */
-void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn);
+void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
 /**
  * @brief qed_qm_init_pf - Initailze the QM PF phase, per path
  *
  * @param p_hwfn
+ * @param p_ptt
  */
-
-void qed_qm_init_pf(struct qed_hwfn *p_hwfn);
+void qed_qm_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
 /**
  * @brief Reconfigures QM pf on the fly

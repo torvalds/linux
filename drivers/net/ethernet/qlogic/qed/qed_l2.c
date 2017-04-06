@@ -1929,7 +1929,11 @@ static int qed_start_vport(struct qed_dev *cdev,
 			return rc;
 		}
 
-		qed_hw_start_fastpath(p_hwfn);
+		rc = qed_hw_start_fastpath(p_hwfn);
+		if (rc) {
+			DP_ERR(cdev, "Failed to start VPORT fastpath\n");
+			return rc;
+		}
 
 		DP_VERBOSE(cdev, (QED_MSG_SPQ | NETIF_MSG_IFUP),
 			   "Started V-PORT %d with MTU %d\n",
@@ -2172,7 +2176,13 @@ static int qed_start_txq(struct qed_dev *cdev,
 #define QED_HW_STOP_RETRY_LIMIT (10)
 static int qed_fastpath_stop(struct qed_dev *cdev)
 {
-	qed_hw_stop_fastpath(cdev);
+	int rc;
+
+	rc = qed_hw_stop_fastpath(cdev);
+	if (rc) {
+		DP_ERR(cdev, "Failed to stop Fastpath\n");
+		return rc;
+	}
 
 	return 0;
 }
