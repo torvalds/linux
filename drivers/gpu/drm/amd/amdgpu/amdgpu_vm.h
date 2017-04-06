@@ -146,12 +146,16 @@ struct amdgpu_vm_id {
 	uint32_t		oa_size;
 };
 
+struct amdgpu_vm_id_manager {
+	struct mutex		lock;
+	unsigned		num_ids;
+	struct list_head	ids_lru;
+	struct amdgpu_vm_id	ids[AMDGPU_NUM_VM];
+};
+
 struct amdgpu_vm_manager {
 	/* Handling of VMIDs */
-	struct mutex				lock;
-	unsigned				num_ids;
-	struct list_head			ids_lru;
-	struct amdgpu_vm_id			ids[AMDGPU_NUM_VM];
+	struct amdgpu_vm_id_manager		id_mgr[AMDGPU_MAX_VMHUBS];
 
 	/* Handling of VM fences */
 	u64					fence_context;
@@ -197,7 +201,8 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync, struct dma_fence *fence,
 		      struct amdgpu_job *job);
 int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job);
-void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vm_id);
+void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vmhub,
+			unsigned vmid);
 int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 				 struct amdgpu_vm *vm);
 int amdgpu_vm_clear_freed(struct amdgpu_device *adev,

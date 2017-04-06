@@ -1935,7 +1935,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 				   INDEX_STRIDE, 3);
 
 	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < adev->vm_manager.num_ids; i++) {
+	for (i = 0; i < adev->vm_manager.id_mgr[0].num_ids; i++) {
 		if (i == 0)
 			sh_mem_base = 0;
 		else

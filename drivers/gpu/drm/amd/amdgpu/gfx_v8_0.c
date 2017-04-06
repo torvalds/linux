@@ -3890,7 +3890,7 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 	sh_static_mem_cfg = REG_SET_FIELD(sh_static_mem_cfg, SH_STATIC_MEM_CONFIG,
 				   INDEX_STRIDE, 3);
 	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < adev->vm_manager.num_ids; i++) {
+	for (i = 0; i < adev->vm_manager.id_mgr[0].num_ids; i++) {
 		vi_srbm_select(adev, 0, 0, 0, i);
 		/* CP and shaders */
 		if (i == 0) {

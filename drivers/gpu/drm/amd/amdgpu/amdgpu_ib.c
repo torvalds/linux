@@ -217,7 +217,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		if (job && job->vm_id)
-			amdgpu_vm_reset_id(adev, job->vm_id);
+			amdgpu_vm_reset_id(adev, ring->funcs->vmhub,
+					   job->vm_id);
 		amdgpu_ring_undo(ring);
 		return r;
 	}

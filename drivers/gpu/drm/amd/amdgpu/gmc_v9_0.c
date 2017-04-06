@@ -519,7 +519,8 @@ static int gmc_v9_0_vm_init(struct amdgpu_device *adev)
 	 * amdgpu graphics/compute will use VMIDs 1-7
 	 * amdkfd will use VMIDs 8-15
 	 */
-	adev->vm_manager.num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.id_mgr[AMDGPU_GFXHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.id_mgr[AMDGPU_MMHUB].num_ids = AMDGPU_NUM_OF_VMIDS;
 
 	/* TODO: fix num_level for APU when updating vm size and block size */
 	if (adev->flags & AMD_IS_APU)
