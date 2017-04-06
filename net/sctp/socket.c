@@ -1907,7 +1907,7 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 	}
 
 	if (asoc->pmtu_pending)
-		sctp_assoc_pending_pmtu(sk, asoc);
+		sctp_assoc_pending_pmtu(asoc);
 
 	/* If fragmentation is disabled and the message length exceeds the
 	 * association fragmentation point, return EMSGSIZE.  The I-D
@@ -1920,7 +1920,7 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 	}
 
 	/* Check for invalid stream. */
-	if (sinfo->sinfo_stream >= asoc->c.sinit_num_ostreams) {
+	if (sinfo->sinfo_stream >= asoc->stream->outcnt) {
 		err = -EINVAL;
 		goto out_free;
 	}
@@ -1965,7 +1965,7 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 		err = PTR_ERR(datamsg);
 		goto out_free;
 	}
-	datamsg->force_delay = !!(msg->msg_flags & MSG_MORE);
+	asoc->force_delay = !!(msg->msg_flags & MSG_MORE);
 
 	/* Now send the (possibly) fragmented message. */
 	list_for_each_entry(chunk, &datamsg->chunks, frag_list) {
@@ -2435,7 +2435,7 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 	if ((params->spp_flags & SPP_PMTUD_DISABLE) && params->spp_pathmtu) {
 		if (trans) {
 			trans->pathmtu = params->spp_pathmtu;
-			sctp_assoc_sync_pmtu(sctp_opt2sk(sp), asoc);
+			sctp_assoc_sync_pmtu(asoc);
 		} else if (asoc) {
 			asoc->pathmtu = params->spp_pathmtu;
 		} else {
@@ -2451,7 +2451,7 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 				(trans->param_flags & ~SPP_PMTUD) | pmtud_change;
 			if (update) {
 				sctp_transport_pmtu(trans, sctp_opt2sk(sp));
-				sctp_assoc_sync_pmtu(sctp_opt2sk(sp), asoc);
+				sctp_assoc_sync_pmtu(asoc);
 			}
 		} else if (asoc) {
 			asoc->param_flags =
@@ -4461,8 +4461,8 @@ int sctp_get_sctp_info(struct sock *sk, struct sctp_association *asoc,
 	info->sctpi_rwnd = asoc->a_rwnd;
 	info->sctpi_unackdata = asoc->unack_data;
 	info->sctpi_penddata = sctp_tsnmap_pending(&asoc->peer.tsn_map);
-	info->sctpi_instrms = asoc->c.sinit_max_instreams;
-	info->sctpi_outstrms = asoc->c.sinit_num_ostreams;
+	info->sctpi_instrms = asoc->stream->incnt;
+	info->sctpi_outstrms = asoc->stream->outcnt;
 	list_for_each(pos, &asoc->base.inqueue.in_chunk_list)
 		info->sctpi_inqueue++;
 	list_for_each(pos, &asoc->outqueue.out_chunk_list)
@@ -4691,8 +4691,8 @@ static int sctp_getsockopt_sctp_status(struct sock *sk, int len,
 	status.sstat_unackdata = asoc->unack_data;
 
 	status.sstat_penddata = sctp_tsnmap_pending(&asoc->peer.tsn_map);
-	status.sstat_instrms = asoc->c.sinit_max_instreams;
-	status.sstat_outstrms = asoc->c.sinit_num_ostreams;
+	status.sstat_instrms = asoc->stream->incnt;
+	status.sstat_outstrms = asoc->stream->outcnt;
 	status.sstat_fragmentation_point = asoc->frag_point;
 	status.sstat_primary.spinfo_assoc_id = sctp_assoc2id(transport->asoc);
 	memcpy(&status.sstat_primary.spinfo_address, &transport->ipaddr,
