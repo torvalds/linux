@@ -35,10 +35,11 @@
  * Max bus-specific overhead incurred by request/responses.
  * I2C requires 1 additional byte for requests.
  * I2C requires 2 additional bytes for responses.
+ * SPI requires up to 32 additional bytes for responses.
  * */
 #define EC_PROTO_VERSION_UNKNOWN	0
 #define EC_MAX_REQUEST_OVERHEAD		1
-#define EC_MAX_RESPONSE_OVERHEAD	2
+#define EC_MAX_RESPONSE_OVERHEAD	32
 
 /*
  * Command interface between EC and AP, for LPC, I2C and SPI interfaces.

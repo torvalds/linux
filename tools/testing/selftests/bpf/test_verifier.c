@@ -30,6 +30,14 @@
 
 #include <bpf/bpf.h>
 
+#ifdef HAVE_GENHDR
+# include "autoconf.h"
+#else
+# if defined(__i386) || defined(__x86_64) || defined(__s390x__) || defined(__aarch64__)
+#  define CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS 1
+# endif
+#endif
+
 #include "../../../include/linux/filter.h"
 
 #ifndef ARRAY_SIZE
@@ -38,6 +46,8 @@
 
 #define MAX_INSNS	512
 #define MAX_FIXUPS	8
+
+#define F_NEEDS_EFFICIENT_UNALIGNED_ACCESS	(1 << 0)
 
 struct bpf_test {
 	const char *descr;
@@ -53,6 +63,7 @@ struct bpf_test {
 		REJECT
 	} result, result_unpriv;
 	enum bpf_prog_type prog_type;
+	uint8_t flags;
 };
 
 /* Note we want this to be 64 bit aligned so that the end of our array is
@@ -2432,6 +2443,30 @@ static struct bpf_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	},
 	{
+		"direct packet access: test15 (spill with xadd)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct __sk_buff, data_end)),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 8),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 8),
+			BPF_MOV64_IMM(BPF_REG_5, 4096),
+			BPF_MOV64_REG(BPF_REG_4, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, -8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_4, BPF_REG_2, 0),
+			BPF_STX_XADD(BPF_DW, BPF_REG_4, BPF_REG_5, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_4, 0),
+			BPF_STX_MEM(BPF_W, BPF_REG_2, BPF_REG_5, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R2 invalid mem access 'inv'",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
 		"helper access to packet: test1, valid packet_ptr range",
 		.insns = {
 			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
@@ -2934,6 +2969,7 @@ static struct bpf_test tests[] = {
 		.errstr_unpriv = "R0 pointer arithmetic prohibited",
 		.result_unpriv = REJECT,
 		.result = ACCEPT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
 	{
 		"valid map access into an array with a variable",
@@ -2957,6 +2993,7 @@ static struct bpf_test tests[] = {
 		.errstr_unpriv = "R0 pointer arithmetic prohibited",
 		.result_unpriv = REJECT,
 		.result = ACCEPT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
 	{
 		"valid map access into an array with a signed variable",
@@ -2984,6 +3021,7 @@ static struct bpf_test tests[] = {
 		.errstr_unpriv = "R0 pointer arithmetic prohibited",
 		.result_unpriv = REJECT,
 		.result = ACCEPT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
 	{
 		"invalid map access into an array with a constant",
@@ -3025,6 +3063,7 @@ static struct bpf_test tests[] = {
 		.errstr = "R0 min value is outside of the array range",
 		.result_unpriv = REJECT,
 		.result = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
 	{
 		"invalid map access into an array with a variable",
@@ -3048,6 +3087,7 @@ static struct bpf_test tests[] = {
 		.errstr = "R0 min value is negative, either use unsigned index or do a if (index >=0) check.",
 		.result_unpriv = REJECT,
 		.result = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
 	{
 		"invalid map access into an array with no floor check",
@@ -3074,6 +3114,7 @@ static struct bpf_test tests[] = {
 		.errstr = "R0 min value is negative, either use unsigned index or do a if (index >=0) check.",
 		.result_unpriv = REJECT,
 		.result = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
 	{
 		"invalid map access into an array with a invalid max check",
@@ -3100,6 +3141,7 @@ static struct bpf_test tests[] = {
 		.errstr = "invalid access to map value, value_size=48 off=44 size=8",
 		.result_unpriv = REJECT,
 		.result = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
 	{
 		"invalid map access into an array with a invalid max check",
@@ -3129,6 +3171,7 @@ static struct bpf_test tests[] = {
 		.errstr = "R0 min value is negative, either use unsigned index or do a if (index >=0) check.",
 		.result_unpriv = REJECT,
 		.result = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
 	{
 		"multiple registers share map_lookup_elem result",
@@ -3252,6 +3295,7 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 		.errstr_unpriv = "R0 pointer arithmetic prohibited",
 		.result_unpriv = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
 	{
 		"constant register |= constant should keep constant type",
@@ -3411,6 +3455,26 @@ static struct bpf_test tests[] = {
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 8),
 			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
 			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_LWT_XMIT,
+	},
+	{
+		"overlapping checks for direct packet access",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct __sk_buff, data_end)),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 8),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 4),
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 6),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_1, BPF_REG_3, 1),
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_2, 6),
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_EXIT_INSN(),
 		},
@@ -3961,7 +4025,208 @@ static struct bpf_test tests[] = {
 		.result_unpriv = REJECT,
 	},
 	{
-		"map element value (adjusted) is preserved across register spilling",
+		"map element value or null is marked on register spilling",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -152),
+			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0, 0),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_3, BPF_REG_1, 0),
+			BPF_ST_MEM(BPF_DW, BPF_REG_3, 0, 42),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map2 = { 3 },
+		.errstr_unpriv = "R0 leaks addr",
+		.result = ACCEPT,
+		.result_unpriv = REJECT,
+	},
+	{
+		"map element value store of cleared call register",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
+			BPF_STX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map2 = { 3 },
+		.errstr_unpriv = "R1 !read_ok",
+		.errstr = "R1 !read_ok",
+		.result = REJECT,
+		.result_unpriv = REJECT,
+	},
+	{
+		"map element value with unaligned store",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 17),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 3),
+			BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 42),
+			BPF_ST_MEM(BPF_DW, BPF_REG_0, 2, 43),
+			BPF_ST_MEM(BPF_DW, BPF_REG_0, -2, 44),
+			BPF_MOV64_REG(BPF_REG_8, BPF_REG_0),
+			BPF_ST_MEM(BPF_DW, BPF_REG_8, 0, 32),
+			BPF_ST_MEM(BPF_DW, BPF_REG_8, 2, 33),
+			BPF_ST_MEM(BPF_DW, BPF_REG_8, -2, 34),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_8, 5),
+			BPF_ST_MEM(BPF_DW, BPF_REG_8, 0, 22),
+			BPF_ST_MEM(BPF_DW, BPF_REG_8, 4, 23),
+			BPF_ST_MEM(BPF_DW, BPF_REG_8, -7, 24),
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_8),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, 3),
+			BPF_ST_MEM(BPF_DW, BPF_REG_7, 0, 22),
+			BPF_ST_MEM(BPF_DW, BPF_REG_7, 4, 23),
+			BPF_ST_MEM(BPF_DW, BPF_REG_7, -4, 24),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map2 = { 3 },
+		.errstr_unpriv = "R0 pointer arithmetic prohibited",
+		.result = ACCEPT,
+		.result_unpriv = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
+	},
+	{
+		"map element value with unaligned load",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 11),
+			BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_0, 0),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_1, MAX_ENTRIES, 9),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 3),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 2),
+			BPF_MOV64_REG(BPF_REG_8, BPF_REG_0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_7, BPF_REG_8, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_7, BPF_REG_8, 2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 5),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 4),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map2 = { 3 },
+		.errstr_unpriv = "R0 pointer arithmetic prohibited",
+		.result = ACCEPT,
+		.result_unpriv = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
+	},
+	{
+		"map element value illegal alu op, 1",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_0, 8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 22),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map2 = { 3 },
+		.errstr_unpriv = "R0 pointer arithmetic prohibited",
+		.errstr = "invalid mem access 'inv'",
+		.result = REJECT,
+		.result_unpriv = REJECT,
+	},
+	{
+		"map element value illegal alu op, 2",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
+			BPF_ALU32_IMM(BPF_ADD, BPF_REG_0, 0),
+			BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 22),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map2 = { 3 },
+		.errstr_unpriv = "R0 pointer arithmetic prohibited",
+		.errstr = "invalid mem access 'inv'",
+		.result = REJECT,
+		.result_unpriv = REJECT,
+	},
+	{
+		"map element value illegal alu op, 3",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
+			BPF_ALU64_IMM(BPF_DIV, BPF_REG_0, 42),
+			BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 22),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map2 = { 3 },
+		.errstr_unpriv = "R0 pointer arithmetic prohibited",
+		.errstr = "invalid mem access 'inv'",
+		.result = REJECT,
+		.result_unpriv = REJECT,
+	},
+	{
+		"map element value illegal alu op, 4",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
+			BPF_ENDIAN(BPF_FROM_BE, BPF_REG_0, 64),
+			BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 22),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map2 = { 3 },
+		.errstr_unpriv = "R0 pointer arithmetic prohibited",
+		.errstr = "invalid mem access 'inv'",
+		.result = REJECT,
+		.result_unpriv = REJECT,
+	},
+	{
+		"map element value illegal alu op, 5",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_ST_MEM(BPF_DW, BPF_REG_2, 0, 0),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 7),
+			BPF_MOV64_IMM(BPF_REG_3, 4096),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_2, BPF_REG_0, 0),
+			BPF_STX_XADD(BPF_DW, BPF_REG_2, BPF_REG_3, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_2, 0),
+			BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 22),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map2 = { 3 },
+		.errstr_unpriv = "R0 invalid mem access 'inv'",
+		.errstr = "R0 invalid mem access 'inv'",
+		.result = REJECT,
+		.result_unpriv = REJECT,
+	},
+	{
+		"map element value is preserved across register spilling",
 		.insns = {
 			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
@@ -3983,6 +4248,7 @@ static struct bpf_test tests[] = {
 		.errstr_unpriv = "R0 pointer arithmetic prohibited",
 		.result = ACCEPT,
 		.result_unpriv = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
 	{
 		"helper access to variable memory: stack, bitwise AND + JMP, correct bounds",
@@ -4421,6 +4687,7 @@ static struct bpf_test tests[] = {
 		.errstr = "R0 min value is negative, either use unsigned index or do a if (index >=0) check.",
 		.result = REJECT,
 		.result_unpriv = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	},
 	{
 		"invalid range check",
@@ -4452,6 +4719,7 @@ static struct bpf_test tests[] = {
 		.errstr = "R0 min value is negative, either use unsigned index or do a if (index >=0) check.",
 		.result = REJECT,
 		.result_unpriv = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 	}
 };
 
@@ -4530,11 +4798,11 @@ static void do_test_fixup(struct bpf_test *test, struct bpf_insn *prog,
 static void do_test_single(struct bpf_test *test, bool unpriv,
 			   int *passes, int *errors)
 {
+	int fd_prog, expected_ret, reject_from_alignment;
 	struct bpf_insn *prog = test->insns;
 	int prog_len = probe_filter_length(prog);
 	int prog_type = test->prog_type;
 	int fd_f1 = -1, fd_f2 = -1, fd_f3 = -1;
-	int fd_prog, expected_ret;
 	const char *expected_err;
 
 	do_test_fixup(test, prog, &fd_f1, &fd_f2, &fd_f3);
@@ -4547,8 +4815,19 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		       test->result_unpriv : test->result;
 	expected_err = unpriv && test->errstr_unpriv ?
 		       test->errstr_unpriv : test->errstr;
+
+	reject_from_alignment = fd_prog < 0 &&
+				(test->flags & F_NEEDS_EFFICIENT_UNALIGNED_ACCESS) &&
+				strstr(bpf_vlog, "Unknown alignment.");
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+	if (reject_from_alignment) {
+		printf("FAIL\nFailed due to alignment despite having efficient unaligned access: '%s'!\n",
+		       strerror(errno));
+		goto fail_log;
+	}
+#endif
 	if (expected_ret == ACCEPT) {
-		if (fd_prog < 0) {
+		if (fd_prog < 0 && !reject_from_alignment) {
 			printf("FAIL\nFailed to load prog '%s'!\n",
 			       strerror(errno));
 			goto fail_log;
@@ -4558,14 +4837,15 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 			printf("FAIL\nUnexpected success to load!\n");
 			goto fail_log;
 		}
-		if (!strstr(bpf_vlog, expected_err)) {
+		if (!strstr(bpf_vlog, expected_err) && !reject_from_alignment) {
 			printf("FAIL\nUnexpected error message!\n");
 			goto fail_log;
 		}
 	}
 
 	(*passes)++;
-	printf("OK\n");
+	printf("OK%s\n", reject_from_alignment ?
+	       " (NOTE: reject due to unknown alignment)" : "");
 close_fds:
 	close(fd_prog);
 	close(fd_f1);
