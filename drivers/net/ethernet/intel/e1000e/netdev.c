@@ -3509,42 +3509,57 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca)
 	switch (hw->mac.type) {
 	case e1000_pch2lan:
 		/* Stable 96MHz frequency */
-		incperiod = INCPERIOD_96MHz;
-		incvalue = INCVALUE_96MHz;
-		shift = INCVALUE_SHIFT_96MHz;
-		adapter->cc.shift = shift + INCPERIOD_SHIFT_96MHz;
+		incperiod = INCPERIOD_96MHZ;
+		incvalue = INCVALUE_96MHZ;
+		shift = INCVALUE_SHIFT_96MHZ;
+		adapter->cc.shift = shift + INCPERIOD_SHIFT_96MHZ;
 		break;
 	case e1000_pch_lpt:
 		if (er32(TSYNCRXCTL) & E1000_TSYNCRXCTL_SYSCFI) {
 			/* Stable 96MHz frequency */
-			incperiod = INCPERIOD_96MHz;
-			incvalue = INCVALUE_96MHz;
-			shift = INCVALUE_SHIFT_96MHz;
-			adapter->cc.shift = shift + INCPERIOD_SHIFT_96MHz;
+			incperiod = INCPERIOD_96MHZ;
+			incvalue = INCVALUE_96MHZ;
+			shift = INCVALUE_SHIFT_96MHZ;
+			adapter->cc.shift = shift + INCPERIOD_SHIFT_96MHZ;
 		} else {
 			/* Stable 25MHz frequency */
-			incperiod = INCPERIOD_25MHz;
-			incvalue = INCVALUE_25MHz;
-			shift = INCVALUE_SHIFT_25MHz;
+			incperiod = INCPERIOD_25MHZ;
+			incvalue = INCVALUE_25MHZ;
+			shift = INCVALUE_SHIFT_25MHZ;
 			adapter->cc.shift = shift;
 		}
 		break;
 	case e1000_pch_spt:
 		if (er32(TSYNCRXCTL) & E1000_TSYNCRXCTL_SYSCFI) {
 			/* Stable 24MHz frequency */
-			incperiod = INCPERIOD_24MHz;
-			incvalue = INCVALUE_24MHz;
-			shift = INCVALUE_SHIFT_24MHz;
+			incperiod = INCPERIOD_24MHZ;
+			incvalue = INCVALUE_24MHZ;
+			shift = INCVALUE_SHIFT_24MHZ;
 			adapter->cc.shift = shift;
 			break;
 		}
 		return -EINVAL;
+	case e1000_pch_cnp:
+		if (er32(TSYNCRXCTL) & E1000_TSYNCRXCTL_SYSCFI) {
+			/* Stable 24MHz frequency */
+			incperiod = INCPERIOD_24MHZ;
+			incvalue = INCVALUE_24MHZ;
+			shift = INCVALUE_SHIFT_24MHZ;
+			adapter->cc.shift = shift;
+		} else {
+			/* Stable 38400KHz frequency */
+			incperiod = INCPERIOD_38400KHZ;
+			incvalue = INCVALUE_38400KHZ;
+			shift = INCVALUE_SHIFT_38400KHZ;
+			adapter->cc.shift = shift;
+		}
+		break;
 	case e1000_82574:
 	case e1000_82583:
 		/* Stable 25MHz frequency */
-		incperiod = INCPERIOD_25MHz;
-		incvalue = INCVALUE_25MHz;
-		shift = INCVALUE_SHIFT_25MHz;
+		incperiod = INCPERIOD_25MHZ;
+		incvalue = INCVALUE_25MHZ;
+		shift = INCVALUE_SHIFT_25MHZ;
 		adapter->cc.shift = shift;
 		break;
 	default:
