@@ -244,7 +244,7 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send,
 			*sent += result;
 	} while (msg_data_left(&msg));
 
-	tsk_restore_flags(current, pflags, PF_MEMALLOC);
+	current_restore_flags(pflags, PF_MEMALLOC);
 
 	return result;
 }

@@ -1286,10 +1286,10 @@ TASK_PFA_TEST(LMK_WAITING, lmk_waiting)
 TASK_PFA_SET(LMK_WAITING, lmk_waiting)
 
 static inline void
-tsk_restore_flags(struct task_struct *task, unsigned long orig_flags, unsigned long flags)
+current_restore_flags(unsigned long orig_flags, unsigned long flags)
 {
-	task->flags &= ~flags;
-	task->flags |= orig_flags & flags;
+	current->flags &= ~flags;
+	current->flags |= orig_flags & flags;
 }
 
 extern int cpuset_cpumask_can_shrink(const struct cpumask *cur, const struct cpumask *trial);
