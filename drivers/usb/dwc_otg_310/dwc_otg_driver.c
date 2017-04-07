@@ -1474,6 +1474,16 @@ static int otg20_driver_probe(struct platform_device *_dev)
 		goto fail;
 	}
 
+	dwc_otg_device->core_if->high_bandwidth_en = of_property_read_bool(node,
+						"rockchip,high-bandwidth");
+
+	/*
+	 * If support high bandwidth endpoint, use 'Dedicated FIFO Mode
+	 * with Thresholding', and enable thresholding for isochronous IN
+	 * endpoints. Note: Thresholding is supported only in device mode.
+	 */
+	if (dwc_otg_device->core_if->high_bandwidth_en)
+		dwc_otg_module_params.thr_ctl = 2;
 	/*
 	 * Validate parameter values.
 	 */

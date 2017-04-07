@@ -852,6 +852,9 @@ struct dwc_otg_core_if {
 	/* Indicates need to force a host channel halt */
 	bool hc_halt_quirk;
 
+	/* True if support high bandwidth endpoints */
+	bool high_bandwidth_en;
+
 	/* Indicate USB get VBUS 5V from PMIC(e.g. rk81x) */
 	bool pmic_vbus;
 
