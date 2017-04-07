@@ -313,20 +313,23 @@ struct qede_rx_queue {
 	u8 data_direction;
 	u8 rxq_id;
 
+	/* Used once per each NAPI run */
+	u16 num_rx_buffers;
+
+	u16 rx_headroom;
+
 	u32 rx_buf_size;
 	u32 rx_buf_seg_size;
-
-	u64 rcv_pkts;
 
 	struct sw_rx_data *sw_rx_ring;
 	struct qed_chain rx_bd_ring;
 	struct qed_chain rx_comp_ring ____cacheline_aligned;
 
-	/* Used once per each NAPI run */
-	u16 num_rx_buffers;
-
 	/* GRO */
 	struct qede_agg_info tpa_info[ETH_TPA_MAX_AGGS_NUM];
+
+	/* Used once per each NAPI run */
+	u64 rcv_pkts;
 
 	u64 rx_hw_errors;
 	u64 rx_alloc_errors;
@@ -347,6 +350,11 @@ struct sw_tx_bd {
 	u8 flags;
 /* Set on the first BD descriptor when there is a split BD */
 #define QEDE_TSO_SPLIT_BD		BIT(0)
+};
+
+struct sw_tx_xdp {
+	struct page *page;
+	dma_addr_t mapping;
 };
 
 struct qede_tx_queue {
@@ -372,11 +380,11 @@ struct qede_tx_queue {
 #define QEDE_TXQ_IDX_TO_XDP(edev, idx)	((idx) + QEDE_MAX_TSS_CNT(edev))
 
 	/* Regular Tx requires skb + metadata for release purpose,
-	 * while XDP requires only the pages themselves.
+	 * while XDP requires the pages and the mapped address.
 	 */
 	union {
 		struct sw_tx_bd *skbs;
-		struct page **pages;
+		struct sw_tx_xdp *xdp;
 	} sw_tx_ring;
 
 	struct qed_chain tx_pbl;

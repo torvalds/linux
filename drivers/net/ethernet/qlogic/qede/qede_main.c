@@ -1187,9 +1187,11 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 	rxq->num_rx_buffers = edev->q_num_rx_buffers;
 
 	rxq->rx_buf_size = NET_IP_ALIGN + ETH_OVERHEAD + edev->ndev->mtu;
+	rxq->rx_headroom = edev->xdp_prog ? XDP_PACKET_HEADROOM : 0;
 
-	if (rxq->rx_buf_size > PAGE_SIZE)
-		rxq->rx_buf_size = PAGE_SIZE;
+	/* Make sure that the headroom and  payload fit in a single page */
+	if (rxq->rx_buf_size + rxq->rx_headroom > PAGE_SIZE)
+		rxq->rx_buf_size = PAGE_SIZE - rxq->rx_headroom;
 
 	/* Segment size to spilt a page in multiple equal parts,
 	 * unless XDP is used in which case we'd use the entire page.
@@ -1251,7 +1253,7 @@ static void qede_free_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 {
 	/* Free the parallel SW ring */
 	if (txq->is_xdp)
-		kfree(txq->sw_tx_ring.pages);
+		kfree(txq->sw_tx_ring.xdp);
 	else
 		kfree(txq->sw_tx_ring.skbs);
 
@@ -1269,9 +1271,9 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 
 	/* Allocate the parallel driver ring for Tx buffers */
 	if (txq->is_xdp) {
-		size = sizeof(*txq->sw_tx_ring.pages) * TX_RING_SIZE;
-		txq->sw_tx_ring.pages = kzalloc(size, GFP_KERNEL);
-		if (!txq->sw_tx_ring.pages)
+		size = sizeof(*txq->sw_tx_ring.xdp) * TX_RING_SIZE;
+		txq->sw_tx_ring.xdp = kzalloc(size, GFP_KERNEL);
+		if (!txq->sw_tx_ring.xdp)
 			goto err;
 	} else {
 		size = sizeof(*txq->sw_tx_ring.skbs) * TX_RING_SIZE;
