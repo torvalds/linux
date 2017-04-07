@@ -125,7 +125,7 @@ int xhci_halt(struct xhci_hcd *xhci)
 /*
  * Set the run bit and wait for the host to be running.
  */
-static int xhci_start(struct xhci_hcd *xhci)
+int xhci_start(struct xhci_hcd *xhci)
 {
 	u32 temp;
 	int ret;
