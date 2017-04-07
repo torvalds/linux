@@ -1936,7 +1936,7 @@ static int s626_ao_insn_write(struct comedi_device *dev,
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		int16_t dacdata = (int16_t)data[i];
+		s16 dacdata = (s16)data[i];
 		int ret;
 
 		dacdata -= (0x1fff);
