@@ -448,6 +448,21 @@ static ssize_t read_only_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(read_only);
 
+static ssize_t nd_badblocks_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+
+	return badblocks_show(&nd_region->bb, buf, 0);
+}
+static struct device_attribute dev_attr_nd_badblocks = {
+	.attr = {
+		.name = "badblocks",
+		.mode = S_IRUGO
+	},
+	.show = nd_badblocks_show,
+};
+
 static struct attribute *nd_region_attributes[] = {
 	&dev_attr_size.attr,
 	&dev_attr_nstype.attr,
@@ -460,6 +475,7 @@ static struct attribute *nd_region_attributes[] = {
 	&dev_attr_available_size.attr,
 	&dev_attr_namespace_seed.attr,
 	&dev_attr_init_namespaces.attr,
+	&dev_attr_nd_badblocks.attr,
 	NULL,
 };
 
@@ -474,6 +490,9 @@ static umode_t region_visible(struct kobject *kobj, struct attribute *a, int n)
 		return 0;
 
 	if (!is_nd_pmem(dev) && a == &dev_attr_dax_seed.attr)
+		return 0;
+
+	if (!is_nd_pmem(dev) && a == &dev_attr_nd_badblocks.attr)
 		return 0;
 
 	if (a != &dev_attr_set_cookie.attr
