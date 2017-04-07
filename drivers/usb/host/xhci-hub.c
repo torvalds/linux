@@ -540,6 +540,49 @@ static int xhci_get_ports(struct usb_hcd *hcd, __le32 __iomem ***port_array)
 	return max_ports;
 }
 
+static __le32 __iomem *xhci_get_port_io_addr(struct usb_hcd *hcd, int index)
+{
+	__le32 __iomem **port_array;
+
+	xhci_get_ports(hcd, &port_array);
+	return port_array[index];
+}
+
+/*
+ * xhci_set_port_power() must be called with xhci->lock held.
+ * It will release and re-aquire the lock while calling ACPI
+ * method.
+ */
+static void xhci_set_port_power(struct xhci_hcd *xhci, struct usb_hcd *hcd,
+				u16 index, bool on)
+{
+	__le32 __iomem *addr;
+	u32 temp;
+	unsigned long flags = 0;
+
+	addr = xhci_get_port_io_addr(hcd, index);
+	temp = readl(addr);
+	temp = xhci_port_state_to_neutral(temp);
+	if (on) {
+		/* Power on */
+		writel(temp | PORT_POWER, addr);
+		temp = readl(addr);
+		xhci_dbg(xhci, "set port power, actual port %d status  = 0x%x\n",
+						index, temp);
+	} else {
+		/* Power off */
+		writel(temp & ~PORT_POWER, addr);
+	}
+
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	temp = usb_acpi_power_manageable(hcd->self.root_hub,
+					index);
+	if (temp)
+		usb_acpi_set_power_state(hcd->self.root_hub,
+			index, on);
+	spin_lock_irqsave(&xhci->lock, flags);
+}
+
 void xhci_set_link_state(struct xhci_hcd *xhci, __le32 __iomem **port_array,
 				int port_id, u32 link_state)
 {
@@ -1092,18 +1135,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			 * However, hub_wq will ignore the roothub events until
 			 * the roothub is registered.
 			 */
-			writel(temp | PORT_POWER, port_array[wIndex]);
-
-			temp = readl(port_array[wIndex]);
-			xhci_dbg(xhci, "set port power, actual port %d status  = 0x%x\n", wIndex, temp);
-
-			spin_unlock_irqrestore(&xhci->lock, flags);
-			temp = usb_acpi_power_manageable(hcd->self.root_hub,
-					wIndex);
-			if (temp)
-				usb_acpi_set_power_state(hcd->self.root_hub,
-						wIndex, true);
-			spin_lock_irqsave(&xhci->lock, flags);
+			xhci_set_port_power(xhci, hcd, wIndex, true);
 			break;
 		case USB_PORT_FEAT_RESET:
 			temp = (temp | PORT_RESET);
@@ -1207,15 +1239,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					port_array[wIndex], temp);
 			break;
 		case USB_PORT_FEAT_POWER:
-			writel(temp & ~PORT_POWER, port_array[wIndex]);
-
-			spin_unlock_irqrestore(&xhci->lock, flags);
-			temp = usb_acpi_power_manageable(hcd->self.root_hub,
-					wIndex);
-			if (temp)
-				usb_acpi_set_power_state(hcd->self.root_hub,
-						wIndex, false);
-			spin_lock_irqsave(&xhci->lock, flags);
+			xhci_set_port_power(xhci, hcd, wIndex, false);
 			break;
 		default:
 			goto error;
