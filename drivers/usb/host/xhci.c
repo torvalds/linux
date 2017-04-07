@@ -724,7 +724,7 @@ void xhci_stop(struct usb_hcd *hcd)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Disabling event ring interrupts");
 	temp = readl(&xhci->op_regs->status);
-	writel(temp & ~STS_EINT, &xhci->op_regs->status);
+	writel((temp & ~0x1fff) | STS_EINT, &xhci->op_regs->status);
 	temp = readl(&xhci->ir_set->irq_pending);
 	writel(ER_IRQ_DISABLE(temp), &xhci->ir_set->irq_pending);
 	xhci_print_ir_set(xhci, 0);
@@ -1057,7 +1057,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 
 		xhci_dbg(xhci, "// Disabling event ring interrupts\n");
 		temp = readl(&xhci->op_regs->status);
-		writel(temp & ~STS_EINT, &xhci->op_regs->status);
+		writel((temp & ~0x1fff) | STS_EINT, &xhci->op_regs->status);
 		temp = readl(&xhci->ir_set->irq_pending);
 		writel(ER_IRQ_DISABLE(temp), &xhci->ir_set->irq_pending);
 		xhci_print_ir_set(xhci, 0);
