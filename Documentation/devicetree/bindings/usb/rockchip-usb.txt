@@ -18,6 +18,10 @@ Required properties:
    "1" represents that force otg to host only mode,
    "2" represents that force otg to device only mode.
 
+Optional properties:
+ - rockchip,usb-pmic-vbus: If present, OTG VBUS 5V is supplied
+   from PMIC.
+
 Example:
  - RK3288
 

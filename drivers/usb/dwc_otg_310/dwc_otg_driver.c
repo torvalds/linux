@@ -352,13 +352,21 @@ extern void dwc_otg_hub_disconnect_device(struct usb_hub *hub);
 void dwc_otg_force_host(dwc_otg_core_if_t *core_if)
 {
 	dwc_otg_device_t *otg_dev = core_if->otg_dev;
+	struct dwc_otg_platform_data *pdata = otg_dev->pldata;
 	dctl_data_t dctl = {.d32 = 0 };
 	unsigned long flags;
 
 	if (core_if->op_state == A_HOST) {
-		printk("dwc_otg_force_host,already in A_HOST mode,everest\n");
+		dev_info(pdata->dev,
+			 "dwc_otg_force_host,already in A_HOST mode,everest\n");
+		return;
+	} else if (pdata->get_status(USB_STATUS_BVABLID) &&
+		   core_if->pmic_vbus) {
+		dev_info(pdata->dev,
+			 "Please disconnect the USB cable first, and try again!\n");
 		return;
 	}
+
 	core_if->op_state = A_HOST;
 
 	cancel_delayed_work(&otg_dev->pcd->check_vbus_work);
@@ -1503,6 +1511,10 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	 */
 	of_property_read_u32(node, "rockchip,usb-mode", &val);
 	dwc_otg_device->core_if->usb_mode = val;
+
+	/* Indicate usb vbus get from pmic (e.g. rk81x) */
+	dwc_otg_device->core_if->pmic_vbus = of_property_read_bool(node,
+						"rockchip,usb-pmic-vbus");
 
 #ifndef DWC_HOST_ONLY
 	/*

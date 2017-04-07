@@ -191,15 +191,17 @@ static void dwc_otg_uart_mode(void *pdata, int enter_usb_uart_mode)
 static void usb20otg_power_enable(int enable)
 {
 	if (0 == enable) {
-		rk_battery_charger_detect_cb(USB_OTG_POWER_OFF);
 		/* disable otg_drv power */
 		if (gpio_is_valid(control_usb->otg_gpios->gpio))
 			gpio_set_value(control_usb->otg_gpios->gpio, 0);
+		else if (usb20otg_get_status(USB_STATUS_BVABLID))
+			rk_battery_charger_detect_cb(USB_OTG_POWER_OFF);
 	} else if (1 == enable) {
-		rk_battery_charger_detect_cb(USB_OTG_POWER_ON);
 		/* enable otg_drv power */
 		if (gpio_is_valid(control_usb->otg_gpios->gpio))
 			gpio_set_value(control_usb->otg_gpios->gpio, 1);
+		else if (!usb20otg_get_status(USB_STATUS_BVABLID))
+			rk_battery_charger_detect_cb(USB_OTG_POWER_ON);
 	}
 }
 static void usb20otg_phy_power_down(int power_down)
