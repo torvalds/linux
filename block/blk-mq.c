@@ -1063,8 +1063,8 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
 	 */
 	if (!list_empty(list)) {
 		/*
-		 * If we got a driver tag for the next request already,
-		 * free it again.
+		 * If an I/O scheduler has been configured and we got a driver
+		 * tag for the next request already, free it again.
 		 */
 		rq = list_first_entry(list, struct request, queuelist);
 		blk_mq_put_driver_tag(rq);
@@ -1074,16 +1074,24 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
 		spin_unlock(&hctx->lock);
 
 		/*
-		 * the queue is expected stopped with BLK_MQ_RQ_QUEUE_BUSY, but
-		 * it's possible the queue is stopped and restarted again
-		 * before this. Queue restart will dispatch requests. And since
-		 * requests in rq_list aren't added into hctx->dispatch yet,
-		 * the requests in rq_list might get lost.
+		 * If SCHED_RESTART was set by the caller of this function and
+		 * it is no longer set that means that it was cleared by another
+		 * thread and hence that a queue rerun is needed.
 		 *
-		 * blk_mq_run_hw_queue() already checks the STOPPED bit
+		 * If TAG_WAITING is set that means that an I/O scheduler has
+		 * been configured and another thread is waiting for a driver
+		 * tag. To guarantee fairness, do not rerun this hardware queue
+		 * but let the other thread grab the driver tag.
 		 *
-		 * If RESTART or TAG_WAITING is set, then let completion restart
-		 * the queue instead of potentially looping here.
+		 * If no I/O scheduler has been configured it is possible that
+		 * the hardware queue got stopped and restarted before requests
+		 * were pushed back onto the dispatch list. Rerun the queue to
+		 * avoid starvation. Notes:
+		 * - blk_mq_run_hw_queue() checks whether or not a queue has
+		 *   been stopped before rerunning a queue.
+		 * - Some but not all block drivers stop a queue before
+		 *   returning BLK_MQ_RQ_QUEUE_BUSY. Two exceptions are scsi-mq
+		 *   and dm-rq.
 		 */
 		if (!blk_mq_sched_needs_restart(hctx) &&
 		    !test_bit(BLK_MQ_S_TAG_WAITING, &hctx->state))
