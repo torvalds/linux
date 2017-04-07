@@ -112,10 +112,11 @@ static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 
 static inline int ioapic_in_kernel(struct kvm *kvm)
 {
-	int ret;
+	int mode = kvm->arch.irqchip_mode;
 
-	ret = (ioapic_irqchip(kvm) != NULL);
-	return ret;
+	/* Matches smp_wmb() when setting irqchip_mode */
+	smp_rmb();
+	return mode == KVM_IRQCHIP_KERNEL;
 }
 
 void kvm_rtc_eoi_tracking_restore_one(struct kvm_vcpu *vcpu);
