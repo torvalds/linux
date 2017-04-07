@@ -170,6 +170,8 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 			ring->dequeue++;
 		}
 	} while (last_trb(xhci, ring, ring->deq_seg, ring->dequeue));
+
+	trace_xhci_inc_deq(ring);
 }
 
 /*
@@ -245,6 +247,8 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		ring->enqueue = ring->enq_seg->trbs;
 		next = ring->enqueue;
 	}
+
+	trace_xhci_inc_enq(ring);
 }
 
 /*

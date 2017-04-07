@@ -388,6 +388,68 @@ DEFINE_EVENT(xhci_log_slot_ctx, xhci_handle_cmd_set_deq,
 	TP_ARGS(ctx)
 );
 
+DECLARE_EVENT_CLASS(xhci_log_ring,
+	TP_PROTO(struct xhci_ring *ring),
+	TP_ARGS(ring),
+	TP_STRUCT__entry(
+		__field(u32, type)
+		__field(void *, ring)
+		__field(dma_addr_t, enq)
+		__field(dma_addr_t, deq)
+		__field(dma_addr_t, enq_seg)
+		__field(dma_addr_t, deq_seg)
+		__field(unsigned int, num_segs)
+		__field(unsigned int, stream_id)
+		__field(unsigned int, cycle_state)
+		__field(unsigned int, num_trbs_free)
+	),
+	TP_fast_assign(
+		__entry->ring = ring;
+		__entry->type = ring->type;
+		__entry->num_segs = ring->num_segs;
+		__entry->stream_id = ring->stream_id;
+		__entry->enq_seg = ring->enq_seg->dma;
+		__entry->deq_seg = ring->deq_seg->dma;
+		__entry->cycle_state = ring->cycle_state;
+		__entry->num_trbs_free = ring->num_trbs_free;
+		__entry->enq = xhci_trb_virt_to_dma(ring->enq_seg, ring->enqueue);
+		__entry->deq = xhci_trb_virt_to_dma(ring->deq_seg, ring->dequeue);
+	),
+	TP_printk("%s %p: enq %pad(%pad) deq %pad(%pad) segs %d stream %d free_trbs %d cycle %d",
+			xhci_ring_type_string(__entry->type), __entry->ring,
+			&__entry->enq, &__entry->enq_seg,
+			&__entry->deq, &__entry->deq_seg,
+			__entry->num_segs,
+			__entry->stream_id,
+			__entry->num_trbs_free,
+			__entry->cycle_state
+		)
+);
+
+DEFINE_EVENT(xhci_log_ring, xhci_ring_alloc,
+	TP_PROTO(struct xhci_ring *ring),
+	TP_ARGS(ring)
+);
+
+DEFINE_EVENT(xhci_log_ring, xhci_ring_free,
+	TP_PROTO(struct xhci_ring *ring),
+	TP_ARGS(ring)
+);
+
+DEFINE_EVENT(xhci_log_ring, xhci_ring_expansion,
+	TP_PROTO(struct xhci_ring *ring),
+	TP_ARGS(ring)
+);
+
+DEFINE_EVENT(xhci_log_ring, xhci_inc_enq,
+	TP_PROTO(struct xhci_ring *ring),
+	TP_ARGS(ring)
+);
+
+DEFINE_EVENT(xhci_log_ring, xhci_inc_deq,
+	TP_PROTO(struct xhci_ring *ring),
+	TP_ARGS(ring)
+);
 #endif /* __XHCI_TRACE_H */
 
 /* this part must be outside header guard */
