@@ -1441,6 +1441,7 @@ void facility_unavailable_exception(struct pt_regs *regs)
 		[FSCR_EBB_LG] = "EBB",
 		[FSCR_TAR_LG] = "TAR",
 		[FSCR_MSGP_LG] = "MSGP",
+		[FSCR_SCV_LG] = "SCV",
 	};
 	char *facility = "unknown";
 	u64 value;
