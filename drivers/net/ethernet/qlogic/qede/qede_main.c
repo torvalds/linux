@@ -1188,8 +1188,9 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 
 	rxq->rx_buf_size = NET_IP_ALIGN + ETH_OVERHEAD + edev->ndev->mtu;
 
-	if (rxq->rx_buf_size > PAGE_SIZE)
-		rxq->rx_buf_size = PAGE_SIZE;
+	/* Make sure that the headroom and  payload fit in a single page */
+	if (rxq->rx_buf_size + rxq->rx_headroom > PAGE_SIZE)
+		rxq->rx_buf_size = PAGE_SIZE - rxq->rx_headroom;
 
 	/* Segment size to spilt a page in multiple equal parts,
 	 * unless XDP is used in which case we'd use the entire page.

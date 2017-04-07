@@ -313,20 +313,23 @@ struct qede_rx_queue {
 	u8 data_direction;
 	u8 rxq_id;
 
+	/* Used once per each NAPI run */
+	u16 num_rx_buffers;
+
+	u16 rx_headroom;
+
 	u32 rx_buf_size;
 	u32 rx_buf_seg_size;
-
-	u64 rcv_pkts;
 
 	struct sw_rx_data *sw_rx_ring;
 	struct qed_chain rx_bd_ring;
 	struct qed_chain rx_comp_ring ____cacheline_aligned;
 
-	/* Used once per each NAPI run */
-	u16 num_rx_buffers;
-
 	/* GRO */
 	struct qede_agg_info tpa_info[ETH_TPA_MAX_AGGS_NUM];
+
+	/* Used once per each NAPI run */
+	u64 rcv_pkts;
 
 	u64 rx_hw_errors;
 	u64 rx_alloc_errors;

@@ -87,7 +87,8 @@ int qede_alloc_rx_buffer(struct qede_rx_queue *rxq, bool allow_lazy)
 	rx_bd = (struct eth_rx_bd *)qed_chain_produce(&rxq->rx_bd_ring);
 	WARN_ON(!rx_bd);
 	rx_bd->addr.hi = cpu_to_le32(upper_32_bits(mapping));
-	rx_bd->addr.lo = cpu_to_le32(lower_32_bits(mapping));
+	rx_bd->addr.lo = cpu_to_le32(lower_32_bits(mapping) +
+				     rxq->rx_headroom);
 
 	rxq->sw_rx_prod++;
 	rxq->filled_buffers++;
@@ -509,7 +510,8 @@ static inline void qede_reuse_page(struct qede_rx_queue *rxq,
 	new_mapping = curr_prod->mapping + curr_prod->page_offset;
 
 	rx_bd_prod->addr.hi = cpu_to_le32(upper_32_bits(new_mapping));
-	rx_bd_prod->addr.lo = cpu_to_le32(lower_32_bits(new_mapping));
+	rx_bd_prod->addr.lo = cpu_to_le32(lower_32_bits(new_mapping) +
+					  rxq->rx_headroom);
 
 	rxq->sw_rx_prod++;
 	curr_cons->data = NULL;
@@ -991,13 +993,14 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 			struct qede_rx_queue *rxq,
 			struct bpf_prog *prog,
 			struct sw_rx_data *bd,
-			struct eth_fast_path_rx_reg_cqe *cqe)
+			struct eth_fast_path_rx_reg_cqe *cqe,
+			u16 data_offset)
 {
 	u16 len = le16_to_cpu(cqe->len_on_first_bd);
 	struct xdp_buff xdp;
 	enum xdp_action act;
 
-	xdp.data = page_address(bd->data) + cqe->placement_offset;
+	xdp.data = page_address(bd->data) + data_offset;
 	xdp.data_end = xdp.data + len;
 
 	/* Queues always have a full reset currently, so for the time
@@ -1026,7 +1029,7 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 		/* Now if there's a transmission problem, we'd still have to
 		 * throw current buffer, as replacement was already allocated.
 		 */
-		if (qede_xdp_xmit(edev, fp, bd, cqe->placement_offset, len)) {
+		if (qede_xdp_xmit(edev, fp, bd, data_offset, len)) {
 			dma_unmap_page(rxq->dev, bd->mapping,
 				       PAGE_SIZE, DMA_BIDIRECTIONAL);
 			__free_page(bd->data);
@@ -1053,7 +1056,7 @@ static struct sk_buff *qede_rx_allocate_skb(struct qede_dev *edev,
 					    struct sw_rx_data *bd, u16 len,
 					    u16 pad)
 {
-	unsigned int offset = bd->page_offset;
+	unsigned int offset = bd->page_offset + pad;
 	struct skb_frag_struct *frag;
 	struct page *page = bd->data;
 	unsigned int pull_len;
@@ -1070,7 +1073,7 @@ static struct sk_buff *qede_rx_allocate_skb(struct qede_dev *edev,
 	 */
 	if (len + pad <= edev->rx_copybreak) {
 		memcpy(skb_put(skb, len),
-		       page_address(page) + pad + offset, len);
+		       page_address(page) + offset, len);
 		qede_reuse_page(rxq, bd);
 		goto out;
 	}
@@ -1078,7 +1081,7 @@ static struct sk_buff *qede_rx_allocate_skb(struct qede_dev *edev,
 	frag = &skb_shinfo(skb)->frags[0];
 
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-			page, pad + offset, len, rxq->rx_buf_seg_size);
+			page, offset, len, rxq->rx_buf_seg_size);
 
 	va = skb_frag_address(frag);
 	pull_len = eth_get_headlen(va, QEDE_RX_HDR_SIZE);
@@ -1224,11 +1227,11 @@ static int qede_rx_process_cqe(struct qede_dev *edev,
 
 	fp_cqe = &cqe->fast_path_regular;
 	len = le16_to_cpu(fp_cqe->len_on_first_bd);
-	pad = fp_cqe->placement_offset;
+	pad = fp_cqe->placement_offset + rxq->rx_headroom;
 
 	/* Run eBPF program if one is attached */
 	if (xdp_prog)
-		if (!qede_rx_xdp(edev, fp, rxq, xdp_prog, bd, fp_cqe))
+		if (!qede_rx_xdp(edev, fp, rxq, xdp_prog, bd, fp_cqe, pad))
 			return 0;
 
 	/* If this is an error packet then drop it */
