@@ -622,10 +622,8 @@ int kvm_ioapic_init(struct kvm *kvm)
 	if (ret < 0) {
 		kvm->arch.vioapic = NULL;
 		kfree(ioapic);
-		return ret;
 	}
 
-	kvm_vcpu_request_scan_ioapic(kvm);
 	return ret;
 }
 
