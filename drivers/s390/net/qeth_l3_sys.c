@@ -286,7 +286,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 		if (!addr)
 			return -ENOMEM;
 
-		addr->u.a6.addr.s6_addr32[0] = 0xfe800000;
+		addr->u.a6.addr.s6_addr32[0] = cpu_to_be32(0xfe800000);
 		addr->u.a6.addr.s6_addr32[1] = 0x00000000;
 		for (i = 8; i < 16; i++)
 			addr->u.a6.addr.s6_addr[i] =
@@ -320,7 +320,7 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 
 	addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
 	if (addr != NULL) {
-		addr->u.a6.addr.s6_addr32[0] = 0xfe800000;
+		addr->u.a6.addr.s6_addr32[0] = cpu_to_be32(0xfe800000);
 		addr->u.a6.addr.s6_addr32[1] = 0x00000000;
 		for (i = 8; i < 16; i++)
 			addr->u.a6.addr.s6_addr[i] = card->options.hsuid[i - 8];

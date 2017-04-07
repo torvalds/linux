@@ -1201,7 +1201,7 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
 	while (skb) {
 		QETH_CARD_TEXT_(q->card, 5, "skbn%d", notification);
 		QETH_CARD_TEXT_(q->card, 5, "%lx", (long) skb);
-		if (skb->protocol == ETH_P_AF_IUCV) {
+		if (be16_to_cpu(skb->protocol) == ETH_P_AF_IUCV) {
 			if (skb->sk) {
 				struct iucv_sock *iucv = iucv_sk(skb->sk);
 				iucv->sk_txnotify(skb, notification);
@@ -1232,7 +1232,8 @@ static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf)
 	while (skb) {
 		QETH_CARD_TEXT(buf->q->card, 5, "skbr");
 		QETH_CARD_TEXT_(buf->q->card, 5, "%lx", (long) skb);
-		if (notify_general_error && skb->protocol == ETH_P_AF_IUCV) {
+		if (notify_general_error &&
+		    be16_to_cpu(skb->protocol) == ETH_P_AF_IUCV) {
 			if (skb->sk) {
 				iucv = iucv_sk(skb->sk);
 				iucv->sk_txnotify(skb, TX_NOTIFY_GENERALERROR);
@@ -3796,9 +3797,9 @@ int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
 		return qeth_cut_iqd_prio(card, ~skb->priority >> 1 & 3);
 	case QETH_PRIO_Q_ING_VLAN:
 		tci = &((struct ethhdr *)skb->data)->h_proto;
-		if (*tci == ETH_P_8021Q)
-			return qeth_cut_iqd_prio(card, ~*(tci + 1) >>
-			(VLAN_PRIO_SHIFT + 1) & 3);
+		if (be16_to_cpu(*tci) == ETH_P_8021Q)
+			return qeth_cut_iqd_prio(card,
+			~be16_to_cpu(*(tci + 1)) >> (VLAN_PRIO_SHIFT + 1) & 3);
 		break;
 	default:
 		break;
