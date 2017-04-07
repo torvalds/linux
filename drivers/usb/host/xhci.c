@@ -3446,6 +3446,8 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 						SLOT_STATE_DISABLED)
 		return 0;
 
+	trace_xhci_discover_or_reset_device(slot_ctx);
+
 	xhci_dbg(xhci, "Resetting device with slot ID %u\n", slot_id);
 	/* Allocate the command structure that holds the struct completion.
 	 * Assume we're in process context, since the normal device reset
@@ -3561,6 +3563,7 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct xhci_virt_device *virt_dev;
+	struct xhci_slot_ctx *slot_ctx;
 	int i, ret;
 	struct xhci_command *command;
 
@@ -3588,6 +3591,8 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	}
 
 	virt_dev = xhci->devs[udev->slot_id];
+	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
+	trace_xhci_free_dev(slot_ctx);
 
 	/* Stop any wayward timer functions (which may grab the lock) */
 	for (i = 0; i < 31; i++) {
@@ -3671,6 +3676,8 @@ static int xhci_reserve_host_control_ep_resources(struct xhci_hcd *xhci)
 int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct xhci_virt_device *vdev;
+	struct xhci_slot_ctx *slot_ctx;
 	unsigned long flags;
 	int ret, slot_id;
 	struct xhci_command *command;
@@ -3726,6 +3733,10 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		xhci_warn(xhci, "Could not allocate xHCI USB device data structures\n");
 		goto disable_slot;
 	}
+	vdev = xhci->devs[slot_id];
+	slot_ctx = xhci_get_slot_ctx(xhci, vdev->out_ctx);
+	trace_xhci_alloc_dev(slot_ctx);
+
 	udev->slot_id = slot_id;
 
 #ifndef CONFIG_USB_DEFAULT_PERSIST
@@ -3795,9 +3806,10 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		ret = -EINVAL;
 		goto out;
 	}
+	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
+	trace_xhci_setup_device_slot(slot_ctx);
 
 	if (setup == SETUP_CONTEXT_ONLY) {
-		slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
 		if (GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state)) ==
 		    SLOT_STATE_DEFAULT) {
 			xhci_dbg(xhci, "Slot already in default state\n");
@@ -3918,7 +3930,6 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	 * USB core uses address 1 for the roothubs, so we add one to the
 	 * address given back to us by the HC.
 	 */
-	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
 	trace_xhci_address_ctx(xhci, virt_dev->out_ctx,
 				le32_to_cpu(slot_ctx->dev_info) >> 27);
 	/* Zero the input context control for later use */
