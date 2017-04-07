@@ -278,18 +278,16 @@ int kvm_set_routing_entry(struct kvm *kvm,
 			  struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
-	int r = -EINVAL;
-
 	/* also allow creation of routes during KVM_IRQCHIP_INIT_IN_PROGRESS */
 	if (kvm->arch.irqchip_mode == KVM_IRQCHIP_NONE)
-		goto out;
+		return -EINVAL;
 
 	/* Matches smp_wmb() when setting irqchip_mode */
 	smp_rmb();
 	switch (ue->type) {
 	case KVM_IRQ_ROUTING_IRQCHIP:
 		if (irqchip_split(kvm))
-			goto out;
+			return -EINVAL;
 		e->irqchip.pin = ue->u.irqchip.pin;
 		switch (ue->u.irqchip.irqchip) {
 		case KVM_IRQCHIP_PIC_SLAVE:
@@ -297,16 +295,16 @@ int kvm_set_routing_entry(struct kvm *kvm,
 			/* fall through */
 		case KVM_IRQCHIP_PIC_MASTER:
 			if (ue->u.irqchip.pin >= PIC_NUM_PINS / 2)
-				goto out;
+				return -EINVAL;
 			e->set = kvm_set_pic_irq;
 			break;
 		case KVM_IRQCHIP_IOAPIC:
 			if (ue->u.irqchip.pin >= KVM_IOAPIC_NUM_PINS)
-				goto out;
+				return -EINVAL;
 			e->set = kvm_set_ioapic_irq;
 			break;
 		default:
-			goto out;
+			return -EINVAL;
 		}
 		e->irqchip.irqchip = ue->u.irqchip.irqchip;
 		break;
@@ -317,7 +315,7 @@ int kvm_set_routing_entry(struct kvm *kvm,
 		e->msi.data = ue->u.msi.data;
 
 		if (kvm_msi_route_invalid(kvm, e))
-			goto out;
+			return -EINVAL;
 		break;
 	case KVM_IRQ_ROUTING_HV_SINT:
 		e->set = kvm_hv_set_sint;
@@ -325,12 +323,10 @@ int kvm_set_routing_entry(struct kvm *kvm,
 		e->hv_sint.sint = ue->u.hv_sint.sint;
 		break;
 	default:
-		goto out;
+		return -EINVAL;
 	}
 
-	r = 0;
-out:
-	return r;
+	return 0;
 }
 
 bool kvm_intr_is_single_vcpu(struct kvm *kvm, struct kvm_lapic_irq *irq,
