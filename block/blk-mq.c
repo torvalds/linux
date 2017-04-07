@@ -2111,6 +2111,8 @@ static void blk_mq_update_tag_set_depth(struct blk_mq_tag_set *set, bool shared)
 {
 	struct request_queue *q;
 
+	lockdep_assert_held(&set->tag_list_lock);
+
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
 		blk_mq_freeze_queue(q);
 		queue_set_hctx_shared(q, shared);
@@ -2123,7 +2125,8 @@ static void blk_mq_del_queue_tag_set(struct request_queue *q)
 	struct blk_mq_tag_set *set = q->tag_set;
 
 	mutex_lock(&set->tag_list_lock);
-	list_del_init(&q->tag_set_list);
+	list_del_rcu(&q->tag_set_list);
+	INIT_LIST_HEAD(&q->tag_set_list);
 	if (list_is_singular(&set->tag_list)) {
 		/* just transitioned to unshared */
 		set->flags &= ~BLK_MQ_F_TAG_SHARED;
@@ -2131,6 +2134,8 @@ static void blk_mq_del_queue_tag_set(struct request_queue *q)
 		blk_mq_update_tag_set_depth(set, false);
 	}
 	mutex_unlock(&set->tag_list_lock);
+
+	synchronize_rcu();
 }
 
 static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
@@ -2148,7 +2153,7 @@ static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
 	}
 	if (set->flags & BLK_MQ_F_TAG_SHARED)
 		queue_set_hctx_shared(q, true);
-	list_add_tail(&q->tag_set_list, &set->tag_list);
+	list_add_tail_rcu(&q->tag_set_list, &set->tag_list);
 
 	mutex_unlock(&set->tag_list_lock);
 }
@@ -2638,6 +2643,8 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues)
 {
 	struct request_queue *q;
+
+	lockdep_assert_held(&set->tag_list_lock);
 
 	if (nr_hw_queues > nr_cpu_ids)
 		nr_hw_queues = nr_cpu_ids;
