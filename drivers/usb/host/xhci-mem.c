@@ -1494,6 +1494,17 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	 */
 	max_esit_payload = xhci_get_max_esit_payload(udev, ep);
 	interval = xhci_get_endpoint_interval(udev, ep);
+
+	/* Periodic endpoint bInterval limit quirk */
+	if (usb_endpoint_xfer_int(&ep->desc) ||
+	    usb_endpoint_xfer_isoc(&ep->desc)) {
+		if ((xhci->quirks & XHCI_LIMIT_ENDPOINT_INTERVAL_7) &&
+		    udev->speed >= USB_SPEED_HIGH &&
+		    interval >= 7) {
+			interval = 6;
+		}
+	}
+
 	mult = xhci_get_endpoint_mult(udev, ep);
 	max_packet = GET_MAX_PACKET(usb_endpoint_maxp(&ep->desc));
 	max_burst = xhci_get_endpoint_max_burst(udev, ep);
