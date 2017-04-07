@@ -6,18 +6,21 @@ from 3 to 12 output clocks.
 ==I2C device node==
 
 Required properties:
-- compatible:	shall be one of "idt,5p49v5923" , "idt,5p49v5933".
+- compatible:	shall be one of "idt,5p49v5923" , "idt,5p49v5933" ,
+		"idt,5p49v5935".
 - reg:		i2c device address, shall be 0x68 or 0x6a.
 - #clock-cells:	from common clock binding; shall be set to 1.
 - clocks:	from common clock binding; list of parent clock handles,
 		- 5p49v5923: (required) either or both of XTAL or CLKIN
 					reference clock.
-		- 5p49v5933: (optional) property not present (internal
+		- 5p49v5933 and
+		- 5p49v5935: (optional) property not present (internal
 					Xtal used) or CLKIN reference
 					clock.
 - clock-names:	from common clock binding; clock input names, can be
 		- 5p49v5923: (required) either or both of "xin", "clkin".
-		- 5p49v5933: (optional) property not present or "clkin".
+		- 5p49v5933 and
+		- 5p49v5935: (optional) property not present or "clkin".
 
 ==Mapping between clock specifier and physical pins==
 
@@ -33,6 +36,13 @@ clock specifier, the following mapping applies:
 	0 -- OUT0_SEL_I2CB
 	1 -- OUT1
 	2 -- OUT4
+
+5P49V5935:
+	0 -- OUT0_SEL_I2CB
+	1 -- OUT1
+	2 -- OUT2
+	3 -- OUT3
+	4 -- OUT4
 
 ==Example==
 
