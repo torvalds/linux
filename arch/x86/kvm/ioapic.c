@@ -268,9 +268,7 @@ void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, ulong *ioapic_handled_vectors)
 
 void kvm_vcpu_request_scan_ioapic(struct kvm *kvm)
 {
-	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
-
-	if (!ioapic)
+	if (!ioapic_in_kernel(kvm))
 		return;
 	kvm_make_scan_ioapic_request(kvm);
 }
