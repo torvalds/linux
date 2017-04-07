@@ -268,7 +268,7 @@ int kvm_pic_read_irq(struct kvm *kvm)
 	return intno;
 }
 
-void kvm_pic_reset(struct kvm_kpic_state *s)
+static void kvm_pic_reset(struct kvm_kpic_state *s)
 {
 	int irq, i;
 	struct kvm_vcpu *vcpu;
