@@ -49,6 +49,9 @@
 };
 
 &pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cpt_gpio>;
+
 	sdio0 {
 		sdio0_bus1: sdio0-bus1 {
 			rockchip,pins =
@@ -106,10 +109,10 @@
 		};
 	};
 
-	pmic {
-		vsel1_gpio: vsel1-gpio {
+	compat {
+		cpt_gpio: cpt-gpio {
 			rockchip,pins =
-				<1 18 RK_FUNC_GPIO &pcfg_pull_up>;
+				<1 18 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 	};
 };
@@ -125,15 +128,4 @@
 		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
-};
-
-&vdd_cpu_b {
-	vsel-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
-	fcs,suspend-voltage-selector = <0>;
-};
-
-&rockchip_suspend {
-	rockchip,power-ctrl =
-		<&gpio1 18 GPIO_ACTIVE_LOW>,
-		<&gpio1 14 GPIO_ACTIVE_HIGH>;
 };
