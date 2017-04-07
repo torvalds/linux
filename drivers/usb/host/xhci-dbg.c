@@ -453,19 +453,9 @@ char *xhci_get_slot_state(struct xhci_hcd *xhci,
 		struct xhci_container_ctx *ctx)
 {
 	struct xhci_slot_ctx *slot_ctx = xhci_get_slot_ctx(xhci, ctx);
+	int state = GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state));
 
-	switch (GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state))) {
-	case SLOT_STATE_ENABLED:
-		return "enabled/disabled";
-	case SLOT_STATE_DEFAULT:
-		return "default";
-	case SLOT_STATE_ADDRESSED:
-		return "addressed";
-	case SLOT_STATE_CONFIGURED:
-		return "configured";
-	default:
-		return "reserved";
-	}
+	return xhci_slot_state_string(state);
 }
 
 static void xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx)
