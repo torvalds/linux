@@ -333,17 +333,6 @@ static ssize_t channel_starving_show(struct most_c_obj *c,
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->is_starving);
 }
 
-#define create_show_channel_attribute(val) \
-	static struct most_c_attr most_chnl_attr_##val = __ATTR_RO(val)
-
-create_show_channel_attribute(available_directions);
-create_show_channel_attribute(available_datatypes);
-create_show_channel_attribute(number_of_packet_buffers);
-create_show_channel_attribute(number_of_stream_buffers);
-create_show_channel_attribute(size_of_stream_buffer);
-create_show_channel_attribute(size_of_packet_buffer);
-create_show_channel_attribute(channel_starving);
-
 static ssize_t set_number_of_buffers_show(struct most_c_obj *c,
 					  struct most_c_attr *attr,
 					  char *buf)
@@ -485,33 +474,39 @@ static ssize_t set_packets_per_xact_store(struct most_c_obj *c,
 	return count;
 }
 
-#define create_channel_attribute(value) \
-	static struct most_c_attr most_chnl_attr_##value = __ATTR_RW(value)
-
-create_channel_attribute(set_buffer_size);
-create_channel_attribute(set_number_of_buffers);
-create_channel_attribute(set_direction);
-create_channel_attribute(set_datatype);
-create_channel_attribute(set_subbuffer_size);
-create_channel_attribute(set_packets_per_xact);
+static struct most_c_attr most_c_attrs[] = {
+	__ATTR_RO(available_directions),
+	__ATTR_RO(available_datatypes),
+	__ATTR_RO(number_of_packet_buffers),
+	__ATTR_RO(number_of_stream_buffers),
+	__ATTR_RO(size_of_stream_buffer),
+	__ATTR_RO(size_of_packet_buffer),
+	__ATTR_RO(channel_starving),
+	__ATTR_RW(set_buffer_size),
+	__ATTR_RW(set_number_of_buffers),
+	__ATTR_RW(set_direction),
+	__ATTR_RW(set_datatype),
+	__ATTR_RW(set_subbuffer_size),
+	__ATTR_RW(set_packets_per_xact),
+};
 
 /**
  * most_channel_def_attrs - array of default attributes of channel object
  */
 static struct attribute *most_channel_def_attrs[] = {
-	&most_chnl_attr_available_directions.attr,
-	&most_chnl_attr_available_datatypes.attr,
-	&most_chnl_attr_number_of_packet_buffers.attr,
-	&most_chnl_attr_number_of_stream_buffers.attr,
-	&most_chnl_attr_size_of_packet_buffer.attr,
-	&most_chnl_attr_size_of_stream_buffer.attr,
-	&most_chnl_attr_set_number_of_buffers.attr,
-	&most_chnl_attr_set_buffer_size.attr,
-	&most_chnl_attr_set_direction.attr,
-	&most_chnl_attr_set_datatype.attr,
-	&most_chnl_attr_set_subbuffer_size.attr,
-	&most_chnl_attr_set_packets_per_xact.attr,
-	&most_chnl_attr_channel_starving.attr,
+	&most_c_attrs[0].attr,
+	&most_c_attrs[1].attr,
+	&most_c_attrs[2].attr,
+	&most_c_attrs[3].attr,
+	&most_c_attrs[4].attr,
+	&most_c_attrs[5].attr,
+	&most_c_attrs[6].attr,
+	&most_c_attrs[7].attr,
+	&most_c_attrs[8].attr,
+	&most_c_attrs[9].attr,
+	&most_c_attrs[10].attr,
+	&most_c_attrs[11].attr,
+	&most_c_attrs[12].attr,
 	NULL,
 };
 
