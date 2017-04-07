@@ -294,7 +294,7 @@ static int __init misc_init(void)
 	return 0;
 
 fail_printk:
-	printk("unable to get major %d for misc devices\n", MISC_MAJOR);
+	pr_err("unable to get major %d for misc devices\n", MISC_MAJOR);
 	class_destroy(misc_class);
 fail_remove:
 	if (ret)
