@@ -171,7 +171,8 @@ void blk_mq_sched_put_request(struct request *rq)
 
 void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
-	struct elevator_queue *e = hctx->queue->elevator;
+	struct request_queue *q = hctx->queue;
+	struct elevator_queue *e = q->elevator;
 	const bool has_sched_dispatch = e && e->type->ops.mq.dispatch_request;
 	bool did_work = false;
 	LIST_HEAD(rq_list);
@@ -203,10 +204,10 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 */
 	if (!list_empty(&rq_list)) {
 		blk_mq_sched_mark_restart_hctx(hctx);
-		did_work = blk_mq_dispatch_rq_list(hctx, &rq_list);
+		did_work = blk_mq_dispatch_rq_list(q, &rq_list);
 	} else if (!has_sched_dispatch) {
 		blk_mq_flush_busy_ctxs(hctx, &rq_list);
-		blk_mq_dispatch_rq_list(hctx, &rq_list);
+		blk_mq_dispatch_rq_list(q, &rq_list);
 	}
 
 	/*
@@ -222,7 +223,7 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 			if (!rq)
 				break;
 			list_add(&rq->queuelist, &rq_list);
-		} while (blk_mq_dispatch_rq_list(hctx, &rq_list));
+		} while (blk_mq_dispatch_rq_list(q, &rq_list));
 	}
 }
 
