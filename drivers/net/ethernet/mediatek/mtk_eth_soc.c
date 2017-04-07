@@ -1846,6 +1846,12 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	/* GE2, Force 1000M/FD, FC ON */
 	mtk_w32(eth, MAC_MCR_FIXED_LINK, MTK_MAC_MCR(1));
 
+	/* Indicates CDM to parse the MTK special tag from CPU
+	 * which also is working out for untag packets.
+	 */
+	val = mtk_r32(eth, MTK_CDMQ_IG_CTRL);
+	mtk_w32(eth, val | MTK_CDMQ_STAG_EN, MTK_CDMQ_IG_CTRL);
+
 	/* Enable RX VLan Offloading */
 	mtk_w32(eth, 1, MTK_CDMP_EG_CTRL);
 
