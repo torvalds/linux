@@ -845,18 +845,16 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 			fujitsu_bl->bl_device->props.power = FB_BLANK_UNBLANK;
 	}
 
+	error = acpi_fujitsu_laptop_leds_register(device);
+	if (error)
+		goto err_free_fifo;
+
 	error = fujitsu_laptop_platform_add();
 	if (error)
 		goto err_free_fifo;
 
-	error = acpi_fujitsu_laptop_leds_register(device);
-	if (error)
-		goto err_remove_platform_device;
-
 	return 0;
 
-err_remove_platform_device:
-	fujitsu_laptop_platform_remove();
 err_free_fifo:
 	kfifo_free(&fujitsu_laptop->fifo);
 err_stop:
