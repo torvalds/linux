@@ -96,6 +96,14 @@ check_stack(unsigned long ip, unsigned long *stack)
 	if (in_nmi())
 		return;
 
+	/*
+	 * There's a slight chance that we are tracing inside the
+	 * RCU infrastructure, and rcu_irq_enter() will not work
+	 * as expected.
+	 */
+	if (unlikely(rcu_irq_enter_disabled()))
+		return;
+
 	local_irq_save(flags);
 	arch_spin_lock(&stack_trace_max_lock);
 
