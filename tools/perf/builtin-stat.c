@@ -875,10 +875,7 @@ static void print_metric_csv(void *ctx,
 		return;
 	}
 	snprintf(buf, sizeof(buf), fmt, val);
-	vals = buf;
-	while (isspace(*vals))
-		vals++;
-	ends = vals;
+	ends = vals = ltrim(buf);
 	while (isdigit(*ends) || *ends == '.')
 		ends++;
 	*ends = 0;
@@ -950,10 +947,7 @@ static void print_metric_only_csv(void *ctx, const char *color __maybe_unused,
 		return;
 	unit = fixunit(tbuf, os->evsel, unit);
 	snprintf(buf, sizeof buf, fmt, val);
-	vals = buf;
-	while (isspace(*vals))
-		vals++;
-	ends = vals;
+	ends = vals = ltrim(buf);
 	while (isdigit(*ends) || *ends == '.')
 		ends++;
 	*ends = 0;
