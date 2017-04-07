@@ -463,6 +463,15 @@ static struct device_attribute dev_attr_nd_badblocks = {
 	.show = nd_badblocks_show,
 };
 
+static ssize_t resource_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+
+	return sprintf(buf, "%#llx\n", nd_region->ndr_start);
+}
+static DEVICE_ATTR_RO(resource);
+
 static struct attribute *nd_region_attributes[] = {
 	&dev_attr_size.attr,
 	&dev_attr_nstype.attr,
@@ -476,6 +485,7 @@ static struct attribute *nd_region_attributes[] = {
 	&dev_attr_namespace_seed.attr,
 	&dev_attr_init_namespaces.attr,
 	&dev_attr_nd_badblocks.attr,
+	&dev_attr_resource.attr,
 	NULL,
 };
 
@@ -493,6 +503,9 @@ static umode_t region_visible(struct kobject *kobj, struct attribute *a, int n)
 		return 0;
 
 	if (!is_nd_pmem(dev) && a == &dev_attr_nd_badblocks.attr)
+		return 0;
+
+	if (!is_nd_pmem(dev) && a == &dev_attr_resource.attr)
 		return 0;
 
 	if (a != &dev_attr_set_cookie.attr
