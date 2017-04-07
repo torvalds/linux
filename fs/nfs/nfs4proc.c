@@ -7453,15 +7453,14 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 	};
 	struct nfs41_exchange_id_data *calldata;
 	struct rpc_task *task;
-	int status = -EIO;
+	int status;
 
 	if (!atomic_inc_not_zero(&clp->cl_count))
-		goto out;
+		return -EIO;
 
-	status = -ENOMEM;
 	calldata = kzalloc(sizeof(*calldata), GFP_NOFS);
 	if (!calldata)
-		goto out;
+		return -ENOMEM;
 
 	if (!xprt)
 		nfs4_init_boot_verifier(clp, &verifier);
@@ -7469,10 +7468,6 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 	status = nfs4_init_uniform_client_string(clp);
 	if (status)
 		goto out_calldata;
-
-	dprintk("NFS call  exchange_id auth=%s, '%s'\n",
-		clp->cl_rpcclient->cl_auth->au_ops->au_name,
-		clp->cl_owner_id);
 
 	calldata->res.server_owner = kzalloc(sizeof(struct nfs41_server_owner),
 						GFP_NOFS);
@@ -7539,13 +7534,6 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 
 	rpc_put_task(task);
 out:
-	if (clp->cl_implid != NULL)
-		dprintk("NFS reply exchange_id: Server Implementation ID: "
-			"domain: %s, name: %s, date: %llu,%u\n",
-			clp->cl_implid->domain, clp->cl_implid->name,
-			clp->cl_implid->date.seconds,
-			clp->cl_implid->date.nseconds);
-	dprintk("NFS reply exchange_id: %d\n", status);
 	return status;
 
 out_impl_id:
