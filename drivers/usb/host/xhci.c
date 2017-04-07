@@ -3561,8 +3561,6 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct xhci_virt_device *virt_dev;
-	unsigned long flags;
-	u32 state;
 	int i, ret;
 	struct xhci_command *command;
 
@@ -3597,30 +3595,50 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
 	}
 
+	xhci_disable_slot(xhci, command, udev->slot_id);
+	/*
+	 * Event command completion handler will free any data structures
+	 * associated with the slot.  XXX Can free sleep?
+	 */
+}
+
+int xhci_disable_slot(struct xhci_hcd *xhci, struct xhci_command *command,
+			u32 slot_id)
+{
+	unsigned long flags;
+	u32 state;
+	int ret = 0;
+	struct xhci_virt_device *virt_dev;
+
+	virt_dev = xhci->devs[slot_id];
+	if (!virt_dev)
+		return -EINVAL;
+	if (!command)
+		command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
+	if (!command)
+		return -ENOMEM;
+
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* Don't disable the slot if the host controller is dead. */
 	state = readl(&xhci->op_regs->status);
 	if (state == 0xffffffff || (xhci->xhc_state & XHCI_STATE_DYING) ||
 			(xhci->xhc_state & XHCI_STATE_HALTED)) {
-		xhci_free_virt_device(xhci, udev->slot_id);
+		xhci_free_virt_device(xhci, slot_id);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		kfree(command);
-		return;
+		return ret;
 	}
 
-	if (xhci_queue_slot_control(xhci, command, TRB_DISABLE_SLOT,
-				    udev->slot_id)) {
+	ret = xhci_queue_slot_control(xhci, command, TRB_DISABLE_SLOT,
+				slot_id);
+	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
-		return;
+		return ret;
 	}
 	xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
-
-	/*
-	 * Event command completion handler will free any data structures
-	 * associated with the slot.  XXX Can free sleep?
-	 */
+	return ret;
 }
 
 /*
@@ -3727,15 +3745,10 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 
 disable_slot:
 	/* Disable slot, if we can do it without mem alloc */
-	spin_lock_irqsave(&xhci->lock, flags);
 	kfree(command->completion);
 	command->completion = NULL;
 	command->status = 0;
-	if (!xhci_queue_slot_control(xhci, command, TRB_DISABLE_SLOT,
-				     udev->slot_id))
-		xhci_ring_cmd_db(xhci);
-	spin_unlock_irqrestore(&xhci->lock, flags);
-	return 0;
+	return xhci_disable_slot(xhci, command, udev->slot_id);
 }
 
 /*

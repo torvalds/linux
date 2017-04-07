@@ -2018,6 +2018,8 @@ void xhci_shutdown(struct usb_hcd *hcd);
 int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks);
 void xhci_init_driver(struct hc_driver *drv,
 		      const struct xhci_driver_overrides *over);
+int xhci_disable_slot(struct xhci_hcd *xhci,
+			struct xhci_command *command, u32 slot_id);
 
 #ifdef	CONFIG_PM
 int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup);
