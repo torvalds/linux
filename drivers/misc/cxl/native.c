@@ -155,13 +155,17 @@ int cxl_psl_purge(struct cxl_afu *afu)
 		}
 
 		dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
-		pr_devel_ratelimited("PSL purging... PSL_CNTL: 0x%016llx  PSL_DSISR: 0x%016llx\n", PSL_CNTL, dsisr);
+		pr_devel_ratelimited("PSL purging... PSL_CNTL: 0x%016llx  PSL_DSISR: 0x%016llx\n",
+				     PSL_CNTL, dsisr);
+
 		if (dsisr & CXL_PSL_DSISR_TRANS) {
 			dar = cxl_p2n_read(afu, CXL_PSL_DAR_An);
-			dev_notice(&afu->dev, "PSL purge terminating pending translation, DSISR: 0x%016llx, DAR: 0x%016llx\n", dsisr, dar);
+			dev_notice(&afu->dev, "PSL purge terminating pending translation, DSISR: 0x%016llx, DAR: 0x%016llx\n",
+				   dsisr, dar);
 			cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_AE);
 		} else if (dsisr) {
-			dev_notice(&afu->dev, "PSL purge acknowledging pending non-translation fault, DSISR: 0x%016llx\n", dsisr);
+			dev_notice(&afu->dev, "PSL purge acknowledging pending non-translation fault, DSISR: 0x%016llx\n",
+				   dsisr);
 			cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_A);
 		} else {
 			cpu_relax();
@@ -466,7 +470,8 @@ static int remove_process_element(struct cxl_context *ctx)
 
 	if (!rc)
 		ctx->pe_inserted = false;
-	slb_invalid(ctx);
+	if (cxl_is_power8())
+		slb_invalid(ctx);
 	pr_devel("%s Remove pe: %i finished\n", __func__, ctx->pe);
 	mutex_unlock(&ctx->afu->native->spa_mutex);
 
@@ -499,7 +504,8 @@ static int activate_afu_directed(struct cxl_afu *afu)
 	attach_spa(afu);
 
 	cxl_p1n_write(afu, CXL_PSL_SCNTL_An, CXL_PSL_SCNTL_An_PM_AFU);
-	cxl_p1n_write(afu, CXL_PSL_AMOR_An, 0xFFFFFFFFFFFFFFFFULL);
+	if (cxl_is_power8())
+		cxl_p1n_write(afu, CXL_PSL_AMOR_An, 0xFFFFFFFFFFFFFFFFULL);
 	cxl_p1n_write(afu, CXL_PSL_ID_An, CXL_PSL_ID_An_F | CXL_PSL_ID_An_L);
 
 	afu->current_mode = CXL_MODE_DIRECTED;
@@ -872,7 +878,8 @@ static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 
 	info->dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
 	info->dar = cxl_p2n_read(afu, CXL_PSL_DAR_An);
-	info->dsr = cxl_p2n_read(afu, CXL_PSL_DSR_An);
+	if (cxl_is_power8())
+		info->dsr = cxl_p2n_read(afu, CXL_PSL_DSR_An);
 	info->afu_err = cxl_p2n_read(afu, CXL_AFU_ERR_An);
 	info->errstat = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
 	info->proc_handle = 0;
@@ -984,7 +991,8 @@ static void native_irq_wait(struct cxl_context *ctx)
 		if (ph != ctx->pe)
 			return;
 		dsisr = cxl_p2n_read(ctx->afu, CXL_PSL_DSISR_An);
-		if ((dsisr & CXL_PSL_DSISR_PENDING) == 0)
+		if (cxl_is_psl8(ctx->afu) &&
+		   ((dsisr & CXL_PSL_DSISR_PENDING) == 0))
 			return;
 		/*
 		 * We are waiting for the workqueue to process our
@@ -1001,21 +1009,25 @@ static void native_irq_wait(struct cxl_context *ctx)
 static irqreturn_t native_slice_irq_err(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
-	u64 fir_slice, errstat, serr, afu_debug, afu_error, dsisr;
+	u64 errstat, serr, afu_error, dsisr;
+	u64 fir_slice, afu_debug;
 
 	/*
 	 * slice err interrupt is only used with full PSL (no XSL)
 	 */
 	serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
-	fir_slice = cxl_p1n_read(afu, CXL_PSL_FIR_SLICE_An);
 	errstat = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
-	afu_debug = cxl_p1n_read(afu, CXL_AFU_DEBUG_An);
 	afu_error = cxl_p2n_read(afu, CXL_AFU_ERR_An);
 	dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
 	cxl_afu_decode_psl_serr(afu, serr);
-	dev_crit(&afu->dev, "PSL_FIR_SLICE_An: 0x%016llx\n", fir_slice);
+
+	if (cxl_is_power8()) {
+		fir_slice = cxl_p1n_read(afu, CXL_PSL_FIR_SLICE_An);
+		afu_debug = cxl_p1n_read(afu, CXL_AFU_DEBUG_An);
+		dev_crit(&afu->dev, "PSL_FIR_SLICE_An: 0x%016llx\n", fir_slice);
+		dev_crit(&afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%016llx\n", afu_debug);
+	}
 	dev_crit(&afu->dev, "CXL_PSL_ErrStat_An: 0x%016llx\n", errstat);
-	dev_crit(&afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%016llx\n", afu_debug);
 	dev_crit(&afu->dev, "AFU_ERR_An: 0x%.16llx\n", afu_error);
 	dev_crit(&afu->dev, "PSL_DSISR_An: 0x%.16llx\n", dsisr);
 
@@ -1108,7 +1120,8 @@ int cxl_native_register_serr_irq(struct cxl_afu *afu)
 	}
 
 	serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
-	serr = (serr & 0x00ffffffffff0000ULL) | (afu->serr_hwirq & 0xffff);
+	if (cxl_is_power8())
+		serr = (serr & 0x00ffffffffff0000ULL) | (afu->serr_hwirq & 0xffff);
 	cxl_p1n_write(afu, CXL_PSL_SERR_An, serr);
 
 	return 0;

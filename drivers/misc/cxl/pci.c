@@ -324,32 +324,33 @@ static void dump_afu_descriptor(struct cxl_afu *afu)
 #undef show_reg
 }
 
-#define CAPP_UNIT0_ID 0xBA
-#define CAPP_UNIT1_ID 0XBE
+#define P8_CAPP_UNIT0_ID 0xBA
+#define P8_CAPP_UNIT1_ID 0XBE
 
 static u64 get_capp_unit_id(struct device_node *np)
 {
 	u32 phb_index;
 
-	/*
-	 * For chips other than POWER8NVL, we only have CAPP 0,
-	 * irrespective of which PHB is used.
-	 */
-	if (!pvr_version_is(PVR_POWER8NVL))
-		return CAPP_UNIT0_ID;
-
-	/*
-	 * For POWER8NVL, assume CAPP 0 is attached to PHB0 and
-	 * CAPP 1 is attached to PHB1.
-	 */
 	if (of_property_read_u32(np, "ibm,phb-index", &phb_index))
 		return 0;
 
-	if (phb_index == 0)
-		return CAPP_UNIT0_ID;
+	/*
+	 * POWER 8:
+	 *  - For chips other than POWER8NVL, we only have CAPP 0,
+	 *    irrespective of which PHB is used.
+	 *  - For POWER8NVL, assume CAPP 0 is attached to PHB0 and
+	 *    CAPP 1 is attached to PHB1.
+	 */
+	if (cxl_is_power8()) {
+		if (!pvr_version_is(PVR_POWER8NVL))
+			return P8_CAPP_UNIT0_ID;
 
-	if (phb_index == 1)
-		return CAPP_UNIT1_ID;
+		if (phb_index == 0)
+			return P8_CAPP_UNIT0_ID;
+
+		if (phb_index == 1)
+			return P8_CAPP_UNIT1_ID;
+	}
 
 	return 0;
 }
@@ -968,7 +969,7 @@ static int cxl_afu_descriptor_looks_ok(struct cxl_afu *afu)
 	}
 
 	if (afu->pp_psa && (afu->pp_size < PAGE_SIZE))
-		dev_warn(&afu->dev, "AFU uses < PAGE_SIZE per-process PSA!");
+		dev_warn(&afu->dev, "AFU uses pp_size(%#016llx) < PAGE_SIZE per-process PSA!\n", afu->pp_size);
 
 	for (i = 0; i < afu->crs_num; i++) {
 		rc = cxl_ops->afu_cr_read32(afu, i, 0, &val);
@@ -1251,8 +1252,13 @@ int cxl_pci_reset(struct cxl *adapter)
 
 	dev_info(&dev->dev, "CXL reset\n");
 
-	/* the adapter is about to be reset, so ignore errors */
-	cxl_data_cache_flush(adapter);
+	/*
+	 * The adapter is about to be reset, so ignore errors.
+	 * Not supported on P9 DD1 but don't forget to enable it
+	 * on P9 DD2
+	 */
+	if (cxl_is_power8())
+		cxl_data_cache_flush(adapter);
 
 	/* pcie_warm_reset requests a fundamental pci reset which includes a
 	 * PERST assert/deassert.  PERST triggers a loading of the image
@@ -1382,6 +1388,14 @@ static void cxl_fixup_malformed_tlp(struct cxl *adapter, struct pci_dev *dev)
 	pci_write_config_dword(dev, aer + PCI_ERR_UNCOR_MASK, data);
 }
 
+static bool cxl_compatible_caia_version(struct cxl *adapter)
+{
+	if (cxl_is_power8() && (adapter->caia_major == 1))
+		return true;
+
+	return false;
+}
+
 static int cxl_vsec_looks_ok(struct cxl *adapter, struct pci_dev *dev)
 {
 	if (adapter->vsec_status & CXL_STATUS_SECOND_PORT)
@@ -1390,6 +1404,12 @@ static int cxl_vsec_looks_ok(struct cxl *adapter, struct pci_dev *dev)
 	if (adapter->vsec_status & CXL_UNSUPPORTED_FEATURES) {
 		dev_err(&dev->dev, "ABORTING: CXL requires unsupported features\n");
 		return -EINVAL;
+	}
+
+	if (!cxl_compatible_caia_version(adapter)) {
+		dev_info(&dev->dev, "Ignoring card. PSL type is not supported (caia version: %d)\n",
+			 adapter->caia_major);
+		return -ENODEV;
 	}
 
 	if (!adapter->slices) {
@@ -1574,8 +1594,10 @@ static void set_sl_ops(struct cxl *adapter, struct pci_dev *dev)
 		adapter->native->sl_ops = &xsl_ops;
 		adapter->min_pe = 1; /* Workaround for CX-4 hardware bug */
 	} else {
-		dev_info(&dev->dev, "Device uses a PSL8\n");
-		adapter->native->sl_ops = &psl8_ops;
+		if (cxl_is_power8()) {
+			dev_info(&dev->dev, "Device uses a PSL8\n");
+			adapter->native->sl_ops = &psl8_ops;
+		}
 	}
 }
 

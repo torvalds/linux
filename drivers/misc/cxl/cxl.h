@@ -73,7 +73,7 @@ static const cxl_p1_reg_t CXL_PSL_Control = {0x0020};
 static const cxl_p1_reg_t CXL_PSL_DLCNTL  = {0x0060};
 static const cxl_p1_reg_t CXL_PSL_DLADDR  = {0x0068};
 
-/* PSL Lookaside Buffer Management Area */
+/* PSL Lookaside Buffer Management Area - CAIA 1 */
 static const cxl_p1_reg_t CXL_PSL_LBISEL  = {0x0080};
 static const cxl_p1_reg_t CXL_PSL_SLBIE   = {0x0088};
 static const cxl_p1_reg_t CXL_PSL_SLBIA   = {0x0090};
@@ -82,7 +82,7 @@ static const cxl_p1_reg_t CXL_PSL_TLBIA   = {0x00A8};
 static const cxl_p1_reg_t CXL_PSL_AFUSEL  = {0x00B0};
 
 /* 0x00C0:7EFF Implementation dependent area */
-/* PSL registers */
+/* PSL registers - CAIA 1 */
 static const cxl_p1_reg_t CXL_PSL_FIR1      = {0x0100};
 static const cxl_p1_reg_t CXL_PSL_FIR2      = {0x0108};
 static const cxl_p1_reg_t CXL_PSL_Timebase  = {0x0110};
@@ -109,7 +109,7 @@ static const cxl_p1n_reg_t CXL_PSL_AMBAR_An       = {0x10};
 static const cxl_p1n_reg_t CXL_PSL_SPOffset_An    = {0x18};
 static const cxl_p1n_reg_t CXL_PSL_ID_An          = {0x20};
 static const cxl_p1n_reg_t CXL_PSL_SERR_An        = {0x28};
-/* Memory Management and Lookaside Buffer Management */
+/* Memory Management and Lookaside Buffer Management - CAIA 1*/
 static const cxl_p1n_reg_t CXL_PSL_SDR_An         = {0x30};
 static const cxl_p1n_reg_t CXL_PSL_AMOR_An        = {0x38};
 /* Pointer Area */
@@ -124,6 +124,7 @@ static const cxl_p1n_reg_t CXL_PSL_IVTE_Limit_An  = {0xB8};
 /* 0xC0:FF Implementation Dependent Area */
 static const cxl_p1n_reg_t CXL_PSL_FIR_SLICE_An   = {0xC0};
 static const cxl_p1n_reg_t CXL_AFU_DEBUG_An       = {0xC8};
+/* 0xC0:FF Implementation Dependent Area - CAIA 1 */
 static const cxl_p1n_reg_t CXL_PSL_APCALLOC_A     = {0xD0};
 static const cxl_p1n_reg_t CXL_PSL_COALLOC_A      = {0xD8};
 static const cxl_p1n_reg_t CXL_PSL_RXCTL_A        = {0xE0};
@@ -133,12 +134,14 @@ static const cxl_p1n_reg_t CXL_PSL_SLICE_TRACE    = {0xE8};
 /* Configuration and Control Area */
 static const cxl_p2n_reg_t CXL_PSL_PID_TID_An = {0x000};
 static const cxl_p2n_reg_t CXL_CSRP_An        = {0x008};
+/* Configuration and Control Area - CAIA 1 */
 static const cxl_p2n_reg_t CXL_AURP0_An       = {0x010};
 static const cxl_p2n_reg_t CXL_AURP1_An       = {0x018};
 static const cxl_p2n_reg_t CXL_SSTP0_An       = {0x020};
 static const cxl_p2n_reg_t CXL_SSTP1_An       = {0x028};
+/* Configuration and Control Area - CAIA 1 */
 static const cxl_p2n_reg_t CXL_PSL_AMR_An     = {0x030};
-/* Segment Lookaside Buffer Management */
+/* Segment Lookaside Buffer Management - CAIA 1 */
 static const cxl_p2n_reg_t CXL_SLBIE_An       = {0x040};
 static const cxl_p2n_reg_t CXL_SLBIA_An       = {0x048};
 static const cxl_p2n_reg_t CXL_SLBI_Select_An = {0x050};
@@ -257,7 +260,7 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_SSTP1_An_STVA_L_MASK (~((1ull << (63-55))-1))
 #define CXL_SSTP1_An_V              (1ull << (63-63))
 
-/****** CXL_PSL_SLBIE_[An] **************************************************/
+/****** CXL_PSL_SLBIE_[An] - CAIA 1 **************************************************/
 /* write: */
 #define CXL_SLBIE_C        PPC_BIT(36)         /* Class */
 #define CXL_SLBIE_SS       PPC_BITMASK(37, 38) /* Segment Size */
@@ -267,10 +270,10 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_SLBIE_MAX      PPC_BITMASK(24, 31)
 #define CXL_SLBIE_PENDING  PPC_BITMASK(56, 63)
 
-/****** Common to all CXL_TLBIA/SLBIA_[An] **********************************/
+/****** Common to all CXL_TLBIA/SLBIA_[An] - CAIA 1 **********************************/
 #define CXL_TLB_SLB_P          (1ull) /* Pending (read) */
 
-/****** Common to all CXL_TLB/SLB_IA/IE_[An] registers **********************/
+/****** Common to all CXL_TLB/SLB_IA/IE_[An] registers - CAIA 1 **********************/
 #define CXL_TLB_SLB_IQ_ALL     (0ull) /* Inv qualifier */
 #define CXL_TLB_SLB_IQ_LPID    (1ull) /* Inv qualifier */
 #define CXL_TLB_SLB_IQ_LPIDPID (3ull) /* Inv qualifier */
@@ -278,7 +281,7 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 /****** CXL_PSL_AFUSEL ******************************************************/
 #define CXL_PSL_AFUSEL_A (1ull << (63-55)) /* Adapter wide invalidates affect all AFUs */
 
-/****** CXL_PSL_DSISR_An ****************************************************/
+/****** CXL_PSL_DSISR_An - CAIA 1 ****************************************************/
 #define CXL_PSL_DSISR_An_DS (1ull << (63-0))  /* Segment not found */
 #define CXL_PSL_DSISR_An_DM (1ull << (63-1))  /* PTE not found (See also: M) or protection fault */
 #define CXL_PSL_DSISR_An_ST (1ull << (63-2))  /* Segment Table PTE not found */
@@ -747,6 +750,22 @@ static inline u64 cxl_p2n_read(struct cxl_afu *afu, cxl_p2n_reg_t reg)
 		return in_be64(_cxl_p2n_addr(afu, reg));
 	else
 		return ~0ULL;
+}
+
+static inline bool cxl_is_power8(void)
+{
+	if ((pvr_version_is(PVR_POWER8E)) ||
+	    (pvr_version_is(PVR_POWER8NVL)) ||
+	    (pvr_version_is(PVR_POWER8)))
+		return true;
+	return false;
+}
+
+static inline bool cxl_is_psl8(struct cxl_afu *afu)
+{
+	if (afu->adapter->caia_major == 1)
+		return true;
+	return false;
 }
 
 ssize_t cxl_pci_afu_read_err_buffer(struct cxl_afu *afu, char *buf,

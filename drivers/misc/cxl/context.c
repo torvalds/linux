@@ -39,23 +39,26 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 {
 	int i;
 
-	spin_lock_init(&ctx->sste_lock);
 	ctx->afu = afu;
 	ctx->master = master;
 	ctx->pid = NULL; /* Set in start work ioctl */
 	mutex_init(&ctx->mapping_lock);
 	ctx->mapping = NULL;
 
-	/*
-	 * Allocate the segment table before we put it in the IDR so that we
-	 * can always access it when dereferenced from IDR. For the same
-	 * reason, the segment table is only destroyed after the context is
-	 * removed from the IDR.  Access to this in the IOCTL is protected by
-	 * Linux filesytem symantics (can't IOCTL until open is complete).
-	 */
-	i = cxl_alloc_sst(ctx);
-	if (i)
-		return i;
+	if (cxl_is_psl8(afu)) {
+		spin_lock_init(&ctx->sste_lock);
+
+		/*
+		 * Allocate the segment table before we put it in the IDR so that we
+		 * can always access it when dereferenced from IDR. For the same
+		 * reason, the segment table is only destroyed after the context is
+		 * removed from the IDR.  Access to this in the IOCTL is protected by
+		 * Linux filesytem symantics (can't IOCTL until open is complete).
+		 */
+		i = cxl_alloc_sst(ctx);
+		if (i)
+			return i;
+	}
 
 	INIT_WORK(&ctx->fault_work, cxl_handle_fault);
 
@@ -308,7 +311,8 @@ static void reclaim_ctx(struct rcu_head *rcu)
 {
 	struct cxl_context *ctx = container_of(rcu, struct cxl_context, rcu);
 
-	free_page((u64)ctx->sstp);
+	if (cxl_is_psl8(ctx->afu))
+		free_page((u64)ctx->sstp);
 	if (ctx->ff_page)
 		__free_page(ctx->ff_page);
 	ctx->sstp = NULL;
