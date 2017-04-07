@@ -943,7 +943,7 @@ most_c_obj *get_channel_by_name(char *mdev, char *mdev_ch)
 }
 
 /**
- * store_add_link - store() function for add_link attribute
+ * add_link_store - store() function for add_link attribute
  * @aim_obj: pointer to AIM object
  * @attr: its attributes
  * @buf: buffer
