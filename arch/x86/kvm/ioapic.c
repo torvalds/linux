@@ -313,7 +313,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG
 		    && ioapic->irr & (1 << index))
 			ioapic_service(ioapic, index, false);
-		kvm_vcpu_request_scan_ioapic(ioapic->kvm);
+		kvm_make_scan_ioapic_request(ioapic->kvm);
 		break;
 	}
 }
@@ -660,7 +660,7 @@ void kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state)
 	memcpy(ioapic, state, sizeof(struct kvm_ioapic_state));
 	ioapic->irr = 0;
 	ioapic->irr_delivered = 0;
-	kvm_vcpu_request_scan_ioapic(kvm);
+	kvm_make_scan_ioapic_request(kvm);
 	kvm_ioapic_inject_all(ioapic, state->irr);
 	spin_unlock(&ioapic->lock);
 }
