@@ -4302,6 +4302,8 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
+	cond_resched();
+
 	llist_for_each_entry_safe(obj, on, freed, freed) {
 		GEM_BUG_ON(obj->bind_count);
 		GEM_BUG_ON(atomic_read(&obj->frontbuffer_bits));
