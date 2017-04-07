@@ -231,6 +231,7 @@ DECLARE_EVENT_CLASS(xhci_log_urb,
 		__field(int, epnum)
 		__field(int, dir_in)
 		__field(int, type)
+		__field(int, slot_id)
 	),
 	TP_fast_assign(
 		__entry->urb = urb;
@@ -245,8 +246,9 @@ DECLARE_EVENT_CLASS(xhci_log_urb,
 		__entry->epnum = usb_endpoint_num(&urb->ep->desc);
 		__entry->dir_in = usb_endpoint_dir_in(&urb->ep->desc);
 		__entry->type = usb_endpoint_type(&urb->ep->desc);
+		__entry->slot_id = urb->dev->slot_id;
 	),
-	TP_printk("ep%d%s-%s: urb %p pipe %u length %d/%d sgs %d/%d stream %d flags %08x",
+	TP_printk("ep%d%s-%s: urb %p pipe %u slot %d length %d/%d sgs %d/%d stream %d flags %08x",
 			__entry->epnum, __entry->dir_in ? "in" : "out",
 			({ char *s;
 			switch (__entry->type) {
@@ -264,8 +266,8 @@ DECLARE_EVENT_CLASS(xhci_log_urb,
 				break;
 			default:
 				s = "UNKNOWN";
-			} s; }), __entry->urb, __entry->pipe, __entry->actual,
-			__entry->length, __entry->num_mapped_sgs,
+			} s; }), __entry->urb, __entry->pipe, __entry->slot_id,
+			__entry->actual, __entry->length, __entry->num_mapped_sgs,
 			__entry->num_sgs, __entry->stream, __entry->flags
 		)
 );
