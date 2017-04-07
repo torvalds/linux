@@ -1616,16 +1616,9 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsi
 		if (!IS_ERR(inode) && ext4_encrypted_inode(dir) &&
 		    (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)) &&
 		    !fscrypt_has_permitted_context(dir, inode)) {
-			int nokey = ext4_encrypted_inode(inode) &&
-				!fscrypt_has_encryption_key(inode);
-			if (nokey) {
-				iput(inode);
-				return ERR_PTR(-ENOKEY);
-			}
 			ext4_warning(inode->i_sb,
 				     "Inconsistent encryption contexts: %lu/%lu",
-				     (unsigned long) dir->i_ino,
-				     (unsigned long) inode->i_ino);
+				     dir->i_ino, inode->i_ino);
 			iput(inode);
 			return ERR_PTR(-EPERM);
 		}
