@@ -278,13 +278,12 @@ clear_user(void *addr, unsigned long size)
 
 
 extern long __strncpy_user(char *, const char *, long);
-#define __strncpy_from_user __strncpy_user
 
 static inline long
 strncpy_from_user(char *dst, const char *src, long count)
 {
 	if (access_ok(VERIFY_READ, src, 1))
-		return __strncpy_from_user(dst, src, count);
+		return __strncpy_user(dst, src, count);
 	return -EFAULT;
 }
 

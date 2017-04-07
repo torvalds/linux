@@ -482,8 +482,6 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 
 long __must_check strncpy_from_user(char *dst, const char __user *src,
 				long count);
-long __must_check __strncpy_from_user(char *dst,
-				const char __user *src, long count);
 
 /**
  * __clear_user: - Zero a block of memory in user space, with less checking.

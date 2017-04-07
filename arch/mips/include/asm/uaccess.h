@@ -967,60 +967,6 @@ __clear_user(void __user *addr, __kernel_size_t size)
 	__cl_size;							\
 })
 
-extern long __strncpy_from_kernel_nocheck_asm(char *__to, const char __user *__from, long __len);
-extern long __strncpy_from_user_nocheck_asm(char *__to, const char __user *__from, long __len);
-
-/*
- * __strncpy_from_user: - Copy a NUL terminated string from userspace, with less checking.
- * @dst:   Destination address, in kernel space.  This buffer must be at
- *	   least @count bytes long.
- * @src:   Source address, in user space.
- * @count: Maximum number of bytes to copy, including the trailing NUL.
- *
- * Copies a NUL-terminated string from userspace to kernel space.
- * Caller must check the specified block with access_ok() before calling
- * this function.
- *
- * On success, returns the length of the string (not including the trailing
- * NUL).
- *
- * If access to userspace fails, returns -EFAULT (some data may have been
- * copied).
- *
- * If @count is smaller than the length of the string, copies @count bytes
- * and returns @count.
- */
-static inline long
-__strncpy_from_user(char *__to, const char __user *__from, long __len)
-{
-	long res;
-
-	if (eva_kernel_access()) {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			"move\t$6, %3\n\t"
-			__MODULE_JAL(__strncpy_from_kernel_nocheck_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (__to), "r" (__from), "r" (__len)
-			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
-	} else {
-		might_fault();
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			"move\t$6, %3\n\t"
-			__MODULE_JAL(__strncpy_from_user_nocheck_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (__to), "r" (__from), "r" (__len)
-			: "$2", "$3", "$4", "$5", "$6", __UA_t0, "$31", "memory");
-	}
-
-	return res;
-}
-
 extern long __strncpy_from_kernel_asm(char *__to, const char __user *__from, long __len);
 extern long __strncpy_from_user_asm(char *__to, const char __user *__from, long __len);
 
