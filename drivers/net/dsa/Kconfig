@@ -42,4 +42,12 @@ config NET_DSA_LOOP
 	  This enables support for a fake mock-up switch chip which
 	  exercises the DSA APIs.
 
+config NET_DSA_MT7530
+	tristate "Mediatek MT7530 Ethernet switch support"
+	depends on NET_DSA
+	select NET_DSA_TAG_MTK
+	---help---
+	  This enables support for the Mediatek MT7530 Ethernet switch
+	  chip.
+
 endmenu
