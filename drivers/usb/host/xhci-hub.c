@@ -583,6 +583,77 @@ static void xhci_set_port_power(struct xhci_hcd *xhci, struct usb_hcd *hcd,
 	spin_lock_irqsave(&xhci->lock, flags);
 }
 
+static void xhci_port_set_test_mode(struct xhci_hcd *xhci,
+	u16 test_mode, u16 wIndex)
+{
+	u32 temp;
+	__le32 __iomem *addr;
+
+	/* xhci only supports test mode for usb2 ports, i.e. xhci->main_hcd */
+	addr = xhci_get_port_io_addr(xhci->main_hcd, wIndex);
+	temp = readl(addr + PORTPMSC);
+	temp |= test_mode << PORT_TEST_MODE_SHIFT;
+	writel(temp, addr + PORTPMSC);
+	xhci->test_mode = test_mode;
+	if (test_mode == TEST_FORCE_EN)
+		xhci_start(xhci);
+}
+
+static int xhci_enter_test_mode(struct xhci_hcd *xhci,
+				u16 test_mode, u16 wIndex)
+{
+	int i, retval;
+
+	/* Disable all Device Slots */
+	xhci_dbg(xhci, "Disable all slots\n");
+	for (i = 1; i <= HCS_MAX_SLOTS(xhci->hcs_params1); i++) {
+		retval = xhci_disable_slot(xhci, NULL, i);
+		if (retval)
+			xhci_err(xhci, "Failed to disable slot %d, %d. Enter test mode anyway\n",
+				 i, retval);
+	}
+	/* Put all ports to the Disable state by clear PP */
+	xhci_dbg(xhci, "Disable all port (PP = 0)\n");
+	/* Power off USB3 ports*/
+	for (i = 0; i < xhci->num_usb3_ports; i++)
+		xhci_set_port_power(xhci, xhci->shared_hcd, i, false);
+	/* Power off USB2 ports*/
+	for (i = 0; i < xhci->num_usb2_ports; i++)
+		xhci_set_port_power(xhci, xhci->main_hcd, i, false);
+	/* Stop the controller */
+	xhci_dbg(xhci, "Stop controller\n");
+	retval = xhci_halt(xhci);
+	if (retval)
+		return retval;
+	/* Disable runtime PM for test mode */
+	pm_runtime_forbid(xhci_to_hcd(xhci)->self.controller);
+	/* Set PORTPMSC.PTC field to enter selected test mode */
+	/* Port is selected by wIndex. port_id = wIndex + 1 */
+	xhci_dbg(xhci, "Enter Test Mode: %d, Port_id=%d\n",
+					test_mode, wIndex + 1);
+	xhci_port_set_test_mode(xhci, test_mode, wIndex);
+	return retval;
+}
+
+static int xhci_exit_test_mode(struct xhci_hcd *xhci)
+{
+	int retval;
+
+	if (!xhci->test_mode) {
+		xhci_err(xhci, "Not in test mode, do nothing.\n");
+		return 0;
+	}
+	if (xhci->test_mode == TEST_FORCE_EN &&
+		!(xhci->xhc_state & XHCI_STATE_HALTED)) {
+		retval = xhci_halt(xhci);
+		if (retval)
+			return retval;
+	}
+	pm_runtime_allow(xhci_to_hcd(xhci)->self.controller);
+	xhci->test_mode = 0;
+	return xhci_reset(xhci);
+}
+
 void xhci_set_link_state(struct xhci_hcd *xhci, __le32 __iomem **port_array,
 				int port_id, u32 link_state)
 {
@@ -938,6 +1009,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	u16 link_state = 0;
 	u16 wake_mask = 0;
 	u16 timeout = 0;
+	u16 test_mode = 0;
 
 	max_ports = xhci_get_ports(hcd, &port_array);
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
@@ -1011,6 +1083,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			link_state = (wIndex & 0xff00) >> 3;
 		if (wValue == USB_PORT_FEAT_REMOTE_WAKE_MASK)
 			wake_mask = wIndex & 0xff00;
+		if (wValue == USB_PORT_FEAT_TEST)
+			test_mode = (wIndex & 0xff00) >> 8;
 		/* The MSB of wIndex is the U1/U2 timeout */
 		timeout = (wIndex & 0xff00) >> 8;
 		wIndex &= 0xff;
@@ -1174,6 +1248,14 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			temp |= PORT_U2_TIMEOUT(timeout);
 			writel(temp, port_array[wIndex] + PORTPMSC);
 			break;
+		case USB_PORT_FEAT_TEST:
+			/* 4.19.6 Port Test Modes (USB2 Test Mode) */
+			if (hcd->speed != HCD_USB2)
+				goto error;
+			if (test_mode > TEST_FORCE_EN || test_mode < TEST_J)
+				goto error;
+			retval = xhci_enter_test_mode(xhci, test_mode, wIndex);
+			break;
 		default:
 			goto error;
 		}
@@ -1240,6 +1322,9 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			break;
 		case USB_PORT_FEAT_POWER:
 			xhci_set_port_power(xhci, hcd, wIndex, false);
+			break;
+		case USB_PORT_FEAT_TEST:
+			retval = xhci_exit_test_mode(xhci);
 			break;
 		default:
 			goto error;
