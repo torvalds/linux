@@ -279,8 +279,6 @@ int kvm_set_routing_entry(struct kvm *kvm,
 			  const struct kvm_irq_routing_entry *ue)
 {
 	int r = -EINVAL;
-	int delta;
-	unsigned max_pin;
 
 	/* also allow creation of routes during KVM_IRQCHIP_INIT_IN_PROGRESS */
 	if (kvm->arch.irqchip_mode == KVM_IRQCHIP_NONE)
@@ -292,26 +290,25 @@ int kvm_set_routing_entry(struct kvm *kvm,
 	case KVM_IRQ_ROUTING_IRQCHIP:
 		if (irqchip_split(kvm))
 			goto out;
-		delta = 0;
+		e->irqchip.pin = ue->u.irqchip.pin;
 		switch (ue->u.irqchip.irqchip) {
 		case KVM_IRQCHIP_PIC_SLAVE:
-			delta = 8;
+			e->irqchip.pin += PIC_NUM_PINS / 2;
 			/* fall through */
 		case KVM_IRQCHIP_PIC_MASTER:
+			if (ue->u.irqchip.pin >= PIC_NUM_PINS / 2)
+				goto out;
 			e->set = kvm_set_pic_irq;
-			max_pin = PIC_NUM_PINS;
 			break;
 		case KVM_IRQCHIP_IOAPIC:
-			max_pin = KVM_IOAPIC_NUM_PINS;
+			if (ue->u.irqchip.pin >= KVM_IOAPIC_NUM_PINS)
+				goto out;
 			e->set = kvm_set_ioapic_irq;
 			break;
 		default:
 			goto out;
 		}
 		e->irqchip.irqchip = ue->u.irqchip.irqchip;
-		e->irqchip.pin = ue->u.irqchip.pin + delta;
-		if (e->irqchip.pin >= max_pin)
-			goto out;
 		break;
 	case KVM_IRQ_ROUTING_MSI:
 		e->set = kvm_set_msi;
