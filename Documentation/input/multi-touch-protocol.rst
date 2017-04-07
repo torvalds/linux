@@ -22,6 +22,9 @@ describes how to send the raw data for all contacts to the receiver. For
 devices capable of tracking identifiable contacts (type B), the protocol
 describes how to send updates for individual contacts via event slots.
 
+.. note::
+   MT potocol type A is obsolete, all kernel drivers have been
+   converted to use type B.
 
 Protocol Usage
 --------------
@@ -399,9 +402,6 @@ in a finger packet must not be recognized as single-touch events.
 
 For type A devices, all finger data bypasses input filtering, since
 subsequent events of the same type refer to different fingers.
-
-For example usage of the type A protocol, see the bcm5974 driver. For
-example usage of the type B protocol, see the hid-egalax driver.
 
 .. [#f1] Also, the difference (TOOL_X - POSITION_X) can be used to model tilt.
 .. [#f2] The list can of course be extended.
