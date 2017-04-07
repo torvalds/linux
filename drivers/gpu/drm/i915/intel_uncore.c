@@ -1585,19 +1585,21 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_wait_for_register_fw - wait until register matches expected state
+ * __intel_wait_for_register_fw - wait until register matches expected state
  * @dev_priv: the i915 device
  * @reg: the register to read
  * @mask: mask to apply to register value
  * @value: expected value
- * @timeout_ms: timeout in millisecond
+ * @fast_timeout_us: fast timeout in microsecond for atomic/tight wait
+ * @slow_timeout_ms: slow timeout in millisecond
+ * @out_value: optional placeholder to hold registry value
  *
  * This routine waits until the target register @reg contains the expected
  * @value after applying the @mask, i.e. it waits until ::
  *
  *     (I915_READ_FW(reg) & mask) == value
  *
- * Otherwise, the wait will timeout after @timeout_ms milliseconds.
+ * Otherwise, the wait will timeout after @slow_timeout_ms milliseconds.
  *
  * Note that this routine assumes the caller holds forcewake asserted, it is
  * not suitable for very long waits. See intel_wait_for_register() if you
@@ -1606,16 +1608,26 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
  *
  * Returns 0 if the register matches the desired condition, or -ETIMEOUT.
  */
-int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
-			       i915_reg_t reg,
-			       const u32 mask,
-			       const u32 value,
-			       const unsigned int timeout_ms)
+int __intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
+				 i915_reg_t reg,
+				 const u32 mask,
+				 const u32 value,
+				 const unsigned int fast_timeout_us,
+				 const unsigned int slow_timeout_ms,
+				 u32 *out_value)
 {
-#define done ((I915_READ_FW(reg) & mask) == value)
-	int ret = wait_for_us(done, 2);
+	u32 reg_value;
+#define done (((reg_value = I915_READ_FW(reg)) & mask) == value)
+	int ret;
+
+	if (fast_timeout_us > 10)
+		ret = _wait_for(done, fast_timeout_us, 10);
+	else
+		ret = _wait_for_atomic(done, fast_timeout_us, 0);
 	if (ret)
-		ret = wait_for(done, timeout_ms);
+		ret = wait_for(done, slow_timeout_ms);
+	if (out_value)
+		*out_value = reg_value;
 	return ret;
 #undef done
 }

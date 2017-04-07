@@ -3088,11 +3088,23 @@ int intel_wait_for_register(struct drm_i915_private *dev_priv,
 			    const u32 mask,
 			    const u32 value,
 			    const unsigned long timeout_ms);
+int __intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
+				 i915_reg_t reg,
+				 const u32 mask,
+				 const u32 value,
+				 const unsigned int fast_timeout_us,
+				 const unsigned int slow_timeout_ms,
+				 u32 *out_value);
+static inline
 int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 			       i915_reg_t reg,
 			       const u32 mask,
 			       const u32 value,
-			       const unsigned int timeout_ms);
+			       const unsigned int timeout_ms)
+{
+	return __intel_wait_for_register_fw(dev_priv, reg, mask, value,
+					    2, timeout_ms, NULL);
+}
 
 static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
 {
