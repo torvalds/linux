@@ -2198,31 +2198,46 @@ static inline const char *xhci_decode_trb(u32 field0, u32 field1, u32 field2,
 
 		break;
 	case TRB_SETUP:
-		sprintf(str,
-			"bRequestType %02x bRequest %02x wValue %02x%02x wIndex %02x%02x wLength %d length %d TD size %d intr %d type '%s' flags %c:%c:%c:%c:%c:%c:%c:%c",
-			field0 & 0xff,
-			(field0 & 0xff00) >> 8,
-			(field0 & 0xff000000) >> 24,
-			(field0 & 0xff0000) >> 16,
-			(field1 & 0xff00) >> 8,
-			field1 & 0xff,
-			(field1 & 0xff000000) >> 16 |
-			(field1 & 0xff0000) >> 16,
-			TRB_LEN(field2), GET_TD_SIZE(field2),
-			GET_INTR_TARGET(field2),
-			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
-			field3 & TRB_BEI ? 'B' : 'b',
-			field3 & TRB_IDT ? 'I' : 'i',
-			field3 & TRB_IOC ? 'I' : 'i',
-			field3 & TRB_CHAIN ? 'C' : 'c',
-			field3 & TRB_NO_SNOOP ? 'S' : 's',
-			field3 & TRB_ISP ? 'I' : 'i',
-			field3 & TRB_ENT ? 'E' : 'e',
-			field3 & TRB_CYCLE ? 'C' : 'c');
+		sprintf(str, "bRequestType %02x bRequest %02x wValue %02x%02x wIndex %02x%02x wLength %d length %d TD size %d intr %d type '%s' flags %c:%c:%c",
+				field0 & 0xff,
+				(field0 & 0xff00) >> 8,
+				(field0 & 0xff000000) >> 24,
+				(field0 & 0xff0000) >> 16,
+				(field1 & 0xff00) >> 8,
+				field1 & 0xff,
+				(field1 & 0xff000000) >> 16 |
+				(field1 & 0xff0000) >> 16,
+				TRB_LEN(field2), GET_TD_SIZE(field2),
+				GET_INTR_TARGET(field2),
+				xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+				field3 & TRB_IDT ? 'I' : 'i',
+				field3 & TRB_IOC ? 'I' : 'i',
+				field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_DATA:
+		sprintf(str, "Buffer %08x%08x length %d TD size %d intr %d type '%s' flags %c:%c:%c:%c:%c:%c:%c",
+				field1, field0, TRB_LEN(field2), GET_TD_SIZE(field2),
+				GET_INTR_TARGET(field2),
+				xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+				field3 & TRB_IDT ? 'I' : 'i',
+				field3 & TRB_IOC ? 'I' : 'i',
+				field3 & TRB_CHAIN ? 'C' : 'c',
+				field3 & TRB_NO_SNOOP ? 'S' : 's',
+				field3 & TRB_ISP ? 'I' : 'i',
+				field3 & TRB_ENT ? 'E' : 'e',
+				field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
+	case TRB_STATUS:
+		sprintf(str, "Buffer %08x%08x length %d TD size %d intr %d type '%s' flags %c:%c:%c:%c",
+				field1, field0, TRB_LEN(field2), GET_TD_SIZE(field2),
+				GET_INTR_TARGET(field2),
+				xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
+				field3 & TRB_IOC ? 'I' : 'i',
+				field3 & TRB_CHAIN ? 'C' : 'c',
+				field3 & TRB_ENT ? 'E' : 'e',
+				field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
 	case TRB_NORMAL:
-	case TRB_DATA:
-	case TRB_STATUS:
 	case TRB_ISOC:
 	case TRB_EVENT_DATA:
 	case TRB_TR_NOOP:
