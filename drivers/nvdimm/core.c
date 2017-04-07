@@ -574,14 +574,15 @@ int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 }
 EXPORT_SYMBOL_GPL(nvdimm_bus_add_poison);
 
-void nvdimm_clear_from_poison_list(struct nvdimm_bus *nvdimm_bus,
-		phys_addr_t start, unsigned int len)
+void __nvdimm_forget_poison(struct nvdimm_bus *nvdimm_bus, phys_addr_t start,
+		unsigned int len)
 {
 	struct list_head *poison_list = &nvdimm_bus->poison_list;
 	u64 clr_end = start + len - 1;
 	struct nd_poison *pl, *next;
 
-	nvdimm_bus_lock(&nvdimm_bus->dev);
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
+
 	WARN_ON_ONCE(list_empty(poison_list));
 
 	/*
@@ -634,9 +635,17 @@ void nvdimm_clear_from_poison_list(struct nvdimm_bus *nvdimm_bus,
 			continue;
 		}
 	}
+}
+EXPORT_SYMBOL_GPL(__nvdimm_forget_poison);
+
+void nvdimm_forget_poison(struct nvdimm_bus *nvdimm_bus,
+		phys_addr_t start, unsigned int len)
+{
+	nvdimm_bus_lock(&nvdimm_bus->dev);
+	__nvdimm_forget_poison(nvdimm_bus, start, len);
 	nvdimm_bus_unlock(&nvdimm_bus->dev);
 }
-EXPORT_SYMBOL_GPL(nvdimm_clear_from_poison_list);
+EXPORT_SYMBOL_GPL(nvdimm_forget_poison);
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)

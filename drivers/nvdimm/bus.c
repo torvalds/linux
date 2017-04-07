@@ -27,6 +27,7 @@
 #include <linux/nd.h>
 #include "nd-core.h"
 #include "nd.h"
+#include "pfn.h"
 
 int nvdimm_major;
 static int nvdimm_bus_major;
@@ -218,10 +219,19 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 	if (cmd_rc < 0)
 		return cmd_rc;
 
-	nvdimm_clear_from_poison_list(nvdimm_bus, phys, len);
+	nvdimm_forget_poison(nvdimm_bus, phys, len);
 	return clear_err.cleared;
 }
 EXPORT_SYMBOL_GPL(nvdimm_clear_poison);
+
+void __nvdimm_bus_badblocks_clear(struct nvdimm_bus *nvdimm_bus,
+		struct resource *res)
+{
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
+	device_for_each_child(&nvdimm_bus->dev, (void *)res,
+			nvdimm_region_badblocks_clear);
+}
+EXPORT_SYMBOL_GPL(__nvdimm_bus_badblocks_clear);
 
 static int nvdimm_bus_match(struct device *dev, struct device_driver *drv);
 
@@ -769,16 +779,55 @@ void wait_nvdimm_bus_probe_idle(struct device *dev)
 	} while (true);
 }
 
-static int pmem_active(struct device *dev, void *data)
+static int nd_pmem_forget_poison_check(struct device *dev, void *data)
 {
-	if (is_nd_pmem(dev) && dev->driver)
+	struct nd_cmd_clear_error *clear_err =
+		(struct nd_cmd_clear_error *)data;
+	struct nd_btt *nd_btt = is_nd_btt(dev) ? to_nd_btt(dev) : NULL;
+	struct nd_pfn *nd_pfn = is_nd_pfn(dev) ? to_nd_pfn(dev) : NULL;
+	struct nd_dax *nd_dax = is_nd_dax(dev) ? to_nd_dax(dev) : NULL;
+	struct nd_namespace_common *ndns = NULL;
+	struct nd_namespace_io *nsio;
+	resource_size_t offset = 0, end_trunc = 0, start, end, pstart, pend;
+
+	if (nd_dax || !dev->driver)
+		return 0;
+
+	start = clear_err->address;
+	end = clear_err->address + clear_err->cleared - 1;
+
+	if (nd_btt || nd_pfn || nd_dax) {
+		if (nd_btt)
+			ndns = nd_btt->ndns;
+		else if (nd_pfn)
+			ndns = nd_pfn->ndns;
+		else if (nd_dax)
+			ndns = nd_dax->nd_pfn.ndns;
+
+		if (!ndns)
+			return 0;
+	} else
+		ndns = to_ndns(dev);
+
+	nsio = to_nd_namespace_io(&ndns->dev);
+	pstart = nsio->res.start + offset;
+	pend = nsio->res.end - end_trunc;
+
+	if ((pstart >= start) && (pend <= end))
 		return -EBUSY;
+
 	return 0;
+
+}
+
+static int nd_ns_forget_poison_check(struct device *dev, void *data)
+{
+	return device_for_each_child(dev, data, nd_pmem_forget_poison_check);
 }
 
 /* set_config requires an idle interleave set */
 static int nd_cmd_clear_to_send(struct nvdimm_bus *nvdimm_bus,
-		struct nvdimm *nvdimm, unsigned int cmd)
+		struct nvdimm *nvdimm, unsigned int cmd, void *data)
 {
 	struct nvdimm_bus_descriptor *nd_desc = nvdimm_bus->nd_desc;
 
@@ -792,8 +841,8 @@ static int nd_cmd_clear_to_send(struct nvdimm_bus *nvdimm_bus,
 
 	/* require clear error to go through the pmem driver */
 	if (!nvdimm && cmd == ND_CMD_CLEAR_ERROR)
-		return device_for_each_child(&nvdimm_bus->dev, NULL,
-				pmem_active);
+		return device_for_each_child(&nvdimm_bus->dev, data,
+				nd_ns_forget_poison_check);
 
 	if (!nvdimm || cmd != ND_CMD_SET_CONFIG_DATA)
 		return 0;
@@ -820,7 +869,7 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 	const char *cmd_name, *dimm_name;
 	unsigned long cmd_mask;
 	void *buf;
-	int rc, i;
+	int rc, i, cmd_rc;
 
 	if (nvdimm) {
 		desc = nd_cmd_dimm_desc(cmd);
@@ -927,13 +976,29 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 	}
 
 	nvdimm_bus_lock(&nvdimm_bus->dev);
-	rc = nd_cmd_clear_to_send(nvdimm_bus, nvdimm, cmd);
+	rc = nd_cmd_clear_to_send(nvdimm_bus, nvdimm, cmd, buf);
 	if (rc)
 		goto out_unlock;
 
-	rc = nd_desc->ndctl(nd_desc, nvdimm, cmd, buf, buf_len, NULL);
+	rc = nd_desc->ndctl(nd_desc, nvdimm, cmd, buf, buf_len, &cmd_rc);
 	if (rc < 0)
 		goto out_unlock;
+
+	if (!nvdimm && cmd == ND_CMD_CLEAR_ERROR && cmd_rc >= 0) {
+		struct nd_cmd_clear_error *clear_err = buf;
+		struct resource res;
+
+		if (clear_err->cleared) {
+			/* clearing the poison list we keep track of */
+			__nvdimm_forget_poison(nvdimm_bus, clear_err->address,
+					clear_err->cleared);
+
+			/* now sync the badblocks lists */
+			res.start = clear_err->address;
+			res.end = clear_err->address + clear_err->cleared - 1;
+			__nvdimm_bus_badblocks_clear(nvdimm_bus, &res);
+		}
+	}
 	nvdimm_bus_unlock(&nvdimm_bus->dev);
 
 	if (copy_to_user(p, buf, buf_len))
