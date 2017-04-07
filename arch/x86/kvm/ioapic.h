@@ -105,11 +105,6 @@ do {									\
 #define ASSERT(x) do { } while (0)
 #endif
 
-static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
-{
-	return kvm->arch.vioapic;
-}
-
 static inline int ioapic_in_kernel(struct kvm *kvm)
 {
 	int mode = kvm->arch.irqchip_mode;
