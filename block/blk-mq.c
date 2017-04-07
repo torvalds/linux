@@ -1135,7 +1135,8 @@ static int blk_mq_hctx_next_cpu(struct blk_mq_hw_ctx *hctx)
 	return hctx->next_cpu;
 }
 
-void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
+static void __blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async,
+					unsigned long msecs)
 {
 	if (unlikely(blk_mq_hctx_stopped(hctx) ||
 		     !blk_mq_hw_queue_mapped(hctx)))
@@ -1152,7 +1153,24 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 		put_cpu();
 	}
 
-	kblockd_schedule_work_on(blk_mq_hctx_next_cpu(hctx), &hctx->run_work);
+	if (msecs == 0)
+		kblockd_schedule_work_on(blk_mq_hctx_next_cpu(hctx),
+					 &hctx->run_work);
+	else
+		kblockd_schedule_delayed_work_on(blk_mq_hctx_next_cpu(hctx),
+						 &hctx->delayed_run_work,
+						 msecs_to_jiffies(msecs));
+}
+
+void blk_mq_delay_run_hw_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs)
+{
+	__blk_mq_delay_run_hw_queue(hctx, true, msecs);
+}
+EXPORT_SYMBOL(blk_mq_delay_run_hw_queue);
+
+void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
+{
+	__blk_mq_delay_run_hw_queue(hctx, async, 0);
 }
 
 void blk_mq_run_hw_queues(struct request_queue *q, bool async)
@@ -1251,6 +1269,15 @@ static void blk_mq_run_work_fn(struct work_struct *work)
 	struct blk_mq_hw_ctx *hctx;
 
 	hctx = container_of(work, struct blk_mq_hw_ctx, run_work);
+
+	__blk_mq_run_hw_queue(hctx);
+}
+
+static void blk_mq_delayed_run_work_fn(struct work_struct *work)
+{
+	struct blk_mq_hw_ctx *hctx;
+
+	hctx = container_of(work, struct blk_mq_hw_ctx, delayed_run_work.work);
 
 	__blk_mq_run_hw_queue(hctx);
 }
@@ -1962,6 +1989,7 @@ static int blk_mq_init_hctx(struct request_queue *q,
 		node = hctx->numa_node = set->numa_node;
 
 	INIT_WORK(&hctx->run_work, blk_mq_run_work_fn);
+	INIT_DELAYED_WORK(&hctx->delayed_run_work, blk_mq_delayed_run_work_fn);
 	INIT_DELAYED_WORK(&hctx->delay_work, blk_mq_delay_work_fn);
 	spin_lock_init(&hctx->lock);
 	INIT_LIST_HEAD(&hctx->dispatch);
