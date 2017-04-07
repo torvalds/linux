@@ -4775,12 +4775,10 @@ static int qeth_query_card_info(struct qeth_card *card,
 
 static inline int qeth_get_qdio_q_format(struct qeth_card *card)
 {
-	switch (card->info.type) {
-	case QETH_CARD_TYPE_IQD:
-		return 2;
-	default:
-		return 0;
-	}
+	if (card->info.type == QETH_CARD_TYPE_IQD)
+		return QDIO_IQDIO_QFMT;
+	else
+		return QDIO_QETH_QFMT;
 }
 
 static void qeth_determine_capabilities(struct qeth_card *card)
