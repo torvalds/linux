@@ -1073,50 +1073,6 @@ strncpy_from_user(char *__to, const char __user *__from, long __len)
 	return res;
 }
 
-extern long __strlen_kernel_asm(const char __user *s);
-extern long __strlen_user_asm(const char __user *s);
-
-/*
- * strlen_user: - Get the size of a string in user space.
- * @str: The string to measure.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * Get the size of a NUL-terminated string in user space.
- *
- * Returns the size of the string INCLUDING the terminating NUL.
- * On exception, returns 0.
- *
- * If there is a limit on the length of a valid string, you may wish to
- * consider using strnlen_user() instead.
- */
-static inline long strlen_user(const char __user *s)
-{
-	long res;
-
-	if (eva_kernel_access()) {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			__MODULE_JAL(__strlen_kernel_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s)
-			: "$2", "$4", __UA_t0, "$31");
-	} else {
-		might_fault();
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			__MODULE_JAL(__strlen_user_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s)
-			: "$2", "$4", __UA_t0, "$31");
-	}
-
-	return res;
-}
-
 extern long __strnlen_kernel_nocheck_asm(const char __user *s, long n);
 extern long __strnlen_user_nocheck_asm(const char __user *s, long n);
 

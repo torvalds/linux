@@ -363,6 +363,4 @@ __clear_user(void __user *to, unsigned long n)
 	return __do_clear_user(to, n);
 }
 
-#define strlen_user(str)	strnlen_user((str), 0x7ffffffe)
-
 #endif	/* _CRIS_UACCESS_H */

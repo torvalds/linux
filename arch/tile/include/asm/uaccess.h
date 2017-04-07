@@ -327,7 +327,6 @@ extern unsigned long raw_copy_in_user(
 
 
 extern long strnlen_user(const char __user *str, long n);
-extern long strlen_user(const char __user *str);
 extern long strncpy_from_user(char *dst, const char __user *src, long);
 
 /**

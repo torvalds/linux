@@ -288,9 +288,6 @@ strncpy_from_user(char *dst, const char *src, long count)
 	return -EFAULT;
 }
 
-
-#define strlen_user(str) strnlen_user((str), TASK_SIZE - 1)
-
 /*
  * Return the size of a string (including the ending 0!)
  */
