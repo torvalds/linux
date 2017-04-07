@@ -1119,12 +1119,14 @@
 			<&cru PLL_GPLL>, <&cru PLL_CPLL>,
 			<&cru ACLK_BUS>, <&cru ACLK_PERI>,
 			<&cru HCLK_BUS>, <&cru HCLK_PERI>,
-			<&cru PCLK_BUS>, <&cru PCLK_PERI>;
+			<&cru PCLK_BUS>, <&cru PCLK_PERI>,
+			<&cru ACLK_CCI_PRE>;
 		assigned-clock-rates =
 			<576000000>, <400000000>,
 			<300000000>, <300000000>,
 			<150000000>, <150000000>,
-			<75000000>, <75000000>;
+			<75000000>, <75000000>,
+			<576000000>;
 	};
 
 	grf: syscon@ff770000 {
