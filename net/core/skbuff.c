@@ -3093,7 +3093,7 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 			 * containing the same amount of data.
 			 */
 			skb_walk_frags(head_skb, iter) {
-				if (skb_headlen(iter))
+				if (skb_headlen(iter) && !iter->head_frag)
 					goto normal;
 
 				len -= iter->len;
