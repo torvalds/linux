@@ -627,7 +627,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			rc = set_validity_icpt(scb_s, 0x10b0U);
 		if (rc)
 			goto unpin;
-		scb_s->sdnxo = hpa;
+		scb_s->sdnxo = hpa | sdnxc;
 	}
 	return 0;
 unpin:
