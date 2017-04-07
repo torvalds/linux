@@ -13,7 +13,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/cryptohash.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/hdmi.h>
@@ -25,6 +24,7 @@
 #include <linux/of_device.h>
 #include <linux/spinlock.h>
 #include <linux/soc/rockchip/rk_vendor_storage.h>
+#include <crypto/sha.h>
 #include <drm/bridge/dw_hdmi.h>
 
 #include "dw-hdmi.h"
@@ -149,14 +149,14 @@ static void sha_reset(struct sha_t *sha)
 	for (i = 0; i < sizeof(sha->mlength); i++)
 		sha->mlength[i] = 0;
 
-	sha_init(sha->mdigest);
+	sha1_init(sha->mdigest);
 }
 
 static void sha_processblock(struct sha_t *sha)
 {
-	u32 array[SHA_WORKSPACE_WORDS];
+	u32 array[SHA1_WORKSPACE_WORDS];
 
-	sha_transform(sha->mdigest, sha->mblock, array);
+	sha1_transform(sha->mdigest, sha->mblock, array);
 	sha->mindex = 0;
 }
 
