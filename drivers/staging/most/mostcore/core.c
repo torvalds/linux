@@ -127,10 +127,6 @@ struct most_c_attr {
 
 #define to_channel_attr(a) container_of(a, struct most_c_attr, attr)
 
-#define MOST_CHNL_ATTR(_name, _mode, _show, _store) \
-		struct most_c_attr most_chnl_attr_##_name = \
-		__ATTR(_name, _mode, _show, _store)
-
 /**
  * channel_attr_show - show function of channel object
  * @kobj: pointer to its kobject
@@ -338,7 +334,7 @@ static ssize_t channel_starving_show(struct most_c_obj *c,
 }
 
 #define create_show_channel_attribute(val) \
-	static MOST_CHNL_ATTR(val, 0444, val##_show, NULL)
+	static struct most_c_attr most_chnl_attr_##val = __ATTR_RO(val)
 
 create_show_channel_attribute(available_directions);
 create_show_channel_attribute(available_datatypes);
@@ -490,7 +486,7 @@ static ssize_t set_packets_per_xact_store(struct most_c_obj *c,
 }
 
 #define create_channel_attribute(value) \
-	static MOST_CHNL_ATTR(value, 0644, value##_show, value##_store)
+	static struct most_c_attr most_chnl_attr_##value = __ATTR_RW(value)
 
 create_channel_attribute(set_buffer_size);
 create_channel_attribute(set_number_of_buffers);
@@ -558,9 +554,6 @@ create_most_c_obj(const char *name, struct kobject *parent)
 /*		     ___	       ___
  *		     ___I N S T A N C E___
  */
-#define MOST_INST_ATTR(_name, _mode, _show, _store) \
-		struct most_inst_attribute most_inst_attr_##_name = \
-		__ATTR(_name, _mode, _show, _store)
 
 static struct list_head instance_list;
 
@@ -683,11 +676,11 @@ static ssize_t interface_show(struct most_inst_obj *instance_obj,
 	return snprintf(buf, PAGE_SIZE, "unknown\n");
 }
 
-#define create_inst_attribute(value) \
-	static MOST_INST_ATTR(value, 0444, value##_show, NULL)
+static struct most_inst_attribute most_inst_attr_description =
+	__ATTR_RO(description);
 
-create_inst_attribute(description);
-create_inst_attribute(interface);
+static struct most_inst_attribute most_inst_attr_interface =
+	__ATTR_RO(interface);
 
 static struct attribute *most_inst_def_attrs[] = {
 	&most_inst_attr_description.attr,
