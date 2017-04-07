@@ -583,21 +583,6 @@ out:
 
 #ifdef CONFIG_NFS_V4_1
 /*
- * Returns true if the client IDs match
- */
-static bool nfs4_match_clientids(u64 a, u64 b)
-{
-	if (a != b) {
-		dprintk("NFS: --> %s client ID %llx does not match %llx\n",
-			__func__, a, b);
-		return false;
-	}
-	dprintk("NFS: --> %s client ID %llx matches %llx\n",
-		__func__, a, b);
-	return true;
-}
-
-/*
  * Returns true if the server major ids match
  */
 static bool
@@ -680,7 +665,7 @@ int nfs4_detect_session_trunking(struct nfs_client *clp,
 				 struct rpc_xprt *xprt)
 {
 	/* Check eir_clientid */
-	if (!nfs4_match_clientids(clp->cl_clientid, res->clientid))
+	if (clp->cl_clientid != res->clientid)
 		goto out_err;
 
 	/* Check eir_server_owner so_major_id */
@@ -765,7 +750,7 @@ int nfs41_walk_client_list(struct nfs_client *new,
 		if (pos->cl_cons_state != NFS_CS_READY)
 			continue;
 
-		if (!nfs4_match_clientids(pos->cl_clientid, new->cl_clientid))
+		if (pos->cl_clientid != new->cl_clientid)
 			continue;
 
 		/*
