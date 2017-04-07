@@ -685,16 +685,9 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 	int status = data->task.tk_status;
 
 	nfs_init_cinfo_from_dreq(&cinfo, dreq);
-	if (status < 0) {
-		dprintk("NFS: %5u commit failed with error %d.\n",
-			data->task.tk_pid, status);
+	if (status < 0 || nfs_direct_cmp_commit_data_verf(dreq, data))
 		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
-	} else if (nfs_direct_cmp_commit_data_verf(dreq, data)) {
-		dprintk("NFS: %5u commit verify failed\n", data->task.tk_pid);
-		dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
-	}
 
-	dprintk("NFS: %5u commit returned %d\n", data->task.tk_pid, status);
 	while (!list_empty(&data->pages)) {
 		req = nfs_list_entry(data->pages.next);
 		nfs_list_remove_request(req);
