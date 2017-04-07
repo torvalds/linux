@@ -831,9 +831,9 @@ static void most_aim_release(struct kobject *kobj)
 	kfree(aim_obj);
 }
 
-static ssize_t add_link_show(struct most_aim_obj *aim_obj,
-			     struct most_aim_attribute *attr,
-			     char *buf)
+static ssize_t links_show(struct most_aim_obj *aim_obj,
+			  struct most_aim_attribute *attr,
+			  char *buf)
 {
 	struct most_c_obj *c;
 	struct most_inst_obj *i;
@@ -853,6 +853,9 @@ static ssize_t add_link_show(struct most_aim_obj *aim_obj,
 
 	return offs;
 }
+
+static struct most_aim_attribute most_aim_attr_links =
+	__ATTR_RO(links);
 
 /**
  * split_string - parses and changes string in the buffer buf and
@@ -998,7 +1001,7 @@ static ssize_t add_link_store(struct most_aim_obj *aim_obj,
 }
 
 static struct most_aim_attribute most_aim_attr_add_link =
-	__ATTR_RW(add_link);
+	__ATTR_WO(add_link);
 
 /**
  * remove_link_store - store function for remove_link attribute
@@ -1044,6 +1047,7 @@ static struct most_aim_attribute most_aim_attr_remove_link =
 	__ATTR_WO(remove_link);
 
 static struct attribute *most_aim_def_attrs[] = {
+	&most_aim_attr_links.attr,
 	&most_aim_attr_add_link.attr,
 	&most_aim_attr_remove_link.attr,
 	NULL,
