@@ -2605,7 +2605,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	return 0;
 
 fail:
-	xhci_warn(xhci, "Couldn't initialize memory\n");
 	xhci_halt(xhci);
 	xhci_reset(xhci);
 	xhci_mem_cleanup(xhci);

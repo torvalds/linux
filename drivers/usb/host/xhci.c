@@ -664,9 +664,11 @@ int xhci_run(struct usb_hcd *hcd)
 
 	if (xhci->quirks & XHCI_NEC_HOST) {
 		struct xhci_command *command;
+
 		command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
 		if (!command)
 			return -ENOMEM;
+
 		xhci_queue_vendor_command(xhci, command, 0, 0, 0,
 				TRB_TYPE(TRB_NEC_GET_FW));
 	}
@@ -3144,10 +3146,9 @@ static int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	}
 
 	config_cmd = xhci_alloc_command(xhci, true, true, mem_flags);
-	if (!config_cmd) {
-		xhci_dbg(xhci, "Could not allocate xHCI command structure.\n");
+	if (!config_cmd)
 		return -ENOMEM;
-	}
+
 	ctrl_ctx = xhci_get_input_control_ctx(config_cmd->in_ctx);
 	if (!ctrl_ctx) {
 		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
@@ -4753,11 +4754,11 @@ static int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 		xhci_warn(xhci, "Cannot update hub desc for unknown device.\n");
 		return -EINVAL;
 	}
+
 	config_cmd = xhci_alloc_command(xhci, true, true, mem_flags);
-	if (!config_cmd) {
-		xhci_dbg(xhci, "Could not allocate xHCI command structure.\n");
+	if (!config_cmd)
 		return -ENOMEM;
-	}
+
 	ctrl_ctx = xhci_get_input_control_ctx(config_cmd->in_ctx);
 	if (!ctrl_ctx) {
 		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",

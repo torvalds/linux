@@ -392,10 +392,8 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	trace_xhci_stop_device(virt_dev);
 
 	cmd = xhci_alloc_command(xhci, false, true, GFP_NOIO);
-	if (!cmd) {
-		xhci_dbg(xhci, "Couldn't allocate command structure.\n");
+	if (!cmd)
 		return -ENOMEM;
-	}
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	for (i = LAST_EP_INDEX; i > 0; i--) {
