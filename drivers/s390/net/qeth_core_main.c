@@ -55,7 +55,6 @@ static struct mutex qeth_mod_mutex;
 
 static void qeth_send_control_data_cb(struct qeth_channel *,
 			struct qeth_cmd_buffer *);
-static int qeth_issue_next_read(struct qeth_card *);
 static struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *);
 static void qeth_setup_ccw(struct qeth_channel *, unsigned char *, __u32);
 static void qeth_free_buffer_pool(struct qeth_card *);
@@ -1202,7 +1201,7 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
 	while (skb) {
 		QETH_CARD_TEXT_(q->card, 5, "skbn%d", notification);
 		QETH_CARD_TEXT_(q->card, 5, "%lx", (long) skb);
-		if (skb->protocol == ETH_P_AF_IUCV) {
+		if (be16_to_cpu(skb->protocol) == ETH_P_AF_IUCV) {
 			if (skb->sk) {
 				struct iucv_sock *iucv = iucv_sk(skb->sk);
 				iucv->sk_txnotify(skb, notification);
@@ -1233,7 +1232,8 @@ static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf)
 	while (skb) {
 		QETH_CARD_TEXT(buf->q->card, 5, "skbr");
 		QETH_CARD_TEXT_(buf->q->card, 5, "%lx", (long) skb);
-		if (notify_general_error && skb->protocol == ETH_P_AF_IUCV) {
+		if (notify_general_error &&
+		    be16_to_cpu(skb->protocol) == ETH_P_AF_IUCV) {
 			if (skb->sk) {
 				iucv = iucv_sk(skb->sk);
 				iucv->sk_txnotify(skb, TX_NOTIFY_GENERALERROR);
@@ -1396,7 +1396,6 @@ static void qeth_set_intial_options(struct qeth_card *card)
 	card->options.route4.type = NO_ROUTER;
 	card->options.route6.type = NO_ROUTER;
 	card->options.fake_broadcast = 0;
-	card->options.add_hhlen = DEFAULT_ADD_HHLEN;
 	card->options.performance_stats = 0;
 	card->options.rx_sg_cb = QETH_RX_SG_CB;
 	card->options.isolation = ISOLATION_MODE_NONE;
@@ -3322,7 +3321,7 @@ void qeth_queue_input_buffer(struct qeth_card *card, int index)
 }
 EXPORT_SYMBOL_GPL(qeth_queue_input_buffer);
 
-static int qeth_handle_send_error(struct qeth_card *card,
+static void qeth_handle_send_error(struct qeth_card *card,
 		struct qeth_qdio_out_buffer *buffer, unsigned int qdio_err)
 {
 	int sbalf15 = buffer->buffer->element[15].sflags;
@@ -3338,15 +3337,14 @@ static int qeth_handle_send_error(struct qeth_card *card,
 	qeth_check_qdio_errors(card, buffer->buffer, qdio_err, "qouterr");
 
 	if (!qdio_err)
-		return QETH_SEND_ERROR_NONE;
+		return;
 
 	if ((sbalf15 >= 15) && (sbalf15 <= 31))
-		return QETH_SEND_ERROR_RETRY;
+		return;
 
 	QETH_CARD_TEXT(card, 1, "lnkfail");
 	QETH_CARD_TEXT_(card, 1, "%04x %02x",
 		       (u16)qdio_err, (u8)sbalf15);
-	return QETH_SEND_ERROR_LINK_FAILURE;
 }
 
 /*
@@ -3799,9 +3797,9 @@ int qeth_get_priority_queue(struct qeth_card *card, struct sk_buff *skb,
 		return qeth_cut_iqd_prio(card, ~skb->priority >> 1 & 3);
 	case QETH_PRIO_Q_ING_VLAN:
 		tci = &((struct ethhdr *)skb->data)->h_proto;
-		if (*tci == ETH_P_8021Q)
-			return qeth_cut_iqd_prio(card, ~*(tci + 1) >>
-			(VLAN_PRIO_SHIFT + 1) & 3);
+		if (be16_to_cpu(*tci) == ETH_P_8021Q)
+			return qeth_cut_iqd_prio(card,
+			~be16_to_cpu(*(tci + 1)) >> (VLAN_PRIO_SHIFT + 1) & 3);
 		break;
 	default:
 		break;
@@ -4775,12 +4773,10 @@ static int qeth_query_card_info(struct qeth_card *card,
 
 static inline int qeth_get_qdio_q_format(struct qeth_card *card)
 {
-	switch (card->info.type) {
-	case QETH_CARD_TYPE_IQD:
-		return 2;
-	default:
-		return 0;
-	}
+	if (card->info.type == QETH_CARD_TYPE_IQD)
+		return QDIO_IQDIO_QFMT;
+	else
+		return QDIO_QETH_QFMT;
 }
 
 static void qeth_determine_capabilities(struct qeth_card *card)
@@ -4819,8 +4815,9 @@ static void qeth_determine_capabilities(struct qeth_card *card)
 		QETH_DBF_TEXT_(SETUP, 2, "6err%d", rc);
 
 	QETH_DBF_TEXT_(SETUP, 2, "qfmt%d", card->ssqd.qfmt);
-	QETH_DBF_TEXT_(SETUP, 2, "%d", card->ssqd.qdioac1);
-	QETH_DBF_TEXT_(SETUP, 2, "%d", card->ssqd.qdioac3);
+	QETH_DBF_TEXT_(SETUP, 2, "ac1:%02x", card->ssqd.qdioac1);
+	QETH_DBF_TEXT_(SETUP, 2, "ac2:%04x", card->ssqd.qdioac2);
+	QETH_DBF_TEXT_(SETUP, 2, "ac3:%04x", card->ssqd.qdioac3);
 	QETH_DBF_TEXT_(SETUP, 2, "icnt%d", card->ssqd.icnt);
 	if (!((card->ssqd.qfmt != QDIO_IQDIO_QFMT) ||
 	    ((card->ssqd.qdioac1 & CHSC_AC1_INITIATE_INPUTQ) == 0) ||

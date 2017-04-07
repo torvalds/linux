@@ -503,21 +503,11 @@ struct qeth_qdio_info {
 	int default_out_queue;
 };
 
-enum qeth_send_errors {
-	QETH_SEND_ERROR_NONE,
-	QETH_SEND_ERROR_LINK_FAILURE,
-	QETH_SEND_ERROR_RETRY,
-	QETH_SEND_ERROR_KICK_IT,
-};
-
 #define QETH_ETH_MAC_V4      0x0100 /* like v4 */
 #define QETH_ETH_MAC_V6      0x3333 /* like v6 */
 /* tr mc mac is longer, but that will be enough to detect mc frames */
 #define QETH_TR_MAC_NC       0xc000 /* non-canonical */
 #define QETH_TR_MAC_C        0x0300 /* canonical */
-
-#define DEFAULT_ADD_HHLEN 0
-#define MAX_ADD_HHLEN 1024
 
 /**
  * buffer stuff for read channel
@@ -644,7 +634,6 @@ struct qeth_reply {
 	atomic_t refcnt;
 };
 
-
 struct qeth_card_blkt {
 	int time_total;
 	int inter_packet;
@@ -685,7 +674,6 @@ struct qeth_card_options {
 	struct qeth_ipa_info ipa6;
 	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
 	int fake_broadcast;
-	int add_hhlen;
 	int layer2;
 	int performance_stats;
 	int rx_sg_cb;
@@ -856,9 +844,9 @@ static inline int qeth_get_ip_version(struct sk_buff *skb)
 {
 	__be16 *p = &((struct ethhdr *)skb->data)->h_proto;
 
-	if (*p == ETH_P_8021Q)
+	if (be16_to_cpu(*p) == ETH_P_8021Q)
 		p += 2;
-	switch (*p) {
+	switch (be16_to_cpu(*p)) {
 	case ETH_P_IPV6:
 		return 6;
 	case ETH_P_IP:
