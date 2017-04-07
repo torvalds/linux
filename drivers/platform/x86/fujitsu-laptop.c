@@ -153,10 +153,6 @@ struct fujitsu_laptop {
 	spinlock_t fifo_lock;
 	int flags_supported;
 	int flags_state;
-	int logolamp_registered;
-	int kblamps_registered;
-	int radio_led_registered;
-	int eco_led_registered;
 };
 
 static struct fujitsu_laptop *fujitsu_laptop;
@@ -726,31 +722,24 @@ static struct led_classdev eco_led = {
 	.brightness_get = eco_led_get
 };
 
-static int acpi_fujitsu_laptop_leds_register(void)
+static int acpi_fujitsu_laptop_leds_register(struct acpi_device *device)
 {
 	int result = 0;
 
 	if (call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & LOGOLAMP_POWERON) {
-		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
-					       &logolamp_led);
-		if (result == 0) {
-			fujitsu_laptop->logolamp_registered = 1;
-		} else {
+		result = devm_led_classdev_register(&device->dev,
+						    &logolamp_led);
+		if (result)
 			pr_err("Could not register LED handler for logo lamp, error %i\n",
 			       result);
-		}
 	}
 
 	if ((call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & KEYBOARD_LAMPS) &&
 	    (call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0) == 0x0)) {
-		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
-					       &kblamps_led);
-		if (result == 0) {
-			fujitsu_laptop->kblamps_registered = 1;
-		} else {
+		result = devm_led_classdev_register(&device->dev, &kblamps_led);
+		if (result)
 			pr_err("Could not register LED handler for keyboard lamps, error %i\n",
 			       result);
-		}
 	}
 
 	/*
@@ -760,14 +749,10 @@ static int acpi_fujitsu_laptop_leds_register(void)
 	 * that an RF LED is present.
 	 */
 	if (call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0) & BIT(24)) {
-		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
-					       &radio_led);
-		if (result == 0) {
-			fujitsu_laptop->radio_led_registered = 1;
-		} else {
+		result = devm_led_classdev_register(&device->dev, &radio_led);
+		if (result)
 			pr_err("Could not register LED handler for radio LED, error %i\n",
 			       result);
-		}
 	}
 
 	/* Support for eco led is not always signaled in bit corresponding
@@ -777,14 +762,10 @@ static int acpi_fujitsu_laptop_leds_register(void)
 	 */
 	if ((call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & BIT(14)) &&
 	    (call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0) != UNSUPPORTED_CMD)) {
-		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
-					       &eco_led);
-		if (result == 0) {
-			fujitsu_laptop->eco_led_registered = 1;
-		} else {
+		result = devm_led_classdev_register(&device->dev, &eco_led);
+		if (result)
 			pr_err("Could not register LED handler for eco LED, error %i\n",
 			       result);
-		}
 	}
 
 	return result;
@@ -872,7 +853,7 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	if (error)
 		goto err_free_fifo;
 
-	error = acpi_fujitsu_laptop_leds_register();
+	error = acpi_fujitsu_laptop_leds_register(device);
 	if (error)
 		goto err_remove_platform_device;
 
@@ -890,23 +871,9 @@ static int acpi_fujitsu_laptop_remove(struct acpi_device *device)
 {
 	struct fujitsu_laptop *fujitsu_laptop = acpi_driver_data(device);
 
-	if (fujitsu_laptop->logolamp_registered)
-		led_classdev_unregister(&logolamp_led);
-
-	if (fujitsu_laptop->kblamps_registered)
-		led_classdev_unregister(&kblamps_led);
-
-	if (fujitsu_laptop->radio_led_registered)
-		led_classdev_unregister(&radio_led);
-
-	if (fujitsu_laptop->eco_led_registered)
-		led_classdev_unregister(&eco_led);
-
 	fujitsu_laptop_platform_remove();
 
 	kfifo_free(&fujitsu_laptop->fifo);
-
-	fujitsu_laptop->acpi_handle = NULL;
 
 	return 0;
 }
