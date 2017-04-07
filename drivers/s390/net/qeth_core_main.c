@@ -55,7 +55,6 @@ static struct mutex qeth_mod_mutex;
 
 static void qeth_send_control_data_cb(struct qeth_channel *,
 			struct qeth_cmd_buffer *);
-static int qeth_issue_next_read(struct qeth_card *);
 static struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *);
 static void qeth_setup_ccw(struct qeth_channel *, unsigned char *, __u32);
 static void qeth_free_buffer_pool(struct qeth_card *);
@@ -1396,7 +1395,6 @@ static void qeth_set_intial_options(struct qeth_card *card)
 	card->options.route4.type = NO_ROUTER;
 	card->options.route6.type = NO_ROUTER;
 	card->options.fake_broadcast = 0;
-	card->options.add_hhlen = DEFAULT_ADD_HHLEN;
 	card->options.performance_stats = 0;
 	card->options.rx_sg_cb = QETH_RX_SG_CB;
 	card->options.isolation = ISOLATION_MODE_NONE;

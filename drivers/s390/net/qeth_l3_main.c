@@ -36,16 +36,12 @@
 
 
 static int qeth_l3_set_offline(struct ccwgroup_device *);
-static int qeth_l3_recover(void *);
 static int qeth_l3_stop(struct net_device *);
 static void qeth_l3_set_multicast_list(struct net_device *);
-static int qeth_l3_neigh_setup(struct net_device *, struct neigh_parms *);
 static int qeth_l3_register_addr_entry(struct qeth_card *,
 		struct qeth_ipaddr *);
 static int qeth_l3_deregister_addr_entry(struct qeth_card *,
 		struct qeth_ipaddr *);
-static int __qeth_l3_set_online(struct ccwgroup_device *, int);
-static int __qeth_l3_set_offline(struct ccwgroup_device *, int);
 
 static int qeth_l3_isxdigit(char *buf)
 {
