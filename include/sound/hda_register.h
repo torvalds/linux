@@ -261,9 +261,11 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_REG_ML_LOUTPAY		0x20
 #define AZX_REG_ML_LINPAY		0x30
 
-#define AZX_MLCTL_SPA			(1<<16)
-#define AZX_MLCTL_CPA			23
-
+#define ML_LCTL_SCF_MASK			0xF
+#define AZX_MLCTL_SPA				(0x1 << 16)
+#define AZX_MLCTL_CPA				(0x1 << 23)
+#define AZX_MLCTL_SPA_SHIFT			16
+#define AZX_MLCTL_CPA_SHIFT			23
 
 /* registers for DMA Resume Capability Structure */
 #define AZX_DRSM_CAP_ID			0x5
