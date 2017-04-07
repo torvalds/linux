@@ -152,10 +152,10 @@ static ssize_t stm32_tt_read_frequency(struct device *dev,
 	regmap_read(priv->regmap, TIM_PSC, &psc);
 	regmap_read(priv->regmap, TIM_ARR, &arr);
 
-	if (psc && arr && (cr1 & TIM_CR1_CEN)) {
+	if (cr1 & TIM_CR1_CEN) {
 		freq = (unsigned long long)clk_get_rate(priv->clk);
-		do_div(freq, psc);
-		do_div(freq, arr);
+		do_div(freq, psc + 1);
+		do_div(freq, arr + 1);
 	}
 
 	return sprintf(buf, "%d\n", (unsigned int)freq);
