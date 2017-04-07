@@ -377,7 +377,7 @@ static int calc_capp_routing(struct pci_dev *dev, u64 *chipid, u64 *capp_unit_id
 	return 0;
 }
 
-static int init_implementation_adapter_psl_regs(struct cxl *adapter, struct pci_dev *dev)
+static int init_implementation_adapter_regs_psl(struct cxl *adapter, struct pci_dev *dev)
 {
 	u64 psl_dsnctl, psl_fircntl;
 	u64 chipid;
@@ -409,7 +409,7 @@ static int init_implementation_adapter_psl_regs(struct cxl *adapter, struct pci_
 	return 0;
 }
 
-static int init_implementation_adapter_xsl_regs(struct cxl *adapter, struct pci_dev *dev)
+static int init_implementation_adapter_regs_xsl(struct cxl *adapter, struct pci_dev *dev)
 {
 	u64 xsl_dsnctl;
 	u64 chipid;
@@ -513,7 +513,7 @@ static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 	return;
 }
 
-static int init_implementation_afu_psl_regs(struct cxl_afu *afu)
+static int init_implementation_afu_regs_psl(struct cxl_afu *afu)
 {
 	/* read/write masks for this slice */
 	cxl_p1n_write(afu, CXL_PSL_APCALLOC_A, 0xFFFFFFFEFEFEFEFEULL);
@@ -996,7 +996,7 @@ static int cxl_afu_descriptor_looks_ok(struct cxl_afu *afu)
 	return 0;
 }
 
-static int sanitise_afu_regs(struct cxl_afu *afu)
+static int sanitise_afu_regs_psl(struct cxl_afu *afu)
 {
 	u64 reg;
 
@@ -1102,8 +1102,11 @@ static int pci_configure_afu(struct cxl_afu *afu, struct cxl *adapter, struct pc
 	if ((rc = pci_map_slice_regs(afu, adapter, dev)))
 		return rc;
 
-	if ((rc = sanitise_afu_regs(afu)))
-		goto err1;
+	if (adapter->native->sl_ops->sanitise_afu_regs) {
+		rc = adapter->native->sl_ops->sanitise_afu_regs(afu);
+		if (rc)
+			goto err1;
+	}
 
 	/* We need to reset the AFU before we can read the AFU descriptor */
 	if ((rc = cxl_ops->afu_reset(afu)))
@@ -1432,9 +1435,15 @@ static void cxl_release_adapter(struct device *dev)
 
 static int sanitise_adapter_regs(struct cxl *adapter)
 {
+	int rc = 0;
+
 	/* Clear PSL tberror bit by writing 1 to it */
 	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, CXL_PSL_ErrIVTE_tberror);
-	return cxl_tlb_slb_invalidate(adapter);
+
+	if (adapter->native->sl_ops->invalidate_all)
+		rc = adapter->native->sl_ops->invalidate_all(adapter);
+
+	return rc;
 }
 
 /* This should contain *only* operations that can safely be done in
@@ -1518,15 +1527,23 @@ static void cxl_deconfigure_adapter(struct cxl *adapter)
 }
 
 static const struct cxl_service_layer_ops psl_ops = {
-	.adapter_regs_init = init_implementation_adapter_psl_regs,
-	.afu_regs_init = init_implementation_afu_psl_regs,
+	.adapter_regs_init = init_implementation_adapter_regs_psl,
+	.invalidate_all = cxl_invalidate_all_psl,
+	.afu_regs_init = init_implementation_afu_regs_psl,
+	.sanitise_afu_regs = sanitise_afu_regs_psl,
 	.register_serr_irq = cxl_native_register_serr_irq,
 	.release_serr_irq = cxl_native_release_serr_irq,
-	.debugfs_add_adapter_sl_regs = cxl_debugfs_add_adapter_psl_regs,
-	.debugfs_add_afu_sl_regs = cxl_debugfs_add_afu_psl_regs,
-	.psl_irq_dump_registers = cxl_native_psl_irq_dump_regs,
+	.handle_interrupt = cxl_irq_psl,
+	.fail_irq = cxl_fail_irq_psl,
+	.activate_dedicated_process = cxl_activate_dedicated_process_psl,
+	.attach_afu_directed = cxl_attach_afu_directed_psl,
+	.attach_dedicated_process = cxl_attach_dedicated_process_psl,
+	.update_dedicated_ivtes = cxl_update_dedicated_ivtes_psl,
+	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_psl,
+	.debugfs_add_afu_regs = cxl_debugfs_add_afu_regs_psl,
+	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl,
 	.err_irq_dump_registers = cxl_native_err_irq_dump_regs,
-	.debugfs_stop_trace = cxl_stop_trace,
+	.debugfs_stop_trace = cxl_stop_trace_psl,
 	.write_timebase_ctrl = write_timebase_ctrl_psl,
 	.timebase_read = timebase_read_psl,
 	.capi_mode = OPAL_PHB_CAPI_MODE_CAPI,
@@ -1534,8 +1551,16 @@ static const struct cxl_service_layer_ops psl_ops = {
 };
 
 static const struct cxl_service_layer_ops xsl_ops = {
-	.adapter_regs_init = init_implementation_adapter_xsl_regs,
-	.debugfs_add_adapter_sl_regs = cxl_debugfs_add_adapter_xsl_regs,
+	.adapter_regs_init = init_implementation_adapter_regs_xsl,
+	.invalidate_all = cxl_invalidate_all_psl,
+	.sanitise_afu_regs = sanitise_afu_regs_psl,
+	.handle_interrupt = cxl_irq_psl,
+	.fail_irq = cxl_fail_irq_psl,
+	.activate_dedicated_process = cxl_activate_dedicated_process_psl,
+	.attach_afu_directed = cxl_attach_afu_directed_psl,
+	.attach_dedicated_process = cxl_attach_dedicated_process_psl,
+	.update_dedicated_ivtes = cxl_update_dedicated_ivtes_psl,
+	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_xsl,
 	.write_timebase_ctrl = write_timebase_ctrl_xsl,
 	.timebase_read = timebase_read_xsl,
 	.capi_mode = OPAL_PHB_CAPI_MODE_DMA,

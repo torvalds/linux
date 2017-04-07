@@ -258,7 +258,7 @@ void cxl_release_spa(struct cxl_afu *afu)
 	}
 }
 
-int cxl_tlb_slb_invalidate(struct cxl *adapter)
+int cxl_invalidate_all_psl(struct cxl *adapter)
 {
 	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
 
@@ -578,7 +578,7 @@ static void update_ivtes_directed(struct cxl_context *ctx)
 		WARN_ON(add_process_element(ctx));
 }
 
-static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
+int cxl_attach_afu_directed_psl(struct cxl_context *ctx, u64 wed, u64 amr)
 {
 	u32 pid;
 	int result;
@@ -671,7 +671,7 @@ static int deactivate_afu_directed(struct cxl_afu *afu)
 	return 0;
 }
 
-static int activate_dedicated_process(struct cxl_afu *afu)
+int cxl_activate_dedicated_process_psl(struct cxl_afu *afu)
 {
 	dev_info(&afu->dev, "Activating dedicated process mode\n");
 
@@ -694,7 +694,7 @@ static int activate_dedicated_process(struct cxl_afu *afu)
 	return cxl_chardev_d_afu_add(afu);
 }
 
-static void update_ivtes_dedicated(struct cxl_context *ctx)
+void cxl_update_dedicated_ivtes_psl(struct cxl_context *ctx)
 {
 	struct cxl_afu *afu = ctx->afu;
 
@@ -710,7 +710,7 @@ static void update_ivtes_dedicated(struct cxl_context *ctx)
 			((u64)ctx->irqs.range[3] & 0xffff));
 }
 
-static int attach_dedicated(struct cxl_context *ctx, u64 wed, u64 amr)
+int cxl_attach_dedicated_process_psl(struct cxl_context *ctx, u64 wed, u64 amr)
 {
 	struct cxl_afu *afu = ctx->afu;
 	u64 pid;
@@ -728,7 +728,8 @@ static int attach_dedicated(struct cxl_context *ctx, u64 wed, u64 amr)
 
 	cxl_prefault(ctx, wed);
 
-	update_ivtes_dedicated(ctx);
+	if (ctx->afu->adapter->native->sl_ops->update_dedicated_ivtes)
+		afu->adapter->native->sl_ops->update_dedicated_ivtes(ctx);
 
 	cxl_p2n_write(afu, CXL_PSL_AMR_An, amr);
 
@@ -778,8 +779,9 @@ static int native_afu_activate_mode(struct cxl_afu *afu, int mode)
 
 	if (mode == CXL_MODE_DIRECTED)
 		return activate_afu_directed(afu);
-	if (mode == CXL_MODE_DEDICATED)
-		return activate_dedicated_process(afu);
+	if ((mode == CXL_MODE_DEDICATED) &&
+	    (afu->adapter->native->sl_ops->activate_dedicated_process))
+		return afu->adapter->native->sl_ops->activate_dedicated_process(afu);
 
 	return -EINVAL;
 }
@@ -793,11 +795,13 @@ static int native_attach_process(struct cxl_context *ctx, bool kernel,
 	}
 
 	ctx->kernel = kernel;
-	if (ctx->afu->current_mode == CXL_MODE_DIRECTED)
-		return attach_afu_directed(ctx, wed, amr);
+	if ((ctx->afu->current_mode == CXL_MODE_DIRECTED) &&
+	    (ctx->afu->adapter->native->sl_ops->attach_afu_directed))
+		return ctx->afu->adapter->native->sl_ops->attach_afu_directed(ctx, wed, amr);
 
-	if (ctx->afu->current_mode == CXL_MODE_DEDICATED)
-		return attach_dedicated(ctx, wed, amr);
+	if ((ctx->afu->current_mode == CXL_MODE_DEDICATED) &&
+	    (ctx->afu->adapter->native->sl_ops->attach_dedicated_process))
+		return ctx->afu->adapter->native->sl_ops->attach_dedicated_process(ctx, wed, amr);
 
 	return -EINVAL;
 }
@@ -830,8 +834,9 @@ static void native_update_ivtes(struct cxl_context *ctx)
 {
 	if (ctx->afu->current_mode == CXL_MODE_DIRECTED)
 		return update_ivtes_directed(ctx);
-	if (ctx->afu->current_mode == CXL_MODE_DEDICATED)
-		return update_ivtes_dedicated(ctx);
+	if ((ctx->afu->current_mode == CXL_MODE_DEDICATED) &&
+	    (ctx->afu->adapter->native->sl_ops->update_dedicated_ivtes))
+		return ctx->afu->adapter->native->sl_ops->update_dedicated_ivtes(ctx);
 	WARN(1, "native_update_ivtes: Bad mode\n");
 }
 
@@ -875,7 +880,7 @@ static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 	return 0;
 }
 
-void cxl_native_psl_irq_dump_regs(struct cxl_context *ctx)
+void cxl_native_irq_dump_regs_psl(struct cxl_context *ctx)
 {
 	u64 fir1, fir2, fir_slice, serr, afu_debug;
 
@@ -911,7 +916,7 @@ static irqreturn_t native_handle_psl_slice_error(struct cxl_context *ctx,
 	return cxl_ops->ack_irq(ctx, 0, errstat);
 }
 
-static irqreturn_t fail_psl_irq(struct cxl_afu *afu, struct cxl_irq_info *irq_info)
+irqreturn_t cxl_fail_irq_psl(struct cxl_afu *afu, struct cxl_irq_info *irq_info)
 {
 	if (irq_info->dsisr & CXL_PSL_DSISR_TRANS)
 		cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_AE);
@@ -927,7 +932,7 @@ static irqreturn_t native_irq_multiplexed(int irq, void *data)
 	struct cxl_context *ctx;
 	struct cxl_irq_info irq_info;
 	u64 phreg = cxl_p2n_read(afu, CXL_PSL_PEHandle_An);
-	int ph, ret;
+	int ph, ret = IRQ_HANDLED, res;
 
 	/* check if eeh kicked in while the interrupt was in flight */
 	if (unlikely(phreg == ~0ULL)) {
@@ -938,15 +943,18 @@ static irqreturn_t native_irq_multiplexed(int irq, void *data)
 	}
 	/* Mask the pe-handle from register value */
 	ph = phreg & 0xffff;
-	if ((ret = native_get_irq_info(afu, &irq_info))) {
-		WARN(1, "Unable to get CXL IRQ Info: %i\n", ret);
-		return fail_psl_irq(afu, &irq_info);
+	if ((res = native_get_irq_info(afu, &irq_info))) {
+		WARN(1, "Unable to get CXL IRQ Info: %i\n", res);
+		if (afu->adapter->native->sl_ops->fail_irq)
+			return afu->adapter->native->sl_ops->fail_irq(afu, &irq_info);
+		return ret;
 	}
 
 	rcu_read_lock();
 	ctx = idr_find(&afu->contexts_idr, ph);
 	if (ctx) {
-		ret = cxl_irq(irq, ctx, &irq_info);
+		if (afu->adapter->native->sl_ops->handle_interrupt)
+			ret = afu->adapter->native->sl_ops->handle_interrupt(irq, ctx, &irq_info);
 		rcu_read_unlock();
 		return ret;
 	}
@@ -956,7 +964,9 @@ static irqreturn_t native_irq_multiplexed(int irq, void *data)
 		" %016llx\n(Possible AFU HW issue - was a term/remove acked"
 		" with outstanding transactions?)\n", ph, irq_info.dsisr,
 		irq_info.dar);
-	return fail_psl_irq(afu, &irq_info);
+	if (afu->adapter->native->sl_ops->fail_irq)
+		ret = afu->adapter->native->sl_ops->fail_irq(afu, &irq_info);
+	return ret;
 }
 
 static void native_irq_wait(struct cxl_context *ctx)

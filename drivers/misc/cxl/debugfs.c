@@ -15,7 +15,7 @@
 
 static struct dentry *cxl_debugfs;
 
-void cxl_stop_trace(struct cxl *adapter)
+void cxl_stop_trace_psl(struct cxl *adapter)
 {
 	int slice;
 
@@ -53,7 +53,7 @@ static struct dentry *debugfs_create_io_x64(const char *name, umode_t mode,
 					  (void __force *)value, &fops_io_x64);
 }
 
-void cxl_debugfs_add_adapter_psl_regs(struct cxl *adapter, struct dentry *dir)
+void cxl_debugfs_add_adapter_regs_psl(struct cxl *adapter, struct dentry *dir)
 {
 	debugfs_create_io_x64("fir1", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL_FIR1));
 	debugfs_create_io_x64("fir2", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL_FIR2));
@@ -61,7 +61,7 @@ void cxl_debugfs_add_adapter_psl_regs(struct cxl *adapter, struct dentry *dir)
 	debugfs_create_io_x64("trace", S_IRUSR | S_IWUSR, dir, _cxl_p1_addr(adapter, CXL_PSL_TRACE));
 }
 
-void cxl_debugfs_add_adapter_xsl_regs(struct cxl *adapter, struct dentry *dir)
+void cxl_debugfs_add_adapter_regs_xsl(struct cxl *adapter, struct dentry *dir)
 {
 	debugfs_create_io_x64("fec", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_XSL_FEC));
 }
@@ -82,8 +82,8 @@ int cxl_debugfs_adapter_add(struct cxl *adapter)
 
 	debugfs_create_io_x64("err_ivte", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL_ErrIVTE));
 
-	if (adapter->native->sl_ops->debugfs_add_adapter_sl_regs)
-		adapter->native->sl_ops->debugfs_add_adapter_sl_regs(adapter, dir);
+	if (adapter->native->sl_ops->debugfs_add_adapter_regs)
+		adapter->native->sl_ops->debugfs_add_adapter_regs(adapter, dir);
 	return 0;
 }
 
@@ -92,7 +92,7 @@ void cxl_debugfs_adapter_remove(struct cxl *adapter)
 	debugfs_remove_recursive(adapter->debugfs);
 }
 
-void cxl_debugfs_add_afu_psl_regs(struct cxl_afu *afu, struct dentry *dir)
+void cxl_debugfs_add_afu_regs_psl(struct cxl_afu *afu, struct dentry *dir)
 {
 	debugfs_create_io_x64("fir", S_IRUSR, dir, _cxl_p1n_addr(afu, CXL_PSL_FIR_SLICE_An));
 	debugfs_create_io_x64("serr", S_IRUSR, dir, _cxl_p1n_addr(afu, CXL_PSL_SERR_An));
@@ -121,8 +121,8 @@ int cxl_debugfs_afu_add(struct cxl_afu *afu)
 	debugfs_create_io_x64("sstp1",      S_IRUSR, dir, _cxl_p2n_addr(afu, CXL_SSTP1_An));
 	debugfs_create_io_x64("err_status", S_IRUSR, dir, _cxl_p2n_addr(afu, CXL_PSL_ErrStat_An));
 
-	if (afu->adapter->native->sl_ops->debugfs_add_afu_sl_regs)
-		afu->adapter->native->sl_ops->debugfs_add_afu_sl_regs(afu, dir);
+	if (afu->adapter->native->sl_ops->debugfs_add_afu_regs)
+		afu->adapter->native->sl_ops->debugfs_add_afu_regs(afu, dir);
 
 	return 0;
 }

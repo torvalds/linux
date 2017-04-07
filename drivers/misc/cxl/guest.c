@@ -169,7 +169,7 @@ static irqreturn_t guest_psl_irq(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	rc = cxl_irq(irq, ctx, &irq_info);
+	rc = cxl_irq_psl(irq, ctx, &irq_info);
 	return rc;
 }
 

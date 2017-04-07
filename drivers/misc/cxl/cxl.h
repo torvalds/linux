@@ -553,13 +553,23 @@ struct cxl_context {
 	struct mm_struct *mm;
 };
 
+struct cxl_irq_info;
+
 struct cxl_service_layer_ops {
 	int (*adapter_regs_init)(struct cxl *adapter, struct pci_dev *dev);
+	int (*invalidate_all)(struct cxl *adapter);
 	int (*afu_regs_init)(struct cxl_afu *afu);
+	int (*sanitise_afu_regs)(struct cxl_afu *afu);
 	int (*register_serr_irq)(struct cxl_afu *afu);
 	void (*release_serr_irq)(struct cxl_afu *afu);
-	void (*debugfs_add_adapter_sl_regs)(struct cxl *adapter, struct dentry *dir);
-	void (*debugfs_add_afu_sl_regs)(struct cxl_afu *afu, struct dentry *dir);
+	irqreturn_t (*handle_interrupt)(int irq, struct cxl_context *ctx, struct cxl_irq_info *irq_info);
+	irqreturn_t (*fail_irq)(struct cxl_afu *afu, struct cxl_irq_info *irq_info);
+	int (*activate_dedicated_process)(struct cxl_afu *afu);
+	int (*attach_afu_directed)(struct cxl_context *ctx, u64 wed, u64 amr);
+	int (*attach_dedicated_process)(struct cxl_context *ctx, u64 wed, u64 amr);
+	void (*update_dedicated_ivtes)(struct cxl_context *ctx);
+	void (*debugfs_add_adapter_regs)(struct cxl *adapter, struct dentry *dir);
+	void (*debugfs_add_afu_regs)(struct cxl_afu *afu, struct dentry *dir);
 	void (*psl_irq_dump_registers)(struct cxl_context *ctx);
 	void (*err_irq_dump_registers)(struct cxl *adapter);
 	void (*debugfs_stop_trace)(struct cxl *adapter);
@@ -803,6 +813,11 @@ int afu_register_irqs(struct cxl_context *ctx, u32 count);
 void afu_release_irqs(struct cxl_context *ctx, void *cookie);
 void afu_irq_name_free(struct cxl_context *ctx);
 
+int cxl_attach_afu_directed_psl(struct cxl_context *ctx, u64 wed, u64 amr);
+int cxl_activate_dedicated_process_psl(struct cxl_afu *afu);
+int cxl_attach_dedicated_process_psl(struct cxl_context *ctx, u64 wed, u64 amr);
+void cxl_update_dedicated_ivtes_psl(struct cxl_context *ctx);
+
 #ifdef CONFIG_DEBUG_FS
 
 int cxl_debugfs_init(void);
@@ -811,10 +826,10 @@ int cxl_debugfs_adapter_add(struct cxl *adapter);
 void cxl_debugfs_adapter_remove(struct cxl *adapter);
 int cxl_debugfs_afu_add(struct cxl_afu *afu);
 void cxl_debugfs_afu_remove(struct cxl_afu *afu);
-void cxl_stop_trace(struct cxl *cxl);
-void cxl_debugfs_add_adapter_psl_regs(struct cxl *adapter, struct dentry *dir);
-void cxl_debugfs_add_adapter_xsl_regs(struct cxl *adapter, struct dentry *dir);
-void cxl_debugfs_add_afu_psl_regs(struct cxl_afu *afu, struct dentry *dir);
+void cxl_stop_trace_psl(struct cxl *cxl);
+void cxl_debugfs_add_adapter_regs_psl(struct cxl *adapter, struct dentry *dir);
+void cxl_debugfs_add_adapter_regs_xsl(struct cxl *adapter, struct dentry *dir);
+void cxl_debugfs_add_afu_regs_psl(struct cxl_afu *afu, struct dentry *dir);
 
 #else /* CONFIG_DEBUG_FS */
 
@@ -849,17 +864,17 @@ static inline void cxl_stop_trace(struct cxl *cxl)
 {
 }
 
-static inline void cxl_debugfs_add_adapter_psl_regs(struct cxl *adapter,
+static inline void cxl_debugfs_add_adapter_regs_psl(struct cxl *adapter,
 						    struct dentry *dir)
 {
 }
 
-static inline void cxl_debugfs_add_adapter_xsl_regs(struct cxl *adapter,
+static inline void cxl_debugfs_add_adapter_regs_xsl(struct cxl *adapter,
 						    struct dentry *dir)
 {
 }
 
-static inline void cxl_debugfs_add_afu_psl_regs(struct cxl_afu *afu, struct dentry *dir)
+static inline void cxl_debugfs_add_afu_regs_psl(struct cxl_afu *afu, struct dentry *dir)
 {
 }
 
@@ -904,19 +919,20 @@ struct cxl_irq_info {
 };
 
 void cxl_assign_psn_space(struct cxl_context *ctx);
-irqreturn_t cxl_irq(int irq, struct cxl_context *ctx, struct cxl_irq_info *irq_info);
+int cxl_invalidate_all_psl(struct cxl *adapter);
+irqreturn_t cxl_irq_psl(int irq, struct cxl_context *ctx, struct cxl_irq_info *irq_info);
+irqreturn_t cxl_fail_irq_psl(struct cxl_afu *afu, struct cxl_irq_info *irq_info);
 int cxl_register_one_irq(struct cxl *adapter, irq_handler_t handler,
 			void *cookie, irq_hw_number_t *dest_hwirq,
 			unsigned int *dest_virq, const char *name);
 
 int cxl_check_error(struct cxl_afu *afu);
 int cxl_afu_slbia(struct cxl_afu *afu);
-int cxl_tlb_slb_invalidate(struct cxl *adapter);
 int cxl_data_cache_flush(struct cxl *adapter);
 int cxl_afu_disable(struct cxl_afu *afu);
 int cxl_psl_purge(struct cxl_afu *afu);
 
-void cxl_native_psl_irq_dump_regs(struct cxl_context *ctx);
+void cxl_native_irq_dump_regs_psl(struct cxl_context *ctx);
 void cxl_native_err_irq_dump_regs(struct cxl *adapter);
 int cxl_pci_vphb_add(struct cxl_afu *afu);
 void cxl_pci_vphb_remove(struct cxl_afu *afu);
