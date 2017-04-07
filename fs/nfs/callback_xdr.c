@@ -203,17 +203,12 @@ static __be32 decode_recall_args(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 
 	status = decode_delegation_stateid(xdr, &args->stateid);
 	if (unlikely(status != 0))
-		goto out;
+		return status;
 	p = read_buf(xdr, 4);
-	if (unlikely(p == NULL)) {
-		status = htonl(NFS4ERR_RESOURCE);
-		goto out;
-	}
+	if (unlikely(p == NULL))
+		return htonl(NFS4ERR_RESOURCE);
 	args->truncate = ntohl(*p);
-	status = decode_fh(xdr, &args->fh);
-out:
-	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
-	return status;
+	return decode_fh(xdr, &args->fh);
 }
 
 #if defined(CONFIG_NFS_V4_1)
