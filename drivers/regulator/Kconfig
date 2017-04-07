@@ -843,6 +843,13 @@ config REGULATOR_TWL4030
 	  This driver supports the voltage regulators provided by
 	  this family of companion chips.
 
+config REGULATOR_VCTRL
+	tristate "Voltage controlled regulators"
+	depends on OF
+	help
+	  This driver provides support for voltage regulators whose output
+	  voltage is controlled by the voltage of another regulator.
+
 config REGULATOR_VEXPRESS
 	tristate "Versatile Express regulators"
 	depends on VEXPRESS_CONFIG
