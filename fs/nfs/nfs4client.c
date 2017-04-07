@@ -1025,8 +1025,6 @@ static int nfs4_init_server(struct nfs_server *server,
 	struct rpc_timeout timeparms;
 	int error;
 
-	dprintk("--> nfs4_init_server()\n");
-
 	nfs_init_timeout_values(&timeparms, data->nfs_server.protocol,
 			data->timeo, data->retrans);
 
@@ -1054,7 +1052,7 @@ static int nfs4_init_server(struct nfs_server *server,
 			data->minorversion,
 			data->net);
 	if (error < 0)
-		goto error;
+		return error;
 
 	if (data->rsize)
 		server->rsize = nfs_block_size(data->rsize, NULL);
@@ -1065,16 +1063,10 @@ static int nfs4_init_server(struct nfs_server *server,
 	server->acregmax = data->acregmax * HZ;
 	server->acdirmin = data->acdirmin * HZ;
 	server->acdirmax = data->acdirmax * HZ;
+	server->port     = data->nfs_server.port;
 
-	server->port = data->nfs_server.port;
-
-	error = nfs_init_server_rpcclient(server, &timeparms,
-					  data->selected_flavor);
-
-error:
-	/* Done */
-	dprintk("<-- nfs4_init_server() = %d\n", error);
-	return error;
+	return nfs_init_server_rpcclient(server, &timeparms,
+					 data->selected_flavor);
 }
 
 /*
