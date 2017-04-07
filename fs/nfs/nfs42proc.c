@@ -400,8 +400,6 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 	case -EOPNOTSUPP:
 		NFS_SERVER(inode)->caps &= ~NFS_CAP_LAYOUTSTATS;
 	}
-
-	dprintk("%s server returns %d\n", __func__, task->tk_status);
 }
 
 static void
