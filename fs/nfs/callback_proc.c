@@ -317,16 +317,9 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 static u32 do_callback_layoutrecall(struct nfs_client *clp,
 				    struct cb_layoutrecallargs *args)
 {
-	u32 res;
-
-	dprintk("%s enter, type=%i\n", __func__, args->cbl_recall_type);
 	if (args->cbl_recall_type == RETURN_FILE)
-		res = initiate_file_draining(clp, args);
-	else
-		res = initiate_bulk_draining(clp, args);
-	dprintk("%s returning %i\n", __func__, res);
-	return res;
-
+		return initiate_file_draining(clp, args);
+	return initiate_bulk_draining(clp, args);
 }
 
 __be32 nfs4_callback_layoutrecall(struct cb_layoutrecallargs *args,
