@@ -1610,7 +1610,7 @@ int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 			       i915_reg_t reg,
 			       const u32 mask,
 			       const u32 value,
-			       const unsigned long timeout_ms)
+			       const unsigned int timeout_ms)
 {
 #define done ((I915_READ_FW(reg) & mask) == value)
 	int ret = wait_for_us(done, 2);
