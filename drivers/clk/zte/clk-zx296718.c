@@ -94,14 +94,14 @@
 
 static DEFINE_SPINLOCK(clk_lock);
 
-static struct zx_pll_config pll_cpu_table[] = {
+static const struct zx_pll_config pll_cpu_table[] = {
 	PLL_RATE(1312000000, 0x00103621, 0x04aaaaaa),
 	PLL_RATE(1407000000, 0x00103a21, 0x04aaaaaa),
 	PLL_RATE(1503000000, 0x00103e21, 0x04aaaaaa),
 	PLL_RATE(1600000000, 0x00104221, 0x04aaaaaa),
 };
 
-static struct zx_pll_config pll_vga_table[] = {
+static const struct zx_pll_config pll_vga_table[] = {
 	PLL_RATE(36000000,  0x00102464, 0x04000000), /* 800x600@56 */
 	PLL_RATE(40000000,  0x00102864, 0x04000000), /* 800x600@60 */
 	PLL_RATE(49500000,  0x00103164, 0x04800000), /* 800x600@75 */
