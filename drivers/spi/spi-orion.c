@@ -39,6 +39,8 @@
 
 #define ORION_SPI_IF_CTRL_REG		0x00
 #define ORION_SPI_IF_CONFIG_REG		0x04
+#define ORION_SPI_IF_RXLSBF		BIT(14)
+#define ORION_SPI_IF_TXLSBF		BIT(13)
 #define ORION_SPI_DATA_OUT_REG		0x08
 #define ORION_SPI_DATA_IN_REG		0x0c
 #define ORION_SPI_INT_CAUSE_REG		0x10
@@ -234,6 +236,11 @@ orion_spi_mode_set(struct spi_device *spi)
 		reg |= ORION_SPI_MODE_CPOL;
 	if (spi->mode & SPI_CPHA)
 		reg |= ORION_SPI_MODE_CPHA;
+	if (spi->mode & SPI_LSB_FIRST)
+		reg |= ORION_SPI_IF_RXLSBF | ORION_SPI_IF_TXLSBF;
+	else
+		reg &= ~(ORION_SPI_IF_RXLSBF | ORION_SPI_IF_TXLSBF);
+
 	writel(reg, spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
 }
 
@@ -591,8 +598,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 			master->bus_num = cell_index;
 	}
 
-	/* we support only mode 0, and no options */
-	master->mode_bits = SPI_CPHA | SPI_CPOL;
+	/* we support all 4 SPI modes and LSB first option */
+	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST;
 	master->set_cs = orion_spi_set_cs;
 	master->transfer_one = orion_spi_transfer_one;
 	master->num_chipselect = ORION_NUM_CHIPSELECTS;
