@@ -18,36 +18,6 @@ The p1k is a relatively cheap usb 1.1 phone with:
 For vendor documentation see http://www.yealink.com
 
 
-Compilation (stand alone version)
-=================================
-
-Currently only kernel 2.6.x.y versions are supported.
-In order to build the yealink.ko module do::
-
-  make
-
-If you encounter problems please check if in the MAKE_OPTS variable in
-the Makefile is pointing to the location where your kernel sources
-are located, default /usr/src/linux.
-
-
-Troubleshooting
-~~~~~~~~~~~~~~~
-
-:Q: Module yealink compiled and installed without any problem but phone
-    is not initialized and does not react to any actions.
-:A: If you see something like:
-    hiddev0: USB HID v1.00 Device [Yealink Network Technology Ltd. VOIP USB Phone
-    in dmesg, it means that the hid driver has grabbed the device first. Try to
-    load module yealink before any other usb hid driver. Please see the
-    instructions provided by your distribution on module configuration.
-
-:Q: Phone is working now (displays version and accepts keypad input) but I can't
-    find the sysfs files.
-:A: The sysfs files are located on the particular usb endpoint. On most
-    distributions you can do: "find /sys/ -name get_icons" for a hint.
-
-
 keyboard features
 =================
 
@@ -227,6 +197,23 @@ limit of the device.
   Example - playback test::
 
     aplay foobar.wav
+
+
+Troubleshooting
+===============
+
+:Q: Module yealink compiled and installed without any problem but phone
+    is not initialized and does not react to any actions.
+:A: If you see something like:
+    hiddev0: USB HID v1.00 Device [Yealink Network Technology Ltd. VOIP USB Phone
+    in dmesg, it means that the hid driver has grabbed the device first. Try to
+    load module yealink before any other usb hid driver. Please see the
+    instructions provided by your distribution on module configuration.
+
+:Q: Phone is working now (displays version and accepts keypad input) but I can't
+    find the sysfs files.
+:A: The sysfs files are located on the particular usb endpoint. On most
+    distributions you can do: "find /sys/ -name get_icons" for a hint.
 
 
 Credits & Acknowledgments

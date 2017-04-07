@@ -1,5 +1,5 @@
-Kernel driver for CMA3000-D0x
-=============================
+CMA3000-D0x Accelerometer
+=========================
 
 Supported chips:
 * VTI CMA3000-D0x

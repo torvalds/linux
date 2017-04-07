@@ -5,7 +5,7 @@ ALPS Touchpad Protocol
 Introduction
 ------------
 Currently the ALPS touchpad driver supports seven protocol versions in use by
-ALPS touchpads, called versions 1, 2, 3, 4, 5, 6 and 7.
+ALPS touchpads, called versions 1, 2, 3, 4, 5, 6, 7 and 8.
 
 Since roughly mid-2010 several new ALPS touchpads have been released and
 integrated into a variety of laptops and netbooks.  These new touchpads

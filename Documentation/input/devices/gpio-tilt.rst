@@ -7,8 +7,8 @@ i.e. each tilt switch providing one axis, and the number of axes
 is also not limited.
 
 
-Data structures:
-----------------
+Data structures
+---------------
 
 The array of struct gpio in the gpios field is used to list the gpios
 that represent the current tilt state.
@@ -24,8 +24,8 @@ In the same manner the values stored in the axes array correspond to
 the elements of the gpio_tilt_axis-array.
 
 
-Example:
---------
+Example
+-------
 
 Example configuration for a single TS1003 tilt switch that rotates around
 one axis in 4 steps and emits the current tilt via two GPIOs::

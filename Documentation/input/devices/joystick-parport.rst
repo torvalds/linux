@@ -3,7 +3,7 @@
 .. _joystick-parport:
 
 ==============================
-Parallel port Joystick Drivers
+Parallel Port Joystick Drivers
 ==============================
 
 :Copyright: |copy| 1998-2000 Vojtech Pavlik <vojtech@ucw.cz>

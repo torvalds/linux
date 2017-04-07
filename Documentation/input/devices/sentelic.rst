@@ -1,16 +1,16 @@
 .. include:: <isonum.txt>
 
-===============
-Sentelic Driver
-===============
+=================
+Sentelic Touchpad
+=================
 
 
 :Copyright: |copy| 2002-2011 Sentelic Corporation.
 
 :Last update: Dec-07-2011
 
-Finger Sensing Pad Intellimouse Mode(scrolling wheel, 4th and 5th buttons)
-==========================================================================
+Finger Sensing Pad Intellimouse Mode (scrolling wheel, 4th and 5th buttons)
+============================================================================
 
 A) MSID 4: Scrolling wheel mode plus Forward page(4th button) and Backward
    page (5th button)

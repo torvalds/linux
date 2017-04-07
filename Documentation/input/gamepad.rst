@@ -1,12 +1,12 @@
------------------
-Linux Gamepad API
------------------
+---------------------------
+Linux Gamepad Specification
+---------------------------
 
 :Author: 2013 by David Herrmann <dh.herrmann@gmail.com>
 
 
-Intro
-~~~~~
+Introduction
+~~~~~~~~~~~~
 Linux provides many different input drivers for gamepad hardware. To avoid
 having user-space deal with different button-mappings for each gamepad, this
 document defines how gamepads are supposed to report their data.
