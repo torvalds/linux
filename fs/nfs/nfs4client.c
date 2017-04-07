@@ -854,9 +854,6 @@ static int nfs4_set_client(struct nfs_server *server,
 		.timeparms = timeparms,
 	};
 	struct nfs_client *clp;
-	int error;
-
-	dprintk("--> nfs4_set_client()\n");
 
 	if (server->flags & NFS_MOUNT_NORESVPORT)
 		set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
@@ -865,15 +862,11 @@ static int nfs4_set_client(struct nfs_server *server,
 
 	/* Allocate or find a client reference we can use */
 	clp = nfs_get_client(&cl_init);
-	if (IS_ERR(clp)) {
-		error = PTR_ERR(clp);
-		goto error;
-	}
+	if (IS_ERR(clp))
+		return PTR_ERR(clp);
 
-	if (server->nfs_client == clp) {
-		error = -ELOOP;
-		goto error;
-	}
+	if (server->nfs_client == clp)
+		return -ELOOP;
 
 	/*
 	 * Query for the lease time on clientid setup or renewal
@@ -885,11 +878,7 @@ static int nfs4_set_client(struct nfs_server *server,
 	set_bit(NFS_CS_CHECK_LEASE_TIME, &clp->cl_res_state);
 
 	server->nfs_client = clp;
-	dprintk("<-- nfs4_set_client() = 0 [new %p]\n", clp);
 	return 0;
-error:
-	dprintk("<-- nfs4_set_client() = xerror %d\n", error);
-	return error;
 }
 
 /*
