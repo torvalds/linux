@@ -47,6 +47,21 @@
 		bootargs = "earlycon=uart8250,mmio32,0xff690000";
 	};
 
+	reserved-memory {
+		ramoops_mem: ramoops@00000000 {
+			reg = <0x8000000 0xF0000>;
+		};
+	};
+
+	ramoops {
+		compatible = "ramoops";
+		record-size = <0x0 0x20000>;
+		console-size = <0x0 0x80000>;
+		ftrace-size = <0x0 0x00000>;
+		pmsg-size = <0x0 0x50000>;
+		memory-region = <&ramoops_mem>;
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
