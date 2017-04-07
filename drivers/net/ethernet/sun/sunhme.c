@@ -933,7 +933,7 @@ static void happy_meal_stop(struct happy_meal *hp, void __iomem *gregs)
 /* hp->happy_lock must be held */
 static void happy_meal_get_counters(struct happy_meal *hp, void __iomem *bregs)
 {
-	struct net_device_stats *stats = &hp->net_stats;
+	struct net_device_stats *stats = &hp->dev->stats;
 
 	stats->rx_crc_errors += hme_read32(hp, bregs + BMAC_RCRCECTR);
 	hme_write32(hp, bregs + BMAC_RCRCECTR, 0);
@@ -1947,7 +1947,7 @@ static void happy_meal_tx(struct happy_meal *hp)
 				break;
 		}
 		hp->tx_skbs[elem] = NULL;
-		hp->net_stats.tx_bytes += skb->len;
+		dev->stats.tx_bytes += skb->len;
 
 		for (frag = 0; frag <= skb_shinfo(skb)->nr_frags; frag++) {
 			dma_addr = hme_read_desc32(hp, &this->tx_addr);
@@ -1964,7 +1964,7 @@ static void happy_meal_tx(struct happy_meal *hp)
 		}
 
 		dev_kfree_skb_irq(skb);
-		hp->net_stats.tx_packets++;
+		dev->stats.tx_packets++;
 	}
 	hp->tx_old = elem;
 	TXD((">"));
@@ -2009,17 +2009,17 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 		/* Check for errors. */
 		if ((len < ETH_ZLEN) || (flags & RXFLAG_OVERFLOW)) {
 			RXD(("ERR(%08x)]", flags));
-			hp->net_stats.rx_errors++;
+			dev->stats.rx_errors++;
 			if (len < ETH_ZLEN)
-				hp->net_stats.rx_length_errors++;
+				dev->stats.rx_length_errors++;
 			if (len & (RXFLAG_OVERFLOW >> 16)) {
-				hp->net_stats.rx_over_errors++;
-				hp->net_stats.rx_fifo_errors++;
+				dev->stats.rx_over_errors++;
+				dev->stats.rx_fifo_errors++;
 			}
 
 			/* Return it to the Happy meal. */
 	drop_it:
-			hp->net_stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 			hme_write_rxd(hp, this,
 				      (RXFLAG_OWN|((RX_BUF_ALLOC_SIZE-RX_OFFSET)<<16)),
 				      dma_addr);
@@ -2084,8 +2084,8 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
 
-		hp->net_stats.rx_packets++;
-		hp->net_stats.rx_bytes += len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += len;
 	next:
 		elem = NEXT_RX(elem);
 		this = &rxbase[elem];
@@ -2396,7 +2396,7 @@ static struct net_device_stats *happy_meal_get_stats(struct net_device *dev)
 	happy_meal_get_counters(hp, hp->bigmacregs);
 	spin_unlock_irq(&hp->happy_lock);
 
-	return &hp->net_stats;
+	return &dev->stats;
 }
 
 static void happy_meal_set_multicast(struct net_device *dev)
