@@ -157,7 +157,6 @@ typedef struct sg_fd {		/* holds the state of a file descriptor */
 	int timeout;		/* defaults to SG_DEFAULT_TIMEOUT      */
 	int timeout_user;	/* defaults to SG_DEFAULT_TIMEOUT_USER */
 	Sg_scatter_hold reserve;	/* buffer held for this file descriptor */
-	unsigned save_scat_len;	/* original length of trunc. scat. element */
 	Sg_request *headrp;	/* head of request slist, NULL->empty */
 	struct fasync_struct *async_qp;	/* used by asynchronous notification */
 	Sg_request req_arr[SG_MAX_QUEUE];	/* used as singly-linked list */
@@ -2059,7 +2058,6 @@ sg_unlink_reserve(Sg_fd * sfp, Sg_request * srp)
 	req_schp->pages = NULL;
 	req_schp->page_order = 0;
 	req_schp->sglist_len = 0;
-	sfp->save_scat_len = 0;
 	srp->res_used = 0;
 	/* Called without mutex lock to avoid deadlock */
 	sfp->res_in_use = 0;
