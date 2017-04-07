@@ -283,7 +283,7 @@ void dwc3_ep0_out_start(struct dwc3 *dwc)
 
 	complete(&dwc->ep0_in_setup);
 
-	dwc3_ep0_prepare_one_trb(dwc, 0, dwc->ctrl_req_addr, 8,
+	dwc3_ep0_prepare_one_trb(dwc, 0, dwc->ep0_trb_addr, 8,
 			DWC3_TRBCTL_CONTROL_SETUP, false);
 	ret = dwc3_ep0_start_trans(dwc, 0);
 	WARN_ON(ret < 0);
@@ -794,7 +794,7 @@ static int dwc3_ep0_std_request(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 static void dwc3_ep0_inspect_setup(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
-	struct usb_ctrlrequest *ctrl = dwc->ctrl_req;
+	struct usb_ctrlrequest *ctrl = (void *) dwc->ep0_trb;
 	int ret = -EINVAL;
 	u32 len;
 
@@ -916,7 +916,7 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 			dwc->ep0_next_event = DWC3_EP0_COMPLETE;
 
-			dwc3_ep0_prepare_one_trb(dwc, epnum, dwc->ctrl_req_addr,
+			dwc3_ep0_prepare_one_trb(dwc, epnum, dwc->ep0_trb_addr,
 					0, DWC3_TRBCTL_CONTROL_DATA, false);
 			ret = dwc3_ep0_start_trans(dwc, epnum);
 			WARN_ON(ret < 0);
@@ -997,8 +997,9 @@ static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 	req->direction = !!dep->number;
 
 	if (req->request.length == 0) {
+
 		dwc3_ep0_prepare_one_trb(dwc, dep->number,
-				dwc->ctrl_req_addr, 0,
+				dwc->ep0_trb_addr, 0,
 				DWC3_TRBCTL_CONTROL_DATA, false);
 		ret = dwc3_ep0_start_trans(dwc, dep->number);
 	} else if (!IS_ALIGNED(req->request.length, dep->endpoint.maxpacket)
@@ -1056,7 +1057,7 @@ static int dwc3_ep0_start_control_status(struct dwc3_ep *dep)
 		: DWC3_TRBCTL_CONTROL_STATUS2;
 
 	dwc3_ep0_prepare_one_trb(dwc, dep->number,
-			dwc->ctrl_req_addr, 0, type, false);
+			dwc->ep0_trb_addr, 0, type, false);
 	return dwc3_ep0_start_trans(dwc, dep->number);
 }
 
