@@ -161,47 +161,6 @@ struct fujitsu_laptop {
 
 static struct fujitsu_laptop *fujitsu_laptop;
 
-static enum led_brightness logolamp_get(struct led_classdev *cdev);
-static int logolamp_set(struct led_classdev *cdev,
-			       enum led_brightness brightness);
-
-static struct led_classdev logolamp_led = {
- .name = "fujitsu::logolamp",
- .brightness_get = logolamp_get,
- .brightness_set_blocking = logolamp_set
-};
-
-static enum led_brightness kblamps_get(struct led_classdev *cdev);
-static int kblamps_set(struct led_classdev *cdev,
-			       enum led_brightness brightness);
-
-static struct led_classdev kblamps_led = {
- .name = "fujitsu::kblamps",
- .brightness_get = kblamps_get,
- .brightness_set_blocking = kblamps_set
-};
-
-static enum led_brightness radio_led_get(struct led_classdev *cdev);
-static int radio_led_set(struct led_classdev *cdev,
-			       enum led_brightness brightness);
-
-static struct led_classdev radio_led = {
- .name = "fujitsu::radio_led",
- .default_trigger = "rfkill-any",
- .brightness_get = radio_led_get,
- .brightness_set_blocking = radio_led_set
-};
-
-static enum led_brightness eco_led_get(struct led_classdev *cdev);
-static int eco_led_set(struct led_classdev *cdev,
-			       enum led_brightness brightness);
-
-static struct led_classdev eco_led = {
- .name = "fujitsu::eco_led",
- .brightness_get = eco_led_get,
- .brightness_set_blocking = eco_led_set
-};
-
 #ifdef CONFIG_FUJITSU_LAPTOP_DEBUG
 static u32 dbg_level = 0x03;
 #endif
@@ -230,102 +189,6 @@ static int call_fext_func(int func, int op, int feature, int state)
 	vdbg_printk(FUJLAPTOP_DBG_TRACE, "FUNC 0x%x (args 0x%x, 0x%x, 0x%x) returned 0x%x\n",
 		    func, op, feature, state, (int)value);
 	return value;
-}
-
-/* LED class callbacks */
-
-static int logolamp_set(struct led_classdev *cdev,
-			       enum led_brightness brightness)
-{
-	int poweron = FUNC_LED_ON, always = FUNC_LED_ON;
-	int ret;
-
-	if (brightness < LED_HALF)
-		poweron = FUNC_LED_OFF;
-
-	if (brightness < LED_FULL)
-		always = FUNC_LED_OFF;
-
-	ret = call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_POWERON, poweron);
-	if (ret < 0)
-		return ret;
-
-	return call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_ALWAYS, always);
-}
-
-static int kblamps_set(struct led_classdev *cdev,
-			       enum led_brightness brightness)
-{
-	if (brightness >= LED_FULL)
-		return call_fext_func(FUNC_LEDS, 0x1, KEYBOARD_LAMPS, FUNC_LED_ON);
-	else
-		return call_fext_func(FUNC_LEDS, 0x1, KEYBOARD_LAMPS, FUNC_LED_OFF);
-}
-
-static int radio_led_set(struct led_classdev *cdev,
-				enum led_brightness brightness)
-{
-	if (brightness >= LED_FULL)
-		return call_fext_func(FUNC_FLAGS, 0x5, RADIO_LED_ON, RADIO_LED_ON);
-	else
-		return call_fext_func(FUNC_FLAGS, 0x5, RADIO_LED_ON, 0x0);
-}
-
-static int eco_led_set(struct led_classdev *cdev,
-				enum led_brightness brightness)
-{
-	int curr;
-
-	curr = call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0);
-	if (brightness >= LED_FULL)
-		return call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr | ECO_LED_ON);
-	else
-		return call_fext_func(FUNC_LEDS, 0x1, ECO_LED, curr & ~ECO_LED_ON);
-}
-
-static enum led_brightness logolamp_get(struct led_classdev *cdev)
-{
-	int ret;
-
-	ret = call_fext_func(FUNC_LEDS, 0x2, LOGOLAMP_ALWAYS, 0x0);
-	if (ret == FUNC_LED_ON)
-		return LED_FULL;
-
-	ret = call_fext_func(FUNC_LEDS, 0x2, LOGOLAMP_POWERON, 0x0);
-	if (ret == FUNC_LED_ON)
-		return LED_HALF;
-
-	return LED_OFF;
-}
-
-static enum led_brightness kblamps_get(struct led_classdev *cdev)
-{
-	enum led_brightness brightness = LED_OFF;
-
-	if (call_fext_func(FUNC_LEDS, 0x2, KEYBOARD_LAMPS, 0x0) == FUNC_LED_ON)
-		brightness = LED_FULL;
-
-	return brightness;
-}
-
-static enum led_brightness radio_led_get(struct led_classdev *cdev)
-{
-	enum led_brightness brightness = LED_OFF;
-
-	if (call_fext_func(FUNC_FLAGS, 0x4, 0x0, 0x0) & RADIO_LED_ON)
-		brightness = LED_FULL;
-
-	return brightness;
-}
-
-static enum led_brightness eco_led_get(struct led_classdev *cdev)
-{
-	enum led_brightness brightness = LED_OFF;
-
-	if (call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0) & ECO_LED_ON)
-		brightness = LED_FULL;
-
-	return brightness;
 }
 
 /* Hardware access for LCD brightness control */
@@ -738,6 +601,130 @@ static void fujitsu_laptop_platform_remove(void)
 			   &fujitsu_pf_attribute_group);
 	platform_device_unregister(fujitsu_laptop->pf_device);
 }
+
+static int logolamp_set(struct led_classdev *cdev,
+			enum led_brightness brightness)
+{
+	int poweron = FUNC_LED_ON, always = FUNC_LED_ON;
+	int ret;
+
+	if (brightness < LED_HALF)
+		poweron = FUNC_LED_OFF;
+
+	if (brightness < LED_FULL)
+		always = FUNC_LED_OFF;
+
+	ret = call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_POWERON, poweron);
+	if (ret < 0)
+		return ret;
+
+	return call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_ALWAYS, always);
+}
+
+static enum led_brightness logolamp_get(struct led_classdev *cdev)
+{
+	int ret;
+
+	ret = call_fext_func(FUNC_LEDS, 0x2, LOGOLAMP_ALWAYS, 0x0);
+	if (ret == FUNC_LED_ON)
+		return LED_FULL;
+
+	ret = call_fext_func(FUNC_LEDS, 0x2, LOGOLAMP_POWERON, 0x0);
+	if (ret == FUNC_LED_ON)
+		return LED_HALF;
+
+	return LED_OFF;
+}
+
+static struct led_classdev logolamp_led = {
+	.name = "fujitsu::logolamp",
+	.brightness_set_blocking = logolamp_set,
+	.brightness_get = logolamp_get
+};
+
+static int kblamps_set(struct led_classdev *cdev,
+		       enum led_brightness brightness)
+{
+	if (brightness >= LED_FULL)
+		return call_fext_func(FUNC_LEDS, 0x1, KEYBOARD_LAMPS,
+				      FUNC_LED_ON);
+	else
+		return call_fext_func(FUNC_LEDS, 0x1, KEYBOARD_LAMPS,
+				      FUNC_LED_OFF);
+}
+
+static enum led_brightness kblamps_get(struct led_classdev *cdev)
+{
+	enum led_brightness brightness = LED_OFF;
+
+	if (call_fext_func(FUNC_LEDS, 0x2, KEYBOARD_LAMPS, 0x0) == FUNC_LED_ON)
+		brightness = LED_FULL;
+
+	return brightness;
+}
+
+static struct led_classdev kblamps_led = {
+	.name = "fujitsu::kblamps",
+	.brightness_set_blocking = kblamps_set,
+	.brightness_get = kblamps_get
+};
+
+static int radio_led_set(struct led_classdev *cdev,
+			 enum led_brightness brightness)
+{
+	if (brightness >= LED_FULL)
+		return call_fext_func(FUNC_FLAGS, 0x5, RADIO_LED_ON,
+				      RADIO_LED_ON);
+	else
+		return call_fext_func(FUNC_FLAGS, 0x5, RADIO_LED_ON, 0x0);
+}
+
+static enum led_brightness radio_led_get(struct led_classdev *cdev)
+{
+	enum led_brightness brightness = LED_OFF;
+
+	if (call_fext_func(FUNC_FLAGS, 0x4, 0x0, 0x0) & RADIO_LED_ON)
+		brightness = LED_FULL;
+
+	return brightness;
+}
+
+static struct led_classdev radio_led = {
+	.name = "fujitsu::radio_led",
+	.brightness_set_blocking = radio_led_set,
+	.brightness_get = radio_led_get,
+	.default_trigger = "rfkill-any"
+};
+
+static int eco_led_set(struct led_classdev *cdev,
+		       enum led_brightness brightness)
+{
+	int curr;
+
+	curr = call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0);
+	if (brightness >= LED_FULL)
+		return call_fext_func(FUNC_LEDS, 0x1, ECO_LED,
+				      curr | ECO_LED_ON);
+	else
+		return call_fext_func(FUNC_LEDS, 0x1, ECO_LED,
+				      curr & ~ECO_LED_ON);
+}
+
+static enum led_brightness eco_led_get(struct led_classdev *cdev)
+{
+	enum led_brightness brightness = LED_OFF;
+
+	if (call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0) & ECO_LED_ON)
+		brightness = LED_FULL;
+
+	return brightness;
+}
+
+static struct led_classdev eco_led = {
+	.name = "fujitsu::eco_led",
+	.brightness_set_blocking = eco_led_set,
+	.brightness_get = eco_led_get
+};
 
 static int acpi_fujitsu_laptop_leds_register(void)
 {
