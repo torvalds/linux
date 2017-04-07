@@ -3715,18 +3715,17 @@ static int kvm_vm_ioctl_get_nr_mmu_pages(struct kvm *kvm)
 
 static int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 {
+	struct kvm_pic *pic = kvm->arch.vpic;
 	int r;
 
 	r = 0;
 	switch (chip->chip_id) {
 	case KVM_IRQCHIP_PIC_MASTER:
-		memcpy(&chip->chip.pic,
-			&pic_irqchip(kvm)->pics[0],
+		memcpy(&chip->chip.pic, &pic->pics[0],
 			sizeof(struct kvm_pic_state));
 		break;
 	case KVM_IRQCHIP_PIC_SLAVE:
-		memcpy(&chip->chip.pic,
-			&pic_irqchip(kvm)->pics[1],
+		memcpy(&chip->chip.pic, &pic->pics[1],
 			sizeof(struct kvm_pic_state));
 		break;
 	case KVM_IRQCHIP_IOAPIC:
@@ -3741,23 +3740,22 @@ static int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 
 static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 {
+	struct kvm_pic *pic = kvm->arch.vpic;
 	int r;
 
 	r = 0;
 	switch (chip->chip_id) {
 	case KVM_IRQCHIP_PIC_MASTER:
-		spin_lock(&pic_irqchip(kvm)->lock);
-		memcpy(&pic_irqchip(kvm)->pics[0],
-			&chip->chip.pic,
+		spin_lock(&pic->lock);
+		memcpy(&pic->pics[0], &chip->chip.pic,
 			sizeof(struct kvm_pic_state));
-		spin_unlock(&pic_irqchip(kvm)->lock);
+		spin_unlock(&pic->lock);
 		break;
 	case KVM_IRQCHIP_PIC_SLAVE:
-		spin_lock(&pic_irqchip(kvm)->lock);
-		memcpy(&pic_irqchip(kvm)->pics[1],
-			&chip->chip.pic,
+		spin_lock(&pic->lock);
+		memcpy(&pic->pics[1], &chip->chip.pic,
 			sizeof(struct kvm_pic_state));
-		spin_unlock(&pic_irqchip(kvm)->lock);
+		spin_unlock(&pic->lock);
 		break;
 	case KVM_IRQCHIP_IOAPIC:
 		r = kvm_set_ioapic(kvm, &chip->chip.ioapic);
@@ -3766,7 +3764,7 @@ static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 		r = -EINVAL;
 		break;
 	}
-	kvm_pic_update_irq(pic_irqchip(kvm));
+	kvm_pic_update_irq(pic);
 	return r;
 }
 

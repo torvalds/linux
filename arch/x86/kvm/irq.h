@@ -78,11 +78,6 @@ void kvm_pic_destroy(struct kvm *kvm);
 int kvm_pic_read_irq(struct kvm *kvm);
 void kvm_pic_update_irq(struct kvm_pic *s);
 
-static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)
-{
-	return kvm->arch.vpic;
-}
-
 static inline int pic_in_kernel(struct kvm *kvm)
 {
 	int mode = kvm->arch.irqchip_mode;

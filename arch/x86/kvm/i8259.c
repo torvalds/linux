@@ -239,7 +239,7 @@ static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 int kvm_pic_read_irq(struct kvm *kvm)
 {
 	int irq, irq2, intno;
-	struct kvm_pic *s = pic_irqchip(kvm);
+	struct kvm_pic *s = kvm->arch.vpic;
 
 	s->output = 0;
 
@@ -576,7 +576,7 @@ static int picdev_eclr_read(struct kvm_vcpu *vcpu, struct kvm_io_device *dev,
  */
 static void pic_irq_request(struct kvm *kvm, int level)
 {
-	struct kvm_pic *s = pic_irqchip(kvm);
+	struct kvm_pic *s = kvm->arch.vpic;
 
 	if (!s->output)
 		s->wakeup_needed = true;
