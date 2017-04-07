@@ -192,11 +192,8 @@ static __be32 decode_getattr_args(struct svc_rqst *rqstp, struct xdr_stream *xdr
 
 	status = decode_fh(xdr, &args->fh);
 	if (unlikely(status != 0))
-		goto out;
-	status = decode_bitmap(xdr, args->bitmap);
-out:
-	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
-	return status;
+		return status;
+	return decode_bitmap(xdr, args->bitmap);
 }
 
 static __be32 decode_recall_args(struct svc_rqst *rqstp, struct xdr_stream *xdr, struct cb_recallargs *args)
