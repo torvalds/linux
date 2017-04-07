@@ -281,7 +281,6 @@ static int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 	struct most_channel_config *conf = &mdev->conf[channel];
 	unsigned int frame_size = get_stream_frame_size(conf);
 	unsigned int j, num_frames;
-	u16 rd_addr, wr_addr;
 
 	if (!frame_size)
 		return -EIO;
@@ -293,13 +292,10 @@ static int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 		return -EIO;
 	}
 
-	for (j = 1; j < num_frames; j++) {
-		wr_addr = (num_frames - j) * USB_MTU;
-		rd_addr = (num_frames - j) * frame_size;
-		memmove(mbo->virt_address + wr_addr,
-			mbo->virt_address + rd_addr,
+	for (j = num_frames - 1; j > 0; j--)
+		memmove(mbo->virt_address + j * USB_MTU,
+			mbo->virt_address + j * frame_size,
 			frame_size);
-	}
 	mbo->buffer_length = num_frames * USB_MTU;
 	return 0;
 }
