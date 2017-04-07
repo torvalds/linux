@@ -107,9 +107,6 @@ struct cgroup_subsys_state {
 	/* reference count - access via css_[try]get() and css_put() */
 	struct percpu_ref refcnt;
 
-	/* PI: the parent css */
-	struct cgroup_subsys_state *parent;
-
 	/* siblings list anchored at the parent's ->children */
 	struct list_head sibling;
 	struct list_head children;
@@ -139,6 +136,12 @@ struct cgroup_subsys_state {
 	/* percpu_ref killing and RCU release */
 	struct rcu_head rcu_head;
 	struct work_struct destroy_work;
+
+	/*
+	 * PI: the parent css.	Placed here for cache proximity to following
+	 * fields of the containing structure.
+	 */
+	struct cgroup_subsys_state *parent;
 };
 
 /*
