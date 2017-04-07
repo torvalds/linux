@@ -1007,21 +1007,21 @@
 
 
 			wdt1: wdt@1e785000 {
-				compatible = "aspeed,wdt";
-				reg = <0x1e785000 0x1c>;
+				compatible = "aspeed,ast2500-wdt";
+				reg = <0x1e785000 0x20>;
 				interrupts = <27>;
 			};
 
 			wdt2: wdt@1e785020 {
-				compatible = "aspeed,wdt";
-				reg = <0x1e785020 0x1c>;
+				compatible = "aspeed,ast2500-wdt";
+				reg = <0x1e785020 0x20>;
 				interrupts = <27>;
 				status = "disabled";
 			};
 
 			wdt3: wdt@1e785040 {
-				compatible = "aspeed,wdt";
-				reg = <0x1e785074 0x1c>;
+				compatible = "aspeed,ast2500-wdt";
+				reg = <0x1e785040 0x20>;
 				status = "disabled";
 			};
 
