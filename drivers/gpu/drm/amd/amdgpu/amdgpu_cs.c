@@ -1242,6 +1242,7 @@ static int amdgpu_cs_wait_all_fences(struct amdgpu_device *adev,
 			continue;
 
 		r = dma_fence_wait_timeout(fence, true, timeout);
+		dma_fence_put(fence);
 		if (r < 0)
 			return r;
 
