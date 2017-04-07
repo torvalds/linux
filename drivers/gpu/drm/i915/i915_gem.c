@@ -4349,8 +4349,11 @@ static void __i915_gem_free_work(struct work_struct *work)
 	 * unbound now.
 	 */
 
-	while ((freed = llist_del_all(&i915->mm.free_list)))
+	while ((freed = llist_del_all(&i915->mm.free_list))) {
 		__i915_gem_free_objects(i915, freed);
+		if (need_resched())
+			break;
+	}
 }
 
 static void __i915_gem_free_object_rcu(struct rcu_head *head)
