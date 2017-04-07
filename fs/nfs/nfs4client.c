@@ -612,17 +612,8 @@ nfs4_check_serverowner_major_id(struct nfs41_server_owner *o1,
 				struct nfs41_server_owner *o2)
 {
 	if (o1->major_id_sz != o2->major_id_sz)
-		goto out_major_mismatch;
-	if (memcmp(o1->major_id, o2->major_id, o1->major_id_sz) != 0)
-		goto out_major_mismatch;
-
-	dprintk("NFS: --> %s server owner major IDs match\n", __func__);
-	return true;
-
-out_major_mismatch:
-	dprintk("NFS: --> %s server owner major IDs do not match\n",
-		__func__);
-	return false;
+		return false;
+	return memcmp(o1->major_id, o2->major_id, o1->major_id_sz) == 0;
 }
 
 /*
