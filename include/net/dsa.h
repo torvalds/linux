@@ -32,6 +32,7 @@ enum dsa_tag_protocol {
 	DSA_TAG_PROTO_EDSA,
 	DSA_TAG_PROTO_BRCM,
 	DSA_TAG_PROTO_QCA,
+	DSA_TAG_PROTO_MTK,
 	DSA_TAG_LAST,		/* MUST BE LAST */
 };
 
