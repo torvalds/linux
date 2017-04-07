@@ -334,7 +334,7 @@
 		rockchip,isp,dsiphy,reg = <0xff968000 0x8000>;
 		rockchip,grf = <&grf>;
 		rockchip,cru = <&cru>;
-		rockchip,gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
+		rockchip,gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 		rockchip,isp,iommu-enable = <1>;
 		power-domains = <&power RK3399_PD_ISP0>;
 		status = "disabled";
@@ -384,7 +384,7 @@
 		rockchip,isp,dsiphy,reg = <0xff968000 0x8000>;
 		rockchip,grf = <&grf>;
 		rockchip,cru = <&cru>;
-		rockchip,gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
+		rockchip,gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 		rockchip,isp,iommu-enable = <1>;
 		power-domains = <&power RK3399_PD_ISP1>;
 		status = "disabled";
@@ -550,7 +550,7 @@
 
 		isp_flash_trigger_as_gpio: isp_flash_trigger_as_gpio {
 			/*ISP_FLASHTRIGOU*/
-			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
