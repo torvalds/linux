@@ -309,13 +309,13 @@ static inline struct sec_entry *get_sec_entry(struct f2fs_sb_info *sbi,
 }
 
 static inline unsigned int get_valid_blocks(struct f2fs_sb_info *sbi,
-				unsigned int segno, int section)
+				unsigned int segno, bool use_section)
 {
 	/*
 	 * In order to get # of valid blocks in a section instantly from many
 	 * segments, f2fs manages two counting structures separately.
 	 */
-	if (section > 1)
+	if (use_section && sbi->segs_per_sec > 1)
 		return get_sec_entry(sbi, segno)->valid_blocks;
 	else
 		return get_seg_entry(sbi, segno)->valid_blocks;
@@ -722,8 +722,8 @@ static inline block_t sum_blk_addr(struct f2fs_sb_info *sbi, int base, int type)
 static inline bool no_fggc_candidate(struct f2fs_sb_info *sbi,
 						unsigned int secno)
 {
-	if (get_valid_blocks(sbi, GET_SEGNO_FROM_SECNO(sbi, secno),
-				sbi->segs_per_sec) >= sbi->fggc_threshold)
+	if (get_valid_blocks(sbi, GET_SEGNO_FROM_SECNO(sbi, secno), true) >=
+						sbi->fggc_threshold)
 		return true;
 	return false;
 }
