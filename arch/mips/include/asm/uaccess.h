@@ -1019,38 +1019,6 @@ strncpy_from_user(char *__to, const char __user *__from, long __len)
 	return res;
 }
 
-extern long __strnlen_kernel_nocheck_asm(const char __user *s, long n);
-extern long __strnlen_user_nocheck_asm(const char __user *s, long n);
-
-/* Returns: 0 if bad, string length+1 (memory size) of string if ok */
-static inline long __strnlen_user(const char __user *s, long n)
-{
-	long res;
-
-	if (eva_kernel_access()) {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			__MODULE_JAL(__strnlen_kernel_nocheck_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s), "r" (n)
-			: "$2", "$4", "$5", __UA_t0, "$31");
-	} else {
-		might_fault();
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, %2\n\t"
-			__MODULE_JAL(__strnlen_user_nocheck_asm)
-			"move\t%0, $2"
-			: "=r" (res)
-			: "r" (s), "r" (n)
-			: "$2", "$4", "$5", __UA_t0, "$31");
-	}
-
-	return res;
-}
-
 extern long __strnlen_kernel_asm(const char __user *s, long n);
 extern long __strnlen_user_asm(const char __user *s, long n);
 
