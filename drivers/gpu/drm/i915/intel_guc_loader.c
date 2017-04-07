@@ -285,10 +285,6 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	/* init WOPCM */
-	I915_WRITE(GUC_WOPCM_SIZE, intel_guc_wopcm_size(dev_priv));
-	I915_WRITE(DMA_GUC_WOPCM_OFFSET, GUC_WOPCM_OFFSET_VALUE);
-
 	/* Enable MIA caching. GuC clock gating is disabled. */
 	I915_WRITE(GUC_SHIM_CONTROL, GUC_SHIM_CONTROL_VALUE);
 

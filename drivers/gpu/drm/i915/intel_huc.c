@@ -106,11 +106,6 @@ static int huc_ucode_xfer(struct drm_i915_private *dev_priv)
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	/* init WOPCM */
-	I915_WRITE(GUC_WOPCM_SIZE, intel_guc_wopcm_size(dev_priv));
-	I915_WRITE(DMA_GUC_WOPCM_OFFSET, GUC_WOPCM_OFFSET_VALUE |
-			HUC_LOADING_AGENT_GUC);
-
 	/* Set the source address for the uCode */
 	offset = guc_ggtt_offset(vma) + huc_fw->header_offset;
 	I915_WRITE(DMA_ADDR_0_LOW, lower_32_bits(offset));
