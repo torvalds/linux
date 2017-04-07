@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
+#include <linux/sched/mm.h>
 #include <asm/cputable.h>
 #include <asm/current.h>
 #include <asm/copro.h>
@@ -41,7 +42,7 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 	spin_lock_init(&ctx->sste_lock);
 	ctx->afu = afu;
 	ctx->master = master;
-	ctx->pid = ctx->glpid = NULL; /* Set in start work ioctl */
+	ctx->pid = NULL; /* Set in start work ioctl */
 	mutex_init(&ctx->mapping_lock);
 	ctx->mapping = NULL;
 
@@ -242,12 +243,16 @@ int __detach_context(struct cxl_context *ctx)
 
 	/* release the reference to the group leader and mm handling pid */
 	put_pid(ctx->pid);
-	put_pid(ctx->glpid);
 
 	cxl_ctx_put();
 
 	/* Decrease the attached context count on the adapter */
 	cxl_adapter_context_put(ctx->afu->adapter);
+
+	/* Decrease the mm count on the context */
+	cxl_context_mm_count_put(ctx);
+	ctx->mm = NULL;
+
 	return 0;
 }
 
@@ -324,4 +329,16 @@ void cxl_context_free(struct cxl_context *ctx)
 	idr_remove(&ctx->afu->contexts_idr, ctx->pe);
 	mutex_unlock(&ctx->afu->contexts_lock);
 	call_rcu(&ctx->rcu, reclaim_ctx);
+}
+
+void cxl_context_mm_count_get(struct cxl_context *ctx)
+{
+	if (ctx->mm)
+		atomic_inc(&ctx->mm->mm_count);
+}
+
+void cxl_context_mm_count_put(struct cxl_context *ctx)
+{
+	if (ctx->mm)
+		mmdrop(ctx->mm);
 }

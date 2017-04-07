@@ -482,8 +482,6 @@ struct cxl_context {
 	unsigned int sst_size, sst_lru;
 
 	wait_queue_head_t wq;
-	/* pid of the group leader associated with the pid */
-	struct pid *glpid;
 	/* use mm context associated with this pid for ds faults */
 	struct pid *pid;
 	spinlock_t lock; /* Protects pending_irq_mask, pending_fault and fault_addr */
@@ -551,6 +549,8 @@ struct cxl_context {
 	 * CX4 only:
 	 */
 	struct list_head extra_irq_contexts;
+
+	struct mm_struct *mm;
 };
 
 struct cxl_service_layer_ops {
@@ -1011,5 +1011,11 @@ int cxl_adapter_context_lock(struct cxl *adapter);
 
 /* Unlock the contexts-lock if taken. Warn and force unlock otherwise */
 void cxl_adapter_context_unlock(struct cxl *adapter);
+
+/* Increases the reference count to "struct mm_struct" */
+void cxl_context_mm_count_get(struct cxl_context *ctx);
+
+/* Decrements the reference count to "struct mm_struct" */
+void cxl_context_mm_count_put(struct cxl_context *ctx);
 
 #endif
