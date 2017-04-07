@@ -621,7 +621,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job)
 		u64 pd_addr = amdgpu_vm_adjust_mc_addr(adev, job->vm_pd_addr);
 		struct dma_fence *fence;
 
-		trace_amdgpu_vm_flush(pd_addr, ring->idx, job->vm_id);
+		trace_amdgpu_vm_flush(ring, job->vm_id, pd_addr);
 		amdgpu_ring_emit_vm_flush(ring, job->vm_id, pd_addr);
 
 		r = amdgpu_fence_emit(ring, &fence);

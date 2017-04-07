@@ -334,21 +334,25 @@ TRACE_EVENT(amdgpu_vm_copy_ptes,
 );
 
 TRACE_EVENT(amdgpu_vm_flush,
-	    TP_PROTO(uint64_t pd_addr, unsigned ring, unsigned id),
-	    TP_ARGS(pd_addr, ring, id),
+	    TP_PROTO(struct amdgpu_ring *ring, unsigned vm_id,
+		     uint64_t pd_addr),
+	    TP_ARGS(ring, vm_id, pd_addr),
 	    TP_STRUCT__entry(
-			     __field(u64, pd_addr)
 			     __field(u32, ring)
-			     __field(u32, id)
+			     __field(u32, vm_id)
+			     __field(u32, vm_hub)
+			     __field(u64, pd_addr)
 			     ),
 
 	    TP_fast_assign(
+			   __entry->ring = ring->idx;
+			   __entry->vm_id = vm_id;
+			   __entry->vm_hub = ring->funcs->vmhub;
 			   __entry->pd_addr = pd_addr;
-			   __entry->ring = ring;
-			   __entry->id = id;
 			   ),
-	    TP_printk("ring=%u, id=%u, pd_addr=%010Lx",
-		      __entry->ring, __entry->id, __entry->pd_addr)
+	    TP_printk("ring=%u, id=%u, hub=%u, pd_addr=%010Lx",
+		      __entry->ring, __entry->vm_id,
+		      __entry->vm_hub,__entry->pd_addr)
 );
 
 TRACE_EVENT(amdgpu_bo_list_set,
