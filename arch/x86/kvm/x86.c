@@ -1454,16 +1454,25 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	elapsed = ns - kvm->arch.last_tsc_nsec;
 
 	if (vcpu->arch.virtual_tsc_khz) {
-		u64 tsc_exp = kvm->arch.last_tsc_write +
-					nsec_to_cycles(vcpu, elapsed);
-		u64 tsc_hz = vcpu->arch.virtual_tsc_khz * 1000LL;
-		/*
-		 * Special case: TSC write with a small delta (1 second)
-		 * of virtual cycle time against real time is
-		 * interpreted as an attempt to synchronize the CPU.
-		 */
-		synchronizing = data < tsc_exp + tsc_hz &&
-				data + tsc_hz > tsc_exp;
+		if (data == 0 && msr->host_initiated) {
+			/*
+			 * detection of vcpu initialization -- need to sync
+			 * with other vCPUs. This particularly helps to keep
+			 * kvm_clock stable after CPU hotplug
+			 */
+			synchronizing = true;
+		} else {
+			u64 tsc_exp = kvm->arch.last_tsc_write +
+						nsec_to_cycles(vcpu, elapsed);
+			u64 tsc_hz = vcpu->arch.virtual_tsc_khz * 1000LL;
+			/*
+			 * Special case: TSC write with a small delta (1 second)
+			 * of virtual cycle time against real time is
+			 * interpreted as an attempt to synchronize the CPU.
+			 */
+			synchronizing = data < tsc_exp + tsc_hz &&
+					data + tsc_hz > tsc_exp;
+		}
 	}
 
 	/*
