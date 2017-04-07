@@ -33,7 +33,7 @@ struct bio {
 						 * top bits REQ_OP. Use
 						 * accessors.
 						 */
-	unsigned short		bi_flags;	/* status, command, etc */
+	unsigned short		bi_flags;	/* status, etc and bvec pool number */
 	unsigned short		bi_ioprio;
 
 	struct bvec_iter	bi_iter;
@@ -110,12 +110,7 @@ struct bio {
 #define BIO_REFFED	8	/* bio has elevated ->bi_cnt */
 #define BIO_THROTTLED	9	/* This bio has already been subjected to
 				 * throttling rules. Don't do it again. */
-
-/*
- * Flags starting here get preserved by bio_reset() - this includes
- * BVEC_POOL_IDX()
- */
-#define BIO_RESET_BITS	10
+/* See BVEC_POOL_OFFSET below before adding new flags */
 
 /*
  * We support 6 different bvec pools, the last one is magic in that it
@@ -125,13 +120,22 @@ struct bio {
 #define BVEC_POOL_MAX		(BVEC_POOL_NR - 1)
 
 /*
- * Top 4 bits of bio flags indicate the pool the bvecs came from.  We add
+ * Top 3 bits of bio flags indicate the pool the bvecs came from.  We add
  * 1 to the actual index so that 0 indicates that there are no bvecs to be
  * freed.
  */
-#define BVEC_POOL_BITS		(4)
+#define BVEC_POOL_BITS		(3)
 #define BVEC_POOL_OFFSET	(16 - BVEC_POOL_BITS)
 #define BVEC_POOL_IDX(bio)	((bio)->bi_flags >> BVEC_POOL_OFFSET)
+#if (1<< BVEC_POOL_BITS) < (BVEC_POOL_NR+1)
+# error "BVEC_POOL_BITS is too small"
+#endif
+
+/*
+ * Flags starting here get preserved by bio_reset() - this includes
+ * only BVEC_POOL_IDX()
+ */
+#define BIO_RESET_BITS	BVEC_POOL_OFFSET
 
 /*
  * Operations and flags common to the bio and request structures.
