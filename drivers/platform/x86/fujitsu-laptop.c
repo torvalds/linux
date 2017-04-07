@@ -739,9 +739,72 @@ static void fujitsu_laptop_platform_remove(void)
 	platform_device_unregister(fujitsu_laptop->pf_device);
 }
 
-static int acpi_fujitsu_laptop_add(struct acpi_device *device)
+static int acpi_fujitsu_laptop_leds_register(void)
 {
 	int result = 0;
+
+	if (call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & LOGOLAMP_POWERON) {
+		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
+					       &logolamp_led);
+		if (result == 0) {
+			fujitsu_laptop->logolamp_registered = 1;
+		} else {
+			pr_err("Could not register LED handler for logo lamp, error %i\n",
+			       result);
+		}
+	}
+
+	if ((call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & KEYBOARD_LAMPS) &&
+	    (call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0) == 0x0)) {
+		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
+					       &kblamps_led);
+		if (result == 0) {
+			fujitsu_laptop->kblamps_registered = 1;
+		} else {
+			pr_err("Could not register LED handler for keyboard lamps, error %i\n",
+			       result);
+		}
+	}
+
+	/*
+	 * BTNI bit 24 seems to indicate the presence of a radio toggle
+	 * button in place of a slide switch, and all such machines appear
+	 * to also have an RF LED.  Therefore use bit 24 as an indicator
+	 * that an RF LED is present.
+	 */
+	if (call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0) & BIT(24)) {
+		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
+					       &radio_led);
+		if (result == 0) {
+			fujitsu_laptop->radio_led_registered = 1;
+		} else {
+			pr_err("Could not register LED handler for radio LED, error %i\n",
+			       result);
+		}
+	}
+
+	/* Support for eco led is not always signaled in bit corresponding
+	 * to the bit used to control the led. According to the DSDT table,
+	 * bit 14 seems to indicate presence of said led as well.
+	 * Confirm by testing the status.
+	 */
+	if ((call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & BIT(14)) &&
+	    (call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0) != UNSUPPORTED_CMD)) {
+		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
+					       &eco_led);
+		if (result == 0) {
+			fujitsu_laptop->eco_led_registered = 1;
+		} else {
+			pr_err("Could not register LED handler for eco LED, error %i\n",
+			       result);
+		}
+	}
+
+	return result;
+}
+
+static int acpi_fujitsu_laptop_add(struct acpi_device *device)
+{
 	int state = 0;
 	int error;
 	int i;
@@ -822,65 +885,14 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	if (error)
 		goto err_free_fifo;
 
-	if (call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & LOGOLAMP_POWERON) {
-		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
-						&logolamp_led);
-		if (result == 0) {
-			fujitsu_laptop->logolamp_registered = 1;
-		} else {
-			pr_err("Could not register LED handler for logo lamp, error %i\n",
-			       result);
-		}
-	}
+	error = acpi_fujitsu_laptop_leds_register();
+	if (error)
+		goto err_remove_platform_device;
 
-	if ((call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & KEYBOARD_LAMPS) &&
-	   (call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0) == 0x0)) {
-		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
-						&kblamps_led);
-		if (result == 0) {
-			fujitsu_laptop->kblamps_registered = 1;
-		} else {
-			pr_err("Could not register LED handler for keyboard lamps, error %i\n",
-			       result);
-		}
-	}
+	return 0;
 
-	/*
-	 * BTNI bit 24 seems to indicate the presence of a radio toggle
-	 * button in place of a slide switch, and all such machines appear
-	 * to also have an RF LED.  Therefore use bit 24 as an indicator
-	 * that an RF LED is present.
-	 */
-	if (call_fext_func(FUNC_BUTTONS, 0x0, 0x0, 0x0) & BIT(24)) {
-		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
-						&radio_led);
-		if (result == 0) {
-			fujitsu_laptop->radio_led_registered = 1;
-		} else {
-			pr_err("Could not register LED handler for radio LED, error %i\n",
-			       result);
-		}
-	}
-
-	/* Support for eco led is not always signaled in bit corresponding
-	 * to the bit used to control the led. According to the DSDT table,
-	 * bit 14 seems to indicate presence of said led as well.
-	 * Confirm by testing the status.
-	*/
-	if ((call_fext_func(FUNC_LEDS, 0x0, 0x0, 0x0) & BIT(14)) &&
-	   (call_fext_func(FUNC_LEDS, 0x2, ECO_LED, 0x0) != UNSUPPORTED_CMD)) {
-		result = led_classdev_register(&fujitsu_laptop->pf_device->dev,
-						&eco_led);
-		if (result == 0) {
-			fujitsu_laptop->eco_led_registered = 1;
-		} else {
-			pr_err("Could not register LED handler for eco LED, error %i\n",
-			       result);
-		}
-	}
-
-	return result;
-
+err_remove_platform_device:
+	fujitsu_laptop_platform_remove();
 err_free_fifo:
 	kfifo_free(&fujitsu_laptop->fifo);
 err_stop:
