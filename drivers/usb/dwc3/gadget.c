@@ -1044,6 +1044,22 @@ static void dwc3_prepare_one_trb_linear(struct dwc3_ep *dep,
 				false, 0, req->request.stream_id,
 				req->request.short_not_ok,
 				req->request.no_interrupt);
+	} else if (req->request.zero && req->request.length &&
+		   (IS_ALIGNED(req->request.length,dep->endpoint.maxpacket))) {
+		struct dwc3	*dwc = dep->dwc;
+		struct dwc3_trb	*trb;
+
+		req->zero = true;
+
+		/* prepare normal TRB */
+		dwc3_prepare_one_trb(dep, req, true, 0);
+
+		/* Now prepare one extra TRB to handle ZLP */
+		trb = &dep->trb_pool[dep->trb_enqueue];
+		__dwc3_prepare_one_trb(dep, trb, dwc->bounce_addr, 0,
+				false, 0, req->request.stream_id,
+				req->request.short_not_ok,
+				req->request.no_interrupt);
 	} else {
 		dwc3_prepare_one_trb(dep, req, false, 0);
 	}
@@ -1259,31 +1275,6 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	return ret;
 }
 
-static void __dwc3_gadget_ep_zlp_complete(struct usb_ep *ep,
-		struct usb_request *request)
-{
-	dwc3_gadget_ep_free_request(ep, request);
-}
-
-static int __dwc3_gadget_ep_queue_zlp(struct dwc3 *dwc, struct dwc3_ep *dep)
-{
-	struct dwc3_request		*req;
-	struct usb_request		*request;
-	struct usb_ep			*ep = &dep->endpoint;
-
-	request = dwc3_gadget_ep_alloc_request(ep, GFP_ATOMIC);
-	if (!request)
-		return -ENOMEM;
-
-	request->length = 0;
-	request->buf = dwc->zlp_buf;
-	request->complete = __dwc3_gadget_ep_zlp_complete;
-
-	req = to_dwc3_request(request);
-
-	return __dwc3_gadget_ep_queue(dep, req);
-}
-
 static int dwc3_gadget_ep_queue(struct usb_ep *ep, struct usb_request *request,
 	gfp_t gfp_flags)
 {
@@ -1297,17 +1288,6 @@ static int dwc3_gadget_ep_queue(struct usb_ep *ep, struct usb_request *request,
 
 	spin_lock_irqsave(&dwc->lock, flags);
 	ret = __dwc3_gadget_ep_queue(dep, req);
-
-	/*
-	 * Okay, here's the thing, if gadget driver has requested for a ZLP by
-	 * setting request->zero, instead of doing magic, we will just queue an
-	 * extra usb_request ourselves so that it gets handled the same way as
-	 * any other request.
-	 */
-	if (ret == 0 && request->zero && request->length &&
-	    (request->length % ep->maxpacket == 0))
-		ret = __dwc3_gadget_ep_queue_zlp(dwc, dep);
-
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return ret;
@@ -1387,7 +1367,7 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 					dwc3_ep_inc_deq(dep);
 				}
 
-				if (r->unaligned) {
+				if (r->unaligned || r->zero) {
 					trb = r->trb + r->num_pending_sgs + 1;
 					trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
 					dwc3_ep_inc_deq(dep);
@@ -1398,7 +1378,7 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 				trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
 				dwc3_ep_inc_deq(dep);
 
-				if (r->unaligned) {
+				if (r->unaligned || r->zero) {
 					trb = r->trb + 1;
 					trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
 					dwc3_ep_inc_deq(dep);
@@ -2164,7 +2144,7 @@ static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 	 * with one TRB pending in the ring. We need to manually clear HWO bit
 	 * from that TRB.
 	 */
-	if (req->unaligned && (trb->ctrl & DWC3_TRB_CTRL_HWO)) {
+	if ((req->zero || req->unaligned) && (trb->ctrl & DWC3_TRB_CTRL_HWO)) {
 		trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
 		return 1;
 	}
@@ -2258,11 +2238,12 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 					event, status, chain);
 		}
 
-		if (req->unaligned) {
+		if (req->unaligned || req->zero) {
 			trb = &dep->trb_pool[dep->trb_dequeue];
 			ret = __dwc3_cleanup_done_trbs(dwc, dep, req, trb,
 					event, status, false);
 			req->unaligned = false;
+			req->zero = false;
 		}
 
 		req->request.actual = length - req->remaining;
@@ -3143,17 +3124,11 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 		goto err1;
 	}
 
-	dwc->zlp_buf = kzalloc(DWC3_ZLP_BUF_SIZE, GFP_KERNEL);
-	if (!dwc->zlp_buf) {
-		ret = -ENOMEM;
-		goto err2;
-	}
-
 	dwc->bounce = dma_alloc_coherent(dwc->sysdev, DWC3_BOUNCE_SIZE,
 			&dwc->bounce_addr, GFP_KERNEL);
 	if (!dwc->bounce) {
 		ret = -ENOMEM;
-		goto err3;
+		goto err2;
 	}
 
 	init_completion(&dwc->ep0_in_setup);
@@ -3193,24 +3168,22 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 
 	ret = dwc3_gadget_init_endpoints(dwc, dwc->num_eps);
 	if (ret)
-		goto err4;
+		goto err3;
 
 	ret = usb_add_gadget_udc(dwc->dev, &dwc->gadget);
 	if (ret) {
 		dev_err(dwc->dev, "failed to register udc\n");
-		goto err5;
+		goto err4;
 	}
 
 	return 0;
-err5:
-	dwc3_gadget_free_endpoints(dwc);
 
 err4:
-	dma_free_coherent(dwc->sysdev, DWC3_BOUNCE_SIZE, dwc->bounce,
-			dwc->bounce_addr);
+	dwc3_gadget_free_endpoints(dwc);
 
 err3:
-	kfree(dwc->zlp_buf);
+	dma_free_coherent(dwc->sysdev, DWC3_BOUNCE_SIZE, dwc->bounce,
+			dwc->bounce_addr);
 
 err2:
 	kfree(dwc->setup_buf);
@@ -3228,16 +3201,12 @@ err0:
 void dwc3_gadget_exit(struct dwc3 *dwc)
 {
 	usb_del_gadget_udc(&dwc->gadget);
-
 	dwc3_gadget_free_endpoints(dwc);
-
 	dma_free_coherent(dwc->sysdev, DWC3_BOUNCE_SIZE, dwc->bounce,
-			dwc->bounce_addr);
+			  dwc->bounce_addr);
 	kfree(dwc->setup_buf);
-	kfree(dwc->zlp_buf);
-
 	dma_free_coherent(dwc->sysdev, sizeof(*dwc->ep0_trb) * 2,
-			dwc->ep0_trb, dwc->ep0_trb_addr);
+			  dwc->ep0_trb, dwc->ep0_trb_addr);
 }
 
 int dwc3_gadget_suspend(struct dwc3 *dwc)

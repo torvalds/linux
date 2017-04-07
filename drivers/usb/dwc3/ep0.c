@@ -873,34 +873,19 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	transferred = ur->length - length;
 	ur->actual += transferred;
 
-	if (dwc->ep0_bounced) {
+	if ((IS_ALIGNED(ur->length, ep0->endpoint.maxpacket) &&
+	     ur->length && ur->zero) || dwc->ep0_bounced) {
 		trb++;
 		trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
+		trace_dwc3_complete_trb(ep0, trb);
 		ep0->trb_enqueue = 0;
 		dwc->ep0_bounced = false;
 	}
 
-	if ((epnum & 1) && ur->actual < ur->length) {
-		/* for some reason we did not get everything out */
-
+	if ((epnum & 1) && ur->actual < ur->length)
 		dwc3_ep0_stall_and_restart(dwc);
-	} else {
+	else
 		dwc3_gadget_giveback(ep0, r, 0);
-
-		if (IS_ALIGNED(ur->length, ep0->endpoint.maxpacket) &&
-				ur->length && ur->zero) {
-			struct dwc3_ep *dep;
-			int ret;
-
-			dwc->ep0_next_event = DWC3_EP0_COMPLETE;
-
-			dep = dwc->eps[epnum];
-			dwc3_ep0_prepare_one_trb(dep, dwc->ep0_trb_addr,
-					0, DWC3_TRBCTL_CONTROL_DATA, false);
-			ret = dwc3_ep0_start_trans(dep);
-			WARN_ON(ret < 0);
-		}
-	}
 }
 
 static void dwc3_ep0_complete_status(struct dwc3 *dwc,
@@ -1003,6 +988,30 @@ static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 		dwc3_ep0_prepare_one_trb(dep, dwc->bounce_addr,
 					 maxpacket - rem,
 					 DWC3_TRBCTL_CONTROL_DATA,
+					 false);
+		ret = dwc3_ep0_start_trans(dep);
+	} else if (IS_ALIGNED(req->request.length, dep->endpoint.maxpacket) &&
+		   req->request.length && req->request.zero) {
+		u32	maxpacket;
+		u32	rem;
+
+		ret = usb_gadget_map_request_by_dev(dwc->sysdev,
+				&req->request, dep->number);
+		if (ret)
+			return;
+
+		maxpacket = dep->endpoint.maxpacket;
+		rem = req->request.length % maxpacket;
+
+		/* prepare normal TRB */
+		dwc3_ep0_prepare_one_trb(dep, req->request.dma,
+					 req->request.length,
+					 DWC3_TRBCTL_CONTROL_DATA,
+					 true);
+
+		/* Now prepare one extra TRB to align transfer size */
+		dwc3_ep0_prepare_one_trb(dep, dwc->bounce_addr,
+					 0, DWC3_TRBCTL_CONTROL_DATA,
 					 false);
 		ret = dwc3_ep0_start_trans(dep);
 	} else {
