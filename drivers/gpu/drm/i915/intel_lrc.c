@@ -345,7 +345,8 @@ execlists_context_status_change(struct drm_i915_gem_request *rq,
 	if (!IS_ENABLED(CONFIG_DRM_I915_GVT))
 		return;
 
-	atomic_notifier_call_chain(&rq->ctx->status_notifier, status, rq);
+	atomic_notifier_call_chain(&rq->engine->context_status_notifier,
+				   status, rq);
 }
 
 static void

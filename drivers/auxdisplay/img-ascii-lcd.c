@@ -218,6 +218,7 @@ static const struct of_device_id img_ascii_lcd_matches[] = {
 	{ .compatible = "img,boston-lcd", .data = &boston_config },
 	{ .compatible = "mti,malta-lcd", .data = &malta_config },
 	{ .compatible = "mti,sead3-lcd", .data = &sead3_config },
+	{ /* sentinel */ }
 };
 
 /**

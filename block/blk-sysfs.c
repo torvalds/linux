@@ -803,7 +803,7 @@ static void blk_release_queue(struct kobject *kobj)
 
 	if (q->elevator) {
 		ioc_clear_queue(q);
-		elevator_exit(q->elevator);
+		elevator_exit(q, q->elevator);
 	}
 
 	blk_free_queue_stats(q->stats);

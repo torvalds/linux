@@ -52,16 +52,16 @@ static unsigned char edid_get_byte(struct intel_vgpu *vgpu)
 	unsigned char chr = 0;
 
 	if (edid->state == I2C_NOT_SPECIFIED || !edid->slave_selected) {
-		gvt_err("Driver tries to read EDID without proper sequence!\n");
+		gvt_vgpu_err("Driver tries to read EDID without proper sequence!\n");
 		return 0;
 	}
 	if (edid->current_edid_read >= EDID_SIZE) {
-		gvt_err("edid_get_byte() exceeds the size of EDID!\n");
+		gvt_vgpu_err("edid_get_byte() exceeds the size of EDID!\n");
 		return 0;
 	}
 
 	if (!edid->edid_available) {
-		gvt_err("Reading EDID but EDID is not available!\n");
+		gvt_vgpu_err("Reading EDID but EDID is not available!\n");
 		return 0;
 	}
 
@@ -72,7 +72,7 @@ static unsigned char edid_get_byte(struct intel_vgpu *vgpu)
 		chr = edid_data->edid_block[edid->current_edid_read];
 		edid->current_edid_read++;
 	} else {
-		gvt_err("No EDID available during the reading?\n");
+		gvt_vgpu_err("No EDID available during the reading?\n");
 	}
 	return chr;
 }
@@ -223,7 +223,7 @@ static int gmbus1_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 			vgpu_vreg(vgpu, PCH_GMBUS2) |= GMBUS_ACTIVE;
 			break;
 		default:
-			gvt_err("Unknown/reserved GMBUS cycle detected!\n");
+			gvt_vgpu_err("Unknown/reserved GMBUS cycle detected!\n");
 			break;
 		}
 		/*
@@ -292,8 +292,7 @@ static int gmbus3_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 		 */
 	} else {
 		memcpy(p_data, &vgpu_vreg(vgpu, offset), bytes);
-		gvt_err("vgpu%d: warning: gmbus3 read with nothing returned\n",
-				vgpu->id);
+		gvt_vgpu_err("warning: gmbus3 read with nothing returned\n");
 	}
 	return 0;
 }
