@@ -314,6 +314,20 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 	return 0;
 }
 
+/*
+ * Set nodes, which have memory in @mi, in *@nodemask.
+ */
+static void __init numa_nodemask_from_meminfo(nodemask_t *nodemask,
+					      const struct numa_meminfo *mi)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mi->blk); i++)
+		if (mi->blk[i].start != mi->blk[i].end &&
+		    mi->blk[i].nid != NUMA_NO_NODE)
+			node_set(mi->blk[i].nid, *nodemask);
+}
+
 /**
  * numa_reset_distance - Reset NUMA distance table
  *
@@ -333,12 +347,16 @@ void __init numa_reset_distance(void)
 
 static int __init numa_alloc_distance(void)
 {
+	nodemask_t nodes_parsed;
 	size_t size;
 	int i, j, cnt = 0;
 	u64 phys;
 
 	/* size the new table and allocate it */
-	for_each_node_mask(i, numa_nodes_parsed)
+	nodes_parsed = numa_nodes_parsed;
+	numa_nodemask_from_meminfo(&nodes_parsed, &numa_meminfo);
+
+	for_each_node_mask(i, nodes_parsed)
 		cnt = i;
 	cnt++;
 	size = cnt * cnt * sizeof(numa_distance[0]);
@@ -517,6 +535,7 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 
 	/* Account for nodes with cpus and no memory */
 	node_possible_map = numa_nodes_parsed;
+	numa_nodemask_from_meminfo(&node_possible_map, mi);
 	if (WARN_ON(nodes_empty(node_possible_map)))
 		return -EINVAL;
 
