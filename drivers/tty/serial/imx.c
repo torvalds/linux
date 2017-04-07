@@ -719,6 +719,27 @@ out:
 	return IRQ_HANDLED;
 }
 
+static void imx_disable_rx_int(struct imx_port *sport)
+{
+	unsigned long temp;
+
+	sport->dma_is_rxing = 1;
+
+	/* disable the receiver ready and aging timer interrupts */
+	temp = readl(sport->port.membase + UCR1);
+	temp &= ~(UCR1_RRDYEN);
+	writel(temp, sport->port.membase + UCR1);
+
+	temp = readl(sport->port.membase + UCR2);
+	temp &= ~(UCR2_ATEN);
+	writel(temp, sport->port.membase + UCR2);
+
+	/* disable the rx errors interrupts */
+	temp = readl(sport->port.membase + UCR4);
+	temp &= ~UCR4_OREN;
+	writel(temp, sport->port.membase + UCR4);
+}
+
 static void clear_rx_errors(struct imx_port *sport);
 static int start_rx_dma(struct imx_port *sport);
 /*
@@ -734,21 +755,8 @@ static void imx_dma_rxint(struct imx_port *sport)
 
 	temp = readl(sport->port.membase + USR2);
 	if ((temp & USR2_RDR) && !sport->dma_is_rxing) {
-		sport->dma_is_rxing = 1;
 
-		/* disable the receiver ready and aging timer interrupts */
-		temp = readl(sport->port.membase + UCR1);
-		temp &= ~(UCR1_RRDYEN);
-		writel(temp, sport->port.membase + UCR1);
-
-		temp = readl(sport->port.membase + UCR2);
-		temp &= ~(UCR2_ATEN);
-		writel(temp, sport->port.membase + UCR2);
-
-		/* disable the rx errors interrupts */
-		temp = readl(sport->port.membase + UCR4);
-		temp &= ~UCR4_OREN;
-		writel(temp, sport->port.membase + UCR4);
+		imx_disable_rx_int(sport);
 
 		/* tell the DMA to receive the data. */
 		start_rx_dma(sport);
@@ -1330,6 +1338,33 @@ static int imx_startup(struct uart_port *port)
 	 * Enable modem status interrupts
 	 */
 	imx_enable_ms(&sport->port);
+
+	/*
+	 * If the serial port is opened for reading start RX DMA immediately
+	 * instead of waiting for RX FIFO interrupts. In our iMX53 the average
+	 * delay for the first reception dropped from approximately 35000
+	 * microseconds to 1000 microseconds.
+	 */
+	if (sport->dma_is_enabled) {
+		struct tty_struct *tty = sport->port.state->port.tty;
+		struct tty_file_private *file_priv;
+		int readcnt = 0;
+
+		spin_lock(&tty->files_lock);
+
+		if (!list_empty(&tty->tty_files))
+			list_for_each_entry(file_priv, &tty->tty_files, list)
+				if (!(file_priv->file->f_flags & O_WRONLY))
+					readcnt++;
+
+		spin_unlock(&tty->files_lock);
+
+		if (readcnt > 0) {
+			imx_disable_rx_int(sport);
+			start_rx_dma(sport);
+		}
+	}
+
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 
 	return 0;
