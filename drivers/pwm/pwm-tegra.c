@@ -85,8 +85,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * nearest integer during division.
 	 */
 	c *= (1 << PWM_DUTY_WIDTH);
-	c += period_ns / 2;
-	do_div(c, period_ns);
+	c = DIV_ROUND_CLOSEST_ULL(c, period_ns);
 
 	val = (u32)c << PWM_DUTY_SHIFT;
 
