@@ -4815,6 +4815,20 @@ static int gfx_v8_0_mqd_init(struct amdgpu_ring *ring)
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PERSISTENT_STATE, PRELOAD_SIZE, 0x53);
 	mqd->cp_hqd_persistent_state = tmp;
 
+	/* set MTYPE */
+	tmp = RREG32(mmCP_HQD_IB_CONTROL);
+	tmp = REG_SET_FIELD(tmp, CP_HQD_IB_CONTROL, MIN_IB_AVAIL_SIZE, 3);
+	tmp = REG_SET_FIELD(tmp, CP_HQD_IB_CONTROL, MTYPE, 3);
+	mqd->cp_hqd_ib_control = tmp;
+
+	tmp = RREG32(mmCP_HQD_IQ_TIMER);
+	tmp = REG_SET_FIELD(tmp, CP_HQD_IQ_TIMER, MTYPE, 3);
+	mqd->cp_hqd_iq_timer = tmp;
+
+	tmp = RREG32(mmCP_HQD_CTX_SAVE_CONTROL);
+	tmp = REG_SET_FIELD(tmp, CP_HQD_CTX_SAVE_CONTROL, MTYPE, 3);
+	mqd->cp_hqd_ctx_save_control = tmp;
+
 	/* activate the queue */
 	mqd->cp_hqd_active = 1;
 
