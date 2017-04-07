@@ -167,8 +167,6 @@ static void next_trb(struct xhci_hcd *xhci,
  */
 static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
-	ring->deq_updates++;
-
 	/* event ring doesn't have link trbs, check for last trb */
 	if (ring->type == TYPE_EVENT) {
 		if (!last_trb_on_seg(ring->deq_seg, ring->dequeue)) {
@@ -226,7 +224,6 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		ring->num_trbs_free--;
 	next = ++(ring->enqueue);
 
-	ring->enq_updates++;
 	/* Update the dequeue pointer further if that was a link TRB */
 	while (trb_is_link(next)) {
 

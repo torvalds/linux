@@ -1566,10 +1566,8 @@ struct xhci_ring {
 	struct xhci_segment	*last_seg;
 	union  xhci_trb		*enqueue;
 	struct xhci_segment	*enq_seg;
-	unsigned int		enq_updates;
 	union  xhci_trb		*dequeue;
 	struct xhci_segment	*deq_seg;
-	unsigned int		deq_updates;
 	struct list_head	td_list;
 	/*
 	 * Write the cycle state into the TRB cycle field to give ownership of

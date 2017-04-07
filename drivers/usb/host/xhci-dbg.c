@@ -347,14 +347,10 @@ void xhci_dbg_ring_ptrs(struct xhci_hcd *xhci, struct xhci_ring *ring)
 			ring->dequeue,
 			(unsigned long long)xhci_trb_virt_to_dma(ring->deq_seg,
 							    ring->dequeue));
-	xhci_dbg(xhci, "Ring deq updated %u times\n",
-			ring->deq_updates);
 	xhci_dbg(xhci, "Ring enq = %p (virt), 0x%llx (dma)\n",
 			ring->enqueue,
 			(unsigned long long)xhci_trb_virt_to_dma(ring->enq_seg,
 							    ring->enqueue));
-	xhci_dbg(xhci, "Ring enq updated %u times\n",
-			ring->enq_updates);
 }
 
 /**
@@ -373,10 +369,6 @@ void xhci_debug_ring(struct xhci_hcd *xhci, struct xhci_ring *ring)
 	struct xhci_segment *first_seg = ring->first_seg;
 	xhci_debug_segment(xhci, first_seg);
 
-	if (!ring->enq_updates && !ring->deq_updates) {
-		xhci_dbg(xhci, "  Ring has not been updated\n");
-		return;
-	}
 	for (seg = first_seg->next; seg != first_seg; seg = seg->next)
 		xhci_debug_segment(xhci, seg);
 }
