@@ -360,7 +360,8 @@ static int qede_xdp_xmit(struct qede_dev *edev, struct qede_fastpath *fp,
 				   metadata->mapping + padding,
 				   length, PCI_DMA_TODEVICE);
 
-	txq->sw_tx_ring.pages[idx] = metadata->data;
+	txq->sw_tx_ring.xdp[idx].page = metadata->data;
+	txq->sw_tx_ring.xdp[idx].mapping = metadata->mapping;
 	txq->sw_tx_prod++;
 
 	/* Mark the fastpath for future XDP doorbell */
@@ -384,19 +385,19 @@ int qede_txq_has_work(struct qede_tx_queue *txq)
 
 static void qede_xdp_tx_int(struct qede_dev *edev, struct qede_tx_queue *txq)
 {
-	struct eth_tx_1st_bd *bd;
-	u16 hw_bd_cons;
+	u16 hw_bd_cons, idx;
 
 	hw_bd_cons = le16_to_cpu(*txq->hw_cons_ptr);
 	barrier();
 
 	while (hw_bd_cons != qed_chain_get_cons_idx(&txq->tx_pbl)) {
-		bd = (struct eth_tx_1st_bd *)qed_chain_consume(&txq->tx_pbl);
+		qed_chain_consume(&txq->tx_pbl);
+		idx = txq->sw_tx_cons & NUM_TX_BDS_MAX;
 
-		dma_unmap_single(&edev->pdev->dev, BD_UNMAP_ADDR(bd),
-				 PAGE_SIZE, DMA_BIDIRECTIONAL);
-		__free_page(txq->sw_tx_ring.pages[txq->sw_tx_cons &
-						  NUM_TX_BDS_MAX]);
+		dma_unmap_page(&edev->pdev->dev,
+			       txq->sw_tx_ring.xdp[idx].mapping,
+			       PAGE_SIZE, DMA_BIDIRECTIONAL);
+		__free_page(txq->sw_tx_ring.xdp[idx].page);
 
 		txq->sw_tx_cons++;
 		txq->xmit_pkts++;

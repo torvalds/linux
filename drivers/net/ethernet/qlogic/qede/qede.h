@@ -349,6 +349,11 @@ struct sw_tx_bd {
 #define QEDE_TSO_SPLIT_BD		BIT(0)
 };
 
+struct sw_tx_xdp {
+	struct page *page;
+	dma_addr_t mapping;
+};
+
 struct qede_tx_queue {
 	u8 is_xdp;
 	bool is_legacy;
@@ -372,11 +377,11 @@ struct qede_tx_queue {
 #define QEDE_TXQ_IDX_TO_XDP(edev, idx)	((idx) + QEDE_MAX_TSS_CNT(edev))
 
 	/* Regular Tx requires skb + metadata for release purpose,
-	 * while XDP requires only the pages themselves.
+	 * while XDP requires the pages and the mapped address.
 	 */
 	union {
 		struct sw_tx_bd *skbs;
-		struct page **pages;
+		struct sw_tx_xdp *xdp;
 	} sw_tx_ring;
 
 	struct qed_chain tx_pbl;

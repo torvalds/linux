@@ -1251,7 +1251,7 @@ static void qede_free_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 {
 	/* Free the parallel SW ring */
 	if (txq->is_xdp)
-		kfree(txq->sw_tx_ring.pages);
+		kfree(txq->sw_tx_ring.xdp);
 	else
 		kfree(txq->sw_tx_ring.skbs);
 
@@ -1269,9 +1269,9 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 
 	/* Allocate the parallel driver ring for Tx buffers */
 	if (txq->is_xdp) {
-		size = sizeof(*txq->sw_tx_ring.pages) * TX_RING_SIZE;
-		txq->sw_tx_ring.pages = kzalloc(size, GFP_KERNEL);
-		if (!txq->sw_tx_ring.pages)
+		size = sizeof(*txq->sw_tx_ring.xdp) * TX_RING_SIZE;
+		txq->sw_tx_ring.xdp = kzalloc(size, GFP_KERNEL);
+		if (!txq->sw_tx_ring.xdp)
 			goto err;
 	} else {
 		size = sizeof(*txq->sw_tx_ring.skbs) * TX_RING_SIZE;
