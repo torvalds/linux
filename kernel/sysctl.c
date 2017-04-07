@@ -2149,6 +2149,7 @@ static int do_proc_douintvec_conv(bool *negp, unsigned long *lvalp,
 		*valp = *lvalp;
 	} else {
 		unsigned int val = *valp;
+		*negp = false;
 		*lvalp = (unsigned long)val;
 	}
 	return 0;
