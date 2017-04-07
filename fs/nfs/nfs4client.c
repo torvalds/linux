@@ -624,18 +624,9 @@ nfs4_check_server_scope(struct nfs41_server_scope *s1,
 			struct nfs41_server_scope *s2)
 {
 	if (s1->server_scope_sz != s2->server_scope_sz)
-		goto out_scope_mismatch;
-	if (memcmp(s1->server_scope, s2->server_scope,
-		   s1->server_scope_sz) != 0)
-		goto out_scope_mismatch;
-
-	dprintk("NFS: --> %s server scopes match\n", __func__);
-	return true;
-
-out_scope_mismatch:
-	dprintk("NFS: --> %s server scopes do not match\n",
-		__func__);
-	return false;
+		return false;
+	return memcmp(s1->server_scope, s2->server_scope,
+					s1->server_scope_sz) == 0;
 }
 
 /**
