@@ -533,7 +533,7 @@ no_flush_needed:
 	list_move_tail(&id->list, &id_mgr->ids_lru);
 
 	job->vm_id = id - id_mgr->ids;
-	trace_amdgpu_vm_grab_id(vm, ring->idx, job);
+	trace_amdgpu_vm_grab_id(vm, ring, job);
 
 error:
 	mutex_unlock(&id_mgr->lock);
