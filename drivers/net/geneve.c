@@ -881,12 +881,14 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 		info = &geneve->info;
 	}
 
+	rcu_read_lock();
 #if IS_ENABLED(CONFIG_IPV6)
 	if (info->mode & IP_TUNNEL_INFO_IPV6)
 		err = geneve6_xmit_skb(skb, dev, geneve, info);
 	else
 #endif
 		err = geneve_xmit_skb(skb, dev, geneve, info);
+	rcu_read_unlock();
 
 	if (likely(!err))
 		return NETDEV_TX_OK;

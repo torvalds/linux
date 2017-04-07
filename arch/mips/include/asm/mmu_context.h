@@ -13,8 +13,10 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/mm_types.h>
 #include <linux/smp.h>
 #include <linux/slab.h>
+
 #include <asm/cacheflush.h>
 #include <asm/dsemul.h>
 #include <asm/hazards.h>

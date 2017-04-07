@@ -474,7 +474,7 @@ void bnxt_dcb_init(struct bnxt *bp)
 		return;
 
 	bp->dcbx_cap = DCB_CAP_DCBX_VER_IEEE;
-	if (BNXT_PF(bp))
+	if (BNXT_PF(bp) && !(bp->flags & BNXT_FLAG_FW_LLDP_AGENT))
 		bp->dcbx_cap |= DCB_CAP_DCBX_HOST;
 	else
 		bp->dcbx_cap |= DCB_CAP_DCBX_LLD_MANAGED;

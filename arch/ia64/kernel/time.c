@@ -16,12 +16,13 @@
 #include <linux/profile.h>
 #include <linux/sched.h>
 #include <linux/time.h>
+#include <linux/nmi.h>
 #include <linux/interrupt.h>
 #include <linux/efi.h>
 #include <linux/timex.h>
 #include <linux/timekeeper_internal.h>
 #include <linux/platform_device.h>
-#include <linux/cputime.h>
+#include <linux/sched/cputime.h>
 
 #include <asm/machvec.h>
 #include <asm/delay.h>

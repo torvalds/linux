@@ -101,6 +101,8 @@ struct raid_dev {
 #define CTR_FLAG_RAID10_USE_NEAR_SETS	(1 << __CTR_FLAG_RAID10_USE_NEAR_SETS)
 #define CTR_FLAG_JOURNAL_DEV		(1 << __CTR_FLAG_JOURNAL_DEV)
 
+#define RESUME_STAY_FROZEN_FLAGS (CTR_FLAG_DELTA_DISKS | CTR_FLAG_DATA_OFFSET)
+
 /*
  * Definitions of various constructor flags to
  * be used in checks of valid / invalid flags
@@ -3462,9 +3464,11 @@ static int raid_message(struct dm_target *ti, unsigned int argc, char **argv)
 	else if (!strcasecmp(argv[0], "recover"))
 		set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 	else {
-		if (!strcasecmp(argv[0], "check"))
+		if (!strcasecmp(argv[0], "check")) {
 			set_bit(MD_RECOVERY_CHECK, &mddev->recovery);
-		else if (!strcasecmp(argv[0], "repair")) {
+			set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
+			set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+		} else if (!strcasecmp(argv[0], "repair")) {
 			set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
 			set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 		} else
@@ -3771,7 +3775,15 @@ static void raid_resume(struct dm_target *ti)
 	mddev->ro = 0;
 	mddev->in_sync = 0;
 
-	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+	/*
+	 * Keep the RAID set frozen if reshape/rebuild flags are set.
+	 * The RAID set is unfrozen once the next table load/resume,
+	 * which clears the reshape/rebuild flags, occurs.
+	 * This ensures that the constructor for the inactive table
+	 * retrieves an up-to-date reshape_position.
+	 */
+	if (!(rs->ctr_flags & RESUME_STAY_FROZEN_FLAGS))
+		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 
 	if (mddev->suspended)
 		mddev_resume(mddev);
@@ -3779,7 +3791,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 10, 0},
+	.version = {1, 10, 1},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,

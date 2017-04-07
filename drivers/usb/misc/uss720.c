@@ -50,6 +50,7 @@
 #include <linux/completion.h>
 #include <linux/kref.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 
 /*
  * Version Information
@@ -707,6 +708,11 @@ static int uss720_probe(struct usb_interface *intf,
 	dev_dbg(&intf->dev, "set interface result %d\n", i);
 
 	interface = intf->cur_altsetting;
+
+	if (interface->desc.bNumEndpoints < 3) {
+		usb_put_dev(usbdev);
+		return -ENODEV;
+	}
 
 	/*
 	 * Allocate parport interface 

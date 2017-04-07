@@ -11,6 +11,8 @@
 
 #include <linux/in.h>
 #include <linux/if_ether.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 #include <net/tcp.h>
 

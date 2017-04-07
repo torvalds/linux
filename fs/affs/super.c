@@ -16,6 +16,7 @@
 #include <linux/parser.h>
 #include <linux/magic.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/slab.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>

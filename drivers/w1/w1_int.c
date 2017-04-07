@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/export.h>
 #include <linux/moduleparam.h>
 

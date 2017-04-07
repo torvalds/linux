@@ -588,8 +588,7 @@ static int parse_mc_ranges(struct device *dev,
 			   int *paddr_cells,
 			   int *mc_addr_cells,
 			   int *mc_size_cells,
-			   const __be32 **ranges_start,
-			   u8 *num_ranges)
+			   const __be32 **ranges_start)
 {
 	const __be32 *prop;
 	int range_tuple_cell_count;
@@ -602,8 +601,6 @@ static int parse_mc_ranges(struct device *dev,
 		dev_warn(dev,
 			 "missing or empty ranges property for device tree node '%s'\n",
 			 mc_node->name);
-
-		*num_ranges = 0;
 		return 0;
 	}
 
@@ -630,8 +627,7 @@ static int parse_mc_ranges(struct device *dev,
 		return -EINVAL;
 	}
 
-	*num_ranges = ranges_len / tuple_len;
-	return 0;
+	return ranges_len / tuple_len;
 }
 
 static int get_mc_addr_translation_ranges(struct device *dev,
@@ -639,7 +635,7 @@ static int get_mc_addr_translation_ranges(struct device *dev,
 						**ranges,
 					  u8 *num_ranges)
 {
-	int error;
+	int ret;
 	int paddr_cells;
 	int mc_addr_cells;
 	int mc_size_cells;
@@ -647,16 +643,16 @@ static int get_mc_addr_translation_ranges(struct device *dev,
 	const __be32 *ranges_start;
 	const __be32 *cell;
 
-	error = parse_mc_ranges(dev,
+	ret = parse_mc_ranges(dev,
 				&paddr_cells,
 				&mc_addr_cells,
 				&mc_size_cells,
-				&ranges_start,
-				num_ranges);
-	if (error < 0)
-		return error;
+				&ranges_start);
+	if (ret < 0)
+		return ret;
 
-	if (!(*num_ranges)) {
+	*num_ranges = ret;
+	if (!ret) {
 		/*
 		 * Missing or empty ranges property ("ranges;") for the
 		 * 'fsl,qoriq-mc' node. In this case, identity mapping

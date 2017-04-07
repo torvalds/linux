@@ -1714,8 +1714,8 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 				if (!ret)
 					continue;
 
-				btrfs_drop_extent_cache(inode, key.offset, end,
-							1);
+				btrfs_drop_extent_cache(BTRFS_I(inode),
+						key.offset,	end, 1);
 				unlock_extent(&BTRFS_I(inode)->io_tree,
 					      key.offset, end);
 			}
@@ -2130,7 +2130,7 @@ static int invalidate_extent_cache(struct btrfs_root *root,
 
 		/* the lock_extent waits for readpage to complete */
 		lock_extent(&BTRFS_I(inode)->io_tree, start, end);
-		btrfs_drop_extent_cache(inode, start, end, 1);
+		btrfs_drop_extent_cache(BTRFS_I(inode), start, end, 1);
 		unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
 	}
 	return 0;
@@ -3161,7 +3161,7 @@ int setup_extent_mapping(struct inode *inode, u64 start, u64 end,
 			free_extent_map(em);
 			break;
 		}
-		btrfs_drop_extent_cache(inode, start, end, 0);
+		btrfs_drop_extent_cache(BTRFS_I(inode), start, end, 0);
 	}
 	unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
 	return ret;
@@ -3203,7 +3203,8 @@ static int relocate_file_extent_cluster(struct inode *inode,
 	index = (cluster->start - offset) >> PAGE_SHIFT;
 	last_index = (cluster->end - offset) >> PAGE_SHIFT;
 	while (index <= last_index) {
-		ret = btrfs_delalloc_reserve_metadata(inode, PAGE_SIZE);
+		ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode),
+				PAGE_SIZE);
 		if (ret)
 			goto out;
 
@@ -3215,7 +3216,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 			page = find_or_create_page(inode->i_mapping, index,
 						   mask);
 			if (!page) {
-				btrfs_delalloc_release_metadata(inode,
+				btrfs_delalloc_release_metadata(BTRFS_I(inode),
 							PAGE_SIZE);
 				ret = -ENOMEM;
 				goto out;
@@ -3234,7 +3235,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 			if (!PageUptodate(page)) {
 				unlock_page(page);
 				put_page(page);
-				btrfs_delalloc_release_metadata(inode,
+				btrfs_delalloc_release_metadata(BTRFS_I(inode),
 							PAGE_SIZE);
 				ret = -EIO;
 				goto out;
@@ -4245,7 +4246,7 @@ struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	BUG_ON(IS_ERR(inode) || is_bad_inode(inode));
 	BTRFS_I(inode)->index_cnt = group->key.objectid;
 
-	err = btrfs_orphan_add(trans, inode);
+	err = btrfs_orphan_add(trans, BTRFS_I(inode));
 out:
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);

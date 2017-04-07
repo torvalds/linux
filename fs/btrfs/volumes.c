@@ -1725,7 +1725,7 @@ out:
  * Function to update ctime/mtime for a given device path.
  * Mainly used for ctime/mtime based probe like libblkid.
  */
-static void update_dev_time(char *path_name)
+static void update_dev_time(const char *path_name)
 {
 	struct file *filp;
 
@@ -1851,7 +1851,8 @@ void btrfs_assign_next_active_device(struct btrfs_fs_info *fs_info,
 		fs_info->fs_devices->latest_bdev = next_device->bdev;
 }
 
-int btrfs_rm_device(struct btrfs_fs_info *fs_info, char *device_path, u64 devid)
+int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
+		u64 devid)
 {
 	struct btrfs_device *device;
 	struct btrfs_fs_devices *cur_devices;
@@ -2091,7 +2092,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 }
 
 static int btrfs_find_device_by_path(struct btrfs_fs_info *fs_info,
-				     char *device_path,
+				     const char *device_path,
 				     struct btrfs_device **device)
 {
 	int ret = 0;
@@ -2118,7 +2119,7 @@ static int btrfs_find_device_by_path(struct btrfs_fs_info *fs_info,
 }
 
 int btrfs_find_device_missing_or_by_path(struct btrfs_fs_info *fs_info,
-					 char *device_path,
+					 const char *device_path,
 					 struct btrfs_device **device)
 {
 	*device = NULL;
@@ -2151,7 +2152,8 @@ int btrfs_find_device_missing_or_by_path(struct btrfs_fs_info *fs_info,
  * Lookup a device given by device id, or the path if the id is 0.
  */
 int btrfs_find_device_by_devspec(struct btrfs_fs_info *fs_info, u64 devid,
-				 char *devpath, struct btrfs_device **device)
+				 const char *devpath,
+				 struct btrfs_device **device)
 {
 	int ret;
 
@@ -2307,7 +2309,7 @@ error:
 	return ret;
 }
 
-int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *device_path)
+int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path)
 {
 	struct btrfs_root *root = fs_info->dev_root;
 	struct request_queue *q;
@@ -2515,7 +2517,7 @@ error:
 }
 
 int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
-				  char *device_path,
+				  const char *device_path,
 				  struct btrfs_device *srcdev,
 				  struct btrfs_device **device_out)
 {
@@ -6954,7 +6956,8 @@ static int update_dev_stat_item(struct btrfs_trans_handle *trans,
 	key.offset = device->devid;
 
 	path = btrfs_alloc_path();
-	BUG_ON(!path);
+	if (!path)
+		return -ENOMEM;
 	ret = btrfs_search_slot(trans, dev_root, &key, path, -1, 1);
 	if (ret < 0) {
 		btrfs_warn_in_rcu(fs_info,
@@ -7102,7 +7105,7 @@ int btrfs_get_dev_stats(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-void btrfs_scratch_superblocks(struct block_device *bdev, char *device_path)
+void btrfs_scratch_superblocks(struct block_device *bdev, const char *device_path)
 {
 	struct buffer_head *bh;
 	struct btrfs_super_block *disk_super;

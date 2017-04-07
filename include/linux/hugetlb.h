@@ -122,7 +122,7 @@ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
 struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
 				pud_t *pud, int flags);
 int pmd_huge(pmd_t pmd);
-int pud_huge(pud_t pmd);
+int pud_huge(pud_t pud);
 unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
 		unsigned long address, unsigned long end, pgprot_t newprot);
 
@@ -196,6 +196,9 @@ static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
  */
 #ifndef pgd_huge
 #define pgd_huge(x)	0
+#endif
+#ifndef p4d_huge
+#define p4d_huge(x)	0
 #endif
 
 #ifndef pgd_write

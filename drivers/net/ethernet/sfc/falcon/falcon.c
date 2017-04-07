@@ -16,6 +16,8 @@
 #include <linux/i2c.h>
 #include <linux/mii.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
+
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"

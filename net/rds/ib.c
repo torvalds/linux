@@ -45,8 +45,8 @@
 #include "ib.h"
 #include "ib_mr.h"
 
-unsigned int rds_ib_mr_1m_pool_size = RDS_MR_1M_POOL_SIZE;
-unsigned int rds_ib_mr_8k_pool_size = RDS_MR_8K_POOL_SIZE;
+static unsigned int rds_ib_mr_1m_pool_size = RDS_MR_1M_POOL_SIZE;
+static unsigned int rds_ib_mr_8k_pool_size = RDS_MR_8K_POOL_SIZE;
 unsigned int rds_ib_retry_count = RDS_IB_DEFAULT_RETRY_COUNT;
 
 module_param(rds_ib_mr_1m_pool_size, int, 0444);
@@ -438,16 +438,12 @@ int rds_ib_init(void)
 	if (ret)
 		goto out_sysctl;
 
-	ret = rds_trans_register(&rds_ib_transport);
-	if (ret)
-		goto out_recv;
+	rds_trans_register(&rds_ib_transport);
 
 	rds_info_register_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
 
 	goto out;
 
-out_recv:
-	rds_ib_recv_exit();
 out_sysctl:
 	rds_ib_sysctl_exit();
 out_ibreg:

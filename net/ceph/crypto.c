@@ -8,6 +8,7 @@
 #include <crypto/aes.h>
 #include <crypto/skcipher.h>
 #include <linux/key-type.h>
+#include <linux/sched/mm.h>
 
 #include <keys/ceph-type.h>
 #include <keys/user-type.h>

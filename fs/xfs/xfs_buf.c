@@ -33,6 +33,7 @@
 #include <linux/migrate.h>
 #include <linux/backing-dev.h>
 #include <linux/freezer.h>
+#include <linux/sched/mm.h>
 
 #include "xfs_format.h"
 #include "xfs_log_format.h"

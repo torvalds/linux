@@ -80,6 +80,7 @@ config SUN6I_A31_CCU
 	select SUNXI_CCU_DIV
 	select SUNXI_CCU_NK
 	select SUNXI_CCU_NKM
+	select SUNXI_CCU_NKMP
 	select SUNXI_CCU_NM
 	select SUNXI_CCU_MP
 	select SUNXI_CCU_PHASE

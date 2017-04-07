@@ -17,7 +17,7 @@
 #include <linux/sysctl.h>
 #include <linux/moduleparam.h>
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/uio.h>

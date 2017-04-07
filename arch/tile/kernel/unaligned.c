@@ -17,6 +17,8 @@
 #include <linux/smp.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
 #include <linux/thread_info.h>
 #include <linux/uaccess.h>
 #include <linux/mman.h>

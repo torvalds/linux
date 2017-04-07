@@ -10,6 +10,7 @@
  *  (C) 1991  Linus Torvalds - minix filesystem
  */
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/gfp.h>
 #include "affs.h"
 

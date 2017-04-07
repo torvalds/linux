@@ -5,6 +5,9 @@
 #include <linux/sort.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task.h>
+#include <linux/magic.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/delayacct.h>
@@ -1326,7 +1329,7 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 		struct task_struct *task;
 		int count = 0;
 
-		seq_printf(seq, "css_set %p\n", cset);
+		seq_printf(seq, "css_set %pK\n", cset);
 
 		list_for_each_entry(task, &cset->tasks, cg_list) {
 			if (count++ > MAX_TASKS_SHOWN_PER_CSS)

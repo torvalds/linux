@@ -132,10 +132,6 @@ static int exynos5440_pcie_get_mem_resources(struct platform_device *pdev,
 	struct device *dev = pci->dev;
 	struct resource *res;
 
-	/* If using the PHY framework, doesn't need to get other resource */
-	if (ep->using_phy)
-		return 0;
-
 	ep->mem_res = devm_kzalloc(dev, sizeof(*ep->mem_res), GFP_KERNEL);
 	if (!ep->mem_res)
 		return -ENOMEM;
@@ -144,6 +140,10 @@ static int exynos5440_pcie_get_mem_resources(struct platform_device *pdev,
 	ep->mem_res->elbi_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ep->mem_res->elbi_base))
 		return PTR_ERR(ep->mem_res->elbi_base);
+
+	/* If using the PHY framework, doesn't need to get other resource */
+	if (ep->using_phy)
+		return 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	ep->mem_res->phy_base = devm_ioremap_resource(dev, res);
@@ -668,6 +668,7 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
 
+	ep->pci = pci;
 	ep->ops = (const struct exynos_pcie_ops *)
 		of_device_get_match_data(dev);
 

@@ -21,13 +21,12 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/hrtimer.h>
 #include <linux/init.h>
-#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/reboot.h>
-#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
 
@@ -54,7 +53,10 @@ module_param(soft_panic, int, 0);
 MODULE_PARM_DESC(soft_panic,
 	"Softdog action, set to 1 to panic, 0 to reboot (default=0)");
 
-static void softdog_fire(unsigned long data)
+static struct hrtimer softdog_ticktock;
+static struct hrtimer softdog_preticktock;
+
+static enum hrtimer_restart softdog_fire(struct hrtimer *timer)
 {
 	module_put(THIS_MODULE);
 	if (soft_noboot) {
@@ -67,32 +69,33 @@ static void softdog_fire(unsigned long data)
 		emergency_restart();
 		pr_crit("Reboot didn't ?????\n");
 	}
-}
 
-static struct timer_list softdog_ticktock =
-		TIMER_INITIALIZER(softdog_fire, 0, 0);
+	return HRTIMER_NORESTART;
+}
 
 static struct watchdog_device softdog_dev;
 
-static void softdog_pretimeout(unsigned long data)
+static enum hrtimer_restart softdog_pretimeout(struct hrtimer *timer)
 {
 	watchdog_notify_pretimeout(&softdog_dev);
-}
 
-static struct timer_list softdog_preticktock =
-		TIMER_INITIALIZER(softdog_pretimeout, 0, 0);
+	return HRTIMER_NORESTART;
+}
 
 static int softdog_ping(struct watchdog_device *w)
 {
-	if (!mod_timer(&softdog_ticktock, jiffies + (w->timeout * HZ)))
+	if (!hrtimer_active(&softdog_ticktock))
 		__module_get(THIS_MODULE);
+	hrtimer_start(&softdog_ticktock, ktime_set(w->timeout, 0),
+		      HRTIMER_MODE_REL);
 
 	if (IS_ENABLED(CONFIG_SOFT_WATCHDOG_PRETIMEOUT)) {
 		if (w->pretimeout)
-			mod_timer(&softdog_preticktock, jiffies +
-				  (w->timeout - w->pretimeout) * HZ);
+			hrtimer_start(&softdog_preticktock,
+				      ktime_set(w->timeout - w->pretimeout, 0),
+				      HRTIMER_MODE_REL);
 		else
-			del_timer(&softdog_preticktock);
+			hrtimer_cancel(&softdog_preticktock);
 	}
 
 	return 0;
@@ -100,11 +103,11 @@ static int softdog_ping(struct watchdog_device *w)
 
 static int softdog_stop(struct watchdog_device *w)
 {
-	if (del_timer(&softdog_ticktock))
+	if (hrtimer_cancel(&softdog_ticktock))
 		module_put(THIS_MODULE);
 
 	if (IS_ENABLED(CONFIG_SOFT_WATCHDOG_PRETIMEOUT))
-		del_timer(&softdog_preticktock);
+		hrtimer_cancel(&softdog_preticktock);
 
 	return 0;
 }
@@ -136,8 +139,15 @@ static int __init softdog_init(void)
 	watchdog_set_nowayout(&softdog_dev, nowayout);
 	watchdog_stop_on_reboot(&softdog_dev);
 
-	if (IS_ENABLED(CONFIG_SOFT_WATCHDOG_PRETIMEOUT))
+	hrtimer_init(&softdog_ticktock, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	softdog_ticktock.function = softdog_fire;
+
+	if (IS_ENABLED(CONFIG_SOFT_WATCHDOG_PRETIMEOUT)) {
 		softdog_info.options |= WDIOF_PRETIMEOUT;
+		hrtimer_init(&softdog_preticktock, CLOCK_MONOTONIC,
+			     HRTIMER_MODE_REL);
+		softdog_preticktock.function = softdog_pretimeout;
+	}
 
 	ret = watchdog_register_device(&softdog_dev);
 	if (ret)

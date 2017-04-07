@@ -11,6 +11,8 @@
 
 #include <linux/net.h>
 #include <linux/rcupdate.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 
 #include "smc.h"

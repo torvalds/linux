@@ -18,6 +18,7 @@
  */
 #include <linux/sched.h>
 #include <linux/sched/rt.h>
+#include <linux/sched/debug.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>

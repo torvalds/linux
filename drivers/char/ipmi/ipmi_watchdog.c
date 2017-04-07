@@ -53,6 +53,7 @@
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
+#include <linux/sched/signal.h>
 
 #ifdef CONFIG_X86
 /*

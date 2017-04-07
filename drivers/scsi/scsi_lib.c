@@ -213,10 +213,30 @@ void scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 	__scsi_queue_insert(cmd, reason, 1);
 }
 
-static int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
+
+/**
+ * scsi_execute - insert request and wait for the result
+ * @sdev:	scsi device
+ * @cmd:	scsi command
+ * @data_direction: data direction
+ * @buffer:	data buffer
+ * @bufflen:	len of buffer
+ * @sense:	optional sense buffer
+ * @sshdr:	optional decoded sense header
+ * @timeout:	request timeout in seconds
+ * @retries:	number of times to retry request
+ * @flags:	flags for ->cmd_flags
+ * @rq_flags:	flags for ->rq_flags
+ * @resid:	optional residual length
+ *
+ * returns the req->errors value which is the scsi_cmnd result
+ * field.
+ */
+int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
-		 unsigned char *sense, int timeout, int retries, u64 flags,
-		 req_flags_t rq_flags, int *resid)
+		 unsigned char *sense, struct scsi_sense_hdr *sshdr,
+		 int timeout, int retries, u64 flags, req_flags_t rq_flags,
+		 int *resid)
 {
 	struct request *req;
 	struct scsi_request *rq;
@@ -259,61 +279,15 @@ static int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		*resid = rq->resid_len;
 	if (sense && rq->sense_len)
 		memcpy(sense, rq->sense, SCSI_SENSE_BUFFERSIZE);
+	if (sshdr)
+		scsi_normalize_sense(rq->sense, rq->sense_len, sshdr);
 	ret = req->errors;
  out:
 	blk_put_request(req);
 
 	return ret;
 }
-
-/**
- * scsi_execute - insert request and wait for the result
- * @sdev:	scsi device
- * @cmd:	scsi command
- * @data_direction: data direction
- * @buffer:	data buffer
- * @bufflen:	len of buffer
- * @sense:	optional sense buffer
- * @timeout:	request timeout in seconds
- * @retries:	number of times to retry request
- * @flags:	or into request flags;
- * @resid:	optional residual length
- *
- * returns the req->errors value which is the scsi_cmnd result
- * field.
- */
-int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
-		 int data_direction, void *buffer, unsigned bufflen,
-		 unsigned char *sense, int timeout, int retries, u64 flags,
-		 int *resid)
-{
-	return __scsi_execute(sdev, cmd, data_direction, buffer, bufflen, sense,
-			timeout, retries, flags, 0, resid);
-}
 EXPORT_SYMBOL(scsi_execute);
-
-int scsi_execute_req_flags(struct scsi_device *sdev, const unsigned char *cmd,
-		     int data_direction, void *buffer, unsigned bufflen,
-		     struct scsi_sense_hdr *sshdr, int timeout, int retries,
-		     int *resid, u64 flags, req_flags_t rq_flags)
-{
-	char *sense = NULL;
-	int result;
-	
-	if (sshdr) {
-		sense = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_NOIO);
-		if (!sense)
-			return DRIVER_ERROR << 24;
-	}
-	result = __scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
-			      sense, timeout, retries, flags, rq_flags, resid);
-	if (sshdr)
-		scsi_normalize_sense(sense, SCSI_SENSE_BUFFERSIZE, sshdr);
-
-	kfree(sense);
-	return result;
-}
-EXPORT_SYMBOL(scsi_execute_req_flags);
 
 /*
  * Function:    scsi_init_cmd_errh()
@@ -2231,6 +2205,29 @@ void scsi_mq_destroy_tags(struct Scsi_Host *shost)
 	blk_mq_free_tag_set(&shost->tag_set);
 }
 
+/**
+ * scsi_device_from_queue - return sdev associated with a request_queue
+ * @q: The request queue to return the sdev from
+ *
+ * Return the sdev associated with a request queue or NULL if the
+ * request_queue does not reference a SCSI device.
+ */
+struct scsi_device *scsi_device_from_queue(struct request_queue *q)
+{
+	struct scsi_device *sdev = NULL;
+
+	if (q->mq_ops) {
+		if (q->mq_ops == &scsi_mq_ops)
+			sdev = q->queuedata;
+	} else if (q->request_fn == scsi_request_fn)
+		sdev = q->queuedata;
+	if (!sdev || !get_device(&sdev->sdev_gendev))
+		sdev = NULL;
+
+	return sdev;
+}
+EXPORT_SYMBOL_GPL(scsi_device_from_queue);
+
 /*
  * Function:    scsi_block_requests()
  *
@@ -2497,27 +2494,19 @@ EXPORT_SYMBOL(scsi_mode_sense);
  *	@sdev:	scsi device to change the state of.
  *	@timeout: command timeout
  *	@retries: number of retries before failing
- *	@sshdr_external: Optional pointer to struct scsi_sense_hdr for
- *		returning sense. Make sure that this is cleared before passing
- *		in.
+ *	@sshdr: outpout pointer for decoded sense information.
  *
  *	Returns zero if unsuccessful or an error if TUR failed.  For
  *	removable media, UNIT_ATTENTION sets ->changed flag.
  **/
 int
 scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
-		     struct scsi_sense_hdr *sshdr_external)
+		     struct scsi_sense_hdr *sshdr)
 {
 	char cmd[] = {
 		TEST_UNIT_READY, 0, 0, 0, 0, 0,
 	};
-	struct scsi_sense_hdr *sshdr;
 	int result;
-
-	if (!sshdr_external)
-		sshdr = kzalloc(sizeof(*sshdr), GFP_KERNEL);
-	else
-		sshdr = sshdr_external;
 
 	/* try to eat the UNIT_ATTENTION if there are enough retries */
 	do {
@@ -2529,8 +2518,6 @@ scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
 	} while (scsi_sense_valid(sshdr) &&
 		 sshdr->sense_key == UNIT_ATTENTION && --retries);
 
-	if (!sshdr_external)
-		kfree(sshdr);
 	return result;
 }
 EXPORT_SYMBOL(scsi_test_unit_ready);
@@ -2945,6 +2932,8 @@ EXPORT_SYMBOL(scsi_target_resume);
 /**
  * scsi_internal_device_block - internal function to put a device temporarily into the SDEV_BLOCK state
  * @sdev:	device to block
+ * @wait:	Whether or not to wait until ongoing .queuecommand() /
+ *		.queue_rq() calls have finished.
  *
  * Block request made by scsi lld's to temporarily stop all
  * scsi commands on the specified device. May sleep.
@@ -2962,7 +2951,7 @@ EXPORT_SYMBOL(scsi_target_resume);
  * remove the rport mutex lock and unlock calls from srp_queuecommand().
  */
 int
-scsi_internal_device_block(struct scsi_device *sdev)
+scsi_internal_device_block(struct scsi_device *sdev, bool wait)
 {
 	struct request_queue *q = sdev->request_queue;
 	unsigned long flags;
@@ -2982,12 +2971,16 @@ scsi_internal_device_block(struct scsi_device *sdev)
 	 * request queue. 
 	 */
 	if (q->mq_ops) {
-		blk_mq_quiesce_queue(q);
+		if (wait)
+			blk_mq_quiesce_queue(q);
+		else
+			blk_mq_stop_hw_queues(q);
 	} else {
 		spin_lock_irqsave(q->queue_lock, flags);
 		blk_stop_queue(q);
 		spin_unlock_irqrestore(q->queue_lock, flags);
-		scsi_wait_for_queuecommand(sdev);
+		if (wait)
+			scsi_wait_for_queuecommand(sdev);
 	}
 
 	return 0;
@@ -3049,7 +3042,7 @@ EXPORT_SYMBOL_GPL(scsi_internal_device_unblock);
 static void
 device_block(struct scsi_device *sdev, void *data)
 {
-	scsi_internal_device_block(sdev);
+	scsi_internal_device_block(sdev, true);
 }
 
 static int

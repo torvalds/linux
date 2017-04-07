@@ -1,6 +1,6 @@
 #include "cgroup-internal.h"
 
-#include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/slab.h>
 #include <linux/nsproxy.h>
 #include <linux/proc_ns.h>

@@ -123,25 +123,21 @@ static int spi_execute(struct scsi_device *sdev, const void *cmd,
 {
 	int i, result;
 	unsigned char sense[SCSI_SENSE_BUFFERSIZE];
+	struct scsi_sense_hdr sshdr_tmp;
+
+	if (!sshdr)
+		sshdr = &sshdr_tmp;
 
 	for(i = 0; i < DV_RETRIES; i++) {
-		result = scsi_execute(sdev, cmd, dir, buffer, bufflen,
-				      sense, DV_TIMEOUT, /* retries */ 1,
+		result = scsi_execute(sdev, cmd, dir, buffer, bufflen, sense,
+				      sshdr, DV_TIMEOUT, /* retries */ 1,
 				      REQ_FAILFAST_DEV |
 				      REQ_FAILFAST_TRANSPORT |
 				      REQ_FAILFAST_DRIVER,
-				      NULL);
-		if (driver_byte(result) & DRIVER_SENSE) {
-			struct scsi_sense_hdr sshdr_tmp;
-			if (!sshdr)
-				sshdr = &sshdr_tmp;
-
-			if (scsi_normalize_sense(sense, SCSI_SENSE_BUFFERSIZE,
-						 sshdr)
-			    && sshdr->sense_key == UNIT_ATTENTION)
-				continue;
-		}
-		break;
+				      0, NULL);
+		if (!(driver_byte(result) & DRIVER_SENSE) ||
+		    sshdr->sense_key != UNIT_ATTENTION)
+			break;
 	}
 	return result;
 }

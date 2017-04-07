@@ -1536,7 +1536,7 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 
 	down_read(&key->sem);
 
-	ukp = user_key_payload(key);
+	ukp = user_key_payload_locked(key);
 	if (!ukp) {
 		up_read(&key->sem);
 		key_put(key);

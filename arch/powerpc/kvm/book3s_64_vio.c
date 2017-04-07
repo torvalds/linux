@@ -24,6 +24,7 @@
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/hugetlb.h>
 #include <linux/list.h>
 #include <linux/anon_inodes.h>

@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/ioctl.h>
 #include <linux/uaccess.h>
 #include <linux/pm_qos.h>

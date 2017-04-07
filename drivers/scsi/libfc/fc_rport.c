@@ -65,6 +65,8 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/export.h>
+#include <linux/rculist.h>
+
 #include <asm/unaligned.h>
 
 #include <scsi/libfc.h>

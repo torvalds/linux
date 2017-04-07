@@ -32,9 +32,10 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/smp.h>
-#include <linux/rcupdate.h>
+#include <linux/rcupdate_wait.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/nmi.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
@@ -49,6 +50,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/wait.h>
 #include <linux/kthread.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/prefetch.h>
 #include <linux/delay.h>
 #include <linux/stop_machine.h>

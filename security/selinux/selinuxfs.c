@@ -46,7 +46,8 @@ static char *policycap_names[] = {
 	"network_peer_controls",
 	"open_perms",
 	"extended_socket_class",
-	"always_check_network"
+	"always_check_network",
+	"cgroup_seclabel"
 };
 
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;

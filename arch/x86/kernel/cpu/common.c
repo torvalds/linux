@@ -7,7 +7,9 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/clock.h>
+#include <linux/sched/task.h>
 #include <linux/init.h>
 #include <linux/kprobes.h>
 #include <linux/kgdb.h>
@@ -86,7 +88,6 @@ static void default_init(struct cpuinfo_x86 *c)
 			strcpy(c->x86_model_id, "386");
 	}
 #endif
-	clear_sched_clock_stable();
 }
 
 static const struct cpu_dev default_cpu = {
@@ -1075,8 +1076,6 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	 */
 	if (this_cpu->c_init)
 		this_cpu->c_init(c);
-	else
-		clear_sched_clock_stable();
 
 	/* Disable the PN if appropriate */
 	squash_the_stupid_serial_number(c);

@@ -60,11 +60,10 @@ static bool nft_rbtree_lookup(const struct net *net, const struct nft_set *set,
 		d = memcmp(this, key, set->klen);
 		if (d < 0) {
 			parent = parent->rb_left;
-			/* In case of adjacent ranges, we always see the high
-			 * part of the range in first place, before the low one.
-			 * So don't update interval if the keys are equal.
-			 */
-			if (interval && nft_rbtree_equal(set, this, interval))
+			if (interval &&
+			    nft_rbtree_equal(set, this, interval) &&
+			    nft_rbtree_interval_end(this) &&
+			    !nft_rbtree_interval_end(interval))
 				continue;
 			interval = rbe;
 		} else if (d > 0)

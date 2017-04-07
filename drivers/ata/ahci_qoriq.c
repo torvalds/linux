@@ -177,7 +177,8 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 	case AHCI_LS1043A:
 		if (!qpriv->ecc_addr)
 			return -EINVAL;
-		writel(ECC_DIS_ARMV8_CH2, qpriv->ecc_addr);
+		writel(readl(qpriv->ecc_addr) | ECC_DIS_ARMV8_CH2,
+				qpriv->ecc_addr);
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
 		if (qpriv->is_dmacoherent)
@@ -194,7 +195,8 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 	case AHCI_LS1046A:
 		if (!qpriv->ecc_addr)
 			return -EINVAL;
-		writel(ECC_DIS_ARMV8_CH2, qpriv->ecc_addr);
+		writel(readl(qpriv->ecc_addr) | ECC_DIS_ARMV8_CH2,
+				qpriv->ecc_addr);
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
 		if (qpriv->is_dmacoherent)

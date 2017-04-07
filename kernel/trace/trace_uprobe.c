@@ -24,6 +24,7 @@
 #include <linux/uprobes.h>
 #include <linux/namei.h>
 #include <linux/string.h>
+#include <linux/rculist.h>
 
 #include "trace_probe.h"
 

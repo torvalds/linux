@@ -8,6 +8,7 @@
 #include <linux/printk.h>
 #include <linux/security.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/namei.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -801,9 +802,10 @@ static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 	return 0;
 }
 
-static int proc_sys_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+static int proc_sys_getattr(const struct path *path, struct kstat *stat,
+			    u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 

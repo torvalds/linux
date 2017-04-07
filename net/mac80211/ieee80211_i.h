@@ -428,7 +428,7 @@ struct ieee80211_sta_tx_tspec {
 	bool downgraded;
 };
 
-DECLARE_EWMA(beacon_signal, 16, 4)
+DECLARE_EWMA(beacon_signal, 4, 4)
 
 struct ieee80211_if_managed {
 	struct timer_list timer;

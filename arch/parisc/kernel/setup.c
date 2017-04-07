@@ -37,6 +37,7 @@
 #include <linux/proc_fs.h>
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 
 #include <asm/processor.h>
 #include <asm/sections.h>

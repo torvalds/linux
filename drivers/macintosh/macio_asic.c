@@ -392,6 +392,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	 * To get all the fields, copy all archdata
 	 */
 	dev->ofdev.dev.archdata = chip->lbus.pdev->dev.archdata;
+	dev->ofdev.dev.dma_ops = chip->lbus.pdev->dev.dma_ops;
 #endif /* CONFIG_PCI */
 
 #ifdef DEBUG

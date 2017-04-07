@@ -475,7 +475,7 @@ static int aac_rx_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 {
 	u32 var = 0;
 
-	if (!(dev->supplement_adapter_info.SupportedOptions2 &
+	if (!(dev->supplement_adapter_info.supported_options2 &
 	  AAC_OPTION_MU_RESET) || (bled >= 0) || (bled == -2)) {
 		if (bled)
 			printk(KERN_ERR "%s%d: adapter kernel panic'd %x.\n",

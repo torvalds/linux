@@ -12,7 +12,7 @@
 #include <linux/notifier.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
-#include <linux/cputime.h>
+#include <linux/sched/cputime.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include "entry.h"

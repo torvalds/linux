@@ -33,6 +33,8 @@
 #include "xfs_trace.h"
 #include "xfs_attr_sf.h"
 #include "xfs_da_format.h"
+#include "xfs_da_btree.h"
+#include "xfs_dir2_priv.h"
 
 kmem_zone_t *xfs_ifork_zone;
 
@@ -210,6 +212,16 @@ xfs_iformat_fork(
 	if (error)
 		return error;
 
+	/* Check inline dir contents. */
+	if (S_ISDIR(VFS_I(ip)->i_mode) &&
+	    dip->di_format == XFS_DINODE_FMT_LOCAL) {
+		error = xfs_dir2_sf_verify(ip);
+		if (error) {
+			xfs_idestroy_fork(ip, XFS_DATA_FORK);
+			return error;
+		}
+	}
+
 	if (xfs_is_reflink_inode(ip)) {
 		ASSERT(ip->i_cowfp == NULL);
 		xfs_ifork_init_cow(ip);
@@ -320,7 +332,6 @@ xfs_iformat_local(
 	int		whichfork,
 	int		size)
 {
-
 	/*
 	 * If the size is unreasonable, then something
 	 * is wrong and we just bail out rather than crash in

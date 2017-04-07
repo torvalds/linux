@@ -44,6 +44,7 @@
 
 #ifdef __KERNEL__
 # include <linux/quota.h>
+# include <linux/sched/signal.h>
 # include <linux/string.h> /* snprintf() */
 # include <linux/version.h>
 #else /* !__KERNEL__ */

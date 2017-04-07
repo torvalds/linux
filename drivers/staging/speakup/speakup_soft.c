@@ -22,7 +22,7 @@
 #include <linux/unistd.h>
 #include <linux/miscdevice.h>	/* for misc_register, and SYNTH_MINOR */
 #include <linux/poll.h>		/* for poll_wait() */
-#include <linux/sched.h> /* schedule(), signal_pending(), TASK_INTERRUPTIBLE */
+#include <linux/sched/signal.h> /* schedule(), signal_pending(), TASK_INTERRUPTIBLE */
 
 #include "spk_priv.h"
 #include "speakup.h"

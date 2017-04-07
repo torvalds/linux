@@ -1603,13 +1603,21 @@ static size_t sizeof_nfit_set_info(int num_mappings)
 		+ num_mappings * sizeof(struct nfit_set_info_map);
 }
 
-static int cmp_map(const void *m0, const void *m1)
+static int cmp_map_compat(const void *m0, const void *m1)
 {
 	const struct nfit_set_info_map *map0 = m0;
 	const struct nfit_set_info_map *map1 = m1;
 
 	return memcmp(&map0->region_offset, &map1->region_offset,
 			sizeof(u64));
+}
+
+static int cmp_map(const void *m0, const void *m1)
+{
+	const struct nfit_set_info_map *map0 = m0;
+	const struct nfit_set_info_map *map1 = m1;
+
+	return map0->region_offset - map1->region_offset;
 }
 
 /* Retrieve the nth entry referencing this spa */
@@ -1667,6 +1675,12 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 	sort(&info->mapping[0], nr, sizeof(struct nfit_set_info_map),
 			cmp_map, NULL);
 	nd_set->cookie = nd_fletcher64(info, sizeof_nfit_set_info(nr), 0);
+
+	/* support namespaces created with the wrong sort order */
+	sort(&info->mapping[0], nr, sizeof(struct nfit_set_info_map),
+			cmp_map_compat, NULL);
+	nd_set->altcookie = nd_fletcher64(info, sizeof_nfit_set_info(nr), 0);
+
 	ndr_desc->nd_set = nd_set;
 	devm_kfree(dev, info);
 

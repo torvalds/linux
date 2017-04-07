@@ -34,6 +34,7 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/string.h>
@@ -57,7 +58,7 @@
 #include <linux/clk-provider.h>
 #include <linux/suspend.h>
 #include <linux/rtc.h>
-#include <linux/cputime.h>
+#include <linux/sched/cputime.h>
 #include <asm/trace.h>
 
 #include <asm/io.h>

@@ -19,6 +19,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/syscalls.h>
 #include <linux/fs.h>
 #include <linux/iomap.h>

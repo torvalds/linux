@@ -5,6 +5,9 @@
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/sched.h>
+#include <linux/workqueue.h>
+#include <linux/rwsem.h>
+#include <linux/sysctl.h>
 #include <linux/err.h>
 
 #define UID_GID_MAP_MAX_EXTENTS 5
@@ -69,7 +72,7 @@ struct ucounts {
 	struct hlist_node node;
 	struct user_namespace *ns;
 	kuid_t uid;
-	atomic_t count;
+	int count;
 	atomic_t ucount[UCOUNT_COUNTS];
 };
 

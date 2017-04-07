@@ -19,7 +19,6 @@
 #include <linux/ktime.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/wait.h>
 #include <linux/percpu.h>
 #include <linux/timer.h>
 #include <linux/timerqueue.h>

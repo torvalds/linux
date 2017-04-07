@@ -19,7 +19,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/ioctl.h>
 #include <linux/fs.h>
@@ -436,6 +436,8 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 		return -ERESTARTSYS;
 
 	ir = irctls[iminor(inode)];
+	mutex_unlock(&lirc_dev_lock);
+
 	if (!ir) {
 		retval = -ENODEV;
 		goto error;
@@ -476,8 +478,6 @@ int lirc_dev_fop_open(struct inode *inode, struct file *file)
 	}
 
 error:
-	mutex_unlock(&lirc_dev_lock);
-
 	nonseekable_open(inode, file);
 
 	return retval;

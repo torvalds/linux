@@ -4,6 +4,7 @@
 #include <linux/bitops.h>
 #include <linux/smp.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/thread_info.h>
 #include <linux/init.h>
 #include <linux/uaccess.h>
@@ -161,10 +162,6 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
-		if (check_tsc_unstable())
-			clear_sched_clock_stable();
-	} else {
-		clear_sched_clock_stable();
 	}
 
 	/* Penwell and Cloverview have the TSC which doesn't sleep on S3 */

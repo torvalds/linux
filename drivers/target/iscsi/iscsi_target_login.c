@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/kthread.h>
+#include <linux/sched/signal.h>
 #include <linux/idr.h>
 #include <linux/tcp.h>        /* TCP_NODELAY */
 #include <net/ipv6.h>         /* ipv6_addr_v4mapped() */
@@ -223,7 +224,7 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 		return 0;
 
 	pr_debug("%s iSCSI Session SID %u is still active for %s,"
-		" preforming session reinstatement.\n", (sessiontype) ?
+		" performing session reinstatement.\n", (sessiontype) ?
 		"Discovery" : "Normal", sess->sid,
 		sess->sess_ops->InitiatorName);
 

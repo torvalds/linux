@@ -30,6 +30,8 @@
 #include <linux/crc32.h>
 #include <linux/pagevec.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
+
 #include "nilfs.h"
 #include "btnode.h"
 #include "page.h"

@@ -561,6 +561,8 @@ struct f2fs_nm_info {
 	struct mutex build_lock;	/* lock for build free nids */
 	unsigned char (*free_nid_bitmap)[NAT_ENTRY_BITMAP_SIZE];
 	unsigned char *nat_block_bitmap;
+	unsigned short *free_nid_count;	/* free nid count of NAT block */
+	spinlock_t free_nid_lock;	/* protect updating of nid count */
 
 	/* for checkpoint */
 	char *nat_bitmap;		/* NAT bitmap pointer */
@@ -2040,8 +2042,8 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync);
 void truncate_data_blocks(struct dnode_of_data *dn);
 int truncate_blocks(struct inode *inode, u64 from, bool lock);
 int f2fs_truncate(struct inode *inode);
-int f2fs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-			struct kstat *stat);
+int f2fs_getattr(const struct path *path, struct kstat *stat,
+			u32 request_mask, unsigned int flags);
 int f2fs_setattr(struct dentry *dentry, struct iattr *attr);
 int truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end);
 int truncate_data_blocks_range(struct dnode_of_data *dn, int count);

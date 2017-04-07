@@ -23,8 +23,11 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/ioprio.h>
+#include <linux/cred.h>
 #include <linux/blkdev.h>
 #include <linux/capability.h>
+#include <linux/sched/user.h>
+#include <linux/sched/task.h>
 #include <linux/syscalls.h>
 #include <linux/security.h>
 #include <linux/pid_namespace.h>

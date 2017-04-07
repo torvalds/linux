@@ -6,6 +6,7 @@
 
 #include <linux/stddef.h>
 #include <linux/mm.h>
+#include <linux/sched/signal.h>
 #include <linux/swap.h>
 #include <linux/interrupt.h>
 #include <linux/pagemap.h>
@@ -124,9 +125,12 @@ void put_online_mems(void)
 
 }
 
+/* Serializes write accesses to mem_hotplug.active_writer. */
+static DEFINE_MUTEX(memory_add_remove_lock);
+
 void mem_hotplug_begin(void)
 {
-	assert_held_device_hotplug();
+	mutex_lock(&memory_add_remove_lock);
 
 	mem_hotplug.active_writer = current;
 
@@ -146,6 +150,7 @@ void mem_hotplug_done(void)
 	mem_hotplug.active_writer = NULL;
 	mutex_unlock(&mem_hotplug.lock);
 	memhp_lock_release();
+	mutex_unlock(&memory_add_remove_lock);
 }
 
 /* add this memory to iomem resource */

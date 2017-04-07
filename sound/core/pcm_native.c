@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/file.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/time.h>
 #include <linux/pm_qos.h>
 #include <linux/io.h>

@@ -401,10 +401,10 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 
 	if (t->param_flags & SPP_PMTUD_ENABLE) {
 		/* Update transports view of the MTU */
-		sctp_transport_update_pmtu(sk, t, pmtu);
+		sctp_transport_update_pmtu(t, pmtu);
 
 		/* Update association pmtu. */
-		sctp_assoc_sync_pmtu(sk, asoc);
+		sctp_assoc_sync_pmtu(asoc);
 	}
 
 	/* Retransmit with the new pmtu setting.
@@ -884,14 +884,17 @@ int sctp_hash_transport(struct sctp_transport *t)
 	arg.paddr = &t->ipaddr;
 	arg.lport = htons(t->asoc->base.bind_addr.port);
 
+	rcu_read_lock();
 	list = rhltable_lookup(&sctp_transport_hashtable, &arg,
 			       sctp_hash_params);
 
 	rhl_for_each_entry_rcu(transport, tmp, list, node)
 		if (transport->asoc->ep == t->asoc->ep) {
+			rcu_read_unlock();
 			err = -EEXIST;
 			goto out;
 		}
+	rcu_read_unlock();
 
 	err = rhltable_insert_key(&sctp_transport_hashtable, &arg,
 				  &t->node, sctp_hash_params);

@@ -27,6 +27,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/sched/signal.h>
 #include <sound/core.h>
 #include <sound/timer.h>
 #include <sound/control.h>

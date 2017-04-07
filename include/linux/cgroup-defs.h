@@ -531,8 +531,8 @@ extern struct percpu_rw_semaphore cgroup_threadgroup_rwsem;
  * cgroup_threadgroup_change_begin - threadgroup exclusion for cgroups
  * @tsk: target task
  *
- * Called from threadgroup_change_begin() and allows cgroup operations to
- * synchronize against threadgroup changes using a percpu_rw_semaphore.
+ * Allows cgroup operations to synchronize against threadgroup changes
+ * using a percpu_rw_semaphore.
  */
 static inline void cgroup_threadgroup_change_begin(struct task_struct *tsk)
 {
@@ -543,8 +543,7 @@ static inline void cgroup_threadgroup_change_begin(struct task_struct *tsk)
  * cgroup_threadgroup_change_end - threadgroup exclusion for cgroups
  * @tsk: target task
  *
- * Called from threadgroup_change_end().  Counterpart of
- * cgroup_threadcgroup_change_begin().
+ * Counterpart of cgroup_threadcgroup_change_begin().
  */
 static inline void cgroup_threadgroup_change_end(struct task_struct *tsk)
 {
@@ -555,7 +554,11 @@ static inline void cgroup_threadgroup_change_end(struct task_struct *tsk)
 
 #define CGROUP_SUBSYS_COUNT 0
 
-static inline void cgroup_threadgroup_change_begin(struct task_struct *tsk) {}
+static inline void cgroup_threadgroup_change_begin(struct task_struct *tsk)
+{
+	might_sleep();
+}
+
 static inline void cgroup_threadgroup_change_end(struct task_struct *tsk) {}
 
 #endif	/* CONFIG_CGROUPS */

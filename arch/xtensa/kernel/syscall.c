@@ -25,6 +25,7 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/mman.h>
+#include <linux/sched/mm.h>
 #include <linux/shm.h>
 
 typedef void (*syscall_t)(void);

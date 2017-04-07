@@ -983,9 +983,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 		if (old_registered)
 			elv_unregister_queue(q);
 
-		spin_lock_irq(q->queue_lock);
 		ioc_clear_queue(q);
-		spin_unlock_irq(q->queue_lock);
 	}
 
 	/* allocate, init and register new elevator */

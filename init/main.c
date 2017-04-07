@@ -15,6 +15,7 @@
 #include <linux/extable.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
+#include <linux/binfmts.h>
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/stackprotector.h>
@@ -27,6 +28,7 @@
 #include <linux/bootmem.h>
 #include <linux/acpi.h>
 #include <linux/tty.h>
+#include <linux/nmi.h>
 #include <linux/percpu.h>
 #include <linux/kmod.h>
 #include <linux/vmalloc.h>
@@ -61,6 +63,7 @@
 #include <linux/device.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
+#include <linux/sched/init.h>
 #include <linux/signal.h>
 #include <linux/idr.h>
 #include <linux/kgdb.h>
@@ -75,6 +78,8 @@
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/sched_clock.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/context_tracking.h>
 #include <linux/random.h>
 #include <linux/list.h>
@@ -877,7 +882,6 @@ static void __init do_basic_setup(void)
 	do_ctors();
 	usermodehelper_enable();
 	do_initcalls();
-	random_int_secret_init();
 }
 
 static void __init do_pre_smp_initcalls(void)
@@ -1017,6 +1021,8 @@ static noinline void __init kernel_init_freeable(void)
 	smp_prepare_cpus(setup_max_cpus);
 
 	workqueue_init();
+
+	init_mm_internals();
 
 	do_pre_smp_initcalls();
 	lockup_detector_init();
