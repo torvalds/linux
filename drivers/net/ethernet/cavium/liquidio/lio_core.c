@@ -127,6 +127,17 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 	struct octeon_device *oct = lio->oct_dev;
 	u8 *mac;
 
+	if (nctrl->completion && nctrl->response_code) {
+		/* Signal whoever is interested that the response code from the
+		 * firmware has arrived.
+		 */
+		WRITE_ONCE(*nctrl->response_code, nctrl->status);
+		complete(nctrl->completion);
+	}
+
+	if (nctrl->status)
+		return;
+
 	switch (nctrl->ncmd.s.cmd) {
 	case OCTNET_CMD_CHANGE_DEVFLAGS:
 	case OCTNET_CMD_SET_MULTI_LIST:
