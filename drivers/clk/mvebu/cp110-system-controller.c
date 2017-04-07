@@ -221,7 +221,7 @@ static int cp110_syscon_clk_probe(struct platform_device *pdev)
 					1000 * 1000 * 1000);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto fail0;
+		goto fail_apll;
 	}
 
 	cp110_clks[CP110_CORE_APLL] = hw;
@@ -232,7 +232,7 @@ static int cp110_syscon_clk_probe(struct platform_device *pdev)
 	hw = clk_hw_register_fixed_factor(NULL, ppv2_name, apll_name, 0, 1, 3);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto fail1;
+		goto fail_ppv2;
 	}
 
 	cp110_clks[CP110_CORE_PPV2] = hw;
@@ -243,7 +243,7 @@ static int cp110_syscon_clk_probe(struct platform_device *pdev)
 	hw = clk_hw_register_fixed_factor(NULL, eip_name, apll_name, 0, 1, 2);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto fail2;
+		goto fail_eip;
 	}
 
 	cp110_clks[CP110_CORE_EIP] = hw;
@@ -254,7 +254,7 @@ static int cp110_syscon_clk_probe(struct platform_device *pdev)
 	hw = clk_hw_register_fixed_factor(NULL, core_name, eip_name, 0, 1, 2);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto fail3;
+		goto fail_core;
 	}
 
 	cp110_clks[CP110_CORE_CORE] = hw;
@@ -270,7 +270,7 @@ static int cp110_syscon_clk_probe(struct platform_device *pdev)
 						   core_name, 0, 1, 1);
 	if (IS_ERR(hw)) {
 		ret = PTR_ERR(hw);
-		goto fail4;
+		goto fail_nand;
 	}
 
 	cp110_clks[CP110_CORE_NAND] = hw;
@@ -365,15 +365,15 @@ fail_gate:
 	}
 
 	clk_hw_unregister_fixed_factor(cp110_clks[CP110_CORE_NAND]);
-fail4:
+fail_nand:
 	clk_hw_unregister_fixed_factor(cp110_clks[CP110_CORE_CORE]);
-fail3:
+fail_core:
 	clk_hw_unregister_fixed_factor(cp110_clks[CP110_CORE_EIP]);
-fail2:
+fail_eip:
 	clk_hw_unregister_fixed_factor(cp110_clks[CP110_CORE_PPV2]);
-fail1:
+fail_ppv2:
 	clk_hw_unregister_fixed_rate(cp110_clks[CP110_CORE_APLL]);
-fail0:
+fail_apll:
 	return ret;
 }
 
