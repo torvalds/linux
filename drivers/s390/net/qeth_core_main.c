@@ -3322,7 +3322,7 @@ void qeth_queue_input_buffer(struct qeth_card *card, int index)
 }
 EXPORT_SYMBOL_GPL(qeth_queue_input_buffer);
 
-static int qeth_handle_send_error(struct qeth_card *card,
+static void qeth_handle_send_error(struct qeth_card *card,
 		struct qeth_qdio_out_buffer *buffer, unsigned int qdio_err)
 {
 	int sbalf15 = buffer->buffer->element[15].sflags;
@@ -3338,15 +3338,14 @@ static int qeth_handle_send_error(struct qeth_card *card,
 	qeth_check_qdio_errors(card, buffer->buffer, qdio_err, "qouterr");
 
 	if (!qdio_err)
-		return QETH_SEND_ERROR_NONE;
+		return;
 
 	if ((sbalf15 >= 15) && (sbalf15 <= 31))
-		return QETH_SEND_ERROR_RETRY;
+		return;
 
 	QETH_CARD_TEXT(card, 1, "lnkfail");
 	QETH_CARD_TEXT_(card, 1, "%04x %02x",
 		       (u16)qdio_err, (u8)sbalf15);
-	return QETH_SEND_ERROR_LINK_FAILURE;
 }
 
 /*

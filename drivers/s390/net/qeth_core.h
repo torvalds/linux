@@ -503,13 +503,6 @@ struct qeth_qdio_info {
 	int default_out_queue;
 };
 
-enum qeth_send_errors {
-	QETH_SEND_ERROR_NONE,
-	QETH_SEND_ERROR_LINK_FAILURE,
-	QETH_SEND_ERROR_RETRY,
-	QETH_SEND_ERROR_KICK_IT,
-};
-
 #define QETH_ETH_MAC_V4      0x0100 /* like v4 */
 #define QETH_ETH_MAC_V6      0x3333 /* like v6 */
 /* tr mc mac is longer, but that will be enough to detect mc frames */
