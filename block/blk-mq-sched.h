@@ -19,7 +19,7 @@ bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
 				struct request **merged_request);
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio);
 bool blk_mq_sched_try_insert_merge(struct request_queue *q, struct request *rq);
-void blk_mq_sched_restart_queues(struct blk_mq_hw_ctx *hctx);
+void blk_mq_sched_restart(struct blk_mq_hw_ctx *hctx);
 
 void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 				 bool run_queue, bool async, bool can_block);
@@ -134,20 +134,6 @@ static inline void blk_mq_sched_mark_restart_hctx(struct blk_mq_hw_ctx *hctx)
 {
 	if (!test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
 		set_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
-}
-
-/*
- * Mark a hardware queue and the request queue it belongs to as needing a
- * restart.
- */
-static inline void blk_mq_sched_mark_restart_queue(struct blk_mq_hw_ctx *hctx)
-{
-	struct request_queue *q = hctx->queue;
-
-	if (!test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
-		set_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
-	if (!test_bit(QUEUE_FLAG_RESTART, &q->queue_flags))
-		set_bit(QUEUE_FLAG_RESTART, &q->queue_flags);
 }
 
 static inline bool blk_mq_sched_needs_restart(struct blk_mq_hw_ctx *hctx)
