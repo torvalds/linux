@@ -93,21 +93,29 @@ static inline int pic_in_kernel(struct kvm *kvm)
 
 static inline int irqchip_split(struct kvm *kvm)
 {
-	return kvm->arch.irqchip_mode == KVM_IRQCHIP_SPLIT;
+	int mode = kvm->arch.irqchip_mode;
+
+	/* Matches smp_wmb() when setting irqchip_mode */
+	smp_rmb();
+	return mode == KVM_IRQCHIP_SPLIT;
 }
 
 static inline int irqchip_kernel(struct kvm *kvm)
 {
-	return kvm->arch.irqchip_mode == KVM_IRQCHIP_KERNEL;
+	int mode = kvm->arch.irqchip_mode;
+
+	/* Matches smp_wmb() when setting irqchip_mode */
+	smp_rmb();
+	return mode == KVM_IRQCHIP_KERNEL;
 }
 
 static inline int irqchip_in_kernel(struct kvm *kvm)
 {
-	bool ret = kvm->arch.irqchip_mode != KVM_IRQCHIP_NONE;
+	int mode = kvm->arch.irqchip_mode;
 
-	/* Matches with wmb after initializing kvm->irq_routing. */
+	/* Matches smp_wmb() when setting irqchip_mode */
 	smp_rmb();
-	return ret;
+	return mode > KVM_IRQCHIP_INIT_IN_PROGRESS;
 }
 
 void kvm_pic_reset(struct kvm_kpic_state *s);

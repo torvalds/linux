@@ -3928,9 +3928,14 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 			goto split_irqchip_unlock;
 		if (kvm->created_vcpus)
 			goto split_irqchip_unlock;
+		kvm->arch.irqchip_mode = KVM_IRQCHIP_INIT_IN_PROGRESS;
 		r = kvm_setup_empty_irq_routing(kvm);
-		if (r)
+		if (r) {
+			kvm->arch.irqchip_mode = KVM_IRQCHIP_NONE;
+			/* Pairs with smp_rmb() when reading irqchip_mode */
+			smp_wmb();
 			goto split_irqchip_unlock;
+		}
 		/* Pairs with irqchip_in_kernel. */
 		smp_wmb();
 		kvm->arch.irqchip_mode = KVM_IRQCHIP_SPLIT;
@@ -4018,8 +4023,12 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto create_irqchip_unlock;
 		}
 
+		kvm->arch.irqchip_mode = KVM_IRQCHIP_INIT_IN_PROGRESS;
 		r = kvm_setup_default_irq_routing(kvm);
 		if (r) {
+			kvm->arch.irqchip_mode = KVM_IRQCHIP_NONE;
+			/* Pairs with smp_rmb() when reading irqchip_mode */
+			smp_wmb();
 			mutex_lock(&kvm->slots_lock);
 			mutex_lock(&kvm->irq_lock);
 			kvm_ioapic_destroy(kvm);
