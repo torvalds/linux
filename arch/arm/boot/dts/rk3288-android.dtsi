@@ -62,6 +62,17 @@
 		memory-region = <&ramoops_mem>;
 	};
 
+	fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH 0>;
+		rockchip,serial-id = <2>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <1>;  /* If enable uart uses irq instead of fiq */
+		rockchip,baudrate = <115200>;  /* Only 115200 and 1500000 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2_xfer>;
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
