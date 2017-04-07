@@ -417,19 +417,16 @@ static u32 pic_poll_read(struct kvm_kpic_state *s, u32 addr1)
 	return ret;
 }
 
-static u32 pic_ioport_read(void *opaque, u32 addr1)
+static u32 pic_ioport_read(void *opaque, u32 addr)
 {
 	struct kvm_kpic_state *s = opaque;
-	unsigned int addr;
 	int ret;
 
-	addr = addr1;
-	addr &= 1;
 	if (s->poll) {
-		ret = pic_poll_read(s, addr1);
+		ret = pic_poll_read(s, addr);
 		s->poll = 0;
 	} else
-		if (addr == 0)
+		if ((addr & 1) == 0)
 			if (s->read_reg_select)
 				ret = s->isr;
 			else
