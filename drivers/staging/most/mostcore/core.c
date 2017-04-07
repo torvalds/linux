@@ -854,9 +854,6 @@ static ssize_t links_show(struct most_aim_obj *aim_obj,
 	return offs;
 }
 
-static struct most_aim_attribute most_aim_attr_links =
-	__ATTR_RO(links);
-
 /**
  * split_string - parses and changes string in the buffer buf and
  * splits it into two mandatory and one optional substrings.
@@ -1000,9 +997,6 @@ static ssize_t add_link_store(struct most_aim_obj *aim_obj,
 	return len;
 }
 
-static struct most_aim_attribute most_aim_attr_add_link =
-	__ATTR_WO(add_link);
-
 /**
  * remove_link_store - store function for remove_link attribute
  * @aim_obj: pointer to AIM object
@@ -1043,13 +1037,16 @@ static ssize_t remove_link_store(struct most_aim_obj *aim_obj,
 	return len;
 }
 
-static struct most_aim_attribute most_aim_attr_remove_link =
-	__ATTR_WO(remove_link);
+static struct most_aim_attribute most_aim_attrs[] = {
+	__ATTR_RO(links),
+	__ATTR_WO(add_link),
+	__ATTR_WO(remove_link),
+};
 
 static struct attribute *most_aim_def_attrs[] = {
-	&most_aim_attr_links.attr,
-	&most_aim_attr_add_link.attr,
-	&most_aim_attr_remove_link.attr,
+	&most_aim_attrs[0].attr,
+	&most_aim_attrs[1].attr,
+	&most_aim_attrs[2].attr,
 	NULL,
 };
 
