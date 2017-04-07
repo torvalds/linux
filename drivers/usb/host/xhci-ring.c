@@ -2292,8 +2292,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			 upper_32_bits(le64_to_cpu(event->buffer)),
 			 le32_to_cpu(event->transfer_len),
 			 le32_to_cpu(event->flags));
-		xhci_dbg(xhci, "Event ring:\n");
-		xhci_debug_segment(xhci, xhci->event_ring->deq_seg);
 		return -ENODEV;
 	}
 
@@ -2314,8 +2312,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			 upper_32_bits(le64_to_cpu(event->buffer)),
 			 le32_to_cpu(event->transfer_len),
 			 le32_to_cpu(event->flags));
-		xhci_dbg(xhci, "Event ring:\n");
-		xhci_debug_segment(xhci, xhci->event_ring->deq_seg);
 		return -ENODEV;
 	}
 
