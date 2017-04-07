@@ -451,46 +451,33 @@ static u32 elcr_ioport_read(void *opaque, u32 addr1)
 	return s->elcr;
 }
 
-static int picdev_in_range(gpa_t addr)
-{
-	switch (addr) {
-	case 0x20:
-	case 0x21:
-	case 0xa0:
-	case 0xa1:
-	case 0x4d0:
-	case 0x4d1:
-		return 1;
-	default:
-		return 0;
-	}
-}
-
 static int picdev_write(struct kvm_pic *s,
 			 gpa_t addr, int len, const void *val)
 {
 	unsigned char data = *(unsigned char *)val;
-	if (!picdev_in_range(addr))
-		return -EOPNOTSUPP;
 
 	if (len != 1) {
 		pr_pic_unimpl("non byte write\n");
 		return 0;
 	}
-	pic_lock(s);
 	switch (addr) {
 	case 0x20:
 	case 0x21:
 	case 0xa0:
 	case 0xa1:
+		pic_lock(s);
 		pic_ioport_write(&s->pics[addr >> 7], addr, data);
+		pic_unlock(s);
 		break;
 	case 0x4d0:
 	case 0x4d1:
+		pic_lock(s);
 		elcr_ioport_write(&s->pics[addr & 1], addr, data);
+		pic_unlock(s);
 		break;
+	default:
+		return -EOPNOTSUPP;
 	}
-	pic_unlock(s);
 	return 0;
 }
 
@@ -498,29 +485,31 @@ static int picdev_read(struct kvm_pic *s,
 		       gpa_t addr, int len, void *val)
 {
 	unsigned char data = 0;
-	if (!picdev_in_range(addr))
-		return -EOPNOTSUPP;
 
 	if (len != 1) {
 		memset(val, 0, len);
 		pr_pic_unimpl("non byte read\n");
 		return 0;
 	}
-	pic_lock(s);
 	switch (addr) {
 	case 0x20:
 	case 0x21:
 	case 0xa0:
 	case 0xa1:
+		pic_lock(s);
 		data = pic_ioport_read(&s->pics[addr >> 7], addr);
+		pic_unlock(s);
 		break;
 	case 0x4d0:
 	case 0x4d1:
+		pic_lock(s);
 		data = elcr_ioport_read(&s->pics[addr & 1], addr);
+		pic_unlock(s);
 		break;
+	default:
+		return -EOPNOTSUPP;
 	}
 	*(unsigned char *)val = data;
-	pic_unlock(s);
 	return 0;
 }
 
