@@ -112,6 +112,22 @@
 			sound-dai = <&codec>;
 		};
 	};
+
+	spdif-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,spdif";
+		simple-audio-card,cpu {
+			sound-dai = <&spdif>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&spdif_out>;
+		};
+	};
+
+	spdif_out: spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
 };
 
 &i2s1 {
@@ -120,6 +136,11 @@
 };
 
 &codec {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&spdif {
 	#sound-dai-cells = <0>;
 	status = "okay";
 };
