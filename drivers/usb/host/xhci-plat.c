@@ -277,6 +277,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (ret)
 		goto dealloc_usb2_hcd;
 
+	device_enable_async_suspend(&pdev->dev);
+
 	return 0;
 
 
