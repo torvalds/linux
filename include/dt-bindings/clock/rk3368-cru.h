@@ -115,6 +115,7 @@
 #define ACLK_VIDEO		208
 #define ACLK_BUS		209
 #define ACLK_PERI		210
+#define ACLK_CCI_PRE		211
 
 /* pclk gates */
 #define PCLK_GPIO0		320
