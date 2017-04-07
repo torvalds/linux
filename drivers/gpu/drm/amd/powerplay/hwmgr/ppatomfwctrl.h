@@ -69,7 +69,7 @@ struct pp_atomfwctrl_clock_dividers_soc15 {
 struct pp_atomfwctrl_avfs_parameters {
 	uint32_t   ulMaxVddc;
 	uint32_t   ulMinVddc;
-	uint8_t    ucMaxVidStep;
+
 	uint32_t   ulMeanNsigmaAcontant0;
 	uint32_t   ulMeanNsigmaAcontant1;
 	uint32_t   ulMeanNsigmaAcontant2;
@@ -82,30 +82,30 @@ struct pp_atomfwctrl_avfs_parameters {
 	uint32_t   ulGbVdroopTableCksonA0;
 	uint32_t   ulGbVdroopTableCksonA1;
 	uint32_t   ulGbVdroopTableCksonA2;
+
 	uint32_t   ulGbFuseTableCksoffM1;
-	uint16_t   usGbFuseTableCksoffM2;
-	uint32_t   ulGbFuseTableCksoffB;\
+	uint32_t   ulGbFuseTableCksoffM2;
+	uint32_t   ulGbFuseTableCksoffB;
+
 	uint32_t   ulGbFuseTableCksonM1;
-	uint16_t   usGbFuseTableCksonM2;
+	uint32_t   ulGbFuseTableCksonM2;
 	uint32_t   ulGbFuseTableCksonB;
-	uint16_t   usMaxVoltage025mv;
-	uint8_t    ucEnableGbVdroopTableCksoff;
+
 	uint8_t    ucEnableGbVdroopTableCkson;
-	uint8_t    ucEnableGbFuseTableCksoff;
 	uint8_t    ucEnableGbFuseTableCkson;
 	uint16_t   usPsmAgeComfactor;
-	uint8_t    ucEnableApplyAvfsCksoffVoltage;
+
 	uint32_t   ulDispclk2GfxclkM1;
-	uint16_t   usDispclk2GfxclkM2;
+	uint32_t   ulDispclk2GfxclkM2;
 	uint32_t   ulDispclk2GfxclkB;
 	uint32_t   ulDcefclk2GfxclkM1;
-	uint16_t   usDcefclk2GfxclkM2;
+	uint32_t   ulDcefclk2GfxclkM2;
 	uint32_t   ulDcefclk2GfxclkB;
 	uint32_t   ulPixelclk2GfxclkM1;
-	uint16_t   usPixelclk2GfxclkM2;
+	uint32_t   ulPixelclk2GfxclkM2;
 	uint32_t   ulPixelclk2GfxclkB;
 	uint32_t   ulPhyclk2GfxclkM1;
-	uint16_t   usPhyclk2GfxclkM2;
+	uint32_t   ulPhyclk2GfxclkM2;
 	uint32_t   ulPhyclk2GfxclkB;
 };
 

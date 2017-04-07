@@ -2073,66 +2073,70 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 		result = pp_atomfwctrl_get_avfs_information(hwmgr, &avfs_params);
 		if (!result) {
 			pp_table->MinVoltageVid = (uint8_t)
-					convert_to_vid((uint16_t)(avfs_params.ulMaxVddc));
-			pp_table->MaxVoltageVid = (uint8_t)
 					convert_to_vid((uint16_t)(avfs_params.ulMinVddc));
-			pp_table->BtcGbVdroopTableCksOn.a0 =
-					cpu_to_le32(avfs_params.ulGbVdroopTableCksonA0);
-			pp_table->BtcGbVdroopTableCksOn.a1 =
-					cpu_to_le32(avfs_params.ulGbVdroopTableCksonA1);
-			pp_table->BtcGbVdroopTableCksOn.a2 =
-					cpu_to_le32(avfs_params.ulGbVdroopTableCksonA2);
+			pp_table->MaxVoltageVid = (uint8_t)
+					convert_to_vid((uint16_t)(avfs_params.ulMaxVddc));
+
+			pp_table->AConstant[0] = cpu_to_le32(avfs_params.ulMeanNsigmaAcontant0);
+			pp_table->AConstant[1] = cpu_to_le32(avfs_params.ulMeanNsigmaAcontant1);
+			pp_table->AConstant[2] = cpu_to_le32(avfs_params.ulMeanNsigmaAcontant2);
+			pp_table->DC_tol_sigma = cpu_to_le16(avfs_params.usMeanNsigmaDcTolSigma);
+			pp_table->Platform_mean = cpu_to_le16(avfs_params.usMeanNsigmaPlatformMean);
+			pp_table->Platform_sigma = cpu_to_le16(avfs_params.usMeanNsigmaDcTolSigma);
+			pp_table->PSM_Age_CompFactor = cpu_to_le16(avfs_params.usPsmAgeComfactor);
 
 			pp_table->BtcGbVdroopTableCksOff.a0 =
 					cpu_to_le32(avfs_params.ulGbVdroopTableCksoffA0);
+			pp_table->BtcGbVdroopTableCksOff.a0_shift = 20;
 			pp_table->BtcGbVdroopTableCksOff.a1 =
 					cpu_to_le32(avfs_params.ulGbVdroopTableCksoffA1);
+			pp_table->BtcGbVdroopTableCksOff.a1_shift = 20;
 			pp_table->BtcGbVdroopTableCksOff.a2 =
 					cpu_to_le32(avfs_params.ulGbVdroopTableCksoffA2);
+			pp_table->BtcGbVdroopTableCksOff.a2_shift = 20;
+
+			pp_table->OverrideBtcGbCksOn = avfs_params.ucEnableGbVdroopTableCkson;
+			pp_table->BtcGbVdroopTableCksOn.a0 =
+					cpu_to_le32(avfs_params.ulGbVdroopTableCksonA0);
+			pp_table->BtcGbVdroopTableCksOn.a0_shift = 20;
+			pp_table->BtcGbVdroopTableCksOn.a1 =
+					cpu_to_le32(avfs_params.ulGbVdroopTableCksonA1);
+			pp_table->BtcGbVdroopTableCksOn.a1_shift = 20;
+			pp_table->BtcGbVdroopTableCksOn.a2 =
+					cpu_to_le32(avfs_params.ulGbVdroopTableCksonA2);
+			pp_table->BtcGbVdroopTableCksOn.a2_shift = 20;
 
 			pp_table->AvfsGbCksOn.m1 =
 					cpu_to_le32(avfs_params.ulGbFuseTableCksonM1);
 			pp_table->AvfsGbCksOn.m2 =
-					cpu_to_le16(avfs_params.usGbFuseTableCksonM2);
+					cpu_to_le16(avfs_params.ulGbFuseTableCksonM2);
 			pp_table->AvfsGbCksOn.b =
 					cpu_to_le32(avfs_params.ulGbFuseTableCksonB);
 			pp_table->AvfsGbCksOn.m1_shift = 24;
 			pp_table->AvfsGbCksOn.m2_shift = 12;
+			pp_table->AvfsGbCksOn.b_shift = 0;
 
+			pp_table->OverrideAvfsGbCksOn =
+					avfs_params.ucEnableGbFuseTableCkson;
 			pp_table->AvfsGbCksOff.m1 =
 					cpu_to_le32(avfs_params.ulGbFuseTableCksoffM1);
 			pp_table->AvfsGbCksOff.m2 =
-					cpu_to_le16(avfs_params.usGbFuseTableCksoffM2);
+					cpu_to_le16(avfs_params.ulGbFuseTableCksoffM2);
 			pp_table->AvfsGbCksOff.b =
 					cpu_to_le32(avfs_params.ulGbFuseTableCksoffB);
 			pp_table->AvfsGbCksOff.m1_shift = 24;
 			pp_table->AvfsGbCksOff.m2_shift = 12;
+			pp_table->AvfsGbCksOff.b_shift = 0;
 
-			pp_table->AConstant[0] =
-					cpu_to_le32(avfs_params.ulMeanNsigmaAcontant0);
-			pp_table->AConstant[1] =
-					cpu_to_le32(avfs_params.ulMeanNsigmaAcontant1);
-			pp_table->AConstant[2] =
-					cpu_to_le32(avfs_params.ulMeanNsigmaAcontant2);
-			pp_table->DC_tol_sigma =
-					cpu_to_le16(avfs_params.usMeanNsigmaDcTolSigma);
-			pp_table->Platform_mean =
-					cpu_to_le16(avfs_params.usMeanNsigmaPlatformMean);
-			pp_table->PSM_Age_CompFactor =
-					cpu_to_le16(avfs_params.usPsmAgeComfactor);
-			pp_table->Platform_sigma =
-					cpu_to_le16(avfs_params.usMeanNsigmaDcTolSigma);
-
-			for (i = 0; i < dep_table->count; i++)
-				pp_table->StaticVoltageOffsetVid[i] = (uint8_t)
-						(dep_table->entries[i].sclk_offset *
+			for (i = 0; i < dep_table->count; i++) {
+				if (dep_table->entries[i].sclk_offset == 0)
+					pp_table->StaticVoltageOffsetVid[i] = 248;
+				else
+					pp_table->StaticVoltageOffsetVid[i] =
+						(uint8_t)(dep_table->entries[i].sclk_offset *
 								VOLTAGE_VID_OFFSET_SCALE2 /
 								VOLTAGE_VID_OFFSET_SCALE1);
-
-			pp_table->OverrideBtcGbCksOn =
-					avfs_params.ucEnableGbVdroopTableCkson;
-			pp_table->OverrideAvfsGbCksOn =
-					avfs_params.ucEnableGbFuseTableCkson;
+			}
 
 			if ((PPREGKEY_VEGA10QUADRATICEQUATION_DFLT !=
 					data->disp_clk_quad_eqn_a) &&
@@ -2141,20 +2145,21 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].m1 =
 						(int32_t)data->disp_clk_quad_eqn_a;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].m2 =
-						(int16_t)data->disp_clk_quad_eqn_b;
+						(int32_t)data->disp_clk_quad_eqn_b;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].b =
 						(int32_t)data->disp_clk_quad_eqn_c;
 			} else {
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].m1 =
 						(int32_t)avfs_params.ulDispclk2GfxclkM1;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].m2 =
-						(int16_t)avfs_params.usDispclk2GfxclkM2;
+						(int32_t)avfs_params.ulDispclk2GfxclkM2;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].b =
 						(int32_t)avfs_params.ulDispclk2GfxclkB;
 			}
 
 			pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].m1_shift = 24;
 			pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].m2_shift = 12;
+			pp_table->DisplayClock2Gfxclk[DSPCLK_DISPCLK].b_shift = 0;
 
 			if ((PPREGKEY_VEGA10QUADRATICEQUATION_DFLT !=
 					data->dcef_clk_quad_eqn_a) &&
@@ -2163,20 +2168,21 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].m1 =
 						(int32_t)data->dcef_clk_quad_eqn_a;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].m2 =
-						(int16_t)data->dcef_clk_quad_eqn_b;
+						(int32_t)data->dcef_clk_quad_eqn_b;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].b =
 						(int32_t)data->dcef_clk_quad_eqn_c;
 			} else {
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].m1 =
 						(int32_t)avfs_params.ulDcefclk2GfxclkM1;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].m2 =
-						(int16_t)avfs_params.usDcefclk2GfxclkM2;
+						(int32_t)avfs_params.ulDcefclk2GfxclkM2;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].b =
 						(int32_t)avfs_params.ulDcefclk2GfxclkB;
 			}
 
 			pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].m1_shift = 24;
 			pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].m2_shift = 12;
+			pp_table->DisplayClock2Gfxclk[DSPCLK_DCEFCLK].b_shift = 0;
 
 			if ((PPREGKEY_VEGA10QUADRATICEQUATION_DFLT !=
 					data->pixel_clk_quad_eqn_a) &&
@@ -2185,14 +2191,14 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PIXCLK].m1 =
 						(int32_t)data->pixel_clk_quad_eqn_a;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PIXCLK].m2 =
-						(int16_t)data->pixel_clk_quad_eqn_b;
+						(int32_t)data->pixel_clk_quad_eqn_b;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PIXCLK].b =
 						(int32_t)data->pixel_clk_quad_eqn_c;
 			} else {
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PIXCLK].m1 =
 						(int32_t)avfs_params.ulPixelclk2GfxclkM1;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PIXCLK].m2 =
-						(int16_t)avfs_params.usPixelclk2GfxclkM2;
+						(int32_t)avfs_params.ulPixelclk2GfxclkM2;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PIXCLK].b =
 						(int32_t)avfs_params.ulPixelclk2GfxclkB;
 			}
@@ -2207,20 +2213,21 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].m1 =
 						(int32_t)data->phy_clk_quad_eqn_a;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].m2 =
-						(int16_t)data->phy_clk_quad_eqn_b;
+						(int32_t)data->phy_clk_quad_eqn_b;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].b =
 						(int32_t)data->phy_clk_quad_eqn_c;
 			} else {
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].m1 =
 						(int32_t)avfs_params.ulPhyclk2GfxclkM1;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].m2 =
-						(int16_t)avfs_params.usPhyclk2GfxclkM2;
+						(int32_t)avfs_params.ulPhyclk2GfxclkM2;
 				pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].b =
 						(int32_t)avfs_params.ulPhyclk2GfxclkB;
 			}
 
 			pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].m1_shift = 24;
 			pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].m2_shift = 12;
+			pp_table->DisplayClock2Gfxclk[DSPCLK_PHYCLK].b_shift = 0;
 		} else {
 			data->smu_features[GNLD_AVFS].supported = false;
 		}
