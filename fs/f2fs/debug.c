@@ -109,8 +109,8 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_NODE; i++) {
 		struct curseg_info *curseg = CURSEG_I(sbi, i);
 		si->curseg[i] = curseg->segno;
-		si->cursec[i] = curseg->segno / sbi->segs_per_sec;
-		si->curzone[i] = si->cursec[i] / sbi->secs_per_zone;
+		si->cursec[i] = GET_SEC_FROM_SEG(sbi, curseg->segno);
+		si->curzone[i] = GET_ZONE_FROM_SEC(sbi, si->cursec[i]);
 	}
 
 	for (i = 0; i < 2; i++) {
@@ -134,7 +134,7 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 
 	bimodal = 0;
 	total_vblocks = 0;
-	blks_per_sec = sbi->segs_per_sec * sbi->blocks_per_seg;
+	blks_per_sec = BLKS_PER_SEC(sbi);
 	hblks_per_sec = blks_per_sec / 2;
 	for (segno = 0; segno < MAIN_SEGS(sbi); segno += sbi->segs_per_sec) {
 		vblocks = get_valid_blocks(sbi, segno, true);

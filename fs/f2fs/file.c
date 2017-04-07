@@ -1892,7 +1892,6 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 	pgoff_t pg_start, pg_end;
 	unsigned int blk_per_seg = sbi->blocks_per_seg;
 	unsigned int total = 0, sec_num;
-	unsigned int pages_per_sec = sbi->segs_per_sec * blk_per_seg;
 	block_t blk_end = 0;
 	bool fragmented = false;
 	int err;
@@ -1956,7 +1955,7 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 	map.m_lblk = pg_start;
 	map.m_len = pg_end - pg_start;
 
-	sec_num = (map.m_len + pages_per_sec - 1) / pages_per_sec;
+	sec_num = (map.m_len + BLKS_PER_SEC(sbi) - 1) / BLKS_PER_SEC(sbi);
 
 	/*
 	 * make sure there are enough free section for LFS allocation, this can
