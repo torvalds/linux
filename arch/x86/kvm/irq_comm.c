@@ -282,24 +282,26 @@ int kvm_set_routing_entry(struct kvm *kvm,
 	int delta;
 	unsigned max_pin;
 
+	/* also allow creation of routes during KVM_IRQCHIP_INIT_IN_PROGRESS */
+	if (kvm->arch.irqchip_mode == KVM_IRQCHIP_NONE)
+		goto out;
+
+	/* Matches smp_wmb() when setting irqchip_mode */
+	smp_rmb();
 	switch (ue->type) {
 	case KVM_IRQ_ROUTING_IRQCHIP:
+		if (irqchip_split(kvm))
+			goto out;
 		delta = 0;
 		switch (ue->u.irqchip.irqchip) {
 		case KVM_IRQCHIP_PIC_SLAVE:
 			delta = 8;
 			/* fall through */
 		case KVM_IRQCHIP_PIC_MASTER:
-			if (!pic_in_kernel(kvm))
-				goto out;
-
 			e->set = kvm_set_pic_irq;
 			max_pin = PIC_NUM_PINS;
 			break;
 		case KVM_IRQCHIP_IOAPIC:
-			if (!ioapic_in_kernel(kvm))
-				goto out;
-
 			max_pin = KVM_IOAPIC_NUM_PINS;
 			e->set = kvm_set_ioapic_irq;
 			break;
