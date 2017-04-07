@@ -2401,6 +2401,8 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct i40e_vsi *vsi = &adapter->vsi;
 	int i;
+	netdev_features_t hw_enc_features;
+	netdev_features_t hw_features;
 
 	/* got VF config message back from PF, now we can parse it */
 	for (i = 0; i < vfres->num_vsis; i++) {
@@ -2412,46 +2414,52 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 		return -ENODEV;
 	}
 
-	netdev->hw_enc_features |= NETIF_F_SG			|
-				   NETIF_F_IP_CSUM		|
-				   NETIF_F_IPV6_CSUM		|
-				   NETIF_F_HIGHDMA		|
-				   NETIF_F_SOFT_FEATURES	|
-				   NETIF_F_TSO			|
-				   NETIF_F_TSO_ECN		|
-				   NETIF_F_TSO6			|
+	hw_enc_features = NETIF_F_SG			|
+			  NETIF_F_IP_CSUM		|
+			  NETIF_F_IPV6_CSUM		|
+			  NETIF_F_HIGHDMA		|
+			  NETIF_F_SOFT_FEATURES	|
+			  NETIF_F_TSO			|
+			  NETIF_F_TSO_ECN		|
+			  NETIF_F_TSO6			|
+			  NETIF_F_SCTP_CRC		|
+			  NETIF_F_RXHASH		|
+			  NETIF_F_RXCSUM		|
+			  0;
+
+	/* advertise to stack only if offloads for encapsulated packets is
+	 * supported
+	 */
+	if (vfres->vf_offload_flags & I40E_VIRTCHNL_VF_OFFLOAD_ENCAP) {
+		hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL	|
 				   NETIF_F_GSO_GRE		|
 				   NETIF_F_GSO_GRE_CSUM		|
 				   NETIF_F_GSO_IPXIP4		|
 				   NETIF_F_GSO_IPXIP6		|
-				   NETIF_F_GSO_UDP_TUNNEL	|
 				   NETIF_F_GSO_UDP_TUNNEL_CSUM	|
 				   NETIF_F_GSO_PARTIAL		|
-				   NETIF_F_SCTP_CRC		|
-				   NETIF_F_RXHASH		|
-				   NETIF_F_RXCSUM		|
 				   0;
 
-	if (!(adapter->flags & I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE))
-		netdev->gso_partial_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+		if (!(vfres->vf_offload_flags &
+		      I40E_VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM))
+			netdev->gso_partial_features |=
+				NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
-	netdev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
-
+		netdev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
+		netdev->hw_enc_features |= NETIF_F_TSO_MANGLEID;
+		netdev->hw_enc_features |= hw_enc_features;
+	}
 	/* record features VLANs can make use of */
-	netdev->vlan_features |= netdev->hw_enc_features |
-				 NETIF_F_TSO_MANGLEID;
+	netdev->vlan_features |= hw_enc_features | NETIF_F_TSO_MANGLEID;
 
 	/* Write features and hw_features separately to avoid polluting
-	 * with, or dropping, features that are set when we registgered.
+	 * with, or dropping, features that are set when we registered.
 	 */
-	netdev->hw_features |= netdev->hw_enc_features;
+	hw_features = hw_enc_features;
 
-	netdev->features |= netdev->hw_enc_features | I40EVF_VLAN_FEATURES;
-	netdev->hw_enc_features |= NETIF_F_TSO_MANGLEID;
+	netdev->hw_features |= hw_features;
 
-	/* disable VLAN features if not supported */
-	if (!(vfres->vf_offload_flags & I40E_VIRTCHNL_VF_OFFLOAD_VLAN))
-		netdev->features ^= I40EVF_VLAN_FEATURES;
+	netdev->features |= hw_features | I40EVF_VLAN_FEATURES;
 
 	adapter->vsi.id = adapter->vsi_res->vsi_id;
 
@@ -2591,9 +2599,6 @@ static void i40evf_init_task(struct work_struct *work)
 	default:
 		goto err_alloc;
 	}
-
-	if (hw->mac.type == I40E_MAC_X722_VF)
-		adapter->flags |= I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE;
 
 	if (i40evf_process_config(adapter))
 		goto err_alloc;

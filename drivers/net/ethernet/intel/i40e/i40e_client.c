@@ -436,6 +436,12 @@ int i40e_lan_add_device(struct i40e_pf *pf)
 		 pf->hw.pf_id, pf->hw.bus.bus_id,
 		 pf->hw.bus.device, pf->hw.bus.func);
 
+	/* If a client has already been registered, we need to add an instance
+	 * of it to our new LAN device.
+	 */
+	if (registered_client)
+		i40e_client_add_instance(pf);
+
 	/* Since in some cases register may have happened before a device gets
 	 * added, we can schedule a subtask to go initiate the clients if
 	 * they can be launched at probe time.
@@ -458,6 +464,9 @@ int i40e_lan_del_device(struct i40e_pf *pf)
 {
 	struct i40e_device *ldev, *tmp;
 	int ret = -ENODEV;
+
+	/* First, remove any client instance. */
+	i40e_client_del_instance(pf);
 
 	mutex_lock(&i40e_device_mutex);
 	list_for_each_entry_safe(ldev, tmp, &i40e_devices, list) {
