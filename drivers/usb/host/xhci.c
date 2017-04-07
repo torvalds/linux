@@ -542,7 +542,7 @@ static int xhci_all_ports_seen_u0(struct xhci_hcd *xhci)
  * device contexts (?), set up a command ring segment (or two?), create event
  * ring (one for now).
  */
-int xhci_init(struct usb_hcd *hcd)
+static int xhci_init(struct usb_hcd *hcd)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	int retval = 0;
@@ -685,7 +685,7 @@ EXPORT_SYMBOL_GPL(xhci_run);
  * Disable device contexts, disable IRQs, and quiesce the HC.
  * Reset the HC, finish any completed transactions, and cleanup memory.
  */
-void xhci_stop(struct usb_hcd *hcd)
+static void xhci_stop(struct usb_hcd *hcd)
 {
 	u32 temp;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
@@ -746,7 +746,7 @@ void xhci_stop(struct usb_hcd *hcd)
  *
  * This will only ever be called with the main usb_hcd (the USB3 roothub).
  */
-void xhci_shutdown(struct usb_hcd *hcd)
+static void xhci_shutdown(struct usb_hcd *hcd)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 
@@ -1179,7 +1179,7 @@ unsigned int xhci_get_endpoint_address(unsigned int ep_index)
  * endpoint index to create a bitmask.  The slot context is bit 0, endpoint 0 is
  * bit 1, etc.
  */
-unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc)
+static unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc)
 {
 	return 1 << (xhci_get_endpoint_index(desc) + 1);
 }
@@ -1188,7 +1188,7 @@ unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc)
  * endpoint index to create a bitmask.  The slot context is bit 0, endpoint 0 is
  * bit 1, etc.
  */
-unsigned int xhci_get_endpoint_flag_from_index(unsigned int ep_index)
+static unsigned int xhci_get_endpoint_flag_from_index(unsigned int ep_index)
 {
 	return 1 << (ep_index + 1);
 }
@@ -1332,7 +1332,7 @@ command_cleanup:
  * non-error returns are a promise to giveback() the urb later
  * we drop ownership so next owner (or urb unlink) can get it
  */
-int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
+static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	unsigned long flags;
@@ -1468,7 +1468,7 @@ free_priv:
  * Note that this function can be called in any context, or so says
  * usb_hcd_unlink_urb()
  */
-int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
+static int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	unsigned long flags;
 	int ret, i;
@@ -1585,7 +1585,7 @@ err_giveback:
  * disabled, so there's no need for mutual exclusion to protect
  * the xhci->devs[slot_id] structure.
  */
-int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
+static int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
 	struct xhci_hcd *xhci;
@@ -1668,7 +1668,7 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
  * configuration or alt setting is installed in the device, so there's no need
  * for mutual exclusion to protect the xhci->devs[slot_id] structure.
  */
-int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
+static int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
 	struct xhci_hcd *xhci;
@@ -2339,7 +2339,7 @@ static unsigned int xhci_get_ss_bw_consumed(struct xhci_bw_info *ep_bw)
 
 }
 
-void xhci_drop_ep_from_interval_table(struct xhci_hcd *xhci,
+static void xhci_drop_ep_from_interval_table(struct xhci_hcd *xhci,
 		struct xhci_bw_info *ep_bw,
 		struct xhci_interval_bw_table *bw_table,
 		struct usb_device *udev,
@@ -2704,7 +2704,7 @@ static void xhci_check_bw_drop_ep_streams(struct xhci_hcd *xhci,
  * else should be touching the xhci->devs[slot_id] structure, so we
  * don't need to take the xhci->lock for manipulating that.
  */
-int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
+static int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	int i;
 	int ret = 0;
@@ -2808,7 +2808,7 @@ command_cleanup:
 	return ret;
 }
 
-void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
+static void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci;
 	struct xhci_virt_device	*virt_dev;
@@ -2934,7 +2934,7 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
  * Context: in_interrupt
  */
 
-void xhci_endpoint_reset(struct usb_hcd *hcd,
+static void xhci_endpoint_reset(struct usb_hcd *hcd,
 		struct usb_host_endpoint *ep)
 {
 	struct xhci_hcd *xhci;
@@ -3110,7 +3110,7 @@ static u32 xhci_calculate_no_streams_bitmask(struct xhci_hcd *xhci,
  * hardware or endpoints claim they can't support the number of requested
  * stream IDs.
  */
-int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
+static int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
 		unsigned int num_streams, gfp_t mem_flags)
 {
@@ -3274,7 +3274,7 @@ cleanup:
  * Modify the endpoint context state, submit a configure endpoint command,
  * and free all endpoint rings for streams if that completes successfully.
  */
-int xhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
+static int xhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
 		gfp_t mem_flags)
 {
@@ -3406,7 +3406,8 @@ void xhci_free_device_endpoint_resources(struct xhci_hcd *xhci,
  * re-initialization during S3/S4. In this case, call xhci_alloc_dev() to
  * re-allocate the device.
  */
-int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
+static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
+		struct usb_device *udev)
 {
 	int ret, i;
 	unsigned long flags;
@@ -3571,7 +3572,7 @@ command_cleanup:
  * disconnected, and all traffic has been stopped and the endpoints have been
  * disabled.  Free any HC data structures associated with that device.
  */
-void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
+static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct xhci_virt_device *virt_dev;
@@ -3960,12 +3961,12 @@ out:
 	return ret;
 }
 
-int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
+static int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	return xhci_setup_device(hcd, udev, SETUP_CONTEXT_ADDRESS);
 }
 
-int xhci_enable_device(struct usb_hcd *hcd, struct usb_device *udev)
+static int xhci_enable_device(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	return xhci_setup_device(hcd, udev, SETUP_CONTEXT_ONLY);
 }
@@ -4122,7 +4123,7 @@ static int xhci_calculate_usb2_hw_lpm_params(struct usb_device *udev)
 	return PORT_BESLD(besld) | PORT_L1_TIMEOUT(l1) | PORT_HIRDM(hirdm);
 }
 
-int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
+static int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 			struct usb_device *udev, int enable)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
@@ -4246,7 +4247,7 @@ static int xhci_check_usb2_port_capability(struct xhci_hcd *xhci, int port,
 	return 0;
 }
 
-int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+static int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int		portnum = udev->portnum - 1;
@@ -4655,7 +4656,7 @@ static int calculate_max_exit_latency(struct usb_device *udev,
 }
 
 /* Returns the USB3 hub-encoded value for the U1/U2 timeout. */
-int xhci_enable_usb3_lpm_timeout(struct usb_hcd *hcd,
+static int xhci_enable_usb3_lpm_timeout(struct usb_hcd *hcd,
 			struct usb_device *udev, enum usb3_link_state state)
 {
 	struct xhci_hcd	*xhci;
@@ -4686,7 +4687,7 @@ int xhci_enable_usb3_lpm_timeout(struct usb_hcd *hcd,
 	return hub_encoded_timeout;
 }
 
-int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
+static int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 			struct usb_device *udev, enum usb3_link_state state)
 {
 	struct xhci_hcd	*xhci;
@@ -4702,24 +4703,24 @@ int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 }
 #else /* CONFIG_PM */
 
-int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
+static int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 				struct usb_device *udev, int enable)
 {
 	return 0;
 }
 
-int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+static int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	return 0;
 }
 
-int xhci_enable_usb3_lpm_timeout(struct usb_hcd *hcd,
+static int xhci_enable_usb3_lpm_timeout(struct usb_hcd *hcd,
 			struct usb_device *udev, enum usb3_link_state state)
 {
 	return USB3_LPM_DISABLED;
 }
 
-int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
+static int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 			struct usb_device *udev, enum usb3_link_state state)
 {
 	return 0;
@@ -4731,7 +4732,7 @@ int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 /* Once a hub descriptor is fetched for a device, we need to update the xHC's
  * internal data structures for the device.
  */
-int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
+static int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 			struct usb_tt *tt, gfp_t mem_flags)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
@@ -4837,7 +4838,7 @@ int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 	return ret;
 }
 
-int xhci_get_frame(struct usb_hcd *hcd)
+static int xhci_get_frame(struct usb_hcd *hcd)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	/* EHCI mods by the periodic size.  Why? */
