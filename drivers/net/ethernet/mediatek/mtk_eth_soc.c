@@ -2322,6 +2322,8 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	eth->netdev[id]->ethtool_ops = &mtk_ethtool_ops;
 
 	eth->netdev[id]->irq = eth->irq[0];
+	eth->netdev[id]->dev.of_node = np;
+
 	return 0;
 
 free_netdev:
