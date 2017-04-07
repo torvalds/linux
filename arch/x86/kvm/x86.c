@@ -3729,7 +3729,7 @@ static int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 			sizeof(struct kvm_pic_state));
 		break;
 	case KVM_IRQCHIP_IOAPIC:
-		r = kvm_get_ioapic(kvm, &chip->chip.ioapic);
+		kvm_get_ioapic(kvm, &chip->chip.ioapic);
 		break;
 	default:
 		r = -EINVAL;
@@ -3758,7 +3758,7 @@ static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 		spin_unlock(&pic->lock);
 		break;
 	case KVM_IRQCHIP_IOAPIC:
-		r = kvm_set_ioapic(kvm, &chip->chip.ioapic);
+		kvm_set_ioapic(kvm, &chip->chip.ioapic);
 		break;
 	default:
 		r = -EINVAL;
