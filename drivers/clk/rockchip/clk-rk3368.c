@@ -329,8 +329,8 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 			RK3368_CLKSEL_CON(4), 8, 5, DFLAGS,
 			RK3368_CLKGATE_CON(0), 13, GFLAGS),
 
-	COMPOSITE(0, "aclk_cci_pre", mux_pll_src_cpll_gpll_usb_npll_p, CLK_IGNORE_UNUSED,
-			RK3368_CLKSEL_CON(5), 6, 2, MFLAGS, 0, 7, DFLAGS,
+	COMPOSITE(ACLK_CCI_PRE, "aclk_cci_pre", mux_pll_src_cpll_gpll_usb_npll_p, CLK_IGNORE_UNUSED,
+			RK3368_CLKSEL_CON(5), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3368_CLKGATE_CON(0), 12, GFLAGS),
 	GATE(SCLK_PVTM_CORE, "sclk_pvtm_core", "xin24m", 0, RK3368_CLKGATE_CON(7), 10, GFLAGS),
 
