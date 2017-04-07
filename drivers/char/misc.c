@@ -150,7 +150,7 @@ static int misc_open(struct inode *inode, struct file *file)
 	err = 0;
 	replace_fops(file, new_fops);
 	if (file->f_op->open)
-		err = file->f_op->open(inode,file);
+		err = file->f_op->open(inode, file);
 fail:
 	mutex_unlock(&misc_mtx);
 	return err;
@@ -287,7 +287,7 @@ static int __init misc_init(void)
 		goto fail_remove;
 
 	err = -EIO;
-	if (register_chrdev(MISC_MAJOR,"misc",&misc_fops))
+	if (register_chrdev(MISC_MAJOR, "misc", &misc_fops))
 		goto fail_printk;
 	misc_class->devnode = misc_devnode;
 	return 0;
