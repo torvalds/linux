@@ -4872,12 +4872,9 @@ static void intel_crtc_dpms_overlay_disable(struct intel_crtc *intel_crtc)
 {
 	if (intel_crtc->overlay) {
 		struct drm_device *dev = intel_crtc->base.dev;
-		struct drm_i915_private *dev_priv = to_i915(dev);
 
 		mutex_lock(&dev->struct_mutex);
-		dev_priv->mm.interruptible = false;
 		(void) intel_overlay_switch_off(intel_crtc->overlay);
-		dev_priv->mm.interruptible = true;
 		mutex_unlock(&dev->struct_mutex);
 	}
 
