@@ -3069,8 +3069,11 @@ static long kvm_vm_ioctl(struct file *filp,
 					   routing.nr * sizeof(*entries)))
 				goto out_free_irq_routing;
 		}
+		/* avoid races with KVM_CREATE_IRQCHIP on x86 */
+		mutex_lock(&kvm->lock);
 		r = kvm_set_irq_routing(kvm, entries, routing.nr,
 					routing.flags);
+		mutex_unlock(&kvm->lock);
 out_free_irq_routing:
 		vfree(entries);
 		break;
