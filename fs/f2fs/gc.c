@@ -211,7 +211,7 @@ static unsigned int check_bg_victims(struct f2fs_sb_info *sbi)
 			continue;
 
 		clear_bit(secno, dirty_i->victim_secmap);
-		return secno * sbi->segs_per_sec;
+		return GET_SEG_FROM_SEC(sbi, secno);
 	}
 	return NULL_SEGNO;
 }
@@ -219,8 +219,8 @@ static unsigned int check_bg_victims(struct f2fs_sb_info *sbi)
 static unsigned int get_cb_cost(struct f2fs_sb_info *sbi, unsigned int segno)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
-	unsigned int secno = GET_SECNO(sbi, segno);
-	unsigned int start = secno * sbi->segs_per_sec;
+	unsigned int secno = GET_SEC_FROM_SEG(sbi, segno);
+	unsigned int start = GET_SEG_FROM_SEC(sbi, secno);
 	unsigned long long mtime = 0;
 	unsigned int vblocks;
 	unsigned char age = 0;
@@ -343,7 +343,7 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 			nsearched++;
 		}
 
-		secno = GET_SECNO(sbi, segno);
+		secno = GET_SEC_FROM_SEG(sbi, segno);
 
 		if (sec_usage_check(sbi, secno))
 			goto next;
@@ -372,7 +372,7 @@ next:
 	if (p.min_segno != NULL_SEGNO) {
 got_it:
 		if (p.alloc_mode == LFS) {
-			secno = GET_SECNO(sbi, p.min_segno);
+			secno = GET_SEC_FROM_SEG(sbi, p.min_segno);
 			if (gc_type == FG_GC)
 				sbi->cur_victim_sec = secno;
 			else
@@ -1006,7 +1006,7 @@ stop:
 
 void build_gc_manager(struct f2fs_sb_info *sbi)
 {
-	u64 main_count, resv_count, ovp_count, blocks_per_sec;
+	u64 main_count, resv_count, ovp_count;
 
 	DIRTY_I(sbi)->v_ops = &default_v_ops;
 
@@ -1014,8 +1014,7 @@ void build_gc_manager(struct f2fs_sb_info *sbi)
 	main_count = SM_I(sbi)->main_segments << sbi->log_blocks_per_seg;
 	resv_count = SM_I(sbi)->reserved_segments << sbi->log_blocks_per_seg;
 	ovp_count = SM_I(sbi)->ovp_segments << sbi->log_blocks_per_seg;
-	blocks_per_sec = sbi->blocks_per_seg * sbi->segs_per_sec;
 
-	sbi->fggc_threshold = div64_u64((main_count - ovp_count) * blocks_per_sec,
-					(main_count - resv_count));
+	sbi->fggc_threshold = div64_u64((main_count - ovp_count) *
+				BLKS_PER_SEC(sbi), (main_count - resv_count));
 }

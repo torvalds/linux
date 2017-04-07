@@ -202,12 +202,11 @@ enum {
 
 #define DEF_BATCHED_TRIM_SECTIONS	2048
 #define BATCHED_TRIM_SEGMENTS(sbi)	\
-		(SM_I(sbi)->trim_sections * (sbi)->segs_per_sec)
+		(GET_SEG_FROM_SEC(sbi, SM_I(sbi)->trim_sections))
 #define BATCHED_TRIM_BLOCKS(sbi)	\
 		(BATCHED_TRIM_SEGMENTS(sbi) << (sbi)->log_blocks_per_seg)
-#define MAX_DISCARD_BLOCKS(sbi)						\
-		((1 << (sbi)->log_blocks_per_seg) * (sbi)->segs_per_sec)
-#define DISCARD_ISSUE_RATE	8
+#define MAX_DISCARD_BLOCKS(sbi)		BLKS_PER_SEC(sbi)
+#define DISCARD_ISSUE_RATE		8
 #define DEF_CP_INTERVAL			60	/* 60 secs */
 #define DEF_IDLE_INTERVAL		5	/* 5 secs */
 
