@@ -177,8 +177,12 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 	 * guess when this particular piece of HW will be ready to start
 	 * generating CRCs.
 	 */
-	wait_event_lock_irq(crc->wq, crtc_crc_data_count(crc), crc->lock);
+	ret = wait_event_interruptible_lock_irq(crc->wq,
+						crtc_crc_data_count(crc),
+						crc->lock);
 	spin_unlock_irq(&crc->lock);
+
+	WARN_ON(ret);
 
 	return 0;
 
