@@ -194,6 +194,7 @@ int misc_register(struct miscdevice *misc)
 
 	if (is_dynamic) {
 		int i = find_first_zero_bit(misc_minors, DYNAMIC_MINORS);
+
 		if (i >= DYNAMIC_MINORS) {
 			err = -EBUSY;
 			goto out;
