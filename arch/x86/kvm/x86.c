@@ -4015,9 +4015,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 		r = kvm_ioapic_init(kvm);
 		if (r) {
-			mutex_lock(&kvm->slots_lock);
 			kvm_pic_destroy(kvm);
-			mutex_unlock(&kvm->slots_lock);
 			goto create_irqchip_unlock;
 		}
 
@@ -4027,10 +4025,8 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			kvm->arch.irqchip_mode = KVM_IRQCHIP_NONE;
 			/* Pairs with smp_rmb() when reading irqchip_mode */
 			smp_wmb();
-			mutex_lock(&kvm->slots_lock);
 			kvm_ioapic_destroy(kvm);
 			kvm_pic_destroy(kvm);
-			mutex_unlock(&kvm->slots_lock);
 			goto create_irqchip_unlock;
 		}
 		/* Write kvm->irq_routing before enabling irqchip_in_kernel. */

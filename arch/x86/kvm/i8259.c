@@ -660,9 +660,11 @@ void kvm_pic_destroy(struct kvm *kvm)
 	if (!vpic)
 		return;
 
+	mutex_lock(&kvm->slots_lock);
 	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_master);
 	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_slave);
 	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_eclr);
+	mutex_unlock(&kvm->slots_lock);
 
 	kvm->arch.vpic = NULL;
 	kfree(vpic);
