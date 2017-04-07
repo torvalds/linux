@@ -171,7 +171,6 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 		int status)
 {
 	struct dwc3			*dwc = dep->dwc;
-	unsigned int			unmap_after_complete = false;
 
 	req->started = false;
 	list_del(&req->list);
@@ -181,29 +180,14 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 	if (req->request.status == -EINPROGRESS)
 		req->request.status = status;
 
-	/*
-	 * NOTICE we don't want to unmap before calling ->complete() if we're
-	 * dealing with a bounced ep0 request. If we unmap it here, we would end
-	 * up overwritting the contents of req->buf and this could confuse the
-	 * gadget driver.
-	 */
-	if (dwc->ep0_bounced && dep->number <= 1) {
-		dwc->ep0_bounced = false;
-		unmap_after_complete = true;
-	} else {
-		usb_gadget_unmap_request_by_dev(dwc->sysdev,
-				&req->request, req->direction);
-	}
+	usb_gadget_unmap_request_by_dev(dwc->sysdev,
+					&req->request, req->direction);
 
 	trace_dwc3_gadget_giveback(req);
 
 	spin_unlock(&dwc->lock);
 	usb_gadget_giveback_request(&dep->endpoint, &req->request);
 	spin_lock(&dwc->lock);
-
-	if (unmap_after_complete)
-		usb_gadget_unmap_request_by_dev(dwc->sysdev,
-				&req->request, req->direction);
 
 	if (dep->number > 1)
 		pm_runtime_put(dwc->dev);
@@ -3153,32 +3137,23 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 		goto err0;
 	}
 
-	dwc->setup_buf = kzalloc(DWC3_EP0_BOUNCE_SIZE, GFP_KERNEL);
+	dwc->setup_buf = kzalloc(DWC3_EP0_SETUP_SIZE, GFP_KERNEL);
 	if (!dwc->setup_buf) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
-	dwc->ep0_bounce = dma_alloc_coherent(dwc->sysdev,
-			DWC3_EP0_BOUNCE_SIZE, &dwc->ep0_bounce_addr,
-			GFP_KERNEL);
-	if (!dwc->ep0_bounce) {
-		dev_err(dwc->dev, "failed to allocate ep0 bounce buffer\n");
-		ret = -ENOMEM;
-		goto err2;
-	}
-
 	dwc->zlp_buf = kzalloc(DWC3_ZLP_BUF_SIZE, GFP_KERNEL);
 	if (!dwc->zlp_buf) {
 		ret = -ENOMEM;
-		goto err3;
+		goto err2;
 	}
 
 	dwc->bounce = dma_alloc_coherent(dwc->sysdev, DWC3_BOUNCE_SIZE,
 			&dwc->bounce_addr, GFP_KERNEL);
 	if (!dwc->bounce) {
 		ret = -ENOMEM;
-		goto err4;
+		goto err3;
 	}
 
 	init_completion(&dwc->ep0_in_setup);
@@ -3218,7 +3193,7 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 
 	ret = dwc3_gadget_init_endpoints(dwc, dwc->num_eps);
 	if (ret)
-		goto err5;
+		goto err4;
 
 	ret = usb_add_gadget_udc(dwc->dev, &dwc->gadget);
 	if (ret) {
@@ -3228,16 +3203,14 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 
 	return 0;
 err5:
+	dwc3_gadget_free_endpoints(dwc);
+
+err4:
 	dma_free_coherent(dwc->sysdev, DWC3_BOUNCE_SIZE, dwc->bounce,
 			dwc->bounce_addr);
 
-err4:
-	kfree(dwc->zlp_buf);
-
 err3:
-	dwc3_gadget_free_endpoints(dwc);
-	dma_free_coherent(dwc->sysdev, DWC3_EP0_BOUNCE_SIZE,
-			dwc->ep0_bounce, dwc->ep0_bounce_addr);
+	kfree(dwc->zlp_buf);
 
 err2:
 	kfree(dwc->setup_buf);
@@ -3260,9 +3233,6 @@ void dwc3_gadget_exit(struct dwc3 *dwc)
 
 	dma_free_coherent(dwc->sysdev, DWC3_BOUNCE_SIZE, dwc->bounce,
 			dwc->bounce_addr);
-	dma_free_coherent(dwc->sysdev, DWC3_EP0_BOUNCE_SIZE,
-			dwc->ep0_bounce, dwc->ep0_bounce_addr);
-
 	kfree(dwc->setup_buf);
 	kfree(dwc->zlp_buf);
 

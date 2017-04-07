@@ -836,7 +836,6 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	struct usb_request	*ur;
 	struct dwc3_trb		*trb;
 	struct dwc3_ep		*ep0;
-	unsigned		transfer_size = 0;
 	unsigned		maxp;
 	unsigned		remaining_ur_length;
 	void			*buf;
@@ -849,9 +848,7 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	ep0 = dwc->eps[0];
 
 	dwc->ep0_next_event = DWC3_EP0_NRDY_STATUS;
-
 	trb = dwc->ep0_trb;
-
 	trace_dwc3_complete_trb(ep0, trb);
 
 	r = next_request(&ep0->pending_list);
@@ -872,38 +869,16 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	remaining_ur_length = ur->length;
 
 	length = trb->size & DWC3_TRB_SIZE_MASK;
-
 	maxp = ep0->endpoint.maxpacket;
+	transferred = ur->length - length;
+	ur->actual += transferred;
 
 	if (dwc->ep0_bounced) {
-		/*
-		 * Handle the first TRB before handling the bounce buffer if
-		 * the request length is greater than the bounce buffer size
-		 */
-		if (ur->length > DWC3_EP0_BOUNCE_SIZE) {
-			transfer_size = ALIGN(ur->length - maxp, maxp);
-			transferred = transfer_size - length;
-			buf = (u8 *)buf + transferred;
-			ur->actual += transferred;
-			remaining_ur_length -= transferred;
-
-			trb++;
-			length = trb->size & DWC3_TRB_SIZE_MASK;
-
-			ep0->trb_enqueue = 0;
-		}
-
-		transfer_size = roundup((ur->length - transfer_size),
-					maxp);
-
-		transferred = min_t(u32, remaining_ur_length,
-				    transfer_size - length);
-		memcpy(buf, dwc->ep0_bounce, transferred);
-	} else {
-		transferred = ur->length - length;
+		trb++;
+		trb->ctrl &= ~DWC3_TRB_CTRL_HWO;
+		ep0->trb_enqueue = 0;
+		dwc->ep0_bounced = false;
 	}
-
-	ur->actual += transferred;
 
 	if ((epnum & 1) && ur->actual < ur->length) {
 		/* for some reason we did not get everything out */
@@ -1006,8 +981,8 @@ static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 		ret = dwc3_ep0_start_trans(dep);
 	} else if (!IS_ALIGNED(req->request.length, dep->endpoint.maxpacket)
 			&& (dep->number == 0)) {
-		u32	transfer_size = 0;
 		u32	maxpacket;
+		u32	rem;
 
 		ret = usb_gadget_map_request_by_dev(dwc->sysdev,
 				&req->request, dep->number);
@@ -1015,23 +990,19 @@ static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 			return;
 
 		maxpacket = dep->endpoint.maxpacket;
-
-		if (req->request.length > DWC3_EP0_BOUNCE_SIZE) {
-			transfer_size = ALIGN(req->request.length - maxpacket,
-					      maxpacket);
-			dwc3_ep0_prepare_one_trb(dep, req->request.dma,
-						   transfer_size,
-						   DWC3_TRBCTL_CONTROL_DATA,
-						   true);
-		}
-
-		transfer_size = roundup((req->request.length - transfer_size),
-					maxpacket);
-
+		rem = req->request.length % maxpacket;
 		dwc->ep0_bounced = true;
 
-		dwc3_ep0_prepare_one_trb(dep, dwc->ep0_bounce_addr,
-					 transfer_size, DWC3_TRBCTL_CONTROL_DATA,
+		/* prepare normal TRB */
+		dwc3_ep0_prepare_one_trb(dep, req->request.dma,
+					 req->request.length,
+					 DWC3_TRBCTL_CONTROL_DATA,
+					 true);
+
+		/* Now prepare one extra TRB to align transfer size */
+		dwc3_ep0_prepare_one_trb(dep, dwc->bounce_addr,
+					 maxpacket - rem,
+					 DWC3_TRBCTL_CONTROL_DATA,
 					 false);
 		ret = dwc3_ep0_start_trans(dep);
 	} else {

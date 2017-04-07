@@ -42,7 +42,7 @@
 #define DWC3_PULL_UP_TIMEOUT	500	/* ms */
 #define DWC3_ZLP_BUF_SIZE	1024	/* size of a superspeed bulk */
 #define DWC3_BOUNCE_SIZE	1024	/* size of a superspeed bulk */
-#define DWC3_EP0_BOUNCE_SIZE	512
+#define DWC3_EP0_SETUP_SIZE	512
 #define DWC3_ENDPOINTS_NUM	32
 #define DWC3_XHCI_RESOURCES_NUM	2
 
@@ -761,12 +761,10 @@ struct dwc3_scratchpad_array {
 /**
  * struct dwc3 - representation of our controller
  * @ep0_trb: trb which is used for the ctrl_req
- * @ep0_bounce: bounce buffer for ep0
  * @zlp_buf: used when request->zero is set
  * @setup_buf: used while precessing STD USB requests
  * @ep0_trb: dma address of ep0_trb
  * @ep0_usb_req: dummy req used while handling STD USB requests
- * @ep0_bounce_addr: dma address of ep0_bounce
  * @scratch_addr: dma address of scratchbuf
  * @ep0_in_setup: one control transfer is completed and enter setup phase
  * @lock: for synchronizing
@@ -859,13 +857,11 @@ struct dwc3_scratchpad_array {
 struct dwc3 {
 	struct dwc3_trb		*ep0_trb;
 	void			*bounce;
-	void			*ep0_bounce;
 	void			*zlp_buf;
 	void			*scratchbuf;
 	u8			*setup_buf;
 	dma_addr_t		ep0_trb_addr;
 	dma_addr_t		bounce_addr;
-	dma_addr_t		ep0_bounce_addr;
 	dma_addr_t		scratch_addr;
 	struct dwc3_request	ep0_usb_req;
 	struct completion	ep0_in_setup;
