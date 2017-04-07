@@ -1305,11 +1305,6 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 		ctrl_ctx->add_flags = cpu_to_le32(EP0_FLAG);
 		ctrl_ctx->drop_flags = 0;
 
-		xhci_dbg(xhci, "Slot %d input context\n", slot_id);
-		xhci_dbg_ctx(xhci, command->in_ctx, ep_index);
-		xhci_dbg(xhci, "Slot %d output context\n", slot_id);
-		xhci_dbg_ctx(xhci, out_ctx, ep_index);
-
 		ret = xhci_configure_endpoint(xhci, urb->dev, command,
 				true, false);
 
@@ -1857,7 +1852,6 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 		struct usb_device *udev, u32 *cmd_status)
 {
 	int ret;
-	struct xhci_virt_device *virt_dev = xhci->devs[udev->slot_id];
 
 	switch (*cmd_status) {
 	case COMP_COMMAND_ABORTED:
@@ -1878,7 +1872,6 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 	case COMP_CONTEXT_STATE_ERROR:
 		dev_warn(&udev->dev,
 			"WARN: invalid context state for evaluate context command.\n");
-		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 1);
 		ret = -EINVAL;
 		break;
 	case COMP_INCOMPATIBLE_DEVICE_ERROR:
@@ -2757,19 +2750,12 @@ static int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 			break;
 		}
 	}
-	xhci_dbg(xhci, "New Input Control Context:\n");
-	xhci_dbg_ctx(xhci, virt_dev->in_ctx,
-		     LAST_CTX_TO_EP_NUM(le32_to_cpu(slot_ctx->dev_info)));
 
 	ret = xhci_configure_endpoint(xhci, udev, command,
 			false, false);
 	if (ret)
 		/* Callee should call reset_bandwidth() */
 		goto command_cleanup;
-
-	xhci_dbg(xhci, "Output context after successful config ep cmd:\n");
-	xhci_dbg_ctx(xhci, virt_dev->out_ctx,
-		     LAST_CTX_TO_EP_NUM(le32_to_cpu(slot_ctx->dev_info)));
 
 	/* Free any rings that were dropped, but not changed. */
 	for (i = 1; i < 31; i++) {
@@ -2837,9 +2823,6 @@ static void xhci_setup_input_ctx_for_config_ep(struct xhci_hcd *xhci,
 	ctrl_ctx->drop_flags = cpu_to_le32(drop_flags);
 	xhci_slot_copy(xhci, in_ctx, out_ctx);
 	ctrl_ctx->add_flags |= cpu_to_le32(SLOT_FLAG);
-
-	xhci_dbg(xhci, "Input Context:\n");
-	xhci_dbg_ctx(xhci, in_ctx, xhci_last_valid_endpoint(add_flags));
 }
 
 static void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
@@ -3552,9 +3535,6 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 	}
 	/* If necessary, update the number of active TTs on this root port */
 	xhci_update_tt_active_eps(xhci, virt_dev, old_active_eps);
-
-	xhci_dbg(xhci, "Output context after successful reset device cmd:\n");
-	xhci_dbg_ctx(xhci, virt_dev->out_ctx, last_freed_endpoint);
 	ret = 0;
 
 command_cleanup:
@@ -3854,8 +3834,6 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	ctrl_ctx->add_flags = cpu_to_le32(SLOT_FLAG | EP0_FLAG);
 	ctrl_ctx->drop_flags = 0;
 
-	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
-	xhci_dbg_ctx(xhci, virt_dev->in_ctx, 2);
 	trace_xhci_address_ctx(xhci, virt_dev->in_ctx,
 				le32_to_cpu(slot_ctx->dev_info) >> 27);
 
@@ -3908,8 +3886,6 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		xhci_err(xhci,
 			 "ERROR: unexpected setup %s command completion code 0x%x.\n",
 			 act, command->status);
-		xhci_dbg(xhci, "Slot ID %d Output Context:\n", udev->slot_id);
-		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 2);
 		trace_xhci_address_ctx(xhci, virt_dev->out_ctx, 1);
 		ret = -EINVAL;
 		break;
@@ -3928,12 +3904,8 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 			"Output Context DMA address = %#08llx",
 			(unsigned long long)virt_dev->out_ctx->dma);
-	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
-	xhci_dbg_ctx(xhci, virt_dev->in_ctx, 2);
 	trace_xhci_address_ctx(xhci, virt_dev->in_ctx,
 				le32_to_cpu(slot_ctx->dev_info) >> 27);
-	xhci_dbg(xhci, "Slot ID %d Output Context:\n", udev->slot_id);
-	xhci_dbg_ctx(xhci, virt_dev->out_ctx, 2);
 	/*
 	 * USB core uses address 1 for the roothubs, so we add one to the
 	 * address given back to us by the HC.
@@ -4038,14 +4010,10 @@ static int __maybe_unused xhci_change_max_exit_latency(struct xhci_hcd *xhci,
 
 	xhci_dbg_trace(xhci, trace_xhci_dbg_context_change,
 			"Set up evaluate context for LPM MEL change.");
-	xhci_dbg(xhci, "Slot %u Input Context:\n", udev->slot_id);
-	xhci_dbg_ctx(xhci, command->in_ctx, 0);
 
 	/* Issue and wait for the evaluate context command. */
 	ret = xhci_configure_endpoint(xhci, udev, command,
 			true, true);
-	xhci_dbg(xhci, "Slot %u Output Context:\n", udev->slot_id);
-	xhci_dbg_ctx(xhci, virt_dev->out_ctx, 0);
 
 	if (!ret) {
 		spin_lock_irqsave(&xhci->lock, flags);
@@ -4813,8 +4781,6 @@ static int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 	xhci_dbg(xhci, "Set up %s for hub device.\n",
 			(xhci->hci_version > 0x95) ?
 			"configure endpoint" : "evaluate context");
-	xhci_dbg(xhci, "Slot %u Input Context:\n", hdev->slot_id);
-	xhci_dbg_ctx(xhci, config_cmd->in_ctx, 0);
 
 	/* Issue and wait for the configure endpoint or
 	 * evaluate context command.
@@ -4825,9 +4791,6 @@ static int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 	else
 		ret = xhci_configure_endpoint(xhci, hdev, config_cmd,
 				true, false);
-
-	xhci_dbg(xhci, "Slot %u Output Context:\n", hdev->slot_id);
-	xhci_dbg_ctx(xhci, vdev->out_ctx, 0);
 
 	xhci_free_command(xhci, config_cmd);
 	return ret;
