@@ -624,27 +624,21 @@ struct nfs_client *nfs_init_client(struct nfs_client *clp,
 {
 	int error;
 
-	if (clp->cl_cons_state == NFS_CS_READY) {
-		/* the client is already initialised */
-		dprintk("<-- nfs_init_client() = 0 [already %p]\n", clp);
+	/* the client is already initialised */
+	if (clp->cl_cons_state == NFS_CS_READY)
 		return clp;
-	}
 
 	/*
 	 * Create a client RPC handle for doing FSSTAT with UNIX auth only
 	 * - RFC 2623, sec 2.3.2
 	 */
 	error = nfs_create_rpc_client(clp, cl_init, RPC_AUTH_UNIX);
-	if (error < 0)
-		goto error;
-	nfs_mark_client_ready(clp, NFS_CS_READY);
+	nfs_mark_client_ready(clp, error == 0 ? NFS_CS_READY : error);
+	if (error < 0) {
+		nfs_put_client(clp);
+		clp = ERR_PTR(error);
+	}
 	return clp;
-
-error:
-	nfs_mark_client_ready(clp, error);
-	nfs_put_client(clp);
-	dprintk("<-- nfs_init_client() = xerror %d\n", error);
-	return ERR_PTR(error);
 }
 EXPORT_SYMBOL_GPL(nfs_init_client);
 
