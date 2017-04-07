@@ -1005,7 +1005,7 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 		err = drci_wr_reg(usb_dev, dci_obj->reg_addr, val);
 	else if (!strcmp(name, "sync_ep"))
 		err = start_sync_ep(usb_dev, val);
-	else if (!get_static_reg_addr(ro_regs, name, &reg_addr))
+	else if (!get_static_reg_addr(rw_regs, name, &reg_addr))
 		err = drci_wr_reg(usb_dev, reg_addr, val);
 	else
 		return -EFAULT;
