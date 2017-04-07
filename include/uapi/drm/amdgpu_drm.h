@@ -295,7 +295,10 @@ union drm_amdgpu_gem_wait_idle {
 };
 
 struct drm_amdgpu_wait_cs_in {
-	/** Command submission handle */
+	/* Command submission handle
+         * handle equals 0 means none to wait for
+         * handle equal ~0ull meanas wait for the latest sequence number
+         */
 	__u64 handle;
 	/** Absolute timeout to wait */
 	__u64 timeout;
