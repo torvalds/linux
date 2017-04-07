@@ -761,6 +761,10 @@ static int aspeed_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 			param == PIN_CONFIG_BIAS_PULL_DOWN ||
 			param == PIN_CONFIG_DRIVE_STRENGTH)
 		return pinctrl_gpio_set_config(offset, config);
+	else if (param == PIN_CONFIG_DRIVE_OPEN_DRAIN ||
+			param == PIN_CONFIG_DRIVE_OPEN_SOURCE)
+		/* Return -ENOTSUPP to trigger emulation, as per datasheet */
+		return -ENOTSUPP;
 
 	return -ENOTSUPP;
 }
