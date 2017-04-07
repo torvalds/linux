@@ -518,11 +518,8 @@ static __be32 decode_notify_lock_args(struct svc_rqst *rqstp, struct xdr_stream 
 
 	status = decode_fh(xdr, &args->cbnl_fh);
 	if (unlikely(status != 0))
-		goto out;
-	status = decode_lockowner(xdr, args);
-out:
-	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
-	return status;
+		return status;
+	return decode_lockowner(xdr, args);
 }
 
 #endif /* CONFIG_NFS_V4_1 */
