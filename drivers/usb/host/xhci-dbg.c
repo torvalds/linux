@@ -256,63 +256,6 @@ void xhci_print_registers(struct xhci_hcd *xhci)
 	xhci_print_ports(xhci);
 }
 
-void xhci_print_trb_offsets(struct xhci_hcd *xhci, union xhci_trb *trb)
-{
-	int i;
-	for (i = 0; i < 4; ++i)
-		xhci_dbg(xhci, "Offset 0x%x = 0x%x\n",
-				i*4, trb->generic.field[i]);
-}
-
-/**
- * Debug a transfer request block (TRB).
- */
-void xhci_debug_trb(struct xhci_hcd *xhci, union xhci_trb *trb)
-{
-	u64	address;
-	u32	type = le32_to_cpu(trb->link.control) & TRB_TYPE_BITMASK;
-
-	switch (type) {
-	case TRB_TYPE(TRB_LINK):
-		xhci_dbg(xhci, "Link TRB:\n");
-		xhci_print_trb_offsets(xhci, trb);
-
-		address = le64_to_cpu(trb->link.segment_ptr);
-		xhci_dbg(xhci, "Next ring segment DMA address = 0x%llx\n", address);
-
-		xhci_dbg(xhci, "Interrupter target = 0x%x\n",
-			 GET_INTR_TARGET(le32_to_cpu(trb->link.intr_target)));
-		xhci_dbg(xhci, "Cycle bit = %u\n",
-			 le32_to_cpu(trb->link.control) & TRB_CYCLE);
-		xhci_dbg(xhci, "Toggle cycle bit = %u\n",
-			 le32_to_cpu(trb->link.control) & LINK_TOGGLE);
-		xhci_dbg(xhci, "No Snoop bit = %u\n",
-			 le32_to_cpu(trb->link.control) & TRB_NO_SNOOP);
-		break;
-	case TRB_TYPE(TRB_TRANSFER):
-		address = le64_to_cpu(trb->trans_event.buffer);
-		/*
-		 * FIXME: look at flags to figure out if it's an address or if
-		 * the data is directly in the buffer field.
-		 */
-		xhci_dbg(xhci, "DMA address or buffer contents= %llu\n", address);
-		break;
-	case TRB_TYPE(TRB_COMPLETION):
-		address = le64_to_cpu(trb->event_cmd.cmd_trb);
-		xhci_dbg(xhci, "Command TRB pointer = %llu\n", address);
-		xhci_dbg(xhci, "Completion status = %u\n",
-			 GET_COMP_CODE(le32_to_cpu(trb->event_cmd.status)));
-		xhci_dbg(xhci, "Flags = 0x%x\n",
-			 le32_to_cpu(trb->event_cmd.flags));
-		break;
-	default:
-		xhci_dbg(xhci, "Unknown TRB with TRB type ID %u\n",
-				(unsigned int) type>>10);
-		xhci_print_trb_offsets(xhci, trb);
-		break;
-	}
-}
-
 void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst)
 {
 	u64 addr = erst->erst_dma_addr;

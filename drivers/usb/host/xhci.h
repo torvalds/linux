@@ -1908,8 +1908,6 @@ void xhci_print_ir_set(struct xhci_hcd *xhci, int set_num);
 void xhci_print_registers(struct xhci_hcd *xhci);
 void xhci_dbg_regs(struct xhci_hcd *xhci);
 void xhci_print_run_regs(struct xhci_hcd *xhci);
-void xhci_print_trb_offsets(struct xhci_hcd *xhci, union xhci_trb *trb);
-void xhci_debug_trb(struct xhci_hcd *xhci, union xhci_trb *trb);
 void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst);
 void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci);
 void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx, unsigned int last_ep);
