@@ -604,25 +604,6 @@ out_major_mismatch:
 }
 
 /*
- * Returns true if server minor ids match
- */
-static bool
-nfs4_check_serverowner_minor_id(struct nfs41_server_owner *o1,
-				struct nfs41_server_owner *o2)
-{
-	/* Check eir_server_owner so_minor_id */
-	if (o1->minor_id != o2->minor_id)
-		goto out_minor_mismatch;
-
-	dprintk("NFS: --> %s server owner minor IDs match\n", __func__);
-	return true;
-
-out_minor_mismatch:
-	dprintk("NFS: --> %s server owner minor IDs do not match\n", __func__);
-	return false;
-}
-
-/*
  * Returns true if the server scopes match
  */
 static bool
@@ -674,8 +655,7 @@ int nfs4_detect_session_trunking(struct nfs_client *clp,
 		goto out_err;
 
 	/* Check eir_server_owner so_minor_id */
-	if (!nfs4_check_serverowner_minor_id(clp->cl_serverowner,
-					     res->server_owner))
+	if (clp->cl_serverowner->minor_id != res->server_owner->minor_id)
 		goto out_err;
 
 	/* Check eir_server_scope */
