@@ -68,6 +68,7 @@ struct audit_cap_data {
 		unsigned int	fE;		/* effective bit of file cap */
 		kernel_cap_t	effective;	/* effective set of process */
 	};
+	kernel_cap_t		ambient;
 };
 
 /* When fs/namei.c:getname() is called, we store the pointer in name and bump
