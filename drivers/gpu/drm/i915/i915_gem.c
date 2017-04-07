@@ -4864,9 +4864,10 @@ void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
 
 int i915_gem_freeze(struct drm_i915_private *dev_priv)
 {
-	mutex_lock(&dev_priv->drm.struct_mutex);
+	/* Discard all purgeable objects, let userspace recover those as
+	 * required after resuming.
+	 */
 	i915_gem_shrink_all(dev_priv);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	return 0;
 }
@@ -4891,12 +4892,12 @@ int i915_gem_freeze_late(struct drm_i915_private *dev_priv)
 	 * we update that state just before writing out the image.
 	 *
 	 * To try and reduce the hibernation image, we manually shrink
-	 * the objects as well.
+	 * the objects as well, see i915_gem_freeze()
 	 */
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
 	i915_gem_shrink(dev_priv, -1UL, I915_SHRINK_UNBOUND);
 
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	for (p = phases; *p; p++) {
 		list_for_each_entry(obj, *p, global_link) {
 			obj->base.read_domains = I915_GEM_DOMAIN_CPU;
