@@ -1017,7 +1017,7 @@ static struct most_aim_attribute most_aim_attr_add_link =
 	__ATTR_RW(add_link);
 
 /**
- * store_remove_link - store function for remove_link attribute
+ * remove_link_store - store function for remove_link attribute
  * @aim_obj: pointer to AIM object
  * @attr: its attributes
  * @buf: buffer
