@@ -23,6 +23,24 @@
 #include <trace/events/asoc.h>
 
 /**
+ * snd_soc_codec_set_jack - configure codec jack.
+ * @codec: CODEC
+ * @jack: structure to use for the jack
+ * @data: can be used if codec driver need extra data for configuring jack
+ *
+ * Configures and enables jack detection function.
+ */
+int snd_soc_codec_set_jack(struct snd_soc_codec *codec,
+	struct snd_soc_jack *jack, void *data)
+{
+	if (codec->driver->set_jack)
+		return codec->driver->set_jack(codec, jack, data);
+	else
+		return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_codec_set_jack);
+
+/**
  * snd_soc_card_jack_new - Create a new jack
  * @card:  ASoC card
  * @id:    an identifying string for this jack
