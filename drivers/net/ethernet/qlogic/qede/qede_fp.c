@@ -994,14 +994,14 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 			struct bpf_prog *prog,
 			struct sw_rx_data *bd,
 			struct eth_fast_path_rx_reg_cqe *cqe,
-			u16 data_offset)
+			u16 *data_offset, u16 *len)
 {
-	u16 len = le16_to_cpu(cqe->len_on_first_bd);
 	struct xdp_buff xdp;
 	enum xdp_action act;
 
-	xdp.data = page_address(bd->data) + data_offset;
-	xdp.data_end = xdp.data + len;
+	xdp.data_hard_start = page_address(bd->data);
+	xdp.data = xdp.data_hard_start + *data_offset;
+	xdp.data_end = xdp.data + *len;
 
 	/* Queues always have a full reset currently, so for the time
 	 * being until there's atomic program replace just mark read
@@ -1010,6 +1010,10 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 	rcu_read_lock();
 	act = bpf_prog_run_xdp(prog, &xdp);
 	rcu_read_unlock();
+
+	/* Recalculate, as XDP might have changed the headers */
+	*data_offset = xdp.data - xdp.data_hard_start;
+	*len = xdp.data_end - xdp.data;
 
 	if (act == XDP_PASS)
 		return true;
@@ -1029,7 +1033,7 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 		/* Now if there's a transmission problem, we'd still have to
 		 * throw current buffer, as replacement was already allocated.
 		 */
-		if (qede_xdp_xmit(edev, fp, bd, data_offset, len)) {
+		if (qede_xdp_xmit(edev, fp, bd, *data_offset, *len)) {
 			dma_unmap_page(rxq->dev, bd->mapping,
 				       PAGE_SIZE, DMA_BIDIRECTIONAL);
 			__free_page(bd->data);
@@ -1231,7 +1235,8 @@ static int qede_rx_process_cqe(struct qede_dev *edev,
 
 	/* Run eBPF program if one is attached */
 	if (xdp_prog)
-		if (!qede_rx_xdp(edev, fp, rxq, xdp_prog, bd, fp_cqe, pad))
+		if (!qede_rx_xdp(edev, fp, rxq, xdp_prog, bd, fp_cqe,
+				 &pad, &len))
 			return 0;
 
 	/* If this is an error packet then drop it */

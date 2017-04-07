@@ -520,11 +520,6 @@ static int qede_xdp_set(struct qede_dev *edev, struct bpf_prog *prog)
 {
 	struct qede_reload_args args;
 
-	if (prog && prog->xdp_adjust_head) {
-		DP_ERR(edev, "Does not support bpf_xdp_adjust_head()\n");
-		return -EOPNOTSUPP;
-	}
-
 	/* If we're called, there was already a bpf reference increment */
 	args.func = &qede_xdp_reload_func;
 	args.u.new_prog = prog;

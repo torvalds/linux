@@ -1187,6 +1187,7 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 	rxq->num_rx_buffers = edev->q_num_rx_buffers;
 
 	rxq->rx_buf_size = NET_IP_ALIGN + ETH_OVERHEAD + edev->ndev->mtu;
+	rxq->rx_headroom = edev->xdp_prog ? XDP_PACKET_HEADROOM : 0;
 
 	/* Make sure that the headroom and  payload fit in a single page */
 	if (rxq->rx_buf_size + rxq->rx_headroom > PAGE_SIZE)
