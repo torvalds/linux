@@ -649,8 +649,6 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 {
 	unsigned int num_frames;
 	unsigned int frame_size;
-	unsigned int temp_size;
-	unsigned int tail_space;
 	struct most_dev *mdev = to_mdev(iface);
 	struct device *dev = &mdev->usb_device->dev;
 
@@ -685,7 +683,6 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	}
 
 	mdev->padding_active[channel] = true;
-	temp_size = conf->buffer_size;
 
 	frame_size = get_stream_frame_size(conf);
 	if (frame_size == 0 || frame_size > USB_MTU) {
@@ -693,25 +690,19 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 		return -EINVAL;
 	}
 
-	if (conf->buffer_size % frame_size) {
-		u16 tmp_val;
+	num_frames = conf->buffer_size / frame_size;
 
-		tmp_val = conf->buffer_size / frame_size;
-		conf->buffer_size = tmp_val * frame_size;
-		dev_notice(dev,
-			   "Channel %d - rounding buffer size to %d bytes, channel config says %d bytes\n",
-			   channel,
-			   conf->buffer_size,
-			   temp_size);
+	if (conf->buffer_size % frame_size) {
+		u16 old_size = conf->buffer_size;
+
+		conf->buffer_size = num_frames * frame_size;
+		dev_warn(dev, "%s: fixed buffer size (%d -> %d)\n",
+			 mdev->suffix[channel], old_size, conf->buffer_size);
 	}
 
-	num_frames = conf->buffer_size / frame_size;
-	tail_space = num_frames * (USB_MTU - frame_size);
-	temp_size += tail_space;
-
 	/* calculate extra length to comply w/ HW padding */
-	conf->extra_len = (DIV_ROUND_UP(temp_size, USB_MTU) * USB_MTU)
-			  - conf->buffer_size;
+	conf->extra_len = num_frames * (USB_MTU - frame_size);
+
 exit:
 	mdev->conf[channel] = *conf;
 	if (conf->data_type == MOST_CH_ASYNC) {
