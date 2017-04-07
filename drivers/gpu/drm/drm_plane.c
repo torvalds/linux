@@ -720,15 +720,15 @@ retry:
 	ret = drm_modeset_lock(&crtc->mutex, &ctx);
 	if (ret)
 		goto out;
-	ret = drm_modeset_lock(&crtc->cursor->mutex, &ctx);
-	if (ret)
-		goto out;
-
 	/*
 	 * If this crtc has a universal cursor plane, call that plane's update
 	 * handler rather than using legacy cursor handlers.
 	 */
 	if (crtc->cursor) {
+		ret = drm_modeset_lock(&crtc->cursor->mutex, &ctx);
+		if (ret)
+			goto out;
+
 		ret = drm_mode_cursor_universal(crtc, req, file_priv, &ctx);
 		goto out;
 	}
