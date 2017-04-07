@@ -191,6 +191,9 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 		ring->deq_seg = ring->deq_seg->next;
 		ring->dequeue = ring->deq_seg->trbs;
 	}
+
+	trace_xhci_inc_deq(ring);
+
 	return;
 }
 
@@ -259,6 +262,8 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		ring->enqueue = ring->enq_seg->trbs;
 		next = ring->enqueue;
 	}
+
+	trace_xhci_inc_enq(ring);
 }
 
 /*
