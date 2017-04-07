@@ -692,11 +692,11 @@ static __be32 encode_cb_sequence_res(struct svc_rqst *rqstp,
 	__be32 status = res->csr_status;
 
 	if (unlikely(status != 0))
-		goto out;
+		return status;
 
 	status = encode_sessionid(xdr, &res->csr_sessionid);
 	if (status)
-		goto out;
+		return status;
 
 	p = xdr_reserve_space(xdr, 4 * sizeof(uint32_t));
 	if (unlikely(p == NULL))
@@ -706,9 +706,7 @@ static __be32 encode_cb_sequence_res(struct svc_rqst *rqstp,
 	*p++ = htonl(res->csr_slotid);
 	*p++ = htonl(res->csr_highestslotid);
 	*p++ = htonl(res->csr_target_highestslotid);
-out:
-	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
-	return status;
+	return 0;
 }
 
 static __be32
