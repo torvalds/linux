@@ -768,7 +768,7 @@ equal to zero, in which case the compiler is within its rights to
 transform the above code into the following:
 
 	q = READ_ONCE(a);
-	WRITE_ONCE(b, 1);
+	WRITE_ONCE(b, 2);
 	do_something_else();
 
 Given this transformation, the CPU is not required to respect the ordering
