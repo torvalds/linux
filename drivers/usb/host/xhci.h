@@ -2158,14 +2158,12 @@ static inline const char *xhci_decode_trb(u32 field0, u32 field1, u32 field2,
 	switch (type) {
 	case TRB_LINK:
 		sprintf(str,
-			"TRB %08x%08x status '%s' len %d slot %d ep %d type '%s' flags %c:%c",
-			field1, field0,
-			xhci_trb_comp_code_string(GET_COMP_CODE(field2)),
-			EVENT_TRB_LEN(field2), TRB_TO_SLOT_ID(field3),
-			/* Macro decrements 1, maybe it shouldn't?!? */
-			TRB_TO_EP_INDEX(field3) + 1,
+			"LINK %08x%08x intr %d type '%s' flags %c:%c:%c:%c",
+			field1, field0, GET_INTR_TARGET(field2),
 			xhci_trb_type_string(TRB_FIELD_TO_TYPE(field3)),
-			field3 & EVENT_DATA ? 'E' : 'e',
+			field3 & TRB_IOC ? 'I' : 'i',
+			field3 & TRB_CHAIN ? 'C' : 'c',
+			field3 & TRB_TC ? 'T' : 't',
 			field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
 	case TRB_TRANSFER:
