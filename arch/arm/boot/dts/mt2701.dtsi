@@ -22,7 +22,7 @@
 
 / {
 	compatible = "mediatek,mt2701";
-	interrupt-parent = <&sysirq>;
+	interrupt-parent = <&cirq>;
 
 	cpus {
 		#address-cells = <1>;
@@ -208,6 +208,16 @@
 		#interrupt-cells = <3>;
 		interrupt-parent = <&gic>;
 		reg = <0 0x10200100 0 0x1c>;
+	};
+
+	cirq: interrupt-controller@10204000 {
+		compatible = "mediatek,mt2701-cirq",
+			     "mediatek,mtk-cirq";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&sysirq>;
+		reg = <0 0x10204000 0 0x400>;
+		mediatek,ext-irq-range = <32 200>;
 	};
 
 	iommu: mmsys_iommu@10205000 {
