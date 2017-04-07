@@ -1929,7 +1929,7 @@ static struct net_device_stats *emac_stats(struct net_device *ndev)
 	struct emac_instance *dev = netdev_priv(ndev);
 	struct emac_stats *st = &dev->stats;
 	struct emac_error_stats *est = &dev->estats;
-	struct net_device_stats *nst = &dev->nstats;
+	struct net_device_stats *nst = &ndev->stats;
 	unsigned long flags;
 
 	DBG2(dev, "stats" NL);
