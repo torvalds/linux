@@ -649,6 +649,15 @@
 		status = "disabled";
 	};
 
+	codec: codec@ff410000 {
+		compatible = "rockchip,rk3328-codec";
+		reg = <0x0 0xff410000 0x0 0x1000>;
+		rockchip,grf = <&grf>;
+		clocks = <&cru PCLK_ACODEC>;
+		clock-names = "pclk";
+		status = "disabled";
+	};
+
 	cru: clock-controller@ff440000 {
 		compatible = "rockchip,rk3328-cru", "rockchip,cru", "syscon";
 		reg = <0x0 0xff440000 0x0 0x1000>;
