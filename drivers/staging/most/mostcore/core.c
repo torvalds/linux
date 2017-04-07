@@ -256,7 +256,7 @@ static void most_channel_release(struct kobject *kobj)
 	kfree(c);
 }
 
-static ssize_t show_available_directions(struct most_c_obj *c,
+static ssize_t available_directions_show(struct most_c_obj *c,
 					 struct most_c_attr *attr,
 					 char *buf)
 {
@@ -271,7 +271,7 @@ static ssize_t show_available_directions(struct most_c_obj *c,
 	return strlen(buf);
 }
 
-static ssize_t show_available_datatypes(struct most_c_obj *c,
+static ssize_t available_datatypes_show(struct most_c_obj *c,
 					struct most_c_attr *attr,
 					char *buf)
 {
@@ -290,10 +290,9 @@ static ssize_t show_available_datatypes(struct most_c_obj *c,
 	return strlen(buf);
 }
 
-static
-ssize_t show_number_of_packet_buffers(struct most_c_obj *c,
-				      struct most_c_attr *attr,
-				      char *buf)
+static ssize_t number_of_packet_buffers_show(struct most_c_obj *c,
+					     struct most_c_attr *attr,
+					     char *buf)
 {
 	unsigned int i = c->channel_id;
 
@@ -301,10 +300,9 @@ ssize_t show_number_of_packet_buffers(struct most_c_obj *c,
 			c->iface->channel_vector[i].num_buffers_packet);
 }
 
-static
-ssize_t show_number_of_stream_buffers(struct most_c_obj *c,
-				      struct most_c_attr *attr,
-				      char *buf)
+static ssize_t number_of_stream_buffers_show(struct most_c_obj *c,
+					     struct most_c_attr *attr,
+					     char *buf)
 {
 	unsigned int i = c->channel_id;
 
@@ -312,10 +310,9 @@ ssize_t show_number_of_stream_buffers(struct most_c_obj *c,
 			c->iface->channel_vector[i].num_buffers_streaming);
 }
 
-static
-ssize_t show_size_of_packet_buffer(struct most_c_obj *c,
-				   struct most_c_attr *attr,
-				   char *buf)
+static ssize_t size_of_packet_buffer_show(struct most_c_obj *c,
+					  struct most_c_attr *attr,
+					  char *buf)
 {
 	unsigned int i = c->channel_id;
 
@@ -323,10 +320,9 @@ ssize_t show_size_of_packet_buffer(struct most_c_obj *c,
 			c->iface->channel_vector[i].buffer_size_packet);
 }
 
-static
-ssize_t show_size_of_stream_buffer(struct most_c_obj *c,
-				   struct most_c_attr *attr,
-				   char *buf)
+static ssize_t size_of_stream_buffer_show(struct most_c_obj *c,
+					  struct most_c_attr *attr,
+					  char *buf)
 {
 	unsigned int i = c->channel_id;
 
@@ -334,7 +330,7 @@ ssize_t show_size_of_stream_buffer(struct most_c_obj *c,
 			c->iface->channel_vector[i].buffer_size_streaming);
 }
 
-static ssize_t show_channel_starving(struct most_c_obj *c,
+static ssize_t channel_starving_show(struct most_c_obj *c,
 				     struct most_c_attr *attr,
 				     char *buf)
 {
@@ -342,7 +338,7 @@ static ssize_t show_channel_starving(struct most_c_obj *c,
 }
 
 #define create_show_channel_attribute(val) \
-	static MOST_CHNL_ATTR(val, 0444, show_##val, NULL)
+	static MOST_CHNL_ATTR(val, 0444, val##_show, NULL)
 
 create_show_channel_attribute(available_directions);
 create_show_channel_attribute(available_datatypes);
@@ -352,14 +348,14 @@ create_show_channel_attribute(size_of_stream_buffer);
 create_show_channel_attribute(size_of_packet_buffer);
 create_show_channel_attribute(channel_starving);
 
-static ssize_t show_set_number_of_buffers(struct most_c_obj *c,
+static ssize_t set_number_of_buffers_show(struct most_c_obj *c,
 					  struct most_c_attr *attr,
 					  char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.num_buffers);
 }
 
-static ssize_t store_set_number_of_buffers(struct most_c_obj *c,
+static ssize_t set_number_of_buffers_store(struct most_c_obj *c,
 					   struct most_c_attr *attr,
 					   const char *buf,
 					   size_t count)
@@ -371,14 +367,14 @@ static ssize_t store_set_number_of_buffers(struct most_c_obj *c,
 	return count;
 }
 
-static ssize_t show_set_buffer_size(struct most_c_obj *c,
+static ssize_t set_buffer_size_show(struct most_c_obj *c,
 				    struct most_c_attr *attr,
 				    char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.buffer_size);
 }
 
-static ssize_t store_set_buffer_size(struct most_c_obj *c,
+static ssize_t set_buffer_size_store(struct most_c_obj *c,
 				     struct most_c_attr *attr,
 				     const char *buf,
 				     size_t count)
@@ -390,7 +386,7 @@ static ssize_t store_set_buffer_size(struct most_c_obj *c,
 	return count;
 }
 
-static ssize_t show_set_direction(struct most_c_obj *c,
+static ssize_t set_direction_show(struct most_c_obj *c,
 				  struct most_c_attr *attr,
 				  char *buf)
 {
@@ -401,7 +397,7 @@ static ssize_t show_set_direction(struct most_c_obj *c,
 	return snprintf(buf, PAGE_SIZE, "unconfigured\n");
 }
 
-static ssize_t store_set_direction(struct most_c_obj *c,
+static ssize_t set_direction_store(struct most_c_obj *c,
 				   struct most_c_attr *attr,
 				   const char *buf,
 				   size_t count)
@@ -421,7 +417,7 @@ static ssize_t store_set_direction(struct most_c_obj *c,
 	return count;
 }
 
-static ssize_t show_set_datatype(struct most_c_obj *c,
+static ssize_t set_datatype_show(struct most_c_obj *c,
 				 struct most_c_attr *attr,
 				 char *buf)
 {
@@ -434,7 +430,7 @@ static ssize_t show_set_datatype(struct most_c_obj *c,
 	return snprintf(buf, PAGE_SIZE, "unconfigured\n");
 }
 
-static ssize_t store_set_datatype(struct most_c_obj *c,
+static ssize_t set_datatype_store(struct most_c_obj *c,
 				  struct most_c_attr *attr,
 				  const char *buf,
 				  size_t count)
@@ -455,14 +451,14 @@ static ssize_t store_set_datatype(struct most_c_obj *c,
 	return count;
 }
 
-static ssize_t show_set_subbuffer_size(struct most_c_obj *c,
+static ssize_t set_subbuffer_size_show(struct most_c_obj *c,
 				       struct most_c_attr *attr,
 				       char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.subbuffer_size);
 }
 
-static ssize_t store_set_subbuffer_size(struct most_c_obj *c,
+static ssize_t set_subbuffer_size_store(struct most_c_obj *c,
 					struct most_c_attr *attr,
 					const char *buf,
 					size_t count)
@@ -474,14 +470,14 @@ static ssize_t store_set_subbuffer_size(struct most_c_obj *c,
 	return count;
 }
 
-static ssize_t show_set_packets_per_xact(struct most_c_obj *c,
+static ssize_t set_packets_per_xact_show(struct most_c_obj *c,
 					 struct most_c_attr *attr,
 					 char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", c->cfg.packets_per_xact);
 }
 
-static ssize_t store_set_packets_per_xact(struct most_c_obj *c,
+static ssize_t set_packets_per_xact_store(struct most_c_obj *c,
 					  struct most_c_attr *attr,
 					  const char *buf,
 					  size_t count)
@@ -494,7 +490,7 @@ static ssize_t store_set_packets_per_xact(struct most_c_obj *c,
 }
 
 #define create_channel_attribute(value) \
-	static MOST_CHNL_ATTR(value, 0644, show_##value, store_##value)
+	static MOST_CHNL_ATTR(value, 0644, value##_show, value##_store)
 
 create_channel_attribute(set_buffer_size);
 create_channel_attribute(set_number_of_buffers);
@@ -652,7 +648,7 @@ static void most_inst_release(struct kobject *kobj)
 	kfree(inst);
 }
 
-static ssize_t show_description(struct most_inst_obj *instance_obj,
+static ssize_t description_show(struct most_inst_obj *instance_obj,
 				struct most_inst_attribute *attr,
 				char *buf)
 {
@@ -660,7 +656,7 @@ static ssize_t show_description(struct most_inst_obj *instance_obj,
 			instance_obj->iface->description);
 }
 
-static ssize_t show_interface(struct most_inst_obj *instance_obj,
+static ssize_t interface_show(struct most_inst_obj *instance_obj,
 			      struct most_inst_attribute *attr,
 			      char *buf)
 {
@@ -688,7 +684,7 @@ static ssize_t show_interface(struct most_inst_obj *instance_obj,
 }
 
 #define create_inst_attribute(value) \
-	static MOST_INST_ATTR(value, 0444, show_##value, NULL)
+	static MOST_INST_ATTR(value, 0444, value##_show, NULL)
 
 create_inst_attribute(description);
 create_inst_attribute(interface);
