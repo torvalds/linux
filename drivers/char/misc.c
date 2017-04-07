@@ -109,7 +109,7 @@ static const struct file_operations misc_proc_fops = {
 };
 #endif
 
-static int misc_open(struct inode * inode, struct file * file)
+static int misc_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
 	struct miscdevice *c;
@@ -182,7 +182,7 @@ static const struct file_operations misc_fops = {
  *	failure.
  */
 
-int misc_register(struct miscdevice * misc)
+int misc_register(struct miscdevice *misc)
 {
 	dev_t dev;
 	int err = 0;
