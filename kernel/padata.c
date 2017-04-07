@@ -358,7 +358,7 @@ static int padata_setup_cpumasks(struct parallel_data *pd,
 
 	cpumask_and(pd->cpumask.pcpu, pcpumask, cpu_online_mask);
 	if (!alloc_cpumask_var(&pd->cpumask.cbcpu, GFP_KERNEL)) {
-		free_cpumask_var(pd->cpumask.cbcpu);
+		free_cpumask_var(pd->cpumask.pcpu);
 		return -ENOMEM;
 	}
 
