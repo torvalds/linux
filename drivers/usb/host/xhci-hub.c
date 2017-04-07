@@ -1050,7 +1050,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			goto error;
 		wIndex--;
 		temp = readl(port_array[wIndex]);
-		if (temp == 0xffffffff) {
+		if (temp == ~(u32)0) {
+			xhci_hc_died(xhci);
 			retval = -ENODEV;
 			break;
 		}
@@ -1092,7 +1093,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			goto error;
 		wIndex--;
 		temp = readl(port_array[wIndex]);
-		if (temp == 0xffffffff) {
+		if (temp == ~(u32)0) {
+			xhci_hc_died(xhci);
 			retval = -ENODEV;
 			break;
 		}
@@ -1267,7 +1269,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			goto error;
 		wIndex--;
 		temp = readl(port_array[wIndex]);
-		if (temp == 0xffffffff) {
+		if (temp == ~(u32)0) {
+			xhci_hc_died(xhci);
 			retval = -ENODEV;
 			break;
 		}
@@ -1378,7 +1381,8 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	/* For each port, did anything change?  If so, set that bit in buf. */
 	for (i = 0; i < max_ports; i++) {
 		temp = readl(port_array[i]);
-		if (temp == 0xffffffff) {
+		if (temp == ~(u32)0) {
+			xhci_hc_died(xhci);
 			retval = -ENODEV;
 			break;
 		}
