@@ -888,27 +888,15 @@ int __detach_context(struct cxl_context *ctx);
 /*
  * This must match the layout of the H_COLLECT_CA_INT_INFO retbuf defined
  * in PAPR.
- * A word about endianness: a pointer to this structure is passed when
- * calling the hcall. However, it is not a block of memory filled up by
- * the hypervisor. The return values are found in registers, and copied
- * one by one when returning from the hcall. See the end of the call to
- * plpar_hcall9() in hvCall.S
- * As a consequence:
- * - we don't need to do any endianness conversion
- * - the pid and tid are an exception. They are 32-bit values returned in
- *   the same 64-bit register. So we do need to worry about byte ordering.
+ * Field pid_tid is now 'reserved' because it's no more used on bare-metal.
+ * On a guest environment, PSL_PID_An is located on the upper 32 bits and
+ * PSL_TID_An register in the lower 32 bits.
  */
 struct cxl_irq_info {
 	u64 dsisr;
 	u64 dar;
 	u64 dsr;
-#ifndef CONFIG_CPU_LITTLE_ENDIAN
-	u32 pid;
-	u32 tid;
-#else
-	u32 tid;
-	u32 pid;
-#endif
+	u64 reserved;
 	u64 afu_err;
 	u64 errstat;
 	u64 proc_handle;

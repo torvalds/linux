@@ -859,8 +859,6 @@ static int native_detach_process(struct cxl_context *ctx)
 
 static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 {
-	u64 pidtid;
-
 	/* If the adapter has gone away, we can't get any meaningful
 	 * information.
 	 */
@@ -870,9 +868,6 @@ static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 	info->dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
 	info->dar = cxl_p2n_read(afu, CXL_PSL_DAR_An);
 	info->dsr = cxl_p2n_read(afu, CXL_PSL_DSR_An);
-	pidtid = cxl_p2n_read(afu, CXL_PSL_PID_TID_An);
-	info->pid = pidtid >> 32;
-	info->tid = pidtid & 0xffffffff;
 	info->afu_err = cxl_p2n_read(afu, CXL_AFU_ERR_An);
 	info->errstat = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
 	info->proc_handle = 0;
