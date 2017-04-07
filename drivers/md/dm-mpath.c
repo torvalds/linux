@@ -484,7 +484,6 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 				   struct request **__clone)
 {
 	struct multipath *m = ti->private;
-	int r = DM_MAPIO_REQUEUE;
 	size_t nr_bytes = blk_rq_bytes(rq);
 	struct pgpath *pgpath;
 	struct block_device *bdev;
@@ -503,7 +502,7 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 	} else if (test_bit(MPATHF_QUEUE_IO, &m->flags) ||
 		   test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags)) {
 		pg_init_all_paths(m);
-		return r;
+		return DM_MAPIO_REQUEUE;
 	}
 
 	memset(mpio, 0, sizeof(*mpio));
@@ -517,7 +516,7 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 			GFP_ATOMIC);
 	if (IS_ERR(clone)) {
 		/* EBUSY, ENODEV or EWOULDBLOCK: requeue */
-		return r;
+		return DM_MAPIO_DELAY_REQUEUE;
 	}
 	clone->bio = clone->biotail = NULL;
 	clone->rq_disk = bdev->bd_disk;

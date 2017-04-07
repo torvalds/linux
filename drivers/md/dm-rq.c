@@ -280,7 +280,7 @@ static void dm_requeue_original_request(struct dm_rq_target_io *tio, bool delay_
 	if (!rq->q->mq_ops)
 		dm_old_requeue_request(rq);
 	else
-		dm_mq_delay_requeue_request(rq, delay_requeue ? 5000 : 0);
+		dm_mq_delay_requeue_request(rq, delay_requeue ? 100/*ms*/ : 0);
 
 	rq_completed(md, rw, false);
 }
