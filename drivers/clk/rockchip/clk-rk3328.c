@@ -795,6 +795,7 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	GATE(PCLK_DCF, "pclk_dcf", "pclk_bus", 0, RK3328_CLKGATE_CON(16), 15, GFLAGS),
 	GATE(PCLK_GRF, "pclk_grf", "pclk_bus", CLK_IGNORE_UNUSED, RK3328_CLKGATE_CON(17), 0, GFLAGS),
 	GATE(0, "pclk_cru", "pclk_bus", CLK_IGNORE_UNUSED, RK3328_CLKGATE_CON(17), 4, GFLAGS),
+	GATE(PCLK_ACODEC, "pclk_acodec", "pclk_bus", 0, RK3328_CLKGATE_CON(17), 5, GFLAGS),
 	GATE(0, "pclk_sgrf", "pclk_bus", CLK_IGNORE_UNUSED, RK3328_CLKGATE_CON(17), 6, GFLAGS),
 	GATE(0, "pclk_sim", "pclk_bus", CLK_IGNORE_UNUSED, RK3328_CLKGATE_CON(17), 10, GFLAGS),
 	GATE(PCLK_SARADC, "pclk_saradc", "pclk_bus", 0, RK3328_CLKGATE_CON(17), 15, GFLAGS),
