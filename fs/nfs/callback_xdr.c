@@ -171,8 +171,6 @@ static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound
 		return htonl(NFS4ERR_MINOR_VERS_MISMATCH);
 	}
 	hdr->nops = ntohl(*p);
-	dprintk("%s: minorversion %d nops %d\n", __func__,
-		hdr->minorversion, hdr->nops);
 	return 0;
 }
 
@@ -665,7 +663,6 @@ static __be32 encode_getattr_res(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	status = encode_attr_mtime(xdr, res->bitmap, &res->mtime);
 	*savep = htonl((unsigned int)((char *)xdr->p - (char *)(savep+1)));
 out:
-	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;
 }
 
@@ -827,13 +824,9 @@ static __be32 process_op(int nop, struct svc_rqst *rqstp,
 	long maxlen;
 	__be32 res;
 
-	dprintk("%s: start\n", __func__);
 	status = decode_op_hdr(xdr_in, &op_nr);
 	if (unlikely(status))
 		return status;
-
-	dprintk("%s: minorversion=%d nop=%d op_nr=%u\n",
-		__func__, cps->minorversion, nop, op_nr);
 
 	switch (cps->minorversion) {
 	case 0:
@@ -873,7 +866,6 @@ encode_hdr:
 		return res;
 	if (op->encode_res != NULL && status == 0)
 		status = op->encode_res(rqstp, xdr_out, resp);
-	dprintk("%s: done, status = %d\n", __func__, ntohl(status));
 	return status;
 }
 
@@ -892,8 +884,6 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 		.net = SVC_NET(rqstp),
 	};
 	unsigned int nops = 0;
-
-	dprintk("%s: start\n", __func__);
 
 	xdr_init_decode(&xdr_in, &rqstp->rq_arg, rqstp->rq_arg.head[0].iov_base);
 
@@ -933,7 +923,6 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 	*hdr_res.nops = htonl(nops);
 	nfs4_cb_free_slot(&cps);
 	nfs_put_client(cps.clp);
-	dprintk("%s: done, status = %u\n", __func__, ntohl(status));
 	return rpc_success;
 
 out_invalidcred:
