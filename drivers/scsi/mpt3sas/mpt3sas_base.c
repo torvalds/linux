@@ -1025,7 +1025,6 @@ _base_interrupt(int irq, void *bus_id)
 				    0 : ioc->reply_free_host_index + 1;
 				ioc->reply_free[ioc->reply_free_host_index] =
 				    cpu_to_le32(reply);
-				wmb();
 				writel(ioc->reply_free_host_index,
 				    &ioc->chip->ReplyFreeHostIndex);
 			}
@@ -1074,7 +1073,6 @@ _base_interrupt(int irq, void *bus_id)
 		return IRQ_NONE;
 	}
 
-	wmb();
 	if (ioc->is_warpdrive) {
 		writel(reply_q->reply_post_host_index,
 		ioc->reply_post_host_index[msix_index]);
