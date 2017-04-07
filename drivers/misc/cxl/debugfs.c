@@ -15,7 +15,7 @@
 
 static struct dentry *cxl_debugfs;
 
-void cxl_stop_trace_psl(struct cxl *adapter)
+void cxl_stop_trace_psl8(struct cxl *adapter)
 {
 	int slice;
 
@@ -53,7 +53,7 @@ static struct dentry *debugfs_create_io_x64(const char *name, umode_t mode,
 					  (void __force *)value, &fops_io_x64);
 }
 
-void cxl_debugfs_add_adapter_regs_psl(struct cxl *adapter, struct dentry *dir)
+void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter, struct dentry *dir)
 {
 	debugfs_create_io_x64("fir1", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL_FIR1));
 	debugfs_create_io_x64("fir2", S_IRUSR, dir, _cxl_p1_addr(adapter, CXL_PSL_FIR2));
@@ -92,7 +92,7 @@ void cxl_debugfs_adapter_remove(struct cxl *adapter)
 	debugfs_remove_recursive(adapter->debugfs);
 }
 
-void cxl_debugfs_add_afu_regs_psl(struct cxl_afu *afu, struct dentry *dir)
+void cxl_debugfs_add_afu_regs_psl8(struct cxl_afu *afu, struct dentry *dir)
 {
 	debugfs_create_io_x64("fir", S_IRUSR, dir, _cxl_p1n_addr(afu, CXL_PSL_FIR_SLICE_An));
 	debugfs_create_io_x64("serr", S_IRUSR, dir, _cxl_p1n_addr(afu, CXL_PSL_SERR_An));

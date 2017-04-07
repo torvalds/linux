@@ -258,7 +258,7 @@ void cxl_release_spa(struct cxl_afu *afu)
 	}
 }
 
-int cxl_invalidate_all_psl(struct cxl *adapter)
+int cxl_invalidate_all_psl8(struct cxl *adapter)
 {
 	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
 
@@ -578,7 +578,7 @@ static void update_ivtes_directed(struct cxl_context *ctx)
 		WARN_ON(add_process_element(ctx));
 }
 
-int cxl_attach_afu_directed_psl(struct cxl_context *ctx, u64 wed, u64 amr)
+int cxl_attach_afu_directed_psl8(struct cxl_context *ctx, u64 wed, u64 amr)
 {
 	u32 pid;
 	int result;
@@ -671,7 +671,7 @@ static int deactivate_afu_directed(struct cxl_afu *afu)
 	return 0;
 }
 
-int cxl_activate_dedicated_process_psl(struct cxl_afu *afu)
+int cxl_activate_dedicated_process_psl8(struct cxl_afu *afu)
 {
 	dev_info(&afu->dev, "Activating dedicated process mode\n");
 
@@ -694,7 +694,7 @@ int cxl_activate_dedicated_process_psl(struct cxl_afu *afu)
 	return cxl_chardev_d_afu_add(afu);
 }
 
-void cxl_update_dedicated_ivtes_psl(struct cxl_context *ctx)
+void cxl_update_dedicated_ivtes_psl8(struct cxl_context *ctx)
 {
 	struct cxl_afu *afu = ctx->afu;
 
@@ -710,7 +710,7 @@ void cxl_update_dedicated_ivtes_psl(struct cxl_context *ctx)
 			((u64)ctx->irqs.range[3] & 0xffff));
 }
 
-int cxl_attach_dedicated_process_psl(struct cxl_context *ctx, u64 wed, u64 amr)
+int cxl_attach_dedicated_process_psl8(struct cxl_context *ctx, u64 wed, u64 amr)
 {
 	struct cxl_afu *afu = ctx->afu;
 	u64 pid;
@@ -880,7 +880,7 @@ static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 	return 0;
 }
 
-void cxl_native_irq_dump_regs_psl(struct cxl_context *ctx)
+void cxl_native_irq_dump_regs_psl8(struct cxl_context *ctx)
 {
 	u64 fir1, fir2, fir_slice, serr, afu_debug;
 

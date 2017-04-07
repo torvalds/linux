@@ -377,7 +377,7 @@ static int calc_capp_routing(struct pci_dev *dev, u64 *chipid, u64 *capp_unit_id
 	return 0;
 }
 
-static int init_implementation_adapter_regs_psl(struct cxl *adapter, struct pci_dev *dev)
+static int init_implementation_adapter_regs_psl8(struct cxl *adapter, struct pci_dev *dev)
 {
 	u64 psl_dsnctl, psl_fircntl;
 	u64 chipid;
@@ -434,7 +434,7 @@ static int init_implementation_adapter_regs_xsl(struct cxl *adapter, struct pci_
 /* For the PSL this is a multiple for 0 < n <= 7: */
 #define PSL_2048_250MHZ_CYCLES 1
 
-static void write_timebase_ctrl_psl(struct cxl *adapter)
+static void write_timebase_ctrl_psl8(struct cxl *adapter)
 {
 	cxl_p1_write(adapter, CXL_PSL_TB_CTLSTAT,
 		     TBSYNC_CNT(2 * PSL_2048_250MHZ_CYCLES));
@@ -455,7 +455,7 @@ static void write_timebase_ctrl_xsl(struct cxl *adapter)
 		     TBSYNC_CNT(XSL_4000_CLOCKS));
 }
 
-static u64 timebase_read_psl(struct cxl *adapter)
+static u64 timebase_read_psl8(struct cxl *adapter)
 {
 	return cxl_p1_read(adapter, CXL_PSL_Timebase);
 }
@@ -513,7 +513,7 @@ static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 	return;
 }
 
-static int init_implementation_afu_regs_psl(struct cxl_afu *afu)
+static int init_implementation_afu_regs_psl8(struct cxl_afu *afu)
 {
 	/* read/write masks for this slice */
 	cxl_p1n_write(afu, CXL_PSL_APCALLOC_A, 0xFFFFFFFEFEFEFEFEULL);
@@ -996,7 +996,7 @@ static int cxl_afu_descriptor_looks_ok(struct cxl_afu *afu)
 	return 0;
 }
 
-static int sanitise_afu_regs_psl(struct cxl_afu *afu)
+static int sanitise_afu_regs_psl8(struct cxl_afu *afu)
 {
 	u64 reg;
 
@@ -1526,40 +1526,40 @@ static void cxl_deconfigure_adapter(struct cxl *adapter)
 	pci_disable_device(pdev);
 }
 
-static const struct cxl_service_layer_ops psl_ops = {
-	.adapter_regs_init = init_implementation_adapter_regs_psl,
-	.invalidate_all = cxl_invalidate_all_psl,
-	.afu_regs_init = init_implementation_afu_regs_psl,
-	.sanitise_afu_regs = sanitise_afu_regs_psl,
+static const struct cxl_service_layer_ops psl8_ops = {
+	.adapter_regs_init = init_implementation_adapter_regs_psl8,
+	.invalidate_all = cxl_invalidate_all_psl8,
+	.afu_regs_init = init_implementation_afu_regs_psl8,
+	.sanitise_afu_regs = sanitise_afu_regs_psl8,
 	.register_serr_irq = cxl_native_register_serr_irq,
 	.release_serr_irq = cxl_native_release_serr_irq,
-	.handle_interrupt = cxl_irq_psl,
+	.handle_interrupt = cxl_irq_psl8,
 	.fail_irq = cxl_fail_irq_psl,
-	.activate_dedicated_process = cxl_activate_dedicated_process_psl,
-	.attach_afu_directed = cxl_attach_afu_directed_psl,
-	.attach_dedicated_process = cxl_attach_dedicated_process_psl,
-	.update_dedicated_ivtes = cxl_update_dedicated_ivtes_psl,
-	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_psl,
-	.debugfs_add_afu_regs = cxl_debugfs_add_afu_regs_psl,
-	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl,
+	.activate_dedicated_process = cxl_activate_dedicated_process_psl8,
+	.attach_afu_directed = cxl_attach_afu_directed_psl8,
+	.attach_dedicated_process = cxl_attach_dedicated_process_psl8,
+	.update_dedicated_ivtes = cxl_update_dedicated_ivtes_psl8,
+	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_psl8,
+	.debugfs_add_afu_regs = cxl_debugfs_add_afu_regs_psl8,
+	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl8,
 	.err_irq_dump_registers = cxl_native_err_irq_dump_regs,
-	.debugfs_stop_trace = cxl_stop_trace_psl,
-	.write_timebase_ctrl = write_timebase_ctrl_psl,
-	.timebase_read = timebase_read_psl,
+	.debugfs_stop_trace = cxl_stop_trace_psl8,
+	.write_timebase_ctrl = write_timebase_ctrl_psl8,
+	.timebase_read = timebase_read_psl8,
 	.capi_mode = OPAL_PHB_CAPI_MODE_CAPI,
 	.needs_reset_before_disable = true,
 };
 
 static const struct cxl_service_layer_ops xsl_ops = {
 	.adapter_regs_init = init_implementation_adapter_regs_xsl,
-	.invalidate_all = cxl_invalidate_all_psl,
-	.sanitise_afu_regs = sanitise_afu_regs_psl,
-	.handle_interrupt = cxl_irq_psl,
+	.invalidate_all = cxl_invalidate_all_psl8,
+	.sanitise_afu_regs = sanitise_afu_regs_psl8,
+	.handle_interrupt = cxl_irq_psl8,
 	.fail_irq = cxl_fail_irq_psl,
-	.activate_dedicated_process = cxl_activate_dedicated_process_psl,
-	.attach_afu_directed = cxl_attach_afu_directed_psl,
-	.attach_dedicated_process = cxl_attach_dedicated_process_psl,
-	.update_dedicated_ivtes = cxl_update_dedicated_ivtes_psl,
+	.activate_dedicated_process = cxl_activate_dedicated_process_psl8,
+	.attach_afu_directed = cxl_attach_afu_directed_psl8,
+	.attach_dedicated_process = cxl_attach_dedicated_process_psl8,
+	.update_dedicated_ivtes = cxl_update_dedicated_ivtes_psl8,
 	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_xsl,
 	.write_timebase_ctrl = write_timebase_ctrl_xsl,
 	.timebase_read = timebase_read_xsl,
@@ -1574,8 +1574,8 @@ static void set_sl_ops(struct cxl *adapter, struct pci_dev *dev)
 		adapter->native->sl_ops = &xsl_ops;
 		adapter->min_pe = 1; /* Workaround for CX-4 hardware bug */
 	} else {
-		dev_info(&dev->dev, "Device uses a PSL\n");
-		adapter->native->sl_ops = &psl_ops;
+		dev_info(&dev->dev, "Device uses a PSL8\n");
+		adapter->native->sl_ops = &psl8_ops;
 	}
 }
 
