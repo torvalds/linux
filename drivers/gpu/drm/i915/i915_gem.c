@@ -4896,6 +4896,7 @@ int i915_gem_freeze_late(struct drm_i915_private *dev_priv)
 	 */
 
 	i915_gem_shrink(dev_priv, -1UL, I915_SHRINK_UNBOUND);
+	i915_gem_drain_freed_objects(dev_priv);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	for (p = phases; *p; p++) {
