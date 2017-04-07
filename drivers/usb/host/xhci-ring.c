@@ -2363,7 +2363,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	xdev = xhci->devs[slot_id];
 	if (!xdev) {
-		xhci_err(xhci, "ERROR Transfer event pointed to bad slot\n");
+		xhci_err(xhci, "ERROR Transfer event pointed to bad slot %u\n",
+			 slot_id);
 		xhci_err(xhci, "@%016llx %08x %08x %08x %08x\n",
 			 (unsigned long long) xhci_trb_virt_to_dma(
 				 xhci->event_ring->deq_seg,
@@ -2385,8 +2386,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	if (!ep_ring ||
 	    (le32_to_cpu(ep_ctx->ep_info) & EP_STATE_MASK) ==
 	    EP_STATE_DISABLED) {
-		xhci_err(xhci, "ERROR Transfer event for disabled endpoint "
-				"or incorrect stream ring\n");
+		xhci_err(xhci,
+			 "ERROR Transfer event for disabled endpoint slot %u ep %u or incorrect stream ring\n",
+			 slot_id, ep_index);
 		xhci_err(xhci, "@%016llx %08x %08x %08x %08x\n",
 			 (unsigned long long) xhci_trb_virt_to_dma(
 				 xhci->event_ring->deq_seg,
@@ -2420,45 +2422,62 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			trb_comp_code = COMP_SHORT_PACKET;
 		else
 			xhci_warn_ratelimited(xhci,
-					"WARN Successful completion on short TX: needs XHCI_TRUST_TX_LENGTH quirk?\n");
+					      "WARN Successful completion on short TX for slot %u ep %u: needs XHCI_TRUST_TX_LENGTH quirk?\n",
+					      slot_id, ep_index);
 	case COMP_SHORT_PACKET:
 		break;
 	case COMP_STOPPED:
-		xhci_dbg(xhci, "Stopped on Transfer TRB\n");
+		xhci_dbg(xhci, "Stopped on Transfer TRB for slot %u ep %u\n",
+			 slot_id, ep_index);
 		break;
 	case COMP_STOPPED_LENGTH_INVALID:
-		xhci_dbg(xhci, "Stopped on No-op or Link TRB\n");
+		xhci_dbg(xhci,
+			 "Stopped on No-op or Link TRB for slot %u ep %u\n",
+			 slot_id, ep_index);
 		break;
 	case COMP_STOPPED_SHORT_PACKET:
-		xhci_dbg(xhci, "Stopped with short packet transfer detected\n");
+		xhci_dbg(xhci,
+			 "Stopped with short packet transfer detected for slot %u ep %u\n",
+			 slot_id, ep_index);
 		break;
 	case COMP_STALL_ERROR:
-		xhci_dbg(xhci, "Stalled endpoint\n");
+		xhci_dbg(xhci, "Stalled endpoint for slot %u ep %u\n", slot_id,
+			 ep_index);
 		ep->ep_state |= EP_HALTED;
 		status = -EPIPE;
 		break;
 	case COMP_TRB_ERROR:
-		xhci_warn(xhci, "WARN: TRB error on endpoint\n");
+		xhci_warn(xhci,
+			  "WARN: TRB error for slot %u ep %u on endpoint\n",
+			  slot_id, ep_index);
 		status = -EILSEQ;
 		break;
 	case COMP_SPLIT_TRANSACTION_ERROR:
 	case COMP_USB_TRANSACTION_ERROR:
-		xhci_dbg(xhci, "Transfer error on endpoint\n");
+		xhci_dbg(xhci, "Transfer error for slot %u ep %u on endpoint\n",
+			 slot_id, ep_index);
 		status = -EPROTO;
 		break;
 	case COMP_BABBLE_DETECTED_ERROR:
-		xhci_dbg(xhci, "Babble error on endpoint\n");
+		xhci_dbg(xhci, "Babble error for slot %u ep %u on endpoint\n",
+			 slot_id, ep_index);
 		status = -EOVERFLOW;
 		break;
 	case COMP_DATA_BUFFER_ERROR:
-		xhci_warn(xhci, "WARN: HC couldn't access mem fast enough\n");
+		xhci_warn(xhci,
+			  "WARN: HC couldn't access mem fast enough for slot %u ep %u\n",
+			  slot_id, ep_index);
 		status = -ENOSR;
 		break;
 	case COMP_BANDWIDTH_OVERRUN_ERROR:
-		xhci_warn(xhci, "WARN: bandwidth overrun event on endpoint\n");
+		xhci_warn(xhci,
+			  "WARN: bandwidth overrun event for slot %u ep %u on endpoint\n",
+			  slot_id, ep_index);
 		break;
 	case COMP_ISOCH_BUFFER_OVERRUN:
-		xhci_warn(xhci, "WARN: buffer overrun event on endpoint\n");
+		xhci_warn(xhci,
+			  "WARN: buffer overrun event for slot %u ep %u on endpoint",
+			  slot_id, ep_index);
 		break;
 	case COMP_RING_UNDERRUN:
 		/*
@@ -2482,7 +2501,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				 ep_index);
 		goto cleanup;
 	case COMP_INCOMPATIBLE_DEVICE_ERROR:
-		xhci_warn(xhci, "WARN: detect an incompatible device");
+		xhci_warn(xhci,
+			  "WARN: detect an incompatible device for slot %u ep %u",
+			  slot_id, ep_index);
 		status = -EPROTO;
 		break;
 	case COMP_MISSED_SERVICE_ERROR:
@@ -2493,19 +2514,24 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		 * short transfer when process the ep_ring next time.
 		 */
 		ep->skip = true;
-		xhci_dbg(xhci, "Miss service interval error, set skip flag\n");
+		xhci_dbg(xhci,
+			 "Miss service interval error for slot %u ep %u, set skip flag\n",
+			 slot_id, ep_index);
 		goto cleanup;
 	case COMP_NO_PING_RESPONSE_ERROR:
 		ep->skip = true;
-		xhci_dbg(xhci, "No Ping response error, Skip one Isoc TD\n");
+		xhci_dbg(xhci,
+			 "No Ping response error for slot %u ep %u, Skip one Isoc TD\n",
+			 slot_id, ep_index);
 		goto cleanup;
 	default:
 		if (xhci_is_vendor_info_code(xhci, trb_comp_code)) {
 			status = 0;
 			break;
 		}
-		xhci_warn(xhci, "ERROR Unknown event condition %u, HC probably busted\n",
-			  trb_comp_code);
+		xhci_warn(xhci,
+			  "ERROR Unknown event condition %u for slot %u ep %u , HC probably busted\n",
+			  trb_comp_code, slot_id, ep_index);
 		goto cleanup;
 	}
 
@@ -2531,8 +2557,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			}
 			if (ep->skip) {
 				ep->skip = false;
-				xhci_dbg(xhci, "td_list is empty while skip "
-						"flag set. Clear skip flag.\n");
+				xhci_dbg(xhci,
+					 "td_list is empty while skip flag set. Clear skip flag for slot %u ep %u.\n",
+					 slot_id, ep_index);
 			}
 			ret = 0;
 			goto cleanup;
@@ -2541,8 +2568,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		/* We've skipped all the TDs on the ep ring when ep->skip set */
 		if (ep->skip && td_num == 0) {
 			ep->skip = false;
-			xhci_dbg(xhci, "All tds on the ep_ring skipped. "
-						"Clear skip flag.\n");
+			xhci_dbg(xhci,
+				 "All tds on the ep_ring skipped. Clear skip flag for slot %u ep %u.\n",
+				 slot_id, ep_index);
 			ret = 0;
 			goto cleanup;
 		}
@@ -2603,7 +2631,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			ep_ring->last_td_was_short = false;
 
 		if (ep->skip) {
-			xhci_dbg(xhci, "Found td. Clear skip flag.\n");
+			xhci_dbg(xhci,
+				 "Found td. Clear skip flag for slot %u ep %u.\n",
+				 slot_id, ep_index);
 			ep->skip = false;
 		}
 
