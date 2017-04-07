@@ -618,6 +618,7 @@ struct xhci_slot_ctx {
 #define ROUTE_STRING_MASK	(0xfffff)
 /* Device speed - values defined by PORTSC Device Speed field - 20:23 */
 #define DEV_SPEED	(0xf << 20)
+#define GET_DEV_SPEED(n) (((n) & DEV_SPEED) >> 20)
 /* bit 24 reserved */
 /* Is this LS/FS device connected through a HS hub? - bit 25 */
 #define DEV_MTT		(0x1 << 25)
@@ -638,6 +639,7 @@ struct xhci_slot_ctx {
 #define DEVINFO_TO_ROOT_HUB_PORT(p)	(((p) >> 16) & 0xff)
 /* Maximum number of ports under a hub device */
 #define XHCI_MAX_PORTS(p)	(((p) & 0xff) << 24)
+#define DEVINFO_TO_MAX_PORTS(p)	(((p) & (0xff << 24)) >> 24)
 
 /* tt_info bitmasks */
 /*
@@ -652,6 +654,7 @@ struct xhci_slot_ctx {
  */
 #define TT_PORT		(0xff << 8)
 #define TT_THINK_TIME(p)	(((p) & 0x3) << 16)
+#define GET_TT_THINK_TIME(p)	(((p) & (0x3 << 16)) >> 16)
 
 /* dev_state bitmasks */
 /* USB device address - assigned by the HC */
@@ -2361,5 +2364,144 @@ static inline const char *xhci_decode_trb(u32 field0, u32 field1, u32 field2,
 	return str;
 }
 
+static inline const char *xhci_decode_slot_context(u32 info, u32 info2,
+		u32 tt_info, u32 state)
+{
+	static char str[1024];
+	u32 speed;
+	u32 hub;
+	u32 mtt;
+	int ret = 0;
+
+	speed = info & DEV_SPEED;
+	hub = info & DEV_HUB;
+	mtt = info & DEV_MTT;
+
+	ret = sprintf(str, "RS %05x %s%s%s Ctx Entries %d MEL %d us Port# %d/%d",
+			info & ROUTE_STRING_MASK,
+			({ char *s;
+			switch (speed) {
+			case SLOT_SPEED_FS:
+				s = "full-speed";
+				break;
+			case SLOT_SPEED_LS:
+				s = "low-speed";
+				break;
+			case SLOT_SPEED_HS:
+				s = "high-speed";
+				break;
+			case SLOT_SPEED_SS:
+				s = "super-speed";
+				break;
+			default:
+				s = "UNKNOWN speed";
+			} s; }),
+			mtt ? " multi-TT" : "",
+			hub ? " Hub" : "",
+			(info & LAST_CTX_MASK) >> 27,
+			info2 & MAX_EXIT,
+			DEVINFO_TO_ROOT_HUB_PORT(info2),
+			DEVINFO_TO_MAX_PORTS(info2));
+
+	ret += sprintf(str + ret, " [TT Slot %d Port# %d TTT %d Intr %d] Addr %d State %s",
+			tt_info & TT_SLOT, (tt_info & TT_PORT) >> 8,
+			GET_TT_THINK_TIME(tt_info), GET_INTR_TARGET(tt_info),
+			state & DEV_ADDR_MASK,
+			xhci_slot_state_string(GET_SLOT_STATE(state)));
+
+	return str;
+}
+
+static inline const char *xhci_ep_state_string(u8 state)
+{
+	switch (state) {
+	case EP_STATE_DISABLED:
+		return "disabled";
+	case EP_STATE_RUNNING:
+		return "running";
+	case EP_STATE_HALTED:
+		return "halted";
+	case EP_STATE_STOPPED:
+		return "stopped";
+	case EP_STATE_ERROR:
+		return "error";
+	default:
+		return "INVALID";
+	}
+}
+
+static inline const char *xhci_ep_type_string(u8 type)
+{
+	switch (type) {
+	case ISOC_OUT_EP:
+		return "Isoc OUT";
+	case BULK_OUT_EP:
+		return "Bulk OUT";
+	case INT_OUT_EP:
+		return "Int OUT";
+	case CTRL_EP:
+		return "Ctrl";
+	case ISOC_IN_EP:
+		return "Isoc IN";
+	case BULK_IN_EP:
+		return "Bulk IN";
+	case INT_IN_EP:
+		return "Int IN";
+	default:
+		return "INVALID";
+	}
+}
+
+static inline const char *xhci_decode_ep_context(u32 info, u32 info2, u64 deq,
+		u32 tx_info)
+{
+	static char str[1024];
+	int ret;
+
+	u32 esit;
+	u16 maxp;
+	u16 avg;
+
+	u8 max_pstr;
+	u8 ep_state;
+	u8 interval;
+	u8 ep_type;
+	u8 burst;
+	u8 cerr;
+	u8 mult;
+	u8 lsa;
+	u8 hid;
+
+	esit = MAX_ESIT_PAYLOAD_FOR_EP(tx_info);
+
+	ep_state = info & EP_STATE_MASK;
+	max_pstr = info & EP_MAXPSTREAMS_MASK;
+	interval = CTX_TO_EP_INTERVAL(info);
+	mult = CTX_TO_EP_MULT(info) + 1;
+	lsa = info & EP_HAS_LSA;
+
+	cerr = (info2 & (3 << 1)) >> 1;
+	ep_type = CTX_TO_EP_TYPE(info2);
+	hid = info2 & (1 << 7);
+	burst = CTX_TO_MAX_BURST(info2);
+	maxp = MAX_PACKET_DECODED(info2);
+
+	avg = AVG_TRB_LENGTH_FOR_EP(tx_info);
+
+	ret = sprintf(str, "State %s mult %d max P. Streams %d %s",
+			xhci_ep_state_string(ep_state), mult,
+			max_pstr, lsa ? "LSA " : "");
+
+	ret += sprintf(str + ret, "interval %d us max ESIT payload %d CErr %d ",
+			(1 << interval) * 125, esit, cerr);
+
+	ret += sprintf(str + ret, "Type %s %sburst %d maxp %d deq %016llx ",
+			xhci_ep_type_string(ep_type), hid ? "HID" : "",
+			burst, maxp, deq);
+
+	ret += sprintf(str + ret, "avg trb len %d", avg);
+
+	return str;
+}
 
 #endif /* __LINUX_XHCI_HCD_H */

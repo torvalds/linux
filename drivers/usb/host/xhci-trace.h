@@ -287,6 +287,107 @@ DEFINE_EVENT(xhci_log_urb, xhci_urb_dequeue,
 	TP_ARGS(urb)
 );
 
+DECLARE_EVENT_CLASS(xhci_log_ep_ctx,
+	TP_PROTO(struct xhci_ep_ctx *ctx),
+	TP_ARGS(ctx),
+	TP_STRUCT__entry(
+		__field(u32, info)
+		__field(u32, info2)
+		__field(u64, deq)
+		__field(u32, tx_info)
+	),
+	TP_fast_assign(
+		__entry->info = le32_to_cpu(ctx->ep_info);
+		__entry->info2 = le32_to_cpu(ctx->ep_info2);
+		__entry->deq = le64_to_cpu(ctx->deq);
+		__entry->tx_info = le32_to_cpu(ctx->tx_info);
+	),
+	TP_printk("%s", xhci_decode_ep_context(__entry->info,
+		__entry->info2, __entry->deq, __entry->tx_info)
+	)
+);
+
+DEFINE_EVENT(xhci_log_ep_ctx, xhci_handle_cmd_stop_ep,
+	TP_PROTO(struct xhci_ep_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(xhci_log_ep_ctx, xhci_handle_cmd_set_deq_ep,
+	TP_PROTO(struct xhci_ep_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(xhci_log_ep_ctx, xhci_handle_cmd_reset_ep,
+	TP_PROTO(struct xhci_ep_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(xhci_log_ep_ctx, xhci_handle_cmd_config_ep,
+	TP_PROTO(struct xhci_ep_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DECLARE_EVENT_CLASS(xhci_log_slot_ctx,
+	TP_PROTO(struct xhci_slot_ctx *ctx),
+	TP_ARGS(ctx),
+	TP_STRUCT__entry(
+		__field(u32, info)
+		__field(u32, info2)
+		__field(u32, tt_info)
+		__field(u32, state)
+	),
+	TP_fast_assign(
+		__entry->info = le32_to_cpu(ctx->dev_info);
+		__entry->info2 = le32_to_cpu(ctx->dev_info2);
+		__entry->tt_info = le64_to_cpu(ctx->tt_info);
+		__entry->state = le32_to_cpu(ctx->dev_state);
+	),
+	TP_printk("%s", xhci_decode_slot_context(__entry->info,
+			__entry->info2, __entry->tt_info,
+			__entry->state)
+	)
+);
+
+DEFINE_EVENT(xhci_log_slot_ctx, xhci_alloc_dev,
+	TP_PROTO(struct xhci_slot_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(xhci_log_slot_ctx, xhci_free_dev,
+	TP_PROTO(struct xhci_slot_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(xhci_log_slot_ctx, xhci_handle_cmd_disable_slot,
+	TP_PROTO(struct xhci_slot_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(xhci_log_slot_ctx, xhci_discover_or_reset_device,
+	TP_PROTO(struct xhci_slot_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(xhci_log_slot_ctx, xhci_setup_device_slot,
+	TP_PROTO(struct xhci_slot_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(xhci_log_slot_ctx, xhci_handle_cmd_addr_dev,
+	TP_PROTO(struct xhci_slot_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(xhci_log_slot_ctx, xhci_handle_cmd_reset_dev,
+	TP_PROTO(struct xhci_slot_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(xhci_log_slot_ctx, xhci_handle_cmd_set_deq,
+	TP_PROTO(struct xhci_slot_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
 #endif /* __XHCI_TRACE_H */
 
 /* this part must be outside header guard */
