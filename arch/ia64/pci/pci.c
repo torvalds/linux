@@ -439,9 +439,6 @@ pci_mmap_page_range (struct pci_dev *dev, int bar,
 		 */
 		return -EINVAL;
 
-	if (!valid_mmap_phys_addr_range(vma->vm_pgoff, size))
-		return -EINVAL;
-
 	prot = phys_mem_access_prot(NULL, vma->vm_pgoff, size,
 				    vma->vm_page_prot);
 
