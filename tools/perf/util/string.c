@@ -322,12 +322,8 @@ char *strxfrchar(char *s, char from, char to)
  */
 char *ltrim(char *s)
 {
-	int len = strlen(s);
-
-	while (len && isspace(*s)) {
-		len--;
+	while (isspace(*s))
 		s++;
-	}
 
 	return s;
 }
