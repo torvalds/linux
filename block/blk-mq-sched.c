@@ -451,7 +451,7 @@ static int blk_mq_sched_alloc_tags(struct request_queue *q,
 	return ret;
 }
 
-void blk_mq_sched_teardown(struct request_queue *q)
+static void blk_mq_sched_tags_teardown(struct request_queue *q)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
 	struct blk_mq_hw_ctx *hctx;
@@ -513,8 +513,17 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	return 0;
 
 err:
-	blk_mq_sched_teardown(q);
+	blk_mq_sched_tags_teardown(q);
+	q->elevator = NULL;
 	return ret;
+}
+
+void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e)
+{
+	if (e->type->ops.mq.exit_sched)
+		e->type->ops.mq.exit_sched(e);
+	blk_mq_sched_tags_teardown(q);
+	q->elevator = NULL;
 }
 
 int blk_mq_sched_init(struct request_queue *q)
