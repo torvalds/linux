@@ -490,7 +490,7 @@ void kvm_register_irq_ack_notifier(struct kvm *kvm,
 	mutex_lock(&kvm->irq_lock);
 	hlist_add_head_rcu(&kian->link, &kvm->irq_ack_notifier_list);
 	mutex_unlock(&kvm->irq_lock);
-	kvm_vcpu_request_scan_ioapic(kvm);
+	kvm_arch_post_irq_ack_notifier_list_update(kvm);
 }
 
 void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
@@ -500,7 +500,7 @@ void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 	hlist_del_init_rcu(&kian->link);
 	mutex_unlock(&kvm->irq_lock);
 	synchronize_srcu(&kvm->irq_srcu);
-	kvm_vcpu_request_scan_ioapic(kvm);
+	kvm_arch_post_irq_ack_notifier_list_update(kvm);
 }
 #endif
 
