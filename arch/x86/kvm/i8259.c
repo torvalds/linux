@@ -484,7 +484,7 @@ static int picdev_write(struct kvm_pic *s,
 static int picdev_read(struct kvm_pic *s,
 		       gpa_t addr, int len, void *val)
 {
-	unsigned char data = 0;
+	unsigned char *data = (unsigned char *)val;
 
 	if (len != 1) {
 		memset(val, 0, len);
@@ -497,19 +497,18 @@ static int picdev_read(struct kvm_pic *s,
 	case 0xa0:
 	case 0xa1:
 		pic_lock(s);
-		data = pic_ioport_read(&s->pics[addr >> 7], addr);
+		*data = pic_ioport_read(&s->pics[addr >> 7], addr);
 		pic_unlock(s);
 		break;
 	case 0x4d0:
 	case 0x4d1:
 		pic_lock(s);
-		data = elcr_ioport_read(&s->pics[addr & 1], addr);
+		*data = elcr_ioport_read(&s->pics[addr & 1], addr);
 		pic_unlock(s);
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
-	*(unsigned char *)val = data;
 	return 0;
 }
 
