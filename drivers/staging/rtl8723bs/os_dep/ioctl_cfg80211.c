@@ -463,9 +463,10 @@ void rtw_cfg80211_ibss_indicate_connect(struct adapter *padapter)
 		}
 		else
 		{
-			if (scanned == NULL)
+			if (scanned == NULL) {
 				rtw_warn_on(1);
-
+				return;
+			}
 			if (!memcmp(&(scanned->network.Ssid), &(pnetwork->Ssid), sizeof(struct ndis_802_11_ssid))
 				&& !memcmp(scanned->network.MacAddress, pnetwork->MacAddress, sizeof(NDIS_802_11_MAC_ADDRESS))
 			) {
@@ -906,7 +907,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff)
 	{
 		if (param->u.crypt.idx >= WEP_KEYS
-			&& param->u.crypt.idx > BIP_MAX_KEYID
+			|| param->u.crypt.idx >= BIP_MAX_KEYID
 		)
 		{
 			ret = -EINVAL;
@@ -927,7 +928,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 		wep_key_idx = param->u.crypt.idx;
 		wep_key_len = param->u.crypt.key_len;
 
-		if ((wep_key_idx > WEP_KEYS) || (wep_key_len <= 0))
+		if ((wep_key_idx >= WEP_KEYS) || (wep_key_len <= 0))
 		{
 			ret = -EINVAL;
 			goto exit;
@@ -939,7 +940,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
 
-		psecuritypriv->ndisencryptstatus = Ndis802_11Encryption1Enabled;
+			psecuritypriv->ndisencryptstatus = Ndis802_11Encryption1Enabled;
 			psecuritypriv->dot11PrivacyAlgrthm = _WEP40_;
 			psecuritypriv->dot118021XGrpPrivacy = _WEP40_;
 
@@ -1213,11 +1214,8 @@ static int cfg80211_rtw_set_default_key(struct wiphy *wiphy,
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(ndev);
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 
-		DBG_871X(FUNC_NDEV_FMT" key_index =%d"
-		", unicast =%d, multicast =%d"
-		".\n", FUNC_NDEV_ARG(ndev), key_index
-		, unicast, multicast
-		);
+	DBG_871X(FUNC_NDEV_FMT" key_index =%d, unicast =%d, multicast =%d\n",
+		 FUNC_NDEV_ARG(ndev), key_index, unicast, multicast);
 
 	if ((key_index < WEP_KEYS) && ((psecuritypriv->dot11PrivacyAlgrthm == _WEP40_) || (psecuritypriv->dot11PrivacyAlgrthm == _WEP104_))) /* set wep default key */
 	{
@@ -2492,8 +2490,10 @@ static int rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struct net_de
 
 	DBG_871X(FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
 
-	if (skb)
-		rtw_mstat_update(MSTAT_TYPE_SKB, MSTAT_ALLOC_SUCCESS, skb->truesize);
+	if (!skb)
+		goto fail;
+
+	rtw_mstat_update(MSTAT_TYPE_SKB, MSTAT_ALLOC_SUCCESS, skb->truesize);
 
 	if (unlikely(skb->len < sizeof(struct ieee80211_radiotap_header)))
 		goto fail;
@@ -2847,20 +2847,10 @@ static int cfg80211_rtw_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		struct wlan_bssid_ex *pbss_network = &adapter->mlmepriv.cur_network.network;
 		struct wlan_bssid_ex *pbss_network_ext = &adapter->mlmeextpriv.mlmext_info.network;
 
-		if (0)
-		DBG_871X(FUNC_ADPT_FMT" ssid:(%s,%zu), from ie:(%s,%d)\n", FUNC_ADPT_ARG(adapter),
-			settings->ssid, settings->ssid_len,
-			pbss_network->Ssid.Ssid, pbss_network->Ssid.SsidLength);
-
 		memcpy(pbss_network->Ssid.Ssid, (void *)settings->ssid, settings->ssid_len);
 		pbss_network->Ssid.SsidLength = settings->ssid_len;
 		memcpy(pbss_network_ext->Ssid.Ssid, (void *)settings->ssid, settings->ssid_len);
 		pbss_network_ext->Ssid.SsidLength = settings->ssid_len;
-
-		if (0)
-		DBG_871X(FUNC_ADPT_FMT" after ssid:(%s,%d), (%s,%d)\n", FUNC_ADPT_ARG(adapter),
-			pbss_network->Ssid.Ssid, pbss_network->Ssid.SsidLength,
-			pbss_network_ext->Ssid.Ssid, pbss_network_ext->Ssid.SsidLength);
 	}
 
 	return ret;
@@ -3414,7 +3404,7 @@ static void rtw_cfg80211_preinit_wiphy(struct adapter *padapter, struct wiphy *w
 	wiphy->n_cipher_suites = ARRAY_SIZE(rtw_cipher_suites);
 
 	/* if (padapter->registrypriv.wireless_mode & WIRELESS_11G) */
-		wiphy->bands[NL80211_BAND_2GHZ] = rtw_spt_band_alloc(NL80211_BAND_2GHZ);
+	wiphy->bands[NL80211_BAND_2GHZ] = rtw_spt_band_alloc(NL80211_BAND_2GHZ);
 
 	wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 	wiphy->flags |= WIPHY_FLAG_OFFCHAN_TX | WIPHY_FLAG_HAVE_AP_SME;
@@ -3541,10 +3531,10 @@ int rtw_wdev_alloc(struct adapter *padapter, struct device *dev)
 		pwdev_priv->power_mgmt = true;
 	else
 		pwdev_priv->power_mgmt = false;
+	kfree((u8 *)wdev);
 
 	return ret;
 
-	kfree((u8 *)wdev);
 unregister_wiphy:
 	wiphy_unregister(wiphy);
  free_wiphy:

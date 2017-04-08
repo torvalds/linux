@@ -570,7 +570,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff)
 	{
 
-		if (param->u.crypt.idx >= WEP_KEYS &&
+		if (param->u.crypt.idx >= WEP_KEYS ||
 		    param->u.crypt.idx >= BIP_MAX_KEYID) {
 			ret = -EINVAL;
 			goto exit;
