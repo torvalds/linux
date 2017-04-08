@@ -2087,7 +2087,7 @@ void Hal_ChannelPlanToRegulation(struct adapter *Adapter, u16 ChannelPlan)
 	case RT_CHANNEL_DOMAIN_WORLD_FCC2:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
 		pHalData->Regulation5G = TXPWR_LMT_FCC;
-				break;
+		break;
 	case RT_CHANNEL_DOMAIN_WORLD_FCC3:
 		pHalData->Regulation2_4G = TXPWR_LMT_FCC;
 		pHalData->Regulation5G = TXPWR_LMT_FCC;
