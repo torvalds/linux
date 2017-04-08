@@ -274,7 +274,7 @@ s32	_rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 	rtw_alloc_hwxmits(padapter);
 	rtw_init_hwxmits(pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
 
-  for (i = 0; i < 4; i++) {
+	for (i = 0; i < 4; i++) {
 		pxmitpriv->wmm_para_seq[i] = i;
 	}
 
@@ -290,8 +290,8 @@ exit:
 
 void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 {
-       int i;
-      struct adapter *padapter = pxmitpriv->adapter;
+	int i;
+	struct adapter *padapter = pxmitpriv->adapter;
 	struct xmit_frame	*pxmitframe = (struct xmit_frame *) pxmitpriv->pxmit_frame_buf;
 	struct xmit_buf *pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmitbuf;
 
@@ -942,8 +942,8 @@ static s32 xmitframe_addmic(struct adapter *padapter, struct xmit_frame *pxmitfr
 
 			}
 
-      /* if (pqospriv->qos_option == 1) */
-      if (pattrib->qos_en)
+			/* if (pqospriv->qos_option == 1) */
+			if (pattrib->qos_en)
 				priority[0] = (u8)pxmitframe->attrib.priority;
 
 
