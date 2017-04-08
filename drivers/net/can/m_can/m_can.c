@@ -864,11 +864,11 @@ static void m_can_chip_config(struct net_device *dev)
 	/* rx fifo configuration, blocking mode, fifo size 1 */
 	m_can_write(priv, M_CAN_RXF0C,
 		    (priv->mcfg[MRAM_RXF0].num << RXFC_FS_OFF) |
-		    RXFC_FWM_1 | priv->mcfg[MRAM_RXF0].off);
+		     priv->mcfg[MRAM_RXF0].off);
 
 	m_can_write(priv, M_CAN_RXF1C,
 		    (priv->mcfg[MRAM_RXF1].num << RXFC_FS_OFF) |
-		    RXFC_FWM_1 | priv->mcfg[MRAM_RXF1].off);
+		     priv->mcfg[MRAM_RXF1].off);
 
 	cccr = m_can_read(priv, M_CAN_CCCR);
 	cccr &= ~(CCCR_TEST | CCCR_MON | (CCCR_CMR_MASK << CCCR_CMR_SHIFT) |
