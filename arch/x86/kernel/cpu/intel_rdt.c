@@ -430,6 +430,10 @@ static __init bool get_rdt_resources(void)
 		rdt_get_cache_config(2, &rdt_resources_all[RDT_RESOURCE_L2]);
 		ret = true;
 	}
+
+	if (boot_cpu_has(X86_FEATURE_MBA))
+		ret = true;
+
 	return ret;
 }
 

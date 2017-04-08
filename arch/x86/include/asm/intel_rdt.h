@@ -184,6 +184,14 @@ union cpuid_0x10_1_eax {
 	unsigned int full;
 };
 
+/* CPUID.(EAX=10H, ECX=ResID=3).EAX */
+union cpuid_0x10_3_eax {
+	struct {
+		unsigned int max_delay:12;
+	} split;
+	unsigned int full;
+};
+
 /* CPUID.(EAX=10H, ECX=ResID).EDX */
 union cpuid_0x10_x_edx {
 	struct {
