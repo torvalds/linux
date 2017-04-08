@@ -870,15 +870,15 @@ nlmsvc_grant_reply(struct nlm_cookie *cookie, __be32 status)
 	if (!(block = nlmsvc_find_block(cookie)))
 		return;
 
-	if (block) {
-		if (status == nlm_lck_denied_grace_period) {
-			/* Try again in a couple of seconds */
-			nlmsvc_insert_block(block, 10 * HZ);
-		} else {
-			/* Lock is now held by client, or has been rejected.
-			 * In both cases, the block should be removed. */
-			nlmsvc_unlink_block(block);
-		}
+	if (status == nlm_lck_denied_grace_period) {
+		/* Try again in a couple of seconds */
+		nlmsvc_insert_block(block, 10 * HZ);
+	} else {
+		/*
+		 * Lock is now held by client, or has been rejected.
+		 * In both cases, the block should be removed.
+		 */
+		nlmsvc_unlink_block(block);
 	}
 	nlmsvc_release_block(block);
 }
