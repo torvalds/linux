@@ -1159,8 +1159,8 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 	parsed_line = rtrim(line);
 
 	/* /filename:linenr ? Save line number and ignore. */
-	if (regexec(&file_lineno, line, 2, match, 0) == 0) {
-		*line_nr = atoi(line + match[1].rm_so);
+	if (regexec(&file_lineno, parsed_line, 2, match, 0) == 0) {
+		*line_nr = atoi(parsed_line + match[1].rm_so);
 		return 0;
 	}
 
