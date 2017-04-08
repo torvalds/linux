@@ -410,6 +410,48 @@ int hid_sensor_get_reporting_interval(struct hid_sensor_hub_device *hsdev,
 
 }
 
+static void hid_sensor_get_report_latency_info(struct hid_sensor_hub_device *hsdev,
+					       u32 usage_id,
+					       struct hid_sensor_common *st)
+{
+	sensor_hub_input_get_attribute_info(hsdev, HID_FEATURE_REPORT,
+					    usage_id,
+					    HID_USAGE_SENSOR_PROP_REPORT_LATENCY,
+					    &st->report_latency);
+
+	hid_dbg(hsdev->hdev, "Report latency attributes: %x:%x\n",
+		st->report_latency.index, st->report_latency.report_id);
+}
+
+int hid_sensor_get_report_latency(struct hid_sensor_common *st)
+{
+	int ret;
+	int value;
+
+	ret = sensor_hub_get_feature(st->hsdev, st->report_latency.report_id,
+				     st->report_latency.index, sizeof(value),
+				     &value);
+	if (ret < 0)
+		return ret;
+
+	return value;
+}
+EXPORT_SYMBOL(hid_sensor_get_report_latency);
+
+int hid_sensor_set_report_latency(struct hid_sensor_common *st, int latency_ms)
+{
+	return sensor_hub_set_feature(st->hsdev, st->report_latency.report_id,
+				      st->report_latency.index,
+				      sizeof(latency_ms), &latency_ms);
+}
+EXPORT_SYMBOL(hid_sensor_set_report_latency);
+
+bool hid_sensor_batch_mode_supported(struct hid_sensor_common *st)
+{
+	return st->report_latency.index > 0 && st->report_latency.report_id > 0;
+}
+EXPORT_SYMBOL(hid_sensor_batch_mode_supported);
+
 int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 					u32 usage_id,
 					struct hid_sensor_common *st)
@@ -450,6 +492,8 @@ int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 		st->timestamp_ns_scale = val0;
 	} else
 		st->timestamp_ns_scale = 1000000000;
+
+	hid_sensor_get_report_latency_info(hsdev, usage_id, st);
 
 	hid_dbg(hsdev->hdev, "common attributes: %x:%x, %x:%x, %x:%x %x:%x %x:%x\n",
 		st->poll.index, st->poll.report_id,
