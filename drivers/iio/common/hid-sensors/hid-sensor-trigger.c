@@ -138,6 +138,10 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 
 void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)
 {
+	pm_runtime_disable(&attrb->pdev->dev);
+	pm_runtime_set_suspended(&attrb->pdev->dev);
+	pm_runtime_put_noidle(&attrb->pdev->dev);
+
 	cancel_work_sync(&attrb->work);
 	iio_trigger_unregister(attrb->trigger);
 	iio_trigger_free(attrb->trigger);
