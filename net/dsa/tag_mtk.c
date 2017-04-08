@@ -55,10 +55,6 @@ static int mtk_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	int port;
 	__be16 *phdr, hdr;
 
-	skb = skb_unshare(skb, GFP_ATOMIC);
-	if (!skb)
-		goto out;
-
 	if (unlikely(!pskb_may_pull(skb, MTK_HDR_LEN)))
 		goto out_drop;
 
@@ -105,7 +101,6 @@ static int mtk_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 
 out_drop:
 	kfree_skb(skb);
-out:
 	return 0;
 }
 

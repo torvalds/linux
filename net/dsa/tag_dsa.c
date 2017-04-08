@@ -77,10 +77,6 @@ static int dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	int source_device;
 	int source_port;
 
-	skb = skb_unshare(skb, GFP_ATOMIC);
-	if (skb == NULL)
-		goto out;
-
 	if (unlikely(!pskb_may_pull(skb, DSA_HLEN)))
 		goto out_drop;
 
@@ -175,7 +171,6 @@ static int dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 
 out_drop:
 	kfree_skb(skb);
-out:
 	return 0;
 }
 

@@ -102,10 +102,6 @@ static int brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	ds = dst->cpu_switch;
 
-	skb = skb_unshare(skb, GFP_ATOMIC);
-	if (skb == NULL)
-		goto out;
-
 	if (unlikely(!pskb_may_pull(skb, BRCM_TAG_LEN)))
 		goto out_drop;
 
@@ -151,7 +147,6 @@ static int brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 
 out_drop:
 	kfree_skb(skb);
-out:
 	return 0;
 }
 
