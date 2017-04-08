@@ -221,6 +221,7 @@ struct mlx5e_params {
 	u8  toeplitz_hash_key[40];
 	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE];
 	bool vlan_strip_disable;
+	bool scatter_fcs_en;
 	bool rx_am_enabled;
 	u32 lro_timeout;
 	u32 pflags;
@@ -841,8 +842,6 @@ int mlx5e_vlan_rx_kill_vid(struct net_device *dev, __always_unused __be16 proto,
 			   u16 vid);
 void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv);
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
-
-int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd);
 
 struct mlx5e_redirect_rqt_param {
 	bool is_rss;
