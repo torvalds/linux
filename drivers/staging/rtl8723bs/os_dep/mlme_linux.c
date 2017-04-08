@@ -145,8 +145,8 @@ void rtw_os_indicate_disconnect(struct adapter *adapter)
 
 	rtw_indicate_wx_disassoc_event(adapter);
 
-	 /* modify for CONFIG_IEEE80211W, none 11w also can use the same command */
-	 rtw_reset_securitypriv_cmd(adapter);
+	/* modify for CONFIG_IEEE80211W, none 11w also can use the same command */
+	rtw_reset_securitypriv_cmd(adapter);
 }
 
 void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
