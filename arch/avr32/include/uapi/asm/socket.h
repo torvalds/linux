@@ -96,4 +96,6 @@
 
 #define SO_INCOMING_NAPI_ID	56
 
+#define SO_COOKIE		57
+
 #endif /* _UAPI__ASM_AVR32_SOCKET_H */

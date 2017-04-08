@@ -92,6 +92,8 @@
 
 #define SO_INCOMING_NAPI_ID	0x003a
 
+#define SO_COOKIE		0x003b
+
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001
 #define SO_SECURITY_ENCRYPTION_TRANSPORT	0x5002
