@@ -285,6 +285,8 @@ EXPORT_SYMBOL(nubus_readdir);
 int nubus_rewinddir(struct nubus_dir* dir)
 {
 	dir->ptr = dir->base;
+	dir->done = 0;
+
 	return 0;
 }
 EXPORT_SYMBOL(nubus_rewinddir);
