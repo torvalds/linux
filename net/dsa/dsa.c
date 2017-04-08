@@ -23,6 +23,7 @@
 #include <linux/sysfs.h>
 #include <linux/phy_fixed.h>
 #include <linux/gpio/consumer.h>
+#include <linux/etherdevice.h>
 #include <net/dsa.h>
 #include "dsa_priv.h"
 
@@ -900,6 +901,7 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 			  struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
+	struct sk_buff *nskb = NULL;
 
 	if (unlikely(dst == NULL)) {
 		kfree_skb(skb);
@@ -910,7 +912,23 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!skb)
 		return 0;
 
-	return dst->rcv(skb, dev, pt, orig_dev);
+	nskb = dst->rcv(skb, dev, pt, orig_dev);
+	if (!nskb) {
+		kfree_skb(skb);
+		return 0;
+	}
+
+	skb = nskb;
+	skb_push(skb, ETH_HLEN);
+	skb->pkt_type = PACKET_HOST;
+	skb->protocol = eth_type_trans(skb, skb->dev);
+
+	skb->dev->stats.rx_packets++;
+	skb->dev->stats.rx_bytes += skb->len;
+
+	netif_receive_skb(skb);
+
+	return 0;
 }
 
 static struct packet_type dsa_pack_type __read_mostly = {

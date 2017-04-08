@@ -81,8 +81,9 @@ out_free:
 	return NULL;
 }
 
-static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
-		    struct packet_type *pt, struct net_device *orig_dev)
+static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
+				struct packet_type *pt,
+				struct net_device *orig_dev)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct dsa_switch *ds;
@@ -177,20 +178,11 @@ static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	skb->dev = ds->ports[source_port].netdev;
-	skb_push(skb, ETH_HLEN);
-	skb->pkt_type = PACKET_HOST;
-	skb->protocol = eth_type_trans(skb, skb->dev);
 
-	skb->dev->stats.rx_packets++;
-	skb->dev->stats.rx_bytes += skb->len;
-
-	netif_receive_skb(skb);
-
-	return 0;
+	return skb;
 
 out_drop:
-	kfree_skb(skb);
-	return 0;
+	return NULL;
 }
 
 const struct dsa_device_ops edsa_netdev_ops = {
