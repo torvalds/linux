@@ -349,7 +349,8 @@ static inline void m_can_config_endisable(const struct m_can_priv *priv,
 
 static inline void m_can_enable_all_interrupts(const struct m_can_priv *priv)
 {
-	m_can_write(priv, M_CAN_ILE, ILE_EINT0 | ILE_EINT1);
+	/* Only interrupt line 0 is used in this driver */
+	m_can_write(priv, M_CAN_ILE, ILE_EINT0);
 }
 
 static inline void m_can_disable_all_interrupts(const struct m_can_priv *priv)
