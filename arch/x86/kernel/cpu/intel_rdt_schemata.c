@@ -29,6 +29,49 @@
 #include <asm/intel_rdt.h>
 
 /*
+ * Check whether MBA bandwidth percentage value is correct. The value is
+ * checked against the minimum and max bandwidth values specified by the
+ * hardware. The allocated bandwidth percentage is rounded to the next
+ * control step available on the hardware.
+ */
+static bool bw_validate(char *buf, unsigned long *data, struct rdt_resource *r)
+{
+	unsigned long bw;
+	int ret;
+
+	/*
+	 * Only linear delay values is supported for current Intel SKUs.
+	 */
+	if (!r->membw.delay_linear)
+		return false;
+
+	ret = kstrtoul(buf, 10, &bw);
+	if (ret)
+		return false;
+
+	if (bw < r->membw.min_bw || bw > r->default_ctrl)
+		return false;
+
+	*data = roundup(bw, (unsigned long)r->membw.bw_gran);
+	return true;
+}
+
+int parse_bw(char *buf, struct rdt_resource *r, struct rdt_domain *d)
+{
+	unsigned long data;
+
+	if (d->have_new_ctrl)
+		return -EINVAL;
+
+	if (!bw_validate(buf, &data, r))
+		return -EINVAL;
+	d->new_ctrl = data;
+	d->have_new_ctrl = true;
+
+	return 0;
+}
+
+/*
  * Check whether a cache bit mask is valid. The SDM says:
  *	Please note that all (and only) contiguous '1' combinations
  *	are allowed (e.g. FFFFH, 0FF0H, 003CH, etc.).

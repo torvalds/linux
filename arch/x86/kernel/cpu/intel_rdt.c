@@ -116,6 +116,8 @@ struct rdt_resource rdt_resources_all[] = {
 		.msr_base		= IA32_MBA_THRTL_BASE,
 		.msr_update		= mba_wrmsr,
 		.cache_level		= 3,
+		.parse_ctrlval		= parse_bw,
+		.format_str		= "%d=%*d",
 	},
 };
 

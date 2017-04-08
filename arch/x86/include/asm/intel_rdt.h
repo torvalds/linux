@@ -181,6 +181,7 @@ struct rdt_resource {
 void rdt_get_cache_infofile(struct rdt_resource *r);
 void rdt_get_mba_infofile(struct rdt_resource *r);
 int parse_cbm(char *buf, struct rdt_resource *r, struct rdt_domain *d);
+int parse_bw(char *buf, struct rdt_resource *r,  struct rdt_domain *d);
 
 extern struct mutex rdtgroup_mutex;
 
