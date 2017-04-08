@@ -522,15 +522,14 @@ static void _mgt_dispatcher(struct adapter *padapter, struct mlme_handler *ptabl
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	u8 *pframe = precv_frame->u.hdr.rx_data;
 
-	  if (ptable->func) {
-		 /* receive the frames that ra(a1) is my address or ra(a1) is bc address. */
-			if (memcmp(GetAddr1Ptr(pframe), myid(&padapter->eeprompriv), ETH_ALEN) &&
-				memcmp(GetAddr1Ptr(pframe), bc_addr, ETH_ALEN))
-				return;
+	if (ptable->func) {
+		/* receive the frames that ra(a1) is my address or ra(a1) is bc address. */
+		if (memcmp(GetAddr1Ptr(pframe), myid(&padapter->eeprompriv), ETH_ALEN) &&
+		    memcmp(GetAddr1Ptr(pframe), bc_addr, ETH_ALEN))
+			return;
 
-			ptable->func(padapter, precv_frame);
-		}
-
+		ptable->func(padapter, precv_frame);
+	}
 }
 
 void mgt_dispatcher(struct adapter *padapter, union recv_frame *precv_frame)
@@ -1575,7 +1574,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	if (pstat->aid > 0) {
 		DBG_871X("  old AID %d\n", pstat->aid);
 	} else {
-		for (pstat->aid = 1; pstat->aid <= NUM_STA; pstat->aid++)
+		for (pstat->aid = 1; pstat->aid < NUM_STA; pstat->aid++)
 			if (pstapriv->sta_aid[pstat->aid - 1] == NULL)
 				break;
 
@@ -2388,7 +2387,7 @@ s32 dump_mgntframe_and_wait(struct adapter *padapter, struct xmit_frame *pmgntfr
 	pxmitbuf->sctx = NULL;
 	spin_unlock_irqrestore(&pxmitpriv->lock_sctx, irqL);
 
-	 return ret;
+	return ret;
 }
 
 s32 dump_mgntframe_and_wait_ack(struct adapter *padapter, struct xmit_frame *pmgntframe)
@@ -2417,7 +2416,7 @@ s32 dump_mgntframe_and_wait_ack(struct adapter *padapter, struct xmit_frame *pmg
 		mutex_unlock(&pxmitpriv->ack_tx_mutex);
 	}
 
-	 return ret;
+	return ret;
 }
 
 static int update_hidden_ssid(u8 *ies, u32 ies_len, u8 hidden_ssid_mode)
@@ -5735,7 +5734,7 @@ void linked_status_chk(struct adapter *padapter)
 		#else
 		rx_chk_limit = 8;
 		#endif
-			link_count_limit = 7; /*  16 sec */
+		link_count_limit = 7; /*  16 sec */
 
 		/*  Marked by Kurt 20130715 */
 		/*  For WiDi 3.5 and latered on, they don't ask WiDi sink to do roaming, so we could not check rx limit that strictly. */
@@ -6456,7 +6455,7 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 		Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, false);
 
 		/* config the initial gain under scaning, need to write the BB registers */
-			initialgain = 0x1e;
+		initialgain = 0x1e;
 
 		rtw_hal_set_hwreg(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
 
