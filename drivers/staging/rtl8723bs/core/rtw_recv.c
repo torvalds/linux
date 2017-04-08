@@ -595,7 +595,7 @@ union recv_frame *portctrl(struct adapter *adapter, union recv_frame *precv_fram
 			memcpy(&be_tmp, ptr, 2);
 			ether_type = ntohs(be_tmp);
 
-		  if (ether_type == eapol_type)
+			if (ether_type == eapol_type)
 				prtnframe = precv_frame;
 			else {
 				/* free this frame */
@@ -827,17 +827,14 @@ sint sta2sta_data_frame(
 		sta_addr = pattrib->src;
 
 	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) {
-		{
-			/*  For Station mode, sa and bssid should always be BSSID, and DA is my mac-address */
-			if (memcmp(pattrib->bssid, pattrib->src, ETH_ALEN)) {
-				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("bssid != TA under STATION_MODE; drop pkt\n"));
-				ret = _FAIL;
-				goto exit;
-			}
-
-		sta_addr = pattrib->bssid;
+		/*  For Station mode, sa and bssid should always be BSSID, and DA is my mac-address */
+		if (memcmp(pattrib->bssid, pattrib->src, ETH_ALEN)) {
+			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("bssid != TA under STATION_MODE; drop pkt\n"));
+			ret = _FAIL;
+			goto exit;
 		}
 
+		sta_addr = pattrib->bssid;
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
 		if (bmcast) {
 			/*  For AP mode, if DA == MCAST, then BSSID should be also MCAST */
@@ -1517,6 +1514,7 @@ sint validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame)
 	u8 type;
 	u8 subtype;
 	sint retval = _SUCCESS;
+	u8 bDumpRxPkt;
 
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
 
@@ -1544,8 +1542,6 @@ sint validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame)
 	pattrib->mdata = GetMData(ptr);
 	pattrib->privacy = GetPrivacy(ptr);
 	pattrib->order = GetOrder(ptr);
-{
-	u8 bDumpRxPkt;
 	rtw_hal_get_def_var(adapter, HAL_DEF_DBG_DUMP_RXPKT, &(bDumpRxPkt));
 	if (bDumpRxPkt == 1) /* dump all rx packets */
 		dump_rx_packet(ptr);
@@ -1553,7 +1549,6 @@ sint validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame)
 		dump_rx_packet(ptr);
 	else if ((bDumpRxPkt == 3) && (type == WIFI_DATA_TYPE))
 		dump_rx_packet(ptr);
-}
 
 	switch (type) {
 	case WIFI_MGT_TYPE: /* mgnt */
