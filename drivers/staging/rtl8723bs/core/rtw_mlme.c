@@ -856,7 +856,7 @@ void rtw_survey_event_callback(struct adapter	*adapter, u8 *pbuf)
 
 	/*  lock pmlmepriv->lock when you accessing network_q */
 	if ((check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) == false) {
-	  if (pnetwork->Ssid.Ssid[0] == 0) {
+		if (pnetwork->Ssid.Ssid[0] == 0) {
 			pnetwork->Ssid.SsidLength = 0;
 		}
 		rtw_add_network(adapter, pnetwork);
@@ -1100,8 +1100,7 @@ void rtw_free_assoc_resources(struct adapter *adapter, int lock_scanned_queue)
 	}
 
 	if (lock_scanned_queue)
-
-	adapter->securitypriv.key_mask = 0;
+		adapter->securitypriv.key_mask = 0;
 
 	rtw_reset_rx_info(pdbgpriv);
 }
@@ -1162,7 +1161,7 @@ void rtw_indicate_disconnect(struct adapter *padapter)
 		/* set ips_deny_time to avoid enter IPS before LPS leave */
 		rtw_set_ips_deny(padapter, 3000);
 
-	      _clr_fwstate_(pmlmepriv, _FW_LINKED);
+		_clr_fwstate_(pmlmepriv, _FW_LINKED);
 
 		rtw_clear_scan_deny(padapter);
 	}
@@ -2826,8 +2825,8 @@ unsigned int rtw_restructure_ht_ie(struct adapter *padapter, u8 *in_ie, u8 *out_
 		if (stbc_rx_enable)
 			ht_capie.cap_info |= cpu_to_le16(IEEE80211_HT_CAP_RX_STBC_1R);/* RX STBC One spatial stream */
 
-	    set_mcs_rate_by_mask(ht_capie.supp_mcs_set, MCS_RATE_1R);
-			break;
+		set_mcs_rate_by_mask(ht_capie.supp_mcs_set, MCS_RATE_1R);
+		break;
 
 	case RF_2T2R:
 	case RF_1T2R:
@@ -2984,22 +2983,22 @@ void rtw_update_ht_cap(struct adapter *padapter, u8 *pie, uint ie_len, u8 channe
 #else /* CONFIG_DISABLE_MCS13TO15 */
 			set_mcs_rate_by_mask(pmlmeinfo->HT_caps.u.HT_cap_element.MCS_rate, MCS_RATE_2R);
 #endif /* CONFIG_DISABLE_MCS13TO15 */
-	}
+		}
 
-	/* switch to the 40M Hz mode accoring to the AP */
-	/* pmlmeext->cur_bwmode = CHANNEL_WIDTH_40; */
-	switch ((pmlmeinfo->HT_info.infos[0] & 0x3)) {
-	case EXTCHNL_OFFSET_UPPER:
-		pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_LOWER;
-		break;
+		/* switch to the 40M Hz mode according to the AP */
+		/* pmlmeext->cur_bwmode = CHANNEL_WIDTH_40; */
+		switch ((pmlmeinfo->HT_info.infos[0] & 0x3)) {
+		case EXTCHNL_OFFSET_UPPER:
+			pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_LOWER;
+			break;
 
-	case EXTCHNL_OFFSET_LOWER:
-		pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_UPPER;
-		break;
+		case EXTCHNL_OFFSET_LOWER:
+			pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_UPPER;
+			break;
 
-	default:
-		pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		break;
+		default:
+			pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
+			break;
 		}
 	}
 
