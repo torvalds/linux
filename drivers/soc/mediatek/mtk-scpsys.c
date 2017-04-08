@@ -107,21 +107,28 @@ struct scp_domain {
 	struct regulator *supply;
 };
 
+struct scp_ctrl_reg {
+	int pwr_sta_offs;
+	int pwr_sta2nd_offs;
+};
+
 struct scp {
 	struct scp_domain *domains;
 	struct genpd_onecell_data pd_data;
 	struct device *dev;
 	void __iomem *base;
 	struct regmap *infracfg;
+	struct scp_ctrl_reg ctrl_reg;
 };
 
 static int scpsys_domain_is_on(struct scp_domain *scpd)
 {
 	struct scp *scp = scpd->scp;
 
-	u32 status = readl(scp->base + SPM_PWR_STATUS) & scpd->data->sta_mask;
-	u32 status2 = readl(scp->base + SPM_PWR_STATUS_2ND) &
-				scpd->data->sta_mask;
+	u32 status = readl(scp->base + scp->ctrl_reg.pwr_sta_offs) &
+						scpd->data->sta_mask;
+	u32 status2 = readl(scp->base + scp->ctrl_reg.pwr_sta2nd_offs) &
+						scpd->data->sta_mask;
 
 	/*
 	 * A domain is on when both status bits are set. If only one is set
@@ -346,7 +353,8 @@ static void init_clks(struct platform_device *pdev, struct clk **clk)
 }
 
 static struct scp *init_scp(struct platform_device *pdev,
-			const struct scp_domain_data *scp_domain_data, int num)
+			const struct scp_domain_data *scp_domain_data, int num,
+			struct scp_ctrl_reg *scp_ctrl_reg)
 {
 	struct genpd_onecell_data *pd_data;
 	struct resource *res;
@@ -357,6 +365,9 @@ static struct scp *init_scp(struct platform_device *pdev,
 	scp = devm_kzalloc(&pdev->dev, sizeof(*scp), GFP_KERNEL);
 	if (!scp)
 		return ERR_PTR(-ENOMEM);
+
+	scp->ctrl_reg.pwr_sta_offs = scp_ctrl_reg->pwr_sta_offs;
+	scp->ctrl_reg.pwr_sta2nd_offs = scp_ctrl_reg->pwr_sta2nd_offs;
 
 	scp->dev = &pdev->dev;
 
@@ -556,8 +567,13 @@ static const struct scp_domain_data scp_domain_data_mt2701[] = {
 static int __init scpsys_probe_mt2701(struct platform_device *pdev)
 {
 	struct scp *scp;
+	struct scp_ctrl_reg scp_reg;
 
-	scp = init_scp(pdev, scp_domain_data_mt2701, NUM_DOMAINS_MT2701);
+	scp_reg.pwr_sta_offs = SPM_PWR_STATUS;
+	scp_reg.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND;
+
+	scp = init_scp(pdev, scp_domain_data_mt2701, NUM_DOMAINS_MT2701,
+		       &scp_reg);
 	if (IS_ERR(scp))
 		return PTR_ERR(scp);
 
@@ -667,8 +683,13 @@ static int __init scpsys_probe_mt8173(struct platform_device *pdev)
 	struct scp *scp;
 	struct genpd_onecell_data *pd_data;
 	int ret;
+	struct scp_ctrl_reg scp_reg;
 
-	scp = init_scp(pdev, scp_domain_data_mt8173, NUM_DOMAINS_MT8173);
+	scp_reg.pwr_sta_offs = SPM_PWR_STATUS;
+	scp_reg.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND;
+
+	scp = init_scp(pdev, scp_domain_data_mt8173, NUM_DOMAINS_MT8173,
+		       &scp_reg);
 	if (IS_ERR(scp))
 		return PTR_ERR(scp);
 
