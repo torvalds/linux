@@ -530,7 +530,7 @@
 				interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			sata@a8000 {
+			ahci0: sata@a8000 {
 				compatible = "marvell,armada-380-ahci";
 				reg = <0xa8000 0x2000>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
@@ -546,7 +546,7 @@
 				status = "disabled";
 			};
 
-			sata@e0000 {
+			ahci1: sata@e0000 {
 				compatible = "marvell,armada-380-ahci";
 				reg = <0xe0000 0x2000>;
 				interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
@@ -590,7 +590,7 @@
 				status = "disabled";
 			};
 
-			usb3@f0000 {
+			usb3_0: usb3@f0000 {
 				compatible = "marvell,armada-380-xhci";
 				reg = <0xf0000 0x4000>,<0xf4000 0x4000>;
 				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
@@ -598,7 +598,7 @@
 				status = "disabled";
 			};
 
-			usb3@f8000 {
+			usb3_1: usb3@f8000 {
 				compatible = "marvell,armada-380-xhci";
 				reg = <0xf8000 0x4000>,<0xfc000 0x4000>;
 				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
