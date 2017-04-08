@@ -54,64 +54,6 @@
 #include <asm/ioctls.h>
 #include "internal.h"
 
-/*
- * Not all architectures have sys_utime, so implement this in terms
- * of sys_utimes.
- */
-COMPAT_SYSCALL_DEFINE2(utime, const char __user *, filename,
-		       struct compat_utimbuf __user *, t)
-{
-	struct timespec tv[2];
-
-	if (t) {
-		if (get_user(tv[0].tv_sec, &t->actime) ||
-		    get_user(tv[1].tv_sec, &t->modtime))
-			return -EFAULT;
-		tv[0].tv_nsec = 0;
-		tv[1].tv_nsec = 0;
-	}
-	return do_utimes(AT_FDCWD, filename, t ? tv : NULL, 0);
-}
-
-COMPAT_SYSCALL_DEFINE4(utimensat, unsigned int, dfd, const char __user *, filename, struct compat_timespec __user *, t, int, flags)
-{
-	struct timespec tv[2];
-
-	if  (t) {
-		if (compat_get_timespec(&tv[0], &t[0]) ||
-		    compat_get_timespec(&tv[1], &t[1]))
-			return -EFAULT;
-
-		if (tv[0].tv_nsec == UTIME_OMIT && tv[1].tv_nsec == UTIME_OMIT)
-			return 0;
-	}
-	return do_utimes(dfd, filename, t ? tv : NULL, flags);
-}
-
-COMPAT_SYSCALL_DEFINE3(futimesat, unsigned int, dfd, const char __user *, filename, struct compat_timeval __user *, t)
-{
-	struct timespec tv[2];
-
-	if (t) {
-		if (get_user(tv[0].tv_sec, &t[0].tv_sec) ||
-		    get_user(tv[0].tv_nsec, &t[0].tv_usec) ||
-		    get_user(tv[1].tv_sec, &t[1].tv_sec) ||
-		    get_user(tv[1].tv_nsec, &t[1].tv_usec))
-			return -EFAULT;
-		if (tv[0].tv_nsec >= 1000000 || tv[0].tv_nsec < 0 ||
-		    tv[1].tv_nsec >= 1000000 || tv[1].tv_nsec < 0)
-			return -EINVAL;
-		tv[0].tv_nsec *= 1000;
-		tv[1].tv_nsec *= 1000;
-	}
-	return do_utimes(dfd, filename, t ? tv : NULL, 0);
-}
-
-COMPAT_SYSCALL_DEFINE2(utimes, const char __user *, filename, struct compat_timeval __user *, t)
-{
-	return compat_sys_futimesat(AT_FDCWD, filename, t);
-}
-
 static int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
 {
 	struct compat_stat tmp;
