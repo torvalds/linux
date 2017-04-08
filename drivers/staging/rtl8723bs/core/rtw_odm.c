@@ -107,8 +107,9 @@ void rtw_odm_dbg_comp_msg(void *sel, struct adapter *adapter)
 	DBG_871X_SEL_NL(sel, "odm.DebugComponents = 0x%016llx\n", dbg_comp);
 	for (i = 0; i < RTW_ODM_COMP_MAX; i++) {
 		if (odm_comp_str[i])
-		DBG_871X_SEL_NL(sel, "%cBIT%-2d %s\n",
-			(BIT0 << i) & dbg_comp ? '+' : ' ', i, odm_comp_str[i]);
+			DBG_871X_SEL_NL(sel, "%cBIT%-2d %s\n",
+					(BIT0 << i) & dbg_comp ? '+' : ' ',
+					i, odm_comp_str[i]);
 	}
 }
 
@@ -144,8 +145,9 @@ void rtw_odm_ability_msg(void *sel, struct adapter *adapter)
 	DBG_871X_SEL_NL(sel, "odm.SupportAbility = 0x%08x\n", ability);
 	for (i = 0; i < RTW_ODM_ABILITY_MAX; i++) {
 		if (odm_ability_str[i])
-		DBG_871X_SEL_NL(sel, "%cBIT%-2d %s\n",
-			(BIT0 << i) & ability ? '+' : ' ', i, odm_ability_str[i]);
+			DBG_871X_SEL_NL(sel, "%cBIT%-2d %s\n",
+					(BIT0 << i) & ability ? '+' : ' ', i,
+					odm_ability_str[i]);
 	}
 }
 
