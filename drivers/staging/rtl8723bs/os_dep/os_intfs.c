@@ -1079,7 +1079,7 @@ static int  ips_netdrv_open(struct adapter *padapter)
 
 	_set_timer(&padapter->mlmepriv.dynamic_chk_timer, 2000);
 
-	 return _SUCCESS;
+	return _SUCCESS;
 
 netdev_open_error:
 	/* padapter->bup = false; */
