@@ -210,7 +210,7 @@ static int iop_alive(volatile struct mac_iop *iop)
 	return retval;
 }
 
-static struct iop_msg *iop_alloc_msg(void)
+static struct iop_msg *iop_get_unused_msg(void)
 {
 	int i;
 	unsigned long flags;
@@ -227,11 +227,6 @@ static struct iop_msg *iop_alloc_msg(void)
 
 	local_irq_restore(flags);
 	return NULL;
-}
-
-static void iop_free_msg(struct iop_msg *msg)
-{
-	msg->status = IOP_MSGSTATUS_UNUSED;
 }
 
 /*
@@ -372,7 +367,7 @@ void iop_complete_message(struct iop_msg *msg)
 		   IOP_ADDR_RECV_STATE + chan, IOP_MSG_COMPLETE);
 	iop_interrupt(iop_base[msg->iop_num]);
 
-	iop_free_msg(msg);
+	msg->status = IOP_MSGSTATUS_UNUSED;
 }
 
 /*
@@ -403,7 +398,7 @@ static void iop_do_send(struct iop_msg *msg)
 static void iop_handle_send(uint iop_num, uint chan)
 {
 	volatile struct mac_iop *iop = iop_base[iop_num];
-	struct iop_msg *msg,*msg2;
+	struct iop_msg *msg;
 	int i,offset;
 
 	iop_pr_debug("iop_num %d chan %d\n", iop_num, chan);
@@ -418,10 +413,8 @@ static void iop_handle_send(uint iop_num, uint chan)
 		msg->reply[i] = iop_readb(iop, offset);
 	}
 	if (msg->handler) (*msg->handler)(msg);
-	msg2 = msg;
+	msg->status = IOP_MSGSTATUS_UNUSED;
 	msg = msg->next;
-	iop_free_msg(msg2);
-
 	iop_send_queue[iop_num][chan] = msg;
 	if (msg) iop_do_send(msg);
 }
@@ -439,7 +432,7 @@ static void iop_handle_recv(uint iop_num, uint chan)
 
 	iop_pr_debug("iop_num %d chan %d\n", iop_num, chan);
 
-	msg = iop_alloc_msg();
+	msg = iop_get_unused_msg();
 	msg->iop_num = iop_num;
 	msg->channel = chan;
 	msg->status = IOP_MSGSTATUS_UNSOL;
@@ -484,7 +477,7 @@ int iop_send_message(uint iop_num, uint chan, void *privdata,
 	if (chan >= NUM_IOP_CHAN) return -EINVAL;
 	if (msg_len > IOP_MSG_LEN) return -EINVAL;
 
-	msg = iop_alloc_msg();
+	msg = iop_get_unused_msg();
 	if (!msg) return -ENOMEM;
 
 	msg->next = NULL;
