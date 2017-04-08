@@ -76,6 +76,14 @@ Chinese translations
 
    translations/zh_CN/index
 
+Japanese translations
+---------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   translations/ja_JP/index
+
 Indices and tables
 ==================
 
