@@ -100,9 +100,6 @@ static int brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	int source_port;
 	u8 *brcm_tag;
 
-	if (unlikely(dst == NULL))
-		goto out_drop;
-
 	ds = dst->cpu_switch;
 
 	skb = skb_unshare(skb, GFP_ATOMIC);

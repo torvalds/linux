@@ -90,9 +90,6 @@ static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	int source_device;
 	int source_port;
 
-	if (unlikely(dst == NULL))
-		goto out_drop;
-
 	skb = skb_unshare(skb, GFP_ATOMIC);
 	if (skb == NULL)
 		goto out;
