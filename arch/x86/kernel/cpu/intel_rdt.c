@@ -32,6 +32,9 @@
 #include <asm/intel-family.h>
 #include <asm/intel_rdt.h>
 
+#define MAX_MBA_BW	100u
+#define MBA_IS_LINEAR	0x4
+
 /* Mutex to protect rdtgroup access. */
 DEFINE_MUTEX(rdtgroup_mutex);
 
@@ -43,6 +46,8 @@ DEFINE_PER_CPU_READ_MOSTLY(int, cpu_closid);
  */
 int max_name_width, max_data_width;
 
+static void
+mba_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
 static void
 cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
 
@@ -96,6 +101,13 @@ struct rdt_resource rdt_resources_all[] = {
 			.cbm_idx_mult	= 1,
 			.cbm_idx_offset	= 0,
 		},
+	},
+	{
+		.name			= "MB",
+		.domains		= domain_init(RDT_RESOURCE_MBA),
+		.msr_base		= IA32_MBA_THRTL_BASE,
+		.msr_update		= mba_wrmsr,
+		.cache_level		= 3,
 	},
 };
 
@@ -151,6 +163,53 @@ static inline bool cache_alloc_hsw_probe(void)
 	return false;
 }
 
+/*
+ * rdt_get_mb_table() - get a mapping of bandwidth(b/w) percentage values
+ * exposed to user interface and the h/w understandable delay values.
+ *
+ * The non-linear delay values have the granularity of power of two
+ * and also the h/w does not guarantee a curve for configured delay
+ * values vs. actual b/w enforced.
+ * Hence we need a mapping that is pre calibrated so the user can
+ * express the memory b/w as a percentage value.
+ */
+static inline bool rdt_get_mb_table(struct rdt_resource *r)
+{
+	/*
+	 * There are no Intel SKUs as of now to support non-linear delay.
+	 */
+	pr_info("MBA b/w map not implemented for cpu:%d, model:%d",
+		boot_cpu_data.x86, boot_cpu_data.x86_model);
+
+	return false;
+}
+
+static bool rdt_get_mem_config(struct rdt_resource *r)
+{
+	union cpuid_0x10_3_eax eax;
+	union cpuid_0x10_x_edx edx;
+	u32 ebx, ecx;
+
+	cpuid_count(0x00000010, 3, &eax.full, &ebx, &ecx, &edx.full);
+	r->num_closid = edx.split.cos_max + 1;
+	r->membw.max_delay = eax.split.max_delay + 1;
+	r->default_ctrl = MAX_MBA_BW;
+	if (ecx & MBA_IS_LINEAR) {
+		r->membw.delay_linear = true;
+		r->membw.min_bw = MAX_MBA_BW - r->membw.max_delay;
+		r->membw.bw_gran = MAX_MBA_BW - r->membw.max_delay;
+	} else {
+		if (!rdt_get_mb_table(r))
+			return false;
+	}
+	r->data_width = 3;
+
+	r->capable = true;
+	r->enabled = true;
+
+	return true;
+}
+
 static void rdt_get_cache_config(int idx, struct rdt_resource *r)
 {
 	union cpuid_0x10_1_eax eax;
@@ -194,6 +253,30 @@ static int get_cache_id(int cpu, int level)
 	}
 
 	return -1;
+}
+
+/*
+ * Map the memory b/w percentage value to delay values
+ * that can be written to QOS_MSRs.
+ * There are currently no SKUs which support non linear delay values.
+ */
+static u32 delay_bw_map(unsigned long bw, struct rdt_resource *r)
+{
+	if (r->membw.delay_linear)
+		return MAX_MBA_BW - bw;
+
+	pr_warn_once("Non Linear delay-bw map not supported but queried\n");
+	return r->default_ctrl;
+}
+
+static void
+mba_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
+{
+	unsigned int i;
+
+	/*  Write the delay values for mba. */
+	for (i = m->low; i < m->high; i++)
+		wrmsrl(r->msr_base + i, delay_bw_map(d->ctrl_val[i], r));
 }
 
 static void
@@ -431,8 +514,10 @@ static __init bool get_rdt_resources(void)
 		ret = true;
 	}
 
-	if (boot_cpu_has(X86_FEATURE_MBA))
-		ret = true;
+	if (boot_cpu_has(X86_FEATURE_MBA)) {
+		if (rdt_get_mem_config(&rdt_resources_all[RDT_RESOURCE_MBA]))
+			ret = true;
+	}
 
 	return ret;
 }

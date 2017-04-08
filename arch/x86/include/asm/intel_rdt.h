@@ -12,6 +12,7 @@
 #define IA32_L3_QOS_CFG		0xc81
 #define IA32_L3_CBM_BASE	0xc90
 #define IA32_L2_CBM_BASE	0xd10
+#define IA32_MBA_THRTL_BASE	0xd50
 
 #define L3_QOS_CDP_ENABLE	0x01ULL
 
@@ -120,6 +121,23 @@ struct rdt_cache {
 };
 
 /**
+ * struct rdt_membw - Memory bandwidth allocation related data
+ * @max_delay:		Max throttle delay. Delay is the hardware
+ *			representation for memory bandwidth.
+ * @min_bw:		Minimum memory bandwidth percentage user can request
+ * @bw_gran:		Granularity at which the memory bandwidth is allocated
+ * @delay_linear:	True if memory B/W delay is in linear scale
+ * @mb_map:		Mapping of memory B/W percentage to memory B/W delay
+ */
+struct rdt_membw {
+	u32		max_delay;
+	u32		min_bw;
+	u32		bw_gran;
+	u32		delay_linear;
+	u32		*mb_map;
+};
+
+/**
  * struct rdt_resource - attributes of an RDT resource
  * @enabled:		Is this feature enabled on this machine
  * @capable:		Is this feature available on this machine
@@ -145,7 +163,10 @@ struct rdt_resource {
 				 struct rdt_resource *r);
 	int			data_width;
 	struct list_head	domains;
-	struct rdt_cache	cache;
+	union {
+		struct rdt_cache	cache;
+		struct rdt_membw	membw;
+	};
 };
 
 extern struct mutex rdtgroup_mutex;
@@ -161,6 +182,7 @@ enum {
 	RDT_RESOURCE_L3DATA,
 	RDT_RESOURCE_L3CODE,
 	RDT_RESOURCE_L2,
+	RDT_RESOURCE_MBA,
 
 	/* Must be the last */
 	RDT_NUM_RESOURCES,
