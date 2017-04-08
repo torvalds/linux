@@ -638,7 +638,7 @@ void LeaveAllPowerSaveModeDirect(struct adapter *Adapter)
 
 		rtw_set_rpwm(Adapter, PS_STATE_S4);
 
-	up(&pwrpriv->lock);
+		up(&pwrpriv->lock);
 
 		rtw_lps_ctrl_wk_cmd(pri_padapter, LPS_CTRL_LEAVE, 0);
 	} else{
