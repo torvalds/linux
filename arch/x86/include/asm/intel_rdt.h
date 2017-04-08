@@ -174,6 +174,7 @@ struct rdt_resource {
 };
 
 void rdt_get_cache_infofile(struct rdt_resource *r);
+void rdt_get_mba_infofile(struct rdt_resource *r);
 
 extern struct mutex rdtgroup_mutex;
 

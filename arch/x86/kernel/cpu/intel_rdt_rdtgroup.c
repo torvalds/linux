@@ -515,7 +515,6 @@ static int rdt_num_closids_show(struct kernfs_open_file *of,
 	struct rdt_resource *r = of->kn->parent->priv;
 
 	seq_printf(seq, "%d\n", r->num_closid);
-
 	return 0;
 }
 
@@ -525,7 +524,6 @@ static int rdt_default_ctrl_show(struct kernfs_open_file *of,
 	struct rdt_resource *r = of->kn->parent->priv;
 
 	seq_printf(seq, "%x\n", r->default_ctrl);
-
 	return 0;
 }
 
@@ -535,7 +533,33 @@ static int rdt_min_cbm_bits_show(struct kernfs_open_file *of,
 	struct rdt_resource *r = of->kn->parent->priv;
 
 	seq_printf(seq, "%u\n", r->cache.min_cbm_bits);
+	return 0;
+}
 
+static int rdt_min_bw_show(struct kernfs_open_file *of,
+			     struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%u\n", r->membw.min_bw);
+	return 0;
+}
+
+static int rdt_bw_gran_show(struct kernfs_open_file *of,
+			     struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%u\n", r->membw.bw_gran);
+	return 0;
+}
+
+static int rdt_delay_linear_show(struct kernfs_open_file *of,
+			     struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%u\n", r->membw.delay_linear);
 	return 0;
 }
 
@@ -560,6 +584,40 @@ static struct rftype res_cache_info_files[] = {
 		.seq_show	= rdt_min_cbm_bits_show,
 	},
 };
+
+/* rdtgroup information files for memory bandwidth. */
+static struct rftype res_mba_info_files[] = {
+	{
+		.name		= "num_closids",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_num_closids_show,
+	},
+	{
+		.name		= "min_bandwidth",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_min_bw_show,
+	},
+	{
+		.name		= "bandwidth_gran",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_bw_gran_show,
+	},
+	{
+		.name		= "delay_linear",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_delay_linear_show,
+	},
+};
+
+void rdt_get_mba_infofile(struct rdt_resource *r)
+{
+	r->info_files = res_mba_info_files;
+	r->nr_info_files = ARRAY_SIZE(res_mba_info_files);
+}
 
 void rdt_get_cache_infofile(struct rdt_resource *r)
 {

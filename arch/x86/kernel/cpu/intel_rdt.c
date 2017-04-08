@@ -203,6 +203,7 @@ static bool rdt_get_mem_config(struct rdt_resource *r)
 			return false;
 	}
 	r->data_width = 3;
+	rdt_get_mba_infofile(r);
 
 	r->capable = true;
 	r->enabled = true;
