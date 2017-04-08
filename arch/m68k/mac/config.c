@@ -150,7 +150,7 @@ static void mac_cache_card_flush(int writeback)
 void __init config_mac(void)
 {
 	if (!MACH_IS_MAC)
-		printk(KERN_ERR "ERROR: no Mac, but config_mac() called!!\n");
+		pr_err("ERROR: no Mac, but config_mac() called!!\n");
 
 	mach_sched_init = mac_sched_init;
 	mach_init_IRQ = mac_init_IRQ;
@@ -837,8 +837,7 @@ static void __init mac_identify(void)
 		/* no bootinfo model id -> NetBSD booter was used! */
 		/* XXX FIXME: breaks for model > 31 */
 		model = (mac_bi_data.cpuid >> 2) & 63;
-		printk(KERN_WARNING "No bootinfo model ID, using cpuid instead "
-		       "(obsolete bootloader?)\n");
+		pr_warn("No bootinfo model ID, using cpuid instead (obsolete bootloader?)\n");
 	}
 
 	macintosh_config = mac_data_table;
@@ -880,14 +879,13 @@ static void __init mac_identify(void)
 	 */
 	iop_preinit();
 
-	printk(KERN_INFO "Detected Macintosh model: %d\n", model);
+	pr_info("Detected Macintosh model: %d\n", model);
 
 	/*
 	 * Report booter data:
 	 */
 	printk(KERN_DEBUG " Penguin bootinfo data:\n");
-	printk(KERN_DEBUG " Video: addr 0x%lx "
-		"row 0x%lx depth %lx dimensions %ld x %ld\n",
+	printk(KERN_DEBUG " Video: addr 0x%lx row 0x%lx depth %lx dimensions %ld x %ld\n",
 		mac_bi_data.videoaddr, mac_bi_data.videorow,
 		mac_bi_data.videodepth, mac_bi_data.dimensions & 0xFFFF,
 		mac_bi_data.dimensions >> 16);
@@ -912,7 +910,7 @@ static void __init mac_identify(void)
 
 static void __init mac_report_hardware(void)
 {
-	printk(KERN_INFO "Apple Macintosh %s\n", macintosh_config->name);
+	pr_info("Apple Macintosh %s\n", macintosh_config->name);
 }
 
 static void mac_get_model(char *str)
