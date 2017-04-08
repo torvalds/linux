@@ -377,13 +377,13 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 	RT_TRACE(_module_hal_init_c_, _drv_notice_, ("+%s, bUsedWoWLANFw:%d\n", __func__, bUsedWoWLANFw));
 #endif
 	pFirmware = kzalloc(sizeof(struct rt_firmware), GFP_KERNEL);
+	if (!pFirmware)
+		return _FAIL;
 	pBTFirmware = kzalloc(sizeof(struct rt_firmware), GFP_KERNEL);
-
-	if (!pFirmware || !pBTFirmware) {
-		rtStatus = _FAIL;
-		goto exit;
+	if (!pBTFirmware) {
+		kfree(pFirmware);
+		return _FAIL;
 	}
-
 	tmp_ps = rtw_read8(padapter, 0xa3);
 	tmp_ps &= 0xf8;
 	tmp_ps |= 0x02;
@@ -441,7 +441,7 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 	if (pFirmware->ulFwLength > FW_8723B_SIZE) {
 		rtStatus = _FAIL;
 		DBG_871X_LEVEL(_drv_emerg_, "Firmware size:%u exceed %u\n", pFirmware->ulFwLength, FW_8723B_SIZE);
-		goto exit;
+		goto release_fw1;
 	}
 
 	pFirmwareBuf = pFirmware->szFwBuffer;
@@ -517,6 +517,7 @@ fwdl_stat:
 exit:
 	kfree(pFirmware->szFwBuffer);
 	kfree(pFirmware);
+release_fw1:
 	kfree(pBTFirmware);
 	DBG_871X(" <=== rtl8723b_FirmwareDownload()\n");
 	return rtStatus;
