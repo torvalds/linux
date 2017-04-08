@@ -1446,7 +1446,8 @@ static enum mmc_blk_status mmc_blk_err_check(struct mmc_card *card,
 		return MMC_BLK_RETRY;
 	}
 
-	if (brq->data.error) {
+	/* Some errors (ECC) are flagged on the next commmand, so check stop, too */
+	if (brq->data.error || brq->stop.error) {
 		if (need_retune && !brq->retune_retry_done) {
 			pr_debug("%s: retrying because a re-tune was needed\n",
 				 req->rq_disk->disk_name);
@@ -1454,7 +1455,7 @@ static enum mmc_blk_status mmc_blk_err_check(struct mmc_card *card,
 			return MMC_BLK_RETRY;
 		}
 		pr_err("%s: error %d transferring data, sector %u, nr %u, cmd response %#x, card status %#x\n",
-		       req->rq_disk->disk_name, brq->data.error,
+		       req->rq_disk->disk_name, brq->data.error ?: brq->stop.error,
 		       (unsigned)blk_rq_pos(req),
 		       (unsigned)blk_rq_sectors(req),
 		       brq->cmd.resp[0], brq->stop.resp[0]);
