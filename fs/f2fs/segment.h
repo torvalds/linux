@@ -21,78 +21,78 @@
 #define F2FS_MIN_SEGMENTS	9 /* SB + 2 (CP + SIT + NAT) + SSA + MAIN */
 
 /* L: Logical segment # in volume, R: Relative segment # in main area */
-#define GET_L2R_SEGNO(free_i, segno)	(segno - free_i->start_segno)
-#define GET_R2L_SEGNO(free_i, segno)	(segno + free_i->start_segno)
+#define GET_L2R_SEGNO(free_i, segno)	((segno) - (free_i)->start_segno)
+#define GET_R2L_SEGNO(free_i, segno)	((segno) + (free_i)->start_segno)
 
-#define IS_DATASEG(t)	(t <= CURSEG_COLD_DATA)
-#define IS_NODESEG(t)	(t >= CURSEG_HOT_NODE)
+#define IS_DATASEG(t)	((t) <= CURSEG_COLD_DATA)
+#define IS_NODESEG(t)	((t) >= CURSEG_HOT_NODE)
 
 #define IS_CURSEG(sbi, seg)						\
-	((seg == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno) ||	\
-	 (seg == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno) ||	\
-	 (seg == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno) ||	\
-	 (seg == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno) ||	\
-	 (seg == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno) ||	\
-	 (seg == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno))
+	(((seg) == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno) ||	\
+	 ((seg) == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno) ||	\
+	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno) ||	\
+	 ((seg) == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno) ||	\
+	 ((seg) == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno) ||	\
+	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno))
 
 #define IS_CURSEC(sbi, secno)						\
-	((secno == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno /		\
-	  sbi->segs_per_sec) ||	\
-	 (secno == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno /		\
-	  sbi->segs_per_sec) ||	\
-	 (secno == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno /		\
-	  sbi->segs_per_sec) ||	\
-	 (secno == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno /		\
-	  sbi->segs_per_sec) ||	\
-	 (secno == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno /		\
-	  sbi->segs_per_sec) ||	\
-	 (secno == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno /		\
-	  sbi->segs_per_sec))	\
+	(((secno) == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno /		\
+	  (sbi)->segs_per_sec) ||	\
+	 ((secno) == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno /		\
+	  (sbi)->segs_per_sec) ||	\
+	 ((secno) == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno /		\
+	  (sbi)->segs_per_sec) ||	\
+	 ((secno) == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno /		\
+	  (sbi)->segs_per_sec) ||	\
+	 ((secno) == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno /		\
+	  (sbi)->segs_per_sec) ||	\
+	 ((secno) == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno /		\
+	  (sbi)->segs_per_sec))	\
 
 #define MAIN_BLKADDR(sbi)	(SM_I(sbi)->main_blkaddr)
 #define SEG0_BLKADDR(sbi)	(SM_I(sbi)->seg0_blkaddr)
 
 #define MAIN_SEGS(sbi)	(SM_I(sbi)->main_segments)
-#define MAIN_SECS(sbi)	(sbi->total_sections)
+#define MAIN_SECS(sbi)	((sbi)->total_sections)
 
 #define TOTAL_SEGS(sbi)	(SM_I(sbi)->segment_count)
-#define TOTAL_BLKS(sbi)	(TOTAL_SEGS(sbi) << sbi->log_blocks_per_seg)
+#define TOTAL_BLKS(sbi)	(TOTAL_SEGS(sbi) << (sbi)->log_blocks_per_seg)
 
 #define MAX_BLKADDR(sbi)	(SEG0_BLKADDR(sbi) + TOTAL_BLKS(sbi))
-#define SEGMENT_SIZE(sbi)	(1ULL << (sbi->log_blocksize +		\
-					sbi->log_blocks_per_seg))
+#define SEGMENT_SIZE(sbi)	(1ULL << ((sbi)->log_blocksize +	\
+					(sbi)->log_blocks_per_seg))
 
 #define START_BLOCK(sbi, segno)	(SEG0_BLKADDR(sbi) +			\
-	 (GET_R2L_SEGNO(FREE_I(sbi), segno) << sbi->log_blocks_per_seg))
+	 (GET_R2L_SEGNO(FREE_I(sbi), segno) << (sbi)->log_blocks_per_seg))
 
 #define NEXT_FREE_BLKADDR(sbi, curseg)					\
-	(START_BLOCK(sbi, curseg->segno) + curseg->next_blkoff)
+	(START_BLOCK(sbi, (curseg)->segno) + (curseg)->next_blkoff)
 
 #define GET_SEGOFF_FROM_SEG0(sbi, blk_addr)	((blk_addr) - SEG0_BLKADDR(sbi))
 #define GET_SEGNO_FROM_SEG0(sbi, blk_addr)				\
-	(GET_SEGOFF_FROM_SEG0(sbi, blk_addr) >> sbi->log_blocks_per_seg)
+	(GET_SEGOFF_FROM_SEG0(sbi, blk_addr) >> (sbi)->log_blocks_per_seg)
 #define GET_BLKOFF_FROM_SEG0(sbi, blk_addr)				\
-	(GET_SEGOFF_FROM_SEG0(sbi, blk_addr) & (sbi->blocks_per_seg - 1))
+	(GET_SEGOFF_FROM_SEG0(sbi, blk_addr) & ((sbi)->blocks_per_seg - 1))
 
 #define GET_SEGNO(sbi, blk_addr)					\
-	(((blk_addr == NULL_ADDR) || (blk_addr == NEW_ADDR)) ?		\
+	((((blk_addr) == NULL_ADDR) || ((blk_addr) == NEW_ADDR)) ?	\
 	NULL_SEGNO : GET_L2R_SEGNO(FREE_I(sbi),			\
 		GET_SEGNO_FROM_SEG0(sbi, blk_addr)))
 #define GET_SECNO(sbi, segno)					\
-	((segno) / sbi->segs_per_sec)
+	((segno) / (sbi)->segs_per_sec)
 #define GET_ZONENO_FROM_SEGNO(sbi, segno)				\
-	((segno / sbi->segs_per_sec) / sbi->secs_per_zone)
+	(((segno) / (sbi)->segs_per_sec) / (sbi)->secs_per_zone)
 
 #define GET_SUM_BLOCK(sbi, segno)				\
-	((sbi->sm_info->ssa_blkaddr) + segno)
+	((sbi)->sm_info->ssa_blkaddr + (segno))
 
 #define GET_SUM_TYPE(footer) ((footer)->entry_type)
-#define SET_SUM_TYPE(footer, type) ((footer)->entry_type = type)
+#define SET_SUM_TYPE(footer, type) ((footer)->entry_type = (type))
 
 #define SIT_ENTRY_OFFSET(sit_i, segno)					\
-	(segno % sit_i->sents_per_block)
+	((segno) % (sit_i)->sents_per_block)
 #define SIT_BLOCK_OFFSET(segno)					\
-	(segno / SIT_ENTRY_PER_BLOCK)
+	((segno) / SIT_ENTRY_PER_BLOCK)
 #define	START_SEGNO(segno)		\
 	(SIT_BLOCK_OFFSET(segno) * SIT_ENTRY_PER_BLOCK)
 #define SIT_BLK_CNT(sbi)			\
@@ -103,7 +103,7 @@
 #define SECTOR_FROM_BLOCK(blk_addr)					\
 	(((sector_t)blk_addr) << F2FS_LOG_SECTORS_PER_BLOCK)
 #define SECTOR_TO_BLOCK(sectors)					\
-	(sectors >> F2FS_LOG_SECTORS_PER_BLOCK)
+	((sectors) >> F2FS_LOG_SECTORS_PER_BLOCK)
 
 /*
  * indicate a block allocation direction: RIGHT and LEFT.

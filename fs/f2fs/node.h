@@ -9,10 +9,10 @@
  * published by the Free Software Foundation.
  */
 /* start node id of a node block dedicated to the given node id */
-#define	START_NID(nid) ((nid / NAT_ENTRY_PER_BLOCK) * NAT_ENTRY_PER_BLOCK)
+#define	START_NID(nid) (((nid) / NAT_ENTRY_PER_BLOCK) * NAT_ENTRY_PER_BLOCK)
 
 /* node block offset on the NAT area dedicated to the given start node id */
-#define	NAT_BLOCK_OFFSET(start_nid) (start_nid / NAT_ENTRY_PER_BLOCK)
+#define	NAT_BLOCK_OFFSET(start_nid) ((start_nid) / NAT_ENTRY_PER_BLOCK)
 
 /* # of pages to perform synchronous readahead before building free nids */
 #define FREE_NID_PAGES	8
@@ -62,16 +62,16 @@ struct nat_entry {
 	struct node_info ni;	/* in-memory node information */
 };
 
-#define nat_get_nid(nat)		(nat->ni.nid)
-#define nat_set_nid(nat, n)		(nat->ni.nid = n)
-#define nat_get_blkaddr(nat)		(nat->ni.blk_addr)
-#define nat_set_blkaddr(nat, b)		(nat->ni.blk_addr = b)
-#define nat_get_ino(nat)		(nat->ni.ino)
-#define nat_set_ino(nat, i)		(nat->ni.ino = i)
-#define nat_get_version(nat)		(nat->ni.version)
-#define nat_set_version(nat, v)		(nat->ni.version = v)
+#define nat_get_nid(nat)		((nat)->ni.nid)
+#define nat_set_nid(nat, n)		((nat)->ni.nid = (n))
+#define nat_get_blkaddr(nat)		((nat)->ni.blk_addr)
+#define nat_set_blkaddr(nat, b)		((nat)->ni.blk_addr = (b))
+#define nat_get_ino(nat)		((nat)->ni.ino)
+#define nat_set_ino(nat, i)		((nat)->ni.ino = (i))
+#define nat_get_version(nat)		((nat)->ni.version)
+#define nat_set_version(nat, v)		((nat)->ni.version = (v))
 
-#define inc_node_version(version)	(++version)
+#define inc_node_version(version)	(++(version))
 
 static inline void copy_node_info(struct node_info *dst,
 						struct node_info *src)

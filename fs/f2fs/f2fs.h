@@ -63,7 +63,7 @@ struct f2fs_fault_info {
 };
 
 extern char *fault_name[FAULT_MAX];
-#define IS_FAULT_SET(fi, type) (fi->inject_type & (1 << (type)))
+#define IS_FAULT_SET(fi, type) ((fi)->inject_type & (1 << (type)))
 #endif
 
 /*
@@ -89,9 +89,9 @@ extern char *fault_name[FAULT_MAX];
 #define F2FS_MOUNT_ADAPTIVE		0x00020000
 #define F2FS_MOUNT_LFS			0x00040000
 
-#define clear_opt(sbi, option)	(sbi->mount_opt.opt &= ~F2FS_MOUNT_##option)
-#define set_opt(sbi, option)	(sbi->mount_opt.opt |= F2FS_MOUNT_##option)
-#define test_opt(sbi, option)	(sbi->mount_opt.opt & F2FS_MOUNT_##option)
+#define clear_opt(sbi, option)	((sbi)->mount_opt.opt &= ~F2FS_MOUNT_##option)
+#define set_opt(sbi, option)	((sbi)->mount_opt.opt |= F2FS_MOUNT_##option)
+#define test_opt(sbi, option)	((sbi)->mount_opt.opt & F2FS_MOUNT_##option)
 
 #define ver_after(a, b)	(typecheck(unsigned long long, a) &&		\
 		typecheck(unsigned long long, b) &&			\
@@ -228,13 +228,13 @@ struct fsync_inode_entry {
 	block_t last_dentry;	/* block address locating the last dentry */
 };
 
-#define nats_in_cursum(jnl)		(le16_to_cpu(jnl->n_nats))
-#define sits_in_cursum(jnl)		(le16_to_cpu(jnl->n_sits))
+#define nats_in_cursum(jnl)		(le16_to_cpu((jnl)->n_nats))
+#define sits_in_cursum(jnl)		(le16_to_cpu((jnl)->n_sits))
 
-#define nat_in_journal(jnl, i)		(jnl->nat_j.entries[i].ne)
-#define nid_in_journal(jnl, i)		(jnl->nat_j.entries[i].nid)
-#define sit_in_journal(jnl, i)		(jnl->sit_j.entries[i].se)
-#define segno_in_journal(jnl, i)	(jnl->sit_j.entries[i].segno)
+#define nat_in_journal(jnl, i)		((jnl)->nat_j.entries[i].ne)
+#define nid_in_journal(jnl, i)		((jnl)->nat_j.entries[i].nid)
+#define sit_in_journal(jnl, i)		((jnl)->sit_j.entries[i].se)
+#define segno_in_journal(jnl, i)	((jnl)->sit_j.entries[i].segno)
 
 #define MAX_NAT_JENTRIES(jnl)	(NAT_JOURNAL_ENTRIES - nats_in_cursum(jnl))
 #define MAX_SIT_JENTRIES(jnl)	(SIT_JOURNAL_ENTRIES - sits_in_cursum(jnl))
@@ -745,7 +745,7 @@ struct f2fs_io_info {
 	bool submitted;		/* indicate IO submission */
 };
 
-#define is_read_io(rw) (rw == READ)
+#define is_read_io(rw) ((rw) == READ)
 struct f2fs_bio_info {
 	struct f2fs_sb_info *sbi;	/* f2fs superblock */
 	struct bio *bio;		/* bios to merge */
@@ -983,8 +983,8 @@ static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
  * and the return value is in kbytes. s is of struct f2fs_sb_info.
  */
 #define BD_PART_WRITTEN(s)						 \
-(((u64)part_stat_read(s->sb->s_bdev->bd_part, sectors[1]) -		 \
-		s->sectors_written_start) >> 1)
+(((u64)part_stat_read((s)->sb->s_bdev->bd_part, sectors[1]) -		 \
+		(s)->sectors_written_start) >> 1)
 
 static inline void f2fs_update_time(struct f2fs_sb_info *sbi, int type)
 {
@@ -2437,8 +2437,8 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 #define stat_inc_seg_count(sbi, type, gc_type)				\
 	do {								\
 		struct f2fs_stat_info *si = F2FS_STAT(sbi);		\
-		(si)->tot_segs++;					\
-		if (type == SUM_TYPE_DATA) {				\
+		si->tot_segs++;						\
+		if ((type) == SUM_TYPE_DATA) {				\
 			si->data_segs++;				\
 			si->bg_data_segs += (gc_type == BG_GC) ? 1 : 0;	\
 		} else {						\
@@ -2448,14 +2448,14 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 	} while (0)
 
 #define stat_inc_tot_blk_count(si, blks)				\
-	(si->tot_blks += (blks))
+	((si)->tot_blks += (blks))
 
 #define stat_inc_data_blk_count(sbi, blks, gc_type)			\
 	do {								\
 		struct f2fs_stat_info *si = F2FS_STAT(sbi);		\
 		stat_inc_tot_blk_count(si, blks);			\
 		si->data_blks += (blks);				\
-		si->bg_data_blks += (gc_type == BG_GC) ? (blks) : 0;	\
+		si->bg_data_blks += ((gc_type) == BG_GC) ? (blks) : 0;	\
 	} while (0)
 
 #define stat_inc_node_blk_count(sbi, blks, gc_type)			\
@@ -2463,7 +2463,7 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 		struct f2fs_stat_info *si = F2FS_STAT(sbi);		\
 		stat_inc_tot_blk_count(si, blks);			\
 		si->node_blks += (blks);				\
-		si->bg_node_blks += (gc_type == BG_GC) ? (blks) : 0;	\
+		si->bg_node_blks += ((gc_type) == BG_GC) ? (blks) : 0;	\
 	} while (0)
 
 int f2fs_build_stats(struct f2fs_sb_info *sbi);
