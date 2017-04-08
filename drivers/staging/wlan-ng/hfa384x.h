@@ -1078,8 +1078,8 @@ struct hfa384x_pdr_end_of_pda {
 } __packed;
 
 struct hfa384x_pdrec {
-	u16 len;		/* in words */
-	u16 code;
+	__le16 len;		/* in words */
+	__le16 code;
 	union pdr {
 		struct hfa384x_pdr_pcb_partnum pcb_partnum;
 		struct hfa384x_pdr_pcb_tracenum pcb_tracenum;
