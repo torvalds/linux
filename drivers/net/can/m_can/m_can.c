@@ -1231,8 +1231,8 @@ static int m_can_plat_probe(struct platform_device *pdev)
 
 	devm_can_led_init(dev);
 
-	dev_info(&pdev->dev, "%s device registered (regs=%p, irq=%d)\n",
-		 KBUILD_MODNAME, priv->base, dev->irq);
+	dev_info(&pdev->dev, "%s device registered (irq=%d)\n",
+		 KBUILD_MODNAME, dev->irq);
 
 	return 0;
 
