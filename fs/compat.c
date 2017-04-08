@@ -15,43 +15,12 @@
  *  published by the Free Software Foundation.
  */
 
-#include <linux/stddef.h>
-#include <linux/kernel.h>
-#include <linux/linkage.h>
 #include <linux/compat.h>
-#include <linux/errno.h>
-#include <linux/time.h>
-#include <linux/cred.h>
-#include <linux/fs.h>
-#include <linux/fcntl.h>
-#include <linux/namei.h>
-#include <linux/file.h>
-#include <linux/fdtable.h>
-#include <linux/vfs.h>
-#include <linux/ioctl.h>
-#include <linux/init.h>
 #include <linux/ncp_mount.h>
 #include <linux/nfs4_mount.h>
 #include <linux/syscalls.h>
-#include <linux/ctype.h>
-#include <linux/dirent.h>
-#include <linux/fsnotify.h>
-#include <linux/highuid.h>
-#include <linux/personality.h>
-#include <linux/rwsem.h>
-#include <linux/tsacct_kern.h>
-#include <linux/security.h>
-#include <linux/highmem.h>
-#include <linux/signal.h>
-#include <linux/mm.h>
-#include <linux/fs_struct.h>
 #include <linux/slab.h>
-#include <linux/pagemap.h>
-#include <linux/aio.h>
-
 #include <linux/uaccess.h>
-#include <asm/mmu_context.h>
-#include <asm/ioctls.h>
 #include "internal.h"
 
 struct compat_ncp_mount_data {
