@@ -221,6 +221,7 @@ static void rdt_get_cache_config(int idx, struct rdt_resource *r)
 	r->cache.cbm_len = eax.split.cbm_len + 1;
 	r->default_ctrl = BIT_MASK(eax.split.cbm_len + 1) - 1;
 	r->data_width = (r->cache.cbm_len + 3) / 4;
+	rdt_get_cache_infofile(r);
 	r->capable = true;
 	r->enabled = true;
 }

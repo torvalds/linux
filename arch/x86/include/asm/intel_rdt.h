@@ -150,6 +150,8 @@ struct rdt_membw {
  * @data_width:		Character width of data when displaying
  * @domains:		All domains for this resource
  * @cache:		Cache allocation related data
+ * @info_files:		resctrl info files for the resource
+ * @nr_info_files:	Number of info files
  */
 struct rdt_resource {
 	bool			enabled;
@@ -167,7 +169,11 @@ struct rdt_resource {
 		struct rdt_cache	cache;
 		struct rdt_membw	membw;
 	};
+	struct rftype		*info_files;
+	int			nr_info_files;
 };
+
+void rdt_get_cache_infofile(struct rdt_resource *r);
 
 extern struct mutex rdtgroup_mutex;
 
