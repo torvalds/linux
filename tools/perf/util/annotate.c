@@ -387,9 +387,7 @@ static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map *m
 	if (comment == NULL)
 		return 0;
 
-	while (comment[0] != '\0' && isspace(comment[0]))
-		++comment;
-
+	comment = ltrim(comment);
 	comment__symbol(ops->source.raw, comment, &ops->source.addr, &ops->source.name);
 	comment__symbol(ops->target.raw, comment, &ops->target.addr, &ops->target.name);
 
@@ -434,9 +432,7 @@ static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops
 	if (comment == NULL)
 		return 0;
 
-	while (comment[0] != '\0' && isspace(comment[0]))
-		++comment;
-
+	comment = ltrim(comment);
 	comment__symbol(ops->target.raw, comment, &ops->target.addr, &ops->target.name);
 
 	return 0;
@@ -785,10 +781,7 @@ static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, str
 
 static int disasm_line__parse(char *line, const char **namep, char **rawp)
 {
-	char *name = line, tmp;
-
-	while (isspace(name[0]))
-		++name;
+	char tmp, *name = ltrim(line);
 
 	if (name[0] == '\0')
 		return -1;
@@ -806,12 +799,7 @@ static int disasm_line__parse(char *line, const char **namep, char **rawp)
 		goto out_free_name;
 
 	(*rawp)[0] = tmp;
-
-	if ((*rawp)[0] != '\0') {
-		(*rawp)++;
-		while (isspace((*rawp)[0]))
-			++(*rawp);
-	}
+	*rawp = ltrim(*rawp);
 
 	return 0;
 
@@ -1156,7 +1144,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct disasm_line *dl;
-	char *line = NULL, *parsed_line, *tmp, *tmp2, *c;
+	char *line = NULL, *parsed_line, *tmp, *tmp2;
 	size_t line_len;
 	s64 line_ip, offset = -1;
 	regmatch_t match[2];
@@ -1167,15 +1155,8 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 	if (!line)
 		return -1;
 
-	while (line_len != 0 && isspace(line[line_len - 1]))
-		line[--line_len] = '\0';
-
-	c = strchr(line, '\n');
-	if (c)
-		*c = 0;
-
 	line_ip = -1;
-	parsed_line = line;
+	parsed_line = rtrim(line);
 
 	/* /filename:linenr ? Save line number and ignore. */
 	if (regexec(&file_lineno, line, 2, match, 0) == 0) {
@@ -1183,16 +1164,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 		return 0;
 	}
 
-	/*
-	 * Strip leading spaces:
-	 */
-	tmp = line;
-	while (*tmp) {
-		if (*tmp != ' ')
-			break;
-		tmp++;
-	}
-
+	tmp = ltrim(parsed_line);
 	if (*tmp) {
 		/*
 		 * Parse hexa addresses followed by ':'
