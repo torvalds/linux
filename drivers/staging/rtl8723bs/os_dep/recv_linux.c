@@ -350,8 +350,7 @@ int rtw_recv_indicatepkt(struct adapter *padapter, union recv_frame *precv_frame
 _recv_indicatepkt_drop:
 
 	 /* enqueue back to free_recv_queue */
-	 if (precv_frame)
-		 rtw_free_recvframe(precv_frame, pfree_recv_queue);
+	 rtw_free_recvframe(precv_frame, pfree_recv_queue);
 
 	 DBG_COUNTER(padapter->rx_logs.os_indicate_err);
 	 return _FAIL;
