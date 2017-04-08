@@ -65,8 +65,8 @@ int cckrates_included(unsigned char *rate, int ratelen)
 
 	for (i = 0; i < ratelen; i++) {
 		if  ((((rate[i]) & 0x7f) == 2)	|| (((rate[i]) & 0x7f) == 4) ||
-			   (((rate[i]) & 0x7f) == 11)  || (((rate[i]) & 0x7f) == 22))
-		return true;
+		     (((rate[i]) & 0x7f) == 11)  || (((rate[i]) & 0x7f) == 22))
+			return true;
 	}
 
 	return false;
@@ -79,8 +79,8 @@ int cckratesonly_included(unsigned char *rate, int ratelen)
 
 	for (i = 0; i < ratelen; i++) {
 		if  ((((rate[i]) & 0x7f) != 2) && (((rate[i]) & 0x7f) != 4) &&
-			   (((rate[i]) & 0x7f) != 11)  && (((rate[i]) & 0x7f) != 22))
-		return false;
+		     (((rate[i]) & 0x7f) != 11)  && (((rate[i]) & 0x7f) != 22))
+			return false;
 	}
 
 	return true;
@@ -811,7 +811,7 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 	}
 
 bitmap_handle:
-	if (cam_id >= 0)
+	if (cam_id >= 0 && cam_id < 32)
 		cam_ctl->bitmap |= BIT(cam_id);
 
 	spin_unlock_bh(&cam_ctl->lock);
