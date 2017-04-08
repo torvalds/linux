@@ -1383,8 +1383,6 @@ static int pppol2tp_setsockopt(struct socket *sock, int level, int optname,
 	} else
 		err = pppol2tp_session_setsockopt(sk, session, optname, val);
 
-	err = 0;
-
 end_put_sess:
 	sock_put(sk);
 end:
@@ -1507,8 +1505,13 @@ static int pppol2tp_getsockopt(struct socket *sock, int level, int optname,
 
 		err = pppol2tp_tunnel_getsockopt(sk, tunnel, optname, &val);
 		sock_put(ps->tunnel_sock);
-	} else
+		if (err)
+			goto end_put_sess;
+	} else {
 		err = pppol2tp_session_getsockopt(sk, session, optname, &val);
+		if (err)
+			goto end_put_sess;
+	}
 
 	err = -EFAULT;
 	if (put_user(len, optlen))
