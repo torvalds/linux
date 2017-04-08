@@ -65,6 +65,8 @@ struct rdt_resource rdt_resources_all[] = {
 			.cbm_idx_mult	= 1,
 			.cbm_idx_offset	= 0,
 		},
+		.parse_ctrlval		= parse_cbm,
+		.format_str		= "%d=%0*x",
 	},
 	{
 		.name			= "L3DATA",
@@ -77,6 +79,8 @@ struct rdt_resource rdt_resources_all[] = {
 			.cbm_idx_mult	= 2,
 			.cbm_idx_offset	= 0,
 		},
+		.parse_ctrlval		= parse_cbm,
+		.format_str		= "%d=%0*x",
 	},
 	{
 		.name			= "L3CODE",
@@ -89,6 +93,8 @@ struct rdt_resource rdt_resources_all[] = {
 			.cbm_idx_mult	= 2,
 			.cbm_idx_offset	= 1,
 		},
+		.parse_ctrlval		= parse_cbm,
+		.format_str		= "%d=%0*x",
 	},
 	{
 		.name			= "L2",
@@ -101,6 +107,8 @@ struct rdt_resource rdt_resources_all[] = {
 			.cbm_idx_mult	= 1,
 			.cbm_idx_offset	= 0,
 		},
+		.parse_ctrlval		= parse_cbm,
+		.format_str		= "%d=%0*x",
 	},
 	{
 		.name			= "MB",

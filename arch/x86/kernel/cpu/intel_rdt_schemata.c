@@ -34,22 +34,29 @@
  *	are allowed (e.g. FFFFH, 0FF0H, 003CH, etc.).
  * Additionally Haswell requires at least two bits set.
  */
-static bool cbm_validate(unsigned long var, struct rdt_resource *r)
+static bool cbm_validate(char *buf, unsigned long *data, struct rdt_resource *r)
 {
-	unsigned long first_bit, zero_bit;
+	unsigned long first_bit, zero_bit, val;
 	unsigned int cbm_len = r->cache.cbm_len;
+	int ret;
 
-	if (var == 0 || var > r->default_ctrl)
+	ret = kstrtoul(buf, 16, &val);
+	if (ret)
 		return false;
 
-	first_bit = find_first_bit(&var, cbm_len);
-	zero_bit = find_next_zero_bit(&var, cbm_len, first_bit);
+	if (val == 0 || val > r->default_ctrl)
+		return false;
 
-	if (find_next_bit(&var, cbm_len, zero_bit) < cbm_len)
+	first_bit = find_first_bit(&val, cbm_len);
+	zero_bit = find_next_zero_bit(&val, cbm_len, first_bit);
+
+	if (find_next_bit(&val, cbm_len, zero_bit) < cbm_len)
 		return false;
 
 	if ((zero_bit - first_bit) < r->cache.min_cbm_bits)
 		return false;
+
+	*data = val;
 	return true;
 }
 
@@ -57,18 +64,14 @@ static bool cbm_validate(unsigned long var, struct rdt_resource *r)
  * Read one cache bit mask (hex). Check that it is valid for the current
  * resource type.
  */
-static int parse_cbm(char *buf, struct rdt_resource *r, struct rdt_domain *d)
+int parse_cbm(char *buf, struct rdt_resource *r, struct rdt_domain *d)
 {
 	unsigned long data;
-	int ret;
 
 	if (d->have_new_ctrl)
 		return -EINVAL;
 
-	ret = kstrtoul(buf, 16, &data);
-	if (ret)
-		return ret;
-	if (!cbm_validate(data, r))
+	if(!cbm_validate(buf, &data, r))
 		return -EINVAL;
 	d->new_ctrl = data;
 	d->have_new_ctrl = true;
@@ -97,7 +100,7 @@ next:
 		return -EINVAL;
 	list_for_each_entry(d, &r->domains, list) {
 		if (d->id == dom_id) {
-			if (parse_cbm(dom, r, d))
+			if (r->parse_ctrlval(dom, r, d))
 				return -EINVAL;
 			goto next;
 		}
@@ -208,7 +211,7 @@ static void show_doms(struct seq_file *s, struct rdt_resource *r, int closid)
 	list_for_each_entry(dom, &r->domains, list) {
 		if (sep)
 			seq_puts(s, ";");
-		seq_printf(s, "%d=%0*x", dom->id, max_data_width,
+		seq_printf(s, r->format_str, dom->id, max_data_width,
 			   dom->ctrl_val[closid]);
 		sep = true;
 	}

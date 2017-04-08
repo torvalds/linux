@@ -152,6 +152,8 @@ struct rdt_membw {
  * @cache:		Cache allocation related data
  * @info_files:		resctrl info files for the resource
  * @nr_info_files:	Number of info files
+ * @format_str:		Per resource format string to show domain value
+ * @parse_ctrlval:	Per resource function pointer to parse control values
  */
 struct rdt_resource {
 	bool			enabled;
@@ -171,10 +173,14 @@ struct rdt_resource {
 	};
 	struct rftype		*info_files;
 	int			nr_info_files;
+	const char		*format_str;
+	int (*parse_ctrlval)	(char *buf, struct rdt_resource *r,
+				 struct rdt_domain *d);
 };
 
 void rdt_get_cache_infofile(struct rdt_resource *r);
 void rdt_get_mba_infofile(struct rdt_resource *r);
+int parse_cbm(char *buf, struct rdt_resource *r, struct rdt_domain *d);
 
 extern struct mutex rdtgroup_mutex;
 
