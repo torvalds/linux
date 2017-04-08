@@ -38,7 +38,7 @@ static bool cbm_validate(unsigned long var, struct rdt_resource *r)
 {
 	unsigned long first_bit, zero_bit;
 
-	if (var == 0 || var > r->max_cbm)
+	if (var == 0 || var > r->default_ctrl)
 		return false;
 
 	first_bit = find_first_bit(&var, r->cbm_len);
@@ -61,7 +61,7 @@ static int parse_cbm(char *buf, struct rdt_resource *r, struct rdt_domain *d)
 	unsigned long data;
 	int ret;
 
-	if (d->have_new_cbm)
+	if (d->have_new_ctrl)
 		return -EINVAL;
 
 	ret = kstrtoul(buf, 16, &data);
@@ -69,8 +69,8 @@ static int parse_cbm(char *buf, struct rdt_resource *r, struct rdt_domain *d)
 		return ret;
 	if (!cbm_validate(data, r))
 		return -EINVAL;
-	d->new_cbm = data;
-	d->have_new_cbm = true;
+	d->new_ctrl = data;
+	d->have_new_ctrl = true;
 
 	return 0;
 }
@@ -119,9 +119,9 @@ static int update_domains(struct rdt_resource *r, int closid)
 	msr_param.res = r;
 
 	list_for_each_entry(d, &r->domains, list) {
-		if (d->have_new_cbm && d->new_cbm != d->cbm[closid]) {
+		if (d->have_new_ctrl && d->new_ctrl != d->ctrl_val[closid]) {
 			cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
-			d->cbm[closid] = d->new_cbm;
+			d->ctrl_val[closid] = d->new_ctrl;
 		}
 	}
 	if (cpumask_empty(cpu_mask))
@@ -129,9 +129,9 @@ static int update_domains(struct rdt_resource *r, int closid)
 	cpu = get_cpu();
 	/* Update CBM on this cpu if it's in cpu_mask. */
 	if (cpumask_test_cpu(cpu, cpu_mask))
-		rdt_cbm_update(&msr_param);
+		rdt_ctrl_update(&msr_param);
 	/* Update CBM on other cpus. */
-	smp_call_function_many(cpu_mask, rdt_cbm_update, &msr_param, 1);
+	smp_call_function_many(cpu_mask, rdt_ctrl_update, &msr_param, 1);
 	put_cpu();
 
 done:
@@ -164,7 +164,7 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 
 	for_each_enabled_rdt_resource(r)
 		list_for_each_entry(dom, &r->domains, list)
-			dom->have_new_cbm = false;
+			dom->have_new_ctrl = false;
 
 	while ((tok = strsep(&buf, "\n")) != NULL) {
 		resname = strsep(&tok, ":");
@@ -208,7 +208,7 @@ static void show_doms(struct seq_file *s, struct rdt_resource *r, int closid)
 		if (sep)
 			seq_puts(s, ";");
 		seq_printf(s, "%d=%0*x", dom->id, max_data_width,
-			   dom->cbm[closid]);
+			   dom->ctrl_val[closid]);
 		sep = true;
 	}
 	seq_puts(s, "\n");

@@ -519,12 +519,12 @@ static int rdt_num_closids_show(struct kernfs_open_file *of,
 	return 0;
 }
 
-static int rdt_cbm_mask_show(struct kernfs_open_file *of,
+static int rdt_default_ctrl_show(struct kernfs_open_file *of,
 			     struct seq_file *seq, void *v)
 {
 	struct rdt_resource *r = of->kn->parent->priv;
 
-	seq_printf(seq, "%x\n", r->max_cbm);
+	seq_printf(seq, "%x\n", r->default_ctrl);
 
 	return 0;
 }
@@ -551,7 +551,7 @@ static struct rftype res_info_files[] = {
 		.name		= "cbm_mask",
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
-		.seq_show	= rdt_cbm_mask_show,
+		.seq_show	= rdt_default_ctrl_show,
 	},
 	{
 		.name		= "min_cbm_bits",
@@ -801,7 +801,7 @@ out:
 	return dentry;
 }
 
-static int reset_all_cbms(struct rdt_resource *r)
+static int reset_all_ctrls(struct rdt_resource *r)
 {
 	struct msr_param msr_param;
 	cpumask_var_t cpu_mask;
@@ -824,14 +824,14 @@ static int reset_all_cbms(struct rdt_resource *r)
 		cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
 
 		for (i = 0; i < r->num_closid; i++)
-			d->cbm[i] = r->max_cbm;
+			d->ctrl_val[i] = r->default_ctrl;
 	}
 	cpu = get_cpu();
 	/* Update CBM on this cpu if it's in cpu_mask. */
 	if (cpumask_test_cpu(cpu, cpu_mask))
-		rdt_cbm_update(&msr_param);
+		rdt_ctrl_update(&msr_param);
 	/* Update CBM on all other cpus in cpu_mask. */
-	smp_call_function_many(cpu_mask, rdt_cbm_update, &msr_param, 1);
+	smp_call_function_many(cpu_mask, rdt_ctrl_update, &msr_param, 1);
 	put_cpu();
 
 	free_cpumask_var(cpu_mask);
@@ -917,7 +917,7 @@ static void rdt_kill_sb(struct super_block *sb)
 
 	/*Put everything back to default values. */
 	for_each_enabled_rdt_resource(r)
-		reset_all_cbms(r);
+		reset_all_ctrls(r);
 	cdp_disable();
 	rmdir_all_sub();
 	static_branch_disable(&rdt_enable_key);

@@ -79,7 +79,7 @@ struct rftype {
  * @capable:			Is this feature available on this machine
  * @name:			Name to use in "schemata" file
  * @num_closid:			Number of CLOSIDs available
- * @max_cbm:			Largest Cache Bit Mask allowed
+ * @default_ctrl:		Specifies default cache cbm or mem b/w percent.
  * @data_width:			Character width of data when displaying
  * @min_cbm_bits:		Minimum number of consecutive bits to be set
  *				in a cache bit mask
@@ -97,7 +97,7 @@ struct rdt_resource {
 	int			num_closid;
 	int			cbm_len;
 	int			min_cbm_bits;
-	u32			max_cbm;
+	u32			default_ctrl;
 	int			data_width;
 	struct list_head	domains;
 	int			msr_base;
@@ -111,17 +111,17 @@ struct rdt_resource {
  * @list:	all instances of this resource
  * @id:		unique id for this instance
  * @cpu_mask:	which cpus share this resource
- * @cbm:	array of cache bit masks (indexed by CLOSID)
- * @new_cbm:	new cbm value to be loaded
- * @have_new_cbm: did user provide new_cbm for this domain
+ * @ctrl_val:	array of cache or mem ctrl values (indexed by CLOSID)
+ * @new_ctrl:	new ctrl value to be loaded
+ * @have_new_ctrl: did user provide new_ctrl for this domain
  */
 struct rdt_domain {
 	struct list_head	list;
 	int			id;
 	struct cpumask		cpu_mask;
-	u32			*cbm;
-	u32			new_cbm;
-	bool			have_new_cbm;
+	u32			*ctrl_val;
+	u32			new_ctrl;
+	bool			have_new_ctrl;
 };
 
 /**
@@ -172,8 +172,8 @@ union cpuid_0x10_1_eax {
 	unsigned int full;
 };
 
-/* CPUID.(EAX=10H, ECX=ResID=1).EDX */
-union cpuid_0x10_1_edx {
+/* CPUID.(EAX=10H, ECX=ResID).EDX */
+union cpuid_0x10_x_edx {
 	struct {
 		unsigned int cos_max:16;
 	} split;
@@ -182,7 +182,7 @@ union cpuid_0x10_1_edx {
 
 DECLARE_PER_CPU_READ_MOSTLY(int, cpu_closid);
 
-void rdt_cbm_update(void *arg);
+void rdt_ctrl_update(void *arg);
 struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn);
 void rdtgroup_kn_unlock(struct kernfs_node *kn);
 ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
