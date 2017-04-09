@@ -66,6 +66,20 @@ static const struct silead_ts_dmi_data dexp_ursus_7w_data = {
 	.properties	= dexp_ursus_7w_props,
 };
 
+static const struct property_entry surftab_wintron70_st70416_6_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 884),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 632),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1686-surftab-wintron70-st70416-6.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct silead_ts_dmi_data surftab_wintron70_st70416_6_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= surftab_wintron70_st70416_6_props,
+};
+
 static const struct dmi_system_id silead_ts_dmi_table[] = {
 	{
 		/* CUBE iwork8 Air */
@@ -91,6 +105,16 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "7W"),
+		},
+	},
+	{
+		/* Trekstor Surftab Wintron 7.0 ST70416-6 */
+		.driver_data = (void *)&surftab_wintron70_st70416_6_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ST70416-6"),
+			/* Exact match, different versions need different fw */
+			DMI_MATCH(DMI_BIOS_VERSION, "TREK.G.WI71C.JGBMRBA04"),
 		},
 	},
 	{ },
