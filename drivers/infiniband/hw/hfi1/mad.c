@@ -1155,16 +1155,6 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 		ppd->linkinit_reason =
 			(pi->partenforce_filterraw &
 			 OPA_PI_MASK_LINKINIT_REASON);
-	/* enable/disable SW pkey checking as per FM control */
-	if (pi->partenforce_filterraw & OPA_PI_MASK_PARTITION_ENFORCE_IN)
-		ppd->part_enforce |= HFI1_PART_ENFORCE_IN;
-	else
-		ppd->part_enforce &= ~HFI1_PART_ENFORCE_IN;
-
-	if (pi->partenforce_filterraw & OPA_PI_MASK_PARTITION_ENFORCE_OUT)
-		ppd->part_enforce |= HFI1_PART_ENFORCE_OUT;
-	else
-		ppd->part_enforce &= ~HFI1_PART_ENFORCE_OUT;
 
 	/* Must be a valid unicast LID address. */
 	if ((smlid == 0 && ls_old > IB_PORT_INIT) ||
