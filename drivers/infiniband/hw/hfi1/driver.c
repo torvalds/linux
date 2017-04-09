@@ -285,7 +285,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 {
 	struct ib_header *rhdr = packet->hdr;
 	u32 rte = rhf_rcv_type_err(packet->rhf);
-	int lnh = be16_to_cpu(rhdr->lrh[0]) & 3;
+	int lnh = ib_get_lnh(rhdr);
 	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct hfi1_devdata *dd = ppd->dd;
 	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
@@ -297,7 +297,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 		/* For TIDERR and RC QPs preemptively schedule a NAK */
 		struct ib_other_headers *ohdr = NULL;
 		u32 tlen = rhf_pkt_len(packet->rhf); /* in bytes */
-		u16 lid  = be16_to_cpu(rhdr->lrh[1]);
+		u16 lid  = ib_get_dlid(rhdr);
 		u32 qp_num;
 		u32 rcv_flags = 0;
 
@@ -416,7 +416,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 				svc_type = IB_CC_SVCTYPE_UD;
 				break;
 			case IB_QPT_UC:
-				rlid = be16_to_cpu(rhdr->lrh[3]);
+				rlid = ib_get_slid(rhdr);
 				rqpn = qp->remote_qpn;
 				svc_type = IB_CC_SVCTYPE_UC;
 				break;
@@ -462,7 +462,7 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 	struct ib_other_headers *ohdr = pkt->ohdr;
 	struct ib_grh *grh = NULL;
 	u32 rqpn = 0, bth1;
-	u16 rlid, dlid = be16_to_cpu(hdr->lrh[1]);
+	u16 rlid, dlid = ib_get_dlid(hdr);
 	u8 sc, svc_type;
 	bool is_mcast = false;
 
@@ -473,7 +473,7 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	case IB_QPT_UD:
-		rlid = be16_to_cpu(hdr->lrh[3]);
+		rlid = ib_get_slid(hdr);
 		rqpn = be32_to_cpu(ohdr->u.ud.deth[1]) & RVT_QPN_MASK;
 		svc_type = IB_CC_SVCTYPE_UD;
 		is_mcast = (dlid > be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
@@ -623,8 +623,7 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 
 		packet->hdr = hfi1_get_msgheader(dd, rhf_addr);
 		hdr = packet->hdr;
-
-		lnh = be16_to_cpu(hdr->lrh[0]) & 3;
+		lnh = ib_get_lnh(hdr);
 
 		if (lnh == HFI1_LRH_BTH) {
 			packet->ohdr = &hdr->u.oth;

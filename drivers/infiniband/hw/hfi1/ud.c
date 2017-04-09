@@ -688,17 +688,15 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 
 	qkey = be32_to_cpu(ohdr->u.ud.deth[0]);
 	src_qp = be32_to_cpu(ohdr->u.ud.deth[1]) & RVT_QPN_MASK;
-	dlid = be16_to_cpu(hdr->lrh[1]);
+	dlid = ib_get_dlid(hdr);
 	bth1 = be32_to_cpu(ohdr->bth[1]);
-	slid = be16_to_cpu(hdr->lrh[3]);
-	pkey = (u16)be32_to_cpu(ohdr->bth[0]);
-	sl = (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xf;
-	extra_bytes = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
+	slid = ib_get_slid(hdr);
+	pkey = ib_bth_get_pkey(ohdr);
+	opcode = ib_bth_get_opcode(ohdr);
+	sl = ib_get_sl(hdr);
+	extra_bytes = ib_bth_get_pad(ohdr);
 	extra_bytes += (SIZE_OF_CRC << 2);
 	sl_from_sc = ibp->sc_to_sl[sc5];
-
-	opcode = be32_to_cpu(ohdr->bth[0]) >> 24;
-	opcode &= 0xff;
 
 	process_ecn(qp, packet, (opcode != IB_OPCODE_CNP));
 	/*

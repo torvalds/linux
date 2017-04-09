@@ -238,18 +238,18 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
 				qp->alt_ah_attr.grh.dgid.global.interface_id))
 				goto err;
 		}
-		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,
-					    sc5, be16_to_cpu(hdr->lrh[3])))) {
+		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0, sc5,
+					    ib_get_slid(hdr)))) {
 			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY,
 				       (u16)bth0,
-				       (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
+				       ib_get_sl(hdr),
 				       0, qp->ibqp.qp_num,
-				       be16_to_cpu(hdr->lrh[3]),
-				       be16_to_cpu(hdr->lrh[1]));
+				       ib_get_slid(hdr),
+				       ib_get_dlid(hdr));
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 and 17.2.8 */
-		if (be16_to_cpu(hdr->lrh[3]) != qp->alt_ah_attr.dlid ||
+		if (ib_get_slid(hdr) != qp->alt_ah_attr.dlid ||
 		    ppd_from_ibp(ibp)->port != qp->alt_ah_attr.port_num)
 			goto err;
 		spin_lock_irqsave(&qp->s_lock, flags);
@@ -273,18 +273,18 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
 			     qp->remote_ah_attr.grh.dgid.global.interface_id))
 				goto err;
 		}
-		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,
-					    sc5, be16_to_cpu(hdr->lrh[3])))) {
+		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0, sc5,
+					    ib_get_slid(hdr)))) {
 			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY,
 				       (u16)bth0,
-				       (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
+				       ib_get_sl(hdr),
 				       0, qp->ibqp.qp_num,
-				       be16_to_cpu(hdr->lrh[3]),
-				       be16_to_cpu(hdr->lrh[1]));
+				       ib_get_slid(hdr),
+				       ib_get_dlid(hdr));
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 */
-		if (be16_to_cpu(hdr->lrh[3]) != qp->remote_ah_attr.dlid ||
+		if (ib_get_slid(hdr) != qp->remote_ah_attr.dlid ||
 		    ppd_from_ibp(ibp)->port != qp->port_num)
 			goto err;
 		if (qp->s_mig_state == IB_MIG_REARM &&

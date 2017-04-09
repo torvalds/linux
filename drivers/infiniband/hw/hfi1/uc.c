@@ -320,7 +320,7 @@ void hfi1_uc_rcv(struct hfi1_packet *packet)
 	process_ecn(qp, packet, true);
 
 	psn = be32_to_cpu(ohdr->bth[2]);
-	opcode = (bth0 >> 24) & 0xff;
+	opcode = ib_bth_get_opcode(ohdr);
 
 	/* Compare the PSN verses the expected PSN. */
 	if (unlikely(cmp_psn(psn, qp->r_psn) != 0)) {
@@ -433,7 +433,7 @@ no_immediate_data:
 		wc.wc_flags = 0;
 send_last:
 		/* Get the number of bytes the message was padded by. */
-		pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
+		pad = ib_bth_get_pad(ohdr);
 		/* Check for invalid length. */
 		/* LAST len should be >= 1 */
 		if (unlikely(tlen < (hdrsize + pad + 4)))
@@ -528,7 +528,7 @@ rdma_last_imm:
 		wc.wc_flags = IB_WC_WITH_IMM;
 
 		/* Get the number of bytes the message was padded by. */
-		pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
+		pad = ib_bth_get_pad(ohdr);
 		/* Check for invalid length. */
 		/* LAST len should be >= 1 */
 		if (unlikely(tlen < (hdrsize + pad + 4)))
@@ -555,7 +555,7 @@ rdma_last_imm:
 	case OP(RDMA_WRITE_LAST):
 rdma_last:
 		/* Get the number of bytes the message was padded by. */
-		pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
+		pad = ib_bth_get_pad(ohdr);
 		/* Check for invalid length. */
 		/* LAST len should be >= 1 */
 		if (unlikely(tlen < (hdrsize + pad + 4)))

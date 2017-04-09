@@ -572,7 +572,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 	u16 lid;
 
 	/* Check for GRH */
-	lnh = be16_to_cpu(hdr->lrh[0]) & 3;
+	lnh = ib_get_lnh(hdr);
 	if (lnh == HFI1_LRH_BTH) {
 		packet->ohdr = &hdr->u.oth;
 	} else if (lnh == HFI1_LRH_GRH) {
@@ -591,12 +591,12 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 
 	trace_input_ibhdr(rcd->dd, hdr);
 
-	opcode = (be32_to_cpu(packet->ohdr->bth[0]) >> 24);
+	opcode = ib_bth_get_opcode(packet->ohdr);
 	inc_opstats(tlen, &rcd->opstats->stats[opcode]);
 
 	/* Get the destination QP number. */
 	qp_num = be32_to_cpu(packet->ohdr->bth[1]) & RVT_QPN_MASK;
-	lid = be16_to_cpu(hdr->lrh[1]);
+	lid = ib_get_dlid(hdr);
 	if (unlikely((lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
 		     (lid != be16_to_cpu(IB_LID_PERMISSIVE)))) {
 		struct rvt_mcast *mcast;
@@ -1231,7 +1231,7 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 
 	hdr = &ps->s_txreq->phdr.hdr;
 	/* locate the pkey within the headers */
-	lnh = be16_to_cpu(hdr->lrh[0]) & 3;
+	lnh = ib_get_lnh(hdr);
 	if (lnh == HFI1_LRH_GRH)
 		ohdr = &hdr->u.l.oth;
 	else

@@ -181,4 +181,64 @@ static inline void put_ib_ateth_compare(u64 val, struct ib_atomic_eth *ateth)
 	ib_u64_put(val, &ateth->compare_data);
 }
 
+/*
+ * 9B/IB Packet Format
+ */
+#define IB_LNH_MASK		3
+#define IB_SC_MASK		0xf
+#define IB_SC_SHIFT		12
+#define IB_SL_MASK		0xf
+#define IB_SL_SHIFT		4
+
+static inline u8 ib_get_lnh(struct ib_header *hdr)
+{
+	return (be16_to_cpu(hdr->lrh[0]) & IB_LNH_MASK);
+}
+
+static inline u8 ib_get_sc(struct ib_header *hdr)
+{
+	return ((be16_to_cpu(hdr->lrh[0]) >> IB_SC_SHIFT) & IB_SC_MASK);
+}
+
+static inline u8 ib_get_sl(struct ib_header *hdr)
+{
+	return ((be16_to_cpu(hdr->lrh[0]) >> IB_SL_SHIFT) & IB_SL_MASK);
+}
+
+static inline u16 ib_get_dlid(struct ib_header *hdr)
+{
+	return (be16_to_cpu(hdr->lrh[1]));
+}
+
+static inline u16 ib_get_slid(struct ib_header *hdr)
+{
+	return (be16_to_cpu(hdr->lrh[3]));
+}
+
+/*
+ * BTH
+ */
+#define IB_BTH_OPCODE_MASK	0xff
+#define IB_BTH_OPCODE_SHIFT	24
+#define IB_BTH_PAD_MASK	3
+#define IB_BTH_PKEY_MASK	0xffff
+#define IB_BTH_PAD_SHIFT	20
+
+static inline u8 ib_bth_get_pad(struct ib_other_headers *ohdr)
+{
+	return ((be32_to_cpu(ohdr->bth[0]) >> IB_BTH_PAD_SHIFT) &
+		   IB_BTH_PAD_MASK);
+}
+
+static inline u16 ib_bth_get_pkey(struct ib_other_headers *ohdr)
+{
+	return (be32_to_cpu(ohdr->bth[0]) & IB_BTH_PKEY_MASK);
+}
+
+static inline u8 ib_bth_get_opcode(struct ib_other_headers *ohdr)
+{
+	return ((be32_to_cpu(ohdr->bth[0]) >> IB_BTH_OPCODE_SHIFT) &
+		   IB_BTH_OPCODE_MASK);
+}
+
 #endif                          /* IB_HDRS_H */
