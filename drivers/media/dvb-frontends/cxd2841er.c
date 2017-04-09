@@ -912,6 +912,18 @@ static void cxd2841er_set_ts_clock_mode(struct cxd2841er_priv *priv,
 
 	/*
 	 * slave    Bank    Addr    Bit    default    Name
+	 * <SLV-T>  00h     C4h     [1:0]  2'b??      OSERCKMODE
+	 */
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4,
+		((priv->flags & CXD2841ER_TS_SERIAL) ? 0x01 : 0x00), 0x03);
+	/*
+	 * slave    Bank    Addr    Bit    default    Name
+	 * <SLV-T>  00h     D1h     [1:0]  2'b??      OSERDUTYMODE
+	 */
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xd1,
+		((priv->flags & CXD2841ER_TS_SERIAL) ? 0x01 : 0x00), 0x03);
+	/*
+	 * slave    Bank    Addr    Bit    default    Name
 	 * <SLV-T>  00h     D9h     [7:0]  8'h08      OTSCKPERIOD
 	 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0xd9, 0x08);
@@ -925,7 +937,8 @@ static void cxd2841er_set_ts_clock_mode(struct cxd2841er_priv *priv,
 	 * slave    Bank    Addr    Bit    default    Name
 	 * <SLV-T>  00h     33h     [1:0]  2'b01      OREG_CKSEL_TSIF
 	 */
-	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x33, 0x00, 0x03);
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x33,
+		((priv->flags & CXD2841ER_TS_SERIAL) ? 0x01 : 0x00), 0x03);
 	/*
 	 * Enable TS IF Clock
 	 * slave    Bank    Addr    Bit    default    Name
@@ -3745,7 +3758,8 @@ static int cxd2841er_init_tc(struct dvb_frontend *fe)
 	cxd2841er_write_reg(priv, I2C_SLVT, 0xcd, 0x50);
 	/* SONY_DEMOD_CONFIG_PARALLEL_SEL = 1 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x00);
-	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4, 0x00, 0x80);
+	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4,
+		((priv->flags & CXD2841ER_TS_SERIAL) ? 0x80 : 0x00), 0x80);
 
 	cxd2841er_init_stats(fe);
 
