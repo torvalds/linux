@@ -2351,7 +2351,7 @@ static void cpuset_hotplug_workfn(struct work_struct *work)
 		rebuild_sched_domains();
 }
 
-void cpuset_update_active_cpus(bool cpu_online)
+void cpuset_update_active_cpus(void)
 {
 	/*
 	 * We're inside cpu hotplug critical region which usually nests
