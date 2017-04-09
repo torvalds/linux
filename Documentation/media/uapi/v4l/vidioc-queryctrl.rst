@@ -301,12 +301,12 @@ See also the examples in :ref:`control`.
       - ``name``\ [32]
       - Name of the menu item, a NUL-terminated ASCII string. This
 	information is intended for the user. This field is valid for
-	``V4L2_CTRL_FLAG_MENU`` type controls.
+	``V4L2_CTRL_TYPE_MENU`` type controls.
     * -
       - __s64
       - ``value``
       - Value of the integer menu item. This field is valid for
-	``V4L2_CTRL_FLAG_INTEGER_MENU`` type controls.
+	``V4L2_CTRL_TYPE_INTEGER_MENU`` type controls.
     * - __u32
       -
       - ``reserved``
