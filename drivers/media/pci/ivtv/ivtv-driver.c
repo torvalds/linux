@@ -770,9 +770,8 @@ static int ivtv_init_struct1(struct ivtv *itv)
 	init_waitqueue_head(&itv->event_waitq);
 	init_waitqueue_head(&itv->vsync_waitq);
 	init_waitqueue_head(&itv->dma_waitq);
-	init_timer(&itv->dma_timer);
-	itv->dma_timer.function = ivtv_unfinished_dma;
-	itv->dma_timer.data = (unsigned long)itv;
+	setup_timer(&itv->dma_timer, ivtv_unfinished_dma,
+		    (unsigned long)itv);
 
 	itv->cur_dma_stream = -1;
 	itv->cur_pio_stream = -1;
