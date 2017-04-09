@@ -181,9 +181,8 @@ struct vb2_ops saa7134_vbi_qops = {
 int saa7134_vbi_init1(struct saa7134_dev *dev)
 {
 	INIT_LIST_HEAD(&dev->vbi_q.queue);
-	init_timer(&dev->vbi_q.timeout);
-	dev->vbi_q.timeout.function = saa7134_buffer_timeout;
-	dev->vbi_q.timeout.data     = (unsigned long)(&dev->vbi_q);
+	setup_timer(&dev->vbi_q.timeout, saa7134_buffer_timeout,
+		    (unsigned long)(&dev->vbi_q));
 	dev->vbi_q.dev              = dev;
 
 	if (vbibufs < 2)
