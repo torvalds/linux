@@ -579,6 +579,9 @@ int hfi1_user_exp_rcv_clear(struct file *fp, struct hfi1_tid_info *tinfo)
 	u32 *tidinfo;
 	unsigned tididx;
 
+	if (unlikely(tinfo->tidcnt > fd->tid_used))
+		return -EINVAL;
+
 	tidinfo = memdup_user((void __user *)(unsigned long)tinfo->tidlist,
 			      sizeof(tidinfo[0]) * tinfo->tidcnt);
 	if (IS_ERR(tidinfo))
