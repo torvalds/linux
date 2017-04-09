@@ -389,13 +389,9 @@ struct i40e_pf {
 #define I40E_FLAG_MSIX_ENABLED			BIT_ULL(3)
 #define I40E_FLAG_RSS_ENABLED			BIT_ULL(6)
 #define I40E_FLAG_VMDQ_ENABLED			BIT_ULL(7)
-#define I40E_FLAG_NEED_LINK_UPDATE		BIT_ULL(9)
 #define I40E_FLAG_IWARP_ENABLED			BIT_ULL(10)
-#define I40E_FLAG_CLEAN_ADMINQ			BIT_ULL(14)
 #define I40E_FLAG_FILTER_SYNC			BIT_ULL(15)
 #define I40E_FLAG_SERVICE_CLIENT_REQUESTED	BIT_ULL(16)
-#define I40E_FLAG_PROCESS_MDD_EVENT		BIT_ULL(17)
-#define I40E_FLAG_PROCESS_VFLR_EVENT		BIT_ULL(18)
 #define I40E_FLAG_SRIOV_ENABLED			BIT_ULL(19)
 #define I40E_FLAG_DCB_ENABLED			BIT_ULL(20)
 #define I40E_FLAG_FD_SB_ENABLED			BIT_ULL(21)
@@ -617,7 +613,6 @@ struct i40e_vsi {
 	u32 tx_busy;
 	u64 tx_linearize;
 	u64 tx_force_wb;
-	u64 tx_lost_interrupt;
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
 
@@ -702,9 +697,6 @@ struct i40e_q_vector {
 	struct i40e_ring_container tx;
 
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
-
-#define I40E_Q_VECTOR_HUNG_DETECT 0 /* Bit Index for hung detection logic */
-	unsigned long hung_detected; /* Set/Reset for hung_detection logic */
 
 	cpumask_t affinity_mask;
 	struct irq_affinity_notify affinity_notify;
@@ -837,7 +829,7 @@ void i40e_down(struct i40e_vsi *vsi);
 extern const char i40e_driver_name[];
 extern const char i40e_driver_version_str[];
 void i40e_do_reset_safe(struct i40e_pf *pf, u32 reset_flags);
-void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags);
+void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags, bool lock_acquired);
 int i40e_config_rss(struct i40e_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 int i40e_get_rss(struct i40e_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void i40e_fill_rss_lut(struct i40e_pf *pf, u8 *lut,
