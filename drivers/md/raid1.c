@@ -877,7 +877,8 @@ static sector_t wait_barrier(struct r1conf *conf, struct bio *bio)
 				     ((conf->start_next_window <
 				       conf->next_resync + RESYNC_SECTORS) &&
 				      current->bio_list &&
-				      !bio_list_empty(current->bio_list))),
+				     (!bio_list_empty(&current->bio_list[0]) ||
+				      !bio_list_empty(&current->bio_list[1])))),
 				    conf->resync_lock);
 		conf->nr_waiting--;
 	}
