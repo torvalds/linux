@@ -435,6 +435,43 @@ out_err:
 	return -EIO;
 }
 
+/**
+ * svc_rdma_post_send_wr - Set up and post one Send Work Request
+ * @rdma: controlling transport
+ * @ctxt: op_ctxt for transmitting the Send WR
+ * @num_sge: number of SGEs to send
+ * @inv_rkey: R_key argument to Send With Invalidate, or zero
+ *
+ * Returns:
+ *	%0 if the Send* was posted successfully,
+ *	%-ENOTCONN if the connection was lost or dropped,
+ *	%-EINVAL if there was a problem with the Send we built,
+ *	%-ENOMEM if ib_post_send failed.
+ */
+int svc_rdma_post_send_wr(struct svcxprt_rdma *rdma,
+			  struct svc_rdma_op_ctxt *ctxt, int num_sge,
+			  u32 inv_rkey)
+{
+	struct ib_send_wr *send_wr = &ctxt->send_wr;
+
+	dprintk("svcrdma: posting Send WR with %u sge(s)\n", num_sge);
+
+	send_wr->next = NULL;
+	ctxt->cqe.done = svc_rdma_wc_send;
+	send_wr->wr_cqe = &ctxt->cqe;
+	send_wr->sg_list = ctxt->sge;
+	send_wr->num_sge = num_sge;
+	send_wr->send_flags = IB_SEND_SIGNALED;
+	if (inv_rkey) {
+		send_wr->opcode = IB_WR_SEND_WITH_INV;
+		send_wr->ex.invalidate_rkey = inv_rkey;
+	} else {
+		send_wr->opcode = IB_WR_SEND;
+	}
+
+	return svc_rdma_send(rdma, send_wr);
+}
+
 /* This function prepares the portion of the RPCRDMA message to be
  * sent in the RDMA_SEND. This function is called after data sent via
  * RDMA has already been transmitted. There are three cases:
@@ -460,7 +497,6 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		      u32 inv_rkey)
 {
 	struct svc_rdma_op_ctxt *ctxt;
-	struct ib_send_wr send_wr;
 	u32 xdr_off;
 	int sge_no;
 	int sge_bytes;
@@ -524,19 +560,8 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		pr_err("svcrdma: Too many sges (%d)\n", sge_no);
 		goto err;
 	}
-	memset(&send_wr, 0, sizeof send_wr);
-	ctxt->cqe.done = svc_rdma_wc_send;
-	send_wr.wr_cqe = &ctxt->cqe;
-	send_wr.sg_list = ctxt->sge;
-	send_wr.num_sge = sge_no;
-	if (inv_rkey) {
-		send_wr.opcode = IB_WR_SEND_WITH_INV;
-		send_wr.ex.invalidate_rkey = inv_rkey;
-	} else
-		send_wr.opcode = IB_WR_SEND;
-	send_wr.send_flags =  IB_SEND_SIGNALED;
 
-	ret = svc_rdma_send(rdma, &send_wr);
+	ret = svc_rdma_post_send_wr(rdma, ctxt, sge_no, inv_rkey);
 	if (ret)
 		goto err;
 
@@ -652,7 +677,6 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 			 int status)
 {
-	struct ib_send_wr err_wr;
 	struct page *p;
 	struct svc_rdma_op_ctxt *ctxt;
 	enum rpcrdma_errcode err;
@@ -692,17 +716,7 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	}
 	svc_rdma_count_mappings(xprt, ctxt);
 
-	/* Prepare SEND WR */
-	memset(&err_wr, 0, sizeof(err_wr));
-	ctxt->cqe.done = svc_rdma_wc_send;
-	err_wr.wr_cqe = &ctxt->cqe;
-	err_wr.sg_list = ctxt->sge;
-	err_wr.num_sge = 1;
-	err_wr.opcode = IB_WR_SEND;
-	err_wr.send_flags = IB_SEND_SIGNALED;
-
-	/* Post It */
-	ret = svc_rdma_send(xprt, &err_wr);
+	ret = svc_rdma_post_send_wr(xprt, ctxt, 1, 0);
 	if (ret) {
 		dprintk("svcrdma: Error %d posting send for protocol error\n",
 			ret);

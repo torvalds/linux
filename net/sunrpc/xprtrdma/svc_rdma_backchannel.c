@@ -104,7 +104,6 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	struct xdr_buf *sndbuf = &rqst->rq_snd_buf;
 	struct svc_rdma_op_ctxt *ctxt;
 	struct svc_rdma_req_map *vec;
-	struct ib_send_wr send_wr;
 	int ret;
 
 	vec = svc_rdma_get_req_map(rdma);
@@ -132,15 +131,7 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	}
 	svc_rdma_count_mappings(rdma, ctxt);
 
-	memset(&send_wr, 0, sizeof(send_wr));
-	ctxt->cqe.done = svc_rdma_wc_send;
-	send_wr.wr_cqe = &ctxt->cqe;
-	send_wr.sg_list = ctxt->sge;
-	send_wr.num_sge = 1;
-	send_wr.opcode = IB_WR_SEND;
-	send_wr.send_flags = IB_SEND_SIGNALED;
-
-	ret = svc_rdma_send(rdma, &send_wr);
+	ret = svc_rdma_post_send_wr(rdma, ctxt, 1, 0);
 	if (ret) {
 		ret = -EIO;
 		goto out_unmap;
