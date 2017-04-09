@@ -478,6 +478,23 @@ out_err:
 	return -EIO;
 }
 
+/* The svc_rqst and all resources it owns are released as soon as
+ * svc_rdma_sendto returns. Transfer pages under I/O to the ctxt
+ * so they are released by the Send completion handler.
+ */
+static void svc_rdma_save_io_pages(struct svc_rqst *rqstp,
+				   struct svc_rdma_op_ctxt *ctxt)
+{
+	int i, pages = rqstp->rq_next_page - rqstp->rq_respages;
+
+	ctxt->count += pages;
+	for (i = 0; i < pages; i++) {
+		ctxt->pages[i + 1] = rqstp->rq_respages[i];
+		rqstp->rq_respages[i] = NULL;
+	}
+	rqstp->rq_next_page = rqstp->rq_respages + 1;
+}
+
 /**
  * svc_rdma_post_send_wr - Set up and post one Send Work Request
  * @rdma: controlling transport
@@ -543,8 +560,6 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	u32 xdr_off;
 	int sge_no;
 	int sge_bytes;
-	int page_no;
-	int pages;
 	int ret = -EIO;
 
 	/* Prepare the context */
@@ -587,17 +602,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		goto err;
 	}
 
-	/* Save all respages in the ctxt and remove them from the
-	 * respages array. They are our pages until the I/O
-	 * completes.
-	 */
-	pages = rqstp->rq_next_page - rqstp->rq_respages;
-	for (page_no = 0; page_no < pages; page_no++) {
-		ctxt->pages[page_no+1] = rqstp->rq_respages[page_no];
-		ctxt->count++;
-		rqstp->rq_respages[page_no] = NULL;
-	}
-	rqstp->rq_next_page = rqstp->rq_respages + 1;
+	svc_rdma_save_io_pages(rqstp, ctxt);
 
 	if (sge_no > rdma->sc_max_sge) {
 		pr_err("svcrdma: Too many sges (%d)\n", sge_no);
