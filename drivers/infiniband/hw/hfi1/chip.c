@@ -9363,7 +9363,7 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 
 	if ((qsfp_interrupt_status[0] & QSFP_HIGH_TEMP_ALARM) ||
 	    (qsfp_interrupt_status[0] & QSFP_HIGH_TEMP_WARNING))
-		dd_dev_info(dd, "%s: QSFP cable on fire\n",
+		dd_dev_info(dd, "%s: QSFP cable temperature too high\n",
 			    __func__);
 
 	if ((qsfp_interrupt_status[0] & QSFP_LOW_TEMP_ALARM) ||
