@@ -210,8 +210,7 @@ static int rd_build_device_space(struct rd_dev *rd_dev)
 	total_sg_needed = rd_dev->rd_page_count;
 
 	sg_tables = (total_sg_needed / max_sg_per_table) + 1;
-
-	sg_table = kzalloc(sg_tables * sizeof(struct rd_dev_sg_table), GFP_KERNEL);
+	sg_table = kcalloc(sg_tables, sizeof(*sg_table), GFP_KERNEL);
 	if (!sg_table) {
 		pr_err("Unable to allocate memory for Ramdisk"
 		       " scatterlist tables\n");
@@ -271,8 +270,7 @@ static int rd_build_prot_space(struct rd_dev *rd_dev, int prot_length, int block
 	total_sg_needed = (rd_dev->rd_page_count * prot_length / block_size) + 1;
 
 	sg_tables = (total_sg_needed / max_sg_per_table) + 1;
-
-	sg_table = kzalloc(sg_tables * sizeof(struct rd_dev_sg_table), GFP_KERNEL);
+	sg_table = kcalloc(sg_tables, sizeof(*sg_table), GFP_KERNEL);
 	if (!sg_table) {
 		pr_err("Unable to allocate memory for Ramdisk protection"
 		       " scatterlist tables\n");
