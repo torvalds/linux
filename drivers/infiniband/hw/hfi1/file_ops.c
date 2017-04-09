@@ -597,6 +597,10 @@ static int hfi1_file_mmap(struct file *fp, struct vm_area_struct *vma)
 		vmf = 1;
 		break;
 	case STATUS:
+		if (flags & (unsigned long)(VM_WRITE | VM_EXEC)) {
+			ret = -EPERM;
+			goto done;
+		}
 		memaddr = kvirt_to_phys((void *)dd->status);
 		memlen = PAGE_SIZE;
 		flags |= VM_IO | VM_DONTEXPAND;
