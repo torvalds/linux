@@ -621,6 +621,48 @@ err:
 	return ret;
 }
 
+/* Given the client-provided Write and Reply chunks, the server was not
+ * able to form a complete reply. Return an RDMA_ERROR message so the
+ * client can retire this RPC transaction. As above, the Send completion
+ * routine releases payload pages that were part of a previous RDMA Write.
+ *
+ * Remote Invalidation is skipped for simplicity.
+ */
+static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
+				   __be32 *rdma_resp, struct svc_rqst *rqstp)
+{
+	struct svc_rdma_op_ctxt *ctxt;
+	__be32 *p;
+	int ret;
+
+	ctxt = svc_rdma_get_context(rdma);
+
+	/* Replace the original transport header with an
+	 * RDMA_ERROR response. XID etc are preserved.
+	 */
+	p = rdma_resp + 3;
+	*p++ = rdma_error;
+	*p   = err_chunk;
+
+	ret = svc_rdma_map_reply_hdr(rdma, ctxt, rdma_resp, 20);
+	if (ret < 0)
+		goto err;
+
+	svc_rdma_save_io_pages(rqstp, ctxt);
+
+	ret = svc_rdma_post_send_wr(rdma, ctxt, 1 + ret, 0);
+	if (ret)
+		goto err;
+
+	return 0;
+
+err:
+	pr_err("svcrdma: failed to post Send WR (%d)\n", ret);
+	svc_rdma_unmap_dma(ctxt);
+	svc_rdma_put_context(ctxt, 1);
+	return ret;
+}
+
 void svc_rdma_prep_reply_hdr(struct svc_rqst *rqstp)
 {
 }
@@ -683,13 +725,13 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		/* XXX: Presume the client sent only one Write chunk */
 		ret = svc_rdma_send_write_chunk(rdma, wr_lst, xdr);
 		if (ret < 0)
-			goto err1;
+			goto err2;
 		svc_rdma_xdr_encode_write_list(rdma_resp, wr_lst, ret);
 	}
 	if (rp_ch) {
 		ret = svc_rdma_send_reply_chunk(rdma, rp_ch, wr_lst, xdr);
 		if (ret < 0)
-			goto err1;
+			goto err2;
 		svc_rdma_xdr_encode_reply_chunk(rdma_resp, rp_ch, ret);
 	}
 
@@ -698,6 +740,18 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		goto err1;
 	ret = svc_rdma_send_reply_msg(rdma, rdma_argp, rdma_resp, rqstp,
 				      wr_lst, rp_ch);
+	if (ret < 0)
+		goto err0;
+	return 0;
+
+ err2:
+	if (ret != -E2BIG)
+		goto err1;
+
+	ret = svc_rdma_post_recv(rdma, GFP_KERNEL);
+	if (ret)
+		goto err1;
+	ret = svc_rdma_send_error_msg(rdma, rdma_resp, rqstp);
 	if (ret < 0)
 		goto err0;
 	return 0;
