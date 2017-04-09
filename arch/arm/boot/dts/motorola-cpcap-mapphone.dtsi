@@ -19,6 +19,13 @@
 		spi-max-frequency = <3000000>;
 		spi-cs-high;
 
+		cpcap_adc: adc {
+			compatible = "motorola,mapphone-cpcap-adc";
+			interrupts-extended = <&cpcap 8 0>;
+			interrupt-names = "adcdone";
+			#io-channel-cells = <1>;
+		};
+
 		cpcap_regulator: regulator {
 			compatible = "motorola,mapphone-cpcap-regulator";
 
