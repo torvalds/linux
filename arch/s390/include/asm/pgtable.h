@@ -1029,6 +1029,8 @@ int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t entry)
 {
+	if (pte_present(entry))
+		pte_val(entry) &= ~_PAGE_UNUSED;
 	if (mm_has_pgste(mm))
 		ptep_set_pte_at(mm, addr, ptep, entry);
 	else
