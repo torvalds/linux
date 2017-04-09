@@ -775,7 +775,7 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	if (qp->s_flags & RVT_S_ECN) {
 		qp->s_flags &= ~RVT_S_ECN;
 		/* we recently received a FECN, so return a BECN */
-		bth1 |= (HFI1_BECN_MASK << HFI1_BECN_SHIFT);
+		bth1 |= (IB_BECN_MASK << IB_BECN_SHIFT);
 	}
 	ohdr->bth[1] = cpu_to_be32(bth1);
 	ohdr->bth[2] = cpu_to_be32(bth2);

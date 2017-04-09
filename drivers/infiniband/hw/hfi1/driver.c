@@ -496,13 +496,13 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 	sc = hfi1_9B_get_sc5(hdr, pkt->rhf);
 
 	bth1 = be32_to_cpu(ohdr->bth[1]);
-	if (do_cnp && (bth1 & HFI1_FECN_SMASK)) {
+	if (do_cnp && (bth1 & IB_FECN_SMASK)) {
 		u16 pkey = (u16)be32_to_cpu(ohdr->bth[0]);
 
 		return_cnp(ibp, qp, rqpn, pkey, dlid, rlid, sc, grh);
 	}
 
-	if (!is_mcast && (bth1 & HFI1_BECN_SMASK)) {
+	if (!is_mcast && (bth1 & IB_BECN_SMASK)) {
 		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 		u32 lqpn = bth1 & RVT_QPN_MASK;
 		u8 sl = ibp->sc_to_sl[sc];
@@ -635,7 +635,7 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 		}
 
 		bth1 = be32_to_cpu(packet->ohdr->bth[1]);
-		is_ecn = !!(bth1 & (HFI1_FECN_SMASK | HFI1_BECN_SMASK));
+		is_ecn = !!(bth1 & (IB_FECN_SMASK | IB_BECN_SMASK));
 
 		if (!is_ecn)
 			goto next;
@@ -653,7 +653,7 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 		rcu_read_unlock();
 
 		/* turn off BECN, FECN */
-		bth1 &= ~(HFI1_FECN_SMASK | HFI1_BECN_SMASK);
+		bth1 &= ~(IB_FECN_SMASK | IB_BECN_SMASK);
 		packet->ohdr->bth[1] = cpu_to_be32(bth1);
 next:
 		update_ps_mdata(&mdata, rcd);
