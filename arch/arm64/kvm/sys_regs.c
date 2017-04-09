@@ -807,31 +807,23 @@ static bool access_pmuserenr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 
 /* Silly macro to expand the DBG{BCR,BVR,WVR,WCR}n_EL1 registers in one go */
 #define DBG_BCR_BVR_WCR_WVR_EL1(n)					\
-	/* DBGBVRn_EL1 */						\
-	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b100),	\
+	{ SYS_DESC(SYS_DBGBVRn_EL1(n)),					\
 	  trap_bvr, reset_bvr, n, 0, get_bvr, set_bvr },		\
-	/* DBGBCRn_EL1 */						\
-	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b101),	\
+	{ SYS_DESC(SYS_DBGBCRn_EL1(n)),					\
 	  trap_bcr, reset_bcr, n, 0, get_bcr, set_bcr },		\
-	/* DBGWVRn_EL1 */						\
-	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b110),	\
+	{ SYS_DESC(SYS_DBGWVRn_EL1(n)),					\
 	  trap_wvr, reset_wvr, n, 0,  get_wvr, set_wvr },		\
-	/* DBGWCRn_EL1 */						\
-	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm((n)), Op2(0b111),	\
+	{ SYS_DESC(SYS_DBGWCRn_EL1(n)),					\
 	  trap_wcr, reset_wcr, n, 0,  get_wcr, set_wcr }
 
 /* Macro to expand the PMEVCNTRn_EL0 register */
 #define PMU_PMEVCNTR_EL0(n)						\
-	/* PMEVCNTRn_EL0 */						\
-	{ Op0(0b11), Op1(0b011), CRn(0b1110),				\
-	  CRm((0b1000 | (((n) >> 3) & 0x3))), Op2(((n) & 0x7)),		\
+	{ SYS_DESC(SYS_PMEVCNTRn_EL0(n)),					\
 	  access_pmu_evcntr, reset_unknown, (PMEVCNTR0_EL0 + n), }
 
 /* Macro to expand the PMEVTYPERn_EL0 register */
 #define PMU_PMEVTYPER_EL0(n)						\
-	/* PMEVTYPERn_EL0 */						\
-	{ Op0(0b11), Op1(0b011), CRn(0b1110),				\
-	  CRm((0b1100 | (((n) >> 3) & 0x3))), Op2(((n) & 0x7)),		\
+	{ SYS_DESC(SYS_PMEVTYPERn_EL0(n)),					\
 	  access_pmu_evtyper, reset_unknown, (PMEVTYPER0_EL0 + n), }
 
 static bool access_cntp_tval(struct kvm_vcpu *vcpu,
@@ -901,24 +893,14 @@ static bool access_cntp_cval(struct kvm_vcpu *vcpu,
  * more demanding guest...
  */
 static const struct sys_reg_desc sys_reg_descs[] = {
-	/* DC ISW */
-	{ Op0(0b01), Op1(0b000), CRn(0b0111), CRm(0b0110), Op2(0b010),
-	  access_dcsw },
-	/* DC CSW */
-	{ Op0(0b01), Op1(0b000), CRn(0b0111), CRm(0b1010), Op2(0b010),
-	  access_dcsw },
-	/* DC CISW */
-	{ Op0(0b01), Op1(0b000), CRn(0b0111), CRm(0b1110), Op2(0b010),
-	  access_dcsw },
+	{ SYS_DESC(SYS_DC_ISW), access_dcsw },
+	{ SYS_DESC(SYS_DC_CSW), access_dcsw },
+	{ SYS_DESC(SYS_DC_CISW), access_dcsw },
 
 	DBG_BCR_BVR_WCR_WVR_EL1(0),
 	DBG_BCR_BVR_WCR_WVR_EL1(1),
-	/* MDCCINT_EL1 */
-	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b000),
-	  trap_debug_regs, reset_val, MDCCINT_EL1, 0 },
-	/* MDSCR_EL1 */
-	{ Op0(0b10), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b010),
-	  trap_debug_regs, reset_val, MDSCR_EL1, 0 },
+	{ SYS_DESC(SYS_MDCCINT_EL1), trap_debug_regs, reset_val, MDCCINT_EL1, 0 },
+	{ SYS_DESC(SYS_MDSCR_EL1), trap_debug_regs, reset_val, MDSCR_EL1, 0 },
 	DBG_BCR_BVR_WCR_WVR_EL1(2),
 	DBG_BCR_BVR_WCR_WVR_EL1(3),
 	DBG_BCR_BVR_WCR_WVR_EL1(4),
@@ -934,179 +916,77 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	DBG_BCR_BVR_WCR_WVR_EL1(14),
 	DBG_BCR_BVR_WCR_WVR_EL1(15),
 
-	/* MDRAR_EL1 */
-	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b000),
-	  trap_raz_wi },
-	/* OSLAR_EL1 */
-	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b100),
-	  trap_raz_wi },
-	/* OSLSR_EL1 */
-	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0001), Op2(0b100),
-	  trap_oslsr_el1 },
-	/* OSDLR_EL1 */
-	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0011), Op2(0b100),
-	  trap_raz_wi },
-	/* DBGPRCR_EL1 */
-	{ Op0(0b10), Op1(0b000), CRn(0b0001), CRm(0b0100), Op2(0b100),
-	  trap_raz_wi },
-	/* DBGCLAIMSET_EL1 */
-	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1000), Op2(0b110),
-	  trap_raz_wi },
-	/* DBGCLAIMCLR_EL1 */
-	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1001), Op2(0b110),
-	  trap_raz_wi },
-	/* DBGAUTHSTATUS_EL1 */
-	{ Op0(0b10), Op1(0b000), CRn(0b0111), CRm(0b1110), Op2(0b110),
-	  trap_dbgauthstatus_el1 },
+	{ SYS_DESC(SYS_MDRAR_EL1), trap_raz_wi },
+	{ SYS_DESC(SYS_OSLAR_EL1), trap_raz_wi },
+	{ SYS_DESC(SYS_OSLSR_EL1), trap_oslsr_el1 },
+	{ SYS_DESC(SYS_OSDLR_EL1), trap_raz_wi },
+	{ SYS_DESC(SYS_DBGPRCR_EL1), trap_raz_wi },
+	{ SYS_DESC(SYS_DBGCLAIMSET_EL1), trap_raz_wi },
+	{ SYS_DESC(SYS_DBGCLAIMCLR_EL1), trap_raz_wi },
+	{ SYS_DESC(SYS_DBGAUTHSTATUS_EL1), trap_dbgauthstatus_el1 },
 
-	/* MDCCSR_EL1 */
-	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0001), Op2(0b000),
-	  trap_raz_wi },
-	/* DBGDTR_EL0 */
-	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0100), Op2(0b000),
-	  trap_raz_wi },
-	/* DBGDTR[TR]X_EL0 */
-	{ Op0(0b10), Op1(0b011), CRn(0b0000), CRm(0b0101), Op2(0b000),
-	  trap_raz_wi },
+	{ SYS_DESC(SYS_MDCCSR_EL0), trap_raz_wi },
+	{ SYS_DESC(SYS_DBGDTR_EL0), trap_raz_wi },
+	// DBGDTR[TR]X_EL0 share the same encoding
+	{ SYS_DESC(SYS_DBGDTRTX_EL0), trap_raz_wi },
 
-	/* DBGVCR32_EL2 */
-	{ Op0(0b10), Op1(0b100), CRn(0b0000), CRm(0b0111), Op2(0b000),
-	  NULL, reset_val, DBGVCR32_EL2, 0 },
+	{ SYS_DESC(SYS_DBGVCR32_EL2), NULL, reset_val, DBGVCR32_EL2, 0 },
 
-	/* MPIDR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0000), Op2(0b101),
-	  NULL, reset_mpidr, MPIDR_EL1 },
-	/* SCTLR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b000),
-	  access_vm_reg, reset_val, SCTLR_EL1, 0x00C50078 },
-	/* CPACR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b010),
-	  NULL, reset_val, CPACR_EL1, 0 },
-	/* TTBR0_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b0010), CRm(0b0000), Op2(0b000),
-	  access_vm_reg, reset_unknown, TTBR0_EL1 },
-	/* TTBR1_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b0010), CRm(0b0000), Op2(0b001),
-	  access_vm_reg, reset_unknown, TTBR1_EL1 },
-	/* TCR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b0010), CRm(0b0000), Op2(0b010),
-	  access_vm_reg, reset_val, TCR_EL1, 0 },
+	{ SYS_DESC(SYS_MPIDR_EL1), NULL, reset_mpidr, MPIDR_EL1 },
+	{ SYS_DESC(SYS_SCTLR_EL1), access_vm_reg, reset_val, SCTLR_EL1, 0x00C50078 },
+	{ SYS_DESC(SYS_CPACR_EL1), NULL, reset_val, CPACR_EL1, 0 },
+	{ SYS_DESC(SYS_TTBR0_EL1), access_vm_reg, reset_unknown, TTBR0_EL1 },
+	{ SYS_DESC(SYS_TTBR1_EL1), access_vm_reg, reset_unknown, TTBR1_EL1 },
+	{ SYS_DESC(SYS_TCR_EL1), access_vm_reg, reset_val, TCR_EL1, 0 },
 
-	/* AFSR0_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b0101), CRm(0b0001), Op2(0b000),
-	  access_vm_reg, reset_unknown, AFSR0_EL1 },
-	/* AFSR1_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b0101), CRm(0b0001), Op2(0b001),
-	  access_vm_reg, reset_unknown, AFSR1_EL1 },
-	/* ESR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b0101), CRm(0b0010), Op2(0b000),
-	  access_vm_reg, reset_unknown, ESR_EL1 },
-	/* FAR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b0110), CRm(0b0000), Op2(0b000),
-	  access_vm_reg, reset_unknown, FAR_EL1 },
-	/* PAR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b0111), CRm(0b0100), Op2(0b000),
-	  NULL, reset_unknown, PAR_EL1 },
+	{ SYS_DESC(SYS_AFSR0_EL1), access_vm_reg, reset_unknown, AFSR0_EL1 },
+	{ SYS_DESC(SYS_AFSR1_EL1), access_vm_reg, reset_unknown, AFSR1_EL1 },
+	{ SYS_DESC(SYS_ESR_EL1), access_vm_reg, reset_unknown, ESR_EL1 },
+	{ SYS_DESC(SYS_FAR_EL1), access_vm_reg, reset_unknown, FAR_EL1 },
+	{ SYS_DESC(SYS_PAR_EL1), NULL, reset_unknown, PAR_EL1 },
 
-	/* PMINTENSET_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b1001), CRm(0b1110), Op2(0b001),
-	  access_pminten, reset_unknown, PMINTENSET_EL1 },
-	/* PMINTENCLR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b1001), CRm(0b1110), Op2(0b010),
-	  access_pminten, NULL, PMINTENSET_EL1 },
+	{ SYS_DESC(SYS_PMINTENSET_EL1), access_pminten, reset_unknown, PMINTENSET_EL1 },
+	{ SYS_DESC(SYS_PMINTENCLR_EL1), access_pminten, NULL, PMINTENSET_EL1 },
 
-	/* MAIR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b1010), CRm(0b0010), Op2(0b000),
-	  access_vm_reg, reset_unknown, MAIR_EL1 },
-	/* AMAIR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b1010), CRm(0b0011), Op2(0b000),
-	  access_vm_reg, reset_amair_el1, AMAIR_EL1 },
+	{ SYS_DESC(SYS_MAIR_EL1), access_vm_reg, reset_unknown, MAIR_EL1 },
+	{ SYS_DESC(SYS_AMAIR_EL1), access_vm_reg, reset_amair_el1, AMAIR_EL1 },
 
-	/* VBAR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b1100), CRm(0b0000), Op2(0b000),
-	  NULL, reset_val, VBAR_EL1, 0 },
+	{ SYS_DESC(SYS_VBAR_EL1), NULL, reset_val, VBAR_EL1, 0 },
 
-	/* ICC_SGI1R_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b1100), CRm(0b1011), Op2(0b101),
-	  access_gic_sgi },
-	/* ICC_SRE_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b1100), CRm(0b1100), Op2(0b101),
-	  access_gic_sre },
+	{ SYS_DESC(SYS_ICC_SGI1R_EL1), access_gic_sgi },
+	{ SYS_DESC(SYS_ICC_SRE_EL1), access_gic_sre },
 
-	/* CONTEXTIDR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b1101), CRm(0b0000), Op2(0b001),
-	  access_vm_reg, reset_val, CONTEXTIDR_EL1, 0 },
-	/* TPIDR_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b1101), CRm(0b0000), Op2(0b100),
-	  NULL, reset_unknown, TPIDR_EL1 },
+	{ SYS_DESC(SYS_CONTEXTIDR_EL1), access_vm_reg, reset_val, CONTEXTIDR_EL1, 0 },
+	{ SYS_DESC(SYS_TPIDR_EL1), NULL, reset_unknown, TPIDR_EL1 },
 
-	/* CNTKCTL_EL1 */
-	{ Op0(0b11), Op1(0b000), CRn(0b1110), CRm(0b0001), Op2(0b000),
-	  NULL, reset_val, CNTKCTL_EL1, 0},
+	{ SYS_DESC(SYS_CNTKCTL_EL1), NULL, reset_val, CNTKCTL_EL1, 0},
 
-	/* CSSELR_EL1 */
-	{ Op0(0b11), Op1(0b010), CRn(0b0000), CRm(0b0000), Op2(0b000),
-	  NULL, reset_unknown, CSSELR_EL1 },
+	{ SYS_DESC(SYS_CSSELR_EL1), NULL, reset_unknown, CSSELR_EL1 },
 
-	/* PMCR_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b000),
-	  access_pmcr, reset_pmcr, },
-	/* PMCNTENSET_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b001),
-	  access_pmcnten, reset_unknown, PMCNTENSET_EL0 },
-	/* PMCNTENCLR_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b010),
-	  access_pmcnten, NULL, PMCNTENSET_EL0 },
-	/* PMOVSCLR_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b011),
-	  access_pmovs, NULL, PMOVSSET_EL0 },
-	/* PMSWINC_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b100),
-	  access_pmswinc, reset_unknown, PMSWINC_EL0 },
-	/* PMSELR_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b101),
-	  access_pmselr, reset_unknown, PMSELR_EL0 },
-	/* PMCEID0_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b110),
-	  access_pmceid },
-	/* PMCEID1_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1100), Op2(0b111),
-	  access_pmceid },
-	/* PMCCNTR_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1101), Op2(0b000),
-	  access_pmu_evcntr, reset_unknown, PMCCNTR_EL0 },
-	/* PMXEVTYPER_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1101), Op2(0b001),
-	  access_pmu_evtyper },
-	/* PMXEVCNTR_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1101), Op2(0b010),
-	  access_pmu_evcntr },
-	/* PMUSERENR_EL0
-	 * This register resets as unknown in 64bit mode while it resets as zero
+	{ SYS_DESC(SYS_PMCR_EL0), access_pmcr, reset_pmcr, },
+	{ SYS_DESC(SYS_PMCNTENSET_EL0), access_pmcnten, reset_unknown, PMCNTENSET_EL0 },
+	{ SYS_DESC(SYS_PMCNTENCLR_EL0), access_pmcnten, NULL, PMCNTENSET_EL0 },
+	{ SYS_DESC(SYS_PMOVSCLR_EL0), access_pmovs, NULL, PMOVSSET_EL0 },
+	{ SYS_DESC(SYS_PMSWINC_EL0), access_pmswinc, reset_unknown, PMSWINC_EL0 },
+	{ SYS_DESC(SYS_PMSELR_EL0), access_pmselr, reset_unknown, PMSELR_EL0 },
+	{ SYS_DESC(SYS_PMCEID0_EL0), access_pmceid },
+	{ SYS_DESC(SYS_PMCEID1_EL0), access_pmceid },
+	{ SYS_DESC(SYS_PMCCNTR_EL0), access_pmu_evcntr, reset_unknown, PMCCNTR_EL0 },
+	{ SYS_DESC(SYS_PMXEVTYPER_EL0), access_pmu_evtyper },
+	{ SYS_DESC(SYS_PMXEVCNTR_EL0), access_pmu_evcntr },
+	/*
+	 * PMUSERENR_EL0 resets as unknown in 64bit mode while it resets as zero
 	 * in 32bit mode. Here we choose to reset it as zero for consistency.
 	 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1110), Op2(0b000),
-	  access_pmuserenr, reset_val, PMUSERENR_EL0, 0 },
-	/* PMOVSSET_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1001), CRm(0b1110), Op2(0b011),
-	  access_pmovs, reset_unknown, PMOVSSET_EL0 },
+	{ SYS_DESC(SYS_PMUSERENR_EL0), access_pmuserenr, reset_val, PMUSERENR_EL0, 0 },
+	{ SYS_DESC(SYS_PMOVSSET_EL0), access_pmovs, reset_unknown, PMOVSSET_EL0 },
 
-	/* TPIDR_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1101), CRm(0b0000), Op2(0b010),
-	  NULL, reset_unknown, TPIDR_EL0 },
-	/* TPIDRRO_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1101), CRm(0b0000), Op2(0b011),
-	  NULL, reset_unknown, TPIDRRO_EL0 },
+	{ SYS_DESC(SYS_TPIDR_EL0), NULL, reset_unknown, TPIDR_EL0 },
+	{ SYS_DESC(SYS_TPIDRRO_EL0), NULL, reset_unknown, TPIDRRO_EL0 },
 
-	/* CNTP_TVAL_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1110), CRm(0b0010), Op2(0b000),
-	  access_cntp_tval },
-	/* CNTP_CTL_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1110), CRm(0b0010), Op2(0b001),
-	  access_cntp_ctl },
-	/* CNTP_CVAL_EL0 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1110), CRm(0b0010), Op2(0b010),
-	  access_cntp_cval },
+	{ SYS_DESC(SYS_CNTP_TVAL_EL0), access_cntp_tval },
+	{ SYS_DESC(SYS_CNTP_CTL_EL0), access_cntp_ctl },
+	{ SYS_DESC(SYS_CNTP_CVAL_EL0), access_cntp_cval },
 
 	/* PMEVCNTRn_EL0 */
 	PMU_PMEVCNTR_EL0(0),
@@ -1172,22 +1052,15 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	PMU_PMEVTYPER_EL0(28),
 	PMU_PMEVTYPER_EL0(29),
 	PMU_PMEVTYPER_EL0(30),
-	/* PMCCFILTR_EL0
-	 * This register resets as unknown in 64bit mode while it resets as zero
+	/*
+	 * PMCCFILTR_EL0 resets as unknown in 64bit mode while it resets as zero
 	 * in 32bit mode. Here we choose to reset it as zero for consistency.
 	 */
-	{ Op0(0b11), Op1(0b011), CRn(0b1110), CRm(0b1111), Op2(0b111),
-	  access_pmu_evtyper, reset_val, PMCCFILTR_EL0, 0 },
+	{ SYS_DESC(SYS_PMCCFILTR_EL0), access_pmu_evtyper, reset_val, PMCCFILTR_EL0, 0 },
 
-	/* DACR32_EL2 */
-	{ Op0(0b11), Op1(0b100), CRn(0b0011), CRm(0b0000), Op2(0b000),
-	  NULL, reset_unknown, DACR32_EL2 },
-	/* IFSR32_EL2 */
-	{ Op0(0b11), Op1(0b100), CRn(0b0101), CRm(0b0000), Op2(0b001),
-	  NULL, reset_unknown, IFSR32_EL2 },
-	/* FPEXC32_EL2 */
-	{ Op0(0b11), Op1(0b100), CRn(0b0101), CRm(0b0011), Op2(0b000),
-	  NULL, reset_val, FPEXC32_EL2, 0x70 },
+	{ SYS_DESC(SYS_DACR32_EL2), NULL, reset_unknown, DACR32_EL2 },
+	{ SYS_DESC(SYS_IFSR32_EL2), NULL, reset_unknown, IFSR32_EL2 },
+	{ SYS_DESC(SYS_FPEXC32_EL2), NULL, reset_val, FPEXC32_EL2, 0x70 },
 };
 
 static bool trap_dbgidr(struct kvm_vcpu *vcpu,
@@ -1942,44 +1815,25 @@ FUNCTION_INVARIANT(aidr_el1)
 
 /* ->val is filled in by kvm_sys_reg_table_init() */
 static struct sys_reg_desc invariant_sys_regs[] = {
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0000), Op2(0b000),
-	  NULL, get_midr_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0000), Op2(0b110),
-	  NULL, get_revidr_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0001), Op2(0b000),
-	  NULL, get_id_pfr0_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0001), Op2(0b001),
-	  NULL, get_id_pfr1_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0001), Op2(0b010),
-	  NULL, get_id_dfr0_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0001), Op2(0b011),
-	  NULL, get_id_afr0_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0001), Op2(0b100),
-	  NULL, get_id_mmfr0_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0001), Op2(0b101),
-	  NULL, get_id_mmfr1_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0001), Op2(0b110),
-	  NULL, get_id_mmfr2_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0001), Op2(0b111),
-	  NULL, get_id_mmfr3_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b000),
-	  NULL, get_id_isar0_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b001),
-	  NULL, get_id_isar1_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b010),
-	  NULL, get_id_isar2_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b011),
-	  NULL, get_id_isar3_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b100),
-	  NULL, get_id_isar4_el1 },
-	{ Op0(0b11), Op1(0b000), CRn(0b0000), CRm(0b0010), Op2(0b101),
-	  NULL, get_id_isar5_el1 },
-	{ Op0(0b11), Op1(0b001), CRn(0b0000), CRm(0b0000), Op2(0b001),
-	  NULL, get_clidr_el1 },
-	{ Op0(0b11), Op1(0b001), CRn(0b0000), CRm(0b0000), Op2(0b111),
-	  NULL, get_aidr_el1 },
-	{ Op0(0b11), Op1(0b011), CRn(0b0000), CRm(0b0000), Op2(0b001),
-	  NULL, get_ctr_el0 },
+	{ SYS_DESC(SYS_MIDR_EL1), NULL, get_midr_el1 },
+	{ SYS_DESC(SYS_REVIDR_EL1), NULL, get_revidr_el1 },
+	{ SYS_DESC(SYS_ID_PFR0_EL1), NULL, get_id_pfr0_el1 },
+	{ SYS_DESC(SYS_ID_PFR1_EL1), NULL, get_id_pfr1_el1 },
+	{ SYS_DESC(SYS_ID_DFR0_EL1), NULL, get_id_dfr0_el1 },
+	{ SYS_DESC(SYS_ID_AFR0_EL1), NULL, get_id_afr0_el1 },
+	{ SYS_DESC(SYS_ID_MMFR0_EL1), NULL, get_id_mmfr0_el1 },
+	{ SYS_DESC(SYS_ID_MMFR1_EL1), NULL, get_id_mmfr1_el1 },
+	{ SYS_DESC(SYS_ID_MMFR2_EL1), NULL, get_id_mmfr2_el1 },
+	{ SYS_DESC(SYS_ID_MMFR3_EL1), NULL, get_id_mmfr3_el1 },
+	{ SYS_DESC(SYS_ID_ISAR0_EL1), NULL, get_id_isar0_el1 },
+	{ SYS_DESC(SYS_ID_ISAR1_EL1), NULL, get_id_isar1_el1 },
+	{ SYS_DESC(SYS_ID_ISAR2_EL1), NULL, get_id_isar2_el1 },
+	{ SYS_DESC(SYS_ID_ISAR3_EL1), NULL, get_id_isar3_el1 },
+	{ SYS_DESC(SYS_ID_ISAR4_EL1), NULL, get_id_isar4_el1 },
+	{ SYS_DESC(SYS_ID_ISAR5_EL1), NULL, get_id_isar5_el1 },
+	{ SYS_DESC(SYS_CLIDR_EL1), NULL, get_clidr_el1 },
+	{ SYS_DESC(SYS_AIDR_EL1), NULL, get_aidr_el1 },
+	{ SYS_DESC(SYS_CTR_EL0), NULL, get_ctr_el0 },
 };
 
 static int reg_from_user(u64 *val, const void __user *uaddr, u64 id)
