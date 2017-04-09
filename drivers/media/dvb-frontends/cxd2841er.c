@@ -3794,6 +3794,10 @@ static int cxd2841er_init_tc(struct dvb_frontend *fe)
 	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4,
 		((priv->flags & CXD2841ER_TS_SERIAL) ? 0x80 : 0x00), 0x80);
 
+	/* clear TSCFG bits 3+4 */
+	if (priv->flags & CXD2841ER_TSBITS)
+		cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xc4, 0x00, 0x18);
+
 	cxd2841er_init_stats(fe);
 
 	return 0;

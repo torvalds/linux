@@ -31,6 +31,7 @@
 #define CXD2841ER_EARLY_TUNE	16	/* bit 4 */
 #define CXD2841ER_NO_WAIT_LOCK	32	/* bit 5 */
 #define CXD2841ER_NO_AGCNEG	64	/* bit 6 */
+#define CXD2841ER_TSBITS	128	/* bit 7 */
 
 enum cxd2841er_xtal {
 	SONY_XTAL_20500, /* 20.5 MHz */
