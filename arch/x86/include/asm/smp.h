@@ -188,11 +188,7 @@ static inline int logical_smp_processor_id(void)
 extern int hard_smp_processor_id(void);
 
 #else /* CONFIG_X86_LOCAL_APIC */
-
-# ifndef CONFIG_SMP
-#  define hard_smp_processor_id()	0
-# endif
-
+#define hard_smp_processor_id()	0
 #endif /* CONFIG_X86_LOCAL_APIC */
 
 #ifdef CONFIG_DEBUG_NMI_SELFTEST
