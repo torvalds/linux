@@ -24,8 +24,7 @@
 
 	/*
 	 * We seem to have only 1021 MB accessible, 1021 - 1022 is locked,
-	 * then 1023 - 1024 seems to contain mbm. For SRAM, see the notes
-	 * below about SRAM and L3_ICLK2 being unused by default,
+	 * then 1023 - 1024 seems to contain mbm.
 	 */
 	memory {
 		device_type = "memory";
@@ -174,11 +173,6 @@
 			};
 		};
 	};
-};
-
-/* L3_2 interconnect is unused, SRAM, GPMC and L3_ICLK2 disabled */
-&gpmc {
-	status = "disabled";
 };
 
 &hdmi {
@@ -354,11 +348,6 @@
 		interrupt-names = "irq", "wakeup";
 		wakeup-source;
 	};
-};
-
-/* L3_2 interconnect is unused, SRAM, GPMC and L3_ICLK2 disabled */
-&ocmcram {
-	status = "disabled";
 };
 
 &omap4_pmx_core {
