@@ -141,8 +141,8 @@ static void dump_statx(struct statx *stx)
 	if (stx->stx_mask & STATX_BTIME)
 		print_time(" Birth: ", &stx->stx_btime);
 
-	if (stx->stx_attributes) {
-		unsigned char bits;
+	if (stx->stx_attributes_mask) {
+		unsigned char bits, mbits;
 		int loop, byte;
 
 		static char attr_representation[64 + 1] =
@@ -160,14 +160,18 @@ static void dump_statx(struct statx *stx)
 		printf("Attributes: %016llx (", stx->stx_attributes);
 		for (byte = 64 - 8; byte >= 0; byte -= 8) {
 			bits = stx->stx_attributes >> byte;
+			mbits = stx->stx_attributes_mask >> byte;
 			for (loop = 7; loop >= 0; loop--) {
 				int bit = byte + loop;
 
-				if (bits & 0x80)
+				if (!(mbits & 0x80))
+					putchar('.');	/* Not supported */
+				else if (bits & 0x80)
 					putchar(attr_representation[63 - bit]);
 				else
-					putchar('-');
+					putchar('-');	/* Not set */
 				bits <<= 1;
+				mbits <<= 1;
 			}
 			if (byte)
 				putchar(' ');
