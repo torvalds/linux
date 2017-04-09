@@ -214,10 +214,8 @@ static void cxd2841er_i2c_debug(struct cxd2841er_priv *priv,
 				const u8 *data, u32 len)
 {
 	dev_dbg(&priv->i2c->dev,
-		"cxd2841er: I2C %s addr %02x reg 0x%02x size %d\n",
-		(write == 0 ? "read" : "write"), addr, reg, len);
-	print_hex_dump_bytes("cxd2841er: I2C data: ",
-		DUMP_PREFIX_OFFSET, data, len);
+		"cxd2841er: I2C %s addr %02x reg 0x%02x size %d data %*ph\n",
+		(write == 0 ? "read" : "write"), addr, reg, len, len, data);
 }
 
 static int cxd2841er_write_regs(struct cxd2841er_priv *priv,
