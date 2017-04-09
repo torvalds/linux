@@ -7,6 +7,7 @@ config DVB_DDBRIDGE
 	select DVB_DRXK if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TDA18271C2DD if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STV0367 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_CXD2841ER if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_TDA18212 if MEDIA_SUBDRV_AUTOSELECT
 	---help---
 	  Support for cards with the Digital Devices PCI express bridge:
@@ -17,5 +18,6 @@ config DVB_DDBRIDGE
 	  - DuoFlex CT Octopus
 	  - cineS2(v6)
 	  - CineCTv6 and DuoFlex CT (STV0367-based)
+	  - DuoFlex CT2/C2T2/C2T2I (Sony CXD28xx-based)
 
 	  Say Y if you own such a card and want to use it.
