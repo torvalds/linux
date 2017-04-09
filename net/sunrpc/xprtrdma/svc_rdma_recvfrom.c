@@ -558,6 +558,56 @@ static void rdma_read_complete(struct svc_rqst *rqstp,
 	rqstp->rq_arg.buflen = head->arg.buflen;
 }
 
+static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
+				__be32 *rdma_argp, int status)
+{
+	struct svc_rdma_op_ctxt *ctxt;
+	__be32 *p, *err_msgp;
+	unsigned int length;
+	struct page *page;
+	int ret;
+
+	ret = svc_rdma_repost_recv(xprt, GFP_KERNEL);
+	if (ret)
+		return;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return;
+	err_msgp = page_address(page);
+
+	p = err_msgp;
+	*p++ = *rdma_argp;
+	*p++ = *(rdma_argp + 1);
+	*p++ = xprt->sc_fc_credits;
+	*p++ = rdma_error;
+	if (status == -EPROTONOSUPPORT) {
+		*p++ = err_vers;
+		*p++ = rpcrdma_version;
+		*p++ = rpcrdma_version;
+	} else {
+		*p++ = err_chunk;
+	}
+	length = (unsigned long)p - (unsigned long)err_msgp;
+
+	/* Map transport header; no RPC message payload */
+	ctxt = svc_rdma_get_context(xprt);
+	ret = svc_rdma_map_reply_hdr(xprt, ctxt, err_msgp, length);
+	if (ret) {
+		dprintk("svcrdma: Error %d mapping send for protocol error\n",
+			ret);
+		return;
+	}
+
+	ret = svc_rdma_post_send_wr(xprt, ctxt, 1, 0);
+	if (ret) {
+		dprintk("svcrdma: Error %d posting send for protocol error\n",
+			ret);
+		svc_rdma_unmap_dma(ctxt);
+		svc_rdma_put_context(ctxt, 1);
+	}
+}
+
 /* By convention, backchannel calls arrive via rdma_msg type
  * messages, and never populate the chunk lists. This makes
  * the RPC/RDMA header small and fixed in size, so it is
@@ -686,7 +736,7 @@ complete:
 	return ret;
 
 out_err:
-	svc_rdma_send_error(rdma_xprt, rmsgp, ret);
+	svc_rdma_send_error(rdma_xprt, &rmsgp->rm_xid, ret);
 	svc_rdma_put_context(ctxt, 0);
 	return 0;
 
