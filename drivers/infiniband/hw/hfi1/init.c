@@ -246,9 +246,10 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 			if (ctxt < kctxt_ngroups) {
 				base = ctxt * (dd->rcv_entries.ngroups + 1);
 				rcd->rcv_array_groups++;
-			} else
+			} else {
 				base = kctxt_ngroups +
 					(ctxt * dd->rcv_entries.ngroups);
+			}
 		} else {
 			u16 ct = ctxt - dd->first_dyn_alloc_ctxt;
 
@@ -257,9 +258,10 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 			if (ct < dd->rcv_entries.nctxt_extra) {
 				base += ct * (dd->rcv_entries.ngroups + 1);
 				rcd->rcv_array_groups++;
-			} else
+			} else {
 				base += dd->rcv_entries.nctxt_extra +
 					(ct * dd->rcv_entries.ngroups);
+			}
 		}
 		rcd->eager_base = base * dd->rcv_entries.group_size;
 
