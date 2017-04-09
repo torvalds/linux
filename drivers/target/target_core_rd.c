@@ -47,7 +47,7 @@ static int rd_attach_hba(struct se_hba *hba, u32 host_id)
 {
 	struct rd_host *rd_host;
 
-	rd_host = kzalloc(sizeof(struct rd_host), GFP_KERNEL);
+	rd_host = kzalloc(sizeof(*rd_host), GFP_KERNEL);
 	if (!rd_host)
 		return -ENOMEM;
 
@@ -285,7 +285,7 @@ static struct se_device *rd_alloc_device(struct se_hba *hba, const char *name)
 	struct rd_dev *rd_dev;
 	struct rd_host *rd_host = hba->hba_ptr;
 
-	rd_dev = kzalloc(sizeof(struct rd_dev), GFP_KERNEL);
+	rd_dev = kzalloc(sizeof(*rd_dev), GFP_KERNEL);
 	if (!rd_dev)
 		return NULL;
 
