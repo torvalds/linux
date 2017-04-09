@@ -25,6 +25,7 @@
 #include <linux/dvb/frontend.h>
 
 #define CXD2841ER_USE_GATECTRL	1
+#define CXD2841ER_AUTO_IFHZ	2
 
 enum cxd2841er_xtal {
 	SONY_XTAL_20500, /* 20.5 MHz */
