@@ -90,9 +90,9 @@ out_notfound:
  * Caller holds the connection's mutex and has already marshaled
  * the RPC/RDMA request.
  *
- * This is similar to svc_rdma_reply, but takes an rpc_rqst
- * instead, does not support chunks, and avoids blocking memory
- * allocation.
+ * This is similar to svc_rdma_send_reply_msg, but takes a struct
+ * rpc_rqst instead, does not support chunks, and avoids blocking
+ * memory allocation.
  *
  * XXX: There is still an opportunity to block in svc_rdma_send()
  * if there are no SQ entries to post the Send. This may occur if
