@@ -18,6 +18,7 @@ config DVB_DDBRIDGE
 	  - DuoFlex CT Octopus
 	  - cineS2(v6)
 	  - CineCTv6 and DuoFlex CT (STV0367-based)
-	  - DuoFlex CT2/C2T2/C2T2I (Sony CXD28xx-based)
+	  - CineCTv7 and DuoFlex CT2/C2T2/C2T2I (Sony CXD28xx-based)
+	  - MaxA8 series
 
 	  Say Y if you own such a card and want to use it.

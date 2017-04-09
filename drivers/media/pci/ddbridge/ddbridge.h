@@ -54,8 +54,9 @@
 
 struct ddb_info {
 	int   type;
-#define DDB_NONE         0
-#define DDB_OCTOPUS      1
+#define DDB_NONE		0
+#define DDB_OCTOPUS		1
+#define DDB_OCTOPUS_MAX_CT	6
 	char *name;
 	int   port_num;
 	u32   port_type[DDB_MAX_PORT];
