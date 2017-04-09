@@ -217,6 +217,49 @@ static u32 svc_rdma_get_inv_rkey(struct rpcrdma_msg *rdma_argp,
 	return 0;
 }
 
+static int svc_rdma_dma_map_page(struct svcxprt_rdma *rdma,
+				 struct svc_rdma_op_ctxt *ctxt,
+				 unsigned int sge_no,
+				 struct page *page,
+				 unsigned int offset,
+				 unsigned int len)
+{
+	struct ib_device *dev = rdma->sc_cm_id->device;
+	dma_addr_t dma_addr;
+
+	dma_addr = ib_dma_map_page(dev, page, offset, len, DMA_TO_DEVICE);
+	if (ib_dma_mapping_error(dev, dma_addr))
+		return -EIO;
+
+	ctxt->sge[sge_no].addr = dma_addr;
+	ctxt->sge[sge_no].length = len;
+	ctxt->sge[sge_no].lkey = rdma->sc_pd->local_dma_lkey;
+	svc_rdma_count_mappings(rdma, ctxt);
+	return 0;
+}
+
+/**
+ * svc_rdma_map_reply_hdr - DMA map the transport header buffer
+ * @rdma: controlling transport
+ * @ctxt: op_ctxt for the Send WR
+ * @rdma_resp: buffer containing transport header
+ * @len: length of transport header
+ *
+ * Returns:
+ *	%0 if the header is DMA mapped,
+ *	%-EIO if DMA mapping failed.
+ */
+int svc_rdma_map_reply_hdr(struct svcxprt_rdma *rdma,
+			   struct svc_rdma_op_ctxt *ctxt,
+			   __be32 *rdma_resp,
+			   unsigned int len)
+{
+	ctxt->direction = DMA_TO_DEVICE;
+	ctxt->pages[0] = virt_to_page(rdma_resp);
+	ctxt->count = 1;
+	return svc_rdma_dma_map_page(rdma, ctxt, 0, ctxt->pages[0], 0, len);
+}
+
 /* Assumptions:
  * - The specified write_len can be represented in sc_max_sge * PAGE_SIZE
  */
@@ -699,22 +742,14 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 		err = ERR_VERS;
 	length = svc_rdma_xdr_encode_error(xprt, rmsgp, err, va);
 
+	/* Map transport header; no RPC message payload */
 	ctxt = svc_rdma_get_context(xprt);
-	ctxt->direction = DMA_TO_DEVICE;
-	ctxt->count = 1;
-	ctxt->pages[0] = p;
-
-	/* Prepare SGE for local address */
-	ctxt->sge[0].lkey = xprt->sc_pd->local_dma_lkey;
-	ctxt->sge[0].length = length;
-	ctxt->sge[0].addr = ib_dma_map_page(xprt->sc_cm_id->device,
-					    p, 0, length, DMA_TO_DEVICE);
-	if (ib_dma_mapping_error(xprt->sc_cm_id->device, ctxt->sge[0].addr)) {
-		dprintk("svcrdma: Error mapping buffer for protocol error\n");
-		svc_rdma_put_context(ctxt, 1);
+	ret = svc_rdma_map_reply_hdr(xprt, ctxt, &rmsgp->rm_xid, length);
+	if (ret) {
+		dprintk("svcrdma: Error %d mapping send for protocol error\n",
+			ret);
 		return;
 	}
-	svc_rdma_count_mappings(xprt, ctxt);
 
 	ret = svc_rdma_post_send_wr(xprt, ctxt, 1, 0);
 	if (ret) {

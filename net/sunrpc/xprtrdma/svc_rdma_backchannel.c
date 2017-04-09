@@ -101,50 +101,36 @@ out_notfound:
 static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 			      struct rpc_rqst *rqst)
 {
-	struct xdr_buf *sndbuf = &rqst->rq_snd_buf;
 	struct svc_rdma_op_ctxt *ctxt;
-	struct svc_rdma_req_map *vec;
 	int ret;
 
-	vec = svc_rdma_get_req_map(rdma);
-	ret = svc_rdma_map_xdr(rdma, sndbuf, vec, false);
-	if (ret)
+	ctxt = svc_rdma_get_context(rdma);
+
+	/* rpcrdma_bc_send_request builds the transport header and
+	 * the backchannel RPC message in the same buffer. Thus only
+	 * one SGE is needed to send both.
+	 */
+	ret = svc_rdma_map_reply_hdr(rdma, ctxt, rqst->rq_buffer,
+				     rqst->rq_snd_buf.len);
+	if (ret < 0)
 		goto out_err;
 
 	ret = svc_rdma_repost_recv(rdma, GFP_NOIO);
 	if (ret)
 		goto out_err;
 
-	ctxt = svc_rdma_get_context(rdma);
-	ctxt->pages[0] = virt_to_page(rqst->rq_buffer);
-	ctxt->count = 1;
-
-	ctxt->direction = DMA_TO_DEVICE;
-	ctxt->sge[0].lkey = rdma->sc_pd->local_dma_lkey;
-	ctxt->sge[0].length = sndbuf->len;
-	ctxt->sge[0].addr =
-	    ib_dma_map_page(rdma->sc_cm_id->device, ctxt->pages[0], 0,
-			    sndbuf->len, DMA_TO_DEVICE);
-	if (ib_dma_mapping_error(rdma->sc_cm_id->device, ctxt->sge[0].addr)) {
-		ret = -EIO;
-		goto out_unmap;
-	}
-	svc_rdma_count_mappings(rdma, ctxt);
-
 	ret = svc_rdma_post_send_wr(rdma, ctxt, 1, 0);
-	if (ret) {
-		ret = -EIO;
+	if (ret)
 		goto out_unmap;
-	}
 
 out_err:
-	svc_rdma_put_req_map(rdma, vec);
 	dprintk("svcrdma: %s returns %d\n", __func__, ret);
 	return ret;
 
 out_unmap:
 	svc_rdma_unmap_dma(ctxt);
 	svc_rdma_put_context(ctxt, 1);
+	ret = -EIO;
 	goto out_err;
 }
 
