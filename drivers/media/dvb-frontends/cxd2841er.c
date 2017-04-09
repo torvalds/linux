@@ -3460,6 +3460,10 @@ static int cxd2841er_set_frontend_tc(struct dvb_frontend *fe)
 		cxd2841er_tuner_set(fe);
 
 	cxd2841er_tune_done(priv);
+
+	if (priv->flags & CXD2841ER_NO_WAIT_LOCK)
+		goto done;
+
 	timeout = 2500;
 	while (timeout > 0) {
 		ret = cxd2841er_read_status_tc(fe, &status);
