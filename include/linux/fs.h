@@ -29,7 +29,6 @@
 #include <linux/lockdep.h>
 #include <linux/percpu-rwsem.h>
 #include <linux/workqueue.h>
-#include <linux/percpu-rwsem.h>
 #include <linux/delayed_call.h>
 
 #include <asm/byteorder.h>
