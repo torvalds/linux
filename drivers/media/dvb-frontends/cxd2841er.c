@@ -3733,16 +3733,39 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 		priv->i2c_addr_slvx, priv->i2c_addr_slvt);
 	chip_id = cxd2841er_chip_id(priv);
 	switch (chip_id) {
+	case CXD2837ER_CHIP_ID:
+		snprintf(cxd2841er_t_c_ops.info.name, 128,
+				"Sony CXD2837ER DVB-T/T2/C demodulator");
+		name = "CXD2837ER";
+		type = "C/T/T2";
+		break;
+	case CXD2838ER_CHIP_ID:
+		snprintf(cxd2841er_t_c_ops.info.name, 128,
+				"Sony CXD2838ER ISDB-T demodulator");
+		cxd2841er_t_c_ops.delsys[0] = SYS_ISDBT;
+		cxd2841er_t_c_ops.delsys[1] = SYS_UNDEFINED;
+		cxd2841er_t_c_ops.delsys[2] = SYS_UNDEFINED;
+		name = "CXD2838ER";
+		type = "ISDB-T";
+		break;
 	case CXD2841ER_CHIP_ID:
 		snprintf(cxd2841er_t_c_ops.info.name, 128,
 				"Sony CXD2841ER DVB-T/T2/C demodulator");
 		name = "CXD2841ER";
+		type = "T/T2/C/ISDB-T";
+		break;
+	case CXD2843ER_CHIP_ID:
+		snprintf(cxd2841er_t_c_ops.info.name, 128,
+				"Sony CXD2843ER DVB-T/T2/C/C2 demodulator");
+		name = "CXD2843ER";
+		type = "C/C2/T/T2";
 		break;
 	case CXD2854ER_CHIP_ID:
 		snprintf(cxd2841er_t_c_ops.info.name, 128,
 				"Sony CXD2854ER DVB-T/T2/C and ISDB-T demodulator");
 		cxd2841er_t_c_ops.delsys[3] = SYS_ISDBT;
 		name = "CXD2854ER";
+		type = "C/C2/T/T2/ISDB-T";
 		break;
 	default:
 		dev_err(&priv->i2c->dev, "%s(): invalid chip ID 0x%02x\n",
@@ -3762,7 +3785,6 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 		memcpy(&priv->frontend.ops,
 			&cxd2841er_t_c_ops,
 			sizeof(struct dvb_frontend_ops));
-		type = "T/T2/C/ISDB-T";
 	}
 
 	dev_info(&priv->i2c->dev,
