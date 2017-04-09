@@ -291,7 +291,7 @@ static int hp_wmi_tablet_state(void)
 	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, &state,
 				       sizeof(state), sizeof(state));
 	if (ret)
-		return ret;
+		return -EINVAL;
 
 	return (state & 0x4) ? 1 : 0;
 }
