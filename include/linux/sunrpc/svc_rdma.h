@@ -96,23 +96,6 @@ struct svc_rdma_op_ctxt {
 	struct page *pages[RPCSVC_MAXPAGES];
 };
 
-/*
- * NFS_ requests are mapped on the client side by the chunk lists in
- * the RPCRDMA header. During the fetching of the RPC from the client
- * and the writing of the reply to the client, the memory in the
- * client and the memory in the server must be mapped as contiguous
- * vaddr/len for access by the hardware. These data strucures keep
- * these mappings.
- *
- * For an RDMA_WRITE, the 'sge' maps the RPC REPLY. For RDMA_READ, the
- * 'sge' in the svc_rdma_req_map maps the server side RPC reply and the
- * 'ch' field maps the read-list of the RPCRDMA header to the 'sge'
- * mapping of the reply.
- */
-struct svc_rdma_chunk_sge {
-	int start;		/* sge no for this chunk */
-	int count;		/* sge count for this chunk */
-};
 struct svc_rdma_fastreg_mr {
 	struct ib_mr *mr;
 	struct scatterlist *sg;
@@ -121,15 +104,7 @@ struct svc_rdma_fastreg_mr {
 	enum dma_data_direction direction;
 	struct list_head frmr_list;
 };
-struct svc_rdma_req_map {
-	struct list_head free;
-	unsigned long count;
-	union {
-		struct kvec sge[RPCSVC_MAXPAGES];
-		struct svc_rdma_chunk_sge ch[RPCSVC_MAXPAGES];
-		unsigned long lkey[RPCSVC_MAXPAGES];
-	};
-};
+
 #define RDMACTXT_F_LAST_CTXT	2
 
 #define	SVCRDMA_DEVCAP_FAST_REG		1	/* fast mr registration */
@@ -160,8 +135,6 @@ struct svcxprt_rdma {
 	int		     sc_ctxt_used;
 	spinlock_t	     sc_rw_ctxt_lock;
 	struct list_head     sc_rw_ctxts;
-	spinlock_t	     sc_map_lock;
-	struct list_head     sc_maps;
 
 	struct list_head     sc_rq_dto_q;
 	spinlock_t	     sc_rq_dto_lock;
@@ -237,8 +210,6 @@ extern int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 				     struct xdr_buf *xdr);
 
 /* svc_rdma_sendto.c */
-extern int svc_rdma_map_xdr(struct svcxprt_rdma *, struct xdr_buf *,
-			    struct svc_rdma_req_map *, bool);
 extern int svc_rdma_map_reply_hdr(struct svcxprt_rdma *rdma,
 				  struct svc_rdma_op_ctxt *ctxt,
 				  __be32 *rdma_resp, unsigned int len);
@@ -259,9 +230,6 @@ extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
 extern struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *);
 extern void svc_rdma_put_context(struct svc_rdma_op_ctxt *, int);
 extern void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt);
-extern struct svc_rdma_req_map *svc_rdma_get_req_map(struct svcxprt_rdma *);
-extern void svc_rdma_put_req_map(struct svcxprt_rdma *,
-				 struct svc_rdma_req_map *);
 extern struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *);
 extern void svc_rdma_put_frmr(struct svcxprt_rdma *,
 			      struct svc_rdma_fastreg_mr *);
