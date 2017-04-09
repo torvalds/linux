@@ -604,7 +604,7 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 
 		if (lnh != HFI1_LRH_GRH)
 			goto drop;
-		mcast = rvt_mcast_find(&ibp->rvp, &hdr->u.l.grh.dgid);
+		mcast = rvt_mcast_find(&ibp->rvp, &hdr->u.l.grh.dgid, lid);
 		if (!mcast)
 			goto drop;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list) {

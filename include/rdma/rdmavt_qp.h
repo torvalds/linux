@@ -435,9 +435,14 @@ struct rvt_mcast_qp {
 	struct rvt_qp *qp;
 };
 
+struct rvt_mcast_addr {
+	union ib_gid mgid;
+	u16 lid;
+};
+
 struct rvt_mcast {
 	struct rb_node rb_node;
-	union ib_gid mgid;
+	struct rvt_mcast_addr mcast_addr;
 	struct list_head qp_list;
 	wait_queue_head_t wait;
 	atomic_t refcount;
