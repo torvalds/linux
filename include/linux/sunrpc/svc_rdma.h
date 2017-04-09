@@ -204,7 +204,7 @@ static inline void svc_rdma_count_mappings(struct svcxprt_rdma *rdma,
 
 /* svc_rdma_backchannel.c */
 extern int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt,
-				    struct rpcrdma_msg *rmsgp,
+				    __be32 *rdma_resp,
 				    struct xdr_buf *rcvbuf);
 
 /* svc_rdma_marshal.c */

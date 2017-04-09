@@ -613,28 +613,30 @@ static void svc_rdma_send_error(struct svcxprt_rdma *xprt,
  * the RPC/RDMA header small and fixed in size, so it is
  * straightforward to check the RPC header's direction field.
  */
-static bool
-svc_rdma_is_backchannel_reply(struct svc_xprt *xprt, struct rpcrdma_msg *rmsgp)
+static bool svc_rdma_is_backchannel_reply(struct svc_xprt *xprt,
+					  __be32 *rdma_resp)
 {
-	__be32 *p = (__be32 *)rmsgp;
+	__be32 *p;
 
 	if (!xprt->xpt_bc_xprt)
 		return false;
 
-	if (rmsgp->rm_type != rdma_msg)
-		return false;
-	if (rmsgp->rm_body.rm_chunks[0] != xdr_zero)
-		return false;
-	if (rmsgp->rm_body.rm_chunks[1] != xdr_zero)
-		return false;
-	if (rmsgp->rm_body.rm_chunks[2] != xdr_zero)
+	p = rdma_resp + 3;
+	if (*p++ != rdma_msg)
 		return false;
 
-	/* sanity */
-	if (p[7] != rmsgp->rm_xid)
+	if (*p++ != xdr_zero)
+		return false;
+	if (*p++ != xdr_zero)
+		return false;
+	if (*p++ != xdr_zero)
+		return false;
+
+	/* XID sanity */
+	if (*p++ != *rdma_resp)
 		return false;
 	/* call direction */
-	if (p[8] == cpu_to_be32(RPC_CALL))
+	if (*p == cpu_to_be32(RPC_CALL))
 		return false;
 
 	return true;
@@ -700,8 +702,9 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 		goto out_drop;
 	rqstp->rq_xprt_hlen = ret;
 
-	if (svc_rdma_is_backchannel_reply(xprt, rmsgp)) {
-		ret = svc_rdma_handle_bc_reply(xprt->xpt_bc_xprt, rmsgp,
+	if (svc_rdma_is_backchannel_reply(xprt, &rmsgp->rm_xid)) {
+		ret = svc_rdma_handle_bc_reply(xprt->xpt_bc_xprt,
+					       &rmsgp->rm_xid,
 					       &rqstp->rq_arg);
 		svc_rdma_put_context(ctxt, 0);
 		if (ret)
