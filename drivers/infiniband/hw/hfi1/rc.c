@@ -1930,7 +1930,8 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	int diff;
 	struct ib_reth *reth;
 	unsigned long flags;
-	int ret, is_fecn = 0;
+	int ret;
+	bool is_fecn = false;
 	bool copy_last = false;
 	u32 rkey;
 

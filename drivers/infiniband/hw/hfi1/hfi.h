@@ -1660,7 +1660,7 @@ static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
 	bth1 = be32_to_cpu(ohdr->bth[1]);
 	if (unlikely(bth1 & (IB_BECN_SMASK | IB_FECN_SMASK))) {
 		hfi1_process_ecn_slowpath(qp, pkt, do_cnp);
-		return bth1 & IB_FECN_SMASK;
+		return !!(bth1 & IB_FECN_SMASK);
 	}
 	return false;
 }
