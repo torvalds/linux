@@ -275,10 +275,8 @@ static void poll_health(unsigned long data)
 	struct mlx5_core_health *health = &dev->priv.health;
 	u32 count;
 
-	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
-		mod_timer(&health->timer, get_next_poll_jiffies());
-		return;
-	}
+	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
+		goto out;
 
 	count = ioread32be(health->health_counter);
 	if (count == health->prev)
@@ -290,8 +288,6 @@ static void poll_health(unsigned long data)
 	if (health->miss_counter == MAX_MISSES) {
 		dev_err(&dev->pdev->dev, "device's health compromised - reached miss count\n");
 		print_health_info(dev);
-	} else {
-		mod_timer(&health->timer, get_next_poll_jiffies());
 	}
 
 	if (in_fatal(dev) && !health->sick) {
@@ -305,6 +301,9 @@ static void poll_health(unsigned long data)
 				"new health works are not permitted at this stage\n");
 		spin_unlock(&health->wq_lock);
 	}
+
+out:
+	mod_timer(&health->timer, get_next_poll_jiffies());
 }
 
 void mlx5_start_health_poll(struct mlx5_core_dev *dev)
