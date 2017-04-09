@@ -4043,9 +4043,7 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	INIT_LIST_HEAD(&btv->capture);
 	INIT_LIST_HEAD(&btv->vcapture);
 
-	init_timer(&btv->timeout);
-	btv->timeout.function = bttv_irq_timeout;
-	btv->timeout.data     = (unsigned long)btv;
+	setup_timer(&btv->timeout, bttv_irq_timeout, (unsigned long)btv);
 
 	btv->i2c_rc = -1;
 	btv->tuner_type  = UNSET;
