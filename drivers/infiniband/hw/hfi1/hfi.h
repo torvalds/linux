@@ -1307,7 +1307,16 @@ int hfi1_reset_device(int);
 /* return the driver's idea of the logical OPA port state */
 static inline u32 driver_lstate(struct hfi1_pportdata *ppd)
 {
-	return ppd->lstate; /* use the cached value */
+	/*
+	 * The driver does some processing from the time the logical
+	 * link state is at INIT to the time the SM can be notified
+	 * as such. Return IB_PORT_DOWN until the software state
+	 * is ready.
+	 */
+	if (ppd->lstate == IB_PORT_INIT && !(ppd->host_link_state & HLS_UP))
+		return IB_PORT_DOWN;
+	else
+		return ppd->lstate;
 }
 
 void receive_interrupt_work(struct work_struct *work);

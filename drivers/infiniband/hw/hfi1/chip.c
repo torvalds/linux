@@ -7323,15 +7323,6 @@ void handle_verify_cap(struct work_struct *work)
 	lcb_shutdown(dd, 0);
 	adjust_lcb_for_fpga_serdes(dd);
 
-	/*
-	 * These are now valid:
-	 *	remote VerifyCap fields in the general LNI config
-	 *	CSR DC8051_STS_REMOTE_GUID
-	 *	CSR DC8051_STS_REMOTE_NODE_TYPE
-	 *	CSR DC8051_STS_REMOTE_FM_SECURITY
-	 *	CSR DC8051_STS_REMOTE_PORT_NO
-	 */
-
 	read_vc_remote_phy(dd, &power_management, &continious);
 	read_vc_remote_fabric(dd, &vau, &z, &vcu, &vl15buf,
 			      &partner_supported_crc);
@@ -7462,20 +7453,6 @@ void handle_verify_cap(struct work_struct *work)
 	write_csr(dd, DC_LCB_ERR_EN, 0); /* mask LCB errors */
 	set_8051_lcb_access(dd);
 
-	ppd->neighbor_guid =
-		read_csr(dd, DC_DC8051_STS_REMOTE_GUID);
-	ppd->neighbor_port_number = read_csr(dd, DC_DC8051_STS_REMOTE_PORT_NO) &
-					DC_DC8051_STS_REMOTE_PORT_NO_VAL_SMASK;
-	ppd->neighbor_type =
-		read_csr(dd, DC_DC8051_STS_REMOTE_NODE_TYPE) &
-		DC_DC8051_STS_REMOTE_NODE_TYPE_VAL_MASK;
-	ppd->neighbor_fm_security =
-		read_csr(dd, DC_DC8051_STS_REMOTE_FM_SECURITY) &
-		DC_DC8051_STS_LOCAL_FM_SECURITY_DISABLED_MASK;
-	dd_dev_info(dd,
-		    "Neighbor Guid: %llx Neighbor type %d MgmtAllowed %d FM security bypass %d\n",
-		    ppd->neighbor_guid, ppd->neighbor_type,
-		    ppd->mgmt_allowed, ppd->neighbor_fm_security);
 	if (ppd->mgmt_allowed)
 		add_full_mgmt_pkey(ppd);
 
@@ -10535,11 +10512,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			goto unexpected;
 		}
 
-		ppd->host_link_state = HLS_UP_INIT;
 		ret = wait_logical_linkstate(ppd, IB_PORT_INIT, 1000);
 		if (ret) {
-			/* logical state didn't change, stay at going_up */
-			ppd->host_link_state = HLS_GOING_UP;
 			dd_dev_err(dd,
 				   "%s: logical state did not change to INIT\n",
 				   __func__);
@@ -10553,6 +10527,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			add_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
 
 			handle_linkup_change(dd, 1);
+			ppd->host_link_state = HLS_UP_INIT;
 		}
 		break;
 	case HLS_UP_ARMED:
