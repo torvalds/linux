@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -1474,25 +1474,15 @@ static int __subn_set_opa_pkeytable(struct opa_smp *smp, u32 am, u8 *data,
 	return __subn_get_opa_pkeytable(smp, am, data, ibdev, port, resp_len);
 }
 
-static int get_sc2vlt_tables(struct hfi1_devdata *dd, void *data)
-{
-	u64 *val = data;
-
-	*val++ = read_csr(dd, SEND_SC2VLT0);
-	*val++ = read_csr(dd, SEND_SC2VLT1);
-	*val++ = read_csr(dd, SEND_SC2VLT2);
-	*val++ = read_csr(dd, SEND_SC2VLT3);
-	return 0;
-}
-
 #define ILLEGAL_VL 12
 /*
  * filter_sc2vlt changes mappings to VL15 to ILLEGAL_VL (except
  * for SC15, which must map to VL15). If we don't remap things this
  * way it is possible for VL15 counters to increment when we try to
  * send on a SC which is mapped to an invalid VL.
+ * When getting the table convert ILLEGAL_VL back to VL15.
  */
-static void filter_sc2vlt(void *data)
+static void filter_sc2vlt(void *data, bool set)
 {
 	int i;
 	u8 *pd = data;
@@ -1500,8 +1490,14 @@ static void filter_sc2vlt(void *data)
 	for (i = 0; i < OPA_MAX_SCS; i++) {
 		if (i == 15)
 			continue;
-		if ((pd[i] & 0x1f) == 0xf)
-			pd[i] = ILLEGAL_VL;
+
+		if (set) {
+			if ((pd[i] & 0x1f) == 0xf)
+				pd[i] = ILLEGAL_VL;
+		} else {
+			if ((pd[i] & 0x1f) == ILLEGAL_VL)
+				pd[i] = 0xf;
+		}
 	}
 }
 
@@ -1509,7 +1505,7 @@ static int set_sc2vlt_tables(struct hfi1_devdata *dd, void *data)
 {
 	u64 *val = data;
 
-	filter_sc2vlt(data);
+	filter_sc2vlt(data, true);
 
 	write_csr(dd, SEND_SC2VLT0, *val++);
 	write_csr(dd, SEND_SC2VLT1, *val++);
@@ -1518,6 +1514,19 @@ static int set_sc2vlt_tables(struct hfi1_devdata *dd, void *data)
 	write_seqlock_irq(&dd->sc2vl_lock);
 	memcpy(dd->sc2vl, data, sizeof(dd->sc2vl));
 	write_sequnlock_irq(&dd->sc2vl_lock);
+	return 0;
+}
+
+static int get_sc2vlt_tables(struct hfi1_devdata *dd, void *data)
+{
+	u64 *val = (u64 *)data;
+
+	*val++ = read_csr(dd, SEND_SC2VLT0);
+	*val++ = read_csr(dd, SEND_SC2VLT1);
+	*val++ = read_csr(dd, SEND_SC2VLT2);
+	*val++ = read_csr(dd, SEND_SC2VLT3);
+
+	filter_sc2vlt((u64 *)data, false);
 	return 0;
 }
 
