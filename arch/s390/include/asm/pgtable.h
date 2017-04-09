@@ -1051,6 +1051,8 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 {
 	if (!MACHINE_HAS_NX)
 		pte_val(entry) &= ~_PAGE_NOEXEC;
+	if (pte_present(entry))
+		pte_val(entry) &= ~_PAGE_UNUSED;
 	if (mm_has_pgste(mm))
 		ptep_set_pte_at(mm, addr, ptep, entry);
 	else
