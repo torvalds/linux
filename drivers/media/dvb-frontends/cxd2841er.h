@@ -27,6 +27,7 @@
 #define CXD2841ER_USE_GATECTRL	1	/* bit 0 */
 #define CXD2841ER_AUTO_IFHZ	2	/* bit 1 */
 #define CXD2841ER_TS_SERIAL	4	/* bit 2 */
+#define CXD2841ER_ASCOT		8	/* bit 3 */
 
 enum cxd2841er_xtal {
 	SONY_XTAL_20500, /* 20.5 MHz */
