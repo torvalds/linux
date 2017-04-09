@@ -398,7 +398,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			u16 rlid;
 			u8 svc_type, sl, sc5;
 
-			sc5 = hdr2sc(rhdr, packet->rhf);
+			sc5 = hfi1_9B_get_sc5(rhdr, packet->rhf);
 			sl = ibp->sc_to_sl[sc5];
 
 			lqpn = be32_to_cpu(bth[1]) & RVT_QPN_MASK;
@@ -493,7 +493,7 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 		return;
 	}
 
-	sc = hdr2sc(hdr, pkt->rhf);
+	sc = hfi1_9B_get_sc5(hdr, pkt->rhf);
 
 	bth1 = be32_to_cpu(ohdr->bth[1]);
 	if (do_cnp && (bth1 & HFI1_FECN_SMASK)) {
@@ -937,7 +937,8 @@ static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
 						   packet->rhf_addr);
 	u8 etype = rhf_rcv_type(packet->rhf);
 
-	if (etype == RHF_RCV_TYPE_IB && hdr2sc(hdr, packet->rhf) != 0xf) {
+	if (etype == RHF_RCV_TYPE_IB &&
+	    hfi1_9B_get_sc5(hdr, packet->rhf) != 0xf) {
 		int hwstate = read_logical_state(dd);
 
 		if (hwstate != LSTATE_ACTIVE) {

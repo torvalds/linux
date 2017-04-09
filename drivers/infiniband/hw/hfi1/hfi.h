@@ -1312,7 +1312,7 @@ static inline u32 driver_lstate(struct hfi1_pportdata *ppd)
 void receive_interrupt_work(struct work_struct *work);
 
 /* extract service channel from header and rhf */
-static inline int hdr2sc(struct ib_header *hdr, u64 rhf)
+static inline int hfi1_9B_get_sc5(struct ib_header *hdr, u64 rhf)
 {
 	return ((be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf) |
 	       ((!!(rhf_dc_info(rhf))) << 4);
