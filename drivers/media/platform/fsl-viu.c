@@ -1466,9 +1466,8 @@ static int viu_of_probe(struct platform_device *op)
 	viu_dev->decoder = v4l2_i2c_new_subdev(&viu_dev->v4l2_dev, ad,
 			"saa7113", VIU_VIDEO_DECODER_ADDR, NULL);
 
-	viu_dev->vidq.timeout.function = viu_vid_timeout;
-	viu_dev->vidq.timeout.data     = (unsigned long)viu_dev;
-	init_timer(&viu_dev->vidq.timeout);
+	setup_timer(&viu_dev->vidq.timeout, viu_vid_timeout,
+		    (unsigned long)viu_dev);
 	viu_dev->std = V4L2_STD_NTSC_M;
 	viu_dev->first = 1;
 
