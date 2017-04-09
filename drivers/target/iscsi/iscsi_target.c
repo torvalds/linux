@@ -128,7 +128,7 @@ struct iscsi_tiqn *iscsit_add_tiqn(unsigned char *buf)
 		return ERR_PTR(-EINVAL);
 	}
 
-	tiqn = kzalloc(sizeof(struct iscsi_tiqn), GFP_KERNEL);
+	tiqn = kzalloc(sizeof(*tiqn), GFP_KERNEL);
 	if (!tiqn)
 		return ERR_PTR(-ENOMEM);
 
@@ -360,7 +360,7 @@ struct iscsi_np *iscsit_add_np(
 		return np;
 	}
 
-	np = kzalloc(sizeof(struct iscsi_np), GFP_KERNEL);
+	np = kzalloc(sizeof(*np), GFP_KERNEL);
 	if (!np) {
 		mutex_unlock(&np_lock);
 		return ERR_PTR(-ENOMEM);
@@ -693,8 +693,7 @@ static int __init iscsi_target_init_module(void)
 	int ret = 0, size;
 
 	pr_debug("iSCSI-Target "ISCSIT_VERSION"\n");
-
-	iscsit_global = kzalloc(sizeof(struct iscsit_global), GFP_KERNEL);
+	iscsit_global = kzalloc(sizeof(*iscsit_global), GFP_KERNEL);
 	if (!iscsit_global)
 		return -1;
 
@@ -1986,8 +1985,7 @@ iscsit_handle_task_mgt_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 		hdr->refcmdsn = cpu_to_be32(ISCSI_RESERVED_TAG);
 
 	cmd->data_direction = DMA_NONE;
-
-	cmd->tmr_req = kzalloc(sizeof(struct iscsi_tmr_req), GFP_KERNEL);
+	cmd->tmr_req = kzalloc(sizeof(*cmd->tmr_req), GFP_KERNEL);
 	if (!cmd->tmr_req)
 		return iscsit_add_reject_cmd(cmd,
 					     ISCSI_REASON_BOOKMARK_NO_RESOURCES,
