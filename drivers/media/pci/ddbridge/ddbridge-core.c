@@ -1764,6 +1764,19 @@ static int ddb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ddbwritel(0xfff0f, INTERRUPT_ENABLE);
 	ddbwritel(0, MSI1_ENABLE);
 
+	/* board control */
+	if (dev->info->board_control) {
+		ddbwritel(0, DDB_LINK_TAG(0) | BOARD_CONTROL);
+		msleep(100);
+		ddbwritel(dev->info->board_control_2,
+			DDB_LINK_TAG(0) | BOARD_CONTROL);
+		usleep_range(2000, 3000);
+		ddbwritel(dev->info->board_control_2
+			| dev->info->board_control,
+			DDB_LINK_TAG(0) | BOARD_CONTROL);
+		usleep_range(2000, 3000);
+	}
+
 	if (ddb_i2c_init(dev) < 0)
 		goto fail1;
 	ddb_ports_init(dev);
