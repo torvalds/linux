@@ -282,17 +282,8 @@ static int cxd2841er_read_regs(struct cxd2841er_priv *priv,
 		}
 	};
 
-	ret = i2c_transfer(priv->i2c, &msg[0], 1);
-	if (ret >= 0 && ret != 1)
-		ret = -EIO;
-	if (ret < 0) {
-		dev_warn(&priv->i2c->dev,
-			"%s: i2c rw failed=%d addr=%02x reg=%02x\n",
-			KBUILD_MODNAME, ret, i2c_addr, reg);
-		return ret;
-	}
-	ret = i2c_transfer(priv->i2c, &msg[1], 1);
-	if (ret >= 0 && ret != 1)
+	ret = i2c_transfer(priv->i2c, msg, 2);
+	if (ret >= 0 && ret != 2)
 		ret = -EIO;
 	if (ret < 0) {
 		dev_warn(&priv->i2c->dev,
