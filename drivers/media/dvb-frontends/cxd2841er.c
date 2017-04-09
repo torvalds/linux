@@ -38,6 +38,8 @@
 #define MAX_WRITE_REGSIZE	16
 #define LOG2_E_100X 144
 
+#define INTLOG10X100(x) ((u32) (((u64) intlog10(x) * 100) >> 24))
+
 /* DVB-C constellation */
 enum sony_dvbc_constellation_t {
 	SONY_DVBC_CONSTELLATION_16QAM,
@@ -1817,7 +1819,7 @@ static int cxd2841er_read_snr_t(struct cxd2841er_priv *priv, u32 *snr)
 	}
 	if (reg > 4996)
 		reg = 4996;
-	*snr = 10000 * ((intlog10(reg) - intlog10(5350 - reg)) >> 24) + 28500;
+	*snr = 100 * ((INTLOG10X100(reg) - INTLOG10X100(5350 - reg)) + 285);
 	return 0;
 }
 
@@ -1846,8 +1848,7 @@ static int cxd2841er_read_snr_t2(struct cxd2841er_priv *priv, u32 *snr)
 	}
 	if (reg > 10876)
 		reg = 10876;
-	*snr = 10000 * ((intlog10(reg) -
-		intlog10(12600 - reg)) >> 24) + 32000;
+	*snr = 100 * ((INTLOG10X100(reg) - INTLOG10X100(12600 - reg)) + 320);
 	return 0;
 }
 
