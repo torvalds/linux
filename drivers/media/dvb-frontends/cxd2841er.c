@@ -65,6 +65,7 @@ struct cxd2841er_priv {
 	u8				system;
 	enum cxd2841er_xtal		xtal;
 	enum fe_caps caps;
+	u32				flags;
 };
 
 static const struct cxd2841er_cnr_data s_cn_data[] = {
@@ -3736,6 +3737,7 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 	priv->i2c_addr_slvx = (cfg->i2c_addr + 4) >> 1;
 	priv->i2c_addr_slvt = (cfg->i2c_addr) >> 1;
 	priv->xtal = cfg->xtal;
+	priv->flags = cfg->flags;
 	priv->frontend.demodulator_priv = priv;
 	dev_info(&priv->i2c->dev,
 		"%s(): I2C adapter %p SLVX addr %x SLVT addr %x\n",
