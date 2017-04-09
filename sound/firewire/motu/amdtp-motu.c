@@ -280,6 +280,21 @@ static void copy_sph(u32 *frames, __be32 *buffer, unsigned int data_blocks,
 	}
 }
 
+/* For tracepoints. */
+static void copy_message(u64 *frames, __be32 *buffer, unsigned int data_blocks,
+			 unsigned int data_block_quadlets)
+{
+	unsigned int i;
+
+	/* This is just for v2/v3 protocol. */
+	for (i = 0; i < data_blocks; ++i) {
+		*frames = (be32_to_cpu(buffer[1]) << 16) |
+			  (be32_to_cpu(buffer[2]) >> 16);
+		buffer += data_block_quadlets;
+		frames++;
+	}
+}
+
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 				__be32 *buffer, unsigned int data_blocks,
 				unsigned int *syt)
@@ -288,6 +303,7 @@ static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 	struct snd_pcm_substream *pcm;
 
 	trace_in_data_block_sph(s, data_blocks, buffer);
+	trace_in_data_block_message(s, data_blocks, buffer);
 
 	if (p->midi_ports)
 		read_midi_messages(s, buffer, data_blocks);
@@ -365,6 +381,7 @@ static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
 	write_sph(s, buffer, data_blocks);
 
 	trace_out_data_block_sph(s, data_blocks, buffer);
+	trace_out_data_block_message(s, data_blocks, buffer);
 
 	return data_blocks;
 }

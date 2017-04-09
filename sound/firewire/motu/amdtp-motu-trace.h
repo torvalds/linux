@@ -15,6 +15,8 @@
 
 static void copy_sph(u32 *frame, __be32 *buffer, unsigned int data_blocks,
 		     unsigned int data_block_quadlets);
+static void copy_message(u64 *frames, __be32 *buffer, unsigned int data_blocks,
+			 unsigned int data_block_quadlets);
 
 TRACE_EVENT(in_data_block_sph,
 	TP_PROTO(struct amdtp_stream *s, unsigned int data_blocks, __be32 *buffer),
@@ -61,6 +63,54 @@ TRACE_EVENT(out_data_block_sph,
 		__entry->dst,
 		__entry->data_blocks,
 		__print_array(__get_dynamic_array(tstamps), __entry->data_blocks, 4)
+	)
+);
+
+TRACE_EVENT(in_data_block_message,
+	TP_PROTO(struct amdtp_stream *s, unsigned int data_blocks, __be32 *buffer),
+	TP_ARGS(s, data_blocks, buffer),
+	TP_STRUCT__entry(
+		__field(int, src)
+		__field(int, dst)
+		__field(unsigned int, data_blocks)
+		__dynamic_array(u64, messages, data_blocks)
+	),
+	TP_fast_assign(
+		__entry->src = fw_parent_device(s->unit)->node_id;
+		__entry->dst = fw_parent_device(s->unit)->card->node_id;
+		__entry->data_blocks = data_blocks;
+		copy_message(__get_dynamic_array(messages), buffer, data_blocks, s->data_block_quadlets);
+	),
+	TP_printk(
+		"%04x %04x %u %s",
+		__entry->src,
+		__entry->dst,
+		__entry->data_blocks,
+		__print_array(__get_dynamic_array(messages), __entry->data_blocks, 8)
+	)
+);
+
+TRACE_EVENT(out_data_block_message,
+	TP_PROTO(struct amdtp_stream *s, unsigned int data_blocks, __be32 *buffer),
+	TP_ARGS(s, data_blocks, buffer),
+	TP_STRUCT__entry(
+		__field(int, src)
+		__field(int, dst)
+		__field(unsigned int, data_blocks)
+		__dynamic_array(u64, messages, data_blocks)
+	),
+	TP_fast_assign(
+		__entry->src = fw_parent_device(s->unit)->card->node_id;
+		__entry->dst = fw_parent_device(s->unit)->node_id;
+		__entry->data_blocks = data_blocks;
+		copy_message(__get_dynamic_array(messages), buffer, data_blocks, s->data_block_quadlets);
+	),
+	TP_printk(
+		"%04x %04x %u %s",
+		__entry->src,
+		__entry->dst,
+		__entry->data_blocks,
+		__print_array(__get_dynamic_array(messages), __entry->data_blocks, 8)
 	)
 );
 
