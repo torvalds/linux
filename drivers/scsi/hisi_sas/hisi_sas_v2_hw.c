@@ -218,6 +218,9 @@
 #define RX_IDAF_DWORD6			(PORT_BASE + 0xdc)
 #define RXOP_CHECK_CFG_H		(PORT_BASE + 0xfc)
 #define CON_CONTROL			(PORT_BASE + 0x118)
+#define CON_CONTROL_CFG_OPEN_ACC_STP_OFF	0
+#define CON_CONTROL_CFG_OPEN_ACC_STP_MSK	\
+		(0x01 << CON_CONTROL_CFG_OPEN_ACC_STP_OFF)
 #define DONE_RECEIVED_TIME		(PORT_BASE + 0x11c)
 #define CHL_INT0			(PORT_BASE + 0x1b4)
 #define CHL_INT0_HOTPLUG_TOUT_OFF	0
@@ -240,6 +243,9 @@
 #define CHL_INT1_MSK			(PORT_BASE + 0x1c4)
 #define CHL_INT2_MSK			(PORT_BASE + 0x1c8)
 #define CHL_INT_COAL_EN			(PORT_BASE + 0x1d0)
+#define DMA_TX_DFX1			(PORT_BASE + 0x204)
+#define DMA_TX_DFX1_IPTT_OFF		0
+#define DMA_TX_DFX1_IPTT_MSK		(0xffff << DMA_TX_DFX1_IPTT_OFF)
 #define PHY_CTRL_RDY_MSK		(PORT_BASE + 0x2b0)
 #define PHYCTRL_NOT_RDY_MSK		(PORT_BASE + 0x2b4)
 #define PHYCTRL_DWS_RESET_MSK		(PORT_BASE + 0x2b8)
@@ -593,7 +599,8 @@ static int
 slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba, int *slot_idx,
 		       struct domain_device *device)
 {
-	unsigned int index = 0;
+	/* STP link chip bug workaround:index start from 1 */
+	unsigned int index = 1;
 	void *bitmap = hisi_hba->slot_index_tags;
 	int sata_dev = dev_is_sata(device);
 
@@ -875,6 +882,46 @@ static int reset_hw_v2_hw(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
+/* This function needs to be called after resetting SAS controller. */
+static void phys_reject_stp_links_v2_hw(struct hisi_hba *hisi_hba)
+{
+	u32 cfg;
+	int phy_no;
+
+	hisi_hba->reject_stp_links_msk = (1 << hisi_hba->n_phy) - 1;
+	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
+		cfg = hisi_sas_phy_read32(hisi_hba, phy_no, CON_CONTROL);
+		if (!(cfg & CON_CONTROL_CFG_OPEN_ACC_STP_MSK))
+			continue;
+
+		cfg &= ~CON_CONTROL_CFG_OPEN_ACC_STP_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, CON_CONTROL, cfg);
+	}
+}
+
+static void phys_try_accept_stp_links_v2_hw(struct hisi_hba *hisi_hba)
+{
+	int phy_no;
+	u32 dma_tx_dfx1;
+
+	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
+		if (!(hisi_hba->reject_stp_links_msk & BIT(phy_no)))
+			continue;
+
+		dma_tx_dfx1 = hisi_sas_phy_read32(hisi_hba, phy_no,
+						DMA_TX_DFX1);
+		if (dma_tx_dfx1 & DMA_TX_DFX1_IPTT_MSK) {
+			u32 cfg = hisi_sas_phy_read32(hisi_hba,
+				phy_no, CON_CONTROL);
+
+			cfg |= CON_CONTROL_CFG_OPEN_ACC_STP_MSK;
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+				CON_CONTROL, cfg);
+			clear_bit(phy_no, &hisi_hba->reject_stp_links_msk);
+		}
+	}
+}
+
 static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = &hisi_hba->pdev->dev;
@@ -1012,6 +1059,9 @@ static void link_timeout_enable_link(unsigned long data)
 	int i, reg_val;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
+		if (hisi_hba->reject_stp_links_msk & BIT(i))
+			continue;
+
 		reg_val = hisi_sas_phy_read32(hisi_hba, i, CON_CONTROL);
 		if (!(reg_val & BIT(0))) {
 			hisi_sas_phy_write32(hisi_hba, i,
@@ -1031,6 +1081,9 @@ static void link_timeout_disable_link(unsigned long data)
 
 	reg_val = hisi_sas_read32(hisi_hba, PHY_STATE);
 	for (i = 0; i < hisi_hba->n_phy && reg_val; i++) {
+		if (hisi_hba->reject_stp_links_msk & BIT(i))
+			continue;
+
 		if (reg_val & BIT(i)) {
 			hisi_sas_phy_write32(hisi_hba, i,
 					CON_CONTROL, 0x6);
@@ -2867,6 +2920,9 @@ static void cq_tasklet_v2_hw(unsigned long val)
 	u32 rd_point = cq->rd_point, wr_point, dev_id;
 	int queue = cq->id;
 
+	if (unlikely(hisi_hba->reject_stp_links_msk))
+		phys_try_accept_stp_links_v2_hw(hisi_hba);
+
 	complete_queue = hisi_hba->complete_hdr[queue];
 
 	spin_lock(&hisi_hba->lock);
@@ -3213,6 +3269,8 @@ static int soft_reset_v2_hw(struct hisi_hba *hisi_hba)
 	rc = hw_init_v2_hw(hisi_hba);
 	if (rc)
 		return rc;
+
+	phys_reject_stp_links_v2_hw(hisi_hba);
 
 	/* Re-enable the PHYs */
 	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {

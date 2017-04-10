@@ -203,6 +203,7 @@ struct hisi_hba {
 
 	int slot_index_count;
 	unsigned long *slot_index_tags;
+	unsigned long reject_stp_links_msk;
 
 	/* SCSI/SAS glue */
 	struct sas_ha_struct sha;
