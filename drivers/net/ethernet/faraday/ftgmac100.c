@@ -65,6 +65,7 @@ struct ftgmac100 {
 	u32 rxdes0_edorr_mask;
 
 	/* Tx ring */
+	struct sk_buff *tx_skbs[TX_QUEUE_ENTRIES];
 	unsigned int tx_clean_pointer;
 	unsigned int tx_pointer;
 	unsigned int tx_pending;
@@ -545,63 +546,29 @@ static dma_addr_t ftgmac100_txdes_get_dma_addr(struct ftgmac100_txdes *txdes)
 	return le32_to_cpu(txdes->txdes3);
 }
 
-/*
- * txdes2 is not used by hardware. We use it to keep track of socket buffer.
- * Since hardware does not touch it, we can skip cpu_to_le32()/le32_to_cpu().
- */
-static void ftgmac100_txdes_set_skb(struct ftgmac100_txdes *txdes,
-				    struct sk_buff *skb)
-{
-	txdes->txdes2 = (unsigned int)skb;
-}
-
-static struct sk_buff *ftgmac100_txdes_get_skb(struct ftgmac100_txdes *txdes)
-{
-	return (struct sk_buff *)txdes->txdes2;
-}
-
 static int ftgmac100_next_tx_pointer(int pointer)
 {
 	return (pointer + 1) & (TX_QUEUE_ENTRIES - 1);
-}
-
-static void ftgmac100_tx_pointer_advance(struct ftgmac100 *priv)
-{
-	priv->tx_pointer = ftgmac100_next_tx_pointer(priv->tx_pointer);
-}
-
-static void ftgmac100_tx_clean_pointer_advance(struct ftgmac100 *priv)
-{
-	priv->tx_clean_pointer = ftgmac100_next_tx_pointer(priv->tx_clean_pointer);
-}
-
-static struct ftgmac100_txdes *ftgmac100_current_txdes(struct ftgmac100 *priv)
-{
-	return &priv->descs->txdes[priv->tx_pointer];
-}
-
-static struct ftgmac100_txdes *
-ftgmac100_current_clean_txdes(struct ftgmac100 *priv)
-{
-	return &priv->descs->txdes[priv->tx_clean_pointer];
 }
 
 static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct ftgmac100_txdes *txdes;
+	unsigned int pointer;
 	struct sk_buff *skb;
 	dma_addr_t map;
 
 	if (priv->tx_pending == 0)
 		return false;
 
-	txdes = ftgmac100_current_clean_txdes(priv);
+	pointer = priv->tx_clean_pointer;
+	txdes = &priv->descs->txdes[pointer];
 
 	if (ftgmac100_txdes_owned_by_dma(txdes))
 		return false;
 
-	skb = ftgmac100_txdes_get_skb(txdes);
+	skb = priv->tx_skbs[pointer];
 	map = ftgmac100_txdes_get_dma_addr(txdes);
 
 	netdev->stats.tx_packets++;
@@ -610,10 +577,11 @@ static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 	dma_unmap_single(priv->dev, map, skb_headlen(skb), DMA_TO_DEVICE);
 
 	dev_kfree_skb(skb);
+	priv->tx_skbs[pointer] = NULL;
 
 	ftgmac100_txdes_reset(priv, txdes);
 
-	ftgmac100_tx_clean_pointer_advance(priv);
+	priv->tx_clean_pointer = ftgmac100_next_tx_pointer(pointer);
 
 	spin_lock(&priv->tx_lock);
 	priv->tx_pending--;
@@ -634,6 +602,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
 	struct ftgmac100_txdes *txdes;
+	unsigned int pointer;
 	dma_addr_t map;
 
 	/* The HW doesn't pad small frames */
@@ -657,11 +626,12 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		goto drop;
 	}
 
-	txdes = ftgmac100_current_txdes(priv);
-	ftgmac100_tx_pointer_advance(priv);
+	/* Grab the next free tx descriptor */
+	pointer = priv->tx_pointer;
+	txdes = &priv->descs->txdes[pointer];
 
 	/* setup TX descriptor */
-	ftgmac100_txdes_set_skb(txdes, skb);
+	priv->tx_skbs[pointer] = skb;
 	ftgmac100_txdes_set_dma_addr(txdes, map);
 	ftgmac100_txdes_set_buffer_size(txdes, skb->len);
 
@@ -681,6 +651,9 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 				ftgmac100_txdes_set_udpcs(txdes);
 		}
 	}
+
+	/* Update next TX pointer */
+	priv->tx_pointer = ftgmac100_next_tx_pointer(pointer);
 
 	spin_lock(&priv->tx_lock);
 	priv->tx_pending++;
@@ -724,7 +697,7 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 	/* Free all TX buffers */
 	for (i = 0; i < TX_QUEUE_ENTRIES; i++) {
 		struct ftgmac100_txdes *txdes = &priv->descs->txdes[i];
-		struct sk_buff *skb = ftgmac100_txdes_get_skb(txdes);
+		struct sk_buff *skb = priv->tx_skbs[i];
 		dma_addr_t map = ftgmac100_txdes_get_dma_addr(txdes);
 
 		if (!skb)
