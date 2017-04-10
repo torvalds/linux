@@ -368,7 +368,7 @@ int dma_configure(struct device *dev)
 	} else if (has_acpi_companion(dma_dev)) {
 		attr = acpi_get_dma_attr(to_acpi_device_node(dma_dev->fwnode));
 		if (attr != DEV_DMA_NOT_SUPPORTED)
-			acpi_dma_configure(dev, attr);
+			ret = acpi_dma_configure(dev, attr);
 	}
 
 	if (bridge)
