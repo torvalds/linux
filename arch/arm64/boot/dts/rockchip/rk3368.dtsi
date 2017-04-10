@@ -747,6 +747,7 @@
 		nvmem-cell-names = "temp_adjust";
 		#thermal-sensor-cells = <1>;
 		hw-shut-temp = <95000>;
+		latency-bound = <50000>;
 		status = "disabled";
 	};
 
