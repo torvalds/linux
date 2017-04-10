@@ -162,6 +162,7 @@
 			};
 
 			adc0: adc@f8018000 {
+				atmel,adc-vref = <3300>;
 				pinctrl-0 = <
 					&pinctrl_adc0_adtrg
 					&pinctrl_adc0_ad0
