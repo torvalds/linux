@@ -17,6 +17,10 @@ Required properties:
 - dma-names: should be "tx" and "rx"
 - hisilicon,sysctrl-syscon: phandle to sysctrl syscon
 - #sound-dai-cells: Should be set to 1 (for multi-dai)
+   - The dai cell indexes reference the following interfaces:
+       0: S2 interface
+       (Currently that is the only one available, but more may be
+        supported in the future)
 
 Example for the hi6210 i2s controller:
 
@@ -32,3 +36,7 @@ i2s0: i2s@f7118000{
 	hisilicon,sysctrl-syscon = <&sys_ctrl>;
 	#sound-dai-cells = <1>;
 };
+
+Then when referencing the i2s controller:
+	sound-dai = <&i2s0 0>; /* index 0 => S2 interface */
+
