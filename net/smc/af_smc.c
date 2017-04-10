@@ -638,7 +638,8 @@ struct sock *smc_accept_dequeue(struct sock *parent,
 
 		smc_accept_unlink(new_sk);
 		if (new_sk->sk_state == SMC_CLOSED) {
-			/* tbd in follow-on patch: close this sock */
+			new_sk->sk_prot->unhash(new_sk);
+			sock_put(new_sk);
 			continue;
 		}
 		if (new_sock)
@@ -658,8 +659,13 @@ void smc_close_non_accepted(struct sock *sk)
 	if (!sk->sk_lingertime)
 		/* wait for peer closing */
 		sk->sk_lingertime = SMC_MAX_STREAM_WAIT_TIMEOUT;
-	if (!smc->use_fallback)
+	if (smc->use_fallback) {
+		sk->sk_state = SMC_CLOSED;
+	} else {
 		smc_close_active(smc);
+		sock_set_flag(sk, SOCK_DEAD);
+		sk->sk_shutdown |= SHUTDOWN_MASK;
+	}
 	if (smc->clcsock) {
 		struct socket *tcp;
 
@@ -667,11 +673,9 @@ void smc_close_non_accepted(struct sock *sk)
 		smc->clcsock = NULL;
 		sock_release(tcp);
 	}
-	sock_set_flag(sk, SOCK_DEAD);
-	sk->sk_shutdown |= SHUTDOWN_MASK;
 	if (smc->use_fallback) {
 		schedule_delayed_work(&smc->sock_put_work, TCP_TIMEWAIT_LEN);
-	} else {
+	} else if (sk->sk_state == SMC_CLOSED) {
 		smc_conn_free(&smc->conn);
 		schedule_delayed_work(&smc->sock_put_work,
 				      SMC_CLOSE_SOCK_PUT_DELAY);

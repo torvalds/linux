@@ -191,7 +191,6 @@ again:
 		sk->sk_state = SMC_CLOSED;
 		if (smc->smc_listen_work.func)
 			cancel_work_sync(&smc->smc_listen_work);
-		sock_put(sk);
 		break;
 	case SMC_LISTEN:
 		sk->sk_state = SMC_CLOSED;
