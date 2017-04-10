@@ -1649,8 +1649,23 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 	wait_for_completion(&priv->ntbl.deleted);
 }
 
+void ipoib_dev_uninit_default(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
+	ipoib_transport_dev_cleanup(dev);
+
+	ipoib_cm_dev_cleanup(dev);
+
+	kfree(priv->rx_ring);
+	vfree(priv->tx_ring);
+
+	priv->rx_ring = NULL;
+	priv->tx_ring = NULL;
+}
+
+static int ipoib_dev_init_default(struct net_device *dev, struct ib_device *ca,
+				  int port)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
@@ -1669,20 +1684,15 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 
 	/* priv->tx_head, tx_tail & tx_outstanding are already 0 */
 
-	if (ipoib_ib_dev_init(dev, ca, port))
+	if (ipoib_transport_dev_init(dev, ca)) {
+		pr_warn("%s: ipoib_transport_dev_init failed\n", ca->name);
 		goto out_tx_ring_cleanup;
+	}
 
-	/*
-	 * Must be after ipoib_ib_dev_init so we can allocate a per
-	 * device wq there and use it here
-	 */
-	if (ipoib_neigh_hash_init(priv) < 0)
-		goto out_dev_uninit;
+	setup_timer(&priv->poll_timer, ipoib_ib_tx_timer_func,
+		    (unsigned long)dev);
 
 	return 0;
-
-out_dev_uninit:
-	ipoib_ib_dev_cleanup(dev);
 
 out_tx_ring_cleanup:
 	vfree(priv->tx_ring);
@@ -1692,6 +1702,77 @@ out_rx_ring_cleanup:
 
 out:
 	return -ENOMEM;
+}
+
+int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	int ret = -ENOMEM;
+
+	priv->ca = ca;
+	priv->port = port;
+	priv->qp = NULL;
+
+	/*
+	 * the various IPoIB tasks assume they will never race against
+	 * themselves, so always use a single thread workqueue
+	 */
+	priv->wq = alloc_ordered_workqueue("ipoib_wq", WQ_MEM_RECLAIM);
+	if (!priv->wq) {
+		pr_warn("%s: failed to allocate device WQ\n", dev->name);
+		goto out;
+	}
+
+	/* create pd, which used both for control and datapath*/
+	priv->pd = ib_alloc_pd(priv->ca, 0);
+	if (IS_ERR(priv->pd)) {
+		pr_warn("%s: failed to allocate PD\n", ca->name);
+		goto clean_wq;
+	}
+
+	ret = ipoib_dev_init_default(dev, ca, port);
+	if (ret) {
+		pr_warn("%s failed to init HW resource\n", dev->name);
+		goto out_free_pd;
+	}
+
+	/* after qp created set dev address */
+	priv->dev->dev_addr[1] = (priv->qp->qp_num >> 16) & 0xff;
+	priv->dev->dev_addr[2] = (priv->qp->qp_num >>  8) & 0xff;
+	priv->dev->dev_addr[3] = (priv->qp->qp_num) & 0xff;
+
+	if (ipoib_neigh_hash_init(priv) < 0) {
+		pr_warn("%s failed to init neigh hash\n", dev->name);
+		goto out_dev_uninit;
+	}
+
+	if (dev->flags & IFF_UP) {
+		if (ipoib_ib_dev_open(dev)) {
+			pr_warn("%s failed to open device\n", dev->name);
+			ret = -ENODEV;
+			goto out_dev_uninit;
+		}
+	}
+
+	return 0;
+
+out_dev_uninit:
+	ipoib_ib_dev_cleanup(dev);
+
+out_free_pd:
+	if (priv->pd) {
+		ib_dealloc_pd(priv->pd);
+		priv->pd = NULL;
+	}
+
+clean_wq:
+	if (priv->wq) {
+		destroy_workqueue(priv->wq);
+		priv->wq = NULL;
+	}
+
+out:
+	return ret;
 }
 
 void ipoib_dev_cleanup(struct net_device *dev)
@@ -1710,19 +1791,16 @@ void ipoib_dev_cleanup(struct net_device *dev)
 	}
 	unregister_netdevice_many(&head);
 
-	/*
-	 * Must be before ipoib_ib_dev_cleanup or we delete an in use
-	 * work queue
-	 */
 	ipoib_neigh_hash_uninit(dev);
 
 	ipoib_ib_dev_cleanup(dev);
 
-	kfree(priv->rx_ring);
-	vfree(priv->tx_ring);
-
-	priv->rx_ring = NULL;
-	priv->tx_ring = NULL;
+	/* no more works over the priv->wq */
+	if (priv->wq) {
+		flush_workqueue(priv->wq);
+		destroy_workqueue(priv->wq);
+		priv->wq = NULL;
+	}
 }
 
 static int ipoib_set_vf_link_state(struct net_device *dev, int vf, int link_state)
