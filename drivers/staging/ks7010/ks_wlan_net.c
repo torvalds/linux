@@ -1199,27 +1199,17 @@ static int ks_wlan_set_power(struct net_device *dev,
 {
 	struct ks_wlan_private *priv =
 	    (struct ks_wlan_private *)netdev_priv(dev);
-	short enabled;
 
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
 
-	/* for SLEEP MODE */
-	enabled = vwrq->disabled ? 0 : 1;
-	if (enabled == 0) {	/* 0 */
+	if (vwrq->disabled) {
 		priv->reg.powermgt = POWMGT_ACTIVE_MODE;
-	} else if (enabled) {	/* 1 */
+	} else {
 		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
 			priv->reg.powermgt = POWMGT_SAVE1_MODE;
 		else
 			return -EINVAL;
-	} else if (enabled) {	/* 2 */
-		if (priv->reg.operation_mode == MODE_INFRASTRUCTURE)
-			priv->reg.powermgt = POWMGT_SAVE2_MODE;
-		else
-			return -EINVAL;
-	} else {
-		return -EINVAL;
 	}
 
 	hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
