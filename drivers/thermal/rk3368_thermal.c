@@ -33,6 +33,8 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/nvmem-consumer.h>
+#include <linux/pm_qos.h>
+#include <soc/rockchip/scpi.h>
 
 /**
  * If the temperature over a period of time High,
@@ -142,6 +144,7 @@ struct rk3368_tsadc_chip {
 	enum tshut_mode tshut_mode;
 	enum tsadc_mode mode;
 	enum tshut_polarity tshut_polarity;
+	int latency_bound;
 
 	const struct chip_tsadc_table *temp_table;
 
@@ -207,12 +210,16 @@ struct rk3368_thermal_data {
 	struct kobject *rk3368_thermal_kobj;
 	struct regulator *ref_regulator;
 	int regulator_uv;
+	int latency_req;
+	int latency_bound;
 	struct notifier_block tsadc_nb;
 };
 
 static struct rk3368_thermal_data *thermal_ctx;
 
 static DEFINE_MUTEX(thermal_reg_mutex);
+
+static DEFINE_MUTEX(thermal_lat_mutex);
 
 static const struct tsadc_table code_table_3368[] = {
 	{0, MIN_TEMP},
@@ -413,6 +420,7 @@ static int rk3368_code_to_temp(const struct chip_tsadc_table *tmp_table,
 static const struct rk3368_tsadc_chip rk3368_tsadc_data = {
 	.tshut_mode = TSHUT_MODE_GPIO,	/* default TSHUT via GPIO give PMIC */
 	.tshut_polarity = TSHUT_LOW_ACTIVE,	/* default TSHUT LOW ACTIVE */
+	.latency_bound = 50000,	/* default 50000 us */
 	.hw_shut_temp = 125000,
 	.mode = TSHUT_USER_MODE,
 	.chn_num = 2,
@@ -427,6 +435,8 @@ static int rk3368_configure_from_dt(struct device *dev,
 {
 	u32 shut_temp;
 	u32 rate;
+	u32 cycle;
+	int lat_bound;
 	int ret;
 
 	if (of_property_read_u32(np, "clock-frequency", &rate)) {
@@ -435,6 +445,13 @@ static int rk3368_configure_from_dt(struct device *dev,
 	}
 	ret = clk_set_rate(thermal->clk, rate);
 
+	cycle = DIV_ROUND_UP(1000000000, rate) / 1000;
+
+	if (scpi_thermal_set_clk_cycle(cycle)) {
+		dev_err(dev, "scpi_thermal_set_clk_cycle error.\n");
+		return -EINVAL;
+	}
+
 	if (of_property_read_u32(np, "hw-shut-temp", &shut_temp)) {
 		dev_warn(dev,
 			 "Missing tshut temp property, using default %ld\n",
@@ -442,6 +459,15 @@ static int rk3368_configure_from_dt(struct device *dev,
 		thermal->hw_shut_temp = thermal->chip->hw_shut_temp;
 	} else {
 		thermal->hw_shut_temp = shut_temp;
+	}
+
+	if (of_property_read_u32(np, "latency-bound", &lat_bound)) {
+		dev_warn(dev,
+			 "Missing latency-bound property, using default %d\n",
+			 thermal->chip->latency_bound);
+		thermal->latency_bound = thermal->chip->latency_bound;
+	} else {
+		thermal->latency_bound = lat_bound;
 	}
 
 	if (thermal->hw_shut_temp > INT_MAX) {
@@ -538,12 +564,15 @@ static int get_raw_code_internal(void)
 #define RAW_CODE_MIN (50)
 #define RAW_CODE_MAX (225)
 
-static int rk3368_get_raw_code(void)
+static int rk3368_get_raw_code(struct rk3368_thermal_data *ctx)
 {
 	static int old_data = 130;
 	int tsadc_data = 0;
 
-	tsadc_data = get_raw_code_internal();
+	if (ctx->latency_req > ctx->latency_bound)
+		tsadc_data = scpi_thermal_get_temperature();
+	else
+		tsadc_data = get_raw_code_internal();
 
 	if ((tsadc_data < RAW_CODE_MIN) || (tsadc_data > RAW_CODE_MAX))
 		tsadc_data = old_data;
@@ -609,7 +638,7 @@ static int rk3368_thermal_get_temp(void *_sensor, int *out_temp)
 	pdev = ctx->pdev;
 
 	mutex_lock(&thermal_reg_mutex);
-	raw_code = rk3368_get_raw_code();
+	raw_code = rk3368_get_raw_code(ctx);
 	temp = rk3368_convert_code_2_temp(raw_code, ctx->regulator_uv);
 	*out_temp = predict_temp(temp / 1000) * 1000;
 	mutex_unlock(&thermal_reg_mutex);
@@ -831,6 +860,39 @@ static int rk3368_thermal_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+/*
+ * This function gets called when a part of the kernel has a new latency
+ * requirement. We record this requirement to instruct us to get temperature.
+ */
+static int tsadc_latency_notify(struct notifier_block *b,
+				unsigned long l, void *v)
+{
+	struct rk3368_thermal_data *ctx = rk3368_thermal_get_data();
+
+	if (!ctx)
+		return NOTIFY_OK;
+
+	mutex_lock(&thermal_lat_mutex);
+	ctx->latency_req = (int)l;
+	mutex_unlock(&thermal_lat_mutex);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block tsadc_latency_notifier = {
+	.notifier_call = tsadc_latency_notify,
+};
+
+static inline int tsadc_add_latency_notifier(struct notifier_block *n)
+{
+	return pm_qos_add_notifier(PM_QOS_CPU_DMA_LATENCY, n);
+}
+
+static inline int tsadc_remove_latency_notifier(struct notifier_block *n)
+{
+	return pm_qos_remove_notifier(PM_QOS_CPU_DMA_LATENCY, n);
+}
+
 static const struct of_device_id of_rk3368_thermal_match[] = {
 	{
 	 .compatible = "rockchip,rk3368-tsadc-legacy",
@@ -852,6 +914,7 @@ static int rk3368_thermal_probe(struct platform_device *pdev)
 	int error;
 	int uv;
 	int ajust_code = 0;
+	int latency_req = 0;
 
 	match = of_match_node(of_rk3368_thermal_match, np);
 	if (!match)
@@ -956,6 +1019,19 @@ static int rk3368_thermal_probe(struct platform_device *pdev)
 		ctx->regulator_uv = uv;
 	mutex_unlock(&thermal_reg_mutex);
 
+	error = tsadc_add_latency_notifier(&tsadc_latency_notifier);
+	if (error) {
+		dev_err(&pdev->dev, "latency notifier request failed\n");
+		goto err_unreg_notifier;
+	}
+
+	latency_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
+
+	mutex_lock(&thermal_lat_mutex);
+	if (!ctx->latency_req)
+		ctx->latency_req = latency_req;
+	mutex_unlock(&thermal_lat_mutex);
+
 	rk3368_get_ajust_code(np, &ajust_code);
 
 	ctx->cpu_temp_adjust = (int)ajust_code;
@@ -971,7 +1047,7 @@ static int rk3368_thermal_probe(struct platform_device *pdev)
 			for (j = 0; j < i; j++)
 				thermal_zone_of_sensor_unregister(&pdev->dev,
 								  ctx->sensors[j].tzd);
-			goto err_unreg_notifier;
+			goto err_remove_latancy_notifier;
 		}
 	}
 
@@ -981,7 +1057,7 @@ static int rk3368_thermal_probe(struct platform_device *pdev)
 		error = -ENOMEM;
 		dev_err(&pdev->dev,
 			"failed to creat debug node : error= %d\n", error);
-		goto err_unreg_notifier;
+		goto err_remove_latancy_notifier;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(rk3368_thermal_attrs); i++) {
@@ -996,7 +1072,7 @@ static int rk3368_thermal_probe(struct platform_device *pdev)
 				sysfs_remove_file(ctx->rk3368_thermal_kobj,
 						  &rk3368_thermal_attrs[j].attr);
 
-			goto err_unreg_notifier;
+			goto err_remove_latancy_notifier;
 		}
 	}
 
@@ -1011,6 +1087,8 @@ static int rk3368_thermal_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_remove_latancy_notifier:
+	tsadc_remove_latency_notifier(&tsadc_latency_notifier);
 err_unreg_notifier:
 	regulator_unregister_notifier(ctx->ref_regulator, &ctx->tsadc_nb);
 
@@ -1027,11 +1105,15 @@ static int rk3368_thermal_remove(struct platform_device *pdev)
 	struct rk3368_thermal_data *ctx = platform_get_drvdata(pdev);
 	int i;
 
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &rk3368_thermal_panic_block);
 	for (i = 0; i < ctx->chip->chn_num; i++) {
 		struct rk3368_thermal_sensor *sensor = &ctx->sensors[i];
 
 		thermal_zone_of_sensor_unregister(&pdev->dev, sensor->tzd);
 	}
+	tsadc_remove_latency_notifier(&tsadc_latency_notifier);
+	regulator_unregister_notifier(ctx->ref_regulator, &ctx->tsadc_nb);
 	clk_disable_unprepare(ctx->pclk);
 	clk_disable_unprepare(ctx->clk);
 
