@@ -1170,10 +1170,7 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 addkey_end:
-	if (param)
-	{
-		kfree((u8 *)param);
-	}
+	kfree((u8 *)param);
 
 	return ret;
 
@@ -1968,8 +1965,7 @@ static int rtw_cfg80211_set_wpa_ie(struct adapter *padapter, u8 *pie, size_t iel
 		pairwise_cipher, padapter->securitypriv.ndisencryptstatus, padapter->securitypriv.ndisauthtype));
 
 exit:
-	if (buf)
-		kfree(buf);
+	kfree(buf);
 	if (ret)
 		_clr_fwstate_(&padapter->mlmepriv, WIFI_UNDER_WPS);
 	return ret;

@@ -766,9 +766,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 exit:
 
-	if (pwep) {
-		kfree((u8 *)pwep);
-	}
+	kfree((u8 *)pwep);
 	return ret;
 }
 
@@ -926,7 +924,7 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 
 exit:
 
-	if (buf) kfree(buf);
+	kfree(buf);
 
 	return ret;
 }
@@ -2502,10 +2500,7 @@ static int rtw_wx_set_enc_ext(struct net_device *dev,
 	ret =  wpa_set_encryption(dev, param, param_len);
 
 exit:
-	if (param)
-	{
-		kfree((u8 *)param);
-	}
+	kfree((u8 *)param);
 
 	return ret;
 }
@@ -4135,11 +4130,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	}
 
 exit:
-
-	if (pwep)
-	{
-		kfree((u8 *)pwep);
-	}
+	kfree((u8 *)pwep);
 
 	return ret;
 
@@ -5785,12 +5776,9 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 	}
 
 exit:
-	if (input)
-		kfree(input);
-	if (buffer)
-		kfree(buffer);
-	if (output)
-		kfree(output);
+	kfree(input);
+	kfree(buffer);
+	kfree(output);
 
 	return err;
 }

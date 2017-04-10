@@ -602,8 +602,7 @@ static s32 _sdio_local_read(
 	if (!err)
 		memcpy(pbuf, ptmpbuf, cnt);
 
-	if (ptmpbuf)
-		kfree(ptmpbuf);
+	kfree(ptmpbuf);
 
 	return err;
 }
@@ -646,8 +645,7 @@ s32 sdio_local_read(
 	if (!err)
 		memcpy(pbuf, ptmpbuf, cnt);
 
-	if (ptmpbuf)
-		kfree(ptmpbuf);
+	kfree(ptmpbuf);
 
 	return err;
 }

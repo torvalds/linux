@@ -995,8 +995,7 @@ if (1) {
 		rtw_hal_set_hwreg(padapter, HW_VAR_EFUSE_USAGE, (u8 *)&efuse_usage);
 	}
 
-	if (efuseTbl)
-		kfree(efuseTbl);
+	kfree(efuseTbl);
 }
 
 static void hal_ReadEFuse_BT(
@@ -1128,8 +1127,7 @@ static void hal_ReadEFuse_BT(
 	}
 
 exit:
-	if (efuseTbl)
-		kfree(efuseTbl);
+	kfree(efuseTbl);
 }
 
 static void Hal_ReadEFuse(
