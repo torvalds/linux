@@ -202,6 +202,7 @@ static int ks_wlan_set_freq(struct net_device *dev,
 {
 	struct ks_wlan_private *priv =
 	    (struct ks_wlan_private *)netdev_priv(dev);
+	int channel;
 
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
@@ -220,24 +221,22 @@ static int ks_wlan_set_freq(struct net_device *dev,
 		fwrq->m = c + 1;
 	}
 	/* Setting by channel number */
-	if ((fwrq->m > 1000) || (fwrq->e > 0)) {
+	if ((fwrq->m > 1000) || (fwrq->e > 0))
 		return -EOPNOTSUPP;
-	} else {
-		int channel = fwrq->m;
-		/* We should do a better check than that,
-		 * based on the card capability !!!
-		 */
-		if ((channel < 1) || (channel > 14)) {
-			netdev_dbg(dev,
-				   "%s: New channel value of %d is invalid!\n",
-				   dev->name, fwrq->m);
-			return -EINVAL;
-		} else {
-			/* Yes ! We can set it !!! */
-			priv->reg.channel = (u8)(channel);
-			priv->need_commit |= SME_MODE_SET;
-		}
+
+	channel = fwrq->m;
+	/* We should do a better check than that,
+	 * based on the card capability !!!
+	 */
+	if ((channel < 1) || (channel > 14)) {
+		netdev_dbg(dev, "%s: New channel value of %d is invalid!\n",
+			   dev->name, fwrq->m);
+		return -EINVAL;
 	}
+
+	/* Yes ! We can set it !!! */
+	priv->reg.channel = (u8)(channel);
+	priv->need_commit |= SME_MODE_SET;
 
 	return -EINPROGRESS;	/* Call commit handler */
 }
