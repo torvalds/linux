@@ -544,6 +544,7 @@
 #define HDMI_I2CM_FS_SCL_HCNT_0_ADDR            0x7E10
 #define HDMI_I2CM_FS_SCL_LCNT_1_ADDR            0x7E11
 #define HDMI_I2CM_FS_SCL_LCNT_0_ADDR            0x7E12
+#define HDMI_I2CM_SDA_HOLD                      0x7E13
 
 enum {
 

@@ -117,7 +117,6 @@ static const struct dw_hdmi_audio_tmds_n common_tmds_n_table[] = {
 	{ .tmds = 0,         .n_32k = 0,    .n_44k1 = 0,    .n_48k = 0, },
 };
 
-
 static const u16 csc_coeff_default[3][4] = {
 	{ 0x2000, 0x0000, 0x0000, 0x0000 },
 	{ 0x0000, 0x2000, 0x0000, 0x0000 },
@@ -208,6 +207,10 @@ struct dw_hdmi {
 	void __iomem *regs;
 	bool sink_is_hdmi;
 	bool sink_has_audio;
+	bool hpd_state;
+
+	struct delayed_work work;
+	struct workqueue_struct *workqueue;
 
 	struct mutex mutex;		/* for state below and previous_mode */
 	enum drm_connector_force force;	/* mutex-protected force state */
@@ -284,6 +287,48 @@ static void hdmi_mask_writeb(struct dw_hdmi *hdmi, u8 data, unsigned int reg,
 	hdmi_modb(hdmi, data << shift, mask, reg);
 }
 
+static void repo_hpd_event(struct work_struct *p_work)
+{
+	struct dw_hdmi *hdmi = container_of(p_work, struct dw_hdmi, work.work);
+
+	drm_helper_hpd_irq_event(hdmi->bridge->dev);
+#ifdef CONFIG_SWITCH
+	if (hdmi->hpd_state)
+		switch_set_state(&hdmi->switchdev, 1);
+	else
+		switch_set_state(&hdmi->switchdev, 0);
+#endif
+}
+
+static bool check_hdmi_irq(struct dw_hdmi *hdmi, int intr_stat,
+			   int phy_int_pol)
+{
+	int msecs;
+
+	/* To determine whether interrupt type is HPD */
+	if (!(intr_stat & HDMI_IH_PHY_STAT0_HPD))
+		return false;
+
+	if (phy_int_pol & HDMI_PHY_HPD) {
+		dev_dbg(hdmi->dev, "dw hdmi plug in\n");
+		msecs = 150;
+		hdmi->hpd_state = true;
+	} else {
+		dev_dbg(hdmi->dev, "dw hdmi plug out\n");
+		msecs = 20;
+		hdmi->hpd_state = false;
+	}
+	mod_delayed_work(hdmi->workqueue, &hdmi->work, msecs_to_jiffies(msecs));
+
+	return true;
+}
+
+static void init_hpd_work(struct dw_hdmi *hdmi)
+{
+	hdmi->workqueue = create_workqueue("hpd_queue");
+	INIT_DELAYED_WORK(&hdmi->work, repo_hpd_event);
+}
+
 static void dw_hdmi_i2c_set_divs(struct dw_hdmi *hdmi)
 {
 	unsigned long clk_rate_khz;
@@ -348,6 +393,9 @@ static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 	/* Mute DONE and ERROR interrupts */
 	hdmi_writeb(hdmi, HDMI_IH_I2CM_STAT0_ERROR | HDMI_IH_I2CM_STAT0_DONE,
 		    HDMI_IH_MUTE_I2CM_STAT0);
+
+	/* set SDA high level holding time */
+	hdmi_writeb(hdmi, 0x48, HDMI_I2CM_SDA_HOLD);
 
 	dw_hdmi_i2c_set_divs(hdmi);
 }
@@ -2172,17 +2220,7 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 		mutex_unlock(&hdmi->mutex);
 	}
 
-	if (intr_stat & HDMI_IH_PHY_STAT0_HPD) {
-		dev_dbg(hdmi->dev, "EVENT=%s\n",
-			phy_int_pol & HDMI_PHY_HPD ? "plugin" : "plugout");
-		drm_helper_hpd_irq_event(hdmi->bridge->dev);
-#ifdef CONFIG_SWITCH
-		if (phy_int_pol & HDMI_PHY_HPD)
-			switch_set_state(&hdmi->switchdev, 1);
-		else
-			switch_set_state(&hdmi->switchdev, 0);
-#endif
-	}
+	check_hdmi_irq(hdmi, intr_stat, phy_int_pol);
 
 	hdmi_writeb(hdmi, intr_stat, HDMI_IH_PHY_STAT0);
 	hdmi_writeb(hdmi, ~(HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE),
@@ -2505,6 +2543,7 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		 hdmi_readb(hdmi, HDMI_PRODUCT_ID0),
 		 hdmi_readb(hdmi, HDMI_PRODUCT_ID1));
 
+	init_hpd_work(hdmi);
 	initialize_hdmi_ih_mutes(hdmi);
 
 	ret = devm_request_threaded_irq(dev, irq, dw_hdmi_hardirq,
