@@ -1317,16 +1317,17 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		 * hardware wrote DD then the length will be non-zero
 		 */
 		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
-		       I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
-		if (!size)
-			break;
 
 		/* This memory barrier is needed to keep us from reading
 		 * any other fields out of the rx_desc until we have
 		 * verified the descriptor has been written back.
 		 */
 		dma_rmb();
+
+		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
+		       I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
+		if (!size)
+			break;
 
 		rx_buffer = i40e_get_rx_buffer(rx_ring, size);
 

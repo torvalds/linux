@@ -1038,9 +1038,29 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
 }
 
 /**
+ * i40e_rx_is_programming_status - check for programming status descriptor
+ * @qw: qword representing status_error_len in CPU ordering
+ *
+ * The value of in the descriptor length field indicate if this
+ * is a programming status descriptor for flow director or FCoE
+ * by the value of I40E_RX_PROG_STATUS_DESC_LENGTH, otherwise
+ * it is a packet descriptor.
+ **/
+static inline bool i40e_rx_is_programming_status(u64 qw)
+{
+	/* The Rx filter programming status and SPH bit occupy the same
+	 * spot in the descriptor. Since we don't support packet split we
+	 * can just reuse the bit as an indication that this is a
+	 * programming status descriptor.
+	 */
+	return qw & I40E_RXD_QW1_LENGTH_SPH_MASK;
+}
+
+/**
  * i40e_clean_programming_status - clean the programming status descriptor
  * @rx_ring: the rx ring that has this descriptor
  * @rx_desc: the rx descriptor written back by HW
+ * @qw: qword representing status_error_len in CPU ordering
  *
  * Flow director should handle FD_FILTER_STATUS to check its filter programming
  * status being successful or not and take actions accordingly. FCoE should
@@ -1048,12 +1068,18 @@ static bool i40e_set_new_dynamic_itr(struct i40e_ring_container *rc)
  *
  **/
 static void i40e_clean_programming_status(struct i40e_ring *rx_ring,
-					  union i40e_rx_desc *rx_desc)
+					  union i40e_rx_desc *rx_desc,
+					  u64 qw)
 {
-	u64 qw;
+	u32 ntc = rx_ring->next_to_clean + 1;
 	u8 id;
 
-	qw = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
+	/* fetch, update, and store next to clean */
+	ntc = (ntc < rx_ring->count) ? ntc : 0;
+	rx_ring->next_to_clean = ntc;
+
+	prefetch(I40E_RX_DESC(rx_ring, ntc));
+
 	id = (qw & I40E_RX_PROG_STATUS_DESC_QW1_PROGID_MASK) >>
 		  I40E_RX_PROG_STATUS_DESC_QW1_PROGID_SHIFT;
 
@@ -1911,11 +1937,6 @@ static bool i40e_is_non_eop(struct i40e_ring *rx_ring,
 
 	prefetch(I40E_RX_DESC(rx_ring, ntc));
 
-#define staterrlen rx_desc->wb.qword1.status_error_len
-	if (unlikely(i40e_rx_is_programming_status(le64_to_cpu(staterrlen)))) {
-		i40e_clean_programming_status(rx_ring, rx_desc);
-		return true;
-	}
 	/* if we are the last buffer then there is nothing else to do */
 #define I40E_RXD_EOF BIT(I40E_RX_DESC_STATUS_EOF_SHIFT)
 	if (likely(i40e_test_staterr(rx_desc, I40E_RXD_EOF)))
@@ -1968,16 +1989,21 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		 * hardware wrote DD then the length will be non-zero
 		 */
 		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
-		       I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
-		if (!size)
-			break;
 
 		/* This memory barrier is needed to keep us from reading
 		 * any other fields out of the rx_desc until we have
 		 * verified the descriptor has been written back.
 		 */
 		dma_rmb();
+
+		if (unlikely(i40e_rx_is_programming_status(qword))) {
+			i40e_clean_programming_status(rx_ring, rx_desc, qword);
+			continue;
+		}
+		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
+		       I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
+		if (!size)
+			break;
 
 		rx_buffer = i40e_get_rx_buffer(rx_ring, size);
 

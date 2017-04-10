@@ -763,21 +763,6 @@ static inline void i40e_vsi_setup_irqhandler(struct i40e_vsi *vsi,
 }
 
 /**
- * i40e_rx_is_programming_status - check for programming status descriptor
- * @qw: the first quad word of the program status descriptor
- *
- * The value of in the descriptor length field indicate if this
- * is a programming status descriptor for flow director or FCoE
- * by the value of I40E_RX_PROG_STATUS_DESC_LENGTH, otherwise
- * it is a packet descriptor.
- **/
-static inline bool i40e_rx_is_programming_status(u64 qw)
-{
-	return I40E_RX_PROG_STATUS_DESC_LENGTH ==
-		(qw >> I40E_RX_PROG_STATUS_DESC_LENGTH_SHIFT);
-}
-
-/**
  * i40e_get_fd_cnt_all - get the total FD filter space available
  * @pf: pointer to the PF struct
  **/
