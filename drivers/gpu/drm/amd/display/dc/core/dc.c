@@ -1787,7 +1787,7 @@ void dc_link_remove_remote_sink(const struct dc_link *link, const struct dc_sink
 				dc_link->remote_sinks[i] = dc_link->remote_sinks[i+1];
 				i++;
 			}
-
+			dc_link->remote_sinks[i] = NULL;
 			dc_link->sink_count--;
 			return;
 		}
