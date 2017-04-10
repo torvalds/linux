@@ -640,10 +640,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	if (unlikely(skb->len > MAX_PKT_SIZE)) {
 		if (net_ratelimit())
 			netdev_dbg(netdev, "tx packet too big\n");
-
-		netdev->stats.tx_dropped++;
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
+		goto drop;
 	}
 
 	map = dma_map_single(priv->dev, skb->data, skb_headlen(skb), DMA_TO_DEVICE);
@@ -651,10 +648,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		/* drop packet */
 		if (net_ratelimit())
 			netdev_err(netdev, "map socket buffer failed\n");
-
-		netdev->stats.tx_dropped++;
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
+		goto drop;
 	}
 
 	txdes = ftgmac100_current_txdes(priv);
@@ -692,6 +686,13 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	spin_unlock(&priv->tx_lock);
 
 	ftgmac100_txdma_normal_prio_start_polling(priv);
+
+	return NETDEV_TX_OK;
+
+ drop:
+	/* Drop the packet */
+	dev_kfree_skb_any(skb);
+	netdev->stats.tx_dropped++;
 
 	return NETDEV_TX_OK;
 }
