@@ -448,6 +448,9 @@ struct ath10k_hw_params {
 	/* hw specific clock control parameters */
 	const struct ath10k_hw_clk_params *hw_clk;
 	int target_cpu_freq;
+
+	/* Number of bytes to be discarded for each FFT sample */
+	int spectral_bin_discard;
 };
 
 struct htt_rx_desc;
