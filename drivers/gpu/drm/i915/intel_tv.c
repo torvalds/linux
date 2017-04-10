@@ -50,39 +50,6 @@ struct intel_tv {
 	int type;
 	const char *tv_format;
 	int margin[4];
-	u32 save_TV_H_CTL_1;
-	u32 save_TV_H_CTL_2;
-	u32 save_TV_H_CTL_3;
-	u32 save_TV_V_CTL_1;
-	u32 save_TV_V_CTL_2;
-	u32 save_TV_V_CTL_3;
-	u32 save_TV_V_CTL_4;
-	u32 save_TV_V_CTL_5;
-	u32 save_TV_V_CTL_6;
-	u32 save_TV_V_CTL_7;
-	u32 save_TV_SC_CTL_1, save_TV_SC_CTL_2, save_TV_SC_CTL_3;
-
-	u32 save_TV_CSC_Y;
-	u32 save_TV_CSC_Y2;
-	u32 save_TV_CSC_U;
-	u32 save_TV_CSC_U2;
-	u32 save_TV_CSC_V;
-	u32 save_TV_CSC_V2;
-	u32 save_TV_CLR_KNOBS;
-	u32 save_TV_CLR_LEVEL;
-	u32 save_TV_WIN_POS;
-	u32 save_TV_WIN_SIZE;
-	u32 save_TV_FILTER_CTL_1;
-	u32 save_TV_FILTER_CTL_2;
-	u32 save_TV_FILTER_CTL_3;
-
-	u32 save_TV_H_LUMA[60];
-	u32 save_TV_H_CHROMA[60];
-	u32 save_TV_V_LUMA[43];
-	u32 save_TV_V_CHROMA[43];
-
-	u32 save_TV_DAC;
-	u32 save_TV_CTL;
 };
 
 struct video_levels {
