@@ -217,7 +217,7 @@ pnfs_generic_alloc_ds_commits(struct nfs_commit_info *cinfo,
 	for (i = 0; i < fl_cinfo->nbuckets; i++, bucket++) {
 		if (list_empty(&bucket->committing))
 			continue;
-		data = nfs_commitdata_alloc();
+		data = nfs_commitdata_alloc(false);
 		if (!data)
 			break;
 		data->ds_commit_index = i;
@@ -283,16 +283,10 @@ pnfs_generic_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 	unsigned int nreq = 0;
 
 	if (!list_empty(mds_pages)) {
-		data = nfs_commitdata_alloc();
-		if (data != NULL) {
-			data->ds_commit_index = -1;
-			list_add(&data->pages, &list);
-			nreq++;
-		} else {
-			nfs_retry_commit(mds_pages, NULL, cinfo, 0);
-			pnfs_generic_retry_commit(cinfo, 0);
-			return -ENOMEM;
-		}
+		data = nfs_commitdata_alloc(true);
+		data->ds_commit_index = -1;
+		list_add(&data->pages, &list);
+		nreq++;
 	}
 
 	nreq += pnfs_generic_alloc_ds_commits(cinfo, &list);

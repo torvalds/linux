@@ -502,7 +502,7 @@ extern int nfs_wb_all(struct inode *inode);
 extern int nfs_wb_single_page(struct inode *inode, struct page *page, bool launder);
 extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
 extern int  nfs_commit_inode(struct inode *, int);
-extern struct nfs_commit_data *nfs_commitdata_alloc(void);
+extern struct nfs_commit_data *nfs_commitdata_alloc(bool never_fail);
 extern void nfs_commit_free(struct nfs_commit_data *data);
 
 static inline int
