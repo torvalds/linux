@@ -356,23 +356,14 @@ static const struct of_device_id vc4_dpi_dt_match[] = {
  */
 static struct drm_panel *vc4_dpi_get_panel(struct device *dev)
 {
-	struct device_node *endpoint, *panel_node;
+	struct device_node *panel_node;
 	struct device_node *np = dev->of_node;
 	struct drm_panel *panel;
 
-	endpoint = of_graph_get_next_endpoint(np, NULL);
-	if (!endpoint) {
-		dev_err(dev, "no endpoint to fetch DPI panel\n");
-		return NULL;
-	}
-
 	/* don't proceed if we have an endpoint but no panel_node tied to it */
-	panel_node = of_graph_get_remote_port_parent(endpoint);
-	of_node_put(endpoint);
-	if (!panel_node) {
-		dev_err(dev, "no valid panel node\n");
+	panel_node = of_graph_get_remote_node(np, 0, 0);
+	if (!panel_node)
 		return NULL;
-	}
 
 	panel = of_drm_find_panel(panel_node);
 	of_node_put(panel_node);

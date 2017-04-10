@@ -1516,18 +1516,8 @@ EXPORT_SYMBOL(drm_atomic_add_affected_planes);
 void drm_atomic_legacy_backoff(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
-	unsigned crtc_mask = 0;
-	struct drm_crtc *crtc;
 	int ret;
 	bool global = false;
-
-	drm_for_each_crtc(crtc, dev) {
-		if (crtc->acquire_ctx != state->acquire_ctx)
-			continue;
-
-		crtc_mask |= drm_crtc_mask(crtc);
-		crtc->acquire_ctx = NULL;
-	}
 
 	if (WARN_ON(dev->mode_config.acquire_ctx == state->acquire_ctx)) {
 		global = true;
@@ -1541,10 +1531,6 @@ retry:
 	ret = drm_modeset_lock_all_ctx(dev, state->acquire_ctx);
 	if (ret)
 		goto retry;
-
-	drm_for_each_crtc(crtc, dev)
-		if (drm_crtc_mask(crtc) & crtc_mask)
-			crtc->acquire_ctx = state->acquire_ctx;
 
 	if (global)
 		dev->mode_config.acquire_ctx = state->acquire_ctx;
@@ -1690,6 +1676,44 @@ static void drm_atomic_print_state(const struct drm_atomic_state *state)
 		drm_atomic_connector_print_state(&p, connector_state);
 }
 
+static void __drm_state_dump(struct drm_device *dev, struct drm_printer *p,
+			     bool take_locks)
+{
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+
+	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
+		return;
+
+	list_for_each_entry(plane, &config->plane_list, head) {
+		if (take_locks)
+			drm_modeset_lock(&plane->mutex, NULL);
+		drm_atomic_plane_print_state(p, plane->state);
+		if (take_locks)
+			drm_modeset_unlock(&plane->mutex);
+	}
+
+	list_for_each_entry(crtc, &config->crtc_list, head) {
+		if (take_locks)
+			drm_modeset_lock(&crtc->mutex, NULL);
+		drm_atomic_crtc_print_state(p, crtc->state);
+		if (take_locks)
+			drm_modeset_unlock(&crtc->mutex);
+	}
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	if (take_locks)
+		drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	drm_for_each_connector_iter(connector, &conn_iter)
+		drm_atomic_connector_print_state(p, connector->state);
+	if (take_locks)
+		drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	drm_connector_list_iter_end(&conn_iter);
+}
+
 /**
  * drm_state_dump - dump entire device atomic state
  * @dev: the drm device
@@ -1707,25 +1731,7 @@ static void drm_atomic_print_state(const struct drm_atomic_state *state)
  */
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p)
 {
-	struct drm_mode_config *config = &dev->mode_config;
-	struct drm_plane *plane;
-	struct drm_crtc *crtc;
-	struct drm_connector *connector;
-	struct drm_connector_list_iter conn_iter;
-
-	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
-		return;
-
-	list_for_each_entry(plane, &config->plane_list, head)
-		drm_atomic_plane_print_state(p, plane->state);
-
-	list_for_each_entry(crtc, &config->crtc_list, head)
-		drm_atomic_crtc_print_state(p, crtc->state);
-
-	drm_connector_list_iter_begin(dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter)
-		drm_atomic_connector_print_state(p, connector->state);
-	drm_connector_list_iter_end(&conn_iter);
+	__drm_state_dump(dev, p, false);
 }
 EXPORT_SYMBOL(drm_state_dump);
 
@@ -1736,9 +1742,7 @@ static int drm_state_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	drm_modeset_lock_all(dev);
-	drm_state_dump(dev, &p);
-	drm_modeset_unlock_all(dev);
+	__drm_state_dump(dev, &p, true);
 
 	return 0;
 }
@@ -2075,94 +2079,6 @@ static void complete_crtc_signaling(struct drm_device *dev,
 	}
 
 	kfree(fence_state);
-}
-
-int drm_atomic_remove_fb(struct drm_framebuffer *fb)
-{
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_device *dev = fb->dev;
-	struct drm_atomic_state *state;
-	struct drm_plane *plane;
-	struct drm_connector *conn;
-	struct drm_connector_state *conn_state;
-	int i, ret = 0;
-	unsigned plane_mask;
-
-	state = drm_atomic_state_alloc(dev);
-	if (!state)
-		return -ENOMEM;
-
-	drm_modeset_acquire_init(&ctx, 0);
-	state->acquire_ctx = &ctx;
-
-retry:
-	plane_mask = 0;
-	ret = drm_modeset_lock_all_ctx(dev, &ctx);
-	if (ret)
-		goto unlock;
-
-	drm_for_each_plane(plane, dev) {
-		struct drm_plane_state *plane_state;
-
-		if (plane->state->fb != fb)
-			continue;
-
-		plane_state = drm_atomic_get_plane_state(state, plane);
-		if (IS_ERR(plane_state)) {
-			ret = PTR_ERR(plane_state);
-			goto unlock;
-		}
-
-		if (plane_state->crtc->primary == plane) {
-			struct drm_crtc_state *crtc_state;
-
-			crtc_state = drm_atomic_get_existing_crtc_state(state, plane_state->crtc);
-
-			ret = drm_atomic_add_affected_connectors(state, plane_state->crtc);
-			if (ret)
-				goto unlock;
-
-			crtc_state->active = false;
-			ret = drm_atomic_set_mode_for_crtc(crtc_state, NULL);
-			if (ret)
-				goto unlock;
-		}
-
-		drm_atomic_set_fb_for_plane(plane_state, NULL);
-		ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
-		if (ret)
-			goto unlock;
-
-		plane_mask |= BIT(drm_plane_index(plane));
-
-		plane->old_fb = plane->fb;
-	}
-
-	for_each_connector_in_state(state, conn, conn_state, i) {
-		ret = drm_atomic_set_crtc_for_connector(conn_state, NULL);
-
-		if (ret)
-			goto unlock;
-	}
-
-	if (plane_mask)
-		ret = drm_atomic_commit(state);
-
-unlock:
-	if (plane_mask)
-		drm_atomic_clean_old_fb(dev, plane_mask, ret);
-
-	if (ret == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
-	}
-
-	drm_atomic_state_put(state);
-
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
-
-	return ret;
 }
 
 int drm_mode_atomic_ioctl(struct drm_device *dev,

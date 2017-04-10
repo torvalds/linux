@@ -1059,7 +1059,11 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 	int ret;
 	struct dma_buf *buf_obj;
 	struct dma_buf_attachment *attach_obj;
-	int count = 0, attach_count;
+	struct reservation_object *robj;
+	struct reservation_object_list *fobj;
+	struct dma_fence *fence;
+	unsigned seq;
+	int count = 0, attach_count, shared_count, i;
 	size_t size = 0;
 
 	ret = mutex_lock_interruptible(&db_list.lock);
@@ -1068,7 +1072,8 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 		return ret;
 
 	seq_puts(s, "\nDma-buf Objects:\n");
-	seq_puts(s, "size\tflags\tmode\tcount\texp_name\n");
+	seq_printf(s, "%-8s\t%-8s\t%-8s\t%-8s\texp_name\n",
+		   "size", "flags", "mode", "count");
 
 	list_for_each_entry(buf_obj, &db_list.head, list_node) {
 		ret = mutex_lock_interruptible(&buf_obj->lock);
@@ -1084,6 +1089,34 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 				buf_obj->file->f_flags, buf_obj->file->f_mode,
 				file_count(buf_obj->file),
 				buf_obj->exp_name);
+
+		robj = buf_obj->resv;
+		while (true) {
+			seq = read_seqcount_begin(&robj->seq);
+			rcu_read_lock();
+			fobj = rcu_dereference(robj->fence);
+			shared_count = fobj ? fobj->shared_count : 0;
+			fence = rcu_dereference(robj->fence_excl);
+			if (!read_seqcount_retry(&robj->seq, seq))
+				break;
+			rcu_read_unlock();
+		}
+
+		if (fence)
+			seq_printf(s, "\tExclusive fence: %s %s %ssignalled\n",
+				   fence->ops->get_driver_name(fence),
+				   fence->ops->get_timeline_name(fence),
+				   dma_fence_is_signaled(fence) ? "" : "un");
+		for (i = 0; i < shared_count; i++) {
+			fence = rcu_dereference(fobj->shared[i]);
+			if (!dma_fence_get_rcu(fence))
+				continue;
+			seq_printf(s, "\tShared fence: %s %s %ssignalled\n",
+				   fence->ops->get_driver_name(fence),
+				   fence->ops->get_timeline_name(fence),
+				   dma_fence_is_signaled(fence) ? "" : "un");
+		}
+		rcu_read_unlock();
 
 		seq_puts(s, "\tAttached Devices:\n");
 		attach_count = 0;

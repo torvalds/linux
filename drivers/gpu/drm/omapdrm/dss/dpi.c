@@ -877,7 +877,7 @@ int dpi_init_port(struct platform_device *pdev, struct device_node *port)
 	if (!dpi)
 		return -ENOMEM;
 
-	ep = omapdss_of_get_next_endpoint(port, NULL);
+	ep = of_get_next_child(port, NULL);
 	if (!ep)
 		return 0;
 

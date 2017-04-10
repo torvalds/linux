@@ -23,6 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_graph.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -1035,16 +1036,7 @@ int tilcdc_crtc_create(struct drm_device *dev)
 	drm_crtc_helper_add(crtc, &tilcdc_crtc_helper_funcs);
 
 	if (priv->is_componentized) {
-		struct device_node *ports =
-			of_get_child_by_name(dev->dev->of_node, "ports");
-
-		if (ports) {
-			crtc->port = of_get_child_by_name(ports, "port");
-			of_node_put(ports);
-		} else {
-			crtc->port =
-				of_get_child_by_name(dev->dev->of_node, "port");
-		}
+		crtc->port = of_graph_get_port_by_id(dev->dev->of_node, 0);
 		if (!crtc->port) { /* This should never happen */
 			dev_err(dev->dev, "Port node not found in %s\n",
 				dev->dev->of_node->full_name);

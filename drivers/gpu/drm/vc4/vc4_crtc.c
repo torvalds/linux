@@ -314,7 +314,8 @@ vc4_crtc_lut_load(struct drm_crtc *crtc)
 
 static int
 vc4_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		   uint32_t size)
+		   uint32_t size,
+		   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	u32 i;

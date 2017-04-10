@@ -165,18 +165,13 @@ static irqreturn_t tfp410_hpd_irq_thread(int irq, void *arg)
 
 static int tfp410_get_connector_properties(struct tfp410 *dvi)
 {
-	struct device_node *ep = NULL, *connector_node = NULL;
-	struct device_node *ddc_phandle = NULL;
+	struct device_node *connector_node, *ddc_phandle;
 	int ret = 0;
 
 	/* port@1 is the connector node */
-	ep = of_graph_get_endpoint_by_regs(dvi->dev->of_node, 1, -1);
-	if (!ep)
-		goto fail;
-
-	connector_node = of_graph_get_remote_port_parent(ep);
+	connector_node = of_graph_get_remote_node(dvi->dev->of_node, 1, -1);
 	if (!connector_node)
-		goto fail;
+		return -ENODEV;
 
 	dvi->hpd = fwnode_get_named_gpiod(&connector_node->fwnode,
 					"hpd-gpios", 0, GPIOD_IN, "hpd");
@@ -199,10 +194,10 @@ static int tfp410_get_connector_properties(struct tfp410 *dvi)
 	else
 		ret = -EPROBE_DEFER;
 
-fail:
-	of_node_put(ep);
-	of_node_put(connector_node);
 	of_node_put(ddc_phandle);
+
+fail:
+	of_node_put(connector_node);
 	return ret;
 }
 

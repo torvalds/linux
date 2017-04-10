@@ -230,34 +230,6 @@ static const struct component_master_ops kirin_drm_ops = {
 	.unbind = kirin_drm_unbind,
 };
 
-static struct device_node *kirin_get_remote_node(struct device_node *np)
-{
-	struct device_node *endpoint, *remote;
-
-	/* get the first endpoint, in our case only one remote node
-	 * is connected to display controller.
-	 */
-	endpoint = of_graph_get_next_endpoint(np, NULL);
-	if (!endpoint) {
-		DRM_ERROR("no valid endpoint node\n");
-		return ERR_PTR(-ENODEV);
-	}
-
-	remote = of_graph_get_remote_port_parent(endpoint);
-	of_node_put(endpoint);
-	if (!remote) {
-		DRM_ERROR("no valid remote node\n");
-		return ERR_PTR(-ENODEV);
-	}
-
-	if (!of_device_is_available(remote)) {
-		DRM_ERROR("not available for remote node\n");
-		return ERR_PTR(-ENODEV);
-	}
-
-	return remote;
-}
-
 static int kirin_drm_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -271,7 +243,7 @@ static int kirin_drm_platform_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	remote = kirin_get_remote_node(np);
+	remote = of_graph_get_remote_node(np, 0, 0);
 	if (IS_ERR(remote))
 		return PTR_ERR(remote);
 

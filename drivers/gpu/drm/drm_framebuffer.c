@@ -24,6 +24,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_atomic.h>
 
 #include "drm_crtc_internal.h"
 
@@ -755,6 +756,117 @@ void drm_framebuffer_cleanup(struct drm_framebuffer *fb)
 }
 EXPORT_SYMBOL(drm_framebuffer_cleanup);
 
+static int atomic_remove_fb(struct drm_framebuffer *fb)
+{
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_device *dev = fb->dev;
+	struct drm_atomic_state *state;
+	struct drm_plane *plane;
+	struct drm_connector *conn;
+	struct drm_connector_state *conn_state;
+	int i, ret = 0;
+	unsigned plane_mask;
+
+	state = drm_atomic_state_alloc(dev);
+	if (!state)
+		return -ENOMEM;
+
+	drm_modeset_acquire_init(&ctx, 0);
+	state->acquire_ctx = &ctx;
+
+retry:
+	plane_mask = 0;
+	ret = drm_modeset_lock_all_ctx(dev, &ctx);
+	if (ret)
+		goto unlock;
+
+	drm_for_each_plane(plane, dev) {
+		struct drm_plane_state *plane_state;
+
+		if (plane->state->fb != fb)
+			continue;
+
+		plane_state = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state)) {
+			ret = PTR_ERR(plane_state);
+			goto unlock;
+		}
+
+		if (plane_state->crtc->primary == plane) {
+			struct drm_crtc_state *crtc_state;
+
+			crtc_state = drm_atomic_get_existing_crtc_state(state, plane_state->crtc);
+
+			ret = drm_atomic_add_affected_connectors(state, plane_state->crtc);
+			if (ret)
+				goto unlock;
+
+			crtc_state->active = false;
+			ret = drm_atomic_set_mode_for_crtc(crtc_state, NULL);
+			if (ret)
+				goto unlock;
+		}
+
+		drm_atomic_set_fb_for_plane(plane_state, NULL);
+		ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
+		if (ret)
+			goto unlock;
+
+		plane_mask |= BIT(drm_plane_index(plane));
+
+		plane->old_fb = plane->fb;
+	}
+
+	for_each_connector_in_state(state, conn, conn_state, i) {
+		ret = drm_atomic_set_crtc_for_connector(conn_state, NULL);
+
+		if (ret)
+			goto unlock;
+	}
+
+	if (plane_mask)
+		ret = drm_atomic_commit(state);
+
+unlock:
+	if (plane_mask)
+		drm_atomic_clean_old_fb(dev, plane_mask, ret);
+
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+
+	drm_atomic_state_put(state);
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
+	return ret;
+}
+
+static void legacy_remove_fb(struct drm_framebuffer *fb)
+{
+	struct drm_device *dev = fb->dev;
+	struct drm_crtc *crtc;
+	struct drm_plane *plane;
+
+	drm_modeset_lock_all(dev);
+	/* remove from any CRTC */
+	drm_for_each_crtc(crtc, dev) {
+		if (crtc->primary->fb == fb) {
+			/* should turn off the crtc */
+			if (drm_crtc_force_disable(crtc))
+				DRM_ERROR("failed to reset crtc %p when fb was deleted\n", crtc);
+		}
+	}
+
+	drm_for_each_plane(plane, dev) {
+		if (plane->fb == fb)
+			drm_plane_force_disable(plane);
+	}
+	drm_modeset_unlock_all(dev);
+}
+
 /**
  * drm_framebuffer_remove - remove and unreference a framebuffer object
  * @fb: framebuffer to remove
@@ -770,8 +882,6 @@ EXPORT_SYMBOL(drm_framebuffer_cleanup);
 void drm_framebuffer_remove(struct drm_framebuffer *fb)
 {
 	struct drm_device *dev;
-	struct drm_crtc *crtc;
-	struct drm_plane *plane;
 
 	if (!fb)
 		return;
@@ -797,29 +907,12 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	 */
 	if (drm_framebuffer_read_refcount(fb) > 1) {
 		if (drm_drv_uses_atomic_modeset(dev)) {
-			int ret = drm_atomic_remove_fb(fb);
+			int ret = atomic_remove_fb(fb);
 			WARN(ret, "atomic remove_fb failed with %i\n", ret);
-			goto out;
-		}
-
-		drm_modeset_lock_all(dev);
-		/* remove from any CRTC */
-		drm_for_each_crtc(crtc, dev) {
-			if (crtc->primary->fb == fb) {
-				/* should turn off the crtc */
-				if (drm_crtc_force_disable(crtc))
-					DRM_ERROR("failed to reset crtc %p when fb was deleted\n", crtc);
-			}
-		}
-
-		drm_for_each_plane(plane, dev) {
-			if (plane->fb == fb)
-				drm_plane_force_disable(plane);
-		}
-		drm_modeset_unlock_all(dev);
+		} else
+			legacy_remove_fb(fb);
 	}
 
-out:
 	drm_framebuffer_put(fb);
 }
 EXPORT_SYMBOL(drm_framebuffer_remove);

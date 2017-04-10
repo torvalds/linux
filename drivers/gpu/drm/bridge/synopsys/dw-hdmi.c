@@ -30,17 +30,14 @@
 #include <drm/drm_encoder_slave.h>
 #include <drm/bridge/dw_hdmi.h>
 
+#include <uapi/linux/media-bus-format.h>
+#include <uapi/linux/videodev2.h>
+
 #include "dw-hdmi.h"
 #include "dw-hdmi-audio.h"
 
 #define DDC_SEGMENT_ADDR	0x30
 #define HDMI_EDID_LEN		512
-
-#define RGB			0
-#define YCBCR444		1
-#define YCBCR422_16BITS		2
-#define YCBCR422_8BITS		3
-#define XVYCC444		4
 
 enum hdmi_datamap {
 	RGB444_8B = 0x01,
@@ -95,10 +92,10 @@ struct hdmi_vmode {
 };
 
 struct hdmi_data_info {
-	unsigned int enc_in_format;
-	unsigned int enc_out_format;
-	unsigned int enc_color_depth;
-	unsigned int colorimetry;
+	unsigned int enc_in_bus_format;
+	unsigned int enc_out_bus_format;
+	unsigned int enc_in_encoding;
+	unsigned int enc_out_encoding;
 	unsigned int pix_repet_factor;
 	unsigned int hdcp_enable;
 	struct hdmi_vmode video_mode;
@@ -567,6 +564,78 @@ void dw_hdmi_audio_disable(struct dw_hdmi *hdmi)
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_audio_disable);
 
+static bool hdmi_bus_fmt_is_rgb(unsigned int bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+	case MEDIA_BUS_FMT_RGB121212_1X36:
+	case MEDIA_BUS_FMT_RGB161616_1X48:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+static bool hdmi_bus_fmt_is_yuv444(unsigned int bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_YUV10_1X30:
+	case MEDIA_BUS_FMT_YUV12_1X36:
+	case MEDIA_BUS_FMT_YUV16_1X48:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+static bool hdmi_bus_fmt_is_yuv422(unsigned int bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_UYVY12_1X24:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+static int hdmi_bus_fmt_color_depth(unsigned int bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+		return 8;
+
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+	case MEDIA_BUS_FMT_YUV10_1X30:
+	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+		return 10;
+
+	case MEDIA_BUS_FMT_RGB121212_1X36:
+	case MEDIA_BUS_FMT_YUV12_1X36:
+	case MEDIA_BUS_FMT_UYVY12_1X24:
+	case MEDIA_BUS_FMT_UYYVYY12_0_5X36:
+		return 12;
+
+	case MEDIA_BUS_FMT_RGB161616_1X48:
+	case MEDIA_BUS_FMT_YUV16_1X48:
+	case MEDIA_BUS_FMT_UYYVYY16_0_5X48:
+		return 16;
+
+	default:
+		return 0;
+	}
+}
+
 /*
  * this submodule is responsible for the video data synchronization.
  * for example, for RGB 4:4:4 input, the data map is defined as
@@ -579,37 +648,49 @@ static void hdmi_video_sample(struct dw_hdmi *hdmi)
 	int color_format = 0;
 	u8 val;
 
-	if (hdmi->hdmi_data.enc_in_format == RGB) {
-		if (hdmi->hdmi_data.enc_color_depth == 8)
-			color_format = 0x01;
-		else if (hdmi->hdmi_data.enc_color_depth == 10)
-			color_format = 0x03;
-		else if (hdmi->hdmi_data.enc_color_depth == 12)
-			color_format = 0x05;
-		else if (hdmi->hdmi_data.enc_color_depth == 16)
-			color_format = 0x07;
-		else
-			return;
-	} else if (hdmi->hdmi_data.enc_in_format == YCBCR444) {
-		if (hdmi->hdmi_data.enc_color_depth == 8)
-			color_format = 0x09;
-		else if (hdmi->hdmi_data.enc_color_depth == 10)
-			color_format = 0x0B;
-		else if (hdmi->hdmi_data.enc_color_depth == 12)
-			color_format = 0x0D;
-		else if (hdmi->hdmi_data.enc_color_depth == 16)
-			color_format = 0x0F;
-		else
-			return;
-	} else if (hdmi->hdmi_data.enc_in_format == YCBCR422_8BITS) {
-		if (hdmi->hdmi_data.enc_color_depth == 8)
-			color_format = 0x16;
-		else if (hdmi->hdmi_data.enc_color_depth == 10)
-			color_format = 0x14;
-		else if (hdmi->hdmi_data.enc_color_depth == 12)
-			color_format = 0x12;
-		else
-			return;
+	switch (hdmi->hdmi_data.enc_in_bus_format) {
+	case MEDIA_BUS_FMT_RGB888_1X24:
+		color_format = 0x01;
+		break;
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+		color_format = 0x03;
+		break;
+	case MEDIA_BUS_FMT_RGB121212_1X36:
+		color_format = 0x05;
+		break;
+	case MEDIA_BUS_FMT_RGB161616_1X48:
+		color_format = 0x07;
+		break;
+
+	case MEDIA_BUS_FMT_YUV8_1X24:
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+		color_format = 0x09;
+		break;
+	case MEDIA_BUS_FMT_YUV10_1X30:
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+		color_format = 0x0B;
+		break;
+	case MEDIA_BUS_FMT_YUV12_1X36:
+	case MEDIA_BUS_FMT_UYYVYY12_0_5X36:
+		color_format = 0x0D;
+		break;
+	case MEDIA_BUS_FMT_YUV16_1X48:
+	case MEDIA_BUS_FMT_UYYVYY16_0_5X48:
+		color_format = 0x0F;
+		break;
+
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+		color_format = 0x16;
+		break;
+	case MEDIA_BUS_FMT_UYVY10_1X20:
+		color_format = 0x14;
+		break;
+	case MEDIA_BUS_FMT_UYVY12_1X24:
+		color_format = 0x12;
+		break;
+
+	default:
+		return;
 	}
 
 	val = HDMI_TX_INVID0_INTERNAL_DE_GENERATOR_DISABLE |
@@ -632,26 +713,30 @@ static void hdmi_video_sample(struct dw_hdmi *hdmi)
 
 static int is_color_space_conversion(struct dw_hdmi *hdmi)
 {
-	return hdmi->hdmi_data.enc_in_format != hdmi->hdmi_data.enc_out_format;
+	return hdmi->hdmi_data.enc_in_bus_format != hdmi->hdmi_data.enc_out_bus_format;
 }
 
 static int is_color_space_decimation(struct dw_hdmi *hdmi)
 {
-	if (hdmi->hdmi_data.enc_out_format != YCBCR422_8BITS)
+	if (!hdmi_bus_fmt_is_yuv422(hdmi->hdmi_data.enc_out_bus_format))
 		return 0;
-	if (hdmi->hdmi_data.enc_in_format == RGB ||
-	    hdmi->hdmi_data.enc_in_format == YCBCR444)
+
+	if (hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_in_bus_format) ||
+	    hdmi_bus_fmt_is_yuv444(hdmi->hdmi_data.enc_in_bus_format))
 		return 1;
+
 	return 0;
 }
 
 static int is_color_space_interpolation(struct dw_hdmi *hdmi)
 {
-	if (hdmi->hdmi_data.enc_in_format != YCBCR422_8BITS)
+	if (!hdmi_bus_fmt_is_yuv422(hdmi->hdmi_data.enc_in_bus_format))
 		return 0;
-	if (hdmi->hdmi_data.enc_out_format == RGB ||
-	    hdmi->hdmi_data.enc_out_format == YCBCR444)
+
+	if (hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format) ||
+	    hdmi_bus_fmt_is_yuv444(hdmi->hdmi_data.enc_out_bus_format))
 		return 1;
+
 	return 0;
 }
 
@@ -662,15 +747,16 @@ static void dw_hdmi_update_csc_coeffs(struct dw_hdmi *hdmi)
 	u32 csc_scale = 1;
 
 	if (is_color_space_conversion(hdmi)) {
-		if (hdmi->hdmi_data.enc_out_format == RGB) {
-			if (hdmi->hdmi_data.colorimetry ==
-					HDMI_COLORIMETRY_ITU_601)
+		if (hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format)) {
+			if (hdmi->hdmi_data.enc_out_encoding ==
+						V4L2_YCBCR_ENC_601)
 				csc_coeff = &csc_coeff_rgb_out_eitu601;
 			else
 				csc_coeff = &csc_coeff_rgb_out_eitu709;
-		} else if (hdmi->hdmi_data.enc_in_format == RGB) {
-			if (hdmi->hdmi_data.colorimetry ==
-					HDMI_COLORIMETRY_ITU_601)
+		} else if (hdmi_bus_fmt_is_rgb(
+					hdmi->hdmi_data.enc_in_bus_format)) {
+			if (hdmi->hdmi_data.enc_out_encoding ==
+						V4L2_YCBCR_ENC_601)
 				csc_coeff = &csc_coeff_rgb_in_eitu601;
 			else
 				csc_coeff = &csc_coeff_rgb_in_eitu709;
@@ -708,16 +794,23 @@ static void hdmi_video_csc(struct dw_hdmi *hdmi)
 	else if (is_color_space_decimation(hdmi))
 		decimation = HDMI_CSC_CFG_DECMODE_CHROMA_INT_FORMULA3;
 
-	if (hdmi->hdmi_data.enc_color_depth == 8)
+	switch (hdmi_bus_fmt_color_depth(hdmi->hdmi_data.enc_out_bus_format)) {
+	case 8:
 		color_depth = HDMI_CSC_SCALE_CSC_COLORDE_PTH_24BPP;
-	else if (hdmi->hdmi_data.enc_color_depth == 10)
+		break;
+	case 10:
 		color_depth = HDMI_CSC_SCALE_CSC_COLORDE_PTH_30BPP;
-	else if (hdmi->hdmi_data.enc_color_depth == 12)
+		break;
+	case 12:
 		color_depth = HDMI_CSC_SCALE_CSC_COLORDE_PTH_36BPP;
-	else if (hdmi->hdmi_data.enc_color_depth == 16)
+		break;
+	case 16:
 		color_depth = HDMI_CSC_SCALE_CSC_COLORDE_PTH_48BPP;
-	else
+		break;
+
+	default:
 		return;
+	}
 
 	/* Configure the CSC registers */
 	hdmi_writeb(hdmi, interpolation | decimation, HDMI_CSC_CFG);
@@ -740,32 +833,43 @@ static void hdmi_video_packetize(struct dw_hdmi *hdmi)
 	struct hdmi_data_info *hdmi_data = &hdmi->hdmi_data;
 	u8 val, vp_conf;
 
-	if (hdmi_data->enc_out_format == RGB ||
-	    hdmi_data->enc_out_format == YCBCR444) {
-		if (!hdmi_data->enc_color_depth) {
-			output_select = HDMI_VP_CONF_OUTPUT_SELECTOR_BYPASS;
-		} else if (hdmi_data->enc_color_depth == 8) {
+	if (hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format) ||
+	    hdmi_bus_fmt_is_yuv444(hdmi->hdmi_data.enc_out_bus_format)) {
+		switch (hdmi_bus_fmt_color_depth(
+					hdmi->hdmi_data.enc_out_bus_format)) {
+		case 8:
 			color_depth = 4;
 			output_select = HDMI_VP_CONF_OUTPUT_SELECTOR_BYPASS;
-		} else if (hdmi_data->enc_color_depth == 10) {
+			break;
+		case 10:
 			color_depth = 5;
-		} else if (hdmi_data->enc_color_depth == 12) {
+			break;
+		case 12:
 			color_depth = 6;
-		} else if (hdmi_data->enc_color_depth == 16) {
+			break;
+		case 16:
 			color_depth = 7;
-		} else {
+			break;
+		default:
+			output_select = HDMI_VP_CONF_OUTPUT_SELECTOR_BYPASS;
+		}
+	} else if (hdmi_bus_fmt_is_yuv422(hdmi->hdmi_data.enc_out_bus_format)) {
+		switch (hdmi_bus_fmt_color_depth(
+					hdmi->hdmi_data.enc_out_bus_format)) {
+		case 0:
+		case 8:
+			remap_size = HDMI_VP_REMAP_YCC422_16bit;
+			break;
+		case 10:
+			remap_size = HDMI_VP_REMAP_YCC422_20bit;
+			break;
+		case 12:
+			remap_size = HDMI_VP_REMAP_YCC422_24bit;
+			break;
+
+		default:
 			return;
 		}
-	} else if (hdmi_data->enc_out_format == YCBCR422_8BITS) {
-		if (!hdmi_data->enc_color_depth ||
-		    hdmi_data->enc_color_depth == 8)
-			remap_size = HDMI_VP_REMAP_YCC422_16bit;
-		else if (hdmi_data->enc_color_depth == 10)
-			remap_size = HDMI_VP_REMAP_YCC422_20bit;
-		else if (hdmi_data->enc_color_depth == 12)
-			remap_size = HDMI_VP_REMAP_YCC422_24bit;
-		else
-			return;
 		output_select = HDMI_VP_CONF_OUTPUT_SELECTOR_YCC422;
 	} else {
 		return;
@@ -1111,10 +1215,46 @@ static enum drm_connector_status dw_hdmi_phy_read_hpd(struct dw_hdmi *hdmi,
 		connector_status_connected : connector_status_disconnected;
 }
 
+static void dw_hdmi_phy_update_hpd(struct dw_hdmi *hdmi, void *data,
+				   bool force, bool disabled, bool rxsense)
+{
+	u8 old_mask = hdmi->phy_mask;
+
+	if (force || disabled || !rxsense)
+		hdmi->phy_mask |= HDMI_PHY_RX_SENSE;
+	else
+		hdmi->phy_mask &= ~HDMI_PHY_RX_SENSE;
+
+	if (old_mask != hdmi->phy_mask)
+		hdmi_writeb(hdmi, hdmi->phy_mask, HDMI_PHY_MASK0);
+}
+
+static void dw_hdmi_phy_setup_hpd(struct dw_hdmi *hdmi, void *data)
+{
+	/*
+	 * Configure the PHY RX SENSE and HPD interrupts polarities and clear
+	 * any pending interrupt.
+	 */
+	hdmi_writeb(hdmi, HDMI_PHY_HPD | HDMI_PHY_RX_SENSE, HDMI_PHY_POL0);
+	hdmi_writeb(hdmi, HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE,
+		    HDMI_IH_PHY_STAT0);
+
+	/* Enable cable hot plug irq. */
+	hdmi_writeb(hdmi, hdmi->phy_mask, HDMI_PHY_MASK0);
+
+	/* Clear and unmute interrupts. */
+	hdmi_writeb(hdmi, HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE,
+		    HDMI_IH_PHY_STAT0);
+	hdmi_writeb(hdmi, ~(HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE),
+		    HDMI_IH_MUTE_PHY_STAT0);
+}
+
 static const struct dw_hdmi_phy_ops dw_hdmi_synopsys_phy_ops = {
 	.init = dw_hdmi_phy_init,
 	.disable = dw_hdmi_phy_disable,
 	.read_hpd = dw_hdmi_phy_read_hpd,
+	.update_hpd = dw_hdmi_phy_update_hpd,
+	.setup_hpd = dw_hdmi_phy_setup_hpd,
 };
 
 /* -----------------------------------------------------------------------------
@@ -1148,28 +1288,36 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	/* Initialise info frame from DRM mode */
 	drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
 
-	if (hdmi->hdmi_data.enc_out_format == YCBCR444)
+	if (hdmi_bus_fmt_is_yuv444(hdmi->hdmi_data.enc_out_bus_format))
 		frame.colorspace = HDMI_COLORSPACE_YUV444;
-	else if (hdmi->hdmi_data.enc_out_format == YCBCR422_8BITS)
+	else if (hdmi_bus_fmt_is_yuv422(hdmi->hdmi_data.enc_out_bus_format))
 		frame.colorspace = HDMI_COLORSPACE_YUV422;
 	else
 		frame.colorspace = HDMI_COLORSPACE_RGB;
 
 	/* Set up colorimetry */
-	if (hdmi->hdmi_data.enc_out_format == XVYCC444) {
-		frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
-		if (hdmi->hdmi_data.colorimetry == HDMI_COLORIMETRY_ITU_601)
-			frame.extended_colorimetry =
+	switch (hdmi->hdmi_data.enc_out_encoding) {
+	case V4L2_YCBCR_ENC_601:
+		if (hdmi->hdmi_data.enc_in_encoding == V4L2_YCBCR_ENC_XV601)
+			frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
+		else
+			frame.colorimetry = HDMI_COLORIMETRY_ITU_601;
+		frame.extended_colorimetry =
 				HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
-		else /*hdmi->hdmi_data.colorimetry == HDMI_COLORIMETRY_ITU_709*/
-			frame.extended_colorimetry =
+		break;
+	case V4L2_YCBCR_ENC_709:
+		if (hdmi->hdmi_data.enc_in_encoding == V4L2_YCBCR_ENC_XV709)
+			frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
+		else
+			frame.colorimetry = HDMI_COLORIMETRY_ITU_709;
+		frame.extended_colorimetry =
 				HDMI_EXTENDED_COLORIMETRY_XV_YCC_709;
-	} else if (hdmi->hdmi_data.enc_out_format != RGB) {
-		frame.colorimetry = hdmi->hdmi_data.colorimetry;
-		frame.extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
-	} else { /* Carries no data */
-		frame.colorimetry = HDMI_COLORIMETRY_NONE;
-		frame.extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+		break;
+	default: /* Carries no data */
+		frame.colorimetry = HDMI_COLORIMETRY_ITU_601;
+		frame.extended_colorimetry =
+				HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+		break;
 	}
 
 	frame.scan_mode = HDMI_SCAN_MODE_NONE;
@@ -1498,19 +1646,30 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	    (hdmi->vic == 21) || (hdmi->vic == 22) ||
 	    (hdmi->vic == 2) || (hdmi->vic == 3) ||
 	    (hdmi->vic == 17) || (hdmi->vic == 18))
-		hdmi->hdmi_data.colorimetry = HDMI_COLORIMETRY_ITU_601;
+		hdmi->hdmi_data.enc_out_encoding = V4L2_YCBCR_ENC_601;
 	else
-		hdmi->hdmi_data.colorimetry = HDMI_COLORIMETRY_ITU_709;
+		hdmi->hdmi_data.enc_out_encoding = V4L2_YCBCR_ENC_709;
 
 	hdmi->hdmi_data.video_mode.mpixelrepetitionoutput = 0;
 	hdmi->hdmi_data.video_mode.mpixelrepetitioninput = 0;
 
-	/* TODO: Get input format from IPU (via FB driver interface) */
-	hdmi->hdmi_data.enc_in_format = RGB;
+	/* TOFIX: Get input format from plat data or fallback to RGB888 */
+	if (hdmi->plat_data->input_bus_format)
+		hdmi->hdmi_data.enc_in_bus_format =
+			hdmi->plat_data->input_bus_format;
+	else
+		hdmi->hdmi_data.enc_in_bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
-	hdmi->hdmi_data.enc_out_format = RGB;
+	/* TOFIX: Get input encoding from plat data or fallback to none */
+	if (hdmi->plat_data->input_bus_encoding)
+		hdmi->hdmi_data.enc_in_encoding =
+			hdmi->plat_data->input_bus_encoding;
+	else
+		hdmi->hdmi_data.enc_in_encoding = V4L2_YCBCR_ENC_DEFAULT;
 
-	hdmi->hdmi_data.enc_color_depth = 8;
+	/* TOFIX: Default to RGB888 output format */
+	hdmi->hdmi_data.enc_out_bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+
 	hdmi->hdmi_data.pix_repet_factor = 0;
 	hdmi->hdmi_data.hdcp_enable = 0;
 	hdmi->hdmi_data.video_mode.mdataenablepolarity = true;
@@ -1558,8 +1717,7 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	return 0;
 }
 
-/* Wait until we are registered to enable interrupts */
-static int dw_hdmi_fb_registered(struct dw_hdmi *hdmi)
+static void dw_hdmi_setup_i2c(struct dw_hdmi *hdmi)
 {
 	hdmi_writeb(hdmi, HDMI_PHY_I2CM_INT_ADDR_DONE_POL,
 		    HDMI_PHY_I2CM_INT_ADDR);
@@ -1567,15 +1725,6 @@ static int dw_hdmi_fb_registered(struct dw_hdmi *hdmi)
 	hdmi_writeb(hdmi, HDMI_PHY_I2CM_CTLINT_ADDR_NAC_POL |
 		    HDMI_PHY_I2CM_CTLINT_ADDR_ARBITRATION_POL,
 		    HDMI_PHY_I2CM_CTLINT_ADDR);
-
-	/* enable cable hot plug irq */
-	hdmi_writeb(hdmi, hdmi->phy_mask, HDMI_PHY_MASK0);
-
-	/* Clear Hotplug interrupts */
-	hdmi_writeb(hdmi, HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE,
-		    HDMI_IH_PHY_STAT0);
-
-	return 0;
 }
 
 static void initialize_hdmi_ih_mutes(struct dw_hdmi *hdmi)
@@ -1682,15 +1831,10 @@ static void dw_hdmi_update_power(struct dw_hdmi *hdmi)
  */
 static void dw_hdmi_update_phy_mask(struct dw_hdmi *hdmi)
 {
-	u8 old_mask = hdmi->phy_mask;
-
-	if (hdmi->force || hdmi->disabled || !hdmi->rxsense)
-		hdmi->phy_mask |= HDMI_PHY_RX_SENSE;
-	else
-		hdmi->phy_mask &= ~HDMI_PHY_RX_SENSE;
-
-	if (old_mask != hdmi->phy_mask)
-		hdmi_writeb(hdmi, hdmi->phy_mask, HDMI_PHY_MASK0);
+	if (hdmi->phy.ops->update_hpd)
+		hdmi->phy.ops->update_hpd(hdmi, hdmi->phy.data,
+					  hdmi->force, hdmi->disabled,
+					  hdmi->rxsense);
 }
 
 static enum drm_connector_status
@@ -1882,6 +2026,41 @@ static irqreturn_t dw_hdmi_hardirq(int irq, void *dev_id)
 	return ret;
 }
 
+void __dw_hdmi_setup_rx_sense(struct dw_hdmi *hdmi, bool hpd, bool rx_sense)
+{
+	mutex_lock(&hdmi->mutex);
+
+	if (!hdmi->force) {
+		/*
+		 * If the RX sense status indicates we're disconnected,
+		 * clear the software rxsense status.
+		 */
+		if (!rx_sense)
+			hdmi->rxsense = false;
+
+		/*
+		 * Only set the software rxsense status when both
+		 * rxsense and hpd indicates we're connected.
+		 * This avoids what seems to be bad behaviour in
+		 * at least iMX6S versions of the phy.
+		 */
+		if (hpd)
+			hdmi->rxsense = true;
+
+		dw_hdmi_update_power(hdmi);
+		dw_hdmi_update_phy_mask(hdmi);
+	}
+	mutex_unlock(&hdmi->mutex);
+}
+
+void dw_hdmi_setup_rx_sense(struct device *dev, bool hpd, bool rx_sense)
+{
+	struct dw_hdmi *hdmi = dev_get_drvdata(dev);
+
+	__dw_hdmi_setup_rx_sense(hdmi, hpd, rx_sense);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_setup_rx_sense);
+
 static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 {
 	struct dw_hdmi *hdmi = dev_id;
@@ -1914,30 +2093,10 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 	 * ask the source to re-read the EDID.
 	 */
 	if (intr_stat &
-	    (HDMI_IH_PHY_STAT0_RX_SENSE | HDMI_IH_PHY_STAT0_HPD)) {
-		mutex_lock(&hdmi->mutex);
-		if (!hdmi->force) {
-			/*
-			 * If the RX sense status indicates we're disconnected,
-			 * clear the software rxsense status.
-			 */
-			if (!(phy_stat & HDMI_PHY_RX_SENSE))
-				hdmi->rxsense = false;
-
-			/*
-			 * Only set the software rxsense status when both
-			 * rxsense and hpd indicates we're connected.
-			 * This avoids what seems to be bad behaviour in
-			 * at least iMX6S versions of the phy.
-			 */
-			if (phy_stat & HDMI_PHY_HPD)
-				hdmi->rxsense = true;
-
-			dw_hdmi_update_power(hdmi);
-			dw_hdmi_update_phy_mask(hdmi);
-		}
-		mutex_unlock(&hdmi->mutex);
-	}
+	    (HDMI_IH_PHY_STAT0_RX_SENSE | HDMI_IH_PHY_STAT0_HPD))
+		__dw_hdmi_setup_rx_sense(hdmi,
+					 phy_stat & HDMI_PHY_HPD,
+					 phy_stat & HDMI_PHY_RX_SENSE);
 
 	if (intr_stat & HDMI_IH_PHY_STAT0_HPD) {
 		dev_dbg(hdmi->dev, "EVENT=%s\n",
@@ -2204,29 +2363,15 @@ __dw_hdmi_probe(struct platform_device *pdev,
 			hdmi->ddc = NULL;
 	}
 
-	/*
-	 * Configure registers related to HDMI interrupt
-	 * generation before registering IRQ.
-	 */
-	hdmi_writeb(hdmi, HDMI_PHY_HPD | HDMI_PHY_RX_SENSE, HDMI_PHY_POL0);
-
-	/* Clear Hotplug interrupts */
-	hdmi_writeb(hdmi, HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE,
-		    HDMI_IH_PHY_STAT0);
-
 	hdmi->bridge.driver_private = hdmi;
 	hdmi->bridge.funcs = &dw_hdmi_bridge_funcs;
 #ifdef CONFIG_OF
 	hdmi->bridge.of_node = pdev->dev.of_node;
 #endif
 
-	ret = dw_hdmi_fb_registered(hdmi);
-	if (ret)
-		goto err_iahb;
-
-	/* Unmute interrupts */
-	hdmi_writeb(hdmi, ~(HDMI_IH_PHY_STAT0_HPD | HDMI_IH_PHY_STAT0_RX_SENSE),
-		    HDMI_IH_MUTE_PHY_STAT0);
+	dw_hdmi_setup_i2c(hdmi);
+	if (hdmi->phy.ops->setup_hpd)
+		hdmi->phy.ops->setup_hpd(hdmi, hdmi->phy.data);
 
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 	pdevinfo.parent = dev;

@@ -2026,7 +2026,8 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
 
 int vmw_du_crtc_gamma_set(struct drm_crtc *crtc,
 			  u16 *r, u16 *g, u16 *b,
-			  uint32_t size)
+			  uint32_t size,
+			  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	int i;

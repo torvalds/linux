@@ -1026,6 +1026,7 @@ void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
 
 	e->pipe = pipe;
 	e->event.sequence = drm_vblank_count(dev, pipe);
+	e->event.crtc_id = crtc->base.id;
 	list_add_tail(&e->base.link, &dev->vblank_event_list);
 }
 EXPORT_SYMBOL(drm_crtc_arm_vblank_event);
@@ -1056,6 +1057,7 @@ void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
 		now = get_drm_timestamp();
 	}
 	e->pipe = pipe;
+	e->event.crtc_id = crtc->base.id;
 	send_vblank_event(dev, e, seq, &now);
 }
 EXPORT_SYMBOL(drm_crtc_send_vblank_event);

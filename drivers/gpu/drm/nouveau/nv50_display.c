@@ -2210,25 +2210,16 @@ nv50_head_lut_load(struct drm_crtc *crtc)
 	}
 }
 
-static int
-nv50_head_mode_set_base_atomic(struct drm_crtc *crtc,
-			       struct drm_framebuffer *fb, int x, int y,
-			       enum mode_set_atomic state)
-{
-	WARN_ON(1);
-	return 0;
-}
-
 static const struct drm_crtc_helper_funcs
 nv50_head_help = {
-	.mode_set_base_atomic = nv50_head_mode_set_base_atomic,
 	.load_lut = nv50_head_lut_load,
 	.atomic_check = nv50_head_atomic_check,
 };
 
 static int
 nv50_head_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-		    uint32_t size)
+		    uint32_t size,
+		    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	u32 i;

@@ -17,9 +17,12 @@ Required properties:
 
 Optional properties:
 - power-domains: a phandle to mipi dsi power domain node.
+- resets: list of phandle + reset specifier pairs, as described in [3].
+- reset-names: string reset name, must be "apb".
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Documentation/devicetree/bindings/media/video-interfaces.txt
+[3] Documentation/devicetree/bindings/reset/reset.txt
 
 Example:
 	mipi_dsi: mipi@ff960000 {
@@ -30,6 +33,8 @@ Example:
 		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPI_24M>, <&cru PCLK_MIPI_DSI0>;
 		clock-names = "ref", "pclk";
+		resets = <&cru SRST_MIPIDSI0>;
+		reset-names = "apb";
 		rockchip,grf = <&grf>;
 		status = "okay";
 

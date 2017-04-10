@@ -322,7 +322,8 @@ struct drm_crtc_funcs {
 	 * hooks.
 	 */
 	int (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
-			 uint32_t size);
+			 uint32_t size,
+			 struct drm_modeset_acquire_ctx *ctx);
 
 	/**
 	 * @destroy:
@@ -781,15 +782,6 @@ struct drm_crtc {
 	 * Spinlock to protect @commit_list.
 	 */
 	spinlock_t commit_lock;
-
-	/**
-	 * @acquire_ctx:
-	 *
-	 * Per-CRTC implicit acquire context used by atomic drivers for legacy
-	 * IOCTLs, so that atomic drivers can get at the locking acquire
-	 * context.
-	 */
-	struct drm_modeset_acquire_ctx *acquire_ctx;
 
 #ifdef CONFIG_DEBUG_FS
 	/**

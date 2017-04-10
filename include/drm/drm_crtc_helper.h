@@ -67,6 +67,9 @@ int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 int drm_helper_probe_single_connector_modes(struct drm_connector
 					    *connector, uint32_t maxX,
 					    uint32_t maxY);
+int drm_helper_probe_detect(struct drm_connector *connector,
+			    struct drm_modeset_acquire_ctx *ctx,
+			    bool force);
 void drm_kms_helper_poll_init(struct drm_device *dev);
 void drm_kms_helper_poll_fini(struct drm_device *dev);
 bool drm_helper_hpd_irq_event(struct drm_device *dev);

@@ -33,6 +33,7 @@
 #define _DRM_IOCTL_H_
 
 #include <linux/types.h>
+#include <linux/bitops.h>
 
 #include <asm/ioctl.h>
 
@@ -41,41 +42,126 @@ struct drm_file;
 struct file;
 
 /**
- * Ioctl function type.
+ * drm_ioctl_t - DRM ioctl function type.
+ * @dev: DRM device inode
+ * @data: private pointer of the ioctl call
+ * @file_priv: DRM file this ioctl was made on
  *
- * \param inode device inode.
- * \param file_priv DRM file private pointer.
- * \param cmd command.
- * \param arg argument.
+ * This is the DRM ioctl typedef. Note that drm_ioctl() has alrady copied @data
+ * into kernel-space, and will also copy it back, depending upon the read/write
+ * settings in the ioctl command code.
  */
 typedef int drm_ioctl_t(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 
+/**
+ * drm_ioctl_compat_t - compatibility DRM ioctl function type.
+ * @filp: file pointer
+ * @cmd: ioctl command code
+ * @arg: DRM file this ioctl was made on
+ *
+ * Just a typedef to make declaring an array of compatibility handlers easier.
+ * New drivers shouldn't screw up the structure layout for their ioctl
+ * structures and hence never need this.
+ */
 typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
 			       unsigned long arg);
 
 #define DRM_IOCTL_NR(n)                _IOC_NR(n)
 #define DRM_MAJOR       226
 
-#define DRM_AUTH	0x1
-#define	DRM_MASTER	0x2
-#define DRM_ROOT_ONLY	0x4
-#define DRM_CONTROL_ALLOW 0x8
-#define DRM_UNLOCKED	0x10
-#define DRM_RENDER_ALLOW 0x20
+/**
+ * enum drm_ioctl_flags - DRM ioctl flags
+ *
+ * Various flags that can be set in &drm_ioctl_desc.flags to control how
+ * userspace can use a given ioctl.
+ */
+enum drm_ioctl_flags {
+	/**
+	 * @DRM_AUTH:
+	 *
+	 * This is for ioctl which are used for rendering, and require that the
+	 * file descriptor is either for a render node, or if it's a
+	 * legacy/primary node, then it must be authenticated.
+	 */
+	DRM_AUTH		= BIT(0),
+	/**
+	 * @DRM_MASTER:
+	 *
+	 * This must be set for any ioctl which can change the modeset or
+	 * display state. Userspace must call the ioctl through a primary node,
+	 * while it is the active master.
+	 *
+	 * Note that read-only modeset ioctl can also be called by
+	 * unauthenticated clients, or when a master is not the currently active
+	 * one.
+	 */
+	DRM_MASTER		= BIT(1),
+	/**
+	 * @DRM_ROOT_ONLY:
+	 *
+	 * Anything that could potentially wreak a master file descriptor needs
+	 * to have this flag set. Current that's only for the SETMASTER and
+	 * DROPMASTER ioctl, which e.g. logind can call to force a non-behaving
+	 * master (display compositor) into compliance.
+	 *
+	 * This is equivalent to callers with the SYSADMIN capability.
+	 */
+	DRM_ROOT_ONLY		= BIT(2),
+	/**
+	 * @DRM_CONTROL_ALLOW:
+	 *
+	 * Deprecated, do not use. Control nodes are in the process of getting
+	 * removed.
+	 */
+	DRM_CONTROL_ALLOW	= BIT(3),
+	/**
+	 * @DRM_UNLOCKED:
+	 *
+	 * Whether &drm_ioctl_desc.func should be called with the DRM BKL held
+	 * or not. Enforced as the default for all modern drivers, hence there
+	 * should never be a need to set this flag.
+	 */
+	DRM_UNLOCKED		= BIT(4),
+	/**
+	 * @DRM_RENDER_ALLOW:
+	 *
+	 * This is used for all ioctl needed for rendering only, for drivers
+	 * which support render nodes. This should be all new render drivers,
+	 * and hence it should be always set for any ioctl with DRM_AUTH set.
+	 * Note though that read-only query ioctl might have this set, but have
+	 * not set DRM_AUTH because they do not require authentication.
+	 */
+	DRM_RENDER_ALLOW	= BIT(5),
+};
 
+/**
+ * struct drm_ioctl_desc - DRM driver ioctl entry
+ * @cmd: ioctl command number, without flags
+ * @flags: a bitmask of &enum drm_ioctl_flags
+ * @func: handler for this ioctl
+ * @name: user-readable name for debug output
+ *
+ * For convenience it's easier to create these using the DRM_IOCTL_DEF_DRV()
+ * macro.
+ */
 struct drm_ioctl_desc {
 	unsigned int cmd;
-	int flags;
+	enum drm_ioctl_flags flags;
 	drm_ioctl_t *func;
 	const char *name;
 };
 
 /**
- * Creates a driver or general drm_ioctl_desc array entry for the given
- * ioctl, for use by drm_ioctl().
+ * DRM_IOCTL_DEF_DRV() - helper macro to fill out a &struct drm_ioctl_desc
+ * @ioctl: ioctl command suffix
+ * @_func: handler for the ioctl
+ * @_flags: a bitmask of &enum drm_ioctl_flags
+ *
+ * Small helper macro to create a &struct drm_ioctl_desc entry. The ioctl
+ * command number is constructed by prepending ``DRM_IOCTL\_`` and passing that
+ * to DRM_IOCTL_NR().
  */
-
 #define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)				\
 	[DRM_IOCTL_NR(DRM_IOCTL_##ioctl) - DRM_COMMAND_BASE] = {	\
 		.cmd = DRM_IOCTL_##ioctl,				\

@@ -32,6 +32,7 @@
 struct drm_device;
 
 struct drm_connector_helper_funcs;
+struct drm_modeset_acquire_ctx;
 struct drm_device;
 struct drm_crtc;
 struct drm_encoder;
@@ -381,6 +382,11 @@ struct drm_connector_funcs {
 	 * Note that this hook is only called by the probe helper. It's not in
 	 * the helper library vtable purely for historical reasons. The only DRM
 	 * core	entry point to probe connector state is @fill_modes.
+	 *
+	 * Note that the helper library will already hold
+	 * &drm_mode_config.connection_mutex. Drivers which need to grab additional
+	 * locks to avoid races with concurrent modeset changes need to use
+	 * &drm_connector_helper_funcs.detect_ctx instead.
 	 *
 	 * RETURNS:
 	 *
