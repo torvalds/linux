@@ -147,8 +147,8 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 	/* capability */
 	ap->capability = ap_info->capability;
 	/* rsn */
-	if ((ap_info->rsn_mode & RSN_MODE_WPA2)
-	    && (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)) {
+	if ((ap_info->rsn_mode & RSN_MODE_WPA2) &&
+	    (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA2)) {
 		ap->rsn_ie.id = 0x30;
 		if (ap_info->rsn.size <= RSN_IE_BODY_MAX) {
 			ap->rsn_ie.size = ap_info->rsn.size;
@@ -159,8 +159,8 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 			memcpy(ap->rsn_ie.body, ap_info->rsn.body,
 			       RSN_IE_BODY_MAX);
 		}
-	} else if ((ap_info->rsn_mode & RSN_MODE_WPA)
-		   && (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA)) {
+	} else if ((ap_info->rsn_mode & RSN_MODE_WPA) &&
+		   (priv->wpa.version == IW_AUTH_WPA_VERSION_WPA)) {
 		ap->wpa_ie.id = 0xdd;
 		if (ap_info->rsn.size <= RSN_IE_BODY_MAX) {
 			ap->wpa_ie.size = ap_info->rsn.size;
@@ -457,10 +457,9 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 			memcpy(skb_put(skb, rx_ind_size - 12), priv->rxp + 18, rx_ind_size - 12);	/* copy after Type */
 
 			aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 20);
-			if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY
-			    && priv->wpa.rsn_enabled) {
-				eap_key =
-				    (struct wpa_eapol_key *)(aa1x_hdr + 1);
+			if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
+			    priv->wpa.rsn_enabled) {
+				eap_key = (struct wpa_eapol_key *)(aa1x_hdr + 1);
 				atomic_set(&priv->psstatus.snooze_guard, 1);
 			}
 
@@ -489,10 +488,9 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 			memcpy(skb_put(skb, rx_ind_size - 14), priv->rxp + 12, rx_ind_size - 14);	/* copy after Type */
 
 			aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 14);
-			if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY
-			    && priv->wpa.rsn_enabled) {
-				eap_key =
-				    (struct wpa_eapol_key *)(aa1x_hdr + 1);
+			if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY &&
+			    priv->wpa.rsn_enabled) {
+				eap_key = (struct wpa_eapol_key *)(aa1x_hdr + 1);
 				atomic_set(&priv->psstatus.snooze_guard, 1);
 			}
 
@@ -882,9 +880,8 @@ void hostif_stop_confirm(struct ks_wlan_private *priv)
 		wrqu0.data.length = 0;
 		wrqu0.data.flags = 0;
 		wrqu0.ap_addr.sa_family = ARPHRD_ETHER;
-		if ((priv->connect_status & CONNECT_STATUS_MASK) ==
-		    DISCONNECT_STATUS
-		    && (old_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
+		if ((priv->connect_status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS &&
+		    (old_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
 			eth_zero_addr(wrqu0.ap_addr.sa_data);
 			DPRINTK(3, "IWEVENT: disconnect\n");
 			netdev_info(netdev, "IWEVENT: disconnect\n");
@@ -1132,9 +1129,9 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 		goto err_kfree_skb;
 	}
 
-	if (((priv->connect_status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS)
-	    || (priv->connect_status & FORCE_DISCONNECT)
-	    || priv->wpa.mic_failure.stop) {
+	if (((priv->connect_status & CONNECT_STATUS_MASK) == DISCONNECT_STATUS) ||
+	    (priv->connect_status & FORCE_DISCONNECT) ||
+	    priv->wpa.mic_failure.stop) {
 		DPRINTK(3, " DISCONNECT\n");
 		if (netif_queue_stopped(priv->net_dev))
 			netif_wake_queue(priv->net_dev);
@@ -1209,8 +1206,8 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	eth_proto = ntohs(eth_hdr->h_proto);
 
 	/* for MIC FAILURE REPORT check */
-	if (eth_proto == ETHER_PROTOCOL_TYPE_EAP
-	    && priv->wpa.mic_failure.failure > 0) {
+	if (eth_proto == ETHER_PROTOCOL_TYPE_EAP &&
+	    priv->wpa.mic_failure.failure > 0) {
 		aa1x_hdr = (struct ieee802_1x_hdr *)(eth_hdr + 1);
 		if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY) {
 			eap_key = (struct wpa_eapol_key *)(aa1x_hdr + 1);
@@ -1218,11 +1215,12 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 		}
 	}
 
+
 	if (priv->wpa.rsn_enabled && priv->wpa.key[0].key_len) {
-		if (eth_proto == ETHER_PROTOCOL_TYPE_EAP
-		    && !(priv->wpa.key[1].key_len)
-		    && !(priv->wpa.key[2].key_len)
-		    && !(priv->wpa.key[3].key_len)) {
+		if (eth_proto == ETHER_PROTOCOL_TYPE_EAP &&
+		    priv->wpa.key[1].key_len == 0 &&
+		    priv->wpa.key[2].key_len == 0 &&
+		    priv->wpa.key[3].key_len == 0) {
 			pp->auth_type = cpu_to_le16((uint16_t)TYPE_AUTH);	/* no encryption */
 		} else {
 			if (priv->wpa.pairwise_suite == IW_AUTH_CIPHER_TKIP) {
@@ -1262,10 +1260,10 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 			  (void *)skb);
 
 	/* MIC FAILURE REPORT check */
-	if (eth_proto == ETHER_PROTOCOL_TYPE_EAP
-	    && priv->wpa.mic_failure.failure > 0) {
-		if (keyinfo & WPA_KEY_INFO_ERROR
-		    && keyinfo & WPA_KEY_INFO_REQUEST) {
+	if (eth_proto == ETHER_PROTOCOL_TYPE_EAP &&
+	    priv->wpa.mic_failure.failure > 0) {
+		if (keyinfo & WPA_KEY_INFO_ERROR &&
+		    keyinfo & WPA_KEY_INFO_REQUEST) {
 			DPRINTK(3, " MIC ERROR Report SET : %04X\n", keyinfo);
 			hostif_sme_enqueue(priv, SME_MIC_FAILURE_REQUEST);
 		}
@@ -2243,8 +2241,8 @@ void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 		hostif_mib_set_request(priv, LOCAL_MULTICAST_FILTER,
 				       sizeof(filter_type), MIB_VALUE_TYPE_BOOL,
 				       &filter_type);
-	} else if ((netdev_mc_count(dev) > NIC_MAX_MCAST_LIST)
-		   || (dev->flags & IFF_ALLMULTI)) {
+	} else if ((netdev_mc_count(dev) > NIC_MAX_MCAST_LIST) ||
+		   (dev->flags & IFF_ALLMULTI)) {
 		filter_type = cpu_to_le32((uint32_t)MCAST_FILTER_MCASTALL);
 		hostif_mib_set_request(priv, LOCAL_MULTICAST_FILTER,
 				       sizeof(filter_type), MIB_VALUE_TYPE_BOOL,
