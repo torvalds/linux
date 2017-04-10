@@ -177,8 +177,10 @@ static void _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 	if (priv->reg.powermgt == POWMGT_ACTIVE_MODE)
 		return;
 
-	if (priv->reg.operation_mode != MODE_INFRASTRUCTURE ||
-	    (priv->connect_status & CONNECT_STATUS_MASK) != CONNECT_STATUS)
+	if (priv->reg.operation_mode != MODE_INFRASTRUCTURE)
+		return;
+
+	if ((priv->connect_status & CONNECT_STATUS_MASK) != CONNECT_STATUS)
 		return;
 
 	if (priv->dev_state != DEVICE_STATE_SLEEP)
