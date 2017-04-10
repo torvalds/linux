@@ -1107,9 +1107,9 @@ void hostif_event_check(struct ks_wlan_private *priv)
 
 #define CHECK_ALINE(size) (size % 4 ? (size + (4 - (size % 4))) : size)
 
-int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
+int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 {
-	unsigned int packet_len = 0;
+	unsigned int skb_len = 0;
 
 	unsigned char *buffer = NULL;
 	unsigned int length = 0;
@@ -1125,9 +1125,9 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 	struct ethhdr *eth;
 	int ret;
 
-	packet_len = packet->len;
-	if (packet_len > ETH_FRAME_LEN) {
-		DPRINTK(1, "bad length packet_len=%d\n", packet_len);
+	skb_len = skb->len;
+	if (skb_len > ETH_FRAME_LEN) {
+		DPRINTK(1, "bad length skb_len=%d\n", skb_len);
 		ret = -EOVERFLOW;
 		goto err_kfree_skb;
 	}
@@ -1138,8 +1138,8 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 		DPRINTK(3, " DISCONNECT\n");
 		if (netif_queue_stopped(priv->net_dev))
 			netif_wake_queue(priv->net_dev);
-		if (packet)
-			dev_kfree_skb(packet);
+		if (skb)
+			dev_kfree_skb(skb);
 
 		return 0;
 	}
@@ -1150,8 +1150,8 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 			netif_stop_queue(priv->net_dev);
 	}
 
-	DPRINTK(4, "skb_buff length=%d\n", packet_len);
-	pp = kmalloc(hif_align_size(sizeof(*pp) + 6 + packet_len + 8),
+	DPRINTK(4, "skb_buff length=%d\n", skb_len);
+	pp = kmalloc(hif_align_size(sizeof(*pp) + 6 + skb_len + 8),
 		     KS_WLAN_MEM_FLAG);
 
 	if (!pp) {
@@ -1162,11 +1162,11 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 
 	p = (unsigned char *)pp->data;
 
-	buffer = packet->data;
-	length = packet->len;
+	buffer = skb->data;
+	length = skb->len;
 
-	/* packet check */
-	eth = (struct ethhdr *)packet->data;
+	/* skb check */
+	eth = (struct ethhdr *)skb->data;
 	if (memcmp(&priv->eth_addr[0], eth->h_source, ETH_ALEN) != 0) {
 		DPRINTK(1, "invalid mac address !!\n");
 		DPRINTK(1, "ethernet->h_source=%pM\n", eth->h_source);
@@ -1190,13 +1190,13 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 		*p++ = 0x00;	/* OUI ("000000") */
 		*p++ = 0x00;	/* OUI ("000000") */
 		*p++ = 0x00;	/* OUI ("000000") */
-		packet_len += 6;
+		skb_len += 6;
 	} else {
 		DPRINTK(4, "DIX\n");
 		/* Length(2 byte) delete */
 		buffer += 2;
 		length -= 2;
-		packet_len -= 2;
+		skb_len -= 2;
 	}
 
 	/* pp->data copy */
@@ -1226,12 +1226,12 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 			pp->auth_type = cpu_to_le16((uint16_t)TYPE_AUTH);	/* no encryption */
 		} else {
 			if (priv->wpa.pairwise_suite == IW_AUTH_CIPHER_TKIP) {
-				MichaelMICFunction(&michael_mic, (uint8_t *)priv->wpa.key[0].tx_mic_key, (uint8_t *)&pp->data[0], (int)packet_len, (uint8_t)0,	/* priority */
+				MichaelMICFunction(&michael_mic, (uint8_t *)priv->wpa.key[0].tx_mic_key, (uint8_t *)&pp->data[0], (int)skb_len, (uint8_t)0,	/* priority */
 						   (uint8_t *)michael_mic.
 						   Result);
 				memcpy(p, michael_mic.Result, 8);
 				length += 8;
-				packet_len += 8;
+				skb_len += 8;
 				p += 8;
 				pp->auth_type =
 				    cpu_to_le16((uint16_t)TYPE_DATA);
@@ -1252,14 +1252,14 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 	/* header value set */
 	pp->header.size =
 	    cpu_to_le16((uint16_t)
-			(sizeof(*pp) - sizeof(pp->header.size) + packet_len));
+			(sizeof(*pp) - sizeof(pp->header.size) + skb_len));
 	pp->header.event = cpu_to_le16((uint16_t)HIF_DATA_REQ);
 
 	/* tx request */
 	result =
-	    ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp) + packet_len),
+	    ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp) + skb_len),
 			  (void *)send_packet_complete, (void *)priv,
-			  (void *)packet);
+			  (void *)skb);
 
 	/* MIC FAILURE REPORT check */
 	if (eth_proto == ETHER_PROTOCOL_TYPE_EAP
@@ -1278,7 +1278,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 err_kfree:
 	kfree(pp);
 err_kfree_skb:
-	dev_kfree_skb(packet);
+	dev_kfree_skb(skb);
 
 	return ret;
 }

@@ -649,7 +649,7 @@ enum {
 #include "ks_wlan.h"
 
 /* function prototype */
-int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet);
+int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb);
 void hostif_receive(struct ks_wlan_private *priv, unsigned char *p,
 		    unsigned int size);
 void hostif_sme_enqueue(struct ks_wlan_private *priv, uint16_t event);
