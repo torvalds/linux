@@ -1715,7 +1715,7 @@ struct net_device {
 	unsigned int		max_mtu;
 	unsigned short		type;
 	unsigned short		hard_header_len;
-	unsigned short		min_header_len;
+	unsigned char		min_header_len;
 
 	unsigned short		needed_headroom;
 	unsigned short		needed_tailroom;
