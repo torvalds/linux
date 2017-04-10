@@ -4168,6 +4168,8 @@ F:	drivers/gpu/drm/ast/
 
 DRM DRIVERS FOR BRIDGE CHIPS
 M:	Archit Taneja <architt@codeaurora.org>
+M:	Andrzej Hajda <a.hajda@samsung.com>
+R:	Laurent Pinchart <Laurent.pinchart@ideasonboard.com>
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/bridge/
