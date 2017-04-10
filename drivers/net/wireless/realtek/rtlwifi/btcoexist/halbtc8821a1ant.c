@@ -1990,7 +1990,7 @@ static void btc8821a1ant_init_coex_dm(struct btc_coexist *btcoexist)
 }
 
 static void btc8821a1ant_init_hw_config(struct btc_coexist *btcoexist,
-					bool back_up)
+					bool back_up, bool wifi_only)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
 	u8 u1_tmp = 0;
@@ -1998,6 +1998,9 @@ static void btc8821a1ant_init_hw_config(struct btc_coexist *btcoexist,
 
 	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 		 "[BTCoex], 1Ant Init HW Config!!\n");
+
+	if (wifi_only)
+		return;
 
 	if (back_up) {
 		coex_dm->backup_arfr_cnt1 = btcoexist->btc_read_4byte(btcoexist,
@@ -2039,9 +2042,9 @@ static void btc8821a1ant_init_hw_config(struct btc_coexist *btcoexist,
 /**************************************************************
  * extern function start with ex_btc8821a1ant_
  **************************************************************/
-void ex_btc8821a1ant_init_hwconfig(struct btc_coexist *btcoexist)
+void ex_btc8821a1ant_init_hwconfig(struct btc_coexist *btcoexist, bool wifionly)
 {
-	btc8821a1ant_init_hw_config(btcoexist, true);
+	btc8821a1ant_init_hw_config(btcoexist, true, wifionly);
 }
 
 void ex_btc8821a1ant_init_coex_dm(struct btc_coexist *btcoexist)
@@ -2783,7 +2786,7 @@ void ex_btc8821a1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state)
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], Pnp notify to WAKE UP\n");
 		btcoexist->stop_coex_dm = false;
-		btc8821a1ant_init_hw_config(btcoexist, false);
+		btc8821a1ant_init_hw_config(btcoexist, false, false);
 		btc8821a1ant_init_coex_dm(btcoexist);
 		btc8821a1ant_query_bt_info(btcoexist);
 	}
