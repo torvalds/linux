@@ -4950,8 +4950,10 @@ array_size_store(struct mddev *mddev, const char *buf, size_t len)
 		return err;
 
 	/* cluster raid doesn't support change array_sectors */
-	if (mddev_is_clustered(mddev))
+	if (mddev_is_clustered(mddev)) {
+		mddev_unlock(mddev);
 		return -EINVAL;
+	}
 
 	if (strncmp(buf, "default", 7) == 0) {
 		if (mddev->pers)
