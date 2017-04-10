@@ -709,9 +709,9 @@ err_free_read_buf:
 	return ret;
 }
 
-static int ks7010_upload_firmware(struct ks_wlan_private *priv,
-				  struct ks_sdio_card *card)
+static int ks7010_upload_firmware(struct ks_sdio_card *card)
 {
+	struct ks_wlan_private *priv = card->priv;
 	unsigned int size, offset, n = 0;
 	unsigned char *rom_buf;
 	unsigned char rw_data = 0;
@@ -997,8 +997,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	ks7010_init_defaults(priv);
 
-	/* Upload firmware */
-	ret = ks7010_upload_firmware(priv, card);	/* firmware load */
+	ret = ks7010_upload_firmware(card);
 	if (ret) {
 		dev_err(&card->func->dev,
 			"ks7010: firmware load failed !! return code = %d\n",
