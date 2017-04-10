@@ -4103,8 +4103,8 @@ int stmmac_dvr_probe(struct device *device,
 		goto error_hw_init;
 
 	/* Configure real RX and TX queues */
-	ndev->real_num_rx_queues = priv->plat->rx_queues_to_use;
-	ndev->real_num_tx_queues = priv->plat->tx_queues_to_use;
+	netif_set_real_num_rx_queues(ndev, priv->plat->rx_queues_to_use);
+	netif_set_real_num_tx_queues(ndev, priv->plat->tx_queues_to_use);
 
 	ndev->netdev_ops = &stmmac_netdev_ops;
 
