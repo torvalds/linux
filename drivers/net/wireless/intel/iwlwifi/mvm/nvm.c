@@ -118,10 +118,6 @@ static int iwl_nvm_write_chunk(struct iwl_mvm *mvm, u16 section,
 		return ret;
 
 	pkt = cmd.resp_pkt;
-	if (!pkt) {
-		IWL_ERR(mvm, "Error in NVM_ACCESS response\n");
-		return -EINVAL;
-	}
 	/* Extract & check NVM write response */
 	nvm_resp = (void *)pkt->data;
 	if (le16_to_cpu(nvm_resp->status) != READ_NVM_CHUNK_SUCCEED) {

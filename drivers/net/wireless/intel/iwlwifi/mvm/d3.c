@@ -1795,12 +1795,6 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return ERR_PTR(ret);
 	}
 
-	/* RF-kill already asserted again... */
-	if (!cmd.resp_pkt) {
-		fw_status = ERR_PTR(-ERFKILL);
-		goto out_free_resp;
-	}
-
 	status_size = sizeof(*fw_status);
 
 	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
@@ -1923,12 +1917,6 @@ iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
 	if (ret) {
 		IWL_ERR(mvm, "failed to query matched profiles (%d)\n", ret);
 		return ret;
-	}
-
-	/* RF-kill already asserted again... */
-	if (!cmd.resp_pkt) {
-		ret = -ERFKILL;
-		goto out_free_resp;
 	}
 
 	len = iwl_rx_packet_payload_len(cmd.resp_pkt);

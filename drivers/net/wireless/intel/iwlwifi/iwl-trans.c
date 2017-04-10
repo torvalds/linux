@@ -143,6 +143,9 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_release(&trans->sync_cmd_lockdep_map);
 
+	if (WARN_ON((cmd->flags & CMD_WANT_SKB) && !ret && !cmd->resp_pkt))
+		return -EIO;
+
 	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_trans_send_cmd);

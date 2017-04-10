@@ -1611,9 +1611,6 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	if (ret)
 		goto out;
 
-	if (!get_status_cmd.resp_pkt)
-		goto out;
-
 	status = (void *)get_status_cmd.resp_pkt->data;
 	wakeup_reasons = le32_to_cpu(status->wakeup_reasons);
 	qos_seq = status->qos_seq_ctr;
