@@ -3578,8 +3578,14 @@ static void rcu_barrier_func(void *type)
 	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
 
 	_rcu_barrier_trace(rsp, "IRQ", -1, rsp->barrier_sequence);
-	atomic_inc(&rsp->barrier_cpu_count);
-	rsp->call(&rdp->barrier_head, rcu_barrier_callback);
+	rdp->barrier_head.func = rcu_barrier_callback;
+	debug_rcu_head_queue(&rdp->barrier_head);
+	if (rcu_segcblist_entrain(&rdp->cblist, &rdp->barrier_head, 0)) {
+		atomic_inc(&rsp->barrier_cpu_count);
+	} else {
+		debug_rcu_head_unqueue(&rdp->barrier_head);
+		_rcu_barrier_trace(rsp, "IRQNQ", -1, rsp->barrier_sequence);
+	}
 }
 
 /*
