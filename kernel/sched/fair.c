@@ -2915,7 +2915,8 @@ ___update_load_avg(u64 now, int cpu, struct sched_avg *sa,
 	delta >>= 10;
 	if (!delta)
 		return 0;
-	sa->last_update_time = now;
+
+	sa->last_update_time += delta << 10;
 
 	/*
 	 * Now we know we crossed measurement unit boundaries. The *_avg
