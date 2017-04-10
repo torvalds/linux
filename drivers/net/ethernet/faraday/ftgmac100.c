@@ -485,11 +485,6 @@ static bool ftgmac100_txdes_owned_by_dma(struct ftgmac100_txdes *txdes)
 
 static void ftgmac100_txdes_set_dma_own(struct ftgmac100_txdes *txdes)
 {
-	/*
-	 * Make sure dma own bit will not be set before any other
-	 * descriptor fields.
-	 */
-	wmb();
 	txdes->txdes0 |= cpu_to_le32(FTGMAC100_TXDES0_TXDMA_OWN);
 }
 
@@ -679,6 +674,10 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		}
 	}
 
+	/* Order the previous packet and descriptor udpates
+	 * before setting the OWN bit.
+	 */
+	dma_wmb();
 	ftgmac100_txdes_set_dma_own(txdes);
 
 	/* Update next TX pointer */
