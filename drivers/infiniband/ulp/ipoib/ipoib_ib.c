@@ -692,23 +692,114 @@ static void ipoib_stop_ah(struct net_device *dev)
 	ipoib_flush_ah(dev);
 }
 
+static int recvs_pending(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	int pending = 0;
+	int i;
+
+	for (i = 0; i < ipoib_recvq_size; ++i)
+		if (priv->rx_ring[i].skb)
+			++pending;
+
+	return pending;
+}
+
+int ipoib_ib_dev_stop_default(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ib_qp_attr qp_attr;
+	unsigned long begin;
+	struct ipoib_tx_buf *tx_req;
+	int i;
+
+	if (test_and_clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
+		napi_disable(&priv->napi);
+
+	ipoib_cm_dev_stop(dev);
+
+	/*
+	 * Move our QP to the error state and then reinitialize in
+	 * when all work requests have completed or have been flushed.
+	 */
+	qp_attr.qp_state = IB_QPS_ERR;
+	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
+		ipoib_warn(priv, "Failed to modify QP to ERROR state\n");
+
+	/* Wait for all sends and receives to complete */
+	begin = jiffies;
+
+	while (priv->tx_head != priv->tx_tail || recvs_pending(dev)) {
+		if (time_after(jiffies, begin + 5 * HZ)) {
+			ipoib_warn(priv,
+				   "timing out; %d sends %d receives not completed\n",
+				   priv->tx_head - priv->tx_tail,
+				   recvs_pending(dev));
+
+			/*
+			 * assume the HW is wedged and just free up
+			 * all our pending work requests.
+			 */
+			while ((int)priv->tx_tail - (int)priv->tx_head < 0) {
+				tx_req = &priv->tx_ring[priv->tx_tail &
+							(ipoib_sendq_size - 1)];
+				ipoib_dma_unmap_tx(priv, tx_req);
+				dev_kfree_skb_any(tx_req->skb);
+				++priv->tx_tail;
+				--priv->tx_outstanding;
+			}
+
+			for (i = 0; i < ipoib_recvq_size; ++i) {
+				struct ipoib_rx_buf *rx_req;
+
+				rx_req = &priv->rx_ring[i];
+				if (!rx_req->skb)
+					continue;
+				ipoib_ud_dma_unmap_rx(priv,
+						      priv->rx_ring[i].mapping);
+				dev_kfree_skb_any(rx_req->skb);
+				rx_req->skb = NULL;
+			}
+
+			goto timeout;
+		}
+
+		ipoib_drain_cq(dev);
+
+		msleep(1);
+	}
+
+	ipoib_dbg(priv, "All sends and receives done.\n");
+
+timeout:
+	del_timer_sync(&priv->poll_timer);
+	qp_attr.qp_state = IB_QPS_RESET;
+	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
+		ipoib_warn(priv, "Failed to modify QP to RESET state\n");
+
+	ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP);
+
+	return 0;
+}
+
+int ipoib_ib_dev_stop(struct net_device *dev)
+{
+	ipoib_ib_dev_stop_default(dev);
+
+	ipoib_flush_ah(dev);
+
+	return 0;
+}
+
 void ipoib_ib_tx_timer_func(unsigned long ctx)
 {
 	drain_tx_cq((struct net_device *)ctx);
 }
 
-int ipoib_ib_dev_open(struct net_device *dev)
+int ipoib_ib_dev_open_default(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret;
-
-	ipoib_pkey_dev_check_presence(dev);
-
-	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
-		ipoib_warn(priv, "P_Key 0x%04x is %s\n", priv->pkey,
-			   (!(priv->pkey & 0x7fff) ? "Invalid" : "not found"));
-		return -1;
-	}
 
 	ret = ipoib_init_qp(dev);
 	if (ret) {
@@ -728,10 +819,6 @@ int ipoib_ib_dev_open(struct net_device *dev)
 		goto dev_stop;
 	}
 
-	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
-	queue_delayed_work(priv->wq, &priv->ah_reap_task,
-			   round_jiffies_relative(HZ));
-
 	if (!test_and_set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
 		napi_enable(&priv->napi);
 
@@ -740,6 +827,35 @@ dev_stop:
 	if (!test_and_set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
 		napi_enable(&priv->napi);
 	ipoib_ib_dev_stop(dev);
+	return -1;
+}
+
+int ipoib_ib_dev_open(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+
+	ipoib_pkey_dev_check_presence(dev);
+
+	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
+		ipoib_warn(priv, "P_Key 0x%04x is %s\n", priv->pkey,
+			   (!(priv->pkey & 0x7fff) ? "Invalid" : "not found"));
+		return -1;
+	}
+
+	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
+	queue_delayed_work(priv->wq, &priv->ah_reap_task,
+			   round_jiffies_relative(HZ));
+
+	if (ipoib_ib_dev_open_default(dev)) {
+		pr_warn("%s: Failed to open dev\n", dev->name);
+		goto stop_ah_reap;
+	}
+
+	return 0;
+
+stop_ah_reap:
+	set_bit(IPOIB_STOP_REAPER, &priv->flags);
+	cancel_delayed_work(&priv->ah_reap_task);
 	return -1;
 }
 
@@ -786,19 +902,6 @@ void ipoib_ib_dev_down(struct net_device *dev)
 	ipoib_flush_paths(dev);
 }
 
-static int recvs_pending(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	int pending = 0;
-	int i;
-
-	for (i = 0; i < ipoib_recvq_size; ++i)
-		if (priv->rx_ring[i].skb)
-			++pending;
-
-	return pending;
-}
-
 void ipoib_drain_cq(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -836,81 +939,6 @@ void ipoib_drain_cq(struct net_device *dev)
 		; /* nothing */
 
 	local_bh_enable();
-}
-
-void ipoib_ib_dev_stop(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ib_qp_attr qp_attr;
-	unsigned long begin;
-	struct ipoib_tx_buf *tx_req;
-	int i;
-
-	if (test_and_clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
-		napi_disable(&priv->napi);
-
-	ipoib_cm_dev_stop(dev);
-
-	/*
-	 * Move our QP to the error state and then reinitialize in
-	 * when all work requests have completed or have been flushed.
-	 */
-	qp_attr.qp_state = IB_QPS_ERR;
-	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
-		ipoib_warn(priv, "Failed to modify QP to ERROR state\n");
-
-	/* Wait for all sends and receives to complete */
-	begin = jiffies;
-
-	while (priv->tx_head != priv->tx_tail || recvs_pending(dev)) {
-		if (time_after(jiffies, begin + 5 * HZ)) {
-			ipoib_warn(priv, "timing out; %d sends %d receives not completed\n",
-				   priv->tx_head - priv->tx_tail, recvs_pending(dev));
-
-			/*
-			 * assume the HW is wedged and just free up
-			 * all our pending work requests.
-			 */
-			while ((int) priv->tx_tail - (int) priv->tx_head < 0) {
-				tx_req = &priv->tx_ring[priv->tx_tail &
-							(ipoib_sendq_size - 1)];
-				ipoib_dma_unmap_tx(priv, tx_req);
-				dev_kfree_skb_any(tx_req->skb);
-				++priv->tx_tail;
-				--priv->tx_outstanding;
-			}
-
-			for (i = 0; i < ipoib_recvq_size; ++i) {
-				struct ipoib_rx_buf *rx_req;
-
-				rx_req = &priv->rx_ring[i];
-				if (!rx_req->skb)
-					continue;
-				ipoib_ud_dma_unmap_rx(priv,
-						      priv->rx_ring[i].mapping);
-				dev_kfree_skb_any(rx_req->skb);
-				rx_req->skb = NULL;
-			}
-
-			goto timeout;
-		}
-
-		ipoib_drain_cq(dev);
-
-		msleep(1);
-	}
-
-	ipoib_dbg(priv, "All sends and receives done.\n");
-
-timeout:
-	del_timer_sync(&priv->poll_timer);
-	qp_attr.qp_state = IB_QPS_RESET;
-	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
-		ipoib_warn(priv, "Failed to modify QP to RESET state\n");
-
-	ipoib_flush_ah(dev);
-
-	ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP);
 }
 
 /*
