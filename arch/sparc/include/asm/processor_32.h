@@ -18,12 +18,6 @@
 #include <asm/signal.h>
 #include <asm/page.h>
 
-/*
- * The sparc has no problems with write protection
- */
-#define wp_works_ok 1
-#define wp_works_ok__is_a_macro /* for versions in ksyms.c */
-
 /* Whee, this is STACK_TOP + PAGE_SIZE and the lowest kernel address too...
  * That one page is used to protect kernel from intruders, so that
  * we can make our access_ok test faster
