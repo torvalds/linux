@@ -509,7 +509,10 @@ static int __init amd_uncore_init(void)
 	int ret = -ENODEV;
 
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
-		goto fail_nodev;
+		return -ENODEV;
+
+	if (!boot_cpu_has(X86_FEATURE_TOPOEXT))
+		return -ENODEV;
 
 	switch(boot_cpu_data.x86) {
 		case 23:
@@ -551,9 +554,6 @@ static int __init amd_uncore_init(void)
 	}
 	amd_nb_pmu.attr_groups = amd_uncore_attr_groups_df;
 	amd_llc_pmu.attr_groups = amd_uncore_attr_groups_l3;
-
-	if (!boot_cpu_has(X86_FEATURE_TOPOEXT))
-		goto fail_nodev;
 
 	if (boot_cpu_has(X86_FEATURE_PERFCTR_NB)) {
 		amd_uncore_nb = alloc_percpu(struct amd_uncore *);
@@ -615,7 +615,6 @@ fail_nb:
 	if (amd_uncore_nb)
 		free_percpu(amd_uncore_nb);
 
-fail_nodev:
 	return ret;
 }
 device_initcall(amd_uncore_init);
