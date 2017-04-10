@@ -172,7 +172,7 @@ void ks_wlan_hw_wakeup_request(struct ks_wlan_private *priv)
 static int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 {
 	unsigned char rw_data;
-	int retval;
+	int ret;
 
 	if (priv->reg.powermgt == POWMGT_ACTIVE_MODE)
 		return 0;
@@ -196,9 +196,9 @@ static int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 	if (!atomic_read(&priv->psstatus.confirm_wait) &&
 	    !atomic_read(&priv->psstatus.snooze_guard) &&
 	    !cnt_txqbody(priv)) {
-		retval = ks7010_sdio_read(priv, INT_PENDING, &rw_data,
-					  sizeof(rw_data));
-		if (retval) {
+		ret = ks7010_sdio_read(priv, INT_PENDING, &rw_data,
+				       sizeof(rw_data));
+		if (ret) {
 			DPRINTK(1, " error : INT_PENDING=%02X\n", rw_data);
 			queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
 					   &priv->ks_wlan_hw.rw_wq, 1);
@@ -206,9 +206,9 @@ static int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 		}
 		if (!rw_data) {
 			rw_data = GCR_B_DOZE;
-			retval = ks7010_sdio_write(priv, GCR_B, &rw_data,
-						   sizeof(rw_data));
-			if (retval) {
+			ret = ks7010_sdio_write(priv, GCR_B, &rw_data,
+						sizeof(rw_data));
+			if (ret) {
 				DPRINTK(1, " error : GCR_B=%02X\n", rw_data);
 				queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
 						   &priv->ks_wlan_hw.rw_wq, 1);
@@ -385,7 +385,7 @@ static void rx_event_task(unsigned long dev)
 
 static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 {
-	int retval;
+	int ret;
 	struct rx_device_buffer *rx_buffer;
 	struct hostif_hdr *hdr;
 	unsigned char read_status;
@@ -401,10 +401,9 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 	}
 	rx_buffer = &priv->rx_dev.rx_dev_buff[priv->rx_dev.qtail];
 
-	retval =
-	    ks7010_sdio_read(priv, DATA_WINDOW, &rx_buffer->data[0],
-			     hif_align_size(size));
-	if (retval)
+	ret = ks7010_sdio_read(priv, DATA_WINDOW, &rx_buffer->data[0],
+			       hif_align_size(size));
+	if (ret)
 		return;
 
 	/* length check */
@@ -417,10 +416,9 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 #endif
 		/* rx_status update */
 		read_status = READ_STATUS_IDLE;
-		retval =
-		    ks7010_sdio_write(priv, READ_STATUS, &read_status,
-				      sizeof(read_status));
-		if (retval)
+		ret = ks7010_sdio_write(priv, READ_STATUS, &read_status,
+					sizeof(read_status));
+		if (ret)
 			DPRINTK(1, " error : READ_STATUS=%02X\n", read_status);
 
 		/* length check fail */
@@ -434,10 +432,9 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 
 	/* read status update */
 	read_status = READ_STATUS_IDLE;
-	retval =
-	    ks7010_sdio_write(priv, READ_STATUS, &read_status,
-			      sizeof(read_status));
-	if (retval)
+	ret = ks7010_sdio_write(priv, READ_STATUS, &read_status,
+				sizeof(read_status));
+	if (ret)
 		DPRINTK(1, " error : READ_STATUS=%02X\n", read_status);
 
 	DPRINTK(4, "READ_STATUS=%02X\n", read_status);
@@ -529,7 +526,7 @@ err_release_host:
 
 static void ks_sdio_interrupt(struct sdio_func *func)
 {
-	int retval;
+	int ret;
 	struct ks_sdio_card *card;
 	struct ks_wlan_private *priv;
 	unsigned char status, rsize, rw_data;
@@ -539,11 +536,10 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 	DPRINTK(4, "\n");
 
 	if (priv->dev_state >= DEVICE_STATE_BOOT) {
-		retval =
-		    ks7010_sdio_read(priv, INT_PENDING, &status,
-				     sizeof(status));
-		if (retval) {
-			DPRINTK(1, "read INT_PENDING Failed!!(%d)\n", retval);
+		ret = ks7010_sdio_read(priv, INT_PENDING, &status,
+				       sizeof(status));
+		if (ret) {
+			DPRINTK(1, "read INT_PENDING Failed!!(%d)\n", ret);
 			goto queue_delayed_work;
 		}
 		DPRINTK(4, "INT_PENDING=%02X\n", rw_data);
@@ -555,10 +551,9 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 		/* bit2 -> Read Status Busy  */
 		if (status & INT_GCR_B ||
 		    atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
-			retval =
-			    ks7010_sdio_read(priv, GCR_B, &rw_data,
-					     sizeof(rw_data));
-			if (retval) {
+			ret = ks7010_sdio_read(priv, GCR_B, &rw_data,
+					       sizeof(rw_data));
+			if (ret) {
 				DPRINTK(1, " error : GCR_B=%02X\n", rw_data);
 				goto queue_delayed_work;
 			}
@@ -576,10 +571,9 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 
 		do {
 			/* read (WriteStatus/ReadDataSize FN1:00_0014) */
-			retval =
-			    ks7010_sdio_read(priv, WSTATUS_RSIZE, &rw_data,
-					     sizeof(rw_data));
-			if (retval) {
+			ret = ks7010_sdio_read(priv, WSTATUS_RSIZE, &rw_data,
+					       sizeof(rw_data));
+			if (ret) {
 				DPRINTK(1, " error : WSTATUS_RSIZE=%02X\n",
 					rw_data);
 				goto queue_delayed_work;
