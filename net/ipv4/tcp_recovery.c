@@ -12,7 +12,8 @@ static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 		/* Account for retransmits that are lost again */
 		TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 		tp->retrans_out -= tcp_skb_pcount(skb);
-		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPLOSTRETRANSMIT);
+		NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPLOSTRETRANSMIT,
+			      tcp_skb_pcount(skb));
 	}
 }
 

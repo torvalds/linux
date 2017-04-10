@@ -2056,7 +2056,6 @@ static int fillup_pools(struct aac_dev *dev, struct hw_fib **hw_fib_pool,
 {
 	struct hw_fib **hw_fib_p;
 	struct fib **fib_p;
-	int rcode = 1;
 
 	hw_fib_p = hw_fib_pool;
 	fib_p = fib_pool;
@@ -2074,11 +2073,11 @@ static int fillup_pools(struct aac_dev *dev, struct hw_fib **hw_fib_pool,
 		}
 	}
 
+	/*
+	 * Get the actual number of allocated fibs
+	 */
 	num = hw_fib_p - hw_fib_pool;
-	if (!num)
-		rcode = 0;
-
-	return rcode;
+	return num;
 }
 
 static void wakeup_fibctx_threads(struct aac_dev *dev,
@@ -2186,7 +2185,6 @@ static void aac_process_events(struct aac_dev *dev)
 	struct fib *fib;
 	unsigned long flags;
 	spinlock_t *t_lock;
-	unsigned int rcode;
 
 	t_lock = dev->queues->queue[HostNormCmdQueue].lock;
 	spin_lock_irqsave(t_lock, flags);
@@ -2269,8 +2267,8 @@ static void aac_process_events(struct aac_dev *dev)
 		 * Fill up fib pointer pools with actual fibs
 		 * and hw_fibs
 		 */
-		rcode = fillup_pools(dev, hw_fib_pool, fib_pool, num);
-		if (!rcode)
+		num = fillup_pools(dev, hw_fib_pool, fib_pool, num);
+		if (!num)
 			goto free_mem;
 
 		/*

@@ -58,7 +58,8 @@ struct __packed aq_ring_buff_s {
 			u8 len_l2;
 			u8 len_l3;
 			u8 len_l4;
-			u8 rsvd2;
+			u8 is_ipv6:1;
+			u8 rsvd2:7;
 			u32 len_pkt;
 		};
 	};

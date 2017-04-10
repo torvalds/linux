@@ -600,3 +600,4 @@ EXPORT(sys_call_table)
 	PTR	sys_pkey_mprotect
 	PTR	sys_pkey_alloc
 	PTR	sys_pkey_free			/* 4365 */
+	PTR	sys_statx
