@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2010-2015 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * EXYNOS - Power management unit definition
@@ -49,6 +49,14 @@
 #define S5P_EINT_WAKEUP_MASK			0x0604
 #define S5P_WAKEUP_MASK				0x0608
 #define S5P_WAKEUP_MASK2				0x0614
+
+/* MIPI_PHYn_CONTROL, valid for Exynos3250, Exynos4, Exynos5250 and Exynos5433 */
+#define EXYNOS4_MIPI_PHY_CONTROL(n)		(0x0710 + (n) * 4)
+/* Phy enable bit, common for all phy registers, not only MIPI */
+#define EXYNOS4_PHY_ENABLE			(1 << 0)
+#define EXYNOS4_MIPI_PHY_SRESETN		(1 << 1)
+#define EXYNOS4_MIPI_PHY_MRESETN		(1 << 2)
+#define EXYNOS4_MIPI_PHY_RESET_MASK		(3 << 1)
 
 #define S5P_INFORM0				0x0800
 #define S5P_INFORM1				0x0804
@@ -342,6 +350,8 @@
 
 #define EXYNOS5_AUTO_WDTRESET_DISABLE				0x0408
 #define EXYNOS5_MASK_WDTRESET_REQUEST				0x040C
+#define EXYNOS5_USBDRD_PHY_CONTROL				0x0704
+#define EXYNOS5_DPTX_PHY_CONTROL				0x0720
 
 #define EXYNOS5_USE_RETENTION			BIT(4)
 #define EXYNOS5_SYS_WDTRESET					(1 << 20)
@@ -495,6 +505,9 @@
 #define EXYNOS5420_KFC_CORE_RESET(_nr)				\
 	((EXYNOS5420_KFC_CORE_RESET0 | EXYNOS5420_KFC_ETM_RESET0) << (_nr))
 
+#define EXYNOS5420_USBDRD1_PHY_CONTROL				0x0708
+#define EXYNOS5420_MIPI_PHY_CONTROL(n)				(0x0714 + (n) * 4)
+#define EXYNOS5420_DPTX_PHY_CONTROL				0x0728
 #define EXYNOS5420_ARM_CORE2_SYS_PWR_REG			0x1020
 #define EXYNOS5420_DIS_IRQ_ARM_CORE2_LOCAL_SYS_PWR_REG		0x1024
 #define EXYNOS5420_DIS_IRQ_ARM_CORE2_CENTRAL_SYS_PWR_REG	0x1028
@@ -632,6 +645,7 @@
 					 | EXYNOS5420_KFC_USE_STANDBY_WFI3)
 
 /* For EXYNOS5433 */
+#define EXYNOS5433_USBHOST30_PHY_CONTROL			(0x0728)
 #define EXYNOS5433_PAD_RETENTION_AUD_OPTION			(0x3028)
 #define EXYNOS5433_PAD_RETENTION_MMC2_OPTION			(0x30C8)
 #define EXYNOS5433_PAD_RETENTION_TOP_OPTION			(0x3108)
