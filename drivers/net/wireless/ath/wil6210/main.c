@@ -30,8 +30,8 @@ bool debug_fw; /* = false; */
 module_param(debug_fw, bool, 0444);
 MODULE_PARM_DESC(debug_fw, " do not perform card reset. For FW debug");
 
-static bool oob_mode;
-module_param(oob_mode, bool, 0444);
+static u8 oob_mode;
+module_param(oob_mode, byte, 0444);
 MODULE_PARM_DESC(oob_mode,
 		 " enable out of the box (OOB) mode in FW, for diagnostics and certification");
 
@@ -274,15 +274,20 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 		wil_bcast_fini(wil);
 		wil_update_net_queues_bh(wil, NULL, true);
 		netif_carrier_off(ndev);
+		wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 
 		if (test_bit(wil_status_fwconnected, wil->status)) {
 			clear_bit(wil_status_fwconnected, wil->status);
 			cfg80211_disconnected(ndev, reason_code,
-					      NULL, 0, false, GFP_KERNEL);
+					      NULL, 0,
+					      wil->locally_generated_disc,
+					      GFP_KERNEL);
+			wil->locally_generated_disc = false;
 		} else if (test_bit(wil_status_fwconnecting, wil->status)) {
 			cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL);
+			wil->bss = NULL;
 		}
 		clear_bit(wil_status_fwconnecting, wil->status);
 		break;
@@ -304,10 +309,34 @@ static void wil_disconnect_worker(struct work_struct *work)
 {
 	struct wil6210_priv *wil = container_of(work,
 			struct wil6210_priv, disconnect_worker);
+	struct net_device *ndev = wil_to_ndev(wil);
+	int rc;
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_disconnect_event evt;
+	} __packed reply;
 
-	mutex_lock(&wil->mutex);
-	_wil6210_disconnect(wil, NULL, WLAN_REASON_UNSPECIFIED, false);
-	mutex_unlock(&wil->mutex);
+	if (test_bit(wil_status_fwconnected, wil->status))
+		/* connect succeeded after all */
+		return;
+
+	if (!test_bit(wil_status_fwconnecting, wil->status))
+		/* already disconnected */
+		return;
+
+	rc = wmi_call(wil, WMI_DISCONNECT_CMDID, NULL, 0,
+		      WMI_DISCONNECT_EVENTID, &reply, sizeof(reply),
+		      WIL6210_DISCONNECT_TO_MS);
+	if (rc) {
+		wil_err(wil, "disconnect error %d\n", rc);
+		return;
+	}
+
+	wil_update_net_queues_bh(wil, NULL, true);
+	netif_carrier_off(ndev);
+	cfg80211_connect_result(ndev, NULL, NULL, 0, NULL, 0,
+				WLAN_STATUS_UNSPECIFIED_FAILURE, GFP_KERNEL);
+	clear_bit(wil_status_fwconnecting, wil->status);
 }
 
 static void wil_connect_timer_fn(ulong x)
@@ -555,6 +584,12 @@ out_wmi_wq:
 	return -EAGAIN;
 }
 
+void wil6210_bus_request(struct wil6210_priv *wil, u32 kbps)
+{
+	if (wil->platform_ops.bus_request)
+		wil->platform_ops.bus_request(wil->platform_handle, kbps);
+}
+
 /**
  * wil6210_disconnect - disconnect one connection
  * @wil: driver context
@@ -607,13 +642,25 @@ static inline void wil_release_cpu(struct wil6210_priv *wil)
 	wil_w(wil, RGF_USER_USER_CPU_0, 1);
 }
 
-static void wil_set_oob_mode(struct wil6210_priv *wil, bool enable)
+static void wil_set_oob_mode(struct wil6210_priv *wil, u8 mode)
 {
-	wil_info(wil, "enable=%d\n", enable);
-	if (enable)
+	wil_info(wil, "oob_mode to %d\n", mode);
+	switch (mode) {
+	case 0:
+		wil_c(wil, RGF_USER_USAGE_6, BIT_USER_OOB_MODE |
+		      BIT_USER_OOB_R2_MODE);
+		break;
+	case 1:
+		wil_c(wil, RGF_USER_USAGE_6, BIT_USER_OOB_R2_MODE);
 		wil_s(wil, RGF_USER_USAGE_6, BIT_USER_OOB_MODE);
-	else
+		break;
+	case 2:
 		wil_c(wil, RGF_USER_USAGE_6, BIT_USER_OOB_MODE);
+		wil_s(wil, RGF_USER_USAGE_6, BIT_USER_OOB_R2_MODE);
+		break;
+	default:
+		wil_err(wil, "invalid oob_mode: %d\n", mode);
+	}
 }
 
 static int wil_target_reset(struct wil6210_priv *wil)
@@ -1066,9 +1113,7 @@ int __wil_up(struct wil6210_priv *wil)
 	napi_enable(&wil->napi_tx);
 	set_bit(wil_status_napi_en, wil->status);
 
-	if (wil->platform_ops.bus_request)
-		wil->platform_ops.bus_request(wil->platform_handle,
-					      WIL_MAX_BUS_REQUEST_KBPS);
+	wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 
 	return 0;
 }
@@ -1092,8 +1137,7 @@ int __wil_down(struct wil6210_priv *wil)
 
 	set_bit(wil_status_resetting, wil->status);
 
-	if (wil->platform_ops.bus_request)
-		wil->platform_ops.bus_request(wil->platform_handle, 0);
+	wil6210_bus_request(wil, 0);
 
 	wil_disable_irq(wil);
 	if (test_and_clear_bit(wil_status_napi_en, wil->status)) {
@@ -1154,6 +1198,7 @@ void wil_halp_vote(struct wil6210_priv *wil)
 		    wil->halp.ref_cnt);
 
 	if (++wil->halp.ref_cnt == 1) {
+		reinit_completion(&wil->halp.comp);
 		wil6210_set_halp(wil);
 		rc = wait_for_completion_timeout(&wil->halp.comp, to_jiffies);
 		if (!rc) {

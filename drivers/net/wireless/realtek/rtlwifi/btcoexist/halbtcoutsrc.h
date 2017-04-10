@@ -275,7 +275,7 @@ enum btc_set_type {
 	BTC_SET_ACT_NORMAL_LPS,
 	BTC_SET_ACT_INC_FORCE_EXEC_PWR_CMD_CNT,
 	BTC_SET_ACT_DISABLE_LOW_POWER,
-	BTC_SET_ACT_UPDATE_ra_mask,
+	BTC_SET_ACT_UPDATE_RAMASK,
 	BTC_SET_ACT_SEND_MIMO_PS,
 	/* BT Coex related */
 	BTC_SET_ACT_CTRL_BT_INFO,
@@ -459,6 +459,7 @@ struct btc_bt_link_info {
 	bool hid_only;
 	bool pan_exist;
 	bool pan_only;
+	bool slave_role;
 };
 
 enum btc_antenna_pos {

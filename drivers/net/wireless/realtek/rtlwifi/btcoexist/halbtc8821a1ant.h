@@ -146,7 +146,7 @@ struct coex_sta_8821a_1ant {
 	bool	hid_exist;
 	bool	pan_exist;
 
-	bool	under_Lps;
+	bool	under_lps;
 	bool	under_ips;
 	u32	special_pkt_period_cnt;
 	u32	high_priority_tx;

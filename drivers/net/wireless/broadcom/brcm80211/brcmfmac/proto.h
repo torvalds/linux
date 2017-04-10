@@ -44,6 +44,10 @@ struct brcmf_proto {
 	void (*add_tdls_peer)(struct brcmf_pub *drvr, int ifidx,
 			      u8 peer[ETH_ALEN]);
 	void (*rxreorder)(struct brcmf_if *ifp, struct sk_buff *skb);
+	void (*add_if)(struct brcmf_if *ifp);
+	void (*del_if)(struct brcmf_if *ifp);
+	void (*reset_if)(struct brcmf_if *ifp);
+	int (*init_done)(struct brcmf_pub *drvr);
 	void *pd;
 };
 
@@ -116,6 +120,38 @@ static inline void
 brcmf_proto_rxreorder(struct brcmf_if *ifp, struct sk_buff *skb)
 {
 	ifp->drvr->proto->rxreorder(ifp, skb);
+}
+
+static inline void
+brcmf_proto_add_if(struct brcmf_pub *drvr, struct brcmf_if *ifp)
+{
+	if (!drvr->proto->add_if)
+		return;
+	drvr->proto->add_if(ifp);
+}
+
+static inline void
+brcmf_proto_del_if(struct brcmf_pub *drvr, struct brcmf_if *ifp)
+{
+	if (!drvr->proto->del_if)
+		return;
+	drvr->proto->del_if(ifp);
+}
+
+static inline void
+brcmf_proto_reset_if(struct brcmf_pub *drvr, struct brcmf_if *ifp)
+{
+	if (!drvr->proto->reset_if)
+		return;
+	drvr->proto->reset_if(ifp);
+}
+
+static inline int
+brcmf_proto_init_done(struct brcmf_pub *drvr)
+{
+	if (!drvr->proto->init_done)
+		return 0;
+	return drvr->proto->init_done(drvr);
 }
 
 #endif /* BRCMFMAC_PROTO_H */

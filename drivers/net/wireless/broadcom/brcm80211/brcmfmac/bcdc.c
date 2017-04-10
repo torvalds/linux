@@ -345,6 +345,36 @@ brcmf_proto_bcdc_txdata(struct brcmf_pub *drvr, int ifidx, u8 offset,
 	return brcmf_bus_txdata(drvr->bus_if, pktbuf);
 }
 
+void brcmf_proto_bcdc_txflowblock(struct device *dev, bool state)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	brcmf_fws_bus_blocked(drvr, state);
+}
+
+void
+brcmf_proto_bcdc_txcomplete(struct device *dev, struct sk_buff *txp,
+			    bool success)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+	struct brcmf_if *ifp;
+
+	/* await txstatus signal for firmware if active */
+	if (brcmf_fws_fc_active(drvr->fws)) {
+		if (!success)
+			brcmf_fws_bustxfail(drvr->fws, txp);
+	} else {
+		if (brcmf_proto_bcdc_hdrpull(drvr, false, txp, &ifp))
+			brcmu_pkt_buf_free_skb(txp);
+		else
+			brcmf_txfinalize(ifp, txp, success);
+	}
+}
+
 static void
 brcmf_proto_bcdc_configure_addr_mode(struct brcmf_pub *drvr, int ifidx,
 				     enum proto_addr_mode addr_mode)
@@ -367,6 +397,30 @@ static void brcmf_proto_bcdc_rxreorder(struct brcmf_if *ifp,
 				       struct sk_buff *skb)
 {
 	brcmf_fws_rxreorder(ifp, skb);
+}
+
+static void
+brcmf_proto_bcdc_add_if(struct brcmf_if *ifp)
+{
+	brcmf_fws_add_interface(ifp);
+}
+
+static void
+brcmf_proto_bcdc_del_if(struct brcmf_if *ifp)
+{
+	brcmf_fws_del_interface(ifp);
+}
+
+static void
+brcmf_proto_bcdc_reset_if(struct brcmf_if *ifp)
+{
+	brcmf_fws_reset_interface(ifp);
+}
+
+static int
+brcmf_proto_bcdc_init_done(struct brcmf_pub *drvr)
+{
+	return brcmf_fws_init(drvr);
 }
 
 int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
@@ -392,6 +446,10 @@ int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 	drvr->proto->delete_peer = brcmf_proto_bcdc_delete_peer;
 	drvr->proto->add_tdls_peer = brcmf_proto_bcdc_add_tdls_peer;
 	drvr->proto->rxreorder = brcmf_proto_bcdc_rxreorder;
+	drvr->proto->add_if = brcmf_proto_bcdc_add_if;
+	drvr->proto->del_if = brcmf_proto_bcdc_del_if;
+	drvr->proto->reset_if = brcmf_proto_bcdc_reset_if;
+	drvr->proto->init_done = brcmf_proto_bcdc_init_done;
 	drvr->proto->pd = bcdc;
 
 	drvr->hdrlen += BCDC_HEADER_LEN + BRCMF_PROT_FW_SIGNAL_MAX_TXBYTES;
@@ -406,6 +464,7 @@ fail:
 
 void brcmf_proto_bcdc_detach(struct brcmf_pub *drvr)
 {
+	brcmf_fws_deinit(drvr);
 	kfree(drvr->proto->pd);
 	drvr->proto->pd = NULL;
 }

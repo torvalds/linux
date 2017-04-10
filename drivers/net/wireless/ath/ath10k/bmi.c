@@ -19,12 +19,21 @@
 #include "hif.h"
 #include "debug.h"
 #include "htc.h"
+#include "hw.h"
 
 void ath10k_bmi_start(struct ath10k *ar)
 {
+	int ret;
+
 	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi start\n");
 
 	ar->bmi.done_sent = false;
+
+	/* Enable hardware clock to speed up firmware download */
+	if (ar->hw_params.hw_ops->enable_pll_clk) {
+		ret = ar->hw_params.hw_ops->enable_pll_clk(ar);
+		ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi enable pll ret %d\n", ret);
+	}
 }
 
 int ath10k_bmi_done(struct ath10k *ar)
@@ -125,6 +134,69 @@ int ath10k_bmi_read_memory(struct ath10k *ar,
 		buffer  += rxlen;
 		length  -= rxlen;
 	}
+
+	return 0;
+}
+
+int ath10k_bmi_write_soc_reg(struct ath10k *ar, u32 address, u32 reg_val)
+{
+	struct bmi_cmd cmd;
+	u32 cmdlen = sizeof(cmd.id) + sizeof(cmd.write_soc_reg);
+	int ret;
+
+	ath10k_dbg(ar, ATH10K_DBG_BMI,
+		   "bmi write soc register 0x%08x val 0x%08x\n",
+		   address, reg_val);
+
+	if (ar->bmi.done_sent) {
+		ath10k_warn(ar, "bmi write soc register command in progress\n");
+		return -EBUSY;
+	}
+
+	cmd.id = __cpu_to_le32(BMI_WRITE_SOC_REGISTER);
+	cmd.write_soc_reg.addr = __cpu_to_le32(address);
+	cmd.write_soc_reg.value = __cpu_to_le32(reg_val);
+
+	ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen, NULL, NULL);
+	if (ret) {
+		ath10k_warn(ar, "Unable to write soc register to device: %d\n",
+			    ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+int ath10k_bmi_read_soc_reg(struct ath10k *ar, u32 address, u32 *reg_val)
+{
+	struct bmi_cmd cmd;
+	union bmi_resp resp;
+	u32 cmdlen = sizeof(cmd.id) + sizeof(cmd.read_soc_reg);
+	u32 resplen = sizeof(resp.read_soc_reg);
+	int ret;
+
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi read soc register 0x%08x\n",
+		   address);
+
+	if (ar->bmi.done_sent) {
+		ath10k_warn(ar, "bmi read soc register command in progress\n");
+		return -EBUSY;
+	}
+
+	cmd.id = __cpu_to_le32(BMI_READ_SOC_REGISTER);
+	cmd.read_soc_reg.addr = __cpu_to_le32(address);
+
+	ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen, &resp, &resplen);
+	if (ret) {
+		ath10k_warn(ar, "Unable to read soc register from device: %d\n",
+			    ret);
+		return ret;
+	}
+
+	*reg_val = __le32_to_cpu(resp.read_soc_reg.value);
+
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi read soc register value 0x%08x\n",
+		   *reg_val);
 
 	return 0;
 }

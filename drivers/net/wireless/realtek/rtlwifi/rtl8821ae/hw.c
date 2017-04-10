@@ -842,12 +842,8 @@ static bool _rtl8821ae_llt_table_init(struct ieee80211_hw *hw)
 	bool status;
 
 	maxpage = 255;
-	txpktbuf_bndy = 0xF8;
-	rqpn = 0x80e70808;
-	if (rtlpriv->rtlhal.hw_type == HARDWARE_TYPE_RTL8812AE) {
-		txpktbuf_bndy = 0xFA;
-		rqpn = 0x80e90808;
-	}
+	txpktbuf_bndy = 0xF7;
+	rqpn = 0x80e60808;
 
 	rtl_write_byte(rtlpriv, REG_TRXFF_BNDY, txpktbuf_bndy);
 	rtl_write_word(rtlpriv, REG_TRXFF_BNDY + 2, MAX_RX_DMA_BUFFER_SIZE - 1);

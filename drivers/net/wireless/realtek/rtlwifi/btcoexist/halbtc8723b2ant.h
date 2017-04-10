@@ -75,8 +75,8 @@ enum BT_8723B_2ANT_COEX_ALGO {
 
 struct coex_dm_8723b_2ant {
 	/* fw mechanism */
-	bool pre_dec_bt_pwr;
-	bool cur_dec_bt_pwr;
+	bool pre_dec_bt_pwr_lvl;
+	bool cur_dec_bt_pwr_lvl;
 	u8 pre_fw_dac_swing_lvl;
 	u8 cur_fw_dac_swing_lvl;
 	bool cur_ignore_wlan_act;
@@ -148,6 +148,20 @@ struct coex_sta_8723b_2ant {
 	bool c2h_bt_inquiry_page;
 	u8 bt_retry_cnt;
 	u8 bt_info_ext;
+	u32 pop_event_cnt;
+	u8 scan_ap_num;
+
+	u32 crc_ok_cck;
+	u32 crc_ok_11g;
+	u32 crc_ok_11n;
+	u32 crc_ok_11n_agg;
+
+	u32 crc_err_cck;
+	u32 crc_err_11g;
+	u32 crc_err_11n;
+	u32 crc_err_11n_agg;
+
+	u8 a2dp_bit_pool;
 };
 
 /*********************************************************************

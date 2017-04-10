@@ -501,8 +501,7 @@ static int rt2800usb_get_tx_data_len(struct queue_entry *entry)
 /*
  * TX control handlers
  */
-static enum txdone_entry_desc_flags
-rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
+static bool rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
 {
 	__le32 *txwi;
 	u32 word;
@@ -515,7 +514,7 @@ rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
 	 * frame.
 	 */
 	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
-		return TXDONE_FAILURE;
+		return false;
 
 	wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
 	ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
@@ -537,10 +536,10 @@ rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
 		rt2x00_dbg(entry->queue->rt2x00dev,
 			   "TX status report missed for queue %d entry %d\n",
 			   entry->queue->qid, entry->entry_idx);
-		return TXDONE_UNKNOWN;
+		return false;
 	}
 
-	return TXDONE_SUCCESS;
+	return true;
 }
 
 static void rt2800usb_txdone(struct rt2x00_dev *rt2x00dev)
@@ -549,7 +548,7 @@ static void rt2800usb_txdone(struct rt2x00_dev *rt2x00dev)
 	struct queue_entry *entry;
 	u32 reg;
 	u8 qid;
-	enum txdone_entry_desc_flags done_status;
+	bool match;
 
 	while (kfifo_get(&rt2x00dev->txstatus_fifo, &reg)) {
 		/*
@@ -574,11 +573,8 @@ static void rt2800usb_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		}
 
-		done_status = rt2800usb_txdone_entry_check(entry, reg);
-		if (likely(done_status == TXDONE_SUCCESS))
-			rt2800_txdone_entry(entry, reg, rt2800usb_get_txwi(entry));
-		else
-			rt2x00lib_txdone_noinfo(entry, done_status);
+		match = rt2800usb_txdone_entry_check(entry, reg);
+		rt2800_txdone_entry(entry, reg, rt2800usb_get_txwi(entry), match);
 	}
 }
 

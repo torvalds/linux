@@ -3126,6 +3126,21 @@ static void ath10k_regd_update(struct ath10k *ar)
 		ath10k_warn(ar, "failed to set pdev regdomain: %d\n", ret);
 }
 
+static void ath10k_mac_update_channel_list(struct ath10k *ar,
+					   struct ieee80211_supported_band *band)
+{
+	int i;
+
+	if (ar->low_5ghz_chan && ar->high_5ghz_chan) {
+		for (i = 0; i < band->n_channels; i++) {
+			if (band->channels[i].center_freq < ar->low_5ghz_chan ||
+			    band->channels[i].center_freq > ar->high_5ghz_chan)
+				band->channels[i].flags |=
+					IEEE80211_CHAN_DISABLED;
+		}
+	}
+}
+
 static void ath10k_reg_notifier(struct wiphy *wiphy,
 				struct regulatory_request *request)
 {
@@ -3149,6 +3164,10 @@ static void ath10k_reg_notifier(struct wiphy *wiphy,
 	if (ar->state == ATH10K_STATE_ON)
 		ath10k_regd_update(ar);
 	mutex_unlock(&ar->conf_mutex);
+
+	if (ar->phy_capability & WHAL_WLAN_11A_CAPABILITY)
+		ath10k_mac_update_channel_list(ar,
+					       ar->hw->wiphy->bands[NL80211_BAND_5GHZ]);
 }
 
 /***************/
@@ -7129,7 +7148,7 @@ ath10k_mac_update_rx_channel(struct ath10k *ar,
 	lockdep_assert_held(&ar->data_lock);
 
 	WARN_ON(ctx && vifs);
-	WARN_ON(vifs && n_vifs != 1);
+	WARN_ON(vifs && !n_vifs);
 
 	/* FIXME: Sort of an optimization and a workaround. Peers and vifs are
 	 * on a linked list now. Doing a lookup peer -> vif -> chanctx for each

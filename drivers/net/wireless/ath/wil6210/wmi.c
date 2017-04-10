@@ -565,6 +565,7 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 	    (wdev->iftype == NL80211_IFTYPE_P2P_CLIENT)) {
 		if (rc) {
 			netif_carrier_off(ndev);
+			wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 			wil_err(wil, "cfg80211_connect_result with failure\n");
 			cfg80211_connect_result(ndev, evt->bssid, NULL, 0,
 						NULL, 0,
@@ -572,12 +573,16 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 						GFP_KERNEL);
 			goto out;
 		} else {
-			cfg80211_connect_result(ndev, evt->bssid,
-						assoc_req_ie, assoc_req_ielen,
-						assoc_resp_ie, assoc_resp_ielen,
-						WLAN_STATUS_SUCCESS,
-						GFP_KERNEL);
+			struct wiphy *wiphy = wil_to_wiphy(wil);
+
+			cfg80211_ref_bss(wiphy, wil->bss);
+			cfg80211_connect_bss(ndev, evt->bssid, wil->bss,
+					     assoc_req_ie, assoc_req_ielen,
+					     assoc_resp_ie, assoc_resp_ielen,
+					     WLAN_STATUS_SUCCESS, GFP_KERNEL,
+					     NL80211_TIMEOUT_UNSPECIFIED);
 		}
+		wil->bss = NULL;
 	} else if ((wdev->iftype == NL80211_IFTYPE_AP) ||
 		   (wdev->iftype == NL80211_IFTYPE_P2P_GO)) {
 		if (rc) {
@@ -1492,6 +1497,7 @@ int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac,
 
 	wil_dbg_wmi(wil, "disconnect_sta: (%pM, reason %d)\n", mac, reason);
 
+	wil->locally_generated_disc = true;
 	if (del_sta) {
 		ether_addr_copy(del_sta_cmd.dst_mac, mac);
 		rc = wmi_call(wil, WMI_DEL_STA_CMDID, &del_sta_cmd,
@@ -1733,14 +1739,19 @@ int wmi_new_sta(struct wil6210_priv *wil, const u8 *mac, u8 aid)
 
 void wmi_event_flush(struct wil6210_priv *wil)
 {
+	ulong flags;
 	struct pending_wmi_event *evt, *t;
 
 	wil_dbg_wmi(wil, "event_flush\n");
+
+	spin_lock_irqsave(&wil->wmi_ev_lock, flags);
 
 	list_for_each_entry_safe(evt, t, &wil->pending_wmi_ev, list) {
 		list_del(&evt->list);
 		kfree(evt);
 	}
+
+	spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
 }
 
 static bool wmi_evt_call_handler(struct wil6210_priv *wil, int id,
