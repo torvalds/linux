@@ -2168,7 +2168,7 @@ void ex_btc8821a1ant_display_coex_info(struct btc_coexist *btcoexist)
 		 "uplink" : "downlink")));
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 		   "\r\n %-35s = [%s/ %d/ %d] ", "BT [status/ rssi/ retryCnt]",
-		   ((btcoexist->bt_info.bt_disabled) ? ("disabled") :
+		   ((coex_sta->bt_disabled) ? ("disabled") :
 		   ((coex_sta->c2h_bt_inquiry_page) ? ("inquiry/page scan") :
 		   ((BT_8821A_1ANT_BT_STATUS_NON_CONNECTED_IDLE ==
 		     coex_dm->bt_status) ?
@@ -2394,9 +2394,10 @@ void ex_btc8821a1ant_scan_notify(struct btc_coexist *btcoexist, u8 type)
 	u32 num_of_wifi_link = 0;
 	u8 agg_buf_size = 5;
 
-	if (btcoexist->manual_control ||
-	    btcoexist->stop_coex_dm ||
-	    btcoexist->bt_info.bt_disabled)
+	if (btcoexist->manual_control || btcoexist->stop_coex_dm)
+		return;
+
+	if (coex_sta->bt_disabled)
 		return;
 
 	btcoexist->btc_get(btcoexist,
@@ -2456,9 +2457,8 @@ void ex_btc8821a1ant_connect_notify(struct btc_coexist *btcoexist, u8 type)
 	bool bt_ctrl_agg_buf_size = false;
 	u8 agg_buf_size = 5;
 
-	if (btcoexist->manual_control ||
-	    btcoexist->stop_coex_dm ||
-	    btcoexist->bt_info.bt_disabled)
+	if (btcoexist->manual_control || btcoexist->stop_coex_dm ||
+	    coex_sta->bt_disabled)
 		return;
 
 	btcoexist->btc_get(btcoexist, BTC_GET_U4_WIFI_LINK_STATUS,
@@ -2508,9 +2508,8 @@ void ex_btc8821a1ant_media_status_notify(struct btc_coexist *btcoexist,
 	u32 wifi_bw;
 	u8 wifi_central_chnl;
 
-	if (btcoexist->manual_control ||
-	    btcoexist->stop_coex_dm ||
-	    btcoexist->bt_info.bt_disabled)
+	if (btcoexist->manual_control || btcoexist->stop_coex_dm ||
+	    coex_sta->bt_disabled)
 		return;
 
 	if (BTC_MEDIA_CONNECT == type) {
@@ -2559,9 +2558,8 @@ void ex_btc8821a1ant_special_packet_notify(struct btc_coexist *btcoexist,
 	u32 num_of_wifi_link = 0;
 	u8 agg_buf_size = 5;
 
-	if (btcoexist->manual_control ||
-	    btcoexist->stop_coex_dm ||
-	    btcoexist->bt_info.bt_disabled)
+	if (btcoexist->manual_control || btcoexist->stop_coex_dm ||
+	    coex_sta->bt_disabled)
 		return;
 
 	coex_sta->special_pkt_period_cnt = 0;

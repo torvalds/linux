@@ -140,6 +140,7 @@ struct coex_dm_8821a_1ant {
 };
 
 struct coex_sta_8821a_1ant {
+	bool	bt_disabled;
 	bool	bt_link_exist;
 	bool	sco_exist;
 	bool	a2dp_exist;
