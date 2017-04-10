@@ -1954,7 +1954,9 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 				kfree(info);
 				goto out;
 			}
+			mutex_lock(&smi_infos_lock);
 			rv = try_smi_init(info);
+			mutex_unlock(&smi_infos_lock);
 			if (rv) {
 				cleanup_one_si(info);
 				goto out;
@@ -2042,8 +2044,10 @@ static int hardcode_find_bmc(void)
 		info->slave_addr = slave_addrs[i];
 
 		if (!add_smi(info)) {
+			mutex_lock(&smi_infos_lock);
 			if (try_smi_init(info))
 				cleanup_one_si(info);
+			mutex_unlock(&smi_infos_lock);
 			ret = 0;
 		} else {
 			kfree(info);
@@ -3492,6 +3496,11 @@ out_err:
 	return rv;
 }
 
+/*
+ * Try to start up an interface.  Must be called with smi_infos_lock
+ * held, primarily to keep smi_num consistent, we only one to do these
+ * one at a time.
+ */
 static int try_smi_init(struct smi_info *new_smi)
 {
 	int rv = 0;
@@ -3524,9 +3533,12 @@ static int try_smi_init(struct smi_info *new_smi)
 		goto out_err;
 	}
 
+	new_smi->intf_num = smi_num;
+
 	/* Do this early so it's available for logs. */
 	if (!new_smi->dev) {
-		init_name = kasprintf(GFP_KERNEL, "ipmi_si.%d", 0);
+		init_name = kasprintf(GFP_KERNEL, "ipmi_si.%d",
+				      new_smi->intf_num);
 
 		/*
 		 * If we don't already have a device from something
@@ -3593,8 +3605,6 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	new_smi->interrupt_disabled = true;
 	atomic_set(&new_smi->need_watch, 0);
-	new_smi->intf_num = smi_num;
-	smi_num++;
 
 	rv = try_enable_event_buffer(new_smi);
 	if (rv == 0)
@@ -3660,6 +3670,9 @@ static int try_smi_init(struct smi_info *new_smi)
 		dev_err(new_smi->dev, "Unable to create proc entry: %d\n", rv);
 		goto out_err_stop_timer;
 	}
+
+	/* Don't increment till we know we have succeeded. */
+	smi_num++;
 
 	dev_info(new_smi->dev, "IPMI %s interface initialized\n",
 		 si_to_str[new_smi->si_type]);
