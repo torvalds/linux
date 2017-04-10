@@ -849,8 +849,7 @@ void hostif_scan_indication(struct ks_wlan_private *priv)
 		DPRINTK(4, " scan_ind_count=%d :: aplist.size=%d\n",
 			priv->scan_ind_count, priv->aplist.size);
 		get_ap_information(priv, (struct ap_info_t *)(priv->rxp),
-				   &(priv->aplist.
-				     ap[priv->scan_ind_count - 1]));
+				   &(priv->aplist.ap[priv->scan_ind_count - 1]));
 		priv->aplist.size = priv->scan_ind_count;
 	} else {
 		DPRINTK(4, " count over :: scan_ind_count=%d\n",
@@ -1224,9 +1223,12 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 			pp->auth_type = cpu_to_le16((uint16_t)TYPE_AUTH);	/* no encryption */
 		} else {
 			if (priv->wpa.pairwise_suite == IW_AUTH_CIPHER_TKIP) {
-				MichaelMICFunction(&michael_mic, (uint8_t *)priv->wpa.key[0].tx_mic_key, (uint8_t *)&pp->data[0], (int)skb_len, (uint8_t)0,	/* priority */
-						   (uint8_t *)michael_mic.
-						   Result);
+				MichaelMICFunction(&michael_mic,
+						   (uint8_t *)priv->wpa.key[0].tx_mic_key,
+						   (uint8_t *)&pp->data[0],
+						   (int)skb_len,
+						   (uint8_t)0,	/* priority */
+						   (uint8_t *)michael_mic.Result);
 				memcpy(p, michael_mic.Result, 8);
 				length += 8;
 				skb_len += 8;
