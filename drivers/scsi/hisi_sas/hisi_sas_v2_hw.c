@@ -207,6 +207,8 @@
 #define TXID_AUTO			(PORT_BASE + 0xb8)
 #define TXID_AUTO_CT3_OFF		1
 #define TXID_AUTO_CT3_MSK		(0x1 << TXID_AUTO_CT3_OFF)
+#define TXID_AUTO_CTB_OFF		11
+#define TXID_AUTO_CTB_MSK		(0x1 << TXID_AUTO_CTB_OFF)
 #define TX_HARDRST_OFF          2
 #define TX_HARDRST_MSK          (0x1 << TX_HARDRST_OFF)
 #define RX_IDAF_DWORD0			(PORT_BASE + 0xc4)
@@ -243,9 +245,17 @@
 #define CHL_INT1_MSK			(PORT_BASE + 0x1c4)
 #define CHL_INT2_MSK			(PORT_BASE + 0x1c8)
 #define CHL_INT_COAL_EN			(PORT_BASE + 0x1d0)
+#define DMA_TX_DFX0			(PORT_BASE + 0x200)
 #define DMA_TX_DFX1			(PORT_BASE + 0x204)
 #define DMA_TX_DFX1_IPTT_OFF		0
 #define DMA_TX_DFX1_IPTT_MSK		(0xffff << DMA_TX_DFX1_IPTT_OFF)
+#define DMA_TX_FIFO_DFX0		(PORT_BASE + 0x240)
+#define PORT_DFX0			(PORT_BASE + 0x258)
+#define LINK_DFX2			(PORT_BASE + 0X264)
+#define LINK_DFX2_RCVR_HOLD_STS_OFF	9
+#define LINK_DFX2_RCVR_HOLD_STS_MSK	(0x1 << LINK_DFX2_RCVR_HOLD_STS_OFF)
+#define LINK_DFX2_SEND_HOLD_STS_OFF	10
+#define LINK_DFX2_SEND_HOLD_STS_MSK	(0x1 << LINK_DFX2_SEND_HOLD_STS_OFF)
 #define PHY_CTRL_RDY_MSK		(PORT_BASE + 0x2b0)
 #define PHYCTRL_NOT_RDY_MSK		(PORT_BASE + 0x2b4)
 #define PHYCTRL_DWS_RESET_MSK		(PORT_BASE + 0x2b8)
@@ -1194,12 +1204,127 @@ static bool is_sata_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 	return false;
 }
 
+static bool tx_fifo_is_empty_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	u32 dfx_val;
+
+	dfx_val = hisi_sas_phy_read32(hisi_hba, phy_no, DMA_TX_DFX1);
+
+	if (dfx_val & BIT(16))
+		return false;
+
+	return true;
+}
+
+static bool axi_bus_is_idle_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	int i, max_loop = 1000;
+	struct device *dev = &hisi_hba->pdev->dev;
+	u32 status, axi_status, dfx_val, dfx_tx_val;
+
+	for (i = 0; i < max_loop; i++) {
+		status = hisi_sas_read32_relaxed(hisi_hba,
+			AXI_MASTER_CFG_BASE + AM_CURR_TRANS_RETURN);
+
+		axi_status = hisi_sas_read32(hisi_hba, AXI_CFG);
+		dfx_val = hisi_sas_phy_read32(hisi_hba, phy_no, DMA_TX_DFX1);
+		dfx_tx_val = hisi_sas_phy_read32(hisi_hba,
+			phy_no, DMA_TX_FIFO_DFX0);
+
+		if ((status == 0x3) && (axi_status == 0x0) &&
+		    (dfx_val & BIT(20)) && (dfx_tx_val & BIT(10)))
+			return true;
+		udelay(10);
+	}
+	dev_err(dev, "bus is not idle phy%d, axi150:0x%x axi100:0x%x port204:0x%x port240:0x%x\n",
+			phy_no, status, axi_status,
+			dfx_val, dfx_tx_val);
+	return false;
+}
+
+static bool wait_io_done_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	int i, max_loop = 1000;
+	struct device *dev = &hisi_hba->pdev->dev;
+	u32 status, tx_dfx0;
+
+	for (i = 0; i < max_loop; i++) {
+		status = hisi_sas_phy_read32(hisi_hba, phy_no, LINK_DFX2);
+		status = (status & 0x3fc0) >> 6;
+
+		if (status != 0x1)
+			return true;
+
+		tx_dfx0 = hisi_sas_phy_read32(hisi_hba, phy_no, DMA_TX_DFX0);
+		if ((tx_dfx0 & 0x1ff) == 0x2)
+			return true;
+		udelay(10);
+	}
+	dev_err(dev, "IO not done phy%d, port264:0x%x port200:0x%x\n",
+			phy_no, status, tx_dfx0);
+	return false;
+}
+
+static bool allowed_disable_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	if (tx_fifo_is_empty_v2_hw(hisi_hba, phy_no))
+		return true;
+
+	if (!axi_bus_is_idle_v2_hw(hisi_hba, phy_no))
+		return false;
+
+	if (!wait_io_done_v2_hw(hisi_hba, phy_no))
+		return false;
+
+	return true;
+}
+
+
 static void disable_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
-	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
+	u32 cfg, axi_val, dfx0_val, txid_auto;
+	struct device *dev = &hisi_hba->pdev->dev;
 
+	/* Close axi bus. */
+	axi_val = hisi_sas_read32(hisi_hba, AXI_MASTER_CFG_BASE +
+				AM_CTRL_GLOBAL);
+	axi_val |= 0x1;
+	hisi_sas_write32(hisi_hba, AXI_MASTER_CFG_BASE +
+		AM_CTRL_GLOBAL, axi_val);
+
+	if (is_sata_phy_v2_hw(hisi_hba, phy_no)) {
+		if (allowed_disable_phy_v2_hw(hisi_hba, phy_no))
+			goto do_disable;
+
+		/* Reset host controller. */
+		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+		return;
+	}
+
+	dfx0_val = hisi_sas_phy_read32(hisi_hba, phy_no, PORT_DFX0);
+	dfx0_val = (dfx0_val & 0x1fc0) >> 6;
+	if (dfx0_val != 0x4)
+		goto do_disable;
+
+	if (!tx_fifo_is_empty_v2_hw(hisi_hba, phy_no)) {
+		dev_warn(dev, "phy%d, wait tx fifo need send break\n",
+			phy_no);
+		txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no,
+					TXID_AUTO);
+		txid_auto |= TXID_AUTO_CTB_MSK;
+		hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
+					txid_auto);
+	}
+
+do_disable:
+	cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
 	cfg &= ~PHY_CFG_ENA_MSK;
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHY_CFG, cfg);
+
+	/* Open axi bus. */
+	axi_val &= ~0x1;
+	hisi_sas_write32(hisi_hba, AXI_MASTER_CFG_BASE +
+		AM_CTRL_GLOBAL, axi_val);
 }
 
 static void start_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
