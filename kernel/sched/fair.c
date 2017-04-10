@@ -2777,18 +2777,18 @@ static u32 __accumulate_pelt_segments(u64 periods, u32 d1, u32 d3)
 	u32 c1, c2, c3 = d3; /* y^0 == 1 */
 
 	/*
-	 * c1 = d1 y^(p+1)
+	 * c1 = d1 y^p
 	 */
 	c1 = decay_load((u64)d1, periods);
 
 	/*
-	 *             p
+	 *            p-1
 	 * c2 = 1024 \Sum y^n
 	 *            n=1
 	 *
 	 *              inf        inf
 	 *    = 1024 ( \Sum y^n - \Sum y^n - y^0 )
-	 *              n=0        n=p+1
+	 *              n=0        n=p
 	 */
 	c2 = LOAD_AVG_MAX - decay_load(LOAD_AVG_MAX, periods) - 1024;
 
@@ -2808,15 +2808,15 @@ static u32 __accumulate_pelt_segments(u64 periods, u32 d1, u32 d3)
  *         |<->|<----------------->|<--->|
  * ... |---x---|------| ... |------|-----x (now)
  *
- *                                p
- * u' = (u + d1) y^(p+1) + 1024 \Sum y^n + d3 y^0
- *                               n=1
+ *                           p-1
+ * u' = (u + d1) y^p + 1024 \Sum y^n + d3 y^0
+ *                           n=1
  *
- *    = u y^(p+1) +				(Step 1)
+ *    = u y^p +					(Step 1)
  *
- *                          p
- *      d1 y^(p+1) + 1024 \Sum y^n + d3 y^0	(Step 2)
- *                         n=1
+ *                     p-1
+ *      d1 y^p + 1024 \Sum y^n + d3 y^0		(Step 2)
+ *                     n=1
  */
 static __always_inline u32
 accumulate_sum(u64 delta, int cpu, struct sched_avg *sa,
