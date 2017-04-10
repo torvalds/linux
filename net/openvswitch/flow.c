@@ -527,7 +527,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 
 	/* Link layer. */
 	clear_vlan(key);
-	if (key->mac_proto == MAC_PROTO_NONE) {
+	if (ovs_key_mac_proto(key) == MAC_PROTO_NONE) {
 		if (unlikely(eth_type_vlan(skb->protocol)))
 			return -EINVAL;
 
@@ -745,7 +745,13 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 
 int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key)
 {
-	return key_extract(skb, key);
+	int res;
+
+	res = key_extract(skb, key);
+	if (!res)
+		key->mac_proto &= ~SW_FLOW_KEY_INVALID;
+
+	return res;
 }
 
 static int key_extract_mac_proto(struct sk_buff *skb)
