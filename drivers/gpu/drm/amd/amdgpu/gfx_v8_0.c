@@ -4893,8 +4893,11 @@ static int gfx_v8_0_kiq_init_register(struct amdgpu_ring *ring)
 	/* enable the doorbell if requested */
 	if (ring->use_doorbell) {
 		if ((adev->asic_type == CHIP_CARRIZO) ||
-				(adev->asic_type == CHIP_FIJI) ||
-				(adev->asic_type == CHIP_STONEY)) {
+		    (adev->asic_type == CHIP_FIJI) ||
+		    (adev->asic_type == CHIP_STONEY) ||
+		    (adev->asic_type == CHIP_POLARIS10) ||
+		    (adev->asic_type == CHIP_POLARIS11) ||
+		    (adev->asic_type == CHIP_POLARIS12)) {
 			WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER,
 						AMDGPU_DOORBELL_KIQ << 2);
 			WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER,
