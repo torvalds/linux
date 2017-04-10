@@ -6213,7 +6213,7 @@ int btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 	for (dev_nr = 0; dev_nr < total_devs; dev_nr++) {
 		dev = bbio->stripes[dev_nr].dev;
 		if (!dev || !dev->bdev ||
-		    (bio_op(bio) == REQ_OP_WRITE && !dev->writeable)) {
+		    (bio_op(first_bio) == REQ_OP_WRITE && !dev->writeable)) {
 			bbio_error(bbio, first_bio, logical);
 			continue;
 		}
