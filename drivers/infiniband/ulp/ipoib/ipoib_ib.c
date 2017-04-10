@@ -513,7 +513,7 @@ void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr)
 
 static inline int post_send(struct ipoib_dev_priv *priv,
 			    unsigned int wr_id,
-			    struct ib_ah *address, u32 qpn,
+			    struct ib_ah *address, u32 dqpn,
 			    struct ipoib_tx_buf *tx_req,
 			    void *head, int hlen)
 {
@@ -523,7 +523,7 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 	ipoib_build_sge(priv, tx_req);
 
 	priv->tx_wr.wr.wr_id	= wr_id;
-	priv->tx_wr.remote_qpn	= qpn;
+	priv->tx_wr.remote_qpn	= dqpn;
 	priv->tx_wr.ah		= address;
 
 	if (head) {
@@ -538,7 +538,7 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 }
 
 void ipoib_send(struct net_device *dev, struct sk_buff *skb,
-		struct ipoib_ah *address, u32 qpn)
+		struct ipoib_ah *address, u32 dqpn)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_tx_buf *tx_req;
@@ -586,8 +586,9 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		}
 	}
 
-	ipoib_dbg_data(priv, "sending packet, length=%d address=%p qpn=0x%06x\n",
-		       skb->len, address, qpn);
+	ipoib_dbg_data(priv,
+		       "sending packet, length=%d address=%p dqpn=0x%06x\n",
+		       skb->len, address, dqpn);
 
 	/*
 	 * We put the skb into the tx_ring _before_ we call post_send()
@@ -620,7 +621,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	skb_dst_drop(skb);
 
 	rc = post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
-		       address->ah, qpn, tx_req, phead, hlen);
+		       address->ah, dqpn, tx_req, phead, hlen);
 	if (unlikely(rc)) {
 		ipoib_warn(priv, "post_send failed, error %d\n", rc);
 		++dev->stats.tx_errors;
