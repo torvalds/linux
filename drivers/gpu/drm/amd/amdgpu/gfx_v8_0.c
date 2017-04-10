@@ -4942,20 +4942,6 @@ static int gfx_v8_0_kiq_init_register(struct amdgpu_ring *ring)
 	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR, mqd->cp_hqd_pq_wptr_poll_addr_lo);
 	WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR_HI, mqd->cp_hqd_pq_wptr_poll_addr_hi);
 
-	/* enable the doorbell if requested */
-	if (ring->use_doorbell) {
-		if ((adev->asic_type == CHIP_CARRIZO) ||
-		    (adev->asic_type == CHIP_FIJI) ||
-		    (adev->asic_type == CHIP_STONEY) ||
-		    (adev->asic_type == CHIP_POLARIS10) ||
-		    (adev->asic_type == CHIP_POLARIS11) ||
-		    (adev->asic_type == CHIP_POLARIS12)) {
-			WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER,
-						AMDGPU_DOORBELL_KIQ << 2);
-			WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER,
-						AMDGPU_DOORBELL_MEC_RING7 << 2);
-		}
-	}
 	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, mqd->cp_hqd_pq_doorbell_control);
 
 	/* reset read and write pointers, similar to CP_RB0_WPTR/_RPTR */
@@ -5080,6 +5066,18 @@ static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
 		amdgpu_bo_unreserve(ring->mqd_obj);
 		if (r)
 			goto done;
+	}
+
+	if ((adev->asic_type == CHIP_CARRIZO) ||
+	    (adev->asic_type == CHIP_FIJI) ||
+	    (adev->asic_type == CHIP_STONEY) ||
+	    (adev->asic_type == CHIP_POLARIS10) ||
+	    (adev->asic_type == CHIP_POLARIS11) ||
+	    (adev->asic_type == CHIP_POLARIS12)) {
+		WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER,
+		       AMDGPU_DOORBELL_KIQ << 2);
+		WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER,
+		       AMDGPU_DOORBELL_MEC_RING7 << 2);
 	}
 
 	r = gfx_v8_0_kiq_kcq_enable(adev);
