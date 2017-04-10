@@ -284,6 +284,21 @@ config MCP4922
 	  To compile this driver as a module, choose M here: the module
 	  will be called mcp4922.
 
+config STM32_DAC
+	tristate "STMicroelectronics STM32 DAC"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	depends on REGULATOR
+	select STM32_DAC_CORE
+	help
+	  Say yes here to build support for STMicroelectronics STM32 Digital
+	  to Analog Converter (DAC).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called stm32-dac.
+
+config STM32_DAC_CORE
+	tristate
+
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"
 	depends on OF
