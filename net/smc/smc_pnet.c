@@ -219,7 +219,7 @@ static bool smc_pnetid_valid(const char *pnet_name, char *pnetid)
 }
 
 /* Find an infiniband device by a given name. The device might not exist. */
-struct smc_ib_device *smc_pnet_find_ib(char *ib_name)
+static struct smc_ib_device *smc_pnet_find_ib(char *ib_name)
 {
 	struct smc_ib_device *ibdev;
 

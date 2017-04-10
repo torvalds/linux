@@ -179,8 +179,6 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 	u8 port_idx;
 
 	smcibdev = container_of(handler, struct smc_ib_device, event_handler);
-	if (!smc_pnet_find_ib(smcibdev->ibdev->name))
-		return;
 
 	switch (ibevent->event) {
 	case IB_EVENT_PORT_ERR:
