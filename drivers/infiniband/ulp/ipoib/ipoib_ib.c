@@ -537,8 +537,8 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 	return ib_post_send(priv->qp, &priv->tx_wr.wr, &bad_wr);
 }
 
-void ipoib_send(struct net_device *dev, struct sk_buff *skb,
-		struct ipoib_ah *address, u32 dqpn)
+int ipoib_send(struct net_device *dev, struct sk_buff *skb,
+	       struct ib_ah *address, u32 dqpn)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ipoib_tx_buf *tx_req;
@@ -554,7 +554,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 			++dev->stats.tx_dropped;
 			++dev->stats.tx_errors;
 			dev_kfree_skb_any(skb);
-			return;
+			return -1;
 		}
 	} else {
 		if (unlikely(skb->len > priv->mcast_mtu + IPOIB_ENCAP_LEN)) {
@@ -563,7 +563,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 			++dev->stats.tx_dropped;
 			++dev->stats.tx_errors;
 			ipoib_cm_skb_too_long(dev, skb, priv->mcast_mtu);
-			return;
+			return -1;
 		}
 		phead = NULL;
 		hlen  = 0;
@@ -574,7 +574,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 			++dev->stats.tx_dropped;
 			++dev->stats.tx_errors;
 			dev_kfree_skb_any(skb);
-			return;
+			return -1;
 		}
 		/* Does skb_linearize return ok without reducing nr_frags? */
 		if (skb_shinfo(skb)->nr_frags > usable_sge) {
@@ -582,7 +582,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 			++dev->stats.tx_dropped;
 			++dev->stats.tx_errors;
 			dev_kfree_skb_any(skb);
-			return;
+			return -1;
 		}
 	}
 
@@ -602,7 +602,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	if (unlikely(ipoib_dma_map_tx(priv->ca, tx_req))) {
 		++dev->stats.tx_errors;
 		dev_kfree_skb_any(skb);
-		return;
+		return -1;
 	}
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
@@ -621,7 +621,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	skb_dst_drop(skb);
 
 	rc = post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
-		       address->ah, dqpn, tx_req, phead, hlen);
+		       address, dqpn, tx_req, phead, hlen);
 	if (unlikely(rc)) {
 		ipoib_warn(priv, "post_send failed, error %d\n", rc);
 		++dev->stats.tx_errors;
@@ -630,16 +630,19 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		dev_kfree_skb_any(skb);
 		if (netif_queue_stopped(dev))
 			netif_wake_queue(dev);
+		rc = 0;
 	} else {
 		netif_trans_update(dev);
 
-		address->last_send = priv->tx_head;
+		rc = priv->tx_head;
 		++priv->tx_head;
 	}
 
 	if (unlikely(priv->tx_outstanding > MAX_SEND_CQE))
 		while (poll_tx(priv))
 			; /* nothing */
+
+	return rc;
 }
 
 static void __ipoib_reap_ah(struct net_device *dev)
@@ -714,7 +717,7 @@ int ipoib_ib_dev_stop_default(struct net_device *dev)
 	struct ipoib_tx_buf *tx_req;
 	int i;
 
-	if (test_and_clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
+	if (test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
 		napi_disable(&priv->napi);
 
 	ipoib_cm_dev_stop(dev);
@@ -785,8 +788,11 @@ timeout:
 
 int ipoib_ib_dev_stop(struct net_device *dev)
 {
-	ipoib_ib_dev_stop_default(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
+	priv->rn_ops->ndo_stop(dev);
+
+	clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
 	ipoib_flush_ah(dev);
 
 	return 0;
@@ -811,23 +817,20 @@ int ipoib_ib_dev_open_default(struct net_device *dev)
 	ret = ipoib_ib_post_receives(dev);
 	if (ret) {
 		ipoib_warn(priv, "ipoib_ib_post_receives returned %d\n", ret);
-		goto dev_stop;
+		goto out;
 	}
 
 	ret = ipoib_cm_dev_open(dev);
 	if (ret) {
 		ipoib_warn(priv, "ipoib_cm_dev_open returned %d\n", ret);
-		goto dev_stop;
+		goto out;
 	}
 
-	if (!test_and_set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
+	if (!test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
 		napi_enable(&priv->napi);
 
 	return 0;
-dev_stop:
-	if (!test_and_set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
-		napi_enable(&priv->napi);
-	ipoib_ib_dev_stop(dev);
+out:
 	return -1;
 }
 
@@ -847,16 +850,21 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	queue_delayed_work(priv->wq, &priv->ah_reap_task,
 			   round_jiffies_relative(HZ));
 
-	if (ipoib_ib_dev_open_default(dev)) {
+	if (priv->rn_ops->ndo_open(dev)) {
 		pr_warn("%s: Failed to open dev\n", dev->name);
-		goto stop_ah_reap;
+		goto dev_stop;
 	}
+
+	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
 
 	return 0;
 
-stop_ah_reap:
+dev_stop:
 	set_bit(IPOIB_STOP_REAPER, &priv->flags);
 	cancel_delayed_work(&priv->ah_reap_task);
+	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
+	napi_enable(&priv->napi);
+	ipoib_ib_dev_stop(dev);
 	return -1;
 }
 
@@ -1241,7 +1249,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 
 	clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 
-	ipoib_dev_uninit_default(dev);
+	priv->rn_ops->ndo_uninit(dev);
 
 	if (priv->pd) {
 		ib_dealloc_pd(priv->pd);

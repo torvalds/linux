@@ -125,14 +125,15 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	ppriv = netdev_priv(pdev);
+	ppriv = ipoib_priv(pdev);
 
 	if (test_bit(IPOIB_FLAG_GOING_DOWN, &ppriv->flags))
 		return -EPERM;
 
 	snprintf(intf_name, sizeof intf_name, "%s.%04x",
 		 ppriv->dev->name, pkey);
-	priv = ipoib_intf_alloc(intf_name);
+
+	priv = ipoib_intf_alloc(ppriv->ca, ppriv->port, intf_name);
 	if (!priv)
 		return -ENOMEM;
 

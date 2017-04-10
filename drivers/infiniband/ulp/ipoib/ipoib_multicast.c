@@ -213,6 +213,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 {
 	struct net_device *dev = mcast->dev;
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	struct rdma_netdev *rn = netdev_priv(dev);
 	struct ipoib_ah *ah;
 	int ret;
 	int set_qkey = 0;
@@ -260,8 +261,9 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 			return 0;
 		}
 
-		ret = ipoib_mcast_attach(dev, be16_to_cpu(mcast->mcmember.mlid),
-					 &mcast->mcmember.mgid, set_qkey);
+		ret = rn->attach_mcast(dev, priv->ca, &mcast->mcmember.mgid,
+				       be16_to_cpu(mcast->mcmember.mlid),
+				       set_qkey, priv->qkey);
 		if (ret < 0) {
 			ipoib_warn(priv, "couldn't attach QP to multicast group %pI6\n",
 				   mcast->mcmember.mgid.raw);
@@ -707,6 +709,7 @@ int ipoib_mcast_stop_thread(struct net_device *dev)
 static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	struct rdma_netdev *rn = netdev_priv(dev);
 	int ret = 0;
 
 	if (test_and_clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
@@ -720,8 +723,8 @@ static int ipoib_mcast_leave(struct net_device *dev, struct ipoib_mcast *mcast)
 				mcast->mcmember.mgid.raw);
 
 		/* Remove ourselves from the multicast group */
-		ret = ib_detach_mcast(priv->qp, &mcast->mcmember.mgid,
-				      be16_to_cpu(mcast->mcmember.mlid));
+		ret = rn->detach_mcast(dev, priv->ca, &mcast->mcmember.mgid,
+				       be16_to_cpu(mcast->mcmember.mlid));
 		if (ret)
 			ipoib_warn(priv, "ib_detach_mcast failed (result = %d)\n", ret);
 	} else if (!test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags))
@@ -763,6 +766,7 @@ void ipoib_mcast_remove_list(struct list_head *remove_list)
 void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+	struct rdma_netdev *rn = netdev_priv(dev);
 	struct ipoib_mcast *mcast;
 	unsigned long flags;
 	void *mgid = daddr + 4;
@@ -825,7 +829,8 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb)
 			}
 		}
 		spin_unlock_irqrestore(&priv->lock, flags);
-		ipoib_send(dev, skb, mcast->ah, IB_MULTICAST_QPN);
+		mcast->ah->last_send = rn->send(dev, skb, mcast->ah->ah,
+						IB_MULTICAST_QPN);
 		if (neigh)
 			ipoib_neigh_put(neigh);
 		return;

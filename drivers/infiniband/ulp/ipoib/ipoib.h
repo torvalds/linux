@@ -52,7 +52,6 @@
 #include <rdma/ib_pack.h>
 #include <rdma/ib_sa.h>
 #include <linux/sched.h>
-
 /* constants */
 
 enum ipoib_flush_level {
@@ -153,8 +152,12 @@ static inline void skb_add_pseudo_hdr(struct sk_buff *skb)
 	skb_pull(skb, IPOIB_HARD_LEN);
 }
 
-/* Keep the refactoring compile able */
-#define ipoib_priv netdev_priv
+static inline struct ipoib_dev_priv *ipoib_priv(const struct net_device *dev)
+{
+	struct rdma_netdev *rn = netdev_priv(dev);
+
+	return rn->clnt_priv;
+}
 
 /* Used for all multicast joins (broadcast, IPv4 mcast and IPv6 mcast) */
 struct ipoib_mcast {
@@ -407,6 +410,7 @@ struct ipoib_dev_priv {
 	struct timer_list poll_timer;
 	unsigned max_send_sge;
 	bool sm_fullmember_sendonly_support;
+	const struct net_device_ops	*rn_ops;
 };
 
 struct ipoib_ah {
@@ -485,16 +489,16 @@ int ipoib_open(struct net_device *dev);
 int ipoib_add_pkey_attr(struct net_device *dev);
 int ipoib_add_umcast_attr(struct net_device *dev);
 
-void ipoib_send(struct net_device *dev, struct sk_buff *skb,
-		struct ipoib_ah *address, u32 dqpn);
+int ipoib_send(struct net_device *dev, struct sk_buff *skb,
+	       struct ib_ah *address, u32 dqpn);
 void ipoib_reap_ah(struct work_struct *work);
 
 struct ipoib_path *__path_find(struct net_device *dev, void *gid);
 void ipoib_mark_paths_invalid(struct net_device *dev);
 void ipoib_flush_paths(struct net_device *dev);
 int ipoib_check_sm_sendonly_fullmember_support(struct ipoib_dev_priv *priv);
-struct ipoib_dev_priv *ipoib_intf_alloc(const char *format);
-
+struct ipoib_dev_priv *ipoib_intf_alloc(struct ib_device *hca, u8 port,
+					const char *format);
 void ipoib_ib_tx_timer_func(unsigned long ctx);
 void ipoib_ib_dev_flush_light(struct work_struct *work);
 void ipoib_ib_dev_flush_normal(struct work_struct *work);
@@ -502,8 +506,9 @@ void ipoib_ib_dev_flush_heavy(struct work_struct *work);
 void ipoib_pkey_event(struct work_struct *work);
 void ipoib_ib_dev_cleanup(struct net_device *dev);
 
-void ipoib_dev_uninit_default(struct net_device *dev);
+int ipoib_ib_dev_open_default(struct net_device *dev);
 int ipoib_ib_dev_open(struct net_device *dev);
+int ipoib_ib_dev_stop(struct net_device *dev);
 void ipoib_ib_dev_up(struct net_device *dev);
 void ipoib_ib_dev_down(struct net_device *dev);
 int ipoib_ib_dev_stop_default(struct net_device *dev);
@@ -566,8 +571,10 @@ void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 			  struct ipoib_path *path);
 #endif
 
-int ipoib_mcast_attach(struct net_device *dev, u16 mlid,
-		       union ib_gid *mgid, int set_qkey);
+int ipoib_mcast_attach(struct net_device *dev, struct ib_device *hca,
+		       union ib_gid *mgid, u16 mlid, int set_qkey, u32 qkey);
+int ipoib_mcast_detach(struct net_device *dev, struct ib_device *hca,
+		       union ib_gid *mgid, u16 mlid);
 void ipoib_mcast_remove_list(struct list_head *remove_list);
 void ipoib_check_and_add_mcast_sendonly(struct ipoib_dev_priv *priv, u8 *mgid,
 				struct list_head *remove_list);
@@ -591,7 +598,7 @@ void __exit ipoib_netlink_fini(void);
 void ipoib_set_umcast(struct net_device *ndev, int umcast_val);
 int  ipoib_set_mode(struct net_device *dev, const char *buf);
 
-void ipoib_setup(struct net_device *dev);
+void ipoib_setup_common(struct net_device *dev);
 
 void ipoib_pkey_open(struct ipoib_dev_priv *priv);
 void ipoib_drain_cq(struct net_device *dev);
