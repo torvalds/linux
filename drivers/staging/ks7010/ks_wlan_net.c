@@ -2902,7 +2902,7 @@ static
 int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
-	int rc = 0;
+	int ret;
 
 	DPRINTK(3, "in_interrupt()=%ld\n", in_interrupt());
 
@@ -2918,14 +2918,13 @@ int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (netif_running(dev))
 		netif_stop_queue(dev);
 
-	rc = hostif_data_request(priv, skb);
+	ret = hostif_data_request(priv, skb);
 	netif_trans_update(dev);
 
-	DPRINTK(4, "rc=%d\n", rc);
-	if (rc)
-		rc = 0;
+	if (ret)
+		DPRINTK(4, "hostif_data_request error: =%d\n", ret);
 
-	return rc;
+	return 0;
 }
 
 void send_packet_complete(void *arg1, void *arg2)

@@ -309,19 +309,17 @@ static int write_to_device(struct ks_wlan_private *priv, unsigned char *buffer,
 static void tx_device_task(struct ks_wlan_private *priv)
 {
 	struct tx_device_buffer *sp;
-	int rc = 0;
+	int ret;
 
 	DPRINTK(4, "\n");
 	if (cnt_txqbody(priv) > 0 &&
 	    atomic_read(&priv->psstatus.status) != PS_SNOOZE) {
 		sp = &priv->tx_dev.tx_dev_buff[priv->tx_dev.qhead];
 		if (priv->dev_state >= DEVICE_STATE_BOOT) {
-			rc = write_to_device(priv, sp->sendp, sp->size);
-			if (rc) {
-				DPRINTK(1, "write_to_device error !!(%d)\n",
-					rc);
-				queue_delayed_work(priv->ks_wlan_hw.
-						   ks7010sdio_wq,
+			ret = write_to_device(priv, sp->sendp, sp->size);
+			if (ret) {
+				DPRINTK(1, "write_to_device error !!(%d)\n", ret);
+				queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
 						   &priv->ks_wlan_hw.rw_wq, 1);
 				return;
 			}
