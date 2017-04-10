@@ -694,6 +694,8 @@ static int __cmd_inject(struct perf_inject *inject)
 		lseek(fd, output_data_offset, SEEK_SET);
 
 	ret = perf_session__process_events(session);
+	if (ret)
+		return ret;
 
 	if (!file_out->is_pipe) {
 		if (inject->build_ids)
