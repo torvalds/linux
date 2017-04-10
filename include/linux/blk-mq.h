@@ -51,8 +51,6 @@ struct blk_mq_hw_ctx {
 
 	atomic_t		nr_active;
 
-	struct delayed_work	delay_work;
-
 	struct hlist_node	cpuhp_dead;
 	struct kobject		kobj;
 
@@ -168,6 +166,7 @@ enum {
 	BLK_MQ_S_TAG_ACTIVE	= 1,
 	BLK_MQ_S_SCHED_RESTART	= 2,
 	BLK_MQ_S_TAG_WAITING	= 3,
+	BLK_MQ_S_START_ON_RUN	= 4,
 
 	BLK_MQ_MAX_DEPTH	= 10240,
 

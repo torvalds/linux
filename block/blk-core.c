@@ -268,10 +268,8 @@ void blk_sync_queue(struct request_queue *q)
 		struct blk_mq_hw_ctx *hctx;
 		int i;
 
-		queue_for_each_hw_ctx(q, hctx, i) {
+		queue_for_each_hw_ctx(q, hctx, i)
 			cancel_delayed_work_sync(&hctx->run_work);
-			cancel_delayed_work_sync(&hctx->delay_work);
-		}
 	} else {
 		cancel_delayed_work_sync(&q->delay_work);
 	}
