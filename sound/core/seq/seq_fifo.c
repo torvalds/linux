@@ -72,6 +72,9 @@ void snd_seq_fifo_delete(struct snd_seq_fifo **fifo)
 		return;
 	*fifo = NULL;
 
+	if (f->pool)
+		snd_seq_pool_mark_closing(f->pool);
+
 	snd_seq_fifo_clear(f);
 
 	/* wake up clients if any */
@@ -263,6 +266,10 @@ int snd_seq_fifo_resize(struct snd_seq_fifo *f, int poolsize)
 	f->cells = 0;
 	/* NOTE: overflow flag is not cleared */
 	spin_unlock_irqrestore(&f->lock, flags);
+
+	/* close the old pool and wait until all users are gone */
+	snd_seq_pool_mark_closing(oldpool);
+	snd_use_lock_sync(&f->use_lock);
 
 	/* release cells in old pool */
 	for (cell = oldhead; cell; cell = next) {
