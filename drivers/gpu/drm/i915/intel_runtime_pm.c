@@ -2840,8 +2840,10 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct device *kdev = &pdev->dev;
+	int ret;
 
-	pm_runtime_get_sync(kdev);
+	ret = pm_runtime_get_sync(kdev);
+	WARN_ONCE(ret < 0, "pm_runtime_get_sync() failed: %d\n", ret);
 
 	atomic_inc(&dev_priv->pm.wakeref_count);
 	assert_rpm_wakelock_held(dev_priv);
@@ -2871,7 +2873,8 @@ bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
 		 * function, since the power state is undefined. This applies
 		 * atm to the late/early system suspend/resume handlers.
 		 */
-		WARN_ON_ONCE(ret < 0);
+		WARN_ONCE(ret < 0,
+			  "pm_runtime_get_if_in_use() failed: %d\n", ret);
 		if (ret <= 0)
 			return false;
 	}
@@ -2955,8 +2958,11 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	 * platforms without RPM support.
 	 */
 	if (!HAS_RUNTIME_PM(dev_priv)) {
+		int ret;
+
 		pm_runtime_dont_use_autosuspend(kdev);
-		pm_runtime_get_sync(kdev);
+		ret = pm_runtime_get_sync(kdev);
+		WARN(ret < 0, "pm_runtime_get_sync() failed: %d\n", ret);
 	} else {
 		pm_runtime_use_autosuspend(kdev);
 	}

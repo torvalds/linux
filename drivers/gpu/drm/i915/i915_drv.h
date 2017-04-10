@@ -79,26 +79,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20170320"
-#define DRIVER_TIMESTAMP	1489994464
-
-#undef WARN_ON
-/* Many gcc seem to no see through this and fall over :( */
-#if 0
-#define WARN_ON(x) ({ \
-	bool __i915_warn_cond = (x); \
-	if (__builtin_constant_p(__i915_warn_cond)) \
-		BUILD_BUG_ON(__i915_warn_cond); \
-	WARN(__i915_warn_cond, "WARN_ON(" #x ")"); })
-#else
-#define WARN_ON(x) WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
-#endif
-
-#undef WARN_ON_ONCE
-#define WARN_ON_ONCE(x) WARN_ONCE((x), "%s", "WARN_ON_ONCE(" __stringify(x) ")")
-
-#define MISSING_CASE(x) WARN(1, "Missing switch case (%lu) in %s\n", \
-			     (long) (x), __func__);
+#define DRIVER_DATE		"20170403"
+#define DRIVER_TIMESTAMP	1491198738
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -703,9 +685,9 @@ enum forcewake_domain_id {
 };
 
 enum forcewake_domains {
-	FORCEWAKE_RENDER = (1 << FW_DOMAIN_ID_RENDER),
-	FORCEWAKE_BLITTER = (1 << FW_DOMAIN_ID_BLITTER),
-	FORCEWAKE_MEDIA	= (1 << FW_DOMAIN_ID_MEDIA),
+	FORCEWAKE_RENDER = BIT(FW_DOMAIN_ID_RENDER),
+	FORCEWAKE_BLITTER = BIT(FW_DOMAIN_ID_BLITTER),
+	FORCEWAKE_MEDIA	= BIT(FW_DOMAIN_ID_MEDIA),
 	FORCEWAKE_ALL = (FORCEWAKE_RENDER |
 			 FORCEWAKE_BLITTER |
 			 FORCEWAKE_MEDIA)
@@ -732,21 +714,25 @@ intel_uncore_forcewake_for_reg(struct drm_i915_private *dev_priv,
 
 struct intel_uncore_funcs {
 	void (*force_wake_get)(struct drm_i915_private *dev_priv,
-							enum forcewake_domains domains);
+			       enum forcewake_domains domains);
 	void (*force_wake_put)(struct drm_i915_private *dev_priv,
-							enum forcewake_domains domains);
+			       enum forcewake_domains domains);
 
-	uint8_t  (*mmio_readb)(struct drm_i915_private *dev_priv, i915_reg_t r, bool trace);
-	uint16_t (*mmio_readw)(struct drm_i915_private *dev_priv, i915_reg_t r, bool trace);
-	uint32_t (*mmio_readl)(struct drm_i915_private *dev_priv, i915_reg_t r, bool trace);
-	uint64_t (*mmio_readq)(struct drm_i915_private *dev_priv, i915_reg_t r, bool trace);
+	uint8_t  (*mmio_readb)(struct drm_i915_private *dev_priv,
+			       i915_reg_t r, bool trace);
+	uint16_t (*mmio_readw)(struct drm_i915_private *dev_priv,
+			       i915_reg_t r, bool trace);
+	uint32_t (*mmio_readl)(struct drm_i915_private *dev_priv,
+			       i915_reg_t r, bool trace);
+	uint64_t (*mmio_readq)(struct drm_i915_private *dev_priv,
+			       i915_reg_t r, bool trace);
 
-	void (*mmio_writeb)(struct drm_i915_private *dev_priv, i915_reg_t r,
-				uint8_t val, bool trace);
-	void (*mmio_writew)(struct drm_i915_private *dev_priv, i915_reg_t r,
-				uint16_t val, bool trace);
-	void (*mmio_writel)(struct drm_i915_private *dev_priv, i915_reg_t r,
-				uint32_t val, bool trace);
+	void (*mmio_writeb)(struct drm_i915_private *dev_priv,
+			    i915_reg_t r, uint8_t val, bool trace);
+	void (*mmio_writew)(struct drm_i915_private *dev_priv,
+			    i915_reg_t r, uint16_t val, bool trace);
+	void (*mmio_writel)(struct drm_i915_private *dev_priv,
+			    i915_reg_t r, uint32_t val, bool trace);
 };
 
 struct intel_forcewake_range {
@@ -770,32 +756,35 @@ struct intel_uncore {
 	enum forcewake_domains fw_domains;
 	enum forcewake_domains fw_domains_active;
 
+	u32 fw_set;
+	u32 fw_clear;
+	u32 fw_reset;
+
 	struct intel_uncore_forcewake_domain {
-		struct drm_i915_private *i915;
 		enum forcewake_domain_id id;
 		enum forcewake_domains mask;
 		unsigned wake_count;
 		struct hrtimer timer;
 		i915_reg_t reg_set;
-		u32 val_set;
-		u32 val_clear;
 		i915_reg_t reg_ack;
-		i915_reg_t reg_post;
-		u32 val_reset;
 	} fw_domain[FW_DOMAIN_ID_COUNT];
 
 	int unclaimed_mmio_check;
 };
 
-/* Iterate over initialised fw domains */
-#define for_each_fw_domain_masked(domain__, mask__, dev_priv__) \
-	for ((domain__) = &(dev_priv__)->uncore.fw_domain[0]; \
-	     (domain__) < &(dev_priv__)->uncore.fw_domain[FW_DOMAIN_ID_COUNT]; \
-	     (domain__)++) \
-		for_each_if ((mask__) & (domain__)->mask)
+#define __mask_next_bit(mask) ({					\
+	int __idx = ffs(mask) - 1;					\
+	mask &= ~BIT(__idx);						\
+	__idx;								\
+})
 
-#define for_each_fw_domain(domain__, dev_priv__) \
-	for_each_fw_domain_masked(domain__, FORCEWAKE_ALL, dev_priv__)
+/* Iterate over initialised fw domains */
+#define for_each_fw_domain_masked(domain__, mask__, dev_priv__, tmp__) \
+	for (tmp__ = (mask__); \
+	     tmp__ ? (domain__ = &(dev_priv__)->uncore.fw_domain[__mask_next_bit(tmp__)]), 1 : 0;)
+
+#define for_each_fw_domain(domain__, dev_priv__, tmp__) \
+	for_each_fw_domain_masked(domain__, (dev_priv__)->uncore.fw_domains, dev_priv__, tmp__)
 
 #define CSR_VERSION(major, minor)	((major) << 16 | (minor))
 #define CSR_VERSION_MAJOR(version)	((version) >> 16)
@@ -846,6 +835,7 @@ struct intel_csr {
 	func(has_resource_streamer); \
 	func(has_runtime_pm); \
 	func(has_snoop); \
+	func(unfenced_needs_alignment); \
 	func(cursor_needs_physical); \
 	func(hws_needs_physical); \
 	func(overlay_needs_physical); \
@@ -2578,12 +2568,6 @@ static inline struct drm_i915_private *huc_to_i915(struct intel_huc *huc)
 	     (id__)++) \
 		for_each_if ((engine__) = (dev_priv__)->engine[(id__)])
 
-#define __mask_next_bit(mask) ({					\
-	int __idx = ffs(mask) - 1;					\
-	mask &= ~BIT(__idx);						\
-	__idx;								\
-})
-
 /* Iterator over subset of engines selected by mask */
 #define for_each_engine_masked(engine__, dev_priv__, mask__, tmp__) \
 	for (tmp__ = mask__ & INTEL_INFO(dev_priv__)->ring_mask;	\
@@ -3956,14 +3940,14 @@ u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
 
 #define __raw_read(x, s) \
-static inline uint##x##_t __raw_i915_read##x(struct drm_i915_private *dev_priv, \
+static inline uint##x##_t __raw_i915_read##x(const struct drm_i915_private *dev_priv, \
 					     i915_reg_t reg) \
 { \
 	return read##s(dev_priv->regs + i915_mmio_reg_offset(reg)); \
 }
 
 #define __raw_write(x, s) \
-static inline void __raw_i915_write##x(struct drm_i915_private *dev_priv, \
+static inline void __raw_i915_write##x(const struct drm_i915_private *dev_priv, \
 				       i915_reg_t reg, uint##x##_t val) \
 { \
 	write##s(val, dev_priv->regs + i915_mmio_reg_offset(reg)); \

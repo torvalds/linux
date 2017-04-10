@@ -118,7 +118,6 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	ring->vaddr = (void *)(ring + 1);
 
 	INIT_LIST_HEAD(&ring->request_list);
-	ring->last_retired_head = -1;
 	intel_ring_update_space(ring);
 
 	return ring;

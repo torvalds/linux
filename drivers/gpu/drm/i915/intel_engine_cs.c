@@ -36,45 +36,45 @@ static const struct engine_info {
 	int (*init_execlists)(struct intel_engine_cs *engine);
 } intel_engines[] = {
 	[RCS] = {
-		.name = "render ring",
-		.exec_id = I915_EXEC_RENDER,
+		.name = "rcs",
 		.hw_id = RCS_HW,
+		.exec_id = I915_EXEC_RENDER,
 		.mmio_base = RENDER_RING_BASE,
 		.irq_shift = GEN8_RCS_IRQ_SHIFT,
 		.init_execlists = logical_render_ring_init,
 		.init_legacy = intel_init_render_ring_buffer,
 	},
 	[BCS] = {
-		.name = "blitter ring",
-		.exec_id = I915_EXEC_BLT,
+		.name = "bcs",
 		.hw_id = BCS_HW,
+		.exec_id = I915_EXEC_BLT,
 		.mmio_base = BLT_RING_BASE,
 		.irq_shift = GEN8_BCS_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
 		.init_legacy = intel_init_blt_ring_buffer,
 	},
 	[VCS] = {
-		.name = "bsd ring",
-		.exec_id = I915_EXEC_BSD,
+		.name = "vcs",
 		.hw_id = VCS_HW,
+		.exec_id = I915_EXEC_BSD,
 		.mmio_base = GEN6_BSD_RING_BASE,
 		.irq_shift = GEN8_VCS1_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
 		.init_legacy = intel_init_bsd_ring_buffer,
 	},
 	[VCS2] = {
-		.name = "bsd2 ring",
-		.exec_id = I915_EXEC_BSD,
+		.name = "vcs2",
 		.hw_id = VCS2_HW,
+		.exec_id = I915_EXEC_BSD,
 		.mmio_base = GEN8_BSD2_RING_BASE,
 		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
 		.init_legacy = intel_init_bsd2_ring_buffer,
 	},
 	[VECS] = {
-		.name = "video enhancement ring",
-		.exec_id = I915_EXEC_VEBOX,
+		.name = "vecs",
 		.hw_id = VECS_HW,
+		.exec_id = I915_EXEC_VEBOX,
 		.mmio_base = VEBOX_RING_BASE,
 		.irq_shift = GEN8_VECS_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
@@ -242,12 +242,12 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 		void *semaphores;
 
 		/* Semaphores are in noncoherent memory, flush to be safe */
-		semaphores = kmap(page);
+		semaphores = kmap_atomic(page);
 		memset(semaphores + GEN8_SEMAPHORE_OFFSET(engine->id, 0),
 		       0, I915_NUM_ENGINES * gen8_semaphore_seqno_size);
 		drm_clflush_virt_range(semaphores + GEN8_SEMAPHORE_OFFSET(engine->id, 0),
 				       I915_NUM_ENGINES * gen8_semaphore_seqno_size);
-		kunmap(page);
+		kunmap_atomic(semaphores);
 	}
 
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
@@ -1110,6 +1110,15 @@ bool intel_engines_are_idle(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+
+	if (READ_ONCE(dev_priv->gt.active_requests))
+		return false;
+
+	/* If the driver is wedged, HW state may be very inconsistent and
+	 * report that it is still busy, even though we have stopped using it.
+	 */
+	if (i915_terminally_wedged(&dev_priv->gpu_error))
+		return true;
 
 	for_each_engine(engine, dev_priv, id) {
 		if (!intel_engine_is_idle(engine))

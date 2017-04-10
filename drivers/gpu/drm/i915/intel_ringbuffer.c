@@ -49,13 +49,7 @@ static int __intel_ring_space(int head, int tail, int size)
 
 void intel_ring_update_space(struct intel_ring *ring)
 {
-	if (ring->last_retired_head != -1) {
-		ring->head = ring->last_retired_head;
-		ring->last_retired_head = -1;
-	}
-
-	ring->space = __intel_ring_space(ring->head & HEAD_ADDR,
-					 ring->tail, ring->size);
+	ring->space = __intel_ring_space(ring->head, ring->tail, ring->size);
 }
 
 static int
@@ -618,12 +612,8 @@ static void reset_ring_common(struct intel_engine_cs *engine,
 		}
 
 		/* If the rq hung, jump to its breadcrumb and skip the batch */
-		if (request->fence.error == -EIO) {
-			struct intel_ring *ring = request->ring;
-
-			ring->head = request->postfix;
-			ring->last_retired_head = -1;
-		}
+		if (request->fence.error == -EIO)
+			request->ring->head = request->postfix;
 	} else {
 		engine->legacy_active_context = NULL;
 	}
@@ -784,7 +774,7 @@ static void i9xx_submit_request(struct drm_i915_gem_request *request)
 
 	i915_gem_request_submit(request);
 
-	GEM_BUG_ON(!IS_ALIGNED(request->tail, 8));
+	assert_ring_tail_valid(request->ring, request->tail);
 	I915_WRITE_TAIL(request->engine, request->tail);
 }
 
@@ -796,7 +786,7 @@ static void i9xx_emit_breadcrumb(struct drm_i915_gem_request *req, u32 *cs)
 	*cs++ = MI_USER_INTERRUPT;
 
 	req->tail = intel_ring_offset(req, cs);
-	GEM_BUG_ON(!IS_ALIGNED(req->tail, 8));
+	assert_ring_tail_valid(req->ring, req->tail);
 }
 
 static const int i9xx_emit_breadcrumb_sz = 4;
@@ -835,7 +825,7 @@ static void gen8_render_emit_breadcrumb(struct drm_i915_gem_request *req,
 	*cs++ = MI_NOOP;
 
 	req->tail = intel_ring_offset(req, cs);
-	GEM_BUG_ON(!IS_ALIGNED(req->tail, 8));
+	assert_ring_tail_valid(req->ring, req->tail);
 }
 
 static const int gen8_render_emit_breadcrumb_sz = 8;
@@ -1392,7 +1382,6 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 	if (IS_I830(engine->i915) || IS_I845G(engine->i915))
 		ring->effective_size -= 2 * CACHELINE_BYTES;
 
-	ring->last_retired_head = -1;
 	intel_ring_update_space(ring);
 
 	vma = intel_ring_create_vma(engine->i915, size);
@@ -1451,6 +1440,8 @@ static int intel_ring_context_pin(struct intel_engine_cs *engine,
 		ret = context_pin(ctx);
 		if (ret)
 			goto error;
+
+		ce->state->obj->mm.dirty = true;
 	}
 
 	/* The kernel context is only used as a placeholder for flushing the
@@ -1571,10 +1562,8 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, dev_priv, id) {
+	for_each_engine(engine, dev_priv, id)
 		engine->buffer->head = engine->buffer->tail;
-		engine->buffer->last_retired_head = -1;
-	}
 }
 
 static int ring_request_alloc(struct drm_i915_gem_request *request)
@@ -2128,7 +2117,7 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 
 			num_rings =
 				hweight32(INTEL_INFO(dev_priv)->ring_mask) - 1;
-			engine->emit_breadcrumb_sz += num_rings * 6;
+			engine->emit_breadcrumb_sz += num_rings * 8;
 		}
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		engine->init_context = intel_rcs_ctx_init;

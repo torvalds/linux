@@ -1012,9 +1012,12 @@ static int gpu_state_release(struct inode *inode, struct file *file)
 
 static int i915_gpu_info_open(struct inode *inode, struct file *file)
 {
+	struct drm_i915_private *i915 = inode->i_private;
 	struct i915_gpu_state *gpu;
 
-	gpu = i915_capture_gpu_state(inode->i_private);
+	intel_runtime_pm_get(i915);
+	gpu = i915_capture_gpu_state(i915);
+	intel_runtime_pm_put(i915);
 	if (!gpu)
 		return -ENOMEM;
 
@@ -1459,16 +1462,14 @@ static int ironlake_drpc_info(struct seq_file *m)
 
 static int i915_forcewake_domains(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_i915_private *i915 = node_to_i915(m->private);
 	struct intel_uncore_forcewake_domain *fw_domain;
+	unsigned int tmp;
 
-	spin_lock_irq(&dev_priv->uncore.lock);
-	for_each_fw_domain(fw_domain, dev_priv) {
+	for_each_fw_domain(fw_domain, i915, tmp)
 		seq_printf(m, "%s.wake_count = %u\n",
 			   intel_uncore_forcewake_domain_to_str(fw_domain->id),
-			   fw_domain->wake_count);
-	}
-	spin_unlock_irq(&dev_priv->uncore.lock);
+			   READ_ONCE(fw_domain->wake_count));
 
 	return 0;
 }
@@ -1938,9 +1939,8 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 
 static void describe_ctx_ring(struct seq_file *m, struct intel_ring *ring)
 {
-	seq_printf(m, " (ringbuffer, space: %d, head: %u, tail: %u, last head: %d)",
-		   ring->space, ring->head, ring->tail,
-		   ring->last_retired_head);
+	seq_printf(m, " (ringbuffer, space: %d, head: %u, tail: %u)",
+		   ring->space, ring->head, ring->tail);
 }
 
 static int i915_context_status(struct seq_file *m, void *unused)
@@ -2474,9 +2474,9 @@ static void i915_guc_client_info(struct seq_file *m,
 	enum intel_engine_id id;
 	uint64_t tot = 0;
 
-	seq_printf(m, "\tPriority %d, GuC ctx index: %u, PD offset 0x%x\n",
-		client->priority, client->ctx_index, client->proc_desc_offset);
-	seq_printf(m, "\tDoorbell id %d, offset: 0x%x, cookie 0x%x\n",
+	seq_printf(m, "\tPriority %d, GuC stage index: %u, PD offset 0x%x\n",
+		client->priority, client->stage_id, client->proc_desc_offset);
+	seq_printf(m, "\tDoorbell id %d, offset: 0x%lx, cookie 0x%x\n",
 		client->doorbell_id, client->doorbell_offset, client->doorbell_cookie);
 	seq_printf(m, "\tWQ size %d, offset: 0x%x, tail %d\n",
 		client->wq_size, client->wq_offset, client->wq_tail);
@@ -2511,7 +2511,7 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	}
 
 	seq_printf(m, "Doorbell map:\n");
-	seq_printf(m, "\t%*pb\n", GUC_MAX_DOORBELLS, guc->doorbell_bitmap);
+	seq_printf(m, "\t%*pb\n", GUC_NUM_DOORBELLS, guc->doorbell_bitmap);
 	seq_printf(m, "Doorbell next cacheline: 0x%x\n\n", guc->db_cacheline);
 
 	seq_printf(m, "GuC total action count: %llu\n", guc->action_count);
@@ -4129,7 +4129,9 @@ i915_wedged_get(void *data, u64 *val)
 static int
 i915_wedged_set(void *data, u64 val)
 {
-	struct drm_i915_private *dev_priv = data;
+	struct drm_i915_private *i915 = data;
+	struct intel_engine_cs *engine;
+	unsigned int tmp;
 
 	/*
 	 * There is no safeguard against this debugfs entry colliding
@@ -4139,13 +4141,17 @@ i915_wedged_set(void *data, u64 val)
 	 * while it is writing to 'i915_wedged'
 	 */
 
-	if (i915_reset_backoff(&dev_priv->gpu_error))
+	if (i915_reset_backoff(&i915->gpu_error))
 		return -EAGAIN;
 
-	i915_handle_error(dev_priv, val,
-			  "Manually setting wedged to %llu", val);
+	for_each_engine_masked(engine, i915, val, tmp) {
+		engine->hangcheck.seqno = intel_engine_get_seqno(engine);
+		engine->hangcheck.stalled = true;
+	}
 
-	wait_on_bit(&dev_priv->gpu_error.flags,
+	i915_handle_error(i915, val, "Manually setting wedged to %llu", val);
+
+	wait_on_bit(&i915->gpu_error.flags,
 		    I915_RESET_HANDOFF,
 		    TASK_UNINTERRUPTIBLE);
 
@@ -4172,10 +4178,6 @@ fault_irq_set(struct drm_i915_private *i915,
 				     I915_WAIT_INTERRUPTIBLE);
 	if (err)
 		goto err_unlock;
-
-	/* Retire to kick idle work */
-	i915_gem_retire_requests(i915);
-	GEM_BUG_ON(i915->gt.active_requests);
 
 	*irq = val;
 	mutex_unlock(&i915->drm.struct_mutex);
@@ -4280,7 +4282,7 @@ i915_drop_caches_set(void *data, u64 val)
 			goto unlock;
 	}
 
-	if (val & (DROP_RETIRE | DROP_ACTIVE))
+	if (val & DROP_RETIRE)
 		i915_gem_retire_requests(dev_priv);
 
 	lockdep_set_current_reclaim_state(GFP_KERNEL);

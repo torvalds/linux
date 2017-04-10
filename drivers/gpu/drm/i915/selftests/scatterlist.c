@@ -189,6 +189,13 @@ static unsigned int random(unsigned long n,
 	return 1 + (prandom_u32_state(rnd) % 1024);
 }
 
+static inline bool page_contiguous(struct page *first,
+				   struct page *last,
+				   unsigned long npages)
+{
+	return first + npages == last;
+}
+
 static int alloc_table(struct pfn_table *pt,
 		       unsigned long count, unsigned long max,
 		       npages_fn_t npages_fn,
@@ -216,7 +223,9 @@ static int alloc_table(struct pfn_table *pt,
 		unsigned long npages = npages_fn(n, count, rnd);
 
 		/* Nobody expects the Sparse Memmap! */
-		if (pfn_to_page(pfn + npages) != pfn_to_page(pfn) + npages) {
+		if (!page_contiguous(pfn_to_page(pfn),
+				     pfn_to_page(pfn + npages),
+				     npages)) {
 			sg_free_table(&pt->st);
 			return -ENOSPC;
 		}

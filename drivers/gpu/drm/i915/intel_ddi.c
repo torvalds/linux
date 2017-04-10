@@ -539,7 +539,7 @@ intel_ddi_get_buf_trans_fdi(struct drm_i915_private *dev_priv,
  * values in advance. This function programs the correct values for
  * DP/eDP/FDI use cases.
  */
-void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
+static void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 iboost_bit = 0;
@@ -806,7 +806,7 @@ void hsw_fdi_link_train(struct intel_crtc *crtc,
 		   DP_TP_CTL_ENABLE);
 }
 
-void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder)
+static void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct intel_digital_port *intel_dig_port =
@@ -837,7 +837,8 @@ intel_ddi_get_crtc_encoder(struct intel_crtc *crtc)
 	return ret;
 }
 
-static struct intel_encoder *
+/* Finds the only possible encoder associated with the given CRTC. */
+struct intel_encoder *
 intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -1127,72 +1128,6 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 		bxt_ddi_clock_get(encoder, pipe_config);
 }
 
-static bool
-hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
-		   struct intel_crtc_state *crtc_state,
-		   struct intel_encoder *encoder)
-{
-	struct intel_shared_dpll *pll;
-
-	pll = intel_get_shared_dpll(intel_crtc, crtc_state,
-				    encoder);
-	if (!pll)
-		DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
-				 pipe_name(intel_crtc->pipe));
-
-	return pll;
-}
-
-static bool
-skl_ddi_pll_select(struct intel_crtc *intel_crtc,
-		   struct intel_crtc_state *crtc_state,
-		   struct intel_encoder *encoder)
-{
-	struct intel_shared_dpll *pll;
-
-	pll = intel_get_shared_dpll(intel_crtc, crtc_state, encoder);
-	if (pll == NULL) {
-		DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
-				 pipe_name(intel_crtc->pipe));
-		return false;
-	}
-
-	return true;
-}
-
-static bool
-bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
-		   struct intel_crtc_state *crtc_state,
-		   struct intel_encoder *encoder)
-{
-	return !!intel_get_shared_dpll(intel_crtc, crtc_state, encoder);
-}
-
-/*
- * Tries to find a *shared* PLL for the CRTC and store it in
- * intel_crtc->ddi_pll_sel.
- *
- * For private DPLLs, compute_config() should do the selection for us. This
- * function should be folded into compute_config() eventually.
- */
-bool intel_ddi_pll_select(struct intel_crtc *intel_crtc,
-			  struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
-	struct intel_encoder *encoder =
-		intel_ddi_get_crtc_new_encoder(crtc_state);
-
-	if (IS_GEN9_BC(dev_priv))
-		return skl_ddi_pll_select(intel_crtc, crtc_state,
-					  encoder);
-	else if (IS_GEN9_LP(dev_priv))
-		return bxt_ddi_pll_select(intel_crtc, crtc_state,
-					  encoder);
-	else
-		return hsw_ddi_pll_select(intel_crtc, crtc_state,
-					  encoder);
-}
-
 void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -1309,6 +1244,11 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 			temp |= TRANS_DDI_MODE_SELECT_HDMI;
 		else
 			temp |= TRANS_DDI_MODE_SELECT_DVI;
+
+		if (crtc_state->hdmi_scrambling)
+			temp |= TRANS_DDI_HDMI_SCRAMBLING_MASK;
+		if (crtc_state->hdmi_high_tmds_clock_ratio)
+			temp |= TRANS_DDI_HIGH_TMDS_CHAR_RATE;
 	} else if (type == INTEL_OUTPUT_ANALOG) {
 		temp |= TRANS_DDI_MODE_SELECT_FDI;
 		temp |= (crtc_state->fdi_lanes - 1) << 1;
@@ -1676,8 +1616,8 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 	return DDI_BUF_TRANS_SELECT(level);
 }
 
-void intel_ddi_clk_select(struct intel_encoder *encoder,
-			  struct intel_shared_dpll *pll)
+static void intel_ddi_clk_select(struct intel_encoder *encoder,
+				 struct intel_shared_dpll *pll)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = intel_ddi_get_encoder_port(encoder);
@@ -1881,6 +1821,12 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder,
 	if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_digital_port *intel_dig_port =
 			enc_to_dig_port(encoder);
+		bool clock_ratio = pipe_config->hdmi_high_tmds_clock_ratio;
+		bool scrambling = pipe_config->hdmi_scrambling;
+
+		intel_hdmi_handle_sink_scrambling(intel_encoder,
+						  conn_state->connector,
+						  clock_ratio, scrambling);
 
 		/* In HDMI/DVI mode, the port width, and swing/emphasis values
 		 * are ignored so nothing special needs to be done besides
@@ -1913,6 +1859,12 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder,
 
 	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(intel_encoder);
+
+	if (type == INTEL_OUTPUT_HDMI) {
+		intel_hdmi_handle_sink_scrambling(intel_encoder,
+						  old_conn_state->connector,
+						  false, false);
+	}
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -2040,6 +1992,12 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 
 		if (intel_hdmi->infoframe_enabled(&encoder->base, pipe_config))
 			pipe_config->has_infoframe = true;
+
+		if ((temp & TRANS_DDI_HDMI_SCRAMBLING_MASK) ==
+			TRANS_DDI_HDMI_SCRAMBLING_MASK)
+			pipe_config->hdmi_scrambling = true;
+		if (temp & TRANS_DDI_HIGH_TMDS_CHAR_RATE)
+			pipe_config->hdmi_high_tmds_clock_ratio = true;
 		/* fall through */
 	case TRANS_DDI_MODE_SELECT_DVI:
 		pipe_config->lane_count = 4;

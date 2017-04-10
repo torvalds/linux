@@ -67,7 +67,6 @@ struct shadow_per_ctx {
 };
 
 struct intel_shadow_wa_ctx {
-	struct intel_vgpu_workload *workload;
 	struct shadow_indirect_ctx indirect_ctx;
 	struct shadow_per_ctx per_ctx;
 

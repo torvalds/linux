@@ -168,7 +168,7 @@ void i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 
 		i915_sw_fence_await_reservation(&clflush->wait,
 						obj->resv, NULL,
-						false, I915_FENCE_TIMEOUT,
+						true, I915_FENCE_TIMEOUT,
 						GFP_KERNEL);
 
 		reservation_object_lock(obj->resv, NULL);

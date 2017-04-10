@@ -2321,7 +2321,7 @@ rebuild_st:
 	st->nents = 0;
 	for (i = 0; i < page_count; i++) {
 		page = shmem_read_mapping_page_gfp(mapping, i, gfp);
-		if (IS_ERR(page)) {
+		if (unlikely(IS_ERR(page))) {
 			i915_gem_shrink(dev_priv,
 					page_count,
 					I915_SHRINK_BOUND |
@@ -2329,12 +2329,21 @@ rebuild_st:
 					I915_SHRINK_PURGEABLE);
 			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
 		}
-		if (IS_ERR(page)) {
+		if (unlikely(IS_ERR(page))) {
+			gfp_t reclaim;
+
 			/* We've tried hard to allocate the memory by reaping
 			 * our own buffer, now let the real VM do its job and
 			 * go down in flames if truly OOM.
+			 *
+			 * However, since graphics tend to be disposable,
+			 * defer the oom here by reporting the ENOMEM back
+			 * to userspace.
 			 */
-			page = shmem_read_mapping_page(mapping, i);
+			reclaim = mapping_gfp_constraint(mapping, 0);
+			reclaim |= __GFP_NORETRY; /* reclaim, but no oom */
+
+			page = shmem_read_mapping_page_gfp(mapping, i, reclaim);
 			if (IS_ERR(page)) {
 				ret = PTR_ERR(page);
 				goto err_sg;
@@ -2989,10 +2998,15 @@ void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 	set_bit(I915_WEDGED, &dev_priv->gpu_error.flags);
 
+	/* Retire completed requests first so the list of inflight/incomplete
+	 * requests is accurate and we don't try and mark successful requests
+	 * as in error during __i915_gem_set_wedged_BKL().
+	 */
+	i915_gem_retire_requests(dev_priv);
+
 	stop_machine(__i915_gem_set_wedged_BKL, dev_priv, NULL);
 
 	i915_gem_context_lost(dev_priv);
-	i915_gem_retire_requests(dev_priv);
 
 	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 }
@@ -3098,9 +3112,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	 * Wait for last execlists context complete, but bail out in case a
 	 * new request is submitted.
 	 */
-	wait_for(READ_ONCE(dev_priv->gt.active_requests) ||
-		 intel_engines_are_idle(dev_priv),
-		 10);
+	wait_for(intel_engines_are_idle(dev_priv), 10);
 	if (READ_ONCE(dev_priv->gt.active_requests))
 		return;
 
@@ -3259,6 +3271,29 @@ static int wait_for_timeline(struct i915_gem_timeline *tl, unsigned int flags)
 	return 0;
 }
 
+static int wait_for_engine(struct intel_engine_cs *engine, int timeout_ms)
+{
+	return wait_for(intel_engine_is_idle(engine), timeout_ms);
+}
+
+static int wait_for_engines(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, i915, id) {
+		if (GEM_WARN_ON(wait_for_engine(engine, 50))) {
+			i915_gem_set_wedged(i915);
+			return -EIO;
+		}
+
+		GEM_BUG_ON(intel_engine_get_seqno(engine) !=
+			   intel_engine_last_submit(engine));
+	}
+
+	return 0;
+}
+
 int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 {
 	int ret;
@@ -3273,13 +3308,16 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 			if (ret)
 				return ret;
 		}
+
+		i915_gem_retire_requests(i915);
+		GEM_BUG_ON(i915->gt.active_requests);
+
+		ret = wait_for_engines(i915);
 	} else {
 		ret = wait_for_timeline(&i915->gt.global_timeline, flags);
-		if (ret)
-			return ret;
 	}
 
-	return 0;
+	return ret;
 }
 
 /** Flushes the GTT write domain for the object if it's dirty. */
@@ -3307,8 +3345,14 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	 * system agents we cannot reproduce this behaviour).
 	 */
 	wmb();
-	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv))
-		POSTING_READ(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
+	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv)) {
+		if (intel_runtime_pm_get_if_in_use(dev_priv)) {
+			spin_lock_irq(&dev_priv->uncore.lock);
+			POSTING_READ_FW(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
+			spin_unlock_irq(&dev_priv->uncore.lock);
+			intel_runtime_pm_put(dev_priv);
+		}
+	}
 
 	intel_fb_obj_flush(obj, write_origin(obj, I915_GEM_DOMAIN_GTT));
 
@@ -4407,9 +4451,6 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 				     I915_WAIT_LOCKED);
 	if (ret)
 		goto err_unlock;
-
-	i915_gem_retire_requests(dev_priv);
-	GEM_BUG_ON(dev_priv->gt.active_requests);
 
 	assert_kernel_context_is_current(dev_priv);
 	i915_gem_context_lost(dev_priv);

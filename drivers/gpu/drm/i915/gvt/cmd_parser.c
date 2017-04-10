@@ -1215,7 +1215,7 @@ static int gen8_check_mi_display_flip(struct parser_exec_state *s,
 	if (!info->async_flip)
 		return 0;
 
-	if (IS_SKYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		stride = vgpu_vreg(s->vgpu, info->stride_reg) & GENMASK(9, 0);
 		tile = (vgpu_vreg(s->vgpu, info->ctrl_reg) &
 				GENMASK(12, 10)) >> 10;
@@ -1243,7 +1243,7 @@ static int gen8_update_plane_mmio_from_mi_display_flip(
 
 	set_mask_bits(&vgpu_vreg(vgpu, info->surf_reg), GENMASK(31, 12),
 		      info->surf_val << 12);
-	if (IS_SKYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		set_mask_bits(&vgpu_vreg(vgpu, info->stride_reg), GENMASK(9, 0),
 			      info->stride_val);
 		set_mask_bits(&vgpu_vreg(vgpu, info->ctrl_reg), GENMASK(12, 10),
@@ -1267,7 +1267,7 @@ static int decode_mi_display_flip(struct parser_exec_state *s,
 
 	if (IS_BROADWELL(dev_priv))
 		return gen8_decode_mi_display_flip(s, info);
-	if (IS_SKYLAKE(dev_priv))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		return skl_decode_mi_display_flip(s, info);
 
 	return -ENODEV;
@@ -1278,7 +1278,9 @@ static int check_mi_display_flip(struct parser_exec_state *s,
 {
 	struct drm_i915_private *dev_priv = s->vgpu->gvt->dev_priv;
 
-	if (IS_BROADWELL(dev_priv) || IS_SKYLAKE(dev_priv))
+	if (IS_BROADWELL(dev_priv)
+		|| IS_SKYLAKE(dev_priv)
+		|| IS_KABYLAKE(dev_priv))
 		return gen8_check_mi_display_flip(s, info);
 	return -ENODEV;
 }
@@ -1289,7 +1291,9 @@ static int update_plane_mmio_from_mi_display_flip(
 {
 	struct drm_i915_private *dev_priv = s->vgpu->gvt->dev_priv;
 
-	if (IS_BROADWELL(dev_priv) || IS_SKYLAKE(dev_priv))
+	if (IS_BROADWELL(dev_priv)
+		|| IS_SKYLAKE(dev_priv)
+		|| IS_KABYLAKE(dev_priv))
 		return gen8_update_plane_mmio_from_mi_display_flip(s, info);
 	return -ENODEV;
 }
@@ -1569,7 +1573,8 @@ static int batch_buffer_needs_scan(struct parser_exec_state *s)
 {
 	struct intel_gvt *gvt = s->vgpu->gvt;
 
-	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)) {
+	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)
+		|| IS_KABYLAKE(gvt->dev_priv)) {
 		/* BDW decides privilege based on address space */
 		if (cmd_val(s, 0) & (1 << 8))
 			return 0;
@@ -2604,6 +2609,9 @@ static int scan_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	unsigned long gma_head, gma_tail, gma_bottom, ring_size, ring_tail;
 	struct parser_exec_state s;
 	int ret = 0;
+	struct intel_vgpu_workload *workload = container_of(wa_ctx,
+				struct intel_vgpu_workload,
+				wa_ctx);
 
 	/* ring base is page aligned */
 	if (WARN_ON(!IS_ALIGNED(wa_ctx->indirect_ctx.guest_gma, GTT_PAGE_SIZE)))
@@ -2618,14 +2626,14 @@ static int scan_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 
 	s.buf_type = RING_BUFFER_INSTRUCTION;
 	s.buf_addr_type = GTT_BUFFER;
-	s.vgpu = wa_ctx->workload->vgpu;
-	s.ring_id = wa_ctx->workload->ring_id;
+	s.vgpu = workload->vgpu;
+	s.ring_id = workload->ring_id;
 	s.ring_start = wa_ctx->indirect_ctx.guest_gma;
 	s.ring_size = ring_size;
 	s.ring_head = gma_head;
 	s.ring_tail = gma_tail;
 	s.rb_va = wa_ctx->indirect_ctx.shadow_va;
-	s.workload = wa_ctx->workload;
+	s.workload = workload;
 
 	ret = ip_gma_set(&s, gma_head);
 	if (ret)
@@ -2708,12 +2716,15 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
 	int ctx_size = wa_ctx->indirect_ctx.size;
 	unsigned long guest_gma = wa_ctx->indirect_ctx.guest_gma;
-	struct intel_vgpu *vgpu = wa_ctx->workload->vgpu;
+	struct intel_vgpu_workload *workload = container_of(wa_ctx,
+					struct intel_vgpu_workload,
+					wa_ctx);
+	struct intel_vgpu *vgpu = workload->vgpu;
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
 	void *map;
 
-	obj = i915_gem_object_create(wa_ctx->workload->vgpu->gvt->dev_priv,
+	obj = i915_gem_object_create(workload->vgpu->gvt->dev_priv,
 				     roundup(ctx_size + CACHELINE_BYTES,
 					     PAGE_SIZE));
 	if (IS_ERR(obj))
@@ -2733,8 +2744,8 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 		goto unmap_src;
 	}
 
-	ret = copy_gma_to_hva(wa_ctx->workload->vgpu,
-				wa_ctx->workload->vgpu->gtt.ggtt_mm,
+	ret = copy_gma_to_hva(workload->vgpu,
+				workload->vgpu->gtt.ggtt_mm,
 				guest_gma, guest_gma + ctx_size,
 				map);
 	if (ret < 0) {
@@ -2772,7 +2783,10 @@ static int combine_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 int intel_gvt_scan_and_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
 	int ret;
-	struct intel_vgpu *vgpu = wa_ctx->workload->vgpu;
+	struct intel_vgpu_workload *workload = container_of(wa_ctx,
+					struct intel_vgpu_workload,
+					wa_ctx);
+	struct intel_vgpu *vgpu = workload->vgpu;
 
 	if (wa_ctx->indirect_ctx.size == 0)
 		return 0;

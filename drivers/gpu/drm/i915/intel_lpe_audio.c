@@ -331,6 +331,7 @@ void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv)
  * audio driver and i915
  * @dev_priv: the i915 drm device private data
  * @eld : ELD data
+ * @pipe: pipe id
  * @port: port id
  * @tmds_clk_speed: tmds clock frequency in Hz
  *
