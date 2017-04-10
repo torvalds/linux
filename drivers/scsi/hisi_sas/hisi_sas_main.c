@@ -77,17 +77,22 @@ static void hisi_sas_slot_index_init(struct hisi_hba *hisi_hba)
 void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			     struct hisi_sas_slot *slot)
 {
-	struct device *dev = &hisi_hba->pdev->dev;
-	struct domain_device *device = task->dev;
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
 
-	if (!slot->task)
-		return;
+	if (task) {
+		struct device *dev = &hisi_hba->pdev->dev;
+		struct domain_device *device = task->dev;
+		struct hisi_sas_device *sas_dev = device->lldd_dev;
 
-	if (!sas_protocol_ata(task->task_proto))
-		if (slot->n_elem)
-			dma_unmap_sg(dev, task->scatter, slot->n_elem,
-				     task->data_dir);
+		if (!sas_protocol_ata(task->task_proto))
+			if (slot->n_elem)
+				dma_unmap_sg(dev, task->scatter, slot->n_elem,
+					     task->data_dir);
+
+		task->lldd_task = NULL;
+
+		if (sas_dev)
+			atomic64_dec(&sas_dev->running_req);
+	}
 
 	if (slot->command_table)
 		dma_pool_free(hisi_hba->command_table_pool,
@@ -102,12 +107,10 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			      slot->sge_page_dma);
 
 	list_del_init(&slot->entry);
-	task->lldd_task = NULL;
 	slot->task = NULL;
 	slot->port = NULL;
 	hisi_sas_slot_index_free(hisi_hba, slot->idx);
-	if (sas_dev)
-		atomic64_dec(&sas_dev->running_req);
+
 	/* slot memory is fully zeroed when it is reused */
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slot_task_free);
@@ -569,25 +572,23 @@ static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
 	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 }
 
-static void hisi_sas_do_release_task(struct hisi_hba *hisi_hba,
-				     struct sas_task *task,
+static void hisi_sas_do_release_task(struct hisi_hba *hisi_hba, struct sas_task *task,
 				     struct hisi_sas_slot *slot)
 {
-	struct task_status_struct *ts;
-	unsigned long flags;
+	if (task) {
+		unsigned long flags;
+		struct task_status_struct *ts;
 
-	if (!task)
-		return;
+		ts = &task->task_status;
 
-	ts = &task->task_status;
-
-	ts->resp = SAS_TASK_COMPLETE;
-	ts->stat = SAS_ABORTED_TASK;
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	task->task_state_flags &=
-		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
-	task->task_state_flags |= SAS_TASK_STATE_DONE;
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
+		ts->resp = SAS_TASK_COMPLETE;
+		ts->stat = SAS_ABORTED_TASK;
+		spin_lock_irqsave(&task->task_state_lock, flags);
+		task->task_state_flags &=
+			~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
+		task->task_state_flags |= SAS_TASK_STATE_DONE;
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+	}
 
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
 }
@@ -742,7 +743,12 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		/* Even TMF timed out, return direct. */
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+				struct hisi_sas_slot *slot = task->lldd_task;
+
 				dev_err(dev, "abort tmf: TMF task timeout\n");
+				if (slot)
+					slot->task = NULL;
+
 				goto ex_err;
 			}
 		}
