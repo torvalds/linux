@@ -1600,6 +1600,8 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
  *     (I915_READ_FW(reg) & mask) == value
  *
  * Otherwise, the wait will timeout after @slow_timeout_ms milliseconds.
+ * For atomic context @slow_timeout_ms must be zero and @fast_timeout_us
+ * must be not larger than 10 microseconds.
  *
  * Note that this routine assumes the caller holds forcewake asserted, it is
  * not suitable for very long waits. See intel_wait_for_register() if you
@@ -1619,6 +1621,9 @@ int __intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 	u32 reg_value;
 #define done (((reg_value = I915_READ_FW(reg)) & mask) == value)
 	int ret;
+
+	/* Catch any overuse of this function */
+	might_sleep_if(fast_timeout_us > 10 || slow_timeout_ms);
 
 	if (fast_timeout_us > 10)
 		ret = _wait_for(done, fast_timeout_us, 10);
