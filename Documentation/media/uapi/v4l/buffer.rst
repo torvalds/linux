@@ -48,10 +48,16 @@ The set of information needed to interpret the content of a buffer (e.g. the
 pixel format, the line stride, the tiling orientation or the rotation) is
 collectively referred to in the rest of this section as the buffer layout.
 
+Controls that can modify the buffer layout shall set the
+``V4L2_CTRL_FLAG_MODIFY_LAYOUT`` flag.
+
 Modifying formats or controls that influence the buffer size or layout require
 the stream to be stopped. Any attempt at such a modification while the stream
 is active shall cause the ioctl setting the format or the control to return
-the ``EBUSY`` error code.
+the ``EBUSY`` error code. In that case drivers shall also set the
+``V4L2_CTRL_FLAG_GRABBED`` flag when calling
+:c:func:`VIDIOC_QUERYCTRL` or :c:func:`VIDIOC_QUERY_EXT_CTRL` for such a
+control while the stream is active.
 
 .. note::
 
@@ -67,7 +73,8 @@ the ``EBUSY`` error code.
 Controls that only influence the buffer layout can be modified at any time
 when the stream is stopped. As they don't influence the buffer size, no
 special handling is needed to synchronize those controls with buffer
-allocation.
+allocation and the ``V4L2_CTRL_FLAG_GRABBED`` flag is cleared once the
+stream is stopped.
 
 Formats and controls that influence the buffer size interact with buffer
 allocation. The simplest way to handle this is for drivers to always require
@@ -75,8 +82,10 @@ buffers to be reallocated in order to change those formats or controls. In
 that case, to perform such changes, userspace applications shall first stop
 the video stream with the :c:func:`VIDIOC_STREAMOFF` ioctl if it is running
 and free all buffers with the :c:func:`VIDIOC_REQBUFS` ioctl if they are
-allocated. The format or controls can then be modified, and buffers shall then
-be reallocated and the stream restarted. A typical ioctl sequence is
+allocated. After freeing all buffers the ``V4L2_CTRL_FLAG_GRABBED`` flag
+for controls is cleared. The format or controls can then be modified, and
+buffers shall then be reallocated and the stream restarted. A typical ioctl
+sequence is
 
  #. VIDIOC_STREAMOFF
  #. VIDIOC_REQBUFS(0)
