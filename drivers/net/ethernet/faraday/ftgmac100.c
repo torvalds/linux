@@ -629,12 +629,33 @@ static void ftgmac100_tx_complete(struct ftgmac100 *priv)
 		;
 }
 
-static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
-			  dma_addr_t map)
+static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
+				     struct net_device *netdev)
 {
-	struct net_device *netdev = priv->netdev;
-	struct ftgmac100_txdes *txdes;
 	unsigned int len = (skb->len < ETH_ZLEN) ? ETH_ZLEN : skb->len;
+	struct ftgmac100 *priv = netdev_priv(netdev);
+	struct ftgmac100_txdes *txdes;
+	dma_addr_t map;
+
+	if (unlikely(skb->len > MAX_PKT_SIZE)) {
+		if (net_ratelimit())
+			netdev_dbg(netdev, "tx packet too big\n");
+
+		netdev->stats.tx_dropped++;
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	map = dma_map_single(priv->dev, skb->data, skb_headlen(skb), DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(priv->dev, map))) {
+		/* drop packet */
+		if (net_ratelimit())
+			netdev_err(netdev, "map socket buffer failed\n");
+
+		netdev->stats.tx_dropped++;
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
 
 	txdes = ftgmac100_current_txdes(priv);
 	ftgmac100_tx_pointer_advance(priv);
@@ -673,35 +694,6 @@ static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
 	ftgmac100_txdma_normal_prio_start_polling(priv);
 
 	return NETDEV_TX_OK;
-}
-
-static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
-				     struct net_device *netdev)
-{
-	struct ftgmac100 *priv = netdev_priv(netdev);
-	dma_addr_t map;
-
-	if (unlikely(skb->len > MAX_PKT_SIZE)) {
-		if (net_ratelimit())
-			netdev_dbg(netdev, "tx packet too big\n");
-
-		netdev->stats.tx_dropped++;
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	map = dma_map_single(priv->dev, skb->data, skb_headlen(skb), DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(priv->dev, map))) {
-		/* drop packet */
-		if (net_ratelimit())
-			netdev_err(netdev, "map socket buffer failed\n");
-
-		netdev->stats.tx_dropped++;
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	return ftgmac100_xmit(priv, skb, map);
 }
 
 static void ftgmac100_free_buffers(struct ftgmac100 *priv)
