@@ -2905,11 +2905,18 @@ void ex_btc8821a1ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state)
 	if (BTC_WIFI_PNP_SLEEP == pnp_state) {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], Pnp notify to SLEEP\n");
+		/* BT should clear UnderIPS/UnderLPS state to avoid mismatch
+		 * state after wakeup.
+		 */
+		coex_sta->under_ips = false;
+		coex_sta->under_lps = false;
 		btcoexist->stop_coex_dm = true;
-		btc8821a1ant_ignore_wlan_act(btcoexist, FORCE_EXEC, true);
 		btc8821a1ant_power_save_state(btcoexist, BTC_PS_WIFI_NATIVE,
 					      0x0, 0x0);
-		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 9);
+		btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, false, 0);
+		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 2);
+		btc8821a1ant_set_ant_path(btcoexist, BTC_ANT_PATH_BT, false,
+					  true);
 	} else if (BTC_WIFI_PNP_WAKE_UP == pnp_state) {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "[BTCoex], Pnp notify to WAKE UP\n");
