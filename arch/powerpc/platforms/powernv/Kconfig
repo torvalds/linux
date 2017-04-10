@@ -19,6 +19,7 @@ config PPC_POWERNV
 	select CPU_FREQ_GOV_ONDEMAND
 	select CPU_FREQ_GOV_CONSERVATIVE
 	select PPC_DOORBELL
+	select MMU_NOTIFIER
 	default y
 
 config OPAL_PRD
