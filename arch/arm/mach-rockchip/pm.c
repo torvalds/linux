@@ -27,6 +27,7 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/suspend.h>
+#include <asm/psci.h>
 
 #include "pm.h"
 #include "embedded/rk3288_resume.h"
@@ -347,6 +348,9 @@ void __init rockchip_suspend_init(void)
 	const struct of_device_id *match;
 	struct device_node *np;
 	int ret;
+
+	if (psci_smp_available())
+		return;
 
 	np = of_find_matching_node_and_match(NULL, rockchip_pmu_of_device_ids,
 					     &match);
