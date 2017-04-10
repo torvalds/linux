@@ -61,6 +61,11 @@
 		reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
 	};
 
+	wireless-bluetooth {
+		clocks = <&rk818 1>;
+		clock-names = "ext_clock";
+	};
+
 	/delete-node/ sdmmc-regulator;
 
 	vcc_lcd: vcc-lcd {
