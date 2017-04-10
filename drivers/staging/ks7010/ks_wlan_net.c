@@ -1932,7 +1932,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 			for (i = 0; i < PMK_LIST_MAX; i++) {
 				pmk = &priv->pmklist.pmk[i];
 				if (memcmp("\x00\x00\x00\x00\x00\x00",
-					    pmk->bssid, ETH_ALEN) == 0)
+					   pmk->bssid, ETH_ALEN) == 0)
 					break; /* loop */
 			}
 			memcpy(pmk->bssid, pmksa->bssid.sa_data, ETH_ALEN);
