@@ -228,8 +228,6 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		smc_close_wake_tx_prepared(smc);
 	}
 
-	/* subsequent patch: trigger socket release if connection closed */
-
 	/* socket connected but not accepted */
 	if (!smc->sk.sk_socket)
 		return;
