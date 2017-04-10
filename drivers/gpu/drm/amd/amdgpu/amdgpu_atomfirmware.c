@@ -26,6 +26,7 @@
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
 #include "atom.h"
+#include "atombios.h"
 
 #define get_index_into_master_table(master_table, table_name) (offsetof(struct master_table, table_name) / sizeof(uint16_t))
 
@@ -76,6 +77,12 @@ void amdgpu_atomfirmware_scratch_regs_save(struct amdgpu_device *adev)
 void amdgpu_atomfirmware_scratch_regs_restore(struct amdgpu_device *adev)
 {
 	int i;
+
+	/*
+	 * VBIOS will check ASIC_INIT_COMPLETE bit to decide if
+	 * execute ASIC_Init posting via driver
+	 */
+	adev->bios_scratch[7] &= ~ATOM_S7_ASIC_INIT_COMPLETE_MASK;
 
 	for (i = 0; i < AMDGPU_BIOS_NUM_SCRATCH; i++)
 		WREG32(adev->bios_scratch_reg_offset + i, adev->bios_scratch[i]);

@@ -1727,6 +1727,12 @@ void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev)
 {
 	int i;
 
+	/*
+	 * VBIOS will check ASIC_INIT_COMPLETE bit to decide if
+	 * execute ASIC_Init posting via driver
+	 */
+	adev->bios_scratch[7] &= ~ATOM_S7_ASIC_INIT_COMPLETE_MASK;
+
 	for (i = 0; i < AMDGPU_BIOS_NUM_SCRATCH; i++)
 		WREG32(mmBIOS_SCRATCH_0 + i, adev->bios_scratch[i]);
 }
