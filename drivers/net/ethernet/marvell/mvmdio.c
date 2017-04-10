@@ -221,6 +221,12 @@ static int orion_mdio_probe(struct platform_device *pdev)
 		clk_prepare_enable(dev->clk);
 
 	dev->err_interrupt = platform_get_irq(pdev, 0);
+	if (dev->err_interrupt > 0 &&
+	    resource_size(r) < MVMDIO_ERR_INT_MASK + 4) {
+		dev_err(&pdev->dev,
+			"disabling interrupt, resource size is too small\n");
+		dev->err_interrupt = 0;
+	}
 	if (dev->err_interrupt > 0) {
 		ret = devm_request_irq(&pdev->dev, dev->err_interrupt,
 					orion_mdio_err_irq,
