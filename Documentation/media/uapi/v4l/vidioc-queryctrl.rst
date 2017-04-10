@@ -507,6 +507,19 @@ See also the examples in :ref:`control`.
 	represents an action on the hardware. For example: clearing an
 	error flag or triggering the flash. All the controls of the type
 	``V4L2_CTRL_TYPE_BUTTON`` have this flag set.
+    * .. _FLAG_MODIFY_LAYOUT:
+
+      - ``V4L2_CTRL_FLAG_MODIFY_LAYOUT``
+      - 0x0400
+      - Changing this control value may modify the layout of the
+        buffer (for video devices) or the media bus format (for sub-devices).
+
+	A typical example would be the ``V4L2_CID_ROTATE`` control.
+
+	Note that typically controls with this flag will also set the
+	``V4L2_CTRL_FLAG_GRABBED`` flag when buffers are allocated or
+	streaming is in progress since most drivers do not support changing
+	the format in that case.
 
 
 Return Value
