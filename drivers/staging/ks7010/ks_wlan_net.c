@@ -1771,6 +1771,8 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 	unsigned int commit = 0;
 
 	enc = (struct iw_encode_ext *)extra;
+	if (!enc)
+		return -EINVAL;
 
 	DPRINTK(2, "flags=%04X:: ext_flags=%08X\n", dwrq->flags,
 		enc->ext_flags);
@@ -1785,9 +1787,6 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 
 	if (dwrq->flags & IW_ENCODE_DISABLED)
 		priv->wpa.key[index].key_len = 0;
-
-	if (!enc)
-		return -EINVAL;
 
 	priv->wpa.key[index].ext_flags = enc->ext_flags;
 	if (enc->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
