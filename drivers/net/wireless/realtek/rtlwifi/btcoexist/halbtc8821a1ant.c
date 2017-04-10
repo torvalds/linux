@@ -994,9 +994,6 @@ static void btc8821a1ant_set_ant_path(struct btc_coexist *btcoexist,
 			h2c_parameter[1] = 1;
 			btcoexist->btc_fill_h2c(btcoexist, 0x65, 2,
 						h2c_parameter);
-			/* Main Ant to  BT for IPS case 0x4c[23] = 1 */
-			btcoexist->btc_write_1byte_bitmask(btcoexist, 0x64,
-							   0x1, 0x1);
 		} else {
 			/* tell firmware "no antenna inverse"
 			 * WRONG firmware antenna control code, need fw to fix
@@ -1005,9 +1002,6 @@ static void btc8821a1ant_set_ant_path(struct btc_coexist *btcoexist,
 			h2c_parameter[1] = 1;
 			btcoexist->btc_fill_h2c(btcoexist, 0x65, 2,
 						h2c_parameter);
-			/* Aux Ant to BT for IPS case 0x4c[23] = 1 */
-			btcoexist->btc_write_1byte_bitmask(btcoexist, 0x64,
-							   0x1, 0x0);
 		}
 	} else if (wifi_off) {
 		/* 0x4c[24:23] = 00, Set Antenna control
