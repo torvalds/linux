@@ -836,9 +836,8 @@ of the non-autosuspend counterparts:
 	Instead of: pm_runtime_put_sync   use: pm_runtime_put_sync_autosuspend.
 
 Drivers may also continue to use the non-autosuspend helper functions; they
-will behave normally, not taking the autosuspend delay into account.
-Similarly, if the power.use_autosuspend field isn't set then the autosuspend
-helper functions will behave just like the non-autosuspend counterparts.
+will behave normally, which means sometimes taking the autosuspend delay into
+account (see pm_runtime_idle).
 
 Under some circumstances a driver or subsystem may want to prevent a device
 from autosuspending immediately, even though the usage counter is zero and the
