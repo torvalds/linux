@@ -211,7 +211,8 @@ struct __crypto_ctx {
 
 struct chcr_context {
 	struct chcr_dev *dev;
-	unsigned char tx_channel_id;
+	unsigned char tx_qidx;
+	unsigned char rx_qidx;
 	struct __crypto_ctx crypto_ctx[0];
 };
 
