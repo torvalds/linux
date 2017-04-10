@@ -32,11 +32,27 @@ enum host1x_class {
 
 struct host1x_client;
 
+/**
+ * struct host1x_client_ops - host1x client operations
+ * @init: host1x client initialization code
+ * @exit: host1x client tear down code
+ */
 struct host1x_client_ops {
 	int (*init)(struct host1x_client *client);
 	int (*exit)(struct host1x_client *client);
 };
 
+/**
+ * struct host1x_client - host1x client structure
+ * @list: list node for the host1x client
+ * @parent: pointer to struct device representing the host1x controller
+ * @dev: pointer to struct device backing this host1x client
+ * @ops: host1x client operations
+ * @class: host1x class represented by this client
+ * @channel: host1x channel associated with this client
+ * @syncpts: array of syncpoints requested for this client
+ * @num_syncpts: number of syncpoints requested for this client
+ */
 struct host1x_client {
 	struct list_head list;
 	struct device *parent;
@@ -251,6 +267,15 @@ void host1x_job_unpin(struct host1x_job *job);
 
 struct host1x_device;
 
+/**
+ * struct host1x_driver - host1x logical device driver
+ * @driver: core driver
+ * @subdevs: table of OF device IDs matching subdevices for this driver
+ * @list: list node for the driver
+ * @probe: called when the host1x logical device is probed
+ * @remove: called when the host1x logical device is removed
+ * @shutdown: called when the host1x logical device is shut down
+ */
 struct host1x_driver {
 	struct device_driver driver;
 
