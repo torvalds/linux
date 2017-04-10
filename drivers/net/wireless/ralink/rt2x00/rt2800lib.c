@@ -7014,9 +7014,9 @@ static void rt2800_init_rfcsr_3290(struct rt2x00_dev *rt2x00dev)
 
 static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
 {
-	int tx0_int_pa = test_bit(CAPABILITY_INTERNAL_PA_TX0,
+	int tx0_ext_pa = test_bit(CAPABILITY_EXTERNAL_PA_TX0,
 				  &rt2x00dev->cap_flags);
-	int tx1_int_pa = test_bit(CAPABILITY_INTERNAL_PA_TX1,
+	int tx1_ext_pa = test_bit(CAPABILITY_EXTERNAL_PA_TX1,
 				  &rt2x00dev->cap_flags);
 	u8 rfcsr;
 
@@ -7056,9 +7056,9 @@ static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 32, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 33, 0x00);
 	rfcsr = 0x01;
-	if (!tx0_int_pa)
+	if (tx0_ext_pa)
 		rt2x00_set_field8(&rfcsr, RFCSR34_TX0_EXT_PA, 1);
-	if (!tx1_int_pa)
+	if (tx1_ext_pa)
 		rt2x00_set_field8(&rfcsr, RFCSR34_TX1_EXT_PA, 1);
 	rt2800_rfcsr_write(rt2x00dev, 34, rfcsr);
 	rt2800_rfcsr_write(rt2x00dev, 35, 0x03);
@@ -7068,13 +7068,13 @@ static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 39, 0xc5);
 	rt2800_rfcsr_write(rt2x00dev, 40, 0x33);
 	rfcsr = 0x52;
-	if (tx0_int_pa) {
+	if (!tx0_ext_pa) {
 		rt2x00_set_field8(&rfcsr, RFCSR41_BIT1, 1);
 		rt2x00_set_field8(&rfcsr, RFCSR41_BIT4, 1);
 	}
 	rt2800_rfcsr_write(rt2x00dev, 41, rfcsr);
 	rfcsr = 0x52;
-	if (tx1_int_pa) {
+	if (!tx1_ext_pa) {
 		rt2x00_set_field8(&rfcsr, RFCSR42_BIT1, 1);
 		rt2x00_set_field8(&rfcsr, RFCSR42_BIT4, 1);
 	}
@@ -7087,19 +7087,19 @@ static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 48, 0x14);
 	rt2800_rfcsr_write(rt2x00dev, 49, 0x00);
 	rfcsr = 0x2d;
-	if (!tx0_int_pa)
+	if (tx0_ext_pa)
 		rt2x00_set_field8(&rfcsr, RFCSR50_TX0_EXT_PA, 1);
-	if (!tx1_int_pa)
+	if (tx1_ext_pa)
 		rt2x00_set_field8(&rfcsr, RFCSR50_TX1_EXT_PA, 1);
 	rt2800_rfcsr_write(rt2x00dev, 50, rfcsr);
-	rt2800_rfcsr_write(rt2x00dev, 51, (tx0_int_pa ? 0x7f : 0x52));
-	rt2800_rfcsr_write(rt2x00dev, 52, (tx0_int_pa ? 0x00 : 0xc0));
-	rt2800_rfcsr_write(rt2x00dev, 53, (tx0_int_pa ? 0x52 : 0xd2));
-	rt2800_rfcsr_write(rt2x00dev, 54, (tx0_int_pa ? 0x1b : 0xc0));
-	rt2800_rfcsr_write(rt2x00dev, 55, (tx1_int_pa ? 0x7f : 0x52));
-	rt2800_rfcsr_write(rt2x00dev, 56, (tx1_int_pa ? 0x00 : 0xc0));
-	rt2800_rfcsr_write(rt2x00dev, 57, (tx0_int_pa ? 0x52 : 0x49));
-	rt2800_rfcsr_write(rt2x00dev, 58, (tx1_int_pa ? 0x1b : 0xc0));
+	rt2800_rfcsr_write(rt2x00dev, 51, (tx0_ext_pa ? 0x52 : 0x7f));
+	rt2800_rfcsr_write(rt2x00dev, 52, (tx0_ext_pa ? 0xc0 : 0x00));
+	rt2800_rfcsr_write(rt2x00dev, 53, (tx0_ext_pa ? 0xd2 : 0x52));
+	rt2800_rfcsr_write(rt2x00dev, 54, (tx0_ext_pa ? 0xc0 : 0x1b));
+	rt2800_rfcsr_write(rt2x00dev, 55, (tx1_ext_pa ? 0x52 : 0x7f));
+	rt2800_rfcsr_write(rt2x00dev, 56, (tx1_ext_pa ? 0xc0 : 0x00));
+	rt2800_rfcsr_write(rt2x00dev, 57, (tx0_ext_pa ? 0x49 : 0x52));
+	rt2800_rfcsr_write(rt2x00dev, 58, (tx1_ext_pa ? 0xc0 : 0x1b));
 	rt2800_rfcsr_write(rt2x00dev, 59, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 60, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 61, 0x00);
@@ -8782,13 +8782,13 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2800_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
 
 	if (rt2x00_rt(rt2x00dev, RT3352)) {
-		if (!rt2x00_get_field16(eeprom,
+		if (rt2x00_get_field16(eeprom,
 		    EEPROM_NIC_CONF1_EXTERNAL_TX0_PA_3352))
-		    __set_bit(CAPABILITY_INTERNAL_PA_TX0,
+		    __set_bit(CAPABILITY_EXTERNAL_PA_TX0,
 			      &rt2x00dev->cap_flags);
-		if (!rt2x00_get_field16(eeprom,
+		if (rt2x00_get_field16(eeprom,
 		    EEPROM_NIC_CONF1_EXTERNAL_TX1_PA_3352))
-		    __set_bit(CAPABILITY_INTERNAL_PA_TX1,
+		    __set_bit(CAPABILITY_EXTERNAL_PA_TX1,
 			      &rt2x00dev->cap_flags);
 	}
 
