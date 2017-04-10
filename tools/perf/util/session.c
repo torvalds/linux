@@ -1437,6 +1437,7 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 	buf = malloc(cur_size);
 	if (!buf)
 		return -errno;
+	ordered_events__set_copy_on_queue(oe, true);
 more:
 	event = buf;
 	err = readn(fd, event, sizeof(struct perf_event_header));
