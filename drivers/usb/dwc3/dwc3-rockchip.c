@@ -676,6 +676,8 @@ static void dwc3_rockchip_extcon_unregister(struct dwc3_rockchip *rockchip)
 				   &rockchip->device_nb);
 	extcon_unregister_notifier(rockchip->edev, EXTCON_USB_HOST,
 				   &rockchip->host_nb);
+
+	cancel_work_sync(&rockchip->otg_work);
 }
 
 static int dwc3_rockchip_probe(struct platform_device *pdev)
@@ -684,6 +686,7 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 	struct device		*dev = &pdev->dev;
 	struct device_node	*np = dev->of_node, *child;
 	struct platform_device	*child_pdev;
+	struct usb_hcd		*hcd = NULL;
 
 	unsigned int		count;
 	int			ret;
@@ -776,24 +779,24 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
+	if (rockchip->dwc->dr_mode == USB_DR_MODE_HOST ||
+	    rockchip->dwc->dr_mode == USB_DR_MODE_OTG) {
+		hcd = dev_get_drvdata(&rockchip->dwc->xhci->dev);
+		if (!hcd) {
+			dev_err(dev, "fail to get drvdata hcd\n");
+			ret = -EPROBE_DEFER;
+			goto err2;
+		}
+	}
+
 	ret = dwc3_rockchip_extcon_register(rockchip);
 	if (ret < 0)
 		goto err2;
 
 	if (rockchip->edev || (rockchip->dwc->dr_mode == USB_DR_MODE_OTG)) {
-		if (rockchip->dwc->dr_mode == USB_DR_MODE_HOST ||
-		    rockchip->dwc->dr_mode == USB_DR_MODE_OTG) {
-			struct usb_hcd *hcd =
-				dev_get_drvdata(&rockchip->dwc->xhci->dev);
-			if (!hcd) {
-				dev_err(dev, "fail to get drvdata hcd\n");
-				ret = -EPROBE_DEFER;
-				goto err3;
-			}
-			if (hcd->state != HC_STATE_HALT) {
-				usb_remove_hcd(hcd->shared_hcd);
-				usb_remove_hcd(hcd);
-			}
+		if (hcd && hcd->state != HC_STATE_HALT) {
+			usb_remove_hcd(hcd->shared_hcd);
+			usb_remove_hcd(hcd);
 		}
 
 		pm_runtime_set_autosuspend_delay(&child_pdev->dev,
@@ -815,11 +818,7 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 
 	return ret;
 
-err3:
-	dwc3_rockchip_extcon_unregister(rockchip);
-
 err2:
-	cancel_work_sync(&rockchip->otg_work);
 	of_platform_depopulate(dev);
 
 err1:
