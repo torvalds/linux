@@ -965,11 +965,6 @@ struct rpc_task *rpc_new_task(const struct rpc_task_setup *setup_data)
 
 	if (task == NULL) {
 		task = rpc_alloc_task();
-		if (task == NULL) {
-			rpc_release_calldata(setup_data->callback_ops,
-					setup_data->callback_data);
-			return ERR_PTR(-ENOMEM);
-		}
 		flags = RPC_TASK_DYNAMIC;
 	}
 
