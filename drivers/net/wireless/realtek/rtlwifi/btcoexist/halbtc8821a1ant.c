@@ -1011,11 +1011,18 @@ static void btc8821a1ant_set_ant_path(struct btc_coexist *btcoexist,
 		u4_tmp &= ~BIT23;
 		u4_tmp &= ~BIT24;
 		btcoexist->btc_write_4byte(btcoexist, 0x4c, u4_tmp);
+
+		/* 0x765 = 0x18 */
+		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x765, 0x18, 0x3);
+	} else {
+		/* 0x765 = 0x0 */
+		btcoexist->btc_write_1byte_bitmask(btcoexist, 0x765, 0x18, 0x0);
 	}
 
 	/* ext switch setting */
 	switch (ant_pos_type) {
 	case BTC_ANT_PATH_WIFI:
+		btcoexist->btc_write_1byte(btcoexist, 0xcb4, 0x77);
 		if (board_info->btdm_ant_pos == BTC_ANTENNA_AT_MAIN_PORT)
 			btcoexist->btc_write_1byte_bitmask(btcoexist, 0xcb7,
 							   0x30, 0x1);
@@ -1024,6 +1031,7 @@ static void btc8821a1ant_set_ant_path(struct btc_coexist *btcoexist,
 							   0x30, 0x2);
 		break;
 	case BTC_ANT_PATH_BT:
+		btcoexist->btc_write_1byte(btcoexist, 0xcb4, 0x77);
 		if (board_info->btdm_ant_pos == BTC_ANTENNA_AT_MAIN_PORT)
 			btcoexist->btc_write_1byte_bitmask(btcoexist, 0xcb7,
 							   0x30, 0x2);
@@ -1033,6 +1041,7 @@ static void btc8821a1ant_set_ant_path(struct btc_coexist *btcoexist,
 		break;
 	default:
 	case BTC_ANT_PATH_PTA:
+		btcoexist->btc_write_1byte(btcoexist, 0xcb4, 0x66);
 		if (board_info->btdm_ant_pos == BTC_ANTENNA_AT_MAIN_PORT)
 			btcoexist->btc_write_1byte_bitmask(btcoexist, 0xcb7,
 							   0x30, 0x1);
