@@ -1250,6 +1250,17 @@ static int ftgmac100_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int 
 	return phy_mii_ioctl(netdev->phydev, ifr, cmd);
 }
 
+static void ftgmac100_tx_timeout(struct net_device *netdev)
+{
+	struct ftgmac100 *priv = netdev_priv(netdev);
+
+	/* Disable all interrupts */
+	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+
+	/* Do the reset outside of interrupt context */
+	schedule_work(&priv->reset_task);
+}
+
 static const struct net_device_ops ftgmac100_netdev_ops = {
 	.ndo_open		= ftgmac100_open,
 	.ndo_stop		= ftgmac100_stop,
@@ -1257,6 +1268,7 @@ static const struct net_device_ops ftgmac100_netdev_ops = {
 	.ndo_set_mac_address	= ftgmac100_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= ftgmac100_do_ioctl,
+	.ndo_tx_timeout		= ftgmac100_tx_timeout,
 };
 
 static int ftgmac100_setup_mdio(struct net_device *netdev)
@@ -1361,6 +1373,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	netdev->ethtool_ops = &ftgmac100_ethtool_ops;
 	netdev->netdev_ops = &ftgmac100_netdev_ops;
+	netdev->watchdog_timeo = 5 * HZ;
 
 	platform_set_drvdata(pdev, netdev);
 
