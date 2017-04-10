@@ -2175,20 +2175,6 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
 	return intel_init_ring_buffer(engine);
 }
 
-/**
- * Initialize the second BSD ring (eg. Broadwell GT3, Skylake GT3)
- */
-int intel_init_bsd2_ring_buffer(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	intel_ring_default_vfuncs(dev_priv, engine);
-
-	engine->emit_flush = gen6_bsd_ring_flush;
-
-	return intel_init_ring_buffer(engine);
-}
-
 int intel_init_blt_ring_buffer(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;

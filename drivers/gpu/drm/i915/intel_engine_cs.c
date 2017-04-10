@@ -79,7 +79,7 @@ static const struct engine_info {
 		.mmio_base = GEN8_BSD2_RING_BASE,
 		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
-		.init_legacy = intel_init_bsd2_ring_buffer,
+		.init_legacy = intel_init_bsd_ring_buffer,
 	},
 	[VECS] = {
 		.name = "vecs",
