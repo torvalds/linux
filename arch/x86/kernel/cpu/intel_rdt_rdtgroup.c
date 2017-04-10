@@ -174,6 +174,13 @@ static struct kernfs_ops rdtgroup_kf_single_ops = {
 	.seq_show		= rdtgroup_seqfile_show,
 };
 
+static bool is_cpu_list(struct kernfs_open_file *of)
+{
+	struct rftype *rft = of->kn->priv;
+
+	return rft->flags & RFTYPE_FLAGS_CPUS_LIST;
+}
+
 static int rdtgroup_cpus_show(struct kernfs_open_file *of,
 			      struct seq_file *s, void *v)
 {
@@ -182,10 +189,12 @@ static int rdtgroup_cpus_show(struct kernfs_open_file *of,
 
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 
-	if (rdtgrp)
-		seq_printf(s, "%*pb\n", cpumask_pr_args(&rdtgrp->cpu_mask));
-	else
+	if (rdtgrp) {
+		seq_printf(s, is_cpu_list(of) ? "%*pbl\n" : "%*pb\n",
+			   cpumask_pr_args(&rdtgrp->cpu_mask));
+	} else {
 		ret = -ENOENT;
+	}
 	rdtgroup_kn_unlock(of->kn);
 
 	return ret;
@@ -252,7 +261,11 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 		goto unlock;
 	}
 
-	ret = cpumask_parse(buf, newmask);
+	if (is_cpu_list(of))
+		ret = cpulist_parse(buf, newmask);
+	else
+		ret = cpumask_parse(buf, newmask);
+
 	if (ret)
 		goto unlock;
 
@@ -471,6 +484,14 @@ static struct rftype rdtgroup_base_files[] = {
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.write		= rdtgroup_cpus_write,
 		.seq_show	= rdtgroup_cpus_show,
+	},
+	{
+		.name		= "cpus_list",
+		.mode		= 0644,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.write		= rdtgroup_cpus_write,
+		.seq_show	= rdtgroup_cpus_show,
+		.flags		= RFTYPE_FLAGS_CPUS_LIST,
 	},
 	{
 		.name		= "tasks",

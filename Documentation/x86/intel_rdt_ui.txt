@@ -59,6 +59,9 @@ There are three files associated with each group:
 	given to the default (root) group. You cannot remove CPUs
 	from the default group.
 
+"cpus_list": One or more CPU ranges of logical CPUs assigned to this
+	     group. Same rules apply like for the "cpus" file.
+
 "schemata": A list of all the resources available to this group.
 	Each resource has its own line and format - see below for
 	details.
