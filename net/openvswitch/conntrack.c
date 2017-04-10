@@ -643,8 +643,8 @@ static bool skb_nfct_cached(struct net *net,
 		 */
 		if (nf_ct_is_confirmed(ct))
 			nf_ct_delete(ct, 0, 0);
-		else
-			nf_conntrack_put(&ct->ct_general);
+
+		nf_conntrack_put(&ct->ct_general);
 		nf_ct_set(skb, NULL, 0);
 		return false;
 	}

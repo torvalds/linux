@@ -6305,8 +6305,13 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		goto out;
 	}
 
+	/*
+	 * Check that we don't overflow at later allocations, we request
+	 * clone_sources_count + 1 items, and compare to unsigned long inside
+	 * access_ok.
+	 */
 	if (arg->clone_sources_count >
-	    ULLONG_MAX / sizeof(*arg->clone_sources)) {
+	    ULONG_MAX / sizeof(struct clone_root) - 1) {
 		ret = -EINVAL;
 		goto out;
 	}
