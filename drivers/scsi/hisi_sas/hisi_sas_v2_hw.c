@@ -537,6 +537,7 @@ enum {
 };
 
 #define HISI_SAS_COMMAND_ENTRIES_V2_HW 4096
+#define HISI_MAX_SATA_SUPPORT_V2_HW	(HISI_SAS_COMMAND_ENTRIES_V2_HW/64 - 1)
 
 #define DIR_NO_DATA 0
 #define DIR_TO_INI 1
@@ -597,30 +598,71 @@ static u32 hisi_sas_phy_read32(struct hisi_hba *hisi_hba,
 /* This function needs to be protected from pre-emption. */
 static int
 slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba, int *slot_idx,
-		       struct domain_device *device)
+			     struct domain_device *device)
 {
-	/* STP link chip bug workaround:index start from 1 */
-	unsigned int index = 1;
-	void *bitmap = hisi_hba->slot_index_tags;
 	int sata_dev = dev_is_sata(device);
+	void *bitmap = hisi_hba->slot_index_tags;
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
+	int sata_idx = sas_dev->sata_idx;
+	int start, end;
+
+	if (!sata_dev) {
+		/*
+		 * STP link SoC bug workaround: index starts from 1.
+		 * additionally, we can only allocate odd IPTT(1~4095)
+		 * for SAS/SMP device.
+		 */
+		start = 1;
+		end = hisi_hba->slot_index_count;
+	} else {
+		if (sata_idx >= HISI_MAX_SATA_SUPPORT_V2_HW)
+			return -EINVAL;
+
+		/*
+		 * For SATA device: allocate even IPTT in this interval
+		 * [64*(sata_idx+1), 64*(sata_idx+2)], then each SATA device
+		 * own 32 IPTTs. IPTT 0 shall not be used duing to STP link
+		 * SoC bug workaround. So we ignore the first 32 even IPTTs.
+		 */
+		start = 64 * (sata_idx + 1);
+		end = 64 * (sata_idx + 2);
+	}
 
 	while (1) {
-		index = find_next_zero_bit(bitmap, hisi_hba->slot_index_count,
-					   index);
-		if (index >= hisi_hba->slot_index_count)
+		start = find_next_zero_bit(bitmap,
+					hisi_hba->slot_index_count, start);
+		if (start >= end)
 			return -SAS_QUEUE_FULL;
 		/*
-		 * SAS IPTT bit0 should be 1
-		 */
-		if (sata_dev || (index & 1))
+		  * SAS IPTT bit0 should be 1, and SATA IPTT bit0 should be 0.
+		  */
+		if (sata_dev ^ (start & 1))
 			break;
-		index++;
+		start++;
+	}
+
+	set_bit(start, bitmap);
+	*slot_idx = start;
+	return 0;
+}
+
+static bool sata_index_alloc_v2_hw(struct hisi_hba *hisi_hba, int *idx)
+{
+	unsigned int index;
+	struct device *dev = &hisi_hba->pdev->dev;
+	void *bitmap = hisi_hba->sata_dev_bitmap;
+
+	index = find_first_zero_bit(bitmap, HISI_MAX_SATA_SUPPORT_V2_HW);
+	if (index >= HISI_MAX_SATA_SUPPORT_V2_HW) {
+		dev_warn(dev, "alloc sata index failed, index=%d\n", index);
+		return false;
 	}
 
 	set_bit(index, bitmap);
-	*slot_idx = index;
-	return 0;
+	*idx = index;
+	return true;
 }
+
 
 static struct
 hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
@@ -628,8 +670,14 @@ hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
 	struct hisi_hba *hisi_hba = device->port->ha->lldd_ha;
 	struct hisi_sas_device *sas_dev = NULL;
 	int i, sata_dev = dev_is_sata(device);
+	int sata_idx = -1;
 
 	spin_lock(&hisi_hba->lock);
+
+	if (sata_dev)
+		if (!sata_index_alloc_v2_hw(hisi_hba, &sata_idx))
+			goto out;
+
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		/*
 		 * SATA device id bit0 should be 0
@@ -643,10 +691,13 @@ hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
 			sas_dev->dev_type = device->dev_type;
 			sas_dev->hisi_hba = hisi_hba;
 			sas_dev->sas_device = device;
+			sas_dev->sata_idx = sata_idx;
 			INIT_LIST_HEAD(&hisi_hba->devices[i].list);
 			break;
 		}
 	}
+
+out:
 	spin_unlock(&hisi_hba->lock);
 
 	return sas_dev;
@@ -752,6 +803,10 @@ static void free_device_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_itct *itct = &hisi_hba->itct[dev_id];
 	u32 reg_val = hisi_sas_read32(hisi_hba, ENT_INT_SRC3);
 	int i;
+
+	/* SoC bug workaround */
+	if (dev_is_sata(sas_dev->sas_device))
+		clear_bit(sas_dev->sata_idx, hisi_hba->sata_dev_bitmap);
 
 	/* clear the itct interrupt state */
 	if (ENT_INT_SRC3_ITC_INT_MSK & reg_val)
@@ -3196,6 +3251,8 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 static int hisi_sas_v2_init(struct hisi_hba *hisi_hba)
 {
 	int rc;
+
+	memset(hisi_hba->sata_dev_bitmap, 0, sizeof(hisi_hba->sata_dev_bitmap));
 
 	rc = hw_init_v2_hw(hisi_hba);
 	if (rc)

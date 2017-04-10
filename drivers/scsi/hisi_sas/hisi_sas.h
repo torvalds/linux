@@ -115,6 +115,7 @@ struct hisi_sas_device {
 	atomic64_t running_req;
 	struct list_head	list;
 	u8 dev_status;
+	int sata_idx;
 };
 
 struct hisi_sas_slot {
@@ -238,6 +239,7 @@ struct hisi_hba {
 	struct hisi_sas_slot	*slot_info;
 	unsigned long flags;
 	const struct hisi_sas_hw *hw;	/* Low level hw interface */
+	unsigned long sata_dev_bitmap[BITS_TO_LONGS(HISI_SAS_MAX_DEVICES)];
 	struct work_struct rst_work;
 };
 
