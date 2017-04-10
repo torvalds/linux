@@ -7433,10 +7433,8 @@ F:	mm/kasan/
 F:	scripts/Makefile.kasan
 
 KCONFIG
-M:	"Yann E. MORIN" <yann.morin.1998@free.fr>
 L:	linux-kbuild@vger.kernel.org
-T:	git git://gitorious.org/linux-kconfig/linux-kconfig
-S:	Maintained
+S:	Orphan
 F:	Documentation/kbuild/kconfig-language.txt
 F:	scripts/kconfig/
 
