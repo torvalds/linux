@@ -154,3 +154,13 @@
 		<&gpio1 18 GPIO_ACTIVE_LOW>,
 		<&gpio1 14 GPIO_ACTIVE_HIGH>;
 };
+
+&hdmi {
+	status = "okay";
+	rockchip,phy-table =
+		<74250000 0x8009 0x0004 0x0272>,
+		<165000000 0x802b 0x0004 0x0209>,
+		<297000000 0x8039 0x0005 0x028d>,
+		<594000000 0x8039 0x0000 0x019d>,
+		<000000000 0x0000 0x0000 0x0000>;
+};
