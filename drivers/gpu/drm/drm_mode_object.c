@@ -104,6 +104,25 @@ void drm_mode_object_unregister(struct drm_device *dev,
 	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
+/**
+ * drm_lease_required - check types which must be leased to be used
+ * @type: type of object
+ *
+ * Returns whether the provided type of drm_mode_object must
+ * be owned or leased to be used by a process.
+ */
+static bool drm_lease_required(uint32_t type)
+{
+	switch(type) {
+	case DRM_MODE_OBJECT_CRTC:
+	case DRM_MODE_OBJECT_CONNECTOR:
+	case DRM_MODE_OBJECT_PLANE:
+		return true;
+	default:
+		return false;
+	}
+}
+
 struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 					       struct drm_file *file_priv,
 					       uint32_t id, uint32_t type)
@@ -115,6 +134,9 @@ struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 	if (obj && type != DRM_MODE_OBJECT_ANY && obj->type != type)
 		obj = NULL;
 	if (obj && obj->id != id)
+		obj = NULL;
+
+	if (obj && drm_lease_required(obj->type) && !_drm_lease_held(file_priv, obj->id))
 		obj = NULL;
 
 	if (obj && obj->free_cb) {

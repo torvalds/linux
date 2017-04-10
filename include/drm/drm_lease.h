@@ -31,6 +31,4 @@ void drm_lease_revoke(struct drm_master *master);
 
 uint32_t drm_lease_filter_crtcs(struct drm_file *file_priv, uint32_t crtcs);
 
-uint32_t drm_lease_filter_encoders(struct drm_file *file_priv, uint32_t encoders);
-
 #endif /* _DRM_LEASE_H_ */
