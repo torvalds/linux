@@ -1769,6 +1769,7 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 	struct iw_encode_ext *enc;
 	int index = dwrq->flags & IW_ENCODE_INDEX;
 	unsigned int commit = 0;
+	struct wpa_key_t *key;
 
 	enc = (struct iw_encode_ext *)extra;
 	if (!enc)
@@ -1784,6 +1785,7 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 	if (index < 1 || index > 4)
 		return -EINVAL;
 	index--;
+	key = &priv->wpa.key[index];
 
 	if (dwrq->flags & IW_ENCODE_DISABLED)
 		priv->wpa.key[index].key_len = 0;
@@ -1793,12 +1795,10 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 		priv->wpa.txkey = index;
 		commit |= SME_WEP_INDEX;
 	} else if (enc->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
-		memcpy(&priv->wpa.key[index].rx_seq[0],
-		       enc->rx_seq, IW_ENCODE_SEQ_MAX_SIZE);
+		memcpy(&key->rx_seq[0], &enc->rx_seq[0], IW_ENCODE_SEQ_MAX_SIZE);
 	}
 
-	memcpy(&priv->wpa.key[index].addr.sa_data[0],
-	       &enc->addr.sa_data[0], ETH_ALEN);
+	memcpy(&key->addr.sa_data[0], &enc->addr.sa_data[0], ETH_ALEN);
 
 	switch (enc->alg) {
 	case IW_ENCODE_ALG_NONE:
@@ -1816,9 +1816,8 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 			commit |= SME_WEP_FLAG;
 		}
 		if (enc->key_len) {
-			memcpy(&priv->wpa.key[index].key_val[0],
-			       &enc->key[0], enc->key_len);
-			priv->wpa.key[index].key_len = enc->key_len;
+			memcpy(&key->key_val[0], &enc->key[0], enc->key_len);
+			key->key_len = enc->key_len;
 			commit |= (SME_WEP_VAL1 << index);
 		}
 		break;
@@ -1828,20 +1827,14 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 			commit |= SME_WEP_FLAG;
 		}
 		if (enc->key_len == 32) {
-			memcpy(&priv->wpa.key[index].key_val[0],
-			       &enc->key[0], enc->key_len - 16);
-			priv->wpa.key[index].key_len =
-				enc->key_len - 16;
+			memcpy(&key->key_val[0], &enc->key[0], enc->key_len - 16);
+			key->key_len = enc->key_len - 16;
 			if (priv->wpa.key_mgmt_suite == 4) {	/* WPA_NONE */
-				memcpy(&priv->wpa.key[index].
-				       tx_mic_key[0], &enc->key[16], 8);
-				memcpy(&priv->wpa.key[index].
-				       rx_mic_key[0], &enc->key[16], 8);
+				memcpy(&key->tx_mic_key[0], &enc->key[16], 8);
+				memcpy(&key->rx_mic_key[0], &enc->key[16], 8);
 			} else {
-				memcpy(&priv->wpa.key[index].
-				       tx_mic_key[0], &enc->key[16], 8);
-				memcpy(&priv->wpa.key[index].
-				       rx_mic_key[0], &enc->key[24], 8);
+				memcpy(&key->tx_mic_key[0], &enc->key[16], 8);
+				memcpy(&key->rx_mic_key[0], &enc->key[24], 8);
 			}
 			commit |= (SME_WEP_VAL1 << index);
 		}
