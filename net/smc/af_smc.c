@@ -147,7 +147,6 @@ static int smc_release(struct socket *sock)
 		schedule_delayed_work(&smc->sock_put_work,
 				      SMC_CLOSE_SOCK_PUT_DELAY);
 	}
-	sk->sk_prot->unhash(sk);
 	release_sock(sk);
 
 	sock_put(sk);
