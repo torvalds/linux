@@ -15,7 +15,7 @@ struct blk_mq_hw_ctx {
 		unsigned long		state;		/* BLK_MQ_S_* flags */
 	} ____cacheline_aligned_in_smp;
 
-	struct work_struct	run_work;
+	struct delayed_work	run_work;
 	cpumask_var_t		cpumask;
 	int			next_cpu;
 	int			next_cpu_batch;
@@ -51,7 +51,6 @@ struct blk_mq_hw_ctx {
 
 	atomic_t		nr_active;
 
-	struct delayed_work	delayed_run_work;
 	struct delayed_work	delay_work;
 
 	struct hlist_node	cpuhp_dead;
