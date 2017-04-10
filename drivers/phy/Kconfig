@@ -450,6 +450,7 @@ config PHY_QCOM_QMP
 config PHY_QCOM_QUSB2
 	tristate "Qualcomm QUSB2 PHY Driver"
 	depends on OF && (ARCH_QCOM || COMPILE_TEST)
+	depends on NVMEM || !NVMEM
 	select GENERIC_PHY
 	help
 	  Enable this to support the HighSpeed QUSB2 PHY transceiver for USB
