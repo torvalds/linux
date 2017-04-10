@@ -468,16 +468,6 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	return true;
 }
 
-static void ftgmac100_txdes_reset(const struct ftgmac100 *priv,
-				  struct ftgmac100_txdes *txdes)
-{
-	/* clear all except end of ring bit */
-	txdes->txdes0 &= cpu_to_le32(priv->txdes0_edotr_mask);
-	txdes->txdes1 = 0;
-	txdes->txdes2 = 0;
-	txdes->txdes3 = 0;
-}
-
 static bool ftgmac100_txdes_owned_by_dma(struct ftgmac100_txdes *txdes)
 {
 	return txdes->txdes0 & cpu_to_le32(FTGMAC100_TXDES0_TXDMA_OWN);
@@ -577,7 +567,12 @@ static void ftgmac100_free_tx_packet(struct ftgmac100 *priv,
 	dev_kfree_skb(skb);
 	priv->tx_skbs[pointer] = NULL;
 
-	ftgmac100_txdes_reset(priv, txdes);
+	/* Clear txdes0 except end of ring bit, clear txdes1 as we
+	 * only "OR" into it, leave 2 and 3 alone as 2 is unused
+	 * and 3 will be overwritten entirely
+	 */
+	txdes->txdes0 &= cpu_to_le32(priv->txdes0_edotr_mask);
+	txdes->txdes1 = 0;
 }
 
 static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
