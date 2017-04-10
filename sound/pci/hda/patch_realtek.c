@@ -1800,6 +1800,7 @@ enum {
 	ALC882_FIXUP_NO_PRIMARY_HP,
 	ALC887_FIXUP_ASUS_BASS,
 	ALC887_FIXUP_BASS_CHMAP,
+	ALC1220_FIXUP_GB_DUAL_CODECS,
 };
 
 static void alc889_fixup_coef(struct hda_codec *codec,
@@ -1961,6 +1962,61 @@ static void alc882_fixup_no_primary_hp(struct hda_codec *codec,
 
 static void alc_fixup_bass_chmap(struct hda_codec *codec,
 				 const struct hda_fixup *fix, int action);
+
+/* For dual-codec configuration, we need to disable some features to avoid
+ * conflicts of kctls and PCM streams
+ */
+static void alc_fixup_dual_codecs(struct hda_codec *codec,
+				  const struct hda_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (action != HDA_FIXUP_ACT_PRE_PROBE)
+		return;
+	/* disable vmaster */
+	spec->gen.suppress_vmaster = 1;
+	/* auto-mute and auto-mic switch don't work with multiple codecs */
+	spec->gen.suppress_auto_mute = 1;
+	spec->gen.suppress_auto_mic = 1;
+	/* disable aamix as well */
+	spec->gen.mixer_nid = 0;
+	/* add location prefix to avoid conflicts */
+	codec->force_pin_prefix = 1;
+}
+
+static void rename_ctl(struct hda_codec *codec, const char *oldname,
+		       const char *newname)
+{
+	struct snd_kcontrol *kctl;
+
+	kctl = snd_hda_find_mixer_ctl(codec, oldname);
+	if (kctl)
+		strcpy(kctl->id.name, newname);
+}
+
+static void alc1220_fixup_gb_dual_codecs(struct hda_codec *codec,
+					 const struct hda_fixup *fix,
+					 int action)
+{
+	alc_fixup_dual_codecs(codec, fix, action);
+	switch (action) {
+	case HDA_FIXUP_ACT_PRE_PROBE:
+		/* override card longname to provide a unique UCM profile */
+		strcpy(codec->card->longname, "HDAudio-Gigabyte-ALC1220DualCodecs");
+		break;
+	case HDA_FIXUP_ACT_BUILD:
+		/* rename Capture controls depending on the codec */
+		rename_ctl(codec, "Capture Volume",
+			   codec->addr == 0 ?
+			   "Rear-Panel Capture Volume" :
+			   "Front-Panel Capture Volume");
+		rename_ctl(codec, "Capture Switch",
+			   codec->addr == 0 ?
+			   "Rear-Panel Capture Switch" :
+			   "Front-Panel Capture Switch");
+		break;
+	}
+}
 
 static const struct hda_fixup alc882_fixups[] = {
 	[ALC882_FIXUP_ABIT_AW9D_MAX] = {
@@ -2198,6 +2254,10 @@ static const struct hda_fixup alc882_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_bass_chmap,
 	},
+	[ALC1220_FIXUP_GB_DUAL_CODECS] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc1220_fixup_gb_dual_codecs,
+	},
 };
 
 static const struct snd_pci_quirk alc882_fixup_tbl[] = {
@@ -2267,6 +2327,7 @@ static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1462, 0x7350, "MSI-7350", ALC889_FIXUP_CD),
 	SND_PCI_QUIRK_VENDOR(0x1462, "MSI", ALC882_FIXUP_GPIO3),
 	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte EP45-DS3/Z87X-UD3H", ALC889_FIXUP_FRONT_HP_NO_PRESENCE),
+	SND_PCI_QUIRK(0x1458, 0xa0b8, "Gigabyte AZ370-Gaming", ALC1220_FIXUP_GB_DUAL_CODECS),
 	SND_PCI_QUIRK(0x147b, 0x107a, "Abit AW9D-MAX", ALC882_FIXUP_ABIT_AW9D_MAX),
 	SND_PCI_QUIRK_VENDOR(0x1558, "Clevo laptop", ALC882_FIXUP_EAPD),
 	SND_PCI_QUIRK(0x161f, 0x2054, "Medion laptop", ALC883_FIXUP_EAPD),
