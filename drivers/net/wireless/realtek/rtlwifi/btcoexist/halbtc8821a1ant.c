@@ -806,24 +806,24 @@ static void btc8821a1ant_coex_table_with_type(struct btc_coexist *btcoexist,
 					0x5a5a5a5a, 0xffffff, 0x3);
 		break;
 	case 3:
-		btc8821a1ant_coex_table(btcoexist, force_exec, 0x55555555,
+		btc8821a1ant_coex_table(btcoexist, force_exec, 0x5a5a5a5a,
 					0xaaaaaaaa, 0xffffff, 0x3);
 		break;
 	case 4:
-		btc8821a1ant_coex_table(btcoexist, force_exec, 0xffffffff,
-					0xffffffff, 0xffffff, 0x3);
-		break;
-	case 5:
-		btc8821a1ant_coex_table(btcoexist, force_exec, 0x5fff5fff,
-					0x5fff5fff, 0xffffff, 0x3);
-		break;
-	case 6:
-		btc8821a1ant_coex_table(btcoexist, force_exec, 0x55ff55ff,
+		btc8821a1ant_coex_table(btcoexist, force_exec, 0x55555555,
 					0x5a5a5a5a, 0xffffff, 0x3);
 		break;
+	case 5:
+		btc8821a1ant_coex_table(btcoexist, force_exec, 0x5a5a5a5a,
+					0xaaaa5a5a, 0xffffff, 0x3);
+		break;
+	case 6:
+		btc8821a1ant_coex_table(btcoexist, force_exec, 0x55555555,
+					0xaaaa5a5a, 0xffffff, 0x3);
+		break;
 	case 7:
-		btc8821a1ant_coex_table(btcoexist, force_exec, 0x5afa5afa,
-					0x5afa5afa, 0xffffff, 0x3);
+		btc8821a1ant_coex_table(btcoexist, force_exec, 0xaaaaaaaa,
+					0xaaaaaaaa, 0xffffff, 0x3);
 		break;
 	default:
 		break;
