@@ -1011,6 +1011,19 @@ static void nvme_rdma_send_done(struct ib_cq *cq, struct ib_wc *wc)
 		nvme_rdma_wr_error(cq, wc, "SEND");
 }
 
+static inline int nvme_rdma_queue_sig_limit(struct nvme_rdma_queue *queue)
+{
+	int sig_limit;
+
+	/*
+	 * We signal completion every queue depth/2 and also handle the
+	 * degenerated case of a  device with queue_depth=1, where we
+	 * would need to signal every message.
+	 */
+	sig_limit = max(queue->queue_size / 2, 1);
+	return (++queue->sig_count % sig_limit) == 0;
+}
+
 static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
 		struct nvme_rdma_qe *qe, struct ib_sge *sge, u32 num_sge,
 		struct ib_send_wr *first, bool flush)
@@ -1038,9 +1051,6 @@ static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
 	 * Would have been way to obvious to handle this in hardware or
 	 * at least the RDMA stack..
 	 *
-	 * This messy and racy code sniplet is copy and pasted from the iSER
-	 * initiator, and the magic '32' comes from there as well.
-	 *
 	 * Always signal the flushes. The magic request used for the flush
 	 * sequencer is not allocated in our driver's tagset and it's
 	 * triggered to be freed by blk_cleanup_queue(). So we need to
@@ -1048,7 +1058,7 @@ static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
 	 * embeded in request's payload, is not freed when __ib_process_cq()
 	 * calls wr_cqe->done().
 	 */
-	if ((++queue->sig_count % 32) == 0 || flush)
+	if (nvme_rdma_queue_sig_limit(queue) || flush)
 		wr.send_flags |= IB_SEND_SIGNALED;
 
 	if (first)
