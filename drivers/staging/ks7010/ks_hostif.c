@@ -312,7 +312,7 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 {
 	struct ether_hdr *eth_hdr;
 	unsigned short eth_proto;
-	unsigned char RecvMIC[8];
+	unsigned char recv_mic[8];
 	char buf[128];
 	unsigned long now;
 	struct mic_failure_t *mic_failure;
@@ -343,7 +343,7 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 		DPRINTK(4, "TKIP: protocol=%04X: size=%u\n",
 			eth_proto, priv->rx_size);
 		/* MIC save */
-		memcpy(&RecvMIC[0], (priv->rxp) + ((priv->rx_size) - 8), 8);
+		memcpy(&recv_mic[0], (priv->rxp) + ((priv->rx_size) - 8), 8);
 		priv->rx_size = priv->rx_size - 8;
 		if (auth_type > 0 && auth_type < 4) {	/* auth_type check */
 			MichaelMICFunction(&michael_mic,
@@ -353,7 +353,7 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 					   (uint8_t)0,	/* priority */
 					   (uint8_t *)michael_mic.Result);
 		}
-		if (memcmp(michael_mic.Result, RecvMIC, 8) != 0) {
+		if (memcmp(michael_mic.Result, recv_mic, 8) != 0) {
 			now = jiffies;
 			mic_failure = &priv->wpa.mic_failure;
 			/* MIC FAILURE */
