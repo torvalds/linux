@@ -46,6 +46,9 @@
 #define MAX_PKT_SIZE		1536
 #define RX_BUF_SIZE		MAX_PKT_SIZE	/* must be smaller than 0x3fff */
 
+/* Min number of tx ring entries before stopping queue */
+#define TX_THRESHOLD		(MAX_SKB_FRAGS + 1)
+
 struct ftgmac100_descs {
 	struct ftgmac100_rxdes rxdes[RX_QUEUE_ENTRIES];
 	struct ftgmac100_txdes txdes[TX_QUEUE_ENTRIES];
@@ -65,11 +68,10 @@ struct ftgmac100 {
 	u32 rxdes0_edorr_mask;
 
 	/* Tx ring */
+	struct sk_buff *tx_skbs[TX_QUEUE_ENTRIES];
 	unsigned int tx_clean_pointer;
 	unsigned int tx_pointer;
-	unsigned int tx_pending;
 	u32 txdes0_edotr_mask;
-	spinlock_t tx_lock;
 
 	/* Scratch page to use when rx skb alloc fails */
 	void *rx_scratch;
@@ -164,7 +166,6 @@ static int ftgmac100_reset_and_config_mac(struct ftgmac100 *priv)
 	priv->rx_pointer = 0;
 	priv->tx_clean_pointer = 0;
 	priv->tx_pointer = 0;
-	priv->tx_pending = 0;
 
 	/* The doc says reset twice with 10us interval */
 	if (ftgmac100_reset_mac(priv, maccr))
@@ -467,97 +468,13 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 	return true;
 }
 
-static void ftgmac100_txdes_reset(const struct ftgmac100 *priv,
-				  struct ftgmac100_txdes *txdes)
+static u32 ftgmac100_base_tx_ctlstat(struct ftgmac100 *priv,
+				     unsigned int index)
 {
-	/* clear all except end of ring bit */
-	txdes->txdes0 &= cpu_to_le32(priv->txdes0_edotr_mask);
-	txdes->txdes1 = 0;
-	txdes->txdes2 = 0;
-	txdes->txdes3 = 0;
-}
-
-static bool ftgmac100_txdes_owned_by_dma(struct ftgmac100_txdes *txdes)
-{
-	return txdes->txdes0 & cpu_to_le32(FTGMAC100_TXDES0_TXDMA_OWN);
-}
-
-static void ftgmac100_txdes_set_dma_own(struct ftgmac100_txdes *txdes)
-{
-	/*
-	 * Make sure dma own bit will not be set before any other
-	 * descriptor fields.
-	 */
-	wmb();
-	txdes->txdes0 |= cpu_to_le32(FTGMAC100_TXDES0_TXDMA_OWN);
-}
-
-static void ftgmac100_txdes_set_end_of_ring(const struct ftgmac100 *priv,
-					    struct ftgmac100_txdes *txdes)
-{
-	txdes->txdes0 |= cpu_to_le32(priv->txdes0_edotr_mask);
-}
-
-static void ftgmac100_txdes_set_first_segment(struct ftgmac100_txdes *txdes)
-{
-	txdes->txdes0 |= cpu_to_le32(FTGMAC100_TXDES0_FTS);
-}
-
-static void ftgmac100_txdes_set_last_segment(struct ftgmac100_txdes *txdes)
-{
-	txdes->txdes0 |= cpu_to_le32(FTGMAC100_TXDES0_LTS);
-}
-
-static void ftgmac100_txdes_set_buffer_size(struct ftgmac100_txdes *txdes,
-					    unsigned int len)
-{
-	txdes->txdes0 |= cpu_to_le32(FTGMAC100_TXDES0_TXBUF_SIZE(len));
-}
-
-static void ftgmac100_txdes_set_txint(struct ftgmac100_txdes *txdes)
-{
-	txdes->txdes1 |= cpu_to_le32(FTGMAC100_TXDES1_TXIC);
-}
-
-static void ftgmac100_txdes_set_tcpcs(struct ftgmac100_txdes *txdes)
-{
-	txdes->txdes1 |= cpu_to_le32(FTGMAC100_TXDES1_TCP_CHKSUM);
-}
-
-static void ftgmac100_txdes_set_udpcs(struct ftgmac100_txdes *txdes)
-{
-	txdes->txdes1 |= cpu_to_le32(FTGMAC100_TXDES1_UDP_CHKSUM);
-}
-
-static void ftgmac100_txdes_set_ipcs(struct ftgmac100_txdes *txdes)
-{
-	txdes->txdes1 |= cpu_to_le32(FTGMAC100_TXDES1_IP_CHKSUM);
-}
-
-static void ftgmac100_txdes_set_dma_addr(struct ftgmac100_txdes *txdes,
-					 dma_addr_t addr)
-{
-	txdes->txdes3 = cpu_to_le32(addr);
-}
-
-static dma_addr_t ftgmac100_txdes_get_dma_addr(struct ftgmac100_txdes *txdes)
-{
-	return le32_to_cpu(txdes->txdes3);
-}
-
-/*
- * txdes2 is not used by hardware. We use it to keep track of socket buffer.
- * Since hardware does not touch it, we can skip cpu_to_le32()/le32_to_cpu().
- */
-static void ftgmac100_txdes_set_skb(struct ftgmac100_txdes *txdes,
-				    struct sk_buff *skb)
-{
-	txdes->txdes2 = (unsigned int)skb;
-}
-
-static struct sk_buff *ftgmac100_txdes_get_skb(struct ftgmac100_txdes *txdes)
-{
-	return (struct sk_buff *)txdes->txdes2;
+	if (index == (TX_QUEUE_ENTRIES - 1))
+		return priv->txdes0_edotr_mask;
+	else
+		return 0;
 }
 
 static int ftgmac100_next_tx_pointer(int pointer)
@@ -565,25 +482,44 @@ static int ftgmac100_next_tx_pointer(int pointer)
 	return (pointer + 1) & (TX_QUEUE_ENTRIES - 1);
 }
 
-static void ftgmac100_tx_pointer_advance(struct ftgmac100 *priv)
+static u32 ftgmac100_tx_buf_avail(struct ftgmac100 *priv)
 {
-	priv->tx_pointer = ftgmac100_next_tx_pointer(priv->tx_pointer);
+	/* Returns the number of available slots in the TX queue
+	 *
+	 * This always leaves one free slot so we don't have to
+	 * worry about empty vs. full, and this simplifies the
+	 * test for ftgmac100_tx_buf_cleanable() below
+	 */
+	return (priv->tx_clean_pointer - priv->tx_pointer - 1) &
+		(TX_QUEUE_ENTRIES - 1);
 }
 
-static void ftgmac100_tx_clean_pointer_advance(struct ftgmac100 *priv)
+static bool ftgmac100_tx_buf_cleanable(struct ftgmac100 *priv)
 {
-	priv->tx_clean_pointer = ftgmac100_next_tx_pointer(priv->tx_clean_pointer);
+	return priv->tx_pointer != priv->tx_clean_pointer;
 }
 
-static struct ftgmac100_txdes *ftgmac100_current_txdes(struct ftgmac100 *priv)
+static void ftgmac100_free_tx_packet(struct ftgmac100 *priv,
+				     unsigned int pointer,
+				     struct sk_buff *skb,
+				     struct ftgmac100_txdes *txdes,
+				     u32 ctl_stat)
 {
-	return &priv->descs->txdes[priv->tx_pointer];
-}
+	dma_addr_t map = le32_to_cpu(txdes->txdes3);
+	size_t len;
 
-static struct ftgmac100_txdes *
-ftgmac100_current_clean_txdes(struct ftgmac100 *priv)
-{
-	return &priv->descs->txdes[priv->tx_clean_pointer];
+	if (ctl_stat & FTGMAC100_TXDES0_FTS) {
+		len = skb_headlen(skb);
+		dma_unmap_single(priv->dev, map, len, DMA_TO_DEVICE);
+	} else {
+		len = FTGMAC100_TXDES0_TXBUF_SIZE(ctl_stat);
+		dma_unmap_page(priv->dev, map, len, DMA_TO_DEVICE);
+	}
+
+	/* Free SKB on last segment */
+	if (ctl_stat & FTGMAC100_TXDES0_LTS)
+		dev_kfree_skb(skb);
+	priv->tx_skbs[pointer] = NULL;
 }
 
 static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
@@ -591,86 +527,204 @@ static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 	struct net_device *netdev = priv->netdev;
 	struct ftgmac100_txdes *txdes;
 	struct sk_buff *skb;
-	dma_addr_t map;
+	unsigned int pointer;
+	u32 ctl_stat;
 
-	if (priv->tx_pending == 0)
+	pointer = priv->tx_clean_pointer;
+	txdes = &priv->descs->txdes[pointer];
+
+	ctl_stat = le32_to_cpu(txdes->txdes0);
+	if (ctl_stat & FTGMAC100_TXDES0_TXDMA_OWN)
 		return false;
 
-	txdes = ftgmac100_current_clean_txdes(priv);
-
-	if (ftgmac100_txdes_owned_by_dma(txdes))
-		return false;
-
-	skb = ftgmac100_txdes_get_skb(txdes);
-	map = ftgmac100_txdes_get_dma_addr(txdes);
-
+	skb = priv->tx_skbs[pointer];
 	netdev->stats.tx_packets++;
 	netdev->stats.tx_bytes += skb->len;
+	ftgmac100_free_tx_packet(priv, pointer, skb, txdes, ctl_stat);
+	txdes->txdes0 = cpu_to_le32(ctl_stat & priv->txdes0_edotr_mask);
 
-	dma_unmap_single(priv->dev, map, skb_headlen(skb), DMA_TO_DEVICE);
-
-	dev_kfree_skb(skb);
-
-	ftgmac100_txdes_reset(priv, txdes);
-
-	ftgmac100_tx_clean_pointer_advance(priv);
-
-	spin_lock(&priv->tx_lock);
-	priv->tx_pending--;
-	spin_unlock(&priv->tx_lock);
-	netif_wake_queue(netdev);
+	priv->tx_clean_pointer = ftgmac100_next_tx_pointer(pointer);
 
 	return true;
 }
 
 static void ftgmac100_tx_complete(struct ftgmac100 *priv)
 {
-	while (ftgmac100_tx_complete_packet(priv))
+	struct net_device *netdev = priv->netdev;
+
+	/* Process all completed packets */
+	while (ftgmac100_tx_buf_cleanable(priv) &&
+	       ftgmac100_tx_complete_packet(priv))
 		;
+
+	/* Restart queue if needed */
+	smp_mb();
+	if (unlikely(netif_queue_stopped(netdev) &&
+		     ftgmac100_tx_buf_avail(priv) >= TX_THRESHOLD)) {
+		struct netdev_queue *txq;
+
+		txq = netdev_get_tx_queue(netdev, 0);
+		__netif_tx_lock(txq, smp_processor_id());
+		if (netif_queue_stopped(netdev) &&
+		    ftgmac100_tx_buf_avail(priv) >= TX_THRESHOLD)
+			netif_wake_queue(netdev);
+		__netif_tx_unlock(txq);
+	}
 }
 
-static int ftgmac100_xmit(struct ftgmac100 *priv, struct sk_buff *skb,
-			  dma_addr_t map)
+static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
+				     struct net_device *netdev)
 {
-	struct net_device *netdev = priv->netdev;
-	struct ftgmac100_txdes *txdes;
-	unsigned int len = (skb->len < ETH_ZLEN) ? ETH_ZLEN : skb->len;
+	struct ftgmac100 *priv = netdev_priv(netdev);
+	struct ftgmac100_txdes *txdes, *first;
+	unsigned int pointer, nfrags, len, i, j;
+	u32 f_ctl_stat, ctl_stat, csum_vlan;
+	dma_addr_t map;
 
-	txdes = ftgmac100_current_txdes(priv);
-	ftgmac100_tx_pointer_advance(priv);
+	/* The HW doesn't pad small frames */
+	if (eth_skb_pad(skb)) {
+		netdev->stats.tx_dropped++;
+		return NETDEV_TX_OK;
+	}
 
-	/* setup TX descriptor */
-	ftgmac100_txdes_set_skb(txdes, skb);
-	ftgmac100_txdes_set_dma_addr(txdes, map);
-	ftgmac100_txdes_set_buffer_size(txdes, len);
+	/* Reject oversize packets */
+	if (unlikely(skb->len > MAX_PKT_SIZE)) {
+		if (net_ratelimit())
+			netdev_dbg(netdev, "tx packet too big\n");
+		goto drop;
+	}
 
-	ftgmac100_txdes_set_first_segment(txdes);
-	ftgmac100_txdes_set_last_segment(txdes);
-	ftgmac100_txdes_set_txint(txdes);
+	/* Do we have a limit on #fragments ? I yet have to get a reply
+	 * from Aspeed. If there's one I haven't hit it.
+	 */
+	nfrags = skb_shinfo(skb)->nr_frags;
+
+	/* Get header len */
+	len = skb_headlen(skb);
+
+	/* Map the packet head */
+	map = dma_map_single(priv->dev, skb->data, len, DMA_TO_DEVICE);
+	if (dma_mapping_error(priv->dev, map)) {
+		if (net_ratelimit())
+			netdev_err(netdev, "map tx packet head failed\n");
+		goto drop;
+	}
+
+	/* Grab the next free tx descriptor */
+	pointer = priv->tx_pointer;
+	txdes = first = &priv->descs->txdes[pointer];
+
+	/* Setup it up with the packet head. Don't write the head to the
+	 * ring just yet
+	 */
+	priv->tx_skbs[pointer] = skb;
+	f_ctl_stat = ftgmac100_base_tx_ctlstat(priv, pointer);
+	f_ctl_stat |= FTGMAC100_TXDES0_TXDMA_OWN;
+	f_ctl_stat |= FTGMAC100_TXDES0_TXBUF_SIZE(len);
+	f_ctl_stat |= FTGMAC100_TXDES0_FTS;
+	if (nfrags == 0)
+		f_ctl_stat |= FTGMAC100_TXDES0_LTS;
+	txdes->txdes3 = cpu_to_le32(map);
+
+	/* Setup HW checksumming */
+	csum_vlan = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		__be16 protocol = skb->protocol;
 
 		if (protocol == cpu_to_be16(ETH_P_IP)) {
 			u8 ip_proto = ip_hdr(skb)->protocol;
 
-			ftgmac100_txdes_set_ipcs(txdes);
+			csum_vlan |= FTGMAC100_TXDES1_IP_CHKSUM;
 			if (ip_proto == IPPROTO_TCP)
-				ftgmac100_txdes_set_tcpcs(txdes);
+				csum_vlan |= FTGMAC100_TXDES1_TCP_CHKSUM;
 			else if (ip_proto == IPPROTO_UDP)
-				ftgmac100_txdes_set_udpcs(txdes);
+				csum_vlan |= FTGMAC100_TXDES1_UDP_CHKSUM;
 		}
 	}
+	txdes->txdes1 = cpu_to_le32(csum_vlan);
 
-	spin_lock(&priv->tx_lock);
-	priv->tx_pending++;
-	if (priv->tx_pending == TX_QUEUE_ENTRIES)
+	/* Next descriptor */
+	pointer = ftgmac100_next_tx_pointer(pointer);
+
+	/* Add the fragments */
+	for (i = 0; i < nfrags; i++) {
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+
+		len = frag->size;
+
+		/* Map it */
+		map = skb_frag_dma_map(priv->dev, frag, 0, len,
+				       DMA_TO_DEVICE);
+		if (dma_mapping_error(priv->dev, map))
+			goto dma_err;
+
+		/* Setup descriptor */
+		priv->tx_skbs[pointer] = skb;
+		txdes = &priv->descs->txdes[pointer];
+		ctl_stat = ftgmac100_base_tx_ctlstat(priv, pointer);
+		ctl_stat |= FTGMAC100_TXDES0_TXDMA_OWN;
+		ctl_stat |= FTGMAC100_TXDES0_TXBUF_SIZE(len);
+		if (i == (nfrags - 1))
+			ctl_stat |= FTGMAC100_TXDES0_LTS;
+		txdes->txdes0 = cpu_to_le32(ctl_stat);
+		txdes->txdes1 = 0;
+		txdes->txdes3 = cpu_to_le32(map);
+
+		/* Next one */
+		pointer = ftgmac100_next_tx_pointer(pointer);
+	}
+
+	/* Order the previous packet and descriptor udpates
+	 * before setting the OWN bit on the first descriptor.
+	 */
+	dma_wmb();
+	first->txdes0 = cpu_to_le32(f_ctl_stat);
+
+	/* Update next TX pointer */
+	priv->tx_pointer = pointer;
+
+	/* If there isn't enough room for all the fragments of a new packet
+	 * in the TX ring, stop the queue. The sequence below is race free
+	 * vs. a concurrent restart in ftgmac100_poll()
+	 */
+	if (unlikely(ftgmac100_tx_buf_avail(priv) < TX_THRESHOLD)) {
 		netif_stop_queue(netdev);
-
-	/* start transmit */
-	ftgmac100_txdes_set_dma_own(txdes);
-	spin_unlock(&priv->tx_lock);
+		/* Order the queue stop with the test below */
+		smp_mb();
+		if (ftgmac100_tx_buf_avail(priv) >= TX_THRESHOLD)
+			netif_wake_queue(netdev);
+	}
 
 	ftgmac100_txdma_normal_prio_start_polling(priv);
+
+	return NETDEV_TX_OK;
+
+ dma_err:
+	if (net_ratelimit())
+		netdev_err(netdev, "map tx fragment failed\n");
+
+	/* Free head */
+	pointer = priv->tx_pointer;
+	ftgmac100_free_tx_packet(priv, pointer, skb, first, f_ctl_stat);
+	first->txdes0 = cpu_to_le32(f_ctl_stat & priv->txdes0_edotr_mask);
+
+	/* Then all fragments */
+	for (j = 0; j < i; j++) {
+		pointer = ftgmac100_next_tx_pointer(pointer);
+		txdes = &priv->descs->txdes[pointer];
+		ctl_stat = le32_to_cpu(txdes->txdes0);
+		ftgmac100_free_tx_packet(priv, pointer, skb, txdes, ctl_stat);
+		txdes->txdes0 = cpu_to_le32(ctl_stat & priv->txdes0_edotr_mask);
+	}
+
+	/* This cannot be reached if we successfully mapped the
+	 * last fragment, so we know ftgmac100_free_tx_packet()
+	 * hasn't freed the skb yet.
+	 */
+ drop:
+	/* Drop the packet */
+	dev_kfree_skb_any(skb);
+	netdev->stats.tx_dropped++;
 
 	return NETDEV_TX_OK;
 }
@@ -696,14 +750,12 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 	/* Free all TX buffers */
 	for (i = 0; i < TX_QUEUE_ENTRIES; i++) {
 		struct ftgmac100_txdes *txdes = &priv->descs->txdes[i];
-		struct sk_buff *skb = ftgmac100_txdes_get_skb(txdes);
-		dma_addr_t map = ftgmac100_txdes_get_dma_addr(txdes);
+		struct sk_buff *skb = priv->tx_skbs[i];
 
 		if (!skb)
 			continue;
-
-		dma_unmap_single(priv->dev, map, skb_headlen(skb), DMA_TO_DEVICE);
-		kfree_skb(skb);
+		ftgmac100_free_tx_packet(priv, i, skb, txdes,
+					 le32_to_cpu(txdes->txdes0));
 	}
 }
 
@@ -743,6 +795,7 @@ static int ftgmac100_alloc_rings(struct ftgmac100 *priv)
 static void ftgmac100_init_rings(struct ftgmac100 *priv)
 {
 	struct ftgmac100_rxdes *rxdes;
+	struct ftgmac100_txdes *txdes;
 	int i;
 
 	/* Initialize RX ring */
@@ -755,9 +808,11 @@ static void ftgmac100_init_rings(struct ftgmac100 *priv)
 	rxdes->rxdes0 |= cpu_to_le32(priv->rxdes0_edorr_mask);
 
 	/* Initialize TX ring */
-	for (i = 0; i < TX_QUEUE_ENTRIES; i++)
-		priv->descs->txdes[i].txdes0 = 0;
-	ftgmac100_txdes_set_end_of_ring(priv, &priv->descs->txdes[i -1]);
+	for (i = 0; i < TX_QUEUE_ENTRIES; i++) {
+		txdes = &priv->descs->txdes[i];
+		txdes->txdes0 = 0;
+	}
+	txdes->txdes0 |= cpu_to_le32(priv->txdes0_edotr_mask);
 }
 
 static int ftgmac100_alloc_rx_buffers(struct ftgmac100 *priv)
@@ -979,17 +1034,17 @@ static bool ftgmac100_check_rx(struct ftgmac100 *priv)
 static int ftgmac100_poll(struct napi_struct *napi, int budget)
 {
 	struct ftgmac100 *priv = container_of(napi, struct ftgmac100, napi);
-	bool more, completed = true;
-	int rx = 0;
+	int work_done = 0;
+	bool more;
 
-	ftgmac100_tx_complete(priv);
+	/* Handle TX completions */
+	if (ftgmac100_tx_buf_cleanable(priv))
+		ftgmac100_tx_complete(priv);
 
+	/* Handle RX packets */
 	do {
-		more = ftgmac100_rx_packet(priv, &rx);
-	} while (more && rx < budget);
-
-	if (more && rx == budget)
-		completed = false;
+		more = ftgmac100_rx_packet(priv, &work_done);
+	} while (more && work_done < budget);
 
 
 	/* The interrupt is telling us to kick the MAC back to life
@@ -1003,11 +1058,13 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 			  priv->base + FTGMAC100_OFFSET_IER);
 	}
 
-	/* Keep NAPI going if we have still packets to reclaim */
-	if (priv->tx_pending)
-		return budget;
+	/* As long as we are waiting for transmit packets to be
+	 * completed we keep NAPI going
+	 */
+	if (ftgmac100_tx_buf_cleanable(priv))
+		work_done = budget;
 
-	if (completed) {
+	if (work_done < budget) {
 		/* We are about to re-enable all interrupts. However
 		 * the HW has been latching RX/TX packet interrupts while
 		 * they were masked. So we clear them first, then we need
@@ -1015,7 +1072,8 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 		 */
 		iowrite32(FTGMAC100_INT_RXTX,
 			  priv->base + FTGMAC100_OFFSET_ISR);
-		if (ftgmac100_check_rx(priv) || priv->tx_pending)
+		if (ftgmac100_check_rx(priv) ||
+		    ftgmac100_tx_buf_cleanable(priv))
 			return budget;
 
 		/* deschedule NAPI */
@@ -1026,7 +1084,7 @@ static int ftgmac100_poll(struct napi_struct *napi, int budget)
 			  priv->base + FTGMAC100_OFFSET_IER);
 	}
 
-	return rx;
+	return work_done;
 }
 
 static int ftgmac100_init_all(struct ftgmac100 *priv, bool ignore_alloc_err)
@@ -1212,35 +1270,6 @@ static int ftgmac100_stop(struct net_device *netdev)
 	return 0;
 }
 
-static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
-				     struct net_device *netdev)
-{
-	struct ftgmac100 *priv = netdev_priv(netdev);
-	dma_addr_t map;
-
-	if (unlikely(skb->len > MAX_PKT_SIZE)) {
-		if (net_ratelimit())
-			netdev_dbg(netdev, "tx packet too big\n");
-
-		netdev->stats.tx_dropped++;
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	map = dma_map_single(priv->dev, skb->data, skb_headlen(skb), DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(priv->dev, map))) {
-		/* drop packet */
-		if (net_ratelimit())
-			netdev_err(netdev, "map socket buffer failed\n");
-
-		netdev->stats.tx_dropped++;
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	return ftgmac100_xmit(priv, skb, map);
-}
-
 /* optional */
 static int ftgmac100_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
@@ -1250,6 +1279,17 @@ static int ftgmac100_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int 
 	return phy_mii_ioctl(netdev->phydev, ifr, cmd);
 }
 
+static void ftgmac100_tx_timeout(struct net_device *netdev)
+{
+	struct ftgmac100 *priv = netdev_priv(netdev);
+
+	/* Disable all interrupts */
+	iowrite32(0, priv->base + FTGMAC100_OFFSET_IER);
+
+	/* Do the reset outside of interrupt context */
+	schedule_work(&priv->reset_task);
+}
+
 static const struct net_device_ops ftgmac100_netdev_ops = {
 	.ndo_open		= ftgmac100_open,
 	.ndo_stop		= ftgmac100_stop,
@@ -1257,6 +1297,7 @@ static const struct net_device_ops ftgmac100_netdev_ops = {
 	.ndo_set_mac_address	= ftgmac100_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= ftgmac100_do_ioctl,
+	.ndo_tx_timeout		= ftgmac100_tx_timeout,
 };
 
 static int ftgmac100_setup_mdio(struct net_device *netdev)
@@ -1361,6 +1402,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 
 	netdev->ethtool_ops = &ftgmac100_ethtool_ops;
 	netdev->netdev_ops = &ftgmac100_netdev_ops;
+	netdev->watchdog_timeo = 5 * HZ;
 
 	platform_set_drvdata(pdev, netdev);
 
@@ -1369,8 +1411,6 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv->netdev = netdev;
 	priv->dev = &pdev->dev;
 	INIT_WORK(&priv->reset_task, ftgmac100_reset_task);
-
-	spin_lock_init(&priv->tx_lock);
 
 	/* map io memory */
 	priv->res = request_mem_region(res->start, resource_size(res),
@@ -1425,11 +1465,11 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	 * when NCSI is enabled on the interface. It doesn't work
 	 * in that case.
 	 */
-	netdev->features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_GRO;
+	netdev->features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
+		NETIF_F_GRO | NETIF_F_SG;
 	if (priv->use_ncsi &&
 	    of_get_property(pdev->dev.of_node, "no-hw-checksum", NULL))
 		netdev->features &= ~NETIF_F_IP_CSUM;
-
 
 	/* register network device */
 	err = register_netdev(netdev);

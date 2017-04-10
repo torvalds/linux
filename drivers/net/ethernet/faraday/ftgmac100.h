@@ -202,10 +202,10 @@
  * Transmit descriptor, aligned to 16 bytes
  */
 struct ftgmac100_txdes {
-	unsigned int	txdes0;
-	unsigned int	txdes1;
-	unsigned int	txdes2;	/* not used by HW */
-	unsigned int	txdes3;	/* TXBUF_BADR */
+	__le32	txdes0; /* Control & status bits */
+	__le32	txdes1; /* Irq, checksum and vlan control */
+	__le32	txdes2; /* Reserved */
+	__le32	txdes3; /* DMA buffer address */
 } __attribute__ ((aligned(16)));
 
 #define FTGMAC100_TXDES0_TXBUF_SIZE(x)	((x) & 0x3fff)
