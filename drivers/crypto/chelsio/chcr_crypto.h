@@ -41,7 +41,7 @@
 
 #define CCM_B0_SIZE             16
 #define CCM_AAD_FIELD_SIZE      2
-#define T5_MAX_AAD_SIZE 512
+#define T6_MAX_AAD_SIZE 511
 
 
 /* Define following if h/w is not dropping the AAD and IV data before
@@ -188,6 +188,7 @@ struct chcr_aead_ctx {
 	__be32 key_ctx_hdr;
 	unsigned int enckey_len;
 	struct crypto_skcipher *null;
+	struct crypto_aead *sw_cipher;
 	u8 salt[MAX_SALT];
 	u8 key[CHCR_AES_MAX_KEY_LEN];
 	u16 hmac_ctrl;
