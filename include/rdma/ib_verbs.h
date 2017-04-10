@@ -1881,7 +1881,8 @@ struct ib_port_immutable {
 
 /* rdma netdev type - specifies protocol type */
 enum rdma_netdev_t {
-	RDMA_NETDEV_OPA_VNIC
+	RDMA_NETDEV_OPA_VNIC,
+	RDMA_NETDEV_IPOIB,
 };
 
 /**
@@ -1895,6 +1896,15 @@ struct rdma_netdev {
 
 	/* control functions */
 	void (*set_id)(struct net_device *netdev, int id);
+	/* send packet */
+	int (*send)(struct net_device *dev, struct sk_buff *skb,
+		    struct ib_ah *address, u32 dqpn);
+	/* multicast */
+	int (*attach_mcast)(struct net_device *dev, struct ib_device *hca,
+			    union ib_gid *gid, u16 mlid,
+			    int set_qkey, u32 qkey);
+	int (*detach_mcast)(struct net_device *dev, struct ib_device *hca,
+			    union ib_gid *gid, u16 mlid);
 };
 
 struct ib_device {
