@@ -459,7 +459,6 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 		drm_mode_connector_attach_encoder(&intel_connector->base,
 						  &intel_dp->mst_encoders[i]->base.base);
 	}
-	intel_dp_add_properties(intel_dp, connector);
 
 	drm_object_attach_property(&connector->base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&connector->base, dev->mode_config.tile_property, 0);
