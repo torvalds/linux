@@ -712,7 +712,7 @@ static int ks7010_upload_firmware(struct ks_sdio_card *card)
 	unsigned char *rom_buf;
 	unsigned char rw_data = 0;
 	int ret;
-	int length;
+	unsigned int length;
 	const struct firmware *fw_entry = NULL;
 
 	/* buffer allocate */
