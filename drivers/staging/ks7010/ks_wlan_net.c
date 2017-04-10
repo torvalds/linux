@@ -1788,9 +1788,9 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 	key = &priv->wpa.key[index];
 
 	if (dwrq->flags & IW_ENCODE_DISABLED)
-		priv->wpa.key[index].key_len = 0;
+		key->key_len = 0;
 
-	priv->wpa.key[index].ext_flags = enc->ext_flags;
+	key->ext_flags = enc->ext_flags;
 	if (enc->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
 		priv->wpa.txkey = index;
 		commit |= SME_WEP_INDEX;
@@ -1806,7 +1806,7 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 			priv->reg.privacy_invoked = 0x00;
 			commit |= SME_WEP_FLAG;
 		}
-		priv->wpa.key[index].key_len = 0;
+		key->key_len = 0;
 
 		break;
 	case IW_ENCODE_ALG_WEP:
@@ -1842,7 +1842,7 @@ static int ks_wlan_set_encode_ext(struct net_device *dev,
 	default:
 		return -EINVAL;
 	}
-	priv->wpa.key[index].alg = enc->alg;
+	key->alg = enc->alg;
 
 	if (commit) {
 		if (commit & SME_WEP_INDEX)
