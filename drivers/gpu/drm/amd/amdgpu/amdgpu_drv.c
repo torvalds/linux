@@ -63,9 +63,10 @@
  * - 3.11.0 - Add support for sensor query info (clocks, temp, etc).
  * - 3.12.0 - Add query for double offchip LDS buffers
  * - 3.13.0 - Add PRT support
+ * - 3.14.0 - Fix race in amdgpu_ctx_get_fence() and note new functionality
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	13
+#define KMS_DRIVER_MINOR	14
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
