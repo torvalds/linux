@@ -71,7 +71,7 @@ struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 		ah = (struct ipoib_ah *)vah;
 	} else {
 		ah->ah = vah;
-		ipoib_dbg(netdev_priv(dev), "Created ah %p\n", ah->ah);
+		ipoib_dbg(ipoib_priv(dev), "Created ah %p\n", ah->ah);
 	}
 
 	return ah;
@@ -80,7 +80,7 @@ struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 void ipoib_free_ah(struct kref *kref)
 {
 	struct ipoib_ah *ah = container_of(kref, struct ipoib_ah, ref);
-	struct ipoib_dev_priv *priv = netdev_priv(ah->dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(ah->dev);
 
 	unsigned long flags;
 
@@ -99,7 +99,7 @@ static void ipoib_ud_dma_unmap_rx(struct ipoib_dev_priv *priv,
 
 static int ipoib_ib_post_receive(struct net_device *dev, int id)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ib_recv_wr *bad_wr;
 	int ret;
 
@@ -121,7 +121,7 @@ static int ipoib_ib_post_receive(struct net_device *dev, int id)
 
 static struct sk_buff *ipoib_alloc_rx_skb(struct net_device *dev, int id)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct sk_buff *skb;
 	int buf_size;
 	u64 *mapping;
@@ -153,7 +153,7 @@ error:
 
 static int ipoib_ib_post_receives(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	int i;
 
 	for (i = 0; i < ipoib_recvq_size; ++i) {
@@ -172,7 +172,7 @@ static int ipoib_ib_post_receives(struct net_device *dev)
 
 static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	unsigned int wr_id = wc->wr_id & ~IPOIB_OP_RECV;
 	struct sk_buff *skb;
 	u64 mapping[IPOIB_UD_RX_SG];
@@ -381,7 +381,7 @@ free_res:
 
 static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	unsigned int wr_id = wc->wr_id;
 	struct ipoib_tx_buf *tx_req;
 
@@ -485,14 +485,14 @@ poll_more:
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 {
 	struct net_device *dev = dev_ptr;
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	napi_schedule(&priv->napi);
 }
 
 static void drain_tx_cq(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	netif_tx_lock(dev);
 	while (poll_tx(priv))
@@ -506,7 +506,7 @@ static void drain_tx_cq(struct net_device *dev)
 
 void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev_ptr);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev_ptr);
 
 	mod_timer(&priv->poll_timer, jiffies);
 }
@@ -540,7 +540,7 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		struct ipoib_ah *address, u32 dqpn)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ipoib_tx_buf *tx_req;
 	int hlen, rc;
 	void *phead;
@@ -644,7 +644,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 
 static void __ipoib_reap_ah(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ipoib_ah *ah, *tah;
 	LIST_HEAD(remove_list);
 	unsigned long flags;
@@ -678,7 +678,7 @@ void ipoib_reap_ah(struct work_struct *work)
 
 static void ipoib_flush_ah(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	cancel_delayed_work(&priv->ah_reap_task);
 	flush_workqueue(priv->wq);
@@ -687,7 +687,7 @@ static void ipoib_flush_ah(struct net_device *dev)
 
 static void ipoib_stop_ah(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	set_bit(IPOIB_STOP_REAPER, &priv->flags);
 	ipoib_flush_ah(dev);
@@ -695,7 +695,7 @@ static void ipoib_stop_ah(struct net_device *dev)
 
 static int recvs_pending(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	int pending = 0;
 	int i;
 
@@ -708,7 +708,7 @@ static int recvs_pending(struct net_device *dev)
 
 int ipoib_ib_dev_stop_default(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ib_qp_attr qp_attr;
 	unsigned long begin;
 	struct ipoib_tx_buf *tx_req;
@@ -799,7 +799,7 @@ void ipoib_ib_tx_timer_func(unsigned long ctx)
 
 int ipoib_ib_dev_open_default(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	int ret;
 
 	ret = ipoib_init_qp(dev);
@@ -833,7 +833,7 @@ dev_stop:
 
 int ipoib_ib_dev_open(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	ipoib_pkey_dev_check_presence(dev);
 
@@ -862,7 +862,7 @@ stop_ah_reap:
 
 void ipoib_pkey_dev_check_presence(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	if (!(priv->pkey & 0x7fff) ||
 	    ib_find_pkey(priv->ca, priv->port, priv->pkey,
@@ -874,7 +874,7 @@ void ipoib_pkey_dev_check_presence(struct net_device *dev)
 
 void ipoib_ib_dev_up(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	ipoib_pkey_dev_check_presence(dev);
 
@@ -890,7 +890,7 @@ void ipoib_ib_dev_up(struct net_device *dev)
 
 void ipoib_ib_dev_down(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	ipoib_dbg(priv, "downing ib_dev\n");
 
@@ -905,7 +905,7 @@ void ipoib_ib_dev_down(struct net_device *dev)
 
 void ipoib_drain_cq(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	int i, n;
 
 	/*
@@ -1219,7 +1219,7 @@ void ipoib_ib_dev_flush_heavy(struct work_struct *work)
 
 void ipoib_ib_dev_cleanup(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	ipoib_dbg(priv, "cleaning up ib_dev\n");
 	/*

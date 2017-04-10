@@ -153,6 +153,9 @@ static inline void skb_add_pseudo_hdr(struct sk_buff *skb)
 	skb_pull(skb, IPOIB_HARD_LEN);
 }
 
+/* Keep the refactoring compile able */
+#define ipoib_priv netdev_priv
+
 /* Used for all multicast joins (broadcast, IPv4 mcast and IPv6 mcast) */
 struct ipoib_mcast {
 	struct ib_sa_mcmember_rec mcmember;
@@ -608,14 +611,14 @@ extern int ipoib_max_conn_qp;
 
 static inline int ipoib_cm_admin_enabled(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	return IPOIB_CM_SUPPORTED(dev->dev_addr) &&
 		test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 }
 
 static inline int ipoib_cm_enabled(struct net_device *dev, u8 *hwaddr)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	return IPOIB_CM_SUPPORTED(hwaddr) &&
 		test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 }
@@ -638,13 +641,13 @@ static inline void ipoib_cm_set(struct ipoib_neigh *neigh, struct ipoib_cm_tx *t
 
 static inline int ipoib_cm_has_srq(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	return !!priv->cm.srq;
 }
 
 static inline unsigned int ipoib_cm_max_mtu(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	return priv->cm.max_cm_mtu;
 }
 

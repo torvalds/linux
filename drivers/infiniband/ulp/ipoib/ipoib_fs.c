@@ -261,7 +261,7 @@ static const struct file_operations ipoib_path_fops = {
 
 void ipoib_create_debug_files(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	char name[IFNAMSIZ + sizeof "_path"];
 
 	snprintf(name, sizeof name, "%s_mcg", dev->name);
@@ -279,7 +279,7 @@ void ipoib_create_debug_files(struct net_device *dev)
 
 void ipoib_delete_debug_files(struct net_device *dev)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	WARN_ONCE(!priv->mcg_dentry, "null mcg debug file\n");
 	WARN_ONCE(!priv->path_dentry, "null path debug file\n");
