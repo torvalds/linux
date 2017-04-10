@@ -563,13 +563,29 @@ static bool ftgmac100_tx_buf_cleanable(struct ftgmac100 *priv)
 	return priv->tx_pointer != priv->tx_clean_pointer;
 }
 
+static void ftgmac100_free_tx_packet(struct ftgmac100 *priv,
+				     unsigned int pointer,
+				     struct sk_buff *skb,
+				     struct ftgmac100_txdes *txdes)
+{
+	dma_addr_t map;
+
+	map = ftgmac100_txdes_get_dma_addr(txdes);
+
+	dma_unmap_single(priv->dev, map, skb_headlen(skb), DMA_TO_DEVICE);
+
+	dev_kfree_skb(skb);
+	priv->tx_skbs[pointer] = NULL;
+
+	ftgmac100_txdes_reset(priv, txdes);
+}
+
 static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 {
 	struct net_device *netdev = priv->netdev;
 	struct ftgmac100_txdes *txdes;
-	unsigned int pointer;
 	struct sk_buff *skb;
-	dma_addr_t map;
+	unsigned int pointer;
 
 	pointer = priv->tx_clean_pointer;
 	txdes = &priv->descs->txdes[pointer];
@@ -578,17 +594,9 @@ static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 		return false;
 
 	skb = priv->tx_skbs[pointer];
-	map = ftgmac100_txdes_get_dma_addr(txdes);
-
 	netdev->stats.tx_packets++;
 	netdev->stats.tx_bytes += skb->len;
-
-	dma_unmap_single(priv->dev, map, skb_headlen(skb), DMA_TO_DEVICE);
-
-	dev_kfree_skb(skb);
-	priv->tx_skbs[pointer] = NULL;
-
-	ftgmac100_txdes_reset(priv, txdes);
+	ftgmac100_free_tx_packet(priv, pointer, skb, txdes);
 
 	priv->tx_clean_pointer = ftgmac100_next_tx_pointer(pointer);
 
@@ -729,13 +737,9 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 	for (i = 0; i < TX_QUEUE_ENTRIES; i++) {
 		struct ftgmac100_txdes *txdes = &priv->descs->txdes[i];
 		struct sk_buff *skb = priv->tx_skbs[i];
-		dma_addr_t map = ftgmac100_txdes_get_dma_addr(txdes);
 
-		if (!skb)
-			continue;
-
-		dma_unmap_single(priv->dev, map, skb_headlen(skb), DMA_TO_DEVICE);
-		kfree_skb(skb);
+		if (skb)
+			ftgmac100_free_tx_packet(priv, i, skb, txdes);
 	}
 }
 
