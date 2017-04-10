@@ -337,6 +337,10 @@ static int __init setup_hugepagesz(char *string)
 	hugepage_shift = ilog2(hugepage_size);
 
 	switch (hugepage_shift) {
+	case HPAGE_2GB_SHIFT:
+		hv_pgsz_mask = HV_PGSZ_MASK_2GB;
+		hv_pgsz_idx = HV_PGSZ_IDX_2GB;
+		break;
 	case HPAGE_256MB_SHIFT:
 		hv_pgsz_mask = HV_PGSZ_MASK_256MB;
 		hv_pgsz_idx = HV_PGSZ_IDX_256MB;
@@ -1563,7 +1567,7 @@ bool kern_addr_valid(unsigned long addr)
 	if ((long)addr < 0L) {
 		unsigned long pa = __pa(addr);
 
-		if ((addr >> max_phys_bits) != 0UL)
+		if ((pa >> max_phys_bits) != 0UL)
 			return false;
 
 		return pfn_valid(pa >> PAGE_SHIFT);

@@ -263,8 +263,13 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 		if (!new_op)
 			return -ENOMEM;
 		new_op->upcall.req.features.features = 0;
-		ret = service_operation(new_op, "orangefs_features", 0);
-		orangefs_features = new_op->downcall.resp.features.features;
+		ret = service_operation(new_op, "orangefs_features",
+		    ORANGEFS_OP_PRIORITY | ORANGEFS_OP_NO_MUTEX);
+		if (!ret)
+			orangefs_features =
+			    new_op->downcall.resp.features.features;
+		else
+			orangefs_features = 0;
 		op_release(new_op);
 	} else {
 		orangefs_features = 0;
