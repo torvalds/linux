@@ -2147,33 +2147,27 @@ void hostif_sme_mode_setup(struct ks_wlan_private *priv)
 	/* rate mask by phy setting */
 	if (priv->reg.phy_type == D_11B_ONLY_MODE) {
 		for (i = 0; i < priv->reg.rate_set.size; i++) {
-			if (IS_11B_RATE(priv->reg.rate_set.body[i])) {
-				if ((priv->reg.rate_set.body[i] & RATE_MASK) >=
-				    TX_RATE_5M)
-					rate_octet[i] =
-					    priv->reg.rate_set.
-					    body[i] & RATE_MASK;
-				else
-					rate_octet[i] =
-					    priv->reg.rate_set.body[i];
-			} else {
+			if (!IS_11B_RATE(priv->reg.rate_set.body[i]))
 				break;
+
+			if ((priv->reg.rate_set.body[i] & RATE_MASK) >= TX_RATE_5M) {
+				rate_octet[i] = priv->reg.rate_set.body[i] &
+						RATE_MASK;
+			} else {
+				rate_octet[i] = priv->reg.rate_set.body[i];
 			}
 		}
 
 	} else {	/* D_11G_ONLY_MODE or D_11BG_COMPATIBLE_MODE */
 		for (i = 0; i < priv->reg.rate_set.size; i++) {
-			if (IS_11BG_RATE(priv->reg.rate_set.body[i])) {
-				if (IS_OFDM_EXT_RATE
-				    (priv->reg.rate_set.body[i]))
-					rate_octet[i] =
-					    priv->reg.rate_set.
-					    body[i] & RATE_MASK;
-				else
-					rate_octet[i] =
-					    priv->reg.rate_set.body[i];
-			} else {
+			if (!IS_11BG_RATE(priv->reg.rate_set.body[i]))
 				break;
+
+			if (IS_OFDM_EXT_RATE(priv->reg.rate_set.body[i])) {
+				rate_octet[i] = priv->reg.rate_set.body[i] &
+						RATE_MASK;
+			} else {
+				rate_octet[i] = priv->reg.rate_set.body[i];
 			}
 		}
 	}
