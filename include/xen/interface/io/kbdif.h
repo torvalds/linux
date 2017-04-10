@@ -57,6 +57,12 @@
  *      Backends, which support reporting of absolute coordinates for pointer
  *      device should set this to 1.
  *
+ * feature-multi-touch
+ *      Values:         <uint>
+ *
+ *      Backends, which support reporting of multi-touch events
+ *      should set this to 1.
+ *
  *------------------------- Pointer Device Parameters ------------------------
  *
  * width
@@ -87,6 +93,11 @@
  *      Request backend to report absolute pointer coordinates
  *      (XENKBD_TYPE_POS) instead of relative ones (XENKBD_TYPE_MOTION).
  *
+ * request-multi-touch
+ *      Values:         <uint>
+ *
+ *      Request backend to report multi-touch events.
+ *
  *----------------------- Request Transport Parameters -----------------------
  *
  * event-channel
@@ -106,6 +117,25 @@
  *
  *      OBSOLETE, not recommended for use.
  *      PFN of the shared page.
+ *
+ *----------------------- Multi-touch Device Parameters -----------------------
+ *
+ * multi-touch-num-contacts
+ *      Values:         <uint>
+ *
+ *      Number of simultaneous touches reported.
+ *
+ * multi-touch-width
+ *      Values:         <uint>
+ *
+ *      Width of the touch area to be used by the frontend
+ *      while reporting input events, pixels, [0; UINT32_MAX].
+ *
+ * multi-touch-height
+ *      Values:         <uint>
+ *
+ *      Height of the touch area to be used by the frontend
+ *      while reporting input events, pixels, [0; UINT32_MAX].
  */
 
 /*
@@ -116,6 +146,16 @@
 #define XENKBD_TYPE_RESERVED		2
 #define XENKBD_TYPE_KEY			3
 #define XENKBD_TYPE_POS			4
+#define XENKBD_TYPE_MTOUCH		5
+
+/* Multi-touch event sub-codes */
+
+#define XENKBD_MT_EV_DOWN		0
+#define XENKBD_MT_EV_UP			1
+#define XENKBD_MT_EV_MOTION		2
+#define XENKBD_MT_EV_SYN		3
+#define XENKBD_MT_EV_SHAPE		4
+#define XENKBD_MT_EV_ORIENT		5
 
 /*
  * CONSTANTS, XENSTORE FIELD AND PATH NAME STRINGS, HELPERS.
@@ -124,11 +164,16 @@
 #define XENKBD_DRIVER_NAME		"vkbd"
 
 #define XENKBD_FIELD_FEAT_ABS_POINTER	"feature-abs-pointer"
+#define XENKBD_FIELD_FEAT_MTOUCH	"feature-multi-touch"
 #define XENKBD_FIELD_REQ_ABS_POINTER	"request-abs-pointer"
+#define XENKBD_FIELD_REQ_MTOUCH		"request-multi-touch"
 #define XENKBD_FIELD_RING_GREF		"page-gref"
 #define XENKBD_FIELD_EVT_CHANNEL	"event-channel"
 #define XENKBD_FIELD_WIDTH		"width"
 #define XENKBD_FIELD_HEIGHT		"height"
+#define XENKBD_FIELD_MT_WIDTH		"multi-touch-width"
+#define XENKBD_FIELD_MT_HEIGHT		"multi-touch-height"
+#define XENKBD_FIELD_MT_NUM_CONTACTS	"multi-touch-num-contacts"
 
 /* OBSOLETE, not recommended for use */
 #define XENKBD_FIELD_RING_REF		"page-ref"
@@ -245,6 +290,170 @@ struct xenkbd_position {
 	int32_t rel_z;
 };
 
+/*
+ * Multi-touch event and its sub-types
+ *
+ * All multi-touch event packets have common header:
+ *
+ *         0                1                 2               3        octet
+ * +----------------+----------------+----------------+----------------+
+ * |  _TYPE_MTOUCH  |   event_type   |   contact_id   |    reserved    | 4
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 8
+ * +----------------+----------------+----------------+----------------+
+ *
+ * event_type - unt8_t, multi-touch event sub-type, XENKBD_MT_EV_???
+ * contact_id - unt8_t, ID of the contact
+ *
+ * Touch interactions can consist of one or more contacts.
+ * For each contact, a series of events is generated, starting
+ * with a down event, followed by zero or more motion events,
+ * and ending with an up event. Events relating to the same
+ * contact point can be identified by the ID of the sequence: contact ID.
+ * Contact ID may be reused after XENKBD_MT_EV_UP event and
+ * is in the [0; XENKBD_FIELD_NUM_CONTACTS - 1] range.
+ *
+ * For further information please refer to documentation on Wayland [1],
+ * Linux [2] and Windows [3] multi-touch support.
+ *
+ * [1] https://cgit.freedesktop.org/wayland/wayland/tree/protocol/wayland.xml
+ * [2] https://www.kernel.org/doc/Documentation/input/multi-touch-protocol.txt
+ * [3] https://msdn.microsoft.com/en-us/library/jj151564(v=vs.85).aspx
+ *
+ *
+ * Multi-touch down event - sent when a new touch is made: touch is assigned
+ * a unique contact ID, sent with this and consequent events related
+ * to this touch.
+ *         0                1                 2               3        octet
+ * +----------------+----------------+----------------+----------------+
+ * |  _TYPE_MTOUCH  |   _MT_EV_DOWN  |   contact_id   |    reserved    | 4
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 8
+ * +----------------+----------------+----------------+----------------+
+ * |                               abs_x                               | 12
+ * +----------------+----------------+----------------+----------------+
+ * |                               abs_y                               | 16
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 20
+ * +----------------+----------------+----------------+----------------+
+ * |/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/|
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 40
+ * +----------------+----------------+----------------+----------------+
+ *
+ * abs_x - int32_t, absolute X position, in pixels
+ * abs_y - int32_t, absolute Y position, in pixels
+ *
+ * Multi-touch contact release event
+ *         0                1                 2               3        octet
+ * +----------------+----------------+----------------+----------------+
+ * |  _TYPE_MTOUCH  |  _MT_EV_UP     |   contact_id   |    reserved    | 4
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 8
+ * +----------------+----------------+----------------+----------------+
+ * |/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/|
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 40
+ * +----------------+----------------+----------------+----------------+
+ *
+ * Multi-touch motion event
+ *         0                1                 2               3        octet
+ * +----------------+----------------+----------------+----------------+
+ * |  _TYPE_MTOUCH  |  _MT_EV_MOTION |   contact_id   |    reserved    | 4
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 8
+ * +----------------+----------------+----------------+----------------+
+ * |                               abs_x                               | 12
+ * +----------------+----------------+----------------+----------------+
+ * |                               abs_y                               | 16
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 20
+ * +----------------+----------------+----------------+----------------+
+ * |/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/|
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 40
+ * +----------------+----------------+----------------+----------------+
+ *
+ * abs_x - int32_t, absolute X position, in pixels,
+ * abs_y - int32_t, absolute Y position, in pixels,
+ *
+ * Multi-touch input synchronization event - shows end of a set of events
+ * which logically belong together.
+ *         0                1                 2               3        octet
+ * +----------------+----------------+----------------+----------------+
+ * |  _TYPE_MTOUCH  |  _MT_EV_SYN    |   contact_id   |    reserved    | 4
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 8
+ * +----------------+----------------+----------------+----------------+
+ * |/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/|
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 40
+ * +----------------+----------------+----------------+----------------+
+ *
+ * Multi-touch shape event - touch point's shape has changed its shape.
+ * Shape is approximated by an ellipse through the major and minor axis
+ * lengths: major is the longer diameter of the ellipse and minor is the
+ * shorter one. Center of the ellipse is reported via
+ * XENKBD_MT_EV_DOWN/XENKBD_MT_EV_MOTION events.
+ *         0                1                 2               3        octet
+ * +----------------+----------------+----------------+----------------+
+ * |  _TYPE_MTOUCH  |  _MT_EV_SHAPE  |   contact_id   |    reserved    | 4
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 8
+ * +----------------+----------------+----------------+----------------+
+ * |                               major                               | 12
+ * +----------------+----------------+----------------+----------------+
+ * |                               minor                               | 16
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 20
+ * +----------------+----------------+----------------+----------------+
+ * |/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/|
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 40
+ * +----------------+----------------+----------------+----------------+
+ *
+ * major - unt32_t, length of the major axis, pixels
+ * minor - unt32_t, length of the minor axis, pixels
+ *
+ * Multi-touch orientation event - touch point's shape has changed
+ * its orientation: calculated as a clockwise angle between the major axis
+ * of the ellipse and positive Y axis in degrees, [-180; +180].
+ *         0                1                 2               3        octet
+ * +----------------+----------------+----------------+----------------+
+ * |  _TYPE_MTOUCH  |  _MT_EV_ORIENT |   contact_id   |    reserved    | 4
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 8
+ * +----------------+----------------+----------------+----------------+
+ * |           orientation           |            reserved             | 12
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 16
+ * +----------------+----------------+----------------+----------------+
+ * |/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/|
+ * +----------------+----------------+----------------+----------------+
+ * |                             reserved                              | 40
+ * +----------------+----------------+----------------+----------------+
+ *
+ * orientation - int16_t, clockwise angle of the major axis
+ */
+
+struct xenkbd_mtouch {
+	uint8_t type;			/* XENKBD_TYPE_MTOUCH */
+	uint8_t event_type;		/* XENKBD_MT_EV_??? */
+	uint8_t contact_id;
+	uint8_t reserved[5];		/* reserved for the future use */
+	union {
+		struct {
+			int32_t abs_x;	/* absolute X position, pixels */
+			int32_t abs_y;	/* absolute Y position, pixels */
+		} pos;
+		struct {
+			uint32_t major;	/* length of the major axis, pixels */
+			uint32_t minor;	/* length of the minor axis, pixels */
+		} shape;
+		int16_t orientation;	/* clockwise angle of the major axis */
+	} u;
+};
+
 #define XENKBD_IN_EVENT_SIZE 40
 
 union xenkbd_in_event {
@@ -252,6 +461,7 @@ union xenkbd_in_event {
 	struct xenkbd_motion motion;
 	struct xenkbd_key key;
 	struct xenkbd_position pos;
+	struct xenkbd_mtouch mtouch;
 	char pad[XENKBD_IN_EVENT_SIZE];
 };
 
