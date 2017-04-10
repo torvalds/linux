@@ -450,7 +450,7 @@ static inline int neigh_hh_bridge(struct hh_cache *hh, struct sk_buff *skb)
 static inline int neigh_hh_output(const struct hh_cache *hh, struct sk_buff *skb)
 {
 	unsigned int seq;
-	int hh_len;
+	unsigned int hh_len;
 
 	do {
 		seq = read_seqbegin(&hh->hh_lock);
@@ -459,7 +459,7 @@ static inline int neigh_hh_output(const struct hh_cache *hh, struct sk_buff *skb
 			/* this is inlined by gcc */
 			memcpy(skb->data - HH_DATA_MOD, hh->hh_data, HH_DATA_MOD);
 		} else {
-			int hh_alen = HH_DATA_ALIGN(hh_len);
+			unsigned int hh_alen = HH_DATA_ALIGN(hh_len);
 
 			memcpy(skb->data - hh_alen, hh->hh_data, hh_alen);
 		}
