@@ -2195,7 +2195,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid)
 	if (rc)
 		goto free_pages;
 
-	rc = cifs_discard_remaining_data(server, buf);
+	rc = cifs_discard_remaining_data(server);
 	if (rc)
 		goto free_pages;
 
@@ -2221,7 +2221,7 @@ free_pages:
 	kfree(pages);
 	return rc;
 discard_data:
-	cifs_discard_remaining_data(server, buf);
+	cifs_discard_remaining_data(server);
 	goto free_pages;
 }
 
