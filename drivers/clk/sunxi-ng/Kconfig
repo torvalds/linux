@@ -136,6 +136,7 @@ config SUN8I_V3S_CCU
 config SUN9I_A80_CCU
 	bool "Support for the Allwinner A80 CCU"
 	select SUNXI_CCU_DIV
+	select SUNXI_CCU_MULT
 	select SUNXI_CCU_GATE
 	select SUNXI_CCU_NKMP
 	select SUNXI_CCU_NM
