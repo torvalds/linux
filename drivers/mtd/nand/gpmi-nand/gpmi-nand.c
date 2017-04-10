@@ -1936,12 +1936,6 @@ static int gpmi_set_geometry(struct gpmi_nand_data *this)
 	return gpmi_alloc_dma_buffer(this);
 }
 
-static void gpmi_nand_exit(struct gpmi_nand_data *this)
-{
-	nand_release(nand_to_mtd(&this->nand));
-	gpmi_free_dma_buffer(this);
-}
-
 static int gpmi_init_last(struct gpmi_nand_data *this)
 {
 	struct nand_chip *chip = &this->nand;
@@ -2141,7 +2135,8 @@ static int gpmi_nand_remove(struct platform_device *pdev)
 {
 	struct gpmi_nand_data *this = platform_get_drvdata(pdev);
 
-	gpmi_nand_exit(this);
+	nand_release(nand_to_mtd(&this->nand));
+	gpmi_free_dma_buffer(this);
 	release_resources(this);
 	return 0;
 }
