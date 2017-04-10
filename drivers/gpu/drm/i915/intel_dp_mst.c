@@ -294,14 +294,6 @@ intel_dp_mst_detect(struct drm_connector *connector, bool force)
 	return drm_dp_mst_detect_port(connector, &intel_dp->mst_mgr, intel_connector->port);
 }
 
-static int
-intel_dp_mst_set_property(struct drm_connector *connector,
-			  struct drm_property *property,
-			  uint64_t val)
-{
-	return 0;
-}
-
 static void
 intel_dp_mst_connector_destroy(struct drm_connector *connector)
 {
@@ -318,8 +310,7 @@ static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_dp_mst_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = intel_dp_mst_set_property,
-	.atomic_get_property = intel_connector_atomic_get_property,
+	.set_property = drm_atomic_helper_connector_set_property,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_dp_mst_connector_destroy,
