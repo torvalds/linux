@@ -107,6 +107,18 @@ config ARCH_PHYS_ADDR_T_64BIT
 config MMU
 	def_bool y
 
+config ARM64_PAGE_SHIFT
+	int
+	default 16 if ARM64_64K_PAGES
+	default 14 if ARM64_16K_PAGES
+	default 12
+
+config ARM64_CONT_SHIFT
+	int
+	default 5 if ARM64_64K_PAGES
+	default 7 if ARM64_16K_PAGES
+	default 4
+
 config NO_IOPORT_MAP
 	def_bool y if !PCI
 
