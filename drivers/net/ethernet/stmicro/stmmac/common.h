@@ -373,7 +373,7 @@ struct stmmac_desc_ops {
 	/* Invoked by the xmit function to prepare the tx descriptor */
 	void (*prepare_tx_desc) (struct dma_desc *p, int is_fs, int len,
 				 bool csum_flag, int mode, bool tx_own,
-				 bool ls);
+				 bool ls, unsigned int tot_pkt_len);
 	void (*prepare_tso_tx_desc)(struct dma_desc *p, int is_fs, int len1,
 				    int len2, bool tx_own, bool ls,
 				    unsigned int tcphdrlen,

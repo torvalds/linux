@@ -3033,7 +3033,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* Prepare the descriptor and set the own bit too */
 		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum_insertion,
-						priv->mode, 1, last_segment);
+						priv->mode, 1, last_segment,
+						skb->len);
 	}
 
 	entry = STMMAC_GET_ENTRY(entry, DMA_TX_SIZE);
@@ -3116,7 +3117,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Prepare the first descriptor setting the OWN bit too */
 		priv->hw->desc->prepare_tx_desc(first, 1, nopaged_len,
 						csum_insertion, priv->mode, 1,
-						last_segment);
+						last_segment, skb->len);
 
 		/* The own bit must be the latest setting done when prepare the
 		 * descriptor and then barrier is needed to make sure that

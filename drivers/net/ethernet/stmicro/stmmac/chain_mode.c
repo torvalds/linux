@@ -52,7 +52,7 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 	tx_q->tx_skbuff_dma[entry].len = bmax;
 	/* do not close the descriptor and do not set own bit */
 	priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum, STMMAC_CHAIN_MODE,
-					0, false);
+					0, false, skb->len);
 
 	while (len != 0) {
 		tx_q->tx_skbuff[entry] = NULL;
@@ -70,7 +70,7 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			tx_q->tx_skbuff_dma[entry].len = bmax;
 			priv->hw->desc->prepare_tx_desc(desc, 0, bmax, csum,
 							STMMAC_CHAIN_MODE, 1,
-							false);
+							false, skb->len);
 			len -= bmax;
 			i++;
 		} else {
@@ -85,7 +85,7 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			/* last descriptor can be set now */
 			priv->hw->desc->prepare_tx_desc(desc, 0, len, csum,
 							STMMAC_CHAIN_MODE, 1,
-							true);
+							true, skb->len);
 			len = 0;
 		}
 	}
