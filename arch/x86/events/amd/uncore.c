@@ -30,6 +30,9 @@
 
 #define COUNTER_SHIFT		16
 
+#undef pr_fmt
+#define pr_fmt(fmt)	"amd_uncore: " fmt
+
 static int num_counters_llc;
 static int num_counters_nb;
 
@@ -548,7 +551,7 @@ static int __init amd_uncore_init(void)
 		if (ret)
 			goto fail_nb;
 
-		pr_info("perf: AMD NB counters detected\n");
+		pr_info("AMD NB counters detected\n");
 		ret = 0;
 	}
 
@@ -562,7 +565,7 @@ static int __init amd_uncore_init(void)
 		if (ret)
 			goto fail_llc;
 
-		pr_info("perf: AMD LLC counters detected\n");
+		pr_info("AMD LLC counters detected\n");
 		ret = 0;
 	}
 
