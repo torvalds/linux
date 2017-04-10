@@ -111,6 +111,7 @@ static const struct v4l2_ctrl_config hgo_max_rgb_control = {
 	.max = 1,
 	.def = 0,
 	.step = 1,
+	.flags = V4L2_CTRL_FLAG_MODIFY_LAYOUT,
 };
 
 static const s64 hgo_num_bins[] = {
@@ -125,6 +126,7 @@ static const struct v4l2_ctrl_config hgo_num_bins_control = {
 	.max = 1,
 	.def = 0,
 	.qmenu_int = hgo_num_bins,
+	.flags = V4L2_CTRL_FLAG_MODIFY_LAYOUT,
 };
 
 /* -----------------------------------------------------------------------------
