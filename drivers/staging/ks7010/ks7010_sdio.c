@@ -312,27 +312,28 @@ static void tx_device_task(struct ks_wlan_private *priv)
 	int ret;
 
 	DPRINTK(4, "\n");
-	if (cnt_txqbody(priv) > 0 &&
-	    atomic_read(&priv->psstatus.status) != PS_SNOOZE) {
-		sp = &priv->tx_dev.tx_dev_buff[priv->tx_dev.qhead];
-		if (priv->dev_state >= DEVICE_STATE_BOOT) {
-			ret = write_to_device(priv, sp->sendp, sp->size);
-			if (ret) {
-				DPRINTK(1, "write_to_device error !!(%d)\n", ret);
-				queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
-						   &priv->ks_wlan_hw.rw_wq, 1);
-				return;
-			}
-		}
-		kfree(sp->sendp);	/* allocated memory free */
-		if (sp->complete_handler)	/* TX Complete */
-			(*sp->complete_handler) (sp->arg1, sp->arg2);
-		inc_txqhead(priv);
+	if (cnt_txqbody(priv) <= 0 ||
+	    atomic_read(&priv->psstatus.status) == PS_SNOOZE)
+		return;
 
-		if (cnt_txqbody(priv) > 0) {
+	sp = &priv->tx_dev.tx_dev_buff[priv->tx_dev.qhead];
+	if (priv->dev_state >= DEVICE_STATE_BOOT) {
+		ret = write_to_device(priv, sp->sendp, sp->size);
+		if (ret) {
+			DPRINTK(1, "write_to_device error !!(%d)\n", ret);
 			queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
-					   &priv->ks_wlan_hw.rw_wq, 0);
+					   &priv->ks_wlan_hw.rw_wq, 1);
+			return;
 		}
+	}
+	kfree(sp->sendp);
+	if (sp->complete_handler)	/* TX Complete */
+		(*sp->complete_handler) (sp->arg1, sp->arg2);
+	inc_txqhead(priv);
+
+	if (cnt_txqbody(priv) > 0) {
+		queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
+				   &priv->ks_wlan_hw.rw_wq, 0);
 	}
 }
 
@@ -535,71 +536,64 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 	priv = card->priv;
 	DPRINTK(4, "\n");
 
-	if (priv->dev_state >= DEVICE_STATE_BOOT) {
-		ret = ks7010_sdio_read(priv, INT_PENDING, &status,
-				       sizeof(status));
+	if (priv->dev_state < DEVICE_STATE_BOOT)
+		goto queue_delayed_work;
+
+	ret = ks7010_sdio_read(priv, INT_PENDING, &status, sizeof(status));
+	if (ret) {
+		DPRINTK(1, "read INT_PENDING Failed!!(%d)\n", ret);
+		goto queue_delayed_work;
+	}
+	DPRINTK(4, "INT_PENDING=%02X\n", rw_data);
+
+	/* schedule task for interrupt status */
+	/* bit7 -> Write General Communication B register */
+	/* read (General Communication B register) */
+	/* bit5 -> Write Status Idle */
+	/* bit2 -> Read Status Busy  */
+	if (status & INT_GCR_B ||
+	    atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
+		ret = ks7010_sdio_read(priv, GCR_B, &rw_data,
+				       sizeof(rw_data));
 		if (ret) {
-			DPRINTK(1, "read INT_PENDING Failed!!(%d)\n", ret);
+			DPRINTK(1, " error : GCR_B=%02X\n", rw_data);
 			goto queue_delayed_work;
 		}
-		DPRINTK(4, "INT_PENDING=%02X\n", rw_data);
-
-		/* schedule task for interrupt status */
-		/* bit7 -> Write General Communication B register */
-		/* read (General Communication B register) */
-		/* bit5 -> Write Status Idle */
-		/* bit2 -> Read Status Busy  */
-		if (status & INT_GCR_B ||
-		    atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
-			ret = ks7010_sdio_read(priv, GCR_B, &rw_data,
-					       sizeof(rw_data));
-			if (ret) {
-				DPRINTK(1, " error : GCR_B=%02X\n", rw_data);
-				goto queue_delayed_work;
+		if (rw_data == GCR_B_ACTIVE) {
+			if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
+				atomic_set(&priv->psstatus.status, PS_WAKEUP);
+				priv->wakeup_count = 0;
 			}
-			/* DPRINTK(1, "GCR_B=%02X\n", rw_data); */
-			if (rw_data == GCR_B_ACTIVE) {
-				if (atomic_read(&priv->psstatus.status) ==
-				    PS_SNOOZE) {
-					atomic_set(&priv->psstatus.status,
-						   PS_WAKEUP);
-					priv->wakeup_count = 0;
+			complete(&priv->psstatus.wakeup_wait);
+		}
+	}
+
+	do {
+		/* read (WriteStatus/ReadDataSize FN1:00_0014) */
+		ret = ks7010_sdio_read(priv, WSTATUS_RSIZE, &rw_data,
+				       sizeof(rw_data));
+		if (ret) {
+			DPRINTK(1, " error : WSTATUS_RSIZE=%02X\n", rw_data);
+			goto queue_delayed_work;
+		}
+		DPRINTK(4, "WSTATUS_RSIZE=%02X\n", rw_data);
+		rsize = rw_data & RSIZE_MASK;
+		if (rsize != 0) 	/* Read schedule */
+			ks_wlan_hw_rx(priv, (uint16_t)(rsize << 4));
+
+		if (rw_data & WSTATUS_MASK) {
+			if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
+				if (cnt_txqbody(priv)) {
+					ks_wlan_hw_wakeup_request(priv);
+					queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
+							   &priv->ks_wlan_hw.rw_wq, 1);
+					return;
 				}
-				complete(&priv->psstatus.wakeup_wait);
+			} else {
+				tx_device_task(priv);
 			}
 		}
-
-		do {
-			/* read (WriteStatus/ReadDataSize FN1:00_0014) */
-			ret = ks7010_sdio_read(priv, WSTATUS_RSIZE, &rw_data,
-					       sizeof(rw_data));
-			if (ret) {
-				DPRINTK(1, " error : WSTATUS_RSIZE=%02X\n",
-					rw_data);
-				goto queue_delayed_work;
-			}
-			DPRINTK(4, "WSTATUS_RSIZE=%02X\n", rw_data);
-			rsize = rw_data & RSIZE_MASK;
-			if (rsize != 0) 	/* Read schedule */
-				ks_wlan_hw_rx(priv, (uint16_t)(rsize << 4));
-
-			if (rw_data & WSTATUS_MASK) {
-				if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
-					if (cnt_txqbody(priv)) {
-						ks_wlan_hw_wakeup_request(priv);
-						queue_delayed_work
-							(priv->ks_wlan_hw.
-								ks7010sdio_wq,
-								&priv->ks_wlan_hw.
-								rw_wq, 1);
-						return;
-					}
-				} else {
-					tx_device_task(priv);
-				}
-			}
-		} while (rsize);
-	}
+	} while (rsize);
 
 queue_delayed_work:
 	queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,
