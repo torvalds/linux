@@ -2241,36 +2241,38 @@ void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 		hostif_mib_set_request(priv, LOCAL_MULTICAST_FILTER,
 				       sizeof(filter_type), MIB_VALUE_TYPE_BOOL,
 				       &filter_type);
-	} else if ((netdev_mc_count(dev) > NIC_MAX_MCAST_LIST) ||
-		   (dev->flags & IFF_ALLMULTI)) {
+		goto spin_unlock;
+	}
+
+	if ((netdev_mc_count(dev) > NIC_MAX_MCAST_LIST) ||
+	    (dev->flags & IFF_ALLMULTI)) {
 		filter_type = cpu_to_le32((uint32_t)MCAST_FILTER_MCASTALL);
 		hostif_mib_set_request(priv, LOCAL_MULTICAST_FILTER,
 				       sizeof(filter_type), MIB_VALUE_TYPE_BOOL,
 				       &filter_type);
-	} else {
-		if (priv->sme_i.sme_flag & SME_MULTICAST) {
-			mc_count = netdev_mc_count(dev);
-			netdev_for_each_mc_addr(ha, dev) {
-				memcpy(&set_address[i * ETH_ALEN], ha->addr,
-				       ETH_ALEN);
-				i++;
-			}
-			priv->sme_i.sme_flag &= ~SME_MULTICAST;
-			hostif_mib_set_request(priv, LOCAL_MULTICAST_ADDRESS,
-					       (ETH_ALEN * mc_count),
-					       MIB_VALUE_TYPE_OSTRING,
-					       &set_address[0]);
-		} else {
-			filter_type =
-			    cpu_to_le32((uint32_t)MCAST_FILTER_MCAST);
-			priv->sme_i.sme_flag |= SME_MULTICAST;
-			hostif_mib_set_request(priv, LOCAL_MULTICAST_FILTER,
-					       sizeof(filter_type),
-					       MIB_VALUE_TYPE_BOOL,
-					       &filter_type);
-		}
+		goto spin_unlock;
 	}
 
+	if (priv->sme_i.sme_flag & SME_MULTICAST) {
+		mc_count = netdev_mc_count(dev);
+		netdev_for_each_mc_addr(ha, dev) {
+			memcpy(&set_address[i * ETH_ALEN], ha->addr, ETH_ALEN);
+			i++;
+		}
+		priv->sme_i.sme_flag &= ~SME_MULTICAST;
+		hostif_mib_set_request(priv, LOCAL_MULTICAST_ADDRESS,
+				       ETH_ALEN * mc_count,
+				       MIB_VALUE_TYPE_OSTRING,
+				       &set_address[0]);
+	} else {
+		filter_type = cpu_to_le32((uint32_t)MCAST_FILTER_MCAST);
+		priv->sme_i.sme_flag |= SME_MULTICAST;
+		hostif_mib_set_request(priv, LOCAL_MULTICAST_FILTER,
+				       sizeof(filter_type), MIB_VALUE_TYPE_BOOL,
+				       &filter_type);
+	}
+
+spin_unlock:
 	spin_unlock(&priv->multicast_spin);
 }
 
