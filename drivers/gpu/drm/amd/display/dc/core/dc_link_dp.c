@@ -2453,3 +2453,16 @@ bool dc_link_dp_set_test_pattern(
 
 	return true;
 }
+
+void dp_enable_mst_on_sink(struct core_link *link, bool enable)
+{
+	unsigned char mstmCntl;
+
+	core_link_read_dpcd(link, DP_MSTM_CTRL, &mstmCntl, 1);
+	if (enable)
+		mstmCntl |= DP_MST_EN;
+	else
+		mstmCntl &= (~DP_MST_EN);
+
+	core_link_write_dpcd(link, DP_MSTM_CTRL, &mstmCntl, 1);
+}

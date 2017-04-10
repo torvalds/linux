@@ -129,6 +129,9 @@ void dp_disable_link_phy_mst(struct core_link *link, enum signal_type signal)
 		return;
 
 	dp_disable_link_phy(link, signal);
+
+	/* set the sink to SST mode after disabling the link */
+	dp_enable_mst_on_sink(link, false);
 }
 
 bool dp_set_hw_training_pattern(

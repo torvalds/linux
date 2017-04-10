@@ -1250,6 +1250,9 @@ static enum dc_status enable_link_dp_mst(struct pipe_ctx *pipe_ctx)
 	if (link->public.cur_link_settings.lane_count != LANE_COUNT_UNKNOWN)
 		return DC_OK;
 
+	/* set the sink to MST mode before enabling the link */
+	dp_enable_mst_on_sink(link, true);
+
 	return enable_link_dp(pipe_ctx);
 }
 

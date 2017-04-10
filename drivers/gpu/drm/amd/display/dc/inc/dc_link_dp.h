@@ -57,4 +57,6 @@ void detect_dp_sink_caps(struct core_link *link);
 
 bool is_dp_active_dongle(const struct core_link *link);
 
+void dp_enable_mst_on_sink(struct core_link *link, bool enable);
+
 #endif /* __DC_LINK_DP_H__ */
