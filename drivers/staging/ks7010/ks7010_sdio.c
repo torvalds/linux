@@ -1042,6 +1042,35 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	return -ENODEV;
 }
 
+/* send stop request to MAC */
+static int send_stop_request(struct sdio_func *func)
+{
+	struct hostif_stop_request_t *pp;
+	struct ks_sdio_card *card;
+	size_t size;
+
+	card = sdio_get_drvdata(func);
+
+	pp = kzalloc(hif_align_size(sizeof(*pp)), GFP_KERNEL);
+	if (!pp) {
+		DPRINTK(3, "allocate memory failed..\n");
+		return -ENOMEM;
+	}
+
+	size = sizeof(*pp) - sizeof(pp->header.size);
+	pp->header.size = cpu_to_le16((uint16_t)size);
+	pp->header.event = cpu_to_le16((uint16_t)HIF_STOP_REQ);
+
+	sdio_claim_host(func);
+	write_to_device(card->priv, (unsigned char *)pp,
+			hif_align_size(sizeof(*pp)));
+	sdio_release_host(func);
+
+	kfree(pp);
+	return 0;
+}
+
+
 static void ks7010_sdio_remove(struct sdio_func *func)
 {
 	int ret;
@@ -1070,27 +1099,10 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 		sdio_release_host(func);
 		DPRINTK(1, "interrupt disable\n");
 
-		/* send stop request to MAC */
-		{
-			struct hostif_stop_request_t *pp;
+		ret = send_stop_request(func);
+		if (ret)	/* memory allocation failure */
+			return;
 
-			pp = kzalloc(hif_align_size(sizeof(*pp)), GFP_KERNEL);
-			if (!pp) {
-				DPRINTK(3, "allocate memory failed..\n");
-				return;	/* to do goto ni suru */
-			}
-			pp->header.size =
-			    cpu_to_le16((uint16_t)
-					(sizeof(*pp) -
-					 sizeof(pp->header.size)));
-			pp->header.event = cpu_to_le16((uint16_t)HIF_STOP_REQ);
-
-			sdio_claim_host(func);
-			write_to_device(priv, (unsigned char *)pp,
-					hif_align_size(sizeof(*pp)));
-			sdio_release_host(func);
-			kfree(pp);
-		}
 		DPRINTK(1, "STOP Req\n");
 
 		if (priv->ks_wlan_hw.ks7010sdio_wq) {
