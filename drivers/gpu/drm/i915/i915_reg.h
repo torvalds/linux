@@ -85,6 +85,14 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define VECS_HW		3
 #define VCS2_HW		4
 
+/* Engine class */
+
+#define RENDER_CLASS		0
+#define VIDEO_DECODE_CLASS	1
+#define VIDEO_ENHANCEMENT_CLASS	2
+#define COPY_ENGINE_CLASS	3
+#define OTHER_CLASS		4
+
 /* PCI config space */
 
 #define MCHBAR_I915 0x44

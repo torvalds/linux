@@ -193,6 +193,10 @@ struct intel_engine_cs {
 	enum intel_engine_id id;
 	unsigned int exec_id;
 	unsigned int hw_id;
+
+	u8 class;
+	u8 instance;
+
 	unsigned int guc_id;
 	u32		mmio_base;
 	unsigned int irq_shift;

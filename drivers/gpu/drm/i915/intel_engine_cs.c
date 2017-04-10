@@ -30,6 +30,8 @@ static const struct engine_info {
 	const char *name;
 	unsigned int exec_id;
 	unsigned int hw_id;
+	u8 class;
+	u8 instance;
 	u32 mmio_base;
 	unsigned irq_shift;
 	int (*init_legacy)(struct intel_engine_cs *engine);
@@ -39,6 +41,8 @@ static const struct engine_info {
 		.name = "rcs",
 		.hw_id = RCS_HW,
 		.exec_id = I915_EXEC_RENDER,
+		.class = RENDER_CLASS,
+		.instance = 0,
 		.mmio_base = RENDER_RING_BASE,
 		.irq_shift = GEN8_RCS_IRQ_SHIFT,
 		.init_execlists = logical_render_ring_init,
@@ -48,6 +52,8 @@ static const struct engine_info {
 		.name = "bcs",
 		.hw_id = BCS_HW,
 		.exec_id = I915_EXEC_BLT,
+		.class = COPY_ENGINE_CLASS,
+		.instance = 0,
 		.mmio_base = BLT_RING_BASE,
 		.irq_shift = GEN8_BCS_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
@@ -57,6 +63,8 @@ static const struct engine_info {
 		.name = "vcs",
 		.hw_id = VCS_HW,
 		.exec_id = I915_EXEC_BSD,
+		.class = VIDEO_DECODE_CLASS,
+		.instance = 0,
 		.mmio_base = GEN6_BSD_RING_BASE,
 		.irq_shift = GEN8_VCS1_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
@@ -66,6 +74,8 @@ static const struct engine_info {
 		.name = "vcs2",
 		.hw_id = VCS2_HW,
 		.exec_id = I915_EXEC_BSD,
+		.class = VIDEO_DECODE_CLASS,
+		.instance = 1,
 		.mmio_base = GEN8_BSD2_RING_BASE,
 		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
@@ -75,6 +85,8 @@ static const struct engine_info {
 		.name = "vecs",
 		.hw_id = VECS_HW,
 		.exec_id = I915_EXEC_VEBOX,
+		.class = VIDEO_ENHANCEMENT_CLASS,
+		.instance = 0,
 		.mmio_base = VEBOX_RING_BASE,
 		.irq_shift = GEN8_VECS_IRQ_SHIFT,
 		.init_execlists = logical_xcs_ring_init,
@@ -101,6 +113,8 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->hw_id = engine->guc_id = info->hw_id;
 	engine->mmio_base = info->mmio_base;
 	engine->irq_shift = info->irq_shift;
+	engine->class = info->class;
+	engine->instance = info->instance;
 
 	/* Nothing to do here, execute in order of dependencies */
 	engine->schedule = NULL;
