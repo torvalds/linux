@@ -138,6 +138,7 @@ struct hisi_sas_slot {
 	struct hisi_sas_sge_page *sge_page;
 	dma_addr_t sge_page_dma;
 	struct work_struct abort_slot;
+	struct timer_list internal_abort_timer;
 };
 
 struct hisi_sas_tmf_task {

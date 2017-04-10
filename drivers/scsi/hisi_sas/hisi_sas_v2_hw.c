@@ -194,9 +194,9 @@
 #define SL_CONTROL_NOTIFY_EN_MSK	(0x1 << SL_CONTROL_NOTIFY_EN_OFF)
 #define SL_CONTROL_CTA_OFF		17
 #define SL_CONTROL_CTA_MSK		(0x1 << SL_CONTROL_CTA_OFF)
-#define RX_PRIMS_STATUS         (PORT_BASE + 0x98)
-#define RX_BCAST_CHG_OFF        1
-#define RX_BCAST_CHG_MSK        (0x1 << RX_BCAST_CHG_OFF)
+#define RX_PRIMS_STATUS			(PORT_BASE + 0x98)
+#define RX_BCAST_CHG_OFF		1
+#define RX_BCAST_CHG_MSK		(0x1 << RX_BCAST_CHG_OFF)
 #define TX_ID_DWORD0			(PORT_BASE + 0x9c)
 #define TX_ID_DWORD1			(PORT_BASE + 0xa0)
 #define TX_ID_DWORD2			(PORT_BASE + 0xa4)
@@ -209,8 +209,8 @@
 #define TXID_AUTO_CT3_MSK		(0x1 << TXID_AUTO_CT3_OFF)
 #define TXID_AUTO_CTB_OFF		11
 #define TXID_AUTO_CTB_MSK		(0x1 << TXID_AUTO_CTB_OFF)
-#define TX_HARDRST_OFF          2
-#define TX_HARDRST_MSK          (0x1 << TX_HARDRST_OFF)
+#define TX_HARDRST_OFF			2
+#define TX_HARDRST_MSK			(0x1 << TX_HARDRST_OFF)
 #define RX_IDAF_DWORD0			(PORT_BASE + 0xc4)
 #define RX_IDAF_DWORD1			(PORT_BASE + 0xc8)
 #define RX_IDAF_DWORD2			(PORT_BASE + 0xcc)
@@ -245,13 +245,13 @@
 #define CHL_INT1_MSK			(PORT_BASE + 0x1c4)
 #define CHL_INT2_MSK			(PORT_BASE + 0x1c8)
 #define CHL_INT_COAL_EN			(PORT_BASE + 0x1d0)
-#define DMA_TX_DFX0			(PORT_BASE + 0x200)
-#define DMA_TX_DFX1			(PORT_BASE + 0x204)
+#define DMA_TX_DFX0				(PORT_BASE + 0x200)
+#define DMA_TX_DFX1				(PORT_BASE + 0x204)
 #define DMA_TX_DFX1_IPTT_OFF		0
 #define DMA_TX_DFX1_IPTT_MSK		(0xffff << DMA_TX_DFX1_IPTT_OFF)
 #define DMA_TX_FIFO_DFX0		(PORT_BASE + 0x240)
-#define PORT_DFX0			(PORT_BASE + 0x258)
-#define LINK_DFX2			(PORT_BASE + 0X264)
+#define PORT_DFX0				(PORT_BASE + 0x258)
+#define LINK_DFX2					(PORT_BASE + 0X264)
 #define LINK_DFX2_RCVR_HOLD_STS_OFF	9
 #define LINK_DFX2_RCVR_HOLD_STS_MSK	(0x1 << LINK_DFX2_RCVR_HOLD_STS_OFF)
 #define LINK_DFX2_SEND_HOLD_STS_OFF	10
@@ -2260,15 +2260,18 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	case STAT_IO_COMPLETE:
 		/* internal abort command complete */
 		ts->stat = TMF_RESP_FUNC_SUCC;
+		del_timer(&slot->internal_abort_timer);
 		goto out;
 	case STAT_IO_NO_DEVICE:
 		ts->stat = TMF_RESP_FUNC_COMPLETE;
+		del_timer(&slot->internal_abort_timer);
 		goto out;
 	case STAT_IO_NOT_VALID:
 		/* abort single io, controller don't find
 		 * the io need to abort
 		 */
 		ts->stat = TMF_RESP_FUNC_FAILED;
+		del_timer(&slot->internal_abort_timer);
 		goto out;
 	default:
 		break;
@@ -2502,6 +2505,40 @@ static int prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	return 0;
 }
 
+static void hisi_sas_internal_abort_quirk_timeout(unsigned long data)
+{
+	struct hisi_sas_slot *slot = (struct hisi_sas_slot *)data;
+	struct hisi_sas_port *port = slot->port;
+	struct asd_sas_port *asd_sas_port;
+	struct asd_sas_phy *sas_phy;
+
+	if (!port)
+		return;
+
+	asd_sas_port = &port->sas_port;
+
+	/* Kick the hardware - send break command */
+	list_for_each_entry(sas_phy, &asd_sas_port->phy_list, port_phy_el) {
+		struct hisi_sas_phy *phy = sas_phy->lldd_phy;
+		struct hisi_hba *hisi_hba = phy->hisi_hba;
+		int phy_no = sas_phy->id;
+		u32 link_dfx2;
+
+		link_dfx2 = hisi_sas_phy_read32(hisi_hba, phy_no, LINK_DFX2);
+		if ((link_dfx2 == LINK_DFX2_RCVR_HOLD_STS_MSK) ||
+		    (link_dfx2 & LINK_DFX2_SEND_HOLD_STS_MSK)) {
+			u32 txid_auto;
+
+			txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no,
+							TXID_AUTO);
+			txid_auto |= TXID_AUTO_CTB_MSK;
+			hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
+					     txid_auto);
+			return;
+		}
+	}
+}
+
 static int prep_abort_v2_hw(struct hisi_hba *hisi_hba,
 		struct hisi_sas_slot *slot,
 		int device_id, int abort_flag, int tag_to_abort)
@@ -2510,6 +2547,13 @@ static int prep_abort_v2_hw(struct hisi_hba *hisi_hba,
 	struct domain_device *dev = task->dev;
 	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
 	struct hisi_sas_port *port = slot->port;
+	struct timer_list *timer = &slot->internal_abort_timer;
+
+	/* setup the quirk timer */
+	setup_timer(timer, hisi_sas_internal_abort_quirk_timeout,
+		    (unsigned long)slot);
+	/* Set the timeout to 10ms less than internal abort timeout */
+	mod_timer(timer, jiffies + msecs_to_jiffies(100));
 
 	/* dw0 */
 	hdr->dw0 = cpu_to_le32((5 << CMD_HDR_CMD_OFF) | /*abort*/

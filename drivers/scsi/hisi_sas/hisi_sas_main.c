@@ -1224,7 +1224,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	task->task_done = hisi_sas_task_done;
 	task->slow_task->timer.data = (unsigned long)task;
 	task->slow_task->timer.function = hisi_sas_tmf_timedout;
-	task->slow_task->timer.expires = jiffies + 20*HZ;
+	task->slow_task->timer.expires = jiffies + msecs_to_jiffies(110);
 	add_timer(&task->slow_task->timer);
 
 	/* Lock as we are alloc'ing a slot, which cannot be interrupted */
