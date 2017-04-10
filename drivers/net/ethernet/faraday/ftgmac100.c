@@ -632,11 +632,17 @@ static void ftgmac100_tx_complete(struct ftgmac100 *priv)
 static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 				     struct net_device *netdev)
 {
-	unsigned int len = (skb->len < ETH_ZLEN) ? ETH_ZLEN : skb->len;
 	struct ftgmac100 *priv = netdev_priv(netdev);
 	struct ftgmac100_txdes *txdes;
 	dma_addr_t map;
 
+	/* The HW doesn't pad small frames */
+	if (eth_skb_pad(skb)) {
+		netdev->stats.tx_dropped++;
+		return NETDEV_TX_OK;
+	}
+
+	/* Reject oversize packets */
 	if (unlikely(skb->len > MAX_PKT_SIZE)) {
 		if (net_ratelimit())
 			netdev_dbg(netdev, "tx packet too big\n");
@@ -657,7 +663,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 	/* setup TX descriptor */
 	ftgmac100_txdes_set_skb(txdes, skb);
 	ftgmac100_txdes_set_dma_addr(txdes, map);
-	ftgmac100_txdes_set_buffer_size(txdes, len);
+	ftgmac100_txdes_set_buffer_size(txdes, skb->len);
 
 	ftgmac100_txdes_set_first_segment(txdes);
 	ftgmac100_txdes_set_last_segment(txdes);
