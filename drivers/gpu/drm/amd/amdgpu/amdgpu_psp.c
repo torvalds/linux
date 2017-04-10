@@ -358,8 +358,6 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	if (ret)
 		goto failed_mem;
 
-	amdgpu_bo_free_kernel(&psp->fence_buf_bo,
-			      &psp->fence_buf_mc_addr, &psp->fence_buf);
 	kfree(cmd);
 
 	return 0;
@@ -422,6 +420,10 @@ static int psp_hw_fini(void *handle)
 	if (psp->fw_pri_buf)
 		amdgpu_bo_free_kernel(&psp->fw_pri_bo,
 				      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
+
+	if (psp->fence_buf_bo)
+		amdgpu_bo_free_kernel(&psp->fence_buf_bo,
+				      &psp->fence_buf_mc_addr, &psp->fence_buf);
 
 	return 0;
 }
