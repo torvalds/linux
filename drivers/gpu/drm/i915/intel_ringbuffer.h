@@ -187,9 +187,11 @@ enum intel_engine_id {
 	VECS
 };
 
+#define INTEL_ENGINE_CS_MAX_NAME 8
+
 struct intel_engine_cs {
 	struct drm_i915_private *i915;
-	const char	*name;
+	char name[INTEL_ENGINE_CS_MAX_NAME];
 	enum intel_engine_id id;
 	unsigned int exec_id;
 	unsigned int hw_id;
