@@ -251,6 +251,8 @@ static int orion_mdio_probe(struct platform_device *pdev)
 	return 0;
 
 out_mdio:
+	if (dev->err_interrupt > 0)
+		writel(0, dev->regs + MVMDIO_ERR_INT_MASK);
 	if (!IS_ERR(dev->clk))
 		clk_disable_unprepare(dev->clk);
 	return ret;
