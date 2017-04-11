@@ -129,7 +129,7 @@ enum qca9377_chip_id_rev {
 #define QCA4019_HW_1_0_PATCH_LOAD_ADDR  0x1234
 
 #define ATH10K_FW_FILE_BASE		"firmware"
-#define ATH10K_FW_API_MAX		5
+#define ATH10K_FW_API_MAX		6
 #define ATH10K_FW_API_MIN		2
 
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
@@ -140,6 +140,9 @@ enum qca9377_chip_id_rev {
 
 /* HTT id conflict fix for management frames over HTT */
 #define ATH10K_FW_API5_FILE		"firmware-5.bin"
+
+/* the firmware-6.bin blob */
+#define ATH10K_FW_API6_FILE		"firmware-6.bin"
 
 #define ATH10K_FW_UTF_FILE		"utf.bin"
 #define ATH10K_FW_UTF_API2_FILE		"utf-2.bin"
