@@ -581,7 +581,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 			PALMAS_POLARITY_CTRL, PALMAS_POLARITY_CTRL_INT_POLARITY,
 			reg);
 	if (ret < 0) {
-		dev_err(palmas->dev, "POLARITY_CTRL updat failed: %d\n", ret);
+		dev_err(palmas->dev, "POLARITY_CTRL update failed: %d\n", ret);
 		goto err_i2c;
 	}
 
