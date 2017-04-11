@@ -118,6 +118,7 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
+			next-level-cache = <&cluster0_l2>;
 			operating-points-v2 = <&cluster0_opp>;
 			sched-energy-costs = <&RK3368_CPU_COST_0 &RK3368_CLUSTER_COST_0>;
 			#cooling-cells = <2>; /* min followed by max */
@@ -130,6 +131,7 @@
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
+			next-level-cache = <&cluster0_l2>;
 			operating-points-v2 = <&cluster0_opp>;
 			sched-energy-costs = <&RK3368_CPU_COST_0 &RK3368_CLUSTER_COST_0>;
 		};
@@ -140,6 +142,7 @@
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
+			next-level-cache = <&cluster0_l2>;
 			operating-points-v2 = <&cluster0_opp>;
 			sched-energy-costs = <&RK3368_CPU_COST_0 &RK3368_CLUSTER_COST_0>;
 		};
@@ -150,6 +153,7 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
+			next-level-cache = <&cluster0_l2>;
 			operating-points-v2 = <&cluster0_opp>;
 			sched-energy-costs = <&RK3368_CPU_COST_0 &RK3368_CLUSTER_COST_0>;
 		};
@@ -160,6 +164,7 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
+			next-level-cache = <&cluster1_l2>;
 			operating-points-v2 = <&cluster1_opp>;
 			sched-energy-costs = <&RK3368_CPU_COST_1 &RK3368_CLUSTER_COST_1>;
 			#cooling-cells = <2>; /* min followed by max */
@@ -172,6 +177,7 @@
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
+			next-level-cache = <&cluster1_l2>;
 			operating-points-v2 = <&cluster1_opp>;
 			sched-energy-costs = <&RK3368_CPU_COST_1 &RK3368_CLUSTER_COST_1>;
 		};
@@ -182,6 +188,7 @@
 			reg = <0x0 0x102>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
+			next-level-cache = <&cluster1_l2>;
 			operating-points-v2 = <&cluster1_opp>;
 			sched-energy-costs = <&RK3368_CPU_COST_1 &RK3368_CLUSTER_COST_1>;
 		};
@@ -192,8 +199,17 @@
 			reg = <0x0 0x103>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
+			next-level-cache = <&cluster1_l2>;
 			operating-points-v2 = <&cluster1_opp>;
 			sched-energy-costs = <&RK3368_CPU_COST_1 &RK3368_CLUSTER_COST_1>;
+		};
+
+		cluster0_l2: l2-cache0 {
+			compatible = "cache";
+		};
+
+		cluster1_l2: l2-cache1 {
+			compatible = "cache";
 		};
 	};
 
