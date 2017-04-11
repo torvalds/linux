@@ -295,7 +295,7 @@ static ssize_t proc_set_cam(struct file *file, const char __user *buffer, size_t
 	struct adapter *adapter;
 
 	char tmp[32];
-	char cmd[4];
+	char cmd[5];
 	u8 id;
 
 	adapter = (struct adapter *)rtw_netdev_priv(dev);
