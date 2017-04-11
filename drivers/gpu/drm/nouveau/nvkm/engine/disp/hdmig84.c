@@ -36,6 +36,8 @@ g84_hdmi_ctrl(NV50_DISP_MTHD_V1)
 	union {
 		struct nv50_disp_sor_hdmi_pwr_v0 v0;
 	} *args = data;
+	struct packed_hdmi_infoframe avi_infoframe;
+	struct packed_hdmi_infoframe vendor_infoframe;
 	u32 ctrl;
 	int ret = -ENOSYS;
 
@@ -61,8 +63,17 @@ g84_hdmi_ctrl(NV50_DISP_MTHD_V1)
 		    + args->v0.vendor_infoframe_length) < size)
 		return -E2BIG;
 
+	pack_hdmi_infoframe(&avi_infoframe,
+			    data,
+			    args->v0.avi_infoframe_length);
+
+	pack_hdmi_infoframe(&vendor_infoframe,
+			    data + args->v0.avi_infoframe_length,
+			    args->v0.vendor_infoframe_length);
+
 	if (!(ctrl & 0x40000000)) {
 		nvkm_mask(device, 0x6165a4 + hoff, 0x40000000, 0x00000000);
+		nvkm_mask(device, 0x61653c + hoff, 0x00000001, 0x00000000);
 		nvkm_mask(device, 0x616520 + hoff, 0x00000001, 0x00000000);
 		nvkm_mask(device, 0x616500 + hoff, 0x00000001, 0x00000000);
 		return 0;
@@ -70,12 +81,14 @@ g84_hdmi_ctrl(NV50_DISP_MTHD_V1)
 
 	/* AVI InfoFrame */
 	nvkm_mask(device, 0x616520 + hoff, 0x00000001, 0x00000000);
-	nvkm_wr32(device, 0x616528 + hoff, 0x000d0282);
-	nvkm_wr32(device, 0x61652c + hoff, 0x0000006f);
-	nvkm_wr32(device, 0x616530 + hoff, 0x00000000);
-	nvkm_wr32(device, 0x616534 + hoff, 0x00000000);
-	nvkm_wr32(device, 0x616538 + hoff, 0x00000000);
-	nvkm_mask(device, 0x616520 + hoff, 0x00000001, 0x00000001);
+	if (args->v0.avi_infoframe_length) {
+		nvkm_wr32(device, 0x616528 + hoff, avi_infoframe.header);
+		nvkm_wr32(device, 0x61652c + hoff, avi_infoframe.subpack0_low);
+		nvkm_wr32(device, 0x616530 + hoff, avi_infoframe.subpack0_high);
+		nvkm_wr32(device, 0x616534 + hoff, avi_infoframe.subpack1_low);
+		nvkm_wr32(device, 0x616538 + hoff, avi_infoframe.subpack1_high);
+		nvkm_mask(device, 0x616520 + hoff, 0x00000001, 0x00000001);
+	}
 
 	/* Audio InfoFrame */
 	nvkm_mask(device, 0x616500 + hoff, 0x00000001, 0x00000000);
@@ -83,6 +96,18 @@ g84_hdmi_ctrl(NV50_DISP_MTHD_V1)
 	nvkm_wr32(device, 0x61650c + hoff, 0x00000071);
 	nvkm_wr32(device, 0x616510 + hoff, 0x00000000);
 	nvkm_mask(device, 0x616500 + hoff, 0x00000001, 0x00000001);
+
+	/* Vendor InfoFrame */
+	nvkm_mask(device, 0x61653c + hoff, 0x00010001, 0x00010000);
+	if (args->v0.vendor_infoframe_length) {
+		nvkm_wr32(device, 0x616544 + hoff, vendor_infoframe.header);
+		nvkm_wr32(device, 0x616548 + hoff, vendor_infoframe.subpack0_low);
+		nvkm_wr32(device, 0x61654c + hoff, vendor_infoframe.subpack0_high);
+		/* Is there a second (or up to fourth?) set of subpack registers here? */
+		/* nvkm_wr32(device, 0x616550 + hoff, vendor_infoframe->subpack1_low); */
+		/* nvkm_wr32(device, 0x616554 + hoff, vendor_infoframe->subpack1_high); */
+		nvkm_mask(device, 0x61653c + hoff, 0x00010001, 0x00010001);
+	}
 
 	nvkm_mask(device, 0x6165d0 + hoff, 0x00070001, 0x00010001); /* SPARE, HW_CTS */
 	nvkm_mask(device, 0x616568 + hoff, 0x00010101, 0x00000000); /* ACR_CTRL, ?? */
