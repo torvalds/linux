@@ -448,7 +448,6 @@ xfs_bmbt_alloc_block(
 	if (args.fsbno == NULLFSBLOCK) {
 		args.fsbno = be64_to_cpu(start->l);
 		args.type = XFS_ALLOCTYPE_START_BNO;
-try_another_ag:
 		/*
 		 * Make sure there is sufficient room left in the AG to
 		 * complete a full tree split for an extent insert.  If
@@ -476,22 +475,6 @@ try_another_ag:
 	error = xfs_alloc_vextent(&args);
 	if (error)
 		goto error0;
-
-	/*
-	 * During a CoW operation, the allocation and bmbt updates occur in
-	 * different transactions.  The mapping code tries to put new bmbt
-	 * blocks near extents being mapped, but the only way to guarantee this
-	 * is if the alloc and the mapping happen in a single transaction that
-	 * has a block reservation.  That isn't the case here, so if we run out
-	 * of space we'll try again with another AG.
-	 */
-	if (xfs_sb_version_hasreflink(&cur->bc_mp->m_sb) &&
-	    args.fsbno == NULLFSBLOCK &&
-	    args.type == XFS_ALLOCTYPE_NEAR_BNO) {
-		args.fsbno = cur->bc_private.b.firstblock;
-		args.type = XFS_ALLOCTYPE_FIRST_AG;
-		goto try_another_ag;
-	}
 
 	if (args.fsbno == NULLFSBLOCK && args.minleft) {
 		/*
