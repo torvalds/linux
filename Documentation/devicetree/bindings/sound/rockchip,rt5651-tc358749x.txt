@@ -1,0 +1,16 @@
+ROCKCHIP with RT5651_TC358749X CODECS
+
+Required properties:
+- compatible: "rockchip,rockchip-rt5651-tc358749x-sound"
+- rockchip,cpu: CPU DAI, The phandle of the Rockchip I2S controller that's
+  connected to the CODEC
+- rockchip,audio-codec: The phandle of the RT5651 TC358749x audio codec
+
+Example:
+
+sound {
+	compatible = "rockchip,rockchip-rt5651-tc358749x-sound";
+	rockchip,cpu = <&i2s0>;
+	rockchip,codec = <&rt5651 &rt5651 &tc358749x>;
+	status = "okay";
+};
