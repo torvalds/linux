@@ -4724,7 +4724,6 @@ static void alc282_fixup_asus_tx300(struct hda_codec *codec,
 		{ 0x1b, 0x21114000 }, /* dock speaker pin */
 		{}
 	};
-	struct snd_kcontrol *kctl;
 
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
@@ -4739,12 +4738,10 @@ static void alc282_fixup_asus_tx300(struct hda_codec *codec,
 		/* this is a bit tricky; give more sane names for the main
 		 * (tablet) speaker and the dock speaker, respectively
 		 */
-		kctl = snd_hda_find_mixer_ctl(codec, "Speaker Playback Switch");
-		if (kctl)
-			strcpy(kctl->id.name, "Dock Speaker Playback Switch");
-		kctl = snd_hda_find_mixer_ctl(codec, "Bass Speaker Playback Switch");
-		if (kctl)
-			strcpy(kctl->id.name, "Speaker Playback Switch");
+		rename_ctl(codec, "Speaker Playback Switch",
+			   "Dock Speaker Playback Switch");
+		rename_ctl(codec, "Bass Speaker Playback Switch",
+			   "Speaker Playback Switch");
 		break;
 	}
 }
