@@ -168,6 +168,39 @@ TRACE_EVENT(hash_fault,
 		      __entry->addr, __entry->access, __entry->trap)
 );
 
+
+TRACE_EVENT(tlbie,
+
+	TP_PROTO(unsigned long lpid, unsigned long local, unsigned long rb,
+		unsigned long rs, unsigned long ric, unsigned long prs,
+		unsigned long r),
+	TP_ARGS(lpid, local, rb, rs, ric, prs, r),
+	TP_STRUCT__entry(
+		__field(unsigned long, lpid)
+		__field(unsigned long, local)
+		__field(unsigned long, rb)
+		__field(unsigned long, rs)
+		__field(unsigned long, ric)
+		__field(unsigned long, prs)
+		__field(unsigned long, r)
+		),
+
+	TP_fast_assign(
+		__entry->lpid = lpid;
+		__entry->local = local;
+		__entry->rb = rb;
+		__entry->rs = rs;
+		__entry->ric = ric;
+		__entry->prs = prs;
+		__entry->r = r;
+		),
+
+	TP_printk("lpid=%ld, local=%ld, rb=0x%lx, rs=0x%lx, ric=0x%lx, "
+		"prs=0x%lx, r=0x%lx", __entry->lpid, __entry->local,
+		__entry->rb, __entry->rs, __entry->ric, __entry->prs,
+		__entry->r)
+);
+
 #endif /* _TRACE_POWERPC_H */
 
 #undef TRACE_INCLUDE_PATH

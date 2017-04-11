@@ -810,6 +810,8 @@ static void update_hid_for_hash(void)
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(0), "i"(0), "i"(2), "r"(0) : "memory");
 	asm volatile("eieio; tlbsync; ptesync; isync; slbia": : :"memory");
+	trace_tlbie(0, 0, rb, 0, 2, 0, 0);
+
 	/*
 	 * now switch the HID
 	 */

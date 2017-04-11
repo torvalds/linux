@@ -23,6 +23,7 @@
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#include <asm/trace.h>
 #include <asm/tlb.h>
 #include <asm/cputable.h>
 #include <asm/udbg.h>
@@ -98,6 +99,7 @@ static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
 			     : "memory");
 		break;
 	}
+	trace_tlbie(0, 0, va, 0, 0, 0, 0);
 }
 
 static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
@@ -147,6 +149,7 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 			     : "memory");
 		break;
 	}
+	trace_tlbie(0, 1, va, 0, 0, 0, 0);
 
 }
 

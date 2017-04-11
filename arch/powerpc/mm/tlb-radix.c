@@ -16,6 +16,7 @@
 
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
+#include <asm/trace.h>
 
 
 #define RIC_FLUSH_TLB 0
@@ -35,6 +36,7 @@ static inline void __tlbiel_pid(unsigned long pid, int set,
 
 	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
+	trace_tlbie(0, 1, rb, rs, ric, prs, r);
 }
 
 /*
@@ -87,6 +89,7 @@ static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 }
 
 static inline void _tlbiel_va(unsigned long va, unsigned long pid,
@@ -104,6 +107,7 @@ static inline void _tlbiel_va(unsigned long va, unsigned long pid,
 	asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("ptesync": : :"memory");
+	trace_tlbie(0, 1, rb, rs, ric, prs, r);
 }
 
 static inline void _tlbie_va(unsigned long va, unsigned long pid,
@@ -121,6 +125,7 @@ static inline void _tlbie_va(unsigned long va, unsigned long pid,
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 }
 
 /*
@@ -377,6 +382,7 @@ void radix__flush_tlb_lpid_va(unsigned long lpid, unsigned long gpa,
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(lpid, 0, rb, rs, ric, prs, r);
 }
 EXPORT_SYMBOL(radix__flush_tlb_lpid_va);
 
@@ -394,6 +400,7 @@ void radix__flush_tlb_lpid(unsigned long lpid)
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(rs) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(lpid, 0, rb, rs, ric, prs, r);
 }
 EXPORT_SYMBOL(radix__flush_tlb_lpid);
 
@@ -420,12 +427,14 @@ void radix__flush_tlb_all(void)
 	 */
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(1), "i"(ric), "r"(rs) : "memory");
+	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 	/*
 	 * now flush host entires by passing PRS = 0 and LPID == 0
 	 */
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(0) : "memory");
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+	trace_tlbie(0, 0, rb, 0, ric, prs, r);
 }
 
 void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,

@@ -47,6 +47,7 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/tlb.h>
+#include <asm/trace.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
@@ -477,12 +478,15 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 	 * use of this partition ID was, not the new use.
 	 */
 	asm volatile("ptesync" : : : "memory");
-	if (old & PATB_HR)
+	if (old & PATB_HR) {
 		asm volatile(PPC_TLBIE_5(%0,%1,2,0,1) : :
 			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
-	else
+		trace_tlbie(lpid, 0, TLBIEL_INVAL_SET_LPID, lpid, 2, 0, 1);
+	} else {
 		asm volatile(PPC_TLBIE_5(%0,%1,2,0,0) : :
 			     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
+		trace_tlbie(lpid, 0, TLBIEL_INVAL_SET_LPID, lpid, 2, 0, 0);
+	}
 	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
 }
 EXPORT_SYMBOL_GPL(mmu_partition_table_set_entry);

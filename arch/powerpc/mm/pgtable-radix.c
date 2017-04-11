@@ -20,6 +20,7 @@
 #include <asm/firmware.h>
 #include <asm/powernv.h>
 #include <asm/sections.h>
+#include <asm/trace.h>
 
 #include <trace/events/thp.h>
 
@@ -198,6 +199,7 @@ static void __init radix_init_pgtable(void)
 	asm volatile(PPC_TLBIE_5(%0,%1,2,1,1) : :
 		     "r" (TLBIEL_INVAL_SET_LPID), "r" (0));
 	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
+	trace_tlbie(0, 0, TLBIEL_INVAL_SET_LPID, 0, 2, 1, 1);
 }
 
 static void __init radix_init_partition_table(void)
@@ -324,6 +326,9 @@ static void update_hid_for_radix(void)
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(1), "i"(1), "i"(2), "r"(0) : "memory");
 	asm volatile("eieio; tlbsync; ptesync; isync; slbia": : :"memory");
+	trace_tlbie(0, 0, rb, 0, 2, 0, 1);
+	trace_tlbie(0, 0, rb, 0, 2, 1, 1);
+
 	/*
 	 * now switch the HID
 	 */
