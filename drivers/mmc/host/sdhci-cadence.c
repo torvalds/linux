@@ -330,6 +330,8 @@ static int sdhci_cdns_probe(struct platform_device *pdev)
 	host->mmc_host_ops.hs400_enhanced_strobe =
 				sdhci_cdns_hs400_enhanced_strobe;
 
+	sdhci_get_of_property(pdev);
+
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
 		goto free;
