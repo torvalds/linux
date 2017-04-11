@@ -6,7 +6,7 @@ extra-y += gate.so gate-syms.o gate.lds gate.o
 
 CPPFLAGS_gate.lds := -P -C -U$(ARCH)
 
-quiet_cmd_gate = GATE $@
+quiet_cmd_gate = GATE    $@
       cmd_gate = $(CC) -nostdlib $(GATECFLAGS_$(@F)) -Wl,-T,$(filter-out FORCE,$^) -o $@
 
 GATECFLAGS_gate.so = -shared -s -Wl,-soname=linux-gate.so.1 \
