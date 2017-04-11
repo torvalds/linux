@@ -1324,6 +1324,13 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	}
 
+	/* HDMI 3D support */
+	if ((disp->disp.oclass >= G82_DISP)
+	    && ((type == DRM_MODE_CONNECTOR_DisplayPort)
+		|| (type == DRM_MODE_CONNECTOR_eDP)
+		|| (type == DRM_MODE_CONNECTOR_HDMIA)))
+		connector->stereo_allowed = true;
+
 	/* defaults, will get overridden in detect() */
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
