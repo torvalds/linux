@@ -3003,31 +3003,6 @@ DEFINE_EVENT(xfs_inode_error_class, name, \
 		 unsigned long caller_ip), \
 	TP_ARGS(ip, error, caller_ip))
 
-/* reflink allocator */
-TRACE_EVENT(xfs_bmap_remap_alloc,
-	TP_PROTO(struct xfs_inode *ip, xfs_fsblock_t fsbno,
-		 xfs_extlen_t len),
-	TP_ARGS(ip, fsbno, len),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(xfs_ino_t, ino)
-		__field(xfs_fsblock_t, fsbno)
-		__field(xfs_extlen_t, len)
-	),
-	TP_fast_assign(
-		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
-		__entry->fsbno = fsbno;
-		__entry->len = len;
-	),
-	TP_printk("dev %d:%d ino 0x%llx fsbno 0x%llx len %x",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
-		  __entry->fsbno,
-		  __entry->len)
-);
-DEFINE_INODE_ERROR_EVENT(xfs_bmap_remap_alloc_error);
-
 /* reflink tracepoint classes */
 
 /* two-file io tracepoint class */

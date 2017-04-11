@@ -3856,61 +3856,6 @@ xfs_bmap_btalloc(
 }
 
 /*
- * For a remap operation, just "allocate" an extent at the address that the
- * caller passed in, and ensure that the AGFL is the right size.  The caller
- * will then map the "allocated" extent into the file somewhere.
- */
-STATIC int
-xfs_bmap_remap_alloc(
-	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
-	xfs_fsblock_t		startblock,
-	xfs_extlen_t		length)
-{
-	struct xfs_mount	*mp = tp->t_mountp;
-	struct xfs_alloc_arg	args;
-	int			error;
-
-	/*
-	 * validate that the block number is legal - the enables us to detect
-	 * and handle a silent filesystem corruption rather than crashing.
-	 */
-	memset(&args, 0, sizeof(struct xfs_alloc_arg));
-	args.tp = tp;
-	args.mp = mp;
-	args.agno = XFS_FSB_TO_AGNO(mp, startblock);
-	args.agbno = XFS_FSB_TO_AGBNO(mp, startblock);
-
-	if (args.agno >= mp->m_sb.sb_agcount ||
-	    args.agbno >= mp->m_sb.sb_agblocks)
-		return -EFSCORRUPTED;
-
-	/* "Allocate" the extent from the range we passed in. */
-	trace_xfs_bmap_remap_alloc(ip, startblock, length);
-
-	ip->i_d.di_nblocks += length;
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-
-	/* Fix the freelist, like a real allocator does. */
-	args.datatype = XFS_ALLOC_USERDATA | XFS_ALLOC_NOBUSY;
-	args.pag = xfs_perag_get(mp, args.agno);
-	ASSERT(args.pag);
-
-	/*
-	 * The freelist fixing code will decline the allocation if
-	 * the size and shape of the free space doesn't allow for
-	 * allocating the extent and updating all the metadata that
-	 * happens during an allocation.  We're remapping, not
-	 * allocating, so skip that check by pretending to be freeing.
-	 */
-	error = xfs_alloc_fix_freelist(&args, XFS_ALLOC_FLAG_FREEING);
-	xfs_perag_put(args.pag);
-	if (error)
-		trace_xfs_bmap_remap_alloc_error(ip, error, _RET_IP_);
-	return error;
-}
-
-/*
  * xfs_bmap_alloc is called by xfs_bmapi to allocate an extent for a file.
  * It figures out where to ask the underlying allocator to put the new extent.
  */
@@ -4811,9 +4756,8 @@ xfs_bmapi_remap(
 		ASSERT(got.br_startoff - bno >= len);
 	}
 
-	error = xfs_bmap_remap_alloc(tp, ip, startblock, len);
-	if (error)
-		goto error0;
+	ip->i_d.di_nblocks += len;
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	if (ifp->if_flags & XFS_IFBROOT) {
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, XFS_DATA_FORK);
