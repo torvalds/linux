@@ -377,16 +377,30 @@ enum {
 /* number of extent info in extent cache we try to shrink */
 #define EXTENT_CACHE_SHRINK_NUMBER	128
 
+struct rb_entry {
+	struct rb_node rb_node;		/* rb node located in rb-tree */
+	unsigned int ofs;		/* start offset of the entry */
+	unsigned int len;		/* length of the entry */
+};
+
 struct extent_info {
 	unsigned int fofs;		/* start offset in a file */
-	u32 blk;			/* start block address of the extent */
 	unsigned int len;		/* length of the extent */
+	u32 blk;			/* start block address of the extent */
 };
 
 struct extent_node {
-	struct rb_node rb_node;		/* rb node located in rb-tree */
+	struct rb_node rb_node;
+	union {
+		struct {
+			unsigned int fofs;
+			unsigned int len;
+			u32 blk;
+		};
+		struct extent_info ei;	/* extent info */
+
+	};
 	struct list_head list;		/* node in global extent list of sbi */
-	struct extent_info ei;		/* extent info */
 	struct extent_tree *et;		/* extent tree pointer */
 };
 
