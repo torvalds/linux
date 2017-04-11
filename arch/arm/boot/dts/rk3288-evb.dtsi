@@ -240,13 +240,6 @@
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
 	status = "okay";
-
-	/* Don't use vopl for HDMI */
-	ports {
-		hdmi_in: port {
-			/delete-node/ endpoint@1;
-		};
-	};
 };
 
 &saradc {
@@ -283,11 +276,6 @@
 	status = "okay";
 
 	ports {
-		/* Don't use vopb for eDP */
-		edp_in: port@0 {
-			/delete-node/ endpoint@0;
-		};
-
 		edp_out: port@1 {
 			reg = <1>;
 			#address-cells = <1>;
@@ -427,11 +415,6 @@
 
 &vopb {
 	status = "okay";
-
-	/* Don't use vopb for eDP, save it for HDMI */
-	vopb_out: port {
-		/delete-node/ endpoint@1;
-	};
 };
 
 &vopb_mmu {
@@ -440,11 +423,6 @@
 
 &vopl {
 	status = "okay";
-
-	/* Don't use vopb for HDMI, save it for eDP */
-	vopl_out: port {
-		/delete-node/ endpoint@0;
-	};
 };
 
 &vopl_mmu {
