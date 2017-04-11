@@ -426,7 +426,7 @@ static unsigned long slots_fetch_random(void)
 	return 0;
 }
 
-static void process_e820_entry(struct e820entry *entry,
+static void process_e820_entry(struct boot_e820_entry *entry,
 			       unsigned long minimum,
 			       unsigned long image_size)
 {
@@ -435,7 +435,7 @@ static void process_e820_entry(struct e820entry *entry,
 	unsigned long start_orig;
 
 	/* Skip non-RAM entries. */
-	if (entry->type != E820_RAM)
+	if (entry->type != E820_TYPE_RAM)
 		return;
 
 	/* On 32-bit, ignore entries entirely above our maximum. */
@@ -518,7 +518,7 @@ static unsigned long find_random_phys_addr(unsigned long minimum,
 
 	/* Verify potential e820 positions, appending to slots list. */
 	for (i = 0; i < boot_params->e820_entries; i++) {
-		process_e820_entry(&boot_params->e820_map[i], minimum,
+		process_e820_entry(&boot_params->e820_table[i], minimum,
 				   image_size);
 		if (slot_area_index == MAX_SLOT_AREA) {
 			debug_putstr("Aborted e820 scan (slot_areas full)!\n");

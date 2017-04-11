@@ -38,7 +38,7 @@
 #include <asm/pgtable.h>
 #include <asm/dma.h>
 #include <asm/fixmap.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/apic.h>
 #include <asm/bugs.h>
 #include <asm/tlb.h>

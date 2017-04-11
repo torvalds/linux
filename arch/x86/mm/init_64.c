@@ -41,7 +41,7 @@
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
 #include <asm/fixmap.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/apic.h>
 #include <asm/tlb.h>
 #include <asm/mmu_context.h>
@@ -379,10 +379,10 @@ phys_pte_init(pte_t *pte_page, unsigned long paddr, unsigned long paddr_end,
 		paddr_next = (paddr & PAGE_MASK) + PAGE_SIZE;
 		if (paddr >= paddr_end) {
 			if (!after_bootmem &&
-			    !e820_any_mapped(paddr & PAGE_MASK, paddr_next,
-					     E820_RAM) &&
-			    !e820_any_mapped(paddr & PAGE_MASK, paddr_next,
-					     E820_RESERVED_KERN))
+			    !e820__mapped_any(paddr & PAGE_MASK, paddr_next,
+					     E820_TYPE_RAM) &&
+			    !e820__mapped_any(paddr & PAGE_MASK, paddr_next,
+					     E820_TYPE_RESERVED_KERN))
 				set_pte(pte, __pte(0));
 			continue;
 		}
@@ -434,10 +434,10 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long paddr, unsigned long paddr_end,
 		paddr_next = (paddr & PMD_MASK) + PMD_SIZE;
 		if (paddr >= paddr_end) {
 			if (!after_bootmem &&
-			    !e820_any_mapped(paddr & PMD_MASK, paddr_next,
-					     E820_RAM) &&
-			    !e820_any_mapped(paddr & PMD_MASK, paddr_next,
-					     E820_RESERVED_KERN))
+			    !e820__mapped_any(paddr & PMD_MASK, paddr_next,
+					     E820_TYPE_RAM) &&
+			    !e820__mapped_any(paddr & PMD_MASK, paddr_next,
+					     E820_TYPE_RESERVED_KERN))
 				set_pmd(pmd, __pmd(0));
 			continue;
 		}
@@ -520,10 +520,10 @@ phys_pud_init(pud_t *pud_page, unsigned long paddr, unsigned long paddr_end,
 
 		if (paddr >= paddr_end) {
 			if (!after_bootmem &&
-			    !e820_any_mapped(paddr & PUD_MASK, paddr_next,
-					     E820_RAM) &&
-			    !e820_any_mapped(paddr & PUD_MASK, paddr_next,
-					     E820_RESERVED_KERN))
+			    !e820__mapped_any(paddr & PUD_MASK, paddr_next,
+					     E820_TYPE_RAM) &&
+			    !e820__mapped_any(paddr & PUD_MASK, paddr_next,
+					     E820_TYPE_RESERVED_KERN))
 				set_pud(pud, __pud(0));
 			continue;
 		}
