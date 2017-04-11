@@ -591,7 +591,7 @@ static int dax_dev_huge_fault(struct vm_fault *vmf,
 		rc = __dax_dev_pud_fault(dax_dev, vmf);
 		break;
 	default:
-		return VM_FAULT_FALLBACK;
+		rc = VM_FAULT_SIGBUS;
 	}
 	srcu_read_unlock(&dax_srcu, id);
 
