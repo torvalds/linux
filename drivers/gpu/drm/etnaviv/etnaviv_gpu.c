@@ -412,13 +412,19 @@ static void etnaviv_gpu_load_clock(struct etnaviv_gpu *gpu, u32 clock)
 
 static void etnaviv_gpu_update_clock(struct etnaviv_gpu *gpu)
 {
-	unsigned int fscale = 1 << (6 - gpu->freq_scale);
-	u32 clock;
+	if (gpu->identity.minor_features2 &
+	    chipMinorFeatures2_DYNAMIC_FREQUENCY_SCALING) {
+		clk_set_rate(gpu->clk_core,
+			     gpu->base_rate_core >> gpu->freq_scale);
+		clk_set_rate(gpu->clk_shader,
+			     gpu->base_rate_shader >> gpu->freq_scale);
+	} else {
+		unsigned int fscale = 1 << (6 - gpu->freq_scale);
+		u32 clock = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
+			    VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
 
-	clock = VIVS_HI_CLOCK_CONTROL_DISABLE_DEBUG_REGISTERS |
-		VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
-
-	etnaviv_gpu_load_clock(gpu, clock);
+		etnaviv_gpu_load_clock(gpu, clock);
+	}
 }
 
 static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
@@ -1742,11 +1748,13 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	DBG("clk_core: %p", gpu->clk_core);
 	if (IS_ERR(gpu->clk_core))
 		gpu->clk_core = NULL;
+	gpu->base_rate_core = clk_get_rate(gpu->clk_core);
 
 	gpu->clk_shader = devm_clk_get(&pdev->dev, "shader");
 	DBG("clk_shader: %p", gpu->clk_shader);
 	if (IS_ERR(gpu->clk_shader))
 		gpu->clk_shader = NULL;
+	gpu->base_rate_shader = clk_get_rate(gpu->clk_shader);
 
 	/* TODO: figure out max mapped size */
 	dev_set_drvdata(dev, gpu);
