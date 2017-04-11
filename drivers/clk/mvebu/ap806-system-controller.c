@@ -140,7 +140,7 @@ static int ap806_syscon_clk_probe(struct platform_device *pdev)
 					  4, &name)) {
 		ap806_clk_data.clk_num--;
 		dev_warn(&pdev->dev,
-			 "eMMC clock mising: update the device tree!\n");
+			 "eMMC clock missing: update the device tree!\n");
 	} else {
 		ap806_clks[4] = clk_register_fixed_factor(NULL, name,
 							  fixedclk_name,
