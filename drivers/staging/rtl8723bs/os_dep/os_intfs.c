@@ -1275,7 +1275,8 @@ void rtw_dev_unload(struct adapter *padapter)
 			}
 			padapter->bSurpriseRemoved = true;
 		}
-		RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("@ %s: deinit hal complelt!\n", __func__));
+		RT_TRACE(_module_hci_intfs_c_, _drv_notice_,
+			 ("@ %s: deinit hal complete!\n", __func__));
 
 		padapter->bup = false;
 

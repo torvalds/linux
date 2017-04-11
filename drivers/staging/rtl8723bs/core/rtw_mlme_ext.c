@@ -6677,7 +6677,9 @@ u8 mlme_evt_hdl(struct adapter *padapter, unsigned char *pbuf)
 	#ifdef CHECK_EVENT_SEQ
 	/*  checking event sequence... */
 	if (evt_seq != (atomic_read(&pevt_priv->event_seq) & 0x7f)) {
-		RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_, ("Evetn Seq Error! %d vs %d\n", (evt_seq & 0x7f), (atomic_read(&pevt_priv->event_seq) & 0x7f)));
+		RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
+			 ("Event Seq Error! %d vs %d\n", (evt_seq & 0x7f),
+			  (atomic_read(&pevt_priv->event_seq) & 0x7f)));
 
 		pevt_priv->event_seq = (evt_seq+1)&0x7f;
 

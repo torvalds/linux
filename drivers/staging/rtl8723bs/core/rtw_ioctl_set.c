@@ -622,7 +622,9 @@ u8 rtw_set_802_11_add_wep(struct adapter *padapter, struct ndis_802_11_wep *wep)
 		break;
 	}
 
-	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("rtw_set_802_11_add_wep:befor memcpy, wep->KeyLength = 0x%x wep->KeyIndex = 0x%x  keyid =%x\n", wep->KeyLength, wep->KeyIndex, keyid));
+	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
+		 ("rtw_set_802_11_add_wep:before memcpy, wep->KeyLength = 0x%x wep->KeyIndex = 0x%x  keyid =%x\n",
+		  wep->KeyLength, wep->KeyIndex, keyid));
 
 	memcpy(&(psecuritypriv->dot11DefKey[keyid].skey[0]), &(wep->KeyMaterial), wep->KeyLength);
 
