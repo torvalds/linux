@@ -1923,21 +1923,30 @@ populate_lr_context(struct i915_gem_context *ctx,
  */
 uint32_t intel_lr_context_size(struct intel_engine_cs *engine)
 {
-	int ret = 0;
+	struct drm_i915_private *dev_priv = engine->i915;
+	int ret;
 
-	WARN_ON(INTEL_GEN(engine->i915) < 8);
+	WARN_ON(INTEL_GEN(dev_priv) < 8);
 
-	switch (engine->id) {
-	case RCS:
-		if (INTEL_GEN(engine->i915) >= 9)
+	switch (engine->class) {
+	case RENDER_CLASS:
+		switch (INTEL_GEN(dev_priv)) {
+		default:
+			MISSING_CASE(INTEL_GEN(dev_priv));
+		case 9:
 			ret = GEN9_LR_CONTEXT_RENDER_SIZE;
-		else
+			break;
+		case 8:
 			ret = GEN8_LR_CONTEXT_RENDER_SIZE;
+			break;
+		}
 		break;
-	case VCS:
-	case BCS:
-	case VECS:
-	case VCS2:
+
+	default:
+		MISSING_CASE(engine->class);
+	case VIDEO_DECODE_CLASS:
+	case VIDEO_ENHANCEMENT_CLASS:
+	case COPY_ENGINE_CLASS:
 		ret = GEN8_LR_CONTEXT_OTHER_SIZE;
 		break;
 	}
