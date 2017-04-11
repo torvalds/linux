@@ -66,9 +66,24 @@
 #define DATA_LANE_2_EN		BIT(4)
 #define DATA_LANE_1_EN		BIT(3)
 #define DATA_LANE_0_EN		BIT(2)
+#define FBDIV_8_MASK		BIT(5)
+#define PREDIV_MASK		(0x1f << 0)
+#define FBDIV_7_0_MASK		(0xff << 0)
 #define FBDIV_8(x)		(((x) & 0x1) << 5)
 #define PREDIV(x)		(((x) & 0x1f) << 0)
 #define FBDIV_7_0(x)		(((x) & 0xff) << 0)
+#define T_LPX_MASK		(0x3f << 0)
+#define T_HS_PREPARE_MASK	(0x7f << 0)
+#define T_HS_ZERO_MASK		(0x3f << 0)
+#define T_HS_TRAIL_MASK		(0x7f << 0)
+#define T_HS_EXIT_MASK		(0x1f << 0)
+#define T_CLK_POST_MASK		(0xf << 0)
+#define T_WAKUP_H_MASK		(0x3 << 0)
+#define T_WAKUP_L_MASK		(0xff << 0)
+#define T_CLK_PRE_MASK		(0xf << 0)
+#define T_TA_GO_MASK		(0x3f << 0)
+#define T_TA_SURE_MASK		(0x3f << 0)
+#define T_TA_WAIT_MASK		(0x3f << 0)
 #define T_LPX(x)		(((x) & 0x3f) << 0)
 #define T_HS_PREPARE(x)		(((x) & 0x7f) << 0)
 #define T_HS_ZERO(x)		(((x) & 0x3f) << 0)
@@ -90,82 +105,12 @@ enum lane_type {
 	DATA_LANE_3,
 };
 
-static const u32 lane_reg_offset[] = {
-	[CLOCK_LANE] = INNO_CLOCK_LANE_REG_BASE,
-	[DATA_LANE_0] = INNO_DATA_LANE_0_REG_BASE,
-	[DATA_LANE_1] = INNO_DATA_LANE_1_REG_BASE,
-	[DATA_LANE_2] = INNO_DATA_LANE_2_REG_BASE,
-	[DATA_LANE_3] = INNO_DATA_LANE_3_REG_BASE,
-};
-
-enum hs_clk_range {
-	HS_CLK_RANGE_80_110_MHZ,
-	HS_CLK_RANGE_110_150_MHZ,
-	HS_CLK_RANGE_150_200_MHZ,
-	HS_CLK_RANGE_200_250_MHZ,
-	HS_CLK_RANGE_250_300_MHZ,
-	HS_CLK_RANGE_300_400_MHZ,
-	HS_CLK_RANGE_400_500_MHZ,
-	HS_CLK_RANGE_500_600_MHZ,
-	HS_CLK_RANGE_600_700_MHZ,
-	HS_CLK_RANGE_700_800_MHZ,
-	HS_CLK_RANGE_800_1000_MHZ,
-};
-
-static const u8 t_hs_prepare_val[] = {
-	[HS_CLK_RANGE_80_110_MHZ] = 0x20,
-	[HS_CLK_RANGE_110_150_MHZ] = 0x06,
-	[HS_CLK_RANGE_150_200_MHZ] = 0x18,
-	[HS_CLK_RANGE_200_250_MHZ] = 0x05,
-	[HS_CLK_RANGE_250_300_MHZ] = 0x51,
-	[HS_CLK_RANGE_300_400_MHZ] = 0x64,
-	[HS_CLK_RANGE_400_500_MHZ] = 0x20,
-	[HS_CLK_RANGE_500_600_MHZ] = 0x6a,
-	[HS_CLK_RANGE_600_700_MHZ] = 0x3e,
-	[HS_CLK_RANGE_700_800_MHZ] = 0x21,
-	[HS_CLK_RANGE_800_1000_MHZ] = 0x09,
-};
-
-static const u8 clock_lane_t_hs_zero_val[] = {
-	[HS_CLK_RANGE_80_110_MHZ] = 0x16,
-	[HS_CLK_RANGE_110_150_MHZ] = 0x16,
-	[HS_CLK_RANGE_150_200_MHZ] = 0x17,
-	[HS_CLK_RANGE_200_250_MHZ] = 0x17,
-	[HS_CLK_RANGE_250_300_MHZ] = 0x18,
-	[HS_CLK_RANGE_300_400_MHZ] = 0x19,
-	[HS_CLK_RANGE_400_500_MHZ] = 0x1b,
-	[HS_CLK_RANGE_500_600_MHZ] = 0x1d,
-	[HS_CLK_RANGE_600_700_MHZ] = 0x1e,
-	[HS_CLK_RANGE_700_800_MHZ] = 0x1f,
-	[HS_CLK_RANGE_800_1000_MHZ] = 0x20,
-};
-
-static const u8 data_lane_t_hs_zero_val[] = {
-	[HS_CLK_RANGE_80_110_MHZ] = 2,
-	[HS_CLK_RANGE_110_150_MHZ] = 3,
-	[HS_CLK_RANGE_150_200_MHZ] = 4,
-	[HS_CLK_RANGE_200_250_MHZ] = 5,
-	[HS_CLK_RANGE_250_300_MHZ] = 6,
-	[HS_CLK_RANGE_300_400_MHZ] = 7,
-	[HS_CLK_RANGE_400_500_MHZ] = 7,
-	[HS_CLK_RANGE_500_600_MHZ] = 8,
-	[HS_CLK_RANGE_600_700_MHZ] = 8,
-	[HS_CLK_RANGE_700_800_MHZ] = 9,
-	[HS_CLK_RANGE_800_1000_MHZ] = 9,
-};
-
-static const u8 t_hs_trail_val[] = {
-	[HS_CLK_RANGE_80_110_MHZ] = 0x22,
-	[HS_CLK_RANGE_110_150_MHZ] = 0x45,
-	[HS_CLK_RANGE_150_200_MHZ] = 0x0b,
-	[HS_CLK_RANGE_200_250_MHZ] = 0x16,
-	[HS_CLK_RANGE_250_300_MHZ] = 0x2c,
-	[HS_CLK_RANGE_300_400_MHZ] = 0x33,
-	[HS_CLK_RANGE_400_500_MHZ] = 0x4e,
-	[HS_CLK_RANGE_500_600_MHZ] = 0x3a,
-	[HS_CLK_RANGE_600_700_MHZ] = 0x6a,
-	[HS_CLK_RANGE_700_800_MHZ] = 0x29,
-	[HS_CLK_RANGE_800_1000_MHZ] = 0x27,
+struct t_param {
+	u32 hs_clk_rate;
+	u8 t_hs_prepare;
+	u8 clock_lane_t_hs_zero;
+	u8 data_lane_t_hs_zero;
+	u8 t_hs_trail;
 };
 
 struct mipi_dphy_timing {
@@ -226,6 +171,28 @@ struct inno_mipi_dphy {
 	u32 lane_mbps;
 };
 
+static const u32 lane_reg_offset[] = {
+	[CLOCK_LANE] = INNO_CLOCK_LANE_REG_BASE,
+	[DATA_LANE_0] = INNO_DATA_LANE_0_REG_BASE,
+	[DATA_LANE_1] = INNO_DATA_LANE_1_REG_BASE,
+	[DATA_LANE_2] = INNO_DATA_LANE_2_REG_BASE,
+	[DATA_LANE_3] = INNO_DATA_LANE_3_REG_BASE,
+};
+
+static const struct t_param t_fixed_param_table[] = {
+	{ 110, 0x20, 0x16, 0x02, 0x22},
+	{ 150, 0x06, 0x16, 0x03, 0x45},
+	{ 200, 0x18, 0x17, 0x04, 0x0b},
+	{ 250, 0x05, 0x17, 0x05, 0x16},
+	{ 300, 0x51, 0x18, 0x06, 0x2c},
+	{ 400, 0x64, 0x19, 0x07, 0x33},
+	{ 500, 0x20, 0x1b, 0x07, 0x4e},
+	{ 600, 0x6a, 0x1d, 0x08, 0x3a},
+	{ 700, 0x3e, 0x1e, 0x08, 0x6a},
+	{ 800, 0x21, 0x1f, 0x09, 0x29},
+	{1000, 0x09, 0x20, 0x09, 0x27}
+};
+
 static inline void inno_write(struct inno_mipi_dphy *inno, u32 reg, u32 val)
 {
 	writel_relaxed(val, inno->regs + reg);
@@ -280,46 +247,85 @@ static void inno_mipi_dphy_timing_update(struct inno_mipi_dphy *inno,
 					 struct inno_mipi_dphy_timing *t)
 {
 	u32 base = lane_reg_offset[lane_type];
+	u32 val, mask;
 
-	inno_write(inno, base + T_HS_PREPARE_OFFSET,
-		   T_HS_PREPARE(t->t_hs_prepare));
-	inno_write(inno, base + T_HS_ZERO_OFFSET, T_HS_ZERO(t->t_hs_zero));
-	inno_write(inno, base + T_HS_TRAIL_OFFSET, T_HS_TRAIL(t->t_hs_trail));
-	inno_write(inno, base + T_HS_EXIT_OFFSET, T_HS_EXIT(t->t_hs_exit));
-	inno_write(inno, base + T_CLK_POST_OFFSET, T_CLK_POST(t->t_clk_post));
-	inno_write(inno, base + T_CLK_PRE_OFFSET, T_CLK_PRE(t->t_clk_pre));
-	inno_write(inno, base + T_WAKUP_H_OFFSET, T_WAKUP_H(t->t_wakup_h));
-	inno_write(inno, base + T_WAKUP_L_OFFSET, T_WAKUP_L(t->t_wakup_l));
-	inno_write(inno, base + T_LPX_OFFSET, T_LPX(t->t_lpx));
-	inno_write(inno, base + T_TA_GO_OFFSET, T_TA_GO(t->t_ta_go));
-	inno_write(inno, base + T_TA_SURE_OFFSET, T_TA_SURE(t->t_ta_sure));
-	inno_write(inno, base + T_TA_WAIT_OFFSET, T_TA_WAIT(t->t_ta_wait));
+	mask = T_HS_PREPARE_MASK;
+	val = T_HS_PREPARE(t->t_hs_prepare);
+	inno_update_bits(inno, base + T_HS_PREPARE_OFFSET, mask, val);
+
+	mask = T_HS_ZERO_MASK;
+	val = T_HS_ZERO(t->t_hs_zero);
+	inno_update_bits(inno, base + T_HS_ZERO_OFFSET, mask, val);
+
+	mask = T_HS_TRAIL_MASK;
+	val = T_HS_TRAIL(t->t_hs_trail);
+	inno_update_bits(inno, base + T_HS_TRAIL_OFFSET, mask, val);
+
+	mask = T_HS_EXIT_MASK;
+	val = T_HS_EXIT(t->t_hs_exit);
+	inno_update_bits(inno, base + T_HS_EXIT_OFFSET, mask, val);
+
+	if (lane_type == CLOCK_LANE) {
+		mask = T_CLK_POST_MASK;
+		val = T_CLK_POST(t->t_clk_post);
+		inno_update_bits(inno, base + T_CLK_POST_OFFSET, mask, val);
+
+		mask = T_CLK_PRE_MASK;
+		val = T_CLK_PRE(t->t_clk_pre);
+		inno_update_bits(inno, base + T_CLK_PRE_OFFSET, mask, val);
+	}
+
+	mask = T_WAKUP_H_MASK;
+	val = T_WAKUP_H(t->t_wakup_h);
+	inno_update_bits(inno, base + T_WAKUP_H_OFFSET, mask, val);
+
+	mask = T_WAKUP_L_MASK;
+	val = T_WAKUP_L(t->t_wakup_l);
+	inno_update_bits(inno, base + T_WAKUP_L_OFFSET, mask, val);
+
+	mask = T_LPX_MASK;
+	val = T_LPX(t->t_lpx);
+	inno_update_bits(inno, base + T_LPX_OFFSET, mask, val);
+
+	mask = T_TA_GO_MASK;
+	val = T_TA_GO(t->t_ta_go);
+	inno_update_bits(inno, base + T_TA_GO_OFFSET, mask, val);
+
+	mask = T_TA_SURE_MASK;
+	val = T_TA_SURE(t->t_ta_sure);
+	inno_update_bits(inno, base + T_TA_SURE_OFFSET, mask, val);
+
+	mask = T_TA_WAIT_MASK;
+	val = T_TA_WAIT(t->t_ta_wait);
+	inno_update_bits(inno, base + T_TA_WAIT_OFFSET, mask, val);
 }
 
-static enum hs_clk_range inno_mipi_dphy_get_hs_clk_range(u32 lane_mbps)
+static int inno_mipi_dphy_get_fixed_param(struct inno_mipi_dphy_timing *t,
+					  u32 hs_clk_rate,
+					  enum lane_type lane_type)
 {
-	if (lane_mbps < 110)
-		return HS_CLK_RANGE_80_110_MHZ;
-	else if (lane_mbps < 150)
-		return HS_CLK_RANGE_110_150_MHZ;
-	else if (lane_mbps < 200)
-		return HS_CLK_RANGE_150_200_MHZ;
-	else if (lane_mbps < 250)
-		return HS_CLK_RANGE_200_250_MHZ;
-	else if (lane_mbps < 300)
-		return HS_CLK_RANGE_250_300_MHZ;
-	else if (lane_mbps < 400)
-		return HS_CLK_RANGE_400_500_MHZ;
-	else if (lane_mbps < 500)
-		return HS_CLK_RANGE_400_500_MHZ;
-	else if (lane_mbps < 600)
-		return HS_CLK_RANGE_500_600_MHZ;
-	else if (lane_mbps < 700)
-		return HS_CLK_RANGE_600_700_MHZ;
-	else if (lane_mbps < 800)
-		return HS_CLK_RANGE_700_800_MHZ;
+	const struct t_param *param;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(t_fixed_param_table); i++) {
+		if (hs_clk_rate <= t_fixed_param_table[i].hs_clk_rate)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(t_fixed_param_table))
+		return -EINVAL;
+
+	param = &t_fixed_param_table[i];
+
+	if (lane_type == CLOCK_LANE)
+		t->t_hs_zero = param->clock_lane_t_hs_zero;
 	else
-		return HS_CLK_RANGE_800_1000_MHZ;
+		t->t_hs_zero = param->data_lane_t_hs_zero;
+
+	t->t_hs_prepare = param->t_hs_prepare;
+	t->t_hs_trail = param->t_hs_trail;
+
+	return 0;
 }
 
 static void inno_mipi_dphy_lane_timing_init(struct inno_mipi_dphy *inno,
@@ -330,22 +336,12 @@ static void inno_mipi_dphy_lane_timing_init(struct inno_mipi_dphy *inno,
 	u32 txbyteclkhs = inno->lane_mbps / 8;	/* MHz */
 	u32 txclkesc = 20;	/* MHz */
 	u32 UI = DIV_ROUND_CLOSEST(NSEC_PER_USEC, inno->lane_mbps);	/* ns */
-	enum hs_clk_range range;
 
 	memset(&timing, 0, sizeof(timing));
 	memset(&data, 0, sizeof(data));
 
 	mipi_dphy_timing_get_default(&timing, UI);
-
-	range = inno_mipi_dphy_get_hs_clk_range(inno->lane_mbps);
-
-	if (lane_type == CLOCK_LANE)
-		data.t_hs_zero = clock_lane_t_hs_zero_val[range];
-	else
-		data.t_hs_zero = data_lane_t_hs_zero_val[range];
-
-	data.t_hs_prepare = t_hs_prepare_val[range];
-	data.t_hs_trail = t_hs_trail_val[range];
+	inno_mipi_dphy_get_fixed_param(&data, inno->lane_mbps, lane_type);
 
 	/* txbyteclkhs domain */
 	data.t_hs_exit = DIV_ROUND_UP(txbyteclkhs * timing.hsexit,
@@ -374,7 +370,7 @@ static void inno_mipi_dphy_pll_init(struct inno_mipi_dphy *inno)
 	unsigned int target_mbps = 1000;
 	unsigned int max_mbps = 1000;
 	u32 fbdiv = 1, prediv = 1;
-	u32 val;
+	u32 val, mask;
 
 	mpclk = DIV_ROUND_UP(panel->vm.pixelclock, USEC_PER_SEC);
 	if (mpclk) {
@@ -390,6 +386,8 @@ static void inno_mipi_dphy_pll_init(struct inno_mipi_dphy *inno)
 	tmp = pllref;
 
 	for (i = 1; i < 6; i++) {
+		if (pllref % i)
+			continue;
 		pre = pllref / i;
 		if ((tmp > (target_mbps % pre)) && (target_mbps / pre < 512)) {
 			tmp = target_mbps % pre;
@@ -400,17 +398,19 @@ static void inno_mipi_dphy_pll_init(struct inno_mipi_dphy *inno)
 			break;
 	}
 
-	inno->lane_mbps = pllref * fbdiv / prediv;
+	inno->lane_mbps = pllref / prediv * fbdiv;
 	phy_set_bus_width(inno->phy, inno->lane_mbps);
 
+	mask = FBDIV_8_MASK | PREDIV_MASK;
 	val = FBDIV_8(fbdiv >> 8) | PREDIV(prediv);
-	inno_write(inno, INNO_PHY_PLL_CTRL_0, val);
+	inno_update_bits(inno, INNO_PHY_PLL_CTRL_0, mask, val);
 
+	mask = FBDIV_7_0_MASK;
 	val = FBDIV_7_0(fbdiv);
-	inno_write(inno, INNO_PHY_PLL_CTRL_1, val);
+	inno_update_bits(inno, INNO_PHY_PLL_CTRL_1, mask, val);
 
-	dev_info(inno->dev, "fin=%d, fout=%d, prediv=%d, fbdiv=%d\n",
-		 pllref, inno->lane_mbps, prediv, fbdiv);
+	dev_info(inno->dev, "fin=%d, target_mbps=%d, fout=%d, prediv=%d, fbdiv=%d\n",
+		 pllref, target_mbps, inno->lane_mbps, prediv, fbdiv);
 }
 
 static void inno_mipi_dphy_reset(struct inno_mipi_dphy *inno)
