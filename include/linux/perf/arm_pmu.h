@@ -159,6 +159,13 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 			 const struct of_device_id *of_table,
 			 const struct pmu_probe_info *probe_table);
 
+/* Internal functions only for core arm_pmu code */
+struct arm_pmu *armpmu_alloc(void);
+void armpmu_free(struct arm_pmu *pmu);
+int armpmu_register(struct arm_pmu *pmu);
+int armpmu_request_irqs(struct arm_pmu *armpmu);
+void armpmu_free_irqs(struct arm_pmu *armpmu);
+
 #define ARMV8_PMU_PDEV_NAME "armv8-pmu"
 
 #endif /* CONFIG_ARM_PMU */
