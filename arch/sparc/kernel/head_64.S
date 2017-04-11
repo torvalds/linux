@@ -96,6 +96,7 @@ sparc64_boot:
 	andn	%g1, PSTATE_AM, %g1
 	wrpr	%g1, 0x0, %pstate
 	ba,a,pt	%xcc, 1f
+	 nop
 
 	.globl	prom_finddev_name, prom_chosen_path, prom_root_node
 	.globl	prom_getprop_name, prom_mmu_name, prom_peer_name
@@ -613,6 +614,7 @@ niagara_tlb_fixup:
 	 nop
 
 	ba,a,pt	%xcc, 80f
+	 nop
 niagara4_patch:
 	call	niagara4_patch_copyops
 	 nop
@@ -622,6 +624,7 @@ niagara4_patch:
 	 nop
 
 	ba,a,pt	%xcc, 80f
+	 nop
 
 niagara2_patch:
 	call	niagara2_patch_copyops
@@ -632,6 +635,7 @@ niagara2_patch:
 	 nop
 
 	ba,a,pt	%xcc, 80f
+	 nop
 
 niagara_patch:
 	call	niagara_patch_copyops

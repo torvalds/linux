@@ -17,7 +17,7 @@
 
 #include <linux/init.h>
 #include <linux/of.h>
-#include <linux/clockchip.h>
+#include <linux/clockchips.h>
 
 extern struct of_device_id __clkevt_of_table[];
 

@@ -633,6 +633,9 @@ noinline static void slc_entire_op(const int op)
 
 	write_aux_reg(ARC_REG_SLC_INVALIDATE, 1);
 
+	/* Make sure "busy" bit reports correct stataus, see STAR 9001165532 */
+	read_aux_reg(r);
+
 	/* Important to wait for flush to complete */
 	while (read_aux_reg(r) & SLC_CTRL_BUSY);
 }
