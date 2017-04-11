@@ -23,60 +23,45 @@
 static int sdcardfs_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	int err;
-	struct file *file, *lower_file;
+	struct file *file;
 	const struct vm_operations_struct *lower_vm_ops;
-	struct vm_area_struct lower_vma;
 
-	memcpy(&lower_vma, vma, sizeof(struct vm_area_struct));
-	file = lower_vma.vm_file;
+	file = (struct file *)vma->vm_private_data;
 	lower_vm_ops = SDCARDFS_F(file)->lower_vm_ops;
 	BUG_ON(!lower_vm_ops);
 
-	lower_file = sdcardfs_lower_file(file);
-	/*
-	 * XXX: vm_ops->fault may be called in parallel.  Because we have to
-	 * resort to temporarily changing the vma->vm_file to point to the
-	 * lower file, a concurrent invocation of sdcardfs_fault could see a
-	 * different value.  In this workaround, we keep a different copy of
-	 * the vma structure in our stack, so we never expose a different
-	 * value of the vma->vm_file called to us, even temporarily.  A
-	 * better fix would be to change the calling semantics of ->fault to
-	 * take an explicit file pointer.
-	 */
-	lower_vma.vm_file = lower_file;
-	err = lower_vm_ops->fault(&lower_vma, vmf);
+	err = lower_vm_ops->fault(vma, vmf);
 	return err;
+}
+
+static void sdcardfs_vm_open(struct vm_area_struct *vma)
+{
+	struct file *file = (struct file *)vma->vm_private_data;
+
+	get_file(file);
+}
+
+static void sdcardfs_vm_close(struct vm_area_struct *vma)
+{
+	struct file *file = (struct file *)vma->vm_private_data;
+
+	fput(file);
 }
 
 static int sdcardfs_page_mkwrite(struct vm_area_struct *vma,
 			       struct vm_fault *vmf)
 {
 	int err = 0;
-	struct file *file, *lower_file;
+	struct file *file;
 	const struct vm_operations_struct *lower_vm_ops;
-	struct vm_area_struct lower_vma;
 
-	memcpy(&lower_vma, vma, sizeof(struct vm_area_struct));
-	file = lower_vma.vm_file;
+	file = (struct file *)vma->vm_private_data;
 	lower_vm_ops = SDCARDFS_F(file)->lower_vm_ops;
 	BUG_ON(!lower_vm_ops);
 	if (!lower_vm_ops->page_mkwrite)
 		goto out;
 
-	lower_file = sdcardfs_lower_file(file);
-	/*
-	 * XXX: vm_ops->page_mkwrite may be called in parallel.
-	 * Because we have to resort to temporarily changing the
-	 * vma->vm_file to point to the lower file, a concurrent
-	 * invocation of sdcardfs_page_mkwrite could see a different
-	 * value.  In this workaround, we keep a different copy of the
-	 * vma structure in our stack, so we never expose a different
-	 * value of the vma->vm_file called to us, even temporarily.
-	 * A better fix would be to change the calling semantics of
-	 * ->page_mkwrite to take an explicit file pointer.
-	 */
-	lower_vma.vm_file = lower_file;
-	err = lower_vm_ops->page_mkwrite(&lower_vma, vmf);
+	err = lower_vm_ops->page_mkwrite(vma, vmf);
 out:
 	return err;
 }
@@ -99,4 +84,6 @@ const struct address_space_operations sdcardfs_aops = {
 const struct vm_operations_struct sdcardfs_vm_ops = {
 	.fault		= sdcardfs_fault,
 	.page_mkwrite	= sdcardfs_page_mkwrite,
+	.open		= sdcardfs_vm_open,
+	.close		= sdcardfs_vm_close,
 };
