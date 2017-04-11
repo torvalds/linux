@@ -6491,7 +6491,6 @@ xfs_bmap_finish_one(
 	struct xfs_bmbt_irec		bmap;
 	int				nimaps = 1;
 	xfs_fsblock_t			firstfsb;
-	int				flags = XFS_BMAPI_REMAP;
 	int				done;
 	int				error = 0;
 
@@ -6505,10 +6504,8 @@ xfs_bmap_finish_one(
 			XFS_FSB_TO_AGBNO(tp->t_mountp, startblock),
 			ip->i_ino, whichfork, startoff, blockcount, state);
 
-	if (whichfork != XFS_DATA_FORK && whichfork != XFS_ATTR_FORK)
+	if (WARN_ON_ONCE(whichfork != XFS_DATA_FORK))
 		return -EFSCORRUPTED;
-	if (whichfork == XFS_ATTR_FORK)
-		flags |= XFS_BMAPI_ATTRFORK;
 
 	if (XFS_TEST_ERROR(false, tp->t_mountp,
 			XFS_ERRTAG_BMAP_FINISH_ONE,
@@ -6519,13 +6516,13 @@ xfs_bmap_finish_one(
 	case XFS_BMAP_MAP:
 		firstfsb = bmap.br_startblock;
 		error = xfs_bmapi_write(tp, ip, bmap.br_startoff,
-					bmap.br_blockcount, flags, &firstfsb,
+					bmap.br_blockcount, XFS_BMAPI_REMAP, &firstfsb,
 					bmap.br_blockcount, &bmap, &nimaps,
 					dfops);
 		break;
 	case XFS_BMAP_UNMAP:
 		error = xfs_bunmapi(tp, ip, bmap.br_startoff,
-				bmap.br_blockcount, flags, 1, &firstfsb,
+				bmap.br_blockcount, XFS_BMAPI_REMAP, 1, &firstfsb,
 				dfops, &done);
 		ASSERT(done);
 		break;
