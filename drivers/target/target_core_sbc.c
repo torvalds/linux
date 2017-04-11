@@ -507,8 +507,11 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 	 * been failed with a non-zero SCSI status.
 	 */
 	if (cmd->scsi_status) {
-		pr_err("compare_and_write_callback: non zero scsi_status:"
+		pr_debug("compare_and_write_callback: non zero scsi_status:"
 			" 0x%02x\n", cmd->scsi_status);
+		*post_ret = 1;
+		if (cmd->scsi_status == SAM_STAT_CHECK_CONDITION)
+			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		goto out;
 	}
 
