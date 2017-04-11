@@ -13,6 +13,8 @@
  */
 
 #include <dt-bindings/clock/rockchip-ddr.h>
+#include <dt-bindings/display/rk_fb.h>
+#include <drm/drmP.h>
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -33,10 +35,72 @@
 #include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip_sip.h>
 #include <soc/rockchip/scpi.h>
+#include <uapi/drm/drm_mode.h>
 
 #define FIQ_INIT_HANDLER	(0x1)
 #define FIQ_CPU_TGT_BOOT	(0x0) /* to booting cpu */
 #define FIQ_NUM_FOR_DCF		(143) /* NA irq map to fiq for dcf */
+#define DTS_PAR_OFFSET		(4096)
+
+struct init_params {
+	/* these parameters, not use in RK322xh */
+	u32 hz;
+	u32 lcdc_type;
+	u32 vop;
+	u32 addr_mcu_el3;
+	u32 vop_dclk_mode;
+	/* if need, add parameter after */
+};
+
+char *rk3288_dts_timing[] = {
+	"ddr3_speed_bin",
+	"pd_idle",
+	"sr_idle",
+	"auto_pd_dis_freq",
+	"auto_sr_dis_freq",
+	"ddr3_dll_dis_freq",
+	"phy_dll_dis_freq",
+	"ddr3_odt_dis_freq",
+	"ddr3_drv",
+	"ddr3_odt",
+	"phy_ddr3_drv",
+	"phy_ddr3_odt",
+	"lpddr2_drv",
+	"phy_lpddr2_drv",
+	"lpddr3_odt_dis_freq",
+	"lpddr3_drv",
+	"lpddr3_odt",
+	"phy_lpddr3_drv",
+	"phy_lpddr3_odt"
+};
+
+struct rk3288_ddr_dts_config_timing {
+	unsigned int ddr3_speed_bin;
+	unsigned int pd_idle;
+	unsigned int sr_idle;
+
+	unsigned int auto_pd_dis_freq;
+	unsigned int auto_sr_dis_freq;
+	/* for ddr3 only */
+	unsigned int ddr3_dll_dis_freq;
+	unsigned int phy_dll_dis_freq;
+
+	unsigned int ddr3_odt_dis_freq;
+	unsigned int ddr3_drv;
+	unsigned int ddr3_odt;
+	unsigned int phy_ddr3_drv;
+	unsigned int phy_ddr3_odt;
+
+	unsigned int lpddr2_drv;
+	unsigned int phy_lpddr2_drv;
+	unsigned int lpddr3_odt_dis_freq;
+	unsigned int lpddr3_drv;
+	unsigned int lpddr3_odt;
+	unsigned int phy_lpddr3_drv;
+	unsigned int phy_lpddr3_odt;
+
+	unsigned int available;
+};
 
 struct rk3368_dram_timing {
 	u32 dram_spd_bin;
@@ -308,6 +372,46 @@ static int rockchip_dmcfreq_init_freq_table(struct device *dev,
 	return 0;
 }
 
+static void of_get_rk3288_timings(struct device *dev,
+				  struct device_node *np, uint32_t *timing)
+{
+	struct device_node *np_tim;
+	u32 *p;
+	struct rk3288_ddr_dts_config_timing *dts_timing;
+	struct init_params *init_timing;
+	int ret = 0;
+	u32 i;
+
+	init_timing = (struct init_params *)timing;
+
+	if (of_property_read_u32(np, "vop-dclk-mode",
+				 &init_timing->vop_dclk_mode))
+		init_timing->vop_dclk_mode = 0;
+
+	p = timing + DTS_PAR_OFFSET / 4;
+	np_tim = of_parse_phandle(np, "rockchip,ddr_timing", 0);
+	if (!np_tim) {
+		ret = -EINVAL;
+		goto end;
+	}
+	for (i = 0; i < ARRAY_SIZE(rk3288_dts_timing); i++) {
+		ret |= of_property_read_u32(np_tim, rk3288_dts_timing[i],
+					p + i);
+	}
+end:
+	dts_timing =
+		(struct rk3288_ddr_dts_config_timing *)(timing +
+							DTS_PAR_OFFSET / 4);
+	if (!ret) {
+		dts_timing->available = 1;
+	} else {
+		dts_timing->available = 0;
+		dev_err(dev, "of_get_ddr_timings: fail\n");
+	}
+
+	of_node_put(np_tim);
+}
+
 static struct rk3368_dram_timing *of_get_rk3368_timings(struct device *dev,
 							struct device_node *np)
 {
@@ -368,6 +472,145 @@ err:
 	}
 	of_node_put(np_tim);
 	return timing;
+}
+
+static int rk_drm_get_lcdc_type(void)
+{
+	struct drm_device *drm;
+	u32 lcdc_type = 0;
+
+	drm = drm_device_get_by_name("rockchip");
+	if (drm) {
+		struct drm_connector *conn;
+
+		mutex_lock(&drm->mode_config.mutex);
+		drm_for_each_connector(conn, drm) {
+			if (conn->encoder) {
+				lcdc_type = conn->connector_type;
+				break;
+			}
+		}
+		mutex_unlock(&drm->mode_config.mutex);
+	}
+	switch (lcdc_type) {
+	case DRM_MODE_CONNECTOR_LVDS:
+		lcdc_type = SCREEN_LVDS;
+		break;
+	case DRM_MODE_CONNECTOR_DisplayPort:
+		lcdc_type = SCREEN_DP;
+		break;
+	case DRM_MODE_CONNECTOR_HDMIA:
+	case DRM_MODE_CONNECTOR_HDMIB:
+		lcdc_type = SCREEN_HDMI;
+		break;
+	case DRM_MODE_CONNECTOR_TV:
+		lcdc_type = SCREEN_TVOUT;
+		break;
+	case DRM_MODE_CONNECTOR_eDP:
+		lcdc_type = SCREEN_EDP;
+		break;
+	case DRM_MODE_CONNECTOR_DSI:
+		lcdc_type = SCREEN_MIPI;
+		break;
+	default:
+		lcdc_type = SCREEN_NULL;
+		break;
+	}
+
+	return lcdc_type;
+}
+
+static int rk3288_dmc_init(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct clk *pclk_phy, *pclk_upctl, *dmc_clk;
+	struct arm_smccc_res res;
+	struct init_params *init_param;
+	struct drm_device *drm = drm_device_get_by_name("rockchip");
+	int ret;
+
+	if (!drm) {
+		dev_err(dev, "Get drm_device fail\n");
+		return -EPROBE_DEFER;
+	}
+
+	dmc_clk = devm_clk_get(dev, "dmc_clk");
+	if (IS_ERR(dmc_clk)) {
+		dev_err(dev, "Cannot get the clk dmc_clk\n");
+		return PTR_ERR(pclk_phy);
+	};
+	ret = clk_prepare_enable(dmc_clk);
+	if (ret < 0) {
+		dev_err(dev, "failed to prepare/enable dmc_clk\n");
+		return ret;
+	}
+
+	pclk_phy = devm_clk_get(dev, "pclk_phy0");
+	if (IS_ERR(pclk_phy)) {
+		dev_err(dev, "Cannot get the clk pclk_phy0\n");
+		return PTR_ERR(pclk_phy);
+	};
+	ret = clk_prepare_enable(pclk_phy);
+	if (ret < 0) {
+		dev_err(dev, "failed to prepare/enable pclk_phy0\n");
+		return ret;
+	}
+	pclk_upctl = devm_clk_get(dev, "pclk_upctl0");
+	if (IS_ERR(pclk_phy)) {
+		dev_err(dev, "Cannot get the clk pclk_upctl0\n");
+		return PTR_ERR(pclk_upctl);
+	};
+	ret = clk_prepare_enable(pclk_upctl);
+	if (ret < 0) {
+		dev_err(dev, "failed to prepare/enable pclk_upctl1\n");
+		return ret;
+	}
+
+	pclk_phy = devm_clk_get(dev, "pclk_phy1");
+	if (IS_ERR(pclk_phy)) {
+		dev_err(dev, "Cannot get the clk pclk_phy1\n");
+		return PTR_ERR(pclk_phy);
+	};
+	ret = clk_prepare_enable(pclk_phy);
+	if (ret < 0) {
+		dev_err(dev, "failed to prepare/enable pclk_phy1\n");
+		return ret;
+	}
+	pclk_upctl = devm_clk_get(dev, "pclk_upctl1");
+	if (IS_ERR(pclk_phy)) {
+		dev_err(dev, "Cannot get the clk pclk_upctl1\n");
+		return PTR_ERR(pclk_upctl);
+	};
+	ret = clk_prepare_enable(pclk_upctl);
+	if (ret < 0) {
+		dev_err(dev, "failed to prepare/enable pclk_upctl1\n");
+		return ret;
+	}
+
+	res = sip_smc_request_share_mem(DIV_ROUND_UP(sizeof(
+					struct rk3288_ddr_dts_config_timing),
+					4096) + 1, SHARE_PAGE_TYPE_DDR);
+	if (res.a0) {
+		dev_err(&pdev->dev, "no ATF memory for init\n");
+		return -ENOMEM;
+	}
+
+	init_param = (struct init_params *)res.a1;
+	of_get_rk3288_timings(&pdev->dev, pdev->dev.of_node,
+			      (uint32_t *)init_param);
+
+	init_param->hz = 0;
+	init_param->lcdc_type = rk_drm_get_lcdc_type();
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
+
+	if (res.a0) {
+		dev_err(&pdev->dev, "rockchip_sip_config_dram_init error:%lx\n",
+			res.a0);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 static int rk3368_dmc_init(struct platform_device *pdev)
@@ -565,6 +808,7 @@ static int rk3399_dmc_init(struct platform_device *pdev)
 }
 
 static const struct of_device_id rockchip_dmcfreq_of_match[] = {
+	{ .compatible = "rockchip,rk3288-dmc", .data = rk3288_dmc_init },
 	{ .compatible = "rockchip,rk3368-dmc", .data = rk3368_dmc_init },
 	{ .compatible = "rockchip,rk3399-dmc", .data = rk3399_dmc_init },
 	{ },
@@ -614,8 +858,9 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	if (match) {
 		init = match->data;
 		if (init) {
-			if (init(pdev, data))
-				return -EINVAL;
+			ret = init(pdev, data);
+			if (ret)
+				return ret;
 		}
 	}
 
