@@ -116,6 +116,8 @@
 #define ACLK_VCODEC		208
 #define ACLK_CPU		209
 #define ACLK_PERI		210
+#define ACLK_VIO0		211
+#define ACLK_VIO1		212
 
 /* pclk gates */
 #define PCLK_GPIO0		320
@@ -204,8 +206,9 @@
 #define HCLK_CPU		477
 #define HCLK_PERI		478
 #define HCLK_USB_PERI		479
+#define HCLK_VIO		480
 
-#define CLK_NR_CLKS		(HCLK_PERI + 1)
+#define CLK_NR_CLKS		(HCLK_VIO + 1)
 
 /* soft-reset indices */
 #define SRST_CORE0		0
