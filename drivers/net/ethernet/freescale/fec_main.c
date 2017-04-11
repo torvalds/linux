@@ -2651,7 +2651,7 @@ static void fec_enet_free_queue(struct net_device *ndev)
 	for (i = 0; i < fep->num_tx_queues; i++)
 		if (fep->tx_queue[i] && fep->tx_queue[i]->tso_hdrs) {
 			txq = fep->tx_queue[i];
-			dma_free_coherent(NULL,
+			dma_free_coherent(&fep->pdev->dev,
 					  txq->bd.ring_size * TSO_HEADER_SIZE,
 					  txq->tso_hdrs,
 					  txq->tso_hdrs_dma);
@@ -2685,7 +2685,7 @@ static int fec_enet_alloc_queue(struct net_device *ndev)
 		txq->tx_wake_threshold =
 			(txq->bd.ring_size - txq->tx_stop_threshold) / 2;
 
-		txq->tso_hdrs = dma_alloc_coherent(NULL,
+		txq->tso_hdrs = dma_alloc_coherent(&fep->pdev->dev,
 					txq->bd.ring_size * TSO_HEADER_SIZE,
 					&txq->tso_hdrs_dma,
 					GFP_KERNEL);
