@@ -388,6 +388,21 @@ config CRYPTO_DEV_MXC_SCC
 	  This option enables support for the Security Controller (SCC)
 	  found in Freescale i.MX25 chips.
 
+config CRYPTO_DEV_EXYNOS_RNG
+	tristate "EXYNOS HW pseudo random number generator support"
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on HAS_IOMEM
+	select CRYPTO_RNG
+	---help---
+	  This driver provides kernel-side support through the
+	  cryptographic API for the pseudo random number generator hardware
+	  found on Exynos SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called exynos-rng.
+
+	  If unsure, say Y.
+
 config CRYPTO_DEV_S5P
 	tristate "Support for Samsung S5PV210/Exynos crypto accelerator"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
