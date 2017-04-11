@@ -327,6 +327,11 @@
 	power-supply = <&vcc_lcd>;
 };
 
+&tsadc {
+	rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+	rockchip,hw-tshut-polarity = <1>; /* tshut polarity 0:LOW 1:HIGH */
+};
+
 &pinctrl {
 	lcd {
 		lcd_en: lcd-en  {
