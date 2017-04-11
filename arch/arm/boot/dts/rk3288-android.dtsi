@@ -119,7 +119,7 @@
 		enable-gpios = <&gpio7 2 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&bl_en>;
-		pwms = <&pwm0 0 1000000 PWM_POLARITY_INVERTED>;
+		pwms = <&pwm0 0 1000000 0>;
 	};
 
 	display-subsystem {
