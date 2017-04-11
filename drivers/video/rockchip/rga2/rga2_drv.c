@@ -178,6 +178,11 @@ static inline int rga2_init_version(void)
 	major_version = (reg_version & RGA2_MAJOR_VERSION_MASK) >> 24;
 	minor_version = (reg_version & RGA2_MINOR_VERSION_MASK) >> 20;
 
+	/*
+	 * some old rga ip has no rga version register, so force set to 2.00
+	 */
+	if (!major_version && !minor_version)
+		major_version = 2;
 	sprintf(rga->version, "%d.%02d", major_version, minor_version);
 
 	return 0;
