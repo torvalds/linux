@@ -538,9 +538,9 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	I915_WRITE_CTL(engine, RING_CTL_SIZE(ring->size) | RING_VALID);
 
 	/* If the head is still not zero, the ring is dead */
-	if (intel_wait_for_register_fw(dev_priv, RING_CTL(engine->mmio_base),
-				       RING_VALID, RING_VALID,
-				       50)) {
+	if (intel_wait_for_register(dev_priv, RING_CTL(engine->mmio_base),
+				    RING_VALID, RING_VALID,
+				    50)) {
 		DRM_ERROR("%s initialization failed "
 			  "ctl %08x (valid? %d) head %08x [%08x] tail %08x [%08x] start %08x [expected %08x]\n",
 			  engine->name,
