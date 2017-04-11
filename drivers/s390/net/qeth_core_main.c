@@ -5749,8 +5749,12 @@ static int qeth_core_set_offline(struct ccwgroup_device *gdev)
 static void qeth_core_shutdown(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
-	if (card->discipline && card->discipline->shutdown)
-		card->discipline->shutdown(gdev);
+	qeth_set_allowed_threads(card, 0, 1);
+	if ((gdev->state == CCWGROUP_ONLINE) && card->info.hwtrap)
+		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
+	qeth_qdio_clear_card(card, 0);
+	qeth_clear_qdio_buffers(card);
+	qdio_free(CARD_DDEV(card));
 }
 
 static int qeth_core_prepare(struct ccwgroup_device *gdev)
