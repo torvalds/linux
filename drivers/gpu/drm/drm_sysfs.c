@@ -271,11 +271,11 @@ static int drm_get_audio_format(struct edid *edid,
 			       char *audioformat, int len)
 {
 	int i, size = 0, num = 0;
-	struct cea_sad *sads;
+	struct cea_sad *sads = NULL;
 
 	memset(audioformat, 0, len);
 	num = drm_edid_to_sad(edid, &sads);
-	if (!num)
+	if (num <= 0)
 		return 0;
 
 	for (i = 0; i < num; i++) {
@@ -288,6 +288,8 @@ static int drm_get_audio_format(struct edid *edid,
 		audioformat[size] = ',';
 		audioformat += (size + 1);
 	}
+	kfree(sads);
+
 	return num;
 }
 
