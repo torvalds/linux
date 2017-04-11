@@ -758,10 +758,6 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	int err;
 
-	err = armpmu_request_irqs(cpu_pmu);
-	if (err)
-		goto out;
-
 	err = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_STARTING,
 				       &cpu_pmu->node);
 	if (err)
@@ -777,7 +773,6 @@ out_unregister:
 	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_STARTING,
 					    &cpu_pmu->node);
 out:
-	armpmu_free_irqs(cpu_pmu);
 	return err;
 }
 
@@ -1073,12 +1068,18 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 		goto out_free;
 	}
 
+	ret = armpmu_request_irqs(pmu);
+	if (ret)
+		goto out_free_irqs;
+
 	ret = armpmu_register(pmu);
 	if (ret)
 		goto out_free;
 
 	return 0;
 
+out_free_irqs:
+	armpmu_free_irqs(pmu);
 out_free:
 	pr_info("%s: failed to register PMU devices!\n",
 		of_node_full_name(node));
