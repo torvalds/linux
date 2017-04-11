@@ -95,12 +95,6 @@ struct hw_info_t {
 	struct tasklet_struct rx_bh_task;
 };
 
-struct ks_sdio_packet {
-	struct ks_sdio_packet *next;
-	u16 nb;
-	u8 buffer[0] __aligned(4);
-};
-
 struct ks_sdio_card {
 	struct sdio_func *func;
 	struct ks_wlan_private *priv;
