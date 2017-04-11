@@ -525,7 +525,7 @@ int perf_num_counters(void)
 }
 EXPORT_SYMBOL_GPL(perf_num_counters);
 
-static void armpmu_free_irq(struct arm_pmu *armpmu, int cpu)
+void armpmu_free_irq(struct arm_pmu *armpmu, int cpu)
 {
 	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
 	int irq = per_cpu(hw_events->irq, cpu);
@@ -550,7 +550,7 @@ void armpmu_free_irqs(struct arm_pmu *armpmu)
 		armpmu_free_irq(armpmu, cpu);
 }
 
-static int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
+int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
 {
 	int err = 0;
 	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;

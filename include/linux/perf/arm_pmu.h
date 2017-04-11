@@ -117,6 +117,9 @@ struct arm_pmu {
 	struct notifier_block	cpu_pm_nb;
 	/* the attr_groups array must be NULL-terminated */
 	const struct attribute_group *attr_groups[ARMPMU_NR_ATTR_GROUPS + 1];
+
+	/* Only to be used by ACPI probing code */
+	unsigned long acpi_cpuid;
 };
 
 #define to_arm_pmu(p) (container_of(p, struct arm_pmu, pmu))
@@ -159,12 +162,20 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 			 const struct of_device_id *of_table,
 			 const struct pmu_probe_info *probe_table);
 
+#ifdef CONFIG_ACPI
+int arm_pmu_acpi_probe(armpmu_init_fn init_fn);
+#else
+static inline int arm_pmu_acpi_probe(armpmu_init_fn init_fn) { return 0; }
+#endif
+
 /* Internal functions only for core arm_pmu code */
 struct arm_pmu *armpmu_alloc(void);
 void armpmu_free(struct arm_pmu *pmu);
 int armpmu_register(struct arm_pmu *pmu);
 int armpmu_request_irqs(struct arm_pmu *armpmu);
 void armpmu_free_irqs(struct arm_pmu *armpmu);
+int armpmu_request_irq(struct arm_pmu *armpmu, int cpu);
+void armpmu_free_irq(struct arm_pmu *armpmu, int cpu);
 
 #define ARMV8_PMU_PDEV_NAME "armv8-pmu"
 
