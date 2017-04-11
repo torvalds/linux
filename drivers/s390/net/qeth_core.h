@@ -240,7 +240,6 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 #define QETH_TX_TIMEOUT		100 * HZ
 #define QETH_RCD_TIMEOUT	60 * HZ
 #define QETH_RECLAIM_WORK_TIME	HZ
-#define QETH_HEADER_SIZE	32
 #define QETH_MAX_PORTNO		15
 
 /*IPv6 address autoconfiguration stuff*/
@@ -447,7 +446,7 @@ struct qeth_qdio_out_buffer {
 	atomic_t state;
 	int next_element_to_fill;
 	struct sk_buff_head skb_list;
-	int is_header[16];
+	int is_header[QDIO_MAX_ELEMENTS_PER_BUFFER];
 
 	struct qaob *aob;
 	struct qeth_qdio_out_q *q;
