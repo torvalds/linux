@@ -545,7 +545,9 @@ static int igt_mmap_offset_exhaustion(void *arg)
 		}
 
 		mutex_lock(&i915->drm.struct_mutex);
+		intel_runtime_pm_get(i915);
 		err = make_obj_busy(obj);
+		intel_runtime_pm_put(i915);
 		mutex_unlock(&i915->drm.struct_mutex);
 		if (err) {
 			pr_err("[loop %d] Failed to busy the object\n", loop);
