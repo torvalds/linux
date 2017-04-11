@@ -789,7 +789,7 @@ int caam_qi_init(struct platform_device *caam_pdev)
 		dev_err(qidev, "Can't allocate CAAM cache\n");
 		free_rsp_fqs();
 		platform_device_unregister(qi_pdev);
-		return err;
+		return -ENOMEM;
 	}
 
 	/* Done with the CGRs; restore the cpus allowed mask */
