@@ -324,6 +324,7 @@ static int hi6210_i2s_hw_params(struct snd_pcm_substream *substream,
 	default:
 		i2s->bits = 16;
 		dma_data->addr_width = 2;
+		break;
 	}
 	i2s->rate = params_rate(params);
 	i2s->channels = params_channels(params);
@@ -442,6 +443,7 @@ static int hi6210_i2s_hw_params(struct snd_pcm_substream *substream,
 		val = hi6210_read_reg(i2s, HII2S_I2S_CFG);
 		val &= ~HII2S_I2S_CFG__S2_FRAME_MODE;
 		hi6210_write_reg(i2s, HII2S_I2S_CFG, val);
+		break;
 	}
 
 	/* clear loopback, set signed type and word length */
