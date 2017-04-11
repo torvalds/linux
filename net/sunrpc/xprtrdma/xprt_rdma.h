@@ -164,6 +164,12 @@ rdmab_to_msg(struct rpcrdma_regbuf *rb)
 	return (struct rpcrdma_msg *)rb->rg_base;
 }
 
+static inline struct ib_device *
+rdmab_device(struct rpcrdma_regbuf *rb)
+{
+	return rb->rg_device;
+}
+
 #define RPCRDMA_DEF_GFP		(GFP_NOIO | __GFP_NOWARN)
 
 /* To ensure a transport can always make forward progress,
@@ -209,7 +215,6 @@ struct rpcrdma_rep {
 	unsigned int		rr_len;
 	int			rr_wc_flags;
 	u32			rr_inv_rkey;
-	struct ib_device	*rr_device;
 	struct rpcrdma_xprt	*rr_rxprt;
 	struct work_struct	rr_work;
 	struct list_head	rr_list;
