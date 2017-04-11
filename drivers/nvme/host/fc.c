@@ -61,12 +61,19 @@ struct nvme_fc_queue {
 	unsigned long		flags;
 } __aligned(sizeof(u64));	/* alignment for other things alloc'd with */
 
+enum nvme_fcop_flags {
+	FCOP_FLAGS_TERMIO	= (1 << 0),
+	FCOP_FLAGS_RELEASED	= (1 << 1),
+	FCOP_FLAGS_COMPLETE	= (1 << 2),
+};
+
 struct nvmefc_ls_req_op {
 	struct nvmefc_ls_req	ls_req;
 
 	struct nvme_fc_rport	*rport;
 	struct nvme_fc_queue	*queue;
 	struct request		*rq;
+	u32			flags;
 
 	int			ls_error;
 	struct completion	ls_done;
@@ -491,6 +498,30 @@ nvme_fc_rport_get(struct nvme_fc_rport *rport)
 	return kref_get_unless_zero(&rport->ref);
 }
 
+static int
+nvme_fc_abort_lsops(struct nvme_fc_rport *rport)
+{
+	struct nvmefc_ls_req_op *lsop;
+	unsigned long flags;
+
+restart:
+	spin_lock_irqsave(&rport->lock, flags);
+
+	list_for_each_entry(lsop, &rport->ls_req_list, lsreq_list) {
+		if (!(lsop->flags & FCOP_FLAGS_TERMIO)) {
+			lsop->flags |= FCOP_FLAGS_TERMIO;
+			spin_unlock_irqrestore(&rport->lock, flags);
+			rport->lport->ops->ls_abort(&rport->lport->localport,
+						&rport->remoteport,
+						&lsop->ls_req);
+			goto restart;
+		}
+	}
+	spin_unlock_irqrestore(&rport->lock, flags);
+
+	return 0;
+}
+
 /**
  * nvme_fc_unregister_remoteport - transport entry point called by an
  *                              LLDD to deregister/remove a previously
@@ -525,6 +556,8 @@ nvme_fc_unregister_remoteport(struct nvme_fc_remote_port *portptr)
 		__nvme_fc_del_ctrl(ctrl);
 
 	spin_unlock_irqrestore(&rport->lock, flags);
+
+	nvme_fc_abort_lsops(rport);
 
 	nvme_fc_rport_put(rport);
 	return 0;
