@@ -457,19 +457,33 @@ out1:
 	return ERR_PTR(rc);
 }
 
-/*
- * Close a connection, during shutdown or timeout/reconnect
+/**
+ * xprt_rdma_close - Close down RDMA connection
+ * @xprt: generic transport to be closed
+ *
+ * Called during transport shutdown reconnect, or device
+ * removal. Caller holds the transport's write lock.
  */
 static void
 xprt_rdma_close(struct rpc_xprt *xprt)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 
-	dprintk("RPC:       %s: closing\n", __func__);
-	if (r_xprt->rx_ep.rep_connected > 0)
+	dprintk("RPC:       %s: closing xprt %p\n", __func__, xprt);
+
+	if (test_and_clear_bit(RPCRDMA_IAF_REMOVING, &ia->ri_flags)) {
+		xprt_clear_connected(xprt);
+		rpcrdma_ia_remove(ia);
+		return;
+	}
+	if (ep->rep_connected == -ENODEV)
+		return;
+	if (ep->rep_connected > 0)
 		xprt->reestablish_timeout = 0;
 	xprt_disconnect_done(xprt);
-	rpcrdma_ep_disconnect(&r_xprt->rx_ep, &r_xprt->rx_ia);
+	rpcrdma_ep_disconnect(ep, ia);
 }
 
 static void
@@ -680,6 +694,8 @@ xprt_rdma_free(struct rpc_task *task)
  * xprt_rdma_send_request - marshal and send an RPC request
  * @task: RPC task with an RPC message in rq_snd_buf
  *
+ * Caller holds the transport's write lock.
+ *
  * Return values:
  *        0:	The request has been sent
  * ENOTCONN:	Caller needs to invoke connect logic then call again
@@ -705,6 +721,9 @@ xprt_rdma_send_request(struct rpc_task *task)
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	int rc = 0;
+
+	if (!xprt_connected(xprt))
+		goto drop_connection;
 
 	/* On retransmit, remove any previously registered chunks */
 	if (unlikely(!list_empty(&req->rl_registered)))

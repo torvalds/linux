@@ -69,6 +69,7 @@ struct rpcrdma_ia {
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
 	struct completion	ri_done;
+	struct completion	ri_remove_done;
 	int			ri_async_rc;
 	unsigned int		ri_max_segs;
 	unsigned int		ri_max_frmr_depth;
@@ -78,8 +79,13 @@ struct rpcrdma_ia {
 	bool			ri_reminv_expected;
 	bool			ri_implicit_roundup;
 	enum ib_mr_type		ri_mrtype;
+	unsigned long		ri_flags;
 	struct ib_qp_attr	ri_qp_attr;
 	struct ib_qp_init_attr	ri_qp_init_attr;
+};
+
+enum {
+	RPCRDMA_IAF_REMOVING = 0,
 };
 
 /*
@@ -511,6 +517,7 @@ extern unsigned int xprt_rdma_memreg_strategy;
  * Interface Adapter calls - xprtrdma/verbs.c
  */
 int rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr);
+void rpcrdma_ia_remove(struct rpcrdma_ia *ia);
 void rpcrdma_ia_close(struct rpcrdma_ia *);
 bool frwr_is_supported(struct rpcrdma_ia *);
 bool fmr_is_supported(struct rpcrdma_ia *);
