@@ -1260,8 +1260,8 @@ static void rt5665_jd_check_handler(struct work_struct *work)
 	}
 }
 
-int rt5665_set_jack_detect(struct snd_soc_codec *codec,
-	struct snd_soc_jack *hs_jack)
+static int rt5665_set_jack_detect(struct snd_soc_codec *codec,
+	struct snd_soc_jack *hs_jack, void *data)
 {
 	struct rt5665_priv *rt5665 = snd_soc_codec_get_drvdata(codec);
 
@@ -1288,7 +1288,6 @@ int rt5665_set_jack_detect(struct snd_soc_codec *codec,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt5665_set_jack_detect);
 
 static void rt5665_jack_detect_handler(struct work_struct *work)
 {
@@ -4567,6 +4566,7 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5665 = {
 	},
 	.set_sysclk = rt5665_set_codec_sysclk,
 	.set_pll = rt5665_set_codec_pll,
+	.set_jack = rt5665_set_jack_detect,
 };
 
 
