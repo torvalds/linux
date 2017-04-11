@@ -681,7 +681,8 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 		qeth_promisc_to_bridge(card);
 }
 
-static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
+					   struct net_device *dev)
 {
 	int rc;
 	struct qeth_hdr *hdr = NULL;

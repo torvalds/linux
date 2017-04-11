@@ -2655,7 +2655,8 @@ static int qeth_l3_get_elements_no_tso(struct qeth_card *card,
 	return elements;
 }
 
-static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
+					   struct net_device *dev)
 {
 	int rc;
 	__be16 *tag;
