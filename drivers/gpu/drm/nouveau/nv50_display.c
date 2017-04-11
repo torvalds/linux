@@ -2036,34 +2036,37 @@ static void
 nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
 	struct drm_display_mode *mode = &asyh->state.adjusted_mode;
-	u32 ilace   = (mode->flags & DRM_MODE_FLAG_INTERLACE) ? 2 : 1;
-	u32 vscan   = (mode->flags & DRM_MODE_FLAG_DBLSCAN) ? 2 : 1;
-	u32 hbackp  =  mode->htotal - mode->hsync_end;
-	u32 vbackp  = (mode->vtotal - mode->vsync_end) * vscan / ilace;
-	u32 hfrontp =  mode->hsync_start - mode->hdisplay;
-	u32 vfrontp = (mode->vsync_start - mode->vdisplay) * vscan / ilace;
-	u32 blankus;
 	struct nv50_head_mode *m = &asyh->mode;
+	u32 blankus;
 
-	m->h.active = mode->htotal;
-	m->h.synce  = mode->hsync_end - mode->hsync_start - 1;
-	m->h.blanke = m->h.synce + hbackp;
-	m->h.blanks = mode->htotal - hfrontp - 1;
+	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 
-	m->v.active = mode->vtotal * vscan / ilace;
-	m->v.synce  = ((mode->vsync_end - mode->vsync_start) * vscan / ilace) - 1;
-	m->v.blanke = m->v.synce + vbackp;
-	m->v.blanks = m->v.active - vfrontp - 1;
+	/*
+	 * DRM modes are defined in terms of a repeating interval
+	 * starting with the active display area.  The hardware modes
+	 * are defined in terms of a repeating interval starting one
+	 * unit (pixel or line) into the sync pulse.  So, add bias.
+	 */
+
+	m->h.active = mode->crtc_htotal;
+	m->h.synce  = mode->crtc_hsync_end - mode->crtc_hsync_start - 1;
+	m->h.blanke = mode->crtc_hblank_end - mode->crtc_hsync_start - 1;
+	m->h.blanks = m->h.blanke + mode->crtc_hdisplay;
+
+	m->v.active = mode->crtc_vtotal;
+	m->v.synce  = mode->crtc_vsync_end - mode->crtc_vsync_start - 1;
+	m->v.blanke = mode->crtc_vblank_end - mode->crtc_vsync_start - 1;
+	m->v.blanks = m->v.blanke + mode->crtc_vdisplay;
 
 	/*XXX: Safe underestimate, even "0" works */
-	blankus = (m->v.active - mode->vdisplay - 2) * m->h.active;
+	blankus = (m->v.active - mode->crtc_vdisplay - 2) * m->h.active;
 	blankus *= 1000;
-	blankus /= mode->clock;
+	blankus /= mode->crtc_clock;
 	m->v.blankus = blankus;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		m->v.blank2e =  m->v.active + m->v.synce + vbackp;
-		m->v.blank2s =  m->v.blank2e + (mode->vdisplay * vscan / ilace);
+		m->v.blank2e =  m->v.active + m->v.blanke;
+		m->v.blank2s =  m->v.blank2e + mode->crtc_vdisplay;
 		m->v.active  = (m->v.active * 2) + 1;
 		m->interlace = true;
 	} else {
@@ -2071,9 +2074,8 @@ nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 		m->v.blank2s = 1;
 		m->interlace = false;
 	}
-	m->clock = mode->clock;
+	m->clock = mode->crtc_clock;
 
-	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 	asyh->set.mode = true;
 }
 
