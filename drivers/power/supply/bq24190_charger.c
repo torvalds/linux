@@ -550,16 +550,13 @@ static int bq24190_register_reset(struct bq24190_dev_info *bdi)
 		if (ret < 0)
 			return ret;
 
-		if (!v)
-			break;
+		if (v == 0)
+			return 0;
 
-		udelay(10);
+		usleep_range(100, 200);
 	} while (--limit);
 
-	if (!limit)
-		return -EIO;
-
-	return 0;
+	return -EIO;
 }
 
 /* Charger power supply property routines */
