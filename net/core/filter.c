@@ -3298,13 +3298,13 @@ static u32 xdp_convert_ctx_access(enum bpf_access_type type,
 	return insn - insn_buf;
 }
 
-static const struct bpf_verifier_ops sk_filter_ops = {
+const struct bpf_verifier_ops sk_filter_prog_ops = {
 	.get_func_proto		= sk_filter_func_proto,
 	.is_valid_access	= sk_filter_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
 };
 
-static const struct bpf_verifier_ops tc_cls_act_ops = {
+const struct bpf_verifier_ops tc_cls_act_prog_ops = {
 	.get_func_proto		= tc_cls_act_func_proto,
 	.is_valid_access	= tc_cls_act_is_valid_access,
 	.convert_ctx_access	= tc_cls_act_convert_ctx_access,
@@ -3312,28 +3312,28 @@ static const struct bpf_verifier_ops tc_cls_act_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 
-static const struct bpf_verifier_ops xdp_ops = {
+const struct bpf_verifier_ops xdp_prog_ops = {
 	.get_func_proto		= xdp_func_proto,
 	.is_valid_access	= xdp_is_valid_access,
 	.convert_ctx_access	= xdp_convert_ctx_access,
 	.test_run		= bpf_prog_test_run_xdp,
 };
 
-static const struct bpf_verifier_ops cg_skb_ops = {
+const struct bpf_verifier_ops cg_skb_prog_ops = {
 	.get_func_proto		= cg_skb_func_proto,
 	.is_valid_access	= sk_filter_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
 	.test_run		= bpf_prog_test_run_skb,
 };
 
-static const struct bpf_verifier_ops lwt_inout_ops = {
+const struct bpf_verifier_ops lwt_inout_prog_ops = {
 	.get_func_proto		= lwt_inout_func_proto,
 	.is_valid_access	= lwt_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
 	.test_run		= bpf_prog_test_run_skb,
 };
 
-static const struct bpf_verifier_ops lwt_xmit_ops = {
+const struct bpf_verifier_ops lwt_xmit_prog_ops = {
 	.get_func_proto		= lwt_xmit_func_proto,
 	.is_valid_access	= lwt_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
@@ -3341,72 +3341,11 @@ static const struct bpf_verifier_ops lwt_xmit_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 
-static const struct bpf_verifier_ops cg_sock_ops = {
+const struct bpf_verifier_ops cg_sock_prog_ops = {
 	.get_func_proto		= bpf_base_func_proto,
 	.is_valid_access	= sock_filter_is_valid_access,
 	.convert_ctx_access	= sock_filter_convert_ctx_access,
 };
-
-static struct bpf_prog_type_list sk_filter_type __ro_after_init = {
-	.ops	= &sk_filter_ops,
-	.type	= BPF_PROG_TYPE_SOCKET_FILTER,
-};
-
-static struct bpf_prog_type_list sched_cls_type __ro_after_init = {
-	.ops	= &tc_cls_act_ops,
-	.type	= BPF_PROG_TYPE_SCHED_CLS,
-};
-
-static struct bpf_prog_type_list sched_act_type __ro_after_init = {
-	.ops	= &tc_cls_act_ops,
-	.type	= BPF_PROG_TYPE_SCHED_ACT,
-};
-
-static struct bpf_prog_type_list xdp_type __ro_after_init = {
-	.ops	= &xdp_ops,
-	.type	= BPF_PROG_TYPE_XDP,
-};
-
-static struct bpf_prog_type_list cg_skb_type __ro_after_init = {
-	.ops	= &cg_skb_ops,
-	.type	= BPF_PROG_TYPE_CGROUP_SKB,
-};
-
-static struct bpf_prog_type_list lwt_in_type __ro_after_init = {
-	.ops	= &lwt_inout_ops,
-	.type	= BPF_PROG_TYPE_LWT_IN,
-};
-
-static struct bpf_prog_type_list lwt_out_type __ro_after_init = {
-	.ops	= &lwt_inout_ops,
-	.type	= BPF_PROG_TYPE_LWT_OUT,
-};
-
-static struct bpf_prog_type_list lwt_xmit_type __ro_after_init = {
-	.ops	= &lwt_xmit_ops,
-	.type	= BPF_PROG_TYPE_LWT_XMIT,
-};
-
-static struct bpf_prog_type_list cg_sock_type __ro_after_init = {
-	.ops	= &cg_sock_ops,
-	.type	= BPF_PROG_TYPE_CGROUP_SOCK
-};
-
-static int __init register_sk_filter_ops(void)
-{
-	bpf_register_prog_type(&sk_filter_type);
-	bpf_register_prog_type(&sched_cls_type);
-	bpf_register_prog_type(&sched_act_type);
-	bpf_register_prog_type(&xdp_type);
-	bpf_register_prog_type(&cg_skb_type);
-	bpf_register_prog_type(&cg_sock_type);
-	bpf_register_prog_type(&lwt_in_type);
-	bpf_register_prog_type(&lwt_out_type);
-	bpf_register_prog_type(&lwt_xmit_type);
-
-	return 0;
-}
-late_initcall(register_sk_filter_ops);
 
 int sk_detach_filter(struct sock *sk)
 {

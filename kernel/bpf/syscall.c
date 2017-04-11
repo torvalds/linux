@@ -573,26 +573,21 @@ err_put:
 	return err;
 }
 
-static LIST_HEAD(bpf_prog_types);
+static const struct bpf_verifier_ops * const bpf_prog_types[] = {
+#define BPF_PROG_TYPE(_id, _ops) \
+	[_id] = &_ops,
+#include <linux/bpf_types.h>
+#undef BPF_PROG_TYPE
+};
 
 static int find_prog_type(enum bpf_prog_type type, struct bpf_prog *prog)
 {
-	struct bpf_prog_type_list *tl;
+	if (type >= ARRAY_SIZE(bpf_prog_types) || !bpf_prog_types[type])
+		return -EINVAL;
 
-	list_for_each_entry(tl, &bpf_prog_types, list_node) {
-		if (tl->type == type) {
-			prog->aux->ops = tl->ops;
-			prog->type = type;
-			return 0;
-		}
-	}
-
-	return -EINVAL;
-}
-
-void bpf_register_prog_type(struct bpf_prog_type_list *tl)
-{
-	list_add(&tl->list_node, &bpf_prog_types);
+	prog->aux->ops = bpf_prog_types[type];
+	prog->type = type;
+	return 0;
 }
 
 /* drop refcnt on maps used by eBPF program and free auxilary data */
