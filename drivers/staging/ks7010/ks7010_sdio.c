@@ -952,7 +952,6 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	/* private memory initialize */
 	priv->ks_wlan_hw.sdio_card = card;
-	init_completion(&priv->ks_wlan_hw.ks7010_sdio_wait);
 	priv->ks_wlan_hw.read_buf = NULL;
 	priv->ks_wlan_hw.read_buf = kmalloc(RX_DATA_SIZE, GFP_KERNEL);
 	if (!priv->ks_wlan_hw.read_buf)
