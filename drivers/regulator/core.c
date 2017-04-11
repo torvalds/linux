@@ -1532,14 +1532,6 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	if (IS_ERR(r)) {
 		ret = PTR_ERR(r);
 
-		if (ret == -ENODEV) {
-			/*
-			 * No supply was specified for this regulator and
-			 * there will never be one.
-			 */
-			return 0;
-		}
-
 		/* Did the lookup explicitly defer for us? */
 		if (ret == -EPROBE_DEFER)
 			return ret;
