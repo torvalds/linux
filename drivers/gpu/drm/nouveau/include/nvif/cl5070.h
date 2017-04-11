@@ -76,7 +76,9 @@ struct nv50_disp_sor_hdmi_pwr_v0 {
 	__u8  state;
 	__u8  max_ac_packet;
 	__u8  rekey;
-	__u8  pad04[4];
+	__u8  avi_infoframe_length;
+	__u8  vendor_infoframe_length;
+	__u8  pad06[2];
 };
 
 struct nv50_disp_sor_lvds_script_v0 {
