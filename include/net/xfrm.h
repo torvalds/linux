@@ -586,7 +586,6 @@ struct xfrm_migrate {
 
 struct xfrm_mgr {
 	struct list_head	list;
-	char			*id;
 	int			(*notify)(struct xfrm_state *x, const struct km_event *c);
 	int			(*acquire)(struct xfrm_state *x, struct xfrm_tmpl *, struct xfrm_policy *xp);
 	struct xfrm_policy	*(*compile_policy)(struct sock *sk, int opt, u8 *data, int len, int *dir);
@@ -817,12 +816,12 @@ static inline void xfrm_state_hold(struct xfrm_state *x)
 }
 
 static inline bool addr_match(const void *token1, const void *token2,
-			      int prefixlen)
+			      unsigned int prefixlen)
 {
 	const __be32 *a1 = token1;
 	const __be32 *a2 = token2;
-	int pdw;
-	int pbi;
+	unsigned int pdw;
+	unsigned int pbi;
 
 	pdw = prefixlen >> 5;	  /* num of whole u32 in prefix */
 	pbi = prefixlen &  0x1f;  /* num of bits in incomplete u32 in prefix */
@@ -846,9 +845,9 @@ static inline bool addr_match(const void *token1, const void *token2,
 static inline bool addr4_match(__be32 a1, __be32 a2, u8 prefixlen)
 {
 	/* C99 6.5.7 (3): u32 << 32 is undefined behaviour */
-	if (prefixlen == 0)
+	if (sizeof(long) == 4 && prefixlen == 0)
 		return true;
-	return !((a1 ^ a2) & htonl(0xFFFFFFFFu << (32 - prefixlen)));
+	return !((a1 ^ a2) & htonl(~0UL << (32 - prefixlen)));
 }
 
 static __inline__

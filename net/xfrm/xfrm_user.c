@@ -3108,7 +3108,6 @@ static bool xfrm_is_alive(const struct km_event *c)
 }
 
 static struct xfrm_mgr netlink_mgr = {
-	.id		= "netlink",
 	.notify		= xfrm_send_state_notify,
 	.acquire	= xfrm_send_acquire,
 	.compile_policy	= xfrm_compile_policy,
