@@ -69,6 +69,7 @@ struct nlm_host {
 	char			*h_addrbuf;	/* address eyecatcher */
 	struct net		*net;		/* host net */
 	char			nodename[UNX_MAXNODENAME + 1];
+	const struct nlmclnt_operations	*h_nlmclnt_ops;	/* Callback ops for NLM users */
 };
 
 /*
@@ -142,6 +143,7 @@ struct nlm_rqst {
 	struct nlm_block *	a_block;
 	unsigned int		a_retries;	/* Retry count */
 	u8			a_owner[NLMCLNT_OHSIZE];
+	void *	a_callback_data; /* sent to nlmclnt_operations callbacks */
 };
 
 /*
