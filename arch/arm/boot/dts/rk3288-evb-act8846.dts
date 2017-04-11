@@ -246,6 +246,10 @@
 	};
 };
 
+&edp_panel {
+	power-supply = <&vcc_lcd>;
+};
+
 &i2c1 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -269,10 +273,6 @@
 };
 
 &lvds_panel {
-	power-supply = <&vcc_lcd>;
-};
-
-&panel {
 	power-supply = <&vcc_lcd>;
 };
 

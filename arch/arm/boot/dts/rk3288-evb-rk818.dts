@@ -83,6 +83,10 @@
 	cpu0-supply = <&vdd_cpu>;
 };
 
+&edp_panel {
+	power-supply = <&vcc_lcd>;
+};
+
 &gpu {
 	status = "okay";
 	mali-supply = <&vdd_gpu>;
@@ -320,10 +324,6 @@
 };
 
 &lvds_panel {
-	power-supply = <&vcc_lcd>;
-};
-
-&panel {
 	power-supply = <&vcc_lcd>;
 };
 

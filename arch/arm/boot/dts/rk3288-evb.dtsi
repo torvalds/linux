@@ -49,10 +49,12 @@
 		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1";
 	};
 
-	panel: panel {
+	edp_panel: edp-panel {
 		compatible ="lg,lp079qx1-sp0v", "simple-panel";
 		enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
 		pinctrl-0 = <&lcd_cs>;
+		status = "disabled";
+
 		ports {
 			panel_in: port {
 				panel_in_edp: endpoint {

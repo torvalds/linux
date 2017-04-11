@@ -40,6 +40,7 @@
 
 /dts-v1/;
 #include "rk3288-evb.dtsi"
+#include "rk3288-android.dtsi"
 
 / {
 	compatible = "rockchip,rk3288-evb-rk808", "rockchip,rk3288";
@@ -262,6 +263,10 @@
 	};
 };
 
+&edp_panel {
+	power-supply = <&vcc_lcd>;
+};
+
 &gmac {
 	phy-supply = <&vcc_phy>;
 	phy-mode = "rgmii";
@@ -279,9 +284,5 @@
 };
 
 &lvds_panel {
-	power-supply = <&vcc_lcd>;
-};
-
-&panel {
 	power-supply = <&vcc_lcd>;
 };
