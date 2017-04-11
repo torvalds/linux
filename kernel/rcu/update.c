@@ -665,6 +665,7 @@ static void check_holdout_task(struct task_struct *t,
 		put_task_struct(t);
 		return;
 	}
+	rcu_request_urgent_qs_task(t);
 	if (!needreport)
 		return;
 	if (*firstreport) {

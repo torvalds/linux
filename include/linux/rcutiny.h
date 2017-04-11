@@ -92,10 +92,11 @@ static inline void kfree_call_rcu(struct rcu_head *head,
 	call_rcu(head, func);
 }
 
-static inline void rcu_note_context_switch(void)
-{
-	rcu_sched_qs();
-}
+#define rcu_note_context_switch(preempt) \
+	do { \
+		rcu_sched_qs(); \
+		rcu_note_voluntary_context_switch_lite(current); \
+	} while (0)
 
 /*
  * Take advantage of the fact that there is only one CPU, which
@@ -241,6 +242,10 @@ static inline bool rcu_is_watching(void)
 }
 
 #endif /* #else defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
+
+static inline void rcu_request_urgent_qs_task(struct task_struct *t)
+{
+}
 
 static inline void rcu_all_qs(void)
 {

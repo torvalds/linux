@@ -458,7 +458,7 @@ static void rcu_momentary_dyntick_idle(void)
  * and requires special handling for preemptible RCU.
  * The caller must have disabled interrupts.
  */
-void rcu_note_context_switch(void)
+void rcu_note_context_switch(bool preempt)
 {
 	barrier(); /* Avoid RCU read-side critical sections leaking down. */
 	trace_rcu_utilization(TPS("Start context switch"));
@@ -471,6 +471,8 @@ void rcu_note_context_switch(void)
 	if (unlikely(raw_cpu_read(rcu_dynticks.rcu_need_heavy_qs)))
 		rcu_momentary_dyntick_idle();
 	this_cpu_inc(rcu_dynticks.rcu_qs_ctr);
+	if (!preempt)
+		rcu_note_voluntary_context_switch_lite(current);
 out:
 	trace_rcu_utilization(TPS("End context switch"));
 	barrier(); /* Avoid RCU read-side critical sections leaking up. */
@@ -1148,6 +1150,24 @@ bool notrace rcu_is_watching(void)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rcu_is_watching);
+
+/*
+ * If a holdout task is actually running, request an urgent quiescent
+ * state from its CPU.  This is unsynchronized, so migrations can cause
+ * the request to go to the wrong CPU.  Which is OK, all that will happen
+ * is that the CPU's next context switch will be a bit slower and next
+ * time around this task will generate another request.
+ */
+void rcu_request_urgent_qs_task(struct task_struct *t)
+{
+	int cpu;
+
+	barrier();
+	cpu = task_cpu(t);
+	if (!task_curr(t))
+		return; /* This task is not running on that CPU. */
+	smp_store_release(per_cpu_ptr(&rcu_dynticks.rcu_urgent_qs, cpu), true);
+}
 
 #if defined(CONFIG_PROVE_RCU) && defined(CONFIG_HOTPLUG_CPU)
 
