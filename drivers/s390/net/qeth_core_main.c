@@ -4024,8 +4024,7 @@ static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 
 int qeth_do_send_packet_fast(struct qeth_card *card,
 		struct qeth_qdio_out_q *queue, struct sk_buff *skb,
-		struct qeth_hdr *hdr, int elements_needed,
-		int offset, int hd_len)
+		struct qeth_hdr *hdr, int offset, int hd_len)
 {
 	struct qeth_qdio_out_buffer *buffer;
 	int index;

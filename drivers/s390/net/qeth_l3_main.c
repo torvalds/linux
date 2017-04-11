@@ -2810,7 +2810,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		rc = qeth_do_send_packet(card, queue, new_skb, hdr, elements);
 	} else
 		rc = qeth_do_send_packet_fast(card, queue, new_skb, hdr,
-					elements, data_offset, 0);
+					      data_offset, 0);
 
 	if (!rc) {
 		card->stats.tx_packets++;
