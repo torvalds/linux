@@ -5311,23 +5311,25 @@ static bool gfx_v8_0_check_soft_reset(void *handle)
 	}
 }
 
-static void gfx_v8_0_inactive_hqd(struct amdgpu_device *adev,
-				  struct amdgpu_ring *ring)
+static int gfx_v8_0_deactivate_hqd(struct amdgpu_device *adev, u32 req)
 {
-	int i;
+	int i, r = 0;
 
-	mutex_lock(&adev->srbm_mutex);
-	vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
 	if (RREG32(mmCP_HQD_ACTIVE) & CP_HQD_ACTIVE__ACTIVE_MASK) {
-		WREG32_FIELD(CP_HQD_DEQUEUE_REQUEST, DEQUEUE_REQ, 2);
+		WREG32_FIELD(CP_HQD_DEQUEUE_REQUEST, DEQUEUE_REQ, req);
 		for (i = 0; i < adev->usec_timeout; i++) {
 			if (!(RREG32(mmCP_HQD_ACTIVE) & CP_HQD_ACTIVE__ACTIVE_MASK))
 				break;
 			udelay(1);
 		}
+		if (i == adev->usec_timeout)
+			r = -ETIMEDOUT;
 	}
-	vi_srbm_select(adev, 0, 0, 0, 0);
-	mutex_unlock(&adev->srbm_mutex);
+	WREG32(mmCP_HQD_DEQUEUE_REQUEST, 0);
+	WREG32(mmCP_HQD_PQ_RPTR, 0);
+	WREG32(mmCP_HQD_PQ_WPTR, 0);
+
+	return r;
 }
 
 static int gfx_v8_0_pre_soft_reset(void *handle)
@@ -5359,7 +5361,11 @@ static int gfx_v8_0_pre_soft_reset(void *handle)
 		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 			struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
 
-			gfx_v8_0_inactive_hqd(adev, ring);
+			mutex_lock(&adev->srbm_mutex);
+			vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
+			gfx_v8_0_deactivate_hqd(adev, 2);
+			vi_srbm_select(adev, 0, 0, 0, 0);
+			mutex_unlock(&adev->srbm_mutex);
 		}
 		/* Disable MEC parsing/prefetching */
 		gfx_v8_0_cp_compute_enable(adev, false);
@@ -5430,18 +5436,6 @@ static int gfx_v8_0_soft_reset(void *handle)
 	return 0;
 }
 
-static void gfx_v8_0_init_hqd(struct amdgpu_device *adev,
-			      struct amdgpu_ring *ring)
-{
-	mutex_lock(&adev->srbm_mutex);
-	vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
-	WREG32(mmCP_HQD_DEQUEUE_REQUEST, 0);
-	WREG32(mmCP_HQD_PQ_RPTR, 0);
-	WREG32(mmCP_HQD_PQ_WPTR, 0);
-	vi_srbm_select(adev, 0, 0, 0, 0);
-	mutex_unlock(&adev->srbm_mutex);
-}
-
 static int gfx_v8_0_post_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -5467,7 +5461,11 @@ static int gfx_v8_0_post_soft_reset(void *handle)
 		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 			struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
 
-			gfx_v8_0_init_hqd(adev, ring);
+			mutex_lock(&adev->srbm_mutex);
+			vi_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
+			gfx_v8_0_deactivate_hqd(adev, 2);
+			vi_srbm_select(adev, 0, 0, 0, 0);
+			mutex_unlock(&adev->srbm_mutex);
 		}
 		gfx_v8_0_kiq_resume(adev);
 	}
