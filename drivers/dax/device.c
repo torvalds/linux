@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016 - 2017 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -13,10 +13,7 @@
 #include <linux/pagemap.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/magic.h>
-#include <linux/mount.h>
 #include <linux/pfn_t.h>
-#include <linux/hash.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
 #include <linux/dax.h>
@@ -24,16 +21,7 @@
 #include <linux/mm.h>
 #include "dax.h"
 
-static dev_t dax_devt;
-DEFINE_STATIC_SRCU(dax_srcu);
 static struct class *dax_class;
-static DEFINE_IDA(dax_minor_ida);
-static int nr_dax = CONFIG_NR_DEV_DAX;
-module_param(nr_dax, int, S_IRUGO);
-static struct vfsmount *dax_mnt;
-static struct kmem_cache *dax_cache __read_mostly;
-static struct super_block *dax_superblock __read_mostly;
-MODULE_PARM_DESC(nr_dax, "max number of device-dax instances");
 
 /**
  * struct dax_region - mapping infrastructure for dax devices
@@ -59,19 +47,16 @@ struct dax_region {
 /**
  * struct dev_dax - instance data for a subdivision of a dax region
  * @region - parent region
- * @dev - device backing the character device
- * @cdev - core chardev data
- * @alive - !alive + srcu grace period == no new mappings can be established
+ * @dax_dev - core dax functionality
+ * @dev - device core
  * @id - child id in the region
  * @num_resources - number of physical address extents in this device
  * @res - array of physical address ranges
  */
 struct dev_dax {
 	struct dax_region *region;
-	struct inode *inode;
+	struct dax_device *dax_dev;
 	struct device dev;
-	struct cdev cdev;
-	bool alive;
 	int id;
 	int num_resources;
 	struct resource res[0];
@@ -143,117 +128,6 @@ static const struct attribute_group *dax_region_attribute_groups[] = {
 	&dax_region_attribute_group,
 	NULL,
 };
-
-static struct inode *dax_alloc_inode(struct super_block *sb)
-{
-	return kmem_cache_alloc(dax_cache, GFP_KERNEL);
-}
-
-static void dax_i_callback(struct rcu_head *head)
-{
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-
-	kmem_cache_free(dax_cache, inode);
-}
-
-static void dax_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, dax_i_callback);
-}
-
-static const struct super_operations dax_sops = {
-	.statfs = simple_statfs,
-	.alloc_inode = dax_alloc_inode,
-	.destroy_inode = dax_destroy_inode,
-	.drop_inode = generic_delete_inode,
-};
-
-static struct dentry *dax_mount(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *data)
-{
-	return mount_pseudo(fs_type, "dax:", &dax_sops, NULL, DAXFS_MAGIC);
-}
-
-static struct file_system_type dax_type = {
-	.name = "dax",
-	.mount = dax_mount,
-	.kill_sb = kill_anon_super,
-};
-
-static int dax_test(struct inode *inode, void *data)
-{
-	return inode->i_cdev == data;
-}
-
-static int dax_set(struct inode *inode, void *data)
-{
-	inode->i_cdev = data;
-	return 0;
-}
-
-static struct inode *dax_inode_get(struct cdev *cdev, dev_t devt)
-{
-	struct inode *inode;
-
-	inode = iget5_locked(dax_superblock, hash_32(devt + DAXFS_MAGIC, 31),
-			dax_test, dax_set, cdev);
-
-	if (!inode)
-		return NULL;
-
-	if (inode->i_state & I_NEW) {
-		inode->i_mode = S_IFCHR;
-		inode->i_flags = S_DAX;
-		inode->i_rdev = devt;
-		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
-		unlock_new_inode(inode);
-	}
-	return inode;
-}
-
-static void init_once(void *inode)
-{
-	inode_init_once(inode);
-}
-
-static int dax_inode_init(void)
-{
-	int rc;
-
-	dax_cache = kmem_cache_create("dax_cache", sizeof(struct inode), 0,
-			(SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
-			 SLAB_MEM_SPREAD|SLAB_ACCOUNT),
-			init_once);
-	if (!dax_cache)
-		return -ENOMEM;
-
-	rc = register_filesystem(&dax_type);
-	if (rc)
-		goto err_register_fs;
-
-	dax_mnt = kern_mount(&dax_type);
-	if (IS_ERR(dax_mnt)) {
-		rc = PTR_ERR(dax_mnt);
-		goto err_mount;
-	}
-	dax_superblock = dax_mnt->mnt_sb;
-
-	return 0;
-
- err_mount:
-	unregister_filesystem(&dax_type);
- err_register_fs:
-	kmem_cache_destroy(dax_cache);
-
-	return rc;
-}
-
-static void dax_inode_exit(void)
-{
-	kern_unmount(dax_mnt);
-	unregister_filesystem(&dax_type);
-	kmem_cache_destroy(dax_cache);
-}
 
 static void dax_region_free(struct kref *kref)
 {
@@ -363,7 +237,7 @@ static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
 	struct device *dev = &dev_dax->dev;
 	unsigned long mask;
 
-	if (!dev_dax->alive)
+	if (!dax_alive(dev_dax->dax_dev))
 		return -ENXIO;
 
 	/* prevent private mappings from being established */
@@ -582,7 +456,7 @@ static int dev_dax_huge_fault(struct vm_fault *vmf,
 			? "write" : "read",
 			vmf->vma->vm_start, vmf->vma->vm_end, pe_size);
 
-	id = srcu_read_lock(&dax_srcu);
+	id = dax_read_lock();
 	switch (pe_size) {
 	case PE_SIZE_PTE:
 		rc = __dev_dax_pte_fault(dev_dax, vmf);
@@ -596,7 +470,7 @@ static int dev_dax_huge_fault(struct vm_fault *vmf,
 	default:
 		rc = VM_FAULT_SIGBUS;
 	}
-	srcu_read_unlock(&dax_srcu, id);
+	dax_read_unlock(id);
 
 	return rc;
 }
@@ -614,11 +488,17 @@ static const struct vm_operations_struct dax_vm_ops = {
 static int dax_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct dev_dax *dev_dax = filp->private_data;
-	int rc;
+	int rc, id;
 
 	dev_dbg(&dev_dax->dev, "%s\n", __func__);
 
+	/*
+	 * We lock to check dax_dev liveness and will re-check at
+	 * fault time.
+	 */
+	id = dax_read_lock();
 	rc = check_vma(dev_dax, vma, __func__);
+	dax_read_unlock(id);
 	if (rc)
 		return rc;
 
@@ -664,12 +544,13 @@ static unsigned long dax_get_unmapped_area(struct file *filp,
 
 static int dax_open(struct inode *inode, struct file *filp)
 {
-	struct dev_dax *dev_dax;
+	struct dax_device *dax_dev = inode_dax(inode);
+	struct inode *__dax_inode = dax_inode(dax_dev);
+	struct dev_dax *dev_dax = dax_get_private(dax_dev);
 
-	dev_dax = container_of(inode->i_cdev, struct dev_dax, cdev);
 	dev_dbg(&dev_dax->dev, "%s\n", __func__);
-	inode->i_mapping = dev_dax->inode->i_mapping;
-	inode->i_mapping->host = dev_dax->inode;
+	inode->i_mapping = __dax_inode->i_mapping;
+	inode->i_mapping->host = __dax_inode;
 	filp->f_mapping = inode->i_mapping;
 	filp->private_data = dev_dax;
 	inode->i_flags = S_DAX;
@@ -698,36 +579,34 @@ static void dev_dax_release(struct device *dev)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 	struct dax_region *dax_region = dev_dax->region;
+	struct dax_device *dax_dev = dev_dax->dax_dev;
 
 	ida_simple_remove(&dax_region->ida, dev_dax->id);
-	ida_simple_remove(&dax_minor_ida, MINOR(dev->devt));
 	dax_region_put(dax_region);
-	iput(dev_dax->inode);
+	put_dax(dax_dev);
 	kfree(dev_dax);
 }
 
 static void kill_dev_dax(struct dev_dax *dev_dax)
 {
-	/*
-	 * Note, rcu is not protecting the liveness of dev_dax, rcu is
-	 * ensuring that any fault handlers that might have seen
-	 * dev_dax->alive == true, have completed.  Any fault handlers
-	 * that start after synchronize_srcu() has started will abort
-	 * upon seeing dev_dax->alive == false.
-	 */
-	dev_dax->alive = false;
-	synchronize_srcu(&dax_srcu);
-	unmap_mapping_range(dev_dax->inode->i_mapping, 0, 0, 1);
+	struct dax_device *dax_dev = dev_dax->dax_dev;
+	struct inode *inode = dax_inode(dax_dev);
+
+	kill_dax(dax_dev);
+	unmap_mapping_range(inode->i_mapping, 0, 0, 1);
 }
 
 static void unregister_dev_dax(void *dev)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
+	struct dax_device *dax_dev = dev_dax->dax_dev;
+	struct inode *inode = dax_inode(dax_dev);
+	struct cdev *cdev = inode->i_cdev;
 
 	dev_dbg(dev, "%s\n", __func__);
 
 	kill_dev_dax(dev_dax);
-	cdev_device_del(&dev_dax->cdev, dev);
+	cdev_device_del(cdev, dev);
 	put_device(dev);
 }
 
@@ -735,11 +614,12 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 		struct resource *res, int count)
 {
 	struct device *parent = dax_region->dev;
+	struct dax_device *dax_dev;
 	struct dev_dax *dev_dax;
-	int rc = 0, minor, i;
+	struct inode *inode;
 	struct device *dev;
 	struct cdev *cdev;
-	dev_t dev_t;
+	int rc = 0, i;
 
 	dev_dax = kzalloc(sizeof(*dev_dax) + sizeof(*res) * count, GFP_KERNEL);
 	if (!dev_dax)
@@ -765,33 +645,25 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 		goto err_id;
 	}
 
-	minor = ida_simple_get(&dax_minor_ida, 0, 0, GFP_KERNEL);
-	if (minor < 0) {
-		rc = minor;
-		goto err_minor;
-	}
+	dax_dev = alloc_dax(dev_dax);
+	if (!dax_dev)
+		goto err_dax;
 
-	dev_t = MKDEV(MAJOR(dax_devt), minor);
+	/* from here on we're committed to teardown via dax_dev_release() */
 	dev = &dev_dax->dev;
-	dev_dax->inode = dax_inode_get(&dev_dax->cdev, dev_t);
-	if (!dev_dax->inode) {
-		rc = -ENOMEM;
-		goto err_inode;
-	}
-
-	/* from here on we're committed to teardown via dev_dax_release() */
 	device_initialize(dev);
 
-	cdev = &dev_dax->cdev;
+	inode = dax_inode(dax_dev);
+	cdev = inode->i_cdev;
 	cdev_init(cdev, &dax_fops);
 	cdev->owner = parent->driver->owner;
 
 	dev_dax->num_resources = count;
-	dev_dax->alive = true;
+	dev_dax->dax_dev = dax_dev;
 	dev_dax->region = dax_region;
 	kref_get(&dax_region->kref);
 
-	dev->devt = dev_t;
+	dev->devt = inode->i_rdev;
 	dev->class = dax_class;
 	dev->parent = parent;
 	dev->groups = dax_attribute_groups;
@@ -811,9 +683,7 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 
 	return dev_dax;
 
- err_inode:
-	ida_simple_remove(&dax_minor_ida, minor);
- err_minor:
+ err_dax:
 	ida_simple_remove(&dax_region->ida, dev_dax->id);
  err_id:
 	kfree(dev_dax);
@@ -824,38 +694,13 @@ EXPORT_SYMBOL_GPL(devm_create_dev_dax);
 
 static int __init dax_init(void)
 {
-	int rc;
-
-	rc = dax_inode_init();
-	if (rc)
-		return rc;
-
-	nr_dax = max(nr_dax, 256);
-	rc = alloc_chrdev_region(&dax_devt, 0, nr_dax, "dax");
-	if (rc)
-		goto err_chrdev;
-
 	dax_class = class_create(THIS_MODULE, "dax");
-	if (IS_ERR(dax_class)) {
-		rc = PTR_ERR(dax_class);
-		goto err_class;
-	}
-
-	return 0;
-
- err_class:
-	unregister_chrdev_region(dax_devt, nr_dax);
- err_chrdev:
-	dax_inode_exit();
-	return rc;
+	return PTR_ERR_OR_ZERO(dax_class);
 }
 
 static void __exit dax_exit(void)
 {
 	class_destroy(dax_class);
-	unregister_chrdev_region(dax_devt, nr_dax);
-	ida_destroy(&dax_minor_ida);
-	dax_inode_exit();
 }
 
 MODULE_AUTHOR("Intel Corporation");

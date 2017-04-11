@@ -8,6 +8,9 @@
 
 struct iomap_ops;
 
+int dax_read_lock(void);
+void dax_read_unlock(int id);
+
 /*
  * We use lowest available bit in exceptional entry for locking, one bit for
  * the entry size (PMD) and two more to tell us if the entry is a huge zero
