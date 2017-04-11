@@ -36,6 +36,8 @@ gf119_hdmi_ctrl(NV50_DISP_MTHD_V1)
 	union {
 		struct nv50_disp_sor_hdmi_pwr_v0 v0;
 	} *args = data;
+	struct packed_hdmi_infoframe avi_infoframe;
+	struct packed_hdmi_infoframe vendor_infoframe;
 	u32 ctrl;
 	int ret = -ENOSYS;
 
@@ -60,8 +62,17 @@ gf119_hdmi_ctrl(NV50_DISP_MTHD_V1)
 		    + args->v0.vendor_infoframe_length) < size)
 		return -E2BIG;
 
+	pack_hdmi_infoframe(&avi_infoframe,
+			    data,
+			    args->v0.avi_infoframe_length);
+
+	pack_hdmi_infoframe(&vendor_infoframe,
+			    data + args->v0.avi_infoframe_length,
+			    args->v0.vendor_infoframe_length);
+
 	if (!(ctrl & 0x40000000)) {
 		nvkm_mask(device, 0x616798 + hoff, 0x40000000, 0x00000000);
+		nvkm_mask(device, 0x616730 + hoff, 0x00000001, 0x00000000);
 		nvkm_mask(device, 0x6167a4 + hoff, 0x00000001, 0x00000000);
 		nvkm_mask(device, 0x616714 + hoff, 0x00000001, 0x00000000);
 		return 0;
@@ -69,12 +80,29 @@ gf119_hdmi_ctrl(NV50_DISP_MTHD_V1)
 
 	/* AVI InfoFrame */
 	nvkm_mask(device, 0x616714 + hoff, 0x00000001, 0x00000000);
-	nvkm_wr32(device, 0x61671c + hoff, 0x000d0282);
-	nvkm_wr32(device, 0x616720 + hoff, 0x0000006f);
-	nvkm_wr32(device, 0x616724 + hoff, 0x00000000);
-	nvkm_wr32(device, 0x616728 + hoff, 0x00000000);
-	nvkm_wr32(device, 0x61672c + hoff, 0x00000000);
-	nvkm_mask(device, 0x616714 + hoff, 0x00000001, 0x00000001);
+	if (args->v0.avi_infoframe_length) {
+		nvkm_wr32(device, 0x61671c + hoff, avi_infoframe.header);
+		nvkm_wr32(device, 0x616720 + hoff, avi_infoframe.subpack0_low);
+		nvkm_wr32(device, 0x616724 + hoff, avi_infoframe.subpack0_high);
+		nvkm_wr32(device, 0x616728 + hoff, avi_infoframe.subpack1_low);
+		nvkm_wr32(device, 0x61672c + hoff, avi_infoframe.subpack1_high);
+		nvkm_mask(device, 0x616714 + hoff, 0x00000001, 0x00000001);
+	}
+
+	/* GENERIC(?) / Vendor InfoFrame? */
+	nvkm_mask(device, 0x616730 + hoff, 0x00010001, 0x00010000);
+	if (args->v0.vendor_infoframe_length) {
+		/*
+		 * These appear to be the audio infoframe registers,
+		 * but no other set of infoframe registers has yet
+		 * been found.
+		 */
+		nvkm_wr32(device, 0x616738 + hoff, vendor_infoframe.header);
+		nvkm_wr32(device, 0x61673c + hoff, vendor_infoframe.subpack0_low);
+		nvkm_wr32(device, 0x616740 + hoff, vendor_infoframe.subpack0_high);
+		/* Is there a second (or further?) set of subpack registers here? */
+		nvkm_mask(device, 0x616730 + hoff, 0x00000001, 0x00000001);
+	}
 
 	/* ??? InfoFrame? */
 	nvkm_mask(device, 0x6167a4 + hoff, 0x00000001, 0x00000000);
