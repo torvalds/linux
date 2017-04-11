@@ -2031,7 +2031,7 @@ static int devlink_dpipe_header_put(struct sk_buff *skb,
 	int err;
 
 	header_attr = nla_nest_start(skb, DEVLINK_ATTR_DPIPE_HEADER);
-	if (!header)
+	if (!header_attr)
 		return -EMSGSIZE;
 
 	if (nla_put_string(skb, DEVLINK_ATTR_DPIPE_HEADER_NAME, header->name) ||
