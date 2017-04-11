@@ -370,8 +370,7 @@ static const struct clk_ops cs2000_ops = {
 
 static int cs2000_clk_get(struct cs2000_priv *priv)
 {
-	struct i2c_client *client = priv_to_client(priv);
-	struct device *dev = &client->dev;
+	struct device *dev = priv_to_dev(priv);
 	struct clk *clk_in, *ref_clk;
 
 	clk_in = devm_clk_get(dev, "clk_in");
@@ -439,8 +438,7 @@ static int cs2000_clk_register(struct cs2000_priv *priv)
 
 static int cs2000_version_print(struct cs2000_priv *priv)
 {
-	struct i2c_client *client = priv_to_client(priv);
-	struct device *dev = &client->dev;
+	struct device *dev = priv_to_dev(priv);
 	s32 val;
 	const char *revision;
 
@@ -471,7 +469,7 @@ static int cs2000_version_print(struct cs2000_priv *priv)
 static int cs2000_remove(struct i2c_client *client)
 {
 	struct cs2000_priv *priv = i2c_get_clientdata(client);
-	struct device *dev = &client->dev;
+	struct device *dev = priv_to_dev(priv);
 	struct device_node *np = dev->of_node;
 
 	of_clk_del_provider(np);
