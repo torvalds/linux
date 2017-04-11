@@ -404,7 +404,7 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 #endif /*  CONFIG_WOWLAN */
 		fwfilepath = "rtlwifi/rtl8723bs_nic.bin";
 
-	pr_info("rtl8723bs: accquire FW from file:%s\n", fwfilepath);
+	pr_info("rtl8723bs: acquire FW from file:%s\n", fwfilepath);
 
 	rtStatus = request_firmware(&fw, fwfilepath, device);
 	if (rtStatus) {
