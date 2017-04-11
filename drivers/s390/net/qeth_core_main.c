@@ -4417,7 +4417,7 @@ void qeth_tx_timeout(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(qeth_tx_timeout);
 
-int qeth_mdio_read(struct net_device *dev, int phy_id, int regnum)
+static int qeth_mdio_read(struct net_device *dev, int phy_id, int regnum)
 {
 	struct qeth_card *card = dev->ml_priv;
 	int rc = 0;
@@ -4480,7 +4480,6 @@ int qeth_mdio_read(struct net_device *dev, int phy_id, int regnum)
 	}
 	return rc;
 }
-EXPORT_SYMBOL_GPL(qeth_mdio_read);
 
 static int qeth_send_ipa_snmp_cmd(struct qeth_card *card,
 		struct qeth_cmd_buffer *iob, int len,
@@ -4570,7 +4569,7 @@ static int qeth_snmp_command_cb(struct qeth_card *card,
 	return 0;
 }
 
-int qeth_snmp_command(struct qeth_card *card, char __user *udata)
+static int qeth_snmp_command(struct qeth_card *card, char __user *udata)
 {
 	struct qeth_cmd_buffer *iob;
 	struct qeth_ipa_cmd *cmd;
@@ -4630,7 +4629,6 @@ out:
 	kfree(qinfo.udata);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(qeth_snmp_command);
 
 static int qeth_setadpparms_query_oat_cb(struct qeth_card *card,
 		struct qeth_reply *reply, unsigned long data)
@@ -4662,7 +4660,7 @@ static int qeth_setadpparms_query_oat_cb(struct qeth_card *card,
 	return 0;
 }
 
-int qeth_query_oat_command(struct qeth_card *card, char __user *udata)
+static int qeth_query_oat_command(struct qeth_card *card, char __user *udata)
 {
 	int rc = 0;
 	struct qeth_cmd_buffer *iob;
@@ -4732,7 +4730,6 @@ out_free:
 out:
 	return rc;
 }
-EXPORT_SYMBOL_GPL(qeth_query_oat_command);
 
 static int qeth_query_card_info_cb(struct qeth_card *card,
 				   struct qeth_reply *reply, unsigned long data)
@@ -5758,6 +5755,60 @@ static const struct attribute_group *qeth_drv_attr_groups[] = {
 	&qeth_drv_attr_group,
 	NULL,
 };
+
+int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	struct qeth_card *card = dev->ml_priv;
+	struct mii_ioctl_data *mii_data;
+	int rc = 0;
+
+	if (!card)
+		return -ENODEV;
+
+	if (!qeth_card_hw_is_reachable(card))
+		return -ENODEV;
+
+	if (card->info.type == QETH_CARD_TYPE_OSN)
+		return -EPERM;
+
+	switch (cmd) {
+	case SIOC_QETH_ADP_SET_SNMP_CONTROL:
+		rc = qeth_snmp_command(card, rq->ifr_ifru.ifru_data);
+		break;
+	case SIOC_QETH_GET_CARD_TYPE:
+		if ((card->info.type == QETH_CARD_TYPE_OSD ||
+		     card->info.type == QETH_CARD_TYPE_OSM ||
+		     card->info.type == QETH_CARD_TYPE_OSX) &&
+		    !card->info.guestlan)
+			return 1;
+		else
+			return 0;
+	case SIOCGMIIPHY:
+		mii_data = if_mii(rq);
+		mii_data->phy_id = 0;
+		break;
+	case SIOCGMIIREG:
+		mii_data = if_mii(rq);
+		if (mii_data->phy_id != 0)
+			rc = -EINVAL;
+		else
+			mii_data->val_out = qeth_mdio_read(dev,
+				mii_data->phy_id, mii_data->reg_num);
+		break;
+	case SIOC_QETH_QUERY_OAT:
+		rc = qeth_query_oat_command(card, rq->ifr_ifru.ifru_data);
+		break;
+	default:
+		if (card->discipline->do_ioctl)
+			rc = card->discipline->do_ioctl(dev, rq, cmd);
+		else
+			rc = -EOPNOTSUPP;
+	}
+	if (rc)
+		QETH_CARD_TEXT_(card, 2, "ioce%x", rc);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(qeth_do_ioctl);
 
 static struct {
 	const char str[ETH_GSTRING_LEN];
