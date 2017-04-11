@@ -611,7 +611,7 @@ probe_fail:
 
 	regulator_bulk_disable(ARRAY_SIZE(tas2552->supplies),
 					tas2552->supplies);
-	return -EIO;
+	return ret;
 }
 
 static int tas2552_codec_remove(struct snd_soc_codec *codec)
