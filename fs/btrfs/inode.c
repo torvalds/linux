@@ -6736,7 +6736,6 @@ static noinline int uncompress_inline(struct btrfs_path *path,
  *
  * This also copies inline extents directly into the page.
  */
-
 struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 		struct page *page,
 	    size_t pg_offset, u64 start, u64 len,
@@ -7045,19 +7044,17 @@ struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
 	em = btrfs_get_extent(inode, page, pg_offset, start, len, create);
 	if (IS_ERR(em))
 		return em;
-	if (em) {
-		/*
-		 * if our em maps to
-		 * -  a hole or
-		 * -  a pre-alloc extent,
-		 * there might actually be delalloc bytes behind it.
-		 */
-		if (em->block_start != EXTENT_MAP_HOLE &&
-		    !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
-			return em;
-		else
-			hole_em = em;
-	}
+	/*
+	 * If our em maps to:
+	 * - a hole or
+	 * - a pre-alloc extent,
+	 * there might actually be delalloc bytes behind it.
+	 */
+	if (em->block_start != EXTENT_MAP_HOLE &&
+	    !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+		return em;
+	else
+		hole_em = em;
 
 	/* check to see if we've wrapped (len == -1 or similar) */
 	end = start + len;

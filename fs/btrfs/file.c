@@ -2342,13 +2342,8 @@ static int find_first_non_hole(struct inode *inode, u64 *start, u64 *len)
 	int ret = 0;
 
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, *start, *len, 0);
-	if (IS_ERR_OR_NULL(em)) {
-		if (!em)
-			ret = -ENOMEM;
-		else
-			ret = PTR_ERR(em);
-		return ret;
-	}
+	if (IS_ERR(em))
+		return PTR_ERR(em);
 
 	/* Hole or vacuum extent(only exists in no-hole mode) */
 	if (em->block_start == EXTENT_MAP_HOLE) {
@@ -2835,11 +2830,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 	while (1) {
 		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, cur_offset,
 				      alloc_end - cur_offset, 0);
-		if (IS_ERR_OR_NULL(em)) {
-			if (!em)
-				ret = -ENOMEM;
-			else
-				ret = PTR_ERR(em);
+		if (IS_ERR(em)) {
+			ret = PTR_ERR(em);
 			break;
 		}
 		last_byte = min(extent_map_end(em), alloc_end);
