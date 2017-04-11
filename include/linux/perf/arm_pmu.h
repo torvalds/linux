@@ -132,10 +132,12 @@ int armpmu_map_event(struct perf_event *event,
 						[PERF_COUNT_HW_CACHE_RESULT_MAX],
 		     u32 raw_event_mask);
 
+typedef int (*armpmu_init_fn)(struct arm_pmu *);
+
 struct pmu_probe_info {
 	unsigned int cpuid;
 	unsigned int mask;
-	int (*init)(struct arm_pmu *);
+	armpmu_init_fn init;
 };
 
 #define PMU_PROBE(_cpuid, _mask, _fn)	\
