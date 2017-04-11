@@ -287,7 +287,7 @@ static void array_map_free(struct bpf_map *map)
 	bpf_map_area_free(array);
 }
 
-static const struct bpf_map_ops array_ops = {
+const struct bpf_map_ops array_map_ops = {
 	.map_alloc = array_map_alloc,
 	.map_free = array_map_free,
 	.map_get_next_key = array_map_get_next_key,
@@ -297,12 +297,7 @@ static const struct bpf_map_ops array_ops = {
 	.map_gen_lookup = array_map_gen_lookup,
 };
 
-static struct bpf_map_type_list array_type __ro_after_init = {
-	.ops = &array_ops,
-	.type = BPF_MAP_TYPE_ARRAY,
-};
-
-static const struct bpf_map_ops percpu_array_ops = {
+const struct bpf_map_ops percpu_array_map_ops = {
 	.map_alloc = array_map_alloc,
 	.map_free = array_map_free,
 	.map_get_next_key = array_map_get_next_key,
@@ -310,19 +305,6 @@ static const struct bpf_map_ops percpu_array_ops = {
 	.map_update_elem = array_map_update_elem,
 	.map_delete_elem = array_map_delete_elem,
 };
-
-static struct bpf_map_type_list percpu_array_type __ro_after_init = {
-	.ops = &percpu_array_ops,
-	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-};
-
-static int __init register_array_map(void)
-{
-	bpf_register_map_type(&array_type);
-	bpf_register_map_type(&percpu_array_type);
-	return 0;
-}
-late_initcall(register_array_map);
 
 static struct bpf_map *fd_array_map_alloc(union bpf_attr *attr)
 {
@@ -427,7 +409,7 @@ void bpf_fd_array_map_clear(struct bpf_map *map)
 		fd_array_map_delete_elem(map, &i);
 }
 
-static const struct bpf_map_ops prog_array_ops = {
+const struct bpf_map_ops prog_array_map_ops = {
 	.map_alloc = fd_array_map_alloc,
 	.map_free = fd_array_map_free,
 	.map_get_next_key = array_map_get_next_key,
@@ -436,18 +418,6 @@ static const struct bpf_map_ops prog_array_ops = {
 	.map_fd_get_ptr = prog_fd_array_get_ptr,
 	.map_fd_put_ptr = prog_fd_array_put_ptr,
 };
-
-static struct bpf_map_type_list prog_array_type __ro_after_init = {
-	.ops = &prog_array_ops,
-	.type = BPF_MAP_TYPE_PROG_ARRAY,
-};
-
-static int __init register_prog_array_map(void)
-{
-	bpf_register_map_type(&prog_array_type);
-	return 0;
-}
-late_initcall(register_prog_array_map);
 
 static struct bpf_event_entry *bpf_event_entry_gen(struct file *perf_file,
 						   struct file *map_file)
@@ -539,7 +509,7 @@ static void perf_event_fd_array_release(struct bpf_map *map,
 	rcu_read_unlock();
 }
 
-static const struct bpf_map_ops perf_event_array_ops = {
+const struct bpf_map_ops perf_event_array_map_ops = {
 	.map_alloc = fd_array_map_alloc,
 	.map_free = fd_array_map_free,
 	.map_get_next_key = array_map_get_next_key,
@@ -549,18 +519,6 @@ static const struct bpf_map_ops perf_event_array_ops = {
 	.map_fd_put_ptr = perf_event_fd_array_put_ptr,
 	.map_release = perf_event_fd_array_release,
 };
-
-static struct bpf_map_type_list perf_event_array_type __ro_after_init = {
-	.ops = &perf_event_array_ops,
-	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
-};
-
-static int __init register_perf_event_array_map(void)
-{
-	bpf_register_map_type(&perf_event_array_type);
-	return 0;
-}
-late_initcall(register_perf_event_array_map);
 
 #ifdef CONFIG_CGROUPS
 static void *cgroup_fd_array_get_ptr(struct bpf_map *map,
@@ -582,7 +540,7 @@ static void cgroup_fd_array_free(struct bpf_map *map)
 	fd_array_map_free(map);
 }
 
-static const struct bpf_map_ops cgroup_array_ops = {
+const struct bpf_map_ops cgroup_array_map_ops = {
 	.map_alloc = fd_array_map_alloc,
 	.map_free = cgroup_fd_array_free,
 	.map_get_next_key = array_map_get_next_key,
@@ -591,18 +549,6 @@ static const struct bpf_map_ops cgroup_array_ops = {
 	.map_fd_get_ptr = cgroup_fd_array_get_ptr,
 	.map_fd_put_ptr = cgroup_fd_array_put_ptr,
 };
-
-static struct bpf_map_type_list cgroup_array_type __ro_after_init = {
-	.ops = &cgroup_array_ops,
-	.type = BPF_MAP_TYPE_CGROUP_ARRAY,
-};
-
-static int __init register_cgroup_array_map(void)
-{
-	bpf_register_map_type(&cgroup_array_type);
-	return 0;
-}
-late_initcall(register_cgroup_array_map);
 #endif
 
 static struct bpf_map *array_of_map_alloc(union bpf_attr *attr)
@@ -644,7 +590,7 @@ static void *array_of_map_lookup_elem(struct bpf_map *map, void *key)
 	return READ_ONCE(*inner_map);
 }
 
-static const struct bpf_map_ops array_of_map_ops = {
+const struct bpf_map_ops array_of_maps_map_ops = {
 	.map_alloc = array_of_map_alloc,
 	.map_free = array_of_map_free,
 	.map_get_next_key = array_map_get_next_key,
@@ -653,15 +599,3 @@ static const struct bpf_map_ops array_of_map_ops = {
 	.map_fd_get_ptr = bpf_map_fd_get_ptr,
 	.map_fd_put_ptr = bpf_map_fd_put_ptr,
 };
-
-static struct bpf_map_type_list array_of_map_type __ro_after_init = {
-	.ops = &array_of_map_ops,
-	.type = BPF_MAP_TYPE_ARRAY_OF_MAPS,
-};
-
-static int __init register_array_of_map(void)
-{
-	bpf_register_map_type(&array_of_map_type);
-	return 0;
-}
-late_initcall(register_array_of_map);

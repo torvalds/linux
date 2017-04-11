@@ -505,7 +505,7 @@ static int trie_get_next_key(struct bpf_map *map, void *key, void *next_key)
 	return -ENOTSUPP;
 }
 
-static const struct bpf_map_ops trie_ops = {
+const struct bpf_map_ops trie_map_ops = {
 	.map_alloc = trie_alloc,
 	.map_free = trie_free,
 	.map_get_next_key = trie_get_next_key,
@@ -513,15 +513,3 @@ static const struct bpf_map_ops trie_ops = {
 	.map_update_elem = trie_update_elem,
 	.map_delete_elem = trie_delete_elem,
 };
-
-static struct bpf_map_type_list trie_type __ro_after_init = {
-	.ops = &trie_ops,
-	.type = BPF_MAP_TYPE_LPM_TRIE,
-};
-
-static int __init register_trie_map(void)
-{
-	bpf_register_map_type(&trie_type);
-	return 0;
-}
-late_initcall(register_trie_map);

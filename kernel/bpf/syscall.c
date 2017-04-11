@@ -27,30 +27,29 @@ DEFINE_PER_CPU(int, bpf_prog_active);
 
 int sysctl_unprivileged_bpf_disabled __read_mostly;
 
-static LIST_HEAD(bpf_map_types);
+static const struct bpf_map_ops * const bpf_map_types[] = {
+#define BPF_PROG_TYPE(_id, _ops)
+#define BPF_MAP_TYPE(_id, _ops) \
+	[_id] = &_ops,
+#include <linux/bpf_types.h>
+#undef BPF_PROG_TYPE
+#undef BPF_MAP_TYPE
+};
 
 static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 {
-	struct bpf_map_type_list *tl;
 	struct bpf_map *map;
 
-	list_for_each_entry(tl, &bpf_map_types, list_node) {
-		if (tl->type == attr->map_type) {
-			map = tl->ops->map_alloc(attr);
-			if (IS_ERR(map))
-				return map;
-			map->ops = tl->ops;
-			map->map_type = attr->map_type;
-			return map;
-		}
-	}
-	return ERR_PTR(-EINVAL);
-}
+	if (attr->map_type >= ARRAY_SIZE(bpf_map_types) ||
+	    !bpf_map_types[attr->map_type])
+		return ERR_PTR(-EINVAL);
 
-/* boot time registration of different map implementations */
-void bpf_register_map_type(struct bpf_map_type_list *tl)
-{
-	list_add(&tl->list_node, &bpf_map_types);
+	map = bpf_map_types[attr->map_type]->map_alloc(attr);
+	if (IS_ERR(map))
+		return map;
+	map->ops = bpf_map_types[attr->map_type];
+	map->map_type = attr->map_type;
+	return map;
 }
 
 void *bpf_map_area_alloc(size_t size)
@@ -576,8 +575,10 @@ err_put:
 static const struct bpf_verifier_ops * const bpf_prog_types[] = {
 #define BPF_PROG_TYPE(_id, _ops) \
 	[_id] = &_ops,
+#define BPF_MAP_TYPE(_id, _ops)
 #include <linux/bpf_types.h>
 #undef BPF_PROG_TYPE
+#undef BPF_MAP_TYPE
 };
 
 static int find_prog_type(enum bpf_prog_type type, struct bpf_prog *prog)
