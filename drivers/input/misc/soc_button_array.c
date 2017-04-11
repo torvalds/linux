@@ -187,7 +187,7 @@ static int soc_button_parse_btn_desc(struct device *dev,
 		info->wakeup = true;
 	} else if (upage == 0x07 && usage == 0xe3) {
 		info->name = "home";
-		info->event_code = KEY_HOMEPAGE;
+		info->event_code = KEY_LEFTMETA;
 		info->wakeup = true;
 	} else if (upage == 0x0c && usage == 0xe9) {
 		info->name = "volume_up";
