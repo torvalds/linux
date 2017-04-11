@@ -221,6 +221,14 @@ void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
 	}
 }
 
+void isa207_get_mem_weight(u64 *weight)
+{
+	u64 mmcra = mfspr(SPRN_MMCRA);
+	u64 exp = MMCRA_THR_CTR_EXP(mmcra);
+	u64 mantissa = MMCRA_THR_CTR_MANT(mmcra);
+
+	*weight = mantissa << (2 * exp);
+}
 
 int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 {
