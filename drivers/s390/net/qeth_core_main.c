@@ -6024,57 +6024,56 @@ void qeth_core_get_drvinfo(struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(qeth_core_get_drvinfo);
 
-/* Helper function to fill 'advertizing' and 'supported' which are the same. */
-/* Autoneg and full-duplex are supported and advertized uncondionally.	     */
-/* Always advertize and support all speeds up to specified, and only one     */
+/* Helper function to fill 'advertising' and 'supported' which are the same. */
+/* Autoneg and full-duplex are supported and advertised unconditionally.     */
+/* Always advertise and support all speeds up to specified, and only one     */
 /* specified port type.							     */
 static void qeth_set_ecmd_adv_sup(struct ethtool_cmd *ecmd,
 				int maxspeed, int porttype)
 {
-	int port_sup, port_adv, spd_sup, spd_adv;
+	u32 sup, adv;
+
+	sup = SUPPORTED_Autoneg;
+	adv = ADVERTISED_Autoneg;
 
 	switch (porttype) {
 	case PORT_TP:
-		port_sup = SUPPORTED_TP;
-		port_adv = ADVERTISED_TP;
+		sup |= SUPPORTED_TP;
+		adv |= ADVERTISED_TP;
 		break;
 	case PORT_FIBRE:
-		port_sup = SUPPORTED_FIBRE;
-		port_adv = ADVERTISED_FIBRE;
+		sup |= SUPPORTED_FIBRE;
+		adv |= ADVERTISED_FIBRE;
 		break;
 	default:
-		port_sup = SUPPORTED_TP;
-		port_adv = ADVERTISED_TP;
+		sup |= SUPPORTED_TP;
+		adv |= ADVERTISED_TP;
 		WARN_ON_ONCE(1);
 	}
 
-	/* "Fallthrough" case'es ordered from high to low result in setting  */
-	/* flags cumulatively, starting from the specified speed and down to */
-	/* the lowest possible.						     */
-	spd_sup = 0;
-	spd_adv = 0;
+	/* fallthrough from high to low, to select all legal speeds: */
 	switch (maxspeed) {
 	case SPEED_10000:
-		spd_sup |= SUPPORTED_10000baseT_Full;
-		spd_adv |= ADVERTISED_10000baseT_Full;
+		sup |= SUPPORTED_10000baseT_Full;
+		adv |= ADVERTISED_10000baseT_Full;
 	case SPEED_1000:
-		spd_sup |= SUPPORTED_1000baseT_Half | SUPPORTED_1000baseT_Full;
-		spd_adv |= ADVERTISED_1000baseT_Half |
-						ADVERTISED_1000baseT_Full;
+		sup |= SUPPORTED_1000baseT_Half | SUPPORTED_1000baseT_Full;
+		adv |= ADVERTISED_1000baseT_Half | ADVERTISED_1000baseT_Full;
 	case SPEED_100:
-		spd_sup |= SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full;
-		spd_adv |= ADVERTISED_100baseT_Half | ADVERTISED_100baseT_Full;
+		sup |= SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full;
+		adv |= ADVERTISED_100baseT_Half | ADVERTISED_100baseT_Full;
 	case SPEED_10:
-		spd_sup |= SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full;
-		spd_adv |= ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full;
-	break;
+		sup |= SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full;
+		adv |= ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full;
+		/* end fallthrough */
+		break;
 	default:
-		spd_sup = SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full;
-		spd_adv = ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full;
+		sup |= SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full;
+		adv |= ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full;
 		WARN_ON_ONCE(1);
 	}
-	ecmd->advertising = ADVERTISED_Autoneg | port_adv | spd_adv;
-	ecmd->supported = SUPPORTED_Autoneg | port_sup | spd_sup;
+	ecmd->supported = sup;
+	ecmd->advertising = adv;
 }
 
 int qeth_core_ethtool_get_settings(struct net_device *netdev,
