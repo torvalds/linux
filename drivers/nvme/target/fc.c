@@ -482,6 +482,8 @@ static void
 nvmet_fc_free_fcp_iod(struct nvmet_fc_tgt_queue *queue,
 			struct nvmet_fc_fcp_iod *fod)
 {
+	struct nvmefc_tgt_fcp_req *fcpreq = fod->fcpreq;
+	struct nvmet_fc_tgtport *tgtport = fod->tgtport;
 	unsigned long flags;
 
 	spin_lock_irqsave(&queue->qlock, flags);
@@ -493,6 +495,8 @@ nvmet_fc_free_fcp_iod(struct nvmet_fc_tgt_queue *queue,
 	 * release the reference taken at queue lookup and fod allocation
 	 */
 	nvmet_fc_tgt_q_put(queue);
+
+	tgtport->ops->fcp_req_release(&tgtport->fc_target_port, fcpreq);
 }
 
 static int
@@ -849,7 +853,7 @@ nvmet_fc_register_targetport(struct nvmet_fc_port_info *pinfo,
 	int ret, idx;
 
 	if (!template->xmt_ls_rsp || !template->fcp_op ||
-	    !template->targetport_delete ||
+	    !template->fcp_req_release || !template->targetport_delete ||
 	    !template->max_hw_queues || !template->max_sgl_segments ||
 	    !template->max_dif_sgl_segments || !template->dma_boundary) {
 		ret = -EINVAL;
@@ -2124,7 +2128,7 @@ nvmet_fc_handle_fcp_rqst_work(struct work_struct *work)
  * If this routine returns error, the lldd should abort the exchange.
  *
  * @target_port: pointer to the (registered) target port the FCP CMD IU
- *              was receive on.
+ *              was received on.
  * @fcpreq:     pointer to a fcpreq request structure to be used to reference
  *              the exchange corresponding to the FCP Exchange.
  * @cmdiubuf:   pointer to the buffer containing the FCP CMD IU

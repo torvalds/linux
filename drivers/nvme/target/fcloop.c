@@ -492,12 +492,16 @@ fcloop_fcp_op(struct nvmet_fc_target_port *tgtport,
 	tgt_fcpreq->fcp_error = fcp_err;
 	tgt_fcpreq->done(tgt_fcpreq);
 
-	if ((!fcp_err) && (op == NVMET_FCOP_RSP ||
-			op == NVMET_FCOP_READDATA_RSP ||
-			op == NVMET_FCOP_ABORT))
-		schedule_work(&tfcp_req->work);
-
 	return 0;
+}
+
+static void
+fcloop_fcp_req_release(struct nvmet_fc_target_port *tgtport,
+			struct nvmefc_tgt_fcp_req *tgt_fcpreq)
+{
+	struct fcloop_fcpreq *tfcp_req = tgt_fcp_req_to_fcpreq(tgt_fcpreq);
+
+	schedule_work(&tfcp_req->work);
 }
 
 static void
@@ -570,6 +574,7 @@ struct nvmet_fc_target_template tgttemplate = {
 	.targetport_delete	= fcloop_targetport_delete,
 	.xmt_ls_rsp		= fcloop_xmt_ls_rsp,
 	.fcp_op			= fcloop_fcp_op,
+	.fcp_req_release	= fcloop_fcp_req_release,
 	.max_hw_queues		= FCLOOP_HW_QUEUES,
 	.max_sgl_segments	= FCLOOP_SGL_SEGS,
 	.max_dif_sgl_segments	= FCLOOP_SGL_SEGS,
