@@ -478,15 +478,8 @@ static int send_pkt(struct l2cap_chan *chan, struct sk_buff *skb,
 		return 0;
 	}
 
-	if (!err)
-		err = (!chan->tx_credits ? -EAGAIN : 0);
-
-	if (err < 0) {
-		if (err == -EAGAIN)
-			netdev->stats.tx_dropped++;
-		else
-			netdev->stats.tx_errors++;
-	}
+	if (err < 0)
+		netdev->stats.tx_errors++;
 
 	return err;
 }
