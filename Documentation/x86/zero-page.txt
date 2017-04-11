@@ -27,7 +27,7 @@ Offset	Proto	Name		Meaning
 1C0/020	ALL	efi_info	EFI 32 information (struct efi_info)
 1E0/004	ALL	alk_mem_k	Alternative mem check, in KB
 1E4/004	ALL	scratch		Scratch field for the kernel setup code
-1E8/001	ALL	e820_entries	Number of entries in e820_map (below)
+1E8/001	ALL	e820_entries	Number of entries in e820_table (below)
 1E9/001	ALL	eddbuf_entries	Number of entries in eddbuf (below)
 1EA/001	ALL	edd_mbr_sig_buf_entries	Number of entries in edd_mbr_sig_buffer
 				(below)
@@ -35,6 +35,6 @@ Offset	Proto	Name		Meaning
 1EC/001	ALL     secure_boot	Secure boot is enabled in the firmware
 1EF/001	ALL	sentinel	Used to detect broken bootloaders
 290/040	ALL	edd_mbr_sig_buffer EDD MBR signatures
-2D0/A00	ALL	e820_map	E820 memory map table
-				(array of struct e820entry)
+2D0/A00	ALL	e820_table	E820 memory map table
+				(array of struct e820_entry)
 D00/1EC	ALL	eddbuf		EDD data (array of struct edd_info)

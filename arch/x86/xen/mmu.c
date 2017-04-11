@@ -58,7 +58,7 @@
 #include <asm/mmu_context.h>
 #include <asm/setup.h>
 #include <asm/paravirt.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/linkage.h>
 #include <asm/page.h>
 #include <asm/init.h>

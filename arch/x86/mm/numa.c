@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 #include <linux/topology.h>
 
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/proto.h>
 #include <asm/dma.h>
 #include <asm/amd_nb.h>

@@ -556,7 +556,7 @@ void __init acpi_table_upgrade(void)
 	 * But it's not enough on X86 because ioremap will
 	 * complain later (used by acpi_os_map_memory) that the pages
 	 * that should get mapped are not marked "reserved".
-	 * Both memblock_reserve and e820_add_region (via arch_reserve_mem_area)
+	 * Both memblock_reserve and e820__range_add (via arch_reserve_mem_area)
 	 * works fine.
 	 */
 	memblock_reserve(acpi_tables_addr, all_tables_size);
