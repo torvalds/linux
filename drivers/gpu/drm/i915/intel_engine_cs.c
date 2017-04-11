@@ -153,10 +153,10 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 int intel_engines_init_early(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *device_info = mkwrite_device_info(dev_priv);
-	unsigned int ring_mask = INTEL_INFO(dev_priv)->ring_mask;
-	unsigned int mask = 0;
+	const unsigned int ring_mask = INTEL_INFO(dev_priv)->ring_mask;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+	unsigned int mask = 0;
 	unsigned int i;
 	int err;
 
@@ -182,6 +182,12 @@ int intel_engines_init_early(struct drm_i915_private *dev_priv)
 	 */
 	if (WARN_ON(mask != ring_mask))
 		device_info->ring_mask = mask;
+
+	/* We always presume we have at least RCS available for later probing */
+	if (WARN_ON(!HAS_ENGINE(dev_priv, RCS))) {
+		err = -ENODEV;
+		goto cleanup;
+	}
 
 	device_info->num_rings = hweight32(mask);
 
