@@ -2377,6 +2377,7 @@ nvmet_fc_add_port(struct nvmet_port *port)
 			if (!tgtport->port) {
 				tgtport->port = port;
 				port->priv = tgtport;
+				nvmet_fc_tgtport_get(tgtport);
 				ret = 0;
 			} else
 				ret = -EALREADY;
