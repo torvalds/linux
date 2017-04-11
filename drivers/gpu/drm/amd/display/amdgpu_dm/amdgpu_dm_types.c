@@ -32,8 +32,10 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_edid.h>
 
+
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
+#include "dm_helpers.h"
 #include "dm_services_types.h"
 
 // We need to #undef FRAME_SIZE and DEPRECATED because they conflict
@@ -3075,13 +3077,16 @@ static bool is_dp_capable_without_timing_msa(
 {
 	uint8_t dpcd_data;
 	bool capable = false;
+
 	if (amdgpu_connector->dc_link &&
-		dc_read_aux_dpcd(
-			dc,
-			amdgpu_connector->dc_link->link_index,
-			DP_DOWN_STREAM_PORT_COUNT,
-			&dpcd_data, sizeof(dpcd_data)))
+		dm_helpers_dp_read_dpcd(
+				NULL,
+				amdgpu_connector->dc_link,
+				DP_DOWN_STREAM_PORT_COUNT,
+				&dpcd_data,
+				sizeof(dpcd_data))) {
 		capable = (dpcd_data & DP_MSA_TIMING_PAR_IGNORED) ? true:false;
+	}
 
 	return capable;
 }
