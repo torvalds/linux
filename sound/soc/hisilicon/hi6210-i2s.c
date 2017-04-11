@@ -591,22 +591,9 @@ static int hi6210_i2s_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = snd_soc_register_component(&pdev->dev, &hi6210_i2s_i2s_comp,
+	ret = devm_snd_soc_register_component(&pdev->dev, &hi6210_i2s_i2s_comp,
 					 &i2s->dai, 1);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register dai\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static int hi6210_i2s_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_component(&pdev->dev);
-	dev_set_drvdata(&pdev->dev, NULL);
-
-	return 0;
+	return ret;
 }
 
 static const struct of_device_id hi6210_i2s_dt_ids[] = {
@@ -618,7 +605,6 @@ MODULE_DEVICE_TABLE(of, hi6210_i2s_dt_ids);
 
 static struct platform_driver hi6210_i2s_driver = {
 	.probe = hi6210_i2s_probe,
-	.remove = hi6210_i2s_remove,
 	.driver = {
 		.name = "hi6210_i2s",
 		.of_match_table = hi6210_i2s_dt_ids,
