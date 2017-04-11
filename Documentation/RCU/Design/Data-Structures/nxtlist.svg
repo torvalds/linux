@@ -19,7 +19,7 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.48.4 r9939"
-   sodipodi:docname="nxtlist.fig">
+   sodipodi:docname="segcblist.svg">
   <metadata
      id="metadata94">
     <rdf:RDF>
@@ -28,7 +28,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -241,61 +241,51 @@
        xml:space="preserve"
        x="225"
        y="675"
-       fill="#000000"
-       font-family="Courier"
        font-style="normal"
        font-weight="bold"
        font-size="324"
-       text-anchor="start"
-       id="text64">nxtlist</text>
+       id="text64"
+       style="font-size:324px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier">-&gt;head</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="225"
        y="1800"
-       fill="#000000"
-       font-family="Courier"
        font-style="normal"
        font-weight="bold"
        font-size="324"
-       text-anchor="start"
-       id="text66">nxttail[RCU_DONE_TAIL]</text>
+       id="text66"
+       style="font-size:324px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier">-&gt;tails[RCU_DONE_TAIL]</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="225"
        y="2925"
-       fill="#000000"
-       font-family="Courier"
        font-style="normal"
        font-weight="bold"
        font-size="324"
-       text-anchor="start"
-       id="text68">nxttail[RCU_WAIT_TAIL]</text>
+       id="text68"
+       style="font-size:324px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier">-&gt;tails[RCU_WAIT_TAIL]</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="225"
        y="4050"
-       fill="#000000"
-       font-family="Courier"
        font-style="normal"
        font-weight="bold"
        font-size="324"
-       text-anchor="start"
-       id="text70">nxttail[RCU_NEXT_READY_TAIL]</text>
+       id="text70"
+       style="font-size:324px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier">-&gt;tails[RCU_NEXT_READY_TAIL]</text>
     <!-- Text -->
     <text
        xml:space="preserve"
        x="225"
        y="5175"
-       fill="#000000"
-       font-family="Courier"
        font-style="normal"
        font-weight="bold"
        font-size="324"
-       text-anchor="start"
-       id="text72">nxttail[RCU_NEXT_TAIL]</text>
+       id="text72"
+       style="font-size:324px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;font-family:Courier">-&gt;tails[RCU_NEXT_TAIL]</text>
     <!-- Text -->
     <text
        xml:space="preserve"
