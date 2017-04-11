@@ -31,8 +31,6 @@ static void tbi_boing_init(void)
 }
 #endif
 
-#define ALIGN_DOWN(addr, size)  ((addr)&(~((size)-1)))
-
 /*
  * Unwind the current stack frame and store the new register values in the
  * structure passed as argument. Unwinding is equivalent to a function return,
