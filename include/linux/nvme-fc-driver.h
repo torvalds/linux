@@ -655,6 +655,22 @@ enum {
 		 * on. The transport should pick a cpu to schedule the work
 		 * on.
 		 */
+	NVMET_FCTGTFEAT_CMD_IN_ISR = (1 << 2),
+		/* Bit 2: When 0, the LLDD is calling the cmd rcv handler
+		 * in a non-isr context, allowing the transport to finish
+		 * op completion in the calling context. When 1, the LLDD
+		 * is calling the cmd rcv handler in an ISR context,
+		 * requiring the transport to transition to a workqueue
+		 * for op completion.
+		 */
+	NVMET_FCTGTFEAT_OPDONE_IN_ISR = (1 << 3),
+		/* Bit 3: When 0, the LLDD is calling the op done handler
+		 * in a non-isr context, allowing the transport to finish
+		 * op completion in the calling context. When 1, the LLDD
+		 * is calling the op done handler in an ISR context,
+		 * requiring the transport to transition to a workqueue
+		 * for op completion.
+		 */
 };
 
 
