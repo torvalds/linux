@@ -2676,6 +2676,8 @@ static const struct platform_device_id fsl_udc_devtype[] = {
 	}, {
 		.name = "imx-udc-mx51",
 	}, {
+		.name = "fsl-usb2-udc",
+	}, {
 		/* sentinel */
 	}
 };
