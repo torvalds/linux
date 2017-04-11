@@ -527,12 +527,12 @@ int perf_num_counters(void)
 }
 EXPORT_SYMBOL_GPL(perf_num_counters);
 
-static void cpu_pmu_free_irqs(struct arm_pmu *cpu_pmu)
+static void armpmu_free_irqs(struct arm_pmu *armpmu)
 {
 	int cpu;
-	struct pmu_hw_events __percpu *hw_events = cpu_pmu->hw_events;
+	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
 
-	for_each_cpu(cpu, &cpu_pmu->supported_cpus) {
+	for_each_cpu(cpu, &armpmu->supported_cpus) {
 		int irq = per_cpu(hw_events->irq, cpu);
 		if (!irq)
 			continue;
@@ -542,20 +542,20 @@ static void cpu_pmu_free_irqs(struct arm_pmu *cpu_pmu)
 			break;
 		}
 
-		if (!cpumask_test_and_clear_cpu(cpu, &cpu_pmu->active_irqs))
+		if (!cpumask_test_and_clear_cpu(cpu, &armpmu->active_irqs))
 			continue;
 
 		free_irq(irq, per_cpu_ptr(&hw_events->percpu_pmu, cpu));
 	}
 }
 
-static int cpu_pmu_request_irqs(struct arm_pmu *cpu_pmu)
+static int armpmu_request_irqs(struct arm_pmu *armpmu)
 {
 	int cpu, err;
-	struct pmu_hw_events __percpu *hw_events = cpu_pmu->hw_events;
+	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
 	const irq_handler_t handler = armpmu_dispatch_irq;
 
-	for_each_cpu(cpu, &cpu_pmu->supported_cpus) {
+	for_each_cpu(cpu, &armpmu->supported_cpus) {
 		int irq = per_cpu(hw_events->irq, cpu);
 		if (!irq)
 			continue;
@@ -580,7 +580,7 @@ static int cpu_pmu_request_irqs(struct arm_pmu *cpu_pmu)
 			return err;
 		}
 
-		cpumask_set_cpu(cpu, &cpu_pmu->active_irqs);
+		cpumask_set_cpu(cpu, &armpmu->active_irqs);
 	}
 
 	return 0;
@@ -742,7 +742,7 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	int err;
 
-	err = cpu_pmu_request_irqs(cpu_pmu);
+	err = armpmu_request_irqs(cpu_pmu);
 	if (err)
 		goto out;
 
@@ -761,7 +761,7 @@ out_unregister:
 	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_STARTING,
 					    &cpu_pmu->node);
 out:
-	cpu_pmu_free_irqs(cpu_pmu);
+	armpmu_free_irqs(cpu_pmu);
 	return err;
 }
 
