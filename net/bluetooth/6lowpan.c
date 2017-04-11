@@ -20,6 +20,7 @@
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
+#include <net/pkt_sched.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -594,6 +595,7 @@ static void netdev_setup(struct net_device *dev)
 	dev->flags		= IFF_RUNNING | IFF_POINTOPOINT |
 				  IFF_MULTICAST;
 	dev->watchdog_timeo	= 0;
+	dev->tx_queue_len	= DEFAULT_TX_QUEUE_LEN;
 
 	dev->netdev_ops		= &netdev_ops;
 	dev->header_ops		= &header_ops;
