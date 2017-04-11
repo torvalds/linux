@@ -542,27 +542,6 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	}
 #endif
 
-	if (rsp->op == NVMET_FCOP_ABORT) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-				"6103 Abort op: oxri x%x %d cnt %d\n",
-				ctxp->oxid, ctxp->state, ctxp->entry_cnt);
-
-		lpfc_nvmeio_data(phba, "NVMET FCP ABRT: "
-				 "xri x%x state x%x cnt x%x\n",
-				 ctxp->oxid, ctxp->state, ctxp->entry_cnt);
-
-		atomic_inc(&lpfc_nvmep->xmt_fcp_abort);
-		ctxp->entry_cnt++;
-		ctxp->flag |= LPFC_NVMET_ABORT_OP;
-		if (ctxp->flag & LPFC_NVMET_IO_INP)
-			lpfc_nvmet_sol_fcp_issue_abort(phba, ctxp, ctxp->sid,
-						       ctxp->oxid);
-		else
-			lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid,
-							 ctxp->oxid);
-		return 0;
-	}
-
 	/* Sanity check */
 	if (ctxp->state == LPFC_NVMET_STE_ABORT) {
 		atomic_inc(&lpfc_nvmep->xmt_fcp_drop);
@@ -633,6 +612,33 @@ lpfc_nvmet_targetport_delete(struct nvmet_fc_target_port *targetport)
 }
 
 static void
+lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
+			 struct nvmefc_tgt_fcp_req *req)
+{
+	struct lpfc_nvmet_tgtport *lpfc_nvmep = tgtport->private;
+	struct lpfc_nvmet_rcv_ctx *ctxp =
+		container_of(req, struct lpfc_nvmet_rcv_ctx, ctx.fcp_req);
+	struct lpfc_hba *phba = ctxp->phba;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
+			"6103 Abort op: oxri x%x %d cnt %d\n",
+			ctxp->oxid, ctxp->state, ctxp->entry_cnt);
+
+	lpfc_nvmeio_data(phba, "NVMET FCP ABRT: xri x%x state x%x cnt x%x\n",
+			 ctxp->oxid, ctxp->state, ctxp->entry_cnt);
+
+	atomic_inc(&lpfc_nvmep->xmt_fcp_abort);
+	ctxp->entry_cnt++;
+	ctxp->flag |= LPFC_NVMET_ABORT_OP;
+	if (ctxp->flag & LPFC_NVMET_IO_INP)
+		lpfc_nvmet_sol_fcp_issue_abort(phba, ctxp, ctxp->sid,
+					       ctxp->oxid);
+	else
+		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid,
+						 ctxp->oxid);
+}
+
+static void
 lpfc_nvmet_xmt_fcp_release(struct nvmet_fc_target_port *tgtport,
 			   struct nvmefc_tgt_fcp_req *rsp)
 {
@@ -672,6 +678,7 @@ static struct nvmet_fc_target_template lpfc_tgttemplate = {
 	.targetport_delete = lpfc_nvmet_targetport_delete,
 	.xmt_ls_rsp     = lpfc_nvmet_xmt_ls_rsp,
 	.fcp_op         = lpfc_nvmet_xmt_fcp_op,
+	.fcp_abort      = lpfc_nvmet_xmt_fcp_abort,
 	.fcp_req_release = lpfc_nvmet_xmt_fcp_release,
 
 	.max_hw_queues  = 1,

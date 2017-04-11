@@ -246,7 +246,10 @@ struct fcloop_lsreq {
 struct fcloop_fcpreq {
 	struct fcloop_tport		*tport;
 	struct nvmefc_fcp_req		*fcpreq;
+	spinlock_t			reqlock;
 	u16				status;
+	bool				active;
+	bool				aborted;
 	struct work_struct		work;
 	struct nvmefc_tgt_fcp_req	tgt_fcp_req;
 };
@@ -254,6 +257,7 @@ struct fcloop_fcpreq {
 struct fcloop_ini_fcpreq {
 	struct nvmefc_fcp_req		*fcpreq;
 	struct fcloop_fcpreq		*tfcp_req;
+	struct work_struct		iniwork;
 };
 
 static inline struct fcloop_lsreq *
@@ -345,7 +349,21 @@ fcloop_xmt_ls_rsp(struct nvmet_fc_target_port *tport,
 }
 
 /*
- * FCP IO operation done. call back up initiator "done" flows.
+ * FCP IO operation done by initiator abort.
+ * call back up initiator "done" flows.
+ */
+static void
+fcloop_tgt_fcprqst_ini_done_work(struct work_struct *work)
+{
+	struct fcloop_ini_fcpreq *inireq =
+		container_of(work, struct fcloop_ini_fcpreq, iniwork);
+
+	inireq->fcpreq->done(inireq->fcpreq);
+}
+
+/*
+ * FCP IO operation done by target completion.
+ * call back up initiator "done" flows.
  */
 static void
 fcloop_tgt_fcprqst_done_work(struct work_struct *work)
@@ -353,9 +371,13 @@ fcloop_tgt_fcprqst_done_work(struct work_struct *work)
 	struct fcloop_fcpreq *tfcp_req =
 		container_of(work, struct fcloop_fcpreq, work);
 	struct fcloop_tport *tport = tfcp_req->tport;
-	struct nvmefc_fcp_req *fcpreq = tfcp_req->fcpreq;
+	struct nvmefc_fcp_req *fcpreq;
 
-	if (tport->remoteport) {
+	spin_lock(&tfcp_req->reqlock);
+	fcpreq = tfcp_req->fcpreq;
+	spin_unlock(&tfcp_req->reqlock);
+
+	if (tport->remoteport && fcpreq) {
 		fcpreq->status = tfcp_req->status;
 		fcpreq->done(fcpreq);
 	}
@@ -384,8 +406,10 @@ fcloop_fcp_req(struct nvme_fc_local_port *localport,
 
 	inireq->fcpreq = fcpreq;
 	inireq->tfcp_req = tfcp_req;
+	INIT_WORK(&inireq->iniwork, fcloop_tgt_fcprqst_ini_done_work);
 	tfcp_req->fcpreq = fcpreq;
 	tfcp_req->tport = rport->targetport->private;
+	spin_lock_init(&tfcp_req->reqlock);
 	INIT_WORK(&tfcp_req->work, fcloop_tgt_fcprqst_done_work);
 
 	ret = nvmet_fc_rcv_fcp_req(rport->targetport, &tfcp_req->tgt_fcp_req,
@@ -453,43 +477,75 @@ fcloop_fcp_op(struct nvmet_fc_target_port *tgtport,
 			struct nvmefc_tgt_fcp_req *tgt_fcpreq)
 {
 	struct fcloop_fcpreq *tfcp_req = tgt_fcp_req_to_fcpreq(tgt_fcpreq);
-	struct nvmefc_fcp_req *fcpreq = tfcp_req->fcpreq;
+	struct nvmefc_fcp_req *fcpreq;
 	u32 rsplen = 0, xfrlen = 0;
-	int fcp_err = 0;
+	int fcp_err = 0, active, aborted;
 	u8 op = tgt_fcpreq->op;
+
+	spin_lock(&tfcp_req->reqlock);
+	fcpreq = tfcp_req->fcpreq;
+	active = tfcp_req->active;
+	aborted = tfcp_req->aborted;
+	tfcp_req->active = true;
+	spin_unlock(&tfcp_req->reqlock);
+
+	if (unlikely(active))
+		/* illegal - call while i/o active */
+		return -EALREADY;
+
+	if (unlikely(aborted)) {
+		/* target transport has aborted i/o prior */
+		spin_lock(&tfcp_req->reqlock);
+		tfcp_req->active = false;
+		spin_unlock(&tfcp_req->reqlock);
+		tgt_fcpreq->transferred_length = 0;
+		tgt_fcpreq->fcp_error = -ECANCELED;
+		tgt_fcpreq->done(tgt_fcpreq);
+		return 0;
+	}
+
+	/*
+	 * if fcpreq is NULL, the I/O has been aborted (from
+	 * initiator side). For the target side, act as if all is well
+	 * but don't actually move data.
+	 */
 
 	switch (op) {
 	case NVMET_FCOP_WRITEDATA:
 		xfrlen = tgt_fcpreq->transfer_length;
-		fcloop_fcp_copy_data(op, tgt_fcpreq->sg, fcpreq->first_sgl,
-					tgt_fcpreq->offset, xfrlen);
-		fcpreq->transferred_length += xfrlen;
+		if (fcpreq) {
+			fcloop_fcp_copy_data(op, tgt_fcpreq->sg,
+					fcpreq->first_sgl, tgt_fcpreq->offset,
+					xfrlen);
+			fcpreq->transferred_length += xfrlen;
+		}
 		break;
 
 	case NVMET_FCOP_READDATA:
 	case NVMET_FCOP_READDATA_RSP:
 		xfrlen = tgt_fcpreq->transfer_length;
-		fcloop_fcp_copy_data(op, tgt_fcpreq->sg, fcpreq->first_sgl,
-					tgt_fcpreq->offset, xfrlen);
-		fcpreq->transferred_length += xfrlen;
+		if (fcpreq) {
+			fcloop_fcp_copy_data(op, tgt_fcpreq->sg,
+					fcpreq->first_sgl, tgt_fcpreq->offset,
+					xfrlen);
+			fcpreq->transferred_length += xfrlen;
+		}
 		if (op == NVMET_FCOP_READDATA)
 			break;
 
 		/* Fall-Thru to RSP handling */
 
 	case NVMET_FCOP_RSP:
-		rsplen = ((fcpreq->rsplen < tgt_fcpreq->rsplen) ?
-				fcpreq->rsplen : tgt_fcpreq->rsplen);
-		memcpy(fcpreq->rspaddr, tgt_fcpreq->rspaddr, rsplen);
-		if (rsplen < tgt_fcpreq->rsplen)
-			fcp_err = -E2BIG;
-		fcpreq->rcv_rsplen = rsplen;
-		fcpreq->status = 0;
+		if (fcpreq) {
+			rsplen = ((fcpreq->rsplen < tgt_fcpreq->rsplen) ?
+					fcpreq->rsplen : tgt_fcpreq->rsplen);
+			memcpy(fcpreq->rspaddr, tgt_fcpreq->rspaddr, rsplen);
+			if (rsplen < tgt_fcpreq->rsplen)
+				fcp_err = -E2BIG;
+			fcpreq->rcv_rsplen = rsplen;
+			fcpreq->status = 0;
+		}
 		tfcp_req->status = 0;
-		break;
-
-	case NVMET_FCOP_ABORT:
-		tfcp_req->status = NVME_SC_FC_TRANSPORT_ABORTED;
 		break;
 
 	default:
@@ -497,11 +553,41 @@ fcloop_fcp_op(struct nvmet_fc_target_port *tgtport,
 		break;
 	}
 
+	spin_lock(&tfcp_req->reqlock);
+	tfcp_req->active = false;
+	spin_unlock(&tfcp_req->reqlock);
+
 	tgt_fcpreq->transferred_length = xfrlen;
 	tgt_fcpreq->fcp_error = fcp_err;
 	tgt_fcpreq->done(tgt_fcpreq);
 
 	return 0;
+}
+
+static void
+fcloop_tgt_fcp_abort(struct nvmet_fc_target_port *tgtport,
+			struct nvmefc_tgt_fcp_req *tgt_fcpreq)
+{
+	struct fcloop_fcpreq *tfcp_req = tgt_fcp_req_to_fcpreq(tgt_fcpreq);
+	int active;
+
+	/*
+	 * mark aborted only in case there were 2 threads in transport
+	 * (one doing io, other doing abort) and only kills ops posted
+	 * after the abort request
+	 */
+	spin_lock(&tfcp_req->reqlock);
+	active = tfcp_req->active;
+	tfcp_req->aborted = true;
+	spin_unlock(&tfcp_req->reqlock);
+
+	tfcp_req->status = NVME_SC_FC_TRANSPORT_ABORTED;
+
+	/*
+	 * nothing more to do. If io wasn't active, the transport should
+	 * immediately call the req_release. If it was active, the op
+	 * will complete, and the lldd should call req_release.
+	 */
 }
 
 static void
@@ -526,6 +612,27 @@ fcloop_fcp_abort(struct nvme_fc_local_port *localport,
 			void *hw_queue_handle,
 			struct nvmefc_fcp_req *fcpreq)
 {
+	struct fcloop_rport *rport = remoteport->private;
+	struct fcloop_ini_fcpreq *inireq = fcpreq->private;
+	struct fcloop_fcpreq *tfcp_req = inireq->tfcp_req;
+
+	if (!tfcp_req)
+		/* abort has already been called */
+		return;
+
+	if (rport->targetport)
+		nvmet_fc_rcv_fcp_abort(rport->targetport,
+					&tfcp_req->tgt_fcp_req);
+
+	/* break initiator/target relationship for io */
+	spin_lock(&tfcp_req->reqlock);
+	inireq->tfcp_req = NULL;
+	tfcp_req->fcpreq = NULL;
+	spin_unlock(&tfcp_req->reqlock);
+
+	/* post the aborted io completion */
+	fcpreq->status = -ECANCELED;
+	schedule_work(&inireq->iniwork);
 }
 
 static void
@@ -583,6 +690,7 @@ struct nvmet_fc_target_template tgttemplate = {
 	.targetport_delete	= fcloop_targetport_delete,
 	.xmt_ls_rsp		= fcloop_xmt_ls_rsp,
 	.fcp_op			= fcloop_fcp_op,
+	.fcp_abort		= fcloop_tgt_fcp_abort,
 	.fcp_req_release	= fcloop_fcp_req_release,
 	.max_hw_queues		= FCLOOP_HW_QUEUES,
 	.max_sgl_segments	= FCLOOP_SGL_SEGS,

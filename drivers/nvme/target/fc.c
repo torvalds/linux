@@ -82,6 +82,8 @@ struct nvmet_fc_fcp_iod {
 	enum nvmet_fcp_datadir		io_dir;
 	bool				active;
 	bool				abort;
+	bool				aborted;
+	bool				writedataactive;
 	spinlock_t			flock;
 
 	struct nvmet_req		req;
@@ -420,6 +422,9 @@ nvmet_fc_prep_fcp_iodlist(struct nvmet_fc_tgtport *tgtport,
 		fod->tgtport = tgtport;
 		fod->queue = queue;
 		fod->active = false;
+		fod->abort = false;
+		fod->aborted = false;
+		fod->fcpreq = NULL;
 		list_add_tail(&fod->fcp_list, &queue->fod_list);
 		spin_lock_init(&fod->flock);
 
@@ -466,7 +471,6 @@ nvmet_fc_alloc_fcp_iod(struct nvmet_fc_tgt_queue *queue)
 	if (fod) {
 		list_del(&fod->fcp_list);
 		fod->active = true;
-		fod->abort = false;
 		/*
 		 * no queue reference is taken, as it was taken by the
 		 * queue lookup just prior to the allocation. The iod
@@ -486,9 +490,18 @@ nvmet_fc_free_fcp_iod(struct nvmet_fc_tgt_queue *queue,
 	struct nvmet_fc_tgtport *tgtport = fod->tgtport;
 	unsigned long flags;
 
+	fc_dma_sync_single_for_cpu(tgtport->dev, fod->rspdma,
+				sizeof(fod->rspiubuf), DMA_TO_DEVICE);
+
+	fcpreq->nvmet_fc_private = NULL;
+
 	spin_lock_irqsave(&queue->qlock, flags);
 	list_add_tail(&fod->fcp_list, &fod->queue->fod_list);
 	fod->active = false;
+	fod->abort = false;
+	fod->aborted = false;
+	fod->writedataactive = false;
+	fod->fcpreq = NULL;
 	spin_unlock_irqrestore(&queue->qlock, flags);
 
 	/*
@@ -623,32 +636,12 @@ nvmet_fc_tgt_q_get(struct nvmet_fc_tgt_queue *queue)
 
 
 static void
-nvmet_fc_abort_op(struct nvmet_fc_tgtport *tgtport,
-				struct nvmefc_tgt_fcp_req *fcpreq)
-{
-	int ret;
-
-	fcpreq->op = NVMET_FCOP_ABORT;
-	fcpreq->offset = 0;
-	fcpreq->timeout = 0;
-	fcpreq->transfer_length = 0;
-	fcpreq->transferred_length = 0;
-	fcpreq->fcp_error = 0;
-	fcpreq->sg_cnt = 0;
-
-	ret = tgtport->ops->fcp_op(&tgtport->fc_target_port, fcpreq);
-	if (ret)
-		/* should never reach here !! */
-		WARN_ON(1);
-}
-
-
-static void
 nvmet_fc_delete_target_queue(struct nvmet_fc_tgt_queue *queue)
 {
+	struct nvmet_fc_tgtport *tgtport = queue->assoc->tgtport;
 	struct nvmet_fc_fcp_iod *fod = queue->fod;
 	unsigned long flags;
-	int i;
+	int i, writedataactive;
 	bool disconnect;
 
 	disconnect = atomic_xchg(&queue->connected, 0);
@@ -659,7 +652,20 @@ nvmet_fc_delete_target_queue(struct nvmet_fc_tgt_queue *queue)
 		if (fod->active) {
 			spin_lock(&fod->flock);
 			fod->abort = true;
+			writedataactive = fod->writedataactive;
 			spin_unlock(&fod->flock);
+			/*
+			 * only call lldd abort routine if waiting for
+			 * writedata. other outstanding ops should finish
+			 * on their own.
+			 */
+			if (writedataactive) {
+				spin_lock(&fod->flock);
+				fod->aborted = true;
+				spin_unlock(&fod->flock);
+				tgtport->ops->fcp_abort(
+					&tgtport->fc_target_port, fod->fcpreq);
+			}
 		}
 	}
 	spin_unlock_irqrestore(&queue->qlock, flags);
@@ -853,6 +859,7 @@ nvmet_fc_register_targetport(struct nvmet_fc_port_info *pinfo,
 	int ret, idx;
 
 	if (!template->xmt_ls_rsp || !template->fcp_op ||
+	    !template->fcp_abort ||
 	    !template->fcp_req_release || !template->targetport_delete ||
 	    !template->max_hw_queues || !template->max_sgl_segments ||
 	    !template->max_dif_sgl_segments || !template->dma_boundary) {
@@ -1718,6 +1725,26 @@ nvmet_fc_prep_fcp_rsp(struct nvmet_fc_tgtport *tgtport,
 static void nvmet_fc_xmt_fcp_op_done(struct nvmefc_tgt_fcp_req *fcpreq);
 
 static void
+nvmet_fc_abort_op(struct nvmet_fc_tgtport *tgtport,
+				struct nvmet_fc_fcp_iod *fod)
+{
+	struct nvmefc_tgt_fcp_req *fcpreq = fod->fcpreq;
+
+	/* data no longer needed */
+	nvmet_fc_free_tgt_pgs(fod);
+
+	/*
+	 * if an ABTS was received or we issued the fcp_abort early
+	 * don't call abort routine again.
+	 */
+	/* no need to take lock - lock was taken earlier to get here */
+	if (!fod->aborted)
+		tgtport->ops->fcp_abort(&tgtport->fc_target_port, fcpreq);
+
+	nvmet_fc_free_fcp_iod(fod->queue, fod);
+}
+
+static void
 nvmet_fc_xmt_fcp_rsp(struct nvmet_fc_tgtport *tgtport,
 				struct nvmet_fc_fcp_iod *fod)
 {
@@ -1730,7 +1757,7 @@ nvmet_fc_xmt_fcp_rsp(struct nvmet_fc_tgtport *tgtport,
 
 	ret = tgtport->ops->fcp_op(&tgtport->fc_target_port, fod->fcpreq);
 	if (ret)
-		nvmet_fc_abort_op(tgtport, fod->fcpreq);
+		nvmet_fc_abort_op(tgtport, fod);
 }
 
 static void
@@ -1739,6 +1766,7 @@ nvmet_fc_transfer_fcp_data(struct nvmet_fc_tgtport *tgtport,
 {
 	struct nvmefc_tgt_fcp_req *fcpreq = fod->fcpreq;
 	struct scatterlist *sg, *datasg;
+	unsigned long flags;
 	u32 tlen, sg_off;
 	int ret;
 
@@ -1803,15 +1831,39 @@ nvmet_fc_transfer_fcp_data(struct nvmet_fc_tgtport *tgtport,
 		 */
 		fod->abort = true;
 
-		if (op == NVMET_FCOP_WRITEDATA)
+		if (op == NVMET_FCOP_WRITEDATA) {
+			spin_lock_irqsave(&fod->flock, flags);
+			fod->writedataactive = false;
+			spin_unlock_irqrestore(&fod->flock, flags);
 			nvmet_req_complete(&fod->req,
 					NVME_SC_FC_TRANSPORT_ERROR);
-		else /* NVMET_FCOP_READDATA or NVMET_FCOP_READDATA_RSP */ {
+		} else /* NVMET_FCOP_READDATA or NVMET_FCOP_READDATA_RSP */ {
 			fcpreq->fcp_error = ret;
 			fcpreq->transferred_length = 0;
 			nvmet_fc_xmt_fcp_op_done(fod->fcpreq);
 		}
 	}
+}
+
+static inline bool
+__nvmet_fc_fod_op_abort(struct nvmet_fc_fcp_iod *fod, bool abort)
+{
+	struct nvmefc_tgt_fcp_req *fcpreq = fod->fcpreq;
+	struct nvmet_fc_tgtport *tgtport = fod->tgtport;
+
+	/* if in the middle of an io and we need to tear down */
+	if (abort) {
+		if (fcpreq->op == NVMET_FCOP_WRITEDATA) {
+			nvmet_req_complete(&fod->req,
+					NVME_SC_FC_TRANSPORT_ERROR);
+			return true;
+		}
+
+		nvmet_fc_abort_op(tgtport, fod);
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -1827,22 +1879,20 @@ nvmet_fc_fod_op_done(struct nvmet_fc_fcp_iod *fod)
 
 	spin_lock_irqsave(&fod->flock, flags);
 	abort = fod->abort;
+	fod->writedataactive = false;
 	spin_unlock_irqrestore(&fod->flock, flags);
-
-	/* if in the middle of an io and we need to tear down */
-	if (abort && fcpreq->op != NVMET_FCOP_ABORT) {
-		/* data no longer needed */
-		nvmet_fc_free_tgt_pgs(fod);
-
-		nvmet_req_complete(&fod->req, fcpreq->fcp_error);
-		return;
-	}
 
 	switch (fcpreq->op) {
 
 	case NVMET_FCOP_WRITEDATA:
+		if (__nvmet_fc_fod_op_abort(fod, abort))
+			return;
 		if (fcpreq->fcp_error ||
 		    fcpreq->transferred_length != fcpreq->transfer_length) {
+			spin_lock(&fod->flock);
+			fod->abort = true;
+			spin_unlock(&fod->flock);
+
 			nvmet_req_complete(&fod->req,
 					NVME_SC_FC_TRANSPORT_ERROR);
 			return;
@@ -1850,6 +1900,10 @@ nvmet_fc_fod_op_done(struct nvmet_fc_fcp_iod *fod)
 
 		fod->offset += fcpreq->transferred_length;
 		if (fod->offset != fod->total_length) {
+			spin_lock_irqsave(&fod->flock, flags);
+			fod->writedataactive = true;
+			spin_unlock_irqrestore(&fod->flock, flags);
+
 			/* transfer the next chunk */
 			nvmet_fc_transfer_fcp_data(tgtport, fod,
 						NVMET_FCOP_WRITEDATA);
@@ -1864,12 +1918,11 @@ nvmet_fc_fod_op_done(struct nvmet_fc_fcp_iod *fod)
 
 	case NVMET_FCOP_READDATA:
 	case NVMET_FCOP_READDATA_RSP:
+		if (__nvmet_fc_fod_op_abort(fod, abort))
+			return;
 		if (fcpreq->fcp_error ||
 		    fcpreq->transferred_length != fcpreq->transfer_length) {
-			/* data no longer needed */
-			nvmet_fc_free_tgt_pgs(fod);
-
-			nvmet_fc_abort_op(tgtport, fod->fcpreq);
+			nvmet_fc_abort_op(tgtport, fod);
 			return;
 		}
 
@@ -1878,8 +1931,6 @@ nvmet_fc_fod_op_done(struct nvmet_fc_fcp_iod *fod)
 		if (fcpreq->op == NVMET_FCOP_READDATA_RSP) {
 			/* data no longer needed */
 			nvmet_fc_free_tgt_pgs(fod);
-			fc_dma_sync_single_for_cpu(tgtport->dev, fod->rspdma,
-					sizeof(fod->rspiubuf), DMA_TO_DEVICE);
 			nvmet_fc_free_fcp_iod(fod->queue, fod);
 			return;
 		}
@@ -1902,15 +1953,12 @@ nvmet_fc_fod_op_done(struct nvmet_fc_fcp_iod *fod)
 		break;
 
 	case NVMET_FCOP_RSP:
-	case NVMET_FCOP_ABORT:
-		fc_dma_sync_single_for_cpu(tgtport->dev, fod->rspdma,
-				sizeof(fod->rspiubuf), DMA_TO_DEVICE);
+		if (__nvmet_fc_fod_op_abort(fod, abort))
+			return;
 		nvmet_fc_free_fcp_iod(fod->queue, fod);
 		break;
 
 	default:
-		nvmet_fc_free_tgt_pgs(fod);
-		nvmet_fc_abort_op(tgtport, fod->fcpreq);
 		break;
 	}
 }
@@ -1958,10 +2006,7 @@ __nvmet_fc_fcp_nvme_cmd_done(struct nvmet_fc_tgtport *tgtport,
 		fod->queue->sqhd = cqe->sq_head;
 
 	if (abort) {
-		/* data no longer needed */
-		nvmet_fc_free_tgt_pgs(fod);
-
-		nvmet_fc_abort_op(tgtport, fod->fcpreq);
+		nvmet_fc_abort_op(tgtport, fod);
 		return;
 	}
 
@@ -2057,8 +2102,8 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 				&fod->queue->nvme_cq,
 				&fod->queue->nvme_sq,
 				&nvmet_fc_tgt_fcp_ops);
-	if (!ret) {	/* bad SQE content */
-		nvmet_fc_abort_op(tgtport, fod->fcpreq);
+	if (!ret) {	/* bad SQE content or invalid ctrl state */
+		nvmet_fc_abort_op(tgtport, fod);
 		return;
 	}
 
@@ -2098,7 +2143,7 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 	return;
 
 transport_error:
-	nvmet_fc_abort_op(tgtport, fod->fcpreq);
+	nvmet_fc_abort_op(tgtport, fod);
 }
 
 /*
@@ -2151,7 +2196,6 @@ nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *target_port,
 			(be16_to_cpu(cmdiu->iu_len) != (sizeof(*cmdiu)/4)))
 		return -EIO;
 
-
 	queue = nvmet_fc_find_target_queue(tgtport,
 				be64_to_cpu(cmdiu->connection_id));
 	if (!queue)
@@ -2189,6 +2233,59 @@ nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *target_port,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nvmet_fc_rcv_fcp_req);
+
+/**
+ * nvmet_fc_rcv_fcp_abort - transport entry point called by an LLDD
+ *                       upon the reception of an ABTS for a FCP command
+ *
+ * Notify the transport that an ABTS has been received for a FCP command
+ * that had been given to the transport via nvmet_fc_rcv_fcp_req(). The
+ * LLDD believes the command is still being worked on
+ * (template_ops->fcp_req_release() has not been called).
+ *
+ * The transport will wait for any outstanding work (an op to the LLDD,
+ * which the lldd should complete with error due to the ABTS; or the
+ * completion from the nvmet layer of the nvme command), then will
+ * stop processing and call the nvmet_fc_rcv_fcp_req() callback to
+ * return the i/o context to the LLDD.  The LLDD may send the BA_ACC
+ * to the ABTS either after return from this function (assuming any
+ * outstanding op work has been terminated) or upon the callback being
+ * called.
+ *
+ * @target_port: pointer to the (registered) target port the FCP CMD IU
+ *              was received on.
+ * @fcpreq:     pointer to the fcpreq request structure that corresponds
+ *              to the exchange that received the ABTS.
+ */
+void
+nvmet_fc_rcv_fcp_abort(struct nvmet_fc_target_port *target_port,
+			struct nvmefc_tgt_fcp_req *fcpreq)
+{
+	struct nvmet_fc_fcp_iod *fod = fcpreq->nvmet_fc_private;
+	struct nvmet_fc_tgt_queue *queue;
+	unsigned long flags;
+
+	if (!fod || fod->fcpreq != fcpreq)
+		/* job appears to have already completed, ignore abort */
+		return;
+
+	queue = fod->queue;
+
+	spin_lock_irqsave(&queue->qlock, flags);
+	if (fod->active) {
+		/*
+		 * mark as abort. The abort handler, invoked upon completion
+		 * of any work, will detect the aborted status and do the
+		 * callback.
+		 */
+		spin_lock(&fod->flock);
+		fod->abort = true;
+		fod->aborted = true;
+		spin_unlock(&fod->flock);
+	}
+	spin_unlock_irqrestore(&queue->qlock, flags);
+}
+EXPORT_SYMBOL_GPL(nvmet_fc_rcv_fcp_abort);
 
 enum {
 	FCT_TRADDR_ERR		= 0,
