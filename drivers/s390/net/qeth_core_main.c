@@ -5756,21 +5756,6 @@ static void qeth_core_shutdown(struct ccwgroup_device *gdev)
 	qdio_free(CARD_DDEV(card));
 }
 
-static int qeth_core_prepare(struct ccwgroup_device *gdev)
-{
-	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
-	if (card->discipline && card->discipline->prepare)
-		return card->discipline->prepare(gdev);
-	return 0;
-}
-
-static void qeth_core_complete(struct ccwgroup_device *gdev)
-{
-	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
-	if (card->discipline && card->discipline->complete)
-		card->discipline->complete(gdev);
-}
-
 static int qeth_core_freeze(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
@@ -5805,8 +5790,8 @@ static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
 	.set_online = qeth_core_set_online,
 	.set_offline = qeth_core_set_offline,
 	.shutdown = qeth_core_shutdown,
-	.prepare = qeth_core_prepare,
-	.complete = qeth_core_complete,
+	.prepare = NULL,
+	.complete = NULL,
 	.freeze = qeth_core_freeze,
 	.thaw = qeth_core_thaw,
 	.restore = qeth_core_restore,
