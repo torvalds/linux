@@ -282,12 +282,14 @@ uint32_t dc_stream_get_vblank_counter(const struct dc_stream *dc_stream)
 	return 0;
 }
 
-uint32_t dc_stream_get_scanoutpos(
-		const struct dc_stream *dc_stream,
-		uint32_t *vbl,
-		uint32_t *position)
+bool dc_stream_get_scanoutpos(const struct dc_stream *dc_stream,
+				  uint32_t *v_blank_start,
+				  uint32_t *v_blank_end,
+				  uint32_t *h_position,
+				  uint32_t *v_position)
 {
 	uint8_t i;
+	bool ret = false;
 	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
 	struct core_dc *core_dc = DC_TO_CORE(stream->ctx->dc);
 	struct resource_context *res_ctx =
@@ -299,10 +301,17 @@ uint32_t dc_stream_get_scanoutpos(
 		if (res_ctx->pipe_ctx[i].stream != stream)
 			continue;
 
-		return tg->funcs->get_scanoutpos(tg, vbl, position);
+		tg->funcs->get_scanoutpos(tg,
+					  v_blank_start,
+					  v_blank_end,
+					  h_position,
+					  v_position);
+
+		ret = true;
+		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 

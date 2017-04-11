@@ -574,29 +574,26 @@ void dce110_timing_generator_get_crtc_positions(
  *  @param [out] vpos, hpos
  *****************************************************************************
  */
-uint32_t dce110_timing_generator_get_crtc_scanoutpos(
+void dce110_timing_generator_get_crtc_scanoutpos(
 	struct timing_generator *tg,
-	uint32_t *vbl,
-	uint32_t *position)
+	uint32_t *v_blank_start,
+	uint32_t *v_blank_end,
+	uint32_t *h_position,
+	uint32_t *v_position)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
-	/* TODO 1: Update the implementation once caller is updated
-	 * WARNING!! This function is returning the whole register value
-	 * because the caller is expecting it instead of proper vertical and
-	 * horizontal position. This should be a temporary implementation
-	 * until the caller is updated. */
 
-	/* TODO 2: re-use dce110_timing_generator_get_crtc_positions() */
-
-	*vbl = dm_read_reg(tg->ctx,
+	uint32_t v_blank_start_end  = dm_read_reg(tg->ctx,
 			CRTC_REG(mmCRTC_V_BLANK_START_END));
 
-	*position = dm_read_reg(tg->ctx,
-			CRTC_REG(mmCRTC_STATUS_POSITION));
+	*v_blank_start = get_reg_field_value(v_blank_start_end,
+					     CRTC_V_BLANK_START_END,
+					     CRTC_V_BLANK_START);
+	*v_blank_end = get_reg_field_value(v_blank_start_end,
+					   CRTC_V_BLANK_START_END,
+					   CRTC_V_BLANK_END);
 
-	/* @TODO: return value should indicate if current
-	 * crtc is inside vblank*/
-	return 0;
+	dce110_timing_generator_get_crtc_positions(tg, h_position, v_position);
 }
 
 /* TODO: is it safe to assume that mask/shift of Primary and Underlay
@@ -1875,34 +1872,31 @@ void dce110_tg_set_colors(struct timing_generator *tg,
 bool dce110_arm_vert_intr(struct timing_generator *tg, uint8_t width)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
-	uint32_t vbl = 0;
+	uint32_t v_blank_start = 0;
+	uint32_t v_blank_end = 0;
 	uint32_t val = 0;
-	uint32_t position, vbl_start;
+	uint32_t h_position, v_position;
 
 	tg->funcs->get_scanoutpos(
 			tg,
-			&vbl,
-			&position);
+			&v_blank_start,
+			&v_blank_end,
+			&h_position,
+			&v_position);
 
-	if (vbl == 0)
+	if (v_blank_start == 0 || v_blank_end == 0)
 		return false;
-
-	vbl_start =
-		get_reg_field_value(
-		vbl,
-		CRTC_V_BLANK_START_END,
-		CRTC_V_BLANK_START);
 
 	set_reg_field_value(
 		val,
-		vbl_start,
+		v_blank_start,
 		CRTC_VERTICAL_INTERRUPT0_POSITION,
 		CRTC_VERTICAL_INTERRUPT0_LINE_START);
 
-	/* Set interaval width for interrupt to fire to 1 scanline */
+	/* Set interval width for interrupt to fire to 1 scanline */
 	set_reg_field_value(
 		val,
-		vbl_start + width,
+		v_blank_start + width,
 		CRTC_VERTICAL_INTERRUPT0_POSITION,
 		CRTC_VERTICAL_INTERRUPT0_LINE_END);
 

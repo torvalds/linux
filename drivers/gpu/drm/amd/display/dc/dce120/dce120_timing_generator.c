@@ -576,24 +576,28 @@ void dce120_timing_generator_set_drr(
 	}
 }
 
-uint32_t dce120_timing_generator_get_crtc_scanoutpos(
+void dce120_timing_generator_get_crtc_scanoutpos(
 	struct timing_generator *tg,
-	uint32_t *vbl,
-	uint32_t *position)
+	uint32_t *v_blank_start,
+	uint32_t *v_blank_end,
+	uint32_t *h_position,
+	uint32_t *v_position)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 
-	*vbl = dm_read_reg_soc15(
+	uint32_t v_blank_start_end = dm_read_reg_soc15(
 			tg->ctx,
 			mmCRTC0_CRTC_V_BLANK_START_END,
 			tg110->offsets.crtc);
 
-	*position = dm_read_reg_soc15(
-				tg->ctx,
-				mmCRTC0_CRTC_STATUS_POSITION,
-				tg110->offsets.crtc);
+	*v_blank_start = get_reg_field_value(v_blank_start_end,
+					     CRTC0_CRTC_V_BLANK_START_END,
+					     CRTC_V_BLANK_START);
+	*v_blank_end = get_reg_field_value(v_blank_start_end,
+					   CRTC0_CRTC_V_BLANK_START_END,
+					   CRTC_V_BLANK_END);
 
-	return 0;
+	dce120_timing_generator_get_crtc_positions(tg, h_position, v_position);
 }
 
 void dce120_timing_generator_enable_advanced_request(
@@ -1044,26 +1048,22 @@ static bool dce120_arm_vert_intr(
 		uint8_t width)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
-	uint32_t vbl, position, vbl_start;
+	uint32_t v_blank_start, v_blank_end, h_position, v_position;
 
 	tg->funcs->get_scanoutpos(
 				tg,
-				&vbl,
-				&position);
+				&v_blank_start,
+				&v_blank_end,
+				&h_position,
+				&v_position);
 
-	if (vbl == 0)
+	if (v_blank_start == 0 || v_blank_end == 0)
 		return false;
-
-	vbl_start =
-		get_reg_field_value(
-		vbl,
-		CRTC0_CRTC_V_BLANK_START_END,
-		CRTC_V_BLANK_START);
 
 	CRTC_REG_SET_2(
 			CRTC0_CRTC_VERTICAL_INTERRUPT0_POSITION,
-			CRTC_VERTICAL_INTERRUPT0_LINE_START, vbl_start,
-			CRTC_VERTICAL_INTERRUPT0_LINE_END, vbl_start + width);
+			CRTC_VERTICAL_INTERRUPT0_LINE_START, v_blank_start,
+			CRTC_VERTICAL_INTERRUPT0_LINE_END, v_blank_start + width);
 
 	return true;
 }

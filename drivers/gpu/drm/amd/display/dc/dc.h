@@ -484,8 +484,11 @@ uint32_t dc_stream_get_vblank_counter(const struct dc_stream *stream);
  * This has a dependency on the caller (amdgpu_get_crtc_scanoutpos)
  * being refactored properly to be dce-specific
  */
-uint32_t dc_stream_get_scanoutpos(
-		const struct dc_stream *stream, uint32_t *vbl, uint32_t *position);
+bool dc_stream_get_scanoutpos(const struct dc_stream *stream,
+				  uint32_t *v_blank_start,
+				  uint32_t *v_blank_end,
+				  uint32_t *h_position,
+				  uint32_t *v_position);
 
 /*
  * Structure to store surface/stream associations for validation

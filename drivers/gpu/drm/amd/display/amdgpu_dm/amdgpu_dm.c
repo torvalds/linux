@@ -103,6 +103,8 @@ static u32 dm_vblank_get_counter(struct amdgpu_device *adev, int crtc)
 static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 					u32 *vbl, u32 *position)
 {
+	uint32_t v_blank_start, v_blank_end, h_position, v_position;
+
 	if ((crtc < 0) || (crtc >= adev->mode_info.num_crtc))
 		return -EINVAL;
 	else {
@@ -113,7 +115,18 @@ static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 			return 0;
 		}
 
-		return dc_stream_get_scanoutpos(acrtc->stream, vbl, position);
+		/*
+		 * TODO rework base driver to use values directly.
+		 * for now parse it back into reg-format
+		 */
+		dc_stream_get_scanoutpos(acrtc->stream,
+					 &v_blank_start,
+					 &v_blank_end,
+					 &h_position,
+					 &v_position);
+
+		*position = (v_position) || (h_position << 16);
+		*vbl = (v_blank_start) || (v_blank_end << 16);
 	}
 
 	return 0;

@@ -230,10 +230,12 @@ void dce110_timing_generator_set_static_screen_control(
 	struct timing_generator *tg,
 	uint32_t value);
 
-uint32_t dce110_timing_generator_get_crtc_scanoutpos(
+void dce110_timing_generator_get_crtc_scanoutpos(
 	struct timing_generator *tg,
-	uint32_t *vbl,
-	uint32_t *position);
+	uint32_t *v_blank_start,
+	uint32_t *v_blank_end,
+	uint32_t *h_position,
+	uint32_t *v_position);
 
 void dce110_timing_generator_enable_advanced_request(
 	struct timing_generator *tg,
