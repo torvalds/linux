@@ -81,7 +81,7 @@ struct page *new_iommu_non_cma_page(struct page *page, unsigned long private,
 	gfp_t gfp_mask = GFP_USER;
 	struct page *new_page;
 
-	if (PageHuge(page) || PageTransHuge(page) || PageCompound(page))
+	if (PageCompound(page))
 		return NULL;
 
 	if (PageHighMem(page))
@@ -100,7 +100,7 @@ static int mm_iommu_move_page_from_cma(struct page *page)
 	LIST_HEAD(cma_migrate_pages);
 
 	/* Ignore huge pages for now */
-	if (PageHuge(page) || PageTransHuge(page) || PageCompound(page))
+	if (PageCompound(page))
 		return -EBUSY;
 
 	lru_add_drain();
