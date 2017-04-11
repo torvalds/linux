@@ -120,31 +120,11 @@ done:
  */
 void klp_cancel_transition(void)
 {
-	struct klp_patch *patch = klp_transition_patch;
-	struct klp_object *obj;
-	struct klp_func *func;
-	bool immediate_func = false;
-
 	if (WARN_ON_ONCE(klp_target_state != KLP_PATCHED))
 		return;
 
 	klp_target_state = KLP_UNPATCHED;
 	klp_complete_transition();
-
-	/*
-	 * In the enable error path, even immediate patches can be safely
-	 * removed because the transition hasn't been started yet.
-	 *
-	 * klp_complete_transition() doesn't have a module_put() for immediate
-	 * patches, so do it here.
-	 */
-	klp_for_each_object(patch, obj)
-		klp_for_each_func(obj, func)
-			if (func->immediate)
-				immediate_func = true;
-
-	if (patch->immediate || immediate_func)
-		module_put(patch->mod);
 }
 
 /*
