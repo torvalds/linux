@@ -515,6 +515,15 @@ static void intel_lrc_irq_handler(unsigned long data)
 	struct execlist_port *port = engine->execlist_port;
 	struct drm_i915_private *dev_priv = engine->i915;
 
+	/* We can skip acquiring intel_runtime_pm_get() here as it was taken
+	 * on our behalf by the request (see i915_gem_mark_busy()) and it will
+	 * not be relinquished until the device is idle (see
+	 * i915_gem_idle_work_handler()). As a precaution, we make sure
+	 * that all ELSP are drained i.e. we have processed the CSB,
+	 * before allowing ourselves to idle and calling intel_runtime_pm_put().
+	 */
+	GEM_BUG_ON(!dev_priv->gt.awake);
+
 	intel_uncore_forcewake_get(dev_priv, engine->fw_domains);
 
 	/* Prefer doing test_and_clear_bit() as a two stage operation to avoid
