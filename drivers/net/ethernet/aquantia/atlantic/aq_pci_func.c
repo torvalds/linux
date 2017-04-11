@@ -213,9 +213,9 @@ void aq_pci_func_free_irqs(struct aq_pci_func_s *self)
 		if (!((1U << i) & self->msix_entry_mask))
 			continue;
 
-		free_irq(pci_irq_vector(pdev, i), self->aq_vec[i]);
 		if (pdev->msix_enabled)
 			irq_set_affinity_hint(pci_irq_vector(pdev, i), NULL);
+		free_irq(pci_irq_vector(pdev, i), self->aq_vec[i]);
 		self->msix_entry_mask &= ~(1U << i);
 	}
 }

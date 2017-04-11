@@ -928,10 +928,6 @@ void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv);
 int mlx5e_attach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev);
 void mlx5e_detach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev);
 u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout);
-void mlx5e_add_vxlan_port(struct net_device *netdev,
-			  struct udp_tunnel_info *ti);
-void mlx5e_del_vxlan_port(struct net_device *netdev,
-			  struct udp_tunnel_info *ti);
 
 int mlx5e_get_offload_stats(int attr_id, const struct net_device *dev,
 			    void *sp);

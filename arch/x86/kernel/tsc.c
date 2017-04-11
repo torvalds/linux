@@ -328,7 +328,7 @@ unsigned long long sched_clock(void)
 	return paravirt_sched_clock();
 }
 
-static inline bool using_native_sched_clock(void)
+bool using_native_sched_clock(void)
 {
 	return pv_time_ops.sched_clock == native_sched_clock;
 }
@@ -336,7 +336,7 @@ static inline bool using_native_sched_clock(void)
 unsigned long long
 sched_clock(void) __attribute__((alias("native_sched_clock")));
 
-static inline bool using_native_sched_clock(void) { return true; }
+bool using_native_sched_clock(void) { return true; }
 #endif
 
 int check_tsc_unstable(void)
@@ -1333,6 +1333,8 @@ static int __init init_tsc_clocksource(void)
 	 * the refined calibration and directly register it as a clocksource.
 	 */
 	if (boot_cpu_has(X86_FEATURE_TSC_KNOWN_FREQ)) {
+		if (boot_cpu_has(X86_FEATURE_ART))
+			art_related_clocksource = &clocksource_tsc;
 		clocksource_register_khz(&clocksource_tsc, tsc_khz);
 		return 0;
 	}

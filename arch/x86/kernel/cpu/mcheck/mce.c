@@ -54,6 +54,8 @@
 
 static DEFINE_MUTEX(mce_chrdev_read_mutex);
 
+static int mce_chrdev_open_count;	/* #times opened */
+
 #define mce_log_get_idx_check(p) \
 ({ \
 	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held() && \
@@ -596,6 +598,10 @@ static int mce_default_notifier(struct notifier_block *nb, unsigned long val,
 	 * notifier and us registered.
 	 */
 	if (atomic_read(&num_notifiers) > 2)
+		return NOTIFY_DONE;
+
+	/* Don't print when mcelog is running */
+	if (mce_chrdev_open_count > 0)
 		return NOTIFY_DONE;
 
 	__print_mce(m);
@@ -1828,7 +1834,6 @@ void mcheck_cpu_clear(struct cpuinfo_x86 *c)
  */
 
 static DEFINE_SPINLOCK(mce_chrdev_state_lock);
-static int mce_chrdev_open_count;	/* #times opened */
 static int mce_chrdev_open_exclu;	/* already open exclusive? */
 
 static int mce_chrdev_open(struct inode *inode, struct file *file)

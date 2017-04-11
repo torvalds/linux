@@ -743,7 +743,7 @@ static int tcp_accept_from_sock(struct connection *con)
 	newsock->type = con->sock->type;
 	newsock->ops = con->sock->ops;
 
-	result = con->sock->ops->accept(con->sock, newsock, O_NONBLOCK);
+	result = con->sock->ops->accept(con->sock, newsock, O_NONBLOCK, true);
 	if (result < 0)
 		goto accept_err;
 

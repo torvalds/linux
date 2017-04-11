@@ -6709,6 +6709,20 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 	max_size = min_t(unsigned long, PAGE_SIZE, max_size);
 	ret = btrfs_decompress(compress_type, tmp, page,
 			       extent_offset, inline_size, max_size);
+
+	/*
+	 * decompression code contains a memset to fill in any space between the end
+	 * of the uncompressed data and the end of max_size in case the decompressed
+	 * data ends up shorter than ram_bytes.  That doesn't cover the hole between
+	 * the end of an inline extent and the beginning of the next block, so we
+	 * cover that region here.
+	 */
+
+	if (max_size + pg_offset < PAGE_SIZE) {
+		char *map = kmap(page);
+		memset(map + pg_offset + max_size, 0, PAGE_SIZE - max_size - pg_offset);
+		kunmap(page);
+	}
 	kfree(tmp);
 	return ret;
 }
@@ -10509,9 +10523,9 @@ out_inode:
 }
 
 __attribute__((const))
-static int dummy_readpage_io_failed_hook(struct page *page, int failed_mirror)
+static int btrfs_readpage_io_failed_hook(struct page *page, int failed_mirror)
 {
-	return 0;
+	return -EAGAIN;
 }
 
 static const struct inode_operations btrfs_dir_inode_operations = {
@@ -10556,7 +10570,7 @@ static const struct extent_io_ops btrfs_extent_io_ops = {
 	.submit_bio_hook = btrfs_submit_bio_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
 	.merge_bio_hook = btrfs_merge_bio_hook,
-	.readpage_io_failed_hook = dummy_readpage_io_failed_hook,
+	.readpage_io_failed_hook = btrfs_readpage_io_failed_hook,
 
 	/* optional callbacks */
 	.fill_delalloc = run_delalloc_range,

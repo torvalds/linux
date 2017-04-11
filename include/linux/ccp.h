@@ -556,7 +556,7 @@ enum ccp_engine {
  * struct ccp_cmd - CCP operation request
  * @entry: list element (ccp driver use only)
  * @work: work element used for callbacks (ccp driver use only)
- * @ccp: CCP device to be run on (ccp driver use only)
+ * @ccp: CCP device to be run on
  * @ret: operation return code (ccp driver use only)
  * @flags: cmd processing flags
  * @engine: CCP operation to perform

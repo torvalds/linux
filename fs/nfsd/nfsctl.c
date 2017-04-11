@@ -538,13 +538,21 @@ out_free:
 
 static ssize_t
 nfsd_print_version_support(char *buf, int remaining, const char *sep,
-		unsigned vers, unsigned minor)
+		unsigned vers, int minor)
 {
-	const char *format = (minor == 0) ? "%s%c%u" : "%s%c%u.%u";
+	const char *format = minor < 0 ? "%s%c%u" : "%s%c%u.%u";
 	bool supported = !!nfsd_vers(vers, NFSD_TEST);
 
-	if (vers == 4 && !nfsd_minorversion(minor, NFSD_TEST))
+	if (vers == 4 && minor >= 0 &&
+	    !nfsd_minorversion(minor, NFSD_TEST))
 		supported = false;
+	if (minor == 0 && supported)
+		/*
+		 * special case for backward compatability.
+		 * +4.0 is never reported, it is implied by
+		 * +4, unless -4.0 is present.
+		 */
+		return 0;
 	return snprintf(buf, remaining, format, sep,
 			supported ? '+' : '-', vers, minor);
 }
@@ -554,7 +562,6 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 	char *mesg = buf;
 	char *vers, *minorp, sign;
 	int len, num, remaining;
-	unsigned minor;
 	ssize_t tlen = 0;
 	char *sep;
 	struct nfsd_net *nn = net_generic(netns(file), nfsd_net_id);
@@ -575,6 +582,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 		if (len <= 0) return -EINVAL;
 		do {
 			enum vers_op cmd;
+			unsigned minor;
 			sign = *vers;
 			if (sign == '+' || sign == '-')
 				num = simple_strtol((vers+1), &minorp, 0);
@@ -585,8 +593,8 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 					return -EINVAL;
 				if (kstrtouint(minorp+1, 0, &minor) < 0)
 					return -EINVAL;
-			} else
-				minor = 0;
+			}
+
 			cmd = sign == '-' ? NFSD_CLEAR : NFSD_SET;
 			switch(num) {
 			case 2:
@@ -594,8 +602,20 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 				nfsd_vers(num, cmd);
 				break;
 			case 4:
-				if (nfsd_minorversion(minor, cmd) >= 0)
-					break;
+				if (*minorp == '.') {
+					if (nfsd_minorversion(minor, cmd) < 0)
+						return -EINVAL;
+				} else if ((cmd == NFSD_SET) != nfsd_vers(num, NFSD_TEST)) {
+					/*
+					 * Either we have +4 and no minors are enabled,
+					 * or we have -4 and at least one minor is enabled.
+					 * In either case, propagate 'cmd' to all minors.
+					 */
+					minor = 0;
+					while (nfsd_minorversion(minor, cmd) >= 0)
+						minor++;
+				}
+				break;
 			default:
 				return -EINVAL;
 			}
@@ -612,9 +632,11 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 	sep = "";
 	remaining = SIMPLE_TRANSACTION_LIMIT;
 	for (num=2 ; num <= 4 ; num++) {
+		int minor;
 		if (!nfsd_vers(num, NFSD_AVAIL))
 			continue;
-		minor = 0;
+
+		minor = -1;
 		do {
 			len = nfsd_print_version_support(buf, remaining,
 					sep, num, minor);
@@ -624,7 +646,8 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 			buf += len;
 			tlen += len;
 			minor++;
-			sep = " ";
+			if (len)
+				sep = " ";
 		} while (num == 4 && minor <= NFSD_SUPPORTED_MINOR_VERSION);
 	}
 out:
