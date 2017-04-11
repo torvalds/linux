@@ -527,63 +527,79 @@ int perf_num_counters(void)
 }
 EXPORT_SYMBOL_GPL(perf_num_counters);
 
+static void armpmu_free_irq(struct arm_pmu *armpmu, int cpu)
+{
+	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
+	int irq = per_cpu(hw_events->irq, cpu);
+
+	if (!cpumask_test_and_clear_cpu(cpu, &armpmu->active_irqs))
+		return;
+
+	if (irq_is_percpu(irq)) {
+		free_percpu_irq(irq, &hw_events->percpu_pmu);
+		cpumask_clear(&armpmu->active_irqs);
+		return;
+	}
+
+	free_irq(irq, per_cpu_ptr(&hw_events->percpu_pmu, cpu));
+}
+
 static void armpmu_free_irqs(struct arm_pmu *armpmu)
 {
 	int cpu;
+
+	for_each_cpu(cpu, &armpmu->supported_cpus)
+		armpmu_free_irq(armpmu, cpu);
+}
+
+static int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
+{
+	int err = 0;
 	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
+	const irq_handler_t handler = armpmu_dispatch_irq;
+	int irq = per_cpu(hw_events->irq, cpu);
+	if (!irq)
+		return 0;
 
-	for_each_cpu(cpu, &armpmu->supported_cpus) {
-		int irq = per_cpu(hw_events->irq, cpu);
-		if (!irq)
-			continue;
+	if (irq_is_percpu(irq) && cpumask_empty(&armpmu->active_irqs)) {
+		err = request_percpu_irq(irq, handler, "arm-pmu",
+					 &hw_events->percpu_pmu);
+	} else if (irq_is_percpu(irq)) {
+		int other_cpu = cpumask_first(&armpmu->active_irqs);
+		int other_irq = per_cpu(hw_events->irq, other_cpu);
 
-		if (irq_is_percpu(irq)) {
-			free_percpu_irq(irq, &hw_events->percpu_pmu);
-			break;
+		if (irq != other_irq) {
+			pr_warn("mismatched PPIs detected.\n");
+			err = -EINVAL;
 		}
-
-		if (!cpumask_test_and_clear_cpu(cpu, &armpmu->active_irqs))
-			continue;
-
-		free_irq(irq, per_cpu_ptr(&hw_events->percpu_pmu, cpu));
+	} else {
+		err = request_irq(irq, handler,
+				  IRQF_NOBALANCING | IRQF_NO_THREAD, "arm-pmu",
+				  per_cpu_ptr(&hw_events->percpu_pmu, cpu));
 	}
+
+	if (err) {
+		pr_err("unable to request IRQ%d for ARM PMU counters\n",
+			irq);
+		return err;
+	}
+
+	cpumask_set_cpu(cpu, &armpmu->active_irqs);
+
+	return 0;
 }
 
 static int armpmu_request_irqs(struct arm_pmu *armpmu)
 {
 	int cpu, err;
-	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
-	const irq_handler_t handler = armpmu_dispatch_irq;
 
 	for_each_cpu(cpu, &armpmu->supported_cpus) {
-		int irq = per_cpu(hw_events->irq, cpu);
-		if (!irq)
-			continue;
-
-		if (irq_is_percpu(irq)) {
-			err = request_percpu_irq(irq, handler, "arm-pmu",
-						 &hw_events->percpu_pmu);
-			if (err) {
-				pr_err("unable to request IRQ%d for ARM PMU counters\n",
-					irq);
-			}
-
-			return err;
-		}
-
-		err = request_irq(irq, handler,
-				  IRQF_NOBALANCING | IRQF_NO_THREAD, "arm-pmu",
-				  per_cpu_ptr(&hw_events->percpu_pmu, cpu));
-		if (err) {
-			pr_err("unable to request IRQ%d for ARM PMU counters\n",
-				irq);
-			return err;
-		}
-
-		cpumask_set_cpu(cpu, &armpmu->active_irqs);
+		err = armpmu_request_irq(armpmu, cpu);
+		if (err)
+			break;
 	}
 
-	return 0;
+	return err;
 }
 
 static int armpmu_get_cpu_irq(struct arm_pmu *pmu, int cpu)
