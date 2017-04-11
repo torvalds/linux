@@ -3791,6 +3791,7 @@ static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 				      struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
 	struct ftrace_probe_ops *probe_ops;
+	struct trace_array *tr = op->private;
 
 	probe_ops = container_of(op, struct ftrace_probe_ops, ops);
 
@@ -3800,7 +3801,7 @@ static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 	 * on the hash. rcu_read_lock is too dangerous here.
 	 */
 	preempt_disable_notrace();
-	probe_ops->func(ip, parent_ip, probe_ops, NULL);
+	probe_ops->func(ip, parent_ip, tr, probe_ops, NULL);
 	preempt_enable_notrace();
 }
 
@@ -3969,6 +3970,7 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 		ops->ops.func = function_trace_probe_call;
 		ftrace_ops_init(&ops->ops);
 		INIT_LIST_HEAD(&ops->list);
+		ops->ops.private = tr;
 	}
 
 	mutex_lock(&ops->ops.func_hash->regex_lock);
@@ -3997,7 +3999,7 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 			 * to give the caller an opportunity to do so.
 			 */
 			if (ops->init) {
-				ret = ops->init(ops, entry->ip, data);
+				ret = ops->init(ops, tr, entry->ip, data);
 				if (ret < 0)
 					goto out;
 			}
@@ -4038,7 +4040,7 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 		hlist_for_each_entry(entry, &hash->buckets[i], hlist) {
 			if (ftrace_lookup_ip(old_hash, entry->ip))
 				continue;
-			ops->free(ops, entry->ip, NULL);
+			ops->free(ops, tr, entry->ip, NULL);
 		}
 	}
 	goto out_unlock;
@@ -4055,12 +4057,15 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 	struct ftrace_hash *hash = NULL;
 	struct hlist_node *tmp;
 	struct hlist_head hhd;
+	struct trace_array *tr;
 	char str[KSYM_SYMBOL_LEN];
 	int i, ret;
 	int size;
 
 	if (!(ops->ops.flags & FTRACE_OPS_FL_INITIALIZED))
 		return -EINVAL;
+
+	tr = ops->ops.private;
 
 	if (glob && (strcmp(glob, "*") == 0 || !strlen(glob)))
 		func_g.search = NULL;
@@ -4139,7 +4144,7 @@ unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 	hlist_for_each_entry_safe(entry, tmp, &hhd, hlist) {
 		hlist_del(&entry->hlist);
 		if (ops->free)
-			ops->free(ops, entry->ip, NULL);
+			ops->free(ops, tr, entry->ip, NULL);
 		kfree(entry);
 	}
 	mutex_unlock(&ftrace_lock);

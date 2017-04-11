@@ -6736,14 +6736,16 @@ static const struct file_operations tracing_dyn_info_fops = {
 #if defined(CONFIG_TRACER_SNAPSHOT) && defined(CONFIG_DYNAMIC_FTRACE)
 static void
 ftrace_snapshot(unsigned long ip, unsigned long parent_ip,
-		struct ftrace_probe_ops *ops, void **data)
+		struct trace_array *tr, struct ftrace_probe_ops *ops,
+		void **data)
 {
 	tracing_snapshot();
 }
 
 static void
 ftrace_count_snapshot(unsigned long ip, unsigned long parent_ip,
-		      struct ftrace_probe_ops *ops, void **data)
+		      struct trace_array *tr, struct ftrace_probe_ops *ops,
+		      void **data)
 {
 	struct ftrace_func_mapper *mapper = ops->private_data;
 	long *count = NULL;
@@ -6785,8 +6787,8 @@ ftrace_snapshot_print(struct seq_file *m, unsigned long ip,
 }
 
 static int
-ftrace_snapshot_init(struct ftrace_probe_ops *ops, unsigned long ip,
-		     void *data)
+ftrace_snapshot_init(struct ftrace_probe_ops *ops, struct trace_array *tr,
+		     unsigned long ip, void *data)
 {
 	struct ftrace_func_mapper *mapper = ops->private_data;
 
@@ -6794,8 +6796,8 @@ ftrace_snapshot_init(struct ftrace_probe_ops *ops, unsigned long ip,
 }
 
 static void
-ftrace_snapshot_free(struct ftrace_probe_ops *ops, unsigned long ip,
-		     void **_data)
+ftrace_snapshot_free(struct ftrace_probe_ops *ops, struct trace_array *tr,
+		     unsigned long ip, void **data)
 {
 	struct ftrace_func_mapper *mapper = ops->private_data;
 

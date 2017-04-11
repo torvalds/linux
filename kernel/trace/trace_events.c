@@ -2470,7 +2470,8 @@ static void update_event_probe(struct event_probe_data *data)
 
 static void
 event_enable_probe(unsigned long ip, unsigned long parent_ip,
-		   struct ftrace_probe_ops *ops, void **_data)
+		   struct trace_array *tr, struct ftrace_probe_ops *ops,
+		   void **_data)
 {
 	struct ftrace_func_mapper *mapper = ops->private_data;
 	struct event_probe_data *data;
@@ -2486,7 +2487,8 @@ event_enable_probe(unsigned long ip, unsigned long parent_ip,
 
 static void
 event_enable_count_probe(unsigned long ip, unsigned long parent_ip,
-			 struct ftrace_probe_ops *ops, void **_data)
+			 struct trace_array *tr, struct ftrace_probe_ops *ops,
+			 void **_data)
 {
 	struct ftrace_func_mapper *mapper = ops->private_data;
 	struct event_probe_data *data;
@@ -2513,7 +2515,7 @@ event_enable_count_probe(unsigned long ip, unsigned long parent_ip,
 
 static int
 event_enable_print(struct seq_file *m, unsigned long ip,
-		      struct ftrace_probe_ops *ops, void *_data)
+		   struct ftrace_probe_ops *ops, void *_data)
 {
 	struct ftrace_func_mapper *mapper = ops->private_data;
 	struct event_probe_data *data;
@@ -2542,8 +2544,8 @@ event_enable_print(struct seq_file *m, unsigned long ip,
 }
 
 static int
-event_enable_init(struct ftrace_probe_ops *ops, unsigned long ip,
-		  void *_data)
+event_enable_init(struct ftrace_probe_ops *ops, struct trace_array *tr,
+		  unsigned long ip, void *_data)
 {
 	struct ftrace_func_mapper *mapper = ops->private_data;
 	struct event_probe_data *data = _data;
@@ -2559,8 +2561,8 @@ event_enable_init(struct ftrace_probe_ops *ops, unsigned long ip,
 }
 
 static void
-event_enable_free(struct ftrace_probe_ops *ops, unsigned long ip,
-		  void **_data)
+event_enable_free(struct ftrace_probe_ops *ops, struct trace_array *tr,
+		  unsigned long ip, void **_data)
 {
 	struct ftrace_func_mapper *mapper = ops->private_data;
 	struct event_probe_data *data;

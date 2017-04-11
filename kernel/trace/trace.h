@@ -943,11 +943,14 @@ struct ftrace_probe_ops {
 	struct list_head	list;
 	void			(*func)(unsigned long ip,
 					unsigned long parent_ip,
+					struct trace_array *tr,
 					struct ftrace_probe_ops *ops,
 					void **data);
 	int			(*init)(struct ftrace_probe_ops *ops,
+					struct trace_array *tr,
 					unsigned long ip, void *data);
 	void			(*free)(struct ftrace_probe_ops *ops,
+					struct trace_array *tr,
 					unsigned long ip, void **data);
 	int			(*print)(struct seq_file *m,
 					 unsigned long ip,
