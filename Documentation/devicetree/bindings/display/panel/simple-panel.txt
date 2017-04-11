@@ -19,6 +19,18 @@ Optional properties when compatible is a dsi devices:
 - dsi,flags: dsi operation mode related flags
 - dsi,format: pixel format for video mode
 - dsi,lanes: number of active data lanes
+- reset-gpios: GPIO pin to reset the panel
+- reset-delay-ms: reset pulse width
+- panel-init-sequence: A byte stream formed by simple multiple dcs packets.
+	byte 0: dcs data type
+	byte 1: wait number of specified ms after dcs command transmitted
+	byte 2, 3: 16 bits length in network byte order
+	byte 4 and beyond: number byte of payload
+- panel-exit-sequence: A byte stream formed by simple multiple dcs packets.
+	byte 0: dcs data type
+	byte 1: wait number of specified ms after dcs command transmitted
+	byte 2, 3: 16 bits length in network byte order
+	byte 4 and beyond: number byte of payload
 
 Example:
 
@@ -40,6 +52,9 @@ Or:
 		power-supply = <&vdd_pnl_reg>;
 		enable-gpios = <&gpio 90 0>;
 
+		reset-gpios = <&gpio 91 0>;
+		reset-delay-ms = <20>;
+
 		backlight = <&backlight>;
 
 		dsi,flags = <MIPI_DSI_MODE_VIDEO |
@@ -47,6 +62,19 @@ Or:
 			     MIPI_DSI_MODE_VIDEO_SYNC_PULSE>;
 		dsi,format = <MIPI_DSI_FMT_RGB888>;
 		dsi,lanes = <4>;
+
+		panel-init-sequence = [
+			39 00 00 10 b1 6c 15 15 24 E4 11 f1 80 e4
+				    d7 23 80 c0 d2 58
+			...
+			05 78 00 01 11
+			05 00 00 01 29
+		];
+
+		panel-exit-sequence = [
+			05 00 00 01 28
+			05 78 00 01 10
+		];
 
 		display-timings {
 			native-mode = <&timing0>;

@@ -34,8 +34,27 @@
 #include <drm/drm_panel.h>
 
 #include <video/display_timing.h>
+#include <video/mipi_display.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
+
+struct dsi_ctrl_hdr {
+	u8 dtype;	/* data type */
+	u8 wait;	/* ms */
+	u16 dlen;	/* payload len */
+} __packed;
+
+struct dsi_cmd_desc {
+	struct dsi_ctrl_hdr dchdr;
+	u8 *payload;
+};
+
+struct dsi_panel_cmds {
+	u8 *buf;
+	int blen;
+	struct dsi_cmd_desc *cmds;
+	int cmd_cnt;
+};
 
 struct panel_desc {
 	const struct drm_display_mode *modes;
@@ -73,6 +92,7 @@ struct panel_desc {
 
 struct panel_simple {
 	struct drm_panel base;
+	struct mipi_dsi_device *dsi;
 	bool prepared;
 	bool enabled;
 
@@ -84,11 +104,141 @@ struct panel_simple {
 	struct i2c_adapter *ddc;
 
 	struct gpio_desc *enable_gpio;
+	struct gpio_desc *reset_gpio;
+	unsigned int reset_delay;
+
+	struct dsi_panel_cmds *on_cmds;
+	struct dsi_panel_cmds *off_cmds;
 };
 
 static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
 {
 	return container_of(panel, struct panel_simple, base);
+}
+
+static void panel_simple_dsi_cmds_cleanup(struct panel_simple *p)
+{
+	if (p->on_cmds) {
+		kfree(p->on_cmds->buf);
+		kfree(p->on_cmds->cmds);
+	}
+
+	if (p->off_cmds) {
+		kfree(p->off_cmds->buf);
+		kfree(p->off_cmds->cmds);
+	}
+}
+
+static int panel_simple_dsi_parse_dcs_cmds(struct device *dev,
+					   const u8 *data, int blen,
+					   struct dsi_panel_cmds *pcmds)
+{
+	int len;
+	char *buf, *bp;
+	struct dsi_ctrl_hdr *dchdr;
+	int i, cnt;
+
+	if (!pcmds)
+		return -EINVAL;
+
+	buf = kmemdup(data, blen, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	/* scan dcs commands */
+	bp = buf;
+	len = blen;
+	cnt = 0;
+	while (len > sizeof(*dchdr)) {
+		dchdr = (struct dsi_ctrl_hdr *)bp;
+		dchdr->dlen = ntohs(dchdr->dlen);
+
+		if (dchdr->dlen > len) {
+			dev_err(dev, "%s: error, len=%d", __func__,
+				dchdr->dlen);
+			return -EINVAL;
+		}
+
+		bp += sizeof(*dchdr);
+		len -= sizeof(*dchdr);
+		bp += dchdr->dlen;
+		len -= dchdr->dlen;
+		cnt++;
+	}
+
+	if (len != 0) {
+		dev_err(dev, "%s: dcs_cmd=%x len=%d error!",
+			__func__, buf[0], blen);
+		kfree(buf);
+		return -EINVAL;
+	}
+
+	pcmds->cmds = kcalloc(cnt, sizeof(struct dsi_cmd_desc), GFP_KERNEL);
+	if (!pcmds->cmds) {
+		kfree(buf);
+		return -ENOMEM;
+	}
+
+	pcmds->cmd_cnt = cnt;
+	pcmds->buf = buf;
+	pcmds->blen = blen;
+
+	bp = buf;
+	len = blen;
+	for (i = 0; i < cnt; i++) {
+		dchdr = (struct dsi_ctrl_hdr *)bp;
+		len -= sizeof(*dchdr);
+		bp += sizeof(*dchdr);
+		pcmds->cmds[i].dchdr = *dchdr;
+		pcmds->cmds[i].payload = bp;
+		bp += dchdr->dlen;
+		len -= dchdr->dlen;
+	}
+
+	dev_info(dev, "%s: dcs_cmd=%x len=%d, cmd_cnt=%d\n", __func__,
+		 pcmds->buf[0], pcmds->blen, pcmds->cmd_cnt);
+	return 0;
+}
+
+static int panel_simple_dsi_send_cmds(struct panel_simple *panel,
+				      struct dsi_panel_cmds *cmds)
+{
+	struct mipi_dsi_device *dsi = panel->dsi;
+	int i, err;
+
+	if (!cmds)
+		return -EINVAL;
+
+	for (i = 0; i < cmds->cmd_cnt; i++) {
+		struct dsi_cmd_desc *cmd = &cmds->cmds[i];
+
+		switch (cmd->dchdr.dtype) {
+		case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
+		case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
+		case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
+		case MIPI_DSI_GENERIC_LONG_WRITE:
+			err = mipi_dsi_generic_write(dsi, cmd->payload,
+						     cmd->dchdr.dlen);
+			break;
+		case MIPI_DSI_DCS_SHORT_WRITE:
+		case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
+		case MIPI_DSI_DCS_LONG_WRITE:
+			err = mipi_dsi_dcs_write_buffer(dsi, cmd->payload,
+							cmd->dchdr.dlen);
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (err)
+			dev_err(panel->dev, "failed to write dcs cmd: %d\n",
+				err);
+
+		if (cmd->dchdr.wait)
+			msleep(cmd->dchdr.wait);
+	}
+
+	return 0;
 }
 
 static int panel_simple_get_fixed_modes(struct panel_simple *panel)
@@ -204,9 +354,19 @@ static int panel_simple_disable(struct drm_panel *panel)
 static int panel_simple_unprepare(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
+	int err;
 
 	if (!p->prepared)
 		return 0;
+
+	if (p->off_cmds) {
+		err = panel_simple_dsi_send_cmds(p, p->off_cmds);
+		if (err)
+			dev_err(p->dev, "failed to send off cmds\n");
+	}
+
+	if (p->reset_gpio)
+		gpiod_direction_output(p->reset_gpio, 1);
 
 	if (p->enable_gpio)
 		gpiod_direction_output(p->enable_gpio, 0);
@@ -241,6 +401,15 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	if (p->desc && p->desc->delay.prepare)
 		msleep(p->desc->delay.prepare);
 
+	if (p->reset_gpio)
+		gpiod_direction_output(p->reset_gpio, 1);
+
+	if (p->reset_delay)
+		msleep(p->reset_delay);
+
+	if (p->reset_gpio)
+		gpiod_direction_output(p->reset_gpio, 0);
+
 	p->prepared = true;
 
 	return 0;
@@ -249,9 +418,16 @@ static int panel_simple_prepare(struct drm_panel *panel)
 static int panel_simple_enable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
+	int err;
 
 	if (p->enabled)
 		return 0;
+
+	if (p->on_cmds) {
+		err = panel_simple_dsi_send_cmds(p, p->on_cmds);
+		if (err)
+			dev_err(p->dev, "failed to send on cmds\n");
+	}
 
 	if (p->desc && p->desc->delay.enable)
 		msleep(p->desc->delay.enable);
@@ -359,7 +535,14 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable", 0);
 	if (IS_ERR(panel->enable_gpio)) {
 		err = PTR_ERR(panel->enable_gpio);
-		dev_err(dev, "failed to request GPIO: %d\n", err);
+		dev_err(dev, "failed to request enable GPIO: %d\n", err);
+		return err;
+	}
+
+	panel->reset_gpio = devm_gpiod_get_optional(dev, "reset", 0);
+	if (IS_ERR(panel->reset_gpio)) {
+		err = PTR_ERR(panel->reset_gpio);
+		dev_err(dev, "failed to request reset GPIO: %d\n", err);
 		return err;
 	}
 
@@ -419,6 +602,8 @@ static int panel_simple_remove(struct device *dev)
 
 	if (panel->backlight)
 		put_device(&panel->backlight->dev);
+
+	panel_simple_dsi_cmds_cleanup(panel);
 
 	return 0;
 }
@@ -1718,9 +1903,12 @@ MODULE_DEVICE_TABLE(of, dsi_of_match);
 
 static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 {
+	struct panel_simple *panel;
 	const struct panel_desc_dsi *desc;
 	const struct of_device_id *id;
 	const struct panel_desc *pdesc;
+	const void *data;
+	int len;
 	u32 val;
 	int err;
 
@@ -1743,6 +1931,9 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 	if (err < 0)
 		return err;
 
+	panel = dev_get_drvdata(&dsi->dev);
+	panel->dsi = dsi;
+
 	if (!of_property_read_u32(dsi->dev.of_node, "dsi,flags", &val))
 		dsi->mode_flags = val;
 
@@ -1751,6 +1942,41 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 
 	if (!of_property_read_u32(dsi->dev.of_node, "dsi,lanes", &val))
 		dsi->lanes = val;
+
+	if (!of_property_read_u32(dsi->dev.of_node, "reset-delay-ms", &val))
+		panel->reset_delay = val;
+
+	data = of_get_property(dsi->dev.of_node, "panel-init-sequence", &len);
+	if (data) {
+		panel->on_cmds = devm_kzalloc(&dsi->dev,
+					      sizeof(*panel->on_cmds),
+					      GFP_KERNEL);
+		if (!panel->on_cmds)
+			return -ENOMEM;
+
+		err = panel_simple_dsi_parse_dcs_cmds(&dsi->dev, data, len,
+						      panel->on_cmds);
+		if (err) {
+			dev_err(&dsi->dev, "failed to parse panel init sequence\n");
+			return err;
+		}
+	}
+
+	data = of_get_property(dsi->dev.of_node, "panel-exit-sequence", &len);
+	if (data) {
+		panel->off_cmds = devm_kzalloc(&dsi->dev,
+					       sizeof(*panel->off_cmds),
+					       GFP_KERNEL);
+		if (!panel->off_cmds)
+			return -ENOMEM;
+
+		err = panel_simple_dsi_parse_dcs_cmds(&dsi->dev, data, len,
+						      panel->off_cmds);
+		if (err) {
+			dev_err(&dsi->dev, "failed to parse panel exit sequence\n");
+			return err;
+		}
+	}
 
 	return mipi_dsi_attach(dsi);
 }
