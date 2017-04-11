@@ -4477,6 +4477,39 @@ static int gfx_v8_0_cp_gfx_start(struct amdgpu_device *adev)
 
 	return 0;
 }
+static void gfx_v8_0_set_cpg_door_bell(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	u32 tmp;
+	/* no gfx doorbells on iceland */
+	if (adev->asic_type == CHIP_TOPAZ)
+		return;
+
+	tmp = RREG32(mmCP_RB_DOORBELL_CONTROL);
+
+	if (ring->use_doorbell) {
+		tmp = REG_SET_FIELD(tmp, CP_RB_DOORBELL_CONTROL,
+				DOORBELL_OFFSET, ring->doorbell_index);
+		tmp = REG_SET_FIELD(tmp, CP_RB_DOORBELL_CONTROL,
+						DOORBELL_HIT, 0);
+		tmp = REG_SET_FIELD(tmp, CP_RB_DOORBELL_CONTROL,
+					    DOORBELL_EN, 1);
+	} else {
+		tmp = REG_SET_FIELD(tmp, CP_RB_DOORBELL_CONTROL, DOORBELL_EN, 0);
+	}
+
+	WREG32(mmCP_RB_DOORBELL_CONTROL, tmp);
+
+	if (adev->flags & AMD_IS_APU)
+		return;
+
+	tmp = REG_SET_FIELD(0, CP_RB_DOORBELL_RANGE_LOWER,
+					DOORBELL_RANGE_LOWER,
+					AMDGPU_DOORBELL_GFX_RING0);
+	WREG32(mmCP_RB_DOORBELL_RANGE_LOWER, tmp);
+
+	WREG32(mmCP_RB_DOORBELL_RANGE_UPPER,
+		CP_RB_DOORBELL_RANGE_UPPER__DOORBELL_RANGE_UPPER_MASK);
+}
 
 static int gfx_v8_0_cp_gfx_resume(struct amdgpu_device *adev)
 {
@@ -4524,34 +4557,7 @@ static int gfx_v8_0_cp_gfx_resume(struct amdgpu_device *adev)
 	WREG32(mmCP_RB0_BASE, rb_addr);
 	WREG32(mmCP_RB0_BASE_HI, upper_32_bits(rb_addr));
 
-	/* no gfx doorbells on iceland */
-	if (adev->asic_type != CHIP_TOPAZ) {
-		tmp = RREG32(mmCP_RB_DOORBELL_CONTROL);
-		if (ring->use_doorbell) {
-			tmp = REG_SET_FIELD(tmp, CP_RB_DOORBELL_CONTROL,
-					    DOORBELL_OFFSET, ring->doorbell_index);
-			tmp = REG_SET_FIELD(tmp, CP_RB_DOORBELL_CONTROL,
-					    DOORBELL_HIT, 0);
-			tmp = REG_SET_FIELD(tmp, CP_RB_DOORBELL_CONTROL,
-					    DOORBELL_EN, 1);
-		} else {
-			tmp = REG_SET_FIELD(tmp, CP_RB_DOORBELL_CONTROL,
-					    DOORBELL_EN, 0);
-		}
-		WREG32(mmCP_RB_DOORBELL_CONTROL, tmp);
-
-		if (adev->asic_type == CHIP_TONGA) {
-			tmp = REG_SET_FIELD(0, CP_RB_DOORBELL_RANGE_LOWER,
-					    DOORBELL_RANGE_LOWER,
-					    AMDGPU_DOORBELL_GFX_RING0);
-			WREG32(mmCP_RB_DOORBELL_RANGE_LOWER, tmp);
-
-			WREG32(mmCP_RB_DOORBELL_RANGE_UPPER,
-			       CP_RB_DOORBELL_RANGE_UPPER__DOORBELL_RANGE_UPPER_MASK);
-		}
-
-	}
-
+	gfx_v8_0_set_cpg_door_bell(adev, ring);
 	/* start the ring */
 	amdgpu_ring_clear_ring(ring);
 	gfx_v8_0_cp_gfx_start(adev);
@@ -5028,6 +5034,14 @@ static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
 	return 0;
 }
 
+static void gfx_v8_0_set_mec_doorbell_range(struct amdgpu_device *adev)
+{
+	if (adev->asic_type > CHIP_TONGA) {
+		WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER, AMDGPU_DOORBELL_KIQ << 2);
+		WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER, AMDGPU_DOORBELL_MEC_RING7 << 2);
+	}
+}
+
 static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = NULL;
@@ -5068,17 +5082,7 @@ static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
 			goto done;
 	}
 
-	if ((adev->asic_type == CHIP_CARRIZO) ||
-	    (adev->asic_type == CHIP_FIJI) ||
-	    (adev->asic_type == CHIP_STONEY) ||
-	    (adev->asic_type == CHIP_POLARIS10) ||
-	    (adev->asic_type == CHIP_POLARIS11) ||
-	    (adev->asic_type == CHIP_POLARIS12)) {
-		WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER,
-		       AMDGPU_DOORBELL_KIQ << 2);
-		WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER,
-		       AMDGPU_DOORBELL_MEC_RING7 << 2);
-	}
+	gfx_v8_0_set_mec_doorbell_range(adev);
 
 	r = gfx_v8_0_kiq_kcq_enable(adev);
 	if (r)
