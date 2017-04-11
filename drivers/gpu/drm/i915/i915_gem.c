@@ -3996,7 +3996,7 @@ __busy_set_if_active(const struct dma_fence *fence,
 	if (i915_gem_request_completed(rq))
 		return 0;
 
-	return flag(rq->engine->exec_id);
+	return flag(rq->engine->uabi_id);
 }
 
 static __always_inline unsigned int

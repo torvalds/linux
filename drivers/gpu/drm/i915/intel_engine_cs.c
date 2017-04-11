@@ -57,7 +57,7 @@ static const struct engine_class_info intel_engine_classes[] = {
 
 struct engine_info {
 	unsigned int hw_id;
-	unsigned int exec_id;
+	unsigned int uabi_id;
 	u8 class;
 	u8 instance;
 	u32 mmio_base;
@@ -67,7 +67,7 @@ struct engine_info {
 static const struct engine_info intel_engines[] = {
 	[RCS] = {
 		.hw_id = RCS_HW,
-		.exec_id = I915_EXEC_RENDER,
+		.uabi_id = I915_EXEC_RENDER,
 		.class = RENDER_CLASS,
 		.instance = 0,
 		.mmio_base = RENDER_RING_BASE,
@@ -75,7 +75,7 @@ static const struct engine_info intel_engines[] = {
 	},
 	[BCS] = {
 		.hw_id = BCS_HW,
-		.exec_id = I915_EXEC_BLT,
+		.uabi_id = I915_EXEC_BLT,
 		.class = COPY_ENGINE_CLASS,
 		.instance = 0,
 		.mmio_base = BLT_RING_BASE,
@@ -83,7 +83,7 @@ static const struct engine_info intel_engines[] = {
 	},
 	[VCS] = {
 		.hw_id = VCS_HW,
-		.exec_id = I915_EXEC_BSD,
+		.uabi_id = I915_EXEC_BSD,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 0,
 		.mmio_base = GEN6_BSD_RING_BASE,
@@ -91,7 +91,7 @@ static const struct engine_info intel_engines[] = {
 	},
 	[VCS2] = {
 		.hw_id = VCS2_HW,
-		.exec_id = I915_EXEC_BSD,
+		.uabi_id = I915_EXEC_BSD,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 1,
 		.mmio_base = GEN8_BSD2_RING_BASE,
@@ -99,7 +99,7 @@ static const struct engine_info intel_engines[] = {
 	},
 	[VECS] = {
 		.hw_id = VECS_HW,
-		.exec_id = I915_EXEC_VEBOX,
+		.uabi_id = I915_EXEC_VEBOX,
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 0,
 		.mmio_base = VEBOX_RING_BASE,
@@ -128,7 +128,7 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	WARN_ON(snprintf(engine->name, sizeof(engine->name), "%s%u",
 			 class_info->name, info->instance) >=
 		sizeof(engine->name));
-	engine->exec_id = info->exec_id;
+	engine->uabi_id = info->uabi_id;
 	engine->hw_id = engine->guc_id = info->hw_id;
 	engine->mmio_base = info->mmio_base;
 	engine->irq_shift = info->irq_shift;

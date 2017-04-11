@@ -1166,8 +1166,8 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 				find_reg(engine, is_master, reg_addr);
 
 			if (!reg) {
-				DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (exec_id=%d)\n",
-						 reg_addr, *cmd, engine->exec_id);
+				DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (%s)\n",
+						 reg_addr, *cmd, engine->name);
 				return false;
 			}
 
@@ -1222,11 +1222,11 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 				desc->bits[i].mask;
 
 			if (dword != desc->bits[i].expected) {
-				DRM_DEBUG_DRIVER("CMD: Rejected command 0x%08X for bitmask 0x%08X (exp=0x%08X act=0x%08X) (exec_id=%d)\n",
+				DRM_DEBUG_DRIVER("CMD: Rejected command 0x%08X for bitmask 0x%08X (exp=0x%08X act=0x%08X) (%s)\n",
 						 *cmd,
 						 desc->bits[i].mask,
 						 desc->bits[i].expected,
-						 dword, engine->exec_id);
+						 dword, engine->name);
 				return false;
 			}
 		}
