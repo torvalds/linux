@@ -1967,6 +1967,7 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 	struct drm_display_mode *umode = &asyh->state.mode;
 	int mode = asyc->scaler.mode;
 	struct edid *edid;
+	int umode_vdisplay, omode_hdisplay, omode_vdisplay;
 
 	if (connector->edid_blob_ptr)
 		edid = (struct edid *)connector->edid_blob_ptr->data;
@@ -1981,12 +1982,18 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 		mode = DRM_MODE_SCALE_FULLSCREEN;
 	}
 
+	/* For the user-specified mode, we must ignore doublescan and
+	 * the like, but honor frame packing.
+	 */
+	umode_vdisplay = umode->vdisplay;
+	if ((umode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
+		umode_vdisplay += umode->vtotal;
 	asyh->view.iW = umode->hdisplay;
-	asyh->view.iH = umode->vdisplay;
-	asyh->view.oW = omode->hdisplay;
-	asyh->view.oH = omode->vdisplay;
-	if (omode->flags & DRM_MODE_FLAG_DBLSCAN)
-		asyh->view.oH *= 2;
+	asyh->view.iH = umode_vdisplay;
+	/* For the output mode, we can just use the stock helper. */
+	drm_mode_get_hv_timing(omode, &omode_hdisplay, &omode_vdisplay);
+	asyh->view.oW = omode_hdisplay;
+	asyh->view.oH = omode_vdisplay;
 
 	/* Add overscan compensation if necessary, will keep the aspect
 	 * ratio the same as the backend mode unless overridden by the
@@ -2016,7 +2023,7 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 	switch (mode) {
 	case DRM_MODE_SCALE_CENTER:
 		asyh->view.oW = min((u16)umode->hdisplay, asyh->view.oW);
-		asyh->view.oH = min((u16)umode->vdisplay, asyh->view.oH);
+		asyh->view.oH = min((u16)umode_vdisplay, asyh->view.oH);
 		/* fall-through */
 	case DRM_MODE_SCALE_ASPECT:
 		if (asyh->view.oH < asyh->view.oW) {
@@ -2041,7 +2048,7 @@ nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	struct nv50_head_mode *m = &asyh->mode;
 	u32 blankus;
 
-	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
+	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
 
 	/*
 	 * DRM modes are defined in terms of a repeating interval
