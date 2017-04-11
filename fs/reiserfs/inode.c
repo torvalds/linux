@@ -2002,10 +2002,6 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 
 	/* uid and gid must already be set by the caller for quota init */
 
-	/* symlink cannot be immutable or append only, right? */
-	if (S_ISLNK(inode->i_mode))
-		inode->i_flags &= ~(S_IMMUTABLE | S_APPEND);
-
 	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	inode->i_size = i_size;
 	inode->i_blocks = 0;
