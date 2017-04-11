@@ -892,7 +892,6 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 		return -ENOMEM;
 
 	card->func = func;
-	spin_lock_init(&card->lock);
 
 	/*** Initialize  SDIO ***/
 	sdio_claim_host(func);

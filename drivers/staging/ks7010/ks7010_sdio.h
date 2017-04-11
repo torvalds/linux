@@ -98,7 +98,6 @@ struct hw_info_t {
 struct ks_sdio_card {
 	struct sdio_func *func;
 	struct ks_wlan_private *priv;
-	spinlock_t lock;
 };
 
 /* Tx Device struct */
