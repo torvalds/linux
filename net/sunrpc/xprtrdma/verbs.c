@@ -413,13 +413,16 @@ out:
  * Exported functions.
  */
 
-/*
- * Open and initialize an Interface Adapter.
- *  o initializes fields of struct rpcrdma_ia, including
- *    interface and provider attributes and protection zone.
+/**
+ * rpcrdma_ia_open - Open and initialize an Interface Adapter.
+ * @xprt: controlling transport
+ * @addr: IP address of remote peer
+ *
+ * Returns 0 on success, negative errno if an appropriate
+ * Interface Adapter could not be found and opened.
  */
 int
-rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
+rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr)
 {
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
 	int rc;
@@ -427,7 +430,7 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	ia->ri_id = rpcrdma_create_id(xprt, ia, addr);
 	if (IS_ERR(ia->ri_id)) {
 		rc = PTR_ERR(ia->ri_id);
-		goto out1;
+		goto out_err;
 	}
 	ia->ri_device = ia->ri_id->device;
 
@@ -435,10 +438,10 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 	if (IS_ERR(ia->ri_pd)) {
 		rc = PTR_ERR(ia->ri_pd);
 		pr_err("rpcrdma: ib_alloc_pd() returned %d\n", rc);
-		goto out2;
+		goto out_err;
 	}
 
-	switch (memreg) {
+	switch (xprt_rdma_memreg_strategy) {
 	case RPCRDMA_FRMR:
 		if (frwr_is_supported(ia)) {
 			ia->ri_ops = &rpcrdma_frwr_memreg_ops;
@@ -452,28 +455,23 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		}
 		/*FALLTHROUGH*/
 	default:
-		pr_err("rpcrdma: Unsupported memory registration mode: %d\n",
-		       memreg);
+		pr_err("rpcrdma: Device %s does not support memreg mode %d\n",
+		       ia->ri_device->name, xprt_rdma_memreg_strategy);
 		rc = -EINVAL;
-		goto out3;
+		goto out_err;
 	}
 
 	return 0;
 
-out3:
-	ib_dealloc_pd(ia->ri_pd);
-	ia->ri_pd = NULL;
-out2:
-	rpcrdma_destroy_id(ia->ri_id);
-	ia->ri_id = NULL;
-out1:
+out_err:
+	rpcrdma_ia_close(ia);
 	return rc;
 }
 
-/*
- * Clean up/close an IA.
- *   o if event handles and PD have been initialized, free them.
- *   o close the IA
+/**
+ * rpcrdma_ia_close - Clean up/close an IA.
+ * @ia: interface adapter to close
+ *
  */
 void
 rpcrdma_ia_close(struct rpcrdma_ia *ia)
@@ -483,12 +481,14 @@ rpcrdma_ia_close(struct rpcrdma_ia *ia)
 		if (ia->ri_id->qp)
 			rdma_destroy_qp(ia->ri_id);
 		rpcrdma_destroy_id(ia->ri_id);
-		ia->ri_id = NULL;
 	}
+	ia->ri_id = NULL;
+	ia->ri_device = NULL;
 
 	/* If the pd is still busy, xprtrdma missed freeing a resource */
 	if (ia->ri_pd && !IS_ERR(ia->ri_pd))
 		ib_dealloc_pd(ia->ri_pd);
+	ia->ri_pd = NULL;
 }
 
 /*

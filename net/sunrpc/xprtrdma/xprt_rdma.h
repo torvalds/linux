@@ -497,10 +497,15 @@ struct rpcrdma_xprt {
  * Default is 0, see sysctl entry and rpc_rdma.c rpcrdma_convert_iovs() */
 extern int xprt_rdma_pad_optimize;
 
+/* This setting controls the hunt for a supported memory
+ * registration strategy.
+ */
+extern unsigned int xprt_rdma_memreg_strategy;
+
 /*
  * Interface Adapter calls - xprtrdma/verbs.c
  */
-int rpcrdma_ia_open(struct rpcrdma_xprt *, struct sockaddr *, int);
+int rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr);
 void rpcrdma_ia_close(struct rpcrdma_ia *);
 bool frwr_is_supported(struct rpcrdma_ia *);
 bool fmr_is_supported(struct rpcrdma_ia *);
