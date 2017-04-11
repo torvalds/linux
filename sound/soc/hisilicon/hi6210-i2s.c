@@ -395,6 +395,7 @@ static int hi6210_i2s_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		WARN_ONCE(1, "Invalid i2s->fmt MASTER_MASK. This shouldn't happen\n");
+		return -EINVAL;
 	}
 
 	switch (i2s->format & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -409,6 +410,7 @@ static int hi6210_i2s_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		WARN_ONCE(1, "Invalid i2s->fmt FORMAT_MASK. This shouldn't happen\n");
+		return -EINVAL;
 	}
 
 	val = hi6210_read_reg(i2s, HII2S_I2S_CFG);
