@@ -1266,7 +1266,7 @@ skb_done:
 		}
 	}
 
-	/* ERR006538: Keep the transmitter going */
+	/* ERR006358: Keep the transmitter going */
 	if (bdp != txq->bd.cur &&
 	    readl(txq->bd.reg_desc_active) == 0)
 		writel(0, txq->bd.reg_desc_active);
