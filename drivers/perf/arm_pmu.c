@@ -543,10 +543,11 @@ static void cpu_pmu_free_irqs(struct arm_pmu *cpu_pmu)
 	}
 }
 
-static int cpu_pmu_request_irqs(struct arm_pmu *cpu_pmu, irq_handler_t handler)
+static int cpu_pmu_request_irqs(struct arm_pmu *cpu_pmu)
 {
 	int cpu, err;
 	struct pmu_hw_events __percpu *hw_events = cpu_pmu->hw_events;
+	const irq_handler_t handler = armpmu_dispatch_irq;
 
 	for_each_cpu(cpu, &cpu_pmu->supported_cpus) {
 		int irq = per_cpu(hw_events->irq, cpu);
@@ -735,7 +736,7 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	int err;
 
-	err = cpu_pmu_request_irqs(cpu_pmu, armpmu_dispatch_irq);
+	err = cpu_pmu_request_irqs(cpu_pmu);
 	if (err)
 		goto out;
 
