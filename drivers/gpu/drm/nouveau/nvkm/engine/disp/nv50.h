@@ -40,6 +40,17 @@ int nv50_dac_sense(NV50_DISP_MTHD_V1);
 int gt215_hda_eld(NV50_DISP_MTHD_V1);
 int gf119_hda_eld(NV50_DISP_MTHD_V1);
 
+struct packed_hdmi_infoframe {
+	u32 header;
+	u32 subpack0_low;
+	u32 subpack0_high;
+	u32 subpack1_low;
+	u32 subpack1_high;
+};
+
+void pack_hdmi_infoframe(struct packed_hdmi_infoframe *packed_frame,
+			 u8 *raw_frame, ssize_t len);
+
 int g84_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int gt215_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int gf119_hdmi_ctrl(NV50_DISP_MTHD_V1);

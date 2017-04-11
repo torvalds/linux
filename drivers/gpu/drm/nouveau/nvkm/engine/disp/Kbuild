@@ -29,6 +29,7 @@ nvkm-y += nvkm/engine/disp/conn.o
 nvkm-y += nvkm/engine/disp/hdagt215.o
 nvkm-y += nvkm/engine/disp/hdagf119.o
 
+nvkm-y += nvkm/engine/disp/hdmi_infoframe.o
 nvkm-y += nvkm/engine/disp/hdmig84.o
 nvkm-y += nvkm/engine/disp/hdmigt215.o
 nvkm-y += nvkm/engine/disp/hdmigf119.o
