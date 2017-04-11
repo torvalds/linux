@@ -122,6 +122,22 @@
 		pwms = <&pwm0 0 1000000 PWM_POLARITY_INVERTED>;
 	};
 
+	display-subsystem {
+		status = "okay";
+
+		ports = <&vopb_out>, <&vopl_out>;
+		route {
+			route_mipi: route-mipi {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vopb_out_mipi>;
+			};
+		};
+	};
+
 	rk_key: rockchip-key {
 		compatible = "rockchip,key";
 		status = "okay";
@@ -256,6 +272,41 @@
 	compatible = "rockchip,rk3288-secure-efuse";
 };
 
+&mipi_dsi {
+	dsi_panel: dsi-panel {
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
+		power-supply = <&vcc_lcd>;
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes = <4>;
+		delay,prepare = <120>;
+		status = "disabled";
+
+		disp_timings: display-timings {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
+				clock-frequency = <150000000>;
+				hactive = <1200>;
+				vactive = <1920>;
+				hback-porch = <80>;
+				hfront-porch = <81>;
+				vback-porch = <21>;
+				vfront-porch = <21>;
+				hsync-len = <10>;
+				vsync-len = <3>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+	};
+};
+
 &rga {
 	compatible = "rockchip,rga2";
 	clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
@@ -272,6 +323,30 @@
 	reset-names = "otg_ahb", "otg_phy", "otg_controller";
 	/*0 - Normal, 1 - Force Host, 2 - Force Device*/
 	rockchip,usb-mode = <0>;
+};
+
+&edp {
+	status = "okay";
+};
+
+&edp_phy {
+	status = "okay";
+};
+
+&edp_panel {
+	status = "okay";
+};
+
+&dsi_panel {
+	status = "disabled";
+};
+
+&mipi_dsi {
+	status = "disabled";
+};
+
+&route_mipi {
+	status = "disabled";
 };
 
 &pinctrl {
