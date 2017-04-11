@@ -8135,9 +8135,9 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 	I915_WRITE_FW(GEN6_PCODE_DATA1, 0);
 	I915_WRITE_FW(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY | mbox);
 
-	if (intel_wait_for_register_fw(dev_priv,
-				       GEN6_PCODE_MAILBOX, GEN6_PCODE_READY, 0,
-				       500)) {
+	if (__intel_wait_for_register_fw(dev_priv,
+					 GEN6_PCODE_MAILBOX, GEN6_PCODE_READY, 0,
+					 500, 0, NULL)) {
 		DRM_ERROR("timeout waiting for pcode read (%d) to finish\n", mbox);
 		return -ETIMEDOUT;
 	}
@@ -8180,9 +8180,9 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv,
 	I915_WRITE_FW(GEN6_PCODE_DATA1, 0);
 	I915_WRITE_FW(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY | mbox);
 
-	if (intel_wait_for_register_fw(dev_priv,
-				       GEN6_PCODE_MAILBOX, GEN6_PCODE_READY, 0,
-				       500)) {
+	if (__intel_wait_for_register_fw(dev_priv,
+					 GEN6_PCODE_MAILBOX, GEN6_PCODE_READY, 0,
+					 500, 0, NULL)) {
 		DRM_ERROR("timeout waiting for pcode write (%d) to finish\n", mbox);
 		return -ETIMEDOUT;
 	}
