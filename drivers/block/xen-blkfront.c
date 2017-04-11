@@ -2345,6 +2345,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	unsigned long sector_size;
 	unsigned int physical_sector_size;
 	unsigned int binfo;
+	char *envp[] = { "RESIZE=1", NULL };
 	int err, i;
 
 	switch (info->connected) {
@@ -2361,6 +2362,8 @@ static void blkfront_connect(struct blkfront_info *info)
 		       sectors);
 		set_capacity(info->gd, sectors);
 		revalidate_disk(info->gd);
+		kobject_uevent_env(&disk_to_dev(info->gd)->kobj,
+				   KOBJ_CHANGE, envp);
 
 		return;
 	case BLKIF_STATE_SUSPENDED:
