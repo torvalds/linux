@@ -909,6 +909,8 @@ static inline struct file *get_file(struct file *f)
 #define FL_OFDLCK	1024	/* lock is "owned" by struct file */
 #define FL_LAYOUT	2048	/* outstanding pNFS layout */
 
+#define FL_CLOSE_POSIX (FL_POSIX | FL_CLOSE)
+
 /*
  * Special return value from posix_lock_file() and vfs_lock_file() for
  * asynchronous locking.
