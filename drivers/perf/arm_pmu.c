@@ -982,6 +982,31 @@ static void armpmu_free(struct arm_pmu *pmu)
 	kfree(pmu);
 }
 
+int armpmu_register(struct arm_pmu *pmu)
+{
+	int ret;
+
+	ret = cpu_pmu_init(pmu);
+	if (ret)
+		return ret;
+
+	ret = perf_pmu_register(&pmu->pmu, pmu->name, -1);
+	if (ret)
+		goto out_destroy;
+
+	if (!__oprofile_cpu_pmu)
+		__oprofile_cpu_pmu = pmu;
+
+	pr_info("enabled with %s PMU driver, %d counters available\n",
+		pmu->name, pmu->num_events);
+
+	return 0;
+
+out_destroy:
+	cpu_pmu_destroy(pmu);
+	return ret;
+}
+
 int arm_pmu_device_probe(struct platform_device *pdev,
 			 const struct of_device_id *of_table,
 			 const struct pmu_probe_info *probe_table)
@@ -1025,25 +1050,12 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 		goto out_free;
 	}
 
-
-	ret = cpu_pmu_init(pmu);
+	ret = armpmu_register(pmu);
 	if (ret)
 		goto out_free;
 
-	ret = perf_pmu_register(&pmu->pmu, pmu->name, -1);
-	if (ret)
-		goto out_destroy;
-
-	if (!__oprofile_cpu_pmu)
-		__oprofile_cpu_pmu = pmu;
-
-	pr_info("enabled with %s PMU driver, %d counters available\n",
-			pmu->name, pmu->num_events);
-
 	return 0;
 
-out_destroy:
-	cpu_pmu_destroy(pmu);
 out_free:
 	pr_info("%s: failed to register PMU devices!\n",
 		of_node_full_name(node));
