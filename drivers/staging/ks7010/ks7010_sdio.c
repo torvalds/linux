@@ -952,10 +952,6 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	/* private memory initialize */
 	priv->ks_wlan_hw.sdio_card = card;
-	priv->ks_wlan_hw.read_buf = NULL;
-	priv->ks_wlan_hw.read_buf = kmalloc(RX_DATA_SIZE, GFP_KERNEL);
-	if (!priv->ks_wlan_hw.read_buf)
-		goto err_free_netdev;
 
 	priv->dev_state = DEVICE_STATE_PREBOOT;
 	priv->net_dev = netdev;
@@ -982,7 +978,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 		dev_err(&card->func->dev,
 			"ks7010: firmware load failed !! return code = %d\n",
 			 ret);
-		goto err_free_read_buf;
+		goto err_free_netdev;
 	}
 
 	/* interrupt setting */
@@ -1010,7 +1006,7 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 	priv->ks_wlan_hw.ks7010sdio_wq = create_workqueue("ks7010sdio_wq");
 	if (!priv->ks_wlan_hw.ks7010sdio_wq) {
 		DPRINTK(1, "create_workqueue failed !!\n");
-		goto err_free_read_buf;
+		goto err_free_netdev;
 	}
 
 	INIT_DELAYED_WORK(&priv->ks_wlan_hw.rw_wq, ks7010_rw_function);
@@ -1018,13 +1014,10 @@ static int ks7010_sdio_probe(struct sdio_func *func,
 
 	ret = register_netdev(priv->net_dev);
 	if (ret)
-		goto err_free_read_buf;
+		goto err_free_netdev;
 
 	return 0;
 
- err_free_read_buf:
-	kfree(priv->ks_wlan_hw.read_buf);
-	priv->ks_wlan_hw.read_buf = NULL;
  err_free_netdev:
 	free_netdev(priv->net_dev);
 	card->priv = NULL;
@@ -1117,7 +1110,6 @@ static void ks7010_sdio_remove(struct sdio_func *func)
 		unregister_netdev(netdev);
 
 		trx_device_exit(priv);
-		kfree(priv->ks_wlan_hw.read_buf);
 		free_netdev(priv->net_dev);
 		card->priv = NULL;
 	}

@@ -92,7 +92,6 @@ struct hw_info_t {
 	struct ks_sdio_card *sdio_card;
 	struct workqueue_struct *ks7010sdio_wq;
 	struct delayed_work rw_wq;
-	unsigned char *read_buf;
 	struct tasklet_struct rx_bh_task;
 };
 
