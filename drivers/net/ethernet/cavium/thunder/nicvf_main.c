@@ -882,38 +882,9 @@ static irqreturn_t nicvf_qs_err_intr_handler(int irq, void *nicvf_irq)
 	return IRQ_HANDLED;
 }
 
-static int nicvf_enable_msix(struct nicvf *nic)
-{
-	int ret, vec;
-
-	nic->num_vec = NIC_VF_MSIX_VECTORS;
-
-	for (vec = 0; vec < nic->num_vec; vec++)
-		nic->msix_entries[vec].entry = vec;
-
-	ret = pci_enable_msix(nic->pdev, nic->msix_entries, nic->num_vec);
-	if (ret) {
-		netdev_err(nic->netdev,
-			   "Req for #%d msix vectors failed\n", nic->num_vec);
-		return 0;
-	}
-	nic->msix_enabled = 1;
-	return 1;
-}
-
-static void nicvf_disable_msix(struct nicvf *nic)
-{
-	if (nic->msix_enabled) {
-		pci_disable_msix(nic->pdev);
-		nic->msix_enabled = 0;
-		nic->num_vec = 0;
-	}
-}
-
 static void nicvf_set_irq_affinity(struct nicvf *nic)
 {
 	int vec, cpu;
-	int irqnum;
 
 	for (vec = 0; vec < nic->num_vec; vec++) {
 		if (!nic->irq_allocated[vec])
@@ -930,15 +901,14 @@ static void nicvf_set_irq_affinity(struct nicvf *nic)
 
 		cpumask_set_cpu(cpumask_local_spread(cpu, nic->node),
 				nic->affinity_mask[vec]);
-		irqnum = nic->msix_entries[vec].vector;
-		irq_set_affinity_hint(irqnum, nic->affinity_mask[vec]);
+		irq_set_affinity_hint(pci_irq_vector(nic->pdev, vec),
+				      nic->affinity_mask[vec]);
 	}
 }
 
 static int nicvf_register_interrupts(struct nicvf *nic)
 {
 	int irq, ret = 0;
-	int vector;
 
 	for_each_cq_irq(irq)
 		sprintf(nic->irq_name[irq], "%s-rxtx-%d",
@@ -957,8 +927,8 @@ static int nicvf_register_interrupts(struct nicvf *nic)
 
 	/* Register CQ interrupts */
 	for (irq = 0; irq < nic->qs->cq_cnt; irq++) {
-		vector = nic->msix_entries[irq].vector;
-		ret = request_irq(vector, nicvf_intr_handler,
+		ret = request_irq(pci_irq_vector(nic->pdev, irq),
+				  nicvf_intr_handler,
 				  0, nic->irq_name[irq], nic->napi[irq]);
 		if (ret)
 			goto err;
@@ -968,8 +938,8 @@ static int nicvf_register_interrupts(struct nicvf *nic)
 	/* Register RBDR interrupt */
 	for (irq = NICVF_INTR_ID_RBDR;
 	     irq < (NICVF_INTR_ID_RBDR + nic->qs->rbdr_cnt); irq++) {
-		vector = nic->msix_entries[irq].vector;
-		ret = request_irq(vector, nicvf_rbdr_intr_handler,
+		ret = request_irq(pci_irq_vector(nic->pdev, irq),
+				  nicvf_rbdr_intr_handler,
 				  0, nic->irq_name[irq], nic);
 		if (ret)
 			goto err;
@@ -981,7 +951,7 @@ static int nicvf_register_interrupts(struct nicvf *nic)
 		nic->pnicvf->netdev->name,
 		nic->sqs_mode ? (nic->sqs_id + 1) : 0);
 	irq = NICVF_INTR_ID_QS_ERR;
-	ret = request_irq(nic->msix_entries[irq].vector,
+	ret = request_irq(pci_irq_vector(nic->pdev, irq),
 			  nicvf_qs_err_intr_handler,
 			  0, nic->irq_name[irq], nic);
 	if (ret)
@@ -1001,6 +971,7 @@ err:
 
 static void nicvf_unregister_interrupts(struct nicvf *nic)
 {
+	struct pci_dev *pdev = nic->pdev;
 	int irq;
 
 	/* Free registered interrupts */
@@ -1008,19 +979,20 @@ static void nicvf_unregister_interrupts(struct nicvf *nic)
 		if (!nic->irq_allocated[irq])
 			continue;
 
-		irq_set_affinity_hint(nic->msix_entries[irq].vector, NULL);
+		irq_set_affinity_hint(pci_irq_vector(pdev, irq), NULL);
 		free_cpumask_var(nic->affinity_mask[irq]);
 
 		if (irq < NICVF_INTR_ID_SQ)
-			free_irq(nic->msix_entries[irq].vector, nic->napi[irq]);
+			free_irq(pci_irq_vector(pdev, irq), nic->napi[irq]);
 		else
-			free_irq(nic->msix_entries[irq].vector, nic);
+			free_irq(pci_irq_vector(pdev, irq), nic);
 
 		nic->irq_allocated[irq] = false;
 	}
 
 	/* Disable MSI-X */
-	nicvf_disable_msix(nic);
+	pci_free_irq_vectors(pdev);
+	nic->num_vec = 0;
 }
 
 /* Initialize MSIX vectors and register MISC interrupt.
@@ -1032,16 +1004,22 @@ static int nicvf_register_misc_interrupt(struct nicvf *nic)
 	int irq = NICVF_INTR_ID_MISC;
 
 	/* Return if mailbox interrupt is already registered */
-	if (nic->msix_enabled)
+	if (nic->pdev->msix_enabled)
 		return 0;
 
 	/* Enable MSI-X */
-	if (!nicvf_enable_msix(nic))
+	nic->num_vec = pci_msix_vec_count(nic->pdev);
+	ret = pci_alloc_irq_vectors(nic->pdev, nic->num_vec, nic->num_vec,
+				    PCI_IRQ_MSIX);
+	if (ret < 0) {
+		netdev_err(nic->netdev,
+			   "Req for #%d msix vectors failed\n", nic->num_vec);
 		return 1;
+	}
 
 	sprintf(nic->irq_name[irq], "%s Mbox", "NICVF");
 	/* Register Misc interrupt */
-	ret = request_irq(nic->msix_entries[irq].vector,
+	ret = request_irq(pci_irq_vector(nic->pdev, irq),
 			  nicvf_misc_intr_handler, 0, nic->irq_name[irq], nic);
 
 	if (ret)
@@ -1164,7 +1142,7 @@ int nicvf_stop(struct net_device *netdev)
 
 	/* Wait for pending IRQ handlers to finish */
 	for (irq = 0; irq < nic->num_vec; irq++)
-		synchronize_irq(nic->msix_entries[irq].vector);
+		synchronize_irq(pci_irq_vector(nic->pdev, irq));
 
 	tasklet_kill(&nic->rbdr_task);
 	tasklet_kill(&nic->qs_err_task);
@@ -1365,7 +1343,7 @@ static int nicvf_set_mac_address(struct net_device *netdev, void *p)
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 
-	if (nic->msix_enabled) {
+	if (nic->pdev->msix_enabled) {
 		if (nicvf_hw_set_mac_addr(nic, netdev))
 			return -EBUSY;
 	} else {
