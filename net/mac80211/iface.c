@@ -718,7 +718,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	ieee80211_recalc_ps(local);
 
 	if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
-	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+	    local->ops->wake_tx_queue) {
 		/* XXX: for AP_VLAN, actually track AP queues */
 		netif_tx_start_all_queues(dev);
 	} else if (dev) {

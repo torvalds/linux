@@ -496,7 +496,7 @@ static void scsi_run_queue(struct request_queue *q)
 		scsi_starved_list_run(sdev->host);
 
 	if (q->mq_ops)
-		blk_mq_start_stopped_hw_queues(q, false);
+		blk_mq_run_hw_queues(q, false);
 	else
 		blk_run_queue(q);
 }
@@ -667,7 +667,7 @@ static bool scsi_end_request(struct request *req, int error,
 		    !list_empty(&sdev->host->starved_list))
 			kblockd_schedule_work(&sdev->requeue_work);
 		else
-			blk_mq_start_stopped_hw_queues(q, true);
+			blk_mq_run_hw_queues(q, true);
 	} else {
 		unsigned long flags;
 
@@ -1974,7 +1974,7 @@ out:
 	case BLK_MQ_RQ_QUEUE_BUSY:
 		if (atomic_read(&sdev->device_busy) == 0 &&
 		    !scsi_device_blocked(sdev))
-			blk_mq_delay_queue(hctx, SCSI_QUEUE_DELAY);
+			blk_mq_delay_run_hw_queue(hctx, SCSI_QUEUE_DELAY);
 		break;
 	case BLK_MQ_RQ_QUEUE_ERROR:
 		/*

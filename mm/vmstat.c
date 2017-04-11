@@ -1552,7 +1552,6 @@ static const struct file_operations proc_vmstat_file_operations = {
 #endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_SMP
-static struct workqueue_struct *vmstat_wq;
 static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
 int sysctl_stat_interval __read_mostly = HZ;
 
@@ -1623,7 +1622,7 @@ static void vmstat_update(struct work_struct *w)
 		 * to occur in the future. Keep on running the
 		 * update worker thread.
 		 */
-		queue_delayed_work_on(smp_processor_id(), vmstat_wq,
+		queue_delayed_work_on(smp_processor_id(), mm_percpu_wq,
 				this_cpu_ptr(&vmstat_work),
 				round_jiffies_relative(sysctl_stat_interval));
 	}
@@ -1702,7 +1701,7 @@ static void vmstat_shepherd(struct work_struct *w)
 		struct delayed_work *dw = &per_cpu(vmstat_work, cpu);
 
 		if (!delayed_work_pending(dw) && need_update(cpu))
-			queue_delayed_work_on(cpu, vmstat_wq, dw, 0);
+			queue_delayed_work_on(cpu, mm_percpu_wq, dw, 0);
 	}
 	put_online_cpus();
 
@@ -1718,7 +1717,6 @@ static void __init start_shepherd_timer(void)
 		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
 			vmstat_update);
 
-	vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
 	schedule_delayed_work(&shepherd,
 		round_jiffies_relative(sysctl_stat_interval));
 }
@@ -1764,11 +1762,16 @@ static int vmstat_cpu_dead(unsigned int cpu)
 
 #endif
 
-static int __init setup_vmstat(void)
-{
-#ifdef CONFIG_SMP
-	int ret;
+struct workqueue_struct *mm_percpu_wq;
 
+void __init init_mm_internals(void)
+{
+	int ret __maybe_unused;
+
+	mm_percpu_wq = alloc_workqueue("mm_percpu_wq",
+				       WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+
+#ifdef CONFIG_SMP
 	ret = cpuhp_setup_state_nocalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
 					NULL, vmstat_cpu_dead);
 	if (ret < 0)
@@ -1792,9 +1795,7 @@ static int __init setup_vmstat(void)
 	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
 	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
 #endif
-	return 0;
 }
-module_init(setup_vmstat)
 
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_COMPACTION)
 

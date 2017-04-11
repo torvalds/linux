@@ -390,7 +390,7 @@ mpls:
 			unsigned char ar_tip[4];
 		} *arp_eth, _arp_eth;
 		const struct arphdr *arp;
-		struct arphdr *_arp;
+		struct arphdr _arp;
 
 		arp = __skb_header_pointer(skb, nhoff, sizeof(_arp), data,
 					   hlen, &_arp);

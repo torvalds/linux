@@ -4166,14 +4166,14 @@ static void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 		bnx2x_release_phy_lock(bp);
 	}
 
-	if (attn & HW_INTERRUT_ASSERT_SET_0) {
+	if (attn & HW_INTERRUPT_ASSERT_SET_0) {
 
 		val = REG_RD(bp, reg_offset);
-		val &= ~(attn & HW_INTERRUT_ASSERT_SET_0);
+		val &= ~(attn & HW_INTERRUPT_ASSERT_SET_0);
 		REG_WR(bp, reg_offset, val);
 
 		BNX2X_ERR("FATAL HW block attention set0 0x%x\n",
-			  (u32)(attn & HW_INTERRUT_ASSERT_SET_0));
+			  (u32)(attn & HW_INTERRUPT_ASSERT_SET_0));
 		bnx2x_panic();
 	}
 }
@@ -4191,7 +4191,7 @@ static void bnx2x_attn_int_deasserted1(struct bnx2x *bp, u32 attn)
 			BNX2X_ERR("FATAL error from DORQ\n");
 	}
 
-	if (attn & HW_INTERRUT_ASSERT_SET_1) {
+	if (attn & HW_INTERRUPT_ASSERT_SET_1) {
 
 		int port = BP_PORT(bp);
 		int reg_offset;
@@ -4200,11 +4200,11 @@ static void bnx2x_attn_int_deasserted1(struct bnx2x *bp, u32 attn)
 				     MISC_REG_AEU_ENABLE1_FUNC_0_OUT_1);
 
 		val = REG_RD(bp, reg_offset);
-		val &= ~(attn & HW_INTERRUT_ASSERT_SET_1);
+		val &= ~(attn & HW_INTERRUPT_ASSERT_SET_1);
 		REG_WR(bp, reg_offset, val);
 
 		BNX2X_ERR("FATAL HW block attention set1 0x%x\n",
-			  (u32)(attn & HW_INTERRUT_ASSERT_SET_1));
+			  (u32)(attn & HW_INTERRUPT_ASSERT_SET_1));
 		bnx2x_panic();
 	}
 }
@@ -4235,7 +4235,7 @@ static void bnx2x_attn_int_deasserted2(struct bnx2x *bp, u32 attn)
 		}
 	}
 
-	if (attn & HW_INTERRUT_ASSERT_SET_2) {
+	if (attn & HW_INTERRUPT_ASSERT_SET_2) {
 
 		int port = BP_PORT(bp);
 		int reg_offset;
@@ -4244,11 +4244,11 @@ static void bnx2x_attn_int_deasserted2(struct bnx2x *bp, u32 attn)
 				     MISC_REG_AEU_ENABLE1_FUNC_0_OUT_2);
 
 		val = REG_RD(bp, reg_offset);
-		val &= ~(attn & HW_INTERRUT_ASSERT_SET_2);
+		val &= ~(attn & HW_INTERRUPT_ASSERT_SET_2);
 		REG_WR(bp, reg_offset, val);
 
 		BNX2X_ERR("FATAL HW block attention set2 0x%x\n",
-			  (u32)(attn & HW_INTERRUT_ASSERT_SET_2));
+			  (u32)(attn & HW_INTERRUPT_ASSERT_SET_2));
 		bnx2x_panic();
 	}
 }

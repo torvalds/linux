@@ -3315,9 +3315,9 @@ LPFC_ATTR_R(nvmet_mrq_post, LPFC_DEF_MRQ_POST,
  * lpfc_enable_fc4_type: Defines what FC4 types are supported.
  * Supported Values:  1 - register just FCP
  *                    3 - register both FCP and NVME
- * Supported values are [1,3]. Default value is 3
+ * Supported values are [1,3]. Default value is 1
  */
-LPFC_ATTR_R(enable_fc4_type, LPFC_ENABLE_BOTH,
+LPFC_ATTR_R(enable_fc4_type, LPFC_ENABLE_FCP,
 	    LPFC_ENABLE_FCP, LPFC_ENABLE_BOTH,
 	    "Define fc4 type to register with fabric.");
 

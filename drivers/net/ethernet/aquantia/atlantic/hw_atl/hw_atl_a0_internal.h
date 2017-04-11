@@ -137,6 +137,7 @@ static struct aq_hw_caps_s hw_atl_a0_hw_caps_ = {
 	.tx_rings = HW_ATL_A0_TX_RINGS,
 	.rx_rings = HW_ATL_A0_RX_RINGS,
 	.hw_features = NETIF_F_HW_CSUM |
+			NETIF_F_RXCSUM |
 			NETIF_F_RXHASH |
 			NETIF_F_SG |
 			NETIF_F_TSO,

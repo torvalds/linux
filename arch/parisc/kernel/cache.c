@@ -616,3 +616,25 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 		__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
 	}
 }
+
+void flush_kernel_vmap_range(void *vaddr, int size)
+{
+	unsigned long start = (unsigned long)vaddr;
+
+	if ((unsigned long)size > parisc_cache_flush_threshold)
+		flush_data_cache();
+	else
+		flush_kernel_dcache_range_asm(start, start + size);
+}
+EXPORT_SYMBOL(flush_kernel_vmap_range);
+
+void invalidate_kernel_vmap_range(void *vaddr, int size)
+{
+	unsigned long start = (unsigned long)vaddr;
+
+	if ((unsigned long)size > parisc_cache_flush_threshold)
+		flush_data_cache();
+	else
+		flush_kernel_dcache_range_asm(start, start + size);
+}
+EXPORT_SYMBOL(invalidate_kernel_vmap_range);

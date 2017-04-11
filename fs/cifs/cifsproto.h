@@ -79,7 +79,8 @@ extern void cifs_delete_mid(struct mid_q_entry *mid);
 extern void cifs_wake_up_task(struct mid_q_entry *mid);
 extern int cifs_handle_standard(struct TCP_Server_Info *server,
 				struct mid_q_entry *mid);
-extern int cifs_discard_remaining_data(struct TCP_Server_Info *server);
+extern int cifs_discard_remaining_data(struct TCP_Server_Info *server,
+				       char *buf);
 extern int cifs_call_async(struct TCP_Server_Info *server,
 			struct smb_rqst *rqst,
 			mid_receive_t *receive, mid_callback_t *callback,

@@ -361,8 +361,8 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	sctp_seq_dump_remote_addrs(seq, assoc);
 	seq_printf(seq, "\t%8lu %5d %5d %4d %4d %4d %8d "
 		   "%8d %8d %8d %8d",
-		assoc->hbinterval, assoc->c.sinit_max_instreams,
-		assoc->c.sinit_num_ostreams, assoc->max_retrans,
+		assoc->hbinterval, assoc->stream->incnt,
+		assoc->stream->outcnt, assoc->max_retrans,
 		assoc->init_retries, assoc->shutdown_retries,
 		assoc->rtx_data_chunks,
 		atomic_read(&sk->sk_wmem_alloc),

@@ -67,14 +67,15 @@ static int map_vgpu_opregion(struct intel_vgpu *vgpu, bool map)
 		mfn = intel_gvt_hypervisor_virt_to_mfn(vgpu_opregion(vgpu)->va
 			+ i * PAGE_SIZE);
 		if (mfn == INTEL_GVT_INVALID_ADDR) {
-			gvt_err("fail to get MFN from VA\n");
+			gvt_vgpu_err("fail to get MFN from VA\n");
 			return -EINVAL;
 		}
 		ret = intel_gvt_hypervisor_map_gfn_to_mfn(vgpu,
 				vgpu_opregion(vgpu)->gfn[i],
 				mfn, 1, map);
 		if (ret) {
-			gvt_err("fail to map GFN to MFN, errno: %d\n", ret);
+			gvt_vgpu_err("fail to map GFN to MFN, errno: %d\n",
+				ret);
 			return ret;
 		}
 	}
@@ -287,7 +288,7 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 	parm = vgpu_opregion(vgpu)->va + INTEL_GVT_OPREGION_PARM;
 
 	if (!(swsci & SWSCI_SCI_SELECT)) {
-		gvt_err("vgpu%d: requesting SMI service\n", vgpu->id);
+		gvt_vgpu_err("requesting SMI service\n");
 		return 0;
 	}
 	/* ignore non 0->1 trasitions */
@@ -300,9 +301,8 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 	func = GVT_OPREGION_FUNC(*scic);
 	subfunc = GVT_OPREGION_SUBFUNC(*scic);
 	if (!querying_capabilities(*scic)) {
-		gvt_err("vgpu%d: requesting runtime service: func \"%s\","
+		gvt_vgpu_err("requesting runtime service: func \"%s\","
 				" subfunc \"%s\"\n",
-				vgpu->id,
 				opregion_func_name(func),
 				opregion_subfunc_name(subfunc));
 		/*

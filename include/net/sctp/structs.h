@@ -83,6 +83,7 @@ struct sctp_bind_addr;
 struct sctp_ulpq;
 struct sctp_ep_common;
 struct crypto_shash;
+struct sctp_stream;
 
 
 #include <net/sctp/tsnmap.h>
@@ -376,7 +377,8 @@ typedef struct sctp_sender_hb_info {
 	__u64 hb_nonce;
 } sctp_sender_hb_info_t;
 
-struct sctp_stream *sctp_stream_new(__u16 incnt, __u16 outcnt, gfp_t gfp);
+int sctp_stream_new(struct sctp_association *asoc, gfp_t gfp);
+int sctp_stream_init(struct sctp_association *asoc, gfp_t gfp);
 void sctp_stream_free(struct sctp_stream *stream);
 void sctp_stream_clear(struct sctp_stream *stream);
 
@@ -498,7 +500,6 @@ struct sctp_datamsg {
 	/* Did the messenge fail to send? */
 	int send_error;
 	u8 send_failed:1,
-	   force_delay:1,
 	   can_delay;	    /* should this message be Nagle delayed */
 };
 
@@ -753,6 +754,8 @@ struct sctp_transport {
 		/* Is the Path MTU update pending on this tranport */
 		pmtu_pending:1,
 
+		dst_pending_confirm:1,	/* need to confirm neighbour */
+
 		/* Has this transport moved the ctsn since we last sacked */
 		sack_generation:1;
 	u32 dst_cookie;
@@ -805,8 +808,6 @@ struct sctp_transport {
 	__u32 flight_size;
 
 	__u32 burst_limited;	/* Holds old cwnd when max.burst is applied */
-
-	__u32 dst_pending_confirm;	/* need to confirm neighbour */
 
 	/* Destination */
 	struct dst_entry *dst;
@@ -951,8 +952,8 @@ void sctp_transport_lower_cwnd(struct sctp_transport *, sctp_lower_cwnd_t);
 void sctp_transport_burst_limited(struct sctp_transport *);
 void sctp_transport_burst_reset(struct sctp_transport *);
 unsigned long sctp_transport_timeout(struct sctp_transport *);
-void sctp_transport_reset(struct sctp_transport *);
-void sctp_transport_update_pmtu(struct sock *, struct sctp_transport *, u32);
+void sctp_transport_reset(struct sctp_transport *t);
+void sctp_transport_update_pmtu(struct sctp_transport *t, u32 pmtu);
 void sctp_transport_immediate_rtx(struct sctp_transport *);
 void sctp_transport_dst_release(struct sctp_transport *t);
 void sctp_transport_dst_confirm(struct sctp_transport *t);
@@ -1877,6 +1878,7 @@ struct sctp_association {
 
 	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
 	     temp:1,		/* Is it a temporary association? */
+	     force_delay:1,
 	     prsctp_enable:1,
 	     reconf_enable:1;
 
@@ -1952,7 +1954,7 @@ void sctp_assoc_update(struct sctp_association *old,
 
 __u32 sctp_association_get_next_tsn(struct sctp_association *);
 
-void sctp_assoc_sync_pmtu(struct sock *, struct sctp_association *);
+void sctp_assoc_sync_pmtu(struct sctp_association *asoc);
 void sctp_assoc_rwnd_increase(struct sctp_association *, unsigned int);
 void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned int);
 void sctp_assoc_set_primary(struct sctp_association *,

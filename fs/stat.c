@@ -130,9 +130,13 @@ EXPORT_SYMBOL(vfs_getattr);
 int vfs_statx_fd(unsigned int fd, struct kstat *stat,
 		 u32 request_mask, unsigned int query_flags)
 {
-	struct fd f = fdget_raw(fd);
+	struct fd f;
 	int error = -EBADF;
 
+	if (query_flags & ~KSTAT_QUERY_FLAGS)
+		return -EINVAL;
+
+	f = fdget_raw(fd);
 	if (f.file) {
 		error = vfs_getattr(&f.file->f_path, stat,
 				    request_mask, query_flags);
@@ -154,9 +158,6 @@ EXPORT_SYMBOL(vfs_statx_fd);
  * that it uses a filename and base directory to determine the file location.
  * Additionally, the use of AT_SYMLINK_NOFOLLOW in flags will prevent a symlink
  * at the given name from being referenced.
- *
- * The caller must have preset stat->request_mask as for vfs_getattr().  The
- * flags are also used to load up stat->query_flags.
  *
  * 0 will be returned on success, and a -ve error code if unsuccessful.
  */
@@ -509,46 +510,38 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
 }
 #endif /* __ARCH_WANT_STAT64 || __ARCH_WANT_COMPAT_STAT64 */
 
-static inline int __put_timestamp(struct timespec *kts,
-				  struct statx_timestamp __user *uts)
+static noinline_for_stack int
+cp_statx(const struct kstat *stat, struct statx __user *buffer)
 {
-	return (__put_user(kts->tv_sec,		&uts->tv_sec		) ||
-		__put_user(kts->tv_nsec,	&uts->tv_nsec		) ||
-		__put_user(0,			&uts->__reserved	));
-}
+	struct statx tmp;
 
-/*
- * Set the statx results.
- */
-static long statx_set_result(struct kstat *stat, struct statx __user *buffer)
-{
-	uid_t uid = from_kuid_munged(current_user_ns(), stat->uid);
-	gid_t gid = from_kgid_munged(current_user_ns(), stat->gid);
+	memset(&tmp, 0, sizeof(tmp));
 
-	if (__put_user(stat->result_mask,	&buffer->stx_mask	) ||
-	    __put_user(stat->mode,		&buffer->stx_mode	) ||
-	    __clear_user(&buffer->__spare0, sizeof(buffer->__spare0))	  ||
-	    __put_user(stat->nlink,		&buffer->stx_nlink	) ||
-	    __put_user(uid,			&buffer->stx_uid	) ||
-	    __put_user(gid,			&buffer->stx_gid	) ||
-	    __put_user(stat->attributes,	&buffer->stx_attributes	) ||
-	    __put_user(stat->blksize,		&buffer->stx_blksize	) ||
-	    __put_user(MAJOR(stat->rdev),	&buffer->stx_rdev_major	) ||
-	    __put_user(MINOR(stat->rdev),	&buffer->stx_rdev_minor	) ||
-	    __put_user(MAJOR(stat->dev),	&buffer->stx_dev_major	) ||
-	    __put_user(MINOR(stat->dev),	&buffer->stx_dev_minor	) ||
-	    __put_timestamp(&stat->atime,	&buffer->stx_atime	) ||
-	    __put_timestamp(&stat->btime,	&buffer->stx_btime	) ||
-	    __put_timestamp(&stat->ctime,	&buffer->stx_ctime	) ||
-	    __put_timestamp(&stat->mtime,	&buffer->stx_mtime	) ||
-	    __put_user(stat->ino,		&buffer->stx_ino	) ||
-	    __put_user(stat->size,		&buffer->stx_size	) ||
-	    __put_user(stat->blocks,		&buffer->stx_blocks	) ||
-	    __clear_user(&buffer->__spare1, sizeof(buffer->__spare1))	  ||
-	    __clear_user(&buffer->__spare2, sizeof(buffer->__spare2)))
-		return -EFAULT;
+	tmp.stx_mask = stat->result_mask;
+	tmp.stx_blksize = stat->blksize;
+	tmp.stx_attributes = stat->attributes;
+	tmp.stx_nlink = stat->nlink;
+	tmp.stx_uid = from_kuid_munged(current_user_ns(), stat->uid);
+	tmp.stx_gid = from_kgid_munged(current_user_ns(), stat->gid);
+	tmp.stx_mode = stat->mode;
+	tmp.stx_ino = stat->ino;
+	tmp.stx_size = stat->size;
+	tmp.stx_blocks = stat->blocks;
+	tmp.stx_attributes_mask = stat->attributes_mask;
+	tmp.stx_atime.tv_sec = stat->atime.tv_sec;
+	tmp.stx_atime.tv_nsec = stat->atime.tv_nsec;
+	tmp.stx_btime.tv_sec = stat->btime.tv_sec;
+	tmp.stx_btime.tv_nsec = stat->btime.tv_nsec;
+	tmp.stx_ctime.tv_sec = stat->ctime.tv_sec;
+	tmp.stx_ctime.tv_nsec = stat->ctime.tv_nsec;
+	tmp.stx_mtime.tv_sec = stat->mtime.tv_sec;
+	tmp.stx_mtime.tv_nsec = stat->mtime.tv_nsec;
+	tmp.stx_rdev_major = MAJOR(stat->rdev);
+	tmp.stx_rdev_minor = MINOR(stat->rdev);
+	tmp.stx_dev_major = MAJOR(stat->dev);
+	tmp.stx_dev_minor = MINOR(stat->dev);
 
-	return 0;
+	return copy_to_user(buffer, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
 
 /**
@@ -570,10 +563,10 @@ SYSCALL_DEFINE5(statx,
 	struct kstat stat;
 	int error;
 
+	if (mask & STATX__RESERVED)
+		return -EINVAL;
 	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_SYNC_TYPE)
 		return -EINVAL;
-	if (!access_ok(VERIFY_WRITE, buffer, sizeof(*buffer)))
-		return -EFAULT;
 
 	if (filename)
 		error = vfs_statx(dfd, filename, flags, &stat, mask);
@@ -581,7 +574,8 @@ SYSCALL_DEFINE5(statx,
 		error = vfs_statx_fd(dfd, &stat, mask, flags);
 	if (error)
 		return error;
-	return statx_set_result(&stat, buffer);
+
+	return cp_statx(&stat, buffer);
 }
 
 /* Caller is here responsible for sufficient locking (ie. inode->i_lock) */

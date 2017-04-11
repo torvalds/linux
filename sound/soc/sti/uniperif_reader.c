@@ -349,6 +349,8 @@ static int uni_reader_startup(struct snd_pcm_substream *substream,
 	struct uniperif *reader = priv->dai_data.uni;
 	int ret;
 
+	reader->substream = substream;
+
 	if (!UNIPERIF_TYPE_IS_TDM(reader))
 		return 0;
 
@@ -378,6 +380,7 @@ static void uni_reader_shutdown(struct snd_pcm_substream *substream,
 		/* Stop the reader */
 		uni_reader_stop(reader);
 	}
+	reader->substream = NULL;
 }
 
 static const struct snd_soc_dai_ops uni_reader_dai_ops = {

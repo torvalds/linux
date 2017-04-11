@@ -1124,6 +1124,9 @@ static void cpu_hyp_reinit(void)
 		if (__hyp_get_vectors() == hyp_default_vectors)
 			cpu_init_hyp_mode(NULL);
 	}
+
+	if (vgic_present)
+		kvm_vgic_init_cpu_hardware();
 }
 
 static void cpu_hyp_reset(void)

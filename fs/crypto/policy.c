@@ -33,16 +33,9 @@ static int create_encryption_context_from_policy(struct inode *inode,
 				const struct fscrypt_policy *policy)
 {
 	struct fscrypt_context ctx;
-	int res;
 
 	if (!inode->i_sb->s_cop->set_context)
 		return -EOPNOTSUPP;
-
-	if (inode->i_sb->s_cop->prepare_context) {
-		res = inode->i_sb->s_cop->prepare_context(inode);
-		if (res)
-			return res;
-	}
 
 	ctx.format = FS_ENCRYPTION_CONTEXT_FORMAT_V1;
 	memcpy(ctx.master_key_descriptor, policy->master_key_descriptor,

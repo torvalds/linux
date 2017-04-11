@@ -3216,7 +3216,6 @@ F:	drivers/platform/chrome/
 
 CISCO VIC ETHERNET NIC DRIVER
 M:	Christian Benvenuti <benve@cisco.com>
-M:	Sujith Sankar <ssujith@cisco.com>
 M:	Govindarajulu Varadarajan <_govind@gmx.com>
 M:	Neel Patel <neepatel@cisco.com>
 S:	Supported
@@ -4118,14 +4117,13 @@ F:	drivers/block/drbd/
 F:	lib/lru_cache.c
 F:	Documentation/blockdev/drbd/
 
-DRIVER CORE, KOBJECTS, DEBUGFS, KERNFS AND SYSFS
+DRIVER CORE, KOBJECTS, DEBUGFS AND SYSFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
 S:	Supported
 F:	Documentation/kobject.txt
 F:	drivers/base/
 F:	fs/debugfs/
-F:	fs/kernfs/
 F:	fs/sysfs/
 F:	include/linux/debugfs.h
 F:	include/linux/kobj*
@@ -4776,6 +4774,12 @@ L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/mpc85xx_edac.[ch]
 
+EDAC-PND2
+M:	Tony Luck <tony.luck@intel.com>
+L:	linux-edac@vger.kernel.org
+S:	Maintained
+F:	drivers/edac/pnd2_edac.[ch]
+
 EDAC-PASEMI
 M:	Egor Martovetsky <egor@pasemi.com>
 L:	linux-edac@vger.kernel.org
@@ -4923,6 +4927,7 @@ F:	include/linux/netfilter_bridge/
 F:	net/bridge/
 
 ETHERNET PHY LIBRARY
+M:	Andrew Lunn <andrew@lunn.ch>
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -7084,9 +7089,9 @@ S:	Maintained
 F:	fs/autofs4/
 
 KERNEL BUILD + files below scripts/ (unless maintained elsewhere)
+M:	Masahiro Yamada <yamada.masahiro@socionext.com>
 M:	Michal Marek <mmarek@suse.com>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mmarek/kbuild.git for-next
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mmarek/kbuild.git rc-fixes
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/masahiroy/linux-kbuild.git
 L:	linux-kbuild@vger.kernel.org
 S:	Maintained
 F:	Documentation/kbuild/
@@ -7202,6 +7207,14 @@ S:	Supported
 F:	arch/mips/include/uapi/asm/kvm*
 F:	arch/mips/include/asm/kvm*
 F:	arch/mips/kvm/
+
+KERNFS
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+M:	Tejun Heo <tj@kernel.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
+S:	Supported
+F:	include/linux/kernfs.h
+F:	fs/kernfs/
 
 KEXEC
 M:	Eric Biederman <ebiederm@xmission.com>
@@ -7774,13 +7787,6 @@ F:	include/net/mac80211.h
 F:	net/mac80211/
 F:	drivers/net/wireless/mac80211_hwsim.[ch]
 
-MACVLAN DRIVER
-M:	Patrick McHardy <kaber@trash.net>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/macvlan.c
-F:	include/linux/if_macvlan.h
-
 MAILBOX API
 M:	Jassi Brar <jassisinghbrar@gmail.com>
 L:	linux-kernel@vger.kernel.org
@@ -7853,6 +7859,8 @@ F:	drivers/net/ethernet/marvell/mvneta.*
 MARVELL MWIFIEX WIRELESS DRIVER
 M:	Amitkumar Karwar <akarwar@marvell.com>
 M:	Nishant Sarmukadam <nishants@marvell.com>
+M:	Ganapathi Bhat <gbhat@marvell.com>
+M:	Xinming Hu <huxm@marvell.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/marvell/mwifiex/
@@ -10814,6 +10822,7 @@ F:	drivers/s390/block/dasd*
 F:	block/partitions/ibm.c
 
 S390 NETWORK DRIVERS
+M:	Julian Wiedmann <jwi@linux.vnet.ibm.com>
 M:	Ursula Braun <ubraun@linux.vnet.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
@@ -10844,6 +10853,7 @@ S:	Supported
 F:	drivers/s390/scsi/zfcp_*
 
 S390 IUCV NETWORK LAYER
+M:	Julian Wiedmann <jwi@linux.vnet.ibm.com>
 M:	Ursula Braun <ubraun@linux.vnet.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
@@ -13382,14 +13392,6 @@ T:	git git://linuxtv.org/media_tree.git
 W:	https://linuxtv.org
 S:	Maintained
 F:	drivers/media/platform/vivid/*
-
-VLAN (802.1Q)
-M:	Patrick McHardy <kaber@trash.net>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/macvlan.c
-F:	include/linux/if_*vlan.h
-F:	net/8021q/
 
 VLYNQ BUS
 M:	Florian Fainelli <f.fainelli@gmail.com>

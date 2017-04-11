@@ -462,8 +462,10 @@ static void vrf_rt6_release(struct net_device *dev, struct net_vrf *vrf)
 	}
 
 	if (rt6_local) {
-		if (rt6_local->rt6i_idev)
+		if (rt6_local->rt6i_idev) {
 			in6_dev_put(rt6_local->rt6i_idev);
+			rt6_local->rt6i_idev = NULL;
+		}
 
 		dst = &rt6_local->dst;
 		dev_put(dst->dev);
