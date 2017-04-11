@@ -1136,24 +1136,9 @@ static const struct of_device_id armv8_pmu_of_device_ids[] = {
 	{},
 };
 
-/*
- * Non DT systems have their micro/arch events probed at run-time.
- * A fairly complete list of generic events are provided and ones that
- * aren't supported by the current PMU are disabled.
- */
-static const struct pmu_probe_info armv8_pmu_probe_table[] = {
-	PMU_PROBE(0, 0, armv8_pmuv3_init), /* enable all defined counters */
-	{ /* sentinel value */ }
-};
-
 static int armv8_pmu_device_probe(struct platform_device *pdev)
 {
-	if (acpi_disabled)
-		return arm_pmu_device_probe(pdev, armv8_pmu_of_device_ids,
-					    NULL);
-
-	return arm_pmu_device_probe(pdev, armv8_pmu_of_device_ids,
-				    armv8_pmu_probe_table);
+	return arm_pmu_device_probe(pdev, armv8_pmu_of_device_ids, NULL);
 }
 
 static struct platform_driver armv8_pmu_driver = {
@@ -1164,4 +1149,11 @@ static struct platform_driver armv8_pmu_driver = {
 	.probe		= armv8_pmu_device_probe,
 };
 
-builtin_platform_driver(armv8_pmu_driver);
+static int __init armv8_pmu_driver_init(void)
+{
+	if (acpi_disabled)
+		return platform_driver_register(&armv8_pmu_driver);
+	else
+		return arm_pmu_acpi_probe(armv8_pmuv3_init);
+}
+device_initcall(armv8_pmu_driver_init)
