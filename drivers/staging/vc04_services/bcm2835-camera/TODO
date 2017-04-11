@@ -32,8 +32,3 @@ We should have VCHI create a platform device once it's initialized,
 and have this driver bind to it, so that we automatically load the
 v4l2 module after VCHI loads.
 
-5) Drop the gstreamer workaround.
-
-This was a temporary workaround for a bug that was fixed mid-2014, and
-we should remove it before stabilizing the driver.
-
