@@ -3216,8 +3216,10 @@ int qeth_hw_trap(struct qeth_card *card, enum qeth_diags_trap_action action)
 }
 EXPORT_SYMBOL_GPL(qeth_hw_trap);
 
-int qeth_check_qdio_errors(struct qeth_card *card, struct qdio_buffer *buf,
-		unsigned int qdio_error, const char *dbftext)
+static int qeth_check_qdio_errors(struct qeth_card *card,
+				  struct qdio_buffer *buf,
+				  unsigned int qdio_error,
+				  const char *dbftext)
 {
 	if (qdio_error) {
 		QETH_CARD_TEXT(card, 2, dbftext);
@@ -3234,18 +3236,8 @@ int qeth_check_qdio_errors(struct qeth_card *card, struct qdio_buffer *buf,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(qeth_check_qdio_errors);
 
-static void qeth_buffer_reclaim_work(struct work_struct *work)
-{
-	struct qeth_card *card = container_of(work, struct qeth_card,
-		buffer_reclaim_work.work);
-
-	QETH_CARD_TEXT_(card, 2, "brw:%x", card->reclaim_index);
-	qeth_queue_input_buffer(card, card->reclaim_index);
-}
-
-void qeth_queue_input_buffer(struct qeth_card *card, int index)
+static void qeth_queue_input_buffer(struct qeth_card *card, int index)
 {
 	struct qeth_qdio_q *queue = card->qdio.in_q;
 	struct list_head *lh;
@@ -3319,7 +3311,15 @@ void qeth_queue_input_buffer(struct qeth_card *card, int index)
 					  QDIO_MAX_BUFFERS_PER_Q;
 	}
 }
-EXPORT_SYMBOL_GPL(qeth_queue_input_buffer);
+
+static void qeth_buffer_reclaim_work(struct work_struct *work)
+{
+	struct qeth_card *card = container_of(work, struct qeth_card,
+		buffer_reclaim_work.work);
+
+	QETH_CARD_TEXT_(card, 2, "brw:%x", card->reclaim_index);
+	qeth_queue_input_buffer(card, card->reclaim_index);
+}
 
 static void qeth_handle_send_error(struct qeth_card *card,
 		struct qeth_qdio_out_buffer *buffer, unsigned int qdio_err)
@@ -5281,6 +5281,83 @@ no_mem:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(qeth_core_get_next_skb);
+
+int qeth_poll(struct napi_struct *napi, int budget)
+{
+	struct qeth_card *card = container_of(napi, struct qeth_card, napi);
+	int work_done = 0;
+	struct qeth_qdio_buffer *buffer;
+	int done;
+	int new_budget = budget;
+
+	if (card->options.performance_stats) {
+		card->perf_stats.inbound_cnt++;
+		card->perf_stats.inbound_start_time = qeth_get_micros();
+	}
+
+	while (1) {
+		if (!card->rx.b_count) {
+			card->rx.qdio_err = 0;
+			card->rx.b_count = qdio_get_next_buffers(
+				card->data.ccwdev, 0, &card->rx.b_index,
+				&card->rx.qdio_err);
+			if (card->rx.b_count <= 0) {
+				card->rx.b_count = 0;
+				break;
+			}
+			card->rx.b_element =
+				&card->qdio.in_q->bufs[card->rx.b_index]
+				.buffer->element[0];
+			card->rx.e_offset = 0;
+		}
+
+		while (card->rx.b_count) {
+			buffer = &card->qdio.in_q->bufs[card->rx.b_index];
+			if (!(card->rx.qdio_err &&
+			    qeth_check_qdio_errors(card, buffer->buffer,
+			    card->rx.qdio_err, "qinerr")))
+				work_done +=
+					card->discipline->process_rx_buffer(
+						card, new_budget, &done);
+			else
+				done = 1;
+
+			if (done) {
+				if (card->options.performance_stats)
+					card->perf_stats.bufs_rec++;
+				qeth_put_buffer_pool_entry(card,
+					buffer->pool_entry);
+				qeth_queue_input_buffer(card, card->rx.b_index);
+				card->rx.b_count--;
+				if (card->rx.b_count) {
+					card->rx.b_index =
+						(card->rx.b_index + 1) %
+						QDIO_MAX_BUFFERS_PER_Q;
+					card->rx.b_element =
+						&card->qdio.in_q
+						->bufs[card->rx.b_index]
+						.buffer->element[0];
+					card->rx.e_offset = 0;
+				}
+			}
+
+			if (work_done >= budget)
+				goto out;
+			else
+				new_budget = budget - work_done;
+		}
+	}
+
+	napi_complete(napi);
+	if (qdio_start_irq(card->data.ccwdev, 0))
+		napi_schedule(&card->napi);
+out:
+	if (card->options.performance_stats)
+		card->perf_stats.inbound_time += qeth_get_micros() -
+			card->perf_stats.inbound_start_time;
+	return work_done;
+}
+EXPORT_SYMBOL_GPL(qeth_poll);
 
 int qeth_setassparms_cb(struct qeth_card *card,
 			struct qeth_reply *reply, unsigned long data)

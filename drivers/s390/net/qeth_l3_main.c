@@ -1829,81 +1829,6 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 	return work_done;
 }
 
-static int qeth_l3_poll(struct napi_struct *napi, int budget)
-{
-	struct qeth_card *card = container_of(napi, struct qeth_card, napi);
-	int work_done = 0;
-	struct qeth_qdio_buffer *buffer;
-	int done;
-	int new_budget = budget;
-
-	if (card->options.performance_stats) {
-		card->perf_stats.inbound_cnt++;
-		card->perf_stats.inbound_start_time = qeth_get_micros();
-	}
-
-	while (1) {
-		if (!card->rx.b_count) {
-			card->rx.qdio_err = 0;
-			card->rx.b_count = qdio_get_next_buffers(
-				card->data.ccwdev, 0, &card->rx.b_index,
-				&card->rx.qdio_err);
-			if (card->rx.b_count <= 0) {
-				card->rx.b_count = 0;
-				break;
-			}
-			card->rx.b_element =
-				&card->qdio.in_q->bufs[card->rx.b_index]
-				.buffer->element[0];
-			card->rx.e_offset = 0;
-		}
-
-		while (card->rx.b_count) {
-			buffer = &card->qdio.in_q->bufs[card->rx.b_index];
-			if (!(card->rx.qdio_err &&
-			    qeth_check_qdio_errors(card, buffer->buffer,
-			    card->rx.qdio_err, "qinerr")))
-				work_done += qeth_l3_process_inbound_buffer(
-					card, new_budget, &done);
-			else
-				done = 1;
-
-			if (done) {
-				if (card->options.performance_stats)
-					card->perf_stats.bufs_rec++;
-				qeth_put_buffer_pool_entry(card,
-					buffer->pool_entry);
-				qeth_queue_input_buffer(card, card->rx.b_index);
-				card->rx.b_count--;
-				if (card->rx.b_count) {
-					card->rx.b_index =
-						(card->rx.b_index + 1) %
-						QDIO_MAX_BUFFERS_PER_Q;
-					card->rx.b_element =
-						&card->qdio.in_q
-						->bufs[card->rx.b_index]
-						.buffer->element[0];
-					card->rx.e_offset = 0;
-				}
-			}
-
-			if (work_done >= budget)
-				goto out;
-			else
-				new_budget = budget - work_done;
-		}
-	}
-
-	napi_complete(napi);
-	if (qdio_start_irq(card->data.ccwdev, 0))
-		napi_schedule(&card->napi);
-out:
-	if (card->options.performance_stats)
-		card->perf_stats.inbound_time += qeth_get_micros() -
-			card->perf_stats.inbound_start_time;
-	return work_done;
-}
-
 static int qeth_l3_verify_vlan_dev(struct net_device *dev,
 			struct qeth_card *card)
 {
@@ -3105,7 +3030,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 				  PAGE_SIZE;
 
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);
-	netif_napi_add(card->dev, &card->napi, qeth_l3_poll, QETH_NAPI_WEIGHT);
+	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);
 	netif_carrier_off(card->dev);
 	return register_netdev(card->dev);
 }
@@ -3394,6 +3319,7 @@ struct qeth_discipline qeth_l3_discipline = {
 	.start_poll = qeth_qdio_start_poll,
 	.input_handler = (qdio_handler_t *) qeth_qdio_input_handler,
 	.output_handler = (qdio_handler_t *) qeth_qdio_output_handler,
+	.process_rx_buffer = qeth_l3_process_inbound_buffer,
 	.recover = qeth_l3_recover,
 	.setup = qeth_l3_probe_device,
 	.remove = qeth_l3_remove_device,

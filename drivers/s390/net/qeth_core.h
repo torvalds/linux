@@ -705,6 +705,7 @@ struct qeth_discipline {
 	void (*start_poll)(struct ccw_device *, int, unsigned long);
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
+	int (*process_rx_buffer)(struct qeth_card *card, int budget, int *done);
 	int (*recover)(void *ptr);
 	int (*setup) (struct ccwgroup_device *);
 	void (*remove) (struct ccwgroup_device *);
@@ -909,14 +910,12 @@ int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,
 struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *,
 			enum qeth_ipa_cmds, enum qeth_prot_versions);
 int qeth_query_setadapterparms(struct qeth_card *);
-int qeth_check_qdio_errors(struct qeth_card *, struct qdio_buffer *,
-		unsigned int, const char *);
-void qeth_queue_input_buffer(struct qeth_card *, int);
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
 		struct qeth_qdio_buffer *, struct qdio_buffer_element **, int *,
 		struct qeth_hdr **);
 void qeth_schedule_recovery(struct qeth_card *);
 void qeth_qdio_start_poll(struct ccw_device *, int, unsigned long);
+int qeth_poll(struct napi_struct *napi, int budget);
 void qeth_qdio_input_handler(struct ccw_device *,
 		unsigned int, unsigned int, int,
 		int, unsigned long);
