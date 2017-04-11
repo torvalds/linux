@@ -435,7 +435,8 @@ static int __dax_dev_pte_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
 
 	dax_region = dax_dev->region;
 	if (dax_region->align > PAGE_SIZE) {
-		dev_dbg(dev, "%s: alignment > fault size\n", __func__);
+		dev_dbg(dev, "%s: alignment (%#x) > fault size (%#x)\n",
+			__func__, dax_region->align, fault_size);
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -476,13 +477,14 @@ static int __dax_dev_pmd_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
 
 	dax_region = dax_dev->region;
 	if (dax_region->align > PMD_SIZE) {
-		dev_dbg(dev, "%s: alignment > fault size\n", __func__);
+		dev_dbg(dev, "%s: alignment (%#x) > fault size (%#x)\n",
+			__func__, dax_region->align, fault_size);
 		return VM_FAULT_SIGBUS;
 	}
 
 	/* dax pmd mappings require pfn_t_devmap() */
 	if ((dax_region->pfn_flags & (PFN_DEV|PFN_MAP)) != (PFN_DEV|PFN_MAP)) {
-		dev_dbg(dev, "%s: alignment > fault size\n", __func__);
+		dev_dbg(dev, "%s: region lacks devmap flags\n", __func__);
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -527,13 +529,14 @@ static int __dax_dev_pud_fault(struct dax_dev *dax_dev, struct vm_fault *vmf)
 
 	dax_region = dax_dev->region;
 	if (dax_region->align > PUD_SIZE) {
-		dev_dbg(dev, "%s: alignment > fault size\n", __func__);
+		dev_dbg(dev, "%s: alignment (%#x) > fault size (%#x)\n",
+			__func__, dax_region->align, fault_size);
 		return VM_FAULT_SIGBUS;
 	}
 
 	/* dax pud mappings require pfn_t_devmap() */
 	if ((dax_region->pfn_flags & (PFN_DEV|PFN_MAP)) != (PFN_DEV|PFN_MAP)) {
-		dev_dbg(dev, "%s: alignment > fault size\n", __func__);
+		dev_dbg(dev, "%s: region lacks devmap flags\n", __func__);
 		return VM_FAULT_SIGBUS;
 	}
 
@@ -574,10 +577,10 @@ static int dax_dev_huge_fault(struct vm_fault *vmf,
 	struct file *filp = vmf->vma->vm_file;
 	struct dax_dev *dax_dev = filp->private_data;
 
-	dev_dbg(&dax_dev->dev, "%s: %s: %s (%#lx - %#lx)\n", __func__,
+	dev_dbg(&dax_dev->dev, "%s: %s: %s (%#lx - %#lx) size = %d\n", __func__,
 			current->comm, (vmf->flags & FAULT_FLAG_WRITE)
 			? "write" : "read",
-			vmf->vma->vm_start, vmf->vma->vm_end);
+			vmf->vma->vm_start, vmf->vma->vm_end, pe_size);
 
 	id = srcu_read_lock(&dax_srcu);
 	switch (pe_size) {
