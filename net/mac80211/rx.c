@@ -95,24 +95,13 @@ static u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
  * This function cleans up the SKB, i.e. it removes all the stuff
  * only useful for monitoring.
  */
-static struct sk_buff *remove_monitor_info(struct ieee80211_local *local,
-					   struct sk_buff *skb,
-					   unsigned int rtap_vendor_space)
+static void remove_monitor_info(struct sk_buff *skb,
+				unsigned int present_fcs_len,
+				unsigned int rtap_vendor_space)
 {
-	if (ieee80211_hw_check(&local->hw, RX_INCLUDES_FCS)) {
-		if (likely(skb->len > FCS_LEN))
-			__pskb_trim(skb, skb->len - FCS_LEN);
-		else {
-			/* driver bug */
-			WARN_ON(1);
-			dev_kfree_skb(skb);
-			return NULL;
-		}
-	}
-
+	if (present_fcs_len)
+		__pskb_trim(skb, skb->len - present_fcs_len);
 	__pskb_pull(skb, rtap_vendor_space);
-
-	return skb;
 }
 
 static inline bool should_drop_frame(struct sk_buff *skb, int present_fcs_len,
@@ -534,8 +523,15 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	 * the SKB because it has a bad FCS/PLCP checksum.
 	 */
 
-	if (ieee80211_hw_check(&local->hw, RX_INCLUDES_FCS))
+	if (ieee80211_hw_check(&local->hw, RX_INCLUDES_FCS)) {
+		if (unlikely(origskb->len <= FCS_LEN)) {
+			/* driver bug */
+			WARN_ON(1);
+			dev_kfree_skb(origskb);
+			return NULL;
+		}
 		present_fcs_len = FCS_LEN;
+	}
 
 	/* ensure hdr->frame_control and vendor radiotap data are in skb head */
 	if (!pskb_may_pull(origskb, 2 + rtap_vendor_space)) {
@@ -550,7 +546,9 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 			return NULL;
 		}
 
-		return remove_monitor_info(local, origskb, rtap_vendor_space);
+		remove_monitor_info(origskb, present_fcs_len,
+				    rtap_vendor_space);
+		return origskb;
 	}
 
 	/* room for the radiotap header based on driver features */
@@ -580,9 +578,8 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		 * and FCS from the original.
 		 */
 		skb = skb_copy_expand(origskb, needed_headroom, 0, GFP_ATOMIC);
-
-		origskb = remove_monitor_info(local, origskb,
-					      rtap_vendor_space);
+		remove_monitor_info(origskb, present_fcs_len,
+				    rtap_vendor_space);
 
 		if (!skb)
 			return origskb;
