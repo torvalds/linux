@@ -890,6 +890,8 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_MIPS_VZ 137
 #define KVM_CAP_MIPS_TE 138
 #define KVM_CAP_MIPS_64BIT 139
+#define KVM_CAP_S390_GS 140
+#define KVM_CAP_S390_AIS 141
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

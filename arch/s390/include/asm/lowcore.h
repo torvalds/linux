@@ -157,8 +157,8 @@ struct lowcore {
 	__u64	stfle_fac_list[32];		/* 0x0f00 */
 	__u8	pad_0x1000[0x11b0-0x1000];	/* 0x1000 */
 
-	/* Pointer to vector register save area */
-	__u64	vector_save_area_addr;		/* 0x11b0 */
+	/* Pointer to the machine check extended save area */
+	__u64	mcesad;				/* 0x11b0 */
 
 	/* 64 bit extparam used for pfault/diag 250: defined by architecture */
 	__u64	ext_params2;			/* 0x11B8 */
@@ -182,10 +182,7 @@ struct lowcore {
 
 	/* Transaction abort diagnostic block */
 	__u8	pgm_tdb[256];			/* 0x1800 */
-	__u8	pad_0x1900[0x1c00-0x1900];	/* 0x1900 */
-
-	/* Software defined save area for vector registers */
-	__u8	vector_save_area[1024];		/* 0x1c00 */
+	__u8	pad_0x1900[0x2000-0x1900];	/* 0x1900 */
 } __packed;
 
 #define S390_lowcore (*((struct lowcore *) 0))

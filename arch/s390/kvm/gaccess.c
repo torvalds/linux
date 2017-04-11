@@ -262,7 +262,7 @@ struct aste {
 
 int ipte_lock_held(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.sie_block->eca & 1) {
+	if (vcpu->arch.sie_block->eca & ECA_SII) {
 		int rc;
 
 		read_lock(&vcpu->kvm->arch.sca_lock);
@@ -361,7 +361,7 @@ static void ipte_unlock_siif(struct kvm_vcpu *vcpu)
 
 void ipte_lock(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.sie_block->eca & 1)
+	if (vcpu->arch.sie_block->eca & ECA_SII)
 		ipte_lock_siif(vcpu);
 	else
 		ipte_lock_simple(vcpu);
@@ -369,7 +369,7 @@ void ipte_lock(struct kvm_vcpu *vcpu)
 
 void ipte_unlock(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.sie_block->eca & 1)
+	if (vcpu->arch.sie_block->eca & ECA_SII)
 		ipte_unlock_siif(vcpu);
 	else
 		ipte_unlock_simple(vcpu);

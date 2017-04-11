@@ -25,7 +25,7 @@
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
 /* Transactional Memory Execution related macros */
-#define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & 0x10))
+#define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & ECB_TE))
 #define TDB_FORMAT1		1
 #define IS_ITDB_VALID(vcpu)	((*(char *)vcpu->arch.sie_block->itdba == TDB_FORMAT1))
 
@@ -246,6 +246,7 @@ static inline void kvm_s390_retry_instr(struct kvm_vcpu *vcpu)
 int is_valid_psw(psw_t *psw);
 int kvm_s390_handle_aa(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_e3(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_e5(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_01(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_b9(struct kvm_vcpu *vcpu);

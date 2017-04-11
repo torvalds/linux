@@ -313,7 +313,7 @@
 #define __NR_copy_file_range	375
 #define __NR_preadv2		376
 #define __NR_pwritev2		377
-/* Number 378 is reserved for guarded storage */
+#define __NR_s390_guarded_storage	378
 #define __NR_statx		379
 #define NR_syscalls 380
 

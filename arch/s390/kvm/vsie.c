@@ -249,7 +249,7 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
-	bool had_tx = scb_s->ecb & 0x10U;
+	bool had_tx = scb_s->ecb & ECB_TE;
 	unsigned long new_mso = 0;
 	int rc;
 
@@ -307,34 +307,39 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		scb_s->ihcpu = scb_o->ihcpu;
 
 	/* MVPG and Protection Exception Interpretation are always available */
-	scb_s->eca |= scb_o->eca & 0x01002000U;
+	scb_s->eca |= scb_o->eca & (ECA_MVPGI | ECA_PROTEXCI);
 	/* Host-protection-interruption introduced with ESOP */
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_ESOP))
-		scb_s->ecb |= scb_o->ecb & 0x02U;
+		scb_s->ecb |= scb_o->ecb & ECB_HOSTPROTINT;
 	/* transactional execution */
 	if (test_kvm_facility(vcpu->kvm, 73)) {
 		/* remap the prefix is tx is toggled on */
-		if ((scb_o->ecb & 0x10U) && !had_tx)
+		if ((scb_o->ecb & ECB_TE) && !had_tx)
 			prefix_unmapped(vsie_page);
-		scb_s->ecb |= scb_o->ecb & 0x10U;
+		scb_s->ecb |= scb_o->ecb & ECB_TE;
 	}
 	/* SIMD */
 	if (test_kvm_facility(vcpu->kvm, 129)) {
-		scb_s->eca |= scb_o->eca & 0x00020000U;
-		scb_s->ecd |= scb_o->ecd & 0x20000000U;
+		scb_s->eca |= scb_o->eca & ECA_VX;
+		scb_s->ecd |= scb_o->ecd & ECD_HOSTREGMGMT;
 	}
 	/* Run-time-Instrumentation */
 	if (test_kvm_facility(vcpu->kvm, 64))
-		scb_s->ecb3 |= scb_o->ecb3 & 0x01U;
+		scb_s->ecb3 |= scb_o->ecb3 & ECB3_RI;
 	/* Instruction Execution Prevention */
 	if (test_kvm_facility(vcpu->kvm, 130))
-		scb_s->ecb2 |= scb_o->ecb2 & 0x20U;
+		scb_s->ecb2 |= scb_o->ecb2 & ECB2_IEP;
+	/* Guarded Storage */
+	if (test_kvm_facility(vcpu->kvm, 133)) {
+		scb_s->ecb |= scb_o->ecb & ECB_GS;
+		scb_s->ecd |= scb_o->ecd & ECD_HOSTREGMGMT;
+	}
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_SIIF))
-		scb_s->eca |= scb_o->eca & 0x00000001U;
+		scb_s->eca |= scb_o->eca & ECA_SII;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_IB))
-		scb_s->eca |= scb_o->eca & 0x40000000U;
+		scb_s->eca |= scb_o->eca & ECA_IB;
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_CEI))
-		scb_s->eca |= scb_o->eca & 0x80000000U;
+		scb_s->eca |= scb_o->eca & ECA_CEI;
 
 	prepare_ibc(vcpu, vsie_page);
 	rc = shadow_crycb(vcpu, vsie_page);
@@ -406,7 +411,7 @@ static int map_prefix(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	prefix += scb_s->mso;
 
 	rc = kvm_s390_shadow_fault(vcpu, vsie_page->gmap, prefix);
-	if (!rc && (scb_s->ecb & 0x10U))
+	if (!rc && (scb_s->ecb & ECB_TE))
 		rc = kvm_s390_shadow_fault(vcpu, vsie_page->gmap,
 					   prefix + PAGE_SIZE);
 	/*
@@ -496,6 +501,13 @@ static void unpin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		unpin_guest_page(vcpu->kvm, gpa, hpa);
 		scb_s->riccbd = 0;
 	}
+
+	hpa = scb_s->sdnxo;
+	if (hpa) {
+		gpa = scb_o->sdnxo;
+		unpin_guest_page(vcpu->kvm, gpa, hpa);
+		scb_s->sdnxo = 0;
+	}
 }
 
 /*
@@ -543,7 +555,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	}
 
 	gpa = scb_o->itdba & ~0xffUL;
-	if (gpa && (scb_s->ecb & 0x10U)) {
+	if (gpa && (scb_s->ecb & ECB_TE)) {
 		if (!(gpa & ~0x1fffU)) {
 			rc = set_validity_icpt(scb_s, 0x0080U);
 			goto unpin;
@@ -558,8 +570,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	}
 
 	gpa = scb_o->gvrd & ~0x1ffUL;
-	if (gpa && (scb_s->eca & 0x00020000U) &&
-	    !(scb_s->ecd & 0x20000000U)) {
+	if (gpa && (scb_s->eca & ECA_VX) && !(scb_s->ecd & ECD_HOSTREGMGMT)) {
 		if (!(gpa & ~0x1fffUL)) {
 			rc = set_validity_icpt(scb_s, 0x1310U);
 			goto unpin;
@@ -577,7 +588,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	}
 
 	gpa = scb_o->riccbd & ~0x3fUL;
-	if (gpa && (scb_s->ecb3 & 0x01U)) {
+	if (gpa && (scb_s->ecb3 & ECB3_RI)) {
 		if (!(gpa & ~0x1fffUL)) {
 			rc = set_validity_icpt(scb_s, 0x0043U);
 			goto unpin;
@@ -590,6 +601,33 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		if (rc)
 			goto unpin;
 		scb_s->riccbd = hpa;
+	}
+	if ((scb_s->ecb & ECB_GS) && !(scb_s->ecd & ECD_HOSTREGMGMT)) {
+		unsigned long sdnxc;
+
+		gpa = scb_o->sdnxo & ~0xfUL;
+		sdnxc = scb_o->sdnxo & 0xfUL;
+		if (!gpa || !(gpa & ~0x1fffUL)) {
+			rc = set_validity_icpt(scb_s, 0x10b0U);
+			goto unpin;
+		}
+		if (sdnxc < 6 || sdnxc > 12) {
+			rc = set_validity_icpt(scb_s, 0x10b1U);
+			goto unpin;
+		}
+		if (gpa & ((1 << sdnxc) - 1)) {
+			rc = set_validity_icpt(scb_s, 0x10b2U);
+			goto unpin;
+		}
+		/* Due to alignment rules (checked above) this cannot
+		 * cross page boundaries
+		 */
+		rc = pin_guest_page(vcpu->kvm, gpa, &hpa);
+		if (rc == -EINVAL)
+			rc = set_validity_icpt(scb_s, 0x10b0U);
+		if (rc)
+			goto unpin;
+		scb_s->sdnxo = hpa;
 	}
 	return 0;
 unpin:

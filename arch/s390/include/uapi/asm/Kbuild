@@ -12,6 +12,7 @@ header-y += dasd.h
 header-y += debug.h
 header-y += errno.h
 header-y += fcntl.h
+header-y += guarded_storage.h
 header-y += hypfs.h
 header-y += ioctl.h
 header-y += ioctls.h
