@@ -259,6 +259,9 @@ static int __acpi_processor_start(struct acpi_device *device)
 	if (ACPI_SUCCESS(status))
 		return 0;
 
+	result = -ENODEV;
+	acpi_pss_perf_exit(pr, device);
+
 err_power_exit:
 	acpi_processor_power_exit(pr);
 	return result;
