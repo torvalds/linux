@@ -536,9 +536,9 @@ __get_asd_from_port(struct atomisp_device *isp, mipi_port_ID_t port)
 		struct camera_mipi_info *mipi_info =
 				atomisp_to_sensor_mipi_info(
 					isp->inputs[asd->input_curr].camera);
-		if (isp->asd[i].streaming == ATOMISP_DEVICE_STREAMING_ENABLED &&
+		if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED &&
 		    __get_mipi_port(isp, mipi_info->port) == port) {
-			return &isp->asd[i];
+			return asd;
 		}
 	}
 
