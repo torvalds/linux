@@ -2316,7 +2316,7 @@ nvmet_fc_parse_traddr(struct nvmet_fc_traddr *traddr, char *buf)
 	if (!options)
 		return -ENOMEM;
 
-	while ((p = strsep(&o, ",\n")) != NULL) {
+	while ((p = strsep(&o, ":\n")) != NULL) {
 		if (!*p)
 			continue;
 
