@@ -111,9 +111,6 @@ extern void pcibios_set_master(struct pci_dev *dev);
 
 #define HAVE_PCI_MMAP
 
-extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-	enum pci_mmap_state mmap_state, int write_combine);
-
 #define HAVE_ARCH_PCI_RESOURCE_TO_USER
 
 /*
