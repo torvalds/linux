@@ -656,6 +656,7 @@ EXPORT_SYMBOL(ttm_bo_unlock_delayed_workqueue);
 static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 			bool no_wait_gpu)
 {
+	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_mem_reg evict_mem;
 	struct ttm_placement placement;
@@ -671,8 +672,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 	placement.num_placement = 0;
 	placement.num_busy_placement = 0;
 	bdev->driver->evict_flags(bo, &placement);
-	ret = ttm_bo_mem_space(bo, &placement, &evict_mem, interruptible,
-				no_wait_gpu);
+	ret = ttm_bo_mem_space(bo, &placement, &evict_mem, &ctx);
 	if (ret) {
 		if (ret != -ERESTARTSYS) {
 			pr_err("Failed to find memory space for buffer 0x%p eviction\n",
@@ -682,8 +682,8 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 		goto out;
 	}
 
-	ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, interruptible,
-				     no_wait_gpu);
+	ret = ttm_bo_handle_move_mem(bo, &evict_mem, true,
+				     interruptible, no_wait_gpu);
 	if (unlikely(ret)) {
 		if (ret != -ERESTARTSYS)
 			pr_err("Buffer eviction failed\n");
@@ -903,8 +903,7 @@ static bool ttm_bo_mt_compatible(struct ttm_mem_type_manager *man,
 int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 			struct ttm_placement *placement,
 			struct ttm_mem_reg *mem,
-			bool interruptible,
-			bool no_wait_gpu)
+			struct ttm_operation_ctx *ctx)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_mem_type_manager *man;
@@ -999,7 +998,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		}
 
 		ret = ttm_bo_mem_force_space(bo, mem_type, place, mem,
-						interruptible, no_wait_gpu);
+						ctx->interruptible,
+						ctx->no_wait_gpu);
 		if (ret == 0 && mem->mm_node) {
 			mem->placement = cur_flags;
 			return 0;
@@ -1022,6 +1022,7 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 			bool interruptible,
 			bool no_wait_gpu)
 {
+	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
 	int ret = 0;
 	struct ttm_mem_reg mem;
 
@@ -1035,12 +1036,11 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	/*
 	 * Determine where to move the buffer.
 	 */
-	ret = ttm_bo_mem_space(bo, placement, &mem,
-			       interruptible, no_wait_gpu);
+	ret = ttm_bo_mem_space(bo, placement, &mem, &ctx);
 	if (ret)
 		goto out_unlock;
-	ret = ttm_bo_handle_move_mem(bo, &mem, false,
-				     interruptible, no_wait_gpu);
+	ret = ttm_bo_handle_move_mem(bo, &mem, false, interruptible,
+				     no_wait_gpu);
 out_unlock:
 	if (ret && mem.mm_node)
 		ttm_bo_mem_put(bo, &mem);

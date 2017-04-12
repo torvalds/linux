@@ -471,6 +471,7 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo,
 				bool no_wait_gpu,
 				struct ttm_mem_reg *new_mem)
 {
+	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
 	struct amdgpu_device *adev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
@@ -488,8 +489,7 @@ static int amdgpu_move_vram_ram(struct ttm_buffer_object *bo,
 	placements.fpfn = 0;
 	placements.lpfn = 0;
 	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
-	r = ttm_bo_mem_space(bo, &placement, &tmp_mem,
-			     interruptible, no_wait_gpu);
+	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, &ctx);
 	if (unlikely(r)) {
 		return r;
 	}
@@ -518,6 +518,7 @@ static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo,
 				bool no_wait_gpu,
 				struct ttm_mem_reg *new_mem)
 {
+	struct ttm_operation_ctx ctx = { interruptible, no_wait_gpu };
 	struct amdgpu_device *adev;
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct ttm_mem_reg tmp_mem;
@@ -535,8 +536,7 @@ static int amdgpu_move_ram_vram(struct ttm_buffer_object *bo,
 	placements.fpfn = 0;
 	placements.lpfn = 0;
 	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
-	r = ttm_bo_mem_space(bo, &placement, &tmp_mem,
-			     interruptible, no_wait_gpu);
+	r = ttm_bo_mem_space(bo, &placement, &tmp_mem, &ctx);
 	if (unlikely(r)) {
 		return r;
 	}
@@ -878,6 +878,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
+	struct ttm_operation_ctx ctx = { false, false };
 	struct amdgpu_ttm_tt *gtt = (void*)bo->ttm;
 	struct ttm_mem_reg tmp;
 	struct ttm_placement placement;
@@ -900,7 +901,7 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 	placements.flags = (bo->mem.placement & ~TTM_PL_MASK_MEM) |
 		TTM_PL_FLAG_TT;
 
-	r = ttm_bo_mem_space(bo, &placement, &tmp, false, false);
+	r = ttm_bo_mem_space(bo, &placement, &tmp, &ctx);
 	if (unlikely(r))
 		return r;
 

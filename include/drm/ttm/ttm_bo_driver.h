@@ -743,8 +743,7 @@ bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
 int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		     struct ttm_placement *placement,
 		     struct ttm_mem_reg *mem,
-		     bool interruptible,
-		     bool no_wait_gpu);
+		     struct ttm_operation_ctx *ctx);
 
 void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem);
 void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,

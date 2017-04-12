@@ -657,6 +657,7 @@ void amdgpu_fw_reserve_vram_fini(struct amdgpu_device *adev)
  */
 int amdgpu_fw_reserve_vram_init(struct amdgpu_device *adev)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	int r = 0;
 	int i;
 	u64 vram_size = adev->mc.visible_vram_size;
@@ -693,8 +694,8 @@ int amdgpu_fw_reserve_vram_init(struct amdgpu_device *adev)
 		}
 
 		ttm_bo_mem_put(&bo->tbo, &bo->tbo.mem);
-		r = ttm_bo_mem_space(&bo->tbo, &bo->placement, &bo->tbo.mem,
-				     false, false);
+		r = ttm_bo_mem_space(&bo->tbo, &bo->placement,
+				     &bo->tbo.mem, &ctx);
 		if (r)
 			goto error_pin;
 
