@@ -25,11 +25,10 @@ static inline struct backing_dev_info *bdi_get(struct backing_dev_info *bdi)
 
 void bdi_put(struct backing_dev_info *bdi);
 
-__printf(3, 4)
-int bdi_register(struct backing_dev_info *bdi, struct device *parent,
-		const char *fmt, ...);
-int bdi_register_va(struct backing_dev_info *bdi, struct device *parent,
-		const char *fmt, va_list args);
+__printf(2, 3)
+int bdi_register(struct backing_dev_info *bdi, const char *fmt, ...);
+int bdi_register_va(struct backing_dev_info *bdi, const char *fmt,
+		    va_list args);
 int bdi_register_owner(struct backing_dev_info *bdi, struct device *owner);
 void bdi_unregister(struct backing_dev_info *bdi);
 

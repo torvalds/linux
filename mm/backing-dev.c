@@ -856,15 +856,14 @@ struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id)
 }
 EXPORT_SYMBOL(bdi_alloc_node);
 
-int bdi_register_va(struct backing_dev_info *bdi, struct device *parent,
-		const char *fmt, va_list args)
+int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 {
 	struct device *dev;
 
 	if (bdi->dev)	/* The driver needs to use separate queues per device */
 		return 0;
 
-	dev = device_create_vargs(bdi_class, parent, MKDEV(0, 0), bdi, fmt, args);
+	dev = device_create_vargs(bdi_class, NULL, MKDEV(0, 0), bdi, fmt, args);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
@@ -883,14 +882,13 @@ int bdi_register_va(struct backing_dev_info *bdi, struct device *parent,
 }
 EXPORT_SYMBOL(bdi_register_va);
 
-int bdi_register(struct backing_dev_info *bdi, struct device *parent,
-		const char *fmt, ...)
+int bdi_register(struct backing_dev_info *bdi, const char *fmt, ...)
 {
 	va_list args;
 	int ret;
 
 	va_start(args, fmt);
-	ret = bdi_register_va(bdi, parent, fmt, args);
+	ret = bdi_register_va(bdi, fmt, args);
 	va_end(args);
 	return ret;
 }
@@ -900,8 +898,7 @@ int bdi_register_owner(struct backing_dev_info *bdi, struct device *owner)
 {
 	int rc;
 
-	rc = bdi_register(bdi, NULL, "%u:%u", MAJOR(owner->devt),
-			MINOR(owner->devt));
+	rc = bdi_register(bdi, "%u:%u", MAJOR(owner->devt), MINOR(owner->devt));
 	if (rc)
 		return rc;
 	/* Leaking owner reference... */

@@ -1272,7 +1272,7 @@ int super_setup_bdi_name(struct super_block *sb, char *fmt, ...)
 	bdi->name = sb->s_type->name;
 
 	va_start(args, fmt);
-	err = bdi_register_va(bdi, NULL, fmt, args);
+	err = bdi_register_va(bdi, fmt, args);
 	va_end(args);
 	if (err) {
 		bdi_put(bdi);
