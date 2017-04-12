@@ -39,7 +39,6 @@
 #define LDO_FET_FULL_ON			0x1f
 
 struct anatop_regulator {
-	const char *name;
 	u32 control_reg;
 	struct regmap *anatop;
 	int vol_bit_shift;
@@ -194,11 +193,11 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	if (!sreg)
 		return -ENOMEM;
 
-	of_property_read_string(np, "regulator-name", &sreg->name);
 	rdesc = &sreg->rdesc;
-	rdesc->name = sreg->name;
 	rdesc->type = REGULATOR_VOLTAGE;
 	rdesc->owner = THIS_MODULE;
+
+	of_property_read_string(np, "regulator-name", &rdesc->name);
 
 	initdata = of_get_regulator_init_data(dev, np, rdesc);
 	if (!initdata)
@@ -297,7 +296,7 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 		 * a sane default until imx6-cpufreq was probed and changes the
 		 * voltage to the correct value. In this case we set 1.25V.
 		 */
-		if (!sreg->sel && !strcmp(sreg->name, "vddpu"))
+		if (!sreg->sel && !strcmp(rdesc->name, "vddpu"))
 			sreg->sel = 22;
 
 		if (!sreg->bypass && !sreg->sel) {
