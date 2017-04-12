@@ -121,6 +121,14 @@ struct meson_clk_mpll {
 	spinlock_t *lock;
 };
 
+struct meson_clk_audio_divider {
+	struct clk_hw hw;
+	void __iomem *base;
+	struct parm div;
+	u8 flags;
+	spinlock_t *lock;
+};
+
 #define MESON_GATE(_name, _reg, _bit)					\
 struct clk_gate _name = { 						\
 	.reg = (void __iomem *) _reg, 					\
@@ -141,5 +149,7 @@ extern const struct clk_ops meson_clk_pll_ops;
 extern const struct clk_ops meson_clk_cpu_ops;
 extern const struct clk_ops meson_clk_mpll_ro_ops;
 extern const struct clk_ops meson_clk_mpll_ops;
+extern const struct clk_ops meson_clk_audio_divider_ro_ops;
+extern const struct clk_ops meson_clk_audio_divider_ops;
 
 #endif /* __CLKC_H */
