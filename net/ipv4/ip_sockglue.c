@@ -591,6 +591,7 @@ static bool setsockopt_needs_rtnl(int optname)
 	case MCAST_LEAVE_GROUP:
 	case MCAST_LEAVE_SOURCE_GROUP:
 	case MCAST_UNBLOCK_SOURCE:
+	case IP_ROUTER_ALERT:
 		return true;
 	}
 	return false;
