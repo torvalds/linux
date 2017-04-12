@@ -689,7 +689,7 @@ static void notify_shutdown(struct cxlflash_cfg *cfg, bool wait)
 	global = &afu->afu_map->global;
 
 	/* Notify AFU */
-	for (i = 0; i < NUM_FC_PORTS; i++) {
+	for (i = 0; i < cfg->num_fc_ports; i++) {
 		reg = readq_be(&global->fc_regs[i][FC_CONFIG2 / 8]);
 		reg |= SISL_FC_SHUTDOWN_NORMAL;
 		writeq_be(reg, &global->fc_regs[i][FC_CONFIG2 / 8]);
@@ -699,7 +699,7 @@ static void notify_shutdown(struct cxlflash_cfg *cfg, bool wait)
 		return;
 
 	/* Wait up to 1.5 seconds for shutdown processing to complete */
-	for (i = 0; i < NUM_FC_PORTS; i++) {
+	for (i = 0; i < cfg->num_fc_ports; i++) {
 		retry_cnt = 0;
 		while (true) {
 			status = readq_be(&global->fc_regs[i][FC_STATUS / 8]);
@@ -1072,6 +1072,7 @@ static const struct asyc_intr_info *find_ainfo(u64 status)
  */
 static void afu_err_intr_init(struct afu *afu)
 {
+	struct cxlflash_cfg *cfg = afu->parent;
 	int i;
 	u64 reg;
 
@@ -1107,7 +1108,7 @@ static void afu_err_intr_init(struct afu *afu)
 	writeq_be(reg, &afu->afu_map->global.fc_regs[0][FC_CONFIG2 / 8]);
 
 	/* now clear FC errors */
-	for (i = 0; i < NUM_FC_PORTS; i++) {
+	for (i = 0; i < cfg->num_fc_ports; i++) {
 		writeq_be(0xFFFFFFFFU,
 			  &afu->afu_map->global.fc_regs[i][FC_ERROR / 8]);
 		writeq_be(0, &afu->afu_map->global.fc_regs[i][FC_ERRCAP / 8]);
@@ -1394,7 +1395,7 @@ static int start_context(struct cxlflash_cfg *cfg)
 /**
  * read_vpd() - obtains the WWPNs from VPD
  * @cfg:	Internal structure associated with the host.
- * @wwpn:	Array of size NUM_FC_PORTS to pass back WWPNs
+ * @wwpn:	Array of size MAX_FC_PORTS to pass back WWPNs
  *
  * Return: 0 on success, -errno on failure
  */
@@ -1407,7 +1408,7 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 	ssize_t vpd_size;
 	char vpd_data[CXLFLASH_VPD_LEN];
 	char tmp_buf[WWPN_BUF_LEN] = { 0 };
-	char *wwpn_vpd_tags[NUM_FC_PORTS] = { "V5", "V6" };
+	char *wwpn_vpd_tags[MAX_FC_PORTS] = { "V5", "V6" };
 
 	/* Get the VPD data from the device */
 	vpd_size = cxl_read_adapter_vpd(pdev, vpd_data, sizeof(vpd_data));
@@ -1445,7 +1446,7 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 	 * because the conversion service requires that the ASCII
 	 * string be terminated.
 	 */
-	for (k = 0; k < NUM_FC_PORTS; k++) {
+	for (k = 0; k < cfg->num_fc_ports; k++) {
 		j = ro_size;
 		i = ro_start + PCI_VPD_LRDT_TAG_SIZE;
 
@@ -1474,6 +1475,8 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 			rc = -ENODEV;
 			goto out;
 		}
+
+		dev_dbg(dev, "%s: wwpn%d=%016llx\n", __func__, k, wwpn[k]);
 	}
 
 out:
@@ -1520,7 +1523,7 @@ static int init_global(struct cxlflash_cfg *cfg)
 {
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
-	u64 wwpn[NUM_FC_PORTS];	/* wwpn of AFU ports */
+	u64 wwpn[MAX_FC_PORTS];	/* wwpn of AFU ports */
 	int i = 0, num_ports = 0;
 	int rc = 0;
 	u64 reg;
@@ -1530,9 +1533,6 @@ static int init_global(struct cxlflash_cfg *cfg)
 		dev_err(dev, "%s: could not read vpd rc=%d\n", __func__, rc);
 		goto out;
 	}
-
-	dev_dbg(dev, "%s: wwpn0=%016llx wwpn1=%016llx\n",
-		__func__, wwpn[0], wwpn[1]);
 
 	/* Set up RRQ and SQ in AFU for master issued cmds */
 	writeq_be((u64) afu->hrrq_start, &afu->host_map->rrq_start);
@@ -1556,10 +1556,10 @@ static int init_global(struct cxlflash_cfg *cfg)
 	if (afu->internal_lun) {
 		/* Only use port 0 */
 		writeq_be(PORT0, &afu->afu_map->global.regs.afu_port_sel);
-		num_ports = NUM_FC_PORTS - 1;
+		num_ports = 0;
 	} else {
 		writeq_be(BOTH_PORTS, &afu->afu_map->global.regs.afu_port_sel);
-		num_ports = NUM_FC_PORTS;
+		num_ports = cfg->num_fc_ports;
 	}
 
 	for (i = 0; i < num_ports; i++) {
@@ -2061,19 +2061,25 @@ static int cxlflash_change_queue_depth(struct scsi_device *sdev, int qdepth)
  * @cfg:	Internal structure associated with the host.
  * @buf:	Buffer of length PAGE_SIZE to report back port status in ASCII.
  *
- * Return: The size of the ASCII string returned in @buf.
+ * Return: The size of the ASCII string returned in @buf or -EINVAL.
  */
 static ssize_t cxlflash_show_port_status(u32 port,
 					 struct cxlflash_cfg *cfg,
 					 char *buf)
 {
+	struct device *dev = &cfg->dev->dev;
 	struct afu *afu = cfg->afu;
 	char *disp_status;
 	u64 status;
 	__be64 __iomem *fc_regs;
 
-	if (port >= NUM_FC_PORTS)
-		return 0;
+	WARN_ON(port >= MAX_FC_PORTS);
+
+	if (port >= cfg->num_fc_ports) {
+		dev_info(dev, "%s: Port %d not supported on this card.\n",
+			__func__, port);
+		return -EINVAL;
+	}
 
 	fc_regs = &afu->afu_map->global.fc_regs[port][0];
 	status = readq_be(&fc_regs[FC_MTIP_STATUS / 8]);
@@ -2178,12 +2184,13 @@ static ssize_t lun_mode_store(struct device *dev,
 
 		/*
 		 * When configured for internal LUN, there is only one channel,
-		 * channel number 0, else there will be 2 (default).
+		 * channel number 0, else there will be one less than the number
+		 * of fc ports for this card.
 		 */
 		if (afu->internal_lun)
 			shost->max_channel = 0;
 		else
-			shost->max_channel = NUM_FC_PORTS - 1;
+			shost->max_channel = cfg->num_fc_ports - 1;
 
 		afu_reset(cfg);
 		scsi_scan_host(cfg->host);
@@ -2212,19 +2219,25 @@ static ssize_t ioctl_version_show(struct device *dev,
  * @cfg:	Internal structure associated with the host.
  * @buf:	Buffer of length PAGE_SIZE to report back port status in ASCII.
  *
- * Return: The size of the ASCII string returned in @buf.
+ * Return: The size of the ASCII string returned in @buf or -EINVAL.
  */
 static ssize_t cxlflash_show_port_lun_table(u32 port,
 					    struct cxlflash_cfg *cfg,
 					    char *buf)
 {
+	struct device *dev = &cfg->dev->dev;
 	struct afu *afu = cfg->afu;
 	int i;
 	ssize_t bytes = 0;
 	__be64 __iomem *fc_port;
 
-	if (port >= NUM_FC_PORTS)
-		return 0;
+	WARN_ON(port >= MAX_FC_PORTS);
+
+	if (port >= cfg->num_fc_ports) {
+		dev_info(dev, "%s: Port %d not supported on this card.\n",
+			__func__, port);
+		return -EINVAL;
+	}
 
 	fc_port = &afu->afu_map->global.fc_port[port][0];
 
@@ -2499,6 +2512,7 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	struct device *dev = &pdev->dev;
 	struct dev_dependent_vals *ddv;
 	int rc = 0;
+	int k;
 
 	dev_dbg(&pdev->dev, "%s: Found CXLFLASH with IRQ: %d\n",
 		__func__, pdev->irq);
@@ -2531,17 +2545,20 @@ static int cxlflash_probe(struct pci_dev *pdev,
 
 	cfg->init_state = INIT_STATE_NONE;
 	cfg->dev = pdev;
+	cfg->num_fc_ports = NUM_FC_PORTS;
 	cfg->cxl_fops = cxlflash_cxl_fops;
 
 	/*
-	 * The promoted LUNs move to the top of the LUN table. The rest stay
-	 * on the bottom half. The bottom half grows from the end
-	 * (index = 255), whereas the top half grows from the beginning
-	 * (index = 0).
+	 * Promoted LUNs move to the top of the LUN table. The rest stay on
+	 * the bottom half. The bottom half grows from the end (index = 255),
+	 * whereas the top half grows from the beginning (index = 0).
+	 *
+	 * Initialize the last LUN index for all possible ports.
 	 */
-	cfg->promote_lun_index  = 0;
-	cfg->last_lun_index[0] = CXLFLASH_NUM_VLUNS/2 - 1;
-	cfg->last_lun_index[1] = CXLFLASH_NUM_VLUNS/2 - 1;
+	cfg->promote_lun_index = 0;
+
+	for (k = 0; k < MAX_FC_PORTS; k++)
+		cfg->last_lun_index[k] = CXLFLASH_NUM_VLUNS/2 - 1;
 
 	cfg->dev_id = (struct pci_device_id *)dev_id;
 

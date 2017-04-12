@@ -59,7 +59,7 @@ struct glun_info {
 
 /* Local (per-adapter) lun_info structure */
 struct llun_info {
-	u64 lun_id[CXLFLASH_NUM_FC_PORTS]; /* from REPORT_LUNS */
+	u64 lun_id[MAX_FC_PORTS]; /* from REPORT_LUNS */
 	u32 lun_index;		/* Index in the LUN table */
 	u32 host_no;		/* host_no from Scsi_host */
 	u32 port_sel;		/* What port to use for this LUN */
