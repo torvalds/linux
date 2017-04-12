@@ -382,7 +382,7 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 			wake_up(&fc->blocked_waitq);
 
 		if (fc->num_background == fc->congestion_threshold &&
-		    fc->connected && fc->bdi_initialized) {
+		    fc->connected && fc->sb) {
 			clear_bdi_congested(fc->sb->s_bdi, BLK_RW_SYNC);
 			clear_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
 		}
@@ -573,8 +573,7 @@ void fuse_request_send_background_locked(struct fuse_conn *fc,
 	fc->num_background++;
 	if (fc->num_background == fc->max_background)
 		fc->blocked = 1;
-	if (fc->num_background == fc->congestion_threshold &&
-	    fc->bdi_initialized) {
+	if (fc->num_background == fc->congestion_threshold && fc->sb) {
 		set_bdi_congested(fc->sb->s_bdi, BLK_RW_SYNC);
 		set_bdi_congested(fc->sb->s_bdi, BLK_RW_ASYNC);
 	}
