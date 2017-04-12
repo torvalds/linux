@@ -1002,23 +1002,14 @@ sh_css_params_init(void);
 void
 sh_css_params_uninit(void);
 
-#define sh_css_malloc(size) sh_css_malloc_ex(size, __func__, __LINE__)
-#define sh_css_calloc(N, size) sh_css_calloc_ex(N, size, __func__, __LINE__)
-#define sh_css_free(ptr) sh_css_free_ex(ptr, __func__, __LINE__)
+void *sh_css_malloc(size_t size);
 
+void *sh_css_calloc(size_t N, size_t size);
 
-void *
-sh_css_malloc_ex(size_t size, const char *caller_func, int caller_line);
-
-void *
-sh_css_calloc_ex(size_t N, size_t size, const char *caller_func, int caller_lin);
-
-void
-sh_css_free_ex(void *ptr, const char *caller_func, int caller_line);
+void sh_css_free(void *ptr);
 
 /* For Acceleration API: Flush FW (shared buffer pointer) arguments */
-void
-sh_css_flush(struct ia_css_acc_fw *fw);
+void sh_css_flush(struct ia_css_acc_fw *fw);
 
 
 void

@@ -2015,34 +2015,25 @@ ia_css_enable_isys_event_queue(bool enable)
 	return IA_CSS_SUCCESS;
 }
 
-void *
-sh_css_malloc_ex(size_t size, const char *caller_func, int caller_line)
+void *sh_css_malloc(size_t size)
 {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "sh_css_malloc() enter: size=%d\n",size);
-	(void)caller_func;
-	(void)caller_line;
 	if (size > 0 && my_css.malloc)
 		return my_css.malloc(size, false);
 	return NULL;
 }
 
-void *
-sh_css_calloc_ex(size_t N, size_t size, const char *caller_func, int caller_line)
+void *sh_css_calloc(size_t N, size_t size)
 {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "sh_css_calloc() enter: N=%d, size=%d\n",N,size);
-	(void)caller_func;
-	(void)caller_line;
 	if (size > 0 && my_css.malloc)
 		return my_css.malloc(N*size, true);		
 	return NULL;
 }
 
-void
-sh_css_free_ex(void *ptr, const char *caller_func, int caller_line)
+void sh_css_free(void *ptr)
 {
 	IA_CSS_ENTER_PRIVATE("ptr = %p", ptr);
-	(void)caller_func;
-	(void)caller_line;
 	if (ptr && my_css.free)
 		my_css.free(ptr);
 	IA_CSS_LEAVE_PRIVATE("void");
