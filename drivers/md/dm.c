@@ -630,6 +630,7 @@ static int open_table_device(struct table_device *td, dev_t dev,
 	}
 
 	td->dm_dev.bdev = bdev;
+	td->dm_dev.dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
 	return 0;
 }
 
@@ -643,7 +644,9 @@ static void close_table_device(struct table_device *td, struct mapped_device *md
 
 	bd_unlink_disk_holder(td->dm_dev.bdev, dm_disk(md));
 	blkdev_put(td->dm_dev.bdev, td->dm_dev.mode | FMODE_EXCL);
+	put_dax(td->dm_dev.dax_dev);
 	td->dm_dev.bdev = NULL;
+	td->dm_dev.dax_dev = NULL;
 }
 
 static struct table_device *find_table_device(struct list_head *l, dev_t dev,
@@ -945,16 +948,9 @@ static long dm_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 	if (len < 1)
 		goto out;
 	nr_pages = min(len, nr_pages);
-	if (ti->type->direct_access) {
-		ret = ti->type->direct_access(ti, sector, kaddr, pfn,
-				nr_pages * PAGE_SIZE);
-		/*
-		 * FIXME: convert ti->type->direct_access to return
-		 * nr_pages directly.
-		 */
-		if (ret >= 0)
-			ret /= PAGE_SIZE;
-	}
+	if (ti->type->direct_access)
+		ret = ti->type->direct_access(ti, pgoff, nr_pages, kaddr, pfn);
+
  out:
 	dm_put_live_table(md, srcu_idx);
 
