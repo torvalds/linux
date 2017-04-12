@@ -30,7 +30,7 @@
  * SMU TEAM: Always increment the interface version if
  * any structure is changed in this file
  */
-#define SMU9_DRIVER_IF_VERSION 0xB
+#define SMU9_DRIVER_IF_VERSION 0xD
 
 #define PPTABLE_V10_SMU_VERSION 1
 
@@ -302,7 +302,17 @@ typedef struct {
 
   uint32_t     DpmLevelPowerDelta;
 
-  uint32_t     Reserved[19];
+  uint8_t      EnableBoostState;
+  uint8_t      AConstant_Shift;
+  uint8_t      DC_tol_sigma_Shift;
+  uint8_t      PSM_Age_CompFactor_Shift;
+
+  uint16_t     BoostStartTemperature;
+  uint16_t     BoostStopTemperature;
+
+  PllSetting_t GfxBoostState;
+
+  uint32_t     Reserved[14];
 
   /* Padding - ignore */
   uint32_t     MmHubPadding[7]; /* SMU internal use */
@@ -463,5 +473,9 @@ typedef struct {
 #define DB_IR_SHIFT 25
 #define DB_PCC_SHIFT 26
 #define DB_EDC_SHIFT 27
+
+#define REMOVE_FMAX_MARGIN_BIT     0x0
+#define REMOVE_DCTOL_MARGIN_BIT    0x1
+#define REMOVE_PLATFORM_MARGIN_BIT 0x2
 
 #endif
