@@ -207,7 +207,6 @@ MODULE_DEVICE_TABLE(of, mtk_pwm_of_match);
 static struct platform_driver mtk_pwm_driver = {
 	.driver = {
 		.name = "mtk-pwm",
-		.owner = THIS_MODULE,
 		.of_match_table = mtk_pwm_of_match,
 	},
 	.probe = mtk_pwm_probe,
