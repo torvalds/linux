@@ -295,8 +295,7 @@ static void __init xen_init_cpuid_mask(void)
 	unsigned int xsave_mask;
 
 	cpuid_leaf1_edx_mask =
-		~((1 << X86_FEATURE_MTRR) |  /* disable MTRR */
-		  (1 << X86_FEATURE_ACC));   /* thermal monitoring */
+		~(1 << X86_FEATURE_ACC);   /* thermal monitoring */
 
 	if (!xen_initial_domain())
 		cpuid_leaf1_edx_mask &=
@@ -325,6 +324,7 @@ static void __init xen_init_capabilities(void)
 	setup_force_cpu_cap(X86_FEATURE_XENPV);
 	setup_clear_cpu_cap(X86_FEATURE_DCA);
 	setup_clear_cpu_cap(X86_FEATURE_APERFMPERF);
+	setup_clear_cpu_cap(X86_FEATURE_MTRR);
 }
 
 static void xen_set_debugreg(int reg, unsigned long val)
