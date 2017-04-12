@@ -36,6 +36,8 @@
 #include "omap-iopgtable.h"
 #include "omap-iommu.h"
 
+static const struct iommu_ops omap_iommu_ops;
+
 #define to_iommu(dev)							\
 	((struct omap_iommu *)platform_get_drvdata(to_platform_device(dev)))
 
@@ -941,6 +943,16 @@ static int omap_iommu_probe(struct platform_device *pdev)
 		return err;
 	platform_set_drvdata(pdev, obj);
 
+	err = iommu_device_sysfs_add(&obj->iommu, obj->dev, NULL, obj->name);
+	if (err)
+		return err;
+
+	iommu_device_set_ops(&obj->iommu, &omap_iommu_ops);
+
+	err = iommu_device_register(&obj->iommu);
+	if (err)
+		goto out_sysfs;
+
 	pm_runtime_irq_safe(obj->dev);
 	pm_runtime_enable(obj->dev);
 
@@ -948,11 +960,18 @@ static int omap_iommu_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s registered\n", obj->name);
 	return 0;
+
+out_sysfs:
+	iommu_device_sysfs_remove(&obj->iommu);
+	return err;
 }
 
 static int omap_iommu_remove(struct platform_device *pdev)
 {
 	struct omap_iommu *obj = platform_get_drvdata(pdev);
+
+	iommu_device_sysfs_remove(&obj->iommu);
+	iommu_device_unregister(&obj->iommu);
 
 	omap_iommu_debugfs_remove(obj);
 
@@ -1200,6 +1219,7 @@ static int omap_iommu_add_device(struct device *dev)
 	struct omap_iommu *oiommu;
 	struct device_node *np;
 	struct platform_device *pdev;
+	int ret;
 
 	/*
 	 * Allocate the archdata iommu structure for DT-based devices.
@@ -1232,6 +1252,13 @@ static int omap_iommu_add_device(struct device *dev)
 		return -ENOMEM;
 	}
 
+	ret = iommu_device_link(&oiommu->iommu, dev);
+	if (ret) {
+		kfree(arch_data);
+		of_node_put(np);
+		return ret;
+	}
+
 	arch_data->iommu_dev = oiommu;
 	dev->archdata.iommu = arch_data;
 
@@ -1247,8 +1274,11 @@ static void omap_iommu_remove_device(struct device *dev)
 	if (!dev->of_node || !arch_data)
 		return;
 
+	iommu_device_unlink(&arch_data->iommu_dev->iommu, dev);
+
 	dev->archdata.iommu = NULL;
 	kfree(arch_data);
+
 }
 
 static const struct iommu_ops omap_iommu_ops = {
