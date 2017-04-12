@@ -15,6 +15,7 @@
 #ifndef _CXLFLASH_COMMON_H
 #define _CXLFLASH_COMMON_H
 
+#include <linux/irq_poll.h>
 #include <linux/list.h>
 #include <linux/rwsem.h>
 #include <linux/types.h>
@@ -196,9 +197,16 @@ struct afu {
 	char version[16];
 	u64 interface_version;
 
+	u32 irqpoll_weight;
+	struct irq_poll irqpoll;
 	struct cxlflash_cfg *parent; /* Pointer back to parent cxlflash_cfg */
 
 };
+
+static inline bool afu_is_irqpoll_enabled(struct afu *afu)
+{
+	return !!afu->irqpoll_weight;
+}
 
 static inline bool afu_is_cmd_mode(struct afu *afu, u64 cmd_mode)
 {

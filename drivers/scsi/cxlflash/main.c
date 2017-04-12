@@ -554,7 +554,7 @@ static void free_mem(struct cxlflash_cfg *cfg)
  * Safe to call with AFU in a partially allocated/initialized state.
  *
  * Cancels scheduled worker threads, waits for any active internal AFU
- * commands to timeout and then unmaps the MMIO space.
+ * commands to timeout, disables IRQ polling and then unmaps the MMIO space.
  */
 static void stop_afu(struct cxlflash_cfg *cfg)
 {
@@ -565,6 +565,8 @@ static void stop_afu(struct cxlflash_cfg *cfg)
 	if (likely(afu)) {
 		while (atomic_read(&afu->cmds_active))
 			ssleep(1);
+		if (afu_is_irqpoll_enabled(afu))
+			irq_poll_disable(&afu->irqpoll);
 		if (likely(afu->afu_map)) {
 			cxl_psa_unmap((void __iomem *)afu->afu_map);
 			afu->afu_map = NULL;
@@ -1158,12 +1160,13 @@ cxlflash_sync_err_irq_exit:
  * process_hrrq() - process the read-response queue
  * @afu:	AFU associated with the host.
  * @doneq:	Queue of commands harvested from the RRQ.
+ * @budget:	Threshold of RRQ entries to process.
  *
  * This routine must be called holding the disabled RRQ spin lock.
  *
  * Return: The number of entries processed.
  */
-static int process_hrrq(struct afu *afu, struct list_head *doneq)
+static int process_hrrq(struct afu *afu, struct list_head *doneq, int budget)
 {
 	struct afu_cmd *cmd;
 	struct sisl_ioasa *ioasa;
@@ -1175,7 +1178,7 @@ static int process_hrrq(struct afu *afu, struct list_head *doneq)
 	    *hrrq_end = afu->hrrq_end,
 	    *hrrq_curr = afu->hrrq_curr;
 
-	/* Process however many RRQ entries that are ready */
+	/* Process ready RRQ entries up to the specified budget (if any) */
 	while (true) {
 		entry = *hrrq_curr;
 
@@ -1204,6 +1207,9 @@ static int process_hrrq(struct afu *afu, struct list_head *doneq)
 
 		atomic_inc(&afu->hsq_credits);
 		num_hrrq++;
+
+		if (budget > 0 && num_hrrq >= budget)
+			break;
 	}
 
 	afu->hrrq_curr = hrrq_curr;
@@ -1229,6 +1235,32 @@ static void process_cmd_doneq(struct list_head *doneq)
 }
 
 /**
+ * cxlflash_irqpoll() - process a queue of harvested RRQ commands
+ * @irqpoll:	IRQ poll structure associated with queue to poll.
+ * @budget:	Threshold of RRQ entries to process per poll.
+ *
+ * Return: The number of entries processed.
+ */
+static int cxlflash_irqpoll(struct irq_poll *irqpoll, int budget)
+{
+	struct afu *afu = container_of(irqpoll, struct afu, irqpoll);
+	unsigned long hrrq_flags;
+	LIST_HEAD(doneq);
+	int num_entries = 0;
+
+	spin_lock_irqsave(&afu->hrrq_slock, hrrq_flags);
+
+	num_entries = process_hrrq(afu, &doneq, budget);
+	if (num_entries < budget)
+		irq_poll_complete(irqpoll);
+
+	spin_unlock_irqrestore(&afu->hrrq_slock, hrrq_flags);
+
+	process_cmd_doneq(&doneq);
+	return num_entries;
+}
+
+/**
  * cxlflash_rrq_irq() - interrupt handler for read-response queue (normal path)
  * @irq:	Interrupt number.
  * @data:	Private data provided at interrupt registration, the AFU.
@@ -1243,7 +1275,14 @@ static irqreturn_t cxlflash_rrq_irq(int irq, void *data)
 	int num_entries = 0;
 
 	spin_lock_irqsave(&afu->hrrq_slock, hrrq_flags);
-	num_entries = process_hrrq(afu, &doneq);
+
+	if (afu_is_irqpoll_enabled(afu)) {
+		irq_poll_sched(&afu->irqpoll);
+		spin_unlock_irqrestore(&afu->hrrq_slock, hrrq_flags);
+		return IRQ_HANDLED;
+	}
+
+	num_entries = process_hrrq(afu, &doneq, -1);
 	spin_unlock_irqrestore(&afu->hrrq_slock, hrrq_flags);
 
 	if (num_entries == 0)
@@ -1587,6 +1626,11 @@ static int start_afu(struct cxlflash_cfg *cfg)
 		spin_lock_init(&afu->hsq_slock);
 		atomic_set(&afu->hsq_credits, NUM_SQ_ENTRY - 1);
 	}
+
+	/* Initialize IRQ poll */
+	if (afu_is_irqpoll_enabled(afu))
+		irq_poll_init(&afu->irqpoll, afu->irqpoll_weight,
+			      cxlflash_irqpoll);
 
 	rc = init_global(cfg);
 
@@ -2225,6 +2269,75 @@ static ssize_t port1_lun_table_show(struct device *dev,
 }
 
 /**
+ * irqpoll_weight_show() - presents the current IRQ poll weight for the host
+ * @dev:	Generic device associated with the host.
+ * @attr:	Device attribute representing the IRQ poll weight.
+ * @buf:	Buffer of length PAGE_SIZE to report back the current IRQ poll
+ *		weight in ASCII.
+ *
+ * An IRQ poll weight of 0 indicates polling is disabled.
+ *
+ * Return: The size of the ASCII string returned in @buf.
+ */
+static ssize_t irqpoll_weight_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct cxlflash_cfg *cfg = shost_priv(class_to_shost(dev));
+	struct afu *afu = cfg->afu;
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", afu->irqpoll_weight);
+}
+
+/**
+ * irqpoll_weight_store() - sets the current IRQ poll weight for the host
+ * @dev:	Generic device associated with the host.
+ * @attr:	Device attribute representing the IRQ poll weight.
+ * @buf:	Buffer of length PAGE_SIZE containing the desired IRQ poll
+ *		weight in ASCII.
+ * @count:	Length of data resizing in @buf.
+ *
+ * An IRQ poll weight of 0 indicates polling is disabled.
+ *
+ * Return: The size of the ASCII string returned in @buf.
+ */
+static ssize_t irqpoll_weight_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct cxlflash_cfg *cfg = shost_priv(class_to_shost(dev));
+	struct device *cfgdev = &cfg->dev->dev;
+	struct afu *afu = cfg->afu;
+	u32 weight;
+	int rc;
+
+	rc = kstrtouint(buf, 10, &weight);
+	if (rc)
+		return -EINVAL;
+
+	if (weight > 256) {
+		dev_info(cfgdev,
+			 "Invalid IRQ poll weight. It must be 256 or less.\n");
+		return -EINVAL;
+	}
+
+	if (weight == afu->irqpoll_weight) {
+		dev_info(cfgdev,
+			 "Current IRQ poll weight has the same weight.\n");
+		return -EINVAL;
+	}
+
+	if (afu_is_irqpoll_enabled(afu))
+		irq_poll_disable(&afu->irqpoll);
+
+	afu->irqpoll_weight = weight;
+
+	if (weight > 0)
+		irq_poll_init(&afu->irqpoll, weight, cxlflash_irqpoll);
+
+	return count;
+}
+
+/**
  * mode_show() - presents the current mode of the device
  * @dev:	Generic device associated with the device.
  * @attr:	Device attribute representing the device mode.
@@ -2250,6 +2363,7 @@ static DEVICE_ATTR_RW(lun_mode);
 static DEVICE_ATTR_RO(ioctl_version);
 static DEVICE_ATTR_RO(port0_lun_table);
 static DEVICE_ATTR_RO(port1_lun_table);
+static DEVICE_ATTR_RW(irqpoll_weight);
 
 static struct device_attribute *cxlflash_host_attrs[] = {
 	&dev_attr_port0,
@@ -2258,6 +2372,7 @@ static struct device_attribute *cxlflash_host_attrs[] = {
 	&dev_attr_ioctl_version,
 	&dev_attr_port0_lun_table,
 	&dev_attr_port1_lun_table,
+	&dev_attr_irqpoll_weight,
 	NULL
 };
 
