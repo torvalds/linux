@@ -90,15 +90,15 @@ struct sisl_rc {
 #define SISL_AFU_RC_RHT_UNALIGNED         0x02U	/* should never happen */
 #define SISL_AFU_RC_RHT_OUT_OF_BOUNDS     0x03u	/* user error */
 #define SISL_AFU_RC_RHT_DMA_ERR           0x04u	/* see afu_extra
-						   may retry if afu_retry is off
-						   possible on master exit
+						 * may retry if afu_retry is off
+						 * possible on master exit
 						 */
 #define SISL_AFU_RC_RHT_RW_PERM           0x05u	/* no RW perms, user error */
 #define SISL_AFU_RC_LXT_UNALIGNED         0x12U	/* should never happen */
 #define SISL_AFU_RC_LXT_OUT_OF_BOUNDS     0x13u	/* user error */
 #define SISL_AFU_RC_LXT_DMA_ERR           0x14u	/* see afu_extra
-						   may retry if afu_retry is off
-						   possible on master exit
+						 * may retry if afu_retry is off
+						 * possible on master exit
 						 */
 #define SISL_AFU_RC_LXT_RW_PERM           0x15u	/* no RW perms, user error */
 
@@ -111,11 +111,11 @@ struct sisl_rc {
 	 */
 #define SISL_AFU_RC_NO_CHANNELS           0x20U	/* see afu_extra, may retry */
 #define SISL_AFU_RC_CAP_VIOLATION         0x21U	/* either user error or
-						   afu reset/master restart
+						 * afu reset/master restart
 						 */
 #define SISL_AFU_RC_OUT_OF_DATA_BUFS      0x30U	/* always retry */
 #define SISL_AFU_RC_DATA_DMA_ERR          0x31U	/* see afu_extra
-						   may retry if afu_retry is off
+						 * may retry if afu_retry is off
 						 */
 
 	u8 scsi_rc;		/* SCSI status byte, retry as appropriate */
@@ -149,8 +149,9 @@ struct sisl_rc {
 #define SISL_FC_RC_ABORTFAIL	0x59	/* pending abort completed w/fail */
 #define SISL_FC_RC_RESID	0x5A	/* ioasa underrun/overrun flags set */
 #define SISL_FC_RC_RESIDERR	0x5B	/* actual data len does not match SCSI
-					   reported len, possibly due to dropped
-					   frames */
+					 * reported len, possibly due to dropped
+					 * frames
+					 */
 #define SISL_FC_RC_TGTABORT	0x5C	/* command aborted by target */
 };
 
@@ -227,10 +228,10 @@ struct sisl_ioasa {
 
 /* per context host transport MMIO  */
 struct sisl_host_map {
-	__be64 endian_ctrl;     /* Per context Endian Control. The AFU will
-			      * operate on whatever the context is of the
-			      * host application.
-			      */
+	__be64 endian_ctrl;	/* Per context Endian Control. The AFU will
+				 * operate on whatever the context is of the
+				 * host application.
+				 */
 
 	__be64 intr_status;	/* this sends LISN# programmed in ctx_ctrl.
 				 * Only recovery in a PERM_ERR is a context
@@ -435,7 +436,7 @@ struct sisl_global_map {
  *	|         64 KB Global          |
  *	|   Trusted Process accessible  |
  *	+-------------------------------+
-*/
+ */
 struct cxlflash_afu_map {
 	union {
 		struct sisl_host_map host;

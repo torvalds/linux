@@ -36,20 +36,19 @@ extern const struct file_operations cxlflash_cxl_fops;
 #define PORTMASK2CHAN(_x)	(ilog2((_x)))	/* port mask to channel */
 #define PORTNUM2CHAN(_x)	((_x) - 1)	/* port number to channel */
 
-#define CXLFLASH_BLOCK_SIZE	4096	/* 4K blocks */
+#define CXLFLASH_BLOCK_SIZE	4096		/* 4K blocks */
 #define CXLFLASH_MAX_XFER_SIZE	16777216	/* 16MB transfer */
 #define CXLFLASH_MAX_SECTORS	(CXLFLASH_MAX_XFER_SIZE/512)	/* SCSI wants
-								   max_sectors
-								   in units of
-								   512 byte
-								   sectors
-								*/
+								 * max_sectors
+								 * in units of
+								 * 512 byte
+								 * sectors
+								 */
 
 #define MAX_RHT_PER_CONTEXT (PAGE_SIZE / sizeof(struct sisl_rht_entry))
 
 /* AFU command retry limit */
-#define MC_RETRY_CNT         5	/* sufficient for SCSI check and
-				   certain AFU errors */
+#define MC_RETRY_CNT	5	/* Sufficient for SCSI and certain AFU errors */
 
 /* Command management definitions */
 #define CXLFLASH_MAX_CMDS               256
@@ -262,14 +261,14 @@ static inline __be64 __iomem *get_fc_port_luns(struct cxlflash_cfg *cfg, int i)
 	return &fcpb->fc_port_luns[CHAN2BANKPORT(i)][0];
 }
 
-int cxlflash_afu_sync(struct afu *, ctx_hndl_t, res_hndl_t, u8);
+int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t c, res_hndl_t r, u8 mode);
 void cxlflash_list_init(void);
 void cxlflash_term_global_luns(void);
 void cxlflash_free_errpage(void);
-int cxlflash_ioctl(struct scsi_device *, int, void __user *);
-void cxlflash_stop_term_user_contexts(struct cxlflash_cfg *);
-int cxlflash_mark_contexts_error(struct cxlflash_cfg *);
-void cxlflash_term_local_luns(struct cxlflash_cfg *);
-void cxlflash_restore_luntable(struct cxlflash_cfg *);
+int cxlflash_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
+void cxlflash_stop_term_user_contexts(struct cxlflash_cfg *cfg);
+int cxlflash_mark_contexts_error(struct cxlflash_cfg *cfg);
+void cxlflash_term_local_luns(struct cxlflash_cfg *cfg);
+void cxlflash_restore_luntable(struct cxlflash_cfg *cfg);
 
 #endif /* ifndef _CXLFLASH_COMMON_H */
