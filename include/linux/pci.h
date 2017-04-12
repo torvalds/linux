@@ -1626,10 +1626,21 @@ static inline int pci_get_new_domain_nr(void) { return -ENOSYS; }
 
 #include <asm/pci.h>
 
-/* Map a range of PCI memory or I/O space for a device into user space.
- * Architectures provide this function if they set HAVE_PCI_MMAP, and
- * it accepts the 'write_combine' argument when arch_can_pci_mmap_wc()
- * evaluates to nonzero. */
+/* These two functions provide almost identical functionality. Depennding
+ * on the architecture, one will be implemented as a wrapper around the
+ * other (in drivers/pci/mmap.c).
+ *
+ * pci_mmap_resource_range() maps a specific BAR, and vm->vm_pgoff
+ * is expected to be an offset within that region.
+ *
+ * pci_mmap_page_range() is the legacy architecture-specific interface,
+ * which accepts a "user visible" resource address converted by
+ * pci_resource_to_user(), as used in the legacy mmap() interface in
+ * /proc/bus/pci/.
+ */
+int pci_mmap_resource_range(struct pci_dev *dev, int bar,
+			    struct vm_area_struct *vma,
+			    enum pci_mmap_state mmap_state, int write_combine);
 int pci_mmap_page_range(struct pci_dev *pdev, int bar,
 			struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state, int write_combine);
