@@ -216,6 +216,12 @@
 	cluster0_opp: opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
+		leakage-voltage-sel = <
+			1   24   0
+			25  254  1
+		>;
+		nvmem-cells = <&cpu_leakage>;
+		nvmem-cell-names = "cpu_leakage";
 
 		opp@216000000 {
 			opp-hz = /bits/ 64 <216000000>;
@@ -253,6 +259,12 @@
 	cluster1_opp: opp_table1 {
 		compatible = "operating-points-v2";
 		opp-shared;
+		leakage-voltage-sel = <
+			1   24   0
+			25  254  1
+		>;
+		nvmem-cells = <&cpu_leakage>;
+		nvmem-cell-names = "cpu_leakage";
 
 		opp@216000000 {
 			opp-hz = /bits/ 64 <216000000>;
