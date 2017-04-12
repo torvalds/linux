@@ -134,6 +134,7 @@ struct afu_cmd {
 	struct afu *parent;
 	struct scsi_cmnd *scp;
 	struct completion cevent;
+	struct list_head queue;
 
 	u8 cmd_tmf:1;
 
@@ -181,6 +182,7 @@ struct afu {
 	struct sisl_ioarcb *hsq_start;
 	struct sisl_ioarcb *hsq_end;
 	struct sisl_ioarcb *hsq_curr;
+	spinlock_t hrrq_slock;
 	u64 *hrrq_start;
 	u64 *hrrq_end;
 	u64 *hrrq_curr;

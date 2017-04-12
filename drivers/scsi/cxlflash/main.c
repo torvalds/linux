@@ -1157,10 +1157,13 @@ cxlflash_sync_err_irq_exit:
 /**
  * process_hrrq() - process the read-response queue
  * @afu:	AFU associated with the host.
+ * @doneq:	Queue of commands harvested from the RRQ.
+ *
+ * This routine must be called holding the disabled RRQ spin lock.
  *
  * Return: The number of entries processed.
  */
-static int process_hrrq(struct afu *afu)
+static int process_hrrq(struct afu *afu, struct list_head *doneq)
 {
 	struct afu_cmd *cmd;
 	struct sisl_ioasa *ioasa;
@@ -1189,7 +1192,7 @@ static int process_hrrq(struct afu *afu)
 			cmd = container_of(ioarcb, struct afu_cmd, rcb);
 		}
 
-		cmd_complete(cmd);
+		list_add_tail(&cmd->queue, doneq);
 
 		/* Advance to next entry or wrap and flip the toggle bit */
 		if (hrrq_curr < hrrq_end)
@@ -1210,17 +1213,43 @@ static int process_hrrq(struct afu *afu)
 }
 
 /**
+ * process_cmd_doneq() - process a queue of harvested RRQ commands
+ * @doneq:	Queue of completed commands.
+ *
+ * Note that upon return the queue can no longer be trusted.
+ */
+static void process_cmd_doneq(struct list_head *doneq)
+{
+	struct afu_cmd *cmd, *tmp;
+
+	WARN_ON(list_empty(doneq));
+
+	list_for_each_entry_safe(cmd, tmp, doneq, queue)
+		cmd_complete(cmd);
+}
+
+/**
  * cxlflash_rrq_irq() - interrupt handler for read-response queue (normal path)
  * @irq:	Interrupt number.
  * @data:	Private data provided at interrupt registration, the AFU.
  *
- * Return: Always return IRQ_HANDLED.
+ * Return: IRQ_HANDLED or IRQ_NONE when no ready entries found.
  */
 static irqreturn_t cxlflash_rrq_irq(int irq, void *data)
 {
 	struct afu *afu = (struct afu *)data;
+	unsigned long hrrq_flags;
+	LIST_HEAD(doneq);
+	int num_entries = 0;
 
-	process_hrrq(afu);
+	spin_lock_irqsave(&afu->hrrq_slock, hrrq_flags);
+	num_entries = process_hrrq(afu, &doneq);
+	spin_unlock_irqrestore(&afu->hrrq_slock, hrrq_flags);
+
+	if (num_entries == 0)
+		return IRQ_NONE;
+
+	process_cmd_doneq(&doneq);
 	return IRQ_HANDLED;
 }
 
@@ -1540,14 +1569,13 @@ static int start_afu(struct cxlflash_cfg *cfg)
 
 	init_pcr(cfg);
 
-	/* After an AFU reset, RRQ entries are stale, clear them */
+	/* Initialize RRQ */
 	memset(&afu->rrq_entry, 0, sizeof(afu->rrq_entry));
-
-	/* Initialize RRQ pointers */
 	afu->hrrq_start = &afu->rrq_entry[0];
 	afu->hrrq_end = &afu->rrq_entry[NUM_RRQ_ENTRY - 1];
 	afu->hrrq_curr = afu->hrrq_start;
 	afu->toggle = 1;
+	spin_lock_init(&afu->hrrq_slock);
 
 	/* Initialize SQ */
 	if (afu_is_sq_cmd_mode(afu)) {
