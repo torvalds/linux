@@ -184,7 +184,7 @@ static void ftgmac100_write_mac_addr(struct ftgmac100 *priv, const u8 *mac)
 	iowrite32(laddr, priv->base + FTGMAC100_OFFSET_MAC_LADR);
 }
 
-static void ftgmac100_setup_mac(struct ftgmac100 *priv)
+static void ftgmac100_initial_mac(struct ftgmac100 *priv)
 {
 	u8 mac[ETH_ALEN];
 	unsigned int m;
@@ -1442,7 +1442,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	netdev->irq = irq;
 
 	/* MAC address from chip or random one */
-	ftgmac100_setup_mac(priv);
+	ftgmac100_initial_mac(priv);
 
 	np = pdev->dev.of_node;
 	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac") ||
