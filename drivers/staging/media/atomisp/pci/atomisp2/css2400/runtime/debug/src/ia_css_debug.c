@@ -95,7 +95,7 @@
 #include "s3a/s3a_1.0/ia_css_s3a.host.h"
 #include "sc/sc_1.0/ia_css_sc.host.h"
 #include "tnr/tnr_1.0/ia_css_tnr.host.h"
-#include "uds/uds_1.0/ia_css_uds.host.h"
+#include "uds/uds_1.0/ia_css_uds_param.h"
 #include "wb/wb_1.0/ia_css_wb.host.h"
 #include "ynr/ynr_1.0/ia_css_ynr.host.h"
 

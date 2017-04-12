@@ -43,7 +43,7 @@
 #include "isp/kernels/sdis/sdis_1.0/ia_css_sdis.host.h"
 #include "isp/kernels/sdis/sdis_2/ia_css_sdis2.host.h"
 #include "isp/kernels/tnr/tnr_1.0/ia_css_tnr.host.h"
-#include "isp/kernels/uds/uds_1.0/ia_css_uds.host.h"
+#include "isp/kernels/uds/uds_1.0/ia_css_uds_param.h"
 #include "isp/kernels/wb/wb_1.0/ia_css_wb.host.h"
 #include "isp/kernels/xnr/xnr_1.0/ia_css_xnr.host.h"
 #include "isp/kernels/xnr/xnr_3.0/ia_css_xnr3.host.h"
@@ -719,12 +719,14 @@ ia_css_process_uds(
 		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.uds.offset;
 
 		if (size) {
+			struct sh_css_sp_uds_params *p;
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_uds() enter:\n");
 
-			ia_css_uds_encode((struct sh_css_sp_uds_params *)
-					&stage->binary->mem_params.params[IA_CSS_PARAM_CLASS_PARAM][IA_CSS_ISP_DMEM].address[offset],
-					&params->uds_config,
-size);
+			p = (struct sh_css_sp_uds_params *)
+				&stage->binary->mem_params.params[IA_CSS_PARAM_CLASS_PARAM][IA_CSS_ISP_DMEM].address[offset];
+			p->crop_pos = params->uds_config.crop_pos;
+			p->uds = params->uds_config.uds;
+
 			params->isp_params_changed = true;
 			params->isp_mem_params_changed[pipe_id][stage->stage_num][IA_CSS_ISP_DMEM] = true;
 
