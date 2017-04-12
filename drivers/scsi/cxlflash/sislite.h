@@ -394,7 +394,7 @@ struct sisl_global_regs {
 };
 
 #define CXLFLASH_NUM_FC_PORTS_PER_BANK	2	/* fixed # of ports per bank */
-#define CXLFLASH_MAX_FC_BANKS		1	/* max # of banks supported */
+#define CXLFLASH_MAX_FC_BANKS		2	/* max # of banks supported */
 #define CXLFLASH_MAX_FC_PORTS	(CXLFLASH_NUM_FC_PORTS_PER_BANK *	\
 				 CXLFLASH_MAX_FC_BANKS)
 #define CXLFLASH_MAX_CONTEXT	512	/* number of contexts per AFU */
@@ -414,9 +414,9 @@ struct sisl_global_map {
 
 	char page1[SIZE_4K];	/* page 1 */
 
-	struct fc_port_bank bank[CXLFLASH_MAX_FC_BANKS]; /* pages 2 - 5 */
+	struct fc_port_bank bank[CXLFLASH_MAX_FC_BANKS]; /* pages 2 - 9 */
 
-	/* pages 6 - 15 are reserved */
+	/* pages 10 - 15 are reserved */
 
 };
 

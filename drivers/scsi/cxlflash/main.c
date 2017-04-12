@@ -1419,7 +1419,7 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 	ssize_t vpd_size;
 	char vpd_data[CXLFLASH_VPD_LEN];
 	char tmp_buf[WWPN_BUF_LEN] = { 0 };
-	char *wwpn_vpd_tags[MAX_FC_PORTS] = { "V5", "V6" };
+	char *wwpn_vpd_tags[MAX_FC_PORTS] = { "V5", "V6", "V7", "V8" };
 
 	/* Get the VPD data from the device */
 	vpd_size = cxl_read_adapter_vpd(pdev, vpd_data, sizeof(vpd_data));
@@ -2175,6 +2175,40 @@ static ssize_t port1_show(struct device *dev,
 }
 
 /**
+ * port2_show() - queries and presents the current status of port 2
+ * @dev:	Generic device associated with the host owning the port.
+ * @attr:	Device attribute representing the port.
+ * @buf:	Buffer of length PAGE_SIZE to report back port status in ASCII.
+ *
+ * Return: The size of the ASCII string returned in @buf.
+ */
+static ssize_t port2_show(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	struct cxlflash_cfg *cfg = shost_priv(class_to_shost(dev));
+
+	return cxlflash_show_port_status(2, cfg, buf);
+}
+
+/**
+ * port3_show() - queries and presents the current status of port 3
+ * @dev:	Generic device associated with the host owning the port.
+ * @attr:	Device attribute representing the port.
+ * @buf:	Buffer of length PAGE_SIZE to report back port status in ASCII.
+ *
+ * Return: The size of the ASCII string returned in @buf.
+ */
+static ssize_t port3_show(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	struct cxlflash_cfg *cfg = shost_priv(class_to_shost(dev));
+
+	return cxlflash_show_port_status(3, cfg, buf);
+}
+
+/**
  * lun_mode_show() - presents the current LUN mode of the host
  * @dev:	Generic device associated with the host.
  * @attr:	Device attribute representing the LUN mode.
@@ -2327,6 +2361,40 @@ static ssize_t port1_lun_table_show(struct device *dev,
 }
 
 /**
+ * port2_lun_table_show() - presents the current LUN table of port 2
+ * @dev:	Generic device associated with the host owning the port.
+ * @attr:	Device attribute representing the port.
+ * @buf:	Buffer of length PAGE_SIZE to report back port status in ASCII.
+ *
+ * Return: The size of the ASCII string returned in @buf.
+ */
+static ssize_t port2_lun_table_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct cxlflash_cfg *cfg = shost_priv(class_to_shost(dev));
+
+	return cxlflash_show_port_lun_table(2, cfg, buf);
+}
+
+/**
+ * port3_lun_table_show() - presents the current LUN table of port 3
+ * @dev:	Generic device associated with the host owning the port.
+ * @attr:	Device attribute representing the port.
+ * @buf:	Buffer of length PAGE_SIZE to report back port status in ASCII.
+ *
+ * Return: The size of the ASCII string returned in @buf.
+ */
+static ssize_t port3_lun_table_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct cxlflash_cfg *cfg = shost_priv(class_to_shost(dev));
+
+	return cxlflash_show_port_lun_table(3, cfg, buf);
+}
+
+/**
  * irqpoll_weight_show() - presents the current IRQ poll weight for the host
  * @dev:	Generic device associated with the host.
  * @attr:	Device attribute representing the IRQ poll weight.
@@ -2417,19 +2485,27 @@ static ssize_t mode_show(struct device *dev,
  */
 static DEVICE_ATTR_RO(port0);
 static DEVICE_ATTR_RO(port1);
+static DEVICE_ATTR_RO(port2);
+static DEVICE_ATTR_RO(port3);
 static DEVICE_ATTR_RW(lun_mode);
 static DEVICE_ATTR_RO(ioctl_version);
 static DEVICE_ATTR_RO(port0_lun_table);
 static DEVICE_ATTR_RO(port1_lun_table);
+static DEVICE_ATTR_RO(port2_lun_table);
+static DEVICE_ATTR_RO(port3_lun_table);
 static DEVICE_ATTR_RW(irqpoll_weight);
 
 static struct device_attribute *cxlflash_host_attrs[] = {
 	&dev_attr_port0,
 	&dev_attr_port1,
+	&dev_attr_port2,
+	&dev_attr_port3,
 	&dev_attr_lun_mode,
 	&dev_attr_ioctl_version,
 	&dev_attr_port0_lun_table,
 	&dev_attr_port1_lun_table,
+	&dev_attr_port2_lun_table,
+	&dev_attr_port3_lun_table,
 	&dev_attr_irqpoll_weight,
 	NULL
 };
