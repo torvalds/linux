@@ -769,11 +769,6 @@
 		status = "disabled";
 	};
 
-	qos_sd: qos@ffa74000 {
-		compatible = "syscon";
-		reg = <0x0 0xffa74000 0x0 0x20>;
-	};
-
 	qos_emmc: qos@ffa58000 {
 		compatible = "syscon";
 		reg = <0x0 0xffa58000 0x0 0x20>;
@@ -782,6 +777,41 @@
 	qos_gmac: qos@ffa5c000 {
 		compatible = "syscon";
 		reg = <0x0 0xffa5c000 0x0 0x20>;
+	};
+
+	qos_pcie: qos@ffa60080 {
+		compatible = "syscon";
+		reg = <0x0 0xffa60080 0x0 0x20>;
+	};
+
+	qos_usb_host0: qos@ffa60100 {
+		compatible = "syscon";
+		reg = <0x0 0xffa60100 0x0 0x20>;
+	};
+
+	qos_usb_host1: qos@ffa60180 {
+		compatible = "syscon";
+		reg = <0x0 0xffa60180 0x0 0x20>;
+	};
+
+	qos_usb_otg0: qos@ffa70000 {
+		compatible = "syscon";
+		reg = <0x0 0xffa70000 0x0 0x20>;
+	};
+
+	qos_usb_otg1: qos@ffa70080 {
+		compatible = "syscon";
+		reg = <0x0 0xffa70080 0x0 0x20>;
+	};
+
+	qos_sd: qos@ffa74000 {
+		compatible = "syscon";
+		reg = <0x0 0xffa74000 0x0 0x20>;
+	};
+
+	qos_sdioaudio: qos@ffa76000 {
+		compatible = "syscon";
+		reg = <0x0 0xffa76000 0x0 0x20>;
 	};
 
 	qos_hdcp: qos@ffa90000 {
@@ -852,6 +882,11 @@
 	qos_vop_little: qos@ffad0000 {
 		compatible = "syscon";
 		reg = <0x0 0xffad0000 0x0 0x20>;
+	};
+
+	qos_perihp: qos@ffad8080 {
+		compatible = "syscon";
+		reg = <0x0 0xffad8080 0x0 0x20>;
 	};
 
 	qos_gpu: qos@ffae0000 {
