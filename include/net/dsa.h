@@ -302,7 +302,7 @@ struct dsa_notifier_bridge_info {
 
 struct dsa_switch_ops {
 	/*
-	 * Probing and setup.
+	 * Legacy probing.
 	 */
 	const char	*(*probe)(struct device *dsa_dev,
 				  struct device *host_dev, int sw_addr,
@@ -472,9 +472,11 @@ struct dsa_switch_driver {
 	const struct dsa_switch_ops *ops;
 };
 
+/* Legacy driver registration */
 void register_switch_driver(struct dsa_switch_driver *type);
 void unregister_switch_driver(struct dsa_switch_driver *type);
 struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev);
+
 struct net_device *dsa_dev_to_net_device(struct device *dev);
 
 static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
