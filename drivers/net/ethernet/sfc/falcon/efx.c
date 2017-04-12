@@ -1354,6 +1354,13 @@ static unsigned int ef4_wanted_parallelism(struct ef4_nic *efx)
 		free_cpumask_var(thread_mask);
 	}
 
+	if (count > EF4_MAX_RX_QUEUES) {
+		netif_cond_dbg(efx, probe, efx->net_dev, !rss_cpus, warn,
+			       "Reducing number of rx queues from %u to %u.\n",
+			       count, EF4_MAX_RX_QUEUES);
+		count = EF4_MAX_RX_QUEUES;
+	}
+
 	return count;
 }
 
