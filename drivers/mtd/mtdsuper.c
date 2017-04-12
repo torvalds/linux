@@ -53,7 +53,6 @@ static int get_sb_mtd_set(struct super_block *sb, void *_mtd)
 	sb->s_mtd = mtd;
 	sb->s_dev = MKDEV(MTD_BLOCK_MAJOR, mtd->index);
 	sb->s_bdi = bdi_get(mtd_bdi);
-	sb->s_iflags |= SB_I_DYNBDI;
 
 	return 0;
 }

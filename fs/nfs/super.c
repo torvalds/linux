@@ -2379,7 +2379,6 @@ int nfs_clone_super(struct super_block *sb, struct nfs_mount_info *mount_info)
  	nfs_initialise_sb(sb);
 
 	sb->s_bdi = bdi_get(old_sb->s_bdi);
-	sb->s_iflags |= SB_I_DYNBDI;
 
 	return 0;
 }

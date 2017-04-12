@@ -1224,7 +1224,6 @@ static int set_gfs2_super(struct super_block *s, void *data)
 	s->s_bdev = data;
 	s->s_dev = s->s_bdev->bd_dev;
 	s->s_bdi = bdi_get(s->s_bdev->bd_bdi);
-	s->s_iflags |= SB_I_DYNBDI;
 	return 0;
 }
 

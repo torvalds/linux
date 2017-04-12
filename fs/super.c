@@ -446,10 +446,9 @@ void generic_shutdown_super(struct super_block *sb)
 	hlist_del_init(&sb->s_instances);
 	spin_unlock(&sb_lock);
 	up_write(&sb->s_umount);
-	if (sb->s_iflags & SB_I_DYNBDI) {
+	if (sb->s_bdi != &noop_backing_dev_info) {
 		bdi_put(sb->s_bdi);
 		sb->s_bdi = &noop_backing_dev_info;
-		sb->s_iflags &= ~SB_I_DYNBDI;
 	}
 }
 
@@ -1055,7 +1054,6 @@ static int set_bdev_super(struct super_block *s, void *data)
 	s->s_bdev = data;
 	s->s_dev = s->s_bdev->bd_dev;
 	s->s_bdi = bdi_get(s->s_bdev->bd_bdi);
-	s->s_iflags |= SB_I_DYNBDI;
 
 	return 0;
 }
@@ -1282,7 +1280,6 @@ int super_setup_bdi_name(struct super_block *sb, char *fmt, ...)
 	}
 	WARN_ON(sb->s_bdi != &noop_backing_dev_info);
 	sb->s_bdi = bdi;
-	sb->s_iflags |= SB_I_DYNBDI;
 
 	return 0;
 }
