@@ -515,6 +515,40 @@ static int vega10_smu_init(struct pp_smumgr *smumgr)
 		}
 	}
 
+	/* allocate space for AVFS Fuse table */
+	smu_allocate_memory(smumgr->device,
+			sizeof(AvfsFuseOverride_t),
+			CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
+			PAGE_SIZE,
+			&mc_addr,
+			&kaddr,
+			&handle);
+
+	PP_ASSERT_WITH_CODE(kaddr,
+			"[vega10_smu_init] Out of memory for avfs fuse table.",
+			kfree(smumgr->backend);
+			cgs_free_gpu_mem(smumgr->device,
+			(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
+			cgs_free_gpu_mem(smumgr->device,
+			(cgs_handle_t)priv->smu_tables.entry[WMTABLE].handle);
+			cgs_free_gpu_mem(smumgr->device,
+			(cgs_handle_t)priv->smu_tables.entry[AVFSTABLE].handle);
+			cgs_free_gpu_mem(smumgr->device,
+			(cgs_handle_t)priv->smu_tables.entry[TOOLSTABLE].handle);
+			cgs_free_gpu_mem(smumgr->device,
+			(cgs_handle_t)handle);
+			return -1);
+
+	priv->smu_tables.entry[AVFSFUSETABLE].version = 0x01;
+	priv->smu_tables.entry[AVFSFUSETABLE].size = sizeof(AvfsFuseOverride_t);
+	priv->smu_tables.entry[AVFSFUSETABLE].table_id = TABLE_AVFS_FUSE_OVERRIDE;
+	priv->smu_tables.entry[AVFSFUSETABLE].table_addr_high =
+			smu_upper_32_bits(mc_addr);
+	priv->smu_tables.entry[AVFSFUSETABLE].table_addr_low =
+			smu_lower_32_bits(mc_addr);
+	priv->smu_tables.entry[AVFSFUSETABLE].table = kaddr;
+	priv->smu_tables.entry[AVFSFUSETABLE].handle = handle;
+
 	return 0;
 }
 
@@ -533,6 +567,8 @@ static int vega10_smu_fini(struct pp_smumgr *smumgr)
 		if (priv->smu_tables.entry[TOOLSTABLE].table)
 			cgs_free_gpu_mem(smumgr->device,
 					(cgs_handle_t)priv->smu_tables.entry[TOOLSTABLE].handle);
+		cgs_free_gpu_mem(smumgr->device,
+				(cgs_handle_t)priv->smu_tables.entry[AVFSFUSETABLE].handle);
 		kfree(smumgr->backend);
 		smumgr->backend = NULL;
 	}

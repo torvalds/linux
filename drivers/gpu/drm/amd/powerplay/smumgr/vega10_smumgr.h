@@ -30,6 +30,7 @@ enum smu_table_id {
 	WMTABLE,
 	AVFSTABLE,
 	TOOLSTABLE,
+	AVFSFUSETABLE,
 	MAX_SMU_TABLE,
 };
 
