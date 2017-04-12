@@ -765,7 +765,7 @@ unsigned long eoi_rc;
 
 static void icp_eoi(struct irq_chip *c, u32 hwirq, __be32 xirr, bool *again)
 {
-	unsigned long xics_phys;
+	void __iomem *xics_phys;
 	int64_t rc;
 
 	rc = pnv_opal_pci_msi_eoi(c, hwirq);
@@ -778,7 +778,7 @@ static void icp_eoi(struct irq_chip *c, u32 hwirq, __be32 xirr, bool *again)
 	/* EOI it */
 	xics_phys = local_paca->kvm_hstate.xics_phys;
 	if (xics_phys) {
-		_stwcix(xics_phys + XICS_XIRR, xirr);
+		__raw_rm_writel(xirr, xics_phys + XICS_XIRR);
 	} else {
 		rc = opal_int_eoi(be32_to_cpu(xirr));
 		*again = rc > 0;

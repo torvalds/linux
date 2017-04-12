@@ -439,7 +439,14 @@ int generic_cpu_disable(void)
 #ifdef CONFIG_PPC64
 	vdso_data->processorCount--;
 #endif
-	migrate_irqs();
+	/* Update affinity of all IRQs previously aimed at this CPU */
+	irq_migrate_all_off_this_cpu();
+
+	/* Give the CPU time to drain in-flight ones */
+	local_irq_enable();
+	mdelay(1);
+	local_irq_disable();
+
 	return 0;
 }
 
@@ -520,6 +527,16 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 		return -EINVAL;
 
 	cpu_idle_thread_init(cpu, tidle);
+
+	/*
+	 * The platform might need to allocate resources prior to bringing
+	 * up the CPU
+	 */
+	if (smp_ops->prepare_cpu) {
+		rc = smp_ops->prepare_cpu(cpu);
+		if (rc)
+			return rc;
+	}
 
 	/* Make sure callin-map entry is 0 (can be leftover a CPU
 	 * hotplug

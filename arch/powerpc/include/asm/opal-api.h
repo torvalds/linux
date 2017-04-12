@@ -40,6 +40,8 @@
 #define OPAL_I2C_ARBT_LOST	-22
 #define OPAL_I2C_NACK_RCVD	-23
 #define OPAL_I2C_STOP_ERR	-24
+#define OPAL_XIVE_PROVISIONING	-31
+#define OPAL_XIVE_FREE_ACTIVE	-32
 
 /* API Tokens (in r0) */
 #define OPAL_INVALID_CALL		       -1
@@ -168,6 +170,23 @@
 #define OPAL_INT_SET_MFRR			125
 #define OPAL_PCI_TCE_KILL			126
 #define OPAL_NMMU_SET_PTCR			127
+#define OPAL_XIVE_RESET				128
+#define OPAL_XIVE_GET_IRQ_INFO			129
+#define OPAL_XIVE_GET_IRQ_CONFIG		130
+#define OPAL_XIVE_SET_IRQ_CONFIG		131
+#define OPAL_XIVE_GET_QUEUE_INFO		132
+#define OPAL_XIVE_SET_QUEUE_INFO		133
+#define OPAL_XIVE_DONATE_PAGE			134
+#define OPAL_XIVE_ALLOCATE_VP_BLOCK		135
+#define OPAL_XIVE_FREE_VP_BLOCK			136
+#define OPAL_XIVE_GET_VP_INFO			137
+#define OPAL_XIVE_SET_VP_INFO			138
+#define OPAL_XIVE_ALLOCATE_IRQ			139
+#define OPAL_XIVE_FREE_IRQ			140
+#define OPAL_XIVE_SYNC				141
+#define OPAL_XIVE_DUMP				142
+#define OPAL_XIVE_RESERVED3			143
+#define OPAL_XIVE_RESERVED4			144
 #define OPAL_NPU_INIT_CONTEXT			146
 #define OPAL_NPU_DESTROY_CONTEXT		147
 #define OPAL_NPU_MAP_LPAR			148
@@ -929,6 +948,59 @@ enum {
 	OPAL_PCI_TCE_KILL_PAGES,
 	OPAL_PCI_TCE_KILL_PE,
 	OPAL_PCI_TCE_KILL_ALL,
+};
+
+/* The xive operation mode indicates the active "API" and
+ * corresponds to the "mode" parameter of the opal_xive_reset()
+ * call
+ */
+enum {
+	OPAL_XIVE_MODE_EMU	= 0,
+	OPAL_XIVE_MODE_EXPL	= 1,
+};
+
+/* Flags for OPAL_XIVE_GET_IRQ_INFO */
+enum {
+	OPAL_XIVE_IRQ_TRIGGER_PAGE	= 0x00000001,
+	OPAL_XIVE_IRQ_STORE_EOI		= 0x00000002,
+	OPAL_XIVE_IRQ_LSI		= 0x00000004,
+	OPAL_XIVE_IRQ_SHIFT_BUG		= 0x00000008,
+	OPAL_XIVE_IRQ_MASK_VIA_FW	= 0x00000010,
+	OPAL_XIVE_IRQ_EOI_VIA_FW	= 0x00000020,
+};
+
+/* Flags for OPAL_XIVE_GET/SET_QUEUE_INFO */
+enum {
+	OPAL_XIVE_EQ_ENABLED		= 0x00000001,
+	OPAL_XIVE_EQ_ALWAYS_NOTIFY	= 0x00000002,
+	OPAL_XIVE_EQ_ESCALATE		= 0x00000004,
+};
+
+/* Flags for OPAL_XIVE_GET/SET_VP_INFO */
+enum {
+	OPAL_XIVE_VP_ENABLED		= 0x00000001,
+};
+
+/* "Any chip" replacement for chip ID for allocation functions */
+enum {
+	OPAL_XIVE_ANY_CHIP		= 0xffffffff,
+};
+
+/* Xive sync options */
+enum {
+	/* This bits are cumulative, arg is a girq */
+	XIVE_SYNC_EAS			= 0x00000001, /* Sync irq source */
+	XIVE_SYNC_QUEUE			= 0x00000002, /* Sync irq target */
+};
+
+/* Dump options */
+enum {
+	XIVE_DUMP_TM_HYP	= 0,
+	XIVE_DUMP_TM_POOL	= 1,
+	XIVE_DUMP_TM_OS		= 2,
+	XIVE_DUMP_TM_USER	= 3,
+	XIVE_DUMP_VP		= 4,
+	XIVE_DUMP_EMU_STATE	= 5,
 };
 
 #endif /* __ASSEMBLY__ */
