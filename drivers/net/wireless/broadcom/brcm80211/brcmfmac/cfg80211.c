@@ -575,12 +575,11 @@ static int brcmf_cfg80211_request_ap_if(struct brcmf_if *ifp)
  *
  * @wiphy: wiphy device of new interface.
  * @name: name of the new interface.
- * @flags: not used.
  * @params: contains mac address for AP device.
  */
 static
 struct wireless_dev *brcmf_ap_add_vif(struct wiphy *wiphy, const char *name,
-				      u32 *flags, struct vif_params *params)
+				      struct vif_params *params)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
@@ -653,7 +652,6 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 						     const char *name,
 						     unsigned char name_assign_type,
 						     enum nl80211_iftype type,
-						     u32 *flags,
 						     struct vif_params *params)
 {
 	struct wireless_dev *wdev;
@@ -674,12 +672,12 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 	case NL80211_IFTYPE_MESH_POINT:
 		return ERR_PTR(-EOPNOTSUPP);
 	case NL80211_IFTYPE_AP:
-		wdev = brcmf_ap_add_vif(wiphy, name, flags, params);
+		wdev = brcmf_ap_add_vif(wiphy, name, params);
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
 	case NL80211_IFTYPE_P2P_DEVICE:
-		wdev = brcmf_p2p_add_vif(wiphy, name, name_assign_type, type, flags, params);
+		wdev = brcmf_p2p_add_vif(wiphy, name, name_assign_type, type, params);
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	default:
@@ -858,7 +856,7 @@ int brcmf_cfg80211_del_iface(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 static s32
 brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
-			 enum nl80211_iftype type, u32 *flags,
+			 enum nl80211_iftype type,
 			 struct vif_params *params)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_priv(wiphy);
@@ -6549,7 +6547,7 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 	if (err)
 		goto default_conf_out;
 	err = brcmf_cfg80211_change_iface(wdev->wiphy, ndev, wdev->iftype,
-					  NULL, NULL);
+					  NULL);
 	if (err)
 		goto default_conf_out;
 

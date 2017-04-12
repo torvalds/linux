@@ -1837,7 +1837,7 @@ static int set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
-			       enum nl80211_iftype type, u32 *flags, struct vif_params *params)
+			       enum nl80211_iftype type, struct vif_params *params)
 {
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
@@ -2099,7 +2099,6 @@ static struct wireless_dev *add_virtual_intf(struct wiphy *wiphy,
 					     const char *name,
 					     unsigned char name_assign_type,
 					     enum nl80211_iftype type,
-					     u32 *flags,
 					     struct vif_params *params)
 {
 	struct wilc_vif *vif;

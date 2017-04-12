@@ -363,6 +363,8 @@ static inline void wiphy_read_of_freq_limits(struct wiphy *wiphy)
 
 /**
  * struct vif_params - describes virtual interface parameters
+ * @flags: monitor interface flags, unchanged if 0, otherwise
+ *	%MONITOR_FLAG_CHANGED will be set
  * @use_4addr: use 4-address frames
  * @macaddr: address to use for this virtual interface.
  *	If this parameter is set to zero address the driver may
@@ -376,6 +378,7 @@ static inline void wiphy_read_of_freq_limits(struct wiphy *wiphy)
  *	MU-MIMO packets going to the specified station; %NULL if not changed
  */
 struct vif_params {
+	u32 flags;
 	int use_4addr;
 	u8 macaddr[ETH_ALEN];
 	const u8 *vht_mumimo_groups;
@@ -1214,6 +1217,7 @@ static inline int cfg80211_get_station(struct net_device *dev,
  * Monitor interface configuration flags. Note that these must be the bits
  * according to the nl80211 flags.
  *
+ * @MONITOR_FLAG_CHANGED: set if the flags were changed
  * @MONITOR_FLAG_FCSFAIL: pass frames with bad FCS
  * @MONITOR_FLAG_PLCPFAIL: pass frames with bad PLCP
  * @MONITOR_FLAG_CONTROL: pass control frames
@@ -1222,6 +1226,7 @@ static inline int cfg80211_get_station(struct net_device *dev,
  * @MONITOR_FLAG_ACTIVE: active monitor, ACKs frames on its MAC address
  */
 enum monitor_flags {
+	MONITOR_FLAG_CHANGED		= 1<<__NL80211_MNTR_FLAG_INVALID,
 	MONITOR_FLAG_FCSFAIL		= 1<<NL80211_MNTR_FLAG_FCSFAIL,
 	MONITOR_FLAG_PLCPFAIL		= 1<<NL80211_MNTR_FLAG_PLCPFAIL,
 	MONITOR_FLAG_CONTROL		= 1<<NL80211_MNTR_FLAG_CONTROL,
@@ -2869,13 +2874,12 @@ struct cfg80211_ops {
 						  const char *name,
 						  unsigned char name_assign_type,
 						  enum nl80211_iftype type,
-						  u32 *flags,
 						  struct vif_params *params);
 	int	(*del_virtual_intf)(struct wiphy *wiphy,
 				    struct wireless_dev *wdev);
 	int	(*change_virtual_intf)(struct wiphy *wiphy,
 				       struct net_device *dev,
-				       enum nl80211_iftype type, u32 *flags,
+				       enum nl80211_iftype type,
 				       struct vif_params *params);
 
 	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,

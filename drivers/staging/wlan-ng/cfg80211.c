@@ -100,7 +100,7 @@ static int prism2_domibset_pstr32(struct wlandevice *wlandev,
 /* The interface functions, called by the cfg80211 layer */
 static int prism2_change_virtual_intf(struct wiphy *wiphy,
 				      struct net_device *dev,
-				      enum nl80211_iftype type, u32 *flags,
+				      enum nl80211_iftype type,
 				      struct vif_params *params)
 {
 	struct wlandevice *wlandev = dev->ml_priv;
