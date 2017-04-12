@@ -1473,15 +1473,15 @@ static int ftgmac100_probe(struct platform_device *pdev)
 			goto err_setup_mdio;
 	}
 
-	/* We have to disable on-chip IP checksum functionality
-	 * when NCSI is enabled on the interface. It doesn't work
-	 * in that case.
-	 */
+	/* Base feature set */
 	netdev->features = NETIF_F_RXCSUM | NETIF_F_HW_CSUM |
 		NETIF_F_GRO | NETIF_F_SG;
-	if (priv->use_ncsi &&
-	    of_get_property(np, "no-hw-checksum", NULL))
+
+	/* AST2400  doesn't have working HW checksum generation */
+	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac")))
 		netdev->features &= ~NETIF_F_HW_CSUM;
+	if (np && of_get_property(np, "no-hw-checksum", NULL))
+		netdev->features &= ~(NETIF_F_HW_CSUM | NETIF_F_RXCSUM);
 
 	/* register network device */
 	err = register_netdev(netdev);
