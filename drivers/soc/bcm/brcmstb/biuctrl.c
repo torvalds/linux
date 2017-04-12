@@ -240,7 +240,7 @@ static struct syscore_ops brcmstb_cpu_credit_syscore_ops = {
 #endif
 
 
-void __init brcmstb_biuctrl_init(void)
+static int __init brcmstb_biuctrl_init(void)
 {
 	int ret;
 
@@ -249,11 +249,13 @@ void __init brcmstb_biuctrl_init(void)
 	ret = mcp_write_pairing_set();
 	if (ret) {
 		pr_err("MCP: Unable to disable write pairing!\n");
-		return;
+		return ret;
 	}
 
 	mcp_b53_set();
 #ifdef CONFIG_PM_SLEEP
 	register_syscore_ops(&brcmstb_cpu_credit_syscore_ops);
 #endif
+	return 0;
 }
+early_initcall(brcmstb_biuctrl_init);
