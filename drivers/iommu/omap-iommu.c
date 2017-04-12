@@ -928,28 +928,26 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	int irq;
 	struct omap_iommu *obj;
 	struct resource *res;
-	struct iommu_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *of = pdev->dev.of_node;
+
+	if (!of) {
+		pr_err("%s: only DT-based devices are supported\n", __func__);
+		return -ENODEV;
+	}
 
 	obj = devm_kzalloc(&pdev->dev, sizeof(*obj) + MMU_REG_SIZE, GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
 
-	if (of) {
-		obj->name = dev_name(&pdev->dev);
-		obj->nr_tlb_entries = 32;
-		err = of_property_read_u32(of, "ti,#tlb-entries",
-					   &obj->nr_tlb_entries);
-		if (err && err != -EINVAL)
-			return err;
-		if (obj->nr_tlb_entries != 32 && obj->nr_tlb_entries != 8)
-			return -EINVAL;
-		if (of_find_property(of, "ti,iommu-bus-err-back", NULL))
-			obj->has_bus_err_back = MMU_GP_REG_BUS_ERR_BACK_EN;
-	} else {
-		obj->nr_tlb_entries = pdata->nr_tlb_entries;
-		obj->name = pdata->name;
-	}
+	obj->name = dev_name(&pdev->dev);
+	obj->nr_tlb_entries = 32;
+	err = of_property_read_u32(of, "ti,#tlb-entries", &obj->nr_tlb_entries);
+	if (err && err != -EINVAL)
+		return err;
+	if (obj->nr_tlb_entries != 32 && obj->nr_tlb_entries != 8)
+		return -EINVAL;
+	if (of_find_property(of, "ti,iommu-bus-err-back", NULL))
+		obj->has_bus_err_back = MMU_GP_REG_BUS_ERR_BACK_EN;
 
 	obj->dev = &pdev->dev;
 	obj->ctx = (void *)obj + sizeof(*obj);
