@@ -8,7 +8,9 @@
 
 #include "drmP.h"
 #include "drm_gem_cma_helper.h"
+#include "drm_gem_cma_helper.h"
 
+#include <linux/reservation.h>
 #include <drm/drm_encoder.h>
 
 struct vc4_dev {
@@ -55,6 +57,8 @@ struct vc4_dev {
 
 	/* Protects bo_cache and the BO stats. */
 	struct mutex bo_lock;
+
+	uint64_t dma_fence_context;
 
 	/* Sequence number for the last job queued in bin_job_list.
 	 * Starts at 0 (no jobs emitted).
@@ -150,12 +154,29 @@ struct vc4_bo {
 	 * DRM_IOCTL_VC4_CREATE_SHADER_BO.
 	 */
 	struct vc4_validated_shader_info *validated_shader;
+
+	/* normally (resv == &_resv) except for imported bo's */
+	struct reservation_object *resv;
+	struct reservation_object _resv;
 };
 
 static inline struct vc4_bo *
 to_vc4_bo(struct drm_gem_object *bo)
 {
 	return (struct vc4_bo *)bo;
+}
+
+struct vc4_fence {
+	struct dma_fence base;
+	struct drm_device *dev;
+	/* vc4 seqno for signaled() test */
+	uint64_t seqno;
+};
+
+static inline struct vc4_fence *
+to_vc4_fence(struct dma_fence *fence)
+{
+	return (struct vc4_fence *)fence;
 }
 
 struct vc4_seqno_cb {
@@ -229,6 +250,8 @@ struct vc4_exec_info {
 
 	/* Latest write_seqno of any BO that binning depends on. */
 	uint64_t bin_dep_seqno;
+
+	struct dma_fence *fence;
 
 	/* Last current addresses the hardware was processing when the
 	 * hangcheck timer checked on us.
@@ -436,7 +459,11 @@ int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
+struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
+struct drm_gem_object *vc4_prime_import_sg_table(struct drm_device *dev,
+						 struct dma_buf_attachment *attach,
+						 struct sg_table *sgt);
 void *vc4_prime_vmap(struct drm_gem_object *obj);
 void vc4_bo_cache_init(struct drm_device *dev);
 void vc4_bo_cache_destroy(struct drm_device *dev);
@@ -467,6 +494,9 @@ int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused);
 /* vc4_dsi.c */
 extern struct platform_driver vc4_dsi_driver;
 int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused);
+
+/* vc4_fence.c */
+extern const struct dma_fence_ops vc4_fence_ops;
 
 /* vc4_gem.c */
 void vc4_gem_init(struct drm_device *dev);
