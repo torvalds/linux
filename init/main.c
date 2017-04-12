@@ -27,7 +27,7 @@
 #include <linux/initrd.h>
 #include <linux/bootmem.h>
 #include <linux/acpi.h>
-#include <linux/tty.h>
+#include <linux/console.h>
 #include <linux/nmi.h>
 #include <linux/percpu.h>
 #include <linux/kmod.h>

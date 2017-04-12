@@ -390,7 +390,6 @@ static inline bool tty_throttled(struct tty_struct *tty)
 }
 
 #ifdef CONFIG_TTY
-extern void console_init(void);
 extern void tty_kref_put(struct tty_struct *tty);
 extern struct pid *tty_get_pgrp(struct tty_struct *tty);
 extern void tty_vhangup_self(void);
@@ -402,8 +401,6 @@ extern struct tty_struct *get_current_tty(void);
 extern int __init tty_init(void);
 extern const char *tty_name(const struct tty_struct *tty);
 #else
-static inline void console_init(void)
-{ }
 static inline void tty_kref_put(struct tty_struct *tty)
 { }
 static inline struct pid *tty_get_pgrp(struct tty_struct *tty)
@@ -669,7 +666,11 @@ extern int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
 
 /* n_tty.c */
 extern void n_tty_inherit_ops(struct tty_ldisc_ops *ops);
+#ifdef CONFIG_TTY
 extern void __init n_tty_init(void);
+#else
+static inline void n_tty_init(void) { }
+#endif
 
 /* tty_audit.c */
 #ifdef CONFIG_AUDIT

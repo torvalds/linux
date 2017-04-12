@@ -3584,30 +3584,6 @@ void tty_default_fops(struct file_operations *fops)
 	*fops = tty_fops;
 }
 
-/*
- * Initialize the console device. This is called *early*, so
- * we can't necessarily depend on lots of kernel help here.
- * Just do some early initializations, and do the complex setup
- * later.
- */
-void __init console_init(void)
-{
-	initcall_t *call;
-
-	/* Setup the default TTY line discipline. */
-	n_tty_init();
-
-	/*
-	 * set up the console device so that later boot sequences can
-	 * inform about problems etc..
-	 */
-	call = __con_initcall_start;
-	while (call < __con_initcall_end) {
-		(*call)();
-		call++;
-	}
-}
-
 static char *tty_devnode(struct device *dev, umode_t *mode)
 {
 	if (!mode)
