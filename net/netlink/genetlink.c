@@ -574,7 +574,7 @@ static int genl_family_rcv_msg(const struct genl_family *family,
 
 	if (attrbuf) {
 		err = nlmsg_parse(nlh, hdrlen, attrbuf, family->maxattr,
-				  ops->policy, NULL);
+				  ops->policy, extack);
 		if (err < 0)
 			goto out;
 	}

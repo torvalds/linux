@@ -1564,7 +1564,7 @@ static int nl802154_add_llsec_key(struct sk_buff *skb, struct genl_info *info)
 
 	if (nla_parse_nested(attrs, NL802154_KEY_ATTR_MAX,
 			     info->attrs[NL802154_ATTR_SEC_KEY],
-			     nl802154_key_policy, NULL))
+			     nl802154_key_policy, info->extack))
 		return -EINVAL;
 
 	if (!attrs[NL802154_KEY_ATTR_USAGE_FRAMES] ||
@@ -1614,7 +1614,7 @@ static int nl802154_del_llsec_key(struct sk_buff *skb, struct genl_info *info)
 
 	if (nla_parse_nested(attrs, NL802154_KEY_ATTR_MAX,
 			     info->attrs[NL802154_ATTR_SEC_KEY],
-			     nl802154_key_policy, NULL))
+			     nl802154_key_policy, info->extack))
 		return -EINVAL;
 
 	if (ieee802154_llsec_parse_key_id(attrs[NL802154_KEY_ATTR_ID], &id) < 0)
@@ -1782,7 +1782,7 @@ static int nl802154_del_llsec_dev(struct sk_buff *skb, struct genl_info *info)
 
 	if (nla_parse_nested(attrs, NL802154_DEV_ATTR_MAX,
 			     info->attrs[NL802154_ATTR_SEC_DEVICE],
-			     nl802154_dev_policy, NULL))
+			     nl802154_dev_policy, info->extack))
 		return -EINVAL;
 
 	if (!attrs[NL802154_DEV_ATTR_EXTENDED_ADDR])
@@ -1910,7 +1910,7 @@ static int nl802154_add_llsec_devkey(struct sk_buff *skb, struct genl_info *info
 	if (!info->attrs[NL802154_ATTR_SEC_DEVKEY] ||
 	    nla_parse_nested(attrs, NL802154_DEVKEY_ATTR_MAX,
 			     info->attrs[NL802154_ATTR_SEC_DEVKEY],
-			     nl802154_devkey_policy, NULL) < 0)
+			     nl802154_devkey_policy, info->extack) < 0)
 		return -EINVAL;
 
 	if (!attrs[NL802154_DEVKEY_ATTR_FRAME_COUNTER] ||
@@ -1942,7 +1942,7 @@ static int nl802154_del_llsec_devkey(struct sk_buff *skb, struct genl_info *info
 
 	if (nla_parse_nested(attrs, NL802154_DEVKEY_ATTR_MAX,
 			     info->attrs[NL802154_ATTR_SEC_DEVKEY],
-			     nl802154_devkey_policy, NULL))
+			     nl802154_devkey_policy, info->extack))
 		return -EINVAL;
 
 	if (!attrs[NL802154_DEVKEY_ATTR_EXTENDED_ADDR])

@@ -523,7 +523,7 @@ static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	err = nlmsg_parse(nlh, crypto_msg_min[type], attrs, CRYPTOCFGA_MAX,
-			  crypto_policy, NULL);
+			  crypto_policy, extack);
 	if (err < 0)
 		return err;
 

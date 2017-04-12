@@ -3532,7 +3532,7 @@ static int ip_vs_genl_set_daemon(struct sk_buff *skb, struct genl_info *info)
 		if (!info->attrs[IPVS_CMD_ATTR_DAEMON] ||
 		    nla_parse_nested(daemon_attrs, IPVS_DAEMON_ATTR_MAX,
 				     info->attrs[IPVS_CMD_ATTR_DAEMON],
-				     ip_vs_daemon_policy, NULL))
+				     ip_vs_daemon_policy, info->extack))
 			goto out;
 
 		if (cmd == IPVS_CMD_NEW_DAEMON)

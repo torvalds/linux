@@ -2489,7 +2489,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	err = nlmsg_parse(nlh, xfrm_msg_min[type], attrs,
 			  link->nla_max ? : XFRMA_MAX,
-			  link->nla_pol ? : xfrma_policy, NULL);
+			  link->nla_pol ? : xfrma_policy, extack);
 	if (err < 0)
 		return err;
 

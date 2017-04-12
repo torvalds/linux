@@ -1162,7 +1162,7 @@ static int nfc_genl_llc_sdreq(struct sk_buff *skb, struct genl_info *info)
 
 	nla_for_each_nested(attr, info->attrs[NFC_ATTR_LLC_SDP], rem) {
 		rc = nla_parse_nested(sdp_attrs, NFC_SDP_ATTR_MAX, attr,
-				      nfc_sdp_genl_policy, NULL);
+				      nfc_sdp_genl_policy, info->extack);
 
 		if (rc != 0) {
 			rc = -EINVAL;

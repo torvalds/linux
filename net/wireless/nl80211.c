@@ -810,7 +810,8 @@ static int nl80211_parse_key_old(struct genl_info *info, struct key_parse *k)
 		int err = nla_parse_nested(kdt,
 					   NUM_NL80211_KEY_DEFAULT_TYPES - 1,
 					   info->attrs[NL80211_ATTR_KEY_DEFAULT_TYPES],
-					   nl80211_key_default_policy, NULL);
+					   nl80211_key_default_policy,
+					   info->extack);
 		if (err)
 			return err;
 
@@ -2308,7 +2309,8 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 				    rem_txq_params) {
 			result = nla_parse_nested(tb, NL80211_TXQ_ATTR_MAX,
 						  nl_txq_params,
-						  txq_params_policy, NULL);
+						  txq_params_policy,
+						  info->extack);
 			if (result)
 				return result;
 			result = parse_txq_params(tb, &txq_params);
@@ -3561,7 +3563,7 @@ static int nl80211_parse_tx_bitrate_mask(struct genl_info *info,
 		if (sband == NULL)
 			return -EINVAL;
 		err = nla_parse_nested(tb, NL80211_TXRATE_MAX, tx_rates,
-				       nl80211_txattr_policy, NULL);
+				       nl80211_txattr_policy, info->extack);
 		if (err)
 			return err;
 		if (tb[NL80211_TXRATE_LEGACY]) {
@@ -4101,7 +4103,7 @@ static int parse_station_flags(struct genl_info *info,
 		return 0;
 
 	if (nla_parse_nested(flags, NL80211_STA_FLAG_MAX, nla,
-			     sta_flags_policy, NULL))
+			     sta_flags_policy, info->extack))
 		return -EINVAL;
 
 	/*
@@ -4728,7 +4730,7 @@ static int nl80211_parse_sta_wme(struct genl_info *info,
 
 	nla = info->attrs[NL80211_ATTR_STA_WME];
 	err = nla_parse_nested(tb, NL80211_STA_WME_MAX, nla,
-			       nl80211_sta_wme_policy, NULL);
+			       nl80211_sta_wme_policy, info->extack);
 	if (err)
 		return err;
 
@@ -5853,7 +5855,7 @@ do {									    \
 		return -EINVAL;
 	if (nla_parse_nested(tb, NL80211_MESHCONF_ATTR_MAX,
 			     info->attrs[NL80211_ATTR_MESH_CONFIG],
-			     nl80211_meshconf_params_policy, NULL))
+			     nl80211_meshconf_params_policy, info->extack))
 		return -EINVAL;
 
 	/* This makes sure that there aren't more than 32 mesh config
@@ -6002,7 +6004,7 @@ static int nl80211_parse_mesh_setup(struct genl_info *info,
 		return -EINVAL;
 	if (nla_parse_nested(tb, NL80211_MESH_SETUP_ATTR_MAX,
 			     info->attrs[NL80211_ATTR_MESH_SETUP],
-			     nl80211_mesh_setup_params_policy, NULL))
+			     nl80211_mesh_setup_params_policy, info->extack))
 		return -EINVAL;
 
 	if (tb[NL80211_MESH_SETUP_ENABLE_VENDOR_SYNC])
@@ -6393,7 +6395,8 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 	nla_for_each_nested(nl_reg_rule, info->attrs[NL80211_ATTR_REG_RULES],
 			    rem_reg_rules) {
 		r = nla_parse_nested(tb, NL80211_REG_RULE_ATTR_MAX,
-				     nl_reg_rule, reg_rule_policy, NULL);
+				     nl_reg_rule, reg_rule_policy,
+				     info->extack);
 		if (r)
 			goto bad_reg;
 		r = parse_reg_rule(tb, &rd->reg_rules[rule_idx]);
@@ -7435,7 +7438,7 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(csa_attrs, NL80211_ATTR_MAX,
 			       info->attrs[NL80211_ATTR_CSA_IES],
-			       nl80211_policy, NULL);
+			       nl80211_policy, info->extack);
 	if (err)
 		return err;
 
@@ -9533,7 +9536,7 @@ static int nl80211_set_cqm(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	err = nla_parse_nested(attrs, NL80211_ATTR_CQM_MAX, cqm,
-			       nl80211_attr_cqm_policy, NULL);
+			       nl80211_attr_cqm_policy, info->extack);
 	if (err)
 		return err;
 
@@ -10126,7 +10129,7 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(tb, MAX_NL80211_WOWLAN_TRIG,
 			       info->attrs[NL80211_ATTR_WOWLAN_TRIGGERS],
-			       nl80211_wowlan_policy, NULL);
+			       nl80211_wowlan_policy, info->extack);
 	if (err)
 		return err;
 
@@ -10209,7 +10212,7 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 			u8 *mask_pat;
 
 			nla_parse_nested(pat_tb, MAX_NL80211_PKTPAT, pat,
-					 NULL, NULL);
+					 NULL, info->extack);
 			err = -EINVAL;
 			if (!pat_tb[NL80211_PKTPAT_MASK] ||
 			    !pat_tb[NL80211_PKTPAT_PATTERN])
@@ -10579,7 +10582,7 @@ static int nl80211_set_rekey_data(struct sk_buff *skb, struct genl_info *info)
 
 	err = nla_parse_nested(tb, MAX_NL80211_REKEY_DATA,
 			       info->attrs[NL80211_ATTR_REKEY_DATA],
-			       nl80211_rekey_policy, NULL);
+			       nl80211_rekey_policy, info->extack);
 	if (err)
 		return err;
 
@@ -10896,7 +10899,7 @@ static int nl80211_nan_add_func(struct sk_buff *skb,
 
 	err = nla_parse_nested(tb, NL80211_NAN_FUNC_ATTR_MAX,
 			       info->attrs[NL80211_ATTR_NAN_FUNC],
-			       nl80211_nan_func_policy, NULL);
+			       nl80211_nan_func_policy, info->extack);
 	if (err)
 		return err;
 
@@ -10993,7 +10996,7 @@ static int nl80211_nan_add_func(struct sk_buff *skb,
 
 		err = nla_parse_nested(srf_tb, NL80211_NAN_SRF_ATTR_MAX,
 				       tb[NL80211_NAN_FUNC_SRF],
-				       nl80211_nan_srf_policy, NULL);
+				       nl80211_nan_srf_policy, info->extack);
 		if (err)
 			goto out;
 
