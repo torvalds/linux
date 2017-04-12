@@ -2876,25 +2876,6 @@ bool blk_end_request_cur(struct request *rq, int error)
 EXPORT_SYMBOL(blk_end_request_cur);
 
 /**
- * blk_end_request_err - Finish a request till the next failure boundary.
- * @rq: the request to finish till the next failure boundary for
- * @error: must be negative errno
- *
- * Description:
- *     Complete @rq till the next failure boundary.
- *
- * Return:
- *     %false - we are done with this request
- *     %true  - still buffers pending for this request
- */
-bool blk_end_request_err(struct request *rq, int error)
-{
-	WARN_ON(error >= 0);
-	return blk_end_request(rq, error, blk_rq_err_bytes(rq));
-}
-EXPORT_SYMBOL_GPL(blk_end_request_err);
-
-/**
  * __blk_end_request - Helper function for drivers to complete the request.
  * @rq:       the request being processed
  * @error:    %0 for success, < %0 for error
@@ -2952,26 +2933,6 @@ bool __blk_end_request_cur(struct request *rq, int error)
 	return __blk_end_request(rq, error, blk_rq_cur_bytes(rq));
 }
 EXPORT_SYMBOL(__blk_end_request_cur);
-
-/**
- * __blk_end_request_err - Finish a request till the next failure boundary.
- * @rq: the request to finish till the next failure boundary for
- * @error: must be negative errno
- *
- * Description:
- *     Complete @rq till the next failure boundary.  Must be called
- *     with queue lock held.
- *
- * Return:
- *     %false - we are done with this request
- *     %true  - still buffers pending for this request
- */
-bool __blk_end_request_err(struct request *rq, int error)
-{
-	WARN_ON(error >= 0);
-	return __blk_end_request(rq, error, blk_rq_err_bytes(rq));
-}
-EXPORT_SYMBOL_GPL(__blk_end_request_err);
 
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		     struct bio *bio)
