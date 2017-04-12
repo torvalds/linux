@@ -270,11 +270,16 @@ err_power_exit:
 static int acpi_processor_start(struct device *dev)
 {
 	struct acpi_device *device = ACPI_COMPANION(dev);
+	int ret;
 
 	if (!device)
 		return -ENODEV;
 
-	return __acpi_processor_start(device);
+	/* Protect against concurrent CPU hotplug operations */
+	get_online_cpus();
+	ret = __acpi_processor_start(device);
+	put_online_cpus();
+	return ret;
 }
 
 static int acpi_processor_stop(struct device *dev)
