@@ -491,7 +491,7 @@ static int vega10_smu_init(struct pp_smumgr *smumgr)
 	priv->smu_tables.entry[AVFSTABLE].table = kaddr;
 	priv->smu_tables.entry[AVFSTABLE].handle = handle;
 
-	tools_size = 0;
+	tools_size = 0x19000;
 	if (tools_size) {
 		smu_allocate_memory(smumgr->device,
 				tools_size,
@@ -511,6 +511,7 @@ static int vega10_smu_init(struct pp_smumgr *smumgr)
 					smu_lower_32_bits(mc_addr);
 			priv->smu_tables.entry[TOOLSTABLE].table = kaddr;
 			priv->smu_tables.entry[TOOLSTABLE].handle = handle;
+			vega10_set_tools_address(smumgr);
 		}
 	}
 

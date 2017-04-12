@@ -2583,8 +2583,6 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"Failed to configure telemetry!",
 			return tmp_result);
 
-	vega10_set_tools_address(hwmgr->smumgr);
-
 	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 			PPSMC_MSG_NumOfDisplays, 0);
 
