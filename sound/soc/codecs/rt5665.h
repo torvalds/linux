@@ -1106,7 +1106,7 @@
 #define RT5665_HP_DRIVER_MASK			(0x3 << 2)
 #define RT5665_HP_DRIVER_1X			(0x0 << 2)
 #define RT5665_HP_DRIVER_3X			(0x1 << 2)
-#define RT5665_HP_DRIVER_5X			(0x2 << 2)
+#define RT5665_HP_DRIVER_5X			(0x3 << 2)
 #define RT5665_LDO1_DVO_MASK			(0x3)
 #define RT5665_LDO1_DVO_09			(0x0)
 #define RT5665_LDO1_DVO_10			(0x1)
