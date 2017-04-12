@@ -384,6 +384,8 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 		 "    base_queue = %d, num_queue_pairs = %d, num_desc = %d\n",
 		 vsi->base_queue, vsi->num_queue_pairs, vsi->num_desc);
 	dev_info(&pf->pdev->dev, "    type = %i\n", vsi->type);
+	if (vsi->type == I40E_VSI_SRIOV)
+		dev_info(&pf->pdev->dev, "    VF ID = %i\n", vsi->vf_id);
 	dev_info(&pf->pdev->dev,
 		 "    info: valid_sections = 0x%04x, switch_id = 0x%04x\n",
 		 vsi->info.valid_sections, vsi->info.switch_id);
@@ -694,6 +696,47 @@ static void i40e_dbg_dump_veb_all(struct i40e_pf *pf)
 	}
 }
 
+/**
+ * i40e_dbg_dump_vf - dump VF info
+ * @pf: the i40e_pf created in command write
+ * @vf_id: the vf_id from the user
+ **/
+static void i40e_dbg_dump_vf(struct i40e_pf *pf, int vf_id)
+{
+	struct i40e_vf *vf;
+	struct i40e_vsi *vsi;
+
+	if (!pf->num_alloc_vfs) {
+		dev_info(&pf->pdev->dev, "no VFs allocated\n");
+	} else if ((vf_id >= 0) && (vf_id < pf->num_alloc_vfs)) {
+		vf = &pf->vf[vf_id];
+		vsi = pf->vsi[vf->lan_vsi_idx];
+		dev_info(&pf->pdev->dev, "vf %2d: VSI id=%d, seid=%d, qps=%d\n",
+			 vf_id, vf->lan_vsi_id, vsi->seid, vf->num_queue_pairs);
+		dev_info(&pf->pdev->dev, "       num MDD=%lld, invalid msg=%lld, valid msg=%lld\n",
+			 vf->num_mdd_events,
+			 vf->num_invalid_msgs,
+			 vf->num_valid_msgs);
+	} else {
+		dev_info(&pf->pdev->dev, "invalid VF id %d\n", vf_id);
+	}
+}
+
+/**
+ * i40e_dbg_dump_vf_all - dump VF info for all VFs
+ * @pf: the i40e_pf created in command write
+ **/
+static void i40e_dbg_dump_vf_all(struct i40e_pf *pf)
+{
+	int i;
+
+	if (!pf->num_alloc_vfs)
+		dev_info(&pf->pdev->dev, "no VFs enabled!\n");
+	else
+		for (i = 0; i < pf->num_alloc_vfs; i++)
+			i40e_dbg_dump_vf(pf, i);
+}
+
 #define I40E_MAX_DEBUG_OUT_BUFFER (4096*4)
 /**
  * i40e_dbg_command_write - write into command datum
@@ -712,6 +755,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	struct i40e_vsi *vsi;
 	int vsi_seid;
 	int veb_seid;
+	int vf_id;
 	int cnt;
 
 	/* don't allow partial writes */
@@ -914,6 +958,12 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				i40e_dbg_dump_veb_seid(pf, vsi_seid);
 			else
 				i40e_dbg_dump_veb_all(pf);
+		} else if (strncmp(&cmd_buf[5], "vf", 2) == 0) {
+			cnt = sscanf(&cmd_buf[7], "%i", &vf_id);
+			if (cnt > 0)
+				i40e_dbg_dump_vf(pf, vf_id);
+			else
+				i40e_dbg_dump_vf_all(pf);
 		} else if (strncmp(&cmd_buf[5], "desc", 4) == 0) {
 			int ring_id, desc_n;
 			if (strncmp(&cmd_buf[10], "rx", 2) == 0) {
@@ -1109,6 +1159,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			dev_info(&pf->pdev->dev, "dump vsi [seid]\n");
 			dev_info(&pf->pdev->dev, "dump reset stats\n");
 			dev_info(&pf->pdev->dev, "dump port\n");
+			dev_info(&pf->pdev->dev, "dump vf [vf_id]\n");
 			dev_info(&pf->pdev->dev,
 				 "dump debug fwdata <cluster_id> <table_id> <index>\n");
 		}
