@@ -1,6 +1,8 @@
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
+#include <linux/interrupt.h>
+#include <asm/sections.h>
 #include <asm/ptrace.h>
 #include <asm/bitops.h>
 #include <asm/stacktrace.h>
@@ -70,6 +72,21 @@ static size_t regs_size(struct pt_regs *regs)
 		return sizeof(*regs) - 2*sizeof(long);
 
 	return sizeof(*regs);
+}
+
+static bool in_entry_code(unsigned long ip)
+{
+	char *addr = (char *)ip;
+
+	if (addr >= __entry_text_start && addr < __entry_text_end)
+		return true;
+
+#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
+	if (addr >= __irqentry_text_start && addr < __irqentry_text_end)
+		return true;
+#endif
+
+	return false;
 }
 
 #ifdef CONFIG_X86_32
@@ -144,6 +161,7 @@ static bool update_stack_state(struct unwind_state *state,
 	if (regs) {
 		frame = (unsigned long *)regs;
 		len = regs_size(regs);
+		state->got_irq = true;
 	} else {
 		frame = next_bp;
 		len = FRAME_HEADER_SIZE;
@@ -239,16 +257,8 @@ bool unwind_next_frame(struct unwind_state *state)
 		next_bp = (unsigned long *)READ_ONCE_TASK_STACK(state->task, *state->bp);
 
 	/* Move to the next frame if it's safe: */
-	if (!update_stack_state(state, next_bp)) {
-		/*
-		 * Don't warn on bad regs->bp.  An interrupt in entry code
-		 * might cause a false positive warning.
-		 */
-		if (state->regs)
-			goto the_end;
-
+	if (!update_stack_state(state, next_bp))
 		goto bad_address;
-	}
 
 	return true;
 
@@ -261,6 +271,13 @@ bad_address:
 	 * another task will not always succeed.
 	 */
 	if (state->task != current)
+		goto the_end;
+
+	/*
+	 * Don't warn if the unwinder got lost due to an interrupt in entry
+	 * code before the stack was set up:
+	 */
+	if (state->got_irq && in_entry_code(state->ip))
 		goto the_end;
 
 	if (state->regs) {
@@ -289,6 +306,7 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 
 	memset(state, 0, sizeof(*state));
 	state->task = task;
+	state->got_irq = (regs);
 
 	/* Don't even attempt to start from user mode regs: */
 	if (regs && user_mode(regs)) {
