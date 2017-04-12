@@ -479,43 +479,12 @@ static void time_diff(struct vpu_task_info *task)
 		  (task->end.tv_usec - task->start.tv_usec) / 1000);
 }
 
-static void vcodec_enter_mode(struct vpu_subdev_data *data)
+static inline int grf_combo_switch(const struct vpu_subdev_data *data)
 {
+	struct vpu_service_info *pservice = data->pservice;
 	int bits;
 	u32 raw = 0;
-	struct vpu_service_info *pservice = data->pservice;
-	struct vpu_subdev_data *subdata, *n;
 
-	if (pservice->subcnt < 2) {
-		if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
-			set_bit(MMU_ACTIVATED, &data->state);
-
-			if (atomic_read(&pservice->enabled)) {
-				if (vcodec_iommu_attach(data->iommu_info))
-					dev_err(data->dev,
-						"vcodec service attach failed\n"
-						);
-				else
-					BUG_ON(
-					       !atomic_read(&pservice->enabled)
-					       );
-			}
-		}
-		return;
-	}
-
-	if (pservice->curr_mode == data->mode)
-		return;
-
-	vpu_debug(DEBUG_IOMMU, "vcodec enter mode %d\n", data->mode);
-	list_for_each_entry_safe(subdata, n,
-				 &pservice->subdev_list, lnk_service) {
-		if (data != subdata && subdata->mmu_dev &&
-		    test_bit(MMU_ACTIVATED, &subdata->state)) {
-			clear_bit(MMU_ACTIVATED, &subdata->state);
-			vcodec_iommu_detach(subdata->iommu_info);
-		}
-	}
 	bits = 1 << pservice->mode_bit;
 #ifdef CONFIG_MFD_SYSCON
 	if (pservice->grf) {
@@ -539,7 +508,7 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 				       grf_base + pservice->mode_ctrl / 4);
 	} else {
 		vpu_err("no grf resource define, switch decoder failed\n");
-		return;
+		return -EINVAL;
 	}
 #else
 	if (pservice->grf_base) {
@@ -554,9 +523,55 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 				       grf_base + pservice->mode_ctrl / 4);
 	} else {
 		vpu_err("no grf resource define, switch decoder failed\n");
-		return;
+		return -EINVAL;
 	}
 #endif
+	return 0;
+}
+
+static void vcodec_enter_mode(struct vpu_subdev_data *data)
+{
+	struct vpu_service_info *pservice = data->pservice;
+	struct vpu_subdev_data *subdata, *n;
+
+	if (pservice->subcnt < 2 || pservice->mode_ctrl == 0) {
+		if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
+			set_bit(MMU_ACTIVATED, &data->state);
+
+			if (atomic_read(&pservice->enabled)) {
+				if (vcodec_iommu_attach(data->iommu_info))
+					dev_err(data->dev,
+						"vcodec service attach failed\n"
+						);
+				else
+					/* Stop here is enough */
+					return;
+			}
+		}
+		return;
+	}
+
+	if (pservice->curr_mode == data->mode)
+		return;
+
+	vpu_debug(DEBUG_IOMMU, "vcodec enter mode %d\n", data->mode);
+	list_for_each_entry_safe(subdata, n,
+				 &pservice->subdev_list, lnk_service) {
+		if (data != subdata && subdata->mmu_dev &&
+		    test_bit(MMU_ACTIVATED, &subdata->state)) {
+			clear_bit(MMU_ACTIVATED, &subdata->state);
+			vcodec_iommu_detach(subdata->iommu_info);
+		}
+	}
+
+	/*
+	 * For the RK3228H, it is not necessary to write a register to
+	 * switch vpu combo mode, it is unsafe to write the grf.
+	 */
+	if (pservice->mode_ctrl)
+		if (grf_combo_switch(data))
+			return;
+
 	if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
 		set_bit(MMU_ACTIVATED, &data->state);
 		if (atomic_read(&pservice->enabled))
@@ -587,10 +602,11 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 
 	switch (pservice->dev_id) {
 	case VCODEC_DEVICE_ID_HEVC:
+		/* We won't regard the power domain as clocks at 4.4 */
 		pservice->pd_video = devm_clk_get(dev, "pd_hevc");
 		if (IS_ERR(pservice->pd_video)) {
 			pservice->pd_video = NULL;
-			dev_info(dev, "failed on clk_get pd_hevc\n");
+			dev_dbg(dev, "failed on clk_get pd_hevc\n");
 		}
 	case VCODEC_DEVICE_ID_COMBO:
 	case VCODEC_DEVICE_ID_RKVDEC:
@@ -603,7 +619,9 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 		if (IS_ERR(pservice->clk_core)) {
 			dev_err(dev, "failed on clk_get clk_core\n");
 			pservice->clk_core = NULL;
-			return -1;
+			/* The VDPU and AVSD combo doesn't need those clocks */
+			if (pservice->dev_id == VCODEC_DEVICE_ID_RKVDEC)
+				return -1;
 		}
 	case VCODEC_DEVICE_ID_VPU:
 		pservice->aclk_vcodec = devm_clk_get(dev, "aclk_vcodec");
@@ -623,7 +641,7 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 			pservice->pd_video = devm_clk_get(dev, "pd_video");
 			if (IS_ERR(pservice->pd_video)) {
 				pservice->pd_video = NULL;
-				dev_info(dev, "do not have pd_video\n");
+				dev_dbg(dev, "do not have pd_video\n");
 			}
 		}
 		break;
@@ -2035,12 +2053,11 @@ static long compat_vpu_service_ioctl(struct file *filp, unsigned int cmd,
 
 static int vpu_service_check_hw(struct vpu_subdev_data *data)
 {
-	struct vpu_service_info *pservice = data->pservice;
 	int ret = -EINVAL, i = 0;
 	u32 hw_id = readl_relaxed(data->regs);
 
 	hw_id = (hw_id >> 16) & 0xFFFF;
-	dev_info(pservice->dev, "checking hw id %x\n", hw_id);
+	dev_info(data->dev, "checking hw id %x\n", hw_id);
 	data->hw_info = NULL;
 
 	for (i = 0; i < ARRAY_SIZE(vcodec_info_set); i++) {
@@ -2352,7 +2369,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	vcodec_enter_mode(data);
 	ret = vpu_service_check_hw(data);
 	if (ret < 0) {
-		vpu_err("error: hw info check faild\n");
+		dev_err(dev, "error: hw info check failed\n");
 		goto err;
 	}
 	vcodec_exit_mode(data);
@@ -2440,8 +2457,12 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	INIT_LIST_HEAD(&data->lnk_service);
 	list_add_tail(&data->lnk_service, &pservice->subdev_list);
 
+	/* After the subdev was appened to the list of pservice */
+	vpu_service_power_off(pservice);
+
 	return 0;
 err:
+	dev_err(dev, "probe err:%d\n", ret);
 	if (data->child_dev) {
 		device_destroy(data->cls, data->dev_t);
 		cdev_del(&data->cdev);
@@ -2450,6 +2471,7 @@ err:
 
 	if (data->cls)
 		class_destroy(data->cls);
+	vpu_service_power_off(pservice);
 	return -1;
 }
 
@@ -2653,15 +2675,12 @@ static int vcodec_probe(struct platform_device *pdev)
 		vcodec_subdev_probe(pdev, pservice);
 	}
 
-	vpu_service_power_off(pservice);
-
 	dev_info(dev, "init success\n");
 
 	return 0;
 
 err:
 	dev_info(dev, "init failed\n");
-	vpu_service_power_off(pservice);
 	destroy_workqueue(pservice->set_workq);
 	wake_lock_destroy(&pservice->wake_lock);
 
@@ -2797,7 +2816,7 @@ static void get_hw_info(struct vpu_subdev_data *data)
 		dec->reserve = 0;
 		dec->mvc_support = 1;
 
-		if (!of_machine_is_compatible("rockchip,rk3036")) {
+		if (data->enc_dev.regs) {
 			u32 config_reg = readl_relaxed(data->enc_dev.regs + 63);
 
 			enc->max_encoded_width = config_reg & ((1 << 11) - 1);
@@ -2861,9 +2880,8 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 			  dec_status);
 		if ((dec_status & 0x40001) == 0x40001) {
 			do {
-				dec_status =
-					readl_relaxed(dev->regs +
-						task->reg_irq);
+				dec_status = readl_relaxed(dev->regs +
+							   task->reg_irq);
 			} while ((dec_status & 0x40001) == 0x40001);
 		}
 
@@ -2877,6 +2895,7 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 
 		atomic_add(1, &dev->irq_count_codec);
 		time_diff(task);
+		pservice->irq_status = raw_status;
 	}
 
 	task = &data->task_info[TASK_PP];
@@ -2898,8 +2917,6 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 			time_diff(task);
 		}
 	}
-
-	pservice->irq_status = raw_status;
 
 	if (atomic_read(&dev->irq_count_pp) ||
 	    atomic_read(&dev->irq_count_codec))
