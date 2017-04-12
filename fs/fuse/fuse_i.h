@@ -631,9 +631,6 @@ struct fuse_conn {
 	/** Negotiated minor version */
 	unsigned minor;
 
-	/** Backing dev info */
-	struct backing_dev_info bdi;
-
 	/** Entry on the fuse_conn_list */
 	struct list_head entry;
 
