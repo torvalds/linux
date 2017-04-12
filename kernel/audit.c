@@ -160,7 +160,6 @@ static LIST_HEAD(audit_freelist);
 
 /* queue msgs to send via kauditd_task */
 static struct sk_buff_head audit_queue;
-static void kauditd_hold_skb(struct sk_buff *skb);
 /* queue msgs due to temporary unicast send problems */
 static struct sk_buff_head audit_retry_queue;
 /* queue msgs waiting for new auditd connection */
@@ -454,30 +453,6 @@ static void auditd_set(int pid, u32 portid, struct net *net)
 }
 
 /**
- * auditd_reset - Disconnect the auditd connection
- *
- * Description:
- * Break the auditd/kauditd connection and move all the queued records into the
- * hold queue in case auditd reconnects.
- */
-static void auditd_reset(void)
-{
-	struct sk_buff *skb;
-
-	/* if it isn't already broken, break the connection */
-	rcu_read_lock();
-	if (auditd_conn.pid)
-		auditd_set(0, 0, NULL);
-	rcu_read_unlock();
-
-	/* flush all of the main and retry queues to the hold queue */
-	while ((skb = skb_dequeue(&audit_retry_queue)))
-		kauditd_hold_skb(skb);
-	while ((skb = skb_dequeue(&audit_queue)))
-		kauditd_hold_skb(skb);
-}
-
-/**
  * kauditd_print_skb - Print the audit record to the ring buffer
  * @skb: audit record
  *
@@ -505,9 +480,6 @@ static void kauditd_rehold_skb(struct sk_buff *skb)
 {
 	/* put the record back in the queue at the same place */
 	skb_queue_head(&audit_hold_queue, skb);
-
-	/* fail the auditd connection */
-	auditd_reset();
 }
 
 /**
@@ -544,9 +516,6 @@ static void kauditd_hold_skb(struct sk_buff *skb)
 	/* we have no other options - drop the message */
 	audit_log_lost("kauditd hold queue overflow");
 	kfree_skb(skb);
-
-	/* fail the auditd connection */
-	auditd_reset();
 }
 
 /**
@@ -564,6 +533,30 @@ static void kauditd_retry_skb(struct sk_buff *skb)
 	 * short period of time, before either being sent or moved to the hold
 	 * queue, we don't currently enforce a limit on this queue */
 	skb_queue_tail(&audit_retry_queue, skb);
+}
+
+/**
+ * auditd_reset - Disconnect the auditd connection
+ *
+ * Description:
+ * Break the auditd/kauditd connection and move all the queued records into the
+ * hold queue in case auditd reconnects.
+ */
+static void auditd_reset(void)
+{
+	struct sk_buff *skb;
+
+	/* if it isn't already broken, break the connection */
+	rcu_read_lock();
+	if (auditd_conn.pid)
+		auditd_set(0, 0, NULL);
+	rcu_read_unlock();
+
+	/* flush all of the main and retry queues to the hold queue */
+	while ((skb = skb_dequeue(&audit_retry_queue)))
+		kauditd_hold_skb(skb);
+	while ((skb = skb_dequeue(&audit_queue)))
+		kauditd_hold_skb(skb);
 }
 
 /**
@@ -758,6 +751,7 @@ static int kauditd_thread(void *dummy)
 					NULL, kauditd_rehold_skb);
 		if (rc < 0) {
 			sk = NULL;
+			auditd_reset();
 			goto main_queue;
 		}
 
@@ -767,6 +761,7 @@ static int kauditd_thread(void *dummy)
 					NULL, kauditd_hold_skb);
 		if (rc < 0) {
 			sk = NULL;
+			auditd_reset();
 			goto main_queue;
 		}
 
@@ -775,16 +770,18 @@ main_queue:
 		 * unicast, dump failed record sends to the retry queue; if
 		 * sk == NULL due to previous failures we will just do the
 		 * multicast send and move the record to the retry queue */
-		kauditd_send_queue(sk, portid, &audit_queue, 1,
-				   kauditd_send_multicast_skb,
-				   kauditd_retry_skb);
+		rc = kauditd_send_queue(sk, portid, &audit_queue, 1,
+					kauditd_send_multicast_skb,
+					kauditd_retry_skb);
+		if (sk == NULL || rc < 0)
+			auditd_reset();
+		sk = NULL;
 
 		/* drop our netns reference, no auditd sends past this line */
 		if (net) {
 			put_net(net);
 			net = NULL;
 		}
-		sk = NULL;
 
 		/* we have processed all the queues so wake everyone */
 		wake_up(&audit_backlog_wait);
