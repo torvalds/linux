@@ -463,12 +463,6 @@ static void vi_detect_hw_virtualization(struct amdgpu_device *adev)
 	}
 }
 
-static const struct amdgpu_allowed_register_entry tonga_allowed_read_registers[] = {
-};
-
-static const struct amdgpu_allowed_register_entry cz_allowed_read_registers[] = {
-};
-
 static const struct amdgpu_allowed_register_entry vi_allowed_read_registers[] = {
 	{mmGRBM_STATUS},
 	{mmGRBM_STATUS2},
@@ -647,43 +641,9 @@ static uint32_t vi_get_register_value(struct amdgpu_device *adev,
 static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 			    u32 sh_num, u32 reg_offset, u32 *value)
 {
-	const struct amdgpu_allowed_register_entry *asic_register_table = NULL;
-	const struct amdgpu_allowed_register_entry *asic_register_entry;
-	uint32_t size, i;
+	uint32_t i;
 
 	*value = 0;
-	switch (adev->asic_type) {
-	case CHIP_TOPAZ:
-		asic_register_table = tonga_allowed_read_registers;
-		size = ARRAY_SIZE(tonga_allowed_read_registers);
-		break;
-	case CHIP_FIJI:
-	case CHIP_TONGA:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS12:
-	case CHIP_CARRIZO:
-	case CHIP_STONEY:
-		asic_register_table = cz_allowed_read_registers;
-		size = ARRAY_SIZE(cz_allowed_read_registers);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (asic_register_table) {
-		for (i = 0; i < size; i++) {
-			bool indexed = asic_register_entry->grbm_indexed;
-
-			asic_register_entry = asic_register_table + i;
-			if (reg_offset != asic_register_entry->reg_offset)
-				continue;
-			*value = vi_get_register_value(adev, indexed, se_num,
-						       sh_num, reg_offset);
-			return 0;
-		}
-	}
-
 	for (i = 0; i < ARRAY_SIZE(vi_allowed_read_registers); i++) {
 		bool indexed = vi_allowed_read_registers[i].grbm_indexed;
 

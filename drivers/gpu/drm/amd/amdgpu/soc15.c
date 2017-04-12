@@ -280,10 +280,6 @@ static bool soc15_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
-static struct amdgpu_allowed_register_entry vega10_allowed_read_registers[] = {
-	/* todo */
-};
-
 static struct amdgpu_allowed_register_entry soc15_allowed_read_registers[] = {
 	{ SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS)},
 	{ SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS2)},
@@ -341,32 +337,9 @@ static uint32_t soc15_get_register_value(struct amdgpu_device *adev,
 static int soc15_read_register(struct amdgpu_device *adev, u32 se_num,
 			    u32 sh_num, u32 reg_offset, u32 *value)
 {
-	struct amdgpu_allowed_register_entry *asic_register_table = NULL;
-	struct amdgpu_allowed_register_entry *asic_register_entry;
-	uint32_t size, i;
+	uint32_t i;
 
 	*value = 0;
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
-		asic_register_table = vega10_allowed_read_registers;
-		size = ARRAY_SIZE(vega10_allowed_read_registers);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (asic_register_table) {
-		for (i = 0; i < size; i++) {
-			asic_register_entry = asic_register_table + i;
-			if (reg_offset != asic_register_entry->reg_offset)
-				continue;
-			*value = soc15_get_register_value(adev,
-							  asic_register_entry->grbm_indexed,
-							  se_num, sh_num, reg_offset);
-			return 0;
-		}
-	}
-
 	for (i = 0; i < ARRAY_SIZE(soc15_allowed_read_registers); i++) {
 		if (reg_offset != soc15_allowed_read_registers[i].reg_offset)
 			continue;
