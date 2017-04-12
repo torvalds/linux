@@ -13,6 +13,10 @@
  */
 
 /*! \file */
+#include <linux/mm.h>
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
+
 #include "ia_css.h"
 #include "sh_css_hrt.h"		/* only for file 2 MIPI */
 #include "ia_css_buffer.h"
@@ -1679,15 +1683,8 @@ ia_css_load_firmware(const struct ia_css_env *env,
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_load_firmware() enter\n");
 
 	/* make sure we initialize my_css */
-	if ((my_css.malloc != env->cpu_mem_env.alloc) ||
-		(my_css.free != env->cpu_mem_env.free) ||
-		(my_css.flush != env->cpu_mem_env.flush)
-		)
-	{
+	if (my_css.flush != env->cpu_mem_env.flush) {
 		ia_css_reset_defaults(&my_css);
-
-		my_css.malloc = env->cpu_mem_env.alloc;
-		my_css.free = env->cpu_mem_env.free;
 		my_css.flush = env->cpu_mem_env.flush;
 	}
 
@@ -1715,8 +1712,6 @@ ia_css_init(const struct ia_css_env *env,
 	ia_css_blctrl_cfg blctrl_cfg;
 #endif
 
-	void *(*malloc_func)(size_t size, bool zero_mem);
-	void (*free_func)(void *ptr);
 	void (*flush_func)(struct ia_css_acc_fw *fw);
 	hrt_data select, enable;
 
@@ -1765,8 +1760,6 @@ ia_css_init(const struct ia_css_env *env,
 
 	IA_CSS_ENTER("void");
 
-	malloc_func    = env->cpu_mem_env.alloc;
-	free_func      = env->cpu_mem_env.free;
 	flush_func     = env->cpu_mem_env.flush;
 
 	pipe_global_init();
@@ -1786,16 +1779,9 @@ ia_css_init(const struct ia_css_env *env,
 	ia_css_save_mmu_base_addr(mmu_l1_base);
 #endif
 
-	if (malloc_func == NULL || free_func == NULL) {
-		IA_CSS_LEAVE_ERR(IA_CSS_ERR_INVALID_ARGUMENTS);
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
-	}
-
 	ia_css_reset_defaults(&my_css);
 
 	my_css_save.driver_env = *env;
-	my_css.malloc    = malloc_func;
-	my_css.free      = free_func;
 	my_css.flush     = flush_func;
 
 	err = ia_css_rmgr_init();
@@ -2018,25 +2004,35 @@ ia_css_enable_isys_event_queue(bool enable)
 void *sh_css_malloc(size_t size)
 {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "sh_css_malloc() enter: size=%d\n",size);
-	if (size > 0 && my_css.malloc)
-		return my_css.malloc(size, false);
-	return NULL;
+	/* FIXME: This first test can probably go away */
+	if (size == 0)
+		return NULL;
+	if (size > PAGE_SIZE)
+		return vmalloc(size);
+	return kmalloc(size, GFP_KERNEL);
 }
 
 void *sh_css_calloc(size_t N, size_t size)
 {
+	void *p;
+
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "sh_css_calloc() enter: N=%d, size=%d\n",N,size);
-	if (size > 0 && my_css.malloc)
-		return my_css.malloc(N*size, true);		
+
+	/* FIXME: this test can probably go away */
+	if (size > 0) {
+		p = sh_css_malloc(N*size);
+		if (p)
+			memset(p, 0, size);
+	}
 	return NULL;
 }
 
 void sh_css_free(void *ptr)
 {
-	IA_CSS_ENTER_PRIVATE("ptr = %p", ptr);
-	if (ptr && my_css.free)
-		my_css.free(ptr);
-	IA_CSS_LEAVE_PRIVATE("void");
+	if (is_vmalloc_addr(ptr))
+		vfree(ptr);
+	else
+		kfree(ptr);
 }
 
 /* For Acceleration API: Flush FW (shared buffer pointer) arguments */

@@ -39,25 +39,8 @@ enum ia_css_mem_attr {
  *  This is never expected to allocate more than one page of memory (4K bytes).
  */
 struct ia_css_cpu_mem_env {
-	void * (*alloc)(size_t bytes, bool zero_mem);
-	/**< Allocation function with boolean argument to indicate whether
-	     the allocated memory should be zeroed out or not, true (or 1)
-	     meaning the memory given to CSS must be zeroed */
-	void (*free)(void *ptr);
-	/**< Corresponding free function. The function must also accept
-	     a NULL argument, similar to C89 free(). */
 	void (*flush)(struct ia_css_acc_fw *fw);
 	/**< Flush function to flush the cache for given accelerator. */
-#ifdef ISP2401
-
-	#if !defined(__SVOS__)
-	/* a set of matching functions with additional debug params */
-	void * (*alloc_ex)(size_t bytes, bool zero_mem, const char *caller_func, int caller_line);
-	/**< same as alloc above, only with additional debug parameters */
-	void (*free_ex)(void *ptr, const char *caller_func, int caller_line);
-	/**< same as free above, only with additional debug parameters */
-	#endif
-#endif
 };
 
 /** Environment with function pointers to access the CSS hardware. This includes
@@ -103,7 +86,7 @@ struct ia_css_print_env {
  *  Windows and several simulation environments.
  */
 struct ia_css_env {
-	struct ia_css_cpu_mem_env   cpu_mem_env;   /**< local malloc and free. */
+	struct ia_css_cpu_mem_env   cpu_mem_env;   /**< local flush. */
 	struct ia_css_hw_access_env hw_access_env; /**< CSS HW access functions */
 	struct ia_css_print_env     print_env;     /**< Message printing env. */
 };

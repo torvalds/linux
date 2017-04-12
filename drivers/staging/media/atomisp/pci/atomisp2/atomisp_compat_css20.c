@@ -923,9 +923,6 @@ int atomisp_css_load_firmware(struct atomisp_device *isp)
 	isp->css_env.isp_css_fw.data = (void *)isp->firmware->data;
 	isp->css_env.isp_css_fw.bytes = isp->firmware->size;
 
-	isp->css_env.isp_css_env.cpu_mem_env.alloc = atomisp_kernel_zalloc;
-	isp->css_env.isp_css_env.cpu_mem_env.free = atomisp_kernel_free;
-
 	isp->css_env.isp_css_env.hw_access_env.store_8 =
 							atomisp_css2_hw_store_8;
 	isp->css_env.isp_css_env.hw_access_env.store_16 =
