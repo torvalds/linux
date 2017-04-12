@@ -301,13 +301,13 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 }
 
 /*
- * Create a snapshot of the current LPI list, so that we can enumerate all
- * LPIs without holding any lock.
- * Returns the array length and puts the kmalloc'ed array into intid_ptr.
+ * Create a snapshot of the current LPIs targeting @vcpu, so that we can
+ * enumerate those LPIs without holding any lock.
+ * Returns their number and puts the kmalloc'ed array into intid_ptr.
  */
-static int vgic_copy_lpi_list(struct kvm *kvm, u32 **intid_ptr)
+static int vgic_copy_lpi_list(struct kvm_vcpu *vcpu, u32 **intid_ptr)
 {
-	struct vgic_dist *dist = &kvm->arch.vgic;
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	struct vgic_irq *irq;
 	u32 *intids;
 	int irq_count = dist->lpi_list_count, i = 0;
@@ -326,14 +326,14 @@ static int vgic_copy_lpi_list(struct kvm *kvm, u32 **intid_ptr)
 	spin_lock(&dist->lpi_list_lock);
 	list_for_each_entry(irq, &dist->lpi_list_head, lpi_list) {
 		/* We don't need to "get" the IRQ, as we hold the list lock. */
-		intids[i] = irq->intid;
-		if (++i == irq_count)
-			break;
+		if (irq->target_vcpu != vcpu)
+			continue;
+		intids[i++] = irq->intid;
 	}
 	spin_unlock(&dist->lpi_list_lock);
 
 	*intid_ptr = intids;
-	return irq_count;
+	return i;
 }
 
 /*
@@ -382,7 +382,7 @@ static u32 max_lpis_propbaser(u64 propbaser)
 }
 
 /*
- * Scan the whole LPI pending table and sync the pending bit in there
+ * Sync the pending table pending bit of LPIs targeting @vcpu
  * with our own data structures. This relies on the LPI being
  * mapped before.
  */
@@ -395,7 +395,7 @@ static int its_sync_lpi_pending_table(struct kvm_vcpu *vcpu)
 	u32 *intids;
 	int nr_irqs, i;
 
-	nr_irqs = vgic_copy_lpi_list(vcpu->kvm, &intids);
+	nr_irqs = vgic_copy_lpi_list(vcpu, &intids);
 	if (nr_irqs < 0)
 		return nr_irqs;
 
@@ -1081,7 +1081,7 @@ static int vgic_its_cmd_handle_invall(struct kvm *kvm, struct vgic_its *its,
 
 	vcpu = kvm_get_vcpu(kvm, collection->target_addr);
 
-	irq_count = vgic_copy_lpi_list(kvm, &intids);
+	irq_count = vgic_copy_lpi_list(vcpu, &intids);
 	if (irq_count < 0)
 		return irq_count;
 
