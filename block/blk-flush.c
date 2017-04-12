@@ -447,7 +447,7 @@ void blk_insert_flush(struct request *rq)
 		if (q->mq_ops)
 			blk_mq_end_request(rq, 0);
 		else
-			__blk_end_bidi_request(rq, 0, 0, 0);
+			__blk_end_request(rq, 0, 0);
 		return;
 	}
 
