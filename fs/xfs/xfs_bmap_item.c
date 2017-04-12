@@ -34,6 +34,8 @@
 #include "xfs_bmap.h"
 #include "xfs_icache.h"
 #include "xfs_trace.h"
+#include "xfs_bmap_btree.h"
+#include "xfs_trans_space.h"
 
 
 kmem_zone_t	*xfs_bui_zone;
@@ -446,7 +448,8 @@ xfs_bui_recover(
 		return -EIO;
 	}
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
+			XFS_EXTENTADD_SPACE_RES(mp, XFS_DATA_FORK), 0, 0, &tp);
 	if (error)
 		return error;
 	budp = xfs_trans_get_bud(tp, buip);

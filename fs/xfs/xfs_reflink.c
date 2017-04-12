@@ -736,8 +736,22 @@ xfs_reflink_end_cow(
 	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
 	end_fsb = XFS_B_TO_FSB(ip->i_mount, offset + count);
 
-	/* Start a rolling transaction to switch the mappings */
-	resblks = XFS_EXTENTADD_SPACE_RES(ip->i_mount, XFS_DATA_FORK);
+	/*
+	 * Start a rolling transaction to switch the mappings.  We're
+	 * unlikely ever to have to remap 16T worth of single-block
+	 * extents, so just cap the worst case extent count to 2^32-1.
+	 * Stick a warning in just in case, and avoid 64-bit division.
+	 */
+	BUILD_BUG_ON(MAX_RW_COUNT > UINT_MAX);
+	if (end_fsb - offset_fsb > UINT_MAX) {
+		error = -EFSCORRUPTED;
+		xfs_force_shutdown(ip->i_mount, SHUTDOWN_CORRUPT_INCORE);
+		ASSERT(0);
+		goto out;
+	}
+	resblks = XFS_NEXTENTADD_SPACE_RES(ip->i_mount,
+			(unsigned int)(end_fsb - offset_fsb),
+			XFS_DATA_FORK);
 	error = xfs_trans_alloc(ip->i_mount, &M_RES(ip->i_mount)->tr_write,
 			resblks, 0, 0, &tp);
 	if (error)
