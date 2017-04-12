@@ -106,7 +106,7 @@ static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
 	int fd;
 	size_t size = 0;
 	ssize_t n;
-	char *nl, *name, *tgids, *ppids;
+	char *name, *tgids, *ppids;
 
 	*tgid = -1;
 	*ppid = -1;
@@ -134,14 +134,7 @@ static int perf_event__get_comm_ids(pid_t pid, char *comm, size_t len,
 
 	if (name) {
 		name += 5;  /* strlen("Name:") */
-
-		while (*name && isspace(*name))
-			++name;
-
-		nl = strchr(name, '\n');
-		if (nl)
-			*nl = '\0';
-
+		name = rtrim(ltrim(name));
 		size = strlen(name);
 		if (size >= len)
 			size = len - 1;

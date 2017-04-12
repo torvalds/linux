@@ -2270,6 +2270,9 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 	perf_header__process_sections(header, fd, &hd,
 				      perf_file_section__fprintf_info);
 
+	if (session->file->is_pipe)
+		return 0;
+
 	fprintf(fp, "# missing features: ");
 	for_each_clear_bit(bit, header->adds_features, HEADER_LAST_FEATURE) {
 		if (bit)

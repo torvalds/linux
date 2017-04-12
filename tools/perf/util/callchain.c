@@ -116,7 +116,7 @@ static int
 __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 {
 	char *tok;
-	char *endptr;
+	char *endptr, *saveptr = NULL;
 	bool minpcnt_set = false;
 	bool record_opt_set = false;
 	bool try_stack_size = false;
@@ -127,7 +127,7 @@ __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 	if (!arg)
 		return 0;
 
-	while ((tok = strtok((char *)arg, ",")) != NULL) {
+	while ((tok = strtok_r((char *)arg, ",", &saveptr)) != NULL) {
 		if (!strncmp(tok, "none", strlen(tok))) {
 			callchain_param.mode = CHAIN_NONE;
 			callchain_param.enabled = false;
