@@ -12,6 +12,9 @@
  * more details.
  */
 
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
+
 #include <math_support.h>
 #include "platform_support.h"
 #include "sh_css_firmware.h"
@@ -93,9 +96,9 @@ setup_binary(struct ia_css_fw_info *fw, const char *fw_data, struct ia_css_fw_in
 	*sh_css_fw = *fw;
 
 #if defined(HRT_UNSCHED)
-	sh_css_fw->blob.code = sh_css_malloc(1);
+	sh_css_fw->blob.code = vmalloc(1);
 #else
-	sh_css_fw->blob.code = sh_css_malloc(fw->blob.size);
+	sh_css_fw->blob.code = vmalloc(fw->blob.size);
 #endif
 
 	if (sh_css_fw->blob.code == NULL)
@@ -143,11 +146,11 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi, struct ia
 		char *namebuffer;
 		int namelength = (int)strlen(name);
 
-		namebuffer = (char *) sh_css_malloc(namelength+1);
+		namebuffer = (char *) kmalloc(namelength + 1, GFP_KERNEL);
 		if (namebuffer == NULL)
 			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 
-		memcpy(namebuffer, name, namelength+1);
+		memcpy(namebuffer, name, namelength + 1);
 
 		bd->name = fw_minibuffer[index].name = namebuffer;
 	} else {
@@ -159,7 +162,8 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi, struct ia
 		size_t configstruct_size = sizeof(struct ia_css_config_memory_offsets);
 		size_t statestruct_size = sizeof(struct ia_css_state_memory_offsets);
 
-		char *parambuf = (char *) sh_css_malloc(paramstruct_size + configstruct_size + statestruct_size);
+		char *parambuf = (char *)kmalloc(paramstruct_size + configstruct_size + statestruct_size,
+							GFP_KERNEL);
 		if (parambuf == NULL)
 			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 
@@ -239,19 +243,18 @@ sh_css_load_firmware(const char *fw_data,
 	sh_css_num_binaries = file_header->binary_nr;
 	/* Only allocate memory for ISP blob info */
 	if (sh_css_num_binaries > (NUM_OF_SPS + NUM_OF_BLS)) {
-		sh_css_blob_info = sh_css_malloc(
+		sh_css_blob_info = kmalloc(
 					(sh_css_num_binaries - (NUM_OF_SPS + NUM_OF_BLS)) *
-					sizeof(*sh_css_blob_info));
+					sizeof(*sh_css_blob_info), GFP_KERNEL);
 		if (sh_css_blob_info == NULL)
 			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 	} else {
 		sh_css_blob_info = NULL;
 	}
 
-	fw_minibuffer = sh_css_malloc(sh_css_num_binaries * sizeof(struct fw_param));
+	fw_minibuffer = kzalloc(sh_css_num_binaries * sizeof(struct fw_param), GFP_KERNEL);
 	if (fw_minibuffer == NULL)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-	memset(fw_minibuffer, 0, sh_css_num_binaries * sizeof(struct fw_param));
 
 	for (i = 0; i < sh_css_num_binaries; i++) {
 		struct ia_css_fw_info *bi = &binaries[i];
@@ -309,17 +312,17 @@ void sh_css_unload_firmware(void)
 		unsigned int i = 0;
 		for (i = 0; i < sh_css_num_binaries; i++) {
 			if (fw_minibuffer[i].name)
-				sh_css_free((void *)fw_minibuffer[i].name);
+				kfree((void *)fw_minibuffer[i].name);
 			if (fw_minibuffer[i].buffer)
-				sh_css_free((void *)fw_minibuffer[i].buffer);
+				vfree((void *)fw_minibuffer[i].buffer);
 		}
-		sh_css_free(fw_minibuffer);
+		kfree(fw_minibuffer);
 		fw_minibuffer = NULL;
 	}
 
 	memset(&sh_css_sp_fw, 0, sizeof(sh_css_sp_fw));
 	if (sh_css_blob_info) {
-		sh_css_free(sh_css_blob_info);
+		kfree(sh_css_blob_info);
 		sh_css_blob_info = NULL;
 	}
 	sh_css_num_binaries = 0;

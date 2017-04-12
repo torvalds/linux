@@ -2492,19 +2492,19 @@ create_pipe(enum ia_css_pipe_mode mode,
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
 
-	me = sh_css_malloc(sizeof(*me));
+	me = kmalloc(sizeof(*me), GFP_KERNEL);
 	if (!me)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 
 	err = init_pipe_defaults(mode, me, copy_pipe);
 	if (err != IA_CSS_SUCCESS) {
-		sh_css_free(me);
+		kfree(me);
 		return err;
 	}
 
 	err = pipe_generate_pipe_num(me, &(me->pipe_num));
 	if (err != IA_CSS_SUCCESS) {
-		sh_css_free(me);
+		kfree(me);
 		return err;
 	}
 
@@ -2631,7 +2631,7 @@ ia_css_pipe_destroy(struct ia_css_pipe *pipe)
 	if (pipe->config.acc_extension) {
 		ia_css_pipe_unload_extension(pipe, pipe->config.acc_extension);
 	}
-	sh_css_free(pipe);
+	kfree(pipe);
 	IA_CSS_LEAVE("err = %d", err);
 	return err;
 }
@@ -5764,14 +5764,14 @@ static enum ia_css_err load_video_binaries(struct ia_css_pipe *pipe)
 		if (err != IA_CSS_SUCCESS)
 			return err;
 		mycs->num_yuv_scaler = cas_scaler_descr.num_stage;
-		mycs->yuv_scaler_binary = sh_css_calloc(cas_scaler_descr.num_stage,
-			sizeof(struct ia_css_binary));
+		mycs->yuv_scaler_binary = kzalloc(cas_scaler_descr.num_stage *
+			sizeof(struct ia_css_binary), GFP_KERNEL);
 		if (mycs->yuv_scaler_binary == NULL) {
 			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 			return err;
 		}
-		mycs->is_output_stage = sh_css_calloc(cas_scaler_descr.num_stage,
-			sizeof(bool));
+		mycs->is_output_stage = kzalloc(cas_scaler_descr.num_stage
+					* sizeof(bool), GFP_KERNEL);
 		if (mycs->is_output_stage == NULL) {
 			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 			return err;
@@ -5787,7 +5787,7 @@ static enum ia_css_err load_video_binaries(struct ia_css_pipe *pipe)
 			err = ia_css_binary_find(&yuv_scaler_descr,
 						&mycs->yuv_scaler_binary[i]);
 			if (err != IA_CSS_SUCCESS) {
-				sh_css_free(mycs->is_output_stage);
+				kfree(mycs->is_output_stage);
 				mycs->is_output_stage = NULL;
 				return err;
 			}
@@ -6008,9 +6008,9 @@ unload_video_binaries(struct ia_css_pipe *pipe)
 	for (i = 0; i < pipe->pipe_settings.video.num_yuv_scaler; i++)
 		ia_css_binary_unload(&pipe->pipe_settings.video.yuv_scaler_binary[i]);
 
-	sh_css_free(pipe->pipe_settings.video.is_output_stage);
+	kfree(pipe->pipe_settings.video.is_output_stage);
 	pipe->pipe_settings.video.is_output_stage = NULL;
-	sh_css_free(pipe->pipe_settings.video.yuv_scaler_binary);
+	kfree(pipe->pipe_settings.video.yuv_scaler_binary);
 	pipe->pipe_settings.video.yuv_scaler_binary = NULL;
 
 	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
@@ -6418,15 +6418,15 @@ static enum ia_css_err load_primary_binaries(
 			return err;
 		}
 		mycs->num_yuv_scaler = cas_scaler_descr.num_stage;
-		mycs->yuv_scaler_binary = sh_css_calloc(cas_scaler_descr.num_stage,
-			sizeof(struct ia_css_binary));
+		mycs->yuv_scaler_binary = kzalloc(cas_scaler_descr.num_stage *
+			sizeof(struct ia_css_binary), GFP_KERNEL);
 		if (mycs->yuv_scaler_binary == NULL) {
 			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
 			return err;
 		}
-		mycs->is_output_stage = sh_css_calloc(cas_scaler_descr.num_stage,
-			sizeof(bool));
+		mycs->is_output_stage = kzalloc(cas_scaler_descr.num_stage *
+			sizeof(bool), GFP_KERNEL);
 		if (mycs->is_output_stage == NULL) {
 			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
@@ -7068,9 +7068,9 @@ unload_capture_binaries(struct ia_css_pipe *pipe)
 	for (i = 0; i < pipe->pipe_settings.capture.num_yuv_scaler; i++)
 		ia_css_binary_unload(&pipe->pipe_settings.capture.yuv_scaler_binary[i]);
 
-	sh_css_free(pipe->pipe_settings.capture.is_output_stage);
+	kfree(pipe->pipe_settings.capture.is_output_stage);
 	pipe->pipe_settings.capture.is_output_stage = NULL;
-	sh_css_free(pipe->pipe_settings.capture.yuv_scaler_binary);
+	kfree(pipe->pipe_settings.capture.yuv_scaler_binary);
 	pipe->pipe_settings.capture.yuv_scaler_binary = NULL;
 
 	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
@@ -7159,27 +7159,27 @@ static enum ia_css_err ia_css_pipe_create_cas_scaler_desc_single_output(
 		i *= max_scale_factor_per_stage;
 	}
 
-	descr->in_info = sh_css_malloc(descr->num_stage * sizeof(struct ia_css_frame_info));
+	descr->in_info = kmalloc(descr->num_stage * sizeof(struct ia_css_frame_info), GFP_KERNEL);
 	if (descr->in_info == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
 	}
-	descr->internal_out_info = sh_css_malloc(descr->num_stage * sizeof(struct ia_css_frame_info));
+	descr->internal_out_info = kmalloc(descr->num_stage * sizeof(struct ia_css_frame_info), GFP_KERNEL);
 	if (descr->internal_out_info == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
 	}
-	descr->out_info = sh_css_malloc(descr->num_stage * sizeof(struct ia_css_frame_info));
+	descr->out_info = kmalloc(descr->num_stage * sizeof(struct ia_css_frame_info), GFP_KERNEL);
 	if (descr->out_info == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
 	}
-	descr->vf_info = sh_css_malloc(descr->num_stage * sizeof(struct ia_css_frame_info));
+	descr->vf_info = kmalloc(descr->num_stage * sizeof(struct ia_css_frame_info), GFP_KERNEL);
 	if (descr->vf_info == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
 	}
-	descr->is_output_stage = sh_css_malloc(descr->num_stage * sizeof(bool));
+	descr->is_output_stage = kmalloc(descr->num_stage * sizeof(bool), GFP_KERNEL);
 	if (descr->is_output_stage == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
@@ -7237,6 +7237,7 @@ ERR:
 	return err;
 }
 
+/* FIXME: merge most of this and single output version */
 static enum ia_css_err ia_css_pipe_create_cas_scaler_desc(struct ia_css_pipe *pipe,
 	struct ia_css_cas_binary_descr *descr)
 {
@@ -7294,27 +7295,27 @@ static enum ia_css_err ia_css_pipe_create_cas_scaler_desc(struct ia_css_pipe *pi
 
 	descr->num_stage = num_stages;
 
-	descr->in_info = sh_css_malloc(descr->num_stage * sizeof(struct ia_css_frame_info));
+	descr->in_info = kmalloc(descr->num_stage * sizeof(struct ia_css_frame_info), GFP_KERNEL);
 	if (descr->in_info == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
 	}
-	descr->internal_out_info = sh_css_malloc(descr->num_stage * sizeof(struct ia_css_frame_info));
+	descr->internal_out_info = kmalloc(descr->num_stage * sizeof(struct ia_css_frame_info), GFP_KERNEL);
 	if (descr->internal_out_info == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
 	}
-	descr->out_info = sh_css_malloc(descr->num_stage * sizeof(struct ia_css_frame_info));
+	descr->out_info = kmalloc(descr->num_stage * sizeof(struct ia_css_frame_info), GFP_KERNEL);
 	if (descr->out_info == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
 	}
-	descr->vf_info = sh_css_malloc(descr->num_stage * sizeof(struct ia_css_frame_info));
+	descr->vf_info = kmalloc(descr->num_stage * sizeof(struct ia_css_frame_info), GFP_KERNEL);
 	if (descr->vf_info == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
 	}
-	descr->is_output_stage = sh_css_malloc(descr->num_stage * sizeof(bool));
+	descr->is_output_stage = kmalloc(descr->num_stage * sizeof(bool), GFP_KERNEL);
 	if (descr->is_output_stage == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
@@ -7388,15 +7389,15 @@ ERR:
 static void ia_css_pipe_destroy_cas_scaler_desc(struct ia_css_cas_binary_descr *descr)
 {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_pipe_destroy_cas_scaler_desc() enter:\n");
-	sh_css_free(descr->in_info);
+	kfree(descr->in_info);
 	descr->in_info = NULL;
-	sh_css_free(descr->internal_out_info);
+	kfree(descr->internal_out_info);
 	descr->internal_out_info = NULL;
-	sh_css_free(descr->out_info);
+	kfree(descr->out_info);
 	descr->out_info = NULL;
-	sh_css_free(descr->vf_info);
+	kfree(descr->vf_info);
 	descr->vf_info = NULL;
-	sh_css_free(descr->is_output_stage);
+	kfree(descr->is_output_stage);
 	descr->is_output_stage = NULL;
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_pipe_destroy_cas_scaler_desc() leave\n");
 }
@@ -7451,14 +7452,14 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 			goto ERR;
 		mycs->num_output = cas_scaler_descr.num_output_stage;
 		mycs->num_yuv_scaler = cas_scaler_descr.num_stage;
-		mycs->yuv_scaler_binary = sh_css_calloc(cas_scaler_descr.num_stage,
-			sizeof(struct ia_css_binary));
+		mycs->yuv_scaler_binary = kzalloc(cas_scaler_descr.num_stage *
+			sizeof(struct ia_css_binary), GFP_KERNEL);
 		if (mycs->yuv_scaler_binary == NULL) {
 			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 			goto ERR;
 		}
-		mycs->is_output_stage = sh_css_calloc(cas_scaler_descr.num_stage,
-			sizeof(bool));
+		mycs->is_output_stage = kzalloc(cas_scaler_descr.num_stage *
+			sizeof(bool), GFP_KERNEL);
 		if (mycs->is_output_stage == NULL) {
 			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 			goto ERR;
@@ -7558,7 +7559,8 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 		}
 		mycs->num_vf_pp = 1;
 	}
-	mycs->vf_pp_binary = sh_css_calloc(mycs->num_vf_pp, sizeof(struct ia_css_binary));
+	mycs->vf_pp_binary = kzalloc(mycs->num_vf_pp * sizeof(struct ia_css_binary),
+						GFP_KERNEL);
 	if (mycs->vf_pp_binary == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
@@ -7607,11 +7609,11 @@ unload_yuvpp_binaries(struct ia_css_pipe *pipe)
 	for (i = 0; i < pipe->pipe_settings.yuvpp.num_vf_pp; i++) {
 		ia_css_binary_unload(&pipe->pipe_settings.yuvpp.vf_pp_binary[i]);
 	}
-	sh_css_free(pipe->pipe_settings.yuvpp.is_output_stage);
+	kfree(pipe->pipe_settings.yuvpp.is_output_stage);
 	pipe->pipe_settings.yuvpp.is_output_stage = NULL;
-	sh_css_free(pipe->pipe_settings.yuvpp.yuv_scaler_binary);
+	kfree(pipe->pipe_settings.yuvpp.yuv_scaler_binary);
 	pipe->pipe_settings.yuvpp.yuv_scaler_binary = NULL;
-	sh_css_free(pipe->pipe_settings.yuvpp.vf_pp_binary);
+	kfree(pipe->pipe_settings.yuvpp.vf_pp_binary);
 	pipe->pipe_settings.yuvpp.vf_pp_binary = NULL;
 
 	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
@@ -9625,7 +9627,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 	}
 
 	/* allocate the stream instance */
-	curr_stream = sh_css_malloc(sizeof(struct ia_css_stream));
+	curr_stream = kmalloc(sizeof(struct ia_css_stream), GFP_KERNEL);
 	if (curr_stream == NULL) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		IA_CSS_LEAVE_ERR(err);
@@ -9637,10 +9639,10 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 
 	/* allocate pipes */
 	curr_stream->num_pipes = num_pipes;
-	curr_stream->pipes = sh_css_malloc(num_pipes * sizeof(struct ia_css_pipe *));
+	curr_stream->pipes = kzalloc(num_pipes * sizeof(struct ia_css_pipe *), GFP_KERNEL);
 	if (curr_stream->pipes == NULL) {
 		curr_stream->num_pipes = 0;
-		sh_css_free(curr_stream);
+		kfree(curr_stream);
 		curr_stream = NULL;
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		IA_CSS_LEAVE_ERR(err);
@@ -10103,7 +10105,7 @@ ia_css_stream_destroy(struct ia_css_stream *stream)
 		}
 	}
 	/* free associated memory of stream struct */
-	sh_css_free(stream->pipes);
+	kfree(stream->pipes);
 	stream->pipes = NULL;
 	stream->num_pipes = 0;
 #ifndef ISP2401
@@ -10121,7 +10123,7 @@ ia_css_stream_destroy(struct ia_css_stream *stream)
 
 	err1 = (err != IA_CSS_SUCCESS) ? err : err2;
 #endif
-	sh_css_free(stream);
+	kfree(stream);
 #ifndef ISP2401
 	IA_CSS_LEAVE_ERR(err);
 #else

@@ -12,6 +12,8 @@
  * more details.
  */
 
+#include <linux/slab.h>
+
 #include <math_support.h>
 #include "sh_css_param_shading.h"
 #include "ia_css_shading.h"
@@ -362,7 +364,7 @@ ia_css_shading_table_alloc(
 
 	IA_CSS_ENTER("");
 
-	me = sh_css_malloc(sizeof(*me));
+	me = kmalloc(sizeof(*me), GFP_KERNEL);
 	if (me == NULL) {
 		IA_CSS_ERROR("out of memory");
 		return me;
@@ -382,7 +384,7 @@ ia_css_shading_table_alloc(
 				sh_css_free(me->data[j]);
 				me->data[j] = NULL;
 			}
-			sh_css_free(me);
+			kfree(me);
 			return NULL;
 		}
 	}
@@ -410,7 +412,7 @@ ia_css_shading_table_free(struct ia_css_shading_table *table)
 			table->data[i] = NULL;
 		}
 	}
-	sh_css_free(table);
+	kfree(table);
 
 	IA_CSS_LEAVE("");
 }
