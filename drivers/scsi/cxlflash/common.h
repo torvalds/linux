@@ -90,6 +90,8 @@ enum cxlflash_init_state {
 };
 
 enum cxlflash_state {
+	STATE_PROBING,	/* Initial state during probe */
+	STATE_PROBED,	/* Temporary state, probe completed but EEH occurred */
 	STATE_NORMAL,	/* Normal running state, everything good */
 	STATE_RESET,	/* Reset state, trying to reset/recover */
 	STATE_FAILTERM	/* Failed/terminating state, error out users/threads */

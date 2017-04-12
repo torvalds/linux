@@ -470,6 +470,8 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
 
 	switch (cfg->state) {
+	case STATE_PROBING:
+	case STATE_PROBED:
 	case STATE_RESET:
 		dev_dbg_ratelimited(dev, "%s: device is in reset\n", __func__);
 		rc = SCSI_MLQUEUE_HOST_BUSY;
@@ -719,7 +721,8 @@ static void notify_shutdown(struct cxlflash_cfg *cfg, bool wait)
  * cxlflash_remove() - PCI entry point to tear down host
  * @pdev:	PCI device associated with the host.
  *
- * Safe to use as a cleanup in partially allocated/initialized state.
+ * Safe to use as a cleanup in partially allocated/initialized state. Note that
+ * the reset_waitq is flushed as part of the stop/termination of user contexts.
  */
 static void cxlflash_remove(struct pci_dev *pdev)
 {
@@ -752,7 +755,6 @@ static void cxlflash_remove(struct pci_dev *pdev)
 	case INIT_STATE_SCSI:
 		cxlflash_term_local_luns(cfg);
 		scsi_remove_host(cfg->host);
-		/* fall through */
 	case INIT_STATE_AFU:
 		term_afu(cfg);
 	case INIT_STATE_PCI:
@@ -2624,6 +2626,15 @@ static void cxlflash_worker_thread(struct work_struct *work)
  * @pdev:	PCI device associated with the host.
  * @dev_id:	PCI device id associated with device.
  *
+ * The device will initially start out in a 'probing' state and
+ * transition to the 'normal' state at the end of a successful
+ * probe. Should an EEH event occur during probe, the notification
+ * thread (error_detected()) will wait until the probe handler
+ * is nearly complete. At that time, the device will be moved to
+ * a 'probed' state and the EEH thread woken up to drive the slot
+ * reset and recovery (device moves to 'normal' state). Meanwhile,
+ * the probe will be allowed to exit successfully.
+ *
  * Return: 0 on success, -errno on failure
  */
 static int cxlflash_probe(struct pci_dev *pdev,
@@ -2707,7 +2718,7 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	cfg->init_state = INIT_STATE_PCI;
 
 	rc = init_afu(cfg);
-	if (rc) {
+	if (rc && !wq_has_sleeper(&cfg->reset_waitq)) {
 		dev_err(dev, "%s: init_afu failed rc=%d\n", __func__, rc);
 		goto out_remove;
 	}
@@ -2720,6 +2731,11 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	}
 	cfg->init_state = INIT_STATE_SCSI;
 
+	if (wq_has_sleeper(&cfg->reset_waitq)) {
+		cfg->state = STATE_PROBED;
+		wake_up_all(&cfg->reset_waitq);
+	} else
+		cfg->state = STATE_NORMAL;
 out:
 	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
 	return rc;
@@ -2750,7 +2766,8 @@ static pci_ers_result_t cxlflash_pci_error_detected(struct pci_dev *pdev,
 
 	switch (state) {
 	case pci_channel_io_frozen:
-		wait_event(cfg->reset_waitq, cfg->state != STATE_RESET);
+		wait_event(cfg->reset_waitq, cfg->state != STATE_RESET &&
+					     cfg->state != STATE_PROBING);
 		if (cfg->state == STATE_FAILTERM)
 			return PCI_ERS_RESULT_DISCONNECT;
 

@@ -78,17 +78,18 @@ void cxlflash_free_errpage(void)
  * memory freed. This is accomplished by putting the contexts in error
  * state which will notify the user and let them 'drive' the tear down.
  * Meanwhile, this routine camps until all user contexts have been removed.
+ *
+ * Note that the main loop in this routine will always execute at least once
+ * to flush the reset_waitq.
  */
 void cxlflash_stop_term_user_contexts(struct cxlflash_cfg *cfg)
 {
 	struct device *dev = &cfg->dev->dev;
-	int i, found;
+	int i, found = true;
 
 	cxlflash_mark_contexts_error(cfg);
 
 	while (true) {
-		found = false;
-
 		for (i = 0; i < MAX_CONTEXT; i++)
 			if (cfg->ctx_tbl[i]) {
 				found = true;
@@ -102,6 +103,7 @@ void cxlflash_stop_term_user_contexts(struct cxlflash_cfg *cfg)
 			__func__);
 		wake_up_all(&cfg->reset_waitq);
 		ssleep(1);
+		found = false;
 	}
 }
 
