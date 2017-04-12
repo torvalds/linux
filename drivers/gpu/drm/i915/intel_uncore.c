@@ -1532,7 +1532,7 @@ static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
 	 */
 	__raw_i915_write32(dev_priv, GEN6_GDRST, hw_domain_mask);
 
-	/* Spin waiting for the device to ack the reset requests */
+	/* Wait for the device to ack the reset requests */
 	return intel_wait_for_register_fw(dev_priv,
 					  GEN6_GDRST, hw_domain_mask, 0,
 					  500);
@@ -1779,17 +1779,12 @@ bool intel_has_gpu_reset(struct drm_i915_private *dev_priv)
 int intel_guc_reset(struct drm_i915_private *dev_priv)
 {
 	int ret;
-	unsigned long irqflags;
 
 	if (!HAS_GUC(dev_priv))
 		return -EINVAL;
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
 	ret = gen6_hw_domain_reset(dev_priv, GEN9_GRDOM_GUC);
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
 	return ret;
