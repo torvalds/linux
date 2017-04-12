@@ -40,6 +40,7 @@ config CFQ_GROUP_IOSCHED
 	  Enable group IO scheduling in CFQ.
 
 choice
+
 	prompt "Default I/O scheduler"
 	default DEFAULT_CFQ
 	help
@@ -88,6 +89,15 @@ config IOSCHED_BFQ
 	also guarantees a low latency to interactive and soft
 	real-time applications.  Details in
 	Documentation/block/bfq-iosched.txt
+
+config BFQ_GROUP_IOSCHED
+       bool "BFQ hierarchical scheduling support"
+       depends on IOSCHED_BFQ && BLK_CGROUP
+       default n
+       ---help---
+
+       Enable hierarchical scheduling in BFQ, using the blkio
+       (cgroups-v1) or io (cgroups-v2) controller.
 
 endmenu
 

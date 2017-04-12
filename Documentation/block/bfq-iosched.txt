@@ -253,9 +253,14 @@ of slice_idle are copied from CFQ too.
 per-process ioprio and weight
 -----------------------------
 
-Unless the cgroups interface is used, weights can be assigned to
-processes only indirectly, through I/O priorities, and according to
-the relation: weight = (IOPRIO_BE_NR - ioprio) * 10.
+Unless the cgroups interface is used (see "4. BFQ group scheduling"),
+weights can be assigned to processes only indirectly, through I/O
+priorities, and according to the relation:
+weight = (IOPRIO_BE_NR - ioprio) * 10.
+
+Beware that, if low-latency is set, then BFQ automatically raises the
+weight of the queues associated with interactive and soft real-time
+applications. Unset this tunable if you need/want to control weights.
 
 slice_idle
 ----------
@@ -450,9 +455,9 @@ may be reactivated for an already busy async queue (in ms).
 4. Group scheduling with BFQ
 ============================
 
-BFQ supports both cgroup-v1 and cgroup-v2 io controllers, namely blkio
-and io. In particular, BFQ supports weight-based proportional
-share.
+BFQ supports both cgroups-v1 and cgroups-v2 io controllers, namely
+blkio and io. In particular, BFQ supports weight-based proportional
+share. To activate cgroups support, set BFQ_GROUP_IOSCHED.
 
 4-1 Service guarantees provided
 -------------------------------
