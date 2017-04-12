@@ -3478,7 +3478,7 @@ static int vop_get_backlight_device(struct rk_lcdc_driver *dev_drv)
 	max = length / sizeof(u32);
 	last = max - 1;
 	brightness_levels = kmalloc(256, GFP_KERNEL);
-	if (brightness_levels)
+	if (!brightness_levels)
 		return -ENOMEM;
 
 	if (!of_property_read_u32_array(backlight, "brightness-levels",
