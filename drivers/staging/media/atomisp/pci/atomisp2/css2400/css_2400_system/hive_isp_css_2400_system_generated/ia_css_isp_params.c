@@ -28,7 +28,7 @@
 #include "isp/kernels/de/de_1.0/ia_css_de.host.h"
 #include "isp/kernels/de/de_2/ia_css_de2.host.h"
 #include "isp/kernels/dp/dp_1.0/ia_css_dp.host.h"
-#include "isp/kernels/fixedbds/fixedbds_1.0/ia_css_fixedbds.host.h"
+#include "isp/kernels/fixedbds/fixedbds_1.0/ia_css_fixedbds_param.h"
 #include "isp/kernels/fpn/fpn_1.0/ia_css_fpn.host.h"
 #include "isp/kernels/gc/gc_1.0/ia_css_gc.host.h"
 #include "isp/kernels/gc/gc_2/ia_css_gc2.host.h"
@@ -924,12 +924,13 @@ ia_css_process_bds(
 		unsigned offset = stage->binary->info->mem_offsets.offsets.param->dmem.bds.offset;
 
 		if (size) {
+			struct sh_css_isp_bds_params *p;
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "ia_css_process_bds() enter:\n");
 
-			ia_css_bds_encode((struct sh_css_isp_bds_params *)
-					&stage->binary->mem_params.params[IA_CSS_PARAM_CLASS_PARAM][IA_CSS_ISP_DMEM].address[offset],
-					&params->bds_config,
-size);
+			p = (struct sh_css_isp_bds_params *)
+				&stage->binary->mem_params.params[IA_CSS_PARAM_CLASS_PARAM][IA_CSS_ISP_DMEM].address[offset];
+			p->baf_strength = params->bds_config.strength;
+
 			params->isp_params_changed = true;
 			params->isp_mem_params_changed[pipe_id][stage->stage_num][IA_CSS_ISP_DMEM] = true;
 

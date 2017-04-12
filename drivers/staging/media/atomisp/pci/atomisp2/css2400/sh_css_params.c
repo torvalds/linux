@@ -75,7 +75,7 @@
 #include "ctc/ctc_1.0/ia_css_ctc.host.h"
 #include "ob/ob_1.0/ia_css_ob.host.h"
 #include "raw/raw_1.0/ia_css_raw.host.h"
-#include "fixedbds/fixedbds_1.0/ia_css_fixedbds.host.h"
+#include "fixedbds/fixedbds_1.0/ia_css_fixedbds_param.h"
 #include "s3a/s3a_1.0/ia_css_s3a.host.h"
 #include "sc/sc_1.0/ia_css_sc.host.h"
 #include "sdis/sdis_1.0/ia_css_sdis.host.h"
