@@ -311,24 +311,50 @@ static void free_data_area(struct tcmu_dev *udev, struct tcmu_cmd *cmd)
 		   DATA_BLOCK_BITS);
 }
 
-static void gather_data_area(struct tcmu_dev *udev, unsigned long *cmd_bitmap,
-		struct scatterlist *data_sg, unsigned int data_nents)
+static void gather_data_area(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
+			     bool bidi)
 {
+	struct se_cmd *se_cmd = cmd->se_cmd;
 	int i, block;
 	int block_remaining = 0;
 	void *from, *to;
 	size_t copy_bytes, from_offset;
-	struct scatterlist *sg;
+	struct scatterlist *sg, *data_sg;
+	unsigned int data_nents;
+	DECLARE_BITMAP(bitmap, DATA_BLOCK_BITS);
+
+	bitmap_copy(bitmap, cmd->data_bitmap, DATA_BLOCK_BITS);
+
+	if (!bidi) {
+		data_sg = se_cmd->t_data_sg;
+		data_nents = se_cmd->t_data_nents;
+	} else {
+		uint32_t count;
+
+		/*
+		 * For bidi case, the first count blocks are for Data-Out
+		 * buffer blocks, and before gathering the Data-In buffer
+		 * the Data-Out buffer blocks should be discarded.
+		 */
+		count = DIV_ROUND_UP(se_cmd->data_length, DATA_BLOCK_SIZE);
+		while (count--) {
+			block = find_first_bit(bitmap, DATA_BLOCK_BITS);
+			clear_bit(block, bitmap);
+		}
+
+		data_sg = se_cmd->t_bidi_data_sg;
+		data_nents = se_cmd->t_bidi_data_nents;
+	}
 
 	for_each_sg(data_sg, sg, data_nents, i) {
 		int sg_remaining = sg->length;
 		to = kmap_atomic(sg_page(sg)) + sg->offset;
 		while (sg_remaining > 0) {
 			if (block_remaining == 0) {
-				block = find_first_bit(cmd_bitmap,
+				block = find_first_bit(bitmap,
 						DATA_BLOCK_BITS);
 				block_remaining = DATA_BLOCK_SIZE;
-				clear_bit(block, cmd_bitmap);
+				clear_bit(block, bitmap);
 			}
 			copy_bytes = min_t(size_t, sg_remaining,
 					block_remaining);
@@ -394,6 +420,27 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, size_t cmd_size, size_t d
 	return true;
 }
 
+static inline size_t tcmu_cmd_get_data_length(struct tcmu_cmd *tcmu_cmd)
+{
+	struct se_cmd *se_cmd = tcmu_cmd->se_cmd;
+	size_t data_length = round_up(se_cmd->data_length, DATA_BLOCK_SIZE);
+
+	if (se_cmd->se_cmd_flags & SCF_BIDI) {
+		BUG_ON(!(se_cmd->t_bidi_data_sg && se_cmd->t_bidi_data_nents));
+		data_length += round_up(se_cmd->t_bidi_data_sg->length,
+				DATA_BLOCK_SIZE);
+	}
+
+	return data_length;
+}
+
+static inline uint32_t tcmu_cmd_get_block_cnt(struct tcmu_cmd *tcmu_cmd)
+{
+	size_t data_length = tcmu_cmd_get_data_length(tcmu_cmd);
+
+	return data_length / DATA_BLOCK_SIZE;
+}
+
 static sense_reason_t
 tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 {
@@ -407,7 +454,7 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	uint32_t cmd_head;
 	uint64_t cdb_off;
 	bool copy_to_data_area;
-	size_t data_length;
+	size_t data_length = tcmu_cmd_get_data_length(tcmu_cmd);
 	DECLARE_BITMAP(old_bitmap, DATA_BLOCK_BITS);
 
 	if (test_bit(TCMU_DEV_BIT_BROKEN, &udev->flags))
@@ -421,8 +468,7 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	 * expensive to tell how many regions are freed in the bitmap
 	*/
 	base_command_size = max(offsetof(struct tcmu_cmd_entry,
-				req.iov[se_cmd->t_bidi_data_nents +
-					se_cmd->t_data_nents]),
+				req.iov[tcmu_cmd_get_block_cnt(tcmu_cmd)]),
 				sizeof(struct tcmu_cmd_entry));
 	command_size = base_command_size
 		+ round_up(scsi_command_size(se_cmd->t_task_cdb), TCMU_OP_ALIGN_SIZE);
@@ -433,11 +479,6 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 
 	mb = udev->mb_addr;
 	cmd_head = mb->cmd_head % udev->cmdr_size; /* UAM */
-	data_length = se_cmd->data_length;
-	if (se_cmd->se_cmd_flags & SCF_BIDI) {
-		BUG_ON(!(se_cmd->t_bidi_data_sg && se_cmd->t_bidi_data_nents));
-		data_length += se_cmd->t_bidi_data_sg->length;
-	}
 	if ((command_size > (udev->cmdr_size / 2)) ||
 	    data_length > udev->data_size) {
 		pr_warn("TCMU: Request of size %zu/%zu is too big for %u/%zu "
@@ -511,11 +552,14 @@ tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	entry->req.iov_dif_cnt = 0;
 
 	/* Handle BIDI commands */
-	iov_cnt = 0;
-	alloc_and_scatter_data_area(udev, se_cmd->t_bidi_data_sg,
-		se_cmd->t_bidi_data_nents, &iov, &iov_cnt, false);
-	entry->req.iov_bidi_cnt = iov_cnt;
-
+	if (se_cmd->se_cmd_flags & SCF_BIDI) {
+		iov_cnt = 0;
+		iov++;
+		alloc_and_scatter_data_area(udev, se_cmd->t_bidi_data_sg,
+				se_cmd->t_bidi_data_nents, &iov, &iov_cnt,
+				false);
+		entry->req.iov_bidi_cnt = iov_cnt;
+	}
 	/* cmd's data_bitmap is what changed in process */
 	bitmap_xor(tcmu_cmd->data_bitmap, old_bitmap, udev->data_bitmap,
 			DATA_BLOCK_BITS);
@@ -592,19 +636,11 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 			       se_cmd->scsi_sense_length);
 		free_data_area(udev, cmd);
 	} else if (se_cmd->se_cmd_flags & SCF_BIDI) {
-		DECLARE_BITMAP(bitmap, DATA_BLOCK_BITS);
-
 		/* Get Data-In buffer before clean up */
-		bitmap_copy(bitmap, cmd->data_bitmap, DATA_BLOCK_BITS);
-		gather_data_area(udev, bitmap,
-			se_cmd->t_bidi_data_sg, se_cmd->t_bidi_data_nents);
+		gather_data_area(udev, cmd, true);
 		free_data_area(udev, cmd);
 	} else if (se_cmd->data_direction == DMA_FROM_DEVICE) {
-		DECLARE_BITMAP(bitmap, DATA_BLOCK_BITS);
-
-		bitmap_copy(bitmap, cmd->data_bitmap, DATA_BLOCK_BITS);
-		gather_data_area(udev, bitmap,
-			se_cmd->t_data_sg, se_cmd->t_data_nents);
+		gather_data_area(udev, cmd, false);
 		free_data_area(udev, cmd);
 	} else if (se_cmd->data_direction == DMA_TO_DEVICE) {
 		free_data_area(udev, cmd);
@@ -1195,11 +1231,6 @@ static ssize_t tcmu_cmd_time_out_store(struct config_item *item, const char *pag
 	ret = kstrtou32(page, 0, &val);
 	if (ret < 0)
 		return ret;
-
-	if (!val) {
-		pr_err("Illegal value for cmd_time_out\n");
-		return -EINVAL;
-	}
 
 	udev->cmd_time_out = val * MSEC_PER_SEC;
 	return count;

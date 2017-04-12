@@ -644,14 +644,16 @@ static void svia_configure(struct pci_dev *pdev, int board_id,
 		pci_write_config_byte(pdev, SATA_NATIVE_MODE, tmp8);
 	}
 
-	/* enable IRQ on hotplug */
-	pci_read_config_byte(pdev, SVIA_MISC_3, &tmp8);
-	if ((tmp8 & SATA_HOTPLUG) != SATA_HOTPLUG) {
-		dev_dbg(&pdev->dev,
-			"enabling SATA hotplug (0x%x)\n",
-			(int) tmp8);
-		tmp8 |= SATA_HOTPLUG;
-		pci_write_config_byte(pdev, SVIA_MISC_3, tmp8);
+	if (board_id == vt6421) {
+		/* enable IRQ on hotplug */
+		pci_read_config_byte(pdev, SVIA_MISC_3, &tmp8);
+		if ((tmp8 & SATA_HOTPLUG) != SATA_HOTPLUG) {
+			dev_dbg(&pdev->dev,
+				"enabling SATA hotplug (0x%x)\n",
+				(int) tmp8);
+			tmp8 |= SATA_HOTPLUG;
+			pci_write_config_byte(pdev, SVIA_MISC_3, tmp8);
+		}
 	}
 
 	/*
