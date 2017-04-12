@@ -111,7 +111,7 @@ scsi_nl_rcv_msg(struct sk_buff *skb)
 
 next_msg:
 		if ((err) || (nlh->nlmsg_flags & NLM_F_ACK))
-			netlink_ack(skb, nlh, err);
+			netlink_ack(skb, nlh, err, NULL);
 
 		skb_pull(skb, rlen);
 	}
