@@ -52,12 +52,6 @@ extern const struct file_operations cxlflash_cxl_fops;
 				   certain AFU errors */
 
 /* Command management definitions */
-#define CXLFLASH_NUM_CMDS	(2 * CXLFLASH_MAX_CMDS)	/* Must be a pow2 for
-							   alignment and more
-							   efficient array
-							   index derivation
-							 */
-
 #define CXLFLASH_MAX_CMDS               256
 #define CXLFLASH_MAX_CMDS_PER_LUN       CXLFLASH_MAX_CMDS
 
@@ -71,6 +65,7 @@ extern const struct file_operations cxlflash_cxl_fops;
 static inline void check_sizes(void)
 {
 	BUILD_BUG_ON_NOT_POWER_OF_2(CXLFLASH_NUM_FC_PORTS_PER_BANK);
+	BUILD_BUG_ON_NOT_POWER_OF_2(CXLFLASH_MAX_CMDS);
 }
 
 /* AFU defines a fixed size of 4K for command buffers (borrow 4K page define) */
