@@ -240,6 +240,20 @@ static inline u64 lun_to_lunid(u64 lun)
 	return be64_to_cpu(lun_id);
 }
 
+static inline __be64 __iomem *get_fc_port_regs(struct cxlflash_cfg *cfg, int i)
+{
+	struct afu *afu = cfg->afu;
+
+	return &afu->afu_map->global.fc_regs[i][0];
+}
+
+static inline __be64 __iomem *get_fc_port_luns(struct cxlflash_cfg *cfg, int i)
+{
+	struct afu *afu = cfg->afu;
+
+	return &afu->afu_map->global.fc_port[i][0];
+}
+
 int cxlflash_afu_sync(struct afu *, ctx_hndl_t, res_hndl_t, u8);
 void cxlflash_list_init(void);
 void cxlflash_term_global_luns(void);

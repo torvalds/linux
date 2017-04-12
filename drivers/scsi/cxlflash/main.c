@@ -670,8 +670,8 @@ static void notify_shutdown(struct cxlflash_cfg *cfg, bool wait)
 {
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
-	struct sisl_global_map __iomem *global;
 	struct dev_dependent_vals *ddv;
+	__be64 __iomem *fc_port_regs;
 	u64 reg, status;
 	int i, retry_cnt = 0;
 
@@ -684,13 +684,13 @@ static void notify_shutdown(struct cxlflash_cfg *cfg, bool wait)
 		return;
 	}
 
-	global = &afu->afu_map->global;
-
 	/* Notify AFU */
 	for (i = 0; i < cfg->num_fc_ports; i++) {
-		reg = readq_be(&global->fc_regs[i][FC_CONFIG2 / 8]);
+		fc_port_regs = get_fc_port_regs(cfg, i);
+
+		reg = readq_be(&fc_port_regs[FC_CONFIG2 / 8]);
 		reg |= SISL_FC_SHUTDOWN_NORMAL;
-		writeq_be(reg, &global->fc_regs[i][FC_CONFIG2 / 8]);
+		writeq_be(reg, &fc_port_regs[FC_CONFIG2 / 8]);
 	}
 
 	if (!wait)
@@ -698,9 +698,11 @@ static void notify_shutdown(struct cxlflash_cfg *cfg, bool wait)
 
 	/* Wait up to 1.5 seconds for shutdown processing to complete */
 	for (i = 0; i < cfg->num_fc_ports; i++) {
+		fc_port_regs = get_fc_port_regs(cfg, i);
 		retry_cnt = 0;
+
 		while (true) {
-			status = readq_be(&global->fc_regs[i][FC_STATUS / 8]);
+			status = readq_be(&fc_port_regs[FC_STATUS / 8]);
 			if (status & SISL_STATUS_SHUTDOWN_COMPLETE)
 				break;
 			if (++retry_cnt >= MC_RETRY_CNT) {
@@ -1071,6 +1073,7 @@ static const struct asyc_intr_info *find_ainfo(u64 status)
 static void afu_err_intr_init(struct afu *afu)
 {
 	struct cxlflash_cfg *cfg = afu->parent;
+	__be64 __iomem *fc_port_regs;
 	int i;
 	u64 reg;
 
@@ -1099,17 +1102,19 @@ static void afu_err_intr_init(struct afu *afu)
 	writeq_be(-1ULL, &afu->afu_map->global.regs.aintr_clear);
 
 	/* Clear/Set internal lun bits */
-	reg = readq_be(&afu->afu_map->global.fc_regs[0][FC_CONFIG2 / 8]);
+	fc_port_regs = get_fc_port_regs(cfg, 0);
+	reg = readq_be(&fc_port_regs[FC_CONFIG2 / 8]);
 	reg &= SISL_FC_INTERNAL_MASK;
 	if (afu->internal_lun)
 		reg |= ((u64)(afu->internal_lun - 1) << SISL_FC_INTERNAL_SHIFT);
-	writeq_be(reg, &afu->afu_map->global.fc_regs[0][FC_CONFIG2 / 8]);
+	writeq_be(reg, &fc_port_regs[FC_CONFIG2 / 8]);
 
 	/* now clear FC errors */
 	for (i = 0; i < cfg->num_fc_ports; i++) {
-		writeq_be(0xFFFFFFFFU,
-			  &afu->afu_map->global.fc_regs[i][FC_ERROR / 8]);
-		writeq_be(0, &afu->afu_map->global.fc_regs[i][FC_ERRCAP / 8]);
+		fc_port_regs = get_fc_port_regs(cfg, i);
+
+		writeq_be(0xFFFFFFFFU, &fc_port_regs[FC_ERROR / 8]);
+		writeq_be(0, &fc_port_regs[FC_ERRCAP / 8]);
 	}
 
 	/* sync interrupts for master's IOARRIN write */
@@ -1306,6 +1311,7 @@ static irqreturn_t cxlflash_async_err_irq(int irq, void *data)
 	u64 reg_unmasked;
 	const struct asyc_intr_info *info;
 	struct sisl_global_map __iomem *global = &afu->afu_map->global;
+	__be64 __iomem *fc_port_regs;
 	u64 reg;
 	u8 port;
 	int i;
@@ -1329,10 +1335,11 @@ static irqreturn_t cxlflash_async_err_irq(int irq, void *data)
 			continue;
 
 		port = info->port;
+		fc_port_regs = get_fc_port_regs(cfg, port);
 
 		dev_err(dev, "%s: FC Port %d -> %s, fc_status=%016llx\n",
 			__func__, port, info->desc,
-		       readq_be(&global->fc_regs[port][FC_STATUS / 8]));
+		       readq_be(&fc_port_regs[FC_STATUS / 8]));
 
 		/*
 		 * Do link reset first, some OTHER errors will set FC_ERROR
@@ -1347,7 +1354,7 @@ static irqreturn_t cxlflash_async_err_irq(int irq, void *data)
 		}
 
 		if (info->action & CLR_FC_ERROR) {
-			reg = readq_be(&global->fc_regs[port][FC_ERROR / 8]);
+			reg = readq_be(&fc_port_regs[FC_ERROR / 8]);
 
 			/*
 			 * Since all errors are unmasked, FC_ERROR and FC_ERRCAP
@@ -1357,8 +1364,8 @@ static irqreturn_t cxlflash_async_err_irq(int irq, void *data)
 			dev_err(dev, "%s: fc %d: clearing fc_error=%016llx\n",
 				__func__, port, reg);
 
-			writeq_be(reg, &global->fc_regs[port][FC_ERROR / 8]);
-			writeq_be(0, &global->fc_regs[port][FC_ERRCAP / 8]);
+			writeq_be(reg, &fc_port_regs[FC_ERROR / 8]);
+			writeq_be(0, &fc_port_regs[FC_ERRCAP / 8]);
 		}
 
 		if (info->action & SCAN_HOST) {
@@ -1521,6 +1528,7 @@ static int init_global(struct cxlflash_cfg *cfg)
 {
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
+	__be64 __iomem *fc_port_regs;
 	u64 wwpn[MAX_FC_PORTS];	/* wwpn of AFU ports */
 	int i = 0, num_ports = 0;
 	int rc = 0;
@@ -1562,19 +1570,17 @@ static int init_global(struct cxlflash_cfg *cfg)
 	}
 
 	for (i = 0; i < num_ports; i++) {
+		fc_port_regs = get_fc_port_regs(cfg, i);
+
 		/* Unmask all errors (but they are still masked at AFU) */
-		writeq_be(0, &afu->afu_map->global.fc_regs[i][FC_ERRMSK / 8]);
+		writeq_be(0, &fc_port_regs[FC_ERRMSK / 8]);
 		/* Clear CRC error cnt & set a threshold */
-		(void)readq_be(&afu->afu_map->global.
-			       fc_regs[i][FC_CNT_CRCERR / 8]);
-		writeq_be(MC_CRC_THRESH, &afu->afu_map->global.fc_regs[i]
-			  [FC_CRC_THRESH / 8]);
+		(void)readq_be(&fc_port_regs[FC_CNT_CRCERR / 8]);
+		writeq_be(MC_CRC_THRESH, &fc_port_regs[FC_CRC_THRESH / 8]);
 
 		/* Set WWPNs. If already programmed, wwpn[i] is 0 */
 		if (wwpn[i] != 0)
-			afu_set_wwpn(afu, i,
-				     &afu->afu_map->global.fc_regs[i][0],
-				     wwpn[i]);
+			afu_set_wwpn(afu, i, &fc_port_regs[0], wwpn[i]);
 		/* Programming WWPN back to back causes additional
 		 * offline/online transitions and a PLOGI
 		 */
@@ -2067,10 +2073,9 @@ static ssize_t cxlflash_show_port_status(u32 port,
 					 char *buf)
 {
 	struct device *dev = &cfg->dev->dev;
-	struct afu *afu = cfg->afu;
 	char *disp_status;
 	u64 status;
-	__be64 __iomem *fc_regs;
+	__be64 __iomem *fc_port_regs;
 
 	WARN_ON(port >= MAX_FC_PORTS);
 
@@ -2080,8 +2085,8 @@ static ssize_t cxlflash_show_port_status(u32 port,
 		return -EINVAL;
 	}
 
-	fc_regs = &afu->afu_map->global.fc_regs[port][0];
-	status = readq_be(&fc_regs[FC_MTIP_STATUS / 8]);
+	fc_port_regs = get_fc_port_regs(cfg, port);
+	status = readq_be(&fc_port_regs[FC_MTIP_STATUS / 8]);
 	status &= FC_MTIP_STATUS_MASK;
 
 	if (status == FC_MTIP_STATUS_ONLINE)
@@ -2225,10 +2230,9 @@ static ssize_t cxlflash_show_port_lun_table(u32 port,
 					    char *buf)
 {
 	struct device *dev = &cfg->dev->dev;
-	struct afu *afu = cfg->afu;
+	__be64 __iomem *fc_port_luns;
 	int i;
 	ssize_t bytes = 0;
-	__be64 __iomem *fc_port;
 
 	WARN_ON(port >= MAX_FC_PORTS);
 
@@ -2238,11 +2242,12 @@ static ssize_t cxlflash_show_port_lun_table(u32 port,
 		return -EINVAL;
 	}
 
-	fc_port = &afu->afu_map->global.fc_port[port][0];
+	fc_port_luns = get_fc_port_luns(cfg, port);
 
 	for (i = 0; i < CXLFLASH_NUM_VLUNS; i++)
 		bytes += scnprintf(buf + bytes, PAGE_SIZE - bytes,
-				   "%03d: %016llx\n", i, readq_be(&fc_port[i]));
+				   "%03d: %016llx\n",
+				   i, readq_be(&fc_port_luns[i]));
 	return bytes;
 }
 
@@ -2462,6 +2467,7 @@ static void cxlflash_worker_thread(struct work_struct *work)
 						work_q);
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
+	__be64 __iomem *fc_port_regs;
 	int port;
 	ulong lock_flags;
 
@@ -2482,8 +2488,8 @@ static void cxlflash_worker_thread(struct work_struct *work)
 					       lock_flags);
 
 			/* The reset can block... */
-			afu_link_reset(afu, port,
-				       &afu->afu_map->global.fc_regs[port][0]);
+			fc_port_regs = get_fc_port_regs(cfg, port);
+			afu_link_reset(afu, port, fc_port_regs);
 			spin_lock_irqsave(cfg->host->host_lock, lock_flags);
 		}
 

@@ -821,9 +821,8 @@ void cxlflash_restore_luntable(struct cxlflash_cfg *cfg)
 	struct llun_info *lli, *temp;
 	u32 lind;
 	int k;
-	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
-	struct sisl_global_map __iomem *agm = &afu->afu_map->global;
+	__be64 __iomem *fc_port_luns;
 
 	mutex_lock(&global.mutex);
 
@@ -836,8 +835,8 @@ void cxlflash_restore_luntable(struct cxlflash_cfg *cfg)
 
 		for (k = 0; k < cfg->num_fc_ports; k++)
 			if (lli->port_sel & (1 << k)) {
-				writeq_be(lli->lun_id[k],
-					  &agm->fc_port[k][lind]);
+				fc_port_luns = get_fc_port_luns(cfg, k);
+				writeq_be(lli->lun_id[k], &fc_port_luns[lind]);
 				dev_dbg(dev, "\t%d=%llx\n", k, lli->lun_id[k]);
 			}
 	}
@@ -877,9 +876,8 @@ static int init_luntable(struct cxlflash_cfg *cfg, struct llun_info *lli)
 	u32 nports;
 	int rc = 0;
 	int k;
-	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
-	struct sisl_global_map __iomem *agm = &afu->afu_map->global;
+	__be64 __iomem *fc_port_luns;
 
 	mutex_lock(&global.mutex);
 
@@ -915,7 +913,8 @@ static int init_luntable(struct cxlflash_cfg *cfg, struct llun_info *lli)
 			if (!(lli->port_sel & (1 << k)))
 				continue;
 
-			writeq_be(lli->lun_id[k], &agm->fc_port[k][lind]);
+			fc_port_luns = get_fc_port_luns(cfg, k);
+			writeq_be(lli->lun_id[k], &fc_port_luns[lind]);
 			dev_dbg(dev, "\t%d=%llx\n", k, lli->lun_id[k]);
 		}
 
@@ -932,7 +931,8 @@ static int init_luntable(struct cxlflash_cfg *cfg, struct llun_info *lli)
 		}
 
 		lind = lli->lun_index = cfg->last_lun_index[chan];
-		writeq_be(lli->lun_id[chan], &agm->fc_port[chan][lind]);
+		fc_port_luns = get_fc_port_luns(cfg, chan);
+		writeq_be(lli->lun_id[chan], &fc_port_luns[lind]);
 		cfg->last_lun_index[chan]--;
 		dev_dbg(dev, "%s: Virtual LUNs on slot %d:\n\t%d=%llx\n",
 			__func__, lind, chan, lli->lun_id[chan]);
