@@ -47,8 +47,8 @@
 #define MIN_TX_QUEUE_ENTRIES	32
 
 /* Defaults */
-#define DEF_RX_QUEUE_ENTRIES	256
-#define DEF_TX_QUEUE_ENTRIES	512
+#define DEF_RX_QUEUE_ENTRIES	128
+#define DEF_TX_QUEUE_ENTRIES	128
 
 #define MAX_PKT_SIZE		1536
 #define RX_BUF_SIZE		MAX_PKT_SIZE	/* must be smaller than 0x3fff */
