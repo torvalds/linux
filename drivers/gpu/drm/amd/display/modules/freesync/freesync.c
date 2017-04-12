@@ -641,7 +641,8 @@ static void set_static_ramp_variables(struct core_freesync *core_freesync,
 void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 		const struct dc_stream **streams, int num_streams)
 {
-	unsigned int index, v_total = 0;
+	unsigned int index, v_total, inserted_frame_v_total = 0;
+	unsigned int min_frame_duration_in_ns, vmax, vmin = 0;
 	struct freesync_state *state;
 	struct core_freesync *core_freesync = NULL;
 
@@ -665,19 +666,48 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 
 	/* Only execute if in fullscreen mode */
 	if (state->fullscreen == true &&
-		core_freesync->map[index].user_enable.enable_for_gaming) {
+		core_freesync->map[index].user_enable.enable_for_gaming &&
+		core_freesync->map[index].caps->btr_supported &&
+		state->btr.btr_active) {
 
-		if (state->btr.btr_active)
-			if (state->btr.frame_counter > 0)
+		/* TODO: pass in flag for Pre-DCE12 ASIC
+		 * in order for frame variable duration to take affect,
+		 * it needs to be done one VSYNC early, which is at
+		 * frameCounter == 1.
+		 * For DCE12 and newer updates to V_TOTAL_MIN/MAX
+		 * will take affect on current frame
+		 */
+		if (state->btr.frames_to_insert == state->btr.frame_counter) {
 
-				state->btr.frame_counter--;
+			min_frame_duration_in_ns = ((unsigned int) (div64_u64(
+					(1000000000ULL * 1000000),
+					state->nominal_refresh_rate_in_micro_hz)));
 
-		if (state->btr.frame_counter == 1) {
+			calc_vmin_vmax(core_freesync, *streams, &vmin, &vmax);
 
-			/* Restore FreeSync */
-			set_freesync_on_streams(core_freesync, streams,
-					num_streams);
+			inserted_frame_v_total = vmin;
+
+			if (min_frame_duration_in_ns / 1000)
+				inserted_frame_v_total =
+					state->btr.inserted_frame_duration_in_us *
+					vmin / (min_frame_duration_in_ns / 1000);
+
+			/* Set length of inserted frames as v_total_max*/
+			vmax = inserted_frame_v_total;
+			vmin = inserted_frame_v_total;
+
+			/* Program V_TOTAL */
+			core_freesync->dc->stream_funcs.adjust_vmin_vmax(
+				core_freesync->dc, streams,
+				num_streams, vmin, vmax);
 		}
+
+		if (state->btr.frame_counter > 0)
+			state->btr.frame_counter--;
+
+		/* Restore FreeSync */
+		if (state->btr.frame_counter == 0)
+			set_freesync_on_streams(core_freesync, streams, num_streams);
 	}
 
 	/* If in fullscreen freesync mode or in video, do not program
@@ -1022,8 +1052,6 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 	unsigned int delta_from_mid_point_in_us_1 = 0xFFFFFFFF;
 	unsigned int delta_from_mid_point_in_us_2 = 0xFFFFFFFF;
 	unsigned int frames_to_insert = 0;
-	unsigned int inserted_frame_v_total = 0;
-	unsigned int vmin = 0, vmax = 0;
 	unsigned int min_frame_duration_in_ns = 0;
 	struct freesync_state *state = &core_freesync->map[map_index].state;
 
@@ -1100,23 +1128,6 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 
 			inserted_frame_duration_in_us =
 				state->time.min_render_time_in_us;
-
-		/* We need the v_total_min from capability */
-		calc_vmin_vmax(core_freesync, stream, &vmin, &vmax);
-
-		inserted_frame_v_total = vmin;
-		if (min_frame_duration_in_ns / 1000)
-			inserted_frame_v_total = inserted_frame_duration_in_us *
-				vmin / (min_frame_duration_in_ns / 1000);
-
-		/* Set length of inserted frames as v_total_max*/
-		vmax = inserted_frame_v_total;
-
-		/* Program V_TOTAL */
-		core_freesync->dc->stream_funcs.adjust_vmin_vmax(
-			core_freesync->dc, &stream,
-			1, vmin,
-			vmax);
 
 		/* Cache the calculated variables */
 		state->btr.inserted_frame_duration_in_us =
