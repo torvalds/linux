@@ -381,6 +381,10 @@
 	};
 };
 
+&rkvdec {
+	status = "okay";
+};
+
 &sdio {
 	bus-width = <4>;
 	cap-sd-highspeed;
@@ -475,3 +479,6 @@
 	status = "okay";
 };
 
+&vpu_service {
+	status = "okay";
+};
