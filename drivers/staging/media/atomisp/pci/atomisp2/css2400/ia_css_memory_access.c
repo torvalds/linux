@@ -31,31 +31,18 @@ mmgr_malloc(const size_t size)
 hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attrs)
 {
 	uint16_t masked_attrs = attrs & MMGR_ATTRIBUTE_MASK;
+	WARN_ON(attrs & MMGR_ATTRIBUTE_CONTIGUOUS);
 
 	if (masked_attrs & MMGR_ATTRIBUTE_CLEARED) {
-		if (masked_attrs & MMGR_ATTRIBUTE_CACHED) {
-			if (masked_attrs & MMGR_ATTRIBUTE_CONTIGUOUS)
-				return (ia_css_ptr) hrt_isp_css_mm_calloc_contiguous(size);
-			else
-				return (ia_css_ptr) hrt_isp_css_mm_calloc_cached(size);
-		} else {
-			if (masked_attrs & MMGR_ATTRIBUTE_CONTIGUOUS)
-				return (ia_css_ptr) hrt_isp_css_mm_calloc_contiguous(size);
-			else
-				return (ia_css_ptr) hrt_isp_css_mm_calloc(size);
-		}
+		if (masked_attrs & MMGR_ATTRIBUTE_CACHED)
+			return (ia_css_ptr) hrt_isp_css_mm_calloc_cached(size);
+		else
+			return (ia_css_ptr) hrt_isp_css_mm_calloc(size);
 	} else {
-		if (masked_attrs & MMGR_ATTRIBUTE_CACHED) {
-			if (masked_attrs & MMGR_ATTRIBUTE_CONTIGUOUS)
-				return (ia_css_ptr) hrt_isp_css_mm_alloc_contiguous(size);
-			else
-				return (ia_css_ptr) hrt_isp_css_mm_alloc_cached(size);
-		} else {
-			if (masked_attrs & MMGR_ATTRIBUTE_CONTIGUOUS)
-				return (ia_css_ptr) hrt_isp_css_mm_alloc_contiguous(size);
-			else
-				return (ia_css_ptr) hrt_isp_css_mm_alloc(size);
-		}
+		if (masked_attrs & MMGR_ATTRIBUTE_CACHED)
+			return (ia_css_ptr) hrt_isp_css_mm_alloc_cached(size);
+		else
+			return (ia_css_ptr) hrt_isp_css_mm_alloc(size);
 	}
 }
 

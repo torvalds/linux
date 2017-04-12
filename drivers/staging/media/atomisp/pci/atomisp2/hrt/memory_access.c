@@ -60,42 +60,23 @@ ia_css_ptr mmgr_alloc_attr(const size_t	size, const uint16_t attribute)
 
 	assert(page_table_base_address != (sys_address)-1);
 	assert((attribute & MMGR_ATTRIBUTE_UNUSED) == 0);
+	WARN_ON(attribute & MMGR_ATTRIBUTE_CONTIGUOUS);
 
 	if (attribute & MMGR_ATTRIBUTE_CLEARED) {
 		if (attribute & MMGR_ATTRIBUTE_CACHED) {
-			if (attribute & MMGR_ATTRIBUTE_CONTIGUOUS) /* { */
-				ptr = hrt_isp_css_mm_calloc_contiguous(
+			ptr = hrt_isp_css_mm_calloc_cached(
 						aligned_size + extra_space);
-			/* } */ else /* { */
-				ptr = hrt_isp_css_mm_calloc_cached(
-						aligned_size + extra_space);
-			/* } */
 		} else { /* !MMGR_ATTRIBUTE_CACHED */
-			if (attribute & MMGR_ATTRIBUTE_CONTIGUOUS) /* { */
-				ptr = hrt_isp_css_mm_calloc_contiguous(
+			ptr = hrt_isp_css_mm_calloc(
 						aligned_size + extra_space);
-			/* } */ else /* { */
-				ptr = hrt_isp_css_mm_calloc(
-						aligned_size + extra_space);
-			/* } */
 		}
 	} else { /* MMGR_ATTRIBUTE_CLEARED */
 		if (attribute & MMGR_ATTRIBUTE_CACHED) {
-			if (attribute & MMGR_ATTRIBUTE_CONTIGUOUS) /* { */
-				ptr = hrt_isp_css_mm_alloc_contiguous(
+			ptr = hrt_isp_css_mm_alloc_cached(
 						aligned_size + extra_space);
-			/* } */ else /* { */
-				ptr = hrt_isp_css_mm_alloc_cached(
-						aligned_size + extra_space);
-			/* } */
 		} else { /* !MMGR_ATTRIBUTE_CACHED */
-			if (attribute & MMGR_ATTRIBUTE_CONTIGUOUS) /* { */
-				ptr = hrt_isp_css_mm_alloc_contiguous(
-						aligned_size + extra_space);
-			/* } */ else /* { */
-				ptr = hrt_isp_css_mm_alloc(
-						aligned_size + extra_space);
-			/* } */
+			ptr = hrt_isp_css_mm_alloc(
+					aligned_size + extra_space);
 		}
 	}
 	return ptr;

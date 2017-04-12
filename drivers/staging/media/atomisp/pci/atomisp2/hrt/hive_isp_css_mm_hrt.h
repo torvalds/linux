@@ -81,8 +81,5 @@ int hrt_isp_css_mm_store_int(ia_css_ptr virt_addr, int data);
    the display driver on  the FPGA system */
 phys_addr_t hrt_isp_css_virt_to_phys(ia_css_ptr virt_addr);
 
-ia_css_ptr hrt_isp_css_mm_alloc_contiguous(size_t bytes);
-ia_css_ptr hrt_isp_css_mm_calloc_contiguous(size_t bytes);
-
 void hrt_isp_css_mm_clear(void);
 #endif /* _hive_isp_css_mm_hrt_h_ */

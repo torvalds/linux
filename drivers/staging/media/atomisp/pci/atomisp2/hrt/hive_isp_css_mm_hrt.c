@@ -180,14 +180,3 @@ phys_addr_t hrt_isp_css_virt_to_phys(ia_css_ptr virt_addr)
 	return hmm_virt_to_phys(virt_addr);
 }
 
-ia_css_ptr hrt_isp_css_mm_alloc_contiguous(size_t bytes)
-{
-	BUG_ON(false);
-	return 0;
-}
-ia_css_ptr hrt_isp_css_mm_calloc_contiguous(size_t bytes)
-{
-	BUG_ON(false);
-	return 0;
-}
-
