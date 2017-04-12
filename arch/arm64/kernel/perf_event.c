@@ -957,10 +957,25 @@ static int armv8_vulcan_map_event(struct perf_event *event)
 				ARMV8_PMU_EVTYPE_EVENT);
 }
 
+struct armv8pmu_probe_info {
+	struct arm_pmu *pmu;
+	bool present;
+};
+
 static void __armv8pmu_probe_pmu(void *info)
 {
-	struct arm_pmu *cpu_pmu = info;
+	struct armv8pmu_probe_info *probe = info;
+	struct arm_pmu *cpu_pmu = probe->pmu;
+	u64 dfr0, pmuver;
 	u32 pmceid[2];
+
+	dfr0 = read_sysreg(id_aa64dfr0_el1);
+	pmuver = cpuid_feature_extract_unsigned_field(dfr0,
+			ID_AA64DFR0_PMUVER_SHIFT);
+	if (pmuver != 1)
+		return;
+
+	probe->present = true;
 
 	/* Read the nb of CNTx counters supported from PMNC */
 	cpu_pmu->num_events = (armv8pmu_pmcr_read() >> ARMV8_PMU_PMCR_N_SHIFT)
@@ -979,13 +994,27 @@ static void __armv8pmu_probe_pmu(void *info)
 
 static int armv8pmu_probe_pmu(struct arm_pmu *cpu_pmu)
 {
-	return smp_call_function_any(&cpu_pmu->supported_cpus,
+	struct armv8pmu_probe_info probe = {
+		.pmu = cpu_pmu,
+		.present = false,
+	};
+	int ret;
+
+	ret = smp_call_function_any(&cpu_pmu->supported_cpus,
 				    __armv8pmu_probe_pmu,
-				    cpu_pmu, 1);
+				    &probe, 1);
+	if (ret)
+		return ret;
+
+	return probe.present ? 0 : -ENODEV;
 }
 
-static void armv8_pmu_init(struct arm_pmu *cpu_pmu)
+static int armv8_pmu_init(struct arm_pmu *cpu_pmu)
 {
+	int ret = armv8pmu_probe_pmu(cpu_pmu);
+	if (ret)
+		return ret;
+
 	cpu_pmu->handle_irq		= armv8pmu_handle_irq,
 	cpu_pmu->enable			= armv8pmu_enable_event,
 	cpu_pmu->disable		= armv8pmu_disable_event,
@@ -997,78 +1026,104 @@ static void armv8_pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->reset			= armv8pmu_reset,
 	cpu_pmu->max_period		= (1LLU << 32) - 1,
 	cpu_pmu->set_event_filter	= armv8pmu_set_event_filter;
+
+	return 0;
 }
 
 static int armv8_pmuv3_init(struct arm_pmu *cpu_pmu)
 {
-	armv8_pmu_init(cpu_pmu);
+	int ret = armv8_pmu_init(cpu_pmu);
+	if (ret)
+		return ret;
+
 	cpu_pmu->name			= "armv8_pmuv3";
 	cpu_pmu->map_event		= armv8_pmuv3_map_event;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_EVENTS] =
 		&armv8_pmuv3_events_attr_group;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_FORMATS] =
 		&armv8_pmuv3_format_attr_group;
-	return armv8pmu_probe_pmu(cpu_pmu);
+
+	return 0;
 }
 
 static int armv8_a53_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	armv8_pmu_init(cpu_pmu);
+	int ret = armv8_pmu_init(cpu_pmu);
+	if (ret)
+		return ret;
+
 	cpu_pmu->name			= "armv8_cortex_a53";
 	cpu_pmu->map_event		= armv8_a53_map_event;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_EVENTS] =
 		&armv8_pmuv3_events_attr_group;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_FORMATS] =
 		&armv8_pmuv3_format_attr_group;
-	return armv8pmu_probe_pmu(cpu_pmu);
+
+	return 0;
 }
 
 static int armv8_a57_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	armv8_pmu_init(cpu_pmu);
+	int ret = armv8_pmu_init(cpu_pmu);
+	if (ret)
+		return ret;
+
 	cpu_pmu->name			= "armv8_cortex_a57";
 	cpu_pmu->map_event		= armv8_a57_map_event;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_EVENTS] =
 		&armv8_pmuv3_events_attr_group;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_FORMATS] =
 		&armv8_pmuv3_format_attr_group;
-	return armv8pmu_probe_pmu(cpu_pmu);
+
+	return 0;
 }
 
 static int armv8_a72_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	armv8_pmu_init(cpu_pmu);
+	int ret = armv8_pmu_init(cpu_pmu);
+	if (ret)
+		return ret;
+
 	cpu_pmu->name			= "armv8_cortex_a72";
 	cpu_pmu->map_event		= armv8_a57_map_event;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_EVENTS] =
 		&armv8_pmuv3_events_attr_group;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_FORMATS] =
 		&armv8_pmuv3_format_attr_group;
-	return armv8pmu_probe_pmu(cpu_pmu);
+
+	return 0;
 }
 
 static int armv8_thunder_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	armv8_pmu_init(cpu_pmu);
+	int ret = armv8_pmu_init(cpu_pmu);
+	if (ret)
+		return ret;
+
 	cpu_pmu->name			= "armv8_cavium_thunder";
 	cpu_pmu->map_event		= armv8_thunder_map_event;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_EVENTS] =
 		&armv8_pmuv3_events_attr_group;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_FORMATS] =
 		&armv8_pmuv3_format_attr_group;
-	return armv8pmu_probe_pmu(cpu_pmu);
+
+	return 0;
 }
 
 static int armv8_vulcan_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	armv8_pmu_init(cpu_pmu);
+	int ret = armv8_pmu_init(cpu_pmu);
+	if (ret)
+		return ret;
+
 	cpu_pmu->name			= "armv8_brcm_vulcan";
 	cpu_pmu->map_event		= armv8_vulcan_map_event;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_EVENTS] =
 		&armv8_pmuv3_events_attr_group;
 	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_FORMATS] =
 		&armv8_pmuv3_format_attr_group;
-	return armv8pmu_probe_pmu(cpu_pmu);
+
+	return 0;
 }
 
 static const struct of_device_id armv8_pmu_of_device_ids[] = {
@@ -1081,24 +1136,9 @@ static const struct of_device_id armv8_pmu_of_device_ids[] = {
 	{},
 };
 
-/*
- * Non DT systems have their micro/arch events probed at run-time.
- * A fairly complete list of generic events are provided and ones that
- * aren't supported by the current PMU are disabled.
- */
-static const struct pmu_probe_info armv8_pmu_probe_table[] = {
-	PMU_PROBE(0, 0, armv8_pmuv3_init), /* enable all defined counters */
-	{ /* sentinel value */ }
-};
-
 static int armv8_pmu_device_probe(struct platform_device *pdev)
 {
-	if (acpi_disabled)
-		return arm_pmu_device_probe(pdev, armv8_pmu_of_device_ids,
-					    NULL);
-
-	return arm_pmu_device_probe(pdev, armv8_pmu_of_device_ids,
-				    armv8_pmu_probe_table);
+	return arm_pmu_device_probe(pdev, armv8_pmu_of_device_ids, NULL);
 }
 
 static struct platform_driver armv8_pmu_driver = {
@@ -1109,4 +1149,11 @@ static struct platform_driver armv8_pmu_driver = {
 	.probe		= armv8_pmu_device_probe,
 };
 
-builtin_platform_driver(armv8_pmu_driver);
+static int __init armv8_pmu_driver_init(void)
+{
+	if (acpi_disabled)
+		return platform_driver_register(&armv8_pmu_driver);
+	else
+		return arm_pmu_acpi_probe(armv8_pmuv3_init);
+}
+device_initcall(armv8_pmu_driver_init)
