@@ -2311,6 +2311,10 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 		}
 	} else {
 		flags |= NLM_F_CAPPED;
+
+		if (nlk->flags & NETLINK_F_EXT_ACK &&
+		    extack && extack->cookie_len)
+			tlvlen += nla_total_size(extack->cookie_len);
 	}
 
 	if (tlvlen)
@@ -2337,17 +2341,24 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 	errmsg->error = err;
 	memcpy(&errmsg->msg, nlh, payload > sizeof(*errmsg) ? nlh->nlmsg_len : sizeof(*nlh));
 
-	if (err && nlk->flags & NETLINK_F_EXT_ACK && extack) {
-		if (extack->_msg)
-			WARN_ON(nla_put_string(skb, NLMSGERR_ATTR_MSG,
-					       extack->_msg));
-		if (extack->bad_attr &&
-		    !WARN_ON((u8 *)extack->bad_attr < in_skb->data ||
-			     (u8 *)extack->bad_attr >= in_skb->data +
-						       in_skb->len))
-			WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_OFFS,
-					    (u8 *)extack->bad_attr -
-					    in_skb->data));
+	if (nlk->flags & NETLINK_F_EXT_ACK && extack) {
+		if (err) {
+			if (extack->_msg)
+				WARN_ON(nla_put_string(skb, NLMSGERR_ATTR_MSG,
+						       extack->_msg));
+			if (extack->bad_attr &&
+			    !WARN_ON((u8 *)extack->bad_attr < in_skb->data ||
+				     (u8 *)extack->bad_attr >= in_skb->data +
+							       in_skb->len))
+				WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_OFFS,
+						    (u8 *)extack->bad_attr -
+						    in_skb->data));
+		} else {
+			if (extack->cookie_len)
+				WARN_ON(nla_put(skb, NLMSGERR_ATTR_COOKIE,
+						extack->cookie_len,
+						extack->cookie));
+		}
 	}
 
 	nlmsg_end(skb, rep);

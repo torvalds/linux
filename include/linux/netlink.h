@@ -62,15 +62,22 @@ netlink_kernel_create(struct net *net, int unit, struct netlink_kernel_cfg *cfg)
 	return __netlink_kernel_create(net, unit, THIS_MODULE, cfg);
 }
 
+/* this can be increased when necessary - don't expose to userland */
+#define NETLINK_MAX_COOKIE_LEN	20
+
 /**
  * struct netlink_ext_ack - netlink extended ACK report struct
  * @_msg: message string to report - don't access directly, use
  *	%NL_SET_ERR_MSG
  * @bad_attr: attribute with error
+ * @cookie: cookie data to return to userspace (for success)
+ * @cookie_len: actual cookie data length
  */
 struct netlink_ext_ack {
 	const char *_msg;
 	const struct nlattr *bad_attr;
+	u8 cookie[NETLINK_MAX_COOKIE_LEN];
+	u8 cookie_len;
 };
 
 /* Always use this macro, this allows later putting the
