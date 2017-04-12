@@ -186,20 +186,6 @@
 		};
 	};
 
-	cpu_avs: cpu-avs {
-		cluster0-avs {
-			cluster-id = <0>;
-			min-volt = <900000>; /* uV */
-			min-freq = <126000>; /* KHz */
-			leakage-adjust-volt = <
-			/*  mA        mA         uV */
-			    0         254        0
-			>;
-			nvmem-cells = <&cpu_leakage>;
-			nvmem-cell-names = "cpu_leakage";
-		};
-	};
-
 	amba {
 		compatible = "arm,amba-bus";
 		#address-cells = <1>;

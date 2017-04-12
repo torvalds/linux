@@ -416,31 +416,6 @@
 		};
 	};
 
-	cpu_avs: cpu-avs {
-		cluster0-avs {
-			cluster-id = <0>;
-			min-volt = <950000>; /* uV */
-			min-freq = <216000>; /* KHz */
-			leakage-adjust-volt = <
-			/*  mA        mA         uV */
-			    0         254        0
-			>;
-			nvmem-cells = <&cpu_leakage>;
-			nvmem-cell-names = "cpu_leakage";
-		};
-		cluster1-avs {
-			cluster-id = <1>;
-			min-volt = <950000>; /* uV */
-			min-freq = <216000>; /* KHz */
-			leakage-adjust-volt = <
-			/*  mA        mA         uV */
-			    0         254        0
-			>;
-			nvmem-cells = <&cpu_leakage>;
-			nvmem-cell-names = "cpu_leakage";
-		};
-	};
-
 	arm-pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,

@@ -159,20 +159,6 @@
 		};
 	};
 
-	cpu_avs: cpu-avs {
-		cluster0-avs {
-			cluster-id = <0>;
-			min-volt = <950000>; /* uV */
-			min-freq = <408000>; /* KHz */
-			leakage-adjust-volt = <
-			/*  mA        mA         uV */
-			    0         254        0
-			>;
-			nvmem-cells = <&cpu_leakage>;
-			nvmem-cell-names = "cpu_leakage";
-		};
-	};
-
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
