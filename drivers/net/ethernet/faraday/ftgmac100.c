@@ -175,7 +175,7 @@ static int ftgmac100_reset_and_config_mac(struct ftgmac100 *priv)
 	return ftgmac100_reset_mac(priv, maccr);
 }
 
-static void ftgmac100_set_mac(struct ftgmac100 *priv, const unsigned char *mac)
+static void ftgmac100_write_mac_addr(struct ftgmac100 *priv, const u8 *mac)
 {
 	unsigned int maddr = mac[0] << 8 | mac[1];
 	unsigned int laddr = mac[2] << 24 | mac[3] << 16 | mac[4] << 8 | mac[5];
@@ -228,7 +228,7 @@ static int ftgmac100_set_mac_addr(struct net_device *dev, void *p)
 		return ret;
 
 	eth_commit_mac_addr_change(dev, p);
-	ftgmac100_set_mac(netdev_priv(dev), dev->dev_addr);
+	ftgmac100_write_mac_addr(netdev_priv(dev), dev->dev_addr);
 
 	return 0;
 }
@@ -247,7 +247,7 @@ static void ftgmac100_init_hw(struct ftgmac100 *priv)
 
 	iowrite32(FTGMAC100_APTC_RXPOLL_CNT(1), priv->base + FTGMAC100_OFFSET_APTC);
 
-	ftgmac100_set_mac(priv, priv->netdev->dev_addr);
+	ftgmac100_write_mac_addr(priv, priv->netdev->dev_addr);
 }
 
 static void ftgmac100_start_hw(struct ftgmac100 *priv)
