@@ -810,7 +810,6 @@ struct btrfs_fs_info {
 	struct btrfs_super_block *super_for_commit;
 	struct super_block *sb;
 	struct inode *btree_inode;
-	struct backing_dev_info bdi;
 	struct mutex tree_log_mutex;
 	struct mutex transaction_kthread_mutex;
 	struct mutex cleaner_mutex;
