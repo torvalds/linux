@@ -627,12 +627,12 @@ ttm_flag_masked(uint32_t *old, uint32_t new, uint32_t mask)
  * Returns:
  * NULL: Out of memory.
  */
-extern int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
-			unsigned long size, uint32_t page_flags,
-			struct page *dummy_read_page);
-extern int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
-			   unsigned long size, uint32_t page_flags,
-			   struct page *dummy_read_page);
+int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
+		unsigned long size, uint32_t page_flags,
+		struct page *dummy_read_page);
+int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
+		    unsigned long size, uint32_t page_flags,
+		    struct page *dummy_read_page);
 
 /**
  * ttm_tt_fini
@@ -641,8 +641,8 @@ extern int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bde
  *
  * Free memory of ttm_tt structure
  */
-extern void ttm_tt_fini(struct ttm_tt *ttm);
-extern void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma);
+void ttm_tt_fini(struct ttm_tt *ttm);
+void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma);
 
 /**
  * ttm_ttm_bind:
@@ -652,7 +652,7 @@ extern void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma);
  *
  * Bind the pages of @ttm to an aperture location identified by @bo_mem
  */
-extern int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
+int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
 
 /**
  * ttm_ttm_destroy:
@@ -661,7 +661,7 @@ extern int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
  *
  * Unbind, unpopulate and destroy common struct ttm_tt.
  */
-extern void ttm_tt_destroy(struct ttm_tt *ttm);
+void ttm_tt_destroy(struct ttm_tt *ttm);
 
 /**
  * ttm_ttm_unbind:
@@ -670,7 +670,7 @@ extern void ttm_tt_destroy(struct ttm_tt *ttm);
  *
  * Unbind a struct ttm_tt.
  */
-extern void ttm_tt_unbind(struct ttm_tt *ttm);
+void ttm_tt_unbind(struct ttm_tt *ttm);
 
 /**
  * ttm_tt_swapin:
@@ -679,7 +679,7 @@ extern void ttm_tt_unbind(struct ttm_tt *ttm);
  *
  * Swap in a previously swap out ttm_tt.
  */
-extern int ttm_tt_swapin(struct ttm_tt *ttm);
+int ttm_tt_swapin(struct ttm_tt *ttm);
 
 /**
  * ttm_tt_set_placement_caching:
@@ -694,9 +694,8 @@ extern int ttm_tt_swapin(struct ttm_tt *ttm);
  * hit RAM. This function may be very costly as it involves global TLB
  * and cache flushes and potential page splitting / combining.
  */
-extern int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement);
-extern int ttm_tt_swapout(struct ttm_tt *ttm,
-			  struct file *persistent_swap_storage);
+int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement);
+int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage);
 
 /**
  * ttm_tt_unpopulate - free pages from a ttm
@@ -705,7 +704,7 @@ extern int ttm_tt_swapout(struct ttm_tt *ttm,
  *
  * Calls the driver method to free all pages from a ttm
  */
-extern void ttm_tt_unpopulate(struct ttm_tt *ttm);
+void ttm_tt_unpopulate(struct ttm_tt *ttm);
 
 /*
  * ttm_bo.c
@@ -720,8 +719,7 @@ extern void ttm_tt_unpopulate(struct ttm_tt *ttm);
  * Returns true if the memory described by @mem is PCI memory,
  * false otherwise.
  */
-extern bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev,
-				   struct ttm_mem_reg *mem);
+bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
 
 /**
  * ttm_bo_mem_space
@@ -742,21 +740,20 @@ extern bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev,
  * fragmentation or concurrent allocators.
  * -ERESTARTSYS: An interruptible sleep was interrupted by a signal.
  */
-extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
-				struct ttm_placement *placement,
-				struct ttm_mem_reg *mem,
-				bool interruptible,
-				bool no_wait_gpu);
+int ttm_bo_mem_space(struct ttm_buffer_object *bo,
+		     struct ttm_placement *placement,
+		     struct ttm_mem_reg *mem,
+		     bool interruptible,
+		     bool no_wait_gpu);
 
-extern void ttm_bo_mem_put(struct ttm_buffer_object *bo,
+void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem);
+void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
 			   struct ttm_mem_reg *mem);
-extern void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
-				  struct ttm_mem_reg *mem);
 
-extern void ttm_bo_global_release(struct drm_global_reference *ref);
-extern int ttm_bo_global_init(struct drm_global_reference *ref);
+void ttm_bo_global_release(struct drm_global_reference *ref);
+int ttm_bo_global_init(struct drm_global_reference *ref);
 
-extern int ttm_bo_device_release(struct ttm_bo_device *bdev);
+int ttm_bo_device_release(struct ttm_bo_device *bdev);
 
 /**
  * ttm_bo_device_init
@@ -773,18 +770,17 @@ extern int ttm_bo_device_release(struct ttm_bo_device *bdev);
  * Returns:
  * !0: Failure.
  */
-extern int ttm_bo_device_init(struct ttm_bo_device *bdev,
-			      struct ttm_bo_global *glob,
-			      struct ttm_bo_driver *driver,
-			      struct address_space *mapping,
-			      uint64_t file_page_offset, bool need_dma32);
+int ttm_bo_device_init(struct ttm_bo_device *bdev, struct ttm_bo_global *glob,
+		       struct ttm_bo_driver *driver,
+		       struct address_space *mapping,
+		       uint64_t file_page_offset, bool need_dma32);
 
 /**
  * ttm_bo_unmap_virtual
  *
  * @bo: tear down the virtual mappings for this BO
  */
-extern void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
+void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_unmap_virtual
@@ -793,16 +789,15 @@ extern void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
  *
  * The caller must take ttm_mem_io_lock before calling this function.
  */
-extern void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo);
+void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo);
 
-extern int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo);
-extern void ttm_mem_io_free_vm(struct ttm_buffer_object *bo);
-extern int ttm_mem_io_lock(struct ttm_mem_type_manager *man,
-			   bool interruptible);
-extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
+int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo);
+void ttm_mem_io_free_vm(struct ttm_buffer_object *bo);
+int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible);
+void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
 
-extern void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo);
-extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
+void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo);
+void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
 
 /**
  * __ttm_bo_reserve:
@@ -983,9 +978,9 @@ void ttm_mem_io_free(struct ttm_bo_device *bdev,
  * !0: Failure.
  */
 
-extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-			   bool interruptible, bool no_wait_gpu,
-			   struct ttm_mem_reg *new_mem);
+int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
+		    bool interruptible, bool no_wait_gpu,
+		    struct ttm_mem_reg *new_mem);
 
 /**
  * ttm_bo_move_memcpy
@@ -1005,9 +1000,9 @@ extern int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
  * !0: Failure.
  */
 
-extern int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-			      bool interruptible, bool no_wait_gpu,
-			      struct ttm_mem_reg *new_mem);
+int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
+		       bool interruptible, bool no_wait_gpu,
+		       struct ttm_mem_reg *new_mem);
 
 /**
  * ttm_bo_free_old_node
@@ -1016,7 +1011,7 @@ extern int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
  *
  * Utility function to free an old placement after a successful move.
  */
-extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
+void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_move_accel_cleanup.
@@ -1033,10 +1028,9 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  * destroyed when the move is complete. This will help pipeline
  * buffer moves.
  */
-
-extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
-				     struct dma_fence *fence, bool evict,
-				     struct ttm_mem_reg *new_mem);
+int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
+			      struct dma_fence *fence, bool evict,
+			      struct ttm_mem_reg *new_mem);
 
 /**
  * ttm_bo_pipeline_move.
@@ -1062,7 +1056,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
  * Utility function that returns the pgprot_t that should be used for
  * setting up a PTE with the caching model indicated by @c_state.
  */
-extern pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
+pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 
 extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 
@@ -1083,10 +1077,10 @@ extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
  * for TT memory. This function uses the linux agpgart interface to
  * bind and unbind memory backing a ttm_tt.
  */
-extern struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
-					struct agp_bridge_data *bridge,
-					unsigned long size, uint32_t page_flags,
-					struct page *dummy_read_page);
+struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
+				 struct agp_bridge_data *bridge,
+				 unsigned long size, uint32_t page_flags,
+				 struct page *dummy_read_page);
 int ttm_agp_tt_populate(struct ttm_tt *ttm);
 void ttm_agp_tt_unpopulate(struct ttm_tt *ttm);
 #endif
