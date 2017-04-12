@@ -42,22 +42,6 @@
 /* bitmap of the page sizes currently supported */
 #define OMAP_IOMMU_PGSIZES	(SZ_4K | SZ_64K | SZ_1M | SZ_16M)
 
-/**
- * struct omap_iommu_domain - omap iommu domain
- * @pgtable:	the page table
- * @iommu_dev:	an omap iommu device attached to this domain. only a single
- *		iommu device can be attached for now.
- * @dev:	Device using this domain.
- * @lock:	domain lock, should be taken when attaching/detaching
- */
-struct omap_iommu_domain {
-	u32 *pgtable;
-	struct omap_iommu *iommu_dev;
-	struct device *dev;
-	spinlock_t lock;
-	struct iommu_domain domain;
-};
-
 #define MMU_LOCK_BASE_SHIFT	10
 #define MMU_LOCK_BASE_MASK	(0x1f << MMU_LOCK_BASE_SHIFT)
 #define MMU_LOCK_BASE(x)	\
