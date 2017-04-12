@@ -412,8 +412,7 @@ static inline int queue_out_packet(struct amdtp_stream *s,
 
 static inline int queue_in_packet(struct amdtp_stream *s)
 {
-	return queue_packet(s, IN_PACKET_HEADER_SIZE,
-			    amdtp_stream_get_max_payload(s));
+	return queue_packet(s, IN_PACKET_HEADER_SIZE, s->max_payload_length);
 }
 
 static int handle_out_packet(struct amdtp_stream *s,
@@ -713,12 +712,12 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	cycle = decrement_cycle_count(cycle, packets);
 
 	/* For buffer-over-run prevention. */
-	max_payload_length = amdtp_stream_get_max_payload(s);
+	max_payload_length = s->max_payload_length;
 
 	for (i = 0; i < packets; i++) {
 		cycle = increment_cycle_count(cycle, 1);
 
-		/* The number of quadlets in this packet */
+		/* The number of bytes in this packet */
 		payload_length =
 			(be32_to_cpu(headers[i]) >> ISO_DATA_LENGTH_SHIFT);
 		if (payload_length > max_payload_length) {
@@ -750,6 +749,8 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	struct amdtp_stream *s = private_data;
 	u32 cycle;
 	unsigned int packets;
+
+	s->max_payload_length = amdtp_stream_get_max_payload(s);
 
 	/*
 	 * For in-stream, first packet has come.

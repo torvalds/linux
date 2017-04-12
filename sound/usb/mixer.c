@@ -1172,7 +1172,7 @@ static struct snd_kcontrol_new usb_feature_unit_ctl = {
 };
 
 /* the read-only variant */
-static struct snd_kcontrol_new usb_feature_unit_ctl_ro = {
+static const struct snd_kcontrol_new usb_feature_unit_ctl_ro = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "", /* will be filled later manually */
 	.info = mixer_ctl_feature_info,
@@ -1745,7 +1745,7 @@ static int mixer_ctl_procunit_put(struct snd_kcontrol *kcontrol,
 }
 
 /* alsa control interface for processing/extension unit */
-static struct snd_kcontrol_new mixer_procunit_ctl = {
+static const struct snd_kcontrol_new mixer_procunit_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "", /* will be filled later */
 	.info = mixer_ctl_feature_info,
@@ -2033,7 +2033,7 @@ static int mixer_ctl_selector_put(struct snd_kcontrol *kcontrol,
 }
 
 /* alsa control interface for selector unit */
-static struct snd_kcontrol_new mixer_selectunit_ctl = {
+static const struct snd_kcontrol_new mixer_selectunit_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "", /* will be filled later */
 	.info = mixer_ctl_selector_info,
