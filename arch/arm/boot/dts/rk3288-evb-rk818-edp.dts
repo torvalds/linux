@@ -84,6 +84,15 @@
 	cpu0-supply = <&vdd_cpu>;
 };
 
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
+};
+
 &edp {
 	status = "okay";
 };
