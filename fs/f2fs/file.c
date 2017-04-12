@@ -1531,6 +1531,7 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 		goto out;
 
 	set_inode_flag(inode, FI_ATOMIC_FILE);
+	set_inode_flag(inode, FI_HOT_DATA);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 
 	if (!get_dirty_pages(inode))
