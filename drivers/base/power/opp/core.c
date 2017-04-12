@@ -958,12 +958,6 @@ static void _remove_opp_table(struct opp_table *opp_table)
 	if (!list_empty(&opp_table->opp_list))
 		return;
 
-	if (opp_table->supported_hw)
-		return;
-
-	if (opp_table->prop_name)
-		return;
-
 	if (!IS_ERR(opp_table->regulator))
 		return;
 
