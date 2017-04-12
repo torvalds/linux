@@ -80,7 +80,6 @@ atomisp-objs += \
 	css2400/isp/kernels/sdis/sdis_2/ia_css_sdis2.host.o \
 	css2400/isp/kernels/cnr/cnr_2/ia_css_cnr2.host.o \
 	css2400/isp/kernels/cnr/cnr_1.0/ia_css_cnr.host.o \
-	css2400/isp/kernels/satm/ia_css_satm.host.o \
 	css2400/isp/kernels/xnr/xnr_1.0/ia_css_xnr.host.o \
 	css2400/isp/kernels/xnr/xnr_1.0/ia_css_xnr_table.host.o \
 	css2400/isp/kernels/xnr/xnr3_0_5/ia_css_xnr3_0_5.host.o \
