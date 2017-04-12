@@ -855,6 +855,7 @@ struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id)
 	}
 	return bdi;
 }
+EXPORT_SYMBOL(bdi_alloc_node);
 
 int bdi_register_va(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, va_list args)
@@ -971,6 +972,7 @@ void bdi_put(struct backing_dev_info *bdi)
 {
 	kref_put(&bdi->refcnt, release_bdi);
 }
+EXPORT_SYMBOL(bdi_put);
 
 void bdi_destroy(struct backing_dev_info *bdi)
 {
