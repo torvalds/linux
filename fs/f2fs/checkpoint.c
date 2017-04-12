@@ -980,6 +980,7 @@ retry_flush_dents:
 		err = sync_dirty_inodes(sbi, DIR_INODE);
 		if (err)
 			goto out;
+		cond_resched();
 		goto retry_flush_dents;
 	}
 
@@ -995,6 +996,7 @@ retry_flush_dents:
 		err = f2fs_sync_inode_meta(sbi);
 		if (err)
 			goto out;
+		cond_resched();
 		goto retry_flush_dents;
 	}
 
@@ -1009,6 +1011,7 @@ retry_flush_nodes:
 			f2fs_unlock_all(sbi);
 			goto out;
 		}
+		cond_resched();
 		goto retry_flush_nodes;
 	}
 
