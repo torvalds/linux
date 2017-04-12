@@ -365,7 +365,6 @@ static int wait_resp(struct afu *afu, struct afu_cmd *cmd)
  */
 static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 {
-	u32 port_sel = scp->device->channel + 1;
 	struct cxlflash_cfg *cfg = shost_priv(scp->device->host);
 	struct afu_cmd *cmd = sc_to_afucz(scp);
 	struct device *dev = &cfg->dev->dev;
@@ -388,7 +387,7 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 
 	cmd->rcb.ctx_id = afu->ctx_hndl;
 	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
-	cmd->rcb.port_sel = port_sel;
+	cmd->rcb.port_sel = CHAN2PORTMASK(scp->device->channel);
 	cmd->rcb.lun_id = lun_to_lunid(scp->device->lun);
 	cmd->rcb.req_flags = (SISL_REQ_FLAGS_PORT_LUN_ID |
 			      SISL_REQ_FLAGS_SUP_UNDERRUN |
@@ -444,7 +443,6 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	struct device *dev = &cfg->dev->dev;
 	struct afu_cmd *cmd = sc_to_afucz(scp);
 	struct scatterlist *sg = scsi_sglist(scp);
-	u32 port_sel = scp->device->channel + 1;
 	u16 req_flags = SISL_REQ_FLAGS_SUP_UNDERRUN;
 	ulong lock_flags;
 	int nseg = 0;
@@ -503,7 +501,7 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 
 	cmd->rcb.ctx_id = afu->ctx_hndl;
 	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
-	cmd->rcb.port_sel = port_sel;
+	cmd->rcb.port_sel = CHAN2PORTMASK(scp->device->channel);
 	cmd->rcb.lun_id = lun_to_lunid(scp->device->lun);
 
 	if (scp->sc_data_direction == DMA_TO_DEVICE)
@@ -1558,7 +1556,8 @@ static int init_global(struct cxlflash_cfg *cfg)
 		writeq_be(PORT0, &afu->afu_map->global.regs.afu_port_sel);
 		num_ports = 0;
 	} else {
-		writeq_be(BOTH_PORTS, &afu->afu_map->global.regs.afu_port_sel);
+		writeq_be(PORT_MASK(cfg->num_fc_ports),
+			  &afu->afu_map->global.regs.afu_port_sel);
 		num_ports = cfg->num_fc_ports;
 	}
 
@@ -2190,7 +2189,7 @@ static ssize_t lun_mode_store(struct device *dev,
 		if (afu->internal_lun)
 			shost->max_channel = 0;
 		else
-			shost->max_channel = cfg->num_fc_ports - 1;
+			shost->max_channel = PORTNUM2CHAN(cfg->num_fc_ports);
 
 		afu_reset(cfg);
 		scsi_scan_host(cfg->host);
@@ -2529,7 +2528,7 @@ static int cxlflash_probe(struct pci_dev *pdev,
 
 	host->max_id = CXLFLASH_MAX_NUM_TARGETS_PER_BUS;
 	host->max_lun = CXLFLASH_MAX_NUM_LUNS_PER_TARGET;
-	host->max_channel = NUM_FC_PORTS - 1;
+	host->max_channel = PORTNUM2CHAN(NUM_FC_PORTS);
 	host->unique_id = host->host_no;
 	host->max_cmd_len = CXLFLASH_MAX_CDB_LEN;
 

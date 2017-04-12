@@ -1933,7 +1933,7 @@ static int cxlflash_disk_direct_open(struct scsi_device *sdev, void *arg)
 	u64 lun_size = 0;
 	u64 last_lba = 0;
 	u64 rsrc_handle = -1;
-	u32 port = CHAN2PORT(sdev->channel);
+	u32 port = CHAN2PORTMASK(sdev->channel);
 
 	int rc = 0;
 

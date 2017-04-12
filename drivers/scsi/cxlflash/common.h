@@ -29,6 +29,10 @@ extern const struct file_operations cxlflash_cxl_fops;
 #define NUM_FC_PORTS	CXLFLASH_NUM_FC_PORTS	/* ports per AFU */
 #define MAX_FC_PORTS	CXLFLASH_MAX_FC_PORTS	/* ports per AFU */
 
+#define CHAN2PORTMASK(_x)	(1 << (_x))	/* channel to port mask */
+#define PORTMASK2CHAN(_x)	(ilog2((_x)))	/* port mask to channel */
+#define PORTNUM2CHAN(_x)	((_x) - 1)	/* port number to channel */
+
 #define CXLFLASH_BLOCK_SIZE	4096	/* 4K blocks */
 #define CXLFLASH_MAX_XFER_SIZE	16777216	/* 16MB transfer */
 #define CXLFLASH_MAX_SECTORS	(CXLFLASH_MAX_XFER_SIZE/512)	/* SCSI wants

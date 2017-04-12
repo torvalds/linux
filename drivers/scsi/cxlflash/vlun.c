@@ -819,8 +819,8 @@ int cxlflash_vlun_resize(struct scsi_device *sdev,
 void cxlflash_restore_luntable(struct cxlflash_cfg *cfg)
 {
 	struct llun_info *lli, *temp;
-	u32 chan;
 	u32 lind;
+	int k;
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
 	struct sisl_global_map __iomem *agm = &afu->afu_map->global;
@@ -832,23 +832,31 @@ void cxlflash_restore_luntable(struct cxlflash_cfg *cfg)
 			continue;
 
 		lind = lli->lun_index;
+		dev_dbg(dev, "%s: Virtual LUNs on slot %d:\n", __func__, lind);
 
-		if (lli->port_sel == BOTH_PORTS) {
-			writeq_be(lli->lun_id[0], &agm->fc_port[0][lind]);
-			writeq_be(lli->lun_id[1], &agm->fc_port[1][lind]);
-			dev_dbg(dev, "%s: Virtual LUN on slot %d  id0=%llx "
-				"id1=%llx\n", __func__, lind,
-				lli->lun_id[0], lli->lun_id[1]);
-		} else {
-			chan = PORT2CHAN(lli->port_sel);
-			writeq_be(lli->lun_id[chan], &agm->fc_port[chan][lind]);
-			dev_dbg(dev, "%s: Virtual LUN on slot %d chan=%d "
-				"id=%llx\n", __func__, lind, chan,
-				lli->lun_id[chan]);
-		}
+		for (k = 0; k < cfg->num_fc_ports; k++)
+			if (lli->port_sel & (1 << k)) {
+				writeq_be(lli->lun_id[k],
+					  &agm->fc_port[k][lind]);
+				dev_dbg(dev, "\t%d=%llx\n", k, lli->lun_id[k]);
+			}
 	}
 
 	mutex_unlock(&global.mutex);
+}
+
+/**
+ * get_num_ports() - compute number of ports from port selection mask
+ * @psm:	Port selection mask.
+ *
+ * Return: Population count of port selection mask
+ */
+static inline u8 get_num_ports(u32 psm)
+{
+	static const u8 bits[16] = { 0, 1, 1, 2, 1, 2, 2, 3,
+				     1, 2, 2, 3, 2, 3, 3, 4 };
+
+	return bits[psm & 0xf];
 }
 
 /**
@@ -856,9 +864,9 @@ void cxlflash_restore_luntable(struct cxlflash_cfg *cfg)
  * @cfg:	Internal structure associated with the host.
  * @lli:	Per adapter LUN information structure.
  *
- * On successful return, a LUN table entry is created.
- * At the top for LUNs visible on both ports.
- * At the bottom for LUNs visible only on one port.
+ * On successful return, a LUN table entry is created:
+ *	- at the top for LUNs visible on multiple ports.
+ *	- at the bottom for LUNs visible only on one port.
  *
  * Return: 0 on success, -errno on failure
  */
@@ -866,7 +874,9 @@ static int init_luntable(struct cxlflash_cfg *cfg, struct llun_info *lli)
 {
 	u32 chan;
 	u32 lind;
+	u32 nports;
 	int rc = 0;
+	int k;
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
 	struct sisl_global_map __iomem *agm = &afu->afu_map->global;
@@ -876,29 +886,46 @@ static int init_luntable(struct cxlflash_cfg *cfg, struct llun_info *lli)
 	if (lli->in_table)
 		goto out;
 
-	if (lli->port_sel == BOTH_PORTS) {
+	nports = get_num_ports(lli->port_sel);
+	if (nports == 0 || nports > cfg->num_fc_ports) {
+		WARN(1, "Unsupported port configuration nports=%u", nports);
+		rc = -EIO;
+		goto out;
+	}
+
+	if (nports > 1) {
 		/*
-		 * If this LUN is visible from both ports, we will put
+		 * When LUN is visible from multiple ports, we will put
 		 * it in the top half of the LUN table.
 		 */
-		if ((cfg->promote_lun_index == cfg->last_lun_index[0]) ||
-		    (cfg->promote_lun_index == cfg->last_lun_index[1])) {
-			rc = -ENOSPC;
-			goto out;
+		for (k = 0; k < cfg->num_fc_ports; k++) {
+			if (!(lli->port_sel & (1 << k)))
+				continue;
+
+			if (cfg->promote_lun_index == cfg->last_lun_index[k]) {
+				rc = -ENOSPC;
+				goto out;
+			}
 		}
 
 		lind = lli->lun_index = cfg->promote_lun_index;
-		writeq_be(lli->lun_id[0], &agm->fc_port[0][lind]);
-		writeq_be(lli->lun_id[1], &agm->fc_port[1][lind]);
+		dev_dbg(dev, "%s: Virtual LUNs on slot %d:\n", __func__, lind);
+
+		for (k = 0; k < cfg->num_fc_ports; k++) {
+			if (!(lli->port_sel & (1 << k)))
+				continue;
+
+			writeq_be(lli->lun_id[k], &agm->fc_port[k][lind]);
+			dev_dbg(dev, "\t%d=%llx\n", k, lli->lun_id[k]);
+		}
+
 		cfg->promote_lun_index++;
-		dev_dbg(dev, "%s: Virtual LUN on slot %d  id0=%llx id1=%llx\n",
-			__func__, lind, lli->lun_id[0], lli->lun_id[1]);
 	} else {
 		/*
-		 * If this LUN is visible only from one port, we will put
+		 * When LUN is visible only from one port, we will put
 		 * it in the bottom half of the LUN table.
 		 */
-		chan = PORT2CHAN(lli->port_sel);
+		chan = PORTMASK2CHAN(lli->port_sel);
 		if (cfg->promote_lun_index == cfg->last_lun_index[chan]) {
 			rc = -ENOSPC;
 			goto out;
@@ -907,7 +934,7 @@ static int init_luntable(struct cxlflash_cfg *cfg, struct llun_info *lli)
 		lind = lli->lun_index = cfg->last_lun_index[chan];
 		writeq_be(lli->lun_id[chan], &agm->fc_port[chan][lind]);
 		cfg->last_lun_index[chan]--;
-		dev_dbg(dev, "%s: Virtual LUN on slot %d  chan=%d id=%llx\n",
+		dev_dbg(dev, "%s: Virtual LUNs on slot %d:\n\t%d=%llx\n",
 			__func__, lind, chan, lli->lun_id[chan]);
 	}
 
@@ -1016,7 +1043,7 @@ int cxlflash_disk_virtual_open(struct scsi_device *sdev, void *arg)
 	virt->last_lba = last_lba;
 	virt->rsrc_handle = rsrc_handle;
 
-	if (lli->port_sel == BOTH_PORTS)
+	if (get_num_ports(lli->port_sel) > 1)
 		virt->hdr.return_flags |= DK_CXLFLASH_ALL_PORTS_ACTIVE;
 out:
 	if (likely(ctxi))
