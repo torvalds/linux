@@ -2103,6 +2103,10 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 	if (find_rdev(mddev, rdev->bdev->bd_dev))
 		return -EEXIST;
 
+	if ((bdev_read_only(rdev->bdev) || bdev_read_only(rdev->meta_bdev)) &&
+	    mddev->pers)
+		return -EROFS;
+
 	/* make sure rdev->sectors exceeds mddev->dev_sectors */
 	if (!test_bit(Journal, &rdev->flags) &&
 	    rdev->sectors &&
@@ -5382,6 +5386,13 @@ int md_run(struct mddev *mddev)
 			continue;
 		sync_blockdev(rdev->bdev);
 		invalidate_bdev(rdev->bdev);
+		if (mddev->ro != 1 &&
+		    (bdev_read_only(rdev->bdev) ||
+		     bdev_read_only(rdev->meta_bdev))) {
+			mddev->ro = 1;
+			if (mddev->gendisk)
+				set_disk_ro(mddev->gendisk, 1);
+		}
 
 		/* perform some consistency tests on the device.
 		 * We don't want the data to overlap the metadata,
@@ -5606,6 +5617,9 @@ out:
 static int restart_array(struct mddev *mddev)
 {
 	struct gendisk *disk = mddev->gendisk;
+	struct md_rdev *rdev;
+	bool has_journal = false;
+	bool has_readonly = false;
 
 	/* Complain if it has no devices */
 	if (list_empty(&mddev->disks))
@@ -5614,24 +5628,21 @@ static int restart_array(struct mddev *mddev)
 		return -EINVAL;
 	if (!mddev->ro)
 		return -EBUSY;
-	if (test_bit(MD_HAS_JOURNAL, &mddev->flags)) {
-		struct md_rdev *rdev;
-		bool has_journal = false;
 
-		rcu_read_lock();
-		rdev_for_each_rcu(rdev, mddev) {
-			if (test_bit(Journal, &rdev->flags) &&
-			    !test_bit(Faulty, &rdev->flags)) {
-				has_journal = true;
-				break;
-			}
-		}
-		rcu_read_unlock();
-
-		/* Don't restart rw with journal missing/faulty */
-		if (!has_journal)
-			return -EINVAL;
+	rcu_read_lock();
+	rdev_for_each_rcu(rdev, mddev) {
+		if (test_bit(Journal, &rdev->flags) &&
+		    !test_bit(Faulty, &rdev->flags))
+			has_journal = true;
+		if (bdev_read_only(rdev->bdev))
+			has_readonly = true;
 	}
+	rcu_read_unlock();
+	if (test_bit(MD_HAS_JOURNAL, &mddev->flags) && !has_journal)
+		/* Don't restart rw with journal missing/faulty */
+			return -EINVAL;
+	if (has_readonly)
+		return -EROFS;
 
 	mddev->safemode = 0;
 	mddev->ro = 0;
