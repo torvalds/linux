@@ -2771,18 +2771,6 @@ int dquot_set_dqinfo(struct super_block *sb, int type, struct qc_info *ii)
 }
 EXPORT_SYMBOL(dquot_set_dqinfo);
 
-const struct quotactl_ops dquot_quotactl_ops = {
-	.quota_on	= dquot_quota_on,
-	.quota_off	= dquot_quota_off,
-	.quota_sync	= dquot_quota_sync,
-	.get_state	= dquot_get_state,
-	.set_info	= dquot_set_dqinfo,
-	.get_dqblk	= dquot_get_dqblk,
-	.get_nextdqblk	= dquot_get_next_dqblk,
-	.set_dqblk	= dquot_set_dqblk
-};
-EXPORT_SYMBOL(dquot_quotactl_ops);
-
 const struct quotactl_ops dquot_quotactl_sysfile_ops = {
 	.quota_enable	= dquot_quota_enable,
 	.quota_disable	= dquot_quota_disable,
