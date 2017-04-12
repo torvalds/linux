@@ -5162,6 +5162,15 @@ static void no_op(struct percpu_ref *r) {}
 
 static int md_alloc(dev_t dev, char *name)
 {
+	/*
+	 * If dev is zero, name is the name of a device to allocate with
+	 * an arbitrary minor number.  It will be "md_???"
+	 * If dev is non-zero it must be a device number with a MAJOR of
+	 * MD_MAJOR or mdp_major.  In this case, if "name" is NULL, then
+	 * the device is being created by opening a node in /dev.
+	 * If "name" is not NULL, the device is being created by
+	 * writing to /sys/module/md_mod/parameters/new_array.
+	 */
 	static DEFINE_MUTEX(disks_mutex);
 	struct mddev *mddev = mddev_find(dev);
 	struct gendisk *disk;
@@ -5187,7 +5196,7 @@ static int md_alloc(dev_t dev, char *name)
 	if (mddev->gendisk)
 		goto abort;
 
-	if (name) {
+	if (name && !dev) {
 		/* Need to ensure that 'name' is not a duplicate.
 		 */
 		struct mddev *mddev2;
@@ -5201,6 +5210,11 @@ static int md_alloc(dev_t dev, char *name)
 			}
 		spin_unlock(&all_mddevs_lock);
 	}
+	if (name && dev)
+		/*
+		 * Creating /dev/mdNNN via "newarray", so adjust hold_active.
+		 */
+		mddev->hold_active = UNTIL_STOP;
 
 	error = -ENOMEM;
 	mddev->queue = blk_alloc_queue(GFP_KERNEL);
@@ -5277,21 +5291,31 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 
 static int add_named_array(const char *val, struct kernel_param *kp)
 {
-	/* val must be "md_*" where * is not all digits.
-	 * We allocate an array with a large free minor number, and
+	/*
+	 * val must be "md_*" or "mdNNN".
+	 * For "md_*" we allocate an array with a large free minor number, and
 	 * set the name to val.  val must not already be an active name.
+	 * For "mdNNN" we allocate an array with the minor number NNN
+	 * which must not already be in use.
 	 */
 	int len = strlen(val);
 	char buf[DISK_NAME_LEN];
+	unsigned long devnum;
 
 	while (len && val[len-1] == '\n')
 		len--;
 	if (len >= DISK_NAME_LEN)
 		return -E2BIG;
 	strlcpy(buf, val, len+1);
-	if (strncmp(buf, "md_", 3) != 0)
-		return -EINVAL;
-	return md_alloc(0, buf);
+	if (strncmp(buf, "md_", 3) == 0)
+		return md_alloc(0, buf);
+	if (strncmp(buf, "md", 2) == 0 &&
+	    isdigit(buf[2]) &&
+	    kstrtoul(buf+2, 10, &devnum) == 0 &&
+	    devnum <= MINORMASK)
+		return md_alloc(MKDEV(MD_MAJOR, devnum), NULL);
+
+	return -EINVAL;
 }
 
 static void md_safemode_timeout(unsigned long data)
