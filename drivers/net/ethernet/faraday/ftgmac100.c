@@ -40,8 +40,15 @@
 #define DRV_NAME	"ftgmac100"
 #define DRV_VERSION	"0.7"
 
-#define RX_QUEUE_ENTRIES	256	/* must be power of 2 */
-#define TX_QUEUE_ENTRIES	512	/* must be power of 2 */
+/* Arbitrary values, I am not sure the HW has limits */
+#define MAX_RX_QUEUE_ENTRIES	1024
+#define MAX_TX_QUEUE_ENTRIES	1024
+#define MIN_RX_QUEUE_ENTRIES	32
+#define MIN_TX_QUEUE_ENTRIES	32
+
+/* Defaults */
+#define DEF_RX_QUEUE_ENTRIES	128
+#define DEF_TX_QUEUE_ENTRIES	128
 
 #define MAX_PKT_SIZE		1536
 #define RX_BUF_SIZE		MAX_PKT_SIZE	/* must be smaller than 0x3fff */
@@ -49,29 +56,31 @@
 /* Min number of tx ring entries before stopping queue */
 #define TX_THRESHOLD		(MAX_SKB_FRAGS + 1)
 
-struct ftgmac100_descs {
-	struct ftgmac100_rxdes rxdes[RX_QUEUE_ENTRIES];
-	struct ftgmac100_txdes txdes[TX_QUEUE_ENTRIES];
-};
-
 struct ftgmac100 {
 	/* Registers */
 	struct resource *res;
 	void __iomem *base;
 
-	struct ftgmac100_descs *descs;
-	dma_addr_t descs_dma_addr;
-
 	/* Rx ring */
-	struct sk_buff *rx_skbs[RX_QUEUE_ENTRIES];
+	unsigned int rx_q_entries;
+	struct ftgmac100_rxdes *rxdes;
+	dma_addr_t rxdes_dma;
+	struct sk_buff **rx_skbs;
 	unsigned int rx_pointer;
 	u32 rxdes0_edorr_mask;
 
 	/* Tx ring */
-	struct sk_buff *tx_skbs[TX_QUEUE_ENTRIES];
+	unsigned int tx_q_entries;
+	struct ftgmac100_txdes *txdes;
+	dma_addr_t txdes_dma;
+	struct sk_buff **tx_skbs;
 	unsigned int tx_clean_pointer;
 	unsigned int tx_pointer;
 	u32 txdes0_edotr_mask;
+
+	/* Used to signal the reset task of ring change request */
+	unsigned int new_rx_q_entries;
+	unsigned int new_tx_q_entries;
 
 	/* Scratch page to use when rx skb alloc fails */
 	void *rx_scratch;
@@ -92,30 +101,8 @@ struct ftgmac100 {
 
 	/* Misc */
 	bool need_mac_restart;
+	bool is_aspeed;
 };
-
-static void ftgmac100_set_rx_ring_base(struct ftgmac100 *priv, dma_addr_t addr)
-{
-	iowrite32(addr, priv->base + FTGMAC100_OFFSET_RXR_BADR);
-}
-
-static void ftgmac100_set_rx_buffer_size(struct ftgmac100 *priv,
-		unsigned int size)
-{
-	size = FTGMAC100_RBSR_SIZE(size);
-	iowrite32(size, priv->base + FTGMAC100_OFFSET_RBSR);
-}
-
-static void ftgmac100_set_normal_prio_tx_ring_base(struct ftgmac100 *priv,
-						   dma_addr_t addr)
-{
-	iowrite32(addr, priv->base + FTGMAC100_OFFSET_NPTXR_BADR);
-}
-
-static void ftgmac100_txdma_normal_prio_start_polling(struct ftgmac100 *priv)
-{
-	iowrite32(1, priv->base + FTGMAC100_OFFSET_NPTXPD);
-}
 
 static int ftgmac100_reset_mac(struct ftgmac100 *priv, u32 maccr)
 {
@@ -174,7 +161,7 @@ static int ftgmac100_reset_and_config_mac(struct ftgmac100 *priv)
 	return ftgmac100_reset_mac(priv, maccr);
 }
 
-static void ftgmac100_set_mac(struct ftgmac100 *priv, const unsigned char *mac)
+static void ftgmac100_write_mac_addr(struct ftgmac100 *priv, const u8 *mac)
 {
 	unsigned int maddr = mac[0] << 8 | mac[1];
 	unsigned int laddr = mac[2] << 24 | mac[3] << 16 | mac[4] << 8 | mac[5];
@@ -183,7 +170,7 @@ static void ftgmac100_set_mac(struct ftgmac100 *priv, const unsigned char *mac)
 	iowrite32(laddr, priv->base + FTGMAC100_OFFSET_MAC_LADR);
 }
 
-static void ftgmac100_setup_mac(struct ftgmac100 *priv)
+static void ftgmac100_initial_mac(struct ftgmac100 *priv)
 {
 	u8 mac[ETH_ALEN];
 	unsigned int m;
@@ -227,26 +214,67 @@ static int ftgmac100_set_mac_addr(struct net_device *dev, void *p)
 		return ret;
 
 	eth_commit_mac_addr_change(dev, p);
-	ftgmac100_set_mac(netdev_priv(dev), dev->dev_addr);
+	ftgmac100_write_mac_addr(netdev_priv(dev), dev->dev_addr);
 
 	return 0;
 }
 
 static void ftgmac100_init_hw(struct ftgmac100 *priv)
 {
-	/* setup ring buffer base registers */
-	ftgmac100_set_rx_ring_base(priv,
-				   priv->descs_dma_addr +
-				   offsetof(struct ftgmac100_descs, rxdes));
-	ftgmac100_set_normal_prio_tx_ring_base(priv,
-					       priv->descs_dma_addr +
-					       offsetof(struct ftgmac100_descs, txdes));
+	u32 reg, rfifo_sz, tfifo_sz;
 
-	ftgmac100_set_rx_buffer_size(priv, RX_BUF_SIZE);
+	/* Clear stale interrupts */
+	reg = ioread32(priv->base + FTGMAC100_OFFSET_ISR);
+	iowrite32(reg, priv->base + FTGMAC100_OFFSET_ISR);
 
-	iowrite32(FTGMAC100_APTC_RXPOLL_CNT(1), priv->base + FTGMAC100_OFFSET_APTC);
+	/* Setup RX ring buffer base */
+	iowrite32(priv->rxdes_dma, priv->base + FTGMAC100_OFFSET_RXR_BADR);
 
-	ftgmac100_set_mac(priv, priv->netdev->dev_addr);
+	/* Setup TX ring buffer base */
+	iowrite32(priv->txdes_dma, priv->base + FTGMAC100_OFFSET_NPTXR_BADR);
+
+	/* Configure RX buffer size */
+	iowrite32(FTGMAC100_RBSR_SIZE(RX_BUF_SIZE),
+		  priv->base + FTGMAC100_OFFSET_RBSR);
+
+	/* Set RX descriptor autopoll */
+	iowrite32(FTGMAC100_APTC_RXPOLL_CNT(1),
+		  priv->base + FTGMAC100_OFFSET_APTC);
+
+	/* Write MAC address */
+	ftgmac100_write_mac_addr(priv, priv->netdev->dev_addr);
+
+	/* Configure descriptor sizes and increase burst sizes according
+	 * to values in Aspeed SDK. The FIFO arbitration is enabled and
+	 * the thresholds set based on the recommended values in the
+	 * AST2400 specification.
+	 */
+	iowrite32(FTGMAC100_DBLAC_RXDES_SIZE(2) |   /* 2*8 bytes RX descs */
+		  FTGMAC100_DBLAC_TXDES_SIZE(2) |   /* 2*8 bytes TX descs */
+		  FTGMAC100_DBLAC_RXBURST_SIZE(3) | /* 512 bytes max RX bursts */
+		  FTGMAC100_DBLAC_TXBURST_SIZE(3) | /* 512 bytes max TX bursts */
+		  FTGMAC100_DBLAC_RX_THR_EN |       /* Enable fifo threshold arb */
+		  FTGMAC100_DBLAC_RXFIFO_HTHR(6) |  /* 6/8 of FIFO high threshold */
+		  FTGMAC100_DBLAC_RXFIFO_LTHR(2),   /* 2/8 of FIFO low threshold */
+		  priv->base + FTGMAC100_OFFSET_DBLAC);
+
+	/* Interrupt mitigation configured for 1 interrupt/packet. HW interrupt
+	 * mitigation doesn't seem to provide any benefit with NAPI so leave
+	 * it at that.
+	 */
+	iowrite32(FTGMAC100_ITC_RXINT_THR(1) |
+		  FTGMAC100_ITC_TXINT_THR(1),
+		  priv->base + FTGMAC100_OFFSET_ITC);
+
+	/* Configure FIFO sizes in the TPAFCR register */
+	reg = ioread32(priv->base + FTGMAC100_OFFSET_FEAR);
+	rfifo_sz = reg & 0x00000007;
+	tfifo_sz = (reg >> 3) & 0x00000007;
+	reg = ioread32(priv->base + FTGMAC100_OFFSET_TPAFCR);
+	reg &= ~0x3f000000;
+	reg |= (tfifo_sz << 27);
+	reg |= (rfifo_sz << 24);
+	iowrite32(reg, priv->base + FTGMAC100_OFFSET_TPAFCR);
 }
 
 static void ftgmac100_start_hw(struct ftgmac100 *priv)
@@ -316,7 +344,7 @@ static int ftgmac100_alloc_rx_buf(struct ftgmac100 *priv, unsigned int entry,
 	dma_wmb();
 
 	/* Clean status (which resets own bit) */
-	if (entry == (RX_QUEUE_ENTRIES - 1))
+	if (entry == (priv->rx_q_entries - 1))
 		rxdes->rxdes0 = cpu_to_le32(priv->rxdes0_edorr_mask);
 	else
 		rxdes->rxdes0 = 0;
@@ -324,9 +352,10 @@ static int ftgmac100_alloc_rx_buf(struct ftgmac100 *priv, unsigned int entry,
 	return 0;
 }
 
-static int ftgmac100_next_rx_pointer(int pointer)
+static unsigned int ftgmac100_next_rx_pointer(struct ftgmac100 *priv,
+					      unsigned int pointer)
 {
-	return (pointer + 1) & (RX_QUEUE_ENTRIES - 1);
+	return (pointer + 1) & (priv->rx_q_entries - 1);
 }
 
 static void ftgmac100_rx_packet_error(struct ftgmac100 *priv, u32 status)
@@ -356,7 +385,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 
 	/* Grab next RX descriptor */
 	pointer = priv->rx_pointer;
-	rxdes = &priv->descs->rxdes[pointer];
+	rxdes = &priv->rxdes[pointer];
 
 	/* Grab descriptor status */
 	status = le32_to_cpu(rxdes->rxdes0);
@@ -444,7 +473,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 
 	/* Resplenish rx ring */
 	ftgmac100_alloc_rx_buf(priv, pointer, rxdes, GFP_ATOMIC);
-	priv->rx_pointer = ftgmac100_next_rx_pointer(pointer);
+	priv->rx_pointer = ftgmac100_next_rx_pointer(priv, pointer);
 
 	skb->protocol = eth_type_trans(skb, netdev);
 
@@ -463,7 +492,7 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
  drop:
 	/* Clean rxdes0 (which resets own bit) */
 	rxdes->rxdes0 = cpu_to_le32(status & priv->rxdes0_edorr_mask);
-	priv->rx_pointer = ftgmac100_next_rx_pointer(pointer);
+	priv->rx_pointer = ftgmac100_next_rx_pointer(priv, pointer);
 	netdev->stats.rx_dropped++;
 	return true;
 }
@@ -471,15 +500,16 @@ static bool ftgmac100_rx_packet(struct ftgmac100 *priv, int *processed)
 static u32 ftgmac100_base_tx_ctlstat(struct ftgmac100 *priv,
 				     unsigned int index)
 {
-	if (index == (TX_QUEUE_ENTRIES - 1))
+	if (index == (priv->tx_q_entries - 1))
 		return priv->txdes0_edotr_mask;
 	else
 		return 0;
 }
 
-static int ftgmac100_next_tx_pointer(int pointer)
+static unsigned int ftgmac100_next_tx_pointer(struct ftgmac100 *priv,
+					      unsigned int pointer)
 {
-	return (pointer + 1) & (TX_QUEUE_ENTRIES - 1);
+	return (pointer + 1) & (priv->tx_q_entries - 1);
 }
 
 static u32 ftgmac100_tx_buf_avail(struct ftgmac100 *priv)
@@ -491,7 +521,7 @@ static u32 ftgmac100_tx_buf_avail(struct ftgmac100 *priv)
 	 * test for ftgmac100_tx_buf_cleanable() below
 	 */
 	return (priv->tx_clean_pointer - priv->tx_pointer - 1) &
-		(TX_QUEUE_ENTRIES - 1);
+		(priv->tx_q_entries - 1);
 }
 
 static bool ftgmac100_tx_buf_cleanable(struct ftgmac100 *priv)
@@ -531,7 +561,7 @@ static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 	u32 ctl_stat;
 
 	pointer = priv->tx_clean_pointer;
-	txdes = &priv->descs->txdes[pointer];
+	txdes = &priv->txdes[pointer];
 
 	ctl_stat = le32_to_cpu(txdes->txdes0);
 	if (ctl_stat & FTGMAC100_TXDES0_TXDMA_OWN)
@@ -543,7 +573,7 @@ static bool ftgmac100_tx_complete_packet(struct ftgmac100 *priv)
 	ftgmac100_free_tx_packet(priv, pointer, skb, txdes, ctl_stat);
 	txdes->txdes0 = cpu_to_le32(ctl_stat & priv->txdes0_edotr_mask);
 
-	priv->tx_clean_pointer = ftgmac100_next_tx_pointer(pointer);
+	priv->tx_clean_pointer = ftgmac100_next_tx_pointer(priv, pointer);
 
 	return true;
 }
@@ -570,6 +600,26 @@ static void ftgmac100_tx_complete(struct ftgmac100 *priv)
 			netif_wake_queue(netdev);
 		__netif_tx_unlock(txq);
 	}
+}
+
+static bool ftgmac100_prep_tx_csum(struct sk_buff *skb, u32 *csum_vlan)
+{
+	if (skb->protocol == cpu_to_be16(ETH_P_IP)) {
+		u8 ip_proto = ip_hdr(skb)->protocol;
+
+		*csum_vlan |= FTGMAC100_TXDES1_IP_CHKSUM;
+		switch(ip_proto) {
+		case IPPROTO_TCP:
+			*csum_vlan |= FTGMAC100_TXDES1_TCP_CHKSUM;
+			return true;
+		case IPPROTO_UDP:
+			*csum_vlan |= FTGMAC100_TXDES1_UDP_CHKSUM;
+			return true;
+		case IPPROTO_IP:
+			return true;
+		}
+	}
+	return skb_checksum_help(skb) == 0;
 }
 
 static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
@@ -612,7 +662,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 
 	/* Grab the next free tx descriptor */
 	pointer = priv->tx_pointer;
-	txdes = first = &priv->descs->txdes[pointer];
+	txdes = first = &priv->txdes[pointer];
 
 	/* Setup it up with the packet head. Don't write the head to the
 	 * ring just yet
@@ -628,23 +678,13 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 
 	/* Setup HW checksumming */
 	csum_vlan = 0;
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		__be16 protocol = skb->protocol;
-
-		if (protocol == cpu_to_be16(ETH_P_IP)) {
-			u8 ip_proto = ip_hdr(skb)->protocol;
-
-			csum_vlan |= FTGMAC100_TXDES1_IP_CHKSUM;
-			if (ip_proto == IPPROTO_TCP)
-				csum_vlan |= FTGMAC100_TXDES1_TCP_CHKSUM;
-			else if (ip_proto == IPPROTO_UDP)
-				csum_vlan |= FTGMAC100_TXDES1_UDP_CHKSUM;
-		}
-	}
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    !ftgmac100_prep_tx_csum(skb, &csum_vlan))
+		goto drop;
 	txdes->txdes1 = cpu_to_le32(csum_vlan);
 
 	/* Next descriptor */
-	pointer = ftgmac100_next_tx_pointer(pointer);
+	pointer = ftgmac100_next_tx_pointer(priv, pointer);
 
 	/* Add the fragments */
 	for (i = 0; i < nfrags; i++) {
@@ -660,7 +700,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 
 		/* Setup descriptor */
 		priv->tx_skbs[pointer] = skb;
-		txdes = &priv->descs->txdes[pointer];
+		txdes = &priv->txdes[pointer];
 		ctl_stat = ftgmac100_base_tx_ctlstat(priv, pointer);
 		ctl_stat |= FTGMAC100_TXDES0_TXDMA_OWN;
 		ctl_stat |= FTGMAC100_TXDES0_TXBUF_SIZE(len);
@@ -671,7 +711,7 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 		txdes->txdes3 = cpu_to_le32(map);
 
 		/* Next one */
-		pointer = ftgmac100_next_tx_pointer(pointer);
+		pointer = ftgmac100_next_tx_pointer(priv, pointer);
 	}
 
 	/* Order the previous packet and descriptor udpates
@@ -695,7 +735,8 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 			netif_wake_queue(netdev);
 	}
 
-	ftgmac100_txdma_normal_prio_start_polling(priv);
+	/* Poke transmitter to read the updated TX descriptors */
+	iowrite32(1, priv->base + FTGMAC100_OFFSET_NPTXPD);
 
 	return NETDEV_TX_OK;
 
@@ -710,8 +751,8 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 
 	/* Then all fragments */
 	for (j = 0; j < i; j++) {
-		pointer = ftgmac100_next_tx_pointer(pointer);
-		txdes = &priv->descs->txdes[pointer];
+		pointer = ftgmac100_next_tx_pointer(priv, pointer);
+		txdes = &priv->txdes[pointer];
 		ctl_stat = le32_to_cpu(txdes->txdes0);
 		ftgmac100_free_tx_packet(priv, pointer, skb, txdes, ctl_stat);
 		txdes->txdes0 = cpu_to_le32(ctl_stat & priv->txdes0_edotr_mask);
@@ -734,8 +775,8 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 	int i;
 
 	/* Free all RX buffers */
-	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
-		struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[i];
+	for (i = 0; i < priv->rx_q_entries; i++) {
+		struct ftgmac100_rxdes *rxdes = &priv->rxdes[i];
 		struct sk_buff *skb = priv->rx_skbs[i];
 		dma_addr_t map = le32_to_cpu(rxdes->rxdes3);
 
@@ -748,8 +789,8 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 	}
 
 	/* Free all TX buffers */
-	for (i = 0; i < TX_QUEUE_ENTRIES; i++) {
-		struct ftgmac100_txdes *txdes = &priv->descs->txdes[i];
+	for (i = 0; i < priv->tx_q_entries; i++) {
+		struct ftgmac100_txdes *txdes = &priv->txdes[i];
 		struct sk_buff *skb = priv->tx_skbs[i];
 
 		if (!skb)
@@ -761,10 +802,22 @@ static void ftgmac100_free_buffers(struct ftgmac100 *priv)
 
 static void ftgmac100_free_rings(struct ftgmac100 *priv)
 {
+	/* Free skb arrays */
+	kfree(priv->rx_skbs);
+	kfree(priv->tx_skbs);
+
 	/* Free descriptors */
-	if (priv->descs)
-		dma_free_coherent(priv->dev, sizeof(struct ftgmac100_descs),
-				  priv->descs, priv->descs_dma_addr);
+	if (priv->rxdes)
+		dma_free_coherent(priv->dev, MAX_RX_QUEUE_ENTRIES *
+				  sizeof(struct ftgmac100_rxdes),
+				  priv->rxdes, priv->rxdes_dma);
+	priv->rxdes = NULL;
+
+	if (priv->txdes)
+		dma_free_coherent(priv->dev, MAX_TX_QUEUE_ENTRIES *
+				  sizeof(struct ftgmac100_txdes),
+				  priv->txdes, priv->txdes_dma);
+	priv->txdes = NULL;
 
 	/* Free scratch packet buffer */
 	if (priv->rx_scratch)
@@ -774,11 +827,28 @@ static void ftgmac100_free_rings(struct ftgmac100 *priv)
 
 static int ftgmac100_alloc_rings(struct ftgmac100 *priv)
 {
+	/* Allocate skb arrays */
+	priv->rx_skbs = kcalloc(MAX_RX_QUEUE_ENTRIES, sizeof(void *),
+				GFP_KERNEL);
+	if (!priv->rx_skbs)
+		return -ENOMEM;
+	priv->tx_skbs = kcalloc(MAX_TX_QUEUE_ENTRIES, sizeof(void *),
+				GFP_KERNEL);
+	if (!priv->tx_skbs)
+		return -ENOMEM;
+
 	/* Allocate descriptors */
-	priv->descs = dma_zalloc_coherent(priv->dev,
-					  sizeof(struct ftgmac100_descs),
-					  &priv->descs_dma_addr, GFP_KERNEL);
-	if (!priv->descs)
+	priv->rxdes = dma_zalloc_coherent(priv->dev,
+					  MAX_RX_QUEUE_ENTRIES *
+					  sizeof(struct ftgmac100_rxdes),
+					  &priv->rxdes_dma, GFP_KERNEL);
+	if (!priv->rxdes)
+		return -ENOMEM;
+	priv->txdes = dma_zalloc_coherent(priv->dev,
+					  MAX_TX_QUEUE_ENTRIES *
+					  sizeof(struct ftgmac100_txdes),
+					  &priv->txdes_dma, GFP_KERNEL);
+	if (!priv->txdes)
 		return -ENOMEM;
 
 	/* Allocate scratch packet buffer */
@@ -794,22 +864,32 @@ static int ftgmac100_alloc_rings(struct ftgmac100 *priv)
 
 static void ftgmac100_init_rings(struct ftgmac100 *priv)
 {
-	struct ftgmac100_rxdes *rxdes;
-	struct ftgmac100_txdes *txdes;
+	struct ftgmac100_rxdes *rxdes = NULL;
+	struct ftgmac100_txdes *txdes = NULL;
 	int i;
 
+	/* Update entries counts */
+	priv->rx_q_entries = priv->new_rx_q_entries;
+	priv->tx_q_entries = priv->new_tx_q_entries;
+
+	if (WARN_ON(priv->rx_q_entries < MIN_RX_QUEUE_ENTRIES))
+		return;
+
 	/* Initialize RX ring */
-	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
-		rxdes = &priv->descs->rxdes[i];
+	for (i = 0; i < priv->rx_q_entries; i++) {
+		rxdes = &priv->rxdes[i];
 		rxdes->rxdes0 = 0;
 		rxdes->rxdes3 = cpu_to_le32(priv->rx_scratch_dma);
 	}
 	/* Mark the end of the ring */
 	rxdes->rxdes0 |= cpu_to_le32(priv->rxdes0_edorr_mask);
 
+	if (WARN_ON(priv->tx_q_entries < MIN_RX_QUEUE_ENTRIES))
+		return;
+
 	/* Initialize TX ring */
-	for (i = 0; i < TX_QUEUE_ENTRIES; i++) {
-		txdes = &priv->descs->txdes[i];
+	for (i = 0; i < priv->tx_q_entries; i++) {
+		txdes = &priv->txdes[i];
 		txdes->txdes0 = 0;
 	}
 	txdes->txdes0 |= cpu_to_le32(priv->txdes0_edotr_mask);
@@ -819,8 +899,8 @@ static int ftgmac100_alloc_rx_buffers(struct ftgmac100 *priv)
 {
 	int i;
 
-	for (i = 0; i < RX_QUEUE_ENTRIES; i++) {
-		struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[i];
+	for (i = 0; i < priv->rx_q_entries; i++) {
+		struct ftgmac100_rxdes *rxdes = &priv->rxdes[i];
 
 		if (ftgmac100_alloc_rx_buf(priv, i, rxdes, GFP_KERNEL))
 			return -ENOMEM;
@@ -965,11 +1045,53 @@ static void ftgmac100_get_drvinfo(struct net_device *netdev,
 	strlcpy(info->bus_info, dev_name(&netdev->dev), sizeof(info->bus_info));
 }
 
+static int ftgmac100_nway_reset(struct net_device *ndev)
+{
+	if (!ndev->phydev)
+		return -ENXIO;
+	return phy_start_aneg(ndev->phydev);
+}
+
+static void ftgmac100_get_ringparam(struct net_device *netdev,
+				    struct ethtool_ringparam *ering)
+{
+	struct ftgmac100 *priv = netdev_priv(netdev);
+
+	memset(ering, 0, sizeof(*ering));
+	ering->rx_max_pending = MAX_RX_QUEUE_ENTRIES;
+	ering->tx_max_pending = MAX_TX_QUEUE_ENTRIES;
+	ering->rx_pending = priv->rx_q_entries;
+	ering->tx_pending = priv->tx_q_entries;
+}
+
+static int ftgmac100_set_ringparam(struct net_device *netdev,
+				   struct ethtool_ringparam *ering)
+{
+	struct ftgmac100 *priv = netdev_priv(netdev);
+
+	if (ering->rx_pending > MAX_RX_QUEUE_ENTRIES ||
+	    ering->tx_pending > MAX_TX_QUEUE_ENTRIES ||
+	    ering->rx_pending < MIN_RX_QUEUE_ENTRIES ||
+	    ering->tx_pending < MIN_TX_QUEUE_ENTRIES ||
+	    !is_power_of_2(ering->rx_pending) ||
+	    !is_power_of_2(ering->tx_pending))
+		return -EINVAL;
+
+	priv->new_rx_q_entries = ering->rx_pending;
+	priv->new_tx_q_entries = ering->tx_pending;
+	if (netif_running(netdev))
+		schedule_work(&priv->reset_task);
+
+	return 0;
+}
+
 static const struct ethtool_ops ftgmac100_ethtool_ops = {
 	.get_drvinfo		= ftgmac100_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
+	.get_ringparam		= ftgmac100_get_ringparam,
+	.set_ringparam		= ftgmac100_set_ringparam,
 };
 
 static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
@@ -1025,7 +1147,7 @@ static irqreturn_t ftgmac100_interrupt(int irq, void *dev_id)
 
 static bool ftgmac100_check_rx(struct ftgmac100 *priv)
 {
-	struct ftgmac100_rxdes *rxdes = &priv->descs->rxdes[priv->rx_pointer];
+	struct ftgmac100_rxdes *rxdes = &priv->rxdes[priv->rx_pointer];
 
 	/* Do we have a packet ? */
 	return !!(rxdes->rxdes0 & cpu_to_le32(FTGMAC100_RXDES0_RXPKT_RDY));
@@ -1312,8 +1434,7 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 	if (!priv->mii_bus)
 		return -EIO;
 
-	if (of_machine_is_compatible("aspeed,ast2400") ||
-	    of_machine_is_compatible("aspeed,ast2500")) {
+	if (priv->is_aspeed) {
 		/* This driver supports the old MDIO interface */
 		reg = ioread32(priv->base + FTGMAC100_OFFSET_REVR);
 		reg &= ~FTGMAC100_REVR_NEW_MDIO_INTERFACE;
@@ -1378,6 +1499,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	int irq;
 	struct net_device *netdev;
 	struct ftgmac100 *priv;
+	struct device_node *np;
 	int err = 0;
 
 	if (!pdev)
@@ -1431,19 +1553,20 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	netdev->irq = irq;
 
 	/* MAC address from chip or random one */
-	ftgmac100_setup_mac(priv);
+	ftgmac100_initial_mac(priv);
 
-	if (of_machine_is_compatible("aspeed,ast2400") ||
-	    of_machine_is_compatible("aspeed,ast2500")) {
+	np = pdev->dev.of_node;
+	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac") ||
+		   of_device_is_compatible(np, "aspeed,ast2500-mac"))) {
 		priv->rxdes0_edorr_mask = BIT(30);
 		priv->txdes0_edotr_mask = BIT(30);
+		priv->is_aspeed = true;
 	} else {
 		priv->rxdes0_edorr_mask = BIT(15);
 		priv->txdes0_edotr_mask = BIT(15);
 	}
 
-	if (pdev->dev.of_node &&
-	    of_get_property(pdev->dev.of_node, "use-ncsi", NULL)) {
+	if (np && of_get_property(np, "use-ncsi", NULL)) {
 		if (!IS_ENABLED(CONFIG_NET_NCSI)) {
 			dev_err(&pdev->dev, "NCSI stack not enabled\n");
 			goto err_ncsi_dev;
@@ -1461,15 +1584,20 @@ static int ftgmac100_probe(struct platform_device *pdev)
 			goto err_setup_mdio;
 	}
 
-	/* We have to disable on-chip IP checksum functionality
-	 * when NCSI is enabled on the interface. It doesn't work
-	 * in that case.
-	 */
-	netdev->features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
+	/* Default ring sizes */
+	priv->rx_q_entries = priv->new_rx_q_entries = DEF_RX_QUEUE_ENTRIES;
+	priv->tx_q_entries = priv->new_tx_q_entries = DEF_TX_QUEUE_ENTRIES;
+
+	/* Base feature set */
+	netdev->hw_features = NETIF_F_RXCSUM | NETIF_F_HW_CSUM |
 		NETIF_F_GRO | NETIF_F_SG;
-	if (priv->use_ncsi &&
-	    of_get_property(pdev->dev.of_node, "no-hw-checksum", NULL))
-		netdev->features &= ~NETIF_F_IP_CSUM;
+
+	/* AST2400  doesn't have working HW checksum generation */
+	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac")))
+		netdev->hw_features &= ~NETIF_F_HW_CSUM;
+	if (np && of_get_property(np, "no-hw-checksum", NULL))
+		netdev->hw_features &= ~(NETIF_F_HW_CSUM | NETIF_F_RXCSUM);
+	netdev->features |= netdev->hw_features;
 
 	/* register network device */
 	err = register_netdev(netdev);
