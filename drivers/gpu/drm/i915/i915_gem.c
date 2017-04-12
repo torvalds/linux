@@ -4348,6 +4348,8 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	i915_gem_context_lost(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
+	intel_guc_suspend(dev_priv);
+
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	cancel_delayed_work_sync(&dev_priv->gt.retire_work);
 
