@@ -200,6 +200,9 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	rdesc->owner = THIS_MODULE;
 
 	initdata = of_get_regulator_init_data(dev, np, rdesc);
+	if (!initdata)
+		return -ENOMEM;
+
 	initdata->supply_regulator = "vin";
 	sreg->initdata = initdata;
 
