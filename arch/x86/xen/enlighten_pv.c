@@ -165,9 +165,6 @@ xen_running_on_version_or_later(unsigned int major, unsigned int minor)
 	return false;
 }
 
-#define CPUID_THERM_POWER_LEAF 6
-#define APERFMPERF_PRESENT 0
-
 static __read_mostly unsigned int cpuid_leaf1_edx_mask = ~0;
 static __read_mostly unsigned int cpuid_leaf1_ecx_mask = ~0;
 
@@ -200,11 +197,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 		*cx = cpuid_leaf5_ecx_val;
 		*dx = cpuid_leaf5_edx_val;
 		return;
-
-	case CPUID_THERM_POWER_LEAF:
-		/* Disabling APERFMPERF for kernel usage */
-		maskecx = ~(1 << APERFMPERF_PRESENT);
-		break;
 
 	case 0xb:
 		/* Suppress extended topology stuff */
@@ -332,6 +324,7 @@ static void __init xen_init_capabilities(void)
 	setup_clear_cpu_cap(X86_BUG_SYSRET_SS_ATTRS);
 	setup_force_cpu_cap(X86_FEATURE_XENPV);
 	setup_clear_cpu_cap(X86_FEATURE_DCA);
+	setup_clear_cpu_cap(X86_FEATURE_APERFMPERF);
 }
 
 static void xen_set_debugreg(int reg, unsigned long val)
