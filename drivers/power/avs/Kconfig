@@ -18,12 +18,3 @@ config ROCKCHIP_IODOMAIN
           Say y here to enable support io domains on Rockchip SoCs. It is
           necessary for the io domain setting of the SoC to match the
           voltage supplied by the regulators.
-
-config ROCKCHIP_CPU_AVS
-	bool "Rockchip CPU AVS support"
-	depends on POWER_AVS && ARCH_ROCKCHIP && OF && CPU_FREQ
-	depends on (ARM_CPU_TOPOLOGY || ARM64) && ROCKCHIP_EFUSE
-	help
-	  Say y here to enable support CPU AVS on Rockchip SoCs.
-	  The cpu's operating voltage is adapted depending on leakage
-	  or pvtm.
