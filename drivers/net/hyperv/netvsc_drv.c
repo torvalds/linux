@@ -191,6 +191,24 @@ static void *init_ppi_data(struct rndis_message *msg, u32 ppi_size,
 	return ppi;
 }
 
+static inline int netvsc_get_tx_queue(struct net_device *ndev,
+				      struct sk_buff *skb, int old_idx)
+{
+	const struct net_device_context *ndc = netdev_priv(ndev);
+	struct sock *sk = skb->sk;
+	int q_idx;
+
+	q_idx = ndc->tx_send_table[skb_get_hash(skb) &
+				   (VRSS_SEND_TAB_SIZE - 1)];
+
+	/* If queue index changed record the new value */
+	if (q_idx != old_idx &&
+	    sk && sk_fullsock(sk) && rcu_access_pointer(sk->sk_dst_cache))
+		sk_tx_queue_set(sk, q_idx);
+
+	return q_idx;
+}
+
 /*
  * Select queue for transmit.
  *
@@ -205,23 +223,21 @@ static void *init_ppi_data(struct rndis_message *msg, u32 ppi_size,
 static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 			void *accel_priv, select_queue_fallback_t fallback)
 {
-	struct net_device_context *net_device_ctx = netdev_priv(ndev);
 	unsigned int num_tx_queues = ndev->real_num_tx_queues;
-	struct sock *sk = skb->sk;
-	int q_idx = sk_tx_queue_get(sk);
+	int q_idx = sk_tx_queue_get(skb->sk);
 
-	if (q_idx < 0 || skb->ooo_okay || q_idx >= num_tx_queues) {
-		u16 hash = __skb_tx_hash(ndev, skb, VRSS_SEND_TAB_SIZE);
-		int new_idx;
-
-		new_idx = net_device_ctx->tx_send_table[hash] % num_tx_queues;
-
-		if (q_idx != new_idx && sk &&
-		    sk_fullsock(sk) && rcu_access_pointer(sk->sk_dst_cache))
-			sk_tx_queue_set(sk, new_idx);
-
-		q_idx = new_idx;
+	if (q_idx < 0 || skb->ooo_okay) {
+		/* If forwarding a packet, we use the recorded queue when
+		 * available for better cache locality.
+		 */
+		if (skb_rx_queue_recorded(skb))
+			q_idx = skb_get_rx_queue(skb);
+		else
+			q_idx = netvsc_get_tx_queue(ndev, skb, q_idx);
 	}
+
+	while (unlikely(q_idx >= num_tx_queues))
+		q_idx -= num_tx_queues;
 
 	return q_idx;
 }
