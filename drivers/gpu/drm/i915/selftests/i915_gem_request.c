@@ -580,7 +580,7 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	if (err)
 		goto err;
 
-	err = i915_gem_object_set_to_gtt_domain(obj, true);
+	err = i915_gem_object_set_to_wc_domain(obj, true);
 	if (err)
 		goto err;
 

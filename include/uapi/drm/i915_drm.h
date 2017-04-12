@@ -666,6 +666,8 @@ struct drm_i915_gem_relocation_entry {
 #define I915_GEM_DOMAIN_VERTEX		0x00000020
 /** GTT domain - aperture and scanout */
 #define I915_GEM_DOMAIN_GTT		0x00000040
+/** WC domain - uncached access */
+#define I915_GEM_DOMAIN_WC		0x00000080
 /** @} */
 
 struct drm_i915_gem_exec_object {

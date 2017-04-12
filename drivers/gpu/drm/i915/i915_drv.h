@@ -3453,8 +3453,9 @@ int i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 #define I915_PRIORITY_DISPLAY I915_PRIORITY_MAX
 
 int __must_check
-i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
-				  bool write);
+i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write);
+int __must_check
+i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write);
 int __must_check
 i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write);
 struct i915_vma * __must_check
