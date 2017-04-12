@@ -165,8 +165,6 @@ xen_running_on_version_or_later(unsigned int major, unsigned int minor)
 	return false;
 }
 
-static __read_mostly unsigned int cpuid_leaf1_ecx_mask = ~0;
-
 static __read_mostly unsigned int cpuid_leaf5_ecx_val;
 static __read_mostly unsigned int cpuid_leaf5_edx_val;
 
@@ -174,16 +172,12 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 		      unsigned int *cx, unsigned int *dx)
 {
 	unsigned maskebx = ~0;
-	unsigned maskecx = ~0;
+
 	/*
 	 * Mask out inconvenient features, to try and disable as many
 	 * unsupported kernel subsystems as possible.
 	 */
 	switch (*ax) {
-	case 1:
-		maskecx = cpuid_leaf1_ecx_mask;
-		break;
-
 	case CPUID_MWAIT_LEAF:
 		/* Synthesize the values.. */
 		*ax = 0;
@@ -206,7 +200,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 		: "0" (*ax), "2" (*cx));
 
 	*bx &= maskebx;
-	*cx &= maskecx;
 }
 STACK_FRAME_NON_STANDARD(xen_cpuid); /* XEN_EMULATE_PREFIX */
 
@@ -281,22 +274,29 @@ static bool __init xen_check_mwait(void)
 	return false;
 #endif
 }
-static void __init xen_init_cpuid_mask(void)
+
+static bool __init xen_check_xsave(void)
 {
-	unsigned int ax, bx, cx, dx;
-	unsigned int xsave_mask;
+	unsigned int err, eax, edx;
 
-	ax = 1;
-	cx = 0;
-	cpuid(1, &ax, &bx, &cx, &dx);
+	/*
+	 * Xen 4.0 and older accidentally leaked the host XSAVE flag into guest
+	 * view, despite not being able to support guests using the
+	 * functionality. Probe for the actual availability of XSAVE by seeing
+	 * whether xgetbv executes successfully or raises #UD.
+	 */
+	asm volatile("1: .byte 0x0f,0x01,0xd0\n\t" /* xgetbv */
+		     "xor %[err], %[err]\n"
+		     "2:\n\t"
+		     ".pushsection .fixup,\"ax\"\n\t"
+		     "3: movl $1,%[err]\n\t"
+		     "jmp 2b\n\t"
+		     ".popsection\n\t"
+		     _ASM_EXTABLE(1b, 3b)
+		     : [err] "=r" (err), "=a" (eax), "=d" (edx)
+		     : "c" (0));
 
-	xsave_mask =
-		(1 << (X86_FEATURE_XSAVE % 32)) |
-		(1 << (X86_FEATURE_OSXSAVE % 32));
-
-	/* Xen will set CR4.OSXSAVE if supported and not disabled by force */
-	if ((cx & xsave_mask) != xsave_mask)
-		cpuid_leaf1_ecx_mask &= ~xsave_mask; /* disable XSAVE & OSXSAVE */
+	return err == 0;
 }
 
 static void __init xen_init_capabilities(void)
@@ -316,6 +316,14 @@ static void __init xen_init_capabilities(void)
 		setup_force_cpu_cap(X86_FEATURE_MWAIT);
 	else
 		setup_clear_cpu_cap(X86_FEATURE_MWAIT);
+
+	if (xen_check_xsave()) {
+		setup_force_cpu_cap(X86_FEATURE_XSAVE);
+		setup_force_cpu_cap(X86_FEATURE_OSXSAVE);
+	} else {
+		setup_clear_cpu_cap(X86_FEATURE_XSAVE);
+		setup_clear_cpu_cap(X86_FEATURE_OSXSAVE);
+	}
 }
 
 static void xen_set_debugreg(int reg, unsigned long val)
@@ -1308,7 +1316,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	xen_setup_gdt(0);
 
 	xen_init_irq_ops();
-	xen_init_cpuid_mask();
 	xen_init_capabilities();
 
 #ifdef CONFIG_X86_LOCAL_APIC
