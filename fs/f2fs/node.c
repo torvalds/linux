@@ -1458,6 +1458,9 @@ continue_unlock:
 			f2fs_wait_on_page_writeback(page, NODE, true);
 			BUG_ON(PageWriteback(page));
 
+			set_fsync_mark(page, 0);
+			set_dentry_mark(page, 0);
+
 			if (!atomic || page == last_page) {
 				set_fsync_mark(page, 1);
 				if (IS_INODE(page)) {
