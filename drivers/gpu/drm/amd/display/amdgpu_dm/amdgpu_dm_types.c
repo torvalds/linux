@@ -730,19 +730,20 @@ static void update_stream_scaling_settings(
 
 }
 
-static void dm_dc_surface_commit(
-		struct dc *dc,
-		struct drm_crtc *crtc)
+static void add_surface(struct dc *dc,
+			struct drm_crtc *crtc,
+			struct drm_plane *plane,
+			const struct dc_surface **dc_surfaces)
 {
 	struct dc_surface *dc_surface;
-	const struct dc_surface *dc_surfaces[1];
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	const struct dc_stream *dc_stream = acrtc->stream;
 	unsigned long flags;
 
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (acrtc->pflip_status != AMDGPU_FLIP_NONE) {
-		DRM_ERROR("dm_dc_surface_commit: acrtc %d, already busy\n", acrtc->crtc_id);
+		DRM_ERROR("add_surface: acrtc %d, already busy\n",
+			  acrtc->crtc_id);
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		/* In comit tail framework this cannot happen */
 		BUG_ON(0);
@@ -770,22 +771,11 @@ static void dm_dc_surface_commit(
 	fill_plane_attributes(
 			crtc->dev->dev_private,
 			dc_surface,
-			crtc->primary->state,
+			plane->state,
 			true);
 
-	dc_surfaces[0] = dc_surface;
+	*dc_surfaces = dc_surface;
 
-	if (false == dc_commit_surfaces_to_stream(
-			dc,
-			dc_surfaces,
-			1,
-			dc_stream)) {
-		dm_error(
-			"%s: Failed to attach surface!\n",
-			__func__);
-	}
-
-	dc_surface_release(dc_surface);
 fail:
 	return;
 }
@@ -2385,11 +2375,16 @@ static void amdgpu_dm_do_flip(
 }
 
 void dc_commit_surfaces(struct drm_atomic_state *state,
-	struct drm_device *dev, struct amdgpu_display_manager *dm)
+			struct drm_device *dev,
+			struct amdgpu_display_manager *dm,
+			struct drm_crtc *pcrtc)
 {
 	uint32_t i;
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state;
+	const struct dc_stream *dc_stream_attach;
+	const struct dc_surface *dc_surfaces_constructed[MAX_SURFACES];
+	int planes_count = 0;
 
 	/* update planes when needed */
 	for_each_plane_in_state(state, plane, old_plane_state, i) {
@@ -2398,6 +2393,7 @@ void dc_commit_surfaces(struct drm_atomic_state *state,
 		struct drm_framebuffer *fb = plane_state->fb;
 		struct drm_connector *connector;
 		struct dm_connector_state *dm_state = NULL;
+		struct amdgpu_crtc *acrtc_attach;
 		enum dm_commit_action action;
 		bool pflip_needed;
 
@@ -2439,9 +2435,26 @@ void dc_commit_surfaces(struct drm_atomic_state *state,
 			 */
 			if (!dm_state)
 				continue;
-
-			dm_dc_surface_commit(dm->dc, crtc);
+			if (crtc == pcrtc) {
+				add_surface(dm->dc, crtc, plane,
+					    &dc_surfaces_constructed[planes_count]);
+				acrtc_attach = to_amdgpu_crtc(crtc);
+				dc_stream_attach = acrtc_attach->stream;
+				planes_count++;
+			}
 		}
+	}
+
+	if (planes_count) {
+		if (false == dc_commit_surfaces_to_stream(dm->dc,
+							  dc_surfaces_constructed,
+							  planes_count,
+							  dc_stream_attach)) {
+			dm_error("%s: Failed to attach surface!\n", __func__);
+			return;
+		}
+		for (i = 0; i < planes_count; i++)
+			dc_surface_release(dc_surfaces_constructed[i]);
 	}
 }
 
@@ -2453,10 +2466,10 @@ void amdgpu_dm_atomic_commit_tail(
 	struct amdgpu_display_manager *dm = &adev->dm;
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state;
-	uint32_t i;
+	uint32_t i, j;
 	uint32_t commit_streams_count = 0;
 	uint32_t new_crtcs_count = 0;
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc, *pcrtc;
 	struct drm_crtc_state *old_crtc_state;
 	const struct dc_stream *commit_streams[MAX_STREAMS];
 	struct amdgpu_crtc *new_crtcs[MAX_STREAMS];
@@ -2615,8 +2628,9 @@ void amdgpu_dm_atomic_commit_tail(
 				dc_stream_get_status(acrtc->stream)->primary_otg_inst;
 	}
 
-	/* update planes when needed */
-	dc_commit_surfaces(state, dev, dm);
+	/* update planes when needed per crtc*/
+	for_each_crtc_in_state(state, pcrtc, old_crtc_state, j)
+		dc_commit_surfaces(state, dev, dm, pcrtc);
 
 	for (i = 0; i < new_crtcs_count; i++) {
 		/*
@@ -2793,15 +2807,18 @@ static uint32_t add_val_sets_surface(
 	const struct dc_stream *stream,
 	const struct dc_surface *surface)
 {
-	uint32_t i = 0;
+	uint32_t i = 0, j = 0;
 
 	while (i < set_count) {
-		if (val_sets[i].stream == stream)
+		if (val_sets[i].stream == stream) {
+			while (val_sets[i].surfaces[j])
+				j++;
 			break;
+		}
 		++i;
 	}
 
-	val_sets[i].surfaces[val_sets[i].surface_count] = surface;
+	val_sets[i].surfaces[j] = surface;
 	val_sets[i].surface_count++;
 
 	return val_sets[i].surface_count;
