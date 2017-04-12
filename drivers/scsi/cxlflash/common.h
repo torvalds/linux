@@ -60,7 +60,9 @@ extern const struct file_operations cxlflash_cxl_fops;
 /* SQ for master issued cmds */
 #define NUM_SQ_ENTRY			CXLFLASH_MAX_CMDS
 
-#define CXLFLASH_NUM_HWQS		1
+/* Hardware queue definitions */
+#define CXLFLASH_DEF_HWQS		1
+#define CXLFLASH_MAX_HWQS		8
 #define PRIMARY_HWQ			0
 
 
@@ -201,7 +203,7 @@ struct hwq {
 } __aligned(cache_line_size());
 
 struct afu {
-	struct hwq hwqs[CXLFLASH_NUM_HWQS];
+	struct hwq hwqs[CXLFLASH_MAX_HWQS];
 	int (*send_cmd)(struct afu *, struct afu_cmd *);
 	void (*context_reset)(struct afu_cmd *);
 
@@ -211,6 +213,8 @@ struct afu {
 	atomic_t cmds_active;	/* Number of currently active AFU commands */
 	u64 hb;
 	u32 internal_lun;	/* User-desired LUN mode for this AFU */
+	u32 num_hwqs;		/* Number of hardware queues */
+	u32 desired_hwqs;	/* Desired h/w queues, effective on AFU reset */
 
 	char version[16];
 	u64 interface_version;
@@ -221,7 +225,7 @@ struct afu {
 
 static inline struct hwq *get_hwq(struct afu *afu, u32 index)
 {
-	WARN_ON(index >= CXLFLASH_NUM_HWQS);
+	WARN_ON(index >= CXLFLASH_MAX_HWQS);
 
 	return &afu->hwqs[index];
 }
