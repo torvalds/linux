@@ -818,6 +818,9 @@ static int __init setup_hwcaps(void)
 	case 0x2965:
 		strcpy(elf_platform, "z13");
 		break;
+	case 0x3906:
+		strcpy(elf_platform, "z14");
+		break;
 	}
 
 	/*

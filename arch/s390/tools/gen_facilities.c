@@ -54,6 +54,9 @@ static struct facility_def facility_defs[] = {
 #ifdef CONFIG_HAVE_MARCH_Z13_FEATURES
 			53, /* load-and-zero-rightmost-byte, etc. */
 #endif
+#ifdef CONFIG_HAVE_MARCH_Z14_FEATURES
+			58, /* miscellaneous-instruction-extension 2 */
+#endif
 			-1 /* END */
 		}
 	},

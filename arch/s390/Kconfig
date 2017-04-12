@@ -222,6 +222,10 @@ config HAVE_MARCH_Z13_FEATURES
 	def_bool n
 	select HAVE_MARCH_ZEC12_FEATURES
 
+config HAVE_MARCH_Z14_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z13_FEATURES
+
 choice
 	prompt "Processor type"
 	default MARCH_Z196
@@ -282,6 +286,14 @@ config MARCH_Z13
 	  2964 series). The kernel will be slightly faster but will not work on
 	  older machines.
 
+config MARCH_Z14
+	bool "IBM z14"
+	select HAVE_MARCH_Z14_FEATURES
+	help
+	  Select this to enable optimizations for IBM z14 (3906 series).
+	  The kernel will be slightly faster but will not work on older
+	  machines.
+
 endchoice
 
 config MARCH_Z900_TUNE
@@ -304,6 +316,9 @@ config MARCH_ZEC12_TUNE
 
 config MARCH_Z13_TUNE
 	def_bool TUNE_Z13 || MARCH_Z13 && TUNE_DEFAULT
+
+config MARCH_Z14_TUNE
+	def_bool TUNE_Z14 || MARCH_Z14 && TUNE_DEFAULT
 
 choice
 	prompt "Tune code generation"
@@ -342,6 +357,9 @@ config TUNE_ZEC12
 
 config TUNE_Z13
 	bool "IBM z13"
+
+config TUNE_Z14
+	bool "IBM z14"
 
 endchoice
 
