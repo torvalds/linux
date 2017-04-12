@@ -475,9 +475,13 @@ extern int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
 extern int is_current_pgrp_orphaned(void);
 extern void tty_hangup(struct tty_struct *tty);
 extern void tty_vhangup(struct tty_struct *tty);
+extern void tty_vhangup_session(struct tty_struct *tty);
 extern int tty_hung_up_p(struct file *filp);
 extern void do_SAK(struct tty_struct *tty);
 extern void __do_SAK(struct tty_struct *tty);
+extern void tty_open_proc_set_tty(struct file *filp, struct tty_struct *tty);
+extern int tty_signal_session_leader(struct tty_struct *tty, int exit_session);
+extern void session_clear_tty(struct pid *session);
 extern void no_tty(void);
 extern void tty_buffer_free_all(struct tty_port *port);
 extern void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld);
@@ -525,6 +529,8 @@ extern void tty_ldisc_flush(struct tty_struct *tty);
 extern long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 extern int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 			unsigned int cmd, unsigned long arg);
+extern long tty_jobctrl_ioctl(struct tty_struct *tty, struct tty_struct *real_tty,
+			      struct file *file, unsigned int cmd, unsigned long arg);
 extern int tty_perform_flush(struct tty_struct *tty, unsigned long arg);
 extern void tty_default_fops(struct file_operations *fops);
 extern struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx);
