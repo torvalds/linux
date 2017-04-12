@@ -2858,24 +2858,6 @@ void blk_end_request_all(struct request *rq, int error)
 EXPORT_SYMBOL(blk_end_request_all);
 
 /**
- * blk_end_request_cur - Helper function to finish the current request chunk.
- * @rq: the request to finish the current chunk for
- * @error: %0 for success, < %0 for error
- *
- * Description:
- *     Complete the current consecutively mapped chunk from @rq.
- *
- * Return:
- *     %false - we are done with this request
- *     %true  - still buffers pending for this request
- */
-bool blk_end_request_cur(struct request *rq, int error)
-{
-	return blk_end_request(rq, error, blk_rq_cur_bytes(rq));
-}
-EXPORT_SYMBOL(blk_end_request_cur);
-
-/**
  * __blk_end_request - Helper function for drivers to complete the request.
  * @rq:       the request being processed
  * @error:    %0 for success, < %0 for error
