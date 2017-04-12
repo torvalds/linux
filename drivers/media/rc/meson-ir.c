@@ -68,7 +68,6 @@
 struct meson_ir {
 	void __iomem	*reg;
 	struct rc_dev	*rc;
-	int		irq;
 	spinlock_t	lock;
 };
 
@@ -112,7 +111,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	struct resource *res;
 	const char *map_name;
 	struct meson_ir *ir;
-	int ret;
+	int irq, ret;
 
 	ir = devm_kzalloc(dev, sizeof(struct meson_ir), GFP_KERNEL);
 	if (!ir)
@@ -125,10 +124,10 @@ static int meson_ir_probe(struct platform_device *pdev)
 		return PTR_ERR(ir->reg);
 	}
 
-	ir->irq = platform_get_irq(pdev, 0);
-	if (ir->irq < 0) {
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
 		dev_err(dev, "no irq resource\n");
-		return ir->irq;
+		return irq;
 	}
 
 	ir->rc = rc_allocate_device(RC_DRIVER_IR_RAW);
@@ -158,7 +157,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
-	ret = devm_request_irq(dev, ir->irq, meson_ir_irq, 0, "ir-meson", ir);
+	ret = devm_request_irq(dev, irq, meson_ir_irq, 0, "ir-meson", ir);
 	if (ret) {
 		dev_err(dev, "failed to request irq\n");
 		goto out_unreg;
