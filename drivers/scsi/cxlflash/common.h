@@ -96,6 +96,13 @@ enum cxlflash_state {
 	STATE_FAILTERM	/* Failed/terminating state, error out users/threads */
 };
 
+enum cxlflash_hwq_mode {
+	HWQ_MODE_RR,	/* Roundrobin (default) */
+	HWQ_MODE_TAG,	/* Distribute based on block MQ tag */
+	HWQ_MODE_CPU,	/* CPU affinity */
+	MAX_HWQ_MODE
+};
+
 /*
  * Each context has its own set of resource handles that is visible
  * only from that context.
@@ -146,9 +153,9 @@ struct afu_cmd {
 	struct scsi_cmnd *scp;
 	struct completion cevent;
 	struct list_head queue;
+	u32 hwq_index;
 
 	u8 cmd_tmf:1;
-	u32 hwq_index;
 
 	/* As per the SISLITE spec the IOARCB EA has to be 16-byte aligned.
 	 * However for performance reasons the IOARCB/IOASA should be
@@ -213,8 +220,11 @@ struct afu {
 	atomic_t cmds_active;	/* Number of currently active AFU commands */
 	u64 hb;
 	u32 internal_lun;	/* User-desired LUN mode for this AFU */
+
 	u32 num_hwqs;		/* Number of hardware queues */
 	u32 desired_hwqs;	/* Desired h/w queues, effective on AFU reset */
+	enum cxlflash_hwq_mode hwq_mode; /* Steering mode for h/w queues */
+	u32 hwq_rr_count;	/* Count to distribute traffic for roundrobin */
 
 	char version[16];
 	u64 interface_version;
