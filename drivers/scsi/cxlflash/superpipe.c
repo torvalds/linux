@@ -254,6 +254,7 @@ static int afu_attach(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 	struct afu *afu = cfg->afu;
 	struct sisl_ctrl_map __iomem *ctrl_map = ctxi->ctrl_map;
 	int rc = 0;
+	struct hwq *hwq = get_hwq(afu, PRIMARY_HWQ);
 	u64 val;
 
 	/* Unlock cap and restrict user to read/write cmds in translated mode */
@@ -270,7 +271,7 @@ static int afu_attach(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 
 	/* Set up MMIO registers pointing to the RHT */
 	writeq_be((u64)ctxi->rht_start, &ctrl_map->rht_start);
-	val = SISL_RHT_CNT_ID((u64)MAX_RHT_PER_CONTEXT, (u64)(afu->ctx_hndl));
+	val = SISL_RHT_CNT_ID((u64)MAX_RHT_PER_CONTEXT, (u64)(hwq->ctx_hndl));
 	writeq_be(val, &ctrl_map->rht_cnt_id);
 out:
 	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
@@ -1626,6 +1627,7 @@ static int cxlflash_afu_recover(struct scsi_device *sdev,
 	struct afu *afu = cfg->afu;
 	struct ctx_info *ctxi = NULL;
 	struct mutex *mutex = &cfg->ctx_recovery_mutex;
+	struct hwq *hwq = get_hwq(afu, PRIMARY_HWQ);
 	u64 flags;
 	u64 ctxid = DECODE_CTXID(recover->context_id),
 	    rctxid = recover->context_id;
@@ -1696,7 +1698,7 @@ retry_recover:
 	}
 
 	/* Test if in error state */
-	reg = readq_be(&afu->ctrl_map->mbox_r);
+	reg = readq_be(&hwq->ctrl_map->mbox_r);
 	if (reg == -1) {
 		dev_dbg(dev, "%s: MMIO fail, wait for recovery.\n", __func__);
 
