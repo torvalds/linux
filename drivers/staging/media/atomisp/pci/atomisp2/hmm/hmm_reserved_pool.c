@@ -89,18 +89,18 @@ static int hmm_reserved_pool_setup(struct hmm_reserved_pool_info **repool_info,
 {
 	struct hmm_reserved_pool_info *pool_info;
 
-	pool_info = atomisp_kernel_malloc(
-					sizeof(struct hmm_reserved_pool_info));
+	pool_info = kmalloc(sizeof(struct hmm_reserved_pool_info),
+				GFP_KERNEL);
 	if (unlikely(!pool_info)) {
 		dev_err(atomisp_dev, "out of memory for repool_info.\n");
 		return -ENOMEM;
 	}
 
-	pool_info->pages = atomisp_kernel_malloc(
-					sizeof(struct page *) * pool_size);
+	pool_info->pages = kmalloc(sizeof(struct page *) * pool_size,
+			GFP_KERNEL);
 	if (unlikely(!pool_info->pages)) {
 		dev_err(atomisp_dev, "out of memory for repool_info->pages.\n");
-		atomisp_kernel_free(pool_info);
+		kfree(pool_info);
 		return -ENOMEM;
 	}
 
@@ -233,8 +233,8 @@ static void hmm_reserved_pool_exit(void **pool)
 			__free_pages(repool_info->pages[i], 0);
 	}
 
-	atomisp_kernel_free(repool_info->pages);
-	atomisp_kernel_free(repool_info);
+	kfree(repool_info->pages);
+	kfree(repool_info);
 
 	*pool = NULL;
 }

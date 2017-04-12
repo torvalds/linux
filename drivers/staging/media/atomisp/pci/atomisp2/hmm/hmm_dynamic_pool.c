@@ -149,8 +149,8 @@ static int hmm_dynamic_pool_init(void **pool, unsigned int pool_size)
 	if (pool_size == 0)
 		return 0;
 
-	dypool_info = atomisp_kernel_malloc(
-					sizeof(struct hmm_dynamic_pool_info));
+	dypool_info = kmalloc(sizeof(struct hmm_dynamic_pool_info),
+		GFP_KERNEL);
 	if (unlikely(!dypool_info)) {
 		dev_err(atomisp_dev, "out of memory for repool_info.\n");
 		return -ENOMEM;
@@ -160,7 +160,7 @@ static int hmm_dynamic_pool_init(void **pool, unsigned int pool_size)
 						sizeof(struct hmm_page), 0,
 						SLAB_HWCACHE_ALIGN, NULL);
 	if (!dypool_info->pgptr_cache) {
-		atomisp_kernel_free(dypool_info);
+		kfree(dypool_info);
 		return -ENOMEM;
 	}
 
@@ -217,7 +217,7 @@ static void hmm_dynamic_pool_exit(void **pool)
 
 	kmem_cache_destroy(dypool_info->pgptr_cache);
 
-	atomisp_kernel_free(dypool_info);
+	kfree(dypool_info);
 
 	*pool = NULL;
 }

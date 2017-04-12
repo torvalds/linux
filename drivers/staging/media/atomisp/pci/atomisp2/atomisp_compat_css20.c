@@ -1669,11 +1669,7 @@ int atomisp_alloc_dis_coef_buf(struct atomisp_sub_device *asd)
 
 int atomisp_alloc_metadata_output_buf(struct atomisp_sub_device *asd)
 {
-#ifndef ISP2401
-	int i; /* Coverity CID 298003 - index var must be signed */
-#else
 	int i;
-#endif
 
 	/* We allocate the cpu-side buffer used for communication with user
 	 * space */
