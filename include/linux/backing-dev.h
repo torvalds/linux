@@ -17,8 +17,6 @@
 #include <linux/backing-dev-defs.h>
 #include <linux/slab.h>
 
-int __must_check bdi_init(struct backing_dev_info *bdi);
-
 static inline struct backing_dev_info *bdi_get(struct backing_dev_info *bdi)
 {
 	kref_get(&bdi->refcnt);
@@ -32,12 +30,9 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, ...);
 int bdi_register_va(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, va_list args);
-int bdi_register_dev(struct backing_dev_info *bdi, dev_t dev);
 int bdi_register_owner(struct backing_dev_info *bdi, struct device *owner);
 void bdi_unregister(struct backing_dev_info *bdi);
 
-int __must_check bdi_setup_and_register(struct backing_dev_info *, char *);
-void bdi_destroy(struct backing_dev_info *bdi);
 struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id);
 static inline struct backing_dev_info *bdi_alloc(gfp_t gfp_mask)
 {
