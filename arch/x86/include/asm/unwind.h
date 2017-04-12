@@ -14,6 +14,7 @@ struct unwind_state {
 #ifdef CONFIG_FRAME_POINTER
 	unsigned long *bp, *orig_sp;
 	struct pt_regs *regs;
+	unsigned long ip;
 #else
 	unsigned long *sp;
 #endif

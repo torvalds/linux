@@ -56,20 +56,10 @@ static void unwind_dump(struct unwind_state *state, unsigned long *sp)
 
 unsigned long unwind_get_return_address(struct unwind_state *state)
 {
-	unsigned long addr;
-	unsigned long *addr_p = unwind_get_return_address_ptr(state);
-
 	if (unwind_done(state))
 		return 0;
 
-	if (state->regs && user_mode(state->regs))
-		return 0;
-
-	addr = READ_ONCE_TASK_STACK(state->task, *addr_p);
-	addr = ftrace_graph_ret_addr(state->task, &state->graph_idx, addr,
-				     addr_p);
-
-	return __kernel_text_address(addr) ? addr : 0;
+	return __kernel_text_address(state->ip) ? state->ip : 0;
 }
 EXPORT_SYMBOL_GPL(unwind_get_return_address);
 
@@ -141,7 +131,7 @@ static bool update_stack_state(struct unwind_state *state,
 	struct stack_info *info = &state->stack_info;
 	enum stack_type prev_type = info->type;
 	struct pt_regs *regs;
-	unsigned long *frame, *prev_frame_end;
+	unsigned long *frame, *prev_frame_end, *addr_p, addr;
 	size_t len;
 
 	if (state->regs)
@@ -183,6 +173,16 @@ static bool update_stack_state(struct unwind_state *state,
 	} else {
 		state->bp = next_bp;
 		state->regs = NULL;
+	}
+
+	/* Save the return address: */
+	if (state->regs && user_mode(state->regs))
+		state->ip = 0;
+	else {
+		addr_p = unwind_get_return_address_ptr(state);
+		addr = READ_ONCE_TASK_STACK(state->task, *addr_p);
+		state->ip = ftrace_graph_ret_addr(state->task, &state->graph_idx,
+						  addr, addr_p);
 	}
 
 	/* Save the original stack pointer for unwind_dump(): */
@@ -228,6 +228,7 @@ bool unwind_next_frame(struct unwind_state *state)
 		 */
 		state->regs = regs;
 		state->bp = NULL;
+		state->ip = 0;
 		return true;
 	}
 
