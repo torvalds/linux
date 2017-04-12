@@ -286,8 +286,6 @@ static void __init xen_init_cpuid_mask(void)
 	unsigned int ax, bx, cx, dx;
 	unsigned int xsave_mask;
 
-	cpuid_leaf1_ecx_mask &= ~(1 << (X86_FEATURE_X2APIC % 32));
-
 	ax = 1;
 	cx = 0;
 	cpuid(1, &ax, &bx, &cx, &dx);
@@ -309,6 +307,7 @@ static void __init xen_init_capabilities(void)
 	setup_clear_cpu_cap(X86_FEATURE_APERFMPERF);
 	setup_clear_cpu_cap(X86_FEATURE_MTRR);
 	setup_clear_cpu_cap(X86_FEATURE_ACC);
+	setup_clear_cpu_cap(X86_FEATURE_X2APIC);
 
 	if (!xen_initial_domain())
 		setup_clear_cpu_cap(X86_FEATURE_ACPI);
