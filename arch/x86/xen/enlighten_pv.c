@@ -165,7 +165,6 @@ xen_running_on_version_or_later(unsigned int major, unsigned int minor)
 	return false;
 }
 
-static __read_mostly unsigned int cpuid_leaf1_edx_mask = ~0;
 static __read_mostly unsigned int cpuid_leaf1_ecx_mask = ~0;
 
 static __read_mostly unsigned int cpuid_leaf1_ecx_set_mask;
@@ -177,7 +176,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 {
 	unsigned maskebx = ~0;
 	unsigned maskecx = ~0;
-	unsigned maskedx = ~0;
 	unsigned setecx = 0;
 	/*
 	 * Mask out inconvenient features, to try and disable as many
@@ -187,7 +185,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 	case 1:
 		maskecx = cpuid_leaf1_ecx_mask;
 		setecx = cpuid_leaf1_ecx_set_mask;
-		maskedx = cpuid_leaf1_edx_mask;
 		break;
 
 	case CPUID_MWAIT_LEAF:
@@ -214,7 +211,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 	*bx &= maskebx;
 	*cx &= maskecx;
 	*cx |= setecx;
-	*dx &= maskedx;
 }
 STACK_FRAME_NON_STANDARD(xen_cpuid); /* XEN_EMULATE_PREFIX */
 
@@ -294,10 +290,6 @@ static void __init xen_init_cpuid_mask(void)
 	unsigned int ax, bx, cx, dx;
 	unsigned int xsave_mask;
 
-	if (!xen_initial_domain())
-		cpuid_leaf1_edx_mask &=
-			~((1 << X86_FEATURE_ACPI));  /* disable ACPI */
-
 	cpuid_leaf1_ecx_mask &= ~(1 << (X86_FEATURE_X2APIC % 32));
 
 	ax = 1;
@@ -323,6 +315,9 @@ static void __init xen_init_capabilities(void)
 	setup_clear_cpu_cap(X86_FEATURE_APERFMPERF);
 	setup_clear_cpu_cap(X86_FEATURE_MTRR);
 	setup_clear_cpu_cap(X86_FEATURE_ACC);
+
+	if (!xen_initial_domain())
+		setup_clear_cpu_cap(X86_FEATURE_ACPI);
 }
 
 static void xen_set_debugreg(int reg, unsigned long val)
