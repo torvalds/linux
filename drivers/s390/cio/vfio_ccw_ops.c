@@ -126,19 +126,14 @@ static int vfio_ccw_mdev_remove(struct mdev_device *mdev)
 {
 	struct vfio_ccw_private *private =
 		dev_get_drvdata(mdev_parent_dev(mdev));
-	int ret;
 
-	if ((private->state == VFIO_CCW_STATE_NOT_OPER) ||
-	    (private->state == VFIO_CCW_STATE_STANDBY))
-		goto out;
+	if ((private->state != VFIO_CCW_STATE_NOT_OPER) &&
+	    (private->state != VFIO_CCW_STATE_STANDBY)) {
+		if (!vfio_ccw_mdev_reset(mdev))
+			private->state = VFIO_CCW_STATE_STANDBY;
+		/* The state will be NOT_OPER on error. */
+	}
 
-	ret = vfio_ccw_mdev_reset(mdev);
-	if (ret)
-		return ret;
-
-	private->state = VFIO_CCW_STATE_STANDBY;
-
-out:
 	private->mdev = NULL;
 	atomic_inc(&private->avail);
 
