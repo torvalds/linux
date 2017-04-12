@@ -2832,8 +2832,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		    (mumimo_groups[VHT_MUMIMO_GROUPS_DATA_LEN - 1] & BIT(0)))
 			return -EINVAL;
 
-		memcpy(params.vht_mumimo_groups, mumimo_groups,
-		       VHT_MUMIMO_GROUPS_DATA_LEN);
+		params.vht_mumimo_groups = mumimo_groups;
 		change = true;
 	}
 
@@ -2843,9 +2842,8 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		if (!wiphy_ext_feature_isset(&rdev->wiphy, cap_flag))
 			return -EOPNOTSUPP;
 
-		nla_memcpy(params.macaddr,
-			   info->attrs[NL80211_ATTR_MU_MIMO_FOLLOW_MAC_ADDR],
-			   ETH_ALEN);
+		params.vht_mumimo_follow_addr =
+			nla_data(info->attrs[NL80211_ATTR_MU_MIMO_FOLLOW_MAC_ADDR]);
 		change = true;
 	}
 

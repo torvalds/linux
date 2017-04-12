@@ -80,8 +80,7 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 		u32 mu_mntr_cap_flag = NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER;
 
 		monitor_sdata = rtnl_dereference(local->monitor_sdata);
-		if (monitor_sdata &&
-		    wiphy_ext_feature_isset(wiphy, mu_mntr_cap_flag)) {
+		if (monitor_sdata && params->vht_mumimo_groups) {
 			memcpy(monitor_sdata->vif.bss_conf.mu_group.membership,
 			       params->vht_mumimo_groups, WLAN_MEMBERSHIP_LEN);
 			memcpy(monitor_sdata->vif.bss_conf.mu_group.position,
@@ -90,10 +89,11 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 			monitor_sdata->vif.mu_mimo_owner = true;
 			ieee80211_bss_info_change_notify(monitor_sdata,
 							 BSS_CHANGED_MU_GROUPS);
-
-			ether_addr_copy(monitor_sdata->u.mntr.mu_follow_addr,
-					params->macaddr);
 		}
+
+		if (monitor_sdata && params->vht_mumimo_follow_addr)
+			ether_addr_copy(monitor_sdata->u.mntr.mu_follow_addr,
+					params->vht_mumimo_follow_addr);
 
 		if (!flags)
 			return 0;

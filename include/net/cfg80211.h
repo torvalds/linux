@@ -370,13 +370,16 @@ static inline void wiphy_read_of_freq_limits(struct wiphy *wiphy)
  *	This feature is only fully supported by drivers that enable the
  *	%NL80211_FEATURE_MAC_ON_CREATE flag.  Others may support creating
  **	only p2p devices with specified MAC.
- * @vht_mumimo_groups: MU-MIMO groupID. used for monitoring only
- *	 packets belonging to that MU-MIMO groupID.
+ * @vht_mumimo_groups: MU-MIMO groupID, used for monitoring MU-MIMO packets
+ *	belonging to that MU-MIMO groupID; %NULL if not changed
+ * @vht_mumimo_follow_addr: MU-MIMO follow address, used for monitoring
+ *	MU-MIMO packets going to the specified station; %NULL if not changed
  */
 struct vif_params {
 	int use_4addr;
 	u8 macaddr[ETH_ALEN];
-	u8 vht_mumimo_groups[VHT_MUMIMO_GROUPS_DATA_LEN];
+	const u8 *vht_mumimo_groups;
+	const u8 *vht_mumimo_follow_addr;
 };
 
 /**
