@@ -327,6 +327,7 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 			       uint64_t init_value,
 			       struct amdgpu_bo **bo_ptr)
 {
+	struct ttm_operation_ctx ctx = { !kernel, false };
 	struct amdgpu_bo *bo;
 	enum ttm_bo_type type;
 	unsigned long page_align;
@@ -408,7 +409,7 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	initial_bytes_moved = atomic64_read(&adev->num_bytes_moved);
 	/* Kernel allocation are uninterruptible */
 	r = ttm_bo_init_reserved(&adev->mman.bdev, &bo->tbo, size, type,
-				 &bo->placement, page_align, !kernel, NULL,
+				 &bo->placement, page_align, &ctx, NULL,
 				 acc_size, sg, resv, &amdgpu_ttm_bo_destroy);
 	if (unlikely(r != 0))
 		return r;

@@ -1132,7 +1132,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 			 enum ttm_bo_type type,
 			 struct ttm_placement *placement,
 			 uint32_t page_alignment,
-			 bool interruptible,
+			 struct ttm_operation_ctx *ctx,
 			 struct file *persistent_swap_storage,
 			 size_t acc_size,
 			 struct sg_table *sg,
@@ -1218,11 +1218,8 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		WARN_ON(!locked);
 	}
 
-	if (likely(!ret)) {
-		struct ttm_operation_ctx ctx = { interruptible, false };
-
-		ret = ttm_bo_validate(bo, placement, &ctx);
-	}
+	if (likely(!ret))
+		ret = ttm_bo_validate(bo, placement, ctx);
 
 	if (unlikely(ret)) {
 		if (!resv)
@@ -1255,10 +1252,11 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 		struct reservation_object *resv,
 		void (*destroy) (struct ttm_buffer_object *))
 {
+	struct ttm_operation_ctx ctx = { interruptible, false };
 	int ret;
 
 	ret = ttm_bo_init_reserved(bdev, bo, size, type, placement,
-				   page_alignment, interruptible,
+				   page_alignment, &ctx,
 				   persistent_swap_storage, acc_size,
 				   sg, resv, destroy);
 	if (ret)
