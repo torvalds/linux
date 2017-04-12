@@ -138,6 +138,9 @@
 #define CLK_SOURCE_TSECB 0x6d8
 #define CLK_SOURCE_MAUD 0x6d4
 #define CLK_SOURCE_USB2_HSIC_TRK 0x6cc
+#define CLK_SOURCE_DMIC1 0x64c
+#define CLK_SOURCE_DMIC2 0x650
+#define CLK_SOURCE_DMIC3 0x6bc
 
 #define MASK(x) (BIT(x) - 1)
 
@@ -167,6 +170,12 @@
 			      29, MASK(3), 0, 0, 8, 1, TEGRA_DIVIDER_ROUND_UP,\
 			      0, TEGRA_PERIPH_NO_GATE, _clk_id,\
 			      _parents##_idx, 0, _lock)
+
+#define MUX8_NOGATE(_name, _parents, _offset, _clk_id)	\
+	TEGRA_INIT_DATA_TABLE(_name, NULL, NULL, _parents, _offset,	\
+			      29, MASK(3), 0, 0, 8, 1, TEGRA_DIVIDER_ROUND_UP,\
+			      0, TEGRA_PERIPH_NO_GATE, _clk_id,\
+			      _parents##_idx, 0, NULL)
 
 #define INT(_name, _parents, _offset,	\
 			    _clk_num, _gate_flags, _clk_id)	\
@@ -619,6 +628,21 @@ static const char *mux_clkm_plldp_sor0lvds[] = {
 };
 #define mux_clkm_plldp_sor0lvds_idx NULL
 
+static const char * const mux_dmic1[] = {
+	"pll_a_out0", "dmic1_sync_clk", "pll_p", "clk_m"
+};
+#define mux_dmic1_idx NULL
+
+static const char * const mux_dmic2[] = {
+	"pll_a_out0", "dmic2_sync_clk", "pll_p", "clk_m"
+};
+#define mux_dmic2_idx NULL
+
+static const char * const mux_dmic3[] = {
+	"pll_a_out0", "dmic3_sync_clk", "pll_p", "clk_m"
+};
+#define mux_dmic3_idx NULL
+
 static struct tegra_periph_init_data periph_clks[] = {
 	AUDIO("d_audio", CLK_SOURCE_D_AUDIO, 106, TEGRA_PERIPH_ON_APB, tegra_clk_d_audio),
 	AUDIO("dam0", CLK_SOURCE_DAM0, 108, TEGRA_PERIPH_ON_APB, tegra_clk_dam0),
@@ -739,7 +763,7 @@ static struct tegra_periph_init_data periph_clks[] = {
 	MUX8("soc_therm", mux_clkm_pllc_pllp_plla, CLK_SOURCE_SOC_THERM, 78, TEGRA_PERIPH_ON_APB, tegra_clk_soc_therm_8),
 	MUX8("vi_sensor", mux_pllm_pllc2_c_c3_pllp_plla, CLK_SOURCE_VI_SENSOR, 164, TEGRA_PERIPH_NO_RESET, tegra_clk_vi_sensor_8),
 	MUX8("isp", mux_pllm_pllc_pllp_plla_clkm_pllc4, CLK_SOURCE_ISP, 23, TEGRA_PERIPH_ON_APB, tegra_clk_isp_8),
-	MUX8("isp", mux_pllc_pllp_plla1_pllc2_c3_clkm_pllc4, CLK_SOURCE_ISP, 23, TEGRA_PERIPH_ON_APB, tegra_clk_isp_9),
+	MUX8_NOGATE("isp", mux_pllc_pllp_plla1_pllc2_c3_clkm_pllc4, CLK_SOURCE_ISP, tegra_clk_isp_9),
 	MUX8("entropy", mux_pllp_clkm1, CLK_SOURCE_ENTROPY, 149,  0, tegra_clk_entropy),
 	MUX8("entropy", mux_pllp_clkm_clk32_plle, CLK_SOURCE_ENTROPY, 149,  0, tegra_clk_entropy_8),
 	MUX8("hdmi_audio", mux_pllp3_pllc_clkm, CLK_SOURCE_HDMI_AUDIO, 176, TEGRA_PERIPH_NO_RESET, tegra_clk_hdmi_audio),
@@ -788,6 +812,9 @@ static struct tegra_periph_init_data periph_clks[] = {
 	MUX("uartape", mux_pllp_pllc_clkm, CLK_SOURCE_UARTAPE, 212, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_uartape),
 	MUX8("tsecb", mux_pllp_pllc2_c_c3_clkm, CLK_SOURCE_TSECB, 206, 0, tegra_clk_tsecb),
 	MUX8("maud", mux_pllp_pllp_out3_clkm_clk32k_plla, CLK_SOURCE_MAUD, 202, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_maud),
+	MUX8("dmic1", mux_dmic1, CLK_SOURCE_DMIC1, 161, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_dmic1),
+	MUX8("dmic2", mux_dmic2, CLK_SOURCE_DMIC2, 162, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_dmic2),
+	MUX8("dmic3", mux_dmic3, CLK_SOURCE_DMIC3, 197, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_dmic3),
 };
 
 static struct tegra_periph_init_data gate_clks[] = {
@@ -809,7 +836,7 @@ static struct tegra_periph_init_data gate_clks[] = {
 	GATE("usb2", "clk_m", 58, 0, tegra_clk_usb2, 0),
 	GATE("usb3", "clk_m", 59, 0, tegra_clk_usb3, 0),
 	GATE("csi", "pll_p_out3", 52, 0, tegra_clk_csi, 0),
-	GATE("afi", "clk_m", 72, 0, tegra_clk_afi, 0),
+	GATE("afi", "mselect", 72, 0, tegra_clk_afi, 0),
 	GATE("csus", "clk_m", 92, TEGRA_PERIPH_NO_RESET, tegra_clk_csus, 0),
 	GATE("dds", "clk_m", 150, TEGRA_PERIPH_ON_APB, tegra_clk_dds, 0),
 	GATE("dp2", "clk_m", 152, TEGRA_PERIPH_ON_APB, tegra_clk_dp2, 0),
@@ -819,7 +846,8 @@ static struct tegra_periph_init_data gate_clks[] = {
 	GATE("xusb_dev", "xusb_dev_src", 95, 0, tegra_clk_xusb_dev, 0),
 	GATE("emc", "emc_mux", 57, 0, tegra_clk_emc, CLK_IGNORE_UNUSED),
 	GATE("sata_cold", "clk_m", 129, TEGRA_PERIPH_ON_APB, tegra_clk_sata_cold, 0),
-	GATE("ispb", "clk_m", 3, 0, tegra_clk_ispb, 0),
+	GATE("ispa", "isp", 23, 0, tegra_clk_ispa, 0),
+	GATE("ispb", "isp", 3, 0, tegra_clk_ispb, 0),
 	GATE("vim2_clk", "clk_m", 11, 0, tegra_clk_vim2_clk, 0),
 	GATE("pcie", "clk_m", 70, 0, tegra_clk_pcie, 0),
 	GATE("gpu", "pll_ref", 184, 0, tegra_clk_gpu, 0),
@@ -830,6 +858,13 @@ static struct tegra_periph_init_data gate_clks[] = {
 	GATE("pll_p_out_cpu", "pll_p", 223, 0, tegra_clk_pll_p_out_cpu, 0),
 	GATE("pll_p_out_adsp", "pll_p", 187, 0, tegra_clk_pll_p_out_adsp, 0),
 	GATE("apb2ape", "clk_m", 107, 0, tegra_clk_apb2ape, 0),
+	GATE("cec", "pclk", 136, 0, tegra_clk_cec, 0),
+	GATE("iqc1", "clk_m", 221, 0, tegra_clk_iqc1, 0),
+	GATE("iqc2", "clk_m", 220, 0, tegra_clk_iqc1, 0),
+	GATE("pll_a_out_adsp", "pll_a", 188, 0, tegra_clk_pll_a_out_adsp, 0),
+	GATE("pll_a_out0_out_adsp", "pll_a", 188, 0, tegra_clk_pll_a_out0_out_adsp, 0),
+	GATE("adsp", "aclk", 199, 0, tegra_clk_adsp, 0),
+	GATE("adsp_neon", "aclk", 218, 0, tegra_clk_adsp_neon, 0),
 };
 
 static struct tegra_periph_init_data div_clks[] = {
