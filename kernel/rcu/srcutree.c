@@ -275,15 +275,20 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *sp, int idx)
 	 * not mean that there are no more readers, as one could have read
 	 * the current index but not have incremented the lock counter yet.
 	 *
-	 * Possible bug: There is no guarantee that there haven't been
-	 * ULONG_MAX increments of ->srcu_lock_count[] since the unlocks were
-	 * counted, meaning that this could return true even if there are
-	 * still active readers.  Since there are no memory barriers around
-	 * srcu_flip(), the CPU is not required to increment ->srcu_idx
-	 * before running srcu_readers_unlock_idx(), which means that there
-	 * could be an arbitrarily large number of critical sections that
-	 * execute after srcu_readers_unlock_idx() but use the old value
-	 * of ->srcu_idx.
+	 * So suppose that the updater is preempted here for so long
+	 * that more than ULONG_MAX non-nested readers come and go in
+	 * the meantime.  It turns out that this cannot result in overflow
+	 * because if a reader modifies its unlock count after we read it
+	 * above, then that reader's next load of ->srcu_idx is guaranteed
+	 * to get the new value, which will cause it to operate on the
+	 * other bank of counters, where it cannot contribute to the
+	 * overflow of these counters.  This means that there is a maximum
+	 * of 2*NR_CPUS increments, which cannot overflow given current
+	 * systems, especially not on 64-bit systems.
+	 *
+	 * OK, how about nesting?  This does impose a limit on nesting
+	 * of floor(ULONG_MAX/NR_CPUS/2), which should be sufficient,
+	 * especially on 64-bit systems.
 	 */
 	return srcu_readers_lock_idx(sp, idx) == unlocks;
 }
@@ -671,6 +676,16 @@ static bool try_check_zero(struct srcu_struct *sp, int idx, int trycount)
  */
 static void srcu_flip(struct srcu_struct *sp)
 {
+	/*
+	 * Ensure that if this updater saw a given reader's increment
+	 * from __srcu_read_lock(), that reader was using an old value
+	 * of ->srcu_idx.  Also ensure that if a given reader sees the
+	 * new value of ->srcu_idx, this updater's earlier scans cannot
+	 * have seen that reader's increments (which is OK, because this
+	 * grace period need not wait on that reader).
+	 */
+	smp_mb(); /* E */  /* Pairs with B and C. */
+
 	WRITE_ONCE(sp->srcu_idx, sp->srcu_idx + 1);
 
 	/*
