@@ -167,7 +167,6 @@ xen_running_on_version_or_later(unsigned int major, unsigned int minor)
 
 static __read_mostly unsigned int cpuid_leaf1_ecx_mask = ~0;
 
-static __read_mostly unsigned int cpuid_leaf1_ecx_set_mask;
 static __read_mostly unsigned int cpuid_leaf5_ecx_val;
 static __read_mostly unsigned int cpuid_leaf5_edx_val;
 
@@ -176,7 +175,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 {
 	unsigned maskebx = ~0;
 	unsigned maskecx = ~0;
-	unsigned setecx = 0;
 	/*
 	 * Mask out inconvenient features, to try and disable as many
 	 * unsupported kernel subsystems as possible.
@@ -184,7 +182,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 	switch (*ax) {
 	case 1:
 		maskecx = cpuid_leaf1_ecx_mask;
-		setecx = cpuid_leaf1_ecx_set_mask;
 		break;
 
 	case CPUID_MWAIT_LEAF:
@@ -210,7 +207,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 
 	*bx &= maskebx;
 	*cx &= maskecx;
-	*cx |= setecx;
 }
 STACK_FRAME_NON_STANDARD(xen_cpuid); /* XEN_EMULATE_PREFIX */
 
@@ -303,8 +299,6 @@ static void __init xen_init_cpuid_mask(void)
 	/* Xen will set CR4.OSXSAVE if supported and not disabled by force */
 	if ((cx & xsave_mask) != xsave_mask)
 		cpuid_leaf1_ecx_mask &= ~xsave_mask; /* disable XSAVE & OSXSAVE */
-	if (xen_check_mwait())
-		cpuid_leaf1_ecx_set_mask = (1 << (X86_FEATURE_MWAIT % 32));
 }
 
 static void __init xen_init_capabilities(void)
@@ -318,6 +312,11 @@ static void __init xen_init_capabilities(void)
 
 	if (!xen_initial_domain())
 		setup_clear_cpu_cap(X86_FEATURE_ACPI);
+
+	if (xen_check_mwait())
+		setup_force_cpu_cap(X86_FEATURE_MWAIT);
+	else
+		setup_clear_cpu_cap(X86_FEATURE_MWAIT);
 }
 
 static void xen_set_debugreg(int reg, unsigned long val)
