@@ -33,7 +33,7 @@ static irqreturn_t ar1021_i2c_irq(int irq, void *dev_id)
 	int retval;
 
 	retval = i2c_master_recv(ar1021->client,
-				ar1021->data, sizeof(ar1021->data));
+				 ar1021->data, sizeof(ar1021->data));
 	if (retval != sizeof(ar1021->data))
 		goto out;
 
@@ -73,7 +73,7 @@ static void ar1021_i2c_close(struct input_dev *dev)
 }
 
 static int ar1021_i2c_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+			    const struct i2c_device_id *id)
 {
 	struct ar1021_i2c *ar1021;
 	struct input_dev *input;
