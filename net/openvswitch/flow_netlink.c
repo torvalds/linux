@@ -2427,8 +2427,8 @@ static int validate_userspace(const struct nlattr *attr)
 	struct nlattr *a[OVS_USERSPACE_ATTR_MAX + 1];
 	int error;
 
-	error = nla_parse_nested(a, OVS_USERSPACE_ATTR_MAX,
-				 attr, userspace_policy);
+	error = nla_parse_nested(a, OVS_USERSPACE_ATTR_MAX, attr,
+				 userspace_policy, NULL);
 	if (error)
 		return error;
 

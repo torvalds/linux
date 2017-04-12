@@ -860,7 +860,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	err = nla_parse_nested(tb, TCA_U32_MAX, opt, u32_policy);
+	err = nla_parse_nested(tb, TCA_U32_MAX, opt, u32_policy, NULL);
 	if (err < 0)
 		return err;
 

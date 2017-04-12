@@ -1109,7 +1109,7 @@ static int nfqa_parse_bridge(struct nf_queue_entry *entry,
 		int err;
 
 		err = nla_parse_nested(tb, NFQA_VLAN_MAX, nfqa[NFQA_VLAN],
-				       nfqa_vlan_policy);
+				       nfqa_vlan_policy, NULL);
 		if (err < 0)
 			return err;
 

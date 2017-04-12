@@ -174,14 +174,16 @@ genlmsg_nlhdr(void *user_hdr, const struct genl_family *family)
  * @tb: destination array with maxtype+1 elements
  * @maxtype: maximum attribute type to be expected
  * @policy: validation policy
- * */
+ * @extack: extended ACK report struct
+ */
 static inline int genlmsg_parse(const struct nlmsghdr *nlh,
 				const struct genl_family *family,
 				struct nlattr *tb[], int maxtype,
-				const struct nla_policy *policy)
+				const struct nla_policy *policy,
+				struct netlink_ext_ack *extack)
 {
 	return nlmsg_parse(nlh, family->hdrsize + GENL_HDRLEN, tb, maxtype,
-			   policy);
+			   policy, extack);
 }
 
 /**

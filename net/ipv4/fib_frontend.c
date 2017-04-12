@@ -632,7 +632,8 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 	int err, remaining;
 	struct rtmsg *rtm;
 
-	err = nlmsg_validate(nlh, sizeof(*rtm), RTA_MAX, rtm_ipv4_policy);
+	err = nlmsg_validate(nlh, sizeof(*rtm), RTA_MAX, rtm_ipv4_policy,
+			     NULL);
 	if (err < 0)
 		goto errout;
 

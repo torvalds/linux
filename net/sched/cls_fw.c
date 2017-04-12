@@ -250,7 +250,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	if (!opt)
 		return handle ? -EINVAL : 0; /* Succeed if it is old method. */
 
-	err = nla_parse_nested(tb, TCA_FW_MAX, opt, fw_policy);
+	err = nla_parse_nested(tb, TCA_FW_MAX, opt, fw_policy, NULL);
 	if (err < 0)
 		return err;
 

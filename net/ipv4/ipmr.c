@@ -2439,7 +2439,8 @@ static int rtm_to_ipmr_mfcc(struct net *net, struct nlmsghdr *nlh,
 	struct rtmsg *rtm;
 	int ret, rem;
 
-	ret = nlmsg_validate(nlh, sizeof(*rtm), RTA_MAX, rtm_ipmr_policy);
+	ret = nlmsg_validate(nlh, sizeof(*rtm), RTA_MAX, rtm_ipmr_policy,
+			     NULL);
 	if (ret < 0)
 		goto out;
 	rtm = nlmsg_data(nlh);

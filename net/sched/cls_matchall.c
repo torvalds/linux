@@ -161,8 +161,8 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	if (head)
 		return -EEXIST;
 
-	err = nla_parse_nested(tb, TCA_MATCHALL_MAX,
-			       tca[TCA_OPTIONS], mall_policy);
+	err = nla_parse_nested(tb, TCA_MATCHALL_MAX, tca[TCA_OPTIONS],
+			       mall_policy, NULL);
 	if (err < 0)
 		return err;
 

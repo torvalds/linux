@@ -386,7 +386,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh)
 		goto errout;
 	}
 
-	err = nlmsg_parse(nlh, sizeof(*frh), tb, FRA_MAX, ops->policy);
+	err = nlmsg_parse(nlh, sizeof(*frh), tb, FRA_MAX, ops->policy, NULL);
 	if (err < 0)
 		goto errout;
 
@@ -580,7 +580,7 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh)
 		goto errout;
 	}
 
-	err = nlmsg_parse(nlh, sizeof(*frh), tb, FRA_MAX, ops->policy);
+	err = nlmsg_parse(nlh, sizeof(*frh), tb, FRA_MAX, ops->policy, NULL);
 	if (err < 0)
 		goto errout;
 

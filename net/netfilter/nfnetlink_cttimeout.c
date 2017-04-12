@@ -56,7 +56,8 @@ ctnl_timeout_parse_policy(void *timeouts, struct nf_conntrack_l4proto *l4proto,
 		struct nlattr *tb[l4proto->ctnl_timeout.nlattr_max+1];
 
 		ret = nla_parse_nested(tb, l4proto->ctnl_timeout.nlattr_max,
-				       attr, l4proto->ctnl_timeout.nla_policy);
+				       attr, l4proto->ctnl_timeout.nla_policy,
+				       NULL);
 		if (ret < 0)
 			return ret;
 

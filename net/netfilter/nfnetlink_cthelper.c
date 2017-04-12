@@ -77,7 +77,8 @@ nfnl_cthelper_parse_tuple(struct nf_conntrack_tuple *tuple,
 	int err;
 	struct nlattr *tb[NFCTH_TUPLE_MAX+1];
 
-	err = nla_parse_nested(tb, NFCTH_TUPLE_MAX, attr, nfnl_cthelper_tuple_pol);
+	err = nla_parse_nested(tb, NFCTH_TUPLE_MAX, attr,
+			       nfnl_cthelper_tuple_pol, NULL);
 	if (err < 0)
 		return err;
 
@@ -137,7 +138,8 @@ nfnl_cthelper_expect_policy(struct nf_conntrack_expect_policy *expect_policy,
 	int err;
 	struct nlattr *tb[NFCTH_POLICY_MAX+1];
 
-	err = nla_parse_nested(tb, NFCTH_POLICY_MAX, attr, nfnl_cthelper_expect_pol);
+	err = nla_parse_nested(tb, NFCTH_POLICY_MAX, attr,
+			       nfnl_cthelper_expect_pol, NULL);
 	if (err < 0)
 		return err;
 
@@ -171,7 +173,7 @@ nfnl_cthelper_parse_expect_policy(struct nf_conntrack_helper *helper,
 	unsigned int class_max;
 
 	ret = nla_parse_nested(tb, NFCTH_POLICY_SET_MAX, attr,
-			       nfnl_cthelper_expect_policy_set);
+			       nfnl_cthelper_expect_policy_set, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -276,7 +278,7 @@ nfnl_cthelper_update_policy_one(const struct nf_conntrack_expect_policy *policy,
 	int err;
 
 	err = nla_parse_nested(tb, NFCTH_POLICY_MAX, attr,
-			       nfnl_cthelper_expect_pol);
+			       nfnl_cthelper_expect_pol, NULL);
 	if (err < 0)
 		return err;
 
@@ -336,7 +338,7 @@ static int nfnl_cthelper_update_policy(struct nf_conntrack_helper *helper,
 	int err;
 
 	err = nla_parse_nested(tb, NFCTH_POLICY_SET_MAX, attr,
-			       nfnl_cthelper_expect_policy_set);
+			       nfnl_cthelper_expect_policy_set, NULL);
 	if (err < 0)
 		return err;
 

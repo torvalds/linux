@@ -2645,7 +2645,8 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 	u32 table_id = RT_TABLE_MAIN;
 	kuid_t uid;
 
-	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_ipv4_policy);
+	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_ipv4_policy,
+			  NULL);
 	if (err < 0)
 		goto errout;
 

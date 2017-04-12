@@ -174,7 +174,7 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
 		return -EINVAL;
 
 	err = nla_parse_nested(tb, TCA_BASIC_MAX, tca[TCA_OPTIONS],
-			       basic_policy);
+			       basic_policy, NULL);
 	if (err < 0)
 		return err;
 

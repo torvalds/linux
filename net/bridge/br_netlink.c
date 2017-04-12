@@ -748,8 +748,8 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 
 	if (p && protinfo) {
 		if (protinfo->nla_type & NLA_F_NESTED) {
-			err = nla_parse_nested(tb, IFLA_BRPORT_MAX,
-					       protinfo, br_port_policy);
+			err = nla_parse_nested(tb, IFLA_BRPORT_MAX, protinfo,
+					       br_port_policy, NULL);
 			if (err)
 				return err;
 
