@@ -19,6 +19,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
+#include <linux/bitfield.h>
 
 #include <media/rc-core.h>
 
@@ -36,7 +37,7 @@
 /* only available on Meson 8b and newer */
 #define IR_DEC_REG2		0x20
 
-#define REG0_RATE_MASK		(BIT(11) - 1)
+#define REG0_RATE_MASK		GENMASK(11, 0)
 
 #define DECODE_MODE_NEC		0x0
 #define DECODE_MODE_RAW		0x2
@@ -49,14 +50,13 @@
 #define REG2_MODE_MASK		GENMASK(3, 0)
 #define REG2_MODE_SHIFT		0
 
-#define REG1_TIME_IV_SHIFT	16
-#define REG1_TIME_IV_MASK	((BIT(13) - 1) << REG1_TIME_IV_SHIFT)
+#define REG1_TIME_IV_MASK	GENMASK(28, 16)
 
-#define REG1_IRQSEL_MASK	(BIT(2) | BIT(3))
-#define REG1_IRQSEL_NEC_MODE	(0 << 2)
-#define REG1_IRQSEL_RISE_FALL	(1 << 2)
-#define REG1_IRQSEL_FALL	(2 << 2)
-#define REG1_IRQSEL_RISE	(3 << 2)
+#define REG1_IRQSEL_MASK	GENMASK(3, 2)
+#define REG1_IRQSEL_NEC_MODE	0
+#define REG1_IRQSEL_RISE_FALL	1
+#define REG1_IRQSEL_FALL	2
+#define REG1_IRQSEL_RISE	3
 
 #define REG1_RESET		BIT(0)
 #define REG1_ENABLE		BIT(15)
@@ -91,7 +91,7 @@ static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
 	spin_lock(&ir->lock);
 
 	duration = readl(ir->reg + IR_DEC_REG1);
-	duration = (duration & REG1_TIME_IV_MASK) >> REG1_TIME_IV_SHIFT;
+	duration = FIELD_GET(REG1_TIME_IV_MASK, duration);
 	rawir.duration = US_TO_NS(duration * MESON_TRATE);
 
 	rawir.pulse = !!(readl(ir->reg + IR_DEC_STATUS) & STATUS_IR_DEC_IN);
@@ -170,16 +170,16 @@ static int meson_ir_probe(struct platform_device *pdev)
 	/* Set general operation mode (= raw/software decoding) */
 	if (of_device_is_compatible(node, "amlogic,meson6-ir"))
 		meson_ir_set_mask(ir, IR_DEC_REG1, REG1_MODE_MASK,
-				  DECODE_MODE_RAW << REG1_MODE_SHIFT);
+				  FIELD_PREP(REG1_MODE_MASK, DECODE_MODE_RAW));
 	else
 		meson_ir_set_mask(ir, IR_DEC_REG2, REG2_MODE_MASK,
-				  DECODE_MODE_RAW << REG2_MODE_SHIFT);
+				  FIELD_PREP(REG2_MODE_MASK, DECODE_MODE_RAW));
 
 	/* Set rate */
 	meson_ir_set_mask(ir, IR_DEC_REG0, REG0_RATE_MASK, MESON_TRATE - 1);
 	/* IRQ on rising and falling edges */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_IRQSEL_MASK,
-			  REG1_IRQSEL_RISE_FALL);
+			  FIELD_PREP(REG1_IRQSEL_MASK, REG1_IRQSEL_RISE_FALL));
 	/* Enable the decoder */
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_ENABLE, REG1_ENABLE);
 
