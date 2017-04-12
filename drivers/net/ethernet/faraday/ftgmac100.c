@@ -572,6 +572,26 @@ static void ftgmac100_tx_complete(struct ftgmac100 *priv)
 	}
 }
 
+static bool ftgmac100_prep_tx_csum(struct sk_buff *skb, u32 *csum_vlan)
+{
+	if (skb->protocol == cpu_to_be16(ETH_P_IP)) {
+		u8 ip_proto = ip_hdr(skb)->protocol;
+
+		*csum_vlan |= FTGMAC100_TXDES1_IP_CHKSUM;
+		switch(ip_proto) {
+		case IPPROTO_TCP:
+			*csum_vlan |= FTGMAC100_TXDES1_TCP_CHKSUM;
+			return true;
+		case IPPROTO_UDP:
+			*csum_vlan |= FTGMAC100_TXDES1_UDP_CHKSUM;
+			return true;
+		case IPPROTO_IP:
+			return true;
+		}
+	}
+	return skb_checksum_help(skb) == 0;
+}
+
 static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 				     struct net_device *netdev)
 {
@@ -628,19 +648,9 @@ static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
 
 	/* Setup HW checksumming */
 	csum_vlan = 0;
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		__be16 protocol = skb->protocol;
-
-		if (protocol == cpu_to_be16(ETH_P_IP)) {
-			u8 ip_proto = ip_hdr(skb)->protocol;
-
-			csum_vlan |= FTGMAC100_TXDES1_IP_CHKSUM;
-			if (ip_proto == IPPROTO_TCP)
-				csum_vlan |= FTGMAC100_TXDES1_TCP_CHKSUM;
-			else if (ip_proto == IPPROTO_UDP)
-				csum_vlan |= FTGMAC100_TXDES1_UDP_CHKSUM;
-		}
-	}
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    !ftgmac100_prep_tx_csum(skb, &csum_vlan))
+		goto drop;
 	txdes->txdes1 = cpu_to_le32(csum_vlan);
 
 	/* Next descriptor */
@@ -1465,11 +1475,11 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	 * when NCSI is enabled on the interface. It doesn't work
 	 * in that case.
 	 */
-	netdev->features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
+	netdev->features = NETIF_F_RXCSUM | NETIF_F_HW_CSUM |
 		NETIF_F_GRO | NETIF_F_SG;
 	if (priv->use_ncsi &&
 	    of_get_property(pdev->dev.of_node, "no-hw-checksum", NULL))
-		netdev->features &= ~NETIF_F_IP_CSUM;
+		netdev->features &= ~NETIF_F_HW_CSUM;
 
 	/* register network device */
 	err = register_netdev(netdev);
