@@ -49,6 +49,7 @@
 
 #define GFX7_NUM_GFX_RINGS     1
 #define GFX7_NUM_COMPUTE_RINGS 8
+#define GFX7_MEC_HPD_SIZE      2048
 
 static void gfx_v7_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v7_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -2821,8 +2822,6 @@ static void gfx_v7_0_mec_fini(struct amdgpu_device *adev)
 	}
 }
 
-#define MEC_HPD_SIZE 2048
-
 static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 {
 	int r;
@@ -2840,7 +2839,7 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 
 	if (adev->gfx.mec.hpd_eop_obj == NULL) {
 		r = amdgpu_bo_create(adev,
-				     adev->gfx.mec.num_mec *adev->gfx.mec.num_pipe * MEC_HPD_SIZE * 2,
+				     adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe * GFX7_MEC_HPD_SIZE * 2,
 				     PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
 				     &adev->gfx.mec.hpd_eop_obj);
@@ -2870,7 +2869,7 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 	}
 
 	/* clear memory.  Not sure if this is required or not */
-	memset(hpd, 0, adev->gfx.mec.num_mec *adev->gfx.mec.num_pipe * MEC_HPD_SIZE * 2);
+	memset(hpd, 0, adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe * GFX7_MEC_HPD_SIZE * 2);
 
 	amdgpu_bo_kunmap(adev->gfx.mec.hpd_eop_obj);
 	amdgpu_bo_unreserve(adev->gfx.mec.hpd_eop_obj);
@@ -2978,7 +2977,7 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 		int me = (i < 4) ? 1 : 2;
 		int pipe = (i < 4) ? i : (i - 4);
 
-		eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr + (i * MEC_HPD_SIZE * 2);
+		eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr + (i * GFX7_MEC_HPD_SIZE * 2);
 
 		cik_srbm_select(adev, me, pipe, 0, 0);
 
@@ -2992,7 +2991,7 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 		/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
 		tmp = RREG32(mmCP_HPD_EOP_CONTROL);
 		tmp &= ~CP_HPD_EOP_CONTROL__EOP_SIZE_MASK;
-		tmp |= order_base_2(MEC_HPD_SIZE / 8);
+		tmp |= order_base_2(GFX7_MEC_HPD_SIZE / 8);
 		WREG32(mmCP_HPD_EOP_CONTROL, tmp);
 	}
 	cik_srbm_select(adev, 0, 0, 0, 0);

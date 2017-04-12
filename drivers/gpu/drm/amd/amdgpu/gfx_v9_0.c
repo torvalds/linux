@@ -39,6 +39,7 @@
 
 #define GFX9_NUM_GFX_RINGS     1
 #define GFX9_NUM_COMPUTE_RINGS 8
+#define GFX9_MEC_HPD_SIZE 2048
 #define RLCG_UCODE_LOADING_START_ADDRESS 0x00002000L
 #define RLC_SAVE_RESTORE_ADDR_STARTING_OFFSET 0x00000000L
 #define GFX9_RLC_FORMAT_DIRECT_REG_LIST_LENGTH 34
@@ -857,8 +858,6 @@ static void gfx_v9_0_mec_fini(struct amdgpu_device *adev)
 	}
 }
 
-#define MEC_HPD_SIZE 2048
-
 static int gfx_v9_0_mec_init(struct amdgpu_device *adev)
 {
 	int r;
@@ -879,7 +878,7 @@ static int gfx_v9_0_mec_init(struct amdgpu_device *adev)
 
 	if (adev->gfx.mec.hpd_eop_obj == NULL) {
 		r = amdgpu_bo_create(adev,
-				     adev->gfx.mec.num_queue * MEC_HPD_SIZE,
+				     adev->gfx.mec.num_queue * GFX9_MEC_HPD_SIZE,
 				     PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
 				     &adev->gfx.mec.hpd_eop_obj);
@@ -972,7 +971,7 @@ static int gfx_v9_0_kiq_init(struct amdgpu_device *adev)
 	u32 *hpd;
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 
-	r = amdgpu_bo_create_kernel(adev, MEC_HPD_SIZE, PAGE_SIZE,
+	r = amdgpu_bo_create_kernel(adev, GFX9_MEC_HPD_SIZE, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_GTT, &kiq->eop_obj,
 				    &kiq->eop_gpu_addr, (void **)&hpd);
 	if (r) {
@@ -980,7 +979,7 @@ static int gfx_v9_0_kiq_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	memset(hpd, 0, MEC_HPD_SIZE);
+	memset(hpd, 0, GFX9_MEC_HPD_SIZE);
 
 	r = amdgpu_bo_reserve(kiq->eop_obj, true);
 	if (unlikely(r != 0))
@@ -1495,7 +1494,7 @@ static int gfx_v9_0_sw_init(void *handle)
 		ring->me = 1; /* first MEC */
 		ring->pipe = i / 8;
 		ring->queue = i % 8;
-		ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr + (i * MEC_HPD_SIZE);
+		ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr + (i * GFX9_MEC_HPD_SIZE);
 		sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
 		/* type-2 packets are deprecated on MEC, use type-3 instead */
@@ -2672,7 +2671,7 @@ static int gfx_v9_0_mqd_init(struct amdgpu_ring *ring)
 	/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
 	tmp = RREG32_SOC15(GC, 0, mmCP_HQD_EOP_CONTROL);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_EOP_CONTROL, EOP_SIZE,
-			(order_base_2(MEC_HPD_SIZE / 4) - 1));
+			(order_base_2(GFX9_MEC_HPD_SIZE / 4) - 1));
 
 	mqd->cp_hqd_eop_control = tmp;
 
