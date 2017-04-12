@@ -376,34 +376,16 @@ int atomisp_reset(struct atomisp_device *isp)
 }
 
 /*
- * interrupt enable/disable functions
+ * interrupt disable functions
  */
-static void enable_isp_irq(enum hrt_isp_css_irq irq, bool enable)
+static void disable_isp_irq(enum hrt_isp_css_irq irq)
 {
-	if (enable) {
-		irq_enable_channel(IRQ0_ID, irq);
-		/*sh_css_hrt_irq_enable(irq, true, false);*/
-		switch (irq) { /*We only have sp interrupt right now*/
-		case hrt_isp_css_irq_sp:
-			/*sh_css_hrt_irq_enable_sp(true);*/
-			cnd_sp_irq_enable(SP0_ID, true);
-			break;
-		default:
-			break;
-		}
+	irq_disable_channel(IRQ0_ID, irq);
 
-	} else {
-		/*sh_css_hrt_irq_disable(irq);*/
-		irq_disable_channel(IRQ0_ID, irq);
-		switch (irq) {
-		case hrt_isp_css_irq_sp:
-			/*sh_css_hrt_irq_enable_sp(false);*/
-			cnd_sp_irq_enable(SP0_ID, false);
-			break;
-		default:
-			break;
-		}
-	}
+	if (irq != hrt_isp_css_irq_sp)
+		return;
+
+	cnd_sp_irq_enable(SP0_ID, false);
 }
 
 /*
@@ -1416,7 +1398,7 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 	}
 
 	/* clear irq */
-	enable_isp_irq(hrt_isp_css_irq_sp, false);
+	disable_isp_irq(hrt_isp_css_irq_sp);
 	clear_isp_irq(hrt_isp_css_irq_sp);
 
 	/* Set the SRSE to 3 before resetting */
