@@ -176,7 +176,6 @@ static void cmd_complete(struct afu_cmd *cmd)
 		dev_dbg_ratelimited(dev, "%s:scp=%p result=%08x ioasc=%08x\n",
 				    __func__, scp, scp->result, cmd->sa.ioasc);
 
-		scsi_dma_unmap(scp);
 		scp->scsi_done(scp);
 
 		if (cmd_is_tmf) {
@@ -445,7 +444,6 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	struct scatterlist *sg = scsi_sglist(scp);
 	u16 req_flags = SISL_REQ_FLAGS_SUP_UNDERRUN;
 	ulong lock_flags;
-	int nseg = 0;
 	int rc = 0;
 
 	dev_dbg_ratelimited(dev, "%s: (scp=%p) %d/%d/%d/%llu "
@@ -487,15 +485,8 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	}
 
 	if (likely(sg)) {
-		nseg = scsi_dma_map(scp);
-		if (unlikely(nseg < 0)) {
-			dev_err(dev, "%s: Fail DMA map\n", __func__);
-			rc = SCSI_MLQUEUE_HOST_BUSY;
-			goto out;
-		}
-
-		cmd->rcb.data_len = sg_dma_len(sg);
-		cmd->rcb.data_ea = sg_dma_address(sg);
+		cmd->rcb.data_len = sg->length;
+		cmd->rcb.data_ea = (uintptr_t)sg_virt(sg);
 	}
 
 	cmd->scp = scp;
@@ -513,8 +504,6 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	memcpy(cmd->rcb.cdb, scp->cmnd, sizeof(cmd->rcb.cdb));
 
 	rc = afu->send_cmd(afu, cmd);
-	if (unlikely(rc))
-		scsi_dma_unmap(scp);
 out:
 	return rc;
 }
