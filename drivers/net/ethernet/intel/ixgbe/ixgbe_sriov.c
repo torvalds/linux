@@ -1347,18 +1347,26 @@ void ixgbe_ping_all_vfs(struct ixgbe_adapter *adapter)
 int ixgbe_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	if (!is_valid_ether_addr(mac) || (vf >= adapter->num_vfs))
+
+	if (vf >= adapter->num_vfs)
 		return -EINVAL;
-	adapter->vfinfo[vf].pf_set_mac = true;
-	dev_info(&adapter->pdev->dev, "setting MAC %pM on VF %d\n", mac, vf);
-	dev_info(&adapter->pdev->dev, "Reload the VF driver to make this"
-				      " change effective.");
-	if (test_bit(__IXGBE_DOWN, &adapter->state)) {
-		dev_warn(&adapter->pdev->dev, "The VF MAC address has been set,"
-			 " but the PF device is not up.\n");
-		dev_warn(&adapter->pdev->dev, "Bring the PF device up before"
-			 " attempting to use the VF device.\n");
+
+	if (is_zero_ether_addr(mac)) {
+		adapter->vfinfo[vf].pf_set_mac = false;
+		dev_info(&adapter->pdev->dev, "removing MAC on VF %d\n", vf);
+	} else if (is_valid_ether_addr(mac)) {
+		adapter->vfinfo[vf].pf_set_mac = true;
+		dev_info(&adapter->pdev->dev, "setting MAC %pM on VF %d\n",
+			 mac, vf);
+		dev_info(&adapter->pdev->dev, "Reload the VF driver to make this change effective.");
+		if (test_bit(__IXGBE_DOWN, &adapter->state)) {
+			dev_warn(&adapter->pdev->dev, "The VF MAC address has been set, but the PF device is not up.\n");
+			dev_warn(&adapter->pdev->dev, "Bring the PF device up before attempting to use the VF device.\n");
+		}
+	} else {
+		return -EINVAL;
 	}
+
 	return ixgbe_set_vf_mac(adapter, vf, mac);
 }
 
