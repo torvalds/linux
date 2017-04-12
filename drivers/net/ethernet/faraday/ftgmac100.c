@@ -92,6 +92,7 @@ struct ftgmac100 {
 
 	/* Misc */
 	bool need_mac_restart;
+	bool is_aspeed;
 };
 
 static void ftgmac100_set_rx_ring_base(struct ftgmac100 *priv, dma_addr_t addr)
@@ -1322,8 +1323,7 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 	if (!priv->mii_bus)
 		return -EIO;
 
-	if (of_machine_is_compatible("aspeed,ast2400") ||
-	    of_machine_is_compatible("aspeed,ast2500")) {
+	if (priv->is_aspeed) {
 		/* This driver supports the old MDIO interface */
 		reg = ioread32(priv->base + FTGMAC100_OFFSET_REVR);
 		reg &= ~FTGMAC100_REVR_NEW_MDIO_INTERFACE;
@@ -1388,6 +1388,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	int irq;
 	struct net_device *netdev;
 	struct ftgmac100 *priv;
+	struct device_node *np;
 	int err = 0;
 
 	if (!pdev)
@@ -1443,17 +1444,18 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	/* MAC address from chip or random one */
 	ftgmac100_setup_mac(priv);
 
-	if (of_machine_is_compatible("aspeed,ast2400") ||
-	    of_machine_is_compatible("aspeed,ast2500")) {
+	np = pdev->dev.of_node;
+	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac") ||
+		   of_device_is_compatible(np, "aspeed,ast2500-mac"))) {
 		priv->rxdes0_edorr_mask = BIT(30);
 		priv->txdes0_edotr_mask = BIT(30);
+		priv->is_aspeed = true;
 	} else {
 		priv->rxdes0_edorr_mask = BIT(15);
 		priv->txdes0_edotr_mask = BIT(15);
 	}
 
-	if (pdev->dev.of_node &&
-	    of_get_property(pdev->dev.of_node, "use-ncsi", NULL)) {
+	if (np && of_get_property(np, "use-ncsi", NULL)) {
 		if (!IS_ENABLED(CONFIG_NET_NCSI)) {
 			dev_err(&pdev->dev, "NCSI stack not enabled\n");
 			goto err_ncsi_dev;
@@ -1478,7 +1480,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	netdev->features = NETIF_F_RXCSUM | NETIF_F_HW_CSUM |
 		NETIF_F_GRO | NETIF_F_SG;
 	if (priv->use_ncsi &&
-	    of_get_property(pdev->dev.of_node, "no-hw-checksum", NULL))
+	    of_get_property(np, "no-hw-checksum", NULL))
 		netdev->features &= ~NETIF_F_HW_CSUM;
 
 	/* register network device */
