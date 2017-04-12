@@ -1155,7 +1155,7 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 	int i;
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 
-	if (stream_status->surface_count != surface_count)
+	if (stream_status == NULL || stream_status->surface_count != surface_count)
 		return UPDATE_TYPE_FULL;
 
 	if (stream_update)

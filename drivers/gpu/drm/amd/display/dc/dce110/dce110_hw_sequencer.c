@@ -1599,11 +1599,11 @@ enum dc_status dce110_apply_ctx_to_hw(
 	apply_min_clocks(dc, context, &clocks_state, true);
 
 	if (context->dispclk_khz
-			> dc->current_context->dispclk_khz)
+			> dc->current_context->dispclk_khz) {
 		context->res_ctx.pool->display_clock->funcs->set_clock(
 				context->res_ctx.pool->display_clock,
 				context->dispclk_khz * 115 / 100);
-
+	}
 	/* program audio wall clock. use HDMI as clock source if HDMI
 	 * audio active. Otherwise, use DP as clock source
 	 * first, loop to find any HDMI audio, if not, loop find DP audio
