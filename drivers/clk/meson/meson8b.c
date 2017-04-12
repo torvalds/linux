@@ -245,6 +245,96 @@ static struct clk_fixed_factor meson8b_fclk_div7 = {
 	},
 };
 
+static struct meson_clk_mpll meson8b_mpll0 = {
+	.sdm = {
+		.reg_off = HHI_MPLL_CNTL7,
+		.shift   = 0,
+		.width   = 14,
+	},
+	.sdm_en = {
+		.reg_off = HHI_MPLL_CNTL7,
+		.shift   = 15,
+		.width   = 1,
+	},
+	.n2 = {
+		.reg_off = HHI_MPLL_CNTL7,
+		.shift   = 16,
+		.width   = 9,
+	},
+	.en = {
+		.reg_off = HHI_MPLL_CNTL7,
+		.shift   = 14,
+		.width   = 1,
+	},
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll0",
+		.ops = &meson_clk_mpll_ops,
+		.parent_names = (const char *[]){ "fixed_pll" },
+		.num_parents = 1,
+	},
+};
+
+static struct meson_clk_mpll meson8b_mpll1 = {
+	.sdm = {
+		.reg_off = HHI_MPLL_CNTL8,
+		.shift   = 0,
+		.width   = 14,
+	},
+	.sdm_en = {
+		.reg_off = HHI_MPLL_CNTL8,
+		.shift   = 15,
+		.width   = 1,
+	},
+	.n2 = {
+		.reg_off = HHI_MPLL_CNTL8,
+		.shift   = 16,
+		.width   = 9,
+	},
+	.en = {
+		.reg_off = HHI_MPLL_CNTL8,
+		.shift   = 14,
+		.width   = 1,
+	},
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll1",
+		.ops = &meson_clk_mpll_ops,
+		.parent_names = (const char *[]){ "fixed_pll" },
+		.num_parents = 1,
+	},
+};
+
+static struct meson_clk_mpll meson8b_mpll2 = {
+	.sdm = {
+		.reg_off = HHI_MPLL_CNTL9,
+		.shift   = 0,
+		.width   = 14,
+	},
+	.sdm_en = {
+		.reg_off = HHI_MPLL_CNTL9,
+		.shift   = 15,
+		.width   = 1,
+	},
+	.n2 = {
+		.reg_off = HHI_MPLL_CNTL9,
+		.shift   = 16,
+		.width   = 9,
+	},
+	.en = {
+		.reg_off = HHI_MPLL_CNTL9,
+		.shift   = 14,
+		.width   = 1,
+	},
+	.lock = &clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "mpll2",
+		.ops = &meson_clk_mpll_ops,
+		.parent_names = (const char *[]){ "fixed_pll" },
+		.num_parents = 1,
+	},
+};
+
 /*
  * FIXME cpu clocks and the legacy composite clocks (e.g. clk81) are both PLL
  * post-dividers and should be modeled with their respective PLLs via the
@@ -491,6 +581,9 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_AO_AHB_SRAM]	    = &meson8b_ao_ahb_sram.hw,
 		[CLKID_AO_AHB_BUS]	    = &meson8b_ao_ahb_bus.hw,
 		[CLKID_AO_IFACE]	    = &meson8b_ao_iface.hw,
+		[CLKID_MPLL0]		    = &meson8b_mpll0.hw,
+		[CLKID_MPLL1]		    = &meson8b_mpll1.hw,
+		[CLKID_MPLL2]		    = &meson8b_mpll2.hw,
 	},
 	.num = CLK_NR_CLKS,
 };
@@ -501,7 +594,13 @@ static struct meson_clk_pll *const meson8b_clk_plls[] = {
 	&meson8b_sys_pll,
 };
 
-static struct clk_gate *meson8b_clk_gates[] = {
+static struct meson_clk_mpll *const meson8b_clk_mplls[] = {
+	&meson8b_mpll0,
+	&meson8b_mpll1,
+	&meson8b_mpll2,
+};
+
+static struct clk_gate *const meson8b_clk_gates[] = {
 	&meson8b_clk81,
 	&meson8b_ddr,
 	&meson8b_dos,
@@ -582,6 +681,14 @@ static struct clk_gate *meson8b_clk_gates[] = {
 	&meson8b_ao_iface,
 };
 
+static struct clk_mux *const meson8b_clk_muxes[] = {
+	&meson8b_mpeg_clk_sel,
+};
+
+static struct clk_divider *const meson8b_clk_dividers[] = {
+	&meson8b_mpeg_clk_div,
+};
+
 static int meson8b_clkc_probe(struct platform_device *pdev)
 {
 	void __iomem *clk_base;
@@ -601,17 +708,27 @@ static int meson8b_clkc_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(meson8b_clk_plls); i++)
 		meson8b_clk_plls[i]->base = clk_base;
 
+	/* Populate base address for MPLLs */
+	for (i = 0; i < ARRAY_SIZE(meson8b_clk_mplls); i++)
+		meson8b_clk_mplls[i]->base = clk_base;
+
 	/* Populate the base address for CPU clk */
 	meson8b_cpu_clk.base = clk_base;
-
-	/* Populate the base address for the MPEG clks */
-	meson8b_mpeg_clk_sel.reg = clk_base + (u32)meson8b_mpeg_clk_sel.reg;
-	meson8b_mpeg_clk_div.reg = clk_base + (u32)meson8b_mpeg_clk_div.reg;
 
 	/* Populate base address for gates */
 	for (i = 0; i < ARRAY_SIZE(meson8b_clk_gates); i++)
 		meson8b_clk_gates[i]->reg = clk_base +
 			(u32)meson8b_clk_gates[i]->reg;
+
+	/* Populate base address for muxes */
+	for (i = 0; i < ARRAY_SIZE(meson8b_clk_muxes); i++)
+		meson8b_clk_muxes[i]->reg = clk_base +
+			(u32)meson8b_clk_muxes[i]->reg;
+
+	/* Populate base address for dividers */
+	for (i = 0; i < ARRAY_SIZE(meson8b_clk_dividers); i++)
+		meson8b_clk_dividers[i]->reg = clk_base +
+			(u32)meson8b_clk_dividers[i]->reg;
 
 	/*
 	 * register all clks
