@@ -75,9 +75,8 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			    int duty_ns, int period_ns)
 {
 	struct tegra_pwm_chip *pc = to_tegra_pwm_chip(chip);
-	unsigned long long c = duty_ns;
-	unsigned long rate, hz;
-	unsigned long long ns100 = NSEC_PER_SEC;
+	unsigned long long c = duty_ns, hz;
+	unsigned long rate;
 	u32 val = 0;
 	int err;
 
@@ -98,9 +97,8 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	rate = clk_get_rate(pc->clk) >> PWM_DUTY_WIDTH;
 
 	/* Consider precision in PWM_SCALE_WIDTH rate calculation */
-	ns100 *= 100;
-	hz = DIV_ROUND_CLOSEST_ULL(ns100, period_ns);
-	rate = DIV_ROUND_CLOSEST(rate * 100, hz);
+	hz = DIV_ROUND_CLOSEST_ULL(100ULL * NSEC_PER_SEC, period_ns);
+	rate = DIV_ROUND_CLOSEST_ULL(100ULL * rate, hz);
 
 	/*
 	 * Since the actual PWM divider is the register's frequency divider
