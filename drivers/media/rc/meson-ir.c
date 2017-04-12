@@ -130,7 +130,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	ir->rc = rc_allocate_device(RC_DRIVER_IR_RAW);
+	ir->rc = devm_rc_allocate_device(dev, RC_DRIVER_IR_RAW);
 	if (!ir->rc) {
 		dev_err(dev, "failed to allocate rc device\n");
 		return -ENOMEM;
@@ -142,7 +142,6 @@ static int meson_ir_probe(struct platform_device *pdev)
 	ir->rc->input_id.bustype = BUS_HOST;
 	map_name = of_get_property(node, "linux,rc-map-name", NULL);
 	ir->rc->map_name = map_name ? map_name : RC_MAP_EMPTY;
-	ir->rc->dev.parent = dev;
 	ir->rc->allowed_protocols = RC_BIT_ALL_IR_DECODER;
 	ir->rc->rx_resolution = US_TO_NS(MESON_TRATE);
 	ir->rc->timeout = MS_TO_NS(200);
@@ -151,16 +150,16 @@ static int meson_ir_probe(struct platform_device *pdev)
 	spin_lock_init(&ir->lock);
 	platform_set_drvdata(pdev, ir);
 
-	ret = rc_register_device(ir->rc);
+	ret = devm_rc_register_device(dev, ir->rc);
 	if (ret) {
 		dev_err(dev, "failed to register rc device\n");
-		goto out_free;
+		return ret;
 	}
 
 	ret = devm_request_irq(dev, irq, meson_ir_irq, 0, "ir-meson", ir);
 	if (ret) {
 		dev_err(dev, "failed to request irq\n");
-		goto out_unreg;
+		return ret;
 	}
 
 	/* Reset the decoder */
@@ -186,13 +185,6 @@ static int meson_ir_probe(struct platform_device *pdev)
 	dev_info(dev, "receiver initialized\n");
 
 	return 0;
-out_unreg:
-	rc_unregister_device(ir->rc);
-	ir->rc = NULL;
-out_free:
-	rc_free_device(ir->rc);
-
-	return ret;
 }
 
 static int meson_ir_remove(struct platform_device *pdev)
@@ -204,8 +196,6 @@ static int meson_ir_remove(struct platform_device *pdev)
 	spin_lock_irqsave(&ir->lock, flags);
 	meson_ir_set_mask(ir, IR_DEC_REG1, REG1_ENABLE, 0);
 	spin_unlock_irqrestore(&ir->lock, flags);
-
-	rc_unregister_device(ir->rc);
 
 	return 0;
 }
