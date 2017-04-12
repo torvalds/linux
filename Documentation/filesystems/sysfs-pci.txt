@@ -117,6 +117,10 @@ code must define HAVE_PCI_MMAP and provide a pci_mmap_page_range function.
 Platforms are free to only support subsets of the mmap functionality, but
 useful return codes should be provided.
 
+Platforms which support write-combining maps of PCI resources must define
+arch_can_pci_mmap_wc() which shall evaluate to non-zero at runtime when
+write-combining is permitted.
+
 Legacy resources are protected by the HAVE_PCI_LEGACY define.  Platforms
 wishing to support legacy functionality should define it and provide
 pci_legacy_read, pci_legacy_write and pci_mmap_legacy_page_range functions.

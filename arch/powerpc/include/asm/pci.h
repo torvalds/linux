@@ -81,8 +81,9 @@ struct vm_area_struct;
 int pci_mmap_page_range(struct pci_dev *pdev, struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state, int write_combine);
 
-/* Tell drivers/pci/proc.c that we have pci_mmap_page_range() */
-#define HAVE_PCI_MMAP	1
+/* Tell drivers/pci/proc.c that we have pci_mmap_page_range() and it does WC */
+#define HAVE_PCI_MMAP		1
+#define arch_can_pci_mmap_wc()	1
 
 extern int pci_legacy_read(struct pci_bus *bus, loff_t port, u32 *val,
 			   size_t count);

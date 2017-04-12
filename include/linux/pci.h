@@ -1626,6 +1626,10 @@ static inline int pci_get_new_domain_nr(void) { return -ENOSYS; }
 
 #include <asm/pci.h>
 
+#ifndef arch_can_pci_mmap_wc
+#define arch_can_pci_mmap_wc()		0
+#endif
+
 #ifndef pci_root_bus_fwnode
 #define pci_root_bus_fwnode(bus)	NULL
 #endif

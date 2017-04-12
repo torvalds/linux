@@ -1211,9 +1211,9 @@ static int pci_create_resource_files(struct pci_dev *pdev)
 
 		retval = pci_create_attr(pdev, i, 0);
 		/* for prefetchable resources, create a WC mappable file */
-		if (!retval && pdev->resource[i].flags & IORESOURCE_PREFETCH)
+		if (!retval && arch_can_pci_mmap_wc() &&
+		    pdev->resource[i].flags & IORESOURCE_PREFETCH)
 			retval = pci_create_attr(pdev, i, 1);
-
 		if (retval) {
 			pci_remove_resource_files(pdev);
 			return retval;

@@ -210,14 +210,15 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case PCIIOC_WRITE_COMBINE:
-		if (arg)
-			fpriv->write_combine = 1;
-		else
-			fpriv->write_combine = 0;
-		break;
-
+		if (arch_can_pci_mmap_wc()) {
+			if (arg)
+				fpriv->write_combine = 1;
+			else
+				fpriv->write_combine = 0;
+			break;
+		}
+		/* If arch decided it can't, fall through... */
 #endif /* HAVE_PCI_MMAP */
-
 	default:
 		ret = -EINVAL;
 		break;
