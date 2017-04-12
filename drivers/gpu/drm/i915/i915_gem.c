@@ -46,8 +46,6 @@
 #include <linux/dma-buf.h>
 
 static void i915_gem_flush_free_objects(struct drm_i915_private *i915);
-static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
-static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
 
 static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 {
@@ -705,6 +703,61 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 			       args->size, &args->handle);
 }
 
+static inline enum fb_op_origin
+fb_write_origin(struct drm_i915_gem_object *obj, unsigned int domain)
+{
+	return (domain == I915_GEM_DOMAIN_GTT ?
+		obj->frontbuffer_ggtt_origin : ORIGIN_CPU);
+}
+
+static void
+flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
+{
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+
+	if (!(obj->base.write_domain & flush_domains))
+		return;
+
+	/* No actual flushing is required for the GTT write domain.  Writes
+	 * to it "immediately" go to main memory as far as we know, so there's
+	 * no chipset flush.  It also doesn't land in render cache.
+	 *
+	 * However, we do have to enforce the order so that all writes through
+	 * the GTT land before any writes to the device, such as updates to
+	 * the GATT itself.
+	 *
+	 * We also have to wait a bit for the writes to land from the GTT.
+	 * An uncached read (i.e. mmio) seems to be ideal for the round-trip
+	 * timing. This issue has only been observed when switching quickly
+	 * between GTT writes and CPU reads from inside the kernel on recent hw,
+	 * and it appears to only affect discrete GTT blocks (i.e. on LLC
+	 * system agents we cannot reproduce this behaviour).
+	 */
+	wmb();
+
+	switch (obj->base.write_domain) {
+	case I915_GEM_DOMAIN_GTT:
+		if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv)) {
+			if (intel_runtime_pm_get_if_in_use(dev_priv)) {
+				spin_lock_irq(&dev_priv->uncore.lock);
+				POSTING_READ_FW(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
+				spin_unlock_irq(&dev_priv->uncore.lock);
+				intel_runtime_pm_put(dev_priv);
+			}
+		}
+
+		intel_fb_obj_flush(obj,
+				   fb_write_origin(obj, I915_GEM_DOMAIN_GTT));
+		break;
+
+	case I915_GEM_DOMAIN_CPU:
+		i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
+		break;
+	}
+
+	obj->base.write_domain = 0;
+}
+
 static inline int
 __copy_to_user_swizzled(char __user *cpu_vaddr,
 			const char *gpu_vaddr, int gpu_offset,
@@ -794,7 +847,7 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 			goto out;
 	}
 
-	i915_gem_object_flush_gtt_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* If we're not in the cpu read domain, set ourself into the gtt
 	 * read domain and manually flush cachelines (if required). This
@@ -846,7 +899,7 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 			goto out;
 	}
 
-	i915_gem_object_flush_gtt_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* If we're not in the cpu write domain, set ourself into the
 	 * gtt write domain and manually flush cachelines (as required).
@@ -1501,13 +1554,6 @@ err:
 	return ret;
 }
 
-static inline enum fb_op_origin
-write_origin(struct drm_i915_gem_object *obj, unsigned domain)
-{
-	return (domain == I915_GEM_DOMAIN_GTT ?
-		obj->frontbuffer_ggtt_origin : ORIGIN_CPU);
-}
-
 static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915;
@@ -1602,7 +1648,8 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	mutex_unlock(&dev->struct_mutex);
 
 	if (write_domain != 0)
-		intel_fb_obj_invalidate(obj, write_origin(obj, write_domain));
+		intel_fb_obj_invalidate(obj,
+					fb_write_origin(obj, write_domain));
 
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
@@ -3320,56 +3367,6 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 	return ret;
 }
 
-/** Flushes the GTT write domain for the object if it's dirty. */
-static void
-i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
-{
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-
-	if (obj->base.write_domain != I915_GEM_DOMAIN_GTT)
-		return;
-
-	/* No actual flushing is required for the GTT write domain.  Writes
-	 * to it "immediately" go to main memory as far as we know, so there's
-	 * no chipset flush.  It also doesn't land in render cache.
-	 *
-	 * However, we do have to enforce the order so that all writes through
-	 * the GTT land before any writes to the device, such as updates to
-	 * the GATT itself.
-	 *
-	 * We also have to wait a bit for the writes to land from the GTT.
-	 * An uncached read (i.e. mmio) seems to be ideal for the round-trip
-	 * timing. This issue has only been observed when switching quickly
-	 * between GTT writes and CPU reads from inside the kernel on recent hw,
-	 * and it appears to only affect discrete GTT blocks (i.e. on LLC
-	 * system agents we cannot reproduce this behaviour).
-	 */
-	wmb();
-	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv)) {
-		if (intel_runtime_pm_get_if_in_use(dev_priv)) {
-			spin_lock_irq(&dev_priv->uncore.lock);
-			POSTING_READ_FW(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
-			spin_unlock_irq(&dev_priv->uncore.lock);
-			intel_runtime_pm_put(dev_priv);
-		}
-	}
-
-	intel_fb_obj_flush(obj, write_origin(obj, I915_GEM_DOMAIN_GTT));
-
-	obj->base.write_domain = 0;
-}
-
-/** Flushes the CPU write domain for the object if it's dirty. */
-static void
-i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
-{
-	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU)
-		return;
-
-	i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
-	obj->base.write_domain = 0;
-}
-
 static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 {
 	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU && !obj->cache_dirty)
@@ -3428,7 +3425,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	i915_gem_object_flush_cpu_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_GTT);
 
 	/* Serialise direct access to this object with the barriers for
 	 * coherent writes from the GPU, by effectively invalidating the
@@ -3802,7 +3799,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU)
 		return 0;
 
-	i915_gem_object_flush_gtt_write_domain(obj);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* Flush the CPU cache if it's still invalid. */
 	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0) {
