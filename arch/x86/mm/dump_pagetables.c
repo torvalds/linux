@@ -111,7 +111,7 @@ static struct addr_marker address_markers[] = {
 #define PMD_LEVEL_MULT (PTRS_PER_PTE * PTE_LEVEL_MULT)
 #define PUD_LEVEL_MULT (PTRS_PER_PMD * PMD_LEVEL_MULT)
 #define P4D_LEVEL_MULT (PTRS_PER_PUD * PUD_LEVEL_MULT)
-#define PGD_LEVEL_MULT (PTRS_PER_PUD * P4D_LEVEL_MULT)
+#define PGD_LEVEL_MULT (PTRS_PER_P4D * P4D_LEVEL_MULT)
 
 #define pt_dump_seq_printf(m, to_dmesg, fmt, args...)		\
 ({								\
