@@ -174,6 +174,16 @@ static const struct block_device_operations md_fops;
 
 static int start_readonly;
 
+/*
+ * The original mechanism for creating an md device is to create
+ * a device node in /dev and to open it.  This causes races with device-close.
+ * The preferred method is to write to the "new_array" module parameter.
+ * This can avoid races.
+ * Setting create_on_open to false disables the original mechanism
+ * so all the races disappear.
+ */
+static bool create_on_open = true;
+
 /* bio_clone_mddev
  * like bio_clone, but with a local bio set
  */
@@ -5285,7 +5295,8 @@ static int md_alloc(dev_t dev, char *name)
 
 static struct kobject *md_probe(dev_t dev, int *part, void *data)
 {
-	md_alloc(dev, NULL);
+	if (create_on_open)
+		md_alloc(dev, NULL);
 	return NULL;
 }
 
@@ -9200,6 +9211,7 @@ static int set_ro(const char *val, struct kernel_param *kp)
 module_param_call(start_ro, set_ro, get_ro, NULL, S_IRUSR|S_IWUSR);
 module_param(start_dirty_degraded, int, S_IRUGO|S_IWUSR);
 module_param_call(new_array, add_named_array, NULL, NULL, S_IWUSR);
+module_param(create_on_open, bool, S_IRUSR|S_IWUSR);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MD RAID framework");
